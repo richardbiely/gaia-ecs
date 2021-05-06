@@ -81,7 +81,7 @@ private:
     auto alignedOffset = (uint32_t)sizeof(ChunkHeader) + componentOffset;
 
     // Add generic types
-    for (uint32_t i = 0u; i < genericTypes.size(); i++) {
+    for (uint32_t i = 0u; i < (uint32_t)genericTypes.size(); i++) {
       const auto a = genericTypes[i]->alig;
       if (a != 0) {
         const uint32_t padding = utils::align(alignedOffset, a) - alignedOffset;
@@ -106,7 +106,7 @@ private:
     }
 
     // Add chunk types
-    for (uint32_t i = 0; i < chunkTypes.size(); i++) {
+    for (uint32_t i = 0; i < (uint32_t)chunkTypes.size(); i++) {
       const auto a = genericTypes[i]->alig;
       if (a != 0) {
         const uint32_t padding = utils::align(alignedOffset, a) - alignedOffset;
@@ -147,7 +147,7 @@ private:
       return lastChunk;
 
     // Try previous chunks to fill empty spaces
-    for (int i = 0; i < (int)chunks.size() - 1; i++) {
+    for (uint32_t i = 0; i < (uint32_t)chunks.size() - 1; i++) {
       auto pChunk = chunks[i];
       if (pChunk && !pChunk->IsFull())
         return pChunk;
@@ -161,7 +161,8 @@ private:
 
   void RemoveChunk(Chunk *pChunk) {
     ReleaseChunk(pChunk);
-    auto it = std::find(chunks.begin(), chunks.end(), pChunk);
+    auto it = utils::Find(chunks, pChunk);
+    assert(it != chunks.end());
     chunks.erase(it);
   }
 
@@ -212,12 +213,8 @@ private:
   template <ComponentType TYPE, typename T>
   [[nodiscard]] bool HasComponent() const {
     const ComponentMetaData *type = GetOrCreateComponentMetaType<T>();
-    for (const auto &info : componentList[TYPE]) {
-      if (info.type == type)
-        return true;
-    }
-
-    return false;
+    utils::ContainsIf(componentList[TYPE],
+                      [type](const auto &info) { return info.type == type; });
   }
 
   template <ComponentType TYPE, typename... T>

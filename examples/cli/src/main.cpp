@@ -1,8 +1,4 @@
-﻿#define _CRT_SECURE_NO_DEPRECATE 1
-
-#include <iostream>
-
-#include "gaia/gaia.h"
+﻿#include "gaia/gaia.h"
 
 using namespace std;
 using namespace gaia;
