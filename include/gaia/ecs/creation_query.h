@@ -9,7 +9,7 @@ namespace gaia {
 namespace ecs {
 class CreationQuery final {
 private:
-  //! Number of components that can be a part of EntityQuery
+  //! Number of components that can be a part of CreationQuery
   static constexpr uint32_t MAX_COMPONENTS_IN_QUERY = 8u;
   friend class World;
 

@@ -26,10 +26,10 @@ private:
       std::vector<const ComponentMetaData *, ComponentMetaDataArrayAllocator>;
 
   // Keeps an array of ComponentMetaData hashes
-  using ChangeFilteredArrayAllocator =
+  using ChangeFilterArrayAllocator =
       stack_allocator<uint32_t, MAX_COMPONENTS_IN_QUERY>;
-  using ChangeFilteredArray =
-      std::vector<uint32_t, ChangeFilteredArrayAllocator>;
+  using ChangeFilterArray =
+      std::vector<uint32_t, ChangeFilterArrayAllocator>;
 
   struct ComponentListData {
     ComponentMetaDataArray listNone{};
@@ -43,7 +43,7 @@ private:
   //! List of querried components
   ComponentListData list[ComponentType::CT_Count]{};
   //! List of filtered components
-  ChangeFilteredArray listChangeFiltered[ComponentType::CT_Count]{};
+  ChangeFilterArray listChangeFiltered[ComponentType::CT_Count]{};
   //! Version of the world at which the querry was commited
   uint32_t m_committedWorldVersion = 0;
   //! If true, query needs to be commited. Set to true on structural changes
@@ -123,7 +123,7 @@ private:
   }
 
   template <typename TComponent>
-  bool SetChangedFilter_Internal(ChangeFilteredArray &arr,
+  bool SetChangedFilter_Internal(ChangeFilterArray &arr,
                                  ComponentListData &arrMeta) {
     using T = std::decay_t<TComponent>;
     static_assert(!std::is_same<T, Entity>::value,
@@ -184,7 +184,7 @@ private:
   }
 
   template <typename... TComponent>
-  void SetChangedFilter(ChangeFilteredArray &arr, ComponentListData &arrMeta) {
+  void SetChangedFilter(ChangeFilterArray &arr, ComponentListData &arrMeta) {
     (SetChangedFilter_Internal<TComponent>(arr, arrMeta) && ...);
   }
 

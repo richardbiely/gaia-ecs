@@ -1,8 +1,10 @@
 #pragma once
+#include <algorithm>
 #include <inttypes.h>
 #include <type_traits>
 #include <vector>
 
+#include "../utils/utils_std.h"
 #include "archetype.h"
 #include "chunk_header.h"
 #include "common.h"
@@ -44,17 +46,17 @@ private:
     assert(type != nullptr);
 
     const auto &componentList = GetArchetypeComponentList(header.owner, TYPE);
-    for (const auto &info : componentList) {
-      if (info.type == type) {
-        const uint32_t idxData = info.offset + type->size * index;
-        assert(idxData <= Chunk::DATA_SIZE);
-        return (void *)&data[idxData];
-      }
+    const auto it = utils::FindIf(
+        componentList, [type](const auto &info) { return info.type == type; });
+    if (it == componentList.end()) {
+      // Searching for a component that's not there! Programmer mistake.
+      assert(false);
+      return nullptr;
     }
 
-    // Searching for a component that's not there! Programmer mistake.
-    assert(false);
-    return nullptr;
+    const uint32_t idxData = it->offset + type->size * index;
+    assert(idxData <= Chunk::DATA_SIZE);
+    return (void *)&data[idxData];
   }
 
   [[nodiscard]] void *SetComponent_Internal(ComponentType TYPE,
@@ -65,7 +67,8 @@ private:
     assert(type != nullptr);
 
     const auto &componentList = GetArchetypeComponentList(header.owner, TYPE);
-    for (uint32_t componentIdx = 0; componentIdx < componentList.size();
+    for (uint32_t componentIdx = 0;
+         componentIdx < (uint32_t)componentList.size();
          ++componentIdx) // Views make sense only for Generic components
     {
       const auto &info = componentList[componentIdx];
@@ -104,13 +107,9 @@ private:
   [[nodiscard]] uint32_t GetComponentIdx_Internal(ComponentType TYPE,
                                                   uint32_t typeIdx) const {
     const auto &componentList = GetArchetypeComponentList(header.owner, TYPE);
-    for (uint32_t i = 0u; i < componentList.size(); i++) {
-      auto &info = componentList[i];
-      if (info.type->typeIndex == typeIdx)
-        return i;
-    }
-
-    return (uint32_t)-1;
+    return utils::GetIndexOfIf(componentList, [typeIdx](const auto &info) {
+      return info.type->typeIndex == typeIdx;
+    });
   }
 
   template <typename T>
@@ -122,12 +121,8 @@ private:
 
     const ComponentMetaData *type = GetComponentMetaType<TComponent>();
     const auto &componentList = GetArchetypeComponentList(header.owner, TYPE);
-    for (const auto &info : componentList) {
-      if (info.type == type)
-        return true;
-    }
-
-    return false;
+    return utils::ContainsIf(
+        componentList, [type](const auto &info) { return info.type == type; });
   }
 
   [[nodiscard]] uint32_t AddEntity(Entity entity) {
@@ -224,22 +219,19 @@ public:
 
     const ComponentMetaData *type = GetOrCreateComponentMetaType<TComponent>();
 
-    const auto &components = GetArchetypeComponentList(header.owner, TYPE);
-    for (uint32_t componentIdx = 0; componentIdx < components.size();
-         ++componentIdx) // Views make sense only for Generic components
-    {
-      const auto &info = components[componentIdx];
-      if (info.type != type)
-        continue;
-
-      // Update version number so we know RW access was used on chunk
-      header.UpdateLastWorldVersion(TYPE, componentIdx);
-      return (TComponent *)&data[info.offset];
+    const auto &componentList = GetArchetypeComponentList(header.owner, TYPE);
+    const auto componentIdx = utils::GetIndexOfIf(
+        componentList, [type](const auto &info) { return info.type == type; });
+    if (componentIdx == utils::BadIndex) {
+      // Searching for a component that's not there! Programmer mistake.
+      assert(false);
+      return nullptr;
     }
 
-    // Searching for a component that's not there! Programmer mistake.
-    assert(false);
-    return nullptr;
+    // Update version number so we know RW access was used on chunk
+    header.UpdateLastWorldVersion(TYPE, componentIdx);
+    const auto &info = componentList[componentIdx];
+    return (TComponent *)&data[info.offset];
   }
 
   template <typename T>
@@ -251,20 +243,16 @@ public:
 
     const ComponentMetaData *type = GetOrCreateComponentMetaType<TComponent>();
 
-    // Views make sense only for Generic components so we don't consider the
-    // other types
-    const auto &components = GetArchetypeComponentList(header.owner, TYPE);
-    for (const auto &info : components) {
-      if (info.type != type)
-        continue;
-
-      return (const TComponent *)&data[info.offset];
+    const auto &componentList = GetArchetypeComponentList(header.owner, TYPE);
+    const auto it = utils::FindIf(
+        componentList, [type](const auto &info) { return info.type == type; });
+    if (it == componentList.end()) {
+      // Searching for a component that's not there! Programmer mistake.
+      assert(false);
+      return nullptr;
     }
 
-    // Searching for a component that's not there! Programmer mistake.
-    // Programmer error
-    assert(false);
-    return nullptr;
+    return (const TComponent *)&data[it->offset];
   }
 
   [[nodiscard]] uint32_t GetComponentIdx(uint32_t typeIdx) const {

@@ -1,3 +1,6 @@
+# Example of how to link an external project with gaia-ecs library
+# previously installed somewhere
+
 cmake_minimum_required(VERSION 3.12)
 project(cli LANGUAGES CXX)
 

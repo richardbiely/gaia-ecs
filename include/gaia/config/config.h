@@ -1,7 +1,7 @@
 #pragma once
 #include "version.h"
 
-#define GAIA_DEBUG 0
+#define GAIA_DEBUG 1
 #define GAIA_FORCE_ASSERTS 0
 
 #define GAIA_ECS_DIAG_ARCHETYPES 1
