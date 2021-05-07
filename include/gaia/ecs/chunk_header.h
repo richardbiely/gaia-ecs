@@ -1,5 +1,7 @@
 #pragma once
 #include <inttypes.h>
+#include <stdint.h>
+#include <cassert>
 
 #include "common.h"
 #include "component.h"
@@ -25,10 +27,13 @@ public:
 
   ChunkHeader(const Archetype &archetype) : owner(archetype) {}
 
-  void UpdateLastWorldVersion(ComponentType TYPE, int componentIdx) {
+  void UpdateLastWorldVersion(ComponentType TYPE, uint32_t componentIdx) {
     const auto gv = GetWorldVersionFromArchetype(owner);
 
-    if (componentIdx >= 0) {
+    // Make sure only proper input is provided
+    assert(componentIdx != UINT32_MAX && componentIdx < MAX_COMPONENTS_PER_ARCHETYPE);
+
+    if (componentIdx != UINT32_MAX) {
       // Update the specific component's version
       versions[TYPE][componentIdx] = gv;
     } else {

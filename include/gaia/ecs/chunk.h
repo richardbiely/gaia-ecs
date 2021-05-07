@@ -42,7 +42,7 @@ private:
   Chunk(const Archetype &archetype) : header(archetype) {}
 
   [[nodiscard]] void *
-  GetComponent_Internal(ComponentType TYPE, const uint32_t index,
+  GetComponent_Internal(ComponentType TYPE, uint32_t index,
                         const ComponentMetaData *type) const {
     assert(index <= header.lastEntityIndex || index != (uint32_t)-1);
     // invalid component requests are a programmer's bug
@@ -60,8 +60,7 @@ private:
     return (void *)&data[idxData];
   }
 
-  [[nodiscard]] void *SetComponent_Internal(ComponentType TYPE,
-                                            const uint32_t index,
+  [[nodiscard]] void *SetComponent_Internal(ComponentType TYPE, uint32_t index,
                                             const ComponentMetaData *type) {
     assert(index <= header.lastEntityIndex || index != (uint32_t)-1);
     // invalid component requests are a programmer's bug
@@ -85,8 +84,8 @@ private:
   }
 
   template <typename T>
-  [[nodiscard]] std::decay_t<T> &
-  GetComponent_Internal(ComponentType TYPE, const uint32_t index) const {
+  [[nodiscard]] std::decay_t<T> &GetComponent_Internal(ComponentType TYPE,
+                                                       uint32_t index) const {
     using TComponent = std::decay_t<T>;
     const ComponentMetaData *type = GetComponentMetaType<TComponent>();
     return *(TComponent *)GetComponent_Internal(TYPE, index, type);
@@ -94,7 +93,7 @@ private:
 
   template <typename T>
   [[nodiscard]] std::decay_t<T> &SetComponent_Internal(ComponentType TYPE,
-                                                       const uint32_t index) {
+                                                       uint32_t index) {
     using TComponent = std::decay_t<T>;
     const ComponentMetaData *type = GetComponentMetaType<TComponent>();
     return *(TComponent *)SetComponent_Internal(TYPE, index, type);
@@ -127,8 +126,8 @@ private:
       index = 0;
     SetEntity(index) = entity;
 
-    header.UpdateLastWorldVersion(ComponentType::CT_Generic, -1);
-    header.UpdateLastWorldVersion(ComponentType::CT_Chunk, -1);
+    header.UpdateLastWorldVersion(ComponentType::CT_Generic, UINT32_MAX);
+    header.UpdateLastWorldVersion(ComponentType::CT_Chunk, UINT32_MAX);
 
     return header.lastEntityIndex;
   }
@@ -173,8 +172,8 @@ private:
                                       entities[entity.id()].entity.gen()};
     }
 
-    header.UpdateLastWorldVersion(ComponentType::CT_Generic, -1);
-    header.UpdateLastWorldVersion(ComponentType::CT_Chunk, -1);
+    header.UpdateLastWorldVersion(ComponentType::CT_Generic, UINT32_MAX);
+    header.UpdateLastWorldVersion(ComponentType::CT_Chunk, UINT32_MAX);
 
     --header.lastEntityIndex;
   }
