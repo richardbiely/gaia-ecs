@@ -8,6 +8,7 @@
 #include "../external/span.hpp"
 #include "../external/stack_allocator.h"
 #include "../utils/hashing_policy.h"
+#include "../utils/utility.h"
 #include "common.h"
 #include "fwd.h"
 
@@ -25,6 +26,7 @@ template <typename T> constexpr void VerifyComponent() {
 }
 
 template <typename... T> constexpr void VerifyComponents() {
+  static_assert(utils::is_unique<T...>);
   (VerifyComponent<T>(), ...);
 }
 

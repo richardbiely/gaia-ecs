@@ -31,7 +31,7 @@ public:
     const auto gv = GetWorldVersionFromArchetype(owner);
 
     // Make sure only proper input is provided
-    assert(componentIdx != UINT32_MAX && componentIdx < MAX_COMPONENTS_PER_ARCHETYPE);
+    assert(componentIdx == UINT32_MAX || componentIdx < MAX_COMPONENTS_PER_ARCHETYPE);
 
     if (componentIdx != UINT32_MAX) {
       // Update the specific component's version

@@ -213,7 +213,7 @@ private:
   template <ComponentType TYPE, typename T>
   [[nodiscard]] bool HasComponent() const {
     const ComponentMetaData *type = GetOrCreateComponentMetaType<T>();
-    utils::ContainsIf(componentList[TYPE],
+    return utils::ContainsIf(componentList[TYPE],
                       [type](const auto &info) { return info.type == type; });
   }
 

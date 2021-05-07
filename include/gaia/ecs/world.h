@@ -6,6 +6,7 @@
 
 #include "../config/config.h"
 #include "../external/span.hpp"
+#include "entity.h"
 #include "entity_query.h"
 #include "fwd.h"
 
