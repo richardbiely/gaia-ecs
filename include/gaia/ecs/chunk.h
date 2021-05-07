@@ -1,6 +1,9 @@
 #pragma once
 #include <algorithm>
+#include <cassert>
 #include <inttypes.h>
+#include <iterator>
+#include <stdint.h>
 #include <type_traits>
 #include <vector>
 
@@ -48,11 +51,9 @@ private:
     const auto &componentList = GetArchetypeComponentList(header.owner, TYPE);
     const auto it = utils::FindIf(
         componentList, [type](const auto &info) { return info.type == type; });
-    if (it == componentList.end()) {
-      // Searching for a component that's not there! Programmer mistake.
-      assert(false);
-      return nullptr;
-    }
+
+    // Searching for a component that's not there! Programmer mistake.
+    assert(it != componentList.end());
 
     const uint32_t idxData = it->offset + type->size * index;
     assert(idxData <= Chunk::DATA_SIZE);
@@ -67,25 +68,20 @@ private:
     assert(type != nullptr);
 
     const auto &componentList = GetArchetypeComponentList(header.owner, TYPE);
-    for (uint32_t componentIdx = 0;
-         componentIdx < (uint32_t)componentList.size();
-         ++componentIdx) // Views make sense only for Generic components
-    {
-      const auto &info = componentList[componentIdx];
-      if (info.type != type)
-        continue;
-
-      // Update version number so we know RW access was used on chunk
-      header.UpdateLastWorldVersion(TYPE, componentIdx);
-
-      const uint32_t idxData = info.offset + type->size * index;
-      assert(idxData <= Chunk::DATA_SIZE);
-      return (void *)&data[idxData];
-    }
+    const auto it = utils::FindIf(
+        componentList, [type](const auto &info) { return info.type == type; });
 
     // Searching for a component that's not there! Programmer mistake.
-    assert(false);
-    return nullptr;
+    const auto componentIdx =
+        (uint32_t)std::distance(componentList.begin(), it);
+    assert(componentIdx != utils::BadIndex);
+
+    // Update version number so we know RW access was used on chunk
+    header.UpdateLastWorldVersion(TYPE, componentIdx);
+
+    const uint32_t idxData = it->offset + type->size * index;
+    assert(idxData <= Chunk::DATA_SIZE);
+    return (void *)&data[idxData];
   }
 
   template <typename T>
@@ -220,13 +216,13 @@ public:
     const ComponentMetaData *type = GetOrCreateComponentMetaType<TComponent>();
 
     const auto &componentList = GetArchetypeComponentList(header.owner, TYPE);
-    const auto componentIdx = utils::GetIndexOfIf(
+    const auto it = utils::FindIf(
         componentList, [type](const auto &info) { return info.type == type; });
-    if (componentIdx == utils::BadIndex) {
-      // Searching for a component that's not there! Programmer mistake.
-      assert(false);
-      return nullptr;
-    }
+
+    // Searching for a component that's not there! Programmer mistake.
+    const auto componentIdx =
+        (uint32_t)std::distance(componentList.begin(), it);
+    assert(componentIdx != utils::BadIndex);
 
     // Update version number so we know RW access was used on chunk
     header.UpdateLastWorldVersion(TYPE, componentIdx);
@@ -246,11 +242,9 @@ public:
     const auto &componentList = GetArchetypeComponentList(header.owner, TYPE);
     const auto it = utils::FindIf(
         componentList, [type](const auto &info) { return info.type == type; });
-    if (it == componentList.end()) {
-      // Searching for a component that's not there! Programmer mistake.
-      assert(false);
-      return nullptr;
-    }
+
+    // Searching for a component that's not there! Programmer mistake.
+    assert(it != componentList.end());
 
     return (const TComponent *)&data[it->offset];
   }
