@@ -22,6 +22,7 @@ GAIA_MSVC_WARNING_PUSH()
 GAIA_MSVC_WARNING_DISABLE(4996)
 #include "gaia/external/stack_allocator.h"
 GAIA_MSVC_WARNING_POP()
+#include "gaia/external/span.hpp"
 
 #define GAIA_INIT                                                              \
   GAIA_ECS_WORLD_H_INIT                                                        \

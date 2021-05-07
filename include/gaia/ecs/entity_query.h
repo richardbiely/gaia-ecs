@@ -28,8 +28,7 @@ private:
   // Keeps an array of ComponentMetaData hashes
   using ChangeFilterArrayAllocator =
       stack_allocator<uint32_t, MAX_COMPONENTS_IN_QUERY>;
-  using ChangeFilterArray =
-      std::vector<uint32_t, ChangeFilterArrayAllocator>;
+  using ChangeFilterArray = std::vector<uint32_t, ChangeFilterArrayAllocator>;
 
   struct ComponentListData {
     ComponentMetaDataArray listNone{};
