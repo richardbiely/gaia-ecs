@@ -110,7 +110,7 @@ class GAIA_API World final {
       m_archetypeMap.insert({componentsHash, {newArch}});
     } else {
       auto &archetypes = it->second;
-      if (!utils::Contains(archetypes, newArch))
+      if (!utils::has(archetypes, newArch))
         archetypes.push_back(newArch);
     }
 
@@ -142,16 +142,16 @@ class GAIA_API World final {
   }
 
   void RemoveArchetype(Archetype *pArchetype) {
-    const auto idx = utils::GetIndexOf(m_archetypeList, pArchetype);
+    const auto idx = utils::get_index(m_archetypeList, pArchetype);
     if (idx == utils::BadIndex)
       return;
 
-    utils::FastErase(m_archetypeList, idx);
-    utils::FastErase(m_archetypeHashList, idx);
+    utils::erase_fast(m_archetypeList, idx);
+    utils::erase_fast(m_archetypeHashList, idx);
 
     const auto it = m_archetypeMap.find(pArchetype->componentsHash);
     if (it != m_archetypeMap.end())
-      utils::FastErase(it->second, utils::GetIndexOf(it->second, pArchetype));
+      utils::erase_fast(it->second, utils::get_index(it->second, pArchetype));
 
     delete pArchetype;
   }

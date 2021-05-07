@@ -49,7 +49,7 @@ private:
     assert(type != nullptr);
 
     const auto &componentList = GetArchetypeComponentList(header.owner, TYPE);
-    const auto it = utils::FindIf(
+    const auto it = utils::find_if(
         componentList, [type](const auto &info) { return info.type == type; });
 
     // Searching for a component that's not there! Programmer mistake.
@@ -67,7 +67,7 @@ private:
     assert(type != nullptr);
 
     const auto &componentList = GetArchetypeComponentList(header.owner, TYPE);
-    const auto it = utils::FindIf(
+    const auto it = utils::find_if(
         componentList, [type](const auto &info) { return info.type == type; });
 
     // Searching for a component that's not there! Programmer mistake.
@@ -102,7 +102,7 @@ private:
   [[nodiscard]] uint32_t GetComponentIdx_Internal(ComponentType TYPE,
                                                   uint32_t typeIdx) const {
     const auto &componentList = GetArchetypeComponentList(header.owner, TYPE);
-    return utils::GetIndexOfIf(componentList, [typeIdx](const auto &info) {
+    return utils::get_index_if(componentList, [typeIdx](const auto &info) {
       return info.type->typeIndex == typeIdx;
     });
   }
@@ -116,7 +116,7 @@ private:
 
     const ComponentMetaData *type = GetComponentMetaType<TComponent>();
     const auto &componentList = GetArchetypeComponentList(header.owner, TYPE);
-    return utils::ContainsIf(
+    return utils::has_if(
         componentList, [type](const auto &info) { return info.type == type; });
   }
 
@@ -215,7 +215,7 @@ public:
     const ComponentMetaData *type = GetOrCreateComponentMetaType<TComponent>();
 
     const auto &componentList = GetArchetypeComponentList(header.owner, TYPE);
-    const auto it = utils::FindIf(
+    const auto it = utils::find_if(
         componentList, [type](const auto &info) { return info.type == type; });
 
     // Searching for a component that's not there! Programmer mistake.
@@ -239,7 +239,7 @@ public:
     const ComponentMetaData *type = GetOrCreateComponentMetaType<TComponent>();
 
     const auto &componentList = GetArchetypeComponentList(header.owner, TYPE);
-    const auto it = utils::FindIf(
+    const auto it = utils::find_if(
         componentList, [type](const auto &info) { return info.type == type; });
 
     // Searching for a component that's not there! Programmer mistake.
