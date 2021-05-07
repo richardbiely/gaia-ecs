@@ -17,8 +17,7 @@ constexpr auto Find(const C<Args...> &arr,
   return std::find(arr.begin(), arr.end(), item);
 }
 
-template <template <typename...> class C, typename... Args,
-          class UnaryPredicate>
+template <class UnaryPredicate, template <typename...> class C, typename... Args>
 constexpr auto FindIf(const C<Args...> &arr, UnaryPredicate predicate) {
   return std::find_if(arr.begin(), arr.end(), predicate);
 }
@@ -33,8 +32,7 @@ constexpr uint32_t GetIndexOf(const C<Args...> &arr,
   return (uint32_t)std::distance(arr.begin(), it);
 }
 
-template <template <typename...> class C, typename... Args,
-          class UnaryPredicate>
+template <class UnaryPredicate, template <typename...> class C, typename... Args>
 constexpr uint32_t GetIndexOfIf(const C<Args...> &arr,
                                 UnaryPredicate predicate) {
   const auto it = FindIf(arr, predicate);
@@ -51,8 +49,7 @@ constexpr bool Contains(const C<Args...> &arr,
   return it != arr.end();
 }
 
-template <template <typename...> class C, typename... Args,
-          class UnaryPredicate>
+template <class UnaryPredicate, template <typename...> class C, typename... Args>
 constexpr bool ContainsIf(const C<Args...> &arr, UnaryPredicate predicate) {
   const auto it = FindIf(arr, predicate);
   return it != arr.end();
