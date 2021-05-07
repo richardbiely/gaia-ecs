@@ -92,7 +92,7 @@ private:
       return true;
     } else {
       const auto *metaType = GetOrCreateComponentMetaType<T>();
-      if (!utils::Contains(arr, metaType)) {
+      if (!utils::has(arr, metaType)) {
         if (arr.size() >= MAX_COMPONENTS_IN_QUERY) {
           assert(false &&
                  "Trying to create an ECS query with too many components!");
@@ -129,7 +129,7 @@ private:
                   "It doesn't make sense to use ChangedFilter with Entity");
 
     const auto *metaType = GetOrCreateComponentMetaType<T>();
-    if (!utils::Contains(arr, metaType->typeIndex)) {
+    if (!utils::has(arr, metaType->typeIndex)) {
       // There's a limit to the amount of components which we can store
       if (arr.size() >= MAX_COMPONENTS_IN_QUERY) {
         assert(

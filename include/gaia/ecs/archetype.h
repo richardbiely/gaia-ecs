@@ -161,7 +161,7 @@ private:
 
   void RemoveChunk(Chunk *pChunk) {
     ReleaseChunk(pChunk);
-    auto it = utils::Find(chunks, pChunk);
+    auto it = utils::find(chunks, pChunk);
     assert(it != chunks.end());
     chunks.erase(it);
   }
@@ -213,7 +213,7 @@ private:
   template <ComponentType TYPE, typename T>
   [[nodiscard]] bool HasComponent() const {
     const ComponentMetaData *type = GetOrCreateComponentMetaType<T>();
-    return utils::ContainsIf(componentList[TYPE],
+    return utils::has_if(componentList[TYPE],
                       [type](const auto &info) { return info.type == type; });
   }
 

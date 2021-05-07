@@ -270,7 +270,7 @@ namespace gaia
 
 #ifdef _DEBUG
 				// Fill allocated memory by 0xbaadf00d as MSVC does
-				utils::FillArray((uint32_t*)pfree, (uint32_t)((CHUNK_SIZE + 3) / sizeof(uint32_t)), 0x7fcdf00dU);
+				utils::fill_array((uint32_t*)pfree, (uint32_t)((CHUNK_SIZE + 3) / sizeof(uint32_t)), 0x7fcdf00dU);
 #endif
 
 				return pfree;
@@ -293,7 +293,7 @@ namespace gaia
 
 #ifdef _DEBUG
 				// Fill freed memory by 0xfeeefeee as MSVC does
-				utils::FillArray((uint32_t*)pointer, (int)(CHUNK_SIZE / sizeof(uint32_t)), 0xfeeefeeeU);
+				utils::fill_array((uint32_t*)pointer, (int)(CHUNK_SIZE / sizeof(uint32_t)), 0xfeeefeeeU);
 #endif
 
 				m_Block.m_iNumAllocations--;
