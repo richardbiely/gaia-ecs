@@ -2,41 +2,42 @@
 #include "../config/config.h"
 #include <ctype.h>
 #include <functional>
+#include <inttypes.h>
 #include <type_traits>
 
 namespace gaia {
 namespace utils {
-template <class __key> struct StdHashingPolicy {
-  typedef unsigned int HashValueType;
+template <class TKey> struct StdHashingPolicy {
+  typedef uint32_t HashValueType;
 
-  static HashValueType GetHash(const __key &val) {
-    return std::hash<__key>()(val);
+  static HashValueType GetHash(const TKey &val) {
+    return std::hash<TKey>()(val);
   }
 };
 
-template <class __key> struct PrehashedKeyPolicy {
-  typedef unsigned int HashValueType;
+template <class TKey> struct PrehashedKeyPolicy {
+  typedef uint32_t HashValueType;
 
-  static HashValueType GetHash(const __key &val) { return (unsigned int)val; }
+  static HashValueType GetHash(const TKey &val) { return (uint32_t)val; }
 };
 
-template <class __key> struct HashMethodPolicy {
-  typedef unsigned int HashValueType;
+template <class TKey> struct HashMethodPolicy {
+  typedef uint32_t HashValueType;
 
-  static HashValueType GetHash(const __key &val) { return val.GetHash(); }
+  static HashValueType GetHash(const TKey &val) { return val.GetHash(); }
 };
 
-template <class __key> struct StringHashingPolicyCS {
-  typedef unsigned int HashValueType;
+template <class TKey> struct StringHashingPolicyCS {
+  typedef uint32_t HashValueType;
 
-  static HashValueType GetHash(const __key &val) { return val.GetHashValue(); }
+  static HashValueType GetHash(const TKey &val) { return val.GetHashValue(); }
 };
 template <> struct StringHashingPolicyCS<const char *> {
-  typedef unsigned int HashValueType;
+  typedef uint32_t HashValueType;
 
   static HashValueType GetHash(const char *str) {
     int c;
-    unsigned int hashval = 0;
+    uint32_t hashval = 0;
 
     while ((c = *str++) != 0)
       hashval = hashval * 37 + c;
@@ -45,19 +46,17 @@ template <> struct StringHashingPolicyCS<const char *> {
   }
 };
 
-template <class __key> struct StringHashingPolicyCI {
-  typedef unsigned int HashValueType;
+template <class TKey> struct StringHashingPolicyCI {
+  typedef uint32_t HashValueType;
 
-  static HashValueType GetHash(const __key &val) {
-    return val.GetHashValueCI();
-  }
+  static HashValueType GetHash(const TKey &val) { return val.GetHashValueCI(); }
 };
 template <> struct StringHashingPolicyCI<const char *> {
-  typedef unsigned int HashValueType;
+  typedef uint32_t HashValueType;
 
   static HashValueType GetHash(const char *str) {
     int c;
-    unsigned int hashval = 0;
+    uint32_t hashval = 0;
 
     while ((c = *str++) != 0)
       hashval = hashval * 37 + tolower(c);
@@ -66,29 +65,29 @@ template <> struct StringHashingPolicyCI<const char *> {
   }
 };
 
-template <class K> struct SequentialKeyHash {
-  typedef unsigned int HashValueType;
+template <class TKey> struct SequentialKeyHash {
+  typedef uint32_t HashValueType;
 
-  static HashValueType GetHash(const K &val) {
+  static HashValueType GetHash(const TKey &val) {
     // Relies on implementation of GenericHashSet that uses all but 7 least
     // significant bits for initial probe position. 128 sequential keys would
     // thus fall into same bucket. Avoid this by rotating bits.
     HashValueType bottom = uintptr_t(val) << 7;
-    HashValueType top = (uintptr_t(val) >> (sizeof(K) * 8 - 7)) & 0x7F;
+    HashValueType top = (uintptr_t(val) >> (sizeof(TKey) * 8 - 7)) & 0x7F;
     return top | bottom;
   }
 };
 
-//! Hash bytes of the KeyT type
-template <class KeyT> struct MemoryHashingPolicy {
-  typedef unsigned int HashValueType;
+//! Hash bytes of the TKey type
+template <class TKey> struct MemoryHashingPolicy {
+  typedef uint32_t HashValueType;
 
-  static unsigned int GetHash(const KeyT &desc) {
-    constexpr unsigned int count = sizeof(KeyT);
+  static uint32_t GetHash(const TKey &desc) {
+    constexpr uint32_t count = sizeof(TKey);
     auto bytes = reinterpret_cast<const char *>(&desc);
-    unsigned int val = 1806131521;
-    for (unsigned int i = 0; i < count; ++i) {
-      val ^= static_cast<unsigned int>(bytes[i]);
+    uint32_t val = 1806131521;
+    for (uint32_t i = 0; i < count; ++i) {
+      val ^= static_cast<uint32_t>(bytes[i]);
       val *= 1674261049;
     }
 
@@ -99,96 +98,46 @@ template <class KeyT> struct MemoryHashingPolicy {
 #pragma region "Fowler-Noll-Vo hash"
 // Fowler-Noll-Vo hash is a fast public-domain hash function good for checksums
 
-constexpr unsigned int val_32_const = 0x811c9dc5;
-constexpr unsigned int prime_32_const = 0x1000193;
+constexpr uint32_t val_32_const = 0x811c9dc5;
+constexpr uint32_t prime_32_const = 0x1000193;
 
-#if 1
-constexpr unsigned int
-hash_fnv1a_32(const char *const str,
-              const unsigned int value = val_32_const) noexcept {
+constexpr uint32_t hash_fnv1a_32(const char *const str,
+                                 const uint32_t value = val_32_const) noexcept {
   return (str[0] == '\0')
              ? value
              : hash_fnv1a_32(&str[1],
-                             (value ^ (unsigned int)(str[0])) * prime_32_const);
+                             (value ^ (uint32_t)(str[0])) * prime_32_const);
 }
-#else
-inline const unsigned int hash_fnv1a_32(const char *str) {
-  unsigned int hash = val_32_const;
-  unsigned int prime = prime_32_const;
 
-  unsigned int i = 0;
-  while (str[i] != '\0') {
-    unsigned int8 value = str[i++];
-    hash = hash ^ value;
-    hash *= prime;
-  }
+constexpr uint64_t val_64_const = 0xcbf29ce484222325;
+constexpr uint64_t prime_64_const = 0x100000001b3;
 
-  return hash;
-}
-#endif
-
-constexpr unsigned long long val_64_const = 0xcbf29ce484222325;
-constexpr unsigned long long prime_64_const = 0x100000001b3;
-
-#if 1
-constexpr unsigned long long
-hash_fnv1a_64(const char *const str,
-              const unsigned long long value = val_64_const) noexcept {
+constexpr uint64_t hash_fnv1a_64(const char *const str,
+                                 const uint64_t value = val_64_const) noexcept {
   return (str[0] == '\0')
              ? value
-             : hash_fnv1a_64(&str[1], (value ^ (unsigned long long)(str[0])) *
-                                          prime_64_const);
+             : hash_fnv1a_64(&str[1],
+                             (value ^ (uint64_t)(str[0])) * prime_64_const);
 }
-#else
-inline const unsigned long long hash_fnv1a(const char *str) {
-  unsigned long long hash = val_64_const;
-  unsigned long long prime = prime_64_const;
 
-  unsigned int i = 0;
-  while (str[i] != '\0') {
-    unsigned int8 value = str[i++];
-    hash = hash ^ value;
-    hash *= prime;
-  }
+template <class TKey> struct Fnv1a32HashingPolicy {
+  using HashValueType = uint32_t;
 
-  return hash;
-}
-#endif
-
-#pragma region "Type meta data"
-
-struct TypeMetaData {
-  template <typename T>
-  [[nodiscard]] static constexpr const char *GetMetaName() noexcept {
-    return GAIA_PRETTY_FUNCTION;
-  }
-
-  template <typename T>
-  [[nodiscard]] static constexpr unsigned long long CalculateNameHash() {
-    return hash_fnv1a_64(GetMetaName<std::decay_t<T>>());
-  }
-};
-
-#pragma endregion
-
-template <class __key> struct Fnv1a32HashingPolicy {
-  using HashValueType = unsigned int;
-
-  static HashValueType GetHash(const __key &val) { return val.GetHashValue(); }
+  static HashValueType GetHash(const TKey &val) { return val.GetHashValue(); }
 };
 template <> struct Fnv1a32HashingPolicy<const char *> {
-  using HashValueType = unsigned int;
+  using HashValueType = uint32_t;
 
   static HashValueType GetHash(const char *str) { return hash_fnv1a_32(str); }
 };
 
-template <class __key> struct Fnv1a64HashingPolicy {
-  using HashValueType = unsigned long long;
+template <class TKey> struct Fnv1a64HashingPolicy {
+  using HashValueType = uint64_t;
 
-  static HashValueType GetHash(const __key &val) { return val.GetHashValue(); }
+  static HashValueType GetHash(const TKey &val) { return val.GetHashValue(); }
 };
 template <> struct Fnv1a64HashingPolicy<const char *> {
-  using HashValueType = unsigned long long;
+  using HashValueType = uint64_t;
 
   static HashValueType GetHash(const char *str) { return hash_fnv1a_64(str); }
 };

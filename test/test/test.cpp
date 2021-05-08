@@ -5,7 +5,6 @@ GAIA_INIT
 #define CATCH_CONFIG_MAIN
 #include <catch2/catch.hpp>
 
-using namespace std;
 using namespace gaia;
 
 TEST_CASE("CreateEntity") {
@@ -37,6 +36,10 @@ TEST_CASE("Example") {
   ecs::World world;
 
   // Creation query
+
+  LOG_N(">>>>>> %s", utils::type_info::full_name<Else>());
+  LOG_N(">>>>>> %.*s", (int)utils::type_info::name<Else>().length(), utils::type_info::name<Else>().data());
+  LOG_N(">>>>>> %llu", utils::type_info::hash<Else>());
 
   ecs::CreationQuery q1;
   q1.AddComponent<Position, Acceleration, Rotation, Something>();

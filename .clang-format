@@ -1,0 +1,12 @@
+---
+BasedOnStyle: LLVM
+IndentWidth: 2
+TabWidth: 2
+---
+Language: Cpp
+DeriveLineEnding: false
+UseCRLF: true
+DerivePointerAlignment: false
+PointerAlignment: Left
+AlignAfterOpenBracket: BAS_AlwaysBreak
+Cpp11BracedListStyle: true
