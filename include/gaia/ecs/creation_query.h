@@ -2,8 +2,10 @@
 #include <type_traits>
 #include <vector>
 
+#include "../external/stack_allocator.h"
 #include "component.h"
 #include "fwd.h"
+
 
 namespace gaia {
 namespace ecs {

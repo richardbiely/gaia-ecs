@@ -136,22 +136,15 @@ private:
             false &&
             "Trying to create an ECS filter query with too many components!");
 #if GAIA_DEBUG
-        LOG_E("Trying to add ECS component %s to an already full filter query!",
-              metaType->name);
-        LOG_W("Already present:");
-        for (auto i = 0; i < arr.size(); i++) {
-          const ComponentMetaData *meta = nullptr;
-          for (const auto &c : g_ComponentMetaTypeCache)
-            if (c->typeIndex == arr[i])
-              meta = c;
-          // Quaranteed to exists because filters are added via
-          // GetOrCreateComponentMetaType. Asserting in case something changes
-          // in the future
-          assert(meta != nullptr);
-          LOG_W("> [%u] %s", i, meta->name);
+        LOG_E(
+            "Trying to add ECS component %.*s to an already full filter query!",
+            (uint32_t)metaType->name.length(), metaType->name.data());
+        LOG_E("Already present:");
+        for (auto i = 0; i < (uint32_t)arr.size(); i++) {
+          const auto meta = GetComponentMetaTypeFromIdx(arr[i]);
+          LOG_E("> [%u] %.*s", i, (uint32_t)meta->name.length(),
+                meta->name.data());
         }
-        LOG_W("Trying to add:");
-        LOG_W("> %s", metaType->name);
 #endif
         return false;
       }
