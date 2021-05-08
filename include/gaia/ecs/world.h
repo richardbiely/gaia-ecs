@@ -341,7 +341,8 @@ class GAIA_API World final {
         std::string_view newNames[] = {utils::type_info::name<TComponent>()...};
         LOG_W("Trying to add:");
         for (uint32_t i = 0; i < newTypesCount; i++)
-          LOG_W("> [%u] %.*s", i, (uint32_t)newNames[i].length(), newNames[i].data());
+          LOG_W("> [%u] %.*s", i, (uint32_t)newNames[i].length(),
+                newNames[i].data());
 #endif
         return nullptr;
       }
@@ -406,7 +407,8 @@ class GAIA_API World final {
               entity.gen(), MAX_COMPONENTS_PER_ARCHETYPE);
         std::string_view newNames[] = {utils::type_info::name<TComponent>()...};
         for (auto i = 0; i < newTypesCount; i++)
-          LOG_W("> [%u] %.*s", i, (uint32_t)newNames[i].length(), newNames[i].data());
+          LOG_W("> [%u] %.*s", i, (uint32_t)newNames[i].length(),
+                newNames[i].data());
 #endif
         return nullptr;
       }
@@ -1414,12 +1416,14 @@ private:
           continue;
 
 #if GAIA_DEBUG
-        LOG_N("--> (%p) nameHash:%016" PRIx64 ", compHash:%016" PRIx64 ", index:%010u, %.*s",
+        LOG_N("--> (%p) nameHash:%016" PRIx64 ", compHash:%016" PRIx64
+              ", index:%010u, %.*s",
               type, type->nameHash, type->componentHash, type->typeIndex,
               (uint32_t)type->name.length(), type->name.data());
 #else
-        LOG_N("--> (%p) nameHash:%016" PRIx64 ", compHash:%016" PRIx64 ", index:%010u", type,
-              type->nameHash, type->componentHash, type->typeIndex);
+        LOG_N("--> (%p) nameHash:%016" PRIx64 ", compHash:%016" PRIx64
+              ", index:%010u",
+              type, type->nameHash, type->componentHash, type->typeIndex);
 #endif
       }
 
@@ -1442,11 +1446,13 @@ private:
               continue;
 
 #if GAIA_DEBUG
-            LOG_N("--> (%p) nameHash:%016" PRIx64 ", compHash:%016" PRIx64 ", index:%010u, %.*s",
+            LOG_N("--> (%p) nameHash:%016" PRIx64 ", compHash:%016" PRIx64
+                  ", index:%010u, %.*s",
                   type, type->nameHash, type->componentHash, type->typeIndex,
                   (uint32_t)type->name.length(), type->name.data());
 #else
-            LOG_N("--> (%p) nameHash:%016" PRIx64 ", compHash:%016" PRIx64 ", index:%010u",
+            LOG_N("--> (%p) nameHash:%016" PRIx64 ", compHash:%016" PRIx64
+                  ", index:%010u",
                   type, type->nameHash, type->componentHash, type->typeIndex);
 #endif
           }

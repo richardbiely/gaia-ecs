@@ -61,7 +61,7 @@ struct EntityContainer {
   //! Chunk the entity currently resides in
   Chunk *chunk;
   //! For allocated entity: Index of entity within chunk + generation ID of
-  //! entity For   deleted entity: Index of the next entity in the implicit list
+  //! entity For deleted entity: Index of the next entity in the implicit list
   //! + generation ID of entity
   Entity entity;
 };
