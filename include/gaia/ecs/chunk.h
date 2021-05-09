@@ -168,8 +168,8 @@ private:
 
       // Entity has been replaced with the last one in chunk.
       // Update its index so look ups can find it.
-      entities[entity.id()].entity = {(EntityId)index,
-                                      entities[entity.id()].entity.gen()};
+      entities[entity.id()].idx = index;
+      entities[entity.id()].gen = entity.gen();
     }
 
     header.UpdateLastWorldVersion(ComponentType::CT_Generic, UINT32_MAX);
@@ -179,13 +179,13 @@ private:
   }
 
   [[nodiscard]] Entity &SetEntity(uint16_t index) {
-    assert(index <= header.lastEntityIndex && index != UINT16_MAX);
+    assert(index <= header.lastEntityIndex && index != UINT16_MAX && "Entity index in chunk out of bounds!");
 
     return (Entity &)data[sizeof(Entity) * index];
   }
 
   [[nodiscard]] const Entity GetEntity(uint16_t index) const {
-    assert(index <= header.lastEntityIndex && index != UINT16_MAX);
+    assert(index <= header.lastEntityIndex && index != UINT16_MAX && "Entity index in chunk out of bounds!");
 
     return (Entity &)data[sizeof(Entity) * index];
   }

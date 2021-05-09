@@ -155,7 +155,7 @@ public:
   */
   [[nodiscard]] Entity CreateEntity() {
     m_data.push_back(CREATE_ENTITY);
-    return {m_entities++, Entity::GenInvalid};
+    return {m_entities++, Entity::GenMask};
   }
 
   /*!
@@ -170,7 +170,7 @@ public:
     const auto lastIndex = m_data.size();
     m_data.resize(m_data.size() + archetypeSize);
     *((uintptr_t *)&m_data[lastIndex]) = (uintptr_t)&archetype;
-    return {m_entities++, Entity::GenInvalid};
+    return {m_entities++, Entity::GenMask};
   }
 
   /*!
@@ -185,7 +185,7 @@ public:
     const auto lastIndex = m_data.size();
     m_data.resize(m_data.size() + querySize);
     *((CreationQuery *)&m_data[lastIndex]) = query;
-    return {m_entities++, Entity::GenInvalid};
+    return {m_entities++, Entity::GenMask};
   }
 
   /*!
@@ -199,7 +199,7 @@ public:
     const auto lastIndex = m_data.size();
     m_data.resize(m_data.size() + entitySize);
     *((Entity *)&m_data[lastIndex]) = entityFrom;
-    return {m_entities++, Entity::GenInvalid};
+    return {m_entities++, Entity::GenMask};
   }
 
   /*!
@@ -311,7 +311,7 @@ public:
         i += sizeof(Entity);
 
         Entity *entity = &e;
-        if (e.gen() == Entity::GenInvalid) {
+        if (e.gen() == Entity::GenMask) {
           // For delayed entities we have to do a look in our map of temporaries
           // and find a link there
           const auto it = entityMap.find(e.id());
@@ -344,7 +344,7 @@ public:
         i += sizeof(Entity);
 
         Entity *entity = &e;
-        if (e.gen() == Entity::GenInvalid) {
+        if (e.gen() == Entity::GenMask) {
           // For delayed entities we have to do a look in our map of temporaries
           // and find a link there
           const auto it = entityMap.find(e.id());
@@ -368,7 +368,7 @@ public:
           for (const auto &component : archetype.componentList[componentType]) {
             if (component.type != type)
               continue;
-            index = component.offset + entityContainer.entity.id() * type->size;
+            index = component.offset + entityContainer.idx * type->size;
           }
           assert(index > 0);
 
