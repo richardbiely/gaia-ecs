@@ -159,18 +159,20 @@ class GAIA_API World final {
 
   [[nodiscard]] Entity AllocateEntity() {
     if (!m_freeEntities) {
-      m_entities.push_back({nullptr, {Entity::IdInvalid, 0}});
+      // We don't want to go out of range for new entities
+      assert(m_entities.size() < Entity::IdMask &&
+             "Trying to allocate too many entities!");
+      m_entities.push_back({nullptr, 0, 0});
+
       return {(EntityId)m_entities.size() - 1, 0};
     } else {
       --m_freeEntities;
-      assert(m_freeEntities != Entity::IdInvalid &&
-             "ECS entity list underflow when recycling");
       assert(m_nextFreeEntity < m_entities.size() &&
              "ECS recycle list broken!");
 
       const auto index = m_nextFreeEntity;
-      m_nextFreeEntity = m_entities[m_nextFreeEntity].entity.id();
-      return {index, m_entities[index].entity.gen()};
+      m_nextFreeEntity = m_entities[m_nextFreeEntity].idx;
+      return {index, m_entities[index].gen};
     }
   }
 
@@ -179,16 +181,16 @@ class GAIA_API World final {
     entityContainer.chunk = nullptr;
 
     // New generation. Skip -1 because it has a special meaning
-    auto gen = entityContainer.entity.gen() + 1;
-    if (gen == Entity::GenInvalid)
-      gen = 0;
+    auto gen = entityContainer.gen + 1;
 
     // Update our implicit list
     if (!m_freeEntities) {
       m_nextFreeEntity = entityToDelete.id();
-      entityContainer.entity = {Entity::IdInvalid, gen};
+      entityContainer.idx = Entity::IdMask;
+      entityContainer.gen = gen;
     } else {
-      entityContainer.entity = {m_nextFreeEntity, gen};
+      entityContainer.idx = m_nextFreeEntity;
+      entityContainer.gen = gen;
       m_nextFreeEntity = entityToDelete.id();
     }
     ++m_freeEntities;
@@ -199,8 +201,9 @@ class GAIA_API World final {
     entityContainer.chunk = chunk;
 
     const auto idx = chunk->AddEntity(entity);
-    const auto gen = entityContainer.entity.gen();
-    entityContainer.entity = {idx, gen};
+    const auto gen = entityContainer.gen;
+    entityContainer.idx = idx;
+    entityContainer.gen = gen;
   }
 
   EntityContainer *
@@ -211,10 +214,6 @@ class GAIA_API World final {
 
     // Adding a component to an entity which already is a part of some chunk
     if (auto chunk = entityContainer.chunk) {
-      if (chunk->GetEntity(entityContainer.entity.id()) != entity)
-        return nullptr;
-      assert(entityContainer.entity.gen() == entity.gen());
-
       const auto &archetype = chunk->header.owner;
       const auto &componentList = archetype.componentList[TYPE];
 
@@ -310,17 +309,11 @@ class GAIA_API World final {
 
   template <typename... TComponent>
   EntityContainer *AddComponent_Internal(ComponentType TYPE, Entity entity) {
-    VerifyComponents<TComponent...>();
-
     constexpr auto newTypesCount = (uint32_t)sizeof...(TComponent);
     auto &entityContainer = m_entities[entity.id()];
 
     // Adding a component to an entity which already is a part of some chunk
     if (auto chunk = entityContainer.chunk) {
-      if (chunk->GetEntity(entityContainer.entity.id()) != entity)
-        return nullptr;
-      assert(entityContainer.entity.gen() == entity.gen());
-
       const auto &archetype = chunk->header.owner;
       const auto &componentList = archetype.componentList[TYPE];
 
@@ -433,9 +426,6 @@ class GAIA_API World final {
                            tcb::span<const ComponentMetaData *> typesToRemove) {
     auto &entityContainer = m_entities[entity.id()];
     auto chunk = entityContainer.chunk;
-    if (!chunk || chunk->GetEntity(entityContainer.entity.id()) != entity)
-      return;
-    assert(entityContainer.entity.gen() == entity.gen());
 
     const auto &archetype = chunk->header.owner;
     const auto &componentList = archetype.componentList[TYPE];
@@ -484,13 +474,8 @@ class GAIA_API World final {
 
   template <typename... TComponent>
   void RemoveComponent_Internal(ComponentType TYPE, Entity entity) {
-    VerifyComponents<TComponent...>();
-
     auto &entityContainer = m_entities[entity.id()];
     auto chunk = entityContainer.chunk;
-    if (!chunk || chunk->GetEntity(entityContainer.entity.id()) != entity)
-      return;
-    assert(entityContainer.entity.gen() == entity.gen());
 
     const ComponentMetaData *typesToRemove[] = {
         GetOrCreateComponentMetaType<TComponent>()...};
@@ -548,7 +533,7 @@ class GAIA_API World final {
   void MoveEntity(Entity oldEntity, Archetype &newArchetype) {
     auto &entityContainer = m_entities[oldEntity.id()];
     auto oldChunk = entityContainer.chunk;
-    const auto oldIndex = entityContainer.entity.id();
+    const auto oldIndex = entityContainer.idx;
     const auto &oldArchetype = oldChunk->header.owner;
 
     // find a new chunk for the entity and move it inside.
@@ -608,15 +593,21 @@ class GAIA_API World final {
 
     // Update entity's chunk and index so look-ups can find it
     entityContainer.chunk = newChunk;
-    entityContainer.entity = {newIndex, oldEntity.gen()};
+    entityContainer.idx = newIndex;
+    entityContainer.gen = oldEntity.gen();
 
+    ValidateChunk(oldChunk);
+    ValidateChunk(newChunk);
+  }
+
+  void ValidateChunk(Chunk *chunk) {
 #if ECS_VALIDATE_CHUNKS
     // Make sure no entites reference the deleted chunk
     for (int i = 0; i < m_entities.size(); i++) {
       const auto &e = m_entities[i];
-      assert(oldChunk->HasEntities() || e.chunk != oldChunk);
-      assert((e.chunk == nullptr && e.entity.id() == Entity::IdInvalid) ||
-             (e.chunk != nullptr && e.entity.id() != Entity::IdInvalid));
+      assert(chunk->HasEntities() || e.chunk != chunk);
+      assert((e.chunk == nullptr && e.idx == Entity::IdMask) ||
+             (e.chunk != nullptr && e.idx != Entity::IdMask));
     }
 #endif
   }
@@ -697,13 +688,31 @@ public:
   }
 
   [[nodiscard]] Archetype *GetArchetype(Entity entity) const {
+    const bool isValid = IsEntityValid(entity);
+    assert(isValid);
+
     auto &entityContainer = m_entities[entity.id()];
     auto chunk = entityContainer.chunk;
-    if (!chunk || chunk->GetEntity(entityContainer.entity.id()) != entity)
-      return nullptr;
-    assert(entityContainer.entity.gen() == entity.gen());
+    return chunk ? (Archetype *)&chunk->header.owner : nullptr;
+  }
 
-    return (Archetype *)&entityContainer.chunk->header.owner;
+  //! Verifies if entity is valid
+  bool IsEntityValid(Entity entity) const {
+    // Entity ID has to fit inside entity array
+    if (entity.id() >= m_entities.size())
+      return false;
+
+    auto &entityContainer = m_entities[entity.id()];
+    // Generation ID has to match the one in the array
+    if (entityContainer.gen != entity.gen())
+      return false;
+    // If chunk information is present the entity at the pointed index has to
+    // match our entity
+    if (entityContainer.chunk &&
+        entityContainer.chunk->GetEntity(entityContainer.idx) != entity)
+      return false;
+
+    return true;
   }
 
   /*!
@@ -763,9 +772,9 @@ public:
         continue;
 
       const uint32_t idxFrom =
-          info[i].offset + type->size * oldEntityContainer.entity.id();
+          info[i].offset + type->size * oldEntityContainer.idx;
       const uint32_t idxTo =
-          info[i].offset + type->size * newEntityContainer.entity.id();
+          info[i].offset + type->size * newEntityContainer.idx;
 
       assert(idxFrom < Chunk::DATA_SIZE);
       assert(idxTo < Chunk::DATA_SIZE);
@@ -779,32 +788,22 @@ public:
   /*!
   Removes an entity
   */
-  void DeleteEntity(Entity entityToDelete) {
-    if (m_entities.empty() || !entityToDelete.IsValid())
+  void DeleteEntity(Entity entity) {
+    if (m_entities.empty() || entity == EntityNull)
       return;
 
-    auto &entityContainer = m_entities[entityToDelete.id()];
+    assert(IsEntityValid(entity));
+
+    auto &entityContainer = m_entities[entity.id()];
     auto chunk = entityContainer.chunk;
-    if (!chunk ||
-        chunk->GetEntity(entityContainer.entity.id()) != entityToDelete)
-      return;
-    assert(entityContainer.entity.gen() == entityToDelete.gen());
 
     // Remove entity from chunk
-    RemoveEntity(chunk, entityContainer.entity.id());
+    RemoveEntity(chunk, entityContainer.idx);
 
     // Return entity to pool
-    DeallocateEntity(entityToDelete);
+    DeallocateEntity(entity);
 
-#if ECS_VALIDATE_CHUNKS
-    // Make sure no entites reference the deleted chunk
-    for (int i = 0; i < m_entities.size(); i++) {
-      const auto &e = m_entities[i];
-      assert(chunk->HasEntities() || e.chunk != chunk);
-      assert((e.chunk == nullptr && e.entity.id() == Entity::IdInvalid) ||
-             (e.chunk != nullptr && e.entity.id() != Entity::IdInvalid));
-    }
-#endif
+    ValidateChunk(chunk);
   }
 
   /*!
@@ -814,7 +813,7 @@ public:
   [[nodiscard]] Entity GetEntity(uint32_t idx) const {
     assert(idx < m_entities.size());
     auto &entityContainer = m_entities[idx];
-    return {idx, entityContainer.entity.gen()};
+    return {idx, entityContainer.gen};
   }
 
   /*!
@@ -836,100 +835,110 @@ public:
                                       uint32_t &indexInChunk) const {
     assert(entity.id() < m_entities.size());
     auto &entityContainer = m_entities[entity.id()];
-    indexInChunk = entityContainer.entity.id();
+    indexInChunk = entityContainer.idx;
     return entityContainer.chunk;
   }
 
   template <typename... TComponent> void AddComponent(Entity entity) {
+    assert(IsEntityValid(entity));
+    VerifyComponents<TComponent...>();
+
     AddComponent_Internal<TComponent...>(ComponentType::CT_Generic, entity);
   }
 
   template <typename... TComponent>
   void AddComponent(Entity entity, ECS_SMART_ARG(TComponent)... data) {
+    assert(IsEntityValid(entity));
+    VerifyComponents<TComponent...>();
+
     if (auto entityContainer = AddComponent_Internal<TComponent...>(
             ComponentType::CT_Generic, entity))
       SetComponentsDataInternal<TComponent...>(
           ComponentType::CT_Generic, entityContainer->chunk,
-          entityContainer->entity.id(), std::forward<TComponent>(data)...);
+          entityContainer->idx, std::forward<TComponent>(data)...);
   }
 
   template <typename... TComponent> void AddChunkComponent(Entity entity) {
+    assert(IsEntityValid(entity));
+    VerifyComponents<TComponent...>();
+
     AddComponent_Internal<TComponent...>(ComponentType::CT_Chunk, entity);
   }
 
   template <typename... TComponent>
   void AddChunkComponent(Entity entity, ECS_SMART_ARG(TComponent)... data) {
+    assert(IsEntityValid(entity));
+    VerifyComponents<TComponent...>();
+
     if (auto entityContainer = AddComponent_Internal<TComponent...>(
             ComponentType::CT_Chunk, entity))
       SetComponentsDataInternal<TComponent...>(
-          ComponentType::CT_Chunk, entityContainer->chunk,
-          entityContainer->entity.id(), std::forward<TComponent>(data)...);
+          ComponentType::CT_Chunk, entityContainer->chunk, entityContainer->idx,
+          std::forward<TComponent>(data)...);
   }
 
   template <typename... TComponent> void RemoveComponent(Entity entity) {
+    assert(IsEntityValid(entity));
+    VerifyComponents<TComponent...>();
+
     RemoveComponent_Internal<TComponent...>(ComponentType::CT_Generic, entity);
   }
 
   template <typename... TComponent> void RemoveChunkComponent(Entity entity) {
+    assert(IsEntityValid(entity));
+    VerifyComponents<TComponent...>();
+
     RemoveComponent_Internal<TComponent...>(ComponentType::CT_Chunk, entity);
   }
 
   template <typename... TComponent>
   void SetComponentData(Entity entity, ECS_SMART_ARG(TComponent)... data) {
+    assert(IsEntityValid(entity));
     VerifyComponents<TComponent...>();
 
     auto &entityContainer = m_entities[entity.id()];
     auto chunk = entityContainer.chunk;
-    if (!chunk || chunk->GetEntity(entityContainer.entity.id()) != entity)
-      return;
-    assert(entityContainer.entity.gen() == entity.gen());
 
     SetComponentsDataInternal<TComponent...>(ComponentType::CT_Generic, chunk,
-                                             entityContainer.entity.id(),
+                                             entityContainer.idx,
                                              std::forward<TComponent>(data)...);
   }
 
   template <typename... TComponent>
   void SetChunkComponentData(Entity entity, ECS_SMART_ARG(TComponent)... data) {
+    assert(IsEntityValid(entity));
     VerifyComponents<TComponent...>();
 
     auto &entityContainer = m_entities[entity.id()];
     auto chunk = entityContainer.chunk;
-    if (!chunk || chunk->GetEntity(entityContainer.entity.id()) != entity)
-      return;
-    assert(entityContainer.entity.gen() == entity.gen());
 
     SetComponentsDataInternal<TComponent...>(ComponentType::CT_Chunk, chunk,
-                                             entityContainer.entity.id(),
+                                             entityContainer.idx,
                                              std::forward<TComponent>(data)...);
   }
 
   template <typename... TComponent>
   void GetComponentData(Entity entity, TComponent &...data) {
+    assert(IsEntityValid(entity));
     VerifyComponents<TComponent...>();
 
     auto &entityContainer = m_entities[entity.id()];
     auto chunk = entityContainer.chunk;
-    if (!chunk || chunk->GetEntity(entityContainer.entity.id()) != entity)
-      return;
-    assert(entityContainer.entity.gen() == entity.gen());
 
-    GetComponentsDataInternal<TComponent...>(
-        ComponentType::CT_Generic, chunk, entityContainer.entity.id(), data...);
+    GetComponentsDataInternal<TComponent...>(ComponentType::CT_Generic, chunk,
+                                             entityContainer.idx, data...);
   }
 
   template <typename... TComponent>
   void GetChunkComponentData(Entity entity, TComponent &...data) {
+    assert(IsEntityValid(entity));
     VerifyComponents<TComponent...>();
 
     auto &entityContainer = m_entities[entity.id()];
     auto chunk = entityContainer.chunk;
-    if (!chunk || chunk->GetEntity(entityContainer.entity.id()) != entity)
-      return;
-    assert(entityContainer.entity.gen() == entity.gen());
 
-    GetComponentsDataInternal<TComponent...>(
-        ComponentType::CT_Chunk, chunk, entityContainer.entity.id(), data...);
+    GetComponentsDataInternal<TComponent...>(ComponentType::CT_Chunk, chunk,
+                                             entityContainer.idx, data...);
   }
 
 private:
@@ -1550,10 +1559,10 @@ private:
         LOG_N("--> %u", m_nextFreeEntity);
 
         uint32_t iters = 0;
-        auto fe = m_entities[m_nextFreeEntity].entity.id();
-        while (fe != Entity::IdInvalid) {
-          LOG_N("--> %u", m_entities[fe].entity.id());
-          fe = m_entities[fe].entity.id();
+        auto fe = m_entities[m_nextFreeEntity].idx;
+        while (fe != Entity::IdMask) {
+          LOG_N("--> %u", m_entities[fe].idx);
+          fe = m_entities[fe].idx;
           ++iters;
           if (!iters || iters > m_freeEntities) {
             LOG_E("  Entities recycle list contains inconsistent data!");
@@ -1563,7 +1572,7 @@ private:
 
         // At this point the index of the last index in list should point to -1
         // because that's the tail of our implicit list with m_freeEntities > 0.
-        assert(fe == Entity::IdInvalid);
+        assert(fe == Entity::IdMask);
       }
     }
   }
