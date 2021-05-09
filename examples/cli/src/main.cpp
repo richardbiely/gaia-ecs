@@ -37,21 +37,23 @@ int main() {
 
   // Archetype creation
 
-  auto *a1 = world.FindOrCreateArchetype(q1);
+  auto* a1 = world.FindOrCreateArchetype(q1);
   (void)a1;
-  auto *a2 = world.FindOrCreateArchetype(
+  auto* a2 = world.FindOrCreateArchetype(
       ecs::CreationQuery()
-          .AddComponent<Position, Acceleration,
-                        Something>()); // adds Position, Acceleration, Something
-                                       // component
+          .AddComponent<
+              Position, Acceleration,
+              Something>()); // adds Position, Acceleration, Something
+                             // component
   (void)a2;
-  auto *a2b = world.FindOrCreateArchetype(
+  auto* a2b = world.FindOrCreateArchetype(
       ecs::CreationQuery()
-          .AddComponent<Something, Acceleration,
-                        Position>()); // different order of components - will
-                                      // evaluate as the same thing
+          .AddComponent<
+              Something, Acceleration,
+              Position>()); // different order of components - will
+                            // evaluate as the same thing
   (void)a2b;
-  auto *a3 = world.FindOrCreateArchetype(
+  auto* a3 = world.FindOrCreateArchetype(
       ecs::CreationQuery()
           .AddComponent<Position>()
           .AddChunkComponent<Acceleration>()); // add Position component and
@@ -65,16 +67,17 @@ int main() {
   auto e1 = world.CreateEntity(q1);  // entity form creation query
   auto e2 = world.CreateEntity(*a2); // entity from archetype
   (void)e2;
-  auto e3 = world.CreateEntity(
-      ecs::CreationQuery()
-          .AddComponent<Position, Acceleration,
-                        Something>()); // entity with Position, Acceleration,
-                                       // Something
+  auto e3 = world.CreateEntity(ecs::CreationQuery()
+                                   .AddComponent<
+                                       Position, Acceleration,
+                                       Something>()); // entity with Position,
+                                                      // Acceleration, Something
   auto e4 = world.CreateEntity(
       ecs::CreationQuery()
-          .AddComponent<Something, Acceleration,
-                        Position>()); // entity with Position, Acceleration,
-                                      // Something (matches the above)
+          .AddComponent<
+              Something, Acceleration,
+              Position>()); // entity with Position, Acceleration,
+                            // Something (matches the above)
   auto e5 = world.CreateEntity(
       ecs::CreationQuery()
           .AddComponent<Position>()
@@ -105,33 +108,33 @@ int main() {
   LOG_N(" e1 hasRotation = %d", ch1b);
 
   auto a = world.GetArchetype(e1);
-  if (a) {
-    bool hasRotation =
-        a->HasComponent<Acceleration>(); // true if there's Acceleration
-                                         // component present in archetype
-    bool hasRotationAndScale =
-        a->HasAllComponents<Acceleration,
-                            Scale>(); // true if there're both Acceleration and
-                                      // Scale component present in archetype
-    bool hasRotationOrScale =
-        a->HasAnyComponent<Acceleration,
-                           Scale>(); // true if either Acceleration or Scale
-                                     // component are present in archetype
-    bool hasNoRotationAndNoScale =
-        a->HasNoneComponents<Acceleration,
-                             Scale>(); // true if neither Acceleration not Scale
-                                       // component are present in archetype
-    bool hasNoChunkRotation =
-        a->HasNoneChunkComponents<Acceleration>(); // true if chunk component
-                                                   // Acceleration is not
-                                                   // present in archetype
+    if (a) {
+      bool hasRotation =
+          a->HasComponent<Acceleration>(); // true if there's Acceleration
+                                           // component present in archetype
+      bool hasRotationAndScale = a->HasAllComponents<
+          Acceleration,
+          Scale>(); // true if there're both Acceleration and
+                    // Scale component present in archetype
+      bool hasRotationOrScale = a->HasAnyComponent<
+          Acceleration,
+          Scale>(); // true if either Acceleration or Scale
+                    // component are present in archetype
+      bool hasNoRotationAndNoScale = a->HasNoneComponents<
+          Acceleration,
+          Scale>(); // true if neither Acceleration not Scale
+                    // component are present in archetype
+      bool hasNoChunkRotation =
+          a->HasNoneChunkComponents<Acceleration>(); // true if chunk component
+                                                     // Acceleration is not
+                                                     // present in archetype
 
-    LOG_N("Archetype e1");
-    LOG_N(" hasRotation = %d", hasRotation);
-    LOG_N(" hasRotationAndScale = %d", hasRotationAndScale);
-    LOG_N(" hasRotationOrScale = %d", hasRotationOrScale);
-    LOG_N(" hasNoRotationAndNoScale = %d", hasNoRotationAndNoScale);
-    LOG_N(" hasNoChunkRotation = %d", hasNoChunkRotation);
+      LOG_N("Archetype e1");
+      LOG_N(" hasRotation = %d", hasRotation);
+      LOG_N(" hasRotationAndScale = %d", hasRotationAndScale);
+      LOG_N(" hasRotationOrScale = %d", hasRotationOrScale);
+      LOG_N(" hasNoRotationAndNoScale = %d", hasNoRotationAndNoScale);
+      LOG_N(" hasNoChunkRotation = %d", hasNoChunkRotation);
   }
 
   // Setting component data
@@ -140,7 +143,7 @@ int main() {
 
   Position p = {3, 4, 5};
   world.SetComponentData(e1, p);
-  Position &pp = p;
+  Position& pp = p;
   world.SetComponentData(e1, pp);
   world.SetComponentData(e1, std::move(p));
   world.SetComponentData<Something, Acceleration, Position>(
@@ -157,11 +160,13 @@ int main() {
     // In addition to the above both Position and Acceleration must be there. We
     // extract data for them.
     world
-        .ForEach(q,
-                 [](const Position &p, const Acceleration &a) {
-                   LOG_N("pos=[%f,%f,%f], acc=[%f,%f,%f]\n", p.x, p.y, p.z, a.x,
-                         a.y, a.z);
-                 })
+        .ForEach(
+            q,
+            [](const Position& p, const Acceleration& a) {
+              LOG_N(
+                  "pos=[%f,%f,%f], acc=[%f,%f,%f]\n", p.x, p.y, p.z, a.x, a.y,
+                  a.z);
+            })
         .Run(0);
   }
   {
@@ -170,14 +175,16 @@ int main() {
     // above both Position and Acceleration must be there. We extract data for
     // them.
     world
-        .ForEach(ecs::EntityQuery()
-                     .WithAny<Something, Else>()
-                     .WithNone<Scale>()
-                     .WithAllChunkComponents<Acceleration>(),
-                 [](const Position &p, const Acceleration &a) {
-                   LOG_N("pos=[%f,%f,%f], acc=[%f,%f,%f]\n", p.x, p.y, p.z, a.x,
-                         a.y, a.z);
-                 })
+        .ForEach(
+            ecs::EntityQuery()
+                .WithAny<Something, Else>()
+                .WithNone<Scale>()
+                .WithAllChunkComponents<Acceleration>(),
+            [](const Position& p, const Acceleration& a) {
+              LOG_N(
+                  "pos=[%f,%f,%f], acc=[%f,%f,%f]\n", p.x, p.y, p.z, a.x, a.y,
+                  a.z);
+            })
         .Run(0);
   }
   {
@@ -185,7 +192,7 @@ int main() {
     // Acceleration is read-only, position is write-enabled
     float t = 1.5f;
     world
-        .ForEach([t](Position &p, const Acceleration &a) {
+        .ForEach([t](Position& p, const Acceleration& a) {
           p.x += a.x * t;
           p.y += a.y * t;
           p.z += a.z * t;
