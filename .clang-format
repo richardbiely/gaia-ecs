@@ -4,9 +4,43 @@ IndentWidth: 2
 TabWidth: 2
 ---
 Language: Cpp
-DeriveLineEnding: false
 UseCRLF: true
+DeriveLineEnding: false
 DerivePointerAlignment: false
 PointerAlignment: Left
-AlignAfterOpenBracket: BAS_AlwaysBreak
+AlignAfterOpenBracket: AlwaysBreak
 Cpp11BracedListStyle: true
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterEnum: false
+  AfterStruct: false
+  AfterClass: false
+  AfterUnion: false
+  AfterExternBlock: false
+  AfterCaseLabel: false
+  AfterFunction: false
+  AfterNamespace: false
+  AfterControlStatement: Never
+  BeforeElse: false
+  BeforeWhile: false
+  BeforeLambdaBody: false
+  BeforeCatch: false
+  SplitEmptyFunction: false
+  SplitEmptyRecord: false
+  SplitEmptyNamespace: false
+  IndentBraces: true
+BreakBeforeBinaryOperators: None
+BreakBeforeTernaryOperators: true
+BreakConstructorInitializers: AfterColon
+BreakInheritanceList: AfterColon
+BreakStringLiterals: true
+CompactNamespaces: false
+ConstructorInitializerAllOnOneLineOrOnePerLine: false
+FixNamespaceComments: true
+IndentCaseLabels: true
+IndentExternBlock: true
+IndentGotoLabels: true
+IndentPPDirectives: BeforeHash
+IndentWrappedFunctionNames: false
+InsertTrailingCommas: None
+NamespaceIndentation: All
