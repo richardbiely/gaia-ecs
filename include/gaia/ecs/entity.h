@@ -1,4 +1,5 @@
 #pragma once
+#include <_types/_uint16_t.h>
 #include <inttypes.h>
 
 namespace gaia {
@@ -70,23 +71,23 @@ struct EntityNull_t {
   }
 };
 
-[[nodiscard]] bool operator==(const EntityNull_t &null,
-                              const Entity &entity) noexcept {
+[[nodiscard]] inline bool operator==(const EntityNull_t &null,
+                                     const Entity &entity) noexcept {
   return static_cast<Entity>(null).id() == entity.id();
 }
 
-[[nodiscard]] bool operator!=(const EntityNull_t &null,
-                              const Entity &entity) noexcept {
+[[nodiscard]] inline bool operator!=(const EntityNull_t &null,
+                                     const Entity &entity) noexcept {
   return static_cast<Entity>(null).id() != entity.id();
 }
 
-[[nodiscard]] bool operator==(const Entity &entity,
-                              const EntityNull_t &null) noexcept {
+[[nodiscard]] inline bool operator==(const Entity &entity,
+                                     const EntityNull_t &null) noexcept {
   return null == entity;
 }
 
-[[nodiscard]] bool operator!=(const Entity &entity,
-                              const EntityNull_t &null) noexcept {
+[[nodiscard]] inline bool operator!=(const Entity &entity,
+                                     const EntityNull_t &null) noexcept {
   return null != entity;
 }
 
@@ -99,9 +100,9 @@ struct EntityContainer {
   //! For allocated entity: Index of entity within chunk + generation ID.
   //! For deleted entity: Index of the next entity in the implicit list +
   //! generation ID.
-  uint32_t idx;
+  EntityId idx;
   //! Generation ID
-  uint32_t gen;
+  EntityGenId gen;
 };
 
 } // namespace ecs
