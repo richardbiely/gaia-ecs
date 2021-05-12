@@ -212,7 +212,7 @@ namespace gaia {
 			template <typename T>
 			[[nodiscard]] typename std::enable_if_t<
 					std::is_same<std::decay_t<T>, Entity>::value, const std::decay_t<T>*>
-			ViewRO() const {
+			View() const {
 				using TEntity = std::decay_t<T>;
 				return (const TEntity*)&data[0];
 			}
@@ -246,7 +246,7 @@ namespace gaia {
 			template <typename T>
 			[[nodiscard]] typename std::enable_if_t<
 					!std::is_same<std::decay_t<T>, Entity>::value, const std::decay_t<T>*>
-			ViewRO(ComponentType TYPE = ComponentType::CT_Generic) const {
+			View(ComponentType TYPE = ComponentType::CT_Generic) const {
 				using TComponent = std::decay_t<T>;
 
 				const ComponentMetaData* type =
