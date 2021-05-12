@@ -6,10 +6,12 @@
 
 #include "../config/config.h"
 #include "../external/span.hpp"
+#include "../utils/type_info.h"
+#include "../utils/utility.h"
+#include "chunk_allocator.h"
 #include "entity.h"
 #include "entity_query.h"
 #include "fwd.h"
-#include "gaia/utils/type_info.h"
 
 namespace gaia {
 	namespace ecs {
@@ -19,18 +21,17 @@ namespace gaia {
 
 		//-----------------------------------------------------------------------------------
 
-		namespace {
-			template <typename... Type> struct FuncTypeList {};
-			template <typename Class, typename Ret, typename... Args>
-			FuncTypeList<Args...> FuncArgs(Ret (Class::*)(Args...) const);
-		} // namespace
-
 		class GAIA_API World final {
 			friend class ECSSystem;
 			friend class ECSSystemManager;
 			friend class EntityCommandBuffer;
+			friend void* AllocateChunkMemory(World& world);
+			friend void ReleaseChunkMemory(World& world, void* mem);
 
 			static int WorldCount;
+
+			//! Allocator used to allocate chunks
+			ChunkAllocator m_chunkAllocator;
 
 			//! Map or archetypes mapping to the same hash - used for lookups
 			std::unordered_map<uint64_t, std::vector<Archetype*>> m_archetypeMap;
@@ -53,7 +54,88 @@ namespace gaia {
 			//! With every structural change world version changes
 			uint32_t m_worldVersion = 0;
 
-			void UpdateWorldVersion() { UpdateVersion(m_worldVersion); }
+			void UpdateWorldVersion() {
+				UpdateVersion(m_worldVersion);
+			}
+
+			void* AllocateChunkMemory() {
+				return m_chunkAllocator.Allocate();
+			}
+
+			void ReleaseChunkMemory(void* mem) {
+				m_chunkAllocator.Release(mem);
+			}
+
+		public:
+			bool IsEntityValid(Entity entity) const {
+				// Entity ID has to fit inside entity array
+				if (entity.id() >= m_entities.size())
+					return false;
+
+				auto& entityContainer = m_entities[entity.id()];
+				// Generation ID has to match the one in the array
+				if (entityContainer.gen != entity.gen())
+					return false;
+				// If chunk information is present the entity at the pointed index has
+				// to match our entity
+				if (entityContainer.chunk &&
+						entityContainer.chunk->GetEntity(entityContainer.idx) != entity)
+					return false;
+
+				return true;
+			}
+
+			void Cleanup() {
+				// Clear entities
+				{
+					m_entities = {};
+					m_nextFreeEntity = 0;
+					m_freeEntities = 0;
+				}
+
+				// Clear archetypes
+				{
+					m_chunksToRemove = {};
+
+					// Delete all allocated chunks and their parent archetypes
+					for (auto archetype: m_archetypeList)
+						delete archetype;
+
+					m_archetypeList = {};
+					m_archetypeHashList = {};
+					m_archetypeMap = {};
+				}
+			}
+
+		private:
+			//! Remove entity from a chunk. If the chunk is empty it's queued for
+			//! removal as well.
+			void RemoveEntity(Chunk* pChunk, uint16_t entityChunkIndex) {
+				pChunk->RemoveEntity(entityChunkIndex, m_entities);
+
+				if (
+						// Skip non-empty chunks
+						pChunk->HasEntities() ||
+						// Skip chunks which already requested removal
+						pChunk->header.remove)
+					return;
+
+				// When the chunk is emptied we want it to be removed. We can't do it
+				// right away and need to wait for world's GC to be called.
+				//
+				// However, we need to prevent the following:
+				//    1) chunk is emptied + add to some removal list
+				//    2) chunk is reclaimed
+				//    3) chunk is emptied again + add to some removal list again
+				//
+				// Therefore, we have a flag telling us the chunk is already waiting to
+				// be removed. The chunk might be reclaimed before GC happens but it
+				// simply ignores such requests. This way GC always has at most one
+				// record for removal for any given chunk.
+				pChunk->header.remove = true;
+
+				m_chunksToRemove.push_back(pChunk);
+			}
 
 			[[nodiscard]] Archetype* FindArchetype(
 					tcb::span<const ComponentMetaData*> genericTypes,
@@ -125,7 +207,8 @@ namespace gaia {
 					tcb::span<const ComponentMetaData*> chunkTypes) {
 				// Make sure to sort the meta-types so we receive the same hash no
 				// matter the order in which components are provided Bubble sort is
-				// okay. We're dealing with at most MAX_COMPONENTS_PER_ARCHETYPE items.
+				// okay. We're dealing with at most MAX_COMPONENTS_PER_ARCHETYPE
+				// items.
 				// TODO: Replace with a sorting network
 				std::sort(
 						genericTypes.begin(), genericTypes.end(),
@@ -677,7 +760,9 @@ namespace gaia {
 #endif
 			}
 
-			void Init() { ++WorldCount; }
+			void Init() {
+				++WorldCount;
+			}
 
 			void Done() {
 				Cleanup();
@@ -686,91 +771,52 @@ namespace gaia {
 				assert(WorldCount > 0);
 				--WorldCount;
 
-					if (!WorldCount) {
-						ClearRegisteredTypeCache();
-						g_ChunkAllocator.Flush();
+				if (!WorldCount)
+					ClearRegisteredTypeCache();
+
+				m_chunkAllocator.Flush();
 
 #if GAIA_DEBUG
-						// Make sure there are no leaks
-						SmallBlockAllocatorStats memstats;
-						ecs::g_ChunkAllocator.GetStats(memstats);
-							if (memstats.NumAllocations != 0) {
-								LOG_W(
-										"ECS leaking memory: %u of unreleased allocations "
-										"(blocks:%u, "
-										"allocated:%" PRIu64 "B, overhead:%" PRIu64 "B)",
-										(uint32_t)memstats.NumAllocations,
-										(uint32_t)memstats.NumBlocks, memstats.Allocated,
-										memstats.Overhead);
-						}
-#endif
+				// Make sure there are no leaks
+				ChunkAllocatorStats memstats;
+				m_chunkAllocator.GetStats(memstats);
+					if (memstats.NumAllocations != 0) {
+						LOG_W(
+								"ECS leaking memory: %u of unreleased allocations "
+								"(blocks:%u, "
+								"allocated:%" PRIu64 "B, overhead:%" PRIu64 "B)",
+								(uint32_t)memstats.NumAllocations, (uint32_t)memstats.NumBlocks,
+								memstats.Allocated, memstats.Overhead);
 				}
+
+#endif
 			}
 
 		public:
-			World() { Init(); }
+			World() {
+				Init();
+			}
 
-			~World() { Done(); }
+			~World() {
+				Done();
+			}
 
 			World(World&&) = delete;
 			World(const World&) = delete;
 			World& operator=(World&&) = delete;
 			World& operator=(const World&) = delete;
 
-			void Cleanup() {
-				// Clear entities
-				{
-					m_entities = {};
-					m_nextFreeEntity = 0;
-					m_freeEntities = 0;
-				}
-
-				// Clear archetypes
-				{
-					m_chunksToRemove = {};
-
-					// Delete all allocated chunks and their parent archetypes
-					for (auto archetype: m_archetypeList)
-						delete archetype;
-
-					m_archetypeList = {};
-					m_archetypeHashList = {};
-					m_archetypeMap = {};
-				}
-			}
-
-			void Diag() {
-				DiagArchetypes();
-				DiagRegisteredTypes();
-				DiagEntities();
-			}
-
-			[[nodiscard]] uint32_t GetWorldVersion() const { return m_worldVersion; }
-
-			//! Verifies if entity is valid
-			bool IsEntityValid(Entity entity) const {
-				// Entity ID has to fit inside entity array
-				if (entity.id() >= m_entities.size())
-					return false;
-
-				auto& entityContainer = m_entities[entity.id()];
-				// Generation ID has to match the one in the array
-				if (entityContainer.gen != entity.gen())
-					return false;
-				// If chunk information is present the entity at the pointed index has
-				// to match our entity
-				if (entityContainer.chunk &&
-						entityContainer.chunk->GetEntity(entityContainer.idx) != entity)
-					return false;
-
-				return true;
+			[[nodiscard]] uint32_t GetWorldVersion() const {
+				return m_worldVersion;
 			}
 
 			/*!
 			Creates a new empty entity
 			\return Entity
 			*/
-			[[nodiscard]] Entity CreateEntity() { return AllocateEntity(); }
+			[[nodiscard]] Entity CreateEntity() {
+				return AllocateEntity();
+			}
 
 			/*!
 			Creates a new entity from archetype
@@ -895,7 +941,8 @@ namespace gaia {
 				return entityContainer.chunk;
 			}
 
-			template <typename... TComponent> void AddComponent(Entity entity) {
+			template <typename... TComponent>
+			void AddComponent(Entity entity) {
 				assert(IsEntityValid(entity));
 				VerifyComponents<TComponent...>();
 
@@ -914,7 +961,8 @@ namespace gaia {
 							entityContainer->idx, std::forward<TComponent>(data)...);
 			}
 
-			template <typename... TComponent> void AddChunkComponent(Entity entity) {
+			template <typename... TComponent>
+			void AddChunkComponent(Entity entity) {
 				assert(IsEntityValid(entity));
 				VerifyComponents<TComponent...>();
 
@@ -933,7 +981,8 @@ namespace gaia {
 							entityContainer->idx, std::forward<TComponent>(data)...);
 			}
 
-			template <typename... TComponent> void RemoveComponent(Entity entity) {
+			template <typename... TComponent>
+			void RemoveComponent(Entity entity) {
 				assert(IsEntityValid(entity));
 				VerifyComponents<TComponent...>();
 
@@ -1240,13 +1289,14 @@ namespace gaia {
 
 			template <typename... TComponents, typename TFunc>
 			void Unpack_ForEachEntityInChunk(
-					FuncTypeList<TComponents...> types, Chunk& chunk, TFunc&& func) {
+					utils::func_type_list<TComponents...> types, Chunk& chunk,
+					TFunc&& func) {
 				ForEachEntityInChunk<TComponents...>(chunk, func);
 			}
 
 			template <typename... TComponents>
 			[[nodiscard]] EntityQuery& Unpack_ForEachQuery(
-					FuncTypeList<TComponents...> types, EntityQuery& query) {
+					utils::func_type_list<TComponents...> types, EntityQuery& query) {
 				if constexpr (!sizeof...(TComponents))
 					return query;
 				else
@@ -1330,7 +1380,7 @@ namespace gaia {
 			static void RunQueryOnChunks_Indirect(
 					World& world, EntityQuery& query, TFunc& func,
 					uint32_t lastSystemVersion) {
-				using InputArgs = decltype(FuncArgs(&TFunc::operator()));
+				using InputArgs = decltype(utils::func_args(&TFunc::operator()));
 
 				// Add With filter for components listed as input arguments of func
 				world.Unpack_ForEachQuery(InputArgs{}, query)
@@ -1351,7 +1401,8 @@ namespace gaia {
 
 			//--------------------------------------------------------------------------------
 
-			template <typename TFunc> struct ForEachChunkExecutionContext {
+			template <typename TFunc>
+			struct ForEachChunkExecutionContext {
 				World& world;
 				EntityQuery& query;
 				TFunc func;
@@ -1421,35 +1472,6 @@ namespace gaia {
 			}
 
 		private:
-			//! Remove entity from a chunk. If the chunk is empty it's queued for
-			//! removal as well.
-			void RemoveEntity(Chunk* pChunk, uint16_t entityChunkIndex) {
-				pChunk->RemoveEntity(entityChunkIndex, m_entities);
-
-				if (
-						// Skip non-empty chunks
-						pChunk->HasEntities() ||
-						// Skip chunks which already requested removal
-						pChunk->header.remove)
-					return;
-
-				// When the chunk is emptied we want it to be removed. We can't do it
-				// right away and need to wait for world's GC to be called.
-				//
-				// However, we need to prevent the following:
-				//    1) chunk is emptied + add to some removal list
-				//    2) chunk is reclaimed
-				//    3) chunk is emptied again + add to some removal list again
-				//
-				// Therefore, we have a flag telling us the chunk is already waiting to
-				// be removed. The chunk might be reclaimed before GC happens but it
-				// simply ignores such requests. This way GC always has at most one
-				// record for removal for any given chunk.
-				pChunk->header.remove = true;
-
-				m_chunksToRemove.push_back(pChunk);
-			}
-
 			//! Collect garbage
 			void GC() {
 					// Handle memory released by chunks and archetypes
@@ -1745,10 +1767,36 @@ namespace gaia {
 						}
 				}
 			}
+
+			void DiagMemory() {
+				ChunkAllocatorStats memstats;
+				m_chunkAllocator.GetStats(memstats);
+					if (memstats.NumAllocations != 0) {
+						LOG_N("ChunkAllocator stats");
+						LOG_N("  Allocations: %llu", memstats.NumAllocations);
+						LOG_N("  Blocks: %llu", memstats.NumBlocks);
+						LOG_N("  Allocated: %llu B", memstats.Allocated);
+						LOG_N("  Overhead: %llu B", memstats.Overhead);
+				}
+			}
+
+		public:
+			void Diag() {
+				DiagArchetypes();
+				DiagRegisteredTypes();
+				DiagEntities();
+				DiagMemory();
+			}
 		};
 
-		uint32_t GetWorldVersionFromWorld(const World& world) {
+		inline uint32_t GetWorldVersionFromWorld(const World& world) {
 			return world.GetWorldVersion();
+		}
+		inline void* AllocateChunkMemory(World& world) {
+			return world.AllocateChunkMemory();
+		}
+		inline void ReleaseChunkMemory(World& world, void* mem) {
+			world.ReleaseChunkMemory(mem);
 		}
 	} // namespace ecs
 } // namespace gaia

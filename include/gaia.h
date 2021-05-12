@@ -27,5 +27,4 @@ GAIA_MSVC_WARNING_POP()
 
 #define GAIA_INIT                                                              \
 	GAIA_ECS_WORLD_H_INIT                                                        \
-	GAIA_ECS_META_TYPES_H_INIT                                                   \
-	GAIA_ECS_CHUNK_ALLOCATOR_H_INIT
+	GAIA_ECS_META_TYPES_H_INIT

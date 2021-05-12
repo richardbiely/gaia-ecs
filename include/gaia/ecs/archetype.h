@@ -13,6 +13,8 @@ namespace gaia {
 	namespace ecs {
 		class World;
 		uint32_t GetWorldVersionFromWorld(const World& world);
+		void* AllocateChunkMemory(World& world);
+		void ReleaseChunkMemory(World& world, void* mem);
 
 		class Archetype final {
 		private:
@@ -39,7 +41,8 @@ namespace gaia {
 
 			[[nodiscard]] static Chunk* AllocateChunk(const Archetype& archetype) {
 #if ECS_CHUNK_ALLOCATOR
-				auto pChunk = (Chunk*)g_ChunkAllocator.Alloc();
+				auto& world = const_cast<World&>(*archetype.parentWorld);
+				auto pChunk = (Chunk*)AllocateChunkMemory(world);
 				new (pChunk) Chunk(archetype);
 #else
 				auto pChunk = new Chunk(archetype);
@@ -50,7 +53,8 @@ namespace gaia {
 			static void ReleaseChunk(Chunk* pChunk) {
 #if ECS_CHUNK_ALLOCATOR
 				pChunk->~Chunk();
-				g_ChunkAllocator.Free(pChunk);
+				auto* world = const_cast<World*>(pChunk->header.owner.parentWorld);
+				ReleaseChunkMemory(*world, pChunk);
 #else
 				delete pChunk;
 #endif
