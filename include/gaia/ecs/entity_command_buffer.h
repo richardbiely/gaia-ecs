@@ -79,8 +79,7 @@ namespace gaia {
 			}
 
 			template <typename... TComponent>
-			void
-			SetComponent_Internal(Entity entity, ECS_SMART_ARG(TComponent)... data) {
+			void SetComponent_Internal(Entity entity, TComponent&&... data) {
 				// Verify components
 				const ComponentMetaData* typesToAdd[] = {
 						GetComponentMetaType<TComponent>()...};
@@ -239,7 +238,7 @@ namespace gaia {
 			Requests component data to be set to given values
 			*/
 			template <typename... TComponent>
-			void SetComponent(Entity entity, ECS_SMART_ARG(TComponent)... data) {
+			void SetComponent(Entity entity, TComponent&&... data) {
 				VerifyComponents<TComponent...>();
 
 				m_data.push_back(SET_COMPONENT);
@@ -252,7 +251,7 @@ namespace gaia {
 			Requests chunk component data to be set to given values
 			*/
 			template <typename... TComponent>
-			void SetChunkComponent(Entity entity, ECS_SMART_ARG(TComponent)... data) {
+			void SetChunkComponent(Entity entity, TComponent&&... data) {
 				VerifyComponents<TComponent...>();
 
 				m_data.push_back(SET_COMPONENT);

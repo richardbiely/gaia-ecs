@@ -1,5 +1,4 @@
 #pragma once
-#include <any>
 #include <inttypes.h>
 #include <string_view>
 #include <type_traits>
@@ -36,16 +35,6 @@ namespace gaia {
 			static_assert(utils::is_unique<T...>);
 			(VerifyComponent<T>(), ...);
 		}
-
-#if 1 // GAIA_COMPILER_MSVC && _MSC_VER < 1920 // Turned off for VS2017 because
-			// "fatal error C1001: An internal error has occurred in the compiler.".
-			// Good job, Microsoft :)
-	#define ECS_SMART_ARG(T) T&&
-#else
-		template <typename T>
-		using SmartArg = std::conditional_t<sizeof(T) <= size_t(8), T, T&&>;
-	#define ECS_SMART_ARG(T) SmartArg<T>
-#endif
 
 #pragma endregion
 
