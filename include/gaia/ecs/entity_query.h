@@ -163,7 +163,7 @@ namespace gaia {
 						// NoneList makes no sense because we skip those in query processing
 						// anyway
 						auto checkList = [&](const ComponentMetaDataArray& arr) {
-							for (const auto& c : arr) {
+							for (const auto& c: arr) {
 								if (c->typeIndex == metaType->typeIndex)
 									return true;
 							}
@@ -198,7 +198,7 @@ namespace gaia {
 				CalculateHashes<TComponent...>(list[ComponentType::CT_Generic].listAny);
 				return *this;
 			}
-			template <typename... TComponent> EntityQuery& WithAll() {
+			template <typename... TComponent> EntityQuery& With() {
 				CalculateHashes<TComponent...>(list[ComponentType::CT_Generic].listAll);
 				return *this;
 			}
@@ -212,7 +212,7 @@ namespace gaia {
 				CalculateHashes<TComponent...>(list[ComponentType::CT_Chunk].listAny);
 				return *this;
 			}
-			template <typename... TComponent> EntityQuery& WithAllChunkComponents() {
+			template <typename... TComponent> EntityQuery& WithChunkComponents() {
 				CalculateHashes<TComponent...>(list[ComponentType::CT_Chunk].listAll);
 				return *this;
 			}

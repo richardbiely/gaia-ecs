@@ -1001,14 +1001,14 @@ namespace gaia {
 			}
 
 			template <typename... TComponent>
-			[[nodiscard]] bool HasAllComponents(Entity entity) {
+			[[nodiscard]] bool HasComponents(Entity entity) {
 				assert(IsEntityValid(entity));
 				VerifyComponents<TComponent...>();
 
 				const auto& entityContainer = m_entities[entity.id()];
 				const auto* chunk = entityContainer.chunk;
 				const auto& archetype = chunk->header.owner;
-				return archetype.HasAllComponents<TComponent...>();
+				return archetype.HasComponents<TComponent...>();
 			}
 
 			template <typename... TComponent>
@@ -1034,14 +1034,14 @@ namespace gaia {
 			}
 
 			template <typename... TComponent>
-			[[nodiscard]] bool HasAllChunkComponents(Entity entity) {
+			[[nodiscard]] bool HasChunkComponents(Entity entity) {
 				assert(IsEntityValid(entity));
 				VerifyComponents<TComponent...>();
 
 				const auto& entityContainer = m_entities[entity.id()];
 				const auto* chunk = entityContainer.chunk;
 				const auto& archetype = chunk->header.owner;
-				return archetype.HasAllChunkComponents<TComponent...>();
+				return archetype.HasChunkComponents<TComponent...>();
 			}
 
 			template <typename... TComponent>
@@ -1250,7 +1250,7 @@ namespace gaia {
 				if constexpr (!sizeof...(TComponents))
 					return query;
 				else
-					return query.WithAll<TComponents...>();
+					return query.With<TComponents...>();
 			}
 
 			[[nodiscard]] static bool CanProcessChunk(
@@ -1312,7 +1312,7 @@ namespace gaia {
 			static void RunQueryOnChunks_Direct(
 					World& world, EntityQuery& query, TFunc& func,
 					uint32_t lastSystemVersion) {
-				// Add WithAll filter for components listed as input arguments of func
+				// Add With filter for components listed as input arguments of func
 				query.Commit(world.GetWorldVersion());
 
 				// Iterate over all archetypes
@@ -1332,7 +1332,7 @@ namespace gaia {
 					uint32_t lastSystemVersion) {
 				using InputArgs = decltype(FuncArgs(&TFunc::operator()));
 
-				// Add WithAll filter for components listed as input arguments of func
+				// Add With filter for components listed as input arguments of func
 				world.Unpack_ForEachQuery(InputArgs{}, query)
 						.Commit(world.GetWorldVersion());
 
