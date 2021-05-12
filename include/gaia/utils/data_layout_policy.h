@@ -128,20 +128,20 @@ namespace gaia {
 		template <typename ValueType>
 		struct DataViewPolicy<DataLayout::AoS, ValueType> {
 			constexpr static ValueType Get(tcb::span<ValueType> s, unsigned idx) {
-				return GetInternal((const ValueType*)s.data(), idx);
+				return Get_Internal((const ValueType*)s.data(), idx);
 			}
 			constexpr static void
 			Set(tcb::span<ValueType> s, unsigned idx, ValueType&& val) {
-				SetInternal((ValueType*)s.data(), idx, std::forward<ValueType>(val));
+				Set_Internal((ValueType*)s.data(), idx, std::forward<ValueType>(val));
 			}
 
 		private:
 			constexpr static ValueType
-			GetInternal(const ValueType* data, const unsigned idx) {
+			Get_Internal(const ValueType* data, const unsigned idx) {
 				return data[idx];
 			}
 			constexpr static void
-			SetInternal(ValueType* data, const unsigned idx, ValueType&& val) {
+			Set_Internal(ValueType* data, const unsigned idx, ValueType&& val) {
 				data[idx] = std::forward<ValueType>(val);
 			}
 		};
@@ -161,7 +161,7 @@ namespace gaia {
 			constexpr static ValueType
 			Get(tcb::span<ValueType> s, const unsigned idx) {
 				auto t = StructToTuple(ValueType{});
-				return GetInternal(
+				return Get_Internal(
 						t, s, idx,
 						std::make_integer_sequence<
 								unsigned, std::tuple_size<decltype(t)>::value>());
@@ -170,7 +170,7 @@ namespace gaia {
 			constexpr static void
 			Set(tcb::span<ValueType> s, const unsigned idx, ValueType&& val) {
 				auto t = StructToTuple(std::forward<ValueType>(val));
-				SetInternal(
+				Set_Internal(
 						t, s, idx,
 						std::make_integer_sequence<
 								unsigned, std::tuple_size<decltype(t)>::value>(),
@@ -179,10 +179,11 @@ namespace gaia {
 
 		private:
 			template <typename Tuple, unsigned... Ids>
-			constexpr static ValueType GetInternal(
+			constexpr static ValueType Get_Internal(
 					Tuple& t, tcb::span<ValueType> s, const unsigned idx,
 					std::integer_sequence<unsigned, Ids...>) {
-				(GetInternal<Tuple, Ids, typename std::tuple_element<Ids, Tuple>::type>(
+				(Get_Internal<
+						 Tuple, Ids, typename std::tuple_element<Ids, Tuple>::type>(
 						 t, (const char*)s.data(),
 						 idx * sizeof(typename std::tuple_element<Ids, Tuple>::type) +
 								 CalculateSoAByteOffset<Ids, Tuple>(
@@ -193,15 +194,15 @@ namespace gaia {
 
 			template <typename Tuple, unsigned Ids, typename TMemberType>
 			constexpr static void
-			GetInternal(Tuple& t, const char* data, const unsigned idx) {
+			Get_Internal(Tuple& t, const char* data, const unsigned idx) {
 				std::get<Ids>(t) = *(TMemberType*)&data[idx];
 			}
 
 			template <typename Tuple, typename TValue, unsigned... Ids>
-			constexpr static void SetInternal(
+			constexpr static void Set_Internal(
 					Tuple& t, tcb::span<TValue> s, const unsigned idx,
 					std::integer_sequence<unsigned, Ids...>, TValue&& val) {
-				(SetInternal(
+				(Set_Internal(
 						 (char*)s.data(),
 						 idx * sizeof(typename std::tuple_element<Ids, Tuple>::type) +
 								 CalculateSoAByteOffset<Ids, Tuple>(
@@ -212,7 +213,7 @@ namespace gaia {
 
 			template <typename TMemberValue>
 			constexpr static void
-			SetInternal(char* data, const unsigned idx, TMemberValue val) {
+			Set_Internal(char* data, const unsigned idx, TMemberValue val) {
 				// memcpy((void*)&data[idx], (const void*)&val, sizeof(val));
 				*(TMemberValue*)&data[idx] = val;
 			}

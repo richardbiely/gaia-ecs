@@ -61,7 +61,7 @@ namespace gaia {
 			}
 
 			template <typename T>
-			void SetComponentData_Internal(uint32_t& index, T&& data) {
+			void SetComponent_Internal(uint32_t& index, T&& data) {
 				using TComponent = std::decay_t<T>;
 
 				auto* metaData = GetComponentMetaType<TComponent>();
@@ -86,7 +86,7 @@ namespace gaia {
 						GetComponentMetaType<TComponent>()...};
 				uint32_t validComponents = 0;
 				uint32_t validSize = 0;
-					for (const auto type : typesToAdd) {
+					for (const auto type: typesToAdd) {
 						if (type == nullptr)
 							continue;
 						++validComponents;
@@ -110,7 +110,7 @@ namespace gaia {
 					m_data.resize(m_data.size() + validSize);
 
 					// Component data
-					(SetComponentData_Internal<TComponent>(
+					(SetComponent_Internal<TComponent>(
 							 lastIndex, std::forward<TComponent>(data)),
 					 ...);
 				}
@@ -237,7 +237,7 @@ namespace gaia {
 			Requests component data to be set to given values
 			*/
 			template <typename... TComponent>
-			void SetComponentData(Entity entity, ECS_SMART_ARG(TComponent)... data) {
+			void SetComponent(Entity entity, ECS_SMART_ARG(TComponent)... data) {
 				VerifyComponents<TComponent...>();
 
 				m_data.push_back(SET_COMPONENT);
@@ -250,8 +250,7 @@ namespace gaia {
 			Requests chunk component data to be set to given values
 			*/
 			template <typename... TComponent>
-			void
-			SetChunkComponentData(Entity entity, ECS_SMART_ARG(TComponent)... data) {
+			void SetChunkComponent(Entity entity, ECS_SMART_ARG(TComponent)... data) {
 				VerifyComponents<TComponent...>();
 
 				m_data.push_back(SET_COMPONENT);
@@ -377,7 +376,7 @@ namespace gaia {
 												const auto type =
 														*(const ComponentMetaData**)&m_data[i];
 												uint32_t index = 0;
-													for (const auto& component :
+													for (const auto& component:
 															 archetype.componentList[componentType]) {
 														if (component.type != type)
 															continue;

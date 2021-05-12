@@ -176,19 +176,19 @@ TEST_CASE("Example") {
 
 	// Setting component data
 
-	world.SetComponentData<Position>(e1, {1, 2, 3});
+	world.SetComponent<Position>(e1, {1, 2, 3});
 	Position e1p;
-	world.GetComponentData<Position>(e1, e1p);
+	world.GetComponent<Position>(e1, e1p);
 	LOG_N("e1 position = [%.2f,%.2f,%.2f]", e1p.x, e1p.y, e1p.z);
 
 	Position p = {3, 4, 5};
-	world.SetComponentData(e1, p);
+	world.SetComponent(e1, p);
 	Position& pp = p;
-	world.SetComponentData(e1, pp);
-	world.SetComponentData(e1, std::move(p));
-	world.SetComponentData<Something, Acceleration, Position>(
+	world.SetComponent(e1, pp);
+	world.SetComponent(e1, std::move(p));
+	world.SetComponent<Something, Acceleration, Position>(
 			e3, {false}, {1, 2, 3}, {10, 11, 12});
-	world.SetChunkComponentData<Else>(e3, {false});
+	world.SetChunkComponent<Else>(e3, {false});
 
 	{
 		ecs::EntityQuery q;

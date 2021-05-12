@@ -951,7 +951,7 @@ namespace gaia {
 			}
 
 			template <typename... TComponent>
-			void SetComponentData(Entity entity, ECS_SMART_ARG(TComponent)... data) {
+			void SetComponent(Entity entity, ECS_SMART_ARG(TComponent)... data) {
 				assert(IsEntityValid(entity));
 				VerifyComponents<TComponent...>();
 
@@ -964,8 +964,7 @@ namespace gaia {
 			}
 
 			template <typename... TComponent>
-			void
-			SetChunkComponentData(Entity entity, ECS_SMART_ARG(TComponent)... data) {
+			void SetChunkComponent(Entity entity, ECS_SMART_ARG(TComponent)... data) {
 				assert(IsEntityValid(entity));
 				VerifyComponents<TComponent...>();
 
@@ -978,7 +977,7 @@ namespace gaia {
 			}
 
 			template <typename... TComponent>
-			void GetComponentData(Entity entity, TComponent&... data) {
+			void GetComponent(Entity entity, TComponent&... data) {
 				assert(IsEntityValid(entity));
 				VerifyComponents<TComponent...>();
 
@@ -990,7 +989,7 @@ namespace gaia {
 			}
 
 			template <typename... TComponent>
-			void GetChunkComponentData(Entity entity, TComponent&... data) {
+			void GetChunkComponent(Entity entity, TComponent&... data) {
 				assert(IsEntityValid(entity));
 				VerifyComponents<TComponent...>();
 
@@ -1069,7 +1068,7 @@ namespace gaia {
 
 		private:
 			template <typename TComponent>
-			void SetComponentDataInternal(
+			void SetComponent_Internal(
 					ComponentType TYPE, Chunk* chunk, uint32_t index,
 					ECS_SMART_ARG(TComponent) data) {
 				if constexpr (!std::is_empty<TComponent>::value)
@@ -1081,13 +1080,13 @@ namespace gaia {
 			void SetComponentsDataInternal(
 					ComponentType TYPE, Chunk* chunk, uint32_t index,
 					ECS_SMART_ARG(TComponent)... data) {
-				(SetComponentDataInternal<TComponent>(
+				(SetComponent_Internal<TComponent>(
 						 TYPE, chunk, index, std::forward<TComponent>(data)),
 				 ...);
 			}
 
 			template <typename TComponent>
-			void GetComponentDataInternal(
+			void GetComponent_Internal(
 					ComponentType TYPE, Chunk* chunk, uint32_t index,
 					TComponent& data) const {
 				if constexpr (!std::is_empty<TComponent>::value)
@@ -1102,7 +1101,7 @@ namespace gaia {
 			void GetComponentsDataInternal(
 					ComponentType TYPE, Chunk* chunk, uint32_t index,
 					TComponent&... data) const {
-				(GetComponentDataInternal<TComponent>(TYPE, chunk, index, data), ...);
+				(GetComponent_Internal<TComponent>(TYPE, chunk, index, data), ...);
 			}
 
 			template <class T>
