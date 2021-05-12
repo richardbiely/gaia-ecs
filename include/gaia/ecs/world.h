@@ -78,7 +78,7 @@ namespace gaia {
 						};
 
 					// Iterate over the list of archetypes and find the exact match
-					for (const auto archetype : archetypeArray) {
+					for (const auto archetype: archetypeArray) {
 						const auto& genericComponentList =
 								archetype->componentList[ComponentType::CT_Generic];
 						if (genericComponentList.size() != genericTypes.size())
@@ -96,7 +96,7 @@ namespace gaia {
 				return nullptr;
 			}
 
-			Archetype* CreateArchetype(
+			[[nodiscard]] Archetype* CreateArchetype(
 					tcb::span<const ComponentMetaData*> genericTypes,
 					tcb::span<const ComponentMetaData*> chunkTypes,
 					const uint64_t componentsHash) {
@@ -120,7 +120,7 @@ namespace gaia {
 				return newArch;
 			}
 
-			Archetype* FindOrCreateArchetype(
+			[[nodiscard]] Archetype* FindOrCreateArchetype(
 					tcb::span<const ComponentMetaData*> genericTypes,
 					tcb::span<const ComponentMetaData*> chunkTypes) {
 				// Make sure to sort the meta-types so we receive the same hash no
@@ -142,6 +142,23 @@ namespace gaia {
 
 				// Archetype wasn't found so we have to create a new one
 				return CreateArchetype(genericTypes, chunkTypes, componentsHash);
+			}
+
+			[[nodiscard]] Archetype* FindOrCreateArchetype(CreationQuery& query) {
+				// TODO: Verify if return FindOrCreateArchetype(tcb::span<const
+				// ComponentMetaData*>(types)) works the same way
+				return FindOrCreateArchetype(
+						tcb::span(query.list[ComponentType::CT_Generic]),
+						tcb::span(query.list[ComponentType::CT_Chunk]));
+			}
+
+			[[nodiscard]] Archetype* GetArchetype(Entity entity) const {
+				const bool isValid = IsEntityValid(entity);
+				assert(isValid);
+
+				auto& entityContainer = m_entities[entity.id()];
+				auto chunk = entityContainer.chunk;
+				return chunk ? (Archetype*)&chunk->header.owner : nullptr;
 			}
 
 			void RemoveArchetype(Archetype* pArchetype) {
@@ -713,7 +730,7 @@ namespace gaia {
 					m_chunksToRemove = {};
 
 					// Delete all allocated chunks and their parent archetypes
-					for (auto archetype : m_archetypeList)
+					for (auto archetype: m_archetypeList)
 						delete archetype;
 
 					m_archetypeList = {};
@@ -729,23 +746,6 @@ namespace gaia {
 			}
 
 			[[nodiscard]] uint32_t GetWorldVersion() const { return m_worldVersion; }
-
-			[[nodiscard]] Archetype* FindOrCreateArchetype(CreationQuery& query) {
-				// TODO: Verify if return FindOrCreateArchetype(tcb::span<const
-				// ComponentMetaData*>(types)) works the same way
-				return FindOrCreateArchetype(
-						tcb::span(query.list[ComponentType::CT_Generic]),
-						tcb::span(query.list[ComponentType::CT_Chunk]));
-			}
-
-			[[nodiscard]] Archetype* GetArchetype(Entity entity) const {
-				const bool isValid = IsEntityValid(entity);
-				assert(isValid);
-
-				auto& entityContainer = m_entities[entity.id()];
-				auto chunk = entityContainer.chunk;
-				return chunk ? (Archetype*)&chunk->header.owner : nullptr;
-			}
 
 			//! Verifies if entity is valid
 			bool IsEntityValid(Entity entity) const {
@@ -1001,6 +1001,72 @@ namespace gaia {
 						ComponentType::CT_Chunk, chunk, entityContainer.idx, data...);
 			}
 
+			template <typename... TComponent>
+			[[nodiscard]] bool HasAllComponents(Entity entity) {
+				assert(IsEntityValid(entity));
+				VerifyComponents<TComponent...>();
+
+				const auto& entityContainer = m_entities[entity.id()];
+				const auto* chunk = entityContainer.chunk;
+				const auto& archetype = chunk->header.owner;
+				return archetype.HasAllComponents<TComponent...>();
+			}
+
+			template <typename... TComponent>
+			[[nodiscard]] bool HasAnyComponents(Entity entity) {
+				assert(IsEntityValid(entity));
+				VerifyComponents<TComponent...>();
+
+				const auto& entityContainer = m_entities[entity.id()];
+				const auto* chunk = entityContainer.chunk;
+				const auto& archetype = chunk->header.owner;
+				return archetype.HasAnyComponents<TComponent...>();
+			}
+
+			template <typename... TComponent>
+			[[nodiscard]] bool HasNoneComponents(Entity entity) {
+				assert(IsEntityValid(entity));
+				VerifyComponents<TComponent...>();
+
+				const auto& entityContainer = m_entities[entity.id()];
+				const auto* chunk = entityContainer.chunk;
+				const auto& archetype = chunk->header.owner;
+				return archetype.HasNoneComponents<TComponent...>();
+			}
+
+			template <typename... TComponent>
+			[[nodiscard]] bool HasAllChunkComponents(Entity entity) {
+				assert(IsEntityValid(entity));
+				VerifyComponents<TComponent...>();
+
+				const auto& entityContainer = m_entities[entity.id()];
+				const auto* chunk = entityContainer.chunk;
+				const auto& archetype = chunk->header.owner;
+				return archetype.HasAllChunkComponents<TComponent...>();
+			}
+
+			template <typename... TComponent>
+			[[nodiscard]] bool HasAnyChunkComponents(Entity entity) {
+				assert(IsEntityValid(entity));
+				VerifyComponents<TComponent...>();
+
+				const auto& entityContainer = m_entities[entity.id()];
+				const auto* chunk = entityContainer.chunk;
+				const auto& archetype = chunk->header.owner;
+				return archetype.HasAnyChunkComponents<TComponent...>();
+			}
+
+			template <typename... TComponent>
+			[[nodiscard]] bool HasNoneChunkComponents(Entity entity) {
+				assert(IsEntityValid(entity));
+				VerifyComponents<TComponent...>();
+
+				const auto& entityContainer = m_entities[entity.id()];
+				const auto* chunk = entityContainer.chunk;
+				const auto& archetype = chunk->header.owner;
+				return archetype.HasNoneChunkComponents<TComponent...>();
+			}
+
 		private:
 			template <typename TComponent>
 			void SetComponentDataInternal(
@@ -1040,7 +1106,7 @@ namespace gaia {
 			}
 
 			template <class T>
-			struct IsReadOnlyType :
+			struct IsReadOnlyType:
 					std::bool_constant<
 							std::is_const<
 									std::remove_reference_t<std::remove_pointer_t<T>>>::value ||
@@ -1082,8 +1148,8 @@ namespace gaia {
 					if (withNoneTest != 0) {
 							// withNoneList first because we usually request for less
 							// components that there are components in archetype
-							for (const auto type : query.list[TYPE].listNone) {
-									for (const auto& component : componentList) {
+							for (const auto type: query.list[TYPE].listNone) {
+									for (const auto& component: componentList) {
 											if (component.type == type) {
 												DiagNotMatching(
 														"withNone", componentList,
@@ -1099,8 +1165,8 @@ namespace gaia {
 						uint32_t matches = 0;
 							// withAnyList first because we usually request for less
 							// components that there are components in archetype
-							for (const auto type : query.list[TYPE].listAny) {
-									for (const auto& component : componentList) {
+							for (const auto type: query.list[TYPE].listAny) {
+									for (const auto& component: componentList) {
 											if (component.type == type) {
 												++matches;
 												goto checkIncludeAnyMatches;
@@ -1126,8 +1192,8 @@ namespace gaia {
 
 									// withAllList first because we usually request for less
 									// components than there are components in archetype
-									for (const auto type : query.list[TYPE].listAll) {
-											for (const auto& component : componentList) {
+									for (const auto type: query.list[TYPE].listAll) {
+											for (const auto& component: componentList) {
 												if (component.type != type)
 													continue;
 
@@ -1151,7 +1217,7 @@ namespace gaia {
 
 			template <typename TFunc>
 			void ForEachArchetype(const EntityQuery& query, TFunc&& func) {
-					for (auto a : m_archetypeList) {
+					for (auto a: m_archetypeList) {
 						const auto& archetype = *a;
 
 						// Early exit if generic query doesn't match
@@ -1203,7 +1269,7 @@ namespace gaia {
 						bool genericChanged = false;
 						bool chunkChanged = false;
 
-							for (auto typeIdx :
+							for (auto typeIdx:
 									 query.listChangeFiltered[ComponentType::CT_Generic]) {
 								const uint32_t componentIdx = chunk.GetComponentIdx(typeIdx);
 								assert(
@@ -1219,7 +1285,7 @@ namespace gaia {
 								break;
 							}
 
-							for (auto typeIdx :
+							for (auto typeIdx:
 									 query.listChangeFiltered[ComponentType::CT_Chunk]) {
 								const uint32_t componentIdx =
 										chunk.GetChunkComponentIdx(typeIdx);
@@ -1252,7 +1318,7 @@ namespace gaia {
 
 				// Iterate over all archetypes
 				world.ForEachArchetype(query, [&](const Archetype& archetype) {
-					for (auto chunk : archetype.chunks) {
+					for (auto chunk: archetype.chunks) {
 						if (!CanProcessChunk(query, *chunk, lastSystemVersion))
 							continue;
 
@@ -1273,7 +1339,7 @@ namespace gaia {
 
 				// Iterate over all archetypes
 				world.ForEachArchetype(query, [&](const Archetype& archetype) {
-					for (auto chunk : archetype.chunks) {
+					for (auto chunk: archetype.chunks) {
 						if (!CanProcessChunk(query, *chunk, lastSystemVersion))
 							continue;
 
@@ -1292,7 +1358,7 @@ namespace gaia {
 				TFunc func;
 
 			public:
-				ForEachChunkExecutionContext(World& w, EntityQuery& q, TFunc&& f) :
+				ForEachChunkExecutionContext(World& w, EntityQuery& q, TFunc&& f):
 						world(w), query(q), func(std::forward<TFunc>(f)) {}
 				void Run(uint32_t lastSystemVersion) {
 					World::RunQueryOnChunks_Direct(
@@ -1312,13 +1378,13 @@ namespace gaia {
 				TFunc func;
 
 			public:
-				ForEachExecutionContext(World& w, EntityQuery& q, TFunc&& f) :
+				ForEachExecutionContext(World& w, EntityQuery& q, TFunc&& f):
 						world(w), query(q), func(std::forward<TFunc>(f)) {
 					static_assert(
 							!InternalQuery,
 							"lvalue/prvalue can be used only with external queries");
 				}
-				ForEachExecutionContext(World& w, EntityQuery&& q, TFunc&& f) :
+				ForEachExecutionContext(World& w, EntityQuery&& q, TFunc&& f):
 						world(w), query(std::move(q)), func(std::forward<TFunc>(f)) {
 					static_assert(
 							InternalQuery, "rvalue can be used only with internal queries");
@@ -1388,7 +1454,7 @@ namespace gaia {
 			//! Collect garbage
 			void GC() {
 					// Handle memory released by chunks and archetypes
-					for (auto chunk : m_chunksToRemove) {
+					for (auto chunk: m_chunksToRemove) {
 							// Skip chunks which were reused in the meantime
 							if (chunk->HasEntities()) {
 								// Reset the flag
@@ -1415,11 +1481,11 @@ namespace gaia {
 					if (DiagArchetypes) {
 						DiagArchetypes = false;
 						std::unordered_map<uint64_t, uint32_t> archetypeEntityCountMap;
-						for (const auto* archetype : m_archetypeList)
+						for (const auto* archetype: m_archetypeList)
 							archetypeEntityCountMap.insert({archetype->componentsHash, 0});
 
 							// Calculate the number of entities using a given archetype
-							for (const auto& e : m_entities) {
+							for (const auto& e: m_entities) {
 								if (!e.chunk)
 									continue;
 
@@ -1431,16 +1497,16 @@ namespace gaia {
 
 						// Print archetype info
 						LOG_N("Archetypes:%u", (uint32_t)m_archetypeList.size());
-							for (const auto* archetype : m_archetypeList) {
+							for (const auto* archetype: m_archetypeList) {
 								const auto& genericComponents =
 										archetype->componentList[ComponentType::CT_Generic];
 								const auto& chunkComponents =
 										archetype->componentList[ComponentType::CT_Chunk];
 								uint32_t genericComponentsSize = 0;
 								uint32_t chunkComponentsSize = 0;
-								for (const auto& component : genericComponents)
+								for (const auto& component: genericComponents)
 									genericComponentsSize += component.type->size;
-								for (const auto& component : chunkComponents)
+								for (const auto& component: chunkComponents)
 									chunkComponentsSize += component.type->size;
 
 								const auto it =
@@ -1455,7 +1521,7 @@ namespace gaia {
 										archetype->capacity);
 
 								auto logInfo = [](const ChunkComponentList& components) {
-									for (const auto& component : components) {
+									for (const auto& component: components) {
 										const auto type = component.type;
 #if GAIA_DEBUG
 										LOG_N(
@@ -1496,7 +1562,7 @@ namespace gaia {
 						DiagRegisteredTypes = false;
 
 						uint32_t registeredTypes = 0;
-							for (const auto* type : g_ComponentMetaTypeCache) {
+							for (const auto* type: g_ComponentMetaTypeCache) {
 								if (type == nullptr)
 									continue;
 
@@ -1504,7 +1570,7 @@ namespace gaia {
 							}
 						LOG_N("Registered types: %u", registeredTypes);
 
-							for (const auto* type : g_ComponentMetaTypeCache) {
+							for (const auto* type: g_ComponentMetaTypeCache) {
 								if (type == nullptr)
 									continue;
 
@@ -1527,7 +1593,7 @@ namespace gaia {
 
 						auto checkDuplicity = [](const DuplicateMap& map,
 																		 bool errIfDuplicate) {
-							for (const auto& pair : map) {
+							for (const auto& pair: map) {
 								if (pair.second.size() <= 1)
 									continue;
 
@@ -1541,7 +1607,7 @@ namespace gaia {
 												pair.first);
 									}
 
-									for (const auto* type : pair.second) {
+									for (const auto* type: pair.second) {
 										if (type == nullptr)
 											continue;
 
@@ -1567,7 +1633,7 @@ namespace gaia {
 						{
 							bool hasDuplicates = false;
 							DuplicateMap m;
-								for (const auto* type : g_ComponentMetaTypeCache) {
+								for (const auto* type: g_ComponentMetaTypeCache) {
 									if (type == nullptr)
 										continue;
 
@@ -1590,7 +1656,7 @@ namespace gaia {
 						{
 							bool hasDuplicates = false;
 							DuplicateMap m;
-								for (const auto* type : g_ComponentMetaTypeCache) {
+								for (const auto* type: g_ComponentMetaTypeCache) {
 									if (type == nullptr)
 										continue;
 
@@ -1619,7 +1685,7 @@ namespace gaia {
 						LOG_N(
 								"MatchArchetypeQuery - %s, components to compare: %u", text,
 								(uint32_t)componentList.size());
-							for (const auto& component : componentList) {
+							for (const auto& component: componentList) {
 								const auto type = component.type;
 #if GAIA_DEBUG
 								LOG_N(
@@ -1635,7 +1701,7 @@ namespace gaia {
 							}
 
 						LOG_N("types to match: %u", (uint32_t)listToCompare.size());
-							for (const auto type : listToCompare) {
+							for (const auto type: listToCompare) {
 #if GAIA_DEBUG
 								LOG_N(
 										"--> (%p) nameHash:%016" PRIx64 ", compHash:%016" PRIx64
