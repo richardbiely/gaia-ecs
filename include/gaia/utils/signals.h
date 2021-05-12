@@ -36,14 +36,19 @@ namespace gaia {
 			}
 
 			// Wraps a function or a member of a specified type
-			template <auto> struct connect_arg_t {};
+			template <auto>
+			struct connect_arg_t {};
 			// Function wrapper
-			template <auto Func> inline constexpr connect_arg_t<Func> connect_arg{};
+			template <auto Func>
+			inline constexpr connect_arg_t<Func> connect_arg{};
 		} // namespace internal
 
-		template <typename> class delegate;
-		template <typename Function> class signal;
-		template <typename Function> class sink;
+		template <typename>
+		class delegate;
+		template <typename Function>
+		class signal;
+		template <typename Function>
+		class sink;
 
 #pragma region Delegate
 
@@ -58,7 +63,8 @@ namespace gaia {
 		 that of the delegate. \tparam Ret Return type of a function type. \tparam
 		 Args Types of arguments of a function type.
 		 */
-		template <typename Ret, typename... Args> class delegate<Ret(Args...)> {
+		template <typename Ret, typename... Args>
+		class delegate<Ret(Args...)> {
 			using func_type = Ret(const void*, Args...);
 
 			func_type* fnc = nullptr;
@@ -103,7 +109,8 @@ namespace gaia {
 			 \brief Binds a free function or an unbound member to a delegate.
 			 \tparam FuncToBind Function or member to bind to the delegate.
 			 */
-			template <auto FuncToBind> void bind() noexcept {
+			template <auto FuncToBind>
+			void bind() noexcept {
 				ctx = nullptr;
 
 					if constexpr (std::is_invocable_r_v<
@@ -202,7 +209,9 @@ namespace gaia {
 			 \brief Returns the instance or the context linked to a delegate, if any.
 			 \return An opaque pointer to the underlying data.
 			 */
-			[[nodiscard]] const void* instance() const noexcept { return ctx; }
+			[[nodiscard]] const void* instance() const noexcept {
+				return ctx;
+			}
 
 			/**
 			 \brief The delegate invokes the underlying function and returns the
@@ -342,7 +351,8 @@ namespace gaia {
 		 member functions. \tparam Ret Return type of a function type. \tparam Args
 		 Types of arguments of a function type.
 		 */
-		template <typename Ret, typename... Args> class signal<Ret(Args...)> {
+		template <typename Ret, typename... Args>
+		class signal<Ret(Args...)> {
 			friend class sink<Ret(Args...)>;
 			// TODO:
 			// Make container types optional. E.g. we might not want to pay with heap
@@ -362,23 +372,29 @@ namespace gaia {
 			 \brief Number of listeners connected to the signal.
 			 \return Number of listeners currently connected.
 			 */
-			[[nodiscard]] size_type size() const noexcept { return listeners.size(); }
+			[[nodiscard]] size_type size() const noexcept {
+				return listeners.size();
+			}
 
-			const container& getListeners() const { return listeners; }
+			const container& getListeners() const {
+				return listeners;
+			}
 
 			/**
 			 \brief Check is there is any listener bound to the signal.
 			 \return True if there is any listener bound to the signal, false
 			 otherwise.
 			 */
-			[[nodiscard]] bool empty() const noexcept { return listeners.empty(); }
+			[[nodiscard]] bool empty() const noexcept {
+				return listeners.empty();
+			}
 
 			/**
 			 \brief Signals all listeners.
 			 \param args Arguments to use to invoke listeners.
 			 */
 			void invoke(Args... args) const {
-				for (auto&& call : std::as_const(listeners))
+				for (auto&& call: std::as_const(listeners))
 					call(args...);
 			}
 		};
@@ -397,7 +413,8 @@ namespace gaia {
 		 \tparam Ret Return type of a function type. \tparam Args Types of arguments
 		 of a function type.
 		 */
-		template <typename Ret, typename... Args> class sink<Ret(Args...)> {
+		template <typename Ret, typename... Args>
+		class sink<Ret(Args...)> {
 			using signal_type = signal<Ret(Args...)>;
 			using func_type = Ret(const void*, Args...);
 
@@ -408,7 +425,7 @@ namespace gaia {
 			 \brief Constructs a sink that is allowed to modify a given signal.
 			 \param ref A valid reference to a signal object.
 			 */
-			sink(signal<Ret(Args...)>& ref) noexcept : s{&ref} {}
+			sink(signal<Ret(Args...)>& ref) noexcept: s{&ref} {}
 
 			/**
 			 \brief Moves signals from another sink to this one. Result is stored in
@@ -428,7 +445,8 @@ namespace gaia {
 			 same function. \tparam FuncToBind Function or member to bind to the
 			 signal.
 			 */
-			template <auto FuncToBind> void bind() {
+			template <auto FuncToBind>
+			void bind() {
 				unbind<FuncToBind>();
 
 				delegate<Ret(Args...)> call{};
@@ -470,7 +488,8 @@ namespace gaia {
 			 \brief Unbinds a free function or an unbound member from a signal.
 			 \tparam FuncToUnbind Function or member to unbind from the signal.
 			 */
-			template <auto FuncToUnbind> void unbind() {
+			template <auto FuncToUnbind>
+			void unbind() {
 				delegate<Ret(Args...)> call{};
 				call.template bind<FuncToUnbind>();
 
@@ -512,7 +531,8 @@ namespace gaia {
 			 signal. \tparam Type Type of class or type of context. \param
 			 value_or_instance A valid object that fits the purpose.
 			 */
-			template <typename Type> void unbind(Type& value_or_instance) {
+			template <typename Type>
+			void unbind(Type& value_or_instance) {
 				auto& listeners = s->listeners;
 					for (auto i = 0; i < listeners.size();) {
 							if (listeners[i].instance() != &value_or_instance) {
@@ -529,7 +549,8 @@ namespace gaia {
 			 signal. \tparam Type Type of class or type of context. \param
 			 value_or_instance A valid object that fits the purpose.
 			 */
-			template <typename Type> void unbind(Type* value_or_instance) {
+			template <typename Type>
+			void unbind(Type* value_or_instance) {
 				if (value_or_instance)
 					unbind(*value_or_instance);
 			}
@@ -537,14 +558,16 @@ namespace gaia {
 			/**
 			\brief Unbinds all listeners from a signal.
 			*/
-			void unbind() { s->listeners.clear(); }
+			void unbind() {
+				s->listeners.clear();
+			}
 
 			/**
 			 \brief Signals all listeners.
 			 \param args Arguments to use to invoke listeners.
 			 */
 			void invoke(Args... args) const {
-				for (auto&& call : std::as_const(s->listeners))
+				for (auto&& call: std::as_const(s->listeners))
 					call(args...);
 			}
 		};

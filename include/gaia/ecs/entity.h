@@ -8,7 +8,7 @@ namespace gaia {
 		using EntityGenId = uint32_t;
 
 		struct Entity final {
-			static constexpr uint32_t IdBits = 20;	// A million entities
+			static constexpr uint32_t IdBits = 20; // A million entities
 			static constexpr uint32_t GenBits = 12; // 4096 generations
 			static constexpr uint32_t IdMask = (1u << IdBits) - 1;
 			static constexpr uint32_t GenMask = (1u << GenBits) - 1;
@@ -22,10 +22,10 @@ namespace gaia {
 		private:
 			struct EntityData {
 				//! Index in entity array
-				uint32_t id : IdBits;
+				uint32_t id: IdBits;
 				//! Generation index. Incremented every time an entity is deleted. -1 is
 				//! reserved and means it is an entity used for delayed creation
-				uint32_t gen : GenBits;
+				uint32_t gen: GenBits;
 			};
 
 			union {
@@ -54,9 +54,15 @@ namespace gaia {
 				return val != other.val;
 			}
 
-			auto id() const { return data.id; }
-			auto gen() const { return data.gen; }
-			auto value() const { return val; }
+			auto id() const {
+				return data.id;
+			}
+			auto gen() const {
+				return data.gen;
+			}
+			auto value() const {
+				return val;
+			}
 		};
 
 		struct EntityNull_t {

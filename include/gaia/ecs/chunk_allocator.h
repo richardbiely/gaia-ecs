@@ -34,9 +34,15 @@ namespace gaia {
 	namespace ecs {
 		class DummyCounter {
 		public:
-			uint32_t operator++(int) { return 0; }
-			uint32_t operator--(int) { return 0; }
-			uint32_t operator()() const { return 0; }
+			uint32_t operator++(int) {
+				return 0;
+			}
+			uint32_t operator--(int) {
+				return 0;
+			}
+			uint32_t operator()() const {
+				return 0;
+			}
 			void Reset() {}
 		};
 
@@ -44,17 +50,28 @@ namespace gaia {
 			uint32_t c = 0;
 
 		public:
-			uint32_t operator++(int) { return ++c; }
-			uint32_t operator--(int) { return --c; }
-			uint32_t operator()() const { return c; }
-			void Reset() { c = 0; }
+			uint32_t operator++(int) {
+				return ++c;
+			}
+			uint32_t operator--(int) {
+				return --c;
+			}
+			uint32_t operator()() const {
+				return c;
+			}
+			void Reset() {
+				c = 0;
+			}
 		};
 
-		template <class T> struct LListItem {
+		template <class T>
+		struct LListItem {
 			T* next = nullptr;
 			T** prev = nullptr;
 
-			bool IsLinked() const { return (next != nullptr || prev != nullptr); }
+			bool IsLinked() const {
+				return (next != nullptr || prev != nullptr);
+			}
 
 			void Remove() {
 				if (next)
@@ -81,13 +98,18 @@ namespace gaia {
 			}
 		};
 
-		template <class T, class Counter = DummyCounter> struct LList {
+		template <class T, class Counter = DummyCounter>
+		struct LList {
 			Counter count;
 			T* first = nullptr;
 
-			void Clear() { first = nullptr; }
+			void Clear() {
+				first = nullptr;
+			}
 
-			bool IsEmpty() const { return first == nullptr; }
+			bool IsEmpty() const {
+				return first == nullptr;
+			}
 		};
 
 #define LListInsert(llist, item, link)                                         \

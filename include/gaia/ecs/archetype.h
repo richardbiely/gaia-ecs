@@ -186,23 +186,29 @@ namespace gaia {
 				return GetWorldVersionFromWorld(*parentWorld);
 			}
 
-			uint16_t GetCapacity() const { return capacity; }
+			uint16_t GetCapacity() const {
+				return capacity;
+			}
 
 			const ChunkComponentList& GetComponentList(ComponentType type) const {
 				return componentList[type];
 			}
 
-			template <typename... T> [[nodiscard]] bool HasComponents() const {
+			template <typename... T>
+			[[nodiscard]] bool HasComponents() const {
 				return HasComponents_Internal<ComponentType::CT_Generic, T...>();
 			}
-			template <typename... T> [[nodiscard]] bool HasAnyComponents() const {
+			template <typename... T>
+			[[nodiscard]] bool HasAnyComponents() const {
 				return HasAnyComponents_Internal<ComponentType::CT_Generic, T...>();
 			}
-			template <typename... T> [[nodiscard]] bool HasNoneComponents() const {
+			template <typename... T>
+			[[nodiscard]] bool HasNoneComponents() const {
 				return HasNoneComponents_Internal<ComponentType::CT_Generic, T...>();
 			}
 
-			template <typename... T> [[nodiscard]] bool HasChunkComponents() const {
+			template <typename... T>
+			[[nodiscard]] bool HasChunkComponents() const {
 				return HasComponents_Internal<ComponentType::CT_Chunk, T...>();
 			}
 			template <typename... T>

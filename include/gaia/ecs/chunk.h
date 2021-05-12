@@ -271,11 +271,13 @@ namespace gaia {
 				return GetComponentIdx_Internal(ComponentType::CT_Chunk, typeIdx);
 			}
 
-			template <typename T> [[nodiscard]] bool HasComponent() const {
+			template <typename T>
+			[[nodiscard]] bool HasComponent() const {
 				return HasComponent_Internal<std::decay_t<T>>(
 						ComponentType::CT_Generic);
 			}
-			template <typename T> [[nodiscard]] bool HasChunkComponent() const {
+			template <typename T>
+			[[nodiscard]] bool HasChunkComponent() const {
 				return HasComponent_Internal<std::decay_t<T>>(ComponentType::CT_Chunk);
 			}
 

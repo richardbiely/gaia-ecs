@@ -23,7 +23,8 @@ namespace gaia {
 
 			ComponentMetaDataArray list[ComponentType::CT_Count];
 
-			template <typename T> void AddToList(const ComponentType t) {
+			template <typename T>
+			void AddToList(const ComponentType t) {
 				using TComponent = std::decay_t<T>;
 				list[(int)t].push_back(GetOrCreateComponentMetaType<TComponent>());
 			}
@@ -31,7 +32,8 @@ namespace gaia {
 		public:
 			CreationQuery() = default;
 
-			template <typename... TComponent> CreationQuery& AddComponent() {
+			template <typename... TComponent>
+			CreationQuery& AddComponent() {
 				static_assert(
 						VerifyMaxComponentCountPerArchetype(sizeof...(TComponent)),
 						"Maximum number of components exceeded");
@@ -40,7 +42,8 @@ namespace gaia {
 				return *this;
 			}
 
-			template <typename... TComponent> CreationQuery& AddChunkComponent() {
+			template <typename... TComponent>
+			CreationQuery& AddChunkComponent() {
 				static_assert(
 						VerifyMaxComponentCountPerArchetype(sizeof...(TComponent)),
 						"Maximum number of components exceeded");

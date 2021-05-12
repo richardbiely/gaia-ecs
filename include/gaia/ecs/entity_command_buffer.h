@@ -208,7 +208,8 @@ namespace gaia {
 			/*!
 			Requests a component to be added to entity
 			*/
-			template <typename... TComponent> void AddComponent(Entity entity) {
+			template <typename... TComponent>
+			void AddComponent(Entity entity) {
 				VerifyComponents<TComponent...>();
 				if (!VerifyMaxComponentCountPerArchetype(
 								(uint32_t)sizeof...(TComponent)))
@@ -222,7 +223,8 @@ namespace gaia {
 			/*!
 			Requests a chunk component to be added to entity
 			*/
-			template <typename... TComponent> void AddChunkComponent(Entity entity) {
+			template <typename... TComponent>
+			void AddChunkComponent(Entity entity) {
 				VerifyComponents<TComponent...>();
 				if (!VerifyMaxComponentCountPerArchetype(
 								(uint32_t)sizeof...(TComponent)))
@@ -262,7 +264,8 @@ namespace gaia {
 			/*!
 			Requests removal of a component from entity
 			*/
-			template <typename... TComponent> void RemoveComponent(Entity entity) {
+			template <typename... TComponent>
+			void RemoveComponent(Entity entity) {
 				m_data.push_back(REMOVE_COMPONENT);
 				m_data.push_back(ComponentType::CT_Generic);
 				RemoveComponent_Internal<TComponent...>(entity);

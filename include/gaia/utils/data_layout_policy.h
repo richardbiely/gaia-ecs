@@ -11,7 +11,7 @@ namespace gaia {
 	namespace utils {
 		enum class DataLayout {
 			SoA, // Structure Of Arrays
-			AoS	 // Array Of Structures
+			AoS // Array Of Structures
 		};
 
 		// Helper templates
@@ -41,7 +41,8 @@ namespace gaia {
 #pragma endregion
 		} // namespace detail
 
-		template <DataLayout TDataLayout, typename TItem> struct data_view_policy;
+		template <DataLayout TDataLayout, typename TItem>
+		struct data_view_policy;
 
 		/*!
 		 * data_view_policy for accessing and storing data in the AoS way

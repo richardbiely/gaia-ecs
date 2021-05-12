@@ -11,7 +11,8 @@ namespace gaia {
 			return {get<Is>(std::forward<Tupple>(tup))...};
 		}
 
-		template <class S, class Tupple> S tuple_to_struct(Tupple&& tup) {
+		template <class S, class Tupple>
+		S tuple_to_struct(Tupple&& tup) {
 			using T = std::remove_reference_t<Tupple>;
 
 			return tuple_to_struct<S>(
@@ -25,21 +26,24 @@ namespace gaia {
 
 		// Check is a type T is constructible such as T{Args...}
 		struct any_type {
-			template <class T> constexpr operator T(); // non explicit
+			template <class T>
+			constexpr operator T(); // non explicit
 		};
 
 		template <class T, class... TArgs>
 		decltype(void(T{std::declval<TArgs>()...}), std::true_type{})
 		is_braces_constructible(int);
 
-		template <class, class...> std::false_type is_braces_constructible(...);
+		template <class, class...>
+		std::false_type is_braces_constructible(...);
 		template <class T, class... TArgs>
 		using is_braces_constructible_t =
 				decltype(is_braces_constructible<T, TArgs...>(0));
 
 		// Converts a struct to a tuple (struct necessary to support
 		// initialization via Struct{x,y,...,z})
-		template <class T> auto struct_to_tuple(T&& object) noexcept {
+		template <class T>
+		auto struct_to_tuple(T&& object) noexcept {
 			using type = std::decay_t<T>;
 			// Don't support empty structs. They have no data.
 			// We also want compilation to fail for structs with many members so we
