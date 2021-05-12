@@ -106,7 +106,7 @@ namespace gaia {
 		(item)->link.next->link.prev = (item)->link.prev;                          \
 	llist.count--;
 
-		struct SmallBlockAllocatorStats final {
+		struct ChunkAllocatorStats final {
 			//! Total allocated memory
 			uint64_t Allocated;
 			//! Overhead and cached allocations
@@ -192,7 +192,7 @@ namespace gaia {
 				void* data;
 				LList<BlockHead, CCounter> m_Blocks;
 				LListItem<MemoryPage> m_Link;
-				MemoryPage(void* ptr) : data(ptr) {}
+				MemoryPage(void* ptr): data(ptr) {}
 			};
 
 			LList<MemoryPage, CCounter> m_FreePages;
@@ -216,7 +216,7 @@ namespace gaia {
 			/*!
 			Allocates memory
 			*/
-			void* Alloc() {
+			void* Allocate() {
 				ECS_ASSERT_MAIN_THREAD;
 
 				m_Block.m_iNumAllocations++;
@@ -262,7 +262,7 @@ namespace gaia {
 			/*!
 			Releases memory allocated for pointer
 			*/
-			size_t Free(void* pointer) {
+			size_t Release(void* pointer) {
 				ECS_ASSERT_MAIN_THREAD;
 
 				BlockHead* head = BlockFromPtr(pointer);
@@ -348,7 +348,7 @@ namespace gaia {
 			/*!
 			Returns allocator statistics
 			*/
-			void GetStats(SmallBlockAllocatorStats& stats) const {
+			void GetStats(ChunkAllocatorStats& stats) const {
 				ECS_ASSERT_MAIN_THREAD;
 
 				stats.Allocated = m_Block.m_iNumAllocations * CHUNK_SIZE;
@@ -460,25 +460,5 @@ namespace gaia {
 			}
 		};
 
-		//-----------------------------------------------------------------------------------
-
-		extern ChunkAllocator g_ChunkAllocator;
-
-		GAIA_API void DumpAllocatorStats() {
-			SmallBlockAllocatorStats memstats;
-			g_ChunkAllocator.GetStats(memstats);
-				if (memstats.NumAllocations != 0) {
-					LOG_N("ChunkAllocator stats");
-					LOG_N("  Allocations: %llu", memstats.NumAllocations);
-					LOG_N("  Blocks: %llu", memstats.NumBlocks);
-					LOG_N("  Allocated: %llu B", memstats.Allocated);
-					LOG_N("  Overhead: %llu B", memstats.Overhead);
-			}
-		}
-
-#define GAIA_ECS_CHUNK_ALLOCATOR_H_INIT                                        \
-	gaia::ecs::ChunkAllocator gaia::ecs::g_ChunkAllocator;
-
-		//-----------------------------------------------------------------------------------
 	} // namespace ecs
 } // namespace gaia

@@ -49,12 +49,29 @@ TEST_CASE("CreateEntity") {
 
 	auto create = [&](uint32_t id) {
 		auto e = w.CreateEntity();
+		w.AddComponent<Position>(e);
 		const bool ok = e.id() == id && e.gen() == 0;
 		REQUIRE(ok);
 		return e;
 	};
 
-	for (uint32_t i = 0; i < 1000; i++)
+	const uint32_t N = 100;
+	for (uint32_t i = 0; i < N; i++)
+		create(i);
+}
+
+TEST_CASE("CreateEntity_Component1") {
+	ecs::World w;
+
+	auto create = [&](uint32_t id) {
+		auto e = w.CreateEntity();
+		const bool ok = e.id() == id && e.gen() == 0;
+		REQUIRE(ok);
+		return e;
+	};
+
+	const uint32_t N = 10000;
+	for (uint32_t i = 0; i < N; i++)
 		create(i);
 }
 
@@ -78,9 +95,37 @@ TEST_CASE("CreateAndRemoveEntity") {
 	};
 
 	std::vector<ecs::Entity> arr;
-	for (uint32_t i = 0; i < 1000; i++)
+	const uint32_t N = 100;
+	for (uint32_t i = 0; i < N; i++)
 		arr.push_back(create(i));
-	for (uint32_t i = 0; i < 1000; i++)
+	for (uint32_t i = 0; i < N; i++)
+		remove(arr[i]);
+}
+
+TEST_CASE("CreateAndRemoveEntity_Component1") {
+	ecs::World w;
+
+	auto create = [&](uint32_t id) {
+		auto e = w.CreateEntity();
+		const bool ok = e.id() == id && e.gen() == 0;
+		REQUIRE(ok);
+		return e;
+	};
+	auto remove = [&](ecs::Entity e) {
+		w.DeleteEntity(e);
+		auto de = w.GetEntity(e.id());
+		const bool ok = de.gen() == e.gen() + 1;
+		REQUIRE(ok);
+		auto ch = w.GetEntityChunk(e);
+		const bool ok2 = ch == nullptr;
+		REQUIRE(ok2);
+	};
+
+	std::vector<ecs::Entity> arr;
+	const uint32_t N = 10000;
+	for (uint32_t i = 0; i < N; i++)
+		arr.push_back(create(i));
+	for (uint32_t i = 0; i < N; i++)
 		remove(arr[i]);
 }
 
@@ -245,7 +290,8 @@ TEST_CASE("Example") {
 	// world.DeleteEntity(e1);
 	// world.DeleteEntity(e2);
 
-	world.Diag();
-	ecs::DumpAllocatorStats();
+	// world.Diag();
+	// ecs::DumpAllocatorStats();
+	// ecs::g_ChunkAllocator.Flush();
 	REQUIRE(true);
 }
