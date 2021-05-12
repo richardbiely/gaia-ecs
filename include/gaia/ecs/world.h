@@ -950,7 +950,7 @@ namespace gaia {
 			}
 
 			template <typename... TComponent>
-			void AddComponent(Entity entity, ECS_SMART_ARG(TComponent)... data) {
+			void AddComponent(Entity entity, TComponent&&... data) {
 				assert(IsEntityValid(entity));
 				VerifyComponents<TComponent...>();
 
@@ -970,7 +970,7 @@ namespace gaia {
 			}
 
 			template <typename... TComponent>
-			void AddChunkComponent(Entity entity, ECS_SMART_ARG(TComponent)... data) {
+			void AddChunkComponent(Entity entity, TComponent&&... data) {
 				assert(IsEntityValid(entity));
 				VerifyComponents<TComponent...>();
 
@@ -1000,7 +1000,7 @@ namespace gaia {
 			}
 
 			template <typename... TComponent>
-			void SetComponent(Entity entity, ECS_SMART_ARG(TComponent)... data) {
+			void SetComponent(Entity entity, TComponent&&... data) {
 				assert(IsEntityValid(entity));
 				VerifyComponents<TComponent...>();
 
@@ -1013,7 +1013,7 @@ namespace gaia {
 			}
 
 			template <typename... TComponent>
-			void SetChunkComponent(Entity entity, ECS_SMART_ARG(TComponent)... data) {
+			void SetChunkComponent(Entity entity, TComponent&&... data) {
 				assert(IsEntityValid(entity));
 				VerifyComponents<TComponent...>();
 
@@ -1118,8 +1118,7 @@ namespace gaia {
 		private:
 			template <typename TComponent>
 			void SetComponent_Internal(
-					ComponentType TYPE, Chunk* chunk, uint32_t index,
-					ECS_SMART_ARG(TComponent) data) {
+					ComponentType TYPE, Chunk* chunk, uint32_t index, TComponent&& data) {
 				if constexpr (!std::is_empty<TComponent>::value)
 					chunk->SetComponent_Internal<TComponent>(TYPE, index) =
 							std::forward<TComponent>(data);
@@ -1128,7 +1127,7 @@ namespace gaia {
 			template <typename... TComponent>
 			void SetComponentsDataInternal(
 					ComponentType TYPE, Chunk* chunk, uint32_t index,
-					ECS_SMART_ARG(TComponent)... data) {
+					TComponent&&... data) {
 				(SetComponent_Internal<TComponent>(
 						 TYPE, chunk, index, std::forward<TComponent>(data)),
 				 ...);

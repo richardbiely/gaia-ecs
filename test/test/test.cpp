@@ -288,10 +288,8 @@ TEST_CASE("Example") {
 
 	// Delete some entity
 	// world.DeleteEntity(e1);
-	// world.DeleteEntity(e2);
+	// world.DeleteEntity(e3);
 
-	// world.Diag();
-	// ecs::DumpAllocatorStats();
-	// ecs::g_ChunkAllocator.Flush();
+	world.Diag();
 	REQUIRE(true);
 }
