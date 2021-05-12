@@ -20,7 +20,8 @@ namespace gaia {
 		//! Maximum size of components in bytes
 		static constexpr uint32_t MAX_COMPONENTS_SIZE = 255u;
 
-		template <typename T> constexpr void VerifyComponent() {
+		template <typename T>
+		constexpr void VerifyComponent() {
 			using TT = std::decay_t<T>;
 			static_assert(
 					(uint32_t)sizeof(TT) < MAX_COMPONENTS_SIZE,
@@ -30,7 +31,8 @@ namespace gaia {
 					"Only trivial types are allowed to be used as components!");
 		}
 
-		template <typename... T> constexpr void VerifyComponents() {
+		template <typename... T>
+		constexpr void VerifyComponents() {
 			static_assert(utils::is_unique<T...>);
 			(VerifyComponent<T>(), ...);
 		}
@@ -81,7 +83,8 @@ namespace gaia {
 				return nameHash < other.nameHash;
 			}
 
-			template <typename T> static constexpr ComponentMetaData Calculate() {
+			template <typename T>
+			static constexpr ComponentMetaData Calculate() {
 				using TComponent = std::decay_t<T>;
 
 				ComponentMetaData mth;
@@ -109,7 +112,8 @@ namespace gaia {
 				return mth;
 			};
 
-			template <typename T> static const ComponentMetaData* Create() {
+			template <typename T>
+			static const ComponentMetaData* Create() {
 				using TComponent = std::decay_t<T>;
 				return new ComponentMetaData(Calculate<TComponent>());
 			};
@@ -140,7 +144,7 @@ namespace gaia {
 		//-----------------------------------------------------------------------------------
 
 		void ClearRegisteredTypeCache() {
-				for (auto* p : g_ComponentMetaTypeCache) {
+				for (auto* p: g_ComponentMetaTypeCache) {
 					if (p)
 						delete p;
 				}
@@ -190,7 +194,8 @@ namespace gaia {
 			return *it;
 		}
 
-		template <typename T> inline bool HasComponentMetaType() {
+		template <typename T>
+		inline bool HasComponentMetaType() {
 			using TComponent = std::decay_t<T>;
 			const auto idx = utils::type_info::index<TComponent>();
 			return idx < g_ComponentMetaTypeCache.size();
@@ -199,7 +204,7 @@ namespace gaia {
 		inline uint64_t
 		CalculateComponentsHash(tcb::span<const ComponentMetaData*> types) {
 			uint64_t hash = 0;
-			for (const auto type : types)
+			for (const auto type: types)
 				hash |= type->componentHash;
 			return hash;
 		}

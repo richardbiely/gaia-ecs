@@ -7,7 +7,8 @@
 
 namespace gaia {
 	namespace utils {
-		template <class TKey> struct StdHashingPolicy {
+		template <class TKey>
+		struct StdHashingPolicy {
 			typedef uint32_t HashValueType;
 
 			static HashValueType GetHash(const TKey& val) {
@@ -15,26 +16,34 @@ namespace gaia {
 			}
 		};
 
-		template <class TKey> struct PrehashedKeyPolicy {
+		template <class TKey>
+		struct PrehashedKeyPolicy {
 			typedef uint32_t HashValueType;
 
-			static HashValueType GetHash(const TKey& val) { return (uint32_t)val; }
+			static HashValueType GetHash(const TKey& val) {
+				return (uint32_t)val;
+			}
 		};
 
-		template <class TKey> struct HashMethodPolicy {
+		template <class TKey>
+		struct HashMethodPolicy {
 			typedef uint32_t HashValueType;
 
-			static HashValueType GetHash(const TKey& val) { return val.GetHash(); }
+			static HashValueType GetHash(const TKey& val) {
+				return val.GetHash();
+			}
 		};
 
-		template <class TKey> struct StringHashingPolicyCS {
+		template <class TKey>
+		struct StringHashingPolicyCS {
 			typedef uint32_t HashValueType;
 
 			static HashValueType GetHash(const TKey& val) {
 				return val.GetHashValue();
 			}
 		};
-		template <> struct StringHashingPolicyCS<const char*> {
+		template <>
+		struct StringHashingPolicyCS<const char*> {
 			typedef uint32_t HashValueType;
 
 			static HashValueType GetHash(const char* str) {
@@ -48,14 +57,16 @@ namespace gaia {
 			}
 		};
 
-		template <class TKey> struct StringHashingPolicyCI {
+		template <class TKey>
+		struct StringHashingPolicyCI {
 			typedef uint32_t HashValueType;
 
 			static HashValueType GetHash(const TKey& val) {
 				return val.GetHashValueCI();
 			}
 		};
-		template <> struct StringHashingPolicyCI<const char*> {
+		template <>
+		struct StringHashingPolicyCI<const char*> {
 			typedef uint32_t HashValueType;
 
 			static HashValueType GetHash(const char* str) {
@@ -69,7 +80,8 @@ namespace gaia {
 			}
 		};
 
-		template <class TKey> struct SequentialKeyHash {
+		template <class TKey>
+		struct SequentialKeyHash {
 			typedef uint32_t HashValueType;
 
 			static HashValueType GetHash(const TKey& val) {
@@ -83,7 +95,8 @@ namespace gaia {
 		};
 
 		//! Hash bytes of the TKey type
-		template <class TKey> struct MemoryHashingPolicy {
+		template <class TKey>
+		struct MemoryHashingPolicy {
 			typedef uint32_t HashValueType;
 
 			static uint32_t GetHash(const TKey& desc) {
@@ -125,14 +138,16 @@ namespace gaia {
 											 &str[1], (value ^ (uint64_t)(str[0])) * prime_64_const);
 		}
 
-		template <class TKey> struct Fnv1a32HashingPolicy {
+		template <class TKey>
+		struct Fnv1a32HashingPolicy {
 			using HashValueType = uint32_t;
 
 			static HashValueType GetHash(const TKey& val) {
 				return val.GetHashValue();
 			}
 		};
-		template <> struct Fnv1a32HashingPolicy<const char*> {
+		template <>
+		struct Fnv1a32HashingPolicy<const char*> {
 			using HashValueType = uint32_t;
 
 			static HashValueType GetHash(const char* str) {
@@ -140,14 +155,16 @@ namespace gaia {
 			}
 		};
 
-		template <class TKey> struct Fnv1a64HashingPolicy {
+		template <class TKey>
+		struct Fnv1a64HashingPolicy {
 			using HashValueType = uint64_t;
 
 			static HashValueType GetHash(const TKey& val) {
 				return val.GetHashValue();
 			}
 		};
-		template <> struct Fnv1a64HashingPolicy<const char*> {
+		template <>
+		struct Fnv1a64HashingPolicy<const char*> {
 			using HashValueType = uint64_t;
 
 			static HashValueType GetHash(const char* str) {

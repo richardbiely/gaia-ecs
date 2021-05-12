@@ -194,34 +194,41 @@ namespace gaia {
 			}
 
 		public:
-			template <typename... TComponent> EntityQuery& WithAny() {
+			template <typename... TComponent>
+			EntityQuery& WithAny() {
 				CalculateHashes<TComponent...>(list[ComponentType::CT_Generic].listAny);
 				return *this;
 			}
-			template <typename... TComponent> EntityQuery& With() {
+			template <typename... TComponent>
+			EntityQuery& With() {
 				CalculateHashes<TComponent...>(list[ComponentType::CT_Generic].listAll);
 				return *this;
 			}
-			template <typename... TComponent> EntityQuery& WithNone() {
+			template <typename... TComponent>
+			EntityQuery& WithNone() {
 				CalculateHashes<TComponent...>(
 						list[ComponentType::CT_Generic].listNone);
 				return *this;
 			}
 
-			template <typename... TComponent> EntityQuery& WithAnyChunkComponent() {
+			template <typename... TComponent>
+			EntityQuery& WithAnyChunkComponent() {
 				CalculateHashes<TComponent...>(list[ComponentType::CT_Chunk].listAny);
 				return *this;
 			}
-			template <typename... TComponent> EntityQuery& WithChunkComponents() {
+			template <typename... TComponent>
+			EntityQuery& WithChunkComponents() {
 				CalculateHashes<TComponent...>(list[ComponentType::CT_Chunk].listAll);
 				return *this;
 			}
-			template <typename... TComponent> EntityQuery& WithNoneChunkComponents() {
+			template <typename... TComponent>
+			EntityQuery& WithNoneChunkComponents() {
 				CalculateHashes<TComponent...>(list[ComponentType::CT_Chunk].listNone);
 				return *this;
 			}
 
-			template <typename... TComponent> EntityQuery& WithChanged() {
+			template <typename... TComponent>
+			EntityQuery& WithChanged() {
 				SetChangedFilter<TComponent...>(
 						listChangeFiltered[ComponentType::CT_Generic],
 						list[ComponentType::CT_Generic]);

@@ -17,7 +17,8 @@ namespace gaia {
 
 		//! Provides statically generated unique identifier for a given group of
 		//! types.
-		template <typename...> class type_group {
+		template <typename...>
+		class type_group {
 			inline static uint32_t identifier{};
 
 		public:
@@ -25,12 +26,14 @@ namespace gaia {
 			inline static const uint32_t id = identifier++;
 		};
 
-		template <> class type_group<void>;
+		template <>
+		class type_group<void>;
 
 #pragma region "Type meta data"
 
 		struct type_info final {
-			template <typename T> static constexpr uint32_t index() noexcept {
+			template <typename T>
+			static constexpr uint32_t index() noexcept {
 				return type_group<type_info>::id<T>;
 			}
 
