@@ -1113,7 +1113,7 @@ namespace gaia {
 
 			template <class T, std::enable_if_t<IsReadOnlyType<T>::value>* = nullptr>
 			constexpr const std::decay_t<T>* expandTuple(Chunk& chunk) const {
-				return chunk.ViewRO<T>();
+				return chunk.View<T>();
 			}
 
 			template <class T, std::enable_if_t<!IsReadOnlyType<T>::value>* = nullptr>
