@@ -115,16 +115,16 @@ int main() {
 
 	// Setting component data
 
-	world.SetComponentData<Position>(e1, {1, 2, 3});
+	world.SetComponent<Position>(e1, {1, 2, 3});
 
 	Position p = {3, 4, 5};
-	world.SetComponentData(e1, p);
+	world.SetComponent(e1, p);
 	Position& pp = p;
-	world.SetComponentData(e1, pp);
-	world.SetComponentData(e1, std::move(p));
-	world.SetComponentData<Something, Acceleration, Position>(
+	world.SetComponent(e1, pp);
+	world.SetComponent(e1, std::move(p));
+	world.SetComponent<Something, Acceleration, Position>(
 			e3, {false}, {1, 2, 3}, {10, 11, 12});
-	world.SetChunkComponentData<Else>(e3, {false});
+	world.SetChunkComponent<Else>(e3, {false});
 
 	{
 		ecs::EntityQuery q;
