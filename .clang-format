@@ -2,7 +2,7 @@
 BasedOnStyle: LLVM
 IndentWidth: 2
 TabWidth: 2
-UseTab: true
+UseTab: Always
 ---
 Language: Cpp
 UseCRLF: true
@@ -45,3 +45,17 @@ IndentPPDirectives: BeforeHash
 IndentWrappedFunctionNames: false
 InsertTrailingCommas: None
 NamespaceIndentation: All
+SortUsingDeclarations: true
+SpaceAfterCStyleCast: false
+SpaceAfterLogicalNot: false
+SpaceAfterTemplateKeyword: true
+SpaceBeforeAssignmentOperators: true
+SpaceBeforeInheritanceColon: false
+SpaceBeforeCtorInitializerColon: false
+SpaceBeforeRangeBasedForLoopColon: false
+SpaceInEmptyBlock: false
+SpaceInEmptyParentheses: false
+SpacesInConditionalStatement: false
+SpacesInContainerLiterals: false
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
