@@ -1,5 +1,4 @@
 #pragma once
-#include <_types/_uint16_t.h>
 #include <inttypes.h>
 
 namespace gaia {
