@@ -39,7 +39,7 @@ namespace gaia {
 			//! Archetype data. Entities first, followed by a lists of components.
 			uint8_t data[DATA_SIZE - sizeof(ChunkHeader)];
 
-			Chunk(const Archetype& archetype) : header(archetype) {}
+			Chunk(const Archetype& archetype): header(archetype) {}
 
 			[[nodiscard]] void* GetComponent_Internal(
 					ComponentType TYPE, uint32_t index,
@@ -157,7 +157,7 @@ namespace gaia {
 
 						const auto& componentList = GetArchetypeComponentList(
 								header.owner, ComponentType::CT_Generic);
-							for (const auto& info : componentList) {
+							for (const auto& info: componentList) {
 								// Skip tag components
 								if (!info.type->size)
 									continue;

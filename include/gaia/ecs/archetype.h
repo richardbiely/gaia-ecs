@@ -64,11 +64,11 @@ namespace gaia {
 
 				// Size of the entity + all of its generic components
 				uint32_t genericComponentListSize = (uint32_t)sizeof(Entity);
-				for (const auto type : genericTypes)
+				for (const auto type: genericTypes)
 					genericComponentListSize += type->size;
 				// Size of chunk components
 				uint32_t chunkComponentListSize = 0;
-				for (const auto type : chunkTypes)
+				for (const auto type: chunkTypes)
 					chunkComponentListSize += type->size;
 
 				// Number of components we can fit into one chunk
@@ -174,7 +174,7 @@ namespace gaia {
 		public:
 			~Archetype() {
 				// Delete all archetype chunks
-				for (auto* pChunk : chunks)
+				for (auto* pChunk: chunks)
 					ReleaseChunk(pChunk);
 			}
 
@@ -188,37 +188,32 @@ namespace gaia {
 				return componentList[type];
 			}
 
-			template <typename T> [[nodiscard]] bool HasComponent() const {
-				return HasComponent<ComponentType::CT_Generic, T>();
-			}
 			template <typename... T> [[nodiscard]] bool HasAllComponents() const {
-				return HasAllComponents<ComponentType::CT_Generic, T...>();
+				return HasAllComponents_Internal<ComponentType::CT_Generic, T...>();
 			}
-			template <typename... T> [[nodiscard]] bool HasAnyComponent() const {
-				return HasAnyComponent<ComponentType::CT_Generic, T...>();
+			template <typename... T> [[nodiscard]] bool HasAnyComponents() const {
+				return HasAnyComponents_Internal<ComponentType::CT_Generic, T...>();
 			}
 			template <typename... T> [[nodiscard]] bool HasNoneComponents() const {
-				return HasNoneComponents<ComponentType::CT_Generic, T...>();
+				return HasNoneComponents_Internal<ComponentType::CT_Generic, T...>();
 			}
 
-			template <typename T> [[nodiscard]] bool HasChunkComponent() const {
-				return HasComponent<ComponentType::CT_Chunk, T>();
-			}
 			template <typename... T>
 			[[nodiscard]] bool HasAllChunkComponents() const {
-				return HasAllComponents<ComponentType::CT_Chunk, T...>();
+				return HasAllComponents_Internal<ComponentType::CT_Chunk, T...>();
 			}
-			template <typename... T> [[nodiscard]] bool HasAnyChunkComponent() const {
-				return HasAnyComponent<ComponentType::CT_Chunk, T...>();
+			template <typename... T>
+			[[nodiscard]] bool HasAnyChunkComponents() const {
+				return HasAnyComponents_Internal<ComponentType::CT_Chunk, T...>();
 			}
 			template <typename... T>
 			[[nodiscard]] bool HasNoneChunkComponents() const {
-				return HasNoneComponents<ComponentType::CT_Chunk, T...>();
+				return HasNoneComponents_Internal<ComponentType::CT_Chunk, T...>();
 			}
 
 		private:
 			template <ComponentType TYPE, typename T>
-			[[nodiscard]] bool HasComponent() const {
+			[[nodiscard]] bool HasComponent_Internal() const {
 				const ComponentMetaData* type = GetOrCreateComponentMetaType<T>();
 				return utils::has_if(componentList[TYPE], [type](const auto& info) {
 					return info.type == type;
@@ -226,18 +221,18 @@ namespace gaia {
 			}
 
 			template <ComponentType TYPE, typename... T>
-			[[nodiscard]] bool HasAllComponents() const {
-				return (HasComponent<TYPE, T>() && ...);
+			[[nodiscard]] bool HasAllComponents_Internal() const {
+				return (HasComponent_Internal<TYPE, T>() && ...);
 			}
 
 			template <ComponentType TYPE, typename... T>
-			[[nodiscard]] bool HasAnyComponent() const {
-				return (HasComponent<TYPE, T>() || ...);
+			[[nodiscard]] bool HasAnyComponents_Internal() const {
+				return (HasComponent_Internal<TYPE, T>() || ...);
 			}
 
 			template <ComponentType TYPE, typename... T>
-			[[nodiscard]] bool HasNoneComponents() const {
-				return (!HasComponent<TYPE, T>() && ...);
+			[[nodiscard]] bool HasNoneComponents_Internal() const {
+				return (!HasComponent_Internal<TYPE, T>() && ...);
 			}
 		};
 
