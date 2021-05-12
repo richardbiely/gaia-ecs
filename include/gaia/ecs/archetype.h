@@ -188,8 +188,8 @@ namespace gaia {
 				return componentList[type];
 			}
 
-			template <typename... T> [[nodiscard]] bool HasAllComponents() const {
-				return HasAllComponents_Internal<ComponentType::CT_Generic, T...>();
+			template <typename... T> [[nodiscard]] bool HasComponents() const {
+				return HasComponents_Internal<ComponentType::CT_Generic, T...>();
 			}
 			template <typename... T> [[nodiscard]] bool HasAnyComponents() const {
 				return HasAnyComponents_Internal<ComponentType::CT_Generic, T...>();
@@ -198,9 +198,8 @@ namespace gaia {
 				return HasNoneComponents_Internal<ComponentType::CT_Generic, T...>();
 			}
 
-			template <typename... T>
-			[[nodiscard]] bool HasAllChunkComponents() const {
-				return HasAllComponents_Internal<ComponentType::CT_Chunk, T...>();
+			template <typename... T> [[nodiscard]] bool HasChunkComponents() const {
+				return HasComponents_Internal<ComponentType::CT_Chunk, T...>();
 			}
 			template <typename... T>
 			[[nodiscard]] bool HasAnyChunkComponents() const {
@@ -221,7 +220,7 @@ namespace gaia {
 			}
 
 			template <ComponentType TYPE, typename... T>
-			[[nodiscard]] bool HasAllComponents_Internal() const {
+			[[nodiscard]] bool HasComponents_Internal() const {
 				return (HasComponent_Internal<TYPE, T>() && ...);
 			}
 

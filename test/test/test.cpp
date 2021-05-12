@@ -149,7 +149,7 @@ TEST_CASE("Example") {
 		bool hasRotation = world.HasAnyComponents<Acceleration>(
 				e1); // true if there's Acceleration
 						 // component present in archetype
-		bool hasRotationAndScale = world.HasAllComponents<
+		bool hasRotationAndScale = world.HasComponents<
 				Acceleration,
 				Scale>(e1); // true if there're both Acceleration and
 										// Scale component present in archetype
@@ -196,7 +196,7 @@ TEST_CASE("Example") {
 		// carry Scale and carry chunk component Acceleration
 		q.WithAny<Something, Else>()
 				.WithNone<Scale>()
-				.WithAllChunkComponents<Acceleration>();
+				.WithChunkComponents<Acceleration>();
 		// In addition to the above both Position and Acceleration must be there. We
 		// extract data for them.
 		world
@@ -219,7 +219,7 @@ TEST_CASE("Example") {
 						ecs::EntityQuery()
 								.WithAny<Something, Else>()
 								.WithNone<Scale>()
-								.WithAllChunkComponents<Acceleration>(),
+								.WithChunkComponents<Acceleration>(),
 						[](const Position& p, const Acceleration& a) {
 							LOG_N(
 									"pos=[%f,%f,%f], acc=[%f,%f,%f]\n", p.x, p.y, p.z, a.x, a.y,
