@@ -943,16 +943,16 @@ namespace gaia {
 
 			template <typename... TComponent>
 			void AddComponent(Entity entity) {
-				assert(IsEntityValid(entity));
 				VerifyComponents<TComponent...>();
+				assert(IsEntityValid(entity));
 
 				AddComponent_Internal<TComponent...>(ComponentType::CT_Generic, entity);
 			}
 
 			template <typename... TComponent>
 			void AddComponent(Entity entity, TComponent&&... data) {
-				assert(IsEntityValid(entity));
 				VerifyComponents<TComponent...>();
+				assert(IsEntityValid(entity));
 
 				if (auto entityContainer = AddComponent_Internal<TComponent...>(
 								ComponentType::CT_Generic, entity))
@@ -963,16 +963,16 @@ namespace gaia {
 
 			template <typename... TComponent>
 			void AddChunkComponent(Entity entity) {
-				assert(IsEntityValid(entity));
 				VerifyComponents<TComponent...>();
+				assert(IsEntityValid(entity));
 
 				AddComponent_Internal<TComponent...>(ComponentType::CT_Chunk, entity);
 			}
 
 			template <typename... TComponent>
 			void AddChunkComponent(Entity entity, TComponent&&... data) {
-				assert(IsEntityValid(entity));
 				VerifyComponents<TComponent...>();
+				assert(IsEntityValid(entity));
 
 				if (auto entityContainer = AddComponent_Internal<TComponent...>(
 								ComponentType::CT_Chunk, entity))
@@ -983,8 +983,8 @@ namespace gaia {
 
 			template <typename... TComponent>
 			void RemoveComponent(Entity entity) {
-				assert(IsEntityValid(entity));
 				VerifyComponents<TComponent...>();
+				assert(IsEntityValid(entity));
 
 				RemoveComponent_Internal<TComponent...>(
 						ComponentType::CT_Generic, entity);
@@ -992,8 +992,8 @@ namespace gaia {
 
 			template <typename... TComponent>
 			void RemoveChunkComponent(Entity entity) {
-				assert(IsEntityValid(entity));
 				VerifyComponents<TComponent...>();
+				assert(IsEntityValid(entity));
 
 				RemoveComponent_Internal<TComponent...>(
 						ComponentType::CT_Chunk, entity);
@@ -1001,8 +1001,8 @@ namespace gaia {
 
 			template <typename... TComponent>
 			void SetComponent(Entity entity, TComponent&&... data) {
-				assert(IsEntityValid(entity));
 				VerifyComponents<TComponent...>();
+				assert(IsEntityValid(entity));
 
 				auto& entityContainer = m_entities[entity.id()];
 				auto chunk = entityContainer.chunk;
@@ -1014,8 +1014,8 @@ namespace gaia {
 
 			template <typename... TComponent>
 			void SetChunkComponent(Entity entity, TComponent&&... data) {
-				assert(IsEntityValid(entity));
 				VerifyComponents<TComponent...>();
+				assert(IsEntityValid(entity));
 
 				auto& entityContainer = m_entities[entity.id()];
 				auto chunk = entityContainer.chunk;
@@ -1027,8 +1027,8 @@ namespace gaia {
 
 			template <typename... TComponent>
 			void GetComponent(Entity entity, TComponent&... data) {
-				assert(IsEntityValid(entity));
 				VerifyComponents<TComponent...>();
+				assert(IsEntityValid(entity));
 
 				auto& entityContainer = m_entities[entity.id()];
 				auto chunk = entityContainer.chunk;
@@ -1039,8 +1039,8 @@ namespace gaia {
 
 			template <typename... TComponent>
 			void GetChunkComponent(Entity entity, TComponent&... data) {
-				assert(IsEntityValid(entity));
 				VerifyComponents<TComponent...>();
+				assert(IsEntityValid(entity));
 
 				auto& entityContainer = m_entities[entity.id()];
 				auto chunk = entityContainer.chunk;
@@ -1051,8 +1051,8 @@ namespace gaia {
 
 			template <typename... TComponent>
 			[[nodiscard]] bool HasComponents(Entity entity) {
-				assert(IsEntityValid(entity));
 				VerifyComponents<TComponent...>();
+				assert(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
 				const auto* chunk = entityContainer.chunk;
@@ -1062,8 +1062,8 @@ namespace gaia {
 
 			template <typename... TComponent>
 			[[nodiscard]] bool HasAnyComponents(Entity entity) {
-				assert(IsEntityValid(entity));
 				VerifyComponents<TComponent...>();
+				assert(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
 				const auto* chunk = entityContainer.chunk;
@@ -1073,8 +1073,8 @@ namespace gaia {
 
 			template <typename... TComponent>
 			[[nodiscard]] bool HasNoneComponents(Entity entity) {
-				assert(IsEntityValid(entity));
 				VerifyComponents<TComponent...>();
+				assert(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
 				const auto* chunk = entityContainer.chunk;
@@ -1084,8 +1084,8 @@ namespace gaia {
 
 			template <typename... TComponent>
 			[[nodiscard]] bool HasChunkComponents(Entity entity) {
-				assert(IsEntityValid(entity));
 				VerifyComponents<TComponent...>();
+				assert(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
 				const auto* chunk = entityContainer.chunk;
@@ -1095,8 +1095,8 @@ namespace gaia {
 
 			template <typename... TComponent>
 			[[nodiscard]] bool HasAnyChunkComponents(Entity entity) {
-				assert(IsEntityValid(entity));
 				VerifyComponents<TComponent...>();
+				assert(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
 				const auto* chunk = entityContainer.chunk;
@@ -1106,8 +1106,8 @@ namespace gaia {
 
 			template <typename... TComponent>
 			[[nodiscard]] bool HasNoneChunkComponents(Entity entity) {
-				assert(IsEntityValid(entity));
 				VerifyComponents<TComponent...>();
+				assert(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
 				const auto* chunk = entityContainer.chunk;
