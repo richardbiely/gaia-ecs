@@ -140,7 +140,7 @@ int main() {
 						q,
 						[](const Position& p, const Acceleration& a) {
 							LOG_N(
-									"pos=[%f,%f,%f], acc=[%f,%f,%f]\n", p.x, p.y, p.z, a.x, a.y,
+									"pos=[%f,%f,%f], acc=[%f,%f,%f]", p.x, p.y, p.z, a.x, a.y,
 									a.z);
 						})
 				.Run(0);
@@ -158,7 +158,7 @@ int main() {
 								.WithChunkComponents<Acceleration>(),
 						[](const Position& p, const Acceleration& a) {
 							LOG_N(
-									"pos=[%f,%f,%f], acc=[%f,%f,%f]\n", p.x, p.y, p.z, a.x, a.y,
+									"pos=[%f,%f,%f], acc=[%f,%f,%f]", p.x, p.y, p.z, a.x, a.y,
 									a.z);
 						})
 				.Run(0);
