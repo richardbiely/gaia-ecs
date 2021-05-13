@@ -300,7 +300,7 @@ namespace gaia {
 			}
 
 			//! Returns the number of entities in the chunk
-			[[nodiscard]] uint32_t GetItemCount() const {
+			[[nodiscard]] uint16_t GetItemCount() const {
 				return HasEntities() ? header.lastEntityIndex + 1 : 0;
 			}
 
