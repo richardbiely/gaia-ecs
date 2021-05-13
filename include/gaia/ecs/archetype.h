@@ -61,8 +61,8 @@ namespace gaia {
 			}
 
 			[[nodiscard]] static Archetype* Create(
-					World& pWorld, tcb::span<const ComponentMetaData*> genericTypes,
-					tcb::span<const ComponentMetaData*> chunkTypes) {
+					World& pWorld, std::span<const ComponentMetaData*> genericTypes,
+					std::span<const ComponentMetaData*> chunkTypes) {
 				auto newArch = new Archetype();
 				newArch->parentWorld = &pWorld;
 

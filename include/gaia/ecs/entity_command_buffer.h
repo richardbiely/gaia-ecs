@@ -344,7 +344,7 @@ namespace gaia {
 											}
 										world->AddComponent_Internal(
 												type, *entity,
-												tcb::span(newMetatypes, (uintptr_t)componentCount));
+												std::span(newMetatypes, (uintptr_t)componentCount));
 									} break;
 									case SET_COMPONENT: {
 										// Type
@@ -416,7 +416,7 @@ namespace gaia {
 											}
 										world->RemoveComponent_Internal(
 												type, e,
-												tcb::span(newMetatypes, (uintptr_t)componentCount));
+												std::span(newMetatypes, (uintptr_t)componentCount));
 									} break;
 							}
 					}

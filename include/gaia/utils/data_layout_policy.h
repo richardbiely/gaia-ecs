@@ -3,7 +3,7 @@
 #include <type_traits>
 #include <utility>
 
-#include "../external/span.hpp"
+#include "../utils/span.h"
 #include "reflection.h"
 #include "utils_mem.h"
 
@@ -56,11 +56,11 @@ namespace gaia {
 		 */
 		template <typename ValueType>
 		struct data_view_policy<DataLayout::AoS, ValueType> {
-			constexpr static ValueType get(tcb::span<ValueType> s, unsigned idx) {
+			constexpr static ValueType get(std::span<ValueType> s, unsigned idx) {
 				return get_internal((const ValueType*)s.data(), idx);
 			}
 			constexpr static void
-			set(tcb::span<ValueType> s, unsigned idx, ValueType&& val) {
+			set(std::span<ValueType> s, unsigned idx, ValueType&& val) {
 				set_internal((ValueType*)s.data(), idx, std::forward<ValueType>(val));
 			}
 
@@ -88,7 +88,7 @@ namespace gaia {
 		template <typename ValueType>
 		struct data_view_policy<DataLayout::SoA, ValueType> {
 			constexpr static ValueType
-			get(tcb::span<ValueType> s, const unsigned idx) {
+			get(std::span<ValueType> s, const unsigned idx) {
 				auto t = struct_to_tuple(ValueType{});
 				return get_internal(
 						t, s, idx,
@@ -97,7 +97,7 @@ namespace gaia {
 			}
 
 			constexpr static void
-			set(tcb::span<ValueType> s, const unsigned idx, ValueType&& val) {
+			set(std::span<ValueType> s, const unsigned idx, ValueType&& val) {
 				auto t = struct_to_tuple(std::forward<ValueType>(val));
 				set_internal(
 						t, s, idx,
@@ -109,7 +109,7 @@ namespace gaia {
 		private:
 			template <typename Tuple, unsigned... Ids>
 			constexpr static ValueType get_internal(
-					Tuple& t, tcb::span<ValueType> s, const unsigned idx,
+					Tuple& t, std::span<ValueType> s, const unsigned idx,
 					std::integer_sequence<unsigned, Ids...>) {
 				(get_internal<
 						 Tuple, Ids, typename std::tuple_element<Ids, Tuple>::type>(
@@ -129,7 +129,7 @@ namespace gaia {
 
 			template <typename Tuple, typename TValue, unsigned... Ids>
 			constexpr static void set_internal(
-					Tuple& t, tcb::span<TValue> s, const unsigned idx,
+					Tuple& t, std::span<TValue> s, const unsigned idx,
 					std::integer_sequence<unsigned, Ids...>, TValue&& val) {
 				(set_internal(
 						 (char*)s.data(),

@@ -211,15 +211,16 @@ namespace gaia {
 		public:
 			template <typename T>
 			[[nodiscard]] typename std::enable_if_t<
-					std::is_same<std::decay_t<T>, Entity>::value, const std::decay_t<T>*>
+					std::is_same<std::decay_t<T>, Entity>::value, std::span<const Entity>>
 			View() const {
 				using TEntity = std::decay_t<T>;
-				return (const TEntity*)&data[0];
+				return {(const TEntity*)&data[0], GetItemCount()};
 			}
 
 			template <typename T>
 			[[nodiscard]] typename std::enable_if_t<
-					!std::is_same<std::decay_t<T>, Entity>::value, std::decay_t<T>*>
+					!std::is_same<std::decay_t<T>, Entity>::value,
+					std::span<std::decay_t<T>>>
 			ViewRW(ComponentType TYPE = ComponentType::CT_Generic) {
 				using TComponent = std::decay_t<T>;
 
@@ -240,12 +241,13 @@ namespace gaia {
 				// Update version number so we know RW access was used on chunk
 				header.UpdateLastWorldVersion(TYPE, componentIdx);
 				const auto& info = componentList[componentIdx];
-				return (TComponent*)&data[info.offset];
+				return {(TComponent*)&data[info.offset], GetItemCount()};
 			}
 
 			template <typename T>
 			[[nodiscard]] typename std::enable_if_t<
-					!std::is_same<std::decay_t<T>, Entity>::value, const std::decay_t<T>*>
+					!std::is_same<std::decay_t<T>, Entity>::value,
+					std::span<const std::decay_t<T>>>
 			View(ComponentType TYPE = ComponentType::CT_Generic) const {
 				using TComponent = std::decay_t<T>;
 
@@ -261,7 +263,7 @@ namespace gaia {
 				// Searching for a component that's not there! Programmer mistake.
 				assert(it != componentList.end());
 
-				return (const TComponent*)&data[it->offset];
+				return {(const TComponent*)&data[it->offset], GetItemCount()};
 			}
 
 			[[nodiscard]] uint32_t GetComponentIdx(uint32_t typeIdx) const {
@@ -298,7 +300,7 @@ namespace gaia {
 			}
 
 			//! Returns the number of entities in the chunk
-			[[nodiscard]] uint16_t GetItemCount() const {
+			[[nodiscard]] uint32_t GetItemCount() const {
 				return HasEntities() ? header.lastEntityIndex + 1 : 0;
 			}
 
