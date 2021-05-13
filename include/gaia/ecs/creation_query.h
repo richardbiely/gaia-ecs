@@ -35,7 +35,7 @@ namespace gaia {
 			template <typename... TComponent>
 			CreationQuery& AddComponent() {
 				static_assert(
-						VerifyMaxComponentCountPerArchetype(sizeof...(TComponent)),
+						VerityArchetypeComponentCount(sizeof...(TComponent)),
 						"Maximum number of components exceeded");
 				VerifyComponents<TComponent...>();
 				(AddToList<TComponent>(ComponentType::CT_Generic), ...);
@@ -45,7 +45,7 @@ namespace gaia {
 			template <typename... TComponent>
 			CreationQuery& AddChunkComponent() {
 				static_assert(
-						VerifyMaxComponentCountPerArchetype(sizeof...(TComponent)),
+						VerityArchetypeComponentCount(sizeof...(TComponent)),
 						"Maximum number of components exceeded");
 				VerifyComponents<TComponent...>();
 				(AddToList<TComponent>(ComponentType::CT_Chunk), ...);
