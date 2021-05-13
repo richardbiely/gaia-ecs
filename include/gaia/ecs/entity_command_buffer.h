@@ -210,8 +210,7 @@ namespace gaia {
 			template <typename... TComponent>
 			void AddComponent(Entity entity) {
 				VerifyComponents<TComponent...>();
-				if (!VerifyMaxComponentCountPerArchetype(
-								(uint32_t)sizeof...(TComponent)))
+				if (!VerityArchetypeComponentCount((uint32_t)sizeof...(TComponent)))
 					return;
 
 				m_data.push_back(ADD_COMPONENT);
@@ -225,8 +224,7 @@ namespace gaia {
 			template <typename... TComponent>
 			void AddChunkComponent(Entity entity) {
 				VerifyComponents<TComponent...>();
-				if (!VerifyMaxComponentCountPerArchetype(
-								(uint32_t)sizeof...(TComponent)))
+				if (!VerityArchetypeComponentCount((uint32_t)sizeof...(TComponent)))
 					return;
 
 				m_data.push_back(ADD_COMPONENT);

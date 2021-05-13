@@ -20,20 +20,24 @@ namespace gaia {
 		static constexpr uint32_t MAX_COMPONENTS_SIZE = 255u;
 
 		template <typename T>
-		constexpr void VerifyComponent() {
-			using TT = std::decay_t<T>;
-			static_assert(
-					(uint32_t)sizeof(TT) < MAX_COMPONENTS_SIZE,
-					"Components can be max MAX_COMPONENTS_SIZE bytes long");
-			static_assert(
-					std::is_trivial<TT>::value,
-					"Only trivial types are allowed to be used as components!");
-		}
+		struct ComponentSizeValid:
+				std::bool_constant<sizeof(T) < MAX_COMPONENTS_SIZE> {};
+
+		template <typename T>
+		struct ComponentTypeValid: std::bool_constant<std::is_trivial<T>::value> {};
 
 		template <typename... T>
 		constexpr void VerifyComponents() {
-			static_assert(utils::is_unique<T...>);
-			(VerifyComponent<T>(), ...);
+			static_assert(
+					utils::is_unique<std::decay_t<T>...>,
+					"Only unique inputs are enabled");
+			static_assert(
+					std::conjunction_v<ComponentSizeValid<std::decay_t<T>>...>,
+					"Only component with size of at most MAX_COMPONENTS_SIZE are "
+					"allowed");
+			static_assert(
+					std::conjunction_v<ComponentTypeValid<std::decay_t<T>>...>,
+					"Only components of trivial type are allowed");
 		}
 
 #pragma endregion

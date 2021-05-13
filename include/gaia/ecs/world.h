@@ -325,7 +325,7 @@ namespace gaia {
 
 						const auto metatypesCount =
 								(uint32_t)componentList.size() + (uint32_t)typesToAdd.size();
-							if (!VerifyMaxComponentCountPerArchetype(metatypesCount)) {
+							if (!VerityArchetypeComponentCount(metatypesCount)) {
 								assert(
 										false &&
 										"Trying to add too many ECS components to ECS entity!");
@@ -399,7 +399,7 @@ namespace gaia {
 					}
 					// Adding a component to an empty entity
 					else {
-							if (!VerifyMaxComponentCountPerArchetype(newTypesCount)) {
+							if (!VerityArchetypeComponentCount(newTypesCount)) {
 								assert(
 										false &&
 										"Trying to add too many ECS components to ECS entity!");
@@ -440,7 +440,7 @@ namespace gaia {
 
 						const auto metatypesCount =
 								(uint32_t)componentList.size() + newTypesCount;
-							if (!VerifyMaxComponentCountPerArchetype(metatypesCount)) {
+							if (!VerityArchetypeComponentCount(metatypesCount)) {
 								assert(
 										false &&
 										"Trying to add too many ECS components to ECS entity!");
@@ -523,7 +523,7 @@ namespace gaia {
 					}
 					// Adding a component to an empty entity
 					else {
-							if (!VerifyMaxComponentCountPerArchetype(newTypesCount)) {
+							if (!VerityArchetypeComponentCount(newTypesCount)) {
 								assert(
 										false &&
 										"Trying to add too many ECS components to ECS entity!");
