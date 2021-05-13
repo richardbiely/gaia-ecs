@@ -255,10 +255,36 @@ TEST_CASE("Example") {
 				.Run(0);
 	}
 	{
+		ecs::EntityQuery q;
 		// We'll query all entities which carry Something or Else components, don't
-		// carry Scale and carry chunk component Acceleration In addition to the
-		// above both Position and Acceleration must be there. We extract data for
-		// them.
+		// carry Scale and carry chunk component Acceleration
+		q.WithAny<Something, Else>()
+				.WithNone<Scale>()
+				.WithChunkComponents<Acceleration>();
+		// In addition to the above both Position and Acceleration must be there. We
+		// extract data for them.
+		world
+				.ForEachChunk(
+						q,
+						[](ecs::Chunk& chunk) {
+							auto pp = chunk.View<Position>();
+							auto aa = chunk.View<Acceleration>();
+
+								for (auto i = 0U; i < chunk.GetItemCount(); i++) {
+									const Position& p = pp[i];
+									const Acceleration& a = aa[i];
+									LOG_N(
+											"pos=[%f,%f,%f], acc=[%f,%f,%f]", p.x, p.y, p.z, a.x, a.y,
+											a.z);
+								}
+						})
+				.Run(0);
+	}
+	{
+		// We'll query all entities which carry Something or Else components,
+		// don't carry Scale and carry chunk component Acceleration In addition to
+		// the above both Position and Acceleration must be there. We extract data
+		// for them.
 		world
 				.ForEach(
 						ecs::EntityQuery()

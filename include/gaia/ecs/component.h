@@ -6,9 +6,9 @@
 #include <vector>
 
 #include "../config/config.h"
-#include "../external/span.hpp"
 #include "../external/stack_allocator.h"
 #include "../utils/hashing_policy.h"
+#include "../utils/span.h"
 #include "../utils/type_info.h"
 #include "../utils/utility.h"
 #include "common.h"
@@ -191,7 +191,7 @@ namespace gaia {
 		}
 
 		inline uint64_t
-		CalculateComponentsHash(tcb::span<const ComponentMetaData*> types) {
+		CalculateComponentsHash(std::span<const ComponentMetaData*> types) {
 			uint64_t hash = 0;
 			for (const auto type: types)
 				hash |= type->componentHash;

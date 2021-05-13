@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "../config/config.h"
-#include "../external/span.hpp"
+#include "../utils/span.h"
 #include "../utils/type_info.h"
 #include "../utils/utility.h"
 #include "chunk_allocator.h"
@@ -138,8 +138,8 @@ namespace gaia {
 			}
 
 			[[nodiscard]] Archetype* FindArchetype(
-					tcb::span<const ComponentMetaData*> genericTypes,
-					tcb::span<const ComponentMetaData*> chunkTypes,
+					std::span<const ComponentMetaData*> genericTypes,
+					std::span<const ComponentMetaData*> chunkTypes,
 					const uint64_t componentsHash) {
 				// Search for the archetype in the map
 				const auto it = m_archetypeMap.find(componentsHash);
@@ -150,7 +150,7 @@ namespace gaia {
 
 				auto checkTypes =
 						[&](const ChunkComponentList& list,
-								const tcb::span<const ComponentMetaData*>& types) {
+								const std::span<const ComponentMetaData*>& types) {
 							for (uint32_t j = 0; j < types.size(); j++) {
 								// Different components. We need to search further
 								if (list[j].type != types[j])
@@ -179,8 +179,8 @@ namespace gaia {
 			}
 
 			[[nodiscard]] Archetype* CreateArchetype(
-					tcb::span<const ComponentMetaData*> genericTypes,
-					tcb::span<const ComponentMetaData*> chunkTypes,
+					std::span<const ComponentMetaData*> genericTypes,
+					std::span<const ComponentMetaData*> chunkTypes,
 					const uint64_t componentsHash) {
 				auto newArch = Archetype::Create(*this, genericTypes, chunkTypes);
 				// TODO: Probably move this to Archetype::Create so we don't forget to
@@ -203,8 +203,8 @@ namespace gaia {
 			}
 
 			[[nodiscard]] Archetype* FindOrCreateArchetype(
-					tcb::span<const ComponentMetaData*> genericTypes,
-					tcb::span<const ComponentMetaData*> chunkTypes) {
+					std::span<const ComponentMetaData*> genericTypes,
+					std::span<const ComponentMetaData*> chunkTypes) {
 				// Make sure to sort the meta-types so we receive the same hash no
 				// matter the order in which components are provided Bubble sort is
 				// okay. We're dealing with at most MAX_COMPONENTS_PER_ARCHETYPE
@@ -228,11 +228,11 @@ namespace gaia {
 			}
 
 			[[nodiscard]] Archetype* FindOrCreateArchetype(CreationQuery& query) {
-				// TODO: Verify if return FindOrCreateArchetype(tcb::span<const
+				// TODO: Verify if return FindOrCreateArchetype(std::span<const
 				// ComponentMetaData*>(types)) works the same way
 				return FindOrCreateArchetype(
-						tcb::span(query.list[ComponentType::CT_Generic]),
-						tcb::span(query.list[ComponentType::CT_Chunk]));
+						std::span(query.list[ComponentType::CT_Generic]),
+						std::span(query.list[ComponentType::CT_Chunk]));
 			}
 
 			[[nodiscard]] Archetype* GetArchetype(Entity entity) const {
@@ -313,7 +313,7 @@ namespace gaia {
 
 			EntityContainer* AddComponent_Internal(
 					ComponentType TYPE, Entity entity,
-					tcb::span<const ComponentMetaData*> typesToAdd) {
+					std::span<const ComponentMetaData*> typesToAdd) {
 				const auto newTypesCount = (uint32_t)typesToAdd.size();
 				auto& entityContainer = m_entities[entity.id()];
 
@@ -389,11 +389,11 @@ namespace gaia {
 						auto newArchetype =
 								TYPE == ComponentType::CT_Generic
 										? FindOrCreateArchetype(
-													tcb::span(newMetatypes, metatypesCount),
-													tcb::span(secondMetaTypes, secondList.size()))
+													std::span(newMetatypes, metatypesCount),
+													std::span(secondMetaTypes, secondList.size()))
 										: FindOrCreateArchetype(
-													tcb::span(secondMetaTypes, secondList.size()),
-													tcb::span(newMetatypes, metatypesCount));
+													std::span(secondMetaTypes, secondList.size()),
+													std::span(newMetatypes, metatypesCount));
 
 						MoveEntity(entity, *newArchetype);
 					}
@@ -513,11 +513,11 @@ namespace gaia {
 						auto newArchetype =
 								TYPE == ComponentType::CT_Generic
 										? FindOrCreateArchetype(
-													tcb::span(newMetatypes, metatypesCount),
-													tcb::span(secondMetaTypes, secondList.size()))
+													std::span(newMetatypes, metatypesCount),
+													std::span(secondMetaTypes, secondList.size()))
 										: FindOrCreateArchetype(
-													tcb::span(secondMetaTypes, secondList.size()),
-													tcb::span(newMetatypes, metatypesCount));
+													std::span(secondMetaTypes, secondList.size()),
+													std::span(newMetatypes, metatypesCount));
 
 						MoveEntity(entity, *newArchetype);
 					}
@@ -550,9 +550,9 @@ namespace gaia {
 						auto newArchetype =
 								TYPE == ComponentType::CT_Generic
 										? FindOrCreateArchetype(
-													tcb::span(newMetatypes, newTypesCount), {})
+													std::span(newMetatypes, newTypesCount), {})
 										: FindOrCreateArchetype(
-													{}, tcb::span(newMetatypes, newTypesCount));
+													{}, std::span(newMetatypes, newTypesCount));
 
 						StoreEntity(entity, newArchetype->FindOrCreateChunk());
 					}
@@ -562,7 +562,7 @@ namespace gaia {
 
 			void RemoveComponent_Internal(
 					ComponentType TYPE, Entity entity,
-					tcb::span<const ComponentMetaData*> typesToRemove) {
+					std::span<const ComponentMetaData*> typesToRemove) {
 				auto& entityContainer = m_entities[entity.id()];
 				auto chunk = entityContainer.chunk;
 
@@ -604,11 +604,11 @@ namespace gaia {
 				auto newArchetype =
 						TYPE == ComponentType::CT_Generic
 								? FindOrCreateArchetype(
-											tcb::span(newMetatypes, typesAfter),
-											tcb::span(secondMetaTypes, secondList.size()))
+											std::span(newMetatypes, typesAfter),
+											std::span(secondMetaTypes, secondList.size()))
 								: FindOrCreateArchetype(
-											tcb::span(secondMetaTypes, secondList.size()),
-											tcb::span(newMetatypes, typesAfter));
+											std::span(secondMetaTypes, secondList.size()),
+											std::span(newMetatypes, typesAfter));
 
 				MoveEntity(entity, *newArchetype);
 			}
@@ -665,11 +665,11 @@ namespace gaia {
 				auto newArchetype =
 						TYPE == ComponentType::CT_Generic
 								? FindOrCreateArchetype(
-											tcb::span(newMetatypes, typesAfter),
-											tcb::span(secondMetaTypes, secondList.size()))
+											std::span(newMetatypes, typesAfter),
+											std::span(secondMetaTypes, secondList.size()))
 								: FindOrCreateArchetype(
-											tcb::span(secondMetaTypes, secondList.size()),
-											tcb::span(newMetatypes, typesAfter));
+											std::span(secondMetaTypes, secondList.size()),
+											std::span(newMetatypes, typesAfter));
 				MoveEntity(entity, *newArchetype);
 			}
 
@@ -1161,12 +1161,12 @@ namespace gaia {
 
 			template <class T, std::enable_if_t<IsReadOnlyType<T>::value>* = nullptr>
 			constexpr const std::decay_t<T>* expandTuple(Chunk& chunk) const {
-				return chunk.View<T>();
+				return chunk.View<T>().data();
 			}
 
 			template <class T, std::enable_if_t<!IsReadOnlyType<T>::value>* = nullptr>
 			constexpr std::decay_t<T>* expandTuple(Chunk& chunk) {
-				return chunk.ViewRW<T>();
+				return chunk.ViewRW<T>().data();
 			}
 
 			template <typename... TFuncArgs, typename TFunc>
