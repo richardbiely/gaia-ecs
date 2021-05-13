@@ -270,7 +270,7 @@ TEST_CASE("Example") {
 							auto pp = chunk.View<Position>();
 							auto aa = chunk.View<Acceleration>();
 
-								for (auto i = 0U; i < chunk.GetItemCount(); i++) {
+								for (uint16_t i = 0; i < chunk.GetItemCount(); i++) {
 									const Position& p = pp[i];
 									const Acceleration& a = aa[i];
 									LOG_N(
