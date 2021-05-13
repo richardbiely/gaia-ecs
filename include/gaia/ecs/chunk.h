@@ -131,7 +131,7 @@ namespace gaia {
 				uint16_t index = ++header.lastEntityIndex;
 				if (index == UINT16_MAX)
 					index = 0;
-				SetEntity(index) = entity;
+				SetEntity(index, entity);
 
 				header.UpdateLastWorldVersion(ComponentType::CT_Generic, UINT32_MAX);
 				header.UpdateLastWorldVersion(ComponentType::CT_Chunk, UINT32_MAX);
@@ -152,8 +152,8 @@ namespace gaia {
 					// last one let's swap our entity with the last one in chunk.
 					if (header.lastEntityIndex != 0 && header.lastEntityIndex != index) {
 						// Swap data at index with the last one
-						const auto entity = SetEntity(index) =
-								GetEntity(header.lastEntityIndex);
+						const auto entity = GetEntity(header.lastEntityIndex);
+						SetEntity(index, entity);
 
 						const auto& componentList = GetArchetypeComponentList(
 								header.owner, ComponentType::CT_Generic);
@@ -187,12 +187,12 @@ namespace gaia {
 				--header.lastEntityIndex;
 			}
 
-			[[nodiscard]] Entity& SetEntity(uint16_t index) {
+			void SetEntity(uint16_t index, Entity entity) {
 				assert(
 						index <= header.lastEntityIndex && index != UINT16_MAX &&
 						"Entity index in chunk out of bounds!");
 
-				return (Entity&)data[sizeof(Entity) * index];
+				(Entity&)data[sizeof(Entity) * index] = entity;
 			}
 
 			[[nodiscard]] const Entity GetEntity(uint16_t index) const {
@@ -200,7 +200,7 @@ namespace gaia {
 						index <= header.lastEntityIndex && index != UINT16_MAX &&
 						"Entity index in chunk out of bounds!");
 
-				return (Entity&)data[sizeof(Entity) * index];
+				return (const Entity&)data[sizeof(Entity) * index];
 			}
 
 			[[nodiscard]] bool IsFull() const {
