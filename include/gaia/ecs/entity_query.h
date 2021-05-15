@@ -1,9 +1,11 @@
 #pragma once
 #include <algorithm>
 #include <array>
+#include <tuple>
 #include <vector>
 
 #include "../external/stack_allocator.h"
+#include "../utils/utility.h"
 #include "../utils/utils_std.h"
 #include "common.h"
 #include "component.h"
@@ -11,6 +13,80 @@
 
 namespace gaia {
 	namespace ecs {
+		template <typename... Type>
+		struct type_list {
+			using types = type_list;
+			static constexpr auto size = sizeof...(Type);
+		};
+
+		template <typename... Type>
+		struct type_container {
+			using types = utils::unique_tuple<Type...>;
+			static constexpr auto size = (uint32_t)std::tuple_size_v<types>;
+			template <uint32_t N>
+			using item = typename std::tuple_element<N, types>::type;
+
+			static constexpr uint32_t MAX_COMPONENTS_IN_QUERY = 8u;
+			static_assert(size < MAX_COMPONENTS_IN_QUERY);
+		};
+
+		enum class QueryTypes { Any, All, None };
+
+		template <QueryTypes qt, typename... Type>
+		struct query_container: type_container<Type...> {
+			static constexpr QueryTypes query_type = qt;
+		};
+
+		template <typename... Type>
+		using AnyTypes = query_container<QueryTypes::Any, Type...>;
+		template <typename... Type>
+		using AllTypes = query_container<QueryTypes::All, Type...>;
+		template <typename... Type>
+		using NoneTypes = query_container<QueryTypes::None, Type...>;
+
+		template <typename T1, typename T2, typename T3>
+		struct EntityQuery2 final {
+			using all = std::conditional_t<
+					T1::query_type == QueryTypes::All, T1,
+					std::conditional_t<T2::query_type == QueryTypes::All, T2, T3>>;
+			using any = std::conditional_t<
+					T1::query_type == QueryTypes::Any, T1,
+					std::conditional_t<T2::query_type == QueryTypes::Any, T2, T3>>;
+			using none = std::conditional_t<
+					T1::query_type == QueryTypes::None, T1,
+					std::conditional_t<T2::query_type == QueryTypes::None, T2, T3>>;
+
+		private:
+			// Make sure there are no deplicates among types
+			static_assert(true);
+
+			friend class World;
+
+			static constexpr uint64_t hashAll =
+					CalculateComponentsHash2(typename all::types{});
+			static constexpr uint64_t hashAny =
+					CalculateComponentsHash2(typename any::types{});
+			static constexpr uint64_t hashNone =
+					CalculateComponentsHash2(typename none::types{});
+
+		public:
+			void Diag() {
+				auto print_type = [](auto const&... e) {
+					(printf(
+							 "%.*s\n",
+							 (uint32_t)utils::type_info::name<decltype(e)>().length(),
+							 utils::type_info::name<decltype(e)>().data()),
+					 ...);
+				};
+				LOG_N("AllTypes:");
+				std::apply(print_type, typename all::types{});
+				LOG_N("AnyTypes:");
+				std::apply(print_type, typename any::types{});
+				LOG_N("NoneTypes:");
+				std::apply(print_type, typename none::types{});
+			}
+		};
+
 		class EntityQuery final {
 		private:
 			//! Number of components that can be a part of EntityQuery

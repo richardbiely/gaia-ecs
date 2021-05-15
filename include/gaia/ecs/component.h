@@ -66,18 +66,18 @@ namespace gaia {
 			uint32_t alig;
 			uint32_t size;
 
-			bool operator==(const ComponentMetaData& other) const {
+			[[nodiscard]] bool operator==(const ComponentMetaData& other) const {
 				return nameHash == other.nameHash && typeIndex == other.typeIndex;
 			}
-			bool operator!=(const ComponentMetaData& other) const {
+			[[nodiscard]] bool operator!=(const ComponentMetaData& other) const {
 				return nameHash != other.nameHash || typeIndex != other.typeIndex;
 			}
-			bool operator<(const ComponentMetaData& other) const {
+			[[nodiscard]] bool operator<(const ComponentMetaData& other) const {
 				return nameHash < other.nameHash;
 			}
 
 			template <typename T>
-			static constexpr ComponentMetaData Calculate() {
+			[[nodiscard]] static constexpr ComponentMetaData Calculate() {
 				using TComponent = std::decay_t<T>;
 
 				ComponentMetaData mth;
@@ -145,7 +145,8 @@ namespace gaia {
 		}
 
 		template <typename T>
-		inline const ComponentMetaData* GetOrCreateComponentMetaType() {
+		[[nodiscard]] inline const ComponentMetaData*
+		GetOrCreateComponentMetaType() {
 			using TComponent = std::decay_t<T>;
 			const auto idx = utils::type_info::index<TComponent>();
 			if (idx < g_ComponentMetaTypeCache.size() &&
@@ -167,7 +168,7 @@ namespace gaia {
 		}
 
 		template <typename T>
-		inline const ComponentMetaData* GetComponentMetaType() {
+		[[nodiscard]] inline const ComponentMetaData* GetComponentMetaType() {
 			using TComponent = std::decay_t<T>;
 			const auto idx = utils::type_info::index<TComponent>();
 			// Let's assume somebody has registered the component already via
@@ -176,7 +177,8 @@ namespace gaia {
 			return g_ComponentMetaTypeCache[idx];
 		}
 
-		inline const ComponentMetaData* GetComponentMetaTypeFromIdx(uint32_t idx) {
+		[[nodiscard]] inline const ComponentMetaData*
+		GetComponentMetaTypeFromIdx(uint32_t idx) {
 			const auto it =
 					utils::find_if(g_ComponentMetaTypeCache, [idx](const auto& info) {
 						return info->typeIndex == idx;
@@ -188,18 +190,38 @@ namespace gaia {
 		}
 
 		template <typename T>
-		inline bool HasComponentMetaType() {
+		[[nodiscard]] inline bool HasComponentMetaType() {
 			using TComponent = std::decay_t<T>;
 			const auto idx = utils::type_info::index<TComponent>();
 			return idx < g_ComponentMetaTypeCache.size();
 		}
 
-		inline uint64_t
+		[[nodiscard]] inline uint64_t
 		CalculateComponentsHash(std::span<const ComponentMetaData*> types) {
 			uint64_t hash = 0;
 			for (const auto type: types)
 				hash |= type->componentHash;
 			return hash;
 		}
+
+		template <class Tuple>
+		[[nodiscard]] constexpr uint64_t
+		CalculateComponentsHash2(Tuple const& tuple) noexcept {
+			auto combine_hashes = [](auto const&... e) {
+				if constexpr (sizeof...(e) == 0)
+					return 0;
+				else
+					return (utils::type_info::hash<decltype(e)>() | ...);
+			};
+			return std::apply(combine_hashes, tuple);
+		};
+
+		template <typename... T>
+		[[nodiscard]] constexpr uint64_t CalculateComponentsHash3() noexcept {
+			if constexpr (sizeof...(T) == 0)
+				return 0;
+			else
+				return (utils::type_info::hash<T>() | ...);
+		};
 	} // namespace ecs
 } // namespace gaia
