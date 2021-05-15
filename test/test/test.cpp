@@ -312,10 +312,16 @@ TEST_CASE("Example") {
 		(void)t;
 	}
 
+	ecs::EntityQuery2<
+			ecs::AllTypes<Acceleration>, ecs::NoneTypes<>,
+			ecs::AnyTypes<Position, Position, Rotation>>
+			qq;
+	qq.Diag();
+
 	// Delete some entity
 	// world.DeleteEntity(e1);
 	// world.DeleteEntity(e3);
 
-	world.Diag();
+	// world.Diag();
 	REQUIRE(true);
 }
