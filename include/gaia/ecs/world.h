@@ -1532,8 +1532,8 @@ namespace gaia {
 								const auto it =
 										archetypeEntityCountMap.find(archetype->componentsHash);
 								LOG_N(
-										"Archetype ID:%016" PRIx64
-										", chunks:%u, data size:%u B (%u + %u), entities:%u/%u",
+										"Archetype ID:%016llx, chunks:%u, data size:%u B (%u + "
+										"%u), entities:%u/%u",
 										archetype->componentsHash,
 										(uint32_t)archetype->chunks.size(),
 										genericComponentsSize + chunkComponentsSize,
@@ -1545,15 +1545,17 @@ namespace gaia {
 										const auto type = component.type;
 #if GAIA_DEBUG
 										LOG_N(
-												"--> (%p) nameHash:%016" PRIx64 ", compHash:%016" PRIx64
-												", size:%3u B, align:%3u B, %.*s",
+												"--> (%p) nameHash:%016llx, compHash:%016llx, size:%3u "
+												"B, "
+												"align:%3u B, %.*s",
 												type, type->nameHash, type->componentHash, type->size,
 												type->alig, (uint32_t)type->name.length(),
 												type->name.data());
 #else
 										LOG_N(
-												"--> (%p) nameHash:%016" PRIx64 ", compHash:%016" PRIx64
-												", size:%3u B, align:%3u B",
+												"--> (%p) nameHash:%016llx, compHash:%016llx, size:%3u "
+												"B, "
+												"align:%3u B",
 												type, type->nameHash, type->componentHash, type->size,
 												type->alig);
 #endif
@@ -1596,13 +1598,13 @@ namespace gaia {
 
 #if GAIA_DEBUG
 								LOG_N(
-										"--> (%p) nameHash:%016" PRIx64 ", compHash:%016" PRIx64
+										"--> (%p) nameHash:%016llx, compHash:%016" PRIx64
 										", index:%010u, %.*s",
 										type, type->nameHash, type->componentHash, type->typeIndex,
 										(uint32_t)type->name.length(), type->name.data());
 #else
 								LOG_N(
-										"--> (%p) nameHash:%016" PRIx64 ", compHash:%016" PRIx64
+										"--> (%p) nameHash:%016llx, compHash:%016" PRIx64
 										", index:%010u",
 										type, type->nameHash, type->componentHash, type->typeIndex);
 #endif
@@ -1633,15 +1635,16 @@ namespace gaia {
 
 #if GAIA_DEBUG
 										LOG_N(
-												"--> (%p) nameHash:%016" PRIx64 ", compHash:%016" PRIx64
-												", index:%010u, %.*s",
+												"--> (%p) nameHash:%016llx, compHash:%016llx, "
+												"index:%010u, "
+												"%.*s",
 												type, type->nameHash, type->componentHash,
 												type->typeIndex, (uint32_t)type->name.length(),
 												type->name.data());
 #else
 										LOG_N(
-												"--> (%p) nameHash:%016" PRIx64 ", compHash:%016" PRIx64
-												", index:%010u",
+												"--> (%p) nameHash:%016llx, compHash:%016llx, "
+												"index:%010u",
 												type, type->nameHash, type->componentHash,
 												type->typeIndex);
 #endif
@@ -1709,14 +1712,13 @@ namespace gaia {
 								const auto type = component.type;
 #if GAIA_DEBUG
 								LOG_N(
-										"--> (%p) nameHash:%016" PRIx64 ", compHash:%016" PRIx64
-										", %.*s",
+										"--> (%p) nameHash:%016llx, compHash:%016" PRIx64 ", %.*s",
 										type, type->nameHash, type->componentHash,
 										(uint32_t)type->name.length(), type->name.data());
 #else
 								LOG_N(
-										"--> (%p) nameHash:%016" PRIx64 ", compHash:%016" PRIx64,
-										type, type->nameHash, type->componentHash);
+										"--> (%p) nameHash:%016llx, compHash:%016" PRIx64, type,
+										type->nameHash, type->componentHash);
 #endif
 							}
 
@@ -1724,14 +1726,13 @@ namespace gaia {
 							for (const auto type: listToCompare) {
 #if GAIA_DEBUG
 								LOG_N(
-										"--> (%p) nameHash:%016" PRIx64 ", compHash:%016" PRIx64
-										", %.*s",
+										"--> (%p) nameHash:%016llx, compHash:%016" PRIx64 ", %.*s",
 										type, type->nameHash, type->componentHash,
 										(uint32_t)type->name.length(), type->name.data());
 #else
 								LOG_N(
-										"--> (%p) nameHash:%016" PRIx64 ", compHash:%016" PRIx64,
-										type, type->nameHash, type->componentHash);
+										"--> (%p) nameHash:%016llx, compHash:%016" PRIx64, type,
+										type->nameHash, type->componentHash);
 #endif
 							}
 				}

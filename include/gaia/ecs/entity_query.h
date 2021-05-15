@@ -35,6 +35,8 @@ namespace gaia {
 		template <QueryTypes qt, typename... Type>
 		struct query_container: type_container<Type...> {
 			static constexpr QueryTypes query_type = qt;
+			static constexpr uint64_t hash =
+					CalculateComponentsHash2(typename type_container<Type...>::types{});
 		};
 
 		template <typename... Type>
@@ -56,36 +58,28 @@ namespace gaia {
 					T1::query_type == QueryTypes::None, T1,
 					std::conditional_t<T2::query_type == QueryTypes::None, T2, T3>>;
 
-		private:
 			// Make sure there are no deplicates among types
 			static_assert(true);
-
-			friend class World;
-
-			static constexpr uint64_t hashAll =
-					CalculateComponentsHash2(typename all::types{});
-			static constexpr uint64_t hashAny =
-					CalculateComponentsHash2(typename any::types{});
-			static constexpr uint64_t hashNone =
-					CalculateComponentsHash2(typename none::types{});
-
-		public:
-			void Diag() {
-				auto print_type = [](auto const&... e) {
-					(printf(
-							 "%.*s\n",
-							 (uint32_t)utils::type_info::name<decltype(e)>().length(),
-							 utils::type_info::name<decltype(e)>().data()),
-					 ...);
-				};
-				LOG_N("AllTypes:");
-				std::apply(print_type, typename all::types{});
-				LOG_N("AnyTypes:");
-				std::apply(print_type, typename any::types{});
-				LOG_N("NoneTypes:");
-				std::apply(print_type, typename none::types{});
-			}
 		};
+
+		// template <typename T1, typename T2>
+		// struct EntityQuery2<T1, T2, ecs::NoneTypes<>>;
+
+		template <typename TQuery>
+		inline void DiagQuery(const TQuery& q) {
+			auto print_type = [](auto const&... e) {
+				(printf(
+						 "%.*s\n", (uint32_t)utils::type_info::name<decltype(e)>().length(),
+						 utils::type_info::name<decltype(e)>().data()),
+				 ...);
+			};
+			LOG_N("AllTypes (%016llx):", TQuery::all::hash);
+			std::apply(print_type, typename TQuery::all::types{});
+			LOG_N("AnyTypes (%016llx):", TQuery::any::hash);
+			std::apply(print_type, typename TQuery::any::types{});
+			LOG_N("NoneTypes (%016llx):", TQuery::none::hash);
+			std::apply(print_type, typename TQuery::none::types{});
+		}
 
 		class EntityQuery final {
 		private:

@@ -316,7 +316,10 @@ TEST_CASE("Example") {
 			ecs::AllTypes<Acceleration>, ecs::NoneTypes<>,
 			ecs::AnyTypes<Position, Position, Rotation>>
 			qq;
-	qq.Diag();
+	DiagQuery(qq);
+
+	// ecs::EntityQuery2<ecs::AllTypes<Acceleration>> qqq;
+	// DiagQuery(qqq);
 
 	// Delete some entity
 	// world.DeleteEntity(e1);
