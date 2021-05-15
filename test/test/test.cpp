@@ -1,3 +1,6 @@
+#define _ITERATOR_DEBUG_LEVEL 0
+//#define _SCL_SECURE_NO_WARNINGS
+
 #include "gaia/ecs/chunk_allocator.h"
 #include "gaia/ecs/entity.h"
 #include <gaia.h>
@@ -325,6 +328,6 @@ TEST_CASE("Example") {
 	// world.DeleteEntity(e1);
 	// world.DeleteEntity(e3);
 
-	// world.Diag();
+	world.Diag();
 	REQUIRE(true);
 }

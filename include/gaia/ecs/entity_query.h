@@ -147,9 +147,9 @@ namespace gaia {
 							listAll.begin(), listAll.end(),
 							std::less<const ComponentMetaData*>());
 
-					list[componentType].hashNone = CalculateComponentsHash(listNone);
-					list[componentType].hashAny = CalculateComponentsHash(listAny);
-					list[componentType].hashAll = CalculateComponentsHash(listAll);
+					list[componentType].hashNone = CombineComponentHashes(listNone);
+					list[componentType].hashAny = CombineComponentHashes(listAny);
+					list[componentType].hashAll = CombineComponentHashes(listAll);
 				};
 
 				commit(ComponentType::CT_Generic);
