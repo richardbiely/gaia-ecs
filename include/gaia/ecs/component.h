@@ -60,20 +60,19 @@ namespace gaia {
 #if GAIA_DEBUG
 			std::string_view name;
 #endif
-			uint64_t nameHash;
 			uint64_t componentHash;
 			uint32_t typeIndex;
 			uint32_t alig;
 			uint32_t size;
 
 			[[nodiscard]] bool operator==(const ComponentMetaData& other) const {
-				return nameHash == other.nameHash && typeIndex == other.typeIndex;
+				return componentHash == other.componentHash && typeIndex == other.typeIndex;
 			}
 			[[nodiscard]] bool operator!=(const ComponentMetaData& other) const {
-				return nameHash != other.nameHash || typeIndex != other.typeIndex;
+				return componentHash != other.componentHash || typeIndex != other.typeIndex;
 			}
 			[[nodiscard]] bool operator<(const ComponentMetaData& other) const {
-				return nameHash < other.nameHash;
+				return componentHash < other.componentHash;
 			}
 
 			template <typename T>
@@ -84,14 +83,7 @@ namespace gaia {
 #if GAIA_DEBUG
 				mth.name = utils::type_info::name<TComponent>();
 #endif
-				mth.nameHash = utils::type_info::hash<TComponent>();
-				// Map the name hash into 64 bits
-				// TODO: Something better should be used probably so we don't have to
-				// check too much archetype headers when matching then in queries.
-				//       However, even using this the number of collisions in general
-				//       use-case is very low (at least from what can be seen from
-				//       diags).
-				mth.componentHash |= (0x1ULL << (mth.nameHash % 63ULL));
+				mth.componentHash = utils::type_info::hash<TComponent>();
 				mth.typeIndex = utils::type_info::index<TComponent>();
 
 					if constexpr (!std::is_empty<TComponent>::value) {
@@ -197,10 +189,12 @@ namespace gaia {
 		}
 
 		[[nodiscard]] inline uint64_t
-		CalculateComponentsHash(std::span<const ComponentMetaData*> types) {
+		CombineComponentHashes(std::span<const ComponentMetaData*> types) {
 			uint64_t hash = 0;
 			for (const auto type: types)
-				hash |= type->componentHash;
+				// Multiplied by some large prime. Test the results later.
+				// So long there are no collisions, this one is okay.
+				hash |= type->componentHash * 2,147,483,647ULL;
 			return hash;
 		}
 

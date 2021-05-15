@@ -216,8 +216,8 @@ namespace gaia {
 				std::sort(chunkTypes.begin(), chunkTypes.end());
 
 				// Calculate hash for our combination of components
-				const auto componentsHash = CalculateComponentsHash(genericTypes) |
-																		CalculateComponentsHash(chunkTypes);
+				const auto componentsHash = CombineComponentHashes(genericTypes) |
+																		CombineComponentHashes(chunkTypes);
 
 				if (auto archetype =
 								FindArchetype(genericTypes, chunkTypes, componentsHash))
@@ -1545,18 +1545,18 @@ namespace gaia {
 										const auto type = component.type;
 #if GAIA_DEBUG
 										LOG_N(
-												"--> (%p) nameHash:%016llx, compHash:%016llx, size:%3u "
+												"--> (%p) componentHash:%016llx, size:%3u "
 												"B, "
 												"align:%3u B, %.*s",
-												type, type->nameHash, type->componentHash, type->size,
+												type, type->componentHash, type->size,
 												type->alig, (uint32_t)type->name.length(),
 												type->name.data());
 #else
 										LOG_N(
-												"--> (%p) nameHash:%016llx, compHash:%016llx, size:%3u "
+												"--> (%p) componentHash:%016llx, size:%3u "
 												"B, "
 												"align:%3u B",
-												type, type->nameHash, type->componentHash, type->size,
+												type, type->componentHash, type->size,
 												type->alig);
 #endif
 									}
@@ -1598,15 +1598,13 @@ namespace gaia {
 
 #if GAIA_DEBUG
 								LOG_N(
-										"--> (%p) nameHash:%016llx, compHash:%016" PRIx64
-										", index:%010u, %.*s",
-										type, type->nameHash, type->componentHash, type->typeIndex,
+										"--> (%p) componentHash:%016llx, index:%010u, %.*s",
+										type, type->componentHash, type->typeIndex,
 										(uint32_t)type->name.length(), type->name.data());
 #else
 								LOG_N(
-										"--> (%p) nameHash:%016llx, compHash:%016" PRIx64
-										", index:%010u",
-										type, type->nameHash, type->componentHash, type->typeIndex);
+										"--> (%p) componentHash:%016llx, index:%010u",
+										type, type->componentHash, type->typeIndex);
 #endif
 							}
 
@@ -1635,18 +1633,14 @@ namespace gaia {
 
 #if GAIA_DEBUG
 										LOG_N(
-												"--> (%p) nameHash:%016llx, compHash:%016llx, "
-												"index:%010u, "
-												"%.*s",
-												type, type->nameHash, type->componentHash,
+												"--> (%p) componentHash:%016llx, index:%010u, %.*s",
+												type, type->componentHash,
 												type->typeIndex, (uint32_t)type->name.length(),
 												type->name.data());
 #else
 										LOG_N(
-												"--> (%p) nameHash:%016llx, compHash:%016llx, "
-												"index:%010u",
-												type, type->nameHash, type->componentHash,
-												type->typeIndex);
+												"--> (%p) componentHash:%016llx, index:%010u",
+												type, type->componentHash, type->typeIndex);
 #endif
 									}
 							}
@@ -1660,9 +1654,9 @@ namespace gaia {
 									if (type == nullptr)
 										continue;
 
-									const auto it = m.find(type->nameHash);
+									const auto it = m.find(type->componentHash);
 									if (it == m.end())
-										m.insert({type->nameHash, {type}});
+										m.insert({type->componentHash, {type}});
 										else {
 											it->second.push_back(type);
 											hasDuplicates = true;
@@ -1712,13 +1706,12 @@ namespace gaia {
 								const auto type = component.type;
 #if GAIA_DEBUG
 								LOG_N(
-										"--> (%p) nameHash:%016llx, compHash:%016" PRIx64 ", %.*s",
-										type, type->nameHash, type->componentHash,
+										"--> (%p) componentHash:%016llx, %.*s",
+										type, type->componentHash,
 										(uint32_t)type->name.length(), type->name.data());
 #else
 								LOG_N(
-										"--> (%p) nameHash:%016llx, compHash:%016" PRIx64, type,
-										type->nameHash, type->componentHash);
+										"--> (%p) componentHash:%016llx", type, type->componentHash);
 #endif
 							}
 
@@ -1726,13 +1719,12 @@ namespace gaia {
 							for (const auto type: listToCompare) {
 #if GAIA_DEBUG
 								LOG_N(
-										"--> (%p) nameHash:%016llx, compHash:%016" PRIx64 ", %.*s",
-										type, type->nameHash, type->componentHash,
+										"--> (%p) componentHash:%016llx, %.*s",
+										type, type->componentHash,
 										(uint32_t)type->name.length(), type->name.data());
 #else
 								LOG_N(
-										"--> (%p) nameHash:%016llx, compHash:%016" PRIx64, type,
-										type->nameHash, type->componentHash);
+										"--> (%p) componentHash:%016llx", type, type->componentHash);
 #endif
 							}
 				}
