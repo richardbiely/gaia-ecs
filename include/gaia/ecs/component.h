@@ -40,6 +40,11 @@ namespace gaia {
 					"Only components of trivial type are allowed");
 		}
 
+		template <typename T>
+		constexpr uint64_t ComponentHash() {
+			return (0x1ULL << (utils::type_info::hash<T>() % 63ULL));
+		}
+
 #pragma endregion
 
 		enum ComponentType : uint8_t {
@@ -66,10 +71,12 @@ namespace gaia {
 			uint32_t size;
 
 			[[nodiscard]] bool operator==(const ComponentMetaData& other) const {
-				return componentHash == other.componentHash && typeIndex == other.typeIndex;
+				return componentHash == other.componentHash &&
+							 typeIndex == other.typeIndex;
 			}
 			[[nodiscard]] bool operator!=(const ComponentMetaData& other) const {
-				return componentHash != other.componentHash || typeIndex != other.typeIndex;
+				return componentHash != other.componentHash ||
+							 typeIndex != other.typeIndex;
 			}
 			[[nodiscard]] bool operator<(const ComponentMetaData& other) const {
 				return componentHash < other.componentHash;
@@ -189,33 +196,38 @@ namespace gaia {
 		}
 
 		[[nodiscard]] inline uint64_t
-		CombineComponentHashes(std::span<const ComponentMetaData*> types) {
+		CombineComponentHashes(std::span<const ComponentMetaData*> types) noexcept {
 			uint64_t hash = 0;
 			for (const auto type: types)
-				// Multiplied by some large prime. Test the results later.
-				// So long there are no collisions, this one is okay.
-				hash |= type->componentHash * 2,147,483,647ULL;
+				hash = utils::hash_combine(hash, type->componentHash);
 			return hash;
 		}
 
-		template <class Tuple>
+		template <typename Container>
 		[[nodiscard]] constexpr uint64_t
-		CalculateComponentsHash2(Tuple const& tuple) noexcept {
-			auto combine_hashes = [](auto const&... e) {
-				if constexpr (sizeof...(e) == 0)
-					return 0;
-				else
-					return (utils::type_info::hash<decltype(e)>() | ...);
-			};
-			return std::apply(combine_hashes, tuple);
+		CalculateComponentsHash2(Container arr) noexcept {
+			uint64_t hash = 0;
+			utils::for_each<0U, arr.size(), 1U>(
+					[&hash, &arr](auto i) { hash = utils::hash_combine(hash, arr[i]); });
+			return hash;
+		}
+
+		template <typename = void, typename...>
+		constexpr uint64_t CalculateComponentsHash() noexcept;
+
+		template <typename T, typename... Rest>
+		[[nodiscard]] constexpr uint64_t CalculateComponentsHash() noexcept {
+			if constexpr (sizeof...(Rest) == 0)
+				return utils::type_info::hash<T>();
+			else
+				return utils::hash_combine(
+						utils::type_info::hash<T>(), utils::type_info::hash<Rest>()...);
 		};
 
-		template <typename... T>
-		[[nodiscard]] constexpr uint64_t CalculateComponentsHash3() noexcept {
-			if constexpr (sizeof...(T) == 0)
-				return 0;
-			else
-				return (utils::type_info::hash<T>() | ...);
+		template <>
+		[[nodiscard]] constexpr uint64_t CalculateComponentsHash() noexcept {
+			return 0;
 		};
+
 	} // namespace ecs
 } // namespace gaia

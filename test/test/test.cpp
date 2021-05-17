@@ -47,6 +47,32 @@ TEST_CASE("EntityNull") {
 	REQUIRE_FALSE(ecs::EntityNull == e);
 }
 
+TEST_CASE("Query hashes") {
+	// Compile-time queries
+	ecs::EntityQuery2<
+			ecs::AllTypes<Position, Rotation>, ecs::AnyTypes<>, ecs::NoneTypes<>>
+			q1;
+	ecs::EntityQuery2<
+			ecs::AllTypes<Rotation, Position>, ecs::AnyTypes<>, ecs::NoneTypes<>>
+			q2;
+	REQUIRE(decltype(q1)::all::hash == decltype(q2)::all::hash);
+
+	// Real-time queries
+	ecs::EntityQuery qq1, qq2;
+	qq1.With<Position, Rotation>();
+	qq2.With<Rotation, Position>();
+	qq1.Commit(0);
+	qq2.Commit(0);
+	REQUIRE(
+			qq1.GetData(ecs::ComponentType::CT_Generic).hashAll ==
+			qq2.GetData(ecs::ComponentType::CT_Generic).hashAll);
+
+	// Results of both types of querries must match
+	REQUIRE(
+			decltype(q1)::all::hash ==
+			qq1.GetData(ecs::ComponentType::CT_Generic).hashAll);
+}
+
 TEST_CASE("CreateEntity") {
 	ecs::World w;
 
@@ -317,7 +343,7 @@ TEST_CASE("Example") {
 
 	ecs::EntityQuery2<
 			ecs::AllTypes<Acceleration>, ecs::NoneTypes<>,
-			ecs::AnyTypes<Position, Position, Rotation>>
+			ecs::AnyTypes<Position, Rotation>>
 			qq;
 	DiagQuery(qq);
 
