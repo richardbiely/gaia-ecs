@@ -21,22 +21,36 @@ namespace gaia {
 
 		template <typename... Type>
 		struct type_container {
-			using types = utils::unique_tuple<Type...>;
-			static constexpr auto size = (uint32_t)std::tuple_size_v<types>;
+			using types = std::tuple<Type...>;
+			static constexpr auto size = sizeof...(Type);
 			template <uint32_t N>
 			using item = typename std::tuple_element<N, types>::type;
 
 			static constexpr uint32_t MAX_COMPONENTS_IN_QUERY = 8u;
-			static_assert(size < MAX_COMPONENTS_IN_QUERY);
+			static_assert(
+					size < MAX_COMPONENTS_IN_QUERY,
+					"Only component with size of at most MAX_COMPONENTS_IN_QUERY are "
+					"allowed");
+			static_assert(
+					utils::is_unique<std::decay_t<Type>...>,
+					"Only unique inputs are enabled");
 		};
 
 		enum class QueryTypes { Any, All, None };
 
 		template <QueryTypes qt, typename... Type>
 		struct query_container: type_container<Type...> {
+		private:
+			static constexpr uint64_t calculate_combined_hash() {
+				constexpr std::array<uint64_t, sizeof...(Type)> arr = {
+						utils::type_info::hash<Type>()...};
+				constexpr auto sortedArr = utils::sort(arr);
+				return CalculateComponentsHash2(sortedArr);
+			}
+
+		public:
 			static constexpr QueryTypes query_type = qt;
-			static constexpr uint64_t hash =
-					CalculateComponentsHash2(typename type_container<Type...>::types{});
+			static constexpr uint64_t hash = calculate_combined_hash();
 		};
 
 		template <typename... Type>
@@ -58,7 +72,7 @@ namespace gaia {
 					T1::query_type == QueryTypes::None, T1,
 					std::conditional_t<T2::query_type == QueryTypes::None, T2, T3>>;
 
-			// Make sure there are no deplicates among types
+			// TODO: Make sure there are no deplicates among types
 			static_assert(true);
 		};
 
@@ -118,44 +132,6 @@ namespace gaia {
 			uint32_t m_committedWorldVersion = 0;
 			//! If true, query needs to be commited. Set to true on structural changes
 			bool m_invalidated = false;
-
-			EntityQuery& Commit(uint32_t worldVersion) {
-				// Make sure not to commit already committed queue
-				if (!m_invalidated && m_committedWorldVersion == worldVersion)
-					return *this;
-
-				m_invalidated = false;
-				m_committedWorldVersion = worldVersion;
-
-				auto commit = [&](ComponentType componentType) {
-					auto& listNone = list[componentType].listNone;
-					auto& listAny = list[componentType].listAny;
-					auto& listAll = list[componentType].listAll;
-
-					// Make sure to sort the meta-types so we receive the same hash no
-					// matter the order in which components are provided Bubble sort is
-					// okay. We're dealing with at most MAX_COMPONENTS_PER_ARCHETYPE items
-					// anyway. 99% of time with at most 3 or 4
-					// TODO: Replace with a sorting network
-					std::sort(
-							listNone.begin(), listNone.end(),
-							std::less<const ComponentMetaData*>());
-					std::sort(
-							listAny.begin(), listAny.end(),
-							std::less<const ComponentMetaData*>());
-					std::sort(
-							listAll.begin(), listAll.end(),
-							std::less<const ComponentMetaData*>());
-
-					list[componentType].hashNone = CombineComponentHashes(listNone);
-					list[componentType].hashAny = CombineComponentHashes(listAny);
-					list[componentType].hashAll = CombineComponentHashes(listAll);
-				};
-
-				commit(ComponentType::CT_Generic);
-				commit(ComponentType::CT_Chunk);
-				return *this;
-			}
 
 			template <class TComponent>
 			bool CalculateHash_Internal(ComponentMetaDataArray& arr) {
@@ -264,6 +240,10 @@ namespace gaia {
 			}
 
 		public:
+			const ComponentListData& GetData(ComponentType type) const {
+				return list[type];
+			}
+
 			template <typename... TComponent>
 			EntityQuery& WithAny() {
 				CalculateHashes<TComponent...>(list[ComponentType::CT_Generic].listAny);
@@ -310,6 +290,43 @@ namespace gaia {
 						listChangeFiltered[ComponentType::CT_Chunk],
 						list[ComponentType::CT_Chunk]);
 				return *this;
+			}
+
+			void Commit(uint32_t worldVersion) {
+				// Make sure not to commit already committed queue
+				if (!m_invalidated && m_committedWorldVersion == worldVersion)
+					return;
+
+				m_invalidated = false;
+				m_committedWorldVersion = worldVersion;
+
+				auto commit = [&](ComponentType componentType) {
+					auto& listNone = list[componentType].listNone;
+					auto& listAny = list[componentType].listAny;
+					auto& listAll = list[componentType].listAll;
+
+					// Make sure to sort the meta-types so we receive the same hash no
+					// matter the order in which components are provided Bubble sort is
+					// okay. We're dealing with at most MAX_COMPONENTS_PER_ARCHETYPE items
+					// anyway. 99% of time with at most 3 or 4
+					// TODO: Replace with a sorting network
+					std::sort(
+							listNone.begin(), listNone.end(),
+							std::less<const ComponentMetaData*>());
+					std::sort(
+							listAny.begin(), listAny.end(),
+							std::less<const ComponentMetaData*>());
+					std::sort(
+							listAll.begin(), listAll.end(),
+							std::less<const ComponentMetaData*>());
+
+					list[componentType].hashNone = CombineComponentHashes(listNone);
+					list[componentType].hashAny = CombineComponentHashes(listAny);
+					list[componentType].hashAll = CombineComponentHashes(listAll);
+				};
+
+				commit(ComponentType::CT_Generic);
+				commit(ComponentType::CT_Chunk);
 			}
 		};
 	} // namespace ecs
