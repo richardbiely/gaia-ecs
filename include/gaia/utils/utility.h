@@ -13,16 +13,17 @@ namespace gaia {
 		inline constexpr auto is_unique<T, Rest...> = std::bool_constant<
 				(!std::is_same_v<T, Rest> && ...) && is_unique<Rest...>>{};
 
-		namespace detail
-		{
-			template< class T >
+		namespace detail {
+			template <class T>
 			struct type_identity {
 				using type = T;
 			};
-		}
+		} // namespace detail
 
 		template <typename T, typename... Ts>
-		struct unique: detail::type_identity<T> {}; // TODO: In C++20 we could use std::type_identity
+		struct unique:
+				detail::type_identity<T> {
+		}; // TODO: In C++20 we could use std::type_identity
 
 		template <typename... Ts, typename U, typename... Us>
 		struct unique<std::tuple<Ts...>, U, Us...>:
@@ -49,19 +50,47 @@ namespace gaia {
 
 #pragma region Compile - time for each
 
-		//! Compile-time for loop over containers
+		namespace detail {
+			template <class Func, auto... Is>
+			constexpr void for_each_impl(Func&& func, std::index_sequence<Is...>) {
+				(func(std::integral_constant<decltype(Is), Is>{}), ...);
+			}
+
+			template <class Tuple, class Func, auto... Is>
+			void for_each_tuple_impl(
+					Tuple&& tuple, Func&& func, std::index_sequence<Is...>) {
+				(func(std::get<Is>(tuple)), ...);
+			}
+		} // namespace detail
+
+		//! Compile-time for loop. Performs \tparam Iters iterations.
+		//!
+		//! Example:
+		//! std::array<int, 10> arr = { ... };
+		//! for_each<arr.size()>([&arr][auto i]) {
+		//!    std::cout << arr[i] << std::endl;
+		//! }
+		template <auto Iters, class Func>
+		constexpr void for_each(Func&& func) {
+			detail::for_each_impl(
+					std::forward<Func>(func), std::make_index_sequence<Iters>());
+		}
+
+		//! Compile-time for loop over containers.
+		//! Iteration starts at \tparam FirstIdx and end at \tparam LastIdx
+		//! (excluding) in increments of \tparam Inc.
 		//!
 		//! Example:
 		//! std::array<int, 10> arr;
-		//! for_each<0, 10, 1>([&arr][auto i]) {
+		//! for_each_ext<0, 10, 1>([&arr][auto i]) {
 		//!    std::cout << arr[i] << std::endl;
 		//! }
 		//! print(69, "likes", 420.0f);
 		template <auto FirstIdx, auto LastIdx, auto Inc, typename Func>
-		constexpr void for_each(Func&& func) {
+		constexpr void for_each_ext(Func&& func) {
 				if constexpr (FirstIdx < LastIdx) {
 					func(std::integral_constant<decltype(FirstIdx), FirstIdx>());
-					for_each<FirstIdx + Inc, LastIdx, Inc>(func);
+					for_each2<FirstIdx + Inc, LastIdx, Inc>(func);
 			}
 		}
 
@@ -70,7 +99,7 @@ namespace gaia {
 		//! Example:
 		//! template<typename... Args>
 		//! void print(const Args&... args) {
-		//!  for_each([][const auto& value]) {
+		//!  for_each_pack([][const auto& value]) {
 		//!    std::cout << value << std::endl;
 		//!  }
 		//! }
@@ -87,11 +116,12 @@ namespace gaia {
 		//! for_each_tuple(const auto& value) {
 		//!  std::cout << value << std::endl;
 		//!  }, std::make(69, "likes", 420.0f);
-		template <typename Func, typename Tuple>
-		constexpr void for_each_tuple(Func&& func, Tuple&& tuple) {
-			constexpr size_t iters = std::tuple_size_v<std::decay_t<Tuple>>;
-			for_each<size_t(0), iters, size_t(1)>(
-					[&](auto i) { func(std::get<i.value>(tuple)); });
+		template <typename Tuple, typename Func>
+		constexpr void for_each_tuple(Tuple&& tuple, Func&& func) {
+			detail::for_each_tuple_impl(
+					std::forward<Tuple>(tuple), std::forward<Func>(func),
+					std::make_index_sequence<
+							std::tuple_size<std::remove_reference_t<Tuple>>::value>{});
 		}
 
 #pragma endregion
