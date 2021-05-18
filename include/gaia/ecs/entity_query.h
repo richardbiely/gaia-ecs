@@ -38,8 +38,7 @@ namespace gaia {
 			static constexpr uint64_t calculate_combined_hash() {
 				constexpr std::array<uint64_t, sizeof...(Type)> arr = {
 						utils::type_info::hash<Type>()...};
-				constexpr auto sortedArr = utils::sort(arr);
-				return CalculateComponentsHash2(sortedArr);
+				return CalculateComponentsHash2(utils::sort(arr));
 			}
 
 		public:

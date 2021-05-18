@@ -47,7 +47,7 @@ TEST_CASE("EntityNull") {
 	REQUIRE_FALSE(ecs::EntityNull == e);
 }
 
-TEST_CASE("Query hashes") {
+TEST_CASE("EntityQuery hashes SMALL") {
 	// Compile-time queries
 	ecs::EntityQuery2<
 			ecs::AllTypes<Position, Rotation>, ecs::AnyTypes<>, ecs::NoneTypes<>>
@@ -61,6 +61,34 @@ TEST_CASE("Query hashes") {
 	ecs::EntityQuery qq1, qq2;
 	qq1.With<Position, Rotation>();
 	qq2.With<Rotation, Position>();
+	qq1.Commit(0);
+	qq2.Commit(0);
+	REQUIRE(
+			qq1.GetData(ecs::ComponentType::CT_Generic).hashAll ==
+			qq2.GetData(ecs::ComponentType::CT_Generic).hashAll);
+
+	// Results of both types of querries must match
+	REQUIRE(
+			decltype(q1)::all::hash ==
+			qq1.GetData(ecs::ComponentType::CT_Generic).hashAll);
+}
+
+TEST_CASE("EntityQuery hashes BIG") {
+	// Compile-time queries
+	ecs::EntityQuery2<
+			ecs::AllTypes<Position, Rotation, Acceleration, Something>,
+			ecs::AnyTypes<>, ecs::NoneTypes<>>
+			q1;
+	ecs::EntityQuery2<
+			ecs::AllTypes<Rotation, Something, Position, Acceleration>,
+			ecs::AnyTypes<>, ecs::NoneTypes<>>
+			q2;
+	REQUIRE(decltype(q1)::all::hash == decltype(q2)::all::hash);
+
+	// Real-time queries
+	ecs::EntityQuery qq1, qq2;
+	qq1.With<Position, Rotation, Acceleration, Something>();
+	qq2.With<Rotation, Something, Position, Acceleration>();
 	qq1.Commit(0);
 	qq2.Commit(0);
 	REQUIRE(
