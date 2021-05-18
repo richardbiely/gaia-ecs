@@ -42,11 +42,25 @@ namespace gaia {
 		}
 #pragma endregion
 
+#pragma region Function helpers
+
 		template <typename... Type>
 		struct func_type_list {};
 
 		template <typename Class, typename Ret, typename... Args>
 		func_type_list<Args...> func_args(Ret (Class::*)(Args...) const);
+
+#pragma endregion
+
+#pragma region Type helpers
+
+		template <typename... Type>
+		struct type_list {
+			using types = type_list;
+			static constexpr auto size = sizeof...(Type);
+		};
+
+#pragma endregion
 
 #pragma region Compile - time for each
 
