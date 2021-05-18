@@ -14,13 +14,7 @@
 namespace gaia {
 	namespace ecs {
 		template <typename... Type>
-		struct type_list {
-			using types = type_list;
-			static constexpr auto size = sizeof...(Type);
-		};
-
-		template <typename... Type>
-		struct type_container {
+		struct component_query_container_base {
 			using types = std::tuple<Type...>;
 			static constexpr auto size = sizeof...(Type);
 			template <uint32_t N>
@@ -39,7 +33,7 @@ namespace gaia {
 		enum class QueryTypes { Any, All, None };
 
 		template <QueryTypes qt, typename... Type>
-		struct query_container: type_container<Type...> {
+		struct component_query_container: component_query_container_base<Type...> {
 		private:
 			static constexpr uint64_t calculate_combined_hash() {
 				constexpr std::array<uint64_t, sizeof...(Type)> arr = {
@@ -54,11 +48,11 @@ namespace gaia {
 		};
 
 		template <typename... Type>
-		using AnyTypes = query_container<QueryTypes::Any, Type...>;
+		using AnyTypes = component_query_container<QueryTypes::Any, Type...>;
 		template <typename... Type>
-		using AllTypes = query_container<QueryTypes::All, Type...>;
+		using AllTypes = component_query_container<QueryTypes::All, Type...>;
 		template <typename... Type>
-		using NoneTypes = query_container<QueryTypes::None, Type...>;
+		using NoneTypes = component_query_container<QueryTypes::None, Type...>;
 
 		template <typename T1, typename T2, typename T3>
 		struct EntityQuery2 final {
