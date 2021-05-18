@@ -13,8 +13,16 @@ namespace gaia {
 		inline constexpr auto is_unique<T, Rest...> = std::bool_constant<
 				(!std::is_same_v<T, Rest> && ...) && is_unique<Rest...>>{};
 
+		namespace detail
+		{
+			template< class T >
+			struct type_identity {
+				using type = T;
+			};
+		}
+
 		template <typename T, typename... Ts>
-		struct unique: std::type_identity<T> {};
+		struct unique: detail::type_identity<T> {}; // TODO: In C++20 we could use std::type_identity
 
 		template <typename... Ts, typename U, typename... Us>
 		struct unique<std::tuple<Ts...>, U, Us...>:
@@ -114,6 +122,8 @@ namespace gaia {
 			}
 		} // namespace detail
 
+		//! Compile-time sort
+		//! TODO: replace with std::sort in C++20
 		template <typename Array>
 		constexpr Array sort(Array array_) noexcept {
 			auto sorted = array_;

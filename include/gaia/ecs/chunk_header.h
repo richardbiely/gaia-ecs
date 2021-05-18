@@ -20,7 +20,7 @@ namespace gaia {
 			//! [10] Remove
 			bool remove = false;
 			//! [11-63] Empty space
-			uint8_t dummy[52]{};
+			uint8_t dummy[53]{};
 			//! [64-319] Versions of individual components on chunk. Stored on
 			//! separate cache lines from the rest
 			uint32_t versions[ComponentType::CT_Count]
