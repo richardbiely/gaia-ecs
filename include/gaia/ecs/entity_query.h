@@ -298,20 +298,19 @@ namespace gaia {
 					auto& listAny = list[componentType].listAny;
 					auto& listAll = list[componentType].listAll;
 
+					auto sortCondition = [](const ComponentMetaData* lhs,
+																	const ComponentMetaData* rhs) {
+						return lhs->componentHash < rhs->componentHash;
+					};
+
 					// Make sure to sort the meta-types so we receive the same hash no
 					// matter the order in which components are provided Bubble sort is
 					// okay. We're dealing with at most MAX_COMPONENTS_PER_ARCHETYPE items
 					// anyway. 99% of time with at most 3 or 4
 					// TODO: Replace with a sorting network
-					std::sort(
-							listNone.begin(), listNone.end(),
-							std::less<const ComponentMetaData*>());
-					std::sort(
-							listAny.begin(), listAny.end(),
-							std::less<const ComponentMetaData*>());
-					std::sort(
-							listAll.begin(), listAll.end(),
-							std::less<const ComponentMetaData*>());
+					std::sort(listNone.begin(), listNone.end(), sortCondition);
+					std::sort(listAny.begin(), listAny.end(), sortCondition);
+					std::sort(listAll.begin(), listAll.end(), sortCondition);
 
 					list[componentType].hashNone = CombineComponentHashes(listNone);
 					list[componentType].hashAny = CombineComponentHashes(listAny);

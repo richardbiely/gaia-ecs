@@ -47,6 +47,16 @@ TEST_CASE("EntityNull") {
 	REQUIRE_FALSE(ecs::EntityNull == e);
 }
 
+TEST_CASE("Compile-time sort") {
+	std::array<int, 5> in = {4, 2, 1, 3, 0};
+	auto out = utils::sort(in);
+	REQUIRE(out[0] == 0);
+	REQUIRE(out[1] == 1);
+	REQUIRE(out[2] == 2);
+	REQUIRE(out[3] == 3);
+	REQUIRE(out[4] == 4);
+}
+
 TEST_CASE("EntityQuery hashes SMALL") {
 	// Compile-time queries
 	ecs::EntityQuery2<
@@ -221,8 +231,8 @@ TEST_CASE("Example") {
 	auto e5 = world.CreateEntity(
 			ecs::CreationQuery()
 					.AddComponent<Position>()
-					.AddChunkComponent<Acceleration>()); // enity with Position and chunk
-																							 // component Acceleration
+					.AddChunkComponent<Acceleration>()); // enity with Position and
+																							 // chunk component Acceleration
 	(void)e5;
 
 	// Adding components
@@ -294,13 +304,13 @@ TEST_CASE("Example") {
 
 	{
 		ecs::EntityQuery q;
-		// We'll query all entities which carry Something or Else components, don't
-		// carry Scale and carry chunk component Acceleration
+		// We'll query all entities which carry Something or Else components,
+		// don't carry Scale and carry chunk component Acceleration
 		q.WithAny<Something, Else>()
 				.WithNone<Scale>()
 				.WithChunkComponents<Acceleration>();
-		// In addition to the above both Position and Acceleration must be there. We
-		// extract data for them.
+		// In addition to the above both Position and Acceleration must be there.
+		// We extract data for them.
 		world
 				.ForEach(
 						q,
@@ -313,13 +323,13 @@ TEST_CASE("Example") {
 	}
 	{
 		ecs::EntityQuery q;
-		// We'll query all entities which carry Something or Else components, don't
-		// carry Scale and carry chunk component Acceleration
+		// We'll query all entities which carry Something or Else components,
+		// don't carry Scale and carry chunk component Acceleration
 		q.WithAny<Something, Else>()
 				.WithNone<Scale>()
 				.WithChunkComponents<Acceleration>();
-		// In addition to the above both Position and Acceleration must be there. We
-		// extract data for them.
+		// In addition to the above both Position and Acceleration must be there.
+		// We extract data for them.
 		world
 				.ForEachChunk(
 						q,
