@@ -207,7 +207,7 @@ namespace gaia {
 		[[nodiscard]] constexpr uint64_t
 		CalculateComponentsHash2(Container arr) noexcept {
 			uint64_t hash = 0;
-			utils::for_each<0U, arr.size(), 1U>(
+			utils::for_each<arr.size()>(
 					[&hash, &arr](auto i) { hash = utils::hash_combine(hash, arr[i]); });
 			return hash;
 		}
