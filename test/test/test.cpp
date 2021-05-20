@@ -217,11 +217,11 @@ TEST_CASE("Example") {
 	// Entity creation
 
 	auto e1 = world.CreateEntity(q1); // entity form creation query
-	auto e3 = world.CreateEntity(ecs::CreationQuery()
-																	 .AddComponent<
-																			 Position, Acceleration,
-																			 Something>()); // entity with Position,
-																											// Acceleration, Something
+	auto e3 = world.CreateEntity(
+			ecs::CreationQuery()
+					.AddComponent<
+							Position, Acceleration,
+							Something>()); // entity with Position, Acceleration, Something
 	auto e4 = world.CreateEntity(
 			ecs::CreationQuery()
 					.AddComponent<
@@ -389,8 +389,8 @@ TEST_CASE("Example") {
 	// DiagQuery(qqq);
 
 	// Delete some entity
-	// world.DeleteEntity(e1);
-	// world.DeleteEntity(e3);
+	world.DeleteEntity(e1);
+	world.DeleteEntity(e3);
 
 	world.Diag();
 	REQUIRE(true);

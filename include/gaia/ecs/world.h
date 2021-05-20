@@ -44,7 +44,7 @@ namespace gaia {
 			//! in chunks + data validation
 			std::vector<EntityContainer> m_entities;
 			//! Identified of the next entity to recycle
-			uint32_t m_nextFreeEntity = 0;
+			uint32_t m_nextFreeEntity = Entity::IdMask;
 			//! Number of entites to recycle
 			uint32_t m_freeEntities = 0;
 
@@ -285,8 +285,8 @@ namespace gaia {
 				auto& entityContainer = m_entities[entityToDelete.id()];
 				entityContainer.chunk = nullptr;
 
-				// New generation. Skip -1 because it has a special meaning
-				auto gen = entityContainer.gen + 1;
+				// New generation
+				auto gen = ++entityContainer.gen;
 
 					// Update our implicit list
 					if (!m_freeEntities) {
@@ -753,10 +753,28 @@ namespace gaia {
 					for (int i = 0; i < m_entities.size(); i++) {
 						const auto& e = m_entities[i];
 						assert(chunk->HasEntities() || e.chunk != chunk);
-						assert(
-								(e.chunk == nullptr && e.idx == Entity::IdMask) ||
-								(e.chunk != nullptr && e.idx != Entity::IdMask));
 					}
+
+				// Make sure internal linked list is still valid
+				bool hasThingsToRemove = m_freeEntities > 0;
+					if (hasThingsToRemove) {
+						// If there's something to remove there has to be at least one
+						// entity left
+						assert(!m_entities.empty());
+
+						auto freeEntities = m_freeEntities;
+						auto nextFreeEntity = m_nextFreeEntity;
+							while (freeEntities > 0) {
+								assert(
+										nextFreeEntity < m_entities.size() &&
+										"ECS recycle list broken!");
+
+								nextFreeEntity = m_entities[nextFreeEntity].idx;
+								--freeEntities;
+							}
+
+						assert(nextFreeEntity == Entity::IdMask);
+				}
 #endif
 			}
 
