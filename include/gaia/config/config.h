@@ -10,6 +10,7 @@
 #define GAIA_ECS_DIAG_DELETED_ENTITIES 1
 
 #define ECS_VALIDATE_CHUNKS 1
+#define ECS_VALIDATE_ENTITY_LIST 1
 #define ECS_CHUNK_ALLOCATOR 1
 
 //------------------------------------------------------------------------------

@@ -745,35 +745,44 @@ namespace gaia {
 
 				ValidateChunk(oldChunk);
 				ValidateChunk(newChunk);
+				ValidateEntityList();
 			}
 
+			//! Verifies than the implicit linked list of entities is valid
+			void ValidateEntityList() {
+#if ECS_VALIDATE_ENTITY_LIST
+				bool hasThingsToRemove = m_freeEntities > 0;
+				if (!hasThingsToRemove)
+					return;
+
+				// If there's something to remove there has to be at least one
+				// entity left
+				assert(!m_entities.empty());
+
+				auto freeEntities = m_freeEntities;
+				auto nextFreeEntity = m_nextFreeEntity;
+				while (freeEntities > 0) {
+					assert(
+							nextFreeEntity < m_entities.size() &&
+							"ECS recycle list broken!");
+
+					nextFreeEntity = m_entities[nextFreeEntity].idx;
+					--freeEntities;
+				}
+
+				// At this point the index of the last index in list should
+				// point to -1 because that's the tail of our implicit list.
+				assert(nextFreeEntity == Entity::IdMask);
+#endif
+			}
+
+			//! Verifies than the chunk is valid
 			void ValidateChunk(Chunk* chunk) {
 #if ECS_VALIDATE_CHUNKS
-					// Make sure no entites reference the deleted chunk
-					for (int i = 0; i < m_entities.size(); i++) {
-						const auto& e = m_entities[i];
-						assert(chunk->HasEntities() || e.chunk != chunk);
-					}
-
-				// Make sure internal linked list is still valid
-				bool hasThingsToRemove = m_freeEntities > 0;
-					if (hasThingsToRemove) {
-						// If there's something to remove there has to be at least one
-						// entity left
-						assert(!m_entities.empty());
-
-						auto freeEntities = m_freeEntities;
-						auto nextFreeEntity = m_nextFreeEntity;
-							while (freeEntities > 0) {
-								assert(
-										nextFreeEntity < m_entities.size() &&
-										"ECS recycle list broken!");
-
-								nextFreeEntity = m_entities[nextFreeEntity].idx;
-								--freeEntities;
-							}
-
-						assert(nextFreeEntity == Entity::IdMask);
+				// Make sure no entites reference the deleted chunk
+				for (int i = 0; i < m_entities.size(); i++) {
+					const auto& e = m_entities[i];
+					assert(chunk->HasEntities() || e.chunk != chunk);
 				}
 #endif
 			}
@@ -920,6 +929,7 @@ namespace gaia {
 						DeallocateEntity(entity);
 
 						ValidateChunk(chunk);
+						ValidateEntityList();
 					} else {
 						// Return entity to pool
 						DeallocateEntity(entity);
@@ -1753,6 +1763,8 @@ namespace gaia {
 					if (DiagDeletedEntities) {
 						DiagDeletedEntities = false;
 
+						ValidateEntityList();
+
 						LOG_N("Deleted entities: %u", m_freeEntities);
 							if (m_freeEntities) {
 								LOG_N("--> %u", m_nextFreeEntity);
@@ -1769,11 +1781,6 @@ namespace gaia {
 												break;
 										}
 									}
-
-								// At this point the index of the last index in list should
-								// point to -1 because that's the tail of our implicit list with
-								// m_freeEntities > 0.
-								assert(fe == Entity::IdMask);
 						}
 				}
 			}
