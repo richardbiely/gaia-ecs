@@ -57,7 +57,7 @@ TEST_CASE("Compile-time sort") {
 	REQUIRE(out[4] == 4);
 }
 
-TEST_CASE("EntityQuery hashes SMALL") {
+TEST_CASE("EntityQuery & EntityQuery2 - 2 components") {
 	// Compile-time queries
 	ecs::EntityQuery2<
 			ecs::AllTypes<Position, Rotation>, ecs::AnyTypes<>, ecs::NoneTypes<>>
@@ -69,8 +69,8 @@ TEST_CASE("EntityQuery hashes SMALL") {
 
 	// Real-time queries
 	ecs::EntityQuery qq1, qq2;
-	qq1.With<Position, Rotation>();
-	qq2.With<Rotation, Position>();
+	qq1.All<Position, Rotation>();
+	qq2.All<Rotation, Position>();
 	qq1.Commit(0);
 	qq2.Commit(0);
 	REQUIRE(
@@ -83,7 +83,7 @@ TEST_CASE("EntityQuery hashes SMALL") {
 			qq1.GetData(ecs::ComponentType::CT_Generic).hashAll);
 }
 
-TEST_CASE("EntityQuery hashes BIG") {
+TEST_CASE("EntityQuery & EntityQuery2 - 4 components") {
 	// Compile-time queries
 	ecs::EntityQuery2<
 			ecs::AllTypes<Position, Rotation, Acceleration, Something>,
@@ -97,8 +97,8 @@ TEST_CASE("EntityQuery hashes BIG") {
 
 	// Real-time queries
 	ecs::EntityQuery qq1, qq2;
-	qq1.With<Position, Rotation, Acceleration, Something>();
-	qq2.With<Rotation, Something, Position, Acceleration>();
+	qq1.All<Position, Rotation, Acceleration, Something>();
+	qq2.All<Rotation, Something, Position, Acceleration>();
 	qq1.Commit(0);
 	qq2.Commit(0);
 	REQUIRE(
@@ -111,7 +111,7 @@ TEST_CASE("EntityQuery hashes BIG") {
 			qq1.GetData(ecs::ComponentType::CT_Generic).hashAll);
 }
 
-TEST_CASE("CreateEntity") {
+TEST_CASE("CreateEntity - no components") {
 	ecs::World w;
 
 	auto create = [&](uint32_t id) {
@@ -127,7 +127,7 @@ TEST_CASE("CreateEntity") {
 		create(i);
 }
 
-TEST_CASE("CreateEntity_Component1") {
+TEST_CASE("CreateEntity - 1 component") {
 	ecs::World w;
 
 	auto create = [&](uint32_t id) {
@@ -142,7 +142,7 @@ TEST_CASE("CreateEntity_Component1") {
 		create(i);
 }
 
-TEST_CASE("CreateAndRemoveEntity") {
+TEST_CASE("CreateAndRemoveEntity - no components") {
 	ecs::World w;
 
 	auto create = [&](uint32_t id) {
@@ -161,39 +161,185 @@ TEST_CASE("CreateAndRemoveEntity") {
 		REQUIRE(ok2);
 	};
 
+	// 100,000 picked so we create enough entites that they overflow
+	// into another chunk
+	const uint32_t N = 100000;
 	std::vector<ecs::Entity> arr;
-	const uint32_t N = 100;
+	arr.reserve(N);
+
+	// Create entities
+	for (uint32_t i = 0; i < N; i++)
+		arr.push_back(create(i));
+	// Remove entities
+	for (uint32_t i = 0; i < N; i++)
+		remove(arr[i]);
+}
+
+TEST_CASE("CreateAndRemoveEntity - 1 component") {
+	ecs::World w;
+
+	auto create = [&](uint32_t id) {
+		auto e = w.CreateEntity();
+		const bool ok = e.id() == id && e.gen() == 0;
+		REQUIRE(ok);
+		return e;
+	};
+	auto remove = [&](ecs::Entity e) {
+		w.DeleteEntity(e);
+		auto de = w.GetEntity(e.id());
+		const bool ok = de.gen() == e.gen() + 1;
+		REQUIRE(ok);
+		auto ch = w.GetEntityChunk(e);
+		const bool ok2 = ch == nullptr;
+		REQUIRE(ok2);
+	};
+
+	// 100,000 picked so we create enough entites that they overflow
+	// into another chunk
+	const uint32_t N = 100000;
+	std::vector<ecs::Entity> arr;
+	arr.reserve(N);
+
 	for (uint32_t i = 0; i < N; i++)
 		arr.push_back(create(i));
 	for (uint32_t i = 0; i < N; i++)
 		remove(arr[i]);
 }
 
-TEST_CASE("CreateAndRemoveEntity_Component1") {
+TEST_CASE("CreateComponent") {
 	ecs::World w;
 
-	auto create = [&](uint32_t id) {
-		auto e = w.CreateEntity();
-		const bool ok = e.id() == id && e.gen() == 0;
-		REQUIRE(ok);
-		return e;
-	};
-	auto remove = [&](ecs::Entity e) {
-		w.DeleteEntity(e);
-		auto de = w.GetEntity(e.id());
-		const bool ok = de.gen() == e.gen() + 1;
-		REQUIRE(ok);
-		auto ch = w.GetEntityChunk(e);
-		const bool ok2 = ch == nullptr;
-		REQUIRE(ok2);
-	};
+	auto e1 = w.CreateEntity();
+	w.AddComponent<Position, Acceleration>(e1, {}, {});
 
-	std::vector<ecs::Entity> arr;
-	const uint32_t N = 10000;
-	for (uint32_t i = 0; i < N; i++)
-		arr.push_back(create(i));
-	for (uint32_t i = 0; i < N; i++)
-		remove(arr[i]);
+	{
+		const bool hasPosition = w.HasComponents<Position>(e1);
+		REQUIRE(hasPosition);
+		const bool hasAcceleration = w.HasComponents<Acceleration>(e1);
+		REQUIRE(hasAcceleration);
+	}
+}
+
+TEST_CASE("Usage 1 - simple query, 1 component") {
+	ecs::World w;
+
+	auto e = w.CreateEntity();
+	w.AddComponent<Position>(e);
+
+	{
+		uint32_t cnt = 0;
+		w.ForEach([&](const Acceleration& a) { ++cnt; }).Run(0);
+		REQUIRE(cnt == 0);
+	}
+	{
+		uint32_t cnt = 0;
+		w.ForEach([&](const Position& a) { ++cnt; }).Run(0);
+		REQUIRE(cnt == 1);
+	}
+
+	auto e1 = w.CreateEntity(e);
+	auto e2 = w.CreateEntity(e);
+	auto e3 = w.CreateEntity(e);
+
+	{
+		uint32_t cnt = 0;
+		w.ForEach([&](const Position& a) { ++cnt; }).Run(0);
+		REQUIRE(cnt == 4);
+	}
+
+	w.DeleteEntity(e1);
+
+	{
+		uint32_t cnt = 0;
+		w.ForEach([&](const Position& a) { ++cnt; }).Run(0);
+		REQUIRE(cnt == 3);
+	}
+}
+
+TEST_CASE("Usage 2 - simple query, many components") {
+	ecs::World w;
+
+	auto e1 = w.CreateEntity();
+	w.AddComponent<Position, Acceleration, Else>(e1, {}, {}, {});
+	auto e2 = w.CreateEntity();
+	w.AddComponent<Rotation, Scale, Else>(e2, {}, {}, {});
+	auto e3 = w.CreateEntity();
+	w.AddComponent<Position, Acceleration, Scale>(e3, {}, {}, {});
+
+	{
+		uint32_t cnt = 0;
+		w.ForEach([&](const Position& a) { ++cnt; }).Run(0);
+		REQUIRE(cnt == 2);
+	}
+	{
+		uint32_t cnt = 0;
+		w.ForEach([&](const Acceleration& a) { ++cnt; }).Run(0);
+		REQUIRE(cnt == 2);
+	}
+	{
+		uint32_t cnt = 0;
+		w.ForEach([&](const Rotation& a) { ++cnt; }).Run(0);
+		REQUIRE(cnt == 1);
+	}
+	{
+		uint32_t cnt = 0;
+		w.ForEach([&](const Scale& a) { ++cnt; }).Run(0);
+		REQUIRE(cnt == 2);
+	}
+	{
+		uint32_t cnt = 0;
+		w.ForEach([&](const Position& p, const Acceleration& s) { ++cnt; }).Run(0);
+		REQUIRE(cnt == 2);
+	}
+	{
+		uint32_t cnt = 0;
+		w.ForEach([&](const Position& p, const Scale& s) { ++cnt; }).Run(0);
+		REQUIRE(cnt == 1);
+	}
+	{
+		ecs::EntityQuery q;
+		q.Any<Position, Acceleration>();
+
+		uint32_t cnt = 0;
+		w.ForEachChunk(q, [&](ecs::Chunk& chunk) { ++cnt; }).Run(0);
+		REQUIRE(cnt == 2);
+	}
+	{
+		ecs::EntityQuery q;
+		q.Any<Position, Acceleration>().All<Scale>();
+
+		uint32_t cnt = 0;
+		w.ForEachChunk(q, [&](ecs::Chunk& chunk) {
+			 ++cnt;
+
+			 auto scaleView = chunk.ViewRW<Scale>();
+			 scaleView[0] = {1, 2, 3};
+		 }).Run(0);
+		REQUIRE(cnt == 1);
+
+		Scale s;
+		w.GetComponent<Scale>(e3, s);
+		REQUIRE(s.x == 1);
+		REQUIRE(s.y == 2);
+		REQUIRE(s.z == 3);
+	}
+	{
+		ecs::EntityQuery q;
+		q.Any<Position, Acceleration>().None<Scale>();
+
+		uint32_t cnt = 0;
+		w.ForEachChunk(q, [&](ecs::Chunk& chunk) {
+			 ++cnt;
+
+			 auto elseView = chunk.ViewRW<Else>();
+			 elseView[0] = {true};
+		 }).Run(0);
+		REQUIRE(cnt == 1);
+
+		Else e;
+		w.GetComponent<Else>(e3, e);
+		REQUIRE(e.value == true);
+	}
 }
 
 TEST_CASE("Example") {
@@ -217,11 +363,11 @@ TEST_CASE("Example") {
 	// Entity creation
 
 	auto e1 = world.CreateEntity(q1); // entity form creation query
-	auto e3 = world.CreateEntity(
-			ecs::CreationQuery()
-					.AddComponent<
-							Position, Acceleration,
-							Something>()); // entity with Position, Acceleration, Something
+	auto e3 = world.CreateEntity(ecs::CreationQuery()
+																	 .AddComponent<
+																			 Position, Acceleration,
+																			 Something>()); // entity with Position,
+																											// Acceleration, Something
 	auto e4 = world.CreateEntity(
 			ecs::CreationQuery()
 					.AddComponent<
@@ -232,7 +378,8 @@ TEST_CASE("Example") {
 			ecs::CreationQuery()
 					.AddComponent<Position>()
 					.AddChunkComponent<Acceleration>()); // enity with Position and
-																							 // chunk component Acceleration
+																							 // chunk component
+																							 // Acceleration
 	(void)e5;
 
 	// Adding components
@@ -306,11 +453,9 @@ TEST_CASE("Example") {
 		ecs::EntityQuery q;
 		// We'll query all entities which carry Something or Else components,
 		// don't carry Scale and carry chunk component Acceleration
-		q.WithAny<Something, Else>()
-				.WithNone<Scale>()
-				.WithChunkComponents<Acceleration>();
-		// In addition to the above both Position and Acceleration must be there.
-		// We extract data for them.
+		q.Any<Something, Else>().None<Scale>().AllChunk<Acceleration>();
+		// In addition to the above both Position and Acceleration must be
+		// there. We extract data for them.
 		world
 				.ForEach(
 						q,
@@ -325,11 +470,9 @@ TEST_CASE("Example") {
 		ecs::EntityQuery q;
 		// We'll query all entities which carry Something or Else components,
 		// don't carry Scale and carry chunk component Acceleration
-		q.WithAny<Something, Else>()
-				.WithNone<Scale>()
-				.WithChunkComponents<Acceleration>();
-		// In addition to the above both Position and Acceleration must be there.
-		// We extract data for them.
+		q.Any<Something, Else>().None<Scale>().AllChunk<Acceleration>();
+		// In addition to the above both Position and Acceleration must be
+		// there. We extract data for them.
 		world
 				.ForEachChunk(
 						q,
@@ -349,15 +492,15 @@ TEST_CASE("Example") {
 	}
 	{
 		// We'll query all entities which carry Something or Else components,
-		// don't carry Scale and carry chunk component Acceleration In addition to
-		// the above both Position and Acceleration must be there. We extract data
-		// for them.
+		// don't carry Scale and carry chunk component Acceleration In addition
+		// to the above both Position and Acceleration must be there. We extract
+		// data for them.
 		world
 				.ForEach(
 						ecs::EntityQuery()
-								.WithAny<Something, Else>()
-								.WithNone<Scale>()
-								.WithChunkComponents<Acceleration>(),
+								.Any<Something, Else>()
+								.None<Scale>()
+								.AllChunk<Acceleration>(),
 						[](const Position& p, const Acceleration& a) {
 							LOG_N(
 									"pos=[%f,%f,%f], acc=[%f,%f,%f]", p.x, p.y, p.z, a.x, a.y,
@@ -366,8 +509,8 @@ TEST_CASE("Example") {
 				.Run(0);
 	}
 	{
-		// We iterate over all entities with Position and Acceleration components.
-		// Acceleration is read-only, position is write-enabled
+		// We iterate over all entities with Position and Acceleration
+		// components. Acceleration is read-only, position is write-enabled
 		float t = 1.5f;
 		world
 				.ForEach([t](Position& p, const Acceleration& a) {

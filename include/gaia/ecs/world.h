@@ -760,14 +760,14 @@ namespace gaia {
 
 				auto freeEntities = m_freeEntities;
 				auto nextFreeEntity = m_nextFreeEntity;
-				while (freeEntities > 0) {
-					assert(
-							nextFreeEntity < m_entities.size() &&
-							"ECS recycle list broken!");
+					while (freeEntities > 0) {
+						assert(
+								nextFreeEntity < m_entities.size() &&
+								"ECS recycle list broken!");
 
-					nextFreeEntity = m_entities[nextFreeEntity].idx;
-					--freeEntities;
-				}
+						nextFreeEntity = m_entities[nextFreeEntity].idx;
+						--freeEntities;
+					}
 
 				// At this point the index of the last index in list should
 				// point to -1 because that's the tail of our implicit list.
@@ -778,11 +778,11 @@ namespace gaia {
 			//! Verifies than the chunk is valid
 			void ValidateChunk(Chunk* chunk) {
 #if ECS_VALIDATE_CHUNKS
-				// Make sure no entites reference the deleted chunk
-				for (int i = 0; i < m_entities.size(); i++) {
-					const auto& e = m_entities[i];
-					assert(chunk->HasEntities() || e.chunk != chunk);
-				}
+					// Make sure no entites reference the deleted chunk
+					for (int i = 0; i < m_entities.size(); i++) {
+						const auto& e = m_entities[i];
+						assert(chunk->HasEntities() || e.chunk != chunk);
+					}
 #endif
 			}
 
@@ -817,7 +817,6 @@ namespace gaia {
 
 #endif
 			}
-			
 
 			/*!
 			Creates a new entity from archetype
@@ -1327,7 +1326,7 @@ namespace gaia {
 				if constexpr (!sizeof...(TComponents))
 					return query;
 				else
-					return query.With<TComponents...>();
+					return query.All<TComponents...>();
 			}
 
 			[[nodiscard]] static bool CanProcessChunk(
@@ -1389,7 +1388,7 @@ namespace gaia {
 			static void RunQueryOnChunks_Direct(
 					World& world, EntityQuery& query, TFunc& func,
 					uint32_t lastSystemVersion) {
-				// Add With filter for components listed as input arguments of func
+				// Add an All filter for components listed as input arguments of func
 				query.Commit(world.GetWorldVersion());
 
 				// Iterate over all archetypes
@@ -1409,7 +1408,7 @@ namespace gaia {
 					uint32_t lastSystemVersion) {
 				using InputArgs = decltype(utils::func_args(&TFunc::operator()));
 
-				// Add With filter for components listed as input arguments of func
+				// Add an All filter for components listed as input arguments of func
 				world.Unpack_ForEachQuery(InputArgs{}, query)
 						.Commit(world.GetWorldVersion());
 
@@ -1576,16 +1575,14 @@ namespace gaia {
 												"--> (%p) componentHash:%016llx, size:%3u "
 												"B, "
 												"align:%3u B, %.*s",
-												type, type->componentHash, type->size,
-												type->alig, (uint32_t)type->name.length(),
-												type->name.data());
+												type, type->componentHash, type->size, type->alig,
+												(uint32_t)type->name.length(), type->name.data());
 #else
 										LOG_N(
 												"--> (%p) componentHash:%016llx, size:%3u "
 												"B, "
 												"align:%3u B",
-												type, type->componentHash, type->size,
-												type->alig);
+												type, type->componentHash, type->size, type->alig);
 #endif
 									}
 								};
@@ -1626,13 +1623,13 @@ namespace gaia {
 
 #if GAIA_DEBUG
 								LOG_N(
-										"--> (%p) componentHash:%016llx, index:%010u, %.*s",
-										type, type->componentHash, type->typeIndex,
+										"--> (%p) componentHash:%016llx, index:%010u, %.*s", type,
+										type->componentHash, type->typeIndex,
 										(uint32_t)type->name.length(), type->name.data());
 #else
 								LOG_N(
-										"--> (%p) componentHash:%016llx, index:%010u",
-										type, type->componentHash, type->typeIndex);
+										"--> (%p) componentHash:%016llx, index:%010u", type,
+										type->componentHash, type->typeIndex);
 #endif
 							}
 
@@ -1662,13 +1659,12 @@ namespace gaia {
 #if GAIA_DEBUG
 										LOG_N(
 												"--> (%p) componentHash:%016llx, index:%010u, %.*s",
-												type, type->componentHash,
-												type->typeIndex, (uint32_t)type->name.length(),
-												type->name.data());
+												type, type->componentHash, type->typeIndex,
+												(uint32_t)type->name.length(), type->name.data());
 #else
 										LOG_N(
-												"--> (%p) componentHash:%016llx, index:%010u",
-												type, type->componentHash, type->typeIndex);
+												"--> (%p) componentHash:%016llx, index:%010u", type,
+												type->componentHash, type->typeIndex);
 #endif
 									}
 							}
@@ -1734,12 +1730,13 @@ namespace gaia {
 								const auto type = component.type;
 #if GAIA_DEBUG
 								LOG_N(
-										"--> (%p) componentHash:%016llx, %.*s",
-										type, type->componentHash,
-										(uint32_t)type->name.length(), type->name.data());
+										"--> (%p) componentHash:%016llx, %.*s", type,
+										type->componentHash, (uint32_t)type->name.length(),
+										type->name.data());
 #else
 								LOG_N(
-										"--> (%p) componentHash:%016llx", type, type->componentHash);
+										"--> (%p) componentHash:%016llx", type,
+										type->componentHash);
 #endif
 							}
 
@@ -1747,12 +1744,13 @@ namespace gaia {
 							for (const auto type: listToCompare) {
 #if GAIA_DEBUG
 								LOG_N(
-										"--> (%p) componentHash:%016llx, %.*s",
-										type, type->componentHash,
-										(uint32_t)type->name.length(), type->name.data());
+										"--> (%p) componentHash:%016llx, %.*s", type,
+										type->componentHash, (uint32_t)type->name.length(),
+										type->name.data());
 #else
 								LOG_N(
-										"--> (%p) componentHash:%016llx", type, type->componentHash);
+										"--> (%p) componentHash:%016llx", type,
+										type->componentHash);
 #endif
 							}
 				}

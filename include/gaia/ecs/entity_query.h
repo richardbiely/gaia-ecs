@@ -238,34 +238,34 @@ namespace gaia {
 			}
 
 			template <typename... TComponent>
-			EntityQuery& WithAny() {
+			EntityQuery& Any() {
 				CalculateHashes<TComponent...>(list[ComponentType::CT_Generic].listAny);
 				return *this;
 			}
 			template <typename... TComponent>
-			EntityQuery& With() {
+			EntityQuery& All() {
 				CalculateHashes<TComponent...>(list[ComponentType::CT_Generic].listAll);
 				return *this;
 			}
 			template <typename... TComponent>
-			EntityQuery& WithNone() {
+			EntityQuery& None() {
 				CalculateHashes<TComponent...>(
 						list[ComponentType::CT_Generic].listNone);
 				return *this;
 			}
 
 			template <typename... TComponent>
-			EntityQuery& WithAnyChunkComponent() {
+			EntityQuery& AnyChunk() {
 				CalculateHashes<TComponent...>(list[ComponentType::CT_Chunk].listAny);
 				return *this;
 			}
 			template <typename... TComponent>
-			EntityQuery& WithChunkComponents() {
+			EntityQuery& AllChunk() {
 				CalculateHashes<TComponent...>(list[ComponentType::CT_Chunk].listAll);
 				return *this;
 			}
 			template <typename... TComponent>
-			EntityQuery& WithNoneChunkComponents() {
+			EntityQuery& NoneChunk() {
 				CalculateHashes<TComponent...>(list[ComponentType::CT_Chunk].listNone);
 				return *this;
 			}
@@ -278,7 +278,7 @@ namespace gaia {
 				return *this;
 			}
 			template <typename... TComponent>
-			EntityQuery& WithChangedChunkComponents() {
+			EntityQuery& WithChangedChunk() {
 				SetChangedFilter<TComponent...>(
 						listChangeFiltered[ComponentType::CT_Chunk],
 						list[ComponentType::CT_Chunk]);
