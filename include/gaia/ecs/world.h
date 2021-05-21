@@ -817,6 +817,23 @@ namespace gaia {
 
 #endif
 			}
+			
+
+			/*!
+			Creates a new entity from archetype
+			\return Entity
+			*/
+			Entity CreateEntity(Archetype& archetype) {
+				Entity entity = AllocateEntity();
+
+				auto chunk = m_entities[entity.id()].chunk;
+				if (chunk == nullptr)
+					chunk = archetype.FindOrCreateChunk();
+
+				StoreEntity(entity, chunk);
+
+				return entity;
+			}
 
 		public:
 			World() {
@@ -842,22 +859,6 @@ namespace gaia {
 			*/
 			[[nodiscard]] Entity CreateEntity() {
 				return AllocateEntity();
-			}
-
-			/*!
-			Creates a new entity from archetype
-			\return Entity
-			*/
-			Entity CreateEntity(Archetype& archetype) {
-				Entity entity = AllocateEntity();
-
-				auto chunk = m_entities[entity.id()].chunk;
-				if (chunk == nullptr)
-					chunk = archetype.FindOrCreateChunk();
-
-				StoreEntity(entity, chunk);
-
-				return entity;
 			}
 
 			/*!
