@@ -67,7 +67,7 @@ namespace gaia {
 			}
 
 		public:
-			bool IsEntityValid(Entity entity) const {
+			[[nodiscard]] bool IsEntityValid(Entity entity) const {
 				// Entity ID has to fit inside entity array
 				if (entity.id() >= m_entities.size())
 					return false;
@@ -236,8 +236,7 @@ namespace gaia {
 			}
 
 			[[nodiscard]] Archetype* GetArchetype(Entity entity) const {
-				const bool isValid = IsEntityValid(entity);
-				assert(isValid);
+				assert(IsEntityValid(entity));
 
 				auto& entityContainer = m_entities[entity.id()];
 				auto chunk = entityContainer.chunk;
