@@ -1226,8 +1226,7 @@ namespace gaia {
 									for (const auto& component: componentList) {
 											if (component.type == type) {
 												DiagNotMatching(
-														"withNone", componentList,
-														query.list[TYPE].listNone);
+														"none", componentList, query.list[TYPE].listNone);
 												return MatchArchetypeQueryRet::Fail;
 										}
 									}
@@ -1251,8 +1250,7 @@ namespace gaia {
 					checkIncludeAnyMatches:
 							// At least one match has been found to continue with evaluation
 							if (!matches) {
-								DiagNotMatching(
-										"withAny", componentList, query.list[TYPE].listAny);
+								DiagNotMatching("any", componentList, query.list[TYPE].listAny);
 								return MatchArchetypeQueryRet::Fail;
 						}
 				}
@@ -1282,11 +1280,12 @@ namespace gaia {
 						}
 
 						// No match found. We're done
-						DiagNotMatching("withAll", componentList, query.list[TYPE].listAll);
+						DiagNotMatching("all", componentList, query.list[TYPE].listAll);
 						return MatchArchetypeQueryRet::Fail;
 				}
 
-				return MatchArchetypeQueryRet::Skip;
+				return (withAnyTest != 0) ? MatchArchetypeQueryRet::Ok
+																	: MatchArchetypeQueryRet::Skip;
 			}
 
 			template <typename TFunc>

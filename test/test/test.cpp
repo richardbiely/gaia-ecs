@@ -301,7 +301,13 @@ TEST_CASE("Usage 2 - simple query, many components") {
 		q.Any<Position, Acceleration>();
 
 		uint32_t cnt = 0;
-		w.ForEachChunk(q, [&](ecs::Chunk& chunk) { ++cnt; }).Run(0);
+		w.ForEachChunk(q, [&](ecs::Chunk& chunk) {
+			 ++cnt;
+
+			 const bool ok = chunk.HasComponent<Position>() ||
+					 chunk.HasComponent<Acceleration>();
+			 REQUIRE(ok);
+		 }).Run(0);
 		REQUIRE(cnt == 2);
 	}
 	{
@@ -311,6 +317,10 @@ TEST_CASE("Usage 2 - simple query, many components") {
 		uint32_t cnt = 0;
 		w.ForEachChunk(q, [&](ecs::Chunk& chunk) {
 			 ++cnt;
+
+			 const bool ok = chunk.HasComponent<Position>() ||
+					 chunk.HasComponent<Acceleration>();
+			 REQUIRE(ok);
 
 			 auto scaleView = chunk.ViewRW<Scale>();
 			 scaleView[0] = {1, 2, 3};
