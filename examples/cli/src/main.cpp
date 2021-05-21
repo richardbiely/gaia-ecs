@@ -130,9 +130,7 @@ int main() {
 		ecs::EntityQuery q;
 		// We'll query all entities which carry Something or Else components, don't
 		// carry Scale and carry chunk component Acceleration
-		q.WithAny<Something, Else>()
-				.WithNone<Scale>()
-				.WithChunkComponents<Acceleration>();
+		q.Any<Something, Else>().None<Scale>().AllChunk<Acceleration>();
 		// In addition to the above both Position and Acceleration must be there. We
 		// extract data for them.
 		world
@@ -153,9 +151,9 @@ int main() {
 		world
 				.ForEach(
 						ecs::EntityQuery()
-								.WithAny<Something, Else>()
-								.WithNone<Scale>()
-								.WithChunkComponents<Acceleration>(),
+								.Any<Something, Else>()
+								.None<Scale>()
+								.AllChunk<Acceleration>(),
 						[](const Position& p, const Acceleration& a) {
 							LOG_N(
 									"pos=[%f,%f,%f], acc=[%f,%f,%f]", p.x, p.y, p.z, a.x, a.y,
