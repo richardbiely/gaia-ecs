@@ -181,18 +181,16 @@ namespace gaia {
 			[[nodiscard]] Archetype* CreateArchetype(
 					std::span<const ComponentMetaData*> genericTypes,
 					std::span<const ComponentMetaData*> chunkTypes,
-					const uint64_t componentsHash) {
+					const uint64_t lookupHash) {
 				auto newArch = Archetype::Create(*this, genericTypes, chunkTypes);
-				// TODO: Probably move this to Archetype::Create so we don't forget to
-				// set the hashes if we ever decide to call it
-				newArch->componentsHash = componentsHash;
+				newArch->lookupHash = lookupHash;
 
 				m_archetypeList.push_back(newArch);
-				m_archetypeHashList.push_back(componentsHash);
+				m_archetypeHashList.push_back(lookupHash);
 
-				auto it = m_archetypeMap.find(componentsHash);
+				auto it = m_archetypeMap.find(lookupHash);
 					if (it == m_archetypeMap.end()) {
-						m_archetypeMap.insert({componentsHash, {newArch}});
+						m_archetypeMap.insert({lookupHash, {newArch}});
 					} else {
 						auto& archetypes = it->second;
 						if (!utils::has(archetypes, newArch))
@@ -254,7 +252,7 @@ namespace gaia {
 				utils::erase_fast(m_archetypeList, idx);
 				utils::erase_fast(m_archetypeHashList, idx);
 
-				const auto it = m_archetypeMap.find(pArchetype->componentsHash);
+				const auto it = m_archetypeMap.find(pArchetype->lookupHash);
 				if (it != m_archetypeMap.end())
 					utils::erase_fast(
 							it->second, utils::get_index(it->second, pArchetype));
@@ -1211,14 +1209,14 @@ namespace gaia {
 			template <ComponentType TYPE>
 			[[nodiscard]] MatchArchetypeQueryRet MatchArchetypeQuery(
 					const Archetype& archetype, const EntityQuery& query) {
-				const auto& componentList = archetype.componentList[TYPE];
-
 				const uint64_t withNoneTest =
-						archetype.componentsHash & query.list[TYPE].hashNone;
+						archetype.matcherHash[TYPE] & query.list[TYPE].hashNone;
 				const uint64_t withAnyTest =
-						archetype.componentsHash & query.list[TYPE].hashAny;
+						archetype.matcherHash[TYPE] & query.list[TYPE].hashAny;
 				const uint64_t withAllTest =
-						archetype.componentsHash & query.list[TYPE].hashAll;
+						archetype.matcherHash[TYPE] & query.list[TYPE].hashAll;
+
+				const auto& componentList = archetype.componentList[TYPE];
 
 					// If there is any match with the withNoneList we continue with the
 					// next archetype
@@ -1531,7 +1529,7 @@ namespace gaia {
 						DiagArchetypes = false;
 						std::unordered_map<uint64_t, uint32_t> archetypeEntityCountMap;
 						for (const auto* archetype: m_archetypeList)
-							archetypeEntityCountMap.insert({archetype->componentsHash, 0});
+							archetypeEntityCountMap.insert({archetype->lookupHash, 0});
 
 							// Calculate the number of entities using a given archetype
 							for (const auto& e: m_entities) {
@@ -1539,7 +1537,7 @@ namespace gaia {
 									continue;
 
 								auto it = archetypeEntityCountMap.find(
-										e.chunk->header.owner.componentsHash);
+										e.chunk->header.owner.lookupHash);
 								if (it != archetypeEntityCountMap.end())
 									++it->second;
 							}
@@ -1559,11 +1557,16 @@ namespace gaia {
 									chunkComponentsSize += component.type->size;
 
 								const auto it =
-										archetypeEntityCountMap.find(archetype->componentsHash);
+										archetypeEntityCountMap.find(archetype->lookupHash);
 								LOG_N(
-										"Archetype ID:%016llx, chunks:%u, data size:%u B (%u + "
-										"%u), entities:%u/%u",
-										archetype->componentsHash,
+										"Archetype ID:%016llx, "
+										"matcherGeneric:%016llx, "
+										"matcherChunk:%016llx, "
+										"chunks:%u, data size:%u B (%u + %u), "
+										"entities:%u/%u",
+										archetype->lookupHash,
+										archetype->matcherHash[ComponentType::CT_Generic],
+										archetype->matcherHash[ComponentType::CT_Chunk],
 										(uint32_t)archetype->chunks.size(),
 										genericComponentsSize + chunkComponentsSize,
 										genericComponentsSize, chunkComponentsSize, it->second,

@@ -30,8 +30,10 @@ namespace gaia {
 			//! Description of components within this archetype
 			std::array<ChunkComponentList, ComponentType::CT_Count> componentList;
 
-			//! Hash of components within this archetype
-			uint64_t componentsHash = 0;
+			//! Hash of components within this archetype - used for lookups
+			uint64_t lookupHash = 0;
+			//! Hash of components within this archetype - used for matching
+			uint64_t matcherHash[ComponentType::CT_Count] = {0};
 			//! The number of entities this archetype can take (e.g 5 = 5 entities
 			//! with all their components)
 			uint16_t capacity = 0;
@@ -94,7 +96,7 @@ namespace gaia {
 								componentOffset += padding;
 								alignedOffset += padding;
 
-								// Make sure we didn't exceed the size of chunk
+								// Make sure we didn't exceed the chunk size
 								assert(componentOffset <= Chunk::DATA_SIZE);
 						}
 
@@ -108,7 +110,7 @@ namespace gaia {
 								alignedOffset +=
 										genericTypes[i]->size * maxGenericItemsInArchetype;
 
-								// Make sure we didn't exceed the size of chunk
+								// Make sure we didn't exceed the chunk size
 								assert(componentOffset <= Chunk::DATA_SIZE);
 						}
 					}
@@ -122,7 +124,7 @@ namespace gaia {
 								componentOffset += padding;
 								alignedOffset += padding;
 
-								// Make sure we didn't exceed the size of chunk
+								// Make sure we didn't exceed the chunk size
 								assert(componentOffset <= Chunk::DATA_SIZE);
 						}
 
@@ -134,7 +136,7 @@ namespace gaia {
 								componentOffset += chunkTypes[i]->size;
 								alignedOffset += chunkTypes[i]->size;
 
-								// Make sure we didn't exceed the size of chunk
+								// Make sure we didn't exceed the chunk size
 								assert(componentOffset <= Chunk::DATA_SIZE);
 						}
 					}
@@ -143,6 +145,10 @@ namespace gaia {
 				auto chunk = AllocateChunk(*newArch);
 				newArch->capacity = maxGenericItemsInArchetype;
 				newArch->chunks.push_back(chunk);
+				newArch->matcherHash[ComponentType::CT_Generic] =
+						CalculateMatcherHash(genericTypes);
+				newArch->matcherHash[ComponentType::CT_Chunk] =
+						CalculateMatcherHash(chunkTypes);
 
 				return newArch;
 			}
