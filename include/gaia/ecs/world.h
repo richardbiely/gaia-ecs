@@ -216,15 +216,16 @@ namespace gaia {
 				std::sort(chunkTypes.begin(), chunkTypes.end());
 
 				// Calculate hash for our combination of components
-				const auto componentsHash = CombineComponentHashes(genericTypes) |
-																		CombineComponentHashes(chunkTypes);
+				const auto lookupHash = CalculateLookupHash(std::array<uint64_t, 2>{
+						CalculateLookupHash(genericTypes),
+						CalculateLookupHash(chunkTypes)});
 
 				if (auto archetype =
-								FindArchetype(genericTypes, chunkTypes, componentsHash))
+								FindArchetype(genericTypes, chunkTypes, lookupHash))
 					return archetype;
 
 				// Archetype wasn't found so we have to create a new one
-				return CreateArchetype(genericTypes, chunkTypes, componentsHash);
+				return CreateArchetype(genericTypes, chunkTypes, lookupHash);
 			}
 
 			[[nodiscard]] Archetype* FindOrCreateArchetype(CreationQuery& query) {
@@ -1571,17 +1572,21 @@ namespace gaia {
 										const auto type = component.type;
 #if GAIA_DEBUG
 										LOG_N(
-												"--> (%p) componentHash:%016llx, size:%3u "
+												"--> (%p) lookupHash:%016llx, matcherHash:%016llx, "
+												"size:%3u "
 												"B, "
 												"align:%3u B, %.*s",
-												type, type->componentHash, type->size, type->alig,
-												(uint32_t)type->name.length(), type->name.data());
+												type, type->lookupHash, type->matcherHash, type->size,
+												type->alig, (uint32_t)type->name.length(),
+												type->name.data());
 #else
 										LOG_N(
-												"--> (%p) componentHash:%016llx, size:%3u "
+												"--> (%p) lookupHash:%016llx, matcherHash:%016llx, "
+												"size:%3u "
 												"B, "
 												"align:%3u B",
-												type, type->componentHash, type->size, type->alig);
+												type, type->lookupHash, type->matcherHash, type->size,
+												type->alig);
 #endif
 									}
 								};
@@ -1622,13 +1627,15 @@ namespace gaia {
 
 #if GAIA_DEBUG
 								LOG_N(
-										"--> (%p) componentHash:%016llx, index:%010u, %.*s", type,
-										type->componentHash, type->typeIndex,
+										"--> (%p) lookupHash:%016llx, matcherHash:%016llx, "
+										"index:%010u, %.*s",
+										type, type->lookupHash, type->matcherHash, type->typeIndex,
 										(uint32_t)type->name.length(), type->name.data());
 #else
 								LOG_N(
-										"--> (%p) componentHash:%016llx, index:%010u", type,
-										type->componentHash, type->typeIndex);
+										"--> (%p) lookupHash:%016llx, matcherHash:%016llx, "
+										"index:%010u",
+										type, type->lookupHash, type->matcherHash, type->typeIndex);
 #endif
 							}
 
@@ -1642,13 +1649,9 @@ namespace gaia {
 									continue;
 
 									if (errIfDuplicate) {
-										LOG_E(
-												"Duplicity detected for key %016" PRIx64 "",
-												pair.first);
+										LOG_E("Duplicity detected for key %016llx", pair.first);
 									} else {
-										LOG_N(
-												"Duplicity detected for key %016" PRIx64 "",
-												pair.first);
+										LOG_N("Duplicity detected for key %016llx", pair.first);
 									}
 
 									for (const auto* type: pair.second) {
@@ -1657,19 +1660,23 @@ namespace gaia {
 
 #if GAIA_DEBUG
 										LOG_N(
-												"--> (%p) componentHash:%016llx, index:%010u, %.*s",
-												type, type->componentHash, type->typeIndex,
-												(uint32_t)type->name.length(), type->name.data());
+												"--> (%p) lookupHash:%016llx, matcherHash:%016llx, "
+												"index:%010u, %.*s",
+												type, type->lookupHash, type->matcherHash,
+												type->typeIndex, (uint32_t)type->name.length(),
+												type->name.data());
 #else
 										LOG_N(
-												"--> (%p) componentHash:%016llx, index:%010u", type,
-												type->componentHash, type->typeIndex);
+												"--> (%p) lookupHash:%016llx, matcherHash:%016llx, "
+												"index:%010u",
+												type, type->lookupHash, type->matcherHash,
+												type->typeIndex);
 #endif
 									}
 							}
 						};
 
-						// Name hash duplicity. These must be unique
+						// Lookup hash duplicity. These must be unique.
 						{
 							bool hasDuplicates = false;
 							DuplicateMap m;
@@ -1677,9 +1684,9 @@ namespace gaia {
 									if (type == nullptr)
 										continue;
 
-									const auto it = m.find(type->componentHash);
+									const auto it = m.find(type->lookupHash);
 									if (it == m.end())
-										m.insert({type->componentHash, {type}});
+										m.insert({type->lookupHash, {type}});
 										else {
 											it->second.push_back(type);
 											hasDuplicates = true;
@@ -1700,9 +1707,9 @@ namespace gaia {
 									if (type == nullptr)
 										continue;
 
-									const auto it = m.find(type->componentHash);
+									const auto it = m.find(type->matcherHash);
 									if (it == m.end())
-										m.insert({type->componentHash, {type}});
+										m.insert({type->matcherHash, {type}});
 										else {
 											it->second.push_back(type);
 											hasDuplicates = true;
@@ -1729,9 +1736,9 @@ namespace gaia {
 								const auto type = component.type;
 #if GAIA_DEBUG
 								LOG_N(
-										"--> (%p) componentHash:%016llx, %.*s", type,
-										type->componentHash, (uint32_t)type->name.length(),
-										type->name.data());
+										"--> (%p) lookupHash:%016llx, matcherHash:%016llx, %.*s",
+										type, type->lookupHash, type->matcherHash,
+										(uint32_t)type->name.length(), type->name.data());
 #else
 								LOG_N(
 										"--> (%p) componentHash:%016llx", type,
@@ -1743,9 +1750,9 @@ namespace gaia {
 							for (const auto type: listToCompare) {
 #if GAIA_DEBUG
 								LOG_N(
-										"--> (%p) componentHash:%016llx, %.*s", type,
-										type->componentHash, (uint32_t)type->name.length(),
-										type->name.data());
+										"--> (%p) lookupHash:%016llx, matcherHash:%016llx, %.*s",
+										type, type->lookupHash, type->matcherHash,
+										(uint32_t)type->name.length(), type->name.data());
 #else
 								LOG_N(
 										"--> (%p) componentHash:%016llx", type,

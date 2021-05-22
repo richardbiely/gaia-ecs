@@ -65,7 +65,8 @@ TEST_CASE("EntityQuery & EntityQuery2 - 2 components") {
 	ecs::EntityQuery2<
 			ecs::AllTypes<Rotation, Position>, ecs::AnyTypes<>, ecs::NoneTypes<>>
 			q2;
-	REQUIRE(decltype(q1)::all::hash == decltype(q2)::all::hash);
+	REQUIRE(decltype(q1)::all::matcherHash == decltype(q2)::all::matcherHash);
+	REQUIRE(decltype(q1)::all::lookupHash == decltype(q2)::all::lookupHash);
 
 	// Real-time queries
 	ecs::EntityQuery qq1, qq2;
@@ -79,7 +80,7 @@ TEST_CASE("EntityQuery & EntityQuery2 - 2 components") {
 
 	// Results of both types of querries must match
 	REQUIRE(
-			decltype(q1)::all::hash ==
+			decltype(q1)::all::matcherHash ==
 			qq1.GetData(ecs::ComponentType::CT_Generic).hashAll);
 }
 
@@ -93,7 +94,8 @@ TEST_CASE("EntityQuery & EntityQuery2 - 4 components") {
 			ecs::AllTypes<Rotation, Something, Position, Acceleration>,
 			ecs::AnyTypes<>, ecs::NoneTypes<>>
 			q2;
-	REQUIRE(decltype(q1)::all::hash == decltype(q2)::all::hash);
+	REQUIRE(decltype(q1)::all::matcherHash == decltype(q2)::all::matcherHash);
+	REQUIRE(decltype(q1)::all::lookupHash == decltype(q2)::all::lookupHash);
 
 	// Real-time queries
 	ecs::EntityQuery qq1, qq2;
@@ -107,7 +109,7 @@ TEST_CASE("EntityQuery & EntityQuery2 - 4 components") {
 
 	// Results of both types of querries must match
 	REQUIRE(
-			decltype(q1)::all::hash ==
+			decltype(q1)::all::matcherHash ==
 			qq1.GetData(ecs::ComponentType::CT_Generic).hashAll);
 }
 
