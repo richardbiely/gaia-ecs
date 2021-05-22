@@ -117,7 +117,7 @@ namespace gaia {
 
 					// Add chunk types
 					for (uint32_t i = 0; i < (uint32_t)chunkTypes.size(); i++) {
-						const auto a = genericTypes[i]->alig;
+						const auto a = chunkTypes[i]->alig;
 							if (a != 0) {
 								const uint32_t padding =
 										utils::align(alignedOffset, a) - alignedOffset;
