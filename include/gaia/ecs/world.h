@@ -1218,8 +1218,18 @@ namespace gaia {
 
 				const auto& componentList = archetype.componentList[TYPE];
 
-					// If there is any match with the withNoneList we continue with the
-					// next archetype
+				// If withAllTest is empty but we wanted something
+					if (!withAllTest && query.list[TYPE].hashAll != 0) {
+						DiagNotMatching("all", componentList, query.list[TYPE].listAll);
+						return MatchArchetypeQueryRet::Fail;
+				}
+				// If withAnyTest is empty but we wanted something
+					if (!withAnyTest && query.list[TYPE].hashAny != 0) {
+						DiagNotMatching("any", componentList, query.list[TYPE].listAny);
+						return MatchArchetypeQueryRet::Fail;
+				}
+
+					// If there is any match with the withNoneList we quit
 					if (withNoneTest != 0) {
 							// withNoneList first because we usually request for less
 							// components that there are components in archetype
@@ -1249,7 +1259,8 @@ namespace gaia {
 							}
 
 					checkIncludeAnyMatches:
-							// At least one match has been found to continue with evaluation
+							// At least one match has been found to continue with
+							// evaluation
 							if (!matches) {
 								DiagNotMatching("any", componentList, query.list[TYPE].listAny);
 								return MatchArchetypeQueryRet::Fail;
@@ -1258,8 +1269,8 @@ namespace gaia {
 
 					// If withAllList is not empty there has to be an exact match
 					if (withAllTest != 0) {
-							// If the number of queried components is greater than the number
-							// of components in archetype there's no need to search
+							// If the number of queried components is greater than the
+							// number of components in archetype there's no need to search
 							if (query.list[TYPE].listAll.size() <= componentList.size()) {
 								uint32_t matches = 0;
 
@@ -1270,8 +1281,8 @@ namespace gaia {
 												if (component.type != type)
 													continue;
 
-												// All requirements are fulfilled. Let's iterate over
-												// all chunks in archetype
+												// All requirements are fulfilled. Let's iterate
+												// over all chunks in archetype
 												if (++matches == query.list[TYPE].listAll.size())
 													return MatchArchetypeQueryRet::Ok;
 

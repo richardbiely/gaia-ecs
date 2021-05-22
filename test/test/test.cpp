@@ -306,9 +306,12 @@ TEST_CASE("Usage 2 - simple query, many components") {
 		w.ForEachChunk(q, [&](ecs::Chunk& chunk) {
 			 ++cnt;
 
-			 const bool ok = chunk.HasComponent<Position>() ||
-					 chunk.HasComponent<Acceleration>();
-			 REQUIRE(ok);
+			 const bool ok1 =
+					 chunk.HasComponent<Position>() || chunk.HasComponent<Acceleration>();
+			 REQUIRE(ok1);
+			 const bool ok2 =
+					 chunk.HasComponent<Acceleration>() || chunk.HasComponent<Position>();
+			 REQUIRE(ok2);
 		 }).Run(0);
 		REQUIRE(cnt == 2);
 	}
@@ -320,9 +323,12 @@ TEST_CASE("Usage 2 - simple query, many components") {
 		w.ForEachChunk(q, [&](ecs::Chunk& chunk) {
 			 ++cnt;
 
-			 const bool ok = chunk.HasComponent<Position>() ||
-					 chunk.HasComponent<Acceleration>();
-			 REQUIRE(ok);
+			 const bool ok1 =
+					 chunk.HasComponent<Position>() || chunk.HasComponent<Acceleration>();
+			 REQUIRE(ok1);
+			 const bool ok2 =
+					 chunk.HasComponent<Acceleration>() || chunk.HasComponent<Position>();
+			 REQUIRE(ok2);
 
 			 auto scaleView = chunk.ViewRW<Scale>();
 			 scaleView[0] = {1, 2, 3};
@@ -349,7 +355,7 @@ TEST_CASE("Usage 2 - simple query, many components") {
 		REQUIRE(cnt == 1);
 
 		Else e;
-		w.GetComponent<Else>(e3, e);
+		w.GetComponent<Else>(e2, e);
 		REQUIRE(e.value == true);
 	}
 }
