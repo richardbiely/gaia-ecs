@@ -213,7 +213,9 @@ namespace gaia {
 				std::sort(
 						genericTypes.begin(), genericTypes.end(),
 						std::less<const ComponentMetaData*>());
-				std::sort(chunkTypes.begin(), chunkTypes.end());
+				std::sort(
+						chunkTypes.begin(), chunkTypes.end(),
+						std::less<const ComponentMetaData*>());
 
 				// Calculate hash for our combination of components
 				const auto lookupHash = CalculateLookupHash(std::array<uint64_t, 2>{
