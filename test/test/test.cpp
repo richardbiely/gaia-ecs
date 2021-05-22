@@ -222,6 +222,74 @@ TEST_CASE("CreateComponent") {
 	}
 }
 
+TEST_CASE("SetComponent - generic") {
+	ecs::World w;
+
+	constexpr uint32_t N = 100;
+	std::vector<ecs::Entity> arr;
+	arr.reserve(N);
+
+		for (uint32_t i = 0; i < N; ++i) {
+			arr.push_back(w.CreateEntity());
+			w.AddComponent<Rotation, Scale, Else>(arr.back(), {}, {}, {});
+		}
+
+		// Default values
+		for (const auto ent: arr) {
+			Rotation r;
+			w.GetComponent(ent, r);
+			REQUIRE(r.x == 0);
+			REQUIRE(r.y == 0);
+			REQUIRE(r.z == 0);
+
+			Scale s;
+			w.GetComponent(ent, s);
+			REQUIRE(s.x == 0);
+			REQUIRE(s.y == 0);
+			REQUIRE(s.z == 0);
+
+			Else e;
+			w.GetComponent(ent, e);
+			REQUIRE(e.value == false);
+		}
+
+	// Modify values
+	{
+		ecs::EntityQuery q;
+		q.All<Rotation, Scale, Else>();
+
+		w.ForEachChunk(q, [&](ecs::Chunk& chunk) {
+			 auto rotationView = chunk.ViewRW<Rotation>();
+			 auto scaleView = chunk.ViewRW<Scale>();
+			 auto elseView = chunk.ViewRW<Else>();
+
+				 for (uint32_t i = 0; i < chunk.GetItemCount(); ++i) {
+					 rotationView[i] = {1, 2, 3};
+					 scaleView[i] = {11, 22, 33};
+					 elseView[i] = {true};
+				 }
+		 }).Run(0);
+
+			for (const auto ent: arr) {
+				Rotation r;
+				w.GetComponent(ent, r);
+				REQUIRE(r.x == 1);
+				REQUIRE(r.y == 2);
+				REQUIRE(r.z == 3);
+
+				Scale s;
+				w.GetComponent(ent, s);
+				REQUIRE(s.x == 11);
+				REQUIRE(s.y == 22);
+				REQUIRE(s.z == 33);
+
+				Else e;
+				w.GetComponent(ent, e);
+				REQUIRE(e.value == true);
+			}
+	}
+}
+
 TEST_CASE("Usage 1 - simple query, 1 component") {
 	ecs::World w;
 
@@ -323,23 +391,16 @@ TEST_CASE("Usage 2 - simple query, many components") {
 		w.ForEachChunk(q, [&](ecs::Chunk& chunk) {
 			 ++cnt;
 
+			 REQUIRE(chunk.GetItemCount() == 1);
+
 			 const bool ok1 =
 					 chunk.HasComponent<Position>() || chunk.HasComponent<Acceleration>();
 			 REQUIRE(ok1);
 			 const bool ok2 =
 					 chunk.HasComponent<Acceleration>() || chunk.HasComponent<Position>();
 			 REQUIRE(ok2);
-
-			 auto scaleView = chunk.ViewRW<Scale>();
-			 scaleView[0] = {1, 2, 3};
 		 }).Run(0);
 		REQUIRE(cnt == 1);
-
-		Scale s;
-		w.GetComponent<Scale>(e3, s);
-		REQUIRE(s.x == 1);
-		REQUIRE(s.y == 2);
-		REQUIRE(s.z == 3);
 	}
 	{
 		ecs::EntityQuery q;
@@ -349,14 +410,9 @@ TEST_CASE("Usage 2 - simple query, many components") {
 		w.ForEachChunk(q, [&](ecs::Chunk& chunk) {
 			 ++cnt;
 
-			 auto elseView = chunk.ViewRW<Else>();
-			 elseView[0] = {true};
+			 REQUIRE(chunk.GetItemCount() == 1);
 		 }).Run(0);
 		REQUIRE(cnt == 1);
-
-		Else e;
-		w.GetComponent<Else>(e2, e);
-		REQUIRE(e.value == true);
 	}
 }
 
