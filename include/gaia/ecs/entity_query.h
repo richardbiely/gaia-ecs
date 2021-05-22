@@ -38,12 +38,15 @@ namespace gaia {
 			static constexpr uint64_t calculate_combined_hash() {
 				constexpr std::array<uint64_t, sizeof...(Type)> arr = {
 						utils::type_info::hash<Type>()...};
-				return CalculateComponentsHash2(utils::sort(arr));
+				return CalculateLookupHash(utils::sort(arr));
 			}
 
 		public:
 			static constexpr QueryTypes query_type = qt;
-			static constexpr uint64_t hash = calculate_combined_hash();
+			//! Loopup hash - can be used to hashmap lookups
+			static constexpr uint64_t lookupHash = calculate_combined_hash();
+			//! Combination hash - can be used to quickly check for matches
+			static constexpr uint64_t matcherHash = CalculateMatcherHash<Type...>();
 		};
 
 		template <typename... Type>
@@ -80,11 +83,17 @@ namespace gaia {
 						 utils::type_info::name<decltype(e)>().data()),
 				 ...);
 			};
-			LOG_N("AllTypes (%016llx):", TQuery::all::hash);
+			LOG_N(
+					"AllTypes (lookupHash: %016llx, matcherHash: %016llx):",
+					TQuery::all::lookupHash, TQuery::all::matcherHash);
 			std::apply(print_type, typename TQuery::all::types{});
-			LOG_N("AnyTypes (%016llx):", TQuery::any::hash);
+			LOG_N(
+					"AnyTypes (lookupHash: %016llx, matcherHash: %016llx):",
+					TQuery::any::lookupHash, TQuery::any::matcherHash);
 			std::apply(print_type, typename TQuery::any::types{});
-			LOG_N("NoneTypes (%016llx):", TQuery::none::hash);
+			LOG_N(
+					"NoneTypes (lookupHash: %016llx, matcherHash: %016llx):",
+					TQuery::none::lookupHash, TQuery::none::matcherHash);
 			std::apply(print_type, typename TQuery::none::types{});
 		}
 
@@ -298,23 +307,9 @@ namespace gaia {
 					auto& listAny = list[componentType].listAny;
 					auto& listAll = list[componentType].listAll;
 
-					auto sortCondition = [](const ComponentMetaData* lhs,
-																	const ComponentMetaData* rhs) {
-						return lhs->componentHash < rhs->componentHash;
-					};
-
-					// Make sure to sort the meta-types so we receive the same hash no
-					// matter the order in which components are provided Bubble sort is
-					// okay. We're dealing with at most MAX_COMPONENTS_PER_ARCHETYPE items
-					// anyway. 99% of time with at most 3 or 4
-					// TODO: Replace with a sorting network
-					std::sort(listNone.begin(), listNone.end(), sortCondition);
-					std::sort(listAny.begin(), listAny.end(), sortCondition);
-					std::sort(listAll.begin(), listAll.end(), sortCondition);
-
-					list[componentType].hashNone = CombineComponentHashes(listNone);
-					list[componentType].hashAny = CombineComponentHashes(listAny);
-					list[componentType].hashAll = CombineComponentHashes(listAll);
+					list[componentType].hashNone = CalculateMatcherHash(listNone);
+					list[componentType].hashAny = CalculateMatcherHash(listAny);
+					list[componentType].hashAll = CalculateMatcherHash(listAll);
 				};
 
 				commit(ComponentType::CT_Generic);

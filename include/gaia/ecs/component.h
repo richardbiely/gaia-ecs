@@ -16,6 +16,8 @@
 
 namespace gaia {
 	namespace ecs {
+
+#pragma region Helpers
 		//! Maximum size of components in bytes
 		static constexpr uint32_t MAX_COMPONENTS_SIZE = 255u;
 
@@ -40,13 +42,6 @@ namespace gaia {
 					"Only components of trivial type are allowed");
 		}
 
-		template <typename T>
-		constexpr uint64_t ComponentHash() {
-			return (0x1ULL << (utils::type_info::hash<T>() % 63ULL));
-		}
-
-#pragma endregion
-
 		enum ComponentType : uint8_t {
 			// General purpose component
 			CT_Generic = 0,
@@ -59,27 +54,93 @@ namespace gaia {
 		inline const char* ComponentTypeString[ComponentType::CT_Count] = {
 				"Generic", "Chunk"};
 
+#pragma endregion
+
+		struct ComponentMetaData;
+
+#pragma region Component hash operations
+
+		namespace detail {
+			template <typename T>
+			constexpr uint64_t CalculateMatcherHash() noexcept {
+				return (uint64_t(1) << (utils::type_info::hash<T>() % uint64_t(63)));
+			}
+		} // namespace detail
+
+		template <typename = void, typename...>
+		constexpr uint64_t CalculateMatcherHash() noexcept;
+
+		template <typename T, typename... Rest>
+		[[nodiscard]] constexpr uint64_t CalculateMatcherHash() noexcept {
+			if constexpr (sizeof...(Rest) == 0)
+				return detail::CalculateMatcherHash<T>();
+			else
+				return utils::combine_or(
+						detail::CalculateMatcherHash<T>(),
+						detail::CalculateMatcherHash<Rest>()...);
+		};
+
+		template <>
+		[[nodiscard]] constexpr uint64_t CalculateMatcherHash() noexcept {
+			return 0;
+		};
+
+		//-----------------------------------------------------------------------------------
+
+		template <typename Container>
+		[[nodiscard]] constexpr uint64_t
+		CalculateLookupHash(Container arr) noexcept {
+			constexpr auto N = arr.size();
+				if constexpr (N == 0) {
+					return 0;
+				} else {
+					uint64_t hash = arr[0];
+					utils::for_each<N - 1>([&hash, &arr](auto i) {
+						hash = utils::hash_combine(hash, arr[i + 1]);
+					});
+					return hash;
+				}
+		}
+
+		template <typename = void, typename...>
+		constexpr uint64_t CalculateLookupHash() noexcept;
+
+		template <typename T, typename... Rest>
+		[[nodiscard]] constexpr uint64_t CalculateLookupHash() noexcept {
+			if constexpr (sizeof...(Rest) == 0)
+				return utils::type_info::hash<T>();
+			else
+				return utils::hash_combine(
+						utils::type_info::hash<T>(), utils::type_info::hash<Rest>()...);
+		};
+
+		template <>
+		[[nodiscard]] constexpr uint64_t CalculateLookupHash() noexcept {
+			return 0;
+		};
+
+#pragma endregion
+
 #pragma region ComponentMetaData
 
 		struct ComponentMetaData final {
 #if GAIA_DEBUG
 			std::string_view name;
 #endif
-			uint64_t componentHash;
+			uint64_t lookupHash;
+			uint64_t matcherHash;
 			uint32_t typeIndex;
 			uint32_t alig;
 			uint32_t size;
 
 			[[nodiscard]] bool operator==(const ComponentMetaData& other) const {
-				return componentHash == other.componentHash &&
-							 typeIndex == other.typeIndex;
+				return lookupHash == other.lookupHash && typeIndex == other.typeIndex;
 			}
 			[[nodiscard]] bool operator!=(const ComponentMetaData& other) const {
-				return componentHash != other.componentHash ||
-							 typeIndex != other.typeIndex;
+				return lookupHash != other.lookupHash || typeIndex != other.typeIndex;
 			}
 			[[nodiscard]] bool operator<(const ComponentMetaData& other) const {
-				return componentHash < other.componentHash;
+				return lookupHash < other.lookupHash;
 			}
 
 			template <typename T>
@@ -90,7 +151,8 @@ namespace gaia {
 #if GAIA_DEBUG
 				mth.name = utils::type_info::name<TComponent>();
 #endif
-				mth.componentHash = utils::type_info::hash<TComponent>();
+				mth.lookupHash = utils::type_info::hash<TComponent>();
+				mth.matcherHash = CalculateMatcherHash<TComponent>();
 				mth.typeIndex = utils::type_info::index<TComponent>();
 
 					if constexpr (!std::is_empty<TComponent>::value) {
@@ -110,6 +172,22 @@ namespace gaia {
 				return new ComponentMetaData(Calculate<TComponent>());
 			};
 		};
+
+		[[nodiscard]] inline uint64_t
+		CalculateMatcherHash(std::span<const ComponentMetaData*> types) noexcept {
+			uint64_t hash = types.empty() ? 0 : types[0]->matcherHash;
+			for (uint32_t i = 1; i < types.size(); ++i)
+				hash = utils::combine_or(hash, types[i]->matcherHash);
+			return hash;
+		}
+
+		[[nodiscard]] inline uint64_t
+		CalculateLookupHash(std::span<const ComponentMetaData*> types) noexcept {
+			uint64_t hash = types.empty() ? 0 : types[0]->lookupHash;
+			for (uint32_t i = 1; i < types.size(); ++i)
+				hash = utils::hash_combine(hash, types[i]->lookupHash);
+			return hash;
+		}
 
 #pragma endregion
 
@@ -194,46 +272,6 @@ namespace gaia {
 			const auto idx = utils::type_info::index<TComponent>();
 			return idx < g_ComponentMetaTypeCache.size();
 		}
-
-		[[nodiscard]] inline uint64_t
-		CombineComponentHashes(std::span<const ComponentMetaData*> types) noexcept {
-			uint64_t hash = types.empty() ? 0 : types[0]->componentHash;
-			for (uint32_t i = 1; i < types.size(); ++i)
-				hash = utils::hash_combine(hash, types[i]->componentHash);
-			return hash;
-		}
-
-		template <typename Container>
-		[[nodiscard]] constexpr uint64_t
-		CalculateComponentsHash2(Container arr) noexcept {
-			constexpr auto N = arr.size();
-				if constexpr (N == 0) {
-					return 0;
-				} else {
-					uint64_t hash = arr[0];
-					utils::for_each<N - 1>([&hash, &arr](auto i) {
-						hash = utils::hash_combine(hash, arr[i + 1]);
-					});
-					return hash;
-				}
-		}
-
-		template <typename = void, typename...>
-		constexpr uint64_t CalculateComponentsHash() noexcept;
-
-		template <typename T, typename... Rest>
-		[[nodiscard]] constexpr uint64_t CalculateComponentsHash() noexcept {
-			if constexpr (sizeof...(Rest) == 0)
-				return utils::type_info::hash<T>();
-			else
-				return utils::hash_combine(
-						utils::type_info::hash<T>(), utils::type_info::hash<Rest>()...);
-		};
-
-		template <>
-		[[nodiscard]] constexpr uint64_t CalculateComponentsHash() noexcept {
-			return 0;
-		};
 
 	} // namespace ecs
 } // namespace gaia

@@ -8,6 +8,14 @@
 namespace gaia {
 	namespace utils {
 
+		//! Combines values via OR.
+		template <typename... T>
+		constexpr auto combine_or(T... t) {
+			return (... | t);
+		}
+
+		//-----------------------------------------------------------------------------------
+
 		// TODO: Keep it here for now. Maybe this version is helpful later
 		// namespace detail {
 		// 	constexpr void hash_combine2_simple_out(uint32_t& lhs, uint32_t rhs) {
@@ -31,6 +39,8 @@ namespace gaia {
 		// 	return h;
 		// }
 
+		//-----------------------------------------------------------------------------------
+
 		namespace detail {
 
 			constexpr void hash_combine2_out(uint32_t& lhs, uint32_t rhs) {
@@ -48,6 +58,7 @@ namespace gaia {
 			}
 		} // namespace detail
 
+		//! Combines hashes into another complex one
 		template <typename T, typename... Rest>
 		constexpr T hash_combine(T first, T next, Rest... rest) {
 			auto h = detail::hash_combine2(first, next);
