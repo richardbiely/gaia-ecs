@@ -567,6 +567,106 @@ TEST_CASE("Usage 2 - simple query, many components") {
 	}
 }
 
+TEST_CASE("Usage 2 - simple query, many chunk components") {
+	ecs::World w;
+
+	auto e1 = w.CreateEntity();
+	w.AddChunkComponent<Position, Acceleration, Else>(e1, {}, {}, {});
+	auto e2 = w.CreateEntity();
+	w.AddChunkComponent<Rotation, Scale, Else>(e2, {}, {}, {});
+	auto e3 = w.CreateEntity();
+	w.AddChunkComponent<Position, Acceleration, Scale>(e3, {}, {}, {});
+
+	{
+		uint32_t cnt = 0;
+		w.ForEachChunk(
+				 ecs::EntityQuery().AllChunk<Position>(),
+				 [&](const ecs::Chunk& chunk) { ++cnt; })
+				.Run(0);
+		REQUIRE(cnt == 2);
+	}
+	{
+		uint32_t cnt = 0;
+		w.ForEachChunk(
+				 ecs::EntityQuery().AllChunk<Acceleration>(),
+				 [&](const ecs::Chunk& chunk) { ++cnt; })
+				.Run(0);
+		REQUIRE(cnt == 2);
+	}
+	{
+		uint32_t cnt = 0;
+		w.ForEachChunk(
+				 ecs::EntityQuery().AllChunk<Rotation>(),
+				 [&](const ecs::Chunk& chunk) { ++cnt; })
+				.Run(0);
+		REQUIRE(cnt == 1);
+	}
+	{
+		uint32_t cnt = 0;
+		w.ForEachChunk(
+				 ecs::EntityQuery().AllChunk<Else>(),
+				 [&](const ecs::Chunk& chunk) { ++cnt; })
+				.Run(0);
+		REQUIRE(cnt == 2);
+	}
+	{
+		uint32_t cnt = 0;
+		w.ForEachChunk(
+				 ecs::EntityQuery().AllChunk<Scale>(),
+				 [&](const ecs::Chunk& chunk) { ++cnt; })
+				.Run(0);
+		REQUIRE(cnt == 2);
+	}
+	{
+		ecs::EntityQuery q;
+		q.AnyChunk<Position, Acceleration>();
+
+		uint32_t cnt = 0;
+		w.ForEachChunk(q, [&](ecs::Chunk& chunk) {
+			 ++cnt;
+
+			 const bool ok1 = chunk.HasChunkComponent<Position>() ||
+												chunk.HasChunkComponent<Acceleration>();
+			 REQUIRE(ok1);
+			 const bool ok2 = chunk.HasChunkComponent<Acceleration>() ||
+												chunk.HasChunkComponent<Position>();
+			 REQUIRE(ok2);
+		 }).Run(0);
+		REQUIRE(cnt == 2);
+	}
+	{
+		ecs::EntityQuery q;
+		q.AnyChunk<Position, Acceleration>().AllChunk<Scale>();
+
+		uint32_t cnt = 0;
+		w.ForEachChunk(q, [&](ecs::Chunk& chunk) {
+			 ++cnt;
+
+			 REQUIRE(chunk.GetItemCount() == 1);
+
+			 const bool ok1 = chunk.HasChunkComponent<Position>() ||
+												chunk.HasChunkComponent<Acceleration>();
+			 REQUIRE(ok1);
+			 const bool ok2 = chunk.HasChunkComponent<Acceleration>() ||
+												chunk.HasChunkComponent<Position>();
+			 REQUIRE(ok2);
+		 }).Run(0);
+		REQUIRE(cnt == 1);
+	}
+	{
+		ecs::EntityQuery q;
+		q.AnyChunk<Position, Acceleration>().NoneChunk<Scale>();
+
+		uint32_t cnt = 0;
+		w.ForEachChunk(q, [&](ecs::Chunk& chunk) {
+			 ++cnt;
+
+			 REQUIRE(chunk.GetItemCount() == 1);
+		 }).Run(0);
+		REQUIRE(cnt == 1);
+	}
+}
+
 TEST_CASE("Example") {
 
 	ecs::World world;
