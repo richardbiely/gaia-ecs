@@ -1005,8 +1005,8 @@ namespace gaia {
 				if (auto entityContainer = AddComponent_Internal<TComponent...>(
 								ComponentType::CT_Chunk, entity))
 					SetComponents_Internal<TComponent...>(
-							ComponentType::CT_Chunk, entityContainer->chunk,
-							entityContainer->idx, std::forward<TComponent>(data)...);
+							ComponentType::CT_Chunk, entityContainer->chunk, 0,
+							std::forward<TComponent>(data)...);
 			}
 
 			template <typename... TComponent>
@@ -1049,7 +1049,7 @@ namespace gaia {
 				auto chunk = entityContainer.chunk;
 
 				SetComponents_Internal<TComponent...>(
-						ComponentType::CT_Chunk, chunk, entityContainer.idx,
+						ComponentType::CT_Chunk, chunk, 0,
 						std::forward<TComponent>(data)...);
 			}
 
@@ -1074,7 +1074,7 @@ namespace gaia {
 				auto chunk = entityContainer.chunk;
 
 				GetComponents_Internal<TComponent...>(
-						ComponentType::CT_Chunk, chunk, entityContainer.idx, data...);
+						ComponentType::CT_Chunk, chunk, 0, data...);
 			}
 
 			template <typename... TComponent>
