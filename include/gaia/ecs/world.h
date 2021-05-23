@@ -984,7 +984,7 @@ namespace gaia {
 
 				if (auto entityContainer = AddComponent_Internal<TComponent...>(
 								ComponentType::CT_Generic, entity))
-					SetComponentsDataInternal<TComponent...>(
+					SetComponents_Internal<TComponent...>(
 							ComponentType::CT_Generic, entityContainer->chunk,
 							entityContainer->idx, std::forward<TComponent>(data)...);
 			}
@@ -1004,7 +1004,7 @@ namespace gaia {
 
 				if (auto entityContainer = AddComponent_Internal<TComponent...>(
 								ComponentType::CT_Chunk, entity))
-					SetComponentsDataInternal<TComponent...>(
+					SetComponents_Internal<TComponent...>(
 							ComponentType::CT_Chunk, entityContainer->chunk,
 							entityContainer->idx, std::forward<TComponent>(data)...);
 			}
@@ -1035,7 +1035,7 @@ namespace gaia {
 				auto& entityContainer = m_entities[entity.id()];
 				auto chunk = entityContainer.chunk;
 
-				SetComponentsDataInternal<TComponent...>(
+				SetComponents_Internal<TComponent...>(
 						ComponentType::CT_Generic, chunk, entityContainer.idx,
 						std::forward<TComponent>(data)...);
 			}
@@ -1048,7 +1048,7 @@ namespace gaia {
 				auto& entityContainer = m_entities[entity.id()];
 				auto chunk = entityContainer.chunk;
 
-				SetComponentsDataInternal<TComponent...>(
+				SetComponents_Internal<TComponent...>(
 						ComponentType::CT_Chunk, chunk, entityContainer.idx,
 						std::forward<TComponent>(data)...);
 			}
@@ -1061,7 +1061,7 @@ namespace gaia {
 				auto& entityContainer = m_entities[entity.id()];
 				auto chunk = entityContainer.chunk;
 
-				GetComponentsDataInternal<TComponent...>(
+				GetComponents_Internal<TComponent...>(
 						ComponentType::CT_Generic, chunk, entityContainer.idx, data...);
 			}
 
@@ -1073,7 +1073,7 @@ namespace gaia {
 				auto& entityContainer = m_entities[entity.id()];
 				auto chunk = entityContainer.chunk;
 
-				GetComponentsDataInternal<TComponent...>(
+				GetComponents_Internal<TComponent...>(
 						ComponentType::CT_Chunk, chunk, entityContainer.idx, data...);
 			}
 
@@ -1147,13 +1147,14 @@ namespace gaia {
 			template <typename TComponent>
 			void SetComponent_Internal(
 					ComponentType TYPE, Chunk* chunk, uint32_t index, TComponent&& data) {
-				if constexpr (!std::is_empty<TComponent>::value)
-					chunk->SetComponent_Internal<TComponent>(TYPE, index) =
-							std::forward<TComponent>(data);
+					if constexpr (!std::is_empty<TComponent>::value) {
+						chunk->SetComponent_Internal<TComponent>(TYPE, index) =
+								std::forward<TComponent>(data);
+				}
 			}
 
 			template <typename... TComponent>
-			void SetComponentsDataInternal(
+			void SetComponents_Internal(
 					ComponentType TYPE, Chunk* chunk, uint32_t index,
 					TComponent&&... data) {
 				(SetComponent_Internal<TComponent>(
@@ -1165,16 +1166,14 @@ namespace gaia {
 			void GetComponent_Internal(
 					ComponentType TYPE, Chunk* chunk, uint32_t index,
 					TComponent& data) const {
-				if constexpr (!std::is_empty<TComponent>::value)
-					data = chunk->GetComponent_Internal<TComponent>(TYPE, index);
-				else
-					GAIA_ASSERT(
-							false && "Getting value of an empty component is most likely not "
-											 "what you want...");
+				static_assert(
+						!std::is_empty<TComponent>::value,
+						"Attempting to get the value of an empty component");
+				data = chunk->GetComponent_Internal<TComponent>(TYPE, index);
 			}
 
 			template <typename... TComponent>
-			void GetComponentsDataInternal(
+			void GetComponents_Internal(
 					ComponentType TYPE, Chunk* chunk, uint32_t index,
 					TComponent&... data) const {
 				(GetComponent_Internal<TComponent>(TYPE, chunk, index, data), ...);
