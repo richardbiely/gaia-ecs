@@ -406,8 +406,7 @@ namespace gaia {
 #if GAIA_DEBUG
 								LOG_W(
 										"Trying to add %u ECS %s components to ECS entity [%u.%u] "
-										"but "
-										"maximum of only %u is supported!",
+										"but maximum of only %u is supported!",
 										newTypesCount, ComponentTypeString[TYPE], entity.id(),
 										entity.gen(), MAX_COMPONENTS_PER_ARCHETYPE);
 								for (uint32_t i = 0; i < newTypesCount; i++)
@@ -447,8 +446,7 @@ namespace gaia {
 #if GAIA_DEBUG
 								LOG_W(
 										"Trying to add %u ECS %s components to ECS entity [%u.%u] "
-										"but "
-										"there's only enough room for %u more!",
+										"but there's only enough room for %u more!",
 										newTypesCount, ComponentTypeString[TYPE], entity.id(),
 										entity.gen(),
 										MAX_COMPONENTS_PER_ARCHETYPE -
@@ -530,8 +528,7 @@ namespace gaia {
 #if GAIA_DEBUG
 								LOG_W(
 										"Trying to add %u ECS %s components to ECS entity [%u.%u] "
-										"but "
-										"maximum of only %u is supported!",
+										"but maximum of only %u is supported!",
 										newTypesCount, ComponentTypeString[TYPE], entity.id(),
 										entity.gen(), MAX_COMPONENTS_PER_ARCHETYPE);
 								std::string_view newNames[] = {
@@ -1585,7 +1582,6 @@ namespace gaia {
 								auto logInfo = [](const ChunkComponentList& components) {
 									for (const auto& component: components) {
 										const auto type = component.type;
-#if GAIA_DEBUG
 										LOG_N(
 												"--> (%p) lookupHash:%016llx, matcherHash:%016llx, "
 												"size:%3u "
@@ -1594,15 +1590,6 @@ namespace gaia {
 												type, type->lookupHash, type->matcherHash, type->size,
 												type->alig, (uint32_t)type->name.length(),
 												type->name.data());
-#else
-										LOG_N(
-												"--> (%p) lookupHash:%016llx, matcherHash:%016llx, "
-												"size:%3u "
-												"B, "
-												"align:%3u B",
-												type, type->lookupHash, type->matcherHash, type->size,
-												type->alig);
-#endif
 									}
 								};
 
@@ -1640,18 +1627,11 @@ namespace gaia {
 								if (type == nullptr)
 									continue;
 
-#if GAIA_DEBUG
 								LOG_N(
 										"--> (%p) lookupHash:%016llx, matcherHash:%016llx, "
 										"index:%010u, %.*s",
 										type, type->lookupHash, type->matcherHash, type->typeIndex,
 										(uint32_t)type->name.length(), type->name.data());
-#else
-								LOG_N(
-										"--> (%p) lookupHash:%016llx, matcherHash:%016llx, "
-										"index:%010u",
-										type, type->lookupHash, type->matcherHash, type->typeIndex);
-#endif
 							}
 
 						using DuplicateMap = std::unordered_map<
@@ -1673,20 +1653,12 @@ namespace gaia {
 										if (type == nullptr)
 											continue;
 
-#if GAIA_DEBUG
 										LOG_N(
 												"--> (%p) lookupHash:%016llx, matcherHash:%016llx, "
 												"index:%010u, %.*s",
 												type, type->lookupHash, type->matcherHash,
 												type->typeIndex, (uint32_t)type->name.length(),
 												type->name.data());
-#else
-										LOG_N(
-												"--> (%p) lookupHash:%016llx, matcherHash:%016llx, "
-												"index:%010u",
-												type, type->lookupHash, type->matcherHash,
-												type->typeIndex);
-#endif
 									}
 							}
 						};
@@ -1749,30 +1721,18 @@ namespace gaia {
 								(uint32_t)componentList.size());
 							for (const auto& component: componentList) {
 								const auto type = component.type;
-#if GAIA_DEBUG
 								LOG_N(
 										"--> (%p) lookupHash:%016llx, matcherHash:%016llx, %.*s",
 										type, type->lookupHash, type->matcherHash,
 										(uint32_t)type->name.length(), type->name.data());
-#else
-								LOG_N(
-										"--> (%p) componentHash:%016llx", type,
-										type->componentHash);
-#endif
 							}
 
 						LOG_N("types to match: %u", (uint32_t)listToCompare.size());
 							for (const auto type: listToCompare) {
-#if GAIA_DEBUG
 								LOG_N(
 										"--> (%p) lookupHash:%016llx, matcherHash:%016llx, %.*s",
 										type, type->lookupHash, type->matcherHash,
 										(uint32_t)type->name.length(), type->name.data());
-#else
-								LOG_N(
-										"--> (%p) componentHash:%016llx", type,
-										type->componentHash);
-#endif
 							}
 				}
 			}
