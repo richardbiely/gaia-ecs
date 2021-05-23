@@ -97,7 +97,7 @@ namespace gaia {
 								alignedOffset += padding;
 
 								// Make sure we didn't exceed the chunk size
-								assert(componentOffset <= Chunk::DATA_SIZE);
+								GAIA_ASSERT(componentOffset <= Chunk::DATA_SIZE);
 						}
 
 						newArch->componentList[ComponentType::CT_Generic].push_back(
@@ -111,7 +111,7 @@ namespace gaia {
 										genericTypes[i]->size * maxGenericItemsInArchetype;
 
 								// Make sure we didn't exceed the chunk size
-								assert(componentOffset <= Chunk::DATA_SIZE);
+								GAIA_ASSERT(componentOffset <= Chunk::DATA_SIZE);
 						}
 					}
 
@@ -125,7 +125,7 @@ namespace gaia {
 								alignedOffset += padding;
 
 								// Make sure we didn't exceed the chunk size
-								assert(componentOffset <= Chunk::DATA_SIZE);
+								GAIA_ASSERT(componentOffset <= Chunk::DATA_SIZE);
 						}
 
 						newArch->componentList[ComponentType::CT_Chunk].push_back(
@@ -137,7 +137,7 @@ namespace gaia {
 								alignedOffset += chunkTypes[i]->size;
 
 								// Make sure we didn't exceed the chunk size
-								assert(componentOffset <= Chunk::DATA_SIZE);
+								GAIA_ASSERT(componentOffset <= Chunk::DATA_SIZE);
 						}
 					}
 
@@ -154,7 +154,7 @@ namespace gaia {
 			}
 
 			[[nodiscard]] Chunk* FindOrCreateChunk() {
-				assert(!chunks.empty());
+				GAIA_ASSERT(!chunks.empty());
 
 				// So long we have enough space in the last chunk we use it
 				auto lastChunk = chunks.back();
@@ -177,7 +177,7 @@ namespace gaia {
 			void RemoveChunk(Chunk* pChunk) {
 				ReleaseChunk(pChunk);
 				auto it = utils::find(chunks, pChunk);
-				assert(it != chunks.end());
+				GAIA_ASSERT(it != chunks.end());
 				chunks.erase(it);
 			}
 

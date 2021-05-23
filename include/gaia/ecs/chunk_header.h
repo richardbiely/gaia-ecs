@@ -32,7 +32,7 @@ namespace gaia {
 				const auto gv = GetWorldVersionFromArchetype(owner);
 
 				// Make sure only proper input is provided
-				assert(
+				GAIA_ASSERT(
 						componentIdx == UINT32_MAX ||
 						componentIdx < MAX_COMPONENTS_PER_ARCHETYPE);
 

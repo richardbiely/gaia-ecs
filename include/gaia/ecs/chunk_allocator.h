@@ -254,14 +254,14 @@ namespace gaia {
 					if (pfree) {
 						// Recycled allocation
 						freeHead->m_pFirstFree = pfree->next;
-						assert(
+						GAIA_ASSERT(
 								((uintptr_t)freeHead + MemoryBlock::Size) >=
 								(uintptr_t)pfree + CHUNK_SIZE);
 					} else {
 						// Initial allocation
 						pfree = (MemItem*)((uint8_t*)freeHead + freeHead->m_iFreeOffset);
 						freeHead->m_iFreeOffset += CHUNK_SIZE;
-						assert(freeHead->m_iFreeOffset <= MemoryBlock::Size);
+						GAIA_ASSERT(freeHead->m_iFreeOffset <= MemoryBlock::Size);
 					}
 
 				freeHead->m_iUsedItems++;
@@ -293,10 +293,10 @@ namespace gaia {
 				[[maybe_unused]] const auto offset =
 						(uintptr_t)pointer -
 						(uintptr_t)ChunkAllocator::BlockHeadData(*head);
-				assert(
+				GAIA_ASSERT(
 						(offset % CHUNK_SIZE) == 0 &&
 						"Attempt to deallocate mismatched pointer");
-				assert(
+				GAIA_ASSERT(
 						((uintptr_t)head + MemoryBlock::Size) >=
 						(uintptr_t)pointer + CHUNK_SIZE);
 #endif
@@ -323,7 +323,7 @@ namespace gaia {
 				head->m_iUsedItems--;
 
 				// Pointer removed more than once?!
-				assert(head->m_iUsedItems >= 0);
+				GAIA_ASSERT(head->m_iUsedItems >= 0);
 
 					if (head->m_iUsedItems == 0) {
 							// If it's empty but it's not the last one, release it
@@ -454,7 +454,7 @@ namespace gaia {
 
 			void FreeBlock(BlockHead* head) {
 				MemoryPage* page = head->m_pOwner;
-				assert(
+				GAIA_ASSERT(
 						(uintptr_t)head >= (uintptr_t)page->data &&
 						(uintptr_t)head < ((uintptr_t)page->data + MemoryPage::Size));
 				LListInsert(page->m_Blocks, head, m_Link);

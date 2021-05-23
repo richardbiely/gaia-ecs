@@ -2,7 +2,7 @@
 #include "version.h"
 
 #define GAIA_DEBUG 1
-#define GAIA_FORCE_ASSERTS 0
+#define GAIA_DISABLE_ASSERTS 0
 
 #define GAIA_ECS_DIAG_ARCHETYPES 1
 #define GAIA_ECS_DIAG_REGISTERED_TYPES 1
@@ -15,6 +15,7 @@
 
 //------------------------------------------------------------------------------
 // Compiler
+//------------------------------------------------------------------------------
 #define GAIA_COMPILER_CLANG 0
 #define GAIA_COMPILER_GCC 0
 #define GAIA_COMPILER_MSVC 0
@@ -36,6 +37,7 @@
 
 //------------------------------------------------------------------------------
 // Architecture and architecture features
+//------------------------------------------------------------------------------
 #define GAIA_64 0
 #if defined(_WIN64) || defined(_M_X64) || defined(_M_AMD64) ||                 \
 		defined(__x86_64) || defined(__amd64) || defined(__aarch64__)
@@ -100,19 +102,10 @@
 	#define GAIA_API
 #endif
 
-#if GAIA_COMPILER_MSVC
-	#define NMETHOD __stdcall
-	#define GAIA_INLINE __forceinline
-	#define GAIA_INLINEFUNC __forceinline
-	#define GAIA_DECL_THREAD _declspec(thread)
-#elif GAIA_COMPILER_GCC || GAIA_COMPILER_CLANG
-	#define NMETHOD
-	#define GAIA_INLINE inline
-	#define GAIA_INLINEFUNC inline
-	#define GAIA_DECL_THREAD thread_local
-#endif
-
-#ifndef GAIA_PROFILER
+//------------------------------------------------------------------------------
+// Features
+//------------------------------------------------------------------------------
+#if !defined(GAIA_PROFILER)
 	#if GAIA_INTERNAL
 		#define GAIA_PROFILER 1
 	#else
@@ -120,10 +113,19 @@
 	#endif
 #endif
 
+#if !defined(GAIA_DISABLE_ASSERTS)
+	#undef GAIA_ASSERT
+	#define GAIA_ASSERT(...) (void(0))
+#elif !defined(GAIA_ASSERT)
+	#include <cassert>
+	#define GAIA_ASSERT(condition, ...) assert(condition)
+#endif
+
 //------------------------------------------------------------------------------
 // Warning-related macros and settings
 // We always set warnings as errors and disable ones we don't care about.
 // Sometimes in only limited range of code or around 3rd party includes.
+//------------------------------------------------------------------------------
 
 #if GAIA_COMPILER_MSVC
 	#define GAIA_MSVC_WARNING_PUSH() __pragma(warning(push))

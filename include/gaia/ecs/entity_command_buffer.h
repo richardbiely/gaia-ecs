@@ -324,7 +324,7 @@ namespace gaia {
 												// of temporaries and find a link there
 												const auto it = entityMap.find(e.id());
 												// Link has to exist!
-												assert(it != entityMap.end());
+												GAIA_ASSERT(it != entityMap.end());
 
 												entity = &it->second;
 										}
@@ -358,7 +358,7 @@ namespace gaia {
 												// of temporaries and find a link there
 												const auto it = entityMap.find(e.id());
 												// Link has to exist!
-												assert(it != entityMap.end());
+												GAIA_ASSERT(it != entityMap.end());
 
 												entity = &it->second;
 										}
@@ -383,7 +383,7 @@ namespace gaia {
 														index = component.offset +
 																		entityContainer.idx * type->size;
 													}
-												assert(index > 0);
+												GAIA_ASSERT(index > 0);
 
 												i += sizeof(const ComponentMetaData*);
 												memcpy(
