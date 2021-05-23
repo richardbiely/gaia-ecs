@@ -42,7 +42,7 @@ namespace gaia {
 			Archetype() = default;
 
 			[[nodiscard]] static Chunk* AllocateChunk(const Archetype& archetype) {
-#if ECS_CHUNK_ALLOCATOR
+#if GAIA_ECS_CHUNK_ALLOCATOR
 				auto& world = const_cast<World&>(*archetype.parentWorld);
 				auto pChunk = (Chunk*)AllocateChunkMemory(world);
 				new (pChunk) Chunk(archetype);
@@ -53,7 +53,7 @@ namespace gaia {
 			}
 
 			static void ReleaseChunk(Chunk* pChunk) {
-#if ECS_CHUNK_ALLOCATOR
+#if GAIA_ECS_CHUNK_ALLOCATOR
 				pChunk->~Chunk();
 				auto* world = const_cast<World*>(pChunk->header.owner.parentWorld);
 				ReleaseChunkMemory(*world, pChunk);

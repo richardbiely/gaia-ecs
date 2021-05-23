@@ -3,15 +3,12 @@
 
 #define GAIA_DEBUG 1
 #define GAIA_DISABLE_ASSERTS 0
+#define GAIA_PROFILER 0
 
-#define GAIA_ECS_DIAG_ARCHETYPES 1
-#define GAIA_ECS_DIAG_REGISTERED_TYPES 1
-#define GAIA_ECS_DIAG_TYPEMATCHING 1
-#define GAIA_ECS_DIAG_DELETED_ENTITIES 1
-
-#define ECS_VALIDATE_CHUNKS 1
-#define ECS_VALIDATE_ENTITY_LIST 1
-#define ECS_CHUNK_ALLOCATOR 1
+#define GAIA_ECS_DIAGS 1
+#define GAIA_ECS_VALIDATE_CHUNKS 1
+#define GAIA_ECS_VALIDATE_ENTITY_LIST 1
+#define GAIA_ECS_CHUNK_ALLOCATOR 1
 
 //------------------------------------------------------------------------------
 // Compiler
@@ -105,12 +102,10 @@
 //------------------------------------------------------------------------------
 // Features
 //------------------------------------------------------------------------------
-#if !defined(GAIA_PROFILER)
-	#if GAIA_INTERNAL
-		#define GAIA_PROFILER 1
-	#else
-		#define GAIA_PROFILER 0
-	#endif
+#if defined(GAIA_PROFILER)
+// ...
+#else
+// ...
 #endif
 
 #if !defined(GAIA_DISABLE_ASSERTS)
@@ -119,6 +114,31 @@
 #elif !defined(GAIA_ASSERT)
 	#include <cassert>
 	#define GAIA_ASSERT(condition, ...) assert(condition)
+#endif
+
+#if defined(GAIA_ECS_DIAGS)
+	#undef GAIA_ECS_DIAG_ARCHETYPES
+	#undef GAIA_ECS_DIAG_REGISTERED_TYPES
+	#undef GAIA_ECS_DIAG_TYPEMATCHING
+	#undef GAIA_ECS_DIAG_DELETED_ENTITIES
+
+	#define GAIA_ECS_DIAG_ARCHETYPES 1
+	#define GAIA_ECS_DIAG_REGISTERED_TYPES 1
+	#define GAIA_ECS_DIAG_TYPEMATCHING 1
+	#define GAIA_ECS_DIAG_DELETED_ENTITIES 1
+#else
+	#if !defined(GAIA_ECS_DIAG_ARCHETYPES)
+		#define GAIA_ECS_DIAG_ARCHETYPES 0
+	#endif
+	#if !defined(GAIA_ECS_DIAG_REGISTERED_TYPES)
+		#define GAIA_ECS_DIAG_REGISTERED_TYPES 0
+	#endif
+	#if !defined(GAIA_ECS_DIAG_TYPEMATCHING)
+		#define GAIA_ECS_DIAG_TYPEMATCHING 0
+	#endif
+	#if !defined(GAIA_ECS_DIAG_DELETED_ENTITIES)
+		#define GAIA_ECS_DIAG_DELETED_ENTITIES 0
+	#endif
 #endif
 
 //------------------------------------------------------------------------------
