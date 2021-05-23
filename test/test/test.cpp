@@ -419,6 +419,64 @@ TEST_CASE("Usage 1 - simple query, 1 component") {
 	}
 }
 
+TEST_CASE("Usage 1 - simple query, 1 chunk component") {
+	ecs::World w;
+
+	auto e = w.CreateEntity();
+	w.AddChunkComponent<Position>(e);
+
+	{
+		uint32_t cnt = 0;
+		w.ForEach([&](const Position& a) { ++cnt; }).Run(0);
+		REQUIRE(cnt == 0);
+	}
+	{
+		uint32_t cnt = 0;
+		w.ForEachChunk(
+				 ecs::EntityQuery().AllChunk<Position>(),
+				 [&](const ecs::Chunk& chunk) { ++cnt; })
+				.Run(0);
+		REQUIRE(cnt == 1);
+	}
+
+	auto e1 = w.CreateEntity(e);
+	auto e2 = w.CreateEntity(e);
+	auto e3 = w.CreateEntity(e);
+
+	{
+		uint32_t cnt = 0;
+		w.ForEachChunk(
+				 ecs::EntityQuery().AllChunk<Position>(),
+				 [&](const ecs::Chunk& chunk) { ++cnt; })
+				.Run(0);
+		REQUIRE(cnt == 1);
+	}
+
+	w.DeleteEntity(e1);
+
+	{
+		uint32_t cnt = 0;
+		w.ForEachChunk(
+				 ecs::EntityQuery().AllChunk<Position>(),
+				 [&](const ecs::Chunk& chunk) { ++cnt; })
+				.Run(0);
+		REQUIRE(cnt == 1);
+	}
+
+	w.DeleteEntity(e2);
+	w.DeleteEntity(e3);
+	w.DeleteEntity(e);
+
+	{
+		uint32_t cnt = 0;
+		w.ForEachChunk(
+				 ecs::EntityQuery().AllChunk<Position>(),
+				 [&](const ecs::Chunk& chunk) { ++cnt; })
+				.Run(0);
+		REQUIRE(cnt == 0);
+	}
+}
+
 TEST_CASE("Usage 2 - simple query, many components") {
 	ecs::World w;
 
