@@ -54,12 +54,7 @@ namespace gaia {
 				const auto prefixPos = name.find_first_of(GAIA_PRETTY_FUNCTION_PREFIX);
 				const auto start = name.find_first_of(' ', prefixPos + 1);
 				const auto end = name.find_last_of(GAIA_PRETTY_FUNCTION_SUFFIX);
-
-				// Don't return std::string_view directly. It is a template and would
-				// end up making parsing more difficult. We could go without a template
-				// but that would take away some of the freedom we might need later and
-				// this just works.
-				return name.substr(start, end - start);
+				return name.substr(start + 1, end - start - 1);
 			}
 
 			template <typename T>
