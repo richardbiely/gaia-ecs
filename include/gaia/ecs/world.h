@@ -750,7 +750,7 @@ namespace gaia {
 
 			//! Verifies than the implicit linked list of entities is valid
 			void ValidateEntityList() {
-#if ECS_VALIDATE_ENTITY_LIST
+#if GAIA_ECS_VALIDATE_ENTITY_LIST
 				bool hasThingsToRemove = m_freeEntities > 0;
 				if (!hasThingsToRemove)
 					return;
@@ -778,7 +778,7 @@ namespace gaia {
 
 			//! Verifies than the chunk is valid
 			void ValidateChunk(Chunk* chunk) {
-#if ECS_VALIDATE_CHUNKS
+#if GAIA_ECS_VALIDATE_CHUNKS
 					// Make sure no entites reference the deleted chunk
 					for (int i = 0; i < m_entities.size(); i++) {
 						const auto& e = m_entities[i];
