@@ -124,9 +124,7 @@ namespace gaia {
 #pragma region ComponentMetaData
 
 		struct ComponentMetaData final {
-#if GAIA_DEBUG
 			std::string_view name;
-#endif
 			uint64_t lookupHash;
 			uint64_t matcherHash;
 			uint32_t typeIndex;
@@ -148,9 +146,7 @@ namespace gaia {
 				using TComponent = std::decay_t<T>;
 
 				ComponentMetaData mth;
-#if GAIA_DEBUG
 				mth.name = utils::type_info::name<TComponent>();
-#endif
 				mth.lookupHash = utils::type_info::hash<TComponent>();
 				mth.matcherHash = CalculateMatcherHash<TComponent>();
 				mth.typeIndex = utils::type_info::index<TComponent>();
