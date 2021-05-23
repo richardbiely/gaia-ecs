@@ -44,9 +44,9 @@ namespace gaia {
 			[[nodiscard]] void* GetComponent_Internal(
 					ComponentType TYPE, uint32_t index,
 					const ComponentMetaData* type) const {
-				assert(index <= header.lastEntityIndex || index != (uint32_t)-1);
+				GAIA_ASSERT(index <= header.lastEntityIndex || index != (uint32_t)-1);
 				// invalid component requests are a programmer's bug
-				assert(type != nullptr);
+				GAIA_ASSERT(type != nullptr);
 
 				const auto& componentList =
 						GetArchetypeComponentList(header.owner, TYPE);
@@ -55,18 +55,18 @@ namespace gaia {
 				});
 
 				// Searching for a component that's not there! Programmer mistake.
-				assert(it != componentList.end());
+				GAIA_ASSERT(it != componentList.end());
 
 				const uint32_t idxData = it->offset + type->size * index;
-				assert(idxData <= Chunk::DATA_SIZE);
+				GAIA_ASSERT(idxData <= Chunk::DATA_SIZE);
 				return (void*)&data[idxData];
 			}
 
 			[[nodiscard]] void* SetComponent_Internal(
 					ComponentType TYPE, uint32_t index, const ComponentMetaData* type) {
-				assert(index <= header.lastEntityIndex || index != (uint32_t)-1);
+				GAIA_ASSERT(index <= header.lastEntityIndex || index != (uint32_t)-1);
 				// invalid component requests are a programmer's bug
-				assert(type != nullptr);
+				GAIA_ASSERT(type != nullptr);
 
 				const auto& componentList =
 						GetArchetypeComponentList(header.owner, TYPE);
@@ -77,13 +77,13 @@ namespace gaia {
 				// Searching for a component that's not there! Programmer mistake.
 				const auto componentIdx =
 						(uint32_t)std::distance(componentList.begin(), it);
-				assert(componentIdx != utils::BadIndex);
+				GAIA_ASSERT(componentIdx != utils::BadIndex);
 
 				// Update version number so we know RW access was used on chunk
 				header.UpdateLastWorldVersion(TYPE, componentIdx);
 
 				const uint32_t idxData = it->offset + type->size * index;
-				assert(idxData <= Chunk::DATA_SIZE);
+				GAIA_ASSERT(idxData <= Chunk::DATA_SIZE);
 				return (void*)&data[idxData];
 			}
 
@@ -146,7 +146,7 @@ namespace gaia {
 					return;
 
 				// We can't be removing from an index which is no longer there
-				assert(index <= header.lastEntityIndex);
+				GAIA_ASSERT(index <= header.lastEntityIndex);
 
 					// If there are at least two entities inside and it's not already the
 					// last one let's swap our entity with the last one in chunk.
@@ -168,9 +168,9 @@ namespace gaia {
 										info.offset +
 										(uint32_t)header.lastEntityIndex * info.type->size;
 
-								assert(idxFrom < Chunk::DATA_SIZE);
-								assert(idxTo < Chunk::DATA_SIZE);
-								assert(idxFrom != idxTo);
+								GAIA_ASSERT(idxFrom < Chunk::DATA_SIZE);
+								GAIA_ASSERT(idxTo < Chunk::DATA_SIZE);
+								GAIA_ASSERT(idxFrom != idxTo);
 
 								memcpy(&data[idxFrom], &data[idxTo], info.type->size);
 							}
@@ -188,7 +188,7 @@ namespace gaia {
 			}
 
 			void SetEntity(uint16_t index, Entity entity) {
-				assert(
+				GAIA_ASSERT(
 						index <= header.lastEntityIndex && index != UINT16_MAX &&
 						"Entity index in chunk out of bounds!");
 
@@ -196,7 +196,7 @@ namespace gaia {
 			}
 
 			[[nodiscard]] const Entity GetEntity(uint16_t index) const {
-				assert(
+				GAIA_ASSERT(
 						index <= header.lastEntityIndex && index != UINT16_MAX &&
 						"Entity index in chunk out of bounds!");
 
@@ -236,7 +236,7 @@ namespace gaia {
 				// Searching for a component that's not there! Programmer mistake.
 				const auto componentIdx =
 						(uint32_t)std::distance(componentList.begin(), it);
-				assert(componentIdx != utils::BadIndex);
+				GAIA_ASSERT(componentIdx != utils::BadIndex);
 
 				// Update version number so we know RW access was used on chunk
 				header.UpdateLastWorldVersion(TYPE, componentIdx);
@@ -261,7 +261,7 @@ namespace gaia {
 				});
 
 				// Searching for a component that's not there! Programmer mistake.
-				assert(it != componentList.end());
+				GAIA_ASSERT(it != componentList.end());
 
 				return {(const TComponent*)&data[it->offset], GetItemCount()};
 			}
@@ -284,12 +284,14 @@ namespace gaia {
 			}
 
 			template <typename T>
-			[[nodiscard]] std::decay_t<T>& GetComponent(uint32_t index) const {
-				return GetComponent_Internal<std::decay_t<T>>(
-						ComponentType::CT_Generic, index);
+			void SetChunkComponent(T&& value) {
+				SetComponent_Internal<std::decay_t<T>>(ComponentType::CT_Chunk, 0) =
+						std::forward<T>(value);
 			}
+
 			template <typename T>
-			[[nodiscard]] std::decay_t<T>& GetChunkComponent(uint32_t index) const {
+			[[nodiscard]] const std::decay_t<T>&
+			GetChunkComponent(uint32_t index) const {
 				return GetComponent_Internal<std::decay_t<T>>(
 						ComponentType::CT_Chunk, index);
 			}

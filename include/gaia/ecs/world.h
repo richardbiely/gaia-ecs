@@ -140,9 +140,9 @@ namespace gaia {
 			[[nodiscard]] Archetype* FindArchetype(
 					std::span<const ComponentMetaData*> genericTypes,
 					std::span<const ComponentMetaData*> chunkTypes,
-					const uint64_t componentsHash) {
+					const uint64_t lookupHash) {
 				// Search for the archetype in the map
-				const auto it = m_archetypeMap.find(componentsHash);
+				const auto it = m_archetypeMap.find(lookupHash);
 				if (it == m_archetypeMap.end())
 					return nullptr;
 
@@ -237,7 +237,7 @@ namespace gaia {
 			}
 
 			[[nodiscard]] Archetype* GetArchetype(Entity entity) const {
-				assert(IsEntityValid(entity));
+				GAIA_ASSERT(IsEntityValid(entity));
 
 				auto& entityContainer = m_entities[entity.id()];
 				auto chunk = entityContainer.chunk;
@@ -263,7 +263,7 @@ namespace gaia {
 			[[nodiscard]] Entity AllocateEntity() {
 					if (!m_freeEntities) {
 						// We don't want to go out of range for new entities
-						assert(
+						GAIA_ASSERT(
 								m_entities.size() < Entity::IdMask &&
 								"Trying to allocate too many entities!");
 						m_entities.push_back({nullptr, 0, 0});
@@ -271,7 +271,7 @@ namespace gaia {
 						return {(EntityId)m_entities.size() - 1, 0};
 					} else {
 						--m_freeEntities;
-						assert(
+						GAIA_ASSERT(
 								m_nextFreeEntity < m_entities.size() &&
 								"ECS recycle list broken!");
 
@@ -326,7 +326,7 @@ namespace gaia {
 						const auto metatypesCount =
 								(uint32_t)componentList.size() + (uint32_t)typesToAdd.size();
 							if (!VerityArchetypeComponentCount(metatypesCount)) {
-								assert(
+								GAIA_ASSERT(
 										false &&
 										"Trying to add too many ECS components to ECS entity!");
 #if GAIA_DEBUG
@@ -357,7 +357,7 @@ namespace gaia {
 									// Don't add the same component twice
 									for (uint32_t k = 0; k < newTypesCount; k++) {
 											if (info.type == typesToAdd[k]) {
-												assert(
+												GAIA_ASSERT(
 														false &&
 														"Trying to add a duplicate ECS component to "
 														"ECS entity");
@@ -400,7 +400,7 @@ namespace gaia {
 					// Adding a component to an empty entity
 					else {
 							if (!VerityArchetypeComponentCount(newTypesCount)) {
-								assert(
+								GAIA_ASSERT(
 										false &&
 										"Trying to add too many ECS components to ECS entity!");
 #if GAIA_DEBUG
@@ -441,7 +441,7 @@ namespace gaia {
 						const auto metatypesCount =
 								(uint32_t)componentList.size() + newTypesCount;
 							if (!VerityArchetypeComponentCount(metatypesCount)) {
-								assert(
+								GAIA_ASSERT(
 										false &&
 										"Trying to add too many ECS components to ECS entity!");
 #if GAIA_DEBUG
@@ -480,7 +480,7 @@ namespace gaia {
 									// Don't add the same component twice
 									for (uint32_t k = 0; k < newTypesCount; k++) {
 											if (info.type == typesToAdd[k]) {
-												assert(
+												GAIA_ASSERT(
 														false &&
 														"Trying to add a duplicate ECS component to "
 														"ECS entity");
@@ -524,7 +524,7 @@ namespace gaia {
 					// Adding a component to an empty entity
 					else {
 							if (!VerityArchetypeComponentCount(newTypesCount)) {
-								assert(
+								GAIA_ASSERT(
 										false &&
 										"Trying to add too many ECS components to ECS entity!");
 #if GAIA_DEBUG
@@ -727,8 +727,8 @@ namespace gaia {
 						const uint32_t idxTo = oldInfo[intersections[i].oldIndex].offset +
 																	 intersections[i].size * oldIndex;
 
-						assert(idxFrom < Chunk::DATA_SIZE);
-						assert(idxTo < Chunk::DATA_SIZE);
+						GAIA_ASSERT(idxFrom < Chunk::DATA_SIZE);
+						GAIA_ASSERT(idxTo < Chunk::DATA_SIZE);
 
 						memcpy(
 								&newChunk->data[idxFrom], &oldChunk->data[idxTo],
@@ -757,12 +757,12 @@ namespace gaia {
 
 				// If there's something to remove there has to be at least one
 				// entity left
-				assert(!m_entities.empty());
+				GAIA_ASSERT(!m_entities.empty());
 
 				auto freeEntities = m_freeEntities;
 				auto nextFreeEntity = m_nextFreeEntity;
 					while (freeEntities > 0) {
-						assert(
+						GAIA_ASSERT(
 								nextFreeEntity < m_entities.size() &&
 								"ECS recycle list broken!");
 
@@ -772,7 +772,7 @@ namespace gaia {
 
 				// At this point the index of the last index in list should
 				// point to -1 because that's the tail of our implicit list.
-				assert(nextFreeEntity == Entity::IdMask);
+				GAIA_ASSERT(nextFreeEntity == Entity::IdMask);
 #endif
 			}
 
@@ -782,7 +782,7 @@ namespace gaia {
 					// Make sure no entites reference the deleted chunk
 					for (int i = 0; i < m_entities.size(); i++) {
 						const auto& e = m_entities[i];
-						assert(chunk->HasEntities() || e.chunk != chunk);
+						GAIA_ASSERT(chunk->HasEntities() || e.chunk != chunk);
 					}
 #endif
 			}
@@ -795,7 +795,7 @@ namespace gaia {
 				Cleanup();
 
 				// Make sure Init/Done is called the correct amount of times
-				assert(WorldCount > 0);
+				GAIA_ASSERT(WorldCount > 0);
 				--WorldCount;
 
 				if (!WorldCount)
@@ -900,8 +900,8 @@ namespace gaia {
 						const uint32_t idxTo =
 								info[i].offset + type->size * newEntityContainer.idx;
 
-						assert(idxFrom < Chunk::DATA_SIZE);
-						assert(idxTo < Chunk::DATA_SIZE);
+						GAIA_ASSERT(idxFrom < Chunk::DATA_SIZE);
+						GAIA_ASSERT(idxTo < Chunk::DATA_SIZE);
 
 						memcpy(
 								&newChunk->data[idxTo], &oldChunk->data[idxFrom], type->size);
@@ -917,7 +917,7 @@ namespace gaia {
 				if (m_entities.empty() || entity == EntityNull)
 					return;
 
-				assert(IsEntityValid(entity));
+				GAIA_ASSERT(IsEntityValid(entity));
 
 				auto& entityContainer = m_entities[entity.id()];
 
@@ -941,7 +941,7 @@ namespace gaia {
 			\return Entity
 			*/
 			[[nodiscard]] Entity GetEntity(uint32_t idx) const {
-				assert(idx < m_entities.size());
+				GAIA_ASSERT(idx < m_entities.size());
 				auto& entityContainer = m_entities[idx];
 				return {idx, entityContainer.gen};
 			}
@@ -951,7 +951,7 @@ namespace gaia {
 			\return Chunk or nullptr if not found
 			*/
 			[[nodiscard]] Chunk* GetEntityChunk(Entity entity) const {
-				assert(entity.id() < m_entities.size());
+				GAIA_ASSERT(entity.id() < m_entities.size());
 				auto& entityContainer = m_entities[entity.id()];
 				return entityContainer.chunk;
 			}
@@ -963,7 +963,7 @@ namespace gaia {
 			*/
 			[[nodiscard]] Chunk*
 			GetEntityChunk(Entity entity, uint32_t& indexInChunk) const {
-				assert(entity.id() < m_entities.size());
+				GAIA_ASSERT(entity.id() < m_entities.size());
 				auto& entityContainer = m_entities[entity.id()];
 				indexInChunk = entityContainer.idx;
 				return entityContainer.chunk;
@@ -972,7 +972,7 @@ namespace gaia {
 			template <typename... TComponent>
 			void AddComponent(Entity entity) {
 				VerifyComponents<TComponent...>();
-				assert(IsEntityValid(entity));
+				GAIA_ASSERT(IsEntityValid(entity));
 
 				AddComponent_Internal<TComponent...>(ComponentType::CT_Generic, entity);
 			}
@@ -980,7 +980,7 @@ namespace gaia {
 			template <typename... TComponent>
 			void AddComponent(Entity entity, TComponent&&... data) {
 				VerifyComponents<TComponent...>();
-				assert(IsEntityValid(entity));
+				GAIA_ASSERT(IsEntityValid(entity));
 
 				if (auto entityContainer = AddComponent_Internal<TComponent...>(
 								ComponentType::CT_Generic, entity))
@@ -992,7 +992,7 @@ namespace gaia {
 			template <typename... TComponent>
 			void AddChunkComponent(Entity entity) {
 				VerifyComponents<TComponent...>();
-				assert(IsEntityValid(entity));
+				GAIA_ASSERT(IsEntityValid(entity));
 
 				AddComponent_Internal<TComponent...>(ComponentType::CT_Chunk, entity);
 			}
@@ -1000,7 +1000,7 @@ namespace gaia {
 			template <typename... TComponent>
 			void AddChunkComponent(Entity entity, TComponent&&... data) {
 				VerifyComponents<TComponent...>();
-				assert(IsEntityValid(entity));
+				GAIA_ASSERT(IsEntityValid(entity));
 
 				if (auto entityContainer = AddComponent_Internal<TComponent...>(
 								ComponentType::CT_Chunk, entity))
@@ -1012,7 +1012,7 @@ namespace gaia {
 			template <typename... TComponent>
 			void RemoveComponent(Entity entity) {
 				VerifyComponents<TComponent...>();
-				assert(IsEntityValid(entity));
+				GAIA_ASSERT(IsEntityValid(entity));
 
 				RemoveComponent_Internal<TComponent...>(
 						ComponentType::CT_Generic, entity);
@@ -1021,7 +1021,7 @@ namespace gaia {
 			template <typename... TComponent>
 			void RemoveChunkComponent(Entity entity) {
 				VerifyComponents<TComponent...>();
-				assert(IsEntityValid(entity));
+				GAIA_ASSERT(IsEntityValid(entity));
 
 				RemoveComponent_Internal<TComponent...>(
 						ComponentType::CT_Chunk, entity);
@@ -1030,7 +1030,7 @@ namespace gaia {
 			template <typename... TComponent>
 			void SetComponent(Entity entity, TComponent&&... data) {
 				VerifyComponents<TComponent...>();
-				assert(IsEntityValid(entity));
+				GAIA_ASSERT(IsEntityValid(entity));
 
 				auto& entityContainer = m_entities[entity.id()];
 				auto chunk = entityContainer.chunk;
@@ -1043,7 +1043,7 @@ namespace gaia {
 			template <typename... TComponent>
 			void SetChunkComponent(Entity entity, TComponent&&... data) {
 				VerifyComponents<TComponent...>();
-				assert(IsEntityValid(entity));
+				GAIA_ASSERT(IsEntityValid(entity));
 
 				auto& entityContainer = m_entities[entity.id()];
 				auto chunk = entityContainer.chunk;
@@ -1056,7 +1056,7 @@ namespace gaia {
 			template <typename... TComponent>
 			void GetComponent(Entity entity, TComponent&... data) {
 				VerifyComponents<TComponent...>();
-				assert(IsEntityValid(entity));
+				GAIA_ASSERT(IsEntityValid(entity));
 
 				auto& entityContainer = m_entities[entity.id()];
 				auto chunk = entityContainer.chunk;
@@ -1068,7 +1068,7 @@ namespace gaia {
 			template <typename... TComponent>
 			void GetChunkComponent(Entity entity, TComponent&... data) {
 				VerifyComponents<TComponent...>();
-				assert(IsEntityValid(entity));
+				GAIA_ASSERT(IsEntityValid(entity));
 
 				auto& entityContainer = m_entities[entity.id()];
 				auto chunk = entityContainer.chunk;
@@ -1080,7 +1080,7 @@ namespace gaia {
 			template <typename... TComponent>
 			[[nodiscard]] bool HasComponents(Entity entity) {
 				VerifyComponents<TComponent...>();
-				assert(IsEntityValid(entity));
+				GAIA_ASSERT(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
 				const auto* chunk = entityContainer.chunk;
@@ -1091,7 +1091,7 @@ namespace gaia {
 			template <typename... TComponent>
 			[[nodiscard]] bool HasAnyComponents(Entity entity) {
 				VerifyComponents<TComponent...>();
-				assert(IsEntityValid(entity));
+				GAIA_ASSERT(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
 				const auto* chunk = entityContainer.chunk;
@@ -1102,7 +1102,7 @@ namespace gaia {
 			template <typename... TComponent>
 			[[nodiscard]] bool HasNoneComponents(Entity entity) {
 				VerifyComponents<TComponent...>();
-				assert(IsEntityValid(entity));
+				GAIA_ASSERT(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
 				const auto* chunk = entityContainer.chunk;
@@ -1113,7 +1113,7 @@ namespace gaia {
 			template <typename... TComponent>
 			[[nodiscard]] bool HasChunkComponents(Entity entity) {
 				VerifyComponents<TComponent...>();
-				assert(IsEntityValid(entity));
+				GAIA_ASSERT(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
 				const auto* chunk = entityContainer.chunk;
@@ -1124,7 +1124,7 @@ namespace gaia {
 			template <typename... TComponent>
 			[[nodiscard]] bool HasAnyChunkComponents(Entity entity) {
 				VerifyComponents<TComponent...>();
-				assert(IsEntityValid(entity));
+				GAIA_ASSERT(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
 				const auto* chunk = entityContainer.chunk;
@@ -1135,7 +1135,7 @@ namespace gaia {
 			template <typename... TComponent>
 			[[nodiscard]] bool HasNoneChunkComponents(Entity entity) {
 				VerifyComponents<TComponent...>();
-				assert(IsEntityValid(entity));
+				GAIA_ASSERT(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
 				const auto* chunk = entityContainer.chunk;
@@ -1168,7 +1168,7 @@ namespace gaia {
 				if constexpr (!std::is_empty<TComponent>::value)
 					data = chunk->GetComponent_Internal<TComponent>(TYPE, index);
 				else
-					assert(
+					GAIA_ASSERT(
 							false && "Getting value of an empty component is most likely not "
 											 "what you want...");
 			}
@@ -1358,7 +1358,7 @@ namespace gaia {
 							for (auto typeIdx:
 									 query.listChangeFiltered[ComponentType::CT_Generic]) {
 								const uint32_t componentIdx = chunk.GetComponentIdx(typeIdx);
-								assert(
+								GAIA_ASSERT(
 										componentIdx !=
 										(uint32_t)-1); // the component must exist at this point!
 
@@ -1375,7 +1375,7 @@ namespace gaia {
 									 query.listChangeFiltered[ComponentType::CT_Chunk]) {
 								const uint32_t componentIdx =
 										chunk.GetChunkComponentIdx(typeIdx);
-								assert(
+								GAIA_ASSERT(
 										componentIdx !=
 										(uint32_t)-1); // the component must exist at this point!
 
@@ -1520,7 +1520,7 @@ namespace gaia {
 								continue;
 						}
 
-						assert(chunk->header.remove);
+						GAIA_ASSERT(chunk->header.remove);
 						auto& archetype = const_cast<Archetype&>(chunk->header.owner);
 
 						// Remove the chunk if it's no longer needed
