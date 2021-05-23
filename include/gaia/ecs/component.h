@@ -250,7 +250,7 @@ namespace gaia {
 			const auto idx = utils::type_info::index<TComponent>();
 			// Let's assume somebody has registered the component already via
 			// AddComponent!
-			assert(idx < g_ComponentMetaTypeCache.size());
+			GAIA_ASSERT(idx < g_ComponentMetaTypeCache.size());
 			return g_ComponentMetaTypeCache[idx];
 		}
 
@@ -262,7 +262,7 @@ namespace gaia {
 					});
 			// Let's assume somebody has registered the component already via
 			// AddComponent!
-			assert(it != g_ComponentMetaTypeCache.end());
+			GAIA_ASSERT(it != g_ComponentMetaTypeCache.end());
 			return *it;
 		}
 

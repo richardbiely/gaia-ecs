@@ -80,7 +80,7 @@ int main() {
 
 	// Checking for presence of components
 	const auto ch1 = world.GetEntityChunk(e1);
-	assert(ch1 != nullptr);
+	GAIA_ASSERT(ch1 != nullptr);
 	const bool ch1b = ch1->HasComponent<Rotation>();
 	LOG_N(" e1 hasRotation = %d", ch1b);
 
