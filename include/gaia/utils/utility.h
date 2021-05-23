@@ -105,7 +105,7 @@ namespace gaia {
 		constexpr void for_each_ext(Func&& func) {
 				if constexpr (FirstIdx < LastIdx) {
 					func(std::integral_constant<decltype(FirstIdx), FirstIdx>());
-					for_each2<FirstIdx + Inc, LastIdx, Inc>(func);
+					for_each_ext<FirstIdx + Inc, LastIdx, Inc>(func);
 			}
 		}
 
