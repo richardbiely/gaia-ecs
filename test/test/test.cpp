@@ -290,6 +290,99 @@ TEST_CASE("SetComponent - generic") {
 	}
 }
 
+TEST_CASE("SetComponent - generic & chunk") {
+	ecs::World w;
+
+	constexpr uint32_t N = 100;
+	std::vector<ecs::Entity> arr;
+	arr.reserve(N);
+
+		for (uint32_t i = 0; i < N; ++i) {
+			arr.push_back(w.CreateEntity());
+			w.AddComponent<Rotation, Scale, Else>(arr.back(), {}, {}, {});
+			w.AddChunkComponent<Position>(arr.back(), {});
+		}
+
+		// Default values
+		for (const auto ent: arr) {
+			Rotation r;
+			w.GetComponent(ent, r);
+			REQUIRE(r.x == 0);
+			REQUIRE(r.y == 0);
+			REQUIRE(r.z == 0);
+
+			Scale s;
+			w.GetComponent(ent, s);
+			REQUIRE(s.x == 0);
+			REQUIRE(s.y == 0);
+			REQUIRE(s.z == 0);
+
+			Else e;
+			w.GetComponent(ent, e);
+			REQUIRE(e.value == false);
+
+			Position p;
+			w.GetChunkComponent(ent, p);
+			REQUIRE(p.x == 0);
+			REQUIRE(p.y == 0);
+			REQUIRE(p.z == 0);
+		}
+
+	// Modify values
+	{
+		ecs::EntityQuery q;
+		q.All<Rotation, Scale, Else>();
+
+		w.ForEachChunk(q, [&](ecs::Chunk& chunk) {
+			 auto rotationView = chunk.ViewRW<Rotation>();
+			 auto scaleView = chunk.ViewRW<Scale>();
+			 auto elseView = chunk.ViewRW<Else>();
+
+			 chunk.SetChunkComponent<Position>({111, 222, 333});
+
+				 for (uint32_t i = 0; i < chunk.GetItemCount(); ++i) {
+					 rotationView[i] = {1, 2, 3};
+					 scaleView[i] = {11, 22, 33};
+					 elseView[i] = {true};
+				 }
+		 }).Run(0);
+
+		{
+			Position p;
+			w.GetChunkComponent<Position>(arr[0], p);
+			REQUIRE(p.x == 111);
+			REQUIRE(p.y == 222);
+			REQUIRE(p.z == 333);
+		}
+		{
+				for (const auto ent: arr) {
+					Rotation r;
+					w.GetComponent(ent, r);
+					REQUIRE(r.x == 1);
+					REQUIRE(r.y == 2);
+					REQUIRE(r.z == 3);
+
+					Scale s;
+					w.GetComponent(ent, s);
+					REQUIRE(s.x == 11);
+					REQUIRE(s.y == 22);
+					REQUIRE(s.z == 33);
+
+					Else e;
+					w.GetComponent(ent, e);
+					REQUIRE(e.value == true);
+				}
+		}
+		{
+			Position p;
+			w.GetChunkComponent<Position>(arr[0], p);
+			REQUIRE(p.x == 111);
+			REQUIRE(p.y == 222);
+			REQUIRE(p.z == 333);
+		}
+	}
+}
+
 TEST_CASE("Usage 1 - simple query, 1 component") {
 	ecs::World w;
 
@@ -474,7 +567,7 @@ TEST_CASE("Example") {
 
 	// Checking for presence of components
 	const auto ch1 = world.GetEntityChunk(e1);
-	assert(ch1 != nullptr);
+	GAIA_ASSERT(ch1 != nullptr);
 	const bool ch1b = ch1->HasComponent<Rotation>();
 	LOG_N(" e1 hasRotation = %d", ch1b);
 
