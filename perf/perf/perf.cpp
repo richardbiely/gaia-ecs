@@ -4,6 +4,16 @@
 GAIA_INIT
 
 #include <benchmark/benchmark.h>
+#if GAIA_COMPILER_MSVC
+	#ifdef _WIN32
+		#pragma comment(lib, "Shlwapi.lib")
+		#ifdef _DEBUG
+			#pragma comment(lib, "benchmarkd.lib")
+		#else
+			#pragma comment(lib, "benchmark.lib")
+		#endif
+	#endif
+#endif
 
 using namespace gaia;
 

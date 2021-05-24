@@ -1,6 +1,6 @@
 #pragma once
 
-#if __has_include(<span>)
+#if __cpp_lib_span
 	#include <span>
 #else
 	// Workaround for pre-C++20 compilers <span>
