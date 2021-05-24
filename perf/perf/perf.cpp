@@ -19,7 +19,7 @@ using namespace gaia;
 
 void BM_CreateEntity(benchmark::State& state) {
 	constexpr uint32_t N = 1'000'000;
-		for (auto _: state) {
+		for ([[maybe_unused]] auto _: state) {
 			ecs::World w;
 				for (uint32_t i = 0; i < N; ++i) {
 					[[maybe_unused]] auto e = w.CreateEntity();
@@ -36,7 +36,7 @@ struct Component {
 template <typename T, uint32_t ComponentItems, uint32_t Components>
 void BM_CreateEntity_With_Component______(benchmark::State& state) {
 	constexpr uint32_t N = 1'000'000;
-		for (auto _: state) {
+		for ([[maybe_unused]] auto _: state) {
 			ecs::World w;
 				for (uint32_t i = 0; i < N; ++i) {
 					[[maybe_unused]] auto e = w.CreateEntity();
