@@ -3,3 +3,4 @@ build
 .vs
 .cache
 **.code-workspace
+.DS_Store

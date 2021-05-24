@@ -25,7 +25,7 @@ message(VERBOSE "*")
 
 # Configuration
 option(GAIA_USE_LIBCPP "Use libc++." OFF)
-option(GAIA_USE_SANITIZER "Enable sanitizers." OFF)
+option(GAIA_USE_SANITIZER "Enable sanitizers." ON)
 option(GAIA_BUILD_UNITTEST "Build unit test." ON)
 option(GAIA_BUILD_BENCHMARK "Build benchmark." ON)
 option(GAIA_BUILD_EXAMPLES "Build examples." ON)
@@ -64,8 +64,8 @@ target_include_directories(
 )
 
 if(GAIA_USE_SANITIZER)
-    target_compile_options(${PROJECT_NAME} INTERFACE $<$<CONFIG:Debug>:-fsanitize=address -fno-omit-frame-pointer -fsanitize=undefined>)
-    target_link_libraries(${PROJECT_NAME} INTERFACE $<$<CONFIG:Debug>:-fsanitize=address -fno-omit-frame-pointer -fsanitize=undefined>)
+    target_compile_options(${PROJECT_NAME} INTERFACE $<$<CONFIG:Debug>:-fsanitize=address -fno-omit-frame-pointer -fsanitize=undefined -fsanitize=memory>)
+    target_link_libraries(${PROJECT_NAME} INTERFACE $<$<CONFIG:Debug>:-fsanitize=address -fno-omit-frame-pointer -fsanitize=undefined -fsanitize=memory>)
 endif()
 
 if(GAIA_HAS_LIBCPP)
@@ -110,6 +110,11 @@ install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/ DESTINATION ${CMAKE_INSTALL_INC
 # Unit test
 if (GAIA_BUILD_UNITTEST)
     add_subdirectory(test)
+endif()
+
+# Benchmark
+if (GAIA_BUILD_BENCHMARK)
+    add_subdirectory(perf)
 endif()
 
 #Examples
