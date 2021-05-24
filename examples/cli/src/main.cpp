@@ -58,8 +58,9 @@ int main() {
 	auto e5 = world.CreateEntity(
 			ecs::CreationQuery()
 					.AddComponent<Position>()
-					.AddChunkComponent<Acceleration>()); // enity with Position and chunk
-																							 // component Acceleration
+					.AddChunkComponent<Acceleration>()); // enity with Position and
+																							 // chunk component
+																							 // Acceleration
 	(void)e5;
 
 	// Adding components
@@ -116,6 +117,9 @@ int main() {
 	// Setting component data
 
 	world.SetComponent<Position>(e1, {1, 2, 3});
+	Position e1p;
+	world.GetComponent<Position>(e1, e1p);
+	LOG_N("e1 position = [%.2f,%.2f,%.2f]", e1p.x, e1p.y, e1p.z);
 
 	Position p = {3, 4, 5};
 	world.SetComponent(e1, p);
@@ -128,11 +132,11 @@ int main() {
 
 	{
 		ecs::EntityQuery q;
-		// We'll query all entities which carry Something or Else components, don't
-		// carry Scale and carry chunk component Acceleration
+		// We'll query all entities which carry Something or Else components,
+		// don't carry Scale and carry chunk component Acceleration
 		q.Any<Something, Else>().None<Scale>().AllChunk<Acceleration>();
-		// In addition to the above both Position and Acceleration must be there. We
-		// extract data for them.
+		// In addition to the above both Position and Acceleration must be
+		// there. We extract data for them.
 		world
 				.ForEach(
 						q,
@@ -144,10 +148,34 @@ int main() {
 				.Run(0);
 	}
 	{
-		// We'll query all entities which carry Something or Else components, don't
-		// carry Scale and carry chunk component Acceleration In addition to the
-		// above both Position and Acceleration must be there. We extract data for
-		// them.
+		ecs::EntityQuery q;
+		// We'll query all entities which carry Something or Else components,
+		// don't carry Scale and carry chunk component Acceleration
+		q.Any<Something, Else>().None<Scale>().AllChunk<Acceleration>();
+		// In addition to the above both Position and Acceleration must be
+		// there. We extract data for them.
+		world
+				.ForEachChunk(
+						q,
+						[](ecs::Chunk& chunk) {
+							auto pp = chunk.View<Position>();
+							auto aa = chunk.View<Acceleration>();
+
+								for (uint16_t i = 0; i < chunk.GetItemCount(); i++) {
+									const Position& p = pp[i];
+									const Acceleration& a = aa[i];
+									LOG_N(
+											"pos=[%f,%f,%f], acc=[%f,%f,%f]", p.x, p.y, p.z, a.x, a.y,
+											a.z);
+								}
+						})
+				.Run(0);
+	}
+	{
+		// We'll query all entities which carry Something or Else components,
+		// don't carry Scale and carry chunk component Acceleration In addition
+		// to the above both Position and Acceleration must be there. We extract
+		// data for them.
 		world
 				.ForEach(
 						ecs::EntityQuery()
@@ -162,8 +190,8 @@ int main() {
 				.Run(0);
 	}
 	{
-		// We iterate over all entities with Position and Acceleration components.
-		// Acceleration is read-only, position is write-enabled
+		// We iterate over all entities with Position and Acceleration
+		// components. Acceleration is read-only, position is write-enabled
 		float t = 1.5f;
 		world
 				.ForEach([t](Position& p, const Acceleration& a) {
@@ -172,10 +200,23 @@ int main() {
 					p.z += a.z * t;
 				})
 				.Run(0);
-
-		world.Diag();
-		ecs::DumpAllocatorStats();
+		(void)t;
 	}
+
+	ecs::EntityQuery2<
+			ecs::AllTypes<Acceleration>, ecs::NoneTypes<>,
+			ecs::AnyTypes<Position, Rotation>>
+			qq;
+	DiagQuery(qq);
+
+	// ecs::EntityQuery2<ecs::AllTypes<Acceleration>> qqq;
+	// DiagQuery(qqq);
+
+	// Delete some entity
+	world.DeleteEntity(e1);
+	world.DeleteEntity(e3);
+
+	world.Diag();
 
 	return 0;
 }

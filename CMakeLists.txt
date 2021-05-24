@@ -28,7 +28,7 @@ option(GAIA_USE_LIBCPP "Use libc++." OFF)
 option(GAIA_USE_SANITIZER "Enable sanitizers." ON)
 option(GAIA_BUILD_UNITTEST "Build unit test." ON)
 option(GAIA_BUILD_BENCHMARK "Build benchmark." ON)
-option(GAIA_BUILD_EXAMPLES "Build examples." ON)
+option(GAIA_BUILD_EXAMPLES "Build examples." OFF)
 
 if(NOT WIN32 AND GAIA_USE_LIBCPP)
     include(CheckCXXSourceCompiles)
@@ -119,5 +119,5 @@ endif()
 
 #Examples
 if (GAIA_BUILD_EXAMPLES)
-    #add_subdirectory(examples/cli)
+    add_subdirectory(examples/cli)
 endif()
