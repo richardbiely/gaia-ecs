@@ -413,6 +413,16 @@ TEST_CASE("Usage 1 - simple query, 1 component") {
 		w.ForEach([&](const Position& a) { ++cnt; }).Run(0);
 		REQUIRE(cnt == 3);
 	}
+
+	w.DeleteEntity(e2);
+	w.DeleteEntity(e3);
+	w.DeleteEntity(e);
+
+	{
+		uint32_t cnt = 0;
+		w.ForEach([&](const Position& a) { ++cnt; }).Run(0);
+		REQUIRE(cnt == 0);
+	}
 }
 
 TEST_CASE("Usage 1 - simple query, 1 chunk component") {
