@@ -3,8 +3,8 @@ enable_testing()
 find_package(Catch2 CONFIG REQUIRED 2)
 add_executable(gaia_test test/test.cpp)
 
-set_property(TARGET gaia_test PROPERTY C_STANDARD 99)
-set_property(TARGET gaia_test PROPERTY CXX_STANDARD 20)
+set_property(TARGET gaia_test PROPERTY C_STANDARD 17)
+set_property(TARGET gaia_test PROPERTY CXX_STANDARD 17)
 set_property(TARGET gaia_test PROPERTY CXX_STANDARD_REQUIRED ON) 
 set_property(TARGET gaia_test PROPERTY CXX_EXTENSIONS OFF)
 
