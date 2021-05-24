@@ -1,8 +1,4 @@
 #define _ITERATOR_DEBUG_LEVEL 0
-//#define _SCL_SECURE_NO_WARNINGS
-
-#include "gaia/ecs/chunk_allocator.h"
-#include "gaia/ecs/entity.h"
 #include <gaia.h>
 
 GAIA_INIT
@@ -165,7 +161,7 @@ TEST_CASE("CreateAndRemoveEntity - no components") {
 
 	// 100,000 picked so we create enough entites that they overflow
 	// into another chunk
-	const uint32_t N = 100000;
+	const uint32_t N = 100'000;
 	std::vector<ecs::Entity> arr;
 	arr.reserve(N);
 
@@ -198,7 +194,7 @@ TEST_CASE("CreateAndRemoveEntity - 1 component") {
 
 	// 100,000 picked so we create enough entites that they overflow
 	// into another chunk
-	const uint32_t N = 100000;
+	const uint32_t N = 100'000;
 	std::vector<ecs::Entity> arr;
 	arr.reserve(N);
 
