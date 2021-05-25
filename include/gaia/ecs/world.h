@@ -739,7 +739,7 @@ namespace gaia {
 			}
 
 			//! Verifies than the implicit linked list of entities is valid
-			void ValidateEntityList() {
+			void ValidateEntityList() const {
 #if GAIA_ECS_VALIDATE_ENTITY_LIST
 				bool hasThingsToRemove = m_freeEntities > 0;
 				if (!hasThingsToRemove)
@@ -767,7 +767,7 @@ namespace gaia {
 			}
 
 			//! Verifies than the chunk is valid
-			void ValidateChunk([[maybe_unused]] Chunk* chunk) {
+			void ValidateChunk([[maybe_unused]] Chunk* chunk) const {
 #if GAIA_ECS_VALIDATE_CHUNKS
 					// Make sure no entites reference the deleted chunk
 					for ([[maybe_unused]] const auto& e: m_entities) {
@@ -1513,7 +1513,7 @@ namespace gaia {
 				m_chunksToRemove.clear();
 			}
 
-			void DiagArchetypes() {
+			void DiagArchetypes() const {
 				static bool DiagArchetypes = GAIA_ECS_DIAG_ARCHETYPES;
 					if (DiagArchetypes) {
 						DiagArchetypes = false;
@@ -1592,7 +1592,7 @@ namespace gaia {
 				}
 			}
 
-			void DiagRegisteredTypes() {
+			void DiagRegisteredTypes() const {
 				static bool DiagRegisteredTypes = GAIA_ECS_DIAG_REGISTERED_TYPES;
 					if (DiagRegisteredTypes) {
 						DiagRegisteredTypes = false;
@@ -1603,7 +1603,7 @@ namespace gaia {
 
 			void DiagNotMatching(
 					const char* text, const ChunkComponentList& componentList,
-					const EntityQuery::ComponentMetaDataArray& listToCompare) {
+					const EntityQuery::ComponentMetaDataArray& listToCompare) const {
 				static bool DiagTypeMatching = GAIA_ECS_DIAG_TYPEMATCHING;
 					if (DiagTypeMatching) {
 						DiagTypeMatching = false;
@@ -1629,7 +1629,7 @@ namespace gaia {
 				}
 			}
 
-			void DiagEntities() {
+			void DiagEntities() const {
 				static bool DiagDeletedEntities = GAIA_ECS_DIAG_DELETED_ENTITIES;
 					if (DiagDeletedEntities) {
 						DiagDeletedEntities = false;
@@ -1656,7 +1656,7 @@ namespace gaia {
 				}
 			}
 
-			void DiagMemory() {
+			void DiagMemory() const {
 				ChunkAllocatorStats memstats;
 				m_chunkAllocator.GetStats(memstats);
 					if (memstats.NumAllocations != 0) {
@@ -1669,7 +1669,7 @@ namespace gaia {
 			}
 
 		public:
-			void Diag() {
+			void Diag() const {
 				DiagArchetypes();
 				DiagRegisteredTypes();
 				DiagEntities();
