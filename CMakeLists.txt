@@ -122,4 +122,5 @@ endif()
 #Examples
 if (GAIA_BUILD_EXAMPLES)
     add_subdirectory(examples/example1)
+    add_subdirectory(examples/example2)
 endif()

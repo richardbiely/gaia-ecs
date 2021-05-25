@@ -6,7 +6,7 @@ set_property(TARGET gaia_example1 PROPERTY CXX_STANDARD 17)
 set_property(TARGET gaia_example1 PROPERTY CXX_STANDARD_REQUIRED ON) 
 set_property(TARGET gaia_example1 PROPERTY CXX_EXTENSIONS OFF)
 
-# Enforce strict rules
+# Compiler settings
 include(CheckCXXCompilerFlag)
 
 function(enable_cxx_compiler_flag_if_supported flag)
