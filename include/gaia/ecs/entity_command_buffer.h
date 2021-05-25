@@ -44,7 +44,7 @@ namespace gaia {
 				// Components
 				{
 					const ComponentMetaData* typesToAdd[] = {
-							GetOrCreateComponentMetaType<TComponent>()...};
+							g_ComponentCache.GetOrCreateComponentMetaType<TComponent>()...};
 
 					// Component count
 					constexpr auto componentCount = (uint8_t)sizeof...(TComponent);
@@ -64,7 +64,7 @@ namespace gaia {
 			void SetComponent_Internal(uint32_t& index, T&& data) {
 				using TComponent = std::decay_t<T>;
 
-				auto* metaData = GetComponentMetaType<TComponent>();
+				auto* metaData = g_ComponentCache.GetComponentMetaType<TComponent>();
 				if (metaData == nullptr)
 					return;
 
@@ -82,7 +82,7 @@ namespace gaia {
 			void SetComponent_Internal(Entity entity, TComponent&&... data) {
 				// Verify components
 				const ComponentMetaData* typesToAdd[] = {
-						GetComponentMetaType<TComponent>()...};
+						g_ComponentCache.GetComponentMetaType<TComponent>()...};
 				uint32_t validComponents = 0;
 				uint32_t validSize = 0;
 					for (const auto type: typesToAdd) {
@@ -126,7 +126,7 @@ namespace gaia {
 				// Components
 				{
 					const ComponentMetaData* typesToRemove[] = {
-							GetComponentMetaType<TComponent>()...};
+							g_ComponentCache.GetComponentMetaType<TComponent>()...};
 
 					// Component count
 					constexpr auto componentCount = (uint8_t)sizeof...(TComponent);
