@@ -33,6 +33,9 @@ struct Component {
 	T value[ComponentItems];
 };
 
+template <uint32_t version, typename T>
+struct Component<version, T, 0U> {};
+
 template <typename T, uint32_t ComponentItems, uint32_t Components>
 void BM_CreateEntity_With_Component______(benchmark::State& state) {
 	constexpr uint32_t N = 1'000'000;
@@ -69,50 +72,43 @@ void BM_CreateEntity_With_Component_Batch(benchmark::State& state) {
 		}
 }
 
+#define BENCHMARK_CREATEENTITY_WITH_COMPONENT______(component_count)           \
+	BENCHMARK_TEMPLATE(                                                          \
+			BM_CreateEntity_With_Component______, float, 0, component_count);        \
+	BENCHMARK_TEMPLATE(                                                          \
+			BM_CreateEntity_With_Component______, float, 1, component_count);        \
+	BENCHMARK_TEMPLATE(                                                          \
+			BM_CreateEntity_With_Component______, float, 2, component_count);        \
+	BENCHMARK_TEMPLATE(                                                          \
+			BM_CreateEntity_With_Component______, float, 4, component_count);        \
+	BENCHMARK_TEMPLATE(                                                          \
+			BM_CreateEntity_With_Component______, float, 8, component_count);
+#define BENCHMARK_CREATEENTITY_WITH_COMPONENT_BATCH(component_count)           \
+	BENCHMARK_TEMPLATE(                                                          \
+			BM_CreateEntity_With_Component_Batch, float, 0, component_count);        \
+	BENCHMARK_TEMPLATE(                                                          \
+			BM_CreateEntity_With_Component_Batch, float, 1, component_count);        \
+	BENCHMARK_TEMPLATE(                                                          \
+			BM_CreateEntity_With_Component_Batch, float, 2, component_count);        \
+	BENCHMARK_TEMPLATE(                                                          \
+			BM_CreateEntity_With_Component_Batch, float, 4, component_count);        \
+	BENCHMARK_TEMPLATE(                                                          \
+			BM_CreateEntity_With_Component_Batch, float, 8, component_count);
+
 // 1 component, size increases with each benchmark
-BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component______, float, 1, 1);
-BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component______, float, 2, 1);
-BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component______, float, 4, 1);
-
+BENCHMARK_CREATEENTITY_WITH_COMPONENT______(1);
 // 2 components, size increases with each benchmark
-BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component______, float, 1, 2);
-BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component_Batch, float, 1, 2);
-BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component______, float, 2, 2);
-BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component_Batch, float, 2, 2);
-BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component______, float, 4, 2);
-BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component_Batch, float, 4, 2);
-BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component______, float, 8, 2);
-BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component_Batch, float, 8, 2);
-
+BENCHMARK_CREATEENTITY_WITH_COMPONENT______(2);
+BENCHMARK_CREATEENTITY_WITH_COMPONENT_BATCH(2);
 // 3 components, size increases with each benchmark
-BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component______, float, 1, 3);
-BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component_Batch, float, 1, 3);
-BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component______, float, 2, 3);
-BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component_Batch, float, 2, 3);
-BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component______, float, 4, 3);
-BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component_Batch, float, 4, 3);
-BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component______, float, 8, 3);
-BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component_Batch, float, 8, 3);
-
+BENCHMARK_CREATEENTITY_WITH_COMPONENT______(3);
+BENCHMARK_CREATEENTITY_WITH_COMPONENT_BATCH(3);
 // 4 components, size increases with each benchmark
-BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component______, float, 1, 4);
-BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component_Batch, float, 1, 4);
-BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component______, float, 2, 4);
-BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component_Batch, float, 2, 4);
-BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component______, float, 4, 4);
-BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component_Batch, float, 4, 4);
-BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component______, float, 8, 4);
-BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component_Batch, float, 8, 4);
-
+BENCHMARK_CREATEENTITY_WITH_COMPONENT______(4);
+BENCHMARK_CREATEENTITY_WITH_COMPONENT_BATCH(4);
 // 8 components, size increases with each benchmark
-BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component______, float, 1, 8);
-BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component_Batch, float, 1, 8);
-BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component______, float, 2, 8);
-BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component_Batch, float, 2, 8);
-BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component______, float, 4, 8);
-BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component_Batch, float, 4, 8);
-BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component______, float, 8, 8);
-BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component_Batch, float, 8, 8);
+BENCHMARK_CREATEENTITY_WITH_COMPONENT______(8);
+BENCHMARK_CREATEENTITY_WITH_COMPONENT_BATCH(8);
 
 // Run the benchmark
 BENCHMARK_MAIN();

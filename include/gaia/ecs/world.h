@@ -14,7 +14,6 @@
 #include "entity_query.h"
 #include "fwd.h"
 
-
 namespace gaia {
 	namespace ecs {
 
