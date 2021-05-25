@@ -218,63 +218,82 @@ namespace gaia {
 			}
 
 			/*!
-			Requests a component to be added to entity
+			Requests a component to be added to entity.
+
+			\return True if component could be added (e.g. maximum component count on
+			the archetype not exceeded). False otherwise.
 			*/
 			template <typename... TComponent>
-			void AddComponent(Entity entity) {
+			bool AddComponent(Entity entity) {
 				VerifyComponents<TComponent...>();
 				if (!VerityArchetypeComponentCount((uint32_t)sizeof...(TComponent)))
-					return;
+					return false;
 
 				m_data.push_back(ADD_COMPONENT);
 				m_data.push_back(ComponentType::CT_Generic);
 				AddComponent_Internal<Entity, TComponent...>(entity);
+				return true;
 			}
 
 			/*!
-			Requests a component to be added to temporary entity
+			Requests a component to be added to temporary entity.
+
+			\return True if component could be added (e.g. maximum component count on
+			the archetype not exceeded). False otherwise.
 			*/
 			template <typename... TComponent>
-			void AddComponent(TempEntity entity) {
+			bool AddComponent(TempEntity entity) {
 				VerifyComponents<TComponent...>();
 				if (!VerityArchetypeComponentCount((uint32_t)sizeof...(TComponent)))
-					return;
+					return false;
 
 				m_data.push_back(ADD_COMPONENT_TO_TEMPENTITY);
 				m_data.push_back(ComponentType::CT_Generic);
 				AddComponent_Internal<TempEntity, TComponent...>(entity);
+				return true;
 			}
 
 			/*!
-			Requests a chunk component to be added to entity
+			Requests a chunk component to be added to entity.
+
+			\return True if component could be added (e.g. maximum component count on
+			the archetype not exceeded). False otherwise.
 			*/
 			template <typename... TComponent>
-			void AddChunkComponent(Entity entity) {
+			bool AddChunkComponent(Entity entity) {
 				VerifyComponents<TComponent...>();
 				if (!VerityArchetypeComponentCount((uint32_t)sizeof...(TComponent)))
-					return;
+					return false;
 
 				m_data.push_back(ADD_COMPONENT);
 				m_data.push_back(ComponentType::CT_Chunk);
 				AddComponent_Internal<Entity, TComponent...>(entity);
+				return true;
 			}
 
 			/*!
-			Requests a chunk component to be added to temp entity
+			Requests a chunk component to be added to temp entity.
+
+			\return True if component could be added (e.g. maximum component count on
+			the archetype not exceeded). False otherwise.
 			*/
 			template <typename... TComponent>
-			void AddChunkComponent(TempEntity entity) {
+			bool AddChunkComponent(TempEntity entity) {
 				VerifyComponents<TComponent...>();
 				if (!VerityArchetypeComponentCount((uint32_t)sizeof...(TComponent)))
-					return;
+					return false;
 
 				m_data.push_back(ADD_COMPONENT);
 				m_data.push_back(ComponentType::CT_Chunk);
 				AddComponent_Internal<TempEntity, TComponent...>(entity);
+				return true;
 			}
 
 			/*!
-			Requests component data to be set to given values for a given entity
+			Requests component data to be set to given values for a given entity.
+
+			\warning Just like World::SetComponent, this method expects the
+			given component types to exist. Undefined behavior otherwise.
 			*/
 			template <typename... TComponent>
 			void SetComponent(Entity entity, TComponent&&... data) {
@@ -286,7 +305,10 @@ namespace gaia {
 			}
 
 			/*!
-			Requests component data to be set to given values for a given temp entity
+			Requests component data to be set to given values for a given temp entity.
+
+			\warning Just like World::SetComponent, this method expects the
+			given component types to exist. Undefined behavior otherwise.
 			*/
 			template <typename... TComponent>
 			void SetComponent(TempEntity entity, TComponent&&... data) {
@@ -299,7 +321,10 @@ namespace gaia {
 
 			/*!
 			Requests chunk component data to be set to given values for a given
-			entity's chunk
+			entity's chunk.
+
+			\warning Just like World::SetChunkComponent, this method expects the
+			given component types to exist. Undefined behavior otherwise.
 			*/
 			template <typename... TComponent>
 			void SetChunkComponent(Entity entity, TComponent&&... data) {
@@ -312,7 +337,10 @@ namespace gaia {
 
 			/*!
 			Requests chunk component data to be set to given values for a given
-			entity's chunk
+			entity's chunk.
+
+			\warning Just like World::SetChunkComponent, this method expects the
+			given component types to exist. Undefined behavior otherwise.
 			*/
 			template <typename... TComponent>
 			void SetChunkComponent(TempEntity entity, TComponent&&... data) {
