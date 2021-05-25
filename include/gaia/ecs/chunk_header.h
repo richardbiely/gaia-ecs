@@ -26,7 +26,9 @@ namespace gaia {
 			uint32_t versions[ComponentType::CT_Count]
 											 [MAX_COMPONENTS_PER_ARCHETYPE]{};
 
-			ChunkHeader(const Archetype& archetype): owner(archetype) {}
+			ChunkHeader(const Archetype& archetype): owner(archetype) {
+				GAIA_ASSERT(uintptr_t(this) % 8 == 0);
+			}
 
 			void UpdateLastWorldVersion(ComponentType TYPE, uint32_t componentIdx) {
 				const auto gv = GetWorldVersionFromArchetype(owner);

@@ -1,7 +1,7 @@
 enable_testing()
 
 find_package(Catch2 CONFIG REQUIRED 2)
-add_executable(gaia_test test/test.cpp)
+add_executable(gaia_test src/main.cpp)
 
 set_property(TARGET gaia_test PROPERTY C_STANDARD 17)
 set_property(TARGET gaia_test PROPERTY CXX_STANDARD 17)
