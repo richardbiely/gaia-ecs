@@ -30,8 +30,18 @@ namespace gaia {
 
 			friend class World;
 
-			std::vector<uint8_t> m_data = std::vector<uint8_t>(256);
-			uint32_t m_entities = 0;
+			std::vector<uint8_t> m_data;
+			uint32_t m_entities;
+
+			EntityCommandBuffer() {
+				m_data.reserve(256);
+				m_entities = 0;
+			}
+
+			EntityCommandBuffer(EntityCommandBuffer&&) = delete;
+			EntityCommandBuffer(const EntityCommandBuffer&) = delete;
+			EntityCommandBuffer& operator=(EntityCommandBuffer&&) = delete;
+			EntityCommandBuffer& operator=(const EntityCommandBuffer&) = delete;
 
 			template <typename... TComponent>
 			void AddComponent_Internal(Entity entity) {
@@ -149,17 +159,6 @@ namespace gaia {
 				}
 			}
 
-		public:
-			/*!
-			Requests a new entity to be created
-			\return Entity that will be created. The id is not usable right away. It
-			will be filled with proper data after Commit()
-			*/
-			[[nodiscard]] Entity CreateEntity() {
-				m_data.push_back(CREATE_ENTITY);
-				return {m_entities++, Entity::GenMask};
-			}
-
 			/*!
 			Requests a new entity to be created from archetype
 			\return Entity that will be created. The id is not usable right away. It
@@ -172,6 +171,17 @@ namespace gaia {
 				const auto lastIndex = m_data.size();
 				m_data.resize(m_data.size() + archetypeSize);
 				*((uintptr_t*)&m_data[lastIndex]) = (uintptr_t)&archetype;
+				return {m_entities++, Entity::GenMask};
+			}
+
+		public:
+			/*!
+			Requests a new entity to be created
+			\return Entity that will be created. The id is not usable right away. It
+			will be filled with proper data after Commit()
+			*/
+			[[nodiscard]] Entity CreateEntity() {
+				m_data.push_back(CREATE_ENTITY);
 				return {m_entities++, Entity::GenMask};
 			}
 
