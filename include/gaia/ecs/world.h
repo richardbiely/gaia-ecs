@@ -574,10 +574,10 @@ namespace gaia {
 				size_t typesAfter = 0;
 					// TODO: Arrays are sorted so we can make this in O(n+m) instead of
 					// O(N^2)
-					for (auto i = 0; i < componentList.size(); i++) {
+					for (auto i = 0U; i < componentList.size(); i++) {
 						const auto& info = componentList[i];
 
-							for (auto k = 0; k < typesToRemove.size(); k++) {
+							for (auto k = 0U; k < typesToRemove.size(); k++) {
 								if (info.type == typesToRemove[k])
 									goto nextIter;
 							}
@@ -595,7 +595,7 @@ namespace gaia {
 				const auto& secondList = archetype.componentList[(TYPE + 1) & 1];
 				auto secondMetaTypes = (const ComponentMetaData**)alloca(
 						sizeof(ComponentMetaData) * secondList.size());
-				for (auto i = 0; i < secondList.size(); i++)
+				for (auto i = 0U; i < secondList.size(); i++)
 					secondMetaTypes[i] = secondList[i].type;
 
 				auto newArchetype =
@@ -629,10 +629,10 @@ namespace gaia {
 				size_t typesAfter = 0;
 					// TODO: Arrays are sorted so we can make this in O(n+m) instead of
 					// O(N^2)
-					for (auto i = 0; i < componentList.size(); i++) {
+					for (auto i = 0U; i < componentList.size(); i++) {
 						const auto& info = componentList[i];
 
-							for (auto k = 0; k < sizeof...(TComponent); k++) {
+							for (auto k = 0U; k < sizeof...(TComponent); k++) {
 								if (info.type == typesToRemove[k])
 									goto nextIter;
 							}
@@ -774,11 +774,10 @@ namespace gaia {
 			}
 
 			//! Verifies than the chunk is valid
-			void ValidateChunk(Chunk* chunk) {
+			void ValidateChunk([[maybe_unused]] Chunk* chunk) {
 #if GAIA_ECS_VALIDATE_CHUNKS
 					// Make sure no entites reference the deleted chunk
-					for (int i = 0; i < m_entities.size(); i++) {
-						const auto& e = m_entities[i];
+					for ([[maybe_unused]] const auto& e: m_entities) {
 						GAIA_ASSERT(chunk->HasEntities() || e.chunk != chunk);
 					}
 #endif
@@ -1322,14 +1321,15 @@ namespace gaia {
 
 			template <typename... TComponents, typename TFunc>
 			void Unpack_ForEachEntityInChunk(
-					utils::func_type_list<TComponents...> types, Chunk& chunk,
-					TFunc&& func) {
+					[[maybe_unused]] utils::func_type_list<TComponents...> types,
+					Chunk& chunk, TFunc&& func) {
 				ForEachEntityInChunk<TComponents...>(chunk, func);
 			}
 
 			template <typename... TComponents>
 			[[nodiscard]] EntityQuery& Unpack_ForEachQuery(
-					utils::func_type_list<TComponents...> types, EntityQuery& query) {
+					[[maybe_unused]] utils::func_type_list<TComponents...> types,
+					EntityQuery& query) {
 				if constexpr (!sizeof...(TComponents))
 					return query;
 				else
@@ -1587,8 +1587,8 @@ namespace gaia {
 												"size:%3u "
 												"B, "
 												"align:%3u B, %.*s",
-												type, type->lookupHash, type->matcherHash, type->size,
-												type->alig, (uint32_t)type->name.length(),
+												(void*)type, type->lookupHash, type->matcherHash,
+												type->size, type->alig, (uint32_t)type->name.length(),
 												type->name.data());
 									}
 								};
@@ -1630,8 +1630,9 @@ namespace gaia {
 								LOG_N(
 										"--> (%p) lookupHash:%016llx, matcherHash:%016llx, "
 										"index:%010u, %.*s",
-										type, type->lookupHash, type->matcherHash, type->typeIndex,
-										(uint32_t)type->name.length(), type->name.data());
+										(void*)type, type->lookupHash, type->matcherHash,
+										type->typeIndex, (uint32_t)type->name.length(),
+										type->name.data());
 							}
 
 						using DuplicateMap = std::unordered_map<
@@ -1656,7 +1657,7 @@ namespace gaia {
 										LOG_N(
 												"--> (%p) lookupHash:%016llx, matcherHash:%016llx, "
 												"index:%010u, %.*s",
-												type, type->lookupHash, type->matcherHash,
+												(void*)type, type->lookupHash, type->matcherHash,
 												type->typeIndex, (uint32_t)type->name.length(),
 												type->name.data());
 									}
@@ -1723,7 +1724,7 @@ namespace gaia {
 								const auto type = component.type;
 								LOG_N(
 										"--> (%p) lookupHash:%016llx, matcherHash:%016llx, %.*s",
-										type, type->lookupHash, type->matcherHash,
+										(void*)type, type->lookupHash, type->matcherHash,
 										(uint32_t)type->name.length(), type->name.data());
 							}
 
@@ -1731,7 +1732,7 @@ namespace gaia {
 							for (const auto type: listToCompare) {
 								LOG_N(
 										"--> (%p) lookupHash:%016llx, matcherHash:%016llx, %.*s",
-										type, type->lookupHash, type->matcherHash,
+										(void*)type, type->lookupHash, type->matcherHash,
 										(uint32_t)type->name.length(), type->name.data());
 							}
 				}

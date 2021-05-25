@@ -110,10 +110,10 @@
 
 #if !defined(GAIA_DISABLE_ASSERTS)
 	#undef GAIA_ASSERT
-	#define GAIA_ASSERT(...) (void(0))
+	#define GAIA_ASSERT(condition) (void(0))
 #elif !defined(GAIA_ASSERT)
 	#include <cassert>
-	#define GAIA_ASSERT(condition, ...) assert(condition)
+	#define GAIA_ASSERT(condition) assert(condition)
 #endif
 
 #if defined(GAIA_ECS_DIAGS)

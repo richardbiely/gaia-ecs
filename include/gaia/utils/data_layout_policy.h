@@ -130,7 +130,7 @@ namespace gaia {
 			template <typename Tuple, typename TValue, unsigned... Ids>
 			constexpr static void set_internal(
 					Tuple& t, std::span<TValue> s, const unsigned idx,
-					std::integer_sequence<unsigned, Ids...>, TValue&& val) {
+					std::integer_sequence<unsigned, Ids...> /*, TValue&& val*/) {
 				(set_internal(
 						 (char*)s.data(),
 						 idx * sizeof(typename std::tuple_element<Ids, Tuple>::type) +
