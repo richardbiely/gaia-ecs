@@ -72,33 +72,23 @@ namespace gaia {
 			void SetComponent_Internal(uint32_t& index, T&& data) {
 				using TComponent = std::decay_t<T>;
 
-				auto* metaData = g_ComponentCache.GetComponentMetaType<TComponent>();
-				if (metaData == nullptr)
-					return;
-
 				// Meta type
-				*(ComponentMetaData**)&m_data[index] = (ComponentMetaData*)metaData;
+				*(uint32_t*)&m_data[index] = utils::type_info::index<TComponent>();
 
 				// Component data
-				*(TComponent*)&m_data[index + sizeof(void*)] =
+				*(TComponent*)&m_data[index + sizeof(uint32_t)] =
 						std::forward<TComponent>(data);
 
-				index += sizeof(void*) + metaData->size;
+				index += sizeof(uint32_t) + sizeof(TComponent);
 			}
 
 			template <typename TEntity, typename... TComponent>
 			void SetComponent_Internal(TEntity entity, TComponent&&... data) {
 				// Verify components
-				const ComponentMetaData* typesToAdd[] = {
+				[[maybe_unused]] const ComponentMetaData* typesToAdd[] = {
 						g_ComponentCache.GetComponentMetaType<TComponent>()...};
-				uint32_t validComponents = 0;
-				uint32_t validSize = 0;
-					for (const auto type: typesToAdd) {
-						if (type == nullptr)
-							continue;
-						++validComponents;
-						validSize +=
-								type->size + sizeof(void*); // meta data pointer + data size
+					for ([[maybe_unused]] const auto* type: typesToAdd) {
+						GAIA_ASSERT(type != nullptr);
 					}
 
 				// Entity
@@ -109,12 +99,17 @@ namespace gaia {
 				}
 				// Components
 				{
+					constexpr auto NComponents = (uint8_t)sizeof...(TComponent);
+
 					// Component count
-					m_data.push_back(validComponents);
+					m_data.push_back(NComponents);
 
 					// Data size
-					uint32_t lastIndex = m_data.size();
-					m_data.resize(m_data.size() + validSize);
+					auto lastIndex = (uint32_t)m_data.size();
+
+					constexpr auto ComponentsSize = (sizeof(TComponent) + ...);
+					constexpr auto ComponentTypeIdxSize = sizeof(uint32_t);
+					m_data.resize(m_data.size() + ComponentsSize * ComponentTypeIdxSize);
 
 					// Component data
 					(SetComponent_Internal<TComponent>(
@@ -475,29 +470,25 @@ namespace gaia {
 										const auto& entityContainer =
 												world->m_entities[entity.id()];
 										auto chunk = entityContainer.chunk;
-										const auto& archetype = chunk->header.owner;
+										const auto indexInChunk =
+												componentType == ComponentType::CT_Chunk
+														? 0
+														: entityContainer.idx;
 
 										// Component count
-										uint8_t componentCount = m_data[i++];
+										const uint8_t componentCount = m_data[i++];
 
 											// Components
 											for (uint8_t j = 0; j < componentCount; ++j) {
-												const auto type =
-														*(const ComponentMetaData**)&m_data[i];
-												uint32_t index = 0;
-													for (const auto& component:
-															 archetype.componentList[componentType]) {
-														if (component.type != type)
-															continue;
-														index = component.offset +
-																		entityContainer.idx * type->size;
-													}
-												GAIA_ASSERT(index > 0);
+												const uint32_t typeIdx = *(uint32_t*)&m_data[i];
+												const auto* type =
+														g_ComponentCache.GetComponentMetaTypeFromIdx(
+																typeIdx);
+												i += sizeof(typeIdx);
 
-												i += sizeof(const ComponentMetaData*);
 												memcpy(
-														chunk->GetComponent_Internal(
-																componentType, index, type),
+														chunk->SetComponent_Internal(
+																componentType, indexInChunk, type),
 														(const void*)&m_data[i], type->size);
 												i += type->size;
 											}
@@ -521,36 +512,32 @@ namespace gaia {
 										const auto& entityContainer =
 												world->m_entities[entity.id()];
 										auto chunk = entityContainer.chunk;
-										const auto& archetype = chunk->header.owner;
+										const auto indexInChunk =
+												componentType == ComponentType::CT_Chunk
+														? 0
+														: entityContainer.idx;
 
 										// Component count
-										uint8_t componentCount = m_data[i++];
+										const uint8_t componentCount = m_data[i++];
 
 											// Components
 											for (uint8_t j = 0; j < componentCount; ++j) {
-												const auto type =
-														*(const ComponentMetaData**)&m_data[i];
-												uint32_t index = 0;
-													for (const auto& component:
-															 archetype.componentList[componentType]) {
-														if (component.type != type)
-															continue;
-														index = component.offset +
-																		entityContainer.idx * type->size;
-													}
-												GAIA_ASSERT(index > 0);
+												const uint32_t typeIdx = *(uint32_t*)&m_data[i];
+												const auto* type =
+														g_ComponentCache.GetComponentMetaTypeFromIdx(
+																typeIdx);
+												i += sizeof(typeIdx);
 
-												i += sizeof(const ComponentMetaData*);
 												memcpy(
-														chunk->GetComponent_Internal(
-																componentType, index, type),
+														chunk->SetComponent_Internal(
+																componentType, indexInChunk, type),
 														(const void*)&m_data[i], type->size);
 												i += type->size;
 											}
 									} break;
 									case REMOVE_COMPONENT: {
 										// Type
-										ComponentType type = (ComponentType&)m_data[i];
+										ComponentType componentType = (ComponentType&)m_data[i];
 										i += sizeof(ComponentType);
 										// Entity
 										Entity e = (Entity&)m_data[i];
@@ -568,7 +555,7 @@ namespace gaia {
 												i += sizeof(const ComponentMetaData*);
 											}
 										world->RemoveComponent_Internal(
-												type, e,
+												componentType, e,
 												std::span(newMetatypes, (uintptr_t)componentCount));
 									} break;
 							}
