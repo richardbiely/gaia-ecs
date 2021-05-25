@@ -87,9 +87,9 @@ namespace gaia {
 				// Verify components
 				[[maybe_unused]] const ComponentMetaData* typesToAdd[] = {
 						g_ComponentCache.GetComponentMetaType<TComponent>()...};
-					for ([[maybe_unused]] const auto* type: typesToAdd) {
-						GAIA_ASSERT(type != nullptr);
-					}
+				for ([[maybe_unused]] const auto* type: typesToAdd) {
+					GAIA_ASSERT(type != nullptr);
+				}
 
 				// Entity
 				{
@@ -134,21 +134,21 @@ namespace gaia {
 					// Component count
 					constexpr auto componentCount = (uint8_t)sizeof...(TComponent);
 					uint8_t validComponentCount = 0;
-						for (uint8_t i = 0; i < componentCount; i++) {
-							if (typesToRemove[i] != nullptr)
-								++validComponentCount;
-						}
+					for (uint8_t i = 0; i < componentCount; i++) {
+						if (typesToRemove[i] != nullptr)
+							++validComponentCount;
+					}
 					m_data.push_back(validComponentCount);
 
 					// Component meta data
 					const auto lastIndex = m_data.size();
 					m_data.resize(
 							m_data.size() + sizeof(ComponentMetaData*) * validComponentCount);
-						for (uint8_t i = 0; i < validComponentCount; i++) {
-							if (typesToRemove[i] != nullptr)
-								*((ComponentMetaData**)&m_data[lastIndex] + i) =
-										(ComponentMetaData*)typesToRemove[i];
-						}
+					for (uint8_t i = 0; i < validComponentCount; i++) {
+						if (typesToRemove[i] != nullptr)
+							*((ComponentMetaData**)&m_data[lastIndex] + i) =
+									(ComponentMetaData*)typesToRemove[i];
+					}
 				}
 			}
 
@@ -378,216 +378,206 @@ namespace gaia {
 				std::unordered_map<uint32_t, Entity> entityMap;
 				uint32_t entities = 0;
 
-					// Extract data from the buffer
-					for (auto i = 0U; i < m_data.size();) {
-						const auto type = m_data[i++];
-							switch (type) {
-									case CREATE_ENTITY: {
-										entityMap.insert({entities++, world->CreateEntity()});
-									} break;
-									case CREATE_ENTITY_FROM_ARCHETYPE: {
-										uintptr_t ptr = (uintptr_t&)m_data[i];
-										Archetype* archetype = (Archetype*)ptr;
-										i += sizeof(void*);
-										entityMap.insert(
-												{entities++, world->CreateEntity(*archetype)});
-									} break;
-									case CREATE_ENTITY_FROM_QUERY: {
-										auto& query = (CreationQuery&)m_data[i];
-										i += sizeof(CreationQuery);
-										entityMap.insert({entities++, world->CreateEntity(query)});
-									} break;
-									case CREATE_ENTITY_FROM_ENTITY: {
-										Entity entityFrom = (Entity&)m_data[i];
-										i += sizeof(Entity);
-										entityMap.insert(
-												{entities++, world->CreateEntity(entityFrom)});
-									} break;
-									case ADD_COMPONENT: {
-										// Type
-										ComponentType componentType = (ComponentType)m_data[i];
-										i += sizeof(ComponentType);
-										// Entity
-										Entity entity = (Entity&)m_data[i];
-										i += sizeof(Entity);
+				// Extract data from the buffer
+				for (auto i = 0U; i < m_data.size();) {
+					const auto type = m_data[i++];
+					switch (type) {
+						case CREATE_ENTITY: {
+							entityMap.insert({entities++, world->CreateEntity()});
+						} break;
+						case CREATE_ENTITY_FROM_ARCHETYPE: {
+							uintptr_t ptr = (uintptr_t&)m_data[i];
+							Archetype* archetype = (Archetype*)ptr;
+							i += sizeof(void*);
+							entityMap.insert({entities++, world->CreateEntity(*archetype)});
+						} break;
+						case CREATE_ENTITY_FROM_QUERY: {
+							auto& query = (CreationQuery&)m_data[i];
+							i += sizeof(CreationQuery);
+							entityMap.insert({entities++, world->CreateEntity(query)});
+						} break;
+						case CREATE_ENTITY_FROM_ENTITY: {
+							Entity entityFrom = (Entity&)m_data[i];
+							i += sizeof(Entity);
+							entityMap.insert({entities++, world->CreateEntity(entityFrom)});
+						} break;
+						case ADD_COMPONENT: {
+							// Type
+							ComponentType componentType = (ComponentType)m_data[i];
+							i += sizeof(ComponentType);
+							// Entity
+							Entity entity = (Entity&)m_data[i];
+							i += sizeof(Entity);
 
-										// Component count
-										uint8_t componentCount = m_data[i++];
+							// Component count
+							uint8_t componentCount = m_data[i++];
 
-										// Components
-										auto newMetatypes = (const ComponentMetaData**)alloca(
-												sizeof(ComponentMetaData) * componentCount);
-											for (uint8_t j = 0; j < componentCount; ++j) {
-												const auto type =
-														*(const ComponentMetaData**)&m_data[i];
-												newMetatypes[j] = type;
-												i += sizeof(const ComponentMetaData*);
-											}
-										world->AddComponent_Internal(
-												componentType, entity,
-												std::span(newMetatypes, (uintptr_t)componentCount));
-
-										uint32_t indexInChunk;
-										auto chunk = world->GetEntityChunk(entity, indexInChunk);
-										GAIA_ASSERT(chunk != nullptr);
-
-										if (componentType == ComponentType::CT_Chunk)
-											indexInChunk = 0;
-
-											for (uint8_t j = 0; j < componentCount; ++j) {
-												const auto type = newMetatypes[j];
-												auto pComponentData = chunk->SetComponent_Internal(
-														componentType, indexInChunk, type);
-												memset(pComponentData, 0, type->size);
-											}
-									} break;
-									case ADD_COMPONENT_TO_TEMPENTITY: {
-										// Type
-										ComponentType componentType = (ComponentType)m_data[i];
-										i += sizeof(ComponentType);
-										// Entity
-										Entity e = (Entity&)m_data[i];
-										i += sizeof(Entity);
-
-										// For delayed entities we have to do a look in our map
-										// of temporaries and find a link there
-										const auto it = entityMap.find(e.id());
-										// Link has to exist!
-										GAIA_ASSERT(it != entityMap.end());
-
-										Entity entity = it->second;
-
-										// Component count
-										uint8_t componentCount = m_data[i++];
-
-										// Components
-										auto newMetatypes = (const ComponentMetaData**)alloca(
-												sizeof(ComponentMetaData) * componentCount);
-											for (uint8_t j = 0; j < componentCount; ++j) {
-												const auto type =
-														*(const ComponentMetaData**)&m_data[i];
-												newMetatypes[j] = type;
-												i += sizeof(const ComponentMetaData*);
-											}
-										world->AddComponent_Internal(
-												componentType, entity,
-												std::span(newMetatypes, (uintptr_t)componentCount));
-
-										uint32_t indexInChunk;
-										auto chunk = world->GetEntityChunk(entity, indexInChunk);
-										GAIA_ASSERT(chunk != nullptr);
-
-										if (componentType == ComponentType::CT_Chunk)
-											indexInChunk = 0;
-
-											for (uint8_t j = 0; j < componentCount; ++j) {
-												const auto type = newMetatypes[j];
-												auto pComponentData = chunk->SetComponent_Internal(
-														componentType, indexInChunk, type);
-												memset(pComponentData, 0, type->size);
-											}
-									} break;
-									case SET_COMPONENT: {
-										// Type
-										ComponentType componentType = (ComponentType)m_data[i];
-										i += sizeof(ComponentType);
-										// Entity
-										Entity entity = (Entity&)m_data[i];
-										i += sizeof(Entity);
-
-										const auto& entityContainer =
-												world->m_entities[entity.id()];
-										auto chunk = entityContainer.chunk;
-										const auto indexInChunk =
-												componentType == ComponentType::CT_Chunk
-														? 0
-														: entityContainer.idx;
-
-										// Component count
-										const uint8_t componentCount = m_data[i++];
-
-											// Components
-											for (uint8_t j = 0; j < componentCount; ++j) {
-												const uint32_t typeIdx = *(uint32_t*)&m_data[i];
-												const auto* type =
-														g_ComponentCache.GetComponentMetaTypeFromIdx(
-																typeIdx);
-												i += sizeof(typeIdx);
-
-												memcpy(
-														chunk->SetComponent_Internal(
-																componentType, indexInChunk, type),
-														(const void*)&m_data[i], type->size);
-												i += type->size;
-											}
-									} break;
-									case SET_COMPONENT_FOR_TEMPENTITY: {
-										// Type
-										ComponentType componentType = (ComponentType)m_data[i];
-										i += sizeof(ComponentType);
-										// Entity
-										Entity e = (Entity&)m_data[i];
-										i += sizeof(Entity);
-
-										// For delayed entities we have to do a look in our map
-										// of temporaries and find a link there
-										const auto it = entityMap.find(e.id());
-										// Link has to exist!
-										GAIA_ASSERT(it != entityMap.end());
-
-										Entity entity = it->second;
-
-										const auto& entityContainer =
-												world->m_entities[entity.id()];
-										auto chunk = entityContainer.chunk;
-										const auto indexInChunk =
-												componentType == ComponentType::CT_Chunk
-														? 0
-														: entityContainer.idx;
-
-										// Component count
-										const uint8_t componentCount = m_data[i++];
-
-											// Components
-											for (uint8_t j = 0; j < componentCount; ++j) {
-												const uint32_t typeIdx = *(uint32_t*)&m_data[i];
-												const auto* type =
-														g_ComponentCache.GetComponentMetaTypeFromIdx(
-																typeIdx);
-												i += sizeof(typeIdx);
-
-												memcpy(
-														chunk->SetComponent_Internal(
-																componentType, indexInChunk, type),
-														(const void*)&m_data[i], type->size);
-												i += type->size;
-											}
-									} break;
-									case REMOVE_COMPONENT: {
-										// Type
-										ComponentType componentType = (ComponentType&)m_data[i];
-										i += sizeof(ComponentType);
-										// Entity
-										Entity e = (Entity&)m_data[i];
-										i += sizeof(Entity);
-
-										// Component count
-										uint8_t componentCount = m_data[i++];
-
-										// Components
-										auto newMetatypes = (const ComponentMetaData**)alloca(
-												sizeof(ComponentMetaData) * componentCount);
-											for (uint8_t j = 0; j < componentCount; ++j) {
-												auto type = *(ComponentMetaData**)&m_data[i];
-												newMetatypes[j] = type;
-												i += sizeof(const ComponentMetaData*);
-											}
-										world->RemoveComponent_Internal(
-												componentType, e,
-												std::span(newMetatypes, (uintptr_t)componentCount));
-									} break;
+							// Components
+							auto newMetatypes = (const ComponentMetaData**)alloca(
+									sizeof(ComponentMetaData) * componentCount);
+							for (uint8_t j = 0; j < componentCount; ++j) {
+								const auto type = *(const ComponentMetaData**)&m_data[i];
+								newMetatypes[j] = type;
+								i += sizeof(const ComponentMetaData*);
 							}
+							world->AddComponent_Internal(
+									componentType, entity,
+									std::span(newMetatypes, (uintptr_t)componentCount));
+
+							uint32_t indexInChunk;
+							auto chunk = world->GetEntityChunk(entity, indexInChunk);
+							GAIA_ASSERT(chunk != nullptr);
+
+							if (componentType == ComponentType::CT_Chunk)
+								indexInChunk = 0;
+
+							for (uint8_t j = 0; j < componentCount; ++j) {
+								const auto type = newMetatypes[j];
+								auto pComponentData = chunk->SetComponent_Internal(
+										componentType, indexInChunk, type);
+								memset(pComponentData, 0, type->size);
+							}
+						} break;
+						case ADD_COMPONENT_TO_TEMPENTITY: {
+							// Type
+							ComponentType componentType = (ComponentType)m_data[i];
+							i += sizeof(ComponentType);
+							// Entity
+							Entity e = (Entity&)m_data[i];
+							i += sizeof(Entity);
+
+							// For delayed entities we have to do a look in our map
+							// of temporaries and find a link there
+							const auto it = entityMap.find(e.id());
+							// Link has to exist!
+							GAIA_ASSERT(it != entityMap.end());
+
+							Entity entity = it->second;
+
+							// Component count
+							uint8_t componentCount = m_data[i++];
+
+							// Components
+							auto newMetatypes = (const ComponentMetaData**)alloca(
+									sizeof(ComponentMetaData) * componentCount);
+							for (uint8_t j = 0; j < componentCount; ++j) {
+								const auto type = *(const ComponentMetaData**)&m_data[i];
+								newMetatypes[j] = type;
+								i += sizeof(const ComponentMetaData*);
+							}
+							world->AddComponent_Internal(
+									componentType, entity,
+									std::span(newMetatypes, (uintptr_t)componentCount));
+
+							uint32_t indexInChunk;
+							auto chunk = world->GetEntityChunk(entity, indexInChunk);
+							GAIA_ASSERT(chunk != nullptr);
+
+							if (componentType == ComponentType::CT_Chunk)
+								indexInChunk = 0;
+
+							for (uint8_t j = 0; j < componentCount; ++j) {
+								const auto type = newMetatypes[j];
+								auto pComponentData = chunk->SetComponent_Internal(
+										componentType, indexInChunk, type);
+								memset(pComponentData, 0, type->size);
+							}
+						} break;
+						case SET_COMPONENT: {
+							// Type
+							ComponentType componentType = (ComponentType)m_data[i];
+							i += sizeof(ComponentType);
+							// Entity
+							Entity entity = (Entity&)m_data[i];
+							i += sizeof(Entity);
+
+							const auto& entityContainer = world->m_entities[entity.id()];
+							auto chunk = entityContainer.chunk;
+							const auto indexInChunk = componentType == ComponentType::CT_Chunk
+																						? 0
+																						: entityContainer.idx;
+
+							// Component count
+							const uint8_t componentCount = m_data[i++];
+
+							// Components
+							for (uint8_t j = 0; j < componentCount; ++j) {
+								const uint32_t typeIdx = *(uint32_t*)&m_data[i];
+								const auto* type =
+										g_ComponentCache.GetComponentMetaTypeFromIdx(typeIdx);
+								i += sizeof(typeIdx);
+
+								memcpy(
+										chunk->SetComponent_Internal(
+												componentType, indexInChunk, type),
+										(const void*)&m_data[i], type->size);
+								i += type->size;
+							}
+						} break;
+						case SET_COMPONENT_FOR_TEMPENTITY: {
+							// Type
+							ComponentType componentType = (ComponentType)m_data[i];
+							i += sizeof(ComponentType);
+							// Entity
+							Entity e = (Entity&)m_data[i];
+							i += sizeof(Entity);
+
+							// For delayed entities we have to do a look in our map
+							// of temporaries and find a link there
+							const auto it = entityMap.find(e.id());
+							// Link has to exist!
+							GAIA_ASSERT(it != entityMap.end());
+
+							Entity entity = it->second;
+
+							const auto& entityContainer = world->m_entities[entity.id()];
+							auto chunk = entityContainer.chunk;
+							const auto indexInChunk = componentType == ComponentType::CT_Chunk
+																						? 0
+																						: entityContainer.idx;
+
+							// Component count
+							const uint8_t componentCount = m_data[i++];
+
+							// Components
+							for (uint8_t j = 0; j < componentCount; ++j) {
+								const uint32_t typeIdx = *(uint32_t*)&m_data[i];
+								const auto* type =
+										g_ComponentCache.GetComponentMetaTypeFromIdx(typeIdx);
+								i += sizeof(typeIdx);
+
+								memcpy(
+										chunk->SetComponent_Internal(
+												componentType, indexInChunk, type),
+										(const void*)&m_data[i], type->size);
+								i += type->size;
+							}
+						} break;
+						case REMOVE_COMPONENT: {
+							// Type
+							ComponentType componentType = (ComponentType&)m_data[i];
+							i += sizeof(ComponentType);
+							// Entity
+							Entity e = (Entity&)m_data[i];
+							i += sizeof(Entity);
+
+							// Component count
+							uint8_t componentCount = m_data[i++];
+
+							// Components
+							auto newMetatypes = (const ComponentMetaData**)alloca(
+									sizeof(ComponentMetaData) * componentCount);
+							for (uint8_t j = 0; j < componentCount; ++j) {
+								auto type = *(ComponentMetaData**)&m_data[i];
+								newMetatypes[j] = type;
+								i += sizeof(const ComponentMetaData*);
+							}
+							world->RemoveComponent_Internal(
+									componentType, e,
+									std::span(newMetatypes, (uintptr_t)componentCount));
+						} break;
 					}
+				}
 
 				m_entities = 0;
 				m_data.clear();

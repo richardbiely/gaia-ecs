@@ -19,12 +19,12 @@ using namespace gaia;
 
 void BM_CreateEntity(benchmark::State& state) {
 	constexpr uint32_t N = 1'000'000;
-		for ([[maybe_unused]] auto _: state) {
-			ecs::World w;
-				for (uint32_t i = 0; i < N; ++i) {
-					[[maybe_unused]] auto e = w.CreateEntity();
-				}
+	for ([[maybe_unused]] auto _: state) {
+		ecs::World w;
+		for (uint32_t i = 0; i < N; ++i) {
+			[[maybe_unused]] auto e = w.CreateEntity();
 		}
+	}
 }
 BENCHMARK(BM_CreateEntity);
 
@@ -39,15 +39,14 @@ struct Component<version, T, 0U> {};
 template <typename T, uint32_t ComponentItems, uint32_t Components>
 void BM_CreateEntity_With_Component______(benchmark::State& state) {
 	constexpr uint32_t N = 1'000'000;
-		for ([[maybe_unused]] auto _: state) {
-			ecs::World w;
-				for (uint32_t i = 0; i < N; ++i) {
-					[[maybe_unused]] auto e = w.CreateEntity();
-					utils::for_each<Components>([&](auto i) {
-						w.AddComponent<Component<i, T, ComponentItems>>(e);
-					});
-				}
+	for ([[maybe_unused]] auto _: state) {
+		ecs::World w;
+		for (uint32_t i = 0; i < N; ++i) {
+			[[maybe_unused]] auto e = w.CreateEntity();
+			utils::for_each<Components>(
+					[&](auto i) { w.AddComponent<Component<i, T, ComponentItems>>(e); });
 		}
+	}
 }
 
 template <typename T, uint32_t ComponentItems, auto... Is>
@@ -62,14 +61,14 @@ AddComponents(ecs::World& w, ecs::Entity e, std::index_sequence<Is...>) {
 template <typename T, uint32_t ComponentItems, uint32_t Components>
 void BM_CreateEntity_With_Component_Batch(benchmark::State& state) {
 	constexpr uint32_t N = 1'000'000;
-		for (auto _: state) {
-			ecs::World w;
-				for (uint32_t i = 0; i < N; ++i) {
-					[[maybe_unused]] auto e = w.CreateEntity();
-					AddComponents<T, ComponentItems>(
-							w, e, std::make_index_sequence<uint32_t(Components)>());
-				}
+	for (auto _: state) {
+		ecs::World w;
+		for (uint32_t i = 0; i < N; ++i) {
+			[[maybe_unused]] auto e = w.CreateEntity();
+			AddComponents<T, ComponentItems>(
+					w, e, std::make_index_sequence<uint32_t(Components)>());
 		}
+	}
 }
 
 #define BENCHMARK_CREATEENTITY_WITH_COMPONENT______(component_count)           \

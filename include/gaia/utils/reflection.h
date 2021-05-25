@@ -52,48 +52,48 @@ namespace gaia {
 			// We also want compilation to fail for structs with many members so we
 			// can handle them here That shouldn't be necessary, though for we plan
 			// to support only structs with little amount of arguments.
-				if constexpr (is_braces_constructible_t<
-													type, any_type, any_type, any_type, any_type,
-													any_type, any_type, any_type, any_type>{}) {
-					auto&& [p1, p2, p3, p4, p5, p6, p7, p8] = object;
-					return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8);
-				} else if constexpr (is_braces_constructible_t<
-																 type, any_type, any_type, any_type, any_type,
-																 any_type, any_type, any_type>{}) {
-					auto&& [p1, p2, p3, p4, p5, p6, p7] = object;
-					return std::make_tuple(p1, p2, p3, p4, p5, p6, p7);
-				} else if constexpr (is_braces_constructible_t<
-																 type, any_type, any_type, any_type, any_type,
-																 any_type, any_type>{}) {
-					auto&& [p1, p2, p3, p4, p5, p6] = object;
-					return std::make_tuple(p1, p2, p3, p4, p5, p6);
-				} else if constexpr (is_braces_constructible_t<
-																 type, any_type, any_type, any_type, any_type,
-																 any_type>{}) {
-					auto&& [p1, p2, p3, p4, p5] = object;
-					return std::make_tuple(p1, p2, p3, p4, p5);
-				} else if constexpr (is_braces_constructible_t<
-																 type, any_type, any_type, any_type,
-																 any_type>{}) {
-					auto&& [p1, p2, p3, p4] = object;
-					return std::make_tuple(p1, p2, p3, p4);
-				} else if constexpr (is_braces_constructible_t<
-																 type, any_type, any_type, any_type>{}) {
-					auto&& [p1, p2, p3] = object;
-					return std::make_tuple(p1, p2, p3);
-				} else if constexpr (is_braces_constructible_t<
-																 type, any_type, any_type>{}) {
-					auto&& [p1, p2] = object;
-					return std::make_tuple(p1, p2);
-				} else if constexpr (is_braces_constructible_t<type, any_type>{}) {
-					auto&& [p1] = object;
-					return std::make_tuple(p1);
-				}
-				// Let's not support defaults. We don't want to allow too many types
-				// because they indicate some wrong usage of ECS.
-				else {
-					return std::make_tuple();
-				}
+			if constexpr (is_braces_constructible_t<
+												type, any_type, any_type, any_type, any_type, any_type,
+												any_type, any_type, any_type>{}) {
+				auto&& [p1, p2, p3, p4, p5, p6, p7, p8] = object;
+				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8);
+			} else if constexpr (is_braces_constructible_t<
+															 type, any_type, any_type, any_type, any_type,
+															 any_type, any_type, any_type>{}) {
+				auto&& [p1, p2, p3, p4, p5, p6, p7] = object;
+				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7);
+			} else if constexpr (is_braces_constructible_t<
+															 type, any_type, any_type, any_type, any_type,
+															 any_type, any_type>{}) {
+				auto&& [p1, p2, p3, p4, p5, p6] = object;
+				return std::make_tuple(p1, p2, p3, p4, p5, p6);
+			} else if constexpr (is_braces_constructible_t<
+															 type, any_type, any_type, any_type, any_type,
+															 any_type>{}) {
+				auto&& [p1, p2, p3, p4, p5] = object;
+				return std::make_tuple(p1, p2, p3, p4, p5);
+			} else if constexpr (is_braces_constructible_t<
+															 type, any_type, any_type, any_type,
+															 any_type>{}) {
+				auto&& [p1, p2, p3, p4] = object;
+				return std::make_tuple(p1, p2, p3, p4);
+			} else if constexpr (is_braces_constructible_t<
+															 type, any_type, any_type, any_type>{}) {
+				auto&& [p1, p2, p3] = object;
+				return std::make_tuple(p1, p2, p3);
+			} else if constexpr (is_braces_constructible_t<
+															 type, any_type, any_type>{}) {
+				auto&& [p1, p2] = object;
+				return std::make_tuple(p1, p2);
+			} else if constexpr (is_braces_constructible_t<type, any_type>{}) {
+				auto&& [p1] = object;
+				return std::make_tuple(p1);
+			}
+			// Let's not support defaults. We don't want to allow too many types
+			// because they indicate some wrong usage of ECS.
+			else {
+				return std::make_tuple();
+			}
 		}
 
 #pragma endregion

@@ -91,15 +91,15 @@ namespace gaia {
 		[[nodiscard]] constexpr uint64_t
 		CalculateLookupHash(Container arr) noexcept {
 			constexpr auto N = arr.size();
-				if constexpr (N == 0) {
-					return 0;
-				} else {
-					uint64_t hash = arr[0];
-					utils::for_each<N - 1>([&hash, &arr](auto i) {
-						hash = utils::hash_combine(hash, arr[i + 1]);
-					});
-					return hash;
-				}
+			if constexpr (N == 0) {
+				return 0;
+			} else {
+				uint64_t hash = arr[0];
+				utils::for_each<N - 1>([&hash, &arr](auto i) {
+					hash = utils::hash_combine(hash, arr[i + 1]);
+				});
+				return hash;
+			}
 		}
 
 		template <typename = void, typename...>
@@ -151,13 +151,13 @@ namespace gaia {
 				mth.matcherHash = CalculateMatcherHash<TComponent>();
 				mth.typeIndex = utils::type_info::index<TComponent>();
 
-					if constexpr (!std::is_empty<TComponent>::value) {
-						mth.alig = (uint32_t)alignof(TComponent);
-						mth.size = (uint32_t)sizeof(TComponent);
-					} else {
-						mth.alig = 0;
-						mth.size = 0;
-					}
+				if constexpr (!std::is_empty<TComponent>::value) {
+					mth.alig = (uint32_t)alignof(TComponent);
+					mth.size = (uint32_t)sizeof(TComponent);
+				} else {
+					mth.alig = 0;
+					mth.size = 0;
+				}
 
 				return mth;
 			};
@@ -270,25 +270,24 @@ namespace gaia {
 
 			void Diag() const {
 				uint32_t registeredTypes = 0;
-					for (const auto* type: m_types) {
-						if (type == nullptr)
-							continue;
+				for (const auto* type: m_types) {
+					if (type == nullptr)
+						continue;
 
-						++registeredTypes;
-					}
+					++registeredTypes;
+				}
 				LOG_N("Registered types: %u", registeredTypes);
 
-					for (const auto* type: m_types) {
-						if (type == nullptr)
-							continue;
+				for (const auto* type: m_types) {
+					if (type == nullptr)
+						continue;
 
-						LOG_N(
-								"--> (%p) lookupHash:%016llx, matcherHash:%016llx, "
-								"index:%010u, %.*s",
-								(void*)type, type->lookupHash, type->matcherHash,
-								type->typeIndex, (uint32_t)type->name.length(),
-								type->name.data());
-					}
+					LOG_N(
+							"--> (%p) lookupHash:%016llx, matcherHash:%016llx, "
+							"index:%010u, %.*s",
+							(void*)type, type->lookupHash, type->matcherHash, type->typeIndex,
+							(uint32_t)type->name.length(), type->name.data());
+				}
 
 				using DuplicateMap =
 						std::unordered_map<uint64_t, std::vector<const ComponentMetaData*>>;
@@ -298,23 +297,23 @@ namespace gaia {
 						if (pair.second.size() <= 1)
 							continue;
 
-							if (errIfDuplicate) {
-								LOG_E("Duplicity detected for key %016llx", pair.first);
-							} else {
-								LOG_N("Duplicity detected for key %016llx", pair.first);
-							}
+						if (errIfDuplicate) {
+							LOG_E("Duplicity detected for key %016llx", pair.first);
+						} else {
+							LOG_N("Duplicity detected for key %016llx", pair.first);
+						}
 
-							for (const auto* type: pair.second) {
-								if (type == nullptr)
-									continue;
+						for (const auto* type: pair.second) {
+							if (type == nullptr)
+								continue;
 
-								LOG_N(
-										"--> (%p) lookupHash:%016llx, matcherHash:%016llx, "
-										"index:%010u, %.*s",
-										(void*)type, type->lookupHash, type->matcherHash,
-										type->typeIndex, (uint32_t)type->name.length(),
-										type->name.data());
-							}
+							LOG_N(
+									"--> (%p) lookupHash:%016llx, matcherHash:%016llx, "
+									"index:%010u, %.*s",
+									(void*)type, type->lookupHash, type->matcherHash,
+									type->typeIndex, (uint32_t)type->name.length(),
+									type->name.data());
+						}
 					}
 				};
 
@@ -322,18 +321,18 @@ namespace gaia {
 				{
 					bool hasDuplicates = false;
 					DuplicateMap m;
-						for (const auto* type: m_types) {
-							if (type == nullptr)
-								continue;
+					for (const auto* type: m_types) {
+						if (type == nullptr)
+							continue;
 
-							const auto it = m.find(type->lookupHash);
-							if (it == m.end())
-								m.insert({type->lookupHash, {type}});
-								else {
-									it->second.push_back(type);
-									hasDuplicates = true;
-								}
+						const auto it = m.find(type->lookupHash);
+						if (it == m.end())
+							m.insert({type->lookupHash, {type}});
+						else {
+							it->second.push_back(type);
+							hasDuplicates = true;
 						}
+					}
 
 					if (hasDuplicates)
 						checkDuplicity(m, true);
@@ -345,18 +344,18 @@ namespace gaia {
 				{
 					bool hasDuplicates = false;
 					DuplicateMap m;
-						for (const auto* type: m_types) {
-							if (type == nullptr)
-								continue;
+					for (const auto* type: m_types) {
+						if (type == nullptr)
+							continue;
 
-							const auto it = m.find(type->matcherHash);
-							if (it == m.end())
-								m.insert({type->matcherHash, {type}});
-								else {
-									it->second.push_back(type);
-									hasDuplicates = true;
-								}
+						const auto it = m.find(type->matcherHash);
+						if (it == m.end())
+							m.insert({type->matcherHash, {type}});
+						else {
+							it->second.push_back(type);
+							hasDuplicates = true;
 						}
+					}
 
 					if (hasDuplicates)
 						checkDuplicity(m, false);
@@ -365,10 +364,10 @@ namespace gaia {
 
 		private:
 			void ClearRegisteredTypeCache() {
-					for (auto* p: m_types) {
-						if (p)
-							delete p;
-					}
+				for (auto* p: m_types) {
+					if (p)
+						delete p;
+				}
 				m_types.clear();
 			}
 		};

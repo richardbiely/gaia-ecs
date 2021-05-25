@@ -24,18 +24,17 @@ namespace gaia {
 			template <unsigned N, typename Tuple>
 			constexpr static unsigned
 			soa_byte_offset(const uintptr_t address, const unsigned size) {
-					if constexpr (N == 0) {
-						// Handle alignment to SoADataAlignment bytes for SSE
-						return (
-								unsigned)(utils::align<SoADataAlignment>(address) - address);
-					} else {
-						// Handle alignment to SoADataAlignment bytes for SSE
-						const auto offset =
-								(unsigned)(utils::align<SoADataAlignment>(address) - address);
-						return sizeof(typename std::tuple_element<N - 1, Tuple>::type) *
-											 size +
-									 offset + soa_byte_offset<N - 1, Tuple>(address, size);
-					}
+				if constexpr (N == 0) {
+					// Handle alignment to SoADataAlignment bytes for SSE
+					return (unsigned)(utils::align<SoADataAlignment>(address) - address);
+				} else {
+					// Handle alignment to SoADataAlignment bytes for SSE
+					const auto offset =
+							(unsigned)(utils::align<SoADataAlignment>(address) - address);
+					return sizeof(typename std::tuple_element<N - 1, Tuple>::type) *
+										 size +
+								 offset + soa_byte_offset<N - 1, Tuple>(address, size);
+				}
 			}
 
 #pragma endregion

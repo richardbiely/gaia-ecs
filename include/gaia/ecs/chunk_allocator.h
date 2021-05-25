@@ -114,9 +114,9 @@ namespace gaia {
 
 #define LListInsert(llist, item, link)                                         \
 	(item)->link.next = llist.first;                                             \
-		if (llist.first) {                                                         \
-			llist.first->link.prev = &((item)->link.next);                           \
-			llist.first = item;                                                      \
+	if (llist.first) {                                                           \
+		llist.first->link.prev = &((item)->link.next);                             \
+		llist.first = item;                                                        \
 	}                                                                            \
 	(item)->link.prev = &llist.first;                                            \
 	llist.first = item;                                                          \
@@ -192,16 +192,16 @@ namespace gaia {
 					uint32_t num = 0;
 
 					BlockHead* pblock = m_FreeBlocks.first;
-						while (pblock) {
-							pblock = pblock->m_Link.next;
-							num++;
-						}
+					while (pblock) {
+						pblock = pblock->m_Link.next;
+						num++;
+					}
 
 					pblock = m_FullBlocks.first;
-						while (pblock) {
-							pblock = pblock->m_Link.next;
-							num++;
-						}
+					while (pblock) {
+						pblock = pblock->m_Link.next;
+						num++;
+					}
 
 					return sizeof(MemoryBlock) + num * Size;
 				}
@@ -244,31 +244,31 @@ namespace gaia {
 				m_Block.m_iNumAllocations++;
 
 				BlockHead* freeHead = m_Block.m_FreeBlocks.first;
-					if (!freeHead) {
-						// No free block?
-						freeHead = AllocBlock();
-						LListInsert(m_Block.m_FreeBlocks, freeHead, m_Link);
+				if (!freeHead) {
+					// No free block?
+					freeHead = AllocBlock();
+					LListInsert(m_Block.m_FreeBlocks, freeHead, m_Link);
 				}
 
 				MemItem* pfree = freeHead->m_pFirstFree;
-					if (pfree) {
-						// Recycled allocation
-						freeHead->m_pFirstFree = pfree->next;
-						GAIA_ASSERT(
-								((uintptr_t)freeHead + MemoryBlock::Size) >=
-								(uintptr_t)pfree + CHUNK_SIZE);
-					} else {
-						// Initial allocation
-						pfree = (MemItem*)((uint8_t*)freeHead + freeHead->m_iFreeOffset);
-						freeHead->m_iFreeOffset += CHUNK_SIZE;
-						GAIA_ASSERT(freeHead->m_iFreeOffset <= MemoryBlock::Size);
-					}
+				if (pfree) {
+					// Recycled allocation
+					freeHead->m_pFirstFree = pfree->next;
+					GAIA_ASSERT(
+							((uintptr_t)freeHead + MemoryBlock::Size) >=
+							(uintptr_t)pfree + CHUNK_SIZE);
+				} else {
+					// Initial allocation
+					pfree = (MemItem*)((uint8_t*)freeHead + freeHead->m_iFreeOffset);
+					freeHead->m_iFreeOffset += CHUNK_SIZE;
+					GAIA_ASSERT(freeHead->m_iFreeOffset <= MemoryBlock::Size);
+				}
 
 				freeHead->m_iUsedItems++;
-					// Just made it full, move to full list
-					if (freeHead->m_iUsedItems == m_Block.m_iMaxItems) {
-						LListRemove(m_Block.m_FreeBlocks, freeHead, m_Link);
-						LListInsert(m_Block.m_FullBlocks, freeHead, m_Link);
+				// Just made it full, move to full list
+				if (freeHead->m_iUsedItems == m_Block.m_iMaxItems) {
+					LListRemove(m_Block.m_FreeBlocks, freeHead, m_Link);
+					LListInsert(m_Block.m_FullBlocks, freeHead, m_Link);
 				}
 
 #ifdef _DEBUG
@@ -314,10 +314,10 @@ namespace gaia {
 				((MemItem*)pointer)->next = head->m_pFirstFree;
 				head->m_pFirstFree = (MemItem*)pointer;
 
-					if (head->m_iUsedItems == m_Block.m_iMaxItems) {
-						// just made it free. Move to free list
-						LListRemove(m_Block.m_FullBlocks, head, m_Link);
-						LListInsert(m_Block.m_FreeBlocks, head, m_Link);
+				if (head->m_iUsedItems == m_Block.m_iMaxItems) {
+					// just made it free. Move to free list
+					LListRemove(m_Block.m_FullBlocks, head, m_Link);
+					LListInsert(m_Block.m_FreeBlocks, head, m_Link);
 				}
 
 				head->m_iUsedItems--;
@@ -325,19 +325,18 @@ namespace gaia {
 				// Pointer removed more than once?!
 				GAIA_ASSERT(head->m_iUsedItems >= 0);
 
-					if (head->m_iUsedItems == 0) {
-							// If it's empty but it's not the last one, release it
-							if (head != m_Block.m_FreeBlocks.first ||
-									head->m_Link.next != NULL) {
-								LListRemove(m_Block.m_FreeBlocks, head, m_Link);
-								m_Block.m_iNumBlocks--;
+				if (head->m_iUsedItems == 0) {
+					// If it's empty but it's not the last one, release it
+					if (head != m_Block.m_FreeBlocks.first || head->m_Link.next != NULL) {
+						LListRemove(m_Block.m_FreeBlocks, head, m_Link);
+						m_Block.m_iNumBlocks--;
 
-								FreeBlock(head);
-								return CHUNK_SIZE;
-							} else {
-								head->m_pFirstFree = nullptr;
-								head->m_iFreeOffset = BlockHeadSize;
-							}
+						FreeBlock(head);
+						return CHUNK_SIZE;
+					} else {
+						head->m_pFirstFree = nullptr;
+						head->m_iFreeOffset = BlockHeadSize;
+					}
 				}
 
 				return CHUNK_SIZE;
@@ -349,17 +348,17 @@ namespace gaia {
 			void FreeAll() {
 				ECS_ASSERT_MAIN_THREAD;
 
-					// Release free pages
-					for (MemoryPage *next, *page = m_FreePages.first; page; page = next) {
-						next = page->m_Link.next;
-						FreePage(page);
-					}
+				// Release free pages
+				for (MemoryPage *next, *page = m_FreePages.first; page; page = next) {
+					next = page->m_Link.next;
+					FreePage(page);
+				}
 
-					// Release full pages
-					for (MemoryPage *next, *page = m_FullPages.first; page; page = next) {
-						next = page->m_Link.next;
-						FreePage(page);
-					}
+				// Release full pages
+				for (MemoryPage *next, *page = m_FullPages.first; page; page = next) {
+					next = page->m_Link.next;
+					FreePage(page);
+				}
 
 				m_Block.m_FreeBlocks.Clear();
 				m_Block.m_FullBlocks.Clear();
@@ -386,24 +385,24 @@ namespace gaia {
 			void Flush() {
 				ECS_ASSERT_MAIN_THREAD;
 
-					for (BlockHead *next, *head = m_Block.m_FreeBlocks.first; head;
-							 head = next) {
-						next = head->m_Link.next;
+				for (BlockHead *next, *head = m_Block.m_FreeBlocks.first; head;
+						 head = next) {
+					next = head->m_Link.next;
 
-							if (head->m_iUsedItems == 0) {
-								ReleaseBlock(head);
-								FreeBlock(head);
-						}
+					if (head->m_iUsedItems == 0) {
+						ReleaseBlock(head);
+						FreeBlock(head);
 					}
+				}
 
-					for (MemoryPage *next, *page = m_FreePages.first; page; page = next) {
-						next = page->m_Link.next;
-							if (page->m_Blocks.count() ==
-									(MemoryPage::Size / MemoryBlock::Size)) {
-								LListRemove(m_FreePages, page, m_Link);
-								FreePage(page);
-						}
+				for (MemoryPage *next, *page = m_FreePages.first; page; page = next) {
+					next = page->m_Link.next;
+					if (page->m_Blocks.count() ==
+							(MemoryPage::Size / MemoryBlock::Size)) {
+						LListRemove(m_FreePages, page, m_Link);
+						FreePage(page);
 					}
+				}
 			}
 
 		private:
@@ -416,13 +415,13 @@ namespace gaia {
 				uint8_t* firstBlock =
 						(uint8_t*)BlockFromPtr(pagePtr + MemoryBlock::Size - 1);
 				const uint32_t numBlocks = MemoryPage::Size / MemoryBlock::Size;
-					for (int n = numBlocks - 1; n >= 0; n--) {
-						BlockHead* blockHead =
-								(BlockHead*)(firstBlock + MemoryBlock::Size * n);
-						new (blockHead) BlockHead;
-						blockHead->m_pOwner = mpage;
-						LListInsert(mpage->m_Blocks, blockHead, m_Link);
-					}
+				for (int n = numBlocks - 1; n >= 0; n--) {
+					BlockHead* blockHead =
+							(BlockHead*)(firstBlock + MemoryBlock::Size * n);
+					new (blockHead) BlockHead;
+					blockHead->m_pOwner = mpage;
+					LListInsert(mpage->m_Blocks, blockHead, m_Link);
+				}
 
 				LListInsert(m_FreePages, mpage, m_Link);
 				return mpage;
@@ -440,9 +439,9 @@ namespace gaia {
 
 				BlockHead* newone = page->m_Blocks.first;
 				LListRemove(page->m_Blocks, newone, m_Link);
-					if (page->m_Blocks.IsEmpty()) {
-						LListRemove(m_FreePages, page, m_Link);
-						LListInsert(m_FullPages, page, m_Link);
+				if (page->m_Blocks.IsEmpty()) {
+					LListRemove(m_FreePages, page, m_Link);
+					LListInsert(m_FullPages, page, m_Link);
 				}
 
 				m_Block.m_iNumBlocks++;
@@ -459,16 +458,15 @@ namespace gaia {
 						(uintptr_t)head < ((uintptr_t)page->data + MemoryPage::Size));
 				LListInsert(page->m_Blocks, head, m_Link);
 
-					if (page->m_Blocks.count() == 1) {
-						LListRemove(m_FullPages, page, m_Link);
-						LListInsert(m_FreePages, page, m_Link);
-					} else if (
-							page->m_Blocks.count() ==
-							(MemoryPage::Size / MemoryBlock::Size)) {
-							if (m_FreePages.count() > 1) {
-								LListRemove(m_FreePages, page, m_Link);
-								FreePage(page);
-						}
+				if (page->m_Blocks.count() == 1) {
+					LListRemove(m_FullPages, page, m_Link);
+					LListInsert(m_FreePages, page, m_Link);
+				} else if (
+						page->m_Blocks.count() == (MemoryPage::Size / MemoryBlock::Size)) {
+					if (m_FreePages.count() > 1) {
+						LListRemove(m_FreePages, page, m_Link);
+						FreePage(page);
+					}
 				}
 			}
 

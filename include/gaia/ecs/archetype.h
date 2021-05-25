@@ -87,59 +87,58 @@ namespace gaia {
 						(uint32_t)sizeof(Entity) * maxGenericItemsInArchetype;
 				auto alignedOffset = (uint32_t)sizeof(ChunkHeader) + componentOffset;
 
-					// Add generic types
-					for (uint32_t i = 0u; i < (uint32_t)genericTypes.size(); i++) {
-						const auto a = genericTypes[i]->alig;
-							if (a != 0) {
-								const uint32_t padding =
-										utils::align(alignedOffset, a) - alignedOffset;
-								componentOffset += padding;
-								alignedOffset += padding;
+				// Add generic types
+				for (uint32_t i = 0u; i < (uint32_t)genericTypes.size(); i++) {
+					const auto a = genericTypes[i]->alig;
+					if (a != 0) {
+						const uint32_t padding =
+								utils::align(alignedOffset, a) - alignedOffset;
+						componentOffset += padding;
+						alignedOffset += padding;
 
-								// Make sure we didn't exceed the chunk size
-								GAIA_ASSERT(componentOffset <= Chunk::DATA_SIZE);
-						}
-
-						newArch->componentList[ComponentType::CT_Generic].push_back(
-								{genericTypes[i], componentOffset});
-
-							// Make sure the following component list is properly aligned
-							if (a != 0) {
-								componentOffset +=
-										genericTypes[i]->size * maxGenericItemsInArchetype;
-								alignedOffset +=
-										genericTypes[i]->size * maxGenericItemsInArchetype;
-
-								// Make sure we didn't exceed the chunk size
-								GAIA_ASSERT(componentOffset <= Chunk::DATA_SIZE);
-						}
+						// Make sure we didn't exceed the chunk size
+						GAIA_ASSERT(componentOffset <= Chunk::DATA_SIZE);
 					}
 
-					// Add chunk types
-					for (uint32_t i = 0; i < (uint32_t)chunkTypes.size(); i++) {
-						const auto a = chunkTypes[i]->alig;
-							if (a != 0) {
-								const uint32_t padding =
-										utils::align(alignedOffset, a) - alignedOffset;
-								componentOffset += padding;
-								alignedOffset += padding;
+					newArch->componentList[ComponentType::CT_Generic].push_back(
+							{genericTypes[i], componentOffset});
 
-								// Make sure we didn't exceed the chunk size
-								GAIA_ASSERT(componentOffset <= Chunk::DATA_SIZE);
-						}
+					// Make sure the following component list is properly aligned
+					if (a != 0) {
+						componentOffset +=
+								genericTypes[i]->size * maxGenericItemsInArchetype;
+						alignedOffset += genericTypes[i]->size * maxGenericItemsInArchetype;
 
-						newArch->componentList[ComponentType::CT_Chunk].push_back(
-								{chunkTypes[i], componentOffset});
-
-							// Make sure the following component list is properly aligned
-							if (a != 0) {
-								componentOffset += chunkTypes[i]->size;
-								alignedOffset += chunkTypes[i]->size;
-
-								// Make sure we didn't exceed the chunk size
-								GAIA_ASSERT(componentOffset <= Chunk::DATA_SIZE);
-						}
+						// Make sure we didn't exceed the chunk size
+						GAIA_ASSERT(componentOffset <= Chunk::DATA_SIZE);
 					}
+				}
+
+				// Add chunk types
+				for (uint32_t i = 0; i < (uint32_t)chunkTypes.size(); i++) {
+					const auto a = chunkTypes[i]->alig;
+					if (a != 0) {
+						const uint32_t padding =
+								utils::align(alignedOffset, a) - alignedOffset;
+						componentOffset += padding;
+						alignedOffset += padding;
+
+						// Make sure we didn't exceed the chunk size
+						GAIA_ASSERT(componentOffset <= Chunk::DATA_SIZE);
+					}
+
+					newArch->componentList[ComponentType::CT_Chunk].push_back(
+							{chunkTypes[i], componentOffset});
+
+					// Make sure the following component list is properly aligned
+					if (a != 0) {
+						componentOffset += chunkTypes[i]->size;
+						alignedOffset += chunkTypes[i]->size;
+
+						// Make sure we didn't exceed the chunk size
+						GAIA_ASSERT(componentOffset <= Chunk::DATA_SIZE);
+					}
+				}
 
 				// Create a chunk in the new archetype
 				auto chunk = AllocateChunk(*newArch);
@@ -161,12 +160,12 @@ namespace gaia {
 				if (lastChunk && !lastChunk->IsFull())
 					return lastChunk;
 
-					// Try previous chunks to fill empty spaces
-					for (uint32_t i = 0; i < (uint32_t)chunks.size() - 1; i++) {
-						auto pChunk = chunks[i];
-						if (pChunk && !pChunk->IsFull())
-							return pChunk;
-					}
+				// Try previous chunks to fill empty spaces
+				for (uint32_t i = 0; i < (uint32_t)chunks.size() - 1; i++) {
+					auto pChunk = chunks[i];
+					if (pChunk && !pChunk->IsFull())
+						return pChunk;
+				}
 
 				// No free space found anywhere. Let's create a new one
 				auto* pChunk = AllocateChunk(*this);

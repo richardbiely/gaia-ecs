@@ -103,9 +103,9 @@ namespace gaia {
 		//! print(69, "likes", 420.0f);
 		template <auto FirstIdx, auto LastIdx, auto Inc, typename Func>
 		constexpr void for_each_ext(Func&& func) {
-				if constexpr (FirstIdx < LastIdx) {
-					func(std::integral_constant<decltype(FirstIdx), FirstIdx>());
-					for_each_ext<FirstIdx + Inc, LastIdx, Inc>(func);
+			if constexpr (FirstIdx < LastIdx) {
+				func(std::integral_constant<decltype(FirstIdx), FirstIdx>());
+				for_each_ext<FirstIdx + Inc, LastIdx, Inc>(func);
 			}
 		}
 
@@ -149,21 +149,21 @@ namespace gaia {
 				using size_type = typename Array::size_type;
 				size_type gap = array_.size();
 				bool swapped = false;
-					while ((gap > size_type{1}) or swapped) {
-							if (gap > size_type{1}) {
-								gap = static_cast<size_type>(gap / 1.247330950103979);
-						}
-						swapped = false;
-							for (size_type i = size_type{0};
-									 gap + i < static_cast<size_type>(array_.size()); ++i) {
-									if (array_[i] > array_[i + gap]) {
-										auto swap = array_[i];
-										array_[i] = array_[i + gap];
-										array_[i + gap] = swap;
-										swapped = true;
-								}
-							}
+				while ((gap > size_type{1}) || swapped) {
+					if (gap > size_type{1}) {
+						gap = static_cast<size_type>(gap / 1.247330950103979);
 					}
+					swapped = false;
+					for (size_type i = size_type{0};
+							 gap + i < static_cast<size_type>(array_.size()); ++i) {
+						if (array_[i] > array_[i + gap]) {
+							auto swap = array_[i];
+							array_[i] = array_[i + gap];
+							array_[i + gap] = swap;
+							swapped = true;
+						}
+					}
+				}
 			}
 		} // namespace detail
 
