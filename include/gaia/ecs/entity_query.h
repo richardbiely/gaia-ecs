@@ -76,7 +76,7 @@ namespace gaia {
 		// struct EntityQuery2<T1, T2, ecs::NoneTypes<>>;
 
 		template <typename TQuery>
-		inline void DiagQuery(const TQuery& q) {
+		inline void DiagQuery([[maybe_unused]] const TQuery& q) {
 			auto print_type = [](auto const&... e) {
 				(printf(
 						 "%.*s\n", (uint32_t)utils::type_info::name<decltype(e)>().length(),
@@ -197,7 +197,7 @@ namespace gaia {
 										"filter query!",
 										(uint32_t)metaType->name.length(), metaType->name.data());
 								LOG_E("Already present:");
-									for (auto i = 0; i < (uint32_t)arr.size(); i++) {
+									for (auto i = 0U; i < (uint32_t)arr.size(); i++) {
 										const auto meta = GetComponentMetaTypeFromIdx(arr[i]);
 										LOG_E(
 												"> [%u] %.*s", i, (uint32_t)meta->name.length(),
