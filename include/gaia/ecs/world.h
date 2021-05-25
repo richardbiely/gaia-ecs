@@ -855,38 +855,43 @@ namespace gaia {
 			*/
 			Entity CreateEntity(Entity entity) {
 				auto& entityContainer = m_entities[entity.id()];
-				auto chunk = entityContainer.chunk;
-				auto& archetype = const_cast<Archetype&>(chunk->header.owner);
+					if (auto chunk = entityContainer.chunk) {
+						auto& archetype = const_cast<Archetype&>(chunk->header.owner);
 
-				Entity newEntity = CreateEntity(archetype);
-				auto& newEntityContainer = m_entities[newEntity.id()];
-				auto newChunk = newEntityContainer.chunk;
+						Entity newEntity = CreateEntity(archetype);
+						auto& newEntityContainer = m_entities[newEntity.id()];
+						auto newChunk = newEntityContainer.chunk;
 
-				// By adding a new entity m_entities array might have been reallocated.
-				// We need to get the new address.
-				auto& oldEntityContainer = m_entities[entity.id()];
-				auto oldChunk = oldEntityContainer.chunk;
+						// By adding a new entity m_entities array might have been
+						// reallocated. We need to get the new address.
+						auto& oldEntityContainer = m_entities[entity.id()];
+						auto oldChunk = oldEntityContainer.chunk;
 
-				// Copy generic component data from reference entity to our new entity
-				const auto& info = archetype.componentList[ComponentType::CT_Generic];
-					for (uint32_t i = 0; i < info.size(); i++) {
-						const auto type = info[i].type;
-						if (!type->size)
-							continue;
+						// Copy generic component data from reference entity to our new
+						// entity
+						const auto& info =
+								archetype.componentList[ComponentType::CT_Generic];
+							for (uint32_t i = 0; i < info.size(); i++) {
+								const auto type = info[i].type;
+								if (!type->size)
+									continue;
 
-						const uint32_t idxFrom =
-								info[i].offset + type->size * oldEntityContainer.idx;
-						const uint32_t idxTo =
-								info[i].offset + type->size * newEntityContainer.idx;
+								const uint32_t idxFrom =
+										info[i].offset + type->size * oldEntityContainer.idx;
+								const uint32_t idxTo =
+										info[i].offset + type->size * newEntityContainer.idx;
 
-						GAIA_ASSERT(idxFrom < Chunk::DATA_SIZE);
-						GAIA_ASSERT(idxTo < Chunk::DATA_SIZE);
+								GAIA_ASSERT(idxFrom < Chunk::DATA_SIZE);
+								GAIA_ASSERT(idxTo < Chunk::DATA_SIZE);
 
-						memcpy(
-								&newChunk->data[idxTo], &oldChunk->data[idxFrom], type->size);
-					}
+								memcpy(
+										&newChunk->data[idxTo], &oldChunk->data[idxFrom],
+										type->size);
+							}
 
-				return newEntity;
+						return newEntity;
+				} else
+					return CreateEntity();
 			}
 
 			/*!
@@ -913,6 +918,14 @@ namespace gaia {
 						// Return entity to pool
 						DeallocateEntity(entity);
 					}
+			}
+
+			/*!
+			Returns the number of active entities
+			\return Entity
+			*/
+			[[nodiscard]] uint32_t GetEntityCount() const {
+				return m_entities.size() - m_freeEntities;
 			}
 
 			/*!
@@ -1062,9 +1075,12 @@ namespace gaia {
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
-				const auto* chunk = entityContainer.chunk;
-				const auto& archetype = chunk->header.owner;
-				return archetype.HasComponents<TComponent...>();
+					if (const auto* chunk = entityContainer.chunk) {
+						const auto& archetype = chunk->header.owner;
+						return archetype.HasComponents<TComponent...>();
+				}
+
+				return false;
 			}
 
 			template <typename... TComponent>
@@ -1073,9 +1089,12 @@ namespace gaia {
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
-				const auto* chunk = entityContainer.chunk;
-				const auto& archetype = chunk->header.owner;
-				return archetype.HasAnyComponents<TComponent...>();
+					if (const auto* chunk = entityContainer.chunk) {
+						const auto& archetype = chunk->header.owner;
+						return archetype.HasAnyComponents<TComponent...>();
+				}
+
+				return false;
 			}
 
 			template <typename... TComponent>
@@ -1084,9 +1103,12 @@ namespace gaia {
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
-				const auto* chunk = entityContainer.chunk;
-				const auto& archetype = chunk->header.owner;
-				return archetype.HasNoneComponents<TComponent...>();
+					if (const auto* chunk = entityContainer.chunk) {
+						const auto& archetype = chunk->header.owner;
+						return archetype.HasNoneComponents<TComponent...>();
+				}
+
+				return false;
 			}
 
 			template <typename... TComponent>
@@ -1095,9 +1117,12 @@ namespace gaia {
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
-				const auto* chunk = entityContainer.chunk;
-				const auto& archetype = chunk->header.owner;
-				return archetype.HasChunkComponents<TComponent...>();
+					if (const auto* chunk = entityContainer.chunk) {
+						const auto& archetype = chunk->header.owner;
+						return archetype.HasChunkComponents<TComponent...>();
+				}
+
+				return false;
 			}
 
 			template <typename... TComponent>
@@ -1106,9 +1131,12 @@ namespace gaia {
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
-				const auto* chunk = entityContainer.chunk;
-				const auto& archetype = chunk->header.owner;
-				return archetype.HasAnyChunkComponents<TComponent...>();
+					if (const auto* chunk = entityContainer.chunk) {
+						const auto& archetype = chunk->header.owner;
+						return archetype.HasAnyChunkComponents<TComponent...>();
+				}
+
+				return false;
 			}
 
 			template <typename... TComponent>
@@ -1117,9 +1145,12 @@ namespace gaia {
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
-				const auto* chunk = entityContainer.chunk;
-				const auto& archetype = chunk->header.owner;
-				return archetype.HasNoneChunkComponents<TComponent...>();
+					if (const auto* chunk = entityContainer.chunk) {
+						const auto& archetype = chunk->header.owner;
+						return archetype.HasNoneChunkComponents<TComponent...>();
+				}
+
+				return false;
 			}
 
 		private:

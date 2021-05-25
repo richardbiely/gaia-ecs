@@ -682,3 +682,101 @@ TEST_CASE("Usage 2 - simple query, many chunk components") {
 		REQUIRE(cnt == 1);
 	}
 }
+
+TEST_CASE("EntityCommandBuffer") {
+	// Entity creation
+	{
+		ecs::World w;
+		ecs::EntityCommandBuffer cb;
+
+		const uint32_t N = 100;
+		for (uint32_t i = 0; i < N; i++)
+			[[maybe_unused]] auto tmp = cb.CreateEntity();
+
+		cb.Commit(&w);
+
+			for (uint32_t i = 0; i < N; i++) {
+				auto e = w.GetEntity(i);
+				REQUIRE(e.id() == i);
+			}
+	}
+
+	// Entity creation from another entity
+	{
+		ecs::World w;
+		ecs::EntityCommandBuffer cb;
+
+		auto mainEntity = w.CreateEntity();
+
+		const uint32_t N = 100;
+		for (uint32_t i = 0; i < N; i++)
+			[[maybe_unused]] auto tmp = cb.CreateEntity(mainEntity);
+
+		cb.Commit(&w);
+
+			for (uint32_t i = 0; i < N; i++) {
+				auto e = w.GetEntity(i + 1);
+				REQUIRE(e.id() == i + 1);
+			}
+	}
+
+	// Entity creation from another entity with a component
+	{
+		ecs::World w;
+		ecs::EntityCommandBuffer cb;
+
+		auto mainEntity = w.CreateEntity();
+		w.AddComponent<Position>(mainEntity, {1, 2, 3});
+
+		[[maybe_unused]] auto tmp = cb.CreateEntity(mainEntity);
+		cb.Commit(&w);
+		auto e = w.GetEntity(1);
+		REQUIRE(w.HasComponents<Position>(e));
+		Position p;
+		w.GetComponent<Position>(e, p);
+		REQUIRE(p.x == 1);
+		REQUIRE(p.y == 2);
+		REQUIRE(p.z == 3);
+	}
+
+	// Delayed component addition to an existing entity
+	{
+		ecs::World w;
+		ecs::EntityCommandBuffer cb;
+
+		auto e = w.CreateEntity();
+
+		cb.AddComponent<Position>(e);
+		REQUIRE(!w.HasComponents<Position>(e));
+
+		cb.Commit(&w);
+		REQUIRE(w.HasComponents<Position>(e));
+
+		Position p;
+		w.GetComponent<Position>(e, p);
+		REQUIRE(p.x == 0);
+		REQUIRE(p.y == 0);
+		REQUIRE(p.z == 0);
+	}
+
+	// Delayed component addition to a to-be-created entity
+	{
+		ecs::World w;
+		ecs::EntityCommandBuffer cb;
+
+		auto tmp = cb.CreateEntity();
+		REQUIRE(!w.GetEntityCount());
+
+		cb.AddComponent<Position>(tmp);
+		cb.Commit(&w);
+
+		auto e = w.GetEntity(0);
+		REQUIRE(w.HasComponents<Position>(e));
+
+		Position p;
+		w.GetComponent<Position>(e, p);
+		REQUIRE(p.x == 0);
+		REQUIRE(p.y == 0);
+		REQUIRE(p.z == 0);
+	}
+}
