@@ -19,6 +19,4 @@
 #include "gaia/utils/utils_mem.h"
 #include "gaia/utils/utils_std.h"
 
-#define GAIA_INIT                                                              \
-	GAIA_ECS_WORLD_H_INIT                                                        \
-	GAIA_ECS_META_TYPES_H_INIT
+#define GAIA_INIT GAIA_ECS_COMPONENT_CACHE_H_INIT

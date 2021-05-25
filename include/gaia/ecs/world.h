@@ -15,11 +15,6 @@
 
 namespace gaia {
 	namespace ecs {
-		//-----------------------------------------------------------------------------------
-
-#define GAIA_ECS_WORLD_H_INIT int gaia::ecs::World::WorldCount = 0;
-
-		//-----------------------------------------------------------------------------------
 
 		class GAIA_API World final {
 			friend class ECSSystem;
@@ -27,8 +22,6 @@ namespace gaia {
 			friend class EntityCommandBuffer;
 			friend void* AllocateChunkMemory(World& world);
 			friend void ReleaseChunkMemory(World& world, void* mem);
-
-			static int WorldCount;
 
 			//! Allocator used to allocate chunks
 			ChunkAllocator m_chunkAllocator;
@@ -466,7 +459,7 @@ namespace gaia {
 						}
 
 						const ComponentMetaData* typesToAdd[] = {
-								GetOrCreateComponentMetaType<TComponent>()...};
+								g_ComponentCache.GetOrCreateComponentMetaType<TComponent>()...};
 
 						auto newMetatypes = (const ComponentMetaData**)alloca(
 								sizeof(ComponentMetaData) * metatypesCount);
@@ -533,7 +526,7 @@ namespace gaia {
 										entity.gen(), MAX_COMPONENTS_PER_ARCHETYPE);
 								std::string_view newNames[] = {
 										utils::type_info::name<TComponent>()...};
-								for (auto i = 0; i < newTypesCount; i++)
+								for (auto i = 0U; i < newTypesCount; i++)
 									LOG_W(
 											"> [%u] %.*s", i, (uint32_t)newNames[i].length(),
 											newNames[i].data());
@@ -542,7 +535,7 @@ namespace gaia {
 						}
 
 						const ComponentMetaData* newMetatypes[] = {
-								GetOrCreateComponentMetaType<TComponent>()...};
+								g_ComponentCache.GetOrCreateComponentMetaType<TComponent>()...};
 
 						auto newArchetype =
 								TYPE == ComponentType::CT_Generic
@@ -616,7 +609,7 @@ namespace gaia {
 				auto chunk = entityContainer.chunk;
 
 				const ComponentMetaData* typesToRemove[] = {
-						GetOrCreateComponentMetaType<TComponent>()...};
+						g_ComponentCache.GetOrCreateComponentMetaType<TComponent>()...};
 
 				const auto& archetype = chunk->header.owner;
 				const auto& componentList = archetype.componentList[TYPE];
@@ -783,20 +776,10 @@ namespace gaia {
 #endif
 			}
 
-			void Init() {
-				++WorldCount;
-			}
+			void Init() {}
 
 			void Done() {
 				Cleanup();
-
-				// Make sure Init/Done is called the correct amount of times
-				GAIA_ASSERT(WorldCount > 0);
-				--WorldCount;
-
-				if (!WorldCount)
-					ClearRegisteredTypeCache();
-
 				m_chunkAllocator.Flush();
 
 #if GAIA_DEBUG
@@ -1614,99 +1597,7 @@ namespace gaia {
 					if (DiagRegisteredTypes) {
 						DiagRegisteredTypes = false;
 
-						uint32_t registeredTypes = 0;
-							for (const auto* type: g_ComponentMetaTypeCache) {
-								if (type == nullptr)
-									continue;
-
-								++registeredTypes;
-							}
-						LOG_N("Registered types: %u", registeredTypes);
-
-							for (const auto* type: g_ComponentMetaTypeCache) {
-								if (type == nullptr)
-									continue;
-
-								LOG_N(
-										"--> (%p) lookupHash:%016llx, matcherHash:%016llx, "
-										"index:%010u, %.*s",
-										(void*)type, type->lookupHash, type->matcherHash,
-										type->typeIndex, (uint32_t)type->name.length(),
-										type->name.data());
-							}
-
-						using DuplicateMap = std::unordered_map<
-								uint64_t, std::vector<const ComponentMetaData*>>;
-
-						auto checkDuplicity = [](const DuplicateMap& map,
-																		 bool errIfDuplicate) {
-							for (const auto& pair: map) {
-								if (pair.second.size() <= 1)
-									continue;
-
-									if (errIfDuplicate) {
-										LOG_E("Duplicity detected for key %016llx", pair.first);
-									} else {
-										LOG_N("Duplicity detected for key %016llx", pair.first);
-									}
-
-									for (const auto* type: pair.second) {
-										if (type == nullptr)
-											continue;
-
-										LOG_N(
-												"--> (%p) lookupHash:%016llx, matcherHash:%016llx, "
-												"index:%010u, %.*s",
-												(void*)type, type->lookupHash, type->matcherHash,
-												type->typeIndex, (uint32_t)type->name.length(),
-												type->name.data());
-									}
-							}
-						};
-
-						// Lookup hash duplicity. These must be unique.
-						{
-							bool hasDuplicates = false;
-							DuplicateMap m;
-								for (const auto* type: g_ComponentMetaTypeCache) {
-									if (type == nullptr)
-										continue;
-
-									const auto it = m.find(type->lookupHash);
-									if (it == m.end())
-										m.insert({type->lookupHash, {type}});
-										else {
-											it->second.push_back(type);
-											hasDuplicates = true;
-										}
-								}
-
-							if (hasDuplicates)
-								checkDuplicity(m, true);
-						}
-
-						// Component matcher hash duplicity. These are fine if not unique
-						// However, the more unique the lower the probability of us having
-						// to check multiple archetype headers when matching queries.
-						{
-							bool hasDuplicates = false;
-							DuplicateMap m;
-								for (const auto* type: g_ComponentMetaTypeCache) {
-									if (type == nullptr)
-										continue;
-
-									const auto it = m.find(type->matcherHash);
-									if (it == m.end())
-										m.insert({type->matcherHash, {type}});
-										else {
-											it->second.push_back(type);
-											hasDuplicates = true;
-										}
-								}
-
-							if (hasDuplicates)
-								checkDuplicity(m, false);
-						}
+						g_ComponentCache.Diag();
 				}
 			}
 

@@ -143,7 +143,8 @@ namespace gaia {
 						// Skip Entity input args
 						return true;
 					} else {
-						const auto* metaType = GetOrCreateComponentMetaType<T>();
+						const auto* metaType =
+								g_ComponentCache.GetOrCreateComponentMetaType<T>();
 							if (!utils::has(arr, metaType)) {
 									if (arr.size() >= MAX_COMPONENTS_IN_QUERY) {
 										GAIA_ASSERT(
@@ -184,7 +185,8 @@ namespace gaia {
 						!std::is_same<T, Entity>::value,
 						"It doesn't make sense to use ChangedFilter with Entity");
 
-				const auto* metaType = GetOrCreateComponentMetaType<T>();
+				const auto* metaType =
+						g_ComponentCache.GetOrCreateComponentMetaType<T>();
 					if (!utils::has(arr, metaType->typeIndex)) {
 							// There's a limit to the amount of components which we can store
 							if (arr.size() >= MAX_COMPONENTS_IN_QUERY) {
@@ -198,7 +200,8 @@ namespace gaia {
 										(uint32_t)metaType->name.length(), metaType->name.data());
 								LOG_E("Already present:");
 									for (auto i = 0U; i < (uint32_t)arr.size(); i++) {
-										const auto meta = GetComponentMetaTypeFromIdx(arr[i]);
+										const auto meta =
+												g_ComponentCache.GetComponentMetaTypeFromIdx(arr[i]);
 										LOG_E(
 												"> [%u] %.*s", i, (uint32_t)meta->name.length(),
 												meta->name.data());

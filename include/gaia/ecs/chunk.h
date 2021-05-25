@@ -91,7 +91,8 @@ namespace gaia {
 			[[nodiscard]] std::decay_t<T>&
 			GetComponent_Internal(ComponentType TYPE, uint32_t index) const {
 				using TComponent = std::decay_t<T>;
-				const ComponentMetaData* type = GetComponentMetaType<TComponent>();
+				const ComponentMetaData* type =
+						g_ComponentCache.GetComponentMetaType<TComponent>();
 				return *(TComponent*)GetComponent_Internal(TYPE, index, type);
 			}
 
@@ -99,7 +100,8 @@ namespace gaia {
 			[[nodiscard]] std::decay_t<T>&
 			SetComponent_Internal(ComponentType TYPE, uint32_t index) {
 				using TComponent = std::decay_t<T>;
-				const ComponentMetaData* type = GetComponentMetaType<TComponent>();
+				const ComponentMetaData* type =
+						g_ComponentCache.GetComponentMetaType<TComponent>();
 				return *(TComponent*)SetComponent_Internal(TYPE, index, type);
 			}
 
@@ -116,10 +118,11 @@ namespace gaia {
 			[[nodiscard]] bool HasComponent_Internal(ComponentType TYPE) const {
 				using TComponent = std::decay_t<T>;
 
-				if (!HasComponentMetaType<TComponent>())
+				if (!g_ComponentCache.HasComponentMetaType<TComponent>())
 					return false;
 
-				const ComponentMetaData* type = GetComponentMetaType<TComponent>();
+				const ComponentMetaData* type =
+						g_ComponentCache.GetComponentMetaType<TComponent>();
 				const auto& componentList =
 						GetArchetypeComponentList(header.owner, TYPE);
 				return utils::has_if(componentList, [type](const auto& info) {
@@ -225,7 +228,7 @@ namespace gaia {
 				using TComponent = std::decay_t<T>;
 
 				const ComponentMetaData* type =
-						GetOrCreateComponentMetaType<TComponent>();
+						g_ComponentCache.GetOrCreateComponentMetaType<TComponent>();
 
 				const auto& componentList =
 						GetArchetypeComponentList(header.owner, TYPE);
@@ -252,7 +255,7 @@ namespace gaia {
 				using TComponent = std::decay_t<T>;
 
 				const ComponentMetaData* type =
-						GetOrCreateComponentMetaType<TComponent>();
+						g_ComponentCache.GetOrCreateComponentMetaType<TComponent>();
 
 				const auto& componentList =
 						GetArchetypeComponentList(header.owner, TYPE);

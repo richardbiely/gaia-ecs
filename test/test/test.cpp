@@ -237,6 +237,7 @@ TEST_CASE("SetComponent - generic") {
 			REQUIRE(r.x == 0);
 			REQUIRE(r.y == 0);
 			REQUIRE(r.z == 0);
+			REQUIRE(r.w == 0);
 
 			Scale s;
 			w.GetComponent(ent, s);
@@ -272,7 +273,7 @@ TEST_CASE("SetComponent - generic") {
 				REQUIRE(r.x == 1);
 				REQUIRE(r.y == 2);
 				REQUIRE(r.z == 3);
-				REQUIRE(r.z == 4);
+				REQUIRE(r.w == 4);
 
 				Scale s;
 				w.GetComponent(ent, s);
@@ -307,6 +308,7 @@ TEST_CASE("SetComponent - generic & chunk") {
 			REQUIRE(r.x == 0);
 			REQUIRE(r.y == 0);
 			REQUIRE(r.z == 0);
+			REQUIRE(r.w == 0);
 
 			Scale s;
 			w.GetComponent(ent, s);
@@ -358,7 +360,7 @@ TEST_CASE("SetComponent - generic & chunk") {
 					REQUIRE(r.x == 1);
 					REQUIRE(r.y == 2);
 					REQUIRE(r.z == 3);
-					REQUIRE(r.z == 4);
+					REQUIRE(r.w == 4);
 
 					Scale s;
 					w.GetComponent(ent, s);

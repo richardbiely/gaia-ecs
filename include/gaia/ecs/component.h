@@ -201,73 +201,186 @@ namespace gaia {
 
 		//-----------------------------------------------------------------------------------
 
-#define GAIA_ECS_META_TYPES_H_INIT                                             \
-	std::vector<const gaia::ecs::ComponentMetaData*>                             \
-			gaia::ecs::g_ComponentMetaTypeCache;
+		class ComponentCache {
+			std::vector<const ComponentMetaData*> m_types;
 
-		extern std::vector<const ComponentMetaData*> g_ComponentMetaTypeCache;
+		public:
+			ComponentCache() {
+				// Reserve enough storage space for most use-cases
+				m_types.reserve(2048);
+			}
+
+			ComponentCache(ComponentCache&&) = delete;
+			ComponentCache(const ComponentCache&) = delete;
+			ComponentCache& operator=(ComponentCache&&) = delete;
+			ComponentCache& operator=(const ComponentCache&) = delete;
+
+			~ComponentCache() {
+				ClearRegisteredTypeCache();
+			}
+
+			template <typename T>
+			[[nodiscard]] const ComponentMetaData* GetOrCreateComponentMetaType() {
+				using TComponent = std::decay_t<T>;
+				const auto idx = utils::type_info::index<TComponent>();
+				if (idx < m_types.size() && m_types[idx] != nullptr)
+					return m_types[idx];
+
+				const auto pMetaData = ComponentMetaData::Create<TComponent>();
+
+				// Make sure there's enough space. Initialize new memory to zero
+				const auto startIdx = m_types.size();
+				if (startIdx < idx + 1)
+					m_types.resize(idx + 1);
+				const auto endIdx = m_types.size() - 1;
+				for (auto i = startIdx; i < endIdx; i++)
+					m_types[i] = nullptr;
+
+				m_types[idx] = pMetaData;
+				return pMetaData;
+			}
+
+			template <typename T>
+			[[nodiscard]] const ComponentMetaData* GetComponentMetaType() {
+				using TComponent = std::decay_t<T>;
+				const auto idx = utils::type_info::index<TComponent>();
+				// Let's assume somebody has registered the component already via
+				// AddComponent!
+				GAIA_ASSERT(idx < m_types.size());
+				return m_types[idx];
+			}
+
+			[[nodiscard]] const ComponentMetaData*
+			GetComponentMetaTypeFromIdx(uint32_t idx) {
+				const auto it = utils::find_if(m_types, [idx](const auto& info) {
+					return info->typeIndex == idx;
+				});
+				// Let's assume somebody has registered the component already via
+				// AddComponent!
+				GAIA_ASSERT(it != m_types.end());
+				return *it;
+			}
+
+			template <typename T>
+			[[nodiscard]] bool HasComponentMetaType() {
+				using TComponent = std::decay_t<T>;
+				const auto idx = utils::type_info::index<TComponent>();
+				return idx < m_types.size();
+			}
+
+			void Diag() const {
+				uint32_t registeredTypes = 0;
+					for (const auto* type: m_types) {
+						if (type == nullptr)
+							continue;
+
+						++registeredTypes;
+					}
+				LOG_N("Registered types: %u", registeredTypes);
+
+					for (const auto* type: m_types) {
+						if (type == nullptr)
+							continue;
+
+						LOG_N(
+								"--> (%p) lookupHash:%016llx, matcherHash:%016llx, "
+								"index:%010u, %.*s",
+								(void*)type, type->lookupHash, type->matcherHash,
+								type->typeIndex, (uint32_t)type->name.length(),
+								type->name.data());
+					}
+
+				using DuplicateMap =
+						std::unordered_map<uint64_t, std::vector<const ComponentMetaData*>>;
+
+				auto checkDuplicity = [](const DuplicateMap& map, bool errIfDuplicate) {
+					for (const auto& pair: map) {
+						if (pair.second.size() <= 1)
+							continue;
+
+							if (errIfDuplicate) {
+								LOG_E("Duplicity detected for key %016llx", pair.first);
+							} else {
+								LOG_N("Duplicity detected for key %016llx", pair.first);
+							}
+
+							for (const auto* type: pair.second) {
+								if (type == nullptr)
+									continue;
+
+								LOG_N(
+										"--> (%p) lookupHash:%016llx, matcherHash:%016llx, "
+										"index:%010u, %.*s",
+										(void*)type, type->lookupHash, type->matcherHash,
+										type->typeIndex, (uint32_t)type->name.length(),
+										type->name.data());
+							}
+					}
+				};
+
+				// Lookup hash duplicity. These must be unique.
+				{
+					bool hasDuplicates = false;
+					DuplicateMap m;
+						for (const auto* type: m_types) {
+							if (type == nullptr)
+								continue;
+
+							const auto it = m.find(type->lookupHash);
+							if (it == m.end())
+								m.insert({type->lookupHash, {type}});
+								else {
+									it->second.push_back(type);
+									hasDuplicates = true;
+								}
+						}
+
+					if (hasDuplicates)
+						checkDuplicity(m, true);
+				}
+
+				// Component matcher hash duplicity. These are fine if not unique
+				// However, the more unique the lower the probability of us having
+				// to check multiple archetype headers when matching queries.
+				{
+					bool hasDuplicates = false;
+					DuplicateMap m;
+						for (const auto* type: m_types) {
+							if (type == nullptr)
+								continue;
+
+							const auto it = m.find(type->matcherHash);
+							if (it == m.end())
+								m.insert({type->matcherHash, {type}});
+								else {
+									it->second.push_back(type);
+									hasDuplicates = true;
+								}
+						}
+
+					if (hasDuplicates)
+						checkDuplicity(m, false);
+				}
+			}
+
+		private:
+			void ClearRegisteredTypeCache() {
+					for (auto* p: m_types) {
+						if (p)
+							delete p;
+					}
+				m_types.clear();
+			}
+		};
 
 		//-----------------------------------------------------------------------------------
 
-		void ClearRegisteredTypeCache() {
-				for (auto* p: g_ComponentMetaTypeCache) {
-					if (p)
-						delete p;
-				}
-			g_ComponentMetaTypeCache.clear();
-		}
+#define GAIA_ECS_COMPONENT_CACHE_H_INIT                                        \
+	gaia::ecs::ComponentCache gaia::ecs::g_ComponentCache;
 
-		template <typename T>
-		[[nodiscard]] inline const ComponentMetaData*
-		GetOrCreateComponentMetaType() {
-			using TComponent = std::decay_t<T>;
-			const auto idx = utils::type_info::index<TComponent>();
-			if (idx < g_ComponentMetaTypeCache.size() &&
-					g_ComponentMetaTypeCache[idx] != nullptr)
-				return g_ComponentMetaTypeCache[idx];
+		extern ComponentCache g_ComponentCache;
 
-			const auto pMetaData = ComponentMetaData::Create<TComponent>();
-
-			// Make sure there's enough space. Initialize new memory to zero
-			const auto startIdx = g_ComponentMetaTypeCache.size();
-			if (startIdx < idx + 1)
-				g_ComponentMetaTypeCache.resize(idx + 1);
-			const auto endIdx = g_ComponentMetaTypeCache.size() - 1;
-			for (auto i = startIdx; i < endIdx; i++)
-				g_ComponentMetaTypeCache[i] = nullptr;
-
-			g_ComponentMetaTypeCache[idx] = pMetaData;
-			return pMetaData;
-		}
-
-		template <typename T>
-		[[nodiscard]] inline const ComponentMetaData* GetComponentMetaType() {
-			using TComponent = std::decay_t<T>;
-			const auto idx = utils::type_info::index<TComponent>();
-			// Let's assume somebody has registered the component already via
-			// AddComponent!
-			GAIA_ASSERT(idx < g_ComponentMetaTypeCache.size());
-			return g_ComponentMetaTypeCache[idx];
-		}
-
-		[[nodiscard]] inline const ComponentMetaData*
-		GetComponentMetaTypeFromIdx(uint32_t idx) {
-			const auto it =
-					utils::find_if(g_ComponentMetaTypeCache, [idx](const auto& info) {
-						return info->typeIndex == idx;
-					});
-			// Let's assume somebody has registered the component already via
-			// AddComponent!
-			GAIA_ASSERT(it != g_ComponentMetaTypeCache.end());
-			return *it;
-		}
-
-		template <typename T>
-		[[nodiscard]] inline bool HasComponentMetaType() {
-			using TComponent = std::decay_t<T>;
-			const auto idx = utils::type_info::index<TComponent>();
-			return idx < g_ComponentMetaTypeCache.size();
-		}
+		//-----------------------------------------------------------------------------------
 
 	} // namespace ecs
 } // namespace gaia
