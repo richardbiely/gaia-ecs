@@ -1,10 +1,10 @@
 find_package(benchmark CONFIG REQUIRED)
-add_executable(gaia_perf src/main.cpp)
+add_executable(gaia_example2 src/main.cpp)
 
-set_property(TARGET gaia_perf PROPERTY C_STANDARD 17)
-set_property(TARGET gaia_perf PROPERTY CXX_STANDARD 17)
-set_property(TARGET gaia_perf PROPERTY CXX_STANDARD_REQUIRED ON) 
-set_property(TARGET gaia_perf PROPERTY CXX_EXTENSIONS OFF)
+set_property(TARGET gaia_example2 PROPERTY C_STANDARD 17)
+set_property(TARGET gaia_example2 PROPERTY CXX_STANDARD 17)
+set_property(TARGET gaia_example2 PROPERTY CXX_STANDARD_REQUIRED ON) 
+set_property(TARGET gaia_example2 PROPERTY CXX_EXTENSIONS OFF)
 
 # Compiler settings
 include(CheckCXXCompilerFlag)
@@ -21,15 +21,17 @@ function(enable_cxx_compiler_flag_if_supported flag)
 endfunction()
 
 if (MSVC)
+  # strict rules
   enable_cxx_compiler_flag_if_supported("/W4")
   enable_cxx_compiler_flag_if_supported("/WX")
 else()
+  # strict rules
   enable_cxx_compiler_flag_if_supported("-Wall")
   enable_cxx_compiler_flag_if_supported("-Wextra")
   enable_cxx_compiler_flag_if_supported("-pedantic")
   enable_cxx_compiler_flag_if_supported("-Werror")
+  # fast-math
+  enable_cxx_compiler_flag_if_supported("-ffast-math")
 endif()
 
-# Benchmark framework
-target_link_libraries(gaia_perf PRIVATE benchmark::benchmark)
-target_include_directories(gaia_perf PRIVATE ${PROJECT_SOURCE_DIR}/include)
+target_include_directories(gaia_example2 PRIVATE ${PROJECT_SOURCE_DIR}/include)
