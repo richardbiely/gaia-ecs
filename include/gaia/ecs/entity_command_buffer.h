@@ -287,8 +287,7 @@ namespace gaia {
 
 				m_data.push_back(SET_COMPONENT);
 				m_data.push_back(ComponentType::CT_Generic);
-				SetComponent_Internal<TComponent...>(
-						entity, std::forward<TComponent>(data)...);
+				SetComponent_Internal(entity, std::forward<TComponent>(data)...);
 			}
 
 			/*!
@@ -300,8 +299,7 @@ namespace gaia {
 
 				m_data.push_back(SET_COMPONENT_FOR_TEMPENTITY);
 				m_data.push_back(ComponentType::CT_Generic);
-				SetComponent_Internal<TComponent...>(
-						entity, std::forward<TComponent>(data)...);
+				SetComponent_Internal(entity, std::forward<TComponent>(data)...);
 			}
 
 			/*!
@@ -314,8 +312,7 @@ namespace gaia {
 
 				m_data.push_back(SET_COMPONENT);
 				m_data.push_back(ComponentType::CT_Chunk);
-				SetComponent_Internal<TComponent...>(
-						entity, std::forward<TComponent>(data)...);
+				SetComponent_Internal(entity, std::forward<TComponent>(data)...);
 			}
 
 			/*!
@@ -328,8 +325,7 @@ namespace gaia {
 
 				m_data.push_back(SET_COMPONENT_FOR_TEMPENTITY);
 				m_data.push_back(ComponentType::CT_Chunk);
-				SetComponent_Internal<TComponent...>(
-						entity, std::forward<TComponent>(data)...);
+				SetComponent_Internal(entity, std::forward<TComponent>(data)...);
 			}
 
 			/*!
@@ -386,7 +382,7 @@ namespace gaia {
 									} break;
 									case ADD_COMPONENT: {
 										// Type
-										ComponentType type = (ComponentType)m_data[i];
+										ComponentType componentType = (ComponentType)m_data[i];
 										i += sizeof(ComponentType);
 										// Entity
 										Entity entity = (Entity&)m_data[i];
@@ -399,17 +395,32 @@ namespace gaia {
 										auto newMetatypes = (const ComponentMetaData**)alloca(
 												sizeof(ComponentMetaData) * componentCount);
 											for (uint8_t j = 0; j < componentCount; ++j) {
-												auto type = *(const ComponentMetaData**)&m_data[i];
+												const auto type =
+														*(const ComponentMetaData**)&m_data[i];
 												newMetatypes[j] = type;
 												i += sizeof(const ComponentMetaData*);
 											}
 										world->AddComponent_Internal(
-												type, entity,
+												componentType, entity,
 												std::span(newMetatypes, (uintptr_t)componentCount));
+
+										uint32_t indexInChunk;
+										auto chunk = world->GetEntityChunk(entity, indexInChunk);
+										GAIA_ASSERT(chunk != nullptr);
+
+										if (componentType == ComponentType::CT_Chunk)
+											indexInChunk = 0;
+
+											for (uint8_t j = 0; j < componentCount; ++j) {
+												const auto type = newMetatypes[j];
+												auto pComponentData = chunk->SetComponent_Internal(
+														componentType, indexInChunk, type);
+												memset(pComponentData, 0, type->size);
+											}
 									} break;
 									case ADD_COMPONENT_TO_TEMPENTITY: {
 										// Type
-										ComponentType type = (ComponentType)m_data[i];
+										ComponentType componentType = (ComponentType)m_data[i];
 										i += sizeof(ComponentType);
 										// Entity
 										Entity e = (Entity&)m_data[i];
@@ -430,13 +441,28 @@ namespace gaia {
 										auto newMetatypes = (const ComponentMetaData**)alloca(
 												sizeof(ComponentMetaData) * componentCount);
 											for (uint8_t j = 0; j < componentCount; ++j) {
-												auto type = *(const ComponentMetaData**)&m_data[i];
+												const auto type =
+														*(const ComponentMetaData**)&m_data[i];
 												newMetatypes[j] = type;
 												i += sizeof(const ComponentMetaData*);
 											}
 										world->AddComponent_Internal(
-												type, entity,
+												componentType, entity,
 												std::span(newMetatypes, (uintptr_t)componentCount));
+
+										uint32_t indexInChunk;
+										auto chunk = world->GetEntityChunk(entity, indexInChunk);
+										GAIA_ASSERT(chunk != nullptr);
+
+										if (componentType == ComponentType::CT_Chunk)
+											indexInChunk = 0;
+
+											for (uint8_t j = 0; j < componentCount; ++j) {
+												const auto type = newMetatypes[j];
+												auto pComponentData = chunk->SetComponent_Internal(
+														componentType, indexInChunk, type);
+												memset(pComponentData, 0, type->size);
+											}
 									} break;
 									case SET_COMPONENT: {
 										// Type
