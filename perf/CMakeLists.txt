@@ -1,5 +1,5 @@
 find_package(benchmark CONFIG REQUIRED)
-add_executable(gaia_perf perf/perf.cpp)
+add_executable(gaia_perf src/main.cpp)
 
 set_property(TARGET gaia_perf PROPERTY C_STANDARD 17)
 set_property(TARGET gaia_perf PROPERTY CXX_STANDARD 17)
