@@ -12,7 +12,6 @@
 #include "gaia/ecs/entity_query.h"
 #include "gaia/ecs/world.h"
 
-
 #include "gaia/utils/data_layout_policy.h"
 #include "gaia/utils/hashing_policy.h"
 #include "gaia/utils/signals.h"

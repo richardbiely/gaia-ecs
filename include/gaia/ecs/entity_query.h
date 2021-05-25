@@ -139,37 +139,37 @@ namespace gaia {
 			bool CalculateHash_Internal(ComponentMetaDataArray& arr) {
 				using T = std::decay_t<TComponent>;
 
-					if constexpr (std::is_same<T, Entity>::value) {
-						// Skip Entity input args
-						return true;
-					} else {
-						const auto* metaType =
-								g_ComponentCache.GetOrCreateComponentMetaType<T>();
-							if (!utils::has(arr, metaType)) {
-									if (arr.size() >= MAX_COMPONENTS_IN_QUERY) {
-										GAIA_ASSERT(
-												false && "Trying to create an ECS query with too many "
-																 "components!");
+				if constexpr (std::is_same<T, Entity>::value) {
+					// Skip Entity input args
+					return true;
+				} else {
+					const auto* metaType =
+							g_ComponentCache.GetOrCreateComponentMetaType<T>();
+					if (!utils::has(arr, metaType)) {
+						if (arr.size() >= MAX_COMPONENTS_IN_QUERY) {
+							GAIA_ASSERT(
+									false && "Trying to create an ECS query with too many "
+													 "components!");
 #if GAIA_DEBUG
-										LOG_E(
-												"Trying to add ECS component %s to an already full ECS "
-												"query!",
-												metaType->name.data());
-										LOG_W("Already present:");
-										for (uint32_t i = 0; i < arr.size(); i++)
-											LOG_W("> [%u] %s", i, arr[i]->name.data());
-										LOG_W("Trying to add:");
-										LOG_W("> %s", metaType->name.data());
+							LOG_E(
+									"Trying to add ECS component %s to an already full ECS "
+									"query!",
+									metaType->name.data());
+							LOG_W("Already present:");
+							for (uint32_t i = 0; i < arr.size(); i++)
+								LOG_W("> [%u] %s", i, arr[i]->name.data());
+							LOG_W("Trying to add:");
+							LOG_W("> %s", metaType->name.data());
 #endif
-										return false;
-								}
-
-								arr.push_back(metaType);
-								m_invalidated = true;
+							return false;
 						}
 
-						return true;
+						arr.push_back(metaType);
+						m_invalidated = true;
 					}
+
+					return true;
+				}
 			}
 
 			template <typename... TComponent>
@@ -187,52 +187,52 @@ namespace gaia {
 
 				const auto* metaType =
 						g_ComponentCache.GetOrCreateComponentMetaType<T>();
-					if (!utils::has(arr, metaType->typeIndex)) {
-							// There's a limit to the amount of components which we can store
-							if (arr.size() >= MAX_COMPONENTS_IN_QUERY) {
-								GAIA_ASSERT(
-										false && "Trying to create an ECS filter query with too "
-														 "many components!");
+				if (!utils::has(arr, metaType->typeIndex)) {
+					// There's a limit to the amount of components which we can store
+					if (arr.size() >= MAX_COMPONENTS_IN_QUERY) {
+						GAIA_ASSERT(
+								false && "Trying to create an ECS filter query with too "
+												 "many components!");
 #if GAIA_DEBUG
-								LOG_E(
-										"Trying to add ECS component %.*s to an already full "
-										"filter query!",
-										(uint32_t)metaType->name.length(), metaType->name.data());
-								LOG_E("Already present:");
-									for (auto i = 0U; i < (uint32_t)arr.size(); i++) {
-										const auto meta =
-												g_ComponentCache.GetComponentMetaTypeFromIdx(arr[i]);
-										LOG_E(
-												"> [%u] %.*s", i, (uint32_t)meta->name.length(),
-												meta->name.data());
-									}
-#endif
-								return false;
+						LOG_E(
+								"Trying to add ECS component %.*s to an already full "
+								"filter query!",
+								(uint32_t)metaType->name.length(), metaType->name.data());
+						LOG_E("Already present:");
+						for (auto i = 0U; i < (uint32_t)arr.size(); i++) {
+							const auto meta =
+									g_ComponentCache.GetComponentMetaTypeFromIdx(arr[i]);
+							LOG_E(
+									"> [%u] %.*s", i, (uint32_t)meta->name.length(),
+									meta->name.data());
 						}
-
-						// Component has to be present in anyList or allList.
-						// NoneList makes no sense because we skip those in query processing
-						// anyway
-						auto checkList = [&](const ComponentMetaDataArray& arr) {
-							for (const auto& c: arr) {
-								if (c->typeIndex == metaType->typeIndex)
-									return true;
-							}
+#endif
 						return false;
-						};
-							if (!checkList(arrMeta.listAny) && !checkList(arrMeta.listAll)) {
-#if GAIA_DEBUG
-								LOG_E(
-										"SetChangeFilter trying to filter ECS component %s but "
-										"it's not "
-										"a part of the query!",
-										metaType->name);
-#endif
-								return false;
-						}
+					}
 
-						arr.push_back(metaType->typeIndex);
-						m_invalidated = true;
+					// Component has to be present in anyList or allList.
+					// NoneList makes no sense because we skip those in query processing
+					// anyway
+					auto checkList = [&](const ComponentMetaDataArray& arr) {
+						for (const auto& c: arr) {
+							if (c->typeIndex == metaType->typeIndex)
+								return true;
+						}
+						return false;
+					};
+					if (!checkList(arrMeta.listAny) && !checkList(arrMeta.listAll)) {
+#if GAIA_DEBUG
+						LOG_E(
+								"SetChangeFilter trying to filter ECS component %s but "
+								"it's not "
+								"a part of the query!",
+								metaType->name);
+#endif
+						return false;
+					}
+
+					arr.push_back(metaType->typeIndex);
+					m_invalidated = true;
 				}
 
 				return true;

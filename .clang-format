@@ -29,7 +29,7 @@ BraceWrapping:
   SplitEmptyFunction: false
   SplitEmptyRecord: false
   SplitEmptyNamespace: false
-  IndentBraces: true
+  IndentBraces: false
 AllowShortFunctionsOnASingleLine: Empty
 BreakBeforeBinaryOperators: None
 BreakBeforeTernaryOperators: true

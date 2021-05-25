@@ -151,37 +151,37 @@ namespace gaia {
 				// We can't be removing from an index which is no longer there
 				GAIA_ASSERT(index <= header.lastEntityIndex);
 
-					// If there are at least two entities inside and it's not already the
-					// last one let's swap our entity with the last one in chunk.
-					if (header.lastEntityIndex != 0 && header.lastEntityIndex != index) {
-						// Swap data at index with the last one
-						const auto entity = GetEntity(header.lastEntityIndex);
-						SetEntity(index, entity);
+				// If there are at least two entities inside and it's not already the
+				// last one let's swap our entity with the last one in chunk.
+				if (header.lastEntityIndex != 0 && header.lastEntityIndex != index) {
+					// Swap data at index with the last one
+					const auto entity = GetEntity(header.lastEntityIndex);
+					SetEntity(index, entity);
 
-						const auto& componentList = GetArchetypeComponentList(
-								header.owner, ComponentType::CT_Generic);
-							for (const auto& info: componentList) {
-								// Skip tag components
-								if (!info.type->size)
-									continue;
+					const auto& componentList = GetArchetypeComponentList(
+							header.owner, ComponentType::CT_Generic);
+					for (const auto& info: componentList) {
+						// Skip tag components
+						if (!info.type->size)
+							continue;
 
-								const uint32_t idxFrom =
-										info.offset + (uint32_t)index * info.type->size;
-								const uint32_t idxTo =
-										info.offset +
-										(uint32_t)header.lastEntityIndex * info.type->size;
+						const uint32_t idxFrom =
+								info.offset + (uint32_t)index * info.type->size;
+						const uint32_t idxTo =
+								info.offset +
+								(uint32_t)header.lastEntityIndex * info.type->size;
 
-								GAIA_ASSERT(idxFrom < Chunk::DATA_SIZE);
-								GAIA_ASSERT(idxTo < Chunk::DATA_SIZE);
-								GAIA_ASSERT(idxFrom != idxTo);
+						GAIA_ASSERT(idxFrom < Chunk::DATA_SIZE);
+						GAIA_ASSERT(idxTo < Chunk::DATA_SIZE);
+						GAIA_ASSERT(idxFrom != idxTo);
 
-								memcpy(&data[idxFrom], &data[idxTo], info.type->size);
-							}
+						memcpy(&data[idxFrom], &data[idxTo], info.type->size);
+					}
 
-						// Entity has been replaced with the last one in chunk.
-						// Update its index so look ups can find it.
-						entities[entity.id()].idx = index;
-						entities[entity.id()].gen = entity.gen();
+					// Entity has been replaced with the last one in chunk.
+					// Update its index so look ups can find it.
+					entities[entity.id()].idx = index;
+					entities[entity.id()].gen = entity.gen();
 				}
 
 				header.UpdateLastWorldVersion(ComponentType::CT_Generic, UINT32_MAX);

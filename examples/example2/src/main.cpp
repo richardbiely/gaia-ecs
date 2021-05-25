@@ -29,9 +29,9 @@ int main() {
 	auto e = w.CreateEntity();
 	w.AddComponent<Position>(e, {});
 	w.AddComponent<Acceleration>(e, {0, 0, 1});
-		for (uint32_t i = 1U; i < N; i++) {
-			[[maybe_unused]] auto newentity = w.CreateEntity(e);
-		}
+	for (uint32_t i = 1U; i < N; i++) {
+		[[maybe_unused]] auto newentity = w.CreateEntity(e);
+	}
 
 	// Record the orignal position
 	Position p0;
@@ -39,10 +39,10 @@ int main() {
 
 	// Move until a key is hit
 	constexpr uint32_t GameLoops = 10'000;
-		for (uint32_t i = 1U; i < GameLoops; i++) {
-			float dt = 0.01f; // simulate 100 FPS
-			MoveSystem(w, dt);
-		}
+	for (uint32_t i = 1U; i < GameLoops; i++) {
+		float dt = 0.01f; // simulate 100 FPS
+		MoveSystem(w, dt);
+	}
 
 	Position p1;
 	w.GetComponent<Position>(e, p1);

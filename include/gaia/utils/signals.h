@@ -113,20 +113,19 @@ namespace gaia {
 			void bind() noexcept {
 				ctx = nullptr;
 
-					if constexpr (std::is_invocable_r_v<
-														Ret, decltype(FuncToBind), Args...>) {
-						fnc = [](const void*, Args... args) -> Ret {
-							return Ret(std::invoke(FuncToBind, std::forward<Args>(args)...));
-						};
-					} else if constexpr (std::is_member_pointer_v<decltype(FuncToBind)>) {
-						fnc =
-								wrap<FuncToBind>(internal::index_sequence_for<
+				if constexpr (std::is_invocable_r_v<
+													Ret, decltype(FuncToBind), Args...>) {
+					fnc = [](const void*, Args... args) -> Ret {
+						return Ret(std::invoke(FuncToBind, std::forward<Args>(args)...));
+					};
+				} else if constexpr (std::is_member_pointer_v<decltype(FuncToBind)>) {
+					fnc = wrap<FuncToBind>(internal::index_sequence_for<
 																 std::tuple_element_t<0, std::tuple<Args...>>>(
-										internal::func_ptr_t<decltype(FuncToBind)>{}));
-					} else {
-						fnc = wrap<FuncToBind>(internal::index_sequence_for(
-								internal::func_ptr_t<decltype(FuncToBind)>{}));
-					}
+							internal::func_ptr_t<decltype(FuncToBind)>{}));
+				} else {
+					fnc = wrap<FuncToBind>(internal::index_sequence_for(
+							internal::func_ptr_t<decltype(FuncToBind)>{}));
+				}
 			}
 
 			/**
@@ -141,21 +140,21 @@ namespace gaia {
 			void bind(Type& value_or_instance) noexcept {
 				ctx = &value_or_instance;
 
-					if constexpr (std::is_invocable_r_v<
-														Ret, decltype(FuncToBind), Type&, Args...>) {
-						fnc = [](const void* context, Args... args) -> Ret {
-							auto pType = static_cast<Type*>(
-									const_cast<std::conditional_t<
-											std::is_const_v<Type>, const void*, void*>>(context));
-							return Ret(
-									std::invoke(FuncToBind, *pType, std::forward<Args>(args)...));
-						};
-					} else {
-						fnc = wrap<FuncToBind>(
-								value_or_instance,
-								internal::index_sequence_for(
-										internal::func_ptr_t<decltype(FuncToBind), Type>{}));
-					}
+				if constexpr (std::is_invocable_r_v<
+													Ret, decltype(FuncToBind), Type&, Args...>) {
+					fnc = [](const void* context, Args... args) -> Ret {
+						auto pType = static_cast<Type*>(
+								const_cast<std::conditional_t<
+										std::is_const_v<Type>, const void*, void*>>(context));
+						return Ret(
+								std::invoke(FuncToBind, *pType, std::forward<Args>(args)...));
+					};
+				} else {
+					fnc = wrap<FuncToBind>(
+							value_or_instance,
+							internal::index_sequence_for(
+									internal::func_ptr_t<decltype(FuncToBind), Type>{}));
+				}
 			}
 
 			/**
@@ -168,21 +167,21 @@ namespace gaia {
 			void bind(Type* value_or_instance) noexcept {
 				ctx = value_or_instance;
 
-					if constexpr (std::is_invocable_r_v<
-														Ret, decltype(FuncToBind), Type*, Args...>) {
-						fnc = [](const void* context, Args... args) -> Ret {
-							auto pType = static_cast<Type*>(
-									const_cast<std::conditional_t<
-											std::is_const_v<Type>, const void*, void*>>(context));
-							return Ret(
-									std::invoke(FuncToBind, pType, std::forward<Args>(args)...));
-						};
-					} else {
-						fnc = wrap<FuncToBind>(
-								value_or_instance,
-								internal::index_sequence_for(
-										internal::func_ptr_t<decltype(FuncToBind), Type>{}));
-					}
+				if constexpr (std::is_invocable_r_v<
+													Ret, decltype(FuncToBind), Type*, Args...>) {
+					fnc = [](const void* context, Args... args) -> Ret {
+						auto pType = static_cast<Type*>(
+								const_cast<std::conditional_t<
+										std::is_const_v<Type>, const void*, void*>>(context));
+						return Ret(
+								std::invoke(FuncToBind, pType, std::forward<Args>(args)...));
+					};
+				} else {
+					fnc = wrap<FuncToBind>(
+							value_or_instance,
+							internal::index_sequence_for(
+									internal::func_ptr_t<decltype(FuncToBind), Type>{}));
+				}
 			}
 
 			/**
@@ -494,14 +493,14 @@ namespace gaia {
 				call.template bind<FuncToUnbind>();
 
 				auto& listeners = s->listeners;
-					for (auto i = 0; i < listeners.size();) {
-							if (listeners[i] != call) {
-								++i;
-								continue;
-						}
-
-						listeners.fast_erase(i);
+				for (auto i = 0; i < listeners.size();) {
+					if (listeners[i] != call) {
+						++i;
+						continue;
 					}
+
+					listeners.fast_erase(i);
+				}
 			}
 
 			/**
@@ -516,14 +515,14 @@ namespace gaia {
 				call.template bind<FuncToUnbind>(value_or_instance);
 
 				auto& listeners = s->listeners;
-					for (auto i = 0; i < listeners.size();) {
-							if (listeners[i] != call) {
-								++i;
-								continue;
-						}
-
-						listeners.fast_erase(i);
+				for (auto i = 0; i < listeners.size();) {
+					if (listeners[i] != call) {
+						++i;
+						continue;
 					}
+
+					listeners.fast_erase(i);
+				}
 			}
 
 			/**
@@ -534,14 +533,14 @@ namespace gaia {
 			template <typename Type>
 			void unbind(Type& value_or_instance) {
 				auto& listeners = s->listeners;
-					for (auto i = 0; i < listeners.size();) {
-							if (listeners[i].instance() != &value_or_instance) {
-								++i;
-								continue;
-						}
-
-						listeners.fast_erase(i);
+				for (auto i = 0; i < listeners.size();) {
+					if (listeners[i].instance() != &value_or_instance) {
+						++i;
+						continue;
 					}
+
+					listeners.fast_erase(i);
+				}
 			}
 
 			/**
