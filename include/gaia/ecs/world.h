@@ -9,9 +9,11 @@
 #include "../utils/type_info.h"
 #include "../utils/utility.h"
 #include "chunk_allocator.h"
+#include "creation_query.h"
 #include "entity.h"
 #include "entity_query.h"
 #include "fwd.h"
+
 
 namespace gaia {
 	namespace ecs {
@@ -19,7 +21,7 @@ namespace gaia {
 		class GAIA_API World final {
 			friend class ECSSystem;
 			friend class ECSSystemManager;
-			friend class EntityCommandBuffer;
+			friend class CommandBuffer;
 			friend void* AllocateChunkMemory(World& world);
 			friend void ReleaseChunkMemory(World& world, void* mem);
 

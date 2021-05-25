@@ -19,7 +19,7 @@ namespace gaia {
 		class Archetype final {
 		private:
 			friend class World;
-			friend class EntityCommandBuffer;
+			friend class CommandBuffer;
 			friend class Chunk;
 			friend struct ChunkHeader;
 

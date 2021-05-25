@@ -23,8 +23,8 @@ namespace gaia {
 		This would lead to undefined behavior. Therefore, such operations have to be
 		executed after the loop is done.
 		*/
-		class EntityCommandBuffer final {
-			enum EntityCommandBufferCmd : uint8_t {
+		class CommandBuffer final {
+			enum CommandBufferCmd : uint8_t {
 				CREATE_ENTITY,
 				CREATE_ENTITY_FROM_ARCHETYPE,
 				CREATE_ENTITY_FROM_QUERY,
@@ -168,15 +168,15 @@ namespace gaia {
 			}
 
 		public:
-			EntityCommandBuffer() {
+			CommandBuffer() {
 				m_data.reserve(256);
 				m_entities = 0;
 			}
 
-			EntityCommandBuffer(EntityCommandBuffer&&) = delete;
-			EntityCommandBuffer(const EntityCommandBuffer&) = delete;
-			EntityCommandBuffer& operator=(EntityCommandBuffer&&) = delete;
-			EntityCommandBuffer& operator=(const EntityCommandBuffer&) = delete;
+			CommandBuffer(CommandBuffer&&) = delete;
+			CommandBuffer(const CommandBuffer&) = delete;
+			CommandBuffer& operator=(CommandBuffer&&) = delete;
+			CommandBuffer& operator=(const CommandBuffer&) = delete;
 
 			/*!
 			Requests a new entity to be created
