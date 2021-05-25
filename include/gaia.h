@@ -1,3 +1,7 @@
+// TODO: Temporary until the allocator situation is sorted out
+#define _SILENCE_ALL_CXX17_DEPRECATION_WARNINGS
+#define _SILENCE_CXX17_OLD_ALLOCATOR_MEMBERS_DEPRECATION_WARNING
+
 #include "gaia/config/config.h"
 #include "gaia/config/logging.h"
 
