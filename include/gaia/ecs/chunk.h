@@ -32,7 +32,7 @@ namespace gaia {
 		private:
 			friend class World;
 			friend class Archetype;
-			friend class EntityCommandBuffer;
+			friend class CommandBuffer;
 
 			//! Archetype header with info about the archetype
 			ChunkHeader header;

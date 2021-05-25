@@ -683,11 +683,11 @@ TEST_CASE("Usage 2 - simple query, many chunk components") {
 	}
 }
 
-TEST_CASE("EntityCommandBuffer") {
+TEST_CASE("CommandBuffer") {
 	// Entity creation
 	{
 		ecs::World w;
-		ecs::EntityCommandBuffer cb;
+		ecs::CommandBuffer cb;
 
 		const uint32_t N = 100;
 		for (uint32_t i = 0; i < N; i++)
@@ -704,7 +704,7 @@ TEST_CASE("EntityCommandBuffer") {
 	// Entity creation from another entity
 	{
 		ecs::World w;
-		ecs::EntityCommandBuffer cb;
+		ecs::CommandBuffer cb;
 
 		auto mainEntity = w.CreateEntity();
 
@@ -723,7 +723,7 @@ TEST_CASE("EntityCommandBuffer") {
 	// Entity creation from another entity with a component
 	{
 		ecs::World w;
-		ecs::EntityCommandBuffer cb;
+		ecs::CommandBuffer cb;
 
 		auto mainEntity = w.CreateEntity();
 		w.AddComponent<Position>(mainEntity, {1, 2, 3});
@@ -742,7 +742,7 @@ TEST_CASE("EntityCommandBuffer") {
 	// Delayed component addition to an existing entity
 	{
 		ecs::World w;
-		ecs::EntityCommandBuffer cb;
+		ecs::CommandBuffer cb;
 
 		auto e = w.CreateEntity();
 
@@ -762,7 +762,7 @@ TEST_CASE("EntityCommandBuffer") {
 	// Delayed component addition to a to-be-created entity
 	{
 		ecs::World w;
-		ecs::EntityCommandBuffer cb;
+		ecs::CommandBuffer cb;
 
 		auto tmp = cb.CreateEntity();
 		REQUIRE(!w.GetEntityCount());
@@ -783,7 +783,7 @@ TEST_CASE("EntityCommandBuffer") {
 	// Delayed component setting of an existing entity
 	{
 		ecs::World w;
-		ecs::EntityCommandBuffer cb;
+		ecs::CommandBuffer cb;
 
 		auto e = w.CreateEntity();
 
@@ -804,7 +804,7 @@ TEST_CASE("EntityCommandBuffer") {
 	// Delayed component setting of a to-be-created entity
 	{
 		ecs::World w;
-		ecs::EntityCommandBuffer cb;
+		ecs::CommandBuffer cb;
 
 		auto tmp = cb.CreateEntity();
 		REQUIRE(!w.GetEntityCount());
@@ -826,7 +826,7 @@ TEST_CASE("EntityCommandBuffer") {
 	// Delayed component removal from an existing entity
 	{
 		ecs::World w;
-		ecs::EntityCommandBuffer cb;
+		ecs::CommandBuffer cb;
 
 		auto e = w.CreateEntity();
 		w.AddComponent<Position>(e, {1, 2, 3});

@@ -4,13 +4,14 @@
 #include "gaia/ecs/archetype.h"
 #include "gaia/ecs/chunk.h"
 #include "gaia/ecs/chunk_allocator.h"
+#include "gaia/ecs/command_buffer.h"
 #include "gaia/ecs/common.h"
 #include "gaia/ecs/component.h"
 #include "gaia/ecs/creation_query.h"
 #include "gaia/ecs/entity.h"
-#include "gaia/ecs/entity_command_buffer.h"
 #include "gaia/ecs/entity_query.h"
 #include "gaia/ecs/world.h"
+
 
 #include "gaia/utils/data_layout_policy.h"
 #include "gaia/utils/hashing_policy.h"
