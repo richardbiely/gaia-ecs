@@ -8,6 +8,7 @@
 #include "../utils/span.h"
 #include "../utils/type_info.h"
 #include "../utils/utility.h"
+#include "../utils/utils_containers.h"
 #include "chunk_allocator.h"
 #include "creation_query.h"
 #include "entity.h"

@@ -20,7 +20,8 @@
 #include "gaia/utils/hashing_policy.h"
 #include "gaia/utils/signals.h"
 #include "gaia/utils/type_info.h"
+#include "gaia/utils/utility.h"
+#include "gaia/utils/utils_containers.h"
 #include "gaia/utils/utils_mem.h"
-#include "gaia/utils/utils_std.h"
 
 #define GAIA_INIT GAIA_ECS_COMPONENT_CACHE_H_INIT

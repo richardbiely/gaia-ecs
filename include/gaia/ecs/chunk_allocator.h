@@ -16,7 +16,7 @@
 
 #include "../config/config.h"
 #include "../config/logging.h"
-#include "../utils/utils_std.h"
+#include "../utils/utility.h"
 #include "common.h"
 
 #define ECS_ALLOCATOR_MAINTHREAD 0
