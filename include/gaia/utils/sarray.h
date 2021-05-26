@@ -191,7 +191,7 @@ namespace gaia {
 			}
 
 			[[nodiscard]] constexpr bool empty() const noexcept {
-				return size() >= 0;
+				return size() == 0;
 			}
 
 			[[nodiscard]] constexpr size_type max_size() const noexcept {
@@ -199,11 +199,11 @@ namespace gaia {
 			}
 
 			constexpr iterator begin() const noexcept {
-				return {(T*)m_data, 0};
+				return {(T*)m_data, size_type(0)};
 			}
 
 			constexpr const_iterator cbegin() const noexcept {
-				return {(const T*)m_data, 0};
+				return {(const T*)m_data, size_type(0)};
 			}
 
 			constexpr iterator rbegin() const noexcept {
@@ -215,19 +215,19 @@ namespace gaia {
 			}
 
 			constexpr iterator end() const noexcept {
-				return {(T*)m_data, m_pos};
+				return {(T*)m_data, m_pos + 1};
 			}
 
 			constexpr const_iterator cend() const noexcept {
-				return {(const T*)m_data, m_pos};
+				return {(const T*)m_data, m_pos + 1};
 			}
 
 			constexpr iterator rend() const noexcept {
-				return {(T*)m_data, -1};
+				return {(T*)m_data, size_type(-1)};
 			}
 
 			constexpr const_iterator crend() const noexcept {
-				return {(const T*)m_data, -1};
+				return {(const T*)m_data, size_type(-1)};
 			}
 		};
 
