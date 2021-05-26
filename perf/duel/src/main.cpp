@@ -30,11 +30,11 @@ struct Scale {
 	float x, y, z;
 };
 
-constexpr uint32_t N = 1'000;
+constexpr uint32_t N = 10'000;
 constexpr float MinDelta = 0.01f;
 constexpr float MaxDelta = 0.033f;
 
-void BM_SoA(benchmark::State& state) {
+void BM_Game_ECS(benchmark::State& state) {
 	ecs::World w;
 
 	// Create static entities
@@ -59,7 +59,7 @@ void BM_SoA(benchmark::State& state) {
 		}
 	}
 
-	// auto queryDynamic = ecs::EntityQuery().All<Position, Acceleration>();
+	auto queryDynamic = ecs::EntityQuery().All<Position, Acceleration>();
 
 	srand(0);
 	for ([[maybe_unused]] auto _: state) {
@@ -71,25 +71,16 @@ void BM_SoA(benchmark::State& state) {
 		state.ResumeTiming();
 
 		// Process entities
-		// w.ForEach(queryDynamic, [&](Position& p, const Acceleration& a) {
-		w.ForEach([&](Position& p, const Acceleration& a) {
+		w.ForEach(queryDynamic, [&](Position& p, const Acceleration& a) {
 			 p.x += a.x * dt;
 			 p.y += a.y * dt;
 			 p.z += a.z * dt;
 		 }).Run(0);
 	}
-
-	{
-		const auto i = rand() % N;
-		auto e = w.GetEntity(i);
-		Position p;
-		w.GetComponent<Position>(e, p);
-		benchmark::DoNotOptimize(p.x);
-	}
 }
-BENCHMARK(BM_SoA);
+BENCHMARK(BM_Game_ECS);
 
-void BM_AoS_NoECS(benchmark::State& state) {
+void BM_Game_NonECS(benchmark::State& state) {
 	struct IUnit {
 		Position p;
 		Rotation r;
@@ -148,16 +139,11 @@ void BM_AoS_NoECS(benchmark::State& state) {
 		}
 	}
 
-	{
-		const auto i = rand() % N;
-		benchmark::DoNotOptimize(units[i]->p.x);
-	}
-
 	for (auto& u: units) {
 		delete u;
 	}
 }
-BENCHMARK(BM_AoS_NoECS);
+BENCHMARK(BM_Game_NonECS);
 
 // Run the benchmark
 BENCHMARK_MAIN();
