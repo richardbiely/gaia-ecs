@@ -22,8 +22,10 @@ endfunction()
 
 if (MSVC)
   # strict rules
-  #enable_cxx_compiler_flag_if_supported("/W4")
-  #enable_cxx_compiler_flag_if_supported("/WX")
+  enable_cxx_compiler_flag_if_supported("/W4")
+  enable_cxx_compiler_flag_if_supported("/WX")
+  # fast-math
+  enable_cxx_compiler_flag_if_supported("/fp:fast") 
 else()
   # strict rules
   enable_cxx_compiler_flag_if_supported("-Wall")
