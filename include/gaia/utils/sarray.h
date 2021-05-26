@@ -5,6 +5,8 @@
 
 namespace gaia {
 	namespace utils {
+		// Array with fixed capacity and variable size allocated on stack.
+		// TODO: Use<memory_resouce>and pmr instead of this madness.
 		template <class T, std::size_t N>
 		class sarray {
 		public:
@@ -33,32 +35,48 @@ namespace gaia {
 				using size_type = decltype(N);
 
 			private:
-				T* ptr;
-				size_type pos;
+				T* m_ptr;
+				size_type m_pos;
 
 			public:
-				iterator(T* ptr, size_type pos) {
-					this->ptr = ptr;
-					this->pos = pos;
+				constexpr iterator(T* ptr, size_type pos) {
+					m_ptr = ptr;
+					m_pos = pos;
 				}
-				iterator(const iterator& other): ptr(other.ptr), pos(other.pos) {}
-				iterator& operator++() {
-					++pos;
-					return *this;
+				constexpr iterator(const iterator& other):
+						m_ptr(other.m_ptr), m_pos(other.m_pos) {}
+				constexpr void operator++() {
+					++m_pos;
 				}
-				iterator operator++(int) {
-					iterator tmp(*this);
-					operator++();
-					return tmp;
+				constexpr void operator--() {
+					--m_pos;
 				}
-				bool operator==(const iterator& rhs) const {
-					return ptr == rhs.ptr;
+				constexpr bool operator>(const iterator& rhs) const {
+					return m_ptr > rhs.m_ptr;
 				}
-				bool operator!=(const iterator& rhs) const {
-					return ptr != rhs.ptr;
+				constexpr bool operator<(const iterator& rhs) const {
+					return m_ptr < rhs.m_ptr;
 				}
-				T& operator*() {
-					return *(T*)(ptr + pos);
+				constexpr iterator operator+(size_type offset) const {
+					return {m_ptr, m_pos + offset};
+				}
+				constexpr iterator operator-(size_type offset) const {
+					return {m_ptr, m_pos - offset};
+				}
+				constexpr difference_type operator-(const iterator& rhs) const {
+					return m_pos - rhs.m_pos;
+				}
+				constexpr bool operator==(const iterator& rhs) const {
+					return m_ptr == rhs.m_ptr;
+				}
+				constexpr bool operator!=(const iterator& rhs) const {
+					return m_ptr != rhs.m_ptr;
+				}
+				constexpr T& operator*() const {
+					return *(T*)(m_ptr + m_pos);
+				}
+				constexpr T* operator->() const {
+					return (T*)(m_ptr + m_pos);
 				}
 			};
 			class const_iterator {
@@ -69,34 +87,51 @@ namespace gaia {
 				using pointer = T*;
 				using reference = T&;
 
+				using size_type = decltype(N);
+
 			private:
-				const T* ptr;
-				size_type pos;
+				const T* m_ptr;
+				size_type m_pos;
 
 			public:
-				const_iterator(const T* ptr, size_type pos) {
-					this->ptr = ptr;
-					this->pos = pos;
+				constexpr const_iterator(const T* ptr, size_type pos) {
+					m_ptr = ptr;
+					m_pos = pos;
 				}
-				const_iterator(const const_iterator& other):
-						ptr(other.ptr), pos(other.pos) {}
-				const_iterator& operator++() {
-					++pos;
-					return *this;
+				constexpr const_iterator(const const_iterator& other):
+						m_ptr(other.m_ptr), m_pos(other.m_pos) {}
+				constexpr void operator++() {
+					++m_pos;
 				}
-				const_iterator operator++(int) {
-					const_iterator tmp(*this);
-					operator++();
-					return tmp;
+				constexpr void operator--() {
+					--m_pos;
 				}
-				bool operator==(const const_iterator& rhs) const {
-					return ptr == rhs.ptr;
+				constexpr bool operator==(const const_iterator& rhs) const {
+					return m_ptr == rhs.m_ptr;
 				}
-				bool operator!=(const const_iterator& rhs) const {
-					return ptr != rhs.ptr;
+				constexpr bool operator!=(const const_iterator& rhs) const {
+					return m_ptr != rhs.m_ptr;
 				}
-				const T& operator*() const {
-					return *(const T*)(ptr + pos);
+				constexpr bool operator<(const const_iterator& rhs) const {
+					return m_ptr < rhs.m_ptr;
+				}
+				constexpr bool operator>(const const_iterator& rhs) const {
+					return m_ptr > rhs.m_ptr;
+				}
+				constexpr const_iterator operator+(size_type offset) const {
+					return {m_ptr, m_pos + offset};
+				}
+				constexpr const_iterator operator-(size_type offset) const {
+					return {m_ptr, m_pos - offset};
+				}
+				constexpr difference_type operator-(const iterator& rhs) const {
+					return m_pos - rhs.m_pos;
+				}
+				constexpr const T& operator*() const {
+					return *(const T*)(m_ptr + m_pos);
+				}
+				constexpr const T* operator->() const {
+					return (const T*)(m_ptr + m_pos);
 				}
 			};
 
