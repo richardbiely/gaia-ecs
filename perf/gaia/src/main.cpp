@@ -101,20 +101,20 @@ void BM_CreateEntity_With_Component_Batch(benchmark::State& state) {
 	BENCHMARK_TEMPLATE(                                                          \
 			BM_CreateEntity_With_Component_Batch, float, 8, component_count);
 
-// // 1 component, size increases with each benchmark
-// BENCHMARK_CREATEENTITY_WITH_COMPONENT______(1);
-// // 2 components, size increases with each benchmark
-// BENCHMARK_CREATEENTITY_WITH_COMPONENT______(2);
-// BENCHMARK_CREATEENTITY_WITH_COMPONENT_BATCH(2);
-// // 3 components, size increases with each benchmark
-// BENCHMARK_CREATEENTITY_WITH_COMPONENT______(3);
-// BENCHMARK_CREATEENTITY_WITH_COMPONENT_BATCH(3);
-// // 4 components, size increases with each benchmark
-// BENCHMARK_CREATEENTITY_WITH_COMPONENT______(4);
-// BENCHMARK_CREATEENTITY_WITH_COMPONENT_BATCH(4);
-// // 8 components, size increases with each benchmark
-// BENCHMARK_CREATEENTITY_WITH_COMPONENT______(8);
-// BENCHMARK_CREATEENTITY_WITH_COMPONENT_BATCH(8);
+// 1 component, size increases with each benchmark
+BENCHMARK_CREATEENTITY_WITH_COMPONENT______(1);
+// 2 components, size increases with each benchmark
+BENCHMARK_CREATEENTITY_WITH_COMPONENT______(2);
+BENCHMARK_CREATEENTITY_WITH_COMPONENT_BATCH(2);
+// 3 components, size increases with each benchmark
+BENCHMARK_CREATEENTITY_WITH_COMPONENT______(3);
+BENCHMARK_CREATEENTITY_WITH_COMPONENT_BATCH(3);
+// 4 components, size increases with each benchmark
+BENCHMARK_CREATEENTITY_WITH_COMPONENT______(4);
+BENCHMARK_CREATEENTITY_WITH_COMPONENT_BATCH(4);
+// 8 components, size increases with each benchmark
+BENCHMARK_CREATEENTITY_WITH_COMPONENT______(8);
+BENCHMARK_CREATEENTITY_WITH_COMPONENT_BATCH(8);
 
 constexpr uint32_t ForEachN = 1'000;
 
