@@ -224,8 +224,6 @@ namespace gaia {
 			}
 
 			[[nodiscard]] Archetype* FindOrCreateArchetype(CreationQuery& query) {
-				// TODO: Verify if return FindOrCreateArchetype(std::span<const
-				// ComponentMetaData*>(types)) works the same way
 				return FindOrCreateArchetype(
 						query.list[ComponentType::CT_Generic],
 						query.list[ComponentType::CT_Chunk]);
