@@ -71,7 +71,7 @@ constexpr void AddComponents(ecs::World& w, uint32_t N) {
 
 template <typename T, uint32_t ComponentItems, uint32_t Components>
 void BM_CreateEntity_With_Component_Batch(benchmark::State& state) {
-	constexpr uint32_t N = 1'000'000;
+	constexpr uint32_t N = 100'000;
 	for (auto _: state) {
 		ecs::World w;
 		AddComponents<T, ComponentItems, Components>(w, N);
