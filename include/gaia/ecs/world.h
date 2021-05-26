@@ -1613,10 +1613,11 @@ namespace gaia {
 						const auto& chunks = archetype->chunks;
 						for (auto i = 0U; i < (uint32_t)chunks.size(); ++i) {
 							const auto& chunk = chunks[i];
+							const uint16_t entityCount =
+									chunk->header.lastEntityIndex + uint16_t(1);
 							LOG_N(
-									"  Chunk #%04u, entities:%hu/%hu, remove:%d", i,
-									chunk->header.lastEntityIndex + 1, archetype->capacity,
-									chunk->header.remove);
+									"  Chunk #%04u, entities:%hu/%hu, remove:%d", i, entityCount,
+									archetype->capacity, chunk->header.remove);
 						}
 					}
 				}
