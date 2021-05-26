@@ -985,11 +985,11 @@ namespace gaia {
 				VerifyComponents<TComponent...>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
-				if (auto entityContainer = AddComponent_Internal<TComponent...>(
-								ComponentType::CT_Generic, entity))
-					SetComponents_Internal<TComponent...>(
-							ComponentType::CT_Generic, entityContainer->chunk,
-							entityContainer->idx, std::forward<TComponent>(data)...);
+				auto entityContainer = AddComponent_Internal<TComponent...>(
+						ComponentType::CT_Generic, entity);
+				SetComponents_Internal<TComponent...>(
+						ComponentType::CT_Generic, entityContainer->chunk,
+						entityContainer->idx, std::forward<TComponent>(data)...);
 			}
 
 			template <typename... TComponent>
@@ -1005,11 +1005,11 @@ namespace gaia {
 				VerifyComponents<TComponent...>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
-				if (auto entityContainer = AddComponent_Internal<TComponent...>(
-								ComponentType::CT_Chunk, entity))
-					SetComponents_Internal<TComponent...>(
-							ComponentType::CT_Chunk, entityContainer->chunk, 0,
-							std::forward<TComponent>(data)...);
+				auto entityContainer = AddComponent_Internal<TComponent...>(
+						ComponentType::CT_Chunk, entity);
+				SetComponents_Internal<TComponent...>(
+						ComponentType::CT_Chunk, entityContainer->chunk, 0,
+						std::forward<TComponent>(data)...);
 			}
 
 			template <typename... TComponent>
