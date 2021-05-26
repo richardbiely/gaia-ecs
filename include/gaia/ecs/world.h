@@ -318,11 +318,11 @@ namespace gaia {
 
 					const auto metatypesCount =
 							(uint32_t)componentList.size() + (uint32_t)typesToAdd.size();
+#if GAIA_DEBUG
 					if (!VerityArchetypeComponentCount(metatypesCount)) {
 						GAIA_ASSERT(
 								false &&
 								"Trying to add too many ECS components to ECS entity!");
-#if GAIA_DEBUG
 						LOG_W(
 								"Trying to add %u ECS %s components to ECS entity [%u.%u] "
 								"but "
@@ -332,14 +332,20 @@ namespace gaia {
 								MAX_COMPONENTS_PER_ARCHETYPE -
 										(uint32_t)archetype.componentList[TYPE].size());
 						LOG_W("Already present:");
-						for (uint32_t i = 0u; i < componentList.size(); i++)
-							LOG_W("> [%u] %s", i, componentList[i].type->name.data());
+						for (uint32_t i = 0; i < componentList.size(); i++)
+							LOG_W(
+									"> [%u] %.*s", i,
+									(uint32_t)componentList[i].type->name.length(),
+									componentList[i].type->name.data());
 						LOG_W("Trying to add:");
-						for (uint32_t i = 0u; i < newTypesCount; i++)
-							LOG_W("> [%u] %s", i, typesToAdd[i]->name.data());
-#endif
+						for (uint32_t i = 0; i < newTypesCount; i++)
+							LOG_W(
+									"> [%u] %.*s", i, (uint32_t)typesToAdd[i]->name.length(),
+									typesToAdd[i]->name.data());
+
 						return nullptr;
 					}
+#endif
 
 					auto newMetatypes = (const ComponentMetaData**)alloca(
 							sizeof(ComponentMetaData) * metatypesCount);
@@ -347,23 +353,28 @@ namespace gaia {
 					uint32_t j = 0;
 					for (uint32_t i = 0; i < componentList.size(); i++) {
 						const auto& info = componentList[i];
+
+#if GAIA_DEBUG
 						// Don't add the same component twice
 						for (uint32_t k = 0; k < newTypesCount; k++) {
 							if (info.type == typesToAdd[k]) {
 								GAIA_ASSERT(
 										false && "Trying to add a duplicate ECS component to "
 														 "ECS entity");
-#if GAIA_DEBUG
+
 								LOG_W(
 										"Trying to add a duplicate ECS %s component to ECS "
-										"entity "
-										"[%u.%u]",
+										"entity [%u.%u]",
 										ComponentTypeString[TYPE], entity.id(), entity.gen());
-								LOG_W("> %s", info.type->name.data());
-#endif
+								LOG_W(
+										"> %.*s", (uint32_t)info.type->name.length(),
+										info.type->name.data());
+
 								return nullptr;
 							}
 						}
+#endif
+
 						// Keep the types offset by the number of new input types
 						newMetatypes[newTypesCount + j++] = info.type;
 					}
@@ -389,21 +400,25 @@ namespace gaia {
 				}
 				// Adding a component to an empty entity
 				else {
+#if GAIA_DEBUG
 					if (!VerityArchetypeComponentCount(newTypesCount)) {
 						GAIA_ASSERT(
 								false &&
 								"Trying to add too many ECS components to ECS entity!");
-#if GAIA_DEBUG
+
 						LOG_W(
 								"Trying to add %u ECS %s components to ECS entity [%u.%u] "
 								"but maximum of only %u is supported!",
 								newTypesCount, ComponentTypeString[TYPE], entity.id(),
 								entity.gen(), MAX_COMPONENTS_PER_ARCHETYPE);
 						for (uint32_t i = 0; i < newTypesCount; i++)
-							LOG_W("> [%u] %s", i, typesToAdd[i]->name.data());
-#endif
+							LOG_W(
+									"> [%u] %.*s", i, (uint32_t)typesToAdd[i]->name.length(),
+									typesToAdd[i]->name.data());
+
 						return nullptr;
 					}
+#endif
 
 					auto newArchetype = TYPE == ComponentType::CT_Generic
 																	? FindOrCreateArchetype(typesToAdd, {})
@@ -434,7 +449,6 @@ namespace gaia {
 						GAIA_ASSERT(
 								false &&
 								"Trying to add too many ECS components to ECS entity!");
-
 						LOG_W(
 								"Trying to add %u ECS %s components to ECS entity [%u.%u] "
 								"but there's only enough room for %u more!",
@@ -444,7 +458,10 @@ namespace gaia {
 										(uint32_t)archetype.componentList[TYPE].size());
 						LOG_W("Already present:");
 						for (uint32_t i = 0; i < componentList.size(); i++)
-							LOG_W("> [%u] %s", i, componentList[i].type->name.data());
+							LOG_W(
+									"> [%u] %.*s", i,
+									(uint32_t)componentList[i].type->name.length(),
+									componentList[i].type->name.data());
 						std::string_view newNames[] = {
 								utils::type_info::name<TComponent>()...};
 						LOG_W("Trying to add:");
@@ -476,10 +493,11 @@ namespace gaia {
 														 "ECS entity");
 								LOG_W(
 										"Trying to add a duplicate ECS %s component to ECS "
-										"entity "
-										"[%u.%u]",
+										"entity [%u.%u]",
 										ComponentTypeString[TYPE], entity.id(), entity.gen());
-								LOG_W("> %s", info.type->name.data());
+								LOG_W(
+										"> %.*s", (uint32_t)info.type->name.length(),
+										info.type->name.data());
 
 								return nullptr;
 							}
@@ -524,7 +542,8 @@ namespace gaia {
 								entity.gen(), MAX_COMPONENTS_PER_ARCHETYPE);
 						std::string_view newNames[] = {
 								utils::type_info::name<TComponent>()...};
-						for (auto i = 0U; i < newTypesCount; i++)
+						LOG_W("Trying to add:");
+						for (uint32_t i = 0; i < newTypesCount; i++)
 							LOG_W(
 									"> [%u] %.*s", i, (uint32_t)newNames[i].length(),
 									newNames[i].data());
