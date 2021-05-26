@@ -155,8 +155,17 @@ namespace gaia {
 				GAIA_ASSERT(size() < N);
 				m_data[++m_pos] = arg;
 			}
+
+			constexpr void push_back_ct(const T& arg) noexcept {
+				m_data[++m_pos] = arg;
+			}
+
 			void push_back(T&& arg) noexcept {
 				GAIA_ASSERT(size() < N);
+				m_data[++m_pos] = std::forward<T>(arg);
+			}
+
+			constexpr void push_back_ct(T&& arg) noexcept {
 				m_data[++m_pos] = std::forward<T>(arg);
 			}
 
@@ -165,7 +174,11 @@ namespace gaia {
 				--m_pos;
 			}
 
-			void clear() noexcept {
+			constexpr void pop_back_ct() noexcept {
+				--m_pos;
+			}
+
+			constexpr void clear() noexcept {
 				m_pos = size_t(-1);
 			}
 
