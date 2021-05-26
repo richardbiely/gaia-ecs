@@ -1614,7 +1614,7 @@ namespace gaia {
 						for (auto i = 0U; i < (uint32_t)chunks.size(); ++i) {
 							const auto& chunk = chunks[i];
 							LOG_N(
-									"  Chunk #%04u, entities:%u/%u, remove:%d", i,
+									"  Chunk #%04u, entities:%hu/%hu, remove:%d", i,
 									chunk->header.lastEntityIndex + 1, archetype->capacity,
 									chunk->header.remove);
 						}
