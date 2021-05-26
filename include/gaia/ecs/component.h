@@ -200,7 +200,7 @@ namespace gaia {
 		//-----------------------------------------------------------------------------------
 
 		class ComponentCache {
-			std::vector<const ComponentMetaData*> m_types;
+			std::unordered_map<uint32_t, const ComponentMetaData*> m_types;
 
 		public:
 			ComponentCache() {
@@ -220,66 +220,47 @@ namespace gaia {
 			template <typename T>
 			[[nodiscard]] const ComponentMetaData* GetOrCreateComponentMetaType() {
 				using TComponent = std::decay_t<T>;
-				const auto idx = utils::type_info::index<TComponent>();
-				if (idx < m_types.size() && m_types[idx] != nullptr)
-					return m_types[idx];
+				const auto componentIndex = utils::type_info::index<TComponent>();
+				auto it = m_types.find(componentIndex);
+				if (it != m_types.end())
+					return it->second;
 
 				const auto pMetaData = ComponentMetaData::Create<TComponent>();
-
-				// Make sure there's enough space. Initialize new memory to zero
-				const auto startIdx = m_types.size();
-				if (startIdx < idx + 1)
-					m_types.resize(idx + 1);
-				const auto endIdx = m_types.size() - 1;
-				for (auto i = startIdx; i < endIdx; i++)
-					m_types[i] = nullptr;
-
-				m_types[idx] = pMetaData;
+				m_types.insert({componentIndex, pMetaData});
 				return pMetaData;
 			}
 
 			template <typename T>
 			[[nodiscard]] const ComponentMetaData* GetComponentMetaType() {
 				using TComponent = std::decay_t<T>;
-				const auto idx = utils::type_info::index<TComponent>();
+				const auto componentIndex = utils::type_info::index<TComponent>();
 				// Let's assume somebody has registered the component already via
 				// AddComponent!
-				GAIA_ASSERT(idx < m_types.size());
-				return m_types[idx];
+				GAIA_ASSERT(m_types.find(componentIndex) != m_types.end());
+				return m_types.at(componentIndex);
 			}
 
 			[[nodiscard]] const ComponentMetaData*
-			GetComponentMetaTypeFromIdx(uint32_t idx) {
-				const auto it = utils::find_if(m_types, [idx](const auto& info) {
-					return info->typeIndex == idx;
-				});
+			GetComponentMetaTypeFromIdx(uint32_t componentIndex) {
 				// Let's assume somebody has registered the component already via
 				// AddComponent!
-				GAIA_ASSERT(it != m_types.end());
-				return *it;
+				GAIA_ASSERT(m_types.find(componentIndex) != m_types.end());
+				return m_types.at(componentIndex);
 			}
 
 			template <typename T>
 			[[nodiscard]] bool HasComponentMetaType() {
 				using TComponent = std::decay_t<T>;
-				const auto idx = utils::type_info::index<TComponent>();
-				return idx < m_types.size();
+				const auto componentIndex = utils::type_info::index<TComponent>();
+				return m_types.find(componentIndex) != m_types.end();
 			}
 
 			void Diag() const {
-				uint32_t registeredTypes = 0;
-				for (const auto* type: m_types) {
-					if (type == nullptr)
-						continue;
-
-					++registeredTypes;
-				}
+				const auto registeredTypes = (uint32_t)m_types.size();
 				LOG_N("Registered types: %u", registeredTypes);
 
-				for (const auto* type: m_types) {
-					if (type == nullptr)
-						continue;
-
+				for (const auto& pair: m_types) {
+					const auto* type = pair.second;
 					LOG_N(
 							"  %-16.*s (%p) --> index:%010u, lookupHash:%016llx, "
 							"matcherHash:%016llx",
@@ -319,9 +300,8 @@ namespace gaia {
 				{
 					bool hasDuplicates = false;
 					DuplicateMap m;
-					for (const auto* type: m_types) {
-						if (type == nullptr)
-							continue;
+					for (const auto& pair: m_types) {
+						const auto* type = pair.second;
 
 						const auto it = m.find(type->lookupHash);
 						if (it == m.end())
@@ -342,9 +322,8 @@ namespace gaia {
 				{
 					bool hasDuplicates = false;
 					DuplicateMap m;
-					for (const auto* type: m_types) {
-						if (type == nullptr)
-							continue;
+					for (const auto& pair: m_types) {
+						const auto* type = pair.second;
 
 						const auto it = m.find(type->matcherHash);
 						if (it == m.end())
@@ -362,10 +341,8 @@ namespace gaia {
 
 		private:
 			void ClearRegisteredTypeCache() {
-				for (auto* p: m_types) {
-					if (p)
-						delete p;
-				}
+				for (auto& pair: m_types)
+					delete pair.second;
 				m_types.clear();
 			}
 		};
