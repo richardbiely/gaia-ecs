@@ -20,7 +20,7 @@ using namespace gaia;
 struct Position {
 	float x, y, z;
 };
-struct Acceleration {
+struct Velocity {
 	float x, y, z;
 };
 struct Rotation {
@@ -50,8 +50,8 @@ void BM_Game_ECS(benchmark::State& state) {
 	// Create dynamic entities
 	{
 		auto e = w.CreateEntity();
-		w.AddComponent<Position>(e, {});
-		w.AddComponent<Acceleration>(e, {0, 0, 1});
+		w.AddComponent<Position>(e, {0, 100, 0});
+		w.AddComponent<Velocity>(e, {0, 0, 1});
 		w.AddComponent<Rotation>(e, {1, 2, 3, 4});
 		w.AddComponent<Scale>(e, {1, 1, 1});
 		for (uint32_t i = 1U; i < N; i++) {
@@ -59,7 +59,7 @@ void BM_Game_ECS(benchmark::State& state) {
 		}
 	}
 
-	auto queryDynamic = ecs::EntityQuery().All<Position, Acceleration>();
+	auto queryDynamic = ecs::EntityQuery().All<Position, Velocity>();
 
 	srand(0);
 	for ([[maybe_unused]] auto _: state) {
@@ -70,12 +70,21 @@ void BM_Game_ECS(benchmark::State& state) {
 											 (static_cast<float>(RAND_MAX / (MaxDelta - MinDelta)));
 		state.ResumeTiming();
 
-		// Process entities
-		w.ForEach(queryDynamic, [&](Position& p, const Acceleration& a) {
-			 p.x += a.x * dt;
-			 p.y += a.y * dt;
-			 p.z += a.z * dt;
+		// Update position
+		w.ForEach(queryDynamic, [&](Position& p, const Velocity& v) {
+			 p.x += v.x * dt;
+			 p.y += v.y * dt;
+			 p.z += v.z * dt;
 		 }).Run(0);
+		// Handle ground collision
+		w.ForEach(queryDynamic, [&](Position& p, Velocity& v) {
+			 if (p.y < 0.0f) {
+				 p.y = 0.0f;
+				 v.y = 0.0f;
+			 }
+		 }).Run(0);
+		// Apply gravity
+		w.ForEach(queryDynamic, [&](Velocity& v) { v.y += 9.81f * dt; }).Run(0);
 	}
 }
 BENCHMARK(BM_Game_ECS);
@@ -89,19 +98,32 @@ void BM_Game_NonECS(benchmark::State& state) {
 		IUnit() = default;
 		virtual ~IUnit() = default;
 
-		virtual void move(float dt) = 0;
+		virtual void updatePosition(float dt) = 0;
+		virtual void handleGroundCollision(float dt) = 0;
+		virtual void applyGravity(float dt) = 0;
 	};
 
 	struct UnitStatic: public IUnit {
-		void move([[maybe_unused]] float dt) override {}
+		void updatePosition([[maybe_unused]] float dt) override {}
+		void handleGroundCollision([[maybe_unused]] float dt) override {}
+		void applyGravity([[maybe_unused]] float dt) override {}
 	};
 
 	struct UnitDynamic: public IUnit {
-		Acceleration a;
-		void move(float dt) override {
-			p.x += a.x * dt;
-			p.y += a.y * dt;
-			p.z += a.z * dt;
+		Velocity v;
+		void updatePosition(float dt) override {
+			p.x += v.x * dt;
+			p.y += v.y * dt;
+			p.z += v.z * dt;
+		}
+		void handleGroundCollision([[maybe_unused]] float dt) override {
+			if (p.y < 0.0f) {
+				p.y = 0.0f;
+				v.y = 0.0f;
+			}
+		}
+		void applyGravity(float dt) override {
+			v.y += 9.81f * dt;
 		}
 	};
 
@@ -110,15 +132,15 @@ void BM_Game_NonECS(benchmark::State& state) {
 	std::vector<IUnit*> units(N * 2);
 	for (uint32_t i = 0; i < N; i++) {
 		auto u = new UnitStatic();
-		u->p = {};
+		u->p = {0, 100, 0};
 		u->r = {1, 2, 3, 4};
 		u->s = {1, 1, 1};
 		units[i] = u;
 	}
 	for (uint32_t i = 0; i < N; i++) {
 		auto u = new UnitDynamic();
-		u->p = {};
-		u->a = {0, 0, 1};
+		u->p = {0, 100, 0};
+		u->v = {0, 0, 1};
 		u->r = {1, 2, 3, 4};
 		u->s = {1, 1, 1};
 		units[N + i] = u;
@@ -135,7 +157,9 @@ void BM_Game_NonECS(benchmark::State& state) {
 
 		// Process entities
 		for (auto& u: units) {
-			u->move(dt);
+			u->updatePosition(dt);
+			u->handleGroundCollision(dt);
+			u->applyGravity(dt);
 		}
 	}
 
