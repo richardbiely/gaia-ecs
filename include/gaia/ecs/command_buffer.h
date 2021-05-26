@@ -422,7 +422,7 @@ namespace gaia {
 							}
 							world->AddComponent_Internal(
 									componentType, entity,
-									std::span(newMetatypes, (uintptr_t)componentCount));
+									{newMetatypes, (uintptr_t)componentCount});
 
 							uint32_t indexInChunk;
 							auto chunk = world->GetEntityChunk(entity, indexInChunk);
@@ -467,7 +467,7 @@ namespace gaia {
 							}
 							world->AddComponent_Internal(
 									componentType, entity,
-									std::span(newMetatypes, (uintptr_t)componentCount));
+									{newMetatypes, (uintptr_t)componentCount});
 
 							uint32_t indexInChunk;
 							auto chunk = world->GetEntityChunk(entity, indexInChunk);
@@ -573,8 +573,7 @@ namespace gaia {
 								i += sizeof(const ComponentMetaData*);
 							}
 							world->RemoveComponent_Internal(
-									componentType, e,
-									std::span(newMetatypes, (uintptr_t)componentCount));
+									componentType, e, {newMetatypes, (uintptr_t)componentCount});
 						} break;
 					}
 				}

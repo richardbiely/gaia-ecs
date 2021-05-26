@@ -227,8 +227,8 @@ namespace gaia {
 				// TODO: Verify if return FindOrCreateArchetype(std::span<const
 				// ComponentMetaData*>(types)) works the same way
 				return FindOrCreateArchetype(
-						std::span(query.list[ComponentType::CT_Generic]),
-						std::span(query.list[ComponentType::CT_Chunk]));
+						query.list[ComponentType::CT_Generic],
+						query.list[ComponentType::CT_Chunk]);
 			}
 
 			[[nodiscard]] Archetype* GetArchetype(Entity entity) const {
@@ -379,14 +379,13 @@ namespace gaia {
 					for (uint32_t i = 0; i < secondList.size(); i++)
 						secondMetaTypes[i] = secondList[i].type;
 
-					auto newArchetype =
-							TYPE == ComponentType::CT_Generic
-									? FindOrCreateArchetype(
-												std::span(newMetatypes, metatypesCount),
-												std::span(secondMetaTypes, secondList.size()))
-									: FindOrCreateArchetype(
-												std::span(secondMetaTypes, secondList.size()),
-												std::span(newMetatypes, metatypesCount));
+					auto newArchetype = TYPE == ComponentType::CT_Generic
+																	? FindOrCreateArchetype(
+																				{newMetatypes, metatypesCount},
+																				{secondMetaTypes, secondList.size()})
+																	: FindOrCreateArchetype(
+																				{secondMetaTypes, secondList.size()},
+																				{newMetatypes, metatypesCount});
 
 					MoveEntity(entity, *newArchetype);
 				}
@@ -432,11 +431,12 @@ namespace gaia {
 
 					const auto metatypesCount =
 							(uint32_t)componentList.size() + newTypesCount;
+#if GAIA_DEBUG
 					if (!VerityArchetypeComponentCount(metatypesCount)) {
 						GAIA_ASSERT(
 								false &&
 								"Trying to add too many ECS components to ECS entity!");
-#if GAIA_DEBUG
+
 						LOG_W(
 								"Trying to add %u ECS %s components to ECS entity [%u.%u] "
 								"but there's only enough room for %u more!",
@@ -454,9 +454,10 @@ namespace gaia {
 							LOG_W(
 									"> [%u] %.*s", i, (uint32_t)newNames[i].length(),
 									newNames[i].data());
-#endif
+
 						return nullptr;
 					}
+#endif
 
 					const ComponentMetaData* typesToAdd[] = {
 							g_ComponentCache.GetOrCreateComponentMetaType<TComponent>()...};
@@ -468,23 +469,24 @@ namespace gaia {
 					for (uint32_t i = 0; i < componentList.size(); i++) {
 						const auto& info = componentList[i];
 
+#if GAIA_DEBUG
 						// Don't add the same component twice
 						for (uint32_t k = 0; k < newTypesCount; k++) {
 							if (info.type == typesToAdd[k]) {
 								GAIA_ASSERT(
 										false && "Trying to add a duplicate ECS component to "
 														 "ECS entity");
-#if GAIA_DEBUG
 								LOG_W(
 										"Trying to add a duplicate ECS %s component to ECS "
 										"entity "
 										"[%u.%u]",
 										ComponentTypeString[TYPE], entity.id(), entity.gen());
 								LOG_W("> %s", info.type->name.data());
-#endif
+
 								return nullptr;
 							}
 						}
+#endif
 
 						// Keep the types offset by the number of new input types
 						newMetatypes[newTypesCount + j++] = info.type;
@@ -499,24 +501,24 @@ namespace gaia {
 					for (uint32_t i = 0; i < secondList.size(); i++)
 						secondMetaTypes[i] = secondList[i].type;
 
-					auto newArchetype =
-							TYPE == ComponentType::CT_Generic
-									? FindOrCreateArchetype(
-												std::span(newMetatypes, metatypesCount),
-												std::span(secondMetaTypes, secondList.size()))
-									: FindOrCreateArchetype(
-												std::span(secondMetaTypes, secondList.size()),
-												std::span(newMetatypes, metatypesCount));
+					auto newArchetype = TYPE == ComponentType::CT_Generic
+																	? FindOrCreateArchetype(
+																				{newMetatypes, metatypesCount},
+																				{secondMetaTypes, secondList.size()})
+																	: FindOrCreateArchetype(
+																				{secondMetaTypes, secondList.size()},
+																				{newMetatypes, metatypesCount});
 
 					MoveEntity(entity, *newArchetype);
 				}
 				// Adding a component to an empty entity
 				else {
+#if GAIA_DEBUG
 					if (!VerityArchetypeComponentCount(newTypesCount)) {
 						GAIA_ASSERT(
 								false &&
 								"Trying to add too many ECS components to ECS entity!");
-#if GAIA_DEBUG
+
 						LOG_W(
 								"Trying to add %u ECS %s components to ECS entity [%u.%u] "
 								"but maximum of only %u is supported!",
@@ -528,19 +530,18 @@ namespace gaia {
 							LOG_W(
 									"> [%u] %.*s", i, (uint32_t)newNames[i].length(),
 									newNames[i].data());
-#endif
+
 						return nullptr;
 					}
+#endif
 
 					const ComponentMetaData* newMetatypes[] = {
 							g_ComponentCache.GetOrCreateComponentMetaType<TComponent>()...};
 
 					auto newArchetype =
 							TYPE == ComponentType::CT_Generic
-									? FindOrCreateArchetype(
-												std::span(newMetatypes, newTypesCount), {})
-									: FindOrCreateArchetype(
-												{}, std::span(newMetatypes, newTypesCount));
+									? FindOrCreateArchetype({newMetatypes, newTypesCount}, {})
+									: FindOrCreateArchetype({}, {newMetatypes, newTypesCount});
 
 					StoreEntity(entity, newArchetype->FindOrCreateChunk());
 				}
@@ -589,14 +590,13 @@ namespace gaia {
 				for (auto i = 0U; i < secondList.size(); i++)
 					secondMetaTypes[i] = secondList[i].type;
 
-				auto newArchetype =
-						TYPE == ComponentType::CT_Generic
-								? FindOrCreateArchetype(
-											std::span(newMetatypes, typesAfter),
-											std::span(secondMetaTypes, secondList.size()))
-								: FindOrCreateArchetype(
-											std::span(secondMetaTypes, secondList.size()),
-											std::span(newMetatypes, typesAfter));
+				auto newArchetype = TYPE == ComponentType::CT_Generic
+																? FindOrCreateArchetype(
+																			{newMetatypes, typesAfter},
+																			{secondMetaTypes, secondList.size()})
+																: FindOrCreateArchetype(
+																			{secondMetaTypes, secondList.size()},
+																			{newMetatypes, typesAfter});
 
 				MoveEntity(entity, *newArchetype);
 			}
@@ -650,14 +650,13 @@ namespace gaia {
 				for (uint32_t i = 0; i < secondList.size(); i++)
 					secondMetaTypes[i] = secondList[i].type;
 
-				auto newArchetype =
-						TYPE == ComponentType::CT_Generic
-								? FindOrCreateArchetype(
-											std::span(newMetatypes, typesAfter),
-											std::span(secondMetaTypes, secondList.size()))
-								: FindOrCreateArchetype(
-											std::span(secondMetaTypes, secondList.size()),
-											std::span(newMetatypes, typesAfter));
+				auto newArchetype = TYPE == ComponentType::CT_Generic
+																? FindOrCreateArchetype(
+																			{newMetatypes, typesAfter},
+																			{secondMetaTypes, secondList.size()})
+																: FindOrCreateArchetype(
+																			{secondMetaTypes, secondList.size()},
+																			{newMetatypes, typesAfter});
 				MoveEntity(entity, *newArchetype);
 			}
 
