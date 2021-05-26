@@ -281,10 +281,10 @@ namespace gaia {
 						continue;
 
 					LOG_N(
-							"--> (%p) lookupHash:%016llx, matcherHash:%016llx, "
-							"index:%010u, %.*s",
-							(void*)type, type->lookupHash, type->matcherHash, type->typeIndex,
-							(uint32_t)type->name.length(), type->name.data());
+							"  %-16.*s (%p) --> index:%010u, lookupHash:%016llx, "
+							"matcherHash:%016llx",
+							(uint32_t)type->name.length(), type->name.data(), (void*)type,
+							type->typeIndex, type->lookupHash, type->matcherHash);
 				}
 
 				using DuplicateMap =
