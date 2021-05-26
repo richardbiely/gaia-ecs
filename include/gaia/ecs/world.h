@@ -1574,7 +1574,7 @@ namespace gaia {
 								"matcherGeneric:%016llx, "
 								"matcherChunk:%016llx, "
 								"chunks:%u, data size:%u B (%u + %u), "
-								"entities:%u/%u",
+								"entities:%u (max-per-chunk:%u)",
 								archetype->lookupHash,
 								archetype->matcherHash[ComponentType::CT_Generic],
 								archetype->matcherHash[ComponentType::CT_Chunk],
@@ -1583,11 +1583,11 @@ namespace gaia {
 								genericComponentsSize, chunkComponentsSize, it->second,
 								archetype->capacity);
 
-						auto logInfo = [](const ChunkComponentList& components) {
+						auto logComponentInfo = [](const ChunkComponentList& components) {
 							for (const auto& component: components) {
 								const auto type = component.type;
 								LOG_N(
-										"--> (%p) lookupHash:%016llx, matcherHash:%016llx, "
+										"    (%p) lookupHash:%016llx, matcherHash:%016llx, "
 										"size:%3u "
 										"B, "
 										"align:%3u B, %.*s",
@@ -1599,15 +1599,24 @@ namespace gaia {
 
 						if (!genericComponents.empty()) {
 							LOG_N(
-									"Generic components - count:%u",
+									"  Generic components - count:%u",
 									(uint32_t)genericComponents.size());
-							logInfo(genericComponents);
+							logComponentInfo(genericComponents);
 						}
 						if (!chunkComponents.empty()) {
 							LOG_N(
-									"Chunk components - count:%u",
+									"  Chunk components - count:%u",
 									(uint32_t)chunkComponents.size());
-							logInfo(chunkComponents);
+							logComponentInfo(chunkComponents);
+						}
+
+						const auto& chunks = archetype->chunks;
+						for (auto i = 0U; i < (uint32_t)chunks.size(); ++i) {
+							const auto& chunk = chunks[i];
+							LOG_N(
+									"  Chunk #%04u, entities:%u/%u, remove:%d", i,
+									chunk->header.lastEntityIndex + 1, archetype->capacity,
+									chunk->header.remove);
 						}
 					}
 				}
@@ -1635,7 +1644,7 @@ namespace gaia {
 					for (const auto& component: componentList) {
 						const auto type = component.type;
 						LOG_N(
-								"--> (%p) lookupHash:%016llx, matcherHash:%016llx, %.*s",
+								"  --> (%p) lookupHash:%016llx, matcherHash:%016llx, %.*s",
 								(void*)type, type->lookupHash, type->matcherHash,
 								(uint32_t)type->name.length(), type->name.data());
 					}
@@ -1643,7 +1652,7 @@ namespace gaia {
 					LOG_N("types to match: %u", (uint32_t)listToCompare.size());
 					for (const auto type: listToCompare) {
 						LOG_N(
-								"--> (%p) lookupHash:%016llx, matcherHash:%016llx, %.*s",
+								"  --> (%p) lookupHash:%016llx, matcherHash:%016llx, %.*s",
 								(void*)type, type->lookupHash, type->matcherHash,
 								(uint32_t)type->name.length(), type->name.data());
 					}
@@ -1659,12 +1668,12 @@ namespace gaia {
 
 					LOG_N("Deleted entities: %u", m_freeEntities);
 					if (m_freeEntities) {
-						LOG_N("--> %u", m_nextFreeEntity);
+						LOG_N("  --> %u", m_nextFreeEntity);
 
 						uint32_t iters = 0;
 						auto fe = m_entities[m_nextFreeEntity].idx;
 						while (fe != Entity::IdMask) {
-							LOG_N("--> %u", m_entities[fe].idx);
+							LOG_N("  --> %u", m_entities[fe].idx);
 							fe = m_entities[fe].idx;
 							++iters;
 							if (!iters || iters > m_freeEntities) {
