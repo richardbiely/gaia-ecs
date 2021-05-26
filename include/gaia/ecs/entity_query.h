@@ -4,7 +4,7 @@
 #include <tuple>
 #include <vector>
 
-#include "../external/stack_allocator.h"
+#include "../utils/sarray.h"
 #include "../utils/utility.h"
 #include "../utils/utils_containers.h"
 #include "common.h"
@@ -106,16 +106,12 @@ namespace gaia {
 			// Keeps an array of ComponentMetaData copies. We can't keep pointers in
 			// queries because as new components are added and removed the global type
 			// map will get invalidated.
-			using ComponentMetaDataArrayAllocator =
-					stack_allocator<const ComponentMetaData*, MAX_COMPONENTS_IN_QUERY>;
-			using ComponentMetaDataArray = std::vector<
-					const ComponentMetaData*, ComponentMetaDataArrayAllocator>;
+			using ComponentMetaDataArray =
+					utils::sarray<const ComponentMetaData*, MAX_COMPONENTS_IN_QUERY>;
 
 			// Keeps an array of ComponentMetaData hashes
-			using ChangeFilterArrayAllocator =
-					stack_allocator<uint32_t, MAX_COMPONENTS_IN_QUERY>;
 			using ChangeFilterArray =
-					std::vector<uint32_t, ChangeFilterArrayAllocator>;
+					utils::sarray<uint32_t, MAX_COMPONENTS_IN_QUERY>;
 
 			struct ComponentListData {
 				ComponentMetaDataArray listNone{};

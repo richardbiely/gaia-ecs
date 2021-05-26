@@ -2,7 +2,7 @@
 #include <type_traits>
 #include <vector>
 
-#include "../external/stack_allocator.h"
+#include "../utils/sarray.h"
 #include "component.h"
 #include "fwd.h"
 
@@ -16,10 +16,8 @@ namespace gaia {
 
 			// We don't want to allocate these things on heap. Instead, we take a
 			// small amount of space on stack for each query object
-			using ComponentMetaDataArrayAllocator =
-					stack_allocator<const ComponentMetaData*, MAX_COMPONENTS_IN_QUERY>;
-			using ComponentMetaDataArray = std::vector<
-					const ComponentMetaData*, ComponentMetaDataArrayAllocator>;
+			using ComponentMetaDataArray =
+					utils::sarray<const ComponentMetaData*, MAX_COMPONENTS_IN_QUERY>;
 
 			ComponentMetaDataArray list[ComponentType::CT_Count];
 

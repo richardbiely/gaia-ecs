@@ -6,8 +6,8 @@
 #include <vector>
 
 #include "../config/config.h"
-#include "../external/stack_allocator.h"
 #include "../utils/hashing_policy.h"
+#include "../utils/sarray.h"
 #include "../utils/span.h"
 #include "../utils/type_info.h"
 #include "../utils/utility.h"
@@ -194,10 +194,8 @@ namespace gaia {
 			uint32_t offset;
 		};
 
-		using ChunkComponentListAllocator =
-				stack_allocator<ChunkComponentInfo, MAX_COMPONENTS_PER_ARCHETYPE>;
 		using ChunkComponentList =
-				std::vector<ChunkComponentInfo, ChunkComponentListAllocator>;
+				utils::sarray<ChunkComponentInfo, MAX_COMPONENTS_PER_ARCHETYPE>;
 
 		//-----------------------------------------------------------------------------------
 
