@@ -90,12 +90,12 @@ namespace gaia {
 		template <typename Container>
 		[[nodiscard]] constexpr uint64_t
 		CalculateLookupHash(Container arr) noexcept {
-			constexpr auto N = arr.size();
-			if constexpr (N == 0) {
+			constexpr auto arrSize = arr.size();
+			if constexpr (arrSize == 0) {
 				return 0;
 			} else {
 				uint64_t hash = arr[0];
-				utils::for_each<N - 1>([&hash, &arr](auto i) {
+				utils::for_each<arrSize - 1>([&hash, &arr](auto i) {
 					hash = utils::hash_combine(hash, arr[i + 1]);
 				});
 				return hash;

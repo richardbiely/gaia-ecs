@@ -142,7 +142,7 @@ namespace gaia {
 
 				// Create a chunk in the new archetype
 				auto chunk = AllocateChunk(*newArch);
-				newArch->capacity = maxGenericItemsInArchetype;
+				newArch->capacity = (uint16_t)maxGenericItemsInArchetype;
 				newArch->chunks.push_back(chunk);
 				newArch->matcherHash[ComponentType::CT_Generic] =
 						CalculateMatcherHash(genericTypes);

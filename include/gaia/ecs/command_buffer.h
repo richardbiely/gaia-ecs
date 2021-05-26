@@ -416,8 +416,8 @@ namespace gaia {
 							auto newMetatypes = (const ComponentMetaData**)alloca(
 									sizeof(ComponentMetaData) * componentCount);
 							for (uint8_t j = 0; j < componentCount; ++j) {
-								const auto type = *(const ComponentMetaData**)&m_data[i];
-								newMetatypes[j] = type;
+								const auto metaType = *(const ComponentMetaData**)&m_data[i];
+								newMetatypes[j] = metaType;
 								i += sizeof(const ComponentMetaData*);
 							}
 							world->AddComponent_Internal(
@@ -432,10 +432,10 @@ namespace gaia {
 								indexInChunk = 0;
 
 							for (uint8_t j = 0; j < componentCount; ++j) {
-								const auto type = newMetatypes[j];
+								const auto metaType = newMetatypes[j];
 								auto pComponentData = chunk->SetComponent_Internal(
-										componentType, indexInChunk, type);
-								memset(pComponentData, 0, type->size);
+										componentType, indexInChunk, metaType);
+								memset(pComponentData, 0, metaType->size);
 							}
 						} break;
 						case ADD_COMPONENT_TO_TEMPENTITY: {
@@ -461,8 +461,8 @@ namespace gaia {
 							auto newMetatypes = (const ComponentMetaData**)alloca(
 									sizeof(ComponentMetaData) * componentCount);
 							for (uint8_t j = 0; j < componentCount; ++j) {
-								const auto type = *(const ComponentMetaData**)&m_data[i];
-								newMetatypes[j] = type;
+								const auto metaType = *(const ComponentMetaData**)&m_data[i];
+								newMetatypes[j] = metaType;
 								i += sizeof(const ComponentMetaData*);
 							}
 							world->AddComponent_Internal(
@@ -477,10 +477,10 @@ namespace gaia {
 								indexInChunk = 0;
 
 							for (uint8_t j = 0; j < componentCount; ++j) {
-								const auto type = newMetatypes[j];
+								const auto metaType = newMetatypes[j];
 								auto pComponentData = chunk->SetComponent_Internal(
-										componentType, indexInChunk, type);
-								memset(pComponentData, 0, type->size);
+										componentType, indexInChunk, metaType);
+								memset(pComponentData, 0, metaType->size);
 							}
 						} break;
 						case SET_COMPONENT: {
@@ -503,15 +503,15 @@ namespace gaia {
 							// Components
 							for (uint8_t j = 0; j < componentCount; ++j) {
 								const uint32_t typeIdx = *(uint32_t*)&m_data[i];
-								const auto* type =
+								const auto* metaType =
 										g_ComponentCache.GetComponentMetaTypeFromIdx(typeIdx);
 								i += sizeof(typeIdx);
 
 								memcpy(
 										chunk->SetComponent_Internal(
-												componentType, indexInChunk, type),
-										(const void*)&m_data[i], type->size);
-								i += type->size;
+												componentType, indexInChunk, metaType),
+										(const void*)&m_data[i], metaType->size);
+								i += metaType->size;
 							}
 						} break;
 						case SET_COMPONENT_FOR_TEMPENTITY: {
@@ -542,15 +542,15 @@ namespace gaia {
 							// Components
 							for (uint8_t j = 0; j < componentCount; ++j) {
 								const uint32_t typeIdx = *(uint32_t*)&m_data[i];
-								const auto* type =
+								const auto* metaType =
 										g_ComponentCache.GetComponentMetaTypeFromIdx(typeIdx);
 								i += sizeof(typeIdx);
 
 								memcpy(
 										chunk->SetComponent_Internal(
-												componentType, indexInChunk, type),
-										(const void*)&m_data[i], type->size);
-								i += type->size;
+												componentType, indexInChunk, metaType),
+										(const void*)&m_data[i], metaType->size);
+								i += metaType->size;
 							}
 						} break;
 						case REMOVE_COMPONENT: {
@@ -568,8 +568,8 @@ namespace gaia {
 							auto newMetatypes = (const ComponentMetaData**)alloca(
 									sizeof(ComponentMetaData) * componentCount);
 							for (uint8_t j = 0; j < componentCount; ++j) {
-								auto type = *(ComponentMetaData**)&m_data[i];
-								newMetatypes[j] = type;
+								auto metaType = *(ComponentMetaData**)&m_data[i];
+								newMetatypes[j] = metaType;
 								i += sizeof(const ComponentMetaData*);
 							}
 							world->RemoveComponent_Internal(

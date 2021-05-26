@@ -74,7 +74,8 @@ namespace gaia {
 				// If chunk information is present the entity at the pointed index has
 				// to match our entity
 				if (entityContainer.chunk &&
-						entityContainer.chunk->GetEntity(entityContainer.idx) != entity)
+						entityContainer.chunk->GetEntity((uint16_t)entityContainer.idx) !=
+								entity)
 					return false;
 
 				return true;
@@ -740,7 +741,7 @@ namespace gaia {
 				}
 
 				// Remove entity from the previous chunk
-				RemoveEntity(oldChunk, oldIndex);
+				RemoveEntity(oldChunk, (uint16_t)oldIndex);
 
 				// Update entity's chunk and index so look-ups can find it
 				entityContainer.chunk = newChunk;
@@ -918,7 +919,7 @@ namespace gaia {
 
 				// Remove entity from chunk
 				if (auto chunk = entityContainer.chunk) {
-					RemoveEntity(chunk, entityContainer.idx);
+					RemoveEntity(chunk, (uint16_t)entityContainer.idx);
 
 					// Return entity to pool
 					DeallocateEntity(entity);
@@ -936,7 +937,7 @@ namespace gaia {
 			\return Entity
 			*/
 			[[nodiscard]] uint32_t GetEntityCount() const {
-				return m_entities.size() - m_freeEntities;
+				return (uint32_t)m_entities.size() - m_freeEntities;
 			}
 
 			/*!
