@@ -52,10 +52,10 @@ namespace gaia {
 					--m_pos;
 				}
 				constexpr bool operator>(const iterator& rhs) const {
-					return m_ptr > rhs.m_ptr;
+					return m_pos > rhs.m_pos;
 				}
 				constexpr bool operator<(const iterator& rhs) const {
-					return m_ptr < rhs.m_ptr;
+					return m_pos < rhs.m_pos;
 				}
 				constexpr iterator operator+(size_type offset) const {
 					return {m_ptr, m_pos + offset};
@@ -67,10 +67,10 @@ namespace gaia {
 					return m_pos - rhs.m_pos;
 				}
 				constexpr bool operator==(const iterator& rhs) const {
-					return m_ptr == rhs.m_ptr;
+					return m_pos == rhs.m_pos;
 				}
 				constexpr bool operator!=(const iterator& rhs) const {
-					return m_ptr != rhs.m_ptr;
+					return m_pos != rhs.m_pos;
 				}
 				constexpr T& operator*() const {
 					return *(T*)(m_ptr + m_pos);
@@ -107,16 +107,16 @@ namespace gaia {
 					--m_pos;
 				}
 				constexpr bool operator==(const const_iterator& rhs) const {
-					return m_ptr == rhs.m_ptr;
+					return m_pos == rhs.m_pos;
 				}
 				constexpr bool operator!=(const const_iterator& rhs) const {
-					return m_ptr != rhs.m_ptr;
+					return m_pos != rhs.m_pos;
 				}
 				constexpr bool operator<(const const_iterator& rhs) const {
-					return m_ptr < rhs.m_ptr;
+					return m_pos < rhs.m_pos;
 				}
 				constexpr bool operator>(const const_iterator& rhs) const {
-					return m_ptr > rhs.m_ptr;
+					return m_pos > rhs.m_pos;
 				}
 				constexpr const_iterator operator+(size_type offset) const {
 					return {m_ptr, m_pos + offset};
