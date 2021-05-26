@@ -18,7 +18,7 @@ GAIA_INIT
 using namespace gaia;
 
 void BM_CreateEntity(benchmark::State& state) {
-	constexpr uint32_t N = 1'000'000;
+	constexpr uint32_t N = 100'000;
 	for ([[maybe_unused]] auto _: state) {
 		ecs::World w;
 		for (uint32_t i = 0; i < N; ++i) {
@@ -38,7 +38,7 @@ struct Component<version, T, 0U> {}; // empty component
 
 template <typename T, uint32_t ComponentItems, uint32_t Components>
 void BM_CreateEntity_With_Component______(benchmark::State& state) {
-	constexpr uint32_t N = 1'000'000;
+	constexpr uint32_t N = 100'000;
 	for ([[maybe_unused]] auto _: state) {
 		ecs::World w;
 		for (uint32_t i = 0; i < N; ++i) {
