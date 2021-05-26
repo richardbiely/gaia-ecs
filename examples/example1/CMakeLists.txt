@@ -21,14 +21,19 @@ function(enable_cxx_compiler_flag_if_supported flag)
 endfunction()
 
 if (MSVC)
-  #enable_cxx_compiler_flag_if_supported("/W4")
-  #enable_cxx_compiler_flag_if_supported("/WX")
-  enable_cxx_compiler_flag_if_supported("/fp:fast")  
+  # strict rules
+  enable_cxx_compiler_flag_if_supported("/W4")
+  enable_cxx_compiler_flag_if_supported("/WX")
+  # fast-math
+  enable_cxx_compiler_flag_if_supported("/fp:fast") 
 else()
+  # strict rules
   enable_cxx_compiler_flag_if_supported("-Wall")
   enable_cxx_compiler_flag_if_supported("-Wextra")
   enable_cxx_compiler_flag_if_supported("-pedantic")
   enable_cxx_compiler_flag_if_supported("-Werror")
+  # fast-math
+  enable_cxx_compiler_flag_if_supported("-ffast-math")
 endif()
 
 target_include_directories(gaia_example1 PRIVATE ${PROJECT_SOURCE_DIR}/include)
