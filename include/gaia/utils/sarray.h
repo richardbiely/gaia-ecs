@@ -21,7 +21,7 @@ namespace gaia {
 
 		private:
 			T m_data[N];
-			size_type m_pos = size_type(-1);
+			size_type m_pos;
 
 		public:
 			class iterator {
@@ -135,6 +135,10 @@ namespace gaia {
 				}
 			};
 
+			sarray() {
+				clear();
+			}
+
 			constexpr T* data() noexcept {
 				return m_data;
 			}
@@ -187,7 +191,7 @@ namespace gaia {
 			}
 
 			[[nodiscard]] constexpr bool empty() const noexcept {
-				return size() > 0;
+				return size() >= 0;
 			}
 
 			[[nodiscard]] constexpr size_type max_size() const noexcept {
