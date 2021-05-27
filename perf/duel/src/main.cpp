@@ -75,16 +75,16 @@ void BM_Game_ECS(benchmark::State& state) {
 			 p.x += v.x * dt;
 			 p.y += v.y * dt;
 			 p.z += v.z * dt;
-		 }).Run(0);
+		 }).Run();
 		// Handle ground collision
 		w.ForEach(queryDynamic, [&](Position& p, Velocity& v) {
 			 if (p.y < 0.0f) {
 				 p.y = 0.0f;
 				 v.y = 0.0f;
 			 }
-		 }).Run(0);
+		 }).Run();
 		// Apply gravity
-		w.ForEach(queryDynamic, [&](Velocity& v) { v.y += 9.81f * dt; }).Run(0);
+		w.ForEach(queryDynamic, [&](Velocity& v) { v.y += 9.81f * dt; }).Run();
 	}
 }
 BENCHMARK(BM_Game_ECS);
