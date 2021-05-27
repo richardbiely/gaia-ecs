@@ -35,10 +35,10 @@ namespace gaia {
 			//! List of unique archetype hashes - used for iteration
 			std::vector<uint64_t> m_archetypeHashList;
 
-			//! List of entities. Used for look-ups only when searching for entities
-			//! in chunks + data validation
+			//! Implicit list of entities. Used for look-ups only when searching for
+			//! entities in chunks + data validation
 			std::vector<EntityContainer> m_entities;
-			//! Identified of the next entity to recycle
+			//! Index of the next entity to recycle
 			uint32_t m_nextFreeEntity = Entity::IdMask;
 			//! Number of entites to recycle
 			uint32_t m_freeEntities = 0;
@@ -800,15 +800,11 @@ namespace gaia {
 				// Make sure there are no leaks
 				ChunkAllocatorStats memstats;
 				m_chunkAllocator.GetStats(memstats);
-				if (memstats.NumAllocations != 0) {
-					LOG_W(
-							"ECS leaking memory: %u of unreleased allocations "
-							"(blocks:%u, "
-							"allocated:%" PRIu64 "B, overhead:%" PRIu64 "B)",
-							(uint32_t)memstats.NumAllocations, (uint32_t)memstats.NumBlocks,
-							memstats.Allocated, memstats.Overhead);
+				if (memstats.AllocatedMemory != 0) {
+					GAIA_ASSERT(false && "ECS leaking memory");
+					LOG_W("ECS leaking memory!");
+					DiagMemory();
 				}
-
 #endif
 			}
 
@@ -1552,6 +1548,7 @@ namespace gaia {
 				m_chunksToRemove.clear();
 			}
 
+		public:
 			void DiagArchetypes() const {
 				static bool DiagArchetypes = GAIA_ECS_DIAG_ARCHETYPES;
 				if (DiagArchetypes) {
@@ -1707,13 +1704,12 @@ namespace gaia {
 			void DiagMemory() const {
 				ChunkAllocatorStats memstats;
 				m_chunkAllocator.GetStats(memstats);
-				if (memstats.NumAllocations != 0) {
-					LOG_N("ChunkAllocator stats");
-					LOG_N("  Allocations: %llu", memstats.NumAllocations);
-					LOG_N("  Blocks: %llu", memstats.NumBlocks);
-					LOG_N("  Allocated: %llu B", memstats.Allocated);
-					LOG_N("  Overhead: %llu B", memstats.Overhead);
-				}
+				LOG_N("ChunkAllocator stats");
+				LOG_N("  Allocated: %llu B", memstats.AllocatedMemory);
+				LOG_N("  Used: %llu B", memstats.AllocatedMemory - memstats.UsedMemory);
+				LOG_N("  Overhead: %llu B", memstats.UsedMemory);
+				LOG_N("  Pages: %u", memstats.NumPages);
+				LOG_N("  Free pages: %u", memstats.NumFreePages);
 			}
 
 		public:

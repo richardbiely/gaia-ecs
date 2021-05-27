@@ -1,6 +1,7 @@
 #pragma once
 
-#include <cassert>
+#include "../config/config.h"
+
 #if !defined(alloca)
 	#if defined(__GLIBC__) || defined(__sun) || defined(__CYGWIN__)
 		#include <alloca.h> // alloca
@@ -10,228 +11,132 @@
 			#define alloca _alloca // for clang with MS Codegen
 		#endif
 	#else
-		#include <stdlib.h> // alloca
+		#include <cstdlib> // alloca
 	#endif
 #endif
+#include <list>
 
-#include "../config/config.h"
 #include "../config/logging.h"
 #include "../utils/utility.h"
 #include "common.h"
 
-#define ECS_ALLOCATOR_MAINTHREAD 0
-#if ECS_ALLOCATOR_MAINTHREAD
-	// TODO: Replace with some code checking the thread
-	#define ECS_ASSERT_MAIN_THREAD ((void)0)
-#else
-	#define ECS_ASSERT_MAIN_THREAD ((void)0)
-#endif
-
-#define MM_ALLOC(x) malloc(x)
-#define MM_FREE(x) free(x)
-
 namespace gaia {
 	namespace ecs {
-		class DummyCounter {
-		public:
-			uint32_t operator++(int) {
-				return 0;
-			}
-			uint32_t operator--(int) {
-				return 0;
-			}
-			uint32_t operator()() const {
-				return 0;
-			}
-			void Reset() {}
-		};
-
-		class CCounter {
-			uint32_t c = 0;
-
-		public:
-			uint32_t operator++(int) {
-				return ++c;
-			}
-			uint32_t operator--(int) {
-				return --c;
-			}
-			uint32_t operator()() const {
-				return c;
-			}
-			void Reset() {
-				c = 0;
-			}
-		};
-
-		template <class T>
-		struct LListItem {
-			T* next = nullptr;
-			T** prev = nullptr;
-
-			bool IsLinked() const {
-				return (next != nullptr || prev != nullptr);
-			}
-
-			void Remove() {
-				if (next)
-					next->prev = prev;
-				if (prev)
-					*prev = next;
-				next = nullptr;
-				prev = nullptr;
-			}
-
-			void Insert(T* l) {
-				l->next = next;
-				if (next)
-					next->prev = &l->next;
-				next = l;
-				l->prev = &next;
-			}
-
-			void InsertBefore(T* l) {
-				next = l->next;
-				prev = l;
-				l->next = this;
-				l->next->prev = this;
-			}
-		};
-
-		template <class T, class Counter = DummyCounter>
-		struct LList {
-			Counter count;
-			T* first = nullptr;
-
-			void Clear() {
-				first = nullptr;
-			}
-
-			bool IsEmpty() const {
-				return first == nullptr;
-			}
-		};
-
-#define LListInsert(llist, item, link)                                         \
-	(item)->link.next = llist.first;                                             \
-	if (llist.first) {                                                           \
-		llist.first->link.prev = &((item)->link.next);                             \
-		llist.first = item;                                                        \
-	}                                                                            \
-	(item)->link.prev = &llist.first;                                            \
-	llist.first = item;                                                          \
-	llist.count++;
-
-#define LListRemove(llist, item, link)                                         \
-	*((item)->link.prev) = (item)->link.next;                                    \
-	if ((item)->link.next)                                                       \
-		(item)->link.next->link.prev = (item)->link.prev;                          \
-	llist.count--;
-
 		struct ChunkAllocatorStats final {
 			//! Total allocated memory
-			uint64_t Allocated;
-			//! Overhead and cached allocations
-			uint64_t Overhead;
-			//! Number of allocated blocks
-			uint64_t NumAllocations;
-			//! Number of internal heap allocations
-			uint64_t NumBlocks;
+			uint64_t AllocatedMemory;
+			//! Memory actively used
+			uint64_t UsedMemory;
+			//! Number of allocated pages
+			uint32_t NumPages;
+			//! Number of free pages
+			uint32_t NumFreePages;
 		};
 
 		/*!
-		Archetype chunk allocator. It's used when an archetype tries to allocate a
-		new chunk. Every time we're out of space this allocator creates a page of 16
-		MiB. Each page consists of blocks of 1 MiB in size which are added or
-		removed as necessary. Each block then stores archetype chunks which are 16
-		kiB big (CHUNK_SIZE) and therefore can take 64 chunks. This way we keep
-		everything tight in memory and avoid both unnecessary allocation and
-		fragmentation.
+		Allocator for ECS Chunks. Memory is organized in pages of chunks.
 		*/
 		class ChunkAllocator {
-			struct MemoryPage;
-			struct MemItem {
-				MemItem* next;
-			};
-
-			struct BlockHead {
-				//! Page owning the block
-				MemoryPage* m_pOwner = nullptr;
-				//! Pointer to first free item in block
-				MemItem* m_pFirstFree = nullptr;
-				//! Either link in MemoryBlock, or in MemoryPage
-				LListItem<BlockHead> m_Link;
-				//! Initial free offset
-				uint32_t m_iFreeOffset = BlockHeadSize;
-				//! Number of used items. If equal to m_iMaxItems it is necessary to
-				//! create a new block
-				uint16_t m_iUsedItems = 0;
-			};
-
-			static constexpr size_t BlockHeadSize = ((sizeof(BlockHead) + 15) & ~15);
-			static void* BlockHeadData(BlockHead& head) {
-				return (uint8_t*)&head + BlockHeadSize;
-			}
-
 			struct MemoryBlock {
-				static constexpr uint32_t Size = 1024 * 1024; // 1 MiB per block
+				static constexpr uint32_t Size = CHUNK_SIZE;
 
-				//! Number of items per block
-				uint32_t m_iMaxItems = 0;
-				//! Number of allocations in block. Total memory = CHUNK_SIZE *
-				//! m_iNumAllocations
-				uint32_t m_iNumAllocations = 0;
-				//! Number of block currently used
-				uint32_t m_iNumBlocks = 0;
-				//! List of free blocks
-				LList<BlockHead> m_FreeBlocks;
-				//! List of full blocks
-				LList<BlockHead> m_FullBlocks;
-
-				[[nodiscard]] size_t GetInstanceSize() const {
-					uint32_t num = 0;
-
-					BlockHead* pblock = m_FreeBlocks.first;
-					while (pblock) {
-						pblock = pblock->m_Link.next;
-						num++;
-					}
-
-					pblock = m_FullBlocks.first;
-					while (pblock) {
-						pblock = pblock->m_Link.next;
-						num++;
-					}
-
-					return sizeof(MemoryBlock) + num * Size;
-				}
+				//! For active block: Index of the block within page.
+				//! For passive block: Index of the next free block in the implicit
+				//! list.
+				uint16_t idx;
 			};
 
 			struct MemoryPage {
-				static constexpr uint32_t Size =
-						16 * MemoryBlock::Size; // 16 MiB per page
+				static constexpr uint32_t NBlocks = 64;
+				static constexpr uint32_t Size = NBlocks * MemoryBlock::Size;
+				static constexpr uint16_t InvalidBlockId = (uint16_t)-1;
 
-				void* data;
-				LList<BlockHead, CCounter> m_Blocks;
-				LListItem<MemoryPage> m_Link;
-				MemoryPage(void* ptr): data(ptr) {}
+				// Pointer to data managed by page
+				void* m_data;
+				//! Implicit list of blocks
+				MemoryBlock m_blocks[NBlocks];
+				//! Numer of blocks we work with
+				uint16_t m_effectiveSize;
+				//! Numer of used blocks out of NBlocks
+				uint16_t m_usedBlocks;
+				//! Index of the next block to recycle
+				uint16_t m_nextFreeBlock;
+				//! Number of blocks to recycle
+				uint16_t m_freeBlocks;
+
+				MemoryPage(void* ptr):
+						m_data(ptr), m_effectiveSize(0), m_usedBlocks(0),
+						m_nextFreeBlock(0), m_freeBlocks(0) {}
+
+				[[nodiscard]] void* AllocChunk() {
+					if (!m_freeBlocks) {
+						// We don't want to go out of range for new blocks
+						GAIA_ASSERT(!IsFull() && "Trying to allocate too many blocks!");
+
+						++m_usedBlocks;
+						++m_effectiveSize;
+
+						const uint16_t index = m_effectiveSize - uint16_t(1);
+						m_blocks[index] = {index};
+						return (void*)((uint8_t*)m_data + index * MemoryBlock::Size);
+					} else {
+						GAIA_ASSERT(
+								m_nextFreeBlock < m_effectiveSize &&
+								"Block allocator recycle list broken!");
+
+						++m_usedBlocks;
+						--m_freeBlocks;
+
+						const uint32_t index = m_nextFreeBlock;
+						m_nextFreeBlock = m_blocks[m_nextFreeBlock].idx;
+						return (void*)((uint8_t*)m_data + index * MemoryBlock::Size);
+					}
+				}
+
+				void FreeChunk(void* chunk) {
+					GAIA_ASSERT(m_freeBlocks <= NBlocks);
+					const auto chunkAddr = (uintptr_t)chunk;
+					const auto dataAddr = (uintptr_t)m_data;
+					GAIA_ASSERT(
+							chunkAddr >= dataAddr && chunkAddr < dataAddr + MemoryPage::Size);
+					MemoryBlock block = {
+							uint16_t((chunkAddr - dataAddr) / MemoryBlock::Size)};
+
+					auto& blockContainer = m_blocks[block.idx];
+
+					// Update our implicit list
+					if (!m_freeBlocks) {
+						m_nextFreeBlock = block.idx;
+						blockContainer.idx = InvalidBlockId;
+					} else {
+						blockContainer.idx = m_nextFreeBlock;
+						m_nextFreeBlock = block.idx;
+					}
+
+					++m_freeBlocks;
+					--m_usedBlocks;
+				}
+
+				[[nodiscard]] uint32_t GetUsedBlocks() const {
+					return m_usedBlocks;
+				}
+				[[nodiscard]] bool IsFull() const {
+					return m_usedBlocks == NBlocks;
+				}
+				[[nodiscard]] bool IsEmpty() const {
+					return m_usedBlocks == 0;
+				}
 			};
 
-			LList<MemoryPage, CCounter> m_FreePages;
-			LList<MemoryPage, CCounter> m_FullPages;
-			MemoryBlock m_Block;
+			//! List of available pages
+			std::list<MemoryPage*> m_pagesFree;
+			//! List of full pages
+			std::list<MemoryPage*> m_pagesFull;
+			//! Allocator statistics
+			ChunkAllocatorStats m_stats;
 
 		public:
-			ChunkAllocator() {
-				ECS_ASSERT_MAIN_THREAD;
-
-				m_Block.m_iMaxItems =
-						(uint16_t)((MemoryBlock::Size - BlockHeadSize) / CHUNK_SIZE);
-			}
-
 			~ChunkAllocator() {
-				ECS_ASSERT_MAIN_THREAD;
-
 				FreeAll();
 			}
 
@@ -239,244 +144,142 @@ namespace gaia {
 			Allocates memory
 			*/
 			void* Allocate() {
-				ECS_ASSERT_MAIN_THREAD;
+				void* chunk;
 
-				m_Block.m_iNumAllocations++;
-
-				BlockHead* freeHead = m_Block.m_FreeBlocks.first;
-				if (!freeHead) {
-					// No free block?
-					freeHead = AllocBlock();
-					LListInsert(m_Block.m_FreeBlocks, freeHead, m_Link);
-				}
-
-				MemItem* pfree = freeHead->m_pFirstFree;
-				if (pfree) {
-					// Recycled allocation
-					freeHead->m_pFirstFree = pfree->next;
-					GAIA_ASSERT(
-							((uintptr_t)freeHead + MemoryBlock::Size) >=
-							(uintptr_t)pfree + CHUNK_SIZE);
-				} else {
+				auto itFree = m_pagesFree.begin();
+				if (itFree == m_pagesFree.end()) {
 					// Initial allocation
-					pfree = (MemItem*)((uint8_t*)freeHead + freeHead->m_iFreeOffset);
-					freeHead->m_iFreeOffset += CHUNK_SIZE;
-					GAIA_ASSERT(freeHead->m_iFreeOffset <= MemoryBlock::Size);
+					auto page = AllocPage();
+					m_pagesFree.push_back(page);
+					chunk = page->AllocChunk();
+				} else {
+					auto page = *itFree;
+					// Later allocation
+					chunk = page->AllocChunk();
+					if (page->IsFull()) {
+						// If our page is full move it to a different list
+						m_pagesFull.push_back(page);
+						m_pagesFree.erase(itFree);
+					}
 				}
 
-				freeHead->m_iUsedItems++;
-				// Just made it full, move to full list
-				if (freeHead->m_iUsedItems == m_Block.m_iMaxItems) {
-					LListRemove(m_Block.m_FreeBlocks, freeHead, m_Link);
-					LListInsert(m_Block.m_FullBlocks, freeHead, m_Link);
-				}
-
-#ifdef _DEBUG
-				// Fill allocated memory by 0xbaadf00d as MSVC does
+#if 0
+				 // Fill allocated memory by 0xbaadf00d as MSVC does
 				utils::fill_array(
-						(uint32_t*)pfree, (uint32_t)((CHUNK_SIZE + 3) / sizeof(uint32_t)),
+						(uint32_t*)chunk, (uint32_t)((CHUNK_SIZE + 3) / sizeof(uint32_t)),
 						0x7fcdf00dU);
 #endif
 
-				return pfree;
+				return chunk;
 			}
 
 			/*!
 			Releases memory allocated for pointer
 			*/
-			size_t Release(void* pointer) {
-				ECS_ASSERT_MAIN_THREAD;
-
-				BlockHead* head = BlockFromPtr(pointer);
-
-#if GAIA_DEBUG
-				[[maybe_unused]] const auto offset =
-						(uintptr_t)pointer -
-						(uintptr_t)ChunkAllocator::BlockHeadData(*head);
-				GAIA_ASSERT(
-						(offset % CHUNK_SIZE) == 0 &&
-						"Attempt to deallocate mismatched pointer");
-				GAIA_ASSERT(
-						((uintptr_t)head + MemoryBlock::Size) >=
-						(uintptr_t)pointer + CHUNK_SIZE);
-#endif
-
-#ifdef _DEBUG
-				// Fill freed memory by 0xfeeefeee as MSVC does
+			void Release(void* chunk) {
+#if 0
+				 // Fill freed memory by 0xfeeefeee as MSVC does
 				utils::fill_array(
-						(uint32_t*)pointer, (int)(CHUNK_SIZE / sizeof(uint32_t)),
+						(uint32_t*)chunk, (int)(CHUNK_SIZE / sizeof(uint32_t)),
 						0xfeeefeeeU);
 #endif
 
-				m_Block.m_iNumAllocations--;
+				auto belongsToPage = [](void* mem, MemoryPage* page) {
+					const auto chunkAddr = (uintptr_t)mem;
+					const auto pageAddr = (uintptr_t)page->m_data;
+					return chunkAddr >= pageAddr &&
+								 chunkAddr < pageAddr + MemoryPage::Size;
+				};
 
-				// Retype and link with free items
-				((MemItem*)pointer)->next = head->m_pFirstFree;
-				head->m_pFirstFree = (MemItem*)pointer;
-
-				if (head->m_iUsedItems == m_Block.m_iMaxItems) {
-					// just made it free. Move to free list
-					LListRemove(m_Block.m_FullBlocks, head, m_Link);
-					LListInsert(m_Block.m_FreeBlocks, head, m_Link);
-				}
-
-				head->m_iUsedItems--;
-
-				// Pointer removed more than once?!
-				GAIA_ASSERT(head->m_iUsedItems >= 0);
-
-				if (head->m_iUsedItems == 0) {
-					// If it's empty but it's not the last one, release it
-					if (head != m_Block.m_FreeBlocks.first || head->m_Link.next != NULL) {
-						LListRemove(m_Block.m_FreeBlocks, head, m_Link);
-						m_Block.m_iNumBlocks--;
-
-						FreeBlock(head);
-						return CHUNK_SIZE;
-					} else {
-						head->m_pFirstFree = nullptr;
-						head->m_iFreeOffset = BlockHeadSize;
+				// Search in the list of free pages
+				{
+					auto it = std::find_if(
+							m_pagesFree.begin(), m_pagesFree.end(),
+							[&](auto page) { return belongsToPage(chunk, page); });
+					if (it != m_pagesFree.end()) {
+						auto page = *it;
+						page->FreeChunk(chunk);
+						return;
 					}
 				}
 
-				return CHUNK_SIZE;
+				// Search in the list of full pages
+				{
+					auto it = std::find_if(
+							m_pagesFull.begin(), m_pagesFull.end(),
+							[&](auto page) { return belongsToPage(chunk, page); });
+					if (it != m_pagesFull.end()) {
+						auto page = *it;
+						page->FreeChunk(chunk);
+						m_pagesFree.push_back(page);
+						m_pagesFull.erase(it);
+						return;
+					}
+				}
+
+				GAIA_ASSERT(
+						false &&
+						"ChunkAllocator delete request couldn't find the request memory");
 			}
 
 			/*!
 			Releases all allocated memory
 			*/
 			void FreeAll() {
-				ECS_ASSERT_MAIN_THREAD;
-
 				// Release free pages
-				for (MemoryPage *next, *page = m_FreePages.first; page; page = next) {
-					next = page->m_Link.next;
+				for (auto* page: m_pagesFree)
 					FreePage(page);
-				}
-
 				// Release full pages
-				for (MemoryPage *next, *page = m_FullPages.first; page; page = next) {
-					next = page->m_Link.next;
+				for (auto* page: m_pagesFull)
 					FreePage(page);
-				}
 
-				m_Block.m_FreeBlocks.Clear();
-				m_Block.m_FullBlocks.Clear();
-				m_Block.m_iNumBlocks = 0;
-				m_Block.m_iNumAllocations = 0;
+				m_pagesFree.clear();
+				m_pagesFull.clear();
+				m_stats = {};
 			}
 
 			/*!
 			Returns allocator statistics
 			*/
 			void GetStats(ChunkAllocatorStats& stats) const {
-				ECS_ASSERT_MAIN_THREAD;
-
-				stats.Allocated = m_Block.m_iNumAllocations * CHUNK_SIZE;
-				stats.NumAllocations = m_Block.m_iNumAllocations;
-				stats.NumBlocks = m_Block.m_iNumBlocks;
-				stats.Overhead =
-						(m_Block.m_iNumBlocks * MemoryBlock::Size) - stats.Allocated;
+				stats.NumPages = m_pagesFree.size() + m_pagesFull.size();
+				stats.NumFreePages = m_pagesFree.size();
+				stats.AllocatedMemory = stats.NumPages * MemoryPage::Size;
+				stats.UsedMemory = m_pagesFull.size() * MemoryPage::Size;
+				for (auto* page: m_pagesFree)
+					stats.UsedMemory += page->GetUsedBlocks() * MemoryBlock::Size;
 			}
 
 			/*!
 			Flushes unused memory
 			*/
 			void Flush() {
-				ECS_ASSERT_MAIN_THREAD;
+				auto it = m_pagesFree.begin();
+				while (it != m_pagesFree.end()) {
+					auto page = *it;
 
-				for (BlockHead *next, *head = m_Block.m_FreeBlocks.first; head;
-						 head = next) {
-					next = head->m_Link.next;
-
-					if (head->m_iUsedItems == 0) {
-						ReleaseBlock(head);
-						FreeBlock(head);
+					// Skip non-empty pages
+					if (!page->IsEmpty()) {
+						++it;
+						continue;
 					}
-				}
 
-				for (MemoryPage *next, *page = m_FreePages.first; page; page = next) {
-					next = page->m_Link.next;
-					if (page->m_Blocks.count() ==
-							(MemoryPage::Size / MemoryBlock::Size)) {
-						LListRemove(m_FreePages, page, m_Link);
-						FreePage(page);
-					}
+					// Page with no chunks needs to be freed
+					FreePage(page);
+					m_pagesFree.erase(it);
+					++it;
 				}
 			}
 
 		private:
 			MemoryPage* AllocPage() {
-				const size_t pageSize = MemoryPage::Size + MemoryBlock::Size - 1;
-				auto* pagePtr = (uint8_t*)MM_ALLOC(pageSize);
-
-				auto* mpage = new MemoryPage(pagePtr);
-
-				uint8_t* firstBlock =
-						(uint8_t*)BlockFromPtr(pagePtr + MemoryBlock::Size - 1);
-				const uint32_t numBlocks = MemoryPage::Size / MemoryBlock::Size;
-				for (int n = numBlocks - 1; n >= 0; n--) {
-					BlockHead* blockHead =
-							(BlockHead*)(firstBlock + MemoryBlock::Size * n);
-					new (blockHead) BlockHead;
-					blockHead->m_pOwner = mpage;
-					LListInsert(mpage->m_Blocks, blockHead, m_Link);
-				}
-
-				LListInsert(m_FreePages, mpage, m_Link);
-				return mpage;
+				auto* pageData = (uint8_t*)aligned_alloc(16, MemoryPage::Size);
+				return new MemoryPage(pageData);
 			}
 
 			void FreePage(MemoryPage* page) {
-				MM_FREE(page->data);
+				free(page->m_data);
 				delete page;
-			}
-
-			BlockHead* AllocBlock() {
-				MemoryPage* page = m_FreePages.first;
-				if (page == nullptr)
-					page = AllocPage();
-
-				BlockHead* newone = page->m_Blocks.first;
-				LListRemove(page->m_Blocks, newone, m_Link);
-				if (page->m_Blocks.IsEmpty()) {
-					LListRemove(m_FreePages, page, m_Link);
-					LListInsert(m_FullPages, page, m_Link);
-				}
-
-				m_Block.m_iNumBlocks++;
-				newone->m_iFreeOffset = BlockHeadSize;
-				newone->m_pFirstFree = nullptr;
-				newone->m_iUsedItems = 0;
-				return newone;
-			}
-
-			void FreeBlock(BlockHead* head) {
-				MemoryPage* page = head->m_pOwner;
-				GAIA_ASSERT(
-						(uintptr_t)head >= (uintptr_t)page->data &&
-						(uintptr_t)head < ((uintptr_t)page->data + MemoryPage::Size));
-				LListInsert(page->m_Blocks, head, m_Link);
-
-				if (page->m_Blocks.count() == 1) {
-					LListRemove(m_FullPages, page, m_Link);
-					LListInsert(m_FreePages, page, m_Link);
-				} else if (
-						page->m_Blocks.count() == (MemoryPage::Size / MemoryBlock::Size)) {
-					if (m_FreePages.count() > 1) {
-						LListRemove(m_FreePages, page, m_Link);
-						FreePage(page);
-					}
-				}
-			}
-
-			void ReleaseBlock(BlockHead* head) {
-				LListRemove(m_Block.m_FreeBlocks, head, m_Link);
-				m_Block.m_iNumBlocks--;
-			}
-
-			static BlockHead* BlockFromPtr(void* ptr) {
-				return (BlockHead*)((uintptr_t)ptr & ~uintptr_t(MemoryBlock::Size - 1));
 			}
 		};
 
