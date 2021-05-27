@@ -7,7 +7,7 @@ namespace gaia {
 	namespace utils {
 		// Array with fixed capacity and variable size allocated on stack.
 		// TODO: Use<memory_resouce>and pmr instead of this madness.
-		template <class T, std::size_t N>
+		template <class T, auto N>
 		class sarray {
 		public:
 			using iterator_category = std::random_access_iterator_tag;
@@ -147,7 +147,7 @@ namespace gaia {
 				return m_data;
 			}
 
-			constexpr const T& operator[](size_type pos) noexcept {
+			constexpr T& operator[](size_type pos) noexcept {
 				return m_data[pos];
 			}
 
@@ -183,7 +183,7 @@ namespace gaia {
 			}
 
 			constexpr void clear() noexcept {
-				m_pos = size_t(-1);
+				m_pos = size_type(-1);
 			}
 
 			[[nodiscard]] constexpr size_type size() const noexcept {
