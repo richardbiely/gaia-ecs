@@ -54,9 +54,7 @@ namespace gaia {
 				// Pointer to data managed by page
 				void* m_data;
 				//! Implicit list of blocks
-				MemoryBlock m_blocks[NBlocks];
-				//! Numer of blocks we work with
-				uint16_t m_effectiveSize;
+				utils::sarray<MemoryBlock, (uint16_t)NBlocks> m_blocks;
 				//! Numer of used blocks out of NBlocks
 				uint16_t m_usedBlocks;
 				//! Index of the next block to recycle
@@ -65,8 +63,7 @@ namespace gaia {
 				uint16_t m_freeBlocks;
 
 				MemoryPage(void* ptr):
-						m_data(ptr), m_effectiveSize(0), m_usedBlocks(0),
-						m_nextFreeBlock(0), m_freeBlocks(0) {}
+						m_data(ptr), m_usedBlocks(0), m_nextFreeBlock(0), m_freeBlocks(0) {}
 
 				[[nodiscard]] void* AllocChunk() {
 					if (!m_freeBlocks) {
@@ -74,14 +71,13 @@ namespace gaia {
 						GAIA_ASSERT(!IsFull() && "Trying to allocate too many blocks!");
 
 						++m_usedBlocks;
-						++m_effectiveSize;
 
-						const uint16_t index = m_effectiveSize - uint16_t(1);
-						m_blocks[index] = {index};
+						const uint16_t index = m_blocks.size();
+						m_blocks.push_back({m_blocks.size()});
 						return (void*)((uint8_t*)m_data + index * MemoryBlock::Size);
 					} else {
 						GAIA_ASSERT(
-								m_nextFreeBlock < m_effectiveSize &&
+								m_nextFreeBlock < m_blocks.size() &&
 								"Block allocator recycle list broken!");
 
 						++m_usedBlocks;
