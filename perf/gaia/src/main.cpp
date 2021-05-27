@@ -128,7 +128,7 @@ void BM_ForEach_1_Archetype(benchmark::State& state) {
 	auto query = ecs::EntityQuery().All<c1>();
 
 	for ([[maybe_unused]] auto _: state) {
-		w.ForEach(query, [&](const c1& p) { benchmark::DoNotOptimize(p); }).Run(0);
+		w.ForEach(query, [&](const c1& p) { benchmark::DoNotOptimize(p); }).Run();
 	}
 }
 BENCHMARK(BM_ForEach_1_Archetype);
@@ -146,7 +146,7 @@ void BM_ForEach_100_Archetypes(benchmark::State& state) {
 	auto query = ecs::EntityQuery().All<c1>();
 
 	for ([[maybe_unused]] auto _: state) {
-		w.ForEach(query, [&](const c1& p) { benchmark::DoNotOptimize(p); }).Run(0);
+		w.ForEach(query, [&](const c1& p) { benchmark::DoNotOptimize(p); }).Run();
 	}
 }
 BENCHMARK(BM_ForEach_100_Archetypes);
@@ -199,7 +199,7 @@ void BM_ForEach_1000_Archetypes(benchmark::State& state) {
 	auto query = ecs::EntityQuery().All<c1>();
 
 	for ([[maybe_unused]] auto _: state) {
-		w.ForEach(query, [&](const c1& p) { benchmark::DoNotOptimize(p); }).Run(0);
+		w.ForEach(query, [&](const c1& p) { benchmark::DoNotOptimize(p); }).Run();
 	}
 }
 BENCHMARK(BM_ForEach_1000_Archetypes);

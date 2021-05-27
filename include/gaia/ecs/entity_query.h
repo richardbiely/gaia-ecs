@@ -126,8 +126,8 @@ namespace gaia {
 			ComponentListData list[ComponentType::CT_Count]{};
 			//! List of filtered components
 			ChangeFilterArray listChangeFiltered[ComponentType::CT_Count]{};
-			//! Version of the world at which the querry was commited
-			uint32_t m_committedWorldVersion = 0;
+			//! Version of the world for which the query has been called most recently
+			uint32_t m_worldVersion = 0;
 			//! If true, query needs to be commited. Set to true on structural changes
 			bool m_invalidated = false;
 
@@ -297,13 +297,12 @@ namespace gaia {
 				return *this;
 			}
 
-			void Commit(uint32_t worldVersion) {
+			void Commit() {
 				// Make sure not to commit already committed queue
-				if (!m_invalidated && m_committedWorldVersion == worldVersion)
+				if (!m_invalidated)
 					return;
 
 				m_invalidated = false;
-				m_committedWorldVersion = worldVersion;
 
 				auto commit = [&](ComponentType componentType) {
 					auto& listNone = list[componentType].listNone;
@@ -317,6 +316,13 @@ namespace gaia {
 
 				commit(ComponentType::CT_Generic);
 				commit(ComponentType::CT_Chunk);
+			}
+
+			void SetWorldVersion(uint32_t worldVersion) {
+				m_worldVersion = worldVersion;
+			}
+			uint32_t GetWorldVersion() const {
+				return m_worldVersion;
 			}
 		};
 	} // namespace ecs

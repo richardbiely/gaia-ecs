@@ -1358,8 +1358,8 @@ namespace gaia {
 					return query.All<TComponents...>();
 			}
 
-			[[nodiscard]] static bool CanProcessChunk(
-					EntityQuery& query, Chunk& chunk, uint32_t lastSystemVersion) {
+			[[nodiscard]] static bool
+			CanProcessChunk(EntityQuery& query, Chunk& chunk) {
 				// Skip empty chunks
 				if (!chunk.HasEntities())
 					return false;
@@ -1373,6 +1373,8 @@ namespace gaia {
 					bool genericChanged = false;
 					bool chunkChanged = false;
 
+					const auto lastWorldVersion = query.GetWorldVersion();
+
 					for (auto typeIdx:
 							 query.listChangeFiltered[ComponentType::CT_Generic]) {
 						const uint32_t componentIdx = chunk.GetComponentIdx(typeIdx);
@@ -1381,7 +1383,7 @@ namespace gaia {
 								(uint32_t)-1); // the component must exist at this point!
 
 						if (!chunk.DidChange(
-										ComponentType::CT_Generic, lastSystemVersion, componentIdx))
+										ComponentType::CT_Generic, lastWorldVersion, componentIdx))
 							continue;
 
 						genericChanged = true;
@@ -1396,7 +1398,7 @@ namespace gaia {
 								(uint32_t)-1); // the component must exist at this point!
 
 						if (!chunk.DidChange(
-										ComponentType::CT_Chunk, lastSystemVersion, componentIdx))
+										ComponentType::CT_Chunk, lastWorldVersion, componentIdx))
 							continue;
 
 						chunkChanged = true;
@@ -1411,37 +1413,42 @@ namespace gaia {
 			}
 
 			template <typename TFunc>
-			static void RunQueryOnChunks_Direct(
-					World& world, EntityQuery& query, TFunc& func,
-					uint32_t lastSystemVersion) {
+			static void
+			RunQueryOnChunks_Direct(World& world, EntityQuery& query, TFunc& func) {
+				// Update the world version
+				world.UpdateWorldVersion();
+
 				// Add an All filter for components listed as input arguments of func
-				query.Commit(world.GetWorldVersion());
+				query.Commit();
 
 				// Iterate over all archetypes
 				world.ForEachArchetype(query, [&](const Archetype& archetype) {
 					for (auto chunk: archetype.chunks) {
-						if (!CanProcessChunk(query, *chunk, lastSystemVersion))
+						if (!CanProcessChunk(query, *chunk))
 							continue;
 
 						func(*chunk);
 					}
 				});
+
+				query.SetWorldVersion(world.GetWorldVersion());
 			}
 
 			template <typename TFunc>
-			static void RunQueryOnChunks_Indirect(
-					World& world, EntityQuery& query, TFunc& func,
-					uint32_t lastSystemVersion) {
+			static void
+			RunQueryOnChunks_Indirect(World& world, EntityQuery& query, TFunc& func) {
 				using InputArgs = decltype(utils::func_args(&TFunc::operator()));
 
+				// Update the world version
+				world.UpdateWorldVersion();
+
 				// Add an All filter for components listed as input arguments of func
-				world.Unpack_ForEachQuery(InputArgs{}, query)
-						.Commit(world.GetWorldVersion());
+				world.Unpack_ForEachQuery(InputArgs{}, query).Commit();
 
 				// Iterate over all archetypes
 				world.ForEachArchetype(query, [&](const Archetype& archetype) {
 					for (auto chunk: archetype.chunks) {
-						if (!CanProcessChunk(query, *chunk, lastSystemVersion))
+						if (!CanProcessChunk(query, *chunk))
 							continue;
 
 						world.Unpack_ForEachEntityInChunk(
@@ -1449,6 +1456,8 @@ namespace gaia {
 																						// for every further function calls
 					}
 				});
+
+				query.SetWorldVersion(world.GetWorldVersion());
 			}
 
 			//--------------------------------------------------------------------------------
@@ -1462,9 +1471,8 @@ namespace gaia {
 			public:
 				ForEachChunkExecutionContext(World& w, EntityQuery& q, TFunc&& f):
 						world(w), query(q), func(std::forward<TFunc>(f)) {}
-				void Run(uint32_t lastSystemVersion) {
-					World::RunQueryOnChunks_Direct(
-							this->world, this->query, this->func, lastSystemVersion);
+				void Run() {
+					World::RunQueryOnChunks_Direct(this->world, this->query, this->func);
 				}
 			};
 
@@ -1491,9 +1499,9 @@ namespace gaia {
 					static_assert(
 							InternalQuery, "rvalue can be used only with internal queries");
 				}
-				void Run(uint32_t lastSystemVersion) {
+				void Run() {
 					World::RunQueryOnChunks_Indirect(
-							this->world, this->query, this->func, lastSystemVersion);
+							this->world, this->query, this->func);
 				}
 			};
 
