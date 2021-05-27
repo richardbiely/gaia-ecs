@@ -87,9 +87,6 @@ namespace gaia {
 				// Verify components
 				[[maybe_unused]] const ComponentMetaData* typesToAdd[] = {
 						g_ComponentCache.GetComponentMetaType<TComponent>()...};
-				for ([[maybe_unused]] const auto* type: typesToAdd) {
-					GAIA_ASSERT(type != nullptr);
-				}
 
 				// Entity
 				{
@@ -380,8 +377,8 @@ namespace gaia {
 
 				// Extract data from the buffer
 				for (auto i = 0U; i < m_data.size();) {
-					const auto type = m_data[i++];
-					switch (type) {
+					const auto cmd = m_data[i++];
+					switch (cmd) {
 						case CREATE_ENTITY: {
 							entityMap.insert({entities++, world->CreateEntity()});
 						} break;
