@@ -3,7 +3,7 @@ Gaia is a header-only ECS library.
 
 ## Requirements
 
-Gaia-ECS requires a compile compatible with C++17. Currently, VS2017 and later or equivalent GCC or Clang are supported.
+Gaia-ECS requires a compiler compatible with C++17. Currently, VS2017 and later or equivalent GCC or Clang are supported.
 
 ## Instalation
 
