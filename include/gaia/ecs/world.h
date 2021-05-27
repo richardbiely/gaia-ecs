@@ -881,20 +881,21 @@ namespace gaia {
 					// entity
 					const auto& info = archetype.componentList[ComponentType::CT_Generic];
 					for (uint32_t i = 0; i < info.size(); i++) {
-						const auto type = info[i].type;
-						if (!type->size)
+						const auto* metaType = info[i].type;
+						if (!metaType->size)
 							continue;
 
 						const uint32_t idxFrom =
-								info[i].offset + type->size * oldEntityContainer.idx;
+								info[i].offset + metaType->size * oldEntityContainer.idx;
 						const uint32_t idxTo =
-								info[i].offset + type->size * newEntityContainer.idx;
+								info[i].offset + metaType->size * newEntityContainer.idx;
 
 						GAIA_ASSERT(idxFrom < Chunk::DATA_SIZE);
 						GAIA_ASSERT(idxTo < Chunk::DATA_SIZE);
 
 						memcpy(
-								&newChunk->data[idxTo], &oldChunk->data[idxFrom], type->size);
+								&newChunk->data[idxTo], &oldChunk->data[idxFrom],
+								metaType->size);
 					}
 
 					return newEntity;
@@ -1599,15 +1600,15 @@ namespace gaia {
 
 						auto logComponentInfo = [](const ChunkComponentList& components) {
 							for (const auto& component: components) {
-								const auto type = component.type;
+								const auto* metaType = component.type;
 								LOG_N(
 										"    (%p) lookupHash:%016llx, matcherHash:%016llx, "
 										"size:%3u "
 										"B, "
 										"align:%3u B, %.*s",
-										(void*)type, type->lookupHash, type->matcherHash,
-										type->size, type->alig, (uint32_t)type->name.length(),
-										type->name.data());
+										(void*)metaType, metaType->lookupHash,
+										metaType->matcherHash, metaType->size, metaType->alig,
+										(uint32_t)metaType->name.length(), metaType->name.data());
 							}
 						};
 
@@ -1657,19 +1658,19 @@ namespace gaia {
 							"MatchArchetypeQuery - %s, components to compare: %u", text,
 							(uint32_t)componentList.size());
 					for (const auto& component: componentList) {
-						const auto type = component.type;
+						const auto* metaType = component.type;
 						LOG_N(
 								"  --> (%p) lookupHash:%016llx, matcherHash:%016llx, %.*s",
-								(void*)type, type->lookupHash, type->matcherHash,
-								(uint32_t)type->name.length(), type->name.data());
+								(void*)metaType, metaType->lookupHash, metaType->matcherHash,
+								(uint32_t)metaType->name.length(), metaType->name.data());
 					}
 
 					LOG_N("types to match: %u", (uint32_t)listToCompare.size());
-					for (const auto type: listToCompare) {
+					for (const auto* metaType: listToCompare) {
 						LOG_N(
 								"  --> (%p) lookupHash:%016llx, matcherHash:%016llx, %.*s",
-								(void*)type, type->lookupHash, type->matcherHash,
-								(uint32_t)type->name.length(), type->name.data());
+								(void*)metaType, metaType->lookupHash, metaType->matcherHash,
+								(uint32_t)metaType->name.length(), metaType->name.data());
 					}
 				}
 			}
