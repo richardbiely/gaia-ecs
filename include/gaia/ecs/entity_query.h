@@ -216,11 +216,11 @@ namespace gaia {
 					// anyway
 					if (!utils::has_if(
 									arrMeta.listAny,
-									[metaType](const auto& info) {
-										return info.typeIndex == metaType->typeIndex;
+									[metaType](const auto* info) {
+										return info->typeIndex == metaType->typeIndex;
 									}) &&
-							!utils::has_if(arrMeta.listAll, [metaType](const auto& info) {
-								return info.typeIndex == metaType->typeIndex;
+							!utils::has_if(arrMeta.listAll, [metaType](const auto* info) {
+								return info->typeIndex == metaType->typeIndex;
 							})) {
 #if GAIA_DEBUG
 						LOG_E(

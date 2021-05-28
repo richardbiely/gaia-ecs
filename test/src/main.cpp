@@ -845,3 +845,37 @@ TEST_CASE("CommandBuffer") {
 		REQUIRE(!w.HasComponents<Position>(e));
 	}
 }
+
+TEST_CASE("Query Filter") {
+	ecs::World w;
+	ecs::EntityQuery q;
+	q.All<Position>().WithChanged<Position>();
+
+	auto e = w.CreateEntity();
+	w.AddComponent<Position>(e);
+
+	{
+		uint32_t cnt = 0;
+		w.ForEach(q, [&]([[maybe_unused]] const Position& a) { ++cnt; }).Run();
+		REQUIRE(cnt == 1); // first run always happens
+	}
+	{
+		uint32_t cnt = 0;
+		w.ForEach(q, [&]([[maybe_unused]] const Position& a) { ++cnt; }).Run();
+		REQUIRE(cnt == 0); // no change of position so this shouldn't run
+	}
+	{
+		w.UpdateWorldVersion();
+		w.SetComponent<Position>(e, {});
+	}
+	{
+		uint32_t cnt = 0;
+		w.ForEach(q, [&]([[maybe_unused]] const Position& a) { ++cnt; }).Run();
+		REQUIRE(cnt == 1);
+	}
+	{
+		uint32_t cnt = 0;
+		w.ForEach(q, [&]([[maybe_unused]] const Position& a) { ++cnt; }).Run();
+		REQUIRE(cnt == 0);
+	}
+}

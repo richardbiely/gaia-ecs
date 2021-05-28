@@ -49,10 +49,6 @@ namespace gaia {
 			//! With every structural change world version changes
 			uint32_t m_worldVersion = 0;
 
-			void UpdateWorldVersion() {
-				UpdateVersion(m_worldVersion);
-			}
-
 			void* AllocateChunkMemory() {
 				return m_chunkAllocator.Allocate();
 			}
@@ -62,6 +58,10 @@ namespace gaia {
 			}
 
 		public:
+			void UpdateWorldVersion() {
+				UpdateVersion(m_worldVersion);
+			}
+
 			[[nodiscard]] bool IsEntityValid(Entity entity) const {
 				// Entity ID has to fit inside entity array
 				if (entity.id() >= m_entities.size())

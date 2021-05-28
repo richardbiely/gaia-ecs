@@ -80,7 +80,7 @@ namespace gaia {
 				GAIA_ASSERT(componentIdx != utils::BadIndex);
 
 				// Update version number so we know RW access was used on chunk
-				header.UpdateLastWorldVersion(TYPE, componentIdx);
+				header.UpdateWorldVersion(TYPE, componentIdx);
 
 				const uint32_t idxData = it->offset + type->size * index;
 				GAIA_ASSERT(idxData <= Chunk::DATA_SIZE);
@@ -136,8 +136,8 @@ namespace gaia {
 					index = 0;
 				SetEntity(index, entity);
 
-				header.UpdateLastWorldVersion(ComponentType::CT_Generic, UINT32_MAX);
-				header.UpdateLastWorldVersion(ComponentType::CT_Chunk, UINT32_MAX);
+				header.UpdateWorldVersion(ComponentType::CT_Generic, UINT32_MAX);
+				header.UpdateWorldVersion(ComponentType::CT_Chunk, UINT32_MAX);
 
 				return header.lastEntityIndex;
 			}
@@ -184,8 +184,8 @@ namespace gaia {
 					entities[entity.id()].gen = entity.gen();
 				}
 
-				header.UpdateLastWorldVersion(ComponentType::CT_Generic, UINT32_MAX);
-				header.UpdateLastWorldVersion(ComponentType::CT_Chunk, UINT32_MAX);
+				header.UpdateWorldVersion(ComponentType::CT_Generic, UINT32_MAX);
+				header.UpdateWorldVersion(ComponentType::CT_Chunk, UINT32_MAX);
 
 				--header.lastEntityIndex;
 			}
@@ -242,7 +242,7 @@ namespace gaia {
 				GAIA_ASSERT(componentIdx != utils::BadIndex);
 
 				// Update version number so we know RW access was used on chunk
-				header.UpdateLastWorldVersion(TYPE, componentIdx);
+				header.UpdateWorldVersion(TYPE, componentIdx);
 				const auto& info = componentList[componentIdx];
 				return {(TComponent*)&data[info.offset], GetItemCount()};
 			}
