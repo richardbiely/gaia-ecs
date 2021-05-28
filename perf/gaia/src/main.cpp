@@ -23,6 +23,7 @@ void BM_CreateEntity(benchmark::State& state) {
 		ecs::World w;
 		for (uint32_t i = 0; i < N; ++i) {
 			[[maybe_unused]] auto e = w.CreateEntity();
+			benchmark::DoNotOptimize(e);
 		}
 	}
 }

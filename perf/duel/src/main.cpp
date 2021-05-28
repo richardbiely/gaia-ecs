@@ -188,46 +188,46 @@ void BM_Game_NonECS(benchmark::State& state) {
 		IUnit() = default;
 		virtual ~IUnit() = default;
 
-		virtual void updatePosition(float dt) = 0;
-		virtual void handleGroundCollision(float dt) = 0;
-		virtual void applyGravity(float dt) = 0;
+		virtual void updatePosition(float deltaTime) = 0;
+		virtual void handleGroundCollision(float deltaTime) = 0;
+		virtual void applyGravity(float deltaTime) = 0;
 	};
 
 	struct UnitStatic: public IUnit {
-		void updatePosition([[maybe_unused]] float dt) override {}
-		void handleGroundCollision([[maybe_unused]] float dt) override {}
-		void applyGravity([[maybe_unused]] float dt) override {}
+		void updatePosition([[maybe_unused]] float deltaTime) override {}
+		void handleGroundCollision([[maybe_unused]] float deltaTime) override {}
+		void applyGravity([[maybe_unused]] float deltaTime) override {}
 	};
 
 	struct UnitDynamic: public IUnit {
 		Velocity v;
-		void updatePosition(float dt) override {
-			p.x += v.x * dt;
-			p.y += v.y * dt;
-			p.z += v.z * dt;
+		void updatePosition(float deltaTime) override {
+			p.x += v.x * deltaTime;
+			p.y += v.y * deltaTime;
+			p.z += v.z * deltaTime;
 		}
-		void handleGroundCollision([[maybe_unused]] float dt) override {
+		void handleGroundCollision([[maybe_unused]] float deltaTime) override {
 			if (p.y < 0.0f) {
 				p.y = 0.0f;
 				v.y = 0.0f;
 			}
 		}
-		void applyGravity(float dt) override {
-			v.y += 9.81f * dt;
+		void applyGravity(float deltaTime) override {
+			v.y += 9.81f * deltaTime;
 		}
 	};
 
 	// Create entities.
 	// We allocate via new to simulate the usual kind of behavior in games
 	std::vector<IUnit*> units(N * 2);
-	for (uint32_t i = 0; i < N; i++) {
+	for (uint32_t i = 0U; i < N; i++) {
 		auto u = new UnitStatic();
 		u->p = {0, 100, 0};
 		u->r = {1, 2, 3, 4};
 		u->s = {1, 1, 1};
 		units[i] = u;
 	}
-	for (uint32_t i = 0; i < N; i++) {
+	for (uint32_t i = 0U; i < N; i++) {
 		auto u = new UnitDynamic();
 		u->p = {0, 100, 0};
 		u->v = {0, 0, 1};
