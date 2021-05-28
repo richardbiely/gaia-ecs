@@ -4,6 +4,9 @@
 
 #if defined(__GLIBC__) || defined(__sun) || defined(__CYGWIN__)
 	#include <alloca.h>
+	#if !defined(aligned_free)
+		#define aligned_free free
+	#endif
 #elif defined(_WIN32)
 	#include <malloc.h>
 	// Clang with MSVC codegen needes some remapping
@@ -18,6 +21,9 @@
 	#endif
 #else
 	#include <cstdlib>
+	#if !defined(aligned_free)
+		#define aligned_free free
+	#endif
 #endif
 
 #include <list>
