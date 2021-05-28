@@ -1531,7 +1531,7 @@ namespace gaia {
 				return {(World&)*this, EntityQuery(), std::forward<TFunc>(func)};
 			}
 
-		private:
+		public:
 			//! Collect garbage
 			void GC() {
 				// Handle memory released by chunks and archetypes
@@ -1557,7 +1557,6 @@ namespace gaia {
 				m_chunksToRemove.clear();
 			}
 
-		public:
 			void DiagArchetypes() const {
 				static bool DiagArchetypes = GAIA_ECS_DIAG_ARCHETYPES;
 				if (DiagArchetypes) {
