@@ -2,21 +2,28 @@
 
 #include "../config/config.h"
 
-#if !defined(alloca)
-	#if defined(__GLIBC__) || defined(__sun) || defined(__CYGWIN__)
-		#include <alloca.h> // alloca
-	#elif defined(_WIN32)
-		#include <malloc.h> // alloca
-		#if !defined(alloca)
-			#define alloca _alloca // for clang with MS Codegen
-		#endif
-	#else
-		#include <cstdlib> // alloca
+#if defined(__GLIBC__) || defined(__sun) || defined(__CYGWIN__)
+	#include <alloca.h>
+#elif defined(_WIN32)
+	#include <malloc.h>
+	// Clang with MSVC codegen needes some remapping
+	#if !defined(alloca)
+		#define alloca _alloca
 	#endif
+	#if !defined(aligned_alloc)
+		#define aligned_alloc(alig, size) _aligned_malloc(size, alig)
+	#endif
+	#if !defined(aligned_free)
+		#define aligned_free _aligned_free
+	#endif
+#else
+	#include <cstdlib>
 #endif
+
 #include <list>
 
 #include "../config/logging.h"
+#include "../utils/sarray.h"
 #include "../utils/utility.h"
 #include "common.h"
 
@@ -238,8 +245,9 @@ namespace gaia {
 			Returns allocator statistics
 			*/
 			void GetStats(ChunkAllocatorStats& stats) const {
-				stats.NumPages = m_pagesFree.size() + m_pagesFull.size();
-				stats.NumFreePages = m_pagesFree.size();
+				stats.NumPages =
+						(uint32_t)m_pagesFree.size() + (uint32_t)m_pagesFull.size();
+				stats.NumFreePages = (uint32_t)m_pagesFree.size();
 				stats.AllocatedMemory = stats.NumPages * MemoryPage::Size;
 				stats.UsedMemory = m_pagesFull.size() * MemoryPage::Size;
 				for (auto* page: m_pagesFree)
@@ -274,7 +282,7 @@ namespace gaia {
 			}
 
 			void FreePage(MemoryPage* page) {
-				free(page->m_data);
+				aligned_free(page->m_data);
 				delete page;
 			}
 		};
