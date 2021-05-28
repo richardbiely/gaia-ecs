@@ -10,6 +10,7 @@
 #include "gaia/ecs/creation_query.h"
 #include "gaia/ecs/entity.h"
 #include "gaia/ecs/entity_query.h"
+#include "gaia/ecs/system.h"
 #include "gaia/ecs/world.h"
 
 #include "gaia/utils/data_layout_policy.h"

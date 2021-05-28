@@ -846,7 +846,7 @@ TEST_CASE("CommandBuffer") {
 	}
 }
 
-TEST_CASE("Query Filter") {
+TEST_CASE("Query Filter - no systems") {
 	ecs::World w;
 	ecs::EntityQuery q;
 	q.All<Position>().WithChanged<Position>();
@@ -854,6 +854,7 @@ TEST_CASE("Query Filter") {
 	auto e = w.CreateEntity();
 	w.AddComponent<Position>(e);
 
+	// System-less filters
 	{
 		uint32_t cnt = 0;
 		w.ForEach(q, [&]([[maybe_unused]] const Position& a) { ++cnt; }).Run();
@@ -878,4 +879,57 @@ TEST_CASE("Query Filter") {
 		w.ForEach(q, [&]([[maybe_unused]] const Position& a) { ++cnt; }).Run();
 		REQUIRE(cnt == 0);
 	}
+}
+
+TEST_CASE("Query Filter - systems") {
+	ecs::World w;
+
+	auto e = w.CreateEntity();
+	w.AddComponent<Position>(e);
+
+	class WriterSystem final: public ecs::System {
+	public:
+		void OnUpdate() override {
+			GetWorld().ForEach([]([[maybe_unused]] Position& a) {}).Run();
+		}
+	};
+	class ReaderSystem final: public ecs::System {
+		uint32_t m_expectedCnt = 0;
+
+		ecs::EntityQuery m_q;
+
+	public:
+		void SetExpectedCount(uint32_t cnt) {
+			m_expectedCnt = cnt;
+		}
+		void OnCreated() override {
+			m_q.All<Position>().WithChanged<Position>();
+		}
+		void OnUpdate() override {
+			uint32_t cnt = 0;
+			GetWorld()
+					.ForEach(m_q, [&]([[maybe_unused]] const Position& a) { ++cnt; })
+					.Run();
+			REQUIRE(cnt == m_expectedCnt);
+		}
+	};
+	ecs::SystemManager sm(w);
+	auto ws = sm.CreateSystem<WriterSystem>("writer");
+	auto rs = sm.CreateSystem<ReaderSystem>("reader");
+
+	// first run always happens
+	ws->Enable(false);
+	rs->SetExpectedCount(1);
+	sm.Update();
+	// no change of position so ReaderSystem should't see changes
+	rs->SetExpectedCount(0);
+	sm.Update();
+	// update position so ReaderSystem should detect a change
+	ws->Enable(true);
+	rs->SetExpectedCount(1);
+	sm.Update();
+	// no change of position so ReaderSystem shouldn't see changes
+	ws->Enable(false);
+	rs->SetExpectedCount(0);
+	sm.Update();
 }
