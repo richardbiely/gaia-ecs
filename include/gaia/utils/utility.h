@@ -1,4 +1,5 @@
 #pragma once
+#include <array>
 #include <tuple>
 #include <type_traits>
 
@@ -143,6 +144,13 @@ namespace gaia {
 #pragma region Compile - time sort
 
 		namespace detail {
+			template <typename T>
+			constexpr void swap_if_less(T& lhs, T& rhs) noexcept {
+				T t = lhs < rhs ? std::move(lhs) : std::move(rhs);
+				rhs = lhs < rhs ? std::move(rhs) : std::move(lhs);
+				lhs = std::move(t);
+			}
+
 			template <typename Array>
 			constexpr void comb_sort_impl(Array& array_) noexcept {
 				using size_type = typename Array::size_type;
@@ -166,13 +174,113 @@ namespace gaia {
 			}
 		} // namespace detail
 
-		//! Compile-time sort
-		//! TODO: replace with std::sort in C++20
-		template <typename Array>
-		constexpr Array sort(Array array_) noexcept {
-			auto sorted = array_;
-			detail::comb_sort_impl(sorted);
-			return sorted;
+		//! Compile-time sort.
+		//! Implements a sorting network for \tparam N up to 8
+		template <typename T, std::size_t N>
+		constexpr void sort(std::array<T, N>& arr) noexcept {
+			using detail::swap_if_less;
+			if constexpr (N == 1) {
+				return;
+			} else if constexpr (N == 2) {
+				swap_if_less(arr[0], arr[1]);
+			} else if constexpr (N == 3) {
+				swap_if_less(arr[1], arr[2]);
+				swap_if_less(arr[0], arr[2]);
+				swap_if_less(arr[0], arr[1]);
+			} else if constexpr (N == 4) {
+				swap_if_less(arr[0], arr[1]);
+				swap_if_less(arr[2], arr[3]);
+
+				swap_if_less(arr[0], arr[2]);
+				swap_if_less(arr[1], arr[3]);
+
+				swap_if_less(arr[1], arr[2]);
+			} else if constexpr (N == 5) {
+				swap_if_less(arr[0], arr[1]);
+				swap_if_less(arr[3], arr[4]);
+
+				swap_if_less(arr[2], arr[4]);
+
+				swap_if_less(arr[2], arr[3]);
+				swap_if_less(arr[1], arr[4]);
+
+				swap_if_less(arr[0], arr[3]);
+
+				swap_if_less(arr[0], arr[2]);
+				swap_if_less(arr[1], arr[3]);
+
+				swap_if_less(arr[1], arr[2]);
+			} else if constexpr (N == 6) {
+				swap_if_less(arr[1], arr[2]);
+				swap_if_less(arr[4], arr[5]);
+
+				swap_if_less(arr[0], arr[2]);
+				swap_if_less(arr[3], arr[5]);
+
+				swap_if_less(arr[0], arr[1]);
+				swap_if_less(arr[3], arr[4]);
+				swap_if_less(arr[2], arr[5]);
+
+				swap_if_less(arr[0], arr[3]);
+				swap_if_less(arr[1], arr[4]);
+
+				swap_if_less(arr[2], arr[4]);
+				swap_if_less(arr[1], arr[3]);
+
+				swap_if_less(arr[2], arr[3]);
+			} else if constexpr (N == 7) {
+				swap_if_less(arr[1], arr[2]);
+				swap_if_less(arr[3], arr[4]);
+				swap_if_less(arr[5], arr[6]);
+
+				swap_if_less(arr[0], arr[2]);
+				swap_if_less(arr[3], arr[5]);
+				swap_if_less(arr[4], arr[6]);
+
+				swap_if_less(arr[0], arr[1]);
+				swap_if_less(arr[4], arr[5]);
+				swap_if_less(arr[2], arr[6]);
+
+				swap_if_less(arr[0], arr[4]);
+				swap_if_less(arr[1], arr[5]);
+
+				swap_if_less(arr[0], arr[3]);
+				swap_if_less(arr[2], arr[5]);
+
+				swap_if_less(arr[1], arr[3]);
+				swap_if_less(arr[2], arr[4]);
+
+				swap_if_less(arr[2], arr[3]);
+			} else if constexpr (N == 8) {
+				swap_if_less(arr[0], arr[1]);
+				swap_if_less(arr[2], arr[3]);
+				swap_if_less(arr[4], arr[5]);
+				swap_if_less(arr[6], arr[7]);
+
+				swap_if_less(arr[0], arr[2]);
+				swap_if_less(arr[1], arr[3]);
+				swap_if_less(arr[4], arr[6]);
+				swap_if_less(arr[5], arr[7]);
+
+				swap_if_less(arr[1], arr[2]);
+				swap_if_less(arr[5], arr[6]);
+				swap_if_less(arr[0], arr[4]);
+				swap_if_less(arr[3], arr[7]);
+
+				swap_if_less(arr[1], arr[5]);
+				swap_if_less(arr[2], arr[6]);
+
+				swap_if_less(arr[1], arr[4]);
+				swap_if_less(arr[3], arr[6]);
+
+				swap_if_less(arr[2], arr[4]);
+				swap_if_less(arr[3], arr[5]);
+
+				swap_if_less(arr[3], arr[4]);
+			} else {
+				//! TODO: replace with std::sort in C++20
+				detail::comb_sort_impl(arr);
+			}
 		}
 
 #pragma endregion

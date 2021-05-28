@@ -44,13 +44,13 @@ TEST_CASE("EntityNull") {
 }
 
 TEST_CASE("Compile-time sort") {
-	std::array<int, 5> in = {4, 2, 1, 3, 0};
-	auto out = utils::sort(in);
-	REQUIRE(out[0] == 0);
-	REQUIRE(out[1] == 1);
-	REQUIRE(out[2] == 2);
-	REQUIRE(out[3] == 3);
-	REQUIRE(out[4] == 4);
+	std::array<int, 5> arr = {4, 2, 1, 3, 0};
+	utils::sort(arr);
+	REQUIRE(arr[0] == 0);
+	REQUIRE(arr[1] == 1);
+	REQUIRE(arr[2] == 2);
+	REQUIRE(arr[3] == 3);
+	REQUIRE(arr[4] == 4);
 }
 
 TEST_CASE("EntityQuery & EntityQuery2 - 2 components") {

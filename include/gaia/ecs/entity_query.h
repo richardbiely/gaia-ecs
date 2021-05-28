@@ -36,9 +36,10 @@ namespace gaia {
 		struct component_query_container: component_query_container_base<Type...> {
 		private:
 			static constexpr uint64_t calculate_combined_hash() {
-				constexpr std::array<uint64_t, sizeof...(Type)> arr = {
+				std::array<uint64_t, sizeof...(Type)> arr = {
 						utils::type_info::hash<Type>()...};
-				return CalculateLookupHash(utils::sort(arr));
+				utils::sort(arr);
+				return CalculateLookupHash(arr);
 			}
 
 		public:
