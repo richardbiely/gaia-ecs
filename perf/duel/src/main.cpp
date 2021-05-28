@@ -17,6 +17,8 @@ GAIA_INIT
 
 using namespace gaia;
 
+float dt;
+
 struct Position {
 	float x, y, z;
 };
@@ -65,9 +67,8 @@ void BM_Game_ECS(benchmark::State& state) {
 	for ([[maybe_unused]] auto _: state) {
 		// Calculate delta
 		state.PauseTiming();
-		const float dt =
-				MinDelta + static_cast<float>(rand()) /
-											 (static_cast<float>(RAND_MAX / (MaxDelta - MinDelta)));
+		dt = MinDelta + static_cast<float>(rand()) /
+												(static_cast<float>(RAND_MAX / (MaxDelta - MinDelta)));
 		state.ResumeTiming();
 
 		// Update position
@@ -88,6 +89,95 @@ void BM_Game_ECS(benchmark::State& state) {
 	}
 }
 BENCHMARK(BM_Game_ECS);
+
+void BM_Game_ECS_WithSystems(benchmark::State& state) {
+	ecs::World w;
+
+	// Create static entities
+	{
+		auto e = w.CreateEntity();
+		w.AddComponent<Position>(e, {});
+		w.AddComponent<Rotation>(e, {1, 2, 3, 4});
+		w.AddComponent<Scale>(e, {1, 1, 1});
+		for (uint32_t i = 1U; i < N; i++) {
+			[[maybe_unused]] auto newentity = w.CreateEntity(e);
+		}
+	}
+	// Create dynamic entities
+	{
+		auto e = w.CreateEntity();
+		w.AddComponent<Position>(e, {0, 100, 0});
+		w.AddComponent<Velocity>(e, {0, 0, 1});
+		w.AddComponent<Rotation>(e, {1, 2, 3, 4});
+		w.AddComponent<Scale>(e, {1, 1, 1});
+		for (uint32_t i = 1U; i < N; i++) {
+			[[maybe_unused]] auto newentity = w.CreateEntity(e);
+		}
+	}
+
+	class PositionSystem final: public ecs::System {
+		ecs::EntityQuery m_q;
+
+	public:
+		void OnCreated() override {
+			m_q.All<Position, Velocity>().Commit();
+		}
+		void OnUpdate() override {
+			GetWorld()
+					.ForEach(
+							m_q,
+							[&](Position& p, const Velocity& v) {
+								p.x += v.x * dt;
+								p.y += v.y * dt;
+								p.z += v.z * dt;
+							})
+					.Run();
+		}
+	};
+	class CollisionSystem final: public ecs::System {
+		ecs::EntityQuery m_q;
+
+	public:
+		void OnCreated() override {
+			m_q.All<Position, Velocity>().Commit();
+		}
+		void OnUpdate() override {
+			GetWorld()
+					.ForEach(
+							m_q,
+							[&](Position& p, Velocity& v) {
+								if (p.y < 0.0f) {
+									p.y = 0.0f;
+									v.y = 0.0f;
+								}
+							})
+					.Run();
+		}
+	};
+	class GravitySystem final: public ecs::System {
+	public:
+		void OnUpdate() override {
+			GetWorld().ForEach([&](Velocity& v) { v.y += 9.81f * dt; }).Run();
+		}
+	};
+
+	ecs::SystemManager sm(w);
+	sm.CreateSystem<PositionSystem>("position");
+	sm.CreateSystem<CollisionSystem>("collision");
+	sm.CreateSystem<GravitySystem>("gravity");
+
+	srand(0);
+	for ([[maybe_unused]] auto _: state) {
+		// Calculate delta
+		state.PauseTiming();
+		dt = MinDelta + static_cast<float>(rand()) /
+												(static_cast<float>(RAND_MAX / (MaxDelta - MinDelta)));
+		state.ResumeTiming();
+
+		sm.Update();
+	}
+}
+BENCHMARK(BM_Game_ECS_WithSystems);
 
 void BM_Game_NonECS(benchmark::State& state) {
 	struct IUnit {
@@ -150,9 +240,8 @@ void BM_Game_NonECS(benchmark::State& state) {
 	for ([[maybe_unused]] auto _: state) {
 		// Calculate delta
 		state.PauseTiming();
-		const float dt =
-				MinDelta + static_cast<float>(rand()) /
-											 (static_cast<float>(RAND_MAX / (MaxDelta - MinDelta)));
+		dt = MinDelta + static_cast<float>(rand()) /
+												(static_cast<float>(RAND_MAX / (MaxDelta - MinDelta)));
 		state.ResumeTiming();
 
 		// Process entities
