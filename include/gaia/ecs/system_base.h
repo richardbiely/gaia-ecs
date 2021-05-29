@@ -66,7 +66,7 @@ namespace gaia {
 			virtual void BeforeOnUpdate() {}
 			//! Called every time system is allowed to tick
 			virtual void OnUpdate() {}
-			//! Called aright fter every OnUpdate()
+			//! Called aright after every OnUpdate()
 			virtual void AfterOnUpdate() {}
 
 			//! Called every time system is stopped (after Enable(false) is called and
@@ -74,8 +74,8 @@ namespace gaia {
 			virtual void OnStopped() {}
 			//! Called when system are to be cleaned up.
 			//! This always happens before OnDestroyed is called or at any point when
-			//! simulation decides to brind the system back to the initial state
-			//! without actually destryoing it.
+			//! simulation decides to bring the system back to the initial state
+			//! without actually destroying it.
 			virtual void OnCleanup() {}
 			//! Called when system is being destroyed
 			virtual void OnDestroyed() {}
@@ -93,7 +93,7 @@ namespace gaia {
 			std::unordered_map<uint64_t, BaseSystem*> m_systemsMap;
 			//! List of system - used for iteration
 			std::vector<BaseSystem*> m_systems;
-			//! List of new systems which need to be initialized
+			//! List of new systems which need to be initialised
 			std::vector<BaseSystem*> m_systemsToCreate;
 			//! List of systems which need to be deleted
 			std::vector<BaseSystem*> m_systemsToRemove;
