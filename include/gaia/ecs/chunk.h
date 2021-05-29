@@ -9,6 +9,7 @@
 
 #include "../utils/utils_containers.h"
 #include "archetype.h"
+#include "chunk_allocator.h"
 #include "chunk_header.h"
 #include "common.h"
 #include "entity.h"
@@ -27,7 +28,7 @@ namespace gaia {
 			static constexpr uint32_t DATA_SIZE_RESERVED = 128;
 			//! Size of one chunk's data part with components
 			static constexpr uint32_t DATA_SIZE =
-					CHUNK_SIZE - sizeof(ChunkHeader) - DATA_SIZE_RESERVED;
+					ChunkMemorySize - sizeof(ChunkHeader) - DATA_SIZE_RESERVED;
 
 		private:
 			friend class World;

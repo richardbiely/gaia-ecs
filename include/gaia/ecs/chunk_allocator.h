@@ -35,6 +35,11 @@
 
 namespace gaia {
 	namespace ecs {
+		static constexpr uint32_t MemoryBlockSize = 16384;
+		static constexpr uint32_t MemoryBlockUsableOffset = 16;
+		static constexpr uint32_t ChunkMemorySize =
+				MemoryBlockSize - MemoryBlockUsableOffset;
+
 		struct ChunkAllocatorStats final {
 			//! Total allocated memory
 			uint64_t AllocatedMemory;
@@ -51,8 +56,6 @@ namespace gaia {
 		*/
 		class ChunkAllocator {
 			struct MemoryBlock {
-				static constexpr uint32_t Size = CHUNK_SIZE;
-
 				//! For active block: Index of the block within page.
 				//! For passive block: Index of the next free block in the implicit
 				//! list.
@@ -61,7 +64,7 @@ namespace gaia {
 
 			struct MemoryPage {
 				static constexpr uint32_t NBlocks = 64;
-				static constexpr uint32_t Size = NBlocks * MemoryBlock::Size;
+				static constexpr uint32_t Size = NBlocks * MemoryBlockSize;
 				static constexpr uint16_t InvalidBlockId = (uint16_t)-1;
 
 				// Pointer to data managed by page
@@ -87,7 +90,12 @@ namespace gaia {
 
 						const uint16_t index = m_blocks.size();
 						m_blocks.push_back({m_blocks.size()});
-						return (void*)((uint8_t*)m_data + index * MemoryBlock::Size);
+
+						// Encode info about chunk's page in the memory block.
+						// The actual pointer returned is offset by UsableOffset bytes
+						uint8_t* pMemoryBlock = (uint8_t*)m_data + index * MemoryBlockSize;
+						*(uintptr_t*)pMemoryBlock = (uintptr_t)this;
+						return (void*)(pMemoryBlock + MemoryBlockUsableOffset);
 					} else {
 						GAIA_ASSERT(
 								m_nextFreeBlock < m_blocks.size() &&
@@ -98,18 +106,27 @@ namespace gaia {
 
 						const uint32_t index = m_nextFreeBlock;
 						m_nextFreeBlock = m_blocks[m_nextFreeBlock].idx;
-						return (void*)((uint8_t*)m_data + index * MemoryBlock::Size);
+
+						// Encode info about chunk's page in the memory block.
+						// The actual pointer returned is offset by UsableOffset bytes
+						uint8_t* pMemoryBlock = (uint8_t*)m_data + index * MemoryBlockSize;
+						*(uintptr_t*)pMemoryBlock = (uintptr_t)this;
+						return (void*)(pMemoryBlock + MemoryBlockUsableOffset);
 					}
 				}
 
 				void FreeChunk(void* chunk) {
 					GAIA_ASSERT(m_freeBlocks <= NBlocks);
-					const auto chunkAddr = (uintptr_t)chunk;
+
+					// Offset the chunk memory so we get the real block address
+					uint8_t* pMemoryBlock = (uint8_t*)chunk - MemoryBlockUsableOffset;
+
+					const auto blckAddr = (uintptr_t)pMemoryBlock;
 					const auto dataAddr = (uintptr_t)m_data;
 					GAIA_ASSERT(
-							chunkAddr >= dataAddr && chunkAddr < dataAddr + MemoryPage::Size);
+							blckAddr >= dataAddr && blckAddr < dataAddr + MemoryPage::Size);
 					MemoryBlock block = {
-							uint16_t((chunkAddr - dataAddr) / MemoryBlock::Size)};
+							uint16_t((blckAddr - dataAddr) / MemoryBlockSize)};
 
 					auto& blockContainer = m_blocks[block.idx];
 
@@ -175,7 +192,7 @@ namespace gaia {
 #if 0
 				 // Fill allocated memory by 0xbaadf00d as MSVC does
 				utils::fill_array(
-						(uint32_t*)chunk, (uint32_t)((CHUNK_SIZE + 3) / sizeof(uint32_t)),
+						(uint32_t*)chunk, (uint32_t)((ChunkMemorySize + 3) / sizeof(uint32_t)),
 						0x7fcdf00dU);
 #endif
 
@@ -186,49 +203,51 @@ namespace gaia {
 			Releases memory allocated for pointer
 			*/
 			void Release(void* chunk) {
+				// Decode the page from the address
+				uintptr_t pageAddr =
+						*(uintptr_t*)((uint8_t*)chunk - MemoryBlockUsableOffset);
+				auto* pPage = (MemoryPage*)pageAddr;
+
 #if 0
 				 // Fill freed memory by 0xfeeefeee as MSVC does
 				utils::fill_array(
-						(uint32_t*)chunk, (int)(CHUNK_SIZE / sizeof(uint32_t)),
+						(uint32_t*)chunk, (int)(ChunkMemorySize / sizeof(uint32_t)),
 						0xfeeefeeeU);
 #endif
 
-				auto belongsToPage = [](void* mem, MemoryPage* page) {
-					const auto chunkAddr = (uintptr_t)mem;
-					const auto pageAddr = (uintptr_t)page->m_data;
-					return chunkAddr >= pageAddr &&
-								 chunkAddr < pageAddr + MemoryPage::Size;
-				};
-
+#if GAIA_DEBUG
 				// Search in the list of free pages
-				{
-					auto it = std::find_if(
-							m_pagesFree.begin(), m_pagesFree.end(),
-							[&](auto page) { return belongsToPage(chunk, page); });
-					if (it != m_pagesFree.end()) {
-						auto page = *it;
-						page->FreeChunk(chunk);
-						return;
-					}
-				}
-
-				// Search in the list of full pages
-				{
+				auto it = std::find_if(
+						m_pagesFree.begin(), m_pagesFree.end(),
+						[&](auto page) { return page == pPage; });
+				if (it != m_pagesFree.end()) {
+				} else {
+					// Search in the list of full pages
 					auto it = std::find_if(
 							m_pagesFull.begin(), m_pagesFull.end(),
-							[&](auto page) { return belongsToPage(chunk, page); });
-					if (it != m_pagesFull.end()) {
-						auto page = *it;
-						page->FreeChunk(chunk);
-						m_pagesFree.push_back(page);
-						m_pagesFull.erase(it);
+							[&](auto page) { return page == pPage; });
+					if (it == m_pagesFull.end()) {
+						GAIA_ASSERT(
+								false &&
+								"ChunkAllocator delete couldn't find the parent memory page");
 						return;
 					}
 				}
+#endif
 
-				GAIA_ASSERT(
-						false &&
-						"ChunkAllocator delete request couldn't find the request memory");
+				// Update lists
+				if (pPage->IsFull()) {
+					// TODO: remember the iterator in the page so we don't have to search
+					// and can make this O(1)
+					auto itFull = utils::find(m_pagesFull, pPage);
+					GAIA_ASSERT(itFull != m_pagesFull.end());
+					m_pagesFull.erase(itFull);
+
+					m_pagesFree.push_back(pPage);
+				}
+
+				// Free the chunk
+				pPage->FreeChunk(chunk);
 			}
 
 			/*!
@@ -257,7 +276,7 @@ namespace gaia {
 				stats.AllocatedMemory = stats.NumPages * MemoryPage::Size;
 				stats.UsedMemory = m_pagesFull.size() * MemoryPage::Size;
 				for (auto* page: m_pagesFree)
-					stats.UsedMemory += page->GetUsedBlocks() * MemoryBlock::Size;
+					stats.UsedMemory += page->GetUsedBlocks() * MemoryBlockSize;
 			}
 
 			/*!

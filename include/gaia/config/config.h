@@ -1,6 +1,8 @@
 #pragma once
 #include "version.h"
 
+#define GAIA_CHUNK_MEMORY_BLOCK_SIZE 16384
+
 #define GAIA_DEBUG 1
 #define GAIA_DISABLE_ASSERTS 0
 #define GAIA_PROFILER 0

@@ -3,8 +3,6 @@
 
 namespace gaia {
 	namespace ecs {
-		//! Size of one chunk
-		constexpr uint32_t CHUNK_SIZE = 16384;
 		//! Maximum number of components on archetype
 		constexpr uint32_t MAX_COMPONENTS_PER_ARCHETYPE = 32u;
 

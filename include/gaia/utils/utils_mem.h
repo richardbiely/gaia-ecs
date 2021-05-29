@@ -1,4 +1,5 @@
 #pragma once
+#include <type_traits>
 
 namespace gaia {
 	namespace utils {
@@ -34,6 +35,26 @@ namespace gaia {
 		void fill_array(T* dest, int num, const T& data) {
 			for (int n = 0; n < num; n++)
 				((T*)dest)[n] = data;
+		}
+
+		/*!
+		Convert form type \tparam From to type \tparam To without causing an
+		undefined behavior.
+
+		E.g.:
+		int i = {};
+		float f = *(*float)&i; // undefined behavior
+		memcpy(&f, &i, sizeof(float)); // okay
+		 */
+		template <
+				typename To, typename From,
+				typename = std::enable_if_t<
+						(sizeof(To) == sizeof(From)) && std::is_trivially_copyable_v<To> &&
+						std::is_trivially_copyable_v<From>>>
+		To bit_cast(const From& from) {
+			To to;
+			std::memcpy(&to, &from, sizeof(To));
+			return to;
 		}
 	} // namespace utils
 } // namespace gaia
