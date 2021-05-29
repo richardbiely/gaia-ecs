@@ -66,9 +66,12 @@ namespace gaia {
 				static constexpr uint32_t NBlocks = 64;
 				static constexpr uint32_t Size = NBlocks * MemoryBlockSize;
 				static constexpr uint16_t InvalidBlockId = (uint16_t)-1;
+				using iterator = std::list<MemoryPage*>::iterator;
 
-				// Pointer to data managed by page
+				//! Pointer to data managed by page
 				void* m_data;
+				//! Iterator into the MemoryPage list
+				iterator m_it;
 				//! Implicit list of blocks
 				utils::sarray<MemoryBlock, (uint16_t)NBlocks> m_blocks;
 				//! Numer of used blocks out of NBlocks
@@ -176,7 +179,8 @@ namespace gaia {
 				if (itFree == m_pagesFree.end()) {
 					// Initial allocation
 					auto page = AllocPage();
-					m_pagesFree.push_back(page);
+					m_pagesFree.insert(m_pagesFree.begin(), page);
+					page->m_it = m_pagesFree.begin();
 					chunk = page->AllocChunk();
 				} else {
 					auto page = *itFree;
@@ -184,7 +188,8 @@ namespace gaia {
 					chunk = page->AllocChunk();
 					if (page->IsFull()) {
 						// If our page is full move it to a different list
-						m_pagesFull.push_back(page);
+						m_pagesFull.insert(m_pagesFull.begin(), page);
+						page->m_it = m_pagesFull.begin();
 						m_pagesFree.erase(itFree);
 					}
 				}
@@ -215,34 +220,31 @@ namespace gaia {
 						0xfeeefeeeU);
 #endif
 
+				const bool pageFull = pPage->IsFull();
+
 #if GAIA_DEBUG
-				// Search in the list of free pages
-				auto it = std::find_if(
-						m_pagesFree.begin(), m_pagesFree.end(),
-						[&](auto page) { return page == pPage; });
-				if (it != m_pagesFree.end()) {
+				if (pageFull) {
+					[[maybe_unused]] auto it = std::find_if(
+							m_pagesFree.begin(), m_pagesFree.end(),
+							[&](auto page) { return page == pPage; });
+					GAIA_ASSERT(
+							it != m_pagesFree.end() &&
+							"ChunkAllocator delete couldn't find the memory page expected "
+							"in the free pages list");
 				} else {
-					// Search in the list of full pages
-					auto it = std::find_if(
+					[[maybe_unused]] auto it = std::find_if(
 							m_pagesFull.begin(), m_pagesFull.end(),
 							[&](auto page) { return page == pPage; });
-					if (it == m_pagesFull.end()) {
-						GAIA_ASSERT(
-								false &&
-								"ChunkAllocator delete couldn't find the parent memory page");
-						return;
-					}
+					GAIA_ASSERT(
+							it != m_pagesFull.end() &&
+							"ChunkAllocator delete couldn't find memory page expected in "
+							"the full pages list");
 				}
 #endif
 
 				// Update lists
-				if (pPage->IsFull()) {
-					// TODO: remember the iterator in the page so we don't have to search
-					// and can make this O(1)
-					auto itFull = utils::find(m_pagesFull, pPage);
-					GAIA_ASSERT(itFull != m_pagesFull.end());
-					m_pagesFull.erase(itFull);
-
+				if (pageFull) {
+					m_pagesFull.erase(pPage->m_it);
 					m_pagesFree.push_back(pPage);
 				}
 
