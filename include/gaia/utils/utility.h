@@ -61,12 +61,12 @@ namespace gaia {
 			static constexpr auto size = sizeof...(Type);
 		};
 
-		template <typename ta, typename tb>
+		template <typename TypesA, typename TypesB>
 		struct type_list_concat;
 
-		template <typename... a, typename... b>
-		struct type_list_concat<type_list<a...>, type_list<b...>> {
-			using type = type_list<a..., b...>;
+		template <typename... TypesA, typename... TypesB>
+		struct type_list_concat<type_list<TypesA...>, type_list<TypesB...>> {
+			using type = type_list<TypesA..., TypesB...>;
 		};
 
 #pragma endregion
