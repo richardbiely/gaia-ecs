@@ -30,7 +30,7 @@ namespace gaia {
 					"Only unique inputs are enabled");
 		};
 
-		enum class QueryTypes { Any, All, None };
+		enum class QueryTypes { All, Any, None, Empty };
 
 		template <QueryTypes qt, typename... Type>
 		struct component_query_container: component_query_container_base<Type...> {
@@ -50,6 +50,16 @@ namespace gaia {
 			static constexpr uint64_t matcherHash = CalculateMatcherHash<Type...>();
 		};
 
+		template <>
+		struct component_query_container<QueryTypes::Empty> {
+			static constexpr QueryTypes query_type = QueryTypes::Empty;
+			//! Loopup hash - can be used to hashmap lookups
+			static constexpr uint64_t lookupHash = 0;
+			//! Combination hash - can be used to quickly check for matches
+			static constexpr uint64_t matcherHash = 0;
+		};
+
+		using EmptyTypes = component_query_container<QueryTypes::Empty>;
 		template <typename... Type>
 		using AnyTypes = component_query_container<QueryTypes::Any, Type...>;
 		template <typename... Type>
@@ -58,8 +68,8 @@ namespace gaia {
 		using NoneTypes = component_query_container<QueryTypes::None, Type...>;
 
 		template <
-				typename T1 = ecs::AllTypes<>, typename T2 = ecs::AnyTypes<>,
-				typename T3 = ecs::NoneTypes<>>
+				typename T1 = ecs::EmptyTypes, typename T2 = ecs::EmptyTypes,
+				typename T3 = ecs::EmptyTypes>
 		struct EntityQuery2;
 
 		template <typename T1, typename T2, typename T3>
@@ -76,73 +86,6 @@ namespace gaia {
 
 			// TODO: Make sure there are no duplicates among types
 			static_assert(true);
-		};
-
-		template <typename T1, typename T2>
-		struct EntityQuery2<T1, T2, ecs::NoneTypes<>> {
-			using all = std::conditional_t<
-					T1::query_type == QueryTypes::All, T1,
-					std::conditional_t<
-							T2::query_type == QueryTypes::All, T2, ecs::NoneTypes<>>>;
-			using any = std::conditional_t<
-					T1::query_type == QueryTypes::Any, T1,
-					std::conditional_t<
-							T2::query_type == QueryTypes::Any, T2, ecs::NoneTypes<>>>;
-			using none = ecs::NoneTypes<>;
-
-			// TODO: Make sure there are no duplicates among types
-			static_assert(true);
-		};
-
-		template <typename T1, typename T2>
-		struct EntityQuery2<T1, T2, ecs::AnyTypes<>> {
-			using all = std::conditional_t<
-					T1::query_type == QueryTypes::All, T1,
-					std::conditional_t<
-							T2::query_type == QueryTypes::All, T2, ecs::AnyTypes<>>>;
-			using any = ecs::AnyTypes<>;
-			using none = std::conditional_t<
-					T1::query_type == QueryTypes::None, T1,
-					std::conditional_t<
-							T2::query_type == QueryTypes::None, T2, ecs::AnyTypes<>>>;
-
-			// TODO: Make sure there are no duplicates among types
-			static_assert(true);
-		};
-
-		template <typename T1, typename T2>
-		struct EntityQuery2<T1, T2, ecs::AllTypes<>> {
-			using all = ecs::AllTypes<>;
-			using any = std::conditional_t<
-					T1::query_type == QueryTypes::Any, T1,
-					std::conditional_t<
-							T2::query_type == QueryTypes::Any, T2, ecs::AllTypes<>>>;
-			using none = std::conditional_t<
-					T1::query_type == QueryTypes::None, T1,
-					std::conditional_t<
-							T2::query_type == QueryTypes::None, T2, ecs::AllTypes<>>>;
-
-			// TODO: Make sure there are no duplicates among types
-			static_assert(true);
-		};
-
-		template <typename T1>
-		struct EntityQuery2<T1, ecs::AnyTypes<>, ecs::NoneTypes<>> {
-			using all = T1;
-			using any = ecs::AnyTypes<>;
-			using none = ecs::NoneTypes<>;
-		};
-		template <typename T1>
-		struct EntityQuery2<T1, ecs::AllTypes<>, ecs::NoneTypes<>> {
-			using all = ecs::AllTypes<>;
-			using any = T1;
-			using none = ecs::NoneTypes<>;
-		};
-		template <typename T1>
-		struct EntityQuery2<T1, ecs::AllTypes<>, ecs::AnyTypes<>> {
-			using all = ecs::AllTypes<>;
-			using any = ecs::AnyTypes<>;
-			using none = T1;
 		};
 
 		template <typename TQuery>
