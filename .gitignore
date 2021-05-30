@@ -2,5 +2,6 @@ build
 .vscode
 .vs
 .cache
-**.code-workspace
+CMakeCache.txt
+CMakeFiles
 .DS_Store
