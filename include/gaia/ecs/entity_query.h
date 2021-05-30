@@ -43,6 +43,8 @@ namespace gaia {
 			}
 
 		public:
+			using types = utils::type_list<Type...>;
+
 			static constexpr QueryTypes query_type = qt;
 			//! Loopup hash - can be used to hashmap lookups
 			static constexpr uint64_t lookupHash = calculate_combined_hash();
@@ -52,6 +54,8 @@ namespace gaia {
 
 		template <>
 		struct component_query_container<QueryTypes::Empty> {
+			using types = utils::type_list<>;
+
 			static constexpr QueryTypes query_type = QueryTypes::Empty;
 			//! Loopup hash - can be used to hashmap lookups
 			static constexpr uint64_t lookupHash = 0;
@@ -74,18 +78,28 @@ namespace gaia {
 
 		template <typename T1, typename T2, typename T3>
 		struct EntityQuery2 final {
+			// Deduce which template arg is supposed to be used as 'all'
 			using all = std::conditional_t<
 					T1::query_type == QueryTypes::All, T1,
 					std::conditional_t<T2::query_type == QueryTypes::All, T2, T3>>;
+			// Deduce which template arg is supposed to be used as 'any'
 			using any = std::conditional_t<
 					T1::query_type == QueryTypes::Any, T1,
 					std::conditional_t<T2::query_type == QueryTypes::Any, T2, T3>>;
+			// Deduce which template arg is supposed to be used as 'none'
 			using none = std::conditional_t<
 					T1::query_type == QueryTypes::None, T1,
 					std::conditional_t<T2::query_type == QueryTypes::None, T2, T3>>;
 
-			// TODO: Make sure there are no duplicates among types
-			static_assert(true);
+			// Make sure there are no duplicates among types
+			static_assert(
+					utils::is_unique<utils::type_list_concat<
+									typename T1::types, typename T2::types>> &&
+							utils::is_unique<utils::type_list_concat<
+									typename T1::types, typename T3::types>> &&
+							utils::is_unique<utils::type_list_concat<
+									typename T2::types, typename T3::types>>,
+					"Unique types need to be provided to EntityQuery2");
 		};
 
 		template <typename TQuery>
