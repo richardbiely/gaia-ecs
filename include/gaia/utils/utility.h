@@ -61,6 +61,14 @@ namespace gaia {
 			static constexpr auto size = sizeof...(Type);
 		};
 
+		template <typename ta, typename tb>
+		struct type_list_concat;
+
+		template <typename... a, typename... b>
+		struct type_list_concat<type_list<a...>, type_list<b...>> {
+			using type = type_list<a..., b...>;
+		};
+
 #pragma endregion
 
 #pragma region Compile - time for each
