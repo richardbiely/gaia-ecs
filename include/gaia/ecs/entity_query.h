@@ -130,20 +130,15 @@ namespace gaia {
 			static constexpr uint32_t MAX_COMPONENTS_IN_QUERY = 8u;
 			friend class World;
 
-			// Keeps an array of ComponentMetaData copies. We can't keep pointers in
-			// queries because as new components are added and removed the global type
-			// map will get invalidated.
-			using ComponentMetaDataArray =
-					utils::sarray<const ComponentMetaData*, MAX_COMPONENTS_IN_QUERY>;
-
-			// Keeps an array of ComponentMetaData hashes
-			using ChangeFilterArray =
+			// Keeps an array of Component type indices
+			using ComponentIndexArray =
 					utils::sarray<uint32_t, MAX_COMPONENTS_IN_QUERY>;
+			using ChangeFilterArray = ComponentIndexArray;
 
 			struct ComponentListData {
-				ComponentMetaDataArray listNone{};
-				ComponentMetaDataArray listAny{};
-				ComponentMetaDataArray listAll{};
+				ComponentIndexArray listNone{};
+				ComponentIndexArray listAny{};
+				ComponentIndexArray listAll{};
 
 				uint64_t hashNone = 0;
 				uint64_t hashAny = 0;
@@ -155,44 +150,45 @@ namespace gaia {
 			ChangeFilterArray listChangeFiltered[ComponentType::CT_Count]{};
 			//! Version of the world for which the query has been called most recently
 			uint32_t m_worldVersion = 0;
-			//! If true, query needs to be commited. Set to true on structural changes
-			bool m_invalidated = false;
 
 			template <class TComponent>
-			bool CalculateHash_Internal(ComponentMetaDataArray& arr) {
+			bool CalculateHash_Internal(ComponentIndexArray& arr, uint64_t& hash) {
 				using T = std::decay_t<TComponent>;
 
 				if constexpr (std::is_same<T, Entity>::value) {
 					// Skip Entity input args
 					return true;
 				} else {
-					const auto* metaType =
-							g_ComponentCache.GetOrCreateComponentMetaType<T>();
-					if (!utils::has(arr, metaType)) {
+
+					const auto typeIndex = utils::type_info::index<T>();
+					if (!utils::has(arr, typeIndex)) {
 #if GAIA_DEBUG
 						// There's a limit to the amount of components which we can store
 						if (arr.size() >= MAX_COMPONENTS_IN_QUERY) {
 							GAIA_ASSERT(
 									false && "Trying to create an ECS query with too many "
 													 "components!");
+
+							constexpr auto typeName = utils::type_info::name<T>();
 							LOG_E(
 									"Trying to add ECS component '%.*s' to an already full ECS "
 									"query!",
-									(uint32_t)metaType->name.length(), metaType->name.data());
+									(uint32_t)typeName.length(), typeName.data());
 							LOG_W("Already present:");
-							for (uint32_t i = 0; i < arr.size(); i++)
-								LOG_W("> [%u] %s", i, arr[i]->name.data());
-							LOG_W("Trying to add:");
-							LOG_W(
-									"> %.*s", (uint32_t)metaType->name.length(),
-									metaType->name.data());
+							for (uint32_t i = 0; i < arr.size(); i++) {
+								const auto metaType =
+										g_ComponentCache.GetComponentMetaTypeFromIdx(arr[i]);
+								LOG_W(
+										"> [%u] %.*s", i, (uint32_t)metaType->name.length(),
+										metaType->name.data());
+							}
 
 							return false;
 						}
 #endif
 
-						arr.push_back(metaType);
-						m_invalidated = true;
+						arr.push_back(typeIndex);
+						hash = CalculateMatcherHash(hash, CalculateMatcherHash<T>());
 					}
 
 					return true;
@@ -200,8 +196,8 @@ namespace gaia {
 			}
 
 			template <typename... TComponent>
-			void CalculateHashes(ComponentMetaDataArray& arr) {
-				(CalculateHash_Internal<TComponent>(arr) && ...);
+			void CalculateHashes(ComponentIndexArray& arr, uint64_t& hash) {
+				(CalculateHash_Internal<TComponent>(arr, hash) && ...);
 			}
 
 			template <typename TComponent>
@@ -244,11 +240,9 @@ namespace gaia {
 					// anyway
 					if (!utils::has_if(
 									arrMeta.listAny,
-									[typeIndex](const auto* info) {
-										return info->typeIndex == typeIndex;
-									}) &&
-							!utils::has_if(arrMeta.listAll, [typeIndex](const auto* info) {
-								return info->typeIndex == typeIndex;
+									[typeIndex](auto idx) { return idx == typeIndex; }) &&
+							!utils::has_if(arrMeta.listAll, [typeIndex](auto idx) {
+								return idx == typeIndex;
 							})) {
 #if GAIA_DEBUG
 						constexpr auto typeName = utils::type_info::name<T>();
@@ -261,7 +255,6 @@ namespace gaia {
 					}
 
 					arr.push_back(typeIndex);
-					m_invalidated = true;
 				}
 
 				return true;
@@ -280,34 +273,45 @@ namespace gaia {
 
 			template <typename... TComponent>
 			EntityQuery& Any() {
-				CalculateHashes<TComponent...>(list[ComponentType::CT_Generic].listAny);
+				CalculateHashes<TComponent...>(
+						list[ComponentType::CT_Generic].listAny,
+						list[ComponentType::CT_Generic].hashAny);
 				return *this;
 			}
 			template <typename... TComponent>
 			EntityQuery& All() {
-				CalculateHashes<TComponent...>(list[ComponentType::CT_Generic].listAll);
+				CalculateHashes<TComponent...>(
+						list[ComponentType::CT_Generic].listAll,
+						list[ComponentType::CT_Generic].hashAll);
 				return *this;
 			}
 			template <typename... TComponent>
 			EntityQuery& None() {
 				CalculateHashes<TComponent...>(
-						list[ComponentType::CT_Generic].listNone);
+						list[ComponentType::CT_Generic].listNone,
+						list[ComponentType::CT_Generic].hashNone);
 				return *this;
 			}
 
 			template <typename... TComponent>
 			EntityQuery& AnyChunk() {
-				CalculateHashes<TComponent...>(list[ComponentType::CT_Chunk].listAny);
+				CalculateHashes<TComponent...>(
+						list[ComponentType::CT_Chunk].listAny,
+						list[ComponentType::CT_Chunk].hashAny);
 				return *this;
 			}
 			template <typename... TComponent>
 			EntityQuery& AllChunk() {
-				CalculateHashes<TComponent...>(list[ComponentType::CT_Chunk].listAll);
+				CalculateHashes<TComponent...>(
+						list[ComponentType::CT_Chunk].listAll,
+						list[ComponentType::CT_Chunk].hashAll);
 				return *this;
 			}
 			template <typename... TComponent>
 			EntityQuery& NoneChunk() {
-				CalculateHashes<TComponent...>(list[ComponentType::CT_Chunk].listNone);
+				CalculateHashes<TComponent...>(
+						list[ComponentType::CT_Chunk].listNone,
+						list[ComponentType::CT_Chunk].hashNone);
 				return *this;
 			}
 
@@ -324,27 +328,6 @@ namespace gaia {
 						listChangeFiltered[ComponentType::CT_Chunk],
 						list[ComponentType::CT_Chunk]);
 				return *this;
-			}
-
-			void Commit() {
-				// Make sure not to commit already committed queue
-				if (!m_invalidated)
-					return;
-
-				m_invalidated = false;
-
-				auto commit = [&](ComponentType componentType) {
-					auto& listNone = list[componentType].listNone;
-					auto& listAny = list[componentType].listAny;
-					auto& listAll = list[componentType].listAll;
-
-					list[componentType].hashNone = CalculateMatcherHash(listNone);
-					list[componentType].hashAny = CalculateMatcherHash(listAny);
-					list[componentType].hashAll = CalculateMatcherHash(listAll);
-				};
-
-				commit(ComponentType::CT_Generic);
-				commit(ComponentType::CT_Chunk);
 			}
 
 			void SetWorldVersion(uint32_t worldVersion) {

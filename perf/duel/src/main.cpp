@@ -120,7 +120,7 @@ void BM_Game_ECS_WithSystems(benchmark::State& state) {
 
 	public:
 		void OnCreated() override {
-			m_q.All<Position, Velocity>().Commit();
+			m_q.All<Position, Velocity>();
 		}
 		void OnUpdate() override {
 			GetWorld()
@@ -139,7 +139,7 @@ void BM_Game_ECS_WithSystems(benchmark::State& state) {
 
 	public:
 		void OnCreated() override {
-			m_q.All<Position, Velocity>().Commit();
+			m_q.All<Position, Velocity>();
 		}
 		void OnUpdate() override {
 			GetWorld()

@@ -68,8 +68,6 @@ TEST_CASE("EntityQuery & EntityQuery2 - 2 components") {
 	ecs::EntityQuery qq1, qq2;
 	qq1.All<Position, Rotation>();
 	qq2.All<Rotation, Position>();
-	qq1.Commit();
-	qq2.Commit();
 	REQUIRE(
 			qq1.GetData(ecs::ComponentType::CT_Generic).hashAll ==
 			qq2.GetData(ecs::ComponentType::CT_Generic).hashAll);
@@ -97,8 +95,6 @@ TEST_CASE("EntityQuery & EntityQuery2 - 4 components") {
 	ecs::EntityQuery qq1, qq2;
 	qq1.All<Position, Rotation, Acceleration, Something>();
 	qq2.All<Rotation, Something, Position, Acceleration>();
-	qq1.Commit();
-	qq2.Commit();
 	REQUIRE(
 			qq1.GetData(ecs::ComponentType::CT_Generic).hashAll ==
 			qq2.GetData(ecs::ComponentType::CT_Generic).hashAll);
