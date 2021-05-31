@@ -1251,9 +1251,9 @@ namespace gaia {
 				if (withNoneTest != 0) {
 					// withNoneList first because we usually request for less
 					// components that there are components in archetype
-					for (const auto type: query.list[TYPE].listNone) {
+					for (const auto typeIndex: query.list[TYPE].listNone) {
 						for (const auto& component: componentList) {
-							if (component.type == type) {
+							if (component.type->typeIndex == typeIndex) {
 								DiagNotMatching(
 										"none", componentList, query.list[TYPE].listNone);
 								return MatchArchetypeQueryRet::Fail;
@@ -1267,9 +1267,9 @@ namespace gaia {
 					uint32_t matches = 0;
 					// withAnyList first because we usually request for less
 					// components that there are components in archetype
-					for (const auto type: query.list[TYPE].listAny) {
+					for (const auto typeIndex: query.list[TYPE].listAny) {
 						for (const auto& component: componentList) {
-							if (component.type == type) {
+							if (component.type->typeIndex == typeIndex) {
 								++matches;
 								goto checkIncludeAnyMatches;
 							}
@@ -1294,9 +1294,9 @@ namespace gaia {
 
 						// withAllList first because we usually request for less
 						// components than there are components in archetype
-						for (const auto type: query.list[TYPE].listAll) {
+						for (const auto typeIndex: query.list[TYPE].listAll) {
 							for (const auto& component: componentList) {
-								if (component.type != type)
+								if (component.type->typeIndex != typeIndex)
 									continue;
 
 								// All requirements are fulfilled. Let's iterate
@@ -1349,13 +1349,11 @@ namespace gaia {
 			}
 
 			template <typename... TComponents>
-			[[nodiscard]] EntityQuery& Unpack_ForEachQuery(
+			void Unpack_ForEachQuery(
 					[[maybe_unused]] utils::func_type_list<TComponents...> types,
 					EntityQuery& query) {
-				if constexpr (!sizeof...(TComponents))
-					return query;
-				else
-					return query.All<TComponents...>();
+				if constexpr (sizeof...(TComponents) > 0)
+					query.All<TComponents...>();
 			}
 
 			[[nodiscard]] static bool
@@ -1418,9 +1416,6 @@ namespace gaia {
 				// Update the world version
 				world.UpdateWorldVersion();
 
-				// Add an All filter for components listed as input arguments of func
-				query.Commit();
-
 				// Iterate over all archetypes
 				world.ForEachArchetype(query, [&](const Archetype& archetype) {
 					for (auto chunk: archetype.chunks) {
@@ -1443,7 +1438,7 @@ namespace gaia {
 				world.UpdateWorldVersion();
 
 				// Add an All filter for components listed as input arguments of func
-				world.Unpack_ForEachQuery(InputArgs{}, query).Commit();
+				world.Unpack_ForEachQuery(InputArgs{}, query);
 
 				// Iterate over all archetypes
 				world.ForEachArchetype(query, [&](const Archetype& archetype) {
@@ -1656,7 +1651,7 @@ namespace gaia {
 
 			void DiagNotMatching(
 					const char* text, const ChunkComponentList& componentList,
-					const EntityQuery::ComponentMetaDataArray& listToCompare) const {
+					const EntityQuery::ComponentIndexArray& listToCompare) const {
 				static bool DiagTypeMatching = GAIA_ECS_DIAG_TYPEMATCHING;
 				if (DiagTypeMatching) {
 					DiagTypeMatching = false;
@@ -1673,7 +1668,9 @@ namespace gaia {
 					}
 
 					LOG_N("types to match: %u", (uint32_t)listToCompare.size());
-					for (const auto* metaType: listToCompare) {
+					for (const auto typeIndex: listToCompare) {
+						const auto* metaType =
+								g_ComponentCache.GetComponentMetaTypeFromIdx(typeIndex);
 						LOG_N(
 								"  --> (%p) lookupHash:%016llx, matcherHash:%016llx, %.*s",
 								(void*)metaType, metaType->lookupHash, metaType->matcherHash,

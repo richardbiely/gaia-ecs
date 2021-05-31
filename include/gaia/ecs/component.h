@@ -170,6 +170,11 @@ namespace gaia {
 		};
 
 		[[nodiscard]] inline uint64_t
+		CalculateMatcherHash(uint64_t hashA, uint64_t hashB) noexcept {
+			return utils::combine_or(hashA, hashB);
+		}
+
+		[[nodiscard]] inline uint64_t
 		CalculateMatcherHash(std::span<const ComponentMetaData*> types) noexcept {
 			uint64_t hash = types.empty() ? 0 : types[0]->matcherHash;
 			for (uint32_t i = 1; i < types.size(); ++i)
