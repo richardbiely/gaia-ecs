@@ -152,75 +152,24 @@ namespace gaia {
 			uint32_t m_worldVersion = 0;
 
 			template <class TComponent>
-			bool CalculateHash_Internal(ComponentIndexArray& arr, uint64_t& hash) {
+			void CalculateHash_Internal(ComponentIndexArray& arr, uint64_t& hash) {
 				using T = std::decay_t<TComponent>;
 
 				if constexpr (std::is_same<T, Entity>::value) {
 					// Skip Entity input args
-					return true;
+					return;
 				} else {
-
 					const auto typeIndex = utils::type_info::index<T>();
-					if (!utils::has(arr, typeIndex)) {
+
 #if GAIA_DEBUG
-						// There's a limit to the amount of components which we can store
-						if (arr.size() >= MAX_COMPONENTS_IN_QUERY) {
-							GAIA_ASSERT(
-									false && "Trying to create an ECS query with too many "
-													 "components!");
-
-							constexpr auto typeName = utils::type_info::name<T>();
-							LOG_E(
-									"Trying to add ECS component '%.*s' to an already full ECS "
-									"query!",
-									(uint32_t)typeName.length(), typeName.data());
-							LOG_W("Already present:");
-							for (uint32_t i = 0; i < arr.size(); i++) {
-								const auto metaType =
-										g_ComponentCache.GetComponentMetaTypeFromIdx(arr[i]);
-								LOG_W(
-										"> [%u] %.*s", i, (uint32_t)metaType->name.length(),
-										metaType->name.data());
-							}
-
-							return false;
-						}
-#endif
-
-						arr.push_back(typeIndex);
-						hash = CalculateMatcherHash(hash, CalculateMatcherHash<T>());
-					}
-
-					return true;
-				}
-			}
-
-			template <typename... TComponent>
-			void CalculateHashes(ComponentIndexArray& arr, uint64_t& hash) {
-				(CalculateHash_Internal<TComponent>(arr, hash) && ...);
-			}
-
-			template <typename TComponent>
-			bool SetChangedFilter_Internal(
-					ChangeFilterArray& arr, ComponentListData& arrMeta) {
-				using T = std::decay_t<TComponent>;
-				static_assert(
-						!std::is_same<T, Entity>::value,
-						"It doesn't make sense to use ChangedFilter with Entity");
-
-				const auto typeIndex = utils::type_info::index<T>();
-				if (!utils::has(arr, typeIndex)) {
-#if GAIA_DEBUG
-					// There's a limit to the amount of components which we can store
-					if (arr.size() >= MAX_COMPONENTS_IN_QUERY) {
+					// Unique types only
+					if (utils::has(arr, typeIndex)) {
 						GAIA_ASSERT(
-								false && "Trying to create an ECS filter query with too "
-												 "many components!");
+								false && "Trying to add the same component twice to a query!");
 
 						constexpr auto typeName = utils::type_info::name<T>();
 						LOG_E(
-								"Trying to add ECS component %.*s to an already full "
-								"filter query!",
+								"Trying to add ECS component %.*s twice to a query!",
 								(uint32_t)typeName.length(), typeName.data());
 						LOG_E("Already present:");
 						for (auto i = 0U; i < (uint32_t)arr.size(); i++) {
@@ -231,39 +180,125 @@ namespace gaia {
 									metaType->name.data());
 						}
 
-						return false;
+						return;
 					}
-#endif
 
-					// Component has to be present in anyList or allList.
-					// NoneList makes no sense because we skip those in query processing
-					// anyway
-					if (!utils::has_if(
-									arrMeta.listAny,
-									[typeIndex](auto idx) { return idx == typeIndex; }) &&
-							!utils::has_if(arrMeta.listAll, [typeIndex](auto idx) {
-								return idx == typeIndex;
-							})) {
-#if GAIA_DEBUG
+					// There's a limit to the amount of components which we can store
+					if (arr.size() >= MAX_COMPONENTS_IN_QUERY) {
+						GAIA_ASSERT(
+								false && "Trying to create an ECS query with too many "
+												 "components!");
+
 						constexpr auto typeName = utils::type_info::name<T>();
 						LOG_E(
-								"SetChangeFilter trying to filter ECS component %.*s but "
-								"it's not a part of the query!",
+								"Trying to add ECS component '%.*s' to an already full ECS "
+								"query!",
 								(uint32_t)typeName.length(), typeName.data());
-#endif
-						return false;
+						LOG_E("Already present:");
+						for (uint32_t i = 0; i < arr.size(); i++) {
+							const auto metaType =
+									g_ComponentCache.GetComponentMetaTypeFromIdx(arr[i]);
+							LOG_E(
+									"> [%u] %.*s", i, (uint32_t)metaType->name.length(),
+									metaType->name.data());
+						}
+
+						return;
 					}
+#endif
 
 					arr.push_back(typeIndex);
+					hash = CalculateMatcherHash(hash, CalculateMatcherHash<T>());
+				}
+			}
+
+			template <typename... TComponent>
+			void CalculateHashes(ComponentIndexArray& arr, uint64_t& hash) {
+				(CalculateHash_Internal<TComponent>(arr, hash), ...);
+			}
+
+			template <typename TComponent>
+			void SetChangedFilter_Internal(
+					ChangeFilterArray& arr, ComponentListData& arrMeta) {
+				using T = std::decay_t<TComponent>;
+				static_assert(
+						!std::is_same<T, Entity>::value,
+						"It doesn't make sense to use ChangedFilter with Entity");
+
+				const auto typeIndex = utils::type_info::index<T>();
+
+#if GAIA_DEBUG
+				// Unique types only
+				if (utils::has(arr, typeIndex)) {
+					GAIA_ASSERT(false && "Trying to set the same filter twice!");
+
+					constexpr auto typeName = utils::type_info::name<T>();
+					LOG_E(
+							"Trying to set the filter twice for in a EntityQuery for "
+							"component %.*s!",
+							(uint32_t)typeName.length(), typeName.data());
+					LOG_E("Already present:");
+					for (auto i = 0U; i < (uint32_t)arr.size(); i++) {
+						const auto metaType =
+								g_ComponentCache.GetComponentMetaTypeFromIdx(arr[i]);
+						LOG_E(
+								"> [%u] %.*s", i, (uint32_t)metaType->name.length(),
+								metaType->name.data());
+					}
+
+					return;
 				}
 
-				return true;
+				// There's a limit to the amount of components which we can store
+				if (arr.size() >= MAX_COMPONENTS_IN_QUERY) {
+					GAIA_ASSERT(
+							false && "Trying to create an ECS filter query with too "
+											 "many components!");
+
+					constexpr auto typeName = utils::type_info::name<T>();
+					LOG_E(
+							"Trying to add ECS component %.*s to an already full "
+							"filter query!",
+							(uint32_t)typeName.length(), typeName.data());
+					LOG_E("Already present:");
+					for (auto i = 0U; i < (uint32_t)arr.size(); i++) {
+						const auto metaType =
+								g_ComponentCache.GetComponentMetaTypeFromIdx(arr[i]);
+						LOG_E(
+								"> [%u] %.*s", i, (uint32_t)metaType->name.length(),
+								metaType->name.data());
+					}
+
+					return;
+				}
+#endif
+
+				// Component has to be present in anyList or allList.
+				// NoneList makes no sense because we skip those in query processing
+				// anyway
+				if (!utils::has_if(
+								arrMeta.listAny,
+								[typeIndex](auto idx) { return idx == typeIndex; }) &&
+						!utils::has_if(arrMeta.listAll, [typeIndex](auto idx) {
+							return idx == typeIndex;
+						})) {
+#if GAIA_DEBUG
+					constexpr auto typeName = utils::type_info::name<T>();
+					LOG_E(
+							"SetChangeFilter trying to filter ECS component %.*s but "
+							"it's not a part of the query!",
+							(uint32_t)typeName.length(), typeName.data());
+#endif
+					return;
+				}
+
+				arr.push_back(typeIndex);
 			}
 
 			template <typename... TComponent>
 			void
 			SetChangedFilter(ChangeFilterArray& arr, ComponentListData& arrMeta) {
-				(SetChangedFilter_Internal<TComponent>(arr, arrMeta) && ...);
+				(SetChangedFilter_Internal<TComponent>(arr, arrMeta), ...);
 			}
 
 		public:
