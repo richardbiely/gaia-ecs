@@ -212,26 +212,27 @@ namespace gaia {
 						!std::is_same<T, Entity>::value,
 						"It doesn't make sense to use ChangedFilter with Entity");
 
-				const auto* metaType =
-						g_ComponentCache.GetOrCreateComponentMetaType<T>();
-				if (!utils::has(arr, metaType->typeIndex)) {
+				const auto typeIndex = utils::type_info::index<T>();
+				if (!utils::has(arr, typeIndex)) {
 #if GAIA_DEBUG
 					// There's a limit to the amount of components which we can store
 					if (arr.size() >= MAX_COMPONENTS_IN_QUERY) {
 						GAIA_ASSERT(
 								false && "Trying to create an ECS filter query with too "
 												 "many components!");
+
+						constexpr auto typeName = utils::type_info::name<T>();
 						LOG_E(
 								"Trying to add ECS component %.*s to an already full "
 								"filter query!",
-								(uint32_t)metaType->name.length(), metaType->name.data());
+								(uint32_t)typeName.length(), typeName.data());
 						LOG_E("Already present:");
 						for (auto i = 0U; i < (uint32_t)arr.size(); i++) {
-							const auto meta =
+							const auto metaType =
 									g_ComponentCache.GetComponentMetaTypeFromIdx(arr[i]);
 							LOG_E(
-									"> [%u] %.*s", i, (uint32_t)meta->name.length(),
-									meta->name.data());
+									"> [%u] %.*s", i, (uint32_t)metaType->name.length(),
+									metaType->name.data());
 						}
 
 						return false;
@@ -243,22 +244,23 @@ namespace gaia {
 					// anyway
 					if (!utils::has_if(
 									arrMeta.listAny,
-									[metaType](const auto* info) {
-										return info->typeIndex == metaType->typeIndex;
+									[typeIndex](const auto* info) {
+										return info->typeIndex == typeIndex;
 									}) &&
-							!utils::has_if(arrMeta.listAll, [metaType](const auto* info) {
-								return info->typeIndex == metaType->typeIndex;
+							!utils::has_if(arrMeta.listAll, [typeIndex](const auto* info) {
+								return info->typeIndex == typeIndex;
 							})) {
 #if GAIA_DEBUG
+						constexpr auto typeName = utils::type_info::name<T>();
 						LOG_E(
 								"SetChangeFilter trying to filter ECS component %.*s but "
 								"it's not a part of the query!",
-								(uint32_t)metaType->name.length(), metaType->name.data());
+								(uint32_t)typeName.length(), typeName.data());
 #endif
 						return false;
 					}
 
-					arr.push_back(metaType->typeIndex);
+					arr.push_back(typeIndex);
 					m_invalidated = true;
 				}
 
