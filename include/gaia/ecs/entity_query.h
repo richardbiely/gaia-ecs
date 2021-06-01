@@ -161,28 +161,11 @@ namespace gaia {
 				} else {
 					const auto typeIndex = utils::type_info::index<T>();
 
-#if GAIA_DEBUG
 					// Unique types only
-					if (utils::has(arr, typeIndex)) {
-						GAIA_ASSERT(
-								false && "Trying to add the same component twice to a query!");
-
-						constexpr auto typeName = utils::type_info::name<T>();
-						LOG_E(
-								"Trying to add ECS component %.*s twice to a query!",
-								(uint32_t)typeName.length(), typeName.data());
-						LOG_E("Already present:");
-						for (auto i = 0U; i < (uint32_t)arr.size(); i++) {
-							const auto metaType =
-									g_ComponentCache.GetComponentMetaTypeFromIdx(arr[i]);
-							LOG_E(
-									"> [%u] %.*s", i, (uint32_t)metaType->name.length(),
-									metaType->name.data());
-						}
-
+					if (utils::has(arr, typeIndex))
 						return;
-					}
 
+#if GAIA_DEBUG
 					// There's a limit to the amount of components which we can store
 					if (arr.size() >= MAX_COMPONENTS_IN_QUERY) {
 						GAIA_ASSERT(
@@ -227,28 +210,11 @@ namespace gaia {
 
 				const auto typeIndex = utils::type_info::index<T>();
 
-#if GAIA_DEBUG
 				// Unique types only
-				if (utils::has(arr, typeIndex)) {
-					GAIA_ASSERT(false && "Trying to set the same filter twice!");
-
-					constexpr auto typeName = utils::type_info::name<T>();
-					LOG_E(
-							"Trying to set the filter twice for in a EntityQuery for "
-							"component %.*s!",
-							(uint32_t)typeName.length(), typeName.data());
-					LOG_E("Already present:");
-					for (auto i = 0U; i < (uint32_t)arr.size(); i++) {
-						const auto metaType =
-								g_ComponentCache.GetComponentMetaTypeFromIdx(arr[i]);
-						LOG_E(
-								"> [%u] %.*s", i, (uint32_t)metaType->name.length(),
-								metaType->name.data());
-					}
-
+				if (utils::has(arr, typeIndex))
 					return;
-				}
 
+#if GAIA_DEBUG
 				// There's a limit to the amount of components which we can store
 				if (arr.size() >= MAX_COMPONENTS_IN_QUERY) {
 					GAIA_ASSERT(

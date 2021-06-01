@@ -1238,35 +1238,27 @@ namespace gaia {
 
 				// If withAllTest is empty but we wanted something
 				if (!withAllTest && query.list[TYPE].hashAll != 0) {
-					DiagNotMatching("all", componentList, query.list[TYPE].listAll);
 					return MatchArchetypeQueryRet::Fail;
 				}
 				// If withAnyTest is empty but we wanted something
 				if (!withAnyTest && query.list[TYPE].hashAny != 0) {
-					DiagNotMatching("any", componentList, query.list[TYPE].listAny);
 					return MatchArchetypeQueryRet::Fail;
 				}
 
 				// If there is any match with the withNoneList we quit
 				if (withNoneTest != 0) {
-					// withNoneList first because we usually request for less
-					// components that there are components in archetype
 					for (const auto typeIndex: query.list[TYPE].listNone) {
 						for (const auto& component: componentList) {
 							if (component.type->typeIndex == typeIndex) {
-								DiagNotMatching(
-										"none", componentList, query.list[TYPE].listNone);
 								return MatchArchetypeQueryRet::Fail;
 							}
 						}
 					}
 				}
 
-				// We need to have at least one match inside withAnyList
+				// If there is any match with the withAnyTest
 				if (withAnyTest != 0) {
 					uint32_t matches = 0;
-					// withAnyList first because we usually request for less
-					// components that there are components in archetype
 					for (const auto typeIndex: query.list[TYPE].listAny) {
 						for (const auto& component: componentList) {
 							if (component.type->typeIndex == typeIndex) {
@@ -1280,7 +1272,6 @@ namespace gaia {
 					// At least one match has been found to continue with
 					// evaluation
 					if (!matches) {
-						DiagNotMatching("any", componentList, query.list[TYPE].listAny);
 						return MatchArchetypeQueryRet::Fail;
 					}
 				}
@@ -1292,7 +1283,7 @@ namespace gaia {
 					if (query.list[TYPE].listAll.size() <= componentList.size()) {
 						uint32_t matches = 0;
 
-						// withAllList first because we usually request for less
+						// listAll first because we usually request for less
 						// components than there are components in archetype
 						for (const auto typeIndex: query.list[TYPE].listAll) {
 							for (const auto& component: componentList) {
@@ -1310,7 +1301,6 @@ namespace gaia {
 					}
 
 					// No match found. We're done
-					DiagNotMatching("all", componentList, query.list[TYPE].listAll);
 					return MatchArchetypeQueryRet::Fail;
 				}
 
@@ -1646,36 +1636,6 @@ namespace gaia {
 					DiagRegisteredTypes = false;
 
 					g_ComponentCache.Diag();
-				}
-			}
-
-			void DiagNotMatching(
-					const char* text, const ChunkComponentList& componentList,
-					const EntityQuery::ComponentIndexArray& listToCompare) const {
-				static bool DiagTypeMatching = GAIA_ECS_DIAG_TYPEMATCHING;
-				if (DiagTypeMatching) {
-					DiagTypeMatching = false;
-
-					LOG_N(
-							"MatchArchetypeQuery - %s, components to compare: %u", text,
-							(uint32_t)componentList.size());
-					for (const auto& component: componentList) {
-						const auto* metaType = component.type;
-						LOG_N(
-								"  --> (%p) lookupHash:%016llx, matcherHash:%016llx, %.*s",
-								(void*)metaType, metaType->lookupHash, metaType->matcherHash,
-								(uint32_t)metaType->name.length(), metaType->name.data());
-					}
-
-					LOG_N("types to match: %u", (uint32_t)listToCompare.size());
-					for (const auto typeIndex: listToCompare) {
-						const auto* metaType =
-								g_ComponentCache.GetComponentMetaTypeFromIdx(typeIndex);
-						LOG_N(
-								"  --> (%p) lookupHash:%016llx, matcherHash:%016llx, %.*s",
-								(void*)metaType, metaType->lookupHash, metaType->matcherHash,
-								(uint32_t)metaType->name.length(), metaType->name.data());
-					}
 				}
 			}
 
