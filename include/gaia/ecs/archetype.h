@@ -37,6 +37,8 @@ namespace gaia {
 			//! The number of entities this archetype can take (e.g 5 = 5 entities
 			//! with all their components)
 			uint16_t capacity = 0;
+			//! Once removal is requested and it hits 0 the archetype is removed.
+			uint16_t lifespan = 0;
 
 			// Constructor is hidden. Create archetypes via Create
 			Archetype() = default;
@@ -140,10 +142,7 @@ namespace gaia {
 					}
 				}
 
-				// Create a chunk in the new archetype
-				auto chunk = AllocateChunk(*newArch);
 				newArch->capacity = (uint16_t)maxGenericItemsInArchetype;
-				newArch->chunks.push_back(chunk);
 				newArch->matcherHash[ComponentType::CT_Generic] =
 						CalculateMatcherHash(genericTypes);
 				newArch->matcherHash[ComponentType::CT_Chunk] =
@@ -153,18 +152,16 @@ namespace gaia {
 			}
 
 			[[nodiscard]] Chunk* FindOrCreateChunk() {
-				GAIA_ASSERT(!chunks.empty());
-
-				// So long we have enough space in the last chunk we use it
-				auto lastChunk = chunks.back();
-				if (lastChunk && !lastChunk->IsFull())
-					return lastChunk;
-
-				// Try previous chunks to fill empty spaces
-				for (uint32_t i = 0; i < (uint32_t)chunks.size() - 1; i++) {
-					auto pChunk = chunks[i];
-					if (pChunk && !pChunk->IsFull())
-						return pChunk;
+				if (!chunks.empty()) {
+					// Look for chunks with free space back-to-front.
+					// We do it this way because we always try to keep fully utilized and
+					// thus only the one in the back should be free.
+					for (auto i = (uint32_t)chunks.size() - 1; i > 0; i--) {
+						auto pChunk = chunks[i];
+						GAIA_ASSERT(pChunk != nullptr);
+						if (!pChunk->IsFull())
+							return pChunk;
+					}
 				}
 
 				// No free space found anywhere. Let's create a new one
@@ -175,9 +172,7 @@ namespace gaia {
 
 			void RemoveChunk(Chunk* pChunk) {
 				ReleaseChunk(pChunk);
-				auto it = utils::find(chunks, pChunk);
-				GAIA_ASSERT(it != chunks.end());
-				chunks.erase(it);
+				utils::erase_fast(chunks, utils::get_index(chunks, pChunk));
 			}
 
 		public:
@@ -187,15 +182,16 @@ namespace gaia {
 					ReleaseChunk(pChunk);
 			}
 
-			uint32_t GetWorldVersion() const {
+			[[nodiscard]] uint32_t GetWorldVersion() const {
 				return GetWorldVersionFromWorld(*parentWorld);
 			}
 
-			uint16_t GetCapacity() const {
+			[[nodiscard]] uint16_t GetCapacity() const {
 				return capacity;
 			}
 
-			const ChunkComponentList& GetComponentList(ComponentType type) const {
+			[[nodiscard]] const ChunkComponentList&
+			GetComponentList(ComponentType type) const {
 				return componentList[type];
 			}
 
@@ -251,13 +247,15 @@ namespace gaia {
 			}
 		};
 
-		inline uint32_t GetWorldVersionFromArchetype(const Archetype& archetype) {
+		[[nodiscard]] inline uint32_t
+		GetWorldVersionFromArchetype(const Archetype& archetype) {
 			return archetype.GetWorldVersion();
 		}
-		inline uint16_t GetArchetypeCapacity(const Archetype& archetype) {
+		[[nodiscard]] inline uint16_t
+		GetArchetypeCapacity(const Archetype& archetype) {
 			return archetype.GetCapacity();
 		}
-		inline const ChunkComponentList&
+		[[nodiscard]] inline const ChunkComponentList&
 		GetArchetypeComponentList(const Archetype& archetype, ComponentType type) {
 			return archetype.GetComponentList(type);
 		}
