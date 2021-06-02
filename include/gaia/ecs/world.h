@@ -352,7 +352,6 @@ namespace gaia {
 					auto newMetatypes = (const ComponentMetaData**)alloca(
 							sizeof(ComponentMetaData) * metatypesCount);
 
-					uint32_t j = 0;
 					for (uint32_t i = 0; i < componentList.size(); i++) {
 						const auto& info = componentList[i];
 
@@ -378,7 +377,7 @@ namespace gaia {
 #endif
 
 						// Keep the types offset by the number of new input types
-						newMetatypes[newTypesCount + j++] = info.type;
+						newMetatypes[newTypesCount + i] = info.type;
 					}
 					// Fill in the gap with new input types
 					for (uint32_t i = 0; i < newTypesCount; i++)
@@ -482,7 +481,6 @@ namespace gaia {
 					auto newMetatypes = (const ComponentMetaData**)alloca(
 							sizeof(ComponentMetaData) * metatypesCount);
 
-					uint32_t j = 0;
 					for (uint32_t i = 0; i < componentList.size(); i++) {
 						const auto& info = componentList[i];
 
@@ -507,7 +505,7 @@ namespace gaia {
 #endif
 
 						// Keep the types offset by the number of new input types
-						newMetatypes[newTypesCount + j++] = info.type;
+						newMetatypes[newTypesCount + i] = info.type;
 					}
 					// Fill in the gap with new input types
 					for (uint32_t i = 0; i < newTypesCount; i++)
