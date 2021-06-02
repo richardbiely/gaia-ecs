@@ -3,7 +3,6 @@
 
 namespace gaia {
 	namespace ecs {
-
 		using EntityId = uint32_t;
 		using EntityGenId = uint32_t;
 
@@ -23,8 +22,7 @@ namespace gaia {
 			struct EntityData {
 				//! Index in entity array
 				uint32_t id: IdBits;
-				//! Generation index. Incremented every time an entity is deleted. -1 is
-				//! reserved and means it is an entity used for delayed creation
+				//! Generation index. Incremented every time an entity is deleted
 				uint32_t gen: GenBits;
 			};
 
@@ -106,13 +104,11 @@ namespace gaia {
 		struct EntityContainer {
 			//! Chunk the entity currently resides in
 			Chunk* chunk;
-			//! For allocated entity: Index of entity within chunk + generation ID.
-			//! For deleted entity: Index of the next entity in the implicit list +
-			//! generation ID.
+			//! For allocated entity: Index of entity within chunk.
+			//! For deleted entity: Index of the next entity in the implicit list.
 			EntityId idx;
 			//! Generation ID
 			EntityGenId gen;
 		};
-
 	} // namespace ecs
 } // namespace gaia
