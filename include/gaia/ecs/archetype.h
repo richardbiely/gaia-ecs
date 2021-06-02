@@ -226,28 +226,28 @@ namespace gaia {
 			}
 
 		private:
-			template <ComponentType TYPE, typename T>
+			template <ComponentType TComponentType, typename T>
 			[[nodiscard]] bool HasComponent_Internal() const {
 				const ComponentMetaData* type =
 						g_ComponentCache.GetOrCreateComponentMetaType<T>();
-				return utils::has_if(componentList[TYPE], [type](const auto& info) {
-					return info.type == type;
-				});
+				return utils::has_if(
+						componentList[TComponentType],
+						[type](const auto& info) { return info.type == type; });
 			}
 
-			template <ComponentType TYPE, typename... T>
+			template <ComponentType TComponentType, typename... T>
 			[[nodiscard]] bool HasComponents_Internal() const {
-				return (HasComponent_Internal<TYPE, T>() && ...);
+				return (HasComponent_Internal<TComponentType, T>() && ...);
 			}
 
-			template <ComponentType TYPE, typename... T>
+			template <ComponentType TComponentType, typename... T>
 			[[nodiscard]] bool HasAnyComponents_Internal() const {
-				return (HasComponent_Internal<TYPE, T>() || ...);
+				return (HasComponent_Internal<TComponentType, T>() || ...);
 			}
 
-			template <ComponentType TYPE, typename... T>
+			template <ComponentType TComponentType, typename... T>
 			[[nodiscard]] bool HasNoneComponents_Internal() const {
-				return (!HasComponent_Internal<TYPE, T>() && ...);
+				return (!HasComponent_Internal<TComponentType, T>() && ...);
 			}
 		};
 

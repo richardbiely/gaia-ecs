@@ -307,7 +307,7 @@ namespace gaia {
 			}
 
 			EntityContainer* AddComponent_Internal(
-					ComponentType TYPE, Entity entity,
+					ComponentType componentType, Entity entity,
 					std::span<const ComponentMetaData*> typesToAdd) {
 				const auto newTypesCount = (uint32_t)typesToAdd.size();
 				auto& entityContainer = m_entities[entity.id()];
@@ -316,7 +316,7 @@ namespace gaia {
 				// chunk
 				if (auto chunk = entityContainer.chunk) {
 					const auto& archetype = chunk->header.owner;
-					const auto& componentList = archetype.componentList[TYPE];
+					const auto& componentList = archetype.componentList[componentType];
 
 					const auto metatypesCount =
 							(uint32_t)componentList.size() + (uint32_t)typesToAdd.size();
@@ -329,10 +329,10 @@ namespace gaia {
 								"Trying to add %u ECS %s components to ECS entity [%u.%u] "
 								"but "
 								"there's only enough room for %u more!",
-								newTypesCount, ComponentTypeString[TYPE], entity.id(),
+								newTypesCount, ComponentTypeString[componentType], entity.id(),
 								entity.gen(),
 								MAX_COMPONENTS_PER_ARCHETYPE -
-										(uint32_t)archetype.componentList[TYPE].size());
+										(uint32_t)archetype.componentList[componentType].size());
 						LOG_W("Already present:");
 						for (uint32_t i = 0; i < componentList.size(); i++)
 							LOG_W(
@@ -366,7 +366,8 @@ namespace gaia {
 								LOG_W(
 										"Trying to add a duplicate ECS %s component to ECS "
 										"entity [%u.%u]",
-										ComponentTypeString[TYPE], entity.id(), entity.gen());
+										ComponentTypeString[componentType], entity.id(),
+										entity.gen());
 								LOG_W(
 										"> %.*s", (uint32_t)info.type->name.length(),
 										info.type->name.data());
@@ -383,13 +384,14 @@ namespace gaia {
 					for (uint32_t i = 0; i < newTypesCount; i++)
 						newMetatypes[i] = typesToAdd[i];
 
-					const auto& secondList = archetype.componentList[(TYPE + 1) & 1];
+					const auto& secondList =
+							archetype.componentList[(componentType + 1) & 1];
 					auto secondMetaTypes = (const ComponentMetaData**)alloca(
 							sizeof(ComponentMetaData) * secondList.size());
 					for (uint32_t i = 0; i < secondList.size(); i++)
 						secondMetaTypes[i] = secondList[i].type;
 
-					auto newArchetype = TYPE == ComponentType::CT_Generic
+					auto newArchetype = componentType == ComponentType::CT_Generic
 																	? FindOrCreateArchetype(
 																				{newMetatypes, metatypesCount},
 																				{secondMetaTypes, secondList.size()})
@@ -410,7 +412,7 @@ namespace gaia {
 						LOG_W(
 								"Trying to add %u ECS %s components to ECS entity [%u.%u] "
 								"but maximum of only %u is supported!",
-								newTypesCount, ComponentTypeString[TYPE], entity.id(),
+								newTypesCount, ComponentTypeString[componentType], entity.id(),
 								entity.gen(), MAX_COMPONENTS_PER_ARCHETYPE);
 						for (uint32_t i = 0; i < newTypesCount; i++)
 							LOG_W(
@@ -421,7 +423,7 @@ namespace gaia {
 					}
 #endif
 
-					auto newArchetype = TYPE == ComponentType::CT_Generic
+					auto newArchetype = componentType == ComponentType::CT_Generic
 																	? FindOrCreateArchetype(typesToAdd, {})
 																	: FindOrCreateArchetype({}, typesToAdd);
 
@@ -433,147 +435,23 @@ namespace gaia {
 
 			template <typename... TComponent>
 			EntityContainer*
-			AddComponent_Internal(ComponentType TYPE, Entity entity) {
-				constexpr auto newTypesCount = (uint32_t)sizeof...(TComponent);
-				auto& entityContainer = m_entities[entity.id()];
+			AddComponent_Internal(ComponentType componentType, Entity entity) {
+				constexpr auto typesCount = sizeof...(TComponent);
+				const ComponentMetaData* types[] = {
+						g_ComponentCache.GetOrCreateComponentMetaType<TComponent>()...};
 
-				// Adding a component to an entity which already is a part of some
-				// chunk
-				if (auto chunk = entityContainer.chunk) {
-					const auto& archetype = chunk->header.owner;
-					const auto& componentList = archetype.componentList[TYPE];
-
-					const auto metatypesCount =
-							(uint32_t)componentList.size() + newTypesCount;
-#if GAIA_DEBUG
-					if (!VerityArchetypeComponentCount(metatypesCount)) {
-						GAIA_ASSERT(
-								false &&
-								"Trying to add too many ECS components to ECS entity!");
-						LOG_W(
-								"Trying to add %u ECS %s components to ECS entity [%u.%u] "
-								"but there's only enough room for %u more!",
-								newTypesCount, ComponentTypeString[TYPE], entity.id(),
-								entity.gen(),
-								MAX_COMPONENTS_PER_ARCHETYPE -
-										(uint32_t)archetype.componentList[TYPE].size());
-						LOG_W("Already present:");
-						for (uint32_t i = 0; i < componentList.size(); i++)
-							LOG_W(
-									"> [%u] %.*s", i,
-									(uint32_t)componentList[i].type->name.length(),
-									componentList[i].type->name.data());
-						std::string_view newNames[] = {
-								utils::type_info::name<TComponent>()...};
-						LOG_W("Trying to add:");
-						for (uint32_t i = 0; i < newTypesCount; i++)
-							LOG_W(
-									"> [%u] %.*s", i, (uint32_t)newNames[i].length(),
-									newNames[i].data());
-
-						return nullptr;
-					}
-#endif
-
-					const ComponentMetaData* typesToAdd[] = {
-							g_ComponentCache.GetOrCreateComponentMetaType<TComponent>()...};
-
-					auto newMetatypes = (const ComponentMetaData**)alloca(
-							sizeof(ComponentMetaData) * metatypesCount);
-
-					for (uint32_t i = 0; i < componentList.size(); i++) {
-						const auto& info = componentList[i];
-
-#if GAIA_DEBUG
-						// Don't add the same component twice
-						for (uint32_t k = 0; k < newTypesCount; k++) {
-							if (info.type == typesToAdd[k]) {
-								GAIA_ASSERT(
-										false && "Trying to add a duplicate ECS component to "
-														 "ECS entity");
-								LOG_W(
-										"Trying to add a duplicate ECS %s component to ECS "
-										"entity [%u.%u]",
-										ComponentTypeString[TYPE], entity.id(), entity.gen());
-								LOG_W(
-										"> %.*s", (uint32_t)info.type->name.length(),
-										info.type->name.data());
-
-								return nullptr;
-							}
-						}
-#endif
-
-						// Keep the types offset by the number of new input types
-						newMetatypes[newTypesCount + i] = info.type;
-					}
-					// Fill in the gap with new input types
-					for (uint32_t i = 0; i < newTypesCount; i++)
-						newMetatypes[i] = typesToAdd[i];
-
-					const auto& secondList = archetype.componentList[(TYPE + 1) & 1];
-					auto secondMetaTypes = (const ComponentMetaData**)alloca(
-							sizeof(ComponentMetaData) * secondList.size());
-					for (uint32_t i = 0; i < secondList.size(); i++)
-						secondMetaTypes[i] = secondList[i].type;
-
-					auto newArchetype = TYPE == ComponentType::CT_Generic
-																	? FindOrCreateArchetype(
-																				{newMetatypes, metatypesCount},
-																				{secondMetaTypes, secondList.size()})
-																	: FindOrCreateArchetype(
-																				{secondMetaTypes, secondList.size()},
-																				{newMetatypes, metatypesCount});
-
-					MoveEntity(entity, *newArchetype);
-				}
-				// Adding a component to an empty entity
-				else {
-#if GAIA_DEBUG
-					if (!VerityArchetypeComponentCount(newTypesCount)) {
-						GAIA_ASSERT(
-								false &&
-								"Trying to add too many ECS components to ECS entity!");
-
-						LOG_W(
-								"Trying to add %u ECS %s components to ECS entity [%u.%u] "
-								"but maximum of only %u is supported!",
-								newTypesCount, ComponentTypeString[TYPE], entity.id(),
-								entity.gen(), MAX_COMPONENTS_PER_ARCHETYPE);
-						std::string_view newNames[] = {
-								utils::type_info::name<TComponent>()...};
-						LOG_W("Trying to add:");
-						for (uint32_t i = 0; i < newTypesCount; i++)
-							LOG_W(
-									"> [%u] %.*s", i, (uint32_t)newNames[i].length(),
-									newNames[i].data());
-
-						return nullptr;
-					}
-#endif
-
-					const ComponentMetaData* newMetatypes[] = {
-							g_ComponentCache.GetOrCreateComponentMetaType<TComponent>()...};
-
-					auto newArchetype =
-							TYPE == ComponentType::CT_Generic
-									? FindOrCreateArchetype({newMetatypes, newTypesCount}, {})
-									: FindOrCreateArchetype({}, {newMetatypes, newTypesCount});
-
-					StoreEntity(entity, newArchetype->FindOrCreateChunk());
-				}
-
-				return &entityContainer;
+				return AddComponent_Internal(
+						componentType, entity, {types, typesCount});
 			}
 
 			void RemoveComponent_Internal(
-					ComponentType TYPE, Entity entity,
+					ComponentType componentType, Entity entity,
 					std::span<const ComponentMetaData*> typesToRemove) {
 				auto& entityContainer = m_entities[entity.id()];
 				auto chunk = entityContainer.chunk;
 
 				const auto& archetype = chunk->header.owner;
-				const auto& componentList = archetype.componentList[TYPE];
+				const auto& componentList = archetype.componentList[componentType];
 
 				// find intersection
 				const auto metatypesCount = componentList.size();
@@ -601,13 +479,14 @@ namespace gaia {
 				if (typesAfter == metatypesCount)
 					return;
 
-				const auto& secondList = archetype.componentList[(TYPE + 1) & 1];
+				const auto& secondList =
+						archetype.componentList[(componentType + 1) & 1];
 				auto secondMetaTypes = (const ComponentMetaData**)alloca(
 						sizeof(ComponentMetaData) * secondList.size());
 				for (auto i = 0U; i < secondList.size(); i++)
 					secondMetaTypes[i] = secondList[i].type;
 
-				auto newArchetype = TYPE == ComponentType::CT_Generic
+				auto newArchetype = componentType == ComponentType::CT_Generic
 																? FindOrCreateArchetype(
 																			{newMetatypes, typesAfter},
 																			{secondMetaTypes, secondList.size()})
@@ -619,62 +498,13 @@ namespace gaia {
 			}
 
 			template <typename... TComponent>
-			void RemoveComponent_Internal(ComponentType TYPE, Entity entity) {
-				auto& entityContainer = m_entities[entity.id()];
-				auto chunk = entityContainer.chunk;
-
-				const ComponentMetaData* typesToRemove[] = {
+			void
+			RemoveComponent_Internal(ComponentType componentType, Entity entity) {
+				constexpr auto typesCount = sizeof...(TComponent);
+				const ComponentMetaData* types[] = {
 						g_ComponentCache.GetOrCreateComponentMetaType<TComponent>()...};
 
-				const auto& archetype = chunk->header.owner;
-				const auto& componentList = archetype.componentList[TYPE];
-
-				// find intersection
-				const auto metatypesCount = componentList.size();
-				auto newMetatypes = (const ComponentMetaData**)alloca(
-						sizeof(ComponentMetaData) * metatypesCount);
-
-				size_t typesAfter = 0;
-				// TODO: Arrays are sorted so we can make this in O(n+m) instead of
-				// O(N^2)
-				for (auto i = 0U; i < componentList.size(); i++) {
-					const auto& info = componentList[i];
-
-					for (auto k = 0U; k < sizeof...(TComponent); k++) {
-						if (info.type == typesToRemove[k])
-							goto nextIter;
-					}
-
-					newMetatypes[typesAfter++] = info.type;
-
-				nextIter:
-					continue;
-				}
-
-				// Nothing has changed. Return
-				if (typesAfter == metatypesCount)
-					return;
-
-				// TODO: Remove the archetype after the last component is removed?
-				/*if (typesAfter == 0)
-				{
-				...
-				}*/
-
-				const auto& secondList = archetype.componentList[(TYPE + 1) & 1];
-				auto secondMetaTypes = (const ComponentMetaData**)alloca(
-						sizeof(ComponentMetaData) * secondList.size());
-				for (uint32_t i = 0; i < secondList.size(); i++)
-					secondMetaTypes[i] = secondList[i].type;
-
-				auto newArchetype = TYPE == ComponentType::CT_Generic
-																? FindOrCreateArchetype(
-																			{newMetatypes, typesAfter},
-																			{secondMetaTypes, secondList.size()})
-																: FindOrCreateArchetype(
-																			{secondMetaTypes, secondList.size()},
-																			{newMetatypes, typesAfter});
-				MoveEntity(entity, *newArchetype);
+				RemoveComponent_Internal(componentType, entity, {types, typesCount});
 			}
 
 			void MoveEntity(Entity oldEntity, Archetype& newArchetype) {
@@ -1164,37 +994,39 @@ namespace gaia {
 		private:
 			template <typename TComponent>
 			void SetComponent_Internal(
-					ComponentType TYPE, Chunk* chunk, uint32_t index, TComponent&& data) {
+					ComponentType componentType, Chunk* chunk, uint32_t index,
+					TComponent&& data) {
 				if constexpr (!std::is_empty<TComponent>::value) {
-					chunk->SetComponent_Internal<TComponent>(TYPE, index) =
+					chunk->SetComponent_Internal<TComponent>(componentType, index) =
 							std::forward<TComponent>(data);
 				}
 			}
 
 			template <typename... TComponent>
 			void SetComponents_Internal(
-					ComponentType TYPE, Chunk* chunk, uint32_t index,
+					ComponentType componentType, Chunk* chunk, uint32_t index,
 					TComponent&&... data) {
 				(SetComponent_Internal<TComponent>(
-						 TYPE, chunk, index, std::forward<TComponent>(data)),
+						 componentType, chunk, index, std::forward<TComponent>(data)),
 				 ...);
 			}
 
 			template <typename TComponent>
 			void GetComponent_Internal(
-					ComponentType TYPE, Chunk* chunk, uint32_t index,
+					ComponentType componentType, Chunk* chunk, uint32_t index,
 					TComponent& data) const {
 				static_assert(
 						!std::is_empty<TComponent>::value,
 						"Attempting to get the value of an empty component");
-				data = chunk->GetComponent_Internal<TComponent>(TYPE, index);
+				data = chunk->GetComponent_Internal<TComponent>(componentType, index);
 			}
 
 			template <typename... TComponent>
 			void GetComponents_Internal(
-					ComponentType TYPE, Chunk* chunk, uint32_t index,
+					ComponentType componentType, Chunk* chunk, uint32_t index,
 					TComponent&... data) const {
-				(GetComponent_Internal<TComponent>(TYPE, chunk, index, data), ...);
+				(GetComponent_Internal<TComponent>(componentType, chunk, index, data),
+				 ...);
 			}
 
 			template <class T>
@@ -1223,30 +1055,30 @@ namespace gaia {
 
 			enum class MatchArchetypeQueryRet { Fail, Ok, Skip };
 
-			template <ComponentType TYPE>
+			template <ComponentType TComponentType>
 			[[nodiscard]] MatchArchetypeQueryRet MatchArchetypeQuery(
 					const Archetype& archetype, const EntityQuery& query) {
-				const uint64_t withNoneTest =
-						archetype.matcherHash[TYPE] & query.list[TYPE].hashNone;
-				const uint64_t withAnyTest =
-						archetype.matcherHash[TYPE] & query.list[TYPE].hashAny;
-				const uint64_t withAllTest =
-						archetype.matcherHash[TYPE] & query.list[TYPE].hashAll;
+				const uint64_t withNoneTest = archetype.matcherHash[TComponentType] &
+																			query.list[TComponentType].hashNone;
+				const uint64_t withAnyTest = archetype.matcherHash[TComponentType] &
+																		 query.list[TComponentType].hashAny;
+				const uint64_t withAllTest = archetype.matcherHash[TComponentType] &
+																		 query.list[TComponentType].hashAll;
 
-				const auto& componentList = archetype.componentList[TYPE];
+				const auto& componentList = archetype.componentList[TComponentType];
 
 				// If withAllTest is empty but we wanted something
-				if (!withAllTest && query.list[TYPE].hashAll != 0) {
+				if (!withAllTest && query.list[TComponentType].hashAll != 0) {
 					return MatchArchetypeQueryRet::Fail;
 				}
 				// If withAnyTest is empty but we wanted something
-				if (!withAnyTest && query.list[TYPE].hashAny != 0) {
+				if (!withAnyTest && query.list[TComponentType].hashAny != 0) {
 					return MatchArchetypeQueryRet::Fail;
 				}
 
 				// If there is any match with the withNoneList we quit
 				if (withNoneTest != 0) {
-					for (const auto typeIndex: query.list[TYPE].listNone) {
+					for (const auto typeIndex: query.list[TComponentType].listNone) {
 						for (const auto& component: componentList) {
 							if (component.type->typeIndex == typeIndex) {
 								return MatchArchetypeQueryRet::Fail;
@@ -1258,7 +1090,7 @@ namespace gaia {
 				// If there is any match with the withAnyTest
 				if (withAnyTest != 0) {
 					uint32_t matches = 0;
-					for (const auto typeIndex: query.list[TYPE].listAny) {
+					for (const auto typeIndex: query.list[TComponentType].listAny) {
 						for (const auto& component: componentList) {
 							if (component.type->typeIndex == typeIndex) {
 								++matches;
@@ -1279,19 +1111,20 @@ namespace gaia {
 				if (withAllTest != 0) {
 					// If the number of queried components is greater than the
 					// number of components in archetype there's no need to search
-					if (query.list[TYPE].listAll.size() <= componentList.size()) {
+					if (query.list[TComponentType].listAll.size() <=
+							componentList.size()) {
 						uint32_t matches = 0;
 
 						// listAll first because we usually request for less
 						// components than there are components in archetype
-						for (const auto typeIndex: query.list[TYPE].listAll) {
+						for (const auto typeIndex: query.list[TComponentType].listAll) {
 							for (const auto& component: componentList) {
 								if (component.type->typeIndex != typeIndex)
 									continue;
 
 								// All requirements are fulfilled. Let's iterate
 								// over all chunks in archetype
-								if (++matches == query.list[TYPE].listAll.size())
+								if (++matches == query.list[TComponentType].listAll.size())
 									return MatchArchetypeQueryRet::Ok;
 
 								break;
