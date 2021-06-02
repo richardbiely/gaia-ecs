@@ -260,15 +260,16 @@ namespace gaia {
 					GAIA_ASSERT(
 							m_entities.size() < Entity::IdMask &&
 							"Trying to allocate too many entities!");
-					m_entities.push_back({nullptr, 0, 0});
 
+					m_entities.push_back({nullptr, 0, 0});
 					return {(EntityId)m_entities.size() - 1, 0};
 				} else {
-					--m_freeEntities;
+					// Make sure the list is not broken
 					GAIA_ASSERT(
 							m_nextFreeEntity < m_entities.size() &&
 							"ECS recycle list broken!");
 
+					--m_freeEntities;
 					const auto index = m_nextFreeEntity;
 					m_nextFreeEntity = m_entities[m_nextFreeEntity].idx;
 					return {index, m_entities[index].gen};
