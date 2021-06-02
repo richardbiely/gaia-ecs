@@ -298,13 +298,12 @@ namespace gaia {
 			}
 
 			void StoreEntity(Entity entity, Chunk* chunk) {
+				GAIA_ASSERT(chunk != nullptr);
+
 				auto& entityContainer = m_entities[entity.id()];
 				entityContainer.chunk = chunk;
-
-				const auto idx = chunk->AddEntity(entity);
-				const auto gen = entityContainer.gen;
-				entityContainer.idx = idx;
-				entityContainer.gen = gen;
+				entityContainer.idx = chunk->AddEntity(entity);
+				entityContainer.gen = entityContainer.gen;
 			}
 
 			EntityContainer* AddComponent_Internal(
@@ -428,7 +427,7 @@ namespace gaia {
 																	? FindOrCreateArchetype(typesToAdd, {})
 																	: FindOrCreateArchetype({}, typesToAdd);
 
-					StoreEntity(entity, newArchetype->FindOrCreateChunk());
+					StoreEntity(entity, newArchetype->FindOrCreateFreeChunk());
 				}
 
 				return &entityContainer;
@@ -516,7 +515,7 @@ namespace gaia {
 
 				// find a new chunk for the entity and move it inside.
 				// Old entity ID needs to remain valid or lookups would break.
-				auto newChunk = newArchetype.FindOrCreateChunk();
+				auto newChunk = newArchetype.FindOrCreateFreeChunk();
 				const auto newIndex = newChunk->AddEntity(oldEntity);
 
 				// find intersection of the two component lists
@@ -647,7 +646,7 @@ namespace gaia {
 
 				auto chunk = m_entities[entity.id()].chunk;
 				if (chunk == nullptr)
-					chunk = archetype.FindOrCreateChunk();
+					chunk = archetype.FindOrCreateFreeChunk();
 
 				StoreEntity(entity, chunk);
 
