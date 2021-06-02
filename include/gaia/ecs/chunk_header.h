@@ -13,20 +13,21 @@ namespace gaia {
 
 		struct ChunkHeader final {
 		public:
-			//! [0-7] Archetype that created this chunk
+			//! [0-7] Archetype that created this chunk.
 			const Archetype& owner;
-			//! [8-9] Last entity index. If -1 the chunk is empty
+			//! [8-9] Last entity index. If -1 the chunk is empty.
 			uint16_t lastEntityIndex = UINT16_MAX;
-			//! [10] Remove
-			bool remove = false;
-			//! [11-63] Empty space
-			uint8_t dummy[53]{};
+			//! [10-11] Once removal is requested and it hits 0 the chunk is removed.
+			uint16_t lifespan = 0;
+			//! [12-63] Empty space
+			uint8_t dummy[52]{};
 			//! [64-319] Versions of individual components on chunk. Stored on
-			//! separate cache lines from the rest
+			//! separate cache lines from the rest.
 			uint32_t versions[ComponentType::CT_Count]
 											 [MAX_COMPONENTS_PER_ARCHETYPE]{};
 
 			ChunkHeader(const Archetype& archetype): owner(archetype) {
+				// Make sure the alignment is right
 				GAIA_ASSERT(uintptr_t(this) % 8 == 0);
 			}
 

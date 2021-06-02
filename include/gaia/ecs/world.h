@@ -45,6 +45,8 @@ namespace gaia {
 
 			//! List of chunks to delete
 			std::vector<Chunk*> m_chunksToRemove;
+			//! List of archetypes to delete
+			std::vector<Archetype*> m_archetypesToRemove;
 
 			//! With every structural change world version changes
 			uint32_t m_worldVersion = 0;
@@ -104,16 +106,15 @@ namespace gaia {
 			}
 
 		private:
-			//! Remove entity from a chunk. If the chunk is empty it's queued for
-			//! removal as well.
+			//! Remove a entity from a chunk
 			void RemoveEntity(Chunk* pChunk, uint16_t entityChunkIndex) {
 				pChunk->RemoveEntity(entityChunkIndex, m_entities);
 
 				if (
-						// Skip non-empty chunks
-						pChunk->HasEntities() ||
 						// Skip chunks which already requested removal
-						pChunk->header.remove)
+						pChunk->header.lifespan > 0 ||
+						// Skip non-empty chunks
+						pChunk->HasEntities())
 					return;
 
 				// When the chunk is emptied we want it to be removed. We can't do it
@@ -128,7 +129,7 @@ namespace gaia {
 				// be removed. The chunk might be reclaimed before GC happens but it
 				// simply ignores such requests. This way GC always has at most one
 				// record for removal for any given chunk.
-				pChunk->header.remove = true;
+				pChunk->header.lifespan = MAX_CHUNK_LIFESPAN;
 
 				m_chunksToRemove.push_back(pChunk);
 			}
@@ -1068,13 +1069,12 @@ namespace gaia {
 				const auto& componentList = archetype.componentList[TComponentType];
 
 				// If withAllTest is empty but we wanted something
-				if (!withAllTest && query.list[TComponentType].hashAll != 0) {
+				if (!withAllTest && query.list[TComponentType].hashAll != 0)
 					return MatchArchetypeQueryRet::Fail;
-				}
+
 				// If withAnyTest is empty but we wanted something
-				if (!withAnyTest && query.list[TComponentType].hashAny != 0) {
+				if (!withAnyTest && query.list[TComponentType].hashAny != 0)
 					return MatchArchetypeQueryRet::Fail;
-				}
 
 				// If there is any match with the withNoneList we quit
 				if (withNoneTest != 0) {
@@ -1150,6 +1150,7 @@ namespace gaia {
 							MatchArchetypeQuery<ComponentType::CT_Generic>(archetype, query);
 					if (retGeneric == MatchArchetypeQueryRet::Fail)
 						continue;
+
 					// Early exit if chunk query doesn't match
 					const auto retChunk =
 							MatchArchetypeQuery<ComponentType::CT_Chunk>(archetype, query);
@@ -1351,27 +1352,52 @@ namespace gaia {
 		public:
 			//! Collect garbage
 			void GC() {
-				// Handle memory released by chunks and archetypes
-				for (auto chunk: m_chunksToRemove) {
-					// Skip chunks which were reused in the meantime
+				// Handle chunks
+				for (auto i = 0U; i < (uint32_t)m_chunksToRemove.size();) {
+					auto chunk = m_chunksToRemove[i];
+
+					// Skip reclaimed chunks
 					if (chunk->HasEntities()) {
-						// Reset the flag
-						chunk->header.remove = false;
+						chunk->header.lifespan = MAX_CHUNK_LIFESPAN;
+						utils::erase_fast(m_chunksToRemove, i);
 						continue;
 					}
 
-					GAIA_ASSERT(chunk->header.remove);
+					GAIA_ASSERT(chunk->header.lifespan > 0);
+					--chunk->header.lifespan;
+					if (chunk->header.lifespan > 0) {
+						++i;
+						continue;
+					}
+
 					auto& archetype = const_cast<Archetype&>(chunk->header.owner);
+					GAIA_ASSERT(!archetype.chunks.empty());
 
-					// Remove the chunk if it's no longer needed
-					archetype.RemoveChunk(chunk);
-
-					// Remove the archetype if it's no longer used
-					if (archetype.chunks.empty())
-						RemoveArchetype(&archetype);
+					m_archetypesToRemove.push_back(&archetype);
+					utils::erase_fast(m_chunksToRemove, i);
 				}
 
-				m_chunksToRemove.clear();
+				// Handle archetypes
+				for (auto i = 0U; i < (uint32_t)m_archetypesToRemove.size();) {
+					auto archetype = m_archetypesToRemove[i];
+
+					// Skip reclaimed archetypes
+					if (!archetype->chunks.empty()) {
+						archetype->lifespan = MAX_ARCHETYPE_LIFESPAN;
+						utils::erase_fast(m_archetypesToRemove, i);
+						continue;
+					}
+
+					GAIA_ASSERT(archetype->lifespan > 0);
+					--archetype->lifespan;
+					if (archetype->lifespan > 0) {
+						++i;
+						continue;
+					}
+
+					// Remove the chunk if it's no longer needed
+					RemoveArchetype(archetype);
+				}
 			}
 
 			void DiagArchetypes() const {
@@ -1455,8 +1481,8 @@ namespace gaia {
 							const uint16_t entityCount =
 									chunk->header.lastEntityIndex + uint16_t(1);
 							LOG_N(
-									"  Chunk #%04u, entities:%hu/%hu, remove:%d", i, entityCount,
-									archetype->capacity, chunk->header.remove);
+									"  Chunk #%04u, entities:%hu/%hu, lifespan:%u", i,
+									entityCount, archetype->capacity, chunk->header.lifespan);
 						}
 					}
 				}

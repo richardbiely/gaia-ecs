@@ -3,28 +3,35 @@
 
 namespace gaia {
 	namespace ecs {
+		//! Number of ticks before empty chunks are removed
+		constexpr uint32_t MAX_CHUNK_LIFESPAN = 8u;
+		//! Number of ticks before empty archetypes are removed
+		constexpr uint32_t MAX_ARCHETYPE_LIFESPAN = 8u;
+
 		//! Maximum number of components on archetype
 		constexpr uint32_t MAX_COMPONENTS_PER_ARCHETYPE = 32u;
 
-		constexpr bool VerityArchetypeComponentCount(const uint32_t count) {
+		[[nodiscard]] constexpr bool
+		VerityArchetypeComponentCount(const uint32_t count) {
 			return count <= MAX_COMPONENTS_PER_ARCHETYPE;
 		}
 
-		bool DidVersionChange(uint32_t changeVersion, uint32_t requiredVersion) {
+		[[nodiscard]] inline bool
+		DidVersionChange(uint32_t changeVersion, uint32_t requiredVersion) {
 			// When a system runs for the first time, everything is considered
 			// changed.
 			if (requiredVersion == 0)
 				return true;
 
-			// Supporting wrap around for version numbers, change must be bigger than
-			// last system run (never detect change of something the system itself
-			// changed).
+			// Supporting wrap-around for version numbers. ChangeVersion must be
+			// bigger than requiredVersion (never detect change of something the
+			// system itself changed).
 			return (int)(changeVersion - requiredVersion) > 0;
 		}
 
-		void UpdateVersion(uint32_t& version) {
+		inline void UpdateVersion(uint32_t& version) {
 			++version;
-			// Handle wrap around, 0 is reserved for systems that have never run..
+			// Handle wrap-around, 0 is reserved for systems that have never run.
 			if (version == 0)
 				++version;
 		}
