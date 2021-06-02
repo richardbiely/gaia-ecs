@@ -164,7 +164,7 @@ namespace gaia {
 						GAIA_ASSERT(pChunk != nullptr);
 						if (!pChunk->IsFull())
 							return pChunk;
-					} while (--i > 0);
+					} while (i-- > 0);
 				}
 
 				// No free space found anywhere. Let's create a new one
