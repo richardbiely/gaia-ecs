@@ -43,14 +43,14 @@ namespace gaia {
 			Chunk(const Archetype& archetype): header(archetype) {}
 
 			[[nodiscard]] void* GetComponent_Internal(
-					ComponentType TYPE, uint32_t index,
+					ComponentType componentType, uint32_t index,
 					const ComponentMetaData* type) const {
 				GAIA_ASSERT(index <= header.lastEntityIndex || index != (uint32_t)-1);
 				// invalid component requests are a programmer's bug
 				GAIA_ASSERT(type != nullptr);
 
 				const auto& componentList =
-						GetArchetypeComponentList(header.owner, TYPE);
+						GetArchetypeComponentList(header.owner, componentType);
 				const auto it = utils::find_if(componentList, [type](const auto& info) {
 					return info.type == type;
 				});
@@ -64,13 +64,14 @@ namespace gaia {
 			}
 
 			[[nodiscard]] void* SetComponent_Internal(
-					ComponentType TYPE, uint32_t index, const ComponentMetaData* type) {
+					ComponentType componentType, uint32_t index,
+					const ComponentMetaData* type) {
 				GAIA_ASSERT(index <= header.lastEntityIndex || index != (uint32_t)-1);
 				// invalid component requests are a programmer's bug
 				GAIA_ASSERT(type != nullptr);
 
 				const auto& componentList =
-						GetArchetypeComponentList(header.owner, TYPE);
+						GetArchetypeComponentList(header.owner, componentType);
 				const auto it = utils::find_if(componentList, [type](const auto& info) {
 					return info.type == type;
 				});
@@ -81,7 +82,7 @@ namespace gaia {
 				GAIA_ASSERT(componentIdx != utils::BadIndex);
 
 				// Update version number so we know RW access was used on chunk
-				header.UpdateWorldVersion(TYPE, componentIdx);
+				header.UpdateWorldVersion(componentType, componentIdx);
 
 				const uint32_t idxData = it->offset + type->size * index;
 				GAIA_ASSERT(idxData <= Chunk::DATA_SIZE);
@@ -90,33 +91,34 @@ namespace gaia {
 
 			template <typename T>
 			[[nodiscard]] std::decay_t<T>&
-			GetComponent_Internal(ComponentType TYPE, uint32_t index) const {
+			GetComponent_Internal(ComponentType componentType, uint32_t index) const {
 				using TComponent = std::decay_t<T>;
 				const ComponentMetaData* type =
 						g_ComponentCache.GetComponentMetaType<TComponent>();
-				return *(TComponent*)GetComponent_Internal(TYPE, index, type);
+				return *(TComponent*)GetComponent_Internal(componentType, index, type);
 			}
 
 			template <typename T>
 			[[nodiscard]] std::decay_t<T>&
-			SetComponent_Internal(ComponentType TYPE, uint32_t index) {
+			SetComponent_Internal(ComponentType componentType, uint32_t index) {
 				using TComponent = std::decay_t<T>;
 				const ComponentMetaData* type =
 						g_ComponentCache.GetComponentMetaType<TComponent>();
-				return *(TComponent*)SetComponent_Internal(TYPE, index, type);
+				return *(TComponent*)SetComponent_Internal(componentType, index, type);
 			}
 
-			[[nodiscard]] uint32_t
-			GetComponentIdx_Internal(ComponentType TYPE, uint32_t typeIdx) const {
+			[[nodiscard]] uint32_t GetComponentIdx_Internal(
+					ComponentType componentType, uint32_t typeIdx) const {
 				const auto& componentList =
-						GetArchetypeComponentList(header.owner, TYPE);
+						GetArchetypeComponentList(header.owner, componentType);
 				return utils::get_index_if(componentList, [typeIdx](const auto& info) {
 					return info.type->typeIndex == typeIdx;
 				});
 			}
 
 			template <typename T>
-			[[nodiscard]] bool HasComponent_Internal(ComponentType TYPE) const {
+			[[nodiscard]] bool
+			HasComponent_Internal(ComponentType componentType) const {
 				using TComponent = std::decay_t<T>;
 
 				if (!g_ComponentCache.HasComponentMetaType<TComponent>())
@@ -125,7 +127,7 @@ namespace gaia {
 				const ComponentMetaData* type =
 						g_ComponentCache.GetComponentMetaType<TComponent>();
 				const auto& componentList =
-						GetArchetypeComponentList(header.owner, TYPE);
+						GetArchetypeComponentList(header.owner, componentType);
 				return utils::has_if(componentList, [type](const auto& info) {
 					return info.type == type;
 				});
@@ -225,14 +227,14 @@ namespace gaia {
 			[[nodiscard]] typename std::enable_if_t<
 					!std::is_same<std::decay_t<T>, Entity>::value,
 					std::span<std::decay_t<T>>>
-			ViewRW(ComponentType TYPE = ComponentType::CT_Generic) {
+			ViewRW(ComponentType componentType = ComponentType::CT_Generic) {
 				using TComponent = std::decay_t<T>;
 
 				const ComponentMetaData* type =
 						g_ComponentCache.GetOrCreateComponentMetaType<TComponent>();
 
 				const auto& componentList =
-						GetArchetypeComponentList(header.owner, TYPE);
+						GetArchetypeComponentList(header.owner, componentType);
 				const auto it = utils::find_if(componentList, [type](const auto& info) {
 					return info.type == type;
 				});
@@ -243,7 +245,7 @@ namespace gaia {
 				GAIA_ASSERT(componentIdx != utils::BadIndex);
 
 				// Update version number so we know RW access was used on chunk
-				header.UpdateWorldVersion(TYPE, componentIdx);
+				header.UpdateWorldVersion(componentType, componentIdx);
 				const auto& info = componentList[componentIdx];
 				return {(TComponent*)&data[info.offset], GetItemCount()};
 			}
@@ -252,14 +254,14 @@ namespace gaia {
 			[[nodiscard]] typename std::enable_if_t<
 					!std::is_same<std::decay_t<T>, Entity>::value,
 					std::span<const std::decay_t<T>>>
-			View(ComponentType TYPE = ComponentType::CT_Generic) const {
+			View(ComponentType componentType = ComponentType::CT_Generic) const {
 				using TComponent = std::decay_t<T>;
 
 				const ComponentMetaData* type =
 						g_ComponentCache.GetOrCreateComponentMetaType<TComponent>();
 
 				const auto& componentList =
-						GetArchetypeComponentList(header.owner, TYPE);
+						GetArchetypeComponentList(header.owner, componentType);
 				const auto it = utils::find_if(componentList, [type](const auto& info) {
 					return info.type == type;
 				});
@@ -313,8 +315,10 @@ namespace gaia {
 			//! Returns true if the passed version of a component is newer than the
 			//! one stored internally
 			[[nodiscard]] bool DidChange(
-					ComponentType TYPE, uint32_t version, uint32_t componentIdx) const {
-				return DidVersionChange(header.versions[TYPE][componentIdx], version);
+					ComponentType componentType, uint32_t version,
+					uint32_t componentIdx) const {
+				return DidVersionChange(
+						header.versions[componentType][componentIdx], version);
 			}
 		};
 		static_assert(
