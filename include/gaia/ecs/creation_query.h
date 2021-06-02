@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "../utils/sarray.h"
+#include "common.h"
 #include "component.h"
 #include "fwd.h"
 
@@ -10,21 +11,17 @@ namespace gaia {
 	namespace ecs {
 		class CreationQuery final {
 		private:
-			//! Number of components that can be a part of CreationQuery
-			static constexpr uint32_t MAX_COMPONENTS_IN_QUERY = 8u;
 			friend class World;
 
-			// We don't want to allocate these things on heap. Instead, we take a
-			// small amount of space on stack for each query object
 			using ComponentMetaDataArray =
-					utils::sarray<const ComponentMetaData*, MAX_COMPONENTS_IN_QUERY>;
+					utils::sarray<const ComponentMetaData*, MAX_COMPONENTS_PER_ARCHETYPE>;
 
 			ComponentMetaDataArray list[ComponentType::CT_Count];
 
 			template <typename T>
-			void AddToList(const ComponentType t) {
+			void AddToList(const ComponentType componentType) {
 				using TComponent = std::decay_t<T>;
-				list[(uint32_t)t].push_back(
+				list[(uint32_t)componentType].push_back(
 						g_ComponentCache.GetOrCreateComponentMetaType<TComponent>());
 			}
 
