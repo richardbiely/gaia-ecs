@@ -151,17 +151,20 @@ namespace gaia {
 				return newArch;
 			}
 
-			[[nodiscard]] Chunk* FindOrCreateChunk() {
+			//! Tries to locate a chunk that has some space left for a new entity
+			//! If not found a new chunk is created
+			[[nodiscard]] Chunk* FindOrCreateFreeChunk() {
 				if (!chunks.empty()) {
 					// Look for chunks with free space back-to-front.
 					// We do it this way because we always try to keep fully utilized and
 					// thus only the one in the back should be free.
-					for (auto i = (uint32_t)chunks.size() - 1; i > 0; i--) {
+					auto i = (uint32_t)chunks.size() - 1;
+					do {
 						auto pChunk = chunks[i];
 						GAIA_ASSERT(pChunk != nullptr);
 						if (!pChunk->IsFull())
 							return pChunk;
-					}
+					} while (--i > 0);
 				}
 
 				// No free space found anywhere. Let's create a new one
