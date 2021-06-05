@@ -1184,17 +1184,20 @@ namespace gaia {
 				if (!chunk.HasEntities())
 					return false;
 
-				// Skip unchanged chunks
 				const bool checkGenericComponents =
 						!query.listChangeFiltered[ComponentType::CT_Generic].empty();
 				const bool checkChunkComponents =
 						!query.listChangeFiltered[ComponentType::CT_Chunk].empty();
-				if (checkGenericComponents || checkChunkComponents) {
+
+				// Skip unchanged chunks.
+				// Bitwise or because we don't need to introduce 2 unpredictabilities.
+				if (checkGenericComponents | checkChunkComponents) {
 					bool genericChanged = false;
 					bool chunkChanged = false;
 
 					const auto lastWorldVersion = query.GetWorldVersion();
 
+					// Find if any generic component has changed
 					for (auto typeIdx:
 							 query.listChangeFiltered[ComponentType::CT_Generic]) {
 						const uint32_t componentIdx = chunk.GetComponentIdx(typeIdx);
@@ -1210,6 +1213,7 @@ namespace gaia {
 						break;
 					}
 
+					// Find if any chunk component has changed
 					for (auto typeIdx:
 							 query.listChangeFiltered[ComponentType::CT_Chunk]) {
 						const uint32_t componentIdx = chunk.GetChunkComponentIdx(typeIdx);
@@ -1225,8 +1229,7 @@ namespace gaia {
 						break;
 					}
 
-					if (!genericChanged && !chunkChanged)
-						return false;
+					return genericChanged || chunkChanged;
 				}
 
 				return true;
