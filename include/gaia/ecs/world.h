@@ -1238,17 +1238,34 @@ namespace gaia {
 			template <typename TFunc>
 			static void
 			RunQueryOnChunks_Direct(World& world, EntityQuery& query, TFunc& func) {
+				const size_t BatchSize = 256;
+				std::array<Chunk*, BatchSize> tmp;
+
 				// Update the world version
 				world.UpdateWorldVersion();
 
 				// Iterate over all archetypes
 				world.ForEachArchetype(query, [&](const Archetype& archetype) {
-					for (auto chunk: archetype.chunks) {
-						if (!CanProcessChunk(query, *chunk))
-							continue;
+					size_t offset = 0U;
+					size_t batchSize = 0U;
+					const auto maxIters = archetype.chunks.size();
 
-						func(*chunk);
-					}
+					do {
+						// Prepare a buffer to iterate over
+						for (; offset < maxIters; ++offset) {
+							auto* pChunk = archetype.chunks[offset];
+							if (!CanProcessChunk(query, *pChunk))
+								continue;
+							tmp[batchSize++] = pChunk;
+						}
+
+						// Execute functors in batches
+						for (auto chunkIdx = 0U; chunkIdx < batchSize; ++chunkIdx)
+							func(*tmp[chunkIdx]);
+
+						// Reset the batch size
+						batchSize = 0;
+					} while (offset < maxIters);
 				});
 
 				query.SetWorldVersion(world.GetWorldVersion());
@@ -1258,6 +1275,8 @@ namespace gaia {
 			static void
 			RunQueryOnChunks_Indirect(World& world, EntityQuery& query, TFunc& func) {
 				using InputArgs = decltype(utils::func_args(&TFunc::operator()));
+				const size_t BatchSize = 256;
+				std::array<Chunk*, BatchSize> tmp;
 
 				// Update the world version
 				world.UpdateWorldVersion();
@@ -1267,14 +1286,30 @@ namespace gaia {
 
 				// Iterate over all archetypes
 				world.ForEachArchetype(query, [&](const Archetype& archetype) {
-					for (auto chunk: archetype.chunks) {
-						if (!CanProcessChunk(query, *chunk))
-							continue;
+					size_t offset = 0U;
+					size_t batchSize = 0U;
+					const auto maxIters = archetype.chunks.size();
 
-						world.Unpack_ForEachEntityInChunk(
-								InputArgs{}, *chunk, func); // Don't move func here. We need it
-																						// for every further function calls
-					}
+					do {
+						// Prepare a buffer to iterate over
+						for (; offset < maxIters; ++offset) {
+							auto* pChunk = archetype.chunks[offset];
+							if (!CanProcessChunk(query, *pChunk))
+								continue;
+							tmp[batchSize++] = pChunk;
+						}
+
+						// Execute functors in bulk
+						for (auto chunkIdx = 0U; chunkIdx < batchSize; ++chunkIdx) {
+							world.Unpack_ForEachEntityInChunk(
+									InputArgs{}, *tmp[chunkIdx],
+									func); // Don't move func here. We need it
+												 // for every further function calls
+						}
+
+						// Reset the batch size
+						batchSize = 0;
+					} while (offset < maxIters);
 				});
 
 				query.SetWorldVersion(world.GetWorldVersion());
