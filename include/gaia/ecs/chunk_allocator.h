@@ -296,9 +296,8 @@ namespace gaia {
 					}
 
 					// Page with no chunks needs to be freed
+					m_pagesFree.erase(it++);
 					FreePage(page);
-					m_pagesFree.erase(it);
-					++it;
 				}
 			}
 
