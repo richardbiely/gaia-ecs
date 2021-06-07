@@ -84,7 +84,7 @@ namespace gaia {
 
 			template <typename TEntity, typename... TComponent>
 			void SetComponent_Internal(TEntity entity, TComponent&&... data) {
-				// Verify components
+				// Register components
 				[[maybe_unused]] const ComponentMetaData* typesToAdd[] = {
 						g_ComponentCache.GetComponentMetaType<TComponent>()...};
 
@@ -96,9 +96,8 @@ namespace gaia {
 				}
 				// Components
 				{
-					constexpr auto NComponents = (uint8_t)sizeof...(TComponent);
-
 					// Component count
+					constexpr auto NComponents = (uint8_t)sizeof...(TComponent);
 					m_data.push_back(NComponents);
 
 					// Data size
@@ -129,22 +128,16 @@ namespace gaia {
 							g_ComponentCache.GetComponentMetaType<TComponent>()...};
 
 					// Component count
-					constexpr auto componentCount = (uint8_t)sizeof...(TComponent);
-					uint8_t validComponentCount = 0;
-					for (uint8_t i = 0; i < componentCount; i++) {
-						if (typesToRemove[i] != nullptr)
-							++validComponentCount;
-					}
-					m_data.push_back(validComponentCount);
+					constexpr auto NComponents = (uint8_t)sizeof...(TComponent);
+					m_data.push_back(NComponents);
 
 					// Component meta data
 					const auto lastIndex = m_data.size();
 					m_data.resize(
-							m_data.size() + sizeof(ComponentMetaData*) * validComponentCount);
-					for (uint8_t i = 0; i < validComponentCount; i++) {
-						if (typesToRemove[i] != nullptr)
-							*((ComponentMetaData**)&m_data[lastIndex] + i) =
-									(ComponentMetaData*)typesToRemove[i];
+							m_data.size() + sizeof(ComponentMetaData*) * NComponents);
+					for (uint8_t i = 0; i < NComponents; i++) {
+						*((ComponentMetaData**)&m_data[lastIndex] + i) =
+								(ComponentMetaData*)typesToRemove[i];
 					}
 				}
 			}
@@ -201,9 +194,9 @@ namespace gaia {
 			}
 
 			/*!
-			Requests a new entity to be created by cloning an already existing entity
-			\return Entity that will be created. The id is not usable right away. It
-			will be filled with proper data after Commit()
+			Requests a new entity to be created by cloning an already existing
+			entity \return Entity that will be created. The id is not usable right
+			away. It will be filled with proper data after Commit()
 			*/
 			[[nodiscard]] TempEntity CreateEntity(Entity entityFrom) {
 				m_data.push_back(CREATE_ENTITY_FROM_ENTITY);
@@ -217,8 +210,8 @@ namespace gaia {
 			/*!
 			Requests a component to be added to entity.
 
-			\return True if component could be added (e.g. maximum component count on
-			the archetype not exceeded). False otherwise.
+			\return True if component could be added (e.g. maximum component count
+			on the archetype not exceeded). False otherwise.
 			*/
 			template <typename... TComponent>
 			bool AddComponent(Entity entity) {
@@ -235,8 +228,8 @@ namespace gaia {
 			/*!
 			Requests a component to be added to temporary entity.
 
-			\return True if component could be added (e.g. maximum component count on
-			the archetype not exceeded). False otherwise.
+			\return True if component could be added (e.g. maximum component count
+			on the archetype not exceeded). False otherwise.
 			*/
 			template <typename... TComponent>
 			bool AddComponent(TempEntity entity) {
@@ -253,8 +246,8 @@ namespace gaia {
 			/*!
 			Requests a chunk component to be added to entity.
 
-			\return True if component could be added (e.g. maximum component count on
-			the archetype not exceeded). False otherwise.
+			\return True if component could be added (e.g. maximum component count
+			on the archetype not exceeded). False otherwise.
 			*/
 			template <typename... TComponent>
 			bool AddChunkComponent(Entity entity) {
@@ -271,8 +264,8 @@ namespace gaia {
 			/*!
 			Requests a chunk component to be added to temp entity.
 
-			\return True if component could be added (e.g. maximum component count on
-			the archetype not exceeded). False otherwise.
+			\return True if component could be added (e.g. maximum component count
+			on the archetype not exceeded). False otherwise.
 			*/
 			template <typename... TComponent>
 			bool AddChunkComponent(TempEntity entity) {
@@ -302,7 +295,8 @@ namespace gaia {
 			}
 
 			/*!
-			Requests component data to be set to given values for a given temp entity.
+			Requests component data to be set to given values for a given temp
+			entity.
 
 			\warning Just like World::SetComponent, this method expects the
 			given component types to exist. Undefined behavior otherwise.

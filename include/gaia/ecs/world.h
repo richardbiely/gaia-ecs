@@ -513,12 +513,12 @@ namespace gaia {
 				const auto oldIndex = entityContainer.idx;
 				const auto& oldArchetype = oldChunk->header.owner;
 
-				// find a new chunk for the entity and move it inside.
+				// Find a new chunk for the entity and move it inside.
 				// Old entity ID needs to remain valid or lookups would break.
 				auto newChunk = newArchetype.FindOrCreateFreeChunk();
 				const auto newIndex = newChunk->AddEntity(oldEntity);
 
-				// find intersection of the two component lists
+				// Find intersection of the two component lists
 				const auto& oldInfo =
 						oldArchetype.componentList[ComponentType::CT_Generic];
 				const auto& newInfo =
