@@ -1238,7 +1238,7 @@ namespace gaia {
 			template <typename TFunc>
 			static void
 			RunQueryOnChunks_Direct(World& world, EntityQuery& query, TFunc& func) {
-				const size_t BatchSize = 256;
+				const uint32_t BatchSize = 256U;
 				std::array<Chunk*, BatchSize> tmp;
 
 				// Update the world version
@@ -1246,9 +1246,9 @@ namespace gaia {
 
 				// Iterate over all archetypes
 				world.ForEachArchetype(query, [&](const Archetype& archetype) {
-					size_t offset = 0U;
-					size_t batchSize = 0U;
-					const auto maxIters = archetype.chunks.size();
+					uint32_t offset = 0U;
+					uint32_t batchSize = 0U;
+					const auto maxIters = (uint32_t)archetype.chunks.size();
 
 					do {
 						// Prepare a buffer to iterate over
@@ -1264,7 +1264,7 @@ namespace gaia {
 							func(*tmp[chunkIdx]);
 
 						// Reset the batch size
-						batchSize = 0;
+						batchSize = 0U;
 					} while (offset < maxIters);
 				});
 
@@ -1275,7 +1275,7 @@ namespace gaia {
 			static void
 			RunQueryOnChunks_Indirect(World& world, EntityQuery& query, TFunc& func) {
 				using InputArgs = decltype(utils::func_args(&TFunc::operator()));
-				const size_t BatchSize = 256;
+				const uint32_t BatchSize = 256U;
 				std::array<Chunk*, BatchSize> tmp;
 
 				// Update the world version
@@ -1286,9 +1286,9 @@ namespace gaia {
 
 				// Iterate over all archetypes
 				world.ForEachArchetype(query, [&](const Archetype& archetype) {
-					size_t offset = 0U;
-					size_t batchSize = 0U;
-					const auto maxIters = archetype.chunks.size();
+					uint32_t offset = 0U;
+					uint32_t batchSize = 0U;
+					const auto maxIters = (uint32_t)archetype.chunks.size();
 
 					do {
 						// Prepare a buffer to iterate over
@@ -1308,7 +1308,7 @@ namespace gaia {
 						}
 
 						// Reset the batch size
-						batchSize = 0;
+						batchSize = 0U;
 					} while (offset < maxIters);
 				});
 
