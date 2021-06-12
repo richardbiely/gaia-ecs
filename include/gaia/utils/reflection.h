@@ -8,26 +8,25 @@ namespace gaia {
 
 #pragma region "Tuple to struct conversion"
 
-		template <class S, unsigned... Is, class Tupple>
-		S tuple_to_struct(std::index_sequence<Is...>, Tupple&& tup) {
-			using std::get;
-			return {get<Is>(std::forward<Tupple>(tup))...};
+		template <class S, size_t... Is, class Tuple>
+		S tuple_to_struct(std::index_sequence<Is...>, Tuple&& tup) {
+			return {std::get<Is>(std::forward<Tuple>(tup))...};
 		}
 
-		template <class S, class Tupple>
-		S tuple_to_struct(Tupple&& tup) {
-			using T = std::remove_reference_t<Tupple>;
+		template <class S, class Tuple>
+		S tuple_to_struct(Tuple&& tup) {
+			using T = std::remove_reference_t<Tuple>;
 
 			return tuple_to_struct<S>(
 					std::make_index_sequence<std::tuple_size<T>{}>{},
-					std::forward<Tupple>(tup));
+					std::forward<Tuple>(tup));
 		}
 
 #pragma endregion
 
 #pragma region "Struct to tuple conversion"
 
-		// Check is a type T is constructible such as T{Args...}
+		// Check if type T is constructible via T{Args...}
 		struct any_type {
 			template <class T>
 			constexpr operator T(); // non explicit
@@ -39,12 +38,13 @@ namespace gaia {
 
 		template <class, class...>
 		std::false_type is_braces_constructible(...);
+
 		template <class T, class... TArgs>
 		using is_braces_constructible_t =
 				decltype(is_braces_constructible<T, TArgs...>(0));
 
-		// Converts a struct to a tuple (struct necessary to support
-		// initialization via Struct{x,y,...,z})
+		//! Converts a struct to a tuple (struct must support initialization via:
+		//! Struct{x,y,...,z})
 		template <class T>
 		auto struct_to_tuple(T&& object) noexcept {
 			using type = std::decay_t<T>;
