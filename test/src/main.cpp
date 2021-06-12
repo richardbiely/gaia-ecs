@@ -27,6 +27,51 @@ struct Else {
 	bool value;
 };
 
+struct PositionSoA {
+	float x, y, z;
+};
+TEST_CASE("DataLayout SoA") {
+	constexpr uint32_t N = 4U;
+	alignas(16) std::array<PositionSoA, N> data{};
+	const float* arr = (const float*)&data[0];
+
+	using soa = gaia::utils::soa_view_policy<PositionSoA>;
+
+	for (uint32_t i = 0U; i < N; ++i) {
+		const auto f = (float)i;
+		soa::set({data}, i, {f, f, f});
+		REQUIRE(arr[i + N * 0] == f);
+		REQUIRE(arr[i + N * 1] == f);
+		REQUIRE(arr[i + N * 2] == f);
+
+		auto val = soa::get({data}, i);
+		REQUIRE(val.x == f);
+		REQUIRE(val.y == f);
+		REQUIRE(val.z == f);
+	}
+}
+
+TEST_CASE("DataLayout AoS") {
+	constexpr uint32_t N = 4U;
+	alignas(16) std::array<Position, N> data{};
+	const float* arr = (const float*)&data[0];
+
+	using aos = gaia::utils::aos_view_policy<Position>;
+
+	for (uint32_t i = 0U; i < N; ++i) {
+		const auto f = (float)i;
+		aos::set({data}, i, {f, f, f});
+		REQUIRE(arr[i * 3 + 0] == f);
+		REQUIRE(arr[i * 3 + 1] == f);
+		REQUIRE(arr[i * 3 + 2] == f);
+
+		auto val = aos::get({data}, i);
+		REQUIRE(val.x == f);
+		REQUIRE(val.y == f);
+		REQUIRE(val.z == f);
+	}
+}
+
 TEST_CASE("EntityNull") {
 	REQUIRE_FALSE(ecs::Entity{} == ecs::EntityNull);
 
