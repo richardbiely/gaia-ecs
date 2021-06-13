@@ -58,7 +58,8 @@ namespace gaia {
 			constexpr static DataLayout Layout = DataLayout::AoS;
 			constexpr static size_t Alignment = alignof(ValueType);
 
-			constexpr static ValueType get(std::span<ValueType> s, uint32_t idx) {
+			constexpr static ValueType
+			get(std::span<const ValueType> s, uint32_t idx) {
 				return get_internal((const ValueType*)s.data(), idx);
 			}
 
@@ -98,7 +99,7 @@ namespace gaia {
 			constexpr static size_t Alignment = detail::SoADataAlignment;
 
 			constexpr static ValueType
-			get(std::span<ValueType> s, const uint32_t idx) {
+			get(std::span<const ValueType> s, const uint32_t idx) {
 				auto t = struct_to_tuple(ValueType{});
 				return get_internal(
 						t, s, idx,
@@ -118,7 +119,7 @@ namespace gaia {
 		private:
 			template <typename Tuple, size_t... Ids>
 			constexpr static ValueType get_internal(
-					Tuple& t, std::span<ValueType> s, const uint32_t idx,
+					Tuple& t, std::span<const ValueType> s, const uint32_t idx,
 					std::integer_sequence<size_t, Ids...>) {
 				(get_internal<
 						 Tuple, Ids, typename std::tuple_element<Ids, Tuple>::type>(
