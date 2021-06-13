@@ -1,7 +1,17 @@
+#include "gaia/config/config.h"
 #define _ITERATOR_DEBUG_LEVEL 0
 #include <gaia.h>
 
 GAIA_INIT
+
+#if GAIA_COMPILER_MSVC
+	#if _MSV_VER <= 1916
+// warning C4100: 'XYZ': unreferenced formal parameter
+GAIA_MSVC_WARNING_DISABLE(4100)
+// warning C4307: 'XYZ': integral constant overflow
+GAIA_MSVC_WARNING_DISABLE(4307)
+	#endif
+#endif
 
 #define CATCH_CONFIG_MAIN
 #include <catch2/catch.hpp>
