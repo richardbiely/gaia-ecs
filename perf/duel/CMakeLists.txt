@@ -34,6 +34,8 @@ else()
   enable_cxx_compiler_flag_if_supported("-Werror")
   # fast-math
   enable_cxx_compiler_flag_if_supported("-ffast-math")
+  # sse4.1
+  enable_cxx_compiler_flag_if_supported("-msse4.1")
 endif()
 
 # Benchmark framework
