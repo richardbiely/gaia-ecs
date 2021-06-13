@@ -29,13 +29,17 @@ struct Else {
 
 struct PositionSoA {
 	float x, y, z;
+
+	static constexpr auto Layout = utils::DataLayout::SoA;
 };
+
 TEST_CASE("DataLayout SoA") {
 	constexpr uint32_t N = 4U;
 	alignas(16) std::array<PositionSoA, N> data{};
 	const float* arr = (const float*)&data[0];
 
 	using soa = gaia::utils::soa_view_policy<PositionSoA>;
+	using view_deduced = gaia::utils::auto_view_policy<PositionSoA>;
 
 	for (uint32_t i = 0U; i < N; ++i) {
 		const auto f = (float)i;
@@ -49,6 +53,19 @@ TEST_CASE("DataLayout SoA") {
 		REQUIRE(val.y == f);
 		REQUIRE(val.z == f);
 	}
+
+	for (uint32_t i = 0U; i < N; ++i) {
+		const auto f = (float)i;
+		view_deduced::set({data}, i, {f, f, f});
+		REQUIRE(arr[i + N * 0] == f);
+		REQUIRE(arr[i + N * 1] == f);
+		REQUIRE(arr[i + N * 2] == f);
+
+		auto val = view_deduced::get({data}, i);
+		REQUIRE(val.x == f);
+		REQUIRE(val.y == f);
+		REQUIRE(val.z == f);
+	}
 }
 
 TEST_CASE("DataLayout AoS") {
@@ -57,6 +74,7 @@ TEST_CASE("DataLayout AoS") {
 	const float* arr = (const float*)&data[0];
 
 	using aos = gaia::utils::aos_view_policy<Position>;
+	using view_deduced = gaia::utils::auto_view_policy<Position>;
 
 	for (uint32_t i = 0U; i < N; ++i) {
 		const auto f = (float)i;
@@ -66,6 +84,19 @@ TEST_CASE("DataLayout AoS") {
 		REQUIRE(arr[i * 3 + 2] == f);
 
 		auto val = aos::get({data}, i);
+		REQUIRE(val.x == f);
+		REQUIRE(val.y == f);
+		REQUIRE(val.z == f);
+	}
+
+	for (uint32_t i = 0U; i < N; ++i) {
+		const auto f = (float)i;
+		view_deduced::set({data}, i, {f, f, f});
+		REQUIRE(arr[i * 3 + 0] == f);
+		REQUIRE(arr[i * 3 + 1] == f);
+		REQUIRE(arr[i * 3 + 2] == f);
+
+		auto val = view_deduced::get({data}, i);
 		REQUIRE(val.x == f);
 		REQUIRE(val.y == f);
 		REQUIRE(val.z == f);
