@@ -51,6 +51,7 @@ namespace gaia {
 #else
 				auto pChunk = new Chunk(archetype);
 #endif
+				pChunk->header.capacity = archetype.capacity;
 				return pChunk;
 			}
 
@@ -70,19 +71,34 @@ namespace gaia {
 				auto newArch = new Archetype();
 				newArch->parentWorld = &pWorld;
 
+				// TODO: Calculate the number of entities per chunks precisely so we can
+				// fit more of them into chunk on average. Currently, DATA_SIZE_RESERVED
+				// is substracted but that's not optimal...
+
 				// Size of the entity + all of its generic components
 				uint32_t genericComponentListSize = (uint32_t)sizeof(Entity);
 				for (const auto type: genericTypes)
 					genericComponentListSize += type->size;
+
 				// Size of chunk components
 				uint32_t chunkComponentListSize = 0;
 				for (const auto type: chunkTypes)
 					chunkComponentListSize += type->size;
 
 				// Number of components we can fit into one chunk
-				const auto maxGenericItemsInArchetype =
+				auto maxGenericItemsInArchetype =
 						(Chunk::DATA_SIZE - chunkComponentListSize) /
 						genericComponentListSize;
+
+				// If there's any component with SoA layout make sure to make the size a
+				// multiple of 4 because of SSE. This means we won't be able to fit as
+				// many entities inside the chunk but in exchange we'll get the ability
+				// to optimize performance via proper vectorization
+				bool isAnySoA = false;
+				for (const auto type: genericTypes)
+					isAnySoA |= type->soa;
+				if (isAnySoA)
+					maxGenericItemsInArchetype -= (maxGenericItemsInArchetype % 4);
 
 				// Calculate component offsets now. Skip the header and entity IDs
 				auto componentOffset =
@@ -90,7 +106,7 @@ namespace gaia {
 				auto alignedOffset = (uint32_t)sizeof(ChunkHeader) + componentOffset;
 
 				// Add generic types
-				for (uint32_t i = 0u; i < (uint32_t)genericTypes.size(); i++) {
+				for (uint32_t i = 0; i < (uint32_t)genericTypes.size(); i++) {
 					const auto a = genericTypes[i]->alig;
 					if (a != 0) {
 						const uint32_t padding =

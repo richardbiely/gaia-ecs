@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "../config/config.h"
+#include "../utils/data_layout_policy.h"
 #include "../utils/hashing_policy.h"
 #include "../utils/sarray.h"
 #include "../utils/span.h"
@@ -124,12 +125,20 @@ namespace gaia {
 #pragma region ComponentMetaData
 
 		struct ComponentMetaData final {
+			//! [ 0-15] Component name
 			std::string_view name;
+			//! [16-23] Complex hash used for look-ups
 			uint64_t lookupHash;
+			//! [24-31] Simple hash used for matching component
 			uint64_t matcherHash;
+			//! [32-35] Unique component identifier
 			uint32_t typeIndex;
+			//! [36-39] Component alignment
 			uint32_t alig;
+			//! [40-43] Component size
 			uint32_t size;
+			//! [44] Tells if the component is laid out in SoA style
+			bool soa;
 
 			[[nodiscard]] bool operator==(const ComponentMetaData& other) const {
 				return lookupHash == other.lookupHash && typeIndex == other.typeIndex;
@@ -152,11 +161,13 @@ namespace gaia {
 				mth.typeIndex = utils::type_info::index<TComponent>();
 
 				if constexpr (!std::is_empty<TComponent>::value) {
-					mth.alig = (uint32_t)alignof(TComponent);
+					mth.alig = utils::auto_view_policy<TComponent>::Alignment;
 					mth.size = (uint32_t)sizeof(TComponent);
+					mth.soa = utils::is_sao_layout<TComponent>::value;
 				} else {
 					mth.alig = 0;
 					mth.size = 0;
+					mth.soa = false;
 				}
 
 				return mth;
@@ -236,7 +247,16 @@ namespace gaia {
 			}
 
 			template <typename T>
-			[[nodiscard]] const ComponentMetaData* GetComponentMetaType() {
+			[[nodiscard]] const ComponentMetaData* FindComponentMetaType() const {
+				using TComponent = std::decay_t<T>;
+				const auto componentIndex = utils::type_info::index<TComponent>();
+				const auto it = m_types.find(componentIndex);
+				return it != m_types.end() ? it->second
+																	 : (const ComponentMetaData*)nullptr;
+			}
+
+			template <typename T>
+			[[nodiscard]] const ComponentMetaData* GetComponentMetaType() const {
 				using TComponent = std::decay_t<T>;
 				const auto componentIndex = utils::type_info::index<TComponent>();
 				// Let's assume somebody has registered the component already via
@@ -246,7 +266,7 @@ namespace gaia {
 			}
 
 			[[nodiscard]] const ComponentMetaData*
-			GetComponentMetaTypeFromIdx(uint32_t componentIndex) {
+			GetComponentMetaTypeFromIdx(uint32_t componentIndex) const {
 				// Let's assume somebody has registered the component already via
 				// AddComponent!
 				GAIA_ASSERT(m_types.find(componentIndex) != m_types.end());
@@ -254,7 +274,7 @@ namespace gaia {
 			}
 
 			template <typename T>
-			[[nodiscard]] bool HasComponentMetaType() {
+			[[nodiscard]] bool HasComponentMetaType() const {
 				using TComponent = std::decay_t<T>;
 				const auto componentIndex = utils::type_info::index<TComponent>();
 				return m_types.find(componentIndex) != m_types.end();

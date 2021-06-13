@@ -69,7 +69,7 @@ namespace gaia {
 			}
 
 		private:
-			constexpr static ValueType
+			[[nodiscard]] constexpr static ValueType
 			get_internal(const ValueType* data, const uint32_t idx) {
 				return data[idx];
 			}
@@ -107,6 +107,17 @@ namespace gaia {
 								size_t, std::tuple_size<decltype(t)>::value>());
 			}
 
+			template <size_t Ids>
+			constexpr static auto
+			get(std::span<const ValueType> s, const uint32_t idx = 0) {
+				using Tuple = decltype(struct_to_tuple(ValueType{}));
+				using MemberType = typename std::tuple_element<Ids, Tuple>::type;
+				const auto* ret =
+						(const char*)s.data() + idx * sizeof(MemberType) +
+						detail::soa_byte_offset<Ids, Tuple>((uintptr_t)s.data(), s.size());
+				return std::span{(const MemberType*)ret, s.size() - idx};
+			}
+
 			constexpr static void
 			set(std::span<ValueType> s, const uint32_t idx, ValueType&& val) {
 				auto t = struct_to_tuple(std::forward<ValueType>(val));
@@ -116,9 +127,20 @@ namespace gaia {
 								size_t, std::tuple_size<decltype(t)>::value>());
 			}
 
+			template <size_t Ids>
+			constexpr static auto
+			set(std::span<ValueType> s, const uint32_t idx = 0) {
+				using Tuple = decltype(struct_to_tuple(ValueType{}));
+				using MemberType = typename std::tuple_element<Ids, Tuple>::type;
+				auto* ret =
+						(char*)s.data() + idx * sizeof(MemberType) +
+						detail::soa_byte_offset<Ids, Tuple>((uintptr_t)s.data(), s.size());
+				return std::span{(MemberType*)ret, s.size() - idx};
+			}
+
 		private:
 			template <typename Tuple, size_t... Ids>
-			constexpr static ValueType get_internal(
+			[[nodiscard]] constexpr static ValueType get_internal(
 					Tuple& t, std::span<const ValueType> s, const uint32_t idx,
 					std::integer_sequence<size_t, Ids...>) {
 				(get_internal<
@@ -150,11 +172,11 @@ namespace gaia {
 				 ...);
 			}
 
-			template <typename TMemberValue>
+			template <typename MemberType>
 			constexpr static void
-			set_internal(char* data, const uint32_t idx, TMemberValue val) {
+			set_internal(char* data, const uint32_t idx, MemberType val) {
 				// memcpy((void*)&data[idx], (const void*)&val, sizeof(val));
-				*(TMemberValue*)&data[idx] = val;
+				*(MemberType*)&data[idx] = val;
 			}
 		};
 

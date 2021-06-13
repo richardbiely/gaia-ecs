@@ -393,156 +393,156 @@ namespace gaia {
 							entityMap.insert({entities++, world->CreateEntity(entityFrom)});
 						} break;
 						case ADD_COMPONENT: {
-							// Type
-							ComponentType componentType = (ComponentType)m_data[i];
-							i += sizeof(ComponentType);
-							// Entity
-							Entity entity = (Entity&)m_data[i];
-							i += sizeof(Entity);
+							// // Type
+							// ComponentType componentType = (ComponentType)m_data[i];
+							// i += sizeof(ComponentType);
+							// // Entity
+							// Entity entity = (Entity&)m_data[i];
+							// i += sizeof(Entity);
 
-							// Component count
-							uint8_t componentCount = m_data[i++];
+							// // Component count
+							// uint8_t componentCount = m_data[i++];
 
-							// Components
-							auto newMetatypes = (const ComponentMetaData**)alloca(
-									sizeof(ComponentMetaData) * componentCount);
-							for (uint8_t j = 0; j < componentCount; ++j) {
-								const auto metaType = *(const ComponentMetaData**)&m_data[i];
-								newMetatypes[j] = metaType;
-								i += sizeof(const ComponentMetaData*);
-							}
-							world->AddComponent_Internal(
-									componentType, entity,
-									{newMetatypes, (uintptr_t)componentCount});
+							// // Components
+							// auto newMetatypes = (const ComponentMetaData**)alloca(
+							// 		sizeof(ComponentMetaData) * componentCount);
+							// for (uint8_t j = 0; j < componentCount; ++j) {
+							// 	const auto metaType = *(const ComponentMetaData**)&m_data[i];
+							// 	newMetatypes[j] = metaType;
+							// 	i += sizeof(const ComponentMetaData*);
+							// }
+							// world->AddComponent_Internal(
+							// 		componentType, entity,
+							// 		{newMetatypes, (uintptr_t)componentCount});
 
-							uint32_t indexInChunk;
-							auto chunk = world->GetEntityChunk(entity, indexInChunk);
-							GAIA_ASSERT(chunk != nullptr);
+							// uint32_t indexInChunk;
+							// auto chunk = world->GetEntityChunk(entity, indexInChunk);
+							// GAIA_ASSERT(chunk != nullptr);
 
-							if (componentType == ComponentType::CT_Chunk)
-								indexInChunk = 0;
+							// if (componentType == ComponentType::CT_Chunk)
+							// 	indexInChunk = 0;
 
-							for (uint8_t j = 0; j < componentCount; ++j) {
-								const auto metaType = newMetatypes[j];
-								auto pComponentData = chunk->SetComponent_Internal(
-										componentType, indexInChunk, metaType);
-								memset(pComponentData, 0, metaType->size);
-							}
+							// for (uint8_t j = 0; j < componentCount; ++j) {
+							// 	const auto metaType = newMetatypes[j];
+							// 	auto pComponentData = chunk->SetComponent_Internal(
+							// 			componentType, indexInChunk, metaType);
+							// 	memset(pComponentData, 0, metaType->size);
+							// }
 						} break;
 						case ADD_COMPONENT_TO_TEMPENTITY: {
-							// Type
-							ComponentType componentType = (ComponentType)m_data[i];
-							i += sizeof(ComponentType);
-							// Entity
-							Entity e = (Entity&)m_data[i];
-							i += sizeof(Entity);
+							// // Type
+							// ComponentType componentType = (ComponentType)m_data[i];
+							// i += sizeof(ComponentType);
+							// // Entity
+							// Entity e = (Entity&)m_data[i];
+							// i += sizeof(Entity);
 
-							// For delayed entities we have to do a look in our map
-							// of temporaries and find a link there
-							const auto it = entityMap.find(e.id());
-							// Link has to exist!
-							GAIA_ASSERT(it != entityMap.end());
+							// // For delayed entities we have to do a look in our map
+							// // of temporaries and find a link there
+							// const auto it = entityMap.find(e.id());
+							// // Link has to exist!
+							// GAIA_ASSERT(it != entityMap.end());
 
-							Entity entity = it->second;
+							// Entity entity = it->second;
 
-							// Component count
-							uint8_t componentCount = m_data[i++];
+							// // Component count
+							// uint8_t componentCount = m_data[i++];
 
-							// Components
-							auto newMetatypes = (const ComponentMetaData**)alloca(
-									sizeof(ComponentMetaData) * componentCount);
-							for (uint8_t j = 0; j < componentCount; ++j) {
-								const auto metaType = *(const ComponentMetaData**)&m_data[i];
-								newMetatypes[j] = metaType;
-								i += sizeof(const ComponentMetaData*);
-							}
-							world->AddComponent_Internal(
-									componentType, entity,
-									{newMetatypes, (uintptr_t)componentCount});
+							// // Components
+							// auto newMetatypes = (const ComponentMetaData**)alloca(
+							// 		sizeof(ComponentMetaData) * componentCount);
+							// for (uint8_t j = 0; j < componentCount; ++j) {
+							// 	const auto metaType = *(const ComponentMetaData**)&m_data[i];
+							// 	newMetatypes[j] = metaType;
+							// 	i += sizeof(const ComponentMetaData*);
+							// }
+							// world->AddComponent_Internal(
+							// 		componentType, entity,
+							// 		{newMetatypes, (uintptr_t)componentCount});
 
-							uint32_t indexInChunk;
-							auto chunk = world->GetEntityChunk(entity, indexInChunk);
-							GAIA_ASSERT(chunk != nullptr);
+							// uint32_t indexInChunk;
+							// auto chunk = world->GetEntityChunk(entity, indexInChunk);
+							// GAIA_ASSERT(chunk != nullptr);
 
-							if (componentType == ComponentType::CT_Chunk)
-								indexInChunk = 0;
+							// if (componentType == ComponentType::CT_Chunk)
+							// 	indexInChunk = 0;
 
-							for (uint8_t j = 0; j < componentCount; ++j) {
-								const auto metaType = newMetatypes[j];
-								auto pComponentData = chunk->SetComponent_Internal(
-										componentType, indexInChunk, metaType);
-								memset(pComponentData, 0, metaType->size);
-							}
+							// for (uint8_t j = 0; j < componentCount; ++j) {
+							// 	const auto metaType = newMetatypes[j];
+							// 	auto pComponentData = chunk->SetComponent_Internal(
+							// 			componentType, indexInChunk, metaType);
+							// 	memset(pComponentData, 0, metaType->size);
+							// }
 						} break;
 						case SET_COMPONENT: {
-							// Type
-							ComponentType componentType = (ComponentType)m_data[i];
-							i += sizeof(ComponentType);
-							// Entity
-							Entity entity = (Entity&)m_data[i];
-							i += sizeof(Entity);
+							// // Type
+							// ComponentType componentType = (ComponentType)m_data[i];
+							// i += sizeof(ComponentType);
+							// // Entity
+							// Entity entity = (Entity&)m_data[i];
+							// i += sizeof(Entity);
 
-							const auto& entityContainer = world->m_entities[entity.id()];
-							auto chunk = entityContainer.chunk;
-							const auto indexInChunk = componentType == ComponentType::CT_Chunk
-																						? 0
-																						: entityContainer.idx;
+							// const auto& entityContainer = world->m_entities[entity.id()];
+							// auto chunk = entityContainer.chunk;
+							// const auto indexInChunk = componentType ==
+							// ComponentType::CT_Chunk 															? 0
+							// : entityContainer.idx;
 
-							// Component count
-							const uint8_t componentCount = m_data[i++];
+							// // Component count
+							// const uint8_t componentCount = m_data[i++];
 
-							// Components
-							for (uint8_t j = 0; j < componentCount; ++j) {
-								const uint32_t typeIdx = *(uint32_t*)&m_data[i];
-								const auto* metaType =
-										g_ComponentCache.GetComponentMetaTypeFromIdx(typeIdx);
-								i += sizeof(typeIdx);
+							// // Components
+							// for (uint8_t j = 0; j < componentCount; ++j) {
+							// 	const uint32_t typeIdx = *(uint32_t*)&m_data[i];
+							// 	const auto* metaType =
+							// 			g_ComponentCache.GetComponentMetaTypeFromIdx(typeIdx);
+							// 	i += sizeof(typeIdx);
 
-								memcpy(
-										chunk->SetComponent_Internal(
-												componentType, indexInChunk, metaType),
-										(const void*)&m_data[i], metaType->size);
-								i += metaType->size;
-							}
+							// 	memcpy(
+							// 			chunk->SetComponent_Internal(
+							// 					componentType, indexInChunk, metaType),
+							// 			(const void*)&m_data[i], metaType->size);
+							// 	i += metaType->size;
+							// }
 						} break;
 						case SET_COMPONENT_FOR_TEMPENTITY: {
-							// Type
-							ComponentType componentType = (ComponentType)m_data[i];
-							i += sizeof(ComponentType);
-							// Entity
-							Entity e = (Entity&)m_data[i];
-							i += sizeof(Entity);
+							// // Type
+							// ComponentType componentType = (ComponentType)m_data[i];
+							// i += sizeof(ComponentType);
+							// // Entity
+							// Entity e = (Entity&)m_data[i];
+							// i += sizeof(Entity);
 
-							// For delayed entities we have to do a look in our map
-							// of temporaries and find a link there
-							const auto it = entityMap.find(e.id());
-							// Link has to exist!
-							GAIA_ASSERT(it != entityMap.end());
+							// // For delayed entities we have to do a look in our map
+							// // of temporaries and find a link there
+							// const auto it = entityMap.find(e.id());
+							// // Link has to exist!
+							// GAIA_ASSERT(it != entityMap.end());
 
-							Entity entity = it->second;
+							// Entity entity = it->second;
 
-							const auto& entityContainer = world->m_entities[entity.id()];
-							auto chunk = entityContainer.chunk;
-							const auto indexInChunk = componentType == ComponentType::CT_Chunk
-																						? 0
-																						: entityContainer.idx;
+							// const auto& entityContainer = world->m_entities[entity.id()];
+							// auto chunk = entityContainer.chunk;
+							// const auto indexInChunk = componentType ==
+							// ComponentType::CT_Chunk 															? 0
+							// : entityContainer.idx;
 
-							// Component count
-							const uint8_t componentCount = m_data[i++];
+							// // Component count
+							// const uint8_t componentCount = m_data[i++];
 
-							// Components
-							for (uint8_t j = 0; j < componentCount; ++j) {
-								const uint32_t typeIdx = *(uint32_t*)&m_data[i];
-								const auto* metaType =
-										g_ComponentCache.GetComponentMetaTypeFromIdx(typeIdx);
-								i += sizeof(typeIdx);
+							// // Components
+							// for (uint8_t j = 0; j < componentCount; ++j) {
+							// 	const uint32_t typeIdx = *(uint32_t*)&m_data[i];
+							// 	const auto* metaType =
+							// 			g_ComponentCache.GetComponentMetaTypeFromIdx(typeIdx);
+							// 	i += sizeof(typeIdx);
 
-								memcpy(
-										chunk->SetComponent_Internal(
-												componentType, indexInChunk, metaType),
-										(const void*)&m_data[i], metaType->size);
-								i += metaType->size;
-							}
+							// 	memcpy(
+							// 			chunk->SetComponent_Internal(
+							// 					componentType, indexInChunk, metaType),
+							// 			(const void*)&m_data[i], metaType->size);
+							// 	i += metaType->size;
+							// }
 						} break;
 						case REMOVE_COMPONENT: {
 							// Type
