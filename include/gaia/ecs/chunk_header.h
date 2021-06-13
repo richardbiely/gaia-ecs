@@ -19,8 +19,10 @@ namespace gaia {
 			uint16_t lastEntityIndex = UINT16_MAX;
 			//! [10-11] Once removal is requested and it hits 0 the chunk is removed.
 			uint16_t lifespan = 0;
-			//! [12-63] Empty space
-			uint8_t dummy[52]{};
+			//! [12-13] Capacity (copied from the owner archetype)
+			uint16_t capacity = 0;
+			//! [14-63] Empty space
+			uint8_t dummy[50]{};
 			//! [64-319] Versions of individual components on chunk. Stored on
 			//! separate cache lines from the rest.
 			uint32_t versions[ComponentType::CT_Count]

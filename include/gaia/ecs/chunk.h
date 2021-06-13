@@ -42,9 +42,13 @@ namespace gaia {
 
 			Chunk(const Archetype& archetype): header(archetype) {}
 
-			[[nodiscard]] void* GetComponent_Internal(
-					ComponentType componentType, uint32_t index,
-					const ComponentMetaData* type) const {
+			template <typename T>
+			[[nodiscard]] std::decay_t<T>
+			GetComponent_Internal(ComponentType componentType, uint32_t index) const {
+				using TComponent = std::decay_t<T>;
+				const ComponentMetaData* type =
+						g_ComponentCache.GetComponentMetaType<TComponent>();
+
 				GAIA_ASSERT(index <= header.lastEntityIndex || index != (uint32_t)-1);
 				// invalid component requests are a programmer's bug
 				GAIA_ASSERT(type != nullptr);
@@ -58,14 +62,18 @@ namespace gaia {
 				// Searching for a component that's not there! Programmer mistake.
 				GAIA_ASSERT(it != componentList.end());
 
-				const uint32_t idxData = it->offset + type->size * index;
-				GAIA_ASSERT(idxData <= Chunk::DATA_SIZE);
-				return (void*)&data[idxData];
+				return utils::auto_view_policy<TComponent>::get(
+						{(const TComponent*)&data[it->offset], header.capacity}, index);
 			}
 
-			[[nodiscard]] void* SetComponent_Internal(
+			template <typename T>
+			void SetComponent_Internal(
 					ComponentType componentType, uint32_t index,
-					const ComponentMetaData* type) {
+					std::decay_t<T>&& value) {
+				using TComponent = std::decay_t<T>;
+				const ComponentMetaData* type =
+						g_ComponentCache.GetComponentMetaType<TComponent>();
+
 				GAIA_ASSERT(index <= header.lastEntityIndex || index != (uint32_t)-1);
 				// invalid component requests are a programmer's bug
 				GAIA_ASSERT(type != nullptr);
@@ -84,27 +92,9 @@ namespace gaia {
 				// Update version number so we know RW access was used on chunk
 				header.UpdateWorldVersion(componentType, componentIdx);
 
-				const uint32_t idxData = it->offset + type->size * index;
-				GAIA_ASSERT(idxData <= Chunk::DATA_SIZE);
-				return (void*)&data[idxData];
-			}
-
-			template <typename T>
-			[[nodiscard]] std::decay_t<T>&
-			GetComponent_Internal(ComponentType componentType, uint32_t index) const {
-				using TComponent = std::decay_t<T>;
-				const ComponentMetaData* type =
-						g_ComponentCache.GetComponentMetaType<TComponent>();
-				return *(TComponent*)GetComponent_Internal(componentType, index, type);
-			}
-
-			template <typename T>
-			[[nodiscard]] std::decay_t<T>&
-			SetComponent_Internal(ComponentType componentType, uint32_t index) {
-				using TComponent = std::decay_t<T>;
-				const ComponentMetaData* type =
-						g_ComponentCache.GetComponentMetaType<TComponent>();
-				return *(TComponent*)SetComponent_Internal(componentType, index, type);
+				return utils::auto_view_policy<TComponent>::set(
+						{(TComponent*)&data[it->offset], header.capacity}, index,
+						std::forward<TComponent>(value));
 			}
 
 			[[nodiscard]] uint32_t GetComponentIdx_Internal(
@@ -121,11 +111,11 @@ namespace gaia {
 			HasComponent_Internal(ComponentType componentType) const {
 				using TComponent = std::decay_t<T>;
 
-				if (!g_ComponentCache.HasComponentMetaType<TComponent>())
+				const ComponentMetaData* type =
+						g_ComponentCache.FindComponentMetaType<TComponent>();
+				if (!type)
 					return false;
 
-				const ComponentMetaData* type =
-						g_ComponentCache.GetComponentMetaType<TComponent>();
 				const auto& componentList =
 						GetArchetypeComponentList(header.owner, componentType);
 				return utils::has_if(componentList, [type](const auto& info) {
@@ -275,6 +265,7 @@ namespace gaia {
 			[[nodiscard]] uint32_t GetComponentIdx(uint32_t typeIdx) const {
 				return GetComponentIdx_Internal(ComponentType::CT_Generic, typeIdx);
 			}
+
 			[[nodiscard]] uint32_t GetChunkComponentIdx(uint32_t typeIdx) const {
 				return GetComponentIdx_Internal(ComponentType::CT_Chunk, typeIdx);
 			}
@@ -291,8 +282,8 @@ namespace gaia {
 
 			template <typename T>
 			void SetChunkComponent(T&& value) {
-				SetComponent_Internal<std::decay_t<T>>(ComponentType::CT_Chunk, 0) =
-						std::forward<T>(value);
+				SetComponent_Internal<std::decay_t<T>>(
+						ComponentType::CT_Chunk, 0, std::forward<T>(value));
 			}
 
 			template <typename T>

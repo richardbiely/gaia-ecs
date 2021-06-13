@@ -997,8 +997,8 @@ namespace gaia {
 					ComponentType componentType, Chunk* chunk, uint32_t index,
 					TComponent&& data) {
 				if constexpr (!std::is_empty<TComponent>::value) {
-					chunk->SetComponent_Internal<TComponent>(componentType, index) =
-							std::forward<TComponent>(data);
+					chunk->SetComponent_Internal<TComponent>(
+							componentType, index, std::forward<TComponent>(data));
 				}
 			}
 
