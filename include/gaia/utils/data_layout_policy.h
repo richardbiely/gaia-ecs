@@ -10,8 +10,8 @@
 namespace gaia {
 	namespace utils {
 		enum class DataLayout {
-			SoA, // Structure Of Arrays
-			AoS // Array Of Structures
+			SoA, //< Structure Of Arrays
+			AoS //< Array Of Structures
 		};
 
 		// Helper templates
@@ -56,6 +56,7 @@ namespace gaia {
 		template <typename ValueType>
 		struct data_view_policy<DataLayout::AoS, ValueType> {
 			constexpr static DataLayout Layout = DataLayout::AoS;
+			constexpr static size_t Alignment = alignof(ValueType);
 
 			constexpr static ValueType get(std::span<ValueType> s, uint32_t idx) {
 				return get_internal((const ValueType*)s.data(), idx);
@@ -94,6 +95,7 @@ namespace gaia {
 		template <typename ValueType>
 		struct data_view_policy<DataLayout::SoA, ValueType> {
 			constexpr static DataLayout Layout = DataLayout::SoA;
+			constexpr static size_t Alignment = detail::SoADataAlignment;
 
 			constexpr static ValueType
 			get(std::span<ValueType> s, const uint32_t idx) {
@@ -158,5 +160,21 @@ namespace gaia {
 		template <typename ValueType>
 		using soa_view_policy = data_view_policy<DataLayout::SoA, ValueType>;
 
+#pragma region Helpers
+
+		template <typename, typename = void>
+		struct is_sao_layout: std::false_type {};
+
+		template <typename T>
+		struct is_sao_layout<
+				T, typename std::enable_if<T::Layout == DataLayout::SoA>::type>:
+				std::true_type {};
+
+		template <typename T>
+		using auto_view_policy = std::conditional_t<
+				is_sao_layout<T>::value, data_view_policy<DataLayout::SoA, T>,
+				data_view_policy<DataLayout::AoS, T>>;
+
+#pragma endregion
 	} // namespace utils
 } // namespace gaia
