@@ -38,7 +38,7 @@ namespace gaia {
 			//! Archetype header with info about the archetype
 			ChunkHeader header;
 			//! Archetype data. Entities first, followed by a lists of components.
-			uint8_t data[DATA_SIZE - sizeof(ChunkHeader)];
+			uint8_t data[DATA_SIZE];
 
 			Chunk(const Archetype& archetype): header(archetype) {}
 
@@ -322,6 +322,7 @@ namespace gaia {
 			}
 		};
 		static_assert(
-				sizeof(Chunk) == Chunk::DATA_SIZE, "Chunk size must match DATA_SIZE!");
+				sizeof(Chunk) <= ChunkMemorySize,
+				"Chunk size must match ChunkMemorySize!");
 	} // namespace ecs
 } // namespace gaia
