@@ -355,7 +355,7 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA(benchmark::State& state) {
 								const auto dtVec = _mm_set_ps1(dt);
 
 								for (auto i = 0; i < ch.GetItemCount(); i += 8) {
-									// We're memory starved so let's two two ticks in one
+									// We're memory starved so let's do two ticks in one
 									// iteration to hide the latency
 									{
 										const auto pxVec = _mm_load_ps(ppx.data());
@@ -426,7 +426,7 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA(benchmark::State& state) {
 								auto vvy = vv::get<1>(v);
 
 								for (auto i = 0; i < ch.GetItemCount(); i += 8) {
-									// We're memory starved so let's two two ticks in one
+									// We're memory starved so let's do two ticks in one
 									// iteration to hide the latency
 									{
 										const auto vyVec = _mm_load_ps(vvy.data());
@@ -481,7 +481,7 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA(benchmark::State& state) {
 								const auto gg_dtVec = _mm_set_ps1(9.81f * dt);
 
 								for (auto i = 0; i < ch.GetItemCount(); i += 8) {
-									// We're memory starved so let's two two ticks in one
+									// We're memory starved so let's do two ticks in one
 									// iteration to hide the latency
 									{
 										const auto vyVec = _mm_load_ps(vvy.data());
