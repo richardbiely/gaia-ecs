@@ -38,4 +38,9 @@ endif()
 
 # Benchmark framework
 target_link_libraries(gaia_perf PRIVATE benchmark::benchmark)
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  target_link_libraries(gaia_perf PRIVATE pthread)
+else (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+  target_link_libraries(gaia_perf PRIVATE Shlwapi.lib)
+endif()
 target_include_directories(gaia_perf PRIVATE ${PROJECT_SOURCE_DIR}/include)
