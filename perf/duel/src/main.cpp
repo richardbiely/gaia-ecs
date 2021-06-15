@@ -7,15 +7,6 @@ GAIA_INIT
 
 #include <benchmark/benchmark.h>
 #if GAIA_COMPILER_MSVC
-	#ifdef _WIN32
-		#pragma comment(lib, "Shlwapi.lib")
-		#ifdef _DEBUG
-			#pragma comment(lib, "benchmarkd.lib")
-		#else
-			#pragma comment(lib, "benchmark.lib")
-		#endif
-	#endif
-
 	#if _MSV_VER <= 1916
 // warning C4100: 'XYZ': unreferenced formal parameter
 GAIA_MSVC_WARNING_DISABLE(4100)
