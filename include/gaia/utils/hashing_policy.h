@@ -47,8 +47,7 @@ namespace gaia {
 				lhs ^= rhs + 0x9e3779b9 + (lhs << 6) + (lhs >> 2);
 			}
 			constexpr void hash_combine2_out(uint64_t& lhs, uint64_t rhs) {
-				// lhs ^= rhs + 0x9e3779B97f4a7c15f39ULL + (lhs << 6) + (lhs >> 2);
-				lhs ^= rhs + 0x9e3779b9 + (lhs << 6) + (lhs >> 2);
+				lhs ^= rhs + 0x9e3779B97f4a7c15ULL + (lhs << 6) + (lhs >> 2);
 			}
 
 			template <typename T>
