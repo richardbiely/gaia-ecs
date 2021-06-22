@@ -5,15 +5,6 @@ GAIA_INIT
 
 #include <benchmark/benchmark.h>
 #if GAIA_COMPILER_MSVC
-	#ifdef _WIN32
-		#pragma comment(lib, "Shlwapi.lib")
-		#ifdef _DEBUG
-			#pragma comment(lib, "benchmarkd.lib")
-		#else
-			#pragma comment(lib, "benchmark.lib")
-		#endif
-	#endif
-
 	#if _MSV_VER <= 1916
 // warning C4100: 'XYZ': unreferenced formal parameter
 GAIA_MSVC_WARNING_DISABLE(4100)
@@ -25,10 +16,10 @@ GAIA_MSVC_WARNING_DISABLE(4307)
 using namespace gaia;
 
 void BM_CreateEntity(benchmark::State& state) {
-	constexpr uint32_t N = 100'000;
+	constexpr size_t N = 100'000;
 	for ([[maybe_unused]] auto _: state) {
 		ecs::World w;
-		for (uint32_t i = 0; i < N; ++i) {
+		for (size_t i = 0; i < N; ++i) {
 			[[maybe_unused]] auto e = w.CreateEntity();
 			benchmark::DoNotOptimize(e);
 		}
@@ -36,20 +27,20 @@ void BM_CreateEntity(benchmark::State& state) {
 }
 BENCHMARK(BM_CreateEntity);
 
-template <uint32_t version, typename T, uint32_t ComponentItems>
+template <size_t version, typename T, size_t ComponentItems>
 struct Component {
 	T value[ComponentItems];
 };
 
-template <uint32_t version, typename T>
+template <size_t version, typename T>
 struct Component<version, T, 0U> {}; // empty component
 
-template <typename T, uint32_t ComponentItems, uint32_t Components>
+template <typename T, size_t ComponentItems, size_t Components>
 void BM_CreateEntity_With_Component______(benchmark::State& state) {
-	constexpr uint32_t N = 100'000;
+	constexpr size_t N = 100'000;
 	for ([[maybe_unused]] auto _: state) {
 		ecs::World w;
-		for (uint32_t i = 0; i < N; ++i) {
+		for (size_t i = 0; i < N; ++i) {
 			[[maybe_unused]] auto e = w.CreateEntity();
 			utils::for_each<Components>(
 					[&](auto i) { w.AddComponent<Component<i, T, ComponentItems>>(e); });
@@ -58,7 +49,7 @@ void BM_CreateEntity_With_Component______(benchmark::State& state) {
 }
 
 namespace detail {
-	template <typename T, uint32_t ComponentItems, auto... Is>
+	template <typename T, size_t ComponentItems, auto... Is>
 	constexpr void
 	AddComponents(ecs::World& w, ecs::Entity e, std::index_sequence<Is...>) {
 		w.AddComponent(
@@ -68,18 +59,18 @@ namespace detail {
 	}
 } // namespace detail
 
-template <typename T, uint32_t ComponentItems, uint32_t Components>
+template <typename T, size_t ComponentItems, size_t Components>
 constexpr void AddComponents(ecs::World& w, uint32_t N) {
 	for (uint32_t i = 0; i < N; ++i) {
 		[[maybe_unused]] auto e = w.CreateEntity();
 		detail::AddComponents<T, ComponentItems>(
-				w, e, std::make_index_sequence<uint32_t(Components)>());
+				w, e, std::make_index_sequence<Components>{});
 	}
 }
 
-template <typename T, uint32_t ComponentItems, uint32_t Components>
+template <typename T, size_t ComponentItems, size_t Components>
 void BM_CreateEntity_With_Component_Batch(benchmark::State& state) {
-	constexpr uint32_t N = 100'000;
+	constexpr size_t N = 100'000;
 	for (auto _: state) {
 		ecs::World w;
 		AddComponents<T, ComponentItems, Components>(w, N);
