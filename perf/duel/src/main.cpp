@@ -352,51 +352,30 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA(benchmark::State& state) {
 
 								const auto dtVec = _mm_set_ps1(dt);
 
-								for (auto i = 0; i < ch.GetItemCount(); i += 8) {
-									// We're memory starved so let's do two ticks in one
-									// iteration to hide the latency
-									{
-										const auto pxVec = _mm_load_ps(ppx.data());
-										const auto pyVec = _mm_load_ps(ppy.data());
-										const auto pzVec = _mm_load_ps(ppz.data());
+								auto exec = [&](size_t offset) {
+									const auto pxVec = _mm_load_ps(ppx.data() + offset);
+									const auto pyVec = _mm_load_ps(ppy.data() + offset);
+									const auto pzVec = _mm_load_ps(ppz.data() + offset);
 
-										const auto vxVec = _mm_load_ps(vvx.data());
-										const auto vyVec = _mm_load_ps(vvy.data());
-										const auto vzVec = _mm_load_ps(vvz.data());
+									const auto vxVec = _mm_load_ps(vvx.data() + offset);
+									const auto vyVec = _mm_load_ps(vvy.data() + offset);
+									const auto vzVec = _mm_load_ps(vvz.data() + offset);
 
-										const auto vx_tVec = _mm_mul_ps(vxVec, dtVec);
-										const auto vy_tVec = _mm_mul_ps(vyVec, dtVec);
-										const auto vz_tVec = _mm_mul_ps(vzVec, dtVec);
+									const auto vx_tVec = _mm_mul_ps(vxVec, dtVec);
+									const auto vy_tVec = _mm_mul_ps(vyVec, dtVec);
+									const auto vz_tVec = _mm_mul_ps(vzVec, dtVec);
 
-										const auto resxVec = _mm_add_ps(vx_tVec, pxVec);
-										const auto resyVec = _mm_add_ps(vy_tVec, pyVec);
-										const auto reszVec = _mm_add_ps(vz_tVec, pzVec);
+									const auto resxVec = _mm_add_ps(vx_tVec, pxVec);
+									const auto resyVec = _mm_add_ps(vy_tVec, pyVec);
+									const auto reszVec = _mm_add_ps(vz_tVec, pzVec);
 
-										_mm_store_ps((float*)ppx.data(), resxVec);
-										_mm_store_ps((float*)ppy.data(), resyVec);
-										_mm_store_ps((float*)ppz.data(), reszVec);
-									}
-									{
-										const auto pxVec = _mm_load_ps(ppx.data() + 4);
-										const auto pyVec = _mm_load_ps(ppy.data() + 4);
-										const auto pzVec = _mm_load_ps(ppz.data() + 4);
+									_mm_store_ps((float*)ppx.data() + offset, resxVec);
+									_mm_store_ps((float*)ppy.data() + offset, resyVec);
+									_mm_store_ps((float*)ppz.data() + offset, reszVec);
+								};
 
-										const auto vxVec = _mm_load_ps(vvx.data());
-										const auto vyVec = _mm_load_ps(vvy.data());
-										const auto vzVec = _mm_load_ps(vvz.data());
-
-										const auto vx_tVec = _mm_mul_ps(vxVec, dtVec);
-										const auto vy_tVec = _mm_mul_ps(vyVec, dtVec);
-										const auto vz_tVec = _mm_mul_ps(vzVec, dtVec);
-
-										const auto resxVec = _mm_add_ps(vx_tVec, pxVec);
-										const auto resyVec = _mm_add_ps(vy_tVec, pyVec);
-										const auto reszVec = _mm_add_ps(vz_tVec, pzVec);
-
-										_mm_store_ps((float*)(ppx.data() + 4), resxVec);
-										_mm_store_ps((float*)(ppy.data() + 4), resyVec);
-										_mm_store_ps((float*)(ppz.data() + 4), reszVec);
-									}
+								for (size_t i = 0; i < ch.GetItemCount(); i += 4) {
+									exec(i);
 								}
 							})
 					.Run();
@@ -423,37 +402,23 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA(benchmark::State& state) {
 								auto ppy = pp::get<1>(p);
 								auto vvy = vv::get<1>(v);
 
-								for (auto i = 0; i < ch.GetItemCount(); i += 8) {
-									// We're memory starved so let's do two ticks in one
-									// iteration to hide the latency
-									{
-										const auto vyVec = _mm_load_ps(vvy.data());
-										const auto pyVec = _mm_load_ps(ppy.data());
+								auto exec = [&](size_t offset) {
+									const auto vyVec = _mm_load_ps(vvy.data() + offset);
+									const auto pyVec = _mm_load_ps(ppy.data() + offset);
 
-										const auto condVec = _mm_cmplt_ps(vyVec, _mm_setzero_ps());
+									const auto condVec = _mm_cmplt_ps(vyVec, _mm_setzero_ps());
 
-										const auto res_vyVec =
-												_mm_blendv_ps(vyVec, _mm_setzero_ps(), condVec);
-										const auto res_pyVec =
-												_mm_blendv_ps(pyVec, _mm_setzero_ps(), condVec);
+									const auto res_vyVec =
+											_mm_blendv_ps(vyVec, _mm_setzero_ps(), condVec);
+									const auto res_pyVec =
+											_mm_blendv_ps(pyVec, _mm_setzero_ps(), condVec);
 
-										_mm_store_ps((float*)vvy.data(), res_vyVec);
-										_mm_store_ps((float*)ppy.data(), res_pyVec);
-									}
-									{
-										const auto vyVec = _mm_load_ps(vvy.data() + 4);
-										const auto pyVec = _mm_load_ps(ppy.data() + 4);
+									_mm_store_ps((float*)vvy.data() + offset, res_vyVec);
+									_mm_store_ps((float*)ppy.data() + offset, res_pyVec);
+								};
 
-										const auto condVec = _mm_cmplt_ps(vyVec, _mm_setzero_ps());
-
-										const auto res_vyVec =
-												_mm_blendv_ps(vyVec, _mm_setzero_ps(), condVec);
-										const auto res_pyVec =
-												_mm_blendv_ps(pyVec, _mm_setzero_ps(), condVec);
-
-										_mm_store_ps((float*)(vvy.data() + 4), res_vyVec);
-										_mm_store_ps((float*)(ppy.data() + 4), res_pyVec);
-									}
+								for (size_t i = 0; i < ch.GetItemCount(); i += 4) {
+									exec(i);
 								}
 							})
 					.Run();
@@ -478,19 +443,14 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA(benchmark::State& state) {
 
 								const auto gg_dtVec = _mm_set_ps1(9.81f * dt);
 
-								for (auto i = 0; i < ch.GetItemCount(); i += 8) {
-									// We're memory starved so let's do two ticks in one
-									// iteration to hide the latency
-									{
-										const auto vyVec = _mm_load_ps(vvy.data());
-										_mm_store_ps(
-												(float*)vvy.data(), _mm_mul_ps(vyVec, gg_dtVec));
-									}
-									{
-										const auto vyVec = _mm_load_ps(vvy.data() + 4);
-										_mm_store_ps(
-												(float*)(vvy.data() + 4), _mm_mul_ps(vyVec, gg_dtVec));
-									}
+								auto exec = [&](size_t offset) {
+									const auto vyVec = _mm_load_ps(vvy.data() + offset);
+									_mm_store_ps(
+											(float*)vvy.data() + offset, _mm_mul_ps(vyVec, gg_dtVec));
+								};
+
+								for (size_t i = 0; i < ch.GetItemCount(); i += 4) {
+									exec(i);
 								}
 							})
 					.Run();
