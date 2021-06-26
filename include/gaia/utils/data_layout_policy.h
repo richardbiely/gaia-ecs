@@ -58,24 +58,23 @@ namespace gaia {
 			constexpr static DataLayout Layout = DataLayout::AoS;
 			constexpr static size_t Alignment = alignof(ValueType);
 
-			constexpr static ValueType
-			get(std::span<const ValueType> s, uint32_t idx) {
+			constexpr static ValueType get(std::span<const ValueType> s, size_t idx) {
 				return get_internal((const ValueType*)s.data(), idx);
 			}
 
 			constexpr static void
-			set(std::span<ValueType> s, uint32_t idx, ValueType&& val) {
+			set(std::span<ValueType> s, size_t idx, ValueType&& val) {
 				set_internal((ValueType*)s.data(), idx, std::forward<ValueType>(val));
 			}
 
 		private:
 			[[nodiscard]] constexpr static ValueType
-			get_internal(const ValueType* data, const uint32_t idx) {
+			get_internal(const ValueType* data, const size_t idx) {
 				return data[idx];
 			}
 
 			constexpr static void
-			set_internal(ValueType* data, const uint32_t idx, ValueType&& val) {
+			set_internal(ValueType* data, const size_t idx, ValueType&& val) {
 				data[idx] = std::forward<ValueType>(val);
 			}
 		};
@@ -99,7 +98,7 @@ namespace gaia {
 			constexpr static size_t Alignment = detail::SoADataAlignment;
 
 			constexpr static ValueType
-			get(std::span<const ValueType> s, const uint32_t idx) {
+			get(std::span<const ValueType> s, const size_t idx) {
 				auto t = struct_to_tuple(ValueType{});
 				return get_internal(
 						t, s, idx,
@@ -109,7 +108,7 @@ namespace gaia {
 
 			template <size_t Ids>
 			constexpr static auto
-			get(std::span<const ValueType> s, const uint32_t idx = 0) {
+			get(std::span<const ValueType> s, const size_t idx = 0) {
 				using Tuple = decltype(struct_to_tuple(ValueType{}));
 				using MemberType = typename std::tuple_element<Ids, Tuple>::type;
 				const auto* ret =
@@ -119,7 +118,7 @@ namespace gaia {
 			}
 
 			constexpr static void
-			set(std::span<ValueType> s, const uint32_t idx, ValueType&& val) {
+			set(std::span<ValueType> s, const size_t idx, ValueType&& val) {
 				auto t = struct_to_tuple(std::forward<ValueType>(val));
 				set_internal(
 						t, s, idx,
@@ -128,8 +127,7 @@ namespace gaia {
 			}
 
 			template <size_t Ids>
-			constexpr static auto
-			set(std::span<ValueType> s, const uint32_t idx = 0) {
+			constexpr static auto set(std::span<ValueType> s, const size_t idx = 0) {
 				using Tuple = decltype(struct_to_tuple(ValueType{}));
 				using MemberType = typename std::tuple_element<Ids, Tuple>::type;
 				auto* ret =
@@ -141,7 +139,7 @@ namespace gaia {
 		private:
 			template <typename Tuple, size_t... Ids>
 			[[nodiscard]] constexpr static ValueType get_internal(
-					Tuple& t, std::span<const ValueType> s, const uint32_t idx,
+					Tuple& t, std::span<const ValueType> s, const size_t idx,
 					std::integer_sequence<size_t, Ids...>) {
 				(get_internal<
 						 Tuple, Ids, typename std::tuple_element<Ids, Tuple>::type>(
@@ -155,13 +153,13 @@ namespace gaia {
 
 			template <typename Tuple, size_t Ids, typename TMemberType>
 			constexpr static void
-			get_internal(Tuple& t, const char* data, const uint32_t idx) {
+			get_internal(Tuple& t, const char* data, const size_t idx) {
 				std::get<Ids>(t) = *(TMemberType*)&data[idx];
 			}
 
 			template <typename Tuple, typename TValue, size_t... Ids>
 			constexpr static void set_internal(
-					Tuple& t, std::span<TValue> s, const uint32_t idx,
+					Tuple& t, std::span<TValue> s, const size_t idx,
 					std::integer_sequence<size_t, Ids...>) {
 				(set_internal(
 						 (char*)s.data(),
@@ -174,7 +172,7 @@ namespace gaia {
 
 			template <typename MemberType>
 			constexpr static void
-			set_internal(char* data, const uint32_t idx, MemberType val) {
+			set_internal(char* data, const size_t idx, MemberType val) {
 				// memcpy((void*)&data[idx], (const void*)&val, sizeof(val));
 				*(MemberType*)&data[idx] = val;
 			}
