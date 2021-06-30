@@ -45,7 +45,7 @@ namespace gaia {
 		int i = {};
 		float f = *(*float)&i; // undefined behavior
 		memcpy(&f, &i, sizeof(float)); // okay
-		 */
+		*/
 		template <
 				typename To, typename From,
 				typename = std::enable_if_t<
@@ -56,5 +56,86 @@ namespace gaia {
 			std::memcpy(&to, &from, sizeof(To));
 			return to;
 		}
+
+		/*!
+		Pointer wrapper for reading memory in defined way (not causing undefined
+		behavior).
+		*/
+		template <typename T>
+		class const_unaligned_pointer {
+			const char* from;
+
+		public:
+			const_unaligned_pointer(): from(nullptr) {}
+			const_unaligned_pointer(const void* p): from((const char*)p) {}
+
+			T operator*() const {
+				T to;
+				std::memcpy(&to, from, sizeof(T));
+				return to;
+			}
+
+			T operator[](ptrdiff_t d) const {
+				return *(*this + d);
+			}
+
+			const_unaligned_pointer operator+(ptrdiff_t d) const {
+				return const_unaligned_pointer(from + d * sizeof(T));
+			}
+			const_unaligned_pointer operator-(ptrdiff_t d) const {
+				return const_unaligned_pointer(from - d * sizeof(T));
+			}
+		};
+
+		/*!
+		Pointer wrapper for writing memory in defined way (not causing undefined
+		behavior).
+		*/
+		template <typename T>
+		class unaligned_ref {
+			void* p;
+
+		public:
+			unaligned_ref(void* p): p(p) {}
+
+			T operator=(const T& rvalue) {
+				memcpy(p, &rvalue, sizeof(T));
+				return rvalue;
+			}
+
+			operator T() const {
+				T tmp;
+				memcpy(&tmp, p, sizeof(T));
+				return tmp;
+			}
+		};
+
+		/*!
+		Pointer wrapper for writing memory in defined way (not causing undefined
+		behavior).
+		*/
+		template <typename T>
+		class unaligned_pointer {
+			char* p;
+
+		public:
+			unaligned_pointer(): p(0) {}
+			unaligned_pointer(void* p): p((char*)p) {}
+
+			unaligned_ref<T> operator*() const {
+				return unaligned_ref<T>(p);
+			}
+
+			unaligned_ref<T> operator[](ptrdiff_t d) const {
+				return *(*this + d);
+			}
+
+			unaligned_pointer operator+(ptrdiff_t d) const {
+				return unaligned_pointer(p + d * sizeof(T));
+			}
+			unaligned_pointer operator-(ptrdiff_t d) const {
+				return unaligned_pointer(p - d * sizeof(T));
+			}
+		};
 	} // namespace utils
 } // namespace gaia
