@@ -47,7 +47,9 @@ namespace gaia {
 				{
 					const auto lastIndex = m_data.size();
 					m_data.resize(m_data.size() + sizeof(TEntity));
-					*(TEntity*)&m_data[lastIndex] = entity;
+
+					utils::unaligned_ref<TEntity> to(&m_data[lastIndex]);
+					to = entity;
 				}
 				// Components
 				{
@@ -62,9 +64,11 @@ namespace gaia {
 					const auto lastIndex = m_data.size();
 					m_data.resize(
 							m_data.size() + sizeof(ComponentMetaData*) * componentCount);
-					for (uint8_t i = 0; i < componentCount; i++)
-						*((ComponentMetaData**)&m_data[lastIndex] + i) =
-								(ComponentMetaData*)typesToAdd[i];
+
+					for (uint8_t i = 0; i < componentCount; i++) {
+						utils::unaligned_ref<ComponentMetaData*> to(&m_data[lastIndex]);
+						to = typesToAdd[i];
+					}
 				}
 			}
 
@@ -92,7 +96,9 @@ namespace gaia {
 				{
 					const auto lastIndex = m_data.size();
 					m_data.resize(m_data.size() + sizeof(TEntity));
-					*(TEntity*)&m_data[lastIndex] = entity;
+
+					utils::unaligned_ref<TEntity> to(&m_data[lastIndex]);
+					to = entity;
 				}
 				// Components
 				{
@@ -120,7 +126,9 @@ namespace gaia {
 				{
 					const auto lastIndex = m_data.size();
 					m_data.resize(m_data.size() + sizeof(Entity));
-					*(Entity*)&m_data[lastIndex] = entity;
+
+					utils::unaligned_ref<Entity> to(&m_data[lastIndex]);
+					to = entity;
 				}
 				// Components
 				{
@@ -136,8 +144,8 @@ namespace gaia {
 					m_data.resize(
 							m_data.size() + sizeof(ComponentMetaData*) * NComponents);
 					for (uint8_t i = 0; i < NComponents; i++) {
-						*((ComponentMetaData**)&m_data[lastIndex] + i) =
-								(ComponentMetaData*)typesToRemove[i];
+						utils::unaligned_ref<ComponentMetaData*> to(&m_data[lastIndex]);
+						to = typesToRemove[i];
 					}
 				}
 			}
@@ -153,7 +161,10 @@ namespace gaia {
 						sizeof(void*); // we'll serialize just the pointer
 				const auto lastIndex = m_data.size();
 				m_data.resize(m_data.size() + archetypeSize);
-				*((uintptr_t*)&m_data[lastIndex]) = (uintptr_t)&archetype;
+
+				utils::unaligned_ref<uintptr_t> to(&m_data[lastIndex]);
+				to = (uintptr_t)&archetype;
+
 				return {m_entities++};
 			}
 
@@ -189,7 +200,10 @@ namespace gaia {
 						sizeof(query); // we'll serialize the query by making a copy of it
 				const auto lastIndex = m_data.size();
 				m_data.resize(m_data.size() + querySize);
-				*((CreationQuery*)&m_data[lastIndex]) = query;
+
+				utils::unaligned_ref<CreationQuery> to(&m_data[lastIndex]);
+				to = query;
+
 				return {m_entities++};
 			}
 
@@ -203,7 +217,10 @@ namespace gaia {
 				const auto entitySize = sizeof(entityFrom);
 				const auto lastIndex = m_data.size();
 				m_data.resize(m_data.size() + entitySize);
-				*((Entity*)&m_data[lastIndex]) = entityFrom;
+
+				utils::unaligned_ref<Entity> to(&m_data[lastIndex]);
+				to = entityFrom;
+
 				return {m_entities++};
 			}
 
