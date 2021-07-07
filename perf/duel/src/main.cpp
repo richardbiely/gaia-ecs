@@ -96,7 +96,6 @@ void BM_Game_ECS(benchmark::State& state) {
 		w.ForEach(queryDynamic, [&](Velocity& v) { v.y += 9.81f * dt; }).Run();
 	}
 }
-BENCHMARK(BM_Game_ECS);
 
 void BM_Game_ECS_WithSystems(benchmark::State& state) {
 	ecs::World w;
@@ -185,7 +184,6 @@ void BM_Game_ECS_WithSystems(benchmark::State& state) {
 		sm.Update();
 	}
 }
-BENCHMARK(BM_Game_ECS_WithSystems);
 
 void BM_Game_ECS_WithSystems_ForEachChunk(benchmark::State& state) {
 	ecs::World w;
@@ -297,7 +295,6 @@ void BM_Game_ECS_WithSystems_ForEachChunk(benchmark::State& state) {
 		sm.Update();
 	}
 }
-BENCHMARK(BM_Game_ECS_WithSystems_ForEachChunk);
 
 void BM_Game_ECS_WithSystems_ForEachChunkSoA(benchmark::State& state) {
 	ecs::World w;
@@ -342,41 +339,37 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA(benchmark::State& state) {
 								using pp = utils::auto_view_policy<PositionSoA>;
 								using vv = utils::auto_view_policy<VelocitySoA>;
 
-								auto ppx = pp::get<0>(p);
-								auto ppy = pp::get<1>(p);
-								auto ppz = pp::get<2>(p);
+								auto ppx = pp::set<0>(p);
+								auto ppy = pp::set<1>(p);
+								auto ppz = pp::set<2>(p);
 
 								auto vvx = vv::get<0>(v);
 								auto vvy = vv::get<1>(v);
 								auto vvz = vv::get<2>(v);
 
-								const auto dtVec = _mm_set_ps1(dt);
+								for (auto i = 0U; i < ch.GetItemCount(); ++i)
+									ppx[i] += vvx[i] * dt;
+								for (auto i = 0U; i < ch.GetItemCount(); ++i)
+									ppy[i] += vvy[i] * dt;
+								for (auto i = 0U; i < ch.GetItemCount(); ++i)
+									ppz[i] += vvz[i] * dt;
 
-								auto exec = [&](size_t offset) {
-									const auto pxVec = _mm_load_ps(ppx.data() + offset);
-									const auto pyVec = _mm_load_ps(ppy.data() + offset);
-									const auto pzVec = _mm_load_ps(ppz.data() + offset);
+								// const auto dtVec = _mm_set_ps1(dt);
 
-									const auto vxVec = _mm_load_ps(vvx.data() + offset);
-									const auto vyVec = _mm_load_ps(vvy.data() + offset);
-									const auto vzVec = _mm_load_ps(vvz.data() + offset);
+								// auto exec = [&](GAIA_RESTRICT float* p,
+								// 								GAIA_RESTRICT const float* v, size_t offset) {
+								// 	const auto pVec = _mm_load_ps(p + offset);
+								// 	const auto vVec = _mm_load_ps(v + offset);
+								// 	const auto respVec = _mm_fmadd_ps(vVec, dtVec, pVec);
+								// 	_mm_store_ps(p + offset, respVec);
+								// };
 
-									const auto vx_tVec = _mm_mul_ps(vxVec, dtVec);
-									const auto vy_tVec = _mm_mul_ps(vyVec, dtVec);
-									const auto vz_tVec = _mm_mul_ps(vzVec, dtVec);
-
-									const auto resxVec = _mm_add_ps(vx_tVec, pxVec);
-									const auto resyVec = _mm_add_ps(vy_tVec, pyVec);
-									const auto reszVec = _mm_add_ps(vz_tVec, pzVec);
-
-									_mm_store_ps((float*)ppx.data() + offset, resxVec);
-									_mm_store_ps((float*)ppy.data() + offset, resyVec);
-									_mm_store_ps((float*)ppz.data() + offset, reszVec);
-								};
-
-								for (size_t i = 0; i < ch.GetItemCount(); i += 4) {
-									exec(i);
-								}
+								// for (size_t i = 0; i < ch.GetItemCount(); i += 4)
+								// 	exec(ppx.data(), vvx.data(), i);
+								// for (size_t i = 0; i < ch.GetItemCount(); i += 4)
+								// 	exec(ppy.data(), vvy.data(), i);
+								// for (size_t i = 0; i < ch.GetItemCount(); i += 4)
+								// 	exec(ppz.data(), vvz.data(), i);
 							})
 					.Run();
 		}
@@ -473,7 +466,6 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA(benchmark::State& state) {
 		sm.Update();
 	}
 }
-BENCHMARK(BM_Game_ECS_WithSystems_ForEachChunkSoA);
 
 void BM_Game_NonECS(benchmark::State& state) {
 	struct IUnit {
@@ -552,7 +544,12 @@ void BM_Game_NonECS(benchmark::State& state) {
 		delete u;
 	}
 }
+
 BENCHMARK(BM_Game_NonECS);
+BENCHMARK(BM_Game_ECS);
+BENCHMARK(BM_Game_ECS_WithSystems);
+BENCHMARK(BM_Game_ECS_WithSystems_ForEachChunk);
+BENCHMARK(BM_Game_ECS_WithSystems_ForEachChunkSoA);
 
 // Run the benchmark
 BENCHMARK_MAIN();
