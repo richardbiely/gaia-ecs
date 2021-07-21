@@ -19,21 +19,20 @@ namespace gaia {
 
 #pragma region "Byte offset of a member of SoA-organized data"
 
-			constexpr static uint32_t SoADataAlignment = 16;
+			constexpr static size_t SoADataAlignment = 16;
 
 			template <uint32_t N, typename Tuple>
-			constexpr static uint32_t soa_byte_offset(
+			constexpr static size_t soa_byte_offset(
 					const uintptr_t address, [[maybe_unused]] const size_t size) {
 				if constexpr (N == 0) {
 					// Handle alignment to SoADataAlignment bytes for SSE
-					return (uint32_t)(utils::align<SoADataAlignment>(address) - address);
+					return utils::align<SoADataAlignment>(address) - address;
 				} else {
 					// Handle alignment to SoADataAlignment bytes for SSE
-					const auto offset =
-							(uint32_t)(utils::align<SoADataAlignment>(address) - address);
-					return (uint32_t)(
-							sizeof(typename std::tuple_element<N - 1, Tuple>::type) * size +
-							offset + soa_byte_offset<N - 1, Tuple>(address, size));
+					const auto offset = utils::align<SoADataAlignment>(address) - address;
+					using tt = typename std::tuple_element<N - 1, Tuple>::type;
+					return sizeof(tt) * size + offset +
+								 soa_byte_offset<N - 1, Tuple>(address, size);
 				}
 			}
 
