@@ -53,7 +53,7 @@
 		defined(__x86_64__) || defined(_X86_)
 	#undef GAIA_ARCH
 	#define GAIA_ARCH GAIA_ARCH_X86
-#elif defined(__arm__)
+#elif defined(__arm__) || defined(__aarch64__)
 	#undef GAIA_ARCH
 	#define GAIA_ARCH GAIA_ARCH_ARM
 #else
