@@ -1,7 +1,9 @@
 #define _ITERATOR_DEBUG_LEVEL 0
 #include <gaia.h>
 
+#if GAIA_ARCH != GAIA_ARCH_ARM
 #include <immintrin.h>
+#endif
 
 GAIA_INIT
 
@@ -329,6 +331,7 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA(benchmark::State& state) {
 			m_q.All<PositionSoA, VelocitySoA>();
 		}
 		void OnUpdate() override {
+		#if GAIA_ARCH != GAIA_ARCH_ARM
 			GetWorld()
 					.ForEachChunk(
 							m_q,
@@ -372,6 +375,7 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA(benchmark::State& state) {
 								// 	exec(ppz.data(), vvz.data(), i);
 							})
 					.Run();
+		#endif
 		}
 	};
 	class CollisionSystem final: public ecs::System {
@@ -382,6 +386,7 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA(benchmark::State& state) {
 			m_q.All<PositionSoA, VelocitySoA>();
 		}
 		void OnUpdate() override {
+		#if GAIA_ARCH != GAIA_ARCH_ARM
 			GetWorld()
 					.ForEachChunk(
 							m_q,
@@ -415,6 +420,7 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA(benchmark::State& state) {
 								}
 							})
 					.Run();
+		#endif
 		}
 	};
 	class GravitySystem final: public ecs::System {
@@ -426,6 +432,7 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA(benchmark::State& state) {
 		}
 
 		void OnUpdate() override {
+		#if GAIA_ARCH != GAIA_ARCH_ARM
 			GetWorld()
 					.ForEachChunk(
 							m_q,
@@ -447,6 +454,7 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA(benchmark::State& state) {
 								}
 							})
 					.Run();
+		#endif
 		}
 	};
 
