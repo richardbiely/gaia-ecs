@@ -21,13 +21,13 @@ function(enable_cxx_compiler_flag_if_supported flag)
 endfunction()
 
 if (MSVC)
-  # strict rules
+  # strictness rules
   enable_cxx_compiler_flag_if_supported("/W4")
   enable_cxx_compiler_flag_if_supported("/WX")
   # fast-math
   enable_cxx_compiler_flag_if_supported("/fp:fast") 
 else()
-  # strict rules
+  # strictness rules
   enable_cxx_compiler_flag_if_supported("-Wall")
   enable_cxx_compiler_flag_if_supported("-Wextra")
   enable_cxx_compiler_flag_if_supported("-pedantic")
@@ -35,8 +35,14 @@ else()
   # fast-math
   enable_cxx_compiler_flag_if_supported("-ffast-math")
   # instruction sets
-  enable_cxx_compiler_flag_if_supported("-msse4.1")
-  enable_cxx_compiler_flag_if_supported("-mfma")
+  if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm")
+    #add_definitions (-mfloat-abi=softfp -mfpu=neon) 
+    #enable_cxx_compiler_flag_if_supported("-mfloat-abi=softfp")
+    #enable_cxx_compiler_flag_if_supported("-mfpu=neon")
+  else(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm")
+    enable_cxx_compiler_flag_if_supported("-msse4.1")
+    enable_cxx_compiler_flag_if_supported("-mfma")
+  endif(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm")
 endif()
 
 # Benchmark framework
