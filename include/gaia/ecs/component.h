@@ -27,7 +27,10 @@ namespace gaia {
 				std::bool_constant<sizeof(T) < MAX_COMPONENTS_SIZE> {};
 
 		template <typename T>
-		struct ComponentTypeValid: std::bool_constant<std::is_trivial<T>::value> {};
+		struct ComponentTypeValid: std::bool_constant<
+				std::is_trivially_copyable<T>::value and
+				std::is_default_constructible<T>::value
+				> {};
 
 		template <typename... T>
 		constexpr void VerifyComponents() {
@@ -125,6 +128,11 @@ namespace gaia {
 #pragma region ComponentMetaData
 
 		struct ComponentMetaData final {
+			using FuncConstructor = void(void*);
+			using FuncDestructor = void(void*);
+
+			// TODO: Organize this in SaO way. Consider keeping commonly used data together.
+
 			//! [ 0-15] Component name
 			std::string_view name;
 			//! [16-23] Complex hash used for look-ups
@@ -139,6 +147,10 @@ namespace gaia {
 			uint32_t size;
 			//! [44] Tells if the component is laid out in SoA style
 			bool soa;
+			//! [48-63] Constructor to call when the type is being constructed
+			FuncConstructor* constructor;
+			//! [64-79] Destructor to call when the type is being destructed
+			FuncDestructor* destructor;
 
 			[[nodiscard]] bool operator==(const ComponentMetaData& other) const {
 				return lookupHash == other.lookupHash && typeIndex == other.typeIndex;
@@ -159,15 +171,24 @@ namespace gaia {
 				mth.lookupHash = utils::type_info::hash<TComponent>();
 				mth.matcherHash = CalculateMatcherHash<TComponent>();
 				mth.typeIndex = utils::type_info::index<TComponent>();
+				mth.alig = 0;
+				mth.size = 0;
+				mth.soa = false;
+				mth.constructor = nullptr;
+				mth.destructor = nullptr;
 
 				if constexpr (!std::is_empty<TComponent>::value) {
 					mth.alig = utils::auto_view_policy<TComponent>::Alignment;
 					mth.size = (uint32_t)sizeof(TComponent);
-					mth.soa = utils::is_sao_layout<TComponent>::value;
-				} else {
-					mth.alig = 0;
-					mth.size = 0;
-					mth.soa = false;
+					if (!utils::is_sao_layout<TComponent>::value)
+					{
+						mth.soa = true;
+
+						if constexpr (!std::is_trivial<T>::value) {
+							mth.constructor = [](void *ptr) { new(ptr) T{}; };
+							mth.destructor = [](void *ptr) { ((T*)ptr)->~T(); };
+						}
+					}
 				}
 
 				return mth;

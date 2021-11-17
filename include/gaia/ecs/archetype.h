@@ -51,12 +51,38 @@ namespace gaia {
 #else
 				auto pChunk = new Chunk(archetype);
 #endif
+
+				// Call default constructors for types that need it
+				for (const auto& comp: archetype.componentList[ComponentType::CT_Generic])
+				{
+					if (comp.type->constructor != nullptr)
+						comp.type->constructor((void*)((char*)pChunk + comp.offset));
+				}
+				for (const auto& comp: archetype.componentList[ComponentType::CT_Chunk])
+				{
+					if (comp.type->constructor != nullptr)
+						comp.type->constructor((void*)((char*)pChunk + comp.offset));
+				}
+
 				pChunk->header.capacity = archetype.capacity;
 				return pChunk;
 			}
 
 			static void ReleaseChunk(Chunk* pChunk) {
 #if GAIA_ECS_CHUNK_ALLOCATOR
+				// Call destructors for types that need it
+				const auto& archetype = pChunk->header.owner;
+				for (const auto& comp: archetype.componentList[ComponentType::CT_Generic])
+				{
+					if (comp.type->destructor != nullptr)
+						comp.type->destructor((void*)((char*)pChunk + comp.offset));
+				}
+				for (const auto& comp: archetype.componentList[ComponentType::CT_Chunk])
+				{
+					if (comp.type->destructor != nullptr)
+						comp.type->destructor((void*)((char*)pChunk + comp.offset));
+				}
+
 				pChunk->~Chunk();
 				auto* world = const_cast<World*>(pChunk->header.owner.parentWorld);
 				ReleaseChunkMemory(*world, pChunk);
