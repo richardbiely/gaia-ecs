@@ -259,16 +259,14 @@ namespace gaia {
 			[[nodiscard]] const ComponentMetaData* GetComponentMetaType() const {
 				using TComponent = std::decay_t<T>;
 				const auto componentIndex = utils::type_info::index<TComponent>();
-				// Let's assume somebody has registered the component already via
-				// AddComponent!
+				// Let's assume the component has been registered via AddComponent already!
 				GAIA_ASSERT(m_types.find(componentIndex) != m_types.end());
 				return m_types.at(componentIndex);
 			}
 
 			[[nodiscard]] const ComponentMetaData*
 			GetComponentMetaTypeFromIdx(uint32_t componentIndex) const {
-				// Let's assume somebody has registered the component already via
-				// AddComponent!
+				// Let's assume the component has been registered via AddComponent already!
 				GAIA_ASSERT(m_types.find(componentIndex) != m_types.end());
 				return m_types.at(componentIndex);
 			}
