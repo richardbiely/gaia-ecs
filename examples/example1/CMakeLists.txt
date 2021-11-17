@@ -21,13 +21,13 @@ function(enable_cxx_compiler_flag_if_supported flag)
 endfunction()
 
 if (MSVC)
-  # strict rules
+  # strictness rules
   enable_cxx_compiler_flag_if_supported("/W4")
   enable_cxx_compiler_flag_if_supported("/WX")
   # fast-math
   enable_cxx_compiler_flag_if_supported("/fp:fast") 
 else()
-  # strict rules
+  # strictness rules
   enable_cxx_compiler_flag_if_supported("-Wall")
   enable_cxx_compiler_flag_if_supported("-Wextra")
   enable_cxx_compiler_flag_if_supported("-pedantic")
