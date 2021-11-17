@@ -27,10 +27,10 @@ namespace gaia {
 				std::bool_constant<sizeof(T) < MAX_COMPONENTS_SIZE> {};
 
 		template <typename T>
-		struct ComponentTypeValid: std::bool_constant<
-				std::is_trivially_copyable<T>::value and
-				std::is_default_constructible<T>::value
-				> {};
+		struct ComponentTypeValid:
+				std::bool_constant<
+						std::is_trivially_copyable<T>::value &&
+						std::is_default_constructible<T>::value> {};
 
 		template <typename... T>
 		constexpr void VerifyComponents() {
@@ -131,7 +131,8 @@ namespace gaia {
 			using FuncConstructor = void(void*);
 			using FuncDestructor = void(void*);
 
-			// TODO: Organize this in SaO way. Consider keeping commonly used data together.
+			// TODO: Organize this in SaO way. Consider keeping commonly used data
+			// together.
 
 			//! [ 0-15] Component name
 			std::string_view name;
@@ -180,13 +181,12 @@ namespace gaia {
 				if constexpr (!std::is_empty<TComponent>::value) {
 					mth.alig = utils::auto_view_policy<TComponent>::Alignment;
 					mth.size = (uint32_t)sizeof(TComponent);
-					if (!utils::is_sao_layout<TComponent>::value)
-					{
+					if (!utils::is_sao_layout<TComponent>::value) {
 						mth.soa = true;
 
 						if constexpr (!std::is_trivial<T>::value) {
-							mth.constructor = [](void *ptr) { new(ptr) T{}; };
-							mth.destructor = [](void *ptr) { ((T*)ptr)->~T(); };
+							mth.constructor = [](void* ptr) { new (ptr) T{}; };
+							mth.destructor = [](void* ptr) { ((T*)ptr)->~T(); };
 						}
 					}
 				}
@@ -280,14 +280,16 @@ namespace gaia {
 			[[nodiscard]] const ComponentMetaData* GetComponentMetaType() const {
 				using TComponent = std::decay_t<T>;
 				const auto componentIndex = utils::type_info::index<TComponent>();
-				// Let's assume the component has been registered via AddComponent already!
+				// Let's assume the component has been registered via AddComponent
+				// already!
 				GAIA_ASSERT(m_types.find(componentIndex) != m_types.end());
 				return m_types.at(componentIndex);
 			}
 
 			[[nodiscard]] const ComponentMetaData*
 			GetComponentMetaTypeFromIdx(uint32_t componentIndex) const {
-				// Let's assume the component has been registered via AddComponent already!
+				// Let's assume the component has been registered via AddComponent
+				// already!
 				GAIA_ASSERT(m_types.find(componentIndex) != m_types.end());
 				return m_types.at(componentIndex);
 			}
