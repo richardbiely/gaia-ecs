@@ -23,11 +23,10 @@ namespace gaia {
 			static constexpr uint32_t MAX_COMPONENTS_IN_QUERY = 8u;
 			static_assert(
 					size < MAX_COMPONENTS_IN_QUERY,
-					"Only component with size of at most MAX_COMPONENTS_IN_QUERY are "
-					"allowed");
+					"Max MAX_COMPONENTS_IN_QUERY allowed to be in component query.");
 			static_assert(
 					utils::is_unique<std::decay_t<Type>...>,
-					"Only unique inputs are enabled");
+					"Only unique inputs are enabled for component query.");
 		};
 
 		enum class QueryTypes { All, Any, None, Empty };
@@ -94,11 +93,11 @@ namespace gaia {
 			// Make sure there are no duplicates among types
 			static_assert(
 					utils::is_unique<utils::type_list_concat<
-									typename T1::types, typename T2::types>> &&
-							utils::is_unique<utils::type_list_concat<
-									typename T1::types, typename T3::types>> &&
-							utils::is_unique<utils::type_list_concat<
-									typename T2::types, typename T3::types>>,
+							typename T1::types, typename T2::types>> &&
+					utils::is_unique<utils::type_list_concat<
+							typename T1::types, typename T3::types>> &&
+					utils::is_unique<utils::type_list_concat<
+							typename T2::types, typename T3::types>>,
 					"Unique types need to be provided to EntityQuery2");
 		};
 

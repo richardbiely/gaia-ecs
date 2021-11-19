@@ -1,11 +1,11 @@
 #pragma once
 #include <cassert>
 #include <inttypes.h>
-#include <unordered_map>
 #include <vector>
 
 #include "../config/config.h"
 #include "../utils/span.h"
+#include "../utils/map.h"
 #include "../utils/type_info.h"
 #include "../utils/utility.h"
 #include "../utils/utils_containers.h"
@@ -29,7 +29,7 @@ namespace gaia {
 			ChunkAllocator m_chunkAllocator;
 
 			//! Map or archetypes mapping to the same hash - used for lookups
-			std::unordered_map<uint64_t, std::vector<Archetype*>> m_archetypeMap;
+			utils::map<uint64_t, std::vector<Archetype*>> m_archetypeMap;
 			//! List of archetypes - used for iteration
 			std::vector<Archetype*> m_archetypeList;
 			//! List of unique archetype hashes - used for iteration
@@ -187,7 +187,7 @@ namespace gaia {
 
 				auto it = m_archetypeMap.find(lookupHash);
 				if (it == m_archetypeMap.end()) {
-					m_archetypeMap.insert({lookupHash, {newArch}});
+					m_archetypeMap[lookupHash] = {newArch};
 				} else {
 					auto& archetypes = it->second;
 					if (!utils::has(archetypes, newArch))
@@ -1445,7 +1445,7 @@ namespace gaia {
 				static bool DiagArchetypes = GAIA_ECS_DIAG_ARCHETYPES;
 				if (DiagArchetypes) {
 					DiagArchetypes = false;
-					std::unordered_map<uint64_t, uint32_t> archetypeEntityCountMap;
+					utils::map<uint64_t, uint32_t> archetypeEntityCountMap;
 					for (const auto* archetype: m_archetypeList)
 						archetypeEntityCountMap.insert({archetype->lookupHash, 0});
 
