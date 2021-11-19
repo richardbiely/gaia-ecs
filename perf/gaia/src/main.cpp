@@ -188,6 +188,16 @@ void BM_ForEach_1000_Archetypes(benchmark::State& state) {
 	AddComponents<uint32_t, 2, 25>(w, ForEachN);
 	AddComponents<uint32_t, 3, 25>(w, ForEachN);
 	//-----------------------------------------
+	AddComponents<int64_t, 0, 25>(w, ForEachN);
+	AddComponents<int64_t, 1, 25>(w, ForEachN);
+	AddComponents<int64_t, 2, 25>(w, ForEachN);
+	AddComponents<int64_t, 3, 25>(w, ForEachN);
+	//-----------------------------------------
+	AddComponents<uint64_t, 0, 25>(w, ForEachN);
+	AddComponents<uint64_t, 1, 25>(w, ForEachN);
+	AddComponents<uint64_t, 2, 25>(w, ForEachN);
+	AddComponents<uint64_t, 3, 25>(w, ForEachN);
+	//-----------------------------------------
 	AddComponents<float, 0, 25>(w, ForEachN);
 	AddComponents<float, 1, 25>(w, ForEachN);
 	AddComponents<float, 2, 25>(w, ForEachN);
