@@ -331,7 +331,6 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA(benchmark::State& state) {
 			m_q.All<PositionSoA, VelocitySoA>();
 		}
 		void OnUpdate() override {
-		#if GAIA_ARCH != GAIA_ARCH_ARM
 			GetWorld()
 					.ForEachChunk(
 							m_q,
@@ -357,25 +356,28 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA(benchmark::State& state) {
 								for (auto i = 0U; i < ch.GetItemCount(); ++i)
 									ppz[i] += vvz[i] * dt;
 
-								// const auto dtVec = _mm_set_ps1(dt);
+								/*
+								#if GAIA_ARCH != GAIA_ARCH_ARM
+								const auto dtVec = _mm_set_ps1(dt);
 
-								// auto exec = [&](GAIA_RESTRICT float* p,
-								// 								GAIA_RESTRICT const float* v, size_t offset) {
-								// 	const auto pVec = _mm_load_ps(p + offset);
-								// 	const auto vVec = _mm_load_ps(v + offset);
-								// 	const auto respVec = _mm_fmadd_ps(vVec, dtVec, pVec);
-								// 	_mm_store_ps(p + offset, respVec);
-								// };
+								auto exec = [&](GAIA_RESTRICT float* p,
+																GAIA_RESTRICT const float* v, size_t offset) {
+									const auto pVec = _mm_load_ps(p + offset);
+									const auto vVec = _mm_load_ps(v + offset);
+									const auto respVec = _mm_fmadd_ps(vVec, dtVec, pVec);
+									_mm_store_ps(p + offset, respVec);
+								};
 
-								// for (size_t i = 0; i < ch.GetItemCount(); i += 4)
-								// 	exec(ppx.data(), vvx.data(), i);
-								// for (size_t i = 0; i < ch.GetItemCount(); i += 4)
-								// 	exec(ppy.data(), vvy.data(), i);
-								// for (size_t i = 0; i < ch.GetItemCount(); i += 4)
-								// 	exec(ppz.data(), vvz.data(), i);
+								for (size_t i = 0; i < ch.GetItemCount(); i += 4)
+									exec(ppx.data(), vvx.data(), i);
+								for (size_t i = 0; i < ch.GetItemCount(); i += 4)
+									exec(ppy.data(), vvy.data(), i);
+								for (size_t i = 0; i < ch.GetItemCount(); i += 4)
+									exec(ppz.data(), vvz.data(), i);
+								#endif
+								*/
 							})
 					.Run();
-		#endif
 		}
 	};
 	class CollisionSystem final: public ecs::System {
@@ -386,7 +388,6 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA(benchmark::State& state) {
 			m_q.All<PositionSoA, VelocitySoA>();
 		}
 		void OnUpdate() override {
-		#if GAIA_ARCH != GAIA_ARCH_ARM
 			GetWorld()
 					.ForEachChunk(
 							m_q,
@@ -398,8 +399,20 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA(benchmark::State& state) {
 								using vv = utils::auto_view_policy<VelocitySoA>;
 
 								auto ppy = pp::get<1>(p);
-								auto vvy = vv::get<1>(v);
+								auto ppy_w = pp::set<1>(p);
+								auto vvy_w = vv::set<1>(v);
 
+								for (auto i = 0U; i < ch.GetItemCount(); ++i)
+								{
+									if (ppy[i] < 0.0f)
+									{
+										ppy_w[i] = 0.0f;
+										vvy_w[i] = 0.0f;
+									}
+								}
+
+								/*
+								#if GAIA_ARCH != GAIA_ARCH_ARM
 								auto exec = [&](size_t offset) {
 									const auto vyVec = _mm_load_ps(vvy.data() + offset);
 									const auto pyVec = _mm_load_ps(ppy.data() + offset);
@@ -418,9 +431,10 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA(benchmark::State& state) {
 								for (size_t i = 0; i < ch.GetItemCount(); i += 4) {
 									exec(i);
 								}
+								#endif
+								*/
 							})
 					.Run();
-		#endif
 		}
 	};
 	class GravitySystem final: public ecs::System {
@@ -432,7 +446,6 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA(benchmark::State& state) {
 		}
 
 		void OnUpdate() override {
-		#if GAIA_ARCH != GAIA_ARCH_ARM
 			GetWorld()
 					.ForEachChunk(
 							m_q,
@@ -440,7 +453,13 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA(benchmark::State& state) {
 								auto v = ch.ViewRW<VelocitySoA>();
 								using vv = utils::auto_view_policy<VelocitySoA>;
 								auto vvy = vv::get<1>(v);
+								auto vvy_w = vv::set<1>(v);
 
+								for (auto i = 0U; i < ch.GetItemCount(); ++i)
+									vvy_w[i] = vvy[i] * dt * 9.81f;
+
+								/*
+								#if GAIA_ARCH != GAIA_ARCH_ARM
 								const auto gg_dtVec = _mm_set_ps1(9.81f * dt);
 
 								auto exec = [&](size_t offset) {
@@ -452,9 +471,10 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA(benchmark::State& state) {
 								for (size_t i = 0; i < ch.GetItemCount(); i += 4) {
 									exec(i);
 								}
+								#endif
+								*/
 							})
 					.Run();
-		#endif
 		}
 	};
 
