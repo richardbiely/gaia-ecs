@@ -183,16 +183,16 @@ namespace gaia {
 #pragma region Helpers
 
 		template <typename, typename = void>
-		struct is_sao_layout: std::false_type {};
+		struct is_soa_layout: std::false_type {};
 
 		template <typename T>
-		struct is_sao_layout<
+		struct is_soa_layout<
 				T, typename std::enable_if<T::Layout == DataLayout::SoA>::type>:
 				std::true_type {};
 
 		template <typename T>
 		using auto_view_policy = std::conditional_t<
-				is_sao_layout<T>::value, data_view_policy<DataLayout::SoA, T>,
+				is_soa_layout<T>::value, data_view_policy<DataLayout::SoA, T>,
 				data_view_policy<DataLayout::AoS, T>>;
 
 #pragma endregion

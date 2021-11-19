@@ -181,13 +181,12 @@ namespace gaia {
 				if constexpr (!std::is_empty<TComponent>::value) {
 					mth.alig = utils::auto_view_policy<TComponent>::Alignment;
 					mth.size = (uint32_t)sizeof(TComponent);
-					if (!utils::is_sao_layout<TComponent>::value) {
+					if constexpr (utils::is_soa_layout<TComponent>::value) {
 						mth.soa = true;
-
-						if constexpr (!std::is_trivial<T>::value) {
-							mth.constructor = [](void* ptr) { new (ptr) T{}; };
-							mth.destructor = [](void* ptr) { ((T*)ptr)->~T(); };
-						}
+					}
+					else if constexpr (!std::is_trivial<T>::value) {
+						mth.constructor = [](void* ptr) { new (ptr) T{}; };
+						mth.destructor = [](void* ptr) { ((T*)ptr)->~T(); };
 					}
 				}
 
