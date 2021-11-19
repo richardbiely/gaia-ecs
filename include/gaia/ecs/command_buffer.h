@@ -7,6 +7,7 @@
 #include "entity.h"
 #include "fwd.h"
 #include "world.h"
+#include "../utils/map.h"
 
 namespace gaia {
 	namespace ecs {
@@ -383,7 +384,7 @@ namespace gaia {
 			Commits all queued changes.
 			*/
 			void Commit(World* world) {
-				std::unordered_map<uint32_t, Entity> entityMap;
+				utils::map<uint32_t, Entity> entityMap;
 				uint32_t entities = 0;
 
 				// Extract data from the buffer

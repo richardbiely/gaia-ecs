@@ -2,13 +2,13 @@
 #include <inttypes.h>
 #include <string_view>
 #include <type_traits>
-#include <unordered_map>
 #include <vector>
 
 #include "../config/config.h"
 #include "../utils/data_layout_policy.h"
 #include "../utils/hashing_policy.h"
 #include "../utils/sarray.h"
+#include "../utils/map.h"
 #include "../utils/span.h"
 #include "../utils/type_info.h"
 #include "../utils/utility.h"
@@ -236,7 +236,7 @@ namespace gaia {
 		//-----------------------------------------------------------------------------------
 
 		class ComponentCache {
-			std::unordered_map<uint32_t, const ComponentMetaData*> m_types;
+			utils::map<uint32_t, const ComponentMetaData*> m_types;
 
 		public:
 			ComponentCache() {
@@ -314,7 +314,7 @@ namespace gaia {
 				}
 
 				using DuplicateMap =
-						std::unordered_map<uint64_t, std::vector<const ComponentMetaData*>>;
+						utils::map<uint64_t, std::vector<const ComponentMetaData*>>;
 
 				auto checkDuplicity = [](const DuplicateMap& map, bool errIfDuplicate) {
 					for (const auto& pair: map) {
@@ -350,7 +350,7 @@ namespace gaia {
 
 						const auto it = m.find(type->lookupHash);
 						if (it == m.end())
-							m.insert({type->lookupHash, {type}});
+							m[type->lookupHash] = {type};
 						else {
 							it->second.push_back(type);
 							hasDuplicates = true;

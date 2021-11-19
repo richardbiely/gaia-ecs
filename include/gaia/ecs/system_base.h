@@ -1,8 +1,9 @@
 #pragma once
 #include <cinttypes>
 #include <string>
-#include <unordered_map>
 #include <vector>
+
+#include "../utils/map.h"
 
 namespace gaia {
 	namespace ecs {
@@ -90,7 +91,7 @@ namespace gaia {
 		protected:
 			World& m_world;
 			//! Map of all systems - used for look-ups only
-			std::unordered_map<uint64_t, BaseSystem*> m_systemsMap;
+			utils::map<uint64_t, BaseSystem*> m_systemsMap;
 			//! List of system - used for iteration
 			std::vector<BaseSystem*> m_systems;
 			//! List of new systems which need to be initialised
