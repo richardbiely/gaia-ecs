@@ -173,19 +173,17 @@ namespace gaia {
 			T* CreateSystem(const char* name) {
 				constexpr uint64_t hash = utils::type_info::hash<std::decay_t<T>>();
 
-				BaseSystem* system;
-				const auto it = m_systemsMap.find(hash);
-				if (it != m_systemsMap.end())
-					return (T*)it->second;
+				const auto res = m_systemsMap.emplace(hash, nullptr);
+				if (!res.second)
+					return (T*)res.first->second;
 
-				system = new T();
+				BaseSystem* system = new T();
 				system->m_world = &m_world;
 				system->m_name = name;
 				system->m_hash = hash;
+				res.first->second = system;
 
-				m_systemsMap.insert({hash, system});
 				m_systems.push_back(system);
-
 				// Request initialization of the system
 				m_systemsToCreate.push_back(system);
 
