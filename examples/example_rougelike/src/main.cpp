@@ -108,7 +108,7 @@ public:
 				.ForEach(
 						m_q,
 						[&](const Position& p, Velocity& v) {
-							if (map[p.y + v.y][p.x + v.x] == TILE_ENEMY)
+							if (map[p.y + v.y][p.x + v.x] == TILE_FREE)
 								return;
 
 							v.x = 0;
@@ -130,9 +130,16 @@ public:
 				.ForEach(
 						m_q,
 						[&](Position& p, const Velocity& v) {
-							map[p.y][p.x] = TILE_ENEMY;
 							p.x += v.x;
 							p.y += v.y;
+						})
+				.Run();
+		GetWorld()
+				.ForEach(
+						m_q,
+						[&](Velocity& v) {
+							v.x = 0;
+							v.y = 0;
 						})
 				.Run();
 	}
@@ -146,6 +153,7 @@ public:
 		m_q.All<Position, Sprite>();
 	}
 	void OnUpdate() override {
+		InitWorldMap();
 		GetWorld()
 				.ForEach(
 						m_q, [&](const Position& p,
@@ -189,9 +197,9 @@ int main() {
 	ecs::World w;
 
 	ecs::SystemManager sm(w);
+	sm.CreateSystem<RenderSystem>("render");
 	sm.CreateSystem<CollisionSystem>("collision");
 	sm.CreateSystem<MoveSystem>("move");
-	sm.CreateSystem<RenderSystem>("render");
 	sm.CreateSystem<InputSystem>("input");
 
 	auto player = w.CreateEntity();
