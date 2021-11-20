@@ -20,8 +20,12 @@ namespace gaia {
 namespace gaia {
 	namespace utils {
 		template <typename Key, typename Data>
-		using map = robin_hood::unordered_map<Key, Data>;
+		using map = robin_hood::unordered_flat_map<Key, Data>;
 	}
 } // namespace gaia
+
+#else
+
+	#error Unsupported value used for USE_HASHMAP
 
 #endif
