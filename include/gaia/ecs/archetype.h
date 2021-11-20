@@ -1,7 +1,7 @@
 #pragma once
-#include <array>
+#include "../utils/array.h"
+#include "../utils/vector.h"
 #include <inttypes.h>
-#include <vector>
 
 #include "../utils/utils_mem.h"
 #include "chunk.h"
@@ -26,9 +26,9 @@ namespace gaia {
 			//! World to which this chunk belongs to
 			const World* parentWorld = nullptr;
 			//! List of chunks allocated by this archetype
-			std::vector<Chunk*> chunks;
+			utils::vector<Chunk*> chunks;
 			//! Description of components within this archetype
-			std::array<ChunkComponentList, ComponentType::CT_Count> componentList;
+			utils::array<ChunkComponentList, ComponentType::CT_Count> componentList;
 
 			//! Hash of components within this archetype - used for lookups
 			uint64_t lookupHash = 0;
@@ -53,13 +53,13 @@ namespace gaia {
 #endif
 
 				// Call default constructors for types that need it
-				for (const auto& comp: archetype.componentList[ComponentType::CT_Generic])
-				{
+				for (const auto& comp:
+						 archetype.componentList[ComponentType::CT_Generic]) {
 					if (comp.type->constructor != nullptr)
 						comp.type->constructor((void*)((char*)pChunk + comp.offset));
 				}
-				for (const auto& comp: archetype.componentList[ComponentType::CT_Chunk])
-				{
+				for (const auto& comp:
+						 archetype.componentList[ComponentType::CT_Chunk]) {
 					if (comp.type->constructor != nullptr)
 						comp.type->constructor((void*)((char*)pChunk + comp.offset));
 				}
@@ -72,13 +72,13 @@ namespace gaia {
 #if GAIA_ECS_CHUNK_ALLOCATOR
 				// Call destructors for types that need it
 				const auto& archetype = pChunk->header.owner;
-				for (const auto& comp: archetype.componentList[ComponentType::CT_Generic])
-				{
+				for (const auto& comp:
+						 archetype.componentList[ComponentType::CT_Generic]) {
 					if (comp.type->destructor != nullptr)
 						comp.type->destructor((void*)((char*)pChunk + comp.offset));
 				}
-				for (const auto& comp: archetype.componentList[ComponentType::CT_Chunk])
-				{
+				for (const auto& comp:
+						 archetype.componentList[ComponentType::CT_Chunk]) {
 					if (comp.type->destructor != nullptr)
 						comp.type->destructor((void*)((char*)pChunk + comp.offset));
 				}

@@ -1,6 +1,9 @@
 
 /*
 This is an implementation of C++20's
+ *
+ *
+ *
  * std::span
 http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/n4820.pdf
 */
@@ -13,7 +16,7 @@ http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/n4820.pdf
 #ifndef TCB_SPAN_HPP_INCLUDED
 #define TCB_SPAN_HPP_INCLUDED
 
-#include <array>
+#include "../utils/array.h"
 #include <cstddef>
 #include <cstdint>
 #include <type_traits>
@@ -229,7 +232,7 @@ namespace TCB_SPAN_NAMESPACE_NAME {
 		struct is_std_array: std::false_type {};
 
 		template <typename T, std::size_t N>
-		struct is_std_array<std::array<T, N>>: std::true_type {};
+		struct is_std_array<gaia::utils::array<T, N>>: std::true_type {};
 
 		template <typename, typename = void>
 		struct has_size_and_data: std::false_type {};
@@ -257,8 +260,8 @@ namespace TCB_SPAN_NAMESPACE_NAME {
 		struct is_container_element_type_compatible<
 				T, E,
 				typename std::enable_if<!std::is_same<
-						typename std::remove_cv<decltype(
-								detail::data(std::declval<T>()))>::type,
+						typename std::remove_cv<decltype(detail::data(
+								std::declval<T>()))>::type,
 						void>::value>::type>:
 				std::is_convertible<
 						remove_pointer_t<decltype(detail::data(std::declval<T>()))> (*)[],
@@ -335,9 +338,10 @@ namespace TCB_SPAN_NAMESPACE_NAME {
 				typename std::enable_if<
 						(E == dynamic_extent || N == E) &&
 								detail::is_container_element_type_compatible<
-										std::array<value_type, N>&, ElementType>::value,
+										gaia::utils::array<value_type, N>&, ElementType>::value,
 						int>::type = 0>
-		TCB_SPAN_ARRAY_CONSTEXPR span(std::array<value_type, N>& arr) noexcept:
+		TCB_SPAN_ARRAY_CONSTEXPR
+		span(gaia::utils::array<value_type, N>& arr) noexcept:
 				storage_(arr.data(), N) {}
 
 		template <
@@ -345,10 +349,11 @@ namespace TCB_SPAN_NAMESPACE_NAME {
 				typename std::enable_if<
 						(E == dynamic_extent || N == E) &&
 								detail::is_container_element_type_compatible<
-										const std::array<value_type, N>&, ElementType>::value,
+										const gaia::utils::array<value_type, N>&,
+										ElementType>::value,
 						int>::type = 0>
-		TCB_SPAN_ARRAY_CONSTEXPR span(const std::array<value_type, N>& arr) noexcept
-				:
+		TCB_SPAN_ARRAY_CONSTEXPR
+		span(const gaia::utils::array<value_type, N>& arr) noexcept:
 				storage_(arr.data(), N) {}
 
 		template <
@@ -499,10 +504,10 @@ namespace TCB_SPAN_NAMESPACE_NAME {
 	span(T (&)[N]) -> span<T, N>;
 
 	template <class T, size_t N>
-	span(std::array<T, N>&) -> span<T, N>;
+	span(gaia::utils::array<T, N>&) -> span<T, N>;
 
 	template <class T, size_t N>
-	span(const std::array<T, N>&) -> span<const T, N>;
+	span(const gaia::utils::array<T, N>&) -> span<const T, N>;
 
 	template <class Container>
 	span(Container&) -> span<typename Container::value_type>;
@@ -525,13 +530,13 @@ namespace TCB_SPAN_NAMESPACE_NAME {
 
 	template <typename T, std::size_t N>
 	TCB_SPAN_ARRAY_CONSTEXPR span<T, N>
-	make_span(std::array<T, N>& arr) noexcept {
+	make_span(gaia::utils::array<T, N>& arr) noexcept {
 		return {arr};
 	}
 
 	template <typename T, std::size_t N>
 	TCB_SPAN_ARRAY_CONSTEXPR span<const T, N>
-	make_span(const std::array<T, N>& arr) noexcept {
+	make_span(const gaia::utils::array<T, N>& arr) noexcept {
 		return {arr};
 	}
 

@@ -1,11 +1,12 @@
 #pragma once
+#include "../utils/vector.h"
 #include <algorithm>
 #include <cassert>
 #include <inttypes.h>
 #include <iterator>
 #include <stdint.h>
 #include <type_traits>
-#include <vector>
+
 
 #include "../utils/utils_containers.h"
 #include "archetype.h"
@@ -136,7 +137,7 @@ namespace gaia {
 			}
 
 			void RemoveEntity(
-					const uint16_t index, std::vector<EntityContainer>& entities) {
+					const uint16_t index, utils::vector<EntityContainer>& entities) {
 				// Ignore request on empty chunks
 				if (header.lastEntityIndex == UINT16_MAX)
 					return;

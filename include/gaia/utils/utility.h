@@ -1,5 +1,5 @@
 #pragma once
-#include <array>
+#include "../utils/array.h"
 #include <tuple>
 #include <type_traits>
 
@@ -89,7 +89,7 @@ namespace gaia {
 		//! Compile-time for loop. Performs \tparam Iters iterations.
 		//!
 		//! Example:
-		//! std::array<int, 10> arr = { ... };
+		//! utils::array<int, 10> arr = { ... };
 		//! for_each<arr.size()>([&arr][auto i]) {
 		//!    std::cout << arr[i] << std::endl;
 		//! }
@@ -104,7 +104,7 @@ namespace gaia {
 		//! (excluding) in increments of \tparam Inc.
 		//!
 		//! Example:
-		//! std::array<int, 10> arr;
+		//! utils::array<int, 10> arr;
 		//! for_each_ext<0, 10, 1>([&arr][auto i]) {
 		//!    std::cout << arr[i] << std::endl;
 		//! }
@@ -133,7 +133,7 @@ namespace gaia {
 		}
 
 		//! Compile-time for loop over tuples and other objects implementing
-		//! tuple_size (std::array, std::pair etc).
+		//! tuple_size (utils::array, std::pair etc).
 		//!
 		//! Example:
 		//! for_each_tuple(const auto& value) {
@@ -185,7 +185,7 @@ namespace gaia {
 		//! Compile-time sort.
 		//! Implements a sorting network for \tparam N up to 8
 		template <typename T, std::size_t N>
-		constexpr void sort(std::array<T, N>& arr) noexcept {
+		constexpr void sort(utils::array<T, N>& arr) noexcept {
 			using detail::swap_if_less;
 			if constexpr (N == 1) {
 				return;

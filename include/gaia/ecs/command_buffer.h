@@ -1,6 +1,7 @@
 #pragma once
+#include "../utils/vector.h"
 #include <inttypes.h>
-#include <vector>
+
 
 #include "../utils/map.h"
 #include "archetype.h"
@@ -40,7 +41,7 @@ namespace gaia {
 
 			friend class World;
 
-			std::vector<uint8_t> m_data;
+			utils::vector<uint8_t> m_data;
 			uint32_t m_entities;
 
 			template <typename TEntity, typename... TComponent>
