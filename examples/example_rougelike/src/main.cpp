@@ -3,6 +3,7 @@
 #else
 	#include <termios.h>
 	#include <unistd.h>
+	#include <term.h>
 #endif
 #include <cstdio>
 #define _ITERATOR_DEBUG_LEVEL 0
@@ -34,6 +35,14 @@ char _getch() {
 		perror("tcsetattr ~ICANON");
 	return (buf);
 }
+
+void ClearScreen() {
+	system("clear");
+}
+#else
+void ClearStream() {
+	system("cls");
+}
 #endif
 
 #pragma endregion
@@ -58,7 +67,7 @@ struct Player {};
 #pragma endregion
 
 constexpr int ScreenX = 40;
-constexpr int ScreenY = 20;
+constexpr int ScreenY = 15;
 char map[ScreenY][ScreenX] = {};
 
 constexpr char TILE_WALL = 'O';
@@ -145,7 +154,7 @@ public:
 	}
 };
 
-class RenderSystem final: public ecs::System {
+class UpdateMapSystem final: public ecs::System {
 	ecs::EntityQuery m_q;
 
 public:
@@ -153,12 +162,20 @@ public:
 		m_q.All<Position, Sprite>();
 	}
 	void OnUpdate() override {
+		ClearScreen();
 		InitWorldMap();
 		GetWorld()
 				.ForEach(
 						m_q, [&](const Position& p,
 										 const Sprite& s) { map[p.y][p.x] = s.value; })
 				.Run();
+	}
+};
+
+class RenderSystem final: public ecs::System {
+public:
+	void OnUpdate() override {
+		RenderScreen();
 	}
 };
 
@@ -197,9 +214,10 @@ int main() {
 	ecs::World w;
 
 	ecs::SystemManager sm(w);
-	sm.CreateSystem<RenderSystem>("render");
 	sm.CreateSystem<CollisionSystem>("collision");
 	sm.CreateSystem<MoveSystem>("move");
+	sm.CreateSystem<UpdateMapSystem>("updatemap");
+	sm.CreateSystem<RenderSystem>("render");
 	sm.CreateSystem<InputSystem>("input");
 
 	auto player = w.CreateEntity();
@@ -223,12 +241,8 @@ int main() {
 	w.AddComponent<Sprite>(poison, {TILE_POISON});
 	w.AddComponent<Item>(poison);
 
-	InitWorldMap();
-
 	for (;;) {
 		sm.Update();
-
-		RenderScreen();
 	};
 
 	return 0;
