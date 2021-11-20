@@ -1,10 +1,6 @@
 #define _ITERATOR_DEBUG_LEVEL 0
 #include <gaia.h>
 
-#if GAIA_ARCH != GAIA_ARCH_ARM
-	#include <immintrin.h>
-#endif
-
 GAIA_INIT
 
 #include <benchmark/benchmark.h>
@@ -355,40 +351,6 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA(benchmark::State& state) {
 									ppy[i] += vvy[i] * dt;
 								for (auto i = 0U; i < ch.GetItemCount(); ++i)
 									ppz[i] += vvz[i] * dt;
-
-								/*
-								#if GAIA_ARCH != GAIA_ARCH_ARM
-
-								 * const auto dtVec = _mm_set_ps1(dt);
-
-								auto exec =
-								 * [&](GAIA_RESTRICT float* p,
-																GAIA_RESTRICT
-								 * const float* v, size_t offset) {
-									const auto pVec =
-								 * _mm_load_ps(p + offset);
-									const auto vVec =
-								 * _mm_load_ps(v + offset);
-									const auto respVec =
-								 * _mm_fmadd_ps(vVec, dtVec, pVec);
-									_mm_store_ps(p +
-								 * offset, respVec);
-								};
-
-								for (size_t i = 0; i <
-								 * ch.GetItemCount(); i += 4)
-									exec(ppx.data(),
-								 * vvx.data(), i);
-								for (size_t i = 0; i <
-								 * ch.GetItemCount(); i += 4)
-									exec(ppy.data(),
-								 * vvy.data(), i);
-								for (size_t i = 0; i <
-								 * ch.GetItemCount(); i += 4)
-									exec(ppz.data(),
-								 * vvz.data(), i);
-								#endif
-								*/
 							})
 					.Run();
 		}
@@ -421,41 +383,6 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA(benchmark::State& state) {
 										vvy_w[i] = 0.0f;
 									}
 								}
-
-								/*
-								#if GAIA_ARCH != GAIA_ARCH_ARM
-
-								 * auto exec = [&](size_t offset) {
-									const auto vyVec =
-								 * _mm_load_ps(vvy.data() + offset);
-									const auto pyVec =
-								 * _mm_load_ps(ppy.data() + offset);
-
-									const auto
-								 * condVec = _mm_cmplt_ps(vyVec, _mm_setzero_ps());
-
-
-								 * const auto res_vyVec =
-											_mm_blendv_ps(vyVec,
-								 * _mm_setzero_ps(), condVec);
-									const auto res_pyVec =
-
-								 * _mm_blendv_ps(pyVec, _mm_setzero_ps(), condVec);
-
-
-								 * _mm_store_ps((float*)vvy.data() + offset, res_vyVec);
-
-								 * _mm_store_ps((float*)ppy.data() + offset, res_pyVec);
-
-								 * };
-
-								for (size_t i = 0; i < ch.GetItemCount(); i += 4)
-								 * {
-									exec(i);
-								}
-								#endif
-
-								 */
 							})
 					.Run();
 		}
@@ -480,29 +407,6 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA(benchmark::State& state) {
 
 								for (auto i = 0U; i < ch.GetItemCount(); ++i)
 									vvy_w[i] = vvy[i] * dt * 9.81f;
-
-								/*
-								#if GAIA_ARCH != GAIA_ARCH_ARM
-
-								 * const auto gg_dtVec = _mm_set_ps1(9.81f * dt);
-
-								auto
-								 * exec = [&](size_t offset) {
-									const auto vyVec =
-								 * _mm_load_ps(vvy.data() + offset);
-									_mm_store_ps(
-
-								 * (float*)vvy.data() + offset, _mm_mul_ps(vyVec, gg_dtVec));
-
-								 * };
-
-								for (size_t i = 0; i < ch.GetItemCount(); i += 4)
-								 * {
-									exec(i);
-								}
-								#endif
-
-								 */
 							})
 					.Run();
 		}
