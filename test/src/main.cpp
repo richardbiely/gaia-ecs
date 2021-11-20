@@ -21,6 +21,23 @@ using namespace gaia;
 struct Position {
 	float x, y, z;
 };
+struct PositionSoA {
+	float x, y, z;
+	static constexpr auto Layout = utils::DataLayout::SoA;
+};
+struct PositionNonTrivial {
+	float x, y, z;
+	PositionNonTrivial() {
+		x = 1;
+		y = 2;
+		z = 3;
+	}
+	PositionNonTrivial(float xx, float yy, float zz) {
+		x = xx;
+		y = yy;
+		z = zz;
+	}
+};
 struct Acceleration {
 	float x, y, z;
 };
@@ -35,12 +52,6 @@ struct Something {
 };
 struct Else {
 	bool value;
-};
-
-struct PositionSoA {
-	float x, y, z;
-
-	static constexpr auto Layout = utils::DataLayout::SoA;
 };
 
 TEST_CASE("DataLayout SoA") {
@@ -310,6 +321,7 @@ TEST_CASE("SetComponent - generic") {
 	for (uint32_t i = 0; i < N; ++i) {
 		arr.push_back(w.CreateEntity());
 		w.AddComponent<Rotation, Scale, Else>(arr.back(), {}, {}, {});
+		w.AddComponent<PositionNonTrivial>(arr.back(), {});
 	}
 
 	// Default values
@@ -330,22 +342,30 @@ TEST_CASE("SetComponent - generic") {
 		Else e;
 		w.GetComponent(ent, e);
 		REQUIRE(e.value == false);
+
+		PositionNonTrivial p;
+		w.GetComponent(ent, p);
+		REQUIRE(p.x == 1);
+		REQUIRE(p.y == 2);
+		REQUIRE(p.z == 3);
 	}
 
 	// Modify values
 	{
 		ecs::EntityQuery q;
-		q.All<Rotation, Scale, Else>();
+		q.All<Rotation, Scale, Else, PositionNonTrivial>();
 
 		w.ForEachChunk(q, [&](ecs::Chunk& chunk) {
 			 auto rotationView = chunk.ViewRW<Rotation>();
 			 auto scaleView = chunk.ViewRW<Scale>();
 			 auto elseView = chunk.ViewRW<Else>();
+			 auto posView = chunk.ViewRW<PositionNonTrivial>();
 
 			 for (uint32_t i = 0; i < chunk.GetItemCount(); ++i) {
 				 rotationView[i] = {1, 2, 3, 4};
 				 scaleView[i] = {11, 22, 33};
 				 elseView[i] = {true};
+				 posView[i] = {111, 222, 333};
 			 }
 		 }).Run();
 
@@ -366,6 +386,12 @@ TEST_CASE("SetComponent - generic") {
 			Else e;
 			w.GetComponent(ent, e);
 			REQUIRE(e.value == true);
+
+			PositionNonTrivial p;
+			w.GetComponent(ent, p);
+			REQUIRE(p.x == 111);
+			REQUIRE(p.y == 222);
+			REQUIRE(p.z == 333);
 		}
 	}
 }
