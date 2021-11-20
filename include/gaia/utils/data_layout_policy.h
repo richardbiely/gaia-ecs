@@ -10,8 +10,8 @@
 namespace gaia {
 	namespace utils {
 		enum class DataLayout {
+			AoS, //< Array Of Structures
 			SoA, //< Structure Of Arrays
-			AoS //< Array Of Structures
 		};
 
 		// Helper templates
@@ -19,20 +19,16 @@ namespace gaia {
 
 #pragma region "Byte offset of a member of SoA-organized data"
 
-			constexpr static size_t SoADataAlignment = 16;
-
-			template <uint32_t N, typename Tuple>
+			template <size_t N, size_t Alignment, typename Tuple>
 			constexpr static size_t soa_byte_offset(
 					const uintptr_t address, [[maybe_unused]] const size_t size) {
 				if constexpr (N == 0) {
-					// Handle alignment to SoADataAlignment bytes for SSE
-					return utils::align<SoADataAlignment>(address) - address;
+					return utils::align<Alignment>(address) - address;
 				} else {
-					// Handle alignment to SoADataAlignment bytes for SSE
-					const auto offset = utils::align<SoADataAlignment>(address) - address;
+					const auto offset = utils::align<Alignment>(address) - address;
 					using tt = typename std::tuple_element<N - 1, Tuple>::type;
 					return sizeof(tt) * size + offset +
-								 soa_byte_offset<N - 1, Tuple>(address, size);
+								 soa_byte_offset<N - 1, Alignment, Tuple>(address, size);
 				}
 			}
 
@@ -94,7 +90,7 @@ namespace gaia {
 		template <typename ValueType>
 		struct data_view_policy<DataLayout::SoA, ValueType> {
 			constexpr static DataLayout Layout = DataLayout::SoA;
-			constexpr static size_t Alignment = detail::SoADataAlignment;
+			constexpr static size_t Alignment = 16;
 
 			constexpr static ValueType
 			get(std::span<const ValueType> s, const size_t idx) {
@@ -110,9 +106,9 @@ namespace gaia {
 			get(std::span<const ValueType> s, const size_t idx = 0) {
 				using Tuple = decltype(struct_to_tuple(ValueType{}));
 				using MemberType = typename std::tuple_element<Ids, Tuple>::type;
-				const auto* ret =
-						(const char*)s.data() + idx * sizeof(MemberType) +
-						detail::soa_byte_offset<Ids, Tuple>((uintptr_t)s.data(), s.size());
+				const auto* ret = (const char*)s.data() + idx * sizeof(MemberType) +
+													detail::soa_byte_offset<Ids, Alignment, Tuple>(
+															(uintptr_t)s.data(), s.size());
 				return std::span{(const MemberType*)ret, s.size() - idx};
 			}
 
@@ -129,9 +125,9 @@ namespace gaia {
 			constexpr static auto set(std::span<ValueType> s, const size_t idx = 0) {
 				using Tuple = decltype(struct_to_tuple(ValueType{}));
 				using MemberType = typename std::tuple_element<Ids, Tuple>::type;
-				auto* ret =
-						(char*)s.data() + idx * sizeof(MemberType) +
-						detail::soa_byte_offset<Ids, Tuple>((uintptr_t)s.data(), s.size());
+				auto* ret = (char*)s.data() + idx * sizeof(MemberType) +
+										detail::soa_byte_offset<Ids, Alignment, Tuple>(
+												(uintptr_t)s.data(), s.size());
 				return std::span{(MemberType*)ret, s.size() - idx};
 			}
 
@@ -144,7 +140,7 @@ namespace gaia {
 						 Tuple, Ids, typename std::tuple_element<Ids, Tuple>::type>(
 						 t, (const char*)s.data(),
 						 idx * sizeof(typename std::tuple_element<Ids, Tuple>::type) +
-								 detail::soa_byte_offset<Ids, Tuple>(
+								 detail::soa_byte_offset<Ids, Alignment, Tuple>(
 										 (uintptr_t)s.data(), s.size())),
 				 ...);
 				return tuple_to_struct<ValueType, Tuple>(std::forward<Tuple>(t));
@@ -163,7 +159,7 @@ namespace gaia {
 				(set_internal(
 						 (char*)s.data(),
 						 idx * sizeof(typename std::tuple_element<Ids, Tuple>::type) +
-								 detail::soa_byte_offset<Ids, Tuple>(
+								 detail::soa_byte_offset<Ids, Alignment, Tuple>(
 										 (uintptr_t)s.data(), s.size()),
 						 std::get<Ids>(t)),
 				 ...);
