@@ -33,7 +33,7 @@ int main() {
 		[[maybe_unused]] auto newentity = w.CreateEntity(e);
 	}
 
-	// Record the orignal position
+	// Record the original position
 	Position p0;
 	w.GetComponent<Position>(e, p0);
 
