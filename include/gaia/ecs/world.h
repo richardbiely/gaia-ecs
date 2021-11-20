@@ -1,11 +1,11 @@
 #pragma once
+#include "../utils/vector.h"
 #include <cassert>
 #include <inttypes.h>
-#include <vector>
 
 #include "../config/config.h"
-#include "../utils/span.h"
 #include "../utils/map.h"
+#include "../utils/span.h"
 #include "../utils/type_info.h"
 #include "../utils/utility.h"
 #include "../utils/utils_containers.h"
@@ -29,24 +29,24 @@ namespace gaia {
 			ChunkAllocator m_chunkAllocator;
 
 			//! Map or archetypes mapping to the same hash - used for lookups
-			utils::map<uint64_t, std::vector<Archetype*>> m_archetypeMap;
+			utils::map<uint64_t, utils::vector<Archetype*>> m_archetypeMap;
 			//! List of archetypes - used for iteration
-			std::vector<Archetype*> m_archetypeList;
+			utils::vector<Archetype*> m_archetypeList;
 			//! List of unique archetype hashes - used for iteration
-			std::vector<uint64_t> m_archetypeHashList;
+			utils::vector<uint64_t> m_archetypeHashList;
 
 			//! Implicit list of entities. Used for look-ups only when searching for
 			//! entities in chunks + data validation
-			std::vector<EntityContainer> m_entities;
+			utils::vector<EntityContainer> m_entities;
 			//! Index of the next entity to recycle
 			uint32_t m_nextFreeEntity = Entity::IdMask;
 			//! Number of entites to recycle
 			uint32_t m_freeEntities = 0;
 
 			//! List of chunks to delete
-			std::vector<Chunk*> m_chunksToRemove;
+			utils::vector<Chunk*> m_chunksToRemove;
 			//! List of archetypes to delete
-			std::vector<Archetype*> m_archetypesToRemove;
+			utils::vector<Archetype*> m_archetypesToRemove;
 
 			//! With every structural change world version changes
 			uint32_t m_worldVersion = 0;
@@ -213,7 +213,7 @@ namespace gaia {
 						std::less<const ComponentMetaData*>());
 
 				// Calculate hash for our combination of components
-				const auto lookupHash = CalculateLookupHash(std::array<uint64_t, 2>{
+				const auto lookupHash = CalculateLookupHash(utils::array<uint64_t, 2>{
 						CalculateLookupHash(genericTypes),
 						CalculateLookupHash(chunkTypes)});
 
@@ -1243,7 +1243,7 @@ namespace gaia {
 			static void
 			RunQueryOnChunks_Direct(World& world, EntityQuery& query, TFunc& func) {
 				const uint32_t BatchSize = 256U;
-				std::array<Chunk*, BatchSize> tmp;
+				utils::array<Chunk*, BatchSize> tmp;
 
 				// Update the world version
 				world.UpdateWorldVersion();
@@ -1280,7 +1280,7 @@ namespace gaia {
 			RunQueryOnChunks_Indirect(World& world, EntityQuery& query, TFunc& func) {
 				using InputArgs = decltype(utils::func_args(&TFunc::operator()));
 				const uint32_t BatchSize = 256U;
-				std::array<Chunk*, BatchSize> tmp;
+				utils::array<Chunk*, BatchSize> tmp;
 
 				// Update the world version
 				world.UpdateWorldVersion();

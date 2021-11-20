@@ -26,13 +26,13 @@
 	#endif
 #endif
 
-#include <list>
+#include "../utils/list.h"
 
 #include "../config/logging.h"
 #include "../utils/sarray.h"
 #include "../utils/utility.h"
 #if GAIA_CLEAN_MEMORY_WITH_GARBAGE
-#include "../utils/utils_mem.h"
+	#include "../utils/utils_mem.h"
 #endif
 #include "common.h"
 
@@ -69,7 +69,7 @@ namespace gaia {
 				static constexpr uint32_t NBlocks = 64;
 				static constexpr uint32_t Size = NBlocks * MemoryBlockSize;
 				static constexpr uint16_t InvalidBlockId = (uint16_t)-1;
-				using iterator = std::list<MemoryPage*>::iterator;
+				using iterator = utils::list<MemoryPage*>::iterator;
 
 				//! Pointer to data managed by page
 				void* m_data;
@@ -161,9 +161,9 @@ namespace gaia {
 			};
 
 			//! List of available pages
-			std::list<MemoryPage*> m_pagesFree;
+			utils::list<MemoryPage*> m_pagesFree;
 			//! List of full pages
-			std::list<MemoryPage*> m_pagesFull;
+			utils::list<MemoryPage*> m_pagesFull;
 			//! Allocator statistics
 			ChunkAllocatorStats m_stats;
 
@@ -201,8 +201,8 @@ namespace gaia {
 				// Fill allocated memory with 0xbaadf00d.
 				// This way we always know if we treat the memory correctly.
 				utils::fill_array(
-						(uint32_t*)chunk, (uint32_t)((ChunkMemorySize + 3) / sizeof(uint32_t)),
-						0x7fcdf00dU);
+						(uint32_t*)chunk,
+						(uint32_t)((ChunkMemorySize + 3) / sizeof(uint32_t)), 0x7fcdf00dU);
 #endif
 
 				return chunk;

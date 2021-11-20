@@ -1,7 +1,7 @@
 #pragma once
+#include "../utils/vector.h"
 #include <cinttypes>
 #include <string>
-#include <vector>
 
 #include "../utils/map.h"
 
@@ -93,11 +93,11 @@ namespace gaia {
 			//! Map of all systems - used for look-ups only
 			utils::map<uint64_t, BaseSystem*> m_systemsMap;
 			//! List of system - used for iteration
-			std::vector<BaseSystem*> m_systems;
+			utils::vector<BaseSystem*> m_systems;
 			//! List of new systems which need to be initialised
-			std::vector<BaseSystem*> m_systemsToCreate;
+			utils::vector<BaseSystem*> m_systemsToCreate;
 			//! List of systems which need to be deleted
-			std::vector<BaseSystem*> m_systemsToRemove;
+			utils::vector<BaseSystem*> m_systemsToRemove;
 
 		public:
 			BaseSystemManager(World& world): m_world(world) {}

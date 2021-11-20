@@ -1,8 +1,8 @@
 #pragma once
+#include "../utils/array.h"
+#include "../utils/vector.h"
 #include <algorithm>
-#include <array>
 #include <tuple>
-#include <vector>
 
 #include "../utils/sarray.h"
 #include "../utils/utility.h"
@@ -35,7 +35,7 @@ namespace gaia {
 		struct component_query_container: component_query_container_base<Type...> {
 		private:
 			static constexpr uint64_t calculate_combined_hash() {
-				std::array<uint64_t, sizeof...(Type)> arr = {
+				utils::array<uint64_t, sizeof...(Type)> arr = {
 						utils::type_info::hash<Type>()...};
 				utils::sort(arr);
 				return CalculateLookupHash(arr);
@@ -93,11 +93,11 @@ namespace gaia {
 			// Make sure there are no duplicates among types
 			static_assert(
 					utils::is_unique<utils::type_list_concat<
-							typename T1::types, typename T2::types>> &&
-					utils::is_unique<utils::type_list_concat<
-							typename T1::types, typename T3::types>> &&
-					utils::is_unique<utils::type_list_concat<
-							typename T2::types, typename T3::types>>,
+									typename T1::types, typename T2::types>> &&
+							utils::is_unique<utils::type_list_concat<
+									typename T1::types, typename T3::types>> &&
+							utils::is_unique<utils::type_list_concat<
+									typename T2::types, typename T3::types>>,
 					"Unique types need to be provided to EntityQuery2");
 		};
 

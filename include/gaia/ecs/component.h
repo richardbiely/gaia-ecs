@@ -1,8 +1,9 @@
 #pragma once
+#include "../utils/vector.h"
 #include <inttypes.h>
 #include <string_view>
 #include <type_traits>
-#include <vector>
+
 
 #include "../config/config.h"
 #include "../utils/data_layout_policy.h"
@@ -313,7 +314,7 @@ namespace gaia {
 				}
 
 				using DuplicateMap =
-						utils::map<uint64_t, std::vector<const ComponentMetaData*>>;
+						utils::map<uint64_t, utils::vector<const ComponentMetaData*>>;
 
 				auto checkDuplicity = [](const DuplicateMap& map, bool errIfDuplicate) {
 					for (const auto& pair: map) {
@@ -370,7 +371,8 @@ namespace gaia {
 						const auto* type = pair.second;
 
 						const auto ret = m.emplace(
-								type->matcherHash, std::vector<const ComponentMetaData*>{type});
+								type->matcherHash,
+								utils::vector<const ComponentMetaData*>{type});
 						if (!ret.second) {
 							ret.first->second.push_back(type);
 							hasDuplicates = true;

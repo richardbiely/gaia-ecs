@@ -1,10 +1,11 @@
 #pragma once
+#include "../utils/vector.h"
 #include <functional>
 #include <inttypes.h>
 #include <tuple>
 #include <typeinfo>
 #include <utility>
-#include <vector>
+
 
 namespace gaia {
 	namespace utils {
@@ -356,7 +357,7 @@ namespace gaia {
 			// TODO:
 			// Make container types optional. E.g. we might not want to pay with heap
 			// memory if a fixed number of listeners is what we need.
-			using container = std::vector<delegate<Ret(Args...)>>;
+			using container = utils::vector<delegate<Ret(Args...)>>;
 
 			/**
 			\brief Container storing listeners
