@@ -7,8 +7,8 @@
 #include "../config/config.h"
 #include "../utils/data_layout_policy.h"
 #include "../utils/hashing_policy.h"
-#include "../utils/sarray.h"
 #include "../utils/map.h"
+#include "../utils/sarray.h"
 #include "../utils/span.h"
 #include "../utils/type_info.h"
 #include "../utils/utility.h"
@@ -183,8 +183,7 @@ namespace gaia {
 					mth.size = (uint32_t)sizeof(TComponent);
 					if constexpr (utils::is_soa_layout<TComponent>::value) {
 						mth.soa = true;
-					}
-					else if constexpr (!std::is_trivial<T>::value) {
+					} else if constexpr (!std::is_trivial<T>::value) {
 						mth.constructor = [](void* ptr) { new (ptr) T{}; };
 						mth.destructor = [](void* ptr) { ((T*)ptr)->~T(); };
 					}
@@ -257,12 +256,12 @@ namespace gaia {
 			[[nodiscard]] const ComponentMetaData* GetOrCreateComponentMetaType() {
 				using TComponent = std::decay_t<T>;
 				const auto componentIndex = utils::type_info::index<TComponent>();
-				auto it = m_types.find(componentIndex);
-				if (it != m_types.end())
-					return it->second;
 
-				const auto pMetaData = ComponentMetaData::Create<TComponent>();
-				m_types.insert({componentIndex, pMetaData});
+				const auto res = m_types.emplace(componentIndex, nullptr);
+				if (res.second)
+					res.first->second = ComponentMetaData::Create<TComponent>();
+
+				const ComponentMetaData* pMetaData = res.first->second;
 				return pMetaData;
 			}
 
@@ -370,11 +369,10 @@ namespace gaia {
 					for (const auto& pair: m_types) {
 						const auto* type = pair.second;
 
-						const auto it = m.find(type->matcherHash);
-						if (it == m.end())
-							m.insert({type->matcherHash, {type}});
-						else {
-							it->second.push_back(type);
+						const auto ret = m.emplace(
+								type->matcherHash, std::vector<const ComponentMetaData*>{type});
+						if (!ret.second) {
+							ret.first->second.push_back(type);
 							hasDuplicates = true;
 						}
 					}

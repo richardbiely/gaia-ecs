@@ -2,12 +2,13 @@
 #include <inttypes.h>
 #include <vector>
 
+#include "../utils/map.h"
 #include "archetype.h"
 #include "component.h"
 #include "entity.h"
 #include "fwd.h"
+#include "gaia/config/config.h"
 #include "world.h"
-#include "../utils/map.h"
 
 namespace gaia {
 	namespace ecs {
@@ -392,23 +393,31 @@ namespace gaia {
 					const auto cmd = m_data[i++];
 					switch (cmd) {
 						case CREATE_ENTITY: {
-							entityMap.insert({entities++, world->CreateEntity()});
+							[[maybe_unused]] const auto res =
+									entityMap.emplace(entities++, world->CreateEntity());
+							GAIA_ASSERT(res.second);
 						} break;
 						case CREATE_ENTITY_FROM_ARCHETYPE: {
 							uintptr_t ptr = (uintptr_t&)m_data[i];
 							Archetype* archetype = (Archetype*)ptr;
 							i += sizeof(void*);
-							entityMap.insert({entities++, world->CreateEntity(*archetype)});
+							[[maybe_unused]] const auto res = entityMap.emplace(
+									entities++, world->CreateEntity(*archetype));
+							GAIA_ASSERT(res.second);
 						} break;
 						case CREATE_ENTITY_FROM_QUERY: {
 							auto& query = (CreationQuery&)m_data[i];
 							i += sizeof(CreationQuery);
-							entityMap.insert({entities++, world->CreateEntity(query)});
+							[[maybe_unused]] const auto res =
+									entityMap.emplace(entities++, world->CreateEntity(query));
+							GAIA_ASSERT(res.second);
 						} break;
 						case CREATE_ENTITY_FROM_ENTITY: {
 							Entity entityFrom = (Entity&)m_data[i];
 							i += sizeof(Entity);
-							entityMap.insert({entities++, world->CreateEntity(entityFrom)});
+							[[maybe_unused]] const auto res = entityMap.emplace(
+									entities++, world->CreateEntity(entityFrom));
+							GAIA_ASSERT(res.second);
 						} break;
 						case ADD_COMPONENT: {
 							// // Type
