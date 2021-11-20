@@ -53,7 +53,7 @@ namespace gaia {
 						std::is_trivially_copyable_v<From>>>
 		To bit_cast(const From& from) {
 			To to;
-			std::memcpy(&to, &from, sizeof(To));
+			std::memmove(&to, &from, sizeof(To));
 			return to;
 		}
 
@@ -71,7 +71,7 @@ namespace gaia {
 
 			T operator*() const {
 				T to;
-				std::memcpy(&to, from, sizeof(T));
+				std::memmove(&to, from, sizeof(T));
 				return to;
 			}
 
@@ -99,13 +99,13 @@ namespace gaia {
 			unaligned_ref(void* p): p(p) {}
 
 			T operator=(const T& rvalue) {
-				memcpy(p, &rvalue, sizeof(T));
+				memmove(p, &rvalue, sizeof(T));
 				return rvalue;
 			}
 
 			operator T() const {
 				T tmp;
-				memcpy(&tmp, p, sizeof(T));
+				memmove(&tmp, p, sizeof(T));
 				return tmp;
 			}
 		};

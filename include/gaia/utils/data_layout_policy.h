@@ -168,8 +168,8 @@ namespace gaia {
 			template <typename MemberType>
 			constexpr static void
 			set_internal(char* data, const size_t idx, MemberType val) {
-				// memcpy((void*)&data[idx], (const void*)&val, sizeof(val));
-				*(MemberType*)&data[idx] = val;
+				unaligned_ref<MemberType> writer((void*)&data[idx]);
+				writer = val;
 			}
 		};
 
