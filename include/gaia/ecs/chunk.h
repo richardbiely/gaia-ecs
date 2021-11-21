@@ -7,7 +7,6 @@
 #include <stdint.h>
 #include <type_traits>
 
-
 #include "../utils/utils_containers.h"
 #include "archetype.h"
 #include "chunk_allocator.h"
@@ -276,6 +275,7 @@ namespace gaia {
 				return HasComponent_Internal<std::decay_t<T>>(
 						ComponentType::CT_Generic);
 			}
+
 			template <typename T>
 			[[nodiscard]] bool HasChunkComponent() const {
 				return HasComponent_Internal<std::decay_t<T>>(ComponentType::CT_Chunk);
