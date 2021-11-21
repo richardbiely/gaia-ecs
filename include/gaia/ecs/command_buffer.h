@@ -2,7 +2,6 @@
 #include "../utils/vector.h"
 #include <inttypes.h>
 
-
 #include "../utils/map.h"
 #include "archetype.h"
 #include "component.h"
@@ -32,6 +31,7 @@ namespace gaia {
 				CREATE_ENTITY_FROM_ARCHETYPE,
 				CREATE_ENTITY_FROM_QUERY,
 				CREATE_ENTITY_FROM_ENTITY,
+				DELETE_ENTITY,
 				ADD_COMPONENT,
 				ADD_COMPONENT_TO_TEMPENTITY,
 				SET_COMPONENT,
@@ -228,6 +228,19 @@ namespace gaia {
 			}
 
 			/*!
+			Requests an existing \param entity to be removed.
+			*/
+			void DeleteEntity(Entity entity) {
+				m_data.push_back(DELETE_ENTITY);
+				const auto entitySize = sizeof(entity);
+				const auto lastIndex = m_data.size();
+				m_data.resize(m_data.size() + entitySize);
+
+				utils::unaligned_ref<Entity> to(&m_data[lastIndex]);
+				to = entity;
+			}
+
+			/*!
 			Requests a component to be added to entity.
 
 			\return True if component could be added (e.g. maximum component count
@@ -419,6 +432,11 @@ namespace gaia {
 							[[maybe_unused]] const auto res = entityMap.emplace(
 									entities++, world->CreateEntity(entityFrom));
 							GAIA_ASSERT(res.second);
+						} break;
+						case DELETE_ENTITY: {
+							Entity entity = (Entity&)m_data[i];
+							i += sizeof(Entity);
+							world->DeleteEntity(entity);
 						} break;
 						case ADD_COMPONENT: {
 							// // Type
