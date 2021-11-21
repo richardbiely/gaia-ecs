@@ -1,3 +1,5 @@
+#include "gaia/ecs/command_buffer.h"
+#include "gaia/ecs/entity.h"
 #ifdef WIN32
 	#include <conio.h>
 #else
@@ -13,7 +15,7 @@ GAIA_INIT
 
 using namespace gaia;
 
-#pragma region System
+#pragma region Plaform specific helper functions
 
 #ifndef WIN32
 char _getch() {
@@ -60,6 +62,7 @@ struct Sprite {
 };
 struct Health {
 	int value;
+	int valueMax;
 };
 struct Item {};
 struct Player {};
@@ -96,15 +99,6 @@ void InitWorldMap() {
 	}
 }
 
-void RenderScreen() {
-	for (int y = 0; y < ScreenY; y++) {
-		for (int x = 0; x < ScreenX; x++) {
-			putchar(map[y][x]);
-		}
-		printf("\n");
-	}
-}
-
 class CollisionSystem final: public ecs::System {
 	ecs::EntityQuery m_q;
 
@@ -117,8 +111,46 @@ public:
 				.ForEach(
 						m_q,
 						[&](const Position& p, Velocity& v) {
-							if (map[p.y + v.y][p.x + v.x] == TILE_FREE)
+							const int nx = p.x + v.x;
+							const int ny = p.y + v.y;
+
+							if (map[ny][nx] == TILE_FREE)
 								return;
+
+							if (v.x != 0 || v.y != 0) {
+								// TODO: event system is necessary that would inform of
+								// collisions
+								if (map[ny][nx] == TILE_PLAYER) {
+									// enemy run into player
+									ecs::EntityQuery q;
+									q.All<Health, Player>();
+									GetWorld()
+											.ForEach(
+													q,
+													[&](const Position& p, Health& h) {
+														if (p.x != nx || p.y != ny)
+															return;
+														h.value -= 10;
+													})
+											.Run();
+								}
+								// TODO: event system is necessary that would inform of
+								// collisions
+								if (map[ny][nx] == TILE_ENEMY) {
+									// player run into enemy
+									ecs::EntityQuery q;
+									q.All<Position, Health>().None<Player>();
+									GetWorld()
+											.ForEach(
+													q,
+													[&](const Position& p, Health& h) {
+														if (p.x != nx || p.y != ny)
+															return;
+														h.value -= 10;
+													})
+											.Run();
+								}
+							}
 
 							v.x = 0;
 							v.y = 0;
@@ -135,6 +167,7 @@ public:
 		m_q.All<Position, Velocity>();
 	}
 	void OnUpdate() override {
+		// Update position based on current velocity
 		GetWorld()
 				.ForEach(
 						m_q,
@@ -143,6 +176,8 @@ public:
 							p.y += v.y;
 						})
 				.Run();
+
+		// Consume the velocity
 		GetWorld()
 				.ForEach(
 						m_q,
@@ -151,6 +186,36 @@ public:
 							v.y = 0;
 						})
 				.Run();
+	}
+};
+
+class HandleDeadSystem final: public ecs::System {
+	ecs::EntityQuery m_q;
+	ecs::CommandBuffer m_cb;
+
+public:
+	void OnCreated() override {
+		m_q.All<Health, Position>();
+	}
+	void OnUpdate() override {
+		GetWorld()
+				.ForEach(
+						m_q,
+						[&](ecs::Entity e, const Health& h, const Position& p) {
+							if (h.value > 0)
+								return;
+
+							if (GetWorld().HasComponents<Player>(e))
+								printf("Player killed!\n");
+							else
+								printf("Enemy killed %d:%d!\n", e.gen(), e.id());
+
+							map[p.y][p.x] = TILE_FREE;
+							m_cb.DeleteEntity(e);
+						})
+				.Run();
+
+		m_cb.Commit(&GetWorld());
 	}
 };
 
@@ -175,7 +240,34 @@ public:
 class RenderSystem final: public ecs::System {
 public:
 	void OnUpdate() override {
-		RenderScreen();
+		for (int y = 0; y < ScreenY; y++) {
+			for (int x = 0; x < ScreenX; x++) {
+				putchar(map[y][x]);
+			}
+			printf("\n");
+		};
+
+		ecs::EntityQuery qp;
+		qp.All<Health, Player>();
+		GetWorld()
+				.ForEach(
+						qp,
+						[](const Health& h) {
+							printf("Player health: %d/%d\n", h.value, h.valueMax);
+						})
+				.Run();
+
+		ecs::EntityQuery qe;
+		qe.All<Health>().None<Player>();
+		GetWorld()
+				.ForEach(
+						qe,
+						[](ecs::Entity e, const Health& h) {
+							printf(
+									"Enemy %d:%d health: %d/%d\n", e.id(), e.gen(), h.value,
+									h.valueMax);
+						})
+				.Run();
 	}
 };
 
@@ -218,18 +310,27 @@ int main() {
 	sm.CreateSystem<MoveSystem>("move");
 	sm.CreateSystem<UpdateMapSystem>("updatemap");
 	sm.CreateSystem<RenderSystem>("render");
+	sm.CreateSystem<HandleDeadSystem>("handledead");
 	sm.CreateSystem<InputSystem>("input");
 
 	auto player = w.CreateEntity();
 	w.AddComponent<Position>(player, {5, 10});
 	w.AddComponent<Velocity>(player, {0, 0});
 	w.AddComponent<Sprite>(player, {TILE_PLAYER});
+	w.AddComponent<Health>(player, {100, 100});
 	w.AddComponent<Player>(player);
 
-	auto enemy = w.CreateEntity();
-	w.AddComponent<Position>(enemy, {10, 10});
-	w.AddComponent<Velocity>(enemy, {0, 0});
-	w.AddComponent<Sprite>(enemy, {TILE_ENEMY});
+	utils::array<ecs::Entity, 3> enemies;
+	for (auto& e: enemies) {
+		e = w.CreateEntity();
+		w.AddComponent<Position>(e, {});
+		w.AddComponent<Velocity>(e, {0, 0});
+		w.AddComponent<Sprite>(e, {TILE_ENEMY});
+		w.AddComponent<Health>(e, {100, 100});
+	}
+	w.SetComponent<Position>(enemies[0], {8, 8});
+	w.SetComponent<Position>(enemies[1], {10, 10});
+	w.SetComponent<Position>(enemies[2], {12, 12});
 
 	auto potion = w.CreateEntity();
 	w.AddComponent<Position>(potion, {5, 5});
