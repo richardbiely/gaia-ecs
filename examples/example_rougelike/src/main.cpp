@@ -80,7 +80,7 @@ struct Health {
 	int value;
 	int valueMax;
 };
-struct Stats {
+struct BattleStats {
 	int power;
 	int armor;
 };
@@ -142,7 +142,7 @@ struct World {
 		w.AddComponent<Velocity>(player, {0, 0});
 		w.AddComponent<Sprite>(player, {TILE_PLAYER});
 		w.AddComponent<Health>(player, {100, 100});
-		w.AddComponent<Stats>(player, {5, 5});
+		w.AddComponent<BattleStats>(player, {9, 5});
 		w.AddComponent<Player>(player);
 	}
 
@@ -157,11 +157,11 @@ struct World {
 			if (isOrc) {
 				w.AddComponent<Sprite>(e, {TILE_ENEMY_ORC});
 				w.AddComponent<Health>(e, {120, 120});
-				w.AddComponent<Stats>(e, {12, 7});
+				w.AddComponent<BattleStats>(e, {12, 7});
 			} else {
 				w.AddComponent<Sprite>(e, {TILE_ENEMY_GOBLIN});
 				w.AddComponent<Health>(e, {80, 80});
-				w.AddComponent<Stats>(e, {10, 5});
+				w.AddComponent<BattleStats>(e, {10, 5});
 			}
 		}
 		w.SetComponent<Position>(enemies[0], {8, 8});
@@ -225,7 +225,7 @@ public:
 		GetWorld()
 				.ForEach(
 						m_q,
-						[&](const Position& p, Velocity& v) {
+						[&](ecs::Entity e, const Position& p, Velocity& v) {
 							// Skip stationary objects
 							if (v.x == 0 && v.y == 0)
 								return;
@@ -240,16 +240,31 @@ public:
 								return;
 
 							// TODO: event system is necessary that would inform of collisions
-							for (auto e: s_world.content[{nx, ny}]) {
+							for (auto e2: s_world.content[{nx, ny}]) {
 								// run into something damagable
-								if (GetWorld().HasComponents<Health>(e)) {
-									Health h;
-									GetWorld().GetComponent<Health>(e, h);
+								if (GetWorld().HasComponents<Health>(e2)) {
+									BattleStats stats = {0, 0};
+									BattleStats stats2 = {0, 0};
+
+									if (!GetWorld().HasComponents<BattleStats>(e))
+										return;
+									if (!GetWorld().HasComponents<BattleStats>(e2))
+										return;
+
+									GetWorld().GetComponent<BattleStats>(e, stats);
+									GetWorld().GetComponent<BattleStats>(e2, stats2);
+
+									int damage = stats.power - stats2.armor;
+									if (damage < 0)
+										continue;
+
+									Health h2;
+									GetWorld().GetComponent<Health>(e2, h2);
 									GetWorld().SetComponent<Health>(
-											e, {h.value - 10, h.valueMax});
+											e2, {h2.value - damage, h2.valueMax});
 								}
 								// run into an item
-								else if (GetWorld().HasComponents<Item>(e)) {
+								else if (GetWorld().HasComponents<Item>(e2)) {
 									if (s_world.map[ny][nx] == TILE_POISON) {
 										GetWorld()
 												.ForEach([&]([[maybe_unused]] const Player& p,
@@ -363,8 +378,13 @@ public:
 				putchar(s_world.map[y][x]);
 			}
 			printf("\n");
-		};
+		}
+	}
+};
 
+class UISystem final: public ecs::System {
+public:
+	void OnUpdate() override {
 		ecs::EntityQuery qp;
 		qp.All<Health, Player>();
 		GetWorld()
@@ -429,14 +449,13 @@ int main() {
 	sm.CreateSystem<MoveSystem>("move");
 	sm.CreateSystem<WriteSpritesToMapSystem>("spritestomap");
 	sm.CreateSystem<RenderSystem>("render");
+	sm.CreateSystem<UISystem>("ui");
 	sm.CreateSystem<HandleDeadSystem>("handledead");
 	sm.CreateSystem<InputSystem>("input");
 
 	s_world.Init();
-
-	for (;;) {
+	for (;;)
 		sm.Update();
-	};
 
 	return 0;
 }
