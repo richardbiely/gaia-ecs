@@ -79,7 +79,7 @@ namespace gaia {
 				auto data = ViewRW<TComponent>(componentType);
 				using datap = utils::auto_view_policy<TComponent>;
 
-				return datap::set(data, index, std::forward<TComponent>(value));
+				datap::set(data, index, std::forward<TComponent>(value));
 			}
 
 			[[nodiscard]] uint32_t GetComponentIdx_Internal(
