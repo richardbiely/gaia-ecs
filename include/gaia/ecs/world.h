@@ -803,6 +803,11 @@ namespace gaia {
 				return entityContainer.pChunk;
 			}
 
+			/*!
+			Attaches a new component to \param entity.
+			\warning It is expected the component is not there yet and that \param
+			entity is valid. Undefined behavior otherwise.
+			*/
 			template <typename... TComponent>
 			void AddComponent(Entity entity) {
 				VerifyComponents<TComponent...>();
@@ -811,6 +816,11 @@ namespace gaia {
 				AddComponent_Internal<TComponent...>(ComponentType::CT_Generic, entity);
 			}
 
+			/*!
+			Attaches new components to \param entity.
+			\warning It is expected the component is not there yet and that
+			\param entity is valid. Undefined behavior otherwise.
+			*/
 			template <typename... TComponent>
 			void AddComponent(Entity entity, TComponent&&... data) {
 				VerifyComponents<TComponent...>();
@@ -823,6 +833,12 @@ namespace gaia {
 						entityContainer->idx, std::forward<TComponent>(data)...);
 			}
 
+			/*!
+			Attaches new chunk components to \param entity.
+			Chunk component is shared for the entire chunk.
+			\warning It is expected the component is not there yet and that
+			\param entity is valid. Undefined behavior otherwise.
+			*/
 			template <typename... TComponent>
 			void AddChunkComponent(Entity entity) {
 				VerifyComponents<TComponent...>();
@@ -831,6 +847,12 @@ namespace gaia {
 				AddComponent_Internal<TComponent...>(ComponentType::CT_Chunk, entity);
 			}
 
+			/*!
+			Attaches new chunk components to \param entity.
+			Chunk component is shared for the entire chunk.
+			\warning It is expected the component is not there yet and that
+			\param entity is valid. Undefined behavior otherwise.
+			*/
 			template <typename... TComponent>
 			void AddChunkComponent(Entity entity, TComponent&&... data) {
 				VerifyComponents<TComponent...>();
@@ -843,6 +865,11 @@ namespace gaia {
 						std::forward<TComponent>(data)...);
 			}
 
+			/*!
+			Removes a component from \param entity.
+			\warning It is expected the component is not there yet and that
+			\param entity is valid. Undefined behavior otherwise.
+			*/
 			template <typename... TComponent>
 			void RemoveComponent(Entity entity) {
 				VerifyComponents<TComponent...>();
@@ -852,6 +879,11 @@ namespace gaia {
 						ComponentType::CT_Generic, entity);
 			}
 
+			/*!
+			Removes a chunk component from \param entity.
+			\warning It is expected the component is not there yet and that
+			\param entity is valid. Undefined behavior otherwise.
+			*/
 			template <typename... TComponent>
 			void RemoveChunkComponent(Entity entity) {
 				VerifyComponents<TComponent...>();
@@ -861,6 +893,11 @@ namespace gaia {
 						ComponentType::CT_Chunk, entity);
 			}
 
+			/*!
+			Sets value for of a component of \param entity.
+			\warning It is expected the component is not there yet and that
+			\param entity is valid. Undefined behavior otherwise.
+			*/
 			template <typename... TComponent>
 			void SetComponent(Entity entity, TComponent&&... data) {
 				VerifyComponents<TComponent...>();
@@ -872,6 +909,11 @@ namespace gaia {
 						entityContainer.idx, std::forward<TComponent>(data)...);
 			}
 
+			/*!
+			Sets values for all listed components of \param entity.
+			\warning It is expected the component is not there yet and that
+			\param entity is valid. Undefined behavior otherwise.
+			*/
 			template <typename... TComponent>
 			void SetChunkComponent(Entity entity, TComponent&&... data) {
 				VerifyComponents<TComponent...>();
@@ -883,25 +925,73 @@ namespace gaia {
 						std::forward<TComponent>(data)...);
 			}
 
+#pragma region Component data by copy
+
+			/*!
+			Returns a copy of value of a component of \param entity.
+			\warning It is expected the component is not there yet and that
+			\param entity is valid. Undefined behavior otherwise.
+			*/
 			template <typename... TComponent>
-			void GetComponent(Entity entity, TComponent&... data) {
+			void GetComponent(Entity entity, TComponent&... data) const {
 				VerifyComponents<TComponent...>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
-				auto& entityContainer = m_entities[entity.id()];
-				auto* pChunk = entityContainer.pChunk;
+				const auto& entityContainer = m_entities[entity.id()];
+				const auto* pChunk = entityContainer.pChunk;
+				pChunk->GetComponent<TComponent...>(entityContainer.idx, data...);
+			}
+
+			/*!
+			Returns a copy of value of a chunk component of \param entity.
+			\warning It is expected the component is not there yet and that
+			\param entity is valid. Undefined behavior otherwise.
+			*/
+			template <typename... TComponent>
+			void GetChunkComponent(Entity entity, TComponent&... data) const {
+				VerifyComponents<TComponent...>();
+				GAIA_ASSERT(IsEntityValid(entity));
+
+				const auto& entityContainer = m_entities[entity.id()];
+				const auto* pChunk = entityContainer.pChunk;
+				pChunk->GetChunkComponents<TComponent...>(data...);
+			}
+
+#pragma endregion
+
+#pragma region Component data by reference
+
+			/*!
+			Returns a const reference to a component of \param entity.
+			\warning It is expected the component is not there yet and that
+			\param entity is valid. Undefined behavior otherwise.
+			*/
+			template <typename... TComponent>
+			void GetComponent(Entity entity, const TComponent*&... data) const {
+				VerifyComponents<TComponent...>();
+				GAIA_ASSERT(IsEntityValid(entity));
+
+				const auto& entityContainer = m_entities[entity.id()];
+				const auto* pChunk = entityContainer.pChunk;
 				pChunk->GetComponents<TComponent...>(entityContainer.idx, data...);
 			}
 
+			/*!
+			Returns a const reference to a chunk component of \param entity.
+			\warning It is expected the component is not there yet and that
+			\param entity is valid. Undefined behavior otherwise.
+			*/
 			template <typename... TComponent>
-			void GetChunkComponent(Entity entity, TComponent&... data) {
+			void GetChunkComponent(Entity entity, const TComponent*&... data) const {
 				VerifyComponents<TComponent...>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
-				auto& entityContainer = m_entities[entity.id()];
-				auto* pChunk = entityContainer.pChunk;
+				const auto& entityContainer = m_entities[entity.id()];
+				const auto* pChunk = entityContainer.pChunk;
 				pChunk->GetChunkComponents<TComponent...>(data...);
 			}
+
+#pragma endregion
 
 			template <typename... TComponent>
 			[[nodiscard]] bool HasComponents(Entity entity) {

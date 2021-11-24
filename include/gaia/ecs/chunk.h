@@ -42,9 +42,13 @@ namespace gaia {
 
 			Chunk(const Archetype& archetype): header(archetype) {}
 
+			/*!
+				Creates a new entity from archetype
+				\return Entity
+				*/
 			template <typename T>
-			[[nodiscard]] std::decay_t<T>
-			GetComponent_Internal(ComponentType componentType, uint32_t index) const {
+			[[nodiscard]] std::decay_t<T> GetComponentVal_Internal(
+					ComponentType componentType, uint32_t index) const {
 				using TComponent = std::decay_t<T>;
 				static_assert(
 						!std::is_empty<TComponent>::value,
@@ -68,6 +72,35 @@ namespace gaia {
 
 				return utils::auto_view_policy<TComponent>::get(
 						{(const TComponent*)&data[it->offset], header.capacity}, index);
+			}
+
+			template <typename T>
+			[[nodiscard]] const std::decay_t<T>& GetComponentRef_Internal(
+					ComponentType componentType, uint32_t index) const {
+				using TComponent = std::decay_t<T>;
+				static_assert(
+						!std::is_empty<TComponent>::value,
+						"Attempting to get value of an empty component");
+
+				const ComponentMetaData* type =
+						g_ComponentCache.GetComponentMetaType<TComponent>();
+
+				GAIA_ASSERT(index <= header.lastEntityIndex || index != (uint32_t)-1);
+				// invalid component requests are a programmer's bug
+				GAIA_ASSERT(type != nullptr);
+
+				const auto& componentList =
+						GetArchetypeComponentList(header.owner, componentType);
+				const auto it = utils::find_if(componentList, [type](const auto& info) {
+					return info.type == type;
+				});
+
+				// Searching for a component that's not there! Programmer mistake.
+				GAIA_ASSERT(it != componentList.end());
+
+				return utils::data_view_policy<utils::DataLayout::AoS, TComponent>::
+						get_constref(
+								{(const TComponent*)&data[it->offset], header.capacity}, index);
 			}
 
 			template <typename T>
@@ -314,14 +347,11 @@ namespace gaia {
 				 ...);
 			}
 
-			template <typename T>
-			[[nodiscard]] std::decay_t<T> GetComponent(uint32_t index) const {
-				return GetComponent_Internal<T>(ComponentType::CT_Generic, index);
-			}
+#pragma region Component data by copy
 
 			template <typename T>
 			void GetComponent(uint32_t index, std::decay_t<T>& data) const {
-				data = GetComponent_Internal<T>(ComponentType::CT_Generic, index);
+				data = GetComponentVal_Internal<T>(ComponentType::CT_Generic, index);
 			}
 
 			template <typename... T>
@@ -330,19 +360,49 @@ namespace gaia {
 			}
 
 			template <typename T>
-			[[nodiscard]] std::decay_t<T> GetChunkComponent() const {
-				return GetComponent_Internal<T>(ComponentType::CT_Chunk, 0);
-			}
-
-			template <typename T>
 			void GetChunkComponent(std::decay_t<T>& data) const {
-				data = GetComponent_Internal<T>(ComponentType::CT_Chunk, 0);
+				data = GetComponentVal_Internal<T>(ComponentType::CT_Chunk, 0);
 			}
 
 			template <typename... T>
 			void GetChunkComponents(std::decay_t<T>&... data) const {
 				(GetChunkComponent<T>(data), ...);
 			}
+
+#pragma endregion
+
+#pragma region Component data by reference
+
+			template <typename T>
+			void GetComponent(uint32_t index, const std::decay_t<T>*& data) const {
+				// invalid input is a programmer's bug
+				GAIA_ASSERT(data != nullptr);
+				const auto& ref =
+						GetComponentRef_Internal<T>(ComponentType::CT_Generic, index);
+				data = &ref;
+			}
+
+			template <typename... T>
+			void
+			GetComponents(uint32_t index, const std::decay_t<T>*&... data) const {
+				(GetComponent<T>(index, data), ...);
+			}
+
+			template <typename T>
+			void GetChunkComponent(const std::decay_t<T>*& data) const {
+				// invalid input is a programmer's bug
+				GAIA_ASSERT(data != nullptr);
+				const auto& ref =
+						GetComponentRef_Internal<T>(ComponentType::CT_Chunk, 0);
+				data = &ref;
+			}
+
+			template <typename... T>
+			void GetChunkComponents(const std::decay_t<T>*&... data) const {
+				(GetChunkComponent<T>(data), ...);
+			}
+
+#pragma endregion
 
 			//! Checks is there are any entities in the chunk
 			[[nodiscard]] bool HasEntities() const {
