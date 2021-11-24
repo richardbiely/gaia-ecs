@@ -462,15 +462,15 @@ namespace gaia {
 							// 		{newMetatypes, (uintptr_t)componentCount});
 
 							// uint32_t indexInChunk;
-							// auto chunk = world->GetEntityChunk(entity, indexInChunk);
-							// GAIA_ASSERT(chunk != nullptr);
+							// auto* pChunk = world->GetEntityChunk(entity, indexInChunk);
+							// GAIA_ASSERT(pChunk != nullptr);
 
 							// if (componentType == ComponentType::CT_Chunk)
 							// 	indexInChunk = 0;
 
 							// for (uint8_t j = 0; j < componentCount; ++j) {
 							// 	const auto metaType = newMetatypes[j];
-							// 	auto pComponentData = chunk->SetComponent_Internal(
+							// 	auto pComponentData = pChunk->SetComponent_Internal(
 							// 			componentType, indexInChunk, metaType);
 							// 	memset(pComponentData, 0, metaType->size);
 							// }
@@ -507,15 +507,15 @@ namespace gaia {
 							// 		{newMetatypes, (uintptr_t)componentCount});
 
 							// uint32_t indexInChunk;
-							// auto chunk = world->GetEntityChunk(entity, indexInChunk);
-							// GAIA_ASSERT(chunk != nullptr);
+							// auto* pChunk = world->GetEntityChunk(entity, indexInChunk);
+							// GAIA_ASSERT(pChunk != nullptr);
 
 							// if (componentType == ComponentType::CT_Chunk)
 							// 	indexInChunk = 0;
 
 							// for (uint8_t j = 0; j < componentCount; ++j) {
 							// 	const auto metaType = newMetatypes[j];
-							// 	auto pComponentData = chunk->SetComponent_Internal(
+							// 	auto pComponentData = pChunk->SetComponent_Internal(
 							// 			componentType, indexInChunk, metaType);
 							// 	memset(pComponentData, 0, metaType->size);
 							// }
@@ -529,7 +529,7 @@ namespace gaia {
 							// i += sizeof(Entity);
 
 							// const auto& entityContainer = world->m_entities[entity.id()];
-							// auto chunk = entityContainer.chunk;
+							// auto* pChunk = entityContainer.pChunk;
 							// const auto indexInChunk = componentType ==
 							// ComponentType::CT_Chunk 															? 0
 							// : entityContainer.idx;
@@ -545,7 +545,7 @@ namespace gaia {
 							// 	i += sizeof(typeIdx);
 
 							// 	memcpy(
-							// 			chunk->SetComponent_Internal(
+							// 			pChunk->SetComponent_Internal(
 							// 					componentType, indexInChunk, metaType),
 							// 			(const void*)&m_data[i], metaType->size);
 							// 	i += metaType->size;
@@ -568,7 +568,7 @@ namespace gaia {
 							// Entity entity = it->second;
 
 							// const auto& entityContainer = world->m_entities[entity.id()];
-							// auto chunk = entityContainer.chunk;
+							// auto* pChunk = entityContainer.pChunk;
 							// const auto indexInChunk = componentType ==
 							// ComponentType::CT_Chunk 															? 0
 							// : entityContainer.idx;
@@ -584,7 +584,7 @@ namespace gaia {
 							// 	i += sizeof(typeIdx);
 
 							// 	memcpy(
-							// 			chunk->SetComponent_Internal(
+							// 			pChunk->SetComponent_Internal(
 							// 					componentType, indexInChunk, metaType),
 							// 			(const void*)&m_data[i], metaType->size);
 							// 	i += metaType->size;

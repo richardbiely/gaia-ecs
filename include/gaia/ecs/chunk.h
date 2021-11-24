@@ -46,6 +46,10 @@ namespace gaia {
 			[[nodiscard]] std::decay_t<T>
 			GetComponent_Internal(ComponentType componentType, uint32_t index) const {
 				using TComponent = std::decay_t<T>;
+				static_assert(
+						!std::is_empty<TComponent>::value,
+						"Attempting to get value of an empty component");
+
 				const ComponentMetaData* type =
 						g_ComponentCache.GetComponentMetaType<TComponent>();
 
@@ -71,6 +75,9 @@ namespace gaia {
 					ComponentType componentType, uint32_t index,
 					std::decay_t<T>&& value) {
 				using TComponent = std::decay_t<T>;
+				if constexpr (std::is_empty<TComponent>::value)
+					return;
+
 				const ComponentMetaData* type =
 						g_ComponentCache.GetComponentMetaType<TComponent>();
 
@@ -278,20 +285,63 @@ namespace gaia {
 
 			template <typename T>
 			[[nodiscard]] bool HasChunkComponent() const {
-				return HasComponent_Internal<std::decay_t<T>>(ComponentType::CT_Chunk);
+				return HasComponent_Internal<T>(ComponentType::CT_Chunk);
+			}
+
+			template <typename T>
+			void SetComponent(uint32_t index, T&& value) {
+				SetComponent_Internal<T>(
+						ComponentType::CT_Generic, index, std::forward<T>(value));
+			}
+
+			template <typename... T>
+			void SetComponents(uint32_t index, T&&... value) {
+				(SetComponent_Internal<T>(
+						 ComponentType::CT_Generic, index, std::forward<T>(value)),
+				 ...);
 			}
 
 			template <typename T>
 			void SetChunkComponent(T&& value) {
-				SetComponent_Internal<std::decay_t<T>>(
+				SetComponent_Internal<T>(
 						ComponentType::CT_Chunk, 0, std::forward<T>(value));
 			}
 
+			template <typename... T>
+			void SetChunkComponents(T&&... value) {
+				(SetComponent_Internal<T>(
+						 ComponentType::CT_Chunk, 0, std::forward<T>(value)),
+				 ...);
+			}
+
 			template <typename T>
-			[[nodiscard]] const std::decay_t<T>&
-			GetChunkComponent(uint32_t index) const {
-				return GetComponent_Internal<std::decay_t<T>>(
-						ComponentType::CT_Chunk, index);
+			[[nodiscard]] std::decay_t<T> GetComponent(uint32_t index) const {
+				return GetComponent_Internal<T>(ComponentType::CT_Generic, index);
+			}
+
+			template <typename T>
+			void GetComponent(uint32_t index, std::decay_t<T>& data) const {
+				data = GetComponent_Internal<T>(ComponentType::CT_Generic, index);
+			}
+
+			template <typename... T>
+			void GetComponents(uint32_t index, std::decay_t<T>&... data) const {
+				(GetComponent<T>(index, data), ...);
+			}
+
+			template <typename T>
+			[[nodiscard]] std::decay_t<T> GetChunkComponent() const {
+				return GetComponent_Internal<T>(ComponentType::CT_Chunk, 0);
+			}
+
+			template <typename T>
+			void GetChunkComponent(std::decay_t<T>& data) const {
+				data = GetComponent_Internal<T>(ComponentType::CT_Chunk, 0);
+			}
+
+			template <typename... T>
+			void GetChunkComponents(std::decay_t<T>&... data) const {
+				(GetChunkComponent<T>(data), ...);
 			}
 
 			//! Checks is there are any entities in the chunk
