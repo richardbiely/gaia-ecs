@@ -50,57 +50,22 @@ namespace gaia {
 			[[nodiscard]] std::decay_t<T> GetComponentVal_Internal(
 					ComponentType componentType, uint32_t index) const {
 				using TComponent = std::decay_t<T>;
-				static_assert(
-						!std::is_empty<TComponent>::value,
-						"Attempting to get value of an empty component");
 
-				const ComponentMetaData* type =
-						g_ComponentCache.GetComponentMetaType<TComponent>();
+				auto data = View<TComponent>(componentType);
+				using datap = utils::auto_view_policy<TComponent>;
 
-				GAIA_ASSERT(index <= header.lastEntityIndex || index != (uint32_t)-1);
-				// invalid component requests are a programmer's bug
-				GAIA_ASSERT(type != nullptr);
-
-				const auto& componentList =
-						GetArchetypeComponentList(header.owner, componentType);
-				const auto it = utils::find_if(componentList, [type](const auto& info) {
-					return info.type == type;
-				});
-
-				// Searching for a component that's not there! Programmer mistake.
-				GAIA_ASSERT(it != componentList.end());
-
-				return utils::auto_view_policy<TComponent>::get(
-						{(const TComponent*)&data[it->offset], header.capacity}, index);
+				return datap::get(data, index);
 			}
 
 			template <typename T>
 			[[nodiscard]] const std::decay_t<T>& GetComponentRef_Internal(
 					ComponentType componentType, uint32_t index) const {
 				using TComponent = std::decay_t<T>;
-				static_assert(
-						!std::is_empty<TComponent>::value,
-						"Attempting to get value of an empty component");
 
-				const ComponentMetaData* type =
-						g_ComponentCache.GetComponentMetaType<TComponent>();
+				auto data = View<TComponent>(componentType);
+				using datap = utils::auto_view_policy<TComponent>;
 
-				GAIA_ASSERT(index <= header.lastEntityIndex || index != (uint32_t)-1);
-				// invalid component requests are a programmer's bug
-				GAIA_ASSERT(type != nullptr);
-
-				const auto& componentList =
-						GetArchetypeComponentList(header.owner, componentType);
-				const auto it = utils::find_if(componentList, [type](const auto& info) {
-					return info.type == type;
-				});
-
-				// Searching for a component that's not there! Programmer mistake.
-				GAIA_ASSERT(it != componentList.end());
-
-				return utils::data_view_policy<utils::DataLayout::AoS, TComponent>::
-						get_constref(
-								{(const TComponent*)&data[it->offset], header.capacity}, index);
+				return datap::get_constref(data, index);
 			}
 
 			template <typename T>
@@ -111,30 +76,10 @@ namespace gaia {
 				if constexpr (std::is_empty<TComponent>::value)
 					return;
 
-				const ComponentMetaData* type =
-						g_ComponentCache.GetComponentMetaType<TComponent>();
+				auto data = ViewRW<TComponent>(componentType);
+				using datap = utils::auto_view_policy<TComponent>;
 
-				GAIA_ASSERT(index <= header.lastEntityIndex || index != (uint32_t)-1);
-				// invalid component requests are a programmer's bug
-				GAIA_ASSERT(type != nullptr);
-
-				const auto& componentList =
-						GetArchetypeComponentList(header.owner, componentType);
-				const auto it = utils::find_if(componentList, [type](const auto& info) {
-					return info.type == type;
-				});
-
-				// Searching for a component that's not there! Programmer mistake.
-				const auto componentIdx =
-						(uint32_t)std::distance(componentList.begin(), it);
-				GAIA_ASSERT(componentIdx != utils::BadIndex);
-
-				// Update version number so we know RW access was used on chunk
-				header.UpdateWorldVersion(componentType, componentIdx);
-
-				return utils::auto_view_policy<TComponent>::set(
-						{(TComponent*)&data[it->offset], header.capacity}, index,
-						std::forward<TComponent>(value));
+				return datap::set(data, index, std::forward<TComponent>(value));
 			}
 
 			[[nodiscard]] uint32_t GetComponentIdx_Internal(
@@ -290,6 +235,9 @@ namespace gaia {
 					std::span<const std::decay_t<T>>>
 			View(ComponentType componentType = ComponentType::CT_Generic) const {
 				using TComponent = std::decay_t<T>;
+				static_assert(
+						!std::is_empty<TComponent>::value,
+						"Attempting to get value of an empty component");
 
 				const ComponentMetaData* type =
 						g_ComponentCache.GetOrCreateComponentMetaType<TComponent>();
