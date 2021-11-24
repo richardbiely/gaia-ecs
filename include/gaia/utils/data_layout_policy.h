@@ -57,6 +57,11 @@ namespace gaia {
 				return get_internal((const ValueType*)s.data(), idx);
 			}
 
+			constexpr static const ValueType&
+			get_constref(std::span<const ValueType> s, size_t idx) {
+				return get_constref_internal((const ValueType*)s.data(), idx);
+			}
+
 			constexpr static void
 			set(std::span<ValueType> s, size_t idx, ValueType&& val) {
 				set_internal((ValueType*)s.data(), idx, std::forward<ValueType>(val));
@@ -65,6 +70,11 @@ namespace gaia {
 		private:
 			[[nodiscard]] constexpr static ValueType
 			get_internal(const ValueType* data, const size_t idx) {
+				return data[idx];
+			}
+
+			[[nodiscard]] constexpr static const ValueType&
+			get_constref_internal(const ValueType* data, const size_t idx) {
 				return data[idx];
 			}
 

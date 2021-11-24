@@ -368,14 +368,17 @@ public:
 				continue;
 			if (!pChunkE->HasComponent<Health>())
 				continue;
-			auto h = pChunkE->GetComponent<Health>(idxE);
+
+			Health h;
+			pChunkE->GetComponent<Health>(idxE, h);
 
 			// The entity being collided with has to be an item with stats
 			uint32_t idxE2;
 			const auto* pChunkE2 = GetWorld().GetEntityChunk(coll.e2, idxE2);
 			if (pChunkE2->HasComponent<Item>() &&
 					pChunkE2->HasComponent<BattleStats>()) {
-				auto stats = pChunkE2->GetComponent<BattleStats>(idxE2);
+				BattleStats stats;
+				pChunkE2->GetComponent<BattleStats>(idxE2, stats);
 				pChunkE->SetComponent<Health>(
 						idxE, {h.value + stats.power, h.valueMax});
 			}
