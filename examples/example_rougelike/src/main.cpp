@@ -183,7 +183,7 @@ struct World {
 		w.AddComponent<Position>(poison, {15, 10});
 		w.AddComponent<Sprite>(poison, {TILE_POISON});
 		w.AddComponent<Item>(poison, {Poison});
-		w.AddComponent<BattleStats>(poison, {10, 0});
+		w.AddComponent<BattleStats>(poison, {-10, 0});
 	}
 };
 
@@ -373,20 +373,11 @@ public:
 			// The entity being collided with has to be an item with stats
 			uint32_t idxE2;
 			const auto* pChunkE2 = GetWorld().GetEntityChunk(coll.e2, idxE2);
-			if (!pChunkE2->HasComponent<Item>())
-				continue;
-
-			if (pChunkE2->HasComponent<BattleStats>()) {
-				auto item = pChunkE2->GetComponent<Item>(idxE2);
+			if (pChunkE2->HasComponent<Item>() &&
+					pChunkE2->HasComponent<BattleStats>()) {
 				auto stats = pChunkE2->GetComponent<BattleStats>(idxE2);
-
-				if (item.type == Poison) {
-					pChunkE->SetComponent<Health>(
-							idxE, {h.value - stats.power, h.valueMax});
-				} else if (item.type == Potion) {
-					pChunkE->SetComponent<Health>(
-							idxE, {h.value + stats.power, h.valueMax});
-				}
+				pChunkE->SetComponent<Health>(
+						idxE, {h.value + stats.power, h.valueMax});
 			}
 		}
 	}
