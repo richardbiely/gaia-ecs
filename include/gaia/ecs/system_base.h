@@ -1,12 +1,19 @@
 #pragma once
-#include "../utils/vector.h"
 #include <cinttypes>
 #include <string>
 
+#include "../config/config.h"
+#if GAIA_DEBUG
+	#include "../config/logging.h"
+#endif
 #include "../utils/map.h"
+#include "../utils/type_info.h"
+#include "../utils/utils_containers.h"
+#include "../utils/vector.h"
 
 namespace gaia {
 	namespace ecs {
+		class World;
 		class BaseSystemManager;
 
 		class BaseSystem {
@@ -235,10 +242,10 @@ namespace gaia {
 #if GAIA_DEBUG
 				// Make sure there are no circular dependencies
 				for (auto j = 1U; j < m_systems.size(); j++) {
-					if (m_systems[j - 1]->DependsOn(m_systems[j])) {
-						GAIA_ASSERT(false && "Wrong systems dependencies!");
-						LOG_E("Wrong systems dependencies!");
-					}
+					if (!m_systems[j - 1]->DependsOn(m_systems[j]))
+						continue;
+					GAIA_ASSERT(false && "Wrong systems dependencies!");
+					LOG_E("Wrong systems dependencies!");
 				}
 #endif
 			}
