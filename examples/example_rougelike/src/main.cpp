@@ -84,7 +84,10 @@ struct BattleStats {
 	int power;
 	int armor;
 };
-struct Item {};
+enum ItemType { Poison, Potion };
+struct Item {
+	ItemType type;
+};
 struct Player {};
 
 #pragma endregion
@@ -357,25 +360,32 @@ public:
 	void OnUpdate() override {
 		const auto& colls = m_collisionSystem->GetCollisions();
 		for (const auto& coll: colls) {
-			if (!GetWorld().HasComponents<Item>(coll.e2))
+			// Entity colliding has to be a player with Heatlh component
+			uint32_t idxE;
+			auto* pChunkE = GetWorld().GetEntityChunk(coll.e, idxE);
+			if (!pChunkE->HasComponent<Player>())
 				continue;
+			if (!pChunkE->HasComponent<Health>())
+				continue;
+			const auto& h = pChunkE->GetComponent<Health>(idxE);
 
-			if (s_world.map[coll.p.y][coll.p.x] == TILE_POISON) {
-				GetWorld()
-						.ForEach([&]([[maybe_unused]] const Player& p, Health& h) {
-							h.value -= 10;
-						})
-						.Run();
-			}
+			// Entity being collided with has to be an item with stats
+			uint32_t idxE2;
+			const auto* pChunkE2 = GetWorld().GetEntityChunk(coll.e2, idxE2);
+			if (!pChunkE2->HasComponent<Item>())
+				continue;
+			if (pChunkE2->HasComponent<BattleStats>()) {
 
-			if (s_world.map[coll.p.y][coll.p.x] == TILE_POTION) {
-				GetWorld()
-						.ForEach([&]([[maybe_unused]] const Player& p, Health& h) {
-							h.value += 10;
-							if (h.value > h.valueMax)
-								h.value = h.valueMax;
-						})
-						.Run();
+				const auto& item = pChunkE2->GetComponent<Item>(idxE2);
+				const auto& stats = pChunkE2->GetComponent<BattleStats>(idxE2);
+
+				if (item.type == Poison) {
+					pChunkE->SetComponent<Health>(
+							idxE, {h.value - stats.power, h.valueMax});
+				} else if (item.type == Potion) {
+					pChunkE->SetComponent<Health>(
+							idxE, {h.value + stats.power, h.valueMax});
+				}
 			}
 		}
 	}
@@ -385,18 +395,29 @@ public:
 	}
 };
 
-class HandleDeadSystem final: public ecs::System {
+class HandleHealthSystem final: public ecs::System {
 	ecs::EntityQuery m_q;
+	ecs::EntityQuery m_q2;
 	ecs::CommandBuffer m_cb;
 
 public:
 	void OnCreated() override {
-		m_q.All<Health, Position>();
+		m_q2.All<Health>();
+		m_q2.All<Health, Position>();
 	}
 	void OnUpdate() override {
 		GetWorld()
 				.ForEach(
 						m_q,
+						[&](Health& h) {
+							if (h.value > h.valueMax)
+								h.value = h.valueMax;
+						})
+				.Run();
+
+		GetWorld()
+				.ForEach(
+						m_q2,
 						[&](ecs::Entity e, const Health& h, const Position& p) {
 							if (h.value > 0)
 								return;
@@ -512,7 +533,7 @@ int main() {
 	s_sm.CreateSystem<WriteSpritesToMapSystem>("spritestomap");
 	s_sm.CreateSystem<RenderSystem>("render");
 	s_sm.CreateSystem<UISystem>("ui");
-	s_sm.CreateSystem<HandleDeadSystem>("handledead");
+	s_sm.CreateSystem<HandleHealthSystem>("handledead");
 	s_sm.CreateSystem<InputSystem>("input");
 
 	s_world.Init();
