@@ -183,6 +183,7 @@ struct World {
 };
 
 ecs::World s_ecs;
+ecs::SystemManager s_sm(s_ecs);
 World s_world(s_ecs);
 
 class UpdateMapSystem final: public ecs::System {
@@ -214,14 +215,30 @@ public:
 	}
 };
 
+struct CollisionData {
+	//! Entity colliding
+	ecs::Entity e;
+	//! Entity being collided with
+	ecs::Entity e2;
+	//! Position of collision
+	Position p;
+	//! Velocity at the time of collision
+	Velocity v;
+};
+
 class CollisionSystem final: public ecs::System {
 	ecs::EntityQuery m_q;
+	utils::vector<CollisionData> m_colliding;
 
 public:
 	void OnCreated() override {
 		m_q.All<Position, Velocity>();
 	}
+
 	void OnUpdate() override {
+		// Drop all previous collision records
+		m_colliding.clear();
+
 		GetWorld()
 				.ForEach(
 						m_q,
@@ -239,56 +256,18 @@ public:
 							if (s_world.content.find({nx, ny}) == s_world.content.end())
 								return;
 
-							// TODO: event system is necessary that would inform of collisions
-							for (auto e2: s_world.content[{nx, ny}]) {
-								// run into something damagable
-								if (GetWorld().HasComponents<Health>(e2)) {
-									BattleStats stats = {0, 0};
-									BattleStats stats2 = {0, 0};
-
-									if (!GetWorld().HasComponents<BattleStats>(e))
-										return;
-									if (!GetWorld().HasComponents<BattleStats>(e2))
-										return;
-
-									GetWorld().GetComponent<BattleStats>(e, stats);
-									GetWorld().GetComponent<BattleStats>(e2, stats2);
-
-									int damage = stats.power - stats2.armor;
-									if (damage < 0)
-										continue;
-
-									Health h2;
-									GetWorld().GetComponent<Health>(e2, h2);
-									GetWorld().SetComponent<Health>(
-											e2, {h2.value - damage, h2.valueMax});
-								}
-								// run into an item
-								else if (GetWorld().HasComponents<Item>(e2)) {
-									if (s_world.map[ny][nx] == TILE_POISON) {
-										GetWorld()
-												.ForEach([&]([[maybe_unused]] const Player& p,
-																		 Health& h) { h.value -= 10; })
-												.Run();
-									}
-
-									if (s_world.map[ny][nx] == TILE_POTION) {
-										GetWorld()
-												.ForEach(
-														[&]([[maybe_unused]] const Player& p, Health& h) {
-															h.value += 10;
-															if (h.value > h.valueMax)
-																h.value = h.valueMax;
-														})
-												.Run();
-									}
-								}
-							};
+							// Collect all collisions
+							for (auto e2: s_world.content[{nx, ny}])
+								m_colliding.push_back(CollisionData{e, e2, {nx, ny}, v});
 
 							v.x = 0;
 							v.y = 0;
 						})
 				.Run();
+	}
+
+	const utils::vector<CollisionData>& GetCollisions() const {
+		return m_colliding;
 	}
 };
 
@@ -299,6 +278,7 @@ public:
 	void OnCreated() override {
 		m_q.All<Position, Velocity>();
 	}
+
 	void OnUpdate() override {
 		// Update position based on current velocity
 		GetWorld()
@@ -319,6 +299,89 @@ public:
 							v.y = 0;
 						})
 				.Run();
+	}
+};
+
+class HandleDamageSystem final: public ecs::System {
+	CollisionSystem* m_collisionSystem;
+
+public:
+	void OnCreated() override {
+		m_collisionSystem = s_sm.FindSystem<CollisionSystem>();
+	}
+
+	void OnUpdate() override {
+		const auto& colls = m_collisionSystem->GetCollisions();
+		for (const auto& coll: colls) {
+			auto e = coll.e;
+			auto e2 = coll.e2;
+
+			// run into something damagable
+			if (!GetWorld().HasComponents<Health>(e2))
+				continue;
+
+			BattleStats stats = {0, 0};
+			BattleStats stats2 = {0, 0};
+
+			if (!GetWorld().HasComponents<BattleStats>(e))
+				return;
+			if (!GetWorld().HasComponents<BattleStats>(e2))
+				return;
+
+			GetWorld().GetComponent<BattleStats>(e, stats);
+			GetWorld().GetComponent<BattleStats>(e2, stats2);
+
+			int damage = stats.power - stats2.armor;
+			if (damage < 0)
+				continue;
+
+			Health h2;
+			GetWorld().GetComponent<Health>(e2, h2);
+			GetWorld().SetComponent<Health>(e2, {h2.value - damage, h2.valueMax});
+		}
+	}
+
+	bool DependsOn([[maybe_unused]] const BaseSystem* system) const override {
+		return system == s_sm.FindSystem<CollisionSystem>();
+	}
+};
+
+class HandleItemHitSystem final: public ecs::System {
+	CollisionSystem* m_collisionSystem;
+
+public:
+	void OnCreated() override {
+		m_collisionSystem = s_sm.FindSystem<CollisionSystem>();
+	}
+
+	void OnUpdate() override {
+		const auto& colls = m_collisionSystem->GetCollisions();
+		for (const auto& coll: colls) {
+			if (!GetWorld().HasComponents<Item>(coll.e2))
+				continue;
+
+			if (s_world.map[coll.p.y][coll.p.x] == TILE_POISON) {
+				GetWorld()
+						.ForEach([&]([[maybe_unused]] const Player& p, Health& h) {
+							h.value -= 10;
+						})
+						.Run();
+			}
+
+			if (s_world.map[coll.p.y][coll.p.x] == TILE_POTION) {
+				GetWorld()
+						.ForEach([&]([[maybe_unused]] const Player& p, Health& h) {
+							h.value += 10;
+							if (h.value > h.valueMax)
+								h.value = h.valueMax;
+						})
+						.Run();
+			}
+		}
+	}
+
+	bool DependsOn([[maybe_unused]] const BaseSystem* system) const override {
+		return system == s_sm.FindSystem<CollisionSystem>();
 	}
 };
 
@@ -441,21 +504,20 @@ public:
 };
 
 int main() {
-	ecs::World& w = s_ecs;
-
-	ecs::SystemManager sm(w);
-	sm.CreateSystem<UpdateMapSystem>("updateblocked");
-	sm.CreateSystem<CollisionSystem>("collision");
-	sm.CreateSystem<MoveSystem>("move");
-	sm.CreateSystem<WriteSpritesToMapSystem>("spritestomap");
-	sm.CreateSystem<RenderSystem>("render");
-	sm.CreateSystem<UISystem>("ui");
-	sm.CreateSystem<HandleDeadSystem>("handledead");
-	sm.CreateSystem<InputSystem>("input");
+	s_sm.CreateSystem<UpdateMapSystem>("updateblocked");
+	s_sm.CreateSystem<CollisionSystem>("collision");
+	s_sm.CreateSystem<HandleDamageSystem>("damagesystem");
+	s_sm.CreateSystem<HandleItemHitSystem>("itemhitsystem");
+	s_sm.CreateSystem<MoveSystem>("move");
+	s_sm.CreateSystem<WriteSpritesToMapSystem>("spritestomap");
+	s_sm.CreateSystem<RenderSystem>("render");
+	s_sm.CreateSystem<UISystem>("ui");
+	s_sm.CreateSystem<HandleDeadSystem>("handledead");
+	s_sm.CreateSystem<InputSystem>("input");
 
 	s_world.Init();
 	for (;;)
-		sm.Update();
+		s_sm.Update();
 
 	return 0;
 }
