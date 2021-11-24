@@ -103,7 +103,7 @@ namespace gaia {
 		class Chunk;
 		struct EntityContainer {
 			//! Chunk the entity currently resides in
-			Chunk* chunk;
+			Chunk* pChunk;
 			//! For allocated entity: Index of entity within chunk.
 			//! For deleted entity: Index of the next entity in the implicit list.
 			EntityId idx;

@@ -75,8 +75,8 @@ namespace gaia {
 					return false;
 				// If chunk information is present the entity at the pointed index has
 				// to match our entity
-				if (entityContainer.chunk &&
-						entityContainer.chunk->GetEntity((uint16_t)entityContainer.idx) !=
+				if (entityContainer.pChunk &&
+						entityContainer.pChunk->GetEntity((uint16_t)entityContainer.idx) !=
 								entity)
 					return false;
 
@@ -235,8 +235,8 @@ namespace gaia {
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				auto& entityContainer = m_entities[entity.id()];
-				auto chunk = entityContainer.chunk;
-				return chunk ? (Archetype*)&chunk->header.owner : nullptr;
+				auto* pChunk = entityContainer.pChunk;
+				return pChunk ? (Archetype*)&pChunk->header.owner : nullptr;
 			}
 
 			void RemoveArchetype(Archetype* pArchetype) {
@@ -279,7 +279,7 @@ namespace gaia {
 
 			void DeallocateEntity(Entity entityToDelete) {
 				auto& entityContainer = m_entities[entityToDelete.id()];
-				entityContainer.chunk = nullptr;
+				entityContainer.pChunk = nullptr;
 
 				// New generation
 				auto gen = ++entityContainer.gen;
@@ -297,12 +297,12 @@ namespace gaia {
 				++m_freeEntities;
 			}
 
-			void StoreEntity(Entity entity, Chunk* chunk) {
-				GAIA_ASSERT(chunk != nullptr);
+			void StoreEntity(Entity entity, Chunk* pChunk) {
+				GAIA_ASSERT(pChunk != nullptr);
 
 				auto& entityContainer = m_entities[entity.id()];
-				entityContainer.chunk = chunk;
-				entityContainer.idx = chunk->AddEntity(entity);
+				entityContainer.pChunk = pChunk;
+				entityContainer.idx = pChunk->AddEntity(entity);
 				entityContainer.gen = entityContainer.gen;
 			}
 
@@ -314,8 +314,8 @@ namespace gaia {
 
 				// Adding a component to an entity which already is a part of some
 				// chunk
-				if (auto chunk = entityContainer.chunk) {
-					const auto& archetype = chunk->header.owner;
+				if (auto* pChunk = entityContainer.pChunk) {
+					const auto& archetype = pChunk->header.owner;
 					const auto& componentList = archetype.componentList[componentType];
 
 					const auto metatypesCount =
@@ -448,9 +448,9 @@ namespace gaia {
 					ComponentType componentType, Entity entity,
 					std::span<const ComponentMetaData*> typesToRemove) {
 				auto& entityContainer = m_entities[entity.id()];
-				auto chunk = entityContainer.chunk;
+				auto* pChunk = entityContainer.pChunk;
 
-				const auto& archetype = chunk->header.owner;
+				const auto& archetype = pChunk->header.owner;
 				const auto& componentList = archetype.componentList[componentType];
 
 				// find intersection
@@ -509,7 +509,7 @@ namespace gaia {
 
 			void MoveEntity(Entity oldEntity, Archetype& newArchetype) {
 				auto& entityContainer = m_entities[oldEntity.id()];
-				auto oldChunk = entityContainer.chunk;
+				auto oldChunk = entityContainer.pChunk;
 				const auto oldIndex = entityContainer.idx;
 				const auto& oldArchetype = oldChunk->header.owner;
 
@@ -573,7 +573,7 @@ namespace gaia {
 				RemoveEntity(oldChunk, (uint16_t)oldIndex);
 
 				// Update entity's chunk and index so look-ups can find it
-				entityContainer.chunk = newChunk;
+				entityContainer.pChunk = newChunk;
 				entityContainer.idx = newIndex;
 				entityContainer.gen = oldEntity.gen();
 
@@ -618,7 +618,7 @@ namespace gaia {
 				// Make sure no entites reference the deleted chunk
 				for (const auto& e: m_entities) {
 					(void)e;
-					GAIA_ASSERT(chunk->HasEntities() || e.chunk != chunk);
+					GAIA_ASSERT(pChunk->HasEntities() || e.chunk != chunk);
 				}
 #endif
 			}
@@ -648,11 +648,11 @@ namespace gaia {
 			Entity CreateEntity(Archetype& archetype) {
 				Entity entity = AllocateEntity();
 
-				auto chunk = m_entities[entity.id()].chunk;
-				if (chunk == nullptr)
-					chunk = archetype.FindOrCreateFreeChunk();
+				auto* pChunk = m_entities[entity.id()].pChunk;
+				if (pChunk == nullptr)
+					pChunk = archetype.FindOrCreateFreeChunk();
 
-				StoreEntity(entity, chunk);
+				StoreEntity(entity, pChunk);
 
 				return entity;
 			}
@@ -698,17 +698,17 @@ namespace gaia {
 			*/
 			Entity CreateEntity(Entity entity) {
 				auto& entityContainer = m_entities[entity.id()];
-				if (auto chunk = entityContainer.chunk) {
-					auto& archetype = const_cast<Archetype&>(chunk->header.owner);
+				if (auto* pChunk = entityContainer.pChunk) {
+					auto& archetype = const_cast<Archetype&>(pChunk->header.owner);
 
 					Entity newEntity = CreateEntity(archetype);
 					auto& newEntityContainer = m_entities[newEntity.id()];
-					auto newChunk = newEntityContainer.chunk;
+					auto newChunk = newEntityContainer.pChunk;
 
 					// By adding a new entity m_entities array might have been
 					// reallocated. We need to get the new address.
 					auto& oldEntityContainer = m_entities[entity.id()];
-					auto oldChunk = oldEntityContainer.chunk;
+					auto oldChunk = oldEntityContainer.pChunk;
 
 					// Copy generic component data from reference entity to our new
 					// entity
@@ -748,13 +748,13 @@ namespace gaia {
 				auto& entityContainer = m_entities[entity.id()];
 
 				// Remove entity from chunk
-				if (auto chunk = entityContainer.chunk) {
-					RemoveEntity(chunk, (uint16_t)entityContainer.idx);
+				if (auto* pChunk = entityContainer.pChunk) {
+					RemoveEntity(pChunk, (uint16_t)entityContainer.idx);
 
 					// Return entity to pool
 					DeallocateEntity(entity);
 
-					ValidateChunk(chunk);
+					ValidateChunk(pChunk);
 					ValidateEntityList();
 				} else {
 					// Return entity to pool
@@ -787,7 +787,7 @@ namespace gaia {
 			[[nodiscard]] Chunk* GetEntityChunk(Entity entity) const {
 				GAIA_ASSERT(entity.id() < m_entities.size());
 				auto& entityContainer = m_entities[entity.id()];
-				return entityContainer.chunk;
+				return entityContainer.pChunk;
 			}
 
 			/*!
@@ -800,7 +800,7 @@ namespace gaia {
 				GAIA_ASSERT(entity.id() < m_entities.size());
 				auto& entityContainer = m_entities[entity.id()];
 				indexInChunk = entityContainer.idx;
-				return entityContainer.chunk;
+				return entityContainer.pChunk;
 			}
 
 			template <typename... TComponent>
@@ -818,8 +818,8 @@ namespace gaia {
 
 				auto entityContainer = AddComponent_Internal<TComponent...>(
 						ComponentType::CT_Generic, entity);
-				SetComponents_Internal<TComponent...>(
-						ComponentType::CT_Generic, entityContainer->chunk,
+				auto* pChunk = entityContainer->pChunk;
+				pChunk->template SetComponents<TComponent...>(
 						entityContainer->idx, std::forward<TComponent>(data)...);
 			}
 
@@ -838,8 +838,8 @@ namespace gaia {
 
 				auto entityContainer = AddComponent_Internal<TComponent...>(
 						ComponentType::CT_Chunk, entity);
-				SetComponents_Internal<TComponent...>(
-						ComponentType::CT_Chunk, entityContainer->chunk, 0,
+				auto* pChunk = entityContainer->pChunk;
+				pChunk->template SetChunkComponents<TComponent...>(
 						std::forward<TComponent>(data)...);
 			}
 
@@ -867,11 +867,9 @@ namespace gaia {
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				auto& entityContainer = m_entities[entity.id()];
-				auto chunk = entityContainer.chunk;
-
-				SetComponents_Internal<TComponent...>(
-						ComponentType::CT_Generic, chunk, entityContainer.idx,
-						std::forward<TComponent>(data)...);
+				auto* pChunk = entityContainer.pChunk;
+				pChunk->SetComponents<TComponent...>(
+						entityContainer.idx, std::forward<TComponent>(data)...);
 			}
 
 			template <typename... TComponent>
@@ -880,10 +878,8 @@ namespace gaia {
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				auto& entityContainer = m_entities[entity.id()];
-				auto chunk = entityContainer.chunk;
-
-				SetComponents_Internal<TComponent...>(
-						ComponentType::CT_Chunk, chunk, 0,
+				auto* pChunk = entityContainer.pChunk;
+				pChunk->SetChunkComponents<TComponent...>(
 						std::forward<TComponent>(data)...);
 			}
 
@@ -893,10 +889,8 @@ namespace gaia {
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				auto& entityContainer = m_entities[entity.id()];
-				auto chunk = entityContainer.chunk;
-
-				GetComponents_Internal<TComponent...>(
-						ComponentType::CT_Generic, chunk, entityContainer.idx, data...);
+				auto* pChunk = entityContainer.pChunk;
+				pChunk->GetComponents<TComponent...>(entityContainer.idx, data...);
 			}
 
 			template <typename... TComponent>
@@ -905,10 +899,8 @@ namespace gaia {
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				auto& entityContainer = m_entities[entity.id()];
-				auto chunk = entityContainer.chunk;
-
-				GetComponents_Internal<TComponent...>(
-						ComponentType::CT_Chunk, chunk, 0, data...);
+				auto* pChunk = entityContainer.pChunk;
+				pChunk->GetChunkComponents<TComponent...>(data...);
 			}
 
 			template <typename... TComponent>
@@ -917,8 +909,8 @@ namespace gaia {
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
-				if (const auto* chunk = entityContainer.chunk) {
-					const auto& archetype = chunk->header.owner;
+				if (const auto* pChunk = entityContainer.pChunk) {
+					const auto& archetype = pChunk->header.owner;
 					return archetype.HasComponents<TComponent...>();
 				}
 
@@ -931,8 +923,8 @@ namespace gaia {
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
-				if (const auto* chunk = entityContainer.chunk) {
-					const auto& archetype = chunk->header.owner;
+				if (const auto* pChunk = entityContainer.pChunk) {
+					const auto& archetype = pChunk->header.owner;
 					return archetype.HasAnyComponents<TComponent...>();
 				}
 
@@ -945,8 +937,8 @@ namespace gaia {
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
-				if (const auto* chunk = entityContainer.chunk) {
-					const auto& archetype = chunk->header.owner;
+				if (const auto* pChunk = entityContainer.pChunk) {
+					const auto& archetype = pChunk->header.owner;
 					return archetype.HasNoneComponents<TComponent...>();
 				}
 
@@ -959,8 +951,8 @@ namespace gaia {
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
-				if (const auto* chunk = entityContainer.chunk) {
-					const auto& archetype = chunk->header.owner;
+				if (const auto* pChunk = entityContainer.pChunk) {
+					const auto& archetype = pChunk->header.owner;
 					return archetype.HasChunkComponents<TComponent...>();
 				}
 
@@ -973,8 +965,8 @@ namespace gaia {
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
-				if (const auto* chunk = entityContainer.chunk) {
-					const auto& archetype = chunk->header.owner;
+				if (const auto* pChunk = entityContainer.pChunk) {
+					const auto& archetype = pChunk->header.owner;
 					return archetype.HasAnyChunkComponents<TComponent...>();
 				}
 
@@ -987,8 +979,8 @@ namespace gaia {
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
-				if (const auto* chunk = entityContainer.chunk) {
-					const auto& archetype = chunk->header.owner;
+				if (const auto* pChunk = entityContainer.pChunk) {
+					const auto& archetype = pChunk->header.owner;
 					return archetype.HasNoneChunkComponents<TComponent...>();
 				}
 
@@ -996,43 +988,6 @@ namespace gaia {
 			}
 
 		private:
-			template <typename TComponent>
-			void SetComponent_Internal(
-					ComponentType componentType, Chunk* chunk, uint32_t index,
-					TComponent&& data) {
-				if constexpr (!std::is_empty<TComponent>::value) {
-					chunk->SetComponent_Internal<TComponent>(
-							componentType, index, std::forward<TComponent>(data));
-				}
-			}
-
-			template <typename... TComponent>
-			void SetComponents_Internal(
-					ComponentType componentType, Chunk* chunk, uint32_t index,
-					TComponent&&... data) {
-				(SetComponent_Internal<TComponent>(
-						 componentType, chunk, index, std::forward<TComponent>(data)),
-				 ...);
-			}
-
-			template <typename TComponent>
-			void GetComponent_Internal(
-					ComponentType componentType, Chunk* chunk, uint32_t index,
-					TComponent& data) const {
-				static_assert(
-						!std::is_empty<TComponent>::value,
-						"Attempting to get the value of an empty component");
-				data = chunk->GetComponent_Internal<TComponent>(componentType, index);
-			}
-
-			template <typename... TComponent>
-			void GetComponents_Internal(
-					ComponentType componentType, Chunk* chunk, uint32_t index,
-					TComponent&... data) const {
-				(GetComponent_Internal<TComponent>(componentType, chunk, index, data),
-				 ...);
-			}
-
 			template <class T>
 			struct IsReadOnlyType:
 					std::bool_constant<
@@ -1395,23 +1350,23 @@ namespace gaia {
 			void GC() {
 				// Handle chunks
 				for (auto i = 0U; i < (uint32_t)m_chunksToRemove.size();) {
-					auto chunk = m_chunksToRemove[i];
+					auto* pChunk = m_chunksToRemove[i];
 
 					// Skip reclaimed chunks
-					if (chunk->HasEntities()) {
-						chunk->header.lifespan = MAX_CHUNK_LIFESPAN;
+					if (pChunk->HasEntities()) {
+						pChunk->header.lifespan = MAX_CHUNK_LIFESPAN;
 						utils::erase_fast(m_chunksToRemove, i);
 						continue;
 					}
 
-					GAIA_ASSERT(chunk->header.lifespan > 0);
-					--chunk->header.lifespan;
-					if (chunk->header.lifespan > 0) {
+					GAIA_ASSERT(pChunk->header.lifespan > 0);
+					--pChunk->header.lifespan;
+					if (pChunk->header.lifespan > 0) {
 						++i;
 						continue;
 					}
 
-					auto& archetype = const_cast<Archetype&>(chunk->header.owner);
+					auto& archetype = const_cast<Archetype&>(pChunk->header.owner);
 					GAIA_ASSERT(!archetype.chunks.empty());
 
 					m_archetypesToRemove.push_back(&archetype);
@@ -1451,11 +1406,11 @@ namespace gaia {
 
 					// Calculate the number of entities using a given archetype
 					for (const auto& e: m_entities) {
-						if (!e.chunk)
+						if (!e.pChunk)
 							continue;
 
 						auto it =
-								archetypeEntityCountMap.find(e.chunk->header.owner.lookupHash);
+								archetypeEntityCountMap.find(e.pChunk->header.owner.lookupHash);
 						if (it != archetypeEntityCountMap.end())
 							++it->second;
 					}
@@ -1518,12 +1473,12 @@ namespace gaia {
 
 						const auto& chunks = archetype->chunks;
 						for (auto i = 0U; i < (uint32_t)chunks.size(); ++i) {
-							const auto& chunk = chunks[i];
+							const auto* pChunk = chunks[i];
 							const uint16_t entityCount =
-									chunk->header.lastEntityIndex + uint16_t(1);
+									pChunk->header.lastEntityIndex + uint16_t(1);
 							LOG_N(
 									"  Chunk #%04u, entities:%hu/%hu, lifespan:%u", i,
-									entityCount, archetype->capacity, chunk->header.lifespan);
+									entityCount, archetype->capacity, pChunk->header.lifespan);
 						}
 					}
 				}
