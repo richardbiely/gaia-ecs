@@ -176,12 +176,14 @@ struct World {
 		auto potion = w.CreateEntity();
 		w.AddComponent<Position>(potion, {5, 5});
 		w.AddComponent<Sprite>(potion, {TILE_POTION});
-		w.AddComponent<Item>(potion);
+		w.AddComponent<Item>(potion, {Potion});
+		w.AddComponent<BattleStats>(potion, {10, 0});
 
 		auto poison = w.CreateEntity();
 		w.AddComponent<Position>(poison, {15, 10});
 		w.AddComponent<Sprite>(poison, {TILE_POISON});
-		w.AddComponent<Item>(poison);
+		w.AddComponent<Item>(poison, {Poison});
+		w.AddComponent<BattleStats>(poison, {10, 0});
 	}
 };
 
@@ -253,9 +255,6 @@ public:
 							const int nx = p.x + v.x;
 							const int ny = p.y + v.y;
 
-							if (!s_world.blocked[ny][nx])
-								return;
-
 							if (s_world.content.find({nx, ny}) == s_world.content.end())
 								return;
 
@@ -263,8 +262,10 @@ public:
 							for (auto e2: s_world.content[{nx, ny}])
 								m_colliding.push_back(CollisionData{e, e2, {nx, ny}, v});
 
-							v.x = 0;
-							v.y = 0;
+							if (s_world.blocked[ny][nx]) {
+								v.x = 0;
+								v.y = 0;
+							}
 						})
 				.Run();
 	}
@@ -360,24 +361,24 @@ public:
 	void OnUpdate() override {
 		const auto& colls = m_collisionSystem->GetCollisions();
 		for (const auto& coll: colls) {
-			// Entity colliding has to be a player with Heatlh component
+			// The entity colliding has to be a player with Heatlh component
 			uint32_t idxE;
 			auto* pChunkE = GetWorld().GetEntityChunk(coll.e, idxE);
 			if (!pChunkE->HasComponent<Player>())
 				continue;
 			if (!pChunkE->HasComponent<Health>())
 				continue;
-			const auto& h = pChunkE->GetComponent<Health>(idxE);
+			auto h = pChunkE->GetComponent<Health>(idxE);
 
-			// Entity being collided with has to be an item with stats
+			// The entity being collided with has to be an item with stats
 			uint32_t idxE2;
 			const auto* pChunkE2 = GetWorld().GetEntityChunk(coll.e2, idxE2);
 			if (!pChunkE2->HasComponent<Item>())
 				continue;
-			if (pChunkE2->HasComponent<BattleStats>()) {
 
-				const auto& item = pChunkE2->GetComponent<Item>(idxE2);
-				const auto& stats = pChunkE2->GetComponent<BattleStats>(idxE2);
+			if (pChunkE2->HasComponent<BattleStats>()) {
+				auto item = pChunkE2->GetComponent<Item>(idxE2);
+				auto stats = pChunkE2->GetComponent<BattleStats>(idxE2);
 
 				if (item.type == Poison) {
 					pChunkE->SetComponent<Health>(
@@ -402,7 +403,7 @@ class HandleHealthSystem final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q2.All<Health>();
+		m_q.All<Health>();
 		m_q2.All<Health, Position>();
 	}
 	void OnUpdate() override {
@@ -421,11 +422,6 @@ public:
 						[&](ecs::Entity e, const Health& h, const Position& p) {
 							if (h.value > 0)
 								return;
-
-							if (GetWorld().HasComponents<Player>(e))
-								printf("Player killed!\n");
-							else
-								printf("Enemy killed %d:%d!\n", e.gen(), e.id());
 
 							s_world.map[p.y][p.x] = TILE_FREE;
 							m_cb.DeleteEntity(e);
@@ -529,11 +525,11 @@ int main() {
 	s_sm.CreateSystem<CollisionSystem>("collision");
 	s_sm.CreateSystem<HandleDamageSystem>("damagesystem");
 	s_sm.CreateSystem<HandleItemHitSystem>("itemhitsystem");
+	s_sm.CreateSystem<HandleHealthSystem>("handlehealth");
 	s_sm.CreateSystem<MoveSystem>("move");
 	s_sm.CreateSystem<WriteSpritesToMapSystem>("spritestomap");
 	s_sm.CreateSystem<RenderSystem>("render");
 	s_sm.CreateSystem<UISystem>("ui");
-	s_sm.CreateSystem<HandleHealthSystem>("handledead");
 	s_sm.CreateSystem<InputSystem>("input");
 
 	s_world.Init();
