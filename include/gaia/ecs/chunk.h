@@ -263,6 +263,10 @@ namespace gaia {
 				const ComponentMetaData* type =
 						g_ComponentCache.GetOrCreateComponentMetaType<TComponent>();
 
+				GAIA_ASSERT(index <= header.lastEntityIndex || index != (uint32_t)-1);
+				// invalid component requests are a programmer's bug
+				GAIA_ASSERT(type != nullptr);
+
 				const auto& componentList =
 						GetArchetypeComponentList(header.owner, componentType);
 				const auto it = utils::find_if(componentList, [type](const auto& info) {
@@ -289,6 +293,10 @@ namespace gaia {
 
 				const ComponentMetaData* type =
 						g_ComponentCache.GetOrCreateComponentMetaType<TComponent>();
+
+				GAIA_ASSERT(index <= header.lastEntityIndex || index != (uint32_t)-1);
+				// invalid component requests are a programmer's bug
+				GAIA_ASSERT(type != nullptr);
 
 				const auto& componentList =
 						GetArchetypeComponentList(header.owner, componentType);
@@ -383,8 +391,7 @@ namespace gaia {
 			}
 
 			template <typename... T>
-			void
-			GetComponents(uint32_t index, const std::decay_t<T>*&... data) const {
+			void GetComponent(uint32_t index, const std::decay_t<T>*&... data) const {
 				(GetComponent<T>(index, data), ...);
 			}
 
@@ -398,7 +405,7 @@ namespace gaia {
 			}
 
 			template <typename... T>
-			void GetChunkComponents(const std::decay_t<T>*&... data) const {
+			void GetChunkComponent(const std::decay_t<T>*&... data) const {
 				(GetChunkComponent<T>(data), ...);
 			}
 

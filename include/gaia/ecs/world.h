@@ -973,7 +973,7 @@ namespace gaia {
 
 				const auto& entityContainer = m_entities[entity.id()];
 				const auto* pChunk = entityContainer.pChunk;
-				pChunk->GetComponents<TComponent...>(entityContainer.idx, data...);
+				pChunk->GetComponent<TComponent...>(entityContainer.idx, data...);
 			}
 
 			/*!
@@ -988,7 +988,7 @@ namespace gaia {
 
 				const auto& entityContainer = m_entities[entity.id()];
 				const auto* pChunk = entityContainer.pChunk;
-				pChunk->GetChunkComponents<TComponent...>(data...);
+				pChunk->GetChunkComponent<TComponent...>(data...);
 			}
 
 #pragma endregion
