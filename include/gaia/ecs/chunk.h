@@ -197,16 +197,12 @@ namespace gaia {
 						!std::is_empty<TComponent>::value,
 						"Attempting to get value of an empty component");
 
-				const ComponentMetaData* type =
-						g_ComponentCache.GetComponentMetaType<TComponent>();
-
-				// invalid component requests are a programmer's bug
-				GAIA_ASSERT(type != nullptr);
+				constexpr auto lookupHash = utils::type_info::hash<TComponent>();
 
 				const auto& componentList =
 						GetArchetypeComponentList(header.owner, componentType);
-				const auto it = utils::find_if(componentList, [type](const auto& info) {
-					return info.type == type;
+				const auto it = utils::find_if(componentList, [](const auto& info) {
+					return info.type->lookupHash == lookupHash;
 				});
 
 				// Searching for a component that's not there! Programmer mistake.
@@ -223,16 +219,12 @@ namespace gaia {
 					ComponentType componentType = ComponentType::CT_Generic) {
 				using TComponent = std::decay_t<T>;
 
-				const ComponentMetaData* type =
-						g_ComponentCache.GetComponentMetaType<TComponent>();
-
-				// invalid component requests are a programmer's bug
-				GAIA_ASSERT(type != nullptr);
+				constexpr auto lookupHash = utils::type_info::hash<TComponent>();
 
 				const auto& componentList =
 						GetArchetypeComponentList(header.owner, componentType);
-				const auto it = utils::find_if(componentList, [type](const auto& info) {
-					return info.type == type;
+				const auto it = utils::find_if(componentList, [](const auto& info) {
+					return info.type->lookupHash == lookupHash;
 				});
 
 				// Searching for a component that's not there! Programmer mistake.
