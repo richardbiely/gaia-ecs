@@ -20,5 +20,8 @@
 #include "gaia/utils/utility.h"
 #include "gaia/utils/utils_containers.h"
 #include "gaia/utils/utils_mem.h"
+#include "gaia/utils/vector.h"
+#include "gaia/utils/list.h"
+#include "gaia/utils/map.h"
 
 #define GAIA_INIT GAIA_ECS_COMPONENT_CACHE_H_INIT
