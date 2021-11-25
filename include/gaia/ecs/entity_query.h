@@ -151,7 +151,7 @@ namespace gaia {
 			uint32_t m_worldVersion = 0;
 
 			template <class TComponent>
-			void CalculateHash_Internal(ComponentIndexArray& arr, uint64_t& hash) {
+			void CalculateHash_Internal(ComponentIndexArray& arr, [[maybe_unused]] uint64_t& hash) {
 				using T = std::decay_t<TComponent>;
 
 				if constexpr (std::is_same<T, Entity>::value) {

@@ -47,8 +47,8 @@ namespace gaia {
 					ComponentType componentType, uint32_t index) const {
 				using TComponent = std::decay_t<T>;
 
-				auto data = View<TComponent>(componentType);
-				return utils::auto_view_policy_get<TComponent>(data)[index];
+				auto view = View<TComponent>(componentType);
+				return utils::auto_view_policy_get<TComponent>(view)[index];
 			}
 
 			template <typename T>
@@ -56,8 +56,8 @@ namespace gaia {
 					ComponentType componentType, uint32_t index) const {
 				using TComponent = std::decay_t<T>;
 
-				auto data = View<TComponent>(componentType);
-				return (utils::auto_view_policy_get<TComponent>(data))[index];
+				auto view = View<TComponent>(componentType);
+				return (utils::auto_view_policy_get<TComponent>(view))[index];
 			}
 
 			template <typename T>
@@ -68,8 +68,8 @@ namespace gaia {
 				if constexpr (std::is_empty<TComponent>::value)
 					return;
 
-				auto data = ViewRW<TComponent>(componentType);
-				(utils::auto_view_policy_set<TComponent>(data))[index] =
+				auto view = ViewRW<TComponent>(componentType);
+				(utils::auto_view_policy_set<TComponent>(view))[index] =
 						std::forward<TComponent>(value);
 			}
 

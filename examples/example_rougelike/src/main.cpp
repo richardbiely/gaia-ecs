@@ -1,7 +1,3 @@
-#include "gaia/ecs/command_buffer.h"
-#include "gaia/ecs/entity.h"
-#include "gaia/ecs/fwd.h"
-#include "gaia/utils/vector.h"
 #ifdef WIN32
 	#include <conio.h>
 #else
@@ -10,17 +6,28 @@
 	#include <term.h>
 #endif
 #include <cstdio>
+#include <cstdlib>
+
 #define _ITERATOR_DEBUG_LEVEL 0
 #include <gaia.h>
 
 GAIA_INIT
 
+#if GAIA_COMPILER_MSVC
+	#if _MSV_VER <= 1916
+// warning C4100: 'XYZ': unreferenced formal parameter
+GAIA_MSVC_WARNING_DISABLE(4100)
+// warning C4307: 'XYZ': integral constant overflow
+GAIA_MSVC_WARNING_DISABLE(4307)
+	#endif
+#endif
+
 using namespace gaia;
 
 #pragma region Plaform specific helper functions
 
-#ifndef WIN32
-char _getch() {
+#ifndef _WIN32
+char get_char() {
 	char buf = 0;
 	struct termios old = {};
 	if (tcgetattr(0, &old) < 0)
@@ -44,7 +51,10 @@ void ClearScreen() {
 	system("clear");
 }
 #else
-void ClearStream() {
+char get_char() {
+	return (char)_getch();
+}
+void ClearScreen() {
 	system("cls");
 }
 #endif
@@ -492,7 +502,7 @@ public:
 		m_q.All<Player>();
 	}
 	void OnUpdate() override {
-		m_key = _getch();
+		m_key = get_char();
 
 		GetWorld()
 				.ForEach(
