@@ -67,10 +67,11 @@ namespace gaia {
 				using TComponent = std::decay_t<T>;
 				if constexpr (std::is_empty<TComponent>::value)
 					return;
-
-				auto view = ViewRW<TComponent>(componentType);
-				(utils::auto_view_policy_set<TComponent>(view))[index] =
-						std::forward<TComponent>(value);
+				else {
+					auto view = ViewRW<TComponent>(componentType);
+					(utils::auto_view_policy_set<TComponent>(view))[index] =
+							std::forward<TComponent>(value);
+				}
 			}
 
 			[[nodiscard]] uint32_t GetComponentIdx_Internal(
