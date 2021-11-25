@@ -6,7 +6,6 @@
 #include <typeinfo>
 #include <utility>
 
-
 namespace gaia {
 	namespace utils {
 		namespace internal {

@@ -258,21 +258,21 @@ namespace gaia {
 			template <typename T>
 			[[nodiscard]] typename std::enable_if_t<
 					!std::is_same<std::decay_t<T>, Entity>::value,
-					utils::auto_view_policy_set<std::decay_t<T>>>
-			ViewRW(ComponentType componentType = ComponentType::CT_Generic) {
-				using TComponent = std::decay_t<T>;
-				return utils::auto_view_policy_set<TComponent>(
-						view_rw_internal<TComponent>(componentType));
-			}
-
-			template <typename T>
-			[[nodiscard]] typename std::enable_if_t<
-					!std::is_same<std::decay_t<T>, Entity>::value,
 					utils::auto_view_policy_get<const std::decay_t<T>>>
 			View(ComponentType componentType = ComponentType::CT_Generic) const {
 				using TComponent = const std::decay_t<T>;
 				return utils::auto_view_policy_get<TComponent>(
 						view_internal<TComponent>(componentType));
+			}
+
+			template <typename T>
+			[[nodiscard]] typename std::enable_if_t<
+					!std::is_same<std::decay_t<T>, Entity>::value,
+					utils::auto_view_policy_set<std::decay_t<T>>>
+			ViewRW(ComponentType componentType = ComponentType::CT_Generic) {
+				using TComponent = std::decay_t<T>;
+				return utils::auto_view_policy_set<TComponent>(
+						view_rw_internal<TComponent>(componentType));
 			}
 
 			[[nodiscard]] uint32_t GetComponentIdx(uint32_t typeIdx) const {
@@ -332,7 +332,7 @@ namespace gaia {
 			}
 
 			template <typename... T>
-			void GetComponents(uint32_t index, std::decay_t<T>&... data) const {
+			void GetComponent(uint32_t index, std::decay_t<T>&... data) const {
 				(GetComponent<T>(index, data), ...);
 			}
 
@@ -342,7 +342,7 @@ namespace gaia {
 			}
 
 			template <typename... T>
-			void GetChunkComponents(std::decay_t<T>&... data) const {
+			void GetChunkComponent(std::decay_t<T>&... data) const {
 				(GetChunkComponent<T>(data), ...);
 			}
 

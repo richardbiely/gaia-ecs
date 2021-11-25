@@ -921,7 +921,7 @@ namespace gaia {
 
 				auto& entityContainer = m_entities[entity.id()];
 				auto* pChunk = entityContainer.pChunk;
-				pChunk->SetChunkComponents<TComponent...>(
+				pChunk->SetChunkComponent<TComponent...>(
 						std::forward<TComponent>(data)...);
 			}
 
@@ -954,7 +954,7 @@ namespace gaia {
 
 				const auto& entityContainer = m_entities[entity.id()];
 				const auto* pChunk = entityContainer.pChunk;
-				pChunk->GetChunkComponents<TComponent...>(data...);
+				pChunk->GetChunkComponent<TComponent...>(data...);
 			}
 
 #pragma endregion
