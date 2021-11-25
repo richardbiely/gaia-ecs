@@ -197,9 +197,8 @@ namespace gaia {
 				using TComponent = std::decay_t<T>;
 
 				const ComponentMetaData* type =
-						g_ComponentCache.GetOrCreateComponentMetaType<TComponent>();
+						g_ComponentCache.GetComponentMetaType<TComponent>();
 
-				GAIA_ASSERT(index <= header.lastEntityIndex || index != (uint32_t)-1);
 				// invalid component requests are a programmer's bug
 				GAIA_ASSERT(type != nullptr);
 
@@ -231,9 +230,8 @@ namespace gaia {
 						"Attempting to get value of an empty component");
 
 				const ComponentMetaData* type =
-						g_ComponentCache.GetOrCreateComponentMetaType<TComponent>();
+						g_ComponentCache.GetComponentMetaType<TComponent>();
 
-				GAIA_ASSERT(index <= header.lastEntityIndex || index != (uint32_t)-1);
 				// invalid component requests are a programmer's bug
 				GAIA_ASSERT(type != nullptr);
 
