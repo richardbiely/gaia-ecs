@@ -73,8 +73,9 @@ void BM_Game_ECS(benchmark::State& state) {
 	for ([[maybe_unused]] auto _: state) {
 		// Calculate delta
 		state.PauseTiming();
-		dt = MinDelta + static_cast<float>(rand()) /
-												(static_cast<float>(RAND_MAX / (MaxDelta - MinDelta)));
+		dt = MinDelta +
+				 static_cast<float>(rand()) /
+						 (static_cast<float>((float)RAND_MAX / (MaxDelta - MinDelta)));
 		state.ResumeTiming();
 
 		// Update position
@@ -175,8 +176,9 @@ void BM_Game_ECS_WithSystems(benchmark::State& state) {
 	for ([[maybe_unused]] auto _: state) {
 		// Calculate delta
 		state.PauseTiming();
-		dt = MinDelta + static_cast<float>(rand()) /
-												(static_cast<float>(RAND_MAX / (MaxDelta - MinDelta)));
+		dt = MinDelta +
+				 static_cast<float>(rand()) /
+						 (static_cast<float>((float)RAND_MAX / (MaxDelta - MinDelta)));
 		state.ResumeTiming();
 
 		sm.Update();
@@ -286,8 +288,9 @@ void BM_Game_ECS_WithSystems_ForEachChunk(benchmark::State& state) {
 	for ([[maybe_unused]] auto _: state) {
 		// Calculate delta
 		state.PauseTiming();
-		dt = MinDelta + static_cast<float>(rand()) /
-												(static_cast<float>(RAND_MAX / (MaxDelta - MinDelta)));
+		dt = MinDelta +
+				 static_cast<float>(rand()) /
+						 (static_cast<float>((float)RAND_MAX / (MaxDelta - MinDelta)));
 		state.ResumeTiming();
 
 		sm.Update();
@@ -334,13 +337,13 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA(benchmark::State& state) {
 								auto p = ch.ViewRW<PositionSoA>();
 								auto v = ch.View<VelocitySoA>();
 
-								auto ppx = utils::auto_view_policy_set_idx<PositionSoA, 0>(p);
-								auto ppy = utils::auto_view_policy_set_idx<PositionSoA, 1>(p);
-								auto ppz = utils::auto_view_policy_set_idx<PositionSoA, 2>(p);
+								auto ppx = p.set<0>();
+								auto ppy = p.set<1>();
+								auto ppz = p.set<2>();
 
-								auto vvx = utils::auto_view_policy_get_idx<VelocitySoA, 0>(v);
-								auto vvy = utils::auto_view_policy_get_idx<VelocitySoA, 1>(v);
-								auto vvz = utils::auto_view_policy_get_idx<VelocitySoA, 2>(v);
+								auto vvx = v.get<0>();
+								auto vvy = v.get<1>();
+								auto vvz = v.get<2>();
 
 								for (auto i = 0U; i < ch.GetItemCount(); ++i)
 									ppx[i] += vvx[i] * dt;
@@ -367,8 +370,8 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA(benchmark::State& state) {
 								auto p = ch.ViewRW<PositionSoA>();
 								auto v = ch.ViewRW<VelocitySoA>();
 
-								utils::auto_view_policy_set_idx<PositionSoA, 1> ppy(p);
-								utils::auto_view_policy_set_idx<VelocitySoA, 1> vvy(v);
+								auto ppy = p.set<1>();
+								auto vvy = v.set<1>();
 
 								for (auto i = 0U; i < ch.GetItemCount(); ++i) {
 									if (ppy[i] < 0.0f) {
@@ -394,7 +397,7 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA(benchmark::State& state) {
 							m_q,
 							[&](ecs::Chunk& ch) {
 								auto v = ch.ViewRW<VelocitySoA>();
-								auto vvy = utils::auto_view_policy_set_idx<VelocitySoA, 1>(v);
+								auto vvy = v.set<1>();
 
 								for (auto i = 0U; i < ch.GetItemCount(); ++i)
 									vvy[i] = vvy[i] * dt * 9.81f;
@@ -412,8 +415,9 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA(benchmark::State& state) {
 	for ([[maybe_unused]] auto _: state) {
 		// Calculate delta
 		state.PauseTiming();
-		dt = MinDelta + static_cast<float>(rand()) /
-												(static_cast<float>(RAND_MAX / (MaxDelta - MinDelta)));
+		dt = MinDelta +
+				 static_cast<float>(rand()) /
+						 (static_cast<float>((float)RAND_MAX / (MaxDelta - MinDelta)));
 		state.ResumeTiming();
 
 		sm.Update();
@@ -481,8 +485,9 @@ void BM_Game_NonECS(benchmark::State& state) {
 	for ([[maybe_unused]] auto _: state) {
 		// Calculate delta
 		state.PauseTiming();
-		dt = MinDelta + static_cast<float>(rand()) /
-												(static_cast<float>(RAND_MAX / (MaxDelta - MinDelta)));
+		dt = MinDelta +
+				 static_cast<float>(rand()) /
+						 (static_cast<float>((float)RAND_MAX / (MaxDelta - MinDelta)));
 		state.ResumeTiming();
 
 		// Process entities

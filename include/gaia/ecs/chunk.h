@@ -6,6 +6,7 @@
 #include <iterator>
 #include <stdint.h>
 #include <type_traits>
+#include <utility>
 
 #include "../utils/utils_containers.h"
 #include "archetype.h"
@@ -46,18 +47,14 @@ namespace gaia {
 			[[nodiscard]] std::decay_t<T> GetComponentVal_Internal(
 					ComponentType componentType, uint32_t index) const {
 				using TComponent = std::decay_t<T>;
-
-				auto view = View<TComponent>(componentType);
-				return utils::auto_view_policy_get<TComponent>(view)[index];
+				return View<TComponent>(componentType)[index];
 			}
 
 			template <typename T>
 			[[nodiscard]] const std::decay_t<T>& GetComponentRef_Internal(
 					ComponentType componentType, uint32_t index) const {
 				using TComponent = std::decay_t<T>;
-
-				auto view = View<TComponent>(componentType);
-				return (utils::auto_view_policy_get<TComponent>(view))[index];
+				return View<TComponent>(componentType)[index];
 			}
 
 			template <typename T>
@@ -68,8 +65,7 @@ namespace gaia {
 				if constexpr (std::is_empty<TComponent>::value)
 					return;
 				else {
-					auto view = ViewRW<TComponent>(componentType);
-					(utils::auto_view_policy_set<TComponent>(view))[index] =
+					ViewRW<TComponent>(componentType)[index] =
 							std::forward<TComponent>(value);
 				}
 			}
@@ -181,50 +177,21 @@ namespace gaia {
 							 header.lastEntityIndex + 1 >= GetArchetypeCapacity(header.owner);
 			}
 
-		public:
 			template <typename T>
 			[[nodiscard]] typename std::enable_if_t<
 					std::is_same<std::decay_t<T>, Entity>::value, std::span<const Entity>>
-			View() const {
-				using TEntity = std::decay_t<T>;
-				return {(const TEntity*)&data[0], GetItemCount()};
-			}
-
-			template <typename T>
-			[[nodiscard]] typename std::enable_if_t<
-					!std::is_same<std::decay_t<T>, Entity>::value,
-					std::span<std::decay_t<T>>>
-			ViewRW(ComponentType componentType = ComponentType::CT_Generic) {
-				using TComponent = std::decay_t<T>;
-
-				const ComponentMetaData* type =
-						g_ComponentCache.GetComponentMetaType<TComponent>();
-
-				// invalid component requests are a programmer's bug
-				GAIA_ASSERT(type != nullptr);
-
-				const auto& componentList =
-						GetArchetypeComponentList(header.owner, componentType);
-				const auto it = utils::find_if(componentList, [type](const auto& info) {
-					return info.type == type;
-				});
-
-				// Searching for a component that's not there! Programmer mistake.
-				const auto componentIdx =
-						(uint32_t)std::distance(componentList.begin(), it);
-				GAIA_ASSERT(componentIdx != utils::BadIndex);
-
-				// Update version number so we know RW access was used on chunk
-				header.UpdateWorldVersion(componentType, componentIdx);
-				const auto& info = componentList[componentIdx];
-				return {(TComponent*)&data[info.offset], GetItemCount()};
+			view_internal() const {
+				const std::span<const Entity> s(
+						(const Entity*)&data[0], GetItemCount());
+				return {(const Entity*)&data[0], GetItemCount()};
 			}
 
 			template <typename T>
 			[[nodiscard]] typename std::enable_if_t<
 					!std::is_same<std::decay_t<T>, Entity>::value,
 					std::span<const std::decay_t<T>>>
-			View(ComponentType componentType = ComponentType::CT_Generic) const {
+			view_internal(
+					ComponentType componentType = ComponentType::CT_Generic) const {
 				using TComponent = std::decay_t<T>;
 				static_assert(
 						!std::is_empty<TComponent>::value,
@@ -246,6 +213,66 @@ namespace gaia {
 				GAIA_ASSERT(it != componentList.end());
 
 				return {(const TComponent*)&data[it->offset], GetItemCount()};
+			}
+
+			template <typename T>
+			[[nodiscard]] typename std::enable_if_t<
+					!std::is_same<std::decay_t<T>, Entity>::value,
+					std::span<std::decay_t<T>>>
+			view_rw_internal(
+					ComponentType componentType = ComponentType::CT_Generic) {
+				using TComponent = std::decay_t<T>;
+
+				const ComponentMetaData* type =
+						g_ComponentCache.GetComponentMetaType<TComponent>();
+
+				// invalid component requests are a programmer's bug
+				GAIA_ASSERT(type != nullptr);
+
+				const auto& componentList =
+						GetArchetypeComponentList(header.owner, componentType);
+				const auto it = utils::find_if(componentList, [type](const auto& info) {
+					return info.type == type;
+				});
+
+				// Searching for a component that's not there! Programmer mistake.
+				GAIA_ASSERT(it != componentList.end());
+
+				// Update version number so we know RW access was used on chunk
+				const auto componentIdx =
+						(uint32_t)std::distance(componentList.begin(), it);
+				header.UpdateWorldVersion(componentType, componentIdx);
+
+				return {(TComponent*)&data[it->offset], GetItemCount()};
+			}
+
+		public:
+			template <typename T>
+			[[nodiscard]] typename std::enable_if_t<
+					std::is_same<std::decay_t<T>, Entity>::value,
+					utils::auto_view_policy_get<const Entity>>
+			View() const {
+				return utils::auto_view_policy_get<const Entity>(view_internal<T>());
+			}
+
+			template <typename T>
+			[[nodiscard]] typename std::enable_if_t<
+					!std::is_same<std::decay_t<T>, Entity>::value,
+					utils::auto_view_policy_set<std::decay_t<T>>>
+			ViewRW(ComponentType componentType = ComponentType::CT_Generic) {
+				using TComponent = std::decay_t<T>;
+				return utils::auto_view_policy_set<TComponent>(
+						view_rw_internal<TComponent>(componentType));
+			}
+
+			template <typename T>
+			[[nodiscard]] typename std::enable_if_t<
+					!std::is_same<std::decay_t<T>, Entity>::value,
+					utils::auto_view_policy_get<const std::decay_t<T>>>
+			View(ComponentType componentType = ComponentType::CT_Generic) const {
+				using TComponent = const std::decay_t<T>;
+				return utils::auto_view_policy_get<TComponent>(
+						view_internal<TComponent>(componentType));
 			}
 
 			[[nodiscard]] uint32_t GetComponentIdx(uint32_t typeIdx) const {
