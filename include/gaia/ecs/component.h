@@ -225,12 +225,15 @@ namespace gaia {
 		struct ChunkComponentInfo final {
 			//! Pointer to the associated meta type
 			const ComponentMetaData* type;
+			//! Index of the component. A copy of the value in meta data
+			uint32_t typeIndex;
 			//! Distance in bytes from the archetype's chunk data segment
 			uint32_t offset;
 		};
 
 		using ChunkComponentList =
 				utils::sarray<ChunkComponentInfo, MAX_COMPONENTS_PER_ARCHETYPE>;
+		using ChunkHashList = utils::sarray<uint64_t, MAX_COMPONENTS_PER_ARCHETYPE>;
 
 		//-----------------------------------------------------------------------------------
 

@@ -15,6 +15,7 @@
 #include "common.h"
 #include "entity.h"
 #include "fwd.h"
+#include "gaia/ecs/component.h"
 #include "gaia/utils/utils_mem.h"
 
 namespace gaia {
@@ -22,6 +23,8 @@ namespace gaia {
 		uint16_t GetArchetypeCapacity(const Archetype& archetype);
 		const ChunkComponentList&
 		GetArchetypeComponentList(const Archetype& archetype, ComponentType type);
+		const ChunkHashList& GetArchetypeComponentLookupHashList(
+				const Archetype& archetype, ComponentType type);
 
 		class Chunk final {
 		public:
@@ -76,7 +79,7 @@ namespace gaia {
 				const auto& componentList =
 						GetArchetypeComponentList(header.owner, componentType);
 				return utils::get_index_if(componentList, [typeIdx](const auto& info) {
-					return info.type->typeIndex == typeIdx;
+					return info.typeIndex == typeIdx;
 				});
 			}
 
@@ -85,15 +88,12 @@ namespace gaia {
 			HasComponent_Internal(ComponentType componentType) const {
 				using TComponent = std::decay_t<T>;
 
-				const ComponentMetaData* type =
-						g_ComponentCache.FindComponentMetaType<TComponent>();
-				if (!type)
-					return false;
+				constexpr auto lookupHash = utils::type_info::hash<TComponent>();
 
-				const auto& componentList =
-						GetArchetypeComponentList(header.owner, componentType);
-				return utils::has_if(componentList, [type](const auto& info) {
-					return info.type == type;
+				const auto& componentHashList =
+						GetArchetypeComponentLookupHashList(header.owner, componentType);
+				return utils::has_if(componentHashList, [](const uint64_t hash) {
+					return hash == lookupHash;
 				});
 			}
 
