@@ -610,15 +610,15 @@ namespace gaia {
 			}
 
 			//! Verifies than the chunk is valid
-			void ValidateChunk(Chunk* chunk) const {
+			void ValidateChunk(Chunk* pChunk) const {
 #if GAIA_ECS_VALIDATE_CHUNKS
 				// Note: Normally we'd go [[maybe_unused]] instead of "(void)" but MSVC
 				// 2017 suffers an internal compiler error in that case...
-				(void)chunk;
+				(void)pChunk;
 				// Make sure no entites reference the deleted chunk
 				for (const auto& e: m_entities) {
 					(void)e;
-					GAIA_ASSERT(pChunk->HasEntities() || e.chunk != chunk);
+					GAIA_ASSERT(pChunk->HasEntities() || e.pChunk != pChunk);
 				}
 #endif
 			}
