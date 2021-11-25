@@ -27,7 +27,29 @@
       "externalConsole": false
     },
     {
-      "name": "(lldb) duel",
+      "name": "(lldb) rougelike",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/examples/example_rougelike/gaia_example_rougelike",
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [],
+      "externalConsole": false
+    },
+    {
+      "name": "(lldb) feature test",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/test/gaia_test",
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [],
+      "externalConsole": false
+    },
+    {
+      "name": "(lldb) perf test - duel",
       "type": "lldb",
       "request": "launch",
       "program": "${workspaceFolder}/build/perf/duel/gaia_duel",
@@ -38,10 +60,10 @@
       "externalConsole": false
     },
     {
-      "name": "(lldb) rougelike",
+      "name": "(lldb) perf test - iteration",
       "type": "lldb",
       "request": "launch",
-      "program": "${workspaceFolder}/build/examples/example_rougelike/gaia_example_rougelike",
+      "program": "${workspaceFolder}/build/perf/gaia/gaia_test",
       "args": [],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
