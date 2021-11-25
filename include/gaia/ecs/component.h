@@ -231,9 +231,17 @@ namespace gaia {
 			uint32_t offset;
 		};
 
+		struct ChunkComponentHashInfo final {
+			//! Component lookup hash. A copy of the value in meta data
+			uint64_t lookupHash;
+			//! Distance in bytes from the archetype's chunk data segment
+			uint32_t offset;
+		};
+
 		using ChunkComponentList =
 				utils::sarray<ChunkComponentInfo, MAX_COMPONENTS_PER_ARCHETYPE>;
-		using ChunkHashList = utils::sarray<uint64_t, MAX_COMPONENTS_PER_ARCHETYPE>;
+		using ChunkComponentHashList =
+				utils::sarray<ChunkComponentHashInfo, MAX_COMPONENTS_PER_ARCHETYPE>;
 
 		//-----------------------------------------------------------------------------------
 
