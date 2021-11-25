@@ -29,7 +29,8 @@ namespace gaia {
 			utils::vector<Chunk*> chunks;
 			//! Description of components within this archetype
 			utils::array<ChunkComponentList, ComponentType::CT_Count> componentList;
-			utils::array<ChunkHashList, ComponentType::CT_Count>
+			//! Lookup hashes of components within this archetype
+			utils::array<ChunkComponentHashList, ComponentType::CT_Count>
 					componentLookupHashList;
 
 			//! Hash of components within this archetype - used for lookups
@@ -149,7 +150,7 @@ namespace gaia {
 					newArch->componentList[ComponentType::CT_Generic].push_back(
 							{genericTypes[i], genericTypes[i]->typeIndex, componentOffset});
 					newArch->componentLookupHashList[ComponentType::CT_Generic].push_back(
-							genericTypes[i]->lookupHash);
+							{genericTypes[i]->lookupHash, componentOffset});
 
 					// Make sure the following component list is properly aligned
 					if (a != 0) {
@@ -178,7 +179,7 @@ namespace gaia {
 					newArch->componentList[ComponentType::CT_Chunk].push_back(
 							{chunkTypes[i], chunkTypes[i]->typeIndex, componentOffset});
 					newArch->componentLookupHashList[ComponentType::CT_Chunk].push_back(
-							chunkTypes[i]->lookupHash);
+							{chunkTypes[i]->lookupHash, componentOffset});
 
 					// Make sure the following component list is properly aligned
 					if (a != 0) {
@@ -246,7 +247,7 @@ namespace gaia {
 				return componentList[type];
 			}
 
-			[[nodiscard]] const ChunkHashList&
+			[[nodiscard]] const ChunkComponentHashList&
 			GetComponentLookupHashList(ComponentType type) const {
 				return componentLookupHashList[type];
 			}
@@ -315,7 +316,7 @@ namespace gaia {
 		GetArchetypeComponentList(const Archetype& archetype, ComponentType type) {
 			return archetype.GetComponentList(type);
 		}
-		[[nodiscard]] inline const ChunkHashList&
+		[[nodiscard]] inline const ChunkComponentHashList&
 		GetArchetypeComponentLookupHashList(
 				const Archetype& archetype, ComponentType type) {
 			return archetype.GetComponentLookupHashList(type);

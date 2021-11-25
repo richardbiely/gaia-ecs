@@ -23,7 +23,7 @@ namespace gaia {
 		uint16_t GetArchetypeCapacity(const Archetype& archetype);
 		const ChunkComponentList&
 		GetArchetypeComponentList(const Archetype& archetype, ComponentType type);
-		const ChunkHashList& GetArchetypeComponentLookupHashList(
+		const ChunkComponentHashList& GetArchetypeComponentLookupHashList(
 				const Archetype& archetype, ComponentType type);
 
 		class Chunk final {
@@ -92,8 +92,8 @@ namespace gaia {
 
 				const auto& componentHashList =
 						GetArchetypeComponentLookupHashList(header.owner, componentType);
-				return utils::has_if(componentHashList, [](const uint64_t hash) {
-					return hash == lookupHash;
+				return utils::has_if(componentHashList, [](const auto& info) {
+					return info.lookupHash == lookupHash;
 				});
 			}
 
@@ -199,16 +199,21 @@ namespace gaia {
 
 				constexpr auto lookupHash = utils::type_info::hash<TComponent>();
 
-				const auto& componentList =
-						GetArchetypeComponentList(header.owner, componentType);
-				const auto it = utils::find_if(componentList, [](const auto& info) {
-					return info.type->lookupHash == lookupHash;
+				const auto& componentHashList =
+						GetArchetypeComponentLookupHashList(header.owner, componentType);
+				const auto it = utils::find_if(componentHashList, [](const auto& info) {
+					return info.lookupHash == lookupHash;
 				});
 
 				// Searching for a component that's not there! Programmer mistake.
 				GAIA_ASSERT(it != componentList.end());
 
-				return {(const TComponent*)&data[it->offset], GetItemCount()};
+				const auto componentIdx =
+						(uint32_t)std::distance(componentHashList.begin(), it);
+
+				return {
+						(const TComponent*)&data[componentHashList[componentIdx].offset],
+						GetItemCount()};
 			}
 
 			template <typename T>
@@ -221,21 +226,24 @@ namespace gaia {
 
 				constexpr auto lookupHash = utils::type_info::hash<TComponent>();
 
-				const auto& componentList =
-						GetArchetypeComponentList(header.owner, componentType);
-				const auto it = utils::find_if(componentList, [](const auto& info) {
-					return info.type->lookupHash == lookupHash;
+				const auto& componentHashList =
+						GetArchetypeComponentLookupHashList(header.owner, componentType);
+				const auto it = utils::find_if(componentHashList, [](const auto& info) {
+					return info.lookupHash == lookupHash;
 				});
 
 				// Searching for a component that's not there! Programmer mistake.
 				GAIA_ASSERT(it != componentList.end());
 
-				// Update version number so we know RW access was used on chunk
 				const auto componentIdx =
-						(uint32_t)std::distance(componentList.begin(), it);
+						(uint32_t)std::distance(componentHashList.begin(), it);
+
+				// Update version number so we know RW access was used on chunk
 				header.UpdateWorldVersion(componentType, componentIdx);
 
-				return {(TComponent*)&data[it->offset], GetItemCount()};
+				return {
+						(TComponent*)&data[componentHashList[componentIdx].offset],
+						GetItemCount()};
 			}
 
 		public:
