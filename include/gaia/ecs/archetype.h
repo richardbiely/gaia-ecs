@@ -29,6 +29,8 @@ namespace gaia {
 			utils::vector<Chunk*> chunks;
 			//! Description of components within this archetype
 			utils::array<ChunkComponentList, ComponentType::CT_Count> componentList;
+			utils::array<ChunkHashList, ComponentType::CT_Count>
+					componentLookupHashList;
 
 			//! Hash of components within this archetype - used for lookups
 			uint64_t lookupHash = 0;
@@ -145,7 +147,9 @@ namespace gaia {
 					}
 
 					newArch->componentList[ComponentType::CT_Generic].push_back(
-							{genericTypes[i], componentOffset});
+							{genericTypes[i], genericTypes[i]->typeIndex, componentOffset});
+					newArch->componentLookupHashList[ComponentType::CT_Generic].push_back(
+							genericTypes[i]->lookupHash);
 
 					// Make sure the following component list is properly aligned
 					if (a != 0) {
@@ -172,7 +176,9 @@ namespace gaia {
 					}
 
 					newArch->componentList[ComponentType::CT_Chunk].push_back(
-							{chunkTypes[i], componentOffset});
+							{chunkTypes[i], chunkTypes[i]->typeIndex, componentOffset});
+					newArch->componentLookupHashList[ComponentType::CT_Chunk].push_back(
+							chunkTypes[i]->lookupHash);
 
 					// Make sure the following component list is properly aligned
 					if (a != 0) {
@@ -240,6 +246,11 @@ namespace gaia {
 				return componentList[type];
 			}
 
+			[[nodiscard]] const ChunkHashList&
+			GetComponentLookupHashList(ComponentType type) const {
+				return componentLookupHashList[type];
+			}
+
 			template <typename... T>
 			[[nodiscard]] bool HasComponents() const {
 				return HasComponents_Internal<ComponentType::CT_Generic, T...>();
@@ -303,6 +314,11 @@ namespace gaia {
 		[[nodiscard]] inline const ChunkComponentList&
 		GetArchetypeComponentList(const Archetype& archetype, ComponentType type) {
 			return archetype.GetComponentList(type);
+		}
+		[[nodiscard]] inline const ChunkHashList&
+		GetArchetypeComponentLookupHashList(
+				const Archetype& archetype, ComponentType type) {
+			return archetype.GetComponentLookupHashList(type);
 		}
 	} // namespace ecs
 } // namespace gaia
