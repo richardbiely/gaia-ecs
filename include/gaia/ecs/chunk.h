@@ -15,6 +15,7 @@
 #include "common.h"
 #include "entity.h"
 #include "fwd.h"
+#include "gaia/utils/utils_mem.h"
 
 namespace gaia {
 	namespace ecs {
@@ -161,7 +162,8 @@ namespace gaia {
 						index <= header.lastEntityIndex && index != UINT16_MAX &&
 						"Entity index in chunk out of bounds!");
 
-				(Entity&)data[sizeof(Entity) * index] = entity;
+				utils::unaligned_ref<Entity> mem((void*)&data[sizeof(Entity) * index]);
+				mem = entity;
 			}
 
 			[[nodiscard]] const Entity GetEntity(uint16_t index) const {
@@ -181,8 +183,6 @@ namespace gaia {
 			[[nodiscard]] typename std::enable_if_t<
 					std::is_same<std::decay_t<T>, Entity>::value, std::span<const Entity>>
 			view_internal() const {
-				const std::span<const Entity> s(
-						(const Entity*)&data[0], GetItemCount());
 				return {(const Entity*)&data[0], GetItemCount()};
 			}
 
