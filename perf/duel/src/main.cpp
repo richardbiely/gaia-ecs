@@ -233,6 +233,7 @@ void BM_Game_ECS_WithSystems_ForEachChunk(benchmark::State& state) {
 					.Run();
 		}
 	};
+
 	class CollisionSystem final: public ecs::System {
 		ecs::EntityQuery m_q;
 
