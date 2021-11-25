@@ -334,16 +334,13 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA(benchmark::State& state) {
 								auto p = ch.ViewRW<PositionSoA>();
 								auto v = ch.View<VelocitySoA>();
 
-								using pp = utils::auto_view_policy<PositionSoA>;
-								using vv = utils::auto_view_policy<VelocitySoA>;
+								auto ppx = utils::auto_view_policy_set_idx<PositionSoA, 0>(p);
+								auto ppy = utils::auto_view_policy_set_idx<PositionSoA, 1>(p);
+								auto ppz = utils::auto_view_policy_set_idx<PositionSoA, 2>(p);
 
-								auto ppx = pp::set<0>(p);
-								auto ppy = pp::set<1>(p);
-								auto ppz = pp::set<2>(p);
-
-								auto vvx = vv::get<0>(v);
-								auto vvy = vv::get<1>(v);
-								auto vvz = vv::get<2>(v);
+								auto vvx = utils::auto_view_policy_get_idx<VelocitySoA, 0>(v);
+								auto vvy = utils::auto_view_policy_get_idx<VelocitySoA, 1>(v);
+								auto vvz = utils::auto_view_policy_get_idx<VelocitySoA, 2>(v);
 
 								for (auto i = 0U; i < ch.GetItemCount(); ++i)
 									ppx[i] += vvx[i] * dt;
@@ -370,17 +367,13 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA(benchmark::State& state) {
 								auto p = ch.ViewRW<PositionSoA>();
 								auto v = ch.ViewRW<VelocitySoA>();
 
-								using pp = utils::auto_view_policy<PositionSoA>;
-								using vv = utils::auto_view_policy<VelocitySoA>;
-
-								auto ppy = pp::get<1>(p);
-								auto ppy_w = pp::set<1>(p);
-								auto vvy_w = vv::set<1>(v);
+								utils::auto_view_policy_set_idx<PositionSoA, 1> ppy(p);
+								utils::auto_view_policy_set_idx<VelocitySoA, 1> vvy(v);
 
 								for (auto i = 0U; i < ch.GetItemCount(); ++i) {
 									if (ppy[i] < 0.0f) {
-										ppy_w[i] = 0.0f;
-										vvy_w[i] = 0.0f;
+										ppy[i] = 0.0f;
+										vvy[i] = 0.0f;
 									}
 								}
 							})
@@ -401,12 +394,10 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA(benchmark::State& state) {
 							m_q,
 							[&](ecs::Chunk& ch) {
 								auto v = ch.ViewRW<VelocitySoA>();
-								using vv = utils::auto_view_policy<VelocitySoA>;
-								auto vvy = vv::get<1>(v);
-								auto vvy_w = vv::set<1>(v);
+								auto vvy = utils::auto_view_policy_set_idx<VelocitySoA, 1>(v);
 
 								for (auto i = 0U; i < ch.GetItemCount(); ++i)
-									vvy_w[i] = vvy[i] * dt * 9.81f;
+									vvy[i] = vvy[i] * dt * 9.81f;
 							})
 					.Run();
 		}

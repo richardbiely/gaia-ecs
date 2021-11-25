@@ -104,7 +104,7 @@ TEST_CASE("DataLayout AoS") {
 		REQUIRE(arr[i * 3 + 1] == f);
 		REQUIRE(arr[i * 3 + 2] == f);
 
-		auto val = aos::get({data}, i);
+		auto val = aos::getc({data}, i);
 		REQUIRE(val.x == f);
 		REQUIRE(val.y == f);
 		REQUIRE(val.z == f);
@@ -117,7 +117,7 @@ TEST_CASE("DataLayout AoS") {
 		REQUIRE(arr[i * 3 + 1] == f);
 		REQUIRE(arr[i * 3 + 2] == f);
 
-		auto val = view_deduced::get({data}, i);
+		auto val = view_deduced::getc({data}, i);
 		REQUIRE(val.x == f);
 		REQUIRE(val.y == f);
 		REQUIRE(val.z == f);
