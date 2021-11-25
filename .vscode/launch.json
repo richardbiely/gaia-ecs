@@ -1,0 +1,52 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "(lldb) example1",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/examples/example1/gaia_example1",
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [],
+      "externalConsole": false,
+    },
+    {
+      "name": "(lldb) example2",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/examples/example2/gaia_example2",
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [],
+      "externalConsole": false
+    },
+    {
+      "name": "(lldb) duel",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/perf/duel/gaia_duel",
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [],
+      "externalConsole": false
+    },
+    {
+      "name": "(lldb) rougelike",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/examples/example_rougelike/gaia_example_rougelike",
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [],
+      "externalConsole": false
+    }
+  ]
+}
