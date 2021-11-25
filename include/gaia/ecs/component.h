@@ -4,7 +4,6 @@
 #include <string_view>
 #include <type_traits>
 
-
 #include "../config/config.h"
 #include "../utils/data_layout_policy.h"
 #include "../utils/hashing_policy.h"
