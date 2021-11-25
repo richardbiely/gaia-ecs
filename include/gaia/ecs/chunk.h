@@ -42,19 +42,13 @@ namespace gaia {
 
 			Chunk(const Archetype& archetype): header(archetype) {}
 
-			/*!
-				Creates a new entity from archetype
-				\return Entity
-				*/
 			template <typename T>
 			[[nodiscard]] std::decay_t<T> GetComponentVal_Internal(
 					ComponentType componentType, uint32_t index) const {
 				using TComponent = std::decay_t<T>;
 
 				auto data = View<TComponent>(componentType);
-				using datap = utils::auto_view_policy<TComponent>;
-
-				return datap::get(data, index);
+				return utils::auto_view_policy_get<TComponent>(data)[index];
 			}
 
 			template <typename T>
@@ -63,9 +57,7 @@ namespace gaia {
 				using TComponent = std::decay_t<T>;
 
 				auto data = View<TComponent>(componentType);
-				using datap = utils::auto_view_policy<TComponent>;
-
-				return datap::get_constref(data, index);
+				return (utils::auto_view_policy_get<TComponent>(data))[index];
 			}
 
 			template <typename T>
@@ -77,9 +69,8 @@ namespace gaia {
 					return;
 
 				auto data = ViewRW<TComponent>(componentType);
-				using datap = utils::auto_view_policy<TComponent>;
-
-				datap::set(data, index, std::forward<TComponent>(value));
+				(utils::auto_view_policy_set<TComponent>(data))[index] =
+						std::forward<TComponent>(value);
 			}
 
 			[[nodiscard]] uint32_t GetComponentIdx_Internal(
@@ -277,6 +268,8 @@ namespace gaia {
 				return HasComponent_Internal<T>(ComponentType::CT_Chunk);
 			}
 
+#pragma region Setting component value
+
 			template <typename T>
 			void SetComponent(uint32_t index, T&& value) {
 				SetComponent_Internal<T>(
@@ -302,6 +295,8 @@ namespace gaia {
 						 ComponentType::CT_Chunk, 0, std::forward<T>(value)),
 				 ...);
 			}
+
+#pragma endregion
 
 #pragma region Component data by copy
 

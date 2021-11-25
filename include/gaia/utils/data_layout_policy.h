@@ -38,6 +38,16 @@ namespace gaia {
 		template <DataLayout TDataLayout, typename TItem>
 		struct data_view_policy;
 
+		template <DataLayout TDataLayout, typename TItem>
+		struct data_view_policy_get;
+		template <DataLayout TDataLayout, typename TItem>
+		struct data_view_policy_set;
+
+		template <DataLayout TDataLayout, typename TItem, size_t Ids>
+		struct data_view_policy_get_idx;
+		template <DataLayout TDataLayout, typename TItem, size_t Ids>
+		struct data_view_policy_set_idx;
+
 		/*!
 		 * data_view_policy for accessing and storing data in the AoS way
 		 *	Good for random access and when acessing data together.
@@ -53,13 +63,29 @@ namespace gaia {
 			constexpr static DataLayout Layout = DataLayout::AoS;
 			constexpr static size_t Alignment = alignof(ValueType);
 
-			constexpr static ValueType get(std::span<const ValueType> s, size_t idx) {
+			[[nodiscard]] constexpr static ValueType
+			getc(std::span<const ValueType> s, size_t idx) {
 				return get_internal((const ValueType*)s.data(), idx);
 			}
 
-			constexpr static const ValueType&
-			get_constref(std::span<const ValueType> s, size_t idx) {
+			[[nodiscard]] constexpr static ValueType
+			get(std::span<ValueType> s, size_t idx) {
+				return get_internal((const ValueType*)s.data(), idx);
+			}
+
+			[[nodiscard]] constexpr static const ValueType&
+			getc_constref(std::span<const ValueType> s, size_t idx) {
 				return get_constref_internal((const ValueType*)s.data(), idx);
+			}
+
+			[[nodiscard]] constexpr static const ValueType&
+			get_constref(std::span<ValueType> s, size_t idx) {
+				return get_constref_internal((const ValueType*)s.data(), idx);
+			}
+
+			[[nodiscard]] constexpr static ValueType&
+			get_ref(std::span<ValueType> s, size_t idx) {
+				return get_ref_internal((ValueType*)s.data(), idx);
 			}
 
 			constexpr static void
@@ -78,6 +104,11 @@ namespace gaia {
 				return data[idx];
 			}
 
+			[[nodiscard]] constexpr static ValueType&
+			get_ref_internal(ValueType* data, const size_t idx) {
+				return data[idx];
+			}
+
 			constexpr static void
 			set_internal(ValueType* data, const size_t idx, ValueType&& val) {
 				data[idx] = std::forward<ValueType>(val);
@@ -85,7 +116,37 @@ namespace gaia {
 		};
 
 		template <typename ValueType>
+		struct data_view_policy_get<DataLayout::AoS, ValueType> {
+			const std::span<const ValueType>& m_data;
+			using view_policy = data_view_policy<DataLayout::AoS, ValueType>;
+			data_view_policy_get(const std::span<const ValueType>& data):
+					m_data(data) {}
+			[[nodiscard]] const ValueType& operator[](size_t idx) const {
+				return view_policy::getc_constref(m_data, idx);
+			}
+		};
+
+		template <typename ValueType>
+		struct data_view_policy_set<DataLayout::AoS, ValueType> {
+			const std::span<ValueType>& m_data;
+			using view_policy = data_view_policy<DataLayout::AoS, ValueType>;
+			data_view_policy_set(const std::span<ValueType>& data): m_data(data) {}
+			[[nodiscard]] ValueType& operator[](size_t idx) {
+				return view_policy::get_ref(m_data, idx);
+			}
+			[[nodiscard]] const ValueType& operator[](size_t idx) const {
+				return view_policy::getc_constref(m_data, idx);
+			}
+		};
+
+		template <typename ValueType>
 		using aos_view_policy = data_view_policy<DataLayout::AoS, ValueType>;
+		template <typename ValueType>
+		using aos_view_policy_get =
+				data_view_policy_get<DataLayout::AoS, ValueType>;
+		template <typename ValueType>
+		using aos_view_policy_set =
+				data_view_policy_get<DataLayout::AoS, ValueType>;
 
 		/*!
 		 * data_view_policy for accessing and storing data in the SoA way
@@ -102,7 +163,13 @@ namespace gaia {
 			constexpr static DataLayout Layout = DataLayout::SoA;
 			constexpr static size_t Alignment = 16;
 
-			constexpr static ValueType
+			template <size_t Ids>
+			using value_type = typename std::tuple_element<
+					Ids, decltype(struct_to_tuple(ValueType{}))>::type;
+			template <size_t Ids>
+			using const_value_type = typename std::add_const<value_type<Ids>>::type;
+
+			[[nodiscard]] constexpr static ValueType
 			get(std::span<const ValueType> s, const size_t idx) {
 				auto t = struct_to_tuple(ValueType{});
 				return get_internal(
@@ -112,7 +179,7 @@ namespace gaia {
 			}
 
 			template <size_t Ids>
-			constexpr static auto
+			[[nodiscard]] constexpr static auto
 			get(std::span<const ValueType> s, const size_t idx = 0) {
 				using Tuple = decltype(struct_to_tuple(ValueType{}));
 				using MemberType = typename std::tuple_element<Ids, Tuple>::type;
@@ -184,7 +251,110 @@ namespace gaia {
 		};
 
 		template <typename ValueType>
+		struct data_view_policy_get<DataLayout::SoA, ValueType> {
+			const std::span<const ValueType>& m_data;
+			using view_policy = data_view_policy<DataLayout::SoA, ValueType>;
+			data_view_policy_get(const std::span<const ValueType>& data):
+					m_data(data) {}
+			[[nodiscard]] auto operator[](size_t idx) const {
+				return view_policy::get(m_data, idx);
+			}
+		};
+
+		template <typename ValueType>
+		struct data_view_policy_set<DataLayout::SoA, ValueType> {
+			const std::span<ValueType>& m_data;
+			using view_policy = data_view_policy<DataLayout::SoA, ValueType>;
+			data_view_policy_set(const std::span<ValueType>& data): m_data(data) {}
+
+			struct getter {
+				const std::span<ValueType>& m_data;
+				const size_t m_idx;
+
+				getter(const std::span<ValueType>& data, const size_t idx):
+						m_data(data), m_idx(idx) {}
+				[[nodiscard]] auto operator()() const {
+					return view_policy::get(m_data, m_idx);
+				}
+			};
+
+			struct setter {
+				const std::span<ValueType>& m_data;
+				const size_t m_idx;
+
+				setter(const std::span<ValueType>& data, const size_t idx):
+						m_data(data), m_idx(idx) {}
+				void operator=(ValueType&& val) {
+					view_policy::set(m_data, m_idx, std::forward<ValueType>(val));
+				}
+			};
+
+			[[nodiscard]] auto operator[](size_t idx) const {
+				return getter(m_data, idx);
+			}
+			[[nodiscard]] auto operator[](size_t idx) {
+				return setter(m_data, idx);
+			}
+		};
+
+		template <typename ValueType, size_t Ids>
+		struct data_view_policy_idx_info {
+			using view_policy = data_view_policy<DataLayout::SoA, ValueType>;
+			using value_type = typename view_policy::template value_type<Ids>;
+			using value_span = std::span<value_type>;
+			using const_value_type =
+					typename view_policy::template const_value_type<Ids>;
+			using const_value_span = std::span<const_value_type>;
+		};
+
+		template <typename ValueType, size_t Ids>
+		struct data_view_policy_get_idx<DataLayout::SoA, ValueType, Ids>:
+				data_view_policy_idx_info<ValueType, Ids>::const_value_span {
+			using view_policy =
+					typename data_view_policy_idx_info<ValueType, Ids>::view_policy;
+
+			constexpr data_view_policy_get_idx(
+					const typename data_view_policy_idx_info<
+							ValueType, Ids>::const_value_span& s):
+					data_view_policy_idx_info<ValueType, Ids>::const_value_span(s) {}
+
+			constexpr data_view_policy_get_idx(const std::span<const ValueType>& s):
+					data_view_policy_idx_info<ValueType, Ids>::const_value_span(
+							view_policy::template get<Ids>(s).data(),
+							view_policy::template get<Ids>(s).size()) {}
+		};
+
+		template <typename ValueType, size_t Ids>
+		struct data_view_policy_set_idx<DataLayout::SoA, ValueType, Ids>:
+				data_view_policy_idx_info<ValueType, Ids>::value_span {
+			using view_policy =
+					typename data_view_policy_idx_info<ValueType, Ids>::view_policy;
+
+			constexpr data_view_policy_set_idx(
+					const typename data_view_policy_idx_info<ValueType, Ids>::value_span&
+							s):
+					data_view_policy_idx_info<ValueType, Ids>::value_span(s) {}
+
+			constexpr data_view_policy_set_idx(const std::span<ValueType>& s):
+					data_view_policy_idx_info<ValueType, Ids>::value_span(
+							view_policy::template set<Ids>(s).data(),
+							view_policy::template set<Ids>(s).size()) {}
+		};
+
+		template <typename ValueType>
 		using soa_view_policy = data_view_policy<DataLayout::SoA, ValueType>;
+		template <typename ValueType>
+		using soa_view_policy_get =
+				data_view_policy_get<DataLayout::SoA, ValueType>;
+		template <typename ValueType>
+		using soa_view_policy_set =
+				data_view_policy_get<DataLayout::SoA, ValueType>;
+		template <typename ValueType, size_t Ids>
+		using soa_view_policy_get_idx =
+				data_view_policy_get_idx<DataLayout::SoA, ValueType, Ids>;
+		template <typename ValueType, size_t Ids>
+		using soa_view_policy_set_idx =
+				data_view_policy_set_idx<DataLayout::SoA, ValueType, Ids>;
 
 #pragma region Helpers
 
@@ -200,6 +370,22 @@ namespace gaia {
 		using auto_view_policy = std::conditional_t<
 				is_soa_layout<T>::value, data_view_policy<DataLayout::SoA, T>,
 				data_view_policy<DataLayout::AoS, T>>;
+
+		template <typename T>
+		using auto_view_policy_get = std::conditional_t<
+				is_soa_layout<T>::value, data_view_policy_get<DataLayout::SoA, T>,
+				data_view_policy_get<DataLayout::AoS, T>>;
+		template <typename T>
+		using auto_view_policy_set = std::conditional_t<
+				is_soa_layout<T>::value, data_view_policy_set<DataLayout::SoA, T>,
+				data_view_policy_set<DataLayout::AoS, T>>;
+
+		template <typename T, size_t Ids>
+		using auto_view_policy_get_idx =
+				data_view_policy_get_idx<DataLayout::SoA, T, Ids>;
+		template <typename T, size_t Ids>
+		using auto_view_policy_set_idx =
+				data_view_policy_set_idx<DataLayout::SoA, T, Ids>;
 
 #pragma endregion
 	} // namespace utils
