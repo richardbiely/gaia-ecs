@@ -92,7 +92,7 @@ namespace gaia {
 
 				const auto& componentHashList =
 						GetArchetypeComponentLookupHashList(header.owner, componentType);
-				return utils::has_if(componentHashList, [](const auto& info) {
+				return utils::has_if(componentHashList, [&](const auto& info) {
 					return info.lookupHash == lookupHash;
 				});
 			}
@@ -201,12 +201,13 @@ namespace gaia {
 
 				const auto& componentHashList =
 						GetArchetypeComponentLookupHashList(header.owner, componentType);
-				const auto it = utils::find_if(componentHashList, [](const auto& info) {
-					return info.lookupHash == lookupHash;
-				});
+				const auto it =
+						utils::find_if(componentHashList, [&](const auto& info) {
+							return info.lookupHash == lookupHash;
+						});
 
 				// Searching for a component that's not there! Programmer mistake.
-				GAIA_ASSERT(it != componentList.end());
+				GAIA_ASSERT(it != componentHashList.end());
 
 				const auto componentIdx =
 						(uint32_t)std::distance(componentHashList.begin(), it);
@@ -228,12 +229,13 @@ namespace gaia {
 
 				const auto& componentHashList =
 						GetArchetypeComponentLookupHashList(header.owner, componentType);
-				const auto it = utils::find_if(componentHashList, [](const auto& info) {
-					return info.lookupHash == lookupHash;
-				});
+				const auto it =
+						utils::find_if(componentHashList, [&](const auto& info) {
+							return info.lookupHash == lookupHash;
+						});
 
 				// Searching for a component that's not there! Programmer mistake.
-				GAIA_ASSERT(it != componentList.end());
+				GAIA_ASSERT(it != componentHashList.end());
 
 				const auto componentIdx =
 						(uint32_t)std::distance(componentHashList.begin(), it);
@@ -332,7 +334,7 @@ namespace gaia {
 			}
 
 			template <typename... T>
-			void GetComponent(uint32_t index, std::decay_t<T>&... data) const {
+			void GetComponents(uint32_t index, std::decay_t<T>&... data) const {
 				(GetComponent<T>(index, data), ...);
 			}
 
@@ -342,7 +344,7 @@ namespace gaia {
 			}
 
 			template <typename... T>
-			void GetChunkComponent(std::decay_t<T>&... data) const {
+			void GetChunkComponents(std::decay_t<T>&... data) const {
 				(GetChunkComponent<T>(data), ...);
 			}
 
