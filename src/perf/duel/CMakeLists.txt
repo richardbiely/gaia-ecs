@@ -1,10 +1,10 @@
 find_package(benchmark CONFIG REQUIRED)
-add_executable(gaia_duel src/main.cpp)
+add_executable(gaia_perf_duel src/main.cpp)
 
-set_property(TARGET gaia_duel PROPERTY C_STANDARD 17)
-set_property(TARGET gaia_duel PROPERTY CXX_STANDARD 17)
-set_property(TARGET gaia_duel PROPERTY CXX_STANDARD_REQUIRED ON) 
-set_property(TARGET gaia_duel PROPERTY CXX_EXTENSIONS OFF)
+set_property(TARGET gaia_perf_duel PROPERTY C_STANDARD 17)
+set_property(TARGET gaia_perf_duel PROPERTY CXX_STANDARD 17)
+set_property(TARGET gaia_perf_duel PROPERTY CXX_STANDARD_REQUIRED ON) 
+set_property(TARGET gaia_perf_duel PROPERTY CXX_EXTENSIONS OFF)
 
 # Compiler settings
 include(CheckCXXCompilerFlag)
@@ -45,10 +45,10 @@ else()
 endif()
 
 # Benchmark framework
-target_link_libraries(gaia_duel PRIVATE benchmark::benchmark)
+target_link_libraries(gaia_perf_duel PRIVATE benchmark::benchmark)
 if (MSVC)
-  target_link_libraries(gaia_duel PRIVATE Shlwapi)
+  target_link_libraries(gaia_perf_duel PRIVATE Shlwapi)
 else()
-  target_link_libraries(gaia_duel PRIVATE pthread)
+  target_link_libraries(gaia_perf_duel PRIVATE pthread)
 endif()
-target_include_directories(gaia_duel PRIVATE ${PROJECT_SOURCE_DIR}/include)
+target_include_directories(gaia_perf_duel PRIVATE ${PROJECT_SOURCE_DIR}/include)

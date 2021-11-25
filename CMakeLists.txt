@@ -111,17 +111,17 @@ install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/ DESTINATION ${CMAKE_INSTALL_INC
 
 # Unit test
 if (GAIA_BUILD_UNITTEST)
-    add_subdirectory(test)
+    add_subdirectory(src/test)
 endif()
 
 # Benchmark
 if (GAIA_BUILD_BENCHMARK)
-    add_subdirectory(perf)
+    add_subdirectory(src/perf)
 endif()
 
 #Examples
 if (GAIA_BUILD_EXAMPLES)
-    add_subdirectory(examples/example1)
-    add_subdirectory(examples/example2)
-    add_subdirectory(examples/example_rougelike)
+    add_subdirectory(src/examples/example1)
+    add_subdirectory(src/examples/example2)
+    add_subdirectory(src/examples/example_rougelike)
 endif()

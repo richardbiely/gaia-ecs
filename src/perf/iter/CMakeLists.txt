@@ -1,10 +1,10 @@
 find_package(benchmark CONFIG REQUIRED)
-add_executable(gaia_perf src/main.cpp)
+add_executable(gaia_perf_iter src/main.cpp)
 
-set_property(TARGET gaia_perf PROPERTY C_STANDARD 17)
-set_property(TARGET gaia_perf PROPERTY CXX_STANDARD 17)
-set_property(TARGET gaia_perf PROPERTY CXX_STANDARD_REQUIRED ON) 
-set_property(TARGET gaia_perf PROPERTY CXX_EXTENSIONS OFF)
+set_property(TARGET gaia_perf_iter PROPERTY C_STANDARD 17)
+set_property(TARGET gaia_perf_iter PROPERTY CXX_STANDARD 17)
+set_property(TARGET gaia_perf_iter PROPERTY CXX_STANDARD_REQUIRED ON) 
+set_property(TARGET gaia_perf_iter PROPERTY CXX_EXTENSIONS OFF)
 
 # Compiler settings
 include(CheckCXXCompilerFlag)
@@ -37,10 +37,10 @@ else()
 endif()
 
 # Benchmark framework
-target_link_libraries(gaia_perf PRIVATE benchmark::benchmark)
+target_link_libraries(gaia_perf_iter PRIVATE benchmark::benchmark)
 if (MSVC)
-  target_link_libraries(gaia_perf PRIVATE Shlwapi)
+  target_link_libraries(gaia_perf_iter PRIVATE Shlwapi)
 else()
-  target_link_libraries(gaia_perf PRIVATE pthread)
+  target_link_libraries(gaia_perf_iter PRIVATE pthread)
 endif()
-target_include_directories(gaia_perf PRIVATE ${PROJECT_SOURCE_DIR}/include)
+target_include_directories(gaia_perf_iter PRIVATE ${PROJECT_SOURCE_DIR}/include)
