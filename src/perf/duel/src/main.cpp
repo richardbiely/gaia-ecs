@@ -42,6 +42,14 @@ constexpr uint32_t N = 10'000;
 constexpr float MinDelta = 0.01f;
 constexpr float MaxDelta = 0.033f;
 
+float CalculateDelta(benchmark::State& state) {
+	state.PauseTiming();
+	const float d = static_cast<float>((double)RAND_MAX / (MaxDelta - MinDelta));
+	float dt = MinDelta + (static_cast<float>(rand()) / d);
+	state.ResumeTiming();
+	return dt;
+}
+
 void BM_Game_ECS(benchmark::State& state) {
 	ecs::World w;
 
@@ -71,12 +79,7 @@ void BM_Game_ECS(benchmark::State& state) {
 
 	srand(0);
 	for ([[maybe_unused]] auto _: state) {
-		// Calculate delta
-		state.PauseTiming();
-		dt = MinDelta +
-				 static_cast<float>(rand()) /
-						 (static_cast<float>((float)RAND_MAX / (MaxDelta - MinDelta)));
-		state.ResumeTiming();
+		dt = CalculateDelta(state);
 
 		// Update position
 		w.ForEach(queryDynamic, [&](Position& p, const Velocity& v) {
@@ -174,12 +177,7 @@ void BM_Game_ECS_WithSystems(benchmark::State& state) {
 
 	srand(0);
 	for ([[maybe_unused]] auto _: state) {
-		// Calculate delta
-		state.PauseTiming();
-		dt = MinDelta +
-				 static_cast<float>(rand()) /
-						 (static_cast<float>((float)RAND_MAX / (MaxDelta - MinDelta)));
-		state.ResumeTiming();
+		dt = CalculateDelta(state);
 
 		sm.Update();
 	}
@@ -287,12 +285,7 @@ void BM_Game_ECS_WithSystems_ForEachChunk(benchmark::State& state) {
 
 	srand(0);
 	for ([[maybe_unused]] auto _: state) {
-		// Calculate delta
-		state.PauseTiming();
-		dt = MinDelta +
-				 static_cast<float>(rand()) /
-						 (static_cast<float>((float)RAND_MAX / (MaxDelta - MinDelta)));
-		state.ResumeTiming();
+		dt = CalculateDelta(state);
 
 		sm.Update();
 	}
@@ -414,12 +407,7 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA(benchmark::State& state) {
 
 	srand(0);
 	for ([[maybe_unused]] auto _: state) {
-		// Calculate delta
-		state.PauseTiming();
-		dt = MinDelta +
-				 static_cast<float>(rand()) /
-						 (static_cast<float>((float)RAND_MAX / (MaxDelta - MinDelta)));
-		state.ResumeTiming();
+		dt = CalculateDelta(state);
 
 		sm.Update();
 	}
@@ -484,12 +472,7 @@ void BM_Game_NonECS(benchmark::State& state) {
 
 	srand(0);
 	for ([[maybe_unused]] auto _: state) {
-		// Calculate delta
-		state.PauseTiming();
-		dt = MinDelta +
-				 static_cast<float>(rand()) /
-						 (static_cast<float>((float)RAND_MAX / (MaxDelta - MinDelta)));
-		state.ResumeTiming();
+		dt = CalculateDelta(state);
 
 		// Process entities
 		for (auto& u: units) {
