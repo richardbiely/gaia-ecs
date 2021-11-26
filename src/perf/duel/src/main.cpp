@@ -518,8 +518,8 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA_ManualSIMD(
 
 								const auto dtVec = _mm_set_ps1(dt);
 
-								auto exec = [&](GAIA_RESTRICT float* p,
-																GAIA_RESTRICT const float* v,
+								auto exec = [&](float* GAIA_RESTRICT p,
+																const float* GAIA_RESTRICT v,
 																const size_t offset) {
 									const auto pVec = _mm_load_ps(p + offset);
 									const auto vVec = _mm_load_ps(v + offset);
@@ -556,7 +556,7 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA_ManualSIMD(
 								auto ppy = p.set<1>();
 								auto vvy = v.set<1>();
 
-								auto exec = [&](GAIA_RESTRICT float* p, GAIA_RESTRICT float* v,
+								auto exec = [&](float* GAIA_RESTRICT p, float* GAIA_RESTRICT v,
 																const size_t offset) {
 									const auto vyVec = _mm_load_ps(v + offset);
 									const auto pyVec = _mm_load_ps(p + offset);
@@ -597,7 +597,7 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA_ManualSIMD(
 
 								const auto gg_dtVec = _mm_set_ps1(9.81f * dt);
 
-								auto exec = [&](GAIA_RESTRICT float* v, const size_t offset) {
+								auto exec = [&](float* GAIA_RESTRICT v, const size_t offset) {
 									const auto vyVec = _mm_load_ps(vvy.data() + offset);
 									_mm_store_ps(v + offset, _mm_mul_ps(vyVec, gg_dtVec));
 								};
