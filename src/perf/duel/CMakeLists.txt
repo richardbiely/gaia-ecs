@@ -36,7 +36,6 @@ else()
   enable_cxx_compiler_flag_if_supported("-ffast-math")
   # instruction sets
   if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm")
-    enable_cxx_compiler_flag_if_supported("-mfloat-abi=softfp")
     enable_cxx_compiler_flag_if_supported("-mfpu=neon")
   else(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm")
     enable_cxx_compiler_flag_if_supported("-msse4.1")
