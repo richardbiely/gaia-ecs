@@ -19,7 +19,7 @@ void BM_CreateEntity(benchmark::State& state) {
 	constexpr size_t N = 100'000;
 	for ([[maybe_unused]] auto _: state) {
 		ecs::World w;
-		for (size_t i = 0; i < N; ++i) {
+		for (size_t i = 0U; i < N; ++i) {
 			[[maybe_unused]] auto e = w.CreateEntity();
 			benchmark::DoNotOptimize(e);
 		}
@@ -40,7 +40,7 @@ void BM_CreateEntity_With_Component______(benchmark::State& state) {
 	constexpr size_t N = 100'000;
 	for ([[maybe_unused]] auto _: state) {
 		ecs::World w;
-		for (size_t i = 0; i < N; ++i) {
+		for (size_t i = 0U; i < N; ++i) {
 			[[maybe_unused]] auto e = w.CreateEntity();
 			utils::for_each<Components>(
 					[&](auto i) { w.AddComponent<Component<i, T, ComponentItems>>(e); });
@@ -61,7 +61,7 @@ namespace detail {
 
 template <typename T, size_t ComponentItems, size_t Components>
 constexpr void AddComponents(ecs::World& w, uint32_t N) {
-	for (uint32_t i = 0; i < N; ++i) {
+	for (uint32_t i = 0U; i < N; ++i) {
 		[[maybe_unused]] auto e = w.CreateEntity();
 		detail::AddComponents<T, ComponentItems>(
 				w, e, std::make_index_sequence<Components>{});

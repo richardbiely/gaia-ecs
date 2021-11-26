@@ -493,7 +493,7 @@ namespace gaia {
 				call.template bind<FuncToUnbind>();
 
 				auto& listeners = s->listeners;
-				for (auto i = 0; i < listeners.size();) {
+				for (auto i = 0U; i < listeners.size();) {
 					if (listeners[i] != call) {
 						++i;
 						continue;
@@ -515,7 +515,7 @@ namespace gaia {
 				call.template bind<FuncToUnbind>(value_or_instance);
 
 				auto& listeners = s->listeners;
-				for (auto i = 0; i < listeners.size();) {
+				for (auto i = 0U; i < listeners.size();) {
 					if (listeners[i] != call) {
 						++i;
 						continue;
@@ -533,7 +533,7 @@ namespace gaia {
 			template <typename Type>
 			void unbind(Type& value_or_instance) {
 				auto& listeners = s->listeners;
-				for (auto i = 0; i < listeners.size();) {
+				for (auto i = 0U; i < listeners.size();) {
 					if (listeners[i].instance() != &value_or_instance) {
 						++i;
 						continue;
