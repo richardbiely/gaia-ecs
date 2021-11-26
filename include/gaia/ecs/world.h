@@ -1619,6 +1619,10 @@ namespace gaia {
 				LOG_N("  Allocated: %llu B", memstats.AllocatedMemory);
 				LOG_N("  Used: %llu B", memstats.AllocatedMemory - memstats.UsedMemory);
 				LOG_N("  Overhead: %llu B", memstats.UsedMemory);
+				LOG_N(
+						"  Utilization: %.1f%%",
+						100.0 * ((double)memstats.UsedMemory /
+										 (double)memstats.AllocatedMemory));
 				LOG_N("  Pages: %u", memstats.NumPages);
 				LOG_N("  Free pages: %u", memstats.NumFreePages);
 			}
