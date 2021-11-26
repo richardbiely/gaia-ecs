@@ -1137,24 +1137,18 @@ namespace gaia {
 
 				// If there is any match with the withAnyTest
 				if (withAnyTest != 0) {
-					uint32_t matches = 0;
 					for (const auto typeIndex: query.list[TComponentType].listAny) {
 						for (const auto& component: componentList) {
-							if (component.type->typeIndex == typeIndex) {
-								++matches;
-								goto checkIncludeAnyMatches;
-							}
+							if (component.type->typeIndex == typeIndex)
+								goto checkWithAllMatches;
 						}
 					}
 
-				checkIncludeAnyMatches:
-					// At least one match has been found to continue with
-					// evaluation
-					if (!matches) {
-						return MatchArchetypeQueryRet::Fail;
-					}
+					// At least one match necessary to continue
+					return MatchArchetypeQueryRet::Fail;
 				}
 
+			checkWithAllMatches:
 				// If withAllList is not empty there has to be an exact match
 				if (withAllTest != 0) {
 					// If the number of queried components is greater than the
