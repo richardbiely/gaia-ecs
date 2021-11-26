@@ -21,9 +21,9 @@
 namespace gaia {
 	namespace ecs {
 		uint16_t GetArchetypeCapacity(const Archetype& archetype);
-		const ChunkComponentList&
-		GetArchetypeComponentList(const Archetype& archetype, ComponentType type);
-		const ChunkComponentHashList& GetArchetypeComponentLookupHashList(
+		const ChunkComponentTypeList& GetArchetypeComponentTypeList(
+				const Archetype& archetype, ComponentType type);
+		const ChunkComponentLookupList& GetArchetypeComponentLookupList(
 				const Archetype& archetype, ComponentType type);
 
 		class Chunk final {
@@ -75,11 +75,11 @@ namespace gaia {
 			}
 
 			[[nodiscard]] uint32_t GetComponentIdx_Internal(
-					ComponentType componentType, uint32_t typeIdx) const {
-				const auto& componentList =
-						GetArchetypeComponentList(header.owner, componentType);
-				return utils::get_index_if(componentList, [typeIdx](const auto& info) {
-					return info.typeIndex == typeIdx;
+					ComponentType componentType, uint32_t typeIndex) const {
+				const auto& list =
+						GetArchetypeComponentLookupList(header.owner, componentType);
+				return utils::get_index_if(list, [&](const auto& info) {
+					return info.typeIndex == typeIndex;
 				});
 			}
 
@@ -88,13 +88,9 @@ namespace gaia {
 			HasComponent_Internal(ComponentType componentType) const {
 				using TComponent = std::decay_t<T>;
 
-				constexpr auto lookupHash = utils::type_info::hash<TComponent>();
-
-				const auto& componentHashList =
-						GetArchetypeComponentLookupHashList(header.owner, componentType);
-				return utils::has_if(componentHashList, [&](const auto& info) {
-					return info.lookupHash == lookupHash;
-				});
+				const auto typeIndex = utils::type_info::index<TComponent>();
+				return GetComponentIdx_Internal(componentType, typeIndex) !=
+							 (uint32_t)utils::BadIndex;
 			}
 
 			[[nodiscard]] uint32_t AddEntity(Entity entity) {
@@ -125,17 +121,23 @@ namespace gaia {
 					const auto entity = GetEntity(header.lastEntityIndex);
 					SetEntity(index, entity);
 
-					const auto& componentList = GetArchetypeComponentList(
+					const auto& componentTypeList = GetArchetypeComponentTypeList(
 							header.owner, ComponentType::CT_Generic);
-					for (const auto& info: componentList) {
+					const auto& lookupList = GetArchetypeComponentLookupList(
+							header.owner, ComponentType::CT_Generic);
+
+					for (uint32_t i = 0U; i < componentTypeList.size(); i++) {
+						const auto& info = componentTypeList[i];
+						const auto& look = lookupList[i];
+
 						// Skip tag components
 						if (!info.type->size)
 							continue;
 
 						const uint32_t idxFrom =
-								info.offset + (uint32_t)index * info.type->size;
+								look.offset + (uint32_t)index * info.type->size;
 						const uint32_t idxTo =
-								info.offset +
+								look.offset +
 								(uint32_t)header.lastEntityIndex * info.type->size;
 
 						GAIA_ASSERT(idxFrom < Chunk::DATA_SIZE);
@@ -197,13 +199,13 @@ namespace gaia {
 						!std::is_empty<TComponent>::value,
 						"Attempting to get value of an empty component");
 
-				constexpr auto lookupHash = utils::type_info::hash<TComponent>();
+				const auto typeIndex = utils::type_info::index<TComponent>();
 
 				const auto& componentHashList =
-						GetArchetypeComponentLookupHashList(header.owner, componentType);
+						GetArchetypeComponentLookupList(header.owner, componentType);
 				const auto it =
 						utils::find_if(componentHashList, [&](const auto& info) {
-							return info.lookupHash == lookupHash;
+							return info.typeIndex == typeIndex;
 						});
 
 				// Searching for a component that's not there! Programmer mistake.
@@ -225,13 +227,13 @@ namespace gaia {
 					ComponentType componentType = ComponentType::CT_Generic) {
 				using TComponent = std::decay_t<T>;
 
-				constexpr auto lookupHash = utils::type_info::hash<TComponent>();
+				const auto typeIndex = utils::type_info::index<TComponent>();
 
 				const auto& componentHashList =
-						GetArchetypeComponentLookupHashList(header.owner, componentType);
+						GetArchetypeComponentLookupList(header.owner, componentType);
 				const auto it =
 						utils::find_if(componentHashList, [&](const auto& info) {
-							return info.lookupHash == lookupHash;
+							return info.typeIndex == typeIndex;
 						});
 
 				// Searching for a component that's not there! Programmer mistake.
@@ -277,12 +279,12 @@ namespace gaia {
 						view_rw_internal<TComponent>(componentType));
 			}
 
-			[[nodiscard]] uint32_t GetComponentIdx(uint32_t typeIdx) const {
-				return GetComponentIdx_Internal(ComponentType::CT_Generic, typeIdx);
+			[[nodiscard]] uint32_t GetComponentIdx(uint32_t typeIndex) const {
+				return GetComponentIdx_Internal(ComponentType::CT_Generic, typeIndex);
 			}
 
-			[[nodiscard]] uint32_t GetChunkComponentIdx(uint32_t typeIdx) const {
-				return GetComponentIdx_Internal(ComponentType::CT_Chunk, typeIdx);
+			[[nodiscard]] uint32_t GetChunkComponentIdx(uint32_t typeIndex) const {
+				return GetComponentIdx_Internal(ComponentType::CT_Chunk, typeIndex);
 			}
 
 			template <typename T>

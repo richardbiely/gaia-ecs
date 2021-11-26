@@ -222,26 +222,22 @@ namespace gaia {
 
 #pragma endregion
 
-		struct ChunkComponentInfo final {
+		struct ChunkComponentTypeInfo final {
 			//! Pointer to the associated meta type
 			const ComponentMetaData* type;
-			//! Index of the component. A copy of the value in meta data
+		};
+
+		struct ChunkComponentLookupInfo final {
+			//! Component lookup hash. A copy of the value in meta data
 			uint32_t typeIndex;
 			//! Distance in bytes from the archetype's chunk data segment
 			uint32_t offset;
 		};
 
-		struct ChunkComponentHashInfo final {
-			//! Component lookup hash. A copy of the value in meta data
-			uint64_t lookupHash;
-			//! Distance in bytes from the archetype's chunk data segment
-			uint32_t offset;
-		};
-
-		using ChunkComponentList =
-				utils::sarray<ChunkComponentInfo, MAX_COMPONENTS_PER_ARCHETYPE>;
-		using ChunkComponentHashList =
-				utils::sarray<ChunkComponentHashInfo, MAX_COMPONENTS_PER_ARCHETYPE>;
+		using ChunkComponentTypeList =
+				utils::sarray<ChunkComponentTypeInfo, MAX_COMPONENTS_PER_ARCHETYPE>;
+		using ChunkComponentLookupList =
+				utils::sarray<ChunkComponentLookupInfo, MAX_COMPONENTS_PER_ARCHETYPE>;
 
 		//-----------------------------------------------------------------------------------
 
