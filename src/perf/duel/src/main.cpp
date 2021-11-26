@@ -599,7 +599,8 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA_ManualSIMD(
 
 								auto exec = [&](float* GAIA_RESTRICT v, const size_t offset) {
 									const auto vyVec = _mm_load_ps(vvy.data() + offset);
-									_mm_store_ps(v + offset, _mm_mul_ps(vyVec, gg_dtVec));
+									const auto mulVec = _mm_mul_ps(vyVec, gg_dtVec);
+									_mm_store_ps(v + offset, mulVec);
 								};
 
 								for (size_t i = 0; i < ch.GetItemCount(); i += 4) {
