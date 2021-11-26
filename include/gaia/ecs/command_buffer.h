@@ -539,10 +539,10 @@ namespace gaia {
 
 							// // Components
 							// for (uint8_t j = 0; j < componentCount; ++j) {
-							// 	const uint32_t typeIdx = *(uint32_t*)&m_data[i];
+							// 	const uint32_t typeIndex = *(uint32_t*)&m_data[i];
 							// 	const auto* metaType =
-							// 			g_ComponentCache.GetComponentMetaTypeFromIdx(typeIdx);
-							// 	i += sizeof(typeIdx);
+							// 			g_ComponentCache.GetComponentMetaTypeFromIdx(typeIndex);
+							// 	i += sizeof(typeIndex);
 
 							// 	memcpy(
 							// 			pChunk->SetComponent_Internal(
@@ -578,10 +578,10 @@ namespace gaia {
 
 							// // Components
 							// for (uint8_t j = 0; j < componentCount; ++j) {
-							// 	const uint32_t typeIdx = *(uint32_t*)&m_data[i];
+							// 	const uint32_t typeIndex = *(uint32_t*)&m_data[i];
 							// 	const auto* metaType =
-							// 			g_ComponentCache.GetComponentMetaTypeFromIdx(typeIdx);
-							// 	i += sizeof(typeIdx);
+							// 			g_ComponentCache.GetComponentMetaTypeFromIdx(typeIndex);
+							// 	i += sizeof(typeIndex);
 
 							// 	memcpy(
 							// 			pChunk->SetComponent_Internal(

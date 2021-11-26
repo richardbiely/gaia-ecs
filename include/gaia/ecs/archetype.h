@@ -28,10 +28,11 @@ namespace gaia {
 			//! List of chunks allocated by this archetype
 			utils::vector<Chunk*> chunks;
 			//! Description of components within this archetype
-			utils::array<ChunkComponentList, ComponentType::CT_Count> componentList;
+			utils::array<ChunkComponentTypeList, ComponentType::CT_Count>
+					componentTypeList;
 			//! Lookup hashes of components within this archetype
-			utils::array<ChunkComponentHashList, ComponentType::CT_Count>
-					componentLookupHashList;
+			utils::array<ChunkComponentLookupList, ComponentType::CT_Count>
+					componentLookupList;
 
 			//! Hash of components within this archetype - used for lookups
 			uint64_t lookupHash = 0;
@@ -56,15 +57,27 @@ namespace gaia {
 #endif
 
 				// Call default constructors for types that need it
-				for (const auto& comp:
-						 archetype.componentList[ComponentType::CT_Generic]) {
-					if (comp.type->constructor != nullptr)
-						comp.type->constructor((void*)((char*)pChunk + comp.offset));
+				{
+					const auto& comp =
+							archetype.componentTypeList[ComponentType::CT_Generic];
+					const auto& look =
+							archetype.componentLookupList[ComponentType::CT_Generic];
+					for (uint32_t i = 0U; i < comp.size(); ++i) {
+						if (comp[i].type->constructor == nullptr)
+							continue;
+						comp[i].type->constructor((void*)((char*)pChunk + look[i].offset));
+					}
 				}
-				for (const auto& comp:
-						 archetype.componentList[ComponentType::CT_Chunk]) {
-					if (comp.type->constructor != nullptr)
-						comp.type->constructor((void*)((char*)pChunk + comp.offset));
+				{
+					const auto& comp =
+							archetype.componentTypeList[ComponentType::CT_Chunk];
+					const auto& look =
+							archetype.componentLookupList[ComponentType::CT_Chunk];
+					for (uint32_t i = 0U; i < comp.size(); ++i) {
+						if (comp[i].type->constructor == nullptr)
+							continue;
+						comp[i].type->constructor((void*)((char*)pChunk + look[i].offset));
+					}
 				}
 
 				pChunk->header.capacity = archetype.capacity;
@@ -75,15 +88,27 @@ namespace gaia {
 #if GAIA_ECS_CHUNK_ALLOCATOR
 				// Call destructors for types that need it
 				const auto& archetype = pChunk->header.owner;
-				for (const auto& comp:
-						 archetype.componentList[ComponentType::CT_Generic]) {
-					if (comp.type->destructor != nullptr)
-						comp.type->destructor((void*)((char*)pChunk + comp.offset));
+				{
+					const auto& comp =
+							archetype.componentTypeList[ComponentType::CT_Generic];
+					const auto& look =
+							archetype.componentLookupList[ComponentType::CT_Generic];
+					for (uint32_t i = 0U; i < comp.size(); ++i) {
+						if (comp[i].type->destructor == nullptr)
+							continue;
+						comp[i].type->destructor((void*)((char*)pChunk + look[i].offset));
+					}
 				}
-				for (const auto& comp:
-						 archetype.componentList[ComponentType::CT_Chunk]) {
-					if (comp.type->destructor != nullptr)
-						comp.type->destructor((void*)((char*)pChunk + comp.offset));
+				{
+					const auto& comp =
+							archetype.componentTypeList[ComponentType::CT_Chunk];
+					const auto& look =
+							archetype.componentLookupList[ComponentType::CT_Chunk];
+					for (uint32_t i = 0U; i < comp.size(); ++i) {
+						if (comp[i].type->destructor == nullptr)
+							continue;
+						comp[i].type->destructor((void*)((char*)pChunk + look[i].offset));
+					}
 				}
 
 				pChunk->~Chunk();
@@ -147,10 +172,10 @@ namespace gaia {
 						GAIA_ASSERT(componentOffset <= Chunk::DATA_SIZE);
 					}
 
-					newArch->componentList[ComponentType::CT_Generic].push_back(
-							{genericTypes[i], genericTypes[i]->typeIndex, componentOffset});
-					newArch->componentLookupHashList[ComponentType::CT_Generic].push_back(
-							{genericTypes[i]->lookupHash, componentOffset});
+					newArch->componentTypeList[ComponentType::CT_Generic].push_back(
+							{genericTypes[i]});
+					newArch->componentLookupList[ComponentType::CT_Generic].push_back(
+							{genericTypes[i]->typeIndex, componentOffset});
 
 					// Make sure the following component list is properly aligned
 					if (a != 0) {
@@ -176,10 +201,10 @@ namespace gaia {
 						GAIA_ASSERT(componentOffset <= Chunk::DATA_SIZE);
 					}
 
-					newArch->componentList[ComponentType::CT_Chunk].push_back(
-							{chunkTypes[i], chunkTypes[i]->typeIndex, componentOffset});
-					newArch->componentLookupHashList[ComponentType::CT_Chunk].push_back(
-							{chunkTypes[i]->lookupHash, componentOffset});
+					newArch->componentTypeList[ComponentType::CT_Chunk].push_back(
+							{chunkTypes[i]});
+					newArch->componentLookupList[ComponentType::CT_Chunk].push_back(
+							{chunkTypes[i]->typeIndex, componentOffset});
 
 					// Make sure the following component list is properly aligned
 					if (a != 0) {
@@ -242,14 +267,14 @@ namespace gaia {
 				return capacity;
 			}
 
-			[[nodiscard]] const ChunkComponentList&
-			GetComponentList(ComponentType type) const {
-				return componentList[type];
+			[[nodiscard]] const ChunkComponentTypeList&
+			GetComponentTypeList(ComponentType type) const {
+				return componentTypeList[type];
 			}
 
-			[[nodiscard]] const ChunkComponentHashList&
-			GetComponentLookupHashList(ComponentType type) const {
-				return componentLookupHashList[type];
+			[[nodiscard]] const ChunkComponentLookupList&
+			GetComponentLookupList(ComponentType type) const {
+				return componentLookupList[type];
 			}
 
 			template <typename... T>
@@ -284,7 +309,7 @@ namespace gaia {
 				const ComponentMetaData* type =
 						g_ComponentCache.GetOrCreateComponentMetaType<T>();
 				return utils::has_if(
-						componentList[TComponentType],
+						componentTypeList[TComponentType],
 						[type](const auto& info) { return info.type == type; });
 			}
 
@@ -312,14 +337,15 @@ namespace gaia {
 		GetArchetypeCapacity(const Archetype& archetype) {
 			return archetype.GetCapacity();
 		}
-		[[nodiscard]] inline const ChunkComponentList&
-		GetArchetypeComponentList(const Archetype& archetype, ComponentType type) {
-			return archetype.GetComponentList(type);
-		}
-		[[nodiscard]] inline const ChunkComponentHashList&
-		GetArchetypeComponentLookupHashList(
+		[[nodiscard]] inline const ChunkComponentTypeList&
+		GetArchetypeComponentTypeList(
 				const Archetype& archetype, ComponentType type) {
-			return archetype.GetComponentLookupHashList(type);
+			return archetype.GetComponentTypeList(type);
+		}
+		[[nodiscard]] inline const ChunkComponentLookupList&
+		GetArchetypeComponentLookupList(
+				const Archetype& archetype, ComponentType type) {
+			return archetype.GetComponentLookupList(type);
 		}
 	} // namespace ecs
 } // namespace gaia
