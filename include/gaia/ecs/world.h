@@ -1216,7 +1216,7 @@ namespace gaia {
 			void Unpack_ForEachEntityInChunk(
 					[[maybe_unused]] utils::func_type_list<TComponents...> types,
 					Chunk& chunk, TFunc&& func) {
-				ForEachEntityInChunk<TComponents...>(chunk, func);
+				ForEachEntityInChunk<TComponents...>(chunk, std::forward<TFunc>(func));
 			}
 
 			template <typename... TComponents>
@@ -1241,9 +1241,6 @@ namespace gaia {
 				// Skip unchanged chunks.
 				// Bitwise or because we don't need to introduce 2 unpredictabilities.
 				if (checkGenericComponents | checkChunkComponents) {
-					bool genericChanged = false;
-					bool chunkChanged = false;
-
 					const auto lastWorldVersion = query.GetWorldVersion();
 
 					// Find if any generic component has changed
@@ -1254,12 +1251,9 @@ namespace gaia {
 								componentIdx !=
 								(uint32_t)-1); // the component must exist at this point!
 
-						if (!chunk.DidChange(
+						if (chunk.DidChange(
 										ComponentType::CT_Generic, lastWorldVersion, componentIdx))
-							continue;
-
-						genericChanged = true;
-						break;
+							return true;
 					}
 
 					// Find if any chunk component has changed
@@ -1270,15 +1264,12 @@ namespace gaia {
 								componentIdx !=
 								(uint32_t)-1); // the component must exist at this point!
 
-						if (!chunk.DidChange(
+						if (chunk.DidChange(
 										ComponentType::CT_Chunk, lastWorldVersion, componentIdx))
-							continue;
-
-						chunkChanged = true;
-						break;
+							return true;
 					}
 
-					return genericChanged || chunkChanged;
+					return false;
 				}
 
 				return true;
