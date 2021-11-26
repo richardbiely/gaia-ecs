@@ -459,10 +459,10 @@ __m128 _mm_mul_ps(__m128 a, __m128 b) {
 
 __m128 _mm_blendv_ps(__m128 a, __m128 b, __m128 mask) {
 	// Use a signed shift right to create a mask with the sign bit
-	uint32x4_t res_mask =
+	const auto res_mask =
 			vreinterpretq_u32_s32(vshrq_n_s32(vreinterpretq_s32_m128(mask), 31));
-	float32x4_t res_a = vreinterpretq_f32_m128(a);
-	float32x4_t res_b = vreinterpretq_f32_m128(b);
+	const auto res_a = vreinterpretq_f32_m128(a);
+	const auto res_b = vreinterpretq_f32_m128(b);
 	return vreinterpretq_m128_f32(vbslq_f32(res_mask, res_b, res_a));
 }
 #endif
