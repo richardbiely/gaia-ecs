@@ -45,9 +45,9 @@ constexpr float MaxDelta = 0.033f;
 float CalculateDelta(benchmark::State& state) {
 	state.PauseTiming();
 	const float d = static_cast<float>((double)RAND_MAX / (MaxDelta - MinDelta));
-	float dt = MinDelta + (static_cast<float>(rand()) / d);
+	float delta = MinDelta + (static_cast<float>(rand()) / d);
 	state.ResumeTiming();
-	return dt;
+	return delta;
 }
 
 void BM_Game_ECS(benchmark::State& state) {
