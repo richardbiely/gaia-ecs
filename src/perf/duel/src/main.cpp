@@ -13,6 +13,12 @@ GAIA_MSVC_WARNING_DISABLE(4307)
 	#endif
 #endif
 
+#if GAIA_ARCH != GAIA_ARCH_ARM
+	#include <smmintrin.h>
+#else
+	#include <arm_neon.h>
+#endif
+
 using namespace gaia;
 
 float dt;
@@ -413,6 +419,208 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA(benchmark::State& state) {
 	}
 }
 
+#if GAIA_ARCH == GAIA_ARCH_ARM
+	#define vreinterpretq_m128_f32(x) (x)
+	#define vreinterpretq_f32_m128(x) (x)
+	#define vreinterpretq_s32_m128(x) vreinterpretq_s32_f32(x)
+	#define vreinterpretq_m128_u32(x) vreinterpretq_f32_u32(x)
+
+using __m128 = float32x4_t;
+
+__m128 _mm_load_ps(const float* p) {
+	return vreinterpretq_m128_f32(vld1q_f32(p));
+}
+
+void _mm_store_ps(float* p, __m128 a) {
+	vst1q_f32(p, vreinterpretq_f32_m128(a));
+}
+
+__m128 _mm_set_ps1(float a) {
+	return vdupq_n_f32(a);
+}
+
+__m128 _mm_setzero_ps() {
+	return vdupq_n_f32(0.0f);
+}
+
+__m128 _mm_fmadd_ps(__m128 a, __m128 b, __m128 c) {
+	return vfmaq_f32(a, b, c);
+}
+
+__m128 _mm_cmplt_ps(__m128 a, __m128 b) {
+	return vreinterpretq_m128_u32(
+			vcltq_f32(vreinterpretq_f32_m128(a), vreinterpretq_f32_m128(b)));
+}
+
+__m128 _mm_mul_ps(__m128 a, __m128 b) {
+	return vreinterpretq_m128_f32(
+			vmulq_f32(vreinterpretq_f32_m128(a), vreinterpretq_f32_m128(b)));
+}
+
+__m128 _mm_blendv_ps(__m128 a, __m128 b, __m128 mask) {
+	// Use a signed shift right to create a mask with the sign bit
+	uint32x4_t res_mask =
+			vreinterpretq_u32_s32(vshrq_n_s32(vreinterpretq_s32_m128(mask), 31));
+	float32x4_t res_a = vreinterpretq_f32_m128(a);
+	float32x4_t res_b = vreinterpretq_f32_m128(b);
+	return vreinterpretq_m128_f32(vbslq_f32(res_mask, res_b, res_a));
+}
+#endif
+
+void BM_Game_ECS_WithSystems_ForEachChunkSoA_ManualSIMD(
+		benchmark::State& state) {
+	ecs::World w;
+
+	// Create static entities
+	{
+		auto e = w.CreateEntity();
+		w.AddComponent<PositionSoA>(e, {});
+		w.AddComponent<Rotation>(e, {1, 2, 3, 4});
+		w.AddComponent<Scale>(e, {1, 1, 1});
+		for (uint32_t i = 1U; i < N; i++) {
+			[[maybe_unused]] auto newentity = w.CreateEntity(e);
+		}
+	}
+	// Create dynamic entities
+	{
+		auto e = w.CreateEntity();
+		w.AddComponent<PositionSoA>(e, {0, 100, 0});
+		w.AddComponent<VelocitySoA>(e, {0, 0, 1});
+		w.AddComponent<Rotation>(e, {1, 2, 3, 4});
+		w.AddComponent<Scale>(e, {1, 1, 1});
+		for (uint32_t i = 1U; i < N; i++) {
+			[[maybe_unused]] auto newentity = w.CreateEntity(e);
+		}
+	}
+
+	class PositionSystem final: public ecs::System {
+		ecs::EntityQuery m_q;
+
+	public:
+		void OnCreated() override {
+			m_q.All<PositionSoA, VelocitySoA>();
+		}
+		void OnUpdate() override {
+			GetWorld()
+					.ForEachChunk(
+							m_q,
+							[&](ecs::Chunk& ch) {
+								auto p = ch.ViewRW<PositionSoA>();
+								auto v = ch.View<VelocitySoA>();
+
+								auto ppx = p.set<0>();
+								auto ppy = p.set<1>();
+								auto ppz = p.set<2>();
+
+								auto vvx = v.get<0>();
+								auto vvy = v.get<1>();
+								auto vvz = v.get<2>();
+
+								const auto dtVec = _mm_set_ps1(dt);
+
+								auto exec = [&](float* p, const float* v,
+																const size_t offset) GAIA_RESTRICT {
+									const auto pVec = _mm_load_ps(p + offset);
+									const auto vVec = _mm_load_ps(v + offset);
+									const auto respVec = _mm_fmadd_ps(vVec, dtVec, pVec);
+									_mm_store_ps(p + offset, respVec);
+								};
+
+								for (size_t i = 0; i < ch.GetItemCount(); i += 4)
+									exec(ppx.data(), vvx.data(), i);
+								for (size_t i = 0; i < ch.GetItemCount(); i += 4)
+									exec(ppy.data(), vvy.data(), i);
+								for (size_t i = 0; i < ch.GetItemCount(); i += 4)
+									exec(ppz.data(), vvz.data(), i);
+							})
+					.Run();
+		}
+	};
+
+	class CollisionSystem final: public ecs::System {
+		ecs::EntityQuery m_q;
+
+	public:
+		void OnCreated() override {
+			m_q.All<PositionSoA, VelocitySoA>();
+		}
+		void OnUpdate() override {
+			GetWorld()
+					.ForEachChunk(
+							m_q,
+							[&](ecs::Chunk& ch) {
+								auto p = ch.ViewRW<PositionSoA>();
+								auto v = ch.ViewRW<VelocitySoA>();
+
+								auto ppy = p.set<1>();
+								auto vvy = v.set<1>();
+
+								auto exec = [&](const size_t offset) {
+									const auto vyVec = _mm_load_ps(vvy.data() + offset);
+									const auto pyVec = _mm_load_ps(ppy.data() + offset);
+
+									const auto condVec = _mm_cmplt_ps(vyVec, _mm_setzero_ps());
+									const auto res_vyVec =
+											_mm_blendv_ps(vyVec, _mm_setzero_ps(), condVec);
+									const auto res_pyVec =
+											_mm_blendv_ps(pyVec, _mm_setzero_ps(), condVec);
+
+									_mm_store_ps((float*)vvy.data() + offset, res_vyVec);
+									_mm_store_ps((float*)ppy.data() + offset, res_pyVec);
+								};
+
+								for (size_t i = 0; i < ch.GetItemCount(); i += 4) {
+									exec(i);
+								}
+							})
+					.Run();
+		}
+	};
+
+	class GravitySystem final: public ecs::System {
+		ecs::EntityQuery m_q;
+
+	public:
+		void OnCreated() override {
+			m_q.All<VelocitySoA>();
+		}
+
+		void OnUpdate() override {
+			GetWorld()
+					.ForEachChunk(
+							m_q,
+							[&](ecs::Chunk& ch) {
+								auto v = ch.ViewRW<VelocitySoA>();
+								auto vvy = v.set<1>();
+
+								const auto gg_dtVec = _mm_set_ps1(9.81f * dt);
+
+								auto exec = [&](float* v, const size_t offset) GAIA_RESTRICT {
+									const auto vyVec = _mm_load_ps(vvy.data() + offset);
+									_mm_store_ps(v + offset, _mm_mul_ps(vyVec, gg_dtVec));
+								};
+
+								for (size_t i = 0; i < ch.GetItemCount(); i += 4) {
+									exec(vvy.data(), i);
+								}
+							})
+					.Run();
+		}
+	};
+
+	ecs::SystemManager sm(w);
+	sm.CreateSystem<PositionSystem>("position");
+	sm.CreateSystem<CollisionSystem>("collision");
+	sm.CreateSystem<GravitySystem>("gravity");
+
+	srand(0);
+	for ([[maybe_unused]] auto _: state) {
+		dt = CalculateDelta(state);
+
+		sm.Update();
+	}
+}
+
 void BM_Game_NonECS(benchmark::State& state) {
 	struct IUnit {
 		Position p;
@@ -492,6 +700,7 @@ BENCHMARK(BM_Game_ECS);
 BENCHMARK(BM_Game_ECS_WithSystems);
 BENCHMARK(BM_Game_ECS_WithSystems_ForEachChunk);
 BENCHMARK(BM_Game_ECS_WithSystems_ForEachChunkSoA);
+BENCHMARK(BM_Game_ECS_WithSystems_ForEachChunkSoA_ManualSIMD);
 
 // Run the benchmark
 BENCHMARK_MAIN();
