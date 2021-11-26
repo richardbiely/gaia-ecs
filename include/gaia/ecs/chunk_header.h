@@ -47,7 +47,7 @@ namespace gaia {
 					versions[componentType][componentIdx] = gv;
 				} else {
 					// Update all components' version
-					for (uint32_t i = 0; i < MAX_COMPONENTS_PER_ARCHETYPE; i++)
+					for (uint32_t i = 0U; i < MAX_COMPONENTS_PER_ARCHETYPE; i++)
 						versions[componentType][i] = gv;
 				};
 			}

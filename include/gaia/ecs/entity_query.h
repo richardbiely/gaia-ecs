@@ -151,7 +151,8 @@ namespace gaia {
 			uint32_t m_worldVersion = 0;
 
 			template <class TComponent>
-			void CalculateHash_Internal(ComponentIndexArray& arr, [[maybe_unused]] uint64_t& hash) {
+			void CalculateHash_Internal(
+					ComponentIndexArray& arr, [[maybe_unused]] uint64_t& hash) {
 				using T = std::decay_t<TComponent>;
 
 				if constexpr (std::is_same<T, Entity>::value) {
@@ -177,7 +178,7 @@ namespace gaia {
 								"query!",
 								(uint32_t)typeName.length(), typeName.data());
 						LOG_E("Already present:");
-						for (uint32_t i = 0; i < arr.size(); i++) {
+						for (uint32_t i = 0U; i < arr.size(); i++) {
 							const auto metaType =
 									g_ComponentCache.GetComponentMetaTypeFromIdx(arr[i]);
 							LOG_E(

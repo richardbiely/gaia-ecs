@@ -214,7 +214,7 @@ TEST_CASE("CreateEntity - no components") {
 	};
 
 	const uint32_t N = 100;
-	for (uint32_t i = 0; i < N; i++)
+	for (uint32_t i = 0U; i < N; i++)
 		create(i);
 }
 
@@ -229,7 +229,7 @@ TEST_CASE("CreateEntity - 1 component") {
 	};
 
 	const uint32_t N = 10000;
-	for (uint32_t i = 0; i < N; i++)
+	for (uint32_t i = 0U; i < N; i++)
 		create(i);
 }
 
@@ -259,10 +259,10 @@ TEST_CASE("CreateAndRemoveEntity - no components") {
 	arr.reserve(N);
 
 	// Create entities
-	for (uint32_t i = 0; i < N; i++)
+	for (uint32_t i = 0U; i < N; i++)
 		arr.push_back(create(i));
 	// Remove entities
-	for (uint32_t i = 0; i < N; i++)
+	for (uint32_t i = 0U; i < N; i++)
 		remove(arr[i]);
 }
 
@@ -291,9 +291,9 @@ TEST_CASE("CreateAndRemoveEntity - 1 component") {
 	utils::vector<ecs::Entity> arr;
 	arr.reserve(N);
 
-	for (uint32_t i = 0; i < N; i++)
+	for (uint32_t i = 0U; i < N; i++)
 		arr.push_back(create(i));
-	for (uint32_t i = 0; i < N; i++)
+	for (uint32_t i = 0U; i < N; i++)
 		remove(arr[i]);
 }
 
@@ -318,7 +318,7 @@ TEST_CASE("SetComponent - generic") {
 	utils::vector<ecs::Entity> arr;
 	arr.reserve(N);
 
-	for (uint32_t i = 0; i < N; ++i) {
+	for (uint32_t i = 0U; i < N; ++i) {
 		arr.push_back(w.CreateEntity());
 		w.AddComponent<Rotation, Scale, Else>(arr.back(), {}, {}, {});
 		w.AddComponent<PositionNonTrivial>(arr.back(), {});
@@ -361,7 +361,7 @@ TEST_CASE("SetComponent - generic") {
 			 auto elseView = chunk.ViewRW<Else>();
 			 auto posView = chunk.ViewRW<PositionNonTrivial>();
 
-			 for (uint32_t i = 0; i < chunk.GetItemCount(); ++i) {
+			 for (uint32_t i = 0U; i < chunk.GetItemCount(); ++i) {
 				 rotationView[i] = {1, 2, 3, 4};
 				 scaleView[i] = {11, 22, 33};
 				 elseView[i] = {true};
@@ -403,7 +403,7 @@ TEST_CASE("SetComponent - generic & chunk") {
 	utils::vector<ecs::Entity> arr;
 	arr.reserve(N);
 
-	for (uint32_t i = 0; i < N; ++i) {
+	for (uint32_t i = 0U; i < N; ++i) {
 		arr.push_back(w.CreateEntity());
 		w.AddComponent<Rotation, Scale, Else>(arr.back(), {}, {}, {});
 		w.AddChunkComponent<Position>(arr.back(), {});
@@ -447,7 +447,7 @@ TEST_CASE("SetComponent - generic & chunk") {
 
 			 chunk.SetChunkComponent<Position>({111, 222, 333});
 
-			 for (uint32_t i = 0; i < chunk.GetItemCount(); ++i) {
+			 for (uint32_t i = 0U; i < chunk.GetItemCount(); ++i) {
 				 rotationView[i] = {1, 2, 3, 4};
 				 scaleView[i] = {11, 22, 33};
 				 elseView[i] = {true};
@@ -798,12 +798,12 @@ TEST_CASE("CommandBuffer") {
 	// 	ecs::CommandBuffer cb;
 
 	// 	const uint32_t N = 100;
-	// 	for (uint32_t i = 0; i < N; i++)
+	// 	for (uint32_t i = 0U; i < N; i++)
 	// 		[[maybe_unused]] auto tmp = cb.CreateEntity();
 
 	// 	cb.Commit(&w);
 
-	// 	for (uint32_t i = 0; i < N; i++) {
+	// 	for (uint32_t i = 0U; i < N; i++) {
 	// 		auto e = w.GetEntity(i);
 	// 		REQUIRE(e.id() == i);
 	// 	}
@@ -817,12 +817,12 @@ TEST_CASE("CommandBuffer") {
 	// 	auto mainEntity = w.CreateEntity();
 
 	// 	const uint32_t N = 100;
-	// 	for (uint32_t i = 0; i < N; i++)
+	// 	for (uint32_t i = 0U; i < N; i++)
 	// 		[[maybe_unused]] auto tmp = cb.CreateEntity(mainEntity);
 
 	// 	cb.Commit(&w);
 
-	// 	for (uint32_t i = 0; i < N; i++) {
+	// 	for (uint32_t i = 0U; i < N; i++) {
 	// 		auto e = w.GetEntity(i + 1);
 	// 		REQUIRE(e.id() == i + 1);
 	// 	}

@@ -68,7 +68,7 @@ namespace gaia {
 					m_data.resize(
 							m_data.size() + sizeof(ComponentMetaData*) * componentCount);
 
-					for (uint8_t i = 0; i < componentCount; i++) {
+					for (uint8_t i = 0U; i < componentCount; i++) {
 						utils::unaligned_ref<ComponentMetaData*> to(&m_data[lastIndex]);
 						to = typesToAdd[i];
 					}
@@ -146,7 +146,7 @@ namespace gaia {
 					const auto lastIndex = m_data.size();
 					m_data.resize(
 							m_data.size() + sizeof(ComponentMetaData*) * NComponents);
-					for (uint8_t i = 0; i < NComponents; i++) {
+					for (uint8_t i = 0U; i < NComponents; i++) {
 						utils::unaligned_ref<ComponentMetaData*> to(&m_data[lastIndex]);
 						to = typesToRemove[i];
 					}

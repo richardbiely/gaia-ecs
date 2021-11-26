@@ -336,13 +336,13 @@ namespace gaia {
 										(uint32_t)archetype.componentTypeList[componentType]
 												.size());
 						LOG_W("Already present:");
-						for (uint32_t i = 0; i < componentTypeList.size(); i++)
+						for (uint32_t i = 0U; i < componentTypeList.size(); i++)
 							LOG_W(
 									"> [%u] %.*s", i,
 									(uint32_t)componentTypeList[i].type->name.length(),
 									componentTypeList[i].type->name.data());
 						LOG_W("Trying to add:");
-						for (uint32_t i = 0; i < newTypesCount; i++)
+						for (uint32_t i = 0U; i < newTypesCount; i++)
 							LOG_W(
 									"> [%u] %.*s", i, (uint32_t)typesToAdd[i]->name.length(),
 									typesToAdd[i]->name.data());
@@ -354,7 +354,7 @@ namespace gaia {
 					auto newMetatypes = (const ComponentMetaData**)alloca(
 							sizeof(ComponentMetaData) * metatypesCount);
 
-					for (uint32_t i = 0; i < componentTypeList.size(); i++) {
+					for (uint32_t i = 0U; i < componentTypeList.size(); i++) {
 						const auto& info = componentTypeList[i];
 
 #if GAIA_DEBUG
@@ -383,14 +383,14 @@ namespace gaia {
 						newMetatypes[newTypesCount + i] = info.type;
 					}
 					// Fill in the gap with new input types
-					for (uint32_t i = 0; i < newTypesCount; i++)
+					for (uint32_t i = 0U; i < newTypesCount; i++)
 						newMetatypes[i] = typesToAdd[i];
 
 					const auto& secondList =
 							archetype.componentTypeList[(componentType + 1) & 1];
 					auto secondMetaTypes = (const ComponentMetaData**)alloca(
 							sizeof(ComponentMetaData) * secondList.size());
-					for (uint32_t i = 0; i < secondList.size(); i++)
+					for (uint32_t i = 0U; i < secondList.size(); i++)
 						secondMetaTypes[i] = secondList[i].type;
 
 					auto newArchetype = componentType == ComponentType::CT_Generic
@@ -416,7 +416,7 @@ namespace gaia {
 								"but maximum of only %u is supported!",
 								newTypesCount, ComponentTypeString[componentType], entity.id(),
 								entity.gen(), MAX_COMPONENTS_PER_ARCHETYPE);
-						for (uint32_t i = 0; i < newTypesCount; i++)
+						for (uint32_t i = 0U; i < newTypesCount; i++)
 							LOG_W(
 									"> [%u] %.*s", i, (uint32_t)typesToAdd[i]->name.length(),
 									typesToAdd[i]->name.data());
@@ -547,7 +547,7 @@ namespace gaia {
 
 				// TODO: Arrays are sorted so we can do this in O(n+_) instead of
 				// O(N^2)
-				for (uint32_t i = 0; i < oldInfo.size(); i++) {
+				for (uint32_t i = 0U; i < oldInfo.size(); i++) {
 					const auto typeOld = oldInfo[i].type;
 					if (!typeOld->size)
 						continue;
@@ -562,7 +562,7 @@ namespace gaia {
 				}
 
 				// Let's move all data from oldEntity to newEntity
-				for (uint32_t i = 0; i < intersectionCount; i++) {
+				for (uint32_t i = 0U; i < intersectionCount; i++) {
 					const auto newIndex = intersections[i].newIndex;
 					const auto oldIndex = intersections[i].oldIndex;
 
@@ -727,7 +727,7 @@ namespace gaia {
 					const auto& look =
 							archetype.componentLookupList[ComponentType::CT_Generic];
 
-					for (uint32_t i = 0; i < info.size(); i++) {
+					for (uint32_t i = 0U; i < info.size(); i++) {
 						const auto* metaType = info[i].type;
 						if (!metaType->size)
 							continue;
@@ -1112,7 +1112,7 @@ namespace gaia {
 			template <typename... TFuncArgs, typename TFunc>
 			void ForEachEntityInChunk(Chunk& chunk, TFunc&& func) {
 				auto tup = std::make_tuple(expandTuple<TFuncArgs>(chunk)...);
-				for (uint16_t i = 0; i < chunk.GetItemCount(); i++)
+				for (uint16_t i = 0U; i < chunk.GetItemCount(); i++)
 					func(std::get<decltype(expandTuple<TFuncArgs>(chunk))>(tup)[i]...);
 			}
 
@@ -1596,7 +1596,7 @@ namespace gaia {
 					if (m_freeEntities) {
 						LOG_N("  --> %u", m_nextFreeEntity);
 
-						uint32_t iters = 0;
+						uint32_t iters = 0U;
 						auto fe = m_entities[m_nextFreeEntity].idx;
 						while (fe != Entity::IdMask) {
 							LOG_N("  --> %u", m_entities[fe].idx);

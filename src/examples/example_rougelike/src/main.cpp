@@ -161,7 +161,7 @@ struct World {
 
 	void CreateEnemies() {
 		utils::array<ecs::Entity, 3> enemies;
-		for (size_t i = 0; i < enemies.size(); ++i) {
+		for (size_t i = 0U; i < enemies.size(); ++i) {
 			auto& e = enemies[i];
 			e = w.CreateEntity();
 			w.AddComponent<Position>(e, {});

@@ -160,7 +160,7 @@ namespace gaia {
 				auto alignedOffset = (uint32_t)sizeof(ChunkHeader) + componentOffset;
 
 				// Add generic types
-				for (uint32_t i = 0; i < (uint32_t)genericTypes.size(); i++) {
+				for (uint32_t i = 0U; i < (uint32_t)genericTypes.size(); i++) {
 					const auto a = genericTypes[i]->alig;
 					if (a != 0) {
 						const uint32_t padding =
@@ -178,7 +178,7 @@ namespace gaia {
 							{genericTypes[i]->typeIndex, componentOffset});
 
 					// Make sure the following component list is properly aligned
-					if (a != 0) {
+					if (a != 0U) {
 						componentOffset +=
 								genericTypes[i]->size * maxGenericItemsInArchetype;
 						alignedOffset += genericTypes[i]->size * maxGenericItemsInArchetype;
@@ -189,9 +189,9 @@ namespace gaia {
 				}
 
 				// Add chunk types
-				for (uint32_t i = 0; i < (uint32_t)chunkTypes.size(); i++) {
+				for (uint32_t i = 0U; i < (uint32_t)chunkTypes.size(); i++) {
 					const auto a = chunkTypes[i]->alig;
-					if (a != 0) {
+					if (a != 0U) {
 						const uint32_t padding =
 								utils::align(alignedOffset, a) - alignedOffset;
 						componentOffset += padding;
