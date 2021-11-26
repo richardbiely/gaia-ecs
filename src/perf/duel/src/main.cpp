@@ -518,8 +518,9 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA_ManualSIMD(
 
 								const auto dtVec = _mm_set_ps1(dt);
 
-								auto exec = [&](float* p, const float* v,
-																const size_t offset) GAIA_RESTRICT {
+								auto exec = [&](GAIA_RESTRICT float* p,
+																GAIA_RESTRICT const float* v,
+																const size_t offset) {
 									const auto pVec = _mm_load_ps(p + offset);
 									const auto vVec = _mm_load_ps(v + offset);
 									const auto respVec = _mm_fmadd_ps(vVec, dtVec, pVec);
@@ -555,9 +556,10 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA_ManualSIMD(
 								auto ppy = p.set<1>();
 								auto vvy = v.set<1>();
 
-								auto exec = [&](const size_t offset) {
-									const auto vyVec = _mm_load_ps(vvy.data() + offset);
-									const auto pyVec = _mm_load_ps(ppy.data() + offset);
+								auto exec = [&](GAIA_RESTRICT float* p, GAIA_RESTRICT float* v,
+																const size_t offset) {
+									const auto vyVec = _mm_load_ps(v + offset);
+									const auto pyVec = _mm_load_ps(p + offset);
 
 									const auto condVec = _mm_cmplt_ps(vyVec, _mm_setzero_ps());
 									const auto res_vyVec =
@@ -565,12 +567,12 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA_ManualSIMD(
 									const auto res_pyVec =
 											_mm_blendv_ps(pyVec, _mm_setzero_ps(), condVec);
 
-									_mm_store_ps((float*)vvy.data() + offset, res_vyVec);
-									_mm_store_ps((float*)ppy.data() + offset, res_pyVec);
+									_mm_store_ps(v + offset, res_vyVec);
+									_mm_store_ps(p + offset, res_pyVec);
 								};
 
 								for (size_t i = 0; i < ch.GetItemCount(); i += 4) {
-									exec(i);
+									exec(ppy.data(), vvy.data(), i);
 								}
 							})
 					.Run();
@@ -595,7 +597,7 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA_ManualSIMD(
 
 								const auto gg_dtVec = _mm_set_ps1(9.81f * dt);
 
-								auto exec = [&](float* v, const size_t offset) GAIA_RESTRICT {
+								auto exec = [&](GAIA_RESTRICT float* v, const size_t offset) {
 									const auto vyVec = _mm_load_ps(vvy.data() + offset);
 									_mm_store_ps(v + offset, _mm_mul_ps(vyVec, gg_dtVec));
 								};
