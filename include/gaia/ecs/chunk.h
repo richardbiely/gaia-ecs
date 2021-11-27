@@ -68,7 +68,9 @@ namespace gaia {
 
 			[[nodiscard]] uint32_t GetComponentIdx_Internal(ComponentType componentType, uint32_t typeIndex) const {
 				const auto& list = GetArchetypeComponentLookupList(header.owner, componentType);
-				return utils::get_index_if(list, [&](const auto& info) { return info.typeIndex == typeIndex; });
+				return utils::get_index_if(list, [&](const auto& info) {
+					return info.typeIndex == typeIndex;
+				});
 			}
 
 			template <typename T>
@@ -172,8 +174,9 @@ namespace gaia {
 				const auto typeIndex = utils::type_info::index<TComponent>();
 
 				const auto& componentLookupList = GetArchetypeComponentLookupList(header.owner, componentType);
-				const auto it =
-						utils::find_if(componentLookupList, [&](const auto& info) { return info.typeIndex == typeIndex; });
+				const auto it = utils::find_if(componentLookupList, [&](const auto& info) {
+					return info.typeIndex == typeIndex;
+				});
 
 				// Searching for a component that's not there! Programmer mistake.
 				GAIA_ASSERT(it != componentLookupList.end());
@@ -191,8 +194,9 @@ namespace gaia {
 				const auto typeIndex = utils::type_info::index<TComponent>();
 
 				const auto& componentLookupList = GetArchetypeComponentLookupList(header.owner, componentType);
-				const auto it =
-						utils::find_if(componentLookupList, [&](const auto& info) { return info.typeIndex == typeIndex; });
+				const auto it = utils::find_if(componentLookupList, [&](const auto& info) {
+					return info.typeIndex == typeIndex;
+				});
 
 				// Searching for a component that's not there! Programmer mistake.
 				GAIA_ASSERT(it != componentLookupList.end());

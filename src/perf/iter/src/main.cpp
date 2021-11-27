@@ -42,7 +42,9 @@ void BM_CreateEntity_With_Component______(benchmark::State& state) {
 		ecs::World w;
 		for (size_t i = 0U; i < N; ++i) {
 			[[maybe_unused]] auto e = w.CreateEntity();
-			utils::for_each<Components>([&](auto i) { w.AddComponent<Component<i, T, ComponentItems>>(e); });
+			utils::for_each<Components>([&](auto i) {
+				w.AddComponent<Component<i, T, ComponentItems>>(e);
+			});
 		}
 	}
 }
@@ -111,7 +113,9 @@ void BM_ForEach_1_Archetype(benchmark::State& state) {
 	auto query = ecs::EntityQuery().All<c1>();
 
 	for ([[maybe_unused]] auto _: state) {
-		w.ForEach(query, [&](const c1& p) { benchmark::DoNotOptimize(p); }).Run();
+		w.ForEach(query, [&](const c1& p) {
+			 benchmark::DoNotOptimize(p);
+		 }).Run();
 	}
 }
 BENCHMARK(BM_ForEach_1_Archetype);
@@ -129,7 +133,9 @@ void BM_ForEach_100_Archetypes(benchmark::State& state) {
 	auto query = ecs::EntityQuery().All<c1>();
 
 	for ([[maybe_unused]] auto _: state) {
-		w.ForEach(query, [&](const c1& p) { benchmark::DoNotOptimize(p); }).Run();
+		w.ForEach(query, [&](const c1& p) {
+			 benchmark::DoNotOptimize(p);
+		 }).Run();
 	}
 }
 BENCHMARK(BM_ForEach_100_Archetypes);
@@ -192,7 +198,9 @@ void BM_ForEach_1000_Archetypes(benchmark::State& state) {
 	auto query = ecs::EntityQuery().All<c1>();
 
 	for ([[maybe_unused]] auto _: state) {
-		w.ForEach(query, [&](const c1& p) { benchmark::DoNotOptimize(p); }).Run();
+		w.ForEach(query, [&](const c1& p) {
+			 benchmark::DoNotOptimize(p);
+		 }).Run();
 	}
 }
 BENCHMARK(BM_ForEach_1000_Archetypes);

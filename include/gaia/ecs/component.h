@@ -89,7 +89,9 @@ namespace gaia {
 				return 0;
 			} else {
 				uint64_t hash = arr[0];
-				utils::for_each<arrSize - 1>([&hash, &arr](auto i) { hash = utils::hash_combine(hash, arr[i + 1]); });
+				utils::for_each<arrSize - 1>([&hash, &arr](auto i) {
+					hash = utils::hash_combine(hash, arr[i + 1]);
+				});
 				return hash;
 			}
 		}
@@ -171,8 +173,12 @@ namespace gaia {
 					if constexpr (utils::is_soa_layout<TComponent>::value) {
 						mth.soa = true;
 					} else if constexpr (!std::is_trivial<T>::value) {
-						mth.constructor = [](void* ptr) { new (ptr) T{}; };
-						mth.destructor = [](void* ptr) { ((T*)ptr)->~T(); };
+						mth.constructor = [](void* ptr) {
+							new (ptr) T{};
+						};
+						mth.destructor = [](void* ptr) {
+							((T*)ptr)->~T();
+						};
 					}
 				}
 
