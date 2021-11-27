@@ -151,7 +151,8 @@ namespace gaia {
 			[[nodiscard]] const Entity GetEntity(uint16_t index) const {
 				GAIA_ASSERT(index <= header.lastEntityIndex && index != UINT16_MAX && "Entity index in chunk out of bounds!");
 
-				return (const Entity&)data[sizeof(Entity) * index];
+				utils::unaligned_ref<Entity> mem((void*)&data[sizeof(Entity) * index]);
+				return mem;
 			}
 
 			[[nodiscard]] bool IsFull() const {
