@@ -1135,20 +1135,12 @@ namespace gaia {
 					query.All<TComponents...>();
 			}
 
-			[[nodiscard]] static bool CanProcessChunk(EntityQuery& query, Chunk& chunk) {
-				// Skip empty chunks
-				if (!chunk.HasEntities())
-					return false;
+			[[nodiscard]] static bool CanProcessChunk(
+					const EntityQuery& query, const Chunk& chunk, bool checkGenericComponents, bool checkChunkComponents) {
+				GAIA_ASSERT((!chunk.HasEntities()) && "CanProcessChunk called on an empty chunk");
+				GAIA_ASSERT((checkGenericComponents || checkChunkComponents) && "CanProcessChunk called with wrong inputs");
 
 				const auto lastWorldVersion = query.GetWorldVersion();
-
-				const bool checkGenericComponents = !query.listChangeFiltered[ComponentType::CT_Generic].empty();
-				const bool checkChunkComponents = !query.listChangeFiltered[ComponentType::CT_Chunk].empty();
-
-				// Continue if there are no filters
-				const bool hasFilters = checkGenericComponents | checkChunkComponents;
-				if (!hasFilters)
-					return true;
 
 				if (checkGenericComponents) {
 					// See if any generic component has changed
@@ -1184,29 +1176,62 @@ namespace gaia {
 				// Update the world version
 				world.UpdateWorldVersion();
 
-				// Iterate over all archetypes
-				world.ForEachArchetype(query, [&](const Archetype& archetype) {
-					uint32_t offset = 0U;
-					uint32_t batchSize = 0U;
-					const auto maxIters = (uint32_t)archetype.chunks.size();
+				bool checkGenericComponents, checkChunkComponents;
+				if (query.HasFilters(checkGenericComponents, checkChunkComponents)) {
+					// Iterate over all archetypes
+					world.ForEachArchetype(query, [&](const Archetype& archetype) {
+						uint32_t offset = 0U;
+						uint32_t batchSize = 0U;
+						const auto maxIters = (uint32_t)archetype.chunks.size();
 
-					do {
-						// Prepare a buffer to iterate over
-						for (; offset < maxIters; ++offset) {
-							auto* pChunk = archetype.chunks[offset];
-							if (!CanProcessChunk(query, *pChunk))
-								continue;
-							tmp[batchSize++] = pChunk;
-						}
+						do {
+							// Prepare a buffer to iterate over
+							for (; offset < maxIters; ++offset) {
+								auto* pChunk = archetype.chunks[offset];
 
-						// Execute functors in batches
-						for (auto chunkIdx = 0U; chunkIdx < batchSize; ++chunkIdx)
-							func(*tmp[chunkIdx]);
+								if (!pChunk->HasEntities())
+									continue;
+								if (!CanProcessChunk(query, *pChunk, checkGenericComponents, checkChunkComponents))
+									continue;
 
-						// Reset the batch size
-						batchSize = 0U;
-					} while (offset < maxIters);
-				});
+								tmp[batchSize++] = pChunk;
+							}
+
+							// Execute functors in batches
+							for (auto chunkIdx = 0U; chunkIdx < batchSize; ++chunkIdx)
+								func(*tmp[chunkIdx]);
+
+							// Reset the batch size
+							batchSize = 0U;
+						} while (offset < maxIters);
+					});
+				} else {
+					// Iterate over all archetypes
+					world.ForEachArchetype(query, [&](const Archetype& archetype) {
+						uint32_t offset = 0U;
+						uint32_t batchSize = 0U;
+						const auto maxIters = (uint32_t)archetype.chunks.size();
+
+						do {
+							// Prepare a buffer to iterate over
+							for (; offset < maxIters; ++offset) {
+								auto* pChunk = archetype.chunks[offset];
+
+								if (!pChunk->HasEntities())
+									continue;
+
+								tmp[batchSize++] = pChunk;
+							}
+
+							// Execute functors in batches
+							for (auto chunkIdx = 0U; chunkIdx < batchSize; ++chunkIdx)
+								func(*tmp[chunkIdx]);
+
+							// Reset the batch size
+							batchSize = 0U;
+						} while (offset < maxIters);
+					});
+				}
 
 				query.SetWorldVersion(world.GetWorldVersion());
 			}
@@ -1223,33 +1248,70 @@ namespace gaia {
 				// Add an All filter for components listed as input arguments of func
 				world.Unpack_ForEachQuery(InputArgs{}, query);
 
-				// Iterate over all archetypes
-				world.ForEachArchetype(query, [&](const Archetype& archetype) {
-					uint32_t offset = 0U;
-					uint32_t batchSize = 0U;
-					const auto maxIters = (uint32_t)archetype.chunks.size();
+				bool checkGenericComponents, checkChunkComponents;
+				if (query.HasFilters(checkGenericComponents, checkChunkComponents)) {
+					// Iterate over all archetypes
+					world.ForEachArchetype(query, [&](const Archetype& archetype) {
+						uint32_t offset = 0U;
+						uint32_t batchSize = 0U;
+						const auto maxIters = (uint32_t)archetype.chunks.size();
 
-					do {
-						// Prepare a buffer to iterate over
-						for (; offset < maxIters; ++offset) {
-							auto* pChunk = archetype.chunks[offset];
-							if (!CanProcessChunk(query, *pChunk))
-								continue;
-							tmp[batchSize++] = pChunk;
-						}
+						do {
+							// Prepare a buffer to iterate over
+							for (; offset < maxIters; ++offset) {
+								auto* pChunk = archetype.chunks[offset];
 
-						// Execute functors in bulk
-						for (auto chunkIdx = 0U; chunkIdx < batchSize; ++chunkIdx) {
-							world.Unpack_ForEachEntityInChunk(
-									InputArgs{}, *tmp[chunkIdx],
-									func); // Don't move func here. We need it
-												 // for every further function calls
-						}
+								if (!pChunk->HasEntities())
+									continue;
+								if (!CanProcessChunk(query, *pChunk, checkGenericComponents, checkChunkComponents))
+									continue;
 
-						// Reset the batch size
-						batchSize = 0U;
-					} while (offset < maxIters);
-				});
+								tmp[batchSize++] = pChunk;
+							}
+
+							// Execute functors in bulk
+							for (auto chunkIdx = 0U; chunkIdx < batchSize; ++chunkIdx) {
+								world.Unpack_ForEachEntityInChunk(
+										InputArgs{}, *tmp[chunkIdx],
+										func); // Don't move func here. We need it
+													 // for every further function calls
+							}
+
+							// Reset the batch size
+							batchSize = 0U;
+						} while (offset < maxIters);
+					});
+				} else {
+					// Iterate over all archetypes
+					world.ForEachArchetype(query, [&](const Archetype& archetype) {
+						uint32_t offset = 0U;
+						uint32_t batchSize = 0U;
+						const auto maxIters = (uint32_t)archetype.chunks.size();
+
+						do {
+							// Prepare a buffer to iterate over
+							for (; offset < maxIters; ++offset) {
+								auto* pChunk = archetype.chunks[offset];
+
+								if (!pChunk->HasEntities())
+									continue;
+
+								tmp[batchSize++] = pChunk;
+							}
+
+							// Execute functors in bulk
+							for (auto chunkIdx = 0U; chunkIdx < batchSize; ++chunkIdx) {
+								world.Unpack_ForEachEntityInChunk(
+										InputArgs{}, *tmp[chunkIdx],
+										func); // Don't move func here. We need it
+													 // for every further function calls
+							}
+
+							// Reset the batch size
+							batchSize = 0U;
+						} while (offset < maxIters);
+					});
+				}
 
 				query.SetWorldVersion(world.GetWorldVersion());
 			}

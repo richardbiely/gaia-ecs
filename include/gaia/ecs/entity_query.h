@@ -237,6 +237,12 @@ namespace gaia {
 				(SetChangedFilter_Internal<TComponent>(arr, arrMeta), ...);
 			}
 
+			[[nodiscard]] bool HasFilters(bool& checkGenericComponents, bool& checkChunkComponents) const {
+				checkGenericComponents = !listChangeFiltered[ComponentType::CT_Generic].empty();
+				checkChunkComponents = !listChangeFiltered[ComponentType::CT_Chunk].empty();
+				return checkGenericComponents | checkChunkComponents;
+			}
+
 		public:
 			const ComponentListData& GetData(ComponentType type) const {
 				return list[type];
