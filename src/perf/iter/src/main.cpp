@@ -15,8 +15,9 @@ GAIA_MSVC_WARNING_DISABLE(4307)
 
 using namespace gaia;
 
+constexpr size_t N = 1'000;
+
 void BM_CreateEntity(benchmark::State& state) {
-	constexpr size_t N = 100'000;
 	for ([[maybe_unused]] auto _: state) {
 		ecs::World w;
 		for (size_t i = 0U; i < N; ++i) {
@@ -37,7 +38,6 @@ struct Component<version, T, 0U> {}; // empty component
 
 template <typename T, size_t ComponentItems, size_t Components>
 void BM_CreateEntity_With_Component______(benchmark::State& state) {
-	constexpr size_t N = 100'000;
 	for ([[maybe_unused]] auto _: state) {
 		ecs::World w;
 		for (size_t i = 0U; i < N; ++i) {
@@ -66,7 +66,7 @@ constexpr void AddComponents(ecs::World& w, uint32_t N) {
 
 template <typename T, size_t ComponentItems, size_t Components>
 void BM_CreateEntity_With_Component_Batch(benchmark::State& state) {
-	constexpr size_t N = 100'000;
+
 	for (auto _: state) {
 		ecs::World w;
 		AddComponents<T, ComponentItems, Components>(w, N);
