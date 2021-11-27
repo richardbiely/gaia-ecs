@@ -644,13 +644,12 @@ namespace gaia {
 					auto& newEntityContainer = m_entities[newEntity.id()];
 					auto newChunk = newEntityContainer.pChunk;
 
-					// By adding a new entity m_entities array might have been
-					// reallocated. We need to get the new address.
+					// By adding a new entity m_entities array might have been reallocated.
+					// We need to get the new address.
 					auto& oldEntityContainer = m_entities[entity.id()];
 					auto oldChunk = oldEntityContainer.pChunk;
 
-					// Copy generic component data from reference entity to our new
-					// entity
+					// Copy generic component data from reference entity to our new ntity
 					const auto& info = archetype.componentTypeList[ComponentType::CT_Generic];
 					const auto& look = archetype.componentLookupList[ComponentType::CT_Generic];
 
