@@ -190,7 +190,8 @@ namespace gaia {
 
 			template <typename Tuple, size_t Ids, typename TMemberType>
 			constexpr static void get_internal(Tuple& t, const char* data, const size_t idx) {
-				std::get<Ids>(t) = *(TMemberType*)&data[idx];
+				unaligned_ref<TMemberType> reader((void*)&data[idx]);
+				std::get<Ids>(t) = reader;
 			}
 
 			template <typename Tuple, typename TValue, size_t... Ids>

@@ -8,6 +8,7 @@
 #include "entity.h"
 #include "fwd.h"
 #include "gaia/config/config.h"
+#include "gaia/utils/utils_mem.h"
 #include "world.h"
 
 namespace gaia {
@@ -78,10 +79,16 @@ namespace gaia {
 				using TComponent = std::decay_t<T>;
 
 				// Meta type
-				*(uint32_t*)&m_data[index] = utils::type_info::index<TComponent>();
+				{
+					utils::unaligned_ref<uint32_t> mem((void*)&data[index]);
+					mem = utils::type_info::index<TComponent>();
+				}
 
 				// Component data
-				*(TComponent*)&m_data[index + sizeof(uint32_t)] = std::forward<TComponent>(data);
+				{
+					utils::unaligned_ref<uint32_t> mem((void*)&data[index + sizeof(uint32_t)]);
+					mem = std::forward<TComponent>(data);
+				}
 
 				index += sizeof(uint32_t) + sizeof(TComponent);
 			}
@@ -402,7 +409,7 @@ namespace gaia {
 							GAIA_ASSERT(res.second);
 						} break;
 						case CREATE_ENTITY_FROM_ARCHETYPE: {
-							uintptr_t ptr = (uintptr_t&)m_data[i];
+							uintptr_t ptr = utils::unaligned_ref<uintptr_t>((void*)&m_data[i]);
 							Archetype* archetype = (Archetype*)ptr;
 							i += sizeof(void*);
 							[[maybe_unused]] const auto res = entityMap.emplace(entities++, world->CreateEntity(*archetype));
@@ -415,13 +422,13 @@ namespace gaia {
 							GAIA_ASSERT(res.second);
 						} break;
 						case CREATE_ENTITY_FROM_ENTITY: {
-							Entity entityFrom = (Entity&)m_data[i];
+							Entity entityFrom = utils::unaligned_ref<Entity>((void*)&m_data[i]);
 							i += sizeof(Entity);
 							[[maybe_unused]] const auto res = entityMap.emplace(entities++, world->CreateEntity(entityFrom));
 							GAIA_ASSERT(res.second);
 						} break;
 						case DELETE_ENTITY: {
-							Entity entity = (Entity&)m_data[i];
+							Entity entity = utils::unaligned_ref<Entity>((void*)&m_data[i]);
 							i += sizeof(Entity);
 							world->DeleteEntity(entity);
 						} break;
@@ -579,10 +586,10 @@ namespace gaia {
 						} break;
 						case REMOVE_COMPONENT: {
 							// Type
-							ComponentType componentType = (ComponentType&)m_data[i];
+							ComponentType componentType = utils::unaligned_ref<ComponentType>((void*)&m_data[i]);
 							i += sizeof(ComponentType);
 							// Entity
-							Entity e = (Entity&)m_data[i];
+							Entity e = utils::unaligned_ref<Entity>((void*)&m_data[i]);
 							i += sizeof(Entity);
 
 							// Component count
