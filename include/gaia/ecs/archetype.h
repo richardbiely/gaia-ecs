@@ -42,6 +42,11 @@ namespace gaia {
 			//! Once removal is requested and it hits 0 the archetype is removed.
 			uint16_t lifespan = 0;
 
+			//! True if there's a component that requires custom construction
+			bool hasComponentWithCustomConstruction = false;
+			//! True if there's a chunk component that requires custom construction
+			bool hasChunkComponentTypesWithCustomConstruction = false;
+
 			// Constructor is hidden. Create archetypes via Create
 			Archetype() = default;
 
@@ -54,8 +59,8 @@ namespace gaia {
 				auto pChunk = new Chunk(archetype);
 #endif
 
-				// Call default constructors for types that need it
-				{
+				// Call default constructors for components that need it
+				if (archetype.hasComponentWithCustomConstruction) {
 					const auto& comp = archetype.componentTypeList[ComponentType::CT_Generic];
 					const auto& look = archetype.componentLookupList[ComponentType::CT_Generic];
 					for (uint32_t i = 0U; i < comp.size(); ++i) {
@@ -64,7 +69,8 @@ namespace gaia {
 						comp[i].type->constructor((void*)((char*)pChunk + look[i].offset));
 					}
 				}
-				{
+				// Call default constructors for chunk components that need it
+				if (archetype.hasChunkComponentTypesWithCustomConstruction) {
 					const auto& comp = archetype.componentTypeList[ComponentType::CT_Chunk];
 					const auto& look = archetype.componentLookupList[ComponentType::CT_Chunk];
 					for (uint32_t i = 0U; i < comp.size(); ++i) {
@@ -82,7 +88,7 @@ namespace gaia {
 #if GAIA_ECS_CHUNK_ALLOCATOR
 				// Call destructors for types that need it
 				const auto& archetype = pChunk->header.owner;
-				{
+				if (archetype.hasComponentWithCustomConstruction) {
 					const auto& comp = archetype.componentTypeList[ComponentType::CT_Generic];
 					const auto& look = archetype.componentLookupList[ComponentType::CT_Generic];
 					for (uint32_t i = 0U; i < comp.size(); ++i) {
@@ -91,7 +97,8 @@ namespace gaia {
 						comp[i].type->destructor((void*)((char*)pChunk + look[i].offset));
 					}
 				}
-				{
+				// Call destructors for chunk components which need it
+				if (archetype.hasChunkComponentTypesWithCustomConstruction) {
 					const auto& comp = archetype.componentTypeList[ComponentType::CT_Chunk];
 					const auto& look = archetype.componentLookupList[ComponentType::CT_Chunk];
 					for (uint32_t i = 0U; i < comp.size(); ++i) {
@@ -121,13 +128,17 @@ namespace gaia {
 
 				// Size of the entity + all of its generic components
 				uint32_t genericComponentListSize = (uint32_t)sizeof(Entity);
-				for (const auto type: genericTypes)
+				for (const auto type: genericTypes) {
 					genericComponentListSize += type->size;
+					newArch->hasComponentWithCustomConstruction |= type->constructor != nullptr;
+				}
 
 				// Size of chunk components
 				uint32_t chunkComponentListSize = 0;
-				for (const auto type: chunkTypes)
+				for (const auto type: chunkTypes) {
 					chunkComponentListSize += type->size;
+					newArch->hasChunkComponentTypesWithCustomConstruction |= type->constructor != nullptr;
+				}
 
 				// Number of components we can fit into one chunk
 				auto maxGenericItemsInArchetype = (Chunk::DATA_SIZE - chunkComponentListSize) / genericComponentListSize;
