@@ -11,8 +11,7 @@ namespace gaia {
 		*/
 		template <class T, class V>
 		constexpr T align(T num, V alignment) {
-			return alignment == 0 ? num
-														: ((num + (alignment - 1)) / alignment) * alignment;
+			return alignment == 0 ? num : ((num + (alignment - 1)) / alignment) * alignment;
 		}
 
 		/*
@@ -49,8 +48,7 @@ namespace gaia {
 		template <
 				typename To, typename From,
 				typename = std::enable_if_t<
-						(sizeof(To) == sizeof(From)) && std::is_trivially_copyable_v<To> &&
-						std::is_trivially_copyable_v<From>>>
+						(sizeof(To) == sizeof(From)) && std::is_trivially_copyable_v<To> && std::is_trivially_copyable_v<From>>>
 		To bit_cast(const From& from) {
 			To to;
 			std::memmove(&to, &from, sizeof(To));

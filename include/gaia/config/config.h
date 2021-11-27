@@ -45,8 +45,8 @@
 // Architecture and architecture features
 //------------------------------------------------------------------------------
 #define GAIA_64 0
-#if defined(_WIN64) || defined(_M_X64) || defined(_M_AMD64) ||                 \
-		defined(__x86_64) || defined(__amd64) || defined(__aarch64__)
+#if defined(_WIN64) || defined(_M_X64) || defined(_M_AMD64) || defined(__x86_64) || defined(__amd64) ||                \
+		defined(__aarch64__)
 	#undef GAIA_64
 	#define GAIA_64 1
 #endif
@@ -55,9 +55,8 @@
 #define GAIA_ARCH_ARM 1
 #define GAIA_ARCH GAIA_ARCH_X86
 
-#if defined(_M_IX86) || defined(_M_X64) || defined(_M_AMD64) ||                \
-		defined(__i386__) || defined(__i386) || defined(i386) ||                   \
-		defined(__x86_64__) || defined(_X86_)
+#if defined(_M_IX86) || defined(_M_X64) || defined(_M_AMD64) || defined(__i386__) || defined(__i386) ||                \
+		defined(i386) || defined(__x86_64__) || defined(_X86_)
 	#undef GAIA_ARCH
 	#define GAIA_ARCH GAIA_ARCH_X86
 #elif defined(__arm__) || defined(__aarch64__)
@@ -81,8 +80,7 @@
 
 //------------------------------------------------------------------------------
 
-#if (GAIA_COMPILER_MSVC && _MSC_VER >= 1400) || GAIA_COMPILER_GCC ||           \
-		GAIA_COMPILER_CLANG
+#if (GAIA_COMPILER_MSVC && _MSC_VER >= 1400) || GAIA_COMPILER_GCC || GAIA_COMPILER_CLANG
 	#define GAIA_RESTRICT __restrict
 #else
 	#define GAIA_RESTRICT
@@ -154,10 +152,8 @@
 #if GAIA_COMPILER_MSVC
 	#define GAIA_MSVC_WARNING_PUSH() __pragma(warning(push))
 	#define GAIA_MSVC_WARNING_POP() __pragma(warning(pop))
-	#define GAIA_MSVC_WARNING_DISABLE(warningId)                                 \
-		__pragma(warning(disable : warningId))
-	#define GAIA_MSVC_WARNING_ERROR(warningId)                                   \
-		__pragma(warning(error : warningId))
+	#define GAIA_MSVC_WARNING_DISABLE(warningId) __pragma(warning(disable : warningId))
+	#define GAIA_MSVC_WARNING_ERROR(warningId) __pragma(warning(error : warningId))
 #else
 	#define GAIA_MSVC_WARNING_PUSH()
 	#define GAIA_MSVC_WARNING_POP()
@@ -168,12 +164,9 @@
 #if GAIA_COMPILER_CLANG
 	#define GAIA_CLANG_WARNING_PUSH() _Pragma("clang diagnostic push")
 	#define GAIA_CLANG_WARNING_POP() _Pragma("clang diagnostic pop")
-	#define GAIA_CLANG_WARNING_DISABLE(warningId)                                \
-		_Pragma(GAIA_STRINGIZE_MACRO(clang diagnostic ignored warningId))
-	#define GAIA_CLANG_WARNING_ERROR(warningId)                                  \
-		_Pragma(GAIA_STRINGIZE_MACRO(clang diagnostic error warningId))
-	#define GAIA_CLANG_WARNING_ALLOW(warningId)                                  \
-		_Pragma(GAIA_STRINGIZE_MACRO(clang diagnostic warning warningId))
+	#define GAIA_CLANG_WARNING_DISABLE(warningId) _Pragma(GAIA_STRINGIZE_MACRO(clang diagnostic ignored warningId))
+	#define GAIA_CLANG_WARNING_ERROR(warningId) _Pragma(GAIA_STRINGIZE_MACRO(clang diagnostic error warningId))
+	#define GAIA_CLANG_WARNING_ALLOW(warningId) _Pragma(GAIA_STRINGIZE_MACRO(clang diagnostic warning warningId))
 #else
 	#define GAIA_CLANG_WARNING_PUSH()
 	#define GAIA_CLANG_WARNING_POP()
@@ -185,8 +178,7 @@
 #if GAIA_COMPILER_GCC
 	#define GAIA_GCC_WARNING_PUSH() _Pragma("GCC diagnostic push")
 	#define GAIA_GCC_WARNING_POP() _Pragma("GCC diagnostic pop")
-	#define GAIA_GCC_WARNING_DISABLE(warningId)                                  \
-		_Pragma(GAIA_STRINGIZE_MACRO(GCC diagnostic ignored warningId))
+	#define GAIA_GCC_WARNING_DISABLE(warningId) _Pragma(GAIA_STRINGIZE_MACRO(GCC diagnostic ignored warningId))
 #else
 	#define GAIA_GCC_WARNING_PUSH()
 	#define GAIA_GCC_WARNING_POP()

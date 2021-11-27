@@ -43,8 +43,7 @@ namespace gaia {
 					m_ptr = ptr;
 					m_pos = pos;
 				}
-				constexpr iterator(const iterator& other):
-						m_ptr(other.m_ptr), m_pos(other.m_pos) {}
+				constexpr iterator(const iterator& other): m_ptr(other.m_ptr), m_pos(other.m_pos) {}
 				constexpr void operator++() {
 					++m_pos;
 				}
@@ -98,8 +97,7 @@ namespace gaia {
 					m_ptr = ptr;
 					m_pos = pos;
 				}
-				constexpr const_iterator(const const_iterator& other):
-						m_ptr(other.m_ptr), m_pos(other.m_pos) {}
+				constexpr const_iterator(const const_iterator& other): m_ptr(other.m_ptr), m_pos(other.m_pos) {}
 				constexpr void operator++() {
 					++m_pos;
 				}
@@ -233,8 +231,7 @@ namespace gaia {
 
 		namespace detail {
 			template <class T, std::size_t N, std::size_t... I>
-			constexpr sarray<std::remove_cv_t<T>, N>
-			to_sarray_impl(T (&a)[N], std::index_sequence<I...>) {
+			constexpr sarray<std::remove_cv_t<T>, N> to_sarray_impl(T (&a)[N], std::index_sequence<I...>) {
 				return {{a[I]...}};
 			}
 		} // namespace detail
@@ -250,8 +247,7 @@ namespace gaia {
 
 namespace std {
 	template <class T, size_t N>
-	struct tuple_size<gaia::utils::sarray<T, N>>:
-			std::integral_constant<std::size_t, N> {};
+	struct tuple_size<gaia::utils::sarray<T, N>>: std::integral_constant<std::size_t, N> {};
 
 	template <size_t I, class T, size_t N>
 	struct tuple_element<I, gaia::utils::sarray<T, N>> {

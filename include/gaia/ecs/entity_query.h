@@ -21,12 +21,8 @@ namespace gaia {
 			using item = typename std::tuple_element<N, types>::type;
 
 			static constexpr uint32_t MAX_COMPONENTS_IN_QUERY = 8u;
-			static_assert(
-					size < MAX_COMPONENTS_IN_QUERY,
-					"Max MAX_COMPONENTS_IN_QUERY allowed to be in component query.");
-			static_assert(
-					utils::is_unique<std::decay_t<Type>...>,
-					"Only unique inputs are enabled for component query.");
+			static_assert(size < MAX_COMPONENTS_IN_QUERY, "Max MAX_COMPONENTS_IN_QUERY allowed to be in component query.");
+			static_assert(utils::is_unique<std::decay_t<Type>...>, "Only unique inputs are enabled for component query.");
 		};
 
 		enum class QueryTypes { All, Any, None, Empty };
@@ -35,8 +31,7 @@ namespace gaia {
 		struct component_query_container: component_query_container_base<Type...> {
 		private:
 			static constexpr uint64_t calculate_combined_hash() {
-				utils::array<uint64_t, sizeof...(Type)> arr = {
-						utils::type_info::hash<Type>()...};
+				utils::array<uint64_t, sizeof...(Type)> arr = {utils::type_info::hash<Type>()...};
 				utils::sort(arr);
 				return CalculateLookupHash(arr);
 			}
@@ -70,34 +65,26 @@ namespace gaia {
 		template <typename... Type>
 		using NoneTypes = component_query_container<QueryTypes::None, Type...>;
 
-		template <
-				typename T1 = ecs::EmptyTypes, typename T2 = ecs::EmptyTypes,
-				typename T3 = ecs::EmptyTypes>
+		template <typename T1 = ecs::EmptyTypes, typename T2 = ecs::EmptyTypes, typename T3 = ecs::EmptyTypes>
 		struct EntityQuery2;
 
 		template <typename T1, typename T2, typename T3>
 		struct EntityQuery2 final {
 			// Deduce which template arg is supposed to be used as 'all'
 			using all = std::conditional_t<
-					T1::query_type == QueryTypes::All, T1,
-					std::conditional_t<T2::query_type == QueryTypes::All, T2, T3>>;
+					T1::query_type == QueryTypes::All, T1, std::conditional_t<T2::query_type == QueryTypes::All, T2, T3>>;
 			// Deduce which template arg is supposed to be used as 'any'
 			using any = std::conditional_t<
-					T1::query_type == QueryTypes::Any, T1,
-					std::conditional_t<T2::query_type == QueryTypes::Any, T2, T3>>;
+					T1::query_type == QueryTypes::Any, T1, std::conditional_t<T2::query_type == QueryTypes::Any, T2, T3>>;
 			// Deduce which template arg is supposed to be used as 'none'
 			using none = std::conditional_t<
-					T1::query_type == QueryTypes::None, T1,
-					std::conditional_t<T2::query_type == QueryTypes::None, T2, T3>>;
+					T1::query_type == QueryTypes::None, T1, std::conditional_t<T2::query_type == QueryTypes::None, T2, T3>>;
 
 			// Make sure there are no duplicates among types
 			static_assert(
-					utils::is_unique<utils::type_list_concat<
-									typename T1::types, typename T2::types>> &&
-							utils::is_unique<utils::type_list_concat<
-									typename T1::types, typename T3::types>> &&
-							utils::is_unique<utils::type_list_concat<
-									typename T2::types, typename T3::types>>,
+					utils::is_unique<utils::type_list_concat<typename T1::types, typename T2::types>> &&
+							utils::is_unique<utils::type_list_concat<typename T1::types, typename T3::types>> &&
+							utils::is_unique<utils::type_list_concat<typename T2::types, typename T3::types>>,
 					"Unique types need to be provided to EntityQuery2");
 		};
 
@@ -109,17 +96,13 @@ namespace gaia {
 						 utils::type_info::name<decltype(e)>().data()),
 				 ...);
 			};
-			LOG_N(
-					"AllTypes (lookupHash: %016llx, matcherHash: %016llx):",
-					TQuery::all::lookupHash, TQuery::all::matcherHash);
+			LOG_N("AllTypes (lookupHash: %016llx, matcherHash: %016llx):", TQuery::all::lookupHash, TQuery::all::matcherHash);
 			std::apply(print_type, typename TQuery::all::types{});
-			LOG_N(
-					"AnyTypes (lookupHash: %016llx, matcherHash: %016llx):",
-					TQuery::any::lookupHash, TQuery::any::matcherHash);
+			LOG_N("AnyTypes (lookupHash: %016llx, matcherHash: %016llx):", TQuery::any::lookupHash, TQuery::any::matcherHash);
 			std::apply(print_type, typename TQuery::any::types{});
 			LOG_N(
-					"NoneTypes (lookupHash: %016llx, matcherHash: %016llx):",
-					TQuery::none::lookupHash, TQuery::none::matcherHash);
+					"NoneTypes (lookupHash: %016llx, matcherHash: %016llx):", TQuery::none::lookupHash,
+					TQuery::none::matcherHash);
 			std::apply(print_type, typename TQuery::none::types{});
 		}
 
@@ -130,8 +113,7 @@ namespace gaia {
 			friend class World;
 
 			// Keeps an array of Component type indices
-			using ComponentIndexArray =
-					utils::sarray<uint32_t, MAX_COMPONENTS_IN_QUERY>;
+			using ComponentIndexArray = utils::sarray<uint32_t, MAX_COMPONENTS_IN_QUERY>;
 			using ChangeFilterArray = ComponentIndexArray;
 
 			struct ComponentListData {
@@ -151,8 +133,7 @@ namespace gaia {
 			uint32_t m_worldVersion = 0;
 
 			template <class TComponent>
-			void CalculateHash_Internal(
-					ComponentIndexArray& arr, [[maybe_unused]] uint64_t& hash) {
+			void CalculateHash_Internal(ComponentIndexArray& arr, [[maybe_unused]] uint64_t& hash) {
 				using T = std::decay_t<TComponent>;
 
 				if constexpr (std::is_same<T, Entity>::value) {
@@ -179,11 +160,8 @@ namespace gaia {
 								(uint32_t)typeName.length(), typeName.data());
 						LOG_E("Already present:");
 						for (uint32_t i = 0U; i < arr.size(); i++) {
-							const auto metaType =
-									g_ComponentCache.GetComponentMetaTypeFromIdx(arr[i]);
-							LOG_E(
-									"> [%u] %.*s", i, (uint32_t)metaType->name.length(),
-									metaType->name.data());
+							const auto metaType = g_ComponentCache.GetComponentMetaTypeFromIdx(arr[i]);
+							LOG_E("> [%u] %.*s", i, (uint32_t)metaType->name.length(), metaType->name.data());
 						}
 
 						return;
@@ -201,12 +179,9 @@ namespace gaia {
 			}
 
 			template <typename TComponent>
-			void SetChangedFilter_Internal(
-					ChangeFilterArray& arrFilter, ComponentListData& arrMeta) {
+			void SetChangedFilter_Internal(ChangeFilterArray& arrFilter, ComponentListData& arrMeta) {
 				using T = std::decay_t<TComponent>;
-				static_assert(
-						!std::is_same<T, Entity>::value,
-						"It doesn't make sense to use ChangedFilter with Entity");
+				static_assert(!std::is_same<T, Entity>::value, "It doesn't make sense to use ChangedFilter with Entity");
 
 				const auto typeIndex = utils::type_info::index<T>();
 
@@ -228,11 +203,8 @@ namespace gaia {
 							(uint32_t)typeName.length(), typeName.data());
 					LOG_E("Already present:");
 					for (auto i = 0U; i < (uint32_t)arrFilter.size(); i++) {
-						const auto metaType =
-								g_ComponentCache.GetComponentMetaTypeFromIdx(arrFilter[i]);
-						LOG_E(
-								"> [%u] %.*s", i, (uint32_t)metaType->name.length(),
-								metaType->name.data());
+						const auto metaType = g_ComponentCache.GetComponentMetaTypeFromIdx(arrFilter[i]);
+						LOG_E("> [%u] %.*s", i, (uint32_t)metaType->name.length(), metaType->name.data());
 					}
 
 					return;
@@ -242,12 +214,8 @@ namespace gaia {
 				// Component has to be present in anyList or allList.
 				// NoneList makes no sense because we skip those in query processing
 				// anyway
-				if (!utils::has_if(
-								arrMeta.listAny,
-								[typeIndex](auto idx) { return idx == typeIndex; }) &&
-						!utils::has_if(arrMeta.listAll, [typeIndex](auto idx) {
-							return idx == typeIndex;
-						})) {
+				if (!utils::has_if(arrMeta.listAny, [typeIndex](auto idx) { return idx == typeIndex; }) &&
+						!utils::has_if(arrMeta.listAll, [typeIndex](auto idx) { return idx == typeIndex; })) {
 #if GAIA_DEBUG
 					constexpr auto typeName = utils::type_info::name<T>();
 					LOG_E(
@@ -262,8 +230,7 @@ namespace gaia {
 			}
 
 			template <typename... TComponent>
-			void
-			SetChangedFilter(ChangeFilterArray& arr, ComponentListData& arrMeta) {
+			void SetChangedFilter(ChangeFilterArray& arr, ComponentListData& arrMeta) {
 				(SetChangedFilter_Internal<TComponent>(arr, arrMeta), ...);
 			}
 
@@ -275,59 +242,46 @@ namespace gaia {
 			template <typename... TComponent>
 			EntityQuery& Any() {
 				CalculateHashes<TComponent...>(
-						list[ComponentType::CT_Generic].listAny,
-						list[ComponentType::CT_Generic].hashAny);
+						list[ComponentType::CT_Generic].listAny, list[ComponentType::CT_Generic].hashAny);
 				return *this;
 			}
 			template <typename... TComponent>
 			EntityQuery& All() {
 				CalculateHashes<TComponent...>(
-						list[ComponentType::CT_Generic].listAll,
-						list[ComponentType::CT_Generic].hashAll);
+						list[ComponentType::CT_Generic].listAll, list[ComponentType::CT_Generic].hashAll);
 				return *this;
 			}
 			template <typename... TComponent>
 			EntityQuery& None() {
 				CalculateHashes<TComponent...>(
-						list[ComponentType::CT_Generic].listNone,
-						list[ComponentType::CT_Generic].hashNone);
+						list[ComponentType::CT_Generic].listNone, list[ComponentType::CT_Generic].hashNone);
 				return *this;
 			}
 
 			template <typename... TComponent>
 			EntityQuery& AnyChunk() {
-				CalculateHashes<TComponent...>(
-						list[ComponentType::CT_Chunk].listAny,
-						list[ComponentType::CT_Chunk].hashAny);
+				CalculateHashes<TComponent...>(list[ComponentType::CT_Chunk].listAny, list[ComponentType::CT_Chunk].hashAny);
 				return *this;
 			}
 			template <typename... TComponent>
 			EntityQuery& AllChunk() {
-				CalculateHashes<TComponent...>(
-						list[ComponentType::CT_Chunk].listAll,
-						list[ComponentType::CT_Chunk].hashAll);
+				CalculateHashes<TComponent...>(list[ComponentType::CT_Chunk].listAll, list[ComponentType::CT_Chunk].hashAll);
 				return *this;
 			}
 			template <typename... TComponent>
 			EntityQuery& NoneChunk() {
-				CalculateHashes<TComponent...>(
-						list[ComponentType::CT_Chunk].listNone,
-						list[ComponentType::CT_Chunk].hashNone);
+				CalculateHashes<TComponent...>(list[ComponentType::CT_Chunk].listNone, list[ComponentType::CT_Chunk].hashNone);
 				return *this;
 			}
 
 			template <typename... TComponent>
 			EntityQuery& WithChanged() {
-				SetChangedFilter<TComponent...>(
-						listChangeFiltered[ComponentType::CT_Generic],
-						list[ComponentType::CT_Generic]);
+				SetChangedFilter<TComponent...>(listChangeFiltered[ComponentType::CT_Generic], list[ComponentType::CT_Generic]);
 				return *this;
 			}
 			template <typename... TComponent>
 			EntityQuery& WithChangedChunk() {
-				SetChangedFilter<TComponent...>(
-						listChangeFiltered[ComponentType::CT_Chunk],
-						list[ComponentType::CT_Chunk]);
+				SetChangedFilter<TComponent...>(listChangeFiltered[ComponentType::CT_Chunk], list[ComponentType::CT_Chunk]);
 				return *this;
 			}
 

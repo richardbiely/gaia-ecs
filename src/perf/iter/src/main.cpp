@@ -42,20 +42,15 @@ void BM_CreateEntity_With_Component______(benchmark::State& state) {
 		ecs::World w;
 		for (size_t i = 0U; i < N; ++i) {
 			[[maybe_unused]] auto e = w.CreateEntity();
-			utils::for_each<Components>(
-					[&](auto i) { w.AddComponent<Component<i, T, ComponentItems>>(e); });
+			utils::for_each<Components>([&](auto i) { w.AddComponent<Component<i, T, ComponentItems>>(e); });
 		}
 	}
 }
 
 namespace detail {
 	template <typename T, size_t ComponentItems, auto... Is>
-	constexpr void
-	AddComponents(ecs::World& w, ecs::Entity e, std::index_sequence<Is...>) {
-		w.AddComponent(
-				e, Component<
-							 std::integral_constant<decltype(Is), Is>{}, T,
-							 ComponentItems>{}...);
+	constexpr void AddComponents(ecs::World& w, ecs::Entity e, std::index_sequence<Is...>) {
+		w.AddComponent(e, Component<std::integral_constant<decltype(Is), Is>{}, T, ComponentItems>{}...);
 	}
 } // namespace detail
 
@@ -63,8 +58,7 @@ template <typename T, size_t ComponentItems, size_t Components>
 constexpr void AddComponents(ecs::World& w, uint32_t N) {
 	for (uint32_t i = 0U; i < N; ++i) {
 		[[maybe_unused]] auto e = w.CreateEntity();
-		detail::AddComponents<T, ComponentItems>(
-				w, e, std::make_index_sequence<Components>{});
+		detail::AddComponents<T, ComponentItems>(w, e, std::make_index_sequence<Components>{});
 	}
 }
 
@@ -77,28 +71,18 @@ void BM_CreateEntity_With_Component_Batch(benchmark::State& state) {
 	}
 }
 
-#define BENCHMARK_CREATEENTITY_WITH_COMPONENT______(component_count)           \
-	BENCHMARK_TEMPLATE(                                                          \
-			BM_CreateEntity_With_Component______, float, 0, component_count);        \
-	BENCHMARK_TEMPLATE(                                                          \
-			BM_CreateEntity_With_Component______, float, 1, component_count);        \
-	BENCHMARK_TEMPLATE(                                                          \
-			BM_CreateEntity_With_Component______, float, 2, component_count);        \
-	BENCHMARK_TEMPLATE(                                                          \
-			BM_CreateEntity_With_Component______, float, 4, component_count);        \
-	BENCHMARK_TEMPLATE(                                                          \
-			BM_CreateEntity_With_Component______, float, 8, component_count);
-#define BENCHMARK_CREATEENTITY_WITH_COMPONENT_BATCH(component_count)           \
-	BENCHMARK_TEMPLATE(                                                          \
-			BM_CreateEntity_With_Component_Batch, float, 0, component_count);        \
-	BENCHMARK_TEMPLATE(                                                          \
-			BM_CreateEntity_With_Component_Batch, float, 1, component_count);        \
-	BENCHMARK_TEMPLATE(                                                          \
-			BM_CreateEntity_With_Component_Batch, float, 2, component_count);        \
-	BENCHMARK_TEMPLATE(                                                          \
-			BM_CreateEntity_With_Component_Batch, float, 4, component_count);        \
-	BENCHMARK_TEMPLATE(                                                          \
-			BM_CreateEntity_With_Component_Batch, float, 8, component_count);
+#define BENCHMARK_CREATEENTITY_WITH_COMPONENT______(component_count)                                                   \
+	BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component______, float, 0, component_count);                                 \
+	BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component______, float, 1, component_count);                                 \
+	BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component______, float, 2, component_count);                                 \
+	BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component______, float, 4, component_count);                                 \
+	BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component______, float, 8, component_count);
+#define BENCHMARK_CREATEENTITY_WITH_COMPONENT_BATCH(component_count)                                                   \
+	BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component_Batch, float, 0, component_count);                                 \
+	BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component_Batch, float, 1, component_count);                                 \
+	BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component_Batch, float, 2, component_count);                                 \
+	BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component_Batch, float, 4, component_count);                                 \
+	BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component_Batch, float, 8, component_count);
 
 // 1 component, size increases with each benchmark
 BENCHMARK_CREATEENTITY_WITH_COMPONENT______(1);

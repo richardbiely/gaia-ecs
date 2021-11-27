@@ -56,8 +56,7 @@ namespace gaia {
 				}
 				// Components
 				{
-					const ComponentMetaData* typesToAdd[] = {
-							g_ComponentCache.GetOrCreateComponentMetaType<TComponent>()...};
+					const ComponentMetaData* typesToAdd[] = {g_ComponentCache.GetOrCreateComponentMetaType<TComponent>()...};
 
 					// Component count
 					constexpr auto componentCount = (uint8_t)sizeof...(TComponent);
@@ -65,8 +64,7 @@ namespace gaia {
 
 					// Component meta data
 					const auto lastIndex = m_data.size();
-					m_data.resize(
-							m_data.size() + sizeof(ComponentMetaData*) * componentCount);
+					m_data.resize(m_data.size() + sizeof(ComponentMetaData*) * componentCount);
 
 					for (uint8_t i = 0U; i < componentCount; i++) {
 						utils::unaligned_ref<ComponentMetaData*> to(&m_data[lastIndex]);
@@ -83,8 +81,7 @@ namespace gaia {
 				*(uint32_t*)&m_data[index] = utils::type_info::index<TComponent>();
 
 				// Component data
-				*(TComponent*)&m_data[index + sizeof(uint32_t)] =
-						std::forward<TComponent>(data);
+				*(TComponent*)&m_data[index + sizeof(uint32_t)] = std::forward<TComponent>(data);
 
 				index += sizeof(uint32_t) + sizeof(TComponent);
 			}
@@ -117,9 +114,7 @@ namespace gaia {
 					m_data.resize(m_data.size() + ComponentsSize * ComponentTypeIdxSize);
 
 					// Component data
-					(SetComponent_Internal<TComponent>(
-							 lastIndex, std::forward<TComponent>(data)),
-					 ...);
+					(SetComponent_Internal<TComponent>(lastIndex, std::forward<TComponent>(data)), ...);
 				}
 			}
 
@@ -135,8 +130,7 @@ namespace gaia {
 				}
 				// Components
 				{
-					const ComponentMetaData* typesToRemove[] = {
-							g_ComponentCache.GetComponentMetaType<TComponent>()...};
+					const ComponentMetaData* typesToRemove[] = {g_ComponentCache.GetComponentMetaType<TComponent>()...};
 
 					// Component count
 					constexpr auto NComponents = (uint8_t)sizeof...(TComponent);
@@ -144,8 +138,7 @@ namespace gaia {
 
 					// Component meta data
 					const auto lastIndex = m_data.size();
-					m_data.resize(
-							m_data.size() + sizeof(ComponentMetaData*) * NComponents);
+					m_data.resize(m_data.size() + sizeof(ComponentMetaData*) * NComponents);
 					for (uint8_t i = 0U; i < NComponents; i++) {
 						utils::unaligned_ref<ComponentMetaData*> to(&m_data[lastIndex]);
 						to = typesToRemove[i];
@@ -160,8 +153,7 @@ namespace gaia {
 			*/
 			[[nodiscard]] TempEntity CreateEntity(Archetype& archetype) {
 				m_data.push_back(CREATE_ENTITY_FROM_ARCHETYPE);
-				const auto archetypeSize =
-						sizeof(void*); // we'll serialize just the pointer
+				const auto archetypeSize = sizeof(void*); // we'll serialize just the pointer
 				const auto lastIndex = m_data.size();
 				m_data.resize(m_data.size() + archetypeSize);
 
@@ -199,8 +191,7 @@ namespace gaia {
 			*/
 			[[nodiscard]] TempEntity CreateEntity(CreationQuery& query) {
 				m_data.push_back(CREATE_ENTITY_FROM_QUERY);
-				const auto querySize =
-						sizeof(query); // we'll serialize the query by making a copy of it
+				const auto querySize = sizeof(query); // we'll serialize the query by making a copy of it
 				const auto lastIndex = m_data.size();
 				m_data.resize(m_data.size() + querySize);
 
@@ -407,30 +398,26 @@ namespace gaia {
 					const auto cmd = m_data[i++];
 					switch (cmd) {
 						case CREATE_ENTITY: {
-							[[maybe_unused]] const auto res =
-									entityMap.emplace(entities++, world->CreateEntity());
+							[[maybe_unused]] const auto res = entityMap.emplace(entities++, world->CreateEntity());
 							GAIA_ASSERT(res.second);
 						} break;
 						case CREATE_ENTITY_FROM_ARCHETYPE: {
 							uintptr_t ptr = (uintptr_t&)m_data[i];
 							Archetype* archetype = (Archetype*)ptr;
 							i += sizeof(void*);
-							[[maybe_unused]] const auto res = entityMap.emplace(
-									entities++, world->CreateEntity(*archetype));
+							[[maybe_unused]] const auto res = entityMap.emplace(entities++, world->CreateEntity(*archetype));
 							GAIA_ASSERT(res.second);
 						} break;
 						case CREATE_ENTITY_FROM_QUERY: {
 							auto& query = (CreationQuery&)m_data[i];
 							i += sizeof(CreationQuery);
-							[[maybe_unused]] const auto res =
-									entityMap.emplace(entities++, world->CreateEntity(query));
+							[[maybe_unused]] const auto res = entityMap.emplace(entities++, world->CreateEntity(query));
 							GAIA_ASSERT(res.second);
 						} break;
 						case CREATE_ENTITY_FROM_ENTITY: {
 							Entity entityFrom = (Entity&)m_data[i];
 							i += sizeof(Entity);
-							[[maybe_unused]] const auto res = entityMap.emplace(
-									entities++, world->CreateEntity(entityFrom));
+							[[maybe_unused]] const auto res = entityMap.emplace(entities++, world->CreateEntity(entityFrom));
 							GAIA_ASSERT(res.second);
 						} break;
 						case DELETE_ENTITY: {
@@ -602,15 +589,13 @@ namespace gaia {
 							uint8_t componentCount = m_data[i++];
 
 							// Components
-							auto newMetatypes = (const ComponentMetaData**)alloca(
-									sizeof(ComponentMetaData) * componentCount);
+							auto newMetatypes = (const ComponentMetaData**)alloca(sizeof(ComponentMetaData) * componentCount);
 							for (uint8_t j = 0; j < componentCount; ++j) {
 								auto metaType = *(ComponentMetaData**)&m_data[i];
 								newMetatypes[j] = metaType;
 								i += sizeof(const ComponentMetaData*);
 							}
-							world->RemoveComponent_Internal(
-									componentType, e, {newMetatypes, (uintptr_t)componentCount});
+							world->RemoveComponent_Internal(componentType, e, {newMetatypes, (uintptr_t)componentCount});
 						} break;
 					}
 				}

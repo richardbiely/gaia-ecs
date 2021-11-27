@@ -15,14 +15,11 @@ namespace gaia {
 			template <typename Ret, typename Type, typename... Args, typename Other>
 			auto func_ptr(Ret (*)(Type, Args...), Other&&) -> Ret (*)(Args...);
 
-			template <
-					typename Class, typename Ret, typename... Args, typename... Other>
+			template <typename Class, typename Ret, typename... Args, typename... Other>
 			auto func_ptr(Ret (Class::*)(Args...), Other&&...) -> Ret (*)(Args...);
 
-			template <
-					typename Class, typename Ret, typename... Args, typename... Other>
-			auto func_ptr(Ret (Class::*)(Args...) const, Other&&...)
-					-> Ret (*)(Args...);
+			template <typename Class, typename Ret, typename... Args, typename... Other>
+			auto func_ptr(Ret (Class::*)(Args...) const, Other&&...) -> Ret (*)(Args...);
 
 			template <typename Class, typename Type, typename... Other>
 			auto func_ptr(Type Class::*, Other&&...) -> Type (*)();
@@ -90,9 +87,7 @@ namespace gaia {
 			 value_or_instance A valid object that fits the purpose.
 			 */
 			template <auto FuncToBind, typename Type>
-			delegate(
-					internal::connect_arg_t<FuncToBind>,
-					Type&& value_or_instance) noexcept {
+			delegate(internal::connect_arg_t<FuncToBind>, Type&& value_or_instance) noexcept {
 				bind<FuncToBind>(std::forward<Type>(value_or_instance));
 			}
 
@@ -113,18 +108,15 @@ namespace gaia {
 			void bind() noexcept {
 				ctx = nullptr;
 
-				if constexpr (std::is_invocable_r_v<
-													Ret, decltype(FuncToBind), Args...>) {
+				if constexpr (std::is_invocable_r_v<Ret, decltype(FuncToBind), Args...>) {
 					fnc = [](const void*, Args... args) -> Ret {
 						return Ret(std::invoke(FuncToBind, std::forward<Args>(args)...));
 					};
 				} else if constexpr (std::is_member_pointer_v<decltype(FuncToBind)>) {
-					fnc = wrap<FuncToBind>(internal::index_sequence_for<
-																 std::tuple_element_t<0, std::tuple<Args...>>>(
+					fnc = wrap<FuncToBind>(internal::index_sequence_for<std::tuple_element_t<0, std::tuple<Args...>>>(
 							internal::func_ptr_t<decltype(FuncToBind)>{}));
 				} else {
-					fnc = wrap<FuncToBind>(internal::index_sequence_for(
-							internal::func_ptr_t<decltype(FuncToBind)>{}));
+					fnc = wrap<FuncToBind>(internal::index_sequence_for(internal::func_ptr_t<decltype(FuncToBind)>{}));
 				}
 			}
 
@@ -140,20 +132,15 @@ namespace gaia {
 			void bind(Type& value_or_instance) noexcept {
 				ctx = &value_or_instance;
 
-				if constexpr (std::is_invocable_r_v<
-													Ret, decltype(FuncToBind), Type&, Args...>) {
+				if constexpr (std::is_invocable_r_v<Ret, decltype(FuncToBind), Type&, Args...>) {
 					fnc = [](const void* context, Args... args) -> Ret {
-						auto pType = static_cast<Type*>(
-								const_cast<std::conditional_t<
-										std::is_const_v<Type>, const void*, void*>>(context));
-						return Ret(
-								std::invoke(FuncToBind, *pType, std::forward<Args>(args)...));
+						auto pType =
+								static_cast<Type*>(const_cast<std::conditional_t<std::is_const_v<Type>, const void*, void*>>(context));
+						return Ret(std::invoke(FuncToBind, *pType, std::forward<Args>(args)...));
 					};
 				} else {
 					fnc = wrap<FuncToBind>(
-							value_or_instance,
-							internal::index_sequence_for(
-									internal::func_ptr_t<decltype(FuncToBind), Type>{}));
+							value_or_instance, internal::index_sequence_for(internal::func_ptr_t<decltype(FuncToBind), Type>{}));
 				}
 			}
 
@@ -167,20 +154,15 @@ namespace gaia {
 			void bind(Type* value_or_instance) noexcept {
 				ctx = value_or_instance;
 
-				if constexpr (std::is_invocable_r_v<
-													Ret, decltype(FuncToBind), Type*, Args...>) {
+				if constexpr (std::is_invocable_r_v<Ret, decltype(FuncToBind), Type*, Args...>) {
 					fnc = [](const void* context, Args... args) -> Ret {
-						auto pType = static_cast<Type*>(
-								const_cast<std::conditional_t<
-										std::is_const_v<Type>, const void*, void*>>(context));
-						return Ret(
-								std::invoke(FuncToBind, pType, std::forward<Args>(args)...));
+						auto pType =
+								static_cast<Type*>(const_cast<std::conditional_t<std::is_const_v<Type>, const void*, void*>>(context));
+						return Ret(std::invoke(FuncToBind, pType, std::forward<Args>(args)...));
 					};
 				} else {
 					fnc = wrap<FuncToBind>(
-							value_or_instance,
-							internal::index_sequence_for(
-									internal::func_ptr_t<decltype(FuncToBind), Type>{}));
+							value_or_instance, internal::index_sequence_for(internal::func_ptr_t<decltype(FuncToBind), Type>{}));
 				}
 			}
 
@@ -236,8 +218,7 @@ namespace gaia {
 			 \param other Delegate with which to compare.
 			 \return True if the two contents are equal, false otherwise.
 			 */
-			[[nodiscard]] bool
-			operator==(const delegate<Ret(Args...)>& other) const noexcept {
+			[[nodiscard]] bool operator==(const delegate<Ret(Args...)>& other) const noexcept {
 				return fnc == other.fnc && ctx == other.ctx;
 			}
 
@@ -246,8 +227,7 @@ namespace gaia {
 			 \param other Delegate with which to compare.
 			 \return True if the two contents differ, false otherwise.
 			 */
-			[[nodiscard]] bool
-			operator!=(const delegate<Ret(Args...)>& other) const noexcept {
+			[[nodiscard]] bool operator!=(const delegate<Ret(Args...)>& other) const noexcept {
 				return !operator==(other);
 			}
 
@@ -255,45 +235,37 @@ namespace gaia {
 			template <auto FuncToBind, std::size_t... Index>
 			[[nodiscard]] auto wrap(std::index_sequence<Index...>) noexcept {
 				return [](const void*, Args... args) -> Ret {
-					[[maybe_unused]] const auto forwardedArgs =
-							std::forward_as_tuple(std::forward<Args>(args)...);
+					[[maybe_unused]] const auto forwardedArgs = std::forward_as_tuple(std::forward<Args>(args)...);
 
 					return Ret(std::invoke(
 							FuncToBind,
-							std::forward<std::tuple_element_t<Index, std::tuple<Args...>>>(
-									std::get<Index>(forwardedArgs))...));
+							std::forward<std::tuple_element_t<Index, std::tuple<Args...>>>(std::get<Index>(forwardedArgs))...));
 				};
 			}
 
 			template <auto FuncToBind, typename Type, std::size_t... Index>
 			[[nodiscard]] auto wrap(Type&, std::index_sequence<Index...>) noexcept {
 				return [](const void* context, Args... args) -> Ret {
-					[[maybe_unused]] const auto forwardedArgs =
-							std::forward_as_tuple(std::forward<Args>(args)...);
+					[[maybe_unused]] const auto forwardedArgs = std::forward_as_tuple(std::forward<Args>(args)...);
 
-					auto pType = static_cast<Type*>(
-							const_cast<std::conditional_t<
-									std::is_const_v<Type>, const void*, void*>>(context));
+					auto pType =
+							static_cast<Type*>(const_cast<std::conditional_t<std::is_const_v<Type>, const void*, void*>>(context));
 					return Ret(std::invoke(
 							FuncToBind, *pType,
-							std::forward<std::tuple_element_t<Index, std::tuple<Args...>>>(
-									std::get<Index>(forwardedArgs))...));
+							std::forward<std::tuple_element_t<Index, std::tuple<Args...>>>(std::get<Index>(forwardedArgs))...));
 				};
 			}
 
 			template <auto FuncToBind, typename Type, std::size_t... Index>
 			[[nodiscard]] auto wrap(Type*, std::index_sequence<Index...>) noexcept {
 				return [](const void* context, Args... args) -> Ret {
-					[[maybe_unused]] const auto forwardedArgs =
-							std::forward_as_tuple(std::forward<Args>(args)...);
+					[[maybe_unused]] const auto forwardedArgs = std::forward_as_tuple(std::forward<Args>(args)...);
 
-					auto pType = static_cast<Type*>(
-							const_cast<std::conditional_t<
-									std::is_const_v<Type>, const void*, void*>>(context));
+					auto pType =
+							static_cast<Type*>(const_cast<std::conditional_t<std::is_const_v<Type>, const void*, void*>>(context));
 					return Ret(std::invoke(
 							FuncToBind, pType,
-							std::forward<std::tuple_element_t<Index, std::tuple<Args...>>>(
-									std::get<Index>(forwardedArgs))...));
+							std::forward<std::tuple_element_t<Index, std::tuple<Args...>>>(std::get<Index>(forwardedArgs))...));
 				};
 			}
 		};
@@ -307,9 +279,7 @@ namespace gaia {
 		 \return True if the two contents are equal, false otherwise.
 		 */
 		template <typename Ret, typename... Args>
-		[[nodiscard]] bool operator==(
-				const delegate<Ret(Args...)>& lhs,
-				const delegate<Ret(Args...)>& rhs) noexcept {
+		[[nodiscard]] bool operator==(const delegate<Ret(Args...)>& lhs, const delegate<Ret(Args...)>& rhs) noexcept {
 			return lhs == rhs;
 		}
 
@@ -322,23 +292,20 @@ namespace gaia {
 		 \return True if the two contents differ, false otherwise.
 		 */
 		template <typename Ret, typename... Args>
-		[[nodiscard]] bool operator!=(
-				const delegate<Ret(Args...)>& lhs,
-				const delegate<Ret(Args...)>& rhs) noexcept {
+		[[nodiscard]] bool operator!=(const delegate<Ret(Args...)>& lhs, const delegate<Ret(Args...)>& rhs) noexcept {
 			return lhs != rhs;
 		}
 
 		template <auto Func>
-		delegate(internal::connect_arg_t<Func>) noexcept -> delegate<
-				std::remove_pointer_t<internal::func_ptr_t<decltype(Func)>>>;
+		delegate(internal::connect_arg_t<Func>) noexcept
+				-> delegate<std::remove_pointer_t<internal::func_ptr_t<decltype(Func)>>>;
 
 		template <auto Func, typename Type>
-		delegate(internal::connect_arg_t<Func>, Type&&) noexcept -> delegate<
-				std::remove_pointer_t<internal::func_ptr_t<decltype(Func), Type>>>;
+		delegate(internal::connect_arg_t<Func>, Type&&) noexcept
+				-> delegate<std::remove_pointer_t<internal::func_ptr_t<decltype(Func), Type>>>;
 
 		template <typename Ret, typename... Args>
-		delegate(Ret (*)(const void*, Args...), const void* = nullptr) noexcept
-				->delegate<Ret(Args...)>;
+		delegate(Ret (*)(const void*, Args...), const void* = nullptr) noexcept->delegate<Ret(Args...)>;
 
 #pragma endregion
 

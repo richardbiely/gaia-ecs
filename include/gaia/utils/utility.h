@@ -11,8 +11,8 @@ namespace gaia {
 		inline constexpr auto is_unique = std::true_type{};
 
 		template <typename T, typename... Rest>
-		inline constexpr auto is_unique<T, Rest...> = std::bool_constant<
-				(!std::is_same_v<T, Rest> && ...) && is_unique<Rest...>>{};
+		inline constexpr auto is_unique<T, Rest...> =
+				std::bool_constant<(!std::is_same_v<T, Rest> && ...) && is_unique<Rest...>>{};
 
 		namespace detail {
 			template <class T>
@@ -22,15 +22,12 @@ namespace gaia {
 		} // namespace detail
 
 		template <typename T, typename... Ts>
-		struct unique:
-				detail::type_identity<T> {
-		}; // TODO: In C++20 we could use std::type_identity
+		struct unique: detail::type_identity<T> {}; // TODO: In C++20 we could use std::type_identity
 
 		template <typename... Ts, typename U, typename... Us>
 		struct unique<std::tuple<Ts...>, U, Us...>:
 				std::conditional_t<
-						(std::is_same_v<U, Ts> || ...), unique<std::tuple<Ts...>, Us...>,
-						unique<std::tuple<Ts..., U>, Us...>> {};
+						(std::is_same_v<U, Ts> || ...), unique<std::tuple<Ts...>, Us...>, unique<std::tuple<Ts..., U>, Us...>> {};
 
 		template <typename... Ts>
 		using unique_tuple = typename unique<std::tuple<>, Ts...>::type;
@@ -80,8 +77,7 @@ namespace gaia {
 			}
 
 			template <class Tuple, class Func, auto... Is>
-			void for_each_tuple_impl(
-					Tuple&& tuple, Func&& func, std::index_sequence<Is...>) {
+			void for_each_tuple_impl(Tuple&& tuple, Func&& func, std::index_sequence<Is...>) {
 				(func(std::get<Is>(tuple)), ...);
 			}
 		} // namespace detail
@@ -95,8 +91,7 @@ namespace gaia {
 		//! }
 		template <auto Iters, class Func>
 		constexpr void for_each(Func&& func) {
-			detail::for_each_impl(
-					std::forward<Func>(func), std::make_index_sequence<Iters>());
+			detail::for_each_impl(std::forward<Func>(func), std::make_index_sequence<Iters>());
 		}
 
 		//! Compile-time for loop over containers.
@@ -143,8 +138,7 @@ namespace gaia {
 		constexpr void for_each_tuple(Tuple&& tuple, Func&& func) {
 			detail::for_each_tuple_impl(
 					std::forward<Tuple>(tuple), std::forward<Func>(func),
-					std::make_index_sequence<
-							std::tuple_size<std::remove_reference_t<Tuple>>::value>{});
+					std::make_index_sequence<std::tuple_size<std::remove_reference_t<Tuple>>::value>{});
 		}
 
 #pragma endregion
@@ -169,8 +163,7 @@ namespace gaia {
 						gap = static_cast<size_type>(gap / 1.247330950103979);
 					}
 					swapped = false;
-					for (size_type i = size_type{0};
-							 gap + i < static_cast<size_type>(array_.size()); ++i) {
+					for (size_type i = size_type{0}; gap + i < static_cast<size_type>(array_.size()); ++i) {
 						if (array_[i] > array_[i + gap]) {
 							auto swap = array_[i];
 							array_[i] = array_[i + gap];

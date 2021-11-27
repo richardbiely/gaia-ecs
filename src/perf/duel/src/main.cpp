@@ -448,27 +448,23 @@ __m128 _mm_fmadd_ps(__m128 a, __m128 b, __m128 c) {
 }
 
 __m128 _mm_cmplt_ps(__m128 a, __m128 b) {
-	return vreinterpretq_m128_u32(
-			vcltq_f32(vreinterpretq_f32_m128(a), vreinterpretq_f32_m128(b)));
+	return vreinterpretq_m128_u32(vcltq_f32(vreinterpretq_f32_m128(a), vreinterpretq_f32_m128(b)));
 }
 
 __m128 _mm_mul_ps(__m128 a, __m128 b) {
-	return vreinterpretq_m128_f32(
-			vmulq_f32(vreinterpretq_f32_m128(a), vreinterpretq_f32_m128(b)));
+	return vreinterpretq_m128_f32(vmulq_f32(vreinterpretq_f32_m128(a), vreinterpretq_f32_m128(b)));
 }
 
 __m128 _mm_blendv_ps(__m128 a, __m128 b, __m128 mask) {
 	// Use a signed shift right to create a mask with the sign bit
-	const auto res_mask =
-			vreinterpretq_u32_s32(vshrq_n_s32(vreinterpretq_s32_m128(mask), 31));
+	const auto res_mask = vreinterpretq_u32_s32(vshrq_n_s32(vreinterpretq_s32_m128(mask), 31));
 	const auto res_a = vreinterpretq_f32_m128(a);
 	const auto res_b = vreinterpretq_f32_m128(b);
 	return vreinterpretq_m128_f32(vbslq_f32(res_mask, res_b, res_a));
 }
 #endif
 
-void BM_Game_ECS_WithSystems_ForEachChunkSoA_ManualSIMD(
-		benchmark::State& state) {
+void BM_Game_ECS_WithSystems_ForEachChunkSoA_ManualSIMD(benchmark::State& state) {
 	ecs::World w;
 
 	// Create static entities
@@ -518,9 +514,7 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA_ManualSIMD(
 
 								const auto dtVec = _mm_set_ps1(dt);
 
-								auto exec = [&](float* GAIA_RESTRICT p,
-																const float* GAIA_RESTRICT v,
-																const size_t offset) {
+								auto exec = [&](float* GAIA_RESTRICT p, const float* GAIA_RESTRICT v, const size_t offset) {
 									const auto pVec = _mm_load_ps(p + offset);
 									const auto vVec = _mm_load_ps(v + offset);
 									const auto respVec = _mm_fmadd_ps(vVec, dtVec, pVec);
@@ -556,16 +550,13 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA_ManualSIMD(
 								auto ppy = p.set<1>();
 								auto vvy = v.set<1>();
 
-								auto exec = [&](float* GAIA_RESTRICT p, float* GAIA_RESTRICT v,
-																const size_t offset) {
+								auto exec = [&](float* GAIA_RESTRICT p, float* GAIA_RESTRICT v, const size_t offset) {
 									const auto vyVec = _mm_load_ps(v + offset);
 									const auto pyVec = _mm_load_ps(p + offset);
 
 									const auto condVec = _mm_cmplt_ps(vyVec, _mm_setzero_ps());
-									const auto res_vyVec =
-											_mm_blendv_ps(vyVec, _mm_setzero_ps(), condVec);
-									const auto res_pyVec =
-											_mm_blendv_ps(pyVec, _mm_setzero_ps(), condVec);
+									const auto res_vyVec = _mm_blendv_ps(vyVec, _mm_setzero_ps(), condVec);
+									const auto res_pyVec = _mm_blendv_ps(pyVec, _mm_setzero_ps(), condVec);
 
 									_mm_store_ps(v + offset, res_vyVec);
 									_mm_store_ps(p + offset, res_pyVec);
