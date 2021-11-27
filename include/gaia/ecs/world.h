@@ -1148,7 +1148,7 @@ namespace gaia {
 				if (checkGenericComponents | checkChunkComponents) {
 					const auto lastWorldVersion = query.GetWorldVersion();
 
-					// Find if any generic component has changed
+					// See if any generic component has changed
 					for (auto typeIndex: query.listChangeFiltered[ComponentType::CT_Generic]) {
 						const uint32_t componentIdx = chunk.GetComponentIdx(typeIndex);
 						GAIA_ASSERT(componentIdx != (uint32_t)-1); // the component must exist at this point!
@@ -1157,7 +1157,7 @@ namespace gaia {
 							return true;
 					}
 
-					// Find if any chunk component has changed
+					// See if any chunk component has changed
 					for (auto typeIndex: query.listChangeFiltered[ComponentType::CT_Chunk]) {
 						const uint32_t componentIdx = chunk.GetChunkComponentIdx(typeIndex);
 						GAIA_ASSERT(componentIdx != (uint32_t)-1); // the component must exist at this point!
