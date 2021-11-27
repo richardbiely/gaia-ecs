@@ -1135,33 +1135,27 @@ namespace gaia {
 					query.All<TComponents...>();
 			}
 
-			[[nodiscard]] static bool CheckFilters(
-					const EntityQuery& query, const Chunk& chunk, bool checkGenericComponents, bool checkChunkComponents) {
+			[[nodiscard]] static bool CheckFilters(const EntityQuery& query, const Chunk& chunk) {
 				GAIA_ASSERT((!chunk.HasEntities()) && "CheckFilters called on an empty chunk");
-				GAIA_ASSERT((checkGenericComponents || checkChunkComponents) && "CheckFilters called with wrong inputs");
 
 				const auto lastWorldVersion = query.GetWorldVersion();
 
-				if (checkGenericComponents) {
-					// See if any generic component has changed
-					for (auto typeIndex: query.listChangeFiltered[ComponentType::CT_Generic]) {
-						const uint32_t componentIdx = chunk.GetComponentIdx(typeIndex);
-						GAIA_ASSERT(componentIdx != (uint32_t)-1); // the component must exist at this point!
+				// See if any generic component has changed
+				for (auto typeIndex: query.listChangeFiltered[ComponentType::CT_Generic]) {
+					const uint32_t componentIdx = chunk.GetComponentIdx(typeIndex);
+					GAIA_ASSERT(componentIdx != (uint32_t)-1); // the component must exist at this point!
 
-						if (chunk.DidChange(ComponentType::CT_Generic, lastWorldVersion, componentIdx))
-							return true;
-					}
+					if (chunk.DidChange(ComponentType::CT_Generic, lastWorldVersion, componentIdx))
+						return true;
 				}
 
-				if (checkChunkComponents) {
-					// See if any chunk component has changed
-					for (auto typeIndex: query.listChangeFiltered[ComponentType::CT_Chunk]) {
-						const uint32_t componentIdx = chunk.GetChunkComponentIdx(typeIndex);
-						GAIA_ASSERT(componentIdx != (uint32_t)-1); // the component must exist at this point!
+				// See if any chunk component has changed
+				for (auto typeIndex: query.listChangeFiltered[ComponentType::CT_Chunk]) {
+					const uint32_t componentIdx = chunk.GetChunkComponentIdx(typeIndex);
+					GAIA_ASSERT(componentIdx != (uint32_t)-1); // the component must exist at this point!
 
-						if (chunk.DidChange(ComponentType::CT_Chunk, lastWorldVersion, componentIdx))
-							return true;
-					}
+					if (chunk.DidChange(ComponentType::CT_Chunk, lastWorldVersion, componentIdx))
+						return true;
 				}
 
 				// Skip unchanged chunks.
@@ -1176,62 +1170,35 @@ namespace gaia {
 				// Update the world version
 				world.UpdateWorldVersion();
 
-				bool checkGenericComponents, checkChunkComponents;
-				if (query.HasFilters(checkGenericComponents, checkChunkComponents)) {
-					// Iterate over all archetypes
-					world.ForEachArchetype(query, [&](const Archetype& archetype) {
-						uint32_t offset = 0U;
-						uint32_t batchSize = 0U;
-						const auto maxIters = (uint32_t)archetype.chunks.size();
+				const bool hasFilters = query.HasFilters();
 
-						do {
-							// Prepare a buffer to iterate over
-							for (; offset < maxIters; ++offset) {
-								auto* pChunk = archetype.chunks[offset];
+				// Iterate over all archetypes
+				world.ForEachArchetype(query, [&](const Archetype& archetype) {
+					uint32_t offset = 0U;
+					uint32_t batchSize = 0U;
+					const auto maxIters = (uint32_t)archetype.chunks.size();
 
-								if (!pChunk->HasEntities())
-									continue;
-								if (!CheckFilters(query, *pChunk, checkGenericComponents, checkChunkComponents))
-									continue;
+					do {
+						// Prepare a buffer to iterate over
+						for (; offset < maxIters; ++offset) {
+							auto* pChunk = archetype.chunks[offset];
 
-								tmp[batchSize++] = pChunk;
-							}
+							if (!pChunk->HasEntities())
+								continue;
+							if (hasFilters && !CheckFilters(query, *pChunk))
+								continue;
 
-							// Execute functors in batches
-							for (auto chunkIdx = 0U; chunkIdx < batchSize; ++chunkIdx)
-								func(*tmp[chunkIdx]);
+							tmp[batchSize++] = pChunk;
+						}
 
-							// Reset the batch size
-							batchSize = 0U;
-						} while (offset < maxIters);
-					});
-				} else {
-					// Iterate over all archetypes
-					world.ForEachArchetype(query, [&](const Archetype& archetype) {
-						uint32_t offset = 0U;
-						uint32_t batchSize = 0U;
-						const auto maxIters = (uint32_t)archetype.chunks.size();
+						// Execute functors in batches
+						for (auto chunkIdx = 0U; chunkIdx < batchSize; ++chunkIdx)
+							func(*tmp[chunkIdx]);
 
-						do {
-							// Prepare a buffer to iterate over
-							for (; offset < maxIters; ++offset) {
-								auto* pChunk = archetype.chunks[offset];
-
-								if (!pChunk->HasEntities())
-									continue;
-
-								tmp[batchSize++] = pChunk;
-							}
-
-							// Execute functors in batches
-							for (auto chunkIdx = 0U; chunkIdx < batchSize; ++chunkIdx)
-								func(*tmp[chunkIdx]);
-
-							// Reset the batch size
-							batchSize = 0U;
-						} while (offset < maxIters);
-					});
-				}
+						// Reset the batch size
+						batchSize = 0U;
+					} while (offset < maxIters);
+				});
 
 				query.SetWorldVersion(world.GetWorldVersion());
 			}
@@ -1248,64 +1215,35 @@ namespace gaia {
 				// Add an All filter for components listed as input arguments of func
 				world.Unpack_ForEachQuery(InputArgs{}, query);
 
-				bool checkGenericComponents, checkChunkComponents;
-				if (query.HasFilters(checkGenericComponents, checkChunkComponents)) {
-					// Iterate over all archetypes
-					world.ForEachArchetype(query, [&](const Archetype& archetype) {
-						uint32_t offset = 0U;
-						uint32_t batchSize = 0U;
-						const auto maxIters = (uint32_t)archetype.chunks.size();
+				const bool hasFilters = query.HasFilters();
 
-						do {
-							// Prepare a buffer to iterate over
-							for (; offset < maxIters; ++offset) {
-								auto* pChunk = archetype.chunks[offset];
+				// Iterate over all archetypes
+				world.ForEachArchetype(query, [&](const Archetype& archetype) {
+					uint32_t offset = 0U;
+					uint32_t batchSize = 0U;
+					const auto maxIters = (uint32_t)archetype.chunks.size();
 
-								if (!pChunk->HasEntities())
-									continue;
-								if (!CheckFilters(query, *pChunk, checkGenericComponents, checkChunkComponents))
-									continue;
+					do {
+						// Prepare a buffer to iterate over
+						for (; offset < maxIters; ++offset) {
+							auto* pChunk = archetype.chunks[offset];
 
-								tmp[batchSize++] = pChunk;
-							}
+							if (!pChunk->HasEntities())
+								continue;
+							if (hasFilters && !CheckFilters(query, *pChunk))
+								continue;
 
-							// Execute functors in bulk
-							for (auto chunkIdx = 0U; chunkIdx < batchSize; ++chunkIdx) {
-								world.Unpack_ForEachEntityInChunk(InputArgs{}, *tmp[chunkIdx], func);
-							}
+							tmp[batchSize++] = pChunk;
+						}
 
-							// Reset the batch size
-							batchSize = 0U;
-						} while (offset < maxIters);
-					});
-				} else {
-					// Iterate over all archetypes
-					world.ForEachArchetype(query, [&](const Archetype& archetype) {
-						uint32_t offset = 0U;
-						uint32_t batchSize = 0U;
-						const auto maxIters = (uint32_t)archetype.chunks.size();
+						// Execute functors in bulk
+						for (auto chunkIdx = 0U; chunkIdx < batchSize; ++chunkIdx)
+							world.Unpack_ForEachEntityInChunk(InputArgs{}, *tmp[chunkIdx], func);
 
-						do {
-							// Prepare a buffer to iterate over
-							for (; offset < maxIters; ++offset) {
-								auto* pChunk = archetype.chunks[offset];
-
-								if (!pChunk->HasEntities())
-									continue;
-
-								tmp[batchSize++] = pChunk;
-							}
-
-							// Execute functors in bulk
-							for (auto chunkIdx = 0U; chunkIdx < batchSize; ++chunkIdx) {
-								world.Unpack_ForEachEntityInChunk(InputArgs{}, *tmp[chunkIdx], func);
-							}
-
-							// Reset the batch size
-							batchSize = 0U;
-						} while (offset < maxIters);
-					});
-				}
+						// Reset the batch size
+						batchSize = 0U;
+					} while (offset < maxIters);
+				});
 
 				query.SetWorldVersion(world.GetWorldVersion());
 			}
