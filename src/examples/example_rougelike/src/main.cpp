@@ -208,6 +208,7 @@ struct World {
 		w.AddComponent<Sprite>(e, {TILE_ARROW});
 		w.AddComponent<Item>(e, {Arrow});
 		w.AddComponent<BattleStats>(e, {10, 0});
+		w.AddComponent<Health>(e, {1, 1});
 	}
 };
 
@@ -228,7 +229,7 @@ public:
 			for (int x = 0; x < ScreenX; x++)
 				s_world.blocked[y][x] = s_world.map[y][x] == TILE_WALL;
 
-		// Everything with velocity blocks
+		// Everything with postion && velocity blocks
 		GetWorld()
 				.ForEach(
 						m_q,
@@ -249,7 +250,7 @@ public:
 
 struct CollisionData {
 	//! Entity colliding
-	ecs::Entity e;
+	ecs::Entity e1;
 	//! Entity being collided with
 	ecs::Entity e2;
 	//! Position of collision
@@ -281,9 +282,6 @@ public:
 
 							const int nx = p.x + v.x;
 							const int ny = p.y + v.y;
-
-							if (s_world.content.find({nx, ny}) == s_world.content.end())
-								return;
 
 							// Collect all collisions
 							for (auto e2: s_world.content[{nx, ny}])
@@ -352,25 +350,25 @@ public:
 	void OnUpdate() override {
 		const auto& colls = m_collisionSystem->GetCollisions();
 		for (const auto& coll: colls) {
-			auto e = coll.e;
+			auto e1 = coll.e1;
 			auto e2 = coll.e2;
 
 			// run into something damagable
 			if (!GetWorld().HasComponents<Health>(e2))
 				continue;
 
-			BattleStats stats = {0, 0};
+			BattleStats stats1 = {0, 0};
 			BattleStats stats2 = {0, 0};
 
-			if (!GetWorld().HasComponents<BattleStats>(e))
+			if (!GetWorld().HasComponents<BattleStats>(e1))
 				return;
 			if (!GetWorld().HasComponents<BattleStats>(e2))
 				return;
 
-			GetWorld().GetComponent<BattleStats>(e, stats);
+			GetWorld().GetComponent<BattleStats>(e1, stats1);
 			GetWorld().GetComponent<BattleStats>(e2, stats2);
 
-			int damage = stats.power - stats2.armor;
+			int damage = stats1.power - stats2.armor;
 			if (damage < 0)
 				continue;
 
@@ -396,24 +394,27 @@ public:
 	void OnUpdate() override {
 		const auto& colls = m_collisionSystem->GetCollisions();
 		for (const auto& coll: colls) {
-			// The entity colliding has to be a player with Heatlh component
-			uint32_t idxE;
-			auto* pChunkE = GetWorld().GetEntityChunk(coll.e, idxE);
-			if (!pChunkE->HasComponent<Player>())
-				continue;
-			if (!pChunkE->HasComponent<Health>())
-				continue;
+			uint32_t idx1, idx2;
+			auto* pChunk1 = GetWorld().GetEntityChunk(coll.e1, idx1);
+			auto* pChunk2 = GetWorld().GetEntityChunk(coll.e2, idx2);
 
-			Health h;
-			pChunkE->GetComponent<Health>(idxE, h);
+			// TODO: Add ability to get a list of components based on query
 
-			// The entity being collided with has to be an item with stats
-			uint32_t idxE2;
-			const auto* pChunkE2 = GetWorld().GetEntityChunk(coll.e2, idxE2);
-			if (pChunkE2->HasComponent<Item>() && pChunkE2->HasComponent<BattleStats>()) {
-				BattleStats stats;
-				pChunkE2->GetComponent<BattleStats>(idxE2, stats);
-				pChunkE->SetComponent<Health>(idxE, {h.value + stats.power, h.valueMax});
+			// E.g. a player colliding with an item
+			if (pChunk1->HasComponent<Health>() && pChunk2->HasComponent<Item>() && pChunk2->HasComponent<BattleStats>()) {
+				auto h1 = pChunk1->ViewRW<Health>();
+				auto s2 = pChunk2->View<BattleStats>();
+
+				// Apply the item effect
+				h1[idx1].value += s2[idx2].power;
+			}
+
+			// An arrow colliding with something. Bring its health to 0 (destroyed).
+			if (pChunk1->HasComponent<Item>() && pChunk1->HasComponent<Health>()) {
+				auto i1 = pChunk1->View<Item>();
+				auto h1 = pChunk1->ViewRW<Health>();
+				if (i1[idx1].type == Arrow)
+					h1[idx1].value = 0;
 			}
 		}
 	}
@@ -505,7 +506,7 @@ public:
 				.Run();
 
 		ecs::EntityQuery qe;
-		qe.All<Health>().None<Player>();
+		qe.All<Health>().None<Player, Item>();
 		GetWorld()
 				.ForEach(
 						qe,
