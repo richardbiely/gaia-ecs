@@ -157,19 +157,23 @@ namespace gaia {
 
 						// Make sure we didn't exceed the chunk size
 						GAIA_ASSERT(componentOffset <= Chunk::DATA_SIZE);
-					}
 
-					newArch->componentTypeList[ComponentType::CT_Generic].push_back({genericTypes[i]});
-					newArch->componentLookupList[ComponentType::CT_Generic].push_back(
-							{genericTypes[i]->typeIndex, componentOffset});
+						// Register the type
+						newArch->componentTypeList[ComponentType::CT_Generic].push_back({genericTypes[i]});
+						newArch->componentLookupList[ComponentType::CT_Generic].push_back(
+								{genericTypes[i]->typeIndex, componentOffset});
 
-					// Make sure the following component list is properly aligned
-					if (a != 0U) {
+						// Make sure the following component list is properly aligned
 						componentOffset += genericTypes[i]->size * maxGenericItemsInArchetype;
 						alignedOffset += genericTypes[i]->size * maxGenericItemsInArchetype;
 
 						// Make sure we didn't exceed the chunk size
 						GAIA_ASSERT(componentOffset <= Chunk::DATA_SIZE);
+					} else {
+						// Register the type
+						newArch->componentTypeList[ComponentType::CT_Generic].push_back({genericTypes[i]});
+						newArch->componentLookupList[ComponentType::CT_Generic].push_back(
+								{genericTypes[i]->typeIndex, componentOffset});
 					}
 				}
 
@@ -183,18 +187,23 @@ namespace gaia {
 
 						// Make sure we didn't exceed the chunk size
 						GAIA_ASSERT(componentOffset <= Chunk::DATA_SIZE);
-					}
 
-					newArch->componentTypeList[ComponentType::CT_Chunk].push_back({chunkTypes[i]});
-					newArch->componentLookupList[ComponentType::CT_Chunk].push_back({chunkTypes[i]->typeIndex, componentOffset});
+						// Register the type
+						newArch->componentTypeList[ComponentType::CT_Chunk].push_back({chunkTypes[i]});
+						newArch->componentLookupList[ComponentType::CT_Chunk].push_back(
+								{chunkTypes[i]->typeIndex, componentOffset});
 
-					// Make sure the following component list is properly aligned
-					if (a != 0) {
+						// Make sure the following component list is properly aligned
 						componentOffset += chunkTypes[i]->size;
 						alignedOffset += chunkTypes[i]->size;
 
 						// Make sure we didn't exceed the chunk size
 						GAIA_ASSERT(componentOffset <= Chunk::DATA_SIZE);
+					} else {
+						// Register the type
+						newArch->componentTypeList[ComponentType::CT_Chunk].push_back({chunkTypes[i]});
+						newArch->componentLookupList[ComponentType::CT_Chunk].push_back(
+								{chunkTypes[i]->typeIndex, componentOffset});
 					}
 				}
 
