@@ -212,10 +212,15 @@ namespace gaia {
 #endif
 
 				// Component has to be present in anyList or allList.
-				// NoneList makes no sense because we skip those in query processing
-				// anyway
-				if (!utils::has_if(arrMeta.listAny, [typeIndex](auto idx) { return idx == typeIndex; }) &&
-						!utils::has_if(arrMeta.listAll, [typeIndex](auto idx) { return idx == typeIndex; })) {
+				// NoneList makes no sense because we skip those in query processing anyway.
+				if (!utils::has_if(
+								arrMeta.listAny,
+								[typeIndex](auto idx) {
+									return idx == typeIndex;
+								}) &&
+						!utils::has_if(arrMeta.listAll, [typeIndex](auto idx) {
+							return idx == typeIndex;
+						})) {
 #if GAIA_DEBUG
 					constexpr auto typeName = utils::type_info::name<T>();
 					LOG_E(

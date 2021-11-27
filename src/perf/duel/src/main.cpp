@@ -101,7 +101,9 @@ void BM_Game_ECS(benchmark::State& state) {
 			 }
 		 }).Run();
 		// Apply gravity
-		w.ForEach(queryDynamic, [&](Velocity& v) { v.y += 9.81f * dt; }).Run();
+		w.ForEach(queryDynamic, [&](Velocity& v) {
+			 v.y += 9.81f * dt;
+		 }).Run();
 	}
 }
 
@@ -172,7 +174,11 @@ void BM_Game_ECS_WithSystems(benchmark::State& state) {
 	class GravitySystem final: public ecs::System {
 	public:
 		void OnUpdate() override {
-			GetWorld().ForEach([&](Velocity& v) { v.y += 9.81f * dt; }).Run();
+			GetWorld()
+					.ForEach([&](Velocity& v) {
+						v.y += 9.81f * dt;
+					})
+					.Run();
 		}
 	};
 

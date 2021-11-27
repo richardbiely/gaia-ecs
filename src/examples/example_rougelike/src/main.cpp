@@ -215,11 +215,21 @@ public:
 				s_world.blocked[y][x] = s_world.map[y][x] == TILE_WALL;
 
 		// everything with velocity blocks
-		GetWorld().ForEach(m_q, [&](const Position& p) { s_world.blocked[p.y][p.x] = true; }).Run();
+		GetWorld()
+				.ForEach(
+						m_q,
+						[&](const Position& p) {
+							s_world.blocked[p.y][p.x] = true;
+						})
+				.Run();
 
 		// everything with position is content
 		s_world.content.clear();
-		GetWorld().ForEach([&](ecs::Entity e, const Position& p) { s_world.content[p].push_back(e); }).Run();
+		GetWorld()
+				.ForEach([&](ecs::Entity e, const Position& p) {
+					s_world.content[p].push_back(e);
+				})
+				.Run();
 	}
 };
 
@@ -437,7 +447,13 @@ public:
 	void OnUpdate() override {
 		ClearScreen();
 		s_world.InitWorldMap();
-		GetWorld().ForEach(m_q, [&](const Position& p, const Sprite& s) { s_world.map[p.y][p.x] = s.value; }).Run();
+		GetWorld()
+				.ForEach(
+						m_q,
+						[&](const Position& p, const Sprite& s) {
+							s_world.map[p.y][p.x] = s.value;
+						})
+				.Run();
 	}
 };
 
@@ -458,14 +474,22 @@ public:
 	void OnUpdate() override {
 		ecs::EntityQuery qp;
 		qp.All<Health, Player>();
-		GetWorld().ForEach(qp, [](const Health& h) { printf("Player health: %d/%d\n", h.value, h.valueMax); }).Run();
+		GetWorld()
+				.ForEach(
+						qp,
+						[](const Health& h) {
+							printf("Player health: %d/%d\n", h.value, h.valueMax);
+						})
+				.Run();
 
 		ecs::EntityQuery qe;
 		qe.All<Health>().None<Player>();
 		GetWorld()
 				.ForEach(
-						qe, [](ecs::Entity e,
-									 const Health& h) { printf("Enemy %d:%d health: %d/%d\n", e.id(), e.gen(), h.value, h.valueMax); })
+						qe,
+						[](ecs::Entity e, const Health& h) {
+							printf("Enemy %d:%d health: %d/%d\n", e.id(), e.gen(), h.value, h.valueMax);
+						})
 				.Run();
 	}
 };

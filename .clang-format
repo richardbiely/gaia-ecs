@@ -65,5 +65,7 @@ AlwaysBreakTemplateDeclarations: Yes
 AlwaysBreakAfterReturnType: None
 AllowShortLoopsOnASingleLine: false
 AllowShortIfStatementsOnASingleLine: Never
+AllowShortLambdasOnASingleLine: Empty
 AlignTrailingComments: false
 AlignConsecutiveMacros: false
+AllowAllArgumentsOnNextLine: true
