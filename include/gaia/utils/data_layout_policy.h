@@ -33,6 +33,9 @@ namespace gaia {
 #pragma endregion
 		} // namespace detail
 
+		template <DataLayout TDataLayout>
+		struct data_layout_properties;
+
 		template <DataLayout TDataLayout, typename TItem>
 		struct data_view_policy;
 
@@ -45,6 +48,15 @@ namespace gaia {
 		struct data_view_policy_get_idx;
 		template <DataLayout TDataLayout, typename TItem, size_t Ids>
 		struct data_view_policy_set_idx;
+
+		template <>
+		struct data_layout_properties<DataLayout::AoS> {
+			constexpr static uint32_t PackSize = 1;
+		};
+		template <>
+		struct data_layout_properties<DataLayout::SoA> {
+			constexpr static uint32_t PackSize = 4;
+		};
 
 		/*!
 		 * data_view_policy for accessing and storing data in the AoS way
