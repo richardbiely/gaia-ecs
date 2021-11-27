@@ -201,21 +201,21 @@ namespace gaia {
 
 				const auto typeIndex = utils::type_info::index<TComponent>();
 
-				const auto& componentHashList =
+				const auto& componentLookupList =
 						GetArchetypeComponentLookupList(header.owner, componentType);
 				const auto it =
-						utils::find_if(componentHashList, [&](const auto& info) {
+						utils::find_if(componentLookupList, [&](const auto& info) {
 							return info.typeIndex == typeIndex;
 						});
 
 				// Searching for a component that's not there! Programmer mistake.
-				GAIA_ASSERT(it != componentHashList.end());
+				GAIA_ASSERT(it != componentLookupList.end());
 
 				const auto componentIdx =
-						(uint32_t)std::distance(componentHashList.begin(), it);
+						(uint32_t)std::distance(componentLookupList.begin(), it);
 
 				return {
-						(const TComponent*)&data[componentHashList[componentIdx].offset],
+						(const TComponent*)&data[componentLookupList[componentIdx].offset],
 						GetItemCount()};
 			}
 
@@ -229,24 +229,24 @@ namespace gaia {
 
 				const auto typeIndex = utils::type_info::index<TComponent>();
 
-				const auto& componentHashList =
+				const auto& componentLookupList =
 						GetArchetypeComponentLookupList(header.owner, componentType);
 				const auto it =
-						utils::find_if(componentHashList, [&](const auto& info) {
+						utils::find_if(componentLookupList, [&](const auto& info) {
 							return info.typeIndex == typeIndex;
 						});
 
 				// Searching for a component that's not there! Programmer mistake.
-				GAIA_ASSERT(it != componentHashList.end());
+				GAIA_ASSERT(it != componentLookupList.end());
 
 				const auto componentIdx =
-						(uint32_t)std::distance(componentHashList.begin(), it);
+						(uint32_t)std::distance(componentLookupList.begin(), it);
 
 				// Update version number so we know RW access was used on chunk
 				header.UpdateWorldVersion(componentType, componentIdx);
 
 				return {
-						(TComponent*)&data[componentHashList[componentIdx].offset],
+						(TComponent*)&data[componentLookupList[componentIdx].offset],
 						GetItemCount()};
 			}
 
