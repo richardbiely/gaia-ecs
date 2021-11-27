@@ -521,17 +521,17 @@ namespace gaia {
 				auto newChunk = newArchetype.FindOrCreateFreeChunk();
 				const auto newIndex = newChunk->AddEntity(oldEntity);
 
-				// Find intersection of the two component lists
-				const auto& oldInfo =
+				// Find intersection of the two component lists.
+				// We ignore chunk components here because they should't be influenced
+				// by entities moving around.
+				const auto& oldTypes =
 						oldArchetype.componentTypeList[ComponentType::CT_Generic];
-				const auto& newInfo =
+				const auto& newTypes =
 						newArchetype.componentTypeList[ComponentType::CT_Generic];
 				const auto& oldLook =
 						oldArchetype.componentLookupList[ComponentType::CT_Generic];
 				const auto& newLook =
 						newArchetype.componentLookupList[ComponentType::CT_Generic];
-
-				// TODO: Handle chunk components!
 
 				struct Intersection {
 					uint32_t size;
@@ -539,25 +539,27 @@ namespace gaia {
 					uint32_t newIndex;
 				};
 
-				const auto maxIntersectionCount =
-						oldInfo.size() > newInfo.size() ? newInfo.size() : oldInfo.size();
+				const auto maxIntersectionCount = oldTypes.size() > newTypes.size()
+																							? newTypes.size()
+																							: oldTypes.size();
 				auto intersections =
 						(Intersection*)alloca(maxIntersectionCount * sizeof(Intersection));
-				uint32_t intersectionCount = 0;
+				uint32_t intersectionCount = 0U;
 
 				// TODO: Arrays are sorted so we can do this in O(n+_) instead of
 				// O(N^2)
-				for (uint32_t i = 0U; i < oldInfo.size(); i++) {
-					const auto typeOld = oldInfo[i].type;
+				for (uint32_t i = 0U; i < oldTypes.size(); i++) {
+					const auto typeOld = oldTypes[i].type;
 					if (!typeOld->size)
 						continue;
 
-					for (uint32_t j = 0; j < newInfo.size(); j++) {
-						const auto typeNew = newInfo[j].type;
-						if (typeNew == typeOld) {
-							intersections[intersectionCount] = {typeOld->size, i, j};
-							++intersectionCount;
-						}
+					for (uint32_t j = 0U; j < newTypes.size(); j++) {
+						const auto typeNew = newTypes[j].type;
+						if (typeNew != typeOld)
+							continue;
+
+						intersections[intersectionCount++] = {typeOld->size, i, j};
+						break;
 					}
 				}
 
