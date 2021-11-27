@@ -31,7 +31,7 @@
 #include "../config/logging.h"
 #include "../utils/sarray.h"
 #include "../utils/utility.h"
-#if GAIA_CLEAN_MEMORY_WITH_GARBAGE
+#if GAIA_ECS_CHUNK_ALLOCATOR_CLEAN_MEMORY_WITH_GARBAGE
 	#include "../utils/utils_mem.h"
 #endif
 #include "common.h"
@@ -197,7 +197,7 @@ namespace gaia {
 					}
 				}
 
-#if GAIA_CLEAN_MEMORY_WITH_GARBAGE
+#if GAIA_ECS_CHUNK_ALLOCATOR_CLEAN_MEMORY_WITH_GARBAGE
 				// Fill allocated memory with 0xbaadf00d.
 				// This way we always know if we treat the memory correctly.
 				utils::fill_array(
@@ -217,7 +217,7 @@ namespace gaia {
 						*(uintptr_t*)((uint8_t*)chunk - MemoryBlockUsableOffset);
 				auto* pPage = (MemoryPage*)pageAddr;
 
-#if GAIA_CLEAN_MEMORY_WITH_GARBAGE
+#if GAIA_ECS_CHUNK_ALLOCATOR_CLEAN_MEMORY_WITH_GARBAGE
 				// Fill freed memory with 0xfeeefeee.
 				// This way we always know if we treat the memory correctly.
 				utils::fill_array(

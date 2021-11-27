@@ -1,17 +1,23 @@
 #pragma once
 #include "version.h"
 
-#define GAIA_CHUNK_MEMORY_BLOCK_SIZE 16384
+//------------------------------------------------------------------------------
+// General settings features
+//------------------------------------------------------------------------------
 
 #define GAIA_DEBUG 1
-#define GAIA_CLEAN_MEMORY_WITH_GARBAGE GAIA_DEBUG
 #define GAIA_DISABLE_ASSERTS 0
 #define GAIA_PROFILER 0
-
 #define GAIA_ECS_DIAGS 1
-#define GAIA_ECS_VALIDATE_CHUNKS 1
-#define GAIA_ECS_VALIDATE_ENTITY_LIST 1
 #define GAIA_ECS_CHUNK_ALLOCATOR 1
+
+//------------------------------------------------------------------------------
+// Debug features
+//------------------------------------------------------------------------------
+
+#define GAIA_ECS_CHUNK_ALLOCATOR_CLEAN_MEMORY_WITH_GARBAGE GAIA_DEBUG
+#define GAIA_ECS_VALIDATE_CHUNKS GAIA_DEBUG
+#define GAIA_ECS_VALIDATE_ENTITY_LIST GAIA_DEBUG
 
 //------------------------------------------------------------------------------
 // Compiler
@@ -122,12 +128,10 @@
 #if defined(GAIA_ECS_DIAGS)
 	#undef GAIA_ECS_DIAG_ARCHETYPES
 	#undef GAIA_ECS_DIAG_REGISTERED_TYPES
-	#undef GAIA_ECS_DIAG_TYPEMATCHING
 	#undef GAIA_ECS_DIAG_DELETED_ENTITIES
 
 	#define GAIA_ECS_DIAG_ARCHETYPES 1
 	#define GAIA_ECS_DIAG_REGISTERED_TYPES 1
-	#define GAIA_ECS_DIAG_TYPEMATCHING 0
 	#define GAIA_ECS_DIAG_DELETED_ENTITIES 1
 #else
 	#if !defined(GAIA_ECS_DIAG_ARCHETYPES)
@@ -135,9 +139,6 @@
 	#endif
 	#if !defined(GAIA_ECS_DIAG_REGISTERED_TYPES)
 		#define GAIA_ECS_DIAG_REGISTERED_TYPES 0
-	#endif
-	#if !defined(GAIA_ECS_DIAG_TYPEMATCHING)
-		#define GAIA_ECS_DIAG_TYPEMATCHING 0
 	#endif
 	#if !defined(GAIA_ECS_DIAG_DELETED_ENTITIES)
 		#define GAIA_ECS_DIAG_DELETED_ENTITIES 0
