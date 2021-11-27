@@ -21,10 +21,8 @@
 namespace gaia {
 	namespace ecs {
 		uint16_t GetArchetypeCapacity(const Archetype& archetype);
-		const ChunkComponentTypeList& GetArchetypeComponentTypeList(
-				const Archetype& archetype, ComponentType type);
-		const ChunkComponentLookupList& GetArchetypeComponentLookupList(
-				const Archetype& archetype, ComponentType type);
+		const ChunkComponentTypeList& GetArchetypeComponentTypeList(const Archetype& archetype, ComponentType type);
+		const ChunkComponentLookupList& GetArchetypeComponentLookupList(const Archetype& archetype, ComponentType type);
 
 		class Chunk final {
 		public:
@@ -32,8 +30,7 @@ namespace gaia {
 			//! (alignment, allocation overhead etc.)
 			static constexpr uint32_t DATA_SIZE_RESERVED = 128;
 			//! Size of one chunk's data part with components
-			static constexpr uint32_t DATA_SIZE =
-					ChunkMemorySize - sizeof(ChunkHeader) - DATA_SIZE_RESERVED;
+			static constexpr uint32_t DATA_SIZE = ChunkMemorySize - sizeof(ChunkHeader) - DATA_SIZE_RESERVED;
 
 		private:
 			friend class World;
@@ -48,49 +45,38 @@ namespace gaia {
 			Chunk(const Archetype& archetype): header(archetype) {}
 
 			template <typename T>
-			[[nodiscard]] std::decay_t<T> GetComponentVal_Internal(
-					ComponentType componentType, uint32_t index) const {
+			[[nodiscard]] std::decay_t<T> GetComponentVal_Internal(ComponentType componentType, uint32_t index) const {
 				using TComponent = std::decay_t<T>;
 				return View<TComponent>(componentType)[index];
 			}
 
 			template <typename T>
-			[[nodiscard]] const std::decay_t<T>& GetComponentRef_Internal(
-					ComponentType componentType, uint32_t index) const {
+			[[nodiscard]] const std::decay_t<T>& GetComponentRef_Internal(ComponentType componentType, uint32_t index) const {
 				using TComponent = std::decay_t<T>;
 				return View<TComponent>(componentType)[index];
 			}
 
 			template <typename T>
-			void SetComponent_Internal(
-					ComponentType componentType, uint32_t index,
-					std::decay_t<T>&& value) {
+			void SetComponent_Internal(ComponentType componentType, uint32_t index, std::decay_t<T>&& value) {
 				using TComponent = std::decay_t<T>;
 				if constexpr (std::is_empty<TComponent>::value)
 					return;
 				else {
-					ViewRW<TComponent>(componentType)[index] =
-							std::forward<TComponent>(value);
+					ViewRW<TComponent>(componentType)[index] = std::forward<TComponent>(value);
 				}
 			}
 
-			[[nodiscard]] uint32_t GetComponentIdx_Internal(
-					ComponentType componentType, uint32_t typeIndex) const {
-				const auto& list =
-						GetArchetypeComponentLookupList(header.owner, componentType);
-				return utils::get_index_if(list, [&](const auto& info) {
-					return info.typeIndex == typeIndex;
-				});
+			[[nodiscard]] uint32_t GetComponentIdx_Internal(ComponentType componentType, uint32_t typeIndex) const {
+				const auto& list = GetArchetypeComponentLookupList(header.owner, componentType);
+				return utils::get_index_if(list, [&](const auto& info) { return info.typeIndex == typeIndex; });
 			}
 
 			template <typename T>
-			[[nodiscard]] bool
-			HasComponent_Internal(ComponentType componentType) const {
+			[[nodiscard]] bool HasComponent_Internal(ComponentType componentType) const {
 				using TComponent = std::decay_t<T>;
 
 				const auto typeIndex = utils::type_info::index<TComponent>();
-				return GetComponentIdx_Internal(componentType, typeIndex) !=
-							 (uint32_t)utils::BadIndex;
+				return GetComponentIdx_Internal(componentType, typeIndex) != (uint32_t)utils::BadIndex;
 			}
 
 			[[nodiscard]] uint32_t AddEntity(Entity entity) {
@@ -105,8 +91,7 @@ namespace gaia {
 				return header.lastEntityIndex;
 			}
 
-			void RemoveEntity(
-					const uint16_t index, utils::vector<EntityContainer>& entities) {
+			void RemoveEntity(const uint16_t index, utils::vector<EntityContainer>& entities) {
 				// Ignore request on empty chunks
 				if (header.lastEntityIndex == UINT16_MAX)
 					return;
@@ -121,10 +106,8 @@ namespace gaia {
 					const auto entity = GetEntity(header.lastEntityIndex);
 					SetEntity(index, entity);
 
-					const auto& componentTypeList = GetArchetypeComponentTypeList(
-							header.owner, ComponentType::CT_Generic);
-					const auto& lookupList = GetArchetypeComponentLookupList(
-							header.owner, ComponentType::CT_Generic);
+					const auto& componentTypeList = GetArchetypeComponentTypeList(header.owner, ComponentType::CT_Generic);
+					const auto& lookupList = GetArchetypeComponentLookupList(header.owner, ComponentType::CT_Generic);
 
 					for (uint32_t i = 0U; i < componentTypeList.size(); i++) {
 						const auto& info = componentTypeList[i];
@@ -134,11 +117,8 @@ namespace gaia {
 						if (!info.type->size)
 							continue;
 
-						const uint32_t idxFrom =
-								look.offset + (uint32_t)index * info.type->size;
-						const uint32_t idxTo =
-								look.offset +
-								(uint32_t)header.lastEntityIndex * info.type->size;
+						const uint32_t idxFrom = look.offset + (uint32_t)index * info.type->size;
+						const uint32_t idxTo = look.offset + (uint32_t)header.lastEntityIndex * info.type->size;
 
 						GAIA_ASSERT(idxFrom < Chunk::DATA_SIZE);
 						GAIA_ASSERT(idxTo < Chunk::DATA_SIZE);
@@ -160,123 +140,93 @@ namespace gaia {
 			}
 
 			void SetEntity(uint16_t index, Entity entity) {
-				GAIA_ASSERT(
-						index <= header.lastEntityIndex && index != UINT16_MAX &&
-						"Entity index in chunk out of bounds!");
+				GAIA_ASSERT(index <= header.lastEntityIndex && index != UINT16_MAX && "Entity index in chunk out of bounds!");
 
 				utils::unaligned_ref<Entity> mem((void*)&data[sizeof(Entity) * index]);
 				mem = entity;
 			}
 
 			[[nodiscard]] const Entity GetEntity(uint16_t index) const {
-				GAIA_ASSERT(
-						index <= header.lastEntityIndex && index != UINT16_MAX &&
-						"Entity index in chunk out of bounds!");
+				GAIA_ASSERT(index <= header.lastEntityIndex && index != UINT16_MAX && "Entity index in chunk out of bounds!");
 
 				return (const Entity&)data[sizeof(Entity) * index];
 			}
 
 			[[nodiscard]] bool IsFull() const {
-				return header.lastEntityIndex != UINT16_MAX &&
-							 header.lastEntityIndex + 1 >= GetArchetypeCapacity(header.owner);
+				return header.lastEntityIndex != UINT16_MAX && header.lastEntityIndex + 1 >= GetArchetypeCapacity(header.owner);
 			}
 
 			template <typename T>
-			[[nodiscard]] typename std::enable_if_t<
-					std::is_same<std::decay_t<T>, Entity>::value, std::span<const Entity>>
+			[[nodiscard]] typename std::enable_if_t<std::is_same<std::decay_t<T>, Entity>::value, std::span<const Entity>>
 			view_internal() const {
 				return {(const Entity*)&data[0], GetItemCount()};
 			}
 
 			template <typename T>
-			[[nodiscard]] typename std::enable_if_t<
-					!std::is_same<std::decay_t<T>, Entity>::value,
-					std::span<const std::decay_t<T>>>
-			view_internal(
-					ComponentType componentType = ComponentType::CT_Generic) const {
+			[[nodiscard]]
+			typename std::enable_if_t<!std::is_same<std::decay_t<T>, Entity>::value, std::span<const std::decay_t<T>>>
+			view_internal(ComponentType componentType = ComponentType::CT_Generic) const {
 				using TComponent = std::decay_t<T>;
-				static_assert(
-						!std::is_empty<TComponent>::value,
-						"Attempting to get value of an empty component");
+				static_assert(!std::is_empty<TComponent>::value, "Attempting to get value of an empty component");
 
 				const auto typeIndex = utils::type_info::index<TComponent>();
 
-				const auto& componentLookupList =
-						GetArchetypeComponentLookupList(header.owner, componentType);
+				const auto& componentLookupList = GetArchetypeComponentLookupList(header.owner, componentType);
 				const auto it =
-						utils::find_if(componentLookupList, [&](const auto& info) {
-							return info.typeIndex == typeIndex;
-						});
+						utils::find_if(componentLookupList, [&](const auto& info) { return info.typeIndex == typeIndex; });
 
 				// Searching for a component that's not there! Programmer mistake.
 				GAIA_ASSERT(it != componentLookupList.end());
 
-				const auto componentIdx =
-						(uint32_t)std::distance(componentLookupList.begin(), it);
+				const auto componentIdx = (uint32_t)std::distance(componentLookupList.begin(), it);
 
-				return {
-						(const TComponent*)&data[componentLookupList[componentIdx].offset],
-						GetItemCount()};
+				return {(const TComponent*)&data[componentLookupList[componentIdx].offset], GetItemCount()};
 			}
 
 			template <typename T>
-			[[nodiscard]] typename std::enable_if_t<
-					!std::is_same<std::decay_t<T>, Entity>::value,
-					std::span<std::decay_t<T>>>
-			view_rw_internal(
-					ComponentType componentType = ComponentType::CT_Generic) {
+			[[nodiscard]] typename std::enable_if_t<!std::is_same<std::decay_t<T>, Entity>::value, std::span<std::decay_t<T>>>
+			view_rw_internal(ComponentType componentType = ComponentType::CT_Generic) {
 				using TComponent = std::decay_t<T>;
 
 				const auto typeIndex = utils::type_info::index<TComponent>();
 
-				const auto& componentLookupList =
-						GetArchetypeComponentLookupList(header.owner, componentType);
+				const auto& componentLookupList = GetArchetypeComponentLookupList(header.owner, componentType);
 				const auto it =
-						utils::find_if(componentLookupList, [&](const auto& info) {
-							return info.typeIndex == typeIndex;
-						});
+						utils::find_if(componentLookupList, [&](const auto& info) { return info.typeIndex == typeIndex; });
 
 				// Searching for a component that's not there! Programmer mistake.
 				GAIA_ASSERT(it != componentLookupList.end());
 
-				const auto componentIdx =
-						(uint32_t)std::distance(componentLookupList.begin(), it);
+				const auto componentIdx = (uint32_t)std::distance(componentLookupList.begin(), it);
 
 				// Update version number so we know RW access was used on chunk
 				header.UpdateWorldVersion(componentType, componentIdx);
 
-				return {
-						(TComponent*)&data[componentLookupList[componentIdx].offset],
-						GetItemCount()};
+				return {(TComponent*)&data[componentLookupList[componentIdx].offset], GetItemCount()};
 			}
 
 		public:
 			template <typename T>
-			[[nodiscard]] typename std::enable_if_t<
-					std::is_same<std::decay_t<T>, Entity>::value,
-					utils::auto_view_policy_get<const Entity>>
+			[[nodiscard]]
+			typename std::enable_if_t<std::is_same<std::decay_t<T>, Entity>::value, utils::auto_view_policy_get<const Entity>>
 			View() const {
 				return utils::auto_view_policy_get<const Entity>(view_internal<T>());
 			}
 
 			template <typename T>
 			[[nodiscard]] typename std::enable_if_t<
-					!std::is_same<std::decay_t<T>, Entity>::value,
-					utils::auto_view_policy_get<const std::decay_t<T>>>
+					!std::is_same<std::decay_t<T>, Entity>::value, utils::auto_view_policy_get<const std::decay_t<T>>>
 			View(ComponentType componentType = ComponentType::CT_Generic) const {
 				using TComponent = const std::decay_t<T>;
-				return utils::auto_view_policy_get<TComponent>(
-						view_internal<TComponent>(componentType));
+				return utils::auto_view_policy_get<TComponent>(view_internal<TComponent>(componentType));
 			}
 
 			template <typename T>
 			[[nodiscard]] typename std::enable_if_t<
-					!std::is_same<std::decay_t<T>, Entity>::value,
-					utils::auto_view_policy_set<std::decay_t<T>>>
+					!std::is_same<std::decay_t<T>, Entity>::value, utils::auto_view_policy_set<std::decay_t<T>>>
 			ViewRW(ComponentType componentType = ComponentType::CT_Generic) {
 				using TComponent = std::decay_t<T>;
-				return utils::auto_view_policy_set<TComponent>(
-						view_rw_internal<TComponent>(componentType));
+				return utils::auto_view_policy_set<TComponent>(view_rw_internal<TComponent>(componentType));
 			}
 
 			[[nodiscard]] uint32_t GetComponentIdx(uint32_t typeIndex) const {
@@ -289,8 +239,7 @@ namespace gaia {
 
 			template <typename T>
 			[[nodiscard]] bool HasComponent() const {
-				return HasComponent_Internal<std::decay_t<T>>(
-						ComponentType::CT_Generic);
+				return HasComponent_Internal<std::decay_t<T>>(ComponentType::CT_Generic);
 			}
 
 			template <typename T>
@@ -302,28 +251,22 @@ namespace gaia {
 
 			template <typename T>
 			void SetComponent(uint32_t index, T&& value) {
-				SetComponent_Internal<T>(
-						ComponentType::CT_Generic, index, std::forward<T>(value));
+				SetComponent_Internal<T>(ComponentType::CT_Generic, index, std::forward<T>(value));
 			}
 
 			template <typename... T>
 			void SetComponents(uint32_t index, T&&... value) {
-				(SetComponent_Internal<T>(
-						 ComponentType::CT_Generic, index, std::forward<T>(value)),
-				 ...);
+				(SetComponent_Internal<T>(ComponentType::CT_Generic, index, std::forward<T>(value)), ...);
 			}
 
 			template <typename T>
 			void SetChunkComponent(T&& value) {
-				SetComponent_Internal<T>(
-						ComponentType::CT_Chunk, 0, std::forward<T>(value));
+				SetComponent_Internal<T>(ComponentType::CT_Chunk, 0, std::forward<T>(value));
 			}
 
 			template <typename... T>
 			void SetChunkComponents(T&&... value) {
-				(SetComponent_Internal<T>(
-						 ComponentType::CT_Chunk, 0, std::forward<T>(value)),
-				 ...);
+				(SetComponent_Internal<T>(ComponentType::CT_Chunk, 0, std::forward<T>(value)), ...);
 			}
 
 #pragma endregion
@@ -358,8 +301,7 @@ namespace gaia {
 			void GetComponent(uint32_t index, const std::decay_t<T>*& data) const {
 				// invalid input is a programmer's bug
 				GAIA_ASSERT(data != nullptr);
-				const auto& ref =
-						GetComponentRef_Internal<T>(ComponentType::CT_Generic, index);
+				const auto& ref = GetComponentRef_Internal<T>(ComponentType::CT_Generic, index);
 				data = &ref;
 			}
 
@@ -372,8 +314,7 @@ namespace gaia {
 			void GetChunkComponent(const std::decay_t<T>*& data) const {
 				// invalid input is a programmer's bug
 				GAIA_ASSERT(data != nullptr);
-				const auto& ref =
-						GetComponentRef_Internal<T>(ComponentType::CT_Chunk, 0);
+				const auto& ref = GetComponentRef_Internal<T>(ComponentType::CT_Chunk, 0);
 				data = &ref;
 			}
 
@@ -396,15 +337,10 @@ namespace gaia {
 
 			//! Returns true if the passed version of a component is newer than the
 			//! one stored internally
-			[[nodiscard]] bool DidChange(
-					ComponentType componentType, uint32_t version,
-					uint32_t componentIdx) const {
-				return DidVersionChange(
-						header.versions[componentType][componentIdx], version);
+			[[nodiscard]] bool DidChange(ComponentType componentType, uint32_t version, uint32_t componentIdx) const {
+				return DidVersionChange(header.versions[componentType][componentIdx], version);
 			}
 		};
-		static_assert(
-				sizeof(Chunk) <= ChunkMemorySize,
-				"Chunk size must match ChunkMemorySize!");
+		static_assert(sizeof(Chunk) <= ChunkMemorySize, "Chunk size must match ChunkMemorySize!");
 	} // namespace ecs
 } // namespace gaia

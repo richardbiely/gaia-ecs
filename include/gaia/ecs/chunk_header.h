@@ -25,22 +25,18 @@ namespace gaia {
 			uint8_t dummy[50]{};
 			//! [64-319] Versions of individual components on chunk. Stored on
 			//! separate cache lines from the rest.
-			uint32_t versions[ComponentType::CT_Count]
-											 [MAX_COMPONENTS_PER_ARCHETYPE]{};
+			uint32_t versions[ComponentType::CT_Count][MAX_COMPONENTS_PER_ARCHETYPE]{};
 
 			ChunkHeader(const Archetype& archetype): owner(archetype) {
 				// Make sure the alignment is right
 				GAIA_ASSERT(uintptr_t(this) % 8 == 0);
 			}
 
-			void
-			UpdateWorldVersion(ComponentType componentType, uint32_t componentIdx) {
+			void UpdateWorldVersion(ComponentType componentType, uint32_t componentIdx) {
 				const auto gv = GetWorldVersionFromArchetype(owner);
 
 				// Make sure only proper input is provided
-				GAIA_ASSERT(
-						componentIdx == UINT32_MAX ||
-						componentIdx < MAX_COMPONENTS_PER_ARCHETYPE);
+				GAIA_ASSERT(componentIdx == UINT32_MAX || componentIdx < MAX_COMPONENTS_PER_ARCHETYPE);
 
 				if (componentIdx != UINT32_MAX) {
 					// Update the specific component's version
@@ -52,8 +48,6 @@ namespace gaia {
 				};
 			}
 		};
-		static_assert(
-				sizeof(ChunkHeader) == 320,
-				"Chunk header needs to be 320 bytes in size");
+		static_assert(sizeof(ChunkHeader) == 320, "Chunk header needs to be 320 bytes in size");
 	} // namespace ecs
 } // namespace gaia

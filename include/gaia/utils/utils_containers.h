@@ -22,8 +22,7 @@ namespace gaia {
 		}
 
 		template <class C>
-		constexpr uint32_t
-		get_index(const C& arr, typename C::const_reference item) {
+		constexpr uint32_t get_index(const C& arr, typename C::const_reference item) {
 			const auto it = find(arr, item);
 			if (it == arr.end())
 				return (uint32_t)BadIndex;

@@ -17,9 +17,7 @@ namespace gaia {
 		S tuple_to_struct(Tuple&& tup) {
 			using T = std::remove_reference_t<Tuple>;
 
-			return tuple_to_struct<S>(
-					std::make_index_sequence<std::tuple_size<T>{}>{},
-					std::forward<Tuple>(tup));
+			return tuple_to_struct<S>(std::make_index_sequence<std::tuple_size<T>{}>{}, std::forward<Tuple>(tup));
 		}
 
 #pragma endregion
@@ -33,15 +31,13 @@ namespace gaia {
 		};
 
 		template <class T, class... TArgs>
-		decltype(void(T{std::declval<TArgs>()...}), std::true_type{})
-		is_braces_constructible(int);
+		decltype(void(T{std::declval<TArgs>()...}), std::true_type{}) is_braces_constructible(int);
 
 		template <class, class...>
 		std::false_type is_braces_constructible(...);
 
 		template <class T, class... TArgs>
-		using is_braces_constructible_t =
-				decltype(is_braces_constructible<T, TArgs...>(0));
+		using is_braces_constructible_t = decltype(is_braces_constructible<T, TArgs...>(0));
 
 		//! Converts a struct to a tuple (struct must support initialization via:
 		//! Struct{x,y,...,z})
@@ -53,36 +49,27 @@ namespace gaia {
 			// can handle them here That shouldn't be necessary, though for we plan
 			// to support only structs with little amount of arguments.
 			if constexpr (is_braces_constructible_t<
-												type, any_type, any_type, any_type, any_type, any_type,
-												any_type, any_type, any_type>{}) {
+												type, any_type, any_type, any_type, any_type, any_type, any_type, any_type, any_type>{}) {
 				auto&& [p1, p2, p3, p4, p5, p6, p7, p8] = object;
 				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8);
 			} else if constexpr (is_braces_constructible_t<
-															 type, any_type, any_type, any_type, any_type,
-															 any_type, any_type, any_type>{}) {
+															 type, any_type, any_type, any_type, any_type, any_type, any_type, any_type>{}) {
 				auto&& [p1, p2, p3, p4, p5, p6, p7] = object;
 				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7);
 			} else if constexpr (is_braces_constructible_t<
-															 type, any_type, any_type, any_type, any_type,
-															 any_type, any_type>{}) {
+															 type, any_type, any_type, any_type, any_type, any_type, any_type>{}) {
 				auto&& [p1, p2, p3, p4, p5, p6] = object;
 				return std::make_tuple(p1, p2, p3, p4, p5, p6);
-			} else if constexpr (is_braces_constructible_t<
-															 type, any_type, any_type, any_type, any_type,
-															 any_type>{}) {
+			} else if constexpr (is_braces_constructible_t<type, any_type, any_type, any_type, any_type, any_type>{}) {
 				auto&& [p1, p2, p3, p4, p5] = object;
 				return std::make_tuple(p1, p2, p3, p4, p5);
-			} else if constexpr (is_braces_constructible_t<
-															 type, any_type, any_type, any_type,
-															 any_type>{}) {
+			} else if constexpr (is_braces_constructible_t<type, any_type, any_type, any_type, any_type>{}) {
 				auto&& [p1, p2, p3, p4] = object;
 				return std::make_tuple(p1, p2, p3, p4);
-			} else if constexpr (is_braces_constructible_t<
-															 type, any_type, any_type, any_type>{}) {
+			} else if constexpr (is_braces_constructible_t<type, any_type, any_type, any_type>{}) {
 				auto&& [p1, p2, p3] = object;
 				return std::make_tuple(p1, p2, p3);
-			} else if constexpr (is_braces_constructible_t<
-															 type, any_type, any_type>{}) {
+			} else if constexpr (is_braces_constructible_t<type, any_type, any_type>{}) {
 				auto&& [p1, p2] = object;
 				return std::make_tuple(p1, p2);
 			} else if constexpr (is_braces_constructible_t<type, any_type>{}) {

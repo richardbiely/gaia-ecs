@@ -43,12 +43,10 @@ namespace gaia {
 			Entity(const Entity&) = default;
 			Entity& operator=(const Entity&) = default;
 
-			[[nodiscard]] constexpr bool
-			operator==(const Entity& other) const noexcept {
+			[[nodiscard]] constexpr bool operator==(const Entity& other) const noexcept {
 				return val == other.val;
 			}
-			[[nodiscard]] constexpr bool
-			operator!=(const Entity& other) const noexcept {
+			[[nodiscard]] constexpr bool operator!=(const Entity& other) const noexcept {
 				return val != other.val;
 			}
 
@@ -68,33 +66,27 @@ namespace gaia {
 				return Entity(Entity::IdMask, Entity::GenMask);
 			}
 
-			[[nodiscard]] constexpr bool
-			operator==(const EntityNull_t&) const noexcept {
+			[[nodiscard]] constexpr bool operator==(const EntityNull_t&) const noexcept {
 				return true;
 			}
-			[[nodiscard]] constexpr bool
-			operator!=(const EntityNull_t&) const noexcept {
+			[[nodiscard]] constexpr bool operator!=(const EntityNull_t&) const noexcept {
 				return false;
 			}
 		};
 
-		[[nodiscard]] inline bool
-		operator==(const EntityNull_t& null, const Entity& entity) noexcept {
+		[[nodiscard]] inline bool operator==(const EntityNull_t& null, const Entity& entity) noexcept {
 			return static_cast<Entity>(null).id() == entity.id();
 		}
 
-		[[nodiscard]] inline bool
-		operator!=(const EntityNull_t& null, const Entity& entity) noexcept {
+		[[nodiscard]] inline bool operator!=(const EntityNull_t& null, const Entity& entity) noexcept {
 			return static_cast<Entity>(null).id() != entity.id();
 		}
 
-		[[nodiscard]] inline bool
-		operator==(const Entity& entity, const EntityNull_t& null) noexcept {
+		[[nodiscard]] inline bool operator==(const Entity& entity, const EntityNull_t& null) noexcept {
 			return null == entity;
 		}
 
-		[[nodiscard]] inline bool
-		operator!=(const Entity& entity, const EntityNull_t& null) noexcept {
+		[[nodiscard]] inline bool operator!=(const Entity& entity, const EntityNull_t& null) noexcept {
 			return null != entity;
 		}
 

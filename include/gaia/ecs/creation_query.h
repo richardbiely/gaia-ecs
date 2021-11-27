@@ -2,7 +2,6 @@
 #include "../utils/vector.h"
 #include <type_traits>
 
-
 #include "../utils/sarray.h"
 #include "common.h"
 #include "component.h"
@@ -14,16 +13,14 @@ namespace gaia {
 		private:
 			friend class World;
 
-			using ComponentMetaDataArray =
-					utils::sarray<const ComponentMetaData*, MAX_COMPONENTS_PER_ARCHETYPE>;
+			using ComponentMetaDataArray = utils::sarray<const ComponentMetaData*, MAX_COMPONENTS_PER_ARCHETYPE>;
 
 			ComponentMetaDataArray list[ComponentType::CT_Count];
 
 			template <typename T>
 			void AddToList(const ComponentType componentType) {
 				using TComponent = std::decay_t<T>;
-				list[(uint32_t)componentType].push_back(
-						g_ComponentCache.GetOrCreateComponentMetaType<TComponent>());
+				list[(uint32_t)componentType].push_back(g_ComponentCache.GetOrCreateComponentMetaType<TComponent>());
 			}
 
 		public:
@@ -31,9 +28,7 @@ namespace gaia {
 
 			template <typename... TComponent>
 			CreationQuery& AddComponent() {
-				static_assert(
-						VerityArchetypeComponentCount(sizeof...(TComponent)),
-						"Maximum number of components exceeded");
+				static_assert(VerityArchetypeComponentCount(sizeof...(TComponent)), "Maximum number of components exceeded");
 				VerifyComponents<TComponent...>();
 				(AddToList<TComponent>(ComponentType::CT_Generic), ...);
 				return *this;
@@ -41,9 +36,7 @@ namespace gaia {
 
 			template <typename... TComponent>
 			CreationQuery& AddChunkComponent() {
-				static_assert(
-						VerityArchetypeComponentCount(sizeof...(TComponent)),
-						"Maximum number of components exceeded");
+				static_assert(VerityArchetypeComponentCount(sizeof...(TComponent)), "Maximum number of components exceeded");
 				VerifyComponents<TComponent...>();
 				(AddToList<TComponent>(ComponentType::CT_Chunk), ...);
 				return *this;
