@@ -186,21 +186,17 @@ namespace gaia {
 				const auto typeIndex = utils::type_info::index<T>();
 
 				// Unique types only
-				if (utils::has(arrFilter, typeIndex))
-					return;
+				GAIA_ASSERT(!utils::has(arrFilter, typeIndex) && "Filter doesn't contain unique types");
 
 #if GAIA_DEBUG
 				// There's a limit to the amount of components which we can store
 				if (arrFilter.size() >= MAX_COMPONENTS_IN_QUERY) {
-					GAIA_ASSERT(
-							false && "Trying to create an ECS filter query with too "
-											 "many components!");
+					GAIA_ASSERT(false && "Trying to create an ECS filter query with too many components!");
 
 					constexpr auto typeName = utils::type_info::name<T>();
 					LOG_E(
-							"Trying to add ECS component %.*s to an already full "
-							"filter query!",
-							(uint32_t)typeName.length(), typeName.data());
+							"Trying to add ECS component %.*s to an already full filter query!", (uint32_t)typeName.length(),
+							typeName.data());
 					LOG_E("Already present:");
 					for (auto i = 0U; i < (uint32_t)arrFilter.size(); i++) {
 						const auto metaType = g_ComponentCache.GetComponentMetaTypeFromIdx(arrFilter[i]);
@@ -213,25 +209,27 @@ namespace gaia {
 
 				// Component has to be present in anyList or allList.
 				// NoneList makes no sense because we skip those in query processing anyway.
-				if (!utils::has_if(
-								arrMeta.listAny,
-								[typeIndex](auto idx) {
-									return idx == typeIndex;
-								}) &&
-						!utils::has_if(arrMeta.listAll, [typeIndex](auto idx) {
+				if (utils::has_if(arrMeta.listAny, [typeIndex](auto idx) {
 							return idx == typeIndex;
 						})) {
-#if GAIA_DEBUG
-					constexpr auto typeName = utils::type_info::name<T>();
-					LOG_E(
-							"SetChangeFilter trying to filter ECS component %.*s but "
-							"it's not a part of the query!",
-							(uint32_t)typeName.length(), typeName.data());
-#endif
+					arrFilter.push_back(typeIndex);
+					return;
+				}
+				if (utils::has_if(arrMeta.listAll, [typeIndex](auto idx) {
+							return idx == typeIndex;
+						})) {
+					arrFilter.push_back(typeIndex);
 					return;
 				}
 
-				arrFilter.push_back(typeIndex);
+				GAIA_ASSERT("SetChangeFilter trying to filter ECS component which is not a part of the query");
+#if GAIA_DEBUG
+				constexpr auto typeName = utils::type_info::name<T>();
+				LOG_E(
+						"SetChangeFilter trying to filter ECS component %.*s but "
+						"it's not a part of the query!",
+						(uint32_t)typeName.length(), typeName.data());
+#endif
 			}
 
 			template <typename... TComponent>

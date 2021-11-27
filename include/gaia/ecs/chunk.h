@@ -340,8 +340,7 @@ namespace gaia {
 				return HasEntities() ? header.lastEntityIndex + 1 : 0;
 			}
 
-			//! Returns true if the passed version of a component is newer than the
-			//! one stored internally
+			//! Returns true if the provided version is newer than the one stored internally
 			[[nodiscard]] bool DidChange(ComponentType componentType, uint32_t version, uint32_t componentIdx) const {
 				return DidVersionChange(header.versions[componentType][componentIdx], version);
 			}
