@@ -1135,10 +1135,10 @@ namespace gaia {
 					query.All<TComponents...>();
 			}
 
-			[[nodiscard]] static bool CanProcessChunk(
+			[[nodiscard]] static bool CheckFilters(
 					const EntityQuery& query, const Chunk& chunk, bool checkGenericComponents, bool checkChunkComponents) {
-				GAIA_ASSERT((!chunk.HasEntities()) && "CanProcessChunk called on an empty chunk");
-				GAIA_ASSERT((checkGenericComponents || checkChunkComponents) && "CanProcessChunk called with wrong inputs");
+				GAIA_ASSERT((!chunk.HasEntities()) && "CheckFilters called on an empty chunk");
+				GAIA_ASSERT((checkGenericComponents || checkChunkComponents) && "CheckFilters called with wrong inputs");
 
 				const auto lastWorldVersion = query.GetWorldVersion();
 
@@ -1191,7 +1191,7 @@ namespace gaia {
 
 								if (!pChunk->HasEntities())
 									continue;
-								if (!CanProcessChunk(query, *pChunk, checkGenericComponents, checkChunkComponents))
+								if (!CheckFilters(query, *pChunk, checkGenericComponents, checkChunkComponents))
 									continue;
 
 								tmp[batchSize++] = pChunk;
@@ -1263,7 +1263,7 @@ namespace gaia {
 
 								if (!pChunk->HasEntities())
 									continue;
-								if (!CanProcessChunk(query, *pChunk, checkGenericComponents, checkChunkComponents))
+								if (!CheckFilters(query, *pChunk, checkGenericComponents, checkChunkComponents))
 									continue;
 
 								tmp[batchSize++] = pChunk;
