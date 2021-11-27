@@ -1271,10 +1271,7 @@ namespace gaia {
 
 							// Execute functors in bulk
 							for (auto chunkIdx = 0U; chunkIdx < batchSize; ++chunkIdx) {
-								world.Unpack_ForEachEntityInChunk(
-										InputArgs{}, *tmp[chunkIdx],
-										func); // Don't move func here. We need it
-													 // for every further function calls
+								world.Unpack_ForEachEntityInChunk(InputArgs{}, *tmp[chunkIdx], func);
 							}
 
 							// Reset the batch size
@@ -1301,10 +1298,7 @@ namespace gaia {
 
 							// Execute functors in bulk
 							for (auto chunkIdx = 0U; chunkIdx < batchSize; ++chunkIdx) {
-								world.Unpack_ForEachEntityInChunk(
-										InputArgs{}, *tmp[chunkIdx],
-										func); // Don't move func here. We need it
-													 // for every further function calls
+								world.Unpack_ForEachEntityInChunk(InputArgs{}, *tmp[chunkIdx], func);
 							}
 
 							// Reset the batch size
