@@ -1104,8 +1104,8 @@ namespace gaia {
 
 			template <typename TFunc>
 			void ForEachArchetype(const EntityQuery& query, TFunc&& func) {
-				for (auto a: m_archetypeList) {
-					const auto& archetype = *a;
+				for (auto* pArchetype: m_archetypeList) {
+					const auto& archetype = *pArchetype;
 
 					// Early exit if generic query doesn't match
 					const auto retGeneric = MatchArchetypeQuery<ComponentType::CT_Generic>(archetype, query);
