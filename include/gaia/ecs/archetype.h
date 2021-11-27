@@ -85,7 +85,6 @@ namespace gaia {
 			}
 
 			static void ReleaseChunk(Chunk* pChunk) {
-#if GAIA_ECS_CHUNK_ALLOCATOR
 				// Call destructors for types that need it
 				const auto& archetype = pChunk->header.owner;
 				if (archetype.hasComponentWithCustomConstruction) {
@@ -108,6 +107,7 @@ namespace gaia {
 					}
 				}
 
+#if GAIA_ECS_CHUNK_ALLOCATOR
 				pChunk->~Chunk();
 				auto* world = const_cast<World*>(pChunk->header.owner.parentWorld);
 				ReleaseChunkMemory(*world, pChunk);
