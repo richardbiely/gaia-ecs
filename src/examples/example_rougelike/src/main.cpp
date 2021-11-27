@@ -80,6 +80,9 @@ namespace std {
 	};
 } // namespace std
 
+struct Orientation {
+	int x, y;
+};
 struct Velocity {
 	int x, y;
 };
@@ -94,7 +97,7 @@ struct BattleStats {
 	int power;
 	int armor;
 };
-enum ItemType { Poison, Potion };
+enum ItemType { Poison, Potion, Arrow };
 struct Item {
 	ItemType type;
 };
@@ -109,6 +112,7 @@ constexpr char TILE_FREE = ' ';
 constexpr char TILE_PLAYER = 'P';
 constexpr char TILE_ENEMY_GOBLIN = 'G';
 constexpr char TILE_ENEMY_ORC = 'O';
+constexpr char TILE_ARROW = '.';
 constexpr char TILE_POTION = 'i';
 constexpr char TILE_POISON = 'p';
 
@@ -153,6 +157,7 @@ struct World {
 		auto player = w.CreateEntity();
 		w.AddComponent<Position>(player, {5, 10});
 		w.AddComponent<Velocity>(player, {0, 0});
+		w.AddComponent<Orientation>(player, {1, 0});
 		w.AddComponent<Sprite>(player, {TILE_PLAYER});
 		w.AddComponent<Health>(player, {100, 100});
 		w.AddComponent<BattleStats>(player, {9, 5});
@@ -195,6 +200,15 @@ struct World {
 		w.AddComponent<Item>(poison, {Poison});
 		w.AddComponent<BattleStats>(poison, {-10, 0});
 	}
+
+	void CreateArrow(Position p, Velocity v) {
+		auto e = w.CreateEntity();
+		w.AddComponent<Position>(e, std::move(p));
+		w.AddComponent<Velocity>(e, std::move(v));
+		w.AddComponent<Sprite>(e, {TILE_ARROW});
+		w.AddComponent<Item>(e, {Arrow});
+		w.AddComponent<BattleStats>(e, {10, 0});
+	}
 };
 
 ecs::World s_ecs;
@@ -209,12 +223,12 @@ public:
 		m_q.All<Position, Velocity>();
 	}
 	void OnUpdate() override {
-		// wall blocks a tile
+		// Wall blocks
 		for (int y = 0; y < ScreenY; y++)
 			for (int x = 0; x < ScreenX; x++)
 				s_world.blocked[y][x] = s_world.map[y][x] == TILE_WALL;
 
-		// everything with velocity blocks
+		// Everything with velocity blocks
 		GetWorld()
 				.ForEach(
 						m_q,
@@ -223,7 +237,7 @@ public:
 						})
 				.Run();
 
-		// everything with position is content
+		// Everything with position is content
 		s_world.content.clear();
 		GetWorld()
 				.ForEach([&](ecs::Entity e, const Position& p) {
@@ -289,31 +303,39 @@ public:
 };
 
 class MoveSystem final: public ecs::System {
-	ecs::EntityQuery m_q;
+	ecs::EntityQuery m_q1;
+	ecs::EntityQuery m_q2;
 
 public:
 	void OnCreated() override {
-		m_q.All<Position, Velocity>();
+		m_q1.All<Position, Velocity>();
+		m_q2.All<Orientation, Velocity>();
 	}
 
 	void OnUpdate() override {
 		// Update position based on current velocity
 		GetWorld()
 				.ForEach(
-						m_q,
+						m_q1,
 						[&](Position& p, const Velocity& v) {
 							p.x += v.x;
 							p.y += v.y;
 						})
 				.Run();
 
-		// Consume the velocity
+		// Update orientation based on current velocity
 		GetWorld()
 				.ForEach(
-						m_q,
-						[&](Velocity& v) {
-							v.x = 0;
-							v.y = 0;
+						m_q2,
+						[&](Orientation& o, const Velocity& v) {
+							if (v.x != 0) {
+								o.x = v.x > 0 ? 1 : -1;
+								o.y = 0;
+							}
+							if (v.y != 0) {
+								o.x = 0;
+								o.y = v.y > 0 ? 1 : -1;
+							}
 						})
 				.Run();
 	}
@@ -505,20 +527,22 @@ public:
 	void OnUpdate() override {
 		m_key = get_char();
 
+		// Player movement
 		GetWorld()
 				.ForEach(
 						m_q,
-						[&](const ecs::Entity e) {
-							if (GetWorld().HasComponents<Velocity>(e)) {
-								if (m_key == 'w') {
-									GetWorld().SetComponent<Velocity>(e, {0, -1});
-								} else if (m_key == 's') {
-									GetWorld().SetComponent<Velocity>(e, {0, 1});
-								} else if (m_key == 'a') {
-									GetWorld().SetComponent<Velocity>(e, {-1, 0});
-								} else if (m_key == 'd') {
-									GetWorld().SetComponent<Velocity>(e, {1, 0});
-								}
+						[&](Velocity& v, const Position& p, const Orientation& o) {
+							v = {0, 0};
+							if (m_key == 'w') {
+								v = {0, -1};
+							} else if (m_key == 's') {
+								v = {0, 1};
+							} else if (m_key == 'a') {
+								v = {-1, 0};
+							} else if (m_key == 'd') {
+								v = {1, 0};
+							} else if (m_key == 'q') {
+								s_world.CreateArrow(p, {o.x, o.y});
 							}
 						})
 				.Run();
