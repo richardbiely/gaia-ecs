@@ -1143,6 +1143,13 @@ namespace gaia {
 				const auto lastWorldVersion = query.GetWorldVersion();
 
 				const bool checkGenericComponents = !query.listChangeFiltered[ComponentType::CT_Generic].empty();
+				const bool checkChunkComponents = !query.listChangeFiltered[ComponentType::CT_Chunk].empty();
+
+				// Continue if there are no filters
+				const bool hasFilters = checkGenericComponents | checkChunkComponents;
+				if (!hasFilters)
+					return true;
+
 				if (checkGenericComponents) {
 					// See if any generic component has changed
 					for (auto typeIndex: query.listChangeFiltered[ComponentType::CT_Generic]) {
@@ -1154,7 +1161,6 @@ namespace gaia {
 					}
 				}
 
-				const bool checkChunkComponents = !query.listChangeFiltered[ComponentType::CT_Chunk].empty();
 				if (checkChunkComponents) {
 					// See if any chunk component has changed
 					for (auto typeIndex: query.listChangeFiltered[ComponentType::CT_Chunk]) {
@@ -1169,340 +1175,339 @@ namespace gaia {
 				// Skip unchanged chunks.
 				return false;
 			}
-		}
 
-		template <typename TFunc>
-		static void RunQueryOnChunks_Direct(World& world, EntityQuery& query, TFunc& func) {
-			const uint32_t BatchSize = 256U;
-			utils::array<Chunk*, BatchSize> tmp;
+			template <typename TFunc>
+			static void RunQueryOnChunks_Direct(World& world, EntityQuery& query, TFunc& func) {
+				const uint32_t BatchSize = 256U;
+				utils::array<Chunk*, BatchSize> tmp;
 
-			// Update the world version
-			world.UpdateWorldVersion();
+				// Update the world version
+				world.UpdateWorldVersion();
 
-			// Iterate over all archetypes
-			world.ForEachArchetype(query, [&](const Archetype& archetype) {
-				uint32_t offset = 0U;
-				uint32_t batchSize = 0U;
-				const auto maxIters = (uint32_t)archetype.chunks.size();
+				// Iterate over all archetypes
+				world.ForEachArchetype(query, [&](const Archetype& archetype) {
+					uint32_t offset = 0U;
+					uint32_t batchSize = 0U;
+					const auto maxIters = (uint32_t)archetype.chunks.size();
 
-				do {
-					// Prepare a buffer to iterate over
-					for (; offset < maxIters; ++offset) {
-						auto* pChunk = archetype.chunks[offset];
-						if (!CanProcessChunk(query, *pChunk))
-							continue;
-						tmp[batchSize++] = pChunk;
-					}
+					do {
+						// Prepare a buffer to iterate over
+						for (; offset < maxIters; ++offset) {
+							auto* pChunk = archetype.chunks[offset];
+							if (!CanProcessChunk(query, *pChunk))
+								continue;
+							tmp[batchSize++] = pChunk;
+						}
 
-					// Execute functors in batches
-					for (auto chunkIdx = 0U; chunkIdx < batchSize; ++chunkIdx)
-						func(*tmp[chunkIdx]);
+						// Execute functors in batches
+						for (auto chunkIdx = 0U; chunkIdx < batchSize; ++chunkIdx)
+							func(*tmp[chunkIdx]);
 
-					// Reset the batch size
-					batchSize = 0U;
-				} while (offset < maxIters);
-			});
+						// Reset the batch size
+						batchSize = 0U;
+					} while (offset < maxIters);
+				});
 
-			query.SetWorldVersion(world.GetWorldVersion());
-		}
+				query.SetWorldVersion(world.GetWorldVersion());
+			}
 
-		template <typename TFunc>
-		static void RunQueryOnChunks_Indirect(World& world, EntityQuery& query, TFunc& func) {
-			using InputArgs = decltype(utils::func_args(&TFunc::operator()));
-			const uint32_t BatchSize = 256U;
-			utils::array<Chunk*, BatchSize> tmp;
+			template <typename TFunc>
+			static void RunQueryOnChunks_Indirect(World& world, EntityQuery& query, TFunc& func) {
+				using InputArgs = decltype(utils::func_args(&TFunc::operator()));
+				const uint32_t BatchSize = 256U;
+				utils::array<Chunk*, BatchSize> tmp;
 
-			// Update the world version
-			world.UpdateWorldVersion();
+				// Update the world version
+				world.UpdateWorldVersion();
 
-			// Add an All filter for components listed as input arguments of func
-			world.Unpack_ForEachQuery(InputArgs{}, query);
+				// Add an All filter for components listed as input arguments of func
+				world.Unpack_ForEachQuery(InputArgs{}, query);
 
-			// Iterate over all archetypes
-			world.ForEachArchetype(query, [&](const Archetype& archetype) {
-				uint32_t offset = 0U;
-				uint32_t batchSize = 0U;
-				const auto maxIters = (uint32_t)archetype.chunks.size();
+				// Iterate over all archetypes
+				world.ForEachArchetype(query, [&](const Archetype& archetype) {
+					uint32_t offset = 0U;
+					uint32_t batchSize = 0U;
+					const auto maxIters = (uint32_t)archetype.chunks.size();
 
-				do {
-					// Prepare a buffer to iterate over
-					for (; offset < maxIters; ++offset) {
-						auto* pChunk = archetype.chunks[offset];
-						if (!CanProcessChunk(query, *pChunk))
-							continue;
-						tmp[batchSize++] = pChunk;
-					}
+					do {
+						// Prepare a buffer to iterate over
+						for (; offset < maxIters; ++offset) {
+							auto* pChunk = archetype.chunks[offset];
+							if (!CanProcessChunk(query, *pChunk))
+								continue;
+							tmp[batchSize++] = pChunk;
+						}
 
-					// Execute functors in bulk
-					for (auto chunkIdx = 0U; chunkIdx < batchSize; ++chunkIdx) {
-						world.Unpack_ForEachEntityInChunk(
-								InputArgs{}, *tmp[chunkIdx],
-								func); // Don't move func here. We need it
-											 // for every further function calls
-					}
+						// Execute functors in bulk
+						for (auto chunkIdx = 0U; chunkIdx < batchSize; ++chunkIdx) {
+							world.Unpack_ForEachEntityInChunk(
+									InputArgs{}, *tmp[chunkIdx],
+									func); // Don't move func here. We need it
+												 // for every further function calls
+						}
 
-					// Reset the batch size
-					batchSize = 0U;
-				} while (offset < maxIters);
-			});
+						// Reset the batch size
+						batchSize = 0U;
+					} while (offset < maxIters);
+				});
 
-			query.SetWorldVersion(world.GetWorldVersion());
-		}
+				query.SetWorldVersion(world.GetWorldVersion());
+			}
 
-		//--------------------------------------------------------------------------------
+			//--------------------------------------------------------------------------------
 
-		template <typename TFunc>
-		struct ForEachChunkExecutionContext {
-			World& world;
-			EntityQuery& query;
-			TFunc func;
+			template <typename TFunc>
+			struct ForEachChunkExecutionContext {
+				World& world;
+				EntityQuery& query;
+				TFunc func;
+
+			public:
+				ForEachChunkExecutionContext(World& w, EntityQuery& q, TFunc&& f):
+						world(w), query(q), func(std::forward<TFunc>(f)) {}
+				void Run() {
+					World::RunQueryOnChunks_Direct(this->world, this->query, this->func);
+				}
+			};
+
+			//--------------------------------------------------------------------------------
+
+			template <typename TFunc, bool InternalQuery>
+			struct ForEachExecutionContext {
+				using TQuery = std::conditional_t<InternalQuery, EntityQuery, EntityQuery&>;
+
+				World& world;
+				TQuery query;
+				TFunc func;
+
+			public:
+				ForEachExecutionContext(World& w, EntityQuery& q, TFunc&& f): world(w), query(q), func(std::forward<TFunc>(f)) {
+					static_assert(!InternalQuery, "lvalue/prvalue can be used only with external queries");
+				}
+				ForEachExecutionContext(World& w, EntityQuery&& q, TFunc&& f):
+						world(w), query(std::move(q)), func(std::forward<TFunc>(f)) {
+					static_assert(InternalQuery, "rvalue can be used only with internal queries");
+				}
+				void Run() {
+					World::RunQueryOnChunks_Indirect(this->world, this->query, this->func);
+				}
+			};
+
+			//--------------------------------------------------------------------------------
 
 		public:
-			ForEachChunkExecutionContext(World& w, EntityQuery& q, TFunc&& f):
-					world(w), query(q), func(std::forward<TFunc>(f)) {}
-			void Run() {
-				World::RunQueryOnChunks_Direct(this->world, this->query, this->func);
+			template <typename TFunc>
+			[[nodiscard]] ForEachChunkExecutionContext<TFunc> ForEachChunk(EntityQuery& query, TFunc&& func) {
+				return {(World&)*this, query, std::forward<TFunc>(func)};
 			}
-		};
 
-		//--------------------------------------------------------------------------------
+			template <typename TFunc>
+			[[nodiscard]] ForEachExecutionContext<TFunc, false> ForEach(EntityQuery& query, TFunc&& func) {
+				return {(World&)*this, query, std::forward<TFunc>(func)};
+			}
 
-		template <typename TFunc, bool InternalQuery>
-		struct ForEachExecutionContext {
-			using TQuery = std::conditional_t<InternalQuery, EntityQuery, EntityQuery&>;
+			template <typename TFunc>
+			[[nodiscard]] ForEachExecutionContext<TFunc, true> ForEach(EntityQuery&& query, TFunc&& func) {
+				return {(World&)*this, std::move(query), std::forward<TFunc>(func)};
+			}
 
-			World& world;
-			TQuery query;
-			TFunc func;
+			template <typename TFunc>
+			[[nodiscard]] ForEachExecutionContext<TFunc, true> ForEach(TFunc&& func) {
+				return {(World&)*this, EntityQuery(), std::forward<TFunc>(func)};
+			}
 
 		public:
-			ForEachExecutionContext(World& w, EntityQuery& q, TFunc&& f): world(w), query(q), func(std::forward<TFunc>(f)) {
-				static_assert(!InternalQuery, "lvalue/prvalue can be used only with external queries");
-			}
-			ForEachExecutionContext(World& w, EntityQuery&& q, TFunc&& f):
-					world(w), query(std::move(q)), func(std::forward<TFunc>(f)) {
-				static_assert(InternalQuery, "rvalue can be used only with internal queries");
-			}
-			void Run() {
-				World::RunQueryOnChunks_Indirect(this->world, this->query, this->func);
-			}
-		};
+			//! Collect garbage
+			void GC() {
+				// Handle chunks
+				for (auto i = 0U; i < (uint32_t)m_chunksToRemove.size();) {
+					auto* pChunk = m_chunksToRemove[i];
 
-		//--------------------------------------------------------------------------------
-
-	public:
-		template <typename TFunc>
-		[[nodiscard]] ForEachChunkExecutionContext<TFunc> ForEachChunk(EntityQuery& query, TFunc&& func) {
-			return {(World&)*this, query, std::forward<TFunc>(func)};
-		}
-
-		template <typename TFunc>
-		[[nodiscard]] ForEachExecutionContext<TFunc, false> ForEach(EntityQuery& query, TFunc&& func) {
-			return {(World&)*this, query, std::forward<TFunc>(func)};
-		}
-
-		template <typename TFunc>
-		[[nodiscard]] ForEachExecutionContext<TFunc, true> ForEach(EntityQuery&& query, TFunc&& func) {
-			return {(World&)*this, std::move(query), std::forward<TFunc>(func)};
-		}
-
-		template <typename TFunc>
-		[[nodiscard]] ForEachExecutionContext<TFunc, true> ForEach(TFunc&& func) {
-			return {(World&)*this, EntityQuery(), std::forward<TFunc>(func)};
-		}
-
-	public:
-		//! Collect garbage
-		void GC() {
-			// Handle chunks
-			for (auto i = 0U; i < (uint32_t)m_chunksToRemove.size();) {
-				auto* pChunk = m_chunksToRemove[i];
-
-				// Skip reclaimed chunks
-				if (pChunk->HasEntities()) {
-					pChunk->header.lifespan = MAX_CHUNK_LIFESPAN;
-					utils::erase_fast(m_chunksToRemove, i);
-					continue;
-				}
-
-				GAIA_ASSERT(pChunk->header.lifespan > 0);
-				--pChunk->header.lifespan;
-				if (pChunk->header.lifespan > 0) {
-					++i;
-					continue;
-				}
-
-				auto& archetype = const_cast<Archetype&>(pChunk->header.owner);
-				GAIA_ASSERT(!archetype.chunks.empty());
-
-				m_archetypesToRemove.push_back(&archetype);
-				utils::erase_fast(m_chunksToRemove, i);
-			}
-
-			// Handle archetypes
-			for (auto i = 0U; i < (uint32_t)m_archetypesToRemove.size();) {
-				auto archetype = m_archetypesToRemove[i];
-
-				// Skip reclaimed archetypes
-				if (!archetype->chunks.empty()) {
-					archetype->lifespan = MAX_ARCHETYPE_LIFESPAN;
-					utils::erase_fast(m_archetypesToRemove, i);
-					continue;
-				}
-
-				GAIA_ASSERT(archetype->lifespan > 0);
-				--archetype->lifespan;
-				if (archetype->lifespan > 0) {
-					++i;
-					continue;
-				}
-
-				// Remove the chunk if it's no longer needed
-				RemoveArchetype(archetype);
-			}
-		}
-
-		void DiagArchetypes() const {
-			static bool DiagArchetypes = GAIA_ECS_DIAG_ARCHETYPES;
-			if (DiagArchetypes) {
-				DiagArchetypes = false;
-				utils::map<uint64_t, uint32_t> archetypeEntityCountMap;
-				for (const auto* archetype: m_archetypeList)
-					archetypeEntityCountMap.insert({archetype->lookupHash, 0});
-
-				// Calculate the number of entities using a given archetype
-				for (const auto& e: m_entities) {
-					if (!e.pChunk)
+					// Skip reclaimed chunks
+					if (pChunk->HasEntities()) {
+						pChunk->header.lifespan = MAX_CHUNK_LIFESPAN;
+						utils::erase_fast(m_chunksToRemove, i);
 						continue;
+					}
 
-					auto it = archetypeEntityCountMap.find(e.pChunk->header.owner.lookupHash);
-					if (it != archetypeEntityCountMap.end())
-						++it->second;
+					GAIA_ASSERT(pChunk->header.lifespan > 0);
+					--pChunk->header.lifespan;
+					if (pChunk->header.lifespan > 0) {
+						++i;
+						continue;
+					}
+
+					auto& archetype = const_cast<Archetype&>(pChunk->header.owner);
+					GAIA_ASSERT(!archetype.chunks.empty());
+
+					m_archetypesToRemove.push_back(&archetype);
+					utils::erase_fast(m_chunksToRemove, i);
 				}
 
-				// Print archetype info
-				LOG_N("Archetypes:%u", (uint32_t)m_archetypeList.size());
-				for (const auto* archetype: m_archetypeList) {
-					const auto& genericComponents = archetype->componentTypeList[ComponentType::CT_Generic];
-					const auto& chunkComponents = archetype->componentTypeList[ComponentType::CT_Chunk];
-					uint32_t genericComponentsSize = 0;
-					uint32_t chunkComponentsSize = 0;
-					for (const auto& component: genericComponents)
-						genericComponentsSize += component.type->size;
-					for (const auto& component: chunkComponents)
-						chunkComponentsSize += component.type->size;
+				// Handle archetypes
+				for (auto i = 0U; i < (uint32_t)m_archetypesToRemove.size();) {
+					auto archetype = m_archetypesToRemove[i];
 
-					const auto it = archetypeEntityCountMap.find(archetype->lookupHash);
-					LOG_N(
-							"Archetype ID:%016llx, "
-							"matcherGeneric:%016llx, "
-							"matcherChunk:%016llx, "
-							"chunks:%u, data size:%u B (%u + %u), "
-							"entities:%u (max-per-chunk:%u)",
-							archetype->lookupHash, archetype->matcherHash[ComponentType::CT_Generic],
-							archetype->matcherHash[ComponentType::CT_Chunk], (uint32_t)archetype->chunks.size(),
-							genericComponentsSize + chunkComponentsSize, genericComponentsSize, chunkComponentsSize, it->second,
-							archetype->capacity);
-
-					auto logComponentInfo = [](const ChunkComponentTypeList& components) {
-						for (const auto& component: components) {
-							const auto* metaType = component.type;
-							LOG_N(
-									"    (%p) lookupHash:%016llx, matcherHash:%016llx, "
-									"size:%3u "
-									"B, "
-									"align:%3u B, %.*s",
-									(void*)metaType, metaType->lookupHash, metaType->matcherHash, metaType->size, metaType->alig,
-									(uint32_t)metaType->name.length(), metaType->name.data());
-						}
-					};
-
-					if (!genericComponents.empty()) {
-						LOG_N("  Generic components - count:%u", (uint32_t)genericComponents.size());
-						logComponentInfo(genericComponents);
-					}
-					if (!chunkComponents.empty()) {
-						LOG_N("  Chunk components - count:%u", (uint32_t)chunkComponents.size());
-						logComponentInfo(chunkComponents);
+					// Skip reclaimed archetypes
+					if (!archetype->chunks.empty()) {
+						archetype->lifespan = MAX_ARCHETYPE_LIFESPAN;
+						utils::erase_fast(m_archetypesToRemove, i);
+						continue;
 					}
 
-					const auto& chunks = archetype->chunks;
-					for (auto i = 0U; i < (uint32_t)chunks.size(); ++i) {
-						const auto* pChunk = chunks[i];
-						const uint16_t entityCount = pChunk->header.lastEntityIndex + uint16_t(1);
+					GAIA_ASSERT(archetype->lifespan > 0);
+					--archetype->lifespan;
+					if (archetype->lifespan > 0) {
+						++i;
+						continue;
+					}
+
+					// Remove the chunk if it's no longer needed
+					RemoveArchetype(archetype);
+				}
+			}
+
+			void DiagArchetypes() const {
+				static bool DiagArchetypes = GAIA_ECS_DIAG_ARCHETYPES;
+				if (DiagArchetypes) {
+					DiagArchetypes = false;
+					utils::map<uint64_t, uint32_t> archetypeEntityCountMap;
+					for (const auto* archetype: m_archetypeList)
+						archetypeEntityCountMap.insert({archetype->lookupHash, 0});
+
+					// Calculate the number of entities using a given archetype
+					for (const auto& e: m_entities) {
+						if (!e.pChunk)
+							continue;
+
+						auto it = archetypeEntityCountMap.find(e.pChunk->header.owner.lookupHash);
+						if (it != archetypeEntityCountMap.end())
+							++it->second;
+					}
+
+					// Print archetype info
+					LOG_N("Archetypes:%u", (uint32_t)m_archetypeList.size());
+					for (const auto* archetype: m_archetypeList) {
+						const auto& genericComponents = archetype->componentTypeList[ComponentType::CT_Generic];
+						const auto& chunkComponents = archetype->componentTypeList[ComponentType::CT_Chunk];
+						uint32_t genericComponentsSize = 0;
+						uint32_t chunkComponentsSize = 0;
+						for (const auto& component: genericComponents)
+							genericComponentsSize += component.type->size;
+						for (const auto& component: chunkComponents)
+							chunkComponentsSize += component.type->size;
+
+						const auto it = archetypeEntityCountMap.find(archetype->lookupHash);
 						LOG_N(
-								"  Chunk #%04u, entities:%hu/%hu, lifespan:%u", i, entityCount, archetype->capacity,
-								pChunk->header.lifespan);
-					}
-				}
-			}
-		}
+								"Archetype ID:%016llx, "
+								"matcherGeneric:%016llx, "
+								"matcherChunk:%016llx, "
+								"chunks:%u, data size:%u B (%u + %u), "
+								"entities:%u (max-per-chunk:%u)",
+								archetype->lookupHash, archetype->matcherHash[ComponentType::CT_Generic],
+								archetype->matcherHash[ComponentType::CT_Chunk], (uint32_t)archetype->chunks.size(),
+								genericComponentsSize + chunkComponentsSize, genericComponentsSize, chunkComponentsSize, it->second,
+								archetype->capacity);
 
-		void DiagRegisteredTypes() const {
-			static bool DiagRegisteredTypes = GAIA_ECS_DIAG_REGISTERED_TYPES;
-			if (DiagRegisteredTypes) {
-				DiagRegisteredTypes = false;
+						auto logComponentInfo = [](const ChunkComponentTypeList& components) {
+							for (const auto& component: components) {
+								const auto* metaType = component.type;
+								LOG_N(
+										"    (%p) lookupHash:%016llx, matcherHash:%016llx, "
+										"size:%3u "
+										"B, "
+										"align:%3u B, %.*s",
+										(void*)metaType, metaType->lookupHash, metaType->matcherHash, metaType->size, metaType->alig,
+										(uint32_t)metaType->name.length(), metaType->name.data());
+							}
+						};
 
-				g_ComponentCache.Diag();
-			}
-		}
+						if (!genericComponents.empty()) {
+							LOG_N("  Generic components - count:%u", (uint32_t)genericComponents.size());
+							logComponentInfo(genericComponents);
+						}
+						if (!chunkComponents.empty()) {
+							LOG_N("  Chunk components - count:%u", (uint32_t)chunkComponents.size());
+							logComponentInfo(chunkComponents);
+						}
 
-		void DiagEntities() const {
-			static bool DiagDeletedEntities = GAIA_ECS_DIAG_DELETED_ENTITIES;
-			if (DiagDeletedEntities) {
-				DiagDeletedEntities = false;
-
-				ValidateEntityList();
-
-				LOG_N("Deleted entities: %u", m_freeEntities);
-				if (m_freeEntities) {
-					LOG_N("  --> %u", m_nextFreeEntity);
-
-					uint32_t iters = 0U;
-					auto fe = m_entities[m_nextFreeEntity].idx;
-					while (fe != Entity::IdMask) {
-						LOG_N("  --> %u", m_entities[fe].idx);
-						fe = m_entities[fe].idx;
-						++iters;
-						if (!iters || iters > m_freeEntities) {
-							LOG_E("  Entities recycle list contains inconsistent "
-										"data!");
-							break;
+						const auto& chunks = archetype->chunks;
+						for (auto i = 0U; i < (uint32_t)chunks.size(); ++i) {
+							const auto* pChunk = chunks[i];
+							const uint16_t entityCount = pChunk->header.lastEntityIndex + uint16_t(1);
+							LOG_N(
+									"  Chunk #%04u, entities:%hu/%hu, lifespan:%u", i, entityCount, archetype->capacity,
+									pChunk->header.lifespan);
 						}
 					}
 				}
 			}
-		}
 
-		void DiagMemory() const {
-			ChunkAllocatorStats memstats;
-			m_chunkAllocator.GetStats(memstats);
-			LOG_N("ChunkAllocator stats");
-			LOG_N("  Allocated: %llu B", memstats.AllocatedMemory);
-			LOG_N("  Used: %llu B", memstats.AllocatedMemory - memstats.UsedMemory);
-			LOG_N("  Overhead: %llu B", memstats.UsedMemory);
-			LOG_N("  Utilization: %.1f%%", 100.0 * ((double)memstats.UsedMemory / (double)memstats.AllocatedMemory));
-			LOG_N("  Pages: %u", memstats.NumPages);
-			LOG_N("  Free pages: %u", memstats.NumFreePages);
-		}
+			void DiagRegisteredTypes() const {
+				static bool DiagRegisteredTypes = GAIA_ECS_DIAG_REGISTERED_TYPES;
+				if (DiagRegisteredTypes) {
+					DiagRegisteredTypes = false;
 
-	public:
-		void Diag() const {
-			DiagArchetypes();
-			DiagRegisteredTypes();
-			DiagEntities();
-			DiagMemory();
-		}
-	};
+					g_ComponentCache.Diag();
+				}
+			}
 
-	inline uint32_t GetWorldVersionFromWorld(const World& world) {
-		return world.GetWorldVersion();
-	}
-	inline void* AllocateChunkMemory(World& world) {
-		return world.AllocateChunkMemory();
-	}
-	inline void ReleaseChunkMemory(World& world, void* mem) {
-		world.ReleaseChunkMemory(mem);
-	}
-} // namespace ecs
+			void DiagEntities() const {
+				static bool DiagDeletedEntities = GAIA_ECS_DIAG_DELETED_ENTITIES;
+				if (DiagDeletedEntities) {
+					DiagDeletedEntities = false;
+
+					ValidateEntityList();
+
+					LOG_N("Deleted entities: %u", m_freeEntities);
+					if (m_freeEntities) {
+						LOG_N("  --> %u", m_nextFreeEntity);
+
+						uint32_t iters = 0U;
+						auto fe = m_entities[m_nextFreeEntity].idx;
+						while (fe != Entity::IdMask) {
+							LOG_N("  --> %u", m_entities[fe].idx);
+							fe = m_entities[fe].idx;
+							++iters;
+							if (!iters || iters > m_freeEntities) {
+								LOG_E("  Entities recycle list contains inconsistent "
+											"data!");
+								break;
+							}
+						}
+					}
+				}
+			}
+
+			void DiagMemory() const {
+				ChunkAllocatorStats memstats;
+				m_chunkAllocator.GetStats(memstats);
+				LOG_N("ChunkAllocator stats");
+				LOG_N("  Allocated: %llu B", memstats.AllocatedMemory);
+				LOG_N("  Used: %llu B", memstats.AllocatedMemory - memstats.UsedMemory);
+				LOG_N("  Overhead: %llu B", memstats.UsedMemory);
+				LOG_N("  Utilization: %.1f%%", 100.0 * ((double)memstats.UsedMemory / (double)memstats.AllocatedMemory));
+				LOG_N("  Pages: %u", memstats.NumPages);
+				LOG_N("  Free pages: %u", memstats.NumFreePages);
+			}
+
+		public:
+			void Diag() const {
+				DiagArchetypes();
+				DiagRegisteredTypes();
+				DiagEntities();
+				DiagMemory();
+			}
+		};
+
+		inline uint32_t GetWorldVersionFromWorld(const World& world) {
+			return world.GetWorldVersion();
+		}
+		inline void* AllocateChunkMemory(World& world) {
+			return world.AllocateChunkMemory();
+		}
+		inline void ReleaseChunkMemory(World& world, void* mem) {
+			world.ReleaseChunkMemory(mem);
+		}
+	} // namespace ecs
 } // namespace gaia
