@@ -1136,7 +1136,7 @@ namespace gaia {
 			}
 
 			[[nodiscard]] static bool CheckFilters(const EntityQuery& query, const Chunk& chunk) {
-				GAIA_ASSERT((!chunk.HasEntities()) && "CheckFilters called on an empty chunk");
+				GAIA_ASSERT(chunk.HasEntities() && "CheckFilters called on an empty chunk");
 
 				const auto lastWorldVersion = query.GetWorldVersion();
 
