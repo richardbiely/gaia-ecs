@@ -1,3 +1,4 @@
+#include "gaia/ecs/entity.h"
 #ifdef _WIN32
 	#include <conio.h>
 #else
@@ -248,6 +249,15 @@ public:
 	}
 };
 
+struct WorldCollisionData {
+	//! Entity colliding
+	ecs::Entity e;
+	//! Position of collision
+	Position p;
+	//! Velocity at the time of collision
+	Velocity v;
+};
+
 struct CollisionData {
 	//! Entity colliding
 	ecs::Entity e1;
@@ -273,23 +283,40 @@ public:
 		m_colliding.clear();
 
 		GetWorld()
-				.ForEach(
+				.ForEachChunk(
 						m_q,
-						[&](ecs::Entity e, const Position& p, Velocity& v) {
-							// Skip stationary objects
-							if (v.x == 0 && v.y == 0)
-								return;
+						[&](ecs::Chunk& chunk) {
+							auto ent = chunk.View<ecs::Entity>();
+							auto vel = chunk.View<Velocity>();
+							auto pos = chunk.View<Position>();
 
-							const int nx = p.x + v.x;
-							const int ny = p.y + v.y;
+							for (uint32_t i = 0; i < chunk.GetItemCount(); ++i) {
+								auto& e = ent[i];
+								auto& v = vel[i];
+								auto& p = pos[i];
 
-							// Collect all collisions
-							for (auto e2: s_world.content[{nx, ny}])
-								m_colliding.push_back(CollisionData{e, e2, {nx, ny}, v});
+								// Skip stationary objects
+								if (v.x == 0 && v.y == 0)
+									return;
 
-							if (s_world.blocked[ny][nx]) {
-								v.x = 0;
-								v.y = 0;
+								const int nx = p.x + v.x;
+								const int ny = p.y + v.y;
+
+								if (!s_world.blocked[ny][nx])
+									return;
+
+								// Collect all collisions
+								auto it = s_world.content.find({nx, ny});
+								if (it == s_world.content.end()) {
+									m_colliding.push_back(CollisionData{e, ecs::EntityNull, {nx, ny}, v});
+								} else {
+									for (auto e2: it->second)
+										m_colliding.push_back(CollisionData{e, e2, {nx, ny}, v});
+								}
+
+								// No velocity after collision
+								auto vel_mut = chunk.ViewRW<Velocity>();
+								vel_mut[i] = {0, 0};
 							}
 						})
 				.Run();
@@ -307,7 +334,7 @@ class MoveSystem final: public ecs::System {
 public:
 	void OnCreated() override {
 		m_q1.All<Position, Velocity>();
-		m_q2.All<Orientation, Velocity>();
+		m_q2.All<Orientation, Velocity>().WithChanged<Velocity>();
 	}
 
 	void OnUpdate() override {
@@ -350,31 +377,31 @@ public:
 	void OnUpdate() override {
 		const auto& colls = m_collisionSystem->GetCollisions();
 		for (const auto& coll: colls) {
-			auto e1 = coll.e1;
-			auto e2 = coll.e2;
-
-			// run into something damagable
-			if (!GetWorld().HasComponents<Health>(e2))
+			// Skip world collisions
+			if (coll.e2 == ecs::EntityNull)
 				continue;
 
-			BattleStats stats1 = {0, 0};
-			BattleStats stats2 = {0, 0};
+			uint32_t idx1, idx2;
+			auto* pChunk1 = GetWorld().GetEntityChunk(coll.e1, idx1);
+			auto* pChunk2 = GetWorld().GetEntityChunk(coll.e2, idx2);
 
-			if (!GetWorld().HasComponents<BattleStats>(e1))
-				return;
-			if (!GetWorld().HasComponents<BattleStats>(e2))
-				return;
+			// Skip non-damagable things
+			if (!pChunk2->HasComponent<Health>())
+				continue;
+			if (!pChunk1->HasComponent<BattleStats>() || !pChunk2->HasComponent<BattleStats>())
+				continue;
 
-			GetWorld().GetComponent<BattleStats>(e1, stats1);
-			GetWorld().GetComponent<BattleStats>(e2, stats2);
+			// Verify if damage can be applied (e.g. power > armor)
+			const auto stats1 = pChunk1->View<BattleStats>();
+			const auto stats2 = pChunk2->View<BattleStats>();
 
-			int damage = stats1.power - stats2.armor;
+			const int damage = stats1[idx1].power - stats2[idx2].armor;
 			if (damage < 0)
 				continue;
 
-			Health h2;
-			GetWorld().GetComponent<Health>(e2, h2);
-			GetWorld().SetComponent<Health>(e2, {h2.value - damage, h2.valueMax});
+			// Apply damage
+			auto health2 = pChunk2->ViewRW<Health>();
+			health2[idx2].value -= damage;
 		}
 	}
 
@@ -394,27 +421,45 @@ public:
 	void OnUpdate() override {
 		const auto& colls = m_collisionSystem->GetCollisions();
 		for (const auto& coll: colls) {
-			uint32_t idx1, idx2;
-			auto* pChunk1 = GetWorld().GetEntityChunk(coll.e1, idx1);
-			auto* pChunk2 = GetWorld().GetEntityChunk(coll.e2, idx2);
+			// World collision
+			if (coll.e2 == ecs::EntityNull) {
+				uint32_t idx1;
+				auto* pChunk1 = GetWorld().GetEntityChunk(coll.e1, idx1);
 
-			// TODO: Add ability to get a list of components based on query
-
-			// E.g. a player colliding with an item
-			if (pChunk1->HasComponent<Health>() && pChunk2->HasComponent<Item>() && pChunk2->HasComponent<BattleStats>()) {
-				auto h1 = pChunk1->ViewRW<Health>();
-				auto s2 = pChunk2->View<BattleStats>();
-
-				// Apply the item effect
-				h1[idx1].value += s2[idx2].power;
+				// An arrow colliding with something. Bring its health to 0 (destroyed).
+				if (pChunk1->HasComponent<Item>() && pChunk1->HasComponent<Health>()) {
+					auto item1 = pChunk1->View<Item>();
+					if (item1[idx1].type == Arrow) {
+						auto health1 = pChunk1->ViewRW<Health>();
+						health1[idx1].value = 0;
+					}
+				}
 			}
+			// Entity-entity collision
+			else {
+				uint32_t idx1, idx2;
+				auto* pChunk1 = GetWorld().GetEntityChunk(coll.e1, idx1);
+				auto* pChunk2 = GetWorld().GetEntityChunk(coll.e2, idx2);
 
-			// An arrow colliding with something. Bring its health to 0 (destroyed).
-			if (pChunk1->HasComponent<Item>() && pChunk1->HasComponent<Health>()) {
-				auto i1 = pChunk1->View<Item>();
-				auto h1 = pChunk1->ViewRW<Health>();
-				if (i1[idx1].type == Arrow)
-					h1[idx1].value = 0;
+				// TODO: Add ability to get a list of components based on query
+
+				// E.g. a player colliding with an item
+				if (pChunk1->HasComponent<Health>() && pChunk2->HasComponent<Item>() && pChunk2->HasComponent<BattleStats>()) {
+					auto health1 = pChunk1->ViewRW<Health>();
+					auto stats2 = pChunk2->View<BattleStats>();
+
+					// Apply the item's effect
+					health1[idx1].value += stats2[idx2].power;
+				}
+
+				// An arrow colliding with something. Bring its health to 0 (destroyed).
+				if (pChunk1->HasComponent<Item>() && pChunk1->HasComponent<Health>()) {
+					auto item1 = pChunk1->View<Item>();
+					if (item1[idx1].type == Arrow) {
+						auto health1 = pChunk1->ViewRW<Health>();
+						health1[idx1].value = 0;
+					}
+				}
 			}
 		}
 	}
@@ -431,8 +476,8 @@ class HandleHealthSystem final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q.All<Health>();
-		m_q2.All<Health, Position>();
+		m_q.All<Health>().WithChanged<Health>();
+		m_q2.All<Health, Position>().WithChanged<Health>();
 	}
 	void OnUpdate() override {
 		GetWorld()
