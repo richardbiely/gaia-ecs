@@ -29,24 +29,24 @@ namespace gaia {
 			ChunkAllocator m_chunkAllocator;
 
 			//! Map or archetypes mapping to the same hash - used for lookups
-			utils::map<uint64_t, utils::vector<Archetype*>> m_archetypeMap;
+			utils::map<uint64_t, utils::darray<Archetype*>> m_archetypeMap;
 			//! List of archetypes - used for iteration
-			utils::vector<Archetype*> m_archetypeList;
+			utils::darray<Archetype*> m_archetypeList;
 			//! List of unique archetype hashes - used for iteration
-			utils::vector<uint64_t> m_archetypeHashList;
+			utils::darray<uint64_t> m_archetypeHashList;
 
 			//! Implicit list of entities. Used for look-ups only when searching for
 			//! entities in chunks + data validation
-			utils::vector<EntityContainer> m_entities;
+			utils::darray<EntityContainer> m_entities;
 			//! Index of the next entity to recycle
 			uint32_t m_nextFreeEntity = Entity::IdMask;
 			//! Number of entites to recycle
 			uint32_t m_freeEntities = 0;
 
 			//! List of chunks to delete
-			utils::vector<Chunk*> m_chunksToRemove;
+			utils::darray<Chunk*> m_chunksToRemove;
 			//! List of archetypes to delete
-			utils::vector<Archetype*> m_archetypesToRemove;
+			utils::darray<Archetype*> m_archetypesToRemove;
 
 			//! With every structural change world version changes
 			uint32_t m_worldVersion = 0;

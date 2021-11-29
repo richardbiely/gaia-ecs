@@ -9,10 +9,20 @@
 namespace gaia {
 	namespace utils {
 		template <typename T>
-		using vector = std::vector<T>;
+		using darray = std::vector<T>;
 	}
 } // namespace gaia
 
+#elif USE_VECTOR == 1
+
+	#include "containers/vector.h"
+
+namespace gaia {
+	namespace utils {
+		template <typename T>
+		using darray = gaia::utils::vector<T, uint32_t(0)>;
+	}
+} // namespace gaia
 #else
 
 	#error Unsupported value used for USE_VECTOR

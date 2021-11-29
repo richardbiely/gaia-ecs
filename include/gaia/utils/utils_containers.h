@@ -57,7 +57,7 @@ namespace gaia {
 				return;
 
 			if (idx + 1 != arr.size())
-				std::swap(arr[idx], arr.back());
+				std::swap(arr[idx], arr[arr.size() - 1]);
 
 			arr.pop_back();
 		}

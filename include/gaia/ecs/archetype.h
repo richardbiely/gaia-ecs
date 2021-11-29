@@ -26,7 +26,7 @@ namespace gaia {
 			//! World to which this chunk belongs to
 			const World* parentWorld = nullptr;
 			//! List of chunks allocated by this archetype
-			utils::vector<Chunk*> chunks;
+			utils::darray<Chunk*> chunks;
 			//! Description of components within this archetype
 			utils::array<ChunkComponentTypeList, ComponentType::CT_Count> componentTypeList;
 			//! Lookup hashes of components within this archetype

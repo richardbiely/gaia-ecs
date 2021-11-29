@@ -100,11 +100,11 @@ namespace gaia {
 			//! Map of all systems - used for look-ups only
 			utils::map<uint64_t, BaseSystem*> m_systemsMap;
 			//! List of system - used for iteration
-			utils::vector<BaseSystem*> m_systems;
+			utils::darray<BaseSystem*> m_systems;
 			//! List of new systems which need to be initialised
-			utils::vector<BaseSystem*> m_systemsToCreate;
+			utils::darray<BaseSystem*> m_systemsToCreate;
 			//! List of systems which need to be deleted
-			utils::vector<BaseSystem*> m_systemsToRemove;
+			utils::darray<BaseSystem*> m_systemsToRemove;
 
 		public:
 			BaseSystemManager(World& world): m_world(world) {}
