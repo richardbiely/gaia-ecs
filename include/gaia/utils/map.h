@@ -1,8 +1,8 @@
 #pragma once
 
-#define USE_HASHMAP 0
+#define USE_HASHMAP GAIA_USE_STL_CONTAINERS
 
-#if USE_HASHMAP == 0
+#if USE_HASHMAP == 1
 
 	#include <unordered_map>
 
@@ -13,7 +13,7 @@ namespace gaia {
 	}
 } // namespace gaia
 
-#elif USE_HASHMAP == 1
+#elif USE_HASHMAP == 0
 
 	#include "../external/robin_hood.h"
 

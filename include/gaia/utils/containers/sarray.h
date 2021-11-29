@@ -7,7 +7,7 @@ namespace gaia {
 	namespace utils {
 		// Array with fixed capacity and variable size allocated on stack.
 		// Interface compatiblity with std::array where it matters.
-		// TODO: Use<memory_resouce>and pmr instead of this madness.
+		// Can be used if STL containers are not an option for some reason.
 		template <class T, auto N>
 		class sarray {
 		public:
