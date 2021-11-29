@@ -22,10 +22,12 @@ namespace gaia {
 
 		private:
 			T m_data[N];
-			size_type m_pos = 0;
+			size_type m_pos;
 
 		public:
 			class iterator {
+				friend class sarray;
+
 			public:
 				using iterator_category = std::random_access_iterator_tag;
 				using value_type = T;
@@ -80,6 +82,8 @@ namespace gaia {
 				}
 			};
 			class const_iterator {
+				friend class sarray;
+
 			public:
 				using iterator_category = std::random_access_iterator_tag;
 				using value_type = T;
@@ -206,11 +210,11 @@ namespace gaia {
 			}
 
 			constexpr reference back() noexcept {
-				return *std::prev(end());
+				return m_data[m_pos];
 			}
 
 			constexpr const_reference back() const noexcept {
-				return *std::prev(end());
+				return m_data[m_pos];
 			}
 
 			constexpr iterator begin() const noexcept {
