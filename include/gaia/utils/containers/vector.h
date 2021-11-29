@@ -8,7 +8,7 @@ namespace gaia {
 		// Array with variable size allocated on heap.
 		// Interface compatiblity with std::darray where it matters.
 		// Can be used if STL containers are not an option for some reason.
-		template <class T, auto N>
+		template <class T>
 		class vector {
 		public:
 			using iterator_category = std::random_access_iterator_tag;
@@ -18,7 +18,7 @@ namespace gaia {
 			using pointer = T*;
 			using const_pointer = T*;
 			using difference_type = std::ptrdiff_t;
-			using size_type = decltype(N);
+			using size_type = uint32_t;
 
 		private:
 			T* m_data = nullptr;
@@ -35,8 +35,7 @@ namespace gaia {
 				using difference_type = std::ptrdiff_t;
 				using pointer = T*;
 				using reference = T&;
-
-				using size_type = decltype(N);
+				using size_type = vector::size_type;
 
 			private:
 				T* m_ptr;
@@ -92,8 +91,7 @@ namespace gaia {
 				using difference_type = std::ptrdiff_t;
 				using pointer = T*;
 				using reference = T&;
-
-				using size_type = decltype(N);
+				using size_type = vector::size_type;
 
 			private:
 				const T* m_ptr;
@@ -225,7 +223,6 @@ namespace gaia {
 			}
 
 			void push_back(const T& arg) noexcept {
-				GAIA_ASSERT(size() < N);
 				if (size() == capacity()) {
 					if (m_data == nullptr) {
 						m_data = new T[m_cap = 4];
@@ -241,7 +238,6 @@ namespace gaia {
 			}
 
 			void push_back(T&& arg) noexcept {
-				GAIA_ASSERT(size() < N);
 				if (size() == capacity()) {
 					if (m_data == nullptr) {
 						m_data = new T[m_cap = 4];
@@ -314,10 +310,6 @@ namespace gaia {
 
 			[[nodiscard]] bool empty() const noexcept {
 				return size() == 0;
-			}
-
-			[[nodiscard]] size_type max_size() const noexcept {
-				return N;
 			}
 
 			reference front() noexcept {
