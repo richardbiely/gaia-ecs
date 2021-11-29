@@ -527,11 +527,28 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA_ManualSIMD(benchmark::State& state)
 									_mm_store_ps(p + offset, respVec);
 								};
 
-								for (size_t i = 0; i < ch.GetItemCount(); i += 4)
+								size_t i;
+								// Optimize via "double-read" trick to hide latencies.
+								// Item count is always a multiple of 4 for chunks with SoA components.
+								for (i = 0; i < ch.GetItemCount(); i += 8) {
 									exec(ppx.data(), vvx.data(), i);
-								for (size_t i = 0; i < ch.GetItemCount(); i += 4)
+									exec(ppx.data(), vvx.data(), i + 4);
+								}
+								for (; i < ch.GetItemCount(); i += 4)
+									exec(ppx.data(), vvx.data(), i);
+
+								for (i = 0; i < ch.GetItemCount(); i += 8) {
 									exec(ppy.data(), vvy.data(), i);
-								for (size_t i = 0; i < ch.GetItemCount(); i += 4)
+									exec(ppy.data(), vvy.data(), i + 4);
+								}
+								for (; i < ch.GetItemCount(); i += 4)
+									exec(ppy.data(), vvy.data(), i);
+
+								for (i = 0; i < ch.GetItemCount(); i += 8) {
+									exec(ppz.data(), vvz.data(), i);
+									exec(ppz.data(), vvz.data(), i + 4);
+								}
+								for (; i < ch.GetItemCount(); i += 4)
 									exec(ppz.data(), vvz.data(), i);
 							})
 					.Run();
@@ -600,9 +617,15 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA_ManualSIMD(benchmark::State& state)
 									_mm_store_ps(v + offset, mulVec);
 								};
 
-								for (size_t i = 0; i < ch.GetItemCount(); i += 4) {
+								size_t i;
+								// Optimize via "double-read" trick to hide latencies.
+								// Item count is always a multiple of 4 for chunks with SoA components.
+								for (i = 0; i < ch.GetItemCount(); i += 8) {
 									exec(vvy.data(), i);
+									exec(vvy.data(), i + 4);
 								}
+								for (; i < ch.GetItemCount(); i += 4)
+									exec(vvy.data(), i);
 							})
 					.Run();
 		}
