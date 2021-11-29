@@ -1,4 +1,5 @@
 #pragma once
+#include "command_buffer.h"
 #include "system_base.h"
 #include "world.h"
 #include <cinttypes>
@@ -28,11 +29,26 @@ namespace gaia {
 		};
 
 		class SystemManager final: public BaseSystemManager {
+			CommandBuffer m_beforeUpdateCmdBuffer;
+			CommandBuffer m_afterUpdateCmdBuffer;
+
 		public:
 			SystemManager(World& world): BaseSystemManager(world) {}
 
+			CommandBuffer& BeforeUpdateCmdBufer() {
+				return m_beforeUpdateCmdBuffer;
+			};
+			CommandBuffer& AfterpdateCmdBufer() {
+				return m_afterUpdateCmdBuffer;
+			};
+
 		protected:
+			void OnBeforeUpdate() final {
+				m_beforeUpdateCmdBuffer.Commit(&m_world);
+			}
+
 			void OnAfterUpdate() final {
+				m_afterUpdateCmdBuffer.Commit(&m_world);
 				m_world.GC();
 			}
 		};
