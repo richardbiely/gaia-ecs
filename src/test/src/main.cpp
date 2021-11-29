@@ -237,7 +237,7 @@ TEST_CASE("CreateAndRemoveEntity - no components") {
 	// 100,000 picked so we create enough entites that they overflow
 	// into another chunk
 	const uint32_t N = 100'000;
-	utils::vector<ecs::Entity> arr;
+	utils::darray<ecs::Entity> arr;
 	arr.reserve(N);
 
 	// Create entities
@@ -270,7 +270,7 @@ TEST_CASE("CreateAndRemoveEntity - 1 component") {
 	// 100,000 picked so we create enough entites that they overflow
 	// into another chunk
 	const uint32_t N = 100'000;
-	utils::vector<ecs::Entity> arr;
+	utils::darray<ecs::Entity> arr;
 	arr.reserve(N);
 
 	for (uint32_t i = 0U; i < N; i++)
@@ -297,7 +297,7 @@ TEST_CASE("SetComponent - generic") {
 	ecs::World w;
 
 	constexpr uint32_t N = 100;
-	utils::vector<ecs::Entity> arr;
+	utils::darray<ecs::Entity> arr;
 	arr.reserve(N);
 
 	for (uint32_t i = 0U; i < N; ++i) {
@@ -382,7 +382,7 @@ TEST_CASE("SetComponent - generic & chunk") {
 	ecs::World w;
 
 	constexpr uint32_t N = 100;
-	utils::vector<ecs::Entity> arr;
+	utils::darray<ecs::Entity> arr;
 	arr.reserve(N);
 
 	for (uint32_t i = 0U; i < N; ++i) {

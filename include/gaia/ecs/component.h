@@ -5,10 +5,10 @@
 #include <type_traits>
 
 #include "../config/config.h"
+#include "../utils/containers/sarray.h"
 #include "../utils/data_layout_policy.h"
 #include "../utils/hashing_policy.h"
 #include "../utils/map.h"
-#include "../utils/sarray.h"
 #include "../utils/span.h"
 #include "../utils/type_info.h"
 #include "../utils/utility.h"
@@ -305,7 +305,7 @@ namespace gaia {
 							type->matcherHash);
 				}
 
-				using DuplicateMap = utils::map<uint64_t, utils::vector<const ComponentMetaData*>>;
+				using DuplicateMap = utils::map<uint64_t, utils::darray<const ComponentMetaData*>>;
 
 				auto checkDuplicity = [](const DuplicateMap& map, bool errIfDuplicate) {
 					for (const auto& pair: map) {
@@ -360,7 +360,7 @@ namespace gaia {
 					for (const auto& pair: m_types) {
 						const auto* type = pair.second;
 
-						const auto ret = m.emplace(type->matcherHash, utils::vector<const ComponentMetaData*>{type});
+						const auto ret = m.emplace(type->matcherHash, utils::darray<const ComponentMetaData*>{type});
 						if (!ret.second) {
 							ret.first->second.push_back(type);
 							hasDuplicates = true;

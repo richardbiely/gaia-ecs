@@ -684,7 +684,7 @@ void BM_Game_NonECS(benchmark::State& state) {
 
 	// Create entities.
 	// We allocate via new to simulate the usual kind of behavior in games
-	utils::vector<IUnit*> units(N * 2);
+	utils::darray<IUnit*> units(N * 2);
 	for (uint32_t i = 0U; i < N; i++) {
 		auto u = new UnitStatic();
 		u->p = {0, 100, 0};

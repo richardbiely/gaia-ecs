@@ -6,6 +6,7 @@
 namespace gaia {
 	namespace utils {
 		// Array with fixed capacity and variable size allocated on stack.
+		// Interface compatiblity with std::array where it matters.
 		// TODO: Use<memory_resouce>and pmr instead of this madness.
 		template <class T, auto N>
 		class sarray {
@@ -21,7 +22,7 @@ namespace gaia {
 
 		private:
 			T m_data[N];
-			size_type m_pos;
+			size_type m_pos = 0;
 
 		public:
 			class iterator {
@@ -196,6 +197,22 @@ namespace gaia {
 				return N;
 			}
 
+			constexpr reference front() noexcept {
+				return *begin();
+			}
+
+			constexpr const_reference front() const noexcept {
+				return *begin();
+			}
+
+			constexpr reference back() noexcept {
+				return *std::prev(end());
+			}
+
+			constexpr const_reference back() const noexcept {
+				return *std::prev(end());
+			}
+
 			constexpr iterator begin() const noexcept {
 				return {(T*)m_data, size_type(0)};
 			}
@@ -240,6 +257,9 @@ namespace gaia {
 		constexpr sarray<std::remove_cv_t<T>, N> to_sarray(T (&a)[N]) {
 			return detail::to_sarray_impl(a, std::make_index_sequence<N>{});
 		}
+
+		template <class T, class... U>
+		sarray(T, U...) -> sarray<T, 1 + sizeof...(U)>;
 
 	} // namespace utils
 

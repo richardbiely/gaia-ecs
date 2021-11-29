@@ -42,7 +42,7 @@ namespace gaia {
 
 			friend class World;
 
-			utils::vector<uint8_t> m_data;
+			utils::darray<uint8_t> m_data;
 			uint32_t m_entities;
 
 			template <typename TEntity, typename... TComponent>

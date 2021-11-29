@@ -29,7 +29,7 @@
 #include "../utils/list.h"
 
 #include "../config/logging.h"
-#include "../utils/sarray.h"
+#include "../utils/containers/sarray.h"
 #include "../utils/utility.h"
 #if GAIA_ECS_CHUNK_ALLOCATOR_CLEAN_MEMORY_WITH_GARBAGE
 	#include "../utils/utils_mem.h"
