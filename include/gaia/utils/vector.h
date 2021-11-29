@@ -1,6 +1,6 @@
 #pragma once
 
-#define USE_VECTOR 0
+#define USE_VECTOR 1
 
 #if USE_VECTOR == 0
 
@@ -20,7 +20,7 @@ namespace gaia {
 namespace gaia {
 	namespace utils {
 		template <typename T>
-		using darray = gaia::utils::vector<T, uint32_t(0)>;
+		using darray = gaia::utils::vector<T>;
 	}
 } // namespace gaia
 #else
