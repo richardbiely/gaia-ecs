@@ -163,14 +163,37 @@ namespace gaia {
 
 			vector(std::initializer_list<T> init): vector(init.begin(), init.end()) {}
 
-			vector(const vector& other) noexcept = default;
-			vector(vector&& other) = default;
-			vector& operator=(const vector& other) = default;
-			vector& operator=(vector&& other) = default;
+			vector(const vector& other) noexcept: vector(other.begin(), other.end()) {}
+			vector(vector&& other) {
+				m_cnt = other.m_cnt;
+				m_cap = other.m_cap;
+				m_data = other.m_data;
+
+				other.m_cnt = 0;
+				other.m_cap = 0;
+				other.m_data = nullptr;
+			}
+			vector& operator=(const vector& other) {
+				resize(other.size());
+				for (size_type i = 0; i < other.size(); ++i)
+					m_data[i++] = other[i];
+				return *this;
+			}
+			vector& operator=(vector&& other) {
+				m_cnt = other.m_cnt;
+				m_cap = other.m_cap;
+				m_data = other.m_data;
+
+				other.m_cnt = 0;
+				other.m_cap = 0;
+				other.m_data = nullptr;
+				return *this;
+			}
 
 			~vector() {
 				if (m_data != nullptr)
-					delete m_data;
+					delete[] m_data;
+				m_data = nullptr;
 			}
 
 			T* data() noexcept {
@@ -225,7 +248,7 @@ namespace gaia {
 			void push_back(const T& arg) noexcept {
 				if (size() == capacity()) {
 					if (m_data == nullptr) {
-						m_data = new T[m_cap = 4];
+						m_data = new T[m_cap = 1];
 					} else {
 						T* old = m_data;
 						m_data = new T[m_cap = capacity() * 2];
@@ -234,13 +257,13 @@ namespace gaia {
 						delete[] old;
 					}
 				}
-				m_data[++m_cnt] = arg;
+				m_data[m_cnt++] = arg;
 			}
 
 			void push_back(T&& arg) noexcept {
 				if (size() == capacity()) {
 					if (m_data == nullptr) {
-						m_data = new T[m_cap = 4];
+						m_data = new T[m_cap = 1];
 					} else {
 						T* old = m_data;
 						m_data = new T[m_cap = capacity() * 2];
@@ -249,7 +272,7 @@ namespace gaia {
 						delete[] old;
 					}
 				}
-				m_data[++m_cnt] = std::forward<T>(arg);
+				m_data[m_cnt++] = std::forward<T>(arg);
 			}
 
 			void pop_back() noexcept {
@@ -301,7 +324,7 @@ namespace gaia {
 			}
 
 			[[nodiscard]] size_type size() const noexcept {
-				return m_cnt + 1;
+				return m_cnt;
 			}
 
 			[[nodiscard]] size_type capacity() const noexcept {
@@ -310,6 +333,10 @@ namespace gaia {
 
 			[[nodiscard]] bool empty() const noexcept {
 				return size() == 0;
+			}
+
+			[[nodiscard]] constexpr size_type max_size() const noexcept {
+				return 10'000'000;
 			}
 
 			reference front() noexcept {
@@ -349,11 +376,11 @@ namespace gaia {
 			}
 
 			iterator end() const noexcept {
-				return {(T*)m_data, m_cnt + 1};
+				return {(T*)m_data, m_cnt};
 			}
 
 			const_iterator cend() const noexcept {
-				return {(const T*)m_data, m_cnt + 1};
+				return {(const T*)m_data, m_cnt};
 			}
 
 			iterator rend() const noexcept {
