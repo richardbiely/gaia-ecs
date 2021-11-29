@@ -1,8 +1,9 @@
 #pragma once
 
-#define USE_ARRAY 0
+#define USE_ARRAY 1 // GAIA_USE_STL_CONTAINERS
+// TODO: Implement a custom array container
 
-#if USE_ARRAY == 0
+#if USE_ARRAY == 1
 
 	#include <array>
 

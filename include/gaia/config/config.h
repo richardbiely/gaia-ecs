@@ -10,6 +10,7 @@
 #define GAIA_PROFILER 0
 #define GAIA_ECS_DIAGS 1
 #define GAIA_ECS_CHUNK_ALLOCATOR 1
+#define GAIA_USE_STL_CONTAINERS 0
 
 //------------------------------------------------------------------------------
 // Debug features

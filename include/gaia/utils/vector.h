@@ -1,8 +1,8 @@
 #pragma once
 
-#define USE_VECTOR 1
+#define USE_VECTOR GAIA_USE_STL_CONTAINERS
 
-#if USE_VECTOR == 0
+#if USE_VECTOR == 1
 
 	#include <vector>
 
@@ -13,7 +13,7 @@ namespace gaia {
 	}
 } // namespace gaia
 
-#elif USE_VECTOR == 1
+#elif USE_VECTOR == 0
 
 	#include "containers/vector.h"
 

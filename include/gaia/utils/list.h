@@ -1,8 +1,9 @@
 #pragma once
 
-#define USE_LIST 0
+#define USE_LIST 1 // GAIA_USE_STL_CONTAINERS
+// TODO: Implement a custom list container
 
-#if USE_LIST == 0
+#if USE_LIST == 1
 
 	#include <list>
 
