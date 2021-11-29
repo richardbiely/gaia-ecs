@@ -164,6 +164,8 @@ namespace gaia {
 					m_systemsToCreate.clear();
 				}
 
+				OnAfterUpdate();
+
 				for (auto system: m_systems) {
 					if (!system->IsEnabled())
 						continue;
@@ -221,6 +223,7 @@ namespace gaia {
 			}
 
 		protected:
+			virtual void OnBeforeUpdate() {}
 			virtual void OnAfterUpdate() {}
 
 		private:
