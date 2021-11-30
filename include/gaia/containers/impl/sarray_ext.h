@@ -26,8 +26,6 @@ namespace gaia {
 
 		public:
 			class iterator {
-				friend class sarr_ext;
-
 			public:
 				using iterator_category = std::random_access_iterator_tag;
 				using value_type = T;
@@ -82,8 +80,6 @@ namespace gaia {
 				}
 			};
 			class const_iterator {
-				friend class sarr_ext;
-
 			public:
 				using iterator_category = std::random_access_iterator_tag;
 				using value_type = T;
@@ -261,9 +257,6 @@ namespace gaia {
 		constexpr sarr_ext<std::remove_cv_t<T>, N> to_sarray(T (&a)[N]) {
 			return detail::to_sarray_impl(a, std::make_index_sequence<N>{});
 		}
-
-		template <class T, class... U>
-		sarr_ext(T, U...) -> sarr_ext<T, 1 + sizeof...(U)>;
 
 	} // namespace containers
 
