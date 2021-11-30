@@ -7,20 +7,18 @@
 	#include <vector>
 
 namespace gaia {
-	namespace utils {
-		template <typename T>
-		using darray = std::vector<T>;
-	}
+	template <typename T>
+	using darray = std::vector<T>;
 } // namespace gaia
 
 #elif USE_VECTOR == 0
 
-	#include "containers/vector.h"
+	#include "impl/darray.h"
 
 namespace gaia {
-	namespace utils {
+	namespace containers {
 		template <typename T>
-		using darray = gaia::utils::vector<T>;
+		using darray = containers::darr<T>;
 	}
 } // namespace gaia
 #else

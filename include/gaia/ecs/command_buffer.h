@@ -1,8 +1,8 @@
 #pragma once
-#include "../utils/vector.h"
+#include "../containers/sarray_ext.h"
 #include <inttypes.h>
 
-#include "../utils/map.h"
+#include "../containers/map.h"
 #include "archetype.h"
 #include "component.h"
 #include "entity.h"
@@ -42,7 +42,7 @@ namespace gaia {
 
 			friend class World;
 
-			utils::darray<uint8_t> m_data;
+			containers::darray<uint8_t> m_data;
 			uint32_t m_entities;
 
 			template <typename TEntity, typename... TComponent>
@@ -397,7 +397,7 @@ namespace gaia {
 			Commits all queued changes.
 			*/
 			void Commit(World* world) {
-				utils::map<uint32_t, Entity> entityMap;
+				containers::map<uint32_t, Entity> entityMap;
 				uint32_t entities = 0;
 
 				// Extract data from the buffer

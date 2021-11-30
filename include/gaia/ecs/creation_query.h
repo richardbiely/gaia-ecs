@@ -1,8 +1,8 @@
 #pragma once
-#include "../utils/vector.h"
+#include "../containers/sarray_ext.h"
 #include <type_traits>
 
-#include "../utils/containers/sarray.h"
+#include "../containers/sarray_ext.h"
 #include "common.h"
 #include "component.h"
 #include "fwd.h"
@@ -13,7 +13,7 @@ namespace gaia {
 		private:
 			friend class World;
 
-			using ComponentMetaDataArray = utils::sarray<const ComponentMetaData*, MAX_COMPONENTS_PER_ARCHETYPE>;
+			using ComponentMetaDataArray = containers::sarray_ext<const ComponentMetaData*, MAX_COMPONENTS_PER_ARCHETYPE>;
 
 			ComponentMetaDataArray list[ComponentType::CT_Count];
 

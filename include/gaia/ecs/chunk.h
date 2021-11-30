@@ -1,5 +1,5 @@
 #pragma once
-#include "../utils/vector.h"
+#include "../containers/sarray_ext.h"
 #include <algorithm>
 #include <cassert>
 #include <inttypes.h>
@@ -93,7 +93,7 @@ namespace gaia {
 				return header.lastEntityIndex;
 			}
 
-			void RemoveEntity(const uint16_t index, utils::darray<EntityContainer>& entities) {
+			void RemoveEntity(const uint16_t index, containers::darray<EntityContainer>& entities) {
 				// Ignore request on empty chunks
 				if (header.lastEntityIndex == UINT16_MAX)
 					return;

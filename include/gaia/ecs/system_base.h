@@ -6,10 +6,10 @@
 #if GAIA_DEBUG
 	#include "../config/logging.h"
 #endif
-#include "../utils/map.h"
+#include "../containers/map.h"
+#include "../containers/sarray_ext.h"
 #include "../utils/type_info.h"
 #include "../utils/utils_containers.h"
-#include "../utils/vector.h"
 
 namespace gaia {
 	namespace ecs {
@@ -98,13 +98,13 @@ namespace gaia {
 		protected:
 			World& m_world;
 			//! Map of all systems - used for look-ups only
-			utils::map<uint64_t, BaseSystem*> m_systemsMap;
+			containers::map<uint64_t, BaseSystem*> m_systemsMap;
 			//! List of system - used for iteration
-			utils::darray<BaseSystem*> m_systems;
+			containers::darray<BaseSystem*> m_systems;
 			//! List of new systems which need to be initialised
-			utils::darray<BaseSystem*> m_systemsToCreate;
+			containers::darray<BaseSystem*> m_systemsToCreate;
 			//! List of systems which need to be deleted
-			utils::darray<BaseSystem*> m_systemsToRemove;
+			containers::darray<BaseSystem*> m_systemsToRemove;
 
 		public:
 			BaseSystemManager(World& world): m_world(world) {}

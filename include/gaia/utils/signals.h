@@ -1,5 +1,5 @@
 #pragma once
-#include "../utils/vector.h"
+#include "../containers/sarray_ext.h"
 #include <functional>
 #include <inttypes.h>
 #include <tuple>
@@ -323,7 +323,7 @@ namespace gaia {
 			// TODO:
 			// Make container types optional. E.g. we might not want to pay with heap
 			// memory if a fixed number of listeners is what we need.
-			using container = utils::darray<delegate<Ret(Args...)>>;
+			using container = containers::darray<delegate<Ret(Args...)>>;
 
 			/**
 			\brief Container storing listeners

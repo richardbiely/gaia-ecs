@@ -26,10 +26,10 @@
 	#endif
 #endif
 
-#include "../utils/list.h"
+#include "../containers/list.h"
 
 #include "../config/logging.h"
-#include "../utils/containers/sarray.h"
+#include "../containers/sarray_ext.h"
 #include "../utils/utility.h"
 #if GAIA_ECS_CHUNK_ALLOCATOR_CLEAN_MEMORY_WITH_GARBAGE
 	#include "../utils/utils_mem.h"
@@ -60,7 +60,7 @@ namespace gaia {
 			struct MemoryBlock {
 				//! For active block: Index of the block within page.
 				//! For passive block: Index of the next free block in the implicit
-				//! list.
+				//! containers::list.
 				uint16_t idx;
 			};
 
@@ -68,14 +68,14 @@ namespace gaia {
 				static constexpr uint32_t NBlocks = 64;
 				static constexpr uint32_t Size = NBlocks * MemoryBlockSize;
 				static constexpr uint16_t InvalidBlockId = (uint16_t)-1;
-				using iterator = utils::list<MemoryPage*>::iterator;
+				using iterator = containers::list<MemoryPage*>::iterator;
 
 				//! Pointer to data managed by page
 				void* m_data;
 				//! Iterator into the MemoryPage list
 				iterator m_it;
-				//! Implicit list of blocks
-				utils::sarray<MemoryBlock, (uint16_t)NBlocks> m_blocks;
+				//! List of blocks
+				containers::sarray_ext<MemoryBlock, (uint16_t)NBlocks> m_blocks;
 				//! Numer of used blocks out of NBlocks
 				uint16_t m_usedBlocks;
 				//! Index of the next block to recycle
@@ -101,7 +101,7 @@ namespace gaia {
 						*(uintptr_t*)pMemoryBlock = (uintptr_t)this;
 						return (void*)(pMemoryBlock + MemoryBlockUsableOffset);
 					} else {
-						GAIA_ASSERT(m_nextFreeBlock < m_blocks.size() && "Block allocator recycle list broken!");
+						GAIA_ASSERT(m_nextFreeBlock < m_blocks.size() && "Block allocator recycle containers::list broken!");
 
 						++m_usedBlocks;
 						--m_freeBlocks;
@@ -130,7 +130,7 @@ namespace gaia {
 
 					auto& blockContainer = m_blocks[block.idx];
 
-					// Update our implicit list
+					// Update our implicit containers::list
 					if (!m_freeBlocks) {
 						m_nextFreeBlock = block.idx;
 						blockContainer.idx = InvalidBlockId;
@@ -155,9 +155,9 @@ namespace gaia {
 			};
 
 			//! List of available pages
-			utils::list<MemoryPage*> m_pagesFree;
+			containers::list<MemoryPage*> m_pagesFree;
 			//! List of full pages
-			utils::list<MemoryPage*> m_pagesFull;
+			containers::list<MemoryPage*> m_pagesFull;
 			//! Allocator statistics
 			ChunkAllocatorStats m_stats;
 
@@ -184,7 +184,7 @@ namespace gaia {
 					// Later allocation
 					chunk = page->AllocChunk();
 					if (page->IsFull()) {
-						// If our page is full move it to a different list
+						// If our page is full move it to a different containers::list
 						m_pagesFull.insert(m_pagesFull.begin(), page);
 						page->m_it = m_pagesFull.begin();
 						m_pagesFree.erase(itFree);
@@ -223,14 +223,14 @@ namespace gaia {
 					});
 					GAIA_ASSERT(
 							it != m_pagesFull.end() && "ChunkAllocator delete couldn't find the memory page expected "
-																				 "in the full pages list");
+																				 "in the full pages containers::list");
 				} else {
 					[[maybe_unused]] auto it = std::find_if(m_pagesFree.begin(), m_pagesFree.end(), [&](auto page) {
 						return page == pPage;
 					});
 					GAIA_ASSERT(
 							it != m_pagesFree.end() && "ChunkAllocator delete couldn't find memory page expected in "
-																				 "the free pages list");
+																				 "the free pages containers::list");
 				}
 #endif
 

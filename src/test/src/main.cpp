@@ -56,7 +56,7 @@ struct Else {
 
 TEST_CASE("DataLayout SoA") {
 	constexpr uint32_t N = 4U;
-	alignas(16) utils::array<PositionSoA, N> data{};
+	alignas(16) containers::sarray<PositionSoA, N> data{};
 	const float* arr = (const float*)&data[0];
 
 	using soa = gaia::utils::soa_view_policy<PositionSoA>;
@@ -91,7 +91,7 @@ TEST_CASE("DataLayout SoA") {
 
 TEST_CASE("DataLayout AoS") {
 	constexpr uint32_t N = 4U;
-	alignas(16) utils::array<Position, N> data{};
+	alignas(16) containers::sarray<Position, N> data{};
 	const float* arr = (const float*)&data[0];
 
 	using aos = gaia::utils::aos_view_policy<Position>;
@@ -141,7 +141,7 @@ TEST_CASE("EntityNull") {
 }
 
 TEST_CASE("Compile-time sort") {
-	utils::array<int, 5> arr = {4, 2, 1, 3, 0};
+	containers::sarray<int, 5> arr = {4, 2, 1, 3, 0};
 	utils::sort(arr);
 	REQUIRE(arr[0] == 0);
 	REQUIRE(arr[1] == 1);
@@ -237,7 +237,7 @@ TEST_CASE("CreateAndRemoveEntity - no components") {
 	// 100,000 picked so we create enough entites that they overflow
 	// into another chunk
 	const uint32_t N = 100'000;
-	utils::darray<ecs::Entity> arr;
+	containers::darray<ecs::Entity> arr;
 	arr.reserve(N);
 
 	// Create entities
@@ -270,7 +270,7 @@ TEST_CASE("CreateAndRemoveEntity - 1 component") {
 	// 100,000 picked so we create enough entites that they overflow
 	// into another chunk
 	const uint32_t N = 100'000;
-	utils::darray<ecs::Entity> arr;
+	containers::darray<ecs::Entity> arr;
 	arr.reserve(N);
 
 	for (uint32_t i = 0U; i < N; i++)
@@ -297,7 +297,7 @@ TEST_CASE("SetComponent - generic") {
 	ecs::World w;
 
 	constexpr uint32_t N = 100;
-	utils::darray<ecs::Entity> arr;
+	containers::darray<ecs::Entity> arr;
 	arr.reserve(N);
 
 	for (uint32_t i = 0U; i < N; ++i) {
@@ -382,7 +382,7 @@ TEST_CASE("SetComponent - generic & chunk") {
 	ecs::World w;
 
 	constexpr uint32_t N = 100;
-	utils::darray<ecs::Entity> arr;
+	containers::darray<ecs::Entity> arr;
 	arr.reserve(N);
 
 	for (uint32_t i = 0U; i < N; ++i) {

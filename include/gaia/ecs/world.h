@@ -1,10 +1,10 @@
 #pragma once
-#include "../utils/vector.h"
+#include "../containers/sarray_ext.h"
 #include <cassert>
 #include <inttypes.h>
 
 #include "../config/config.h"
-#include "../utils/map.h"
+#include "../containers/map.h"
 #include "../utils/span.h"
 #include "../utils/type_info.h"
 #include "../utils/utility.h"
@@ -29,24 +29,24 @@ namespace gaia {
 			ChunkAllocator m_chunkAllocator;
 
 			//! Map or archetypes mapping to the same hash - used for lookups
-			utils::map<uint64_t, utils::darray<Archetype*>> m_archetypeMap;
+			containers::map<uint64_t, containers::darray<Archetype*>> m_archetypeMap;
 			//! List of archetypes - used for iteration
-			utils::darray<Archetype*> m_archetypeList;
+			containers::darray<Archetype*> m_archetypeList;
 			//! List of unique archetype hashes - used for iteration
-			utils::darray<uint64_t> m_archetypeHashList;
+			containers::darray<uint64_t> m_archetypeHashList;
 
 			//! Implicit list of entities. Used for look-ups only when searching for
 			//! entities in chunks + data validation
-			utils::darray<EntityContainer> m_entities;
+			containers::darray<EntityContainer> m_entities;
 			//! Index of the next entity to recycle
 			uint32_t m_nextFreeEntity = Entity::IdMask;
 			//! Number of entites to recycle
 			uint32_t m_freeEntities = 0;
 
 			//! List of chunks to delete
-			utils::darray<Chunk*> m_chunksToRemove;
+			containers::darray<Chunk*> m_chunksToRemove;
 			//! List of archetypes to delete
-			utils::darray<Archetype*> m_archetypesToRemove;
+			containers::darray<Archetype*> m_archetypesToRemove;
 
 			//! With every structural change world version changes
 			uint32_t m_worldVersion = 0;
@@ -200,7 +200,7 @@ namespace gaia {
 
 				// Calculate hash for our combination of components
 				const auto lookupHash = CalculateLookupHash(
-						utils::array<uint64_t, 2>{CalculateLookupHash(genericTypes), CalculateLookupHash(chunkTypes)});
+						containers::sarray<uint64_t, 2>{CalculateLookupHash(genericTypes), CalculateLookupHash(chunkTypes)});
 
 				if (auto archetype = FindArchetype(genericTypes, chunkTypes, lookupHash))
 					return archetype;
@@ -1165,7 +1165,7 @@ namespace gaia {
 			template <typename TFunc>
 			static void RunQueryOnChunks_Direct(World& world, EntityQuery& query, TFunc& func) {
 				const uint32_t BatchSize = 256U;
-				utils::array<Chunk*, BatchSize> tmp;
+				containers::sarray<Chunk*, BatchSize> tmp;
 
 				// Update the world version
 				world.UpdateWorldVersion();
@@ -1207,7 +1207,7 @@ namespace gaia {
 			static void RunQueryOnChunks_Indirect(World& world, EntityQuery& query, TFunc& func) {
 				using InputArgs = decltype(utils::func_args(&TFunc::operator()));
 				const uint32_t BatchSize = 256U;
-				utils::array<Chunk*, BatchSize> tmp;
+				containers::sarray<Chunk*, BatchSize> tmp;
 
 				// Update the world version
 				world.UpdateWorldVersion();
@@ -1365,7 +1365,7 @@ namespace gaia {
 				static bool DiagArchetypes = GAIA_ECS_DIAG_ARCHETYPES;
 				if (DiagArchetypes) {
 					DiagArchetypes = false;
-					utils::map<uint64_t, uint32_t> archetypeEntityCountMap;
+					containers::map<uint64_t, uint32_t> archetypeEntityCountMap;
 					for (const auto* archetype: m_archetypeList)
 						archetypeEntityCountMap.insert({archetype->lookupHash, 0});
 
