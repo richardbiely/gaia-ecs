@@ -9,7 +9,7 @@ namespace gaia {
 		// Array with fixed size and capacity allocated on stack.
 		// Interface compatiblity with std::array where it matters.
 		// Can be used if STL containers are not an option for some reason.
-		template <class T, auto N>
+		template <class T, size_t N>
 		class sarr {
 		public:
 			using iterator_category = std::random_access_iterator_tag;
@@ -21,13 +21,9 @@ namespace gaia {
 			using difference_type = std::ptrdiff_t;
 			using size_type = decltype(N);
 
-		private:
 			T m_data[N ? N : 1]; // support zero-size arrays
 
-		public:
 			class iterator {
-				friend class sarr;
-
 			public:
 				using iterator_category = std::random_access_iterator_tag;
 				using value_type = T;
@@ -82,8 +78,6 @@ namespace gaia {
 				}
 			};
 			class const_iterator {
-				friend class sarr;
-
 			public:
 				using iterator_category = std::random_access_iterator_tag;
 				using value_type = T;

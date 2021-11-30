@@ -1,10 +1,11 @@
 #pragma once
-#include "../containers/sarray_ext.h"
 #include <cassert>
 #include <inttypes.h>
 
 #include "../config/config.h"
 #include "../containers/map.h"
+#include "../containers/sarray.h"
+#include "../containers/sarray_ext.h"
 #include "../utils/span.h"
 #include "../utils/type_info.h"
 #include "../utils/utility.h"

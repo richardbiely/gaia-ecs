@@ -1,12 +1,12 @@
 #pragma once
 
-#define USE_ARRAY 1 // GAIA_USE_STL_CONTAINERS
+#define USE_ARRAY GAIA_USE_STL_CONTAINERS
 
 #if USE_ARRAY == 1
 	#include <array>
 namespace gaia {
 	namespace containers {
-		template <typename T, auto N>
+		template <typename T, size_t N>
 		using sarray = std::array<T, N>;
 	} // namespace containers
 } // namespace gaia
@@ -14,7 +14,7 @@ namespace gaia {
 	#include "impl/sarray.h"
 namespace gaia {
 	namespace containers {
-		template <typename T, auto N>
+		template <typename T, size_t N>
 		using sarray = containers::sarr<T, N>;
 	} // namespace containers
 } // namespace gaia
