@@ -1,10 +1,10 @@
 #pragma once
-#include "../utils/array.h"
-#include "../utils/vector.h"
+#include "../containers/sarray.h"
+#include "../containers/sarray_ext.h"
 #include <algorithm>
 #include <tuple>
 
-#include "../utils/containers/sarray.h"
+#include "../containers/sarray_ext.h"
 #include "../utils/utility.h"
 #include "../utils/utils_containers.h"
 #include "common.h"
@@ -31,7 +31,7 @@ namespace gaia {
 		struct component_query_container: component_query_container_base<Type...> {
 		private:
 			static constexpr uint64_t calculate_combined_hash() {
-				utils::array<uint64_t, sizeof...(Type)> arr = {utils::type_info::hash<Type>()...};
+				containers::sarray<uint64_t, sizeof...(Type)> arr = {utils::type_info::hash<Type>()...};
 				utils::sort(arr);
 				return CalculateLookupHash(arr);
 			}
@@ -113,7 +113,7 @@ namespace gaia {
 			friend class World;
 
 			// Keeps an array of Component type indices
-			using ComponentIndexArray = utils::sarray<uint32_t, MAX_COMPONENTS_IN_QUERY>;
+			using ComponentIndexArray = containers::sarray_ext<uint32_t, MAX_COMPONENTS_IN_QUERY>;
 			using ChangeFilterArray = ComponentIndexArray;
 
 			struct ComponentListData {

@@ -1,6 +1,6 @@
 #pragma once
-#include "../utils/array.h"
-#include "../utils/vector.h"
+#include "../containers/sarray.h"
+#include "../containers/sarray_ext.h"
 #include <inttypes.h>
 
 #include "../utils/utils_mem.h"
@@ -26,11 +26,11 @@ namespace gaia {
 			//! World to which this chunk belongs to
 			const World* parentWorld = nullptr;
 			//! List of chunks allocated by this archetype
-			utils::darray<Chunk*> chunks;
+			containers::darray<Chunk*> chunks;
 			//! Description of components within this archetype
-			utils::array<ChunkComponentTypeList, ComponentType::CT_Count> componentTypeList;
+			containers::sarray<ChunkComponentTypeList, ComponentType::CT_Count> componentTypeList;
 			//! Lookup hashes of components within this archetype
-			utils::array<ChunkComponentLookupList, ComponentType::CT_Count> componentLookupList;
+			containers::sarray<ChunkComponentLookupList, ComponentType::CT_Count> componentLookupList;
 
 			//! Hash of components within this archetype - used for lookups
 			uint64_t lookupHash = 0;

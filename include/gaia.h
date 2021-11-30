@@ -13,15 +13,18 @@
 #include "gaia/ecs/system.h"
 #include "gaia/ecs/world.h"
 
+#include "gaia/containers/darray.h"
+#include "gaia/containers/list.h"
+#include "gaia/containers/map.h"
+#include "gaia/containers/sarray.h"
+#include "gaia/containers/sarray_ext.h"
+
 #include "gaia/utils/data_layout_policy.h"
 #include "gaia/utils/hashing_policy.h"
-#include "gaia/utils/list.h"
-#include "gaia/utils/map.h"
 #include "gaia/utils/signals.h"
 #include "gaia/utils/type_info.h"
 #include "gaia/utils/utility.h"
 #include "gaia/utils/utils_containers.h"
 #include "gaia/utils/utils_mem.h"
-#include "gaia/utils/vector.h"
 
 #define GAIA_INIT GAIA_ECS_COMPONENT_CACHE_H_INIT

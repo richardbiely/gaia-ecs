@@ -8,12 +8,11 @@
 	#include <list>
 
 namespace gaia {
-	namespace utils {
+	namespace containers {
 		template <typename T>
 		using list = std::list<T>;
-	}
+	} // namespace containers
 } // namespace gaia
-
 #else
 
 	#error Unsupported value used for USE_LIST

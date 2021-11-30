@@ -4,12 +4,12 @@
 #include <utility>
 
 namespace gaia {
-	namespace utils {
+	namespace containers {
 		// Array with variable size allocated on heap.
-		// Interface compatiblity with std::darray where it matters.
+		// Interface compatiblity with std::vector where it matters.
 		// Can be used if STL containers are not an option for some reason.
 		template <class T>
-		class vector {
+		class darr {
 		public:
 			using iterator_category = std::random_access_iterator_tag;
 			using value_type = T;
@@ -27,7 +27,7 @@ namespace gaia {
 
 		public:
 			class iterator {
-				friend class vector;
+				friend class darr;
 
 			public:
 				using iterator_category = std::random_access_iterator_tag;
@@ -35,7 +35,7 @@ namespace gaia {
 				using difference_type = std::ptrdiff_t;
 				using pointer = T*;
 				using reference = T&;
-				using size_type = vector::size_type;
+				using size_type = darr::size_type;
 
 			private:
 				T* m_ptr;
@@ -83,7 +83,7 @@ namespace gaia {
 			};
 
 			class const_iterator {
-				friend class vector;
+				friend class darr;
 
 			public:
 				using iterator_category = std::random_access_iterator_tag;
@@ -91,7 +91,7 @@ namespace gaia {
 				using difference_type = std::ptrdiff_t;
 				using pointer = T*;
 				using reference = T&;
-				using size_type = vector::size_type;
+				using size_type = darr::size_type;
 
 			private:
 				const T* m_ptr;
@@ -138,22 +138,22 @@ namespace gaia {
 				}
 			};
 
-			vector() noexcept {
+			darr() noexcept {
 				clear();
 			}
 
-			vector(size_type count, const T& value) noexcept {
+			darr(size_type count, const T& value) noexcept {
 				resize(count);
 				for (auto it: *this)
 					*it = value;
 			}
 
-			vector(size_type count) noexcept {
+			darr(size_type count) noexcept {
 				resize(count);
 			}
 
 			template <class InputIt>
-			vector(InputIt first, InputIt last) noexcept {
+			darr(InputIt first, InputIt last) noexcept {
 				const auto count = (size_type)std::distance(first, last);
 				resize(count);
 				size_type i = 0;
@@ -161,10 +161,10 @@ namespace gaia {
 					m_data[i++] = *it;
 			}
 
-			vector(std::initializer_list<T> init): vector(init.begin(), init.end()) {}
+			darr(std::initializer_list<T> init): darr(init.begin(), init.end()) {}
 
-			vector(const vector& other) noexcept: vector(other.begin(), other.end()) {}
-			vector(vector&& other) {
+			darr(const darr& other) noexcept: darr(other.begin(), other.end()) {}
+			darr(darr&& other) {
 				m_cnt = other.m_cnt;
 				m_cap = other.m_cap;
 				m_data = other.m_data;
@@ -173,13 +173,13 @@ namespace gaia {
 				other.m_cap = 0;
 				other.m_data = nullptr;
 			}
-			vector& operator=(const vector& other) {
+			darr& operator=(const darr& other) {
 				resize(other.size());
 				for (size_type i = 0; i < other.size(); ++i)
 					m_data[i++] = other[i];
 				return *this;
 			}
-			vector& operator=(vector&& other) {
+			darr& operator=(darr&& other) {
 				m_cnt = other.m_cnt;
 				m_cap = other.m_cap;
 				m_data = other.m_data;
@@ -190,7 +190,7 @@ namespace gaia {
 				return *this;
 			}
 
-			~vector() {
+			~darr() {
 				if (m_data != nullptr)
 					delete[] m_data;
 				m_data = nullptr;

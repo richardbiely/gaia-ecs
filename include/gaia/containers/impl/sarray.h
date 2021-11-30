@@ -1,15 +1,16 @@
 #pragma once
 #include <cstddef>
 #include <iterator>
+#include <type_traits>
 #include <utility>
 
 namespace gaia {
-	namespace utils {
-		// Array with fixed capacity and variable size allocated on stack.
+	namespace containers {
+		// Array with fixed size and capacity allocated on stack.
 		// Interface compatiblity with std::array where it matters.
 		// Can be used if STL containers are not an option for some reason.
 		template <class T, auto N>
-		class sarray {
+		class sarr {
 		public:
 			using iterator_category = std::random_access_iterator_tag;
 			using value_type = T;
@@ -22,11 +23,10 @@ namespace gaia {
 
 		private:
 			T m_data[N];
-			size_type m_pos;
 
 		public:
 			class iterator {
-				friend class sarray;
+				friend class sarr;
 
 			public:
 				using iterator_category = std::random_access_iterator_tag;
@@ -82,7 +82,7 @@ namespace gaia {
 				}
 			};
 			class const_iterator {
-				friend class sarray;
+				friend class sarr;
 
 			public:
 				using iterator_category = std::random_access_iterator_tag;
@@ -138,63 +138,28 @@ namespace gaia {
 				}
 			};
 
-			sarray() {
-				clear();
-			}
-
-			constexpr T* data() noexcept {
+			constexpr pointer data() noexcept {
 				return m_data;
 			}
 
-			constexpr const T* data() const noexcept {
+			constexpr const_pointer data() const noexcept {
 				return m_data;
 			}
 
-			constexpr T& operator[](size_type pos) noexcept {
+			constexpr reference operator[](size_type pos) noexcept {
 				return m_data[pos];
 			}
 
-			constexpr const T& operator[](size_type pos) const noexcept {
+			constexpr const_reference operator[](size_type pos) const noexcept {
 				return m_data[pos];
-			}
-
-			void push_back(const T& arg) noexcept {
-				GAIA_ASSERT(size() < N);
-				m_data[++m_pos] = arg;
-			}
-
-			constexpr void push_back_ct(const T& arg) noexcept {
-				m_data[++m_pos] = arg;
-			}
-
-			void push_back(T&& arg) noexcept {
-				GAIA_ASSERT(size() < N);
-				m_data[++m_pos] = std::forward<T>(arg);
-			}
-
-			constexpr void push_back_ct(T&& arg) noexcept {
-				m_data[++m_pos] = std::forward<T>(arg);
-			}
-
-			void pop_back() noexcept {
-				GAIA_ASSERT(!empty());
-				--m_pos;
-			}
-
-			constexpr void pop_back_ct() noexcept {
-				--m_pos;
-			}
-
-			constexpr void clear() noexcept {
-				m_pos = size_type(-1);
 			}
 
 			[[nodiscard]] constexpr size_type size() const noexcept {
-				return m_pos + 1;
+				return N;
 			}
 
 			[[nodiscard]] constexpr bool empty() const noexcept {
-				return size() == 0;
+				return begin() == end();
 			}
 
 			[[nodiscard]] constexpr size_type max_size() const noexcept {
@@ -210,11 +175,11 @@ namespace gaia {
 			}
 
 			constexpr reference back() noexcept {
-				return m_data[m_pos];
+				return m_data[N - 1];
 			}
 
 			constexpr const_reference back() const noexcept {
-				return m_data[m_pos];
+				return m_data[N - 1];
 			}
 
 			constexpr iterator begin() const noexcept {
@@ -226,19 +191,19 @@ namespace gaia {
 			}
 
 			constexpr iterator rbegin() const noexcept {
-				return {(T*)m_data, m_pos - 1};
+				return {(T*)m_data, N - 1};
 			}
 
 			constexpr const_iterator crbegin() const noexcept {
-				return {(const T*)m_data, m_pos - 1};
+				return {(const T*)m_data, N - 1};
 			}
 
 			constexpr iterator end() const noexcept {
-				return {(T*)m_data, m_pos + 1};
+				return {(T*)m_data, N + 1};
 			}
 
 			constexpr const_iterator cend() const noexcept {
-				return {(const T*)m_data, m_pos + 1};
+				return {(const T*)m_data, N + 1};
 			}
 
 			constexpr iterator rend() const noexcept {
@@ -252,29 +217,29 @@ namespace gaia {
 
 		namespace detail {
 			template <class T, std::size_t N, std::size_t... I>
-			constexpr sarray<std::remove_cv_t<T>, N> to_sarray_impl(T (&a)[N], std::index_sequence<I...>) {
+			constexpr sarr<std::remove_cv_t<T>, N> to_array_impl(T (&a)[N], std::index_sequence<I...>) {
 				return {{a[I]...}};
 			}
 		} // namespace detail
 
 		template <class T, std::size_t N>
-		constexpr sarray<std::remove_cv_t<T>, N> to_sarray(T (&a)[N]) {
-			return detail::to_sarray_impl(a, std::make_index_sequence<N>{});
+		constexpr sarr<std::remove_cv_t<T>, N> to_array(T (&a)[N]) {
+			return detail::to_array_impl(a, std::make_index_sequence<N>{});
 		}
 
 		template <class T, class... U>
-		sarray(T, U...) -> sarray<T, 1 + sizeof...(U)>;
+		sarr(T, U...) -> sarr<T, 1 + sizeof...(U)>;
 
-	} // namespace utils
+	} // namespace containers
 
 } // namespace gaia
 
 namespace std {
 	template <class T, size_t N>
-	struct tuple_size<gaia::utils::sarray<T, N>>: std::integral_constant<std::size_t, N> {};
+	struct tuple_size<gaia::containers::sarr<T, N>>: std::integral_constant<std::size_t, N> {};
 
 	template <size_t I, class T, size_t N>
-	struct tuple_element<I, gaia::utils::sarray<T, N>> {
+	struct tuple_element<I, gaia::containers::sarr<T, N>> {
 		using type = T;
 	};
 } // namespace std

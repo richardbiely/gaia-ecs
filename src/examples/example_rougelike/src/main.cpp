@@ -123,7 +123,7 @@ struct World {
 	//! blocked tiles
 	bool blocked[ScreenY][ScreenX];
 	//! tile content
-	utils::map<Position, utils::darray<ecs::Entity>> content;
+	containers::map<Position, containers::darray<ecs::Entity>> content;
 
 	World(ecs::World& world): w(world) {}
 
@@ -165,7 +165,7 @@ struct World {
 	}
 
 	void CreateEnemies() {
-		utils::array<ecs::Entity, 3> enemies;
+		containers::sarray<ecs::Entity, 3> enemies;
 		for (size_t i = 0U; i < enemies.size(); ++i) {
 			auto& e = enemies[i];
 			e = w.CreateEntity();
@@ -270,7 +270,7 @@ struct CollisionData {
 
 class CollisionSystem final: public ecs::System {
 	ecs::EntityQuery m_q;
-	utils::darray<CollisionData> m_colliding;
+	containers::darray<CollisionData> m_colliding;
 
 public:
 	void OnCreated() override {
@@ -321,7 +321,7 @@ public:
 				.Run();
 	}
 
-	const utils::darray<CollisionData>& GetCollisions() const {
+	const containers::darray<CollisionData>& GetCollisions() const {
 		return m_colliding;
 	}
 };
