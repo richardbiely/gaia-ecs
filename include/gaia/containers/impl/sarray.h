@@ -22,7 +22,7 @@ namespace gaia {
 			using size_type = decltype(N);
 
 		private:
-			T m_data[N];
+			T m_data[N ? N : 1]; // support zero-size arrays
 
 		public:
 			class iterator {
@@ -175,11 +175,11 @@ namespace gaia {
 			}
 
 			constexpr reference back() noexcept {
-				return m_data[N - 1];
+				return N ? *(end() - 1) : *end();
 			}
 
 			constexpr const_reference back() const noexcept {
-				return m_data[N - 1];
+				return N ? *(end() - 1) : *end();
 			}
 
 			constexpr iterator begin() const noexcept {
@@ -199,11 +199,11 @@ namespace gaia {
 			}
 
 			constexpr iterator end() const noexcept {
-				return {(T*)m_data, N + 1};
+				return {(T*)m_data, N};
 			}
 
 			constexpr const_iterator cend() const noexcept {
-				return {(const T*)m_data, N + 1};
+				return {(const T*)m_data, N};
 			}
 
 			constexpr iterator rend() const noexcept {

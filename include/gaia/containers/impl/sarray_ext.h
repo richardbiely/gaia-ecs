@@ -21,7 +21,7 @@ namespace gaia {
 			using size_type = decltype(N);
 
 		private:
-			T m_data[N];
+			T m_data[N ? N : 1]; // support zero-size arrays
 			size_type m_pos;
 
 		public:
@@ -210,11 +210,11 @@ namespace gaia {
 			}
 
 			constexpr reference back() noexcept {
-				return m_data[m_pos];
+				return N ? *(end() - 1) : *end();
 			}
 
 			constexpr const_reference back() const noexcept {
-				return m_data[m_pos];
+				return N ? *(end() - 1) : *end();
 			}
 
 			constexpr iterator begin() const noexcept {
