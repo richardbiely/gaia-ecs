@@ -252,7 +252,9 @@ namespace gaia {
 				return HasComponent_Internal<T>(ComponentType::CT_Chunk);
 			}
 
-#pragma region Setting component value
+			//----------------------------------------------------------------------
+			// Setting component value
+			//----------------------------------------------------------------------
 
 			template <typename T>
 			void SetComponent(uint32_t index, T&& value) {
@@ -274,9 +276,9 @@ namespace gaia {
 				(SetComponent_Internal<T>(ComponentType::CT_Chunk, 0, std::forward<T>(value)), ...);
 			}
 
-#pragma endregion
-
-#pragma region Component data by copy
+			//----------------------------------------------------------------------
+			// Component data by copy
+			//----------------------------------------------------------------------
 
 			template <typename T>
 			void GetComponent(uint32_t index, std::decay_t<T>& data) const {
@@ -298,9 +300,9 @@ namespace gaia {
 				(GetChunkComponent<T>(data), ...);
 			}
 
-#pragma endregion
-
-#pragma region Component data by reference
+			//----------------------------------------------------------------------
+			// Component data by reference
+			//----------------------------------------------------------------------
 
 			template <typename T>
 			void GetComponent(uint32_t index, const std::decay_t<T>*& data) const {
@@ -328,7 +330,7 @@ namespace gaia {
 				(GetChunkComponent<T>(data), ...);
 			}
 
-#pragma endregion
+			//----------------------------------------------------------------------
 
 			//! Checks is there are any entities in the chunk
 			[[nodiscard]] bool HasEntities() const {

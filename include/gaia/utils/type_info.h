@@ -29,7 +29,9 @@ namespace gaia {
 		template <>
 		class type_group<void>;
 
-#pragma region "Type meta data"
+		//----------------------------------------------------------------------
+		// Type meta data
+		//----------------------------------------------------------------------
 
 		struct type_info final {
 			template <typename T>
@@ -62,8 +64,6 @@ namespace gaia {
 				return hash_fnv1a_64(name<T>().data(), name<T>().length());
 			}
 		};
-
-#pragma endregion
 
 	} // namespace utils
 } // namespace gaia

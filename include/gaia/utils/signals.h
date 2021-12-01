@@ -47,7 +47,9 @@ namespace gaia {
 		template <typename Function>
 		class sink;
 
-#pragma region Delegate
+		//----------------------------------------------------------------------
+		// Delegate
+		//----------------------------------------------------------------------
 
 		// TODO: This can replace gaia_delegate...
 
@@ -307,9 +309,9 @@ namespace gaia {
 		template <typename Ret, typename... Args>
 		delegate(Ret (*)(const void*, Args...), const void* = nullptr) noexcept->delegate<Ret(Args...)>;
 
-#pragma endregion
-
-#pragma region Signal
+		//----------------------------------------------------------------------
+		// Signal
+		//----------------------------------------------------------------------
 
 		/**
 		 \brief Signal is a container of listener which it can notify.
@@ -365,9 +367,9 @@ namespace gaia {
 			}
 		};
 
-#pragma endregion
-
-#pragma region Sink
+		//----------------------------------------------------------------------
+		// Sink
+		//----------------------------------------------------------------------
 
 		/**
 		 \brief Sink is a helper class used to bind listeners to signals.
@@ -541,6 +543,5 @@ namespace gaia {
 		template <typename Ret, typename... Args>
 		sink(signal<Ret(Args...)>&) noexcept->sink<Ret(Args...)>;
 
-#pragma endregion
 	} // namespace utils
 } // namespace gaia

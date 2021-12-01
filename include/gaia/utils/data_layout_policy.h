@@ -17,7 +17,9 @@ namespace gaia {
 		// Helper templates
 		namespace detail {
 
-#pragma region "Byte offset of a member of SoA-organized data"
+			//----------------------------------------------------------------------
+			// Byte offset of a member of SoA-organized data
+			//----------------------------------------------------------------------
 
 			template <size_t N, size_t Alignment, typename Tuple>
 			constexpr static size_t soa_byte_offset(const uintptr_t address, [[maybe_unused]] const size_t size) {
@@ -30,7 +32,6 @@ namespace gaia {
 				}
 			}
 
-#pragma endregion
 		} // namespace detail
 
 		template <DataLayout TDataLayout>
@@ -289,7 +290,9 @@ namespace gaia {
 		template <typename ValueType>
 		using soa_view_policy_set = data_view_policy_get<DataLayout::SoA, ValueType>;
 
-#pragma region Helpers
+		//----------------------------------------------------------------------
+		// Helpers
+		//----------------------------------------------------------------------
 
 		template <typename, typename = void>
 		struct is_soa_layout: std::false_type {};
@@ -307,6 +310,5 @@ namespace gaia {
 		using auto_view_policy_set = std::conditional_t<
 				is_soa_layout<T>::value, data_view_policy_set<DataLayout::SoA, T>, data_view_policy_set<DataLayout::AoS, T>>;
 
-#pragma endregion
 	} // namespace utils
 } // namespace gaia

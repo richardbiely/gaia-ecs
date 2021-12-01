@@ -65,7 +65,10 @@ namespace gaia {
 			return h;
 		}
 
-#pragma region "Fowler-Noll-Vo hash"
+		//----------------------------------------------------------------------
+		// Fowler-Noll-Vo hash
+		//----------------------------------------------------------------------
+
 		// Fowler-Noll-Vo hash is a fast public-domain hash function good for
 		// checksums
 
@@ -82,8 +85,6 @@ namespace gaia {
 		constexpr uint64_t hash_fnv1a_64(const char* const str, const uint64_t value = val_64_const) noexcept {
 			return (str[0] == '\0') ? value : hash_fnv1a_64(&str[1], (value ^ (uint64_t)(str[0])) * prime_64_const);
 		}
-
-#pragma endregion
 
 	} // namespace utils
 } // namespace gaia
