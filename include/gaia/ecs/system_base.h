@@ -28,7 +28,7 @@ namespace gaia {
 			//! If true, the system is enabled and running
 			bool m_enabled = true;
 			//! If true, the system is to be destroyed
-			[[maybe_unused]] bool m_destroy = false;
+			bool m_destroy = false;
 
 		public:
 			BaseSystem() = default;
@@ -91,6 +91,14 @@ namespace gaia {
 			//! Returns true for systems this system depends on. False otherwise
 			virtual bool DependsOn([[maybe_unused]] const BaseSystem* system) const {
 				return false;
+			}
+
+		private:
+			void SetDestroyed(bool destroy) {
+				m_destroy = destroy;
+			}
+			bool IsDestroyed() const {
+				return m_destroy;
 			}
 		};
 
@@ -202,10 +210,10 @@ namespace gaia {
 			template <typename T>
 			void RemoveSystem() {
 				auto system = FindSystem<T>();
-				if (system == nullptr || system->m_destroy)
+				if (system == nullptr || system->IsDestroyed())
 					return;
 
-				system->m_destroy = true;
+				system->SetDestroyed(true);
 
 				// Request removal of the system
 				m_systemsToRemove.push_back(system);

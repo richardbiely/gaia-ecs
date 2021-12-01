@@ -51,7 +51,7 @@ namespace gaia {
 						(sizeof(To) == sizeof(From)) && std::is_trivially_copyable_v<To> && std::is_trivially_copyable_v<From>>>
 		To bit_cast(const From& from) {
 			To to;
-			std::memmove(&to, &from, sizeof(To));
+			memmove(&to, &from, sizeof(To));
 			return to;
 		}
 
@@ -69,7 +69,7 @@ namespace gaia {
 
 			T operator*() const {
 				T to;
-				std::memmove(&to, from, sizeof(T));
+				memmove(&to, from, sizeof(T));
 				return to;
 			}
 
