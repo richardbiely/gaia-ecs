@@ -17,8 +17,10 @@
 
 namespace gaia {
 	namespace ecs {
+		//----------------------------------------------------------------------
+		// Helpers
+		//----------------------------------------------------------------------
 
-#pragma region Helpers
 		//! Maximum size of components in bytes
 		static constexpr uint32_t MAX_COMPONENTS_SIZE = 255u;
 
@@ -51,11 +53,11 @@ namespace gaia {
 
 		inline const char* ComponentTypeString[ComponentType::CT_Count] = {"Generic", "Chunk"};
 
-#pragma endregion
-
 		struct ComponentMetaData;
 
-#pragma region Component hash operations
+		//----------------------------------------------------------------------
+		// Component hash operations
+		//----------------------------------------------------------------------
 
 		namespace detail {
 			template <typename T>
@@ -112,9 +114,9 @@ namespace gaia {
 			return 0;
 		};
 
-#pragma endregion
-
-#pragma region ComponentMetaData
+		//----------------------------------------------------------------------
+		// ComponentMetaData
+		//----------------------------------------------------------------------
 
 		struct ComponentMetaData final {
 			using FuncConstructor = void(void*);
@@ -210,7 +212,7 @@ namespace gaia {
 			return hash;
 		}
 
-#pragma endregion
+		//----------------------------------------------------------------------
 
 		struct ChunkComponentTypeInfo final {
 			//! Pointer to the associated meta type

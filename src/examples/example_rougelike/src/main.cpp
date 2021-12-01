@@ -24,7 +24,9 @@ GAIA_MSVC_WARNING_DISABLE(4307)
 
 using namespace gaia;
 
-#pragma region Plaform specific helper functions
+//----------------------------------------------------------------------
+// Platform-specific helpers
+//----------------------------------------------------------------------
 
 #ifndef _WIN32
 char get_char() {
@@ -59,9 +61,9 @@ void ClearScreen() {
 }
 #endif
 
-#pragma endregion
-
-#pragma region Components
+//----------------------------------------------------------------------
+// Components
+//----------------------------------------------------------------------
 
 struct Position {
 	int x, y;
@@ -103,7 +105,7 @@ struct Item {
 };
 struct Player {};
 
-#pragma endregion
+//----------------------------------------------------------------------
 
 constexpr int ScreenX = 40;
 constexpr int ScreenY = 15;

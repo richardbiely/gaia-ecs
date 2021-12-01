@@ -6,7 +6,9 @@
 namespace gaia {
 	namespace utils {
 
-#pragma region "Tuple to struct conversion"
+		//----------------------------------------------------------------------
+		// Tuple to struct conversion
+		//----------------------------------------------------------------------
 
 		template <class S, size_t... Is, class Tuple>
 		S tuple_to_struct(std::index_sequence<Is...>, Tuple&& tup) {
@@ -20,9 +22,9 @@ namespace gaia {
 			return tuple_to_struct<S>(std::make_index_sequence<std::tuple_size<T>{}>{}, std::forward<Tuple>(tup));
 		}
 
-#pragma endregion
-
-#pragma region "Struct to tuple conversion"
+		//----------------------------------------------------------------------
+		// Struct to tuple conversion
+		//----------------------------------------------------------------------
 
 		// Check if type T is constructible via T{Args...}
 		struct any_type {
@@ -83,6 +85,5 @@ namespace gaia {
 			}
 		}
 
-#pragma endregion
 	} // namespace utils
 } // namespace gaia

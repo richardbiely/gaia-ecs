@@ -6,7 +6,10 @@
 namespace gaia {
 	namespace utils {
 
-#pragma region Checking if a template arg is unique among the rest
+		//----------------------------------------------------------------------
+		// Checking if a template arg is unique among the rest
+		//----------------------------------------------------------------------
+
 		template <typename...>
 		inline constexpr auto is_unique = std::true_type{};
 
@@ -31,16 +34,19 @@ namespace gaia {
 
 		template <typename... Ts>
 		using unique_tuple = typename unique<std::tuple<>, Ts...>::type;
-#pragma endregion
 
-#pragma region Calculating total size of all types of tuple
+		//----------------------------------------------------------------------
+		// Calculating total size of all types of tuple
+		//----------------------------------------------------------------------
+
 		template <typename... Args>
 		constexpr unsigned get_args_size(std::tuple<Args...> const&) {
 			return (sizeof(Args) + ...);
 		}
-#pragma endregion
 
-#pragma region Function helpers
+		//----------------------------------------------------------------------
+		// Function helpers
+		//----------------------------------------------------------------------
 
 		template <typename... Type>
 		struct func_type_list {};
@@ -48,9 +54,9 @@ namespace gaia {
 		template <typename Class, typename Ret, typename... Args>
 		func_type_list<Args...> func_args(Ret (Class::*)(Args...) const);
 
-#pragma endregion
-
-#pragma region Type helpers
+		//----------------------------------------------------------------------
+		// Type helpers
+		//----------------------------------------------------------------------
 
 		template <typename... Type>
 		struct type_list {
@@ -66,9 +72,9 @@ namespace gaia {
 			using type = type_list<TypesA..., TypesB...>;
 		};
 
-#pragma endregion
-
-#pragma region Compile - time for each
+		//----------------------------------------------------------------------
+		// Compile - time for each
+		//----------------------------------------------------------------------
 
 		namespace detail {
 			template <class Func, auto... Is>
@@ -141,9 +147,9 @@ namespace gaia {
 					std::make_index_sequence<std::tuple_size<std::remove_reference_t<Tuple>>::value>{});
 		}
 
-#pragma endregion
-
-#pragma region Compile - time sort
+		//----------------------------------------------------------------------
+		// Compile-time sort
+		//----------------------------------------------------------------------
 
 		namespace detail {
 			template <typename T>
@@ -283,8 +289,6 @@ namespace gaia {
 				detail::comb_sort_impl(arr);
 			}
 		}
-
-#pragma endregion
 
 	} // namespace utils
 } // namespace gaia

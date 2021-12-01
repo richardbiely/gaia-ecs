@@ -853,7 +853,9 @@ namespace gaia {
 				pChunk->SetChunkComponent<TComponent...>(std::forward<TComponent>(data)...);
 			}
 
-#pragma region Component data by copy
+			//----------------------------------------------------------------------
+			// Component data by copy
+			//----------------------------------------------------------------------
 
 			/*!
 			Returns a copy of value of a component of \param entity.
@@ -885,9 +887,9 @@ namespace gaia {
 				pChunk->GetChunkComponents<TComponent...>(data...);
 			}
 
-#pragma endregion
-
-#pragma region Component data by reference
+			//----------------------------------------------------------------------
+			// Component data by reference
+			//----------------------------------------------------------------------
 
 			/*!
 			Returns a const reference to a component of \param entity.
@@ -919,7 +921,7 @@ namespace gaia {
 				pChunk->GetChunkComponents<TComponent...>(data...);
 			}
 
-#pragma endregion
+			//----------------------------------------------------------------------
 
 			template <typename... TComponent>
 			[[nodiscard]] bool HasComponents(Entity entity) {
