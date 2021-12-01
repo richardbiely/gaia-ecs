@@ -60,8 +60,7 @@ namespace gaia {
 		class ChunkAllocator {
 			struct MemoryBlock {
 				//! For active block: Index of the block within page.
-				//! For passive block: Index of the next free block in the implicit
-				//! containers::list.
+				//! For passive block: Index of the next free block in the implicit list.
 				uint16_t idx;
 			};
 
