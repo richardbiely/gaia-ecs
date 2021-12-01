@@ -18,7 +18,6 @@ namespace gaia {
 		using map = robin_hood::unordered_flat_map<Key, Data>;
 	} // namespace containers
 } // namespace gaia
-
 #else
 
 	#error Unsupported value used for USE_HASHMAP
