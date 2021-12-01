@@ -14,7 +14,6 @@
 #include "gaia/ecs/world.h"
 
 #include "gaia/containers/darray.h"
-#include "gaia/containers/list.h"
 #include "gaia/containers/map.h"
 #include "gaia/containers/sarray.h"
 #include "gaia/containers/sarray_ext.h"

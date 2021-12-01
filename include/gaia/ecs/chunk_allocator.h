@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../config/config.h"
+#include "gaia/utils/utils_containers.h"
 
 #if defined(__GLIBC__) || defined(__sun) || defined(__CYGWIN__)
 	#include <alloca.h>
@@ -26,7 +27,7 @@
 	#endif
 #endif
 
-#include "../containers/list.h"
+#include "../containers/darray.h"
 
 #include "../config/logging.h"
 #include "../containers/sarray_ext.h"
@@ -68,7 +69,7 @@ namespace gaia {
 				static constexpr uint32_t NBlocks = 64;
 				static constexpr uint32_t Size = NBlocks * MemoryBlockSize;
 				static constexpr uint16_t InvalidBlockId = (uint16_t)-1;
-				using iterator = containers::list<MemoryPage*>::iterator;
+				using iterator = containers::darray<MemoryPage*>::iterator;
 
 				//! Pointer to data managed by page
 				void* m_data;
@@ -121,7 +122,7 @@ namespace gaia {
 					GAIA_ASSERT(m_freeBlocks <= NBlocks);
 
 					// Offset the chunk memory so we get the real block address
-					uint8_t* pMemoryBlock = (uint8_t*)chunk - MemoryBlockUsableOffset;
+					const uint8_t* pMemoryBlock = (uint8_t*)chunk - MemoryBlockUsableOffset;
 
 					const auto blckAddr = (uintptr_t)pMemoryBlock;
 					const auto dataAddr = (uintptr_t)m_data;
@@ -155,9 +156,9 @@ namespace gaia {
 			};
 
 			//! List of available pages
-			containers::list<MemoryPage*> m_pagesFree;
+			containers::darray<MemoryPage*> m_pagesFree;
 			//! List of full pages
-			containers::list<MemoryPage*> m_pagesFull;
+			containers::darray<MemoryPage*> m_pagesFull;
 			//! Allocator statistics
 			ChunkAllocatorStats m_stats;
 
@@ -170,34 +171,40 @@ namespace gaia {
 			Allocates memory
 			*/
 			void* Allocate() {
-				void* chunk;
+				void* pChunk = nullptr;
 
-				auto itFree = m_pagesFree.begin();
-				if (itFree == m_pagesFree.end()) {
+				if (m_pagesFree.empty()) {
 					// Initial allocation
-					auto page = AllocPage();
-					m_pagesFree.insert(m_pagesFree.begin(), page);
-					page->m_it = m_pagesFree.begin();
-					chunk = page->AllocChunk();
+					auto pPage = AllocPage();
+					m_pagesFree.push_back(pPage);
+					pPage->m_it = m_pagesFree.rbegin();
+					pChunk = pPage->AllocChunk();
 				} else {
-					auto page = *itFree;
-					// Later allocation
-					chunk = page->AllocChunk();
-					if (page->IsFull()) {
-						// If our page is full move it to a different containers::list
-						m_pagesFull.insert(m_pagesFull.begin(), page);
-						page->m_it = m_pagesFull.begin();
-						m_pagesFree.erase(itFree);
+					auto pPage = m_pagesFree[0];
+					GAIA_ASSERT(!pPage->IsFull());
+					// Allocate a new chunk
+					pChunk = pPage->AllocChunk();
+
+					// Handle full pages
+					if (pPage->IsFull()) {
+						// Remove the page from the open list and update the swapped page's pointer
+						utils::erase_fast(m_pagesFree, 0);
+						if (!m_pagesFree.empty())
+							m_pagesFree[0]->m_it = MemoryPage::iterator(m_pagesFree.data(), 0);
+
+						// Move our page to full list
+						m_pagesFull.push_back(pPage);
+						pPage->m_it = m_pagesFull.rbegin();
 					}
 				}
 
 #if GAIA_ECS_CHUNK_ALLOCATOR_CLEAN_MEMORY_WITH_GARBAGE
 				// Fill allocated memory with 0xbaadf00d.
 				// This way we always know if we treat the memory correctly.
-				utils::fill_array((uint32_t*)chunk, (uint32_t)((ChunkMemorySize + 3) / sizeof(uint32_t)), 0x7fcdf00dU);
+				utils::fill_array((uint32_t*)pChunk, (uint32_t)((ChunkMemorySize + 3) / sizeof(uint32_t)), 0x7fcdf00dU);
 #endif
 
-				return chunk;
+				return pChunk;
 			}
 
 			/*!
@@ -236,8 +243,15 @@ namespace gaia {
 
 				// Update lists
 				if (pageFull) {
-					m_pagesFull.erase(pPage->m_it);
+					// Our page is no longer full remove it from the list and update the swapped page's pointer
+					const auto idx = std::distance(m_pagesFull.begin(), pPage->m_it);
+					utils::erase_fast(m_pagesFull, idx);
+					if (!m_pagesFull.empty())
+						m_pagesFull[idx]->m_it = MemoryPage::iterator(m_pagesFull.data(), idx);
+
+					// Move our page the the open list
 					m_pagesFree.push_back(pPage);
+					pPage->m_it = m_pagesFree.rbegin();
 				}
 
 				// Free the chunk
@@ -276,19 +290,19 @@ namespace gaia {
 			Flushes unused memory
 			*/
 			void Flush() {
-				auto it = m_pagesFree.begin();
-				while (it != m_pagesFree.end()) {
-					auto page = *it;
+				for (size_t i = 0; i < m_pagesFree.size();) {
+					auto page = m_pagesFree[i];
 
 					// Skip non-empty pages
 					if (!page->IsEmpty()) {
-						++it;
+						++i;
 						continue;
 					}
 
-					// Page with no chunks needs to be freed
-					m_pagesFree.erase(it++);
+					utils::erase_fast(m_pagesFree, i);
 					FreePage(page);
+					if (!m_pagesFree.empty())
+						m_pagesFree[i]->m_it = MemoryPage::iterator(m_pagesFree.data(), i);
 				}
 			}
 

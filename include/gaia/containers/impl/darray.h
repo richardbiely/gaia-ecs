@@ -42,11 +42,11 @@ namespace gaia {
 				size_type m_pos;
 
 			public:
+				constexpr iterator() = default;
 				constexpr iterator(T* ptr, size_type pos) {
 					m_ptr = ptr;
 					m_pos = pos;
 				}
-				constexpr iterator(const iterator& other): m_ptr(other.m_ptr), m_pos(other.m_pos) {}
 				constexpr void operator++() {
 					++m_pos;
 				}
@@ -98,11 +98,11 @@ namespace gaia {
 				size_type m_pos;
 
 			public:
+				constexpr const_iterator() = default;
 				constexpr const_iterator(const T* ptr, size_type pos) {
 					m_ptr = ptr;
 					m_pos = pos;
 				}
-				constexpr const_iterator(const const_iterator& other): m_ptr(other.m_ptr), m_pos(other.m_pos) {}
 				constexpr void operator++() {
 					++m_pos;
 				}
@@ -391,6 +391,6 @@ namespace gaia {
 				return {(const T*)m_data, size_type(-1)};
 			}
 		};
-	} // namespace utils
+	} // namespace containers
 
 } // namespace gaia
