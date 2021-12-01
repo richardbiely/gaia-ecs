@@ -75,12 +75,12 @@ namespace gaia {
 				return detail::CalculateMatcherHash<T>();
 			else
 				return utils::combine_or(detail::CalculateMatcherHash<T>(), detail::CalculateMatcherHash<Rest>()...);
-		};
+		}
 
 		template <>
 		[[nodiscard]] constexpr uint64_t CalculateMatcherHash() noexcept {
 			return 0;
-		};
+		}
 
 		//-----------------------------------------------------------------------------------
 
@@ -107,12 +107,12 @@ namespace gaia {
 				return utils::type_info::hash<T>();
 			else
 				return utils::hash_combine(utils::type_info::hash<T>(), utils::type_info::hash<Rest>()...);
-		};
+		}
 
 		template <>
 		[[nodiscard]] constexpr uint64_t CalculateLookupHash() noexcept {
 			return 0;
-		};
+		}
 
 		//----------------------------------------------------------------------
 		// ComponentMetaData
@@ -185,13 +185,13 @@ namespace gaia {
 				}
 
 				return mth;
-			};
+			}
 
 			template <typename T>
 			static const ComponentMetaData* Create() {
 				using TComponent = std::decay_t<T>;
 				return new ComponentMetaData(Calculate<TComponent>());
-			};
+			}
 		};
 
 		[[nodiscard]] inline uint64_t CalculateMatcherHash(uint64_t hashA, uint64_t hashB) noexcept {
