@@ -73,11 +73,11 @@ namespace gaia {
 
 				//! Pointer to data managed by page
 				void* m_data;
-				//! Iterator into the MemoryPage list
-				iterator m_it;
-				//! List of blocks
+				//! Implicit list of blocks
 				containers::sarray_ext<MemoryBlock, (uint16_t)NBlocks> m_blocks;
-				//! Numer of used blocks out of NBlocks
+				//! Index in the list of pages
+				uint32_t m_idx;
+				//! Number of used blocks out of NBlocks
 				uint16_t m_usedBlocks;
 				//! Index of the next block to recycle
 				uint16_t m_nextFreeBlock;
@@ -177,7 +177,7 @@ namespace gaia {
 					// Initial allocation
 					auto pPage = AllocPage();
 					m_pagesFree.push_back(pPage);
-					pPage->m_it = m_pagesFree.rbegin();
+					pPage->m_idx = m_pagesFree.size() - 1;
 					pChunk = pPage->AllocChunk();
 				} else {
 					auto pPage = m_pagesFree[0];
@@ -190,11 +190,11 @@ namespace gaia {
 						// Remove the page from the open list and update the swapped page's pointer
 						utils::erase_fast(m_pagesFree, 0);
 						if (!m_pagesFree.empty())
-							m_pagesFree[0]->m_it = MemoryPage::iterator(m_pagesFree.data(), 0);
+							m_pagesFree[0]->m_idx = 0;
 
 						// Move our page to full list
 						m_pagesFull.push_back(pPage);
-						pPage->m_it = m_pagesFull.rbegin();
+						pPage->m_idx = m_pagesFull.size() - 1;
 					}
 				}
 
@@ -244,14 +244,13 @@ namespace gaia {
 				// Update lists
 				if (pageFull) {
 					// Our page is no longer full remove it from the list and update the swapped page's pointer
-					const auto idx = std::distance(m_pagesFull.begin(), pPage->m_it);
-					utils::erase_fast(m_pagesFull, idx);
+					utils::erase_fast(m_pagesFull, pPage->m_idx);
 					if (!m_pagesFull.empty())
-						m_pagesFull[idx]->m_it = MemoryPage::iterator(m_pagesFull.data(), idx);
+						m_pagesFull[pPage->m_idx]->m_idx = pPage->m_idx;
 
 					// Move our page the the open list
 					m_pagesFree.push_back(pPage);
-					pPage->m_it = m_pagesFree.rbegin();
+					pPage->m_idx = m_pagesFree.size() - 1;
 				}
 
 				// Free the chunk
@@ -302,7 +301,7 @@ namespace gaia {
 					utils::erase_fast(m_pagesFree, i);
 					FreePage(page);
 					if (!m_pagesFree.empty())
-						m_pagesFree[i]->m_it = MemoryPage::iterator(m_pagesFree.data(), i);
+						m_pagesFree[i]->m_idx = i;
 				}
 			}
 
