@@ -191,7 +191,7 @@ namespace gaia {
 						if (!m_pagesFree.empty())
 							m_pagesFree[0]->m_idx = 0;
 
-						// Move our page to full list
+						// Move our page to the full list
 						m_pagesFull.push_back(pPage);
 						pPage->m_idx = m_pagesFull.size() - 1;
 					}
@@ -247,7 +247,7 @@ namespace gaia {
 					if (!m_pagesFull.empty())
 						m_pagesFull[pPage->m_idx]->m_idx = pPage->m_idx;
 
-					// Move our page the the open list
+					// Move our page to the open list
 					m_pagesFree.push_back(pPage);
 					pPage->m_idx = m_pagesFree.size() - 1;
 				}
@@ -267,8 +267,8 @@ namespace gaia {
 				for (auto* page: m_pagesFull)
 					FreePage(page);
 
-				m_pagesFree.clear();
-				m_pagesFull.clear();
+				m_pagesFree = {};
+				m_pagesFull = {};
 				m_stats = {};
 			}
 
