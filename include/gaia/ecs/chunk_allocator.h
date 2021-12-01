@@ -288,17 +288,17 @@ namespace gaia {
 			Flushes unused memory
 			*/
 			void Flush() {
-				for (size_t i = 0; i < m_pagesFree.size();) {
-					auto page = m_pagesFree[i];
+				for (uint32_t i = 0; i < (uint32_t)m_pagesFree.size();) {
+					auto* pPage = m_pagesFree[i];
 
 					// Skip non-empty pages
-					if (!page->IsEmpty()) {
+					if (!pPage->IsEmpty()) {
 						++i;
 						continue;
 					}
 
 					utils::erase_fast(m_pagesFree, i);
-					FreePage(page);
+					FreePage(pPage);
 					if (!m_pagesFree.empty())
 						m_pagesFree[i]->m_idx = i;
 				}
