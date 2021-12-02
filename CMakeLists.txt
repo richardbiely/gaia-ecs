@@ -25,8 +25,10 @@ message(VERBOSE "* ${PROJECT_NAME} v${PROJECT_VERSION} (${CMAKE_BUILD_TYPE})")
 message(VERBOSE "* Copyright (c) 2021 Richard Biely <richardbiely@gmail.com>")
 message(VERBOSE "*")
 
+set(IsClangCompiler CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+
 # Configuration
-option(GAIA_USE_LIBCPP "Use libc++." OFF)
+option(GAIA_USE_LIBCPP "Use libc++." IsClangCompiler)
 option(GAIA_USE_SANITIZER "Enable sanitizers." ON)
 option(GAIA_BUILD_UNITTEST "Build unit test." ON)
 option(GAIA_BUILD_BENCHMARK "Build benchmark." ON)
