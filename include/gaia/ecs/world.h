@@ -550,7 +550,7 @@ namespace gaia {
 			}
 
 			//! Verifies than the chunk is valid
-			void ValidateChunk(Chunk* pChunk) const {
+			void ValidateChunk([[maybe_unused]] Chunk* pChunk) const {
 #if GAIA_ECS_VALIDATE_CHUNKS
 				// Note: Normally we'd go [[maybe_unused]] instead of "(void)" but MSVC
 				// 2017 suffers an internal compiler error in that case...

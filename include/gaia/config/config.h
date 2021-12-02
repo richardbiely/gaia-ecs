@@ -5,7 +5,7 @@
 // General settings
 //------------------------------------------------------------------------------
 
-#define GAIA_DEBUG 1
+#define GAIA_DEBUG _DEBUG
 #define GAIA_DISABLE_ASSERTS 0
 #define GAIA_PROFILER 0
 #define GAIA_ECS_DIAGS 1
