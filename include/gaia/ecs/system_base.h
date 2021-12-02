@@ -172,7 +172,7 @@ namespace gaia {
 					m_systemsToCreate.clear();
 				}
 
-				OnAfterUpdate();
+				OnBeforeUpdate();
 
 				for (auto system: m_systems) {
 					if (!system->IsEnabled())
