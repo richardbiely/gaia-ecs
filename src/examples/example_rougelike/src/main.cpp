@@ -472,13 +472,10 @@ public:
 
 class HandleHealthSystem final: public ecs::System {
 	ecs::EntityQuery m_q;
-	ecs::EntityQuery m_q2;
-	ecs::CommandBuffer m_cb;
 
 public:
 	void OnCreated() override {
 		m_q.All<Health>().WithChanged<Health>();
-		m_q2.All<Health, Position>().WithChanged<Health>();
 	}
 	void OnUpdate() override {
 		GetWorld()
@@ -489,20 +486,28 @@ public:
 								h.value = h.valueMax;
 						})
 				.Run();
+	}
+};
 
+class HandleDeathSystem final: public ecs::System {
+	ecs::EntityQuery m_q;
+
+public:
+	void OnCreated() override {
+		m_q.All<Health, Position>().WithChanged<Health>();
+	}
+	void OnUpdate() override {
 		GetWorld()
 				.ForEach(
-						m_q2,
+						m_q,
 						[&](ecs::Entity e, const Health& h, const Position& p) {
 							if (h.value > 0)
 								return;
 
 							s_world.map[p.y][p.x] = TILE_FREE;
-							m_cb.DeleteEntity(e);
+							s_sm.AfterUpdateCmdBufer().DeleteEntity(e);
 						})
 				.Run();
-
-		m_cb.Commit(&GetWorld());
 	}
 };
 
@@ -602,6 +607,7 @@ int main() {
 	s_sm.CreateSystem<HandleDamageSystem>("damagesystem");
 	s_sm.CreateSystem<HandleItemHitSystem>("itemhitsystem");
 	s_sm.CreateSystem<HandleHealthSystem>("handlehealth");
+	s_sm.CreateSystem<HandleDeathSystem>("handledeath");
 	s_sm.CreateSystem<MoveSystem>("move");
 	s_sm.CreateSystem<WriteSpritesToMapSystem>("spritestomap");
 	s_sm.CreateSystem<RenderSystem>("render");
