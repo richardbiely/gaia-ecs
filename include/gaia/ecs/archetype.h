@@ -109,7 +109,11 @@ namespace gaia {
 
 #if GAIA_ECS_CHUNK_ALLOCATOR
 				pChunk->~Chunk();
+
+				GAIA_GCC_WARNING_PUSH()
+				GAIA_GCC_WARNING_DISABLE(-Wuninitialized)
 				auto* world = const_cast<World*>(pChunk->header.owner.parentWorld);
+				GAIA_GCC_WARNING_POP()
 				ReleaseChunkMemory(*world, pChunk);
 #else
 				delete pChunk;
