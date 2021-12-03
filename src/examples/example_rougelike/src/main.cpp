@@ -76,7 +76,7 @@ struct Position {
 namespace std {
 	template <>
 	struct hash<Position> {
-		std::size_t operator()(const Position& p) const {
+		uint64_t operator()(const Position& p) const {
 			return gaia::utils::detail::hash_combine2((uint64_t)p.x, (uint64_t)p.y);
 		}
 	};
