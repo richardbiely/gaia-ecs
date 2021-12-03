@@ -33,6 +33,7 @@ else()
   enable_cxx_compiler_flag_if_supported("-Werror")
   # fast-math
   enable_cxx_compiler_flag_if_supported("-ffast-math")
+  enable_cxx_compiler_flag_if_supported("-fno-math-errno")
 endif()
 
 target_include_directories(gaia_example1 PRIVATE ${PROJECT_SOURCE_DIR}/include)
