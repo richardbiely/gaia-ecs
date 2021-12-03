@@ -1,3 +1,4 @@
+#include <functional>
 #ifdef _WIN32
 	#include <conio.h>
 #else
@@ -76,8 +77,10 @@ struct Position {
 namespace std {
 	template <>
 	struct hash<Position> {
-		size_t operator()(const Position& p) const {
-			return gaia::utils::detail::hash_combine2((size_t)p.x, (size_t)p.y);
+		size_t operator()(const Position& p) const noexcept {
+			const size_t h1 = std::hash<int>{}(p.x);
+			const size_t h2 = std::hash<int>{}(p.y);
+			return h1 ^ (h2 << 1);
 		}
 	};
 } // namespace std
