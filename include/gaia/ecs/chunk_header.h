@@ -15,6 +15,9 @@ namespace gaia {
 		public:
 			//! [0-7] Archetype that created this chunk.
 			const Archetype& owner;
+#if !GAIA_64
+			uint32_t owner_padding;
+#endif
 			//! [8-9] Last entity index. If -1 the chunk is empty.
 			uint16_t lastEntityIndex = UINT16_MAX;
 			//! [10-11] Once removal is requested and it hits 0 the chunk is removed.
