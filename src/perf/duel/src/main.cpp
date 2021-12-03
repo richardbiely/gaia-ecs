@@ -351,24 +351,25 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA(benchmark::State& state) {
 								auto vvy = v.get<1>();
 								auto vvz = v.get<2>();
 
-								/*
-								This is the code we'd like to run. However, not all compilers are as smart as Clang
-								so they wouldn't be able to vectorize even though the oportunity is screaming.
-
-								for (auto i = 0U; i < ch.GetItemCount(); ++i)
-									ppx[i] += vvx[i] * dt;
-								for (auto i = 0U; i < ch.GetItemCount(); ++i)
-									ppy[i] += vvy[i] * dt;
-								for (auto i = 0U; i < ch.GetItemCount(); ++i)
-									ppz[i] += vvz[i] * dt;
-								*/
+								////////////////////////////////////////////////////////////////////
+								// This is the code we'd like to run. However, not all compilers are
+								// as smart as Clang so they wouldn't be able to vectorize even though
+								// the oportunity is screaming.
+								////////////////////////////////////////////////////////////////////
+								// for (auto i = 0U; i < ch.GetItemCount(); ++i)
+								// 	ppx[i] += vvx[i] * dt;
+								// for (auto i = 0U; i < ch.GetItemCount(); ++i)
+								// 	ppy[i] += vvy[i] * dt;
+								// for (auto i = 0U; i < ch.GetItemCount(); ++i)
+								// 	ppz[i] += vvz[i] * dt;
+								////////////////////////////////////////////////////////////////////
 
 								auto exec = [](float* GAIA_RESTRICT p, const float* GAIA_RESTRICT v, size_t sz) {
 									for (size_t i = 0U; i < sz; ++i)
 										p[i] += v[i] * dt;
 								};
 
-								const size_t sz = (size_t)ch.GetItemCount();
+								const size_t sz = ch.GetItemCount();
 								exec(ppx.data(), vvx.data(), sz);
 								exec(ppy.data(), vvy.data(), sz);
 								exec(ppz.data(), vvz.data(), sz);
@@ -394,15 +395,18 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA(benchmark::State& state) {
 								auto ppy = p.set<1>();
 								auto vvy = v.set<1>();
 
-								/*
-								This is the code we'd like to run. However, not all compilers are as smart as Clang
-								so they wouldn't be able to vectorize even though the oportunity is screaming.
-
-								for (auto i = 0U; i < ch.GetItemCount(); ++i) {
-									if (ppy[i] < 0.0f) {
-										ppy[i] = 0.0f;
-										vvy[i] = 0.0f;
-								*/
+								////////////////////////////////////////////////////////////////////
+								// This is the code we'd like to run. However, not all compilers are
+								// as smart as Clang so they wouldn't be able to vectorize even though
+								// the oportunity is screaming.
+								////////////////////////////////////////////////////////////////////
+								// for (auto i = 0U; i < ch.GetItemCount(); ++i) {
+								// 	 if (ppy[i] < 0.0f) {
+								// 		 ppy[i] = 0.0f;
+								// 		 vvy[i] = 0.0f;
+								//   }
+								// }
+								////////////////////////////////////////////////////////////////////
 
 								auto exec = [](float* GAIA_RESTRICT p, float* GAIA_RESTRICT v, size_t sz) {
 									for (auto i = 0U; i < sz; ++i) {
@@ -413,7 +417,7 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA(benchmark::State& state) {
 									}
 								};
 
-								const size_t sz = (size_t)ch.GetItemCount();
+								const size_t sz = ch.GetItemCount();
 								exec(ppy.data(), vvy.data(), sz);
 							})
 					.Run();
@@ -435,20 +439,21 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA(benchmark::State& state) {
 								auto v = ch.ViewRW<VelocitySoA>();
 								auto vvy = v.set<1>();
 
-								/*
-								This is the code we'd like to run. However, not all compilers are as smart as Clang
-								so they wouldn't be able to vectorize even though the oportunity is screaming.
-
-								for (auto i = 0U; i < ch.GetItemCount(); ++i)
-									vvy[i] = vvy[i] * dt * 9.81f;
-								*/
+								////////////////////////////////////////////////////////////////////
+								// This is the code we'd like to run. However, not all compilers are
+								// as smart as Clang so they wouldn't be able to vectorize even though
+								// the oportunity is screaming.
+								////////////////////////////////////////////////////////////////////
+								// for (auto i = 0U; i < ch.GetItemCount(); ++i)
+								// 	vvy[i] = vvy[i] * dt * 9.81f;
+								////////////////////////////////////////////////////////////////////
 
 								auto exec = [&](float* GAIA_RESTRICT v, size_t sz) {
 									for (size_t i = 0U; i < sz; ++i)
 										v[i] *= dt * 9.81f;
 								};
 
-								const size_t sz = (size_t)ch.GetItemCount();
+								const size_t sz = ch.GetItemCount();
 								exec(vvy.data(), sz);
 							})
 					.Run();
