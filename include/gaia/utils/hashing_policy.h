@@ -49,6 +49,12 @@ namespace gaia {
 			constexpr void hash_combine2_out(uint64_t& lhs, uint64_t rhs) {
 				lhs ^= rhs + 0x9e3779B97f4a7c15ULL + (lhs << 6) + (lhs >> 2);
 			}
+			constexpr void hash_combine2_out(size_t& lhs, size_t rhs) {
+				if constexpr (sizeof(size_t) == 4)
+					lhs ^= rhs + 0x9e3779b9 + (lhs << 6) + (lhs >> 2);
+				else
+					lhs ^= rhs + 0x9e3779B97f4a7c15ULL + (lhs << 6) + (lhs >> 2);
+			}
 
 			template <typename T>
 			[[nodiscard]] constexpr T hash_combine2(T lhs, T rhs) {
