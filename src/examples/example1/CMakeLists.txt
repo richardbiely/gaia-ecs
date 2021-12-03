@@ -1,4 +1,3 @@
-find_package(benchmark CONFIG REQUIRED)
 add_executable(gaia_example1 src/main.cpp)
 
 set_property(TARGET gaia_example1 PROPERTY C_STANDARD 17)

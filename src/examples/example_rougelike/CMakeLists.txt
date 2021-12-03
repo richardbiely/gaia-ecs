@@ -1,4 +1,3 @@
-find_package(benchmark CONFIG REQUIRED)
 add_executable(gaia_example_rougelike src/main.cpp)
 
 set_property(TARGET gaia_example_rougelike PROPERTY C_STANDARD 17)
