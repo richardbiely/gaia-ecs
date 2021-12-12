@@ -4,6 +4,7 @@
 #include <type_traits>
 
 #include "../config/config.h"
+#include "../config/logging.h"
 #include "../containers/darray.h"
 #include "../containers/map.h"
 #include "../containers/sarray_ext.h"

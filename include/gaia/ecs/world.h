@@ -105,7 +105,7 @@ namespace gaia {
 			}
 
 		private:
-			//! Remove a entity from a chunk
+			//! Remove an entity from a chunk
 			void RemoveEntity(Chunk* pChunk, uint16_t entityChunkIndex) {
 				pChunk->RemoveEntity(entityChunkIndex, m_entities);
 
@@ -708,7 +708,7 @@ namespace gaia {
 			}
 
 			/*!
-			Returns a entity at a given position
+			Returns an entity at a given position
 			\return Entity
 			*/
 			[[nodiscard]] Entity GetEntity(uint32_t idx) const {
@@ -1313,7 +1313,6 @@ namespace gaia {
 				return {(World&)*this, EntityQuery(), std::forward<TFunc>(func)};
 			}
 
-		public:
 			//! Collect garbage
 			void GC() {
 				// Handle chunks
@@ -1488,7 +1487,6 @@ namespace gaia {
 				LOG_N("  Free pages: %u", memstats.NumFreePages);
 			}
 
-		public:
 			void Diag() const {
 				DiagArchetypes();
 				DiagRegisteredTypes();
