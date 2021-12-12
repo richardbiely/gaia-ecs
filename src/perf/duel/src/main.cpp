@@ -44,7 +44,7 @@ struct Scale {
 	float x, y, z;
 };
 
-constexpr uint32_t N = 10'000;
+constexpr uint32_t N = 32'000; // kept a multiple of 32 to keep it simple even for SIMD code
 constexpr float MinDelta = 0.01f;
 constexpr float MaxDelta = 0.033f;
 
@@ -303,7 +303,7 @@ void BM_Game_ECS_WithSystems_ForEachChunk(benchmark::State& state) {
 	}
 }
 
-void BM_Game_ECS_WithSystems_ForEachChunkSoA(benchmark::State& state) {
+void BM_Game_ECS_WithSystems_ForEachChunk_SoA(benchmark::State& state) {
 	ecs::World w;
 
 	// Create static entities
@@ -364,15 +364,14 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA(benchmark::State& state) {
 								// 	ppz[i] += vvz[i] * dt;
 								////////////////////////////////////////////////////////////////////
 
-								auto exec = [](float* GAIA_RESTRICT p, const float* GAIA_RESTRICT v, size_t sz) {
+								auto exec = [](float* GAIA_RESTRICT p, const float* GAIA_RESTRICT v, const size_t sz) {
 									for (size_t i = 0U; i < sz; ++i)
 										p[i] += v[i] * dt;
 								};
 
-								const size_t sz = ch.GetItemCount();
-								exec(ppx.data(), vvx.data(), sz);
-								exec(ppy.data(), vvy.data(), sz);
-								exec(ppz.data(), vvz.data(), sz);
+								exec(ppx.data(), vvx.data(), ch.GetItemCount());
+								exec(ppy.data(), vvy.data(), ch.GetItemCount());
+								exec(ppz.data(), vvz.data(), ch.GetItemCount());
 							})
 					.Run();
 		}
@@ -408,7 +407,7 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA(benchmark::State& state) {
 								// }
 								////////////////////////////////////////////////////////////////////
 
-								auto exec = [](float* GAIA_RESTRICT p, float* GAIA_RESTRICT v, size_t sz) {
+								auto exec = [](float* GAIA_RESTRICT p, float* GAIA_RESTRICT v, const size_t sz) {
 									for (auto i = 0U; i < sz; ++i) {
 										if (p[i] < 0.0f) {
 											p[i] = 0.0f;
@@ -417,8 +416,7 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA(benchmark::State& state) {
 									}
 								};
 
-								const size_t sz = ch.GetItemCount();
-								exec(ppy.data(), vvy.data(), sz);
+								exec(ppy.data(), vvy.data(), ch.GetItemCount());
 							})
 					.Run();
 		}
@@ -448,13 +446,12 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA(benchmark::State& state) {
 								// 	vvy[i] = vvy[i] * dt * 9.81f;
 								////////////////////////////////////////////////////////////////////
 
-								auto exec = [&](float* GAIA_RESTRICT v, size_t sz) {
+								auto exec = [&](float* GAIA_RESTRICT v, const size_t sz) {
 									for (size_t i = 0U; i < sz; ++i)
 										v[i] *= dt * 9.81f;
 								};
 
-								const size_t sz = ch.GetItemCount();
-								exec(vvy.data(), sz);
+								exec(vvy.data(), ch.GetItemCount());
 							})
 					.Run();
 		}
@@ -518,7 +515,7 @@ __m128 _mm_blendv_ps(__m128 a, __m128 b, __m128 mask) {
 }
 #endif
 
-void BM_Game_ECS_WithSystems_ForEachChunkSoA_ManualSIMD(benchmark::State& state) {
+void BM_Game_ECS_WithSystems_ForEachChunk_SoA_ManualSIMD(benchmark::State& state) {
 	ecs::World w;
 
 	// Create static entities
@@ -566,6 +563,7 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA_ManualSIMD(benchmark::State& state)
 								auto vvy = v.get<1>();
 								auto vvz = v.get<2>();
 
+								const auto size = ch.GetItemCount();
 								const auto dtVec = _mm_set_ps1(dt);
 
 								auto exec = [&](float* GAIA_RESTRICT p, const float* GAIA_RESTRICT v, const size_t offset) {
@@ -578,25 +576,25 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA_ManualSIMD(benchmark::State& state)
 								size_t i;
 								// Optimize via "double-read" trick to hide latencies.
 								// Item count is always a multiple of 4 for chunks with SoA components.
-								for (i = 0; i < ch.GetItemCount(); i += 8) {
+								for (i = 0; i < size; i += 8) {
 									exec(ppx.data(), vvx.data(), i);
 									exec(ppx.data(), vvx.data(), i + 4);
 								}
-								for (; i < ch.GetItemCount(); i += 4)
+								for (; i < size; i += 4)
 									exec(ppx.data(), vvx.data(), i);
 
-								for (i = 0; i < ch.GetItemCount(); i += 8) {
+								for (i = 0; i < size; i += 8) {
 									exec(ppy.data(), vvy.data(), i);
 									exec(ppy.data(), vvy.data(), i + 4);
 								}
-								for (; i < ch.GetItemCount(); i += 4)
+								for (; i < size; i += 4)
 									exec(ppy.data(), vvy.data(), i);
 
-								for (i = 0; i < ch.GetItemCount(); i += 8) {
+								for (i = 0; i < size; i += 8) {
 									exec(ppz.data(), vvz.data(), i);
 									exec(ppz.data(), vvz.data(), i + 4);
 								}
-								for (; i < ch.GetItemCount(); i += 4)
+								for (; i < size; i += 4)
 									exec(ppz.data(), vvz.data(), i);
 							})
 					.Run();
@@ -620,6 +618,7 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA_ManualSIMD(benchmark::State& state)
 
 								auto ppy = p.set<1>();
 								auto vvy = v.set<1>();
+								const auto size = ch.GetItemCount();
 
 								auto exec = [&](float* GAIA_RESTRICT p, float* GAIA_RESTRICT v, const size_t offset) {
 									const auto vyVec = _mm_load_ps(v + offset);
@@ -633,9 +632,8 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA_ManualSIMD(benchmark::State& state)
 									_mm_store_ps(p + offset, res_pyVec);
 								};
 
-								for (size_t i = 0; i < ch.GetItemCount(); i += 4) {
+								for (size_t i = 0; i < size; i += 4)
 									exec(ppy.data(), vvy.data(), i);
-								}
 							})
 					.Run();
 		}
@@ -655,7 +653,9 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA_ManualSIMD(benchmark::State& state)
 							m_q,
 							[&](ecs::Chunk& ch) {
 								auto v = ch.ViewRW<VelocitySoA>();
+
 								auto vvy = v.set<1>();
+								const auto size = ch.GetItemCount();
 
 								const auto gg_dtVec = _mm_set_ps1(9.81f * dt);
 
@@ -668,11 +668,11 @@ void BM_Game_ECS_WithSystems_ForEachChunkSoA_ManualSIMD(benchmark::State& state)
 								size_t i;
 								// Optimize via "double-read" trick to hide latencies.
 								// Item count is always a multiple of 4 for chunks with SoA components.
-								for (i = 0; i < ch.GetItemCount(); i += 8) {
+								for (i = 0; i < size; i += 8) {
 									exec(vvy.data(), i);
 									exec(vvy.data(), i + 4);
 								}
-								for (; i < ch.GetItemCount(); i += 4)
+								for (; i < size; i += 4)
 									exec(vvy.data(), i);
 							})
 					.Run();
@@ -766,12 +766,396 @@ void BM_Game_NonECS(benchmark::State& state) {
 	}
 }
 
+void BM_Game_NonECS_BetterMemoryLayout(benchmark::State& state) {
+	struct UnitStatic {
+		Position p;
+		Rotation r;
+		Scale s;
+
+		void updatePosition([[maybe_unused]] float deltaTime) {}
+		void handleGroundCollision([[maybe_unused]] float deltaTime) {}
+		void applyGravity([[maybe_unused]] float deltaTime) {}
+	};
+
+	struct UnitDynamic {
+		Position p;
+		Rotation r;
+		Scale s;
+		Velocity v;
+
+		void updatePosition(float deltaTime) {
+			p.x += v.x * deltaTime;
+			p.y += v.y * deltaTime;
+			p.z += v.z * deltaTime;
+		}
+		void handleGroundCollision([[maybe_unused]] float deltaTime) {
+			if (p.y < 0.0f) {
+				p.y = 0.0f;
+				v.y = 0.0f;
+			}
+		}
+		void applyGravity(float deltaTime) {
+			v.y += 9.81f * deltaTime;
+		}
+	};
+
+	// Create entities.
+	containers::darray<UnitStatic> units_static(N);
+	for (uint32_t i = 0U; i < N; i++) {
+		UnitStatic u;
+		u.p = {0, 100, 0};
+		u.r = {1, 2, 3, 4};
+		u.s = {1, 1, 1};
+		units_static[i] = std::move(u);
+	}
+
+	containers::darray<UnitDynamic> units_dynamic(N);
+	for (uint32_t i = 0U; i < N; i++) {
+		UnitDynamic u;
+		u.p = {0, 100, 0};
+		u.v = {0, 0, 1};
+		u.r = {1, 2, 3, 4};
+		u.s = {1, 1, 1};
+		units_dynamic[i] = std::move(u);
+	}
+
+	srand(0);
+	for ([[maybe_unused]] auto _: state) {
+		dt = CalculateDelta(state);
+
+		// Process entities
+		for (auto& u: units_static) {
+			u.updatePosition(dt);
+			u.handleGroundCollision(dt);
+			u.applyGravity(dt);
+		}
+		for (auto& u: units_dynamic) {
+			u.updatePosition(dt);
+			u.handleGroundCollision(dt);
+			u.applyGravity(dt);
+		}
+	}
+}
+
+void BM_Game_NonECS_DOD(benchmark::State& state) {
+
+	struct UnitDynamic {
+		static void
+		updatePosition(containers::darray<Position>& p, const containers::darray<Velocity>& v, float deltaTime) {
+			const uint32_t size = p.size();
+			for (uint32_t i = 0U; i < size; i++) {
+				p[i].x += v[i].x * deltaTime;
+				p[i].y += v[i].y * deltaTime;
+				p[i].z += v[i].z * deltaTime;
+			}
+		}
+		static void handleGroundCollision(containers::darray<Position>& p, containers::darray<Velocity>& v) {
+			const uint32_t size = p.size();
+			for (uint32_t i = 0U; i < size; i++) {
+				if (p[i].y < 0.0f) {
+					p[i].y = 0.0f;
+					v[i].y = 0.0f;
+				}
+			}
+		}
+		static void applyGravity(containers::darray<Velocity>& v, float deltaTime) {
+			const uint32_t size = v.size();
+			for (uint32_t i = 0U; i < size; i++) {
+				v[i].y += 9.81f * deltaTime;
+			}
+		}
+	};
+
+	// Create static entities.
+	containers::darray<Position> units_static_p(N);
+	containers::darray<Rotation> units_static_r(N);
+	containers::darray<Scale> units_static_s(N);
+	for (uint32_t i = 0U; i < N; i++) {
+		units_static_p[i] = {0, 100, 0};
+		units_static_r[i] = {1, 2, 3, 4};
+		units_static_s[i] = {1, 1, 1};
+	}
+
+	// Create dynamic entities.
+	containers::darray<Position> units_dynamic_p(N);
+	containers::darray<Rotation> units_dynamic_r(N);
+	containers::darray<Scale> units_dynamic_s(N);
+	containers::darray<Velocity> units_dynamic_v(N);
+	for (uint32_t i = 0U; i < N; i++) {
+		units_dynamic_p[i] = {0, 100, 0};
+		units_dynamic_r[i] = {1, 2, 3, 4};
+		units_dynamic_s[i] = {1, 1, 1};
+		units_dynamic_v[i] = {0, 0, 1};
+	}
+
+	srand(0);
+	for ([[maybe_unused]] auto _: state) {
+		dt = CalculateDelta(state);
+
+		// Process static entities
+		UnitDynamic::updatePosition(units_dynamic_p, units_dynamic_v, dt);
+		UnitDynamic::handleGroundCollision(units_dynamic_p, units_dynamic_v);
+		UnitDynamic::applyGravity(units_dynamic_v, dt);
+	}
+}
+
+void BM_Game_NonECS_DOD_SoA(benchmark::State& state) {
+
+	struct UnitDynamic {
+		static void updatePosition(containers::darray<PositionSoA>& p, const containers::darray<VelocitySoA>& v) {
+			gaia::utils::auto_view_policy_set<PositionSoA> pv(std::span(p.data(), p.size()));
+			gaia::utils::auto_view_policy_get<VelocitySoA> vv(std::span(v.data(), v.size()));
+
+			auto ppx = pv.set<0>();
+			auto ppy = pv.set<1>();
+			auto ppz = pv.set<2>();
+
+			auto vvx = vv.get<0>();
+			auto vvy = vv.get<1>();
+			auto vvz = vv.get<2>();
+
+			////////////////////////////////////////////////////////////////////
+			// This is the code we'd like to run. However, not all compilers are
+			// as smart as Clang so they wouldn't be able to vectorize even though
+			// the oportunity is screaming.
+			////////////////////////////////////////////////////////////////////
+			// for (auto i = 0U; i < ch.GetItemCount(); ++i)
+			// 	ppx[i] += vvx[i] * dt;
+			// for (auto i = 0U; i < ch.GetItemCount(); ++i)
+			// 	ppy[i] += vvy[i] * dt;
+			// for (auto i = 0U; i < ch.GetItemCount(); ++i)
+			// 	ppz[i] += vvz[i] * dt;
+			////////////////////////////////////////////////////////////////////
+
+			auto exec = [](float* GAIA_RESTRICT p, const float* GAIA_RESTRICT v, size_t sz) {
+				for (size_t i = 0U; i < sz; ++i)
+					p[i] += v[i] * dt;
+			};
+
+			exec(ppx.data(), vvx.data(), p.size());
+			exec(ppy.data(), vvy.data(), p.size());
+			exec(ppz.data(), vvz.data(), p.size());
+		}
+
+		static void handleGroundCollision(containers::darray<PositionSoA>& p, containers::darray<VelocitySoA>& v) {
+			gaia::utils::auto_view_policy_set<PositionSoA> pv(std::span(p.data(), p.size()));
+			gaia::utils::auto_view_policy_set<VelocitySoA> vv(std::span(v.data(), v.size()));
+
+			auto ppy = pv.set<1>();
+			auto vvy = vv.set<1>();
+
+			auto exec = [](float* GAIA_RESTRICT p, float* GAIA_RESTRICT v, size_t sz) {
+				for (auto i = 0U; i < sz; ++i) {
+					if (p[i] < 0.0f) {
+						p[i] = 0.0f;
+						v[i] = 0.0f;
+					}
+				}
+			};
+
+			exec(ppy.data(), vvy.data(), p.size());
+		}
+
+		static void applyGravity(containers::darray<VelocitySoA>& v) {
+			gaia::utils::auto_view_policy_set<VelocitySoA> vv(std::span(v.data(), v.size()));
+
+			auto vvy = vv.set<1>();
+
+			auto exec = [&](float* GAIA_RESTRICT v, const size_t sz) {
+				for (size_t i = 0U; i < sz; ++i)
+					v[i] *= 9.81f * dt;
+			};
+
+			exec(vvy.data(), v.size());
+		}
+	};
+
+	// Create static entities.
+	containers::darray<PositionSoA> units_static_p(N);
+	containers::darray<Rotation> units_static_r(N);
+	containers::darray<Scale> units_static_s(N);
+	for (uint32_t i = 0U; i < N; i++) {
+		units_static_p[i] = {0, 100, 0};
+		units_static_r[i] = {1, 2, 3, 4};
+		units_static_s[i] = {1, 1, 1};
+	}
+
+	// Create dynamic entities.
+	containers::darray<PositionSoA> units_dynamic_p(N);
+	containers::darray<Rotation> units_dynamic_r(N);
+	containers::darray<Scale> units_dynamic_s(N);
+	containers::darray<VelocitySoA> units_dynamic_v(N);
+	for (uint32_t i = 0U; i < N; i++) {
+		units_dynamic_p[i] = {0, 100, 0};
+		units_dynamic_r[i] = {1, 2, 3, 4};
+		units_dynamic_s[i] = {1, 1, 1};
+		units_dynamic_v[i] = {0, 0, 1};
+	}
+
+	srand(0);
+	for ([[maybe_unused]] auto _: state) {
+		dt = CalculateDelta(state);
+
+		// Process static entities
+		UnitDynamic::updatePosition(units_dynamic_p, units_dynamic_v);
+		UnitDynamic::handleGroundCollision(units_dynamic_p, units_dynamic_v);
+		UnitDynamic::applyGravity(units_dynamic_v);
+	}
+}
+
+void BM_Game_NonECS_DOD_SoA_ManualSIMD(benchmark::State& state) {
+
+	struct UnitDynamic {
+		static void updatePosition(containers::darray<PositionSoA>& p, const containers::darray<VelocitySoA>& v) {
+			gaia::utils::auto_view_policy_set<PositionSoA> pv(std::span(p.data(), p.size()));
+			gaia::utils::auto_view_policy_get<VelocitySoA> vv(std::span(v.data(), v.size()));
+
+			auto ppx = pv.set<0>();
+			auto ppy = pv.set<1>();
+			auto ppz = pv.set<2>();
+
+			auto vvx = vv.get<0>();
+			auto vvy = vv.get<1>();
+			auto vvz = vv.get<2>();
+
+			const auto size = p.size();
+			const auto dtVec = _mm_set_ps1(dt);
+
+			auto exec = [&](float* GAIA_RESTRICT p, const float* GAIA_RESTRICT v, const size_t offset) {
+				const auto pVec = _mm_load_ps(p + offset);
+				const auto vVec = _mm_load_ps(v + offset);
+				const auto respVec = _mm_fmadd_ps(vVec, dtVec, pVec);
+				_mm_store_ps(p + offset, respVec);
+			};
+
+			size_t i;
+			// Optimize via "double-read" trick to hide latencies.
+			// Item count is always a multiple of 4 for chunks with SoA components.
+			for (i = 0; i < size; i += 8) {
+				exec(ppx.data(), vvx.data(), i);
+				exec(ppx.data(), vvx.data(), i + 4);
+			}
+			for (; i < size; i += 4)
+				exec(ppx.data(), vvx.data(), i);
+
+			for (i = 0; i < size; i += 8) {
+				exec(ppy.data(), vvy.data(), i);
+				exec(ppy.data(), vvy.data(), i + 4);
+			}
+			for (; i < size; i += 4)
+				exec(ppy.data(), vvy.data(), i);
+
+			for (i = 0; i < size; i += 8) {
+				exec(ppz.data(), vvz.data(), i);
+				exec(ppz.data(), vvz.data(), i + 4);
+			}
+			for (; i < size; i += 4)
+				exec(ppz.data(), vvz.data(), i);
+		}
+
+		static void handleGroundCollision(containers::darray<PositionSoA>& p, containers::darray<VelocitySoA>& v) {
+			gaia::utils::auto_view_policy_set<PositionSoA> pv(std::span(p.data(), p.size()));
+			gaia::utils::auto_view_policy_set<VelocitySoA> vv(std::span(v.data(), v.size()));
+
+			auto ppy = pv.set<1>();
+			auto vvy = vv.set<1>();
+			const auto size = p.size();
+
+			auto exec = [&](float* GAIA_RESTRICT p, float* GAIA_RESTRICT v, const size_t offset) {
+				const auto vyVec = _mm_load_ps(v + offset);
+				const auto pyVec = _mm_load_ps(p + offset);
+
+				const auto condVec = _mm_cmplt_ps(vyVec, _mm_setzero_ps());
+				const auto res_vyVec = _mm_blendv_ps(vyVec, _mm_setzero_ps(), condVec);
+				const auto res_pyVec = _mm_blendv_ps(pyVec, _mm_setzero_ps(), condVec);
+
+				_mm_store_ps(v + offset, res_vyVec);
+				_mm_store_ps(p + offset, res_pyVec);
+			};
+
+			for (size_t i = 0; i < size; i += 4)
+				exec(ppy.data(), vvy.data(), i);
+		}
+
+		static void applyGravity(containers::darray<VelocitySoA>& v) {
+			gaia::utils::auto_view_policy_set<VelocitySoA> vv(std::span(v.data(), v.size()));
+
+			auto vvy = vv.set<1>();
+			const auto size = v.size();
+
+			const auto gg_dtVec = _mm_set_ps1(9.81f * dt);
+
+			auto exec = [&](float* GAIA_RESTRICT v, const size_t offset) {
+				const auto vyVec = _mm_load_ps(vvy.data() + offset);
+				const auto mulVec = _mm_mul_ps(vyVec, gg_dtVec);
+				_mm_store_ps(v + offset, mulVec);
+			};
+
+			size_t i;
+			// Optimize via "double-read" trick to hide latencies.
+			// Item count is always a multiple of 4 for chunks with SoA components.
+			for (i = 0; i < size; i += 8) {
+				exec(vvy.data(), i);
+				exec(vvy.data(), i + 4);
+			}
+			for (; i < size; i += 4)
+				exec(vvy.data(), i);
+		}
+	};
+
+	// Create static entities.
+	containers::darray<PositionSoA> units_static_p(N);
+	containers::darray<Rotation> units_static_r(N);
+	containers::darray<Scale> units_static_s(N);
+	for (uint32_t i = 0U; i < N; i++) {
+		units_static_p[i] = {0, 100, 0};
+		units_static_r[i] = {1, 2, 3, 4};
+		units_static_s[i] = {1, 1, 1};
+	}
+
+	// Create dynamic entities.
+	containers::darray<PositionSoA> units_dynamic_p(N);
+	containers::darray<Rotation> units_dynamic_r(N);
+	containers::darray<Scale> units_dynamic_s(N);
+	containers::darray<VelocitySoA> units_dynamic_v(N);
+	for (uint32_t i = 0U; i < N; i++) {
+		units_dynamic_p[i] = {0, 100, 0};
+		units_dynamic_r[i] = {1, 2, 3, 4};
+		units_dynamic_s[i] = {1, 1, 1};
+		units_dynamic_v[i] = {0, 0, 1};
+	}
+
+	srand(0);
+	for ([[maybe_unused]] auto _: state) {
+		dt = CalculateDelta(state);
+
+		// Process static entities
+		UnitDynamic::updatePosition(units_dynamic_p, units_dynamic_v);
+		UnitDynamic::handleGroundCollision(units_dynamic_p, units_dynamic_v);
+		UnitDynamic::applyGravity(units_dynamic_v);
+	}
+}
+
+// Ordinary coding style.
 BENCHMARK(BM_Game_NonECS);
+// Ordinary coding style with optimized memory layout (imagine using custom allocators
+// to keep things close and tidy in memory).
+BENCHMARK(BM_Game_NonECS_BetterMemoryLayout);
+// Memory organized in DoD style.
+// Performance target BM_Game_ECS_WithSystems_ForEachChunk.
+BENCHMARK(BM_Game_NonECS_DOD);
+// Best possible performance with no manual optimization.
+// Performance target for BM_Game_ECS_WithSystems_ForEachChunk_SoA.
+BENCHMARK(BM_Game_NonECS_DOD_SoA);
+// Best possible performance.
+// Performance target for BM_Game_ECS_WithSystems_ForEachChunk_SoA_ManualSIMD.
+BENCHMARK(BM_Game_NonECS_DOD_SoA_ManualSIMD);
+
 BENCHMARK(BM_Game_ECS);
 BENCHMARK(BM_Game_ECS_WithSystems);
 BENCHMARK(BM_Game_ECS_WithSystems_ForEachChunk);
-BENCHMARK(BM_Game_ECS_WithSystems_ForEachChunkSoA);
-BENCHMARK(BM_Game_ECS_WithSystems_ForEachChunkSoA_ManualSIMD);
+BENCHMARK(BM_Game_ECS_WithSystems_ForEachChunk_SoA);
+BENCHMARK(BM_Game_ECS_WithSystems_ForEachChunk_SoA_ManualSIMD);
 
 // Run the benchmark
 BENCHMARK_MAIN();
