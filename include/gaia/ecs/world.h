@@ -611,6 +611,10 @@ namespace gaia {
 			World& operator=(World&&) = delete;
 			World& operator=(const World&) = delete;
 
+			/*!
+			Returns the current version of the world.
+			\return World version number
+			*/
 			[[nodiscard]] uint32_t GetWorldVersion() const {
 				return m_worldVersion;
 			}
@@ -674,7 +678,7 @@ namespace gaia {
 			}
 
 			/*!
-			Removes an entity
+			Removes an entity along with all data associated with it
 			*/
 			void DeleteEntity(Entity entity) {
 				if (m_entities.empty() || entity == EntityNull)
@@ -923,6 +927,10 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
+			/*!
+			Tells if \param entity contains all the listed components.
+			\return True if all listed components are present on entity.
+			*/
 			template <typename... TComponent>
 			[[nodiscard]] bool HasComponents(Entity entity) {
 				VerifyComponents<TComponent...>();
@@ -937,6 +945,10 @@ namespace gaia {
 				return false;
 			}
 
+			/*!
+			Tells if \param entity contains any of the listed components.
+			\return True if at least one listed components is present on entity.
+			*/
 			template <typename... TComponent>
 			[[nodiscard]] bool HasAnyComponents(Entity entity) {
 				VerifyComponents<TComponent...>();
@@ -951,6 +963,10 @@ namespace gaia {
 				return false;
 			}
 
+			/*!
+			Tells if \param entity contains none of the listed components.
+			\return True if none of the listed components are present on entity.
+			*/
 			template <typename... TComponent>
 			[[nodiscard]] bool HasNoneComponents(Entity entity) {
 				VerifyComponents<TComponent...>();
@@ -965,6 +981,10 @@ namespace gaia {
 				return false;
 			}
 
+			/*!
+			Tells if the chunk \param entity is a part of contains all listed chunk components.
+			\return True if all listed chunk components are present on entity's chunk.
+			*/
 			template <typename... TComponent>
 			[[nodiscard]] bool HasChunkComponents(Entity entity) {
 				VerifyComponents<TComponent...>();
@@ -979,6 +999,10 @@ namespace gaia {
 				return false;
 			}
 
+			/*!
+			Tells if the chunk \param entity is a part of contains at least one of the listed chunk components.
+			\return True if at least one of the listed chunk components are present on entity's chunk.
+			*/
 			template <typename... TComponent>
 			[[nodiscard]] bool HasAnyChunkComponents(Entity entity) {
 				VerifyComponents<TComponent...>();
@@ -993,6 +1017,10 @@ namespace gaia {
 				return false;
 			}
 
+			/*!
+			Tells if \param entity contains all the listed components.
+			\return True if none of the listed chunk components are present on entity's chunk.
+			*/
 			template <typename... TComponent>
 			[[nodiscard]] bool HasNoneChunkComponents(Entity entity) {
 				VerifyComponents<TComponent...>();
@@ -1293,27 +1321,52 @@ namespace gaia {
 			//--------------------------------------------------------------------------------
 
 		public:
+			/*!
+			Iterates over all chunks satisfying conditions set by \param query and calls \param func for all of them.
+			Exposing chunks this version of iteration gives users the most control over have data is processed.
+			\warning This version makes it possible to perform optimizations otherwise not possible with other methods
+							 of iteration. On the other hand it is more verbose and takes more lines of code when used.
+			*/
 			template <typename TFunc>
 			[[nodiscard]] ForEachChunkExecutionContext<TFunc> ForEachChunk(EntityQuery& query, TFunc&& func) {
 				return {(World&)*this, query, std::forward<TFunc>(func)};
 			}
 
+			/*!
+			Iterates over all chunks satisfying conditions set by \param query and calls \param func for all of them.
+			\warning Performance-wise it has less potential than ForEachChunk. However, it is easier to use and unless
+							 some specific optimizations are necessary is the preffered way of iterating over data.
+			*/
 			template <typename TFunc>
 			[[nodiscard]] ForEachExecutionContext<TFunc, false> ForEach(EntityQuery& query, TFunc&& func) {
 				return {(World&)*this, query, std::forward<TFunc>(func)};
 			}
 
+			/*!
+			Iterates over all chunks satisfying conditions set by \param query and calls \param func for all of them.
+			\warning Performance-wise it has less potential than ForEachChunk. However, it is easier to use and unless
+							 some specific optimizations are necessary is the preffered way of iterating over data.
+			*/
 			template <typename TFunc>
 			[[nodiscard]] ForEachExecutionContext<TFunc, true> ForEach(EntityQuery&& query, TFunc&& func) {
 				return {(World&)*this, std::move(query), std::forward<TFunc>(func)};
 			}
 
+			/*!
+			Iterates over all chunks satisfying conditions set by \param func and calls \param func for all of them.
+			EntityQuery instance is generated internally from the input arguments of \param func.
+			\warning Performance-wise it has less potential than ForEachChunk. However, it is easier to use and unless
+							 some specific optimizations are necessary is the preffered way of iterating over data.
+			*/
 			template <typename TFunc>
 			[[nodiscard]] ForEachExecutionContext<TFunc, true> ForEach(TFunc&& func) {
 				return {(World&)*this, EntityQuery(), std::forward<TFunc>(func)};
 			}
 
-			//! Collect garbage
+			/*!
+			Collect garbage. Check all chunks and archetypes which are empty and have not been used for a while
+			and tries to delete them and release memory allocated by them.
+			*/
 			void GC() {
 				// Handle chunks
 				for (auto i = 0U; i < (uint32_t)m_chunksToRemove.size();) {
@@ -1363,6 +1416,9 @@ namespace gaia {
 				}
 			}
 
+			/*!
+			Performs diagnostics on archetypes. Prints basic info about them and the chunks they contain.
+			*/
 			void DiagArchetypes() const {
 				static bool DiagArchetypes = GAIA_ECS_DIAG_ARCHETYPES;
 				if (DiagArchetypes) {
@@ -1439,6 +1495,10 @@ namespace gaia {
 				}
 			}
 
+			/*!
+			Performs diagnostics on registered components.
+			Prints basic info about them and reports and detected issues.
+			*/
 			void DiagRegisteredTypes() const {
 				static bool DiagRegisteredTypes = GAIA_ECS_DIAG_REGISTERED_TYPES;
 				if (DiagRegisteredTypes) {
@@ -1448,6 +1508,10 @@ namespace gaia {
 				}
 			}
 
+			/*!
+			Performs diagnostics on entites of the world.
+			Also performs validation of internal structures which hold the entities.
+			*/
 			void DiagEntities() const {
 				static bool DiagDeletedEntities = GAIA_ECS_DIAG_DELETED_ENTITIES;
 				if (DiagDeletedEntities) {
@@ -1475,6 +1539,9 @@ namespace gaia {
 				}
 			}
 
+			/*!
+			Performs diagnostics of the memory used by the world.
+			*/
 			void DiagMemory() const {
 				ChunkAllocatorStats memstats;
 				m_chunkAllocator.GetStats(memstats);
@@ -1487,6 +1554,9 @@ namespace gaia {
 				LOG_N("  Free pages: %u", memstats.NumFreePages);
 			}
 
+			/*!
+			Performs all diagnostics.
+			*/
 			void Diag() const {
 				DiagArchetypes();
 				DiagRegisteredTypes();
