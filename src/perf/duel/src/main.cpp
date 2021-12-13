@@ -632,7 +632,14 @@ void BM_Game_ECS_WithSystems_ForEachChunk_SoA_ManualSIMD(benchmark::State& state
 									_mm_store_ps(p + offset, res_pyVec);
 								};
 
-								for (size_t i = 0; i < size; i += 4)
+								size_t i;
+								// Optimize via "double-read" trick to hide latencies.
+								// Item count is always a multiple of 4 for chunks with SoA components.
+								for (i = 0; i < size; i += 8) {
+									exec(ppy.data(), vvy.data(), i);
+									exec(ppy.data(), vvy.data(), i + 4);
+								}
+								for (; i < size; i += 4)
 									exec(ppy.data(), vvy.data(), i);
 							})
 					.Run();
@@ -1073,7 +1080,14 @@ void BM_Game_NonECS_DOD_SoA_ManualSIMD(benchmark::State& state) {
 				_mm_store_ps(p + offset, res_pyVec);
 			};
 
-			for (size_t i = 0; i < size; i += 4)
+			size_t i;
+			// Optimize via "double-read" trick to hide latencies.
+			// Item count is always a multiple of 4 for chunks with SoA components.
+			for (i = 0; i < size; i += 8) {
+				exec(ppy.data(), vvy.data(), i);
+				exec(ppy.data(), vvy.data(), i + 4);
+			}
+			for (; i < size; i += 4)
 				exec(ppy.data(), vvy.data(), i);
 		}
 
