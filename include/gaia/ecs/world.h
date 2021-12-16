@@ -105,7 +105,11 @@ namespace gaia {
 			}
 
 		private:
-			//! Remove an entity from a chunk
+			/*!
+			Remove an entity from chunk.
+			\param pChunk Chunk we remove the entity from
+			\param entityChunkIndex Index of entity within its chunk
+			*/
 			void RemoveEntity(Chunk* pChunk, uint16_t entityChunkIndex) {
 				pChunk->RemoveEntity(entityChunkIndex, m_entities);
 
@@ -133,6 +137,13 @@ namespace gaia {
 				m_chunksToRemove.push_back(pChunk);
 			}
 
+			/*!
+			Searches for archtype with a given set of components
+			\param genericTypes Span of genric component types
+			\param chunkTypes Span of chunk component types
+			\param lookupHash Archetype lookup hash
+			\return Pointer to archtype or nullptr
+			*/
 			[[nodiscard]] Archetype* FindArchetype(
 					std::span<const ComponentMetaData*> genericTypes, std::span<const ComponentMetaData*> chunkTypes,
 					const uint64_t lookupHash) {
@@ -168,6 +179,13 @@ namespace gaia {
 				return nullptr;
 			}
 
+			/*!
+			Creates a new archtype from a given set of components
+			\param genericTypes Span of genric component types
+			\param chunkTypes Span of chunk component types
+			\param lookupHash Archetype lookup hash
+			\return Pointer to archtype
+			*/
 			[[nodiscard]] Archetype* CreateArchetype(
 					std::span<const ComponentMetaData*> genericTypes, std::span<const ComponentMetaData*> chunkTypes,
 					const uint64_t lookupHash) {
@@ -189,12 +207,17 @@ namespace gaia {
 				return newArch;
 			}
 
+			/*!
+			Searches for an archetype given based on a given set of components. If no archetype is found a new one is created.
+			\param genericTypes Span of genric component types
+			\param chunkTypes Span of chunk component types
+			\return Pointer to archtype
+			*/
 			[[nodiscard]] Archetype* FindOrCreateArchetype(
 					std::span<const ComponentMetaData*> genericTypes, std::span<const ComponentMetaData*> chunkTypes) {
 				// Make sure to sort the meta-types so we receive the same hash no
 				// matter the order in which components are provided Bubble sort is
-				// okay. We're dealing with at most MAX_COMPONENTS_PER_ARCHETYPE
-				// items.
+				// okay. We're dealing with at most MAX_COMPONENTS_PER_ARCHETYPE items.
 				// TODO: Replace with a sorting network
 				std::sort(genericTypes.begin(), genericTypes.end(), std::less<const ComponentMetaData*>());
 				std::sort(chunkTypes.begin(), chunkTypes.end(), std::less<const ComponentMetaData*>());
@@ -210,10 +233,20 @@ namespace gaia {
 				return CreateArchetype(genericTypes, chunkTypes, lookupHash);
 			}
 
+			/*!
+			Searches for an archetype given based on a given set of components. If no archetype is found a new one is created.
+			\param query Query to use to search for the archetype
+			\return Pointer to archtype
+			*/
 			[[nodiscard]] Archetype* FindOrCreateArchetype(CreationQuery& query) {
 				return FindOrCreateArchetype(query.list[ComponentType::CT_Generic], query.list[ComponentType::CT_Chunk]);
 			}
 
+			/*!
+			Returns the archetype the entity belongs to.
+			\param entity Entity
+			\return Pointer to archtype
+			*/
 			[[nodiscard]] Archetype* GetArchetype(Entity entity) const {
 				GAIA_ASSERT(IsEntityValid(entity));
 
@@ -222,6 +255,10 @@ namespace gaia {
 				return pChunk ? (Archetype*)&pChunk->header.owner : nullptr;
 			}
 
+			/*!
+			Removes an archetype from the list of archetypes.
+			\param pArchetype Archetype to remove
+			*/
 			void RemoveArchetype(Archetype* pArchetype) {
 				const auto idx = utils::get_index(m_archetypeList, pArchetype);
 				if (idx == utils::BadIndex)
@@ -237,6 +274,10 @@ namespace gaia {
 				delete pArchetype;
 			}
 
+			/*!
+			Allocates a new entity.
+			\return Entity
+			*/
 			[[nodiscard]] Entity AllocateEntity() {
 				if (!m_freeEntities) {
 					// We don't want to go out of range for new entities
@@ -255,6 +296,10 @@ namespace gaia {
 				}
 			}
 
+			/*!
+			Deallocates a new entity.
+			\param entityToDelete Entity to delete
+			*/
 			void DeallocateEntity(Entity entityToDelete) {
 				auto& entityContainer = m_entities[entityToDelete.id()];
 				entityContainer.pChunk = nullptr;
@@ -275,6 +320,11 @@ namespace gaia {
 				++m_freeEntities;
 			}
 
+			/*!
+			Associates an entity with a chunk.
+			\param entity Entity to associate with a chunk
+			\param pChunk Chunk the entity is to become a part of
+			*/
 			void StoreEntity(Entity entity, Chunk* pChunk) {
 				GAIA_ASSERT(pChunk != nullptr);
 

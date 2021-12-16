@@ -2,6 +2,7 @@
 
 #include "../config/config.h"
 #include "gaia/utils/utils_containers.h"
+#include <cstdint>
 
 #if defined(__GLIBC__) || defined(__sun) || defined(__CYGWIN__)
 	#include <alloca.h>
@@ -21,7 +22,6 @@
 		#define aligned_free _aligned_free
 	#endif
 #else
-	#include <cstdlib>
 	#if !defined(aligned_free)
 		#define aligned_free free
 	#endif
@@ -155,6 +155,7 @@ namespace gaia {
 			};
 
 			//! List of available pages
+			//! Note, this currently only contains at most 1 item
 			containers::darray<MemoryPage*> m_pagesFree;
 			//! List of full pages
 			containers::darray<MemoryPage*> m_pagesFull;
