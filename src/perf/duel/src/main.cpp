@@ -143,7 +143,7 @@ void BM_Game_ECS_WithSystems(benchmark::State& state) {
 			GetWorld()
 					.ForEach(
 							m_q,
-							[&](Position& p, const Velocity& v) {
+							[](Position& p, const Velocity& v) {
 								p.x += v.x * dt;
 								p.y += v.y * dt;
 								p.z += v.z * dt;
@@ -162,7 +162,7 @@ void BM_Game_ECS_WithSystems(benchmark::State& state) {
 			GetWorld()
 					.ForEach(
 							m_q,
-							[&](Position& p, Velocity& v) {
+							[](Position& p, Velocity& v) {
 								if (p.y < 0.0f) {
 									p.y = 0.0f;
 									v.y = 0.0f;
@@ -175,7 +175,7 @@ void BM_Game_ECS_WithSystems(benchmark::State& state) {
 	public:
 		void OnUpdate() override {
 			GetWorld()
-					.ForEach([&](Velocity& v) {
+					.ForEach([](Velocity& v) {
 						v.y += 9.81f * dt;
 					})
 					.Run();
@@ -231,7 +231,7 @@ void BM_Game_ECS_WithSystems_ForEachChunk(benchmark::State& state) {
 			GetWorld()
 					.ForEachChunk(
 							m_q,
-							[&](ecs::Chunk& ch) {
+							[](ecs::Chunk& ch) {
 								auto p = ch.ViewRW<Position>();
 								auto v = ch.View<Velocity>();
 								for (auto i = 0U; i < ch.GetItemCount(); ++i) {
@@ -255,7 +255,7 @@ void BM_Game_ECS_WithSystems_ForEachChunk(benchmark::State& state) {
 			GetWorld()
 					.ForEachChunk(
 							m_q,
-							[&](ecs::Chunk& ch) {
+							[](ecs::Chunk& ch) {
 								auto p = ch.ViewRW<Position>();
 								auto v = ch.ViewRW<Velocity>();
 								for (auto i = 0U; i < ch.GetItemCount(); ++i) {
@@ -280,7 +280,7 @@ void BM_Game_ECS_WithSystems_ForEachChunk(benchmark::State& state) {
 			GetWorld()
 					.ForEachChunk(
 							m_q,
-							[&](ecs::Chunk& ch) {
+							[](ecs::Chunk& ch) {
 								auto v = ch.ViewRW<Velocity>();
 								for (auto i = 0U; i < ch.GetItemCount(); ++i) {
 									v[i].y += 9.81f * dt;
@@ -339,7 +339,7 @@ void BM_Game_ECS_WithSystems_ForEachChunk_SoA(benchmark::State& state) {
 			GetWorld()
 					.ForEachChunk(
 							m_q,
-							[&](ecs::Chunk& ch) {
+							[](ecs::Chunk& ch) {
 								auto p = ch.ViewRW<PositionSoA>();
 								auto v = ch.View<VelocitySoA>();
 
@@ -387,7 +387,7 @@ void BM_Game_ECS_WithSystems_ForEachChunk_SoA(benchmark::State& state) {
 			GetWorld()
 					.ForEachChunk(
 							m_q,
-							[&](ecs::Chunk& ch) {
+							[](ecs::Chunk& ch) {
 								auto p = ch.ViewRW<PositionSoA>();
 								auto v = ch.ViewRW<VelocitySoA>();
 
@@ -433,7 +433,7 @@ void BM_Game_ECS_WithSystems_ForEachChunk_SoA(benchmark::State& state) {
 			GetWorld()
 					.ForEachChunk(
 							m_q,
-							[&](ecs::Chunk& ch) {
+							[](ecs::Chunk& ch) {
 								auto v = ch.ViewRW<VelocitySoA>();
 								auto vvy = v.set<1>();
 
@@ -551,7 +551,7 @@ void BM_Game_ECS_WithSystems_ForEachChunk_SoA_ManualSIMD(benchmark::State& state
 			GetWorld()
 					.ForEachChunk(
 							m_q,
-							[&](ecs::Chunk& ch) {
+							[](ecs::Chunk& ch) {
 								auto p = ch.ViewRW<PositionSoA>();
 								auto v = ch.View<VelocitySoA>();
 
@@ -612,7 +612,7 @@ void BM_Game_ECS_WithSystems_ForEachChunk_SoA_ManualSIMD(benchmark::State& state
 			GetWorld()
 					.ForEachChunk(
 							m_q,
-							[&](ecs::Chunk& ch) {
+							[](ecs::Chunk& ch) {
 								auto p = ch.ViewRW<PositionSoA>();
 								auto v = ch.ViewRW<VelocitySoA>();
 
@@ -658,7 +658,7 @@ void BM_Game_ECS_WithSystems_ForEachChunk_SoA_ManualSIMD(benchmark::State& state
 			GetWorld()
 					.ForEachChunk(
 							m_q,
-							[&](ecs::Chunk& ch) {
+							[](ecs::Chunk& ch) {
 								auto v = ch.ViewRW<VelocitySoA>();
 
 								auto vvy = v.set<1>();
@@ -968,7 +968,7 @@ void BM_Game_NonECS_DOD_SoA(benchmark::State& state) {
 
 			auto vvy = vv.set<1>();
 
-			auto exec = [&](float* GAIA_RESTRICT v, const size_t sz) {
+			auto exec = [](float* GAIA_RESTRICT v, const size_t sz) {
 				for (size_t i = 0U; i < sz; ++i)
 					v[i] *= 9.81f * dt;
 			};
@@ -1068,7 +1068,7 @@ void BM_Game_NonECS_DOD_SoA_ManualSIMD(benchmark::State& state) {
 			auto vvy = vv.set<1>();
 			const auto size = p.size();
 
-			auto exec = [&](float* GAIA_RESTRICT p, float* GAIA_RESTRICT v, const size_t offset) {
+			auto exec = [](float* GAIA_RESTRICT p, float* GAIA_RESTRICT v, const size_t offset) {
 				const auto vyVec = _mm_load_ps(v + offset);
 				const auto pyVec = _mm_load_ps(p + offset);
 
