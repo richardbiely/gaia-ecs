@@ -21,11 +21,18 @@ function(enable_cxx_compiler_flag_if_supported flag)
 endfunction()
 
 if (MSVC)
+  # dynamic runtime (because of google bemchmark)
+  # TODO: handle google benchmark
+  enable_cxx_compiler_flag_if_supported("/MD")
   # strictness rules
   enable_cxx_compiler_flag_if_supported("/W4")
   enable_cxx_compiler_flag_if_supported("/WX")
   # fast-math
   enable_cxx_compiler_flag_if_supported("/fp:fast") 
+  if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    enable_cxx_compiler_flag_if_supported("-msse4.1")
+    enable_cxx_compiler_flag_if_supported("-mfma")
+  endif()
 else()
   # strictness rules
   enable_cxx_compiler_flag_if_supported("-Wall")
