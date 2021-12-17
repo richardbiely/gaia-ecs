@@ -14,7 +14,7 @@ GAIA_MSVC_WARNING_DISABLE(4307)
 #endif
 
 #if GAIA_ARCH != GAIA_ARCH_ARM
-	#include <smmintrin.h>
+	#include <immintrin.h>
 #else
 	#include <arm_neon.h>
 #endif
