@@ -38,8 +38,8 @@ namespace gaia {
 				using size_type = darr::size_type;
 
 			private:
-				T* m_ptr;
-				size_type m_pos;
+				T* m_ptr = nullptr;
+				size_type m_pos = 0;
 
 			public:
 				constexpr iterator() = default;
@@ -94,8 +94,8 @@ namespace gaia {
 				using size_type = darr::size_type;
 
 			private:
-				const T* m_ptr;
-				size_type m_pos;
+				const T* m_ptr = nullptr;
+				size_type m_pos = 0;
 
 			public:
 				constexpr const_iterator() = default;
@@ -148,7 +148,7 @@ namespace gaia {
 					*it = value;
 			}
 
-			darr(size_type count) noexcept {
+			darr(size_type count) {
 				resize(count);
 			}
 
@@ -163,8 +163,9 @@ namespace gaia {
 
 			darr(std::initializer_list<T> init): darr(init.begin(), init.end()) {}
 
-			darr(const darr& other) noexcept: darr(other.begin(), other.end()) {}
-			darr(darr&& other) {
+			darr(const darr& other): darr(other.begin(), other.end()) {}
+
+			darr(darr&& other) noexcept {
 				m_cnt = other.m_cnt;
 				m_cap = other.m_cap;
 				m_data = other.m_data;
@@ -173,13 +174,15 @@ namespace gaia {
 				other.m_cap = 0;
 				other.m_data = nullptr;
 			}
+
 			darr& operator=(const darr& other) {
 				resize(other.size());
 				for (size_type i = 0; i < other.size(); ++i)
 					m_data[i++] = other[i];
 				return *this;
 			}
-			darr& operator=(darr&& other) {
+
+			darr& operator=(darr&& other) noexcept {
 				m_cnt = other.m_cnt;
 				m_cap = other.m_cap;
 				m_data = other.m_data;
@@ -205,10 +208,12 @@ namespace gaia {
 			}
 
 			T& operator[](size_type pos) noexcept {
+				GAIA_ASSERT(pos < size());
 				return m_data[pos];
 			}
 
 			const T& operator[](size_type pos) const noexcept {
+				GAIA_ASSERT(pos < size());
 				return m_data[pos];
 			}
 

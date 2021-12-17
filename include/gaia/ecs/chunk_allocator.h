@@ -83,7 +83,7 @@ namespace gaia {
 				//! Number of blocks to recycle
 				uint16_t m_freeBlocks;
 
-				MemoryPage(void* ptr): m_data(ptr), m_usedBlocks(0), m_nextFreeBlock(0), m_freeBlocks(0) {}
+				MemoryPage(void* ptr): m_data(ptr), m_idx(0), m_usedBlocks(0), m_nextFreeBlock(0), m_freeBlocks(0) {}
 
 				[[nodiscard]] void* AllocChunk() {
 					if (!m_freeBlocks) {
@@ -92,7 +92,7 @@ namespace gaia {
 
 						++m_usedBlocks;
 
-						const uint16_t index = m_blocks.size();
+						const size_t index = m_blocks.size();
 						m_blocks.push_back({m_blocks.size()});
 
 						// Encode info about chunk's page in the memory block.
@@ -106,7 +106,7 @@ namespace gaia {
 						++m_usedBlocks;
 						--m_freeBlocks;
 
-						const uint32_t index = m_nextFreeBlock;
+						const size_t index = m_nextFreeBlock;
 						m_nextFreeBlock = m_blocks[m_nextFreeBlock].idx;
 
 						// Encode info about chunk's page in the memory block.
@@ -279,10 +279,10 @@ namespace gaia {
 			void GetStats(ChunkAllocatorStats& stats) const {
 				stats.NumPages = (uint32_t)m_pagesFree.size() + (uint32_t)m_pagesFull.size();
 				stats.NumFreePages = (uint32_t)m_pagesFree.size();
-				stats.AllocatedMemory = stats.NumPages * MemoryPage::Size;
-				stats.UsedMemory = m_pagesFull.size() * MemoryPage::Size;
+				stats.AllocatedMemory = stats.NumPages * (size_t)MemoryPage::Size;
+				stats.UsedMemory = m_pagesFull.size() * (size_t)MemoryPage::Size;
 				for (auto* page: m_pagesFree)
-					stats.UsedMemory += page->GetUsedBlocks() * MemoryBlockSize;
+					stats.UsedMemory += page->GetUsedBlocks() * (size_t)MemoryBlockSize;
 			}
 
 			/*!

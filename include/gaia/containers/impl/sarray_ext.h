@@ -134,7 +134,7 @@ namespace gaia {
 				}
 			};
 
-			sarr_ext() {
+			sarr_ext() noexcept {
 				clear();
 			}
 
