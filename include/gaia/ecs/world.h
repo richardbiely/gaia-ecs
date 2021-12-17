@@ -344,8 +344,8 @@ namespace gaia {
 				if (auto* pChunk = entityContainer.pChunk) {
 					const auto& archetype = pChunk->header.owner;
 					const auto& componentTypeList = archetype.componentTypeList[componentType];
-
 					const auto metatypesCount = (uint32_t)componentTypeList.size() + (uint32_t)typesToAdd.size();
+
 #if GAIA_DEBUG
 					if (!VerityArchetypeComponentCount(metatypesCount)) {
 						GAIA_ASSERT(false && "Trying to add too many ECS components to ECS entity!");

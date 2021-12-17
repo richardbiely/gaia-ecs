@@ -36,9 +36,7 @@ namespace gaia {
 		constexpr void VerifyComponents() {
 			static_assert(utils::is_unique<std::decay_t<T>...>, "Only unique inputs are enabled");
 			static_assert(
-					std::conjunction_v<ComponentSizeValid<std::decay_t<T>>...>,
-					"Only component with size of at most MAX_COMPONENTS_SIZE are "
-					"allowed");
+					std::conjunction_v<ComponentSizeValid<std::decay_t<T>>...>, "MAX_COMPONENTS_SIZE in bytes exceeded");
 			static_assert(
 					std::conjunction_v<ComponentTypeValid<std::decay_t<T>>...>, "Only components of trivial type are allowed");
 		}
