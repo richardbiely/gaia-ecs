@@ -25,7 +25,9 @@ if (MSVC)
   enable_cxx_compiler_flag_if_supported("/W4")
   enable_cxx_compiler_flag_if_supported("/WX")
   # fast-math
-  enable_cxx_compiler_flag_if_supported("/fp:fast") 
+  enable_cxx_compiler_flag_if_supported("/fp:fast")
+  # necessary because VS might complain about too many sections used in debug builds
+  enable_cxx_compiler_flag_if_supported("/bigobj")
 else()
   # strictness rules
   enable_cxx_compiler_flag_if_supported("-Wall")
