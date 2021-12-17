@@ -1,10 +1,11 @@
 #pragma once
-#include "../containers/sarray_ext.h"
 #include <inttypes.h>
 
 #include "../containers/map.h"
+#include "../containers/sarray_ext.h"
 #include "archetype.h"
 #include "component.h"
+#include "common.h"
 #include "entity.h"
 #include "fwd.h"
 #include "gaia/config/config.h"
@@ -444,16 +445,16 @@ namespace gaia {
 							// uint8_t componentCount = m_data[i++];
 
 							// // Components
-							// auto newMetatypes = (const ComponentMetaData**)alloca(
+							// auto newMetaTypes = (const ComponentMetaData**)alloca(
 							// 		sizeof(ComponentMetaData) * componentCount);
 							// for (uint8_t j = 0; j < componentCount; ++j) {
 							// 	const auto metaType = *(const ComponentMetaData**)&m_data[i];
-							// 	newMetatypes[j] = metaType;
+							// 	newMetaTypes[j] = metaType;
 							// 	i += sizeof(const ComponentMetaData*);
 							// }
 							// world->AddComponent_Internal(
 							// 		componentType, entity,
-							// 		{newMetatypes, (uintptr_t)componentCount});
+							// 		{newMetaTypes, (uintptr_t)componentCount});
 
 							// uint32_t indexInChunk;
 							// auto* pChunk = world->GetEntityChunk(entity, indexInChunk);
@@ -463,7 +464,7 @@ namespace gaia {
 							// 	indexInChunk = 0;
 
 							// for (uint8_t j = 0; j < componentCount; ++j) {
-							// 	const auto metaType = newMetatypes[j];
+							// 	const auto metaType = newMetaTypes[j];
 							// 	auto pComponentData = pChunk->SetComponent_Internal(
 							// 			componentType, indexInChunk, metaType);
 							// 	memset(pComponentData, 0, metaType->size);
@@ -489,16 +490,16 @@ namespace gaia {
 							// uint8_t componentCount = m_data[i++];
 
 							// // Components
-							// auto newMetatypes = (const ComponentMetaData**)alloca(
+							// auto newMetaTypes = (const ComponentMetaData**)alloca(
 							// 		sizeof(ComponentMetaData) * componentCount);
 							// for (uint8_t j = 0; j < componentCount; ++j) {
 							// 	const auto metaType = *(const ComponentMetaData**)&m_data[i];
-							// 	newMetatypes[j] = metaType;
+							// 	newMetaTypes[j] = metaType;
 							// 	i += sizeof(const ComponentMetaData*);
 							// }
 							// world->AddComponent_Internal(
 							// 		componentType, entity,
-							// 		{newMetatypes, (uintptr_t)componentCount});
+							// 		{newMetaTypes, (uintptr_t)componentCount});
 
 							// uint32_t indexInChunk;
 							// auto* pChunk = world->GetEntityChunk(entity, indexInChunk);
@@ -508,7 +509,7 @@ namespace gaia {
 							// 	indexInChunk = 0;
 
 							// for (uint8_t j = 0; j < componentCount; ++j) {
-							// 	const auto metaType = newMetatypes[j];
+							// 	const auto metaType = newMetaTypes[j];
 							// 	auto pComponentData = pChunk->SetComponent_Internal(
 							// 			componentType, indexInChunk, metaType);
 							// 	memset(pComponentData, 0, metaType->size);
@@ -596,13 +597,15 @@ namespace gaia {
 							uint8_t componentCount = m_data[i++];
 
 							// Components
-							auto newMetatypes = (const ComponentMetaData**)alloca(sizeof(ComponentMetaData) * componentCount);
+							containers::sarray_ext<const ComponentMetaData*, MAX_COMPONENTS_PER_ARCHETYPE> newMetaTypes;
+							newMetaTypes.resize(componentCount);
+
 							for (uint8_t j = 0; j < componentCount; ++j) {
 								auto metaType = *(ComponentMetaData**)&m_data[i];
-								newMetatypes[j] = metaType;
+								newMetaTypes[j] = metaType;
 								i += sizeof(const ComponentMetaData*);
 							}
-							world->RemoveComponent_Internal(componentType, e, {newMetatypes, (uintptr_t)componentCount});
+							world->RemoveComponent_Internal(componentType, e, {newMetaTypes.data(), (uintptr_t)componentCount});
 						} break;
 					}
 				}

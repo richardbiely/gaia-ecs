@@ -344,10 +344,10 @@ namespace gaia {
 				if (auto* pChunk = entityContainer.pChunk) {
 					const auto& archetype = pChunk->header.owner;
 					const auto& componentTypeList = archetype.componentTypeList[componentType];
-					const auto metatypesCount = (uint32_t)componentTypeList.size() + (uint32_t)typesToAdd.size();
+					const auto metaTypesCount = (uint32_t)componentTypeList.size() + (uint32_t)typesToAdd.size();
 
 #if GAIA_DEBUG
-					if (!VerityArchetypeComponentCount(metatypesCount)) {
+					if (!VerityArchetypeComponentCount(metaTypesCount)) {
 						GAIA_ASSERT(false && "Trying to add too many ECS components to ECS entity!");
 						LOG_W(
 								"Trying to add %u ECS %s components to ECS entity [%u.%u] "
@@ -368,7 +368,12 @@ namespace gaia {
 					}
 #endif
 
-					auto newMetatypes = (const ComponentMetaData**)alloca(sizeof(ComponentMetaData) * metatypesCount);
+					containers::sarray_ext<const ComponentMetaData*, MAX_COMPONENTS_PER_ARCHETYPE> newMetaTypes;
+					newMetaTypes.resize(newTypesCount + (uint32_t)componentTypeList.size());
+
+					// Fill in the gap with new input types
+					for (uint32_t i = 0U; i < newTypesCount; i++)
+						newMetaTypes[i] = typesToAdd[i];
 
 					for (uint32_t i = 0U; i < componentTypeList.size(); i++) {
 						const auto& info = componentTypeList[i];
@@ -393,21 +398,20 @@ namespace gaia {
 #endif
 
 						// Keep the types offset by the number of new input types
-						newMetatypes[newTypesCount + i] = info.type;
+						newMetaTypes[newTypesCount + i] = info.type;
 					}
-					// Fill in the gap with new input types
-					for (uint32_t i = 0U; i < newTypesCount; i++)
-						newMetatypes[i] = typesToAdd[i];
 
 					const auto& secondList = archetype.componentTypeList[(componentType + 1) & 1];
-					auto secondMetaTypes = (const ComponentMetaData**)alloca(sizeof(ComponentMetaData) * secondList.size());
+					containers::sarray_ext<const ComponentMetaData*, MAX_COMPONENTS_PER_ARCHETYPE> secondMetaTypes;
+					secondMetaTypes.resize(secondList.size());
+
 					for (uint32_t i = 0U; i < secondList.size(); i++)
 						secondMetaTypes[i] = secondList[i].type;
 
 					auto newArchetype =
 							componentType == ComponentType::CT_Generic
-									? FindOrCreateArchetype({newMetatypes, metatypesCount}, {secondMetaTypes, secondList.size()})
-									: FindOrCreateArchetype({secondMetaTypes, secondList.size()}, {newMetatypes, metatypesCount});
+									? FindOrCreateArchetype({newMetaTypes.data(), metaTypesCount}, {secondMetaTypes.data(), secondList.size()})
+									: FindOrCreateArchetype({secondMetaTypes.data(), secondList.size()}, {newMetaTypes.data(), metaTypesCount});
 
 					MoveEntity(entity, *newArchetype);
 				}
@@ -455,10 +459,11 @@ namespace gaia {
 				const auto& componentTypeList = archetype.componentTypeList[componentType];
 
 				// find intersection
-				const auto metatypesCount = componentTypeList.size();
-				auto newMetatypes = (const ComponentMetaData**)alloca(sizeof(ComponentMetaData) * metatypesCount);
+				const auto metaTypesCount = componentTypeList.size();
+				containers::sarray_ext<const ComponentMetaData*, MAX_COMPONENTS_PER_ARCHETYPE> newMetaTypes;
+				newMetaTypes.resize(metaTypesCount);
 
-				size_t typesAfter = 0;
+				uint32_t typesAfter = 0;
 				// TODO: Arrays are sorted so we can make this in O(n+m) instead of
 				// O(N^2)
 				for (auto i = 0U; i < componentTypeList.size(); i++) {
@@ -469,25 +474,27 @@ namespace gaia {
 							goto nextIter;
 					}
 
-					newMetatypes[typesAfter++] = info.type;
+					newMetaTypes[typesAfter++] = info.type;
 
 				nextIter:
 					continue;
 				}
 
 				// Nothing has changed. Return
-				if (typesAfter == metatypesCount)
+				if (typesAfter == metaTypesCount)
 					return;
 
 				const auto& secondList = archetype.componentTypeList[(componentType + 1) & 1];
-				auto secondMetaTypes = (const ComponentMetaData**)alloca(sizeof(ComponentMetaData) * secondList.size());
+				containers::sarray_ext<const ComponentMetaData*, MAX_COMPONENTS_PER_ARCHETYPE> secondMetaTypes;
+				secondMetaTypes.resize(secondList.size());
+
 				for (auto i = 0U; i < secondList.size(); i++)
 					secondMetaTypes[i] = secondList[i].type;
 
 				auto newArchetype =
 						componentType == ComponentType::CT_Generic
-								? FindOrCreateArchetype({newMetatypes, typesAfter}, {secondMetaTypes, secondList.size()})
-								: FindOrCreateArchetype({secondMetaTypes, secondList.size()}, {newMetatypes, typesAfter});
+								? FindOrCreateArchetype({newMetaTypes.data(), typesAfter}, {secondMetaTypes.data(), secondList.size()})
+								: FindOrCreateArchetype({secondMetaTypes.data(), secondList.size()}, {newMetaTypes.data(), typesAfter});
 
 				MoveEntity(entity, *newArchetype);
 			}
@@ -526,8 +533,7 @@ namespace gaia {
 				};
 
 				const auto maxIntersectionCount = oldTypes.size() > newTypes.size() ? newTypes.size() : oldTypes.size();
-				auto intersections = (Intersection*)alloca(maxIntersectionCount * sizeof(Intersection));
-				uint32_t intersectionCount = 0U;
+				containers::sarray_ext<Intersection, MAX_COMPONENTS_PER_ARCHETYPE> intersections;
 
 				// TODO: Arrays are sorted so we can do this in O(n+_) instead of
 				// O(N^2)
@@ -541,13 +547,13 @@ namespace gaia {
 						if (typeNew != typeOld)
 							continue;
 
-						intersections[intersectionCount++] = {typeOld->size, i, j};
+						intersections.push_back({typeOld->size, i, j});
 						break;
 					}
 				}
 
 				// Let's move all data from oldEntity to newEntity
-				for (uint32_t i = 0U; i < intersectionCount; i++) {
+				for (uint32_t i = 0U; i < intersections.size(); i++) {
 					const auto newIdx = intersections[i].newIndex;
 					const auto oldIdx = intersections[i].oldIndex;
 
