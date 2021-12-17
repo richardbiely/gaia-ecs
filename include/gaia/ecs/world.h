@@ -410,8 +410,10 @@ namespace gaia {
 
 					auto newArchetype =
 							componentType == ComponentType::CT_Generic
-									? FindOrCreateArchetype({newMetaTypes.data(), metaTypesCount}, {secondMetaTypes.data(), secondList.size()})
-									: FindOrCreateArchetype({secondMetaTypes.data(), secondList.size()}, {newMetaTypes.data(), metaTypesCount});
+									? FindOrCreateArchetype(
+												{newMetaTypes.data(), metaTypesCount}, {secondMetaTypes.data(), secondList.size()})
+									: FindOrCreateArchetype(
+												{secondMetaTypes.data(), secondList.size()}, {newMetaTypes.data(), metaTypesCount});
 
 					MoveEntity(entity, *newArchetype);
 				}
@@ -532,7 +534,6 @@ namespace gaia {
 					uint32_t newIndex;
 				};
 
-				const auto maxIntersectionCount = oldTypes.size() > newTypes.size() ? newTypes.size() : oldTypes.size();
 				containers::sarray_ext<Intersection, MAX_COMPONENTS_PER_ARCHETYPE> intersections;
 
 				// TODO: Arrays are sorted so we can do this in O(n+_) instead of
