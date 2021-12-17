@@ -185,6 +185,10 @@ namespace gaia {
 				m_pos = size_type(-1);
 			}
 
+			constexpr void resize(size_type size) noexcept {
+				m_pos = size;
+			}
+
 			[[nodiscard]] constexpr size_type size() const noexcept {
 				return m_pos + 1;
 			}
