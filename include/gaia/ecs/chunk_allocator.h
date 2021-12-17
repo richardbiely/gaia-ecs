@@ -243,14 +243,14 @@ namespace gaia {
 
 				// Update lists
 				if (pageFull) {
-					// Our page is no longer full remove it from the list and update the swapped page's pointer
+					// Our page is no longer full. Remove it from the list and update the swapped page's pointer
+					if (m_pagesFull.size() > 1)
+						m_pagesFull.back()->m_idx = pPage->m_idx;
 					utils::erase_fast(m_pagesFull, pPage->m_idx);
-					if (!m_pagesFull.empty())
-						m_pagesFull[pPage->m_idx]->m_idx = pPage->m_idx;
 
 					// Move our page to the open list
+					pPage->m_idx = m_pagesFree.size();
 					m_pagesFree.push_back(pPage);
-					pPage->m_idx = m_pagesFree.size() - 1;
 				}
 
 				// Free the chunk
