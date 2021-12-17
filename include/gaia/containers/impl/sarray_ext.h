@@ -1,4 +1,5 @@
 #pragma once
+#include "gaia/config/config.h"
 #include <cstddef>
 #include <iterator>
 #include <utility>
@@ -185,7 +186,12 @@ namespace gaia {
 				m_pos = size_type(-1);
 			}
 
-			constexpr void resize(size_type size) noexcept {
+			void resize(size_type size) noexcept {
+				GAIA_ASSERT(size < N);
+				m_pos = size;
+			}
+
+			constexpr void resize_ct(size_type size) noexcept {
 				m_pos = size;
 			}
 
