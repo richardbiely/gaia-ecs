@@ -35,7 +35,7 @@ namespace gaia {
 
 		struct type_info final {
 			template <typename T>
-			static constexpr uint32_t index() noexcept {
+			static uint32_t index() noexcept {
 				return type_group<type_info>::id<T>;
 			}
 
