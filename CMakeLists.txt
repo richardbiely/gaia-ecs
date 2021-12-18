@@ -26,10 +26,12 @@ message(VERBOSE "* Copyright (c) 2021 Richard Biely <richardbiely@gmail.com>")
 message(VERBOSE "*")
 
 set(IsClangCompiler CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+set(IsDebugBuild CMAKE_BUILD_TYPE MATCHES DEBUG)
 
 # Configuration
-option(GAIA_USE_LIBCPP "Use libc++." IsClangCompiler)
-option(GAIA_USE_SANITIZER "Enable sanitizers." ON)
+option(GAIA_USE_LIBCPP "Use libc++." IsClangCompiler) # ON for Clang by default
+option(GAIA_USE_SANITIZER "Enable sanitizers." IsDebugBuild) # ON for debug builds by default
+option(GAIA_USE_FUZZER "Enable fuzzer." OFF)
 option(GAIA_BUILD_UNITTEST "Build unit test." ON)
 option(GAIA_BUILD_BENCHMARK "Build benchmark." ON)
 option(GAIA_BUILD_EXAMPLES "Build examples." ON)
@@ -68,8 +70,13 @@ target_include_directories(
 )
 
 if(GAIA_USE_SANITIZER)
-    target_compile_options(${PROJECT_NAME} INTERFACE $<$<CONFIG:Debug>:-fsanitize=address -fno-omit-frame-pointer -fsanitize=undefined -fsanitize=memory>)
-    target_link_libraries(${PROJECT_NAME} INTERFACE $<$<CONFIG:Debug>:-fsanitize=address -fno-omit-frame-pointer -fsanitize=undefined -fsanitize=memory>)
+    target_compile_options(${PROJECT_NAME} INTERFACE -fsanitize=address -fno-omit-frame-pointer -fsanitize=undefined -fsanitize=memory)
+    target_link_libraries(${PROJECT_NAME} INTERFACE -fsanitize=address -fno-omit-frame-pointer -fsanitize=undefined -fsanitize=memory)
+endif()
+
+if(GAIA_USE_FUZZER)
+    target_compile_options(${PROJECT_NAME} INTERFACE -fsanitize=fuzzer)
+    target_link_libraries(${PROJECT_NAME} INTERFACE -fsanitize=fuzzer)
 endif()
 
 if(GAIA_HAS_LIBCPP)
