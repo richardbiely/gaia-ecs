@@ -33,7 +33,7 @@ You can also use sanitizers with the project via -USE_SANITIZERS.
 ```bash
 cmake -DCMAKE_BUILD_TYPE=Release -USE_SANITIZERS=address -S . -B "build"
 ```
-Possible options are listed in cmake/sanitizers.cmake.<br/>
+Possible options are listed in [cmake/sanitizers.cmake](https://github.com/richardbiely/gaia-ecs/blob/main/cmake/sanitizers.cmake).<br/>
 Note, some options don't work together or might not be supported by all compilers.
 
 ## Contributions
@@ -41,7 +41,7 @@ Note, some options don't work together or might not be supported by all compiler
 Requests for features, PRs, suggestions and feedback are highly appreciated.
 
 If you find you can help and want to contribute to the project feel free to contact
-me directly (you can find the mail in my [profile](https://github.com/richardbiely)).<br/>
+me directly (you can find the mail on my [profile page](https://github.com/richardbiely)).<br/>
 
 ## License
 
