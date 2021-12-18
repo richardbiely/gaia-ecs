@@ -128,6 +128,8 @@ struct World {
 	bool blocked[ScreenY][ScreenX];
 	//! tile content
 	containers::map<Position, containers::darray<ecs::Entity>> content;
+	//! quit the game when true
+	bool terminate;
 
 	World(ecs::World& world): w(world) {}
 
@@ -581,6 +583,8 @@ public:
 	void OnUpdate() override {
 		m_key = get_char();
 
+		s_world.terminate = m_key == 'p';
+
 		// Player movement
 		GetWorld()
 				.ForEach(
@@ -603,8 +607,6 @@ public:
 	}
 };
 
-GAIA_MSVC_WARNING_DISABLE(C2220)
-
 int main() {
 	s_sm.CreateSystem<UpdateMapSystem>("updateblocked");
 	s_sm.CreateSystem<CollisionSystem>("collision");
@@ -619,7 +621,7 @@ int main() {
 	s_sm.CreateSystem<InputSystem>("input");
 
 	s_world.Init();
-	for (;;)
+	while (!s_world.terminate)
 		s_sm.Update();
 
 	return 0;
