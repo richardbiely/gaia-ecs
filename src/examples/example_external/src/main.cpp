@@ -1,5 +1,4 @@
-﻿#define _ITERATOR_DEBUG_LEVEL 0
-#include <gaia.h>
+﻿#include <gaia.h>
 
 GAIA_INIT
 
