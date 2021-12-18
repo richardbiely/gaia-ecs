@@ -40,9 +40,9 @@ jobs:
       env:
         CXX: ${{ matrix.compiler.exe }}
       run: |
-        cmake -E make_directory "build"
+        cmake -E make_directory build
         cmake -GAIA_BUILD_UNITTEST=OFF -GAIA_BUILD_EXAMPLES=ON -GAIA_BUILD_BENCHMARK=OFF -S . -B "build"
-        cmake --build "build" -j4
+        cmake --build build -j4
     - name: Run tests
       working-directory: build
       env:
@@ -74,9 +74,9 @@ jobs:
     - name: Compile tests
       working-directory: build
       run: |
-        cmake -E make_directory "build"
+        cmake -E make_directory build
         cmake -GAIA_BUILD_UNITTEST=OFF -GAIA_BUILD_EXAMPLES=ON -GAIA_BUILD_BENCHMARK=OFF ${{ matrix.toolset_option }} -S . -B "build"
-        cmake --build "build" -j4
+        cmake --build build -j4
     - name: Run tests
       working-directory: build
       env:
@@ -92,9 +92,9 @@ jobs:
     - name: Compile tests
       working-directory: build
       run: |
-        cmake -E make_directory "build"
+        cmake -E make_directory build
         cmake -GAIA_BUILD_UNITTEST=OFF -GAIA_BUILD_EXAMPLES=ON -GAIA_BUILD_BENCHMARK=OFF -S . -B "build"
-        cmake --build "build" -j4
+        cmake --build build -j4
     - name: Run tests
       working-directory: build
       env:
