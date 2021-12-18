@@ -33,7 +33,7 @@ jobs:
     timeout-minutes: 10
     strategy:
       matrix:
-        toolset: [clang-cl, default, v141, v142, v143]
+        toolset: [clang-cl, default, v141, v142]
         include:
           - toolset: clang-cl
             toolset_option: -T"ClangCl"
@@ -41,8 +41,6 @@ jobs:
             toolset_option: -T"v141"
           - toolset: v142
             toolset_option: -T"v142"
-          - toolset: v143
-            toolset_option: -T"v143"
     runs-on: windows-latest
 
     steps:
