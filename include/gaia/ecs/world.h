@@ -1112,7 +1112,8 @@ namespace gaia {
 			template <typename... TFuncArgs, typename TFunc>
 			void ForEachEntityInChunk(Chunk& chunk, TFunc&& func) {
 				auto tup = std::make_tuple(expandTuple<TFuncArgs>(chunk)...);
-				for (uint16_t i = 0U; i < chunk.GetItemCount(); i++)
+				const uint32_t size = chunk.GetItemCount();
+				for (uint32_t i = 0U; i < size; i++)
 					func(std::get<decltype(expandTuple<TFuncArgs>(chunk))>(tup)[i]...);
 			}
 
