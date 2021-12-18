@@ -20,7 +20,7 @@
 
 namespace gaia {
 	namespace ecs {
-		uint16_t GetArchetypeCapacity(const Archetype& archetype);
+		uint32_t GetArchetypeCapacity(const Archetype& archetype);
 		const ChunkComponentTypeList& GetArchetypeComponentTypeList(const Archetype& archetype, ComponentType type);
 		const ChunkComponentLookupList& GetArchetypeComponentLookupList(const Archetype& archetype, ComponentType type);
 
@@ -82,7 +82,7 @@ namespace gaia {
 			}
 
 			[[nodiscard]] uint32_t AddEntity(Entity entity) {
-				uint16_t index = header.items++;
+				const auto index = header.items++;
 				GAIA_ASSERT(index < UINT16_MAX);
 				SetEntity(index, entity);
 
@@ -92,7 +92,7 @@ namespace gaia {
 				return index;
 			}
 
-			void RemoveEntity(const uint16_t index, containers::darray<EntityContainer>& entities) {
+			void RemoveEntity(const uint32_t index, containers::darray<EntityContainer>& entities) {
 				// Ignore request on empty chunks
 				if (header.items == 0)
 					return;
@@ -140,14 +140,14 @@ namespace gaia {
 				--header.items;
 			}
 
-			void SetEntity(uint16_t index, Entity entity) {
+			void SetEntity(uint32_t index, Entity entity) {
 				GAIA_ASSERT(index < header.items && "Entity index in chunk out of bounds!");
 
 				utils::unaligned_ref<Entity> mem((void*)&data[sizeof(Entity) * index]);
 				mem = entity;
 			}
 
-			[[nodiscard]] const Entity GetEntity(uint16_t index) const {
+			[[nodiscard]] const Entity GetEntity(uint32_t index) const {
 				GAIA_ASSERT(index < header.items && "Entity index in chunk out of bounds!");
 
 				utils::unaligned_ref<Entity> mem((void*)&data[sizeof(Entity) * index]);

@@ -18,16 +18,13 @@ namespace gaia {
 #if !GAIA_64
 			uint32_t owner_padding;
 #endif
-			//! [8-9] Number of items in the chunk.
-			uint16_t items = 0;
-			//! [10-11] Once removal is requested and it hits 0 the chunk is removed.
-			uint16_t lifespan = 0;
-			//! [12-13] Capacity (copied from the owner archetype)
-			uint16_t capacity = 0;
-			//! [14-63] Empty space
-			uint8_t dummy[50]{};
-			//! [64-319] Versions of individual components on chunk. Stored on
-			//! separate cache lines from the rest.
+			//! [8-11] Number of items in the chunk.
+			uint32_t items = 0;
+			//! [12-15] Once removal is requested and it hits 0 the chunk is removed.
+			uint32_t lifespan = 0;
+			//! [16-19] Capacity (copied from the owner archetype).
+			uint32_t capacity = 0;
+			//! [20-275] Versions of individual components on chunk.
 			uint32_t versions[ComponentType::CT_Count][MAX_COMPONENTS_PER_ARCHETYPE]{};
 
 			ChunkHeader(const Archetype& archetype): owner(archetype) {
@@ -51,6 +48,5 @@ namespace gaia {
 				};
 			}
 		};
-		static_assert(sizeof(ChunkHeader) == 320, "Chunk header needs to be 320 bytes in size");
 	} // namespace ecs
 } // namespace gaia
