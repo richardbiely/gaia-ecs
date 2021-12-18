@@ -1547,7 +1547,7 @@ namespace gaia {
 							const auto* pChunk = chunks[i];
 							const auto entityCount = pChunk->header.items;
 							LOG_N(
-									"  Chunk #%04u, entities:%hu/%hu, lifespan:%u", i, entityCount, archetype->capacity,
+									"  Chunk #%04u, entities:%u/%u, lifespan:%u", i, entityCount, archetype->capacity,
 									pChunk->header.lifespan);
 						}
 					}
