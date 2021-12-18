@@ -38,9 +38,9 @@ namespace gaia {
 			uint64_t matcherHash[ComponentType::CT_Count] = {0};
 			//! The number of entities this archetype can take (e.g 5 = 5 entities
 			//! with all their components)
-			uint16_t capacity = 0;
+			uint32_t capacity = 0;
 			//! Once removal is requested and it hits 0 the archetype is removed.
-			uint16_t lifespan = 0;
+			uint32_t lifespan = 0;
 
 			//! True if there's a component that requires custom construction
 			bool hasComponentWithCustomConstruction = false;
@@ -263,7 +263,7 @@ namespace gaia {
 				return GetWorldVersionFromWorld(*parentWorld);
 			}
 
-			[[nodiscard]] uint16_t GetCapacity() const {
+			[[nodiscard]] uint32_t GetCapacity() const {
 				return capacity;
 			}
 
@@ -329,7 +329,7 @@ namespace gaia {
 		[[nodiscard]] inline uint32_t GetWorldVersionFromArchetype(const Archetype& archetype) {
 			return archetype.GetWorldVersion();
 		}
-		[[nodiscard]] inline uint16_t GetArchetypeCapacity(const Archetype& archetype) {
+		[[nodiscard]] inline uint32_t GetArchetypeCapacity(const Archetype& archetype) {
 			return archetype.GetCapacity();
 		}
 		[[nodiscard]] inline const ChunkComponentTypeList&

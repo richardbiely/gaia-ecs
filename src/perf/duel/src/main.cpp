@@ -234,7 +234,9 @@ void BM_Game_ECS_WithSystems_ForEachChunk(benchmark::State& state) {
 							[](ecs::Chunk& ch) {
 								auto p = ch.ViewRW<Position>();
 								auto v = ch.View<Velocity>();
-								for (auto i = 0U; i < ch.GetItemCount(); ++i) {
+
+								const auto size = ch.GetItemCount();
+								for (auto i = 0U; i < size; ++i) {
 									p[i].x += v[i].x * dt;
 									p[i].y += v[i].y * dt;
 									p[i].z += v[i].z * dt;
@@ -258,7 +260,9 @@ void BM_Game_ECS_WithSystems_ForEachChunk(benchmark::State& state) {
 							[](ecs::Chunk& ch) {
 								auto p = ch.ViewRW<Position>();
 								auto v = ch.ViewRW<Velocity>();
-								for (auto i = 0U; i < ch.GetItemCount(); ++i) {
+
+								const auto size = ch.GetItemCount();
+								for (auto i = 0U; i < size; ++i) {
 									if (p[i].y < 0.0f) {
 										p[i].y = 0.0f;
 										v[i].y = 0.0f;
@@ -282,7 +286,9 @@ void BM_Game_ECS_WithSystems_ForEachChunk(benchmark::State& state) {
 							m_q,
 							[](ecs::Chunk& ch) {
 								auto v = ch.ViewRW<Velocity>();
-								for (auto i = 0U; i < ch.GetItemCount(); ++i) {
+
+								const auto size = ch.GetItemCount();
+								for (auto i = 0U; i < size; ++i) {
 									v[i].y += 9.81f * dt;
 								}
 							})
@@ -369,9 +375,10 @@ void BM_Game_ECS_WithSystems_ForEachChunk_SoA(benchmark::State& state) {
 										p[i] += v[i] * dt;
 								};
 
-								exec(ppx.data(), vvx.data(), ch.GetItemCount());
-								exec(ppy.data(), vvy.data(), ch.GetItemCount());
-								exec(ppz.data(), vvz.data(), ch.GetItemCount());
+								const auto size = ch.GetItemCount();
+								exec(ppx.data(), vvx.data(), size);
+								exec(ppy.data(), vvy.data(), size);
+								exec(ppz.data(), vvz.data(), size);
 							})
 					.Run();
 		}
@@ -416,7 +423,8 @@ void BM_Game_ECS_WithSystems_ForEachChunk_SoA(benchmark::State& state) {
 									}
 								};
 
-								exec(ppy.data(), vvy.data(), ch.GetItemCount());
+								const auto size = ch.GetItemCount();
+								exec(ppy.data(), vvy.data(), size);
 							})
 					.Run();
 		}
@@ -446,12 +454,13 @@ void BM_Game_ECS_WithSystems_ForEachChunk_SoA(benchmark::State& state) {
 								// 	vvy[i] = vvy[i] * dt * 9.81f;
 								////////////////////////////////////////////////////////////////////
 
-								auto exec = [&](float* GAIA_RESTRICT v, const size_t sz) {
+								auto exec = [](float* GAIA_RESTRICT v, const size_t sz) {
 									for (size_t i = 0U; i < sz; ++i)
 										v[i] *= dt * 9.81f;
 								};
 
-								exec(vvy.data(), ch.GetItemCount());
+								const auto size = ch.GetItemCount();
+								exec(vvy.data(), size);
 							})
 					.Run();
 		}
@@ -939,9 +948,10 @@ void BM_Game_NonECS_DOD_SoA(benchmark::State& state) {
 					p[i] += v[i] * dt;
 			};
 
-			exec(ppx.data(), vvx.data(), p.size());
-			exec(ppy.data(), vvy.data(), p.size());
-			exec(ppz.data(), vvz.data(), p.size());
+			const auto size = p.size();
+			exec(ppx.data(), vvx.data(), size);
+			exec(ppy.data(), vvy.data(), size);
+			exec(ppz.data(), vvz.data(), size);
 		}
 
 		static void handleGroundCollision(containers::darray<PositionSoA>& p, containers::darray<VelocitySoA>& v) {
@@ -960,7 +970,8 @@ void BM_Game_NonECS_DOD_SoA(benchmark::State& state) {
 				}
 			};
 
-			exec(ppy.data(), vvy.data(), p.size());
+			const auto size = p.size();
+			exec(ppy.data(), vvy.data(), size);
 		}
 
 		static void applyGravity(containers::darray<VelocitySoA>& v) {
@@ -973,7 +984,8 @@ void BM_Game_NonECS_DOD_SoA(benchmark::State& state) {
 					v[i] *= 9.81f * dt;
 			};
 
-			exec(vvy.data(), v.size());
+			const auto size = v.size();
+			exec(vvy.data(), size);
 		}
 	};
 

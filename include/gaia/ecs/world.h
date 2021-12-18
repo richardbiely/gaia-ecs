@@ -76,7 +76,7 @@ namespace gaia {
 					return false;
 				// If chunk information is present the entity at the pointed index has
 				// to match our entity
-				if (entityContainer.pChunk && entityContainer.pChunk->GetEntity((uint16_t)entityContainer.idx) != entity)
+				if (entityContainer.pChunk && entityContainer.pChunk->GetEntity(entityContainer.idx) != entity)
 					return false;
 
 				return true;
@@ -110,7 +110,7 @@ namespace gaia {
 			\param pChunk Chunk we remove the entity from
 			\param entityChunkIndex Index of entity within its chunk
 			*/
-			void RemoveEntity(Chunk* pChunk, uint16_t entityChunkIndex) {
+			void RemoveEntity(Chunk* pChunk, uint32_t entityChunkIndex) {
 				pChunk->RemoveEntity(entityChunkIndex, m_entities);
 
 				if (
@@ -568,7 +568,7 @@ namespace gaia {
 				}
 
 				// Remove entity from the previous chunk
-				RemoveEntity(oldChunk, (uint16_t)oldIndex);
+				RemoveEntity(oldChunk, oldIndex);
 
 				// Update entity's chunk and index so look-ups can find it
 				entityContainer.pChunk = newChunk;
@@ -747,7 +747,7 @@ namespace gaia {
 
 				// Remove entity from chunk
 				if (auto* pChunk = entityContainer.pChunk) {
-					RemoveEntity(pChunk, (uint16_t)entityContainer.idx);
+					RemoveEntity(pChunk, entityContainer.idx);
 
 					// Return entity to pool
 					DeallocateEntity(entity);
