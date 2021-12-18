@@ -83,7 +83,6 @@ namespace gaia {
 
 			[[nodiscard]] uint32_t AddEntity(Entity entity) {
 				const auto index = header.items++;
-				GAIA_ASSERT(index < UINT16_MAX);
 				SetEntity(index, entity);
 
 				header.UpdateWorldVersion(ComponentType::CT_Generic, UINT32_MAX);
