@@ -12,6 +12,7 @@
 #include "../utils/utils_containers.h"
 #include "chunk_allocator.h"
 #include "creation_query.h"
+#include "chunk.h"
 #include "entity.h"
 #include "entity_query.h"
 #include "fwd.h"
