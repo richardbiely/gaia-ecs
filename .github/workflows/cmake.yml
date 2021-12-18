@@ -23,7 +23,7 @@ jobs:
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
-      run: cmake -GAIA_BUILD_UNITTEST=OFF -GAIA_BUILD_EXAMPLES=ON -GAIA_BUILD_BENCHMARK=OFF -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+      run: cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DGAIA_BUILD_UNITTEST=OFF -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -S . -B ${{github.workspace}}/build
 
     - name: Build
       # Build your program with the given configuration
