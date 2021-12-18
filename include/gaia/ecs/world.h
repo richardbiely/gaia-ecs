@@ -10,9 +10,9 @@
 #include "../utils/type_info.h"
 #include "../utils/utility.h"
 #include "../utils/utils_containers.h"
+#include "chunk.h"
 #include "chunk_allocator.h"
 #include "creation_query.h"
-#include "chunk.h"
 #include "entity.h"
 #include "entity_query.h"
 #include "fwd.h"
@@ -1511,9 +1511,9 @@ namespace gaia {
 
 						const auto it = archetypeEntityCountMap.find(archetype->lookupHash);
 						LOG_N(
-								"Archetype ID:%016llx, "
-								"matcherGeneric:%016llx, "
-								"matcherChunk:%016llx, "
+								"Archetype ID:%016" PRIx64 ", "
+								"matcherGeneric:%016" PRIx64 ", "
+								"matcherChunk:%016" PRIx64 ", "
 								"chunks:%u, data size:%u B (%u + %u), "
 								"entities:%u (max-per-chunk:%u)",
 								archetype->lookupHash, archetype->matcherHash[ComponentType::CT_Generic],
@@ -1525,10 +1525,7 @@ namespace gaia {
 							for (const auto& component: components) {
 								const auto* metaType = component.type;
 								LOG_N(
-										"    (%p) lookupHash:%016llx, matcherHash:%016llx, "
-										"size:%3u "
-										"B, "
-										"align:%3u B, %.*s",
+										"    (%p) lookupHash:%016" PRIx64 ", matcherHash:%016" PRIx64 ", size:%3u B, align:%3u B, %.*s",
 										(void*)metaType, metaType->lookupHash, metaType->matcherHash, metaType->size, metaType->alig,
 										(uint32_t)metaType->name.length(), metaType->name.data());
 							}
@@ -1606,9 +1603,9 @@ namespace gaia {
 				ChunkAllocatorStats memstats;
 				m_chunkAllocator.GetStats(memstats);
 				LOG_N("ChunkAllocator stats");
-				LOG_N("  Allocated: %llu B", memstats.AllocatedMemory);
-				LOG_N("  Used: %llu B", memstats.AllocatedMemory - memstats.UsedMemory);
-				LOG_N("  Overhead: %llu B", memstats.UsedMemory);
+				LOG_N("  Allocated: %016" PRIu64 " B", memstats.AllocatedMemory);
+				LOG_N("  Used: %016" PRIu64 " B", memstats.AllocatedMemory - memstats.UsedMemory);
+				LOG_N("  Overhead: %016" PRIu64 " B", memstats.UsedMemory);
 				LOG_N("  Utilization: %.1f%%", 100.0 * ((double)memstats.UsedMemory / (double)memstats.AllocatedMemory));
 				LOG_N("  Pages: %u", memstats.NumPages);
 				LOG_N("  Free pages: %u", memstats.NumFreePages);
