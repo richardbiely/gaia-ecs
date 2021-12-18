@@ -44,11 +44,6 @@ namespace gaia {
 
 			Chunk(const Archetype& archetype): header(archetype) {}
 
-			//! Returns the number of entities in the chunk
-			[[nodiscard]] uint16_t GetItemCount_Internal() const {
-				return header.lastEntityIndex + 1;
-			}
-
 			template <typename T>
 			[[nodiscard]] std::decay_t<T> GetComponentVal_Internal(ComponentType componentType, uint32_t index) const {
 				using TComponent = std::decay_t<T>;
@@ -87,30 +82,29 @@ namespace gaia {
 			}
 
 			[[nodiscard]] uint32_t AddEntity(Entity entity) {
-				uint16_t index = ++header.lastEntityIndex;
-				if (index == UINT16_MAX)
-					index = 0;
+				uint16_t index = header.items++;
+				GAIA_ASSERT(index < UINT16_MAX);
 				SetEntity(index, entity);
 
 				header.UpdateWorldVersion(ComponentType::CT_Generic, UINT32_MAX);
 				header.UpdateWorldVersion(ComponentType::CT_Chunk, UINT32_MAX);
 
-				return header.lastEntityIndex;
+				return index;
 			}
 
 			void RemoveEntity(const uint16_t index, containers::darray<EntityContainer>& entities) {
 				// Ignore request on empty chunks
-				if (header.lastEntityIndex == UINT16_MAX)
+				if (header.items == 0)
 					return;
 
 				// We can't be removing from an index which is no longer there
-				GAIA_ASSERT(index <= header.lastEntityIndex);
+				GAIA_ASSERT(index < header.items);
 
 				// If there are at least two entities inside and it's not already the
 				// last one let's swap our entity with the last one in chunk.
-				if (header.lastEntityIndex != 0 && header.lastEntityIndex != index) {
+				if (header.items > 1 && header.items != index + 1) {
 					// Swap data at index with the last one
-					const auto entity = GetEntity(header.lastEntityIndex);
+					const auto entity = GetEntity(header.items - 1);
 					SetEntity(index, entity);
 
 					const auto& componentTypeList = GetArchetypeComponentTypeList(header.owner, ComponentType::CT_Generic);
@@ -125,7 +119,7 @@ namespace gaia {
 							continue;
 
 						const uint32_t idxFrom = look.offset + (uint32_t)index * info.type->size;
-						const uint32_t idxTo = look.offset + (uint32_t)header.lastEntityIndex * info.type->size;
+						const uint32_t idxTo = look.offset + (uint32_t)(header.items - 1) * info.type->size;
 
 						GAIA_ASSERT(idxFrom < Chunk::DATA_SIZE);
 						GAIA_ASSERT(idxTo < Chunk::DATA_SIZE);
@@ -143,25 +137,25 @@ namespace gaia {
 				header.UpdateWorldVersion(ComponentType::CT_Generic, UINT32_MAX);
 				header.UpdateWorldVersion(ComponentType::CT_Chunk, UINT32_MAX);
 
-				--header.lastEntityIndex;
+				--header.items;
 			}
 
 			void SetEntity(uint16_t index, Entity entity) {
-				GAIA_ASSERT(index <= header.lastEntityIndex && index != UINT16_MAX && "Entity index in chunk out of bounds!");
+				GAIA_ASSERT(index < header.items && "Entity index in chunk out of bounds!");
 
 				utils::unaligned_ref<Entity> mem((void*)&data[sizeof(Entity) * index]);
 				mem = entity;
 			}
 
 			[[nodiscard]] const Entity GetEntity(uint16_t index) const {
-				GAIA_ASSERT(index <= header.lastEntityIndex && index != UINT16_MAX && "Entity index in chunk out of bounds!");
+				GAIA_ASSERT(index < header.items && "Entity index in chunk out of bounds!");
 
 				utils::unaligned_ref<Entity> mem((void*)&data[sizeof(Entity) * index]);
 				return mem;
 			}
 
 			[[nodiscard]] bool IsFull() const {
-				return header.lastEntityIndex != UINT16_MAX && header.lastEntityIndex + 1 >= GetArchetypeCapacity(header.owner);
+				return header.items >= GetArchetypeCapacity(header.owner);
 			}
 
 			template <typename T>
@@ -339,12 +333,12 @@ namespace gaia {
 
 			//! Checks is there are any entities in the chunk
 			[[nodiscard]] bool HasEntities() const {
-				return header.lastEntityIndex != UINT16_MAX;
+				return header.items > 0;
 			}
 
 			//! Returns the number of entities in the chunk
 			[[nodiscard]] uint32_t GetItemCount() const {
-				return GetItemCount_Internal();
+				return header.items;
 			}
 
 			//! Returns true if the provided version is newer than the one stored internally

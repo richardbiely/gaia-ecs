@@ -1326,7 +1326,8 @@ namespace gaia {
 						}
 
 						// Execute functors in bulk
-						for (auto chunkIdx = 0U; chunkIdx < batchSize; ++chunkIdx)
+						const auto size = batchSize;
+						for (auto chunkIdx = 0U; chunkIdx < size; ++chunkIdx)
 							world.Unpack_ForEachEntityInChunk(InputArgs{}, *tmp[chunkIdx], func);
 
 						// Reset the batch size
@@ -1544,7 +1545,7 @@ namespace gaia {
 						const auto& chunks = archetype->chunks;
 						for (auto i = 0U; i < (uint32_t)chunks.size(); ++i) {
 							const auto* pChunk = chunks[i];
-							const uint16_t entityCount = pChunk->header.lastEntityIndex + uint16_t(1);
+							const auto entityCount = pChunk->header.items;
 							LOG_N(
 									"  Chunk #%04u, entities:%hu/%hu, lifespan:%u", i, entityCount, archetype->capacity,
 									pChunk->header.lifespan);
