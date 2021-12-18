@@ -23,3 +23,10 @@ cmake -DCMAKE_BUILD_TYPE=Release -S . -B "build"
 # Build the library
 cmake --build "build" --config Release
 ```
+
+You can also use sanitizers with the project via -USE_SANITIZERS.
+```bash
+cmake -DCMAKE_BUILD_TYPE=Release -USE_SANITIZERS=address -S . -B "build"
+```
+Possible options are listed in cmake/sanitizers.cmake.
+Note, some options don't work together or might not be supported by all compilers.
