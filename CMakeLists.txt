@@ -21,8 +21,8 @@ project (
         )
 
 message(STATUS "*************************************************************")
-message(STATUS "* ${PROJECT_NAME} v${PROJECT_VERSION} (${CMAKE_BUILD_TYPE}) *")
-message(STATUS "* Copyright (c) 2021 Richard Biely <richardbiely@gmail.com> *")
+message(STATUS "${PROJECT_NAME}-ecs v${PROJECT_VERSION} (${CMAKE_BUILD_TYPE})")
+message(STATUS "Copyright (c) 2021 Richard Biely <richardbiely@gmail.com>")
 message(STATUS "*************************************************************")
 
 set(IsClangCompiler CMAKE_CXX_COMPILER_ID MATCHES "Clang")
