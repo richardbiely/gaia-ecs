@@ -44,6 +44,11 @@ namespace gaia {
 
 			Chunk(const Archetype& archetype): header(archetype) {}
 
+			//! Returns the number of entities in the chunk
+			[[nodiscard]] uint16_t GetItemCount_Internal() const {
+				return header.lastEntityIndex + 1;
+			}
+
 			template <typename T>
 			[[nodiscard]] std::decay_t<T> GetComponentVal_Internal(ComponentType componentType, uint32_t index) const {
 				using TComponent = std::decay_t<T>;
@@ -338,8 +343,8 @@ namespace gaia {
 			}
 
 			//! Returns the number of entities in the chunk
-			[[nodiscard]] uint16_t GetItemCount() const {
-				return header.lastEntityIndex + 1;
+			[[nodiscard]] uint32_t GetItemCount() const {
+				return GetItemCount_Internal();
 			}
 
 			//! Returns true if the provided version is newer than the one stored internally
