@@ -235,12 +235,13 @@ void BM_Game_ECS_WithSystems_ForEachChunk(benchmark::State& state) {
 								auto p = ch.ViewRW<Position>();
 								auto v = ch.View<Velocity>();
 
-								const auto size = ch.GetItemCount();
-								for (auto i = 0U; i < size; ++i) {
-									p[i].x += v[i].x * dt;
-									p[i].y += v[i].y * dt;
-									p[i].z += v[i].z * dt;
-								}
+								[&](Position* GAIA_RESTRICT p, const Velocity* GAIA_RESTRICT v, const uint32_t size) {
+									for (auto i = 0U; i < size; ++i) {
+										p[i].x += v[i].x * dt;
+										p[i].y += v[i].y * dt;
+										p[i].z += v[i].z * dt;
+									}
+								}(p.data(), v.data(), ch.GetItemCount());
 							})
 					.Run();
 		}
@@ -261,13 +262,14 @@ void BM_Game_ECS_WithSystems_ForEachChunk(benchmark::State& state) {
 								auto p = ch.ViewRW<Position>();
 								auto v = ch.ViewRW<Velocity>();
 
-								const auto size = ch.GetItemCount();
-								for (auto i = 0U; i < size; ++i) {
-									if (p[i].y < 0.0f) {
-										p[i].y = 0.0f;
-										v[i].y = 0.0f;
+								[&](Position* GAIA_RESTRICT p, Velocity* GAIA_RESTRICT v, const uint32_t size) {
+									for (auto i = 0U; i < size; ++i) {
+										if (p[i].y < 0.0f) {
+											p[i].y = 0.0f;
+											v[i].y = 0.0f;
+										}
 									}
-								}
+								}(p.data(), v.data(), ch.GetItemCount());
 							})
 					.Run();
 		}
@@ -287,10 +289,10 @@ void BM_Game_ECS_WithSystems_ForEachChunk(benchmark::State& state) {
 							[](ecs::Chunk& ch) {
 								auto v = ch.ViewRW<Velocity>();
 
-								const auto size = ch.GetItemCount();
-								for (auto i = 0U; i < size; ++i) {
-									v[i].y += 9.81f * dt;
-								}
+								[&](Velocity* GAIA_RESTRICT v, const uint32_t size) {
+									for (auto i = 0U; i < size; ++i)
+										v[i].y += 9.81f * dt;
+								}(v.data(), ch.GetItemCount());
 							})
 					.Run();
 		}
@@ -858,27 +860,30 @@ void BM_Game_NonECS_DOD(benchmark::State& state) {
 	struct UnitDynamic {
 		static void
 		updatePosition(containers::darray<Position>& p, const containers::darray<Velocity>& v, float deltaTime) {
-			const uint32_t size = p.size();
-			for (uint32_t i = 0U; i < size; i++) {
-				p[i].x += v[i].x * deltaTime;
-				p[i].y += v[i].y * deltaTime;
-				p[i].z += v[i].z * deltaTime;
-			}
+			[&](Position* GAIA_RESTRICT p, const Velocity* GAIA_RESTRICT v, const uint32_t size) {
+				for (uint32_t i = 0U; i < size; i++) {
+					p[i].x += v[i].x * deltaTime;
+					p[i].y += v[i].y * deltaTime;
+					p[i].z += v[i].z * deltaTime;
+				}
+			}(p.data(), v.data(), v.size());
 		}
 		static void handleGroundCollision(containers::darray<Position>& p, containers::darray<Velocity>& v) {
-			const uint32_t size = p.size();
-			for (uint32_t i = 0U; i < size; i++) {
-				if (p[i].y < 0.0f) {
-					p[i].y = 0.0f;
-					v[i].y = 0.0f;
+			[&](Position* GAIA_RESTRICT p, Velocity* GAIA_RESTRICT v, const uint32_t size) {
+				for (uint32_t i = 0U; i < size; i++) {
+					if (p[i].y < 0.0f) {
+						p[i].y = 0.0f;
+						v[i].y = 0.0f;
+					}
 				}
-			}
+			}(p.data(), v.data(), v.size());
 		}
+
 		static void applyGravity(containers::darray<Velocity>& v, float deltaTime) {
-			const uint32_t size = v.size();
-			for (uint32_t i = 0U; i < size; i++) {
-				v[i].y += 9.81f * deltaTime;
-			}
+			[&](Velocity* GAIA_RESTRICT v, const uint32_t size) {
+				for (uint32_t i = 0U; i < size; i++)
+					v[i].y += 9.81f * deltaTime;
+			}(v.data(), v.size());
 		}
 	};
 
@@ -919,8 +924,8 @@ void BM_Game_NonECS_DOD_SoA(benchmark::State& state) {
 
 	struct UnitDynamic {
 		static void updatePosition(containers::darray<PositionSoA>& p, const containers::darray<VelocitySoA>& v) {
-			gaia::utils::auto_view_policy_set<PositionSoA> pv(std::span(p.data(), p.size()));
-			gaia::utils::auto_view_policy_get<VelocitySoA> vv(std::span(v.data(), v.size()));
+			gaia::utils::auto_view_policy_set<PositionSoA> pv{std::span(p.data(), p.size())};
+			gaia::utils::auto_view_policy_get<VelocitySoA> vv{std::span(v.data(), v.size())};
 
 			auto ppx = pv.set<0>();
 			auto ppy = pv.set<1>();
@@ -955,8 +960,8 @@ void BM_Game_NonECS_DOD_SoA(benchmark::State& state) {
 		}
 
 		static void handleGroundCollision(containers::darray<PositionSoA>& p, containers::darray<VelocitySoA>& v) {
-			gaia::utils::auto_view_policy_set<PositionSoA> pv(std::span(p.data(), p.size()));
-			gaia::utils::auto_view_policy_set<VelocitySoA> vv(std::span(v.data(), v.size()));
+			gaia::utils::auto_view_policy_set<PositionSoA> pv{std::span(p.data(), p.size())};
+			gaia::utils::auto_view_policy_set<VelocitySoA> vv{std::span(v.data(), v.size())};
 
 			auto ppy = pv.set<1>();
 			auto vvy = vv.set<1>();
@@ -975,7 +980,7 @@ void BM_Game_NonECS_DOD_SoA(benchmark::State& state) {
 		}
 
 		static void applyGravity(containers::darray<VelocitySoA>& v) {
-			gaia::utils::auto_view_policy_set<VelocitySoA> vv(std::span(v.data(), v.size()));
+			gaia::utils::auto_view_policy_set<VelocitySoA> vv{std::span(v.data(), v.size())};
 
 			auto vvy = vv.set<1>();
 
@@ -1026,8 +1031,8 @@ void BM_Game_NonECS_DOD_SoA_ManualSIMD(benchmark::State& state) {
 
 	struct UnitDynamic {
 		static void updatePosition(containers::darray<PositionSoA>& p, const containers::darray<VelocitySoA>& v) {
-			gaia::utils::auto_view_policy_set<PositionSoA> pv(std::span(p.data(), p.size()));
-			gaia::utils::auto_view_policy_get<VelocitySoA> vv(std::span(v.data(), v.size()));
+			gaia::utils::auto_view_policy_set<PositionSoA> pv{std::span(p.data(), p.size())};
+			gaia::utils::auto_view_policy_get<VelocitySoA> vv{std::span(v.data(), v.size())};
 
 			auto ppx = pv.set<0>();
 			auto ppy = pv.set<1>();
@@ -1073,8 +1078,8 @@ void BM_Game_NonECS_DOD_SoA_ManualSIMD(benchmark::State& state) {
 		}
 
 		static void handleGroundCollision(containers::darray<PositionSoA>& p, containers::darray<VelocitySoA>& v) {
-			gaia::utils::auto_view_policy_set<PositionSoA> pv(std::span(p.data(), p.size()));
-			gaia::utils::auto_view_policy_set<VelocitySoA> vv(std::span(v.data(), v.size()));
+			gaia::utils::auto_view_policy_set<PositionSoA> pv{std::span(p.data(), p.size())};
+			gaia::utils::auto_view_policy_set<VelocitySoA> vv{std::span(v.data(), v.size())};
 
 			auto ppy = pv.set<1>();
 			auto vvy = vv.set<1>();
@@ -1104,7 +1109,7 @@ void BM_Game_NonECS_DOD_SoA_ManualSIMD(benchmark::State& state) {
 		}
 
 		static void applyGravity(containers::darray<VelocitySoA>& v) {
-			gaia::utils::auto_view_policy_set<VelocitySoA> vv(std::span(v.data(), v.size()));
+			gaia::utils::auto_view_policy_set<VelocitySoA> vv{std::span(v.data(), v.size())};
 
 			auto vvy = vv.set<1>();
 			const auto size = v.size();
