@@ -18,8 +18,8 @@ namespace gaia {
 #if !GAIA_64
 			uint32_t owner_padding;
 #endif
-			//! [8-9] Last entity index. If -1 the chunk is empty.
-			uint16_t lastEntityIndex = UINT16_MAX;
+			//! [8-9] Number of items in the chunk.
+			uint16_t items = 0;
 			//! [10-11] Once removal is requested and it hits 0 the chunk is removed.
 			uint16_t lifespan = 0;
 			//! [12-13] Capacity (copied from the owner archetype)
