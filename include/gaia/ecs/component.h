@@ -130,18 +130,18 @@ namespace gaia {
 			uint64_t lookupHash;
 			//! [24-31] Simple hash used for matching component
 			uint64_t matcherHash;
-			//! [32-35] Unique component identifier
-			uint32_t typeIndex;
-			//! [36-39] Component alignment
-			uint32_t alig;
-			//! [40-43] Component size
-			uint32_t size;
-			//! [44] Tells if the component is laid out in SoA style
-			bool soa;
-			//! [48-63] Constructor to call when the type is being constructed
+			//! [32-39] Constructor to call when the type is being constructed
 			FuncConstructor* constructor;
-			//! [64-79] Destructor to call when the type is being destructed
+			//! [40-47] Destructor to call when the type is being destructed
 			FuncDestructor* destructor;
+			//! [48-51] Unique component identifier
+			uint32_t typeIndex;
+			//! [52-55] Component alignment
+			uint32_t alig;
+			//! [56-59] Component size
+			uint32_t size;
+			//! [60] Tells if the component is laid out in SoA style
+			bool soa;
 
 			[[nodiscard]] bool operator==(const ComponentMetaData& other) const {
 				return lookupHash == other.lookupHash && typeIndex == other.typeIndex;
@@ -157,16 +157,11 @@ namespace gaia {
 			[[nodiscard]] static constexpr ComponentMetaData Calculate() {
 				using TComponent = std::decay_t<T>;
 
-				ComponentMetaData mth;
+				ComponentMetaData mth{};
 				mth.name = utils::type_info::name<TComponent>();
 				mth.lookupHash = utils::type_info::hash<TComponent>();
 				mth.matcherHash = CalculateMatcherHash<TComponent>();
 				mth.typeIndex = utils::type_info::index<TComponent>();
-				mth.alig = 0;
-				mth.size = 0;
-				mth.soa = false;
-				mth.constructor = nullptr;
-				mth.destructor = nullptr;
 
 				if constexpr (!std::is_empty<TComponent>::value) {
 					mth.alig = utils::auto_view_policy<TComponent>::Alignment;
