@@ -101,24 +101,45 @@ namespace gaia {
 
 		template <typename ValueType>
 		struct data_view_policy_get<DataLayout::AoS, ValueType> {
+			//! Raw data pointed to by the view policy
 			std::span<const ValueType> m_data;
+
 			using view_policy = data_view_policy<DataLayout::AoS, ValueType>;
-			data_view_policy_get(const std::span<const ValueType>& data): m_data(data) {}
+
 			[[nodiscard]] const ValueType& operator[](size_t idx) const {
 				return view_policy::getc_constref(m_data, idx);
+			}
+
+			[[nodiscard]] const ValueType* data() const {
+				return m_data.data();
+			}
+
+			[[nodiscard]] auto view() const {
+				return m_data;
 			}
 		};
 
 		template <typename ValueType>
 		struct data_view_policy_set<DataLayout::AoS, ValueType> {
+			//! Raw data pointed to by the view policy
 			std::span<ValueType> m_data;
+
 			using view_policy = data_view_policy<DataLayout::AoS, ValueType>;
-			data_view_policy_set(std::span<ValueType> data): m_data(data) {}
+
 			[[nodiscard]] ValueType& operator[](size_t idx) {
 				return view_policy::get_ref(m_data, idx);
 			}
+
 			[[nodiscard]] const ValueType& operator[](size_t idx) const {
 				return view_policy::getc_constref(m_data, idx);
+			}
+
+			[[nodiscard]] ValueType* data() const {
+				return m_data.data();
+			}
+
+			[[nodiscard]] auto view() const {
+				return m_data;
 			}
 		};
 
@@ -222,9 +243,8 @@ namespace gaia {
 				using const_value_type = typename view_policy::template const_value_type<Ids>;
 			};
 
+			//! Raw data pointed to by the view policy
 			std::span<const ValueType> m_data;
-
-			constexpr data_view_policy_get(const std::span<const ValueType>& data): m_data(data) {}
 
 			[[nodiscard]] constexpr auto operator[](size_t idx) const {
 				return view_policy::get(m_data, idx);
@@ -234,6 +254,14 @@ namespace gaia {
 			[[nodiscard]] constexpr auto get() const {
 				return std::span<typename data_view_policy_idx_info<Ids>::const_value_type>(
 						view_policy::template get<Ids>(m_data).data(), view_policy::template get<Ids>(m_data).size());
+			}
+
+			[[nodiscard]] const ValueType* data() const {
+				return m_data.data();
+			}
+
+			[[nodiscard]] auto view() const {
+				return m_data;
 			}
 		};
 
@@ -247,9 +275,8 @@ namespace gaia {
 				using const_value_type = typename view_policy::template const_value_type<Ids>;
 			};
 
+			//! Raw data pointed to by the view policy
 			std::span<ValueType> m_data;
-
-			constexpr data_view_policy_set(const std::span<ValueType>& data): m_data(data) {}
 
 			struct setter {
 				const std::span<ValueType>& m_data;
@@ -280,6 +307,14 @@ namespace gaia {
 			[[nodiscard]] constexpr auto set() {
 				return std::span<typename data_view_policy_idx_info<Ids>::value_type>(
 						view_policy::template set<Ids>(m_data).data(), view_policy::template set<Ids>(m_data).size());
+			}
+
+			[[nodiscard]] ValueType* data() const {
+				return m_data.data();
+			}
+
+			[[nodiscard]] auto view() const {
+				return m_data;
 			}
 		};
 
