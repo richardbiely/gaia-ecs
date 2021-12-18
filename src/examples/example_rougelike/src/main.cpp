@@ -603,6 +603,8 @@ public:
 	}
 };
 
+GAIA_MSVC_WARNING_DISABLE(C2220)
+
 int main() {
 	s_sm.CreateSystem<UpdateMapSystem>("updateblocked");
 	s_sm.CreateSystem<CollisionSystem>("collision");
