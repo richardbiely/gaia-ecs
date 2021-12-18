@@ -1,0 +1,99 @@
+name: build
+
+on: [push, pull_request]
+
+jobs:
+
+  linux:
+    timeout-minutes: 10
+
+    strategy:
+      matrix:
+        compiler:
+          - pkg: g++-7
+            exe: g++-7
+          - pkg: g++-8
+            exe: g++-8
+          - pkg: g++-9
+            exe: g++-9
+          - pkg: g++
+            exe: g++
+          - pkg: clang-8
+            exe: clang++-8
+          - pkg: clang-9
+            exe: clang++-9
+          - pkg: clang-10
+            exe: clang++-10
+          - pkg: clang
+            exe: clang++
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install compiler
+      run: |
+        sudo apt-get update
+        sudo apt-get install ${{ matrix.compiler.pkg }} -y
+    - name: Compile tests
+      working-directory: build
+      env:
+        CXX: ${{ matrix.compiler.exe }}
+      run: |
+        cmake -GAIA_BUILD_UNITTEST=OFF -GAIA_BUILD_EXAMPLES=ON -GAIA_BUILD_BENCHMARK=OFF ..
+        make -j4
+    - name: Run tests
+      working-directory: build
+      env:
+        CTEST_OUTPUT_ON_FAILURE: 1
+      run: ctest --timeout 30 -C Debug -j4
+
+  windows:
+    timeout-minutes: 10
+
+    strategy:
+      matrix:
+        os: [windows-latest, windows-2016]
+        toolset: [clang-cl, default, v141]
+        include:
+          - toolset: clang-cl
+            toolset_option: -T"ClangCl"
+          - toolset: v141
+            toolset_option: -T"v141"
+        exclude:
+          - os: windows-2016
+            toolset: clang-cl
+          - os: windows-2016
+            toolset: v141
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Compile tests
+      working-directory: build
+      run: |
+        cmake -GAIA_BUILD_UNITTEST=OFF -GAIA_BUILD_EXAMPLES=ON -GAIA_BUILD_BENCHMARK=OFF ${{ matrix.toolset_option }} ..
+        cmake --build . -j 4
+    - name: Run tests
+      working-directory: build
+      env:
+        CTEST_OUTPUT_ON_FAILURE: 1
+      run: ctest --timeout 30 -C Debug -j4
+
+  macos:
+    timeout-minutes: 10
+    runs-on: macOS-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Compile tests
+      working-directory: build
+      run: |
+        cmake -GAIA_BUILD_UNITTEST=OFF -GAIA_BUILD_EXAMPLES=ON -GAIA_BUILD_BENCHMARK=OFF ..
+        make -j4
+    - name: Run tests
+      working-directory: build
+      env:
+        CTEST_OUTPUT_ON_FAILURE: 1
+      run: ctest --timeout 30 -C Debug -j4
