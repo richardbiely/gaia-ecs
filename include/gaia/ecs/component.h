@@ -300,8 +300,7 @@ namespace gaia {
 				for (const auto& pair: m_types) {
 					const auto* type = pair.second;
 					LOG_N(
-							"  %-16.*s (%p) --> index:%010u, lookupHash:%016llx, "
-							"matcherHash:%016llx",
+							"  %-16.*s (%p) --> index:%010u, lookupHash:%016" PRIx64 ", matcherHash:%016" PRIx64 "",
 							(uint32_t)type->name.length(), type->name.data(), (void*)type, type->typeIndex, type->lookupHash,
 							type->matcherHash);
 				}
@@ -314,9 +313,9 @@ namespace gaia {
 							continue;
 
 						if (errIfDuplicate) {
-							LOG_E("Duplicity detected for key %016llx", pair.first);
+							LOG_E("Duplicity detected for key %016" PRIx64 "", pair.first);
 						} else {
-							LOG_N("Duplicity detected for key %016llx", pair.first);
+							LOG_N("Duplicity detected for key %016" PRIx64 "", pair.first);
 						}
 
 						for (const auto* type: pair.second) {
@@ -324,9 +323,8 @@ namespace gaia {
 								continue;
 
 							LOG_N(
-									"--> (%p) lookupHash:%016llx, matcherHash:%016llx, "
-									"index:%010u, %.*s",
-									(void*)type, type->lookupHash, type->matcherHash, type->typeIndex, (uint32_t)type->name.length(),
+									"--> (%p) lookupHash:%016" PRIx64 ", matcherHash:%016" PRIx64 ", index:%010u, %.*s", (void*)type,
+									type->lookupHash, type->matcherHash, type->typeIndex, (uint32_t)type->name.length(),
 									type->name.data());
 						}
 					}

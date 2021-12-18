@@ -96,12 +96,16 @@ namespace gaia {
 						 utils::type_info::name<decltype(e)>().data()),
 				 ...);
 			};
-			LOG_N("AllTypes (lookupHash: %016llx, matcherHash: %016llx):", TQuery::all::lookupHash, TQuery::all::matcherHash);
+			LOG_N(
+					"AllTypes (lookupHash: %016" PRIx64 ", matcherHash: %016" PRIx64 "):", TQuery::all::lookupHash,
+					TQuery::all::matcherHash);
 			std::apply(print_type, typename TQuery::all::types{});
-			LOG_N("AnyTypes (lookupHash: %016llx, matcherHash: %016llx):", TQuery::any::lookupHash, TQuery::any::matcherHash);
+			LOG_N(
+					"AnyTypes (lookupHash: %016" PRIx64 ", matcherHash: %016" PRIx64 "):", TQuery::any::lookupHash,
+					TQuery::any::matcherHash);
 			std::apply(print_type, typename TQuery::any::types{});
 			LOG_N(
-					"NoneTypes (lookupHash: %016llx, matcherHash: %016llx):", TQuery::none::lookupHash,
+					"NoneTypes (lookupHash: %016" PRIx64 ", matcherHash: %016" PRIx64 "):", TQuery::none::lookupHash,
 					TQuery::none::matcherHash);
 			std::apply(print_type, typename TQuery::none::types{});
 		}
