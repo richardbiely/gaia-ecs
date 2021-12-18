@@ -50,7 +50,7 @@ char get_char() {
 }
 
 void ClearScreen() {
-	system("clear");
+	[[maybe_unused]] int ret = system("clear");
 }
 #else
 char get_char() {

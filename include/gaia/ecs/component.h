@@ -189,7 +189,7 @@ namespace gaia {
 			template <typename T>
 			static const ComponentMetaData* Create() {
 				using TComponent = std::decay_t<T>;
-				return new ComponentMetaData(Calculate<TComponent>());
+				return new ComponentMetaData{Calculate<TComponent>()};
 			}
 		};
 
