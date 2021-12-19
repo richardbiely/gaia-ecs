@@ -8,7 +8,7 @@ Gaia is an archetype-based ECS library.
 
 ## Requirements
 
-Gaia-ECS requires a compiler compatible with C++17. Currently, VS2017 and later or equivalent GCC or Clang are supported.
+Gaia-ECS requires a compiler compatible with C++17. Currently, VS2017 and later or equivalent GCC or Clang are supported (GCC7 and later and Clang 7 and later are guaranteed to work).
 
 ## Instalation
 
