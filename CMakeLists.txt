@@ -34,6 +34,7 @@ option(GAIA_USE_LIBCPP "Use libc++." IsClangCompiler) # ON for Clang by default
 option(GAIA_BUILD_UNITTEST "Build unit test." ON)
 option(GAIA_BUILD_BENCHMARK "Build benchmark." ON)
 option(GAIA_BUILD_EXAMPLES "Build examples." ON)
+option(GAIA_GENERATE_CC "Use ninja to generate compile_commands.json as a post-build step." ON)
 
 if(NOT WIN32 AND GAIA_USE_LIBCPP)
     include(CheckCXXSourceCompiles)
@@ -125,8 +126,10 @@ if (GAIA_BUILD_EXAMPLES)
 endif()
 
 # Generated compile_commands.json
-add_custom_target(generate_compile_commands ALL)
-add_custom_command(
-    TARGET generate_compile_commands POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -G "Ninja" -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -S ${CMAKE_SOURCE_DIR} -B ${CMAKE_SOURCE_DIR}/ninja
-    )
+if (GAIA_GENERATE_CC)
+    add_custom_target(generate_compile_commands ALL)
+    add_custom_command(
+        TARGET generate_compile_commands POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -G "Ninja" -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -S ${CMAKE_SOURCE_DIR} -B ${CMAKE_SOURCE_DIR}/ninja
+        )
+endif()

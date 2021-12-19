@@ -21,8 +21,8 @@ jobs:
 
     - name: Configure CMake
       run: |
-        cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE_REL}} -DGAIA_BUILD_UNITTEST=OFF -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -S . -B ${{github.workspace}}/buildR
-        cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE_DBG}} -DGAIA_BUILD_UNITTEST=OFF -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -S . -B ${{github.workspace}}/buildD
+        cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE_REL}} -DGAIA_BUILD_UNITTEST=OFF -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -DGAIA_GENERATE_CC=OFF -S . -B ${{github.workspace}}/buildR
+        cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE_DBG}} -DGAIA_BUILD_UNITTEST=OFF -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -DGAIA_GENERATE_CC=OFF -S . -B ${{github.workspace}}/buildD
 
     - name: Build
       run: |
@@ -48,8 +48,8 @@ jobs:
 
     - name: Configure CMake
       run: |
-        cmake ${{ matrix.toolset_option }} -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE_REL}} -DGAIA_BUILD_UNITTEST=OFF -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -S . -B ${{github.workspace}}/buildR
-        cmake ${{ matrix.toolset_option }} -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE_DBG}} -DGAIA_BUILD_UNITTEST=OFF -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -S . -B ${{github.workspace}}/buildD
+        cmake ${{ matrix.toolset_option }} -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE_REL}} -DGAIA_BUILD_UNITTEST=OFF -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -DGAIA_GENERATE_CC=OFF -S . -B ${{github.workspace}}/buildR
+        cmake ${{ matrix.toolset_option }} -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE_DBG}} -DGAIA_BUILD_UNITTEST=OFF -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -DGAIA_GENERATE_CC=OFF -S . -B ${{github.workspace}}/buildD
 
     - name: Build
       run: |
@@ -65,8 +65,8 @@ jobs:
 
     - name: Configure CMake
       run: |
-        cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE_REL}} -DGAIA_BUILD_UNITTEST=OFF -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -S . -B ${{github.workspace}}/buildR
-        cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE_DBG}} -DGAIA_BUILD_UNITTEST=OFF -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -S . -B ${{github.workspace}}/buildD
+        cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE_REL}} -DGAIA_BUILD_UNITTEST=OFF -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -DGAIA_GENERATE_CC=OFF -S . -B ${{github.workspace}}/buildR
+        cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE_DBG}} -DGAIA_BUILD_UNITTEST=OFF -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -DGAIA_GENERATE_CC=OFF -S . -B ${{github.workspace}}/buildD
 
     - name: Build
       run: |
