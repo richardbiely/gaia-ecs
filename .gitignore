@@ -3,5 +3,6 @@ ninja
 .vs
 .cache
 CMakeCache.txt
+CMakeSettings.json
 CMakeFiles
 .DS_Store
