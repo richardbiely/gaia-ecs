@@ -105,8 +105,7 @@
 		"C_Cpp.autocompleteAddParentheses": true,
 		"clangd.onConfigChanged": "restart",
 		"clangd.arguments": [
-			"--compile-commands-dir=./build"
+			"--compile-commands-dir=./ninja"
 		],
-		
 	}
 }
