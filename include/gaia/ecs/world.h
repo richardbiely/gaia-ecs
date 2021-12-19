@@ -1101,17 +1101,17 @@ namespace gaia {
 							(!std::is_pointer<T>::value && !std::is_reference<T>::value)> {};
 
 			template <class T, std::enable_if_t<IsReadOnlyType<T>::value>* = nullptr>
-			constexpr const std::decay_t<T>* expandTuple(Chunk& chunk) const {
+			constexpr GAIA_FORCEINLINE const std::decay_t<T>* expandTuple(Chunk& chunk) const {
 				return chunk.view_internal<T>().data();
 			}
 
 			template <class T, std::enable_if_t<!IsReadOnlyType<T>::value>* = nullptr>
-			constexpr std::decay_t<T>* expandTuple(Chunk& chunk) {
+			constexpr GAIA_FORCEINLINE std::decay_t<T>* expandTuple(Chunk& chunk) {
 				return chunk.view_rw_internal<T>().data();
 			}
 
 			template <typename... TFuncArgs, typename TFunc>
-			void ForEachEntityInChunk(Chunk& chunk, TFunc&& func) {
+			GAIA_FORCEINLINE void ForEachEntityInChunk(Chunk& chunk, TFunc&& func) {
 				auto tup = std::make_tuple(expandTuple<TFuncArgs>(chunk)...);
 				const uint32_t size = chunk.GetItemCount();
 				for (uint32_t i = 0U; i < size; i++)
@@ -1214,13 +1214,14 @@ namespace gaia {
 			}
 
 			template <typename... TComponents, typename TFunc>
-			void Unpack_ForEachEntityInChunk(
+			GAIA_FORCEINLINE void Unpack_ForEachEntityInChunk(
 					[[maybe_unused]] utils::func_type_list<TComponents...> types, Chunk& chunk, TFunc&& func) {
 				ForEachEntityInChunk<TComponents...>(chunk, std::forward<TFunc>(func));
 			}
 
 			template <typename... TComponents>
-			void Unpack_ForEachQuery([[maybe_unused]] utils::func_type_list<TComponents...> types, EntityQuery& query) {
+			GAIA_FORCEINLINE void
+			Unpack_ForEachQuery([[maybe_unused]] utils::func_type_list<TComponents...> types, EntityQuery& query) {
 				if constexpr (sizeof...(TComponents) > 0)
 					query.All<TComponents...>();
 			}

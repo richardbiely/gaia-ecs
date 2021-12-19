@@ -93,6 +93,18 @@
 
 //------------------------------------------------------------------------------
 
+#if GAIA_DEBUG
+	#define GAIA_FORCEINLINE
+#else
+	#if GAIA_COMPILER_MSVC
+		#define GAIA_FORCEINLINE __forceinline
+	#else
+		#define GAIA_FORCEINLINE __attribute__((always_inline))
+	#endif
+#endif
+
+//------------------------------------------------------------------------------
+
 #if GAIA_COMPILER_MSVC
 	#define GAIA_IMPORT __declspec(dllimport)
 	#define GAIA_EXPORT __declspec(dllexport)

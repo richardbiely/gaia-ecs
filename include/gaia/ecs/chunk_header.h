@@ -45,7 +45,7 @@ namespace gaia {
 					// Update all components' version
 					for (uint32_t i = 0U; i < MAX_COMPONENTS_PER_ARCHETYPE; i++)
 						versions[componentType][i] = gv;
-				};
+				}
 			}
 		};
 	} // namespace ecs
