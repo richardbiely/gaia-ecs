@@ -52,10 +52,10 @@ namespace gaia {
 				// Clang : const ecs::ComponentMetaData::GetMetaName() [T =
 				// ecs::EnfEntity]
 				//   res : ecs::EnfEntity
-				std::string_view name{GAIA_PRETTY_FUNCTION};
-				const auto prefixPos = name.find_first_of(GAIA_PRETTY_FUNCTION_PREFIX);
-				const auto start = name.find_first_of(' ', prefixPos + 1);
-				const auto end = name.find_last_of(GAIA_PRETTY_FUNCTION_SUFFIX);
+				constexpr std::string_view name{GAIA_PRETTY_FUNCTION};
+				constexpr auto prefixPos = name.find_first_of(GAIA_PRETTY_FUNCTION_PREFIX);
+				constexpr auto start = name.find_first_of(' ', prefixPos + 1);
+				constexpr auto end = name.find_last_of(GAIA_PRETTY_FUNCTION_SUFFIX);
 				return name.substr(start + 1, end - start - 1);
 			}
 
