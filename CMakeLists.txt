@@ -110,6 +110,7 @@ install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/ DESTINATION ${CMAKE_INSTALL_INC
 
 # Unit test
 if (GAIA_BUILD_UNITTEST)
+    option(GAIA_FIND_CCATCH_PACKAGE "Enable finding CCatch2 package." ON)
     add_subdirectory(src/test)
 endif()
 
