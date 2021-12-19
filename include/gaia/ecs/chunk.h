@@ -1,4 +1,5 @@
 #pragma once
+#include "../config/config.h"
 #include "../containers/sarray_ext.h"
 #include <algorithm>
 #include <cassert>
@@ -158,15 +159,16 @@ namespace gaia {
 			}
 
 			template <typename T>
-			[[nodiscard]] typename std::enable_if_t<std::is_same<std::decay_t<T>, Entity>::value, std::span<const Entity>>
-			view_internal() const {
+			[[nodiscard]] GAIA_FORCEINLINE
+					typename std::enable_if_t<std::is_same<std::decay_t<T>, Entity>::value, std::span<const Entity>>
+					view_internal() const {
 				return {(const Entity*)&data[0], GetItemCount()};
 			}
 
 			template <typename T>
-			[[nodiscard]]
-			typename std::enable_if_t<!std::is_same<std::decay_t<T>, Entity>::value, std::span<const std::decay_t<T>>>
-			view_internal(ComponentType componentType = ComponentType::CT_Generic) const {
+			[[nodiscard]] GAIA_FORCEINLINE
+					typename std::enable_if_t<!std::is_same<std::decay_t<T>, Entity>::value, std::span<const std::decay_t<T>>>
+					view_internal(ComponentType componentType = ComponentType::CT_Generic) const {
 				using TComponent = std::decay_t<T>;
 				static_assert(!std::is_empty<TComponent>::value, "Attempting to get value of an empty component");
 
@@ -186,8 +188,9 @@ namespace gaia {
 			}
 
 			template <typename T>
-			[[nodiscard]] typename std::enable_if_t<!std::is_same<std::decay_t<T>, Entity>::value, std::span<std::decay_t<T>>>
-			view_rw_internal(ComponentType componentType = ComponentType::CT_Generic) {
+			[[nodiscard]] GAIA_FORCEINLINE
+					typename std::enable_if_t<!std::is_same<std::decay_t<T>, Entity>::value, std::span<std::decay_t<T>>>
+					view_rw_internal(ComponentType componentType = ComponentType::CT_Generic) {
 				using TComponent = std::decay_t<T>;
 
 				const auto typeIndex = utils::type_info::index<TComponent>();
