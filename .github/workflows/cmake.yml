@@ -29,23 +29,41 @@ jobs:
           - pkg: g++
             exe: g++
             libcpp: OFF
+           pkg: clang-7
+            exe: clang++-7
+            libcpp: OFF
           - pkg: clang-7
             exe: clang++-7
             libcpp: ON
+          # Clang 8 + LIBCPP doesn't compile because its string_view::find_last_of doesn't work in constexpr context
+            # https://stackoverflow.com/questions/56484834/constexpr-stdstring-viewfind-last-of-doesnt-work-on-clang-8-with-libstdc
           - pkg: clang-8
             exe: clang++-8
-            # Clang 8 + LIBCPP doesn't compile because its string_view::find_last_of doesn't work in constexpr context
-            # https://stackoverflow.com/questions/56484834/constexpr-stdstring-viewfind-last-of-doesnt-work-on-clang-8-with-libstdc
+            libcpp: OFF
+          - pkg: clang-8
+            exe: clang++-8
+            libcpp: ON
+          - pkg: clang-9
+            exe: clang++-9
             libcpp: OFF
           - pkg: clang-9
             exe: clang++-9
             libcpp: ON
           - pkg: clang-10
             exe: clang++-10
+            libcpp: OFF
+          - pkg: clang-10
+            exe: clang++-10
             libcpp: ON
+           pkg: clang-11
+            exe: clang++-11
+            libcpp: OFF
           - pkg: clang-11
             exe: clang++-11
             libcpp: ON
+          - pkg: clang
+            exe: clang++
+            libcpp: OFF
           - pkg: clang
             exe: clang++
             libcpp: ON
