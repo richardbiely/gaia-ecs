@@ -133,19 +133,19 @@ namespace gaia {
 			};
 
 			constexpr pointer data() noexcept {
-				return m_data;
+				return (pointer)m_data;
 			}
 
 			constexpr const_pointer data() const noexcept {
-				return m_data;
+				return (const_pointer)m_data;
 			}
 
 			constexpr reference operator[](size_type pos) noexcept {
-				return m_data[pos];
+				return (reference)m_data[pos];
 			}
 
 			constexpr const_reference operator[](size_type pos) const noexcept {
-				return m_data[pos];
+				return (const_reference)m_data[pos];
 			}
 
 			[[nodiscard]] constexpr size_type size() const noexcept {

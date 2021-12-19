@@ -139,20 +139,20 @@ namespace gaia {
 				clear();
 			}
 
-			constexpr T* data() noexcept {
-				return m_data;
+			constexpr pointer data() noexcept {
+				return (pointer)m_data;
 			}
 
-			constexpr const T* data() const noexcept {
-				return m_data;
+			constexpr const_pointer data() const noexcept {
+				return (const_pointer)m_data;
 			}
 
-			constexpr T& operator[](size_type pos) noexcept {
-				return m_data[pos];
+			constexpr reference operator[](size_type pos) noexcept {
+				return (reference)m_data[pos];
 			}
 
-			constexpr const T& operator[](size_type pos) const noexcept {
-				return m_data[pos];
+			constexpr const_reference operator[](size_type pos) const noexcept {
+				return (const_reference)m_data[pos];
 			}
 
 			void push_back(const T& arg) noexcept {

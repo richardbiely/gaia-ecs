@@ -199,22 +199,22 @@ namespace gaia {
 				m_data = nullptr;
 			}
 
-			T* data() noexcept {
-				return m_data;
+			constexpr pointer data() noexcept {
+				return (pointer)m_data;
 			}
 
-			const T* data() const noexcept {
-				return m_data;
+			constexpr const_pointer data() const noexcept {
+				return (const_pointer)m_data;
 			}
 
-			T& operator[](size_type pos) noexcept {
+			reference operator[](size_type pos) noexcept {
 				GAIA_ASSERT(pos < size());
-				return m_data[pos];
+				return (reference)m_data[pos];
 			}
 
-			const T& operator[](size_type pos) const noexcept {
+			const_reference operator[](size_type pos) const noexcept {
 				GAIA_ASSERT(pos < size());
-				return m_data[pos];
+				return (const_reference)m_data[pos];
 			}
 
 			void reserve(size_type count) {
