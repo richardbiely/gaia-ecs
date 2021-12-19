@@ -29,7 +29,7 @@ jobs:
           - pkg: g++
             exe: g++
             libcpp: OFF
-           pkg: clang-7
+          - pkg: clang-7
             exe: clang++-7
             libcpp: OFF
           - pkg: clang-7
@@ -55,7 +55,7 @@ jobs:
           - pkg: clang-10
             exe: clang++-10
             libcpp: ON
-           pkg: clang-11
+          - pkg: clang-11
             exe: clang++-11
             libcpp: OFF
           - pkg: clang-11
