@@ -30,12 +30,16 @@
 #define GAIA_COMPILER_CLANG 0
 #define GAIA_COMPILER_GCC 0
 #define GAIA_COMPILER_MSVC 0
+#define GAIA_COMPILER_ICC 0
 
 #if defined(__clang__)
 // Clang check is performed first as it might pretend to be MSVC or GCC by
 // defining their predefined macros.
 	#undef GAIA_COMPILER_CLANG
 	#define GAIA_COMPILER_CLANG 1
+#elif defined(__INTEL_COMPILER)
+	#undef GAIA_COMPILER_ICC
+	#define GAIA_COMPILER_ICC 1
 #elif defined(__SNC__) || defined(__GNUC__)
 	#undef GAIA_COMPILER_GCC
 	#define GAIA_COMPILER_GCC 1

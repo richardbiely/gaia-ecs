@@ -163,11 +163,7 @@ namespace robin_hood {
 #ifndef __has_cpp_attribute // For backwards compatibility
 	#define __has_cpp_attribute(x) 0
 #endif
-#if __has_cpp_attribute(clang::fallthrough)
-	#define ROBIN_HOOD_PRIVATE_DEFINITION_FALLTHROUGH() [[clang::fallthrough]]
-#elif __has_cpp_attribute(gnu::fallthrough)
-	#define ROBIN_HOOD_PRIVATE_DEFINITION_FALLTHROUGH() [[gnu::fallthrough]]
-#elif __has_cpp_attribute(fallthrough)
+#if __has_cpp_attribute(fallthrough)
 	#define ROBIN_HOOD_PRIVATE_DEFINITION_FALLTHROUGH() [[fallthrough]]
 #else
 	#define ROBIN_HOOD_PRIVATE_DEFINITION_FALLTHROUGH()
