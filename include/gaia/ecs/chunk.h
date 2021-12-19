@@ -192,6 +192,7 @@ namespace gaia {
 					typename std::enable_if_t<!std::is_same<std::decay_t<T>, Entity>::value, std::span<std::decay_t<T>>>
 					view_rw_internal(ComponentType componentType = ComponentType::CT_Generic) {
 				using TComponent = std::decay_t<T>;
+				static_assert(!std::is_empty<TComponent>::value, "Empty components shouldn't be used for writing!");
 
 				const auto typeIndex = utils::type_info::index<TComponent>();
 
