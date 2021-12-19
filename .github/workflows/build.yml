@@ -27,28 +27,14 @@ jobs:
             exe: g++
           - pkg: clang-7
             exe: clang++-7
-          - pkg: clang-7
-            exe: clang++-7
-          - pkg: clang-8
-            exe: clang++-8
-          - pkg: clang-8
-            exe: clang++-8
           - pkg: clang-8
             exe: clang++-8
           - pkg: clang-9
             exe: clang++-9
-          - pkg: clang-9
-            exe: clang++-9
-          - pkg: clang-10
-            exe: clang++-10
           - pkg: clang-10
             exe: clang++-10
           - pkg: clang-11
             exe: clang++-11
-          - pkg: clang-11
-            exe: clang++-11
-          - pkg: clang
-            exe: clang++
           - pkg: clang
             exe: clang++
     runs-on: ubuntu-latest
@@ -82,28 +68,14 @@ jobs:
         compiler:
           - pkg: clang-7
             exe: clang++-7
-          - pkg: clang-7
-            exe: clang++-7
-          - pkg: clang-8
-            exe: clang++-8
-          - pkg: clang-8
-            exe: clang++-8
           - pkg: clang-8
             exe: clang++-8
           - pkg: clang-9
             exe: clang++-9
-          - pkg: clang-9
-            exe: clang++-9
-          - pkg: clang-10
-            exe: clang++-10
           - pkg: clang-10
             exe: clang++-10
           - pkg: clang-11
             exe: clang++-11
-          - pkg: clang-11
-            exe: clang++-11
-          - pkg: clang
-            exe: clang++
           - pkg: clang
             exe: clang++
     runs-on: ubuntu-latest
