@@ -77,13 +77,13 @@ void BM_CreateEntity_With_Component_Batch(benchmark::State& state) {
 	BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component______, float, 1, component_count);                                 \
 	BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component______, float, 2, component_count);                                 \
 	BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component______, float, 4, component_count);                                 \
-	BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component______, float, 8, component_count);
+	BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component______, float, 8, component_count)
 #define BENCHMARK_CREATEENTITY_WITH_COMPONENT_BATCH(component_count)                                                   \
 	BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component_Batch, float, 0, component_count);                                 \
 	BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component_Batch, float, 1, component_count);                                 \
 	BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component_Batch, float, 2, component_count);                                 \
 	BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component_Batch, float, 4, component_count);                                 \
-	BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component_Batch, float, 8, component_count);
+	BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component_Batch, float, 8, component_count)
 
 // 1 component, size increases with each benchmark
 BENCHMARK_CREATEENTITY_WITH_COMPONENT______(1);
