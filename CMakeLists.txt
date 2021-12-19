@@ -117,9 +117,16 @@ if (GAIA_BUILD_BENCHMARK)
     add_subdirectory(src/perf)
 endif()
 
-#Examples
+# Examples
 if (GAIA_BUILD_EXAMPLES)
     add_subdirectory(src/examples/example1)
     add_subdirectory(src/examples/example2)
     add_subdirectory(src/examples/example_rougelike)
 endif()
+
+# Generated compile_commands.json
+add_custom_target(generate_compile_commands ALL)
+add_custom_command(
+    TARGET generate_compile_commands POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -G "Ninja" -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -S ${CMAKE_SOURCE_DIR} -B ${CMAKE_SOURCE_DIR}/ninja
+    )
