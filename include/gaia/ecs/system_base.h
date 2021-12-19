@@ -6,8 +6,8 @@
 #if GAIA_DEBUG
 	#include "../config/logging.h"
 #endif
+#include "../containers/darray.h"
 #include "../containers/map.h"
-#include "../containers/sarray_ext.h"
 #include "../utils/type_info.h"
 #include "../utils/utils_containers.h"
 
@@ -121,14 +121,14 @@ namespace gaia {
 			}
 
 			void Clear() {
-				for (auto system: m_systems)
-					system->Enable(false);
-				for (auto system: m_systems)
-					system->OnCleanup();
-				for (auto system: m_systems)
-					system->OnDestroyed();
-				for (auto system: m_systems)
-					delete system;
+				for (auto* pSystem: m_systems)
+					pSystem->Enable(false);
+				for (auto* pSystem: m_systems)
+					pSystem->OnCleanup();
+				for (auto* pSystem: m_systems)
+					pSystem->OnDestroyed();
+				for (auto* pSystem: m_systems)
+					delete pSystem;
 
 				m_systems.clear();
 				m_systemsMap.clear();
@@ -144,19 +144,19 @@ namespace gaia {
 
 			void Update() {
 				// Remove all systems queued to be destroyed
-				for (auto system: m_systemsToRemove)
-					system->Enable(false);
-				for (auto system: m_systemsToRemove)
-					system->OnCleanup();
-				for (auto system: m_systemsToRemove)
-					system->OnDestroyed();
-				for (auto system: m_systemsToRemove)
-					m_systemsMap.erase(system->m_hash);
-				for (auto system: m_systemsToRemove) {
-					m_systems.erase(utils::find(m_systems, system));
+				for (auto* pSystem: m_systemsToRemove)
+					pSystem->Enable(false);
+				for (auto* pSystem: m_systemsToRemove)
+					pSystem->OnCleanup();
+				for (auto* pSystem: m_systemsToRemove)
+					pSystem->OnDestroyed();
+				for (auto* pSystem: m_systemsToRemove)
+					m_systemsMap.erase(pSystem->m_hash);
+				for (auto* pSystem: m_systemsToRemove) {
+					m_systems.erase(utils::find(m_systems, pSystem));
 				}
-				for (auto system: m_systemsToRemove)
-					delete system;
+				for (auto* pSystem: m_systemsToRemove)
+					delete pSystem;
 				m_systemsToRemove.clear();
 
 				if (!m_systemsToCreate.empty()) {
@@ -164,23 +164,23 @@ namespace gaia {
 					SortSystems();
 
 					// Create all new systems
-					for (auto system: m_systemsToCreate) {
-						system->OnCreated();
-						if (system->IsEnabled())
-							system->OnStarted();
+					for (auto* pSystem: m_systemsToCreate) {
+						pSystem->OnCreated();
+						if (pSystem->IsEnabled())
+							pSystem->OnStarted();
 					}
 					m_systemsToCreate.clear();
 				}
 
 				OnBeforeUpdate();
 
-				for (auto system: m_systems) {
-					if (!system->IsEnabled())
+				for (auto* pSystem: m_systems) {
+					if (!pSystem->IsEnabled())
 						continue;
 
-					system->BeforeOnUpdate();
-					system->OnUpdate();
-					system->AfterOnUpdate();
+					pSystem->BeforeOnUpdate();
+					pSystem->OnUpdate();
+					pSystem->AfterOnUpdate();
 				}
 
 				OnAfterUpdate();
@@ -194,29 +194,29 @@ namespace gaia {
 				if (!res.second)
 					return (T*)res.first->second;
 
-				BaseSystem* system = new T();
-				system->m_world = &m_world;
-				system->m_name = name;
-				system->m_hash = hash;
-				res.first->second = system;
+				BaseSystem* pSystem = new T();
+				pSystem->m_world = &m_world;
+				pSystem->m_name = name;
+				pSystem->m_hash = hash;
+				res.first->second = pSystem;
 
-				m_systems.push_back(system);
-				// Request initialization of the system
-				m_systemsToCreate.push_back(system);
+				m_systems.push_back(pSystem);
+				// Request initialization of the pSystem
+				m_systemsToCreate.push_back(pSystem);
 
-				return (T*)system;
+				return (T*)pSystem;
 			}
 
 			template <typename T>
 			void RemoveSystem() {
-				auto system = FindSystem<T>();
-				if (system == nullptr || system->IsDestroyed())
+				auto pSystem = FindSystem<T>();
+				if (pSystem == nullptr || pSystem->IsDestroyed())
 					return;
 
-				system->SetDestroyed(true);
+				pSystem->SetDestroyed(true);
 
 				// Request removal of the system
-				m_systemsToRemove.push_back(system);
+				m_systemsToRemove.push_back(pSystem);
 			}
 
 			template <typename T>
