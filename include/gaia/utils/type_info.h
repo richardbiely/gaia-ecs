@@ -44,15 +44,15 @@ namespace gaia {
 					if (data[i] == toFind)
 						return i;
 				}
-				return std::string::npos;
+				return -1;
 			}
 
-			constexpr static size_t FindLastOf(const char* data, size_t len, char c, size_t startPos = std::string::npos) {
+			constexpr static size_t FindLastOf(const char* data, size_t len, char c, size_t startPos = -1) {
 				for (int64_t i = (int64_t)GetMin(len - 1, startPos); i >= 0; --i) {
 					if (data[i] == c)
 						return i;
 				}
-				return std::string::npos;
+				return -1;
 			}
 
 		public:
