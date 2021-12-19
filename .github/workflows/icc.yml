@@ -1,0 +1,42 @@
+name: icc
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
+  BUILD_TYPE_REL: Release
+  BUILD_TYPE_DBG: Debug
+
+jobs:
+  icc:
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install compiler
+      run: |
+        wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+        sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+        echo "deb https://apt.repos.intel.com/oneapi all main" | sudo tee /etc/apt/sources.list.d/oneAPI.list
+        sudo add-apt-repository "deb https://apt.repos.intel.com/oneapi all main"
+        sudo apt-get update
+        sudo apt-get install intel-oneapi-compiler-dpcpp-cpp-and-cpp-classic
+
+    - name: Configure CMake
+      env:
+        CXX: icc
+      run: |
+        cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE_REL}} -DGAIA_BUILD_UNITTEST=OFF -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -DGAIA_GENERATE_CC=OFF -S . -B ${{github.workspace}}/buildR
+        cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE_DBG}} -DGAIA_BUILD_UNITTEST=OFF -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -DGAIA_GENERATE_CC=OFF -S . -B ${{github.workspace}}/buildD
+
+    - name: Build
+      env:
+        CXX: icc
+      run: |
+        cmake --build ${{github.workspace}}/buildR --config ${{env.BUILD_TYPE_REL}}
+        cmake --build ${{github.workspace}}/buildD --config ${{env.BUILD_TYPE_DBG}}
