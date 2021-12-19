@@ -44,7 +44,7 @@ namespace gaia {
 					if (data[i] == toFind)
 						return i;
 				}
-				return -1;
+				return size_t(-1);
 			}
 
 			constexpr static size_t FindLastOf(const char* data, size_t len, char c, size_t startPos = -1) {
@@ -52,7 +52,7 @@ namespace gaia {
 					if (data[i] == c)
 						return i;
 				}
-				return -1;
+				return size_t(-1);
 			}
 
 		public:

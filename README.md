@@ -2,7 +2,7 @@
 @cond TURN_OFF_DOXYGEN
 -->
 # gaia-ecs
-[![Build Status](https://github.com/richardbiely/gaia-ecs/workflows/CMake/badge.svg)](https://github.com/richardbiely/gaia-ecs/actions)
+[![Build Status](https://github.com/richardbiely/gaia-ecs/workflows/build/badge.svg)](https://github.com/richardbiely/gaia-ecs/actions)
 
 Gaia is an archetype-based ECS library.
 
