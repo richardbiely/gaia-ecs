@@ -118,6 +118,10 @@ jobs:
 
   macos:
     timeout-minutes: 10
+    strategy:
+      matrix:
+        build_type: [Release, Debug]
+
     runs-on: macOS-latest
 
     steps:
@@ -125,11 +129,8 @@ jobs:
 
     - name: Configure CMake
       run: |
-        cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE_REL}} -DGAIA_BUILD_UNITTEST=OFF -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -DGAIA_GENERATE_CC=OFF -S . -B ${{github.workspace}}/buildR
-        cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE_DBG}} -DGAIA_BUILD_UNITTEST=OFF -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -DGAIA_GENERATE_CC=OFF -S . -B ${{github.workspace}}/buildD
+        cmake -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DGAIA_BUILD_UNITTEST=OFF -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -DGAIA_GENERATE_CC=OFF -S . -B ${{github.workspace}}/build
 
     - name: Build
       run: |
-        cmake --build ${{github.workspace}}/buildR --config ${{env.BUILD_TYPE_REL}}
-        cmake --build ${{github.workspace}}/buildD --config ${{env.BUILD_TYPE_DBG}}
-      
+        cmake --build ${{github.workspace}}/build --config ${{matrix.build_type}}
