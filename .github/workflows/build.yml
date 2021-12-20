@@ -43,7 +43,7 @@ jobs:
       env:
         CXX: ${{matrix.compiler.exe}}
       run: |
-        cmake -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -GAIA_FIND_CCATCH_PACKAGE=ON -DGAIA_USE_LIBCPP=OFF -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -DGAIA_GENERATE_CC=OFF -S . -B ${{github.workspace}}/build
+        cmake -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DGAIA_FIND_CCATCH_PACKAGE=ON -DGAIA_USE_LIBCPP=OFF -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -DGAIA_GENERATE_CC=OFF -S . -B ${{github.workspace}}/build
 
     - name: Build
       env:
@@ -88,7 +88,7 @@ jobs:
       env:
         CXX: ${{matrix.compiler.exe}}
       run: |
-        cmake -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -GAIA_FIND_CCATCH_PACKAGE=ON -DGAIA_USE_LIBCPP=OFF -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -DGAIA_GENERATE_CC=OFF -S . -B ${{github.workspace}}/build
+        cmake -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DGAIA_FIND_CCATCH_PACKAGE=ON -DGAIA_USE_LIBCPP=OFF -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -DGAIA_GENERATE_CC=OFF -S . -B ${{github.workspace}}/build
 
     - name: Build
       env:
@@ -121,7 +121,7 @@ jobs:
 
     - name: Configure CMake
       run: |
-        cmake -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -GAIA_FIND_CCATCH_PACKAGE=ON -DGAIA_USE_LIBCPP=OFF -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -DGAIA_GENERATE_CC=OFF -S . -B ${{github.workspace}}/build
+        cmake -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DGAIA_FIND_CCATCH_PACKAGE=ON -DGAIA_USE_LIBCPP=OFF -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -DGAIA_GENERATE_CC=OFF -S . -B ${{github.workspace}}/build
 
     - name: Build
       run: |
@@ -139,7 +139,7 @@ jobs:
 
     - name: Configure CMake
       run: |
-        cmake -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -GAIA_FIND_CCATCH_PACKAGE=ON -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -DGAIA_GENERATE_CC=OFF -S . -B ${{github.workspace}}/build
+        cmake -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DGAIA_FIND_CCATCH_PACKAGE=ON -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -DGAIA_GENERATE_CC=OFF -S . -B ${{github.workspace}}/build
 
     - name: Build
       run: |
