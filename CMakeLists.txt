@@ -32,7 +32,7 @@ include("${CMAKE_CURRENT_LIST_DIR}/cmake/sanitizers.cmake")
 # Configuration
 option(GAIA_USE_LIBCPP "Use libc++." IsClangCompiler) # ON for Clang by default
 option(GAIA_BUILD_UNITTEST "Build unit test." ON)
-option(GAIA_BUILD_BENCHMARK "Build benchmark." ON)
+option(GAIA_BUILD_BENCHMARK "Build benchmark." OFF)
 option(GAIA_BUILD_EXAMPLES "Build examples." ON)
 option(GAIA_GENERATE_CC "Use ninja to generate compile_commands.json as a post-build step." ON)
 
@@ -110,7 +110,7 @@ install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/ DESTINATION ${CMAKE_INSTALL_INC
 
 # Unit test
 if (GAIA_BUILD_UNITTEST)
-    option(GAIA_FIND_CCATCH_PACKAGE "Enable finding CCatch2 package." OFF)
+    option(GAIA_FIND_CATCH2_PACKAGE "Enable finding Catch2 package." ON)
     add_subdirectory(src/test)
 endif()
 
