@@ -54,7 +54,7 @@ jobs:
     - name: Test
       working-directory: 
       run: |
-        ${{github.workspace}}/build/src/testgaia_test
+        ${{github.workspace}}/build/src/test/gaia_test
 
   linux-libcpp:
     timeout-minutes: 10
@@ -99,7 +99,7 @@ jobs:
     - name: Test
       working-directory: 
       run: |
-        ${{github.workspace}}/build/src/testgaia_test
+        ${{github.workspace}}/build/src/test/gaia_test
 
   windows:
     timeout-minutes: 10
@@ -148,4 +148,4 @@ jobs:
     - name: Test
       working-directory: 
       run: |
-        ${{github.workspace}}/build/src/testgaia_test
+        ${{github.workspace}}/build/src/test/gaia_test
