@@ -47,7 +47,7 @@ namespace gaia {
 				return size_t(-1);
 			}
 
-			constexpr static size_t FindLastOf(const char* data, size_t len, char c, size_t startPos = -1) {
+			constexpr static size_t FindLastOf(const char* data, size_t len, char c, size_t startPos = size_t(-1)) {
 				for (int64_t i = (int64_t)GetMin(len - 1, startPos); i >= 0; --i) {
 					if (data[i] == c)
 						return i;
