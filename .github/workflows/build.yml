@@ -103,6 +103,7 @@ jobs:
             toolset_option: -T"v141"
           - toolset: v142
             toolset_option: -T"v142"
+        build_type: [Release, Debug]
     runs-on: windows-latest
 
     steps:
@@ -121,7 +122,6 @@ jobs:
     strategy:
       matrix:
         build_type: [Release, Debug]
-
     runs-on: macOS-latest
 
     steps:
