@@ -47,4 +47,4 @@ jobs:
     - name: Test
       working-directory: 
       run: |
-        ${{github.workspace}}/build/src/testgaia_test
+        ${{github.workspace}}/build/src/test/gaia_test
