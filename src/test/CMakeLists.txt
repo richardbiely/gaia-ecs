@@ -1,6 +1,6 @@
 enable_testing()
 
-if (GAIA_FIND_CCATCH_PACKAGE)
+if (GAIA_FIND_CATCH2_PACKAGE)
   Include(FetchContent)
 
   FetchContent_Declare(
