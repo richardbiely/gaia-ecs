@@ -1,15 +1,6 @@
 name: build
 
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-
-env:
-  # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
-  BUILD_TYPE_REL: Release
-  BUILD_TYPE_DBG: Debug
+on: [push, pull_request]
 
 jobs:
   linux:
@@ -37,6 +28,7 @@ jobs:
             exe: clang++-11
           - pkg: clang
             exe: clang++
+        build_type: [Release, Debug]
     runs-on: ubuntu-latest
 
     steps:
@@ -45,21 +37,19 @@ jobs:
     - name: Install compiler
       run: |
         sudo apt update
-        sudo apt install ${{ matrix.compiler.pkg }} -y
+        sudo apt install ${{matrix.compiler.pkg}} -y
 
     - name: Configure CMake
       env:
-        CXX: ${{ matrix.compiler.exe }}
+        CXX: ${{matrix.compiler.exe}}
       run: |
-        cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE_REL}} -DGAIA_USE_LIBCPP=OFF -DGAIA_BUILD_UNITTEST=OFF -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -DGAIA_GENERATE_CC=OFF -S . -B ${{github.workspace}}/buildR
-        cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE_DBG}} -DGAIA_USE_LIBCPP=OFF -DGAIA_BUILD_UNITTEST=OFF -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -DGAIA_GENERATE_CC=OFF -S . -B ${{github.workspace}}/buildD
+        cmake -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DGAIA_USE_LIBCPP=OFF -DGAIA_BUILD_UNITTEST=OFF -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -DGAIA_GENERATE_CC=OFF -S . -B ${{github.workspace}}/build
 
     - name: Build
       env:
-        CXX: ${{ matrix.compiler.exe }}
+        CXX: ${{matrix.compiler.exe}}
       run: |
-        cmake --build ${{github.workspace}}/buildR --config ${{env.BUILD_TYPE_REL}}
-        cmake --build ${{github.workspace}}/buildD --config ${{env.BUILD_TYPE_DBG}}
+        cmake --build ${{github.workspace}}/build --config ${{matrix.build_type}}
 
   linux-libcpp:
     timeout-minutes: 10
@@ -78,6 +68,7 @@ jobs:
             exe: clang++-11
           - pkg: clang
             exe: clang++
+        build_type: [Release, Debug]
     runs-on: ubuntu-latest
 
     steps:
@@ -86,21 +77,19 @@ jobs:
     - name: Install compiler
       run: |
         sudo apt update
-        sudo apt install ${{ matrix.compiler.pkg }} -y
+        sudo apt install ${{matrix.compiler.pkg}} -y
 
     - name: Configure CMake
       env:
-        CXX: ${{ matrix.compiler.exe }}
+        CXX: ${{matrix.compiler.exe}}
       run: |
-        cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE_REL}} -DGAIA_USE_LIBCPP=ON -DGAIA_BUILD_UNITTEST=OFF -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -DGAIA_GENERATE_CC=OFF -S . -B ${{github.workspace}}/buildR
-        cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE_DBG}} -DGAIA_USE_LIBCPP=ON -DGAIA_BUILD_UNITTEST=OFF -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -DGAIA_GENERATE_CC=OFF -S . -B ${{github.workspace}}/buildD
+        cmake -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DGAIA_USE_LIBCPP=OFF -DGAIA_BUILD_UNITTEST=OFF -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -DGAIA_GENERATE_CC=OFF -S . -B ${{github.workspace}}/build
 
     - name: Build
       env:
-        CXX: ${{ matrix.compiler.exe }}
+        CXX: ${{matrix.compiler.exe}}
       run: |
-        cmake --build ${{github.workspace}}/buildR --config ${{env.BUILD_TYPE_REL}}
-        cmake --build ${{github.workspace}}/buildD --config ${{env.BUILD_TYPE_DBG}}
+        cmake --build ${{github.workspace}}/build --config ${{matrix.build_type}}
 
   windows:
     timeout-minutes: 10
@@ -121,13 +110,11 @@ jobs:
 
     - name: Configure CMake
       run: |
-        cmake ${{ matrix.toolset_option }} -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE_REL}} -DGAIA_BUILD_UNITTEST=OFF -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -DGAIA_GENERATE_CC=OFF -S . -B ${{github.workspace}}/buildR
-        cmake ${{ matrix.toolset_option }} -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE_DBG}} -DGAIA_BUILD_UNITTEST=OFF -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -DGAIA_GENERATE_CC=OFF -S . -B ${{github.workspace}}/buildD
+        cmake -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DGAIA_USE_LIBCPP=OFF -DGAIA_BUILD_UNITTEST=OFF -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -DGAIA_GENERATE_CC=OFF -S . -B ${{github.workspace}}/build
 
     - name: Build
       run: |
-        cmake --build ${{github.workspace}}/buildR --config ${{env.BUILD_TYPE_REL}}
-        cmake --build ${{github.workspace}}/buildD --config ${{env.BUILD_TYPE_DBG}}
+        cmake --build ${{github.workspace}}/build --config ${{matrix.build_type}}
 
   macos:
     timeout-minutes: 10
