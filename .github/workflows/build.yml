@@ -43,13 +43,18 @@ jobs:
       env:
         CXX: ${{matrix.compiler.exe}}
       run: |
-        cmake -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DGAIA_USE_LIBCPP=OFF -DGAIA_BUILD_UNITTEST=OFF -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -DGAIA_GENERATE_CC=OFF -S . -B ${{github.workspace}}/build
+        cmake -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DGAIA_USE_LIBCPP=OFF -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -DGAIA_GENERATE_CC=OFF -S . -B ${{github.workspace}}/build
 
     - name: Build
       env:
         CXX: ${{matrix.compiler.exe}}
       run: |
         cmake --build ${{github.workspace}}/build --config ${{matrix.build_type}}
+
+    - name: Test
+      working-directory: 
+      run: |
+        ${{github.workspace}}/build/src/testgaia_test
 
   linux-libcpp:
     timeout-minutes: 10
@@ -83,13 +88,18 @@ jobs:
       env:
         CXX: ${{matrix.compiler.exe}}
       run: |
-        cmake -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DGAIA_USE_LIBCPP=OFF -DGAIA_BUILD_UNITTEST=OFF -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -DGAIA_GENERATE_CC=OFF -S . -B ${{github.workspace}}/build
+        cmake -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DGAIA_USE_LIBCPP=OFF -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -DGAIA_GENERATE_CC=OFF -S . -B ${{github.workspace}}/build
 
     - name: Build
       env:
         CXX: ${{matrix.compiler.exe}}
       run: |
         cmake --build ${{github.workspace}}/build --config ${{matrix.build_type}}
+
+    - name: Test
+      working-directory: 
+      run: |
+        ${{github.workspace}}/build/src/testgaia_test
 
   windows:
     timeout-minutes: 10
@@ -111,7 +121,7 @@ jobs:
 
     - name: Configure CMake
       run: |
-        cmake -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DGAIA_USE_LIBCPP=OFF -DGAIA_BUILD_UNITTEST=OFF -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -DGAIA_GENERATE_CC=OFF -S . -B ${{github.workspace}}/build
+        cmake -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DGAIA_USE_LIBCPP=OFF -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -DGAIA_GENERATE_CC=OFF -S . -B ${{github.workspace}}/build
 
     - name: Build
       run: |
@@ -129,8 +139,13 @@ jobs:
 
     - name: Configure CMake
       run: |
-        cmake -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DGAIA_BUILD_UNITTEST=OFF -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -DGAIA_GENERATE_CC=OFF -S . -B ${{github.workspace}}/build
+        cmake -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -DGAIA_GENERATE_CC=OFF -S . -B ${{github.workspace}}/build
 
     - name: Build
       run: |
         cmake --build ${{github.workspace}}/build --config ${{matrix.build_type}}
+
+    - name: Test
+      working-directory: 
+      run: |
+        ${{github.workspace}}/build/src/testgaia_test
