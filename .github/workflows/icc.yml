@@ -47,4 +47,11 @@ jobs:
     - name: Test
       working-directory: 
       run: |
-        ${{github.workspace}}/build/src/test/gaia_test
+        execute_process(
+          COMMAND ${{github.workspace}}/build/src/test/gaia_test
+          WORKING_DIRECTORY ${{github.workspace}}/build/src/test/
+          RESULT_VARIABLE result
+        )
+        if (NOT result EQUAL 0)
+          message(FATAL_ERROR "Running tests failed!")
+        endif()

@@ -15,8 +15,7 @@ namespace gaia {
 			}
 		};
 
-		//! Provides statically generated unique identifier for a given group of
-		//! types.
+		//! Provides statically generated unique identifier for a given group of types.
 		template <typename...>
 		class type_group {
 			inline static uint32_t identifier{};
