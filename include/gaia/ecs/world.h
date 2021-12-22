@@ -1371,7 +1371,7 @@ namespace gaia {
 					static_assert(!InternalQuery, "lvalue/prvalue can be used only with external queries");
 				}
 				ForEachExecutionContext(World& w, EntityQuery&& q, TFunc&& f):
-						world(w), query(std::move(q)), func(std::forward<TFunc>(f)) {
+						world(w), query(std::forward<EntityQuery>(q)), func(std::forward<TFunc>(f)) {
 					static_assert(InternalQuery, "rvalue can be used only with internal queries");
 				}
 				void Run() {
@@ -1410,7 +1410,7 @@ namespace gaia {
 			*/
 			template <typename TFunc>
 			[[nodiscard]] ForEachExecutionContext<TFunc, true> ForEach(EntityQuery&& query, TFunc&& func) {
-				return {(World&)*this, std::move(query), std::forward<TFunc>(func)};
+				return {(World&)*this, std::forward<EntityQuery>(query), std::forward<TFunc>(func)};
 			}
 
 			/*!
