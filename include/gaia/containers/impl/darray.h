@@ -39,46 +39,44 @@ namespace gaia {
 
 			private:
 				T* m_ptr = nullptr;
-				size_type m_pos = 0;
 
 			public:
 				constexpr iterator() = default;
 				constexpr iterator(T* ptr, size_type pos) {
-					m_ptr = ptr;
-					m_pos = pos;
+					m_ptr = ptr + pos;
 				}
 				constexpr void operator++() {
-					++m_pos;
+					++m_ptr;
 				}
 				constexpr void operator--() {
-					--m_pos;
+					--m_ptr;
 				}
 				constexpr bool operator>(const iterator& rhs) const {
-					return m_pos > rhs.m_pos;
+					return m_ptr > rhs.m_ptr;
 				}
 				constexpr bool operator<(const iterator& rhs) const {
-					return m_pos < rhs.m_pos;
+					return m_ptr < rhs.m_ptr;
 				}
 				constexpr iterator operator+(size_type offset) const {
-					return {m_ptr, m_pos + offset};
+					return {m_ptr + offset};
 				}
 				constexpr iterator operator-(size_type offset) const {
-					return {m_ptr, m_pos - offset};
+					return {m_ptr - offset};
 				}
 				constexpr difference_type operator-(const iterator& rhs) const {
-					return m_pos - rhs.m_pos;
+					return m_ptr - rhs.m_ptr;
 				}
 				constexpr bool operator==(const iterator& rhs) const {
-					return m_pos == rhs.m_pos;
+					return m_ptr == rhs.m_ptr;
 				}
 				constexpr bool operator!=(const iterator& rhs) const {
-					return m_pos != rhs.m_pos;
+					return m_ptr != rhs.m_ptr;
 				}
 				constexpr T& operator*() const {
-					return *(T*)(m_ptr + m_pos);
+					return *m_ptr;
 				}
 				constexpr T* operator->() const {
-					return (T*)(m_ptr + m_pos);
+					return m_ptr;
 				}
 			};
 
@@ -95,46 +93,44 @@ namespace gaia {
 
 			private:
 				const T* m_ptr = nullptr;
-				size_type m_pos = 0;
 
 			public:
 				constexpr const_iterator() = default;
 				constexpr const_iterator(const T* ptr, size_type pos) {
-					m_ptr = ptr;
-					m_pos = pos;
+					m_ptr = ptr + pos;
 				}
 				constexpr void operator++() {
-					++m_pos;
+					++m_ptr;
 				}
 				constexpr void operator--() {
-					--m_pos;
+					--m_ptr;
 				}
 				constexpr bool operator==(const const_iterator& rhs) const {
-					return m_pos == rhs.m_pos;
+					return m_ptr == rhs.m_ptr;
 				}
 				constexpr bool operator!=(const const_iterator& rhs) const {
-					return m_pos != rhs.m_pos;
+					return m_ptr != rhs.m_ptr;
 				}
 				constexpr bool operator<(const const_iterator& rhs) const {
-					return m_pos < rhs.m_pos;
+					return m_ptr < rhs.m_ptr;
 				}
 				constexpr bool operator>(const const_iterator& rhs) const {
-					return m_pos > rhs.m_pos;
+					return m_ptr > rhs.m_ptr;
 				}
 				constexpr const_iterator operator+(size_type offset) const {
-					return {m_ptr, m_pos + offset};
+					return {m_ptr + offset};
 				}
 				constexpr const_iterator operator-(size_type offset) const {
-					return {m_ptr, m_pos - offset};
+					return {m_ptr - offset};
 				}
 				constexpr difference_type operator-(const iterator& rhs) const {
-					return m_pos - rhs.m_pos;
+					return m_ptr - rhs.m_ptr;
 				}
 				constexpr const T& operator*() const {
-					return *(const T*)(m_ptr + m_pos);
+					return *(const T*)m_ptr;
 				}
 				constexpr const T* operator->() const {
-					return (const T*)(m_ptr + m_pos);
+					return (const T*)m_ptr;
 				}
 			};
 
@@ -286,21 +282,23 @@ namespace gaia {
 			}
 
 			iterator erase(iterator pos) {
-				GAIA_ASSERT(pos.m_pos >= 0 && pos.m_pos < size());
+				GAIA_ASSERT(pos.m_ptr >= &m_data[0] && pos.m_ptr < &m_data[m_cap-1]);
 
-				for (size_type i = pos.m_pos; i < size() - 1; ++i)
+				const auto idxStart = std::distance(pos, begin());
+				for (size_type i = idxStart; i < size() - 1; ++i)
 					m_data[i] = m_data[i + 1];
 				--m_cnt;
-				return {(T*)m_data, size_type(pos.m_pos)};
+				return iterator((T*)m_data, idxStart);
 			}
 
 			const_iterator erase(const_iterator pos) {
-				GAIA_ASSERT(pos.m_pos >= 0 && pos.m_pos < size());
+				GAIA_ASSERT(pos.m_ptr >= &m_data[0] && pos.m_ptr < &m_data[m_cap-1]);
 
-				for (size_type i = pos.m_pos; i < size() - 1; ++i)
+				const auto idxStart = std::distance(pos, begin());
+				for (size_type i = idxStart; i < size() - 1; ++i)
 					m_data[i] = m_data[i + 1];
 				--m_cnt;
-				return {(T*)m_data, size_type(pos.m_pos)};
+				return iterator((const T*)m_data, idxStart);;
 			}
 
 			iterator erase(iterator first, iterator last) {
