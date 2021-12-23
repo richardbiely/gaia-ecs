@@ -854,8 +854,8 @@ void BM_Game_NonECS_BetterMemoryLayout(benchmark::State& state) {
 	}
 }
 
+template <uint32_t Groups>
 void BM_Game_NonECS_DOD(benchmark::State& state) {
-
 	struct UnitDynamic {
 		static void
 		updatePosition(containers::darray<Position>& p, const containers::darray<Velocity>& v, float deltaTime) {
@@ -886,26 +886,40 @@ void BM_Game_NonECS_DOD(benchmark::State& state) {
 		}
 	};
 
+	constexpr uint32_t NGroup = N/Groups;
+
 	// Create static entities.
-	containers::darray<Position> units_static_p(N);
-	containers::darray<Rotation> units_static_r(N);
-	containers::darray<Scale> units_static_s(N);
-	for (uint32_t i = 0U; i < N; i++) {
-		units_static_p[i] = {0, 100, 0};
-		units_static_r[i] = {1, 2, 3, 4};
-		units_static_s[i] = {1, 1, 1};
+	struct static_units_group
+	{
+		containers::darray<Position> units_p{NGroup};
+		containers::darray<Rotation> units_r{NGroup};
+		containers::darray<Scale> units_s{NGroup};
+	} static_groups[Groups];
+	for(auto &g: static_groups)
+	{
+		for (uint32_t i = 0U; i < NGroup; i++) {
+			g.units_p[i] = {0, 100, 0};
+			g.units_r[i] = {1, 2, 3, 4};
+			g.units_s[i] = {1, 1, 1};
+		}
 	}
 
 	// Create dynamic entities.
-	containers::darray<Position> units_dynamic_p(N);
-	containers::darray<Rotation> units_dynamic_r(N);
-	containers::darray<Scale> units_dynamic_s(N);
-	containers::darray<Velocity> units_dynamic_v(N);
-	for (uint32_t i = 0U; i < N; i++) {
-		units_dynamic_p[i] = {0, 100, 0};
-		units_dynamic_r[i] = {1, 2, 3, 4};
-		units_dynamic_s[i] = {1, 1, 1};
-		units_dynamic_v[i] = {0, 0, 1};
+	struct dynamic_units_group
+	{
+		containers::darray<Position> units_p{NGroup};
+		containers::darray<Rotation> units_r{NGroup};
+		containers::darray<Scale> units_s{NGroup};
+		containers::darray<Velocity> units_v{NGroup};
+	} dynamic_groups[Groups];
+	for(auto &g: dynamic_groups)
+	{
+		for (uint32_t i = 0U; i < NGroup; i++) {
+			g.units_p[i] = {0, 100, 0};
+			g.units_r[i] = {1, 2, 3, 4};
+			g.units_s[i] = {1, 1, 1};
+			g.units_v[i] = {0, 0, 1};
+		}
 	}
 
 	srand(0);
@@ -913,14 +927,17 @@ void BM_Game_NonECS_DOD(benchmark::State& state) {
 		dt = CalculateDelta(state);
 
 		// Process static entities
-		UnitDynamic::updatePosition(units_dynamic_p, units_dynamic_v, dt);
-		UnitDynamic::handleGroundCollision(units_dynamic_p, units_dynamic_v);
-		UnitDynamic::applyGravity(units_dynamic_v, dt);
+		for(auto &g: dynamic_groups)
+			UnitDynamic::updatePosition(g.units_p, g.units_v, dt);
+		for(auto &g: dynamic_groups)
+			UnitDynamic::handleGroundCollision(g.units_p, g.units_v);
+		for(auto &g: dynamic_groups)
+			UnitDynamic::applyGravity(g.units_v, dt);
 	}
 }
 
+template <uint32_t Groups>
 void BM_Game_NonECS_DOD_SoA(benchmark::State& state) {
-
 	struct UnitDynamic {
 		static void updatePosition(containers::darray<PositionSoA>& p, const containers::darray<VelocitySoA>& v) {
 			gaia::utils::auto_view_policy_set<PositionSoA> pv{std::span(p.data(), p.size())};
@@ -993,26 +1010,40 @@ void BM_Game_NonECS_DOD_SoA(benchmark::State& state) {
 		}
 	};
 
+	constexpr uint32_t NGroup = N/Groups;
+
 	// Create static entities.
-	containers::darray<PositionSoA> units_static_p(N);
-	containers::darray<Rotation> units_static_r(N);
-	containers::darray<Scale> units_static_s(N);
-	for (uint32_t i = 0U; i < N; i++) {
-		units_static_p[i] = {0, 100, 0};
-		units_static_r[i] = {1, 2, 3, 4};
-		units_static_s[i] = {1, 1, 1};
+	struct static_units_group
+	{
+		containers::darray<PositionSoA> units_p{NGroup};
+		containers::darray<Rotation> units_r{NGroup};
+		containers::darray<Scale> units_s{NGroup};
+	} static_groups[Groups];
+	for(auto &g: static_groups)
+	{
+		for (uint32_t i = 0U; i < NGroup; i++) {
+			g.units_p[i] = {0, 100, 0};
+			g.units_r[i] = {1, 2, 3, 4};
+			g.units_s[i] = {1, 1, 1};
+		}
 	}
 
 	// Create dynamic entities.
-	containers::darray<PositionSoA> units_dynamic_p(N);
-	containers::darray<Rotation> units_dynamic_r(N);
-	containers::darray<Scale> units_dynamic_s(N);
-	containers::darray<VelocitySoA> units_dynamic_v(N);
-	for (uint32_t i = 0U; i < N; i++) {
-		units_dynamic_p[i] = {0, 100, 0};
-		units_dynamic_r[i] = {1, 2, 3, 4};
-		units_dynamic_s[i] = {1, 1, 1};
-		units_dynamic_v[i] = {0, 0, 1};
+	struct dynamic_units_group
+	{
+		containers::darray<PositionSoA> units_p{NGroup};
+		containers::darray<Rotation> units_r{NGroup};
+		containers::darray<Scale> units_s{NGroup};
+		containers::darray<VelocitySoA> units_v{NGroup};
+	} dynamic_groups[Groups];
+	for(auto &g: dynamic_groups)
+	{
+		for (uint32_t i = 0U; i < NGroup; i++) {
+			g.units_p[i] = {0, 100, 0};
+			g.units_r[i] = {1, 2, 3, 4};
+			g.units_s[i] = {1, 1, 1};
+			g.units_v[i] = {0, 0, 1};
+		}
 	}
 
 	srand(0);
@@ -1020,12 +1051,16 @@ void BM_Game_NonECS_DOD_SoA(benchmark::State& state) {
 		dt = CalculateDelta(state);
 
 		// Process static entities
-		UnitDynamic::updatePosition(units_dynamic_p, units_dynamic_v);
-		UnitDynamic::handleGroundCollision(units_dynamic_p, units_dynamic_v);
-		UnitDynamic::applyGravity(units_dynamic_v);
+		for(auto &g: dynamic_groups)
+			UnitDynamic::updatePosition(g.units_p, g.units_v);
+		for(auto &g: dynamic_groups)
+			UnitDynamic::handleGroundCollision(g.units_p, g.units_v);
+		for(auto &g: dynamic_groups)
+			UnitDynamic::applyGravity(g.units_v);
 	}
 }
 
+template <uint32_t Groups>
 void BM_Game_NonECS_DOD_SoA_ManualSIMD(benchmark::State& state) {
 
 	struct UnitDynamic {
@@ -1133,26 +1168,40 @@ void BM_Game_NonECS_DOD_SoA_ManualSIMD(benchmark::State& state) {
 		}
 	};
 
+	constexpr uint32_t NGroup = N/Groups;
+
 	// Create static entities.
-	containers::darray<PositionSoA> units_static_p(N);
-	containers::darray<Rotation> units_static_r(N);
-	containers::darray<Scale> units_static_s(N);
-	for (uint32_t i = 0U; i < N; i++) {
-		units_static_p[i] = {0, 100, 0};
-		units_static_r[i] = {1, 2, 3, 4};
-		units_static_s[i] = {1, 1, 1};
+	struct static_units_group
+	{
+		containers::darray<PositionSoA> units_p{NGroup};
+		containers::darray<Rotation> units_r{NGroup};
+		containers::darray<Scale> units_s{NGroup};
+	} static_groups[Groups];
+	for(auto &g: static_groups)
+	{
+		for (uint32_t i = 0U; i < NGroup; i++) {
+			g.units_p[i] = {0, 100, 0};
+			g.units_r[i] = {1, 2, 3, 4};
+			g.units_s[i] = {1, 1, 1};
+		}
 	}
 
 	// Create dynamic entities.
-	containers::darray<PositionSoA> units_dynamic_p(N);
-	containers::darray<Rotation> units_dynamic_r(N);
-	containers::darray<Scale> units_dynamic_s(N);
-	containers::darray<VelocitySoA> units_dynamic_v(N);
-	for (uint32_t i = 0U; i < N; i++) {
-		units_dynamic_p[i] = {0, 100, 0};
-		units_dynamic_r[i] = {1, 2, 3, 4};
-		units_dynamic_s[i] = {1, 1, 1};
-		units_dynamic_v[i] = {0, 0, 1};
+	struct dynamic_units_group
+	{
+		containers::darray<PositionSoA> units_p{NGroup};
+		containers::darray<Rotation> units_r{NGroup};
+		containers::darray<Scale> units_s{NGroup};
+		containers::darray<VelocitySoA> units_v{NGroup};
+	} dynamic_groups[Groups];
+	for(auto &g: dynamic_groups)
+	{
+		for (uint32_t i = 0U; i < NGroup; i++) {
+			g.units_p[i] = {0, 100, 0};
+			g.units_r[i] = {1, 2, 3, 4};
+			g.units_s[i] = {1, 1, 1};
+			g.units_v[i] = {0, 0, 1};
+		}
 	}
 
 	srand(0);
@@ -1160,9 +1209,12 @@ void BM_Game_NonECS_DOD_SoA_ManualSIMD(benchmark::State& state) {
 		dt = CalculateDelta(state);
 
 		// Process static entities
-		UnitDynamic::updatePosition(units_dynamic_p, units_dynamic_v);
-		UnitDynamic::handleGroundCollision(units_dynamic_p, units_dynamic_v);
-		UnitDynamic::applyGravity(units_dynamic_v);
+		for(auto &g: dynamic_groups)
+			UnitDynamic::updatePosition(g.units_p, g.units_v);
+		for(auto &g: dynamic_groups)
+			UnitDynamic::handleGroundCollision(g.units_p, g.units_v);
+		for(auto &g: dynamic_groups)
+			UnitDynamic::applyGravity(g.units_v);
 	}
 }
 
@@ -1173,13 +1225,22 @@ BENCHMARK(BM_Game_NonECS);
 BENCHMARK(BM_Game_NonECS_BetterMemoryLayout);
 // Memory organized in DoD style.
 // Performance target BM_Game_ECS_WithSystems_ForEachChunk.
-BENCHMARK(BM_Game_NonECS_DOD);
+// "Groups" is there to simulate having items split into separate chunks similar to what ECS does.
+BENCHMARK_TEMPLATE(BM_Game_NonECS_DOD, 1);
+BENCHMARK_TEMPLATE(BM_Game_NonECS_DOD, 20);
+BENCHMARK_TEMPLATE(BM_Game_NonECS_DOD, 40);
 // Best possible performance with no manual optimization.
 // Performance target for BM_Game_ECS_WithSystems_ForEachChunk_SoA.
-BENCHMARK(BM_Game_NonECS_DOD_SoA);
+// "Groups" is there to simulate having items split into separate chunks similar to what ECS does.
+BENCHMARK_TEMPLATE(BM_Game_NonECS_DOD_SoA, 1);
+BENCHMARK_TEMPLATE(BM_Game_NonECS_DOD_SoA_ManualSIMD, 20);
+BENCHMARK_TEMPLATE(BM_Game_NonECS_DOD_SoA_ManualSIMD, 40);
 // Best possible performance.
 // Performance target for BM_Game_ECS_WithSystems_ForEachChunk_SoA_ManualSIMD.
-BENCHMARK(BM_Game_NonECS_DOD_SoA_ManualSIMD);
+// "Groups" is there to simulate having items split into separate chunks similar to what ECS does.
+BENCHMARK_TEMPLATE(BM_Game_NonECS_DOD_SoA_ManualSIMD, 1);
+BENCHMARK_TEMPLATE(BM_Game_NonECS_DOD_SoA_ManualSIMD, 20);
+BENCHMARK_TEMPLATE(BM_Game_NonECS_DOD_SoA_ManualSIMD, 40);
 
 BENCHMARK(BM_Game_ECS);
 BENCHMARK(BM_Game_ECS_WithSystems);
