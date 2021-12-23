@@ -1229,18 +1229,24 @@ BENCHMARK(BM_Game_NonECS_BetterMemoryLayout);
 BENCHMARK_TEMPLATE(BM_Game_NonECS_DOD, 1);
 BENCHMARK_TEMPLATE(BM_Game_NonECS_DOD, 20);
 BENCHMARK_TEMPLATE(BM_Game_NonECS_DOD, 40);
+BENCHMARK_TEMPLATE(BM_Game_NonECS_DOD, 80);
+BENCHMARK_TEMPLATE(BM_Game_NonECS_DOD, 160);
 // Best possible performance with no manual optimization.
 // Performance target for BM_Game_ECS_WithSystems_ForEachChunk_SoA.
 // "Groups" is there to simulate having items split into separate chunks similar to what ECS does.
 BENCHMARK_TEMPLATE(BM_Game_NonECS_DOD_SoA, 1);
 BENCHMARK_TEMPLATE(BM_Game_NonECS_DOD_SoA, 20);
 BENCHMARK_TEMPLATE(BM_Game_NonECS_DOD_SoA, 40);
+BENCHMARK_TEMPLATE(BM_Game_NonECS_DOD_SoA, 80);
+BENCHMARK_TEMPLATE(BM_Game_NonECS_DOD_SoA, 160);
 // Best possible performance.
 // Performance target for BM_Game_ECS_WithSystems_ForEachChunk_SoA_ManualSIMD.
 // "Groups" is there to simulate having items split into separate chunks similar to what ECS does.
 BENCHMARK_TEMPLATE(BM_Game_NonECS_DOD_SoA_ManualSIMD, 1);
 BENCHMARK_TEMPLATE(BM_Game_NonECS_DOD_SoA_ManualSIMD, 20);
 BENCHMARK_TEMPLATE(BM_Game_NonECS_DOD_SoA_ManualSIMD, 40);
+BENCHMARK_TEMPLATE(BM_Game_NonECS_DOD_SoA_ManualSIMD, 80);
+BENCHMARK_TEMPLATE(BM_Game_NonECS_DOD_SoA_ManualSIMD, 160);
 
 BENCHMARK(BM_Game_ECS);
 BENCHMARK(BM_Game_ECS_WithSystems);
