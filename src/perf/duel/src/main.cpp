@@ -1233,8 +1233,8 @@ BENCHMARK_TEMPLATE(BM_Game_NonECS_DOD, 40);
 // Performance target for BM_Game_ECS_WithSystems_ForEachChunk_SoA.
 // "Groups" is there to simulate having items split into separate chunks similar to what ECS does.
 BENCHMARK_TEMPLATE(BM_Game_NonECS_DOD_SoA, 1);
-BENCHMARK_TEMPLATE(BM_Game_NonECS_DOD_SoA_ManualSIMD, 20);
-BENCHMARK_TEMPLATE(BM_Game_NonECS_DOD_SoA_ManualSIMD, 40);
+BENCHMARK_TEMPLATE(BM_Game_NonECS_DOD_SoA, 20);
+BENCHMARK_TEMPLATE(BM_Game_NonECS_DOD_SoA, 40);
 // Best possible performance.
 // Performance target for BM_Game_ECS_WithSystems_ForEachChunk_SoA_ManualSIMD.
 // "Groups" is there to simulate having items split into separate chunks similar to what ECS does.
