@@ -51,6 +51,12 @@ namespace gaia {
 				constexpr void operator--() {
 					--m_ptr;
 				}
+				constexpr bool operator==(const iterator& rhs) const {
+					return m_ptr == rhs.m_ptr;
+				}
+				constexpr bool operator!=(const iterator& rhs) const {
+					return m_ptr != rhs.m_ptr;
+				}
 				constexpr bool operator>(const iterator& rhs) const {
 					return m_ptr > rhs.m_ptr;
 				}
@@ -65,12 +71,6 @@ namespace gaia {
 				}
 				constexpr difference_type operator-(const iterator& rhs) const {
 					return m_ptr - rhs.m_ptr;
-				}
-				constexpr bool operator==(const iterator& rhs) const {
-					return m_ptr == rhs.m_ptr;
-				}
-				constexpr bool operator!=(const iterator& rhs) const {
-					return m_ptr != rhs.m_ptr;
 				}
 				constexpr T& operator*() const {
 					return *m_ptr;
@@ -284,7 +284,7 @@ namespace gaia {
 			iterator erase(iterator pos) {
 				GAIA_ASSERT(pos.m_ptr >= &m_data[0] && pos.m_ptr < &m_data[m_cap-1]);
 
-				const auto idxStart = std::distance(pos, begin());
+				const auto idxStart = (size_type)std::distance(pos, begin());
 				for (size_type i = idxStart; i < size() - 1; ++i)
 					m_data[i] = m_data[i + 1];
 				--m_cnt;
@@ -294,7 +294,7 @@ namespace gaia {
 			const_iterator erase(const_iterator pos) {
 				GAIA_ASSERT(pos.m_ptr >= &m_data[0] && pos.m_ptr < &m_data[m_cap-1]);
 
-				const auto idxStart = std::distance(pos, begin());
+				const auto idxStart = (size_type)std::distance(pos, begin());
 				for (size_type i = idxStart; i < size() - 1; ++i)
 					m_data[i] = m_data[i + 1];
 				--m_cnt;
