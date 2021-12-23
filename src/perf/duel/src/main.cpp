@@ -859,7 +859,7 @@ void BM_Game_NonECS_DOD(benchmark::State& state) {
 	struct UnitDynamic {
 		static void
 		updatePosition(containers::darray<Position>& p, const containers::darray<Velocity>& v, float deltaTime) {
-			[&](Position* GAIA_RESTRICT p, const Velocity* GAIA_RESTRICT v, const uint32_t size) {
+			[&](Position* GAIA_RESTRICT p, const Velocity* GAIA_RESTRICT v, const size_t size) {
 				for (uint32_t i = 0U; i < size; i++) {
 					p[i].x += v[i].x * deltaTime;
 					p[i].y += v[i].y * deltaTime;
@@ -868,7 +868,7 @@ void BM_Game_NonECS_DOD(benchmark::State& state) {
 			}(p.data(), v.data(), v.size());
 		}
 		static void handleGroundCollision(containers::darray<Position>& p, containers::darray<Velocity>& v) {
-			[&](Position* GAIA_RESTRICT p, Velocity* GAIA_RESTRICT v, const uint32_t size) {
+			[&](Position* GAIA_RESTRICT p, Velocity* GAIA_RESTRICT v, const size_t size) {
 				for (uint32_t i = 0U; i < size; i++) {
 					if (p[i].y < 0.0f) {
 						p[i].y = 0.0f;
@@ -879,7 +879,7 @@ void BM_Game_NonECS_DOD(benchmark::State& state) {
 		}
 
 		static void applyGravity(containers::darray<Velocity>& v, float deltaTime) {
-			[&](Velocity* GAIA_RESTRICT v, const uint32_t size) {
+			[&](Velocity* GAIA_RESTRICT v, const size_t size) {
 				for (uint32_t i = 0U; i < size; i++)
 					v[i].y += 9.81f * deltaTime;
 			}(v.data(), v.size());
