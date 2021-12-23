@@ -177,7 +177,7 @@ namespace gaia {
 					// Initial allocation
 					auto pPage = AllocPage();
 					m_pagesFree.push_back(pPage);
-					pPage->m_idx = m_pagesFree.size() - 1;
+					pPage->m_idx = (uint32_t)m_pagesFree.size() - 1;
 					pChunk = pPage->AllocChunk();
 				} else {
 					auto pPage = m_pagesFree[0];
@@ -194,7 +194,7 @@ namespace gaia {
 
 						// Move our page to the full list
 						m_pagesFull.push_back(pPage);
-						pPage->m_idx = m_pagesFull.size() - 1;
+						pPage->m_idx = (uint32_t)m_pagesFull.size() - 1;
 					}
 				}
 
@@ -249,7 +249,7 @@ namespace gaia {
 					utils::erase_fast(m_pagesFull, pPage->m_idx);
 
 					// Move our page to the open list
-					pPage->m_idx = m_pagesFree.size();
+					pPage->m_idx = (uint32_t)m_pagesFree.size();
 					m_pagesFree.push_back(pPage);
 				}
 
