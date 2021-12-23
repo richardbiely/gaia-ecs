@@ -50,6 +50,12 @@ namespace gaia {
 				constexpr void operator--() {
 					--m_ptr;
 				}
+				constexpr bool operator==(const iterator& rhs) const {
+					return m_ptr == rhs.m_ptr;
+				}
+				constexpr bool operator!=(const iterator& rhs) const {
+					return m_ptr != rhs.m_ptr;
+				}
 				constexpr bool operator>(const iterator& rhs) const {
 					return m_ptr > rhs.m_ptr;
 				}
@@ -65,12 +71,6 @@ namespace gaia {
 				constexpr difference_type operator-(const iterator& rhs) const {
 					return m_ptr - rhs.m_ptr;
 				}
-				constexpr bool operator==(const iterator& rhs) const {
-					return m_ptr == rhs.m_ptr;
-				}
-				constexpr bool operator!=(const iterator& rhs) const {
-					return m_ptr != rhs.m_ptr;
-				}
 				constexpr T& operator*() const {
 					return *m_ptr;
 				}
@@ -78,7 +78,7 @@ namespace gaia {
 					return m_ptr;
 				}
 			};
-			
+
 			class const_iterator {
 			public:
 				using iterator_category = std::random_access_iterator_tag;
