@@ -42,6 +42,15 @@ struct Rotation {
 struct Scale {
 	float x, y, z;
 };
+struct Direction {
+	float x, y, z;
+};
+struct Health {
+	int value;
+};
+struct IsEnemy {
+	bool value;
+};
 
 constexpr uint32_t N = 32'000; // kept a multiple of 32 to keep it simple even for SIMD code
 constexpr float MinDelta = 0.01f;
@@ -55,30 +64,100 @@ float CalculateDelta(benchmark::State& state) {
 	return delta;
 }
 
+template <bool SoA>
+void CreateECSEntities_Static(ecs::World& w) {
+	{
+		auto e = w.CreateEntity();
+		if constexpr (SoA)
+			w.AddComponent<PositionSoA>(e, {0, 100, 0});
+		else
+			w.AddComponent<Position>(e, {0, 100, 0});
+		w.AddComponent<Rotation>(e, {1, 2, 3, 4});
+		w.AddComponent<Scale>(e, {1, 1, 1});
+		for (uint32_t i = 0; i < N; i++) {
+			[[maybe_unused]] auto newentity = w.CreateEntity(e);
+		}
+	}
+}
+
+template <bool SoA>
+void CreateECSEntities_Dynamic(ecs::World& w) {
+	{
+		auto e = w.CreateEntity();
+		if constexpr (SoA)
+			w.AddComponent<PositionSoA>(e, {0, 100, 0});
+		else
+			w.AddComponent<Position>(e, {0, 100, 0});
+		w.AddComponent<Rotation>(e, {1, 2, 3, 4});
+		w.AddComponent<Scale>(e, {1, 1, 1});
+		if constexpr (SoA)
+			w.AddComponent<VelocitySoA>(e, {0, 0, 1});
+		else
+			w.AddComponent<Velocity>(e, {0, 100, 0});
+		for (uint32_t i = 0; i < N / 4; i++) {
+			[[maybe_unused]] auto newentity = w.CreateEntity(e);
+		}
+	}
+	{
+		auto e = w.CreateEntity();
+		if constexpr (SoA)
+			w.AddComponent<PositionSoA>(e, {0, 100, 0});
+		else
+			w.AddComponent<Position>(e, {0, 100, 0});
+		w.AddComponent<Rotation>(e, {1, 2, 3, 4});
+		w.AddComponent<Scale>(e, {1, 1, 1});
+		if constexpr (SoA)
+			w.AddComponent<VelocitySoA>(e, {0, 0, 1});
+		else
+			w.AddComponent<Velocity>(e, {0, 100, 0});
+		w.AddComponent<Direction>(e, {0, 0, 1});
+		for (uint32_t i = 0; i < N / 4; i++) {
+			[[maybe_unused]] auto newentity = w.CreateEntity(e);
+		}
+	}
+	{
+		auto e = w.CreateEntity();
+		if constexpr (SoA)
+			w.AddComponent<PositionSoA>(e, {0, 100, 0});
+		else
+			w.AddComponent<Position>(e, {0, 100, 0});
+		w.AddComponent<Rotation>(e, {1, 2, 3, 4});
+		w.AddComponent<Scale>(e, {1, 1, 1});
+		if constexpr (SoA)
+			w.AddComponent<VelocitySoA>(e, {0, 0, 1});
+		else
+			w.AddComponent<Velocity>(e, {0, 100, 0});
+		w.AddComponent<Direction>(e, {0, 0, 1});
+		w.AddComponent<Health>(e, {100});
+		for (uint32_t i = 0; i < N / 4; i++) {
+			[[maybe_unused]] auto newentity = w.CreateEntity(e);
+		}
+	}
+	{
+		auto e = w.CreateEntity();
+		if constexpr (SoA)
+			w.AddComponent<PositionSoA>(e, {0, 100, 0});
+		else
+			w.AddComponent<Position>(e, {0, 100, 0});
+		w.AddComponent<Rotation>(e, {1, 2, 3, 4});
+		w.AddComponent<Scale>(e, {1, 1, 1});
+		if constexpr (SoA)
+			w.AddComponent<VelocitySoA>(e, {0, 0, 1});
+		else
+			w.AddComponent<Velocity>(e, {0, 100, 0});
+		w.AddComponent<Direction>(e, {0, 0, 1});
+		w.AddComponent<Health>(e, {100});
+		w.AddComponent<IsEnemy>(e, {false});
+		for (uint32_t i = 0; i < N / 4; i++) {
+			[[maybe_unused]] auto newentity = w.CreateEntity(e);
+		}
+	}
+}
+
 void BM_Game_ECS(benchmark::State& state) {
 	ecs::World w;
-
-	// Create static entities
-	{
-		auto e = w.CreateEntity();
-		w.AddComponent<Position>(e, {});
-		w.AddComponent<Rotation>(e, {1, 2, 3, 4});
-		w.AddComponent<Scale>(e, {1, 1, 1});
-		for (uint32_t i = 1U; i < N; i++) {
-			[[maybe_unused]] auto newentity = w.CreateEntity(e);
-		}
-	}
-	// Create dynamic entities
-	{
-		auto e = w.CreateEntity();
-		w.AddComponent<Position>(e, {0, 100, 0});
-		w.AddComponent<Velocity>(e, {0, 0, 1});
-		w.AddComponent<Rotation>(e, {1, 2, 3, 4});
-		w.AddComponent<Scale>(e, {1, 1, 1});
-		for (uint32_t i = 1U; i < N; i++) {
-			[[maybe_unused]] auto newentity = w.CreateEntity(e);
-		}
-	}
+	CreateECSEntities_Static<false>(w);
+	CreateECSEntities_Dynamic<false>(w);
 
 	auto queryDynamic = ecs::EntityQuery().All<Position, Velocity>();
 
@@ -108,28 +187,8 @@ void BM_Game_ECS(benchmark::State& state) {
 
 void BM_Game_ECS_WithSystems(benchmark::State& state) {
 	ecs::World w;
-
-	// Create static entities
-	{
-		auto e = w.CreateEntity();
-		w.AddComponent<Position>(e, {});
-		w.AddComponent<Rotation>(e, {1, 2, 3, 4});
-		w.AddComponent<Scale>(e, {1, 1, 1});
-		for (uint32_t i = 1U; i < N; i++) {
-			[[maybe_unused]] auto newentity = w.CreateEntity(e);
-		}
-	}
-	// Create dynamic entities
-	{
-		auto e = w.CreateEntity();
-		w.AddComponent<Position>(e, {0, 100, 0});
-		w.AddComponent<Velocity>(e, {0, 0, 1});
-		w.AddComponent<Rotation>(e, {1, 2, 3, 4});
-		w.AddComponent<Scale>(e, {1, 1, 1});
-		for (uint32_t i = 1U; i < N; i++) {
-			[[maybe_unused]] auto newentity = w.CreateEntity(e);
-		}
-	}
+	CreateECSEntities_Static<false>(w);
+	CreateECSEntities_Dynamic<false>(w);
 
 	class PositionSystem final: public ecs::System {
 		ecs::EntityQuery m_q;
@@ -196,28 +255,8 @@ void BM_Game_ECS_WithSystems(benchmark::State& state) {
 
 void BM_Game_ECS_WithSystems_ForEachChunk(benchmark::State& state) {
 	ecs::World w;
-
-	// Create static entities
-	{
-		auto e = w.CreateEntity();
-		w.AddComponent<Position>(e, {});
-		w.AddComponent<Rotation>(e, {1, 2, 3, 4});
-		w.AddComponent<Scale>(e, {1, 1, 1});
-		for (uint32_t i = 1U; i < N; i++) {
-			[[maybe_unused]] auto newentity = w.CreateEntity(e);
-		}
-	}
-	// Create dynamic entities
-	{
-		auto e = w.CreateEntity();
-		w.AddComponent<Position>(e, {0, 100, 0});
-		w.AddComponent<Velocity>(e, {0, 0, 1});
-		w.AddComponent<Rotation>(e, {1, 2, 3, 4});
-		w.AddComponent<Scale>(e, {1, 1, 1});
-		for (uint32_t i = 1U; i < N; i++) {
-			[[maybe_unused]] auto newentity = w.CreateEntity(e);
-		}
-	}
+	CreateECSEntities_Static<false>(w);
+	CreateECSEntities_Dynamic<false>(w);
 
 	class PositionSystem final: public ecs::System {
 		ecs::EntityQuery m_q;
@@ -312,28 +351,8 @@ void BM_Game_ECS_WithSystems_ForEachChunk(benchmark::State& state) {
 
 void BM_Game_ECS_WithSystems_ForEachChunk_SoA(benchmark::State& state) {
 	ecs::World w;
-
-	// Create static entities
-	{
-		auto e = w.CreateEntity();
-		w.AddComponent<PositionSoA>(e, {});
-		w.AddComponent<Rotation>(e, {1, 2, 3, 4});
-		w.AddComponent<Scale>(e, {1, 1, 1});
-		for (uint32_t i = 1U; i < N; i++) {
-			[[maybe_unused]] auto newentity = w.CreateEntity(e);
-		}
-	}
-	// Create dynamic entities
-	{
-		auto e = w.CreateEntity();
-		w.AddComponent<PositionSoA>(e, {0, 100, 0});
-		w.AddComponent<VelocitySoA>(e, {0, 0, 1});
-		w.AddComponent<Rotation>(e, {1, 2, 3, 4});
-		w.AddComponent<Scale>(e, {1, 1, 1});
-		for (uint32_t i = 1U; i < N; i++) {
-			[[maybe_unused]] auto newentity = w.CreateEntity(e);
-		}
-	}
+	CreateECSEntities_Static<true>(w);
+	CreateECSEntities_Dynamic<true>(w);
 
 	class PositionSystem final: public ecs::System {
 		ecs::EntityQuery m_q;
@@ -527,28 +546,8 @@ __m128 _mm_blendv_ps(__m128 a, __m128 b, __m128 mask) {
 
 void BM_Game_ECS_WithSystems_ForEachChunk_SoA_ManualSIMD(benchmark::State& state) {
 	ecs::World w;
-
-	// Create static entities
-	{
-		auto e = w.CreateEntity();
-		w.AddComponent<PositionSoA>(e, {});
-		w.AddComponent<Rotation>(e, {1, 2, 3, 4});
-		w.AddComponent<Scale>(e, {1, 1, 1});
-		for (uint32_t i = 1U; i < N; i++) {
-			[[maybe_unused]] auto newentity = w.CreateEntity(e);
-		}
-	}
-	// Create dynamic entities
-	{
-		auto e = w.CreateEntity();
-		w.AddComponent<PositionSoA>(e, {0, 100, 0});
-		w.AddComponent<VelocitySoA>(e, {0, 0, 1});
-		w.AddComponent<Rotation>(e, {1, 2, 3, 4});
-		w.AddComponent<Scale>(e, {1, 1, 1});
-		for (uint32_t i = 1U; i < N; i++) {
-			[[maybe_unused]] auto newentity = w.CreateEntity(e);
-		}
-	}
+	CreateECSEntities_Static<true>(w);
+	CreateECSEntities_Dynamic<true>(w);
 
 	class PositionSystem final: public ecs::System {
 		ecs::EntityQuery m_q;
@@ -729,8 +728,69 @@ void BM_Game_NonECS(benchmark::State& state) {
 		void applyGravity([[maybe_unused]] float deltaTime) override {}
 	};
 
-	struct UnitDynamic: public IUnit {
+	struct UnitDynamic1: public IUnit {
 		Velocity v;
+
+		void updatePosition(float deltaTime) override {
+			p.x += v.x * deltaTime;
+			p.y += v.y * deltaTime;
+			p.z += v.z * deltaTime;
+		}
+		void handleGroundCollision([[maybe_unused]] float deltaTime) override {
+			if (p.y < 0.0f) {
+				p.y = 0.0f;
+				v.y = 0.0f;
+			}
+		}
+		void applyGravity(float deltaTime) override {
+			v.y += 9.81f * deltaTime;
+		}
+	};
+	struct UnitDynamic2: public IUnit {
+		Velocity v;
+		Direction d;
+
+		void updatePosition(float deltaTime) override {
+			p.x += v.x * deltaTime;
+			p.y += v.y * deltaTime;
+			p.z += v.z * deltaTime;
+		}
+		void handleGroundCollision([[maybe_unused]] float deltaTime) override {
+			if (p.y < 0.0f) {
+				p.y = 0.0f;
+				v.y = 0.0f;
+			}
+		}
+		void applyGravity(float deltaTime) override {
+			v.y += 9.81f * deltaTime;
+		}
+	};
+	struct UnitDynamic3: public IUnit {
+		Velocity v;
+		Direction d;
+		Health h;
+
+		void updatePosition(float deltaTime) override {
+			p.x += v.x * deltaTime;
+			p.y += v.y * deltaTime;
+			p.z += v.z * deltaTime;
+		}
+		void handleGroundCollision([[maybe_unused]] float deltaTime) override {
+			if (p.y < 0.0f) {
+				p.y = 0.0f;
+				v.y = 0.0f;
+			}
+		}
+		void applyGravity(float deltaTime) override {
+			v.y += 9.81f * deltaTime;
+		}
+	};
+	struct UnitDynamic4: public IUnit {
+		Velocity v;
+		Direction d;
+		Health h;
+		IsEnemy e;
+
 		void updatePosition(float deltaTime) override {
 			p.x += v.x * deltaTime;
 			p.y += v.y * deltaTime;
@@ -750,20 +810,50 @@ void BM_Game_NonECS(benchmark::State& state) {
 	// Create entities.
 	// We allocate via new to simulate the usual kind of behavior in games
 	containers::darray<IUnit*> units(N * 2);
-	for (uint32_t i = 0U; i < N; i++) {
-		auto u = new UnitStatic();
-		u->p = {0, 100, 0};
-		u->r = {1, 2, 3, 4};
-		u->s = {1, 1, 1};
-		units[i] = u;
-	}
-	for (uint32_t i = 0U; i < N; i++) {
-		auto u = new UnitDynamic();
-		u->p = {0, 100, 0};
-		u->v = {0, 0, 1};
-		u->r = {1, 2, 3, 4};
-		u->s = {1, 1, 1};
-		units[N + i] = u;
+	{
+		for (uint32_t i = 0U; i < N; i++) {
+			auto u = new UnitStatic();
+			u->p = {0, 100, 0};
+			u->r = {1, 2, 3, 4};
+			u->s = {1, 1, 1};
+			units[i] = u;
+		}
+		uint32_t j = N;
+		for (uint32_t i = 0U; i < N / 4; i++) {
+			auto u = new UnitDynamic1();
+			u->p = {0, 100, 0};
+			u->r = {1, 2, 3, 4};
+			u->s = {1, 1, 1};
+			u->v = {0, 0, 1};
+			units[j + i] = u;
+		}
+		j += N / 4;
+		for (uint32_t i = 0U; i < N / 4; i++) {
+			auto u = new UnitDynamic2();
+			u->p = {0, 100, 0};
+			u->r = {1, 2, 3, 4};
+			u->s = {1, 1, 1};
+			u->v = {0, 0, 1};
+			units[j + i] = u;
+		}
+		j += N / 4;
+		for (uint32_t i = 0U; i < N / 4; i++) {
+			auto u = new UnitDynamic3();
+			u->p = {0, 100, 0};
+			u->r = {1, 2, 3, 4};
+			u->s = {1, 1, 1};
+			u->v = {0, 0, 1};
+			units[j + i] = u;
+		}
+		j += N / 4;
+		for (uint32_t i = 0U; i < N / 4; i++) {
+			auto u = new UnitDynamic4();
+			u->p = {0, 100, 0};
+			u->r = {1, 2, 3, 4};
+			u->s = {1, 1, 1};
+			u->v = {0, 0, 1};
+			units[j + i] = u;
+		}
 	}
 
 	srand(0);
@@ -794,7 +884,7 @@ void BM_Game_NonECS_BetterMemoryLayout(benchmark::State& state) {
 		void applyGravity([[maybe_unused]] float deltaTime) {}
 	};
 
-	struct UnitDynamic {
+	struct UnitDynamic1 {
 		Position p;
 		Rotation r;
 		Scale s;
@@ -816,6 +906,18 @@ void BM_Game_NonECS_BetterMemoryLayout(benchmark::State& state) {
 		}
 	};
 
+	struct UnitDynamic2: public UnitDynamic1 {
+		Direction d;
+	};
+
+	struct UnitDynamic3: public UnitDynamic2 {
+		Health h;
+	};
+
+	struct UnitDynamic4: public UnitDynamic3 {
+		IsEnemy e;
+	};
+
 	// Create entities.
 	containers::darray<UnitStatic> units_static(N);
 	for (uint32_t i = 0U; i < N; i++) {
@@ -826,31 +928,67 @@ void BM_Game_NonECS_BetterMemoryLayout(benchmark::State& state) {
 		units_static[i] = std::move(u);
 	}
 
-	containers::darray<UnitDynamic> units_dynamic(N);
-	for (uint32_t i = 0U; i < N; i++) {
-		UnitDynamic u;
+	containers::darray<UnitDynamic1> units_dynamic1(N / 4);
+	containers::darray<UnitDynamic2> units_dynamic2(N / 4);
+	containers::darray<UnitDynamic3> units_dynamic3(N / 4);
+	containers::darray<UnitDynamic4> units_dynamic4(N / 4);
+
+	for (uint32_t i = 0U; i < N / 4; i++) {
+		UnitDynamic1 u;
 		u.p = {0, 100, 0};
-		u.v = {0, 0, 1};
 		u.r = {1, 2, 3, 4};
 		u.s = {1, 1, 1};
-		units_dynamic[i] = std::move(u);
+		u.v = {0, 0, 1};
+		units_dynamic1[i] = std::move(u);
 	}
+	for (uint32_t i = 0U; i < N / 4; i++) {
+		UnitDynamic2 u;
+		u.p = {0, 100, 0};
+		u.r = {1, 2, 3, 4};
+		u.s = {1, 1, 1};
+		u.v = {0, 0, 1};
+		u.d = {0, 0, 1};
+		units_dynamic2[i] = std::move(u);
+	}
+	for (uint32_t i = 0U; i < N / 4; i++) {
+		UnitDynamic3 u;
+		u.p = {0, 100, 0};
+		u.r = {1, 2, 3, 4};
+		u.v = {0, 0, 1};
+		u.s = {1, 1, 1};
+		u.d = {0, 0, 1};
+		u.h = {100};
+		units_dynamic3[i] = std::move(u);
+	}
+	for (uint32_t i = 0U; i < N / 4; i++) {
+		UnitDynamic4 u;
+		u.p = {0, 100, 0};
+		u.r = {1, 2, 3, 4};
+		u.s = {1, 1, 1};
+		u.v = {0, 0, 1};
+		u.d = {0, 0, 1};
+		u.h = {100};
+		u.e = {false};
+		units_dynamic4[i] = std::move(u);
+	}
+
+	auto exec = [](auto& arr) {
+		for (auto& u: arr) {
+			u.updatePosition(dt);
+			u.handleGroundCollision(dt);
+			u.applyGravity(dt);
+		}
+	};
 
 	srand(0);
 	for ([[maybe_unused]] auto _: state) {
 		dt = CalculateDelta(state);
 
-		// Process entities
-		for (auto& u: units_static) {
-			u.updatePosition(dt);
-			u.handleGroundCollision(dt);
-			u.applyGravity(dt);
-		}
-		for (auto& u: units_dynamic) {
-			u.updatePosition(dt);
-			u.handleGroundCollision(dt);
-			u.applyGravity(dt);
-		}
+		exec(units_static);
+		exec(units_dynamic1);
+		exec(units_dynamic2);
+		exec(units_dynamic3);
+		exec(units_dynamic4);
 	}
 }
 
@@ -886,17 +1024,15 @@ void BM_Game_NonECS_DOD(benchmark::State& state) {
 		}
 	};
 
-	constexpr uint32_t NGroup = N/Groups;
+	constexpr uint32_t NGroup = N / Groups;
 
 	// Create static entities.
-	struct static_units_group
-	{
+	struct static_units_group {
 		containers::darray<Position> units_p{NGroup};
 		containers::darray<Rotation> units_r{NGroup};
 		containers::darray<Scale> units_s{NGroup};
 	} static_groups[Groups];
-	for(auto &g: static_groups)
-	{
+	for (auto& g: static_groups) {
 		for (uint32_t i = 0U; i < NGroup; i++) {
 			g.units_p[i] = {0, 100, 0};
 			g.units_r[i] = {1, 2, 3, 4};
@@ -905,20 +1041,24 @@ void BM_Game_NonECS_DOD(benchmark::State& state) {
 	}
 
 	// Create dynamic entities.
-	struct dynamic_units_group
-	{
+	struct dynamic_units_group {
 		containers::darray<Position> units_p{NGroup};
 		containers::darray<Rotation> units_r{NGroup};
 		containers::darray<Scale> units_s{NGroup};
 		containers::darray<Velocity> units_v{NGroup};
+		containers::darray<Direction> units_d{NGroup};
+		containers::darray<Health> units_h{NGroup};
+		containers::darray<IsEnemy> units_e{NGroup};
 	} dynamic_groups[Groups];
-	for(auto &g: dynamic_groups)
-	{
+	for (auto& g: dynamic_groups) {
 		for (uint32_t i = 0U; i < NGroup; i++) {
 			g.units_p[i] = {0, 100, 0};
 			g.units_r[i] = {1, 2, 3, 4};
 			g.units_s[i] = {1, 1, 1};
 			g.units_v[i] = {0, 0, 1};
+			g.units_d[i] = {0, 0, 1};
+			g.units_h[i] = {100};
+			g.units_e[i] = {false};
 		}
 	}
 
@@ -927,11 +1067,11 @@ void BM_Game_NonECS_DOD(benchmark::State& state) {
 		dt = CalculateDelta(state);
 
 		// Process static entities
-		for(auto &g: dynamic_groups)
+		for (auto& g: dynamic_groups)
 			UnitDynamic::updatePosition(g.units_p, g.units_v, dt);
-		for(auto &g: dynamic_groups)
+		for (auto& g: dynamic_groups)
 			UnitDynamic::handleGroundCollision(g.units_p, g.units_v);
-		for(auto &g: dynamic_groups)
+		for (auto& g: dynamic_groups)
 			UnitDynamic::applyGravity(g.units_v, dt);
 	}
 }
@@ -1010,17 +1150,15 @@ void BM_Game_NonECS_DOD_SoA(benchmark::State& state) {
 		}
 	};
 
-	constexpr uint32_t NGroup = N/Groups;
+	constexpr uint32_t NGroup = N / Groups;
 
 	// Create static entities.
-	struct static_units_group
-	{
+	struct static_units_group {
 		containers::darray<PositionSoA> units_p{NGroup};
 		containers::darray<Rotation> units_r{NGroup};
 		containers::darray<Scale> units_s{NGroup};
 	} static_groups[Groups];
-	for(auto &g: static_groups)
-	{
+	for (auto& g: static_groups) {
 		for (uint32_t i = 0U; i < NGroup; i++) {
 			g.units_p[i] = {0, 100, 0};
 			g.units_r[i] = {1, 2, 3, 4};
@@ -1029,20 +1167,24 @@ void BM_Game_NonECS_DOD_SoA(benchmark::State& state) {
 	}
 
 	// Create dynamic entities.
-	struct dynamic_units_group
-	{
+	struct dynamic_units_group {
 		containers::darray<PositionSoA> units_p{NGroup};
 		containers::darray<Rotation> units_r{NGroup};
 		containers::darray<Scale> units_s{NGroup};
 		containers::darray<VelocitySoA> units_v{NGroup};
+		containers::darray<Direction> units_d{NGroup};
+		containers::darray<Health> units_h{NGroup};
+		containers::darray<IsEnemy> units_e{NGroup};
 	} dynamic_groups[Groups];
-	for(auto &g: dynamic_groups)
-	{
+	for (auto& g: dynamic_groups) {
 		for (uint32_t i = 0U; i < NGroup; i++) {
 			g.units_p[i] = {0, 100, 0};
 			g.units_r[i] = {1, 2, 3, 4};
 			g.units_s[i] = {1, 1, 1};
 			g.units_v[i] = {0, 0, 1};
+			g.units_d[i] = {0, 0, 1};
+			g.units_h[i] = {100};
+			g.units_e[i] = {false};
 		}
 	}
 
@@ -1051,11 +1193,11 @@ void BM_Game_NonECS_DOD_SoA(benchmark::State& state) {
 		dt = CalculateDelta(state);
 
 		// Process static entities
-		for(auto &g: dynamic_groups)
+		for (auto& g: dynamic_groups)
 			UnitDynamic::updatePosition(g.units_p, g.units_v);
-		for(auto &g: dynamic_groups)
+		for (auto& g: dynamic_groups)
 			UnitDynamic::handleGroundCollision(g.units_p, g.units_v);
-		for(auto &g: dynamic_groups)
+		for (auto& g: dynamic_groups)
 			UnitDynamic::applyGravity(g.units_v);
 	}
 }
@@ -1168,17 +1310,15 @@ void BM_Game_NonECS_DOD_SoA_ManualSIMD(benchmark::State& state) {
 		}
 	};
 
-	constexpr uint32_t NGroup = N/Groups;
+	constexpr uint32_t NGroup = N / Groups;
 
 	// Create static entities.
-	struct static_units_group
-	{
+	struct static_units_group {
 		containers::darray<PositionSoA> units_p{NGroup};
 		containers::darray<Rotation> units_r{NGroup};
 		containers::darray<Scale> units_s{NGroup};
 	} static_groups[Groups];
-	for(auto &g: static_groups)
-	{
+	for (auto& g: static_groups) {
 		for (uint32_t i = 0U; i < NGroup; i++) {
 			g.units_p[i] = {0, 100, 0};
 			g.units_r[i] = {1, 2, 3, 4};
@@ -1187,20 +1327,24 @@ void BM_Game_NonECS_DOD_SoA_ManualSIMD(benchmark::State& state) {
 	}
 
 	// Create dynamic entities.
-	struct dynamic_units_group
-	{
+	struct dynamic_units_group {
 		containers::darray<PositionSoA> units_p{NGroup};
 		containers::darray<Rotation> units_r{NGroup};
 		containers::darray<Scale> units_s{NGroup};
 		containers::darray<VelocitySoA> units_v{NGroup};
+		containers::darray<Direction> units_d{NGroup};
+		containers::darray<Health> units_h{NGroup};
+		containers::darray<IsEnemy> units_e{NGroup};
 	} dynamic_groups[Groups];
-	for(auto &g: dynamic_groups)
-	{
+	for (auto& g: dynamic_groups) {
 		for (uint32_t i = 0U; i < NGroup; i++) {
 			g.units_p[i] = {0, 100, 0};
 			g.units_r[i] = {1, 2, 3, 4};
 			g.units_s[i] = {1, 1, 1};
 			g.units_v[i] = {0, 0, 1};
+			g.units_d[i] = {0, 0, 1};
+			g.units_h[i] = {100};
+			g.units_e[i] = {false};
 		}
 	}
 
@@ -1209,11 +1353,11 @@ void BM_Game_NonECS_DOD_SoA_ManualSIMD(benchmark::State& state) {
 		dt = CalculateDelta(state);
 
 		// Process static entities
-		for(auto &g: dynamic_groups)
+		for (auto& g: dynamic_groups)
 			UnitDynamic::updatePosition(g.units_p, g.units_v);
-		for(auto &g: dynamic_groups)
+		for (auto& g: dynamic_groups)
 			UnitDynamic::handleGroundCollision(g.units_p, g.units_v);
-		for(auto &g: dynamic_groups)
+		for (auto& g: dynamic_groups)
 			UnitDynamic::applyGravity(g.units_v);
 	}
 }
