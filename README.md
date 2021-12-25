@@ -47,9 +47,9 @@ struct Velocity {
 };
 
 ecs::World w;
-auto e1 = w.CreateEntity();
-w.AddComponent<Position>(e1, {0, 100, 0});
-w.AddComponent<Velocity>(e1, {0, 0, 1});
+auto e = w.CreateEntity();
+w.AddComponent<Position>(e, {0, 100, 0});
+w.AddComponent<Velocity>(e, {0, 0, 1});
 ```
 ## Simple iteration
 You can perform operations on your data in multiple ways with ForEach being the simplest one.<br/>
@@ -69,6 +69,21 @@ EntityQuery makes it possible for you to include or exclude specific archetypes 
 ecs::EntityQuery q;
 q.All<Position, Velocity>();
 q.None<Player>();
+// Iterate over all archytpes containing Position and Velocity but no Player
+w.ForEach(q, [&](Position& p, const Velocity& v) {
+  p.x += v.x * dt;
+  p.y += v.y * dt;
+  p.z += v.z * dt;
+}).Run();
+```
+
+We can even take it a step further only only perform the iteration if some particular components changes.<br/>
+Beware this check is chunk-wide meaning if there are 100 Velocity and Position components in the chunk and only one Velocity changes ForEach performs for the entire chunk. This is due performance concerns as it is easier to reason about the entire chunk than each item in separately.
+```cpp
+ecs::EntityQuery q;
+q.All<Position, Velocity>();
+q.None<Player>();
+q.WithChanged<Velocity>(); // Only iterate when Velocity changes
 // Iterate over all archytpes containing Position and Velocity but no Player
 w.ForEach(q, [&](Position& p, const Velocity& v) {
   p.x += v.x * dt;
@@ -131,7 +146,9 @@ w.ForEachChunk(ecs::EntityQuery().All<PositionSoA,VelocitySoA>, [](ecs::Chunk& c
   auto exec = [](float* GAIA_RESTRICT p, const float* GAIA_RESTRICT v, const size_t sz) {
     for (size_t i = 0U; i < sz; ++i)
       p[i] += v[i] * dt;
-    /* You can even use intrinsics now without a worry (note, this is just a simple example not an optimal way to rewrite the loop above using intrinsics)
+    /*
+    You can even use intrinsics now without a worry.
+    Note, this is just a simple example not an optimal way to rewrite the loop above using intrinsics.
     for (size_t i = 0U; i < sz; i+=4) {
       const auto pVec = _mm_load_ps(p + i);
       const auto vVec = _mm_load_ps(v + i);
