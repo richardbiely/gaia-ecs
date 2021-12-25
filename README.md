@@ -36,20 +36,20 @@ It is still early in development and breaking changes to its API are possible. T
 
 # Introduction
 
-Entity Component System (ECS) is a way of ogranizing your code around data. Instead of looking at "items" in your program as objects you know from the real world (car, house, human) you look at them as pieces of data necessary for you to achieve some result.
+Entity Component System (ECS) is a way of organizing your code around data. Instead of looking at "items" in your program as objects you know from the real world (car, house, human) you look at them as pieces of data necessary for you to achieve some result.
 
 This way of thinking is more natural for machines than people but as a result it allows you to write faster code (on most architectures) but what is most important it allows you to write code which is easier to maintain, expand and reason about.<br/>
 For instance, when moving some object from point A to B you do not care if it is a house or a car. You only care about its' position. If you want to move it at some specific speed you will consider the object's velocity, too. Nothing else is necessary.
 
-Within ECS an entity is some index uniquely identifying "items" in the world (object having position and velocity for example). Component is a piece of data (position, velocity, age). System is something that takes components as inputs and generates some output (basically transforms data into different data) or simply it's where you implement your program's logic.
+Within ECS an entity is some index uniquely identifying the "item" in the world (something having position and velocity for example). Component is a piece of data (position, velocity, age). System is something that takes components as inputs and generates some output (basically transforms data into different data) or simply it's where you implement your program's logic.
 
 Gaia-ECS is an archetype-based entity component system framework. Many different approaches exist and each is strong in some areas and worse in others.
 What this means is that unique combinations of components are stored in things called archetypes.
 
-Each archetype consists of chunks of a certain size. In our case each chunk is 64 kiB big (you can change this via ecs::MemoryBlockSize but it is not recommented). Chunks hold data and entities which are used as indices to data (think of it as SQL table where components are columns and entities are rows).<br/>
-All memory is preallocated in big blocks via internal chunk allocator. Thanks do that all data is organized in cache-friendly way which most computer architectures like.
+Each archetype consists of chunks of a certain size. In our case each chunk is 64 kiB big (you can change this via ecs::MemoryBlockSize but it is not recommented). Chunks hold data and entities which are used as indices to data (think of it as a bunch of SQL tables where components are columns and entities are rows).<br/>
+All memory is preallocated in big blocks (or pages if you will) via internal chunk allocator. Thanks do that all data is organized in cache-friendly way which most computer architectures like and actuall heap allocations which are slow are reduced to minimum.
 
-Some of the benefits of archetype-based architectues is fast iteration and good memory layout by default. They are also very easy to paralelize. Adding and removing components is slower then with other architectures, though. Knowing strengths and weaknesses of your system helps you work around their issues so this is not really a problem in general.
+Some of the benefits of archetype-based architectues is fast iteration and good memory layout by default. They are also very easy to paralelize. Adding and removing components is slower than with other architectures, though. Knowing strengths and weaknesses of your system helps you work around their issues so this is not really a problem in general.
 
 # Usage examples
 ## Minimum requirements
