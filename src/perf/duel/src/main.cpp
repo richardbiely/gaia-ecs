@@ -93,7 +93,7 @@ void CreateECSEntities_Dynamic(ecs::World& w) {
 		if constexpr (SoA)
 			w.AddComponent<VelocitySoA>(e, {0, 0, 1});
 		else
-			w.AddComponent<Velocity>(e, {0, 100, 0});
+			w.AddComponent<Velocity>(e, {0, 0, 1});
 		for (uint32_t i = 0; i < N / 4; i++) {
 			[[maybe_unused]] auto newentity = w.CreateEntity(e);
 		}
@@ -109,7 +109,7 @@ void CreateECSEntities_Dynamic(ecs::World& w) {
 		if constexpr (SoA)
 			w.AddComponent<VelocitySoA>(e, {0, 0, 1});
 		else
-			w.AddComponent<Velocity>(e, {0, 100, 0});
+			w.AddComponent<Velocity>(e, {0, 0, 1});
 		w.AddComponent<Direction>(e, {0, 0, 1});
 		for (uint32_t i = 0; i < N / 4; i++) {
 			[[maybe_unused]] auto newentity = w.CreateEntity(e);
@@ -126,7 +126,7 @@ void CreateECSEntities_Dynamic(ecs::World& w) {
 		if constexpr (SoA)
 			w.AddComponent<VelocitySoA>(e, {0, 0, 1});
 		else
-			w.AddComponent<Velocity>(e, {0, 100, 0});
+			w.AddComponent<Velocity>(e, {0, 0, 1});
 		w.AddComponent<Direction>(e, {0, 0, 1});
 		w.AddComponent<Health>(e, {100});
 		for (uint32_t i = 0; i < N / 4; i++) {
@@ -144,7 +144,7 @@ void CreateECSEntities_Dynamic(ecs::World& w) {
 		if constexpr (SoA)
 			w.AddComponent<VelocitySoA>(e, {0, 0, 1});
 		else
-			w.AddComponent<Velocity>(e, {0, 100, 0});
+			w.AddComponent<Velocity>(e, {0, 0, 1});
 		w.AddComponent<Direction>(e, {0, 0, 1});
 		w.AddComponent<Health>(e, {100});
 		w.AddComponent<IsEnemy>(e, {false});
