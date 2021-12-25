@@ -4,13 +4,30 @@
 # gaia-ecs
 [![Build Status](https://github.com/richardbiely/gaia-ecs/workflows/build/badge.svg)](https://github.com/richardbiely/gaia-ecs/actions)
 
-Gaia is an archetype-based ECS library.</br>
+Gaia-ECS is a Entity Component System framework. Some of its current features and highlights are:</br>
+* easy-to-use and safe API designed in such a way it tries to prevent you from using bad coding patterns
+* based on modern C++ technologies
+* doesn't depend on STL containers by default (can be enabled via GAIA_USE_STL_CONTAINERS)
+* archetype-based storage for maximum iteration speed and easy code parallelization
+* ability to organize data as AoS or SoA on the component level with almost no changes to your code! 
+* tested on all major compilers continuously
+* unit-tesed for maximum stabilty
+* each important change is benchmarked and checked on disassembly level no multiple compilers in order to ensure maximum performance
 
 It is still early in development and breaking changes to its API are possible. There are also a lot of features to add. However, it is already stable and thoroughly tested so stability should not be an issue.
 
-## Requirements
+# Table of Contents
 
-### Compiler
+* [Requirements](#requirements)
+  * [Compiler](#compiler)
+  * [Dependencies](#dependencies)
+* [Instalation](#instalation)
+* [Contributions](#contributions)
+* [License](#license)
+
+# Requirements
+
+## Compiler
 Gaia-ECS requires a compiler compatible with C++17.<br/>
 Currently, all major compilers are supported:<br/>
 - MSVC 15 (MS Visual Studio 2017) and later<br/>
@@ -20,7 +37,7 @@ Currently, all major compilers are supported:<br/>
 More compilers might work but the above are guaranteed and [continuosly tested](https://github.com/richardbiely/gaia-ecs/actions/workflows/build.yml).<br/>
 ICC support is also [worked on](https://github.com/richardbiely/gaia-ecs/actions/workflows/icc.yml).
 
-### Dependencies
+## Dependencies
 CMake version 3.12 or later is required to prepare the build. Other tools are officially not supported at the moment.
 
 Unit testing is handled via [Catch2 v2.x](https://github.com/catchorg/Catch2/tree/v2.x). It is ON by default and can be controlled via -DGAIA_BUILD_UNITTEST=ON/OFF.<br/>
@@ -30,7 +47,7 @@ Benchmarking relies on [googlebenchmark](https://github.com/google/benchmark). I
 In order to use this you must have the library installed on your machine. You can follow the steps [here](https://github.com/google/benchmark#installation) to do so.<br/>
 It is planned to replace this with a header-only library or some custom solution in order to make the processes easier.
 
-## Instalation
+# Instalation
 
 Following shows the steps needed to build the library:
 
@@ -56,14 +73,14 @@ cmake -DCMAKE_BUILD_TYPE=Release -USE_SANITIZERS=address -S . -B "build"
 Possible options are listed in [cmake/sanitizers.cmake](https://github.com/richardbiely/gaia-ecs/blob/main/cmake/sanitizers.cmake).<br/>
 Note, some options don't work together or might not be supported by all compilers.
 
-## Contributions
+# Contributions
 
 Requests for features, PRs, suggestions and feedback are highly appreciated.
 
 If you find you can help and want to contribute to the project feel free to contact
 me directly (you can find the mail on my [profile page](https://github.com/richardbiely)).<br/>
 
-## License
+# License
 
 Code and documentation Copyright (c) 2021-2022 Richard Biely.<br/>
 
