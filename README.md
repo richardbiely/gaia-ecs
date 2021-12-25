@@ -4,7 +4,9 @@
 # gaia-ecs
 [![Build Status](https://github.com/richardbiely/gaia-ecs/workflows/build/badge.svg)](https://github.com/richardbiely/gaia-ecs/actions)
 
-Gaia is an archetype-based ECS library.
+Gaia is an archetype-based ECS library.</br>
+
+It is still early in development and breaking changes to its API are possible. There are also a lot of features to add. However, it is already stable and thoroughly tested so stability should not be an issue.
 
 ## Requirements
 
