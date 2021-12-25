@@ -11,7 +11,7 @@ Gaia-ECS is a Entity Component System framework. Some of its current features an
 * archetype-based storage for maximum iteration speed and easy code parallelization
 * ability to organize data as AoS or SoA on the component level with almost no changes to your code! 
 * tested on all major compilers continuously
-* unit-tesed for maximum stabilty
+* unit-tested for maximum stabilty
 * each important change is benchmarked and checked on disassembly level no multiple compilers in order to ensure maximum performance
 
 It is still early in development and breaking changes to its API are possible. There are also a lot of features to add. However, it is already stable and thoroughly tested so stability should not be an issue.
