@@ -12,7 +12,7 @@ Gaia-ECS is a Entity Component System framework. Some of its current features an
 * ability to organize data as AoS or SoA on the component level with almost no changes to your code! 
 * tested on all major compilers continuously
 * unit-tested for maximum stabilty
-* each important change is benchmarked and checked on disassembly level no multiple compilers in order to ensure maximum performance
+* each important change is benchmarked and checked on disassembly level on multiple compilers in order to ensure maximum performance
 
 It is still early in development and breaking changes to its API are possible. There are also a lot of features to add. However, it is already stable and thoroughly tested so stability should not be an issue.
 
@@ -124,13 +124,12 @@ However, using utils::DataLayout::SoA makes Gaia-ECS treat them as: xxxx yyyy zz
 This can have vast performance implication because your code can be fully vectorized by the compiler.
 ```cpp
 struct PositionSoA {
-	float x, y, z;
- // Following makes Gaia-ECS treat the component as blocks organized in memory in SoA-way: xxxx yyyy zzzz
-	static constexpr auto Layout = utils::DataLayout::SoA;
+  float x, y, z;
+  static constexpr auto Layout = utils::DataLayout::SoA;
 };
 struct VelocitySoA {
-	float x, y, z;
-	static constexpr auto Layout = utils::DataLayout::SoA;
+  float x, y, z;
+  static constexpr auto Layout = utils::DataLayout::SoA;
 };
 ...
 w.ForEachChunk(ecs::EntityQuery().All<PositionSoA,VelocitySoA>, [](ecs::Chunk& ch) {
@@ -177,6 +176,19 @@ w.ForEach(q, [&](Entity e, const Position& p) {
     cb.DeleteEntity(e); // queue entity e for deletion if its position falls bellow zero
 }).Run();
 cb.Commit(); // after calling this all entities with position bellow zero get deleted
+```
+
+## Chunk components
+Chunk components are a special kind of components which exists at most once per chunk.<br/>
+In order words you attach an information to one chunk specifically.
+If you organize your data with care (which you should) this can save you some very precious memory and in turn also performance.<br/>
+
+For instance, imagine you have a grid with fields of 10 meters in size on each axis.
+If you create your entities carefully you can organized them in grid fields implicitly on data level.
+```cpp
+w.AddComponent<Position>(e1, {10,1});
+w.AddComponent<Position>(e2, {19,1});
+w.AddChunkComponent<GridPosition>(e1, {1, 0}); // Both e1 and e2 share a common grid position of {1,0} now
 ```
 
 # Requirements
