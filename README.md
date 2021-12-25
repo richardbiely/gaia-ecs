@@ -87,9 +87,9 @@ The example above created it internally from the arguments we provided for ForEa
 EntityQuery makes it possible for you to include or exclude specific archetypes based on the rules you define.
 ```cpp
 ecs::EntityQuery q;
-q.All<Position, Velocity>();
+q.All<Position, Velocity>(); // this is also what ForEach Does implicitly when no EntityQuery is provided
 q.None<Player>();
-// Iterate over all archytpes containing Position and Velocity but no Player
+// Iterate over all archetypes containing Position and Velocity but no Player
 w.ForEach(q, [&](Position& p, const Velocity& v) {
   p.x += v.x * dt;
   p.y += v.y * dt;
@@ -97,8 +97,8 @@ w.ForEach(q, [&](Position& p, const Velocity& v) {
 }).Run();
 ```
 
-We can even take it a step further only only perform the iteration if some particular components changes.<br/>
-Beware this check is chunk-wide meaning if there are 100 Velocity and Position components in the chunk and only one Velocity changes ForEach performs for the entire chunk. This is due performance concerns as it is easier to reason about the entire chunk than each item in separately.
+We can even take it a step further and only perform the iteration if particular components change.<br/>
+Beware this check is chunk-wide meaning if there are 100 Velocity and Position components in the chunk and only one Velocity changes ForEach performs for the entire chunk. This is due performance concerns as it is easier to reason about the entire chunk than each item separately.
 ```cpp
 ecs::EntityQuery q;
 q.All<Position, Velocity>();
