@@ -18,12 +18,117 @@ It is still early in development and breaking changes to its API are possible. T
 
 # Table of Contents
 
+* [Usage examples](#usage-examples)
+  * [Minimum requirements](#minimum-requirements)
+  * [Entity and component creation](#entity-and-component-creation)
+  * [Simple iteration](#simple-iteration)
+  * [Iteration over chunks](#iteration-over-chunks)
+  * [Making use of SoA component layout ](#making-use-of-soa-component-layout)
 * [Requirements](#requirements)
   * [Compiler](#compiler)
   * [Dependencies](#dependencies)
 * [Instalation](#instalation)
 * [Contributions](#contributions)
 * [License](#license)
+
+# Usage examples
+## Minimum requirements
+```cpp
+#include <gaia.h>
+GAIA_INIT
+```
+## Entity and component creation
+```cpp
+struct Position {
+  float x, y, z;
+};
+struct Velocity {
+  float x, y, z;
+};
+
+ecs::World w;
+auto e1 = w.CreateEntity();
+w.AddComponent<Position>(e1, {0, 100, 0});
+w.AddComponent<Velocity>(e1, {0, 0, 1});
+```
+## Simple iteration
+You can perform operations on your data in multiple ways with ForEach being the simplest one.
+It provides the least room for optimization (that does not mean the generated code is slow by any means) but is very easy to read.
+```cpp
+w.ForEach(queryDynamic, [&](Position& p, const Velocity& v) {
+  p.x += v.x * dt;
+  p.y += v.y * dt;
+  p.z += v.z * dt;
+}).Run();
+```
+## Iteration over chunks
+ForEachChunk gives you more power than ForEach as it exposes the underlying chunk in which your data is container to you.
+This means you can perform more kinds of operations and opens doors for new kinds of optimizations.
+```cpp
+w.ForEachChunk([](ecs::Chunk& ch) {
+  auto p = ch.ViewRW<Position>(); // Read-write access to Position
+  auto v = ch.View<Velocity>(); // Read-only access to Velocity
+
+  // Iterate over all components in the chunk.
+  // Note this could be written as a simple for loop. However, analysing the output of different compilers I quickly
+  // realised if you want your code vectorized for sure this is the only way to go (MSVC is particularly sensitive).
+  [&](Position* GAIA_RESTRICT p, const Velocity* GAIA_RESTRICT v, const uint32_t size) {
+    for (auto i = 0U; i < size; ++i) {
+      p[i].x += v[i].x * dt;
+      p[i].y += v[i].y * dt;
+      p[i].z += v[i].z * dt;
+    }
+  }(p.data(), v.data(), ch.GetItemCount());
+}).Run();
+```
+## Making use of SoA component layout 
+For specific cases you might consider oranizing your component's internal data in SoA way.
+For example in the code bellow me mark PositionSoA and VelocitySoA with
+```cpp
+static constexpr auto Layout = utils::DataLayout::SoA
+```
+Now if you imagine an ordinary array of 4 PositionSoAs in memory they would be organized as: xyz xyz xyz xyz.
+However, using utils::DataLayout::SoA however Gaia-ECS treats them as: xxxx yyyy zzzz.
+This can have vast performance implication because your code can be fully vectorized by the compiler.
+```cpp
+struct PositionSoA {
+	float x, y, z;
+ // Following makes Gaia-ECS treat the component as blocks organized in memory in SoA-way: xxxx yyyy zzzz
+	static constexpr auto Layout = utils::DataLayout::SoA;
+};
+struct VelocitySoA {
+	float x, y, z;
+	static constexpr auto Layout = utils::DataLayout::SoA;
+};
+...
+w.ForEachChunk([](ecs::Chunk& ch) {
+  auto p = ch.ViewRW<PositionSoA>(); // Read-write access to PositionSoA
+  auto v = ch.View<VelocitySoA>(); // Read-only access to VelocitySoA
+
+  auto ppx = p.set<0>(); // Get access to a continuous block of "x" from PositionSoA
+  auto ppy = p.set<1>(); // Get access to a continuous block of "y" from PositionSoA
+  auto ppz = p.set<2>(); // Get access to a continuous block of "z" from PositionSoA
+  auto vvx = v.get<0>();
+  auto vvy = v.get<1>();
+  auto vvz = v.get<2>();
+
+  auto exec = [](float* GAIA_RESTRICT p, const float* GAIA_RESTRICT v, const size_t sz) {
+    for (size_t i = 0U; i < sz; ++i)
+      p[i] += v[i] * dt;
+    /* You can even use intrinsics now without a worry (note, this is just a simple example not an optimal way to rewrite the loop above using intrinsics)
+    for (size_t i = 0U; i < sz; i+=4) {
+      const auto pVec = _mm_load_ps(p + i);
+      const auto vVec = _mm_load_ps(v + i);
+      const auto respVec = _mm_fmadd_ps(vVec, dtVec, pVec);
+      _mm_store_ps(p + i, respVec);
+    }*/
+  };
+  const auto size = ch.GetItemCount();
+  exec(ppx.data(), vvx.data(), size);
+  exec(ppy.data(), vvy.data(), size);
+  exec(ppz.data(), vvz.data(), size);
+}).Run();
+```
 
 # Requirements
 
