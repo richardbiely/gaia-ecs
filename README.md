@@ -25,6 +25,7 @@ It is still early in development and breaking changes to its API are possible. T
   * [Iteration over chunks](#iteration-over-chunks)
   * [Making use of SoA component layout](#making-use-of-soa-component-layout)
   * [Delayed execution](#delayed-execution)
+  * [Chunk components](#chunk-components)
 * [Requirements](#requirements)
   * [Compiler](#compiler)
   * [Dependencies](#dependencies)
@@ -179,12 +180,12 @@ cb.Commit(); // after calling this all entities with position bellow zero get de
 ```
 
 ## Chunk components
-Chunk components are a special kind of components which exists at most once per chunk.<br/>
+Chunk component is a special kind of component which exists at most once per chunk.<br/>
 In order words you attach an information to one chunk specifically.
 If you organize your data with care (which you should) this can save you some very precious memory and in turn also performance.<br/>
 
 For instance, imagine you have a grid with fields of 10 meters in size on each axis.
-If you create your entities carefully you can organized them in grid fields implicitly on data level.
+Now if you create your entities carefully they get organized in grid fields implicitly on data level already without you having to use any sort of spatial map container.
 ```cpp
 w.AddComponent<Position>(e1, {10,1});
 w.AddComponent<Position>(e2, {19,1});
