@@ -69,7 +69,7 @@ namespace gaia {
 					m_data.resize(m_data.size() + sizeof(ComponentMetaData*) * componentCount);
 
 					for (uint8_t i = 0U; i < componentCount; i++) {
-						utils::unaligned_ref<ComponentMetaData*> to(&m_data[lastIndex]);
+						utils::unaligned_ref<const ComponentMetaData*> to(&m_data[lastIndex]);
 						to = typesToAdd[i];
 					}
 				}

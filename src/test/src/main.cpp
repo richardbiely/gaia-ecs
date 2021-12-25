@@ -773,103 +773,103 @@ TEST_CASE("Usage 2 - simple query, many chunk components") {
 }
 
 TEST_CASE("CommandBuffer") {
-	// // Entity creation
-	// {
-	// 	ecs::World w;
-	// 	ecs::CommandBuffer cb;
+	// Entity creation
+	{
+		ecs::World w;
+		ecs::CommandBuffer cb;
 
-	// 	const uint32_t N = 100;
-	// 	for (uint32_t i = 0U; i < N; i++)
-	// 		[[maybe_unused]] auto tmp = cb.CreateEntity();
+		const uint32_t N = 100;
+		for (uint32_t i = 0U; i < N; i++)
+			[[maybe_unused]] auto tmp = cb.CreateEntity();
 
-	// 	cb.Commit(&w);
+		cb.Commit(&w);
 
-	// 	for (uint32_t i = 0U; i < N; i++) {
-	// 		auto e = w.GetEntity(i);
-	// 		REQUIRE(e.id() == i);
-	// 	}
-	// }
+		for (uint32_t i = 0U; i < N; i++) {
+			auto e = w.GetEntity(i);
+			REQUIRE(e.id() == i);
+		}
+	}
 
-	// // Entity creation from another entity
-	// {
-	// 	ecs::World w;
-	// 	ecs::CommandBuffer cb;
+	// Entity creation from another entity
+	{
+		ecs::World w;
+		ecs::CommandBuffer cb;
 
-	// 	auto mainEntity = w.CreateEntity();
+		auto mainEntity = w.CreateEntity();
 
-	// 	const uint32_t N = 100;
-	// 	for (uint32_t i = 0U; i < N; i++)
-	// 		[[maybe_unused]] auto tmp = cb.CreateEntity(mainEntity);
+		const uint32_t N = 100;
+		for (uint32_t i = 0U; i < N; i++)
+			[[maybe_unused]] auto tmp = cb.CreateEntity(mainEntity);
 
-	// 	cb.Commit(&w);
+		cb.Commit(&w);
 
-	// 	for (uint32_t i = 0U; i < N; i++) {
-	// 		auto e = w.GetEntity(i + 1);
-	// 		REQUIRE(e.id() == i + 1);
-	// 	}
-	// }
+		for (uint32_t i = 0U; i < N; i++) {
+			auto e = w.GetEntity(i + 1);
+			REQUIRE(e.id() == i + 1);
+		}
+	}
 
-	// // Entity creation from another entity with a component
-	// {
-	// 	ecs::World w;
-	// 	ecs::CommandBuffer cb;
+	// Entity creation from another entity with a component
+	{
+		ecs::World w;
+		ecs::CommandBuffer cb;
 
-	// 	auto mainEntity = w.CreateEntity();
-	// 	w.AddComponent<Position>(mainEntity, {1, 2, 3});
+		auto mainEntity = w.CreateEntity();
+		w.AddComponent<Position>(mainEntity, {1, 2, 3});
 
-	// 	[[maybe_unused]] auto tmp = cb.CreateEntity(mainEntity);
-	// 	cb.Commit(&w);
-	// 	auto e = w.GetEntity(1);
-	// 	REQUIRE(w.HasComponents<Position>(e));
-	// 	Position p;
-	// 	w.GetComponent<Position>(e, p);
-	// 	REQUIRE(p.x == 1);
-	// 	REQUIRE(p.y == 2);
-	// 	REQUIRE(p.z == 3);
-	// }
+		[[maybe_unused]] auto tmp = cb.CreateEntity(mainEntity);
+		cb.Commit(&w);
+		auto e = w.GetEntity(1);
+		REQUIRE(w.HasComponents<Position>(e));
+		Position p;
+		w.GetComponent<Position>(e, p);
+		REQUIRE(p.x == 1);
+		REQUIRE(p.y == 2);
+		REQUIRE(p.z == 3);
+	}
 
-	// // Delayed component addition to an existing entity
-	// {
-	// 	ecs::World w;
-	// 	ecs::CommandBuffer cb;
+	// Delayed component addition to an existing entity
+	{
+		ecs::World w;
+		ecs::CommandBuffer cb;
 
-	// 	auto e = w.CreateEntity();
+		auto e = w.CreateEntity();
 
-	// 	cb.AddComponent<Position>(e);
-	// 	REQUIRE(!w.HasComponents<Position>(e));
+		cb.AddComponent<Position>(e);
+		REQUIRE(!w.HasComponents<Position>(e));
 
-	// 	cb.Commit(&w);
-	// 	REQUIRE(w.HasComponents<Position>(e));
+		cb.Commit(&w);
+		REQUIRE(w.HasComponents<Position>(e));
 
-	// 	Position p;
-	// 	w.GetComponent<Position>(e, p);
-	// 	REQUIRE(p.x == 0);
-	// 	REQUIRE(p.y == 0);
-	// 	REQUIRE(p.z == 0);
-	// }
+		Position p;
+		w.GetComponent<Position>(e, p);
+		REQUIRE(p.x == 0);
+		REQUIRE(p.y == 0);
+		REQUIRE(p.z == 0);
+	}
 
-	// // Delayed component addition to a to-be-created entity
-	// {
-	// 	ecs::World w;
-	// 	ecs::CommandBuffer cb;
+	// Delayed component addition to a to-be-created entity
+	{
+		ecs::World w;
+		ecs::CommandBuffer cb;
 
-	// 	auto tmp = cb.CreateEntity();
-	// 	REQUIRE(!w.GetEntityCount());
+		auto tmp = cb.CreateEntity();
+		REQUIRE(!w.GetEntityCount());
 
-	// 	cb.AddComponent<Position>(tmp);
-	// 	cb.Commit(&w);
+		cb.AddComponent<Position>(tmp);
+		cb.Commit(&w);
 
-	// 	auto e = w.GetEntity(0);
-	// 	REQUIRE(w.HasComponents<Position>(e));
+		auto e = w.GetEntity(0);
+		REQUIRE(w.HasComponents<Position>(e));
 
-	// 	Position p;
-	// 	w.GetComponent<Position>(e, p);
-	// 	REQUIRE(p.x == 0);
-	// 	REQUIRE(p.y == 0);
-	// 	REQUIRE(p.z == 0);
-	// }
+		Position p;
+		w.GetComponent<Position>(e, p);
+		REQUIRE(p.x == 0);
+		REQUIRE(p.y == 0);
+		REQUIRE(p.z == 0);
+	}
 
-	// // Delayed component setting of an existing entity
+	// Delayed component setting of an existing entity
 	// {
 	// 	ecs::World w;
 	// 	ecs::CommandBuffer cb;
