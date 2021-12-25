@@ -23,7 +23,8 @@ It is still early in development and breaking changes to its API are possible. T
   * [Entity and component creation](#entity-and-component-creation)
   * [Simple iteration](#simple-iteration)
   * [Iteration over chunks](#iteration-over-chunks)
-  * [Making use of SoA component layout ](#making-use-of-soa-component-layout)
+  * [Making use of SoA component layout](#making-use-of-soa-component-layout)
+  * [Delayed execution](#delayed-execution)
 * [Requirements](#requirements)
   * [Compiler](#compiler)
   * [Dependencies](#dependencies)
@@ -93,7 +94,7 @@ w.ForEach(q, [&](Position& p, const Velocity& v) {
 ```
 
 ## Iteration over chunks
-ForEachChunk gives you more power than ForEach as it exposes the underlying chunk in which your data is container to you.<br/>
+ForEachChunk gives you more power than ForEach as it exposes to you the underlying chunk in which your data is contained.<br/>
 This means you can perform more kinds of operations and opens doors for new kinds of optimizations.
 ```cpp
 w.ForEachChunk([](ecs::Chunk& ch) {
@@ -161,6 +162,21 @@ w.ForEachChunk(ecs::EntityQuery().All<PositionSoA,VelocitySoA>, [](ecs::Chunk& c
   exec(ppy.data(), vvy.data(), size);
   exec(ppz.data(), vvz.data(), size);
 }).Run();
+```
+
+## Delayed execution
+Sometimes you need to delay executing a part of the code for later. This can be achieved via CommandBuffers.<br/>
+CommandBuffer is a container for commands which are to be performed later when you need it.<br/>
+Typically you use them if there is a need to perform a structural change (adding or removing an entity or component) while iterating.
+If you performed an unprotected structural change this would result in undefined behavior and most likely crash the program.
+However, using a CommandBuffer you collect all requests and perform them one-by-one in the order in which they were recorded by calling Commit.
+```cpp
+ecs::CommandBuffer cb;
+w.ForEach(q, [&](Entity e, const Position& p) {
+  if (p.y < 0.0f)
+    cb.DeleteEntity(e); // queue entity e for deletion if its position falls bellow zero
+}).Run();
+cb.Commit(); // after calling this all entities with position bellow zero get deleted
 ```
 
 # Requirements
