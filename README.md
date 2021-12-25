@@ -52,17 +52,33 @@ w.AddComponent<Position>(e1, {0, 100, 0});
 w.AddComponent<Velocity>(e1, {0, 0, 1});
 ```
 ## Simple iteration
-You can perform operations on your data in multiple ways with ForEach being the simplest one.
+You can perform operations on your data in multiple ways with ForEach being the simplest one.<br/>
 It provides the least room for optimization (that does not mean the generated code is slow by any means) but is very easy to read.
 ```cpp
-w.ForEach(queryDynamic, [&](Position& p, const Velocity& v) {
+w.ForEach([&](Position& p, const Velocity& v) {
   p.x += v.x * dt;
   p.y += v.y * dt;
   p.z += v.z * dt;
 }).Run();
 ```
+
+You can also be more specifc and tell the framework you are looking for something more specific using an EntityQuery.<br/>
+The example above created it internally from the arguments we provided for ForEach.<br/>
+EntityQuery makes it possible for you to include or exclude specific archetypes based on the rules you define.
+```cpp
+ecs::EntityQuery q;
+q.All<Position, Velocity>();
+q.None<Player>();
+// Iterate over all archytpes containing Position and Velocity but no Player
+w.ForEach(q, [&](Position& p, const Velocity& v) {
+  p.x += v.x * dt;
+  p.y += v.y * dt;
+  p.z += v.z * dt;
+}).Run();
+```
+
 ## Iteration over chunks
-ForEachChunk gives you more power than ForEach as it exposes the underlying chunk in which your data is container to you.
+ForEachChunk gives you more power than ForEach as it exposes the underlying chunk in which your data is container to you.<br/>
 This means you can perform more kinds of operations and opens doors for new kinds of optimizations.
 ```cpp
 w.ForEachChunk([](ecs::Chunk& ch) {
@@ -82,13 +98,13 @@ w.ForEachChunk([](ecs::Chunk& ch) {
 }).Run();
 ```
 ## Making use of SoA component layout 
-For specific cases you might consider oranizing your component's internal data in SoA way.
-For example in the code bellow me mark PositionSoA and VelocitySoA with
+For specific cases you might consider oranizing your component's internal data in SoA way.<br/>
+For instance, in the code bellow me mark PositionSoA and VelocitySoA with
 ```cpp
 static constexpr auto Layout = utils::DataLayout::SoA
 ```
-Now if you imagine an ordinary array of 4 PositionSoAs in memory they would be organized as: xyz xyz xyz xyz.
-However, using utils::DataLayout::SoA however Gaia-ECS treats them as: xxxx yyyy zzzz.
+Now if you imagine an ordinary array of 4 PositionSoAs they would be organized as this in memory: xyz xyz xyz xyz.<br/>
+However, using utils::DataLayout::SoA makes Gaia-ECS treat them as: xxxx yyyy zzzz.<br/>
 This can have vast performance implication because your code can be fully vectorized by the compiler.
 ```cpp
 struct PositionSoA {
@@ -101,7 +117,7 @@ struct VelocitySoA {
 	static constexpr auto Layout = utils::DataLayout::SoA;
 };
 ...
-w.ForEachChunk([](ecs::Chunk& ch) {
+w.ForEachChunk(ecs::EntityQuery().All<PositionSoA,VelocitySoA>, [](ecs::Chunk& ch) {
   auto p = ch.ViewRW<PositionSoA>(); // Read-write access to PositionSoA
   auto v = ch.View<VelocitySoA>(); // Read-only access to VelocitySoA
 
