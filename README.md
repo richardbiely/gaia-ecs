@@ -21,7 +21,7 @@ It is still early in development and breaking changes to its API are possible. T
 * [Introduction](#introduction)
 * [Usage examples](#usage-examples)
   * [Minimum requirements](#minimum-requirements)
-  * [Entity and component creation](#entity-and-component-creation)
+  * [Basic operations](#basic-operations)
   * [Simple iteration](#simple-iteration)
   * [Iteration over chunks](#iteration-over-chunks)
   * [Making use of SoA component layout](#making-use-of-soa-component-layout)
@@ -57,7 +57,7 @@ Some of the benefits of archetype-based architectues is fast iteration and good 
 #include <gaia.h>
 GAIA_INIT
 ```
-## Entity and component creation
+## Basic operations
 ```cpp
 struct Position {
   float x, y, z;
@@ -67,9 +67,30 @@ struct Velocity {
 };
 
 ecs::World w;
+
+// Create an entity with Position and Velocity
 auto e = w.CreateEntity();
 w.AddComponent<Position>(e, {0, 100, 0});
 w.AddComponent<Velocity>(e, {0, 0, 1});
+
+// Remove Velocity from the entity
+w.RemoveComponent<Velocity>(e);
+
+// Check if entity e has Velocity
+const auto* pChunkA = w.GetEntityChunk(e);
+bool hasVelocity = pChunkA->HasComponent<Velocity>(e);
+
+// Check if entity e has Position and modify its value if it does
+uint32_t entityIndexInChunk;
+auto* pChunkB = w.GetEntityChunk(e, entityIndexInChunk);
+if (pChunkB->HasComponent<Position>(e))
+{
+  auto pos = pChunkB->ViewRW<Position>();
+  pos[entityIndexInChunk].y = 1234; // position.y changed from 100 to 1234
+}
+
+// Delete the entity
+w.DeleteEntity(e);
 ```
 ## Simple iteration
 You can perform operations on your data in multiple ways with ForEach being the simplest one.<br/>
@@ -132,6 +153,7 @@ w.ForEachChunk([](ecs::Chunk& ch) {
   }(p.data(), v.data(), ch.GetItemCount());
 }).Run();
 ```
+
 ## Making use of SoA component layout 
 For specific cases you might consider oranizing your component's internal data in SoA way.<br/>
 For instance, in the code bellow me mark PositionSoA and VelocitySoA with
@@ -199,8 +221,8 @@ cb.Commit(); // after calling this all entities with position bellow zero get de
 
 ## Chunk components
 Chunk component is a special kind of component which exists at most once per chunk.<br/>
-In order words you attach an information to one chunk specifically.
-If you organize your data with care (which you should) this can save you some very precious memory and in turn also performance.<br/>
+In other words you attach an information to one chunk specifically.<br/>
+If you organize your data with care (which you should) this can save you some very precious memory or performance depending on your use case.<br/>
 
 For instance, imagine you have a grid with fields of 10 meters in size on each axis.
 Now if you create your entities carefully they get organized in grid fields implicitly on data level already without you having to use any sort of spatial map container.
