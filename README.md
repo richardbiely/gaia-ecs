@@ -30,7 +30,7 @@ It is still early in development and breaking changes to its API are possible. T
 * [Requirements](#requirements)
   * [Compiler](#compiler)
   * [Dependencies](#dependencies)
-* [Instalation](#instalation)
+* [Installation](#installation)
 * [Contributions](#contributions)
 * [License](#license)
 
@@ -264,7 +264,7 @@ Benchmarking relies on [googlebenchmark](https://github.com/google/benchmark). I
 In order to use this you must have the library installed on your machine. You can follow the steps [here](https://github.com/google/benchmark#installation) to do so.<br/>
 It is planned to replace this with a header-only library or some custom solution in order to make the processes easier.
 
-# Instalation
+# Installation
 
 Following shows the steps needed to build the library:
 
