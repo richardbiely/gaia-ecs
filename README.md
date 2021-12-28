@@ -118,7 +118,7 @@ The example above created it internally from the arguments we provided for ForEa
 EntityQuery makes it possible for you to include or exclude specific archetypes based on the rules you define.
 ```cpp
 ecs::EntityQuery q;
-q.All<Position, Velocity>(); // this is also what ForEach Does implicitly when no EntityQuery is provided
+q.All<Position, Velocity>(); // this is also what ForEach does implicitly when no EntityQuery is provided
 q.None<Player>();
 // Iterate over all archetypes containing Position and Velocity but no Player
 w.ForEach(q, [&](Position& p, const Velocity& v) {
@@ -129,7 +129,7 @@ w.ForEach(q, [&](Position& p, const Velocity& v) {
 ```
 
 We can even take it a step further and only perform the iteration if particular components change.<br/>
-Beware this check is chunk-wide meaning if there are 100 Velocity and Position components in the chunk and only one Velocity changes ForEach performs for the entire chunk. This is due performance concerns as it is easier to reason about the entire chunk than each item separately.
+Note, this check is chunk-wide meaning if there are 100 Velocity and Position components in the chunk and only one Velocity changes ForEach performs for the entire chunk. This is due to performance concerns as it is easier to reason about the entire chunk than each of its items separately.
 ```cpp
 ecs::EntityQuery q;
 q.All<Position, Velocity>();
@@ -164,15 +164,18 @@ w.ForEachChunk([](ecs::Chunk& ch) {
 }).Run();
 ```
 
-## Making use of SoA component layout 
-For specific cases you might consider oranizing your component's internal data in SoA way.<br/>
-For instance, in the code bellow me mark PositionSoA and VelocitySoA with
+## Making use of SoA component layout
+By default all components are treated as arrays of structures internally (AoS) via an implicit
+```cpp
+static constexpr auto Layout = utils::DataLayout::AoS
+```
+In specific cases you might consider oranizing your component's internal data in structure or arrays (SoA) way by using
 ```cpp
 static constexpr auto Layout = utils::DataLayout::SoA
 ```
-Now if you imagine an ordinary array of 4 PositionSoAs they would be organized as this in memory: xyz xyz xyz xyz.<br/>
-However, using utils::DataLayout::SoA makes Gaia-ECS treat them as: xxxx yyyy zzzz.<br/>
-This can have vast performance implication because your code can be fully vectorized by the compiler.
+Let us imagine an ordinary array of 4 Positions. They would be organized as this in memory: xyz xyz xyz xyz.<br/>
+However, using utils::DataLayout::SoA would make Gaia-ECS treat them as: xxxx yyyy zzzz.<br/>
+This can have vast performance implication because your code can be fully vectorized by the compiler now.
 ```cpp
 struct PositionSoA {
   float x, y, z;
