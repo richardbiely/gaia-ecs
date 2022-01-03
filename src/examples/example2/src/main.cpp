@@ -16,7 +16,7 @@ void MoveSystem(ecs::World& w, float dt) {
 		 p.x += a.x * dt;
 		 p.y += a.y * dt;
 		 p.z += a.z * dt;
-	 }).Run();
+	 });
 }
 
 int main() {

@@ -236,21 +236,15 @@ public:
 				s_world.blocked[y][x] = s_world.map[y][x] == TILE_WALL;
 
 		// Everything with postion && velocity blocks
-		GetWorld()
-				.ForEach(
-						m_q,
-						[&](const Position& p) {
-							s_world.blocked[p.y][p.x] = true;
-						})
-				.Run();
+		GetWorld().ForEach(m_q, [&](const Position& p) {
+			s_world.blocked[p.y][p.x] = true;
+		});
 
 		// Everything with position is content
 		s_world.content.clear();
-		GetWorld()
-				.ForEach([&](ecs::Entity e, const Position& p) {
-					s_world.content[p].push_back(e);
-				})
-				.Run();
+		GetWorld().ForEach([&](ecs::Entity e, const Position& p) {
+			s_world.content[p].push_back(e);
+		});
 	}
 };
 
@@ -287,44 +281,40 @@ public:
 		// Drop all previous collision records
 		m_colliding.clear();
 
-		GetWorld()
-				.ForEachChunk(
-						m_q,
-						[&](ecs::Chunk& chunk) {
-							auto ent = chunk.View<ecs::Entity>();
-							auto vel = chunk.View<Velocity>();
-							auto pos = chunk.View<Position>();
+		GetWorld().ForEachChunk(m_q, [&](ecs::Chunk& chunk) {
+			auto ent = chunk.View<ecs::Entity>();
+			auto vel = chunk.View<Velocity>();
+			auto pos = chunk.View<Position>();
 
-							for (uint32_t i = 0; i < chunk.GetItemCount(); ++i) {
-								auto& e = ent[i];
-								auto& v = vel[i];
-								auto& p = pos[i];
+			for (uint32_t i = 0; i < chunk.GetItemCount(); ++i) {
+				auto& e = ent[i];
+				auto& v = vel[i];
+				auto& p = pos[i];
 
-								// Skip stationary objects
-								if (v.x == 0 && v.y == 0)
-									return;
+				// Skip stationary objects
+				if (v.x == 0 && v.y == 0)
+					return;
 
-								const int nx = p.x + v.x;
-								const int ny = p.y + v.y;
+				const int nx = p.x + v.x;
+				const int ny = p.y + v.y;
 
-								if (!s_world.blocked[ny][nx])
-									return;
+				if (!s_world.blocked[ny][nx])
+					return;
 
-								// Collect all collisions
-								auto it = s_world.content.find({nx, ny});
-								if (it == s_world.content.end()) {
-									m_colliding.push_back(CollisionData{e, ecs::EntityNull, {nx, ny}, v});
-								} else {
-									for (auto e2: it->second)
-										m_colliding.push_back(CollisionData{e, e2, {nx, ny}, v});
-								}
+				// Collect all collisions
+				auto it = s_world.content.find({nx, ny});
+				if (it == s_world.content.end()) {
+					m_colliding.push_back(CollisionData{e, ecs::EntityNull, {nx, ny}, v});
+				} else {
+					for (auto e2: it->second)
+						m_colliding.push_back(CollisionData{e, e2, {nx, ny}, v});
+				}
 
-								// No velocity after collision
-								auto vel_mut = chunk.ViewRW<Velocity>();
-								vel_mut[i] = {0, 0};
-							}
-						})
-				.Run();
+				// No velocity after collision
+				auto vel_mut = chunk.ViewRW<Velocity>();
+				vel_mut[i] = {0, 0};
+			}
+		});
 	}
 
 	const containers::darray<CollisionData>& GetCollisions() const {
@@ -344,30 +334,22 @@ public:
 
 	void OnUpdate() override {
 		// Update position based on current velocity
-		GetWorld()
-				.ForEach(
-						m_q1,
-						[&](Position& p, const Velocity& v) {
-							p.x += v.x;
-							p.y += v.y;
-						})
-				.Run();
+		GetWorld().ForEach(m_q1, [&](Position& p, const Velocity& v) {
+			p.x += v.x;
+			p.y += v.y;
+		});
 
 		// Update orientation based on current velocity
-		GetWorld()
-				.ForEach(
-						m_q2,
-						[&](Orientation& o, const Velocity& v) {
-							if (v.x != 0) {
-								o.x = v.x > 0 ? 1 : -1;
-								o.y = 0;
-							}
-							if (v.y != 0) {
-								o.x = 0;
-								o.y = v.y > 0 ? 1 : -1;
-							}
-						})
-				.Run();
+		GetWorld().ForEach(m_q2, [&](Orientation& o, const Velocity& v) {
+			if (v.x != 0) {
+				o.x = v.x > 0 ? 1 : -1;
+				o.y = 0;
+			}
+			if (v.y != 0) {
+				o.x = 0;
+				o.y = v.y > 0 ? 1 : -1;
+			}
+		});
 	}
 };
 
@@ -482,14 +464,10 @@ public:
 		m_q.All<Health>().WithChanged<Health>();
 	}
 	void OnUpdate() override {
-		GetWorld()
-				.ForEach(
-						m_q,
-						[&](Health& h) {
-							if (h.value > h.valueMax)
-								h.value = h.valueMax;
-						})
-				.Run();
+		GetWorld().ForEach(m_q, [&](Health& h) {
+			if (h.value > h.valueMax)
+				h.value = h.valueMax;
+		});
 	}
 };
 
@@ -501,17 +479,13 @@ public:
 		m_q.All<Health, Position>().WithChanged<Health>();
 	}
 	void OnUpdate() override {
-		GetWorld()
-				.ForEach(
-						m_q,
-						[&](ecs::Entity e, const Health& h, const Position& p) {
-							if (h.value > 0)
-								return;
+		GetWorld().ForEach(m_q, [&](ecs::Entity e, const Health& h, const Position& p) {
+			if (h.value > 0)
+				return;
 
-							s_world.map[p.y][p.x] = TILE_FREE;
-							s_sm.AfterUpdateCmdBufer().DeleteEntity(e);
-						})
-				.Run();
+			s_world.map[p.y][p.x] = TILE_FREE;
+			s_sm.AfterUpdateCmdBufer().DeleteEntity(e);
+		});
 	}
 };
 
@@ -525,13 +499,9 @@ public:
 	void OnUpdate() override {
 		ClearScreen();
 		s_world.InitWorldMap();
-		GetWorld()
-				.ForEach(
-						m_q,
-						[&](const Position& p, const Sprite& s) {
-							s_world.map[p.y][p.x] = s.value;
-						})
-				.Run();
+		GetWorld().ForEach(m_q, [&](const Position& p, const Sprite& s) {
+			s_world.map[p.y][p.x] = s.value;
+		});
 	}
 };
 
@@ -552,23 +522,15 @@ public:
 	void OnUpdate() override {
 		ecs::EntityQuery qp;
 		qp.All<Health, Player>();
-		GetWorld()
-				.ForEach(
-						qp,
-						[](const Health& h) {
-							printf("Player health: %d/%d\n", h.value, h.valueMax);
-						})
-				.Run();
+		GetWorld().ForEach(qp, [](const Health& h) {
+			printf("Player health: %d/%d\n", h.value, h.valueMax);
+		});
 
 		ecs::EntityQuery qe;
 		qe.All<Health>().None<Player, Item>();
-		GetWorld()
-				.ForEach(
-						qe,
-						[](ecs::Entity e, const Health& h) {
-							printf("Enemy %d:%d health: %d/%d\n", e.id(), e.gen(), h.value, h.valueMax);
-						})
-				.Run();
+		GetWorld().ForEach(qe, [](ecs::Entity e, const Health& h) {
+			printf("Enemy %d:%d health: %d/%d\n", e.id(), e.gen(), h.value, h.valueMax);
+		});
 	}
 };
 
@@ -586,24 +548,20 @@ public:
 		s_world.terminate = m_key == 'p';
 
 		// Player movement
-		GetWorld()
-				.ForEach(
-						m_q,
-						[&](Velocity& v, const Position& p, const Orientation& o) {
-							v = {0, 0};
-							if (m_key == 'w') {
-								v = {0, -1};
-							} else if (m_key == 's') {
-								v = {0, 1};
-							} else if (m_key == 'a') {
-								v = {-1, 0};
-							} else if (m_key == 'd') {
-								v = {1, 0};
-							} else if (m_key == 'q') {
-								s_world.CreateArrow(p, {o.x, o.y});
-							}
-						})
-				.Run();
+		GetWorld().ForEach(m_q, [&](Velocity& v, const Position& p, const Orientation& o) {
+			v = {0, 0};
+			if (m_key == 'w') {
+				v = {0, -1};
+			} else if (m_key == 's') {
+				v = {0, 1};
+			} else if (m_key == 'a') {
+				v = {-1, 0};
+			} else if (m_key == 'd') {
+				v = {1, 0};
+			} else if (m_key == 'q') {
+				s_world.CreateArrow(p, {o.x, o.y});
+			}
+		});
 	}
 };
 
