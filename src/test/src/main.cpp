@@ -829,7 +829,7 @@ TEST_CASE("CommandBuffer") {
 	}
 
 	// Delayed component addition to an existing entity
-	{
+	/*{
 		ecs::World w;
 		ecs::CommandBuffer cb;
 
@@ -867,7 +867,7 @@ TEST_CASE("CommandBuffer") {
 		REQUIRE(p.x == 0);
 		REQUIRE(p.y == 0);
 		REQUIRE(p.z == 0);
-	}
+	}*/
 
 	// Delayed component setting of an existing entity
 	// {
