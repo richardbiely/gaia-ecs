@@ -197,7 +197,7 @@ w.ForEachChunk(ecs::EntityQuery().All<PositionSoA,VelocitySoA>, [](ecs::Chunk& c
   auto vvy = v.get<1>();
   auto vvz = v.get<2>();
 
-  auto exec = [](float* GAIA_RESTRICT p, const float* GAIA_RESTRICT v, const size_t sz) {
+  auto exec = [&](float* GAIA_RESTRICT p, const float* GAIA_RESTRICT v, const size_t sz) {
     for (size_t i = 0U; i < sz; ++i)
       p[i] += v[i] * dt;
     /*
@@ -229,7 +229,7 @@ w.ForEach(q, [&](Entity e, const Position& p) {
   if (p.y < 0.0f)
     cb.DeleteEntity(e); // queue entity e for deletion if its position falls bellow zero
 });
-cb.Commit(); // after calling this all entities with position bellow zero get deleted
+cb.Commit(&w); // after calling this all entities with y position bellow zero get deleted
 ```
 If you try to make an unprotected structural change with GAIA_DEBUG enabled (set by default when DEBUG mode is configured) the framework will assert letting you know you are using it in a wrong way.
 
