@@ -231,6 +231,7 @@ w.ForEach(q, [&](Entity e, const Position& p) {
 });
 cb.Commit(); // after calling this all entities with position bellow zero get deleted
 ```
+If you try to make an unprotected structural change with GAIA_DEBUG enabled (set by default when DEBUG mode is configured) the framework will assert letting you know you are using it in a wrong way.
 
 ## Chunk components
 Chunk component is a special kind of component which exists at most once per chunk.<br/>
