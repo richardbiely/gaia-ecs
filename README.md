@@ -110,7 +110,7 @@ w.ForEach([&](Position& p, const Velocity& v) {
   p.x += v.x * dt;
   p.y += v.y * dt;
   p.z += v.z * dt;
-}).Run();
+});
 ```
 
 You can also be more specifc and tell the framework you are looking for something more specific using an EntityQuery.<br/>
@@ -125,7 +125,7 @@ w.ForEach(q, [&](Position& p, const Velocity& v) {
   p.x += v.x * dt;
   p.y += v.y * dt;
   p.z += v.z * dt;
-}).Run();
+});
 ```
 
 We can even take it a step further and only perform the iteration if particular components change.<br/>
@@ -140,7 +140,7 @@ w.ForEach(q, [&](Position& p, const Velocity& v) {
   p.x += v.x * dt;
   p.y += v.y * dt;
   p.z += v.z * dt;
-}).Run();
+});
 ```
 
 ## Iteration over chunks
@@ -161,7 +161,7 @@ w.ForEachChunk([](ecs::Chunk& ch) {
       p[i].z += v[i].z * dt;
     }
   }(p.data(), v.data(), ch.GetItemCount());
-}).Run();
+});
 ```
 
 ## Making use of SoA component layout
@@ -214,7 +214,7 @@ w.ForEachChunk(ecs::EntityQuery().All<PositionSoA,VelocitySoA>, [](ecs::Chunk& c
   exec(ppx.data(), vvx.data(), size);
   exec(ppy.data(), vvy.data(), size);
   exec(ppz.data(), vvz.data(), size);
-}).Run();
+});
 ```
 
 ## Delayed execution
@@ -228,7 +228,7 @@ ecs::CommandBuffer cb;
 w.ForEach(q, [&](Entity e, const Position& p) {
   if (p.y < 0.0f)
     cb.DeleteEntity(e); // queue entity e for deletion if its position falls bellow zero
-}).Run();
+});
 cb.Commit(); // after calling this all entities with position bellow zero get deleted
 ```
 

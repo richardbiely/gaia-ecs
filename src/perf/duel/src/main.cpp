@@ -167,21 +167,21 @@ void BM_Game_ECS(benchmark::State& state) {
 
 		// Update position
 		w.ForEach(queryDynamic, [&](Position& p, const Velocity& v) {
-			 p.x += v.x * dt;
-			 p.y += v.y * dt;
-			 p.z += v.z * dt;
-		 }).Run();
+			p.x += v.x * dt;
+			p.y += v.y * dt;
+			p.z += v.z * dt;
+		});
 		// Handle ground collision
 		w.ForEach(queryDynamic, [&](Position& p, Velocity& v) {
-			 if (p.y < 0.0f) {
-				 p.y = 0.0f;
-				 v.y = 0.0f;
-			 }
-		 }).Run();
+			if (p.y < 0.0f) {
+				p.y = 0.0f;
+				v.y = 0.0f;
+			}
+		});
 		// Apply gravity
 		w.ForEach(queryDynamic, [&](Velocity& v) {
-			 v.y += 9.81f * dt;
-		 }).Run();
+			v.y += 9.81f * dt;
+		});
 	}
 }
 
@@ -198,15 +198,11 @@ void BM_Game_ECS_WithSystems(benchmark::State& state) {
 			m_q.All<Position, Velocity>();
 		}
 		void OnUpdate() override {
-			GetWorld()
-					.ForEach(
-							m_q,
-							[](Position& p, const Velocity& v) {
-								p.x += v.x * dt;
-								p.y += v.y * dt;
-								p.z += v.z * dt;
-							})
-					.Run();
+			GetWorld().ForEach(m_q, [](Position& p, const Velocity& v) {
+				p.x += v.x * dt;
+				p.y += v.y * dt;
+				p.z += v.z * dt;
+			});
 		}
 	};
 	class CollisionSystem final: public ecs::System {
@@ -217,26 +213,20 @@ void BM_Game_ECS_WithSystems(benchmark::State& state) {
 			m_q.All<Position, Velocity>();
 		}
 		void OnUpdate() override {
-			GetWorld()
-					.ForEach(
-							m_q,
-							[](Position& p, Velocity& v) {
-								if (p.y < 0.0f) {
-									p.y = 0.0f;
-									v.y = 0.0f;
-								}
-							})
-					.Run();
+			GetWorld().ForEach(m_q, [](Position& p, Velocity& v) {
+				if (p.y < 0.0f) {
+					p.y = 0.0f;
+					v.y = 0.0f;
+				}
+			});
 		}
 	};
 	class GravitySystem final: public ecs::System {
 	public:
 		void OnUpdate() override {
-			GetWorld()
-					.ForEach([](Velocity& v) {
-						v.y += 9.81f * dt;
-					})
-					.Run();
+			GetWorld().ForEach([](Velocity& v) {
+				v.y += 9.81f * dt;
+			});
 		}
 	};
 
@@ -266,22 +256,18 @@ void BM_Game_ECS_WithSystems_ForEachChunk(benchmark::State& state) {
 			m_q.All<Position, Velocity>();
 		}
 		void OnUpdate() override {
-			GetWorld()
-					.ForEachChunk(
-							m_q,
-							[](ecs::Chunk& ch) {
-								auto p = ch.ViewRW<Position>();
-								auto v = ch.View<Velocity>();
+			GetWorld().ForEachChunk(m_q, [](ecs::Chunk& ch) {
+				auto p = ch.ViewRW<Position>();
+				auto v = ch.View<Velocity>();
 
-								[&](Position* GAIA_RESTRICT p, const Velocity* GAIA_RESTRICT v, const uint32_t size) {
-									for (auto i = 0U; i < size; ++i) {
-										p[i].x += v[i].x * dt;
-										p[i].y += v[i].y * dt;
-										p[i].z += v[i].z * dt;
-									}
-								}(p.data(), v.data(), ch.GetItemCount());
-							})
-					.Run();
+				[&](Position* GAIA_RESTRICT p, const Velocity* GAIA_RESTRICT v, const uint32_t size) {
+					for (auto i = 0U; i < size; ++i) {
+						p[i].x += v[i].x * dt;
+						p[i].y += v[i].y * dt;
+						p[i].z += v[i].z * dt;
+					}
+				}(p.data(), v.data(), ch.GetItemCount());
+			});
 		}
 	};
 
@@ -293,23 +279,19 @@ void BM_Game_ECS_WithSystems_ForEachChunk(benchmark::State& state) {
 			m_q.All<Position, Velocity>();
 		}
 		void OnUpdate() override {
-			GetWorld()
-					.ForEachChunk(
-							m_q,
-							[](ecs::Chunk& ch) {
-								auto p = ch.ViewRW<Position>();
-								auto v = ch.ViewRW<Velocity>();
+			GetWorld().ForEachChunk(m_q, [](ecs::Chunk& ch) {
+				auto p = ch.ViewRW<Position>();
+				auto v = ch.ViewRW<Velocity>();
 
-								[&](Position* GAIA_RESTRICT p, Velocity* GAIA_RESTRICT v, const uint32_t size) {
-									for (auto i = 0U; i < size; ++i) {
-										if (p[i].y < 0.0f) {
-											p[i].y = 0.0f;
-											v[i].y = 0.0f;
-										}
-									}
-								}(p.data(), v.data(), ch.GetItemCount());
-							})
-					.Run();
+				[&](Position* GAIA_RESTRICT p, Velocity* GAIA_RESTRICT v, const uint32_t size) {
+					for (auto i = 0U; i < size; ++i) {
+						if (p[i].y < 0.0f) {
+							p[i].y = 0.0f;
+							v[i].y = 0.0f;
+						}
+					}
+				}(p.data(), v.data(), ch.GetItemCount());
+			});
 		}
 	};
 	class GravitySystem final: public ecs::System {
@@ -321,18 +303,14 @@ void BM_Game_ECS_WithSystems_ForEachChunk(benchmark::State& state) {
 		}
 
 		void OnUpdate() override {
-			GetWorld()
-					.ForEachChunk(
-							m_q,
-							[](ecs::Chunk& ch) {
-								auto v = ch.ViewRW<Velocity>();
+			GetWorld().ForEachChunk(m_q, [](ecs::Chunk& ch) {
+				auto v = ch.ViewRW<Velocity>();
 
-								[&](Velocity* GAIA_RESTRICT v, const uint32_t size) {
-									for (auto i = 0U; i < size; ++i)
-										v[i].y += 9.81f * dt;
-								}(v.data(), ch.GetItemCount());
-							})
-					.Run();
+				[&](Velocity* GAIA_RESTRICT v, const uint32_t size) {
+					for (auto i = 0U; i < size; ++i)
+						v[i].y += 9.81f * dt;
+				}(v.data(), ch.GetItemCount());
+			});
 		}
 	};
 
@@ -362,45 +340,41 @@ void BM_Game_ECS_WithSystems_ForEachChunk_SoA(benchmark::State& state) {
 			m_q.All<PositionSoA, VelocitySoA>();
 		}
 		void OnUpdate() override {
-			GetWorld()
-					.ForEachChunk(
-							m_q,
-							[](ecs::Chunk& ch) {
-								auto p = ch.ViewRW<PositionSoA>();
-								auto v = ch.View<VelocitySoA>();
+			GetWorld().ForEachChunk(m_q, [](ecs::Chunk& ch) {
+				auto p = ch.ViewRW<PositionSoA>();
+				auto v = ch.View<VelocitySoA>();
 
-								auto ppx = p.set<0>();
-								auto ppy = p.set<1>();
-								auto ppz = p.set<2>();
+				auto ppx = p.set<0>();
+				auto ppy = p.set<1>();
+				auto ppz = p.set<2>();
 
-								auto vvx = v.get<0>();
-								auto vvy = v.get<1>();
-								auto vvz = v.get<2>();
+				auto vvx = v.get<0>();
+				auto vvy = v.get<1>();
+				auto vvz = v.get<2>();
 
-								////////////////////////////////////////////////////////////////////
-								// This is the code we'd like to run. However, not all compilers are
-								// as smart as Clang so they wouldn't be able to vectorize even though
-								// the oportunity is screaming.
-								////////////////////////////////////////////////////////////////////
-								// for (auto i = 0U; i < ch.GetItemCount(); ++i)
-								// 	ppx[i] += vvx[i] * dt;
-								// for (auto i = 0U; i < ch.GetItemCount(); ++i)
-								// 	ppy[i] += vvy[i] * dt;
-								// for (auto i = 0U; i < ch.GetItemCount(); ++i)
-								// 	ppz[i] += vvz[i] * dt;
-								////////////////////////////////////////////////////////////////////
+				////////////////////////////////////////////////////////////////////
+				// This is the code we'd like to run. However, not all compilers are
+				// as smart as Clang so they wouldn't be able to vectorize even though
+				// the oportunity is screaming.
+				////////////////////////////////////////////////////////////////////
+				// for (auto i = 0U; i < ch.GetItemCount(); ++i)
+				// 	ppx[i] += vvx[i] * dt;
+				// for (auto i = 0U; i < ch.GetItemCount(); ++i)
+				// 	ppy[i] += vvy[i] * dt;
+				// for (auto i = 0U; i < ch.GetItemCount(); ++i)
+				// 	ppz[i] += vvz[i] * dt;
+				////////////////////////////////////////////////////////////////////
 
-								auto exec = [](float* GAIA_RESTRICT p, const float* GAIA_RESTRICT v, const size_t sz) {
-									for (size_t i = 0U; i < sz; ++i)
-										p[i] += v[i] * dt;
-								};
+				auto exec = [](float* GAIA_RESTRICT p, const float* GAIA_RESTRICT v, const size_t sz) {
+					for (size_t i = 0U; i < sz; ++i)
+						p[i] += v[i] * dt;
+				};
 
-								const auto size = ch.GetItemCount();
-								exec(ppx.data(), vvx.data(), size);
-								exec(ppy.data(), vvy.data(), size);
-								exec(ppz.data(), vvz.data(), size);
-							})
-					.Run();
+				const auto size = ch.GetItemCount();
+				exec(ppx.data(), vvx.data(), size);
+				exec(ppy.data(), vvy.data(), size);
+				exec(ppz.data(), vvz.data(), size);
+			});
 		}
 	};
 	class CollisionSystem final: public ecs::System {
@@ -411,42 +385,38 @@ void BM_Game_ECS_WithSystems_ForEachChunk_SoA(benchmark::State& state) {
 			m_q.All<PositionSoA, VelocitySoA>();
 		}
 		void OnUpdate() override {
-			GetWorld()
-					.ForEachChunk(
-							m_q,
-							[](ecs::Chunk& ch) {
-								auto p = ch.ViewRW<PositionSoA>();
-								auto v = ch.ViewRW<VelocitySoA>();
+			GetWorld().ForEachChunk(m_q, [](ecs::Chunk& ch) {
+				auto p = ch.ViewRW<PositionSoA>();
+				auto v = ch.ViewRW<VelocitySoA>();
 
-								auto ppy = p.set<1>();
-								auto vvy = v.set<1>();
+				auto ppy = p.set<1>();
+				auto vvy = v.set<1>();
 
-								////////////////////////////////////////////////////////////////////
-								// This is the code we'd like to run. However, not all compilers are
-								// as smart as Clang so they wouldn't be able to vectorize even though
-								// the oportunity is screaming.
-								////////////////////////////////////////////////////////////////////
-								// for (auto i = 0U; i < ch.GetItemCount(); ++i) {
-								// 	 if (ppy[i] < 0.0f) {
-								// 		 ppy[i] = 0.0f;
-								// 		 vvy[i] = 0.0f;
-								//   }
-								// }
-								////////////////////////////////////////////////////////////////////
+				////////////////////////////////////////////////////////////////////
+				// This is the code we'd like to run. However, not all compilers are
+				// as smart as Clang so they wouldn't be able to vectorize even though
+				// the oportunity is screaming.
+				////////////////////////////////////////////////////////////////////
+				// for (auto i = 0U; i < ch.GetItemCount(); ++i) {
+				// 	 if (ppy[i] < 0.0f) {
+				// 		 ppy[i] = 0.0f;
+				// 		 vvy[i] = 0.0f;
+				//   }
+				// }
+				////////////////////////////////////////////////////////////////////
 
-								auto exec = [](float* GAIA_RESTRICT p, float* GAIA_RESTRICT v, const size_t sz) {
-									for (auto i = 0U; i < sz; ++i) {
-										if (p[i] < 0.0f) {
-											p[i] = 0.0f;
-											v[i] = 0.0f;
-										}
-									}
-								};
+				auto exec = [](float* GAIA_RESTRICT p, float* GAIA_RESTRICT v, const size_t sz) {
+					for (auto i = 0U; i < sz; ++i) {
+						if (p[i] < 0.0f) {
+							p[i] = 0.0f;
+							v[i] = 0.0f;
+						}
+					}
+				};
 
-								const auto size = ch.GetItemCount();
-								exec(ppy.data(), vvy.data(), size);
-							})
-					.Run();
+				const auto size = ch.GetItemCount();
+				exec(ppy.data(), vvy.data(), size);
+			});
 		}
 	};
 	class GravitySystem final: public ecs::System {
@@ -458,31 +428,27 @@ void BM_Game_ECS_WithSystems_ForEachChunk_SoA(benchmark::State& state) {
 		}
 
 		void OnUpdate() override {
-			GetWorld()
-					.ForEachChunk(
-							m_q,
-							[](ecs::Chunk& ch) {
-								auto v = ch.ViewRW<VelocitySoA>();
-								auto vvy = v.set<1>();
+			GetWorld().ForEachChunk(m_q, [](ecs::Chunk& ch) {
+				auto v = ch.ViewRW<VelocitySoA>();
+				auto vvy = v.set<1>();
 
-								////////////////////////////////////////////////////////////////////
-								// This is the code we'd like to run. However, not all compilers are
-								// as smart as Clang so they wouldn't be able to vectorize even though
-								// the oportunity is screaming.
-								////////////////////////////////////////////////////////////////////
-								// for (auto i = 0U; i < ch.GetItemCount(); ++i)
-								// 	vvy[i] = vvy[i] * dt * 9.81f;
-								////////////////////////////////////////////////////////////////////
+				////////////////////////////////////////////////////////////////////
+				// This is the code we'd like to run. However, not all compilers are
+				// as smart as Clang so they wouldn't be able to vectorize even though
+				// the oportunity is screaming.
+				////////////////////////////////////////////////////////////////////
+				// for (auto i = 0U; i < ch.GetItemCount(); ++i)
+				// 	vvy[i] = vvy[i] * dt * 9.81f;
+				////////////////////////////////////////////////////////////////////
 
-								auto exec = [](float* GAIA_RESTRICT v, const size_t sz) {
-									for (size_t i = 0U; i < sz; ++i)
-										v[i] *= dt * 9.81f;
-								};
+				auto exec = [](float* GAIA_RESTRICT v, const size_t sz) {
+					for (size_t i = 0U; i < sz; ++i)
+						v[i] *= dt * 9.81f;
+				};
 
-								const auto size = ch.GetItemCount();
-								exec(vvy.data(), size);
-							})
-					.Run();
+				const auto size = ch.GetItemCount();
+				exec(vvy.data(), size);
+			});
 		}
 	};
 
@@ -557,56 +523,52 @@ void BM_Game_ECS_WithSystems_ForEachChunk_SoA_ManualSIMD(benchmark::State& state
 			m_q.All<PositionSoA, VelocitySoA>();
 		}
 		void OnUpdate() override {
-			GetWorld()
-					.ForEachChunk(
-							m_q,
-							[](ecs::Chunk& ch) {
-								auto p = ch.ViewRW<PositionSoA>();
-								auto v = ch.View<VelocitySoA>();
+			GetWorld().ForEachChunk(m_q, [](ecs::Chunk& ch) {
+				auto p = ch.ViewRW<PositionSoA>();
+				auto v = ch.View<VelocitySoA>();
 
-								auto ppx = p.set<0>();
-								auto ppy = p.set<1>();
-								auto ppz = p.set<2>();
+				auto ppx = p.set<0>();
+				auto ppy = p.set<1>();
+				auto ppz = p.set<2>();
 
-								auto vvx = v.get<0>();
-								auto vvy = v.get<1>();
-								auto vvz = v.get<2>();
+				auto vvx = v.get<0>();
+				auto vvy = v.get<1>();
+				auto vvz = v.get<2>();
 
-								const auto size = ch.GetItemCount();
-								const auto dtVec = _mm_set_ps1(dt);
+				const auto size = ch.GetItemCount();
+				const auto dtVec = _mm_set_ps1(dt);
 
-								auto exec = [&](float* GAIA_RESTRICT p, const float* GAIA_RESTRICT v, const size_t offset) {
-									const auto pVec = _mm_load_ps(p + offset);
-									const auto vVec = _mm_load_ps(v + offset);
-									const auto respVec = _mm_fmadd_ps(vVec, dtVec, pVec);
-									_mm_store_ps(p + offset, respVec);
-								};
+				auto exec = [&](float* GAIA_RESTRICT p, const float* GAIA_RESTRICT v, const size_t offset) {
+					const auto pVec = _mm_load_ps(p + offset);
+					const auto vVec = _mm_load_ps(v + offset);
+					const auto respVec = _mm_fmadd_ps(vVec, dtVec, pVec);
+					_mm_store_ps(p + offset, respVec);
+				};
 
-								size_t i;
-								// Optimize via "double-read" trick to hide latencies.
-								// Item count is always a multiple of 4 for chunks with SoA components.
-								for (i = 0; i < size; i += 8) {
-									exec(ppx.data(), vvx.data(), i);
-									exec(ppx.data(), vvx.data(), i + 4);
-								}
-								for (; i < size; i += 4)
-									exec(ppx.data(), vvx.data(), i);
+				size_t i;
+				// Optimize via "double-read" trick to hide latencies.
+				// Item count is always a multiple of 4 for chunks with SoA components.
+				for (i = 0; i < size; i += 8) {
+					exec(ppx.data(), vvx.data(), i);
+					exec(ppx.data(), vvx.data(), i + 4);
+				}
+				for (; i < size; i += 4)
+					exec(ppx.data(), vvx.data(), i);
 
-								for (i = 0; i < size; i += 8) {
-									exec(ppy.data(), vvy.data(), i);
-									exec(ppy.data(), vvy.data(), i + 4);
-								}
-								for (; i < size; i += 4)
-									exec(ppy.data(), vvy.data(), i);
+				for (i = 0; i < size; i += 8) {
+					exec(ppy.data(), vvy.data(), i);
+					exec(ppy.data(), vvy.data(), i + 4);
+				}
+				for (; i < size; i += 4)
+					exec(ppy.data(), vvy.data(), i);
 
-								for (i = 0; i < size; i += 8) {
-									exec(ppz.data(), vvz.data(), i);
-									exec(ppz.data(), vvz.data(), i + 4);
-								}
-								for (; i < size; i += 4)
-									exec(ppz.data(), vvz.data(), i);
-							})
-					.Run();
+				for (i = 0; i < size; i += 8) {
+					exec(ppz.data(), vvz.data(), i);
+					exec(ppz.data(), vvz.data(), i + 4);
+				}
+				for (; i < size; i += 4)
+					exec(ppz.data(), vvz.data(), i);
+			});
 		}
 	};
 
@@ -618,40 +580,36 @@ void BM_Game_ECS_WithSystems_ForEachChunk_SoA_ManualSIMD(benchmark::State& state
 			m_q.All<PositionSoA, VelocitySoA>();
 		}
 		void OnUpdate() override {
-			GetWorld()
-					.ForEachChunk(
-							m_q,
-							[](ecs::Chunk& ch) {
-								auto p = ch.ViewRW<PositionSoA>();
-								auto v = ch.ViewRW<VelocitySoA>();
+			GetWorld().ForEachChunk(m_q, [](ecs::Chunk& ch) {
+				auto p = ch.ViewRW<PositionSoA>();
+				auto v = ch.ViewRW<VelocitySoA>();
 
-								auto ppy = p.set<1>();
-								auto vvy = v.set<1>();
-								const auto size = ch.GetItemCount();
+				auto ppy = p.set<1>();
+				auto vvy = v.set<1>();
+				const auto size = ch.GetItemCount();
 
-								auto exec = [&](float* GAIA_RESTRICT p, float* GAIA_RESTRICT v, const size_t offset) {
-									const auto vyVec = _mm_load_ps(v + offset);
-									const auto pyVec = _mm_load_ps(p + offset);
+				auto exec = [&](float* GAIA_RESTRICT p, float* GAIA_RESTRICT v, const size_t offset) {
+					const auto vyVec = _mm_load_ps(v + offset);
+					const auto pyVec = _mm_load_ps(p + offset);
 
-									const auto condVec = _mm_cmplt_ps(vyVec, _mm_setzero_ps());
-									const auto res_vyVec = _mm_blendv_ps(vyVec, _mm_setzero_ps(), condVec);
-									const auto res_pyVec = _mm_blendv_ps(pyVec, _mm_setzero_ps(), condVec);
+					const auto condVec = _mm_cmplt_ps(vyVec, _mm_setzero_ps());
+					const auto res_vyVec = _mm_blendv_ps(vyVec, _mm_setzero_ps(), condVec);
+					const auto res_pyVec = _mm_blendv_ps(pyVec, _mm_setzero_ps(), condVec);
 
-									_mm_store_ps(v + offset, res_vyVec);
-									_mm_store_ps(p + offset, res_pyVec);
-								};
+					_mm_store_ps(v + offset, res_vyVec);
+					_mm_store_ps(p + offset, res_pyVec);
+				};
 
-								size_t i;
-								// Optimize via "double-read" trick to hide latencies.
-								// Item count is always a multiple of 4 for chunks with SoA components.
-								for (i = 0; i < size; i += 8) {
-									exec(ppy.data(), vvy.data(), i);
-									exec(ppy.data(), vvy.data(), i + 4);
-								}
-								for (; i < size; i += 4)
-									exec(ppy.data(), vvy.data(), i);
-							})
-					.Run();
+				size_t i;
+				// Optimize via "double-read" trick to hide latencies.
+				// Item count is always a multiple of 4 for chunks with SoA components.
+				for (i = 0; i < size; i += 8) {
+					exec(ppy.data(), vvy.data(), i);
+					exec(ppy.data(), vvy.data(), i + 4);
+				}
+				for (; i < size; i += 4)
+					exec(ppy.data(), vvy.data(), i);
+			});
 		}
 	};
 
@@ -664,34 +622,30 @@ void BM_Game_ECS_WithSystems_ForEachChunk_SoA_ManualSIMD(benchmark::State& state
 		}
 
 		void OnUpdate() override {
-			GetWorld()
-					.ForEachChunk(
-							m_q,
-							[](ecs::Chunk& ch) {
-								auto v = ch.ViewRW<VelocitySoA>();
+			GetWorld().ForEachChunk(m_q, [](ecs::Chunk& ch) {
+				auto v = ch.ViewRW<VelocitySoA>();
 
-								auto vvy = v.set<1>();
-								const auto size = ch.GetItemCount();
+				auto vvy = v.set<1>();
+				const auto size = ch.GetItemCount();
 
-								const auto gg_dtVec = _mm_set_ps1(9.81f * dt);
+				const auto gg_dtVec = _mm_set_ps1(9.81f * dt);
 
-								auto exec = [&](float* GAIA_RESTRICT v, const size_t offset) {
-									const auto vyVec = _mm_load_ps(vvy.data() + offset);
-									const auto mulVec = _mm_mul_ps(vyVec, gg_dtVec);
-									_mm_store_ps(v + offset, mulVec);
-								};
+				auto exec = [&](float* GAIA_RESTRICT v, const size_t offset) {
+					const auto vyVec = _mm_load_ps(vvy.data() + offset);
+					const auto mulVec = _mm_mul_ps(vyVec, gg_dtVec);
+					_mm_store_ps(v + offset, mulVec);
+				};
 
-								size_t i;
-								// Optimize via "double-read" trick to hide latencies.
-								// Item count is always a multiple of 4 for chunks with SoA components.
-								for (i = 0; i < size; i += 8) {
-									exec(vvy.data(), i);
-									exec(vvy.data(), i + 4);
-								}
-								for (; i < size; i += 4)
-									exec(vvy.data(), i);
-							})
-					.Run();
+				size_t i;
+				// Optimize via "double-read" trick to hide latencies.
+				// Item count is always a multiple of 4 for chunks with SoA components.
+				for (i = 0; i < size; i += 8) {
+					exec(vvy.data(), i);
+					exec(vvy.data(), i + 4);
+				}
+				for (; i < size; i += 4)
+					exec(vvy.data(), i);
+			});
 		}
 	};
 

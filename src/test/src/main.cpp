@@ -336,18 +336,18 @@ TEST_CASE("SetComponent - generic") {
 		q.All<Rotation, Scale, Else, PositionNonTrivial>();
 
 		w.ForEachChunk(q, [&](ecs::Chunk& chunk) {
-			 auto rotationView = chunk.ViewRW<Rotation>();
-			 auto scaleView = chunk.ViewRW<Scale>();
-			 auto elseView = chunk.ViewRW<Else>();
-			 auto posView = chunk.ViewRW<PositionNonTrivial>();
+			auto rotationView = chunk.ViewRW<Rotation>();
+			auto scaleView = chunk.ViewRW<Scale>();
+			auto elseView = chunk.ViewRW<Else>();
+			auto posView = chunk.ViewRW<PositionNonTrivial>();
 
-			 for (uint32_t i = 0U; i < chunk.GetItemCount(); ++i) {
-				 rotationView[i] = {1, 2, 3, 4};
-				 scaleView[i] = {11, 22, 33};
-				 elseView[i] = {true};
-				 posView[i] = {111, 222, 333};
-			 }
-		 }).Run();
+			for (uint32_t i = 0U; i < chunk.GetItemCount(); ++i) {
+				rotationView[i] = {1, 2, 3, 4};
+				scaleView[i] = {11, 22, 33};
+				elseView[i] = {true};
+				posView[i] = {111, 222, 333};
+			}
+		});
 
 		for (const auto ent: arr) {
 			Rotation r;
@@ -421,18 +421,18 @@ TEST_CASE("SetComponent - generic & chunk") {
 		q.All<Rotation, Scale, Else>();
 
 		w.ForEachChunk(q, [&](ecs::Chunk& chunk) {
-			 auto rotationView = chunk.ViewRW<Rotation>();
-			 auto scaleView = chunk.ViewRW<Scale>();
-			 auto elseView = chunk.ViewRW<Else>();
+			auto rotationView = chunk.ViewRW<Rotation>();
+			auto scaleView = chunk.ViewRW<Scale>();
+			auto elseView = chunk.ViewRW<Else>();
 
-			 chunk.SetChunkComponent<Position>({111, 222, 333});
+			chunk.SetChunkComponent<Position>({111, 222, 333});
 
-			 for (uint32_t i = 0U; i < chunk.GetItemCount(); ++i) {
-				 rotationView[i] = {1, 2, 3, 4};
-				 scaleView[i] = {11, 22, 33};
-				 elseView[i] = {true};
-			 }
-		 }).Run();
+			for (uint32_t i = 0U; i < chunk.GetItemCount(); ++i) {
+				rotationView[i] = {1, 2, 3, 4};
+				scaleView[i] = {11, 22, 33};
+				elseView[i] = {true};
+			}
+		});
 
 		{
 			Position p;
@@ -480,15 +480,15 @@ TEST_CASE("Usage 1 - simple query, 1 component") {
 	{
 		uint32_t cnt = 0;
 		w.ForEach([&]([[maybe_unused]] const Acceleration& a) {
-			 ++cnt;
-		 }).Run();
+			++cnt;
+		});
 		REQUIRE(cnt == 0);
 	}
 	{
 		uint32_t cnt = 0;
 		w.ForEach([&]([[maybe_unused]] const Position& a) {
-			 ++cnt;
-		 }).Run();
+			++cnt;
+		});
 		REQUIRE(cnt == 1);
 	}
 
@@ -499,8 +499,8 @@ TEST_CASE("Usage 1 - simple query, 1 component") {
 	{
 		uint32_t cnt = 0;
 		w.ForEach([&]([[maybe_unused]] const Position& a) {
-			 ++cnt;
-		 }).Run();
+			++cnt;
+		});
 		REQUIRE(cnt == 4);
 	}
 
@@ -509,8 +509,8 @@ TEST_CASE("Usage 1 - simple query, 1 component") {
 	{
 		uint32_t cnt = 0;
 		w.ForEach([&]([[maybe_unused]] const Position& a) {
-			 ++cnt;
-		 }).Run();
+			++cnt;
+		});
 		REQUIRE(cnt == 3);
 	}
 
@@ -521,8 +521,8 @@ TEST_CASE("Usage 1 - simple query, 1 component") {
 	{
 		uint32_t cnt = 0;
 		w.ForEach([&]([[maybe_unused]] const Position& a) {
-			 ++cnt;
-		 }).Run();
+			++cnt;
+		});
 		REQUIRE(cnt == 0);
 	}
 }
@@ -536,15 +536,15 @@ TEST_CASE("Usage 1 - simple query, 1 chunk component") {
 	{
 		uint32_t cnt = 0;
 		w.ForEach([&]([[maybe_unused]] const Position& a) {
-			 ++cnt;
-		 }).Run();
+			++cnt;
+		});
 		REQUIRE(cnt == 0);
 	}
 	{
 		uint32_t cnt = 0;
 		w.ForEachChunk(ecs::EntityQuery().AllChunk<Position>(), [&]([[maybe_unused]] const ecs::Chunk& chunk) {
-			 ++cnt;
-		 }).Run();
+			++cnt;
+		});
 		REQUIRE(cnt == 1);
 	}
 
@@ -555,8 +555,8 @@ TEST_CASE("Usage 1 - simple query, 1 chunk component") {
 	{
 		uint32_t cnt = 0;
 		w.ForEachChunk(ecs::EntityQuery().AllChunk<Position>(), [&]([[maybe_unused]] const ecs::Chunk& chunk) {
-			 ++cnt;
-		 }).Run();
+			++cnt;
+		});
 		REQUIRE(cnt == 1);
 	}
 
@@ -565,8 +565,8 @@ TEST_CASE("Usage 1 - simple query, 1 chunk component") {
 	{
 		uint32_t cnt = 0;
 		w.ForEachChunk(ecs::EntityQuery().AllChunk<Position>(), [&]([[maybe_unused]] const ecs::Chunk& chunk) {
-			 ++cnt;
-		 }).Run();
+			++cnt;
+		});
 		REQUIRE(cnt == 1);
 	}
 
@@ -577,8 +577,8 @@ TEST_CASE("Usage 1 - simple query, 1 chunk component") {
 	{
 		uint32_t cnt = 0;
 		w.ForEachChunk(ecs::EntityQuery().AllChunk<Position>(), [&]([[maybe_unused]] const ecs::Chunk& chunk) {
-			 ++cnt;
-		 }).Run();
+			++cnt;
+		});
 		REQUIRE(cnt == 0);
 	}
 }
@@ -596,43 +596,43 @@ TEST_CASE("Usage 2 - simple query, many components") {
 	{
 		uint32_t cnt = 0;
 		w.ForEach([&]([[maybe_unused]] const Position& a) {
-			 ++cnt;
-		 }).Run();
+			++cnt;
+		});
 		REQUIRE(cnt == 2);
 	}
 	{
 		uint32_t cnt = 0;
 		w.ForEach([&]([[maybe_unused]] const Acceleration& a) {
-			 ++cnt;
-		 }).Run();
+			++cnt;
+		});
 		REQUIRE(cnt == 2);
 	}
 	{
 		uint32_t cnt = 0;
 		w.ForEach([&]([[maybe_unused]] const Rotation& a) {
-			 ++cnt;
-		 }).Run();
+			++cnt;
+		});
 		REQUIRE(cnt == 1);
 	}
 	{
 		uint32_t cnt = 0;
 		w.ForEach([&]([[maybe_unused]] const Scale& a) {
-			 ++cnt;
-		 }).Run();
+			++cnt;
+		});
 		REQUIRE(cnt == 2);
 	}
 	{
 		uint32_t cnt = 0;
 		w.ForEach([&]([[maybe_unused]] const Position& p, [[maybe_unused]] const Acceleration& s) {
-			 ++cnt;
-		 }).Run();
+			++cnt;
+		});
 		REQUIRE(cnt == 2);
 	}
 	{
 		uint32_t cnt = 0;
 		w.ForEach([&]([[maybe_unused]] const Position& p, [[maybe_unused]] const Scale& s) {
-			 ++cnt;
-		 }).Run();
+			++cnt;
+		});
 		REQUIRE(cnt == 1);
 	}
 	{
@@ -641,13 +641,13 @@ TEST_CASE("Usage 2 - simple query, many components") {
 
 		uint32_t cnt = 0;
 		w.ForEachChunk(q, [&](ecs::Chunk& chunk) {
-			 ++cnt;
+			++cnt;
 
-			 const bool ok1 = chunk.HasComponent<Position>() || chunk.HasComponent<Acceleration>();
-			 REQUIRE(ok1);
-			 const bool ok2 = chunk.HasComponent<Acceleration>() || chunk.HasComponent<Position>();
-			 REQUIRE(ok2);
-		 }).Run();
+			const bool ok1 = chunk.HasComponent<Position>() || chunk.HasComponent<Acceleration>();
+			REQUIRE(ok1);
+			const bool ok2 = chunk.HasComponent<Acceleration>() || chunk.HasComponent<Position>();
+			REQUIRE(ok2);
+		});
 		REQUIRE(cnt == 2);
 	}
 	{
@@ -656,15 +656,15 @@ TEST_CASE("Usage 2 - simple query, many components") {
 
 		uint32_t cnt = 0;
 		w.ForEachChunk(q, [&](ecs::Chunk& chunk) {
-			 ++cnt;
+			++cnt;
 
-			 REQUIRE(chunk.GetItemCount() == 1);
+			REQUIRE(chunk.GetItemCount() == 1);
 
-			 const bool ok1 = chunk.HasComponent<Position>() || chunk.HasComponent<Acceleration>();
-			 REQUIRE(ok1);
-			 const bool ok2 = chunk.HasComponent<Acceleration>() || chunk.HasComponent<Position>();
-			 REQUIRE(ok2);
-		 }).Run();
+			const bool ok1 = chunk.HasComponent<Position>() || chunk.HasComponent<Acceleration>();
+			REQUIRE(ok1);
+			const bool ok2 = chunk.HasComponent<Acceleration>() || chunk.HasComponent<Position>();
+			REQUIRE(ok2);
+		});
 		REQUIRE(cnt == 1);
 	}
 	{
@@ -673,10 +673,10 @@ TEST_CASE("Usage 2 - simple query, many components") {
 
 		uint32_t cnt = 0;
 		w.ForEachChunk(q, [&](ecs::Chunk& chunk) {
-			 ++cnt;
+			++cnt;
 
-			 REQUIRE(chunk.GetItemCount() == 1);
-		 }).Run();
+			REQUIRE(chunk.GetItemCount() == 1);
+		});
 		REQUIRE(cnt == 1);
 	}
 }
@@ -694,36 +694,36 @@ TEST_CASE("Usage 2 - simple query, many chunk components") {
 	{
 		uint32_t cnt = 0;
 		w.ForEachChunk(ecs::EntityQuery().AllChunk<Position>(), [&]([[maybe_unused]] const ecs::Chunk& chunk) {
-			 ++cnt;
-		 }).Run();
+			++cnt;
+		});
 		REQUIRE(cnt == 2);
 	}
 	{
 		uint32_t cnt = 0;
 		w.ForEachChunk(ecs::EntityQuery().AllChunk<Acceleration>(), [&]([[maybe_unused]] const ecs::Chunk& chunk) {
-			 ++cnt;
-		 }).Run();
+			++cnt;
+		});
 		REQUIRE(cnt == 2);
 	}
 	{
 		uint32_t cnt = 0;
 		w.ForEachChunk(ecs::EntityQuery().AllChunk<Rotation>(), [&]([[maybe_unused]] const ecs::Chunk& chunk) {
-			 ++cnt;
-		 }).Run();
+			++cnt;
+		});
 		REQUIRE(cnt == 1);
 	}
 	{
 		uint32_t cnt = 0;
 		w.ForEachChunk(ecs::EntityQuery().AllChunk<Else>(), [&]([[maybe_unused]] const ecs::Chunk& chunk) {
-			 ++cnt;
-		 }).Run();
+			++cnt;
+		});
 		REQUIRE(cnt == 2);
 	}
 	{
 		uint32_t cnt = 0;
 		w.ForEachChunk(ecs::EntityQuery().AllChunk<Scale>(), [&]([[maybe_unused]] const ecs::Chunk& chunk) {
-			 ++cnt;
-		 }).Run();
+			++cnt;
+		});
 		REQUIRE(cnt == 2);
 	}
 	{
@@ -732,13 +732,13 @@ TEST_CASE("Usage 2 - simple query, many chunk components") {
 
 		uint32_t cnt = 0;
 		w.ForEachChunk(q, [&](ecs::Chunk& chunk) {
-			 ++cnt;
+			++cnt;
 
-			 const bool ok1 = chunk.HasChunkComponent<Position>() || chunk.HasChunkComponent<Acceleration>();
-			 REQUIRE(ok1);
-			 const bool ok2 = chunk.HasChunkComponent<Acceleration>() || chunk.HasChunkComponent<Position>();
-			 REQUIRE(ok2);
-		 }).Run();
+			const bool ok1 = chunk.HasChunkComponent<Position>() || chunk.HasChunkComponent<Acceleration>();
+			REQUIRE(ok1);
+			const bool ok2 = chunk.HasChunkComponent<Acceleration>() || chunk.HasChunkComponent<Position>();
+			REQUIRE(ok2);
+		});
 		REQUIRE(cnt == 2);
 	}
 	{
@@ -747,15 +747,15 @@ TEST_CASE("Usage 2 - simple query, many chunk components") {
 
 		uint32_t cnt = 0;
 		w.ForEachChunk(q, [&](ecs::Chunk& chunk) {
-			 ++cnt;
+			++cnt;
 
-			 REQUIRE(chunk.GetItemCount() == 1);
+			REQUIRE(chunk.GetItemCount() == 1);
 
-			 const bool ok1 = chunk.HasChunkComponent<Position>() || chunk.HasChunkComponent<Acceleration>();
-			 REQUIRE(ok1);
-			 const bool ok2 = chunk.HasChunkComponent<Acceleration>() || chunk.HasChunkComponent<Position>();
-			 REQUIRE(ok2);
-		 }).Run();
+			const bool ok1 = chunk.HasChunkComponent<Position>() || chunk.HasChunkComponent<Acceleration>();
+			REQUIRE(ok1);
+			const bool ok2 = chunk.HasChunkComponent<Acceleration>() || chunk.HasChunkComponent<Position>();
+			REQUIRE(ok2);
+		});
 		REQUIRE(cnt == 1);
 	}
 	{
@@ -764,10 +764,10 @@ TEST_CASE("Usage 2 - simple query, many chunk components") {
 
 		uint32_t cnt = 0;
 		w.ForEachChunk(q, [&](ecs::Chunk& chunk) {
-			 ++cnt;
+			++cnt;
 
-			 REQUIRE(chunk.GetItemCount() == 1);
-		 }).Run();
+			REQUIRE(chunk.GetItemCount() == 1);
+		});
 		REQUIRE(cnt == 1);
 	}
 }
@@ -947,15 +947,15 @@ TEST_CASE("Query Filter - no systems") {
 	{
 		uint32_t cnt = 0;
 		w.ForEach(q, [&]([[maybe_unused]] const Position& a) {
-			 ++cnt;
-		 }).Run();
+			++cnt;
+		});
 		REQUIRE(cnt == 1); // first run always happens
 	}
 	{
 		uint32_t cnt = 0;
 		w.ForEach(q, [&]([[maybe_unused]] const Position& a) {
-			 ++cnt;
-		 }).Run();
+			++cnt;
+		});
 		REQUIRE(cnt == 0); // no change of position so this shouldn't run
 	}
 	{
@@ -965,15 +965,15 @@ TEST_CASE("Query Filter - no systems") {
 	{
 		uint32_t cnt = 0;
 		w.ForEach(q, [&]([[maybe_unused]] const Position& a) {
-			 ++cnt;
-		 }).Run();
+			++cnt;
+		});
 		REQUIRE(cnt == 1);
 	}
 	{
 		uint32_t cnt = 0;
 		w.ForEach(q, [&]([[maybe_unused]] const Position& a) {
-			 ++cnt;
-		 }).Run();
+			++cnt;
+		});
 		REQUIRE(cnt == 0);
 	}
 }
@@ -987,7 +987,7 @@ TEST_CASE("Query Filter - systems") {
 	class WriterSystem final: public ecs::System {
 	public:
 		void OnUpdate() override {
-			GetWorld().ForEach([]([[maybe_unused]] Position& a) {}).Run();
+			GetWorld().ForEach([]([[maybe_unused]] Position& a) {});
 		}
 	};
 	class ReaderSystem final: public ecs::System {
@@ -1004,13 +1004,9 @@ TEST_CASE("Query Filter - systems") {
 		}
 		void OnUpdate() override {
 			uint32_t cnt = 0;
-			GetWorld()
-					.ForEach(
-							m_q,
-							[&]([[maybe_unused]] const Position& a) {
-								++cnt;
-							})
-					.Run();
+			GetWorld().ForEach(m_q, [&]([[maybe_unused]] const Position& a) {
+				++cnt;
+			});
 			REQUIRE(cnt == m_expectedCnt);
 		}
 	};

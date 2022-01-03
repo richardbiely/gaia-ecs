@@ -112,7 +112,9 @@ namespace gaia {
 			\param entityChunkIndex Index of entity within its chunk
 			*/
 			void RemoveEntity(Chunk* pChunk, uint32_t entityChunkIndex) {
-				GAIA_ASSERT(!pChunk->header.owner.structuralChangesLocked && "Entities can't be removed while chunk is being iterated (structural changes are forbidden during this time!)");
+				GAIA_ASSERT(
+						!pChunk->header.owner.structuralChangesLocked && "Entities can't be removed while chunk is being iterated "
+																														 "(structural changes are forbidden during this time!)");
 
 				pChunk->RemoveEntity(entityChunkIndex, m_entities);
 
@@ -330,7 +332,9 @@ namespace gaia {
 			*/
 			void StoreEntity(Entity entity, Chunk* pChunk) {
 				GAIA_ASSERT(pChunk != nullptr);
-				GAIA_ASSERT(!pChunk->header.owner.structuralChangesLocked && "Entities can't be added while chunk is being iterated (structural changes are forbidden during this time!)");
+				GAIA_ASSERT(
+						!pChunk->header.owner.structuralChangesLocked && "Entities can't be added while chunk is being iterated "
+																														 "(structural changes are forbidden during this time!)");
 
 				auto& entityContainer = m_entities[entity.id()];
 				entityContainer.pChunk = pChunk;
@@ -351,7 +355,10 @@ namespace gaia {
 					const auto metaTypesCount = (uint32_t)componentTypeList.size() + (uint32_t)typesToAdd.size();
 
 #if GAIA_DEBUG
-					GAIA_ASSERT(!pChunk->header.owner.structuralChangesLocked && "Components can't be added while chunk is being iterated (structural changes are forbidden during this time!)");
+					GAIA_ASSERT(
+							!pChunk->header.owner.structuralChangesLocked &&
+							"Components can't be added while chunk is being iterated (structural changes are forbidden during this "
+							"time!)");
 
 					if (!VerityArchetypeComponentCount(metaTypesCount)) {
 						GAIA_ASSERT(false && "Trying to add too many ECS components to ECS entity!");
@@ -463,7 +470,10 @@ namespace gaia {
 				auto& entityContainer = m_entities[entity.id()];
 				auto* pChunk = entityContainer.pChunk;
 
-				GAIA_ASSERT(!pChunk->header.owner.structuralChangesLocked && "Components can't be removed while chunk is being iterated (structural changes are forbidden during this time!)");
+				GAIA_ASSERT(
+						!pChunk->header.owner.structuralChangesLocked &&
+						"Components can't be removed while chunk is being iterated (structural changes are forbidden during this "
+						"time!)");
 
 				const auto& archetype = pChunk->header.owner;
 				const auto& componentTypeList = archetype.componentTypeList[componentType];
@@ -1202,10 +1212,11 @@ namespace gaia {
 			template <typename TFunc>
 			void ForEachArchetype(const EntityQuery& query, TFunc&& func) {
 				for (auto* pArchetype: m_archetypeList) {
-					#if !GAIA_DEBUG
-					const
-					#endif
+#if GAIA_DEBUG
 					auto& archetype = *pArchetype;
+#else
+					const auto& archetype = *pArchetype;
+#endif
 
 					// Early exit if generic query doesn't match
 					const auto retGeneric = MatchArchetypeQuery<ComponentType::CT_Generic>(archetype, query);
@@ -1274,44 +1285,47 @@ namespace gaia {
 				const bool hasFilters = query.HasFilters();
 
 				// Iterate over all archetypes
-				world.ForEachArchetype(query, [&](
-					#if !GAIA_DEBUG
-					const
-					#endif
-					Archetype& archetype) {
-					uint32_t offset = 0U;
-					uint32_t batchSize = 0U;
-					const auto maxIters = (uint32_t)archetype.chunks.size();
+				world.ForEachArchetype(
+						query, [&](
+#if GAIA_DEBUG
+											 Archetype& archetype
+#else
+											 const Archetype& archetype
+#endif
+									 ) {
+							uint32_t offset = 0U;
+							uint32_t batchSize = 0U;
+							const auto maxIters = (uint32_t)archetype.chunks.size();
 
-				#if GAIA_DEBUG
-					archetype.structuralChangesLocked = true;
-				#endif
+#if GAIA_DEBUG
+							archetype.structuralChangesLocked = true;
+#endif
 
-					do {
-						// Prepare a buffer to iterate over
-						for (; offset < maxIters; ++offset) {
-							auto* pChunk = archetype.chunks[offset];
+							do {
+								// Prepare a buffer to iterate over
+								for (; offset < maxIters; ++offset) {
+									auto* pChunk = archetype.chunks[offset];
 
-							if (!pChunk->HasEntities())
-								continue;
-							if (hasFilters && !CheckFilters(query, *pChunk))
-								continue;
+									if (!pChunk->HasEntities())
+										continue;
+									if (hasFilters && !CheckFilters(query, *pChunk))
+										continue;
 
-							tmp[batchSize++] = pChunk;
-						}
+									tmp[batchSize++] = pChunk;
+								}
 
-						// Execute functors in batches
-						for (auto chunkIdx = 0U; chunkIdx < batchSize; ++chunkIdx)
-							func(*tmp[chunkIdx]);
+								// Execute functors in batches
+								for (auto chunkIdx = 0U; chunkIdx < batchSize; ++chunkIdx)
+									func(*tmp[chunkIdx]);
 
-						// Reset the batch size
-						batchSize = 0U;
-					} while (offset < maxIters);
+								// Reset the batch size
+								batchSize = 0U;
+							} while (offset < maxIters);
 
-				#if GAIA_DEBUG
-					archetype.structuralChangesLocked = false;
-				#endif
-				});
+#if GAIA_DEBUG
+							archetype.structuralChangesLocked = false;
+#endif
+						});
 
 				query.SetWorldVersion(world.GetWorldVersion());
 			}
@@ -1331,45 +1345,48 @@ namespace gaia {
 				const bool hasFilters = query.HasFilters();
 
 				// Iterate over all archetypes
-				world.ForEachArchetype(query, [&](
-					#if !GAIA_DEBUG
-					const
-					#endif
-					Archetype& archetype) {
-					uint32_t offset = 0U;
-					uint32_t batchSize = 0U;
-					const auto maxIters = (uint32_t)archetype.chunks.size();
+				world.ForEachArchetype(
+						query, [&](
+#if GAIA_DEBUG
+											 Archetype& archetype
+#else
+											 const Archetype& archetype
+#endif
+									 ) {
+							uint32_t offset = 0U;
+							uint32_t batchSize = 0U;
+							const auto maxIters = (uint32_t)archetype.chunks.size();
 
-				#if GAIA_DEBUG
-					archetype.structuralChangesLocked = true;
-				#endif
+#if GAIA_DEBUG
+							archetype.structuralChangesLocked = true;
+#endif
 
-					do {
-						// Prepare a buffer to iterate over
-						for (; offset < maxIters; ++offset) {
-							auto* pChunk = archetype.chunks[offset];
+							do {
+								// Prepare a buffer to iterate over
+								for (; offset < maxIters; ++offset) {
+									auto* pChunk = archetype.chunks[offset];
 
-							if (!pChunk->HasEntities())
-								continue;
-							if (hasFilters && !CheckFilters(query, *pChunk))
-								continue;
+									if (!pChunk->HasEntities())
+										continue;
+									if (hasFilters && !CheckFilters(query, *pChunk))
+										continue;
 
-							tmp[batchSize++] = pChunk;
-						}
+									tmp[batchSize++] = pChunk;
+								}
 
-						// Execute functors in bulk
-						const auto size = batchSize;
-						for (auto chunkIdx = 0U; chunkIdx < size; ++chunkIdx)
-							world.Unpack_ForEachEntityInChunk(InputArgs{}, *tmp[chunkIdx], func);
+								// Execute functors in bulk
+								const auto size = batchSize;
+								for (auto chunkIdx = 0U; chunkIdx < size; ++chunkIdx)
+									world.Unpack_ForEachEntityInChunk(InputArgs{}, *tmp[chunkIdx], func);
 
-						// Reset the batch size
-						batchSize = 0U;
-					} while (offset < maxIters);
+								// Reset the batch size
+								batchSize = 0U;
+							} while (offset < maxIters);
 
-				#if GAIA_DEBUG
-					archetype.structuralChangesLocked = false;
-				#endif
-				});
+#if GAIA_DEBUG
+							archetype.structuralChangesLocked = false;
+#endif
+						});
 
 				query.SetWorldVersion(world.GetWorldVersion());
 			}
@@ -1385,7 +1402,7 @@ namespace gaia {
 			public:
 				ForEachChunkExecutionContext(World& w, EntityQuery& q, TFunc&& f):
 						world(w), query(q), func(std::forward<TFunc>(f)) {}
-				void Run() {
+				~ForEachChunkExecutionContext() {
 					World::RunQueryOnChunks_Direct(this->world, this->query, this->func);
 				}
 			};
@@ -1408,7 +1425,7 @@ namespace gaia {
 						world(w), query(std::forward<EntityQuery>(q)), func(std::forward<TFunc>(f)) {
 					static_assert(InternalQuery, "rvalue can be used only with internal queries");
 				}
-				void Run() {
+				~ForEachExecutionContext() {
 					World::RunQueryOnChunks_Indirect(this->world, this->query, this->func);
 				}
 			};
@@ -1423,8 +1440,8 @@ namespace gaia {
 							 of iteration. On the other hand it is more verbose and takes more lines of code when used.
 			*/
 			template <typename TFunc>
-			[[nodiscard]] ForEachChunkExecutionContext<TFunc> ForEachChunk(EntityQuery& query, TFunc&& func) {
-				return {(World&)*this, query, std::forward<TFunc>(func)};
+			void ForEachChunk(EntityQuery& query, TFunc&& func) {
+				ForEachChunkExecutionContext<TFunc>{(World&)*this, query, std::forward<TFunc>(func)};
 			}
 
 			/*!
@@ -1433,8 +1450,8 @@ namespace gaia {
 							 some specific optimizations are necessary is the preffered way of iterating over data.
 			*/
 			template <typename TFunc>
-			[[nodiscard]] ForEachExecutionContext<TFunc, false> ForEach(EntityQuery& query, TFunc&& func) {
-				return {(World&)*this, query, std::forward<TFunc>(func)};
+			void ForEach(EntityQuery& query, TFunc&& func) {
+				ForEachExecutionContext<TFunc, false>{(World&)*this, query, std::forward<TFunc>(func)};
 			}
 
 			/*!
@@ -1443,8 +1460,9 @@ namespace gaia {
 							 some specific optimizations are necessary is the preffered way of iterating over data.
 			*/
 			template <typename TFunc>
-			[[nodiscard]] ForEachExecutionContext<TFunc, true> ForEach(EntityQuery&& query, TFunc&& func) {
-				return {(World&)*this, std::forward<EntityQuery>(query), std::forward<TFunc>(func)};
+			void ForEach(EntityQuery&& query, TFunc&& func) {
+				ForEachExecutionContext<TFunc, true>{
+						(World&)*this, std::forward<EntityQuery>(query), std::forward<TFunc>(func)};
 			}
 
 			/*!
@@ -1454,8 +1472,8 @@ namespace gaia {
 							 some specific optimizations are necessary is the preffered way of iterating over data.
 			*/
 			template <typename TFunc>
-			[[nodiscard]] ForEachExecutionContext<TFunc, true> ForEach(TFunc&& func) {
-				return {(World&)*this, EntityQuery(), std::forward<TFunc>(func)};
+			void ForEach(TFunc&& func) {
+				ForEachExecutionContext<TFunc, true>{(World&)*this, EntityQuery(), std::forward<TFunc>(func)};
 			}
 
 			/*!

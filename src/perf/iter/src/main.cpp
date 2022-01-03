@@ -113,8 +113,8 @@ void BM_ForEach_1_Archetype(benchmark::State& state) {
 
 	for ([[maybe_unused]] auto _: state) {
 		w.ForEach(query, [&](const c1& p) {
-			 benchmark::DoNotOptimize(p);
-		 }).Run();
+			benchmark::DoNotOptimize(p);
+		});
 	}
 }
 BENCHMARK(BM_ForEach_1_Archetype);
@@ -133,8 +133,8 @@ void BM_ForEach_100_Archetypes(benchmark::State& state) {
 
 	for ([[maybe_unused]] auto _: state) {
 		w.ForEach(query, [&](const c1& p) {
-			 benchmark::DoNotOptimize(p);
-		 }).Run();
+			benchmark::DoNotOptimize(p);
+		});
 	}
 }
 BENCHMARK(BM_ForEach_100_Archetypes);
@@ -198,8 +198,8 @@ void BM_ForEach_1000_Archetypes(benchmark::State& state) {
 
 	for ([[maybe_unused]] auto _: state) {
 		w.ForEach(query, [&](const c1& p) {
-			 benchmark::DoNotOptimize(p);
-		 }).Run();
+			benchmark::DoNotOptimize(p);
+		});
 	}
 }
 BENCHMARK(BM_ForEach_1000_Archetypes);
