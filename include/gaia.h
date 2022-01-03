@@ -20,7 +20,6 @@
 
 #include "gaia/utils/data_layout_policy.h"
 #include "gaia/utils/hashing_policy.h"
-#include "gaia/utils/signals.h"
 #include "gaia/utils/type_info.h"
 #include "gaia/utils/utility.h"
 #include "gaia/utils/utils_containers.h"
