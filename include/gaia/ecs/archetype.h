@@ -46,6 +46,10 @@ namespace gaia {
 			bool hasComponentWithCustomConstruction = false;
 			//! True if there's a chunk component that requires custom construction
 			bool hasChunkComponentTypesWithCustomConstruction = false;
+#if GAIA_DEBUG
+			//! Set to true when archetype/chunk is being iterated. Used to inform of structural changes when they shouldn't happen.
+			bool structuralChangesLocked = false;
+#endif
 
 			// Constructor is hidden. Create archetypes via Create
 			Archetype() = default;

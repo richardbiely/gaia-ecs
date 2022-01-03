@@ -112,6 +112,8 @@ namespace gaia {
 			\param entityChunkIndex Index of entity within its chunk
 			*/
 			void RemoveEntity(Chunk* pChunk, uint32_t entityChunkIndex) {
+				GAIA_ASSERT(!pChunk->header.owner.structuralChangesLocked && "Entities can't be removed while chunk is being iterated (structural changes are forbidden during this time!)");
+
 				pChunk->RemoveEntity(entityChunkIndex, m_entities);
 
 				if (
@@ -328,6 +330,7 @@ namespace gaia {
 			*/
 			void StoreEntity(Entity entity, Chunk* pChunk) {
 				GAIA_ASSERT(pChunk != nullptr);
+				GAIA_ASSERT(!pChunk->header.owner.structuralChangesLocked && "Entities can't be added while chunk is being iterated (structural changes are forbidden during this time!)");
 
 				auto& entityContainer = m_entities[entity.id()];
 				entityContainer.pChunk = pChunk;
@@ -348,6 +351,8 @@ namespace gaia {
 					const auto metaTypesCount = (uint32_t)componentTypeList.size() + (uint32_t)typesToAdd.size();
 
 #if GAIA_DEBUG
+					GAIA_ASSERT(!pChunk->header.owner.structuralChangesLocked && "Components can't be added while chunk is being iterated (structural changes are forbidden during this time!)");
+
 					if (!VerityArchetypeComponentCount(metaTypesCount)) {
 						GAIA_ASSERT(false && "Trying to add too many ECS components to ECS entity!");
 						LOG_W(
@@ -457,6 +462,8 @@ namespace gaia {
 					ComponentType componentType, Entity entity, std::span<const ComponentMetaData*> typesToRemove) {
 				auto& entityContainer = m_entities[entity.id()];
 				auto* pChunk = entityContainer.pChunk;
+
+				GAIA_ASSERT(!pChunk->header.owner.structuralChangesLocked && "Components can't be removed while chunk is being iterated (structural changes are forbidden during this time!)");
 
 				const auto& archetype = pChunk->header.owner;
 				const auto& componentTypeList = archetype.componentTypeList[componentType];
@@ -1195,7 +1202,10 @@ namespace gaia {
 			template <typename TFunc>
 			void ForEachArchetype(const EntityQuery& query, TFunc&& func) {
 				for (auto* pArchetype: m_archetypeList) {
-					const auto& archetype = *pArchetype;
+					#if !GAIA_DEBUG
+					const
+					#endif
+					auto& archetype = *pArchetype;
 
 					// Early exit if generic query doesn't match
 					const auto retGeneric = MatchArchetypeQuery<ComponentType::CT_Generic>(archetype, query);
@@ -1264,10 +1274,18 @@ namespace gaia {
 				const bool hasFilters = query.HasFilters();
 
 				// Iterate over all archetypes
-				world.ForEachArchetype(query, [&](const Archetype& archetype) {
+				world.ForEachArchetype(query, [&](
+					#if !GAIA_DEBUG
+					const
+					#endif
+					Archetype& archetype) {
 					uint32_t offset = 0U;
 					uint32_t batchSize = 0U;
 					const auto maxIters = (uint32_t)archetype.chunks.size();
+
+				#if GAIA_DEBUG
+					archetype.structuralChangesLocked = true;
+				#endif
 
 					do {
 						// Prepare a buffer to iterate over
@@ -1289,6 +1307,10 @@ namespace gaia {
 						// Reset the batch size
 						batchSize = 0U;
 					} while (offset < maxIters);
+
+				#if GAIA_DEBUG
+					archetype.structuralChangesLocked = false;
+				#endif
 				});
 
 				query.SetWorldVersion(world.GetWorldVersion());
@@ -1309,10 +1331,18 @@ namespace gaia {
 				const bool hasFilters = query.HasFilters();
 
 				// Iterate over all archetypes
-				world.ForEachArchetype(query, [&](const Archetype& archetype) {
+				world.ForEachArchetype(query, [&](
+					#if !GAIA_DEBUG
+					const
+					#endif
+					Archetype& archetype) {
 					uint32_t offset = 0U;
 					uint32_t batchSize = 0U;
 					const auto maxIters = (uint32_t)archetype.chunks.size();
+
+				#if GAIA_DEBUG
+					archetype.structuralChangesLocked = true;
+				#endif
 
 					do {
 						// Prepare a buffer to iterate over
@@ -1335,6 +1365,10 @@ namespace gaia {
 						// Reset the batch size
 						batchSize = 0U;
 					} while (offset < maxIters);
+
+				#if GAIA_DEBUG
+					archetype.structuralChangesLocked = false;
+				#endif
 				});
 
 				query.SetWorldVersion(world.GetWorldVersion());
