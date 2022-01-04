@@ -41,15 +41,13 @@ Entity-Component-System (ECS) is a software architectural pattern based on organ
 This way of thinking is more natural for machines than people but when used correctly it allows you to write faster code (on most architectures) but what is most important it allows you to write code which is easier to maintain, expand and reason about.<br/>
 For instance, when moving some object from point A to point B you do not care if it is a house or a car. You only care about its' position. If you want to move it at some specific speed you will consider also the object's velocity. Nothing else is necessary.
 
-Within ECS an entity is some index uniquely identifying the "item" in the world (something having position and velocity for example). Component is a piece of data (position, velocity, age). System is something that takes components as inputs and generates some output (basically transforms data into different data) or simply it's where you implement your program's logic.
+Within ECS an entity is an index uniquely identifying components. Component is a piece of data (position, velocity, age). System is something that takes components as inputs and generates some output (basically transforms data into different data) or to put it simply, it's where you implement your program's logic.
 
-Gaia-ECS is an archetype-based entity component system framework. Many different approaches exist and each is strong in some areas and worse in others.
-What this means is that unique combinations of components are stored in things called archetypes.
-
-Each archetype consists of chunks of a certain size. In our case each chunk is 64 kiB big (you can change this via ecs::MemoryBlockSize but it is not recommented). Chunks hold data and entities which are used as indices to data (think of it as a bunch of SQL tables where components are columns and entities are rows).<br/>
+Many different approaches to how ECS should be implemented exist and each is strong in some areas and worse in others. Gaia-ECS is an archetype-based entity component system framework.<br/>
+Therefore, unique combinations of components are stored in things called archetypes. Each archetype consists of chunks of a certain size. In our case each chunk is 64 kiB big (not recommended but it can changed via ecs::MemoryBlockSize). Chunks hold components (data) and entities (indices to components). You can think of them as SQL tables where components are columns and entities are rows.<br/>
 All memory is preallocated in big blocks (or pages if you will) via internal chunk allocator. Thanks do that all data is organized in cache-friendly way which most computer architectures like and actuall heap allocations which are slow are reduced to minimum.
 
-Some of the benefits of archetype-based architectures is fast iteration and good memory layout by default. They are also very easy to paralelize. Adding and removing components is slower than with other architectures, though. Knowing strengths and weaknesses of your system helps you work around their issues so this is not really a problem in general.
+Some of the benefits of archetype-based architectures is fast iteration and good memory layout by default. They are also easy to paralelize. Adding and removing components is slower than with other architectures, though. Knowing strengths and weaknesses of your system helps you work around their issues so this is not necessarily a problem per se.
 
 # Usage examples
 ## Minimum requirements
@@ -163,7 +161,7 @@ w.ForEachChunk([](ecs::Chunk& ch) {
 });
 ```
 
-I need to make a small but important note here. Analysing the output of different compilers I quickly realised if you want your code vectorized for sure you need to be very clear and write the loop as a lamba or kernel if you will. It is quite surprising to see this but even with optizations on and "fast-math" like switches enabled some compilers simply will not vectorize the loop otherwise. Microsoft compilers are particularly sensitive in this regard. In the years to come maybe this gets better but for now keep this in mind or use good optimizing compilers such as Clang.
+I need to make a small but important note here. Analysing the output of different compilers I quickly realised if you want your code vectorized for sure you need to be very clear and write the loop as a lamba or kernel if you will. It is quite surprising to see this but even with optimizations on and "fast-math"-like switches enabled some compilers simply will not vectorize the loop otherwise. Microsoft compilers are particularly sensitive in this regard. In the years to come maybe this gets better but for now keep it in mind or use a good optimizing compiler such as Clang.
 ```cpp
 w.ForEachChunk([](ecs::Chunk& ch) {
   auto vp = ch.ViewRW<Position>(); // read-write access to Position
