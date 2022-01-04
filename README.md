@@ -68,22 +68,22 @@ struct Velocity {
 
 ecs::World w;
 
-// Create an entity with Position and Velocity
+// Create an entity with Position and Velocity.
 auto e = w.CreateEntity();
 w.AddComponent<Position>(e, {0, 100, 0});
 w.AddComponent<Velocity>(e, {0, 0, 1});
 
-// Change Velocity's value
+// Change Velocity's value.
 w.SetComponent<Velocity>(e, {0, 0, 2});
 
-// Remove Velocity from the entity
+// Remove Velocity from the entity.
 w.RemoveComponent<Velocity>(e);
 
-// Check if entity e has Velocity
+// Check if entity e has Velocity.
 const auto* pChunkA = w.GetEntityChunk(e);
 bool hasVelocity = pChunkA->HasComponent<Velocity>(e);
 
-// Check if entity e has Position and modify its value if it does
+// Check if entity e has Position and modify its value if it does.
 uint32_t entityIndexInChunk;
 auto* pChunkB = w.GetEntityChunk(e, entityIndexInChunk);
 if (pChunkB->HasComponent<Position>(e))
@@ -92,10 +92,10 @@ if (pChunkB->HasComponent<Position>(e))
   pos[entityIndexInChunk].y = 1234; // position.y changed from 100 to 1234
 }
 
-// Delete the entity
+// Delete the entity.
 w.DeleteEntity(e);
 
-// You can also use a faster batched version of some operations
+// You can also use a faster batched version of some operations.
 e = w.CreateEntity();
 w.AddComponent<Position, Velocity>(e, {1, 2, 3}, {0, 0, 0});
 w.SetComponent<Position, Velocity>(e, {11, 22, 33}, {10, 5, 0});
@@ -113,14 +113,15 @@ w.ForEach([&](Position& p, const Velocity& v) {
 });
 ```
 
-You can also be more specifc and tell the framework you are looking for something more specific using an EntityQuery.<br/>
-The example above created it internally from the arguments we provided for ForEach.<br/>
+You can also tell the framework you are looking for something more specific by using EntityQuery.<br/>
+The example above created it internally from the arguments we provided to ForEach.<br/>
 EntityQuery makes it possible for you to include or exclude specific archetypes based on the rules you define.
 ```cpp
 ecs::EntityQuery q;
 q.All<Position, Velocity>(); // this is also what ForEach does implicitly when no EntityQuery is provided
 q.None<Player>();
-// Iterate over all archetypes containing Position and Velocity but no Player
+
+// Iterate over all archetypes containing Position and Velocity but no Player.
 w.ForEach(q, [&](Position& p, const Velocity& v) {
   p.x += v.x * dt;
   p.y += v.y * dt;
@@ -128,14 +129,16 @@ w.ForEach(q, [&](Position& p, const Velocity& v) {
 });
 ```
 
-We can even take it a step further and only perform the iteration if particular components change.<br/>
-Note, this check is chunk-wide meaning if there are 100 Velocity and Position components in the chunk and only one Velocity changes ForEach performs for the entire chunk. This is due to performance concerns as it is easier to reason about the entire chunk than each of its items separately.
+Using WithChanged we can take it a step further and only perform the iteration if particular components change.<br/>
+Note, if there are 100 Velocity and Position components in the chunk and only one Velocity changes, ForEach performs for the entire chunk.<br/>
+This chunk-wide behavior is due to performance concerns as it is easier to reason about the entire chunk than each of its items separately.
 ```cpp
 ecs::EntityQuery q;
-q.All<Position, Velocity>();
-q.None<Player>();
-q.WithChanged<Velocity>(); // Only iterate when Velocity changes
-// Iterate over all archytpes containing Position and Velocity but no Player
+q.All<Position, Velocity>(); // chunk must contain Position and Velocity
+q.Any<Something, SomethingElse>(); // chunk must contain either Something or SomethingElse
+q.None<Player>(); // chunk can not contain Player
+q.WithChanged<Velocity>(); // only iterate when Velocity changes
+
 w.ForEach(q, [&](Position& p, const Velocity& v) {
   p.x += v.x * dt;
   p.y += v.y * dt;
@@ -148,34 +151,50 @@ ForEachChunk gives you more power than ForEach as it exposes to you the underlyi
 This means you can perform more kinds of operations and opens doors for new kinds of optimizations.
 ```cpp
 w.ForEachChunk([](ecs::Chunk& ch) {
-  auto p = ch.ViewRW<Position>(); // Read-write access to Position
-  auto v = ch.View<Velocity>(); // Read-only access to Velocity
+  auto p = ch.ViewRW<Position>(); // read-write access to Position
+  auto v = ch.View<Velocity>(); // read-only access to Velocity
 
   // Iterate over all components in the chunk.
-  // Note this could be written as a simple for loop. However, analysing the output of different compilers I quickly
-  // realised if you want your code vectorized for sure this is the only way to go (MSVC is particularly sensitive).
+  for (auto i = 0U; i < size; ++i) {
+    p[i].x += v[i].x * dt;
+    p[i].y += v[i].y * dt;
+    p[i].z += v[i].z * dt;
+  }
+});
+```
+
+I need to make a small but important note here. Analysing the output of different compilers I quickly realised if you want your code vectorized for sure you need to be very clear and write the loop as a lamba or kernel if you will. It is quite surprising to see this but even with optizations on and "fast-math" like switches enabled some compilers simply will not vectorize the loop otherwise. Microsoft compilers are particularly sensitive in this regard. In the years to come maybe this gets better but for now keep this in mind or use good optimizing compilers such as Clang.
+```cpp
+w.ForEachChunk([](ecs::Chunk& ch) {
+  auto vp = ch.ViewRW<Position>(); // read-write access to Position
+  auto vv = ch.View<Velocity>(); // read-only access to Velocity
+
+  // Make our intentions very clear so even compilers which are weaker at optimization can vectorize the loop
   [&](Position* GAIA_RESTRICT p, const Velocity* GAIA_RESTRICT v, const uint32_t size) {
     for (auto i = 0U; i < size; ++i) {
       p[i].x += v[i].x * dt;
       p[i].y += v[i].y * dt;
       p[i].z += v[i].z * dt;
     }
-  }(p.data(), v.data(), ch.GetItemCount());
+  }(vp.data(), vv.data(), ch.GetItemCount());
 });
 ```
 
 ## Making use of SoA component layout
-By default all components are treated as arrays of structures internally (AoS) via an implicit
+By default all data inside components is treated as array of structures (AoS) via an implicit
 ```cpp
 static constexpr auto Layout = utils::DataLayout::AoS
 ```
-In specific cases you might consider oranizing your component's internal data in structure or arrays (SoA) way by using
+This is the natural behavior of the language and what you would normally expect.<br/>
+If we imagine an ordinary array of 4 Position components defined above with this layout they are organized as this in memory: xyz xyz xyz xyz.
+
+However, in specific cases you might want to consider oranizing your component's internal data as structure or arrays (SoA):
 ```cpp
 static constexpr auto Layout = utils::DataLayout::SoA
 ```
-Let us imagine an ordinary array of 4 Positions. They would be organized as this in memory: xyz xyz xyz xyz.<br/>
-However, using utils::DataLayout::SoA would make Gaia-ECS treat them as: xxxx yyyy zzzz.<br/>
-This can have vast performance implication because your code can be fully vectorized by the compiler now.
+Using the example above this will make Gaia-ECS treat Position components as this in memory: xxxx yyyy zzzz.
+
+If used correctly this can have vast performance implication. Not only you organize your data in the most cache-friendly way this usually also means you can simplify your loops which in turn allows the compiler to optimize your code better.
 ```cpp
 struct PositionSoA {
   float x, y, z;
@@ -187,16 +206,17 @@ struct VelocitySoA {
 };
 ...
 w.ForEachChunk(ecs::EntityQuery().All<PositionSoA,VelocitySoA>, [](ecs::Chunk& ch) {
-  auto p = ch.ViewRW<PositionSoA>(); // Read-write access to PositionSoA
-  auto v = ch.View<VelocitySoA>(); // Read-only access to VelocitySoA
+  auto vp = ch.ViewRW<PositionSoA>(); // read-write access to PositionSoA
+  auto vv = ch.View<VelocitySoA>(); // read-only access to VelocitySoA
 
-  auto ppx = p.set<0>(); // Get access to a continuous block of "x" from PositionSoA
-  auto ppy = p.set<1>(); // Get access to a continuous block of "y" from PositionSoA
-  auto ppz = p.set<2>(); // Get access to a continuous block of "z" from PositionSoA
-  auto vvx = v.get<0>();
-  auto vvy = v.get<1>();
-  auto vvz = v.get<2>();
+  auto px = vp.set<0>(); // get access to a continuous block of "x" from PositionSoA
+  auto py = vp.set<1>(); // get access to a continuous block of "y" from PositionSoA
+  auto pz = vp.set<2>(); // get access to a continuous block of "z" from PositionSoA
+  auto vx = vv.get<0>();
+  auto vy = vv.get<1>();
+  auto vz = vv.get<2>();
 
+  // The loop becomes very simple now.
   auto exec = [&](float* GAIA_RESTRICT p, const float* GAIA_RESTRICT v, const size_t sz) {
     for (size_t i = 0U; i < sz; ++i)
       p[i] += v[i] * dt;
@@ -211,18 +231,21 @@ w.ForEachChunk(ecs::EntityQuery().All<PositionSoA,VelocitySoA>, [](ecs::Chunk& c
     }*/
   };
   const auto size = ch.GetItemCount();
-  exec(ppx.data(), vvx.data(), size);
-  exec(ppy.data(), vvy.data(), size);
-  exec(ppz.data(), vvz.data(), size);
+  // Handle x coordinates
+  exec(px.data(), vx.data(), size);
+  // Handle y coordinates
+  exec(py.data(), vy.data(), size);
+  // Handle z coordinates
+  exec(pz.data(), vz.data(), size);
 });
 ```
 
 ## Delayed execution
 Sometimes you need to delay executing a part of the code for later. This can be achieved via CommandBuffers.<br/>
-CommandBuffer is a container for commands which are to be performed later when you need it.<br/>
-Typically you use them if there is a need to perform a structural change (adding or removing an entity or component) while iterating.
-If you performed an unprotected structural change this would result in undefined behavior and most likely crash the program.
-However, using a CommandBuffer you collect all requests and perform them one-by-one in the order in which they were recorded by calling Commit.
+CommandBuffer is a container used to record commands in the order in which they were requested at a later point in time.<br/>
+Typically you use them when there is a need to perform a structural change (adding or removing an entity or component) while iterating chunks.<br/>
+Performing an unprotected structural change is undefined behavior and most likely crashes the program.
+However, using a CommandBuffer you can collect all requests first and commit them when it is safe.
 ```cpp
 ecs::CommandBuffer cb;
 w.ForEach(q, [&](Entity e, const Position& p) {
@@ -231,7 +254,7 @@ w.ForEach(q, [&](Entity e, const Position& p) {
 });
 cb.Commit(&w); // after calling this all entities with y position bellow zero get deleted
 ```
-If you try to make an unprotected structural change with GAIA_DEBUG enabled (set by default when DEBUG mode is configured) the framework will assert letting you know you are using it in a wrong way.
+If you try to make an unprotected structural change with GAIA_DEBUG enabled (set by default when Debug configuration is used) the framework will assert letting you know you are using it in a wrong way.
 
 ## Chunk components
 Chunk component is a special kind of component which exists at most once per chunk.<br/>
