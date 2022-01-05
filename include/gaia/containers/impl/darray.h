@@ -246,33 +246,29 @@ namespace gaia {
 				}
 			}
 
-			void push_back(const T& arg) noexcept {
+		private:
+			void push_back_prepare() noexcept {
 				if (size() == capacity()) {
 					if (m_data == nullptr) {
 						m_data = new T[m_cap = 1];
 					} else {
 						T* old = m_data;
-						m_data = new T[m_cap = capacity() * 2];
+						m_data = new T[m_cap = (capacity() * 3) / 2 + 1];
 						for (size_type i = 0; i < size(); ++i)
 							m_data[i] = old[i];
 						delete[] old;
 					}
 				}
+			}
+
+		public:
+			void push_back(const T& arg) noexcept {
+				push_back_prepare();
 				m_data[m_cnt++] = arg;
 			}
 
 			void push_back(T&& arg) noexcept {
-				if (size() == capacity()) {
-					if (m_data == nullptr) {
-						m_data = new T[m_cap = 1];
-					} else {
-						T* old = m_data;
-						m_data = new T[m_cap = capacity() * 2];
-						for (size_type i = 0; i < size(); ++i)
-							m_data[i] = old[i];
-						delete[] old;
-					}
-				}
+				push_back_prepare();
 				m_data[m_cnt++] = std::forward<T>(arg);
 			}
 
@@ -282,7 +278,7 @@ namespace gaia {
 			}
 
 			iterator erase(iterator pos) {
-				GAIA_ASSERT(pos.m_ptr >= &m_data[0] && pos.m_ptr < &m_data[m_cap-1]);
+				GAIA_ASSERT(pos.m_ptr >= &m_data[0] && pos.m_ptr < &m_data[m_cap - 1]);
 
 				const auto idxStart = (size_type)std::distance(pos, begin());
 				for (size_type i = idxStart; i < size() - 1; ++i)
@@ -292,13 +288,14 @@ namespace gaia {
 			}
 
 			const_iterator erase(const_iterator pos) {
-				GAIA_ASSERT(pos.m_ptr >= &m_data[0] && pos.m_ptr < &m_data[m_cap-1]);
+				GAIA_ASSERT(pos.m_ptr >= &m_data[0] && pos.m_ptr < &m_data[m_cap - 1]);
 
 				const auto idxStart = (size_type)std::distance(pos, begin());
 				for (size_type i = idxStart; i < size() - 1; ++i)
 					m_data[i] = m_data[i + 1];
 				--m_cnt;
-				return iterator((const T*)m_data, idxStart);;
+				return iterator((const T*)m_data, idxStart);
+				;
 			}
 
 			iterator erase(iterator first, iterator last) {
