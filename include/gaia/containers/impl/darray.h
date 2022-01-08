@@ -248,16 +248,21 @@ namespace gaia {
 
 		private:
 			void push_back_prepare() noexcept {
-				if (size() == capacity()) {
-					if (m_data == nullptr) {
-						m_data = new T[m_cap = 1];
-					} else {
-						T* old = m_data;
-						m_data = new T[m_cap = (capacity() * 3) / 2 + 1];
-						for (size_type i = 0; i < size(); ++i)
-							m_data[i] = old[i];
-						delete[] old;
-					}
+				// Unless we reached the capacity don't do anything
+				if (size() != capacity())
+					return;
+
+				// If no data is allocated go with at least 4 elements
+				if (m_data == nullptr) {
+					m_data = new T[m_cap = 4];
+				}
+				// Increase the size of an existing array in multiples of 1.5
+				else {
+					T* old = m_data;
+					m_data = new T[m_cap = (capacity() * 3) / 2 + 1];
+					for (size_type i = 0; i < size(); ++i)
+						m_data[i] = old[i];
+					delete[] old;
 				}
 			}
 
