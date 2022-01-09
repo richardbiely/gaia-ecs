@@ -34,6 +34,8 @@ if (MSVC)
     enable_cxx_compiler_flag_if_supported("-mfma")
   endif()
 else()
+  #enable_cxx_compiler_flag_if_supported("-Rpass-analysis=loop-vectorize")
+  #enable_cxx_compiler_flag_if_supported("-fsave-optimization-record")
   # strictness rules
   enable_cxx_compiler_flag_if_supported("-Wall")
   enable_cxx_compiler_flag_if_supported("-Wextra")
