@@ -19,7 +19,7 @@ It is still early in development and breaking changes to its API are possible. T
 # Table of Contents
 
 * [Introduction](#introduction)
-* [Usage examples](#usage-examples)
+* [Usage](#usage)
   * [Minimum requirements](#minimum-requirements)
   * [Basic operations](#basic-operations)
   * [Simple iteration](#simple-iteration)
@@ -31,6 +31,9 @@ It is still early in development and breaking changes to its API are possible. T
   * [Compiler](#compiler)
   * [Dependencies](#dependencies)
 * [Installation](#installation)
+* [Examples](#examples)
+* [Benchmarks](#benchmarks)
+* [Future](#future)
 * [Contributions](#contributions)
 * [License](#license)
 
@@ -49,7 +52,7 @@ All memory is preallocated in big blocks (or pages if you will) via internal chu
 
 Some of the benefits of archetype-based architectures is fast iteration and good memory layout by default. They are also easy to paralelize. Adding and removing components is slower than with other architectures, though. Knowing strengths and weaknesses of your system helps you work around their issues so this is not necessarily a problem per se.
 
-# Usage examples
+# Usage
 ## Minimum requirements
 ```cpp
 #include <gaia.h>
@@ -314,6 +317,32 @@ cmake -DCMAKE_BUILD_TYPE=Release -USE_SANITIZERS=address -S . -B "build"
 ```
 Possible options are listed in [cmake/sanitizers.cmake](https://github.com/richardbiely/gaia-ecs/blob/main/cmake/sanitizers.cmake).<br/>
 Note, some options don't work together or might not be supported by all compilers.
+
+# Examples
+The repository contains some code examples for guidance.<br/>
+Examples are build if GAIA_BUILD_EXAMPLES is enabled when configuring the project (ON by default).
+
+* [Example external](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example_external) - the most basic dummy example explaning how to use the framework in an external project
+* [Example 1](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example1) - the same as the previous one but showing how Gaia-ECS is used as standalone project
+* [Example 2](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example2) - simple example using some basic framework features
+* [Example Rougelike](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example_rougelike) - Rouglelike game putting all parts of the framework to use and represents a complex example of how everything would be used in practice; it is work-in-progress and changes and evolves with the project
+
+# Benchmarks
+In order to be able to reason about the project's performance benchmarks and prevent regressions benchmarks were created.<br/>
+They can be enabled via GAIA_BUILD_BENCHMARK when configuring the project (OFF by default).
+
+* [Duel](https://github.com/richardbiely/gaia-ecs/tree/main/src/perf/duel) - duel compares different coding approaches such as the basic model with uncontrolled OOP with data all-over-the heap, OOP where allocators are used to controll memory fragmentation and different ways of data oriented design and puts them to test against our ECS framework itself; DOD performance is the target level we want to reach or at least be as close as possible to with this project because it does not get any faster than that 
+* [Iter](https://github.com/richardbiely/gaia-ecs/tree/main/src/perf/iter) - this benchmark focuses on performance of creating and removing entities and components of various sizes and also coveres iteration performance with different numbers of entities and archetypes
+
+# Future
+Currently, many new features and improvements to the current system are planned.<br/>
+Among the most prominent ones those are:
+* scheduler - a system which would allow parallel execution of all systems by default, work stealing and an easy setup of dependencies
+* scenes - a way to serialize the state of chunks or entire worlds
+* improved queries - better caching of queries so they are of close-to-zero cost to use
+* improved add/remove component performance - beign an archetype ECS adding and removing of components is weak spot of the framework; while not being particulary slow these operations are not exactly fast either but by using some clever tricks this part can be improved a lot
+* profiling scopes - to allow easy measurement of performance in production
+* web-based debugger - an editor that would give one an overview of worlds created by the framework (number of entites, chunk fragmentation, systems running etc.)
 
 # Contributions
 
