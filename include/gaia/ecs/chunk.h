@@ -21,7 +21,6 @@
 
 namespace gaia {
 	namespace ecs {
-		uint32_t GetArchetypeCapacity(const Archetype& archetype);
 		const ChunkComponentTypeList& GetArchetypeComponentTypeList(const Archetype& archetype, ComponentType type);
 		const ChunkComponentLookupList& GetArchetypeComponentLookupList(const Archetype& archetype, ComponentType type);
 
@@ -155,7 +154,7 @@ namespace gaia {
 			}
 
 			[[nodiscard]] bool IsFull() const {
-				return header.items >= GetArchetypeCapacity(header.owner);
+				return header.items >= header.capacity;
 			}
 
 			template <typename T>

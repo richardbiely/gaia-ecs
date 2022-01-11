@@ -333,9 +333,6 @@ namespace gaia {
 		[[nodiscard]] inline uint32_t GetWorldVersionFromArchetype(const Archetype& archetype) {
 			return archetype.GetWorldVersion();
 		}
-		[[nodiscard]] inline uint32_t GetArchetypeCapacity(const Archetype& archetype) {
-			return archetype.GetCapacity();
-		}
 		[[nodiscard]] inline const ChunkComponentTypeList&
 		GetArchetypeComponentTypeList(const Archetype& archetype, ComponentType type) {
 			return archetype.GetComponentTypeList(type);
