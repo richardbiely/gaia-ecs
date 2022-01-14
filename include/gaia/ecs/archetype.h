@@ -36,11 +36,11 @@ namespace gaia {
 			uint64_t lookupHash = 0;
 			//! Hash of components within this archetype - used for matching
 			uint64_t matcherHash[ComponentType::CT_Count] = {0};
+			//! Archetype ID - used to address the archetype directly in the world's list or archetypes
+			uint32_t id = 0;
 			//! The number of entities this archetype can take (e.g 5 = 5 entities
 			//! with all their components)
 			uint32_t capacity = 0;
-			//! Once removal is requested and it hits 0 the archetype is removed.
-			uint32_t lifespan = 0;
 
 			//! True if there's a component that requires custom construction
 			bool hasComponentWithCustomConstruction = false;
