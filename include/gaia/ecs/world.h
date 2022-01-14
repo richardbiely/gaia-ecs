@@ -1190,8 +1190,9 @@ namespace gaia {
 			}
 
 			template <typename TFunc>
-			void ForEachArchetype(const EntityQuery& query, TFunc&& func) {
-				for (auto* pArchetype: m_archetypeList) {
+			void ForEachArchetype(EntityQuery& query, TFunc&& func) {
+				for (uint32_t i = query.m_lastArchetypeId; i < m_archetypeList.size(); i++) {
+					auto* pArchetype = m_archetypeList[i];
 #if GAIA_DEBUG
 					auto& archetype = *pArchetype;
 #else
@@ -1210,8 +1211,13 @@ namespace gaia {
 
 					// If at least one query succeeded run our logic
 					if (retGeneric == MatchArchetypeQueryRet::Ok || retChunk == MatchArchetypeQueryRet::Ok)
-						func(archetype);
+						query.m_archetypeCache.push_back(pArchetype);
 				}
+
+				query.m_lastArchetypeId = (uint32_t)m_archetypeList.size();
+
+				for (auto* pArchetype: query.m_archetypeCache)
+					func(*pArchetype);
 			}
 
 			template <typename... TComponents, typename TFunc>
