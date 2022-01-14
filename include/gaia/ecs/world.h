@@ -31,11 +31,10 @@ namespace gaia {
 			ChunkAllocator m_chunkAllocator;
 
 			//! Map or archetypes mapping to the same hash - used for lookups
+			// TODO: Replace darray with linked-list via pointers for minimum overhead or come up with something else
 			containers::map<uint64_t, containers::darray<Archetype*>> m_archetypeMap;
 			//! List of archetypes - used for iteration
 			containers::darray<Archetype*> m_archetypeList;
-			//! List of unique archetype hashes - used for iteration
-			containers::darray<uint64_t> m_archetypeHashList;
 
 			//! Implicit list of entities. Used for look-ups only when searching for
 			//! entities in chunks + data validation
@@ -100,7 +99,6 @@ namespace gaia {
 						delete archetype;
 
 					m_archetypeList = {};
-					m_archetypeHashList = {};
 					m_archetypeMap = {};
 				}
 			}
@@ -195,18 +193,19 @@ namespace gaia {
 					std::span<const ComponentMetaData*> genericTypes, std::span<const ComponentMetaData*> chunkTypes,
 					const uint64_t lookupHash) {
 				auto newArch = Archetype::Create(*this, genericTypes, chunkTypes);
-				newArch->lookupHash = lookupHash;
 
+				newArch->id = m_archetypeList.size();
+				GAIA_ASSERT(!utils::has(m_archetypeList, newArch));
 				m_archetypeList.push_back(newArch);
-				m_archetypeHashList.push_back(lookupHash);
 
+				newArch->lookupHash = lookupHash;
 				auto it = m_archetypeMap.find(lookupHash);
 				if (it == m_archetypeMap.end()) {
 					m_archetypeMap[lookupHash] = {newArch};
 				} else {
 					auto& archetypes = it->second;
-					if (!utils::has(archetypes, newArch))
-						archetypes.push_back(newArch);
+					GAIA_ASSERT(!utils::has(archetypes, newArch));
+					archetypes.push_back(newArch);
 				}
 
 				return newArch;
@@ -258,25 +257,6 @@ namespace gaia {
 				auto& entityContainer = m_entities[entity.id()];
 				auto* pChunk = entityContainer.pChunk;
 				return pChunk ? (Archetype*)&pChunk->header.owner : nullptr;
-			}
-
-			/*!
-			Removes an archetype from the list of archetypes.
-			\param pArchetype Archetype to remove
-			*/
-			void RemoveArchetype(Archetype* pArchetype) {
-				const auto idx = utils::get_index(m_archetypeList, pArchetype);
-				if (idx == utils::BadIndex)
-					return;
-
-				utils::erase_fast(m_archetypeList, idx);
-				utils::erase_fast(m_archetypeHashList, idx);
-
-				const auto it = m_archetypeMap.find(pArchetype->lookupHash);
-				if (it != m_archetypeMap.end())
-					utils::erase_fast(it->second, utils::get_index(it->second, pArchetype));
-
-				delete pArchetype;
 			}
 
 			/*!
@@ -1504,28 +1484,6 @@ namespace gaia {
 
 					m_archetypesToRemove.push_back(&archetype);
 					utils::erase_fast(m_chunksToRemove, i);
-				}
-
-				// Handle archetypes
-				for (auto i = 0U; i < (uint32_t)m_archetypesToRemove.size();) {
-					auto archetype = m_archetypesToRemove[i];
-
-					// Skip reclaimed archetypes
-					if (!archetype->chunks.empty()) {
-						archetype->lifespan = MAX_ARCHETYPE_LIFESPAN;
-						utils::erase_fast(m_archetypesToRemove, i);
-						continue;
-					}
-
-					GAIA_ASSERT(archetype->lifespan > 0);
-					--archetype->lifespan;
-					if (archetype->lifespan > 0) {
-						++i;
-						continue;
-					}
-
-					// Remove the chunk if it's no longer needed
-					RemoveArchetype(archetype);
 				}
 			}
 
