@@ -10,6 +10,7 @@
 #include "common.h"
 #include "component.h"
 #include "fwd.h"
+#include "gaia/containers/darray.h"
 
 namespace gaia {
 	namespace ecs {
@@ -40,6 +41,10 @@ namespace gaia {
 			ChangeFilterArray listChangeFiltered[ComponentType::CT_Count]{};
 			//! Version of the world for which the query has been called most recently
 			uint32_t m_worldVersion = 0;
+			//! Entity of the last added archetype in the world
+			uint32_t m_lastArchetypeId = 0;
+			//! List of cached archetypes
+			containers::darray<Archetype*> m_archetypeCache;
 
 			template <class TComponent>
 			void CalculateHash_Internal(ComponentIndexArray& arr, [[maybe_unused]] uint64_t& hash) {
