@@ -1395,23 +1395,30 @@ namespace gaia {
 
 			//--------------------------------------------------------------------------------
 
-			template <typename TFunc, bool InternalQuery>
-			struct ForEachExecutionContext {
-				using TQuery = std::conditional_t<InternalQuery, EntityQuery, EntityQuery&>;
-
+			template <typename TFunc>
+			struct ForEachExecutionContext_External {
 				World& world;
-				TQuery query;
+				EntityQuery& query;
 				TFunc func;
 
 			public:
-				ForEachExecutionContext(World& w, EntityQuery& q, TFunc&& f): world(w), query(q), func(std::forward<TFunc>(f)) {
-					static_assert(!InternalQuery, "lvalue/prvalue can be used only with external queries");
+				ForEachExecutionContext_External(World& w, EntityQuery& q, TFunc&& f):
+						world(w), query(q), func(std::forward<TFunc>(f)) {}
+				~ForEachExecutionContext_External() {
+					World::RunQueryOnChunks_Indirect(this->world, this->query, this->func);
 				}
-				ForEachExecutionContext(World& w, EntityQuery&& q, TFunc&& f):
-						world(w), query(std::forward<EntityQuery>(q)), func(std::forward<TFunc>(f)) {
-					static_assert(InternalQuery, "rvalue can be used only with internal queries");
-				}
-				~ForEachExecutionContext() {
+			};
+
+			template <typename TFunc>
+			struct ForEachExecutionContext_Internal {
+				World& world;
+				EntityQuery query;
+				TFunc func;
+
+			public:
+				ForEachExecutionContext_Internal(World& w, EntityQuery&& q, TFunc&& f):
+						world(w), query(std::forward<EntityQuery>(q)), func(std::forward<TFunc>(f)) {}
+				~ForEachExecutionContext_Internal() {
 					World::RunQueryOnChunks_Indirect(this->world, this->query, this->func);
 				}
 			};
@@ -1437,7 +1444,7 @@ namespace gaia {
 			*/
 			template <typename TFunc>
 			void ForEach(EntityQuery& query, TFunc&& func) {
-				ForEachExecutionContext<TFunc, false>{(World&)*this, query, std::forward<TFunc>(func)};
+				ForEachExecutionContext_External<TFunc>{(World&)*this, query, std::forward<TFunc>(func)};
 			}
 
 			/*!
@@ -1447,7 +1454,7 @@ namespace gaia {
 			*/
 			template <typename TFunc>
 			void ForEach(EntityQuery&& query, TFunc&& func) {
-				ForEachExecutionContext<TFunc, true>{
+				ForEachExecutionContext_Internal<TFunc>{
 						(World&)*this, std::forward<EntityQuery>(query), std::forward<TFunc>(func)};
 			}
 
@@ -1459,7 +1466,7 @@ namespace gaia {
 			*/
 			template <typename TFunc>
 			void ForEach(TFunc&& func) {
-				ForEachExecutionContext<TFunc, true>{(World&)*this, EntityQuery(), std::forward<TFunc>(func)};
+				ForEachExecutionContext_Internal<TFunc>{(World&)*this, EntityQuery(), std::forward<TFunc>(func)};
 			}
 
 			/*!
