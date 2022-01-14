@@ -148,38 +148,20 @@ TEST_CASE("Compile-time sort") {
 	REQUIRE(arr[4] == 4);
 }
 
-TEST_CASE("EntityQuery & EntityQuery2 - 2 components") {
-	// Compile-time queries
-	ecs::EntityQuery2<ecs::AllTypes<Position, Rotation>, ecs::AnyTypes<>, ecs::NoneTypes<>> q1;
-	ecs::EntityQuery2<ecs::AllTypes<Rotation, Position>, ecs::AnyTypes<>, ecs::NoneTypes<>> q2;
-	REQUIRE(decltype(q1)::all::matcherHash == decltype(q2)::all::matcherHash);
-	REQUIRE(decltype(q1)::all::lookupHash == decltype(q2)::all::lookupHash);
-
+TEST_CASE("EntityQuery - 2 components") {
 	// Real-time queries
 	ecs::EntityQuery qq1, qq2;
 	qq1.All<Position, Rotation>();
 	qq2.All<Rotation, Position>();
 	REQUIRE(qq1.GetData(ecs::ComponentType::CT_Generic).hashAll == qq2.GetData(ecs::ComponentType::CT_Generic).hashAll);
-
-	// Results of both types of querries must match
-	REQUIRE(decltype(q1)::all::matcherHash == qq1.GetData(ecs::ComponentType::CT_Generic).hashAll);
 }
 
-TEST_CASE("EntityQuery & EntityQuery2 - 4 components") {
-	// Compile-time queries
-	ecs::EntityQuery2<ecs::AllTypes<Position, Rotation, Acceleration, Something>, ecs::AnyTypes<>, ecs::NoneTypes<>> q1;
-	ecs::EntityQuery2<ecs::AllTypes<Rotation, Something, Position, Acceleration>, ecs::AnyTypes<>, ecs::NoneTypes<>> q2;
-	REQUIRE(decltype(q1)::all::matcherHash == decltype(q2)::all::matcherHash);
-	REQUIRE(decltype(q1)::all::lookupHash == decltype(q2)::all::lookupHash);
-
+TEST_CASE("EntityQuery - 4 components") {
 	// Real-time queries
 	ecs::EntityQuery qq1, qq2;
 	qq1.All<Position, Rotation, Acceleration, Something>();
 	qq2.All<Rotation, Something, Position, Acceleration>();
 	REQUIRE(qq1.GetData(ecs::ComponentType::CT_Generic).hashAll == qq2.GetData(ecs::ComponentType::CT_Generic).hashAll);
-
-	// Results of both types of querries must match
-	REQUIRE(decltype(q1)::all::matcherHash == qq1.GetData(ecs::ComponentType::CT_Generic).hashAll);
 }
 
 TEST_CASE("CreateEntity - no components") {
@@ -835,39 +817,79 @@ TEST_CASE("CommandBuffer") {
 
 		auto e = w.CreateEntity();
 
-		cb.AddComponent<Position>(e);
-		REQUIRE(!w.HasComponents<Position>(e));
+
+	 *
+	 *
+	 * cb.AddComponent<Position>(e);
+
+
+
+	 * * * REQUIRE(!w.HasComponents<Position>(e));
 
 		cb.Commit(&w);
-		REQUIRE(w.HasComponents<Position>(e));
 
-		Position p;
-		w.GetComponent<Position>(e, p);
-		REQUIRE(p.x == 0);
+	 *
+	 *
+	 * REQUIRE(w.HasComponents<Position>(e));
+
+		Position
+
+	 * * p;
+
+	 * w.GetComponent<Position>(e, p);
+		REQUIRE(p.x
+	 * ==
+
+	 * * 0);
 		REQUIRE(p.y == 0);
 		REQUIRE(p.z == 0);
 	}
 
-	// Delayed component addition to a to-be-created entity
+	//
+
+	 * * Delayed
+	 * component addition to a
+	 * to-be-created
+
+	 * * entity
 	{
 		ecs::World w;
 		ecs::CommandBuffer cb;
 
-		auto tmp = cb.CreateEntity();
-		REQUIRE(!w.GetEntityCount());
+		auto tmp
+	 * =
+
+	 * *
+	 * cb.CreateEntity();
+
+	 *
+	 * REQUIRE(!w.GetEntityCount());
 
 		cb.AddComponent<Position>(tmp);
 		cb.Commit(&w);
 
-		auto e = w.GetEntity(0);
+
+	 *
+	 * auto e
+	 * =
+	 *
+	 *
+	 * w.GetEntity(0);
 		REQUIRE(w.HasComponents<Position>(e));
 
 		Position p;
-		w.GetComponent<Position>(e, p);
-		REQUIRE(p.x == 0);
+
+	 *
+	 * w.GetComponent<Position>(e, p);
+
+
+	 *
+
+	 * * * REQUIRE(p.x == 0);
 		REQUIRE(p.y == 0);
 		REQUIRE(p.z == 0);
-	}*/
+
+	 * }*/
 
 	// Delayed component setting of an existing entity
 	// {
