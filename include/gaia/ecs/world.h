@@ -1412,12 +1412,13 @@ namespace gaia {
 			template <typename TFunc>
 			struct ForEachExecutionContext_Internal {
 				World& world;
+				// TODO: Cache these in the parent world for better performance
 				EntityQuery query;
 				TFunc func;
 
 			public:
 				ForEachExecutionContext_Internal(World& w, EntityQuery&& q, TFunc&& f):
-						world(w), query(std::forward<EntityQuery>(q)), func(std::forward<TFunc>(f)) {}
+						world(w), query(std::move(q)), func(std::forward<TFunc>(f)) {}
 				~ForEachExecutionContext_Internal() {
 					World::RunQueryOnChunks_Indirect(this->world, this->query, this->func);
 				}
@@ -1454,8 +1455,7 @@ namespace gaia {
 			*/
 			template <typename TFunc>
 			void ForEach(EntityQuery&& query, TFunc&& func) {
-				ForEachExecutionContext_Internal<TFunc>{
-						(World&)*this, std::forward<EntityQuery>(query), std::forward<TFunc>(func)};
+				ForEachExecutionContext_Internal<TFunc>{(World&)*this, std::move(query), std::forward<TFunc>(func)};
 			}
 
 			/*!
