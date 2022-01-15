@@ -545,24 +545,26 @@ void BM_Game_ECS_WithSystems_ForEachChunk_SoA_ManualSIMD(benchmark::State& state
 					_mm_store_ps(p + offset, respVec);
 				};
 
-				size_t i;
+				size_t i = 0;
 				// Optimize via "double-read" trick to hide latencies.
 				// Item count is always a multiple of 4 for chunks with SoA components.
-				for (i = 0; i < size; i += 8) {
+				for (; i < size; i += 8) {
 					exec(ppx.data(), vvx.data(), i);
 					exec(ppx.data(), vvx.data(), i + 4);
 				}
 				for (; i < size; i += 4)
 					exec(ppx.data(), vvx.data(), i);
 
-				for (i = 0; i < size; i += 8) {
+				i = 0;
+				for (; i < size; i += 8) {
 					exec(ppy.data(), vvy.data(), i);
 					exec(ppy.data(), vvy.data(), i + 4);
 				}
 				for (; i < size; i += 4)
 					exec(ppy.data(), vvy.data(), i);
 
-				for (i = 0; i < size; i += 8) {
+				i = 0;
+				for (; i < size; i += 8) {
 					exec(ppz.data(), vvz.data(), i);
 					exec(ppz.data(), vvz.data(), i + 4);
 				}
@@ -600,10 +602,10 @@ void BM_Game_ECS_WithSystems_ForEachChunk_SoA_ManualSIMD(benchmark::State& state
 					_mm_store_ps(p + offset, res_pyVec);
 				};
 
-				size_t i;
+				size_t i = 0;
 				// Optimize via "double-read" trick to hide latencies.
 				// Item count is always a multiple of 4 for chunks with SoA components.
-				for (i = 0; i < size; i += 8) {
+				for (; i < size; i += 8) {
 					exec(ppy.data(), vvy.data(), i);
 					exec(ppy.data(), vvy.data(), i + 4);
 				}
@@ -631,15 +633,15 @@ void BM_Game_ECS_WithSystems_ForEachChunk_SoA_ManualSIMD(benchmark::State& state
 				const auto gg_dtVec = _mm_set_ps1(9.81f * dt);
 
 				auto exec = [&](float* GAIA_RESTRICT v, const size_t offset) {
-					const auto vyVec = _mm_load_ps(vvy.data() + offset);
+					const auto vyVec = _mm_load_ps(v + offset);
 					const auto mulVec = _mm_mul_ps(vyVec, gg_dtVec);
 					_mm_store_ps(v + offset, mulVec);
 				};
 
-				size_t i;
+				size_t i = 0;
 				// Optimize via "double-read" trick to hide latencies.
 				// Item count is always a multiple of 4 for chunks with SoA components.
-				for (i = 0; i < size; i += 8) {
+				for (; i < size; i += 8) {
 					exec(vvy.data(), i);
 					exec(vvy.data(), i + 4);
 				}
@@ -1182,24 +1184,26 @@ void BM_Game_NonECS_DOD_SoA_ManualSIMD(benchmark::State& state) {
 				_mm_store_ps(p + offset, respVec);
 			};
 
-			size_t i;
+			size_t i = 0;
 			// Optimize via "double-read" trick to hide latencies.
 			// Item count is always a multiple of 4 for chunks with SoA components.
-			for (i = 0; i < size; i += 8) {
+			for (; i < size; i += 8) {
 				exec(ppx.data(), vvx.data(), i);
 				exec(ppx.data(), vvx.data(), i + 4);
 			}
 			for (; i < size; i += 4)
 				exec(ppx.data(), vvx.data(), i);
 
-			for (i = 0; i < size; i += 8) {
+			i = 0;
+			for (; i < size; i += 8) {
 				exec(ppy.data(), vvy.data(), i);
 				exec(ppy.data(), vvy.data(), i + 4);
 			}
 			for (; i < size; i += 4)
 				exec(ppy.data(), vvy.data(), i);
 
-			for (i = 0; i < size; i += 8) {
+			i = 0;
+			for (; i < size; i += 8) {
 				exec(ppz.data(), vvz.data(), i);
 				exec(ppz.data(), vvz.data(), i + 4);
 			}
@@ -1227,10 +1231,10 @@ void BM_Game_NonECS_DOD_SoA_ManualSIMD(benchmark::State& state) {
 				_mm_store_ps(p + offset, res_pyVec);
 			};
 
-			size_t i;
+			size_t i = 0;
 			// Optimize via "double-read" trick to hide latencies.
 			// Item count is always a multiple of 4 for chunks with SoA components.
-			for (i = 0; i < size; i += 8) {
+			for (; i < size; i += 8) {
 				exec(ppy.data(), vvy.data(), i);
 				exec(ppy.data(), vvy.data(), i + 4);
 			}
@@ -1247,15 +1251,15 @@ void BM_Game_NonECS_DOD_SoA_ManualSIMD(benchmark::State& state) {
 			const auto gg_dtVec = _mm_set_ps1(9.81f * dt);
 
 			auto exec = [&](float* GAIA_RESTRICT v, const size_t offset) {
-				const auto vyVec = _mm_load_ps(vvy.data() + offset);
+				const auto vyVec = _mm_load_ps(v + offset);
 				const auto mulVec = _mm_mul_ps(vyVec, gg_dtVec);
 				_mm_store_ps(v + offset, mulVec);
 			};
 
-			size_t i;
+			size_t i = 0;
 			// Optimize via "double-read" trick to hide latencies.
 			// Item count is always a multiple of 4 for chunks with SoA components.
-			for (i = 0; i < size; i += 8) {
+			for (; i < size; i += 8) {
 				exec(vvy.data(), i);
 				exec(vvy.data(), i + 4);
 			}
