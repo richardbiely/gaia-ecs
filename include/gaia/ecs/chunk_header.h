@@ -32,7 +32,7 @@ namespace gaia {
 				GAIA_ASSERT(uintptr_t(this) % 8 == 0);
 			}
 
-			void UpdateWorldVersion(ComponentType componentType, uint32_t componentIdx) {
+			GAIA_FORCEINLINE void UpdateWorldVersion(ComponentType componentType, uint32_t componentIdx) {
 				const auto gv = GetWorldVersionFromArchetype(owner);
 
 				// Make sure only proper input is provided
