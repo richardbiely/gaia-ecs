@@ -247,6 +247,14 @@ namespace gaia {
 			}
 
 			/*!
+			Returns an array of archetypes registered in the world
+			\return Array or archetypes
+			*/
+			const auto& GetArchetypes() const {
+				return m_archetypeList;
+			}
+
+			/*!
 			Returns the archetype the entity belongs to.
 			\param entity Entity
 			\return Pointer to archtype
@@ -1115,108 +1123,10 @@ namespace gaia {
 					func(std::get<decltype(expandTuple<TFuncArgs>(chunk))>(tup)[i]...);
 			}
 
-			enum class MatchArchetypeQueryRet { Fail, Ok, Skip };
-
-			template <ComponentType TComponentType>
-			[[nodiscard]] MatchArchetypeQueryRet MatchArchetypeQuery(const Archetype& archetype, const EntityQuery& query) {
-				const uint64_t withNoneTest = archetype.matcherHash[TComponentType] & query.list[TComponentType].hashNone;
-				const uint64_t withAnyTest = archetype.matcherHash[TComponentType] & query.list[TComponentType].hashAny;
-				const uint64_t withAllTest = archetype.matcherHash[TComponentType] & query.list[TComponentType].hashAll;
-
-				const auto& componentTypeList = archetype.componentTypeList[TComponentType];
-
-				// If withAllTest is empty but we wanted something
-				if (!withAllTest && query.list[TComponentType].hashAll != 0)
-					return MatchArchetypeQueryRet::Fail;
-
-				// If withAnyTest is empty but we wanted something
-				if (!withAnyTest && query.list[TComponentType].hashAny != 0)
-					return MatchArchetypeQueryRet::Fail;
-
-				// If there is any match with the withNoneList we quit
-				if (withNoneTest != 0) {
-					for (const auto typeIndex: query.list[TComponentType].listNone) {
-						for (const auto& component: componentTypeList) {
-							if (component.type->typeIndex == typeIndex) {
-								return MatchArchetypeQueryRet::Fail;
-							}
-						}
-					}
-				}
-
-				// If there is any match with the withAnyTest
-				if (withAnyTest != 0) {
-					for (const auto typeIndex: query.list[TComponentType].listAny) {
-						for (const auto& component: componentTypeList) {
-							if (component.type->typeIndex == typeIndex)
-								goto checkWithAllMatches;
-						}
-					}
-
-					// At least one match necessary to continue
-					return MatchArchetypeQueryRet::Fail;
-				}
-
-			checkWithAllMatches:
-				// If withAllList is not empty there has to be an exact match
-				if (withAllTest != 0) {
-					// If the number of queried components is greater than the
-					// number of components in archetype there's no need to search
-					if (query.list[TComponentType].listAll.size() <= componentTypeList.size()) {
-						uint32_t matches = 0;
-
-						// listAll first because we usually request for less
-						// components than there are components in archetype
-						for (const auto typeIndex: query.list[TComponentType].listAll) {
-							for (const auto& component: componentTypeList) {
-								if (component.type->typeIndex != typeIndex)
-									continue;
-
-								// All requirements are fulfilled. Let's iterate
-								// over all chunks in archetype
-								if (++matches == query.list[TComponentType].listAll.size())
-									return MatchArchetypeQueryRet::Ok;
-
-								break;
-							}
-						}
-					}
-
-					// No match found. We're done
-					return MatchArchetypeQueryRet::Fail;
-				}
-
-				return (withAnyTest != 0) ? MatchArchetypeQueryRet::Ok : MatchArchetypeQueryRet::Skip;
-			}
-
 			template <typename TFunc>
 			void ForEachArchetype(EntityQuery& query, TFunc&& func) {
-				for (uint32_t i = query.m_lastArchetypeId; i < m_archetypeList.size(); i++) {
-					auto* pArchetype = m_archetypeList[i];
-#if GAIA_DEBUG
-					auto& archetype = *pArchetype;
-#else
-					const auto& archetype = *pArchetype;
-#endif
-
-					// Early exit if generic query doesn't match
-					const auto retGeneric = MatchArchetypeQuery<ComponentType::CT_Generic>(archetype, query);
-					if (retGeneric == MatchArchetypeQueryRet::Fail)
-						continue;
-
-					// Early exit if chunk query doesn't match
-					const auto retChunk = MatchArchetypeQuery<ComponentType::CT_Chunk>(archetype, query);
-					if (retChunk == MatchArchetypeQueryRet::Fail)
-						continue;
-
-					// If at least one query succeeded run our logic
-					if (retGeneric == MatchArchetypeQueryRet::Ok || retChunk == MatchArchetypeQueryRet::Ok)
-						query.m_archetypeCache.push_back(pArchetype);
-				}
-
-				query.m_lastArchetypeId = (uint32_t)m_archetypeList.size();
-
-				for (auto* pArchetype: query.m_archetypeCache)
+				query.Match(m_archetypeList);
+				for (auto* pArchetype: query)
 					func(*pArchetype);
 			}
 
@@ -1239,21 +1149,27 @@ namespace gaia {
 				const auto lastWorldVersion = query.GetWorldVersion();
 
 				// See if any generic component has changed
-				for (auto typeIndex: query.listChangeFiltered[ComponentType::CT_Generic]) {
-					const uint32_t componentIdx = chunk.GetComponentIdx(typeIndex);
-					GAIA_ASSERT(componentIdx != (uint32_t)-1); // the component must exist at this point!
+				{
+					const auto& filtered = query.GetFiltered(ComponentType::CT_Generic);
+					for (auto typeIndex: filtered) {
+						const uint32_t componentIdx = chunk.GetComponentIdx(typeIndex);
+						GAIA_ASSERT(componentIdx != (uint32_t)-1); // the component must exist at this point!
 
-					if (chunk.DidChange(ComponentType::CT_Generic, lastWorldVersion, componentIdx))
-						return true;
+						if (chunk.DidChange(ComponentType::CT_Generic, lastWorldVersion, componentIdx))
+							return true;
+					}
 				}
 
 				// See if any chunk component has changed
-				for (auto typeIndex: query.listChangeFiltered[ComponentType::CT_Chunk]) {
-					const uint32_t componentIdx = chunk.GetChunkComponentIdx(typeIndex);
-					GAIA_ASSERT(componentIdx != (uint32_t)-1); // the component must exist at this point!
+				{
+					const auto& filtered = query.GetFiltered(ComponentType::CT_Chunk);
+					for (auto typeIndex: filtered) {
+						const uint32_t componentIdx = chunk.GetChunkComponentIdx(typeIndex);
+						GAIA_ASSERT(componentIdx != (uint32_t)-1); // the component must exist at this point!
 
-					if (chunk.DidChange(ComponentType::CT_Chunk, lastWorldVersion, componentIdx))
-						return true;
+						if (chunk.DidChange(ComponentType::CT_Chunk, lastWorldVersion, componentIdx))
+							return true;
+					}
 				}
 
 				// Skip unchanged chunks.
