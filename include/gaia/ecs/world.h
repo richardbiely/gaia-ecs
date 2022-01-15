@@ -194,7 +194,7 @@ namespace gaia {
 					const uint64_t lookupHash) {
 				auto newArch = Archetype::Create(*this, genericTypes, chunkTypes);
 
-				newArch->id = m_archetypeList.size();
+				newArch->id = (uint32_t)m_archetypeList.size();
 				GAIA_ASSERT(!utils::has(m_archetypeList, newArch));
 				m_archetypeList.push_back(newArch);
 
@@ -243,7 +243,11 @@ namespace gaia {
 			\return Pointer to archtype
 			*/
 			[[nodiscard]] Archetype* FindOrCreateArchetype(CreationQuery& query) {
-				return FindOrCreateArchetype(query.list[ComponentType::CT_Generic], query.list[ComponentType::CT_Chunk]);
+				return FindOrCreateArchetype(
+						std::span<const ComponentMetaData*>(
+								query.list[ComponentType::CT_Generic].data(), query.list[ComponentType::CT_Generic].size()),
+						std::span<const ComponentMetaData*>(
+								query.list[ComponentType::CT_Chunk].data(), query.list[ComponentType::CT_Chunk].size()));
 			}
 
 			/*!
@@ -1195,7 +1199,7 @@ namespace gaia {
 											 const Archetype& archetype
 #endif
 									 ) {
-							uint32_t offset = 0U;
+							uint32_t chunkOffset = 0U;
 							uint32_t batchSize = 0U;
 							const auto maxIters = (uint32_t)archetype.chunks.size();
 
@@ -1205,8 +1209,8 @@ namespace gaia {
 
 							do {
 								// Prepare a buffer to iterate over
-								for (; offset < maxIters; ++offset) {
-									auto* pChunk = archetype.chunks[offset];
+								for (; chunkOffset < maxIters; ++chunkOffset) {
+									auto* pChunk = archetype.chunks[chunkOffset];
 
 									if (!pChunk->HasEntities())
 										continue;
@@ -1222,7 +1226,7 @@ namespace gaia {
 
 								// Reset the batch size
 								batchSize = 0U;
-							} while (offset < maxIters);
+							} while (chunkOffset < maxIters);
 
 #if GAIA_DEBUG
 							archetype.structuralChangesLocked = false;
