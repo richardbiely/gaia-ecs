@@ -271,6 +271,10 @@ namespace gaia {
 				return capacity;
 			}
 
+			[[nodiscard]] uint64_t GetMatcherHash(ComponentType type) const {
+				return matcherHash[type];
+			}
+
 			[[nodiscard]] const ChunkComponentTypeList& GetComponentTypeList(ComponentType type) const {
 				return componentTypeList[type];
 			}
@@ -332,6 +336,9 @@ namespace gaia {
 
 		[[nodiscard]] inline uint32_t GetWorldVersionFromArchetype(const Archetype& archetype) {
 			return archetype.GetWorldVersion();
+		}
+		[[nodiscard]] inline uint64_t GetArchetypeMatcherHash(const Archetype& archetype, ComponentType type) {
+			return archetype.GetMatcherHash(type);
 		}
 		[[nodiscard]] inline const ChunkComponentTypeList&
 		GetArchetypeComponentTypeList(const Archetype& archetype, ComponentType type) {
