@@ -11,10 +11,10 @@ Gaia-ECS is an entity component system framework. Some of its current features a
 * archetype/chunk-based storage for maximum iteration speed and easy code parallelization
 * ability to organize data as AoS or SoA on the component level with very little changes to your code
 * tested on all major compilers continuously
-* unit-tested for maximum stabilty
-* each important change is benchmarked and checked on disassembly level on multiple compilers in order to ensure maximum performance
+* unit-tested for maximum stability
+* each important change is benchmarked and checked on disassembly level on multiple compilers to ensure maximum performance
 
-It is still early in development and breaking changes to its API are possible. There are also a lot of features to add. However, it is already stable and thoroughly tested so using is should not be an issue.
+Being early in development, breaking changes to its API are possible. There are also many features to add. However, it is already stable and thoroughly tested. Therefore, using it should not be an issue.
 
 # Table of Contents
 
@@ -41,19 +41,19 @@ It is still early in development and breaking changes to its API are possible. T
 
 Entity-Component-System (ECS) is a software architectural pattern based on organizing your code around data. Instead of looking at "items" in your program as objects you normally know from the real world (car, house, human) you look at them as pieces of data necessary for you to achieve some result.
 
-This way of thinking is more natural for machines than people but when used correctly it allows you to write faster code (on most architectures). What is most important, however, is it allows you to write code which is easier to maintain, expand and reason about.
+This way of thinking is more natural for machines than people but when used correctly it allows you to write faster code (on most architectures). What is most important, however, is it allows you to write code that is easier to maintain, expand and reason about.
 
 For instance, when moving some object from point A to point B you do not care if it is a house or a car. You only care about its' position. If you want to move it at some specific speed you will consider also the object's velocity. Nothing else is necessary.
 
-Within ECS an entity is an index uniquely identifying components. Component is a piece of data (position, velocity, age). System is something that takes components as inputs and generates some output (basically transforms data into different data) or to put it simply, it's where you implement your program's logic.
+Within ECS an entity is an index uniquely identifying components. A component is a piece of data (position, velocity, age). A system is where you implement your program's logic. It is a place that takes components as inputs and generates some output (basically transforms data into different data).
 
 Many different approaches to how ECS should be implemented exist and each is strong in some areas and worse in others. Gaia-ECS is an archetype-based entity component system framework. Therefore, unique combinations of components are stored in things called archetypes.
 
-Each archetype consists of blocks of memory called chunks. In our case each chunk is 64 kiB big (not recommended but it can changed via ecs::MemoryBlockSize). Chunks hold components (data) and entities (indices to components). You can think of them as SQL tables where components are columns and entities are rows.
+Each archetype consists of blocks of memory called chunks. In our case, each chunk is 64 KiB big (not recommended but it can be changed via ecs::MemoryBlockSize). Chunks hold components (data) and entities (indices to components). You can think of them as SQL tables where components are columns and entities are rows.
 
-All memory is preallocated in big blocks (pages) via the internal chunk allocator. Thanks to that all data is organized in cache-friendly way which most computer architectures like and actuall heap allocations which are slow are reduced to a minimum.
+All memory is preallocated in big blocks (pages) via the internal chunk allocator. Thanks to that all data is organized in a cache-friendly way which most computer architectures like and actual heap allocations which are slow are reduced to a minimum.
 
-One of the benefits of archetype-based architectures is fast iteration and good memory layout by default. They are also easy to paralelize. Adding and removing components is slower than with other architectures, though. Knowing strengths and weaknesses of your system helps you work around their issues so this is not necessarily a problem per se.
+One of the benefits of archetype-based architectures is fast iteration and good memory layout by default. They are also easy to parallelize. On the other hand, adding and removing components is slower than with other architectures. Knowing the strengths and weaknesses of your system helps you work around their issues so this is not necessarily a problem per se.
 
 # Usage
 ## Minimum requirements
@@ -152,7 +152,7 @@ w.ForEach(q, [&](Position& p, const Velocity& v) {
 
 ## Iteration over chunks
 ForEachChunk gives you more power than ForEach as it exposes to you the underlying chunk in which your data is contained.<br/>
-This means you can perform more kinds of operations and opens doors for new kinds of optimizations.
+That means you can perform more kinds of operations, and it also opens doors for new kinds of optimizations.
 ```cpp
 ecs::EntityQuery q;
 q.All<Position,Velocity>();
@@ -170,38 +170,38 @@ w.ForEachChunk(q, [](ecs::Chunk& ch) {
 });
 ```
 
-I need to make a small but important note here. Analysing the output of different compilers I quickly realised if you want your code vectorized for sure you need to be very clear and write the loop as a lamba or kernel if you will. It is quite surprising to see this but even with optimizations on and "fast-math"-like switches enabled some compilers simply will not vectorize the loop otherwise. Microsoft compilers are particularly sensitive in this regard. In the years to come maybe this gets better but for now keep it in mind or use a good optimizing compiler such as Clang.
+I need to make a small but important note here. Analyzing the output of different compilers I quickly realized if you want your code vectorized for sure you need to be very clear and write the loop as a lambda or kernel if you will. It is quite surprising to see this but even with optimizations on and "fast-math"-like switches enabled some compilers simply will not vectorize the loop otherwise. Microsoft compilers are particularly sensitive in this regard. In the years to come maybe this gets better but for now, keep it in mind or use a good optimizing compiler such as Clang.
 ```cpp
 w.ForEachChunk(q, [](ecs::Chunk& ch) {
-  auto vp = ch.ViewRW<Position>(); // read-write access to Position
-  auto vv = ch.View<Velocity>(); // read-only access to Velocity
+ auto vp = ch.ViewRW<Position>(); // read-write access to Position
+ auto vv = ch.View<Velocity>(); // read-only access to Velocity
 
-  // Make our intentions very clear so even compilers which are weaker at optimization can vectorize the loop
-  [&](Position* GAIA_RESTRICT p, const Velocity* GAIA_RESTRICT v, const uint32_t size) {
-    for (auto i = 0U; i < size; ++i) {
-      p[i].x += v[i].x * dt;
-      p[i].y += v[i].y * dt;
-      p[i].z += v[i].z * dt;
-    }
-  }(vp.data(), vv.data(), ch.GetItemCount());
+ // Make our intentions very clear so even compilers which are weaker at optimization can vectorize the loop
+ [&](Position* GAIA_RESTRICT p, const Velocity* GAIA_RESTRICT v, const uint32_t size) {
+  for (auto i = 0U; i < size; ++i) {
+    p[i].x += v[i].x * dt;
+    p[i].y += v[i].y * dt;
+    p[i].z += v[i].z * dt;
+  }
+ }(vp.data(), vv.data(), ch.GetItemCount());
 });
 ```
 
 ## Making use of SoA component layout
-By default all data inside components is treated as array of structures (AoS) via an implicit
+By default, all data inside components is treated as an array of structures (AoS) via an implicit
 ```cpp
 static constexpr auto Layout = utils::DataLayout::AoS
 ```
 This is the natural behavior of the language and what you would normally expect.<br/>
-If we imagine an ordinary array of 4 Position components defined above with this layout they are organized as this in memory: xyz xyz xyz xyz.
+If we imagine an ordinary array of 4 Position components defined above with this layout they are organized like this in memory: xyz xyz xyz xyz.
 
-However, in specific cases you might want to consider oranizing your component's internal data as structure or arrays (SoA):
+However, in specific cases you might want to consider organizing your component's internal data as structure or arrays (SoA):
 ```cpp
 static constexpr auto Layout = utils::DataLayout::SoA
 ```
-Using the example above this will make Gaia-ECS treat Position components as this in memory: xxxx yyyy zzzz.
+Using the example above this will make Gaia-ECS treat Position components like this in memory: xxxx yyyy zzzz.
 
-If used correctly this can have vast performance implication. Not only you organize your data in the most cache-friendly way this usually also means you can simplify your loops which in turn allows the compiler to optimize your code better.
+If used correctly this can have vast performance implications. Not only do you organize your data in the most cache-friendly way this usually also means you can simplify your loops which in turn allows the compiler to optimize your code better.
 ```cpp
 struct PositionSoA {
   float x, y, z;
@@ -257,15 +257,15 @@ However, using a CommandBuffer you can collect all requests first and commit the
 ecs::CommandBuffer cb;
 w.ForEach(q, [&](Entity e, const Position& p) {
   if (p.y < 0.0f)
-    cb.DeleteEntity(e); // queue entity e for deletion if its position falls bellow zero
+    cb.DeleteEntity(e); // queue entity e for deletion if its position falls below zero
 });
 cb.Commit(&w); // after calling this all entities with y position bellow zero get deleted
 ```
-If you try to make an unprotected structural change with GAIA_DEBUG enabled (set by default when Debug configuration is used) the framework will assert letting you know you are using it in a wrong way.
+If you try to make an unprotected structural change with GAIA_DEBUG enabled (set by default when Debug configuration is used) the framework will assert letting you know you are using it the wrong way.
 
 ## Chunk components
-Chunk component is a special kind of component which exists at most once per chunk.<br/>
-In other words you attach an information to one chunk specifically.<br/>
+A chunk component is a special kind of component which exists at most once per chunk.<br/>
+In other words, you attach a piece of information to one chunk specifically.<br/>
 If you organize your data with care (which you should) this can save you some very precious memory or performance depending on your use case.<br/>
 
 For instance, imagine you have a grid with fields of 10 meters in size on each axis.
@@ -295,8 +295,8 @@ Unit testing is handled via [Catch2 v2.x](https://github.com/catchorg/Catch2/tre
 You can either install Catch2 on your machine manually or use -DGAIA_FIND_CATCH2_PACKAGE when generating your build files and have CMake download and prepare the dependency for you.
 
 Benchmarking relies on [googlebenchmark](https://github.com/google/benchmark). It is OFF by default and can be controlled via -DGAIA_BUILD_BENCHMARK=ON/OFF.<br/>
-In order to use this you must have the library installed on your machine. You can follow the steps [here](https://github.com/google/benchmark#installation) to do so.<br/>
-It is planned to replace this with a header-only library or some custom solution in order to make the processes easier.
+To use this, you must have the library installed on your machine. You can follow the steps [here](https://github.com/google/benchmark#installation) to do so.<br/>
+It is planned to replace this with a header-only library or some custom solution to make the processes easier.
 
 # Installation
 
@@ -326,33 +326,33 @@ Note, some options don't work together or might not be supported by all compiler
 
 # Examples
 The repository contains some code examples for guidance.<br/>
-Examples are build if GAIA_BUILD_EXAMPLES is enabled when configuring the project (ON by default).
+Examples are built if GAIA_BUILD_EXAMPLES is enabled when configuring the project (ON by default).
 
-* [Example external](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example_external) - a dummy example explaning how to use the framework in an external project
+* [Example external](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example_external) - a dummy example explaining how to use the framework in an external project
 * [Example 1](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example1) - the same as the previous one but showing how Gaia-ECS is used as a standalone project
 * [Example 2](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example2) - simple example using some basic framework features
 * [Example Rougelike](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example_rougelike) - Rouglelike game putting all parts of the framework to use and represents a complex example of how everything would be used in practice; it is work-in-progress and changes and evolves with the project
 
 # Benchmarks
-In order to be able to reason about the project's performance benchmarks and prevent regressions benchmarks were created.<br/>
+To be able to reason about the project's performance benchmarks and prevent regressions benchmarks were created.<br/>
 They can be enabled via GAIA_BUILD_BENCHMARK when configuring the project (OFF by default).
 
-* [Duel](https://github.com/richardbiely/gaia-ecs/tree/main/src/perf/duel) - duel compares different coding approaches such as the basic model with uncontrolled OOP with data all-over-the heap, OOP where allocators are used to controll memory fragmentation and different ways of data oriented design and puts them to test against our ECS framework itself; DOD performance is the target level we want to reach or at least be as close as possible to with this project because it does not get any faster than that 
-* [Iter](https://github.com/richardbiely/gaia-ecs/tree/main/src/perf/iter) - this benchmark focuses on performance of creating and removing entities and components of various sizes and also coveres iteration performance with different numbers of entities and archetypes
+* [Duel](https://github.com/richardbiely/gaia-ecs/tree/main/src/perf/duel) - duel compares different coding approaches such as the basic model with uncontrolled OOP with data all-over-the heap, OOP where allocators are used to controlling memory fragmentation and different ways of data-oriented design and it puts them to test against our ECS framework itself; DOD performance is the target level we want to reach or at least be as close as possible to with this project because it does not get any faster than that 
+* [Iter](https://github.com/richardbiely/gaia-ecs/tree/main/src/perf/iter) - this benchmark focuses on the performance of creating and removing entities and components of various sizes and also covers iteration performance with different numbers of entities and archetypes
 
 # Future
 Currently, many new features and improvements to the current system are planned.<br/>
 Among the most prominent ones those are:
-* scheduler - a system which would allow parallel execution of all systems by default, work stealing and an easy setup of dependencies
+* scheduler - a system that would allow parallel execution of all systems by default, work stealing, and an easy setup of dependencies
 * scenes - a way to serialize the state of chunks or entire worlds
 * improved queries - better caching of queries so they are of close-to-zero cost to use
-* improved add/remove component performance - adding and removing components in archetype-based ECS is not particulary fast but by using some clever tricks this can be mostly mitigated
+* improved add/remove component performance - adding and removing components in archetype-based ECS is not particularly fast but by using some clever tricks this can be mostly mitigated
 * profiling scopes - to allow easy measurement of performance in production
-* debugger - an editor that would give one an overview of worlds created by the framework (number of entites, chunk fragmentation, systems running etc.)
+* debugger - an editor that would give one an overview of worlds created by the framework (number of entities, chunk fragmentation, systems running, etc.)
 
 # Contributions
 
-Requests for features, PRs, suggestions and feedback are highly appreciated.
+Requests for features, PRs, suggestions, and feedback are highly appreciated.
 
 If you find you can help and want to contribute to the project feel free to contact
 me directly (you can find the mail on my [profile page](https://github.com/richardbiely)).<br/>
@@ -366,3 +366,4 @@ Code released under
 <!--
 @endcond TURN_OFF_DOXYGEN
 -->
+
