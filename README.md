@@ -328,8 +328,8 @@ Note, some options don't work together or might not be supported by all compiler
 The repository contains some code examples for guidance.<br/>
 Examples are build if GAIA_BUILD_EXAMPLES is enabled when configuring the project (ON by default).
 
-* [Example external](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example_external) - the most basic dummy example explaning how to use the framework in an external project
-* [Example 1](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example1) - the same as the previous one but showing how Gaia-ECS is used as standalone project
+* [Example external](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example_external) - a dummy example explaning how to use the framework in an external project
+* [Example 1](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example1) - the same as the previous one but showing how Gaia-ECS is used as a standalone project
 * [Example 2](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example2) - simple example using some basic framework features
 * [Example Rougelike](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example_rougelike) - Rouglelike game putting all parts of the framework to use and represents a complex example of how everything would be used in practice; it is work-in-progress and changes and evolves with the project
 
