@@ -109,14 +109,15 @@ namespace gaia {
 			*/
 			void RemoveEntity(Chunk* pChunk, uint32_t entityChunkIndex) {
 				GAIA_ASSERT(
-						!pChunk->header.owner.structuralChangesLocked && "Entities can't be removed while chunk is being iterated "
-																														 "(structural changes are forbidden during this time!)");
+						!pChunk->header.owner.info.structuralChangesLocked &&
+						"Entities can't be removed while chunk is being iterated "
+						"(structural changes are forbidden during this time!)");
 
 				pChunk->RemoveEntity(entityChunkIndex, m_entities);
 
 				if (
 						// Skip chunks which already requested removal
-						pChunk->header.lifespan > 0 ||
+						pChunk->header.info.lifespan > 0 ||
 						// Skip non-empty chunks
 						pChunk->HasEntities())
 					return;
@@ -133,7 +134,7 @@ namespace gaia {
 				// be removed. The chunk might be reclaimed before GC happens but it
 				// simply ignores such requests. This way GC always has at most one
 				// record for removal for any given chunk.
-				pChunk->header.lifespan = MAX_CHUNK_LIFESPAN;
+				pChunk->header.info.lifespan = MAX_CHUNK_LIFESPAN;
 
 				m_chunksToRemove.push_back(pChunk);
 			}
@@ -278,7 +279,7 @@ namespace gaia {
 					// We don't want to go out of range for new entities
 					GAIA_ASSERT(m_entities.size() < Entity::IdMask && "Trying to allocate too many entities!");
 
-					m_entities.push_back({nullptr, 0, 0});
+					m_entities.push_back({});
 					return {(EntityId)m_entities.size() - 1, 0};
 				} else {
 					// Make sure the list is not broken
@@ -323,8 +324,9 @@ namespace gaia {
 			void StoreEntity(Entity entity, Chunk* pChunk) {
 				GAIA_ASSERT(pChunk != nullptr);
 				GAIA_ASSERT(
-						!pChunk->header.owner.structuralChangesLocked && "Entities can't be added while chunk is being iterated "
-																														 "(structural changes are forbidden during this time!)");
+						!pChunk->header.owner.info.structuralChangesLocked &&
+						"Entities can't be added while chunk is being iterated "
+						"(structural changes are forbidden during this time!)");
 
 				auto& entityContainer = m_entities[entity.id()];
 				entityContainer.pChunk = pChunk;
@@ -346,7 +348,7 @@ namespace gaia {
 
 #if GAIA_DEBUG
 					GAIA_ASSERT(
-							!pChunk->header.owner.structuralChangesLocked &&
+							!pChunk->header.owner.info.structuralChangesLocked &&
 							"Components can't be added while chunk is being iterated (structural changes are forbidden during this "
 							"time!)");
 
@@ -461,7 +463,7 @@ namespace gaia {
 				auto* pChunk = entityContainer.pChunk;
 
 				GAIA_ASSERT(
-						!pChunk->header.owner.structuralChangesLocked &&
+						!pChunk->header.owner.info.structuralChangesLocked &&
 						"Components can't be removed while chunk is being iterated (structural changes are forbidden during this "
 						"time!)");
 
@@ -702,7 +704,8 @@ namespace gaia {
 			}
 
 			/*!
-			Creates a new entity by cloning an already existing one
+			Creates a new entity by cloning an already existing one.
+			\param entity Entity
 			\return Entity
 			*/
 			Entity CreateEntity(Entity entity) {
@@ -743,7 +746,8 @@ namespace gaia {
 			}
 
 			/*!
-			Removes an entity along with all data associated with it
+			Removes an entity along with all data associated with it.
+			\param entity Entity
 			*/
 			void DeleteEntity(Entity entity) {
 				if (m_entities.empty() || entity == EntityNull)
@@ -765,6 +769,58 @@ namespace gaia {
 				} else {
 					// Return entity to pool
 					DeallocateEntity(entity);
+				}
+			}
+
+			/*!
+			Enables or disables an entire entity.
+			\param entity Entity
+			\param enable Enable or disable the entity
+			*/
+			void EnableEntity(Entity entity, bool enable) {
+				GAIA_ASSERT(
+						!pChunk->header.owner.info.structuralChangesLocked &&
+						"Entities can't be enabled/disabled while chunk is being iterated "
+						"(structural changes are forbidden during this time!)");
+
+				auto& entityContainer = m_entities[entity.id()];
+				if (enable != entityContainer.disabled)
+					return;
+				entityContainer.disabled = !enable;
+
+				if (auto* pChunkFrom = entityContainer.pChunk) {
+					auto& archetype = const_cast<Archetype&>(pChunkFrom->header.owner);
+
+					// Create a spot in the new chunk
+					auto* pChunkTo = enable ? archetype.FindOrCreateFreeChunk() : archetype.FindOrCreateFreeChunkDisabled();
+					const auto idxNew = pChunkTo->AddEntity(entity);
+
+					// Copy generic component data from the reference entity to our new entity
+					{
+						const auto& info = archetype.componentTypeList[ComponentType::CT_Generic];
+						const auto& look = archetype.componentLookupList[ComponentType::CT_Generic];
+
+						for (uint32_t i = 0U; i < info.size(); i++) {
+							const auto* metaType = info[i].type;
+							if (!metaType->size)
+								continue;
+
+							const uint32_t idxFrom = look[i].offset + metaType->size * entityContainer.idx;
+							const uint32_t idxTo = look[i].offset + metaType->size * idxNew;
+
+							GAIA_ASSERT(idxFrom < Chunk::DATA_SIZE);
+							GAIA_ASSERT(idxTo < Chunk::DATA_SIZE);
+
+							memcpy(&pChunkTo->data[idxTo], &pChunkFrom->data[idxFrom], metaType->size);
+						}
+					}
+
+					// Remove the entity from the old chunk
+					pChunkFrom->RemoveEntity(entityContainer.idx, m_entities);
+
+					// Update the entity container with new info
+					entityContainer.pChunk = pChunkTo;
+					entityContainer.idx = idxNew;
 				}
 			}
 
@@ -1202,7 +1258,7 @@ namespace gaia {
 							const auto maxIters = (uint32_t)archetype.chunks.size();
 
 #if GAIA_DEBUG
-							archetype.structuralChangesLocked = true;
+							archetype.info.structuralChangesLocked = true;
 #endif
 
 							do {
@@ -1210,6 +1266,8 @@ namespace gaia {
 								for (; chunkOffset < maxIters; ++chunkOffset) {
 									auto* pChunk = archetype.chunks[chunkOffset];
 
+									if (pChunk->IsDisabled())
+										continue;
 									if (!pChunk->HasEntities())
 										continue;
 									if (hasFilters && !CheckFilters(query, *pChunk))
@@ -1227,7 +1285,7 @@ namespace gaia {
 							} while (chunkOffset < maxIters);
 
 #if GAIA_DEBUG
-							archetype.structuralChangesLocked = false;
+							archetype.info.structuralChangesLocked = false;
 #endif
 						});
 
@@ -1262,7 +1320,7 @@ namespace gaia {
 							const auto maxIters = (uint32_t)archetype.chunks.size();
 
 #if GAIA_DEBUG
-							archetype.structuralChangesLocked = true;
+							archetype.info.structuralChangesLocked = true;
 #endif
 
 							do {
@@ -1270,6 +1328,8 @@ namespace gaia {
 								for (; offset < maxIters; ++offset) {
 									auto* pChunk = archetype.chunks[offset];
 
+									if (pChunk->IsDisabled())
+										continue;
 									if (!pChunk->HasEntities())
 										continue;
 									if (hasFilters && !CheckFilters(query, *pChunk))
@@ -1288,7 +1348,7 @@ namespace gaia {
 							} while (offset < maxIters);
 
 #if GAIA_DEBUG
-							archetype.structuralChangesLocked = false;
+							archetype.info.structuralChangesLocked = false;
 #endif
 						});
 
@@ -1398,14 +1458,14 @@ namespace gaia {
 
 					// Skip reclaimed chunks
 					if (pChunk->HasEntities()) {
-						pChunk->header.lifespan = MAX_CHUNK_LIFESPAN;
+						pChunk->header.info.lifespan = MAX_CHUNK_LIFESPAN;
 						utils::erase_fast(m_chunksToRemove, i);
 						continue;
 					}
 
-					GAIA_ASSERT(pChunk->header.lifespan > 0);
-					--pChunk->header.lifespan;
-					if (pChunk->header.lifespan > 0) {
+					GAIA_ASSERT(pChunk->header.info.lifespan > 0);
+					--pChunk->header.info.lifespan;
+					if (pChunk->header.info.lifespan > 0) {
 						++i;
 						continue;
 					}
@@ -1461,7 +1521,7 @@ namespace gaia {
 								archetype->lookupHash, archetype->matcherHash[ComponentType::CT_Generic],
 								archetype->matcherHash[ComponentType::CT_Chunk], (uint32_t)archetype->chunks.size(),
 								genericComponentsSize + chunkComponentsSize, genericComponentsSize, chunkComponentsSize, it->second,
-								archetype->capacity);
+								archetype->info.capacity);
 
 						auto logComponentInfo = [](const ChunkComponentTypeList& components) {
 							for (const auto& component: components) {
@@ -1485,10 +1545,10 @@ namespace gaia {
 						const auto& chunks = archetype->chunks;
 						for (auto i = 0U; i < (uint32_t)chunks.size(); ++i) {
 							const auto* pChunk = chunks[i];
-							const auto entityCount = pChunk->header.items;
+							const auto entityCount = pChunk->header.items.count;
 							LOG_N(
-									"  Chunk #%04u, entities:%u/%u, lifespan:%u", i, entityCount, archetype->capacity,
-									pChunk->header.lifespan);
+									"  Chunk #%04u, entities:%u/%u, lifespan:%u", i, entityCount, archetype->info.capacity,
+									pChunk->header.info.lifespan);
 						}
 					}
 				}
