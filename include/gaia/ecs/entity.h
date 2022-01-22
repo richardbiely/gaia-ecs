@@ -94,13 +94,18 @@ namespace gaia {
 
 		class Chunk;
 		struct EntityContainer {
+			static constexpr uint32_t IdBits = sizeof(EntityId) * 8 - 1;
+
 			//! Chunk the entity currently resides in
 			Chunk* pChunk;
 			//! For allocated entity: Index of entity within chunk.
 			//! For deleted entity: Index of the next entity in the implicit list.
-			EntityId idx;
+			EntityId idx: IdBits;
+			//! Tells if the entity is disabled. Borrows one bit from idx because it's unlikely to cause issues there
+			EntityId disabled : 1;
 			//! Generation ID
 			EntityGenId gen;
 		};
+		static_assert(sizeof(EntityContainer) == sizeof(void*) + sizeof(EntityId) + sizeof(EntityGenId));
 	} // namespace ecs
 } // namespace gaia

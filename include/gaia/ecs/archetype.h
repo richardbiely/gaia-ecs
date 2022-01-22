@@ -25,8 +25,12 @@ namespace gaia {
 
 			//! World to which this chunk belongs to
 			const World* parentWorld = nullptr;
-			//! List of chunks allocated by this archetype
+
+			//! List of active chunks allocated by this archetype
 			containers::darray<Chunk*> chunks;
+			//! List of disabled chunks allocated by this archetype
+			containers::darray<Chunk*> chunksDisabled;
+
 			//! Description of components within this archetype
 			containers::sarray<ChunkComponentTypeList, ComponentType::CT_Count> componentTypeList;
 			//! Lookup hashes of components within this archetype
@@ -38,18 +42,20 @@ namespace gaia {
 			uint64_t matcherHash[ComponentType::CT_Count] = {0};
 			//! Archetype ID - used to address the archetype directly in the world's list or archetypes
 			uint32_t id = 0;
-			//! The number of entities this archetype can take (e.g 5 = 5 entities
-			//! with all their components)
-			uint32_t capacity = 0;
+			struct {
+				//! The number of entities this archetype can take (e.g 5 = 5 entities
+				//! with all their components)
+				uint32_t capacity : 16;
 
-			//! True if there's a component that requires custom construction
-			bool hasComponentWithCustomConstruction = false;
-			//! True if there's a chunk component that requires custom construction
-			bool hasChunkComponentTypesWithCustomConstruction = false;
+				//! True if there's a component that requires custom construction
+				uint32_t hasComponentWithCustomConstruction : 1;
+				//! True if there's a chunk component that requires custom construction
+				uint32_t hasChunkComponentTypesWithCustomConstruction : 1;
 #if GAIA_DEBUG
-			//! Set to true when chunks are being iterated. Used to inform of structural changes when they shouldn't happen.
-			bool structuralChangesLocked = false;
+				//! Set to true when chunks are being iterated. Used to inform of structural changes when they shouldn't happen.
+				uint32_t structuralChangesLocked : 1;
 #endif
+			} info{};
 
 			// Constructor is hidden. Create archetypes via Create
 			Archetype() = default;
@@ -64,7 +70,7 @@ namespace gaia {
 #endif
 
 				// Call default constructors for components that need it
-				if (archetype.hasComponentWithCustomConstruction) {
+				if (archetype.info.hasComponentWithCustomConstruction) {
 					const auto& comp = archetype.componentTypeList[ComponentType::CT_Generic];
 					const auto& look = archetype.componentLookupList[ComponentType::CT_Generic];
 					for (uint32_t i = 0U; i < comp.size(); ++i) {
@@ -74,7 +80,7 @@ namespace gaia {
 					}
 				}
 				// Call default constructors for chunk components that need it
-				if (archetype.hasChunkComponentTypesWithCustomConstruction) {
+				if (archetype.info.hasChunkComponentTypesWithCustomConstruction) {
 					const auto& comp = archetype.componentTypeList[ComponentType::CT_Chunk];
 					const auto& look = archetype.componentLookupList[ComponentType::CT_Chunk];
 					for (uint32_t i = 0U; i < comp.size(); ++i) {
@@ -84,14 +90,14 @@ namespace gaia {
 					}
 				}
 
-				pChunk->header.capacity = archetype.capacity;
+				pChunk->header.items.capacity = archetype.info.capacity;
 				return pChunk;
 			}
 
 			static void ReleaseChunk(Chunk* pChunk) {
 				// Call destructors for types that need it
 				const auto& archetype = pChunk->header.owner;
-				if (archetype.hasComponentWithCustomConstruction) {
+				if (archetype.info.hasComponentWithCustomConstruction) {
 					const auto& comp = archetype.componentTypeList[ComponentType::CT_Generic];
 					const auto& look = archetype.componentLookupList[ComponentType::CT_Generic];
 					for (uint32_t i = 0U; i < comp.size(); ++i) {
@@ -101,7 +107,7 @@ namespace gaia {
 					}
 				}
 				// Call destructors for chunk components which need it
-				if (archetype.hasChunkComponentTypesWithCustomConstruction) {
+				if (archetype.info.hasChunkComponentTypesWithCustomConstruction) {
 					const auto& comp = archetype.componentTypeList[ComponentType::CT_Chunk];
 					const auto& look = archetype.componentLookupList[ComponentType::CT_Chunk];
 					for (uint32_t i = 0U; i < comp.size(); ++i) {
@@ -134,14 +140,14 @@ namespace gaia {
 				uint32_t genericComponentListSize = (uint32_t)sizeof(Entity);
 				for (const auto type: genericTypes) {
 					genericComponentListSize += type->size;
-					newArch->hasComponentWithCustomConstruction |= type->constructor != nullptr;
+					newArch->info.hasComponentWithCustomConstruction |= type->constructor != nullptr;
 				}
 
 				// Size of chunk components
 				uint32_t chunkComponentListSize = 0;
 				for (const auto type: chunkTypes) {
 					chunkComponentListSize += type->size;
-					newArch->hasChunkComponentTypesWithCustomConstruction |= type->constructor != nullptr;
+					newArch->info.hasChunkComponentTypesWithCustomConstruction |= type->constructor != nullptr;
 				}
 
 				// Number of components we can fit into one chunk
@@ -222,44 +228,61 @@ namespace gaia {
 					}
 				}
 
-				newArch->capacity = (uint16_t)maxGenericItemsInArchetype;
+				newArch->info.capacity = maxGenericItemsInArchetype;
 				newArch->matcherHash[ComponentType::CT_Generic] = CalculateMatcherHash(genericTypes);
 				newArch->matcherHash[ComponentType::CT_Chunk] = CalculateMatcherHash(chunkTypes);
 
 				return newArch;
 			}
 
-			//! Tries to locate a chunk that has some space left for a new entity
-			//! If not found a new chunk is created
-			[[nodiscard]] Chunk* FindOrCreateFreeChunk() {
-				if (!chunks.empty()) {
+			[[nodiscard]] Chunk* FindOrCreateFreeChunk_Internal(containers::darray<Chunk*>& chunkArray) {
+				if (!chunkArray.empty()) {
 					// Look for chunks with free space back-to-front.
 					// We do it this way because we always try to keep fully utilized and
 					// thus only the one in the back should be free.
-					auto i = (uint32_t)chunks.size() - 1;
+					auto i = (uint32_t)chunkArray.size() - 1;
 					do {
-						auto pChunk = chunks[i];
+						auto pChunk = chunkArray[i];
 						GAIA_ASSERT(pChunk != nullptr);
 						if (!pChunk->IsFull())
 							return pChunk;
 					} while (i-- > 0);
 				}
 
-				// No free space found anywhere. Let's create a new one
+				// No free space found anywhere. Let's create a new one.
 				auto* pChunk = AllocateChunk(*this);
-				chunks.push_back(pChunk);
+				chunkArray.push_back(pChunk);
 				return pChunk;
+			}
+
+			//! Tries to locate a chunk that has some space left for a new entity.
+			//! If not found a new chunk is created
+			[[nodiscard]] Chunk* FindOrCreateFreeChunk() {
+				return FindOrCreateFreeChunk_Internal(chunks);
+			}
+
+			//! Tries to locate a chunk for disabled entities that has some space left for a new one.
+			//! If not found a new chunk is created
+			[[nodiscard]] Chunk* FindOrCreateFreeChunkDisabled() {
+				if (auto* pChunk = FindOrCreateFreeChunk_Internal(chunksDisabled)) {
+					pChunk->header.info.disabled = true;
+					return pChunk;
+				}
+
+				return nullptr;
 			}
 
 			void RemoveChunk(Chunk* pChunk) {
 				ReleaseChunk(pChunk);
-				utils::erase_fast(chunks, utils::get_index(chunks, pChunk));
+				utils::erase_fast(chunks, utils::get_index(pChunk->IsDisabled() ? chunksDisabled : chunks, pChunk));
 			}
 
 		public:
 			~Archetype() {
 				// Delete all archetype chunks
 				for (auto* pChunk: chunks)
+					ReleaseChunk(pChunk);
+				for (auto* pChunk: chunksDisabled)
 					ReleaseChunk(pChunk);
 			}
 
@@ -268,7 +291,7 @@ namespace gaia {
 			}
 
 			[[nodiscard]] uint32_t GetCapacity() const {
-				return capacity;
+				return info.capacity;
 			}
 
 			[[nodiscard]] uint64_t GetMatcherHash(ComponentType type) const {

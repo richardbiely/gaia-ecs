@@ -259,6 +259,35 @@ TEST_CASE("CreateAndRemoveEntity - 1 component") {
 		remove(arr[i]);
 }
 
+TEST_CASE("EnableEntity") {
+	ecs::World w;
+
+	auto create = [&](uint32_t id) {
+		auto e = w.CreateEntity();
+		const bool ok = e.id() == id && e.gen() == 0;
+		REQUIRE(ok);
+		w.AddComponent<Position>(e, {});
+		return e;
+	};
+
+	// 100,000 picked so we create enough entites that they overflow
+	// into another chunk
+	const uint32_t N = 100'000;
+	containers::darray<ecs::Entity> arr;
+	arr.reserve(N);
+
+	for (uint32_t i = 0U; i < N; i++)
+		arr.push_back(create(i));
+
+	w.EnableEntity(arr[0], false);
+
+	uint32_t cnt = 0;
+	w.ForEach([&]([[maybe_unused]] const Position& p) {
+		++cnt;
+	});
+	REQUIRE(cnt == N - 1);
+}
+
 TEST_CASE("CreateComponent") {
 	ecs::World w;
 
