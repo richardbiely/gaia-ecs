@@ -1410,6 +1410,11 @@ namespace gaia {
 						continue;
 					}
 				}
+
+				// Remove all dead chunks
+				for (auto* pChunk: m_chunksToRemove) {
+					const_cast<Archetype&>(pChunk->header.owner).RemoveChunk(pChunk);
+				}
 			}
 
 			/*!
