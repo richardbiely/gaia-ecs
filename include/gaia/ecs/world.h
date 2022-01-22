@@ -46,8 +46,6 @@ namespace gaia {
 
 			//! List of chunks to delete
 			containers::darray<Chunk*> m_chunksToRemove;
-			//! List of archetypes to delete
-			containers::darray<Archetype*> m_archetypesToRemove;
 
 			//! With every structural change world version changes
 			uint32_t m_worldVersion = 0;
@@ -1411,12 +1409,6 @@ namespace gaia {
 						++i;
 						continue;
 					}
-
-					auto& archetype = const_cast<Archetype&>(pChunk->header.owner);
-					GAIA_ASSERT(!archetype.chunks.empty());
-
-					m_archetypesToRemove.push_back(&archetype);
-					utils::erase_fast(m_chunksToRemove, i);
 				}
 			}
 
