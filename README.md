@@ -62,6 +62,15 @@ One of the benefits of archetype-based architectures is fast iteration and good 
 GAIA_INIT
 ```
 ## Basic operations
+### Creating and deleting entities
+```cpp
+ecs::World w;
+auto e = w.CreateEntity();
+... // do something with the created entity
+w.DeleteEntity(e);
+```
+
+### Adding and removing components
 ```cpp
 struct Position {
   float x, y, z;
@@ -77,12 +86,18 @@ auto e = w.CreateEntity();
 w.AddComponent<Position>(e, {0, 100, 0});
 w.AddComponent<Velocity>(e, {0, 0, 1});
 
-// Change Velocity's value.
-w.SetComponent<Velocity>(e, {0, 0, 2});
-
 // Remove Velocity from the entity.
 w.RemoveComponent<Velocity>(e);
+```
 
+### Setting component value
+```cpp
+// Change Velocity's value.
+w.SetComponent<Velocity>(e, {0, 0, 2});
+```
+
+### Checking if component is attached to entity
+```cpp
 // Check if entity e has Velocity.
 const auto* pChunkA = w.GetEntityChunk(e);
 bool hasVelocity = pChunkA->HasComponent<Velocity>(e);
@@ -95,15 +110,23 @@ if (pChunkB->HasComponent<Position>(e))
   auto pos = pChunkB->ViewRW<Position>();
   pos[entityIndexInChunk].y = 1234; // position.y changed from 100 to 1234
 }
+```
 
-// Delete the entity.
-w.DeleteEntity(e);
-
+### Batched operations
+```cpp
 // You can also use a faster batched version of some operations.
 e = w.CreateEntity();
 w.AddComponent<Position, Velocity>(e, {1, 2, 3}, {0, 0, 0});
 w.SetComponent<Position, Velocity>(e, {11, 22, 33}, {10, 5, 0});
 w.RemoveComponent<Position, Velocity>(e);
+```
+
+### Enabling entities
+```cpp
+// Entity e is disabled and will not take part in any queries (ForEach, ForEachChunk which you can find bellow).
+w.EnableEntity(e, false);
+// Entity enabled again.
+w.EnableEntity(e, true);
 ```
 
 ## Simple iteration
