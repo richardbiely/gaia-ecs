@@ -778,12 +778,13 @@ namespace gaia {
 			\param enable Enable or disable the entity
 			*/
 			void EnableEntity(Entity entity, bool enable) {
+				auto& entityContainer = m_entities[entity.id()];
+
 				GAIA_ASSERT(
-						!pChunk->header.owner.info.structuralChangesLocked &&
+						(!entityContainer.pChunk || !entityContainer.pChunk->header.owner.info.structuralChangesLocked) &&
 						"Entities can't be enabled/disabled while chunk is being iterated "
 						"(structural changes are forbidden during this time!)");
 
-				auto& entityContainer = m_entities[entity.id()];
 				if (enable != entityContainer.disabled)
 					return;
 				entityContainer.disabled = !enable;
@@ -1253,36 +1254,42 @@ namespace gaia {
 											 const Archetype& archetype
 #endif
 									 ) {
-							uint32_t chunkOffset = 0U;
-							uint32_t batchSize = 0U;
-							const auto maxIters = (uint32_t)archetype.chunks.size();
-
 #if GAIA_DEBUG
 							archetype.info.structuralChangesLocked = true;
 #endif
 
-							do {
-								// Prepare a buffer to iterate over
-								for (; chunkOffset < maxIters; ++chunkOffset) {
-									auto* pChunk = archetype.chunks[chunkOffset];
+							auto exec = [&](containers::darray<Chunk*>& chunksList) {
+								uint32_t chunkOffset = 0U;
+								uint32_t batchSize = 0U;
+								const auto maxIters = (uint32_t)chunksList.size();
+								do {
+									// Prepare a buffer to iterate over
+									for (; chunkOffset < maxIters; ++chunkOffset) {
+										auto* pChunk = chunksList[chunkOffset];
 
-									if (pChunk->IsDisabled())
-										continue;
-									if (!pChunk->HasEntities())
-										continue;
-									if (hasFilters && !CheckFilters(query, *pChunk))
-										continue;
+										if (!pChunk->HasEntities())
+											continue;
+										if (!query.CheckConstraints(!pChunk->IsDisabled()))
+											continue;
+										if (hasFilters && !CheckFilters(query, *pChunk))
+											continue;
 
-									tmp[batchSize++] = pChunk;
-								}
+										tmp[batchSize++] = pChunk;
+									}
 
-								// Execute functors in batches
-								for (auto chunkIdx = 0U; chunkIdx < batchSize; ++chunkIdx)
-									func(*tmp[chunkIdx]);
+									// Execute functors in batches
+									for (auto chunkIdx = 0U; chunkIdx < batchSize; ++chunkIdx)
+										func(*tmp[chunkIdx]);
 
-								// Reset the batch size
-								batchSize = 0U;
-							} while (chunkOffset < maxIters);
+									// Reset the batch size
+									batchSize = 0U;
+								} while (chunkOffset < maxIters);
+							};
+
+							if (query.CheckConstraints(true))
+								exec(archetype.chunks);
+							if (query.CheckConstraints(false))
+								exec(archetype.chunksDisabled);
 
 #if GAIA_DEBUG
 							archetype.info.structuralChangesLocked = false;
@@ -1315,37 +1322,41 @@ namespace gaia {
 											 const Archetype& archetype
 #endif
 									 ) {
-							uint32_t offset = 0U;
-							uint32_t batchSize = 0U;
-							const auto maxIters = (uint32_t)archetype.chunks.size();
-
 #if GAIA_DEBUG
 							archetype.info.structuralChangesLocked = true;
 #endif
 
-							do {
-								// Prepare a buffer to iterate over
-								for (; offset < maxIters; ++offset) {
-									auto* pChunk = archetype.chunks[offset];
+							auto exec = [&](containers::darray<Chunk*>& chunksList) {
+								uint32_t chunkOffset = 0U;
+								uint32_t batchSize = 0U;
+								const auto maxIters = (uint32_t)chunksList.size();
+								do {
+									// Prepare a buffer to iterate over
+									for (; chunkOffset < maxIters; ++chunkOffset) {
+										auto* pChunk = chunksList[chunkOffset];
 
-									if (pChunk->IsDisabled())
-										continue;
-									if (!pChunk->HasEntities())
-										continue;
-									if (hasFilters && !CheckFilters(query, *pChunk))
-										continue;
+										if (!pChunk->HasEntities())
+											continue;
+										if (hasFilters && !CheckFilters(query, *pChunk))
+											continue;
 
-									tmp[batchSize++] = pChunk;
-								}
+										tmp[batchSize++] = pChunk;
+									}
 
-								// Execute functors in bulk
-								const auto size = batchSize;
-								for (auto chunkIdx = 0U; chunkIdx < size; ++chunkIdx)
-									world.Unpack_ForEachEntityInChunk(InputArgs{}, *tmp[chunkIdx], func);
+									// Execute functors in bulk
+									const auto size = batchSize;
+									for (auto chunkIdx = 0U; chunkIdx < size; ++chunkIdx)
+										world.Unpack_ForEachEntityInChunk(InputArgs{}, *tmp[chunkIdx], func);
 
-								// Reset the batch size
-								batchSize = 0U;
-							} while (offset < maxIters);
+									// Reset the batch size
+									batchSize = 0U;
+								} while (chunkOffset < maxIters);
+							};
+
+							if (query.CheckConstraints(true))
+								exec(archetype.chunks);
+							if (query.CheckConstraints(false))
+								exec(archetype.chunksDisabled);
 
 #if GAIA_DEBUG
 							archetype.info.structuralChangesLocked = false;
