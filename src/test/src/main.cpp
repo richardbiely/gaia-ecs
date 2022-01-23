@@ -279,13 +279,63 @@ TEST_CASE("EnableEntity") {
 	for (uint32_t i = 0U; i < N; i++)
 		arr.push_back(create(i));
 
-	w.EnableEntity(arr[0], false);
+	w.EnableEntity(arr[1000], false);
 
 	uint32_t cnt = 0;
 	w.ForEach([&]([[maybe_unused]] const Position& p) {
 		++cnt;
 	});
 	REQUIRE(cnt == N - 1);
+
+	ecs::EntityQuery q;
+	q.All<Position>();
+	cnt = 0;
+	w.ForEach(q, [&]([[maybe_unused]] const Position& p) {
+		++cnt;
+	});
+	REQUIRE(cnt == N - 1);
+
+	q.SetConstraints(ecs::EntityQuery::Constraints::AcceptAll);
+	cnt = 0;
+	w.ForEach(q, [&]([[maybe_unused]] const Position& p) {
+		++cnt;
+	});
+	REQUIRE(cnt == N);
+
+	q.SetConstraints(ecs::EntityQuery::Constraints::DisabledOnly);
+	cnt = 0;
+	w.ForEach(q, [&]([[maybe_unused]] const Position& p) {
+		++cnt;
+	});
+	REQUIRE(cnt == 1);
+
+	w.EnableEntity(arr[1000], true);
+
+	cnt = 0;
+	w.ForEach([&]([[maybe_unused]] const Position& p) {
+		++cnt;
+	});
+	REQUIRE(cnt == N);
+
+	cnt = 0;
+	w.ForEach(q, [&]([[maybe_unused]] const Position& p) {
+		++cnt;
+	});
+	REQUIRE(cnt == 0);
+
+	q.SetConstraints(ecs::EntityQuery::Constraints::EnabledOnly);
+	cnt = 0;
+	w.ForEach(q, [&]([[maybe_unused]] const Position& p) {
+		++cnt;
+	});
+	REQUIRE(cnt == N);
+
+	q.SetConstraints(ecs::EntityQuery::Constraints::AcceptAll);
+	cnt = 0;
+	w.ForEach(q, [&]([[maybe_unused]] const Position& p) {
+		++cnt;
+	});
+	REQUIRE(cnt == N);
 }
 
 TEST_CASE("CreateComponent") {
