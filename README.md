@@ -218,7 +218,7 @@ w.ForEach(q, [](Position& p, const Velocity& v) {
 });
 
 w.EnableEntity(e, true);
-w.ForEach([&](Position& p, const Velocity& v) {
+w.ForEach(q, [](Position& p, const Velocity& v) {
   // Entity e is going to be included in this query.
   // ...
 });
