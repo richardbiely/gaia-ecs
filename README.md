@@ -121,14 +121,6 @@ w.SetComponent<Position, Velocity>(e, {11, 22, 33}, {10, 5, 0});
 w.RemoveComponent<Position, Velocity>(e);
 ```
 
-### Enabling entities
-```cpp
-// Entity e is disabled and will not take part in any queries (ForEach, ForEachChunk which you can find bellow).
-w.EnableEntity(e, false);
-// Entity enabled again.
-w.EnableEntity(e, true);
-```
-
 ## Simple iteration
 You can perform operations on your data in multiple ways with ForEach being the simplest one.<br/>
 It provides the least room for optimization (that does not mean the generated code is slow by any means) but is very easy to read.
@@ -209,6 +201,46 @@ w.ForEachChunk(q, [](ecs::Chunk& ch) {
  }(vp.data(), vv.data(), ch.GetItemCount());
 });
 ```
+
+### Enabling entities
+Users are able to enable or disable entities when necessary.<br/>
+Disabled entities are moved to chunks different from the rest used by the active ones. 
+This also means that by default, disabled entities do not take part in queries. 
+```cpp
+ecs::EntityQuery q;
+q.All<Position, Velocity>();
+
+w.EnableEntity(e, false);
+w.ForEach(q, [](Position& p, const Velocity& v) {
+  // Entity e is not going to be included in this query.
+  // ...
+});
+
+w.EnableEntity(e, true);
+w.ForEach([&](Position& p, const Velocity& v) {
+  // Entity e is going to be included in this query.
+  // ...
+});
+```
+
+Default query behavior can be modified by setting query constrains:
+```cpp
+w.EnableEntity(e, false);
+
+q.SetConstraint(ecs::EntityQuery::Constraint::AcceptAll);
+w.ForEach(q, [](Position& p, const Velocity& v) {
+  // Both enabled and disabled entities are included in the query.
+  // ...
+});
+
+q.SetConstraint(ecs::EntityQuery::Constraint::DisabledOnly);
+w.ForEach(q, [](Position& p, const Velocity& v) {
+  // Only disabled entities are included.
+  // ...
+});
+```
+
+Behavior of EnableEntity is similar to that of calling DeleteEntity/CreateEntity. However, the main benefit is disabling an entity keeps its ID intact which means you can reference it freely.
 
 ## Making use of SoA component layout
 By default, all data inside components is treated as an array of structures (AoS) via an implicit
