@@ -24,6 +24,7 @@ Being early in development, breaking changes to its API are possible. There are 
   * [Basic operations](#basic-operations)
   * [Simple iteration](#simple-iteration)
   * [Iteration over chunks](#iteration-over-chunks)
+  * [Disabling entities](#disabling-entities)
   * [Making use of SoA component layout](#making-use-of-soa-component-layout)
   * [Delayed execution](#delayed-execution)
   * [Chunk components](#chunk-components)
@@ -202,9 +203,9 @@ w.ForEachChunk(q, [](ecs::Chunk& ch) {
 });
 ```
 
-### Enabling entities
+### Disabling entities
 Users are able to enable or disable entities when necessary.<br/>
-Disabled entities are moved to chunks different from the rest used by the active ones. 
+Disabled entities are moved to chunks different from the rest. 
 This also means that by default, disabled entities do not take part in queries. 
 ```cpp
 ecs::EntityQuery q;
