@@ -1,6 +1,4 @@
 #pragma once
-#include "../config/config.h"
-#include "../containers/sarray_ext.h"
 #include <algorithm>
 #include <cassert>
 #include <inttypes.h>
@@ -9,15 +7,17 @@
 #include <type_traits>
 #include <utility>
 
+#include "../config/config.h"
+#include "../containers/sarray_ext.h"
+#include "../ecs/component.h"
 #include "../utils/utils_containers.h"
+#include "../utils/utils_mem.h"
 #include "archetype.h"
 #include "chunk_allocator.h"
 #include "chunk_header.h"
 #include "common.h"
 #include "entity.h"
 #include "fwd.h"
-#include "gaia/ecs/component.h"
-#include "gaia/utils/utils_mem.h"
 
 namespace gaia {
 	namespace ecs {

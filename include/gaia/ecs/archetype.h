@@ -1,8 +1,8 @@
 #pragma once
-#include "../containers/sarray.h"
-#include "../containers/sarray_ext.h"
 #include <inttypes.h>
 
+#include "../containers/sarray.h"
+#include "../containers/sarray_ext.h"
 #include "../utils/utils_mem.h"
 #include "chunk.h"
 #include "chunk_allocator.h"

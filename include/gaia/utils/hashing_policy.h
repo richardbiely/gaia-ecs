@@ -1,9 +1,10 @@
 #pragma once
-#include "../config/config.h"
 #include <ctype.h>
 #include <functional>
 #include <inttypes.h>
 #include <type_traits>
+
+#include "../config/config.h"
 
 namespace gaia {
 	namespace utils {

@@ -1,7 +1,5 @@
 #pragma once
 
-#include "../config/config.h"
-#include "gaia/utils/utils_containers.h"
 #include <cstdint>
 
 #if defined(__GLIBC__) || defined(__sun) || defined(__CYGWIN__)
@@ -27,11 +25,12 @@
 	#endif
 #endif
 
-#include "../containers/darray.h"
-
+#include "../config/config.h"
 #include "../config/logging.h"
+#include "../containers/darray.h"
 #include "../containers/sarray_ext.h"
 #include "../utils/utility.h"
+#include "../utils/utils_containers.h"
 #if GAIA_ECS_CHUNK_ALLOCATOR_CLEAN_MEMORY_WITH_GARBAGE
 	#include "../utils/utils_mem.h"
 #endif
