@@ -1,16 +1,17 @@
 #pragma once
 #include <inttypes.h>
 
+#include "../config/config.h"
 #include "../containers/map.h"
 #include "../containers/sarray_ext.h"
+#include "../utils/utils_mem.h"
 #include "archetype.h"
 #include "common.h"
 #include "component.h"
 #include "entity.h"
 #include "fwd.h"
-#include "gaia/config/config.h"
-#include "gaia/utils/utils_mem.h"
 #include "world.h"
+
 
 namespace gaia {
 	namespace ecs {

@@ -1,7 +1,8 @@
 #pragma once
-#include "../containers/sarray.h"
 #include <tuple>
 #include <type_traits>
+
+#include "../containers/sarray.h"
 
 namespace gaia {
 	namespace utils {

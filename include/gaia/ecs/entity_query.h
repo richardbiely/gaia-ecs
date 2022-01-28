@@ -1,9 +1,8 @@
 #pragma once
-#include "../containers/sarray.h"
-#include "../containers/sarray_ext.h"
 #include <algorithm>
 #include <tuple>
 
+#include "../containers/darray.h"
 #include "../containers/sarray_ext.h"
 #include "../utils/utility.h"
 #include "../utils/utils_containers.h"
@@ -11,7 +10,6 @@
 #include "common.h"
 #include "component.h"
 #include "fwd.h"
-#include "gaia/containers/darray.h"
 
 namespace gaia {
 	namespace ecs {
