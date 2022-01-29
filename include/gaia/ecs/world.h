@@ -785,7 +785,7 @@ namespace gaia {
 						"Entities can't be enabled/disabled while chunk is being iterated "
 						"(structural changes are forbidden during this time!)");
 
-				if (enable != entityContainer.disabled)
+				if (enable != (bool)entityContainer.disabled)
 					return;
 				entityContainer.disabled = !enable;
 
