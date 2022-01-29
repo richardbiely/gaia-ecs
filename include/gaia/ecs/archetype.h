@@ -60,6 +60,11 @@ namespace gaia {
 			// Constructor is hidden. Create archetypes via Create
 			Archetype() = default;
 
+			/*!
+			Allocates memory for a new chunk.
+			\param archetype Archetype of the chunk we want to allocate
+			\return Newly allocated chunk
+			*/
 			[[nodiscard]] static Chunk* AllocateChunk(const Archetype& archetype) {
 #if GAIA_ECS_CHUNK_ALLOCATOR
 				auto& world = const_cast<World&>(*archetype.parentWorld);
@@ -94,6 +99,10 @@ namespace gaia {
 				return pChunk;
 			}
 
+			/*!
+			Releases all memory allocated by \param pChunk.
+			\param pChunk Chunk which we want to destroy
+			*/
 			static void ReleaseChunk(Chunk* pChunk) {
 				// Call destructors for types that need it
 				const auto& archetype = pChunk->header.owner;
@@ -251,6 +260,7 @@ namespace gaia {
 
 				// No free space found anywhere. Let's create a new one.
 				auto* pChunk = AllocateChunk(*this);
+				pChunk->header.index = chunkArray.size();
 				chunkArray.push_back(pChunk);
 				return pChunk;
 			}
@@ -274,13 +284,21 @@ namespace gaia {
 
 			void RemoveChunk(Chunk* pChunk) {
 				const bool isDisabled = pChunk->IsDisabled();
+				const auto chunkIndex = pChunk->header.index;
 
 				ReleaseChunk(pChunk);
 
+				auto remove = [pChunk, chunkIndex](auto& chunkArray) {
+					if (chunkArray.size() > 1)
+						chunkArray.back()->header.index = chunkIndex;
+					GAIA_ASSERT(chunkIndex == utils::get_index(chunkArray, pChunk));
+					utils::erase_fast(chunkArray, chunkIndex);
+				};
+
 				if (isDisabled)
-					utils::erase_fast(chunksDisabled, utils::get_index(chunksDisabled, pChunk));
+					remove(chunksDisabled);
 				else
-					utils::erase_fast(chunks, utils::get_index(chunks, pChunk));
+					remove(chunks);
 			}
 
 		public:
