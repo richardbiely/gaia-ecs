@@ -273,12 +273,14 @@ namespace gaia {
 			}
 
 			void RemoveChunk(Chunk* pChunk) {
+				const bool isDisabled = pChunk->IsDisabled();
+
 				ReleaseChunk(pChunk);
 
-				if (pChunk->IsDisabled())
-					utils::erase_fast(chunks, utils::get_index(chunks, pChunk));
-				else
+				if (isDisabled)
 					utils::erase_fast(chunksDisabled, utils::get_index(chunksDisabled, pChunk));
+				else
+					utils::erase_fast(chunks, utils::get_index(chunks, pChunk));
 			}
 
 		public:
