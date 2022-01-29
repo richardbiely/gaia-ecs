@@ -50,7 +50,7 @@ Within ECS an entity is an index uniquely identifying components. A component is
 
 Many different approaches to how ECS should be implemented exist and each is strong in some areas and worse in others. Gaia-ECS is an archetype-based entity component system framework. Therefore, unique combinations of components are stored in things called archetypes.
 
-Each archetype consists of blocks of memory called chunks. In our case, each chunk is 64 KiB big (not recommended but it can be changed via ecs::MemoryBlockSize). Chunks hold components (data) and entities (indices to components). You can think of them as SQL tables where components are columns and entities are rows.
+Each archetype consists of blocks of memory called chunks. In our case, each chunk is 64 KiB big (not recommended but it can be changed via ecs::MemoryBlockSize). Chunks hold components and entities. You can think of them as SQL tables where components are columns and entities are rows.
 
 All memory is preallocated in big blocks (pages) via the internal chunk allocator. Thanks to that all data is organized in a cache-friendly way which most computer architectures like and actual heap allocations which are slow are reduced to a minimum.
 
@@ -324,7 +324,7 @@ A chunk component is a special kind of component which exists at most once per c
 In other words, you attach a piece of information to one chunk specifically.<br/>
 If you organize your data with care (which you should) this can save you some very precious memory or performance depending on your use case.<br/>
 
-For instance, imagine you have a grid with fields of 10 meters in size on each axis.
+For instance, imagine you have a grid with fields of 100 meters squared.
 Now if you create your entities carefully they get organized in grid fields implicitly on data level already without you having to use any sort of spatial map container.
 ```cpp
 w.AddComponent<Position>(e1, {10,1});
