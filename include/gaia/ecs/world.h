@@ -1258,7 +1258,7 @@ namespace gaia {
 							archetype.info.structuralChangesLocked = true;
 #endif
 
-							auto exec = [&](const containers::darray<Chunk*>& chunksList) {
+							auto exec = [&](const auto& chunksList) {
 								uint32_t chunkOffset = 0U;
 								uint32_t batchSize = 0U;
 								const auto maxIters = (uint32_t)chunksList.size();
@@ -1326,7 +1326,7 @@ namespace gaia {
 							archetype.info.structuralChangesLocked = true;
 #endif
 
-							auto exec = [&](auto& chunksList) {
+							auto exec = [&](const auto& chunksList) {
 								uint32_t chunkOffset = 0U;
 								uint32_t batchSize = 0U;
 								const auto maxIters = (uint32_t)chunksList.size();
