@@ -159,27 +159,28 @@ void BM_Game_ECS(benchmark::State& state) {
 	CreateECSEntities_Static<false>(w);
 	CreateECSEntities_Dynamic<false>(w);
 
-	auto queryDynamic = ecs::EntityQuery().All<Position, Velocity>();
+	auto queryPosVel = ecs::EntityQuery().All<Position, Velocity>();
+	auto queryVel = ecs::EntityQuery().All<Position, Velocity>();
 
 	srand(0);
 	for ([[maybe_unused]] auto _: state) {
 		dt = CalculateDelta(state);
 
 		// Update position
-		w.ForEach(queryDynamic, [&](Position& p, const Velocity& v) {
+		w.ForEach(queryPosVel, [&](Position& p, const Velocity& v) {
 			p.x += v.x * dt;
 			p.y += v.y * dt;
 			p.z += v.z * dt;
 		});
 		// Handle ground collision
-		w.ForEach(queryDynamic, [&](Position& p, Velocity& v) {
+		w.ForEach(queryPosVel, [&](Position& p, Velocity& v) {
 			if (p.y < 0.0f) {
 				p.y = 0.0f;
 				v.y = 0.0f;
 			}
 		});
 		// Apply gravity
-		w.ForEach(queryDynamic, [&](Velocity& v) {
+		w.ForEach(queryVel, [&](Velocity& v) {
 			v.y += 9.81f * dt;
 		});
 	}
@@ -222,9 +223,14 @@ void BM_Game_ECS_WithSystems(benchmark::State& state) {
 		}
 	};
 	class GravitySystem final: public ecs::System {
+		ecs::EntityQuery m_q;
+
 	public:
+		void OnCreated() override {
+			m_q.All<Velocity>();
+		}
 		void OnUpdate() override {
-			GetWorld().ForEach([](Velocity& v) {
+			GetWorld().ForEach(m_q, [](Velocity& v) {
 				v.y += 9.81f * dt;
 			});
 		}
