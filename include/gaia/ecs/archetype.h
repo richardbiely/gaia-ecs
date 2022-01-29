@@ -288,7 +288,7 @@ namespace gaia {
 
 				ReleaseChunk(pChunk);
 
-				auto remove = [pChunk, chunkIndex](auto& chunkArray) {
+				auto remove = [&](auto& chunkArray) {
 					if (chunkArray.size() > 1)
 						chunkArray.back()->header.index = chunkIndex;
 					GAIA_ASSERT(chunkIndex == utils::get_index(chunkArray, pChunk));
