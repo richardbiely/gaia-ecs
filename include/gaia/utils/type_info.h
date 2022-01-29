@@ -1,8 +1,9 @@
 #pragma once
 
+#include <string_view>
+
 #include "../config/config.h"
 #include "hashing_policy.h"
-#include <string_view>
 
 namespace gaia {
 	namespace utils {

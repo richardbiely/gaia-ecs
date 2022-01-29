@@ -1,9 +1,8 @@
 #pragma once
-#include "../containers/sarray.h"
-#include "../containers/sarray_ext.h"
 #include <algorithm>
 #include <tuple>
 
+#include "../containers/darray.h"
 #include "../containers/sarray_ext.h"
 #include "../utils/utility.h"
 #include "../utils/utils_containers.h"
@@ -11,11 +10,13 @@
 #include "common.h"
 #include "component.h"
 #include "fwd.h"
-#include "gaia/containers/darray.h"
 
 namespace gaia {
 	namespace ecs {
 		class EntityQuery final {
+		public:
+			enum class Constraints { EnabledOnly, DisabledOnly, AcceptAll };
+
 		private:
 			//! Number of components that can be a part of EntityQuery
 			static constexpr uint32_t MAX_COMPONENTS_IN_QUERY = 8u;
@@ -39,10 +40,12 @@ namespace gaia {
 			ChangeFilterArray listChangeFiltered[ComponentType::CT_Count]{};
 			//! Version of the world for which the query has been called most recently
 			uint32_t m_worldVersion = 0;
-			//! Entity of the last added archetype in the world
+			//! Entity of the last added archetype in the world this query remembers
 			uint32_t m_lastArchetypeId = 0;
 			//! List of cached archetypes
 			containers::darray<Archetype*> m_archetypeCache;
+			//! Tell what kinds of chunks are going to be accepted by the query
+			Constraints constraints = Constraints::EnabledOnly;
 
 			template <class TComponent>
 			void CalculateHash_Internal(ComponentIndexArray& arr, [[maybe_unused]] uint64_t& hash) {
@@ -223,11 +226,21 @@ namespace gaia {
 			}
 
 		public:
-			const ComponentListData& GetData(ComponentType type) const {
+			[[nodiscard]] const ComponentListData& GetData(ComponentType type) const {
 				return list[type];
 			}
-			const ChangeFilterArray& GetFiltered(ComponentType type) const {
+
+			[[nodiscard]] const ChangeFilterArray& GetFiltered(ComponentType type) const {
 				return listChangeFiltered[type];
+			}
+
+			void SetConstraints(Constraints value) {
+				constraints = value;
+			}
+
+			[[nodiscard]] bool CheckConstraints(bool enabled) const {
+				return constraints == Constraints::AcceptAll || (enabled && constraints == Constraints::EnabledOnly) ||
+							 (!enabled && constraints == Constraints::DisabledOnly);
 			}
 
 			[[nodiscard]] bool HasFilters() const {
@@ -241,12 +254,14 @@ namespace gaia {
 						list[ComponentType::CT_Generic].listAny, list[ComponentType::CT_Generic].hashAny);
 				return *this;
 			}
+
 			template <typename... TComponent>
 			EntityQuery& All() {
 				CalculateHashes<TComponent...>(
 						list[ComponentType::CT_Generic].listAll, list[ComponentType::CT_Generic].hashAll);
 				return *this;
 			}
+
 			template <typename... TComponent>
 			EntityQuery& None() {
 				CalculateHashes<TComponent...>(
@@ -259,11 +274,13 @@ namespace gaia {
 				CalculateHashes<TComponent...>(list[ComponentType::CT_Chunk].listAny, list[ComponentType::CT_Chunk].hashAny);
 				return *this;
 			}
+
 			template <typename... TComponent>
 			EntityQuery& AllChunk() {
 				CalculateHashes<TComponent...>(list[ComponentType::CT_Chunk].listAll, list[ComponentType::CT_Chunk].hashAll);
 				return *this;
 			}
+
 			template <typename... TComponent>
 			EntityQuery& NoneChunk() {
 				CalculateHashes<TComponent...>(list[ComponentType::CT_Chunk].listNone, list[ComponentType::CT_Chunk].hashNone);
@@ -275,6 +292,7 @@ namespace gaia {
 				SetChangedFilter<TComponent...>(listChangeFiltered[ComponentType::CT_Generic], list[ComponentType::CT_Generic]);
 				return *this;
 			}
+
 			template <typename... TComponent>
 			EntityQuery& WithChangedChunk() {
 				SetChangedFilter<TComponent...>(listChangeFiltered[ComponentType::CT_Chunk], list[ComponentType::CT_Chunk]);
@@ -316,14 +334,16 @@ namespace gaia {
 			void SetWorldVersion(uint32_t worldVersion) {
 				m_worldVersion = worldVersion;
 			}
-			uint32_t GetWorldVersion() const {
+
+			[[nodiscard]] uint32_t GetWorldVersion() const {
 				return m_worldVersion;
 			}
 
-			containers::darray<Archetype*>::iterator begin() {
+			[[nodiscard]] containers::darray<Archetype*>::iterator begin() {
 				return m_archetypeCache.begin();
 			}
-			containers::darray<Archetype*>::iterator end() {
+
+			[[nodiscard]] containers::darray<Archetype*>::iterator end() {
 				return m_archetypeCache.end();
 			}
 		};

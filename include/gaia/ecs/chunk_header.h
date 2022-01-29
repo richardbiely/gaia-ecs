@@ -18,12 +18,25 @@ namespace gaia {
 #if !GAIA_64
 			uint32_t owner_padding;
 #endif
-			//! [8-11] Number of items in the chunk.
-			uint32_t items = 0;
-			//! [12-15] Once removal is requested and it hits 0 the chunk is removed.
-			uint32_t lifespan = 0;
-			//! [16-19] Capacity (copied from the owner archetype).
-			uint32_t capacity = 0;
+			// [8-11]
+			struct {
+				//! Number of items in the chunk.
+				uint32_t count : 16;
+				//! Capacity (copied from the owner archetype).
+				uint32_t capacity : 16;
+			} items{};
+
+			//! [12-15] Chunk index in its archetype list
+			uint32_t index{};
+
+			// [16-19]
+			struct {
+				//! Once removal is requested and it hits 0 the chunk is removed.
+				uint32_t lifespan : 31;
+				//! If true this chunk stores disabled entities
+				uint32_t disabled : 1;
+			} info{};
+
 			//! [20-275] Versions of individual components on chunk.
 			uint32_t versions[ComponentType::CT_Count][MAX_COMPONENTS_PER_ARCHETYPE]{};
 

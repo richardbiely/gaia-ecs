@@ -12,7 +12,6 @@ http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/n4820.pdf
 #ifndef TCB_SPAN_HPP_INCLUDED
 #define TCB_SPAN_HPP_INCLUDED
 
-#include "../containers/sarray.h"
 #include <cstddef>
 #include <cstdint>
 #include <type_traits>
@@ -28,6 +27,8 @@ http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/n4820.pdf
 	#include <cstdio>
 	#include <stdexcept>
 #endif
+
+#include "../containers/sarray.h"
 
 // Various feature test macros
 

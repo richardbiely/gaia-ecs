@@ -259,6 +259,85 @@ TEST_CASE("CreateAndRemoveEntity - 1 component") {
 		remove(arr[i]);
 }
 
+TEST_CASE("EnableEntity") {
+	ecs::World w;
+
+	auto create = [&](uint32_t id) {
+		auto e = w.CreateEntity();
+		const bool ok = e.id() == id && e.gen() == 0;
+		REQUIRE(ok);
+		w.AddComponent<Position>(e, {});
+		return e;
+	};
+
+	// 100,000 picked so we create enough entites that they overflow
+	// into another chunk
+	const uint32_t N = 100'000;
+	containers::darray<ecs::Entity> arr;
+	arr.reserve(N);
+
+	for (uint32_t i = 0U; i < N; i++)
+		arr.push_back(create(i));
+
+	w.EnableEntity(arr[1000], false);
+
+	uint32_t cnt = 0;
+	w.ForEach([&]([[maybe_unused]] const Position& p) {
+		++cnt;
+	});
+	REQUIRE(cnt == N - 1);
+
+	ecs::EntityQuery q;
+	q.All<Position>();
+	cnt = 0;
+	w.ForEach(q, [&]([[maybe_unused]] const Position& p) {
+		++cnt;
+	});
+	REQUIRE(cnt == N - 1);
+
+	q.SetConstraints(ecs::EntityQuery::Constraints::AcceptAll);
+	cnt = 0;
+	w.ForEach(q, [&]([[maybe_unused]] const Position& p) {
+		++cnt;
+	});
+	REQUIRE(cnt == N);
+
+	q.SetConstraints(ecs::EntityQuery::Constraints::DisabledOnly);
+	cnt = 0;
+	w.ForEach(q, [&]([[maybe_unused]] const Position& p) {
+		++cnt;
+	});
+	REQUIRE(cnt == 1);
+
+	w.EnableEntity(arr[1000], true);
+
+	cnt = 0;
+	w.ForEach([&]([[maybe_unused]] const Position& p) {
+		++cnt;
+	});
+	REQUIRE(cnt == N);
+
+	cnt = 0;
+	w.ForEach(q, [&]([[maybe_unused]] const Position& p) {
+		++cnt;
+	});
+	REQUIRE(cnt == 0);
+
+	q.SetConstraints(ecs::EntityQuery::Constraints::EnabledOnly);
+	cnt = 0;
+	w.ForEach(q, [&]([[maybe_unused]] const Position& p) {
+		++cnt;
+	});
+	REQUIRE(cnt == N);
+
+	q.SetConstraints(ecs::EntityQuery::Constraints::AcceptAll);
+	cnt = 0;
+	w.ForEach(q, [&]([[maybe_unused]] const Position& p) {
+		++cnt;
+	});
+	REQUIRE(cnt == N);
+}
+
 TEST_CASE("CreateComponent") {
 	ecs::World w;
 
