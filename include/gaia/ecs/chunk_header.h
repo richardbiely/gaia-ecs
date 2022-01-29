@@ -26,7 +26,10 @@ namespace gaia {
 				uint32_t capacity : 16;
 			} items{};
 
-			// [12-15]
+			//! [12-15] Chunk index in its archetype list
+			uint32_t index{};
+
+			// [16-19]
 			struct {
 				//! Once removal is requested and it hits 0 the chunk is removed.
 				uint32_t lifespan : 31;
@@ -34,7 +37,7 @@ namespace gaia {
 				uint32_t disabled : 1;
 			} info{};
 
-			//! [16-271] Versions of individual components on chunk.
+			//! [20-275] Versions of individual components on chunk.
 			uint32_t versions[ComponentType::CT_Count][MAX_COMPONENTS_PER_ARCHETYPE]{};
 
 			ChunkHeader(const Archetype& archetype): owner(archetype) {
