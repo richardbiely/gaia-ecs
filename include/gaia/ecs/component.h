@@ -22,8 +22,9 @@ namespace gaia {
 		// Helpers
 		//----------------------------------------------------------------------
 
+		static constexpr uint32_t MAX_COMPONENTS_SIZE_BITS = 8;
 		//! Maximum size of components in bytes
-		static constexpr uint32_t MAX_COMPONENTS_SIZE = 255u;
+		static constexpr uint32_t MAX_COMPONENTS_SIZE = (1 << MAX_COMPONENTS_SIZE_BITS) - 1;
 
 		template <typename T>
 		struct ComponentSizeValid: std::bool_constant<sizeof(T) < MAX_COMPONENTS_SIZE> {};
@@ -121,8 +122,7 @@ namespace gaia {
 			using FuncConstructor = void(void*);
 			using FuncDestructor = void(void*);
 
-			// TODO: Organize this in SaO way. Consider keeping commonly used data
-			// together.
+			// TODO: Organize this in SaO way. Consider keeping commonly used data together.
 
 			//! [ 0-15] Component name
 			std::string_view name;
@@ -134,14 +134,19 @@ namespace gaia {
 			FuncConstructor* constructor;
 			//! [40-47] Destructor to call when the type is being destructed
 			FuncDestructor* destructor;
+
 			//! [48-51] Unique component identifier
 			uint32_t typeIndex;
-			//! [52-55] Component alignment
-			uint32_t alig;
-			//! [56-59] Component size
-			uint32_t size;
-			//! [60] Tells if the component is laid out in SoA style
-			bool soa;
+
+			//! [52-55]
+			struct {
+				//! Component alignment
+				uint32_t alig: MAX_COMPONENTS_SIZE_BITS;
+				//! Component size
+				uint32_t size: MAX_COMPONENTS_SIZE_BITS;
+				//! Tells if the component is laid out in SoA style
+				uint32_t soa : 1;
+			} info{};
 
 			[[nodiscard]] bool operator==(const ComponentMetaData& other) const {
 				return lookupHash == other.lookupHash && typeIndex == other.typeIndex;
@@ -164,10 +169,10 @@ namespace gaia {
 				mth.typeIndex = utils::type_info::index<TComponent>();
 
 				if constexpr (!std::is_empty<TComponent>::value) {
-					mth.alig = utils::auto_view_policy<TComponent>::Alignment;
-					mth.size = (uint32_t)sizeof(TComponent);
+					mth.info.alig = utils::auto_view_policy<TComponent>::Alignment;
+					mth.info.size = (uint32_t)sizeof(TComponent);
 					if constexpr (utils::is_soa_layout<TComponent>::value) {
-						mth.soa = true;
+						mth.info.soa = 1;
 					} else if constexpr (!std::is_trivial<T>::value) {
 						mth.constructor = [](void* ptr) {
 							new (ptr) T{};

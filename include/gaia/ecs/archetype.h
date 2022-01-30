@@ -148,14 +148,14 @@ namespace gaia {
 				// Size of the entity + all of its generic components
 				uint32_t genericComponentListSize = (uint32_t)sizeof(Entity);
 				for (const auto type: genericTypes) {
-					genericComponentListSize += type->size;
+					genericComponentListSize += type->info.size;
 					newArch->info.hasComponentWithCustomConstruction |= type->constructor != nullptr;
 				}
 
 				// Size of chunk components
 				uint32_t chunkComponentListSize = 0;
 				for (const auto type: chunkTypes) {
-					chunkComponentListSize += type->size;
+					chunkComponentListSize += type->info.size;
 					newArch->info.hasChunkComponentTypesWithCustomConstruction |= type->constructor != nullptr;
 				}
 
@@ -165,10 +165,10 @@ namespace gaia {
 				// If there's any component with SoA layout make sure to make the size a multiple of PackSize
 				// because of SIMD requirements.
 				// This means we won't be able to fit as many entities inside the chunk but in exchange we'll
-				// get the ability to optimize performance via proper vectorization
-				bool isAnySoA = false;
+				// get the ability to optimize performance via proper vectorization.
+				uint32_t isAnySoA = 0;
 				for (const auto type: genericTypes)
-					isAnySoA |= type->soa;
+					isAnySoA |= type->info.soa;
 				if (isAnySoA)
 					maxGenericItemsInArchetype -=
 							(maxGenericItemsInArchetype % utils::data_layout_properties<utils::DataLayout::SoA>::PackSize);
@@ -179,7 +179,7 @@ namespace gaia {
 
 				// Add generic types
 				for (uint32_t i = 0U; i < (uint32_t)genericTypes.size(); i++) {
-					const auto a = genericTypes[i]->alig;
+					const auto a = genericTypes[i]->info.alig;
 					if (a != 0) {
 						const uint32_t padding = utils::align(alignedOffset, a) - alignedOffset;
 						componentOffset += padding;
@@ -194,8 +194,8 @@ namespace gaia {
 								{genericTypes[i]->typeIndex, componentOffset});
 
 						// Make sure the following component list is properly aligned
-						componentOffset += genericTypes[i]->size * maxGenericItemsInArchetype;
-						alignedOffset += genericTypes[i]->size * maxGenericItemsInArchetype;
+						componentOffset += genericTypes[i]->info.size * maxGenericItemsInArchetype;
+						alignedOffset += genericTypes[i]->info.size * maxGenericItemsInArchetype;
 
 						// Make sure we didn't exceed the chunk size
 						GAIA_ASSERT(componentOffset <= Chunk::DATA_SIZE);
@@ -209,7 +209,7 @@ namespace gaia {
 
 				// Add chunk types
 				for (uint32_t i = 0U; i < (uint32_t)chunkTypes.size(); i++) {
-					const auto a = chunkTypes[i]->alig;
+					const auto a = chunkTypes[i]->info.alig;
 					if (a != 0U) {
 						const uint32_t padding = utils::align(alignedOffset, a) - alignedOffset;
 						componentOffset += padding;
@@ -224,8 +224,8 @@ namespace gaia {
 								{chunkTypes[i]->typeIndex, componentOffset});
 
 						// Make sure the following component list is properly aligned
-						componentOffset += chunkTypes[i]->size;
-						alignedOffset += chunkTypes[i]->size;
+						componentOffset += chunkTypes[i]->info.size;
+						alignedOffset += chunkTypes[i]->info.size;
 
 						// Make sure we didn't exceed the chunk size
 						GAIA_ASSERT(componentOffset <= Chunk::DATA_SIZE);
