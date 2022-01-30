@@ -550,7 +550,7 @@ namespace gaia {
 				// O(N^2)
 				for (uint32_t i = 0U; i < oldTypes.size(); i++) {
 					const auto typeOld = oldTypes[i].type;
-					if (!typeOld->size)
+					if (!typeOld->info.size)
 						continue;
 
 					for (uint32_t j = 0U; j < newTypes.size(); j++) {
@@ -558,7 +558,7 @@ namespace gaia {
 						if (typeNew != typeOld)
 							continue;
 
-						intersections.push_back({typeOld->size, i, j});
+						intersections.push_back({typeOld->info.size, i, j});
 						break;
 					}
 				}
@@ -728,16 +728,16 @@ namespace gaia {
 
 					for (uint32_t i = 0U; i < info.size(); i++) {
 						const auto* metaType = info[i].type;
-						if (!metaType->size)
+						if (!metaType->info.size)
 							continue;
 
-						const uint32_t idxFrom = look[i].offset + metaType->size * oldEntityContainer.idx;
-						const uint32_t idxTo = look[i].offset + metaType->size * newEntityContainer.idx;
+						const uint32_t idxFrom = look[i].offset + metaType->info.size * oldEntityContainer.idx;
+						const uint32_t idxTo = look[i].offset + metaType->info.size * newEntityContainer.idx;
 
 						GAIA_ASSERT(idxFrom < Chunk::DATA_SIZE);
 						GAIA_ASSERT(idxTo < Chunk::DATA_SIZE);
 
-						memcpy(&newChunk->data[idxTo], &oldChunk->data[idxFrom], metaType->size);
+						memcpy(&newChunk->data[idxTo], &oldChunk->data[idxFrom], metaType->info.size);
 					}
 
 					return newEntity;
@@ -803,16 +803,16 @@ namespace gaia {
 
 						for (uint32_t i = 0U; i < info.size(); i++) {
 							const auto* metaType = info[i].type;
-							if (!metaType->size)
+							if (!metaType->info.size)
 								continue;
 
-							const uint32_t idxFrom = look[i].offset + metaType->size * entityContainer.idx;
-							const uint32_t idxTo = look[i].offset + metaType->size * idxNew;
+							const uint32_t idxFrom = look[i].offset + metaType->info.size * entityContainer.idx;
+							const uint32_t idxTo = look[i].offset + metaType->info.size * idxNew;
 
 							GAIA_ASSERT(idxFrom < Chunk::DATA_SIZE);
 							GAIA_ASSERT(idxTo < Chunk::DATA_SIZE);
 
-							memcpy(&pChunkTo->data[idxTo], &pChunkFrom->data[idxFrom], metaType->size);
+							memcpy(&pChunkTo->data[idxTo], &pChunkFrom->data[idxFrom], metaType->info.size);
 						}
 					}
 
@@ -1518,9 +1518,9 @@ namespace gaia {
 						uint32_t genericComponentsSize = 0;
 						uint32_t chunkComponentsSize = 0;
 						for (const auto& component: genericComponents)
-							genericComponentsSize += component.type->size;
+							genericComponentsSize += component.type->info.size;
 						for (const auto& component: chunkComponents)
-							chunkComponentsSize += component.type->size;
+							chunkComponentsSize += component.type->info.size;
 
 						const auto it = archetypeEntityCountMap.find(archetype->lookupHash);
 						LOG_N(
@@ -1539,8 +1539,8 @@ namespace gaia {
 								const auto* metaType = component.type;
 								LOG_N(
 										"    (%p) lookupHash:%016" PRIx64 ", matcherHash:%016" PRIx64 ", size:%3u B, align:%3u B, %.*s",
-										(void*)metaType, metaType->lookupHash, metaType->matcherHash, metaType->size, metaType->alig,
-										(uint32_t)metaType->name.length(), metaType->name.data());
+										(void*)metaType, metaType->lookupHash, metaType->matcherHash, metaType->info.size,
+										metaType->info.alig, (uint32_t)metaType->name.length(), metaType->name.data());
 							}
 						};
 
