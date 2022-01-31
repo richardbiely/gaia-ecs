@@ -1212,8 +1212,6 @@ namespace gaia {
 					const auto& filtered = query.GetFiltered(ComponentType::CT_Generic);
 					for (auto typeIndex: filtered) {
 						const uint32_t componentIdx = chunk.GetComponentIdx(typeIndex);
-						GAIA_ASSERT(componentIdx != (uint32_t)-1); // the component must exist at this point!
-
 						if (chunk.DidChange(ComponentType::CT_Generic, lastWorldVersion, componentIdx))
 							return true;
 					}
@@ -1224,8 +1222,6 @@ namespace gaia {
 					const auto& filtered = query.GetFiltered(ComponentType::CT_Chunk);
 					for (auto typeIndex: filtered) {
 						const uint32_t componentIdx = chunk.GetChunkComponentIdx(typeIndex);
-						GAIA_ASSERT(componentIdx != (uint32_t)-1); // the component must exist at this point!
-
 						if (chunk.DidChange(ComponentType::CT_Chunk, lastWorldVersion, componentIdx))
 							return true;
 					}
