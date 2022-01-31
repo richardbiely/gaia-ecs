@@ -30,6 +30,11 @@ namespace gaia {
 			return (uint32_t)std::distance(arr.begin(), it);
 		}
 
+		template <class C>
+		constexpr uint32_t get_index_unsafe(const C& arr, typename C::const_reference item) {
+			return (uint32_t)std::distance(arr.begin(), find(arr, item));
+		}
+
 		template <class UnaryPredicate, class C>
 		constexpr uint32_t get_index_if(const C& arr, UnaryPredicate predicate) {
 			const auto it = find_if(arr, predicate);
@@ -37,6 +42,11 @@ namespace gaia {
 				return (uint32_t)BadIndex;
 
 			return (uint32_t)std::distance(arr.begin(), it);
+		}
+
+		template <class UnaryPredicate, class C>
+		constexpr uint32_t get_index_if_unsafe(const C& arr, UnaryPredicate predicate) {
+			return (uint32_t)std::distance(arr.begin(), find_if(arr, predicate));
 		}
 
 		template <class C>

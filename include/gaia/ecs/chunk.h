@@ -68,7 +68,7 @@ namespace gaia {
 
 			[[nodiscard]] uint32_t GetComponentIdx_Internal(ComponentType componentType, uint32_t typeIndex) const {
 				const auto& list = GetArchetypeComponentLookupList(header.owner, componentType);
-				return utils::get_index_if(list, [&](const auto& info) {
+				return utils::get_index_if_unsafe(list, [&](const auto& info) {
 					return info.typeIndex == typeIndex;
 				});
 			}
@@ -78,7 +78,11 @@ namespace gaia {
 				using TComponent = std::decay_t<T>;
 
 				const auto typeIndex = utils::type_info::index<TComponent>();
-				return GetComponentIdx_Internal(componentType, typeIndex) != (uint32_t)utils::BadIndex;
+
+				const auto& list = GetArchetypeComponentLookupList(header.owner, componentType);
+				return utils::has_if(list, [&](const auto& info) {
+					return info.typeIndex == typeIndex;
+				});
 			}
 
 			[[nodiscard]] uint32_t AddEntity(Entity entity) {
