@@ -91,8 +91,8 @@ namespace gaia {
 				const auto index = header.items.count++;
 				SetEntity(index, entity);
 
-				header.UpdateWorldVersion(ComponentType::CT_Generic, UINT32_MAX);
-				header.UpdateWorldVersion(ComponentType::CT_Chunk, UINT32_MAX);
+				header.UpdateWorldVersion(ComponentType::CT_Generic);
+				header.UpdateWorldVersion(ComponentType::CT_Chunk);
 
 				return index;
 			}
@@ -139,8 +139,8 @@ namespace gaia {
 					entities[entity.id()].gen = entity.gen();
 				}
 
-				header.UpdateWorldVersion(ComponentType::CT_Generic, UINT32_MAX);
-				header.UpdateWorldVersion(ComponentType::CT_Chunk, UINT32_MAX);
+				header.UpdateWorldVersion(ComponentType::CT_Generic);
+				header.UpdateWorldVersion(ComponentType::CT_Chunk);
 
 				--header.items.count;
 			}

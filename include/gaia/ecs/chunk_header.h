@@ -49,16 +49,18 @@ namespace gaia {
 				const auto gv = GetWorldVersionFromArchetype(owner);
 
 				// Make sure only proper input is provided
-				GAIA_ASSERT(componentIdx == UINT32_MAX || componentIdx < MAX_COMPONENTS_PER_ARCHETYPE);
+				GAIA_ASSERT(componentIdx != UINT32_MAX && componentIdx < MAX_COMPONENTS_PER_ARCHETYPE);
 
-				if (componentIdx != UINT32_MAX) {
-					// Update the specific component's version
-					versions[componentType][componentIdx] = gv;
-				} else {
-					// Update all components' version
-					for (uint32_t i = 0U; i < MAX_COMPONENTS_PER_ARCHETYPE; i++)
-						versions[componentType][i] = gv;
-				}
+				// Update all components' version
+				versions[componentType][componentIdx] = gv;
+			}
+
+			GAIA_FORCEINLINE void UpdateWorldVersion(ComponentType componentType) {
+				const auto gv = GetWorldVersionFromArchetype(owner);
+
+				// Update all components' version
+				for (uint32_t i = 0U; i < MAX_COMPONENTS_PER_ARCHETYPE; i++)
+					versions[componentType][i] = gv;
 			}
 		};
 	} // namespace ecs
