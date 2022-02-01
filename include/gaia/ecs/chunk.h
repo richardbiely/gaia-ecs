@@ -73,16 +73,18 @@ namespace gaia {
 				});
 			}
 
-			template <typename T>
-			[[nodiscard]] bool HasComponent_Internal(ComponentType componentType) const {
-				using TComponent = std::decay_t<T>;
-
-				const auto typeIndex = utils::type_info::index<TComponent>();
-
+			[[nodiscard]] bool HasComponent_Internal(ComponentType componentType, uint32_t typeIndex) const {
 				const auto& list = GetArchetypeComponentLookupList(header.owner, componentType);
 				return utils::has_if(list, [&](const auto& info) {
 					return info.typeIndex == typeIndex;
 				});
+			}
+
+			template <typename T>
+			[[nodiscard]] bool HasComponent_Internal(ComponentType componentType) const {
+				using TComponent = std::decay_t<T>;
+				const auto typeIndex = utils::type_info::index<TComponent>();
+				return HasComponent_Internal(componentType, typeIndex);
 			}
 
 			[[nodiscard]] uint32_t AddEntity(Entity entity) {
@@ -177,15 +179,13 @@ namespace gaia {
 
 				const auto typeIndex = utils::type_info::index<TComponent>();
 
+				// Searching for a component that's not there! Programmer mistake.
+				GAIA_ASSERT(HasComponent_Internal(componentType, typeIndex));
+
 				const auto& componentLookupList = GetArchetypeComponentLookupList(header.owner, componentType);
-				const auto it = utils::find_if(componentLookupList, [&](const auto& info) {
+				const auto componentIdx = utils::get_index_if_unsafe(componentLookupList, [&](const auto& info) {
 					return info.typeIndex == typeIndex;
 				});
-
-				// Searching for a component that's not there! Programmer mistake.
-				GAIA_ASSERT(it != componentLookupList.end());
-
-				const auto componentIdx = (uint32_t)std::distance(componentLookupList.begin(), it);
 
 				return {(const TComponent*)&data[componentLookupList[componentIdx].offset], GetItemCount()};
 			}
@@ -199,15 +199,13 @@ namespace gaia {
 
 				const auto typeIndex = utils::type_info::index<TComponent>();
 
+				// Searching for a component that's not there! Programmer mistake.
+				GAIA_ASSERT(HasComponent_Internal(componentType, typeIndex));
+
 				const auto& componentLookupList = GetArchetypeComponentLookupList(header.owner, componentType);
-				const auto it = utils::find_if(componentLookupList, [&](const auto& info) {
+				const auto componentIdx = utils::get_index_if_unsafe(componentLookupList, [&](const auto& info) {
 					return info.typeIndex == typeIndex;
 				});
-
-				// Searching for a component that's not there! Programmer mistake.
-				GAIA_ASSERT(it != componentLookupList.end());
-
-				const auto componentIdx = (uint32_t)std::distance(componentLookupList.begin(), it);
 
 				// Update version number so we know RW access was used on chunk
 				header.UpdateWorldVersion(componentType, componentIdx);
