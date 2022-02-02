@@ -550,9 +550,8 @@ void BM_Game_ECS_WithSystems_ForEachChunk_SoA_ManualSIMD(benchmark::State& state
 					const auto respVec = _mm_fmadd_ps(vVec, dtVec, pVec);
 					_mm_store_ps(p + offset, respVec);
 				};
-				auto exec2 = [](float* GAIA_RESTRICT p, const float* GAIA_RESTRICT v, const size_t sz) {
-					for (size_t i = 0U; i < sz; ++i)
-						p[i] += v[i] * dt;
+				auto exec2 = [](float* GAIA_RESTRICT p, const float* GAIA_RESTRICT v, const size_t offset) {
+					p[offset] += v[offset] * dt;
 				};
 
 				size_t i = 0;
@@ -611,12 +610,10 @@ void BM_Game_ECS_WithSystems_ForEachChunk_SoA_ManualSIMD(benchmark::State& state
 					_mm_store_ps(v + offset, res_vyVec);
 					_mm_store_ps(p + offset, res_pyVec);
 				};
-				auto exec2 = [](float* GAIA_RESTRICT p, float* GAIA_RESTRICT v, const size_t sz) {
-					for (auto i = 0U; i < sz; ++i) {
-						if (p[i] < 0.0f) {
-							p[i] = 0.0f;
-							v[i] = 0.0f;
-						}
+				auto exec2 = [](float* GAIA_RESTRICT p, float* GAIA_RESTRICT v, const size_t offset) {
+					if (p[offset] < 0.0f) {
+						p[offset] = 0.0f;
+						v[offset] = 0.0f;
 					}
 				};
 
@@ -655,9 +652,8 @@ void BM_Game_ECS_WithSystems_ForEachChunk_SoA_ManualSIMD(benchmark::State& state
 					const auto mulVec = _mm_mul_ps(vyVec, gg_dtVec);
 					_mm_store_ps(v + offset, mulVec);
 				};
-				auto exec2 = [](float* GAIA_RESTRICT v, const size_t sz) {
-					for (size_t i = 0U; i < sz; ++i)
-						v[i] *= dt * 9.81f;
+				auto exec2 = [](float* GAIA_RESTRICT v, const size_t offset) {
+					v[offset] *= dt * 9.81f;
 				};
 
 				size_t i = 0;
@@ -1205,9 +1201,8 @@ void BM_Game_NonECS_DOD_SoA_ManualSIMD(benchmark::State& state) {
 				const auto respVec = _mm_fmadd_ps(vVec, dtVec, pVec);
 				_mm_store_ps(p + offset, respVec);
 			};
-			auto exec2 = [](float* GAIA_RESTRICT p, const float* GAIA_RESTRICT v, size_t sz) {
-				for (size_t i = 0U; i < sz; ++i)
-					p[i] += v[i] * dt;
+			auto exec2 = [](float* GAIA_RESTRICT p, const float* GAIA_RESTRICT v, size_t offset) {
+				p[offset] += v[offset] * dt;
 			};
 
 			size_t i = 0;
@@ -1256,12 +1251,10 @@ void BM_Game_NonECS_DOD_SoA_ManualSIMD(benchmark::State& state) {
 				_mm_store_ps(v + offset, res_vyVec);
 				_mm_store_ps(p + offset, res_pyVec);
 			};
-			auto exec2 = [](float* GAIA_RESTRICT p, float* GAIA_RESTRICT v, size_t sz) {
-				for (auto i = 0U; i < sz; ++i) {
-					if (p[i] < 0.0f) {
-						p[i] = 0.0f;
-						v[i] = 0.0f;
-					}
+			auto exec2 = [](float* GAIA_RESTRICT p, float* GAIA_RESTRICT v, size_t offset) {
+				if (p[offset] < 0.0f) {
+					p[offset] = 0.0f;
+					v[offset] = 0.0f;
 				}
 			};
 
@@ -1289,9 +1282,8 @@ void BM_Game_NonECS_DOD_SoA_ManualSIMD(benchmark::State& state) {
 				const auto mulVec = _mm_mul_ps(vyVec, gg_dtVec);
 				_mm_store_ps(v + offset, mulVec);
 			};
-			auto exec2 = [](float* GAIA_RESTRICT v, const size_t sz) {
-				for (size_t i = 0U; i < sz; ++i)
-					v[i] *= 9.81f * dt;
+			auto exec2 = [](float* GAIA_RESTRICT v, const size_t offset) {
+				v[offset] *= 9.81f * dt;
 			};
 
 			size_t i = 0;
