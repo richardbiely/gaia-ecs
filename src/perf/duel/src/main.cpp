@@ -550,6 +550,10 @@ void BM_Game_ECS_WithSystems_ForEachChunk_SoA_ManualSIMD(benchmark::State& state
 					const auto respVec = _mm_fmadd_ps(vVec, dtVec, pVec);
 					_mm_store_ps(p + offset, respVec);
 				};
+				auto exec2 = [](float* GAIA_RESTRICT p, const float* GAIA_RESTRICT v, const size_t sz) {
+					for (size_t i = 0U; i < sz; ++i)
+						p[i] += v[i] * dt;
+				};
 
 				size_t i = 0;
 				// Optimize via "double-read" trick to hide latencies.
@@ -558,24 +562,24 @@ void BM_Game_ECS_WithSystems_ForEachChunk_SoA_ManualSIMD(benchmark::State& state
 					exec(ppx.data(), vvx.data(), i);
 					exec(ppx.data(), vvx.data(), i + 4);
 				}
-				for (; i < size; i += 4)
-					exec(ppx.data(), vvx.data(), i);
+				for (; i < size; i++)
+					exec2(ppx.data(), vvx.data(), i);
 
 				i = 0;
 				for (; i < size; i += 8) {
 					exec(ppy.data(), vvy.data(), i);
 					exec(ppy.data(), vvy.data(), i + 4);
 				}
-				for (; i < size; i += 4)
-					exec(ppy.data(), vvy.data(), i);
+				for (; i < size; i++)
+					exec2(ppy.data(), vvy.data(), i);
 
 				i = 0;
 				for (; i < size; i += 8) {
 					exec(ppz.data(), vvz.data(), i);
 					exec(ppz.data(), vvz.data(), i + 4);
 				}
-				for (; i < size; i += 4)
-					exec(ppz.data(), vvz.data(), i);
+				for (; i < size; i++)
+					exec2(ppz.data(), vvz.data(), i);
 			});
 		}
 	};
@@ -607,6 +611,14 @@ void BM_Game_ECS_WithSystems_ForEachChunk_SoA_ManualSIMD(benchmark::State& state
 					_mm_store_ps(v + offset, res_vyVec);
 					_mm_store_ps(p + offset, res_pyVec);
 				};
+				auto exec2 = [](float* GAIA_RESTRICT p, float* GAIA_RESTRICT v, const size_t sz) {
+					for (auto i = 0U; i < sz; ++i) {
+						if (p[i] < 0.0f) {
+							p[i] = 0.0f;
+							v[i] = 0.0f;
+						}
+					}
+				};
 
 				size_t i = 0;
 				// Optimize via "double-read" trick to hide latencies.
@@ -615,8 +627,8 @@ void BM_Game_ECS_WithSystems_ForEachChunk_SoA_ManualSIMD(benchmark::State& state
 					exec(ppy.data(), vvy.data(), i);
 					exec(ppy.data(), vvy.data(), i + 4);
 				}
-				for (; i < size; i += 4)
-					exec(ppy.data(), vvy.data(), i);
+				for (; i < size; i++)
+					exec2(ppy.data(), vvy.data(), i);
 			});
 		}
 	};
@@ -643,6 +655,10 @@ void BM_Game_ECS_WithSystems_ForEachChunk_SoA_ManualSIMD(benchmark::State& state
 					const auto mulVec = _mm_mul_ps(vyVec, gg_dtVec);
 					_mm_store_ps(v + offset, mulVec);
 				};
+				auto exec2 = [](float* GAIA_RESTRICT v, const size_t sz) {
+					for (size_t i = 0U; i < sz; ++i)
+						v[i] *= dt * 9.81f;
+				};
 
 				size_t i = 0;
 				// Optimize via "double-read" trick to hide latencies.
@@ -651,8 +667,8 @@ void BM_Game_ECS_WithSystems_ForEachChunk_SoA_ManualSIMD(benchmark::State& state
 					exec(vvy.data(), i);
 					exec(vvy.data(), i + 4);
 				}
-				for (; i < size; i += 4)
-					exec(vvy.data(), i);
+				for (; i < size; i++)
+					exec2(vvy.data(), i);
 			});
 		}
 	};
@@ -1189,6 +1205,10 @@ void BM_Game_NonECS_DOD_SoA_ManualSIMD(benchmark::State& state) {
 				const auto respVec = _mm_fmadd_ps(vVec, dtVec, pVec);
 				_mm_store_ps(p + offset, respVec);
 			};
+			auto exec2 = [](float* GAIA_RESTRICT p, const float* GAIA_RESTRICT v, size_t sz) {
+				for (size_t i = 0U; i < sz; ++i)
+					p[i] += v[i] * dt;
+			};
 
 			size_t i = 0;
 			// Optimize via "double-read" trick to hide latencies.
@@ -1197,24 +1217,24 @@ void BM_Game_NonECS_DOD_SoA_ManualSIMD(benchmark::State& state) {
 				exec(ppx.data(), vvx.data(), i);
 				exec(ppx.data(), vvx.data(), i + 4);
 			}
-			for (; i < size; i += 4)
-				exec(ppx.data(), vvx.data(), i);
+			for (; i < size; i++)
+				exec2(ppx.data(), vvx.data(), i);
 
 			i = 0;
 			for (; i < size; i += 8) {
 				exec(ppy.data(), vvy.data(), i);
 				exec(ppy.data(), vvy.data(), i + 4);
 			}
-			for (; i < size; i += 4)
-				exec(ppy.data(), vvy.data(), i);
+			for (; i < size; i++)
+				exec2(ppy.data(), vvy.data(), i);
 
 			i = 0;
 			for (; i < size; i += 8) {
 				exec(ppz.data(), vvz.data(), i);
 				exec(ppz.data(), vvz.data(), i + 4);
 			}
-			for (; i < size; i += 4)
-				exec(ppz.data(), vvz.data(), i);
+			for (; i < size; i++)
+				exec2(ppz.data(), vvz.data(), i);
 		}
 
 		static void handleGroundCollision(containers::darray<PositionSoA>& p, containers::darray<VelocitySoA>& v) {
@@ -1236,6 +1256,14 @@ void BM_Game_NonECS_DOD_SoA_ManualSIMD(benchmark::State& state) {
 				_mm_store_ps(v + offset, res_vyVec);
 				_mm_store_ps(p + offset, res_pyVec);
 			};
+			auto exec2 = [](float* GAIA_RESTRICT p, float* GAIA_RESTRICT v, size_t sz) {
+				for (auto i = 0U; i < sz; ++i) {
+					if (p[i] < 0.0f) {
+						p[i] = 0.0f;
+						v[i] = 0.0f;
+					}
+				}
+			};
 
 			size_t i = 0;
 			// Optimize via "double-read" trick to hide latencies.
@@ -1244,8 +1272,8 @@ void BM_Game_NonECS_DOD_SoA_ManualSIMD(benchmark::State& state) {
 				exec(ppy.data(), vvy.data(), i);
 				exec(ppy.data(), vvy.data(), i + 4);
 			}
-			for (; i < size; i += 4)
-				exec(ppy.data(), vvy.data(), i);
+			for (; i < size; i++)
+				exec2(ppy.data(), vvy.data(), i);
 		}
 
 		static void applyGravity(containers::darray<VelocitySoA>& v) {
@@ -1261,6 +1289,10 @@ void BM_Game_NonECS_DOD_SoA_ManualSIMD(benchmark::State& state) {
 				const auto mulVec = _mm_mul_ps(vyVec, gg_dtVec);
 				_mm_store_ps(v + offset, mulVec);
 			};
+			auto exec2 = [](float* GAIA_RESTRICT v, const size_t sz) {
+				for (size_t i = 0U; i < sz; ++i)
+					v[i] *= 9.81f * dt;
+			};
 
 			size_t i = 0;
 			// Optimize via "double-read" trick to hide latencies.
@@ -1269,8 +1301,8 @@ void BM_Game_NonECS_DOD_SoA_ManualSIMD(benchmark::State& state) {
 				exec(vvy.data(), i);
 				exec(vvy.data(), i + 4);
 			}
-			for (; i < size; i += 4)
-				exec(vvy.data(), i);
+			for (; i < size; i++)
+				exec2(vvy.data(), i);
 		}
 	};
 
