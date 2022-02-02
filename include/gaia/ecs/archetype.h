@@ -162,17 +162,6 @@ namespace gaia {
 				// Number of components we can fit into one chunk
 				auto maxGenericItemsInArchetype = (Chunk::DATA_SIZE - chunkComponentListSize) / genericComponentListSize;
 
-				// If there's any component with SoA layout make sure to make the size a multiple of PackSize
-				// because of SIMD requirements.
-				// This means we won't be able to fit as many entities inside the chunk but in exchange we'll
-				// get the ability to optimize performance via proper vectorization.
-				uint32_t isAnySoA = 0;
-				for (const auto type: genericTypes)
-					isAnySoA |= type->info.soa;
-				if (isAnySoA)
-					maxGenericItemsInArchetype -=
-							(maxGenericItemsInArchetype % utils::data_layout_properties<utils::DataLayout::SoA>::PackSize);
-
 				// Calculate component offsets now. Skip the header and entity IDs
 				auto componentOffset = (uint32_t)sizeof(Entity) * maxGenericItemsInArchetype;
 				auto alignedOffset = (uint32_t)sizeof(ChunkHeader) + componentOffset;
