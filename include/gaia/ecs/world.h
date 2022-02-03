@@ -140,11 +140,11 @@ namespace gaia {
 			}
 
 			/*!
-			Searches for archtype with a given set of components
-			\param genericTypes Span of genric component types
+			Searches for archetype with a given set of components
+			\param genericTypes Span of generic component types
 			\param chunkTypes Span of chunk component types
 			\param lookupHash Archetype lookup hash
-			\return Pointer to archtype or nullptr
+			\return Pointer to archetype or nullptr
 			*/
 			[[nodiscard]] Archetype* FindArchetype(
 					std::span<const ComponentMetaData*> genericTypes, std::span<const ComponentMetaData*> chunkTypes,
@@ -182,11 +182,11 @@ namespace gaia {
 			}
 
 			/*!
-			Creates a new archtype from a given set of components
-			\param genericTypes Span of genric component types
+			Creates a new archetype from a given set of components
+			\param genericTypes Span of generic component types
 			\param chunkTypes Span of chunk component types
 			\param lookupHash Archetype lookup hash
-			\return Pointer to archtype
+			\return Pointer to archetype
 			*/
 			[[nodiscard]] Archetype* CreateArchetype(
 					std::span<const ComponentMetaData*> genericTypes, std::span<const ComponentMetaData*> chunkTypes,
@@ -212,9 +212,9 @@ namespace gaia {
 
 			/*!
 			Searches for an archetype given based on a given set of components. If no archetype is found a new one is created.
-			\param genericTypes Span of genric component types
+			\param genericTypes Span of generic component types
 			\param chunkTypes Span of chunk component types
-			\return Pointer to archtype
+			\return Pointer to archetype
 			*/
 			[[nodiscard]] Archetype* FindOrCreateArchetype(
 					std::span<const ComponentMetaData*> genericTypes, std::span<const ComponentMetaData*> chunkTypes) {
@@ -239,7 +239,7 @@ namespace gaia {
 			/*!
 			Searches for an archetype given based on a given set of components. If no archetype is found a new one is created.
 			\param query Query to use to search for the archetype
-			\return Pointer to archtype
+			\return Pointer to archetype
 			*/
 			[[nodiscard]] Archetype* FindOrCreateArchetype(CreationQuery& query) {
 				return FindOrCreateArchetype(
@@ -260,7 +260,7 @@ namespace gaia {
 			/*!
 			Returns the archetype the entity belongs to.
 			\param entity Entity
-			\return Pointer to archtype
+			\return Pointer to archetype
 			*/
 			[[nodiscard]] Archetype* GetArchetype(Entity entity) const {
 				GAIA_ASSERT(IsEntityValid(entity));
@@ -339,8 +339,7 @@ namespace gaia {
 				const auto newTypesCount = (uint32_t)typesToAdd.size();
 				auto& entityContainer = m_entities[entity.id()];
 
-				// Adding a component to an entity which already is a part of some
-				// chunk
+				// Adding a component to an entity which already is a part of some chunk
 				if (auto* pChunk = entityContainer.pChunk) {
 					const auto& archetype = pChunk->header.owner;
 					const auto& componentTypeList = archetype.componentTypeList[componentType];
