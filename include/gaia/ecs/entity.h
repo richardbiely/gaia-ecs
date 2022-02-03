@@ -7,28 +7,26 @@ namespace gaia {
 		using EntityGenId = uint32_t;
 
 		struct Entity final {
-			static constexpr uint32_t IdBits = 20; // A million entities
-			static constexpr uint32_t GenBits = 12; // 4096 generations
-			static constexpr uint32_t IdMask = (1u << IdBits) - 1;
-			static constexpr uint32_t GenMask = (1u << GenBits) - 1;
+			using EntityInternalType = uint32_t;
+			static constexpr EntityInternalType IdBits = 20; // A million entities
+			static constexpr EntityInternalType GenBits = 12; // 4096 generations
+			static constexpr EntityInternalType IdMask = (1u << IdBits) - 1;
+			static constexpr EntityInternalType GenMask = (1u << GenBits) - 1;
 			static_assert(
-					IdBits + GenBits <= 32,
-					"Entity Id and Gen must fit inside 32 bits"); // Let's fit within 4
-																												// bytes. If needed we
-																												// can expand it to 8
-																												// bytes in the future
+					IdBits + GenBits <= sizeof(EntityInternalType) * 8,
+					"Entity IdBits and GenBits must fit inside EntityInternalType");
 
 		private:
 			struct EntityData {
 				//! Index in entity array
-				uint32_t id: IdBits;
+				EntityInternalType id: IdBits;
 				//! Generation index. Incremented every time an entity is deleted
-				uint32_t gen: GenBits;
+				EntityInternalType gen: GenBits;
 			};
 
 			union {
 				EntityData data;
-				uint32_t val;
+				EntityInternalType val;
 			};
 
 		public:
@@ -94,18 +92,15 @@ namespace gaia {
 
 		class Chunk;
 		struct EntityContainer {
-			static constexpr uint32_t IdBits = sizeof(EntityId) * 8 - 1;
-
 			//! Chunk the entity currently resides in
 			Chunk* pChunk;
 			//! For allocated entity: Index of entity within chunk.
 			//! For deleted entity: Index of the next entity in the implicit list.
-			EntityId idx: IdBits;
+			uint32_t idx : 31;
 			//! Tells if the entity is disabled. Borrows one bit from idx because it's unlikely to cause issues there
-			EntityId disabled : 1;
+			uint32_t disabled : 1;
 			//! Generation ID
 			EntityGenId gen;
 		};
-		static_assert(sizeof(EntityContainer) == sizeof(void*) + sizeof(EntityId) + sizeof(EntityGenId));
 	} // namespace ecs
 } // namespace gaia
