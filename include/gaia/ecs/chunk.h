@@ -42,7 +42,7 @@ namespace gaia {
 			//! Archetype header with info about the archetype
 			ChunkHeader header;
 			//! Archetype data. Entities first, followed by a lists of components.
-			uint8_t data[DATA_SIZE];
+			uint8_t data[DATA_SIZE_NORESERVE];
 
 			Chunk(const Archetype& archetype): header(archetype) {}
 
@@ -128,8 +128,8 @@ namespace gaia {
 						const uint32_t idxFrom = look.offset + (uint32_t)index * info.type->info.size;
 						const uint32_t idxTo = look.offset + (uint32_t)(header.items.count - 1) * info.type->info.size;
 
-						GAIA_ASSERT(idxFrom < Chunk::DATA_SIZE);
-						GAIA_ASSERT(idxTo < Chunk::DATA_SIZE);
+						GAIA_ASSERT(idxFrom < Chunk::DATA_SIZE_NORESERVE);
+						GAIA_ASSERT(idxTo < Chunk::DATA_SIZE_NORESERVE);
 						GAIA_ASSERT(idxFrom != idxTo);
 
 						memcpy(&data[idxFrom], &data[idxTo], info.type->info.size);

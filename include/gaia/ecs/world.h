@@ -570,8 +570,8 @@ namespace gaia {
 					const uint32_t idxFrom = newLook[newIdx].offset + intersections[i].size * newIndex;
 					const uint32_t idxTo = oldLook[oldIdx].offset + intersections[i].size * oldIndex;
 
-					GAIA_ASSERT(idxFrom < Chunk::DATA_SIZE);
-					GAIA_ASSERT(idxTo < Chunk::DATA_SIZE);
+					GAIA_ASSERT(idxFrom < Chunk::DATA_SIZE_NORESERVE);
+					GAIA_ASSERT(idxTo < Chunk::DATA_SIZE_NORESERVE);
 
 					memcpy(&newChunk->data[idxFrom], &oldChunk->data[idxTo], intersections[i].size);
 				}
@@ -733,8 +733,8 @@ namespace gaia {
 						const uint32_t idxFrom = look[i].offset + metaType->info.size * oldEntityContainer.idx;
 						const uint32_t idxTo = look[i].offset + metaType->info.size * newEntityContainer.idx;
 
-						GAIA_ASSERT(idxFrom < Chunk::DATA_SIZE);
-						GAIA_ASSERT(idxTo < Chunk::DATA_SIZE);
+						GAIA_ASSERT(idxFrom < Chunk::DATA_SIZE_NORESERVE);
+						GAIA_ASSERT(idxTo < Chunk::DATA_SIZE_NORESERVE);
 
 						memcpy(&newChunk->data[idxTo], &oldChunk->data[idxFrom], metaType->info.size);
 					}
@@ -808,8 +808,8 @@ namespace gaia {
 							const uint32_t idxFrom = look[i].offset + metaType->info.size * entityContainer.idx;
 							const uint32_t idxTo = look[i].offset + metaType->info.size * idxNew;
 
-							GAIA_ASSERT(idxFrom < Chunk::DATA_SIZE);
-							GAIA_ASSERT(idxTo < Chunk::DATA_SIZE);
+							GAIA_ASSERT(idxFrom < Chunk::DATA_SIZE_NORESERVE);
+							GAIA_ASSERT(idxTo < Chunk::DATA_SIZE_NORESERVE);
 
 							memcpy(&pChunkTo->data[idxTo], &pChunkFrom->data[idxFrom], metaType->info.size);
 						}
