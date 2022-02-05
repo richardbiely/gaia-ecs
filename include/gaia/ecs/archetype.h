@@ -175,7 +175,7 @@ namespace gaia {
 						alignedOffset += padding;
 
 						// Make sure we didn't exceed the chunk size
-						GAIA_ASSERT(componentOffset <= Chunk::DATA_SIZE);
+						GAIA_ASSERT(componentOffset <= Chunk::DATA_SIZE_NORESERVE);
 
 						// Register the type
 						newArch->componentTypeList[ComponentType::CT_Generic].push_back({genericTypes[i]});
@@ -187,7 +187,7 @@ namespace gaia {
 						alignedOffset += genericTypes[i]->info.size * maxGenericItemsInArchetype;
 
 						// Make sure we didn't exceed the chunk size
-						GAIA_ASSERT(componentOffset <= Chunk::DATA_SIZE);
+						GAIA_ASSERT(componentOffset <= Chunk::DATA_SIZE_NORESERVE);
 					} else {
 						// Register the type
 						newArch->componentTypeList[ComponentType::CT_Generic].push_back({genericTypes[i]});
