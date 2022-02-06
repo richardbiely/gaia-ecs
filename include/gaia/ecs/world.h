@@ -359,8 +359,8 @@ namespace gaia {
 						containers::sarray_ext<const ComponentMetaData*, MAX_COMPONENTS_PER_ARCHETYPE> newMetaTypes;
 						newMetaTypes.resize(metaTypesCount);
 						{
-							for (uint32_t i = 0U; i < oldTypesCount; i++)
-								newMetaTypes[i] = componentTypeList[i].type;
+							for (uint32_t j = 0U; j < oldTypesCount; j++)
+								newMetaTypes[j] = componentTypeList[j].type;
 							newMetaTypes[oldTypesCount] = newTypes[i];
 						}
 
@@ -368,8 +368,8 @@ namespace gaia {
 						containers::sarray_ext<const ComponentMetaData*, MAX_COMPONENTS_PER_ARCHETYPE> otherMetaTypes;
 						otherMetaTypes.resize(componentTypeList2.size());
 						{
-							for (uint32_t i = 0U; i < componentTypeList2.size(); i++)
-								otherMetaTypes[i] = componentTypeList2[i].type;
+							for (uint32_t j = 0U; j < componentTypeList2.size(); j++)
+								otherMetaTypes[j] = componentTypeList2[j].type;
 						}
 
 						auto newArchetype =
