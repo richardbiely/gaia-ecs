@@ -19,7 +19,7 @@ namespace gaia {
 			template <typename T>
 			void AddToList(const ComponentType componentType) {
 				using TComponent = std::decay_t<T>;
-				list[(uint32_t)componentType].push_back(g_ComponentCache.GetOrCreateComponentMetaType<TComponent>());
+				list[componentType].push_back(g_ComponentCache.GetOrCreateComponentMetaType<TComponent>());
 			}
 
 		public:

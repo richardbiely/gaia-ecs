@@ -340,18 +340,18 @@ namespace gaia {
 				for (uint32_t i = 0; i < (uint32_t)newTypes.size(); i++) {
 					const auto* type = newTypes[i];
 
-					const auto it = utils::find_if(node->edgesAdd[(uint32_t)componentType], [type](const auto& edge) {
+					const auto it = utils::find_if(node->edgesAdd[componentType], [type](const auto& edge) {
 						return edge.type == type;
 					});
 
 					// Not found among edges, create a new archetype
-					if (it == node->edgesAdd[(uint32_t)componentType].end()) {
+					if (it == node->edgesAdd[componentType].end()) {
 						const auto& archetype = *node;
 
-						const auto& componentTypeList = archetype.componentTypeList[(uint32_t)componentType];
-						const auto& componentTypeList2 = archetype.componentTypeList[((uint32_t)componentType + 1) & 1];
+						const auto& componentTypeList = archetype.componentTypeList[componentType];
+						const auto& componentTypeList2 = archetype.componentTypeList[(componentType + 1) & 1];
 
-						const auto oldTypesCount = (uint32_t)componentTypeList.size();
+						const auto oldTypesCount = componentTypeList.size();
 						const auto newTypesCount = 1;
 						const auto metaTypesCount = oldTypesCount + newTypesCount;
 
@@ -381,8 +381,8 @@ namespace gaia {
 													std::span<const ComponentMetaData*>(otherMetaTypes.data(), (uint32_t)otherMetaTypes.size()),
 													std::span<const ComponentMetaData*>(newMetaTypes.data(), (uint32_t)newMetaTypes.size()));
 						{
-							node->edgesAdd[(uint32_t)componentType].push_back({type, newArchetype});
-							newArchetype->edgesDel[(uint32_t)componentType].push_back({type, node});
+							node->edgesAdd[componentType].push_back({type, newArchetype});
+							newArchetype->edgesDel[componentType].push_back({type, node});
 						}
 						node = newArchetype;
 					} else {
@@ -406,7 +406,7 @@ namespace gaia {
 				for (uint32_t i = 0; i < (uint32_t)newTypes.size(); i++) {
 					const auto* type = newTypes[i];
 
-					const auto it = utils::find_if(node->edgesDel[(uint32_t)componentType], [type](const auto& edge) {
+					const auto it = utils::find_if(node->edgesDel[componentType], [type](const auto& edge) {
 						return edge.type == type;
 					});
 
