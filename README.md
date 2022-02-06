@@ -54,7 +54,7 @@ Each archetype consists of blocks of memory called chunks. In our case, each chu
 
 All memory is preallocated in big blocks (pages) via the internal chunk allocator. Thanks to that all data is organized in a cache-friendly way which most computer architectures like and actual heap allocations which are slow are reduced to a minimum.
 
-One of the benefits of archetype-based architectures is fast iteration and good memory layout by default. They are also easy to parallelize. On the other hand, adding and removing components is slower than with other architectures. Knowing the strengths and weaknesses of your system helps you work around their issues so this is not necessarily a problem per se.
+One of the benefits of archetype-based architectures is fast iteration and good memory layout by default. They are also easy to parallelize. On the other hand, adding and removing components is slower than with other architectures (in our case this is mitigated by a graph built for archetypes). Knowing the strengths and weaknesses of your system helps you work around their issues so this is not necessarily a problem per se.
 
 # Usage
 ## Minimum requirements
@@ -401,8 +401,6 @@ Currently, many new features and improvements to the current system are planned.
 Among the most prominent ones those are:
 * scheduler - a system that would allow parallel execution of all systems by default, work stealing, and an easy setup of dependencies
 * scenes - a way to serialize the state of chunks or entire worlds
-* improved queries - better caching of queries so they are of close-to-zero cost to use
-* improved add/remove component performance - adding and removing components in archetype-based ECS is not particularly fast but by using some clever tricks this can be mostly mitigated
 * profiling scopes - to allow easy measurement of performance in production
 * debugger - an editor that would give one an overview of worlds created by the framework (number of entities, chunk fragmentation, systems running, etc.)
 
