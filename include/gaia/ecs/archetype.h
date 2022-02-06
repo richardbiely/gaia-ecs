@@ -153,6 +153,14 @@ namespace gaia {
 				auto newArch = new Archetype();
 				newArch->parentWorld = &pWorld;
 
+				// Preallocate arrays for graph edges
+				// Generic components are going to be more common so we prepare bigger arrays for them.
+				// Chunk components are expected to be very rare so only a small buffer is preallocated.
+				newArch->edgesAdd[ComponentType::CT_Generic].reserve(8);
+				newArch->edgesAdd[ComponentType::CT_Chunk].reserve(1);
+				newArch->edgesDel[ComponentType::CT_Generic].reserve(8);
+				newArch->edgesDel[ComponentType::CT_Chunk].reserve(1);
+
 				// TODO: Calculate the number of entities per chunks precisely so we can
 				// fit more of them into chunk on average. Currently, DATA_SIZE_RESERVED
 				// is substracted but that's not optimal...
