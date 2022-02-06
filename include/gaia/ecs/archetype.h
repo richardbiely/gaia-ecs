@@ -27,7 +27,6 @@ namespace gaia {
 			struct ArchetypeGraphEdge {
 				const ComponentMetaData* type;
 				Archetype* archetype;
-				ComponentType componentType;
 			};
 
 			//! World to which this chunk belongs to
@@ -39,9 +38,9 @@ namespace gaia {
 			containers::darray<Chunk*> chunksDisabled;
 
 			//! List of edges in the archetype graph when adding components
-			containers::darray<ArchetypeGraphEdge> edgesAdd;
+			containers::darray<ArchetypeGraphEdge> edgesAdd[ComponentType::CT_Count];
 			//! List of edges in the archetype graph when removing components
-			containers::darray<ArchetypeGraphEdge> edgesDel;
+			containers::darray<ArchetypeGraphEdge> edgesDel[ComponentType::CT_Count];
 
 			//! Description of components within this archetype
 			containers::sarray<ChunkComponentTypeList, ComponentType::CT_Count> componentTypeList;

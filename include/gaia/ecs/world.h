@@ -340,12 +340,12 @@ namespace gaia {
 				for (uint32_t i = 0; i < (uint32_t)newTypes.size(); i++) {
 					const auto* type = newTypes[i];
 
-					const auto it = utils::find_if(node->edgesAdd, [type, componentType](const auto& edge) {
-						return edge.type == type && edge.componentType == componentType;
+					const auto it = utils::find_if(node->edgesAdd[(uint32_t)componentType], [type](const auto& edge) {
+						return edge.type == type;
 					});
 
 					// Not found among edges, create a new archetype
-					if (it == node->edgesAdd.end()) {
+					if (it == node->edgesAdd[(uint32_t)componentType].end()) {
 						const auto& archetype = *node;
 
 						const auto& componentTypeList = archetype.componentTypeList[(uint32_t)componentType];
@@ -381,8 +381,8 @@ namespace gaia {
 													std::span<const ComponentMetaData*>(otherMetaTypes.data(), (uint32_t)otherMetaTypes.size()),
 													std::span<const ComponentMetaData*>(newMetaTypes.data(), (uint32_t)newMetaTypes.size()));
 						{
-							node->edgesAdd.push_back({type, newArchetype, componentType});
-							newArchetype->edgesDel.push_back({type, node, componentType});
+							node->edgesAdd[(uint32_t)componentType].push_back({type, newArchetype});
+							newArchetype->edgesDel[(uint32_t)componentType].push_back({type, node});
 						}
 						node = newArchetype;
 					} else {
@@ -406,8 +406,8 @@ namespace gaia {
 				for (uint32_t i = 0; i < (uint32_t)newTypes.size(); i++) {
 					const auto* type = newTypes[i];
 
-					const auto it = utils::find_if(node->edgesDel, [type, componentType](const auto& edge) {
-						return edge.type == type && edge.componentType == componentType;
+					const auto it = utils::find_if(node->edgesDel[(uint32_t)componentType], [type](const auto& edge) {
+						return edge.type == type;
 					});
 
 					// We expect the component was found in the list. Verified in VerifyRemoveComponent.
@@ -1581,80 +1581,52 @@ namespace gaia {
 								logComponentInfo(component.type);
 						}
 
-						const auto& addEdges = archetype->edgesAdd;
-						if (!addEdges.empty()) {
-							LOG_N("  Add edges - count:%u", (uint32_t)addEdges.size());
+						{
+							const auto& edgesG = archetype->edgesAdd[ComponentType::CT_Generic];
+							const auto& edgesC = archetype->edgesAdd[ComponentType::CT_Chunk];
+							const auto edgeCount = (uint32_t)(edgesG.size() + edgesC.size());
+							if (edgeCount > 0) {
+								LOG_N("  Add edges - count:%u", edgeCount);
 
-							{
-								uint32_t edgeCount = 0;
-								for (const auto& edge: addEdges)
-									if (edge.componentType == ComponentType::CT_Generic)
-										++edgeCount;
-								if (edgeCount > 0)
-									LOG_N("    Generic - count:%u", edgeCount);
-
-								for (const auto& edge: addEdges) {
-									if (edge.componentType == ComponentType::CT_Generic)
-										continue;
-									LOG_N(
-											"      %.*s (--> Archetype ID:%u)", (uint32_t)edge.type->name.length(), edge.type->name.data(),
-											edge.archetype->id);
+								if (!edgesG.empty()) {
+									LOG_N("    Generic - count:%u", edgesG.size());
+									for (const auto& edge: edgesG)
+										LOG_N(
+												"      %.*s (--> Archetype ID:%u)", (uint32_t)edge.type->name.length(), edge.type->name.data(),
+												edge.archetype->id);
 								}
-							}
 
-							{
-								uint32_t edgeCount = 0;
-								for (const auto& edge: addEdges)
-									if (edge.componentType == ComponentType::CT_Chunk)
-										++edgeCount;
-								if (edgeCount > 0)
-									LOG_N("    Chunk - count:%u", edgeCount);
-
-								for (const auto& edge: addEdges) {
-									if (edge.componentType == ComponentType::CT_Chunk)
-										continue;
-									LOG_N(
-											"      %.*s (--> Archetype ID:%u)", (uint32_t)edge.type->name.length(), edge.type->name.data(),
-											edge.archetype->id);
+								if (!edgesC.empty()) {
+									LOG_N("    Chunk - count:%u", edgesC.size());
+									for (const auto& edge: edgesC)
+										LOG_N(
+												"      %.*s (--> Archetype ID:%u)", (uint32_t)edge.type->name.length(), edge.type->name.data(),
+												edge.archetype->id);
 								}
 							}
 						}
 
-						const auto& delEdges = archetype->edgesDel;
-						if (!delEdges.empty()) {
-							LOG_N("  Del edges - count:%u", (uint32_t)addEdges.size());
+						{
+							const auto& edgesG = archetype->edgesDel[ComponentType::CT_Generic];
+							const auto& edgesC = archetype->edgesDel[ComponentType::CT_Chunk];
+							const auto edgeCount = (uint32_t)(edgesG.size() + edgesC.size());
+							if (edgeCount > 0) {
+								LOG_N("  Del edges - count:%u", edgeCount);
 
-							{
-								uint32_t edgeCount = 0;
-								for (const auto& edge: delEdges)
-									if (edge.componentType == ComponentType::CT_Generic)
-										++edgeCount;
-								if (edgeCount > 0)
-									LOG_N("    Generic - count:%u", edgeCount);
-
-								for (const auto& edge: delEdges) {
-									if (edge.componentType == ComponentType::CT_Generic)
-										continue;
-									LOG_N(
-											"      %.*s (<-- Archetype ID:%u)", (uint32_t)edge.type->name.length(), edge.type->name.data(),
-											edge.archetype->id);
+								if (!edgesG.empty()) {
+									LOG_N("    Generic - count:%u", edgesG.size());
+									for (const auto& edge: edgesG)
+										LOG_N(
+												"      %.*s (--> Archetype ID:%u)", (uint32_t)edge.type->name.length(), edge.type->name.data(),
+												edge.archetype->id);
 								}
-							}
 
-							{
-								uint32_t edgeCount = 0;
-								for (const auto& edge: delEdges)
-									if (edge.componentType == ComponentType::CT_Chunk)
-										++edgeCount;
-								if (edgeCount > 0)
-									LOG_N("    Chunk - count:%u", edgeCount);
-
-								for (const auto& edge: delEdges) {
-									if (edge.componentType == ComponentType::CT_Chunk)
-										continue;
-									LOG_N(
-											"      %.*s (<-- Archetype ID:%u)", (uint32_t)edge.type->name.length(), edge.type->name.data(),
-											edge.archetype->id);
+								if (!edgesC.empty()) {
+									LOG_N("    Chunk - count:%u", edgesC.size());
+									for (const auto& edge: edgesC)
+										LOG_N(
+												"      %.*s (--> Archetype ID:%u)", (uint32_t)edge.type->name.length(), edge.type->name.data(),
+												edge.archetype->id);
 								}
 							}
 						}
