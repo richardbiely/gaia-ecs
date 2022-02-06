@@ -1552,33 +1552,111 @@ namespace gaia {
 
 						const auto it = archetypeEntityCountMap.find(archetype->lookupHash);
 						LOG_N(
-								"Archetype ID:%016" PRIx64 ", "
-								"matcherGeneric:%016" PRIx64 ", "
-								"matcherChunk:%016" PRIx64 ", "
+								"Archetype ID:%u, "
+								"lookupHash:%016" PRIx64 ", "
+								"matcherHash Generic:%016" PRIx64 ", "
+								"matcherHash Chunk:%016" PRIx64 ", "
 								"chunks:%u, data size:%u B (%u + %u), "
 								"entities:%u (max-per-chunk:%u)",
-								archetype->lookupHash, archetype->matcherHash[ComponentType::CT_Generic],
+								archetype->id, archetype->lookupHash, archetype->matcherHash[ComponentType::CT_Generic],
 								archetype->matcherHash[ComponentType::CT_Chunk], (uint32_t)archetype->chunks.size(),
 								genericComponentsSize + chunkComponentsSize, genericComponentsSize, chunkComponentsSize, it->second,
 								archetype->info.capacity);
 
-						auto logComponentInfo = [](const ChunkComponentTypeList& components) {
-							for (const auto& component: components) {
-								const auto* metaType = component.type;
-								LOG_N(
-										"    (%p) lookupHash:%016" PRIx64 ", matcherHash:%016" PRIx64 ", size:%3u B, align:%3u B, %.*s",
-										(void*)metaType, metaType->lookupHash, metaType->matcherHash, metaType->info.size,
-										metaType->info.alig, (uint32_t)metaType->name.length(), metaType->name.data());
-							}
+						auto logComponentInfo = [](const ComponentMetaData* metaType) {
+							LOG_N(
+									"    (%p) lookupHash:%016" PRIx64 ", matcherHash:%016" PRIx64 ", size:%3u B, align:%3u B, %.*s",
+									(void*)metaType, metaType->lookupHash, metaType->matcherHash, metaType->info.size,
+									metaType->info.alig, (uint32_t)metaType->name.length(), metaType->name.data());
 						};
 
 						if (!genericComponents.empty()) {
 							LOG_N("  Generic components - count:%u", (uint32_t)genericComponents.size());
-							logComponentInfo(genericComponents);
+							for (const auto& component: genericComponents)
+								logComponentInfo(component.type);
 						}
 						if (!chunkComponents.empty()) {
 							LOG_N("  Chunk components - count:%u", (uint32_t)chunkComponents.size());
-							logComponentInfo(chunkComponents);
+							for (const auto& component: chunkComponents)
+								logComponentInfo(component.type);
+						}
+
+						const auto& addEdges = archetype->edgesAdd;
+						if (!addEdges.empty()) {
+							LOG_N("  Add edges - count:%u", (uint32_t)addEdges.size());
+
+							{
+								uint32_t edgeCount = 0;
+								for (const auto& edge: addEdges)
+									if (edge.componentType == ComponentType::CT_Generic)
+										++edgeCount;
+								if (edgeCount > 0)
+									LOG_N("    Generic - count:%u", edgeCount);
+
+								for (const auto& edge: addEdges) {
+									if (edge.componentType == ComponentType::CT_Generic)
+										continue;
+									LOG_N(
+											"      %.*s (--> Archetype ID:%u)", (uint32_t)edge.type->name.length(), edge.type->name.data(),
+											edge.archetype->id);
+								}
+							}
+
+							{
+								uint32_t edgeCount = 0;
+								for (const auto& edge: addEdges)
+									if (edge.componentType == ComponentType::CT_Chunk)
+										++edgeCount;
+								if (edgeCount > 0)
+									LOG_N("    Chunk - count:%u", edgeCount);
+
+								for (const auto& edge: addEdges) {
+									if (edge.componentType == ComponentType::CT_Chunk)
+										continue;
+									LOG_N(
+											"      %.*s (--> Archetype ID:%u)", (uint32_t)edge.type->name.length(), edge.type->name.data(),
+											edge.archetype->id);
+								}
+							}
+						}
+
+						const auto& delEdges = archetype->edgesDel;
+						if (!delEdges.empty()) {
+							LOG_N("  Del edges - count:%u", (uint32_t)addEdges.size());
+
+							{
+								uint32_t edgeCount = 0;
+								for (const auto& edge: delEdges)
+									if (edge.componentType == ComponentType::CT_Generic)
+										++edgeCount;
+								if (edgeCount > 0)
+									LOG_N("    Generic - count:%u", edgeCount);
+
+								for (const auto& edge: delEdges) {
+									if (edge.componentType == ComponentType::CT_Generic)
+										continue;
+									LOG_N(
+											"      %.*s (<-- Archetype ID:%u)", (uint32_t)edge.type->name.length(), edge.type->name.data(),
+											edge.archetype->id);
+								}
+							}
+
+							{
+								uint32_t edgeCount = 0;
+								for (const auto& edge: delEdges)
+									if (edge.componentType == ComponentType::CT_Chunk)
+										++edgeCount;
+								if (edgeCount > 0)
+									LOG_N("    Chunk - count:%u", edgeCount);
+
+								for (const auto& edge: delEdges) {
+									if (edge.componentType == ComponentType::CT_Chunk)
+										continue;
+									LOG_N(
+											"      %.*s (<-- Archetype ID:%u)", (uint32_t)edge.type->name.length(), edge.type->name.data(),
+											edge.archetype->id);
+								}
+							}
 						}
 
 						const auto& chunks = archetype->chunks;
