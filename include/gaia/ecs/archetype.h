@@ -1,6 +1,7 @@
 #pragma once
 #include <inttypes.h>
 
+#include "../containers/darray.h"
 #include "../containers/sarray.h"
 #include "../containers/sarray_ext.h"
 #include "../utils/utils_mem.h"
@@ -8,7 +9,6 @@
 #include "chunk_allocator.h"
 #include "chunk_header.h"
 #include "component.h"
-#include "gaia/containers/darray.h"
 
 namespace gaia {
 	namespace ecs {
