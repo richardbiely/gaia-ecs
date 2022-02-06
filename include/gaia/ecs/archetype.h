@@ -8,6 +8,7 @@
 #include "chunk_allocator.h"
 #include "chunk_header.h"
 #include "component.h"
+#include "gaia/containers/darray.h"
 
 namespace gaia {
 	namespace ecs {
@@ -23,6 +24,12 @@ namespace gaia {
 			friend class Chunk;
 			friend struct ChunkHeader;
 
+			struct ArchetypeGraphEdge {
+				const ComponentMetaData* type;
+				Archetype* archetype;
+				ComponentType componentType;
+			};
+
 			//! World to which this chunk belongs to
 			const World* parentWorld = nullptr;
 
@@ -31,10 +38,18 @@ namespace gaia {
 			//! List of disabled chunks allocated by this archetype
 			containers::darray<Chunk*> chunksDisabled;
 
+			//! List of edges in the archetype graph when adding components
+			containers::darray<ArchetypeGraphEdge> edgesAdd;
+			//! List of edges in the archetype graph when removing components
+			containers::darray<ArchetypeGraphEdge> edgesDel;
+
 			//! Description of components within this archetype
 			containers::sarray<ChunkComponentTypeList, ComponentType::CT_Count> componentTypeList;
 			//! Lookup hashes of components within this archetype
 			containers::sarray<ChunkComponentLookupList, ComponentType::CT_Count> componentLookupList;
+
+			uint64_t genericHash = 0;
+			uint64_t chunkHash = 0;
 
 			//! Hash of components within this archetype - used for lookups
 			uint64_t lookupHash = 0;
@@ -51,10 +66,8 @@ namespace gaia {
 				uint32_t hasComponentWithCustomConstruction : 1;
 				//! True if there's a chunk component that requires custom construction
 				uint32_t hasChunkComponentTypesWithCustomConstruction : 1;
-#if GAIA_DEBUG
 				//! Set to true when chunks are being iterated. Used to inform of structural changes when they shouldn't happen.
 				uint32_t structuralChangesLocked : 1;
-#endif
 			} info{};
 
 			// Constructor is hidden. Create archetypes via Create
