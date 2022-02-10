@@ -434,7 +434,7 @@ namespace gaia {
 
 				auto& entityContainer = m_entities[entity.id()];
 				auto* pChunk = entityContainer.pChunk;
-				return pChunk ? (Archetype*)&pChunk->header.owner : nullptr;
+				return pChunk ? const_cast<Archetype*>(&pChunk->header.owner) : nullptr;
 			}
 
 			/*!
@@ -597,20 +597,20 @@ namespace gaia {
 
 				containers::sarray_ext<Intersection, MAX_COMPONENTS_PER_ARCHETYPE> intersections;
 
-				// TODO: Arrays are sorted so we can do this in O(n+_) instead of
-				// O(N^2)
-				for (uint32_t i = 0U; i < oldTypes.size(); i++) {
-					const auto typeOld = oldTypes[i].type;
-					if (!typeOld->info.size)
-						continue;
+				// Arrays are sorted so we can do linear intersection lookup
+				{
+					uint32_t i = 0U;
+					uint32_t j = 0U;
+					while (i < oldTypes.size() && j < newTypes.size()) {
+						const auto* typeOld = oldTypes[i].type;
+						const auto* typeNew = newTypes[j].type;
 
-					for (uint32_t j = 0U; j < newTypes.size(); j++) {
-						const auto typeNew = newTypes[j].type;
-						if (typeNew != typeOld)
-							continue;
-
-						intersections.push_back({typeOld->info.size, i, j});
-						break;
+						if (typeOld == typeNew)
+							intersections.push_back({typeOld->info.size, i++, j++});
+						else if (typeOld > typeNew)
+							++j;
+						else
+							++i;
 					}
 				}
 
