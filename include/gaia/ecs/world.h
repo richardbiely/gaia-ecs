@@ -300,16 +300,15 @@ namespace gaia {
 					std::span<const ComponentMetaData*> typesToRemove) {
 				auto* node = &archetype;
 
-				// Make sure not to add too many types
 				const uint32_t newTypesCount = (uint32_t)typesToRemove.size();
 				for (uint32_t i = 0; i < newTypesCount; i++) {
 					const auto* type = typesToRemove[i];
 
-					const auto it = utils::find_if(node->edgesDel, [type, componentType](const auto& edge) {
-						return edge.type == type && edge.componentType == componentType;
+					const auto it = utils::find_if(node->edgesDel[componentType], [type](const auto& edge) {
+						return edge.type == type;
 					});
 
-					if (it == node->edgesDel.end()) {
+					if (it == node->edgesDel[componentType].end()) {
 						GAIA_ASSERT(false && "Trying to remove a component which wasn't added");
 						LOG_W("Trying to remove a component from entity [%u.%u] but it was never added", entity.id(), entity.gen());
 						LOG_W("Currently present:");
