@@ -547,16 +547,16 @@ namespace gaia {
 
 				// Let's move all data from oldEntity to newEntity
 				for (uint32_t i = 0U; i < intersections.size(); i++) {
-					const auto newIdx = intersections[i].newIndex;
 					const auto oldIdx = intersections[i].oldIndex;
+					const auto newIdx = intersections[i].newIndex;
 
-					const uint32_t idxFrom = newLook[newIdx].offset + intersections[i].size * newIndex;
-					const uint32_t idxTo = oldLook[oldIdx].offset + intersections[i].size * oldIndex;
+					const uint32_t idxFrom = oldLook[oldIdx].offset + intersections[i].size * oldIndex;
+					const uint32_t idxTo = newLook[newIdx].offset + intersections[i].size * newIndex;
 
 					GAIA_ASSERT(idxFrom < Chunk::DATA_SIZE_NORESERVE);
 					GAIA_ASSERT(idxTo < Chunk::DATA_SIZE_NORESERVE);
 
-					memcpy(&newChunk->data[idxFrom], &oldChunk->data[idxTo], intersections[i].size);
+					memcpy(&newChunk->data[idxTo], &oldChunk->data[idxFrom], intersections[i].size);
 				}
 
 				// Remove entity from the previous chunk
