@@ -315,10 +315,10 @@ namespace gaia {
 
 						const auto& info = node->componentTypeList[componentType];
 						const uint32_t oldTypesCount = (uint32_t)info.size();
-						for (uint32_t i = 0U; i < oldTypesCount; i++)
-							LOG_W("> [%u] %.*s", i, (uint32_t)info[i].type->name.length(), info[i].type->name.data());
+						for (uint32_t k = 0U; k < oldTypesCount; k++)
+							LOG_W("> [%u] %.*s", k, (uint32_t)info[k].type->name.length(), info[k].type->name.data());
 						LOG_W("Trying to remove:");
-						LOG_W("> %s", typesToRemove[i]->name.data());
+						LOG_W("> %.*s", (uint32_t)typesToRemove[i]->name.length(), typesToRemove[i]->name.data());
 					}
 
 					node = it->archetype;
