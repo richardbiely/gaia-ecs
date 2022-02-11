@@ -501,75 +501,6 @@ namespace gaia {
 				entityContainer.gen = entity.gen();
 			}
 
-			EntityContainer* AddComponent_Internal(
-					ComponentType componentType, Entity entity, std::span<const ComponentMetaData*> typesToAdd) {
-				auto& entityContainer = m_entities[entity.id()];
-
-				// Adding a component to an entity which already is a part of some chunk
-				if (auto* pChunk = entityContainer.pChunk) {
-					auto& archetype = const_cast<Archetype&>(pChunk->header.owner);
-
-					GAIA_ASSERT(
-							!archetype.info.structuralChangesLocked && "New components can't be added while chunk is being iterated "
-																												 "(structural changes are forbidden during this time!)");
-#if GAIA_DEBUG
-					VerifyAddComponent(archetype, entity, componentType, typesToAdd);
-#endif
-
-					auto newArchetype = FindOrCreateArchetype_AddComponents(&archetype, componentType, typesToAdd);
-					MoveEntity(entity, *newArchetype);
-				}
-				// Adding a component to an empty entity
-				else {
-					auto& archetype = const_cast<Archetype&>(*m_rootArchetype);
-
-					GAIA_ASSERT(
-							!archetype.info.structuralChangesLocked && "New components can't be added while chunk is being iterated "
-																												 "(structural changes are forbidden during this time!)");
-#if GAIA_DEBUG
-					VerifyAddComponent(archetype, entity, componentType, typesToAdd);
-#endif
-
-					auto newArchetype = FindOrCreateArchetype_AddComponents(&archetype, componentType, typesToAdd);
-					StoreEntity(entity, newArchetype->FindOrCreateFreeChunk());
-				}
-
-				return &entityContainer;
-			}
-
-			template <typename... TComponent>
-			EntityContainer* AddComponent_Internal(ComponentType componentType, Entity entity) {
-				constexpr auto typesCount = sizeof...(TComponent);
-				const ComponentMetaData* types[] = {g_ComponentCache.GetOrCreateComponentMetaType<TComponent>()...};
-
-				return AddComponent_Internal(componentType, entity, {types, typesCount});
-			}
-
-			void RemoveComponent_Internal(
-					ComponentType componentType, Entity entity, std::span<const ComponentMetaData*> typesToRemove) {
-				auto& entityContainer = m_entities[entity.id()];
-				auto* pChunk = entityContainer.pChunk;
-				auto& archetype = const_cast<Archetype&>(pChunk->header.owner);
-
-				GAIA_ASSERT(
-						!archetype.info.structuralChangesLocked && "Components can't be removed while chunk is being iterated "
-																											 "(structural changes are forbidden during this time!)");
-#if GAIA_DEBUG
-				VerifyAddComponent(archetype, entity, componentType, typesToRemove);
-#endif
-
-				auto newArchetype = FindArchetype_RemoveComponents(&archetype, componentType, typesToRemove);
-				MoveEntity(entity, *newArchetype);
-			}
-
-			template <typename... TComponent>
-			void RemoveComponent_Internal(ComponentType componentType, Entity entity) {
-				constexpr auto typesCount = sizeof...(TComponent);
-				const ComponentMetaData* types[] = {g_ComponentCache.GetOrCreateComponentMetaType<TComponent>()...};
-
-				RemoveComponent_Internal(componentType, entity, {types, typesCount});
-			}
-
 			void MoveEntity(Entity oldEntity, Archetype& newArchetype) {
 				auto& entityContainer = m_entities[oldEntity.id()];
 				auto oldChunk = entityContainer.pChunk;
@@ -679,6 +610,75 @@ namespace gaia {
 					GAIA_ASSERT(pChunk->HasEntities() || e.pChunk != pChunk);
 				}
 #endif
+			}
+
+			EntityContainer* AddComponent_Internal(
+					ComponentType componentType, Entity entity, std::span<const ComponentMetaData*> typesToAdd) {
+				auto& entityContainer = m_entities[entity.id()];
+
+				// Adding a component to an entity which already is a part of some chunk
+				if (auto* pChunk = entityContainer.pChunk) {
+					auto& archetype = const_cast<Archetype&>(pChunk->header.owner);
+
+					GAIA_ASSERT(
+							!archetype.info.structuralChangesLocked && "New components can't be added while chunk is being iterated "
+																												 "(structural changes are forbidden during this time!)");
+#if GAIA_DEBUG
+					VerifyAddComponent(archetype, entity, componentType, typesToAdd);
+#endif
+
+					auto newArchetype = FindOrCreateArchetype_AddComponents(&archetype, componentType, typesToAdd);
+					MoveEntity(entity, *newArchetype);
+				}
+				// Adding a component to an empty entity
+				else {
+					auto& archetype = const_cast<Archetype&>(*m_rootArchetype);
+
+					GAIA_ASSERT(
+							!archetype.info.structuralChangesLocked && "New components can't be added while chunk is being iterated "
+																												 "(structural changes are forbidden during this time!)");
+#if GAIA_DEBUG
+					VerifyAddComponent(archetype, entity, componentType, typesToAdd);
+#endif
+
+					auto newArchetype = FindOrCreateArchetype_AddComponents(&archetype, componentType, typesToAdd);
+					StoreEntity(entity, newArchetype->FindOrCreateFreeChunk());
+				}
+
+				return &entityContainer;
+			}
+
+			template <typename... TComponent>
+			EntityContainer* AddComponent_Internal(ComponentType componentType, Entity entity) {
+				constexpr auto typesCount = sizeof...(TComponent);
+				const ComponentMetaData* types[] = {g_ComponentCache.GetOrCreateComponentMetaType<TComponent>()...};
+
+				return AddComponent_Internal(componentType, entity, {types, typesCount});
+			}
+
+			void RemoveComponent_Internal(
+					ComponentType componentType, Entity entity, std::span<const ComponentMetaData*> typesToRemove) {
+				auto& entityContainer = m_entities[entity.id()];
+				auto* pChunk = entityContainer.pChunk;
+				auto& archetype = const_cast<Archetype&>(pChunk->header.owner);
+
+				GAIA_ASSERT(
+						!archetype.info.structuralChangesLocked && "Components can't be removed while chunk is being iterated "
+																											 "(structural changes are forbidden during this time!)");
+#if GAIA_DEBUG
+				VerifyAddComponent(archetype, entity, componentType, typesToRemove);
+#endif
+
+				auto newArchetype = FindArchetype_RemoveComponents(&archetype, componentType, typesToRemove);
+				MoveEntity(entity, *newArchetype);
+			}
+
+			template <typename... TComponent>
+			void RemoveComponent_Internal(ComponentType componentType, Entity entity) {
+				constexpr auto typesCount = sizeof...(TComponent);
+				const ComponentMetaData* types[] = {g_ComponentCache.GetOrCreateComponentMetaType<TComponent>()...};
+
+				RemoveComponent_Internal(componentType, entity, {types, typesCount});
 			}
 
 			void Init() {
