@@ -520,14 +520,6 @@ namespace gaia {
 				const auto& oldLook = oldArchetype.componentLookupList[ComponentType::CT_Generic];
 				const auto& newLook = newArchetype.componentLookupList[ComponentType::CT_Generic];
 
-				struct Intersection {
-					uint32_t size;
-					uint32_t oldIndex;
-					uint32_t newIndex;
-				};
-
-				containers::sarray_ext<Intersection, MAX_COMPONENTS_PER_ARCHETYPE> intersections;
-
 				// Arrays are sorted so we can do linear intersection lookup
 				{
 					uint32_t i = 0U;
@@ -536,27 +528,20 @@ namespace gaia {
 						const auto* typeOld = oldTypes[i].type;
 						const auto* typeNew = newTypes[j].type;
 
-						if (typeOld == typeNew)
-							intersections.push_back({typeOld->info.size, i++, j++});
-						else if (typeOld > typeNew)
+						if (typeOld == typeNew) {
+							// Let's move all type data from oldEntity to newEntity
+							const uint32_t idxFrom = oldLook[i++].offset + typeOld->info.size * oldIndex;
+							const uint32_t idxTo = newLook[j++].offset + typeOld->info.size * newIndex;
+
+							GAIA_ASSERT(idxFrom < Chunk::DATA_SIZE_NORESERVE);
+							GAIA_ASSERT(idxTo < Chunk::DATA_SIZE_NORESERVE);
+
+							memcpy(&newChunk->data[idxTo], &oldChunk->data[idxFrom], typeOld->info.size);
+						} else if (typeOld > typeNew)
 							++j;
 						else
 							++i;
 					}
-				}
-
-				// Let's move all data from oldEntity to newEntity
-				for (uint32_t i = 0U; i < intersections.size(); i++) {
-					const auto oldIdx = intersections[i].oldIndex;
-					const auto newIdx = intersections[i].newIndex;
-
-					const uint32_t idxFrom = oldLook[oldIdx].offset + intersections[i].size * oldIndex;
-					const uint32_t idxTo = newLook[newIdx].offset + intersections[i].size * newIndex;
-
-					GAIA_ASSERT(idxFrom < Chunk::DATA_SIZE_NORESERVE);
-					GAIA_ASSERT(idxTo < Chunk::DATA_SIZE_NORESERVE);
-
-					memcpy(&newChunk->data[idxTo], &oldChunk->data[idxFrom], intersections[i].size);
 				}
 
 				// Remove entity from the previous chunk
