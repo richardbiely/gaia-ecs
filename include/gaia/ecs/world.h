@@ -468,7 +468,7 @@ namespace gaia {
 				entityContainer.pChunk = nullptr;
 
 				// New generation
-				auto gen = ++entityContainer.gen;
+				const auto gen = ++entityContainer.gen;
 
 				// Update our implicit list
 				if (!m_freeEntities) {
@@ -498,7 +498,7 @@ namespace gaia {
 				auto& entityContainer = m_entities[entity.id()];
 				entityContainer.pChunk = pChunk;
 				entityContainer.idx = pChunk->AddEntity(entity);
-				entityContainer.gen = entityContainer.gen;
+				entityContainer.gen = entity.gen();
 			}
 
 			EntityContainer* AddComponent_Internal(
@@ -766,7 +766,7 @@ namespace gaia {
 				if (auto* pChunk = entityContainer.pChunk) {
 					auto& archetype = const_cast<Archetype&>(pChunk->header.owner);
 
-					Entity newEntity = CreateEntity(archetype);
+					const auto newEntity = CreateEntity(archetype);
 					auto& newEntityContainer = m_entities[newEntity.id()];
 					auto newChunk = newEntityContainer.pChunk;
 
@@ -779,7 +779,7 @@ namespace gaia {
 					const auto& info = archetype.componentTypeList[ComponentType::CT_Generic];
 					const auto& look = archetype.componentLookupList[ComponentType::CT_Generic];
 
-					for (uint32_t i = 0U; i < info.size(); i++) {
+					for (uint32_t i = 0U; i < (uint32_t)info.size(); i++) {
 						const auto* metaType = info[i].type;
 						if (!metaType->info.size)
 							continue;
@@ -854,7 +854,7 @@ namespace gaia {
 						const auto& info = archetype.componentTypeList[ComponentType::CT_Generic];
 						const auto& look = archetype.componentLookupList[ComponentType::CT_Generic];
 
-						for (uint32_t i = 0U; i < info.size(); i++) {
+						for (uint32_t i = 0U; i < (uint32_t)info.size(); i++) {
 							const auto* metaType = info[i].type;
 							if (!metaType->info.size)
 								continue;
