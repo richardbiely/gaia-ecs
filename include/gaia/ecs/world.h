@@ -302,9 +302,31 @@ namespace gaia {
 			*/
 			[[nodiscard]] Archetype* FindOrCreateArchetype(
 					Archetype* oldArchetype, ComponentType componentType, std::span<const ComponentMetaData*> newTypes) {
-
 				auto* node = oldArchetype;
-				for (uint32_t i = 0; i < (uint32_t)newTypes.size(); i++) {
+
+				// We don't want to store edges for the root archetype because the more components there are
+				// the longer it would take to find anything. Therefore, for the root archewtype we simply make
+				// a archetype container lookup.
+				uint32_t i = 0;
+				if (node == m_rootArchetype) {
+					++i;
+
+					if (componentType == ComponentType::CT_Generic) {
+						const auto genericHash = newTypes[0]->lookupHash;
+						const auto lookupHash = CalculateLookupHash(containers::sarray<uint64_t, 2>{genericHash, 0});
+						node = FindArchetype(std::span<const ComponentMetaData*>(&newTypes[0], 1), {}, lookupHash);
+						if (node == nullptr)
+							node = CreateArchetype(std::span<const ComponentMetaData*>(&newTypes[0], 1), {});
+					} else {
+						const auto chunkHash = newTypes[0]->lookupHash;
+						const auto lookupHash = CalculateLookupHash(containers::sarray<uint64_t, 2>{0, chunkHash});
+						node = FindArchetype({}, std::span<const ComponentMetaData*>(&newTypes[0], 1), lookupHash);
+						if (node == nullptr)
+							node = CreateArchetype({}, std::span<const ComponentMetaData*>(&newTypes[0], 1));
+					}
+				}
+
+				for (; i < (uint32_t)newTypes.size(); i++) {
 					const auto* type = newTypes[i];
 
 					const auto it = utils::find_if(node->edgesAdd[componentType], [type](const auto& edge) {
@@ -377,7 +399,11 @@ namespace gaia {
 						return edge.type == type;
 					});
 
-					// We expect the component was found in the list. Verified in VerifyRemoveComponent.
+					// No edge found means we go back the the root archetype
+					if (it == node->edgesDel[componentType].end())
+						return m_rootArchetype;
+
+					// Follow the graph to the next archetype
 					node = it->archetype;
 				}
 
