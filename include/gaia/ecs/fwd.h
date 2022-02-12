@@ -11,7 +11,6 @@ namespace gaia {
 		class Archetype;
 		class World;
 
-		class CreationQuery;
 		class EntityQuery;
 
 		struct ComponentMetaData;

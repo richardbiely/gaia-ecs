@@ -12,7 +12,6 @@
 #include "../utils/utils_containers.h"
 #include "chunk.h"
 #include "chunk_allocator.h"
-#include "creation_query.h"
 #include "entity.h"
 #include "entity_query.h"
 #include "fwd.h"
@@ -243,18 +242,6 @@ namespace gaia {
 
 				// Archetype wasn't found so we have to create a new one
 				return CreateArchetype(genericTypes, chunkTypes);
-			}
-
-			/*!
-			Searches for an archetype given based on a given set of components. If no archetype is found a new one is
-			created. \param query Query to use to search for the archetype \return Pointer to archetype
-			*/
-			[[nodiscard]] Archetype* FindOrCreateArchetype(CreationQuery& query) {
-				return FindOrCreateArchetype(
-						std::span<const ComponentMetaData*>(
-								query.list[ComponentType::CT_Generic].data(), query.list[ComponentType::CT_Generic].size()),
-						std::span<const ComponentMetaData*>(
-								query.list[ComponentType::CT_Chunk].data(), query.list[ComponentType::CT_Chunk].size()));
 			}
 
 #if GAIA_DEBUG
@@ -730,15 +717,6 @@ namespace gaia {
 			*/
 			[[nodiscard]] Entity CreateEntity() {
 				return AllocateEntity();
-			}
-
-			/*!
-			Creates a new entity from query
-			\return Entity
-			*/
-			Entity CreateEntity(CreationQuery& query) {
-				auto archetype = FindOrCreateArchetype(query);
-				return CreateEntity(*archetype);
 			}
 
 			/*!

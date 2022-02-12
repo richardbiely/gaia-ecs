@@ -32,7 +32,6 @@ namespace gaia {
 			enum CommandBufferCmd : uint8_t {
 				CREATE_ENTITY,
 				CREATE_ENTITY_FROM_ARCHETYPE,
-				CREATE_ENTITY_FROM_QUERY,
 				CREATE_ENTITY_FROM_ENTITY,
 				DELETE_ENTITY,
 				ADD_COMPONENT,
@@ -190,23 +189,6 @@ namespace gaia {
 			*/
 			[[nodiscard]] TempEntity CreateEntity() {
 				m_data.push_back(CREATE_ENTITY);
-				return {m_entities++};
-			}
-
-			/*!
-			Requests a new entity to be created from query
-			\return Entity that will be created. The id is not usable right away. It
-			will be filled with proper data after Commit()
-			*/
-			[[nodiscard]] TempEntity CreateEntity(CreationQuery& query) {
-				m_data.push_back(CREATE_ENTITY_FROM_QUERY);
-				const auto querySize = sizeof(query); // we'll serialize the query by making a copy of it
-				const auto lastIndex = m_data.size();
-				m_data.resize(m_data.size() + querySize);
-
-				utils::unaligned_ref<CreationQuery> to(&m_data[lastIndex]);
-				to = query;
-
 				return {m_entities++};
 			}
 
@@ -415,12 +397,6 @@ namespace gaia {
 							Archetype* archetype = (Archetype*)ptr;
 							i += sizeof(void*);
 							[[maybe_unused]] const auto res = entityMap.emplace(entities++, world->CreateEntity(*archetype));
-							GAIA_ASSERT(res.second);
-						} break;
-						case CREATE_ENTITY_FROM_QUERY: {
-							auto& query = (CreationQuery&)m_data[i];
-							i += sizeof(CreationQuery);
-							[[maybe_unused]] const auto res = entityMap.emplace(entities++, world->CreateEntity(query));
 							GAIA_ASSERT(res.second);
 						} break;
 						case CREATE_ENTITY_FROM_ENTITY: {
