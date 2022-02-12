@@ -187,25 +187,32 @@ namespace gaia {
 			Creates a new archetype from a given set of components
 			\param genericTypes Span of generic component types
 			\param chunkTypes Span of chunk component types
-			\param lookupHash Archetype lookup hash
-			\return Pointer to archetype
+			\return Pointer to the new archetype
 			*/
 			[[nodiscard]] Archetype* CreateArchetype(
 					std::span<const ComponentMetaData*> genericTypes, std::span<const ComponentMetaData*> chunkTypes) {
+				// Make sure to sort the meta-types so we receive the same hash no
+				// matter the order in which components are provided Bubble sort is
+				// okay. We're dealing with at most MAX_COMPONENTS_PER_ARCHETYPE items.
+				// TODO: Replace with a sorting network
+				std::sort(genericTypes.begin(), genericTypes.end(), std::less<const ComponentMetaData*>());
+				std::sort(chunkTypes.begin(), chunkTypes.end(), std::less<const ComponentMetaData*>());
+
+				const auto genericHash = CalculateLookupHash(genericTypes);
+				const auto chunkHash = CalculateLookupHash(chunkTypes);
+				const auto lookupHash = CalculateLookupHash(containers::sarray<uint64_t, 2>{genericHash, chunkHash});
+
+				GAIA_ASSERT(FindArchetype(genericTypes, chunkTypes, lookupHash) == nullptr);
+
 				auto newArch = Archetype::Create(*this, genericTypes, chunkTypes);
+				newArch->genericHash = genericHash;
+				newArch->chunkHash = chunkHash;
+				newArch->lookupHash = lookupHash;
 
 				newArch->id = (uint32_t)m_archetypeList.size();
 				GAIA_ASSERT(!utils::has(m_archetypeList, newArch));
 				m_archetypeList.push_back(newArch);
 
-				newArch->genericHash = CalculateLookupHash(genericTypes);
-				newArch->chunkHash = CalculateLookupHash(chunkTypes);
-
-				// Calculate hash for our combination of components
-				const auto lookupHash =
-						CalculateLookupHash(containers::sarray<uint64_t, 2>{newArch->genericHash, newArch->chunkHash});
-
-				newArch->lookupHash = lookupHash;
 				auto it = m_archetypeMap.find(lookupHash);
 				if (it == m_archetypeMap.end()) {
 					m_archetypeMap[lookupHash] = {newArch};
@@ -216,32 +223,6 @@ namespace gaia {
 				}
 
 				return newArch;
-			}
-
-			/*!
-			Searches for an archetype given based on a given set of components. If no archetype is found a new one is
-			created. \param genericTypes Span of generic component types \param chunkTypes Span of chunk component types
-			\return Pointer to archetype
-			*/
-			[[nodiscard]] Archetype* FindOrCreateArchetype(
-					std::span<const ComponentMetaData*> genericTypes, std::span<const ComponentMetaData*> chunkTypes) {
-				// Make sure to sort the meta-types so we receive the same hash no
-				// matter the order in which components are provided Bubble sort is
-				// okay. We're dealing with at most MAX_COMPONENTS_PER_ARCHETYPE items.
-				// TODO: Replace with a sorting network
-				std::sort(genericTypes.begin(), genericTypes.end(), std::less<const ComponentMetaData*>());
-				std::sort(chunkTypes.begin(), chunkTypes.end(), std::less<const ComponentMetaData*>());
-
-				// Calculate hash for our combination of components
-				const auto genericHash = CalculateLookupHash(genericTypes);
-				const auto chunkHash = CalculateLookupHash(chunkTypes);
-				const auto lookupHash = CalculateLookupHash(containers::sarray<uint64_t, 2>{genericHash, chunkHash});
-
-				if (auto archetype = FindArchetype(genericTypes, chunkTypes, lookupHash))
-					return archetype;
-
-				// Archetype wasn't found so we have to create a new one
-				return CreateArchetype(genericTypes, chunkTypes);
 			}
 
 #if GAIA_DEBUG
@@ -360,10 +341,10 @@ namespace gaia {
 
 						auto newArchetype =
 								componentType == ComponentType::CT_Generic
-										? FindOrCreateArchetype(
+										? CreateArchetype(
 													std::span<const ComponentMetaData*>(newMetaTypes.data(), (uint32_t)newMetaTypes.size()),
 													std::span<const ComponentMetaData*>(otherMetaTypes.data(), (uint32_t)otherMetaTypes.size()))
-										: FindOrCreateArchetype(
+										: CreateArchetype(
 													std::span<const ComponentMetaData*>(otherMetaTypes.data(), (uint32_t)otherMetaTypes.size()),
 													std::span<const ComponentMetaData*>(newMetaTypes.data(), (uint32_t)newMetaTypes.size()));
 						{
