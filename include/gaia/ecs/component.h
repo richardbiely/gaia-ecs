@@ -253,7 +253,7 @@ namespace gaia {
 			template <typename T>
 			[[nodiscard]] const ComponentMetaData* GetOrCreateComponentMetaType() {
 				using TComponent = std::decay_t<T>;
-				const auto lookupHash = utils::type_info::hash<TComponent>();
+				constexpr auto lookupHash = utils::type_info::hash<TComponent>();
 
 				const auto res = m_types.emplace(lookupHash, nullptr);
 				if (res.second) {
@@ -270,7 +270,7 @@ namespace gaia {
 			template <typename T>
 			[[nodiscard]] const ComponentMetaData* FindComponentMetaType() const {
 				using TComponent = std::decay_t<T>;
-				const auto lookupHash = utils::type_info::hash<TComponent>();
+				constexpr auto lookupHash = utils::type_info::hash<TComponent>();
 
 				const auto it = m_types.find(lookupHash);
 				return it != m_types.end() ? it->second : (const ComponentMetaData*)nullptr;
@@ -279,7 +279,7 @@ namespace gaia {
 			template <typename T>
 			[[nodiscard]] const ComponentMetaData* GetComponentMetaType() const {
 				using TComponent = std::decay_t<T>;
-				const auto lookupHash = utils::type_info::hash<TComponent>();
+				constexpr auto lookupHash = utils::type_info::hash<TComponent>();
 
 				// Let's assume the component has been registered via AddComponent already!
 				GAIA_ASSERT(m_types.find(lookupHash) != m_types.end());
