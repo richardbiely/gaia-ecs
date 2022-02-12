@@ -300,7 +300,7 @@ namespace gaia {
 			\param chunkTypes Span of chunk component types
 			\return Pointer to archetype
 			*/
-			[[nodiscard]] Archetype* FindOrCreateArchetype_AddComponents(
+			[[nodiscard]] Archetype* FindOrCreateArchetype(
 					Archetype* oldArchetype, ComponentType componentType, std::span<const ComponentMetaData*> newTypes) {
 
 				auto* node = oldArchetype;
@@ -580,7 +580,7 @@ namespace gaia {
 					VerifyAddComponent(archetype, entity, componentType, typesToAdd);
 #endif
 
-					auto newArchetype = FindOrCreateArchetype_AddComponents(&archetype, componentType, typesToAdd);
+					auto newArchetype = FindOrCreateArchetype(&archetype, componentType, typesToAdd);
 					MoveEntity(entity, *newArchetype);
 				}
 				// Adding a component to an empty entity
@@ -594,7 +594,7 @@ namespace gaia {
 					VerifyAddComponent(archetype, entity, componentType, typesToAdd);
 #endif
 
-					auto newArchetype = FindOrCreateArchetype_AddComponents(&archetype, componentType, typesToAdd);
+					auto newArchetype = FindOrCreateArchetype(&archetype, componentType, typesToAdd);
 					StoreEntity(entity, newArchetype->FindOrCreateFreeChunk());
 				}
 
