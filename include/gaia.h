@@ -7,7 +7,6 @@
 #include "gaia/ecs/command_buffer.h"
 #include "gaia/ecs/common.h"
 #include "gaia/ecs/component.h"
-#include "gaia/ecs/creation_query.h"
 #include "gaia/ecs/entity.h"
 #include "gaia/ecs/entity_query.h"
 #include "gaia/ecs/system.h"
