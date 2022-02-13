@@ -169,7 +169,6 @@ TEST_CASE("CreateEntity - no components") {
 
 	auto create = [&](uint32_t id) {
 		auto e = w.CreateEntity();
-		w.AddComponent<Position>(e);
 		const bool ok = e.id() == id && e.gen() == 0;
 		REQUIRE(ok);
 		return e;
@@ -349,6 +348,109 @@ TEST_CASE("CreateComponent") {
 		REQUIRE(hasPosition);
 		const bool hasAcceleration = w.HasComponents<Acceleration>(e1);
 		REQUIRE(hasAcceleration);
+	}
+}
+
+TEST_CASE("RemoveComponent - generic") {
+	ecs::World w;
+	auto e1 = w.CreateEntity();
+
+	{
+		w.AddComponent<Position>(e1);
+		w.AddComponent<Acceleration>(e1);
+		{
+			w.RemoveComponent<Position>(e1);
+			REQUIRE_FALSE(w.HasComponents<Position>(e1));
+			REQUIRE(w.HasComponents<Acceleration>(e1));
+		}
+		{
+			w.RemoveComponent<Acceleration>(e1);
+			REQUIRE_FALSE(w.HasComponents<Position>(e1));
+			REQUIRE_FALSE(w.HasComponents<Acceleration>(e1));
+		}
+	}
+
+	{
+		w.AddComponent<Acceleration>(e1);
+		w.AddComponent<Position>(e1);
+		{
+			w.RemoveComponent<Position>(e1);
+			REQUIRE_FALSE(w.HasComponents<Position>(e1));
+			REQUIRE(w.HasComponents<Acceleration>(e1));
+		}
+		{
+			w.RemoveComponent<Acceleration>(e1);
+			REQUIRE_FALSE(w.HasComponents<Position>(e1));
+			REQUIRE_FALSE(w.HasComponents<Acceleration>(e1));
+		}
+	}
+}
+
+TEST_CASE("RemoveComponent - chunk") {
+	ecs::World w;
+	auto e1 = w.CreateEntity();
+
+	{
+		w.AddChunkComponent<Position>(e1);
+		w.AddChunkComponent<Acceleration>(e1);
+		{
+			w.RemoveChunkComponent<Position>(e1);
+			REQUIRE_FALSE(w.HasChunkComponents<Position>(e1));
+			REQUIRE(w.HasChunkComponents<Acceleration>(e1));
+		}
+		{
+			w.RemoveChunkComponent<Acceleration>(e1);
+			REQUIRE_FALSE(w.HasChunkComponents<Position>(e1));
+			REQUIRE_FALSE(w.HasChunkComponents<Acceleration>(e1));
+		}
+	}
+
+	{
+		w.AddChunkComponent<Acceleration>(e1);
+		w.AddChunkComponent<Position>(e1);
+		{
+			w.RemoveChunkComponent<Position>(e1);
+			REQUIRE_FALSE(w.HasChunkComponents<Position>(e1));
+			REQUIRE(w.HasChunkComponents<Acceleration>(e1));
+		}
+		{
+			w.RemoveChunkComponent<Acceleration>(e1);
+			REQUIRE_FALSE(w.HasChunkComponents<Position>(e1));
+			REQUIRE_FALSE(w.HasChunkComponents<Acceleration>(e1));
+		}
+	}
+}
+
+TEST_CASE("RemoveComponent - generic, chunk") {
+	ecs::World w;
+	auto e1 = w.CreateEntity();
+
+	{
+		w.AddComponent<Position>(e1);
+		w.AddComponent<Acceleration>(e1);
+		w.AddChunkComponent<Position>(e1);
+		w.AddChunkComponent<Acceleration>(e1);
+		{
+			w.RemoveComponent<Position>(e1);
+			REQUIRE_FALSE(w.HasComponents<Position>(e1));
+			REQUIRE(w.HasComponents<Acceleration>(e1));
+			REQUIRE(w.HasChunkComponents<Position>(e1));
+			REQUIRE(w.HasChunkComponents<Acceleration>(e1));
+		}
+		{
+			w.RemoveComponent<Acceleration>(e1);
+			REQUIRE_FALSE(w.HasComponents<Position>(e1));
+			REQUIRE_FALSE(w.HasComponents<Acceleration>(e1));
+			REQUIRE(w.HasChunkComponents<Position>(e1));
+			REQUIRE(w.HasChunkComponents<Acceleration>(e1));
+		}
+		{
+			w.RemoveChunkComponent<Acceleration>(e1);
+			REQUIRE_FALSE(w.HasComponents<Position>(e1));
+			REQUIRE_FALSE(w.HasComponents<Acceleration>(e1));
+			REQUIRE(w.HasChunkComponents<Position>(e1));
+			REQUIRE_FALSE(w.HasChunkComponents<Acceleration>(e1));
+		}
 	}
 }
 
@@ -899,75 +1001,342 @@ TEST_CASE("CommandBuffer") {
 
 	 *
 	 *
-	 * cb.AddComponent<Position>(e);
-
-
-
-	 * * * REQUIRE(!w.HasComponents<Position>(e));
-
-		cb.Commit(&w);
-
 	 *
 	 *
+	 *
+	 *
+
+ *
+
+
+	 * * *
+
+
+
+	 * * * * *
+
+
+
+
+
+
+
+	 * * * * * * *
+
+
+
+	 * * * * * cb.AddComponent<Position>(e);
+
+
+
+	 * * *
+	 *
+	 *
+	 *
+	 *
+
+
+	 * * *
+	 * REQUIRE(!w.HasComponents<Position>(e));
+
+
+	 *
+
+
+	 * * *
+
+	 * * cb.Commit(&w);
+
+	 *
+
+
+	 * * *
+
+
+	 * *
+	 *
+
+	 * * *
+
+
+
+
+	 *
+	 * *
+
+
+	 * * * *
+	 * * *
 	 * REQUIRE(w.HasComponents<Position>(e));
 
-		Position
 
+
+	 * *
+	 * Position
+
+
+
+
+	 * * *
+	 * *
 	 * * p;
 
-	 * w.GetComponent<Position>(e, p);
-		REQUIRE(p.x
-	 * ==
+	 *
 
-	 * * 0);
-		REQUIRE(p.y == 0);
-		REQUIRE(p.z == 0);
+	 * *
+
+	 * *
+
+	 * *
+
+	 * *
+	 * w.GetComponent<Position>(e,
+
+	 * * p);
+
+	 *
+
+	 * * REQUIRE(p.x
+
+
+
+	 * * *
+
+	 * * *
+
+	 * * ==
+
+
+	 * * *
+
+	 * *
+	 * 0);
+
+
+	 *
+	 * *
+	 *
+	 * REQUIRE(p.y == 0);
+
+	 *
+
+	 * * REQUIRE(p.z ==
+	 * 0);
 	}
 
-	//
 
-	 * * Delayed
-	 * component addition to a
+	 * //
+
+	 * *
+	 *
+	 *
+
+
+	 * * *
+	 * Delayed
+
+	 * *
+
+	 * *
+	 *
+	 * component
+
+
+
+	 * * * *
+	 * addition
+	 *
+	 * to a
+
+	 * *
+
+	 * *
+	 *
+	 *
+	 *
 	 * to-be-created
 
-	 * * entity
-	{
-		ecs::World w;
-		ecs::CommandBuffer cb;
 
-		auto tmp
+	 * * *
+	 *
+	 * entity
+
+	 * {
+
+	 * ecs::World
+	 * w;
+
+
+	 * *
+
+
+	 * * *
+	 *
+	 * ecs::CommandBuffer
+	 *
+	 * cb;
+
+
+
+	 * *
+	 * auto
+	 * tmp
+	 *
+	 *
 	 * =
+
+	 *
+	 *
+	 * *
+
+
+
+	 * * * *
+
+	 *
+	 * *
+	 *
+	 *
 
 	 * *
 	 * cb.CreateEntity();
 
+
+	 * *
+
+	 * *
 	 *
+	 *
+	 *
+
+	 * *
 	 * REQUIRE(!w.GetEntityCount());
 
-		cb.AddComponent<Position>(tmp);
-		cb.Commit(&w);
+
+	 *
+
+
+	 * * *
+
+	 * *
+
+	 * *
+	 *
+	 *
+	 *
+	 *
+	 *
+	 * cb.AddComponent<Position>(tmp);
+
+
+	 * *
+	 *
+	 * cb.Commit(&w);
+
+
 
 
 	 *
-	 * auto e
+	 * *
+
+	 * * *
+	 *
+	 *
+	 * auto
+	 * e
+
+	 * *
 	 * =
-	 *
-	 *
-	 * w.GetEntity(0);
-		REQUIRE(w.HasComponents<Position>(e));
 
-		Position p;
+	 * *
+	 *
 
 	 *
+	 * *
+
+	 * *
+
+	 * *
+	 *
+
+	 * * w.GetEntity(0);
+
+	 *
+
+	 * *
+	 *
+	 *
+	 *
+	 *
+	 *
+	 * REQUIRE(w.HasComponents<Position>(e));
+
+
+	 *
+	 * Position
+
+	 * * p;
+
+
+	 * *
+
+
+	 * * *
+
+
+
+	 * *
+	 * * *
+	 *
+	 *
+	 *
+
+
+	 * * *
+	 *
+
+	 * *
 	 * w.GetComponent<Position>(e, p);
 
 
 	 *
 
-	 * * * REQUIRE(p.x == 0);
-		REQUIRE(p.y == 0);
-		REQUIRE(p.z == 0);
 
+	 * *
+	 *
+	 * *
+
+	 * * *
+
+	 * *
+	 * REQUIRE(p.x ==
+	 *
+	 * 0);
+
+
+	 * * REQUIRE(p.y ==
+	 * 0);
+
+	 *
+	 *
+	 *
+	 *
+	 *
+	 * REQUIRE(p.z
+
+	 * * ==
+	 *
+
+	 * * 0);
+
+	 *
+
+
+
+	 * * *
+	 *
+
+	 * * *
 	 * }*/
 
 	// Delayed component setting of an existing entity
