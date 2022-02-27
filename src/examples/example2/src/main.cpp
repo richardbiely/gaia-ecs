@@ -1,7 +1,5 @@
 #include <gaia.h>
 
-GAIA_INIT
-
 using namespace gaia;
 
 struct Position {

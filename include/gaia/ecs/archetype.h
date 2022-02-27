@@ -13,6 +13,7 @@
 namespace gaia {
 	namespace ecs {
 		class World;
+		ComponentCache& GetComponentCache(World& world);
 		uint32_t GetWorldVersionFromWorld(const World& world);
 		void* AllocateChunkMemory(World& world);
 		void ReleaseChunkMemory(World& world, void* mem);
@@ -368,7 +369,8 @@ namespace gaia {
 		private:
 			template <ComponentType TComponentType, typename T>
 			[[nodiscard]] bool HasComponent_Internal() const {
-				const ComponentMetaData* type = g_ComponentCache.GetOrCreateComponentMetaType<T>();
+				const ComponentMetaData* type =
+						GetComponentCache(const_cast<World&>(*parentWorld)).GetOrCreateComponentMetaType<T>();
 				return utils::has_if(componentTypeList[TComponentType], [type](const auto& info) {
 					return info.type == type;
 				});
