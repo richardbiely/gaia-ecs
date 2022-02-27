@@ -33,7 +33,8 @@ namespace gaia {
 			CommandBuffer m_afterUpdateCmdBuffer;
 
 		public:
-			SystemManager(World& world): BaseSystemManager(world) {}
+			SystemManager(World& world):
+					BaseSystemManager(world), m_beforeUpdateCmdBuffer(world), m_afterUpdateCmdBuffer(world) {}
 
 			CommandBuffer& BeforeUpdateCmdBufer() {
 				return m_beforeUpdateCmdBuffer;
@@ -44,11 +45,11 @@ namespace gaia {
 
 		protected:
 			void OnBeforeUpdate() final {
-				m_beforeUpdateCmdBuffer.Commit(&m_world);
+				m_beforeUpdateCmdBuffer.Commit();
 			}
 
 			void OnAfterUpdate() final {
-				m_afterUpdateCmdBuffer.Commit(&m_world);
+				m_afterUpdateCmdBuffer.Commit();
 				m_world.GC();
 			}
 		};

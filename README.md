@@ -60,7 +60,6 @@ One of the benefits of archetype-based architectures is fast iteration and good 
 ## Minimum requirements
 ```cpp
 #include <gaia.h>
-GAIA_INIT
 ```
 ## Basic operations
 ### Creating and deleting entities

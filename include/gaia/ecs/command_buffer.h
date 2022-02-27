@@ -12,7 +12,6 @@
 #include "fwd.h"
 #include "world.h"
 
-
 namespace gaia {
 	namespace ecs {
 
@@ -43,6 +42,7 @@ namespace gaia {
 
 			friend class World;
 
+			World& m_world;
 			containers::darray<uint8_t> m_data;
 			uint32_t m_entities;
 
@@ -58,7 +58,7 @@ namespace gaia {
 				}
 				// Components
 				{
-					const ComponentMetaData* typesToAdd[] = {g_ComponentCache.GetOrCreateComponentMetaType<TComponent>()...};
+					const ComponentMetaData* typesToAdd[] = {GetComponentCache(m_world).GetOrCreateComponentMetaType<TComponent>()...};
 
 					// Component count
 					constexpr auto componentCount = (uint8_t)sizeof...(TComponent);
@@ -98,7 +98,7 @@ namespace gaia {
 			void SetComponent_Internal(TEntity entity, TComponent&&... data) {
 				// Register components
 				[[maybe_unused]] const ComponentMetaData* typesToAdd[] = {
-						g_ComponentCache.GetComponentMetaType<TComponent>()...};
+						GetComponentCache(m_world).GetComponentMetaType<TComponent>()...};
 
 				// Entity
 				{
@@ -138,7 +138,7 @@ namespace gaia {
 				}
 				// Components
 				{
-					const ComponentMetaData* typesToRemove[] = {g_ComponentCache.GetComponentMetaType<TComponent>()...};
+					const ComponentMetaData* typesToRemove[] = {GetComponentCache(m_world).GetComponentMetaType<TComponent>()...};
 
 					// Component count
 					constexpr auto NComponents = (uint8_t)sizeof...(TComponent);
@@ -172,9 +172,8 @@ namespace gaia {
 			}
 
 		public:
-			CommandBuffer() {
+			CommandBuffer(World& world): m_world(world), m_entities(0) {
 				m_data.reserve(256);
-				m_entities = 0;
 			}
 
 			CommandBuffer(CommandBuffer&&) = delete;
@@ -380,7 +379,7 @@ namespace gaia {
 			/*!
 			Commits all queued changes.
 			*/
-			void Commit(World* world) {
+			void Commit() {
 				containers::map<uint32_t, Entity> entityMap;
 				uint32_t entities = 0;
 
@@ -389,26 +388,26 @@ namespace gaia {
 					const auto cmd = m_data[i++];
 					switch (cmd) {
 						case CREATE_ENTITY: {
-							[[maybe_unused]] const auto res = entityMap.emplace(entities++, world->CreateEntity());
+							[[maybe_unused]] const auto res = entityMap.emplace(entities++, m_world.CreateEntity());
 							GAIA_ASSERT(res.second);
 						} break;
 						case CREATE_ENTITY_FROM_ARCHETYPE: {
 							uintptr_t ptr = utils::unaligned_ref<uintptr_t>((void*)&m_data[i]);
 							Archetype* archetype = (Archetype*)ptr;
 							i += sizeof(void*);
-							[[maybe_unused]] const auto res = entityMap.emplace(entities++, world->CreateEntity(*archetype));
+							[[maybe_unused]] const auto res = entityMap.emplace(entities++, m_world.CreateEntity(*archetype));
 							GAIA_ASSERT(res.second);
 						} break;
 						case CREATE_ENTITY_FROM_ENTITY: {
 							Entity entityFrom = utils::unaligned_ref<Entity>((void*)&m_data[i]);
 							i += sizeof(Entity);
-							[[maybe_unused]] const auto res = entityMap.emplace(entities++, world->CreateEntity(entityFrom));
+							[[maybe_unused]] const auto res = entityMap.emplace(entities++, m_world.CreateEntity(entityFrom));
 							GAIA_ASSERT(res.second);
 						} break;
 						case DELETE_ENTITY: {
 							Entity entity = utils::unaligned_ref<Entity>((void*)&m_data[i]);
 							i += sizeof(Entity);
-							world->DeleteEntity(entity);
+							m_world.DeleteEntity(entity);
 						} break;
 						case ADD_COMPONENT: {
 							// // Type
@@ -429,12 +428,12 @@ namespace gaia {
 							// 	newMetaTypes[j] = metaType;
 							// 	i += sizeof(const ComponentMetaData*);
 							// }
-							// world->AddComponent_Internal(
+							// m_world.AddComponent_Internal(
 							// 		componentType, entity,
 							// 		{newMetaTypes, (uintptr_t)componentCount});
 
 							// uint32_t indexInChunk;
-							// auto* pChunk = world->GetEntityChunk(entity, indexInChunk);
+							// auto* pChunk = m_world.GetEntityChunk(entity, indexInChunk);
 							// GAIA_ASSERT(pChunk != nullptr);
 
 							// if (componentType == ComponentType::CT_Chunk)
@@ -474,12 +473,12 @@ namespace gaia {
 							// 	newMetaTypes[j] = metaType;
 							// 	i += sizeof(const ComponentMetaData*);
 							// }
-							// world->AddComponent_Internal(
+							// m_world.AddComponent_Internal(
 							// 		componentType, entity,
 							// 		{newMetaTypes, (uintptr_t)componentCount});
 
 							// uint32_t indexInChunk;
-							// auto* pChunk = world->GetEntityChunk(entity, indexInChunk);
+							// auto* pChunk = m_world.GetEntityChunk(entity, indexInChunk);
 							// GAIA_ASSERT(pChunk != nullptr);
 
 							// if (componentType == ComponentType::CT_Chunk)
@@ -500,7 +499,7 @@ namespace gaia {
 							// Entity entity = (Entity&)m_data[i];
 							// i += sizeof(Entity);
 
-							// const auto& entityContainer = world->m_entities[entity.id()];
+							// const auto& entityContainer = m_world.m_entities[entity.id()];
 							// auto* pChunk = entityContainer.pChunk;
 							// const auto indexInChunk = componentType ==
 							// ComponentType::CT_Chunk 															? 0
@@ -513,7 +512,7 @@ namespace gaia {
 							// for (uint8_t j = 0; j < componentCount; ++j) {
 							// 	const uint32_t typeIndex = *(uint32_t*)&m_data[i];
 							// 	const auto* metaType =
-							// 			g_ComponentCache.GetComponentMetaTypeFromIdx(typeIndex);
+							// 			GetComponentCache(m_world).GetComponentMetaTypeFromIdx(typeIndex);
 							// 	i += sizeof(typeIndex);
 
 							// 	memcpy(
@@ -539,7 +538,7 @@ namespace gaia {
 
 							// Entity entity = it->second;
 
-							// const auto& entityContainer = world->m_entities[entity.id()];
+							// const auto& entityContainer = m_world.m_entities[entity.id()];
 							// auto* pChunk = entityContainer.pChunk;
 							// const auto indexInChunk = componentType ==
 							// ComponentType::CT_Chunk 															? 0
@@ -552,7 +551,7 @@ namespace gaia {
 							// for (uint8_t j = 0; j < componentCount; ++j) {
 							// 	const uint32_t typeIndex = *(uint32_t*)&m_data[i];
 							// 	const auto* metaType =
-							// 			g_ComponentCache.GetComponentMetaTypeFromIdx(typeIndex);
+							// 			GetComponentCache(m_world).GetComponentMetaTypeFromIdx(typeIndex);
 							// 	i += sizeof(typeIndex);
 
 							// 	memcpy(
@@ -582,7 +581,7 @@ namespace gaia {
 								newMetaTypes[j] = metaType;
 								i += sizeof(const ComponentMetaData*);
 							}
-							world->RemoveComponent_Internal(componentType, e, {newMetaTypes.data(), (uintptr_t)componentCount});
+							m_world.RemoveComponent_Internal(componentType, e, {newMetaTypes.data(), (uintptr_t)componentCount});
 						} break;
 					}
 				}

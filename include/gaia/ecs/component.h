@@ -388,11 +388,5 @@ namespace gaia {
 
 		//-----------------------------------------------------------------------------------
 
-#define GAIA_ECS_COMPONENT_CACHE_H_INIT gaia::ecs::ComponentCache gaia::ecs::g_ComponentCache;
-
-		extern ComponentCache g_ComponentCache;
-
-		//-----------------------------------------------------------------------------------
-
 	} // namespace ecs
 } // namespace gaia

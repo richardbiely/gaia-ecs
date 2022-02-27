@@ -1,7 +1,5 @@
 #include <gaia.h>
 
-GAIA_INIT
-
 #if GAIA_COMPILER_MSVC
 	#if _MSV_VER <= 1916
 // warning C4100: 'XYZ': unreferenced formal parameter
@@ -939,13 +937,13 @@ TEST_CASE("CommandBuffer") {
 	// Entity creation
 	{
 		ecs::World w;
-		ecs::CommandBuffer cb;
+		ecs::CommandBuffer cb(w);
 
 		const uint32_t N = 100;
 		for (uint32_t i = 0U; i < N; i++)
 			[[maybe_unused]] auto tmp = cb.CreateEntity();
 
-		cb.Commit(&w);
+		cb.Commit();
 
 		for (uint32_t i = 0U; i < N; i++) {
 			auto e = w.GetEntity(i);
@@ -956,7 +954,7 @@ TEST_CASE("CommandBuffer") {
 	// Entity creation from another entity
 	{
 		ecs::World w;
-		ecs::CommandBuffer cb;
+		ecs::CommandBuffer cb(w);
 
 		auto mainEntity = w.CreateEntity();
 
@@ -964,7 +962,7 @@ TEST_CASE("CommandBuffer") {
 		for (uint32_t i = 0U; i < N; i++)
 			[[maybe_unused]] auto tmp = cb.CreateEntity(mainEntity);
 
-		cb.Commit(&w);
+		cb.Commit();
 
 		for (uint32_t i = 0U; i < N; i++) {
 			auto e = w.GetEntity(i + 1);
@@ -975,13 +973,13 @@ TEST_CASE("CommandBuffer") {
 	// Entity creation from another entity with a component
 	{
 		ecs::World w;
-		ecs::CommandBuffer cb;
+		ecs::CommandBuffer cb(w);
 
 		auto mainEntity = w.CreateEntity();
 		w.AddComponent<Position>(mainEntity, {1, 2, 3});
 
 		[[maybe_unused]] auto tmp = cb.CreateEntity(mainEntity);
-		cb.Commit(&w);
+		cb.Commit();
 		auto e = w.GetEntity(1);
 		REQUIRE(w.HasComponents<Position>(e));
 		Position p;
@@ -1009,6 +1007,10 @@ TEST_CASE("CommandBuffer") {
  *
 
 
+
+
+
+	 * * * *
 	 * * *
 
 
@@ -1031,9 +1033,13 @@ TEST_CASE("CommandBuffer") {
 
 	 * * *
 	 *
-	 *
-	 *
-	 *
+
+	 * *
+
+
+	 * * *
+
+	 * *
 
 
 	 * * *
@@ -1047,12 +1053,16 @@ TEST_CASE("CommandBuffer") {
 
 	 * * cb.Commit(&w);
 
+
+	 * *
+
+
 	 *
+	 * *
+	 * *
 
 
-	 * * *
-
-
+	 *
 	 * *
 	 *
 
@@ -1067,9 +1077,13 @@ TEST_CASE("CommandBuffer") {
 
 	 * * * *
 	 * * *
+	 *
 	 * REQUIRE(w.HasComponents<Position>(e));
 
 
+
+
+	 * * *
 
 	 * *
 	 * Position
@@ -1085,16 +1099,20 @@ TEST_CASE("CommandBuffer") {
 
 	 * *
 
+	 *
 	 * *
 
 	 * *
 
 	 * *
+	 *
 	 * w.GetComponent<Position>(e,
 
-	 * * p);
+	 * *
+	 * p);
 
-	 *
+
+	 * *
 
 	 * * REQUIRE(p.x
 
@@ -1104,11 +1122,13 @@ TEST_CASE("CommandBuffer") {
 
 	 * * *
 
-	 * * ==
+
+	 * * * ==
 
 
 	 * * *
 
+	 *
 	 * *
 	 * 0);
 
@@ -1116,11 +1136,14 @@ TEST_CASE("CommandBuffer") {
 	 *
 	 * *
 	 *
-	 * REQUIRE(p.y == 0);
+	 *
+	 * REQUIRE(p.y ==
+	 * 0);
 
 	 *
 
 	 * * REQUIRE(p.z ==
+	 *
 	 * 0);
 	}
 
@@ -1129,7 +1152,8 @@ TEST_CASE("CommandBuffer") {
 
 	 * *
 	 *
-	 *
+
+	 * *
 
 
 	 * * *
@@ -1137,19 +1161,23 @@ TEST_CASE("CommandBuffer") {
 
 	 * *
 
-	 * *
+
+	 * * *
+	 *
 	 *
 	 * component
 
 
 
 	 * * * *
+	 *
 	 * addition
 	 *
 	 * to a
 
 	 * *
 
+	 *
 	 * *
 	 *
 	 *
@@ -1157,12 +1185,15 @@ TEST_CASE("CommandBuffer") {
 	 * to-be-created
 
 
+	 *
 	 * * *
+	 *
 	 *
 	 * entity
 
 	 * {
 
+	 *
 	 * ecs::World
 	 * w;
 
@@ -1171,18 +1202,22 @@ TEST_CASE("CommandBuffer") {
 
 
 	 * * *
-	 *
+
+	 * *
 	 * ecs::CommandBuffer
 	 *
 	 * cb;
 
 
 
-	 * *
+
+	 * * *
 	 * auto
+	 *
 	 * tmp
 	 *
-	 *
+
+	 * *
 	 * =
 
 	 *
@@ -1193,12 +1228,14 @@ TEST_CASE("CommandBuffer") {
 
 	 * * * *
 
-	 *
+
+	 * *
 	 * *
 	 *
 	 *
 
 	 * *
+	 *
 	 * cb.CreateEntity();
 
 
@@ -1206,10 +1243,13 @@ TEST_CASE("CommandBuffer") {
 
 	 * *
 	 *
+
 	 *
+	 * *
 	 *
 
 	 * *
+	 *
 	 * REQUIRE(!w.GetEntityCount());
 
 
@@ -1220,7 +1260,11 @@ TEST_CASE("CommandBuffer") {
 
 	 * *
 
-	 * *
+
+	 * * *
+	 *
+	 *
+	 *
 	 *
 	 *
 	 *
@@ -1239,12 +1283,16 @@ TEST_CASE("CommandBuffer") {
 	 *
 	 * *
 
-	 * * *
+	 * *
+	 * *
 	 *
 	 *
 	 * auto
 	 * e
 
+
+
+	 * * *
 	 * *
 	 * =
 
@@ -1263,12 +1311,16 @@ TEST_CASE("CommandBuffer") {
 
 	 *
 
+	 *
 	 * *
 	 *
 	 *
 	 *
 	 *
-	 *
+
+	 * *
+
+	 * *
 	 * REQUIRE(w.HasComponents<Position>(e));
 
 
@@ -1281,15 +1333,19 @@ TEST_CASE("CommandBuffer") {
 	 * *
 
 
-	 * * *
+	 * *
+	 * *
 
 
 
 	 * *
+	 *
 	 * * *
+
+	 * *
 	 *
-	 *
-	 *
+
+	 * *
 
 
 	 * * *
@@ -1304,12 +1360,16 @@ TEST_CASE("CommandBuffer") {
 
 	 * *
 	 *
+	 *
 	 * *
 
-	 * * *
+	 * *
+	 * *
 
 	 * *
-	 * REQUIRE(p.x ==
+
+	 * * REQUIRE(p.x
+	 * ==
 	 *
 	 * 0);
 
@@ -1322,14 +1382,18 @@ TEST_CASE("CommandBuffer") {
 	 *
 	 *
 	 *
+	 *
+	 *
 	 * REQUIRE(p.z
 
 	 * * ==
-	 *
+
+	 * *
 
 	 * * 0);
 
-	 *
+
+	 * *
 
 
 

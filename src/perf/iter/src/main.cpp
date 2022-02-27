@@ -1,7 +1,5 @@
 #include <gaia.h>
 
-GAIA_INIT
-
 #include <benchmark/benchmark.h>
 #if GAIA_COMPILER_MSVC
 	#if _MSV_VER <= 1916

@@ -29,6 +29,8 @@ namespace gaia {
 
 			//! Allocator used to allocate chunks
 			ChunkAllocator m_chunkAllocator;
+			//! Cache of components used by the world
+			ComponentCache m_componentCache;
 
 			//! Map or archetypes mapping to the same hash - used for lookups
 			// TODO: Replace darray with linked-list via pointers for minimum overhead or come up with something else
@@ -61,6 +63,10 @@ namespace gaia {
 			}
 
 		public:
+			ComponentCache& GetComponentCache() {
+				return m_componentCache;
+			}
+
 			void UpdateWorldVersion() {
 				UpdateVersion(m_worldVersion);
 			}
@@ -630,7 +636,7 @@ namespace gaia {
 			template <typename... TComponent>
 			EntityContainer* AddComponent_Internal(ComponentType componentType, Entity entity) {
 				constexpr auto typesCount = sizeof...(TComponent);
-				const ComponentMetaData* types[] = {g_ComponentCache.GetOrCreateComponentMetaType<TComponent>()...};
+				const ComponentMetaData* types[] = {m_componentCache.GetOrCreateComponentMetaType<TComponent>()...};
 
 				return AddComponent_Internal(componentType, entity, {types, typesCount});
 			}
@@ -655,7 +661,7 @@ namespace gaia {
 			template <typename... TComponent>
 			void RemoveComponent_Internal(ComponentType componentType, Entity entity) {
 				constexpr auto typesCount = sizeof...(TComponent);
-				const ComponentMetaData* types[] = {g_ComponentCache.GetOrCreateComponentMetaType<TComponent>()...};
+				const ComponentMetaData* types[] = {m_componentCache.GetOrCreateComponentMetaType<TComponent>()...};
 
 				RemoveComponent_Internal(componentType, entity, {types, typesCount});
 			}
@@ -1621,7 +1627,7 @@ namespace gaia {
 				if (DiagRegisteredTypes) {
 					DiagRegisteredTypes = false;
 
-					g_ComponentCache.Diag();
+					m_componentCache.Diag();
 				}
 			}
 
@@ -1682,6 +1688,9 @@ namespace gaia {
 			}
 		};
 
+		inline ComponentCache& GetComponentCache(World& world) {
+			return world.GetComponentCache();
+		}
 		inline uint32_t GetWorldVersionFromWorld(const World& world) {
 			return world.GetWorldVersion();
 		}
