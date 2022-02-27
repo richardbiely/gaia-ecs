@@ -645,7 +645,7 @@ namespace gaia {
 						!archetype.info.structuralChangesLocked && "Components can't be removed while chunk is being iterated "
 																											 "(structural changes are forbidden during this time!)");
 #if GAIA_DEBUG
-				VerifyAddComponent(archetype, entity, componentType, typesToRemove);
+				VerifyRemoveComponent(archetype, entity, componentType, typesToRemove);
 #endif
 
 				auto newArchetype = FindArchetype_RemoveComponents(&archetype, componentType, typesToRemove);
