@@ -1,5 +1,4 @@
 #pragma once
-#include <cassert>
 #include <inttypes.h>
 #include <stdint.h>
 

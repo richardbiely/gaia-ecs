@@ -8,6 +8,7 @@
 #include "archetype.h"
 #include "common.h"
 #include "component.h"
+#include "component_cache.h"
 #include "entity.h"
 #include "fwd.h"
 #include "world.h"
@@ -58,7 +59,8 @@ namespace gaia {
 				}
 				// Components
 				{
-					const ComponentMetaData* typesToAdd[] = {GetComponentCache(m_world).GetOrCreateComponentMetaType<TComponent>()...};
+					const ComponentMetaData* typesToAdd[] = {
+							GetComponentCache(m_world).GetOrCreateComponentMetaType<TComponent>()...};
 
 					// Component count
 					constexpr auto componentCount = (uint8_t)sizeof...(TComponent);
