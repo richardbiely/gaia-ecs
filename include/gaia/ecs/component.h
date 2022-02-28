@@ -32,7 +32,7 @@ namespace gaia {
 
 		template <typename... T>
 		constexpr void VerifyComponents() {
-			static_assert(utils::is_unique<std::decay_t<T>...>, "Only unique inputs are enabled");
+			static_assert(utils::is_unique<std::decay_t<T>...>, "Unique components must be provided");
 			static_assert(
 					std::conjunction_v<ComponentSizeValid<std::decay_t<T>>...>, "MAX_COMPONENTS_SIZE in bytes exceeded");
 			static_assert(
