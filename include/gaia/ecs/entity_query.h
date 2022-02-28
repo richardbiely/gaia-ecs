@@ -72,11 +72,6 @@ namespace gaia {
 						LOG_E(
 								"Trying to add ECS component '%.*s' to an already full ECS query!", (uint32_t)typeName.length(),
 								typeName.data());
-						// LOG_E("Already present:");
-						//  for (uint32_t i = 0U; i < arr.size(); i++) {
-						//  	const auto metaType = g_ComponentCache.GetComponentMetaTypeFromIdx(arr[i]);
-						//  	LOG_E("> [%u] %.*s", i, (uint32_t)metaType->name.length(), metaType->name.data());
-						//  }
 
 						return;
 					}
@@ -111,11 +106,6 @@ namespace gaia {
 					LOG_E(
 							"Trying to add ECS component %.*s to an already full filter query!", (uint32_t)typeName.length(),
 							typeName.data());
-					// LOG_E("Already present:");
-					// for (auto i = 0U; i < (uint32_t)arrFilter.size(); i++) {
-					// 	const auto metaType = g_ComponentCache.GetComponentMetaTypeFromIdx(arrFilter[i]);
-					// 	LOG_E("> [%u] %.*s", i, (uint32_t)metaType->name.length(), metaType->name.data());
-					// }
 
 					return;
 				}

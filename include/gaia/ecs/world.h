@@ -1,5 +1,4 @@
 #pragma once
-#include <cassert>
 #include <inttypes.h>
 
 #include "../config/config.h"
@@ -12,10 +11,11 @@
 #include "../utils/utils_containers.h"
 #include "chunk.h"
 #include "chunk_allocator.h"
+#include "component.h"
+#include "component_cache.h"
 #include "entity.h"
 #include "entity_query.h"
 #include "fwd.h"
-#include "gaia/ecs/component.h"
 
 namespace gaia {
 	namespace ecs {

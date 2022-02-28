@@ -1,6 +1,5 @@
 #pragma once
 #include <algorithm>
-#include <cassert>
 #include <inttypes.h>
 #include <iterator>
 #include <stdint.h>

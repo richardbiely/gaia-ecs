@@ -9,10 +9,12 @@
 #include "chunk_allocator.h"
 #include "chunk_header.h"
 #include "component.h"
+#include "component_cache.h"
 
 namespace gaia {
 	namespace ecs {
 		class World;
+
 		ComponentCache& GetComponentCache(World& world);
 		uint32_t GetWorldVersionFromWorld(const World& world);
 		void* AllocateChunkMemory(World& world);
