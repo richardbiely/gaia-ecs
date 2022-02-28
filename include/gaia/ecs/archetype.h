@@ -371,8 +371,7 @@ namespace gaia {
 		private:
 			template <ComponentType TComponentType, typename T>
 			[[nodiscard]] bool HasComponent_Internal() const {
-				const ComponentMetaData* type =
-						GetComponentCache(const_cast<World&>(*parentWorld)).GetOrCreateComponentMetaType<T>();
+				const ComponentMetaData* type = GetComponentCache(const_cast<World&>(*parentWorld)).FindComponentMetaType<T>();
 				return utils::has_if(componentTypeList[TComponentType], [type](const auto& info) {
 					return info.type == type;
 				});
