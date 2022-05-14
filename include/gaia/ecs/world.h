@@ -272,33 +272,65 @@ namespace gaia {
 			void VerifyRemoveComponent(
 					Archetype& archetype, Entity entity, ComponentType componentType,
 					std::span<const ComponentMetaData*> typesToRemove) {
-				auto* node = &archetype;
-
 				const uint32_t newTypesCount = (uint32_t)typesToRemove.size();
 				for (uint32_t i = 0; i < newTypesCount; i++) {
 					const auto* type = typesToRemove[i];
 
-					const auto it = utils::find_if(node->edgesDel[componentType], [type](const auto& edge) {
-						return edge.type == type;
-					});
-
-					if (it == node->edgesDel[componentType].end()) {
+					auto ret = archetype.FindDelEdgeArchetype(componentType, type);
+					if (ret == nullptr) {
 						GAIA_ASSERT(false && "Trying to remove a component which wasn't added");
 						LOG_W("Trying to remove a component from entity [%u.%u] but it was never added", entity.id(), entity.gen());
 						LOG_W("Currently present:");
 
-						const auto& info = node->componentTypeList[componentType];
+						const auto& info = archetype.componentTypeList[componentType];
 						const uint32_t oldTypesCount = (uint32_t)info.size();
 						for (uint32_t k = 0U; k < oldTypesCount; k++)
 							LOG_W("> [%u] %.*s", k, (uint32_t)info[k].type->name.length(), info[k].type->name.data());
+
 						LOG_W("Trying to remove:");
 						LOG_W("> %.*s", (uint32_t)typesToRemove[i]->name.length(), typesToRemove[i]->name.data());
 					}
-
-					node = it->archetype;
 				}
 			}
 #endif
+
+			inline void
+			BuildGraphEdges(ComponentType componentType, Archetype* left, Archetype* right, const ComponentMetaData* type) {
+				left->edgesAdd[componentType].push_back({type, right});
+				right->edgesDel[componentType].push_back({type, left});
+			}
+
+			/*!
+			Checks if archetype \param left is a superset of archetype \param right (contains all its types)
+			\param left Entity to delete
+			\param right Entity to delete
+			\return Returns true if left is a superset of right
+			*/
+			bool IsSuperSet(ComponentType componentType, Archetype& left, Archetype& right) {
+				uint32_t i = 0U;
+				uint32_t j = 0U;
+
+				const auto& leftTypes = left.componentTypeList[componentType];
+				const auto& rightTypes = right.componentTypeList[componentType];
+				if (leftTypes.size() < rightTypes.size())
+					return false;
+
+				// Arrays are sorted so we can do linear intersection lookup
+				while (i < leftTypes.size() && j < rightTypes.size()) {
+					const auto* typeLeft = leftTypes[i].type;
+					const auto* typeRight = rightTypes[j].type;
+
+					if (typeLeft == typeRight) {
+						++i;
+						++j;
+					} else if (typeLeft < typeRight)
+						++i;
+					else
+						return false;
+				}
+
+				return j == rightTypes.size();
+			}
 
 			/*!
 			Searches for an archetype given based on a given set of components. If no archetype is found a new one is created.
@@ -310,9 +342,8 @@ namespace gaia {
 					Archetype* oldArchetype, ComponentType componentType, std::span<const ComponentMetaData*> newTypes) {
 				auto* node = oldArchetype;
 
-				// We don't want to store edges for the root archetype because the more components there are
-				// the longer it would take to find anything. Therefore, for the root archewtype we simply make
-				// a archetype container lookup.
+				// We don't want to store edges for the root archetype because the more components there are the longer
+				// it would take to find anything. Therefore, for the root archetype we simply make a lookup.
 				uint32_t i = 0;
 				if (node == m_rootArchetype) {
 					++i;
@@ -321,14 +352,18 @@ namespace gaia {
 						const auto genericHash = newTypes[0]->lookupHash;
 						const auto lookupHash = CalculateLookupHash(containers::sarray<uint64_t, 2>{genericHash, 0});
 						node = FindArchetype(std::span<const ComponentMetaData*>(&newTypes[0], 1), {}, lookupHash);
-						if (node == nullptr)
+						if (node == nullptr) {
 							node = CreateArchetype(std::span<const ComponentMetaData*>(&newTypes[0], 1), {});
+							node->edgesDel[componentType].push_back({newTypes[0], m_rootArchetype});
+						}
 					} else {
 						const auto chunkHash = newTypes[0]->lookupHash;
 						const auto lookupHash = CalculateLookupHash(containers::sarray<uint64_t, 2>{0, chunkHash});
 						node = FindArchetype({}, std::span<const ComponentMetaData*>(&newTypes[0], 1), lookupHash);
-						if (node == nullptr)
+						if (node == nullptr) {
 							node = CreateArchetype({}, std::span<const ComponentMetaData*>(&newTypes[0], 1));
+							node->edgesDel[componentType].push_back({newTypes[0], m_rootArchetype});
+						}
 					}
 				}
 
@@ -359,7 +394,7 @@ namespace gaia {
 							newMetaTypes[oldTypesCount] = newTypes[i];
 						}
 
-						// Prepare an array of old meta types for out other componentType. This is a simple copy.
+						// Prepare an array of old meta types for our other componentType. This is a simple copy.
 						containers::sarray_ext<const ComponentMetaData*, MAX_COMPONENTS_PER_ARCHETYPE> otherMetaTypes;
 						otherMetaTypes.resize(componentTypeList2.size());
 						{
@@ -375,10 +410,9 @@ namespace gaia {
 										: CreateArchetype(
 													std::span<const ComponentMetaData*>(otherMetaTypes.data(), (uint32_t)otherMetaTypes.size()),
 													std::span<const ComponentMetaData*>(newMetaTypes.data(), (uint32_t)newMetaTypes.size()));
-						{
-							node->edgesAdd[componentType].push_back({type, newArchetype});
-							newArchetype->edgesDel[componentType].push_back({type, node});
-						}
+
+						BuildGraphEdges(componentType, node, newArchetype, type);
+
 						node = newArchetype;
 					} else {
 						node = it->archetype;
@@ -396,23 +430,15 @@ namespace gaia {
 			*/
 			[[nodiscard]] Archetype* FindArchetype_RemoveComponents(
 					Archetype* archetype, ComponentType componentType, std::span<const ComponentMetaData*> newTypes) {
-
 				auto* node = archetype;
-				for (uint32_t i = 0; i < (uint32_t)newTypes.size(); i++) {
+
+				for (uint32_t i = 0; i < (uint32_t)newTypes.size() && archetype; i++) {
 					const auto* type = newTypes[i];
-
-					const auto it = utils::find_if(node->edgesDel[componentType], [type](const auto& edge) {
-						return edge.type == type;
-					});
-
-					// No edge found means we go back the the root archetype
-					if (it == node->edgesDel[componentType].end())
-						return m_rootArchetype;
-
 					// Follow the graph to the next archetype
-					node = it->archetype;
+					node = node->FindDelEdgeArchetype(componentType, type);
 				}
 
+				GAIA_ASSERT(node != nullptr);
 				return node;
 			}
 
