@@ -313,6 +313,26 @@ namespace gaia {
 					remove(chunks);
 			}
 
+			Archetype* FindDelEdgeArchetype(ComponentType componentType, const ComponentMetaData* type) {
+				// Breath-first lookup.
+				// Go through all edges first. If nothing is found check each leaf and repeat until there is a match.
+				const auto& edges = edgesDel[componentType];
+				const auto it = utils::find_if(edges, [type](const auto& edge) {
+					return edge.type == type;
+				});
+				if (it != edges.end())
+					return it->archetype;
+
+				// Not found right away, search deeper
+				for (const auto& edge: edges) {
+					auto ret = edge.archetype->FindDelEdgeArchetype(componentType, type);
+					if (ret != nullptr)
+						return edge.archetype;
+				}
+
+				return nullptr;
+			}
+
 		public:
 			~Archetype() {
 				// Delete all archetype chunks
