@@ -75,7 +75,8 @@ namespace gaia {
 			template <typename T>
 			[[nodiscard]] bool HasComponentMetaType() const {
 				using TComponent = std::decay_t<T>;
-				const auto lookupHash = utils::type_info::hash<TComponent>();
+				constexpr auto lookupHash = utils::type_info::hash<TComponent>();
+
 				return m_types.find(lookupHash) != m_types.end();
 			}
 
