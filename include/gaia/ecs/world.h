@@ -423,9 +423,10 @@ namespace gaia {
 			}
 
 			/*!
-			Searches for an archetype given based on a given set of components. If no archetype is found a new one is created.
-			\param genericTypes Span of generic component types
-			\param chunkTypes Span of chunk component types
+			Searches for a parent archetype that contains the given component of \param componentType.
+			\param archetype Archetype to search from
+			\param componentType Component type
+			\param newTypes Span of component types we want to match
 			\return Pointer to archetype
 			*/
 			[[nodiscard]] Archetype* FindArchetype_RemoveComponents(
@@ -527,6 +528,12 @@ namespace gaia {
 				entityContainer.gen = entity.gen();
 			}
 
+			/*!
+			Moves an entity along with all its generic components from its current to another
+			chunk in a new archetype.
+			\param oldEntity Entity to move
+			\param newArchetype Target archetype
+			*/
 			void MoveEntity(Entity oldEntity, Archetype& newArchetype) {
 				auto& entityContainer = m_entities[oldEntity.id()];
 				auto oldChunk = entityContainer.pChunk;

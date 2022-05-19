@@ -294,6 +294,10 @@ namespace gaia {
 				return nullptr;
 			}
 
+			/*!
+			Removes a chunk from the list of chunks managed by their achetype.
+			\param pChunk Chunk to remove from the list of managed archetypes
+			*/
 			void RemoveChunk(Chunk* pChunk) {
 				const bool isDisabled = pChunk->IsDisabled();
 				const auto chunkIndex = pChunk->header.index;
