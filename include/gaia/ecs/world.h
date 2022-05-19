@@ -1276,8 +1276,7 @@ namespace gaia {
 
 				const auto& entityContainer = m_entities[entity.id()];
 				if (const auto* pChunk = entityContainer.pChunk) {
-					const auto& archetype = pChunk->header.owner;
-					return archetype.HasComponents<TComponent...>();
+					return pChunk->HasComponents<TComponent...>();
 				}
 
 				return false;
@@ -1294,8 +1293,7 @@ namespace gaia {
 
 				const auto& entityContainer = m_entities[entity.id()];
 				if (const auto* pChunk = entityContainer.pChunk) {
-					const auto& archetype = pChunk->header.owner;
-					return archetype.HasAnyComponents<TComponent...>();
+					return pChunk->HasAnyComponents<TComponent...>();
 				}
 
 				return false;
@@ -1312,8 +1310,7 @@ namespace gaia {
 
 				const auto& entityContainer = m_entities[entity.id()];
 				if (const auto* pChunk = entityContainer.pChunk) {
-					const auto& archetype = pChunk->header.owner;
-					return archetype.HasNoneComponents<TComponent...>();
+					return pChunk->HasNoneComponents<TComponent...>();
 				}
 
 				return false;
@@ -1330,8 +1327,7 @@ namespace gaia {
 
 				const auto& entityContainer = m_entities[entity.id()];
 				if (const auto* pChunk = entityContainer.pChunk) {
-					const auto& archetype = pChunk->header.owner;
-					return archetype.HasChunkComponents<TComponent...>();
+					return pChunk->HasChunkComponents<TComponent...>();
 				}
 
 				return false;
@@ -1348,8 +1344,7 @@ namespace gaia {
 
 				const auto& entityContainer = m_entities[entity.id()];
 				if (const auto* pChunk = entityContainer.pChunk) {
-					const auto& archetype = pChunk->header.owner;
-					return archetype.HasAnyChunkComponents<TComponent...>();
+					return pChunk->HasAnyChunkComponents<TComponent...>();
 				}
 
 				return false;
@@ -1366,8 +1361,7 @@ namespace gaia {
 
 				const auto& entityContainer = m_entities[entity.id()];
 				if (const auto* pChunk = entityContainer.pChunk) {
-					const auto& archetype = pChunk->header.owner;
-					return archetype.HasNoneChunkComponents<TComponent...>();
+					return pChunk->HasNoneChunkComponents<TComponent...>();
 				}
 
 				return false;
