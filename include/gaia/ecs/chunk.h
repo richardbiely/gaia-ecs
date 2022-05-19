@@ -88,6 +88,21 @@ namespace gaia {
 				return HasComponent_Internal(componentType, typeIndex);
 			}
 
+			template <typename... T>
+			[[nodiscard]] bool HasComponents_Internal(ComponentType componentType) const {
+				return (HasComponent_Internal<T>(componentType) && ...);
+			}
+
+			template <typename... T>
+			[[nodiscard]] bool HasAnyComponents_Internal(ComponentType componentType) const {
+				return (HasComponent_Internal<T>(componentType) || ...);
+			}
+
+			template <typename... T>
+			[[nodiscard]] bool HasNoneComponents_Internal(ComponentType componentType) const {
+				return (!HasComponent_Internal<T>(componentType) && ...);
+			}
+
 			[[nodiscard]] uint32_t AddEntity(Entity entity) {
 				const auto index = header.items.count++;
 				SetEntity(index, entity);
@@ -251,9 +266,39 @@ namespace gaia {
 				return HasComponent_Internal<std::decay_t<T>>(ComponentType::CT_Generic);
 			}
 
+			template <typename... T>
+			[[nodiscard]] bool HasComponents() const {
+				return HasComponents_Internal<std::decay_t<T>...>(ComponentType::CT_Generic);
+			}
+
+			template <typename... T>
+			[[nodiscard]] bool HasAnyComponents() const {
+				return HasAnyComponents_Internal<std::decay_t<T>...>(ComponentType::CT_Generic);
+			}
+
+			template <typename... T>
+			[[nodiscard]] bool HasNoneComponents() const {
+				return HasNoneComponents_Internal<std::decay_t<T>...>(ComponentType::CT_Generic);
+			}
+
 			template <typename T>
 			[[nodiscard]] bool HasChunkComponent() const {
 				return HasComponent_Internal<T>(ComponentType::CT_Chunk);
+			}
+
+			template <typename... T>
+			[[nodiscard]] bool HasChunkComponents() const {
+				return HasComponents_Internal<std::decay_t<T>...>(ComponentType::CT_Chunk);
+			}
+
+			template <typename... T>
+			[[nodiscard]] bool HasAnyChunkComponents() const {
+				return HasAnyComponents_Internal<std::decay_t<T>...>(ComponentType::CT_Chunk);
+			}
+
+			template <typename... T>
+			[[nodiscard]] bool HasNoneChunkComponents() const {
+				return HasNoneComponents_Internal<std::decay_t<T>...>(ComponentType::CT_Chunk);
 			}
 
 			//----------------------------------------------------------------------
