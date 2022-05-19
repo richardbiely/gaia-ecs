@@ -356,14 +356,13 @@ namespace gaia {
 					}
 	#else
 					const auto& info = archetype.componentTypeList[componentType];
-					if (!utils::has_if(info, [&](const ChunkComponentTypeInfo& typeInfo) {
+					if (!utils::has_if(info, [&](const auto& typeInfo) {
 								return typeInfo.type == type;
 							})) {
 						GAIA_ASSERT(false && "Trying to remove a component which wasn't added");
 						LOG_W("Trying to remove a component from entity [%u.%u] but it was never added", entity.id(), entity.gen());
 						LOG_W("Currently present:");
 
-						const auto& info = archetype.componentTypeList[componentType];
 						const uint32_t oldTypesCount = (uint32_t)info.size();
 						for (uint32_t k = 0U; k < oldTypesCount; k++)
 							LOG_W("> [%u] %.*s", k, (uint32_t)info[k].type->name.length(), info[k].type->name.data());
