@@ -374,27 +374,73 @@ namespace gaia {
 				return componentLookupList[type];
 			}
 
+			/*!
+			Checks if a given generic component is present on archetype.
+			\return True if the generic component is present. False otherwise.
+			*/
+			template <typename T>
+			[[nodiscard]] bool HasComponent() const {
+				return HasComponent_Internal<ComponentType::CT_Generic, T>();
+			}
+
+			/*!
+			Checks if all provided generic components are present on archetype.
+			\return True if generic components are present. False otherwise.
+			*/
 			template <typename... T>
 			[[nodiscard]] bool HasComponents() const {
 				return HasComponents_Internal<ComponentType::CT_Generic, T...>();
 			}
+
+			/*!
+			Checks if any of the provided generic components is present on archetype.
+			\return True if any of the generic components is present. False otherwise.
+			*/
 			template <typename... T>
 			[[nodiscard]] bool HasAnyComponents() const {
 				return HasAnyComponents_Internal<ComponentType::CT_Generic, T...>();
 			}
+
+			/*!
+			Checks if none of the provided generic components are present on archetype.
+			\return True if none of the generic components are present. False otherwise.
+			*/
 			template <typename... T>
 			[[nodiscard]] bool HasNoneComponents() const {
 				return HasNoneComponents_Internal<ComponentType::CT_Generic, T...>();
 			}
 
+			/*!
+			Checks if a given chunk component is present on archetype.
+			\return True if the chunk component is present. False otherwise.
+			*/
+			template <typename T>
+			[[nodiscard]] bool HasChunkComponent() const {
+				return HasComponent_Internal<ComponentType::CT_Chunk, T>();
+			}
+
+			/*!
+			Checks if all provided chunk components are present on archetype.
+			\return True if chunk components are present. False otherwise.
+			*/
 			template <typename... T>
 			[[nodiscard]] bool HasChunkComponents() const {
 				return HasComponents_Internal<ComponentType::CT_Chunk, T...>();
 			}
+
+			/*!
+			Checks if any of the provided chunk components is present on archetype.
+			\return True if any of the chunk components is present. False otherwise.
+			*/
 			template <typename... T>
 			[[nodiscard]] bool HasAnyChunkComponents() const {
 				return HasAnyComponents_Internal<ComponentType::CT_Chunk, T...>();
 			}
+
+			/*!
+			Checks if none of the provided chunk components are present on archetype.
+			\return True if none of the chunk components are present. False otherwise.
+			*/
 			template <typename... T>
 			[[nodiscard]] bool HasNoneChunkComponents() const {
 				return HasNoneComponents_Internal<ComponentType::CT_Chunk, T...>();
