@@ -27,10 +27,12 @@ namespace gaia {
 			friend class Chunk;
 			friend struct ChunkHeader;
 
+#if GAIA_ARCHETYPE_GRAPH
 			struct ArchetypeGraphEdge {
 				const ComponentMetaData* type;
 				Archetype* archetype;
 			};
+#endif
 
 			//! World to which this chunk belongs to
 			const World* parentWorld = nullptr;
@@ -40,10 +42,12 @@ namespace gaia {
 			//! List of disabled chunks allocated by this archetype
 			containers::darray<Chunk*> chunksDisabled;
 
+#if GAIA_ARCHETYPE_GRAPH
 			//! List of edges in the archetype graph when adding components
 			containers::darray<ArchetypeGraphEdge> edgesAdd[ComponentType::CT_Count];
 			//! List of edges in the archetype graph when removing components
 			containers::darray<ArchetypeGraphEdge> edgesDel[ComponentType::CT_Count];
+#endif
 
 			//! Description of components within this archetype
 			containers::sarray<ChunkComponentTypeList, ComponentType::CT_Count> componentTypeList;
@@ -156,6 +160,7 @@ namespace gaia {
 				auto newArch = new Archetype();
 				newArch->parentWorld = &pWorld;
 
+#if GAIA_ARCHETYPE_GRAPH
 				// Preallocate arrays for graph edges
 				// Generic components are going to be more common so we prepare bigger arrays for them.
 				// Chunk components are expected to be very rare so only a small buffer is preallocated.
@@ -163,6 +168,7 @@ namespace gaia {
 				newArch->edgesAdd[ComponentType::CT_Chunk].reserve(1);
 				newArch->edgesDel[ComponentType::CT_Generic].reserve(8);
 				newArch->edgesDel[ComponentType::CT_Chunk].reserve(1);
+#endif
 
 				// TODO: Calculate the number of entities per chunks precisely so we can
 				// fit more of them into chunk on average. Currently, DATA_SIZE_RESERVED
@@ -317,6 +323,7 @@ namespace gaia {
 					remove(chunks);
 			}
 
+#if GAIA_ARCHETYPE_GRAPH
 			Archetype* FindDelEdgeArchetype(ComponentType componentType, const ComponentMetaData* type) {
 				// Breath-first lookup.
 				// Go through all edges first. If nothing is found check each leaf and repeat until there is a match.
@@ -336,6 +343,7 @@ namespace gaia {
 
 				return nullptr;
 			}
+#endif
 
 		public:
 			~Archetype() {
