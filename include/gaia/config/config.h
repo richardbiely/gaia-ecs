@@ -5,16 +5,33 @@
 // General settings
 //------------------------------------------------------------------------------
 
+//! If enabled, additional debug and verification code is used which
+//! slows things down but enables better security and diagnostics.
+//! Suitable for debug builds first and foremost. Therefore, it is
+//! enabled by default for debud builds.
 #if !defined(NDEBUG) || defined(_DEBUG)
 	#define GAIA_DEBUG 1
 #else
 	#define GAIA_DEBUG 0
 #endif
+//! If enabled, no asserts are thrown even in debug builds
 #define GAIA_DISABLE_ASSERTS 0
-#define GAIA_PROFILER 0
+//! If enabled, diagnostics are enabled
 #define GAIA_ECS_DIAGS 1
+//! If enabled, custom allocator is used for allocating archetype chunks.
 #define GAIA_ECS_CHUNK_ALLOCATOR 1
+//! If enabled, STL containers are going to be used by the framework.
 #define GAIA_USE_STL_CONTAINERS 0
+
+//------------------------------------------------------------------------------
+// TODO features
+//------------------------------------------------------------------------------
+
+//! If enabled, profiler traces are inserted into generated code
+#define GAIA_PROFILER 0
+//! If enabled, archetype graph is used to speed up component adding and removal.
+//! NOTE: Not ready
+#define GAIA_ARCHETYPE_GRAPH 0
 
 //------------------------------------------------------------------------------
 // Debug features
