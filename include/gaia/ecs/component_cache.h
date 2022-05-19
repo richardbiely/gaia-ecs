@@ -80,6 +80,21 @@ namespace gaia {
 				return m_types.find(lookupHash) != m_types.end();
 			}
 
+			template <typename... T>
+			[[nodiscard]] bool HasComponentMetaTypes() const {
+				return (HasComponentMetaType<T>() && ...);
+			}
+
+			template <typename... T>
+			[[nodiscard]] bool HasAnyComponentMetaTypes() const {
+				return (HasComponentMetaType<T>() || ...);
+			}
+
+			template <typename... T>
+			[[nodiscard]] bool HasNoneComponentMetaTypes() const {
+				return (!HasComponentMetaType<T>() && ...);
+			}
+
 			void Diag() const {
 				const auto registeredTypes = (uint32_t)m_types.size();
 				LOG_N("Registered types: %u", registeredTypes);
