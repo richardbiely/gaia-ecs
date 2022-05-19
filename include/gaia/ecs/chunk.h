@@ -230,10 +230,18 @@ namespace gaia {
 			}
 
 		public:
+			/*!
+			Returns the parent archetype.
+			\return Parent archetype
+			*/
 			const Archetype& GetArchetype() const {
 				return header.owner;
 			}
 
+			/*!
+			Returns a read-only entity view.
+			\return Entity view
+			*/
 			template <typename T>
 			[[nodiscard]]
 			typename std::enable_if_t<std::is_same<std::decay_t<T>, Entity>::value, utils::auto_view_policy_get<const Entity>>
@@ -241,6 +249,10 @@ namespace gaia {
 				return {view_internal<T>()};
 			}
 
+			/*!
+			Returns a read-only component view.
+			\return Component view
+			*/
 			template <typename T>
 			[[nodiscard]] typename std::enable_if_t<
 					!std::is_same<std::decay_t<T>, Entity>::value, utils::auto_view_policy_get<const std::decay_t<T>>>
@@ -249,6 +261,10 @@ namespace gaia {
 				return {view_internal<TComponent>(componentType)};
 			}
 
+			/*!
+			Returns a mutable component view.
+			\return Component view
+			*/
 			template <typename T>
 			[[nodiscard]] typename std::enable_if_t<
 					!std::is_same<std::decay_t<T>, Entity>::value, utils::auto_view_policy_set<std::decay_t<T>>>
@@ -257,49 +273,89 @@ namespace gaia {
 				return {view_rw_internal<TComponent>(componentType)};
 			}
 
+			/*!
+			Returns a generic component index of a component based on provided \param typeIndex.
+			\return Component index if the type was found. -1 otherwise.
+			*/
 			[[nodiscard]] uint32_t GetComponentIdx(uint32_t typeIndex) const {
 				return GetComponentIdx_Internal(ComponentType::CT_Generic, typeIndex);
 			}
 
+			/*!
+			Returns a chunk component index of a component based on provided \param typeIndex.
+			\return Component index if the type was found. -1 otherwise.
+			*/
 			[[nodiscard]] uint32_t GetChunkComponentIdx(uint32_t typeIndex) const {
 				return GetComponentIdx_Internal(ComponentType::CT_Chunk, typeIndex);
 			}
 
+			/*!
+			Checks if a given generic component is present on chunk.
+			\return True if the generic component is present. False otherwise.
+			*/
 			template <typename T>
 			[[nodiscard]] bool HasComponent() const {
 				return HasComponent_Internal<std::decay_t<T>>(ComponentType::CT_Generic);
 			}
 
+			/*!
+			Checks if all provided generic components are present on chunk.
+			\return True if generic components are present. False otherwise.
+			*/
 			template <typename... T>
 			[[nodiscard]] bool HasComponents() const {
 				return HasComponents_Internal<std::decay_t<T>...>(ComponentType::CT_Generic);
 			}
 
+			/*!
+			Checks if any of the provided generic components is present on chunk.
+			\return True if any of the generic components is present. False otherwise.
+			*/
 			template <typename... T>
 			[[nodiscard]] bool HasAnyComponents() const {
 				return HasAnyComponents_Internal<std::decay_t<T>...>(ComponentType::CT_Generic);
 			}
 
+			/*!
+			Checks if none of the provided generic components are present on chunk.
+			\return True if none of the generic components are present. False otherwise.
+			*/
 			template <typename... T>
 			[[nodiscard]] bool HasNoneComponents() const {
 				return HasNoneComponents_Internal<std::decay_t<T>...>(ComponentType::CT_Generic);
 			}
 
+			/*!
+			Checks if a given chunk component is present on chunk.
+			\return True if the chunk component is present. False otherwise.
+			*/
 			template <typename T>
 			[[nodiscard]] bool HasChunkComponent() const {
 				return HasComponent_Internal<T>(ComponentType::CT_Chunk);
 			}
 
+			/*!
+			Checks if all provided chunk components are present on chunk.
+			\return True if chunk components are present. False otherwise.
+			*/
 			template <typename... T>
 			[[nodiscard]] bool HasChunkComponents() const {
 				return HasComponents_Internal<std::decay_t<T>...>(ComponentType::CT_Chunk);
 			}
 
+			/*!
+			Checks if any of the provided chunk components is present on chunk.
+			\return True if any of the chunk components is present. False otherwise.
+			*/
 			template <typename... T>
 			[[nodiscard]] bool HasAnyChunkComponents() const {
 				return HasAnyComponents_Internal<std::decay_t<T>...>(ComponentType::CT_Chunk);
 			}
 
+			/*!
+			Checks if none of the provided chunk components are present on chunk.
+			\return True if none of the chunk components are present. False otherwise.
+			*/
 			template <typename... T>
 			[[nodiscard]] bool HasNoneChunkComponents() const {
 				return HasNoneComponents_Internal<std::decay_t<T>...>(ComponentType::CT_Chunk);
