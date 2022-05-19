@@ -230,6 +230,10 @@ namespace gaia {
 			}
 
 		public:
+			const Archetype& GetArchetype() const {
+				return header.owner;
+			}
+
 			template <typename T>
 			[[nodiscard]]
 			typename std::enable_if_t<std::is_same<std::decay_t<T>, Entity>::value, utils::auto_view_policy_get<const Entity>>

@@ -403,7 +403,11 @@ namespace gaia {
 		private:
 			template <ComponentType TComponentType, typename T>
 			[[nodiscard]] bool HasComponent_Internal() const {
-				return GetComponentCache(const_cast<World&>(*parentWorld)).HasComponentMetaType<T>();
+				using TComponent = std::decay_t<T>;
+				const auto typeIndex = utils::type_info::index<TComponent>();
+				return utils::has_if(GetComponentLookupList(TComponentType), [&](const auto& info) {
+					return info.typeIndex == typeIndex;
+				});
 			}
 
 			template <ComponentType TComponentType, typename... T>
