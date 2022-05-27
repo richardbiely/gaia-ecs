@@ -770,15 +770,17 @@ namespace gaia {
 				// Note: Normally we'd go [[maybe_unused]] instead of "(void)" but MSVC
 				// 2017 suffers an internal compiler error in that case...
 				(void)pChunk;
+				GAIA_ASSERT(pChunk != nullptr);
+
 				// Make sure no entites reference the deleted chunk
 				for (const auto& e: m_entities) {
 					(void)e;
-					GAIA_ASSERT(pChunk->HasEntities() || e.pChunk != pChunk);
+					GAIA_ASSERT(e.pChunk != pChunk);
 				}
 #endif
 			}
 
-			EntityContainer* AddComponent_Internal(
+			EntityContainer& AddComponent_Internal(
 					ComponentType componentType, Entity entity, std::span<const ComponentMetaData*> typesToAdd) {
 				auto& entityContainer = m_entities[entity.id()];
 
@@ -811,11 +813,11 @@ namespace gaia {
 					StoreEntity(entity, newArchetype->FindOrCreateFreeChunk());
 				}
 
-				return &entityContainer;
+				return entityContainer;
 			}
 
 			template <typename... TComponent>
-			EntityContainer* AddComponent_Internal(ComponentType componentType, Entity entity) {
+			EntityContainer& AddComponent_Internal(ComponentType componentType, Entity entity) {
 				constexpr auto typesCount = sizeof...(TComponent);
 				const ComponentMetaData* types[] = {m_componentCache.GetOrCreateComponentMetaType<TComponent>()...};
 
@@ -1063,7 +1065,7 @@ namespace gaia {
 			\return Chunk or nullptr if not found
 			*/
 			[[nodiscard]] Chunk* GetEntityChunk(Entity entity) const {
-				GAIA_ASSERT(entity.id() < m_entities.size());
+				GAIA_ASSERT(IsEntityValid(entity));
 				auto& entityContainer = m_entities[entity.id()];
 				return entityContainer.pChunk;
 			}
@@ -1074,7 +1076,7 @@ namespace gaia {
 			\return Chunk or nullptr if not found
 			*/
 			[[nodiscard]] Chunk* GetEntityChunk(Entity entity, uint32_t& indexInChunk) const {
-				GAIA_ASSERT(entity.id() < m_entities.size());
+				GAIA_ASSERT(IsEntityValid(entity));
 				auto& entityContainer = m_entities[entity.id()];
 				indexInChunk = entityContainer.idx;
 				return entityContainer.pChunk;
@@ -1103,9 +1105,9 @@ namespace gaia {
 				VerifyComponents<TComponent...>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
-				auto entityContainer = AddComponent_Internal<TComponent...>(ComponentType::CT_Generic, entity);
-				auto* pChunk = entityContainer->pChunk;
-				pChunk->template SetComponents<TComponent...>(entityContainer->idx, std::forward<TComponent>(data)...);
+				auto& entityContainer = AddComponent_Internal<TComponent...>(ComponentType::CT_Generic, entity);
+				auto* pChunk = entityContainer.pChunk;
+				pChunk->template SetComponents<TComponent...>(entityContainer.idx, std::forward<TComponent>(data)...);
 			}
 
 			/*!
@@ -1133,8 +1135,8 @@ namespace gaia {
 				VerifyComponents<TComponent...>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
-				auto entityContainer = AddComponent_Internal<TComponent...>(ComponentType::CT_Chunk, entity);
-				auto* pChunk = entityContainer->pChunk;
+				auto& entityContainer = AddComponent_Internal<TComponent...>(ComponentType::CT_Chunk, entity);
+				auto* pChunk = entityContainer.pChunk;
 				pChunk->template SetChunkComponents<TComponent...>(std::forward<TComponent>(data)...);
 			}
 
