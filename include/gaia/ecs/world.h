@@ -11,6 +11,7 @@
 #include "../utils/utils_containers.h"
 #include "chunk.h"
 #include "chunk_allocator.h"
+#include "command_buffer.h"
 #include "component.h"
 #include "component_cache.h"
 #include "entity.h"
@@ -772,10 +773,21 @@ namespace gaia {
 				(void)pChunk;
 				GAIA_ASSERT(pChunk != nullptr);
 
-				// Make sure no entites reference the deleted chunk
-				for (const auto& e: m_entities) {
-					(void)e;
-					GAIA_ASSERT(e.pChunk != pChunk);
+				if (pChunk->HasEntities()) {
+					// Make sure a proper amount of entities reference the chunk
+					size_t cnt = 0;
+					for (const auto& e: m_entities) {
+						if (e.pChunk != pChunk)
+							continue;
+						++cnt;
+					}
+					GAIA_ASSERT(cnt == pChunk->GetItemCount());
+				} else {
+					// Make sure no entites reference the chunk
+					for (const auto& e: m_entities) {
+						(void)e;
+						GAIA_ASSERT(e.pChunk != pChunk);
+					}
 				}
 #endif
 			}
@@ -1065,7 +1077,7 @@ namespace gaia {
 			\return Chunk or nullptr if not found
 			*/
 			[[nodiscard]] Chunk* GetEntityChunk(Entity entity) const {
-				GAIA_ASSERT(IsEntityValid(entity));
+				GAIA_ASSERT(entity.id() < m_entities.size());
 				auto& entityContainer = m_entities[entity.id()];
 				return entityContainer.pChunk;
 			}
@@ -1076,7 +1088,7 @@ namespace gaia {
 			\return Chunk or nullptr if not found
 			*/
 			[[nodiscard]] Chunk* GetEntityChunk(Entity entity, uint32_t& indexInChunk) const {
-				GAIA_ASSERT(IsEntityValid(entity));
+				GAIA_ASSERT(entity.id() < m_entities.size());
 				auto& entityContainer = m_entities[entity.id()];
 				indexInChunk = entityContainer.idx;
 				return entityContainer.pChunk;
@@ -1109,6 +1121,24 @@ namespace gaia {
 				auto* pChunk = entityContainer.pChunk;
 				pChunk->template SetComponents<TComponent...>(entityContainer.idx, std::forward<TComponent>(data)...);
 			}
+
+			/*!
+			Attaches new components to \param entity.
+			\warning It is expected the component is not there yet and that
+			\param entity is valid. Undefined behavior otherwise.
+			*/
+			/*template <typename... TComponent>
+			void AddComponent(EntityQuery& query, TComponent&&... data) {
+				VerifyComponents<TComponent...>();
+
+				CommandBuffer cb(static_cast<World&>(*this));
+				{
+					ForEach(query, [&](Entity e) {
+						cb.AddComponent<TComponent...>(e, std::forward<TComponent>(data)...);
+					});
+				}
+				cb.Commit();
+			}*/
 
 			/*!
 			Attaches new chunk components to \param entity.

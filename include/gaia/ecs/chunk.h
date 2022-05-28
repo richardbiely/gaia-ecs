@@ -229,6 +229,28 @@ namespace gaia {
 				return {(TComponent*)&data[componentLookupList[componentIdx].offset], GetItemCount()};
 			}
 
+			[[nodiscard]] GAIA_FORCEINLINE uint8_t*
+			view_rw_internal(const ComponentMetaData* metaType, ComponentType componentType = ComponentType::CT_Generic) {
+				GAIA_ASSERT(metaType != nullptr);
+				// Empty components shouldn't be used for writing!
+				GAIA_ASSERT(metaType->info.size != 0);
+
+				const auto typeIndex = metaType->typeIndex;
+
+				// Searching for a component that's not there! Programmer mistake.
+				GAIA_ASSERT(HasComponent_Internal(componentType, typeIndex));
+
+				const auto& componentLookupList = GetArchetypeComponentLookupList(header.owner, componentType);
+				const auto componentIdx = utils::get_index_if_unsafe(componentLookupList, [&](const auto& info) {
+					return info.typeIndex == typeIndex;
+				});
+
+				// Update version number so we know RW access was used on chunk
+				header.UpdateWorldVersion(componentType, componentIdx);
+
+				return (uint8_t*)&data[componentLookupList[componentIdx].offset];
+			}
+
 		public:
 			/*!
 			Returns the parent archetype.
