@@ -195,13 +195,13 @@ struct World {
 		auto potion = w.CreateEntity();
 		w.AddComponent<Position>(potion, {5, 5});
 		w.AddComponent<Sprite>(potion, {TILE_POTION});
-		w.AddComponent<Item>(potion, {Potion});
+		w.AddComponent<Item>(potion, {ItemType::Potion});
 		w.AddComponent<BattleStats>(potion, {10, 0});
 
 		auto poison = w.CreateEntity();
 		w.AddComponent<Position>(poison, {15, 10});
 		w.AddComponent<Sprite>(poison, {TILE_POISON});
-		w.AddComponent<Item>(poison, {Poison});
+		w.AddComponent<Item>(poison, {ItemType::Poison});
 		w.AddComponent<BattleStats>(poison, {-10, 0});
 	}
 
