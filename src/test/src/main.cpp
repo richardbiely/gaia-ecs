@@ -335,7 +335,7 @@ TEST_CASE("EnableEntity") {
 	REQUIRE(cnt == N);
 }
 
-TEST_CASE("CreateComponent") {
+TEST_CASE("AddComponent") {
 	ecs::World w;
 
 	auto e1 = w.CreateEntity();
@@ -348,6 +348,47 @@ TEST_CASE("CreateComponent") {
 		REQUIRE(hasAcceleration);
 	}
 }
+
+// TEST_CASE("AddComponent - from query") {
+// 	ecs::World w;
+
+// 	gaia::containers::sarray<ecs::Entity, 5> ents;
+// 	for (auto& e: ents)
+// 		e = w.CreateEntity();
+
+// 	for (size_t i = 0; i < ents.size() - 1; ++i)
+// 		w.AddComponent<Position>(ents[i], {(float)i, (float)i, (float)i});
+
+// 	ecs::EntityQuery q;
+// 	q.All<Position>();
+// 	w.AddComponent<Acceleration>(q, {1.f, 2.f, 3.f});
+
+// 	for (size_t i = 0; i < ents.size() - 1; ++i) {
+// 		const bool hasPosition = w.HasComponents<Position>(ents[i]);
+// 		REQUIRE(hasPosition);
+// 		const bool hasAcceleration = w.HasComponents<Acceleration>(ents[i]);
+// 		REQUIRE(hasAcceleration);
+
+// 		Position p;
+// 		w.GetComponent<Position>(ents[i], p);
+// 		REQUIRE(p.x == (float)i);
+// 		REQUIRE(p.y == (float)i);
+// 		REQUIRE(p.z == (float)i);
+
+// 		Acceleration a;
+// 		w.GetComponent<Acceleration>(ents[i], a);
+// 		REQUIRE(a.x == 1.f);
+// 		REQUIRE(a.y == 2.f);
+// 		REQUIRE(a.z == 3.f);
+// 	}
+
+// 	{
+// 		const bool hasPosition = w.HasComponents<Position>(ents[4]);
+// 		REQUIRE_FALSE(hasPosition);
+// 		const bool hasAcceleration = w.HasComponents<Acceleration>(ents[4]);
+// 		REQUIRE_FALSE(hasAcceleration);
+// 	}
+// }
 
 TEST_CASE("RemoveComponent - generic") {
 	ecs::World w;
@@ -990,106 +1031,106 @@ TEST_CASE("CommandBuffer") {
 	}
 
 	// Delayed component addition to an existing entity
-	// {
-	// 	ecs::World w;
-	// 	ecs::CommandBuffer cb(w);
+	{
+		ecs::World w;
+		ecs::CommandBuffer cb(w);
 
-	// 	auto e = w.CreateEntity();
-	// 	cb.AddComponent<Position>(e);
-	// 	REQUIRE(!w.HasComponents<Position>(e));
-	// 	cb.Commit();
-	// 	REQUIRE(w.HasComponents<Position>(e));
+		auto e = w.CreateEntity();
+		cb.AddComponent<Position>(e);
+		REQUIRE(!w.HasComponents<Position>(e));
+		cb.Commit();
+		REQUIRE(w.HasComponents<Position>(e));
 
-	// 	Position p;
-	//  	w.GetComponent<Position>(e, p);
-	// 	REQUIRE(p.x == 0);
-	// 	REQUIRE(p.y == 0);
-	// 	REQUIRE(p.z == 0);
-	// }
+		Position p;
+		w.GetComponent<Position>(e, p);
+		REQUIRE(p.x == 0);
+		REQUIRE(p.y == 0);
+		REQUIRE(p.z == 0);
+	}
 
 	// Delayed component addition to a to-be-created entity
-	// {
-	// 	ecs::World w;
-	// 	ecs::CommandBuffer cb(w);
+	{
+		ecs::World w;
+		ecs::CommandBuffer cb(w);
 
-	// 	auto tmp = cb.CreateEntity();
-	// 	REQUIRE(!w.GetEntityCount());
-	// 	cb.AddComponent<Position>(tmp);
-	// 	cb.Commit();
+		auto tmp = cb.CreateEntity();
+		REQUIRE(!w.GetEntityCount());
+		cb.AddComponent<Position>(tmp);
+		cb.Commit();
 
-	// 	auto e = w.GetEntity(0);
-	// 	REQUIRE(w.HasComponents<Position>(e));
-	// 	Position p;
-	// 	w.GetComponent<Position>(e, p);
-	// 	REQUIRE(p.x == 0);
-	// 	REQUIRE(p.y == 0);
-	// 	REQUIRE(p.z == 0);
-	// }
+		auto e = w.GetEntity(0);
+		REQUIRE(w.HasComponents<Position>(e));
+		Position p;
+		w.GetComponent<Position>(e, p);
+		REQUIRE(p.x == 0);
+		REQUIRE(p.y == 0);
+		REQUIRE(p.z == 0);
+	}
 
 	// Delayed component setting of an existing entity
-	// {
-	// 	ecs::World w;
-	// 	ecs::CommandBuffer cb;
+	{
+		ecs::World w;
+		ecs::CommandBuffer cb(w);
 
-	// 	auto e = w.CreateEntity();
+		auto e = w.CreateEntity();
 
-	// 	cb.AddComponent<Position>(e);
-	// 	cb.SetComponent<Position>(e, {1, 2, 3});
-	// 	REQUIRE(!w.HasComponents<Position>(e));
+		cb.AddComponent<Position>(e);
+		cb.SetComponent<Position>(e, {1, 2, 3});
+		REQUIRE(!w.HasComponents<Position>(e));
 
-	// 	cb.Commit(&w);
-	// 	REQUIRE(w.HasComponents<Position>(e));
+		cb.Commit();
+		REQUIRE(w.HasComponents<Position>(e));
 
-	// 	Position p;
-	// 	w.GetComponent<Position>(e, p);
-	// 	REQUIRE(p.x == 1);
-	// 	REQUIRE(p.y == 2);
-	// 	REQUIRE(p.z == 3);
-	// }
+		Position p;
+		w.GetComponent<Position>(e, p);
+		REQUIRE(p.x == 1);
+		REQUIRE(p.y == 2);
+		REQUIRE(p.z == 3);
+	}
 
-	// // Delayed component setting of a to-be-created entity
-	// {
-	// 	ecs::World w;
-	// 	ecs::CommandBuffer cb;
+	// Delayed component setting of a to-be-created entity
+	{
+		ecs::World w;
+		ecs::CommandBuffer cb(w);
 
-	// 	auto tmp = cb.CreateEntity();
-	// 	REQUIRE(!w.GetEntityCount());
+		auto tmp = cb.CreateEntity();
+		REQUIRE(!w.GetEntityCount());
 
-	// 	cb.AddComponent<Position>(tmp);
-	// 	cb.SetComponent<Position>(tmp, {1, 2, 3});
-	// 	cb.Commit(&w);
+		cb.AddComponent<Position>(tmp);
+		cb.SetComponent<Position>(tmp, {1, 2, 3});
+		cb.Commit();
 
-	// 	auto e = w.GetEntity(0);
-	// 	REQUIRE(w.HasComponents<Position>(e));
+		auto e = w.GetEntity(0);
+		REQUIRE(w.HasComponents<Position>(e));
 
-	// 	Position p;
-	// 	w.GetComponent<Position>(e, p);
-	// 	REQUIRE(p.x == 1);
-	// 	REQUIRE(p.y == 2);
-	// 	REQUIRE(p.z == 3);
-	// }
+		Position p;
+		w.GetComponent<Position>(e, p);
+		REQUIRE(p.x == 1);
+		REQUIRE(p.y == 2);
+		REQUIRE(p.z == 3);
+	}
 
-	// // Delayed component removal from an existing entity
-	// {
-	// 	ecs::World w;
-	// 	ecs::CommandBuffer cb;
+	// Delayed component removal from an existing entity
+	{
+		ecs::World w;
+		ecs::CommandBuffer cb(w);
 
-	// 	auto e = w.CreateEntity();
-	// 	w.AddComponent<Position>(e, {1, 2, 3});
+		auto e = w.CreateEntity();
+		w.AddComponent<Position>(e, {1, 2, 3});
 
-	// 	cb.RemoveComponent<Position>(e);
-	// 	REQUIRE(w.HasComponents<Position>(e));
-	// 	{
-	// 		Position p;
-	// 		w.GetComponent<Position>(e, p);
-	// 		REQUIRE(p.x == 1);
-	// 		REQUIRE(p.y == 2);
-	// 		REQUIRE(p.z == 3);
-	// 	}
+		cb.RemoveComponent<Position>(e);
+		REQUIRE(w.HasComponents<Position>(e));
+		{
+			Position p;
+			w.GetComponent<Position>(e, p);
+			REQUIRE(p.x == 1);
+			REQUIRE(p.y == 2);
+			REQUIRE(p.z == 3);
+		}
 
-	// 	cb.Commit(&w);
-	// 	REQUIRE(!w.HasComponents<Position>(e));
-	// }
+		cb.Commit();
+		REQUIRE(!w.HasComponents<Position>(e));
+	}
 }
 
 TEST_CASE("Query Filter - no systems") {
