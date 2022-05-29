@@ -192,7 +192,7 @@ namespace gaia {
 
 			template <typename T>
 			T* CreateSystem(const char* name) {
-				constexpr uint64_t hash = utils::type_info::hash<std::decay_t<T>>();
+				const auto hash = utils::type_info::hash<std::decay_t<T>>();
 
 				const auto res = m_systemsMap.emplace(hash, nullptr);
 				if (!res.second)
@@ -233,7 +233,7 @@ namespace gaia {
 
 			template <typename T>
 			[[nodiscard]] T* FindSystem() {
-				constexpr auto hash = utils::type_info::hash<std::decay_t<T>>();
+				const auto hash = utils::type_info::hash<std::decay_t<T>>();
 
 				const auto it = m_systemsMap.find(hash);
 				if (it != m_systemsMap.end())
