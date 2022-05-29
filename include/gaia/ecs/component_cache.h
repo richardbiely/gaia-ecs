@@ -1,5 +1,5 @@
 #pragma once
-#include <inttypes.h>
+#include <cinttypes>
 #include <type_traits>
 
 #include "../config/config.h"

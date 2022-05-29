@@ -1,5 +1,5 @@
 #pragma once
-#include <inttypes.h>
+#include <cinttypes>
 
 #include "../containers/darray.h"
 #include "../containers/sarray.h"

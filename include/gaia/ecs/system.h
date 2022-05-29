@@ -38,10 +38,10 @@ namespace gaia {
 
 			CommandBuffer& BeforeUpdateCmdBufer() {
 				return m_beforeUpdateCmdBuffer;
-			};
+			}
 			CommandBuffer& AfterUpdateCmdBufer() {
 				return m_afterUpdateCmdBuffer;
-			};
+			}
 
 		protected:
 			void OnBeforeUpdate() final {
