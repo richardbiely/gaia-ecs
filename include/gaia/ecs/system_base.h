@@ -201,7 +201,6 @@ namespace gaia {
 				BaseSystem* pSystem = new T();
 				pSystem->m_world = &m_world;
 
-				const auto nameLen = strlen(name);
 #if GAIA_COMPILER_MSVC
 				strncpy_s(pSystem->m_name, name, (size_t)-1);
 #else
