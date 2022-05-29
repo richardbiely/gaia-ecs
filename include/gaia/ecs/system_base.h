@@ -16,7 +16,7 @@ namespace gaia {
 		class World;
 		class BaseSystemManager;
 
-		constexpr uint32_t MaxSystemNameLength = 64;
+		constexpr size_t MaxSystemNameLength = 64;
 
 		class BaseSystem {
 			friend class BaseSystemManager;
@@ -203,9 +203,9 @@ namespace gaia {
 
 				const auto nameLen = strlen(name);
 #if GAIA_COMPILER_MSVC
-				strncpy_s(pSystem->m_name, name, nameLen >= MaxSystemNameLength ? MaxSystemNameLength - 1 : nameLen);
+				strncpy_s(pSystem->m_name, name, (size_t)-1);
 #else
-				strncpy(pSystem->m_name, name, nameLen >= MaxSystemNameLength ? MaxSystemNameLength - 1 : nameLen);
+				strncpy(pSystem->m_name, name, MaxSystemNameLength - 1);
 #endif
 				pSystem->m_name[MaxSystemNameLength - 1] = 0;
 
