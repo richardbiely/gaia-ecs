@@ -320,7 +320,8 @@ If you try to make an unprotected structural change with GAIA_DEBUG enabled (set
 
 ## Chunk components
 A chunk component is a special kind of component which exists at most once per chunk.<br/>
-In other words, you attach a piece of information to one chunk specifically.<br/>
+In different words, you attach data to one chunk specifically.<br/>
+Chunk components survive entity removals and unlike generic component they do not transfer to a new chunk along with their entity.<br/>
 If you organize your data with care (which you should) this can save you some very precious memory or performance depending on your use case.<br/>
 
 For instance, imagine you have a grid with fields of 100 meters squared.
