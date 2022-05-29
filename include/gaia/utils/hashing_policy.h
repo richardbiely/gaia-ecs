@@ -1,7 +1,6 @@
 #pragma once
-#include <ctype.h>
+#include <cstdint>
 #include <functional>
-#include <inttypes.h>
 #include <type_traits>
 
 #include "../config/config.h"

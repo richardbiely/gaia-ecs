@@ -11,6 +11,7 @@ namespace gaia {
 } // namespace gaia
 #else
 
+	// You can add your custom container here
 	#error Unsupported value used for USE_ARRAY
 
 #endif

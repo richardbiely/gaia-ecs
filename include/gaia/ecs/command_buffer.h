@@ -1,5 +1,5 @@
 #pragma once
-#include <inttypes.h>
+#include <cinttypes>
 
 #include "../config/config.h"
 #include "../containers/map.h"

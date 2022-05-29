@@ -1,6 +1,6 @@
 #pragma once
 #include <algorithm>
-#include <inttypes.h>
+#include <cstdint>
 
 namespace gaia {
 	namespace utils {

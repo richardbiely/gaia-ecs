@@ -1,5 +1,5 @@
 #pragma once
-#include <inttypes.h>
+#include <cinttypes>
 #include <string_view>
 #include <type_traits>
 

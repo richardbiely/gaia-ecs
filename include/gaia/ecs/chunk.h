@@ -1,10 +1,11 @@
 #pragma once
 #include <algorithm>
-#include <inttypes.h>
+#include <cinttypes>
+#include <cstdint>
 #include <iterator>
-#include <stdint.h>
 #include <type_traits>
 #include <utility>
+
 
 #include "../config/config.h"
 #include "../containers/sarray_ext.h"

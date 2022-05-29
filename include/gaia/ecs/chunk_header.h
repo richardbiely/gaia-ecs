@@ -1,6 +1,6 @@
 #pragma once
-#include <inttypes.h>
-#include <stdint.h>
+#include <cinttypes>
+#include <cstdint>
 
 #include "common.h"
 #include "component.h"
