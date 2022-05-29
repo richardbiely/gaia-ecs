@@ -4,24 +4,31 @@
 
 #if defined(__GLIBC__) || defined(__sun) || defined(__CYGWIN__)
 	#include <alloca.h>
+	#define GAIA_ALIGNED_ALLOC(alig, size) aligned_alloc(alig, size)
 	#if !defined(aligned_free)
-		#define aligned_free free
+		#define GAIA_ALIGNED_FREE free
+	#else
+		#define GAIA_ALIGNED_FREE aligned_free
 	#endif
 #elif defined(_WIN32)
 	#include <malloc.h>
-	// Clang with MSVC codegen needes some remapping
-	#if !defined(alloca)
-		#define alloca _alloca
-	#endif
+	// Clang with MSVC codegen needs some remapping
 	#if !defined(aligned_alloc)
-		#define aligned_alloc(alig, size) _aligned_malloc(size, alig)
+		#define GAIA_ALIGNED_ALLOC(alig, size) _aligned_malloc(size, alig)
+	#else
+		#define GAIA_ALIGNED_ALLOC(alig, size) aligned_alloc(alig, size)
 	#endif
 	#if !defined(aligned_free)
-		#define aligned_free _aligned_free
+		#define GAIA_ALIGNED_FREE _aligned_free
+	#else
+		#define GAIA_ALIGNED_FREE aligned_free
 	#endif
 #else
+	#define GAIA_ALIGNED_ALLOC(alig, size) aligned_alloc(alig, size)
 	#if !defined(aligned_free)
-		#define aligned_free free
+		#define GAIA_ALIGNED_FREE free
+	#else
+		#define GAIA_ALIGNED_FREE aligned_free
 	#endif
 #endif
 
@@ -306,12 +313,12 @@ namespace gaia {
 
 		private:
 			MemoryPage* AllocPage() {
-				auto* pageData = (uint8_t*)aligned_alloc(16, MemoryPage::Size);
+				auto* pageData = (uint8_t*)GAIA_ALIGNED_ALLOC(16, MemoryPage::Size);
 				return new MemoryPage(pageData);
 			}
 
 			void FreePage(MemoryPage* page) {
-				aligned_free(page->m_data);
+				GAIA_ALIGNED_FREE(page->m_data);
 				delete page;
 			}
 		};
