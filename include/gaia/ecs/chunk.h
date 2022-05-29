@@ -59,7 +59,9 @@ namespace gaia {
 			}
 
 			template <typename T>
-			void SetComponent_Internal(ComponentType componentType, uint32_t index, std::decay_t<T>&& value) {
+			void SetComponent_Internal(
+					[[maybe_unused]] ComponentType componentType, [[maybe_unused]] uint32_t index,
+					[[maybe_unused]] std::decay_t<T>&& value) {
 				using TComponent = std::decay_t<T>;
 				if constexpr (std::is_empty<TComponent>::value)
 					return;
