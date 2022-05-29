@@ -130,7 +130,7 @@ jobs:
     - name: Test
       working-directory: 
       run: |
-        ${{github.workspace}}/build/src/test/gaia_test
+        ${{github.workspace}}/build/src/test/gaia_test.exe
 
   macos:
     timeout-minutes: 10
