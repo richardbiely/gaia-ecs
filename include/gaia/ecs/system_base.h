@@ -1,6 +1,6 @@
 #pragma once
 #include <cinttypes>
-#include <string>
+#include <cstring>
 
 #include "../config/config.h"
 #if GAIA_DEBUG
@@ -16,13 +16,15 @@ namespace gaia {
 		class World;
 		class BaseSystemManager;
 
+		constexpr uint32_t MaxSystemNameLength = 64;
+
 		class BaseSystem {
 			friend class BaseSystemManager;
 
 			// A world this system belongs to
 			World* m_world = nullptr;
 			//! System's name
-			std::string m_name;
+			char m_name[MaxSystemNameLength]{};
 			//! System's hash code
 			uint64_t m_hash = 0;
 			//! If true, the system is enabled and running
@@ -30,7 +32,7 @@ namespace gaia {
 			//! If true, the system is to be destroyed
 			bool m_destroy = false;
 
-		public:
+		protected:
 			BaseSystem() = default;
 			virtual ~BaseSystem() = default;
 
@@ -39,6 +41,7 @@ namespace gaia {
 			BaseSystem& operator=(BaseSystem&&) = delete;
 			BaseSystem& operator=(const BaseSystem&) = delete;
 
+		public:
 			[[nodiscard]] World& GetWorld() {
 				return *m_world;
 			}
@@ -64,6 +67,7 @@ namespace gaia {
 				return m_enabled;
 			}
 
+		protected:
 			//! Called when system is first created
 			virtual void OnCreated() {}
 			//! Called every time system is started (before the first run and after
@@ -196,7 +200,15 @@ namespace gaia {
 
 				BaseSystem* pSystem = new T();
 				pSystem->m_world = &m_world;
-				pSystem->m_name = name;
+
+				const auto nameLen = strlen(name);
+#if GAIA_COMPILER_MSVC
+				strncpy_s(pSystem->m_name, name, nameLen >= MaxSystemNameLength ? MaxSystemNameLength - 1 : nameLen);
+#else
+				strncpy(pSystem->m_name, name, nameLen >= MaxSystemNameLength ? MaxSystemNameLength - 1 : nameLen);
+#endif
+				pSystem->m_name[MaxSystemNameLength - 1] = 0;
+
 				pSystem->m_hash = hash;
 				res.first->second = pSystem;
 
