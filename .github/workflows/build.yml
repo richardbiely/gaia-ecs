@@ -54,10 +54,7 @@ jobs:
     - name: Test
       working-directory: 
       run: |
-        execute_process(COMMAND "${{github.workspace}}/build/src/test/gaia_test" WORKING_DIRECTORY "${{github.workspace}}/build/src/test/" RESULT_VARIABLE result)
-        if (NOT result EQUAL 0)
-          message(FATAL_ERROR "Unit tests failed!")
-        endif()
+        ${{github.workspace}}/build/src/test/gaia_test
 
   linux-libcpp:
     timeout-minutes: 10
@@ -102,10 +99,7 @@ jobs:
     - name: Test
       working-directory: 
       run: |
-        execute_process(COMMAND "${{github.workspace}}/build/src/test/gaia_test" WORKING_DIRECTORY "${{github.workspace}}/build/src/test/" RESULT_VARIABLE result)
-        if (NOT result EQUAL 0)
-          message(FATAL_ERROR "Unit tests failed!")
-        endif()
+        ${{github.workspace}}/build/src/test/gaia_test
 
   windows:
     timeout-minutes: 10
@@ -136,10 +130,7 @@ jobs:
     - name: Test
       working-directory: 
       run: |
-        execute_process(COMMAND "${{github.workspace}}/build/src/test/gaia_test" WORKING_DIRECTORY "${{github.workspace}}/build/src/test/" RESULT_VARIABLE result)
-        if (NOT result EQUAL 0)
-          message(FATAL_ERROR "Unit tests failed!")
-        endif()
+        ${{github.workspace}}/build/src/test/gaia_test
 
   macos:
     timeout-minutes: 10
@@ -162,7 +153,4 @@ jobs:
     - name: Test
       working-directory: 
       run: |
-        execute_process(COMMAND "${{github.workspace}}/build/src/test/gaia_test" WORKING_DIRECTORY "${{github.workspace}}/build/src/test/" RESULT_VARIABLE result)
-        if (NOT result EQUAL 0)
-          message(FATAL_ERROR "Unit tests failed!")
-        endif()
+        ${{github.workspace}}/build/src/test/gaia_test
