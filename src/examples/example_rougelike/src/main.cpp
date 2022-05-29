@@ -527,7 +527,7 @@ public:
 		ecs::EntityQuery qe;
 		qe.All<Health>().None<Player, Item>();
 		GetWorld().ForEach(qe, [](ecs::Entity e, const Health& h) {
-			printf("Enemy %d:%d health: %d/%d\n", e.id(), e.gen(), h.value, h.valueMax);
+			printf("Enemy %u:%u health: %d/%d\n", e.id(), e.gen(), h.value, h.valueMax);
 		});
 	}
 };

@@ -830,10 +830,8 @@ namespace gaia {
 
 			template <typename... TComponent>
 			EntityContainer& AddComponent_Internal(ComponentType componentType, Entity entity) {
-				constexpr auto typesCount = sizeof...(TComponent);
 				const ComponentMetaData* types[] = {m_componentCache.GetOrCreateComponentMetaType<TComponent>()...};
-
-				return AddComponent_Internal(componentType, entity, {types, typesCount});
+				return AddComponent_Internal(componentType, entity, {types, sizeof...(TComponent)});
 			}
 
 			void RemoveComponent_Internal(

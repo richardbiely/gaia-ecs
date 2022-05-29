@@ -118,9 +118,7 @@ namespace gaia {
 			template <typename... TComponent>
 			void SetComponentNoEntity_Internal(TComponent&&... data) {
 				// Register components
-				[[maybe_unused]] const ComponentMetaData* typesToAdd[] = {
-						GetComponentCache(m_world).GetOrCreateComponentMetaType<TComponent>()...};
-				(void)typesToAdd;
+				((void)GetComponentCache(m_world).GetOrCreateComponentMetaType<TComponent>(), ...);
 
 				// Component count
 				constexpr auto NComponents = (uint8_t)sizeof...(TComponent);

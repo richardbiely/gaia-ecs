@@ -48,7 +48,7 @@ namespace gaia {
 			Constraints constraints = Constraints::EnabledOnly;
 
 			template <class TComponent>
-			void CalculateHash_Internal(ComponentIndexArray& arr, [[maybe_unused]] uint64_t& hash) {
+			void CalculateHash_Internal([[maybe_unused]] ComponentIndexArray& arr, [[maybe_unused]] uint64_t& hash) {
 				using T = std::decay_t<TComponent>;
 
 				if constexpr (std::is_same<T, Entity>::value) {

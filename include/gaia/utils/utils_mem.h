@@ -92,19 +92,19 @@ namespace gaia {
 		*/
 		template <typename T>
 		class unaligned_ref {
-			void* p;
+			void* m_p;
 
 		public:
-			unaligned_ref(void* p): p(p) {}
+			unaligned_ref(void* p): m_p(p) {}
 
 			T operator=(const T& rvalue) {
-				memmove(p, &rvalue, sizeof(T));
+				memmove(m_p, &rvalue, sizeof(T));
 				return rvalue;
 			}
 
 			operator T() const {
 				T tmp;
-				memmove(&tmp, p, sizeof(T));
+				memmove(&tmp, m_p, sizeof(T));
 				return tmp;
 			}
 		};
@@ -115,14 +115,14 @@ namespace gaia {
 		*/
 		template <typename T>
 		class unaligned_pointer {
-			char* p;
+			char* m_p;
 
 		public:
-			unaligned_pointer(): p(0) {}
-			unaligned_pointer(void* p): p((char*)p) {}
+			unaligned_pointer(): m_p(nullptr) {}
+			unaligned_pointer(void* p): m_p((char*)p) {}
 
 			unaligned_ref<T> operator*() const {
-				return unaligned_ref<T>(p);
+				return unaligned_ref<T>(m_p);
 			}
 
 			unaligned_ref<T> operator[](ptrdiff_t d) const {
@@ -130,10 +130,10 @@ namespace gaia {
 			}
 
 			unaligned_pointer operator+(ptrdiff_t d) const {
-				return unaligned_pointer(p + d * sizeof(T));
+				return unaligned_pointer(m_p + d * sizeof(T));
 			}
 			unaligned_pointer operator-(ptrdiff_t d) const {
-				return unaligned_pointer(p - d * sizeof(T));
+				return unaligned_pointer(m_p - d * sizeof(T));
 			}
 		};
 	} // namespace utils

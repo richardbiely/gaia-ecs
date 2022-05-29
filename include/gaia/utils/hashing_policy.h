@@ -10,7 +10,7 @@ namespace gaia {
 
 		//! Combines values via OR.
 		template <typename... T>
-		constexpr auto combine_or(T... t) {
+		constexpr auto combine_or([[maybe_unused]] T... t) {
 			return (... | t);
 		}
 

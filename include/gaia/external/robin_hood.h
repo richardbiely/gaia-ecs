@@ -109,8 +109,13 @@ namespace robin_hood {
 
 // endianess
 #ifdef _MSC_VER
-	#define ROBIN_HOOD_PRIVATE_DEFINITION_LITTLE_ENDIAN() 1
-	#define ROBIN_HOOD_PRIVATE_DEFINITION_BIG_ENDIAN() 0
+	#if defined(_M_ARM) || defined(_M_ARM64)
+		#define ROBIN_HOOD_PRIVATE_DEFINITION_LITTLE_ENDIAN() 0
+		#define ROBIN_HOOD_PRIVATE_DEFINITION_BIG_ENDIAN() 1
+	#else
+		#define ROBIN_HOOD_PRIVATE_DEFINITION_LITTLE_ENDIAN() 1
+		#define ROBIN_HOOD_PRIVATE_DEFINITION_BIG_ENDIAN() 0
+	#endif
 #else
 	#define ROBIN_HOOD_PRIVATE_DEFINITION_LITTLE_ENDIAN() (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
 	#define ROBIN_HOOD_PRIVATE_DEFINITION_BIG_ENDIAN() (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
@@ -189,7 +194,7 @@ namespace robin_hood {
 	#define ROBIN_HOOD_PRIVATE_DEFINITION_HAS_NATIVE_WCHART() 1
 #endif
 
-// detect if MSVC supports the pair(std::piecewise_construct_t,...) consructor being constexpr
+// detect if MSVC supports the pair(std::piecewise_construct_t,...) constructor being constexpr
 #ifdef _MSC_VER
 	#if _MSC_VER <= 1900
 		#define ROBIN_HOOD_PRIVATE_DEFINITION_BROKEN_CONSTEXPR() 1

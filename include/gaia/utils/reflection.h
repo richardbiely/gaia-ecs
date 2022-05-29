@@ -47,9 +47,8 @@ namespace gaia {
 		auto struct_to_tuple(T&& object) noexcept {
 			using type = std::decay_t<T>;
 			// Don't support empty structs. They have no data.
-			// We also want compilation to fail for structs with many members so we
-			// can handle them here That shouldn't be necessary, though for we plan
-			// to support only structs with little amount of arguments.
+			// We also want to fail for structs with too many members because it smells with bad usage.
+			// Therefore, only 1 to 8 types are supported at the moment.
 			if constexpr (is_braces_constructible_t<
 												type, any_type, any_type, any_type, any_type, any_type, any_type, any_type, any_type>{}) {
 				auto&& [p1, p2, p3, p4, p5, p6, p7, p8] = object;
@@ -77,10 +76,7 @@ namespace gaia {
 			} else if constexpr (is_braces_constructible_t<type, any_type>{}) {
 				auto&& [p1] = object;
 				return std::make_tuple(p1);
-			}
-			// Let's not support defaults. We don't want to allow too many types
-			// because they indicate some wrong usage of ECS.
-			else {
+			} else {
 				return std::make_tuple();
 			}
 		}
