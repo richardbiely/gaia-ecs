@@ -518,14 +518,7 @@ namespace gaia {
 							if (componentType == ComponentType::CT_Chunk)
 								indexInChunk = 0;
 
-							if (cmd == ADD_COMPONENT) {
-								for (uint8_t j = 0; j < componentCount; ++j) {
-									const auto* metaType = newMetaTypes[j];
-									auto* pComponentDataStart = pChunk->view_rw_internal(metaType, componentType);
-									auto* pComponentData = (void*)&pComponentDataStart[indexInChunk * metaType->info.size];
-									memset(pComponentData, 0, metaType->info.size);
-								}
-							} else {
+							if (cmd == ADD_COMPONENT_DATA) {
 								for (uint8_t j = 0; j < componentCount; ++j) {
 									// Skip the type index
 									// TODO: Don't include the type index here
@@ -576,14 +569,7 @@ namespace gaia {
 							if (componentType == ComponentType::CT_Chunk)
 								indexInChunk = 0;
 
-							if (cmd == ADD_COMPONENT_TO_TEMPENTITY) {
-								for (uint8_t j = 0; j < componentCount; ++j) {
-									const auto* metaType = newMetaTypes[j];
-									auto* pComponentDataStart = pChunk->view_rw_internal(metaType, componentType);
-									auto* pComponentData = (void*)&pComponentDataStart[indexInChunk * metaType->info.size];
-									memset(pComponentData, 0, metaType->info.size);
-								}
-							} else {
+							if (cmd == ADD_COMPONENT_TO_TEMPENTITY_DATA) {
 								for (uint8_t j = 0; j < componentCount; ++j) {
 									// Skip the type index
 									// TODO: Don't include the type index here
