@@ -1,7 +1,7 @@
 #pragma once
 
 #if USE_VECTOR == 0
-	#include "impl/sarray_ext.h"
+	#include "impl/sarray_ext_impl.h"
 
 namespace gaia {
 	namespace containers {

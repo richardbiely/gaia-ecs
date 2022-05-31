@@ -11,7 +11,7 @@ namespace gaia {
 	} // namespace containers
 } // namespace gaia
 #elif USE_VECTOR == 0
-	#include "impl/sarray.h"
+	#include "impl/sarray_impl.h"
 namespace gaia {
 	namespace containers {
 		template <typename T, size_t N>
