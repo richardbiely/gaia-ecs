@@ -1,4 +1,3 @@
-#include <functional>
 #ifdef _WIN32
 	#include <conio.h>
 #else
