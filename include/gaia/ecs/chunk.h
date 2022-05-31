@@ -198,15 +198,10 @@ namespace gaia {
 
 				const auto typeIndex = utils::type_info::index<TComponent>();
 
-				// Searching for a component that's not there! Programmer mistake.
-				GAIA_ASSERT(HasComponent_Internal(componentType, typeIndex));
-
-				const auto& componentLookupList = GetArchetypeComponentLookupList(header.owner, componentType);
-				const auto componentIdx = utils::get_index_if_unsafe(componentLookupList, [&](const auto& info) {
-					return info.typeIndex == typeIndex;
-				});
-
-				return {(const TComponent*)&data[componentLookupList[componentIdx].offset], GetItemCount()};
+				return {
+						(const TComponent*)get_data_ptr(componentType, typeIndex),
+						componentType == ComponentType::CT_Generic ? GetItemCount() : 1
+				};
 			}
 
 			template <typename T>
@@ -218,18 +213,10 @@ namespace gaia {
 
 				const auto typeIndex = utils::type_info::index<TComponent>();
 
-				// Searching for a component that's not there! Programmer mistake.
-				GAIA_ASSERT(HasComponent_Internal(componentType, typeIndex));
-
-				const auto& componentLookupList = GetArchetypeComponentLookupList(header.owner, componentType);
-				const auto componentIdx = utils::get_index_if_unsafe(componentLookupList, [&](const auto& info) {
-					return info.typeIndex == typeIndex;
-				});
-
-				// Update version number so we know RW access was used on chunk
-				header.UpdateWorldVersion(componentType, componentIdx);
-
-				return {(TComponent*)&data[componentLookupList[componentIdx].offset], GetItemCount()};
+				return {
+						(TComponent*)get_data_rw_ptr(componentType, typeIndex),
+						componentType == ComponentType::CT_Generic ? GetItemCount() : 1
+				};
 			}
 
 			[[nodiscard]] GAIA_FORCEINLINE uint8_t*
@@ -238,8 +225,23 @@ namespace gaia {
 				// Empty components shouldn't be used for writing!
 				GAIA_ASSERT(metaType->info.size != 0);
 
-				const auto typeIndex = metaType->typeIndex;
+				return get_data_rw_ptr(componentType, metaType->typeIndex);
+			}
 
+			[[nodiscard]] GAIA_FORCEINLINE const uint8_t*
+			get_data_ptr(ComponentType componentType, uint32_t typeIndex) const {
+				// Searching for a component that's not there! Programmer mistake.
+				GAIA_ASSERT(HasComponent_Internal(componentType, typeIndex));
+
+				const auto& componentLookupList = GetArchetypeComponentLookupList(header.owner, componentType);
+				const auto componentIdx = utils::get_index_if_unsafe(componentLookupList, [&](const auto& info) {
+					return info.typeIndex == typeIndex;
+				});
+
+				return (const uint8_t*)&data[componentLookupList[componentIdx].offset];
+			}
+
+			[[nodiscard]] GAIA_FORCEINLINE uint8_t* get_data_rw_ptr(ComponentType componentType, uint32_t typeIndex) {
 				// Searching for a component that's not there! Programmer mistake.
 				GAIA_ASSERT(HasComponent_Internal(componentType, typeIndex));
 
