@@ -207,8 +207,7 @@ TEST_CASE("CreateAndRemoveEntity - no components") {
 		const bool ok = de.gen() == e.gen() + 1;
 		REQUIRE(ok);
 		auto ch = w.GetEntityChunk(e);
-		const bool ok2 = ch == nullptr;
-		REQUIRE(ok2);
+		REQUIRE(ch == nullptr);
 	};
 
 	// 100,000 picked so we create enough entites that they overflow
@@ -240,8 +239,7 @@ TEST_CASE("CreateAndRemoveEntity - 1 component") {
 		const bool ok = de.gen() == e.gen() + 1;
 		REQUIRE(ok);
 		auto ch = w.GetEntityChunk(e);
-		const bool ok2 = ch == nullptr;
-		REQUIRE(ok2);
+		REQUIRE(ch == nullptr);
 	};
 
 	// 100,000 picked so we create enough entites that they overflow
@@ -335,27 +333,61 @@ TEST_CASE("EnableEntity") {
 	REQUIRE(cnt == N);
 }
 
-TEST_CASE("AddComponent") {
+TEST_CASE("AddComponent - generic") {
 	ecs::World w;
+
+	{
+		auto e = w.CreateEntity();
+		w.AddComponent<Position>(e);
+		w.AddComponent<Acceleration>(e);
+
+		REQUIRE(w.HasComponents<Position>(e));
+		REQUIRE(w.HasComponents<Acceleration>(e));
+		REQUIRE_FALSE(w.HasChunkComponents<Position>(e));
+		REQUIRE_FALSE(w.HasChunkComponents<Acceleration>(e));
+	}
+
+	{
+		auto e = w.CreateEntity();
+		w.AddComponent<Position>(e, {1, 2, 3});
+		w.AddComponent<Acceleration>(e, {4, 5, 6});
+
+		REQUIRE(w.HasComponents<Position>(e));
+		REQUIRE(w.HasComponents<Acceleration>(e));
+		REQUIRE_FALSE(w.HasChunkComponents<Position>(e));
+		REQUIRE_FALSE(w.HasChunkComponents<Acceleration>(e));
+
+		Position p;
+		w.GetComponent<Position>(e, p);
+		REQUIRE(p.x == 1);
+		REQUIRE(p.y == 2);
+		REQUIRE(p.z == 3);
+
+		Acceleration a;
+		w.GetComponent<Acceleration>(e, a);
+		REQUIRE(a.x == 4);
+		REQUIRE(a.y == 5);
+		REQUIRE(a.z == 6);
+	}
 
 	{
 		auto e = w.CreateEntity();
 		w.AddComponent<Position, Acceleration>(e);
 
-		const bool hasPosition = w.HasComponents<Position>(e);
-		REQUIRE(hasPosition);
-		const bool hasAcceleration = w.HasComponents<Acceleration>(e);
-		REQUIRE(hasAcceleration);
+		REQUIRE(w.HasComponents<Position>(e));
+		REQUIRE(w.HasComponents<Acceleration>(e));
+		REQUIRE_FALSE(w.HasChunkComponents<Position>(e));
+		REQUIRE_FALSE(w.HasChunkComponents<Acceleration>(e));
 	}
 
 	{
 		auto e = w.CreateEntity();
 		w.AddComponent<Position, Acceleration>(e, {1, 2, 3}, {4, 5, 6});
 
-		const bool hasPosition = w.HasComponents<Position>(e);
-		REQUIRE(hasPosition);
-		const bool hasAcceleration = w.HasComponents<Acceleration>(e);
-		REQUIRE(hasAcceleration);
+		REQUIRE(w.HasComponents<Position>(e));
+		REQUIRE(w.HasComponents<Acceleration>(e));
+		REQUIRE_FALSE(w.HasChunkComponents<Position>(e));
+		REQUIRE_FALSE(w.HasChunkComponents<Acceleration>(e));
 
 		Position p;
 		w.GetComponent<Position>(e, p);
@@ -386,10 +418,8 @@ TEST_CASE("AddComponent") {
 // 	w.AddComponent<Acceleration>(q, {1.f, 2.f, 3.f});
 
 // 	for (size_t i = 0; i < ents.size() - 1; ++i) {
-// 		const bool hasPosition = w.HasComponents<Position>(ents[i]);
-// 		REQUIRE(hasPosition);
-// 		const bool hasAcceleration = w.HasComponents<Acceleration>(ents[i]);
-// 		REQUIRE(hasAcceleration);
+// 		REQUIRE(w.HasComponents<Position>(ents[i]));
+// 		REQUIRE(w.HasComponents<Acceleration>(ents[i]));
 
 // 		Position p;
 // 		w.GetComponent<Position>(ents[i], p);
@@ -405,12 +435,82 @@ TEST_CASE("AddComponent") {
 // 	}
 
 // 	{
-// 		const bool hasPosition = w.HasComponents<Position>(ents[4]);
-// 		REQUIRE_FALSE(hasPosition);
-// 		const bool hasAcceleration = w.HasComponents<Acceleration>(ents[4]);
-// 		REQUIRE_FALSE(hasAcceleration);
+// 		REQUIRE_FALSE(w.HasComponents<Position>(ents[4]));
+// 		REQUIRE_FALSE(w.HasComponents<Acceleration>(ents[4]));
 // 	}
 // }
+
+TEST_CASE("AddComponent - chunk") {
+	{
+		ecs::World w;
+		auto e = w.CreateEntity();
+		w.AddChunkComponent<Position>(e);
+		w.AddChunkComponent<Acceleration>(e);
+
+		REQUIRE_FALSE(w.HasComponents<Position>(e));
+		REQUIRE_FALSE(w.HasComponents<Acceleration>(e));
+		REQUIRE(w.HasChunkComponents<Position>(e));
+		REQUIRE(w.HasChunkComponents<Acceleration>(e));
+	}
+
+	{
+		ecs::World w;
+		auto e = w.CreateEntity();
+		w.AddChunkComponent<Position>(e, {1, 2, 3});
+		w.AddChunkComponent<Acceleration>(e, {4, 5, 6});
+
+		REQUIRE(w.HasChunkComponents<Position>(e));
+		REQUIRE(w.HasChunkComponents<Acceleration>(e));
+		REQUIRE_FALSE(w.HasComponents<Position>(e));
+		REQUIRE_FALSE(w.HasComponents<Acceleration>(e));
+
+		Position p;
+		w.GetChunkComponent<Position>(e, p);
+		REQUIRE(p.x == 1);
+		REQUIRE(p.y == 2);
+		REQUIRE(p.z == 3);
+
+		Acceleration a;
+		w.GetChunkComponent<Acceleration>(e, a);
+		REQUIRE(a.x == 4);
+		REQUIRE(a.y == 5);
+		REQUIRE(a.z == 6);
+	}
+
+	{
+		ecs::World w;
+		auto e = w.CreateEntity();
+		w.AddChunkComponent<Position, Acceleration>(e);
+
+		REQUIRE_FALSE(w.HasComponents<Position>(e));
+		REQUIRE_FALSE(w.HasComponents<Acceleration>(e));
+		REQUIRE(w.HasChunkComponents<Position>(e));
+		REQUIRE(w.HasChunkComponents<Acceleration>(e));
+	}
+
+	{
+		ecs::World w;
+		auto e = w.CreateEntity();
+		w.AddChunkComponent<Position, Acceleration>(e, {1, 2, 3}, {4, 5, 6});
+
+		REQUIRE_FALSE(w.HasComponents<Position>(e));
+		REQUIRE_FALSE(w.HasComponents<Acceleration>(e));
+		REQUIRE(w.HasChunkComponents<Position>(e));
+		REQUIRE(w.HasChunkComponents<Acceleration>(e));
+
+		Position p;
+		w.GetChunkComponent<Position>(e, p);
+		REQUIRE(p.x == 1);
+		REQUIRE(p.y == 2);
+		REQUIRE(p.z == 3);
+
+		Acceleration a;
+		w.GetChunkComponent<Acceleration>(e, a);
+		REQUIRE(a.x == 4);
+		REQUIRE(a.y == 5);
+		REQUIRE(a.z == 6);
+	}
+}
 
 TEST_CASE("RemoveComponent - generic") {
 	ecs::World w;
