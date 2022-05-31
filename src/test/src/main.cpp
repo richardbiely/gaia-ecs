@@ -4,8 +4,6 @@
 	#if _MSV_VER <= 1916
 // warning C4100: 'XYZ': unreferenced formal parameter
 GAIA_MSVC_WARNING_DISABLE(4100)
-// warning C4307: 'XYZ': integral constant overflow
-GAIA_MSVC_WARNING_DISABLE(4307)
 	#endif
 #endif
 
