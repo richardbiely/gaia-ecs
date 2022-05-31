@@ -40,7 +40,6 @@
 
 #include <cstdlib>
 #include <cstring>
-#include <functional>
 #include <limits>
 #include <type_traits>
 #include <utility>
@@ -146,7 +145,6 @@ namespace robin_hood {
 		#else
 			#define ROBIN_HOOD_PRIVATE_DEFINITION_BITSCANFORWARD() _BitScanForward64
 		#endif
-		#include <intrin.h>
 		#pragma intrinsic(ROBIN_HOOD(BITSCANFORWARD))
 		#define ROBIN_HOOD_COUNT_TRAILING_ZEROES(x)                                                                        \
 			[](size_t mask) noexcept -> int {                                                                                \
