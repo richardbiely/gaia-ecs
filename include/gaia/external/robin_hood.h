@@ -131,9 +131,11 @@ namespace robin_hood {
 // exceptions
 #if !defined(__cpp_exceptions) && !defined(__EXCEPTIONS) && !defined(_CPPUNWIND)
 	#define ROBIN_HOOD_PRIVATE_DEFINITION_HAS_EXCEPTIONS() 0
+	#define ROBIN_HOOD_STD_OUT_OF_RANGE void
 #else
 	#include <stdexcept>
 	#define ROBIN_HOOD_PRIVATE_DEFINITION_HAS_EXCEPTIONS() 1
+	#define ROBIN_HOOD_STD_OUT_OF_RANGE std::out_of_range
 #endif
 
 // count leading/trailing bits
@@ -1873,7 +1875,7 @@ namespace robin_hood {
 				ROBIN_HOOD_TRACE(this)
 				auto kv = mKeyVals + findIdx(key);
 				if (kv == reinterpret_cast_no_cast_align_warning<Node*>(mInfo)) {
-					doThrow<std::out_of_range>("key not found");
+					doThrow<ROBIN_HOOD_STD_OUT_OF_RANGE>("key not found");
 				}
 				return kv->getSecond();
 			}
@@ -1886,7 +1888,7 @@ namespace robin_hood {
 				ROBIN_HOOD_TRACE(this)
 				auto kv = mKeyVals + findIdx(key);
 				if (kv == reinterpret_cast_no_cast_align_warning<Node*>(mInfo)) {
-					doThrow<std::out_of_range>("key not found");
+					doThrow<ROBIN_HOOD_STD_OUT_OF_RANGE>("key not found");
 				}
 				return kv->getSecond();
 			}

@@ -42,6 +42,19 @@ else()
   enable_cxx_compiler_flag_if_supported("-fno-math-errno")
 endif()
 
+if (MSVC)
+	# TODO: Enable this once it lands
+	# https://gitlab.kitware.com/cmake/cmake/-/merge_requests/4634
+	#set(CMAKE_CXX_EXCEPTIONS OFF)
+	#set(CMAKE_CXX_RTTI OFF)
+
+	# Turn off RTTI
+	string(REGEX REPLACE "/GR" "/GR-" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+  # Turn off exceptions (including in STL)
+	string(REGEX REPLACE "/EHsc" "/EHs-c-" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+	add_definitions(-D_HAS_EXCEPTIONS=0)
+endif()
+
 # Benchmark framework
 target_link_libraries(gaia_perf_iter PRIVATE benchmark::benchmark)
 if (MSVC)

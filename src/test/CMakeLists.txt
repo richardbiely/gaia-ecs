@@ -52,6 +52,19 @@ else()
   enable_cxx_compiler_flag_if_supported("-Werror")
 endif()
 
+if (MSVC)
+	# TODO: Enable this once it lands
+	# https://gitlab.kitware.com/cmake/cmake/-/merge_requests/4634
+	#set(CMAKE_CXX_EXCEPTIONS OFF)
+	#set(CMAKE_CXX_RTTI OFF)
+
+	# Turn off RTTI
+	string(REGEX REPLACE "/GR" "/GR-" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+  # Turn off exceptions (including in STL)
+	string(REGEX REPLACE "/EHsc" "/EHs-c-" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+	add_definitions(-D_HAS_EXCEPTIONS=0)
+endif()
+
 # Unit test framework
 target_link_libraries(gaia_test PRIVATE Catch2::Catch2)
 target_include_directories(gaia_test PRIVATE ${PROJECT_SOURCE_DIR}/include)
