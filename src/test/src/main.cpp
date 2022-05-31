@@ -454,25 +454,41 @@ TEST_CASE("AddComponent - chunk") {
 	{
 		ecs::World w;
 		auto e = w.CreateEntity();
-		w.AddChunkComponent<Position>(e, {1, 2, 3});
-		w.AddChunkComponent<Acceleration>(e, {4, 5, 6});
 
+		// Add Position chunk component
+		w.AddChunkComponent<Position>(e, {1, 2, 3});
+		REQUIRE(w.HasChunkComponents<Position>(e));
+		REQUIRE_FALSE(w.HasComponents<Position>(e));
+		{
+			Position p;
+			w.GetChunkComponent<Position>(e, p);
+			REQUIRE(p.x == 1);
+			REQUIRE(p.y == 2);
+			REQUIRE(p.z == 3);
+		}
+		// Add Acceleration chunk component.
+		// This moves "e" to a new archetype.
+		w.AddChunkComponent<Acceleration>(e, {4, 5, 6});
 		REQUIRE(w.HasChunkComponents<Position>(e));
 		REQUIRE(w.HasChunkComponents<Acceleration>(e));
 		REQUIRE_FALSE(w.HasComponents<Position>(e));
 		REQUIRE_FALSE(w.HasComponents<Acceleration>(e));
-
-		Position p;
-		w.GetChunkComponent<Position>(e, p);
-		REQUIRE(p.x == 1);
-		REQUIRE(p.y == 2);
-		REQUIRE(p.z == 3);
-
-		Acceleration a;
-		w.GetChunkComponent<Acceleration>(e, a);
-		REQUIRE(a.x == 4);
-		REQUIRE(a.y == 5);
-		REQUIRE(a.z == 6);
+		{
+			Acceleration a;
+			w.GetChunkComponent<Acceleration>(e, a);
+			REQUIRE(a.x == 4);
+			REQUIRE(a.y == 5);
+			REQUIRE(a.z == 6);
+		}
+		{
+			// Because "e" was moved to a new archetype nobody ever set the value.
+			// Therefore, it is garbage and won't match the original chunk.
+			Position p;
+			w.GetChunkComponent<Position>(e, p);
+			REQUIRE_FALSE(p.x == 1);
+			REQUIRE_FALSE(p.y == 2);
+			REQUIRE_FALSE(p.z == 3);
+		}
 	}
 
 	{
