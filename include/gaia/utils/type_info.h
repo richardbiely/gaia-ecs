@@ -90,7 +90,14 @@ namespace gaia {
 
 			template <typename T>
 			[[nodiscard]] static constexpr auto hash() noexcept {
+				#if GAIA_COMPILER_MSVC && _MSV_VER <= 1916
+				GAIA_MSVC_WARNING_PUSH()
+				GAIA_MSVC_WARNING_DISABLE(4307)
 				return hash_fnv1a_64(name<T>().data(), name<T>().length());
+				GAIA_MSVC_WARNING_PUSH()
+				#else
+				return hash_fnv1a_64(name<T>().data(), name<T>().length());
+				#endif
 			}
 		};
 
