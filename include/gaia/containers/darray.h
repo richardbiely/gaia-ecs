@@ -14,7 +14,7 @@ namespace gaia {
 } // namespace gaia
 #elif USE_VECTOR == 0
 
-	#include "impl/darray.h"
+	#include "impl/darray_impl.h"
 
 namespace gaia {
 	namespace containers {
