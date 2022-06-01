@@ -37,9 +37,9 @@
 #include "../containers/darray.h"
 #include "../containers/sarray_ext.h"
 #include "../utils/utility.h"
-#include "../utils/utils_containers.h"
+#include "../utils/containers.h"
 #if GAIA_ECS_CHUNK_ALLOCATOR_CLEAN_MEMORY_WITH_GARBAGE
-	#include "../utils/utils_mem.h"
+	#include "../utils/mem.h"
 #endif
 #include "common.h"
 

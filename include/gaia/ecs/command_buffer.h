@@ -4,7 +4,7 @@
 #include "../config/config.h"
 #include "../containers/map.h"
 #include "../containers/sarray_ext.h"
-#include "../utils/utils_mem.h"
+#include "../utils/mem.h"
 #include "archetype.h"
 #include "common.h"
 #include "component.h"

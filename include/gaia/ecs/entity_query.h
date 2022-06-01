@@ -5,7 +5,7 @@
 #include "../containers/darray.h"
 #include "../containers/sarray_ext.h"
 #include "../utils/utility.h"
-#include "../utils/utils_containers.h"
+#include "../utils/containers.h"
 #include "archetype.h"
 #include "common.h"
 #include "component.h"
