@@ -94,11 +94,11 @@ namespace gaia {
 		using common_diff_t = std::common_type_t<iterator_diff_t<It>...>;
 
 		template <class It>
-		constexpr typename iterator_diff_t<It> distance(It first, It last) {
+		constexpr iterator_diff_t<It> distance(It first, It last) {
 			if constexpr (detail::is_random_iter_v<It>)
 				return last - first;
 			else {
-				detail::iterator_diff_t<It> offset = 0;
+				iterator_diff_t<It> offset {};
 				while (first != last) {
 					++first;
 					++offset;
