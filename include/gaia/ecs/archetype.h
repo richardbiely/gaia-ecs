@@ -278,7 +278,7 @@ namespace gaia {
 
 				// No free space found anywhere. Let's create a new one.
 				auto* pChunk = AllocateChunk(*this);
-				pChunk->header.index = chunkArray.size();
+				pChunk->header.index = (uint32_t)chunkArray.size();
 				chunkArray.push_back(pChunk);
 				return pChunk;
 			}
