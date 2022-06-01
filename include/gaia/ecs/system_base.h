@@ -9,7 +9,7 @@
 #include "../containers/darray.h"
 #include "../containers/map.h"
 #include "../utils/type_info.h"
-#include "../utils/utils_containers.h"
+#include "../utils/containers.h"
 
 namespace gaia {
 	namespace ecs {
