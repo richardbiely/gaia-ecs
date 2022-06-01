@@ -1,7 +1,8 @@
 #pragma once
 #include <cstddef>
-#include <iterator>
 #include <utility>
+#include <initializer_list>
+#include "../../utils/iterator.h"
 
 namespace gaia {
 	namespace containers {
@@ -11,7 +12,7 @@ namespace gaia {
 		template <class T>
 		class darr {
 		public:
-			using iterator_category = std::random_access_iterator_tag;
+			using iterator_category = GAIA_UTIL(random_access_iterator_tag);
 			using value_type = T;
 			using reference = T&;
 			using const_reference = const T&;
@@ -30,7 +31,7 @@ namespace gaia {
 				friend class darr;
 
 			public:
-				using iterator_category = std::random_access_iterator_tag;
+				using iterator_category = GAIA_UTIL(random_access_iterator_tag);
 				using value_type = T;
 				using difference_type = std::ptrdiff_t;
 				using pointer = T*;
@@ -84,7 +85,7 @@ namespace gaia {
 				friend class darr;
 
 			public:
-				using iterator_category = std::random_access_iterator_tag;
+				using iterator_category = GAIA_UTIL(random_access_iterator_tag);
 				using value_type = T;
 				using difference_type = std::ptrdiff_t;
 				using pointer = T*;
@@ -150,14 +151,14 @@ namespace gaia {
 
 			template <class InputIt>
 			darr(InputIt first, InputIt last) noexcept {
-				const auto count = (size_type)std::distance(first, last);
+				const auto count = (size_type)GAIA_UTIL(distance)(first, last);
 				resize(count);
 				size_type i = 0;
 				for (auto it = first; it != last; ++it)
 					m_data[i++] = *it;
 			}
 
-			darr(std::initializer_list<T> init): darr(init.begin(), init.end()) {}
+			darr(std::initializer_list<T> il): darr(il.begin(), il.end()) {}
 
 			darr(const darr& other): darr(other.begin(), other.end()) {}
 
@@ -171,7 +172,17 @@ namespace gaia {
 				other.m_data = nullptr;
 			}
 
+			darr& operator=(std::initializer_list<T> il) {
+				auto it = il.begin();
+				for (; it != il.end(); ++it)
+					push_back(std::move(*it));
+
+				return *this;
+			}
+
 			darr& operator=(const darr& other) {
+				GAIA_ASSERT(std::addressof(other) != this);
+
 				resize(other.size());
 				for (size_type i = 0; i < other.size(); ++i)
 					m_data[i++] = other[i];
@@ -179,6 +190,8 @@ namespace gaia {
 			}
 
 			darr& operator=(darr&& other) noexcept {
+				GAIA_ASSERT(std::addressof(other) != this);
+
 				m_cnt = other.m_cnt;
 				m_cap = other.m_cap;
 				m_data = other.m_data;
@@ -285,7 +298,7 @@ namespace gaia {
 			iterator erase(iterator pos) {
 				GAIA_ASSERT(pos.m_ptr >= &m_data[0] && pos.m_ptr < &m_data[m_cap - 1]);
 
-				const auto idxStart = (size_type)std::distance(pos, begin());
+				const auto idxStart = (size_type)GAIA_UTIL(distance(pos, begin()));
 				for (size_type i = idxStart; i < size() - 1; ++i)
 					m_data[i] = m_data[i + 1];
 				--m_cnt;
@@ -295,7 +308,7 @@ namespace gaia {
 			const_iterator erase(const_iterator pos) {
 				GAIA_ASSERT(pos.m_ptr >= &m_data[0] && pos.m_ptr < &m_data[m_cap - 1]);
 
-				const auto idxStart = (size_type)std::distance(pos, begin());
+				const auto idxStart = (size_type)GAIA_UTIL(distance(pos, begin()));
 				for (size_type i = idxStart; i < size() - 1; ++i)
 					m_data[i] = m_data[i + 1];
 				--m_cnt;
