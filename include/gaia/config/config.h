@@ -22,6 +22,12 @@
 #define GAIA_ECS_CHUNK_ALLOCATOR 1
 //! If enabled, STL containers are going to be used by the framework.
 #define GAIA_USE_STL_CONTAINERS 0
+#define GAIA_USE_STL_COMPATIBLE_CONTAINERS 0
+#if GAIA_USE_STL_CONTAINERS || GAIA_USE_STL_COMPATIBLE_CONTAINERS
+	#define GAIA_UTIL(x) std::x
+#else
+	#define GAIA_UTIL(x) gaia::utils::x
+#endif
 
 //------------------------------------------------------------------------------
 // TODO features

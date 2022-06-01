@@ -1,6 +1,7 @@
 #pragma once
 #include <algorithm>
 #include <cstdint>
+#include "iterator.h"
 
 namespace gaia {
 	namespace utils {
@@ -27,12 +28,12 @@ namespace gaia {
 			if (it == arr.end())
 				return (uint32_t)BadIndex;
 
-			return (uint32_t)std::distance(arr.begin(), it);
+			return (uint32_t)GAIA_UTIL(distance(arr.begin(), it));
 		}
 
 		template <class C>
 		constexpr uint32_t get_index_unsafe(const C& arr, typename C::const_reference item) {
-			return (uint32_t)std::distance(arr.begin(), find(arr, item));
+			return (uint32_t)GAIA_UTIL(distance(arr.begin(), find(arr, item)));
 		}
 
 		template <class UnaryPredicate, class C>
@@ -41,12 +42,12 @@ namespace gaia {
 			if (it == arr.end())
 				return (uint32_t)BadIndex;
 
-			return (uint32_t)std::distance(arr.begin(), it);
+			return (uint32_t)GAIA_UTIL(distance(arr.begin(), it));
 		}
 
 		template <class UnaryPredicate, class C>
 		constexpr uint32_t get_index_if_unsafe(const C& arr, UnaryPredicate predicate) {
-			return (uint32_t)std::distance(arr.begin(), find_if(arr, predicate));
+			return (uint32_t)GAIA_UTIL(distance(arr.begin(), find_if(arr, predicate)));
 		}
 
 		template <class C>

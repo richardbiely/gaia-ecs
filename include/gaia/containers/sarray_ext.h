@@ -1,6 +1,7 @@
 #pragma once
 
-#if USE_VECTOR == 0
+// TODO: There is no quickly achievable std alternative so go with gaia container
+#if 1// USE_VECTOR == 0
 	#include "impl/sarray_ext_impl.h"
 
 namespace gaia {

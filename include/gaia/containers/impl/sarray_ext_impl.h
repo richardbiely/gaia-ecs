@@ -1,8 +1,8 @@
 #pragma once
-#include "gaia/config/config.h"
 #include <cstddef>
-#include <iterator>
 #include <utility>
+#include <type_traits>
+#include "../../utils/iterator.h"
 
 namespace gaia {
 	namespace containers {
@@ -12,7 +12,7 @@ namespace gaia {
 		template <class T, auto N>
 		class sarr_ext {
 		public:
-			using iterator_category = std::random_access_iterator_tag;
+			using iterator_category = GAIA_UTIL(random_access_iterator_tag);
 			using value_type = T;
 			using reference = T&;
 			using const_reference = const T&;
@@ -28,7 +28,7 @@ namespace gaia {
 		public:
 			class iterator {
 			public:
-				using iterator_category = std::random_access_iterator_tag;
+				using iterator_category = GAIA_UTIL(random_access_iterator_tag);
 				using value_type = T;
 				using difference_type = std::ptrdiff_t;
 				using pointer = T*;
@@ -81,7 +81,7 @@ namespace gaia {
 
 			class const_iterator {
 			public:
-				using iterator_category = std::random_access_iterator_tag;
+				using iterator_category = GAIA_UTIL(random_access_iterator_tag);
 				using value_type = T;
 				using difference_type = std::ptrdiff_t;
 				using pointer = T*;
