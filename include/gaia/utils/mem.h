@@ -4,21 +4,22 @@
 
 namespace gaia {
 	namespace utils {
-		/*
-		Align the number
-		\param num		number to align
-		\param alignment	where to align
-		\return			aligned number
+		/*!
+		Align a number to the requested byte alignment
+		\param num Number to align
+		\param alignment Requested alignment
+		\return Aligned number
 		*/
 		template <class T, class V>
 		constexpr T align(T num, V alignment) {
 			return alignment == 0 ? num : ((num + (alignment - 1)) / alignment) * alignment;
 		}
 
-		/*
-		Align the number to 'alignment' bytes
-		\param num		number to align
-		\return			aligned number
+		/*!
+		Align a number to the requested byte alignment
+		\tparam alignment Requested alignment in bytes
+		\param num Number to align
+		\return Aligned number
 		*/
 		template <size_t alignment, class T>
 		constexpr T align(T num) {

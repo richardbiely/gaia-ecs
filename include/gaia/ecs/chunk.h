@@ -4,7 +4,6 @@
 #include <type_traits>
 #include <utility>
 
-
 #include "../config/config.h"
 #include "../containers/sarray_ext.h"
 #include "../ecs/component.h"
@@ -198,8 +197,7 @@ namespace gaia {
 
 				return {
 						(const TComponent*)get_data_ptr(componentType, typeIndex),
-						componentType == ComponentType::CT_Generic ? GetItemCount() : 1
-				};
+						componentType == ComponentType::CT_Generic ? GetItemCount() : 1};
 			}
 
 			template <typename T>
@@ -213,8 +211,7 @@ namespace gaia {
 
 				return {
 						(TComponent*)get_data_rw_ptr(componentType, typeIndex),
-						componentType == ComponentType::CT_Generic ? GetItemCount() : 1
-				};
+						componentType == ComponentType::CT_Generic ? GetItemCount() : 1};
 			}
 
 			[[nodiscard]] GAIA_FORCEINLINE uint8_t*

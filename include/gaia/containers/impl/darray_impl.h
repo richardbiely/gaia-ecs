@@ -1,7 +1,8 @@
 #pragma once
 #include <cstddef>
-#include <utility>
 #include <initializer_list>
+#include <utility>
+
 #include "../../utils/iterator.h"
 
 namespace gaia {
