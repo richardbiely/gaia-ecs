@@ -347,15 +347,15 @@ w.AddChunkComponent<GridPosition>(e1, {1, 0}); // Both e1 and e2 share a common 
 ## Compiler
 Gaia-ECS requires a compiler compatible with C++17.<br/>
 Currently, all major compilers are supported:<br/>
-- MSVC 15 (MS Visual Studio 2017) and later<br/>
-- Clang 7 and later<br/>
-- GCC 7 and later<br/>
+- [MSVC](https://visualstudio.microsoft.com/) 15 (Visual Studio 2017) or later<br/>
+- [Clang](https://clang.llvm.org/) 7 or later<br/>
+- [GCC](https://www.gnu.org/software/gcc/) 7 or later<br/>
 
 More compilers might work but the above are guaranteed and [continuosly tested](https://github.com/richardbiely/gaia-ecs/actions/workflows/build.yml).<br/>
-ICC support is also [worked on](https://github.com/richardbiely/gaia-ecs/actions/workflows/icc.yml).
+[ICC](https://www.intel.com/content/www/us/en/developer/tools/oneapi/dpc-compiler.html#gs.2nftun) support is also [worked on](https://github.com/richardbiely/gaia-ecs/actions/workflows/icc.yml).
 
 ## Dependencies
-CMake version 3.12 or later is required to prepare the build. Other tools are officially not supported at the moment.
+[CMake](https://cmake.org) 3.12 or later is required to prepare the build. Other tools are officially not supported at the moment.
 
 Unit testing is handled via [Catch2 v2.x](https://github.com/catchorg/Catch2/tree/v2.x). It is ON by default and can be controlled via -DGAIA_BUILD_UNITTEST=ON/OFF.<br/>
 You can either install Catch2 on your machine manually or use -DGAIA_FIND_CATCH2_PACKAGE when generating your build files and have CMake download and prepare the dependency for you.
