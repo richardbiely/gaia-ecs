@@ -4,8 +4,8 @@
 #include <utility>
 
 #include "../utils/span.h"
-#include "reflection.h"
 #include "mem.h"
+#include "reflection.h"
 
 namespace gaia {
 	namespace utils {

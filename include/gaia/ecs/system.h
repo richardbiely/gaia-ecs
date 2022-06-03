@@ -1,8 +1,9 @@
 #pragma once
+#include <cinttypes>
+
 #include "command_buffer.h"
 #include "system_base.h"
 #include "world.h"
-#include <cinttypes>
 
 namespace gaia {
 	namespace ecs {

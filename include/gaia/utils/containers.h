@@ -1,6 +1,7 @@
 #pragma once
 #include <algorithm>
 #include <cstdint>
+
 #include "iterator.h"
 
 namespace gaia {

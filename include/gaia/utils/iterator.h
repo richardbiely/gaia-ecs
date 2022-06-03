@@ -5,8 +5,8 @@
 #if GAIA_USE_STL_COMPATIBLE_CONTAINERS
 	#include <iterator>
 #else
-#include <cstddef>
-#include <type_traits>
+	#include <cstddef>
+	#include <type_traits>
 
 namespace gaia {
 	namespace utils {
@@ -27,7 +27,6 @@ namespace gaia {
 					It, std::void_t<
 									typename It::iterator_category, typename It::value_type, typename It::difference_type,
 									typename It::pointer, typename It::reference>> {
-				// defined if It::* types exist
 				using iterator_category = typename It::iterator_category;
 				using value_type = typename It::value_type;
 				using difference_type = typename It::difference_type;
@@ -46,11 +45,11 @@ namespace gaia {
 
 			//! Iterator traits for pointers to non-object
 			template <class T>
-			struct iterator_traits_pointer_base<T, false> {}; 
+			struct iterator_traits_pointer_base<T, false> {};
 
 			//! Iterator traits for iterators
 			template <class It>
-			struct iterator_traits: iterator_traits_base<It> {}; 
+			struct iterator_traits: iterator_traits_base<It> {};
 
 			// Iterator traits for pointers
 			template <class T>
@@ -98,7 +97,7 @@ namespace gaia {
 			if constexpr (detail::is_random_iter_v<It>)
 				return last - first;
 			else {
-				iterator_diff_t<It> offset {};
+				iterator_diff_t<It> offset{};
 				while (first != last) {
 					++first;
 					++offset;

@@ -8,8 +8,8 @@
 #endif
 #include "../containers/darray.h"
 #include "../containers/map.h"
-#include "../utils/type_info.h"
 #include "../utils/containers.h"
+#include "../utils/type_info.h"
 
 namespace gaia {
 	namespace ecs {
