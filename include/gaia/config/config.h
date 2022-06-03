@@ -56,7 +56,7 @@
 #define GAIA_COMPILER_ICC 0
 #define GAIA_COMPILED_DETECTED 0
 
-#if defined(__clang__)
+#if !GAIA_COMPILED_DETECTED && (defined(__clang__))
 // Clang check is performed first as it might pretend to be MSVC or GCC by
 // defining their predefined macros.
 	#undef GAIA_COMPILER_CLANG
@@ -64,7 +64,8 @@
 	#undef GAIA_COMPILED_DETECTED
 	#define GAIA_COMPILED_DETECTED 1
 #endif
-#if !GAIA_COMPILED_DETECTED && (defined(__INTEL_COMPILER) || defined(__ICC) || defined(__ICL) || defined(__INTEL_LLVM_COMPILER))
+#if !GAIA_COMPILED_DETECTED &&                                                                                         \
+		(defined(__INTEL_COMPILER) || defined(__ICC) || defined(__ICL) || defined(__INTEL_LLVM_COMPILER))
 	#undef GAIA_COMPILER_ICC
 	#define GAIA_COMPILER_ICC 1
 	#undef GAIA_COMPILED_DETECTED
