@@ -2,7 +2,17 @@
 @cond TURN_OFF_DOXYGEN
 -->
 # gaia-ecs
-[![Build Status](https://github.com/richardbiely/gaia-ecs/workflows/build/badge.svg)](https://github.com/richardbiely/gaia-ecs/actions)
+[![Build Status][badge.actions]][actions]
+[![language][badge.language]][language]
+[![license][badge.license]][license]
+
+[badge.actions]: https://github.com/richardbiely/gaia-ecs/workflows/build/badge.svg
+[badge.language]: https://img.shields.io/badge/language-C%2B%2B17-yellow
+[badge.license]: https://img.shields.io/badge/license-MIT-blue
+
+[actions]: https://github.com/richardbiely/gaia-ecs/actions
+[language]: https://en.wikipedia.org/wiki/C%2B%2B17
+[license]: https://en.wikipedia.org/wiki/MIT_License
 
 Gaia-ECS is an entity component system framework. Some of its current features and highlights are:</br>
 * easy-to-use and safe API designed in such a way it tries to prevent you from using bad coding patterns
