@@ -92,10 +92,16 @@ namespace gaia {
 #if GAIA_COMPILER_MSVC && _MSV_VER <= 1916
 				GAIA_MSVC_WARNING_PUSH()
 				GAIA_MSVC_WARNING_DISABLE(4307)
-				return hash_fnv1a_64(name<T>().data(), name<T>().length());
-				GAIA_MSVC_WARNING_PUSH()
+#endif
+
+#if GAIA_ECS_HASH == GAIA_ECS_HASH_FNV1A
+				return hash_fnv1a_64(name<T>().data(), (uint32_t)name<T>().length());
 #else
-				return hash_fnv1a_64(name<T>().data(), name<T>().length());
+				return hash_murmur2a_64(name<T>().data(), (uint32_t)name<T>().length());
+#endif
+
+#if GAIA_COMPILER_MSVC && _MSV_VER <= 1916
+				GAIA_MSVC_WARNING_PUSH()
 #endif
 			}
 		};

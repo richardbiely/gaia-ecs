@@ -96,5 +96,78 @@ namespace gaia {
 			return hash;
 		}
 
+		//----------------------------------------------------------------------
+		// Murmur2A 64-bit hash
+		//----------------------------------------------------------------------
+
+		namespace detail {
+			namespace murmur2a {
+				constexpr uint64_t seed_64_const = 0xffffffffffffffc5ull;
+
+				constexpr uint64_t hash_murmur2a_64_ct(const char* const str, const uint32_t size, uint64_t seed) {
+					constexpr uint64_t prime = 0xc6a4a7935bd1e995ull;
+					constexpr uint32_t shift1 = 19;
+					constexpr uint32_t shift2 = 37;
+
+					const uint64_t* data = (const uint64_t*)str;
+					const uint64_t* end = data + (size / 8);
+					uint64_t hash = seed ^ (size * prime);
+
+					while (data != end) {
+						uint64_t word = *data++;
+						word *= prime;
+						word ^= word >> shift1;
+						word *= prime;
+						hash ^= word;
+						hash *= prime;
+					}
+
+					using data_shift_func_t = uint64_t (*)(uint64_t, const unsigned char*);
+					const data_shift_func_t data_shift_func[] = {
+							[](uint64_t h, const unsigned char* d) {
+								return h ^= ((uint64_t)d[0]);
+							},
+							[](uint64_t h, const unsigned char* d) {
+								return h ^= ((uint64_t)d[1]) << 8;
+							},
+							[](uint64_t h, const unsigned char* d) {
+								return h ^= ((uint64_t)d[2]) << 16;
+							},
+							[](uint64_t h, const unsigned char* d) {
+								return h ^= ((uint64_t)d[3]) << 24;
+							},
+							[](uint64_t h, const unsigned char* d) {
+								return h ^= ((uint64_t)d[4]) << 32;
+							},
+							[](uint64_t h, const unsigned char* d) {
+								return h ^= ((uint64_t)d[5]) << 40;
+							},
+							[](uint64_t h, const unsigned char* d) {
+								return h ^= ((uint64_t)d[6]) << 48;
+							}};
+
+					const unsigned char* byte_data = (const unsigned char*)data;
+					hash = data_shift_func[(size & 7) - 1](hash, byte_data);
+					hash ^= hash >> shift1;
+					hash *= prime;
+					hash ^= hash >> shift2;
+
+					return hash;
+				}
+			} // namespace murmur2a
+		} // namespace detail
+
+		constexpr uint64_t hash_murmur2a_64(const char* str) {
+			uint32_t size = 0;
+			while (str[size] != '\0')
+				++size;
+
+			return detail::murmur2a::hash_murmur2a_64_ct(str, size, detail::murmur2a::seed_64_const);
+		}
+
+		constexpr uint64_t hash_murmur2a_64(const char* str, uint32_t length) {
+			return detail::murmur2a::hash_murmur2a_64_ct(str, length, detail::murmur2a::seed_64_const);
+		}
+
 	} // namespace utils
 } // namespace gaia
