@@ -65,24 +65,35 @@ namespace gaia {
 		}
 
 		//----------------------------------------------------------------------
-		// Fowler-Noll-Vo hash
+		// Fnv1a 64-bit hash
 		//----------------------------------------------------------------------
 
-		// Fowler-Noll-Vo hash is a fast public-domain hash function good for
-		// checksums
+		namespace detail {
+			namespace fnv1a {
+				constexpr uint64_t val_64_const = 0xcbf29ce484222325;
+				constexpr uint64_t prime_64_const = 0x100000001b3;
+			} // namespace fnv1a
+		} // namespace detail
 
-		constexpr uint32_t val_32_const = 0x811c9dc5;
-		constexpr uint32_t prime_32_const = 0x1000193;
+		constexpr uint64_t hash_fnv1a_64(const char* const str) noexcept {
+			uint64_t hash = detail::fnv1a::val_64_const;
 
-		constexpr uint32_t hash_fnv1a_32(const char* const str, const uint32_t value = val_32_const) noexcept {
-			return (str[0] == '\0') ? value : hash_fnv1a_32(&str[1], (value ^ (uint32_t)(str[0])) * prime_32_const);
+			uint32_t i = 0;
+			while (str[i] != '\0') {
+				hash = (hash ^ uint64_t(str[i])) * detail::fnv1a::prime_64_const;
+				++i;
+			}
+
+			return hash;
 		}
 
-		constexpr uint64_t val_64_const = 0xcbf29ce484222325;
-		constexpr uint64_t prime_64_const = 0x100000001b3;
+		constexpr uint64_t hash_fnv1a_64(const char* const str, const uint32_t length) noexcept {
+			uint64_t hash = detail::fnv1a::val_64_const;
 
-		constexpr uint64_t hash_fnv1a_64(const char* const str, const uint64_t value = val_64_const) noexcept {
-			return (str[0] == '\0') ? value : hash_fnv1a_64(&str[1], (value ^ (uint64_t)(str[0])) * prime_64_const);
+			for (size_t i = 0; i < length; i++)
+				hash = (hash ^ uint64_t(str[i])) * detail::fnv1a::prime_64_const;
+
+			return hash;
 		}
 
 	} // namespace utils
