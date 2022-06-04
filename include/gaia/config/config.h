@@ -32,27 +32,29 @@
 //! If enabled, STL containers are going to be used by the framework.
 #define GAIA_USE_STL_CONTAINERS 0
 //! If enabled, gaia containers stay compatible with STL by sticking to STL iterators.
-#define GAIA_USE_STL_COMPATIBLE_CONTAINERS 0
+// TODO: FIXME: 0 won't work until all std utility functions are replaced with custom onces
 #if GAIA_USE_STL_CONTAINERS || GAIA_USE_STL_COMPATIBLE_CONTAINERS
-	#define GAIA_UTIL(x) std::x
-#else
-	#define GAIA_UTIL(x) gaia::utils::x
-#endif
+	#define GAIA_USE_STL_COMPATIBLE_CONTAINERS 1
+	#if GAIA_USE_STL_CONTAINERS || GAIA_USE_STL_COMPATIBLE_CONTAINERS
+		#define GAIA_UTIL(x) std::x
+	#else
+		#define GAIA_UTIL(x) gaia::utils::x
+	#endif
 
-//------------------------------------------------------------------------------
-// TODO features
-//------------------------------------------------------------------------------
+	//------------------------------------------------------------------------------
+	// TODO features
+	//------------------------------------------------------------------------------
 
-//! If enabled, profiler traces are inserted into generated code
-#define GAIA_PROFILER 0
-//! If enabled, archetype graph is used to speed up component adding and removal.
-//! NOTE: Not ready
-#define GAIA_ARCHETYPE_GRAPH 0
+	//! If enabled, profiler traces are inserted into generated code
+	#define GAIA_PROFILER 0
+	//! If enabled, archetype graph is used to speed up component adding and removal.
+	//! NOTE: Not ready
+	#define GAIA_ARCHETYPE_GRAPH 0
 
 //------------------------------------------------------------------------------
 // Debug features
 //------------------------------------------------------------------------------
 
-#define GAIA_ECS_CHUNK_ALLOCATOR_CLEAN_MEMORY_WITH_GARBAGE GAIA_DEBUG
-#define GAIA_ECS_VALIDATE_CHUNKS GAIA_DEBUG
-#define GAIA_ECS_VALIDATE_ENTITY_LIST GAIA_DEBUG
+	#define GAIA_ECS_CHUNK_ALLOCATOR_CLEAN_MEMORY_WITH_GARBAGE GAIA_DEBUG
+	#define GAIA_ECS_VALIDATE_CHUNKS GAIA_DEBUG
+	#define GAIA_ECS_VALIDATE_ENTITY_LIST GAIA_DEBUG

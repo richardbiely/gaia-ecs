@@ -42,6 +42,7 @@
 #include <cstring>
 #include <initializer_list>
 #include <limits>
+#include <tuple>
 #include <type_traits>
 #include <utility>
 #if __cplusplus >= 201703L

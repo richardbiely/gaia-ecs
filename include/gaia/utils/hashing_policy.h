@@ -126,18 +126,27 @@ namespace gaia {
 					switch (size & 7) {
 						case 7:
 							hash ^= ((uint64_t)byte_data[6]) << 48;
+							[[fallthrough]];
 						case 6:
 							hash ^= ((uint64_t)byte_data[5]) << 40;
+							[[fallthrough]];
 						case 5:
 							hash ^= ((uint64_t)byte_data[4]) << 32;
+							[[fallthrough]];
 						case 4:
 							hash ^= ((uint64_t)byte_data[3]) << 24;
+							[[fallthrough]];
 						case 3:
 							hash ^= ((uint64_t)byte_data[2]) << 16;
+							[[fallthrough]];
 						case 2:
 							hash ^= ((uint64_t)byte_data[1]) << 8;
+							[[fallthrough]];
 						case 1:
 							hash ^= ((uint64_t)byte_data[0]);
+							break;
+						default:
+							break;
 					}
 
 					hash ^= hash >> shift1;
