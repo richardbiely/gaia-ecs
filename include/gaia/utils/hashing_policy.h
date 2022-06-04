@@ -122,32 +122,24 @@ namespace gaia {
 						hash *= prime;
 					}
 
-					using data_shift_func_t = uint64_t (*)(uint64_t, const unsigned char*);
-					const data_shift_func_t data_shift_func[] = {
-							[](uint64_t h, const unsigned char* d) {
-								return h ^= ((uint64_t)d[0]);
-							},
-							[](uint64_t h, const unsigned char* d) {
-								return h ^= ((uint64_t)d[1]) << 8;
-							},
-							[](uint64_t h, const unsigned char* d) {
-								return h ^= ((uint64_t)d[2]) << 16;
-							},
-							[](uint64_t h, const unsigned char* d) {
-								return h ^= ((uint64_t)d[3]) << 24;
-							},
-							[](uint64_t h, const unsigned char* d) {
-								return h ^= ((uint64_t)d[4]) << 32;
-							},
-							[](uint64_t h, const unsigned char* d) {
-								return h ^= ((uint64_t)d[5]) << 40;
-							},
-							[](uint64_t h, const unsigned char* d) {
-								return h ^= ((uint64_t)d[6]) << 48;
-							}};
-
 					const unsigned char* byte_data = (const unsigned char*)data;
-					hash = data_shift_func[(size & 7) - 1](hash, byte_data);
+					switch (size & 7) {
+						case 7:
+							hash ^= ((uint64_t)byte_data[6]) << 48;
+						case 6:
+							hash ^= ((uint64_t)byte_data[5]) << 40;
+						case 5:
+							hash ^= ((uint64_t)byte_data[4]) << 32;
+						case 4:
+							hash ^= ((uint64_t)byte_data[3]) << 24;
+						case 3:
+							hash ^= ((uint64_t)byte_data[2]) << 16;
+						case 2:
+							hash ^= ((uint64_t)byte_data[1]) << 8;
+						case 1:
+							hash ^= ((uint64_t)byte_data[0]);
+					}
+
 					hash ^= hash >> shift1;
 					hash *= prime;
 					hash ^= hash >> shift2;
