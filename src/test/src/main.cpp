@@ -1,7 +1,7 @@
 #include <gaia.h>
 
 #if GAIA_COMPILER_MSVC
-	#if _MSV_VER <= 1916
+	#if _MSC_VER <= 1916
 // warning C4100: 'XYZ': unreferenced formal parameter
 GAIA_MSVC_WARNING_DISABLE(4100)
 	#endif
