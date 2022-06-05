@@ -145,26 +145,6 @@
 	#define GAIA_ASSERT(condition) assert(condition)
 #endif
 
-#if defined(GAIA_ECS_DIAGS)
-	#undef GAIA_ECS_DIAG_ARCHETYPES
-	#undef GAIA_ECS_DIAG_REGISTERED_TYPES
-	#undef GAIA_ECS_DIAG_DELETED_ENTITIES
-
-	#define GAIA_ECS_DIAG_ARCHETYPES 1
-	#define GAIA_ECS_DIAG_REGISTERED_TYPES 1
-	#define GAIA_ECS_DIAG_DELETED_ENTITIES 1
-#else
-	#if !defined(GAIA_ECS_DIAG_ARCHETYPES)
-		#define GAIA_ECS_DIAG_ARCHETYPES 0
-	#endif
-	#if !defined(GAIA_ECS_DIAG_REGISTERED_TYPES)
-		#define GAIA_ECS_DIAG_REGISTERED_TYPES 0
-	#endif
-	#if !defined(GAIA_ECS_DIAG_DELETED_ENTITIES)
-		#define GAIA_ECS_DIAG_DELETED_ENTITIES 0
-	#endif
-#endif
-
 //------------------------------------------------------------------------------
 // Warning-related macros and settings
 // We always set warnings as errors and disable ones we don't care about.
