@@ -1740,7 +1740,7 @@ namespace gaia {
 								"Archetype ID:%u, "
 								"lookupHash:%016" PRIx64 ", "
 								"mask:%016" PRIx64 "/%016" PRIx64 ", "
-								"chunks:%u, data size:%u B (%u/%u), "
+								"chunks:%u, data size:%3u B (%u/%u), "
 								"entities:%u/%u",
 								archetype->id, archetype->lookupHash, archetype->matcherHash[ComponentType::CT_Generic],
 								archetype->matcherHash[ComponentType::CT_Chunk], (uint32_t)archetype->chunks.size(),
