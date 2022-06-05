@@ -1881,9 +1881,9 @@ namespace gaia {
 				ChunkAllocatorStats memstats;
 				m_chunkAllocator.GetStats(memstats);
 				LOG_N("ChunkAllocator stats");
-				LOG_N("  Allocated: %016" PRIu64 " B", memstats.AllocatedMemory);
-				LOG_N("  Used: %016" PRIu64 " B", memstats.AllocatedMemory - memstats.UsedMemory);
-				LOG_N("  Overhead: %016" PRIu64 " B", memstats.UsedMemory);
+				LOG_N("  Allocated: %" PRIu64 " B", memstats.AllocatedMemory);
+				LOG_N("  Used: %" PRIu64 " B", memstats.AllocatedMemory - memstats.UsedMemory);
+				LOG_N("  Overhead: %" PRIu64 " B", memstats.UsedMemory);
 				LOG_N("  Utilization: %.1f%%", 100.0 * ((double)memstats.UsedMemory / (double)memstats.AllocatedMemory));
 				LOG_N("  Pages: %u", memstats.NumPages);
 				LOG_N("  Free pages: %u", memstats.NumFreePages);
