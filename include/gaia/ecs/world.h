@@ -1739,10 +1739,9 @@ namespace gaia {
 						LOG_N(
 								"Archetype ID:%u, "
 								"lookupHash:%016" PRIx64 ", "
-								"matcherHash Generic:%016" PRIx64 ", "
-								"matcherHash Chunk:%016" PRIx64 ", "
-								"chunks:%u, data size:%u B (%u + %u), "
-								"entities:%u (max-per-chunk:%u)",
+								"mask:%016" PRIx64 "/%016" PRIx64 ", "
+								"chunks:%u, data size:%u B (%u/%u), "
+								"entities:%u/%u",
 								archetype->id, archetype->lookupHash, archetype->matcherHash[ComponentType::CT_Generic],
 								archetype->matcherHash[ComponentType::CT_Chunk], (uint32_t)archetype->chunks.size(),
 								genericComponentsSize + chunkComponentsSize, genericComponentsSize, chunkComponentsSize, it->second,
@@ -1750,7 +1749,7 @@ namespace gaia {
 
 						auto logComponentInfo = [](const ComponentMetaData* metaType) {
 							LOG_N(
-									"    (%p) lookupHash:%016" PRIx64 ", matcherHash:%016" PRIx64 ", size:%3u B, align:%3u B, %.*s",
+									"    (%p) lookupHash:%016" PRIx64 ", mask:%016" PRIx64 ", size:%3u B, align:%3u B, %.*s",
 									(void*)metaType, metaType->lookupHash, metaType->matcherHash, metaType->info.size,
 									metaType->info.alig, (uint32_t)metaType->name.length(), metaType->name.data());
 						};

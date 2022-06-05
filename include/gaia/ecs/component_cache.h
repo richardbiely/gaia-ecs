@@ -102,7 +102,7 @@ namespace gaia {
 				for (const auto& pair: m_types) {
 					const auto* type = pair.second;
 					LOG_N(
-							"  %-16.*s (%p) --> index:%010u, lookupHash:%016" PRIx64 ", matcherHash:%016" PRIx64 "",
+							"  %-16.*s (%p) --> index:%010u, lookupHash:%016" PRIx64 ", mask:%016" PRIx64 "",
 							(uint32_t)type->name.length(), type->name.data(), (void*)type, type->typeIndex, type->lookupHash,
 							type->matcherHash);
 				}
@@ -125,7 +125,7 @@ namespace gaia {
 								continue;
 
 							LOG_N(
-									"--> (%p) lookupHash:%016" PRIx64 ", matcherHash:%016" PRIx64 ", index:%010u, %.*s", (void*)type,
+									"--> (%p) lookupHash:%016" PRIx64 ", mask:%016" PRIx64 ", index:%010u, %.*s", (void*)type,
 									type->lookupHash, type->matcherHash, type->typeIndex, (uint32_t)type->name.length(),
 									type->name.data());
 						}
