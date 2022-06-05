@@ -102,9 +102,8 @@ namespace gaia {
 				for (const auto& pair: m_types) {
 					const auto* type = pair.second;
 					LOG_N(
-							"  %-16.*s (%p) --> index:%010u, lookupHash:%016" PRIx64 ", mask:%016" PRIx64 "",
-							(uint32_t)type->name.length(), type->name.data(), (void*)type, type->typeIndex, type->lookupHash,
-							type->matcherHash);
+							"  (%p) index:%010u, lookupHash:%016" PRIx64 ", mask:%016" PRIx64 ", %.*s", (void*)type, type->typeIndex,
+							type->lookupHash, type->matcherHash, (uint32_t)type->name.length(), type->name.data());
 				}
 
 				using DuplicateMap = containers::map<uint64_t, containers::darray<const ComponentMetaData*>>;
