@@ -269,7 +269,7 @@ public:
 		// Drop all previous collision records
 		m_colliding.clear();
 
-		GetWorld().ForEachChunk(m_q, [&](ecs::Chunk& chunk) {
+		GetWorld().ForEach(m_q, [&](ecs::Chunk& chunk) {
 			auto ent = chunk.View<ecs::Entity>();
 			auto vel = chunk.View<Velocity>();
 			auto pos = chunk.View<Position>();

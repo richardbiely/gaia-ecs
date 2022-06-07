@@ -176,13 +176,13 @@ w.ForEach(q, [&](Position& p, const Velocity& v) {
 ```
 
 ## Iteration over chunks
-ForEachChunk gives you more power than ForEach as it exposes to you the underlying chunk in which your data is contained.<br/>
+Iteration over chunk gives you more power as it exposes to you the underlying chunk in which your data is contained.<br/>
 That means you can perform more kinds of operations, and it also opens doors for new kinds of optimizations.
 ```cpp
 ecs::EntityQuery q;
 q.All<Position,Velocity>();
 
-w.ForEachChunk(q, [](ecs::Chunk& ch) {
+w.ForEach(q, [](ecs::Chunk& ch) {
   auto p = ch.ViewRW<Position>(); // read-write access to Position
   auto v = ch.View<Velocity>(); // read-only access to Velocity
 
@@ -197,7 +197,7 @@ w.ForEachChunk(q, [](ecs::Chunk& ch) {
 
 I need to make a small but important note here. Analyzing the output of different compilers I quickly realized if you want your code vectorized for sure you need to be very clear and write the loop as a lambda or kernel if you will. It is quite surprising to see this but even with optimizations on and "fast-math"-like switches enabled some compilers simply will not vectorize the loop otherwise. Microsoft compilers are particularly sensitive in this regard. In the years to come maybe this gets better but for now, keep it in mind or use a good optimizing compiler such as Clang.
 ```cpp
-w.ForEachChunk(q, [](ecs::Chunk& ch) {
+w.ForEach(q, [](ecs::Chunk& ch) {
   auto vp = ch.ViewRW<Position>(); // read-write access to Position
   auto vv = ch.View<Velocity>(); // read-only access to Velocity
 
@@ -277,7 +277,7 @@ struct VelocitySoA {
   static constexpr auto Layout = utils::DataLayout::SoA;
 };
 ...
-w.ForEachChunk(ecs::EntityQuery().All<PositionSoA,VelocitySoA>, [](ecs::Chunk& ch) {
+w.ForEach(ecs::EntityQuery().All<PositionSoA,VelocitySoA>, [](ecs::Chunk& ch) {
   auto vp = ch.ViewRW<PositionSoA>(); // read-write access to PositionSoA
   auto vv = ch.View<VelocitySoA>(); // read-only access to VelocitySoA
 

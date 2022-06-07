@@ -1,5 +1,5 @@
-#include <gaia.h>
 #include <benchmark/benchmark.h>
+#include <gaia.h>
 
 #if GAIA_ARCH != GAIA_ARCH_ARM
 	#include <immintrin.h>
@@ -251,7 +251,7 @@ void BM_Game_ECS_WithSystems_ForEachChunk(benchmark::State& state) {
 			m_q.All<Position, Velocity>();
 		}
 		void OnUpdate() override {
-			GetWorld().ForEachChunk(m_q, [](ecs::Chunk& ch) {
+			GetWorld().ForEach(m_q, [](ecs::Chunk& ch) {
 				auto p = ch.ViewRW<Position>();
 				auto v = ch.View<Velocity>();
 
@@ -274,7 +274,7 @@ void BM_Game_ECS_WithSystems_ForEachChunk(benchmark::State& state) {
 			m_q.All<Position, Velocity>();
 		}
 		void OnUpdate() override {
-			GetWorld().ForEachChunk(m_q, [](ecs::Chunk& ch) {
+			GetWorld().ForEach(m_q, [](ecs::Chunk& ch) {
 				auto p = ch.ViewRW<Position>();
 				auto v = ch.ViewRW<Velocity>();
 
@@ -298,7 +298,7 @@ void BM_Game_ECS_WithSystems_ForEachChunk(benchmark::State& state) {
 		}
 
 		void OnUpdate() override {
-			GetWorld().ForEachChunk(m_q, [](ecs::Chunk& ch) {
+			GetWorld().ForEach(m_q, [](ecs::Chunk& ch) {
 				auto v = ch.ViewRW<Velocity>();
 
 				[&](Velocity* GAIA_RESTRICT v, const uint32_t size) {
@@ -335,7 +335,7 @@ void BM_Game_ECS_WithSystems_ForEachChunk_SoA(benchmark::State& state) {
 			m_q.All<PositionSoA, VelocitySoA>();
 		}
 		void OnUpdate() override {
-			GetWorld().ForEachChunk(m_q, [](ecs::Chunk& ch) {
+			GetWorld().ForEach(m_q, [](ecs::Chunk& ch) {
 				auto p = ch.ViewRW<PositionSoA>();
 				auto v = ch.View<VelocitySoA>();
 
@@ -380,7 +380,7 @@ void BM_Game_ECS_WithSystems_ForEachChunk_SoA(benchmark::State& state) {
 			m_q.All<PositionSoA, VelocitySoA>();
 		}
 		void OnUpdate() override {
-			GetWorld().ForEachChunk(m_q, [](ecs::Chunk& ch) {
+			GetWorld().ForEach(m_q, [](ecs::Chunk& ch) {
 				auto p = ch.ViewRW<PositionSoA>();
 				auto v = ch.ViewRW<VelocitySoA>();
 
@@ -423,7 +423,7 @@ void BM_Game_ECS_WithSystems_ForEachChunk_SoA(benchmark::State& state) {
 		}
 
 		void OnUpdate() override {
-			GetWorld().ForEachChunk(m_q, [](ecs::Chunk& ch) {
+			GetWorld().ForEach(m_q, [](ecs::Chunk& ch) {
 				auto v = ch.ViewRW<VelocitySoA>();
 				auto vvy = v.set<1>();
 
@@ -518,7 +518,7 @@ void BM_Game_ECS_WithSystems_ForEachChunk_SoA_ManualSIMD(benchmark::State& state
 			m_q.All<PositionSoA, VelocitySoA>();
 		}
 		void OnUpdate() override {
-			GetWorld().ForEachChunk(m_q, [](ecs::Chunk& ch) {
+			GetWorld().ForEach(m_q, [](ecs::Chunk& ch) {
 				auto p = ch.ViewRW<PositionSoA>();
 				auto v = ch.View<VelocitySoA>();
 
@@ -580,7 +580,7 @@ void BM_Game_ECS_WithSystems_ForEachChunk_SoA_ManualSIMD(benchmark::State& state
 			m_q.All<PositionSoA, VelocitySoA>();
 		}
 		void OnUpdate() override {
-			GetWorld().ForEachChunk(m_q, [](ecs::Chunk& ch) {
+			GetWorld().ForEach(m_q, [](ecs::Chunk& ch) {
 				auto p = ch.ViewRW<PositionSoA>();
 				auto v = ch.ViewRW<VelocitySoA>();
 
@@ -628,7 +628,7 @@ void BM_Game_ECS_WithSystems_ForEachChunk_SoA_ManualSIMD(benchmark::State& state
 		}
 
 		void OnUpdate() override {
-			GetWorld().ForEachChunk(m_q, [](ecs::Chunk& ch) {
+			GetWorld().ForEach(m_q, [](ecs::Chunk& ch) {
 				auto v = ch.ViewRW<VelocitySoA>();
 
 				auto vvy = v.set<1>();
