@@ -1,5 +1,6 @@
 #pragma once
 #include <cinttypes>
+#include <type_traits>
 
 #include "../config/config.h"
 #include "../containers/map.h"
@@ -1631,39 +1632,38 @@ namespace gaia {
 		public:
 			/*!
 			Iterates over all chunks satisfying conditions set by \param query and calls \param func for all of them.
-			Exposing chunks this version of iteration gives users the most control over have data is processed.
-			\warning This version makes it possible to perform optimizations otherwise not possible with other methods
-							 of iteration. On the other hand it is more verbose and takes more lines of code when used.
-			*/
-			template <typename TFunc>
-			void ForEachChunk(EntityQuery& query, TFunc&& func) {
-				ForEachChunkExecutionContext<TFunc>{(World&)*this, query, std::forward<TFunc>(func)};
-			}
-
-			/*!
-			Iterates over all chunks satisfying conditions set by \param query and calls \param func for all of them.
-			\warning Performance-wise it has less potential than ForEachChunk. However, it is easier to use and unless
-							 some specific optimizations are necessary is the preffered way of iterating over data.
+			\warning Iterating using ecs::Chunk makes it possible to perform optimizations otherwise not possible with
+							 other methods of iteration as it exposes the chunk itself. On the other hand, it is more verbose
+							 and takes more lines of code when used.
 			*/
 			template <typename TFunc>
 			void ForEach(EntityQuery& query, TFunc&& func) {
-				ForEachExecutionContext_External<TFunc>{(World&)*this, query, std::forward<TFunc>(func)};
+				if constexpr (std::is_invocable<TFunc, Chunk&>::value)
+					ForEachChunkExecutionContext<TFunc>{(World&)*this, query, std::forward<TFunc>(func)};
+				else
+					ForEachExecutionContext_External<TFunc>{(World&)*this, query, std::forward<TFunc>(func)};
 			}
 
 			/*!
 			Iterates over all chunks satisfying conditions set by \param query and calls \param func for all of them.
-			\warning Performance-wise it has less potential than ForEachChunk. However, it is easier to use and unless
-							 some specific optimizations are necessary is the preffered way of iterating over data.
+			\warning Iterating using ecs::Chunk makes it possible to perform optimizations otherwise not possible with
+							 other methods of iteration as it exposes the chunk itself. On the other hand, it is more verbose
+							 and takes more lines of code when used.
 			*/
 			template <typename TFunc>
 			void ForEach(EntityQuery&& query, TFunc&& func) {
-				ForEachExecutionContext_Internal<TFunc>{(World&)*this, std::move(query), std::forward<TFunc>(func)};
+				if constexpr (std::is_invocable<TFunc, Chunk&>::value)
+					ForEachChunkExecutionContext<TFunc>{
+							(World&)*this, std::forward<EntityQuery>(query), std::forward<TFunc>(func)};
+				else
+					ForEachExecutionContext_Internal<TFunc>{
+							(World&)*this, std::forward<EntityQuery>(query), std::forward<TFunc>(func)};
 			}
 
 			/*!
 			Iterates over all chunks satisfying conditions set by \param func and calls \param func for all of them.
 			EntityQuery instance is generated internally from the input arguments of \param func.
-			\warning Performance-wise it has less potential than ForEachChunk. However, it is easier to use and unless
+			\warning Performance-wise it has less potential than ForEach. However, it is easier to use and unless
 							 some specific optimizations are necessary is the preffered way of iterating over data.
 			*/
 			template <typename TFunc>

@@ -23,10 +23,9 @@ namespace gaia {
 		/*!
 		Buffer for deferred execution of some operations on entities.
 
-		Adding and removing components and entities inside World::ForEach or
-		World::ForEachChunk can result in changes of archetypes or chunk structure.
-		This would lead to undefined behavior. Therefore, such operations have to be
-		executed after the loop is done.
+		Adding and removing components and entities inside World::ForEach or can result
+		in changes of archetypes or chunk structure. This would lead to undefined behavior.
+		Therefore, such operations have to be executed after the loop is done.
 		*/
 		class CommandBuffer final {
 			enum CommandBufferCmd : uint8_t {
