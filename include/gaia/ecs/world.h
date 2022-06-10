@@ -204,8 +204,8 @@ namespace gaia {
 				// matter the order in which components are provided Bubble sort is
 				// okay. We're dealing with at most MAX_COMPONENTS_PER_ARCHETYPE items.
 				// TODO: Replace with a sorting network
-				std::sort(genericTypes.begin(), genericTypes.end(), std::less<const ComponentMetaData*>());
-				std::sort(chunkTypes.begin(), chunkTypes.end(), std::less<const ComponentMetaData*>());
+				util::sort(genericTypes.begin(), genericTypes.end(), std::less<const ComponentMetaData*>());
+				util::sort(chunkTypes.begin(), chunkTypes.end(), std::less<const ComponentMetaData*>());
 
 				const auto genericHash = CalculateLookupHash(genericTypes);
 				const auto chunkHash = CalculateLookupHash(chunkTypes);
@@ -280,8 +280,8 @@ namespace gaia {
 				// matter the order in which components are provided Bubble sort is
 				// okay. We're dealing with at most MAX_COMPONENTS_PER_ARCHETYPE items.
 				// TODO: Replace with a sorting network
-				std::sort(genericTypes.begin(), genericTypes.end(), std::less<const ComponentMetaData*>());
-				std::sort(chunkTypes.begin(), chunkTypes.end(), std::less<const ComponentMetaData*>());
+				utils::sort(genericTypes, utils::is_smaller<const ComponentMetaData*>());
+				utils::sort(chunkTypes, utils::is_smaller<const ComponentMetaData*>());
 
 				// Calculate hash for our combination of components
 				const auto genericHash = CalculateLookupHash(genericTypes);
