@@ -149,19 +149,33 @@ namespace gaia {
 		}
 
 		//----------------------------------------------------------------------
-		// Compile-time sort
+		// Sorting
 		//----------------------------------------------------------------------
 
-		namespace detail {
-			template <typename T>
-			constexpr void swap_if_less(T& lhs, T& rhs) noexcept {
-				T t = lhs < rhs ? std::move(lhs) : std::move(rhs);
-				rhs = lhs < rhs ? std::move(rhs) : std::move(lhs);
-				lhs = std::move(t);
+		template <typename T>
+		struct is_smaller {
+			constexpr bool operator()(const T& lhs, const T& rhs) const {
+				return lhs < rhs;
 			}
+		};
 
-			template <typename Array>
-			constexpr void comb_sort_impl(Array& array_) noexcept {
+		template <typename T>
+		struct is_greater {
+			constexpr bool operator()(const T& lhs, const T& rhs) const {
+				return lhs > rhs;
+			}
+		};
+
+		template <typename T, typename TFunc>
+		constexpr void swap_if(T& lhs, T& rhs, TFunc func) noexcept {
+			T t = func(lhs, rhs) ? std::move(lhs) : std::move(rhs);
+			rhs = func(lhs, rhs) ? std::move(rhs) : std::move(lhs);
+			lhs = std::move(t);
+		};
+
+		namespace detail {
+			template <typename Array, typename TSortFunc>
+			constexpr void comb_sort_impl(Array& array_, TSortFunc func) noexcept {
 				using size_type = typename Array::size_type;
 				size_type gap = array_.size();
 				bool swapped = false;
@@ -171,7 +185,7 @@ namespace gaia {
 					}
 					swapped = false;
 					for (size_type i = size_type{0}; gap + i < static_cast<size_type>(array_.size()); ++i) {
-						if (array_[i] > array_[i + gap]) {
+						if (func(array_[i], array_[i + gap])) {
 							auto swap = array_[i];
 							array_[i] = array_[i + gap];
 							array_[i + gap] = swap;
@@ -184,110 +198,225 @@ namespace gaia {
 
 		//! Compile-time sort.
 		//! Implements a sorting network for \tparam N up to 8
-		template <typename T, std::size_t N>
-		constexpr void sort(containers::sarray<T, N>& arr) noexcept {
-			using detail::swap_if_less;
-			if constexpr (N == 1) {
+		template <typename Container, typename TSortFunc>
+		constexpr void sort_ct(Container& arr, TSortFunc func) noexcept {
+			if constexpr (Container::extent == 1) {
 				return;
-			} else if constexpr (N == 2) {
-				swap_if_less(arr[0], arr[1]);
-			} else if constexpr (N == 3) {
-				swap_if_less(arr[1], arr[2]);
-				swap_if_less(arr[0], arr[2]);
-				swap_if_less(arr[0], arr[1]);
-			} else if constexpr (N == 4) {
-				swap_if_less(arr[0], arr[1]);
-				swap_if_less(arr[2], arr[3]);
+			} else if constexpr (Container::extent == 2) {
+				swap_if(arr[0], arr[1], func);
+			} else if constexpr (Container::extent == 3) {
+				swap_if(arr[1], arr[2], func);
+				swap_if(arr[0], arr[2], func);
+				swap_if(arr[0], arr[1], func);
+			} else if constexpr (Container::extent == 4) {
+				swap_if(arr[0], arr[1], func);
+				swap_if(arr[2], arr[3], func);
 
-				swap_if_less(arr[0], arr[2]);
-				swap_if_less(arr[1], arr[3]);
+				swap_if(arr[0], arr[2], func);
+				swap_if(arr[1], arr[3], func);
 
-				swap_if_less(arr[1], arr[2]);
-			} else if constexpr (N == 5) {
-				swap_if_less(arr[0], arr[1]);
-				swap_if_less(arr[3], arr[4]);
+				swap_if(arr[1], arr[2], func);
+			} else if constexpr (Container::extent == 5) {
+				swap_if(arr[0], arr[1], func);
+				swap_if(arr[3], arr[4], func);
 
-				swap_if_less(arr[2], arr[4]);
+				swap_if(arr[2], arr[4], func);
 
-				swap_if_less(arr[2], arr[3]);
-				swap_if_less(arr[1], arr[4]);
+				swap_if(arr[2], arr[3], func);
+				swap_if(arr[1], arr[4], func);
 
-				swap_if_less(arr[0], arr[3]);
+				swap_if(arr[0], arr[3], func);
 
-				swap_if_less(arr[0], arr[2]);
-				swap_if_less(arr[1], arr[3]);
+				swap_if(arr[0], arr[2], func);
+				swap_if(arr[1], arr[3], func);
 
-				swap_if_less(arr[1], arr[2]);
-			} else if constexpr (N == 6) {
-				swap_if_less(arr[1], arr[2]);
-				swap_if_less(arr[4], arr[5]);
+				swap_if(arr[1], arr[2], func);
+			} else if constexpr (Container::extent == 6) {
+				swap_if(arr[1], arr[2], func);
+				swap_if(arr[4], arr[5], func);
 
-				swap_if_less(arr[0], arr[2]);
-				swap_if_less(arr[3], arr[5]);
+				swap_if(arr[0], arr[2], func);
+				swap_if(arr[3], arr[5], func);
 
-				swap_if_less(arr[0], arr[1]);
-				swap_if_less(arr[3], arr[4]);
-				swap_if_less(arr[2], arr[5]);
+				swap_if(arr[0], arr[1], func);
+				swap_if(arr[3], arr[4], func);
+				swap_if(arr[2], arr[5], func);
 
-				swap_if_less(arr[0], arr[3]);
-				swap_if_less(arr[1], arr[4]);
+				swap_if(arr[0], arr[3], func);
+				swap_if(arr[1], arr[4], func);
 
-				swap_if_less(arr[2], arr[4]);
-				swap_if_less(arr[1], arr[3]);
+				swap_if(arr[2], arr[4], func);
+				swap_if(arr[1], arr[3], func);
 
-				swap_if_less(arr[2], arr[3]);
-			} else if constexpr (N == 7) {
-				swap_if_less(arr[1], arr[2]);
-				swap_if_less(arr[3], arr[4]);
-				swap_if_less(arr[5], arr[6]);
+				swap_if(arr[2], arr[3], func);
+			} else if constexpr (Container::extent == 7) {
+				swap_if(arr[1], arr[2], func);
+				swap_if(arr[3], arr[4], func);
+				swap_if(arr[5], arr[6], func);
 
-				swap_if_less(arr[0], arr[2]);
-				swap_if_less(arr[3], arr[5]);
-				swap_if_less(arr[4], arr[6]);
+				swap_if(arr[0], arr[2], func);
+				swap_if(arr[3], arr[5], func);
+				swap_if(arr[4], arr[6], func);
 
-				swap_if_less(arr[0], arr[1]);
-				swap_if_less(arr[4], arr[5]);
-				swap_if_less(arr[2], arr[6]);
+				swap_if(arr[0], arr[1], func);
+				swap_if(arr[4], arr[5], func);
+				swap_if(arr[2], arr[6], func);
 
-				swap_if_less(arr[0], arr[4]);
-				swap_if_less(arr[1], arr[5]);
+				swap_if(arr[0], arr[4], func);
+				swap_if(arr[1], arr[5], func);
 
-				swap_if_less(arr[0], arr[3]);
-				swap_if_less(arr[2], arr[5]);
+				swap_if(arr[0], arr[3], func);
+				swap_if(arr[2], arr[5], func);
 
-				swap_if_less(arr[1], arr[3]);
-				swap_if_less(arr[2], arr[4]);
+				swap_if(arr[1], arr[3], func);
+				swap_if(arr[2], arr[4], func);
 
-				swap_if_less(arr[2], arr[3]);
-			} else if constexpr (N == 8) {
-				swap_if_less(arr[0], arr[1]);
-				swap_if_less(arr[2], arr[3]);
-				swap_if_less(arr[4], arr[5]);
-				swap_if_less(arr[6], arr[7]);
+				swap_if(arr[2], arr[3], func);
+			} else if constexpr (Container::extent == 8) {
+				swap_if(arr[0], arr[1], func);
+				swap_if(arr[2], arr[3], func);
+				swap_if(arr[4], arr[5], func);
+				swap_if(arr[6], arr[7], func);
 
-				swap_if_less(arr[0], arr[2]);
-				swap_if_less(arr[1], arr[3]);
-				swap_if_less(arr[4], arr[6]);
-				swap_if_less(arr[5], arr[7]);
+				swap_if(arr[0], arr[2], func);
+				swap_if(arr[1], arr[3], func);
+				swap_if(arr[4], arr[6], func);
+				swap_if(arr[5], arr[7], func);
 
-				swap_if_less(arr[1], arr[2]);
-				swap_if_less(arr[5], arr[6]);
-				swap_if_less(arr[0], arr[4]);
-				swap_if_less(arr[3], arr[7]);
+				swap_if(arr[1], arr[2], func);
+				swap_if(arr[5], arr[6], func);
+				swap_if(arr[0], arr[4], func);
+				swap_if(arr[3], arr[7], func);
 
-				swap_if_less(arr[1], arr[5]);
-				swap_if_less(arr[2], arr[6]);
+				swap_if(arr[1], arr[5], func);
+				swap_if(arr[2], arr[6], func);
 
-				swap_if_less(arr[1], arr[4]);
-				swap_if_less(arr[3], arr[6]);
+				swap_if(arr[1], arr[4], func);
+				swap_if(arr[3], arr[6], func);
 
-				swap_if_less(arr[2], arr[4]);
-				swap_if_less(arr[3], arr[5]);
+				swap_if(arr[2], arr[4], func);
+				swap_if(arr[3], arr[5], func);
 
-				swap_if_less(arr[3], arr[4]);
+				swap_if(arr[3], arr[4], func);
 			} else {
-				//! TODO: replace with std::sort in C++20
-				detail::comb_sort_impl(arr);
+#if GAIA_USE_STL_COMPATIBLE_CONTAINERS
+				//! TODO: replace with std::sort for c++20
+				detail::comb_sort_impl(arr, func);
+#else
+				detail::comb_sort_impl(arr, func);
+#endif
+			}
+		}
+
+		//! Sorting including a sorting network for containers up to 8 elements in size.
+		//! Ordinary sorting used for bigger containers.
+		template <typename Container, typename TSortFunc>
+		void sort(Container& arr, TSortFunc func) {
+			if (arr.size() == 1) {
+				return;
+			} else if (arr.size() == 2) {
+				swap_if(arr[0], arr[1], func);
+			} else if (arr.size() == 3) {
+				swap_if(arr[1], arr[2], func);
+				swap_if(arr[0], arr[2], func);
+				swap_if(arr[0], arr[1], func);
+			} else if (arr.size() == 4) {
+				swap_if(arr[0], arr[1], func);
+				swap_if(arr[2], arr[3], func);
+
+				swap_if(arr[0], arr[2], func);
+				swap_if(arr[1], arr[3], func);
+
+				swap_if(arr[1], arr[2], func);
+			} else if (arr.size() == 5) {
+				swap_if(arr[0], arr[1], func);
+				swap_if(arr[3], arr[4], func);
+
+				swap_if(arr[2], arr[4], func);
+
+				swap_if(arr[2], arr[3], func);
+				swap_if(arr[1], arr[4], func);
+
+				swap_if(arr[0], arr[3], func);
+
+				swap_if(arr[0], arr[2], func);
+				swap_if(arr[1], arr[3], func);
+
+				swap_if(arr[1], arr[2], func);
+			} else if (arr.size() == 6) {
+				swap_if(arr[1], arr[2], func);
+				swap_if(arr[4], arr[5], func);
+
+				swap_if(arr[0], arr[2], func);
+				swap_if(arr[3], arr[5], func);
+
+				swap_if(arr[0], arr[1], func);
+				swap_if(arr[3], arr[4], func);
+				swap_if(arr[2], arr[5], func);
+
+				swap_if(arr[0], arr[3], func);
+				swap_if(arr[1], arr[4], func);
+
+				swap_if(arr[2], arr[4], func);
+				swap_if(arr[1], arr[3], func);
+
+				swap_if(arr[2], arr[3], func);
+			} else if (arr.size() == 7) {
+				swap_if(arr[1], arr[2], func);
+				swap_if(arr[3], arr[4], func);
+				swap_if(arr[5], arr[6], func);
+
+				swap_if(arr[0], arr[2], func);
+				swap_if(arr[3], arr[5], func);
+				swap_if(arr[4], arr[6], func);
+
+				swap_if(arr[0], arr[1], func);
+				swap_if(arr[4], arr[5], func);
+				swap_if(arr[2], arr[6], func);
+
+				swap_if(arr[0], arr[4], func);
+				swap_if(arr[1], arr[5], func);
+
+				swap_if(arr[0], arr[3], func);
+				swap_if(arr[2], arr[5], func);
+
+				swap_if(arr[1], arr[3], func);
+				swap_if(arr[2], arr[4], func);
+
+				swap_if(arr[2], arr[3], func);
+			} else if (arr.size() == 8) {
+				swap_if(arr[0], arr[1], func);
+				swap_if(arr[2], arr[3], func);
+				swap_if(arr[4], arr[5], func);
+				swap_if(arr[6], arr[7], func);
+
+				swap_if(arr[0], arr[2], func);
+				swap_if(arr[1], arr[3], func);
+				swap_if(arr[4], arr[6], func);
+				swap_if(arr[5], arr[7], func);
+
+				swap_if(arr[1], arr[2], func);
+				swap_if(arr[5], arr[6], func);
+				swap_if(arr[0], arr[4], func);
+				swap_if(arr[3], arr[7], func);
+
+				swap_if(arr[1], arr[5], func);
+				swap_if(arr[2], arr[6], func);
+
+				swap_if(arr[1], arr[4], func);
+				swap_if(arr[3], arr[6], func);
+
+				swap_if(arr[2], arr[4], func);
+				swap_if(arr[3], arr[5], func);
+
+				swap_if(arr[3], arr[4], func);
+			} else {
+#if GAIA_USE_STL_COMPATIBLE_CONTAINERS
+				std::sort(arr.begin(), arr.end(), func);
+#else
+				//! TODO: write custom sort not depending on std
+				std::sort(arr.begin(), arr.end(), func);
+#endif
 			}
 		}
 

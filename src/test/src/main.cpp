@@ -48,6 +48,89 @@ struct Else {
 	bool value;
 };
 
+TEST_CASE("Containers - sarray") {
+	containers::sarray<uint32_t, 5> arr = {0, 1, 2, 3, 4};
+	REQUIRE(arr[0] == 0);
+	REQUIRE(arr[1] == 1);
+	REQUIRE(arr[2] == 2);
+	REQUIRE(arr[3] == 3);
+	REQUIRE(arr[4] == 4);
+
+	uint32_t cnt = 0;
+	for (auto val: arr) {
+		REQUIRE(val == cnt);
+		++cnt;
+	}
+	REQUIRE(cnt == 5);
+	REQUIRE(cnt == (uint32_t)arr.size());
+
+	REQUIRE(utils::find(arr, 0) == arr.begin());
+	REQUIRE(utils::find(arr, 100) == arr.end());
+
+	REQUIRE(utils::has(arr, 0));
+	REQUIRE(!utils::has(arr, 100));
+}
+
+TEST_CASE("Containers - sarray_ext") {
+	containers::sarray_ext<uint32_t, 5> arr;
+	arr.push_back(0);
+	REQUIRE(arr[0] == 0);
+	arr.push_back(1);
+	REQUIRE(arr[1] == 1);
+	arr.push_back(2);
+	REQUIRE(arr[2] == 2);
+	arr.push_back(3);
+	REQUIRE(arr[3] == 3);
+	arr.push_back(4);
+	REQUIRE(arr[4] == 4);
+
+	uint32_t cnt = 0;
+	for (auto val: arr) {
+		REQUIRE(val == cnt);
+		++cnt;
+	}
+	REQUIRE(cnt == 5);
+	REQUIRE(cnt == (uint32_t)arr.size());
+
+	REQUIRE(utils::find(arr, 0) == arr.begin());
+	REQUIRE(utils::find(arr, 100) == arr.end());
+
+	REQUIRE(utils::has(arr, 0));
+	REQUIRE(!utils::has(arr, 100));
+}
+
+TEST_CASE("Containers - darray") {
+	containers::darray<uint32_t> arr;
+	arr.push_back(0);
+	REQUIRE(arr[0] == 0);
+	arr.push_back(1);
+	REQUIRE(arr[1] == 1);
+	arr.push_back(2);
+	REQUIRE(arr[2] == 2);
+	arr.push_back(3);
+	REQUIRE(arr[3] == 3);
+	arr.push_back(4);
+	REQUIRE(arr[4] == 4);
+	arr.push_back(5);
+	REQUIRE(arr[5] == 5);
+	arr.push_back(6);
+	REQUIRE(arr[6] == 6);
+
+	uint32_t cnt = 0;
+	for (auto val: arr) {
+		REQUIRE(val == cnt);
+		++cnt;
+	}
+	REQUIRE(cnt == 7);
+	REQUIRE(cnt == (uint32_t)arr.size());
+
+	REQUIRE(utils::find(arr, 0) == arr.begin());
+	REQUIRE(utils::find(arr, 100) == arr.end());
+
+	REQUIRE(utils::has(arr, 0));
+	REQUIRE(!utils::has(arr, 100));
+}
+
 TEST_CASE("DataLayout SoA") {
 	constexpr uint32_t N = 4U;
 	alignas(16) containers::sarray<PositionSoA, N> data{};
@@ -134,14 +217,41 @@ TEST_CASE("EntityNull") {
 	REQUIRE_FALSE(ecs::EntityNull == e);
 }
 
-TEST_CASE("Compile-time sort") {
+TEST_CASE("Compile-time sort ascending") {
 	containers::sarray<int, 5> arr = {4, 2, 1, 3, 0};
-	utils::sort(arr);
+	utils::sort_ct(arr, utils::is_smaller<int>());
 	REQUIRE(arr[0] == 0);
 	REQUIRE(arr[1] == 1);
 	REQUIRE(arr[2] == 2);
 	REQUIRE(arr[3] == 3);
 	REQUIRE(arr[4] == 4);
+}
+
+TEST_CASE("Compile-time sort descending") {
+	containers::sarray<int, 5> arr = {4, 2, 1, 3, 0};
+	utils::sort_ct(arr, utils::is_greater<int>());
+	REQUIRE(arr[4] == 0);
+	REQUIRE(arr[3] == 1);
+	REQUIRE(arr[2] == 2);
+	REQUIRE(arr[1] == 3);
+	REQUIRE(arr[0] == 4);
+}
+
+TEST_CASE("Run-time sort") {
+	containers::sarray<int, 5> arr = {4, 2, 1, 3, 0};
+	utils::sort(arr, utils::is_smaller<int>());
+	REQUIRE(arr[0] == 0);
+	REQUIRE(arr[1] == 1);
+	REQUIRE(arr[2] == 2);
+	REQUIRE(arr[3] == 3);
+	REQUIRE(arr[4] == 4);
+
+	utils::sort(arr, utils::is_greater<int>());
+	REQUIRE(arr[4] == 0);
+	REQUIRE(arr[3] == 1);
+	REQUIRE(arr[2] == 2);
+	REQUIRE(arr[1] == 3);
+	REQUIRE(arr[0] == 4);
 }
 
 TEST_CASE("EntityQuery - 2 components") {

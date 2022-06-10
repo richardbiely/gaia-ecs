@@ -22,6 +22,8 @@ namespace gaia {
 			using difference_type = std::ptrdiff_t;
 			using size_type = decltype(N);
 
+			static constexpr size_type extent = N;
+
 			T m_data[N ? N : 1]; // support zero-size arrays
 
 			class iterator {
@@ -38,42 +40,78 @@ namespace gaia {
 				T* m_ptr;
 
 			public:
-				constexpr iterator(T* ptr, size_type pos) {
-					m_ptr = ptr + pos;
-				}
+				constexpr iterator(T* ptr): m_ptr(ptr) {}
+
 				constexpr iterator(const iterator& other): m_ptr(other.m_ptr) {}
-				constexpr void operator++() {
+				constexpr iterator& operator=(const iterator& other) {
+					m_ptr = other.m_ptr;
+					return *this;
+				}
+
+				constexpr T& operator*() const {
+					return *m_ptr;
+				}
+				constexpr T* operator->() const {
+					return m_ptr;
+				}
+				constexpr iterator operator[](size_type offset) const {
+					return {m_ptr + offset};
+				}
+
+				constexpr iterator& operator+=(size_type diff) {
+					m_ptr += diff;
+					return *this;
+				}
+				constexpr iterator& operator-=(size_type diff) {
+					m_ptr -= diff;
+					return *this;
+				}
+				constexpr iterator& operator++() {
 					++m_ptr;
+					return *this;
 				}
-				constexpr void operator--() {
+				constexpr iterator& operator++(int) {
+					iterator temp(*this);
+					++*this;
+					return temp;
+				}
+				constexpr iterator& operator--() {
 					--m_ptr;
+					return *this;
 				}
-				constexpr bool operator==(const iterator& rhs) const {
-					return m_ptr == rhs.m_ptr;
+				constexpr iterator& operator--(int) {
+					iterator temp(*this);
+					--this;
+					return temp;
 				}
-				constexpr bool operator!=(const iterator& rhs) const {
-					return m_ptr != rhs.m_ptr;
-				}
-				constexpr bool operator>(const iterator& rhs) const {
-					return m_ptr > rhs.m_ptr;
-				}
-				constexpr bool operator<(const iterator& rhs) const {
-					return m_ptr < rhs.m_ptr;
-				}
+
 				constexpr iterator operator+(size_type offset) const {
 					return {m_ptr + offset};
 				}
 				constexpr iterator operator-(size_type offset) const {
 					return {m_ptr - offset};
 				}
-				constexpr difference_type operator-(const iterator& rhs) const {
-					return m_ptr - rhs.m_ptr;
+				constexpr difference_type operator-(const iterator& other) const {
+					return m_ptr - other.m_ptr;
 				}
-				constexpr T& operator*() const {
-					return *m_ptr;
+
+				constexpr bool operator==(const iterator& other) const {
+					return m_ptr == other.m_ptr;
 				}
-				constexpr T* operator->() const {
-					return m_ptr;
+				constexpr bool operator!=(const iterator& other) const {
+					return m_ptr != other.m_ptr;
+				}
+				constexpr bool operator>(const iterator& other) const {
+					return m_ptr > other.m_ptr;
+				}
+				constexpr bool operator>=(const iterator& other) const {
+					return m_ptr >= other.m_ptr;
+				}
+				constexpr bool operator<(const iterator& other) const {
+					return m_ptr < other.m_ptr;
+				}
+				constexpr bool operator<=(const iterator& other) const {
+					return m_ptr <= other.m_ptr;
 				}
 			};
 
@@ -91,42 +129,78 @@ namespace gaia {
 				const T* m_ptr;
 
 			public:
-				constexpr const_iterator(const T* ptr, size_type pos) {
-					m_ptr = ptr + pos;
-				}
+				constexpr const_iterator(T* ptr): m_ptr(ptr) {}
+
 				constexpr const_iterator(const const_iterator& other): m_ptr(other.m_ptr) {}
-				constexpr void operator++() {
+				constexpr iterator& operator=(const const_iterator& other) {
+					m_ptr = other.m_ptr;
+					return *this;
+				}
+
+				constexpr const T& operator*() const {
+					return *(const T*)m_ptr;
+				}
+				constexpr const T* operator->() const {
+					return (const T*)m_ptr;
+				}
+				constexpr const_iterator operator[](size_type offset) const {
+					return {m_ptr + offset};
+				}
+
+				constexpr const_iterator& operator+=(size_type diff) {
+					m_ptr += diff;
+					return *this;
+				}
+				constexpr const_iterator& operator-=(size_type diff) {
+					m_ptr -= diff;
+					return *this;
+				}
+				constexpr const_iterator& operator++() {
 					++m_ptr;
+					return *this;
 				}
-				constexpr void operator--() {
+				constexpr const_iterator& operator++(int) {
+					const_iterator temp(*this);
+					++*this;
+					return temp;
+				}
+				constexpr const_iterator& operator--() {
 					--m_ptr;
+					return *this;
 				}
-				constexpr bool operator==(const const_iterator& rhs) const {
-					return m_ptr == rhs.m_ptr;
+				constexpr const_iterator& operator--(int) {
+					const_iterator temp(*this);
+					--this;
+					return temp;
 				}
-				constexpr bool operator!=(const const_iterator& rhs) const {
-					return m_ptr != rhs.m_ptr;
-				}
-				constexpr bool operator<(const const_iterator& rhs) const {
-					return m_ptr < rhs.m_ptr;
-				}
-				constexpr bool operator>(const const_iterator& rhs) const {
-					return m_ptr > rhs.m_ptr;
-				}
+
 				constexpr const_iterator operator+(size_type offset) const {
 					return {m_ptr + offset};
 				}
 				constexpr const_iterator operator-(size_type offset) const {
 					return {m_ptr - offset};
 				}
-				constexpr difference_type operator-(const iterator& rhs) const {
-					return m_ptr - rhs.m_ptr;
+				constexpr difference_type operator-(const const_iterator& other) const {
+					return m_ptr - other.m_ptr;
 				}
-				constexpr const T& operator*() const {
-					return *(const T*)m_ptr;
+
+				constexpr bool operator==(const const_iterator& other) const {
+					return m_ptr == other.m_ptr;
 				}
-				constexpr const T* operator->() const {
-					return (const T*)m_ptr;
+				constexpr bool operator!=(const const_iterator& other) const {
+					return m_ptr != other.m_ptr;
+				}
+				constexpr bool operator>(const const_iterator& other) const {
+					return m_ptr > other.m_ptr;
+				}
+				constexpr bool operator>=(const const_iterator& other) const {
+					return m_ptr >= other.m_ptr;
+				}
+				constexpr bool operator<(const const_iterator& other) const {
+					return m_ptr < other.m_ptr;
+				}
+				constexpr bool operator<=(const const_iterator& other) const {
+					return m_ptr <= other.m_ptr;
 				}
 			};
 
@@ -175,35 +249,19 @@ namespace gaia {
 			}
 
 			constexpr iterator begin() const noexcept {
-				return {(T*)m_data, size_type(0)};
+				return {(T*)m_data};
 			}
 
 			constexpr const_iterator cbegin() const noexcept {
-				return {(const T*)m_data, size_type(0)};
-			}
-
-			constexpr iterator rbegin() const noexcept {
-				return {(T*)m_data, N - 1};
-			}
-
-			constexpr const_iterator crbegin() const noexcept {
-				return {(const T*)m_data, N - 1};
+				return {(const T*)m_data};
 			}
 
 			constexpr iterator end() const noexcept {
-				return {(T*)m_data, N};
+				return {(T*)m_data + N};
 			}
 
 			constexpr const_iterator cend() const noexcept {
-				return {(const T*)m_data, N};
-			}
-
-			constexpr iterator rend() const noexcept {
-				return {(T*)m_data, size_type(-1)};
-			}
-
-			constexpr const_iterator crend() const noexcept {
-				return {(const T*)m_data, size_type(-1)};
+				return {(const T*)m_data + N};
 			}
 		};
 
