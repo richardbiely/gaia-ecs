@@ -1,5 +1,5 @@
-#include <gaia.h>
 #include <benchmark/benchmark.h>
+#include <gaia.h>
 
 using namespace gaia;
 
@@ -72,7 +72,7 @@ void BM_ForEach_1_Archetype(benchmark::State& state) {
 	auto query = ecs::EntityQuery().All<c1>();
 
 	for ([[maybe_unused]] auto _: state) {
-		w.ForEach(query, [&](const c1& p) {
+		w.ForEach(query, [](const c1& p) {
 			benchmark::DoNotOptimize(p);
 		});
 	}
@@ -91,7 +91,7 @@ void BM_ForEach_100_Archetypes(benchmark::State& state) {
 	auto query = ecs::EntityQuery().All<c1>();
 
 	for ([[maybe_unused]] auto _: state) {
-		w.ForEach(query, [&](const c1& p) {
+		w.ForEach(query, [](const c1& p) {
 			benchmark::DoNotOptimize(p);
 		});
 	}
@@ -155,8 +155,206 @@ void BM_ForEach_1000_Archetypes(benchmark::State& state) {
 	auto query = ecs::EntityQuery().All<c1>();
 
 	for ([[maybe_unused]] auto _: state) {
-		w.ForEach(query, [&](const c1& p) {
+		w.ForEach(query, [](const c1& p) {
 			benchmark::DoNotOptimize(p);
+		});
+	}
+}
+
+void BM_ForEach_Internal_1_Archetype(benchmark::State& state) {
+	ecs::World w;
+	//-----------------------------------------
+	AddComponents<float, 3, 1>(w, ForEachN);
+	//-----------------------------------------
+
+	using c1 = Component<0, float, 3>;
+
+	for ([[maybe_unused]] auto _: state) {
+		w.ForEach([](const c1& p) {
+			benchmark::DoNotOptimize(p);
+		});
+	}
+}
+
+void BM_ForEach_Internal_100_Archetypes(benchmark::State& state) {
+	ecs::World w;
+	//-----------------------------------------
+	AddComponents<float, 0, 25>(w, ForEachN);
+	AddComponents<float, 1, 25>(w, ForEachN);
+	AddComponents<float, 2, 25>(w, ForEachN);
+	AddComponents<float, 3, 25>(w, ForEachN);
+	//-----------------------------------------
+
+	using c1 = Component<0, float, 3>;
+
+	for ([[maybe_unused]] auto _: state) {
+		w.ForEach([](const c1& p) {
+			benchmark::DoNotOptimize(p);
+		});
+	}
+}
+
+void BM_ForEach_Internal_1000_Archetypes(benchmark::State& state) {
+	ecs::World w;
+	//-----------------------------------------
+	AddComponents<bool, 0, 25>(w, ForEachN);
+	AddComponents<bool, 1, 25>(w, ForEachN);
+	AddComponents<bool, 2, 25>(w, ForEachN);
+	AddComponents<bool, 3, 25>(w, ForEachN);
+	//-----------------------------------------
+	AddComponents<int8_t, 0, 25>(w, ForEachN);
+	AddComponents<int8_t, 1, 25>(w, ForEachN);
+	AddComponents<int8_t, 2, 25>(w, ForEachN);
+	AddComponents<int8_t, 3, 25>(w, ForEachN);
+	//-----------------------------------------
+	AddComponents<uint8_t, 0, 25>(w, ForEachN);
+	AddComponents<uint8_t, 1, 25>(w, ForEachN);
+	AddComponents<uint8_t, 2, 25>(w, ForEachN);
+	AddComponents<uint8_t, 3, 25>(w, ForEachN);
+	//-----------------------------------------
+	AddComponents<int16_t, 0, 25>(w, ForEachN);
+	AddComponents<int16_t, 1, 25>(w, ForEachN);
+	AddComponents<int16_t, 2, 25>(w, ForEachN);
+	AddComponents<int16_t, 3, 25>(w, ForEachN);
+	//-----------------------------------------
+	AddComponents<uint16_t, 0, 25>(w, ForEachN);
+	AddComponents<uint16_t, 1, 25>(w, ForEachN);
+	AddComponents<uint16_t, 2, 25>(w, ForEachN);
+	AddComponents<uint16_t, 3, 25>(w, ForEachN);
+	//-----------------------------------------
+	AddComponents<int32_t, 0, 25>(w, ForEachN);
+	AddComponents<int32_t, 1, 25>(w, ForEachN);
+	AddComponents<int32_t, 2, 25>(w, ForEachN);
+	AddComponents<int32_t, 3, 25>(w, ForEachN);
+	//-----------------------------------------
+	AddComponents<uint32_t, 0, 25>(w, ForEachN);
+	AddComponents<uint32_t, 1, 25>(w, ForEachN);
+	AddComponents<uint32_t, 2, 25>(w, ForEachN);
+	AddComponents<uint32_t, 3, 25>(w, ForEachN);
+	//-----------------------------------------
+	AddComponents<int64_t, 0, 25>(w, ForEachN);
+	AddComponents<int64_t, 1, 25>(w, ForEachN);
+	AddComponents<int64_t, 2, 25>(w, ForEachN);
+	AddComponents<int64_t, 3, 25>(w, ForEachN);
+	//-----------------------------------------
+	AddComponents<uint64_t, 0, 25>(w, ForEachN);
+	AddComponents<uint64_t, 1, 25>(w, ForEachN);
+	AddComponents<uint64_t, 2, 25>(w, ForEachN);
+	AddComponents<uint64_t, 3, 25>(w, ForEachN);
+	//-----------------------------------------
+	AddComponents<float, 0, 25>(w, ForEachN);
+	AddComponents<float, 1, 25>(w, ForEachN);
+	AddComponents<float, 2, 25>(w, ForEachN);
+	AddComponents<float, 3, 25>(w, ForEachN);
+	//-----------------------------------------
+
+	using c1 = Component<0, float, 3>;
+
+	for ([[maybe_unused]] auto _: state) {
+		w.ForEach([](const c1& p) {
+			benchmark::DoNotOptimize(p);
+		});
+	}
+}
+
+void BM_ForEach_Chunk_1_Archetype(benchmark::State& state) {
+	ecs::World w;
+	//-----------------------------------------
+	AddComponents<float, 3, 1>(w, ForEachN);
+	//-----------------------------------------
+
+	using c1 = Component<0, float, 3>;
+	auto query = ecs::EntityQuery().All<c1>();
+
+	for ([[maybe_unused]] auto _: state) {
+		w.ForEach(query, [&](const ecs::Chunk& chunk) {
+			for (size_t i = 0; i < chunk.GetItemCount(); ++i)
+				benchmark::DoNotOptimize(i);
+		});
+	}
+}
+
+void BM_ForEach_Chunk_100_Archetypes(benchmark::State& state) {
+	ecs::World w;
+	//-----------------------------------------
+	AddComponents<float, 0, 25>(w, ForEachN);
+	AddComponents<float, 1, 25>(w, ForEachN);
+	AddComponents<float, 2, 25>(w, ForEachN);
+	AddComponents<float, 3, 25>(w, ForEachN);
+	//-----------------------------------------
+
+	using c1 = Component<0, float, 3>;
+	auto query = ecs::EntityQuery().All<c1>();
+
+	for ([[maybe_unused]] auto _: state) {
+		w.ForEach(query, [&](const ecs::Chunk& chunk) {
+			for (size_t i = 0; i < chunk.GetItemCount(); ++i)
+				benchmark::DoNotOptimize(i);
+		});
+	}
+}
+
+void BM_ForEach_Chunk_1000_Archetypes(benchmark::State& state) {
+	ecs::World w;
+	//-----------------------------------------
+	AddComponents<bool, 0, 25>(w, ForEachN);
+	AddComponents<bool, 1, 25>(w, ForEachN);
+	AddComponents<bool, 2, 25>(w, ForEachN);
+	AddComponents<bool, 3, 25>(w, ForEachN);
+	//-----------------------------------------
+	AddComponents<int8_t, 0, 25>(w, ForEachN);
+	AddComponents<int8_t, 1, 25>(w, ForEachN);
+	AddComponents<int8_t, 2, 25>(w, ForEachN);
+	AddComponents<int8_t, 3, 25>(w, ForEachN);
+	//-----------------------------------------
+	AddComponents<uint8_t, 0, 25>(w, ForEachN);
+	AddComponents<uint8_t, 1, 25>(w, ForEachN);
+	AddComponents<uint8_t, 2, 25>(w, ForEachN);
+	AddComponents<uint8_t, 3, 25>(w, ForEachN);
+	//-----------------------------------------
+	AddComponents<int16_t, 0, 25>(w, ForEachN);
+	AddComponents<int16_t, 1, 25>(w, ForEachN);
+	AddComponents<int16_t, 2, 25>(w, ForEachN);
+	AddComponents<int16_t, 3, 25>(w, ForEachN);
+	//-----------------------------------------
+	AddComponents<uint16_t, 0, 25>(w, ForEachN);
+	AddComponents<uint16_t, 1, 25>(w, ForEachN);
+	AddComponents<uint16_t, 2, 25>(w, ForEachN);
+	AddComponents<uint16_t, 3, 25>(w, ForEachN);
+	//-----------------------------------------
+	AddComponents<int32_t, 0, 25>(w, ForEachN);
+	AddComponents<int32_t, 1, 25>(w, ForEachN);
+	AddComponents<int32_t, 2, 25>(w, ForEachN);
+	AddComponents<int32_t, 3, 25>(w, ForEachN);
+	//-----------------------------------------
+	AddComponents<uint32_t, 0, 25>(w, ForEachN);
+	AddComponents<uint32_t, 1, 25>(w, ForEachN);
+	AddComponents<uint32_t, 2, 25>(w, ForEachN);
+	AddComponents<uint32_t, 3, 25>(w, ForEachN);
+	//-----------------------------------------
+	AddComponents<int64_t, 0, 25>(w, ForEachN);
+	AddComponents<int64_t, 1, 25>(w, ForEachN);
+	AddComponents<int64_t, 2, 25>(w, ForEachN);
+	AddComponents<int64_t, 3, 25>(w, ForEachN);
+	//-----------------------------------------
+	AddComponents<uint64_t, 0, 25>(w, ForEachN);
+	AddComponents<uint64_t, 1, 25>(w, ForEachN);
+	AddComponents<uint64_t, 2, 25>(w, ForEachN);
+	AddComponents<uint64_t, 3, 25>(w, ForEachN);
+	//-----------------------------------------
+	AddComponents<float, 0, 25>(w, ForEachN);
+	AddComponents<float, 1, 25>(w, ForEachN);
+	AddComponents<float, 2, 25>(w, ForEachN);
+	AddComponents<float, 3, 25>(w, ForEachN);
+	//-----------------------------------------
+
+	using c1 = Component<0, float, 3>;
+	auto query = ecs::EntityQuery().All<c1>();
+
+	for ([[maybe_unused]] auto _: state) {
+		w.ForEach(query, [&](const ecs::Chunk& chunk) {
+			for (size_t i = 0; i < chunk.GetItemCount(); ++i)
+				benchmark::DoNotOptimize(i);
 		});
 	}
 }
@@ -195,6 +393,12 @@ BENCHMARK_CREATEENTITY_WITH_COMPONENT_BATCH(8);
 BENCHMARK(BM_ForEach_1_Archetype);
 BENCHMARK(BM_ForEach_100_Archetypes);
 BENCHMARK(BM_ForEach_1000_Archetypes);
+BENCHMARK(BM_ForEach_Internal_1_Archetype);
+BENCHMARK(BM_ForEach_Internal_100_Archetypes);
+BENCHMARK(BM_ForEach_Internal_1000_Archetypes);
+BENCHMARK(BM_ForEach_Chunk_1_Archetype);
+BENCHMARK(BM_ForEach_Chunk_100_Archetypes);
+BENCHMARK(BM_ForEach_Chunk_1000_Archetypes);
 
 // Run the benchmark
 BENCHMARK_MAIN();

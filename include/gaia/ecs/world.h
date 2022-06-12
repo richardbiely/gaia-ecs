@@ -34,6 +34,7 @@ namespace gaia {
 			//! Cache of components used by the world
 			ComponentCache m_componentCache;
 
+			containers::map<uint64_t, containers::darray<EntityQuery>> m_cachedQueries;
 			//! Map or archetypes mapping to the same hash - used for lookups
 			// TODO: Replace darray with linked-list via pointers for minimum overhead or come up with something else
 			containers::map<uint64_t, containers::darray<Archetype*>> m_archetypeMap;
@@ -1414,6 +1415,12 @@ namespace gaia {
 					func(std::get<decltype(expandTuple<TFuncArgs>(chunk))>(tup)[i]...);
 			}
 
+			template <typename... TComponents, typename TFunc>
+			GAIA_FORCEINLINE void UnpackForEachEntityInChunk(
+					[[maybe_unused]] utils::func_type_list<TComponents...> types, Chunk& chunk, TFunc&& func) {
+				ForEachEntityInChunk<TComponents...>(chunk, std::forward<TFunc>(func));
+			}
+
 			template <typename TFunc>
 			void ForEachArchetype(EntityQuery& query, TFunc&& func) {
 				query.Match(m_archetypeList);
@@ -1421,17 +1428,20 @@ namespace gaia {
 					func(*pArchetype);
 			}
 
-			template <typename... TComponents, typename TFunc>
-			GAIA_FORCEINLINE void Unpack_ForEachEntityInChunk(
-					[[maybe_unused]] utils::func_type_list<TComponents...> types, Chunk& chunk, TFunc&& func) {
-				ForEachEntityInChunk<TComponents...>(chunk, std::forward<TFunc>(func));
+			template <typename... TComponents>
+			GAIA_FORCEINLINE void
+			UnpackArgsIntoQuery([[maybe_unused]] utils::func_type_list<TComponents...> types, EntityQuery& query) {
+				if constexpr (sizeof...(TComponents) > 0)
+					query.All<TComponents...>();
 			}
 
 			template <typename... TComponents>
-			GAIA_FORCEINLINE void
-			Unpack_ForEachQuery([[maybe_unused]] utils::func_type_list<TComponents...> types, EntityQuery& query) {
+			GAIA_FORCEINLINE void UnpackArgsIntoGenericTypes(
+					[[maybe_unused]] utils::func_type_list<TComponents...> types,
+					containers::sarray_ext<const ComponentMetaData*, EntityQuery::MAX_COMPONENTS_IN_QUERY>& arr) {
+				GAIA_ASSERT(arr.empty());
 				if constexpr (sizeof...(TComponents) > 0)
-					query.All<TComponents...>();
+					(arr.push_back(m_componentCache.GetOrCreateComponentMetaType<TComponents>()), ...);
 			}
 
 			[[nodiscard]] static bool CheckFilters(const EntityQuery& query, const Chunk& chunk) {
@@ -1517,16 +1527,14 @@ namespace gaia {
 			}
 
 			template <typename TFunc>
-			static void RunQueryOnChunks_Indirect(World& world, EntityQuery& query, TFunc& func) {
+			static void RunQueryOnChunks_Indirect_NoResolve(World& world, EntityQuery& query, TFunc& func) {
 				using InputArgs = decltype(utils::func_args(&TFunc::operator()));
+
 				const uint32_t BatchSize = 256U;
 				containers::sarray<Chunk*, BatchSize> tmp;
 
 				// Update the world version
 				world.UpdateWorldVersion();
-
-				// Add an All filter for components listed as input arguments of func
-				world.Unpack_ForEachQuery(InputArgs{}, query);
 
 				const bool hasFilters = query.HasFilters();
 
@@ -1554,7 +1562,7 @@ namespace gaia {
 							// Execute functors in bulk
 							const auto size = batchSize;
 							for (auto chunkIdx = 0U; chunkIdx < size; ++chunkIdx)
-								world.Unpack_ForEachEntityInChunk(InputArgs{}, *tmp[chunkIdx], func);
+								world.UnpackForEachEntityInChunk(InputArgs{}, *tmp[chunkIdx], func);
 
 							// Reset the batch size
 							batchSize = 0U;
@@ -1572,19 +1580,25 @@ namespace gaia {
 				query.SetWorldVersion(world.GetWorldVersion());
 			}
 
+			template <typename TFunc>
+			static void ResolveQuery(World& world, EntityQuery& query) {
+				using InputArgs = decltype(utils::func_args(&TFunc::operator()));
+				// Add an All filter for components listed as input arguments of func
+				world.UnpackArgsIntoQuery(InputArgs{}, query);
+			}
+
+			template <typename TFunc>
+			static void RunQueryOnChunks_Indirect(World& world, EntityQuery& query, TFunc& func) {
+				ResolveQuery<TFunc>(world, query);
+				RunQueryOnChunks_Indirect_NoResolve(world, query, func);
+			}
+
 			//--------------------------------------------------------------------------------
 
 			template <typename TFunc>
 			struct ForEachChunkExecutionContext {
-				World& world;
-				EntityQuery& query;
-				TFunc func;
-
-			public:
-				ForEachChunkExecutionContext(World& w, EntityQuery& q, TFunc&& f):
-						world(w), query(q), func(std::forward<TFunc>(f)) {}
-				~ForEachChunkExecutionContext() {
-					World::RunQueryOnChunks_Direct(this->world, this->query, this->func);
+				ForEachChunkExecutionContext(World& world, EntityQuery& query, TFunc&& func) {
+					World::RunQueryOnChunks_Direct(world, query, func);
 				}
 			};
 
@@ -1592,30 +1606,64 @@ namespace gaia {
 
 			template <typename TFunc>
 			struct ForEachExecutionContext_External {
-				World& world;
-				EntityQuery& query;
-				TFunc func;
-
-			public:
-				ForEachExecutionContext_External(World& w, EntityQuery& q, TFunc&& f):
-						world(w), query(q), func(std::forward<TFunc>(f)) {}
-				~ForEachExecutionContext_External() {
-					World::RunQueryOnChunks_Indirect(this->world, this->query, this->func);
+				ForEachExecutionContext_External(World& world, EntityQuery& query, TFunc&& func) {
+					World::RunQueryOnChunks_Indirect(world, query, func);
 				}
 			};
 
 			template <typename TFunc>
 			struct ForEachExecutionContext_Internal {
-				World& world;
-				// TODO: Cache these in the parent world for better performance
-				EntityQuery query;
-				TFunc func;
+				ForEachExecutionContext_Internal(World& world, EntityQuery&& query, TFunc&& func) {
+					World::RunQueryOnChunks_Indirect(world, std::move(query), func);
+				}
+			};
+
+			template <typename TFunc>
+			struct ForEachExecutionContext_Internal_Cached {
+				friend class World;
 
 			public:
-				ForEachExecutionContext_Internal(World& w, EntityQuery&& q, TFunc&& f):
-						world(w), query(std::move(q)), func(std::forward<TFunc>(f)) {}
-				~ForEachExecutionContext_Internal() {
-					World::RunQueryOnChunks_Indirect(this->world, this->query, this->func);
+				ForEachExecutionContext_Internal_Cached(World& world, TFunc&& func) {
+					using InputArgs = decltype(utils::func_args(&TFunc::operator()));
+
+					containers::sarray_ext<const ComponentMetaData*, EntityQuery::MAX_COMPONENTS_IN_QUERY> genericTypes;
+					world.UnpackArgsIntoGenericTypes(InputArgs{}, genericTypes);
+					if (genericTypes.empty())
+						return;
+
+					utils::sort(genericTypes, std::less<const ComponentMetaData*>());
+
+					uint64_t lookupHash = genericTypes[0]->lookupHash;
+					for (size_t i = 1; i < genericTypes.size(); ++i)
+						lookupHash = utils::hash_combine(lookupHash, genericTypes[i]->lookupHash);
+
+					EntityQuery* query = nullptr;
+
+					EntityQuery queryTmp;
+					ResolveQuery<TFunc>(world, queryTmp);
+
+					auto it = world.m_cachedQueries.find(lookupHash);
+					if (it == world.m_cachedQueries.end()) {
+						world.m_cachedQueries[lookupHash] = {std::move(queryTmp)};
+						query = &world.m_cachedQueries[lookupHash].back();
+					} else {
+						auto& queries = it->second;
+
+						// Make sure the same hash gets us to the proper query
+						for (const auto& q: queries) {
+							volatile auto ret = q.MatchAllGenericComponents(genericTypes, lookupHash);
+							if (ret != EntityQuery::MatchArchetypeQueryRet::Ok)
+								continue;
+							query = &queries.back();
+							goto exec_func;
+						}
+
+						queries.push_back(std::move(queryTmp));
+						query = &queries.back();
+					}
+
+				exec_func:
+					World::RunQueryOnChunks_Indirect_NoResolve(world, *query, func);
 				}
 			};
 
@@ -1625,42 +1673,40 @@ namespace gaia {
 			/*!
 			Iterates over all chunks satisfying conditions set by \param query and calls \param func for all of them.
 			\warning Iterating using ecs::Chunk makes it possible to perform optimizations otherwise not possible with
-							 other methods of iteration as it exposes the chunk itself. On the other hand, it is more verbose
-							 and takes more lines of code when used.
+							other methods of iteration as it exposes the chunk itself. On the other hand, it is more verbose
+							and takes more lines of code when used.
 			*/
 			template <typename TFunc>
 			void ForEach(EntityQuery& query, TFunc&& func) {
 				if constexpr (std::is_invocable<TFunc, Chunk&>::value)
-					ForEachChunkExecutionContext<TFunc>{(World&)*this, query, std::forward<TFunc>(func)};
+					ForEachChunkExecutionContext{(World&)*this, query, std::forward<TFunc>(func)};
 				else
-					ForEachExecutionContext_External<TFunc>{(World&)*this, query, std::forward<TFunc>(func)};
+					ForEachExecutionContext_External{(World&)*this, query, std::forward<TFunc>(func)};
 			}
 
 			/*!
 			Iterates over all chunks satisfying conditions set by \param query and calls \param func for all of them.
 			\warning Iterating using ecs::Chunk makes it possible to perform optimizations otherwise not possible with
-							 other methods of iteration as it exposes the chunk itself. On the other hand, it is more verbose
-							 and takes more lines of code when used.
+							other methods of iteration as it exposes the chunk itself. On the other hand, it is more verbose
+							and takes more lines of code when used.
 			*/
 			template <typename TFunc>
 			void ForEach(EntityQuery&& query, TFunc&& func) {
 				if constexpr (std::is_invocable<TFunc, Chunk&>::value)
-					ForEachChunkExecutionContext<TFunc>{
-							(World&)*this, std::forward<EntityQuery>(query), std::forward<TFunc>(func)};
+					ForEachChunkExecutionContext{(World&)*this, std::forward<EntityQuery>(query), std::forward<TFunc>(func)};
 				else
-					ForEachExecutionContext_Internal<TFunc>{
-							(World&)*this, std::forward<EntityQuery>(query), std::forward<TFunc>(func)};
+					ForEachExecutionContext_Internal{(World&)*this, std::forward<EntityQuery>(query), std::forward<TFunc>(func)};
 			}
 
 			/*!
 			Iterates over all chunks satisfying conditions set by \param func and calls \param func for all of them.
 			EntityQuery instance is generated internally from the input arguments of \param func.
 			\warning Performance-wise it has less potential than ForEach. However, it is easier to use and unless
-							 some specific optimizations are necessary is the preffered way of iterating over data.
+							some specific optimizations are necessary is the preffered way of iterating over data.
 			*/
 			template <typename TFunc>
 			void ForEach(TFunc&& func) {
-				ForEachExecutionContext_Internal<TFunc>{(World&)*this, EntityQuery(), std::forward<TFunc>(func)};
+				ForEachExecutionContext_Internal_Cached{(World&)*this, std::forward<TFunc>(func)};
 			}
 
 			/*!
