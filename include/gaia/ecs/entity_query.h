@@ -15,14 +15,17 @@ namespace gaia {
 	namespace ecs {
 		class EntityQuery final {
 		public:
+			//! Query constraints
 			enum class Constraints { EnabledOnly, DisabledOnly, AcceptAll };
-
-		private:
+			//! Query matching result
+			enum class MatchArchetypeQueryRet { Fail, Ok, Skip };
 			//! Number of components that can be a part of EntityQuery
 			static constexpr uint32_t MAX_COMPONENTS_IN_QUERY = 8u;
 
-			// Keeps an array of Component type indices
+		private:
+			//! Array of component type indices
 			using ComponentIndexArray = containers::sarray_ext<uint32_t, MAX_COMPONENTS_IN_QUERY>;
+			//! Array of component type indices reserved for filtering
 			using ChangeFilterArray = ComponentIndexArray;
 
 			struct ComponentListData {
@@ -140,11 +143,11 @@ namespace gaia {
 			void SetChangedFilter(ChangeFilterArray& arr, ComponentListData& arrMeta) {
 				(SetChangedFilter_Internal<TComponent>(arr, arrMeta), ...);
 			}
-			enum class MatchArchetypeQueryRet { Fail, Ok, Skip };
 
+		public:
 			template <ComponentType TComponentType>
 			[[nodiscard]] MatchArchetypeQueryRet
-			MatchList(const ChunkComponentTypeList& componentTypeList, uint64_t matcherHash) {
+			MatchList(const ChunkComponentTypeList& componentTypeList, uint64_t matcherHash) const {
 				const auto& queryList = GetData(TComponentType);
 				const uint64_t withNoneTest = matcherHash & queryList.hashNone;
 				const uint64_t withAnyTest = matcherHash & queryList.hashAny;
@@ -214,7 +217,47 @@ namespace gaia {
 				return (withAnyTest != 0) ? MatchArchetypeQueryRet::Ok : MatchArchetypeQueryRet::Skip;
 			}
 
-		public:
+			[[nodiscard]] MatchArchetypeQueryRet MatchAllGenericComponents(
+					const containers::sarray_ext<const ComponentMetaData*, MAX_COMPONENTS_IN_QUERY>& componentTypeList,
+					uint64_t matcherHash) const {
+				const auto& queryList = GetData(ComponentType::CT_Generic);
+				const uint64_t withAllTest = matcherHash & queryList.hashAll;
+
+				// If withAllTest is empty but we wanted something
+				if (!withAllTest && queryList.hashAll != 0)
+					return MatchArchetypeQueryRet::Fail;
+
+				// If withAllList is not empty there has to be an exact match
+				if (withAllTest != 0) {
+					// If the number of queried components is greater than the
+					// number of components in archetype there's no need to search
+					if (queryList.listAll.size() <= componentTypeList.size()) {
+						uint32_t matches = 0;
+
+						// listAll first because we usually request for less
+						// components than there are components in archetype
+						for (const auto typeIndex: queryList.listAll) {
+							for (const auto& component: componentTypeList) {
+								if (component->typeIndex != typeIndex)
+									continue;
+
+								// All requirements are fulfilled. Let's iterate
+								// over all chunks in archetype
+								if (++matches == queryList.listAll.size())
+									return MatchArchetypeQueryRet::Ok;
+
+								break;
+							}
+						}
+					}
+
+					// No match found. We're done
+					return MatchArchetypeQueryRet::Fail;
+				}
+
+				return MatchArchetypeQueryRet::Skip;
+			}
+
 			[[nodiscard]] const ComponentListData& GetData(ComponentType type) const {
 				return list[type];
 			}
