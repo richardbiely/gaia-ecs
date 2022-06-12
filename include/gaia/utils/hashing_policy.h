@@ -15,31 +15,6 @@ namespace gaia {
 
 		//-----------------------------------------------------------------------------------
 
-		// TODO: Keep it here for now. Maybe this version is helpful later
-		// namespace detail {
-		// 	constexpr void hash_combine2_simple_out(uint32_t& lhs, uint32_t rhs) {
-		// 		lhs ^= (rhs * 1610612741);
-		// 	}
-		// 	constexpr void hash_combine2_simple_out(uint64_t& lhs, uint64_t rhs) {
-		// 		lhs ^= (rhs * 1610612741);
-		// 	}
-
-		// 	template <typename T>
-		// 	[[nodiscard]] constexpr T hash_combine2_simple(T lhs, T rhs) {
-		// 		hash_combine2_simple_out(lhs, rhs);
-		// 		return lhs;
-		// 	}
-		// } // namespace detail
-
-		// template <typename T, typename... Rest>
-		// constexpr T hash_combine_simple(T first, T next, Rest... rest) {
-		// 	auto h = detail::hash_combine2_simple(first, next);
-		// 	(detail::hash_combine2_simple_out(h, rest), ...);
-		// 	return h;
-		// }
-
-		//-----------------------------------------------------------------------------------
-
 		namespace detail {
 
 			constexpr void hash_combine2_out(uint32_t& lhs, uint32_t rhs) {
