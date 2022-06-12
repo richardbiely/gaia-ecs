@@ -1,4 +1,9 @@
 #pragma once
+#include "../config/config.h"
+
+#if GAIA_USE_STL_COMPATIBLE_CONTAINERS
+	#include <algorithm>
+#endif
 #include <tuple>
 #include <type_traits>
 
@@ -301,7 +306,10 @@ namespace gaia {
 			} else {
 #if GAIA_USE_STL_COMPATIBLE_CONTAINERS
 				//! TODO: replace with std::sort for c++20
+				GAIA_MSVC_WARNING_PUSH()
+				GAIA_MSVC_WARNING_DISABLE(4244)
 				detail::comb_sort_impl(arr, func);
+				GAIA_MSVC_WARNING_POP()
 #else
 				detail::comb_sort_impl(arr, func);
 #endif
@@ -412,7 +420,10 @@ namespace gaia {
 				swap_if(arr[3], arr[4], func);
 			} else {
 #if GAIA_USE_STL_COMPATIBLE_CONTAINERS
+				GAIA_MSVC_WARNING_PUSH()
+				GAIA_MSVC_WARNING_DISABLE(4244)
 				std::sort(arr.begin(), arr.end(), func);
+				GAIA_MSVC_WARNING_POP()
 #else
 				//! TODO: write custom sort not depending on std
 				std::sort(arr.begin(), arr.end(), func);

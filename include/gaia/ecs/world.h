@@ -1634,7 +1634,7 @@ namespace gaia {
 					utils::sort(genericTypes, std::less<const ComponentMetaData*>());
 
 					uint64_t lookupHash = genericTypes[0]->lookupHash;
-					for (size_t i = 1; i < genericTypes.size(); ++i)
+					for (uint32_t i = 1; i < (uint32_t)genericTypes.size(); ++i)
 						lookupHash = utils::hash_combine(lookupHash, genericTypes[i]->lookupHash);
 
 					EntityQuery* query = nullptr;
@@ -1651,7 +1651,7 @@ namespace gaia {
 
 						// Make sure the same hash gets us to the proper query
 						for (const auto& q: queries) {
-							volatile auto ret = q.MatchAllGenericComponents(genericTypes, lookupHash);
+							const auto ret = q.MatchAllGenericComponents(genericTypes, lookupHash);
 							if (ret != EntityQuery::MatchArchetypeQueryRet::Ok)
 								continue;
 							query = &queries.back();
