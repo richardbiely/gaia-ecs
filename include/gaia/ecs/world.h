@@ -203,7 +203,6 @@ namespace gaia {
 				// Make sure to sort the meta-types so we receive the same hash no
 				// matter the order in which components are provided Bubble sort is
 				// okay. We're dealing with at most MAX_COMPONENTS_PER_ARCHETYPE items.
-				// TODO: Replace with a sorting network
 				util::sort(genericTypes.begin(), genericTypes.end(), std::less<const ComponentMetaData*>());
 				util::sort(chunkTypes.begin(), chunkTypes.end(), std::less<const ComponentMetaData*>());
 
@@ -279,7 +278,6 @@ namespace gaia {
 				// Make sure to sort the meta-types so we receive the same hash no
 				// matter the order in which components are provided Bubble sort is
 				// okay. We're dealing with at most MAX_COMPONENTS_PER_ARCHETYPE items.
-				// TODO: Replace with a sorting network
 				utils::sort(genericTypes, utils::is_smaller<const ComponentMetaData*>());
 				utils::sort(chunkTypes, utils::is_smaller<const ComponentMetaData*>());
 
@@ -550,31 +548,23 @@ namespace gaia {
 				return node;
 #else
 				const auto& componentTypeList = archetype->componentTypeList[componentType];
-
-				// find intersection
-				const auto metaTypesCount = componentTypeList.size();
 				containers::sarray_ext<const ComponentMetaData*, MAX_COMPONENTS_PER_ARCHETYPE> newMetaTypes;
-				newMetaTypes.resize(metaTypesCount);
 
-				uint32_t typesAfter = 0;
-				// TODO: Arrays are sorted so we can make this in O(n+m) instead of
-				// O(N^2)
-				for (auto i = 0U; i < componentTypeList.size(); i++) {
-					const auto& info = componentTypeList[i];
-
-					for (auto k = 0U; k < typesToRemove.size(); k++) {
-						if (info.type == typesToRemove[k])
+				// Find the intersection
+				for (const auto& info: componentTypeList) {
+					for (const auto* type: typesToRemove) {
+						if (info.type == type)
 							goto nextIter;
 					}
 
-					newMetaTypes[typesAfter++] = info.type;
+					newMetaTypes.push_back(info.type);
 
 				nextIter:
 					continue;
 				}
 
 				// Nothing has changed. Return
-				if (typesAfter == metaTypesCount)
+				if (newMetaTypes.size() == componentTypeList.size())
 					return nullptr;
 
 				const auto& secondList = archetype->componentTypeList[(componentType + 1) & 1];
@@ -586,8 +576,10 @@ namespace gaia {
 
 				auto newArchetype =
 						componentType == ComponentType::CT_Generic
-								? FindOrCreateArchetype({newMetaTypes.data(), typesAfter}, {secondMetaTypes.data(), secondList.size()})
-								: FindOrCreateArchetype({secondMetaTypes.data(), secondList.size()}, {newMetaTypes.data(), typesAfter});
+								? FindOrCreateArchetype(
+											{newMetaTypes.data(), newMetaTypes.size()}, {secondMetaTypes.data(), secondList.size()})
+								: FindOrCreateArchetype(
+											{secondMetaTypes.data(), secondList.size()}, {newMetaTypes.data(), newMetaTypes.size()});
 
 				return newArchetype;
 #endif
