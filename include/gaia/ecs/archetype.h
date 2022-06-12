@@ -197,9 +197,10 @@ namespace gaia {
 
 				// Add generic types
 				for (uint32_t i = 0U; i < (uint32_t)genericTypes.size(); i++) {
-					const auto a = genericTypes[i]->info.alig;
-					if (a != 0) {
-						const uint32_t padding = utils::align(alignedOffset, a) - alignedOffset;
+					const auto* type = genericTypes[i];
+					const auto alignment = type->info.alig;
+					if (alignment != 0U) {
+						const uint32_t padding = utils::align(alignedOffset, alignment) - alignedOffset;
 						componentOffset += padding;
 						alignedOffset += padding;
 
@@ -207,29 +208,28 @@ namespace gaia {
 						GAIA_ASSERT(componentOffset <= Chunk::DATA_SIZE_NORESERVE);
 
 						// Register the type
-						newArch->componentTypeList[ComponentType::CT_Generic].push_back({genericTypes[i]});
-						newArch->componentLookupList[ComponentType::CT_Generic].push_back(
-								{genericTypes[i]->typeIndex, componentOffset});
+						newArch->componentTypeList[ComponentType::CT_Generic].push_back({type});
+						newArch->componentLookupList[ComponentType::CT_Generic].push_back({type->typeIndex, componentOffset});
 
 						// Make sure the following component list is properly aligned
-						componentOffset += genericTypes[i]->info.size * maxGenericItemsInArchetype;
-						alignedOffset += genericTypes[i]->info.size * maxGenericItemsInArchetype;
+						componentOffset += type->info.size * maxGenericItemsInArchetype;
+						alignedOffset += type->info.size * maxGenericItemsInArchetype;
 
 						// Make sure we didn't exceed the chunk size
 						GAIA_ASSERT(componentOffset <= Chunk::DATA_SIZE_NORESERVE);
 					} else {
 						// Register the type
-						newArch->componentTypeList[ComponentType::CT_Generic].push_back({genericTypes[i]});
-						newArch->componentLookupList[ComponentType::CT_Generic].push_back(
-								{genericTypes[i]->typeIndex, componentOffset});
+						newArch->componentTypeList[ComponentType::CT_Generic].push_back({type});
+						newArch->componentLookupList[ComponentType::CT_Generic].push_back({type->typeIndex, componentOffset});
 					}
 				}
 
 				// Add chunk types
 				for (uint32_t i = 0U; i < (uint32_t)chunkTypes.size(); i++) {
-					const auto a = chunkTypes[i]->info.alig;
-					if (a != 0U) {
-						const uint32_t padding = utils::align(alignedOffset, a) - alignedOffset;
+					const auto type = chunkTypes[i];
+					const auto alignment = type->info.alig;
+					if (alignment != 0U) {
+						const uint32_t padding = utils::align(alignedOffset, alignment) - alignedOffset;
 						componentOffset += padding;
 						alignedOffset += padding;
 
@@ -237,21 +237,19 @@ namespace gaia {
 						GAIA_ASSERT(componentOffset <= Chunk::DATA_SIZE_NORESERVE);
 
 						// Register the type
-						newArch->componentTypeList[ComponentType::CT_Chunk].push_back({chunkTypes[i]});
-						newArch->componentLookupList[ComponentType::CT_Chunk].push_back(
-								{chunkTypes[i]->typeIndex, componentOffset});
+						newArch->componentTypeList[ComponentType::CT_Chunk].push_back({type});
+						newArch->componentLookupList[ComponentType::CT_Chunk].push_back({type->typeIndex, componentOffset});
 
 						// Make sure the following component list is properly aligned
-						componentOffset += chunkTypes[i]->info.size;
-						alignedOffset += chunkTypes[i]->info.size;
+						componentOffset += type->info.size;
+						alignedOffset += type->info.size;
 
 						// Make sure we didn't exceed the chunk size
 						GAIA_ASSERT(componentOffset <= Chunk::DATA_SIZE_NORESERVE);
 					} else {
 						// Register the type
-						newArch->componentTypeList[ComponentType::CT_Chunk].push_back({chunkTypes[i]});
-						newArch->componentLookupList[ComponentType::CT_Chunk].push_back(
-								{chunkTypes[i]->typeIndex, componentOffset});
+						newArch->componentTypeList[ComponentType::CT_Chunk].push_back({type});
+						newArch->componentLookupList[ComponentType::CT_Chunk].push_back({type->typeIndex, componentOffset});
 					}
 				}
 
