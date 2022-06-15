@@ -1492,7 +1492,7 @@ namespace gaia {
 			//--------------------------------------------------------------------------------
 
 			template <typename TFunc>
-			static void RunQueryOnChunks_Direct(World& world, EntityQuery& query, TFunc& func) {
+			static void RunQueryOnChunks_Direct(World& world, EntityQuery& query, TFunc func) {
 				const uint32_t BatchSize = 256U;
 				containers::sarray<Chunk*, BatchSize> tmp;
 
@@ -1545,7 +1545,7 @@ namespace gaia {
 			}
 
 			template <typename TFunc>
-			static void RunQueryOnChunks_Indirect_NoResolve(World& world, EntityQuery& query, TFunc& func) {
+			static void RunQueryOnChunks_Indirect_NoResolve(World& world, EntityQuery& query, TFunc func) {
 				using InputArgs = decltype(utils::func_args(&TFunc::operator()));
 
 				const uint32_t BatchSize = 256U;
@@ -1634,10 +1634,12 @@ namespace gaia {
 			EntityQuery& AddOrFindEntityQueryInCache(World& world, EntityQuery& queryTmp) {
 				EntityQuery* query = nullptr;
 
-				auto it = world.m_cachedQueries.find(queryTmp.hashLookupGeneric);
+				const uint64_t hashLookupGeneric = queryTmp.hashLookupGeneric;
+
+				auto it = world.m_cachedQueries.find(hashLookupGeneric);
 				if (it == world.m_cachedQueries.end()) {
-					world.m_cachedQueries[queryTmp.hashLookupGeneric] = {std::move(queryTmp)};
-					query = &world.m_cachedQueries[queryTmp.hashLookupGeneric].back();
+					world.m_cachedQueries[hashLookupGeneric] = {std::move(queryTmp)};
+					query = &world.m_cachedQueries[hashLookupGeneric].back();
 				} else {
 					auto& queries = it->second;
 
@@ -1660,12 +1662,12 @@ namespace gaia {
 			//--------------------------------------------------------------------------------
 
 			template <typename TFunc>
-			void ForEachChunkExecutionContext_External(World& world, EntityQuery& query, TFunc&& func) {
+			void ForEachChunkExecutionContext_External(World& world, EntityQuery& query, TFunc func) {
 				RunQueryOnChunks_Direct(world, query, func);
 			}
 
 			template <typename TFunc>
-			void ForEachChunkExecutionContext_Internal(World& world, EntityQuery&& queryTmp, TFunc&& func) {
+			void ForEachChunkExecutionContext_Internal(World& world, EntityQuery&& queryTmp, TFunc func) {
 				RegisterComponents<TFunc>(world);
 				queryTmp.CalculateLookupHash(world);
 				RunQueryOnChunks_Direct(world, AddOrFindEntityQueryInCache(world, queryTmp), func);
@@ -1674,22 +1676,22 @@ namespace gaia {
 			//--------------------------------------------------------------------------------
 
 			template <typename TFunc>
-			void ForEachExecutionContext_External(World& world, EntityQuery& query, TFunc&& func) {
+			void ForEachExecutionContext_External(World& world, EntityQuery& query, TFunc func) {
 				RunQueryOnChunks_Indirect(world, query, func);
 			}
 
 			template <typename TFunc>
-			void ForEachExecutionContext_Internal(World& world, EntityQuery&& queryTmp, TFunc&& func) {
+			void ForEachExecutionContext_Internal(World& world, EntityQuery&& queryTmp, TFunc func) {
 				RegisterComponents<TFunc>(world);
 				queryTmp.CalculateLookupHash(world);
 				RunQueryOnChunks_Indirect_NoResolve(world, AddOrFindEntityQueryInCache(world, queryTmp), func);
 			}
 
 			template <typename TFunc>
-			void ForEachExecutionContext_Internal(World& world, TFunc&& func) {
+			void ForEachExecutionContext_Internal(World& world, TFunc func) {
 				EntityQuery query;
 				ResolveQuery<TFunc>(world, query);
-				ForEachExecutionContext_Internal<TFunc>(world, std::move(query), std::forward<TFunc>(func));
+				ForEachExecutionContext_Internal<TFunc>(world, std::move(query), func);
 			}
 
 			//--------------------------------------------------------------------------------
@@ -1702,11 +1704,11 @@ namespace gaia {
 							and takes more lines of code when used.
 			*/
 			template <typename TFunc>
-			void ForEach(EntityQuery& query, TFunc&& func) {
+			void ForEach(EntityQuery& query, TFunc func) {
 				if constexpr (std::is_invocable<TFunc, Chunk&>::value)
-					ForEachChunkExecutionContext_External((World&)*this, query, std::forward<TFunc>(func));
+					ForEachChunkExecutionContext_External((World&)*this, query, func);
 				else
-					ForEachExecutionContext_External((World&)*this, query, std::forward<TFunc>(func));
+					ForEachExecutionContext_External((World&)*this, query, func);
 			}
 
 			/*!
@@ -1716,12 +1718,12 @@ namespace gaia {
 							and takes more lines of code when used.
 			*/
 			template <typename TFunc>
-			void ForEach(EntityQuery&& query, TFunc&& func) {
+			void ForEach(EntityQuery&& query, TFunc func) {
 				if constexpr (std::is_invocable<TFunc, Chunk&>::value)
 					ForEachChunkExecutionContext_Internal(
-							(World&)*this, std::forward<EntityQuery>(query), std::forward<TFunc>(func));
+							(World&)*this, std::forward<EntityQuery>(query), func);
 				else
-					ForEachExecutionContext_Internal((World&)*this, std::forward<EntityQuery>(query), std::forward<TFunc>(func));
+					ForEachExecutionContext_Internal((World&)*this, std::forward<EntityQuery>(query), func);
 			}
 
 			/*!
@@ -1732,11 +1734,11 @@ namespace gaia {
 							and for non-critical code paths it is the most elegant way of iterating your data.
 			*/
 			template <typename TFunc>
-			void ForEach(TFunc&& func) {
+			void ForEach(TFunc func) {
 				static_assert(
 						!std::is_invocable<TFunc, Chunk&>::value,
 						"Calling query-less ForEach is not supported for chunk iteration");
-				ForEachExecutionContext_Internal((World&)*this, std::forward<TFunc>(func));
+				ForEachExecutionContext_Internal((World&)*this, func);
 			}
 
 			/*!
