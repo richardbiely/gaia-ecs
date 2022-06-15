@@ -182,14 +182,14 @@ namespace gaia {
 			template <typename T>
 			[[nodiscard]] GAIA_FORCEINLINE
 					typename std::enable_if_t<std::is_same<std::decay_t<T>, Entity>::value, std::span<const Entity>>
-					view_internal() const {
+					View_Internal() const {
 				return {(const Entity*)&data[0], GetItemCount()};
 			}
 
 			template <typename T>
 			[[nodiscard]] GAIA_FORCEINLINE
 					typename std::enable_if_t<!std::is_same<std::decay_t<T>, Entity>::value, std::span<const std::decay_t<T>>>
-					view_internal(ComponentType componentType = ComponentType::CT_Generic) const {
+					View_Internal(ComponentType componentType = ComponentType::CT_Generic) const {
 				using TComponent = std::decay_t<T>;
 				static_assert(!std::is_empty<TComponent>::value, "Attempting to get value of an empty component");
 
@@ -203,7 +203,7 @@ namespace gaia {
 			template <typename T>
 			[[nodiscard]] GAIA_FORCEINLINE
 					typename std::enable_if_t<!std::is_same<std::decay_t<T>, Entity>::value, std::span<std::decay_t<T>>>
-					view_rw_internal(ComponentType componentType = ComponentType::CT_Generic) {
+					ViewRW_Internal(ComponentType componentType = ComponentType::CT_Generic) {
 				using TComponent = std::decay_t<T>;
 				static_assert(!std::is_empty<TComponent>::value, "Empty components shouldn't be used for writing!");
 
@@ -215,7 +215,7 @@ namespace gaia {
 			}
 
 			[[nodiscard]] GAIA_FORCEINLINE uint8_t*
-			view_rw_internal(const ComponentMetaData* metaType, ComponentType componentType = ComponentType::CT_Generic) {
+			ViewRW_Internal(const ComponentMetaData* metaType, ComponentType componentType = ComponentType::CT_Generic) {
 				GAIA_ASSERT(metaType != nullptr);
 				// Empty components shouldn't be used for writing!
 				GAIA_ASSERT(metaType->info.size != 0);
@@ -268,7 +268,7 @@ namespace gaia {
 			[[nodiscard]]
 			typename std::enable_if_t<std::is_same<std::decay_t<T>, Entity>::value, utils::auto_view_policy_get<const Entity>>
 			View() const {
-				return {view_internal<T>()};
+				return {View_Internal<T>()};
 			}
 
 			/*!
@@ -280,7 +280,7 @@ namespace gaia {
 					!std::is_same<std::decay_t<T>, Entity>::value, utils::auto_view_policy_get<const std::decay_t<T>>>
 			View(ComponentType componentType = ComponentType::CT_Generic) const {
 				using TComponent = const std::decay_t<T>;
-				return {view_internal<TComponent>(componentType)};
+				return {View_Internal<TComponent>(componentType)};
 			}
 
 			/*!
@@ -292,7 +292,7 @@ namespace gaia {
 					!std::is_same<std::decay_t<T>, Entity>::value, utils::auto_view_policy_set<std::decay_t<T>>>
 			ViewRW(ComponentType componentType = ComponentType::CT_Generic) {
 				using TComponent = std::decay_t<T>;
-				return {view_rw_internal<TComponent>(componentType)};
+				return {ViewRW_Internal<TComponent>(componentType)};
 			}
 
 			/*!

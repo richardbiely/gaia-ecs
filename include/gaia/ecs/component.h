@@ -196,14 +196,14 @@ namespace gaia {
 
 		[[nodiscard]] inline uint64_t CalculateMatcherHash(std::span<const ComponentMetaData*> types) noexcept {
 			uint64_t hash = types.empty() ? 0 : types[0]->matcherHash;
-			for (uint32_t i = 1U; i < types.size(); ++i)
+			for (uint32_t i = 1U; i < (uint32_t)types.size(); ++i)
 				hash = utils::combine_or(hash, types[i]->matcherHash);
 			return hash;
 		}
 
 		[[nodiscard]] inline uint64_t CalculateLookupHash(std::span<const ComponentMetaData*> types) noexcept {
 			uint64_t hash = types.empty() ? 0 : types[0]->lookupHash;
-			for (uint32_t i = 1U; i < types.size(); ++i)
+			for (uint32_t i = 1U; i < (uint32_t)types.size(); ++i)
 				hash = utils::hash_combine(hash, types[i]->lookupHash);
 			return hash;
 		}

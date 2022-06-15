@@ -16,6 +16,7 @@ namespace gaia {
 		class World;
 
 		ComponentCache& GetComponentCache(World& world);
+		const ComponentCache& GetComponentCache(const World& world);
 		uint32_t GetWorldVersionFromWorld(const World& world);
 		void* AllocateChunkMemory(World& world);
 		void ReleaseChunkMemory(World& world, void* mem);
@@ -350,6 +351,10 @@ namespace gaia {
 					ReleaseChunk(pChunk);
 				for (auto* pChunk: chunksDisabled)
 					ReleaseChunk(pChunk);
+			}
+
+			[[nodiscard]] const World& GetWorld() const {
+				return *parentWorld;
 			}
 
 			[[nodiscard]] uint32_t GetWorldVersion() const {

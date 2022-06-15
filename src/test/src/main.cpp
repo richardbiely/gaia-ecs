@@ -259,7 +259,9 @@ TEST_CASE("EntityQuery - 2 components") {
 	ecs::EntityQuery qq1, qq2;
 	qq1.All<Position, Rotation>();
 	qq2.All<Rotation, Position>();
-	REQUIRE(qq1.GetData(ecs::ComponentType::CT_Generic).hashAll == qq2.GetData(ecs::ComponentType::CT_Generic).hashAll);
+	REQUIRE(
+			qq1.GetData(ecs::ComponentType::CT_Generic).hash[ecs::EntityQuery::ListType::LT_All] ==
+			qq2.GetData(ecs::ComponentType::CT_Generic).hash[ecs::EntityQuery::ListType::LT_All]);
 }
 
 TEST_CASE("EntityQuery - 4 components") {
@@ -267,7 +269,9 @@ TEST_CASE("EntityQuery - 4 components") {
 	ecs::EntityQuery qq1, qq2;
 	qq1.All<Position, Rotation, Acceleration, Something>();
 	qq2.All<Rotation, Something, Position, Acceleration>();
-	REQUIRE(qq1.GetData(ecs::ComponentType::CT_Generic).hashAll == qq2.GetData(ecs::ComponentType::CT_Generic).hashAll);
+	REQUIRE(
+			qq1.GetData(ecs::ComponentType::CT_Generic).hash[ecs::EntityQuery::ListType::LT_All] ==
+			qq2.GetData(ecs::ComponentType::CT_Generic).hash[ecs::EntityQuery::ListType::LT_All]);
 }
 
 TEST_CASE("CreateEntity - no components") {
