@@ -70,6 +70,10 @@ namespace gaia {
 				return m_componentCache;
 			}
 
+			const ComponentCache& GetComponentCache() const {
+				return m_componentCache;
+			}
+
 			void UpdateWorldVersion() {
 				UpdateVersion(m_worldVersion);
 			}
@@ -204,32 +208,22 @@ namespace gaia {
 				// Make sure to sort the meta-types so we receive the same hash no
 				// matter the order in which components are provided Bubble sort is
 				// okay. We're dealing with at most MAX_COMPONENTS_PER_ARCHETYPE items.
-				util::sort(genericTypes.begin(), genericTypes.end(), std::less<const ComponentMetaData*>());
-				util::sort(chunkTypes.begin(), chunkTypes.end(), std::less<const ComponentMetaData*>());
+				utils::sort(genericTypes, [](const ComponentMetaData* left, const ComponentMetaData* right) {
+					return left->typeIndex < right->typeIndex;
+				});
+				utils::sort(chunkTypes, [](const ComponentMetaData* left, const ComponentMetaData* right) {
+					return left->typeIndex < right->typeIndex;
+				});
 
 				const auto genericHash = CalculateLookupHash(genericTypes);
 				const auto chunkHash = CalculateLookupHash(chunkTypes);
 				const auto lookupHash = CalculateLookupHash(containers::sarray<uint64_t, 2>{genericHash, chunkHash});
 
-				GAIA_ASSERT(FindArchetype(genericTypes, chunkTypes, lookupHash) == nullptr);
-
 				auto newArch = Archetype::Create(*this, genericTypes, chunkTypes);
+
 				newArch->genericHash = genericHash;
 				newArch->chunkHash = chunkHash;
 				newArch->lookupHash = lookupHash;
-
-				newArch->id = (uint32_t)m_archetypeList.size();
-				GAIA_ASSERT(!utils::has(m_archetypeList, newArch));
-				m_archetypeList.push_back(newArch);
-
-				auto it = m_archetypeMap.find(lookupHash);
-				if (it == m_archetypeMap.end()) {
-					m_archetypeMap[lookupHash] = {newArch};
-				} else {
-					auto& archetypes = it->second;
-					GAIA_ASSERT(!utils::has(archetypes, newArch));
-					archetypes.push_back(newArch);
-				}
 
 				return newArch;
 			}
@@ -242,31 +236,13 @@ namespace gaia {
 			*/
 			[[nodiscard]] Archetype* CreateArchetype(
 					std::span<const ComponentMetaData*> genericTypes, std::span<const ComponentMetaData*> chunkTypes) {
-				auto newArch = Archetype::Create(*this, genericTypes, chunkTypes);
+				return Archetype::Create(*this, genericTypes, chunkTypes);
+			}
 
-				newArch->id = (uint32_t)m_archetypeList.size();
-				GAIA_ASSERT(!utils::has(m_archetypeList, newArch));
-				m_archetypeList.push_back(newArch);
-
-				newArch->genericHash = CalculateLookupHash(genericTypes);
-				newArch->chunkHash = CalculateLookupHash(chunkTypes);
-
-				// Calculate hash for our combination of components
-				const auto lookupHash =
-						CalculateLookupHash(containers::sarray<uint64_t, 2>{newArch->genericHash, newArch->chunkHash});
-
-				newArch->lookupHash = lookupHash;
-
-				auto it = m_archetypeMap.find(lookupHash);
-				if (it == m_archetypeMap.end()) {
-					m_archetypeMap[lookupHash] = {newArch};
-				} else {
-					auto& archetypes = it->second;
-					GAIA_ASSERT(!utils::has(archetypes, newArch));
-					archetypes.push_back(newArch);
-				}
-
-				return newArch;
+			void InitArchetype(Archetype* archetype, uint64_t genericHash, uint64_t chunkHash, uint64_t lookupHash) {
+				archetype->genericHash = genericHash;
+				archetype->chunkHash = chunkHash;
+				archetype->lookupHash = lookupHash;
 			}
 
 			/*!
@@ -279,21 +255,51 @@ namespace gaia {
 				// Make sure to sort the meta-types so we receive the same hash no
 				// matter the order in which components are provided Bubble sort is
 				// okay. We're dealing with at most MAX_COMPONENTS_PER_ARCHETYPE items.
-				utils::sort(genericTypes, utils::is_smaller<const ComponentMetaData*>());
-				utils::sort(chunkTypes, utils::is_smaller<const ComponentMetaData*>());
+				utils::sort(genericTypes, [](const ComponentMetaData* left, const ComponentMetaData* right) {
+					return left->typeIndex < right->typeIndex;
+				});
+				utils::sort(chunkTypes, [](const ComponentMetaData* left, const ComponentMetaData* right) {
+					return left->typeIndex < right->typeIndex;
+				});
 
 				// Calculate hash for our combination of components
 				const auto genericHash = CalculateLookupHash(genericTypes);
 				const auto chunkHash = CalculateLookupHash(chunkTypes);
 				const auto lookupHash = CalculateLookupHash(containers::sarray<uint64_t, 2>{genericHash, chunkHash});
 
-				if (auto archetype = FindArchetype(genericTypes, chunkTypes, lookupHash))
-					return archetype;
+				Archetype* archetype = FindArchetype(genericTypes, chunkTypes, lookupHash);
+				if (archetype == nullptr) {
+					archetype = CreateArchetype(genericTypes, chunkTypes);
+					InitArchetype(archetype, genericHash, chunkHash, lookupHash);
+					RegisterArchetype(archetype);
+				}
 
-				// Archetype wasn't found so we have to create a new one
-				return CreateArchetype(genericTypes, chunkTypes);
+				return archetype;
 			}
 #endif
+
+			void RegisterArchetype(Archetype* archetype) {
+				// Make sure hashes were set already
+				GAIA_ASSERT(newArch->genericHash != 0);
+				GAIA_ASSERT(newArch->chunkHash != 0);
+				GAIA_ASSERT(newArch->lookupHash != 0);
+
+				// Make sure the archetype is not registered yet
+				GAIA_ASSERT(!utils::has(m_archetypeList, archetype));
+
+				// Register the archetype
+				archetype->id = (uint32_t)m_archetypeList.size();
+				m_archetypeList.push_back(archetype);
+
+				auto it = m_archetypeMap.find(archetype->lookupHash);
+				if (it == m_archetypeMap.end()) {
+					m_archetypeMap[archetype->lookupHash] = {archetype};
+				} else {
+					auto& archetypes = it->second;
+					GAIA_ASSERT(!utils::has(archetypes, archetype));
+					archetypes.push_back(archetype);
+				}
+			}
 
 #if GAIA_DEBUG
 			void VerifyAddComponent(
@@ -440,6 +446,7 @@ namespace gaia {
 						node = FindArchetype(std::span<const ComponentMetaData*>(&newTypes[0], 1), {}, lookupHash);
 						if (node == nullptr) {
 							node = CreateArchetype(std::span<const ComponentMetaData*>(&newTypes[0], 1), {});
+							RegisterArchetype(node);
 							node->edgesDel[componentType].push_back({newTypes[0], m_rootArchetype});
 						}
 					} else {
@@ -448,6 +455,7 @@ namespace gaia {
 						node = FindArchetype({}, std::span<const ComponentMetaData*>(&newTypes[0], 1), lookupHash);
 						if (node == nullptr) {
 							node = CreateArchetype({}, std::span<const ComponentMetaData*>(&newTypes[0], 1));
+							RegisterArchetype(node);
 							node->edgesDel[componentType].push_back({newTypes[0], m_rootArchetype});
 						}
 					}
@@ -502,7 +510,8 @@ namespace gaia {
 													std::span<const ComponentMetaData*>(otherMetaTypes.data(), (uint32_t)otherMetaTypes.size()),
 													std::span<const ComponentMetaData*>(newMetaTypes.data(), (uint32_t)newMetaTypes.size()));
 
-						BuildGraphEdges(componentType, node, newArchetype, type);
+						RegisterArchetype(newArchetype);
+						BuildGraphEdges(componentType, node, newArchetype, newType);
 #else
 						auto newArchetype =
 								componentType == ComponentType::CT_Generic
@@ -860,6 +869,7 @@ namespace gaia {
 
 			void Init() {
 				m_rootArchetype = CreateArchetype({}, {});
+				RegisterArchetype(m_rootArchetype);
 			}
 
 			void Done() {
@@ -1398,35 +1408,39 @@ namespace gaia {
 							(!std::is_pointer<T>::value && !std::is_reference<T>::value)> {};
 
 			template <class T, std::enable_if_t<IsReadOnlyType<T>::value>* = nullptr>
-			constexpr GAIA_FORCEINLINE const std::decay_t<T>* expandTuple(Chunk& chunk) const {
-				return chunk.view_internal<T>().data();
+			constexpr GAIA_FORCEINLINE const std::decay_t<T>* ExpandTuple(Chunk& chunk) const {
+				return chunk.View_Internal<T>().data();
 			}
 
 			template <class T, std::enable_if_t<!IsReadOnlyType<T>::value>* = nullptr>
-			constexpr GAIA_FORCEINLINE std::decay_t<T>* expandTuple(Chunk& chunk) {
-				return chunk.view_rw_internal<T>().data();
+			constexpr GAIA_FORCEINLINE std::decay_t<T>* ExpandTuple(Chunk& chunk) {
+				return chunk.ViewRW_Internal<T>().data();
 			}
 
+			//--------------------------------------------------------------------------------
+
 			template <typename... TFuncArgs, typename TFunc>
-			GAIA_FORCEINLINE void ForEachEntityInChunk(Chunk& chunk, TFunc&& func) {
-				auto tup = std::make_tuple(expandTuple<TFuncArgs>(chunk)...);
+			GAIA_FORCEINLINE void ForEachEntityInChunk(Chunk& chunk, TFunc func) {
+				auto tup = std::make_tuple(ExpandTuple<TFuncArgs>(chunk)...);
 				const uint32_t size = chunk.GetItemCount();
 				for (uint32_t i = 0U; i < size; i++)
-					func(std::get<decltype(expandTuple<TFuncArgs>(chunk))>(tup)[i]...);
+					func(std::get<decltype(ExpandTuple<TFuncArgs>(chunk))>(tup)[i]...);
 			}
 
 			template <typename... TComponents, typename TFunc>
 			GAIA_FORCEINLINE void UnpackForEachEntityInChunk(
-					[[maybe_unused]] utils::func_type_list<TComponents...> types, Chunk& chunk, TFunc&& func) {
-				ForEachEntityInChunk<TComponents...>(chunk, std::forward<TFunc>(func));
+					[[maybe_unused]] utils::func_type_list<TComponents...> types, Chunk& chunk, TFunc func) {
+				ForEachEntityInChunk<TComponents...>(chunk, func);
 			}
 
 			template <typename TFunc>
-			void ForEachArchetype(EntityQuery& query, TFunc&& func) {
+			GAIA_FORCEINLINE void ForEachArchetype(EntityQuery& query, TFunc func) {
 				query.Match(m_archetypeList);
 				for (auto* pArchetype: query)
 					func(*pArchetype);
 			}
+
+			//--------------------------------------------------------------------------------
 
 			template <typename... TComponents>
 			GAIA_FORCEINLINE void
@@ -1443,6 +1457,8 @@ namespace gaia {
 				if constexpr (sizeof...(TComponents) > 0)
 					(arr.push_back(m_componentCache.GetOrCreateComponentMetaType<TComponents>()), ...);
 			}
+
+			//--------------------------------------------------------------------------------
 
 			[[nodiscard]] static bool CheckFilters(const EntityQuery& query, const Chunk& chunk) {
 				GAIA_ASSERT(chunk.HasEntities() && "CheckFilters called on an empty chunk");
@@ -1472,6 +1488,8 @@ namespace gaia {
 				// Skip unchanged chunks.
 				return false;
 			}
+
+			//--------------------------------------------------------------------------------
 
 			template <typename TFunc>
 			static void RunQueryOnChunks_Direct(World& world, EntityQuery& query, TFunc& func) {
@@ -1553,13 +1571,15 @@ namespace gaia {
 
 								if (!pChunk->HasEntities())
 									continue;
+								if (!query.CheckConstraints(!pChunk->IsDisabled()))
+									continue;
 								if (hasFilters && !CheckFilters(query, *pChunk))
 									continue;
 
 								tmp[batchSize++] = pChunk;
 							}
 
-							// Execute functors in bulk
+							// Execute functors in batches
 							const auto size = batchSize;
 							for (auto chunkIdx = 0U; chunkIdx < size; ++chunkIdx)
 								world.UnpackForEachEntityInChunk(InputArgs{}, *tmp[chunkIdx], func);
@@ -1595,77 +1615,82 @@ namespace gaia {
 
 			//--------------------------------------------------------------------------------
 
+			template <typename... TComponent>
+			static void
+			RegisterComponents_Internal([[maybe_unused]] utils::func_type_list<TComponent...> types, World& world) {
+				static_assert(sizeof...(TComponent) > 0, "Empty EntityQuery is not supported in this context");
+				auto& cc = world.GetComponentCache();
+				((void)cc.GetOrCreateComponentMetaType<TComponent>(), ...);
+			}
+
 			template <typename TFunc>
-			struct ForEachChunkExecutionContext {
-				ForEachChunkExecutionContext(World& world, EntityQuery& query, TFunc&& func) {
-					World::RunQueryOnChunks_Direct(world, query, func);
+			static void RegisterComponents(World& world) {
+				using InputArgs = decltype(utils::func_args(&TFunc::operator()));
+				RegisterComponents_Internal(InputArgs{}, world);
+			}
+
+			//--------------------------------------------------------------------------------
+
+			EntityQuery& AddOrFindEntityQueryInCache(World& world, EntityQuery& queryTmp) {
+				EntityQuery* query = nullptr;
+
+				auto it = world.m_cachedQueries.find(queryTmp.hashLookupGeneric);
+				if (it == world.m_cachedQueries.end()) {
+					world.m_cachedQueries[queryTmp.hashLookupGeneric] = {std::move(queryTmp)};
+					query = &world.m_cachedQueries[queryTmp.hashLookupGeneric].back();
+				} else {
+					auto& queries = it->second;
+
+					// Make sure the same hash gets us to the proper query
+					for (const auto& q: queries) {
+						const auto ret = q.Match_Generic_All(queryTmp);
+						if (ret != EntityQuery::MatchArchetypeQueryRet::Ok)
+							continue;
+						query = &queries.back();
+						return *query;
+					}
+
+					queries.push_back(std::move(queryTmp));
+					query = &queries.back();
 				}
-			};
+
+				return *query;
+			}
 
 			//--------------------------------------------------------------------------------
 
 			template <typename TFunc>
-			struct ForEachExecutionContext_External {
-				ForEachExecutionContext_External(World& world, EntityQuery& query, TFunc&& func) {
-					World::RunQueryOnChunks_Indirect(world, query, func);
-				}
-			};
+			void ForEachChunkExecutionContext_External(World& world, EntityQuery& query, TFunc&& func) {
+				RunQueryOnChunks_Direct(world, query, func);
+			}
 
 			template <typename TFunc>
-			struct ForEachExecutionContext_Internal {
-				ForEachExecutionContext_Internal(World& world, EntityQuery&& query, TFunc&& func) {
-					World::RunQueryOnChunks_Indirect(world, std::move(query), func);
-				}
-			};
+			void ForEachChunkExecutionContext_Internal(World& world, EntityQuery&& queryTmp, TFunc&& func) {
+				RegisterComponents<TFunc>(world);
+				queryTmp.CalculateLookupHash(world);
+				RunQueryOnChunks_Direct(world, AddOrFindEntityQueryInCache(world, queryTmp), func);
+			}
+
+			//--------------------------------------------------------------------------------
 
 			template <typename TFunc>
-			struct ForEachExecutionContext_Internal_Cached {
-				friend class World;
+			void ForEachExecutionContext_External(World& world, EntityQuery& query, TFunc&& func) {
+				RunQueryOnChunks_Indirect(world, query, func);
+			}
 
-			public:
-				ForEachExecutionContext_Internal_Cached(World& world, TFunc&& func) {
-					using InputArgs = decltype(utils::func_args(&TFunc::operator()));
+			template <typename TFunc>
+			void ForEachExecutionContext_Internal(World& world, EntityQuery&& queryTmp, TFunc&& func) {
+				RegisterComponents<TFunc>(world);
+				queryTmp.CalculateLookupHash(world);
+				RunQueryOnChunks_Indirect_NoResolve(world, AddOrFindEntityQueryInCache(world, queryTmp), func);
+			}
 
-					containers::sarray_ext<const ComponentMetaData*, EntityQuery::MAX_COMPONENTS_IN_QUERY> genericTypes;
-					world.UnpackArgsIntoGenericTypes(InputArgs{}, genericTypes);
-					if (genericTypes.empty())
-						return;
-
-					utils::sort(genericTypes, std::less<const ComponentMetaData*>());
-
-					uint64_t lookupHash = genericTypes[0]->lookupHash;
-					for (uint32_t i = 1; i < (uint32_t)genericTypes.size(); ++i)
-						lookupHash = utils::hash_combine(lookupHash, genericTypes[i]->lookupHash);
-
-					EntityQuery* query = nullptr;
-
-					EntityQuery queryTmp;
-					ResolveQuery<TFunc>(world, queryTmp);
-
-					auto it = world.m_cachedQueries.find(lookupHash);
-					if (it == world.m_cachedQueries.end()) {
-						world.m_cachedQueries[lookupHash] = {std::move(queryTmp)};
-						query = &world.m_cachedQueries[lookupHash].back();
-					} else {
-						auto& queries = it->second;
-
-						// Make sure the same hash gets us to the proper query
-						for (const auto& q: queries) {
-							const auto ret = q.MatchAllGenericComponents(genericTypes, lookupHash);
-							if (ret != EntityQuery::MatchArchetypeQueryRet::Ok)
-								continue;
-							query = &queries.back();
-							goto exec_func;
-						}
-
-						queries.push_back(std::move(queryTmp));
-						query = &queries.back();
-					}
-
-				exec_func:
-					World::RunQueryOnChunks_Indirect_NoResolve(world, *query, func);
-				}
-			};
+			template <typename TFunc>
+			void ForEachExecutionContext_Internal(World& world, TFunc&& func) {
+				EntityQuery query;
+				ResolveQuery<TFunc>(world, query);
+				ForEachExecutionContext_Internal<TFunc>(world, std::move(query), std::forward<TFunc>(func));
+			}
 
 			//--------------------------------------------------------------------------------
 
@@ -1679,9 +1704,9 @@ namespace gaia {
 			template <typename TFunc>
 			void ForEach(EntityQuery& query, TFunc&& func) {
 				if constexpr (std::is_invocable<TFunc, Chunk&>::value)
-					ForEachChunkExecutionContext{(World&)*this, query, std::forward<TFunc>(func)};
+					ForEachChunkExecutionContext_External((World&)*this, query, std::forward<TFunc>(func));
 				else
-					ForEachExecutionContext_External{(World&)*this, query, std::forward<TFunc>(func)};
+					ForEachExecutionContext_External((World&)*this, query, std::forward<TFunc>(func));
 			}
 
 			/*!
@@ -1693,20 +1718,25 @@ namespace gaia {
 			template <typename TFunc>
 			void ForEach(EntityQuery&& query, TFunc&& func) {
 				if constexpr (std::is_invocable<TFunc, Chunk&>::value)
-					ForEachChunkExecutionContext{(World&)*this, std::forward<EntityQuery>(query), std::forward<TFunc>(func)};
+					ForEachChunkExecutionContext_Internal(
+							(World&)*this, std::forward<EntityQuery>(query), std::forward<TFunc>(func));
 				else
-					ForEachExecutionContext_Internal{(World&)*this, std::forward<EntityQuery>(query), std::forward<TFunc>(func)};
+					ForEachExecutionContext_Internal((World&)*this, std::forward<EntityQuery>(query), std::forward<TFunc>(func));
 			}
 
 			/*!
 			Iterates over all chunks satisfying conditions set by \param func and calls \param func for all of them.
 			EntityQuery instance is generated internally from the input arguments of \param func.
-			\warning Performance-wise it has less potential than ForEach. However, it is easier to use and unless
-							some specific optimizations are necessary is the preffered way of iterating over data.
+			\warning Performance-wise it has less potential than iterating using ecs::Chunk or a comparable ForEach passing
+							in a query because it needs to do cached query lookups on each invocation. However, it is easier to use
+							and for non-critical code paths it is the most elegant way of iterating your data.
 			*/
 			template <typename TFunc>
 			void ForEach(TFunc&& func) {
-				ForEachExecutionContext_Internal_Cached{(World&)*this, std::forward<TFunc>(func)};
+				static_assert(
+						!std::is_invocable<TFunc, Chunk&>::value,
+						"Calling query-less ForEach is not supported for chunk iteration");
+				ForEachExecutionContext_Internal((World&)*this, std::forward<TFunc>(func));
 			}
 
 			/*!
@@ -1938,6 +1968,9 @@ namespace gaia {
 		};
 
 		inline ComponentCache& GetComponentCache(World& world) {
+			return world.GetComponentCache();
+		}
+		inline const ComponentCache& GetComponentCache(const World& world) {
 			return world.GetComponentCache();
 		}
 		inline uint32_t GetWorldVersionFromWorld(const World& world) {

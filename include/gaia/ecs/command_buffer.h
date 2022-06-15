@@ -526,7 +526,7 @@ namespace gaia {
 									i += sizeof(uint32_t);
 
 									const auto* metaType = newMetaTypes[j];
-									auto* pComponentDataStart = pChunk->view_rw_internal(metaType, componentType);
+									auto* pComponentDataStart = pChunk->ViewRW_Internal(metaType, componentType);
 									auto* pComponentData = (void*)&pComponentDataStart[indexInChunk * metaType->info.size];
 									memcpy(pComponentData, (const void*)&m_data[i], metaType->info.size);
 									i += metaType->info.size;
@@ -577,7 +577,7 @@ namespace gaia {
 									i += sizeof(uint32_t);
 
 									const auto* metaType = newMetaTypes[j];
-									auto* pComponentDataStart = pChunk->view_rw_internal(metaType, componentType);
+									auto* pComponentDataStart = pChunk->ViewRW_Internal(metaType, componentType);
 									auto* pComponentData = (void*)&pComponentDataStart[indexInChunk * metaType->info.size];
 									memcpy(pComponentData, (const void*)&m_data[i], metaType->info.size);
 									i += metaType->info.size;
@@ -605,7 +605,7 @@ namespace gaia {
 								const auto* metaType = GetComponentCache(m_world).GetComponentMetaTypeFromIdx(typeIndex);
 								i += sizeof(uint32_t);
 
-								auto* pComponentDataStart = pChunk->view_rw_internal(metaType, componentType);
+								auto* pComponentDataStart = pChunk->ViewRW_Internal(metaType, componentType);
 								auto* pComponentData = (void*)&pComponentDataStart[indexInChunk * metaType->info.size];
 								memcpy(pComponentData, (const void*)&m_data[i], metaType->info.size);
 								i += metaType->info.size;
@@ -640,7 +640,7 @@ namespace gaia {
 								const auto* metaType = GetComponentCache(m_world).GetComponentMetaTypeFromIdx(typeIndex);
 								i += sizeof(uint32_t);
 
-								auto* pComponentDataStart = pChunk->view_rw_internal(metaType, componentType);
+								auto* pComponentDataStart = pChunk->ViewRW_Internal(metaType, componentType);
 								auto* pComponentData = (void*)&pComponentDataStart[indexInChunk * metaType->info.size];
 								memcpy(pComponentData, (const void*)&m_data[i], metaType->info.size);
 								i += metaType->info.size;

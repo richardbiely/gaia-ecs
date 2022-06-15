@@ -268,8 +268,10 @@ void BM_ForEach_Chunk_1_Archetype(benchmark::State& state) {
 
 	for ([[maybe_unused]] auto _: state) {
 		w.ForEach(query, [&](const ecs::Chunk& chunk) {
-			for (size_t i = 0; i < chunk.GetItemCount(); ++i)
-				benchmark::DoNotOptimize(i);
+			for (size_t i = 0; i < chunk.GetItemCount(); ++i) {
+				auto c1View = chunk.View<c1>();
+				benchmark::DoNotOptimize(c1View[i]);
+			}
 		});
 	}
 }
@@ -288,8 +290,10 @@ void BM_ForEach_Chunk_100_Archetypes(benchmark::State& state) {
 
 	for ([[maybe_unused]] auto _: state) {
 		w.ForEach(query, [&](const ecs::Chunk& chunk) {
-			for (size_t i = 0; i < chunk.GetItemCount(); ++i)
-				benchmark::DoNotOptimize(i);
+			for (size_t i = 0; i < chunk.GetItemCount(); ++i) {
+				auto c1View = chunk.View<c1>();
+				benchmark::DoNotOptimize(c1View[i]);
+			}
 		});
 	}
 }
@@ -353,8 +357,115 @@ void BM_ForEach_Chunk_1000_Archetypes(benchmark::State& state) {
 
 	for ([[maybe_unused]] auto _: state) {
 		w.ForEach(query, [&](const ecs::Chunk& chunk) {
-			for (size_t i = 0; i < chunk.GetItemCount(); ++i)
-				benchmark::DoNotOptimize(i);
+			for (size_t i = 0; i < chunk.GetItemCount(); ++i) {
+				auto c1View = chunk.View<c1>();
+				benchmark::DoNotOptimize(c1View[i]);
+			}
+		});
+	}
+}
+
+void BM_ForEach_Chunk_Internal_1_Archetype(benchmark::State& state) {
+	ecs::World w;
+	//-----------------------------------------
+	AddComponents<float, 3, 1>(w, ForEachN);
+	//-----------------------------------------
+
+	using c1 = Component<0, float, 3>;
+
+	for ([[maybe_unused]] auto _: state) {
+		w.ForEach(ecs::EntityQuery().All<c1>(), [&](const ecs::Chunk& chunk) {
+			for (size_t i = 0; i < chunk.GetItemCount(); ++i) {
+				auto c1View = chunk.View<c1>();
+				benchmark::DoNotOptimize(c1View[i]);
+			}
+		});
+	}
+}
+
+void BM_ForEach_Chunk_Internal_100_Archetypes(benchmark::State& state) {
+	ecs::World w;
+	//-----------------------------------------
+	AddComponents<float, 0, 25>(w, ForEachN);
+	AddComponents<float, 1, 25>(w, ForEachN);
+	AddComponents<float, 2, 25>(w, ForEachN);
+	AddComponents<float, 3, 25>(w, ForEachN);
+	//-----------------------------------------
+
+	using c1 = Component<0, float, 3>;
+
+	for ([[maybe_unused]] auto _: state) {
+		w.ForEach(ecs::EntityQuery().All<c1>(), [&](const ecs::Chunk& chunk) {
+			for (size_t i = 0; i < chunk.GetItemCount(); ++i) {
+				auto c1View = chunk.View<c1>();
+				benchmark::DoNotOptimize(c1View[i]);
+			}
+		});
+	}
+}
+
+void BM_ForEach_Chunk_Internal_1000_Archetypes(benchmark::State& state) {
+	ecs::World w;
+	//-----------------------------------------
+	AddComponents<bool, 0, 25>(w, ForEachN);
+	AddComponents<bool, 1, 25>(w, ForEachN);
+	AddComponents<bool, 2, 25>(w, ForEachN);
+	AddComponents<bool, 3, 25>(w, ForEachN);
+	//-----------------------------------------
+	AddComponents<int8_t, 0, 25>(w, ForEachN);
+	AddComponents<int8_t, 1, 25>(w, ForEachN);
+	AddComponents<int8_t, 2, 25>(w, ForEachN);
+	AddComponents<int8_t, 3, 25>(w, ForEachN);
+	//-----------------------------------------
+	AddComponents<uint8_t, 0, 25>(w, ForEachN);
+	AddComponents<uint8_t, 1, 25>(w, ForEachN);
+	AddComponents<uint8_t, 2, 25>(w, ForEachN);
+	AddComponents<uint8_t, 3, 25>(w, ForEachN);
+	//-----------------------------------------
+	AddComponents<int16_t, 0, 25>(w, ForEachN);
+	AddComponents<int16_t, 1, 25>(w, ForEachN);
+	AddComponents<int16_t, 2, 25>(w, ForEachN);
+	AddComponents<int16_t, 3, 25>(w, ForEachN);
+	//-----------------------------------------
+	AddComponents<uint16_t, 0, 25>(w, ForEachN);
+	AddComponents<uint16_t, 1, 25>(w, ForEachN);
+	AddComponents<uint16_t, 2, 25>(w, ForEachN);
+	AddComponents<uint16_t, 3, 25>(w, ForEachN);
+	//-----------------------------------------
+	AddComponents<int32_t, 0, 25>(w, ForEachN);
+	AddComponents<int32_t, 1, 25>(w, ForEachN);
+	AddComponents<int32_t, 2, 25>(w, ForEachN);
+	AddComponents<int32_t, 3, 25>(w, ForEachN);
+	//-----------------------------------------
+	AddComponents<uint32_t, 0, 25>(w, ForEachN);
+	AddComponents<uint32_t, 1, 25>(w, ForEachN);
+	AddComponents<uint32_t, 2, 25>(w, ForEachN);
+	AddComponents<uint32_t, 3, 25>(w, ForEachN);
+	//-----------------------------------------
+	AddComponents<int64_t, 0, 25>(w, ForEachN);
+	AddComponents<int64_t, 1, 25>(w, ForEachN);
+	AddComponents<int64_t, 2, 25>(w, ForEachN);
+	AddComponents<int64_t, 3, 25>(w, ForEachN);
+	//-----------------------------------------
+	AddComponents<uint64_t, 0, 25>(w, ForEachN);
+	AddComponents<uint64_t, 1, 25>(w, ForEachN);
+	AddComponents<uint64_t, 2, 25>(w, ForEachN);
+	AddComponents<uint64_t, 3, 25>(w, ForEachN);
+	//-----------------------------------------
+	AddComponents<float, 0, 25>(w, ForEachN);
+	AddComponents<float, 1, 25>(w, ForEachN);
+	AddComponents<float, 2, 25>(w, ForEachN);
+	AddComponents<float, 3, 25>(w, ForEachN);
+	//-----------------------------------------
+
+	using c1 = Component<0, float, 3>;
+
+	for ([[maybe_unused]] auto _: state) {
+		w.ForEach(ecs::EntityQuery().All<c1>(), [&](const ecs::Chunk& chunk) {
+			for (size_t i = 0; i < chunk.GetItemCount(); ++i) {
+				auto c1View = chunk.View<c1>();
+				benchmark::DoNotOptimize(c1View[i]);
+			}
 		});
 	}
 }
@@ -399,6 +510,9 @@ BENCHMARK(BM_ForEach_Internal_1000_Archetypes);
 BENCHMARK(BM_ForEach_Chunk_1_Archetype);
 BENCHMARK(BM_ForEach_Chunk_100_Archetypes);
 BENCHMARK(BM_ForEach_Chunk_1000_Archetypes);
+BENCHMARK(BM_ForEach_Chunk_Internal_1_Archetype);
+BENCHMARK(BM_ForEach_Chunk_Internal_100_Archetypes);
+BENCHMARK(BM_ForEach_Chunk_Internal_1000_Archetypes);
 
 // Run the benchmark
 BENCHMARK_MAIN();
