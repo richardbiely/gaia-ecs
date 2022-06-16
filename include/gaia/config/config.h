@@ -33,7 +33,7 @@
 #define GAIA_USE_STL_CONTAINERS 0
 //! If enabled, gaia containers stay compatible with STL by sticking to STL iterators.
 // TODO: FIXME: 0 won't work until all std utility functions are replaced with custom onces
-#define GAIA_USE_STL_COMPATIBLE_CONTAINERS 1
+#define GAIA_USE_STL_COMPATIBLE_CONTAINERS 0
 #if GAIA_USE_STL_CONTAINERS || GAIA_USE_STL_COMPATIBLE_CONTAINERS
 	#define GAIA_UTIL(x) std::x
 #else
