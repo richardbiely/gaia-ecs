@@ -276,7 +276,7 @@ namespace gaia {
 		//! Implements a sorting network for \tparam N up to 8
 		template <typename Container, typename TSortFunc>
 		constexpr void sort_ct(Container& arr, TSortFunc func) noexcept {
-			if constexpr (Container::extent == 1) {
+			if constexpr (Container::extent <= 1) {
 				return;
 			} else if constexpr (Container::extent == 2) {
 				swap_if(arr[0], arr[1], func);
@@ -391,7 +391,7 @@ namespace gaia {
 		//! Ordinary sorting used for bigger containers.
 		template <typename Container, typename TSortFunc>
 		void sort(Container& arr, TSortFunc func) {
-			if (arr.size() == 1) {
+			if (arr.size() <= 1) {
 				return;
 			} else if (arr.size() == 2) {
 				swap_if(arr[0], arr[1], func);
