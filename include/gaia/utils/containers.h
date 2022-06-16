@@ -11,7 +11,7 @@ namespace gaia {
 
 		template <class C, class Func>
 		constexpr auto for_each(const C& arr, Func func) {
-			return std::for_each(arr.begin(), arr.end(), func);
+			return utils::for_each(arr.begin(), arr.end(), func);
 		}
 
 		template <class C>

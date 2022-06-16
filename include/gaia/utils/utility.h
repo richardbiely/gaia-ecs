@@ -12,6 +12,17 @@
 namespace gaia {
 	namespace utils {
 
+		template <class InputIt, class TFunc>
+		constexpr TFunc for_each(InputIt first, InputIt last, TFunc func) {
+#if GAIA_USE_STL_COMPATIBLE_CONTAINERS
+			return std::for_each(first, last, func);
+#else
+			for (; first != last; ++first)
+				func(*first);
+			return func;
+#endif
+		}
+
 		//----------------------------------------------------------------------
 		// Checking if a template arg is unique among the rest
 		//----------------------------------------------------------------------
