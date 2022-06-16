@@ -247,26 +247,24 @@ namespace gaia {
 			}
 
 			template <typename Container>
-			uint32_t
-			quick_sort_partition(Container& arr, uint32_t low, uint32_t high, typename Container::const_reference pivot) {
-				uint32_t i = low;
-				uint32_t j = low;
-				while (i <= high) {
-					if (arr[i] > pivot) {
+			int quick_sort_partition(Container& arr, int low, int high) {
+				const auto& pivot = arr[high];
+				int i = low - 1;
+				for (int j = low; j <= high - 1; j++) {
+					if (arr[j] < pivot) {
 						i++;
-					} else {
 						std::swap(arr[i], arr[j]);
-						i++;
-						j++;
 					}
 				}
-				return j - 1;
+				std::swap(arr[i + 1], arr[high]);
+				return i + 1;
 			}
 
 			template <typename Container>
-			void quick_sort(Container& arr, uint32_t low, uint32_t high) {
-				const auto& pivot = arr[high];
-				auto pos = quick_sort_partition(arr, low, high, pivot);
+			void quick_sort(Container& arr, int low, int high) {
+				if (low >= high)
+					return;
+				auto pos = quick_sort_partition(arr, low, high);
 				quick_sort(arr, low, pos - 1);
 				quick_sort(arr, pos + 1, high);
 			}
