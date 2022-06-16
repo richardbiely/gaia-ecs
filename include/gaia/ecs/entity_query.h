@@ -57,6 +57,18 @@ namespace gaia {
 			bool m_sort = true;
 
 			template <class TComponent>
+			bool HasComponent_Internal([[maybe_unused]] ComponentIndexArray& arr) const {
+				using T = std::decay_t<TComponent>;
+				if constexpr (std::is_same<T, Entity>::value) {
+					// Skip Entity input args
+					return true;
+				} else {
+					const auto typeIndex = utils::type_info::index<T>();
+					return utils::has(arr, typeIndex);
+				}
+			}
+
+			template <class TComponent>
 			void AddComponent_Internal([[maybe_unused]] ComponentIndexArray& arr) {
 				using T = std::decay_t<TComponent>;
 
@@ -424,6 +436,36 @@ namespace gaia {
 
 			void SetWorldVersion(uint32_t worldVersion) {
 				m_worldVersion = worldVersion;
+			}
+
+			template <typename... TComponent>
+			bool HasAny() const {
+				return (HasComponent_Internal<TComponent>(m_list[ComponentType::CT_Generic].list[ListType::LT_Any]) && ...);
+			}
+
+			template <typename... TComponent>
+			bool HasAll() const {
+				return (HasComponent_Internal<TComponent>(m_list[ComponentType::CT_Generic].list[ListType::LT_All]) && ...);
+			}
+
+			template <typename... TComponent>
+			bool HasNone() const {
+				return (HasComponent_Internal<TComponent>(m_list[ComponentType::CT_Generic].list[ListType::LT_None]) && ...);
+			}
+
+			template <typename... TComponent>
+			bool HasAnyChunk() const {
+				return (HasComponent_Internal<TComponent>(m_list[ComponentType::CT_Chunk].list[ListType::LT_Any]) && ...);
+			}
+
+			template <typename... TComponent>
+			bool HasAllChunk() const {
+				return (HasComponent_Internal<TComponent>(m_list[ComponentType::CT_Chunk].list[ListType::LT_All]) && ...);
+			}
+
+			template <typename... TComponent>
+			bool HasNoneChunk() const {
+				return (HasComponent_Internal<TComponent>(m_list[ComponentType::CT_Chunk].list[ListType::LT_None]) && ...);
 			}
 
 		public:

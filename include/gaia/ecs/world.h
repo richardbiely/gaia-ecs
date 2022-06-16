@@ -1448,12 +1448,10 @@ namespace gaia {
 			}
 
 			template <typename... TComponents>
-			GAIA_FORCEINLINE void UnpackArgsIntoGenericTypes(
-					[[maybe_unused]] utils::func_type_list<TComponents...> types,
-					containers::sarray_ext<const ComponentMetaData*, EntityQuery::MAX_COMPONENTS_IN_QUERY>& arr) {
-				GAIA_ASSERT(arr.empty());
+			GAIA_FORCEINLINE bool
+			UnpackArgsIntoQuery_Check([[maybe_unused]] utils::func_type_list<TComponents...> types, EntityQuery& query) {
 				if constexpr (sizeof...(TComponents) > 0)
-					(arr.push_back(m_componentCache.GetOrCreateComponentMetaType<TComponents>()), ...);
+					return query.HasAll<TComponents...>();
 			}
 
 			//--------------------------------------------------------------------------------
@@ -1606,8 +1604,17 @@ namespace gaia {
 			}
 
 			template <typename TFunc>
+			static bool CheckQuery(World& world, EntityQuery& query) {
+				using InputArgs = decltype(utils::func_args(&TFunc::operator()));
+				return world.UnpackArgsIntoQuery_Check(InputArgs{}, query);
+			}
+
+			template <typename TFunc>
 			static void RunQueryOnChunks_Indirect(World& world, EntityQuery& query, TFunc& func) {
-				ResolveQuery<TFunc>(world, query);
+#if GAIA_DEBUG
+				// Make sure we only use components specificed in the query
+				GAIA_ASSERT(CheckQuery<TFunc>(world, query));
+#endif
 				RunQueryOnChunks_Indirect_NoResolve(world, query, func);
 			}
 
