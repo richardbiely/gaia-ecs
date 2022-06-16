@@ -861,10 +861,8 @@ namespace gaia {
 
 			template <typename... TComponent>
 			void RemoveComponent_Internal(ComponentType componentType, Entity entity) {
-				constexpr auto typesCount = sizeof...(TComponent);
 				const ComponentMetaData* types[] = {m_componentCache.GetOrCreateComponentMetaType<TComponent>()...};
-
-				RemoveComponent_Internal(componentType, entity, {types, typesCount});
+				RemoveComponent_Internal(componentType, entity, {types, sizeof...(TComponent)});
 			}
 
 			void Init() {
@@ -1634,7 +1632,7 @@ namespace gaia {
 			EntityQuery& AddOrFindEntityQueryInCache(World& world, EntityQuery& queryTmp) {
 				EntityQuery* query = nullptr;
 
-				const uint64_t hashLookupGeneric = queryTmp.hashLookupGeneric;
+				const uint64_t hashLookupGeneric = queryTmp.m_hashLookup;
 
 				auto it = world.m_cachedQueries.find(hashLookupGeneric);
 				if (it == world.m_cachedQueries.end()) {
@@ -1645,8 +1643,7 @@ namespace gaia {
 
 					// Make sure the same hash gets us to the proper query
 					for (const auto& q: queries) {
-						const auto ret = q.Match_Generic_All(queryTmp);
-						if (ret != EntityQuery::MatchArchetypeQueryRet::Ok)
+						if (q != queryTmp)
 							continue;
 						query = &queries.back();
 						return *query;
@@ -1720,8 +1717,7 @@ namespace gaia {
 			template <typename TFunc>
 			void ForEach(EntityQuery&& query, TFunc func) {
 				if constexpr (std::is_invocable<TFunc, Chunk&>::value)
-					ForEachChunkExecutionContext_Internal(
-							(World&)*this, std::forward<EntityQuery>(query), func);
+					ForEachChunkExecutionContext_Internal((World&)*this, std::forward<EntityQuery>(query), func);
 				else
 					ForEachExecutionContext_Internal((World&)*this, std::forward<EntityQuery>(query), func);
 			}

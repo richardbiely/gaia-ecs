@@ -5,6 +5,7 @@
 #include "../containers/darray.h"
 #include "../containers/sarray_ext.h"
 #include "../utils/containers.h"
+#include "../utils/hashing_policy.h"
 #include "../utils/utility.h"
 #include "archetype.h"
 #include "common.h"
@@ -36,20 +37,20 @@ namespace gaia {
 				ComponentIndexArray list[ListType::LT_Count]{};
 				uint64_t hash[ListType::LT_Count]{};
 			};
-			//! Lookup hash for generic components of ListType::LT_All
-			uint64_t hashLookupGeneric = 0;
 			//! List of querried components
-			ComponentListData list[ComponentType::CT_Count]{};
+			ComponentListData m_list[ComponentType::CT_Count]{};
 			//! List of filtered components
-			ChangeFilterArray listChangeFiltered[ComponentType::CT_Count]{};
+			ChangeFilterArray m_listChangeFiltered[ComponentType::CT_Count]{};
 			//! Version of the world for which the query has been called most recently
 			uint32_t m_worldVersion = 0;
 			//! Entity of the last added archetype in the world this query remembers
 			uint32_t m_lastArchetypeId = 0;
+			//! Lookup hash for this query
+			uint64_t m_hashLookup = 0;
 			//! List of cached archetypes
 			containers::darray<Archetype*> m_archetypeCache;
 			//! Tell what kinds of chunks are going to be accepted by the query
-			Constraints constraints = Constraints::EnabledOnly;
+			Constraints m_constraints = Constraints::EnabledOnly;
 			//! If true, we need to recalculate hashes
 			bool m_recalculate = true;
 			//! If true, sorting types is necessary
@@ -147,7 +148,7 @@ namespace gaia {
 
 			//! Sorts internal component arrays by their type indices
 			void SortComponentArrays() {
-				for (auto& l: list) {
+				for (auto& l: m_list) {
 					for (auto& arr: l.list) {
 						utils::sort(arr, [](uint32_t left, uint32_t right) {
 							return left < right;
@@ -163,21 +164,55 @@ namespace gaia {
 					m_sort = false;
 				}
 
-				// Calculate the generic components lookup hash
+				// Make sure we don't calculate the hash twice
+				GAIA_ASSERT(m_hashLookup == 0);
+
+				const auto& cc = GetComponentCache(world);
+
+				// Contraints
+				m_hashLookup = utils::hash_combine(m_hashLookup, (uint64_t)m_constraints);
+
+				// Filters
 				{
-					// Make sure we don't calculate the hash twice
-					GAIA_ASSERT(hashLookupGeneric == 0);
+					uint64_t hash = 0;
+					for (auto typeIndex: m_listChangeFiltered[ComponentType::CT_Generic])
+						hash = utils::hash_combine(hash, (uint64_t)typeIndex);
+					hash = utils::hash_combine(hash, (uint64_t)m_listChangeFiltered[ComponentType::CT_Generic].size());
+					for (auto typeIndex: m_listChangeFiltered[ComponentType::CT_Chunk])
+						hash = utils::hash_combine(hash, (uint64_t)typeIndex);
+					hash = utils::hash_combine(hash, (uint64_t)m_listChangeFiltered[ComponentType::CT_Chunk].size());
+				}
 
-					const auto& cc = GetComponentCache(world);
-
-					const auto& l = list[ComponentType::CT_Generic];
-					const auto& arr = l.list[ListType::LT_All];
-					hashLookupGeneric = 0;
-					for (uint32_t j = 0; j < arr.size(); ++j) {
-						const auto* type = cc.GetComponentMetaTypeFromIdx(arr[j]);
-						GAIA_ASSERT(type != nullptr);
-						hashLookupGeneric = utils::combine_or(hashLookupGeneric, type->lookupHash);
+				// Generic components lookup hash
+				{
+					uint64_t hash = 0;
+					const auto& l = m_list[ComponentType::CT_Generic];
+					for (uint32_t i = 0; i < ListType::LT_Count; ++i) {
+						const auto& arr = l.list[i];
+						hash = utils::hash_combine(hash, (uint64_t)i);
+						for (uint32_t j = 0; j < arr.size(); ++j) {
+							const auto* type = cc.GetComponentMetaTypeFromIdx(arr[j]);
+							GAIA_ASSERT(type != nullptr);
+							hash = utils::hash_combine(hash, type->lookupHash);
+						}
 					}
+					m_hashLookup = utils::hash_combine(m_hashLookup, hash);
+				}
+
+				// Chunk components lookup hash
+				{
+					uint64_t hash = 0;
+					const auto& l = m_list[ComponentType::CT_Chunk];
+					for (uint32_t i = 0; i < ListType::LT_Count; ++i) {
+						const auto& arr = l.list[i];
+						hash = utils::hash_combine(hash, (uint64_t)i);
+						for (uint32_t j = 0; j < arr.size(); ++j) {
+							const auto* type = cc.GetComponentMetaTypeFromIdx(arr[j]);
+							GAIA_ASSERT(type != nullptr);
+							hash = utils::hash_combine(hash, type->lookupHash);
+						}
+					}
+					m_hashLookup = utils::hash_combine(m_hashLookup, hash);
 				}
 			}
 
@@ -196,7 +231,7 @@ namespace gaia {
 				{
 					const auto& cc = GetComponentCache(world);
 
-					for (auto& l: list) {
+					for (auto& l: m_list) {
 						for (uint32_t i = 0; i < ListType::LT_Count; ++i) {
 							auto& arr = l.list[i];
 
@@ -268,7 +303,7 @@ namespace gaia {
 					if (queryList.list[ListType::LT_All].size() <= componentTypeList.size()) {
 						uint32_t matches = 0;
 
-						// list[ListType::LT_All] first because we usually request for less
+						// m_list[ListType::LT_All] first because we usually request for less
 						// components than there are components in archetype
 						for (const auto typeIndex: queryList.list[ListType::LT_All]) {
 							for (const auto& component: componentTypeList) {
@@ -292,33 +327,58 @@ namespace gaia {
 				return (withAnyTest != 0) ? MatchArchetypeQueryRet::Ok : MatchArchetypeQueryRet::Skip;
 			}
 
-			/*!
-				Tries to match \param other entity query with this entity query. It tries to match only generic
-				component types and all of them are necessary to be present.
-				\return MatchArchetypeQueryRet::Fail if there is no match, MatchArchetypeQueryRet::Ok for match or
-								MatchArchetypeQueryRet::Skip is not relevant.
-				*/
-			[[nodiscard]] MatchArchetypeQueryRet Match_Generic_All(const EntityQuery& other) const {
+			[[nodiscard]] bool operator==(const EntityQuery& other) const {
 				// Lookup hash must match
-				if (hashLookupGeneric != other.hashLookupGeneric)
-					return MatchArchetypeQueryRet::Fail;
+				if (m_hashLookup != other.m_hashLookup)
+					return false;
 
-				// Matcher component count needes to be the same
-				const auto& queryList = GetData(ComponentType::CT_Generic);
-				const auto& otherList = other.GetData(ComponentType::CT_Generic);
-				if (queryList.list[ListType::LT_All].size() != otherList.list[ListType::LT_All].size())
-					return MatchArchetypeQueryRet::Fail;
+				if (m_constraints != other.m_constraints)
+					return false;
 
-				// Matches hashes need to be the same
-				if (queryList.hash[ListType::LT_All] != otherList.hash[ListType::LT_All])
-					return MatchArchetypeQueryRet::Fail;
+				for (uint32_t j = 0; j < ComponentType::CT_Count; ++j) {
+					const auto& queryList = m_list[j];
+					const auto& otherList = other.m_list[j];
 
-				// Components need to be the same
-				const auto ret = std::memcmp(
-						(const void*)&queryList.list[ListType::LT_All], (const void*)&otherList.list[ListType::LT_All],
-						queryList.list[ListType::LT_All].size() * sizeof(queryList.list[0]));
+					// Component count needes to be the same
+					for (uint32_t i = 0; i < ListType::LT_Count; ++i) {
+						if (queryList.list[i].size() != otherList.list[i].size())
+							return false;
+					}
 
-				return !ret ? MatchArchetypeQueryRet::Ok : MatchArchetypeQueryRet::Fail;
+					// Matches hashes need to be the same
+					for (uint32_t i = 0; i < ListType::LT_Count; ++i) {
+						if (queryList.hash[i] != otherList.hash[i])
+							return false;
+					}
+
+					// Filter count needs to be the same
+					if (m_listChangeFiltered[j].size() != other.m_listChangeFiltered[j].size())
+						return false;
+
+					// Components need to be the same
+					for (uint32_t i = 0; i < ListType::LT_Count; ++i) {
+						const auto ret = std::memcmp(
+								(const void*)&queryList.list[i], (const void*)&otherList.list[i],
+								queryList.list[i].size() * sizeof(queryList.list[0]));
+						if (ret != 0)
+							return false;
+					}
+
+					// Filters need to be the same
+					{
+						const auto ret = std::memcmp(
+								(const void*)&m_listChangeFiltered[j], (const void*)&other.m_listChangeFiltered[j],
+								m_listChangeFiltered[j].size() * sizeof(m_listChangeFiltered[0]));
+						if (ret != 0)
+							return false;
+					}
+				}
+
+				return false;
+			}
+
+			[[nodiscard]] bool operator!=(const EntityQuery& other) const {
+				return !operator==(other);
 			}
 
 			/*!
@@ -368,72 +428,74 @@ namespace gaia {
 
 		public:
 			[[nodiscard]] const ComponentListData& GetData(ComponentType type) const {
-				return list[type];
+				return m_list[type];
 			}
 
 			[[nodiscard]] const ChangeFilterArray& GetFiltered(ComponentType type) const {
-				return listChangeFiltered[type];
+				return m_listChangeFiltered[type];
 			}
 
-			void SetConstraints(Constraints value) {
-				constraints = value;
+			EntityQuery& SetConstraints(Constraints value) {
+				m_constraints = value;
+				return *this;
 			}
 
 			[[nodiscard]] bool CheckConstraints(bool enabled) const {
-				return constraints == Constraints::AcceptAll || (enabled && constraints == Constraints::EnabledOnly) ||
-							 (!enabled && constraints == Constraints::DisabledOnly);
+				return m_constraints == Constraints::AcceptAll || (enabled && m_constraints == Constraints::EnabledOnly) ||
+							 (!enabled && m_constraints == Constraints::DisabledOnly);
 			}
 
 			[[nodiscard]] bool HasFilters() const {
-				return !listChangeFiltered[ComponentType::CT_Generic].empty() ||
-							 !listChangeFiltered[ComponentType::CT_Chunk].empty();
+				return !m_listChangeFiltered[ComponentType::CT_Generic].empty() ||
+							 !m_listChangeFiltered[ComponentType::CT_Chunk].empty();
 			}
 
 			template <typename... TComponent>
 			EntityQuery& Any() {
-				(AddComponent_Internal<TComponent>(list[ComponentType::CT_Generic].list[ListType::LT_Any]), ...);
+				(AddComponent_Internal<TComponent>(m_list[ComponentType::CT_Generic].list[ListType::LT_Any]), ...);
 				return *this;
 			}
 
 			template <typename... TComponent>
 			EntityQuery& All() {
-				(AddComponent_Internal<TComponent>(list[ComponentType::CT_Generic].list[ListType::LT_All]), ...);
+				(AddComponent_Internal<TComponent>(m_list[ComponentType::CT_Generic].list[ListType::LT_All]), ...);
 				return *this;
 			}
 
 			template <typename... TComponent>
 			EntityQuery& None() {
-				(AddComponent_Internal<TComponent>(list[ComponentType::CT_Generic].list[ListType::LT_None]), ...);
+				(AddComponent_Internal<TComponent>(m_list[ComponentType::CT_Generic].list[ListType::LT_None]), ...);
 				return *this;
 			}
 
 			template <typename... TComponent>
 			EntityQuery& AnyChunk() {
-				(AddComponent_Internal<TComponent>(list[ComponentType::CT_Chunk].list[ListType::LT_Any]), ...);
+				(AddComponent_Internal<TComponent>(m_list[ComponentType::CT_Chunk].list[ListType::LT_Any]), ...);
 				return *this;
 			}
 
 			template <typename... TComponent>
 			EntityQuery& AllChunk() {
-				(AddComponent_Internal<TComponent>(list[ComponentType::CT_Chunk].list[ListType::LT_All]), ...);
+				(AddComponent_Internal<TComponent>(m_list[ComponentType::CT_Chunk].list[ListType::LT_All]), ...);
 				return *this;
 			}
 
 			template <typename... TComponent>
 			EntityQuery& NoneChunk() {
-				(AddComponent_Internal<TComponent>(list[ComponentType::CT_Chunk].list[ListType::LT_None]), ...);
+				(AddComponent_Internal<TComponent>(m_list[ComponentType::CT_Chunk].list[ListType::LT_None]), ...);
 				return *this;
 			}
 
 			template <typename... TComponent>
 			EntityQuery& WithChanged() {
-				SetChangedFilter<TComponent...>(listChangeFiltered[ComponentType::CT_Generic], list[ComponentType::CT_Generic]);
+				SetChangedFilter<TComponent...>(
+						m_listChangeFiltered[ComponentType::CT_Generic], m_list[ComponentType::CT_Generic]);
 				return *this;
 			}
 
 			template <typename... TComponent>
 			EntityQuery& WithChangedChunk() {
-				SetChangedFilter<TComponent...>(listChangeFiltered[ComponentType::CT_Chunk], list[ComponentType::CT_Chunk]);
+				SetChangedFilter<TComponent...>(m_listChangeFiltered[ComponentType::CT_Chunk], m_list[ComponentType::CT_Chunk]);
 				return *this;
 			}
 
