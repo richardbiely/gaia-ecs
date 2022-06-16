@@ -1691,13 +1691,6 @@ namespace gaia {
 				RunQueryOnChunks_Indirect_NoResolve(world, AddOrFindEntityQueryInCache(world, queryTmp), func);
 			}
 
-			template <typename TFunc>
-			void ForEachExecutionContext_Internal(World& world, TFunc func) {
-				EntityQuery query;
-				ResolveQuery<TFunc>(world, query);
-				ForEachExecutionContext_Internal<TFunc>(world, std::move(query), func);
-			}
-
 			//--------------------------------------------------------------------------------
 
 		public:
@@ -1741,7 +1734,10 @@ namespace gaia {
 				static_assert(
 						!std::is_invocable<TFunc, Chunk&>::value,
 						"Calling query-less ForEach is not supported for chunk iteration");
-				ForEachExecutionContext_Internal((World&)*this, func);
+						
+				EntityQuery query;
+				ResolveQuery<TFunc>((World&)*this, query);
+				ForEachExecutionContext_Internal<TFunc>((World&)*this, std::move(query), func);
 			}
 
 			/*!
