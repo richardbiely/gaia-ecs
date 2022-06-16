@@ -142,16 +142,15 @@ w.ForEach([&](Position& p, const Velocity& v) {
 });
 ```
 
-You can also tell the framework you are looking for something more specific by using EntityQuery.<br/>
-The example above created it internally from the arguments we provided to ForEach.<br/>
-EntityQuery makes it possible for you to include or exclude specific archetypes based on the rules you define.
+You can also be more specific by providing an EntityQuery. It describes which chunks are considered for iteration and the arugments you list in the ForEach tell what parts of their data you are going to work with.<br/>
+The example above creates an EntityQuery internally from the arguments provided to ForEach. However, this version can also be slower because it needs to do a lookup in the EntityQuery cache. Therefore, consider it only for non-critical parts of your code. Even though the code is longer, it's a good pratice to use explicit EntityQueries when possible.
 ```cpp
 ecs::EntityQuery q;
-q.All<Position, Velocity>(); // this is also what ForEach does implicitly when no EntityQuery is provided
-q.None<Player>();
+q.All<Position, Velocity>(); // Take into account all chunks with Position and Velocity...
+q.None<Player>(); // ... but no Player component.
 
-// Iterate over all archetypes containing Position and Velocity but no Player.
 w.ForEach(q, [&](Position& p, const Velocity& v) {
+  // This operations runs for each entity with Position, Velocity and no Player
   p.x += v.x * dt;
   p.y += v.y * dt;
   p.z += v.z * dt;
@@ -159,14 +158,14 @@ w.ForEach(q, [&](Position& p, const Velocity& v) {
 ```
 
 Using WithChanged we can take it a step further and only perform the iteration if particular components change.<br/>
-Note, if there are 100 Velocity and Position components in the chunk and only one Velocity changes, ForEach performs for the entire chunk.<br/>
+Note, if there are 100 Position components in the chunk and only one them changes, ForEach performs for the entire chunk.<br/>
 This chunk-wide behavior is due to performance concerns as it is easier to reason about the entire chunk than each of its items separately.
 ```cpp
 ecs::EntityQuery q;
-q.All<Position, Velocity>(); // chunk must contain Position and Velocity
-q.Any<Something, SomethingElse>(); // chunk must contain either Something or SomethingElse
-q.None<Player>(); // chunk can not contain Player
-q.WithChanged<Velocity>(); // only iterate when Velocity changes
+q.All<Position, Velocity>(); // Take into account all chunks with Position and Velocity...
+q.Any<Something, SomethingElse>(); // ... at least Something or SomethingElse...
+q.None<Player>(); // ... no Player component...
+q.WithChanged<Velocity>(); // ... but only iterate when Velocity changes
 
 w.ForEach(q, [&](Position& p, const Velocity& v) {
   p.x += v.x * dt;
@@ -183,11 +182,11 @@ ecs::EntityQuery q;
 q.All<Position,Velocity>();
 
 w.ForEach(q, [](ecs::Chunk& ch) {
-  auto p = ch.ViewRW<Position>(); // read-write access to Position
-  auto v = ch.View<Velocity>(); // read-only access to Velocity
+  auto p = ch.ViewRW<Position>(); // Read-write access to Position
+  auto v = ch.View<Velocity>(); // Read-only access to Velocity
 
-  // Iterate over all components in the chunk.
-  for (auto i = 0U; i < size; ++i) {
+  // Iterate over all entities in the chunk.
+  for (auto i = 0U; i < ch.GetItemCount(); ++i) {
     p[i].x += v[i].x * dt;
     p[i].y += v[i].y * dt;
     p[i].z += v[i].z * dt;
@@ -198,8 +197,8 @@ w.ForEach(q, [](ecs::Chunk& ch) {
 I need to make a small but important note here. Analyzing the output of different compilers I quickly realized if you want your code vectorized for sure you need to be very clear and write the loop as a lambda or kernel if you will. It is quite surprising to see this but even with optimizations on and "fast-math"-like switches enabled some compilers simply will not vectorize the loop otherwise. Microsoft compilers are particularly sensitive in this regard. In the years to come maybe this gets better but for now, keep it in mind or use a good optimizing compiler such as Clang.
 ```cpp
 w.ForEach(q, [](ecs::Chunk& ch) {
-  auto vp = ch.ViewRW<Position>(); // read-write access to Position
-  auto vv = ch.View<Velocity>(); // read-only access to Velocity
+  auto vp = ch.ViewRW<Position>(); // Read-Write access to Position
+  auto vv = ch.View<Velocity>(); // Read-Only access to Velocity
 
  // Make our intentions very clear so even compilers which are weaker at optimization can vectorize the loop
  [&](Position* GAIA_RESTRICT p, const Velocity* GAIA_RESTRICT v, const uint32_t size) {
