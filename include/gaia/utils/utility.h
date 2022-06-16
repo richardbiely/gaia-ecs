@@ -154,6 +154,52 @@ namespace gaia {
 		}
 
 		//----------------------------------------------------------------------
+		// Lookups
+		//----------------------------------------------------------------------
+
+		template <class InputIt, class T>
+		constexpr InputIt find(InputIt first, InputIt last, const T& value) {
+#if GAIA_USE_STL_COMPATIBLE_CONTAINERS
+			return std::find(first, last, value);
+#else
+			for (; first != last; ++first) {
+				if (*first == value) {
+					return first;
+				}
+			}
+			return last;
+#endif
+		}
+
+		template <class InputIt, class TFunc>
+		constexpr InputIt find_if(InputIt first, InputIt last, TFunc func) {
+#if GAIA_USE_STL_COMPATIBLE_CONTAINERS
+			return std::find_if(first, last, func);
+#else
+			for (; first != last; ++first) {
+				if (func(*first)) {
+					return first;
+				}
+			}
+			return last;
+#endif
+		}
+
+		template <class InputIt, class TFunc>
+		constexpr InputIt find_if_not(InputIt first, InputIt last, TFunc func) {
+#if GAIA_USE_STL_COMPATIBLE_CONTAINERS
+			return std::find_if_not(first, last, func);
+#else
+			for (; first != last; ++first) {
+				if (!func(*first)) {
+					return first;
+				}
+			}
+			return last;
+#endif
+		}
+
+		//----------------------------------------------------------------------
 		// Sorting
 		//----------------------------------------------------------------------
 
@@ -198,6 +244,31 @@ namespace gaia {
 						}
 					}
 				}
+			}
+
+			template <typename Container>
+			uint32_t
+			quick_sort_partition(Container& arr, uint32_t low, uint32_t high, typename Container::const_reference pivot) {
+				uint32_t i = low;
+				uint32_t j = low;
+				while (i <= high) {
+					if (arr[i] > pivot) {
+						i++;
+					} else {
+						std::swap(arr[i], arr[j]);
+						i++;
+						j++;
+					}
+				}
+				return j - 1;
+			}
+
+			template <typename Container>
+			void quick_sort(Container& arr, uint32_t low, uint32_t high) {
+				const auto& pivot = arr[high];
+				auto pos = quick_sort_partition(arr, low, high, pivot);
+				quick_sort(arr, low, pos - 1);
+				quick_sort(arr, pos + 1, high);
 			}
 		} // namespace detail
 
@@ -418,6 +489,15 @@ namespace gaia {
 				swap_if(arr[3], arr[5], func);
 
 				swap_if(arr[3], arr[4], func);
+			} else if (arr.size() <= 32) {
+				uint32_t i, j;
+				uint32_t n = (uint32_t)arr.size();
+				for (i = 0; i < n - 1; i++) {
+					for (j = 0; j < n - i - 1; j++) {
+						if (arr[j] > arr[j + 1])
+							std::swap(arr[j], arr[j + 1]);
+					}
+				}
 			} else {
 #if GAIA_USE_STL_COMPATIBLE_CONTAINERS
 				GAIA_MSVC_WARNING_PUSH()
@@ -425,8 +505,9 @@ namespace gaia {
 				std::sort(arr.begin(), arr.end(), func);
 				GAIA_MSVC_WARNING_POP()
 #else
-				//! TODO: write custom sort not depending on std
-				std::sort(arr.begin(), arr.end(), func);
+				uint32_t n = (uint32_t)arr.size();
+				detail::quick_sort(arr, 0, n - 1);
+
 #endif
 			}
 		}

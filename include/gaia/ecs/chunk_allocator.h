@@ -232,14 +232,14 @@ namespace gaia {
 
 #if GAIA_DEBUG
 				if (pageFull) {
-					[[maybe_unused]] auto it = std::find_if(m_pagesFull.begin(), m_pagesFull.end(), [&](auto page) {
+					[[maybe_unused]] auto it = utils::find_if(m_pagesFull.begin(), m_pagesFull.end(), [&](auto page) {
 						return page == pPage;
 					});
 					GAIA_ASSERT(
 							it != m_pagesFull.end() && "ChunkAllocator delete couldn't find the memory page expected "
 																				 "in the full pages containers::list");
 				} else {
-					[[maybe_unused]] auto it = std::find_if(m_pagesFree.begin(), m_pagesFree.end(), [&](auto page) {
+					[[maybe_unused]] auto it = utils::find_if(m_pagesFree.begin(), m_pagesFree.end(), [&](auto page) {
 						return page == pPage;
 					});
 					GAIA_ASSERT(
