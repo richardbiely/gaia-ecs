@@ -3,6 +3,7 @@
 #include <cstdint>
 
 #include "iterator.h"
+#include "utility.h"
 
 namespace gaia {
 	namespace utils {
@@ -15,12 +16,12 @@ namespace gaia {
 
 		template <class C>
 		constexpr auto find(const C& arr, typename C::const_reference item) {
-			return std::find(arr.begin(), arr.end(), item);
+			return utils::find(arr.begin(), arr.end(), item);
 		}
 
 		template <class UnaryPredicate, class C>
 		constexpr auto find_if(const C& arr, UnaryPredicate predicate) {
-			return std::find_if(arr.begin(), arr.end(), predicate);
+			return utils::find_if(arr.begin(), arr.end(), predicate);
 		}
 
 		template <class C>
