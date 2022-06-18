@@ -122,15 +122,6 @@ if (pChunkB->HasComponent<Position>(e))
 }
 ```
 
-### Batched operations
-```cpp
-// You can also use a faster batched version of some operations.
-e = w.CreateEntity();
-w.AddComponent<Position, Velocity>(e, {1, 2, 3}, {0, 0, 0});
-w.SetComponent<Position, Velocity>(e, {11, 22, 33}, {10, 5, 0});
-w.RemoveComponent<Position, Velocity>(e);
-```
-
 ## Simple iteration
 You can perform operations on your data in multiple ways with ForEach being the simplest one.<br/>
 It provides the least room for optimization (that does not mean the generated code is slow by any means) but is very easy to read.
