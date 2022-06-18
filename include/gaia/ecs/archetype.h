@@ -378,8 +378,8 @@ namespace gaia {
 			}
 
 			/*!
-			Checks if a given generic component is present on archetype.
-			\return True if the generic component is present. False otherwise.
+			Checks if a given component is present on archetype.
+			\return True if the component is present. False otherwise.
 			*/
 			template <typename T>
 			[[nodiscard]] bool HasComponent() const {
@@ -387,30 +387,30 @@ namespace gaia {
 			}
 
 			/*!
-			Checks if all provided generic components are present on archetype.
-			\return True if generic components are present. False otherwise.
+			Checks if all provided components are present on archetype.
+			\return True if components are present. False otherwise.
 			*/
 			template <typename... T>
-			[[nodiscard]] bool HasComponents() const {
-				return HasComponents_Internal<ComponentType::CT_Generic, T...>();
+			[[nodiscard]] bool HasComponent() const {
+				return HasComponent_Internal<ComponentType::CT_Generic, T...>();
 			}
 
 			/*!
-			Checks if any of the provided generic components is present on archetype.
-			\return True if any of the generic components is present. False otherwise.
+			Checks if any of the provided components is present on archetype.
+			\return True if any of the components is present. False otherwise.
 			*/
 			template <typename... T>
-			[[nodiscard]] bool HasAnyComponents() const {
-				return HasAnyComponents_Internal<ComponentType::CT_Generic, T...>();
+			[[nodiscard]] bool HasAnyComponent() const {
+				return HasAnyComponent_Internal<ComponentType::CT_Generic, T...>();
 			}
 
 			/*!
-			Checks if none of the provided generic components are present on archetype.
-			\return True if none of the generic components are present. False otherwise.
+			Checks if none of the provided components are present on archetype.
+			\return True if none of the components are present. False otherwise.
 			*/
 			template <typename... T>
-			[[nodiscard]] bool HasNoneComponents() const {
-				return HasNoneComponents_Internal<ComponentType::CT_Generic, T...>();
+			[[nodiscard]] bool HasNoneComponent() const {
+				return HasNoneComponent_Internal<ComponentType::CT_Generic, T...>();
 			}
 
 			/*!
@@ -428,7 +428,7 @@ namespace gaia {
 			*/
 			template <typename... T>
 			[[nodiscard]] bool HasChunkComponents() const {
-				return HasComponents_Internal<ComponentType::CT_Chunk, T...>();
+				return HasComponent_Internal<ComponentType::CT_Chunk, T...>();
 			}
 
 			/*!
@@ -437,7 +437,7 @@ namespace gaia {
 			*/
 			template <typename... T>
 			[[nodiscard]] bool HasAnyChunkComponents() const {
-				return HasAnyComponents_Internal<ComponentType::CT_Chunk, T...>();
+				return HasAnyComponent_Internal<ComponentType::CT_Chunk, T...>();
 			}
 
 			/*!
@@ -446,7 +446,7 @@ namespace gaia {
 			*/
 			template <typename... T>
 			[[nodiscard]] bool HasNoneChunkComponents() const {
-				return HasNoneComponents_Internal<ComponentType::CT_Chunk, T...>();
+				return HasNoneComponent_Internal<ComponentType::CT_Chunk, T...>();
 			}
 
 		private:
@@ -460,17 +460,17 @@ namespace gaia {
 			}
 
 			template <ComponentType TComponentType, typename... T>
-			[[nodiscard]] bool HasComponents_Internal() const {
+			[[nodiscard]] bool HasComponent_Internal() const {
 				return (HasComponent_Internal<TComponentType, T>() && ...);
 			}
 
 			template <ComponentType TComponentType, typename... T>
-			[[nodiscard]] bool HasAnyComponents_Internal() const {
+			[[nodiscard]] bool HasAnyComponent_Internal() const {
 				return (HasComponent_Internal<TComponentType, T>() || ...);
 			}
 
 			template <ComponentType TComponentType, typename... T>
-			[[nodiscard]] bool HasNoneComponents_Internal() const {
+			[[nodiscard]] bool HasNoneComponent_Internal() const {
 				return (!HasComponent_Internal<TComponentType, T>() && ...);
 			}
 		};

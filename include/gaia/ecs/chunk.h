@@ -88,19 +88,14 @@ namespace gaia {
 				return HasComponent_Internal(componentType, typeIndex);
 			}
 
-			template <typename... T>
-			[[nodiscard]] bool HasComponents_Internal(ComponentType componentType) const {
-				return (HasComponent_Internal<T>(componentType) && ...);
-			}
-
-			template <typename... T>
-			[[nodiscard]] bool HasAnyComponents_Internal(ComponentType componentType) const {
-				return (HasComponent_Internal<T>(componentType) || ...);
-			}
-
-			template <typename... T>
-			[[nodiscard]] bool HasNoneComponents_Internal(ComponentType componentType) const {
-				return (!HasComponent_Internal<T>(componentType) && ...);
+			template <typename T>
+			[[nodiscard]] bool HasComponent_() const {
+				if constexpr (IsGenericComponent<T>::value)
+					return HasComponent_Internal<typename detail::ExtractComponentType_Generic<T>::Type>(
+							ComponentType::CT_Generic);
+				else
+					return HasComponent_Internal<typename detail::ExtractComponentType_NonGeneric<T>::Type>(
+							ComponentType::CT_Chunk);
 			}
 
 			[[nodiscard]] uint32_t AddEntity(Entity entity) {
@@ -312,75 +307,31 @@ namespace gaia {
 			}
 
 			/*!
-			Checks if a given generic component is present on chunk.
-			\return True if the generic component is present. False otherwise.
+			Checks if all provided components are present on chunk.
+			\return True if components are present. False otherwise.
 			*/
-			template <typename T>
+			template <typename... T>
 			[[nodiscard]] bool HasComponent() const {
-				return HasComponent_Internal<std::decay_t<T>>(ComponentType::CT_Generic);
+				return (HasComponent_<T>() && ...);
 			}
 
 			/*!
-			Checks if all provided generic components are present on chunk.
-			\return True if generic components are present. False otherwise.
+			Checks if any of the provided components is present on chunk.
+			\return True if any of the components is present. False otherwise.
 			*/
 			template <typename... T>
-			[[nodiscard]] bool HasComponents() const {
-				return HasComponents_Internal<std::decay_t<T>...>(ComponentType::CT_Generic);
+			[[nodiscard]] bool HasAnyComponent() const {
+				static_assert(sizeof...(T) > 1, "Use at least 2 component types when using HasAny");
+				return (HasComponent_<T>() || ...);
 			}
 
 			/*!
-			Checks if any of the provided generic components is present on chunk.
-			\return True if any of the generic components is present. False otherwise.
+			Checks if none of the provided components are present on chunk.
+			\return True if none of the components are present. False otherwise.
 			*/
 			template <typename... T>
-			[[nodiscard]] bool HasAnyComponents() const {
-				return HasAnyComponents_Internal<std::decay_t<T>...>(ComponentType::CT_Generic);
-			}
-
-			/*!
-			Checks if none of the provided generic components are present on chunk.
-			\return True if none of the generic components are present. False otherwise.
-			*/
-			template <typename... T>
-			[[nodiscard]] bool HasNoneComponents() const {
-				return HasNoneComponents_Internal<std::decay_t<T>...>(ComponentType::CT_Generic);
-			}
-
-			/*!
-			Checks if a given chunk component is present on chunk.
-			\return True if the chunk component is present. False otherwise.
-			*/
-			template <typename T>
-			[[nodiscard]] bool HasChunkComponent() const {
-				return HasComponent_Internal<T>(ComponentType::CT_Chunk);
-			}
-
-			/*!
-			Checks if all provided chunk components are present on chunk.
-			\return True if chunk components are present. False otherwise.
-			*/
-			template <typename... T>
-			[[nodiscard]] bool HasChunkComponents() const {
-				return HasComponents_Internal<std::decay_t<T>...>(ComponentType::CT_Chunk);
-			}
-
-			/*!
-			Checks if any of the provided chunk components is present on chunk.
-			\return True if any of the chunk components is present. False otherwise.
-			*/
-			template <typename... T>
-			[[nodiscard]] bool HasAnyChunkComponents() const {
-				return HasAnyComponents_Internal<std::decay_t<T>...>(ComponentType::CT_Chunk);
-			}
-
-			/*!
-			Checks if none of the provided chunk components are present on chunk.
-			\return True if none of the chunk components are present. False otherwise.
-			*/
-			template <typename... T>
-			[[nodiscard]] bool HasNoneChunkComponents() const {
-				return HasNoneComponents_Internal<std::decay_t<T>...>(ComponentType::CT_Chunk);
+			[[nodiscard]] bool HasNoneComponent() const {
+				return (!HasComponent_<T>() && ...);
 			}
 
 			//----------------------------------------------------------------------
@@ -388,23 +339,20 @@ namespace gaia {
 			//----------------------------------------------------------------------
 
 			template <typename T>
-			void SetComponent(uint32_t index, T&& value) {
-				SetComponent_Internal<T>(ComponentType::CT_Generic, index, std::forward<T>(value));
-			}
-
-			template <typename... T>
-			void SetComponents(uint32_t index, T&&... value) {
-				(SetComponent_Internal<T>(ComponentType::CT_Generic, index, std::forward<T>(value)), ...);
+			void SetComponent(uint32_t index, typename DeduceComponent<T>::Type&& value) {
+				static_assert(
+						IsGenericComponent<T>::value, "SetComponent providing an index is only available for generic components");
+				SetComponent_Internal<typename DeduceComponent<T>::Type>(
+						ComponentType::CT_Generic, index, std::forward<typename DeduceComponent<T>::Type>(value));
 			}
 
 			template <typename T>
-			void SetChunkComponent(T&& value) {
-				SetComponent_Internal<T>(ComponentType::CT_Chunk, 0, std::forward<T>(value));
-			}
-
-			template <typename... T>
-			void SetChunkComponents(T&&... value) {
-				(SetComponent_Internal<T>(ComponentType::CT_Chunk, 0, std::forward<T>(value)), ...);
+			void SetComponent(typename DeduceComponent<T>::Type&& value) {
+				static_assert(
+						!IsGenericComponent<T>::value,
+						"SetComponent not providing an index is only available for non-generic components");
+				SetComponent_Internal<typename DeduceComponent<T>::Type>(
+						ComponentType::CT_Chunk, 0, std::forward<typename DeduceComponent<T>::Type>(value));
 			}
 
 			//----------------------------------------------------------------------
@@ -412,23 +360,18 @@ namespace gaia {
 			//----------------------------------------------------------------------
 
 			template <typename T>
-			void GetComponent(uint32_t index, std::decay_t<T>& data) const {
-				data = GetComponentVal_Internal<T>(ComponentType::CT_Generic, index);
-			}
-
-			template <typename... T>
-			void GetComponents(uint32_t index, std::decay_t<T>&... data) const {
-				(GetComponent<T>(index, data), ...);
+			void GetComponent(uint32_t index, typename DeduceComponent<T>::Type& data) const {
+				static_assert(
+						IsGenericComponent<T>::value, "SetComponent providing an index is only available for generic components");
+				data = GetComponentVal_Internal<typename DeduceComponent<T>::Type>(ComponentType::CT_Generic, index);
 			}
 
 			template <typename T>
-			void GetChunkComponent(std::decay_t<T>& data) const {
-				data = GetComponentVal_Internal<T>(ComponentType::CT_Chunk, 0);
-			}
-
-			template <typename... T>
-			void GetChunkComponents(std::decay_t<T>&... data) const {
-				(GetChunkComponent<T>(data), ...);
+			void GetComponent(typename DeduceComponent<T>::Type& data) const {
+				static_assert(
+						!IsGenericComponent<T>::value,
+						"SetComponent not providing an index is only available for non-generic components");
+				data = GetComponentVal_Internal<typename DeduceComponent<T>::Type>(ComponentType::CT_Chunk, 0);
 			}
 
 			//----------------------------------------------------------------------
@@ -436,29 +379,24 @@ namespace gaia {
 			//----------------------------------------------------------------------
 
 			template <typename T>
-			void GetComponent(uint32_t index, const std::decay_t<T>*& data) const {
+			void GetComponent(uint32_t index, typename DeduceComponent<T>::Type*& data) const {
+				static_assert(
+						IsGenericComponent<T>::value, "SetComponent providing an index is only available for generic components");
 				// invalid input is a programmer's bug
 				GAIA_ASSERT(data != nullptr);
-				const auto& ref = GetComponentRef_Internal<T>(ComponentType::CT_Generic, index);
+				const auto& ref = GetComponentRef_Internal<typename DeduceComponent<T>::Type>(ComponentType::CT_Generic, index);
 				data = &ref;
-			}
-
-			template <typename... T>
-			void GetComponent(uint32_t index, const std::decay_t<T>*&... data) const {
-				(GetComponent<T>(index, data), ...);
 			}
 
 			template <typename T>
-			void GetChunkComponent(const std::decay_t<T>*& data) const {
+			void GetComponent(typename DeduceComponent<T>::Type*& data) const {
+				static_assert(
+						!IsGenericComponent<T>::value,
+						"SetComponent not providing an index is only available for non-generic components");
 				// invalid input is a programmer's bug
 				GAIA_ASSERT(data != nullptr);
-				const auto& ref = GetComponentRef_Internal<T>(ComponentType::CT_Chunk, 0);
+				const auto& ref = GetComponentRef_Internal<typename DeduceComponent<T>::Type>(ComponentType::CT_Chunk, 0);
 				data = &ref;
-			}
-
-			template <typename... T>
-			void GetChunkComponent(const std::decay_t<T>*&... data) const {
-				(GetChunkComponent<T>(data), ...);
 			}
 
 			//----------------------------------------------------------------------

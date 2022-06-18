@@ -1099,75 +1099,41 @@ namespace gaia {
 			\warning It is expected the component is not there yet and that \param
 			entity is valid. Undefined behavior otherwise.
 			*/
-			template <typename... TComponent>
+			template <typename TComponent>
 			void AddComponent(Entity entity) {
-				VerifyComponents<TComponent...>();
+				VerifyComponents<TComponent>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
-				AddComponent_Internal<TComponent...>(ComponentType::CT_Generic, entity);
-			}
-
-			/*!
-			Attaches new components to \param entity.
-			\warning It is expected the component is not there yet and that
-			\param entity is valid. Undefined behavior otherwise.
-			*/
-			template <typename... TComponent>
-			void AddComponent(Entity entity, TComponent&&... data) {
-				VerifyComponents<TComponent...>();
-				GAIA_ASSERT(IsEntityValid(entity));
-
-				auto& entityContainer = AddComponent_Internal<TComponent...>(ComponentType::CT_Generic, entity);
-				auto* pChunk = entityContainer.pChunk;
-				pChunk->template SetComponents<TComponent...>(entityContainer.idx, std::forward<TComponent>(data)...);
-			}
-
-			/*!
-			Attaches new components to \param entity.
-			\warning It is expected the component is not there yet and that
-			\param entity is valid. Undefined behavior otherwise.
-			*/
-			/*template <typename... TComponent>
-			void AddComponent(EntityQuery& query, TComponent&&... data) {
-				VerifyComponents<TComponent...>();
-
-				CommandBuffer cb(static_cast<World&>(*this));
-				{
-					ForEach(query, [&](Entity e) {
-						cb.AddComponent<TComponent...>(e, std::forward<TComponent>(data)...);
-					});
+				if constexpr (IsGenericComponent<TComponent>::value) {
+					using U = typename detail::ExtractComponentType_Generic<TComponent>::Type;
+					AddComponent_Internal<U>(ComponentType::CT_Generic, entity);
+				} else {
+					using U = typename detail::ExtractComponentType_NonGeneric<TComponent>::Type;
+					AddComponent_Internal<U>(ComponentType::CT_Chunk, entity);
 				}
-				cb.Commit();
-			}*/
-
-			/*!
-			Attaches new chunk components to \param entity.
-			Chunk component is shared for the entire chunk.
-			\warning It is expected the component is not there yet and that
-			\param entity is valid. Undefined behavior otherwise.
-			*/
-			template <typename... TComponent>
-			void AddChunkComponent(Entity entity) {
-				VerifyComponents<TComponent...>();
-				GAIA_ASSERT(IsEntityValid(entity));
-
-				AddComponent_Internal<TComponent...>(ComponentType::CT_Chunk, entity);
 			}
 
 			/*!
-			Attaches new chunk components to \param entity.
-			Chunk component is shared for the entire chunk.
+			Attaches new components to \param entity. Also sets its value.
 			\warning It is expected the component is not there yet and that
 			\param entity is valid. Undefined behavior otherwise.
 			*/
-			template <typename... TComponent>
-			void AddChunkComponent(Entity entity, TComponent&&... data) {
-				VerifyComponents<TComponent...>();
+			template <typename TComponent>
+			void AddComponent(Entity entity, typename DeduceComponent<TComponent>::Type&& data) {
+				VerifyComponents<TComponent>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
-				auto& entityContainer = AddComponent_Internal<TComponent...>(ComponentType::CT_Chunk, entity);
-				auto* pChunk = entityContainer.pChunk;
-				pChunk->template SetChunkComponents<TComponent...>(std::forward<TComponent>(data)...);
+				if constexpr (IsGenericComponent<TComponent>::value) {
+					using U = typename detail::ExtractComponentType_Generic<TComponent>::Type;
+					auto& entityContainer = AddComponent_Internal<U>(ComponentType::CT_Generic, entity);
+					auto* pChunk = entityContainer.pChunk;
+					pChunk->template SetComponent<TComponent>(entityContainer.idx, std::forward<U>(data));
+				} else {
+					using U = typename detail::ExtractComponentType_NonGeneric<TComponent>::Type;
+					auto& entityContainer = AddComponent_Internal<U>(ComponentType::CT_Chunk, entity);
+					auto* pChunk = entityContainer.pChunk;
+					pChunk->template SetComponent<TComponent>(std::forward<U>(data));
+				}
 			}
 
 			/*!
@@ -1175,25 +1141,18 @@ namespace gaia {
 			\warning It is expected the component is not there yet and that
 			\param entity is valid. Undefined behavior otherwise.
 			*/
-			template <typename... TComponent>
+			template <typename TComponent>
 			void RemoveComponent(Entity entity) {
-				VerifyComponents<TComponent...>();
+				VerifyComponents<TComponent>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
-				RemoveComponent_Internal<TComponent...>(ComponentType::CT_Generic, entity);
-			}
-
-			/*!
-			Removes a chunk component from \param entity.
-			\warning It is expected the component is not there yet and that
-			\param entity is valid. Undefined behavior otherwise.
-			*/
-			template <typename... TComponent>
-			void RemoveChunkComponent(Entity entity) {
-				VerifyComponents<TComponent...>();
-				GAIA_ASSERT(IsEntityValid(entity));
-
-				RemoveComponent_Internal<TComponent...>(ComponentType::CT_Chunk, entity);
+				if constexpr (IsGenericComponent<TComponent>::value) {
+					using U = typename detail::ExtractComponentType_Generic<TComponent>::Type;
+					RemoveComponent_Internal<U>(ComponentType::CT_Generic, entity);
+				} else {
+					using U = typename detail::ExtractComponentType_NonGeneric<TComponent>::Type;
+					RemoveComponent_Internal<U>(ComponentType::CT_Chunk, entity);
+				}
 			}
 
 			/*!
@@ -1201,29 +1160,21 @@ namespace gaia {
 			\warning It is expected the component is not there yet and that
 			\param entity is valid. Undefined behavior otherwise.
 			*/
-			template <typename... TComponent>
-			void SetComponent(Entity entity, TComponent&&... data) {
-				VerifyComponents<TComponent...>();
+			template <typename TComponent>
+			void SetComponent(Entity entity, typename DeduceComponent<TComponent>::Type&& data) {
+				VerifyComponents<TComponent>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				auto& entityContainer = m_entities[entity.id()];
 				auto* pChunk = entityContainer.pChunk;
-				pChunk->SetComponents<TComponent...>(entityContainer.idx, std::forward<TComponent>(data)...);
-			}
 
-			/*!
-			Sets values for all listed components of \param entity.
-			\warning It is expected the component is not there yet and that
-			\param entity is valid. Undefined behavior otherwise.
-			*/
-			template <typename... TComponent>
-			void SetChunkComponent(Entity entity, TComponent&&... data) {
-				VerifyComponents<TComponent...>();
-				GAIA_ASSERT(IsEntityValid(entity));
-
-				auto& entityContainer = m_entities[entity.id()];
-				auto* pChunk = entityContainer.pChunk;
-				pChunk->SetChunkComponent<TComponent...>(std::forward<TComponent>(data)...);
+				if constexpr (IsGenericComponent<TComponent>::value) {
+					using U = typename detail::ExtractComponentType_Generic<TComponent>::Type;
+					pChunk->template SetComponent<TComponent>(entityContainer.idx, std::forward<U>(data));
+				} else {
+					using U = typename detail::ExtractComponentType_NonGeneric<TComponent>::Type;
+					pChunk->template SetComponent<TComponent>(std::forward<U>(data));
+				}
 			}
 
 			//----------------------------------------------------------------------
@@ -1235,29 +1186,19 @@ namespace gaia {
 			\warning It is expected the component is not there yet and that
 			\param entity is valid. Undefined behavior otherwise.
 			*/
-			template <typename... TComponent>
-			void GetComponent(Entity entity, TComponent&... data) const {
-				VerifyComponents<TComponent...>();
+			template <typename TComponent>
+			void GetComponent(Entity entity, typename DeduceComponent<TComponent>::TypeRaw& data) const {
+				VerifyComponents<TComponent>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
 				const auto* pChunk = entityContainer.pChunk;
-				pChunk->GetComponents<TComponent...>(entityContainer.idx, data...);
-			}
 
-			/*!
-			Returns a copy of value of a chunk component of \param entity.
-			\warning It is expected the component is not there yet and that
-			\param entity is valid. Undefined behavior otherwise.
-			*/
-			template <typename... TComponent>
-			void GetChunkComponent(Entity entity, TComponent&... data) const {
-				VerifyComponents<TComponent...>();
-				GAIA_ASSERT(IsEntityValid(entity));
-
-				const auto& entityContainer = m_entities[entity.id()];
-				const auto* pChunk = entityContainer.pChunk;
-				pChunk->GetChunkComponents<TComponent...>(data...);
+				if constexpr (IsGenericComponent<TComponent>::value) {
+					pChunk->GetComponent<TComponent>(entityContainer.idx, data);
+				} else {
+					pChunk->GetComponent<TComponent>(data);
+				}
 			}
 
 			//----------------------------------------------------------------------
@@ -1269,29 +1210,21 @@ namespace gaia {
 			\warning It is expected the component is not there yet and that
 			\param entity is valid. Undefined behavior otherwise.
 			*/
-			template <typename... TComponent>
-			void GetComponent(Entity entity, const TComponent*&... data) const {
-				VerifyComponents<TComponent...>();
+			template <typename TComponent>
+			void GetComponent(Entity entity, const typename DeduceComponent<TComponent>::Type*& data) const {
+				VerifyComponents<TComponent>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
 				const auto* pChunk = entityContainer.pChunk;
-				pChunk->GetComponents<TComponent...>(entityContainer.idx, data...);
-			}
 
-			/*!
-			Returns a const reference to a chunk component of \param entity.
-			\warning It is expected the component is not there yet and that
-			\param entity is valid. Undefined behavior otherwise.
-			*/
-			template <typename... TComponent>
-			void GetChunkComponent(Entity entity, const TComponent*&... data) const {
-				VerifyComponents<TComponent...>();
-				GAIA_ASSERT(IsEntityValid(entity));
-
-				const auto& entityContainer = m_entities[entity.id()];
-				const auto* pChunk = entityContainer.pChunk;
-				pChunk->GetChunkComponents<TComponent...>(data...);
+				if constexpr (IsGenericComponent<TComponent>::value) {
+					using U = typename detail::ExtractComponentType_Generic<TComponent>::Type;
+					pChunk->GetComponent<U>(entityContainer.idx, data);
+				} else {
+					using U = typename detail::ExtractComponentType_NonGeneric<TComponent>::Type;
+					pChunk->GetComponent<U>(data);
+				}
 			}
 
 			//----------------------------------------------------------------------
@@ -1301,13 +1234,13 @@ namespace gaia {
 			\return True if all listed components are present on entity.
 			*/
 			template <typename... TComponent>
-			[[nodiscard]] bool HasComponents(Entity entity) {
+			[[nodiscard]] bool HasComponent(Entity entity) {
 				VerifyComponents<TComponent...>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
 				if (const auto* pChunk = entityContainer.pChunk) {
-					return pChunk->HasComponents<TComponent...>();
+					return pChunk->HasComponent<TComponent...>();
 				}
 
 				return false;
@@ -1318,13 +1251,13 @@ namespace gaia {
 			\return True if at least one listed components is present on entity.
 			*/
 			template <typename... TComponent>
-			[[nodiscard]] bool HasAnyComponents(Entity entity) {
+			[[nodiscard]] bool HasAnyComponent(Entity entity) {
 				VerifyComponents<TComponent...>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
 				if (const auto* pChunk = entityContainer.pChunk) {
-					return pChunk->HasAnyComponents<TComponent...>();
+					return pChunk->HasAnyComponent<TComponent...>();
 				}
 
 				return false;
@@ -1335,64 +1268,13 @@ namespace gaia {
 			\return True if none of the listed components are present on entity.
 			*/
 			template <typename... TComponent>
-			[[nodiscard]] bool HasNoneComponents(Entity entity) {
+			[[nodiscard]] bool HasNoneComponent(Entity entity) {
 				VerifyComponents<TComponent...>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
 				if (const auto* pChunk = entityContainer.pChunk) {
-					return pChunk->HasNoneComponents<TComponent...>();
-				}
-
-				return false;
-			}
-
-			/*!
-			Tells if the chunk \param entity is a part of contains all listed chunk components.
-			\return True if all listed chunk components are present on entity's chunk.
-			*/
-			template <typename... TComponent>
-			[[nodiscard]] bool HasChunkComponents(Entity entity) {
-				VerifyComponents<TComponent...>();
-				GAIA_ASSERT(IsEntityValid(entity));
-
-				const auto& entityContainer = m_entities[entity.id()];
-				if (const auto* pChunk = entityContainer.pChunk) {
-					return pChunk->HasChunkComponents<TComponent...>();
-				}
-
-				return false;
-			}
-
-			/*!
-			Tells if the chunk \param entity is a part of contains at least one of the listed chunk components.
-			\return True if at least one of the listed chunk components are present on entity's chunk.
-			*/
-			template <typename... TComponent>
-			[[nodiscard]] bool HasAnyChunkComponents(Entity entity) {
-				VerifyComponents<TComponent...>();
-				GAIA_ASSERT(IsEntityValid(entity));
-
-				const auto& entityContainer = m_entities[entity.id()];
-				if (const auto* pChunk = entityContainer.pChunk) {
-					return pChunk->HasAnyChunkComponents<TComponent...>();
-				}
-
-				return false;
-			}
-
-			/*!
-			Tells if \param entity contains all the listed components.
-			\return True if none of the listed chunk components are present on entity's chunk.
-			*/
-			template <typename... TComponent>
-			[[nodiscard]] bool HasNoneChunkComponents(Entity entity) {
-				VerifyComponents<TComponent...>();
-				GAIA_ASSERT(IsEntityValid(entity));
-
-				const auto& entityContainer = m_entities[entity.id()];
-				if (const auto* pChunk = entityContainer.pChunk) {
-					return pChunk->HasNoneChunkComponents<TComponent...>();
+					return pChunk->HasNoneComponent<TComponent...>();
 				}
 
 				return false;
@@ -1734,7 +1616,7 @@ namespace gaia {
 				static_assert(
 						!std::is_invocable<TFunc, Chunk&>::value,
 						"Calling query-less ForEach is not supported for chunk iteration");
-						
+
 				EntityQuery query;
 				ResolveQuery<TFunc>((World&)*this, query);
 				ForEachExecutionContext_Internal<TFunc>((World&)*this, std::move(query), func);

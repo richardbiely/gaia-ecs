@@ -246,15 +246,17 @@ namespace gaia {
 			\return True if component could be added (e.g. maximum component count
 			on the archetype not exceeded). False otherwise.
 			*/
-			template <typename... TComponent>
+			template <typename TComponent>
 			bool AddComponent(Entity entity) {
-				VerifyComponents<TComponent...>();
-				if (!VerityArchetypeComponentCount((uint32_t)sizeof...(TComponent)))
-					return false;
+				using U = typename DeduceComponent<TComponent>::Type;
+				VerifyComponents<U>();
 
 				m_data.push_back(ADD_COMPONENT);
-				m_data.push_back(ComponentType::CT_Generic);
-				AddComponent_Internal<Entity, TComponent...>(entity);
+				if constexpr (IsGenericComponent<TComponent>::value)
+					m_data.push_back(ComponentType::CT_Generic);
+				else
+					m_data.push_back(ComponentType::CT_Chunk);
+				AddComponent_Internal<Entity, U>(entity);
 				return true;
 			}
 
@@ -264,15 +266,17 @@ namespace gaia {
 			\return True if component could be added (e.g. maximum component count
 			on the archetype not exceeded). False otherwise.
 			*/
-			template <typename... TComponent>
+			template <typename TComponent>
 			bool AddComponent(TempEntity entity) {
-				VerifyComponents<TComponent...>();
-				if (!VerityArchetypeComponentCount((uint32_t)sizeof...(TComponent)))
-					return false;
+				using U = typename DeduceComponent<TComponent>::Type;
+				VerifyComponents<U>();
 
 				m_data.push_back(ADD_COMPONENT_TO_TEMPENTITY);
-				m_data.push_back(ComponentType::CT_Generic);
-				AddComponent_Internal<TempEntity, TComponent...>(entity);
+				if constexpr (IsGenericComponent<TComponent>::value)
+					m_data.push_back(ComponentType::CT_Generic);
+				else
+					m_data.push_back(ComponentType::CT_Chunk);
+				AddComponent_Internal<TempEntity, U>(entity);
 				return true;
 			}
 
@@ -282,16 +286,18 @@ namespace gaia {
 			\return True if component could be added (e.g. maximum component count
 			on the archetype not exceeded). False otherwise.
 			*/
-			template <typename... TComponent>
-			bool AddComponent(Entity entity, TComponent&&... data) {
-				VerifyComponents<TComponent...>();
-				if (!VerityArchetypeComponentCount((uint32_t)sizeof...(TComponent)))
-					return false;
+			template <typename TComponent>
+			bool AddComponent(Entity entity, TComponent&& data) {
+				using U = typename DeduceComponent<TComponent>::Type;
+				VerifyComponents<U>();
 
 				m_data.push_back(ADD_COMPONENT_DATA);
-				m_data.push_back(ComponentType::CT_Generic);
-				AddComponent_Internal<Entity, TComponent...>(entity);
-				SetComponentNoEntityNoSize_Internal(std::forward<TComponent>(data)...);
+				if constexpr (IsGenericComponent<TComponent>::value)
+					m_data.push_back(ComponentType::CT_Generic);
+				else
+					m_data.push_back(ComponentType::CT_Chunk);
+				AddComponent_Internal<Entity, U>(entity);
+				SetComponentNoEntityNoSize_Internal(std::forward<U>(data));
 				return true;
 			}
 
@@ -301,71 +307,18 @@ namespace gaia {
 			\return True if component could be added (e.g. maximum component count
 			on the archetype not exceeded). False otherwise.
 			*/
-			template <typename... TComponent>
-			bool AddComponent(TempEntity entity, TComponent&&... data) {
-				VerifyComponents<TComponent...>();
-				if (!VerityArchetypeComponentCount((uint32_t)sizeof...(TComponent)))
-					return false;
+			template <typename TComponent>
+			bool AddComponent(TempEntity entity, TComponent&& data) {
+				using U = typename DeduceComponent<TComponent>::Type;
+				VerifyComponents<U>();
 
 				m_data.push_back(ADD_COMPONENT_TO_TEMPENTITY_DATA);
-				m_data.push_back(ComponentType::CT_Generic);
-				AddComponent_Internal<TempEntity, TComponent...>(entity);
-				SetComponentNoEntityNoSize_Internal(std::forward<TComponent>(data)...);
-				return true;
-			}
-
-			/*!
-			Requests a chunk component to be added to entity.
-
-			\return True if component could be added (e.g. maximum component count
-			on the archetype not exceeded). False otherwise.
-			*/
-			template <typename... TComponent>
-			bool AddChunkComponent(Entity entity) {
-				VerifyComponents<TComponent...>();
-				if (!VerityArchetypeComponentCount((uint32_t)sizeof...(TComponent)))
-					return false;
-
-				m_data.push_back(ADD_COMPONENT);
-				m_data.push_back(ComponentType::CT_Chunk);
-				AddComponent_Internal<Entity, TComponent...>(entity);
-				return true;
-			}
-
-			/*!
-			Requests a chunk component to be added to temp entity.
-
-			\return True if component could be added (e.g. maximum component count
-			on the archetype not exceeded). False otherwise.
-			*/
-			template <typename... TComponent>
-			bool AddChunkComponent(TempEntity entity) {
-				VerifyComponents<TComponent...>();
-				if (!VerityArchetypeComponentCount((uint32_t)sizeof...(TComponent)))
-					return false;
-
-				m_data.push_back(ADD_COMPONENT);
-				m_data.push_back(ComponentType::CT_Chunk);
-				AddComponent_Internal<TempEntity, TComponent...>(entity);
-				return true;
-			}
-
-			/*!
-			Requests a chunk component to be added to temp entity.
-
-			\return True if component could be added (e.g. maximum component count
-			on the archetype not exceeded). False otherwise.
-			*/
-			template <typename... TComponent>
-			bool AddChunkComponent(TempEntity entity, TComponent&&... data) {
-				VerifyComponents<TComponent...>();
-				if (!VerityArchetypeComponentCount((uint32_t)sizeof...(TComponent)))
-					return false;
-
-				m_data.push_back(ADD_COMPONENT_DATA);
-				m_data.push_back(ComponentType::CT_Chunk);
-				AddComponent_Internal<TempEntity, TComponent...>(entity);
-				SetComponentNoEntityNoSize_Internal(std::forward<TComponent>(data)...);
+				if constexpr (IsGenericComponent<TComponent>::value)
+					m_data.push_back(ComponentType::CT_Generic);
+				else
+					m_data.push_back(ComponentType::CT_Chunk);
+				AddComponent_Internal<TempEntity, U>(entity);
+				SetComponentNoEntityNoSize_Internal(std::forward<U>(data));
 				return true;
 			}
 
@@ -375,13 +328,17 @@ namespace gaia {
 			\warning Just like World::SetComponent, this method expects the
 			given component types to exist. Undefined behavior otherwise.
 			*/
-			template <typename... TComponent>
-			void SetComponent(Entity entity, TComponent&&... data) {
-				VerifyComponents<TComponent...>();
+			template <typename TComponent>
+			void SetComponent(Entity entity, TComponent&& data) {
+				using U = typename DeduceComponent<TComponent>::Type;
+				VerifyComponents<U>();
 
 				m_data.push_back(SET_COMPONENT);
-				m_data.push_back(ComponentType::CT_Generic);
-				SetComponent_Internal(entity, std::forward<TComponent>(data)...);
+				if constexpr (IsGenericComponent<TComponent>::value)
+					m_data.push_back(ComponentType::CT_Generic);
+				else
+					m_data.push_back(ComponentType::CT_Chunk);
+				SetComponent_Internal(entity, std::forward<U>(data));
 			}
 
 			/*!
@@ -391,69 +348,33 @@ namespace gaia {
 			\warning Just like World::SetComponent, this method expects the
 			given component types to exist. Undefined behavior otherwise.
 			*/
-			template <typename... TComponent>
-			void SetComponent(TempEntity entity, TComponent&&... data) {
-				VerifyComponents<TComponent...>();
+			template <typename TComponent>
+			void SetComponent(TempEntity entity, TComponent&& data) {
+				using U = typename DeduceComponent<TComponent>::Type;
+				VerifyComponents<U>();
 
 				m_data.push_back(SET_COMPONENT_FOR_TEMPENTITY);
-				m_data.push_back(ComponentType::CT_Generic);
-				SetComponent_Internal(entity, std::forward<TComponent>(data)...);
-			}
-
-			/*!
-			Requests chunk component data to be set to given values for a given
-			entity's chunk.
-
-			\warning Just like World::SetChunkComponent, this method expects the
-			given component types to exist. Undefined behavior otherwise.
-			*/
-			template <typename... TComponent>
-			void SetChunkComponent(Entity entity, TComponent&&... data) {
-				VerifyComponents<TComponent...>();
-
-				m_data.push_back(SET_COMPONENT);
-				m_data.push_back(ComponentType::CT_Chunk);
-				SetComponent_Internal(entity, std::forward<TComponent>(data)...);
-			}
-
-			/*!
-			Requests chunk component data to be set to given values for a given
-			entity's chunk.
-
-			\warning Just like World::SetChunkComponent, this method expects the
-			given component types to exist. Undefined behavior otherwise.
-			*/
-			template <typename... TComponent>
-			void SetChunkComponent(TempEntity entity, TComponent&&... data) {
-				VerifyComponents<TComponent...>();
-
-				m_data.push_back(SET_COMPONENT_FOR_TEMPENTITY);
-				m_data.push_back(ComponentType::CT_Chunk);
-				SetComponent_Internal(entity, std::forward<TComponent>(data)...);
+				if constexpr (IsGenericComponent<TComponent>::value)
+					m_data.push_back(ComponentType::CT_Generic);
+				else
+					m_data.push_back(ComponentType::CT_Chunk);
+				SetComponent_Internal(entity, std::forward<U>(data));
 			}
 
 			/*!
 			Requests removal of a component from entity
 			*/
-			template <typename... TComponent>
+			template <typename TComponent>
 			void RemoveComponent(Entity entity) {
-				VerifyComponents<TComponent...>();
+				using U = typename DeduceComponent<TComponent>::Type;
+				VerifyComponents<U>();
 
 				m_data.push_back(REMOVE_COMPONENT);
-				m_data.push_back(ComponentType::CT_Generic);
-				RemoveComponent_Internal<TComponent...>(entity);
-			}
-
-			/*!
-			Requests removal of a chunk component from entity
-			*/
-			template <typename... TComponent>
-			void RemoveChunkComponent(Entity entity) {
-				VerifyComponents<TComponent...>();
-
-				m_data.push_back(REMOVE_COMPONENT);
-				m_data.push_back(ComponentType::CT_Chunk);
-				RemoveComponent_Internal<TComponent...>(entity);
+				if constexpr (IsGenericComponent<TComponent>::value)
+					m_data.push_back(ComponentType::CT_Generic);
+				else
+					m_data.push_back(ComponentType::CT_Chunk);
+				RemoveComponent_Internal<U>(entity);
 			}
 
 			/*!
