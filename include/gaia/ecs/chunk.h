@@ -43,30 +43,6 @@ namespace gaia {
 
 			Chunk(const Archetype& archetype): header(archetype) {}
 
-			template <typename T>
-			[[nodiscard]] std::decay_t<T> GetComponentVal_Internal(ComponentType componentType, uint32_t index) const {
-				using TComponent = std::decay_t<T>;
-				return View<TComponent>(componentType)[index];
-			}
-
-			template <typename T>
-			[[nodiscard]] const std::decay_t<T>& GetComponentRef_Internal(ComponentType componentType, uint32_t index) const {
-				using TComponent = std::decay_t<T>;
-				return View<TComponent>(componentType)[index];
-			}
-
-			template <typename T>
-			void SetComponent_Internal(
-					[[maybe_unused]] ComponentType componentType, [[maybe_unused]] uint32_t index,
-					[[maybe_unused]] std::decay_t<T>&& value) {
-				using TComponent = std::decay_t<T>;
-				if constexpr (std::is_empty<TComponent>::value)
-					return;
-				else {
-					ViewRW<TComponent>(componentType)[index] = std::forward<TComponent>(value);
-				}
-			}
-
 			[[nodiscard]] uint32_t GetComponentIdx_Internal(ComponentType componentType, uint32_t typeIndex) const {
 				const auto& list = GetArchetypeComponentLookupList(header.owner, componentType);
 				return utils::get_index_if_unsafe(list, [&](const auto& info) {
@@ -175,38 +151,35 @@ namespace gaia {
 			}
 
 			template <typename T>
-			[[nodiscard]] GAIA_FORCEINLINE
-					typename std::enable_if_t<std::is_same<std::decay_t<T>, Entity>::value, std::span<const Entity>>
-					View_Internal() const {
-				return {(const Entity*)&data[0], GetItemCount()};
+			[[nodiscard]] GAIA_FORCEINLINE auto View_Internal() const {
+				using U = typename DeduceComponent<T>::Type;
+
+				if constexpr (std::is_same<U, Entity>::value) {
+					return std::span<const Entity>{(const Entity*)&data[0], GetItemCount()};
+				} else {
+					static_assert(!std::is_empty<U>::value, "Attempting to get value of an empty component");
+
+					const auto typeIndex = utils::type_info::index<U>();
+
+					if constexpr (IsGenericComponent<U>::value)
+						return std::span<const U>{(const U*)get_data_ptr(ComponentType::CT_Generic, typeIndex), GetItemCount()};
+					else
+						return std::span<const U>{(const U*)get_data_ptr(ComponentType::CT_Chunk, typeIndex), 1};
+				}
 			}
 
 			template <typename T>
-			[[nodiscard]] GAIA_FORCEINLINE
-					typename std::enable_if_t<!std::is_same<std::decay_t<T>, Entity>::value, std::span<const std::decay_t<T>>>
-					View_Internal(ComponentType componentType = ComponentType::CT_Generic) const {
-				using TComponent = std::decay_t<T>;
-				static_assert(!std::is_empty<TComponent>::value, "Attempting to get value of an empty component");
+			[[nodiscard]] GAIA_FORCEINLINE auto ViewRW_Internal() {
+				using U = typename DeduceComponent<T>::Type;
+				static_assert(!std::is_same<U, Entity>::value);
+				static_assert(!std::is_empty<U>::value, "Attempting to set value of an empty component");
 
-				const auto typeIndex = utils::type_info::index<TComponent>();
+				const auto typeIndex = utils::type_info::index<U>();
 
-				return {
-						(const TComponent*)get_data_ptr(componentType, typeIndex),
-						componentType == ComponentType::CT_Generic ? GetItemCount() : 1};
-			}
-
-			template <typename T>
-			[[nodiscard]] GAIA_FORCEINLINE
-					typename std::enable_if_t<!std::is_same<std::decay_t<T>, Entity>::value, std::span<std::decay_t<T>>>
-					ViewRW_Internal(ComponentType componentType = ComponentType::CT_Generic) {
-				using TComponent = std::decay_t<T>;
-				static_assert(!std::is_empty<TComponent>::value, "Empty components shouldn't be used for writing!");
-
-				const auto typeIndex = utils::type_info::index<TComponent>();
-
-				return {
-						(TComponent*)get_data_rw_ptr(componentType, typeIndex),
-						componentType == ComponentType::CT_Generic ? GetItemCount() : 1};
+				if constexpr (IsGenericComponent<U>::value)
+					return std::span<U>{(U*)get_data_rw_ptr(ComponentType::CT_Generic, typeIndex), GetItemCount()};
+				else
+					return std::span<U>{(U*)get_data_rw_ptr(ComponentType::CT_Chunk, typeIndex), 1};
 			}
 
 			[[nodiscard]] GAIA_FORCEINLINE uint8_t*
@@ -256,26 +229,16 @@ namespace gaia {
 			}
 
 			/*!
-			Returns a read-only entity view.
-			\return Entity view
-			*/
-			template <typename T>
-			[[nodiscard]]
-			typename std::enable_if_t<std::is_same<std::decay_t<T>, Entity>::value, utils::auto_view_policy_get<const Entity>>
-			View() const {
-				return {View_Internal<T>()};
-			}
-
-			/*!
-			Returns a read-only component view.
+			Returns a read-only entity or component view.
 			\return Component view
 			*/
 			template <typename T>
-			[[nodiscard]] typename std::enable_if_t<
-					!std::is_same<std::decay_t<T>, Entity>::value, utils::auto_view_policy_get<const std::decay_t<T>>>
-			View(ComponentType componentType = ComponentType::CT_Generic) const {
-				using TComponent = const std::decay_t<T>;
-				return {View_Internal<TComponent>(componentType)};
+			[[nodiscard]] auto View() const {
+				using U = typename DeduceComponent<T>::Type;
+				using UOriginal = typename DeduceComponent<T>::TypeOriginal;
+				static_assert(IsReadOnlyType<UOriginal>::value);
+
+				return utils::auto_view_policy_get<const U>{View_Internal<U>()};
 			}
 
 			/*!
@@ -283,11 +246,11 @@ namespace gaia {
 			\return Component view
 			*/
 			template <typename T>
-			[[nodiscard]] typename std::enable_if_t<
-					!std::is_same<std::decay_t<T>, Entity>::value, utils::auto_view_policy_set<std::decay_t<T>>>
-			ViewRW(ComponentType componentType = ComponentType::CT_Generic) {
-				using TComponent = std::decay_t<T>;
-				return {ViewRW_Internal<TComponent>(componentType)};
+			[[nodiscard]] auto ViewRW() {
+				using U = typename DeduceComponent<T>::Type;
+				static_assert(!std::is_same<U, Entity>::value);
+
+				return utils::auto_view_policy_set<U>{ViewRW_Internal<U>()};
 			}
 
 			/*!
@@ -340,19 +303,26 @@ namespace gaia {
 
 			template <typename T>
 			void SetComponent(uint32_t index, typename DeduceComponent<T>::Type&& value) {
+				using U = typename DeduceComponent<T>::Type;
+
 				static_assert(
-						IsGenericComponent<T>::value, "SetComponent providing an index is only available for generic components");
-				SetComponent_Internal<typename DeduceComponent<T>::Type>(
-						ComponentType::CT_Generic, index, std::forward<typename DeduceComponent<T>::Type>(value));
+						IsGenericComponent<T>::value,
+						"SetComponent providing an index in chunk is only available for generic components");
+				static_assert(!std::is_empty<U>::value, "SetComponent can't be used to set a value of an empty type");
+
+				ViewRW<U>()[index] = std::forward<U>(value);
 			}
 
 			template <typename T>
 			void SetComponent(typename DeduceComponent<T>::Type&& value) {
+				using U = typename DeduceComponent<T>::Type;
+
 				static_assert(
 						!IsGenericComponent<T>::value,
-						"SetComponent not providing an index is only available for non-generic components");
-				SetComponent_Internal<typename DeduceComponent<T>::Type>(
-						ComponentType::CT_Chunk, 0, std::forward<typename DeduceComponent<T>::Type>(value));
+						"SetComponent not providing an index in chunk is only available for non-generic components");
+				static_assert(!std::is_empty<U>::value, "SetComponent can't be used to set a value of an empty type");
+
+				ViewRW<U>()[0] = std::forward<U>(value);
 			}
 
 			//----------------------------------------------------------------------
@@ -363,7 +333,7 @@ namespace gaia {
 			void GetComponent(uint32_t index, typename DeduceComponent<T>::Type& data) const {
 				static_assert(
 						IsGenericComponent<T>::value, "SetComponent providing an index is only available for generic components");
-				data = GetComponentVal_Internal<typename DeduceComponent<T>::Type>(ComponentType::CT_Generic, index);
+				data = View<T>()[index];
 			}
 
 			template <typename T>
@@ -371,7 +341,7 @@ namespace gaia {
 				static_assert(
 						!IsGenericComponent<T>::value,
 						"SetComponent not providing an index is only available for non-generic components");
-				data = GetComponentVal_Internal<typename DeduceComponent<T>::Type>(ComponentType::CT_Chunk, 0);
+				data = View<T>()[0];
 			}
 
 			//----------------------------------------------------------------------
@@ -384,7 +354,7 @@ namespace gaia {
 						IsGenericComponent<T>::value, "SetComponent providing an index is only available for generic components");
 				// invalid input is a programmer's bug
 				GAIA_ASSERT(data != nullptr);
-				const auto& ref = GetComponentRef_Internal<typename DeduceComponent<T>::Type>(ComponentType::CT_Generic, index);
+				const auto& ref = View<T>()[index];
 				data = &ref;
 			}
 
@@ -395,7 +365,7 @@ namespace gaia {
 						"SetComponent not providing an index is only available for non-generic components");
 				// invalid input is a programmer's bug
 				GAIA_ASSERT(data != nullptr);
-				const auto& ref = GetComponentRef_Internal<typename DeduceComponent<T>::Type>(ComponentType::CT_Chunk, 0);
+				const auto& ref = View<T>()[0];
 				data = &ref;
 			}
 
