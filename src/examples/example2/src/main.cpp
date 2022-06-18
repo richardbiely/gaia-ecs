@@ -31,8 +31,7 @@ int main() {
 	}
 
 	// Record the original position
-	Position p0;
-	w.GetComponent<Position>(e, p0);
+	auto p0 = w.GetComponent<Position>(e);
 
 	// Move until a key is hit
 	constexpr uint32_t GameLoops = 10'000;
@@ -41,8 +40,7 @@ int main() {
 		MoveSystem(w, dt);
 	}
 
-	Position p1;
-	w.GetComponent<Position>(e, p1);
+	auto p1 = w.GetComponent<Position>(e);
 	LOG_N("Entity 0 moved from [%.2f,%.2f,%.2f] to [%.2f,%.2f,%.2f]", p0.x, p0.y, p0.z, p1.x, p1.y, p1.z);
 
 	return 0;

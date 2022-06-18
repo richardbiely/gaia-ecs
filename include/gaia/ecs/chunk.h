@@ -308,7 +308,6 @@ namespace gaia {
 				static_assert(
 						IsGenericComponent<T>::value,
 						"SetComponent providing an index in chunk is only available for generic components");
-				static_assert(!std::is_empty<U>::value, "SetComponent can't be used to set a value of an empty type");
 
 				ViewRW<U>()[index] = std::forward<U>(value);
 			}
@@ -320,53 +319,27 @@ namespace gaia {
 				static_assert(
 						!IsGenericComponent<T>::value,
 						"SetComponent not providing an index in chunk is only available for non-generic components");
-				static_assert(!std::is_empty<U>::value, "SetComponent can't be used to set a value of an empty type");
 
 				ViewRW<U>()[0] = std::forward<U>(value);
 			}
 
 			//----------------------------------------------------------------------
-			// Component data by copy
+			// Component data
 			//----------------------------------------------------------------------
 
 			template <typename T>
-			void GetComponent(uint32_t index, typename DeduceComponent<T>::Type& data) const {
+			const auto& GetComponent(uint32_t index) const {
 				static_assert(
-						IsGenericComponent<T>::value, "SetComponent providing an index is only available for generic components");
-				data = View<T>()[index];
+						IsGenericComponent<T>::value, "GetComponent providing an index is only available for generic components");
+				return View<T>()[index];
 			}
 
 			template <typename T>
-			void GetComponent(typename DeduceComponent<T>::Type& data) const {
+			const auto& GetComponent() const {
 				static_assert(
 						!IsGenericComponent<T>::value,
-						"SetComponent not providing an index is only available for non-generic components");
-				data = View<T>()[0];
-			}
-
-			//----------------------------------------------------------------------
-			// Component data by reference
-			//----------------------------------------------------------------------
-
-			template <typename T>
-			void GetComponent(uint32_t index, typename DeduceComponent<T>::Type*& data) const {
-				static_assert(
-						IsGenericComponent<T>::value, "SetComponent providing an index is only available for generic components");
-				// invalid input is a programmer's bug
-				GAIA_ASSERT(data != nullptr);
-				const auto& ref = View<T>()[index];
-				data = &ref;
-			}
-
-			template <typename T>
-			void GetComponent(typename DeduceComponent<T>::Type*& data) const {
-				static_assert(
-						!IsGenericComponent<T>::value,
-						"SetComponent not providing an index is only available for non-generic components");
-				// invalid input is a programmer's bug
-				GAIA_ASSERT(data != nullptr);
-				const auto& ref = View<T>()[0];
-				data = &ref;
+						"GetComponent not providing an index is only available for non-generic components");
+				return View<T>()[0];
 			}
 
 			//----------------------------------------------------------------------

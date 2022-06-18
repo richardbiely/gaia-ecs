@@ -100,10 +100,12 @@ w.AddComponent<Velocity>(e, {0, 0, 1});
 w.RemoveComponent<Velocity>(e);
 ```
 
-### Setting component value
+### Set and get component value
 ```cpp
 // Change Velocity's value.
 w.SetComponent<Velocity>(e, {0, 0, 2});
+// Read Velocity's value.
+auto velNew = w.GetComponent<Velocity>(e);
 ```
 
 ### Checking if component is attached to entity

@@ -1187,44 +1187,17 @@ namespace gaia {
 			\param entity is valid. Undefined behavior otherwise.
 			*/
 			template <typename TComponent>
-			void GetComponent(Entity entity, typename DeduceComponent<TComponent>::TypeOriginal& data) const {
+			auto GetComponent(Entity entity) const {
 				VerifyComponents<TComponent>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
 				const auto* pChunk = entityContainer.pChunk;
 
-				if constexpr (IsGenericComponent<TComponent>::value) {
-					pChunk->GetComponent<TComponent>(entityContainer.idx, data);
-				} else {
-					pChunk->GetComponent<TComponent>(data);
-				}
-			}
-
-			//----------------------------------------------------------------------
-			// Component data by reference
-			//----------------------------------------------------------------------
-
-			/*!
-			Returns a const reference to a component of \param entity.
-			\warning It is expected the component is not there yet and that
-			\param entity is valid. Undefined behavior otherwise.
-			*/
-			template <typename TComponent>
-			void GetComponent(Entity entity, const typename DeduceComponent<TComponent>::Type*& data) const {
-				VerifyComponents<TComponent>();
-				GAIA_ASSERT(IsEntityValid(entity));
-
-				const auto& entityContainer = m_entities[entity.id()];
-				const auto* pChunk = entityContainer.pChunk;
-
-				if constexpr (IsGenericComponent<TComponent>::value) {
-					using U = typename detail::ExtractComponentType_Generic<TComponent>::Type;
-					pChunk->GetComponent<U>(entityContainer.idx, data);
-				} else {
-					using U = typename detail::ExtractComponentType_NonGeneric<TComponent>::Type;
-					pChunk->GetComponent<U>(data);
-				}
+				if constexpr (IsGenericComponent<TComponent>::value)
+					return pChunk->GetComponent<TComponent>(entityContainer.idx);
+				else
+					return pChunk->GetComponent<TComponent>();
 			}
 
 			//----------------------------------------------------------------------
