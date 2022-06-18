@@ -59,25 +59,25 @@ namespace gaia {
 			using iterator_cat_t = typename iterator_traits<It>::iterator_category;
 
 			template <class T, class = void>
-			inline constexpr bool is_iterator_v = false;
+			constexpr bool is_iterator_v = false;
 
 			template <class T>
-			inline constexpr bool is_iterator_v<T, std::void_t<iterator_cat_t<T>>> = true;
+			constexpr bool is_iterator_v<T, std::void_t<iterator_cat_t<T>>> = true;
 
 			template <class T>
 			struct is_iterator: std::bool_constant<is_iterator_v<T>> {};
 
 			template <class It>
-			inline constexpr bool is_input_iter_v = std::is_convertible_v<iterator_cat_t<It>, input_iterator_tag>;
+			constexpr bool is_input_iter_v = std::is_convertible_v<iterator_cat_t<It>, input_iterator_tag>;
 
 			template <class It>
-			inline constexpr bool is_fwd_iter_v = std::is_convertible_v<iterator_cat_t<It>, forward_iterator_tag>;
+			constexpr bool is_fwd_iter_v = std::is_convertible_v<iterator_cat_t<It>, forward_iterator_tag>;
 
 			template <class It>
-			inline constexpr bool is_bidi_iter_v = std::is_convertible_v<iterator_cat_t<It>, bidirectional_iterator_tag>;
+			constexpr bool is_bidi_iter_v = std::is_convertible_v<iterator_cat_t<It>, bidirectional_iterator_tag>;
 
 			template <class It>
-			inline constexpr bool is_random_iter_v = std::is_convertible_v<iterator_cat_t<It>, random_access_iterator_tag>;
+			constexpr bool is_random_iter_v = std::is_convertible_v<iterator_cat_t<It>, random_access_iterator_tag>;
 		} // namespace detail
 
 		template <class It>
