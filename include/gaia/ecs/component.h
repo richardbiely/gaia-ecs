@@ -40,7 +40,7 @@ namespace gaia {
 		template <typename T>
 		struct AsChunk {
 			using __Type = typename std::decay_t<typename std::remove_pointer<T>::type>;
-			using __TypeRaw = T;
+			using __TypeOriginal = T;
 			static constexpr ComponentType __ComponentType = ComponentType::CT_Chunk;
 		};
 
@@ -48,12 +48,12 @@ namespace gaia {
 			template <typename T>
 			struct ExtractComponentType_Generic {
 				using Type = typename std::decay_t<typename std::remove_pointer<T>::type>;
-				using TypeRaw = T;
+				using TypeOriginal = T;
 			};
 			template <typename T>
 			struct ExtractComponentType_NonGeneric {
 				using Type = typename T::__Type;
-				using TypeRaw = typename T::__TypeRaw;
+				using TypeOriginal = typename T::__TypeOriginal;
 			};
 		} // namespace detail
 
