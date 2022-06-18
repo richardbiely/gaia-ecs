@@ -15,29 +15,10 @@
 
 namespace gaia {
 	namespace ecs {
-		//----------------------------------------------------------------------
-		// Helpers
-		//----------------------------------------------------------------------
 
 		static constexpr uint32_t MAX_COMPONENTS_SIZE_BITS = 8;
 		//! Maximum size of components in bytes
 		static constexpr uint32_t MAX_COMPONENTS_SIZE = (1 << MAX_COMPONENTS_SIZE_BITS) - 1;
-
-		template <typename T>
-		struct ComponentSizeValid: std::bool_constant<sizeof(T) < MAX_COMPONENTS_SIZE> {};
-
-		template <typename T>
-		struct ComponentTypeValid:
-				std::bool_constant<std::is_trivially_copyable<T>::value && std::is_default_constructible<T>::value> {};
-
-		template <typename... T>
-		constexpr void VerifyComponents() {
-			static_assert(utils::is_unique<std::decay_t<T>...>, "Unique components must be provided");
-			static_assert(
-					std::conjunction_v<ComponentSizeValid<std::decay_t<T>>...>, "MAX_COMPONENTS_SIZE in bytes exceeded");
-			static_assert(
-					std::conjunction_v<ComponentTypeValid<std::decay_t<T>>...>, "Only components of trivial type are allowed");
-		}
 
 		enum ComponentType : uint8_t {
 			// General purpose component
@@ -51,6 +32,64 @@ namespace gaia {
 		inline const char* ComponentTypeString[ComponentType::CT_Count] = {"Generic", "Chunk"};
 
 		struct ComponentMetaData;
+
+		//----------------------------------------------------------------------
+		// Component type deduction
+		//----------------------------------------------------------------------
+
+		template <typename T>
+		struct AsChunk {
+			using __Type = typename std::decay_t<typename std::remove_pointer<T>::type>;
+			using __TypeRaw = T;
+			static constexpr ComponentType __ComponentType = ComponentType::CT_Chunk;
+		};
+
+		namespace detail {
+			template <typename T>
+			struct ExtractComponentType_Generic {
+				using Type = typename std::decay_t<typename std::remove_pointer<T>::type>;
+				using TypeRaw = T;
+			};
+			template <typename T>
+			struct ExtractComponentType_NonGeneric {
+				using Type = typename T::__Type;
+				using TypeRaw = typename T::__TypeRaw;
+			};
+		} // namespace detail
+
+		template <typename T, typename = void>
+		struct IsGenericComponent: std::true_type {};
+		template <typename T>
+		struct IsGenericComponent<T, decltype((void)T::__ComponentType, void())>: std::false_type {};
+
+		template <typename T>
+		using DeduceComponent = std::conditional_t<
+				IsGenericComponent<T>::value, typename detail::ExtractComponentType_Generic<T>,
+				typename detail::ExtractComponentType_NonGeneric<T>>;
+
+		//----------------------------------------------------------------------
+		// Component verification
+		//----------------------------------------------------------------------
+
+		template <typename T>
+		struct ComponentSizeValid: std::bool_constant<sizeof(T) < MAX_COMPONENTS_SIZE> {};
+
+		template <typename T>
+		struct ComponentTypeValid:
+				std::bool_constant<std::is_trivially_copyable<T>::value && std::is_default_constructible<T>::value> {};
+
+		template <typename... T>
+		constexpr void VerifyComponents() {
+			static_assert(
+					utils::is_unique<std::decay_t<typename std::remove_pointer<T>::type>...>,
+					"Unique components must be provided");
+			static_assert(
+					std::conjunction_v<ComponentSizeValid<typename DeduceComponent<T>::Type>...>,
+					"MAX_COMPONENTS_SIZE in bytes is exceeded");
+			static_assert(
+					std::conjunction_v<ComponentTypeValid<typename DeduceComponent<T>::Type>...>,
+					"Only components of trivial type are allowed");
+		}
 
 		//----------------------------------------------------------------------
 		// Component hash operations
@@ -157,7 +196,7 @@ namespace gaia {
 
 			template <typename T>
 			[[nodiscard]] static constexpr ComponentMetaData Calculate() {
-				using TComponent = std::decay_t<T>;
+				using TComponent = typename DeduceComponent<T>::Type;
 
 				ComponentMetaData mth{};
 				mth.name = utils::type_info::name<TComponent>();

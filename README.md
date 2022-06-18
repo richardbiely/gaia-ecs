@@ -328,7 +328,7 @@ cb.Commit(&w); // after calling this all entities with y position bellow zero ge
 If you try to make an unprotected structural change with GAIA_DEBUG enabled (set by default when Debug configuration is used) the framework will assert letting you know you are using it the wrong way.
 
 ## Chunk components
-A chunk component is a special kind of component which exists at most once per chunk.<br/>
+A chunk component is a special kind of data which exists at most once per chunk.<br/>
 In different words, you attach data to one chunk specifically.<br/>
 Chunk components survive entity removals and unlike generic component they do not transfer to a new chunk along with their entity.<br/>
 If you organize your data with care (which you should) this can save you some very precious memory or performance depending on your use case.<br/>
@@ -338,7 +338,7 @@ Now if you create your entities carefully they get organized in grid fields impl
 ```cpp
 w.AddComponent<Position>(e1, {10,1});
 w.AddComponent<Position>(e2, {19,1});
-w.AddChunkComponent<GridPosition>(e1, {1, 0}); // Both e1 and e2 share a common grid position of {1,0} now
+w.AddComponent<ecs::AsChunk<GridPosition>>(e1, {1, 0}); // Both e1 and e2 share a common grid position of {1,0} now
 ```
 
 # Requirements
