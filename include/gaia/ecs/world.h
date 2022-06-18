@@ -1239,9 +1239,8 @@ namespace gaia {
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
-				if (const auto* pChunk = entityContainer.pChunk) {
+				if (const auto* pChunk = entityContainer.pChunk)
 					return pChunk->HasComponent<TComponent...>();
-				}
 
 				return false;
 			}
@@ -1256,9 +1255,8 @@ namespace gaia {
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
-				if (const auto* pChunk = entityContainer.pChunk) {
+				if (const auto* pChunk = entityContainer.pChunk)
 					return pChunk->HasAnyComponent<TComponent...>();
-				}
 
 				return false;
 			}
@@ -1273,20 +1271,13 @@ namespace gaia {
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
-				if (const auto* pChunk = entityContainer.pChunk) {
+				if (const auto* pChunk = entityContainer.pChunk)
 					return pChunk->HasNoneComponent<TComponent...>();
-				}
 
 				return false;
 			}
 
 		private:
-			template <class T>
-			struct IsReadOnlyType:
-					std::bool_constant<
-							std::is_const<std::remove_reference_t<std::remove_pointer_t<T>>>::value ||
-							(!std::is_pointer<T>::value && !std::is_reference<T>::value)> {};
-
 			template <class T>
 			constexpr GAIA_FORCEINLINE auto ExpandTuple(Chunk& chunk) const {
 				using U = typename DeduceComponent<T>::Type;
