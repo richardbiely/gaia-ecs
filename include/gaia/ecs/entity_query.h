@@ -56,9 +56,8 @@ namespace gaia {
 			//! If true, sorting types is necessary
 			bool m_sort = true;
 
-			template <class TComponent>
+			template <class T>
 			bool HasComponent_Internal([[maybe_unused]] ComponentIndexArray& arr) const {
-				using T = std::decay_t<TComponent>;
 				if constexpr (std::is_same<T, Entity>::value) {
 					// Skip Entity input args
 					return true;
@@ -68,10 +67,8 @@ namespace gaia {
 				}
 			}
 
-			template <class TComponent>
+			template <class T>
 			void AddComponent_Internal([[maybe_unused]] ComponentIndexArray& arr) {
-				using T = std::decay_t<TComponent>;
-
 				if constexpr (std::is_same<T, Entity>::value) {
 					// Skip Entity input args
 					return;
@@ -104,9 +101,8 @@ namespace gaia {
 				}
 			}
 
-			template <typename TComponent>
+			template <typename T>
 			void SetChangedFilter_Internal(ChangeFilterArray& arrFilter, ComponentListData& arrMeta) {
-				using T = std::decay_t<TComponent>;
 				static_assert(!std::is_same<T, Entity>::value, "It doesn't make sense to use ChangedFilter with Entity");
 
 				const auto typeIndex = utils::type_info::index<T>();
@@ -438,34 +434,33 @@ namespace gaia {
 				m_worldVersion = worldVersion;
 			}
 
-			template <typename... TComponent>
-			bool HasAny() const {
-				return (HasComponent_Internal<TComponent>(m_list[ComponentType::CT_Generic].list[ListType::LT_Any]) && ...);
+			template <typename T>
+			EntityQuery& AddComponent_Internal(ListType listType) {
+				using U = typename DeduceComponent<T>::Type;
+				if constexpr (IsGenericComponent<T>::value)
+					AddComponent_Internal<U>(m_list[ComponentType::CT_Generic].list[listType]);
+				else
+					AddComponent_Internal<U>(m_list[ComponentType::CT_Chunk].list[listType]);
+				return *this;
 			}
 
-			template <typename... TComponent>
-			bool HasAll() const {
-				return (HasComponent_Internal<TComponent>(m_list[ComponentType::CT_Generic].list[ListType::LT_All]) && ...);
+			template <typename T>
+			bool HasComponent_Internal(ListType listType) const {
+				using U = typename DeduceComponent<T>::Type;
+				if constexpr (IsGenericComponent<T>::value)
+					return HasComponent_Internal<U>(m_list[ComponentType::CT_Generic].list[listType]);
+				else
+					return HasComponent_Internal<U>(m_list[ComponentType::CT_Chunk].list[listType]);
 			}
 
-			template <typename... TComponent>
-			bool HasNone() const {
-				return (HasComponent_Internal<TComponent>(m_list[ComponentType::CT_Generic].list[ListType::LT_None]) && ...);
-			}
-
-			template <typename... TComponent>
-			bool HasAnyChunk() const {
-				return (HasComponent_Internal<TComponent>(m_list[ComponentType::CT_Chunk].list[ListType::LT_Any]) && ...);
-			}
-
-			template <typename... TComponent>
-			bool HasAllChunk() const {
-				return (HasComponent_Internal<TComponent>(m_list[ComponentType::CT_Chunk].list[ListType::LT_All]) && ...);
-			}
-
-			template <typename... TComponent>
-			bool HasNoneChunk() const {
-				return (HasComponent_Internal<TComponent>(m_list[ComponentType::CT_Chunk].list[ListType::LT_None]) && ...);
+			template <typename T>
+			EntityQuery& WithChanged_Internal() {
+				using U = typename DeduceComponent<T>::Type;
+				if constexpr (IsGenericComponent<T>::value)
+					SetChangedFilter<U>(m_listChangeFiltered[ComponentType::CT_Generic], m_list[ComponentType::CT_Generic]);
+				else
+					SetChangedFilter<U>(m_listChangeFiltered[ComponentType::CT_Chunk], m_list[ComponentType::CT_Chunk]);
+				return *this;
 			}
 
 		public:
@@ -494,50 +489,40 @@ namespace gaia {
 
 			template <typename... TComponent>
 			EntityQuery& Any() {
-				(AddComponent_Internal<TComponent>(m_list[ComponentType::CT_Generic].list[ListType::LT_Any]), ...);
+				(AddComponent_Internal<TComponent>(ListType::LT_Any), ...);
 				return *this;
 			}
 
 			template <typename... TComponent>
 			EntityQuery& All() {
-				(AddComponent_Internal<TComponent>(m_list[ComponentType::CT_Generic].list[ListType::LT_All]), ...);
+				(AddComponent_Internal<TComponent>(ListType::LT_All), ...);
 				return *this;
 			}
 
 			template <typename... TComponent>
 			EntityQuery& None() {
-				(AddComponent_Internal<TComponent>(m_list[ComponentType::CT_Generic].list[ListType::LT_None]), ...);
+				(AddComponent_Internal<TComponent>(ListType::LT_None), ...);
 				return *this;
 			}
 
 			template <typename... TComponent>
-			EntityQuery& AnyChunk() {
-				(AddComponent_Internal<TComponent>(m_list[ComponentType::CT_Chunk].list[ListType::LT_Any]), ...);
-				return *this;
+			bool HasAny() const {
+				return (HasComponent_Internal<TComponent>(ListType::LT_Any) || ...);
 			}
 
 			template <typename... TComponent>
-			EntityQuery& AllChunk() {
-				(AddComponent_Internal<TComponent>(m_list[ComponentType::CT_Chunk].list[ListType::LT_All]), ...);
-				return *this;
+			bool HasAll() const {
+				return (HasComponent_Internal<TComponent>(ListType::LT_All) && ...);
 			}
 
 			template <typename... TComponent>
-			EntityQuery& NoneChunk() {
-				(AddComponent_Internal<TComponent>(m_list[ComponentType::CT_Chunk].list[ListType::LT_None]), ...);
-				return *this;
+			bool HasNone() const {
+				return (!HasComponent_Internal<TComponent>(ListType::LT_None) && ...);
 			}
 
 			template <typename... TComponent>
 			EntityQuery& WithChanged() {
-				SetChangedFilter<TComponent...>(
-						m_listChangeFiltered[ComponentType::CT_Generic], m_list[ComponentType::CT_Generic]);
-				return *this;
-			}
-
-			template <typename... TComponent>
-			EntityQuery& WithChangedChunk() {
-				SetChangedFilter<TComponent...>(m_listChangeFiltered[ComponentType::CT_Chunk], m_list[ComponentType::CT_Chunk]);
+				(WithChanged_Internal<TComponent>(), ...);
 				return *this;
 			}
 

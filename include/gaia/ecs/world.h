@@ -1187,7 +1187,7 @@ namespace gaia {
 			\param entity is valid. Undefined behavior otherwise.
 			*/
 			template <typename TComponent>
-			void GetComponent(Entity entity, typename DeduceComponent<TComponent>::TypeRaw& data) const {
+			void GetComponent(Entity entity, typename DeduceComponent<TComponent>::TypeOriginal& data) const {
 				VerifyComponents<TComponent>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
@@ -1287,14 +1287,14 @@ namespace gaia {
 							std::is_const<std::remove_reference_t<std::remove_pointer_t<T>>>::value ||
 							(!std::is_pointer<T>::value && !std::is_reference<T>::value)> {};
 
-			template <class T, std::enable_if_t<IsReadOnlyType<T>::value>* = nullptr>
-			constexpr GAIA_FORCEINLINE const std::decay_t<T>* ExpandTuple(Chunk& chunk) const {
-				return chunk.View_Internal<T>().data();
-			}
-
-			template <class T, std::enable_if_t<!IsReadOnlyType<T>::value>* = nullptr>
-			constexpr GAIA_FORCEINLINE std::decay_t<T>* ExpandTuple(Chunk& chunk) {
-				return chunk.ViewRW_Internal<T>().data();
+			template <class T>
+			constexpr GAIA_FORCEINLINE auto ExpandTuple(Chunk& chunk) const {
+				using U = typename DeduceComponent<T>::Type;
+				using UOriginal = typename DeduceComponent<T>::TypeOriginal;
+				if constexpr (IsReadOnlyType<UOriginal>::value)
+					return chunk.View_Internal<U>().data();
+				else
+					return chunk.ViewRW_Internal<U>().data();
 			}
 
 			//--------------------------------------------------------------------------------
