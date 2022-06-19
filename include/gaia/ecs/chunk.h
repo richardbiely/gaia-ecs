@@ -43,13 +43,11 @@ namespace gaia {
 
 			Chunk(const Archetype& archetype): header(archetype) {}
 
-			[[nodiscard]] uint32_t GetComponentIdx_Internal(ComponentType componentType, uint32_t typeIndex) const {
-				const auto& list = GetArchetypeComponentLookupList(header.owner, componentType);
-				return utils::get_index_if_unsafe(list, [&](const auto& info) {
-					return info.typeIndex == typeIndex;
-				});
-			}
-
+			/*!
+			Checks if a component is present in the archetype based on the provided \param typeIndex.
+			\param componentType Component type
+			\return True if found. False otherwise.
+			*/
 			[[nodiscard]] bool HasComponent_Internal(ComponentType componentType, uint32_t typeIndex) const {
 				const auto& list = GetArchetypeComponentLookupList(header.owner, componentType);
 				return utils::has_if(list, [&](const auto& info) {
@@ -57,6 +55,12 @@ namespace gaia {
 				});
 			}
 
+			/*!
+			Checks if a component is present in the archetype based on the provided \param typeIndex.
+			Component if deduced from \tparam T.
+			\param componentType Component type
+			\return True if found. False otherwise.
+			*/
 			template <typename T>
 			[[nodiscard]] bool HasComponent_Internal(ComponentType componentType) const {
 				using TComponent = std::decay_t<T>;
@@ -65,7 +69,7 @@ namespace gaia {
 			}
 
 			template <typename T>
-			[[nodiscard]] bool HasComponent_() const {
+			[[nodiscard]] bool HasComponent_Internal() const {
 				if constexpr (IsGenericComponent<T>::value)
 					return HasComponent_Internal<typename detail::ExtractComponentType_Generic<T>::Type>(
 							ComponentType::CT_Generic);
@@ -254,19 +258,15 @@ namespace gaia {
 			}
 
 			/*!
-			Returns a generic component index of a component based on provided \param typeIndex.
+			Returns the internal index of a component based on the provided \param typeIndex.
+			\param componentType Component type
 			\return Component index if the type was found. -1 otherwise.
 			*/
-			[[nodiscard]] uint32_t GetComponentIdx(uint32_t typeIndex) const {
-				return GetComponentIdx_Internal(ComponentType::CT_Generic, typeIndex);
-			}
-
-			/*!
-			Returns a chunk component index of a component based on provided \param typeIndex.
-			\return Component index if the type was found. -1 otherwise.
-			*/
-			[[nodiscard]] uint32_t GetChunkComponentIdx(uint32_t typeIndex) const {
-				return GetComponentIdx_Internal(ComponentType::CT_Chunk, typeIndex);
+			[[nodiscard]] uint32_t GetComponentIdx(ComponentType componentType, uint32_t typeIndex) const {
+				const auto& list = GetArchetypeComponentLookupList(header.owner, componentType);
+				return utils::get_index_if_unsafe(list, [&](const auto& info) {
+					return info.typeIndex == typeIndex;
+				});
 			}
 
 			/*!
@@ -275,7 +275,7 @@ namespace gaia {
 			*/
 			template <typename... T>
 			[[nodiscard]] bool HasComponent() const {
-				return (HasComponent_<T>() && ...);
+				return (HasComponent_Internal<T>() && ...);
 			}
 
 			/*!
@@ -285,7 +285,7 @@ namespace gaia {
 			template <typename... T>
 			[[nodiscard]] bool HasAnyComponent() const {
 				static_assert(sizeof...(T) > 1, "Use at least 2 component types when using HasAny");
-				return (HasComponent_<T>() || ...);
+				return (HasComponent_Internal<T>() || ...);
 			}
 
 			/*!
@@ -294,7 +294,7 @@ namespace gaia {
 			*/
 			template <typename... T>
 			[[nodiscard]] bool HasNoneComponent() const {
-				return (!HasComponent_<T>() && ...);
+				return (!HasComponent_Internal<T>() && ...);
 			}
 
 			//----------------------------------------------------------------------
