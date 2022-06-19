@@ -97,7 +97,7 @@ namespace gaia {
 						hash *= prime;
 					}
 
-					const unsigned char* byte_data = (const unsigned char*)data;
+					const uint8_t* byte_data = (const uint8_t*)data;
 					switch (size & 7) {
 						case 7:
 							hash ^= ((uint64_t)byte_data[6]) << 48;
