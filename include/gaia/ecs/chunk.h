@@ -175,7 +175,14 @@ namespace gaia {
 			template <typename T>
 			[[nodiscard]] GAIA_FORCEINLINE auto ViewRW_Internal() {
 				using U = typename DeduceComponent<T>::Type;
+#if GAIA_COMPILER_MSVC && _MSC_VER <= 1916
+				// Workaround for MSVC 2017 bug where it incorrectly evaluates the static assert
+				// even in context where it shouldn't.
+				// Unfortunatelly, even runtime assert can't be used...
+				// GAIA_ASSERT(!std::is_same<U, Entity>::value);
+#else
 				static_assert(!std::is_same<U, Entity>::value);
+#endif
 				static_assert(!std::is_empty<U>::value, "Attempting to set value of an empty component");
 
 				const auto typeIndex = utils::type_info::index<U>();
