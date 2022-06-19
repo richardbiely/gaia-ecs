@@ -59,11 +59,13 @@ void BM_ForEach_1_Archetype(benchmark::State& state) {
 	using c1 = Component<0, float, 3>;
 	auto query = ecs::EntityQuery().All<c1>();
 
+	float f = 0.f;
 	for ([[maybe_unused]] auto _: state) {
-		w.ForEach(query, [](const c1& p) {
-			benchmark::DoNotOptimize(p);
+		w.ForEach(query, [&](const c1& p) {
+			f += p.value[0];
 		});
 	}
+	benchmark::DoNotOptimize(f);
 }
 
 void BM_ForEach_100_Archetypes(benchmark::State& state) {
@@ -78,11 +80,13 @@ void BM_ForEach_100_Archetypes(benchmark::State& state) {
 	using c1 = Component<0, float, 3>;
 	auto query = ecs::EntityQuery().All<c1>();
 
+	float f = 0.f;
 	for ([[maybe_unused]] auto _: state) {
-		w.ForEach(query, [](const c1& p) {
-			benchmark::DoNotOptimize(p);
+		w.ForEach(query, [&](const c1& p) {
+			f += p.value[0];
 		});
 	}
+	benchmark::DoNotOptimize(f);
 }
 
 void BM_ForEach_1000_Archetypes(benchmark::State& state) {
@@ -142,11 +146,13 @@ void BM_ForEach_1000_Archetypes(benchmark::State& state) {
 	using c1 = Component<0, float, 3>;
 	auto query = ecs::EntityQuery().All<c1>();
 
+	float f = 0.f;
 	for ([[maybe_unused]] auto _: state) {
-		w.ForEach(query, [](const c1& p) {
-			benchmark::DoNotOptimize(p);
+		w.ForEach(query, [&](const c1& p) {
+			f += p.value[0];
 		});
 	}
+	benchmark::DoNotOptimize(f);
 }
 
 void BM_ForEach_Internal_1_Archetype(benchmark::State& state) {
@@ -157,11 +163,13 @@ void BM_ForEach_Internal_1_Archetype(benchmark::State& state) {
 
 	using c1 = Component<0, float, 3>;
 
+	float f = 0.f;
 	for ([[maybe_unused]] auto _: state) {
-		w.ForEach([](const c1& p) {
-			benchmark::DoNotOptimize(p);
+		w.ForEach([&](const c1& p) {
+			f += p.value[0];
 		});
 	}
+	benchmark::DoNotOptimize(f);
 }
 
 void BM_ForEach_Internal_100_Archetypes(benchmark::State& state) {
@@ -175,11 +183,13 @@ void BM_ForEach_Internal_100_Archetypes(benchmark::State& state) {
 
 	using c1 = Component<0, float, 3>;
 
+	float f = 0.f;
 	for ([[maybe_unused]] auto _: state) {
-		w.ForEach([](const c1& p) {
-			benchmark::DoNotOptimize(p);
+		w.ForEach([&](const c1& p) {
+			f += p.value[0];
 		});
 	}
+	benchmark::DoNotOptimize(f);
 }
 
 void BM_ForEach_Internal_1000_Archetypes(benchmark::State& state) {
@@ -238,11 +248,13 @@ void BM_ForEach_Internal_1000_Archetypes(benchmark::State& state) {
 
 	using c1 = Component<0, float, 3>;
 
+	float f = 0.f;
 	for ([[maybe_unused]] auto _: state) {
-		w.ForEach([](const c1& p) {
-			benchmark::DoNotOptimize(p);
+		w.ForEach([&](const c1& p) {
+			f += p.value[0];
 		});
 	}
+	benchmark::DoNotOptimize(f);
 }
 
 void BM_ForEach_Chunk_1_Archetype(benchmark::State& state) {
@@ -255,12 +267,14 @@ void BM_ForEach_Chunk_1_Archetype(benchmark::State& state) {
 	auto query = ecs::EntityQuery().All<c1>();
 
 	for ([[maybe_unused]] auto _: state) {
+		float f = 0.f;
 		w.ForEach(query, [&](const ecs::Chunk& chunk) {
 			for (size_t i = 0; i < chunk.GetItemCount(); ++i) {
 				auto c1View = chunk.View<c1>();
-				benchmark::DoNotOptimize(c1View[i]);
+				f += c1View[i].value[0];
 			}
 		});
+		benchmark::DoNotOptimize(f);
 	}
 }
 
@@ -277,12 +291,14 @@ void BM_ForEach_Chunk_100_Archetypes(benchmark::State& state) {
 	auto query = ecs::EntityQuery().All<c1>();
 
 	for ([[maybe_unused]] auto _: state) {
+		float f = 0.f;
 		w.ForEach(query, [&](const ecs::Chunk& chunk) {
 			for (size_t i = 0; i < chunk.GetItemCount(); ++i) {
 				auto c1View = chunk.View<c1>();
-				benchmark::DoNotOptimize(c1View[i]);
+				f += c1View[i].value[0];
 			}
 		});
+		benchmark::DoNotOptimize(f);
 	}
 }
 
@@ -344,12 +360,14 @@ void BM_ForEach_Chunk_1000_Archetypes(benchmark::State& state) {
 	auto query = ecs::EntityQuery().All<c1>();
 
 	for ([[maybe_unused]] auto _: state) {
+		float f = 0.f;
 		w.ForEach(query, [&](const ecs::Chunk& chunk) {
 			for (size_t i = 0; i < chunk.GetItemCount(); ++i) {
 				auto c1View = chunk.View<c1>();
-				benchmark::DoNotOptimize(c1View[i]);
+				f += c1View[i].value[0];
 			}
 		});
+		benchmark::DoNotOptimize(f);
 	}
 }
 
@@ -362,10 +380,11 @@ void BM_ForEach_Chunk_Internal_1_Archetype(benchmark::State& state) {
 	using c1 = Component<0, float, 3>;
 
 	for ([[maybe_unused]] auto _: state) {
+		float f = 0.f;
 		w.ForEach(ecs::EntityQuery().All<c1>(), [&](const ecs::Chunk& chunk) {
 			for (size_t i = 0; i < chunk.GetItemCount(); ++i) {
 				auto c1View = chunk.View<c1>();
-				benchmark::DoNotOptimize(c1View[i]);
+				f += c1View[i].value[0];
 			}
 		});
 	}
@@ -383,12 +402,14 @@ void BM_ForEach_Chunk_Internal_100_Archetypes(benchmark::State& state) {
 	using c1 = Component<0, float, 3>;
 
 	for ([[maybe_unused]] auto _: state) {
+		float f = 0.f;
 		w.ForEach(ecs::EntityQuery().All<c1>(), [&](const ecs::Chunk& chunk) {
 			for (size_t i = 0; i < chunk.GetItemCount(); ++i) {
 				auto c1View = chunk.View<c1>();
-				benchmark::DoNotOptimize(c1View[i]);
+				f += c1View[i].value[0];
 			}
 		});
+		benchmark::DoNotOptimize(f);
 	}
 }
 
@@ -449,20 +470,22 @@ void BM_ForEach_Chunk_Internal_1000_Archetypes(benchmark::State& state) {
 	using c1 = Component<0, float, 3>;
 
 	for ([[maybe_unused]] auto _: state) {
+		float f = 0.f;
 		w.ForEach(ecs::EntityQuery().All<c1>(), [&](const ecs::Chunk& chunk) {
 			for (size_t i = 0; i < chunk.GetItemCount(); ++i) {
 				auto c1View = chunk.View<c1>();
-				benchmark::DoNotOptimize(c1View[i]);
+				f += c1View[i].value[0];
 			}
 		});
+		benchmark::DoNotOptimize(f);
 	}
 }
 
 #define BENCHMARK_CREATEENTITY_WITH_COMPONENT______(component_count)                                                   \
-	BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component, float, 0, component_count);                                 \
-	BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component, float, 1, component_count);                                 \
-	BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component, float, 2, component_count);                                 \
-	BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component, float, 4, component_count);                                 \
+	BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component, float, 0, component_count);                                       \
+	BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component, float, 1, component_count);                                       \
+	BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component, float, 2, component_count);                                       \
+	BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component, float, 4, component_count);                                       \
 	BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component, float, 8, component_count)
 
 // Empty entites
