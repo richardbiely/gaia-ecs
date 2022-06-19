@@ -23,23 +23,10 @@ struct Component {
 template <size_t version, typename T>
 struct Component<version, T, 0U> {}; // empty component
 
-template <typename T, size_t ComponentItems, size_t Components>
-void BM_CreateEntity_With_Component______(benchmark::State& state) {
-	for ([[maybe_unused]] auto _: state) {
-		ecs::World w;
-		for (size_t i = 0U; i < NEntities; ++i) {
-			[[maybe_unused]] auto e = w.CreateEntity();
-			utils::for_each<Components>([&](auto i) {
-				w.AddComponent<Component<i, T, ComponentItems>>(e);
-			});
-		}
-	}
-}
-
 namespace detail {
 	template <typename T, size_t ComponentItems, size_t Components>
 	constexpr void AddComponents(ecs::World& w, ecs::Entity e) {
-		utils::for_each_ext<0, Components, 1>([&](auto i) {
+		utils::for_each<Components>([&](auto i) {
 			w.AddComponent<Component<i, T, ComponentItems>>(e);
 		});
 	}
@@ -50,6 +37,14 @@ constexpr void AddComponents(ecs::World& w, uint32_t N) {
 	for (uint32_t i = 0U; i < N; ++i) {
 		[[maybe_unused]] auto e = w.CreateEntity();
 		detail::AddComponents<T, ComponentItems, Components>(w, e);
+	}
+}
+
+template <typename T, size_t ComponentItems, size_t Components>
+void BM_CreateEntity_With_Component(benchmark::State& state) {
+	for ([[maybe_unused]] auto _: state) {
+		ecs::World w;
+		AddComponents<T, ComponentItems, Components>(w, NEntities);
 	}
 }
 
@@ -464,11 +459,11 @@ void BM_ForEach_Chunk_Internal_1000_Archetypes(benchmark::State& state) {
 }
 
 #define BENCHMARK_CREATEENTITY_WITH_COMPONENT______(component_count)                                                   \
-	BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component______, float, 0, component_count);                                 \
-	BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component______, float, 1, component_count);                                 \
-	BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component______, float, 2, component_count);                                 \
-	BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component______, float, 4, component_count);                                 \
-	BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component______, float, 8, component_count)
+	BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component, float, 0, component_count);                                 \
+	BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component, float, 1, component_count);                                 \
+	BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component, float, 2, component_count);                                 \
+	BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component, float, 4, component_count);                                 \
+	BENCHMARK_TEMPLATE(BM_CreateEntity_With_Component, float, 8, component_count)
 
 // Empty entites
 BENCHMARK(BM_CreateEntity);
