@@ -98,6 +98,11 @@ namespace gaia {
 					arr.push_back(typeIndex);
 					m_recalculate = true;
 					m_sort = true;
+
+					// Any updates to components in the query invalidate the cache.
+					// If possible, we should first prepare the query and not touch if afterwards.
+					GAIA_ASSERT(m_archetypeCache.empty());
+					m_archetypeCache.clear();
 				}
 			}
 
