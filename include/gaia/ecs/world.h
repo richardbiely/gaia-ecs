@@ -924,6 +924,8 @@ namespace gaia {
 				return m_worldVersion;
 			}
 
+			//----------------------------------------------------------------------
+
 			/*!
 			Creates a new empty entity
 			\return Entity
@@ -1094,6 +1096,8 @@ namespace gaia {
 				return entityContainer.pChunk;
 			}
 
+			//----------------------------------------------------------------------
+
 			/*!
 			Attaches a new component to \param entity.
 			\warning It is expected the component is not there yet and that \param
@@ -1114,7 +1118,7 @@ namespace gaia {
 			}
 
 			/*!
-			Attaches new components to \param entity. Also sets its value.
+			Attaches a component to \param entity. Also sets its value.
 			\warning It is expected the component is not there yet and that
 			\param entity is valid. Undefined behavior otherwise.
 			*/
@@ -1156,8 +1160,8 @@ namespace gaia {
 			}
 
 			/*!
-			Sets value for of a component of \param entity.
-			\warning It is expected the component is not there yet and that
+			Sets the value of component on \param entity.
+			\warning It is expected the component was added to \param entity already. Undefined behavior otherwise.
 			\param entity is valid. Undefined behavior otherwise.
 			*/
 			template <typename TComponent>
@@ -1177,14 +1181,10 @@ namespace gaia {
 				}
 			}
 
-			//----------------------------------------------------------------------
-			// Component data by copy
-			//----------------------------------------------------------------------
-
 			/*!
-			Returns a copy of value of a component of \param entity.
-			\warning It is expected the component is not there yet and that
-			\param entity is valid. Undefined behavior otherwise.
+			Returns the value stored in the component on \param entity.
+			\warning It is expected the component was added to \param entity already. Undefined behavior otherwise.
+			\return Value stored in the component.
 			*/
 			template <typename TComponent>
 			auto GetComponent(Entity entity) const {
@@ -1250,6 +1250,8 @@ namespace gaia {
 				return false;
 			}
 
+			//----------------------------------------------------------------------
+
 		private:
 			template <class T>
 			constexpr GAIA_FORCEINLINE auto ExpandTuple(Chunk& chunk) const {
@@ -1311,7 +1313,7 @@ namespace gaia {
 				{
 					const auto& filtered = query.GetFiltered(ComponentType::CT_Generic);
 					for (auto typeIndex: filtered) {
-						const uint32_t componentIdx = chunk.GetComponentIdx(typeIndex);
+						const uint32_t componentIdx = chunk.GetComponentIdx(ComponentType::CT_Generic, typeIndex);
 						if (chunk.DidChange(ComponentType::CT_Generic, lastWorldVersion, componentIdx))
 							return true;
 					}
@@ -1321,7 +1323,7 @@ namespace gaia {
 				{
 					const auto& filtered = query.GetFiltered(ComponentType::CT_Chunk);
 					for (auto typeIndex: filtered) {
-						const uint32_t componentIdx = chunk.GetChunkComponentIdx(typeIndex);
+						const uint32_t componentIdx = chunk.GetComponentIdx(ComponentType::CT_Chunk, typeIndex);
 						if (chunk.DidChange(ComponentType::CT_Chunk, lastWorldVersion, componentIdx))
 							return true;
 					}
