@@ -269,10 +269,9 @@ void BM_ForEach_Chunk_1_Archetype(benchmark::State& state) {
 	for ([[maybe_unused]] auto _: state) {
 		float f = 0.f;
 		w.ForEach(query, [&](const ecs::Chunk& chunk) {
-			for (size_t i = 0; i < chunk.GetItemCount(); ++i) {
-				auto c1View = chunk.View<c1>();
+			auto c1View = chunk.View<c1>();
+			for (size_t i = 0; i < chunk.GetItemCount(); ++i)
 				f += c1View[i].value[0];
-			}
 		});
 		benchmark::DoNotOptimize(f);
 	}
@@ -293,10 +292,9 @@ void BM_ForEach_Chunk_100_Archetypes(benchmark::State& state) {
 	for ([[maybe_unused]] auto _: state) {
 		float f = 0.f;
 		w.ForEach(query, [&](const ecs::Chunk& chunk) {
-			for (size_t i = 0; i < chunk.GetItemCount(); ++i) {
-				auto c1View = chunk.View<c1>();
+			auto c1View = chunk.View<c1>();
+			for (size_t i = 0; i < chunk.GetItemCount(); ++i)
 				f += c1View[i].value[0];
-			}
 		});
 		benchmark::DoNotOptimize(f);
 	}
@@ -362,10 +360,9 @@ void BM_ForEach_Chunk_1000_Archetypes(benchmark::State& state) {
 	for ([[maybe_unused]] auto _: state) {
 		float f = 0.f;
 		w.ForEach(query, [&](const ecs::Chunk& chunk) {
-			for (size_t i = 0; i < chunk.GetItemCount(); ++i) {
-				auto c1View = chunk.View<c1>();
+			auto c1View = chunk.View<c1>();
+			for (size_t i = 0; i < chunk.GetItemCount(); ++i)
 				f += c1View[i].value[0];
-			}
 		});
 		benchmark::DoNotOptimize(f);
 	}
@@ -382,10 +379,9 @@ void BM_ForEach_Chunk_Internal_1_Archetype(benchmark::State& state) {
 	for ([[maybe_unused]] auto _: state) {
 		float f = 0.f;
 		w.ForEach(ecs::EntityQuery().All<c1>(), [&](const ecs::Chunk& chunk) {
-			for (size_t i = 0; i < chunk.GetItemCount(); ++i) {
-				auto c1View = chunk.View<c1>();
+			auto c1View = chunk.View<c1>();
+			for (size_t i = 0; i < chunk.GetItemCount(); ++i)
 				f += c1View[i].value[0];
-			}
 		});
 	}
 }
@@ -404,10 +400,9 @@ void BM_ForEach_Chunk_Internal_100_Archetypes(benchmark::State& state) {
 	for ([[maybe_unused]] auto _: state) {
 		float f = 0.f;
 		w.ForEach(ecs::EntityQuery().All<c1>(), [&](const ecs::Chunk& chunk) {
-			for (size_t i = 0; i < chunk.GetItemCount(); ++i) {
-				auto c1View = chunk.View<c1>();
+			auto c1View = chunk.View<c1>();
+			for (size_t i = 0; i < chunk.GetItemCount(); ++i)
 				f += c1View[i].value[0];
-			}
 		});
 		benchmark::DoNotOptimize(f);
 	}
@@ -472,10 +467,9 @@ void BM_ForEach_Chunk_Internal_1000_Archetypes(benchmark::State& state) {
 	for ([[maybe_unused]] auto _: state) {
 		float f = 0.f;
 		w.ForEach(ecs::EntityQuery().All<c1>(), [&](const ecs::Chunk& chunk) {
-			for (size_t i = 0; i < chunk.GetItemCount(); ++i) {
-				auto c1View = chunk.View<c1>();
+			auto c1View = chunk.View<c1>();
+			for (size_t i = 0; i < chunk.GetItemCount(); ++i)
 				f += c1View[i].value[0];
-			}
 		});
 		benchmark::DoNotOptimize(f);
 	}
