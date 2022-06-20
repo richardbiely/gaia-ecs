@@ -57,6 +57,12 @@ namespace gaia {
 		public:
 			template <typename T>
 			static uint32_t index() noexcept {
+				// Make sure we only use this for "raw" types
+				static_assert(!std::is_const<T>::value);
+				static_assert(!std::is_pointer<T>::value);
+				static_assert(!std::is_reference<T>::value);
+				static_assert(!std::is_volatile<T>::value);
+
 				return type_group<type_info>::id<T>;
 			}
 
@@ -67,12 +73,12 @@ namespace gaia {
 
 			template <typename T>
 			[[nodiscard]] static constexpr auto name() noexcept {
-				// MSVC  : const char* __cdecl
-				// ecs::ComponentMetaData::GetMetaName<struct ecs::EnfEntity>(void)
-				//   res : ecs::EnfEntity
-				// Clang : const ecs::ComponentMetaData::GetMetaName() [T =
-				// ecs::EnfEntity]
-				//   res : ecs::EnfEntity
+				// MSVC:
+				//		const char* __cdecl ecs::ComponentMetaData::GetMetaName<struct ecs::EnfEntity>(void)
+				//   -> ecs::EnfEntity
+				// Clang/GCC:
+				//		const ecs::ComponentMetaData::GetMetaName() [T = ecs::EnfEntity]
+				//   -> ecs::EnfEntity
 
 				// Note:
 				// 		Clang 8 and older wouldn't compile because their string_view::find_last_of doesn't work
