@@ -81,21 +81,21 @@ namespace gaia {
 
 			template <typename T>
 			void SetComponentFinal_Internal(uint32_t& index, T&& data) {
-				using TComponent = std::decay_t<T>;
+				using U = std::decay_t<T>;
 
 				// Component info
 				{
 					utils::unaligned_ref<uint32_t> mem((void*)&m_data[index]);
-					mem = utils::type_info::index<TComponent>();
+					mem = utils::type_info::index<U>();
 				}
 
 				// Component data
 				{
-					utils::unaligned_ref<TComponent> mem((void*)&m_data[index + sizeof(uint32_t)]);
-					mem = std::forward<TComponent>(data);
+					utils::unaligned_ref<U> mem((void*)&m_data[index + sizeof(uint32_t)]);
+					mem = std::forward<U>(data);
 				}
 
-				index += sizeof(uint32_t) + sizeof(TComponent);
+				index += sizeof(uint32_t) + sizeof(U);
 			}
 
 			template <typename... TComponent>

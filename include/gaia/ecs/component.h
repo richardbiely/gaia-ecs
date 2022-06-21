@@ -202,18 +202,18 @@ namespace gaia {
 
 			template <typename T>
 			[[nodiscard]] static constexpr ComponentInfo Calculate() {
-				using TComponent = typename DeduceComponent<T>::Type;
+				using U = typename DeduceComponent<T>::Type;
 
 				ComponentInfo info{};
-				info.name = utils::type_info::name<TComponent>();
-				info.lookupHash = utils::type_info::hash<TComponent>();
-				info.matcherHash = CalculateMatcherHash<TComponent>();
-				info.infoIndex = utils::type_info::index<TComponent>();
+				info.name = utils::type_info::name<U>();
+				info.lookupHash = utils::type_info::hash<U>();
+				info.matcherHash = CalculateMatcherHash<U>();
+				info.infoIndex = utils::type_info::index<U>();
 
-				if constexpr (!std::is_empty<TComponent>::value) {
-					info.properties.alig = utils::auto_view_policy<TComponent>::Alignment;
-					info.properties.size = (uint32_t)sizeof(TComponent);
-					if constexpr (utils::is_soa_layout<TComponent>::value) {
+				if constexpr (!std::is_empty<U>::value) {
+					info.properties.alig = utils::auto_view_policy<U>::Alignment;
+					info.properties.size = (uint32_t)sizeof(U);
+					if constexpr (utils::is_soa_layout<U>::value) {
 						info.properties.soa = 1;
 					} else if constexpr (!std::is_trivial<T>::value) {
 						info.constructor = [](void* ptr) {
@@ -230,8 +230,8 @@ namespace gaia {
 
 			template <typename T>
 			static const ComponentInfo* Create() {
-				using TComponent = std::decay_t<T>;
-				return new ComponentInfo{Calculate<TComponent>()};
+				using U = std::decay_t<T>;
+				return new ComponentInfo{Calculate<U>()};
 			}
 		};
 
