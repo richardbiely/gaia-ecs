@@ -60,7 +60,7 @@ namespace gaia {
 				}
 				// Components
 				{
-					const ComponentInfo* typesToAdd[] = {GetComponentCache(m_world).GetOrCreateComponentInfo<TComponent>()...};
+					const ComponentInfo* infosToAdd[] = {GetComponentCache(m_world).GetOrCreateComponentInfo<TComponent>()...};
 
 					// Component count
 					constexpr auto componentCount = (uint8_t)sizeof...(TComponent);
@@ -74,7 +74,7 @@ namespace gaia {
 						utils::unaligned_ref<const ComponentInfo*> to(&m_data[lastIndex]);
 						lastIndex += sizeof(const ComponentInfo*);
 
-						to = typesToAdd[i];
+						to = infosToAdd[i];
 					}
 				}
 			}
@@ -412,7 +412,7 @@ namespace gaia {
 						case ADD_COMPONENT:
 						case ADD_COMPONENT_DATA: {
 							// Type
-							ComponentType componentType = (ComponentType)m_data[i];
+							ComponentType type = (ComponentType)m_data[i];
 							i += sizeof(ComponentType);
 							// Entity
 							Entity entity = utils::unaligned_ref<Entity>((void*)&m_data[i]);
@@ -428,13 +428,13 @@ namespace gaia {
 								newInfos[j] = info;
 								i += sizeof(const ComponentInfo*);
 							}
-							m_world.AddComponent_Internal(componentType, entity, {newInfos, (uintptr_t)componentCount});
+							m_world.AddComponent_Internal(type, entity, {newInfos, (uintptr_t)componentCount});
 
 							uint32_t indexInChunk;
 							auto* pChunk = m_world.GetEntityChunk(entity, indexInChunk);
 							GAIA_ASSERT(pChunk != nullptr);
 
-							if (componentType == ComponentType::CT_Chunk)
+							if (type == ComponentType::CT_Chunk)
 								indexInChunk = 0;
 
 							if (cmd == ADD_COMPONENT_DATA) {
@@ -446,7 +446,7 @@ namespace gaia {
 									i += sizeof(uint32_t);
 
 									const auto* info = newInfos[j];
-									auto* pComponentDataStart = pChunk->ViewRW_Internal(info, componentType);
+									auto* pComponentDataStart = pChunk->ViewRW_Internal(info, type);
 									auto* pComponentData = (void*)&pComponentDataStart[indexInChunk * info->properties.size];
 									memcpy(pComponentData, (const void*)&m_data[i], info->properties.size);
 									i += info->properties.size;
@@ -456,7 +456,7 @@ namespace gaia {
 						case ADD_COMPONENT_TO_TEMPENTITY:
 						case ADD_COMPONENT_TO_TEMPENTITY_DATA: {
 							// Type
-							ComponentType componentType = (ComponentType)m_data[i];
+							ComponentType type = (ComponentType)m_data[i];
 							i += sizeof(ComponentType);
 							// Entity
 							Entity e = utils::unaligned_ref<Entity>((void*)&m_data[i]);
@@ -479,13 +479,13 @@ namespace gaia {
 								newInfos[j] = utils::unaligned_ref<const ComponentInfo*>((void*)&m_data[i]);
 								i += sizeof(const ComponentInfo*);
 							}
-							m_world.AddComponent_Internal(componentType, entity, {newInfos, (uintptr_t)componentCount});
+							m_world.AddComponent_Internal(type, entity, {newInfos, (uintptr_t)componentCount});
 
 							uint32_t indexInChunk;
 							auto* pChunk = m_world.GetEntityChunk(entity, indexInChunk);
 							GAIA_ASSERT(pChunk != nullptr);
 
-							if (componentType == ComponentType::CT_Chunk)
+							if (type == ComponentType::CT_Chunk)
 								indexInChunk = 0;
 
 							if (cmd == ADD_COMPONENT_TO_TEMPENTITY_DATA) {
@@ -497,7 +497,7 @@ namespace gaia {
 									i += sizeof(uint32_t);
 
 									const auto* info = newInfos[j];
-									auto* pComponentDataStart = pChunk->ViewRW_Internal(info, componentType);
+									auto* pComponentDataStart = pChunk->ViewRW_Internal(info, type);
 									auto* pComponentData = (void*)&pComponentDataStart[indexInChunk * info->properties.size];
 									memcpy(pComponentData, (const void*)&m_data[i], info->properties.size);
 									i += info->properties.size;
@@ -506,7 +506,7 @@ namespace gaia {
 						} break;
 						case SET_COMPONENT: {
 							// Type
-							ComponentType componentType = (ComponentType)m_data[i];
+							ComponentType type = (ComponentType)m_data[i];
 							i += sizeof(ComponentType);
 							// Entity
 							Entity entity = utils::unaligned_ref<Entity>((void*)&m_data[i]);
@@ -514,7 +514,7 @@ namespace gaia {
 
 							const auto& entityContainer = m_world.m_entities[entity.id()];
 							auto* pChunk = entityContainer.pChunk;
-							const auto indexInChunk = componentType == ComponentType::CT_Chunk ? 0 : entityContainer.idx;
+							const auto indexInChunk = type == ComponentType::CT_Chunk ? 0 : entityContainer.idx;
 
 							// Component count
 							const uint8_t componentCount = m_data[i++];
@@ -525,7 +525,7 @@ namespace gaia {
 								const auto* info = GetComponentCache(m_world).GetComponentInfoFromIdx(infoIndex);
 								i += sizeof(uint32_t);
 
-								auto* pComponentDataStart = pChunk->ViewRW_Internal(info, componentType);
+								auto* pComponentDataStart = pChunk->ViewRW_Internal(info, type);
 								auto* pComponentData = (void*)&pComponentDataStart[indexInChunk * info->properties.size];
 								memcpy(pComponentData, (const void*)&m_data[i], info->properties.size);
 								i += info->properties.size;
@@ -533,7 +533,7 @@ namespace gaia {
 						} break;
 						case SET_COMPONENT_FOR_TEMPENTITY: {
 							// Type
-							ComponentType componentType = (ComponentType)m_data[i];
+							ComponentType type = (ComponentType)m_data[i];
 							i += sizeof(ComponentType);
 							// Entity
 							Entity e = utils::unaligned_ref<Entity>((void*)&m_data[i]);
@@ -549,7 +549,7 @@ namespace gaia {
 
 							const auto& entityContainer = m_world.m_entities[entity.id()];
 							auto* pChunk = entityContainer.pChunk;
-							const auto indexInChunk = componentType == ComponentType::CT_Chunk ? 0 : entityContainer.idx;
+							const auto indexInChunk = type == ComponentType::CT_Chunk ? 0 : entityContainer.idx;
 
 							// Component count
 							const uint8_t componentCount = m_data[i++];
@@ -560,7 +560,7 @@ namespace gaia {
 								const auto* info = GetComponentCache(m_world).GetComponentInfoFromIdx(infoIndex);
 								i += sizeof(uint32_t);
 
-								auto* pComponentDataStart = pChunk->ViewRW_Internal(info, componentType);
+								auto* pComponentDataStart = pChunk->ViewRW_Internal(info, type);
 								auto* pComponentData = (void*)&pComponentDataStart[indexInChunk * info->properties.size];
 								memcpy(pComponentData, (const void*)&m_data[i], info->properties.size);
 								i += info->properties.size;
@@ -568,7 +568,7 @@ namespace gaia {
 						} break;
 						case REMOVE_COMPONENT: {
 							// Type
-							ComponentType componentType = utils::unaligned_ref<ComponentType>((void*)&m_data[i]);
+							ComponentType type = utils::unaligned_ref<ComponentType>((void*)&m_data[i]);
 							i += sizeof(ComponentType);
 							// Entity
 							Entity e = utils::unaligned_ref<Entity>((void*)&m_data[i]);
@@ -585,7 +585,7 @@ namespace gaia {
 								newInfos[j] = utils::unaligned_ref<const ComponentInfo*>((void*)&m_data[i]);
 								i += sizeof(const ComponentInfo*);
 							}
-							m_world.RemoveComponent_Internal(componentType, e, {newInfos.data(), (uintptr_t)componentCount});
+							m_world.RemoveComponent_Internal(type, e, {newInfos.data(), (uintptr_t)componentCount});
 						} break;
 					}
 				}

@@ -44,22 +44,22 @@ namespace gaia {
 				GAIA_ASSERT(uintptr_t(this) % 8 == 0);
 			}
 
-			GAIA_FORCEINLINE void UpdateWorldVersion(ComponentType componentType, uint32_t componentIdx) {
+			GAIA_FORCEINLINE void UpdateWorldVersion(ComponentType type, uint32_t componentIdx) {
 				const auto gv = GetWorldVersionFromArchetype(owner);
 
 				// Make sure only proper input is provided
 				GAIA_ASSERT(componentIdx != UINT32_MAX && componentIdx < MAX_COMPONENTS_PER_ARCHETYPE);
 
 				// Update all components' version
-				versions[componentType][componentIdx] = gv;
+				versions[type][componentIdx] = gv;
 			}
 
-			GAIA_FORCEINLINE void UpdateWorldVersion(ComponentType componentType) {
+			GAIA_FORCEINLINE void UpdateWorldVersion(ComponentType type) {
 				const auto gv = GetWorldVersionFromArchetype(owner);
 
 				// Update all components' version
-				for (uint32_t i = 0U; i < MAX_COMPONENTS_PER_ARCHETYPE; i++)
-					versions[componentType][i] = gv;
+				for (uint32_t i = 0; i < MAX_COMPONENTS_PER_ARCHETYPE; i++)
+					versions[type][i] = gv;
 			}
 		};
 	} // namespace ecs
