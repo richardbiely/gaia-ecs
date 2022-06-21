@@ -233,7 +233,7 @@ namespace gaia {
 			T t = func(lhs, rhs) ? std::move(lhs) : std::move(rhs);
 			rhs = func(lhs, rhs) ? std::move(rhs) : std::move(lhs);
 			lhs = std::move(t);
-		};
+		}
 
 		namespace detail {
 			template <typename Array, typename TSortFunc>

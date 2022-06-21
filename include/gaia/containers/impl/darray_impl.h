@@ -258,7 +258,7 @@ namespace gaia {
 
 				resize(other.size());
 				for (size_type i = 0; i < other.size(); ++i)
-					m_data[i++] = other[i];
+					m_data[i] = other[i];
 				return *this;
 			}
 
