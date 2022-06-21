@@ -4,6 +4,8 @@
 // DO NOT MODIFY THIS FILE
 //------------------------------------------------------------------------------
 
+#define GAIA_SAFE_CONSTEXPR constexpr
+
 //------------------------------------------------------------------------------
 // Features
 //------------------------------------------------------------------------------
@@ -40,6 +42,13 @@
 	#define GAIA_COMPILER_GCC 1
 	#undef GAIA_COMPILED_DETECTED
 	#define GAIA_COMPILED_DETECTED 1
+	#if __GNUC__ <= 7
+		// In some contexts, e.g. when evaluating PRETTY_FUNCTION, GCC has a bug
+		// where the string is not defined a constexpr and thus can't be evaluated
+		// in constexpr expressions.
+		#undef GAIA_SAFE_CONSTEXPR
+		#define GAIA_SAFE_CONSTEXPR const
+	#endif
 #endif
 #if !GAIA_COMPILED_DETECTED && (defined(_MSC_VER))
 	#undef GAIA_COMPILER_MSVC
