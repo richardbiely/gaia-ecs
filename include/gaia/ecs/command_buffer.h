@@ -60,20 +60,19 @@ namespace gaia {
 				}
 				// Components
 				{
-					const ComponentMetaData* typesToAdd[] = {
-							GetComponentCache(m_world).GetOrCreateComponentMetaType<TComponent>()...};
+					const ComponentInfo* typesToAdd[] = {GetComponentCache(m_world).GetOrCreateComponentInfo<TComponent>()...};
 
 					// Component count
 					constexpr auto componentCount = (uint8_t)sizeof...(TComponent);
 					m_data.push_back(componentCount);
 
-					// Component meta data
+					// Component info
 					auto lastIndex = m_data.size();
-					m_data.resize(m_data.size() + sizeof(ComponentMetaData*) * componentCount);
+					m_data.resize(m_data.size() + sizeof(ComponentInfo*) * componentCount);
 
 					for (uint8_t i = 0U; i < componentCount; i++) {
-						utils::unaligned_ref<const ComponentMetaData*> to(&m_data[lastIndex]);
-						lastIndex += sizeof(const ComponentMetaData*);
+						utils::unaligned_ref<const ComponentInfo*> to(&m_data[lastIndex]);
+						lastIndex += sizeof(const ComponentInfo*);
 
 						to = typesToAdd[i];
 					}
@@ -84,7 +83,7 @@ namespace gaia {
 			void SetComponentFinal_Internal(uint32_t& index, T&& data) {
 				using TComponent = std::decay_t<T>;
 
-				// Meta type
+				// Component info
 				{
 					utils::unaligned_ref<uint32_t> mem((void*)&m_data[index]);
 					mem = utils::type_info::index<TComponent>();
@@ -117,7 +116,7 @@ namespace gaia {
 			template <typename... TComponent>
 			void SetComponentNoEntity_Internal(TComponent&&... data) {
 				// Register components
-				((void)GetComponentCache(m_world).GetOrCreateComponentMetaType<TComponent>(), ...);
+				((void)GetComponentCache(m_world).GetOrCreateComponentInfo<TComponent>(), ...);
 
 				// Component count
 				constexpr auto NComponents = (uint8_t)sizeof...(TComponent);
@@ -154,18 +153,18 @@ namespace gaia {
 				}
 				// Components
 				{
-					const ComponentMetaData* typesToRemove[] = {GetComponentCache(m_world).GetComponentMetaType<TComponent>()...};
+					const ComponentInfo* typesToRemove[] = {GetComponentCache(m_world).GetComponentInfo<TComponent>()...};
 
 					// Component count
 					constexpr auto NComponents = (uint8_t)sizeof...(TComponent);
 					m_data.push_back(NComponents);
 
-					// Component meta data
+					// Component info
 					auto lastIndex = m_data.size();
-					m_data.resize(m_data.size() + sizeof(ComponentMetaData*) * NComponents);
+					m_data.resize(m_data.size() + sizeof(ComponentInfo*) * NComponents);
 					for (uint8_t i = 0U; i < NComponents; i++) {
-						utils::unaligned_ref<const ComponentMetaData*> to(&m_data[lastIndex]);
-						lastIndex += sizeof(const ComponentMetaData*);
+						utils::unaligned_ref<const ComponentInfo*> to(&m_data[lastIndex]);
+						lastIndex += sizeof(const ComponentInfo*);
 
 						GAIA_ASSERT(typesToRemove[i]);
 						to = typesToRemove[i];
@@ -326,7 +325,7 @@ namespace gaia {
 			Requests component data to be set to given values for a given entity.
 
 			\warning Just like World::SetComponent, this method expects the
-			given component types to exist. Undefined behavior otherwise.
+			given component infos to exist. Undefined behavior otherwise.
 			*/
 			template <typename TComponent>
 			void SetComponent(Entity entity, TComponent&& data) {
@@ -346,7 +345,7 @@ namespace gaia {
 			entity.
 
 			\warning Just like World::SetComponent, this method expects the
-			given component types to exist. Undefined behavior otherwise.
+			given component infos to exist. Undefined behavior otherwise.
 			*/
 			template <typename TComponent>
 			void SetComponent(TempEntity entity, TComponent&& data) {
@@ -423,13 +422,13 @@ namespace gaia {
 							uint8_t componentCount = m_data[i++];
 
 							// Components
-							auto newMetaTypes = (const ComponentMetaData**)alloca(sizeof(ComponentMetaData) * componentCount);
+							auto newInfos = (const ComponentInfo**)alloca(sizeof(ComponentInfo) * componentCount);
 							for (uint8_t j = 0; j < componentCount; ++j) {
-								const auto metaType = *(const ComponentMetaData**)&m_data[i];
-								newMetaTypes[j] = metaType;
-								i += sizeof(const ComponentMetaData*);
+								const auto info = *(const ComponentInfo**)&m_data[i];
+								newInfos[j] = info;
+								i += sizeof(const ComponentInfo*);
 							}
-							m_world.AddComponent_Internal(componentType, entity, {newMetaTypes, (uintptr_t)componentCount});
+							m_world.AddComponent_Internal(componentType, entity, {newInfos, (uintptr_t)componentCount});
 
 							uint32_t indexInChunk;
 							auto* pChunk = m_world.GetEntityChunk(entity, indexInChunk);
@@ -440,17 +439,17 @@ namespace gaia {
 
 							if (cmd == ADD_COMPONENT_DATA) {
 								for (uint8_t j = 0; j < componentCount; ++j) {
-									// Skip the type index
-									// TODO: Don't include the type index here
-									uint32_t typeIndex = utils::unaligned_ref<uint32_t>((void*)&m_data[i]);
-									(void)typeIndex;
+									// Skip the component index
+									// TODO: Don't include the component index here
+									uint32_t infoIndex = utils::unaligned_ref<uint32_t>((void*)&m_data[i]);
+									(void)infoIndex;
 									i += sizeof(uint32_t);
 
-									const auto* metaType = newMetaTypes[j];
-									auto* pComponentDataStart = pChunk->ViewRW_Internal(metaType, componentType);
-									auto* pComponentData = (void*)&pComponentDataStart[indexInChunk * metaType->info.size];
-									memcpy(pComponentData, (const void*)&m_data[i], metaType->info.size);
-									i += metaType->info.size;
+									const auto* info = newInfos[j];
+									auto* pComponentDataStart = pChunk->ViewRW_Internal(info, componentType);
+									auto* pComponentData = (void*)&pComponentDataStart[indexInChunk * info->properties.size];
+									memcpy(pComponentData, (const void*)&m_data[i], info->properties.size);
+									i += info->properties.size;
 								}
 							}
 						} break;
@@ -475,12 +474,12 @@ namespace gaia {
 							uint8_t componentCount = m_data[i++];
 
 							// Components
-							auto newMetaTypes = (const ComponentMetaData**)alloca(sizeof(ComponentMetaData) * componentCount);
+							auto newInfos = (const ComponentInfo**)alloca(sizeof(ComponentInfo) * componentCount);
 							for (uint8_t j = 0; j < componentCount; ++j) {
-								newMetaTypes[j] = utils::unaligned_ref<const ComponentMetaData*>((void*)&m_data[i]);
-								i += sizeof(const ComponentMetaData*);
+								newInfos[j] = utils::unaligned_ref<const ComponentInfo*>((void*)&m_data[i]);
+								i += sizeof(const ComponentInfo*);
 							}
-							m_world.AddComponent_Internal(componentType, entity, {newMetaTypes, (uintptr_t)componentCount});
+							m_world.AddComponent_Internal(componentType, entity, {newInfos, (uintptr_t)componentCount});
 
 							uint32_t indexInChunk;
 							auto* pChunk = m_world.GetEntityChunk(entity, indexInChunk);
@@ -493,15 +492,15 @@ namespace gaia {
 								for (uint8_t j = 0; j < componentCount; ++j) {
 									// Skip the type index
 									// TODO: Don't include the type index here
-									uint32_t typeIndex = utils::unaligned_ref<uint32_t>((void*)&m_data[i]);
-									(void)typeIndex;
+									uint32_t infoIndex = utils::unaligned_ref<uint32_t>((void*)&m_data[i]);
+									(void)infoIndex;
 									i += sizeof(uint32_t);
 
-									const auto* metaType = newMetaTypes[j];
-									auto* pComponentDataStart = pChunk->ViewRW_Internal(metaType, componentType);
-									auto* pComponentData = (void*)&pComponentDataStart[indexInChunk * metaType->info.size];
-									memcpy(pComponentData, (const void*)&m_data[i], metaType->info.size);
-									i += metaType->info.size;
+									const auto* info = newInfos[j];
+									auto* pComponentDataStart = pChunk->ViewRW_Internal(info, componentType);
+									auto* pComponentData = (void*)&pComponentDataStart[indexInChunk * info->properties.size];
+									memcpy(pComponentData, (const void*)&m_data[i], info->properties.size);
+									i += info->properties.size;
 								}
 							}
 						} break;
@@ -522,14 +521,14 @@ namespace gaia {
 
 							// Components
 							for (uint8_t j = 0; j < componentCount; ++j) {
-								const auto typeIndex = utils::unaligned_ref<uint32_t>((void*)&m_data[i]);
-								const auto* metaType = GetComponentCache(m_world).GetComponentMetaTypeFromIdx(typeIndex);
+								const auto infoIndex = utils::unaligned_ref<uint32_t>((void*)&m_data[i]);
+								const auto* info = GetComponentCache(m_world).GetComponentInfoFromIdx(infoIndex);
 								i += sizeof(uint32_t);
 
-								auto* pComponentDataStart = pChunk->ViewRW_Internal(metaType, componentType);
-								auto* pComponentData = (void*)&pComponentDataStart[indexInChunk * metaType->info.size];
-								memcpy(pComponentData, (const void*)&m_data[i], metaType->info.size);
-								i += metaType->info.size;
+								auto* pComponentDataStart = pChunk->ViewRW_Internal(info, componentType);
+								auto* pComponentData = (void*)&pComponentDataStart[indexInChunk * info->properties.size];
+								memcpy(pComponentData, (const void*)&m_data[i], info->properties.size);
+								i += info->properties.size;
 							}
 						} break;
 						case SET_COMPONENT_FOR_TEMPENTITY: {
@@ -557,14 +556,14 @@ namespace gaia {
 
 							// Components
 							for (uint8_t j = 0; j < componentCount; ++j) {
-								const auto typeIndex = utils::unaligned_ref<uint32_t>((void*)&m_data[i]);
-								const auto* metaType = GetComponentCache(m_world).GetComponentMetaTypeFromIdx(typeIndex);
+								const auto infoIndex = utils::unaligned_ref<uint32_t>((void*)&m_data[i]);
+								const auto* info = GetComponentCache(m_world).GetComponentInfoFromIdx(infoIndex);
 								i += sizeof(uint32_t);
 
-								auto* pComponentDataStart = pChunk->ViewRW_Internal(metaType, componentType);
-								auto* pComponentData = (void*)&pComponentDataStart[indexInChunk * metaType->info.size];
-								memcpy(pComponentData, (const void*)&m_data[i], metaType->info.size);
-								i += metaType->info.size;
+								auto* pComponentDataStart = pChunk->ViewRW_Internal(info, componentType);
+								auto* pComponentData = (void*)&pComponentDataStart[indexInChunk * info->properties.size];
+								memcpy(pComponentData, (const void*)&m_data[i], info->properties.size);
+								i += info->properties.size;
 							}
 						} break;
 						case REMOVE_COMPONENT: {
@@ -579,14 +578,14 @@ namespace gaia {
 							uint8_t componentCount = m_data[i++];
 
 							// Components
-							containers::sarray_ext<const ComponentMetaData*, MAX_COMPONENTS_PER_ARCHETYPE> newMetaTypes;
-							newMetaTypes.resize(componentCount);
+							containers::sarray_ext<const ComponentInfo*, MAX_COMPONENTS_PER_ARCHETYPE> newInfos;
+							newInfos.resize(componentCount);
 
 							for (uint8_t j = 0; j < componentCount; ++j) {
-								newMetaTypes[j] = utils::unaligned_ref<const ComponentMetaData*>((void*)&m_data[i]);
-								i += sizeof(const ComponentMetaData*);
+								newInfos[j] = utils::unaligned_ref<const ComponentInfo*>((void*)&m_data[i]);
+								i += sizeof(const ComponentInfo*);
 							}
-							m_world.RemoveComponent_Internal(componentType, e, {newMetaTypes.data(), (uintptr_t)componentCount});
+							m_world.RemoveComponent_Internal(componentType, e, {newInfos.data(), (uintptr_t)componentCount});
 						} break;
 					}
 				}

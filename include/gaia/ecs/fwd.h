@@ -13,7 +13,7 @@ namespace gaia {
 
 		class EntityQuery;
 
-		struct ComponentMetaData;
+		struct ComponentInfo;
 		class CommandBuffer;
 	} // namespace ecs
 } // namespace gaia

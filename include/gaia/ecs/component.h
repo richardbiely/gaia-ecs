@@ -31,7 +31,7 @@ namespace gaia {
 
 		inline const char* ComponentTypeString[ComponentType::CT_Count] = {"Generic", "Chunk"};
 
-		struct ComponentMetaData;
+		struct ComponentInfo;
 
 		//----------------------------------------------------------------------
 		// Component type deduction
@@ -157,10 +157,10 @@ namespace gaia {
 		}
 
 		//----------------------------------------------------------------------
-		// ComponentMetaData
+		// ComponentInfo
 		//----------------------------------------------------------------------
 
-		struct ComponentMetaData final {
+		struct ComponentInfo final {
 			using FuncConstructor = void(void*);
 			using FuncDestructor = void(void*);
 
@@ -172,13 +172,13 @@ namespace gaia {
 			uint64_t lookupHash;
 			//! [24-31] Simple hash used for matching component
 			uint64_t matcherHash;
-			//! [32-39] Constructor to call when the type is being constructed
+			//! [32-39] Constructor to call when the component is being constructed
 			FuncConstructor* constructor;
-			//! [40-47] Destructor to call when the type is being destructed
+			//! [40-47] Destructor to call when the component is being destroyed
 			FuncDestructor* destructor;
 
 			//! [48-51] Unique component identifier
-			uint32_t typeIndex;
+			uint32_t infoIndex;
 
 			//! [52-55]
 			struct {
@@ -188,50 +188,50 @@ namespace gaia {
 				uint32_t size: MAX_COMPONENTS_SIZE_BITS;
 				//! Tells if the component is laid out in SoA style
 				uint32_t soa : 1;
-			} info{};
+			} properties{};
 
-			[[nodiscard]] bool operator==(const ComponentMetaData& other) const {
-				return lookupHash == other.lookupHash && typeIndex == other.typeIndex;
+			[[nodiscard]] bool operator==(const ComponentInfo& other) const {
+				return lookupHash == other.lookupHash && infoIndex == other.infoIndex;
 			}
-			[[nodiscard]] bool operator!=(const ComponentMetaData& other) const {
-				return lookupHash != other.lookupHash || typeIndex != other.typeIndex;
+			[[nodiscard]] bool operator!=(const ComponentInfo& other) const {
+				return lookupHash != other.lookupHash || infoIndex != other.infoIndex;
 			}
-			[[nodiscard]] bool operator<(const ComponentMetaData& other) const {
+			[[nodiscard]] bool operator<(const ComponentInfo& other) const {
 				return lookupHash < other.lookupHash;
 			}
 
 			template <typename T>
-			[[nodiscard]] static constexpr ComponentMetaData Calculate() {
+			[[nodiscard]] static constexpr ComponentInfo Calculate() {
 				using TComponent = typename DeduceComponent<T>::Type;
 
-				ComponentMetaData mth{};
-				mth.name = utils::type_info::name<TComponent>();
-				mth.lookupHash = utils::type_info::hash<TComponent>();
-				mth.matcherHash = CalculateMatcherHash<TComponent>();
-				mth.typeIndex = utils::type_info::index<TComponent>();
+				ComponentInfo info{};
+				info.name = utils::type_info::name<TComponent>();
+				info.lookupHash = utils::type_info::hash<TComponent>();
+				info.matcherHash = CalculateMatcherHash<TComponent>();
+				info.infoIndex = utils::type_info::index<TComponent>();
 
 				if constexpr (!std::is_empty<TComponent>::value) {
-					mth.info.alig = utils::auto_view_policy<TComponent>::Alignment;
-					mth.info.size = (uint32_t)sizeof(TComponent);
+					info.properties.alig = utils::auto_view_policy<TComponent>::Alignment;
+					info.properties.size = (uint32_t)sizeof(TComponent);
 					if constexpr (utils::is_soa_layout<TComponent>::value) {
-						mth.info.soa = 1;
+						info.properties.soa = 1;
 					} else if constexpr (!std::is_trivial<T>::value) {
-						mth.constructor = [](void* ptr) {
+						info.constructor = [](void* ptr) {
 							new (ptr) T{};
 						};
-						mth.destructor = [](void* ptr) {
+						info.destructor = [](void* ptr) {
 							((T*)ptr)->~T();
 						};
 					}
 				}
 
-				return mth;
+				return info;
 			}
 
 			template <typename T>
-			static const ComponentMetaData* Create() {
+			static const ComponentInfo* Create() {
 				using TComponent = std::decay_t<T>;
-				return new ComponentMetaData{Calculate<TComponent>()};
+				return new ComponentInfo{Calculate<TComponent>()};
 			}
 		};
 
@@ -239,36 +239,36 @@ namespace gaia {
 			return utils::combine_or(hashA, hashB);
 		}
 
-		[[nodiscard]] inline uint64_t CalculateMatcherHash(std::span<const ComponentMetaData*> types) noexcept {
-			uint64_t hash = types.empty() ? 0 : types[0]->matcherHash;
-			for (uint32_t i = 1U; i < (uint32_t)types.size(); ++i)
-				hash = utils::combine_or(hash, types[i]->matcherHash);
+		[[nodiscard]] inline uint64_t CalculateMatcherHash(std::span<const ComponentInfo*> infos) noexcept {
+			uint64_t hash = infos.empty() ? 0 : infos[0]->matcherHash;
+			for (uint32_t i = 1U; i < (uint32_t)infos.size(); ++i)
+				hash = utils::combine_or(hash, infos[i]->matcherHash);
 			return hash;
 		}
 
-		[[nodiscard]] inline uint64_t CalculateLookupHash(std::span<const ComponentMetaData*> types) noexcept {
-			uint64_t hash = types.empty() ? 0 : types[0]->lookupHash;
-			for (uint32_t i = 1U; i < (uint32_t)types.size(); ++i)
-				hash = utils::hash_combine(hash, types[i]->lookupHash);
+		[[nodiscard]] inline uint64_t CalculateLookupHash(std::span<const ComponentInfo*> infos) noexcept {
+			uint64_t hash = infos.empty() ? 0 : infos[0]->lookupHash;
+			for (uint32_t i = 1U; i < (uint32_t)infos.size(); ++i)
+				hash = utils::hash_combine(hash, infos[i]->lookupHash);
 			return hash;
 		}
 
 		//----------------------------------------------------------------------
 
-		struct ChunkComponentTypeInfo final {
-			//! Pointer to the associated meta type
-			const ComponentMetaData* type;
+		struct ComponentInfoData final {
+			//! Pointer to the associated component info
+			const ComponentInfo* info;
 		};
 
-		struct ChunkComponentLookupInfo final {
-			//! Component lookup hash. A copy of the value in meta data
-			uint32_t typeIndex;
+		struct ComponentLookupData final {
+			//! Component info index. A copy of the value in ComponentInfo
+			uint32_t infoIndex;
 			//! Distance in bytes from the archetype's chunk data segment
 			uint32_t offset;
 		};
 
-		using ChunkComponentTypeList = containers::sarray_ext<ChunkComponentTypeInfo, MAX_COMPONENTS_PER_ARCHETYPE>;
-		using ChunkComponentLookupList = containers::sarray_ext<ChunkComponentLookupInfo, MAX_COMPONENTS_PER_ARCHETYPE>;
+		using ComponentInfoList = containers::sarray_ext<ComponentInfoData, MAX_COMPONENTS_PER_ARCHETYPE>;
+		using ComponentLookupList = containers::sarray_ext<ComponentLookupData, MAX_COMPONENTS_PER_ARCHETYPE>;
 
 	} // namespace ecs
 } // namespace gaia

@@ -11,14 +11,14 @@
 namespace gaia {
 	namespace ecs {
 		class ComponentCache {
-			containers::map<uint64_t, const ComponentMetaData*> m_types;
-			containers::map<uint32_t, const ComponentMetaData*> m_typesByIndex;
+			containers::map<uint64_t, const ComponentInfo*> m_info;
+			containers::map<uint32_t, const ComponentInfo*> m_infoByIndex;
 
 		public:
 			ComponentCache() {
 				// Reserve enough storage space for most use-cases
-				m_types.reserve(2048);
-				m_typesByIndex.reserve(2048);
+				m_info.reserve(2048);
+				m_infoByIndex.reserve(2048);
 			}
 
 			ComponentCache(ComponentCache&&) = delete;
@@ -27,88 +27,88 @@ namespace gaia {
 			ComponentCache& operator=(const ComponentCache&) = delete;
 
 			~ComponentCache() {
-				ClearRegisteredTypeCache();
+				ClearRegisteredInfoCache();
 			}
 
 			template <typename T>
-			[[nodiscard]] const ComponentMetaData* GetOrCreateComponentMetaType() {
+			[[nodiscard]] const ComponentInfo* GetOrCreateComponentInfo() {
 				using TComponent = typename DeduceComponent<T>::Type;
 				constexpr auto lookupHash = utils::type_info::hash<TComponent>();
 
-				const auto res = m_types.emplace(lookupHash, nullptr);
+				const auto res = m_info.emplace(lookupHash, nullptr);
 				if (res.second) {
-					res.first->second = ComponentMetaData::Create<TComponent>();
+					res.first->second = ComponentInfo::Create<TComponent>();
 
 					const auto index = utils::type_info::index<TComponent>();
-					m_typesByIndex.emplace(index, res.first->second);
+					m_infoByIndex.emplace(index, res.first->second);
 				}
 
-				const ComponentMetaData* pMetaData = res.first->second;
+				const ComponentInfo* pMetaData = res.first->second;
 				return pMetaData;
 			}
 
 			template <typename T>
-			[[nodiscard]] const ComponentMetaData* FindComponentMetaType() const {
+			[[nodiscard]] const ComponentInfo* FindComponentInfo() const {
 				using TComponent = typename DeduceComponent<T>::Type;
 				constexpr auto lookupHash = utils::type_info::hash<TComponent>();
 
-				const auto it = m_types.find(lookupHash);
-				return it != m_types.end() ? it->second : (const ComponentMetaData*)nullptr;
+				const auto it = m_info.find(lookupHash);
+				return it != m_info.end() ? it->second : (const ComponentInfo*)nullptr;
 			}
 
 			template <typename T>
-			[[nodiscard]] const ComponentMetaData* GetComponentMetaType() const {
+			[[nodiscard]] const ComponentInfo* GetComponentInfo() const {
 				using TComponent = typename DeduceComponent<T>::Type;
 				constexpr auto lookupHash = utils::type_info::hash<TComponent>();
 
 				// Let's assume the component has been registered via AddComponent already!
-				GAIA_ASSERT(m_types.find(lookupHash) != m_types.end());
-				return m_types.at(lookupHash);
+				GAIA_ASSERT(m_info.find(lookupHash) != m_info.end());
+				return m_info.at(lookupHash);
 			}
 
-			[[nodiscard]] const ComponentMetaData* GetComponentMetaTypeFromIdx(uint32_t componentIndex) const {
+			[[nodiscard]] const ComponentInfo* GetComponentInfoFromIdx(uint32_t componentIndex) const {
 				// Let's assume the component has been registered via AddComponent already!
-				GAIA_ASSERT(m_typesByIndex.find(componentIndex) != m_typesByIndex.end());
-				return m_typesByIndex.at(componentIndex);
+				GAIA_ASSERT(m_infoByIndex.find(componentIndex) != m_infoByIndex.end());
+				return m_infoByIndex.at(componentIndex);
 			}
 
 			template <typename T>
-			[[nodiscard]] bool HasComponentMetaType() const {
+			[[nodiscard]] bool HasComponentInfo() const {
 				using TComponent = typename DeduceComponent<T>::Type;
 				constexpr auto lookupHash = utils::type_info::hash<TComponent>();
 
-				return m_types.find(lookupHash) != m_types.end();
+				return m_info.find(lookupHash) != m_info.end();
 			}
 
 			template <typename... T>
 			[[nodiscard]] bool HasComponentMetaTypes() const {
-				return (HasComponentMetaType<T>() && ...);
+				return (HasComponentInfo<T>() && ...);
 			}
 
 			template <typename... T>
 			[[nodiscard]] bool HasAnyComponentMetaTypes() const {
-				return (HasComponentMetaType<T>() || ...);
+				return (HasComponentInfo<T>() || ...);
 			}
 
 			template <typename... T>
 			[[nodiscard]] bool HasNoneComponentMetaTypes() const {
-				return (!HasComponentMetaType<T>() && ...);
+				return (!HasComponentInfo<T>() && ...);
 			}
 
 			void Diag() const {
-				const auto registeredTypes = (uint32_t)m_types.size();
-				LOG_N("Registered types: %u", registeredTypes);
+				const auto registeredTypes = (uint32_t)m_info.size();
+				LOG_N("Registered infos: %u", registeredTypes);
 
-				for (const auto& pair: m_types) {
-					const auto* type = pair.second;
+				for (const auto& pair: m_info) {
+					const auto* info = pair.second;
 					LOG_N(
-							"  (%p) index:%010u, lookupHash:%016" PRIx64 ", mask:%016" PRIx64 ", %.*s", (void*)type, type->typeIndex,
-							type->lookupHash, type->matcherHash, (uint32_t)type->name.length(), type->name.data());
+							"  (%p) index:%010u, lookupHash:%016" PRIx64 ", mask:%016" PRIx64 ", %.*s", (void*)info, info->infoIndex,
+							info->lookupHash, info->matcherHash, (uint32_t)info->name.length(), info->name.data());
 				}
 
-				using DuplicateMap = containers::map<uint64_t, containers::darray<const ComponentMetaData*>>;
+				using DuplicateMap = containers::map<uint64_t, containers::darray<const ComponentInfo*>>;
 
-				auto checkDuplicity = [](const DuplicateMap& map, bool errIfDuplicate) {
+				auto checkForDuplicates = [](const DuplicateMap& map, bool errIfDuplicate) {
 					for (const auto& pair: map) {
 						if (pair.second.size() <= 1)
 							continue;
@@ -119,14 +119,14 @@ namespace gaia {
 							LOG_N("Duplicity detected for key %016" PRIx64 "", pair.first);
 						}
 
-						for (const auto* type: pair.second) {
-							if (type == nullptr)
+						for (const auto* info: pair.second) {
+							if (info == nullptr)
 								continue;
 
 							LOG_N(
-									"--> (%p) lookupHash:%016" PRIx64 ", mask:%016" PRIx64 ", index:%010u, %.*s", (void*)type,
-									type->lookupHash, type->matcherHash, type->typeIndex, (uint32_t)type->name.length(),
-									type->name.data());
+									"--> (%p) lookupHash:%016" PRIx64 ", mask:%016" PRIx64 ", index:%010u, %.*s", (void*)info,
+									info->lookupHash, info->matcherHash, info->infoIndex, (uint32_t)info->name.length(),
+									info->name.data());
 						}
 					}
 				};
@@ -135,20 +135,20 @@ namespace gaia {
 				{
 					bool hasDuplicates = false;
 					DuplicateMap m;
-					for (const auto& pair: m_types) {
-						const auto* type = pair.second;
+					for (const auto& pair: m_info) {
+						const auto* info = pair.second;
 
-						const auto it = m.find(type->lookupHash);
+						const auto it = m.find(info->lookupHash);
 						if (it == m.end())
-							m[type->lookupHash] = {type};
+							m[info->lookupHash] = {info};
 						else {
-							it->second.push_back(type);
+							it->second.push_back(info);
 							hasDuplicates = true;
 						}
 					}
 
 					if (hasDuplicates)
-						checkDuplicity(m, true);
+						checkForDuplicates(m, true);
 				}
 
 				// Component matcher hash duplicity. These are fine if not unique.
@@ -157,27 +157,27 @@ namespace gaia {
 				{
 					bool hasDuplicates = false;
 					DuplicateMap m;
-					for (const auto& pair: m_types) {
-						const auto* type = pair.second;
+					for (const auto& pair: m_info) {
+						const auto* info = pair.second;
 
-						const auto ret = m.emplace(type->matcherHash, containers::darray<const ComponentMetaData*>{type});
+						const auto ret = m.emplace(info->matcherHash, containers::darray<const ComponentInfo*>{info});
 						if (!ret.second) {
-							ret.first->second.push_back(type);
+							ret.first->second.push_back(info);
 							hasDuplicates = true;
 						}
 					}
 
 					if (hasDuplicates)
-						checkDuplicity(m, false);
+						checkForDuplicates(m, false);
 				}
 			}
 
 		private:
-			void ClearRegisteredTypeCache() {
-				for (auto& pair: m_types)
+			void ClearRegisteredInfoCache() {
+				for (auto& pair: m_info)
 					delete pair.second;
-				m_types.clear();
-				m_typesByIndex.clear();
+				m_info.clear();
+				m_infoByIndex.clear();
 			}
 		};
 	} // namespace ecs
