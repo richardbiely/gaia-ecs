@@ -377,100 +377,55 @@ namespace gaia {
 			}
 
 			/*!
-			Checks if a given component is present on archetype.
+			Checks if a given component is present on the archetype.
 			\return True if the component is present. False otherwise.
 			*/
 			template <typename T>
 			[[nodiscard]] bool HasComponent() const {
-				return HasComponent_Internal<ComponentType::CT_Generic, T>();
+				return HasComponent_Internal<T>();
 			}
 
 			/*!
-			Checks if all provided components are present on archetype.
+			Checks if all provided components are present on the archetype.
 			\return True if components are present. False otherwise.
 			*/
 			template <typename... T>
 			[[nodiscard]] bool HasComponent() const {
-				return HasComponent_Internal<ComponentType::CT_Generic, T...>();
+				return (HasComponent_Internal<T>() && ...);
 			}
 
 			/*!
-			Checks if any of the provided components is present on archetype.
+			Checks if any of the provided components is present on the archetype.
 			\return True if any of the components is present. False otherwise.
 			*/
 			template <typename... T>
 			[[nodiscard]] bool HasAnyComponent() const {
-				return HasAnyComponent_Internal<ComponentType::CT_Generic, T...>();
+				return (HasComponent_Internal<T>() || ...);
 			}
 
 			/*!
-			Checks if none of the provided components are present on archetype.
+			Checks if none of the provided components are present on the archetype.
 			\return True if none of the components are present. False otherwise.
 			*/
 			template <typename... T>
 			[[nodiscard]] bool HasNoneComponent() const {
-				return HasNoneComponent_Internal<ComponentType::CT_Generic, T...>();
-			}
-
-			/*!
-			Checks if a given chunk component is present on archetype.
-			\return True if the chunk component is present. False otherwise.
-			*/
-			template <typename T>
-			[[nodiscard]] bool HasChunkComponent() const {
-				return HasComponent_Internal<ComponentType::CT_Chunk, T>();
-			}
-
-			/*!
-			Checks if all provided chunk components are present on archetype.
-			\return True if chunk components are present. False otherwise.
-			*/
-			template <typename... T>
-			[[nodiscard]] bool HasChunkComponents() const {
-				return HasComponent_Internal<ComponentType::CT_Chunk, T...>();
-			}
-
-			/*!
-			Checks if any of the provided chunk components is present on archetype.
-			\return True if any of the chunk components is present. False otherwise.
-			*/
-			template <typename... T>
-			[[nodiscard]] bool HasAnyChunkComponents() const {
-				return HasAnyComponent_Internal<ComponentType::CT_Chunk, T...>();
-			}
-
-			/*!
-			Checks if none of the provided chunk components are present on archetype.
-			\return True if none of the chunk components are present. False otherwise.
-			*/
-			template <typename... T>
-			[[nodiscard]] bool HasNoneChunkComponents() const {
-				return HasNoneComponent_Internal<ComponentType::CT_Chunk, T...>();
+				return (!HasComponent_Internal<T>() && ...);
 			}
 
 		private:
-			template <ComponentType TComponentType, typename T>
+			template <typename T>
 			[[nodiscard]] bool HasComponent_Internal() const {
-				using TComponent = std::decay_t<T>;
+				using TComponent = typename DeduceComponent<T>::Type;
 				const auto infoIndex = utils::type_info::index<TComponent>();
-				return utils::has_if(GetComponentLookupList(TComponentType), [&](const auto& info) {
-					return info.infoIndex == infoIndex;
-				});
-			}
-
-			template <ComponentType TComponentType, typename... T>
-			[[nodiscard]] bool HasComponent_Internal() const {
-				return (HasComponent_Internal<TComponentType, T>() && ...);
-			}
-
-			template <ComponentType TComponentType, typename... T>
-			[[nodiscard]] bool HasAnyComponent_Internal() const {
-				return (HasComponent_Internal<TComponentType, T>() || ...);
-			}
-
-			template <ComponentType TComponentType, typename... T>
-			[[nodiscard]] bool HasNoneComponent_Internal() const {
-				return (!HasComponent_Internal<TComponentType, T>() && ...);
+				if constexpr (IsGenericComponent<T>::value) {
+					return utils::has_if(GetComponentLookupList(ComponentType::CT_Generic), [&](const auto& info) {
+						return info.infoIndex == infoIndex;
+					});
+				} else {
+					return utils::has_if(GetComponentLookupList(ComponentType::CT_Chunk), [&](const auto& info) {
+						return info.infoIndex == infoIndex;
+					});
+				}
 			}
 		};
 
