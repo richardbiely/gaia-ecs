@@ -32,14 +32,14 @@ namespace gaia {
 
 			template <typename T>
 			[[nodiscard]] const ComponentInfo* GetOrCreateComponentInfo() {
-				using TComponent = typename DeduceComponent<T>::Type;
-				constexpr auto lookupHash = utils::type_info::hash<TComponent>();
+				using U = typename DeduceComponent<T>::Type;
+				constexpr auto lookupHash = utils::type_info::hash<U>();
 
 				const auto res = m_info.emplace(lookupHash, nullptr);
 				if (res.second) {
-					res.first->second = ComponentInfo::Create<TComponent>();
+					res.first->second = ComponentInfo::Create<U>();
 
-					const auto index = utils::type_info::index<TComponent>();
+					const auto index = utils::type_info::index<U>();
 					m_infoByIndex.emplace(index, res.first->second);
 				}
 
@@ -49,8 +49,8 @@ namespace gaia {
 
 			template <typename T>
 			[[nodiscard]] const ComponentInfo* FindComponentInfo() const {
-				using TComponent = typename DeduceComponent<T>::Type;
-				constexpr auto lookupHash = utils::type_info::hash<TComponent>();
+				using U = typename DeduceComponent<T>::Type;
+				constexpr auto lookupHash = utils::type_info::hash<U>();
 
 				const auto it = m_info.find(lookupHash);
 				return it != m_info.end() ? it->second : (const ComponentInfo*)nullptr;
@@ -58,8 +58,8 @@ namespace gaia {
 
 			template <typename T>
 			[[nodiscard]] const ComponentInfo* GetComponentInfo() const {
-				using TComponent = typename DeduceComponent<T>::Type;
-				constexpr auto lookupHash = utils::type_info::hash<TComponent>();
+				using U = typename DeduceComponent<T>::Type;
+				constexpr auto lookupHash = utils::type_info::hash<U>();
 
 				// Let's assume the component has been registered via AddComponent already!
 				GAIA_ASSERT(m_info.find(lookupHash) != m_info.end());
@@ -74,8 +74,8 @@ namespace gaia {
 
 			template <typename T>
 			[[nodiscard]] bool HasComponentInfo() const {
-				using TComponent = typename DeduceComponent<T>::Type;
-				constexpr auto lookupHash = utils::type_info::hash<TComponent>();
+				using U = typename DeduceComponent<T>::Type;
+				constexpr auto lookupHash = utils::type_info::hash<U>();
 
 				return m_info.find(lookupHash) != m_info.end();
 			}

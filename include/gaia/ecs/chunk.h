@@ -49,8 +49,8 @@ namespace gaia {
 			\return True if found. False otherwise.
 			*/
 			[[nodiscard]] bool HasComponent_Internal(ComponentType componentType, uint32_t infoIndex) const {
-				const auto& list = GetArchetypeComponentLookupList(header.owner, componentType);
-				return utils::has_if(list, [&](const auto& info) {
+				const auto& infos = GetArchetypeComponentLookupList(header.owner, componentType);
+				return utils::has_if(infos, [&](const auto& info) {
 					return info.infoIndex == infoIndex;
 				});
 			}
@@ -63,8 +63,8 @@ namespace gaia {
 			*/
 			template <typename T>
 			[[nodiscard]] bool HasComponent_Internal(ComponentType componentType) const {
-				using TComponent = std::decay_t<T>;
-				const auto infoIndex = utils::type_info::index<TComponent>();
+				using U = typename DeduceComponent<T>::Type;
+				const auto infoIndex = utils::type_info::index<U>();
 				return HasComponent_Internal(componentType, infoIndex);
 			}
 
@@ -207,27 +207,27 @@ namespace gaia {
 				// Searching for a component that's not there! Programmer mistake.
 				GAIA_ASSERT(HasComponent_Internal(componentType, infoIndex));
 
-				const auto& componentLookupData = GetArchetypeComponentLookupList(header.owner, componentType);
-				const auto componentIdx = utils::get_index_if_unsafe(componentLookupData, [&](const auto& info) {
+				const auto& infos = GetArchetypeComponentLookupList(header.owner, componentType);
+				const auto componentIdx = utils::get_index_if_unsafe(infos, [&](const auto& info) {
 					return info.infoIndex == infoIndex;
 				});
 
-				return (const uint8_t*)&data[componentLookupData[componentIdx].offset];
+				return (const uint8_t*)&data[infos[componentIdx].offset];
 			}
 
 			[[nodiscard]] GAIA_FORCEINLINE uint8_t* get_data_rw_ptr(ComponentType componentType, uint32_t infoIndex) {
 				// Searching for a component that's not there! Programmer mistake.
 				GAIA_ASSERT(HasComponent_Internal(componentType, infoIndex));
 
-				const auto& componentLookupData = GetArchetypeComponentLookupList(header.owner, componentType);
-				const auto componentIdx = utils::get_index_if_unsafe(componentLookupData, [&](const auto& info) {
+				const auto& infos = GetArchetypeComponentLookupList(header.owner, componentType);
+				const auto componentIdx = utils::get_index_if_unsafe(infos, [&](const auto& info) {
 					return info.infoIndex == infoIndex;
 				});
 
 				// Update version number so we know RW access was used on chunk
 				header.UpdateWorldVersion(componentType, componentIdx);
 
-				return (uint8_t*)&data[componentLookupData[componentIdx].offset];
+				return (uint8_t*)&data[infos[componentIdx].offset];
 			}
 
 		public:
