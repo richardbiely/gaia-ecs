@@ -701,8 +701,8 @@ namespace gaia {
 				// by entities moving around.
 				const auto& oldTypes = oldArchetype.componentInfos[ComponentType::CT_Generic];
 				const auto& newTypes = newArchetype.componentInfos[ComponentType::CT_Generic];
-				const auto& oldLook = oldArchetype.componentLookups[ComponentType::CT_Generic];
-				const auto& newLook = newArchetype.componentLookups[ComponentType::CT_Generic];
+				const auto& oldLook = oldArchetype.componentLookupData[ComponentType::CT_Generic];
+				const auto& newLook = newArchetype.componentLookupData[ComponentType::CT_Generic];
 
 				// Arrays are sorted so we can do linear intersection lookup
 				{
@@ -954,7 +954,7 @@ namespace gaia {
 
 					// Copy generic component data from reference entity to our new ntity
 					const auto& infos = archetype.componentInfos[ComponentType::CT_Generic];
-					const auto& looks = archetype.componentLookups[ComponentType::CT_Generic];
+					const auto& looks = archetype.componentLookupData[ComponentType::CT_Generic];
 
 					for (uint32_t i = 0U; i < (uint32_t)infos.size(); i++) {
 						const auto* info = infos[i].info;
@@ -1030,7 +1030,7 @@ namespace gaia {
 					// Copy generic component data from the reference entity to our new entity
 					{
 						const auto& infos = archetype.componentInfos[ComponentType::CT_Generic];
-						const auto& looks = archetype.componentLookups[ComponentType::CT_Generic];
+						const auto& looks = archetype.componentLookupData[ComponentType::CT_Generic];
 
 						for (uint32_t i = 0U; i < (uint32_t)infos.size(); i++) {
 							const auto* info = infos[i].info;
