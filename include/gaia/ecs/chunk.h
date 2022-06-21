@@ -18,8 +18,8 @@
 
 namespace gaia {
 	namespace ecs {
-		const ChunkComponentTypeList& GetArchetypeComponentTypeList(const Archetype& archetype, ComponentType type);
-		const ChunkComponentLookupList& GetArchetypeComponentLookupList(const Archetype& archetype, ComponentType type);
+		const ComponentInfoList& GetArchetypeComponentInfoList(const Archetype& archetype, ComponentType type);
+		const ComponentLookupList& GetArchetypeComponentLookupList(const Archetype& archetype, ComponentType type);
 
 		class Chunk final {
 		public:
@@ -44,19 +44,19 @@ namespace gaia {
 			Chunk(const Archetype& archetype): header(archetype) {}
 
 			/*!
-			Checks if a component is present in the archetype based on the provided \param typeIndex.
+			Checks if a component is present in the archetype based on the provided \param infoIndex.
 			\param componentType Component type
 			\return True if found. False otherwise.
 			*/
-			[[nodiscard]] bool HasComponent_Internal(ComponentType componentType, uint32_t typeIndex) const {
+			[[nodiscard]] bool HasComponent_Internal(ComponentType componentType, uint32_t infoIndex) const {
 				const auto& list = GetArchetypeComponentLookupList(header.owner, componentType);
 				return utils::has_if(list, [&](const auto& info) {
-					return info.typeIndex == typeIndex;
+					return info.infoIndex == infoIndex;
 				});
 			}
 
 			/*!
-			Checks if a component is present in the archetype based on the provided \param typeIndex.
+			Checks if a component is present in the archetype based on the provided \param infoIndex.
 			Component if deduced from \tparam T.
 			\param componentType Component type
 			\return True if found. False otherwise.
@@ -64,8 +64,8 @@ namespace gaia {
 			template <typename T>
 			[[nodiscard]] bool HasComponent_Internal(ComponentType componentType) const {
 				using TComponent = std::decay_t<T>;
-				const auto typeIndex = utils::type_info::index<TComponent>();
-				return HasComponent_Internal(componentType, typeIndex);
+				const auto infoIndex = utils::type_info::index<TComponent>();
+				return HasComponent_Internal(componentType, infoIndex);
 			}
 
 			template <typename T>
@@ -103,25 +103,25 @@ namespace gaia {
 					const auto entity = GetEntity(header.items.count - 1);
 					SetEntity(index, entity);
 
-					const auto& componentTypeList = GetArchetypeComponentTypeList(header.owner, ComponentType::CT_Generic);
+					const auto& componentInfos = GetArchetypeComponentInfoList(header.owner, ComponentType::CT_Generic);
 					const auto& lookupList = GetArchetypeComponentLookupList(header.owner, ComponentType::CT_Generic);
 
-					for (uint32_t i = 0U; i < componentTypeList.size(); i++) {
-						const auto& info = componentTypeList[i];
+					for (uint32_t i = 0U; i < componentInfos.size(); i++) {
+						const auto& info = componentInfos[i];
 						const auto& look = lookupList[i];
 
 						// Skip tag components
-						if (!info.type->info.size)
+						if (!info.info->properties.size)
 							continue;
 
-						const uint32_t idxFrom = look.offset + (uint32_t)index * info.type->info.size;
-						const uint32_t idxTo = look.offset + (uint32_t)(header.items.count - 1) * info.type->info.size;
+						const uint32_t idxFrom = look.offset + (uint32_t)index * info.info->properties.size;
+						const uint32_t idxTo = look.offset + (uint32_t)(header.items.count - 1) * info.info->properties.size;
 
 						GAIA_ASSERT(idxFrom < Chunk::DATA_SIZE_NORESERVE);
 						GAIA_ASSERT(idxTo < Chunk::DATA_SIZE_NORESERVE);
 						GAIA_ASSERT(idxFrom != idxTo);
 
-						memcpy(&data[idxFrom], &data[idxTo], info.type->info.size);
+						memcpy(&data[idxFrom], &data[idxTo], info.info->properties.size);
 					}
 
 					// Entity has been replaced with the last one in chunk.
@@ -163,12 +163,12 @@ namespace gaia {
 				} else {
 					static_assert(!std::is_empty<U>::value, "Attempting to get value of an empty component");
 
-					const auto typeIndex = utils::type_info::index<U>();
+					const auto infoIndex = utils::type_info::index<U>();
 
 					if constexpr (IsGenericComponent<U>::value)
-						return std::span<const U>{(const U*)get_data_ptr(ComponentType::CT_Generic, typeIndex), GetItemCount()};
+						return std::span<const U>{(const U*)get_data_ptr(ComponentType::CT_Generic, infoIndex), GetItemCount()};
 					else
-						return std::span<const U>{(const U*)get_data_ptr(ComponentType::CT_Chunk, typeIndex), 1};
+						return std::span<const U>{(const U*)get_data_ptr(ComponentType::CT_Chunk, infoIndex), 1};
 				}
 			}
 
@@ -185,49 +185,49 @@ namespace gaia {
 #endif
 				static_assert(!std::is_empty<U>::value, "Attempting to set value of an empty component");
 
-				const auto typeIndex = utils::type_info::index<U>();
+				const auto infoIndex = utils::type_info::index<U>();
 
 				if constexpr (IsGenericComponent<U>::value)
-					return std::span<U>{(U*)get_data_rw_ptr(ComponentType::CT_Generic, typeIndex), GetItemCount()};
+					return std::span<U>{(U*)get_data_rw_ptr(ComponentType::CT_Generic, infoIndex), GetItemCount()};
 				else
-					return std::span<U>{(U*)get_data_rw_ptr(ComponentType::CT_Chunk, typeIndex), 1};
+					return std::span<U>{(U*)get_data_rw_ptr(ComponentType::CT_Chunk, infoIndex), 1};
 			}
 
 			[[nodiscard]] GAIA_FORCEINLINE uint8_t*
-			ViewRW_Internal(const ComponentMetaData* metaType, ComponentType componentType = ComponentType::CT_Generic) {
-				GAIA_ASSERT(metaType != nullptr);
+			ViewRW_Internal(const ComponentInfo* info, ComponentType componentType = ComponentType::CT_Generic) {
+				GAIA_ASSERT(info != nullptr);
 				// Empty components shouldn't be used for writing!
-				GAIA_ASSERT(metaType->info.size != 0);
+				GAIA_ASSERT(info->properties.size != 0);
 
-				return get_data_rw_ptr(componentType, metaType->typeIndex);
+				return get_data_rw_ptr(componentType, info->infoIndex);
 			}
 
 			[[nodiscard]] GAIA_FORCEINLINE const uint8_t*
-			get_data_ptr(ComponentType componentType, uint32_t typeIndex) const {
+			get_data_ptr(ComponentType componentType, uint32_t infoIndex) const {
 				// Searching for a component that's not there! Programmer mistake.
-				GAIA_ASSERT(HasComponent_Internal(componentType, typeIndex));
+				GAIA_ASSERT(HasComponent_Internal(componentType, infoIndex));
 
-				const auto& componentLookupList = GetArchetypeComponentLookupList(header.owner, componentType);
-				const auto componentIdx = utils::get_index_if_unsafe(componentLookupList, [&](const auto& info) {
-					return info.typeIndex == typeIndex;
+				const auto& componentLookups = GetArchetypeComponentLookupList(header.owner, componentType);
+				const auto componentIdx = utils::get_index_if_unsafe(componentLookups, [&](const auto& info) {
+					return info.infoIndex == infoIndex;
 				});
 
-				return (const uint8_t*)&data[componentLookupList[componentIdx].offset];
+				return (const uint8_t*)&data[componentLookups[componentIdx].offset];
 			}
 
-			[[nodiscard]] GAIA_FORCEINLINE uint8_t* get_data_rw_ptr(ComponentType componentType, uint32_t typeIndex) {
+			[[nodiscard]] GAIA_FORCEINLINE uint8_t* get_data_rw_ptr(ComponentType componentType, uint32_t infoIndex) {
 				// Searching for a component that's not there! Programmer mistake.
-				GAIA_ASSERT(HasComponent_Internal(componentType, typeIndex));
+				GAIA_ASSERT(HasComponent_Internal(componentType, infoIndex));
 
-				const auto& componentLookupList = GetArchetypeComponentLookupList(header.owner, componentType);
-				const auto componentIdx = utils::get_index_if_unsafe(componentLookupList, [&](const auto& info) {
-					return info.typeIndex == typeIndex;
+				const auto& componentLookups = GetArchetypeComponentLookupList(header.owner, componentType);
+				const auto componentIdx = utils::get_index_if_unsafe(componentLookups, [&](const auto& info) {
+					return info.infoIndex == infoIndex;
 				});
 
 				// Update version number so we know RW access was used on chunk
 				header.UpdateWorldVersion(componentType, componentIdx);
 
-				return (uint8_t*)&data[componentLookupList[componentIdx].offset];
+				return (uint8_t*)&data[componentLookups[componentIdx].offset];
 			}
 
 		public:
@@ -265,14 +265,14 @@ namespace gaia {
 			}
 
 			/*!
-			Returns the internal index of a component based on the provided \param typeIndex.
+			Returns the internal index of a component based on the provided \param infoIndex.
 			\param componentType Component type
-			\return Component index if the type was found. -1 otherwise.
+			\return Component index if the component was found. -1 otherwise.
 			*/
-			[[nodiscard]] uint32_t GetComponentIdx(ComponentType componentType, uint32_t typeIndex) const {
+			[[nodiscard]] uint32_t GetComponentIdx(ComponentType componentType, uint32_t infoIndex) const {
 				const auto& list = GetArchetypeComponentLookupList(header.owner, componentType);
 				return utils::get_index_if_unsafe(list, [&](const auto& info) {
-					return info.typeIndex == typeIndex;
+					return info.infoIndex == infoIndex;
 				});
 			}
 

@@ -53,7 +53,7 @@ namespace gaia {
 			Constraints m_constraints = Constraints::EnabledOnly;
 			//! If true, we need to recalculate hashes
 			bool m_recalculate = true;
-			//! If true, sorting types is necessary
+			//! If true, sorting infos is necessary
 			bool m_sort = true;
 
 			template <class T>
@@ -62,8 +62,8 @@ namespace gaia {
 					// Skip Entity input args
 					return true;
 				} else {
-					const auto typeIndex = utils::type_info::index<T>();
-					return utils::has(arr, typeIndex);
+					const auto infoIndex = utils::type_info::index<T>();
+					return utils::has(arr, infoIndex);
 				}
 			}
 
@@ -73,10 +73,10 @@ namespace gaia {
 					// Skip Entity input args
 					return;
 				} else {
-					const auto typeIndex = utils::type_info::index<T>();
+					const auto infoIndex = utils::type_info::index<T>();
 
-					// Unique types only
-					if (utils::has(arr, typeIndex))
+					// Unique infos only
+					if (utils::has(arr, infoIndex))
 						return;
 
 #if GAIA_DEBUG
@@ -95,7 +95,7 @@ namespace gaia {
 					}
 #endif
 
-					arr.push_back(typeIndex);
+					arr.push_back(infoIndex);
 					m_recalculate = true;
 					m_sort = true;
 
@@ -110,10 +110,10 @@ namespace gaia {
 			void SetChangedFilter_Internal(ChangeFilterArray& arrFilter, ComponentListData& arrMeta) {
 				static_assert(!std::is_same<T, Entity>::value, "It doesn't make sense to use ChangedFilter with Entity");
 
-				const auto typeIndex = utils::type_info::index<T>();
+				const auto infoIndex = utils::type_info::index<T>();
 
-				// Unique types only
-				GAIA_ASSERT(!utils::has(arrFilter, typeIndex) && "Filter doesn't contain unique types");
+				// Unique infos only
+				GAIA_ASSERT(!utils::has(arrFilter, infoIndex) && "Filter doesn't contain unique infos");
 
 #if GAIA_DEBUG
 				// There's a limit to the amount of components which we can store
@@ -131,16 +131,16 @@ namespace gaia {
 
 				// Component has to be present in anyList or allList.
 				// NoneList makes no sense because we skip those in query processing anyway.
-				if (utils::has_if(arrMeta.list[ListType::LT_Any], [typeIndex](auto idx) {
-							return idx == typeIndex;
+				if (utils::has_if(arrMeta.list[ListType::LT_Any], [infoIndex](auto idx) {
+							return idx == infoIndex;
 						})) {
-					arrFilter.push_back(typeIndex);
+					arrFilter.push_back(infoIndex);
 					return;
 				}
-				if (utils::has_if(arrMeta.list[ListType::LT_All], [typeIndex](auto idx) {
-							return idx == typeIndex;
+				if (utils::has_if(arrMeta.list[ListType::LT_All], [infoIndex](auto idx) {
+							return idx == infoIndex;
 						})) {
-					arrFilter.push_back(typeIndex);
+					arrFilter.push_back(infoIndex);
 					return;
 				}
 
@@ -188,11 +188,11 @@ namespace gaia {
 				// Filters
 				{
 					uint64_t hash = 0;
-					for (auto typeIndex: m_listChangeFiltered[ComponentType::CT_Generic])
-						hash = utils::hash_combine(hash, (uint64_t)typeIndex);
+					for (auto infoIndex: m_listChangeFiltered[ComponentType::CT_Generic])
+						hash = utils::hash_combine(hash, (uint64_t)infoIndex);
 					hash = utils::hash_combine(hash, (uint64_t)m_listChangeFiltered[ComponentType::CT_Generic].size());
-					for (auto typeIndex: m_listChangeFiltered[ComponentType::CT_Chunk])
-						hash = utils::hash_combine(hash, (uint64_t)typeIndex);
+					for (auto infoIndex: m_listChangeFiltered[ComponentType::CT_Chunk])
+						hash = utils::hash_combine(hash, (uint64_t)infoIndex);
 					hash = utils::hash_combine(hash, (uint64_t)m_listChangeFiltered[ComponentType::CT_Chunk].size());
 				}
 
@@ -204,9 +204,9 @@ namespace gaia {
 						const auto& arr = l.list[i];
 						hash = utils::hash_combine(hash, (uint64_t)i);
 						for (uint32_t j = 0; j < arr.size(); ++j) {
-							const auto* type = cc.GetComponentMetaTypeFromIdx(arr[j]);
-							GAIA_ASSERT(type != nullptr);
-							hash = utils::hash_combine(hash, type->lookupHash);
+							const auto* info = cc.GetComponentInfoFromIdx(arr[j]);
+							GAIA_ASSERT(info != nullptr);
+							hash = utils::hash_combine(hash, info->lookupHash);
 						}
 					}
 					m_hashLookup = utils::hash_combine(m_hashLookup, hash);
@@ -220,9 +220,9 @@ namespace gaia {
 						const auto& arr = l.list[i];
 						hash = utils::hash_combine(hash, (uint64_t)i);
 						for (uint32_t j = 0; j < arr.size(); ++j) {
-							const auto* type = cc.GetComponentMetaTypeFromIdx(arr[j]);
-							GAIA_ASSERT(type != nullptr);
-							hash = utils::hash_combine(hash, type->lookupHash);
+							const auto* info = cc.GetComponentInfoFromIdx(arr[j]);
+							GAIA_ASSERT(info != nullptr);
+							hash = utils::hash_combine(hash, info->lookupHash);
 						}
 					}
 					m_hashLookup = utils::hash_combine(m_hashLookup, hash);
@@ -249,14 +249,14 @@ namespace gaia {
 							auto& arr = l.list[i];
 
 							if (!arr.empty()) {
-								const auto* type = cc.GetComponentMetaTypeFromIdx(arr[0]);
-								GAIA_ASSERT(type != nullptr);
-								l.hash[i] = type->matcherHash;
+								const auto* info = cc.GetComponentInfoFromIdx(arr[0]);
+								GAIA_ASSERT(info != nullptr);
+								l.hash[i] = info->matcherHash;
 							}
 							for (uint32_t j = 1; j < arr.size(); ++j) {
-								const auto* type = cc.GetComponentMetaTypeFromIdx(arr[j]);
-								GAIA_ASSERT(type != nullptr);
-								l.hash[i] = utils::combine_or(l.hash[i], type->matcherHash);
+								const auto* info = cc.GetComponentInfoFromIdx(arr[j]);
+								GAIA_ASSERT(info != nullptr);
+								l.hash[i] = utils::combine_or(l.hash[i], info->matcherHash);
 							}
 						}
 					}
@@ -264,13 +264,12 @@ namespace gaia {
 			}
 
 			/*!
-				Tries to match \param componentTypeList with a given \param matcherHash.
+				Tries to match \param componentInfos with a given \param matcherHash.
 				\return MatchArchetypeQueryRet::Fail if there is no match, MatchArchetypeQueryRet::Ok for match or
 								MatchArchetypeQueryRet::Skip is not relevant.
 				*/
 			template <ComponentType TComponentType>
-			[[nodiscard]] MatchArchetypeQueryRet
-			Match(const ChunkComponentTypeList& componentTypeList, uint64_t matcherHash) const {
+			[[nodiscard]] MatchArchetypeQueryRet Match(const ComponentInfoList& componentInfos, uint64_t matcherHash) const {
 				const auto& queryList = GetData(TComponentType);
 				const uint64_t withNoneTest = matcherHash & queryList.hash[ListType::LT_None];
 				const uint64_t withAnyTest = matcherHash & queryList.hash[ListType::LT_Any];
@@ -286,9 +285,9 @@ namespace gaia {
 
 				// If there is any match with the withNoneList we quit
 				if (withNoneTest != 0) {
-					for (const auto typeIndex: queryList.list[ListType::LT_None]) {
-						for (const auto& component: componentTypeList) {
-							if (component.type->typeIndex == typeIndex) {
+					for (const auto infoIndex: queryList.list[ListType::LT_None]) {
+						for (const auto& info: componentInfos) {
+							if (info.info->infoIndex == infoIndex) {
 								return MatchArchetypeQueryRet::Fail;
 							}
 						}
@@ -297,9 +296,9 @@ namespace gaia {
 
 				// If there is any match with the withAnyTest
 				if (withAnyTest != 0) {
-					for (const auto typeIndex: queryList.list[ListType::LT_Any]) {
-						for (const auto& component: componentTypeList) {
-							if (component.type->typeIndex == typeIndex)
+					for (const auto infoIndex: queryList.list[ListType::LT_Any]) {
+						for (const auto& info: componentInfos) {
+							if (info.info->infoIndex == infoIndex)
 								goto checkWithAllMatches;
 						}
 					}
@@ -313,14 +312,14 @@ namespace gaia {
 				if (withAllTest != 0) {
 					// If the number of queried components is greater than the
 					// number of components in archetype there's no need to search
-					if (queryList.list[ListType::LT_All].size() <= componentTypeList.size()) {
+					if (queryList.list[ListType::LT_All].size() <= componentInfos.size()) {
 						uint32_t matches = 0;
 
 						// m_list[ListType::LT_All] first because we usually request for less
 						// components than there are components in archetype
-						for (const auto typeIndex: queryList.list[ListType::LT_All]) {
-							for (const auto& component: componentTypeList) {
-								if (component.type->typeIndex != typeIndex)
+						for (const auto infoIndex: queryList.list[ListType::LT_All]) {
+							for (const auto& info: componentInfos) {
+								if (info.info->infoIndex != infoIndex)
 									continue;
 
 								// All requirements are fulfilled. Let's iterate
@@ -395,17 +394,17 @@ namespace gaia {
 			}
 
 			/*!
-			Tries to match the query against \param archetypeList. For each matched archetype the archetype is cached.
+			Tries to match the query against \param archetypes. For each matched archetype the archetype is cached.
 			This is necessary so we do not iterate all chunks over and over again when running queries.
 			*/
-			void Match(const containers::darray<Archetype*>& archetypeList) {
-				if (m_recalculate && !archetypeList.empty()) {
-					const auto& world = archetypeList[0]->GetWorld();
+			void Match(const containers::darray<Archetype*>& archetypes) {
+				if (m_recalculate && !archetypes.empty()) {
+					const auto& world = archetypes[0]->GetWorld();
 					CalculateMatcherHashes(world);
 				}
 
-				for (uint32_t i = m_lastArchetypeId; i < archetypeList.size(); i++) {
-					auto* pArchetype = archetypeList[i];
+				for (uint32_t i = m_lastArchetypeId; i < archetypes.size(); i++) {
+					auto* pArchetype = archetypes[i];
 #if GAIA_DEBUG
 					auto& archetype = *pArchetype;
 #else
@@ -414,14 +413,14 @@ namespace gaia {
 
 					// Early exit if generic query doesn't match
 					const auto retGeneric = Match<ComponentType::CT_Generic>(
-							GetArchetypeComponentTypeList(archetype, ComponentType::CT_Generic),
+							GetArchetypeComponentInfoList(archetype, ComponentType::CT_Generic),
 							GetArchetypeMatcherHash(archetype, ComponentType::CT_Generic));
 					if (retGeneric == EntityQuery::MatchArchetypeQueryRet::Fail)
 						continue;
 
 					// Early exit if chunk query doesn't match
 					const auto retChunk = Match<ComponentType::CT_Chunk>(
-							GetArchetypeComponentTypeList(archetype, ComponentType::CT_Chunk),
+							GetArchetypeComponentInfoList(archetype, ComponentType::CT_Chunk),
 							GetArchetypeMatcherHash(archetype, ComponentType::CT_Chunk));
 					if (retChunk == EntityQuery::MatchArchetypeQueryRet::Fail)
 						continue;
@@ -432,7 +431,7 @@ namespace gaia {
 						m_archetypeCache.push_back(pArchetype);
 				}
 
-				m_lastArchetypeId = (uint32_t)archetypeList.size();
+				m_lastArchetypeId = (uint32_t)archetypes.size();
 			}
 
 			void SetWorldVersion(uint32_t worldVersion) {

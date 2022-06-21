@@ -35,7 +35,7 @@ namespace gaia {
 		struct type_info final {
 		private:
 			constexpr static size_t GetMin(size_t a, size_t b) {
-				return (b < a) ? b : a;
+				return b < a ? b : a;
 			}
 
 			constexpr static size_t FindFirstOf(const char* data, size_t len, char toFind, size_t startPos = 0) {
@@ -74,10 +74,10 @@ namespace gaia {
 			template <typename T>
 			[[nodiscard]] static constexpr auto name() noexcept {
 				// MSVC:
-				//		const char* __cdecl ecs::ComponentMetaData::GetMetaName<struct ecs::EnfEntity>(void)
+				//		const char* __cdecl ecs::ComponentInfo::GetMetaName<struct ecs::EnfEntity>(void)
 				//   -> ecs::EnfEntity
 				// Clang/GCC:
-				//		const ecs::ComponentMetaData::GetMetaName() [T = ecs::EnfEntity]
+				//		const ecs::ComponentInfo::GetMetaName() [T = ecs::EnfEntity]
 				//   -> ecs::EnfEntity
 
 				// Note:
