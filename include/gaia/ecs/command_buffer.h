@@ -324,7 +324,7 @@ namespace gaia {
 			/*!
 			Requests component data to be set to given values for a given entity.
 
-			\warning Just like World::SetComponent, this method expects the
+			\warning Just like World::SetComponent, this function expects the
 			given component infos to exist. Undefined behavior otherwise.
 			*/
 			template <typename TComponent>
@@ -344,7 +344,7 @@ namespace gaia {
 			Requests component data to be set to given values for a given temp
 			entity.
 
-			\warning Just like World::SetComponent, this method expects the
+			\warning Just like World::SetComponent, this function expects the
 			given component infos to exist. Undefined behavior otherwise.
 			*/
 			template <typename TComponent>
