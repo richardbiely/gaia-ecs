@@ -207,27 +207,27 @@ namespace gaia {
 				// Searching for a component that's not there! Programmer mistake.
 				GAIA_ASSERT(HasComponent_Internal(componentType, infoIndex));
 
-				const auto& componentLookups = GetArchetypeComponentLookupList(header.owner, componentType);
-				const auto componentIdx = utils::get_index_if_unsafe(componentLookups, [&](const auto& info) {
+				const auto& componentLookupData = GetArchetypeComponentLookupList(header.owner, componentType);
+				const auto componentIdx = utils::get_index_if_unsafe(componentLookupData, [&](const auto& info) {
 					return info.infoIndex == infoIndex;
 				});
 
-				return (const uint8_t*)&data[componentLookups[componentIdx].offset];
+				return (const uint8_t*)&data[componentLookupData[componentIdx].offset];
 			}
 
 			[[nodiscard]] GAIA_FORCEINLINE uint8_t* get_data_rw_ptr(ComponentType componentType, uint32_t infoIndex) {
 				// Searching for a component that's not there! Programmer mistake.
 				GAIA_ASSERT(HasComponent_Internal(componentType, infoIndex));
 
-				const auto& componentLookups = GetArchetypeComponentLookupList(header.owner, componentType);
-				const auto componentIdx = utils::get_index_if_unsafe(componentLookups, [&](const auto& info) {
+				const auto& componentLookupData = GetArchetypeComponentLookupList(header.owner, componentType);
+				const auto componentIdx = utils::get_index_if_unsafe(componentLookupData, [&](const auto& info) {
 					return info.infoIndex == infoIndex;
 				});
 
 				// Update version number so we know RW access was used on chunk
 				header.UpdateWorldVersion(componentType, componentIdx);
 
-				return (uint8_t*)&data[componentLookups[componentIdx].offset];
+				return (uint8_t*)&data[componentLookupData[componentIdx].offset];
 			}
 
 		public:

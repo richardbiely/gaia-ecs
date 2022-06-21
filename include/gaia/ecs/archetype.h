@@ -53,7 +53,7 @@ namespace gaia {
 			//! Description of components within this archetype
 			containers::sarray<ComponentInfoList, ComponentType::CT_Count> componentInfos;
 			//! Lookup hashes of components within this archetype
-			containers::sarray<ComponentLookupList, ComponentType::CT_Count> componentLookups;
+			containers::sarray<ComponentLookupList, ComponentType::CT_Count> componentLookupData;
 
 			uint64_t genericHash = 0;
 			uint64_t chunkHash = 0;
@@ -97,7 +97,7 @@ namespace gaia {
 				// Call default constructors for components that need it
 				if (archetype.info.hasComponentWithCustomConstruction) {
 					const auto& comp = archetype.componentInfos[ComponentType::CT_Generic];
-					const auto& look = archetype.componentLookups[ComponentType::CT_Generic];
+					const auto& look = archetype.componentLookupData[ComponentType::CT_Generic];
 					for (uint32_t i = 0U; i < comp.size(); ++i) {
 						if (comp[i].info->constructor == nullptr)
 							continue;
@@ -107,7 +107,7 @@ namespace gaia {
 				// Call default constructors for chunk components that need it
 				if (archetype.info.hasChunkComponentTypesWithCustomConstruction) {
 					const auto& comp = archetype.componentInfos[ComponentType::CT_Chunk];
-					const auto& look = archetype.componentLookups[ComponentType::CT_Chunk];
+					const auto& look = archetype.componentLookupData[ComponentType::CT_Chunk];
 					for (uint32_t i = 0U; i < comp.size(); ++i) {
 						if (comp[i].info->constructor == nullptr)
 							continue;
@@ -128,7 +128,7 @@ namespace gaia {
 				const auto& archetype = pChunk->header.owner;
 				if (archetype.info.hasComponentWithCustomConstruction) {
 					const auto& comp = archetype.componentInfos[ComponentType::CT_Generic];
-					const auto& look = archetype.componentLookups[ComponentType::CT_Generic];
+					const auto& look = archetype.componentLookupData[ComponentType::CT_Generic];
 					for (uint32_t i = 0U; i < comp.size(); ++i) {
 						if (comp[i].info->destructor == nullptr)
 							continue;
@@ -138,7 +138,7 @@ namespace gaia {
 				// Call destructors for chunk components which need it
 				if (archetype.info.hasChunkComponentTypesWithCustomConstruction) {
 					const auto& comp = archetype.componentInfos[ComponentType::CT_Chunk];
-					const auto& look = archetype.componentLookups[ComponentType::CT_Chunk];
+					const auto& look = archetype.componentLookupData[ComponentType::CT_Chunk];
 					for (uint32_t i = 0U; i < comp.size(); ++i) {
 						if (comp[i].info->destructor == nullptr)
 							continue;
@@ -209,7 +209,7 @@ namespace gaia {
 
 						// Register the component info
 						newArch->componentInfos[ComponentType::CT_Generic].push_back({info});
-						newArch->componentLookups[ComponentType::CT_Generic].push_back({info->infoIndex, componentOffset});
+						newArch->componentLookupData[ComponentType::CT_Generic].push_back({info->infoIndex, componentOffset});
 
 						// Make sure the following component list is properly aligned
 						componentOffset += info->properties.size * maxGenericItemsInArchetype;
@@ -220,7 +220,7 @@ namespace gaia {
 					} else {
 						// Register the component info
 						newArch->componentInfos[ComponentType::CT_Generic].push_back({info});
-						newArch->componentLookups[ComponentType::CT_Generic].push_back({info->infoIndex, componentOffset});
+						newArch->componentLookupData[ComponentType::CT_Generic].push_back({info->infoIndex, componentOffset});
 					}
 				}
 
@@ -238,7 +238,7 @@ namespace gaia {
 
 						// Register the component info
 						newArch->componentInfos[ComponentType::CT_Chunk].push_back({info});
-						newArch->componentLookups[ComponentType::CT_Chunk].push_back({info->infoIndex, componentOffset});
+						newArch->componentLookupData[ComponentType::CT_Chunk].push_back({info->infoIndex, componentOffset});
 
 						// Make sure the following component list is properly aligned
 						componentOffset += info->properties.size;
@@ -249,7 +249,7 @@ namespace gaia {
 					} else {
 						// Register the component info
 						newArch->componentInfos[ComponentType::CT_Chunk].push_back({info});
-						newArch->componentLookups[ComponentType::CT_Chunk].push_back({info->infoIndex, componentOffset});
+						newArch->componentLookupData[ComponentType::CT_Chunk].push_back({info->infoIndex, componentOffset});
 					}
 				}
 
@@ -373,7 +373,7 @@ namespace gaia {
 			}
 
 			[[nodiscard]] const ComponentLookupList& GetComponentLookupList(ComponentType type) const {
-				return componentLookups[type];
+				return componentLookupData[type];
 			}
 
 			/*!
