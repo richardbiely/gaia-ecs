@@ -96,22 +96,22 @@ namespace gaia {
 
 				// Call default constructors for components that need it
 				if (archetype.info.hasComponentWithCustomConstruction) {
-					const auto& comp = archetype.componentInfos[ComponentType::CT_Generic];
+					const auto& info = archetype.componentInfos[ComponentType::CT_Generic];
 					const auto& look = archetype.componentLookupData[ComponentType::CT_Generic];
-					for (uint32_t i = 0U; i < comp.size(); ++i) {
-						if (comp[i].info->constructor == nullptr)
+					for (uint32_t i = 0U; i < info.size(); ++i) {
+						if (info[i].info->constructor == nullptr)
 							continue;
-						comp[i].info->constructor((void*)((char*)pChunk + look[i].offset));
+						info[i].info->constructor((void*)((char*)pChunk + look[i].offset));
 					}
 				}
 				// Call default constructors for chunk components that need it
 				if (archetype.info.hasChunkComponentTypesWithCustomConstruction) {
-					const auto& comp = archetype.componentInfos[ComponentType::CT_Chunk];
+					const auto& info = archetype.componentInfos[ComponentType::CT_Chunk];
 					const auto& look = archetype.componentLookupData[ComponentType::CT_Chunk];
-					for (uint32_t i = 0U; i < comp.size(); ++i) {
-						if (comp[i].info->constructor == nullptr)
+					for (uint32_t i = 0U; i < info.size(); ++i) {
+						if (info[i].info->constructor == nullptr)
 							continue;
-						comp[i].info->constructor((void*)((char*)pChunk + look[i].offset));
+						info[i].info->constructor((void*)((char*)pChunk + look[i].offset));
 					}
 				}
 
@@ -127,22 +127,22 @@ namespace gaia {
 				// Call destructors for types that need it
 				const auto& archetype = pChunk->header.owner;
 				if (archetype.info.hasComponentWithCustomConstruction) {
-					const auto& comp = archetype.componentInfos[ComponentType::CT_Generic];
+					const auto& info = archetype.componentInfos[ComponentType::CT_Generic];
 					const auto& look = archetype.componentLookupData[ComponentType::CT_Generic];
-					for (uint32_t i = 0U; i < comp.size(); ++i) {
-						if (comp[i].info->destructor == nullptr)
+					for (uint32_t i = 0U; i < info.size(); ++i) {
+						if (info[i].info->destructor == nullptr)
 							continue;
-						comp[i].info->destructor((void*)((char*)pChunk + look[i].offset));
+						info[i].info->destructor((void*)((char*)pChunk + look[i].offset));
 					}
 				}
 				// Call destructors for chunk components which need it
 				if (archetype.info.hasChunkComponentTypesWithCustomConstruction) {
-					const auto& comp = archetype.componentInfos[ComponentType::CT_Chunk];
+					const auto& info = archetype.componentInfos[ComponentType::CT_Chunk];
 					const auto& look = archetype.componentLookupData[ComponentType::CT_Chunk];
-					for (uint32_t i = 0U; i < comp.size(); ++i) {
-						if (comp[i].info->destructor == nullptr)
+					for (uint32_t i = 0U; i < info.size(); ++i) {
+						if (info[i].info->destructor == nullptr)
 							continue;
-						comp[i].info->destructor((void*)((char*)pChunk + look[i].offset));
+						info[i].info->destructor((void*)((char*)pChunk + look[i].offset));
 					}
 				}
 
