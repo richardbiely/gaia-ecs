@@ -312,7 +312,7 @@ namespace gaia {
 					LOG_W("Trying to add a component to entity [%u.%u] but there's no space left!", entity.id(), entity.gen());
 					LOG_W("Already present:");
 					for (size_t i = 0; i < oldInfosCount; i++)
-						LOG_W("> [%" PRIu64 "] %.*s", i, (uint32_t)info[i].info->name.length(), info[i].info->name.data());
+						LOG_W("> [%u] %.*s", (uint32_t)i, (uint32_t)info[i].info->name.length(), info[i].info->name.data());
 					LOG_W("Trying to add:");
 					LOG_W("> %.*s", (uint32_t)infoToAdd->name.length(), infoToAdd->name.data());
 				}
@@ -342,7 +342,7 @@ namespace gaia {
 
 					const auto& info = archetype.componentInfos[type];
 					for (size_t k = 0; k < info.size(); k++)
-						LOG_W("> [%" PRIu64 "] %.*s", k, (uint32_t)info[k].info->name.length(), info[k].info->name.data());
+						LOG_W("> [%u] %.*s", (uint32_t)k, (uint32_t)info[k].info->name.length(), info[k].info->name.data());
 
 					LOG_W("Trying to remove:");
 					LOG_W("> %.*s", (uint32_t)infoToRemove->name.length(), infoToRemove->name.data());
@@ -358,7 +358,8 @@ namespace gaia {
 
 					for (size_t k = 0; k < archetypeInfos.size(); k++)
 						LOG_W(
-								"> [%" PRIu64 "] %.*s", k, (uint32_t)archetypeInfos[k].info->name.length(), archetypeInfos[k].info->name.data());
+								"> [%u] %.*s", (uint32_t)k, (uint32_t)archetypeInfos[k].info->name.length(),
+								archetypeInfos[k].info->name.data());
 
 					LOG_W("Trying to remove:");
 					LOG_W("> %.*s", (uint32_t)infoToRemove->name.length(), infoToRemove->name.data());
@@ -480,26 +481,24 @@ namespace gaia {
 					}
 
 #if GAIA_ARCHETYPE_GRAPH
-					auto newArchetype =
-							type == ComponentType::CT_Generic
-									? CreateArchetype(
-												std::span<const ComponentInfo*>(newInfos.data(), newInfos.size()),
-												std::span<const ComponentInfo*>(otherMetaTypes.data(), otherMetaTypes.size()))
-									: CreateArchetype(
-												std::span<const ComponentInfo*>(otherMetaTypes.data(), otherMetaTypes.size()),
-												std::span<const ComponentInfo*>(newInfos.data(), newInfos.size()));
+					auto newArchetype = type == ComponentType::CT_Generic
+																	? CreateArchetype(
+																				std::span<const ComponentInfo*>(newInfos.data(), newInfos.size()),
+																				std::span<const ComponentInfo*>(otherMetaTypes.data(), otherMetaTypes.size()))
+																	: CreateArchetype(
+																				std::span<const ComponentInfo*>(otherMetaTypes.data(), otherMetaTypes.size()),
+																				std::span<const ComponentInfo*>(newInfos.data(), newInfos.size()));
 
 					RegisterArchetype(newArchetype);
 					BuildGraphEdges(type, node, newArchetype, infoToAdd);
 #else
-					auto newArchetype =
-							type == ComponentType::CT_Generic
-									? FindOrCreateArchetype(
-												std::span<const ComponentInfo*>(newInfos.data(), newInfos.size()),
-												std::span<const ComponentInfo*>(otherMetaTypes.data(), otherMetaTypes.size()))
-									: FindOrCreateArchetype(
-												std::span<const ComponentInfo*>(otherMetaTypes.data(), otherMetaTypes.size()),
-												std::span<const ComponentInfo*>(newInfos.data(), newInfos.size()));
+					auto newArchetype = type == ComponentType::CT_Generic
+																	? FindOrCreateArchetype(
+																				std::span<const ComponentInfo*>(newInfos.data(), newInfos.size()),
+																				std::span<const ComponentInfo*>(otherMetaTypes.data(), otherMetaTypes.size()))
+																	: FindOrCreateArchetype(
+																				std::span<const ComponentInfo*>(otherMetaTypes.data(), otherMetaTypes.size()),
+																				std::span<const ComponentInfo*>(newInfos.data(), newInfos.size()));
 #endif
 
 					node = newArchetype;
@@ -1671,7 +1670,7 @@ namespace gaia {
 							const auto* pChunk = chunks[i];
 							const auto entityCount = pChunk->header.items.count;
 							LOG_N(
-									"  Chunk #%04" PRIu64 ", entities:%u/%u, lifespan:%u", i, entityCount, archetype->info.capacity,
+									"  Chunk #%04u, entities:%u/%u, lifespan:%u", (uint32_t)i, entityCount, archetype->info.capacity,
 									pChunk->header.info.lifespan);
 						}
 					}
