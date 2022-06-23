@@ -385,33 +385,6 @@ namespace gaia {
 				return HasComponent_Internal<T>();
 			}
 
-			/*!
-			Checks if all provided components are present on the archetype.
-			\return True if components are present. False otherwise.
-			*/
-			template <typename... T>
-			[[nodiscard]] bool HasComponent() const {
-				return (HasComponent_Internal<T>() && ...);
-			}
-
-			/*!
-			Checks if any of the provided components is present on the archetype.
-			\return True if any of the components is present. False otherwise.
-			*/
-			template <typename... T>
-			[[nodiscard]] bool HasAnyComponent() const {
-				return (HasComponent_Internal<T>() || ...);
-			}
-
-			/*!
-			Checks if none of the provided components are present on the archetype.
-			\return True if none of the components are present. False otherwise.
-			*/
-			template <typename... T>
-			[[nodiscard]] bool HasNoneComponent() const {
-				return (!HasComponent_Internal<T>() && ...);
-			}
-
 		private:
 			template <typename T>
 			[[nodiscard]] bool HasComponent_Internal() const {
