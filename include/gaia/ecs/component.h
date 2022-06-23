@@ -67,7 +67,7 @@ namespace gaia {
 				IsGenericComponent<T>::value, typename detail::ExtractComponentType_Generic<T>,
 				typename detail::ExtractComponentType_NonGeneric<T>>;
 
-		template <class T>
+		template <typename T>
 		struct IsReadOnlyType:
 				std::bool_constant<
 						std::is_const<std::remove_reference_t<std::remove_pointer_t<T>>>::value ||

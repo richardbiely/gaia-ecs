@@ -15,36 +15,36 @@ void BM_CreateEntity(benchmark::State& state) {
 	}
 }
 
-template <size_t version, typename T, size_t ComponentItems>
+template <size_t Version, typename T, size_t TCount>
 struct Component {
-	T value[ComponentItems];
+	T value[TCount];
 };
 
-template <size_t version, typename T>
-struct Component<version, T, 0U> {}; // empty component
+template <size_t Version, typename T>
+struct Component<Version, T, 0U> {}; // empty component
 
 namespace detail {
-	template <typename T, size_t ComponentItems, size_t Components>
+	template <typename T, size_t TCount, size_t Iterations>
 	constexpr void AddComponents(ecs::World& w, ecs::Entity e) {
-		utils::for_each<Components>([&](auto i) {
-			w.AddComponent<Component<i, T, ComponentItems>>(e);
+		utils::for_each<Iterations>([&](auto i) {
+			w.AddComponent<Component<i, T, TCount>>(e);
 		});
 	}
 } // namespace detail
 
-template <typename T, size_t ComponentItems, size_t Components>
+template <typename T, size_t TCount, size_t Iterations>
 constexpr void AddComponents(ecs::World& w, uint32_t N) {
 	for (uint32_t i = 0U; i < N; ++i) {
 		[[maybe_unused]] auto e = w.CreateEntity();
-		detail::AddComponents<T, ComponentItems, Components>(w, e);
+		detail::AddComponents<T, TCount, Iterations>(w, e);
 	}
 }
 
-template <typename T, size_t ComponentItems, size_t Components>
+template <typename T, size_t TCount, size_t Iterations>
 void BM_CreateEntity_With_Component(benchmark::State& state) {
 	for ([[maybe_unused]] auto _: state) {
 		ecs::World w;
-		AddComponents<T, ComponentItems, Components>(w, NEntities);
+		AddComponents<T, TCount, Iterations>(w, NEntities);
 	}
 }
 

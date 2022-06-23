@@ -168,32 +168,32 @@ namespace TCB_SPAN_NAMESPACE_NAME {
 		using std::data;
 		using std::size;
 #else
-		template <class C>
+		template <typename C>
 		constexpr auto size(const C& c) -> decltype(c.size()) {
 			return c.size();
 		}
 
-		template <class T, std::size_t N>
+		template <typename T, std::size_t N>
 		constexpr std::size_t size(const T (&)[N]) noexcept {
 			return N;
 		}
 
-		template <class C>
+		template <typename C>
 		constexpr auto data(C& c) -> decltype(c.data()) {
 			return c.data();
 		}
 
-		template <class C>
+		template <typename C>
 		constexpr auto data(const C& c) -> decltype(c.data()) {
 			return c.data();
 		}
 
-		template <class T, std::size_t N>
+		template <typename T, std::size_t N>
 		constexpr T* data(T (&array)[N]) noexcept {
 			return array;
 		}
 
-		template <class E>
+		template <typename E>
 		constexpr const E* data(std::initializer_list<E> il) noexcept {
 			return il.begin();
 		}
@@ -446,19 +446,19 @@ namespace TCB_SPAN_NAMESPACE_NAME {
 #ifdef TCB_SPAN_HAVE_DEDUCTION_GUIDES
 
 	/* Deduction Guides */
-	template <class T, size_t N>
+	template <typename T, size_t N>
 	span(T (&)[N]) -> span<T, N>;
 
-	template <class T, size_t N>
+	template <typename T, size_t N>
 	span(gaia::containers::sarray<T, N>&) -> span<T, N>;
 
-	template <class T, size_t N>
+	template <typename T, size_t N>
 	span(const gaia::containers::sarray<T, N>&) -> span<const T, N>;
 
-	template <class Container>
+	template <typename Container>
 	span(Container&) -> span<typename Container::value_type>;
 
-	template <class Container>
+	template <typename Container>
 	span(const Container&) -> span<const typename Container::value_type>;
 
 #endif // TCB_HAVE_DEDUCTION_GUIDES

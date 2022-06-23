@@ -12,8 +12,8 @@
 namespace gaia {
 	namespace utils {
 
-		template <class InputIt, class TFunc>
-		constexpr TFunc for_each(InputIt first, InputIt last, TFunc func) {
+		template <typename InputIt, typename Func>
+		constexpr Func for_each(InputIt first, InputIt last, Func func) {
 #if GAIA_USE_STL_COMPATIBLE_CONTAINERS
 			return std::for_each(first, last, func);
 #else
@@ -35,7 +35,7 @@ namespace gaia {
 				std::bool_constant<(!std::is_same_v<T, Rest> && ...) && is_unique<Rest...>>{};
 
 		namespace detail {
-			template <class T>
+			template <typename T>
 			struct type_identity {
 				using type = T;
 			};
@@ -94,13 +94,13 @@ namespace gaia {
 		//----------------------------------------------------------------------
 
 		namespace detail {
-			template <class Func, auto... Is>
-			constexpr void for_each_impl(Func&& func, std::index_sequence<Is...>) {
+			template <typename Func, auto... Is>
+			constexpr void for_each_impl(Func func, std::index_sequence<Is...>) {
 				(func(std::integral_constant<decltype(Is), Is>{}), ...);
 			}
 
-			template <class Tuple, class Func, auto... Is>
-			void for_each_tuple_impl(Tuple&& tuple, Func&& func, std::index_sequence<Is...>) {
+			template <typename Tuple, typename Func, auto... Is>
+			void for_each_tuple_impl(Tuple&& tuple, Func func, std::index_sequence<Is...>) {
 				(func(std::get<Is>(tuple)), ...);
 			}
 		} // namespace detail
@@ -112,9 +112,9 @@ namespace gaia {
 		//! for_each<arr.size()>([&arr][auto i]) {
 		//!    std::cout << arr[i] << std::endl;
 		//! }
-		template <auto Iters, class Func>
-		constexpr void for_each(Func&& func) {
-			detail::for_each_impl(std::forward<Func>(func), std::make_index_sequence<Iters>());
+		template <auto Iters, typename Func>
+		constexpr void for_each(Func func) {
+			detail::for_each_impl(func, std::make_index_sequence<Iters>());
 		}
 
 		//! Compile-time for loop over containers.
@@ -128,7 +128,7 @@ namespace gaia {
 		//! }
 		//! print(69, "likes", 420.0f);
 		template <auto FirstIdx, auto LastIdx, auto Inc, typename Func>
-		constexpr void for_each_ext(Func&& func) {
+		constexpr void for_each_ext(Func func) {
 			if constexpr (FirstIdx < LastIdx) {
 				func(std::integral_constant<decltype(FirstIdx), FirstIdx>());
 				for_each_ext<FirstIdx + Inc, LastIdx, Inc>(func);
@@ -146,7 +146,7 @@ namespace gaia {
 		//! }
 		//! print(69, "likes", 420.0f);
 		template <typename Func, typename... Args>
-		constexpr void for_each_pack(Func&& func, Args&&... args) {
+		constexpr void for_each_pack(Func func, Args&&... args) {
 			(func(std::forward<Args>(args)), ...);
 		}
 
@@ -158,9 +158,9 @@ namespace gaia {
 		//!  std::cout << value << std::endl;
 		//!  }, std::make(69, "likes", 420.0f);
 		template <typename Tuple, typename Func>
-		constexpr void for_each_tuple(Tuple&& tuple, Func&& func) {
+		constexpr void for_each_tuple(Tuple&& tuple, Func func) {
 			detail::for_each_tuple_impl(
-					std::forward<Tuple>(tuple), std::forward<Func>(func),
+					std::forward<Tuple>(tuple), func,
 					std::make_index_sequence<std::tuple_size<std::remove_reference_t<Tuple>>::value>{});
 		}
 
@@ -168,7 +168,7 @@ namespace gaia {
 		// Lookups
 		//----------------------------------------------------------------------
 
-		template <class InputIt, class T>
+		template <typename InputIt, typename T>
 		constexpr InputIt find(InputIt first, InputIt last, const T& value) {
 #if GAIA_USE_STL_COMPATIBLE_CONTAINERS
 			return std::find(first, last, value);
@@ -182,8 +182,8 @@ namespace gaia {
 #endif
 		}
 
-		template <class InputIt, class TFunc>
-		constexpr InputIt find_if(InputIt first, InputIt last, TFunc func) {
+		template <typename InputIt, typename Func>
+		constexpr InputIt find_if(InputIt first, InputIt last, Func func) {
 #if GAIA_USE_STL_COMPATIBLE_CONTAINERS
 			return std::find_if(first, last, func);
 #else
@@ -196,8 +196,8 @@ namespace gaia {
 #endif
 		}
 
-		template <class InputIt, class TFunc>
-		constexpr InputIt find_if_not(InputIt first, InputIt last, TFunc func) {
+		template <typename InputIt, typename Func>
+		constexpr InputIt find_if_not(InputIt first, InputIt last, Func func) {
 #if GAIA_USE_STL_COMPATIBLE_CONTAINERS
 			return std::find_if_not(first, last, func);
 #else
@@ -228,8 +228,8 @@ namespace gaia {
 			}
 		};
 
-		template <typename T, typename TFunc>
-		constexpr void swap_if(T& lhs, T& rhs, TFunc func) noexcept {
+		template <typename T, typename Func>
+		constexpr void swap_if(T& lhs, T& rhs, Func func) noexcept {
 			T t = func(lhs, rhs) ? std::move(lhs) : std::move(rhs);
 			rhs = func(lhs, rhs) ? std::move(rhs) : std::move(lhs);
 			lhs = std::move(t);

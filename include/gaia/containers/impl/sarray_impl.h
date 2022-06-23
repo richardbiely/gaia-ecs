@@ -10,7 +10,7 @@ namespace gaia {
 		// Array with fixed size and capacity allocated on stack.
 		// Interface compatiblity with std::array where it matters.
 		// Can be used if STL containers are not an option for some reason.
-		template <class T, size_t N>
+		template <typename T, size_t N>
 		class sarr {
 		public:
 			using iterator_category = GAIA_UTIL(random_access_iterator_tag);
@@ -266,18 +266,18 @@ namespace gaia {
 		};
 
 		namespace detail {
-			template <class T, std::size_t N, std::size_t... I>
+			template <typename T, std::size_t N, std::size_t... I>
 			constexpr sarr<std::remove_cv_t<T>, N> to_array_impl(T (&a)[N], std::index_sequence<I...>) {
 				return {{a[I]...}};
 			}
 		} // namespace detail
 
-		template <class T, std::size_t N>
+		template <typename T, std::size_t N>
 		constexpr sarr<std::remove_cv_t<T>, N> to_array(T (&a)[N]) {
 			return detail::to_array_impl(a, std::make_index_sequence<N>{});
 		}
 
-		template <class T, class... U>
+		template <typename T, typename... U>
 		sarr(T, U...) -> sarr<T, 1 + sizeof...(U)>;
 
 	} // namespace containers
@@ -285,10 +285,10 @@ namespace gaia {
 } // namespace gaia
 
 namespace std {
-	template <class T, size_t N>
+	template <typename T, size_t N>
 	struct tuple_size<gaia::containers::sarr<T, N>>: std::integral_constant<std::size_t, N> {};
 
-	template <size_t I, class T, size_t N>
+	template <size_t I, typename T, size_t N>
 	struct tuple_element<I, gaia::containers::sarr<T, N>> {
 		using type = T;
 	};
