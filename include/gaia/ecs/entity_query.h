@@ -56,7 +56,7 @@ namespace gaia {
 			//! If true, sorting infos is necessary
 			bool m_sort = true;
 
-			template <class T>
+			template <typename T>
 			bool HasComponent_Internal([[maybe_unused]] ComponentIndexArray& arr) const {
 				if constexpr (std::is_same<T, Entity>::value) {
 					// Skip Entity input args
@@ -67,7 +67,7 @@ namespace gaia {
 				}
 			}
 
-			template <class T>
+			template <typename T>
 			void AddComponent_Internal([[maybe_unused]] ComponentIndexArray& arr) {
 				if constexpr (std::is_same<T, Entity>::value) {
 					// Skip Entity input args

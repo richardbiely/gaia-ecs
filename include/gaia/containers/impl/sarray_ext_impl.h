@@ -10,7 +10,7 @@ namespace gaia {
 		// SArray with fixed capacity and variable size allocated on stack.
 		// Interface compatiblity with std::array where it matters.
 		// Can be used if STL containers are not an option for some reason.
-		template <class T, auto N>
+		template <typename T, auto N>
 		class sarr_ext {
 		public:
 			using iterator_category = GAIA_UTIL(random_access_iterator_tag);
@@ -311,13 +311,13 @@ namespace gaia {
 		};
 
 		namespace detail {
-			template <class T, std::size_t N, std::size_t... I>
+			template <typename T, std::size_t N, std::size_t... I>
 			constexpr sarr_ext<std::remove_cv_t<T>, N> to_sarray_impl(T (&a)[N], std::index_sequence<I...>) {
 				return {{a[I]...}};
 			}
 		} // namespace detail
 
-		template <class T, std::size_t N>
+		template <typename T, std::size_t N>
 		constexpr sarr_ext<std::remove_cv_t<T>, N> to_sarray(T (&a)[N]) {
 			return detail::to_sarray_impl(a, std::make_index_sequence<N>{});
 		}
@@ -327,10 +327,10 @@ namespace gaia {
 } // namespace gaia
 
 namespace std {
-	template <class T, size_t N>
+	template <typename T, size_t N>
 	struct tuple_size<gaia::containers::sarr_ext<T, N>>: std::integral_constant<std::size_t, N> {};
 
-	template <size_t I, class T, size_t N>
+	template <size_t I, typename T, size_t N>
 	struct tuple_element<I, gaia::containers::sarr_ext<T, N>> {
 		using type = T;
 	};

@@ -1253,7 +1253,7 @@ namespace gaia {
 			//----------------------------------------------------------------------
 
 		private:
-			template <class T>
+			template <typename T>
 			constexpr GAIA_FORCEINLINE auto ExpandTuple(Chunk& chunk) const {
 				using U = typename DeduceComponent<T>::Type;
 				using UOriginal = typename DeduceComponent<T>::TypeOriginal;
@@ -1265,22 +1265,22 @@ namespace gaia {
 
 			//--------------------------------------------------------------------------------
 
-			template <typename... TFuncArgs, typename TFunc>
-			GAIA_FORCEINLINE void ForEachEntityInChunk(Chunk& chunk, TFunc func) {
-				auto tup = std::make_tuple(ExpandTuple<TFuncArgs>(chunk)...);
+			template <typename... FuncArgs, typename Func>
+			GAIA_FORCEINLINE void ForEachEntityInChunk(Chunk& chunk, Func func) {
+				auto tup = std::make_tuple(ExpandTuple<FuncArgs>(chunk)...);
 				const uint32_t size = chunk.GetItemCount();
 				for (uint32_t i = 0U; i < size; i++)
-					func(std::get<decltype(ExpandTuple<TFuncArgs>(chunk))>(tup)[i]...);
+					func(std::get<decltype(ExpandTuple<FuncArgs>(chunk))>(tup)[i]...);
 			}
 
-			template <typename... TComponents, typename TFunc>
-			GAIA_FORCEINLINE void UnpackForEachEntityInChunk(
-					[[maybe_unused]] utils::func_type_list<TComponents...> types, Chunk& chunk, TFunc func) {
-				ForEachEntityInChunk<TComponents...>(chunk, func);
+			template <typename... T, typename Func>
+			GAIA_FORCEINLINE void
+			UnpackForEachEntityInChunk([[maybe_unused]] utils::func_type_list<T...> types, Chunk& chunk, Func func) {
+				ForEachEntityInChunk<T...>(chunk, func);
 			}
 
-			template <typename TFunc>
-			GAIA_FORCEINLINE void ForEachArchetype(EntityQuery& query, TFunc func) {
+			template <typename Func>
+			GAIA_FORCEINLINE void ForEachArchetype(EntityQuery& query, Func func) {
 				query.Match(m_archetypes);
 				for (auto* pArchetype: query)
 					func(*pArchetype);
@@ -1288,18 +1288,28 @@ namespace gaia {
 
 			//--------------------------------------------------------------------------------
 
-			template <typename... TComponents>
-			GAIA_FORCEINLINE void
-			UnpackArgsIntoQuery([[maybe_unused]] utils::func_type_list<TComponents...> types, EntityQuery& query) {
-				if constexpr (sizeof...(TComponents) > 0)
-					query.All<TComponents...>();
+			template <typename... T>
+			void UnpackArgsIntoQuery([[maybe_unused]] utils::func_type_list<T...> types, EntityQuery& query) {
+				if constexpr (sizeof...(T) > 0)
+					query.All<T...>();
 			}
 
-			template <typename... TComponents>
-			GAIA_FORCEINLINE bool
-			UnpackArgsIntoQuery_Check([[maybe_unused]] utils::func_type_list<TComponents...> types, EntityQuery& query) {
-				if constexpr (sizeof...(TComponents) > 0)
-					return query.HasAll<TComponents...>();
+			template <typename... T>
+			bool UnpackArgsIntoQuery_Check([[maybe_unused]] utils::func_type_list<T...> types, EntityQuery& query) {
+				if constexpr (sizeof...(T) > 0)
+					return query.HasAll<T...>();
+			}
+
+			template <typename Func>
+			static void ResolveQuery(World& world, EntityQuery& query) {
+				using InputArgs = decltype(utils::func_args(&Func::operator()));
+				world.UnpackArgsIntoQuery(InputArgs{}, query);
+			}
+
+			template <typename Func>
+			static bool CheckQuery(World& world, EntityQuery& query) {
+				using InputArgs = decltype(utils::func_args(&Func::operator()));
+				return world.UnpackArgsIntoQuery_Check(InputArgs{}, query);
 			}
 
 			//--------------------------------------------------------------------------------
@@ -1335,8 +1345,8 @@ namespace gaia {
 
 			//--------------------------------------------------------------------------------
 
-			template <typename TFunc>
-			static void RunQueryOnChunks_Direct(World& world, EntityQuery& query, TFunc func) {
+			template <typename Func>
+			static void RunQueryOnChunks_Direct(World& world, EntityQuery& query, Func func) {
 				const uint32_t BatchSize = 256U;
 				containers::sarray<Chunk*, BatchSize> tmp;
 
@@ -1388,9 +1398,9 @@ namespace gaia {
 				query.SetWorldVersion(world.GetWorldVersion());
 			}
 
-			template <typename TFunc>
-			static void RunQueryOnChunks_Indirect_NoResolve(World& world, EntityQuery& query, TFunc func) {
-				using InputArgs = decltype(utils::func_args(&TFunc::operator()));
+			template <typename Func>
+			static void RunQueryOnChunks_Indirect_NoResolve(World& world, EntityQuery& query, Func func) {
+				using InputArgs = decltype(utils::func_args(&Func::operator()));
 
 				const uint32_t BatchSize = 256U;
 				containers::sarray<Chunk*, BatchSize> tmp;
@@ -1444,24 +1454,11 @@ namespace gaia {
 				query.SetWorldVersion(world.GetWorldVersion());
 			}
 
-			template <typename TFunc>
-			static void ResolveQuery(World& world, EntityQuery& query) {
-				using InputArgs = decltype(utils::func_args(&TFunc::operator()));
-				// Add an All filter for components listed as input arguments of func
-				world.UnpackArgsIntoQuery(InputArgs{}, query);
-			}
-
-			template <typename TFunc>
-			static bool CheckQuery(World& world, EntityQuery& query) {
-				using InputArgs = decltype(utils::func_args(&TFunc::operator()));
-				return world.UnpackArgsIntoQuery_Check(InputArgs{}, query);
-			}
-
-			template <typename TFunc>
-			static void RunQueryOnChunks_Indirect(World& world, EntityQuery& query, TFunc& func) {
+			template <typename Func>
+			static void RunQueryOnChunks_Indirect(World& world, EntityQuery& query, Func& func) {
 #if GAIA_DEBUG
 				// Make sure we only use components specificed in the query
-				GAIA_ASSERT(CheckQuery<TFunc>(world, query));
+				GAIA_ASSERT(CheckQuery<Func>(world, query));
 #endif
 				RunQueryOnChunks_Indirect_NoResolve(world, query, func);
 			}
@@ -1476,9 +1473,9 @@ namespace gaia {
 				((void)cc.GetOrCreateComponentInfo<TComponent>(), ...);
 			}
 
-			template <typename TFunc>
+			template <typename Func>
 			static void RegisterComponents(World& world) {
-				using InputArgs = decltype(utils::func_args(&TFunc::operator()));
+				using InputArgs = decltype(utils::func_args(&Func::operator()));
 				RegisterComponents_Internal(InputArgs{}, world);
 			}
 
@@ -1513,28 +1510,28 @@ namespace gaia {
 
 			//--------------------------------------------------------------------------------
 
-			template <typename TFunc>
-			void ForEachChunkExecutionContext_External(World& world, EntityQuery& query, TFunc func) {
+			template <typename Func>
+			void ForEachChunkExecutionContext_External(World& world, EntityQuery& query, Func func) {
 				RunQueryOnChunks_Direct(world, query, func);
 			}
 
-			template <typename TFunc>
-			void ForEachChunkExecutionContext_Internal(World& world, EntityQuery&& queryTmp, TFunc func) {
-				RegisterComponents<TFunc>(world);
+			template <typename Func>
+			void ForEachChunkExecutionContext_Internal(World& world, EntityQuery&& queryTmp, Func func) {
+				RegisterComponents<Func>(world);
 				queryTmp.CalculateLookupHash(world);
 				RunQueryOnChunks_Direct(world, AddOrFindEntityQueryInCache(world, queryTmp), func);
 			}
 
 			//--------------------------------------------------------------------------------
 
-			template <typename TFunc>
-			void ForEachExecutionContext_External(World& world, EntityQuery& query, TFunc func) {
+			template <typename Func>
+			void ForEachExecutionContext_External(World& world, EntityQuery& query, Func func) {
 				RunQueryOnChunks_Indirect(world, query, func);
 			}
 
-			template <typename TFunc>
-			void ForEachExecutionContext_Internal(World& world, EntityQuery&& queryTmp, TFunc func) {
-				RegisterComponents<TFunc>(world);
+			template <typename Func>
+			void ForEachExecutionContext_Internal(World& world, EntityQuery&& queryTmp, Func func) {
+				RegisterComponents<Func>(world);
 				queryTmp.CalculateLookupHash(world);
 				RunQueryOnChunks_Indirect_NoResolve(world, AddOrFindEntityQueryInCache(world, queryTmp), func);
 			}
@@ -1548,9 +1545,9 @@ namespace gaia {
 							other methods of iteration as it exposes the chunk itself. On the other hand, it is more verbose
 							and takes more lines of code when used.
 			*/
-			template <typename TFunc>
-			void ForEach(EntityQuery& query, TFunc func) {
-				if constexpr (std::is_invocable<TFunc, Chunk&>::value)
+			template <typename Func>
+			void ForEach(EntityQuery& query, Func func) {
+				if constexpr (std::is_invocable<Func, Chunk&>::value)
 					ForEachChunkExecutionContext_External((World&)*this, query, func);
 				else
 					ForEachExecutionContext_External((World&)*this, query, func);
@@ -1562,9 +1559,9 @@ namespace gaia {
 							other methods of iteration as it exposes the chunk itself. On the other hand, it is more verbose
 							and takes more lines of code when used.
 			*/
-			template <typename TFunc>
-			void ForEach(EntityQuery&& query, TFunc func) {
-				if constexpr (std::is_invocable<TFunc, Chunk&>::value)
+			template <typename Func>
+			void ForEach(EntityQuery&& query, Func func) {
+				if constexpr (std::is_invocable<Func, Chunk&>::value)
 					ForEachChunkExecutionContext_Internal((World&)*this, std::forward<EntityQuery>(query), func);
 				else
 					ForEachExecutionContext_Internal((World&)*this, std::forward<EntityQuery>(query), func);
@@ -1577,15 +1574,14 @@ namespace gaia {
 							in a query because it needs to do cached query lookups on each invocation. However, it is easier to use
 							and for non-critical code paths it is the most elegant way of iterating your data.
 			*/
-			template <typename TFunc>
-			void ForEach(TFunc func) {
+			template <typename Func>
+			void ForEach(Func func) {
 				static_assert(
-						!std::is_invocable<TFunc, Chunk&>::value,
-						"Calling query-less ForEach is not supported for chunk iteration");
+						!std::is_invocable<Func, Chunk&>::value, "Calling query-less ForEach is not supported for chunk iteration");
 
 				EntityQuery query;
-				ResolveQuery<TFunc>((World&)*this, query);
-				ForEachExecutionContext_Internal<TFunc>((World&)*this, std::move(query), func);
+				ResolveQuery<Func>((World&)*this, query);
+				ForEachExecutionContext_Internal<Func>((World&)*this, std::move(query), func);
 			}
 
 			/*!
@@ -1613,9 +1609,8 @@ namespace gaia {
 				}
 
 				// Remove all dead chunks
-				for (auto* pChunk: m_chunksToRemove) {
+				for (auto* pChunk: m_chunksToRemove)
 					const_cast<Archetype&>(pChunk->header.owner).RemoveChunk(pChunk);
-				}
 				m_chunksToRemove.clear();
 			}
 

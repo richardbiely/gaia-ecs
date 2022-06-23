@@ -236,10 +236,10 @@ namespace robin_hood {
 
 	// c++11 compatibility layer
 	namespace ROBIN_HOOD_STD {
-		template <class T>
+		template <typename T>
 		struct alignment_of: std::integral_constant<std::size_t, alignof(typename std::remove_all_extents<T>::type)> {};
 
-		template <class T, T... Ints>
+		template <typename T, T... Ints>
 		class integer_sequence {
 		public:
 			using value_type = T;
@@ -252,13 +252,13 @@ namespace robin_hood {
 		using index_sequence = integer_sequence<std::size_t, Inds...>;
 
 		namespace detail_ {
-			template <class T, T Begin, T End, bool>
+			template <typename T, T Begin, T End, bool>
 			struct IntSeqImpl {
 				using TValue = T;
 				static_assert(std::is_integral<TValue>::value, "not integral type");
 				static_assert(Begin >= 0 && Begin < End, "unexpected argument (Begin<0 || Begin<=End)");
 
-				template <class, class>
+				template <typename, typename>
 				struct IntSeqCombiner;
 
 				template <TValue... Inds0, TValue... Inds1>
@@ -271,7 +271,7 @@ namespace robin_hood {
 						typename IntSeqImpl<TValue, Begin + (End - Begin) / 2, End, (End - Begin + 1) / 2 == 1>::TResult>::TResult;
 			};
 
-			template <class T, T Begin>
+			template <typename T, T Begin>
 			struct IntSeqImpl<T, Begin, Begin, false> {
 				using TValue = T;
 				static_assert(std::is_integral<TValue>::value, "not integral type");
@@ -279,7 +279,7 @@ namespace robin_hood {
 				using TResult = integer_sequence<TValue>;
 			};
 
-			template <class T, T Begin, T End>
+			template <typename T, T Begin, T End>
 			struct IntSeqImpl<T, Begin, End, true> {
 				using TValue = T;
 				static_assert(std::is_integral<TValue>::value, "not integral type");
@@ -288,13 +288,13 @@ namespace robin_hood {
 			};
 		} // namespace detail_
 
-		template <class T, T N>
+		template <typename T, T N>
 		using make_integer_sequence = typename detail_::IntSeqImpl<T, 0, N, (N - 0) == 1>::TResult;
 
 		template <std::size_t N>
 		using make_index_sequence = make_integer_sequence<std::size_t, N>;
 
-		template <class... T>
+		template <typename... T>
 		using index_sequence_for = make_index_sequence<sizeof...(T)>;
 
 	} // namespace ROBIN_HOOD_STD
@@ -779,7 +779,7 @@ namespace robin_hood {
 	};
 #endif
 
-	template <class T>
+	template <typename T>
 	struct hash<T*> {
 		size_t operator()(T* ptr) const noexcept {
 			return hash_int(reinterpret_cast<detail::SizeT>(ptr));
@@ -787,14 +787,14 @@ namespace robin_hood {
 	};
 
 #ifdef ROBIN_HOOD_STD_SMARTPOINTERS
-	template <class T>
+	template <typename T>
 	struct hash<std::unique_ptr<T>> {
 		size_t operator()(std::unique_ptr<T> const& ptr) const noexcept {
 			return hash_int(reinterpret_cast<detail::SizeT>(ptr.get()));
 		}
 	};
 
-	template <class T>
+	template <typename T>
 	struct hash<std::shared_ptr<T>> {
 		size_t operator()(std::shared_ptr<T> const& ptr) const noexcept {
 			return hash_int(reinterpret_cast<detail::SizeT>(ptr.get()));

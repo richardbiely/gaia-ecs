@@ -10,7 +10,7 @@ namespace gaia {
 		// Array with variable size allocated on heap.
 		// Interface compatiblity with std::vector where it matters.
 		// Can be used if STL containers are not an option for some reason.
-		template <class T>
+		template <typename T>
 		class darr {
 		public:
 			using iterator_category = GAIA_UTIL(random_access_iterator_tag);
@@ -222,7 +222,7 @@ namespace gaia {
 				resize(count);
 			}
 
-			template <class InputIt>
+			template <typename InputIt>
 			darr(InputIt first, InputIt last) noexcept {
 				const auto count = (size_type)GAIA_UTIL(distance)(first, last);
 				resize(count);

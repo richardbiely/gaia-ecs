@@ -9,22 +9,22 @@ namespace gaia {
 	namespace utils {
 		constexpr uint32_t BadIndex = uint32_t(-1);
 
-		template <class C, class Func>
+		template <typename C, typename Func>
 		constexpr auto for_each(const C& arr, Func func) {
 			return utils::for_each(arr.begin(), arr.end(), func);
 		}
 
-		template <class C>
+		template <typename C>
 		constexpr auto find(const C& arr, typename C::const_reference item) {
 			return utils::find(arr.begin(), arr.end(), item);
 		}
 
-		template <class UnaryPredicate, class C>
+		template <typename UnaryPredicate, typename C>
 		constexpr auto find_if(const C& arr, UnaryPredicate predicate) {
 			return utils::find_if(arr.begin(), arr.end(), predicate);
 		}
 
-		template <class C>
+		template <typename C>
 		constexpr uint32_t get_index(const C& arr, typename C::const_reference item) {
 			const auto it = find(arr, item);
 			if (it == arr.end())
@@ -33,12 +33,12 @@ namespace gaia {
 			return (uint32_t)GAIA_UTIL(distance(arr.begin(), it));
 		}
 
-		template <class C>
+		template <typename C>
 		constexpr uint32_t get_index_unsafe(const C& arr, typename C::const_reference item) {
 			return (uint32_t)GAIA_UTIL(distance(arr.begin(), find(arr, item)));
 		}
 
-		template <class UnaryPredicate, class C>
+		template <typename UnaryPredicate, typename C>
 		constexpr uint32_t get_index_if(const C& arr, UnaryPredicate predicate) {
 			const auto it = find_if(arr, predicate);
 			if (it == arr.end())
@@ -47,24 +47,24 @@ namespace gaia {
 			return (uint32_t)GAIA_UTIL(distance(arr.begin(), it));
 		}
 
-		template <class UnaryPredicate, class C>
+		template <typename UnaryPredicate, typename C>
 		constexpr uint32_t get_index_if_unsafe(const C& arr, UnaryPredicate predicate) {
 			return (uint32_t)GAIA_UTIL(distance(arr.begin(), find_if(arr, predicate)));
 		}
 
-		template <class C>
+		template <typename C>
 		constexpr bool has(const C& arr, typename C::const_reference item) {
 			const auto it = find(arr, item);
 			return it != arr.end();
 		}
 
-		template <class UnaryPredicate, class C>
+		template <typename UnaryPredicate, typename C>
 		constexpr bool has_if(const C& arr, UnaryPredicate predicate) {
 			const auto it = find_if(arr, predicate);
 			return it != arr.end();
 		}
 
-		template <class C>
+		template <typename C>
 		void erase_fast(C& arr, uint32_t idx) {
 			if (idx >= arr.size())
 				return;
