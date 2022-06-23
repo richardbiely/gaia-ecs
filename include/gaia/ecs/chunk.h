@@ -25,11 +25,11 @@ namespace gaia {
 		public:
 			//! Size of data at the end of the chunk reserved for special purposes
 			//! (alignment, allocation overhead etc.)
-			static constexpr uint32_t DATA_SIZE_RESERVED = 128;
+			static constexpr size_t DATA_SIZE_RESERVED = 128;
 			//! Size of one chunk's data part with components
-			static constexpr uint32_t DATA_SIZE = ChunkMemorySize - sizeof(ChunkHeader) - DATA_SIZE_RESERVED;
+			static constexpr size_t DATA_SIZE = ChunkMemorySize - sizeof(ChunkHeader) - DATA_SIZE_RESERVED;
 			//! Size of one chunk's data part with components without the serve part
-			static constexpr uint32_t DATA_SIZE_NORESERVE = ChunkMemorySize - sizeof(ChunkHeader);
+			static constexpr size_t DATA_SIZE_NORESERVE = ChunkMemorySize - sizeof(ChunkHeader);
 
 		private:
 			friend class World;
@@ -104,8 +104,8 @@ namespace gaia {
 						if (!info.info->properties.size)
 							continue;
 
-						const uint32_t idxFrom = look.offset + (uint32_t)index * info.info->properties.size;
-						const uint32_t idxTo = look.offset + (uint32_t)(header.items.count - 1) * info.info->properties.size;
+						const size_t idxFrom = look.offset + index * info.info->properties.size;
+						const size_t idxTo = look.offset + (header.items.count - 1) * info.info->properties.size;
 
 						GAIA_ASSERT(idxFrom < Chunk::DATA_SIZE_NORESERVE);
 						GAIA_ASSERT(idxTo < Chunk::DATA_SIZE_NORESERVE);
@@ -209,7 +209,7 @@ namespace gaia {
 				GAIA_ASSERT(HasComponent_Internal(type, infoIndex));
 
 				const auto& infos = GetArchetypeComponentLookupList(header.owner, type);
-				const auto componentIdx = utils::get_index_if_unsafe(infos, [&](const auto& info) {
+				const auto componentIdx = (uint32_t)utils::get_index_if_unsafe(infos, [&](const auto& info) {
 					return info.infoIndex == infoIndex;
 				});
 
@@ -260,9 +260,11 @@ namespace gaia {
 			*/
 			[[nodiscard]] uint32_t GetComponentIdx(ComponentType type, uint32_t infoIndex) const {
 				const auto& list = GetArchetypeComponentLookupList(header.owner, type);
-				return utils::get_index_if_unsafe(list, [&](const auto& info) {
+				const auto idx = (uint32_t)utils::get_index_if_unsafe(list, [&](const auto& info) {
 					return info.infoIndex == infoIndex;
 				});
+				GAIA_ASSERT(idx != BadIndex);
+				return (uint32_t)idx;
 			}
 
 			/*!

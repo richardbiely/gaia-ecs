@@ -20,13 +20,13 @@ void MoveSystem(ecs::World& w, float dt) {
 int main() {
 	ecs::World w;
 
-	constexpr uint32_t N = 10'000;
+	constexpr size_t N = 10'000;
 
 	// Create entities with position and acceleration
 	auto e = w.CreateEntity();
 	w.AddComponent<Position>(e, {});
 	w.AddComponent<Acceleration>(e, {0, 0, 1});
-	for (uint32_t i = 1U; i < N; i++) {
+	for (size_t i = 1; i < N; i++) {
 		[[maybe_unused]] auto newentity = w.CreateEntity(e);
 	}
 
@@ -34,8 +34,8 @@ int main() {
 	auto p0 = w.GetComponent<Position>(e);
 
 	// Move until a key is hit
-	constexpr uint32_t GameLoops = 10'000;
-	for (uint32_t i = 1U; i < GameLoops; i++) {
+	constexpr size_t GameLoops = 10'000;
+	for (size_t i = 1U; i < GameLoops; i++) {
 		float dt = 0.01f; // simulate 100 FPS
 		MoveSystem(w, dt);
 	}

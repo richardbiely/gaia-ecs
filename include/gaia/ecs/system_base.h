@@ -201,7 +201,7 @@ namespace gaia {
 				BaseSystem* pSystem = new T();
 				pSystem->m_world = &m_world;
 
-#if GAIA_COMPILER_MSVC
+#if GAIA_COMPILER_MSVC || defined(_WIN32)
 				strncpy_s(pSystem->m_name, name, (size_t)-1);
 #else
 				strncpy(pSystem->m_name, name, MaxSystemNameLength - 1);
@@ -247,7 +247,7 @@ namespace gaia {
 
 		private:
 			void SortSystems() {
-				for (auto l = 0U; l < m_systems.size() - 1; l++) {
+				for (auto l = 0; l < m_systems.size() - 1; l++) {
 					auto min = l;
 					for (auto p = l + 1; p < m_systems.size(); p++) {
 						const auto* sl = m_systems[l];

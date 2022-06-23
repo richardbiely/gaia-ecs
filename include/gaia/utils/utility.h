@@ -499,8 +499,8 @@ namespace gaia {
 
 				swap_if(arr[3], arr[4], func);
 			} else if (arr.size() <= 32) {
-				uint32_t i, j;
-				uint32_t n = (uint32_t)arr.size();
+				size_t i, j;
+				size_t n = arr.size();
 				for (i = 0; i < n - 1; i++) {
 					for (j = 0; j < n - i - 1; j++) {
 						if (arr[j] > arr[j + 1])
@@ -514,7 +514,7 @@ namespace gaia {
 				std::sort(arr.begin(), arr.end(), func);
 				GAIA_MSVC_WARNING_POP()
 #else
-				uint32_t n = (uint32_t)arr.size();
+				const int n = (int)arr.size();
 				detail::quick_sort(arr, 0, n - 1);
 
 #endif

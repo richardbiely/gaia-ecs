@@ -200,10 +200,10 @@ namespace gaia {
 				{
 					uint64_t hash = 0;
 					const auto& l = m_list[ComponentType::CT_Generic];
-					for (uint32_t i = 0; i < ListType::LT_Count; ++i) {
+					for (size_t i = 0; i < ListType::LT_Count; ++i) {
 						const auto& arr = l.list[i];
 						hash = utils::hash_combine(hash, (uint64_t)i);
-						for (uint32_t j = 0; j < arr.size(); ++j) {
+						for (size_t j = 0; j < arr.size(); ++j) {
 							const auto* info = cc.GetComponentInfoFromIdx(arr[j]);
 							GAIA_ASSERT(info != nullptr);
 							hash = utils::hash_combine(hash, info->lookupHash);
@@ -216,10 +216,10 @@ namespace gaia {
 				{
 					uint64_t hash = 0;
 					const auto& l = m_list[ComponentType::CT_Chunk];
-					for (uint32_t i = 0; i < ListType::LT_Count; ++i) {
+					for (size_t i = 0; i < ListType::LT_Count; ++i) {
 						const auto& arr = l.list[i];
 						hash = utils::hash_combine(hash, (uint64_t)i);
-						for (uint32_t j = 0; j < arr.size(); ++j) {
+						for (size_t j = 0; j < arr.size(); ++j) {
 							const auto* info = cc.GetComponentInfoFromIdx(arr[j]);
 							GAIA_ASSERT(info != nullptr);
 							hash = utils::hash_combine(hash, info->lookupHash);
@@ -245,7 +245,7 @@ namespace gaia {
 					const auto& cc = GetComponentCache(world);
 
 					for (auto& l: m_list) {
-						for (uint32_t i = 0; i < ListType::LT_Count; ++i) {
+						for (size_t i = 0; i < ListType::LT_Count; ++i) {
 							auto& arr = l.list[i];
 
 							if (!arr.empty()) {
@@ -253,7 +253,7 @@ namespace gaia {
 								GAIA_ASSERT(info != nullptr);
 								l.hash[i] = info->matcherHash;
 							}
-							for (uint32_t j = 1; j < arr.size(); ++j) {
+							for (size_t j = 1; j < arr.size(); ++j) {
 								const auto* info = cc.GetComponentInfoFromIdx(arr[j]);
 								GAIA_ASSERT(info != nullptr);
 								l.hash[i] = utils::combine_or(l.hash[i], info->matcherHash);
@@ -347,18 +347,18 @@ namespace gaia {
 				if (m_constraints != other.m_constraints)
 					return false;
 
-				for (uint32_t j = 0; j < ComponentType::CT_Count; ++j) {
+				for (size_t j = 0; j < ComponentType::CT_Count; ++j) {
 					const auto& queryList = m_list[j];
 					const auto& otherList = other.m_list[j];
 
 					// Component count needes to be the same
-					for (uint32_t i = 0; i < ListType::LT_Count; ++i) {
+					for (size_t i = 0; i < ListType::LT_Count; ++i) {
 						if (queryList.list[i].size() != otherList.list[i].size())
 							return false;
 					}
 
 					// Matches hashes need to be the same
-					for (uint32_t i = 0; i < ListType::LT_Count; ++i) {
+					for (size_t i = 0; i < ListType::LT_Count; ++i) {
 						if (queryList.hash[i] != otherList.hash[i])
 							return false;
 					}
@@ -368,7 +368,7 @@ namespace gaia {
 						return false;
 
 					// Components need to be the same
-					for (uint32_t i = 0; i < ListType::LT_Count; ++i) {
+					for (size_t i = 0; i < ListType::LT_Count; ++i) {
 						const auto ret = std::memcmp(
 								(const void*)&queryList.list[i], (const void*)&otherList.list[i],
 								queryList.list[i].size() * sizeof(queryList.list[0]));
@@ -403,7 +403,7 @@ namespace gaia {
 					CalculateMatcherHashes(world);
 				}
 
-				for (uint32_t i = m_lastArchetypeId; i < archetypes.size(); i++) {
+				for (size_t i = m_lastArchetypeId; i < archetypes.size(); i++) {
 					auto* pArchetype = archetypes[i];
 #if GAIA_DEBUG
 					auto& archetype = *pArchetype;

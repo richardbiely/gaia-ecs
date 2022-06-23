@@ -368,7 +368,7 @@ namespace gaia {
 				uint32_t entities = 0;
 
 				// Extract data from the buffer
-				for (auto i = 0U; i < m_data.size();) {
+				for (size_t i = 0; i < m_data.size();) {
 					const auto cmd = m_data[i++];
 					switch (cmd) {
 						case CREATE_ENTITY: {

@@ -41,7 +41,7 @@ struct IsEnemy {
 	bool value;
 };
 
-constexpr uint32_t N = 32'000; // kept a multiple of 32 to keep it simple even for SIMD code
+constexpr size_t N = 32'000; // kept a multiple of 32 to keep it simple even for SIMD code
 constexpr float MinDelta = 0.01f;
 constexpr float MaxDelta = 0.033f;
 
@@ -63,7 +63,7 @@ void CreateECSEntities_Static(ecs::World& w) {
 			w.AddComponent<Position>(e, {0, 100, 0});
 		w.AddComponent<Rotation>(e, {1, 2, 3, 4});
 		w.AddComponent<Scale>(e, {1, 1, 1});
-		for (uint32_t i = 0; i < N; i++) {
+		for (size_t i = 0; i < N; i++) {
 			[[maybe_unused]] auto newentity = w.CreateEntity(e);
 		}
 	}
@@ -83,7 +83,7 @@ void CreateECSEntities_Dynamic(ecs::World& w) {
 			w.AddComponent<VelocitySoA>(e, {0, 0, 1});
 		else
 			w.AddComponent<Velocity>(e, {0, 0, 1});
-		for (uint32_t i = 0; i < N / 4; i++) {
+		for (size_t i = 0; i < N / 4; i++) {
 			[[maybe_unused]] auto newentity = w.CreateEntity(e);
 		}
 	}
@@ -100,7 +100,7 @@ void CreateECSEntities_Dynamic(ecs::World& w) {
 		else
 			w.AddComponent<Velocity>(e, {0, 0, 1});
 		w.AddComponent<Direction>(e, {0, 0, 1});
-		for (uint32_t i = 0; i < N / 4; i++) {
+		for (size_t i = 0; i < N / 4; i++) {
 			[[maybe_unused]] auto newentity = w.CreateEntity(e);
 		}
 	}
@@ -118,7 +118,7 @@ void CreateECSEntities_Dynamic(ecs::World& w) {
 			w.AddComponent<Velocity>(e, {0, 0, 1});
 		w.AddComponent<Direction>(e, {0, 0, 1});
 		w.AddComponent<Health>(e, {100});
-		for (uint32_t i = 0; i < N / 4; i++) {
+		for (size_t i = 0; i < N / 4; i++) {
 			[[maybe_unused]] auto newentity = w.CreateEntity(e);
 		}
 	}
@@ -137,7 +137,7 @@ void CreateECSEntities_Dynamic(ecs::World& w) {
 		w.AddComponent<Direction>(e, {0, 0, 1});
 		w.AddComponent<Health>(e, {100});
 		w.AddComponent<IsEnemy>(e, {false});
-		for (uint32_t i = 0; i < N / 4; i++) {
+		for (size_t i = 0; i < N / 4; i++) {
 			[[maybe_unused]] auto newentity = w.CreateEntity(e);
 		}
 	}
@@ -256,7 +256,7 @@ void BM_Game_ECS_WithSystems_ForEachChunk(benchmark::State& state) {
 				auto v = ch.View<Velocity>();
 
 				[&](Position* GAIA_RESTRICT p, const Velocity* GAIA_RESTRICT v, const uint32_t size) {
-					for (auto i = 0U; i < size; ++i) {
+					for (auto i = 0; i < size; ++i) {
 						p[i].x += v[i].x * dt;
 						p[i].y += v[i].y * dt;
 						p[i].z += v[i].z * dt;
@@ -279,7 +279,7 @@ void BM_Game_ECS_WithSystems_ForEachChunk(benchmark::State& state) {
 				auto v = ch.ViewRW<Velocity>();
 
 				[&](Position* GAIA_RESTRICT p, Velocity* GAIA_RESTRICT v, const uint32_t size) {
-					for (auto i = 0U; i < size; ++i) {
+					for (auto i = 0; i < size; ++i) {
 						if (p[i].y < 0.0f) {
 							p[i].y = 0.0f;
 							v[i].y = 0.0f;
@@ -302,7 +302,7 @@ void BM_Game_ECS_WithSystems_ForEachChunk(benchmark::State& state) {
 				auto v = ch.ViewRW<Velocity>();
 
 				[&](Velocity* GAIA_RESTRICT v, const uint32_t size) {
-					for (auto i = 0U; i < size; ++i)
+					for (auto i = 0; i < size; ++i)
 						v[i].y += 9.81f * dt;
 				}(v.data(), ch.GetItemCount());
 			});
@@ -352,16 +352,16 @@ void BM_Game_ECS_WithSystems_ForEachChunk_SoA(benchmark::State& state) {
 				// as smart as Clang so they wouldn't be able to vectorize even though
 				// the oportunity is screaming.
 				////////////////////////////////////////////////////////////////////
-				// for (auto i = 0U; i < ch.GetItemCount(); ++i)
+				// for (auto i = 0; i < ch.GetItemCount(); ++i)
 				// 	ppx[i] += vvx[i] * dt;
-				// for (auto i = 0U; i < ch.GetItemCount(); ++i)
+				// for (auto i = 0; i < ch.GetItemCount(); ++i)
 				// 	ppy[i] += vvy[i] * dt;
-				// for (auto i = 0U; i < ch.GetItemCount(); ++i)
+				// for (auto i = 0; i < ch.GetItemCount(); ++i)
 				// 	ppz[i] += vvz[i] * dt;
 				////////////////////////////////////////////////////////////////////
 
 				auto exec = [](float* GAIA_RESTRICT p, const float* GAIA_RESTRICT v, const size_t sz) {
-					for (size_t i = 0U; i < sz; ++i)
+					for (size_t i = 0; i < sz; ++i)
 						p[i] += v[i] * dt;
 				};
 
@@ -392,7 +392,7 @@ void BM_Game_ECS_WithSystems_ForEachChunk_SoA(benchmark::State& state) {
 				// as smart as Clang so they wouldn't be able to vectorize even though
 				// the oportunity is screaming.
 				////////////////////////////////////////////////////////////////////
-				// for (auto i = 0U; i < ch.GetItemCount(); ++i) {
+				// for (auto i = 0; i < ch.GetItemCount(); ++i) {
 				// 	 if (ppy[i] < 0.0f) {
 				// 		 ppy[i] = 0.0f;
 				// 		 vvy[i] = 0.0f;
@@ -401,7 +401,7 @@ void BM_Game_ECS_WithSystems_ForEachChunk_SoA(benchmark::State& state) {
 				////////////////////////////////////////////////////////////////////
 
 				auto exec = [](float* GAIA_RESTRICT p, float* GAIA_RESTRICT v, const size_t sz) {
-					for (auto i = 0U; i < sz; ++i) {
+					for (auto i = 0; i < sz; ++i) {
 						if (p[i] < 0.0f) {
 							p[i] = 0.0f;
 							v[i] = 0.0f;
@@ -432,12 +432,12 @@ void BM_Game_ECS_WithSystems_ForEachChunk_SoA(benchmark::State& state) {
 				// as smart as Clang so they wouldn't be able to vectorize even though
 				// the oportunity is screaming.
 				////////////////////////////////////////////////////////////////////
-				// for (auto i = 0U; i < ch.GetItemCount(); ++i)
+				// for (auto i = 0; i < ch.GetItemCount(); ++i)
 				// 	vvy[i] = vvy[i] * dt * 9.81f;
 				////////////////////////////////////////////////////////////////////
 
 				auto exec = [](float* GAIA_RESTRICT v, const size_t sz) {
-					for (size_t i = 0U; i < sz; ++i)
+					for (size_t i = 0; i < sz; ++i)
 						v[i] *= dt * 9.81f;
 				};
 
@@ -774,7 +774,7 @@ void BM_Game_NonECS(benchmark::State& state) {
 	// We allocate via new to simulate the usual kind of behavior in games
 	containers::darray<IUnit*> units(N * 2);
 	{
-		for (uint32_t i = 0U; i < N; i++) {
+		for (size_t i = 0; i < N; i++) {
 			auto u = new UnitStatic();
 			u->p = {0, 100, 0};
 			u->r = {1, 2, 3, 4};
@@ -782,7 +782,7 @@ void BM_Game_NonECS(benchmark::State& state) {
 			units[i] = u;
 		}
 		uint32_t j = N;
-		for (uint32_t i = 0U; i < N / 4; i++) {
+		for (size_t i = 0; i < N / 4; i++) {
 			auto u = new UnitDynamic1();
 			u->p = {0, 100, 0};
 			u->r = {1, 2, 3, 4};
@@ -791,7 +791,7 @@ void BM_Game_NonECS(benchmark::State& state) {
 			units[j + i] = u;
 		}
 		j += N / 4;
-		for (uint32_t i = 0U; i < N / 4; i++) {
+		for (size_t i = 0; i < N / 4; i++) {
 			auto u = new UnitDynamic2();
 			u->p = {0, 100, 0};
 			u->r = {1, 2, 3, 4};
@@ -800,7 +800,7 @@ void BM_Game_NonECS(benchmark::State& state) {
 			units[j + i] = u;
 		}
 		j += N / 4;
-		for (uint32_t i = 0U; i < N / 4; i++) {
+		for (size_t i = 0; i < N / 4; i++) {
 			auto u = new UnitDynamic3();
 			u->p = {0, 100, 0};
 			u->r = {1, 2, 3, 4};
@@ -809,7 +809,7 @@ void BM_Game_NonECS(benchmark::State& state) {
 			units[j + i] = u;
 		}
 		j += N / 4;
-		for (uint32_t i = 0U; i < N / 4; i++) {
+		for (size_t i = 0; i < N / 4; i++) {
 			auto u = new UnitDynamic4();
 			u->p = {0, 100, 0};
 			u->r = {1, 2, 3, 4};
@@ -883,7 +883,7 @@ void BM_Game_NonECS_BetterMemoryLayout(benchmark::State& state) {
 
 	// Create entities.
 	containers::darray<UnitStatic> units_static(N);
-	for (uint32_t i = 0U; i < N; i++) {
+	for (size_t i = 0; i < N; i++) {
 		UnitStatic u;
 		u.p = {0, 100, 0};
 		u.r = {1, 2, 3, 4};
@@ -896,7 +896,7 @@ void BM_Game_NonECS_BetterMemoryLayout(benchmark::State& state) {
 	containers::darray<UnitDynamic3> units_dynamic3(N / 4);
 	containers::darray<UnitDynamic4> units_dynamic4(N / 4);
 
-	for (uint32_t i = 0U; i < N / 4; i++) {
+	for (size_t i = 0; i < N / 4; i++) {
 		UnitDynamic1 u;
 		u.p = {0, 100, 0};
 		u.r = {1, 2, 3, 4};
@@ -904,7 +904,7 @@ void BM_Game_NonECS_BetterMemoryLayout(benchmark::State& state) {
 		u.v = {0, 0, 1};
 		units_dynamic1[i] = std::move(u);
 	}
-	for (uint32_t i = 0U; i < N / 4; i++) {
+	for (size_t i = 0; i < N / 4; i++) {
 		UnitDynamic2 u;
 		u.p = {0, 100, 0};
 		u.r = {1, 2, 3, 4};
@@ -913,7 +913,7 @@ void BM_Game_NonECS_BetterMemoryLayout(benchmark::State& state) {
 		u.d = {0, 0, 1};
 		units_dynamic2[i] = std::move(u);
 	}
-	for (uint32_t i = 0U; i < N / 4; i++) {
+	for (size_t i = 0; i < N / 4; i++) {
 		UnitDynamic3 u;
 		u.p = {0, 100, 0};
 		u.r = {1, 2, 3, 4};
@@ -923,7 +923,7 @@ void BM_Game_NonECS_BetterMemoryLayout(benchmark::State& state) {
 		u.h = {100};
 		units_dynamic3[i] = std::move(u);
 	}
-	for (uint32_t i = 0U; i < N / 4; i++) {
+	for (size_t i = 0; i < N / 4; i++) {
 		UnitDynamic4 u;
 		u.p = {0, 100, 0};
 		u.r = {1, 2, 3, 4};
@@ -961,7 +961,7 @@ void BM_Game_NonECS_DOD(benchmark::State& state) {
 		static void
 		updatePosition(containers::darray<Position>& p, const containers::darray<Velocity>& v, float deltaTime) {
 			[&](Position* GAIA_RESTRICT p, const Velocity* GAIA_RESTRICT v, const size_t size) {
-				for (uint32_t i = 0U; i < size; i++) {
+				for (size_t i = 0; i < size; i++) {
 					p[i].x += v[i].x * deltaTime;
 					p[i].y += v[i].y * deltaTime;
 					p[i].z += v[i].z * deltaTime;
@@ -970,7 +970,7 @@ void BM_Game_NonECS_DOD(benchmark::State& state) {
 		}
 		static void handleGroundCollision(containers::darray<Position>& p, containers::darray<Velocity>& v) {
 			[&](Position* GAIA_RESTRICT p, Velocity* GAIA_RESTRICT v, const size_t size) {
-				for (uint32_t i = 0U; i < size; i++) {
+				for (size_t i = 0; i < size; i++) {
 					if (p[i].y < 0.0f) {
 						p[i].y = 0.0f;
 						v[i].y = 0.0f;
@@ -981,13 +981,13 @@ void BM_Game_NonECS_DOD(benchmark::State& state) {
 
 		static void applyGravity(containers::darray<Velocity>& v, float deltaTime) {
 			[&](Velocity* GAIA_RESTRICT v, const size_t size) {
-				for (uint32_t i = 0U; i < size; i++)
+				for (size_t i = 0; i < size; i++)
 					v[i].y += 9.81f * deltaTime;
 			}(v.data(), v.size());
 		}
 	};
 
-	constexpr uint32_t NGroup = N / Groups;
+	constexpr size_t NGroup = N / Groups;
 
 	// Create static entities.
 	struct static_units_group {
@@ -996,7 +996,7 @@ void BM_Game_NonECS_DOD(benchmark::State& state) {
 		containers::darray<Scale> units_s{NGroup};
 	} static_groups[Groups];
 	for (auto& g: static_groups) {
-		for (uint32_t i = 0U; i < NGroup; i++) {
+		for (size_t i = 0; i < NGroup; i++) {
 			g.units_p[i] = {0, 100, 0};
 			g.units_r[i] = {1, 2, 3, 4};
 			g.units_s[i] = {1, 1, 1};
@@ -1014,7 +1014,7 @@ void BM_Game_NonECS_DOD(benchmark::State& state) {
 		containers::darray<IsEnemy> units_e{NGroup};
 	} dynamic_groups[Groups];
 	for (auto& g: dynamic_groups) {
-		for (uint32_t i = 0U; i < NGroup; i++) {
+		for (size_t i = 0; i < NGroup; i++) {
 			g.units_p[i] = {0, 100, 0};
 			g.units_r[i] = {1, 2, 3, 4};
 			g.units_s[i] = {1, 1, 1};
@@ -1039,7 +1039,7 @@ void BM_Game_NonECS_DOD(benchmark::State& state) {
 	}
 }
 
-template <uint32_t Groups>
+template <size_t Groups>
 void BM_Game_NonECS_DOD_SoA(benchmark::State& state) {
 	struct UnitDynamic {
 		static void updatePosition(containers::darray<PositionSoA>& p, const containers::darray<VelocitySoA>& v) {
@@ -1059,16 +1059,16 @@ void BM_Game_NonECS_DOD_SoA(benchmark::State& state) {
 			// as smart as Clang so they wouldn't be able to vectorize even though
 			// the oportunity is screaming.
 			////////////////////////////////////////////////////////////////////
-			// for (auto i = 0U; i < ch.GetItemCount(); ++i)
+			// for (auto i = 0; i < ch.GetItemCount(); ++i)
 			// 	ppx[i] += vvx[i] * dt;
-			// for (auto i = 0U; i < ch.GetItemCount(); ++i)
+			// for (auto i = 0; i < ch.GetItemCount(); ++i)
 			// 	ppy[i] += vvy[i] * dt;
-			// for (auto i = 0U; i < ch.GetItemCount(); ++i)
+			// for (auto i = 0; i < ch.GetItemCount(); ++i)
 			// 	ppz[i] += vvz[i] * dt;
 			////////////////////////////////////////////////////////////////////
 
 			auto exec = [](float* GAIA_RESTRICT p, const float* GAIA_RESTRICT v, size_t sz) {
-				for (size_t i = 0U; i < sz; ++i)
+				for (size_t i = 0; i < sz; ++i)
 					p[i] += v[i] * dt;
 			};
 
@@ -1086,7 +1086,7 @@ void BM_Game_NonECS_DOD_SoA(benchmark::State& state) {
 			auto vvy = vv.set<1>();
 
 			auto exec = [](float* GAIA_RESTRICT p, float* GAIA_RESTRICT v, size_t sz) {
-				for (auto i = 0U; i < sz; ++i) {
+				for (auto i = 0; i < sz; ++i) {
 					if (p[i] < 0.0f) {
 						p[i] = 0.0f;
 						v[i] = 0.0f;
@@ -1104,7 +1104,7 @@ void BM_Game_NonECS_DOD_SoA(benchmark::State& state) {
 			auto vvy = vv.set<1>();
 
 			auto exec = [](float* GAIA_RESTRICT v, const size_t sz) {
-				for (size_t i = 0U; i < sz; ++i)
+				for (size_t i = 0; i < sz; ++i)
 					v[i] *= 9.81f * dt;
 			};
 
@@ -1113,7 +1113,7 @@ void BM_Game_NonECS_DOD_SoA(benchmark::State& state) {
 		}
 	};
 
-	constexpr uint32_t NGroup = N / Groups;
+	constexpr size_t NGroup = N / Groups;
 
 	// Create static entities.
 	struct static_units_group {
@@ -1122,7 +1122,7 @@ void BM_Game_NonECS_DOD_SoA(benchmark::State& state) {
 		containers::darray<Scale> units_s{NGroup};
 	} static_groups[Groups];
 	for (auto& g: static_groups) {
-		for (uint32_t i = 0U; i < NGroup; i++) {
+		for (size_t i = 0; i < NGroup; i++) {
 			g.units_p[i] = {0, 100, 0};
 			g.units_r[i] = {1, 2, 3, 4};
 			g.units_s[i] = {1, 1, 1};
@@ -1140,7 +1140,7 @@ void BM_Game_NonECS_DOD_SoA(benchmark::State& state) {
 		containers::darray<IsEnemy> units_e{NGroup};
 	} dynamic_groups[Groups];
 	for (auto& g: dynamic_groups) {
-		for (uint32_t i = 0U; i < NGroup; i++) {
+		for (size_t i = 0; i < NGroup; i++) {
 			g.units_p[i] = {0, 100, 0};
 			g.units_r[i] = {1, 2, 3, 4};
 			g.units_s[i] = {1, 1, 1};
@@ -1287,7 +1287,7 @@ void BM_Game_NonECS_DOD_SoA_ManualSIMD(benchmark::State& state) {
 		}
 	};
 
-	constexpr uint32_t NGroup = N / Groups;
+	constexpr size_t NGroup = N / Groups;
 
 	// Create static entities.
 	struct static_units_group {
@@ -1296,7 +1296,7 @@ void BM_Game_NonECS_DOD_SoA_ManualSIMD(benchmark::State& state) {
 		containers::darray<Scale> units_s{NGroup};
 	} static_groups[Groups];
 	for (auto& g: static_groups) {
-		for (uint32_t i = 0U; i < NGroup; i++) {
+		for (size_t i = 0; i < NGroup; i++) {
 			g.units_p[i] = {0, 100, 0};
 			g.units_r[i] = {1, 2, 3, 4};
 			g.units_s[i] = {1, 1, 1};
@@ -1314,7 +1314,7 @@ void BM_Game_NonECS_DOD_SoA_ManualSIMD(benchmark::State& state) {
 		containers::darray<IsEnemy> units_e{NGroup};
 	} dynamic_groups[Groups];
 	for (auto& g: dynamic_groups) {
-		for (uint32_t i = 0U; i < NGroup; i++) {
+		for (size_t i = 0; i < NGroup; i++) {
 			g.units_p[i] = {0, 100, 0};
 			g.units_r[i] = {1, 2, 3, 4};
 			g.units_s[i] = {1, 1, 1};

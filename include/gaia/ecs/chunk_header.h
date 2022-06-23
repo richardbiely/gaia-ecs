@@ -58,7 +58,7 @@ namespace gaia {
 				const auto gv = GetWorldVersionFromArchetype(owner);
 
 				// Update all components' version
-				for (uint32_t i = 0; i < MAX_COMPONENTS_PER_ARCHETYPE; i++)
+				for (size_t i = 0; i < MAX_COMPONENTS_PER_ARCHETYPE; i++)
 					versions[type][i] = gv;
 			}
 		};

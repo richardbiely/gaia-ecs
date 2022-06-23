@@ -56,13 +56,13 @@ TEST_CASE("Containers - sarray") {
 	REQUIRE(arr[3] == 3);
 	REQUIRE(arr[4] == 4);
 
-	uint32_t cnt = 0;
+	size_t cnt = 0;
 	for (auto val: arr) {
 		REQUIRE(val == cnt);
 		++cnt;
 	}
 	REQUIRE(cnt == 5);
-	REQUIRE(cnt == (uint32_t)arr.size());
+	REQUIRE(cnt == arr.size());
 
 	REQUIRE(utils::find(arr, 0) == arr.begin());
 	REQUIRE(utils::find(arr, 100) == arr.end());
@@ -84,13 +84,13 @@ TEST_CASE("Containers - sarray_ext") {
 	arr.push_back(4);
 	REQUIRE(arr[4] == 4);
 
-	uint32_t cnt = 0;
+	size_t cnt = 0;
 	for (auto val: arr) {
 		REQUIRE(val == cnt);
 		++cnt;
 	}
 	REQUIRE(cnt == 5);
-	REQUIRE(cnt == (uint32_t)arr.size());
+	REQUIRE(cnt == arr.size());
 
 	REQUIRE(utils::find(arr, 0) == arr.begin());
 	REQUIRE(utils::find(arr, 100) == arr.end());
@@ -116,13 +116,13 @@ TEST_CASE("Containers - darray") {
 	arr.push_back(6);
 	REQUIRE(arr[6] == 6);
 
-	uint32_t cnt = 0;
+	size_t cnt = 0;
 	for (auto val: arr) {
 		REQUIRE(val == cnt);
 		++cnt;
 	}
 	REQUIRE(cnt == 7);
-	REQUIRE(cnt == (uint32_t)arr.size());
+	REQUIRE(cnt == arr.size());
 
 	REQUIRE(utils::find(arr, 0) == arr.begin());
 	REQUIRE(utils::find(arr, 100) == arr.end());
@@ -132,14 +132,14 @@ TEST_CASE("Containers - darray") {
 }
 
 TEST_CASE("DataLayout SoA") {
-	constexpr uint32_t N = 4U;
+	constexpr size_t N = 4U;
 	alignas(16) containers::sarray<PositionSoA, N> data{};
 	const float* arr = (const float*)&data[0];
 
 	using soa = gaia::utils::soa_view_policy<PositionSoA>;
 	using view_deduced = gaia::utils::auto_view_policy<PositionSoA>;
 
-	for (uint32_t i = 0U; i < N; ++i) {
+	for (size_t i = 0; i < N; ++i) {
 		const auto f = (float)i;
 		soa::set({data}, i, {f, f, f});
 		REQUIRE(arr[i + N * 0] == f);
@@ -152,7 +152,7 @@ TEST_CASE("DataLayout SoA") {
 		REQUIRE(val.z == f);
 	}
 
-	for (uint32_t i = 0U; i < N; ++i) {
+	for (size_t i = 0; i < N; ++i) {
 		const auto f = (float)i;
 		view_deduced::set({data}, i, {f, f, f});
 		REQUIRE(arr[i + N * 0] == f);
@@ -167,14 +167,14 @@ TEST_CASE("DataLayout SoA") {
 }
 
 TEST_CASE("DataLayout AoS") {
-	constexpr uint32_t N = 4U;
+	constexpr size_t N = 4U;
 	alignas(16) containers::sarray<Position, N> data{};
 	const float* arr = (const float*)&data[0];
 
 	using aos = gaia::utils::aos_view_policy<Position>;
 	using view_deduced = gaia::utils::auto_view_policy<Position>;
 
-	for (uint32_t i = 0U; i < N; ++i) {
+	for (size_t i = 0; i < N; ++i) {
 		const auto f = (float)i;
 		aos::set({data}, i, {f, f, f});
 		REQUIRE(arr[i * 3 + 0] == f);
@@ -187,7 +187,7 @@ TEST_CASE("DataLayout AoS") {
 		REQUIRE(val.z == f);
 	}
 
-	for (uint32_t i = 0U; i < N; ++i) {
+	for (size_t i = 0; i < N; ++i) {
 		const auto f = (float)i;
 		view_deduced::set({data}, i, {f, f, f});
 		REQUIRE(arr[i * 3 + 0] == f);
@@ -285,7 +285,7 @@ TEST_CASE("CreateEntity - no components") {
 	};
 
 	const uint32_t N = 100;
-	for (uint32_t i = 0U; i < N; i++)
+	for (uint32_t i = 0; i < N; i++)
 		create(i);
 }
 
@@ -300,7 +300,7 @@ TEST_CASE("CreateEntity - 1 component") {
 	};
 
 	const uint32_t N = 10000;
-	for (uint32_t i = 0U; i < N; i++)
+	for (uint32_t i = 0; i < N; i++)
 		create(i);
 }
 
@@ -329,10 +329,10 @@ TEST_CASE("CreateAndRemoveEntity - no components") {
 	arr.reserve(N);
 
 	// Create entities
-	for (uint32_t i = 0U; i < N; i++)
+	for (uint32_t i = 0; i < N; i++)
 		arr.push_back(create(i));
 	// Remove entities
-	for (uint32_t i = 0U; i < N; i++)
+	for (size_t i = 0; i < N; i++)
 		remove(arr[i]);
 }
 
@@ -360,9 +360,9 @@ TEST_CASE("CreateAndRemoveEntity - 1 component") {
 	containers::darray<ecs::Entity> arr;
 	arr.reserve(N);
 
-	for (uint32_t i = 0U; i < N; i++)
+	for (uint32_t i = 0; i < N; i++)
 		arr.push_back(create(i));
-	for (uint32_t i = 0U; i < N; i++)
+	for (uint32_t i = 0; i < N; i++)
 		remove(arr[i]);
 }
 
@@ -383,7 +383,7 @@ TEST_CASE("EnableEntity") {
 	containers::darray<ecs::Entity> arr;
 	arr.reserve(N);
 
-	for (uint32_t i = 0U; i < N; i++)
+	for (uint32_t i = 0; i < N; i++)
 		arr.push_back(create(i));
 
 	w.EnableEntity(arr[1000], false);
@@ -675,11 +675,11 @@ TEST_CASE("RemoveComponent - generic, chunk") {
 TEST_CASE("SetComponent - generic") {
 	ecs::World w;
 
-	constexpr uint32_t N = 100;
+	constexpr size_t N = 100;
 	containers::darray<ecs::Entity> arr;
 	arr.reserve(N);
 
-	for (uint32_t i = 0U; i < N; ++i) {
+	for (size_t i = 0; i < N; ++i) {
 		arr.push_back(w.CreateEntity());
 		w.AddComponent<Rotation>(arr.back(), {});
 		w.AddComponent<Scale>(arr.back(), {});
@@ -720,7 +720,7 @@ TEST_CASE("SetComponent - generic") {
 			auto elseView = chunk.ViewRW<Else>();
 			auto posView = chunk.ViewRW<PositionNonTrivial>();
 
-			for (uint32_t i = 0U; i < chunk.GetItemCount(); ++i) {
+			for (size_t i = 0; i < chunk.GetItemCount(); ++i) {
 				rotationView[i] = {1, 2, 3, 4};
 				scaleView[i] = {11, 22, 33};
 				elseView[i] = {true};
@@ -754,11 +754,11 @@ TEST_CASE("SetComponent - generic") {
 TEST_CASE("SetComponent - generic & chunk") {
 	ecs::World w;
 
-	constexpr uint32_t N = 100;
+	constexpr size_t N = 100;
 	containers::darray<ecs::Entity> arr;
 	arr.reserve(N);
 
-	for (uint32_t i = 0U; i < N; ++i) {
+	for (size_t i = 0; i < N; ++i) {
 		arr.push_back(w.CreateEntity());
 		w.AddComponent<Rotation>(arr.back(), {});
 		w.AddComponent<Scale>(arr.back(), {});
@@ -800,7 +800,7 @@ TEST_CASE("SetComponent - generic & chunk") {
 
 			chunk.SetComponent<ecs::AsChunk<Position>>({111, 222, 333});
 
-			for (uint32_t i = 0U; i < chunk.GetItemCount(); ++i) {
+			for (size_t i = 0; i < chunk.GetItemCount(); ++i) {
 				rotationView[i] = {1, 2, 3, 4};
 				scaleView[i] = {11, 22, 33};
 				elseView[i] = {true};
@@ -1159,12 +1159,12 @@ TEST_CASE("CommandBuffer") {
 		ecs::CommandBuffer cb(w);
 
 		const uint32_t N = 100;
-		for (uint32_t i = 0U; i < N; i++)
+		for (uint32_t i = 0; i < N; i++)
 			[[maybe_unused]] auto tmp = cb.CreateEntity();
 
 		cb.Commit();
 
-		for (uint32_t i = 0U; i < N; i++) {
+		for (uint32_t i = 0; i < N; i++) {
 			auto e = w.GetEntity(i);
 			REQUIRE(e.id() == i);
 		}
@@ -1178,12 +1178,12 @@ TEST_CASE("CommandBuffer") {
 		auto mainEntity = w.CreateEntity();
 
 		const uint32_t N = 100;
-		for (uint32_t i = 0U; i < N; i++)
+		for (uint32_t i = 0; i < N; i++)
 			[[maybe_unused]] auto tmp = cb.CreateEntity(mainEntity);
 
 		cb.Commit();
 
-		for (uint32_t i = 0U; i < N; i++) {
+		for (uint32_t i = 0; i < N; i++) {
 			auto e = w.GetEntity(i + 1);
 			REQUIRE(e.id() == i + 1);
 		}

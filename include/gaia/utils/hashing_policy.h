@@ -53,7 +53,7 @@ namespace gaia {
 		constexpr uint64_t hash_fnv1a_64(const char* const str) noexcept {
 			uint64_t hash = detail::fnv1a::val_64_const;
 
-			uint32_t i = 0;
+			size_t i = 0;
 			while (str[i] != '\0') {
 				hash = (hash ^ uint64_t(str[i])) * detail::fnv1a::prime_64_const;
 				++i;
@@ -62,7 +62,7 @@ namespace gaia {
 			return hash;
 		}
 
-		constexpr uint64_t hash_fnv1a_64(const char* const str, const uint32_t length) noexcept {
+		constexpr uint64_t hash_fnv1a_64(const char* const str, const size_t length) noexcept {
 			uint64_t hash = detail::fnv1a::val_64_const;
 
 			for (size_t i = 0; i < length; i++)

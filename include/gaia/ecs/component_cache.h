@@ -96,8 +96,8 @@ namespace gaia {
 			}
 
 			void Diag() const {
-				const auto registeredTypes = (uint32_t)m_info.size();
-				LOG_N("Registered infos: %u", registeredTypes);
+				const size_t registeredTypes = m_info.size();
+				LOG_N("Registered infos: %" PRIu64 "", registeredTypes);
 
 				for (const auto& pair: m_info) {
 					const auto* info = pair.second;

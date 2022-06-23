@@ -95,9 +95,9 @@ namespace gaia {
 #endif
 
 #if GAIA_ECS_HASH == GAIA_ECS_HASH_FNV1A
-				return hash_fnv1a_64(name<T>().data(), (uint32_t)name<T>().length());
+				return hash_fnv1a_64(name<T>().data(), name<T>().length());
 #else
-				return hash_murmur2a_64(name<T>().data(), (uint32_t)name<T>().length());
+				return hash_murmur2a_64(name<T>().data(), name<T>().length());
 #endif
 
 #if GAIA_COMPILER_MSVC && _MSV_VER <= 1916

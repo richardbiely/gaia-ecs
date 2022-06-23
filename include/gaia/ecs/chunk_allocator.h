@@ -100,7 +100,8 @@ namespace gaia {
 						++m_usedBlocks;
 
 						const size_t index = m_blocks.size();
-						m_blocks.push_back({m_blocks.size()});
+						GAIA_ASSERT(index < 16536U);
+						m_blocks.push_back({(uint16_t)m_blocks.size()});
 
 						// Encode info about chunk's page in the memory block.
 						// The actual pointer returned is offset by UsableOffset bytes
@@ -296,7 +297,7 @@ namespace gaia {
 			Flushes unused memory
 			*/
 			void Flush() {
-				for (uint32_t i = 0; i < (uint32_t)m_pagesFree.size();) {
+				for (size_t i = 0; i < m_pagesFree.size();) {
 					auto* pPage = m_pagesFree[i];
 
 					// Skip non-empty pages
@@ -308,7 +309,7 @@ namespace gaia {
 					utils::erase_fast(m_pagesFree, i);
 					FreePage(pPage);
 					if (!m_pagesFree.empty())
-						m_pagesFree[i]->m_idx = i;
+						m_pagesFree[i]->m_idx = (uint32_t)i;
 				}
 			}
 
