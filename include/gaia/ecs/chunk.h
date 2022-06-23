@@ -68,16 +68,6 @@ namespace gaia {
 				return HasComponent_Internal(type, infoIndex);
 			}
 
-			template <typename T>
-			[[nodiscard]] bool HasComponent_Internal() const {
-				if constexpr (IsGenericComponent<T>::value)
-					return HasComponent_Internal<typename detail::ExtractComponentType_Generic<T>::Type>(
-							ComponentType::CT_Generic);
-				else
-					return HasComponent_Internal<typename detail::ExtractComponentType_NonGeneric<T>::Type>(
-							ComponentType::CT_Chunk);
-			}
-
 			[[nodiscard]] uint32_t AddEntity(Entity entity) {
 				const auto index = header.items.count++;
 				SetEntity(index, entity);
@@ -276,35 +266,21 @@ namespace gaia {
 			}
 
 			/*!
-			Checks if all provided components are present on chunk.
-			\return True if components are present. False otherwise.
+			Checks if component is present on the chunk.
+			\return True if the component is present. False otherwise.
 			*/
-			template <typename... T>
+			template <typename T>
 			[[nodiscard]] bool HasComponent() const {
-				return (HasComponent_Internal<T>() && ...);
-			}
-
-			/*!
-			Checks if any of the provided components is present on chunk.
-			\return True if any of the components is present. False otherwise.
-			*/
-			template <typename... T>
-			[[nodiscard]] bool HasAnyComponent() const {
-				static_assert(sizeof...(T) > 1, "Use at least 2 component types when using HasAny");
-				return (HasComponent_Internal<T>() || ...);
-			}
-
-			/*!
-			Checks if none of the provided components are present on chunk.
-			\return True if none of the components are present. False otherwise.
-			*/
-			template <typename... T>
-			[[nodiscard]] bool HasNoneComponent() const {
-				return (!HasComponent_Internal<T>() && ...);
+				if constexpr (IsGenericComponent<T>::value)
+					return HasComponent_Internal<typename detail::ExtractComponentType_Generic<T>::Type>(
+							ComponentType::CT_Generic);
+				else
+					return HasComponent_Internal<typename detail::ExtractComponentType_NonGeneric<T>::Type>(
+							ComponentType::CT_Chunk);
 			}
 
 			//----------------------------------------------------------------------
-			// Setting component value
+			// Set component data
 			//----------------------------------------------------------------------
 
 			template <typename T>
@@ -330,7 +306,7 @@ namespace gaia {
 			}
 
 			//----------------------------------------------------------------------
-			// Component data
+			// Read component data
 			//----------------------------------------------------------------------
 
 			template <typename T>

@@ -39,7 +39,7 @@ namespace gaia {
 
 		template <typename T>
 		struct AsChunk {
-			using __Type = typename std::decay_t<typename std::remove_pointer<T>::type>;
+			using __Type = typename std::decay_t<typename std::remove_pointer_t<T>>;
 			using __TypeOriginal = T;
 			static constexpr ComponentType __ComponentType = ComponentType::CT_Chunk;
 		};
@@ -47,7 +47,7 @@ namespace gaia {
 		namespace detail {
 			template <typename T>
 			struct ExtractComponentType_Generic {
-				using Type = typename std::decay_t<typename std::remove_pointer<T>::type>;
+				using Type = typename std::decay_t<typename std::remove_pointer_t<T>>;
 				using TypeOriginal = T;
 			};
 			template <typename T>
@@ -84,17 +84,16 @@ namespace gaia {
 		struct ComponentTypeValid:
 				std::bool_constant<std::is_trivially_copyable<T>::value && std::is_default_constructible<T>::value> {};
 
-		template <typename... T>
-		constexpr void VerifyComponents() {
-			static_assert(
-					utils::is_unique<std::decay_t<typename std::remove_pointer<T>::type>...>,
-					"Unique components must be provided");
-			static_assert(
-					std::conjunction_v<ComponentSizeValid<typename DeduceComponent<T>::Type>...>,
-					"MAX_COMPONENTS_SIZE in bytes is exceeded");
-			static_assert(
-					std::conjunction_v<ComponentTypeValid<typename DeduceComponent<T>::Type>...>,
-					"Only components of trivial type are allowed");
+		template <typename T>
+		constexpr void VerifyComponent() {
+			using U = typename DeduceComponent<T>::Type;
+			// Make sure we only use this for "raw" types
+			static_assert(!std::is_const<U>::value);
+			static_assert(!std::is_pointer<U>::value);
+			static_assert(!std::is_reference<U>::value);
+			static_assert(!std::is_volatile<U>::value);
+			static_assert(ComponentSizeValid<U>::value, "MAX_COMPONENTS_SIZE in bytes is exceeded");
+			static_assert(ComponentTypeValid<U>::value, "Only components of trivial type are allowed");
 		}
 
 		//----------------------------------------------------------------------

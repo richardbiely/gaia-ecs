@@ -48,7 +48,7 @@ namespace gaia {
 			containers::darray<uint8_t> m_data;
 			uint32_t m_entities;
 
-			template <typename TEntity, typename... TComponent>
+			template <typename TEntity, typename TComponent>
 			void AddComponent_Internal(TEntity entity) {
 				// Entity
 				{
@@ -60,22 +60,16 @@ namespace gaia {
 				}
 				// Components
 				{
-					const ComponentInfo* infosToAdd[] = {GetComponentCache(m_world).GetOrCreateComponentInfo<TComponent>()...};
-
-					// Component count
-					constexpr auto componentCount = (uint8_t)sizeof...(TComponent);
-					m_data.push_back(componentCount);
+					const auto* infoToAdd = GetComponentCache(m_world).GetOrCreateComponentInfo<TComponent>();
 
 					// Component info
 					auto lastIndex = m_data.size();
-					m_data.resize(m_data.size() + sizeof(ComponentInfo*) * componentCount);
+					m_data.resize(m_data.size() + sizeof(ComponentInfo*));
 
-					for (uint8_t i = 0U; i < componentCount; i++) {
-						utils::unaligned_ref<const ComponentInfo*> to(&m_data[lastIndex]);
-						lastIndex += sizeof(const ComponentInfo*);
+					utils::unaligned_ref<const ComponentInfo*> to(&m_data[lastIndex]);
+					to = infoToAdd;
 
-						to = infosToAdd[i];
-					}
+					lastIndex += sizeof(const ComponentInfo*);
 				}
 			}
 
@@ -98,36 +92,31 @@ namespace gaia {
 				index += sizeof(uint32_t) + sizeof(U);
 			}
 
-			template <typename... TComponent>
-			void SetComponentNoEntityNoSize_Internal(TComponent&&... data) {
+			template <typename TComponent>
+			void SetComponentNoEntityNoSize_Internal(TComponent&& data) {
 				// Data size
 				auto lastIndex = (uint32_t)m_data.size();
 
-				constexpr auto ComponentsSize = (sizeof(TComponent) + ...);
-				constexpr auto ComponentsCount = sizeof...(TComponent);
+				constexpr auto ComponentsSize = sizeof(TComponent);
 				constexpr auto ComponentTypeIdxSize = sizeof(uint32_t);
-				constexpr auto AddSize = ComponentsSize + ComponentsCount * ComponentTypeIdxSize;
+				constexpr auto AddSize = ComponentsSize + ComponentTypeIdxSize;
 				m_data.resize(m_data.size() + AddSize);
 
 				// Component data
-				(this->SetComponentFinal_Internal<TComponent>(lastIndex, std::forward<TComponent>(data)), ...);
+				this->SetComponentFinal_Internal<TComponent>(lastIndex, std::forward<TComponent>(data));
 			}
 
-			template <typename... TComponent>
-			void SetComponentNoEntity_Internal(TComponent&&... data) {
+			template <typename TComponent>
+			void SetComponentNoEntity_Internal(TComponent&& data) {
 				// Register components
-				((void)GetComponentCache(m_world).GetOrCreateComponentInfo<TComponent>(), ...);
-
-				// Component count
-				constexpr auto NComponents = (uint8_t)sizeof...(TComponent);
-				m_data.push_back(NComponents);
+				(void)GetComponentCache(m_world).GetOrCreateComponentInfo<TComponent>();
 
 				// Data
-				SetComponentNoEntityNoSize_Internal(std::forward<TComponent>(data)...);
+				SetComponentNoEntityNoSize_Internal(std::forward<TComponent>(data));
 			}
 
-			template <typename TEntity, typename... TComponent>
-			void SetComponent_Internal(TEntity entity, TComponent&&... data) {
+			template <typename TEntity, typename TComponent>
+			void SetComponent_Internal(TEntity entity, TComponent&& data) {
 				// Entity
 				{
 					const auto lastIndex = m_data.size();
@@ -138,10 +127,10 @@ namespace gaia {
 				}
 
 				// Components
-				SetComponentNoEntity_Internal(std::forward<TComponent>(data)...);
+				SetComponentNoEntity_Internal(std::forward<TComponent>(data));
 			}
 
-			template <typename... TComponent>
+			template <typename TComponent>
 			void RemoveComponent_Internal(Entity entity) {
 				// Entity
 				{
@@ -153,22 +142,17 @@ namespace gaia {
 				}
 				// Components
 				{
-					const ComponentInfo* typesToRemove[] = {GetComponentCache(m_world).GetComponentInfo<TComponent>()...};
-
-					// Component count
-					constexpr auto NComponents = (uint8_t)sizeof...(TComponent);
-					m_data.push_back(NComponents);
+					const auto* typeToRemove = GetComponentCache(m_world).GetComponentInfo<TComponent>();
+					GAIA_ASSERT(typesToRemove != nullptr);
 
 					// Component info
 					auto lastIndex = m_data.size();
-					m_data.resize(m_data.size() + sizeof(ComponentInfo*) * NComponents);
-					for (uint8_t i = 0U; i < NComponents; i++) {
-						utils::unaligned_ref<const ComponentInfo*> to(&m_data[lastIndex]);
-						lastIndex += sizeof(const ComponentInfo*);
+					m_data.resize(m_data.size() + sizeof(ComponentInfo*));
 
-						GAIA_ASSERT(typesToRemove[i]);
-						to = typesToRemove[i];
-					}
+					utils::unaligned_ref<const ComponentInfo*> to(&m_data[lastIndex]);
+					to = typeToRemove;
+
+					lastIndex += sizeof(const ComponentInfo*);
 				}
 			}
 
@@ -248,7 +232,7 @@ namespace gaia {
 			template <typename TComponent>
 			bool AddComponent(Entity entity) {
 				using U = typename DeduceComponent<TComponent>::Type;
-				VerifyComponents<U>();
+				VerifyComponent<U>();
 
 				m_data.push_back(ADD_COMPONENT);
 				if constexpr (IsGenericComponent<TComponent>::value)
@@ -268,7 +252,7 @@ namespace gaia {
 			template <typename TComponent>
 			bool AddComponent(TempEntity entity) {
 				using U = typename DeduceComponent<TComponent>::Type;
-				VerifyComponents<U>();
+				VerifyComponent<U>();
 
 				m_data.push_back(ADD_COMPONENT_TO_TEMPENTITY);
 				if constexpr (IsGenericComponent<TComponent>::value)
@@ -288,7 +272,7 @@ namespace gaia {
 			template <typename TComponent>
 			bool AddComponent(Entity entity, TComponent&& data) {
 				using U = typename DeduceComponent<TComponent>::Type;
-				VerifyComponents<U>();
+				VerifyComponent<U>();
 
 				m_data.push_back(ADD_COMPONENT_DATA);
 				if constexpr (IsGenericComponent<TComponent>::value)
@@ -309,7 +293,7 @@ namespace gaia {
 			template <typename TComponent>
 			bool AddComponent(TempEntity entity, TComponent&& data) {
 				using U = typename DeduceComponent<TComponent>::Type;
-				VerifyComponents<U>();
+				VerifyComponent<U>();
 
 				m_data.push_back(ADD_COMPONENT_TO_TEMPENTITY_DATA);
 				if constexpr (IsGenericComponent<TComponent>::value)
@@ -330,7 +314,7 @@ namespace gaia {
 			template <typename TComponent>
 			void SetComponent(Entity entity, TComponent&& data) {
 				using U = typename DeduceComponent<TComponent>::Type;
-				VerifyComponents<U>();
+				VerifyComponent<U>();
 
 				m_data.push_back(SET_COMPONENT);
 				if constexpr (IsGenericComponent<TComponent>::value)
@@ -350,7 +334,7 @@ namespace gaia {
 			template <typename TComponent>
 			void SetComponent(TempEntity entity, TComponent&& data) {
 				using U = typename DeduceComponent<TComponent>::Type;
-				VerifyComponents<U>();
+				VerifyComponent<U>();
 
 				m_data.push_back(SET_COMPONENT_FOR_TEMPENTITY);
 				if constexpr (IsGenericComponent<TComponent>::value)
@@ -366,7 +350,7 @@ namespace gaia {
 			template <typename TComponent>
 			void RemoveComponent(Entity entity) {
 				using U = typename DeduceComponent<TComponent>::Type;
-				VerifyComponents<U>();
+				VerifyComponent<U>();
 
 				m_data.push_back(REMOVE_COMPONENT);
 				if constexpr (IsGenericComponent<TComponent>::value)
@@ -418,17 +402,10 @@ namespace gaia {
 							Entity entity = utils::unaligned_ref<Entity>((void*)&m_data[i]);
 							i += sizeof(Entity);
 
-							// Component count
-							uint8_t componentCount = m_data[i++];
-
 							// Components
-							auto newInfos = (const ComponentInfo**)alloca(sizeof(ComponentInfo) * componentCount);
-							for (uint8_t j = 0; j < componentCount; ++j) {
-								const auto info = *(const ComponentInfo**)&m_data[i];
-								newInfos[j] = info;
-								i += sizeof(const ComponentInfo*);
-							}
-							m_world.AddComponent_Internal(type, entity, {newInfos, (uintptr_t)componentCount});
+							auto newInfo = *(const ComponentInfo**)&m_data[i];
+							i += sizeof(const ComponentInfo*);
+							m_world.AddComponent_Internal(type, entity, newInfo);
 
 							uint32_t indexInChunk;
 							auto* pChunk = m_world.GetEntityChunk(entity, indexInChunk);
@@ -438,19 +415,16 @@ namespace gaia {
 								indexInChunk = 0;
 
 							if (cmd == ADD_COMPONENT_DATA) {
-								for (uint8_t j = 0; j < componentCount; ++j) {
-									// Skip the component index
-									// TODO: Don't include the component index here
-									uint32_t infoIndex = utils::unaligned_ref<uint32_t>((void*)&m_data[i]);
-									(void)infoIndex;
-									i += sizeof(uint32_t);
+								// Skip the component index
+								// TODO: Don't include the component index here
+								uint32_t infoIndex = utils::unaligned_ref<uint32_t>((void*)&m_data[i]);
+								(void)infoIndex;
+								i += sizeof(uint32_t);
 
-									const auto* info = newInfos[j];
-									auto* pComponentDataStart = pChunk->ViewRW_Internal(info, type);
-									auto* pComponentData = (void*)&pComponentDataStart[indexInChunk * info->properties.size];
-									memcpy(pComponentData, (const void*)&m_data[i], info->properties.size);
-									i += info->properties.size;
-								}
+								auto* pComponentDataStart = pChunk->ViewRW_Internal(newInfo, type);
+								auto* pComponentData = (void*)&pComponentDataStart[indexInChunk * newInfo->properties.size];
+								memcpy(pComponentData, (const void*)&m_data[i], newInfo->properties.size);
+								i += newInfo->properties.size;
 							}
 						} break;
 						case ADD_COMPONENT_TO_TEMPENTITY:
@@ -470,16 +444,10 @@ namespace gaia {
 
 							Entity entity = it->second;
 
-							// Component count
-							uint8_t componentCount = m_data[i++];
-
 							// Components
-							auto newInfos = (const ComponentInfo**)alloca(sizeof(ComponentInfo) * componentCount);
-							for (uint8_t j = 0; j < componentCount; ++j) {
-								newInfos[j] = utils::unaligned_ref<const ComponentInfo*>((void*)&m_data[i]);
-								i += sizeof(const ComponentInfo*);
-							}
-							m_world.AddComponent_Internal(type, entity, {newInfos, (uintptr_t)componentCount});
+							const ComponentInfo* newInfo = utils::unaligned_ref<const ComponentInfo*>((void*)&m_data[i]);
+							i += sizeof(const ComponentInfo*);
+							m_world.AddComponent_Internal(type, entity, newInfo);
 
 							uint32_t indexInChunk;
 							auto* pChunk = m_world.GetEntityChunk(entity, indexInChunk);
@@ -489,25 +457,23 @@ namespace gaia {
 								indexInChunk = 0;
 
 							if (cmd == ADD_COMPONENT_TO_TEMPENTITY_DATA) {
-								for (uint8_t j = 0; j < componentCount; ++j) {
-									// Skip the type index
-									// TODO: Don't include the type index here
-									uint32_t infoIndex = utils::unaligned_ref<uint32_t>((void*)&m_data[i]);
-									(void)infoIndex;
-									i += sizeof(uint32_t);
+								// Skip the type index
+								// TODO: Don't include the type index here
+								uint32_t infoIndex = utils::unaligned_ref<uint32_t>((void*)&m_data[i]);
+								(void)infoIndex;
+								i += sizeof(uint32_t);
 
-									const auto* info = newInfos[j];
-									auto* pComponentDataStart = pChunk->ViewRW_Internal(info, type);
-									auto* pComponentData = (void*)&pComponentDataStart[indexInChunk * info->properties.size];
-									memcpy(pComponentData, (const void*)&m_data[i], info->properties.size);
-									i += info->properties.size;
-								}
+								auto* pComponentDataStart = pChunk->ViewRW_Internal(newInfo, type);
+								auto* pComponentData = (void*)&pComponentDataStart[indexInChunk * newInfo->properties.size];
+								memcpy(pComponentData, (const void*)&m_data[i], newInfo->properties.size);
+								i += newInfo->properties.size;
 							}
 						} break;
 						case SET_COMPONENT: {
 							// Type
 							ComponentType type = (ComponentType)m_data[i];
 							i += sizeof(ComponentType);
+
 							// Entity
 							Entity entity = utils::unaligned_ref<Entity>((void*)&m_data[i]);
 							i += sizeof(Entity);
@@ -516,11 +482,8 @@ namespace gaia {
 							auto* pChunk = entityContainer.pChunk;
 							const auto indexInChunk = type == ComponentType::CT_Chunk ? 0 : entityContainer.idx;
 
-							// Component count
-							const uint8_t componentCount = m_data[i++];
-
 							// Components
-							for (uint8_t j = 0; j < componentCount; ++j) {
+							{
 								const auto infoIndex = utils::unaligned_ref<uint32_t>((void*)&m_data[i]);
 								const auto* info = GetComponentCache(m_world).GetComponentInfoFromIdx(infoIndex);
 								i += sizeof(uint32_t);
@@ -535,6 +498,7 @@ namespace gaia {
 							// Type
 							ComponentType type = (ComponentType)m_data[i];
 							i += sizeof(ComponentType);
+
 							// Entity
 							Entity e = utils::unaligned_ref<Entity>((void*)&m_data[i]);
 							i += sizeof(Entity);
@@ -551,11 +515,8 @@ namespace gaia {
 							auto* pChunk = entityContainer.pChunk;
 							const auto indexInChunk = type == ComponentType::CT_Chunk ? 0 : entityContainer.idx;
 
-							// Component count
-							const uint8_t componentCount = m_data[i++];
-
 							// Components
-							for (uint8_t j = 0; j < componentCount; ++j) {
+							{
 								const auto infoIndex = utils::unaligned_ref<uint32_t>((void*)&m_data[i]);
 								const auto* info = GetComponentCache(m_world).GetComponentInfoFromIdx(infoIndex);
 								i += sizeof(uint32_t);
@@ -570,22 +531,16 @@ namespace gaia {
 							// Type
 							ComponentType type = utils::unaligned_ref<ComponentType>((void*)&m_data[i]);
 							i += sizeof(ComponentType);
+
 							// Entity
 							Entity e = utils::unaligned_ref<Entity>((void*)&m_data[i]);
 							i += sizeof(Entity);
 
-							// Component count
-							uint8_t componentCount = m_data[i++];
-
 							// Components
-							containers::sarray_ext<const ComponentInfo*, MAX_COMPONENTS_PER_ARCHETYPE> newInfos;
-							newInfos.resize(componentCount);
+							const ComponentInfo* newInfo = utils::unaligned_ref<const ComponentInfo*>((void*)&m_data[i]);
+							i += sizeof(const ComponentInfo*);
 
-							for (uint8_t j = 0; j < componentCount; ++j) {
-								newInfos[j] = utils::unaligned_ref<const ComponentInfo*>((void*)&m_data[i]);
-								i += sizeof(const ComponentInfo*);
-							}
-							m_world.RemoveComponent_Internal(type, e, {newInfos.data(), (uintptr_t)componentCount});
+							m_world.RemoveComponent_Internal(type, e, newInfo);
 						} break;
 					}
 				}

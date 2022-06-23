@@ -57,12 +57,6 @@ namespace gaia {
 		public:
 			template <typename T>
 			static uint32_t index() noexcept {
-				// Make sure we only use this for "raw" types
-				static_assert(!std::is_const<T>::value);
-				static_assert(!std::is_pointer<T>::value);
-				static_assert(!std::is_reference<T>::value);
-				static_assert(!std::is_volatile<T>::value);
-
 				return type_group<type_info>::id<T>;
 			}
 
