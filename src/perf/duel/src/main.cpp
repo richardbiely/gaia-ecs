@@ -255,8 +255,8 @@ void BM_Game_ECS_WithSystems_ForEachChunk(benchmark::State& state) {
 				auto p = ch.ViewRW<Position>();
 				auto v = ch.View<Velocity>();
 
-				[&](Position* GAIA_RESTRICT p, const Velocity* GAIA_RESTRICT v, const uint32_t size) {
-					for (auto i = 0; i < size; ++i) {
+				[&](Position* GAIA_RESTRICT p, const Velocity* GAIA_RESTRICT v, const size_t size) {
+					for (size_t i = 0; i < size; ++i) {
 						p[i].x += v[i].x * dt;
 						p[i].y += v[i].y * dt;
 						p[i].z += v[i].z * dt;
@@ -279,7 +279,7 @@ void BM_Game_ECS_WithSystems_ForEachChunk(benchmark::State& state) {
 				auto v = ch.ViewRW<Velocity>();
 
 				[&](Position* GAIA_RESTRICT p, Velocity* GAIA_RESTRICT v, const uint32_t size) {
-					for (auto i = 0; i < size; ++i) {
+					for (size_t i = 0; i < size; ++i) {
 						if (p[i].y < 0.0f) {
 							p[i].y = 0.0f;
 							v[i].y = 0.0f;
@@ -301,8 +301,8 @@ void BM_Game_ECS_WithSystems_ForEachChunk(benchmark::State& state) {
 			GetWorld().ForEach(m_q, [](ecs::Chunk& ch) {
 				auto v = ch.ViewRW<Velocity>();
 
-				[&](Velocity* GAIA_RESTRICT v, const uint32_t size) {
-					for (auto i = 0; i < size; ++i)
+				[&](Velocity* GAIA_RESTRICT v, const size_t size) {
+					for (size_t i = 0; i < size; ++i)
 						v[i].y += 9.81f * dt;
 				}(v.data(), ch.GetItemCount());
 			});
@@ -401,7 +401,7 @@ void BM_Game_ECS_WithSystems_ForEachChunk_SoA(benchmark::State& state) {
 				////////////////////////////////////////////////////////////////////
 
 				auto exec = [](float* GAIA_RESTRICT p, float* GAIA_RESTRICT v, const size_t sz) {
-					for (auto i = 0; i < sz; ++i) {
+					for (size_t i = 0; i < sz; ++i) {
 						if (p[i] < 0.0f) {
 							p[i] = 0.0f;
 							v[i] = 0.0f;
@@ -1086,7 +1086,7 @@ void BM_Game_NonECS_DOD_SoA(benchmark::State& state) {
 			auto vvy = vv.set<1>();
 
 			auto exec = [](float* GAIA_RESTRICT p, float* GAIA_RESTRICT v, size_t sz) {
-				for (auto i = 0; i < sz; ++i) {
+				for (size_t i = 0; i < sz; ++i) {
 					if (p[i] < 0.0f) {
 						p[i] = 0.0f;
 						v[i] = 0.0f;

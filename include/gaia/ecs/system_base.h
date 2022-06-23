@@ -247,9 +247,9 @@ namespace gaia {
 
 		private:
 			void SortSystems() {
-				for (auto l = 0; l < m_systems.size() - 1; l++) {
+				for (size_t l = 0; l < m_systems.size() - 1; l++) {
 					auto min = l;
-					for (auto p = l + 1; p < m_systems.size(); p++) {
+					for (size_t p = l + 1; p < m_systems.size(); p++) {
 						const auto* sl = m_systems[l];
 						const auto* pl = m_systems[p];
 						if (sl->DependsOn(pl))
