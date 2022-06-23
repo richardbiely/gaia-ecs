@@ -179,7 +179,7 @@ w.ForEach(q, [](ecs::Chunk& ch) {
   auto v = ch.View<Velocity>(); // Read-only access to Velocity
 
   // Iterate over all entities in the chunk.
-  for (auto i = 0U; i < ch.GetItemCount(); ++i) {
+  for (size_t i = 0; i < ch.GetItemCount(); ++i) {
     p[i].x += v[i].x * dt;
     p[i].y += v[i].y * dt;
     p[i].z += v[i].z * dt;
@@ -194,8 +194,8 @@ w.ForEach(q, [](ecs::Chunk& ch) {
   auto vv = ch.View<Velocity>(); // Read-Only access to Velocity
 
   // Make our intentions very clear so even compilers which are weaker at optimization can vectorize the loop
-  [&](Position* GAIA_RESTRICT p, const Velocity* GAIA_RESTRICT v, const uint32_t size) {
-    for (auto i = 0U; i < size; ++i) {
+  [&](Position* GAIA_RESTRICT p, const Velocity* GAIA_RESTRICT v, const size_t size) {
+    for (size_t i = 0; i < size; ++i) {
       p[i].x += v[i].x * dt;
       p[i].y += v[i].y * dt;
       p[i].z += v[i].z * dt;
@@ -282,12 +282,12 @@ w.ForEach(ecs::EntityQuery().All<PositionSoA,VelocitySoA>, [](ecs::Chunk& ch) {
 
   // The loop becomes very simple now.
   auto exec = [&](float* GAIA_RESTRICT p, const float* GAIA_RESTRICT v, const size_t sz) {
-    for (size_t i = 0U; i < sz; ++i)
+    for (size_t i = 0; i < sz; ++i)
       p[i] += v[i] * dt;
     /*
     You can even use intrinsics now without a worry.
     Note, this is just a simple example not an optimal way to rewrite the loop above using intrinsics.
-    for (size_t i = 0U; i < sz; i+=4) {
+    for (size_t i = 0; i < sz; i+=4) {
       const auto pVec = _mm_load_ps(p + i);
       const auto vVec = _mm_load_ps(v + i);
       const auto respVec = _mm_fmadd_ps(vVec, dtVec, pVec);

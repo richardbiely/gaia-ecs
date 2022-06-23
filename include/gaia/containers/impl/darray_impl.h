@@ -20,7 +20,7 @@ namespace gaia {
 			using pointer = T*;
 			using const_pointer = T*;
 			using difference_type = std::ptrdiff_t;
-			using size_type = uint32_t;
+			using size_type = size_t;
 
 		private:
 			T* m_data = nullptr;

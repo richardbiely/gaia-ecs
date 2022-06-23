@@ -10,7 +10,7 @@ namespace gaia {
 		// SArray with fixed capacity and variable size allocated on stack.
 		// Interface compatiblity with std::array where it matters.
 		// Can be used if STL containers are not an option for some reason.
-		template <typename T, auto N>
+		template <typename T, size_t N>
 		class sarr_ext {
 		public:
 			using iterator_category = GAIA_UTIL(random_access_iterator_tag);

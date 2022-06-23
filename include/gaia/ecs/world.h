@@ -304,16 +304,15 @@ namespace gaia {
 #if GAIA_DEBUG
 			void VerifyAddComponent(Archetype& archetype, Entity entity, ComponentType type, const ComponentInfo* infoToAdd) {
 				const auto& info = archetype.componentInfos[type];
-				const uint32_t oldInfosCount = (uint32_t)info.size();
-				const uint32_t infosCount = oldInfosCount + 1;
+				const size_t oldInfosCount = info.size();
 
 				// Make sure not to add too many infos
-				if (!VerityArchetypeComponentCount(infosCount)) {
+				if (!VerityArchetypeComponentCount(1)) {
 					GAIA_ASSERT(false && "Trying to add too many components to entity!");
 					LOG_W("Trying to add a component to entity [%u.%u] but there's no space left!", entity.id(), entity.gen());
 					LOG_W("Already present:");
-					for (uint32_t i = 0U; i < oldInfosCount; i++)
-						LOG_W("> [%u] %.*s", i, (uint32_t)info[i].info->name.length(), info[i].info->name.data());
+					for (size_t i = 0; i < oldInfosCount; i++)
+						LOG_W("> [%" PRIu64 "] %.*s", i, (uint32_t)info[i].info->name.length(), info[i].info->name.data());
 					LOG_W("Trying to add:");
 					LOG_W("> %.*s", (uint32_t)infoToAdd->name.length(), infoToAdd->name.data());
 				}
@@ -342,12 +341,11 @@ namespace gaia {
 					LOG_W("Currently present:");
 
 					const auto& info = archetype.componentInfos[type];
-					const uint32_t oldInfosCount = (uint32_t)info.size();
-					for (uint32_t k = 0U; k < oldInfosCount; k++)
-						LOG_W("> [%u] %.*s", k, (uint32_t)info[k].info->name.length(), info[k].info->name.data());
+					for (size_t k = 0; k < info.size(); k++)
+						LOG_W("> [%" PRIu64 "] %.*s", k, (uint32_t)info[k].info->name.length(), info[k].info->name.data());
 
 					LOG_W("Trying to remove:");
-					LOG_W("> %.*s", (uint32_t)typesToRemove[i]->name.length(), typesToRemove[i]->name.data());
+					LOG_W("> %.*s", (uint32_t)infoToRemove->name.length(), infoToRemove->name.data());
 				}
 	#else
 				const auto& archetypeInfos = archetype.componentInfos[type];
@@ -358,10 +356,9 @@ namespace gaia {
 					LOG_W("Trying to remove a component from entity [%u.%u] but it was never added", entity.id(), entity.gen());
 					LOG_W("Currently present:");
 
-					const uint32_t oldInfosCount = (uint32_t)archetypeInfos.size();
-					for (uint32_t k = 0U; k < oldInfosCount; k++)
+					for (size_t k = 0; k < archetypeInfos.size(); k++)
 						LOG_W(
-								"> [%u] %.*s", k, (uint32_t)archetypeInfos[k].info->name.length(), archetypeInfos[k].info->name.data());
+								"> [%" PRIu64 "] %.*s", k, (uint32_t)archetypeInfos[k].info->name.length(), archetypeInfos[k].info->name.data());
 
 					LOG_W("Trying to remove:");
 					LOG_W("> %.*s", (uint32_t)infoToRemove->name.length(), infoToRemove->name.data());
@@ -384,8 +381,8 @@ namespace gaia {
 			\return Returns true if left is a superset of right
 			*/
 			bool IsSuperSet(ComponentType type, Archetype& left, Archetype& right) {
-				uint32_t i = 0U;
-				uint32_t j = 0U;
+				size_t i = 0;
+				size_t j = 0;
 
 				const auto& leftTypes = left.componentInfos[type];
 				const auto& rightTypes = right.componentInfos[type];
@@ -469,7 +466,7 @@ namespace gaia {
 					containers::sarray_ext<const ComponentInfo*, MAX_COMPONENTS_PER_ARCHETYPE> newInfos;
 					newInfos.resize(infosCount);
 					{
-						for (uint32_t j = 0U; j < oldInfosCount; j++)
+						for (size_t j = 0; j < oldInfosCount; j++)
 							newInfos[j] = componentInfos[j].info;
 						newInfos[oldInfosCount] = infoToAdd;
 					}
@@ -478,7 +475,7 @@ namespace gaia {
 					containers::sarray_ext<const ComponentInfo*, MAX_COMPONENTS_PER_ARCHETYPE> otherMetaTypes;
 					otherMetaTypes.resize(componentInfoList2.size());
 					{
-						for (uint32_t j = 0U; j < componentInfoList2.size(); j++)
+						for (size_t j = 0; j < componentInfoList2.size(); j++)
 							otherMetaTypes[j] = componentInfoList2[j].info;
 					}
 
@@ -486,11 +483,11 @@ namespace gaia {
 					auto newArchetype =
 							type == ComponentType::CT_Generic
 									? CreateArchetype(
-												std::span<const ComponentInfo*>(newInfos.data(), (uint32_t)newInfos.size()),
-												std::span<const ComponentInfo*>(otherMetaTypes.data(), (uint32_t)otherMetaTypes.size()))
+												std::span<const ComponentInfo*>(newInfos.data(), newInfos.size()),
+												std::span<const ComponentInfo*>(otherMetaTypes.data(), otherMetaTypes.size()))
 									: CreateArchetype(
-												std::span<const ComponentInfo*>(otherMetaTypes.data(), (uint32_t)otherMetaTypes.size()),
-												std::span<const ComponentInfo*>(newInfos.data(), (uint32_t)newInfos.size()));
+												std::span<const ComponentInfo*>(otherMetaTypes.data(), otherMetaTypes.size()),
+												std::span<const ComponentInfo*>(newInfos.data(), newInfos.size()));
 
 					RegisterArchetype(newArchetype);
 					BuildGraphEdges(type, node, newArchetype, infoToAdd);
@@ -498,11 +495,11 @@ namespace gaia {
 					auto newArchetype =
 							type == ComponentType::CT_Generic
 									? FindOrCreateArchetype(
-												std::span<const ComponentInfo*>(newInfos.data(), (uint32_t)newInfos.size()),
-												std::span<const ComponentInfo*>(otherMetaTypes.data(), (uint32_t)otherMetaTypes.size()))
+												std::span<const ComponentInfo*>(newInfos.data(), newInfos.size()),
+												std::span<const ComponentInfo*>(otherMetaTypes.data(), otherMetaTypes.size()))
 									: FindOrCreateArchetype(
-												std::span<const ComponentInfo*>(otherMetaTypes.data(), (uint32_t)otherMetaTypes.size()),
-												std::span<const ComponentInfo*>(newInfos.data(), (uint32_t)newInfos.size()));
+												std::span<const ComponentInfo*>(otherMetaTypes.data(), otherMetaTypes.size()),
+												std::span<const ComponentInfo*>(newInfos.data(), newInfos.size()));
 #endif
 
 					node = newArchetype;
@@ -553,7 +550,7 @@ namespace gaia {
 				containers::sarray_ext<const ComponentInfo*, MAX_COMPONENTS_PER_ARCHETYPE> secondMetaTypes;
 				secondMetaTypes.resize(secondList.size());
 
-				for (auto i = 0U; i < secondList.size(); i++)
+				for (size_t i = 0; i < secondList.size(); i++)
 					secondMetaTypes[i] = secondList[i].info;
 
 				auto newArchetype =
@@ -678,16 +675,16 @@ namespace gaia {
 
 				// Arrays are sorted so we can do linear intersection lookup
 				{
-					uint32_t i = 0U;
-					uint32_t j = 0U;
+					size_t i = 0;
+					size_t j = 0;
 					while (i < oldTypes.size() && j < infoToAdd.size()) {
 						const auto* typeOld = oldTypes[i].info;
 						const auto* typeNew = infoToAdd[j].info;
 
 						if (typeOld == typeNew) {
 							// Let's move all type data from oldEntity to newEntity
-							const uint32_t idxFrom = oldLook[i++].offset + typeOld->properties.size * oldIndex;
-							const uint32_t idxTo = newLook[j++].offset + typeOld->properties.size * newIndex;
+							const auto idxFrom = oldLook[i++].offset + typeOld->properties.size * oldIndex;
+							const auto idxTo = newLook[j++].offset + typeOld->properties.size * newIndex;
 
 							GAIA_ASSERT(idxFrom < Chunk::DATA_SIZE_NORESERVE);
 							GAIA_ASSERT(idxTo < Chunk::DATA_SIZE_NORESERVE);
@@ -803,7 +800,7 @@ namespace gaia {
 
 			template <typename TComponent>
 			EntityContainer& AddComponent_Internal(ComponentType type, Entity entity) {
-				const auto info = m_componentCache.GetOrCreateComponentInfo<TComponent>();
+				const auto* info = m_componentCache.GetOrCreateComponentInfo<TComponent>();
 				return AddComponent_Internal(type, entity, info);
 			}
 
@@ -830,7 +827,7 @@ namespace gaia {
 
 			template <typename TComponent>
 			void RemoveComponent_Internal(ComponentType type, Entity entity) {
-				const auto info = m_componentCache.GetOrCreateComponentInfo<TComponent>();
+				const auto* info = m_componentCache.GetOrCreateComponentInfo<TComponent>();
 				RemoveComponent_Internal(type, entity, info);
 			}
 
@@ -926,14 +923,14 @@ namespace gaia {
 					const auto& infos = archetype.componentInfos[ComponentType::CT_Generic];
 					const auto& looks = archetype.componentLookupData[ComponentType::CT_Generic];
 
-					for (uint32_t i = 0U; i < (uint32_t)infos.size(); i++) {
+					for (size_t i = 0; i < infos.size(); i++) {
 						const auto* info = infos[i].info;
 						if (!info->properties.size)
 							continue;
 
 						const auto offset = looks[i].offset;
-						const uint32_t idxFrom = offset + info->properties.size * oldEntityContainer.idx;
-						const uint32_t idxTo = offset + info->properties.size * newEntityContainer.idx;
+						const auto idxFrom = offset + info->properties.size * oldEntityContainer.idx;
+						const auto idxTo = offset + info->properties.size * newEntityContainer.idx;
 
 						GAIA_ASSERT(idxFrom < Chunk::DATA_SIZE_NORESERVE);
 						GAIA_ASSERT(idxTo < Chunk::DATA_SIZE_NORESERVE);
@@ -1002,14 +999,14 @@ namespace gaia {
 						const auto& infos = archetype.componentInfos[ComponentType::CT_Generic];
 						const auto& looks = archetype.componentLookupData[ComponentType::CT_Generic];
 
-						for (uint32_t i = 0U; i < (uint32_t)infos.size(); i++) {
+						for (size_t i = 0; i < infos.size(); i++) {
 							const auto* info = infos[i].info;
 							if (!info->properties.size)
 								continue;
 
 							const auto offset = looks[i].offset;
-							const uint32_t idxFrom = offset + info->properties.size * entityContainer.idx;
-							const uint32_t idxTo = offset + info->properties.size * idxNew;
+							const auto idxFrom = offset + info->properties.size * entityContainer.idx;
+							const auto idxTo = offset + info->properties.size * idxNew;
 
 							GAIA_ASSERT(idxFrom < Chunk::DATA_SIZE_NORESERVE);
 							GAIA_ASSERT(idxTo < Chunk::DATA_SIZE_NORESERVE);
@@ -1207,8 +1204,8 @@ namespace gaia {
 			template <typename... FuncArgs, typename Func>
 			GAIA_FORCEINLINE void ForEachEntityInChunk(Chunk& chunk, Func func) {
 				auto tup = std::make_tuple(ExpandTuple<FuncArgs>(chunk)...);
-				const uint32_t size = chunk.GetItemCount();
-				for (uint32_t i = 0U; i < size; i++)
+				const size_t size = chunk.GetItemCount();
+				for (size_t i = 0; i < size; i++)
 					func(std::get<decltype(ExpandTuple<FuncArgs>(chunk))>(tup)[i]...);
 			}
 
@@ -1286,7 +1283,7 @@ namespace gaia {
 
 			template <typename Func>
 			static void RunQueryOnChunks_Direct(World& world, EntityQuery& query, Func func) {
-				const uint32_t BatchSize = 256U;
+				constexpr size_t BatchSize = 256U;
 				containers::sarray<Chunk*, BatchSize> tmp;
 
 				// Update the world version
@@ -1299,9 +1296,9 @@ namespace gaia {
 					archetype.info.structuralChangesLocked = true;
 
 					auto exec = [&](const auto& chunksList) {
-						uint32_t chunkOffset = 0U;
-						uint32_t batchSize = 0U;
-						const auto maxIters = (uint32_t)chunksList.size();
+						size_t chunkOffset = 0;
+						size_t batchSize = 0;
+						const size_t maxIters = chunksList.size();
 						do {
 							// Prepare a buffer to iterate over
 							for (; chunkOffset < maxIters; ++chunkOffset) {
@@ -1318,11 +1315,12 @@ namespace gaia {
 							}
 
 							// Execute functors in batches
-							for (auto chunkIdx = 0U; chunkIdx < batchSize; ++chunkIdx)
+							const size_t size = batchSize;
+							for (size_t chunkIdx = 0; chunkIdx < size; ++chunkIdx)
 								func(*tmp[chunkIdx]);
 
 							// Reset the batch size
-							batchSize = 0U;
+							batchSize = 0;
 						} while (chunkOffset < maxIters);
 					};
 
@@ -1341,7 +1339,7 @@ namespace gaia {
 			static void RunQueryOnChunks_Indirect_NoResolve(World& world, EntityQuery& query, Func func) {
 				using InputArgs = decltype(utils::func_args(&Func::operator()));
 
-				const uint32_t BatchSize = 256U;
+				constexpr size_t BatchSize = 256U;
 				containers::sarray<Chunk*, BatchSize> tmp;
 
 				// Update the world version
@@ -1354,9 +1352,9 @@ namespace gaia {
 					archetype.info.structuralChangesLocked = true;
 
 					auto exec = [&](const auto& chunksList) {
-						uint32_t chunkOffset = 0U;
-						uint32_t batchSize = 0U;
-						const auto maxIters = (uint32_t)chunksList.size();
+						size_t chunkOffset = 0;
+						size_t batchSize = 0;
+						const size_t maxIters = chunksList.size();
 						do {
 							// Prepare a buffer to iterate over
 							for (; chunkOffset < maxIters; ++chunkOffset) {
@@ -1373,12 +1371,12 @@ namespace gaia {
 							}
 
 							// Execute functors in batches
-							const auto size = batchSize;
-							for (auto chunkIdx = 0U; chunkIdx < size; ++chunkIdx)
+							const size_t size = batchSize;
+							for (size_t chunkIdx = 0; chunkIdx < size; ++chunkIdx)
 								world.UnpackForEachEntityInChunk(InputArgs{}, *tmp[chunkIdx], func);
 
 							// Reset the batch size
-							batchSize = 0U;
+							batchSize = 0;
 						} while (chunkOffset < maxIters);
 					};
 
@@ -1529,7 +1527,7 @@ namespace gaia {
 			*/
 			void GC() {
 				// Handle chunks
-				for (auto i = 0U; i < (uint32_t)m_chunksToRemove.size();) {
+				for (size_t i = 0; i < m_chunksToRemove.size();) {
 					auto* pChunk = m_chunksToRemove[i];
 
 					// Skip reclaimed chunks
@@ -1669,11 +1667,11 @@ namespace gaia {
 #endif
 
 						const auto& chunks = archetype->chunks;
-						for (auto i = 0U; i < (uint32_t)chunks.size(); ++i) {
+						for (size_t i = 0; i < chunks.size(); ++i) {
 							const auto* pChunk = chunks[i];
 							const auto entityCount = pChunk->header.items.count;
 							LOG_N(
-									"  Chunk #%04u, entities:%u/%u, lifespan:%u", i, entityCount, archetype->info.capacity,
+									"  Chunk #%04" PRIu64 ", entities:%u/%u, lifespan:%u", i, entityCount, archetype->info.capacity,
 									pChunk->header.info.lifespan);
 						}
 					}
@@ -1708,7 +1706,7 @@ namespace gaia {
 					if (m_freeEntities) {
 						LOG_N("  --> %u", m_nextFreeEntity);
 
-						uint32_t iters = 0U;
+						uint32_t iters = 0;
 						auto fe = m_entities[m_nextFreeEntity].idx;
 						while (fe != Entity::IdMask) {
 							LOG_N("  --> %u", m_entities[fe].idx);

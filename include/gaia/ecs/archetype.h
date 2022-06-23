@@ -98,7 +98,7 @@ namespace gaia {
 				if (archetype.info.hasComponentWithCustomConstruction) {
 					const auto& info = archetype.componentInfos[ComponentType::CT_Generic];
 					const auto& look = archetype.componentLookupData[ComponentType::CT_Generic];
-					for (uint32_t i = 0U; i < info.size(); ++i) {
+					for (size_t i = 0; i < info.size(); ++i) {
 						if (info[i].info->constructor == nullptr)
 							continue;
 						info[i].info->constructor((void*)((char*)pChunk + look[i].offset));
@@ -108,7 +108,7 @@ namespace gaia {
 				if (archetype.info.hasChunkComponentTypesWithCustomConstruction) {
 					const auto& info = archetype.componentInfos[ComponentType::CT_Chunk];
 					const auto& look = archetype.componentLookupData[ComponentType::CT_Chunk];
-					for (uint32_t i = 0U; i < info.size(); ++i) {
+					for (size_t i = 0; i < info.size(); ++i) {
 						if (info[i].info->constructor == nullptr)
 							continue;
 						info[i].info->constructor((void*)((char*)pChunk + look[i].offset));
@@ -129,7 +129,7 @@ namespace gaia {
 				if (archetype.info.hasComponentWithCustomConstruction) {
 					const auto& info = archetype.componentInfos[ComponentType::CT_Generic];
 					const auto& look = archetype.componentLookupData[ComponentType::CT_Generic];
-					for (uint32_t i = 0U; i < info.size(); ++i) {
+					for (size_t i = 0; i < info.size(); ++i) {
 						if (info[i].info->destructor == nullptr)
 							continue;
 						info[i].info->destructor((void*)((char*)pChunk + look[i].offset));
@@ -139,7 +139,7 @@ namespace gaia {
 				if (archetype.info.hasChunkComponentTypesWithCustomConstruction) {
 					const auto& info = archetype.componentInfos[ComponentType::CT_Chunk];
 					const auto& look = archetype.componentLookupData[ComponentType::CT_Chunk];
-					for (uint32_t i = 0U; i < info.size(); ++i) {
+					for (size_t i = 0; i < info.size(); ++i) {
 						if (info[i].info->destructor == nullptr)
 							continue;
 						info[i].info->destructor((void*)((char*)pChunk + look[i].offset));
@@ -175,15 +175,15 @@ namespace gaia {
 				// is substracted but that's not optimal...
 
 				// Size of the entity + all of its generic components
-				uint32_t genericComponentListSize = (uint32_t)sizeof(Entity);
-				for (const auto info: infosGeneric) {
+				size_t genericComponentListSize = sizeof(Entity);
+				for (const auto* info: infosGeneric) {
 					genericComponentListSize += info->properties.size;
 					newArch->info.hasComponentWithCustomConstruction |= info->constructor != nullptr;
 				}
 
 				// Size of chunk components
-				uint32_t chunkComponentListSize = 0;
-				for (const auto info: infosChunk) {
+				size_t chunkComponentListSize = 0;
+				for (const auto* info: infosChunk) {
 					chunkComponentListSize += info->properties.size;
 					newArch->info.hasChunkComponentTypesWithCustomConstruction |= info->constructor != nullptr;
 				}
@@ -192,15 +192,15 @@ namespace gaia {
 				auto maxGenericItemsInArchetype = (Chunk::DATA_SIZE - chunkComponentListSize) / genericComponentListSize;
 
 				// Calculate component offsets now. Skip the header and entity IDs
-				auto componentOffset = (uint32_t)sizeof(Entity) * maxGenericItemsInArchetype;
-				auto alignedOffset = (uint32_t)sizeof(ChunkHeader) + componentOffset;
+				auto componentOffset = sizeof(Entity) * maxGenericItemsInArchetype;
+				auto alignedOffset = sizeof(ChunkHeader) + componentOffset;
 
 				// Add generic infos
-				for (uint32_t i = 0U; i < (uint32_t)infosGeneric.size(); i++) {
+				for (size_t i = 0; i < infosGeneric.size(); i++) {
 					const auto* info = infosGeneric[i];
 					const auto alignment = info->properties.alig;
-					if (alignment != 0U) {
-						const uint32_t padding = utils::align(alignedOffset, alignment) - alignedOffset;
+					if (alignment != 0) {
+						const size_t padding = utils::align(alignedOffset, alignment) - alignedOffset;
 						componentOffset += padding;
 						alignedOffset += padding;
 
@@ -209,7 +209,7 @@ namespace gaia {
 
 						// Register the component info
 						newArch->componentInfos[ComponentType::CT_Generic].push_back({info});
-						newArch->componentLookupData[ComponentType::CT_Generic].push_back({info->infoIndex, componentOffset});
+						newArch->componentLookupData[ComponentType::CT_Generic].push_back({info->infoIndex, (uint32_t)componentOffset});
 
 						// Make sure the following component list is properly aligned
 						componentOffset += info->properties.size * maxGenericItemsInArchetype;
@@ -220,16 +220,16 @@ namespace gaia {
 					} else {
 						// Register the component info
 						newArch->componentInfos[ComponentType::CT_Generic].push_back({info});
-						newArch->componentLookupData[ComponentType::CT_Generic].push_back({info->infoIndex, componentOffset});
+						newArch->componentLookupData[ComponentType::CT_Generic].push_back({info->infoIndex, (uint32_t)componentOffset});
 					}
 				}
 
 				// Add chunk infos
-				for (uint32_t i = 0U; i < (uint32_t)infosChunk.size(); i++) {
-					const auto info = infosChunk[i];
+				for (size_t i = 0; i < infosChunk.size(); i++) {
+					const auto* info = infosChunk[i];
 					const auto alignment = info->properties.alig;
-					if (alignment != 0U) {
-						const uint32_t padding = utils::align(alignedOffset, alignment) - alignedOffset;
+					if (alignment != 0) {
+						const size_t padding = utils::align(alignedOffset, alignment) - alignedOffset;
 						componentOffset += padding;
 						alignedOffset += padding;
 
@@ -238,7 +238,7 @@ namespace gaia {
 
 						// Register the component info
 						newArch->componentInfos[ComponentType::CT_Chunk].push_back({info});
-						newArch->componentLookupData[ComponentType::CT_Chunk].push_back({info->infoIndex, componentOffset});
+						newArch->componentLookupData[ComponentType::CT_Chunk].push_back({info->infoIndex, (uint32_t)componentOffset});
 
 						// Make sure the following component list is properly aligned
 						componentOffset += info->properties.size;
@@ -249,7 +249,7 @@ namespace gaia {
 					} else {
 						// Register the component info
 						newArch->componentInfos[ComponentType::CT_Chunk].push_back({info});
-						newArch->componentLookupData[ComponentType::CT_Chunk].push_back({info->infoIndex, componentOffset});
+						newArch->componentLookupData[ComponentType::CT_Chunk].push_back({info->infoIndex, (uint32_t)componentOffset});
 					}
 				}
 
@@ -265,7 +265,7 @@ namespace gaia {
 					// Look for chunks with free space back-to-front.
 					// We do it this way because we always try to keep fully utilized and
 					// thus only the one in the back should be free.
-					auto i = (uint32_t)chunkArray.size() - 1;
+					auto i = chunkArray.size() - 1;
 					do {
 						auto pChunk = chunkArray[i];
 						GAIA_ASSERT(pChunk != nullptr);

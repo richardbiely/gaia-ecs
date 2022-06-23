@@ -8,7 +8,7 @@ constexpr size_t NEntities = 1'000;
 void BM_CreateEntity(benchmark::State& state) {
 	for ([[maybe_unused]] auto _: state) {
 		ecs::World w;
-		for (size_t i = 0U; i < NEntities; ++i) {
+		for (size_t i = 0; i < NEntities; ++i) {
 			[[maybe_unused]] auto e = w.CreateEntity();
 			benchmark::DoNotOptimize(e);
 		}
@@ -21,7 +21,7 @@ struct Component {
 };
 
 template <size_t Version, typename T>
-struct Component<Version, T, 0U> {}; // empty component
+struct Component<Version, T, 0> {}; // empty component
 
 namespace detail {
 	template <typename T, size_t TCount, size_t Iterations>
@@ -34,7 +34,7 @@ namespace detail {
 
 template <typename T, size_t TCount, size_t Iterations>
 constexpr void AddComponents(ecs::World& w, uint32_t N) {
-	for (uint32_t i = 0U; i < N; ++i) {
+	for (size_t i = 0; i < N; ++i) {
 		[[maybe_unused]] auto e = w.CreateEntity();
 		detail::AddComponents<T, TCount, Iterations>(w, e);
 	}
@@ -48,7 +48,7 @@ void BM_CreateEntity_With_Component(benchmark::State& state) {
 	}
 }
 
-constexpr uint32_t ForEachN = 1'000;
+constexpr size_t ForEachN = 1'000;
 
 void BM_ForEach_1_Archetype(benchmark::State& state) {
 	ecs::World w;

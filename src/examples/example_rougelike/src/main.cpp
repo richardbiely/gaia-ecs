@@ -160,7 +160,7 @@ struct World {
 
 	void CreateEnemies() {
 		containers::sarray<ecs::Entity, 3> enemies;
-		for (size_t i = 0U; i < enemies.size(); ++i) {
+		for (size_t i = 0; i < enemies.size(); ++i) {
 			auto& e = enemies[i];
 			e = w.CreateEntity();
 			w.AddComponent<Position>(e, {});
@@ -274,7 +274,7 @@ public:
 			auto vel = chunk.View<Velocity>();
 			auto pos = chunk.View<Position>();
 
-			for (uint32_t i = 0; i < chunk.GetItemCount(); ++i) {
+			for (size_t i = 0; i < chunk.GetItemCount(); ++i) {
 				auto& e = ent[i];
 				auto& v = vel[i];
 				auto& p = pos[i];

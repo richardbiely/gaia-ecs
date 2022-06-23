@@ -7,7 +7,7 @@
 
 namespace gaia {
 	namespace utils {
-		constexpr uint32_t BadIndex = uint32_t(-1);
+		constexpr size_t BadIndex = size_t(-1);
 
 		template <typename C, typename Func>
 		constexpr auto for_each(const C& arr, Func func) {
@@ -25,31 +25,31 @@ namespace gaia {
 		}
 
 		template <typename C>
-		constexpr uint32_t get_index(const C& arr, typename C::const_reference item) {
+		constexpr auto get_index(const C& arr, typename C::const_reference item) {
 			const auto it = find(arr, item);
 			if (it == arr.end())
-				return (uint32_t)BadIndex;
+				return BadIndex;
 
-			return (uint32_t)GAIA_UTIL(distance(arr.begin(), it));
+			return GAIA_UTIL(distance(arr.begin(), it));
 		}
 
 		template <typename C>
-		constexpr uint32_t get_index_unsafe(const C& arr, typename C::const_reference item) {
-			return (uint32_t)GAIA_UTIL(distance(arr.begin(), find(arr, item)));
+		constexpr auto get_index_unsafe(const C& arr, typename C::const_reference item) {
+			return GAIA_UTIL(distance(arr.begin(), find(arr, item)));
 		}
 
 		template <typename UnaryPredicate, typename C>
-		constexpr uint32_t get_index_if(const C& arr, UnaryPredicate predicate) {
+		constexpr auto get_index_if(const C& arr, UnaryPredicate predicate) {
 			const auto it = find_if(arr, predicate);
 			if (it == arr.end())
-				return (uint32_t)BadIndex;
+				return BadIndex;
 
-			return (uint32_t)GAIA_UTIL(distance(arr.begin(), it));
+			return GAIA_UTIL(distance(arr.begin(), it));
 		}
 
 		template <typename UnaryPredicate, typename C>
-		constexpr uint32_t get_index_if_unsafe(const C& arr, UnaryPredicate predicate) {
-			return (uint32_t)GAIA_UTIL(distance(arr.begin(), find_if(arr, predicate)));
+		constexpr auto get_index_if_unsafe(const C& arr, UnaryPredicate predicate) {
+			return GAIA_UTIL(distance(arr.begin(), find_if(arr, predicate)));
 		}
 
 		template <typename C>
@@ -65,7 +65,7 @@ namespace gaia {
 		}
 
 		template <typename C>
-		void erase_fast(C& arr, uint32_t idx) {
+		void erase_fast(C& arr, size_t idx) {
 			if (idx >= arr.size())
 				return;
 
