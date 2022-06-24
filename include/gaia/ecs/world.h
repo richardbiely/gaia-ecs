@@ -1601,8 +1601,8 @@ namespace gaia {
 
 #if GAIA_ARCHETYPE_GRAPH
 					{
-						const auto& edgesG = archetype->edgesAdd[ComponentType::CT_Generic];
-						const auto& edgesC = archetype->edgesAdd[ComponentType::CT_Chunk];
+						const auto& edgesG = archetype.edgesAdd[ComponentType::CT_Generic];
+						const auto& edgesC = archetype.edgesAdd[ComponentType::CT_Chunk];
 						const auto edgeCount = (uint32_t)(edgesG.size() + edgesC.size());
 						if (edgeCount > 0) {
 							LOG_N("  Add edges - count:%u", edgeCount);
@@ -1626,8 +1626,8 @@ namespace gaia {
 					}
 
 					{
-						const auto& edgesG = archetype->edgesDel[ComponentType::CT_Generic];
-						const auto& edgesC = archetype->edgesDel[ComponentType::CT_Chunk];
+						const auto& edgesG = archetype.edgesDel[ComponentType::CT_Generic];
+						const auto& edgesC = archetype.edgesDel[ComponentType::CT_Chunk];
 						const auto edgeCount = (uint32_t)(edgesG.size() + edgesC.size());
 						if (edgeCount > 0) {
 							LOG_N("  Del edges - count:%u", edgeCount);
