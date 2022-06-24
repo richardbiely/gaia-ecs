@@ -99,9 +99,9 @@ namespace gaia {
 					const auto& info = archetype.componentInfos[ComponentType::CT_Generic];
 					const auto& look = archetype.componentLookupData[ComponentType::CT_Generic];
 					for (size_t i = 0; i < info.size(); ++i) {
-						if (info[i].info->constructor == nullptr)
+						if (info[i]->constructor == nullptr)
 							continue;
-						info[i].info->constructor((void*)((char*)pChunk + look[i].offset));
+						info[i]->constructor((void*)((char*)pChunk + look[i].offset));
 					}
 				}
 				// Call default constructors for chunk components that need it
@@ -109,9 +109,9 @@ namespace gaia {
 					const auto& info = archetype.componentInfos[ComponentType::CT_Chunk];
 					const auto& look = archetype.componentLookupData[ComponentType::CT_Chunk];
 					for (size_t i = 0; i < info.size(); ++i) {
-						if (info[i].info->constructor == nullptr)
+						if (info[i]->constructor == nullptr)
 							continue;
-						info[i].info->constructor((void*)((char*)pChunk + look[i].offset));
+						info[i]->constructor((void*)((char*)pChunk + look[i].offset));
 					}
 				}
 
@@ -130,9 +130,9 @@ namespace gaia {
 					const auto& info = archetype.componentInfos[ComponentType::CT_Generic];
 					const auto& look = archetype.componentLookupData[ComponentType::CT_Generic];
 					for (size_t i = 0; i < info.size(); ++i) {
-						if (info[i].info->destructor == nullptr)
+						if (info[i]->destructor == nullptr)
 							continue;
-						info[i].info->destructor((void*)((char*)pChunk + look[i].offset));
+						info[i]->destructor((void*)((char*)pChunk + look[i].offset));
 					}
 				}
 				// Call destructors for chunk components which need it
@@ -140,9 +140,9 @@ namespace gaia {
 					const auto& info = archetype.componentInfos[ComponentType::CT_Chunk];
 					const auto& look = archetype.componentLookupData[ComponentType::CT_Chunk];
 					for (size_t i = 0; i < info.size(); ++i) {
-						if (info[i].info->destructor == nullptr)
+						if (info[i]->destructor == nullptr)
 							continue;
-						info[i].info->destructor((void*)((char*)pChunk + look[i].offset));
+						info[i]->destructor((void*)((char*)pChunk + look[i].offset));
 					}
 				}
 
@@ -208,8 +208,9 @@ namespace gaia {
 						GAIA_ASSERT(componentOffset <= Chunk::DATA_SIZE_NORESERVE);
 
 						// Register the component info
-						newArch->componentInfos[ComponentType::CT_Generic].push_back({info});
-						newArch->componentLookupData[ComponentType::CT_Generic].push_back({info->infoIndex, (uint32_t)componentOffset});
+						newArch->componentInfos[ComponentType::CT_Generic].push_back(info);
+						newArch->componentLookupData[ComponentType::CT_Generic].push_back(
+								{info->infoIndex, (uint32_t)componentOffset});
 
 						// Make sure the following component list is properly aligned
 						componentOffset += info->properties.size * maxGenericItemsInArchetype;
@@ -219,8 +220,9 @@ namespace gaia {
 						GAIA_ASSERT(componentOffset <= Chunk::DATA_SIZE_NORESERVE);
 					} else {
 						// Register the component info
-						newArch->componentInfos[ComponentType::CT_Generic].push_back({info});
-						newArch->componentLookupData[ComponentType::CT_Generic].push_back({info->infoIndex, (uint32_t)componentOffset});
+						newArch->componentInfos[ComponentType::CT_Generic].push_back(info);
+						newArch->componentLookupData[ComponentType::CT_Generic].push_back(
+								{info->infoIndex, (uint32_t)componentOffset});
 					}
 				}
 
@@ -237,8 +239,9 @@ namespace gaia {
 						GAIA_ASSERT(componentOffset <= Chunk::DATA_SIZE_NORESERVE);
 
 						// Register the component info
-						newArch->componentInfos[ComponentType::CT_Chunk].push_back({info});
-						newArch->componentLookupData[ComponentType::CT_Chunk].push_back({info->infoIndex, (uint32_t)componentOffset});
+						newArch->componentInfos[ComponentType::CT_Chunk].push_back(info);
+						newArch->componentLookupData[ComponentType::CT_Chunk].push_back(
+								{info->infoIndex, (uint32_t)componentOffset});
 
 						// Make sure the following component list is properly aligned
 						componentOffset += info->properties.size;
@@ -248,8 +251,9 @@ namespace gaia {
 						GAIA_ASSERT(componentOffset <= Chunk::DATA_SIZE_NORESERVE);
 					} else {
 						// Register the component info
-						newArch->componentInfos[ComponentType::CT_Chunk].push_back({info});
-						newArch->componentLookupData[ComponentType::CT_Chunk].push_back({info->infoIndex, (uint32_t)componentOffset});
+						newArch->componentInfos[ComponentType::CT_Chunk].push_back(info);
+						newArch->componentLookupData[ComponentType::CT_Chunk].push_back(
+								{info->infoIndex, (uint32_t)componentOffset});
 					}
 				}
 

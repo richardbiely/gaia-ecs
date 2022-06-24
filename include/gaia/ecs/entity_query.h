@@ -287,7 +287,7 @@ namespace gaia {
 				if (withNoneTest != 0) {
 					for (const auto infoIndex: queryList.list[ListType::LT_None]) {
 						for (const auto& info: componentInfos) {
-							if (info.info->infoIndex == infoIndex) {
+							if (info->infoIndex == infoIndex) {
 								return MatchArchetypeQueryRet::Fail;
 							}
 						}
@@ -298,7 +298,7 @@ namespace gaia {
 				if (withAnyTest != 0) {
 					for (const auto infoIndex: queryList.list[ListType::LT_Any]) {
 						for (const auto& info: componentInfos) {
-							if (info.info->infoIndex == infoIndex)
+							if (info->infoIndex == infoIndex)
 								goto checkWithAllMatches;
 						}
 					}
@@ -319,7 +319,7 @@ namespace gaia {
 						// components than there are components in archetype
 						for (const auto infoIndex: queryList.list[ListType::LT_All]) {
 							for (const auto& info: componentInfos) {
-								if (info.info->infoIndex != infoIndex)
+								if (info->infoIndex != infoIndex)
 									continue;
 
 								// All requirements are fulfilled. Let's iterate
