@@ -68,10 +68,10 @@ namespace gaia {
 			template <typename T>
 			[[nodiscard]] static constexpr auto name() noexcept {
 				// MSVC:
-				//		const char* __cdecl ecs::ComponentInfo::GetMetaName<struct ecs::EnfEntity>(void)
+				//		const char* __cdecl ecs::ComponentInfo::name<struct ecs::EnfEntity>(void)
 				//   -> ecs::EnfEntity
 				// Clang/GCC:
-				//		const ecs::ComponentInfo::GetMetaName() [T = ecs::EnfEntity]
+				//		const ecs::ComponentInfo::name() [T = ecs::EnfEntity]
 				//   -> ecs::EnfEntity
 
 				// Note:

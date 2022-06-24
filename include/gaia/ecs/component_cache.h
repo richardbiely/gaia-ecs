@@ -43,8 +43,7 @@ namespace gaia {
 					m_infoByIndex.emplace(index, res.first->second);
 				}
 
-				const ComponentInfo* pMetaData = res.first->second;
-				return pMetaData;
+				return res.first->second;
 			}
 
 			template <typename T>
@@ -78,21 +77,6 @@ namespace gaia {
 				GAIA_SAFE_CONSTEXPR auto lookupHash = utils::type_info::hash<U>();
 
 				return m_info.find(lookupHash) != m_info.end();
-			}
-
-			template <typename... T>
-			[[nodiscard]] bool HasComponentMetaTypes() const {
-				return (HasComponentInfo<T>() && ...);
-			}
-
-			template <typename... T>
-			[[nodiscard]] bool HasAnyComponentMetaTypes() const {
-				return (HasComponentInfo<T>() || ...);
-			}
-
-			template <typename... T>
-			[[nodiscard]] bool HasNoneComponentMetaTypes() const {
-				return (!HasComponentInfo<T>() && ...);
 			}
 
 			void Diag() const {
