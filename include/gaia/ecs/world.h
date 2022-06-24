@@ -1540,130 +1540,161 @@ namespace gaia {
 			}
 
 			/*!
+			Performs diagnostics on a specific archetype. Prints basic info about it and the chunks it contains.
+			\param archetype Archetype to run diagnostics on
+			*/
+			void DiagArchetype(const Archetype& archetype) const {
+				static bool DiagArchetypes = GAIA_ECS_DIAG_ARCHETYPES;
+				if (!DiagArchetypes)
+					return;
+				DiagArchetypes = false;
+
+				// Caclulate the number of entites in archetype
+				uint32_t entityCount = 0;
+				uint32_t entityCountDisabled = 0;
+				for (const auto* chunk: archetype.chunks)
+					entityCount += chunk->GetItemCount();
+				for (const auto* chunk: archetype.chunksDisabled) {
+					entityCountDisabled += chunk->GetItemCount();
+					entityCount += chunk->GetItemCount();
+				}
+
+				// Print archetype info
+				{
+					const auto& genericComponents = archetype.componentInfos[ComponentType::CT_Generic];
+					const auto& chunkComponents = archetype.componentInfos[ComponentType::CT_Chunk];
+					uint32_t genericComponentsSize = 0;
+					uint32_t chunkComponentsSize = 0;
+					for (const auto& component: genericComponents)
+						genericComponentsSize += component->properties.size;
+					for (const auto& component: chunkComponents)
+						chunkComponentsSize += component->properties.size;
+
+					LOG_N(
+							"Archetype ID:%u, "
+							"lookupHash:%016" PRIx64 ", "
+							"mask:%016" PRIx64 "/%016" PRIx64 ", "
+							"chunks:%u, data size:%3u B (%u/%u), "
+							"entities:%u/%u (disabled:%u)",
+							archetype.id, archetype.lookupHash, archetype.matcherHash[ComponentType::CT_Generic],
+							archetype.matcherHash[ComponentType::CT_Chunk], (uint32_t)archetype.chunks.size(),
+							genericComponentsSize + chunkComponentsSize, genericComponentsSize, chunkComponentsSize, entityCount,
+							archetype.info.capacity, entityCountDisabled);
+
+					auto logComponentInfo = [](const ComponentInfo* info) {
+						LOG_N(
+								"    (%p) lookupHash:%016" PRIx64 ", mask:%016" PRIx64 ", size:%3u B, align:%3u B, %.*s", (void*)info,
+								info->lookupHash, info->matcherHash, info->properties.size, info->properties.alig,
+								(uint32_t)info->name.length(), info->name.data());
+					};
+
+					if (!genericComponents.empty()) {
+						LOG_N("  Generic components - count:%u", (uint32_t)genericComponents.size());
+						for (const auto* component: genericComponents)
+							logComponentInfo(component);
+					}
+					if (!chunkComponents.empty()) {
+						LOG_N("  Chunk components - count:%u", (uint32_t)chunkComponents.size());
+						for (const auto* component: chunkComponents)
+							logComponentInfo(component);
+					}
+
+#if GAIA_ARCHETYPE_GRAPH
+					{
+						const auto& edgesG = archetype->edgesAdd[ComponentType::CT_Generic];
+						const auto& edgesC = archetype->edgesAdd[ComponentType::CT_Chunk];
+						const auto edgeCount = (uint32_t)(edgesG.size() + edgesC.size());
+						if (edgeCount > 0) {
+							LOG_N("  Add edges - count:%u", edgeCount);
+
+							if (!edgesG.empty()) {
+								LOG_N("    Generic - count:%u", (uint32_t)edgesG.size());
+								for (const auto& edge: edgesG)
+									LOG_N(
+											"      %.*s (--> Archetype ID:%u)", (uint32_t)edge.info->name.length(), edge.info->name.data(),
+											edge.archetype->id);
+							}
+
+							if (!edgesC.empty()) {
+								LOG_N("    Chunk - count:%u", (uint32_t)edgesC.size());
+								for (const auto& edge: edgesC)
+									LOG_N(
+											"      %.*s (--> Archetype ID:%u)", (uint32_t)edge.info->name.length(), edge.info->name.data(),
+											edge.archetype->id);
+							}
+						}
+					}
+
+					{
+						const auto& edgesG = archetype->edgesDel[ComponentType::CT_Generic];
+						const auto& edgesC = archetype->edgesDel[ComponentType::CT_Chunk];
+						const auto edgeCount = (uint32_t)(edgesG.size() + edgesC.size());
+						if (edgeCount > 0) {
+							LOG_N("  Del edges - count:%u", edgeCount);
+
+							if (!edgesG.empty()) {
+								LOG_N("    Generic - count:%u", (uint32_t)edgesG.size());
+								for (const auto& edge: edgesG)
+									LOG_N(
+											"      %.*s (--> Archetype ID:%u)", (uint32_t)edge.info->name.length(), edge.info->name.data(),
+											edge.archetype->id);
+							}
+
+							if (!edgesC.empty()) {
+								LOG_N("    Chunk - count:%u", (uint32_t)edgesC.size());
+								for (const auto& edge: edgesC)
+									LOG_N(
+											"      %.*s (--> Archetype ID:%u)", (uint32_t)edge.info->name.length(), edge.info->name.data(),
+											edge.archetype->id);
+							}
+						}
+					}
+#endif
+
+					auto logChunks = [](const auto& chunks) {
+						for (size_t i = 0; i < chunks.size(); ++i) {
+							const auto* pChunk = chunks[i];
+							const auto& header = pChunk->header;
+							LOG_N(
+									"  Chunk #%04u, entities:%u/%u, lifespan:%u", (uint32_t)i, header.items.count,
+									header.owner.info.capacity, header.info.lifespan);
+						}
+					};
+
+					{
+						const auto& chunks = archetype.chunks;
+						if (!chunks.empty())
+							LOG_N("  Enabled chunks");
+
+						logChunks(chunks);
+					}
+
+					{
+						const auto& chunks = archetype.chunksDisabled;
+						if (!chunks.empty())
+							LOG_N("  Disabled chunks");
+
+						logChunks(chunks);
+					}
+				}
+			}
+
+			/*!
 			Performs diagnostics on archetypes. Prints basic info about them and the chunks they contain.
 			*/
 			void DiagArchetypes() const {
 				static bool DiagArchetypes = GAIA_ECS_DIAG_ARCHETYPES;
-				if (DiagArchetypes) {
-					DiagArchetypes = false;
-					containers::map<uint64_t, uint32_t> archetypeEntityCountMap;
-					for (const auto* archetype: m_archetypes)
-						archetypeEntityCountMap.insert({archetype->lookupHash, 0});
+				if (!DiagArchetypes)
+					return;
 
-					// Calculate the number of entities using a given archetype
-					for (const auto& e: m_entities) {
-						if (!e.pChunk)
-							continue;
-
-						auto it = archetypeEntityCountMap.find(e.pChunk->header.owner.lookupHash);
-						if (it != archetypeEntityCountMap.end())
-							++it->second;
-					}
-
-					// Print archetype info
-					LOG_N("Archetypes:%u", (uint32_t)m_archetypes.size());
-					for (const auto* archetype: m_archetypes) {
-						const auto& genericComponents = archetype->componentInfos[ComponentType::CT_Generic];
-						const auto& chunkComponents = archetype->componentInfos[ComponentType::CT_Chunk];
-						uint32_t genericComponentsSize = 0;
-						uint32_t chunkComponentsSize = 0;
-						for (const auto& component: genericComponents)
-							genericComponentsSize += component->properties.size;
-						for (const auto& component: chunkComponents)
-							chunkComponentsSize += component->properties.size;
-
-						const auto it = archetypeEntityCountMap.find(archetype->lookupHash);
-						LOG_N(
-								"Archetype ID:%u, "
-								"lookupHash:%016" PRIx64 ", "
-								"mask:%016" PRIx64 "/%016" PRIx64 ", "
-								"chunks:%u, data size:%3u B (%u/%u), "
-								"entities:%u/%u",
-								archetype->id, archetype->lookupHash, archetype->matcherHash[ComponentType::CT_Generic],
-								archetype->matcherHash[ComponentType::CT_Chunk], (uint32_t)archetype->chunks.size(),
-								genericComponentsSize + chunkComponentsSize, genericComponentsSize, chunkComponentsSize, it->second,
-								archetype->info.capacity);
-
-						auto logComponentInfo = [](const ComponentInfo* info) {
-							LOG_N(
-									"    (%p) lookupHash:%016" PRIx64 ", mask:%016" PRIx64 ", size:%3u B, align:%3u B, %.*s", (void*)info,
-									info->lookupHash, info->matcherHash, info->properties.size, info->properties.alig,
-									(uint32_t)info->name.length(), info->name.data());
-						};
-
-						if (!genericComponents.empty()) {
-							LOG_N("  Generic components - count:%u", (uint32_t)genericComponents.size());
-							for (const auto* component: genericComponents)
-								logComponentInfo(component);
-						}
-						if (!chunkComponents.empty()) {
-							LOG_N("  Chunk components - count:%u", (uint32_t)chunkComponents.size());
-							for (const auto* component: chunkComponents)
-								logComponentInfo(component);
-						}
-
-#if GAIA_ARCHETYPE_GRAPH
-						{
-							const auto& edgesG = archetype->edgesAdd[ComponentType::CT_Generic];
-							const auto& edgesC = archetype->edgesAdd[ComponentType::CT_Chunk];
-							const auto edgeCount = (uint32_t)(edgesG.size() + edgesC.size());
-							if (edgeCount > 0) {
-								LOG_N("  Add edges - count:%u", edgeCount);
-
-								if (!edgesG.empty()) {
-									LOG_N("    Generic - count:%u", (uint32_t)edgesG.size());
-									for (const auto& edge: edgesG)
-										LOG_N(
-												"      %.*s (--> Archetype ID:%u)", (uint32_t)edge.info->name.length(), edge.info->name.data(),
-												edge.archetype->id);
-								}
-
-								if (!edgesC.empty()) {
-									LOG_N("    Chunk - count:%u", (uint32_t)edgesC.size());
-									for (const auto& edge: edgesC)
-										LOG_N(
-												"      %.*s (--> Archetype ID:%u)", (uint32_t)edge.info->name.length(), edge.info->name.data(),
-												edge.archetype->id);
-								}
-							}
-						}
-
-						{
-							const auto& edgesG = archetype->edgesDel[ComponentType::CT_Generic];
-							const auto& edgesC = archetype->edgesDel[ComponentType::CT_Chunk];
-							const auto edgeCount = (uint32_t)(edgesG.size() + edgesC.size());
-							if (edgeCount > 0) {
-								LOG_N("  Del edges - count:%u", edgeCount);
-
-								if (!edgesG.empty()) {
-									LOG_N("    Generic - count:%u", (uint32_t)edgesG.size());
-									for (const auto& edge: edgesG)
-										LOG_N(
-												"      %.*s (--> Archetype ID:%u)", (uint32_t)edge.info->name.length(), edge.info->name.data(),
-												edge.archetype->id);
-								}
-
-								if (!edgesC.empty()) {
-									LOG_N("    Chunk - count:%u", (uint32_t)edgesC.size());
-									for (const auto& edge: edgesC)
-										LOG_N(
-												"      %.*s (--> Archetype ID:%u)", (uint32_t)edge.info->name.length(), edge.info->name.data(),
-												edge.archetype->id);
-								}
-							}
-						}
-#endif
-
-						const auto& chunks = archetype->chunks;
-						for (size_t i = 0; i < chunks.size(); ++i) {
-							const auto* pChunk = chunks[i];
-							const auto entityCount = pChunk->header.items.count;
-							LOG_N(
-									"  Chunk #%04u, entities:%u/%u, lifespan:%u", (uint32_t)i, entityCount, archetype->info.capacity,
-									pChunk->header.info.lifespan);
-						}
-					}
+				// Print archetype info
+				LOG_N("Archetypes:%u", (uint32_t)m_archetypes.size());
+				for (const auto* archetype: m_archetypes) {
+					DiagArchetype(*archetype);
+					DiagArchetypes = true;
 				}
+
+				DiagArchetypes = false;
 			}
 
 			/*!
@@ -1672,11 +1703,11 @@ namespace gaia {
 			*/
 			void DiagRegisteredTypes() const {
 				static bool DiagRegisteredTypes = GAIA_ECS_DIAG_REGISTERED_TYPES;
-				if (DiagRegisteredTypes) {
-					DiagRegisteredTypes = false;
+				if (!DiagRegisteredTypes)
+					return;
+				DiagRegisteredTypes = false;
 
-					m_componentCache.Diag();
-				}
+				m_componentCache.Diag();
 			}
 
 			/*!
@@ -1685,26 +1716,26 @@ namespace gaia {
 			*/
 			void DiagEntities() const {
 				static bool DiagDeletedEntities = GAIA_ECS_DIAG_DELETED_ENTITIES;
-				if (DiagDeletedEntities) {
-					DiagDeletedEntities = false;
+				if (!DiagDeletedEntities)
+					return;
+				DiagDeletedEntities = false;
 
-					ValidateEntityList();
+				ValidateEntityList();
 
-					LOG_N("Deleted entities: %u", m_freeEntities);
-					if (m_freeEntities) {
-						LOG_N("  --> %u", m_nextFreeEntity);
+				LOG_N("Deleted entities: %u", m_freeEntities);
+				if (m_freeEntities) {
+					LOG_N("  --> %u", m_nextFreeEntity);
 
-						uint32_t iters = 0;
-						auto fe = m_entities[m_nextFreeEntity].idx;
-						while (fe != Entity::IdMask) {
-							LOG_N("  --> %u", m_entities[fe].idx);
-							fe = m_entities[fe].idx;
-							++iters;
-							if (!iters || iters > m_freeEntities) {
-								LOG_E("  Entities recycle list contains inconsistent "
-											"data!");
-								break;
-							}
+					uint32_t iters = 0;
+					auto fe = m_entities[m_nextFreeEntity].idx;
+					while (fe != Entity::IdMask) {
+						LOG_N("  --> %u", m_entities[fe].idx);
+						fe = m_entities[fe].idx;
+						++iters;
+						if (!iters || iters > m_freeEntities) {
+							LOG_E("  Entities recycle list contains inconsistent "
+										"data!");
+							break;
 						}
 					}
 				}
