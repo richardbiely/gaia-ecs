@@ -457,11 +457,10 @@ namespace gaia {
 					const auto& archetype = *node;
 
 					const auto& componentInfos = archetype.componentInfos[type];
-					const auto& componentInfoList2 = archetype.componentInfos[(type + 1) & 1];
+					const auto& componentInfos2 = archetype.componentInfos[(type + 1) & 1];
 
 					const auto oldInfosCount = componentInfos.size();
-					const auto newInfosCount = 1;
-					const auto infosCount = oldInfosCount + newInfosCount;
+					const auto infosCount = oldInfosCount + 1;
 
 					// Prepare a joint array of component infos of old and new infos for our type
 					containers::sarray_ext<const ComponentInfo*, MAX_COMPONENTS_PER_ARCHETYPE> newInfos;
@@ -473,32 +472,29 @@ namespace gaia {
 					}
 
 					// Prepare an array of old component infos for our other type. This is a simple copy.
-					containers::sarray_ext<const ComponentInfo*, MAX_COMPONENTS_PER_ARCHETYPE> otherMetaTypes;
-					otherMetaTypes.resize(componentInfoList2.size());
+					containers::sarray_ext<const ComponentInfo*, MAX_COMPONENTS_PER_ARCHETYPE> otherInfos;
+					otherInfos.resize(componentInfos2.size());
 					{
-						for (size_t j = 0; j < componentInfoList2.size(); j++)
-							otherMetaTypes[j] = componentInfoList2[j].info;
+						for (size_t j = 0; j < componentInfos2.size(); j++)
+							otherInfos[j] = componentInfos2[j].info;
 					}
 
 #if GAIA_ARCHETYPE_GRAPH
 					auto newArchetype = type == ComponentType::CT_Generic
 																	? CreateArchetype(
 																				std::span<const ComponentInfo*>(newInfos.data(), newInfos.size()),
-																				std::span<const ComponentInfo*>(otherMetaTypes.data(), otherMetaTypes.size()))
+																				std::span<const ComponentInfo*>(otherInfos.data(), otherInfos.size()))
 																	: CreateArchetype(
-																				std::span<const ComponentInfo*>(otherMetaTypes.data(), otherMetaTypes.size()),
+																				std::span<const ComponentInfo*>(otherInfos.data(), otherInfos.size()),
 																				std::span<const ComponentInfo*>(newInfos.data(), newInfos.size()));
 
 					RegisterArchetype(newArchetype);
 					BuildGraphEdges(type, node, newArchetype, infoToAdd);
 #else
-					auto newArchetype = type == ComponentType::CT_Generic
-																	? FindOrCreateArchetype(
-																				std::span<const ComponentInfo*>(newInfos.data(), newInfos.size()),
-																				std::span<const ComponentInfo*>(otherMetaTypes.data(), otherMetaTypes.size()))
-																	: FindOrCreateArchetype(
-																				std::span<const ComponentInfo*>(otherMetaTypes.data(), otherMetaTypes.size()),
-																				std::span<const ComponentInfo*>(newInfos.data(), newInfos.size()));
+					auto newArchetype =
+							type == ComponentType::CT_Generic
+									? FindOrCreateArchetype({newInfos.data(), newInfos.size()}, {otherInfos.data(), otherInfos.size()})
+									: FindOrCreateArchetype({otherInfos.data(), otherInfos.size()}, {newInfos.data(), newInfos.size()});
 #endif
 
 					node = newArchetype;
@@ -527,11 +523,11 @@ namespace gaia {
 				GAIA_ASSERT(node != nullptr);
 				return node;
 #else
-				const auto& componentInfos = archetype->componentInfos[type];
+				const auto& infosFirst = archetype->componentInfos[type];
 				containers::sarray_ext<const ComponentInfo*, MAX_COMPONENTS_PER_ARCHETYPE> newInfos;
 
 				// Find the intersection
-				for (const auto& info: componentInfos) {
+				for (const auto& info: infosFirst) {
 					if (info.info == intoToRemove)
 						goto nextIter;
 
@@ -542,21 +538,20 @@ namespace gaia {
 				}
 
 				// Nothing has changed. Return
-				if (newInfos.size() == componentInfos.size())
+				if (newInfos.size() == infosFirst.size())
 					return nullptr;
 
 				const auto& secondList = archetype->componentInfos[(type + 1) & 1];
-				containers::sarray_ext<const ComponentInfo*, MAX_COMPONENTS_PER_ARCHETYPE> secondMetaTypes;
-				secondMetaTypes.resize(secondList.size());
+				containers::sarray_ext<const ComponentInfo*, MAX_COMPONENTS_PER_ARCHETYPE> otherInfos;
+				otherInfos.resize(secondList.size());
 
 				for (size_t i = 0; i < secondList.size(); i++)
-					secondMetaTypes[i] = secondList[i].info;
+					otherInfos[i] = secondList[i].info;
 
 				auto newArchetype =
 						type == ComponentType::CT_Generic
-								? FindOrCreateArchetype({newInfos.data(), newInfos.size()}, {secondMetaTypes.data(), secondList.size()})
-								: FindOrCreateArchetype(
-											{secondMetaTypes.data(), secondList.size()}, {newInfos.data(), newInfos.size()});
+								? FindOrCreateArchetype({newInfos.data(), newInfos.size()}, {otherInfos.data(), otherInfos.size()})
+								: FindOrCreateArchetype({otherInfos.data(), otherInfos.size()}, {newInfos.data(), newInfos.size()});
 
 				return newArchetype;
 #endif
@@ -776,7 +771,7 @@ namespace gaia {
 					VerifyAddComponent(archetype, entity, type, infoToAdd);
 #endif
 
-					auto newArchetype = FindOrCreateArchetype(&archetype, type, infoToAdd);
+					auto* newArchetype = FindOrCreateArchetype(&archetype, type, infoToAdd);
 					MoveEntity(entity, *newArchetype);
 				}
 				// Adding a component to an empty entity
@@ -790,7 +785,7 @@ namespace gaia {
 					VerifyAddComponent(archetype, entity, type, infoToAdd);
 #endif
 
-					auto newArchetype = FindOrCreateArchetype(&archetype, type, infoToAdd);
+					auto* newArchetype = FindOrCreateArchetype(&archetype, type, infoToAdd);
 					StoreEntity(entity, newArchetype->FindOrCreateFreeChunk());
 				}
 

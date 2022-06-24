@@ -107,7 +107,7 @@ namespace gaia {
 			}
 
 			template <typename T>
-			void SetChangedFilter_Internal(ChangeFilterArray& arrFilter, ComponentListData& arrMeta) {
+			void SetChangedFilter_Internal(ChangeFilterArray& arrFilter, ComponentListData& componentListData) {
 				static_assert(!std::is_same<T, Entity>::value, "It doesn't make sense to use ChangedFilter with Entity");
 
 				const auto infoIndex = utils::type_info::index<T>();
@@ -131,13 +131,13 @@ namespace gaia {
 
 				// Component has to be present in anyList or allList.
 				// NoneList makes no sense because we skip those in query processing anyway.
-				if (utils::has_if(arrMeta.list[ListType::LT_Any], [infoIndex](auto idx) {
+				if (utils::has_if(componentListData.list[ListType::LT_Any], [infoIndex](auto idx) {
 							return idx == infoIndex;
 						})) {
 					arrFilter.push_back(infoIndex);
 					return;
 				}
-				if (utils::has_if(arrMeta.list[ListType::LT_All], [infoIndex](auto idx) {
+				if (utils::has_if(componentListData.list[ListType::LT_All], [infoIndex](auto idx) {
 							return idx == infoIndex;
 						})) {
 					arrFilter.push_back(infoIndex);
@@ -155,8 +155,8 @@ namespace gaia {
 			}
 
 			template <typename... TComponent>
-			void SetChangedFilter(ChangeFilterArray& arr, ComponentListData& arrMeta) {
-				(SetChangedFilter_Internal<TComponent>(arr, arrMeta), ...);
+			void SetChangedFilter(ChangeFilterArray& arr, ComponentListData& componentListData) {
+				(SetChangedFilter_Internal<TComponent>(arr, componentListData), ...);
 			}
 
 			//! Sorts internal component arrays by their type indices
