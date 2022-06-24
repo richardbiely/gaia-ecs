@@ -369,9 +369,9 @@ namespace gaia {
 
 #if GAIA_ARCHETYPE_GRAPH
 			GAIA_FORCEINLINE void
-			BuildGraphEdges(ComponentType type, Archetype* left, Archetype* right, const ComponentInfo* type) {
-				left->edgesAdd[type].push_back({type, right});
-				right->edgesDel[type].push_back({type, left});
+			BuildGraphEdges(ComponentType type, Archetype* left, Archetype* right, const ComponentInfo* info) {
+				left->edgesAdd[type].push_back({info, right});
+				right->edgesDel[type].push_back({info, left});
 			}
 
 			/*!
@@ -384,26 +384,26 @@ namespace gaia {
 				size_t i = 0;
 				size_t j = 0;
 
-				const auto& leftTypes = left.componentInfos[type];
-				const auto& rightTypes = right.componentInfos[type];
-				if (leftTypes.size() < rightTypes.size())
+				const auto& infosLeft = left.componentInfos[type];
+				const auto& infosRight = right.componentInfos[type];
+				if (infosLeft.size() < infosRight.size())
 					return false;
 
 				// Arrays are sorted so we can do linear intersection lookup
-				while (i < leftTypes.size() && j < rightTypes.size()) {
-					const auto* typeLeft = leftTypes[i].info;
-					const auto* typeRight = rightTypes[j].info;
+				while (i < infosLeft.size() && j < infosRight.size()) {
+					const auto* infoLeft = infosLeft[i];
+					const auto* infoRight = infosRight[j];
 
-					if (typeLeft == typeRight) {
+					if (infoLeft == infoRight) {
 						++i;
 						++j;
-					} else if (typeLeft < typeRight)
+					} else if (infoLeft < infoRight)
 						++i;
 					else
 						return false;
 				}
 
-				return j == rightTypes.size();
+				return j == infosRight.size();
 			}
 #endif
 
@@ -422,8 +422,6 @@ namespace gaia {
 				// We don't want to store edges for the root archetype because the more components there are the longer
 				// it would take to find anything. Therefore, for the root archetype we simply make a lookup.
 				if (node == m_rootArchetype) {
-					++i;
-
 					if (type == ComponentType::CT_Generic) {
 						const auto genericHash = infoToAdd->lookupHash;
 						const auto lookupHash = CalculateLookupHash(containers::sarray<uint64_t, 2>{genericHash, 0});
@@ -434,13 +432,13 @@ namespace gaia {
 							node->edgesDel[type].push_back({infoToAdd, m_rootArchetype});
 						}
 					} else {
-						const auto chunkHash = infoToAdd[0]->lookupHash;
+						const auto chunkHash = infoToAdd->lookupHash;
 						const auto lookupHash = CalculateLookupHash(containers::sarray<uint64_t, 2>{0, chunkHash});
 						node = FindArchetype({}, std::span<const ComponentInfo*>(&infoToAdd, 1), lookupHash);
 						if (node == nullptr) {
 							node = CreateArchetype({}, std::span<const ComponentInfo*>(&infoToAdd, 1));
 							RegisterArchetype(node);
-							node->edgesDel[type].push_back({infoToAdd[0], m_rootArchetype});
+							node->edgesDel[type].push_back({infoToAdd, m_rootArchetype});
 						}
 					}
 				}
@@ -1613,7 +1611,7 @@ namespace gaia {
 								LOG_N("  Add edges - count:%u", edgeCount);
 
 								if (!edgesG.empty()) {
-									LOG_N("    Generic - count:%u", edgesG.size());
+									LOG_N("    Generic - count:%u", (uint32_t)edgesG.size());
 									for (const auto& edge: edgesG)
 										LOG_N(
 												"      %.*s (--> Archetype ID:%u)", (uint32_t)edge.info->name.length(), edge.info->name.data(),
@@ -1621,7 +1619,7 @@ namespace gaia {
 								}
 
 								if (!edgesC.empty()) {
-									LOG_N("    Chunk - count:%u", edgesC.size());
+									LOG_N("    Chunk - count:%u", (uint32_t)edgesC.size());
 									for (const auto& edge: edgesC)
 										LOG_N(
 												"      %.*s (--> Archetype ID:%u)", (uint32_t)edge.info->name.length(), edge.info->name.data(),
@@ -1638,7 +1636,7 @@ namespace gaia {
 								LOG_N("  Del edges - count:%u", edgeCount);
 
 								if (!edgesG.empty()) {
-									LOG_N("    Generic - count:%u", edgesG.size());
+									LOG_N("    Generic - count:%u", (uint32_t)edgesG.size());
 									for (const auto& edge: edgesG)
 										LOG_N(
 												"      %.*s (--> Archetype ID:%u)", (uint32_t)edge.info->name.length(), edge.info->name.data(),
@@ -1646,7 +1644,7 @@ namespace gaia {
 								}
 
 								if (!edgesC.empty()) {
-									LOG_N("    Chunk - count:%u", edgesC.size());
+									LOG_N("    Chunk - count:%u", (uint32_t)edgesC.size());
 									for (const auto& edge: edgesC)
 										LOG_N(
 												"      %.*s (--> Archetype ID:%u)", (uint32_t)edge.info->name.length(), edge.info->name.data(),

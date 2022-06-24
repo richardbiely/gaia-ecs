@@ -285,15 +285,16 @@ namespace gaia {
 		//! Implements a sorting network for \tparam N up to 8
 		template <typename Container, typename TSortFunc>
 		constexpr void sort_ct(Container& arr, TSortFunc func) noexcept {
-			if constexpr (Container::extent <= 1) {
+			constexpr size_t NItems = std::tuple_size<Container>::value;
+			if constexpr (NItems <= 1) {
 				return;
-			} else if constexpr (Container::extent == 2) {
+			} else if constexpr (NItems == 2) {
 				swap_if(arr[0], arr[1], func);
-			} else if constexpr (Container::extent == 3) {
+			} else if constexpr (NItems == 3) {
 				swap_if(arr[1], arr[2], func);
 				swap_if(arr[0], arr[2], func);
 				swap_if(arr[0], arr[1], func);
-			} else if constexpr (Container::extent == 4) {
+			} else if constexpr (NItems == 4) {
 				swap_if(arr[0], arr[1], func);
 				swap_if(arr[2], arr[3], func);
 
@@ -301,7 +302,7 @@ namespace gaia {
 				swap_if(arr[1], arr[3], func);
 
 				swap_if(arr[1], arr[2], func);
-			} else if constexpr (Container::extent == 5) {
+			} else if constexpr (NItems == 5) {
 				swap_if(arr[0], arr[1], func);
 				swap_if(arr[3], arr[4], func);
 
@@ -316,7 +317,7 @@ namespace gaia {
 				swap_if(arr[1], arr[3], func);
 
 				swap_if(arr[1], arr[2], func);
-			} else if constexpr (Container::extent == 6) {
+			} else if constexpr (NItems == 6) {
 				swap_if(arr[1], arr[2], func);
 				swap_if(arr[4], arr[5], func);
 
@@ -334,7 +335,7 @@ namespace gaia {
 				swap_if(arr[1], arr[3], func);
 
 				swap_if(arr[2], arr[3], func);
-			} else if constexpr (Container::extent == 7) {
+			} else if constexpr (NItems == 7) {
 				swap_if(arr[1], arr[2], func);
 				swap_if(arr[3], arr[4], func);
 				swap_if(arr[5], arr[6], func);
@@ -357,7 +358,7 @@ namespace gaia {
 				swap_if(arr[2], arr[4], func);
 
 				swap_if(arr[2], arr[3], func);
-			} else if constexpr (Container::extent == 8) {
+			} else if constexpr (NItems == 8) {
 				swap_if(arr[0], arr[1], func);
 				swap_if(arr[2], arr[3], func);
 				swap_if(arr[4], arr[5], func);
