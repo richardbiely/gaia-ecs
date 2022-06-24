@@ -1178,29 +1178,34 @@ namespace gaia {
 
 		private:
 			template <typename T>
-			constexpr GAIA_FORCEINLINE auto ExpandTuple(Chunk& chunk) const {
+			constexpr GAIA_FORCEINLINE auto GetComponentView(Chunk& chunk) const {
 				using U = typename DeduceComponent<T>::Type;
 				using UOriginal = typename DeduceComponent<T>::TypeOriginal;
 				if constexpr (IsReadOnlyType<UOriginal>::value)
-					return chunk.View_Internal<U>().data();
+					return chunk.View_Internal<U>();
 				else
-					return chunk.ViewRW_Internal<U>().data();
+					return chunk.ViewRW_Internal<U>();
 			}
 
 			//--------------------------------------------------------------------------------
 
-			template <typename... FuncArgs, typename Func>
-			GAIA_FORCEINLINE void ForEachEntityInChunk(Chunk& chunk, Func func) {
-				auto tup = std::make_tuple(ExpandTuple<FuncArgs>(chunk)...);
-				const size_t size = chunk.GetItemCount();
-				for (size_t i = 0; i < size; i++)
-					func(std::get<decltype(ExpandTuple<FuncArgs>(chunk))>(tup)[i]...);
-			}
-
 			template <typename... T, typename Func>
 			GAIA_FORCEINLINE void
-			UnpackForEachEntityInChunk([[maybe_unused]] utils::func_type_list<T...> types, Chunk& chunk, Func func) {
-				ForEachEntityInChunk<T...>(chunk, func);
+			ForEachEntityInChunk([[maybe_unused]] utils::func_type_list<T...> types, Chunk& chunk, Func func) {
+				// Pointers to the respective component types in the chunk, e.g
+				// 		w.ForEach(q, [&](Position& p, const Velocity& v) {...}
+				// Translates to:
+				//  	auto p = chunk.ViewRW_Internal<Position>();
+				//		auto v = chunk.View_Internal<Velocity>();
+				auto dataPointerTuple = std::make_tuple(GetComponentView<T>(chunk)...);
+
+				// Iterate over each entity in the chunk.
+				// Translates to:
+				//		for (size_t i = 0; i < chunk.GetItemCount(); ++i)
+				//			func(p[i], v[i]);
+				const size_t size = chunk.GetItemCount();
+				for (size_t i = 0; i < size; ++i)
+					func(std::get<decltype(GetComponentView<T>(chunk))>(dataPointerTuple)[i]...);
 			}
 
 			template <typename Func>
@@ -1213,13 +1218,13 @@ namespace gaia {
 			//--------------------------------------------------------------------------------
 
 			template <typename... T>
-			void UnpackArgsIntoQuery([[maybe_unused]] utils::func_type_list<T...> types, EntityQuery& query) {
+			void UnpackArgsIntoQuery([[maybe_unused]] utils::func_type_list<T...> types, EntityQuery& query) const {
 				if constexpr (sizeof...(T) > 0)
 					query.All<T...>();
 			}
 
 			template <typename... T>
-			bool UnpackArgsIntoQuery_Check([[maybe_unused]] utils::func_type_list<T...> types, EntityQuery& query) {
+			bool UnpackArgsIntoQuery_Check([[maybe_unused]] utils::func_type_list<T...> types, EntityQuery& query) const {
 				if constexpr (sizeof...(T) > 0)
 					return query.HasAll<T...>();
 			}
@@ -1361,7 +1366,7 @@ namespace gaia {
 							// Execute functors in batches
 							const size_t size = batchSize;
 							for (size_t chunkIdx = 0; chunkIdx < size; ++chunkIdx)
-								world.UnpackForEachEntityInChunk(InputArgs{}, *tmp[chunkIdx], func);
+								world.ForEachEntityInChunk(InputArgs{}, *tmp[chunkIdx], func);
 
 							// Reset the batch size
 							batchSize = 0;
@@ -1380,7 +1385,7 @@ namespace gaia {
 			}
 
 			template <typename Func>
-			static void RunQueryOnChunks_Indirect(World& world, EntityQuery& query, Func& func) {
+			static void RunQueryOnChunks_Indirect(World& world, EntityQuery& query, Func func) {
 #if GAIA_DEBUG
 				// Make sure we only use components specificed in the query
 				GAIA_ASSERT(CheckQuery<Func>(world, query));
@@ -1436,12 +1441,12 @@ namespace gaia {
 			//--------------------------------------------------------------------------------
 
 			template <typename Func>
-			void ForEachChunkExecutionContext_External(World& world, EntityQuery& query, Func func) {
+			void ForEachChunk_External(World& world, EntityQuery& query, Func func) {
 				RunQueryOnChunks_Direct(world, query, func);
 			}
 
 			template <typename Func>
-			void ForEachChunkExecutionContext_Internal(World& world, EntityQuery&& queryTmp, Func func) {
+			void ForEachChunk_Internal(World& world, EntityQuery&& queryTmp, Func func) {
 				RegisterComponents<Func>(world);
 				queryTmp.CalculateLookupHash(world);
 				RunQueryOnChunks_Direct(world, AddOrFindEntityQueryInCache(world, queryTmp), func);
@@ -1450,12 +1455,12 @@ namespace gaia {
 			//--------------------------------------------------------------------------------
 
 			template <typename Func>
-			void ForEachExecutionContext_External(World& world, EntityQuery& query, Func func) {
+			void ForEach_External(World& world, EntityQuery& query, Func func) {
 				RunQueryOnChunks_Indirect(world, query, func);
 			}
 
 			template <typename Func>
-			void ForEachExecutionContext_Internal(World& world, EntityQuery&& queryTmp, Func func) {
+			void ForEach_Internal(World& world, EntityQuery&& queryTmp, Func func) {
 				RegisterComponents<Func>(world);
 				queryTmp.CalculateLookupHash(world);
 				RunQueryOnChunks_Indirect_NoResolve(world, AddOrFindEntityQueryInCache(world, queryTmp), func);
@@ -1473,9 +1478,9 @@ namespace gaia {
 			template <typename Func>
 			void ForEach(EntityQuery& query, Func func) {
 				if constexpr (std::is_invocable<Func, Chunk&>::value)
-					ForEachChunkExecutionContext_External((World&)*this, query, func);
+					ForEachChunk_External((World&)*this, query, func);
 				else
-					ForEachExecutionContext_External((World&)*this, query, func);
+					ForEach_External((World&)*this, query, func);
 			}
 
 			/*!
@@ -1487,9 +1492,9 @@ namespace gaia {
 			template <typename Func>
 			void ForEach(EntityQuery&& query, Func func) {
 				if constexpr (std::is_invocable<Func, Chunk&>::value)
-					ForEachChunkExecutionContext_Internal((World&)*this, std::forward<EntityQuery>(query), func);
+					ForEachChunk_Internal((World&)*this, std::forward<EntityQuery>(query), func);
 				else
-					ForEachExecutionContext_Internal((World&)*this, std::forward<EntityQuery>(query), func);
+					ForEach_Internal((World&)*this, std::forward<EntityQuery>(query), func);
 			}
 
 			/*!
@@ -1506,7 +1511,7 @@ namespace gaia {
 
 				EntityQuery query;
 				ResolveQuery<Func>((World&)*this, query);
-				ForEachExecutionContext_Internal<Func>((World&)*this, std::move(query), func);
+				ForEach_Internal<Func>((World&)*this, std::move(query), func);
 			}
 
 			/*!
