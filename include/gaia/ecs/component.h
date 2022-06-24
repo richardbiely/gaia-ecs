@@ -254,11 +254,6 @@ namespace gaia {
 
 		//----------------------------------------------------------------------
 
-		struct ComponentInfoData final {
-			//! Pointer to the associated component info
-			const ComponentInfo* info;
-		};
-
 		struct ComponentLookupData final {
 			//! Component info index. A copy of the value in ComponentInfo
 			uint32_t infoIndex;
@@ -266,7 +261,7 @@ namespace gaia {
 			uint32_t offset;
 		};
 
-		using ComponentInfoList = containers::sarray_ext<ComponentInfoData, MAX_COMPONENTS_PER_ARCHETYPE>;
+		using ComponentInfoList = containers::sarray_ext<const ComponentInfo*, MAX_COMPONENTS_PER_ARCHETYPE>;
 		using ComponentLookupList = containers::sarray_ext<ComponentLookupData, MAX_COMPONENTS_PER_ARCHETYPE>;
 
 	} // namespace ecs

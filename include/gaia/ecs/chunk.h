@@ -101,17 +101,17 @@ namespace gaia {
 						const auto& look = lookupList[i];
 
 						// Skip tag components
-						if (!info.info->properties.size)
+						if (!info->properties.size)
 							continue;
 
-						const size_t idxFrom = look.offset + index * info.info->properties.size;
-						const size_t idxTo = look.offset + (header.items.count - 1) * info.info->properties.size;
+						const size_t idxFrom = look.offset + index * info->properties.size;
+						const size_t idxTo = look.offset + (header.items.count - 1) * info->properties.size;
 
 						GAIA_ASSERT(idxFrom < Chunk::DATA_SIZE_NORESERVE);
 						GAIA_ASSERT(idxTo < Chunk::DATA_SIZE_NORESERVE);
 						GAIA_ASSERT(idxFrom != idxTo);
 
-						memcpy(&data[idxFrom], &data[idxTo], info.info->properties.size);
+						memcpy(&data[idxFrom], &data[idxTo], info->properties.size);
 					}
 
 					// Entity has been replaced with the last one in chunk.
