@@ -43,9 +43,13 @@ function(enable_cxx_compiler_flag_if_supported flag)
 endfunction()
 
 if (MSVC)
+  # parallel build
+  enable_cxx_compiler_flag_if_supported("/MP")
+  # strictness rules
   enable_cxx_compiler_flag_if_supported("/W4")
   enable_cxx_compiler_flag_if_supported("/WX")
 else()
+  # strictness rules
   enable_cxx_compiler_flag_if_supported("-Wall")
   enable_cxx_compiler_flag_if_supported("-Wextra")
   enable_cxx_compiler_flag_if_supported("-pedantic")
