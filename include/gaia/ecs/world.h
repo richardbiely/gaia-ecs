@@ -786,12 +786,6 @@ namespace gaia {
 				return entityContainer;
 			}
 
-			template <typename TComponent>
-			EntityContainer& AddComponent_Internal(ComponentType type, Entity entity) {
-				const auto* info = m_componentCache.GetOrCreateComponentInfo<TComponent>();
-				return AddComponent_Internal(type, entity, info);
-			}
-
 			void RemoveComponent_Internal(ComponentType type, Entity entity, const ComponentInfo* infoToRemove) {
 				auto& entityContainer = m_entities[entity.id()];
 				auto* pChunk = entityContainer.pChunk;
@@ -811,12 +805,6 @@ namespace gaia {
 				if (auto newArchetype = FindArchetype_RemoveComponents(&archetype, type, infoToRemove))
 					MoveEntity(entity, *newArchetype);
 #endif
-			}
-
-			template <typename TComponent>
-			void RemoveComponent_Internal(ComponentType type, Entity entity) {
-				const auto* info = m_componentCache.GetOrCreateComponentInfo<TComponent>();
-				RemoveComponent_Internal(type, entity, info);
 			}
 
 			void Init() {
@@ -1066,10 +1054,12 @@ namespace gaia {
 
 				if constexpr (IsGenericComponent<TComponent>::value) {
 					using U = typename detail::ExtractComponentType_Generic<TComponent>::Type;
-					AddComponent_Internal<U>(ComponentType::CT_Generic, entity);
+					const auto* info = m_componentCache.GetOrCreateComponentInfo<U>();
+					AddComponent_Internal(ComponentType::CT_Generic, entity, info);
 				} else {
 					using U = typename detail::ExtractComponentType_NonGeneric<TComponent>::Type;
-					AddComponent_Internal<U>(ComponentType::CT_Chunk, entity);
+					const auto* info = m_componentCache.GetOrCreateComponentInfo<U>();
+					AddComponent_Internal(ComponentType::CT_Chunk, entity, info);
 				}
 			}
 
@@ -1085,12 +1075,14 @@ namespace gaia {
 
 				if constexpr (IsGenericComponent<TComponent>::value) {
 					using U = typename detail::ExtractComponentType_Generic<TComponent>::Type;
-					auto& entityContainer = AddComponent_Internal<U>(ComponentType::CT_Generic, entity);
+					const auto* info = m_componentCache.GetOrCreateComponentInfo<U>();
+					auto& entityContainer = AddComponent_Internal(ComponentType::CT_Generic, entity, info);
 					auto* pChunk = entityContainer.pChunk;
 					pChunk->template SetComponent<TComponent>(entityContainer.idx, std::forward<U>(data));
 				} else {
 					using U = typename detail::ExtractComponentType_NonGeneric<TComponent>::Type;
-					auto& entityContainer = AddComponent_Internal<U>(ComponentType::CT_Chunk, entity);
+					const auto* info = m_componentCache.GetOrCreateComponentInfo<U>();
+					auto& entityContainer = AddComponent_Internal(ComponentType::CT_Chunk, entity, info);
 					auto* pChunk = entityContainer.pChunk;
 					pChunk->template SetComponent<TComponent>(std::forward<U>(data));
 				}
@@ -1108,10 +1100,12 @@ namespace gaia {
 
 				if constexpr (IsGenericComponent<TComponent>::value) {
 					using U = typename detail::ExtractComponentType_Generic<TComponent>::Type;
-					RemoveComponent_Internal<U>(ComponentType::CT_Generic, entity);
+					const auto* info = m_componentCache.GetOrCreateComponentInfo<U>();
+					RemoveComponent_Internal(ComponentType::CT_Generic, entity, info);
 				} else {
 					using U = typename detail::ExtractComponentType_NonGeneric<TComponent>::Type;
-					RemoveComponent_Internal<U>(ComponentType::CT_Chunk, entity);
+					const auto* info = m_componentCache.GetOrCreateComponentInfo<U>();
+					RemoveComponent_Internal(ComponentType::CT_Chunk, entity, info);
 				}
 			}
 
