@@ -312,14 +312,14 @@ namespace gaia {
 			//----------------------------------------------------------------------
 
 			template <typename T>
-			const auto& GetComponent(uint32_t index) const {
+			auto GetComponent(uint32_t index) const {
 				static_assert(
 						IsGenericComponent<T>::value, "GetComponent providing an index is only available for generic components");
 				return View<T>()[index];
 			}
 
 			template <typename T>
-			const auto& GetComponent() const {
+			auto GetComponent() const {
 				static_assert(
 						!IsGenericComponent<T>::value,
 						"GetComponent not providing an index is only available for non-generic components");
