@@ -147,6 +147,7 @@ namespace gaia {
 			template <typename T>
 			[[nodiscard]] GAIA_FORCEINLINE auto View_Internal() const {
 				using U = typename DeduceComponent<T>::Type;
+				using UConst = typename std::add_const_t<U>;
 
 				if constexpr (std::is_same<U, Entity>::value) {
 					return std::span<const Entity>{(const Entity*)&data[0], GetItemCount()};
@@ -156,9 +157,9 @@ namespace gaia {
 					const auto infoIndex = utils::type_info::index<U>();
 
 					if constexpr (IsGenericComponent<U>::value)
-						return std::span<const U>{(const U*)get_data_ptr(ComponentType::CT_Generic, infoIndex), GetItemCount()};
+						return std::span<UConst>{(UConst*)get_data_ptr(ComponentType::CT_Generic, infoIndex), GetItemCount()};
 					else
-						return std::span<const U>{(const U*)get_data_ptr(ComponentType::CT_Chunk, infoIndex), 1};
+						return std::span<UConst>{(UConst*)get_data_ptr(ComponentType::CT_Chunk, infoIndex), 1};
 				}
 			}
 
@@ -238,7 +239,7 @@ namespace gaia {
 				using UOriginal = typename DeduceComponent<T>::TypeOriginal;
 				static_assert(IsReadOnlyType<UOriginal>::value);
 
-				return utils::auto_view_policy_get<const U>{View_Internal<U>()};
+				return utils::auto_view_policy_get<std::add_const_t<U>>{View_Internal<U>()};
 			}
 
 			/*!
