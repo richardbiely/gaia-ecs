@@ -352,7 +352,7 @@ More compilers might work but the above are guaranteed and [continuosly tested](
 Unit testing is handled via [Catch2 v2.x](https://github.com/catchorg/Catch2/tree/v2.x). It is ON by default and can be controlled via -DGAIA_BUILD_UNITTEST=ON/OFF.<br/>
 You can either install Catch2 on your machine manually or use -DGAIA_FIND_CATCH2_PACKAGE when generating your build files and have CMake download and prepare the dependency for you.
 
-Benchmarking relies on a modified [picobench](https://github.com/iboB/picobench). It is OFF by default and can be controlled via -DGAIA_BUILD_BENCHMARK=ON/OFF.<br/>
+Benchmarking relies on a modified [picobench](https://github.com/iboB/picobench). It is ON by default and can be controlled via -DGAIA_BUILD_BENCHMARK=ON/OFF.<br/>
 
 # Installation
 
