@@ -55,19 +55,6 @@ namespace gaia {
 				});
 			}
 
-			/*!
-			Checks if a component is present in the archetype based on the provided \param infoIndex.
-			Component if deduced from \tparam T.
-			\param type Component type
-			\return True if found. False otherwise.
-			*/
-			template <typename T>
-			[[nodiscard]] bool HasComponent_Internal(ComponentType type) const {
-				using U = typename DeduceComponent<T>::Type;
-				const auto infoIndex = utils::type_info::index<U>();
-				return HasComponent_Internal(type, infoIndex);
-			}
-
 			[[nodiscard]] uint32_t AddEntity(Entity entity) {
 				const auto index = header.items.count++;
 				SetEntity(index, entity);
@@ -157,9 +144,9 @@ namespace gaia {
 					const auto infoIndex = utils::type_info::index<U>();
 
 					if constexpr (IsGenericComponent<U>::value)
-						return std::span<UConst>{(UConst*)get_data_ptr(ComponentType::CT_Generic, infoIndex), GetItemCount()};
+						return std::span<UConst>{(UConst*)GetDataPtr(ComponentType::CT_Generic, infoIndex), GetItemCount()};
 					else
-						return std::span<UConst>{(UConst*)get_data_ptr(ComponentType::CT_Chunk, infoIndex), 1};
+						return std::span<UConst>{(UConst*)GetDataPtr(ComponentType::CT_Chunk, infoIndex), 1};
 				}
 			}
 
@@ -179,21 +166,20 @@ namespace gaia {
 				const auto infoIndex = utils::type_info::index<U>();
 
 				if constexpr (IsGenericComponent<U>::value)
-					return std::span<U>{(U*)get_data_rw_ptr(ComponentType::CT_Generic, infoIndex), GetItemCount()};
+					return std::span<U>{(U*)GetDataPtrRW(ComponentType::CT_Generic, infoIndex), GetItemCount()};
 				else
-					return std::span<U>{(U*)get_data_rw_ptr(ComponentType::CT_Chunk, infoIndex), 1};
+					return std::span<U>{(U*)GetDataPtrRW(ComponentType::CT_Chunk, infoIndex), 1};
 			}
 
-			[[nodiscard]] GAIA_FORCEINLINE uint8_t*
-			ViewRW_Internal(const ComponentInfo* info, ComponentType type = ComponentType::CT_Generic) {
+			[[nodiscard]] GAIA_FORCEINLINE uint8_t* ViewRW_Internal(const ComponentInfo* info, ComponentType type) {
 				GAIA_ASSERT(info != nullptr);
 				// Empty components shouldn't be used for writing!
 				GAIA_ASSERT(info->properties.size != 0);
 
-				return get_data_rw_ptr(type, info->infoIndex);
+				return GetDataPtrRW(type, info->infoIndex);
 			}
 
-			[[nodiscard]] GAIA_FORCEINLINE const uint8_t* get_data_ptr(ComponentType type, uint32_t infoIndex) const {
+			[[nodiscard]] GAIA_FORCEINLINE const uint8_t* GetDataPtr(ComponentType type, uint32_t infoIndex) const {
 				// Searching for a component that's not there! Programmer mistake.
 				GAIA_ASSERT(HasComponent_Internal(type, infoIndex));
 
@@ -205,7 +191,7 @@ namespace gaia {
 				return (const uint8_t*)&data[infos[componentIdx].offset];
 			}
 
-			[[nodiscard]] GAIA_FORCEINLINE uint8_t* get_data_rw_ptr(ComponentType type, uint32_t infoIndex) {
+			[[nodiscard]] GAIA_FORCEINLINE uint8_t* GetDataPtrRW(ComponentType type, uint32_t infoIndex) {
 				// Searching for a component that's not there! Programmer mistake.
 				GAIA_ASSERT(HasComponent_Internal(type, infoIndex));
 
@@ -231,7 +217,7 @@ namespace gaia {
 
 			/*!
 			Returns a read-only entity or component view.
-			\return Component view
+			\return Component view with read-only access
 			*/
 			template <typename T>
 			[[nodiscard]] auto View() const {
@@ -244,7 +230,7 @@ namespace gaia {
 
 			/*!
 			Returns a mutable component view.
-			\return Component view
+			\return Component view with read-write access
 			*/
 			template <typename T>
 			[[nodiscard]] auto ViewRW() {
@@ -274,12 +260,15 @@ namespace gaia {
 			*/
 			template <typename T>
 			[[nodiscard]] bool HasComponent() const {
-				if constexpr (IsGenericComponent<T>::value)
-					return HasComponent_Internal<typename detail::ExtractComponentType_Generic<T>::Type>(
-							ComponentType::CT_Generic);
-				else
-					return HasComponent_Internal<typename detail::ExtractComponentType_NonGeneric<T>::Type>(
-							ComponentType::CT_Chunk);
+				if constexpr (IsGenericComponent<T>::value) {
+					using U = typename detail::ExtractComponentType_Generic<T>::Type;
+					const auto infoIndex = utils::type_info::index<U>();
+					return HasComponent_Internal(ComponentType::CT_Generic, infoIndex);
+				} else {
+					using U = typename detail::ExtractComponentType_NonGeneric<T>::Type;
+					const auto infoIndex = utils::type_info::index<U>();
+					return HasComponent_Internal(ComponentType::CT_Chunk, infoIndex);
+				}
 			}
 
 			//----------------------------------------------------------------------
