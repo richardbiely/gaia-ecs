@@ -25,9 +25,6 @@ endfunction()
 if (MSVC)
   # parallel build
   enable_cxx_compiler_flag_if_supported("/MP")
-  # dynamic runtime (because of google bemchmark)
-  # TODO: handle google benchmark
-  enable_cxx_compiler_flag_if_supported("/MD")
   # strictness rules
   enable_cxx_compiler_flag_if_supported("/W4")
   enable_cxx_compiler_flag_if_supported("/WX")
@@ -60,7 +57,6 @@ if (MSVC)
 endif()
 
 # Benchmark framework
-target_link_libraries(gaia_perf_iter PRIVATE benchmark::benchmark)
 if (MSVC)
   target_link_libraries(gaia_perf_iter PRIVATE Shlwapi)
 else()
