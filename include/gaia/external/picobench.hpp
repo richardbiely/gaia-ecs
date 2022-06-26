@@ -437,9 +437,9 @@ namespace picobench {
 			const char* name;
 			std::vector<benchmark> benchmarks; // benchmark view
 
-			const benchmark* find_benchmark(const char* name) const {
+			const benchmark* find_benchmark(const char* benchname) const {
 				for (auto& b: benchmarks) {
-					if (strcmp(b.name, name) == 0)
+					if (strcmp(b.name, benchname) == 0)
 						return &b;
 				}
 
@@ -459,9 +459,9 @@ namespace picobench {
 		std::vector<suite> suites;
 		error_t error = no_error;
 
-		const suite* find_suite(const char* name) const {
+		const suite* find_suite(const char* suitename) const {
 			for (auto& s: suites) {
-				if (strcmp(s.name, name) == 0)
+				if (strcmp(s.name, suitename) == 0)
 					return &s;
 			}
 
