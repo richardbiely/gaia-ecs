@@ -65,10 +65,8 @@ namespace gaia {
 			//! Archetype ID - used to address the archetype directly in the world's list or archetypes
 			uint32_t id = 0;
 			struct {
-				//! The number of entities this archetype can take (e.g 5 = 5 entities
-				//! with all their components)
+				//! The number of entities this archetype can take (e.g 5 = 5 entities with all their components)
 				uint32_t capacity : 16;
-
 				//! True if there's a component that requires custom construction
 				uint32_t hasComponentWithCustomConstruction : 1;
 				//! True if there's a chunk component that requires custom construction
@@ -101,7 +99,7 @@ namespace gaia {
 					for (size_t i = 0; i < info.size(); ++i) {
 						if (info[i]->constructor == nullptr)
 							continue;
-						info[i]->constructor((void*)((char*)pChunk + look[i].offset));
+						info[i]->constructor((void*)((uint8_t*)pChunk + look[i].offset));
 					}
 				}
 				// Call default constructors for chunk components that need it
@@ -111,7 +109,7 @@ namespace gaia {
 					for (size_t i = 0; i < info.size(); ++i) {
 						if (info[i]->constructor == nullptr)
 							continue;
-						info[i]->constructor((void*)((char*)pChunk + look[i].offset));
+						info[i]->constructor((void*)((uint8_t*)pChunk + look[i].offset));
 					}
 				}
 
@@ -132,7 +130,7 @@ namespace gaia {
 					for (size_t i = 0; i < info.size(); ++i) {
 						if (info[i]->destructor == nullptr)
 							continue;
-						info[i]->destructor((void*)((char*)pChunk + look[i].offset));
+						info[i]->destructor((void*)((uint8_t*)pChunk + look[i].offset));
 					}
 				}
 				// Call destructors for chunk components which need it
@@ -142,7 +140,7 @@ namespace gaia {
 					for (size_t i = 0; i < info.size(); ++i) {
 						if (info[i]->destructor == nullptr)
 							continue;
-						info[i]->destructor((void*)((char*)pChunk + look[i].offset));
+						info[i]->destructor((void*)((uint8_t*)pChunk + look[i].offset));
 					}
 				}
 

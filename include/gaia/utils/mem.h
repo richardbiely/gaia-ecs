@@ -63,11 +63,11 @@ namespace gaia {
 		*/
 		template <typename T>
 		class const_unaligned_pointer {
-			const char* from;
+			const uint8_t* from;
 
 		public:
 			const_unaligned_pointer(): from(nullptr) {}
-			const_unaligned_pointer(const void* p): from((const char*)p) {}
+			const_unaligned_pointer(const void* p): from((const uint8_t*)p) {}
 
 			T operator*() const {
 				T to;
@@ -116,11 +116,11 @@ namespace gaia {
 		*/
 		template <typename T>
 		class unaligned_pointer {
-			char* m_p;
+			uint8_t* m_p;
 
 		public:
 			unaligned_pointer(): m_p(nullptr) {}
-			unaligned_pointer(void* p): m_p((char*)p) {}
+			unaligned_pointer(void* p): m_p((uint8_t*)p) {}
 
 			unaligned_ref<T> operator*() const {
 				return unaligned_ref<T>(m_p);

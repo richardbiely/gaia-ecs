@@ -179,7 +179,7 @@ namespace gaia {
 			[[nodiscard]] constexpr static auto get(std::span<const ValueType> s, const size_t idx = 0) {
 				using Tuple = decltype(struct_to_tuple(ValueType{}));
 				using MemberType = typename std::tuple_element<Ids, Tuple>::type;
-				const auto* ret = (const char*)s.data() + idx * sizeof(MemberType) +
+				const auto* ret = (const uint8_t*)s.data() + idx * sizeof(MemberType) +
 													detail::soa_byte_offset<Ids, Alignment, Tuple>((uintptr_t)s.data(), s.size());
 				return std::span{(const MemberType*)ret, s.size() - idx};
 			}
@@ -193,7 +193,7 @@ namespace gaia {
 			constexpr static auto set(std::span<ValueType> s, const size_t idx = 0) {
 				using Tuple = decltype(struct_to_tuple(ValueType{}));
 				using MemberType = typename std::tuple_element<Ids, Tuple>::type;
-				auto* ret = (char*)s.data() + idx * sizeof(MemberType) +
+				auto* ret = (uint8_t*)s.data() + idx * sizeof(MemberType) +
 										detail::soa_byte_offset<Ids, Alignment, Tuple>((uintptr_t)s.data(), s.size());
 				return std::span{(MemberType*)ret, s.size() - idx};
 			}
@@ -203,7 +203,7 @@ namespace gaia {
 			[[nodiscard]] constexpr static ValueType
 			get_internal(Tuple& t, std::span<const ValueType> s, const size_t idx, std::integer_sequence<size_t, Ids...>) {
 				(get_internal<Tuple, Ids, typename std::tuple_element<Ids, Tuple>::type>(
-						 t, (const char*)s.data(),
+						 t, (const uint8_t*)s.data(),
 						 idx * sizeof(typename std::tuple_element<Ids, Tuple>::type) +
 								 detail::soa_byte_offset<Ids, Alignment, Tuple>((uintptr_t)s.data(), s.size())),
 				 ...);
@@ -211,7 +211,7 @@ namespace gaia {
 			}
 
 			template <typename Tuple, size_t Ids, typename TMemberType>
-			constexpr static void get_internal(Tuple& t, const char* data, const size_t idx) {
+			constexpr static void get_internal(Tuple& t, const uint8_t* data, const size_t idx) {
 				unaligned_ref<TMemberType> reader((void*)&data[idx]);
 				std::get<Ids>(t) = reader;
 			}
@@ -220,7 +220,7 @@ namespace gaia {
 			constexpr static void
 			set_internal(Tuple& t, std::span<TValue> s, const size_t idx, std::integer_sequence<size_t, Ids...>) {
 				(set_internal(
-						 (char*)s.data(),
+						 (uint8_t*)s.data(),
 						 idx * sizeof(typename std::tuple_element<Ids, Tuple>::type) +
 								 detail::soa_byte_offset<Ids, Alignment, Tuple>((uintptr_t)s.data(), s.size()),
 						 std::get<Ids>(t)),
@@ -228,7 +228,7 @@ namespace gaia {
 			}
 
 			template <typename MemberType>
-			constexpr static void set_internal(char* data, const size_t idx, MemberType val) {
+			constexpr static void set_internal(uint8_t* data, const size_t idx, MemberType val) {
 				unaligned_ref<MemberType> writer((void*)&data[idx]);
 				writer = val;
 			}
