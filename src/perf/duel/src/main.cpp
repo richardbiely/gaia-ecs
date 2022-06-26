@@ -1,4 +1,5 @@
-#include <benchmark/benchmark.h>
+#define PICOBENCH_IMPLEMENT_WITH_MAIN
+#include "gaia/external/picobench.hpp"
 #include <gaia.h>
 
 #if GAIA_ARCH != GAIA_ARCH_ARM
@@ -45,11 +46,11 @@ constexpr size_t N = 32'000; // kept a multiple of 32 to keep it simple even for
 constexpr float MinDelta = 0.01f;
 constexpr float MaxDelta = 0.033f;
 
-float CalculateDelta(benchmark::State& state) {
-	state.PauseTiming();
+float CalculateDelta(picobench::state& state) {
+	state.stop_timer();
 	const float d = static_cast<float>((double)RAND_MAX / (MaxDelta - MinDelta));
 	float delta = MinDelta + (static_cast<float>(rand()) / d);
-	state.ResumeTiming();
+	state.start_timer();
 	return delta;
 }
 
@@ -143,7 +144,7 @@ void CreateECSEntities_Dynamic(ecs::World& w) {
 	}
 }
 
-void BM_Game_ECS(benchmark::State& state) {
+void BM_ECS(picobench::state& state) {
 	ecs::World w;
 	CreateECSEntities_Static<false>(w);
 	CreateECSEntities_Dynamic<false>(w);
@@ -175,7 +176,7 @@ void BM_Game_ECS(benchmark::State& state) {
 	}
 }
 
-void BM_Game_ECS_WithSystems(benchmark::State& state) {
+void BM_ECS_WithSystems(picobench::state& state) {
 	ecs::World w;
 	CreateECSEntities_Static<false>(w);
 	CreateECSEntities_Dynamic<false>(w);
@@ -238,7 +239,7 @@ void BM_Game_ECS_WithSystems(benchmark::State& state) {
 	}
 }
 
-void BM_Game_ECS_WithSystems_ForEachChunk(benchmark::State& state) {
+void BM_ECS_WithSystems_Chunk(picobench::state& state) {
 	ecs::World w;
 	CreateECSEntities_Static<false>(w);
 	CreateECSEntities_Dynamic<false>(w);
@@ -322,7 +323,7 @@ void BM_Game_ECS_WithSystems_ForEachChunk(benchmark::State& state) {
 	}
 }
 
-void BM_Game_ECS_WithSystems_ForEachChunk_SoA(benchmark::State& state) {
+void BM_ECS_WithSystems_Chunk_SoA(picobench::state& state) {
 	ecs::World w;
 	CreateECSEntities_Static<true>(w);
 	CreateECSEntities_Dynamic<true>(w);
@@ -505,7 +506,7 @@ __m128 _mm_blendv_ps(__m128 a, __m128 b, __m128 mask) {
 }
 #endif
 
-void BM_Game_ECS_WithSystems_ForEachChunk_SoA_ManualSIMD(benchmark::State& state) {
+void BM_ECS_WithSystems_Chunk_SoA_SIMD(picobench::state& state) {
 	ecs::World w;
 	CreateECSEntities_Static<true>(w);
 	CreateECSEntities_Dynamic<true>(w);
@@ -671,7 +672,7 @@ void BM_Game_ECS_WithSystems_ForEachChunk_SoA_ManualSIMD(benchmark::State& state
 	}
 }
 
-void BM_Game_NonECS(benchmark::State& state) {
+void BM_NonECS(picobench::state& state) {
 	struct IUnit {
 		Position p;
 		Rotation r;
@@ -836,7 +837,7 @@ void BM_Game_NonECS(benchmark::State& state) {
 	}
 }
 
-void BM_Game_NonECS_BetterMemoryLayout(benchmark::State& state) {
+void BM_NonECS_BetterMemoryLayout(picobench::state& state) {
 	struct UnitStatic {
 		Position p;
 		Rotation r;
@@ -956,7 +957,7 @@ void BM_Game_NonECS_BetterMemoryLayout(benchmark::State& state) {
 }
 
 template <uint32_t Groups>
-void BM_Game_NonECS_DOD(benchmark::State& state) {
+void BM_NonECS_DOD(picobench::state& state) {
 	struct UnitDynamic {
 		static void
 		updatePosition(containers::darray<Position>& p, const containers::darray<Velocity>& v, float deltaTime) {
@@ -1040,7 +1041,7 @@ void BM_Game_NonECS_DOD(benchmark::State& state) {
 }
 
 template <size_t Groups>
-void BM_Game_NonECS_DOD_SoA(benchmark::State& state) {
+void BM_NonECS_DOD_SoA(picobench::state& state) {
 	struct UnitDynamic {
 		static void updatePosition(containers::darray<PositionSoA>& p, const containers::darray<VelocitySoA>& v) {
 			gaia::utils::auto_view_policy_set<PositionSoA> pv{std::span(p.data(), p.size())};
@@ -1166,7 +1167,7 @@ void BM_Game_NonECS_DOD_SoA(benchmark::State& state) {
 }
 
 template <uint32_t Groups>
-void BM_Game_NonECS_DOD_SoA_ManualSIMD(benchmark::State& state) {
+void BM_NonECS_DOD_SoA_SIMD(picobench::state& state) {
 
 	struct UnitDynamic {
 		static void updatePosition(containers::darray<PositionSoA>& p, const containers::darray<VelocitySoA>& v) {
@@ -1339,41 +1340,45 @@ void BM_Game_NonECS_DOD_SoA_ManualSIMD(benchmark::State& state) {
 	}
 }
 
-// Ordinary coding style.
-BENCHMARK(BM_Game_NonECS);
+#define PICO_SETTINGS() iterations({4192}).samples(4)
+
+//  Ordinary coding style.
+PICOBENCH(BM_NonECS).PICO_SETTINGS().label("Default");
 // Ordinary coding style with optimized memory layout (imagine using custom allocators
 // to keep things close and tidy in memory).
-BENCHMARK(BM_Game_NonECS_BetterMemoryLayout);
+PICOBENCH(BM_NonECS_BetterMemoryLayout).PICO_SETTINGS().label("OptimizedMemLayout");
 // Memory organized in DoD style.
-// Performance target BM_Game_ECS_WithSystems_ForEachChunk.
+// Performance target BM_ECS_WithSystems_Chunk.
 // "Groups" is there to simulate having items split into separate chunks similar to what ECS does.
-BENCHMARK_TEMPLATE(BM_Game_NonECS_DOD, 1);
-BENCHMARK_TEMPLATE(BM_Game_NonECS_DOD, 20);
-BENCHMARK_TEMPLATE(BM_Game_NonECS_DOD, 40);
-BENCHMARK_TEMPLATE(BM_Game_NonECS_DOD, 80);
-BENCHMARK_TEMPLATE(BM_Game_NonECS_DOD, 160);
+PICOBENCH_SUITE("BM_NonECS_DOD");
+PICOBENCH(BM_NonECS_DOD<1>).PICO_SETTINGS().baseline().label("Default");
+PICOBENCH(BM_NonECS_DOD<20>).PICO_SETTINGS().label("ChunkSize_20");
+PICOBENCH(BM_NonECS_DOD<40>).PICO_SETTINGS().label("ChunkSize_40");
+PICOBENCH(BM_NonECS_DOD<80>).PICO_SETTINGS().label("ChunkSize_80");
+PICOBENCH(BM_NonECS_DOD<160>).PICO_SETTINGS().label("ChunkSize_160");
 // Best possible performance with no manual optimization.
-// Performance target for BM_Game_ECS_WithSystems_ForEachChunk_SoA.
+// Performance target for BM_ECS_WithSystems_Chunk_SoA.
 // "Groups" is there to simulate having items split into separate chunks similar to what ECS does.
-BENCHMARK_TEMPLATE(BM_Game_NonECS_DOD_SoA, 1);
-BENCHMARK_TEMPLATE(BM_Game_NonECS_DOD_SoA, 20);
-BENCHMARK_TEMPLATE(BM_Game_NonECS_DOD_SoA, 40);
-BENCHMARK_TEMPLATE(BM_Game_NonECS_DOD_SoA, 80);
-BENCHMARK_TEMPLATE(BM_Game_NonECS_DOD_SoA, 160);
+PICOBENCH_SUITE("NonECS_DOD_SoA");
+PICOBENCH(BM_NonECS_DOD_SoA<1>).PICO_SETTINGS().baseline().label("Default");
+PICOBENCH(BM_NonECS_DOD_SoA<20>).PICO_SETTINGS().label("ChunkSize_20");
+PICOBENCH(BM_NonECS_DOD_SoA<40>).PICO_SETTINGS().label("ChunkSize_40");
+PICOBENCH(BM_NonECS_DOD_SoA<80>).PICO_SETTINGS().label("ChunkSize_80");
+PICOBENCH(BM_NonECS_DOD_SoA<160>).PICO_SETTINGS().label("ChunkSize_160");
 // Best possible performance.
-// Performance target for BM_Game_ECS_WithSystems_ForEachChunk_SoA_ManualSIMD.
+// Performance target for BM_ECS_WithSystems_Chunk_SoA_SIMD.
 // "Groups" is there to simulate having items split into separate chunks similar to what ECS does.
-BENCHMARK_TEMPLATE(BM_Game_NonECS_DOD_SoA_ManualSIMD, 1);
-BENCHMARK_TEMPLATE(BM_Game_NonECS_DOD_SoA_ManualSIMD, 20);
-BENCHMARK_TEMPLATE(BM_Game_NonECS_DOD_SoA_ManualSIMD, 40);
-BENCHMARK_TEMPLATE(BM_Game_NonECS_DOD_SoA_ManualSIMD, 80);
-BENCHMARK_TEMPLATE(BM_Game_NonECS_DOD_SoA_ManualSIMD, 160);
+PICOBENCH_SUITE("NonECS_DOD_SoA_SIMD");
+PICOBENCH(BM_NonECS_DOD_SoA_SIMD<1>).PICO_SETTINGS().baseline().label("Default");
+PICOBENCH(BM_NonECS_DOD_SoA_SIMD<20>).PICO_SETTINGS().label("ChunkSize_20");
+PICOBENCH(BM_NonECS_DOD_SoA_SIMD<40>).PICO_SETTINGS().label("ChunkSize_40");
+PICOBENCH(BM_NonECS_DOD_SoA_SIMD<80>).PICO_SETTINGS().label("ChunkSize_80");
+PICOBENCH(BM_NonECS_DOD_SoA_SIMD<160>).PICO_SETTINGS().label("ChunkSize_160");
 
-BENCHMARK(BM_Game_ECS);
-BENCHMARK(BM_Game_ECS_WithSystems);
-BENCHMARK(BM_Game_ECS_WithSystems_ForEachChunk);
-BENCHMARK(BM_Game_ECS_WithSystems_ForEachChunk_SoA);
-BENCHMARK(BM_Game_ECS_WithSystems_ForEachChunk_SoA_ManualSIMD);
-
-// Run the benchmark
-BENCHMARK_MAIN();
+// GaiaECS performance.
+PICOBENCH_SUITE("ECS");
+PICOBENCH(BM_ECS).PICO_SETTINGS().baseline().label("Default");
+PICOBENCH(BM_ECS_WithSystems).PICO_SETTINGS().label("Systems");
+PICOBENCH(BM_ECS_WithSystems_Chunk).PICO_SETTINGS().label("Systems_Chunk");
+PICOBENCH(BM_ECS_WithSystems_Chunk_SoA).PICO_SETTINGS().label("Systems_Chunk_SoA");
+PICOBENCH(BM_ECS_WithSystems_Chunk_SoA_SIMD).PICO_SETTINGS().label("Systems_Chunk_SoA_SIMD");
