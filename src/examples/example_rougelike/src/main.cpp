@@ -357,8 +357,8 @@ public:
 				continue;
 
 			uint32_t idx1, idx2;
-			auto* pChunk1 = GetWorld().GetEntityChunk(coll.e1, idx1);
-			auto* pChunk2 = GetWorld().GetEntityChunk(coll.e2, idx2);
+			auto* pChunk1 = GetWorld().GetChunk(coll.e1, idx1);
+			auto* pChunk2 = GetWorld().GetChunk(coll.e2, idx2);
 
 			// Skip non-damagable things
 			if (!pChunk2->HasComponent<Health>())
@@ -399,7 +399,7 @@ public:
 			// World collision
 			if (coll.e2 == ecs::EntityNull) {
 				uint32_t idx1;
-				auto* pChunk1 = GetWorld().GetEntityChunk(coll.e1, idx1);
+				auto* pChunk1 = GetWorld().GetChunk(coll.e1, idx1);
 
 				// An arrow colliding with something. Bring its health to 0 (destroyed).
 				if (pChunk1->HasComponent<Item>() && pChunk1->HasComponent<Health>()) {
@@ -413,8 +413,8 @@ public:
 			// Entity-entity collision
 			else {
 				uint32_t idx1, idx2;
-				auto* pChunk1 = GetWorld().GetEntityChunk(coll.e1, idx1);
-				auto* pChunk2 = GetWorld().GetEntityChunk(coll.e2, idx2);
+				auto* pChunk1 = GetWorld().GetChunk(coll.e1, idx1);
+				auto* pChunk2 = GetWorld().GetChunk(coll.e2, idx2);
 
 				// TODO: Add ability to get a list of components based on query
 

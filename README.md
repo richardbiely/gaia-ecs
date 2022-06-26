@@ -111,12 +111,12 @@ auto velNew = w.GetComponent<Velocity>(e);
 ### Checking if component is attached to entity
 ```cpp
 // Check if entity e has Velocity.
-const auto* pChunkA = w.GetEntityChunk(e);
+const auto* pChunkA = w.GetChunk(e);
 bool hasVelocity = pChunkA->HasComponent<Velocity>(e);
 
 // Check if entity e has Position and modify its value if it does.
 uint32_t entityIndexInChunk;
-auto* pChunkB = w.GetEntityChunk(e, entityIndexInChunk);
+auto* pChunkB = w.GetChunk(e, entityIndexInChunk);
 if (pChunkB->HasComponent<Position>(e))
 {
   auto pos = pChunkB->ViewRW<Position>();
