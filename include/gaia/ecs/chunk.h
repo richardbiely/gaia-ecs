@@ -55,6 +55,10 @@ namespace gaia {
 				});
 			}
 
+			/*!
+			Make the \param entity entity a part of the chunk.
+			\return Index of the entity within the chunk.
+			*/
 			[[nodiscard]] uint32_t AddEntity(Entity entity) {
 				const auto index = header.items.count++;
 				SetEntity(index, entity);
@@ -113,6 +117,11 @@ namespace gaia {
 				--header.items.count;
 			}
 
+			/*!
+			Makes the entity a part of a chunk on a given index.
+			\param index Index of the entity
+			\param entity Entity to store in the chunk
+			*/
 			void SetEntity(uint32_t index, Entity entity) {
 				GAIA_ASSERT(index < header.items.count && "Entity index in chunk out of bounds!");
 
@@ -120,6 +129,11 @@ namespace gaia {
 				mem = entity;
 			}
 
+			/*!
+			Returns the entity on a given index in the chunk.
+			\param index Index of the entity
+			\return Entity on a given index within the chunk.
+			*/
 			[[nodiscard]] const Entity GetEntity(uint32_t index) const {
 				GAIA_ASSERT(index < header.items.count && "Entity index in chunk out of bounds!");
 
@@ -127,10 +141,11 @@ namespace gaia {
 				return mem;
 			}
 
-			[[nodiscard]] bool IsFull() const {
-				return header.items.count >= header.items.capacity;
-			}
-
+			/*!
+			Returns a read-only span of the component data.
+			\tparam T Component
+			\return Const span of the component data.
+			*/
 			template <typename T>
 			[[nodiscard]] GAIA_FORCEINLINE auto View_Internal() const {
 				using U = typename DeduceComponent<T>::Type;
@@ -150,6 +165,11 @@ namespace gaia {
 				}
 			}
 
+			/*!
+			Returns a read-write span of the component data. Also updates the world version for the component.
+			\tparam T Component
+			\return Span of the component data.
+			*/
 			template <typename T>
 			[[nodiscard]] GAIA_FORCEINLINE auto ViewRW_Internal() {
 				using U = typename DeduceComponent<T>::Type;
@@ -171,14 +191,12 @@ namespace gaia {
 					return std::span<U>{(U*)GetDataPtrRW(ComponentType::CT_Chunk, infoIndex), 1};
 			}
 
-			[[nodiscard]] GAIA_FORCEINLINE uint8_t* ViewRW_Internal(const ComponentInfo* info, ComponentType type) {
-				GAIA_ASSERT(info != nullptr);
-				// Empty components shouldn't be used for writing!
-				GAIA_ASSERT(info->properties.size != 0);
-
-				return GetDataPtrRW(type, info->infoIndex);
-			}
-
+			/*!
+			Returns a pointer do component data with read-only access.
+			\param type Component type
+			\param infoIndex Index of the component in the archetype
+			\return Const pointer to component data.
+			*/
 			[[nodiscard]] GAIA_FORCEINLINE const uint8_t* GetDataPtr(ComponentType type, uint32_t infoIndex) const {
 				// Searching for a component that's not there! Programmer mistake.
 				GAIA_ASSERT(HasComponent_Internal(type, infoIndex));
@@ -191,9 +209,17 @@ namespace gaia {
 				return (const uint8_t*)&data[infos[componentIdx].offset];
 			}
 
+			/*!
+			Returns a pointer do component data with read-write access. Also updates the world version for the component.
+			\param type Component type
+			\param infoIndex Index of the component in the archetype
+			\return Pointer to component data.
+			*/
 			[[nodiscard]] GAIA_FORCEINLINE uint8_t* GetDataPtrRW(ComponentType type, uint32_t infoIndex) {
 				// Searching for a component that's not there! Programmer mistake.
 				GAIA_ASSERT(HasComponent_Internal(type, infoIndex));
+				// Empty components shouldn't be used for writing!
+				GAIA_ASSERT(info->properties.size != 0);
 
 				const auto& infos = GetArchetypeComponentLookupList(header.owner, type);
 				const auto componentIdx = (uint32_t)utils::get_index_if_unsafe(infos, [&](const auto& info) {
@@ -250,7 +276,7 @@ namespace gaia {
 				const auto idx = (uint32_t)utils::get_index_if_unsafe(list, [&](const auto& info) {
 					return info.infoIndex == infoIndex;
 				});
-				GAIA_ASSERT(idx != BadIndex);
+				GAIA_ASSERT(idx != (uint32_t)-1);
 				return (uint32_t)idx;
 			}
 
@@ -321,6 +347,11 @@ namespace gaia {
 			//! Checks is this chunk is disabled
 			[[nodiscard]] bool IsDisabled() const {
 				return header.info.disabled;
+			}
+
+			//! Checks is the full capacity of the has has been reached
+			[[nodiscard]] bool IsFull() const {
+				return header.items.count >= header.items.capacity;
 			}
 
 			//! Checks is there are any entities in the chunk
