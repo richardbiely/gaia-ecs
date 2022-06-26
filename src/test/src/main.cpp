@@ -318,7 +318,7 @@ TEST_CASE("CreateAndRemoveEntity - no components") {
 		auto de = w.GetEntity(e.id());
 		const bool ok = de.gen() == e.gen() + 1;
 		REQUIRE(ok);
-		auto ch = w.GetEntityChunk(e);
+		auto ch = w.GetChunk(e);
 		REQUIRE(ch == nullptr);
 	};
 
@@ -350,7 +350,7 @@ TEST_CASE("CreateAndRemoveEntity - 1 component") {
 		auto de = w.GetEntity(e.id());
 		const bool ok = de.gen() == e.gen() + 1;
 		REQUIRE(ok);
-		auto ch = w.GetEntityChunk(e);
+		auto ch = w.GetChunk(e);
 		REQUIRE(ch == nullptr);
 	};
 

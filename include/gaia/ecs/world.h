@@ -1022,7 +1022,7 @@ namespace gaia {
 			Returns a chunk containing the given entity.
 			\return Chunk or nullptr if not found
 			*/
-			[[nodiscard]] Chunk* GetEntityChunk(Entity entity) const {
+			[[nodiscard]] Chunk* GetChunk(Entity entity) const {
 				GAIA_ASSERT(entity.id() < m_entities.size());
 				auto& entityContainer = m_entities[entity.id()];
 				return entityContainer.pChunk;
@@ -1033,7 +1033,7 @@ namespace gaia {
 			Index of the entity is stored in \param indexInChunk
 			\return Chunk or nullptr if not found
 			*/
-			[[nodiscard]] Chunk* GetEntityChunk(Entity entity, uint32_t& indexInChunk) const {
+			[[nodiscard]] Chunk* GetChunk(Entity entity, uint32_t& indexInChunk) const {
 				GAIA_ASSERT(entity.id() < m_entities.size());
 				auto& entityContainer = m_entities[entity.id()];
 				indexInChunk = entityContainer.idx;

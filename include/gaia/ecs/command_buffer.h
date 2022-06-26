@@ -408,7 +408,7 @@ namespace gaia {
 							m_world.AddComponent_Internal(type, entity, newInfo);
 
 							uint32_t indexInChunk;
-							auto* pChunk = m_world.GetEntityChunk(entity, indexInChunk);
+							auto* pChunk = m_world.GetChunk(entity, indexInChunk);
 							GAIA_ASSERT(pChunk != nullptr);
 
 							if (type == ComponentType::CT_Chunk)
@@ -450,7 +450,7 @@ namespace gaia {
 							m_world.AddComponent_Internal(type, entity, newInfo);
 
 							uint32_t indexInChunk;
-							auto* pChunk = m_world.GetEntityChunk(entity, indexInChunk);
+							auto* pChunk = m_world.GetChunk(entity, indexInChunk);
 							GAIA_ASSERT(pChunk != nullptr);
 
 							if (type == ComponentType::CT_Chunk)
