@@ -1,4 +1,3 @@
-find_package(benchmark CONFIG REQUIRED)
 add_executable(gaia_perf_duel src/main.cpp)
 
 set_property(TARGET gaia_perf_duel PROPERTY C_STANDARD 17)

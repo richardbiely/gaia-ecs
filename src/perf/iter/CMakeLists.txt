@@ -1,4 +1,3 @@
-find_package(benchmark CONFIG REQUIRED)
 add_executable(gaia_perf_iter src/main.cpp)
 
 set_property(TARGET gaia_perf_iter PROPERTY C_STANDARD 17)
@@ -57,9 +56,4 @@ if (MSVC)
 endif()
 
 # Benchmark framework
-if (MSVC)
-  target_link_libraries(gaia_perf_iter PRIVATE Shlwapi)
-else()
-  target_link_libraries(gaia_perf_iter PRIVATE pthread)
-endif()
 target_include_directories(gaia_perf_iter PRIVATE ${PROJECT_SOURCE_DIR}/include)
