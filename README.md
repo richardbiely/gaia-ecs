@@ -349,10 +349,8 @@ More compilers might work but the above are guaranteed and [continuosly tested](
 ## Dependencies
 [CMake](https://cmake.org) 3.12 or later is required to prepare the build. Other tools are officially not supported at the moment.
 
-Unit testing is handled via [Catch2 v2.x](https://github.com/catchorg/Catch2/tree/v2.x). It is ON by default and can be controlled via -DGAIA_BUILD_UNITTEST=ON/OFF.<br/>
-You can either install Catch2 on your machine manually or use -DGAIA_FIND_CATCH2_PACKAGE when generating your build files and have CMake download and prepare the dependency for you.
-
-Benchmarking relies on a modified [picobench](https://github.com/iboB/picobench). It is ON by default and can be controlled via -DGAIA_BUILD_BENCHMARK=ON/OFF.<br/>
+Unit testing is handled via [Catch2 v2.x](https://github.com/catchorg/Catch2/tree/v2.x). It can be controlled via -DGAIA_BUILD_UNITTEST=ON/OFF when configuring the project (OFF by default).<br/>
+You can either install Catch2 on your machine manually or use -DGAIA_FIND_CATCH2_PACKAGE=ON/OFF when generating your build files and have CMake download and prepare the dependency for you (ON by default).
 
 # Installation
 
@@ -382,16 +380,16 @@ Note, some options don't work together or might not be supported by all compiler
 
 # Examples
 The repository contains some code examples for guidance.<br/>
-Examples are built if GAIA_BUILD_EXAMPLES is enabled when configuring the project (ON by default).
+Examples are built if GAIA_BUILD_EXAMPLES is enabled when configuring the project (OFF by default).
 
-* [Example external](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example_external) - a dummy example explaining how to use the framework in an external project
-* [Example 1](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example1) - the same as the previous one but showing how Gaia-ECS is used as a standalone project
-* [Example 2](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example2) - simple example using some basic framework features
-* [Example Rougelike](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example_rougelike) - Rouglelike game putting all parts of the framework to use and represents a complex example of how everything would be used in practice; it is work-in-progress and changes and evolves with the project
+* [External](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example_external) - a dummy example explaining how to use the framework in an external project
+* [Standalone](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example1) - the same as the previous one but showing how Gaia-ECS is used as a standalone project
+* [Basic](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example2) - simple example using some basic framework features
+* [Rougelike](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example_rougelike) - Rouglelike game putting all parts of the framework to use and represents a complex example of how everything would be used in practice; it is work-in-progress and changes and evolves with the project
 
 # Benchmarks
 To be able to reason about the project's performance benchmarks and prevent regressions benchmarks were created.<br/>
-They can be enabled via GAIA_BUILD_BENCHMARK when configuring the project (OFF by default).
+Benchmarking relies on a modified [picobench](https://github.com/iboB/picobench). It can be controlled via -DGAIA_BUILD_BENCHMARK=ON/OFF when configuring the project (OFF by default).
 
 * [Duel](https://github.com/richardbiely/gaia-ecs/tree/main/src/perf/duel) - duel compares different coding approaches such as the basic model with uncontrolled OOP with data all-over-the heap, OOP where allocators are used to controlling memory fragmentation and different ways of data-oriented design and it puts them to test against our ECS framework itself; DOD performance is the target level we want to reach or at least be as close as possible to with this project because it does not get any faster than that 
 * [Iteration](https://github.com/richardbiely/gaia-ecs/tree/main/src/perf/iter) - this benchmark focuses on the performance of creating and removing entities and components of various sizes and also covers iteration performance with different numbers of entities and archetypes
