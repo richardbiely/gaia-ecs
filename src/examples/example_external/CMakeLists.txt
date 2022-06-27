@@ -20,5 +20,5 @@ add_custom_target(run
 
 set_property(TARGET run PROPERTY C_STANDARD 17)
 set_property(TARGET run PROPERTY CXX_STANDARD 17)
-set_property(TARGET run PROPERTY CXX_STANDARD_REQUIRED ON) 
+set_property(TARGET run PROPERTY CXX_STANDARD_REQUIRED ON)
 set_property(TARGET run PROPERTY CXX_EXTENSIONS OFF)
