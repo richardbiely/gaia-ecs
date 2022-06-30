@@ -7,7 +7,8 @@ using namespace gaia;
 constexpr size_t NEntities = 1'000;
 
 void BM_CreateEntity(picobench::state& state) {
-	for ([[maybe_unused]] auto _: state) {
+	for (auto _: state) {
+		(void)_;
 		ecs::World w;
 		for (size_t i = 0; i < NEntities; ++i) {
 			[[maybe_unused]] auto e = w.CreateEntity();
@@ -43,7 +44,8 @@ constexpr void AddComponents(ecs::World& w, uint32_t N) {
 
 template <size_t Iterations>
 void BM_CreateEntity_With_Component(picobench::state& state) {
-	for ([[maybe_unused]] auto _: state) {
+	for (auto _: state) {
+		(void)_;
 		ecs::World w;
 		AddComponents<float, 0, Iterations>(w, NEntities);
 	}
@@ -61,7 +63,8 @@ void BM_ForEach_1_Archetype(picobench::state& state) {
 	auto query = ecs::EntityQuery().All<c1>();
 
 	float f = 0.f;
-	for ([[maybe_unused]] auto _: state) {
+	for (auto _: state) {
+		(void)_;
 		w.ForEach(query, [&](const c1& p) {
 			f += p.value[0];
 		});
@@ -82,7 +85,8 @@ void BM_ForEach_100_Archetypes(picobench::state& state) {
 	auto query = ecs::EntityQuery().All<c1>();
 
 	float f = 0.f;
-	for ([[maybe_unused]] auto _: state) {
+	for (auto _: state) {
+		(void)_;
 		w.ForEach(query, [&](const c1& p) {
 			f += p.value[0];
 		});
@@ -148,7 +152,8 @@ void BM_ForEach_1000_Archetypes(picobench::state& state) {
 	auto query = ecs::EntityQuery().All<c1>();
 
 	float f = 0.f;
-	for ([[maybe_unused]] auto _: state) {
+	for (auto _: state) {
+		(void)_;
 		w.ForEach(query, [&](const c1& p) {
 			f += p.value[0];
 		});
@@ -165,7 +170,8 @@ void BM_ForEach_Internal_1_Archetype(picobench::state& state) {
 	using c1 = Component<0, float, 3>;
 
 	float f = 0.f;
-	for ([[maybe_unused]] auto _: state) {
+	for (auto _: state) {
+		(void)_;
 		w.ForEach([&](const c1& p) {
 			f += p.value[0];
 		});
@@ -185,7 +191,8 @@ void BM_ForEach_Internal_100_Archetypes(picobench::state& state) {
 	using c1 = Component<0, float, 3>;
 
 	float f = 0.f;
-	for ([[maybe_unused]] auto _: state) {
+	for (auto _: state) {
+		(void)_;
 		w.ForEach([&](const c1& p) {
 			f += p.value[0];
 		});
@@ -250,7 +257,8 @@ void BM_ForEach_Internal_1000_Archetypes(picobench::state& state) {
 	using c1 = Component<0, float, 3>;
 
 	float f = 0.f;
-	for ([[maybe_unused]] auto _: state) {
+	for (auto _: state) {
+		(void)_;
 		w.ForEach([&](const c1& p) {
 			f += p.value[0];
 		});
@@ -267,7 +275,8 @@ void BM_ForEach_Chunk_1_Archetype(picobench::state& state) {
 	using c1 = Component<0, float, 3>;
 	auto query = ecs::EntityQuery().All<c1>();
 
-	for ([[maybe_unused]] auto _: state) {
+	for (auto _: state) {
+		(void)_;
 		float f = 0.f;
 		w.ForEach(query, [&](const ecs::Chunk& chunk) {
 			auto c1View = chunk.View<c1>();
@@ -290,7 +299,8 @@ void BM_ForEach_Chunk_100_Archetypes(picobench::state& state) {
 	using c1 = Component<0, float, 3>;
 	auto query = ecs::EntityQuery().All<c1>();
 
-	for ([[maybe_unused]] auto _: state) {
+	for (auto _: state) {
+		(void)_;
 		float f = 0.f;
 		w.ForEach(query, [&](const ecs::Chunk& chunk) {
 			auto c1View = chunk.View<c1>();
@@ -358,7 +368,8 @@ void BM_ForEach_Chunk_1000_Archetypes(picobench::state& state) {
 	using c1 = Component<0, float, 3>;
 	auto query = ecs::EntityQuery().All<c1>();
 
-	for ([[maybe_unused]] auto _: state) {
+	for (auto _: state) {
+		(void)_;
 		float f = 0.f;
 		w.ForEach(query, [&](const ecs::Chunk& chunk) {
 			auto c1View = chunk.View<c1>();
@@ -377,7 +388,8 @@ void BM_ForEach_Chunk_Internal_1_Archetype(picobench::state& state) {
 
 	using c1 = Component<0, float, 3>;
 
-	for ([[maybe_unused]] auto _: state) {
+	for (auto _: state) {
+		(void)_;
 		float f = 0.f;
 		w.ForEach(ecs::EntityQuery().All<c1>(), [&](const ecs::Chunk& chunk) {
 			auto c1View = chunk.View<c1>();
@@ -398,7 +410,8 @@ void BM_ForEach_Chunk_Internal_100_Archetypes(picobench::state& state) {
 
 	using c1 = Component<0, float, 3>;
 
-	for ([[maybe_unused]] auto _: state) {
+	for (auto _: state) {
+		(void)_;
 		float f = 0.f;
 		w.ForEach(ecs::EntityQuery().All<c1>(), [&](const ecs::Chunk& chunk) {
 			auto c1View = chunk.View<c1>();
@@ -465,7 +478,8 @@ void BM_ForEach_Chunk_Internal_1000_Archetypes(picobench::state& state) {
 
 	using c1 = Component<0, float, 3>;
 
-	for ([[maybe_unused]] auto _: state) {
+	for (auto _: state) {
+		(void)_;
 		float f = 0.f;
 		w.ForEach(ecs::EntityQuery().All<c1>(), [&](const ecs::Chunk& chunk) {
 			auto c1View = chunk.View<c1>();

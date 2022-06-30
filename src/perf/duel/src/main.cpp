@@ -153,7 +153,8 @@ void BM_ECS(picobench::state& state) {
 	auto queryVel = ecs::EntityQuery().All<Position, Velocity>();
 
 	srand(0);
-	for ([[maybe_unused]] auto _: state) {
+	for (auto _: state) {
+		(void)_;
 		dt = CalculateDelta(state);
 
 		// Update position
@@ -232,7 +233,8 @@ void BM_ECS_WithSystems(picobench::state& state) {
 	sm.CreateSystem<GravitySystem>("gravity");
 
 	srand(0);
-	for ([[maybe_unused]] auto _: state) {
+	for (auto _: state) {
+		(void)_;
 		dt = CalculateDelta(state);
 
 		sm.Update();
@@ -316,7 +318,8 @@ void BM_ECS_WithSystems_Chunk(picobench::state& state) {
 	sm.CreateSystem<GravitySystem>("gravity");
 
 	srand(0);
-	for ([[maybe_unused]] auto _: state) {
+	for (auto _: state) {
+		(void)_;
 		dt = CalculateDelta(state);
 
 		sm.Update();
@@ -454,7 +457,8 @@ void BM_ECS_WithSystems_Chunk_SoA(picobench::state& state) {
 	sm.CreateSystem<GravitySystem>("gravity");
 
 	srand(0);
-	for ([[maybe_unused]] auto _: state) {
+	for (auto _: state) {
+		(void)_;
 		dt = CalculateDelta(state);
 
 		sm.Update();
@@ -665,7 +669,8 @@ void BM_ECS_WithSystems_Chunk_SoA_SIMD(picobench::state& state) {
 	sm.CreateSystem<GravitySystem>("gravity");
 
 	srand(0);
-	for ([[maybe_unused]] auto _: state) {
+	for (auto _: state) {
+		(void)_;
 		dt = CalculateDelta(state);
 
 		sm.Update();
@@ -821,7 +826,8 @@ void BM_NonECS(picobench::state& state) {
 	}
 
 	srand(0);
-	for ([[maybe_unused]] auto _: state) {
+	for (auto _: state) {
+		(void)_;
 		dt = CalculateDelta(state);
 
 		// Process entities
@@ -945,7 +951,8 @@ void BM_NonECS_BetterMemoryLayout(picobench::state& state) {
 	};
 
 	srand(0);
-	for ([[maybe_unused]] auto _: state) {
+	for (auto _: state) {
+		(void)_;
 		dt = CalculateDelta(state);
 
 		exec(units_static);
@@ -1027,7 +1034,8 @@ void BM_NonECS_DOD(picobench::state& state) {
 	}
 
 	srand(0);
-	for ([[maybe_unused]] auto _: state) {
+	for (auto _: state) {
+		(void)_;
 		dt = CalculateDelta(state);
 
 		// Process static entities
@@ -1153,7 +1161,8 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 	}
 
 	srand(0);
-	for ([[maybe_unused]] auto _: state) {
+	for (auto _: state) {
+		(void)_;
 		dt = CalculateDelta(state);
 
 		// Process static entities
@@ -1327,7 +1336,8 @@ void BM_NonECS_DOD_SoA_SIMD(picobench::state& state) {
 	}
 
 	srand(0);
-	for ([[maybe_unused]] auto _: state) {
+	for (auto _: state) {
+		(void)_;
 		dt = CalculateDelta(state);
 
 		// Process static entities
