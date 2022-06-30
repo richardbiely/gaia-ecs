@@ -39,9 +39,7 @@ namespace gaia {
 			return h;
 		}
 
-		//----------------------------------------------------------------------
-		// Fnv1a 64-bit hash
-		//----------------------------------------------------------------------
+#if GAIA_ECS_HASH == GAIA_ECS_HASH_FNV1A
 
 		namespace detail {
 			namespace fnv1a {
@@ -50,7 +48,7 @@ namespace gaia {
 			} // namespace fnv1a
 		} // namespace detail
 
-		constexpr uint64_t hash_fnv1a_64(const char* const str) noexcept {
+		constexpr uint64_t calculate_hash64(const char* const str) noexcept {
 			uint64_t hash = detail::fnv1a::val_64_const;
 
 			size_t i = 0;
@@ -62,7 +60,7 @@ namespace gaia {
 			return hash;
 		}
 
-		constexpr uint64_t hash_fnv1a_64(const char* const str, const size_t length) noexcept {
+		constexpr uint64_t calculate_hash64(const char* const str, const size_t length) noexcept {
 			uint64_t hash = detail::fnv1a::val_64_const;
 
 			for (size_t i = 0; i < length; i++)
@@ -71,69 +69,87 @@ namespace gaia {
 			return hash;
 		}
 
-		//----------------------------------------------------------------------
-		// Murmur2A 64-bit hash
-		//----------------------------------------------------------------------
+#elif GAIA_ECS_HASH == GAIA_ECS_HASH_MURMUR2A
+
+		// Thank you https://gist.github.com/oteguro/10538695
+
+		GAIA_MSVC_WARNING_PUSH()
+		GAIA_MSVC_WARNING_DISABLE(4592)
 
 		namespace detail {
 			namespace murmur2a {
 				constexpr uint64_t seed_64_const = 0xffffffffffffffc5ull;
+				constexpr uint64_t m = 0xc6a4a7935bd1e995ull;
+				constexpr uint64_t r = 47;
 
-				constexpr uint64_t hash_murmur2a_64_ct(const char* const str, const uint32_t size, uint64_t seed) {
-					constexpr uint64_t prime = 0xc6a4a7935bd1e995ull;
-					constexpr uint32_t shift1 = 19;
-					constexpr uint32_t shift2 = 37;
-
-					const uint64_t* data = (const uint64_t*)str;
-					const uint64_t* end = data + (size / 8);
-					uint64_t hash = seed ^ (size * prime);
-
-					while (data != end) {
-						uint64_t word = *data++;
-						word *= prime;
-						word ^= word >> shift1;
-						word *= prime;
-						hash ^= word;
-						hash *= prime;
-					}
-
-					const uint8_t* byte_data = (const uint8_t*)data;
-					switch (size & 7) {
-						case 7:
-							hash ^= ((uint64_t)byte_data[6]) << 48;
-							[[fallthrough]];
-						case 6:
-							hash ^= ((uint64_t)byte_data[5]) << 40;
-							[[fallthrough]];
-						case 5:
-							hash ^= ((uint64_t)byte_data[4]) << 32;
-							[[fallthrough]];
-						case 4:
-							hash ^= ((uint64_t)byte_data[3]) << 24;
-							[[fallthrough]];
-						case 3:
-							hash ^= ((uint64_t)byte_data[2]) << 16;
-							[[fallthrough]];
-						case 2:
-							hash ^= ((uint64_t)byte_data[1]) << 8;
-							[[fallthrough]];
-						case 1:
-							hash ^= ((uint64_t)byte_data[0]);
-							break;
-						default:
-							break;
-					}
-
-					hash ^= hash >> shift1;
-					hash *= prime;
-					hash ^= hash >> shift2;
-
-					return hash;
+				constexpr uint64_t Load8(const char* data) {
+					return (uint64_t(data[7]) << 56) | (uint64_t(data[6]) << 48) | (uint64_t(data[5]) << 40) |
+								 (uint64_t(data[4]) << 32) | (uint64_t(data[3]) << 24) | (uint64_t(data[2]) << 16) |
+								 (uint64_t(data[1]) << 8) | (uint64_t(data[0]) << 0);
 				}
+
+				constexpr uint64_t StaticHashValueLast64(uint64_t h) {
+					return (((h * m) ^ ((h * m) >> r)) * m) ^ ((((h * m) ^ ((h * m) >> r)) * m) >> r);
+				}
+
+				constexpr uint64_t StaticHashValueLast64_(uint64_t h) {
+					return (((h) ^ ((h) >> r)) * m) ^ ((((h) ^ ((h) >> r)) * m) >> r);
+				}
+
+				constexpr uint64_t StaticHashValue64Tail1(uint64_t h, const char* data) {
+					return StaticHashValueLast64((h ^ uint64_t(data[0])));
+				}
+
+				constexpr uint64_t StaticHashValue64Tail2(uint64_t h, const char* data) {
+					return StaticHashValue64Tail1((h ^ uint64_t(data[1]) << 8), data);
+				}
+
+				constexpr uint64_t StaticHashValue64Tail3(uint64_t h, const char* data) {
+					return StaticHashValue64Tail2((h ^ uint64_t(data[2]) << 16), data);
+				}
+
+				constexpr uint64_t StaticHashValue64Tail4(uint64_t h, const char* data) {
+					return StaticHashValue64Tail3((h ^ uint64_t(data[3]) << 24), data);
+				}
+
+				constexpr uint64_t StaticHashValue64Tail5(uint64_t h, const char* data) {
+					return StaticHashValue64Tail4((h ^ uint64_t(data[4]) << 32), data);
+				}
+
+				constexpr uint64_t StaticHashValue64Tail6(uint64_t h, const char* data) {
+					return StaticHashValue64Tail5((h ^ uint64_t(data[5]) << 40), data);
+				}
+
+				constexpr uint64_t StaticHashValue64Tail7(uint64_t h, const char* data) {
+					return StaticHashValue64Tail6((h ^ uint64_t(data[6]) << 48), data);
+				}
+
+				constexpr uint64_t StaticHashValueRest64(uint64_t h, size_t len, const char* data) {
+					return ((len & 7) == 7)		? StaticHashValue64Tail7(h, data)
+								 : ((len & 7) == 6) ? StaticHashValue64Tail6(h, data)
+								 : ((len & 7) == 5) ? StaticHashValue64Tail5(h, data)
+								 : ((len & 7) == 4) ? StaticHashValue64Tail4(h, data)
+								 : ((len & 7) == 3) ? StaticHashValue64Tail3(h, data)
+								 : ((len & 7) == 2) ? StaticHashValue64Tail2(h, data)
+								 : ((len & 7) == 1) ? StaticHashValue64Tail1(h, data)
+																		: StaticHashValueLast64_(h);
+				}
+
+				constexpr uint64_t StaticHashValueLoop64(size_t i, uint64_t h, size_t len, const char* data) {
+					return (
+							i == 0 ? StaticHashValueRest64(h, len, (const char*)data)
+										 : StaticHashValueLoop64(
+													 i - 1, (h ^ (((Load8(data) * m) ^ ((Load8(data) * m) >> r)) * m)) * m, len, data + 8));
+				}
+
+				constexpr uint64_t hash_murmur2a_64_ct(const char* key, size_t len, uint64_t seed) {
+					return StaticHashValueLoop64(len / 8, seed ^ (uint64_t(len) * m), (len), (const char*)key);
+				}
+
 			} // namespace murmur2a
 		} // namespace detail
 
-		constexpr uint64_t hash_murmur2a_64(const char* str) {
+		constexpr uint64_t calculate_hash64(const char* str) {
 			uint32_t size = 0;
 			while (str[size] != '\0')
 				++size;
@@ -141,9 +157,15 @@ namespace gaia {
 			return detail::murmur2a::hash_murmur2a_64_ct(str, size, detail::murmur2a::seed_64_const);
 		}
 
-		constexpr uint64_t hash_murmur2a_64(const char* str, uint32_t length) {
+		constexpr uint64_t calculate_hash64(const char* str, uint32_t length) {
 			return detail::murmur2a::hash_murmur2a_64_ct(str, length, detail::murmur2a::seed_64_const);
 		}
+
+		GAIA_MSVC_WARNING_POP()
+
+#else
+	#error "Unknown hashing type defined"
+#endif
 
 	} // namespace utils
 } // namespace gaia

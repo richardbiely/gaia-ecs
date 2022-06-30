@@ -94,11 +94,7 @@ namespace gaia {
 				GAIA_MSVC_WARNING_DISABLE(4307)
 #endif
 
-#if GAIA_ECS_HASH == GAIA_ECS_HASH_FNV1A
-				return hash_fnv1a_64(name<T>().data(), name<T>().length());
-#else
-				return hash_murmur2a_64(name<T>().data(), name<T>().length());
-#endif
+				return calculate_hash64(name<T>().data(), name<T>().length());
 
 #if GAIA_COMPILER_MSVC && _MSV_VER <= 1916
 				GAIA_MSVC_WARNING_PUSH()
