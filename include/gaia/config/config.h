@@ -27,7 +27,7 @@
 //! If enabled, custom allocator is used for allocating archetype chunks.
 #define GAIA_ECS_CHUNK_ALLOCATOR 1
 
-#define GAIA_ECS_HASH GAIA_ECS_HASH_FNV1A // GAIA_ECS_HASH_MURMUR2A
+#define GAIA_ECS_HASH GAIA_ECS_HASH_MURMUR2A
 
 //! If enabled, STL containers are going to be used by the framework.
 #define GAIA_USE_STL_CONTAINERS 0
