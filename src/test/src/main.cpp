@@ -749,6 +749,31 @@ TEST_CASE("SetComponent - generic") {
 			REQUIRE(p.z == 333);
 		}
 	}
+
+	// Add one more component and check if the values are still fine after creating a new archetype
+	{
+		auto ent = w.CreateEntity(arr[0]);
+		w.AddComponent<Position>(ent, {5, 6, 7});
+
+		auto r = w.GetComponent<Rotation>(ent);
+		REQUIRE(r.x == 1);
+		REQUIRE(r.y == 2);
+		REQUIRE(r.z == 3);
+		REQUIRE(r.w == 4);
+
+		auto s = w.GetComponent<Scale>(ent);
+		REQUIRE(s.x == 11);
+		REQUIRE(s.y == 22);
+		REQUIRE(s.z == 33);
+
+		auto e = w.GetComponent<Else>(ent);
+		REQUIRE(e.value == true);
+
+		auto p = w.GetComponent<PositionNonTrivial>(ent);
+		REQUIRE(p.x == 111);
+		REQUIRE(p.y == 222);
+		REQUIRE(p.z == 333);
+	}
 }
 
 TEST_CASE("SetComponent - generic & chunk") {
