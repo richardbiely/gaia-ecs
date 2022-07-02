@@ -419,7 +419,7 @@ namespace gaia {
 					if (infoLeft == infoRight) {
 						++i;
 						++j;
-					} else if (infoLeft < infoRight)
+					} else if (infoLeft->typeIndex < infoRight->typeIndex)
 						++i;
 					else
 						return false;
@@ -678,8 +678,8 @@ namespace gaia {
 				// Find intersection of the two component lists.
 				// We ignore chunk components here because they should't be influenced
 				// by entities moving around.
-				const auto& oldTypes = oldArchetype.componentInfos[ComponentType::CT_Generic];
-				const auto& infoToAdd = newArchetype.componentInfos[ComponentType::CT_Generic];
+				const auto& oldInfos = oldArchetype.componentInfos[ComponentType::CT_Generic];
+				const auto& newInfos = newArchetype.componentInfos[ComponentType::CT_Generic];
 				const auto& oldLook = oldArchetype.componentLookupData[ComponentType::CT_Generic];
 				const auto& newLook = newArchetype.componentLookupData[ComponentType::CT_Generic];
 
@@ -687,20 +687,20 @@ namespace gaia {
 				{
 					size_t i = 0;
 					size_t j = 0;
-					while (i < oldTypes.size() && j < infoToAdd.size()) {
-						const auto* typeOld = oldTypes[i];
-						const auto* typeNew = infoToAdd[j];
+					while (i < oldInfos.size() && j < newInfos.size()) {
+						const auto* infoOld = oldInfos[i];
+						const auto* infoNew = newInfos[j];
 
-						if (typeOld == typeNew) {
+						if (infoOld == infoNew) {
 							// Let's move all type data from oldEntity to newEntity
-							const auto idxFrom = oldLook[i++].offset + typeOld->properties.size * oldIndex;
-							const auto idxTo = newLook[j++].offset + typeOld->properties.size * newIndex;
+							const auto idxFrom = oldLook[i++].offset + infoOld->properties.size * oldIndex;
+							const auto idxTo = newLook[j++].offset + infoOld->properties.size * newIndex;
 
 							GAIA_ASSERT(idxFrom < Chunk::DATA_SIZE_NORESERVE);
 							GAIA_ASSERT(idxTo < Chunk::DATA_SIZE_NORESERVE);
 
-							memcpy(&newChunk->data[idxTo], &oldChunk->data[idxFrom], typeOld->properties.size);
-						} else if (typeOld > typeNew)
+							memcpy(&newChunk->data[idxTo], &oldChunk->data[idxFrom], infoOld->properties.size);
+						} else if (infoOld->infoIndex > infoNew->infoIndex)
 							++j;
 						else
 							++i;
