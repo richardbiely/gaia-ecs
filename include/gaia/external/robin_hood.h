@@ -933,7 +933,7 @@ namespace robin_hood {
 			static constexpr uint32_t InitialInfoNumBits = 5;
 			static constexpr uint8_t InitialInfoInc = 1U << InitialInfoNumBits;
 			static constexpr size_t InfoMask = InitialInfoInc - 1U;
-			static constexpr uint8_t InitialInfoHashShift = 0;
+			static constexpr uint8_t InitialInfoHashShift = 64U - InitialInfoNumBits;
 			using DataPool = detail::NodeAllocator<value_type, 4, 16384, IsFlat>;
 
 			// type needs to be wider than uint8_t.
@@ -1331,8 +1331,8 @@ namespace robin_hood {
 				h ^= h >> 33U;
 
 				// the lower InitialInfoNumBits are reserved for info.
-				*info = mInfoInc + static_cast<InfoType>((h & InfoMask) >> mInfoHashShift);
-				*idx = (static_cast<size_t>(h) >> InitialInfoNumBits) & mMask;
+				*info = mInfoInc + static_cast<InfoType>(h >> mInfoHashShift);
+				*idx = (static_cast<size_t>(h)) & mMask;
 			}
 
 			// forwards the index by one, wrapping around at the end
