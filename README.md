@@ -108,6 +108,14 @@ w.SetComponent<Velocity>(e, {0, 0, 2});
 auto velNew = w.GetComponent<Velocity>(e);
 ```
 
+In case there are more different components on your entity you would like to change the value of you can achive it via SetComponent chaining:
+```cpp
+// Change Velocity's value.
+w.SetComponent<Velocity>(e, {0, 0, 2}).
+  SetComponent<Position>({0, 100, 0}).
+  SetComponent...;
+```
+
 ### Checking if component is attached to entity
 ```cpp
 // Check if entity e has Velocity.
