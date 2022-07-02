@@ -211,11 +211,13 @@ ecs::SystemManager s_sm(s_ecs);
 World s_world(s_ecs);
 
 class UpdateMapSystem final: public ecs::System {
-	ecs::EntityQuery m_q;
+	ecs::EntityQuery m_q1;
+	ecs::EntityQuery m_q2;
 
 public:
 	void OnCreated() override {
-		m_q.All<Position, Velocity>();
+		m_q1.All<Position, Velocity>();
+		m_q2.All<Position>();
 	}
 	void OnUpdate() override {
 		// Wall blocks
@@ -224,13 +226,13 @@ public:
 				s_world.blocked[y][x] = s_world.map[y][x] == TILE_WALL;
 
 		// Everything with postion && velocity blocks
-		GetWorld().ForEach(m_q, [&](const Position& p) {
+		GetWorld().ForEach(m_q1, [&](const Position& p) {
 			s_world.blocked[p.y][p.x] = true;
 		});
 
 		// Everything with position is content
 		s_world.content.clear();
-		GetWorld().ForEach([&](ecs::Entity e, const Position& p) {
+		GetWorld().ForEach(m_q2, [&](ecs::Entity e, const Position& p) {
 			s_world.content[p].push_back(e);
 		});
 	}
@@ -451,6 +453,7 @@ public:
 	void OnCreated() override {
 		m_q.All<Health>().WithChanged<Health>();
 	}
+
 	void OnUpdate() override {
 		GetWorld().ForEach(m_q, [&](Health& h) {
 			if (h.value > h.valueMax)
@@ -466,6 +469,7 @@ public:
 	void OnCreated() override {
 		m_q.All<Health, Position>().WithChanged<Health>();
 	}
+
 	void OnUpdate() override {
 		GetWorld().ForEach(m_q, [&](ecs::Entity e, const Health& h, const Position& p) {
 			if (h.value > 0)
@@ -484,6 +488,7 @@ public:
 	void OnCreated() override {
 		m_q.All<Position, Sprite>();
 	}
+
 	void OnUpdate() override {
 		ClearScreen();
 		s_world.InitWorldMap();
@@ -506,17 +511,21 @@ public:
 };
 
 class UISystem final: public ecs::System {
+	ecs::EntityQuery m_qp;
+	ecs::EntityQuery m_qe;
+
 public:
+	void OnCreated() override {
+		m_qp.All<Health, Player>();
+		m_qe.All<Health>().None<Player, Item>();
+	}
+
 	void OnUpdate() override {
-		ecs::EntityQuery qp;
-		qp.All<Health, Player>();
-		GetWorld().ForEach(qp, [](const Health& h) {
+		GetWorld().ForEach(m_qp, [](const Health& h) {
 			printf("Player health: %d/%d\n", h.value, h.valueMax);
 		});
 
-		ecs::EntityQuery qe;
-		qe.All<Health>().None<Player, Item>();
-		GetWorld().ForEach(qe, [](ecs::Entity e, const Health& h) {
+		GetWorld().ForEach(m_qe, [](ecs::Entity e, const Health& h) {
 			printf("Enemy %u:%u health: %d/%d\n", e.id(), e.gen(), h.value, h.valueMax);
 		});
 	}
@@ -530,6 +539,7 @@ public:
 	void OnCreated() override {
 		m_q.All<Player>();
 	}
+
 	void OnUpdate() override {
 		m_key = get_char();
 
