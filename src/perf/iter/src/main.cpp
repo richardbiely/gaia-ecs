@@ -499,7 +499,7 @@ PICOBENCH(BM_CreateEntity_With_Component<2>).PICO_SETTINGS().label("2 components
 PICOBENCH(BM_CreateEntity_With_Component<4>).PICO_SETTINGS().label("4 components");
 PICOBENCH(BM_CreateEntity_With_Component<8>).PICO_SETTINGS().label("8 components");
 
-PICOBENCH_SUITE("Direct teration - external query");
+PICOBENCH_SUITE("Direct iteration - external query");
 PICOBENCH(BM_ForEach_1_Archetype).PICO_SETTINGS().label("1 archetype");
 PICOBENCH(BM_ForEach_100_Archetypes).PICO_SETTINGS().label("100 archetypes");
 PICOBENCH(BM_ForEach_1000_Archetypes).PICO_SETTINGS().label("1000 archetypes");
@@ -509,7 +509,7 @@ PICOBENCH(BM_ForEach_Chunk_1_Archetype).PICO_SETTINGS().label("1 archetype");
 PICOBENCH(BM_ForEach_Chunk_100_Archetypes).PICO_SETTINGS().label("100 archetypes");
 PICOBENCH(BM_ForEach_Chunk_1000_Archetypes).PICO_SETTINGS().label("1000 archetypes");
 
-PICOBENCH_SUITE("Direct teration - internal query");
+PICOBENCH_SUITE("Direct iteration - internal query");
 PICOBENCH(BM_ForEach_Internal_1_Archetype).PICO_SETTINGS().label("1 archetype");
 PICOBENCH(BM_ForEach_Internal_100_Archetypes).PICO_SETTINGS().label("100 archetypes");
 PICOBENCH(BM_ForEach_Internal_1000_Archetypes).PICO_SETTINGS().label("1000 archetypes");
