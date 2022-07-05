@@ -1,6 +1,5 @@
 #pragma once
 #include <cinttypes>
-#include <string_view>
 #include <type_traits>
 
 #include "../containers/darray.h"
@@ -159,27 +158,58 @@ namespace gaia {
 		// ComponentInfo
 		//----------------------------------------------------------------------
 
-		struct ComponentInfo final {
+		struct ComponentInfoCreate final {
 			using FuncConstructor = void(void*);
 			using FuncDestructor = void(void*);
 
-			// TODO: Organize this in SaO way. Consider keeping commonly used data together.
-
 			//! [ 0-15] Component name
-			std::string_view name;
-			//! [16-23] Complex hash used for look-ups
-			uint64_t lookupHash;
-			//! [24-31] Simple hash used for matching component
-			uint64_t matcherHash;
-			//! [32-39] Constructor to call when the component is being constructed
+			std::span<const char> name;
+			//! [16-31] Constructor to call when the component is being constructed
 			FuncConstructor* constructor;
-			//! [40-47] Destructor to call when the component is being destroyed
+			//! [32-47] Destructor to call when the component is being destroyed
 			FuncDestructor* destructor;
-
 			//! [48-51] Unique component identifier
 			uint32_t infoIndex;
 
-			//! [52-55]
+			template <typename T>
+			[[nodiscard]] static constexpr ComponentInfoCreate Calculate() {
+				using U = typename DeduceComponent<T>::Type;
+
+				ComponentInfoCreate info{};
+				info.name = utils::type_info::name<U>();
+				info.infoIndex = utils::type_info::index<U>();
+
+				if constexpr (!std::is_empty<U>::value && !utils::is_soa_layout<U>::value) {
+					info.constructor = [](void* ptr) {
+						new (ptr) T{};
+					};
+					info.destructor = [](void* ptr) {
+						((T*)ptr)->~T();
+					};
+				}
+
+				return info;
+			}
+
+			template <typename T>
+			static const ComponentInfoCreate* Create() {
+				using U = std::decay_t<T>;
+				return new ComponentInfoCreate{Calculate<U>()};
+			}
+		};
+
+		//----------------------------------------------------------------------
+		// ComponentInfo
+		//----------------------------------------------------------------------
+
+		struct ComponentInfo final {
+			//! [0-7] Complex hash used for look-ups
+			uint64_t lookupHash;
+			//! [8-15] Simple hash used for matching component
+			uint64_t matcherHash;
+			//! [16-19] Unique component identifier
+			uint32_t infoIndex;
+			//! [20-23]
 			struct {
 				//! Component alignment
 				uint32_t alig: MAX_COMPONENTS_SIZE_BITS;
@@ -204,7 +234,6 @@ namespace gaia {
 				using U = typename DeduceComponent<T>::Type;
 
 				ComponentInfo info{};
-				info.name = utils::type_info::name<U>();
 				info.lookupHash = utils::type_info::hash<U>();
 				info.matcherHash = CalculateMatcherHash<U>();
 				info.infoIndex = utils::type_info::index<U>();
@@ -212,16 +241,7 @@ namespace gaia {
 				if constexpr (!std::is_empty<U>::value) {
 					info.properties.alig = utils::auto_view_policy<U>::Alignment;
 					info.properties.size = (uint32_t)sizeof(U);
-					if constexpr (utils::is_soa_layout<U>::value) {
-						info.properties.soa = 1;
-					} else if constexpr (!std::is_trivial<T>::value) {
-						info.constructor = [](void* ptr) {
-							new (ptr) T{};
-						};
-						info.destructor = [](void* ptr) {
-							((T*)ptr)->~T();
-						};
-					}
+					info.properties.soa = utils::is_soa_layout<U>::value;
 				}
 
 				return info;

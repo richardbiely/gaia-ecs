@@ -13,12 +13,14 @@ namespace gaia {
 		class ComponentCache {
 			containers::map<uint64_t, const ComponentInfo*> m_info;
 			containers::map<uint32_t, const ComponentInfo*> m_infoByIndex;
+			containers::map<uint32_t, const ComponentInfoCreate*> m_infoCreateByIndex;
 
 		public:
 			ComponentCache() {
 				// Reserve enough storage space for most use-cases
 				m_info.reserve(2048);
 				m_infoByIndex.reserve(2048);
+				m_infoCreateByIndex.reserve(2048);
 			}
 
 			ComponentCache(ComponentCache&&) = delete;
@@ -34,35 +36,40 @@ namespace gaia {
 			[[nodiscard]] const ComponentInfo* GetOrCreateComponentInfo() {
 				using U = typename DeduceComponent<T>::Type;
 				GAIA_SAFE_CONSTEXPR auto lookupHash = utils::type_info::hash<U>();
+				const auto index = utils::type_info::index<U>();
 
-				const auto res = m_info.emplace(lookupHash, nullptr);
-				if (res.second) {
-					res.first->second = ComponentInfo::Create<U>();
-
-					const auto index = utils::type_info::index<U>();
-					m_infoByIndex.emplace(index, res.first->second);
+				{
+					const auto res = m_infoCreateByIndex.emplace(index, nullptr);
+					if (res.second) {
+						res.first->second = ComponentInfoCreate::Create<U>();
+					}
 				}
 
-				return res.first->second;
+				{
+					const auto res = m_info.emplace(lookupHash, nullptr);
+					if (res.second) {
+						res.first->second = ComponentInfo::Create<U>();
+						m_infoByIndex.emplace(index, res.first->second);
+					}
+
+					return res.first->second;
+				}
 			}
 
 			template <typename T>
 			[[nodiscard]] const ComponentInfo* FindComponentInfo() const {
 				using U = typename DeduceComponent<T>::Type;
-				GAIA_SAFE_CONSTEXPR auto lookupHash = utils::type_info::hash<U>();
 
-				const auto it = m_info.find(lookupHash);
-				return it != m_info.end() ? it->second : (const ComponentInfo*)nullptr;
+				const auto index = utils::type_info::hash<U>();
+				const auto it = m_infoByIndex.find(index);
+				return it != m_infoByIndex.end() ? it->second : (const ComponentInfo*)nullptr;
 			}
 
 			template <typename T>
 			[[nodiscard]] const ComponentInfo* GetComponentInfo() const {
 				using U = typename DeduceComponent<T>::Type;
-				GAIA_SAFE_CONSTEXPR auto lookupHash = utils::type_info::hash<U>();
-
-				// Let's assume the component has been registered via AddComponent already!
-				GAIA_ASSERT(m_info.find(lookupHash) != m_info.end());
-				return m_info.at(lookupHash);
+				const auto index = utils::type_info::index<U>();
+				return GetComponentInfoFromIdx(index);
 			}
 
 			[[nodiscard]] const ComponentInfo* GetComponentInfoFromIdx(uint32_t componentIndex) const {
@@ -71,88 +78,27 @@ namespace gaia {
 				return m_infoByIndex.at(componentIndex);
 			}
 
+			[[nodiscard]] const ComponentInfoCreate* GetComponentCreateInfoFromIdx(uint32_t componentIndex) const {
+				// Let's assume the component has been registered via AddComponent already!
+				GAIA_ASSERT(m_infoCreateByIndex.find(componentIndex) != m_infoCreateByIndex.end());
+				return m_infoCreateByIndex.at(componentIndex);
+			}
+
 			template <typename T>
 			[[nodiscard]] bool HasComponentInfo() const {
 				using U = typename DeduceComponent<T>::Type;
 				GAIA_SAFE_CONSTEXPR auto lookupHash = utils::type_info::hash<U>();
-
 				return m_info.find(lookupHash) != m_info.end();
 			}
 
 			void Diag() const {
-				const auto registeredTypes = (uint32_t)m_info.size();
+				const auto registeredTypes = (uint32_t)m_infoCreateByIndex.size();
 				LOG_N("Registered infos: %u", registeredTypes);
 
-				for (const auto& pair: m_info) {
+				for (const auto& pair: m_infoCreateByIndex) {
 					const auto* info = pair.second;
 					LOG_N(
-							"  (%p) index:%010u, lookupHash:%016" PRIx64 ", mask:%016" PRIx64 ", %.*s", (void*)info, info->infoIndex,
-							info->lookupHash, info->matcherHash, (uint32_t)info->name.length(), info->name.data());
-				}
-
-				using DuplicateMap = containers::map<uint64_t, containers::darray<const ComponentInfo*>>;
-
-				auto checkForDuplicates = [](const DuplicateMap& map, bool errIfDuplicate) {
-					for (const auto& pair: map) {
-						if (pair.second.size() <= 1)
-							continue;
-
-						if (errIfDuplicate) {
-							LOG_E("Duplicity detected for key %016" PRIx64 "", pair.first);
-						} else {
-							LOG_N("Duplicity detected for key %016" PRIx64 "", pair.first);
-						}
-
-						for (const auto* info: pair.second) {
-							if (info == nullptr)
-								continue;
-
-							LOG_N(
-									"--> (%p) lookupHash:%016" PRIx64 ", mask:%016" PRIx64 ", index:%010u, %.*s", (void*)info,
-									info->lookupHash, info->matcherHash, info->infoIndex, (uint32_t)info->name.length(),
-									info->name.data());
-						}
-					}
-				};
-
-				// Lookup hash duplicity. These must be unique.
-				{
-					bool hasDuplicates = false;
-					DuplicateMap m;
-					for (const auto& pair: m_info) {
-						const auto* info = pair.second;
-
-						const auto it = m.find(info->lookupHash);
-						if (it == m.end())
-							m[info->lookupHash] = {info};
-						else {
-							it->second.push_back(info);
-							hasDuplicates = true;
-						}
-					}
-
-					if (hasDuplicates)
-						checkForDuplicates(m, true);
-				}
-
-				// Component matcher hash duplicity. These are fine if not unique.
-				// However, the more unique the lower the probability of us having
-				// to check multiple archetype headers when matching queries.
-				{
-					bool hasDuplicates = false;
-					DuplicateMap m;
-					for (const auto& pair: m_info) {
-						const auto* info = pair.second;
-
-						const auto ret = m.emplace(info->matcherHash, containers::darray<const ComponentInfo*>{info});
-						if (!ret.second) {
-							ret.first->second.push_back(info);
-							hasDuplicates = true;
-						}
-					}
-
-					if (hasDuplicates)
-						checkForDuplicates(m, false);
+							"  (%p) index:%010u, %.*s", (void*)info, info->infoIndex, (uint32_t)info->name.size(), info->name.data());
 				}
 			}
 
@@ -162,6 +108,7 @@ namespace gaia {
 					delete pair.second;
 				m_info.clear();
 				m_infoByIndex.clear();
+				m_infoCreateByIndex.clear();
 			}
 		};
 	} // namespace ecs
