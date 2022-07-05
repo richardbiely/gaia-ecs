@@ -11,14 +11,12 @@
 namespace gaia {
 	namespace ecs {
 		class ComponentCache {
-			containers::map<uint64_t, const ComponentInfo*> m_info;
 			containers::map<uint32_t, const ComponentInfo*> m_infoByIndex;
 			containers::map<uint32_t, const ComponentInfoCreate*> m_infoCreateByIndex;
 
 		public:
 			ComponentCache() {
 				// Reserve enough storage space for most use-cases
-				m_info.reserve(2048);
 				m_infoByIndex.reserve(2048);
 				m_infoCreateByIndex.reserve(2048);
 			}
@@ -35,22 +33,18 @@ namespace gaia {
 			template <typename T>
 			[[nodiscard]] const ComponentInfo* GetOrCreateComponentInfo() {
 				using U = typename DeduceComponent<T>::Type;
-				GAIA_SAFE_CONSTEXPR auto lookupHash = utils::type_info::hash<U>();
 				const auto index = utils::type_info::index<U>();
 
 				{
 					const auto res = m_infoCreateByIndex.emplace(index, nullptr);
-					if (res.second) {
+					if (res.second)
 						res.first->second = ComponentInfoCreate::Create<U>();
-					}
 				}
 
 				{
-					const auto res = m_info.emplace(lookupHash, nullptr);
-					if (res.second) {
+					const auto res = m_infoByIndex.emplace(index, nullptr);
+					if (res.second)
 						res.first->second = ComponentInfo::Create<U>();
-						m_infoByIndex.emplace(index, res.first->second);
-					}
 
 					return res.first->second;
 				}
@@ -87,8 +81,8 @@ namespace gaia {
 			template <typename T>
 			[[nodiscard]] bool HasComponentInfo() const {
 				using U = typename DeduceComponent<T>::Type;
-				GAIA_SAFE_CONSTEXPR auto lookupHash = utils::type_info::hash<U>();
-				return m_info.find(lookupHash) != m_info.end();
+				const auto index = utils::type_info::index<U>();
+				return m_infoCreateByIndex.find(index) != m_infoCreateByIndex.end();
 			}
 
 			void Diag() const {
@@ -104,9 +98,8 @@ namespace gaia {
 
 		private:
 			void ClearRegisteredInfoCache() {
-				for (auto& pair: m_info)
+				for (auto& pair: m_infoByIndex)
 					delete pair.second;
-				m_info.clear();
 				m_infoByIndex.clear();
 				m_infoCreateByIndex.clear();
 			}
