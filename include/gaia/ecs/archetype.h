@@ -67,10 +67,8 @@ namespace gaia {
 			struct {
 				//! The number of entities this archetype can take (e.g 5 = 5 entities with all their components)
 				uint32_t capacity : 16;
-				//! True if there's a component that requires custom construction
-				uint32_t hasComponentWithCustomConstruction : 1;
-				//! True if there's a chunk component that requires custom construction
-				uint32_t hasChunkComponentTypesWithCustomConstruction : 1;
+				//! True if there's a component that requires custom construction or destruction
+				uint32_t hasComponentWithCustomCreation : 1;
 				//! Set to true when chunks are being iterated. Used to inform of structural changes when they shouldn't happen.
 				uint32_t structuralChangesLocked : 1;
 			} info{};
@@ -84,8 +82,8 @@ namespace gaia {
 			\return Newly allocated chunk
 			*/
 			[[nodiscard]] static Chunk* AllocateChunk(const Archetype& archetype) {
-#if GAIA_ECS_CHUNK_ALLOCATOR
 				auto& world = const_cast<World&>(*archetype.parentWorld);
+#if GAIA_ECS_CHUNK_ALLOCATOR
 				auto pChunk = (Chunk*)AllocateChunkMemory(world);
 				new (pChunk) Chunk(archetype);
 #else
@@ -93,23 +91,23 @@ namespace gaia {
 #endif
 
 				// Call default constructors for components that need it
-				if (archetype.info.hasComponentWithCustomConstruction) {
-					const auto& info = archetype.componentInfos[ComponentType::CT_Generic];
+				if (archetype.info.hasComponentWithCustomCreation) {
 					const auto& look = archetype.componentLookupData[ComponentType::CT_Generic];
-					for (size_t i = 0; i < info.size(); ++i) {
-						if (info[i]->constructor == nullptr)
+					for (size_t i = 0; i < look.size(); ++i) {
+						const auto* infoCreate = GetComponentCache(world).GetComponentCreateInfoFromIdx(look[i].infoIndex);
+						if (infoCreate->constructor == nullptr)
 							continue;
-						info[i]->constructor((void*)((uint8_t*)pChunk + look[i].offset));
+						infoCreate->constructor((void*)((uint8_t*)pChunk + look[i].offset));
 					}
 				}
 				// Call default constructors for chunk components that need it
-				if (archetype.info.hasChunkComponentTypesWithCustomConstruction) {
-					const auto& info = archetype.componentInfos[ComponentType::CT_Chunk];
+				if (archetype.info.hasComponentWithCustomCreation) {
 					const auto& look = archetype.componentLookupData[ComponentType::CT_Chunk];
-					for (size_t i = 0; i < info.size(); ++i) {
-						if (info[i]->constructor == nullptr)
+					for (size_t i = 0; i < look.size(); ++i) {
+						const auto* infoCreate = GetComponentCache(world).GetComponentCreateInfoFromIdx(look[i].infoIndex);
+						if (infoCreate->constructor == nullptr)
 							continue;
-						info[i]->constructor((void*)((uint8_t*)pChunk + look[i].offset));
+						infoCreate->constructor((void*)((uint8_t*)pChunk + look[i].offset));
 					}
 				}
 
@@ -122,32 +120,33 @@ namespace gaia {
 			\param pChunk Chunk which we want to destroy
 			*/
 			static void ReleaseChunk(Chunk* pChunk) {
-				// Call destructors for types that need it
 				const auto& archetype = pChunk->header.owner;
-				if (archetype.info.hasComponentWithCustomConstruction) {
-					const auto& info = archetype.componentInfos[ComponentType::CT_Generic];
+				auto& world = const_cast<World&>(*archetype.parentWorld);
+
+				// Call destructors for types that need it
+				if (archetype.info.hasComponentWithCustomCreation) {
 					const auto& look = archetype.componentLookupData[ComponentType::CT_Generic];
-					for (size_t i = 0; i < info.size(); ++i) {
-						if (info[i]->destructor == nullptr)
+					for (size_t i = 0; i < look.size(); ++i) {
+						const auto* infoCreate = GetComponentCache(world).GetComponentCreateInfoFromIdx(look[i].infoIndex);
+						if (infoCreate->destructor == nullptr)
 							continue;
-						info[i]->destructor((void*)((uint8_t*)pChunk + look[i].offset));
+						infoCreate->destructor((void*)((uint8_t*)pChunk + look[i].offset));
 					}
 				}
 				// Call destructors for chunk components which need it
-				if (archetype.info.hasChunkComponentTypesWithCustomConstruction) {
-					const auto& info = archetype.componentInfos[ComponentType::CT_Chunk];
+				if (archetype.info.hasComponentWithCustomCreation) {
 					const auto& look = archetype.componentLookupData[ComponentType::CT_Chunk];
-					for (size_t i = 0; i < info.size(); ++i) {
-						if (info[i]->destructor == nullptr)
+					for (size_t i = 0; i < look.size(); ++i) {
+						const auto* infoCreate = GetComponentCache(world).GetComponentCreateInfoFromIdx(look[i].infoIndex);
+						if (infoCreate->destructor == nullptr)
 							continue;
-						info[i]->destructor((void*)((uint8_t*)pChunk + look[i].offset));
+						infoCreate->destructor((void*)((uint8_t*)pChunk + look[i].offset));
 					}
 				}
 
 #if GAIA_ECS_CHUNK_ALLOCATOR
-				auto* world = const_cast<World*>(pChunk->header.owner.parentWorld);
 				pChunk->~Chunk();
-				ReleaseChunkMemory(*world, pChunk);
+				ReleaseChunkMemory(world, pChunk);
 #else
 				delete pChunk;
 #endif
@@ -176,14 +175,14 @@ namespace gaia {
 				size_t genericComponentListSize = sizeof(Entity);
 				for (const auto* info: infosGeneric) {
 					genericComponentListSize += info->properties.size;
-					newArch->info.hasComponentWithCustomConstruction |= info->constructor != nullptr;
+					newArch->info.hasComponentWithCustomCreation |= info->properties.size != 0 && info->properties.soa != 0;
 				}
 
 				// Size of chunk components
 				size_t chunkComponentListSize = 0;
 				for (const auto* info: infosChunk) {
 					chunkComponentListSize += info->properties.size;
-					newArch->info.hasChunkComponentTypesWithCustomConstruction |= info->constructor != nullptr;
+					newArch->info.hasComponentWithCustomCreation |= info->properties.size != 0 && info->properties.soa != 0;
 				}
 
 				// Number of components we can fit into one chunk
