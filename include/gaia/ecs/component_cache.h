@@ -12,7 +12,7 @@ namespace gaia {
 	namespace ecs {
 		class ComponentCache {
 			containers::map<uint32_t, const ComponentInfo*> m_infoByIndex;
-			containers::map<uint32_t, const ComponentInfoCreate*> m_infoCreateByIndex;
+			containers::map<uint32_t, ComponentInfoCreate> m_infoCreateByIndex;
 
 		public:
 			ComponentCache() {
@@ -35,11 +35,8 @@ namespace gaia {
 				using U = typename DeduceComponent<T>::Type;
 				const auto index = utils::type_info::index<U>();
 
-				{
-					const auto res = m_infoCreateByIndex.emplace(index, nullptr);
-					if (res.second)
-						res.first->second = ComponentInfoCreate::Create<U>();
-				}
+				if (!m_infoCreateByIndex.contains((index)))
+					m_infoCreateByIndex.emplace(index, ComponentInfoCreate::Create<U>());
 
 				{
 					const auto res = m_infoByIndex.emplace(index, nullptr);
@@ -72,7 +69,7 @@ namespace gaia {
 				return m_infoByIndex.at(componentIndex);
 			}
 
-			[[nodiscard]] const ComponentInfoCreate* GetComponentCreateInfoFromIdx(uint32_t componentIndex) const {
+			[[nodiscard]] const ComponentInfoCreate& GetComponentCreateInfoFromIdx(uint32_t componentIndex) const {
 				// Let's assume the component has been registered via AddComponent already!
 				GAIA_ASSERT(m_infoCreateByIndex.find(componentIndex) != m_infoCreateByIndex.end());
 				return m_infoCreateByIndex.at(componentIndex);
@@ -90,9 +87,8 @@ namespace gaia {
 				LOG_N("Registered infos: %u", registeredTypes);
 
 				for (const auto& pair: m_infoCreateByIndex) {
-					const auto* info = pair.second;
-					LOG_N(
-							"  (%p) index:%010u, %.*s", (void*)info, info->infoIndex, (uint32_t)info->name.size(), info->name.data());
+					const auto& info = pair.second;
+					LOG_N("  (%p) index:%010u, %.*s", (void*)&info, info.infoIndex, (uint32_t)info.name.size(), info.name.data());
 				}
 			}
 

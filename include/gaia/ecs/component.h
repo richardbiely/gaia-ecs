@@ -192,9 +192,9 @@ namespace gaia {
 			}
 
 			template <typename T>
-			static const ComponentInfoCreate* Create() {
+			static ComponentInfoCreate Create() {
 				using U = std::decay_t<T>;
-				return new ComponentInfoCreate{Calculate<U>()};
+				return ComponentInfoCreate::Calculate<U>();
 			}
 		};
 
