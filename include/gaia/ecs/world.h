@@ -334,26 +334,26 @@ namespace gaia {
 					LOG_W("Trying to add a component to entity [%u.%u] but there's no space left!", entity.id(), entity.gen());
 					LOG_W("Already present:");
 					for (size_t i = 0; i < oldInfosCount; i++) {
-						const auto* info = m_componentCache.GetComponentCreateInfoFromIdx(lookup[i].infoIndex);
-						LOG_W("> [%u] %.*s", (uint32_t)i, (uint32_t)info->name.size(), info->name.data());
+						const auto& info = m_componentCache.GetComponentCreateInfoFromIdx(lookup[i].infoIndex);
+						LOG_W("> [%u] %.*s", (uint32_t)i, (uint32_t)info.name.size(), info.name.data());
 					}
 					LOG_W("Trying to add:");
 					{
-						const auto* info = m_componentCache.GetComponentCreateInfoFromIdx(infoToAdd->infoIndex);
-						LOG_W("> %.*s", (uint32_t)info->name.size(), info->name.data());
+						const auto& info = m_componentCache.GetComponentCreateInfoFromIdx(infoToAdd->infoIndex);
+						LOG_W("> %.*s", (uint32_t)info.name.size(), info.name.data());
 					}
 				}
 
 				// Don't add the same component twice
 				for (size_t i = 0; i < lookup.size(); ++i) {
-					const auto* info = m_componentCache.GetComponentCreateInfoFromIdx(lookup[i].infoIndex);
-					if (info->infoIndex == infoToAdd->infoIndex) {
+					const auto& info = m_componentCache.GetComponentCreateInfoFromIdx(lookup[i].infoIndex);
+					if (info.infoIndex == infoToAdd->infoIndex) {
 						GAIA_ASSERT(false && "Trying to add a duplicate component");
 
 						LOG_W(
 								"Trying to add a duplicate of component %s to entity [%u.%u]", ComponentTypeString[type], entity.id(),
 								entity.gen());
-						LOG_W("> %.*s", (uint32_t)info->name.size(), info->name.data());
+						LOG_W("> %.*s", (uint32_t)info.name.size(), info.name.data());
 					}
 				}
 			}
@@ -370,14 +370,14 @@ namespace gaia {
 
 					const auto& infos = archetype.componentInfos[type];
 					for (size_t k = 0; k < infos.size(); k++) {
-						const auto* info = m_componentCache.GetComponentCreateInfoFromIdx(infos[k]->infoIndex);
-						LOG_W("> [%u] %.*s", (uint32_t)k, (uint32_t)info->name.size(), info->name.data());
+						const auto& info = m_componentCache.GetComponentCreateInfoFromIdx(infos[k]->infoIndex);
+						LOG_W("> [%u] %.*s", (uint32_t)k, (uint32_t)info.name.size(), info.name.data());
 					}
 
 					{
 						LOG_W("Trying to remove:");
-						const auto* info = m_componentCache.GetComponentCreateInfoFromIdx(infoToRemove->infoIndex);
-						LOG_W("> %.*s", (uint32_t)info->name.size(), info->name.data());
+						const auto& info = m_componentCache.GetComponentCreateInfoFromIdx(infoToRemove->infoIndex);
+						LOG_W("> %.*s", (uint32_t)info.name.size(), info.name.data());
 					}
 				}
 	#else
@@ -390,14 +390,14 @@ namespace gaia {
 					LOG_W("Currently present:");
 
 					for (size_t k = 0; k < infos.size(); k++) {
-						const auto* info = m_componentCache.GetComponentCreateInfoFromIdx(infos[k]->infoIndex);
-						LOG_W("> [%u] %.*s", (uint32_t)k, (uint32_t)info->name.size(), info->name.data());
+						const auto& info = m_componentCache.GetComponentCreateInfoFromIdx(infos[k]->infoIndex);
+						LOG_W("> [%u] %.*s", (uint32_t)k, (uint32_t)info.name.size(), info.name.data());
 					}
 
 					{
 						LOG_W("Trying to remove:");
-						const auto* info = m_componentCache.GetComponentCreateInfoFromIdx(infoToRemove->infoIndex);
-						LOG_W("> %.*s", (uint32_t)info->name.size(), info->name.data());
+						const auto& info = m_componentCache.GetComponentCreateInfoFromIdx(infoToRemove->infoIndex);
+						LOG_W("> %.*s", (uint32_t)info.name.size(), info.name.data());
 					}
 				}
 	#endif
@@ -1620,11 +1620,11 @@ namespace gaia {
 							genericComponentsSize + chunkComponentsSize, genericComponentsSize, chunkComponentsSize, entityCount,
 							archetype.info.capacity, entityCountDisabled);
 
-					auto logComponentInfo = [](const ComponentInfo* info, const ComponentInfoCreate* infoStatic) {
+					auto logComponentInfo = [](const ComponentInfo* info, const ComponentInfoCreate& infoStatic) {
 						LOG_N(
 								"    (%p) lookupHash:%016" PRIx64 ", mask:%016" PRIx64 ", size:%3u B, align:%3u B, %.*s", (void*)info,
 								info->lookupHash, info->matcherHash, info->properties.size, info->properties.alig,
-								(uint32_t)infoStatic->name.size(), infoStatic->name.data());
+								(uint32_t)infoStatic.name.size(), infoStatic.name.data());
 					};
 
 					if (!genericComponents.empty()) {
@@ -1649,9 +1649,9 @@ namespace gaia {
 							if (!edgesG.empty()) {
 								LOG_N("    Generic - count:%u", (uint32_t)edgesG.size());
 								for (const auto& edge: edgesG) {
-									const auto* info = m_componentCache.GetComponentCreateInfoFromIdx(edge.info->infoIndex);
+									const auto& info = m_componentCache.GetComponentCreateInfoFromIdx(edge.info->infoIndex);
 									LOG_N(
-											"      %.*s (--> Archetype ID:%u)", (uint32_t)info->name.size(), info->name.data(),
+											"      %.*s (--> Archetype ID:%u)", (uint32_t)info.name.size(), info.name.data(),
 											edge.archetype->id);
 								}
 							}
@@ -1659,9 +1659,9 @@ namespace gaia {
 							if (!edgesC.empty()) {
 								LOG_N("    Chunk - count:%u", (uint32_t)edgesC.size());
 								for (const auto& edge: edgesC) {
-									const auto* info = m_componentCache.GetComponentCreateInfoFromIdx(edge.info->infoIndex);
+									const auto& info = m_componentCache.GetComponentCreateInfoFromIdx(edge.info->infoIndex);
 									LOG_N(
-											"      %.*s (--> Archetype ID:%u)", (uint32_t)info->name.size(), info->name.data(),
+											"      %.*s (--> Archetype ID:%u)", (uint32_t)info.name.size(), info.name.data(),
 											edge.archetype->id);
 								}
 							}
@@ -1678,9 +1678,9 @@ namespace gaia {
 							if (!edgesG.empty()) {
 								LOG_N("    Generic - count:%u", (uint32_t)edgesG.size());
 								for (const auto& edge: edgesG) {
-									const auto* info = m_componentCache.GetComponentCreateInfoFromIdx(edge.info->infoIndex);
+									const auto& info = m_componentCache.GetComponentCreateInfoFromIdx(edge.info->infoIndex);
 									LOG_N(
-											"      %.*s (--> Archetype ID:%u)", (uint32_t)info->name.size(), info->name.data(),
+											"      %.*s (--> Archetype ID:%u)", (uint32_t)info.name.size(), info.name.data(),
 											edge.archetype->id);
 								}
 							}
@@ -1688,9 +1688,9 @@ namespace gaia {
 							if (!edgesC.empty()) {
 								LOG_N("    Chunk - count:%u", (uint32_t)edgesC.size());
 								for (const auto& edge: edgesC) {
-									const auto* info = m_componentCache.GetComponentCreateInfoFromIdx(edge.info->infoIndex);
+									const auto& info = m_componentCache.GetComponentCreateInfoFromIdx(edge.info->infoIndex);
 									LOG_N(
-											"      %.*s (--> Archetype ID:%u)", (uint32_t)info->name.size(), info->name.data(),
+											"      %.*s (--> Archetype ID:%u)", (uint32_t)info.name.size(), info.name.data(),
 											edge.archetype->id);
 								}
 							}

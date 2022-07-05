@@ -94,20 +94,20 @@ namespace gaia {
 				if (archetype.info.hasComponentWithCustomCreation) {
 					const auto& look = archetype.componentLookupData[ComponentType::CT_Generic];
 					for (size_t i = 0; i < look.size(); ++i) {
-						const auto* infoCreate = GetComponentCache(world).GetComponentCreateInfoFromIdx(look[i].infoIndex);
-						if (infoCreate->constructor == nullptr)
+						const auto& infoCreate = GetComponentCache(world).GetComponentCreateInfoFromIdx(look[i].infoIndex);
+						if (infoCreate.constructor == nullptr)
 							continue;
-						infoCreate->constructor((void*)((uint8_t*)pChunk + look[i].offset));
+						infoCreate.constructor((void*)((uint8_t*)pChunk + look[i].offset));
 					}
 				}
 				// Call default constructors for chunk components that need it
 				if (archetype.info.hasComponentWithCustomCreation) {
 					const auto& look = archetype.componentLookupData[ComponentType::CT_Chunk];
 					for (size_t i = 0; i < look.size(); ++i) {
-						const auto* infoCreate = GetComponentCache(world).GetComponentCreateInfoFromIdx(look[i].infoIndex);
-						if (infoCreate->constructor == nullptr)
+						const auto& infoCreate = GetComponentCache(world).GetComponentCreateInfoFromIdx(look[i].infoIndex);
+						if (infoCreate.constructor == nullptr)
 							continue;
-						infoCreate->constructor((void*)((uint8_t*)pChunk + look[i].offset));
+						infoCreate.constructor((void*)((uint8_t*)pChunk + look[i].offset));
 					}
 				}
 
@@ -127,20 +127,20 @@ namespace gaia {
 				if (archetype.info.hasComponentWithCustomCreation) {
 					const auto& look = archetype.componentLookupData[ComponentType::CT_Generic];
 					for (size_t i = 0; i < look.size(); ++i) {
-						const auto* infoCreate = GetComponentCache(world).GetComponentCreateInfoFromIdx(look[i].infoIndex);
-						if (infoCreate->destructor == nullptr)
+						const auto& infoCreate = GetComponentCache(world).GetComponentCreateInfoFromIdx(look[i].infoIndex);
+						if (infoCreate.destructor == nullptr)
 							continue;
-						infoCreate->destructor((void*)((uint8_t*)pChunk + look[i].offset));
+						infoCreate.destructor((void*)((uint8_t*)pChunk + look[i].offset));
 					}
 				}
 				// Call destructors for chunk components which need it
 				if (archetype.info.hasComponentWithCustomCreation) {
 					const auto& look = archetype.componentLookupData[ComponentType::CT_Chunk];
 					for (size_t i = 0; i < look.size(); ++i) {
-						const auto* infoCreate = GetComponentCache(world).GetComponentCreateInfoFromIdx(look[i].infoIndex);
-						if (infoCreate->destructor == nullptr)
+						const auto& infoCreate = GetComponentCache(world).GetComponentCreateInfoFromIdx(look[i].infoIndex);
+						if (infoCreate.destructor == nullptr)
 							continue;
-						infoCreate->destructor((void*)((uint8_t*)pChunk + look[i].offset));
+						infoCreate.destructor((void*)((uint8_t*)pChunk + look[i].offset));
 					}
 				}
 
