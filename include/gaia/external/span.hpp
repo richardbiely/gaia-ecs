@@ -164,7 +164,7 @@ namespace TCB_SPAN_NAMESPACE_NAME {
 		};
 
 // Reimplementation of C++17 std::size() and std::data()
-#if defined(TCB_SPAN_HAVE_CPP17) || defined(__cpp_lib_nonmember_container_access)
+#if 0 // defined(TCB_SPAN_HAVE_CPP17) || defined(__cpp_lib_nonmember_container_access)
 		using std::data;
 		using std::size;
 #else
@@ -279,7 +279,7 @@ namespace TCB_SPAN_NAMESPACE_NAME {
 		using reference = element_type&;
 		using const_reference = const element_type&;
 		using iterator = pointer;
-		using reverse_iterator = std::reverse_iterator<iterator>;
+		// using reverse_iterator = std::reverse_iterator<iterator>;
 
 		static constexpr size_type extent = Extent;
 
@@ -431,13 +431,13 @@ namespace TCB_SPAN_NAMESPACE_NAME {
 			return data() + size();
 		}
 
-		TCB_SPAN_ARRAY_CONSTEXPR reverse_iterator rbegin() const noexcept {
-			return reverse_iterator(end());
-		}
+		// TCB_SPAN_ARRAY_CONSTEXPR reverse_iterator rbegin() const noexcept {
+		// 	return reverse_iterator(end());
+		// }
 
-		TCB_SPAN_ARRAY_CONSTEXPR reverse_iterator rend() const noexcept {
-			return reverse_iterator(begin());
-		}
+		// TCB_SPAN_ARRAY_CONSTEXPR reverse_iterator rend() const noexcept {
+		// 	return reverse_iterator(begin());
+		// }
 
 	private:
 		storage_type storage_{};

@@ -12,6 +12,17 @@
 namespace gaia {
 	namespace utils {
 
+		template <typename T>
+		constexpr void swap(T& left, T& right) {
+#if GAIA_USE_STL_COMPATIBLE_CONTAINERS
+			return std::swap(left, right);
+#else
+			T tmp = std::move(left);
+			left = std::move(right);
+			right = std::move(tmp);
+#endif
+		}
+
 		template <typename InputIt, typename Func>
 		constexpr Func for_each(InputIt first, InputIt last, Func func) {
 #if GAIA_USE_STL_COMPATIBLE_CONTAINERS
@@ -21,6 +32,27 @@ namespace gaia {
 				func(*first);
 			return func;
 #endif
+		}
+
+		template <class ForwardIt, class T>
+		void fill(ForwardIt first, ForwardIt last, const T& value) {
+#if GAIA_USE_STL_COMPATIBLE_CONTAINERS
+			std::fill(first, last, value);
+#else
+			for (; first != last; ++first) {
+				*first = value;
+			}
+#endif
+		}
+
+		template <class T>
+		const T& min(const T& a, const T& b) {
+			return (b < a) ? b : a;
+		}
+
+		template <class T>
+		const T& max(const T& a, const T& b) {
+			return (b > a) ? b : a;
 		}
 
 		//----------------------------------------------------------------------
@@ -264,10 +296,10 @@ namespace gaia {
 				for (int j = low; j <= high - 1; j++) {
 					if (arr[j] < pivot) {
 						i++;
-						std::swap(arr[i], arr[j]);
+						utils::swap(arr[i], arr[j]);
 					}
 				}
-				std::swap(arr[i + 1], arr[high]);
+				utils::swap(arr[i + 1], arr[high]);
 				return i + 1;
 			}
 
@@ -505,7 +537,7 @@ namespace gaia {
 				for (i = 0; i < n - 1; i++) {
 					for (j = 0; j < n - i - 1; j++) {
 						if (arr[j] > arr[j + 1])
-							std::swap(arr[j], arr[j + 1]);
+							utils::swap(arr[j], arr[j + 1]);
 					}
 				}
 			} else {

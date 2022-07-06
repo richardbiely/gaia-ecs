@@ -14,6 +14,7 @@ namespace gaia {
 		struct output_iterator_tag {};
 
 		struct forward_iterator_tag: input_iterator_tag {};
+		struct reverse_iterator_tag: input_iterator_tag {};
 		struct bidirectional_iterator_tag: forward_iterator_tag {};
 		struct random_access_iterator_tag: bidirectional_iterator_tag {};
 
@@ -72,6 +73,9 @@ namespace gaia {
 
 			template <typename It>
 			constexpr bool is_fwd_iter_v = std::is_convertible_v<iterator_cat_t<It>, forward_iterator_tag>;
+
+			template <typename It>
+			constexpr bool is_rev_iter_v = std::is_convertible_v<iterator_cat_t<It>, reverse_iterator_tag>;
 
 			template <typename It>
 			constexpr bool is_bidi_iter_v = std::is_convertible_v<iterator_cat_t<It>, bidirectional_iterator_tag>;
