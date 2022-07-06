@@ -334,8 +334,11 @@ namespace gaia {
 
 		private:
 			void push_back_prepare() noexcept {
+				const auto cnt = size();
+				const auto cap = capacity();
+
 				// Unless we reached the capacity don't do anything
-				if (size() != capacity())
+				if (cnt != cap)
 					return;
 
 				// If no data is allocated go with at least 4 elements
@@ -345,8 +348,9 @@ namespace gaia {
 				// Increase the size of an existing array in multiples of 1.5
 				else {
 					T* old = m_data;
-					m_data = new T[m_cap = (capacity() * 3) / 2 + 1];
-					for (size_type i = 0; i < size(); ++i)
+					m_data = new T[m_cap = (cap * 3) / 2 + 1];
+					
+					for (size_type i = 0; i < cnt; ++i)
 						m_data[i] = old[i];
 					delete[] old;
 				}
@@ -414,15 +418,15 @@ namespace gaia {
 				delete[] old;
 			}
 
-			[[nodiscard]] size_type size() const noexcept {
+			[[nodiscard]] constexpr size_type size() const noexcept {
 				return m_cnt;
 			}
 
-			[[nodiscard]] size_type capacity() const noexcept {
+			[[nodiscard]] constexpr size_type capacity() const noexcept {
 				return m_cap;
 			}
 
-			[[nodiscard]] bool empty() const noexcept {
+			[[nodiscard]] constexpr bool empty() const noexcept {
 				return size() == 0;
 			}
 

@@ -168,7 +168,7 @@ namespace gaia {
 			//! List of full pages
 			containers::darray<MemoryPage*> m_pagesFull;
 			//! Allocator statistics
-			ChunkAllocatorStats m_stats;
+			ChunkAllocatorStats m_stats{};
 
 		public:
 			~ChunkAllocator() {

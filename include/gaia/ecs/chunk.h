@@ -95,8 +95,8 @@ namespace gaia {
 						if (!info->properties.size)
 							continue;
 
-						const size_t idxFrom = look.offset + index * info->properties.size;
-						const size_t idxTo = look.offset + (header.items.count - 1) * info->properties.size;
+						const uint32_t idxFrom = look.offset + index * info->properties.size;
+						const uint32_t idxTo = look.offset + (header.items.count - 1) * info->properties.size;
 
 						GAIA_ASSERT(idxFrom < Chunk::DATA_SIZE_NORESERVE);
 						GAIA_ASSERT(idxTo < Chunk::DATA_SIZE_NORESERVE);
