@@ -1,8 +1,11 @@
 #pragma once
+#include "../config/config.h"
+
 #include <cstdint>
 #include <type_traits>
-
-#include "../config/config.h"
+#if GAIA_USE_STL_CONTAINERS
+	#include <functional>
+#endif
 
 namespace gaia {
 	namespace utils {
@@ -12,6 +15,16 @@ namespace gaia {
 		constexpr auto combine_or([[maybe_unused]] T... t) {
 			return (... | t);
 		}
+
+		struct direct_hash_key {
+			uint64_t hash;
+			bool operator==(direct_hash_key other) const {
+				return hash == other.hash;
+			}
+			bool operator!=(direct_hash_key other) const {
+				return hash != other.hash;
+			}
+		};
 
 		//-----------------------------------------------------------------------------------
 
@@ -78,7 +91,7 @@ namespace gaia {
 
 		namespace detail {
 			namespace murmur2a {
-				constexpr uint64_t seed_64_const = 0xffffffffffffffc5ull;
+				constexpr uint64_t seed_64_const = 0xe17a1465ull;
 				constexpr uint64_t m = 0xc6a4a7935bd1e995ull;
 				constexpr uint64_t r = 47;
 
@@ -137,17 +150,26 @@ namespace gaia {
 
 				constexpr uint64_t StaticHashValueLoop64(size_t i, uint64_t h, size_t len, const char* data) {
 					return (
-							i == 0 ? StaticHashValueRest64(h, len, (const char*)data)
+							i == 0 ? StaticHashValueRest64(h, len, data)
 										 : StaticHashValueLoop64(
 													 i - 1, (h ^ (((Load8(data) * m) ^ ((Load8(data) * m) >> r)) * m)) * m, len, data + 8));
 				}
 
 				constexpr uint64_t hash_murmur2a_64_ct(const char* key, size_t len, uint64_t seed) {
-					return StaticHashValueLoop64(len / 8, seed ^ (uint64_t(len) * m), (len), (const char*)key);
+					return StaticHashValueLoop64(len / 8, seed ^ (uint64_t(len) * m), (len), key);
 				}
-
 			} // namespace murmur2a
 		} // namespace detail
+
+		constexpr uint64_t calculate_hash64(uint64_t value) {
+			value ^= value >> 33U;
+			value *= 0xff51afd7ed558ccdull;
+			value ^= value >> 33U;
+
+			value *= 0xc4ceb9fe1a85ec53ull;
+			value ^= value >> 33U;
+			return static_cast<size_t>(value);
+		}
 
 		constexpr uint64_t calculate_hash64(const char* str) {
 			size_t size = 0;
@@ -169,3 +191,12 @@ namespace gaia {
 
 	} // namespace utils
 } // namespace gaia
+
+#if GAIA_USE_STL_CONTAINERS
+template <>
+struct std::hash<gaia::utils::direct_hash_key> {
+	size_t operator()(gaia::utils::direct_hash_key value) const noexcept {
+		return value.hash;
+	}
+};
+#endif

@@ -46,7 +46,7 @@ namespace gaia {
 			//! Entity of the last added archetype in the world this query remembers
 			uint32_t m_lastArchetypeId = 0;
 			//! Lookup hash for this query
-			uint64_t m_hashLookup = 0;
+			utils::direct_hash_key m_hashLookup{};
 			//! List of cached archetypes
 			containers::darray<Archetype*> m_archetypeCache;
 			//! Tell what kinds of chunks are going to be accepted by the query
@@ -178,12 +178,12 @@ namespace gaia {
 				}
 
 				// Make sure we don't calculate the hash twice
-				GAIA_ASSERT(m_hashLookup == 0);
+				GAIA_ASSERT(m_hashLookup.hash == 0);
 
 				const auto& cc = GetComponentCache(world);
 
 				// Contraints
-				m_hashLookup = utils::hash_combine(m_hashLookup, (uint64_t)m_constraints);
+				uint64_t hashLookup = utils::hash_combine(m_hashLookup.hash, (uint64_t)m_constraints);
 
 				// Filters
 				{
@@ -209,7 +209,7 @@ namespace gaia {
 							hash = utils::hash_combine(hash, info->lookupHash);
 						}
 					}
-					m_hashLookup = utils::hash_combine(m_hashLookup, hash);
+					hashLookup = utils::hash_combine(hashLookup, hash);
 				}
 
 				// Chunk components lookup hash
@@ -225,8 +225,10 @@ namespace gaia {
 							hash = utils::hash_combine(hash, info->lookupHash);
 						}
 					}
-					m_hashLookup = utils::hash_combine(m_hashLookup, hash);
+					hashLookup = utils::hash_combine(hashLookup, hash);
 				}
+
+				m_hashLookup = {utils::calculate_hash64(hashLookup)};
 			}
 
 			void CalculateMatcherHashes(const World& world) {

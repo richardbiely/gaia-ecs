@@ -9,6 +9,7 @@
 #include "../containers/darray.h"
 #include "../containers/map.h"
 #include "../utils/containers.h"
+#include "../utils/hashing_policy.h"
 #include "../utils/type_info.h"
 
 namespace gaia {
@@ -110,7 +111,7 @@ namespace gaia {
 		protected:
 			World& m_world;
 			//! Map of all systems - used for look-ups only
-			containers::map<uint64_t, BaseSystem*> m_systemsMap;
+			containers::map<utils::direct_hash_key, BaseSystem*> m_systemsMap;
 			//! List of system - used for iteration
 			containers::darray<BaseSystem*> m_systems;
 			//! List of new systems which need to be initialised
@@ -155,7 +156,7 @@ namespace gaia {
 				for (auto* pSystem: m_systemsToRemove)
 					pSystem->OnDestroyed();
 				for (auto* pSystem: m_systemsToRemove)
-					m_systemsMap.erase(pSystem->m_hash);
+					m_systemsMap.erase({pSystem->m_hash});
 				for (auto* pSystem: m_systemsToRemove) {
 					m_systems.erase(utils::find(m_systems, pSystem));
 				}
@@ -194,7 +195,7 @@ namespace gaia {
 			T* CreateSystem(const char* name) {
 				GAIA_SAFE_CONSTEXPR auto hash = utils::type_info::hash<std::decay_t<T>>();
 
-				const auto res = m_systemsMap.emplace(hash, nullptr);
+				const auto res = m_systemsMap.emplace(utils::direct_hash_key{hash}, nullptr);
 				if (!res.second)
 					return (T*)res.first->second;
 
@@ -234,7 +235,7 @@ namespace gaia {
 			[[nodiscard]] T* FindSystem() {
 				GAIA_SAFE_CONSTEXPR auto hash = utils::type_info::hash<std::decay_t<T>>();
 
-				const auto it = m_systemsMap.find(hash);
+				const auto it = m_systemsMap.find({hash});
 				if (it != m_systemsMap.end())
 					return (T*)it->second;
 
