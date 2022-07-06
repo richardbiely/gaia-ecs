@@ -111,13 +111,13 @@ constexpr char TILE_POISON = 'p';
 struct World {
 	ecs::World& w;
 	//! map tiles
-	char map[ScreenY][ScreenX];
+	char map[ScreenY][ScreenX]{};
 	//! blocked tiles
-	bool blocked[ScreenY][ScreenX];
+	bool blocked[ScreenY][ScreenX]{};
 	//! tile content
 	containers::map<Position, containers::darray<ecs::Entity>> content;
 	//! quit the game when true
-	bool terminate;
+	bool terminate = false;
 
 	World(ecs::World& world): w(world) {}
 
@@ -344,7 +344,7 @@ public:
 };
 
 class HandleDamageSystem final: public ecs::System {
-	CollisionSystem* m_collisionSystem;
+	CollisionSystem* m_collisionSystem {};
 
 public:
 	void OnCreated() override {
@@ -388,7 +388,7 @@ public:
 };
 
 class HandleItemHitSystem final: public ecs::System {
-	CollisionSystem* m_collisionSystem;
+	CollisionSystem* m_collisionSystem{};
 
 public:
 	void OnCreated() override {
@@ -533,7 +533,7 @@ public:
 
 class InputSystem final: public ecs::System {
 	ecs::EntityQuery m_q;
-	char m_key;
+	char m_key{};
 
 public:
 	void OnCreated() override {
