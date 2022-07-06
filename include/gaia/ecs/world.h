@@ -1456,8 +1456,9 @@ namespace gaia {
 
 				auto it = world.m_cachedQueries.find(queryTmp.m_hashLookup);
 				if (it == world.m_cachedQueries.end()) {
-					world.m_cachedQueries[queryTmp.m_hashLookup] = {std::move(queryTmp)};
-					query = &world.m_cachedQueries[queryTmp.m_hashLookup].back();
+					const auto hash = queryTmp.m_hashLookup;
+					world.m_cachedQueries[hash] = {std::move(queryTmp)};
+					query = &world.m_cachedQueries[hash].back();
 				} else {
 					auto& queries = it->second;
 
