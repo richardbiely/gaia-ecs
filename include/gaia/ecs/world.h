@@ -27,7 +27,7 @@ namespace gaia {
 
 		struct ComponentSetter {
 			Chunk* m_pChunk;
-			size_t m_idx;
+			uint32_t m_idx;
 
 			template <typename TComponent>
 			ComponentSetter& SetComponent(typename DeduceComponent<TComponent>::Type&& data) {
