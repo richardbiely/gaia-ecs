@@ -17,9 +17,9 @@
 #include "gaia/containers/sarray.h"
 #include "gaia/containers/sarray_ext.h"
 
+#include "gaia/utils/containers.h"
 #include "gaia/utils/data_layout_policy.h"
 #include "gaia/utils/hashing_policy.h"
+#include "gaia/utils/mem.h"
 #include "gaia/utils/type_info.h"
 #include "gaia/utils/utility.h"
-#include "gaia/utils/containers.h"
-#include "gaia/utils/mem.h"

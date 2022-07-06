@@ -65,9 +65,9 @@ namespace std {
 	template <>
 	struct hash<Position> {
 		size_t operator()(const Position& p) const noexcept {
-			const size_t h1 = std::hash<int>{}(p.x);
-			const size_t h2 = std::hash<int>{}(p.y);
-			return h1 ^ (h2 << 1);
+			const uint64_t h1 = utils::calculate_hash64(p.x);
+			const uint64_t h2 = utils::calculate_hash64(p.y);
+			return utils::hash_combine(h1, h2);
 		}
 	};
 } // namespace std
