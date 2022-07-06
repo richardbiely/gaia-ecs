@@ -88,7 +88,7 @@ namespace gaia {
 
 						constexpr auto typeName = utils::type_info::name<T>();
 						LOG_E(
-								"Trying to add ECS component '%.*s' to an already full ECS query!", (uint32_t)typeName.length(),
+								"Trying to add ECS component '%.*s' to an already full ECS query!", (uint32_t)typeName.size(),
 								typeName.data());
 
 						return;
@@ -122,7 +122,7 @@ namespace gaia {
 
 					constexpr auto typeName = utils::type_info::name<T>();
 					LOG_E(
-							"Trying to add ECS component %.*s to an already full filter query!", (uint32_t)typeName.length(),
+							"Trying to add ECS component %.*s to an already full filter query!", (uint32_t)typeName.size(),
 							typeName.data());
 
 					return;
@@ -150,7 +150,7 @@ namespace gaia {
 				LOG_E(
 						"SetChangeFilter trying to filter ECS component %.*s but "
 						"it's not a part of the query!",
-						(uint32_t)typeName.length(), typeName.data());
+						(uint32_t)typeName.size(), typeName.data());
 #endif
 			}
 
