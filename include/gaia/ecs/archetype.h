@@ -10,6 +10,7 @@
 #include "chunk_header.h"
 #include "component.h"
 #include "component_cache.h"
+#include "gaia/utils/hashing_policy.h"
 
 namespace gaia {
 	namespace ecs {
@@ -59,7 +60,7 @@ namespace gaia {
 			uint64_t chunkHash = 0;
 
 			//! Hash of components within this archetype - used for lookups
-			uint64_t lookupHash = 0;
+			utils::direct_hash_key lookupHash {};
 			//! Hash of components within this archetype - used for matching
 			uint64_t matcherHash[ComponentType::CT_Count] = {0};
 			//! Archetype ID - used to address the archetype directly in the world's list or archetypes

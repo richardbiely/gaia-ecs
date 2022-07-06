@@ -18,6 +18,7 @@
 #include "entity.h"
 #include "entity_query.h"
 #include "fwd.h"
+#include "gaia/utils/hashing_policy.h"
 
 namespace gaia {
 	namespace ecs {
@@ -56,10 +57,9 @@ namespace gaia {
 			//! Cache of components used by the world
 			ComponentCache m_componentCache;
 
-			containers::map<uint64_t, containers::darray<EntityQuery>> m_cachedQueries;
+			containers::map<utils::direct_hash_key, containers::darray<EntityQuery>> m_cachedQueries;
 			//! Map or archetypes mapping to the same hash - used for lookups
-			// TODO: Replace darray with linked-list via pointers for minimum overhead or come up with something else
-			containers::map<uint64_t, containers::darray<Archetype*>> m_archetypeMap;
+			containers::map<utils::direct_hash_key, containers::darray<Archetype*>> m_archetypeMap;
 			//! List of archetypes - used for iteration
 			containers::darray<Archetype*> m_archetypes;
 			//! Root archetype
@@ -185,7 +185,7 @@ namespace gaia {
 			*/
 			[[nodiscard]] Archetype* FindArchetype(
 					std::span<const ComponentInfo*> infosGeneric, std::span<const ComponentInfo*> infosChunk,
-					const uint64_t lookupHash) {
+					utils::direct_hash_key lookupHash) {
 				// Search for the archetype in the map
 				const auto it = m_archetypeMap.find(lookupHash);
 				if (it == m_archetypeMap.end())
@@ -261,7 +261,8 @@ namespace gaia {
 				return Archetype::Create(*this, infosGeneric, infosChunk);
 			}
 
-			void InitArchetype(Archetype* archetype, uint64_t genericHash, uint64_t chunkHash, uint64_t lookupHash) {
+			void
+			InitArchetype(Archetype* archetype, uint64_t genericHash, uint64_t chunkHash, utils::direct_hash_key lookupHash) {
 				archetype->genericHash = genericHash;
 				archetype->chunkHash = chunkHash;
 				archetype->lookupHash = lookupHash;
@@ -287,7 +288,8 @@ namespace gaia {
 				// Calculate hash for our combination of components
 				const auto genericHash = CalculateLookupHash(infosGeneric);
 				const auto chunkHash = CalculateLookupHash(infosChunk);
-				const auto lookupHash = CalculateLookupHash(containers::sarray<uint64_t, 2>{genericHash, chunkHash});
+				utils::direct_hash_key lookupHash = {
+						CalculateLookupHash(containers::sarray<uint64_t, 2>{genericHash, chunkHash})};
 
 				Archetype* archetype = FindArchetype(infosGeneric, infosChunk, lookupHash);
 				if (archetype == nullptr) {
@@ -1452,12 +1454,10 @@ namespace gaia {
 			EntityQuery& AddOrFindEntityQueryInCache(World& world, EntityQuery& queryTmp) {
 				EntityQuery* query = nullptr;
 
-				const uint64_t hashLookupGeneric = queryTmp.m_hashLookup;
-
-				auto it = world.m_cachedQueries.find(hashLookupGeneric);
+				auto it = world.m_cachedQueries.find(queryTmp.m_hashLookup);
 				if (it == world.m_cachedQueries.end()) {
-					world.m_cachedQueries[hashLookupGeneric] = {std::move(queryTmp)};
-					query = &world.m_cachedQueries[hashLookupGeneric].back();
+					world.m_cachedQueries[queryTmp.m_hashLookup] = {std::move(queryTmp)};
+					query = &world.m_cachedQueries[queryTmp.m_hashLookup].back();
 				} else {
 					auto& queries = it->second;
 
@@ -1619,7 +1619,7 @@ namespace gaia {
 							"mask:%016" PRIx64 "/%016" PRIx64 ", "
 							"chunks:%u, data size:%3u B (%u/%u), "
 							"entities:%u/%u (disabled:%u)",
-							archetype.id, archetype.lookupHash, archetype.matcherHash[ComponentType::CT_Generic],
+							archetype.id, archetype.lookupHash.hash, archetype.matcherHash[ComponentType::CT_Generic],
 							archetype.matcherHash[ComponentType::CT_Chunk], (uint32_t)archetype.chunks.size(),
 							genericComponentsSize + chunkComponentsSize, genericComponentsSize, chunkComponentsSize, entityCount,
 							archetype.info.capacity, entityCountDisabled);

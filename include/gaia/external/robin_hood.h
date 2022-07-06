@@ -48,6 +48,7 @@
 #if __cplusplus >= 201703L
 	#include <string_view>
 #endif
+#include "../utils/hashing_policy.h"
 
 // #define ROBIN_HOOD_STD_SMARTPOINTERS
 #ifdef ROBIN_HOOD_STD_SMARTPOINTERS
@@ -810,6 +811,13 @@ namespace robin_hood {
 		}
 	};
 
+	template <>
+	struct hash<gaia::utils::direct_hash_key> {
+		size_t operator()(const gaia::utils::direct_hash_key& obj) const noexcept {
+			return obj.hash;
+		}
+	};
+
 #define ROBIN_HOOD_HASH_INT(T)                                                                                         \
 	template <>                                                                                                          \
 	struct hash<T> {                                                                                                     \
@@ -1322,13 +1330,16 @@ namespace robin_hood {
 			// The upper 1-5 bits need to be a reasonable good hash, to save comparisons.
 			template <typename HashKey>
 			void keyToIdx(HashKey&& key, size_t* idx, InfoType* info) const {
-				// In addition to whatever hash is used, add another mul & shift so we get better hashing.
-				// This serves as a bad hash prevention, if the given data is
-				// badly mixed.
 				auto h = static_cast<uint64_t>(WHash::operator()(key));
 
-				h *= mHashMultiplier;
-				h ^= h >> 33U;
+				// direct_hash_key is expected to a proper hash. No additional hash tricks are required
+				if constexpr (!std::is_same_v<HashKey, gaia::utils::direct_hash_key>) {
+					// In addition to whatever hash is used, add another mul & shift so we get better hashing.
+					// This serves as a bad hash prevention, if the given data is
+					// badly mixed.
+					h *= mHashMultiplier;
+					h ^= h >> 33U;
+				}
 
 				// the lower InitialInfoNumBits are reserved for info.
 				*info = mInfoInc + static_cast<InfoType>(h >> mInfoHashShift);

@@ -35,7 +35,7 @@ namespace gaia {
 				using U = typename DeduceComponent<T>::Type;
 				const auto index = utils::type_info::index<U>();
 
-				if (!m_infoCreateByIndex.contains((index)))
+				if (m_infoCreateByIndex.find(index) == m_infoCreateByIndex.end())
 					m_infoCreateByIndex.emplace(index, ComponentInfoCreate::Create<U>());
 
 				{
