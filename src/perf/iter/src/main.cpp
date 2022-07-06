@@ -490,7 +490,7 @@ void BM_ForEach_Chunk_Internal_1000_Archetypes(picobench::state& state) {
 	}
 }
 
-#define PICO_SETTINGS() iterations({4192}).samples(4)
+#define PICO_SETTINGS() iterations({8192}).samples(3)
 
 PICOBENCH_SUITE("Entity and component creation");
 PICOBENCH(BM_CreateEntity).PICO_SETTINGS().label("0 components");
