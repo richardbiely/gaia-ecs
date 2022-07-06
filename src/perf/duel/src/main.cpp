@@ -1350,7 +1350,7 @@ void BM_NonECS_DOD_SoA_SIMD(picobench::state& state) {
 	}
 }
 
-#define PICO_SETTINGS() iterations({4192}).samples(4)
+#define PICO_SETTINGS() iterations({8192}).samples(3)
 
 //  Ordinary coding style.
 PICOBENCH(BM_NonECS).PICO_SETTINGS().label("Default");
