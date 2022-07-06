@@ -44,10 +44,10 @@
 #include <cstdlib>
 #include <cstring>
 #include <initializer_list>
-#include <limits>
 #include <tuple>
 #include <type_traits>
 #include <utility>
+#include <new>
 
 // #define ROBIN_HOOD_STD_SMARTPOINTERS
 #ifdef ROBIN_HOOD_STD_SMARTPOINTERS
@@ -1979,7 +1979,7 @@ namespace robin_hood {
 			}
 
 			[[nodiscard]] size_t calcMaxNumElementsAllowed(size_t maxElements) const noexcept {
-				if (ROBIN_HOOD_LIKELY(maxElements <= (std::numeric_limits<size_t>::max)() / 100)) {
+				if (ROBIN_HOOD_LIKELY(maxElements <= (size_t(-1) / 100))) {
 					return maxElements * MaxLoadFactor100 / 100;
 				}
 
