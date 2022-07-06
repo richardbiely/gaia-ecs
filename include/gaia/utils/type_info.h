@@ -1,7 +1,6 @@
 #pragma once
-#include <string_view>
-
 #include "../config/config.h"
+#include "../utils/span.h"
 #include "hashing_policy.h"
 
 namespace gaia {
@@ -80,11 +79,15 @@ namespace gaia {
 				//		https://stackoverflow.com/questions/56484834/constexpr-stdstring-viewfind-last-of-doesnt-work-on-clang-8-with-libstdc
 				//		As a workaround FindFirstOf and FindLastOf were implemented
 
-				std::string_view name{GAIA_PRETTY_FUNCTION};
-				const auto prefixPos = FindFirstOf(name.data(), name.length(), GAIA_PRETTY_FUNCTION_PREFIX);
-				const auto start = FindFirstOf(name.data(), name.length(), ' ', prefixPos + 1);
-				const auto end = FindLastOf(name.data(), name.length(), GAIA_PRETTY_FUNCTION_SUFFIX);
-				return name.substr(start + 1, end - start - 1);
+				size_t strLen = 0;
+				while (GAIA_PRETTY_FUNCTION[strLen] != '\0')
+					++strLen;
+
+				std::span<const char> name{GAIA_PRETTY_FUNCTION, strLen};
+				const auto prefixPos = FindFirstOf(name.data(), name.size(), GAIA_PRETTY_FUNCTION_PREFIX);
+				const auto start = FindFirstOf(name.data(), name.size(), ' ', prefixPos + 1);
+				const auto end = FindLastOf(name.data(), name.size(), GAIA_PRETTY_FUNCTION_SUFFIX);
+				return name.subspan(start + 1, end - start - 1);
 			}
 
 			template <typename T>
@@ -94,7 +97,8 @@ namespace gaia {
 				GAIA_MSVC_WARNING_DISABLE(4307)
 #endif
 
-				return calculate_hash64(name<T>().data(), name<T>().length());
+				auto n = name<T>();
+				return calculate_hash64(n.data(), n.size());
 
 #if GAIA_COMPILER_MSVC && _MSV_VER <= 1916
 				GAIA_MSVC_WARNING_PUSH()
