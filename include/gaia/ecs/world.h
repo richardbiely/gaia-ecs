@@ -1320,7 +1320,8 @@ namespace gaia {
 
 				// Iterate over all archetypes
 				world.ForEachArchetype(query, [&](Archetype& archetype) {
-					archetype.info.structuralChangesLocked = true;
+					GAIA_ASSERT(archetype.info.structuralChangesLocked < 8);
+					++archetype.info.structuralChangesLocked;
 
 					auto exec = [&](const auto& chunksList) {
 						size_t chunkOffset = 0;
@@ -1356,7 +1357,8 @@ namespace gaia {
 					if (query.CheckConstraints(false))
 						exec(archetype.chunksDisabled);
 
-					archetype.info.structuralChangesLocked = false;
+					GAIA_ASSERT(archetype.info.structuralChangesLocked > 0);
+					--archetype.info.structuralChangesLocked;
 				});
 
 				query.SetWorldVersion(world.GetWorldVersion());
@@ -1376,7 +1378,8 @@ namespace gaia {
 
 				// Iterate over all archetypes
 				world.ForEachArchetype(query, [&](Archetype& archetype) {
-					archetype.info.structuralChangesLocked = true;
+					GAIA_ASSERT(archetype.info.structuralChangesLocked < 8);
+					++archetype.info.structuralChangesLocked;
 
 					auto exec = [&](const auto& chunksList) {
 						size_t chunkOffset = 0;
@@ -1412,7 +1415,8 @@ namespace gaia {
 					if (query.CheckConstraints(false))
 						exec(archetype.chunksDisabled);
 
-					archetype.info.structuralChangesLocked = false;
+					GAIA_ASSERT(archetype.info.structuralChangesLocked > 0);
+					--archetype.info.structuralChangesLocked;
 				});
 
 				query.SetWorldVersion(world.GetWorldVersion());

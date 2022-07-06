@@ -69,8 +69,8 @@ namespace gaia {
 				uint32_t capacity : 16;
 				//! True if there's a component that requires custom construction or destruction
 				uint32_t hasComponentWithCustomCreation : 1;
-				//! Set to true when chunks are being iterated. Used to inform of structural changes when they shouldn't happen.
-				uint32_t structuralChangesLocked : 1;
+				//! Updated when chunks are being iterated. Used to inform of structural changes when they shouldn't happen.
+				uint32_t structuralChangesLocked : 4;
 			} info{};
 
 			// Constructor is hidden. Create archetypes via Create
