@@ -664,13 +664,6 @@ namespace robin_hood {
 		}
 	};
 
-	template <typename CharT>
-	struct hash<std::basic_string<CharT>> {
-		size_t operator()(std::basic_string<CharT> const& str) const noexcept {
-			return hash_bytes(str.data(), sizeof(CharT) * str.size());
-		}
-	};
-
 	template <typename T>
 	struct hash<T*> {
 		size_t operator()(T* ptr) const noexcept {
