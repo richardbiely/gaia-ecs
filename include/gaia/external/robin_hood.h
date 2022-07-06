@@ -38,6 +38,9 @@
 #define ROBIN_HOOD_VERSION_MINOR 11 // for adding functionality in a backwards-compatible manner
 #define ROBIN_HOOD_VERSION_PATCH 5 // for backwards-compatible bug fixes
 
+#include "../utils/hashing_policy.h"
+#include "../utils/iterator.h"
+#include "../utils/utility.h"
 #include <cstdlib>
 #include <cstring>
 #include <initializer_list>
@@ -45,10 +48,6 @@
 #include <tuple>
 #include <type_traits>
 #include <utility>
-#if __cplusplus >= 201703L
-	#include <string_view>
-#endif
-#include "../utils/hashing_policy.h"
 
 // #define ROBIN_HOOD_STD_SMARTPOINTERS
 #ifdef ROBIN_HOOD_STD_SMARTPOINTERS
@@ -216,91 +215,7 @@ namespace robin_hood {
 	#define ROBIN_HOOD_IS_TRIVIALLY_COPYABLE(...) std::is_trivially_copyable<__VA_ARGS__>::value
 #endif
 
-// helpers for C++ versions, see https://gcc.gnu.org/onlinedocs/cpp/Standard-Predefined-Macros.html
-#define ROBIN_HOOD_PRIVATE_DEFINITION_CXX() __cplusplus
-#define ROBIN_HOOD_PRIVATE_DEFINITION_CXX98() 199711L
-#define ROBIN_HOOD_PRIVATE_DEFINITION_CXX11() 201103L
-#define ROBIN_HOOD_PRIVATE_DEFINITION_CXX14() 201402L
-#define ROBIN_HOOD_PRIVATE_DEFINITION_CXX17() 201703L
-
-#if ROBIN_HOOD(CXX) >= ROBIN_HOOD(CXX17)
-	#define ROBIN_HOOD_PRIVATE_DEFINITION_NODISCARD() [[nodiscard]]
-#else
-	#define ROBIN_HOOD_PRIVATE_DEFINITION_NODISCARD()
-#endif
-
 namespace robin_hood {
-
-#if ROBIN_HOOD(CXX) >= ROBIN_HOOD(CXX14)
-	#define ROBIN_HOOD_STD std
-#else
-
-	// c++11 compatibility layer
-	namespace ROBIN_HOOD_STD {
-		template <typename T>
-		struct alignment_of: std::integral_constant<std::size_t, alignof(typename std::remove_all_extents<T>::type)> {};
-
-		template <typename T, T... Ints>
-		class integer_sequence {
-		public:
-			using value_type = T;
-			static_assert(std::is_integral<value_type>::value, "not integral type");
-			static constexpr std::size_t size() noexcept {
-				return sizeof...(Ints);
-			}
-		};
-		template <std::size_t... Inds>
-		using index_sequence = integer_sequence<std::size_t, Inds...>;
-
-		namespace detail_ {
-			template <typename T, T Begin, T End, bool>
-			struct IntSeqImpl {
-				using TValue = T;
-				static_assert(std::is_integral<TValue>::value, "not integral type");
-				static_assert(Begin >= 0 && Begin < End, "unexpected argument (Begin<0 || Begin<=End)");
-
-				template <typename, typename>
-				struct IntSeqCombiner;
-
-				template <TValue... Inds0, TValue... Inds1>
-				struct IntSeqCombiner<integer_sequence<TValue, Inds0...>, integer_sequence<TValue, Inds1...>> {
-					using TResult = integer_sequence<TValue, Inds0..., Inds1...>;
-				};
-
-				using TResult = typename IntSeqCombiner<
-						typename IntSeqImpl<TValue, Begin, Begin + (End - Begin) / 2, (End - Begin) / 2 == 1>::TResult,
-						typename IntSeqImpl<TValue, Begin + (End - Begin) / 2, End, (End - Begin + 1) / 2 == 1>::TResult>::TResult;
-			};
-
-			template <typename T, T Begin>
-			struct IntSeqImpl<T, Begin, Begin, false> {
-				using TValue = T;
-				static_assert(std::is_integral<TValue>::value, "not integral type");
-				static_assert(Begin >= 0, "unexpected argument (Begin<0)");
-				using TResult = integer_sequence<TValue>;
-			};
-
-			template <typename T, T Begin, T End>
-			struct IntSeqImpl<T, Begin, End, true> {
-				using TValue = T;
-				static_assert(std::is_integral<TValue>::value, "not integral type");
-				static_assert(Begin >= 0, "unexpected argument (Begin<0)");
-				using TResult = integer_sequence<TValue, Begin>;
-			};
-		} // namespace detail_
-
-		template <typename T, T N>
-		using make_integer_sequence = typename detail_::IntSeqImpl<T, 0, N, (N - 0) == 1>::TResult;
-
-		template <std::size_t N>
-		using make_index_sequence = make_integer_sequence<std::size_t, N>;
-
-		template <typename... T>
-		using index_sequence_for = make_index_sequence<sizeof...(T)>;
-
-	} // namespace ROBIN_HOOD_STD
-
-#endif
 
 	namespace detail {
 
@@ -457,7 +372,7 @@ namespace robin_hood {
 			// Recalculating this each time saves us a size_t member.
 			// This ignores the fact that memory blocks might have been added manually with addOrFree. In
 			// practice, this should not matter much.
-			ROBIN_HOOD(NODISCARD) size_t calcNumElementsToAlloc() const noexcept {
+			[[nodiscard]] size_t calcNumElementsToAlloc() const noexcept {
 				auto tmp = mListForFree;
 				size_t numAllocs = MinNumAllocs;
 
@@ -510,13 +425,7 @@ namespace robin_hood {
 			}
 
 			// enforce byte alignment of the T's
-#if ROBIN_HOOD(CXX) >= ROBIN_HOOD(CXX14)
-			static constexpr size_t ALIGNMENT = (std::max)(std::alignment_of<T>::value, std::alignment_of<T*>::value);
-#else
-			static const size_t ALIGNMENT = (ROBIN_HOOD_STD::alignment_of<T>::value > ROBIN_HOOD_STD::alignment_of<T*>::value)
-																					? ROBIN_HOOD_STD::alignment_of<T>::value
-																					: +ROBIN_HOOD_STD::alignment_of<T*>::value; // the + is for walkarround
-#endif
+			static constexpr size_t ALIGNMENT = gaia::utils::max(std::alignment_of<T>::value, std::alignment_of<T*>::value);
 
 			static constexpr size_t ALIGNED_SIZE = ((sizeof(T) - 1) / ALIGNMENT + 1) * ALIGNMENT;
 
@@ -547,21 +456,11 @@ namespace robin_hood {
 		template <typename T, size_t MinSize, size_t MaxSize>
 		struct NodeAllocator<T, MinSize, MaxSize, false>: public BulkPoolAllocator<T, MinSize, MaxSize> {};
 
-		// c++14 doesn't have is_nothrow_swappable, and clang++ 6.0.1 doesn't like it either, so I'm making
-		// my own here.
 		namespace swappable {
-#if ROBIN_HOOD(CXX) < ROBIN_HOOD(CXX17)
-			using std::swap;
-			template <typename T>
-			struct nothrow {
-				static const bool value = noexcept(swap(std::declval<T&>(), std::declval<T&>()));
-			};
-#else
 			template <typename T>
 			struct nothrow {
 				static const bool value = std::is_nothrow_swappable<T>::value;
 			};
-#endif
 		} // namespace swappable
 
 	} // namespace detail
@@ -612,16 +511,16 @@ namespace robin_hood {
 		constexpr
 #endif
 				pair(std::piecewise_construct_t /*unused*/, std::tuple<U1...> a, std::tuple<U2...> b) noexcept(noexcept(pair(
-						std::declval<std::tuple<U1...>&>(), std::declval<std::tuple<U2...>&>(),
-						ROBIN_HOOD_STD::index_sequence_for<U1...>(), ROBIN_HOOD_STD::index_sequence_for<U2...>()))):
-				pair(a, b, ROBIN_HOOD_STD::index_sequence_for<U1...>(), ROBIN_HOOD_STD::index_sequence_for<U2...>()) {
+						std::declval<std::tuple<U1...>&>(), std::declval<std::tuple<U2...>&>(), std::index_sequence_for<U1...>(),
+						std::index_sequence_for<U2...>()))):
+				pair(a, b, std::index_sequence_for<U1...>(), std::index_sequence_for<U2...>()) {
 		}
 
 		// constructor called from the std::piecewise_construct_t ctor
 		template <typename... U1, size_t... I1, typename... U2, size_t... I2>
 		pair(
-				std::tuple<U1...>& a, std::tuple<U2...>& b, ROBIN_HOOD_STD::index_sequence<I1...> /*unused*/,
-				ROBIN_HOOD_STD::index_sequence<
+				std::tuple<U1...>& a, std::tuple<U2...>& b, std::index_sequence<I1...> /*unused*/,
+				std::index_sequence<
 						I2...> /*unused*/) noexcept(noexcept(T1(std::
 																												forward<U1>(std::get<I1>(
 																														std::declval<std::tuple<
@@ -770,15 +669,6 @@ namespace robin_hood {
 			return hash_bytes(str.data(), sizeof(CharT) * str.size());
 		}
 	};
-
-#if ROBIN_HOOD(CXX) >= ROBIN_HOOD(CXX17)
-	template <typename CharT>
-	struct hash<std::basic_string_view<CharT>> {
-		size_t operator()(std::basic_string_view<CharT> const& sv) const noexcept {
-			return hash_bytes(sv.data(), sizeof(CharT) * sv.size());
-		}
-	};
-#endif
 
 	template <typename T>
 	struct hash<T*> {
@@ -988,36 +878,30 @@ namespace robin_hood {
 				}
 
 				template <typename VT = value_type>
-				ROBIN_HOOD(NODISCARD)
-				typename std::enable_if<is_map, typename VT::first_type&>::type getFirst() noexcept {
+				[[nodiscard]] typename std::enable_if<is_map, typename VT::first_type&>::type getFirst() noexcept {
 					return mData.first;
 				}
 				template <typename VT = value_type>
-				ROBIN_HOOD(NODISCARD)
-				typename std::enable_if<is_set, VT&>::type getFirst() noexcept {
+				[[nodiscard]] typename std::enable_if<is_set, VT&>::type getFirst() noexcept {
 					return mData;
 				}
 
 				template <typename VT = value_type>
-				ROBIN_HOOD(NODISCARD)
-				typename std::enable_if<is_map, typename VT::first_type const&>::type getFirst() const noexcept {
+				[[nodiscard]] typename std::enable_if<is_map, typename VT::first_type const&>::type getFirst() const noexcept {
 					return mData.first;
 				}
 				template <typename VT = value_type>
-				ROBIN_HOOD(NODISCARD)
-				typename std::enable_if<is_set, VT const&>::type getFirst() const noexcept {
+				[[nodiscard]] typename std::enable_if<is_set, VT const&>::type getFirst() const noexcept {
 					return mData;
 				}
 
 				template <typename MT = mapped_type>
-				ROBIN_HOOD(NODISCARD)
-				typename std::enable_if<is_map, MT&>::type getSecond() noexcept {
+				[[nodiscard]] typename std::enable_if<is_map, MT&>::type getSecond() noexcept {
 					return mData.second;
 				}
 
 				template <typename MT = mapped_type>
-				ROBIN_HOOD(NODISCARD)
-				typename std::enable_if<is_set, MT const&>::type getSecond() const noexcept {
+				[[nodiscard]] typename std::enable_if<is_set, MT const&>::type getSecond() const noexcept {
 					return mData.second;
 				}
 
@@ -1068,36 +952,30 @@ namespace robin_hood {
 				}
 
 				template <typename VT = value_type>
-				ROBIN_HOOD(NODISCARD)
-				typename std::enable_if<is_map, typename VT::first_type&>::type getFirst() noexcept {
+				[[nodiscard]] typename std::enable_if<is_map, typename VT::first_type&>::type getFirst() noexcept {
 					return mData->first;
 				}
 				template <typename VT = value_type>
-				ROBIN_HOOD(NODISCARD)
-				typename std::enable_if<is_set, VT&>::type getFirst() noexcept {
+				[[nodiscard]] typename std::enable_if<is_set, VT&>::type getFirst() noexcept {
 					return *mData;
 				}
 
 				template <typename VT = value_type>
-				ROBIN_HOOD(NODISCARD)
-				typename std::enable_if<is_map, typename VT::first_type const&>::type getFirst() const noexcept {
+				[[nodiscard]] typename std::enable_if<is_map, typename VT::first_type const&>::type getFirst() const noexcept {
 					return mData->first;
 				}
 				template <typename VT = value_type>
-				ROBIN_HOOD(NODISCARD)
-				typename std::enable_if<is_set, VT const&>::type getFirst() const noexcept {
+				[[nodiscard]] typename std::enable_if<is_set, VT const&>::type getFirst() const noexcept {
 					return *mData;
 				}
 
 				template <typename MT = mapped_type>
-				ROBIN_HOOD(NODISCARD)
-				typename std::enable_if<is_map, MT&>::type getSecond() noexcept {
+				[[nodiscard]] typename std::enable_if<is_map, MT&>::type getSecond() noexcept {
 					return mData->second;
 				}
 
 				template <typename MT = mapped_type>
-				ROBIN_HOOD(NODISCARD)
-				typename std::enable_if<is_map, MT const&>::type getSecond() const noexcept {
+				[[nodiscard]] typename std::enable_if<is_map, MT const&>::type getSecond() const noexcept {
 					return mData->second;
 				}
 
@@ -1113,21 +991,20 @@ namespace robin_hood {
 			using Node = DataNode<Self, IsFlat>;
 
 			// helpers for insertKeyPrepareEmptySpot: extract first entry (only const required)
-			ROBIN_HOOD(NODISCARD) key_type const& getFirstConst(Node const& n) const noexcept {
+			[[nodiscard]] key_type const& getFirstConst(Node const& n) const noexcept {
 				return n.getFirst();
 			}
 
 			// in case we have void mapped_type, we are not using a pair, thus we just route k through.
 			// No need to disable this because it's just not used if not applicable.
-			ROBIN_HOOD(NODISCARD) key_type const& getFirstConst(key_type const& k) const noexcept {
+			[[nodiscard]] key_type const& getFirstConst(key_type const& k) const noexcept {
 				return k;
 			}
 
 			// in case we have non-void mapped_type, we have a standard robin_hood::pair
 			template <typename Q = mapped_type>
-			ROBIN_HOOD(NODISCARD)
-			typename std::enable_if<!std::is_void<Q>::value, key_type const&>::type
-					getFirstConst(value_type const& vt) const noexcept {
+			[[nodiscard]] typename std::enable_if<!std::is_void<Q>::value, key_type const&>::type
+			getFirstConst(value_type const& vt) const noexcept {
 				return vt.first;
 			}
 
@@ -1143,7 +1020,7 @@ namespace robin_hood {
 					auto const* const src = reinterpret_cast<char const*>(source.mKeyVals);
 					auto* tgt = reinterpret_cast<char*>(target.mKeyVals);
 					auto const numElementsWithBuffer = target.calcNumElementsWithBuffer(target.mMask + 1);
-					std::copy(src, src + target.calcNumBytesTotal(numElementsWithBuffer), tgt);
+					memcpy(tgt, src, src + target.calcNumBytesTotal(numElementsWithBuffer));
 				}
 			};
 
@@ -1151,7 +1028,7 @@ namespace robin_hood {
 			struct Cloner<M, false> {
 				void operator()(M const& s, M& t) const {
 					auto const numElementsWithBuffer = t.calcNumElementsWithBuffer(t.mMask + 1);
-					std::copy(s.mInfo, s.mInfo + t.calcNumBytesInfo(numElementsWithBuffer), t.mInfo);
+					memcpy(t.mInfo, s.mInfo, s.mInfo + t.calcNumBytesInfo(numElementsWithBuffer));
 
 					for (size_t i = 0; i < numElementsWithBuffer; ++i) {
 						if (t.mInfo[i]) {
@@ -1223,7 +1100,7 @@ namespace robin_hood {
 				using value_type = typename Self::value_type;
 				using reference = typename std::conditional<IsConst, value_type const&, value_type&>::type;
 				using pointer = typename std::conditional<IsConst, value_type const*, value_type*>::type;
-				using iterator_category = std::forward_iterator_tag;
+				using iterator_category = gaia::utils::forward_iterator_tag;
 
 				// default constructed iterator can be compared to itself, but WON'T return true when
 				// compared to end().
@@ -1400,8 +1277,7 @@ namespace robin_hood {
 
 			// copy of find(), except that it returns iterator instead of const_iterator.
 			template <typename Other>
-			ROBIN_HOOD(NODISCARD)
-			size_t findIdx(Other const& key) const {
+			[[nodiscard]] size_t findIdx(Other const& key) const {
 				size_t idx{};
 				InfoType info{};
 				keyToIdx(key, &idx, &info);
@@ -1419,9 +1295,9 @@ namespace robin_hood {
 				} while (info <= mInfo[idx]);
 
 				// nothing found!
-				return mMask == 0
-									 ? 0
-									 : static_cast<size_t>(std::distance(mKeyVals, reinterpret_cast_no_cast_align_warning<Node*>(mInfo)));
+				return mMask == 0 ? 0
+													: static_cast<size_t>(
+																gaia::utils::distance(mKeyVals, reinterpret_cast_no_cast_align_warning<Node*>(mInfo)));
 			}
 
 			void cloneData(const Table& o) {
@@ -1668,7 +1544,7 @@ namespace robin_hood {
 				auto const numElementsWithBuffer = calcNumElementsWithBuffer(mMask + 1);
 				// clear everything, then set the sentinel again
 				uint8_t const z = 0;
-				std::fill(mInfo, mInfo + calcNumBytesInfo(numElementsWithBuffer), z);
+				gaia::utils::fill(mInfo, mInfo + calcNumBytesInfo(numElementsWithBuffer), z);
 				mInfo[numElementsWithBuffer] = 1;
 
 				mInfoInc = InitialInfoInc;
@@ -2087,7 +1963,7 @@ namespace robin_hood {
 				return static_cast<size_type>(-1);
 			}
 
-			ROBIN_HOOD(NODISCARD) bool empty() const noexcept {
+			[[nodiscard]] bool empty() const noexcept {
 				ROBIN_HOOD_TRACE(this)
 				return 0 == mNumElements;
 			}
@@ -2103,12 +1979,12 @@ namespace robin_hood {
 				return static_cast<float>(size()) / static_cast<float>(mMask + 1);
 			}
 
-			ROBIN_HOOD(NODISCARD) size_t mask() const noexcept {
+			[[nodiscard]] size_t mask() const noexcept {
 				ROBIN_HOOD_TRACE(this)
 				return mMask;
 			}
 
-			ROBIN_HOOD(NODISCARD) size_t calcMaxNumElementsAllowed(size_t maxElements) const noexcept {
+			[[nodiscard]] size_t calcMaxNumElementsAllowed(size_t maxElements) const noexcept {
 				if (ROBIN_HOOD_LIKELY(maxElements <= (std::numeric_limits<size_t>::max)() / 100)) {
 					return maxElements * MaxLoadFactor100 / 100;
 				}
@@ -2117,20 +1993,19 @@ namespace robin_hood {
 				return (maxElements / 100) * MaxLoadFactor100;
 			}
 
-			ROBIN_HOOD(NODISCARD) size_t calcNumBytesInfo(size_t numElements) const noexcept {
+			[[nodiscard]] size_t calcNumBytesInfo(size_t numElements) const noexcept {
 				// we add a uint64_t, which houses the sentinel (first byte) and padding so we can load
 				// 64bit types.
 				return numElements + sizeof(uint64_t);
 			}
 
-			ROBIN_HOOD(NODISCARD)
-			size_t calcNumElementsWithBuffer(size_t numElements) const noexcept {
+			[[nodiscard]] size_t calcNumElementsWithBuffer(size_t numElements) const noexcept {
 				auto maxNumElementsAllowed = calcMaxNumElementsAllowed(numElements);
-				return numElements + (std::min)(maxNumElementsAllowed, (static_cast<size_t>(0xFF)));
+				return numElements + gaia::utils::min(maxNumElementsAllowed, (static_cast<size_t>(0xFF)));
 			}
 
 			// calculation only allowed for 2^n values
-			ROBIN_HOOD(NODISCARD) size_t calcNumBytesTotal(size_t numElements) const {
+			[[nodiscard]] size_t calcNumBytesTotal(size_t numElements) const {
 #if ROBIN_HOOD(BITNESS) == 64
 				return numElements * sizeof(Node) + calcNumBytesInfo(numElements);
 #else
@@ -2151,23 +2026,21 @@ namespace robin_hood {
 
 		private:
 			template <typename Q = mapped_type>
-			ROBIN_HOOD(NODISCARD)
-			typename std::enable_if<!std::is_void<Q>::value, bool>::type has(const value_type& e) const {
+			[[nodiscard]] typename std::enable_if<!std::is_void<Q>::value, bool>::type has(const value_type& e) const {
 				ROBIN_HOOD_TRACE(this)
 				auto it = find(e.first);
 				return it != end() && it->second == e.second;
 			}
 
 			template <typename Q = mapped_type>
-			ROBIN_HOOD(NODISCARD)
-			typename std::enable_if<std::is_void<Q>::value, bool>::type has(const value_type& e) const {
+			[[nodiscard]] typename std::enable_if<std::is_void<Q>::value, bool>::type has(const value_type& e) const {
 				ROBIN_HOOD_TRACE(this)
 				return find(e) != end();
 			}
 
 			void reserve(size_t c, bool forceRehash) {
 				ROBIN_HOOD_TRACE(this)
-				auto const minElementsAllowed = (std::max)(c, mNumElements);
+				auto const minElementsAllowed = gaia::utils::max(c, mNumElements);
 				auto newSize = InitialNumElements;
 				while (calcMaxNumElementsAllowed(newSize) < minElementsAllowed && newSize != 0) {
 					newSize *= 2;

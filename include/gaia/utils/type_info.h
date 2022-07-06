@@ -74,6 +74,8 @@ namespace gaia {
 				//   -> ecs::EnfEntity
 
 				// Note:
+				//		We don't want to use std::string_view here because it would only make it harder on compile-times.
+				//		In fact, even if we did, we need to be afraid of compiler issues.
 				// 		Clang 8 and older wouldn't compile because their string_view::find_last_of doesn't work
 				//		in constexpr context. Tested with and without LIBCPP
 				//		https://stackoverflow.com/questions/56484834/constexpr-stdstring-viewfind-last-of-doesnt-work-on-clang-8-with-libstdc

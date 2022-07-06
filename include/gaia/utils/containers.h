@@ -1,5 +1,4 @@
 #pragma once
-#include <algorithm>
 #include <cstdint>
 
 #include "iterator.h"
@@ -70,7 +69,7 @@ namespace gaia {
 				return;
 
 			if (idx + 1 != arr.size())
-				std::swap(arr[idx], arr[arr.size() - 1]);
+				utils::swap(arr[idx], arr[arr.size() - 1]);
 
 			arr.pop_back();
 		}
