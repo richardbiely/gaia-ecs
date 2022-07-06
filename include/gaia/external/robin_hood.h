@@ -1161,8 +1161,11 @@ namespace robin_hood {
 				void fastForward() noexcept {
 					size_t n = 0;
 					while (0U == (n = detail::unaligned_load<size_t>(mInfo))) {
+						GAIA_MSVC_WARNING_PUSH()
+						GAIA_MSVC_WARNING_DISABLE(6305)
 						mInfo += sizeof(size_t);
 						mKeyVals += sizeof(size_t);
+						GAIA_MSVC_WARNING_POP()
 					}
 #if defined(ROBIN_HOOD_DISABLE_INTRINSICS)
 					// we know for certain that within the next 8 bytes we'll find a non-zero one.

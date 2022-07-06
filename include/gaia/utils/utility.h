@@ -294,13 +294,11 @@ namespace gaia {
 				const auto& pivot = arr[high];
 				int i = low - 1;
 				for (int j = low; j <= high - 1; j++) {
-					if (arr[j] < pivot) {
-						i++;
-						utils::swap(arr[i], arr[j]);
-					}
+					if (arr[j] < pivot)
+						utils::swap(arr[++i], arr[j]);
 				}
-				utils::swap(arr[i + 1], arr[high]);
-				return i + 1;
+				utils::swap(arr[++i], arr[high]);
+				return i;
 			}
 
 			template <typename Container>

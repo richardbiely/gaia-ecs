@@ -350,8 +350,11 @@ namespace gaia {
 					T* old = m_data;
 					m_data = new T[m_cap = (cap * 3) / 2 + 1];
 					
+					GAIA_MSVC_WARNING_PUSH()
+					GAIA_MSVC_WARNING_DISABLE(6385)
 					for (size_type i = 0; i < cnt; ++i)
 						m_data[i] = old[i];
+					GAIA_MSVC_WARNING_POP()
 					delete[] old;
 				}
 			}

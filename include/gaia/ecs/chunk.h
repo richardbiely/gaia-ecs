@@ -40,8 +40,13 @@ namespace gaia {
 			ChunkHeader header;
 			//! Archetype data. Entities first, followed by a lists of components.
 			uint8_t data[DATA_SIZE_NORESERVE];
+			
+			GAIA_MSVC_WARNING_PUSH()
+			GAIA_MSVC_WARNING_DISABLE(26495)
 
 			Chunk(const Archetype& archetype): header(archetype) {}
+
+			GAIA_MSVC_WARNING_POP()
 
 			/*!
 			Checks if a component is present in the archetype based on the provided \param infoIndex.
