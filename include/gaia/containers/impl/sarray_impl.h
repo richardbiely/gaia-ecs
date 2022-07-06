@@ -263,6 +263,13 @@ namespace gaia {
 			constexpr const_iterator cend() const noexcept {
 				return {(const T*)m_data + N};
 			}
+
+			bool operator==(const sarr& other) const {
+				for (size_type i = 0; i < N; ++i)
+					if (m_data[i] != other.m_data[i])
+						return false;
+				return true;
+			}
 		};
 
 		namespace detail {

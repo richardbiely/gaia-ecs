@@ -465,6 +465,16 @@ namespace gaia {
 			const_iterator cend() const noexcept {
 				return {(const T*)m_data + size()};
 			}
+
+			bool operator==(const darr& other) const {
+				if (m_cnt != other.m_cnt)
+					return false;
+				const size_type n = size();
+				for (size_type i = 0; i < n; ++i)
+					if (m_data[i] != other.m_data[i])
+						return false;
+				return true;
+			}
 		};
 	} // namespace containers
 
