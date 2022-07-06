@@ -418,8 +418,8 @@ namespace gaia {
 							if (cmd == ADD_COMPONENT_DATA) {
 								// Skip the component index
 								// TODO: Don't include the component index here
-								uint32_t infoIndex = utils::unaligned_ref<uint32_t>((void*)&m_data[i]);
-								(void)infoIndex;
+								uint32_t infoIndex2 = utils::unaligned_ref<uint32_t>((void*)&m_data[i]);
+								(void)infoIndex2;
 								i += sizeof(uint32_t);
 
 								auto* pComponentDataStart = pChunk->GetDataPtrRW(type, newInfo->infoIndex);
@@ -461,8 +461,8 @@ namespace gaia {
 							if (cmd == ADD_COMPONENT_TO_TEMPENTITY_DATA) {
 								// Skip the type index
 								// TODO: Don't include the type index here
-								uint32_t infoIndex = utils::unaligned_ref<uint32_t>((void*)&m_data[i]);
-								(void)infoIndex;
+								uint32_t infoIndex2 = utils::unaligned_ref<uint32_t>((void*)&m_data[i]);
+								(void)infoIndex2;
 								i += sizeof(uint32_t);
 
 								auto* pComponentDataStart = pChunk->GetDataPtrRW(type, newInfo->infoIndex);
