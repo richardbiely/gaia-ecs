@@ -425,7 +425,8 @@ namespace robin_hood {
 			}
 
 			// enforce byte alignment of the T's
-			static constexpr size_t ALIGNMENT = gaia::utils::max(std::alignment_of<T>::value, std::alignment_of<T*>::value);
+			static constexpr size_t ALIGNMENT =
+					gaia::utils::get_max(std::alignment_of<T>::value, std::alignment_of<T*>::value);
 
 			static constexpr size_t ALIGNED_SIZE = ((sizeof(T) - 1) / ALIGNMENT + 1) * ALIGNMENT;
 
@@ -2001,7 +2002,7 @@ namespace robin_hood {
 
 			[[nodiscard]] size_t calcNumElementsWithBuffer(size_t numElements) const noexcept {
 				auto maxNumElementsAllowed = calcMaxNumElementsAllowed(numElements);
-				return numElements + gaia::utils::min(maxNumElementsAllowed, (static_cast<size_t>(0xFF)));
+				return numElements + gaia::utils::get_min(maxNumElementsAllowed, (static_cast<size_t>(0xFF)));
 			}
 
 			// calculation only allowed for 2^n values
@@ -2040,7 +2041,7 @@ namespace robin_hood {
 
 			void reserve(size_t c, bool forceRehash) {
 				ROBIN_HOOD_TRACE(this)
-				auto const minElementsAllowed = gaia::utils::max(c, mNumElements);
+				auto const minElementsAllowed = gaia::utils::get_max(c, mNumElements);
 				auto newSize = InitialNumElements;
 				while (calcMaxNumElementsAllowed(newSize) < minElementsAllowed && newSize != 0) {
 					newSize *= 2;
