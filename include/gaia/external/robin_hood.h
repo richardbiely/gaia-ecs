@@ -44,10 +44,10 @@
 #include <cstdlib>
 #include <cstring>
 #include <initializer_list>
+#include <new>
 #include <tuple>
 #include <type_traits>
 #include <utility>
-#include <new>
 
 // #define ROBIN_HOOD_STD_SMARTPOINTERS
 #ifdef ROBIN_HOOD_STD_SMARTPOINTERS
@@ -148,7 +148,7 @@ namespace robin_hood {
 			#define ROBIN_HOOD_PRIVATE_DEFINITION_BITSCANFORWARD() _BitScanForward64
 		#endif
 		#if _MSV_VER <= 1916
-		#include <intrin.h>
+			#include <intrin.h>
 		#endif
 		#pragma intrinsic(ROBIN_HOOD(BITSCANFORWARD))
 		#define ROBIN_HOOD_COUNT_TRAILING_ZEROES(x)                                                                        \
