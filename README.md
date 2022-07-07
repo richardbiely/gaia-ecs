@@ -23,6 +23,7 @@ Gaia-ECS is an entity component system framework. Some of its current features a
 * tested on all major compilers continuously
 * unit-tested for maximum stability
 * each important change is benchmarked and checked on disassembly level on multiple compilers to ensure maximum performance
+* exists also as a single-header library which means you can simply drop it into your project and start using it
 
 Being early in development, breaking changes to its API are possible. There are also many features to add. However, it is already stable and thoroughly tested. Therefore, using it should not be an issue.
 
@@ -387,6 +388,16 @@ cmake -DCMAKE_BUILD_TYPE=Release -USE_SANITIZERS=address -S . -B "build"
 ```
 Possible options are listed in [cmake/sanitizers.cmake](https://github.com/richardbiely/gaia-ecs/blob/main/cmake/sanitizers.cmake).<br/>
 Note, some options don't work together or might not be supported by all compilers.
+
+## Single-header library
+Gaia-ECS is shipped also as a [single header file](https://github.com/richardbiely/gaia-ecs/blob/main/single_header/gaia.h) which you can simple drop into your project and start using. To generate the header we use a wonderful Python tool [Quom](https://github.com/Viatorus/quom).
+
+In order to generate the header use the following command inside your root directory.
+```bash
+quom ./include/gaia.h ./single_include/gaia.h -I ./include
+```
+
+You can also used the attached make_single_header.sh or create your own script for your platfrom.
 
 # Examples
 The repository contains some code examples for guidance.<br/>
