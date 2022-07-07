@@ -147,6 +147,9 @@ namespace robin_hood {
 		#else
 			#define ROBIN_HOOD_PRIVATE_DEFINITION_BITSCANFORWARD() _BitScanForward64
 		#endif
+		#if _MSV_VER <= 1916
+		#include <intrin.h>
+		#endif
 		#pragma intrinsic(ROBIN_HOOD(BITSCANFORWARD))
 		#define ROBIN_HOOD_COUNT_TRAILING_ZEROES(x)                                                                        \
 			[](size_t mask) noexcept -> int {                                                                                \
