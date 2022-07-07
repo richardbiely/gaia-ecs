@@ -390,7 +390,7 @@ Possible options are listed in [cmake/sanitizers.cmake](https://github.com/richa
 Note, some options don't work together or might not be supported by all compilers.
 
 ## Single-header library
-Gaia-ECS is shipped also as a [single header file](https://github.com/richardbiely/gaia-ecs/blob/main/single_header/gaia.h) which you can simple drop into your project and start using. To generate the header we use a wonderful Python tool [Quom](https://github.com/Viatorus/quom).
+Gaia-ECS is shipped also as a [single header file](https://github.com/richardbiely/gaia-ecs/blob/main/single_include/gaia.h) which you can simple drop into your project and start using. To generate the header we use a wonderful Python tool [Quom](https://github.com/Viatorus/quom).
 
 In order to generate the header use the following command inside your root directory.
 ```bash
