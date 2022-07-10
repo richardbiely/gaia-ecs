@@ -35,9 +35,9 @@
 // TODO: FIXME: 0 won't work until all std utility functions are replaced with custom onces
 #define GAIA_USE_STL_COMPATIBLE_CONTAINERS 0
 #if GAIA_USE_STL_CONTAINERS || GAIA_USE_STL_COMPATIBLE_CONTAINERS
-	#define GAIA_UTIL(x) std::x
+	#define GAIA_UTIL std
 #else
-	#define GAIA_UTIL(x) gaia::utils::x
+	#define GAIA_UTIL gaia::utils
 #endif
 
 //------------------------------------------------------------------------------

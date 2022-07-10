@@ -241,9 +241,9 @@
 // TODO: FIXME: 0 won't work until all std utility functions are replaced with custom onces
 #define GAIA_USE_STL_COMPATIBLE_CONTAINERS 0
 #if GAIA_USE_STL_CONTAINERS || GAIA_USE_STL_COMPATIBLE_CONTAINERS
-	#define GAIA_UTIL(x) std::x
+	#define GAIA_UTIL std
 #else
-	#define GAIA_UTIL(x) gaia::utils::x
+	#define GAIA_UTIL gaia::utils
 #endif
 
 //------------------------------------------------------------------------------
@@ -455,7 +455,7 @@ namespace gaia {
 		template <typename T>
 		class darr {
 		public:
-			using iterator_category = GAIA_UTIL(random_access_iterator_tag);
+			using iterator_category = GAIA_UTIL::random_access_iterator_tag;
 			using value_type = T;
 			using reference = T&;
 			using const_reference = const T&;
@@ -474,7 +474,7 @@ namespace gaia {
 				friend class darr;
 
 			public:
-				using iterator_category = GAIA_UTIL(random_access_iterator_tag);
+				using iterator_category = GAIA_UTIL::random_access_iterator_tag;
 				using value_type = T;
 				using difference_type = std::ptrdiff_t;
 				using pointer = T*;
@@ -564,7 +564,7 @@ namespace gaia {
 				friend class darr;
 
 			public:
-				using iterator_category = GAIA_UTIL(random_access_iterator_tag);
+				using iterator_category = GAIA_UTIL::random_access_iterator_tag;
 				using value_type = T;
 				using difference_type = std::ptrdiff_t;
 				using pointer = T*;
@@ -666,7 +666,7 @@ namespace gaia {
 
 			template <typename InputIt>
 			darr(InputIt first, InputIt last) noexcept {
-				const auto count = (size_type)GAIA_UTIL(distance)(first, last);
+				const auto count = (size_type)GAIA_UTIL::distance(first, last);
 				resize(count);
 				size_type i = 0;
 				for (auto it = first; it != last; ++it)
@@ -791,7 +791,7 @@ namespace gaia {
 				else {
 					T* old = m_data;
 					m_data = new T[m_cap = (cap * 3) / 2 + 1];
-					
+
 					GAIA_MSVC_WARNING_PUSH()
 					GAIA_MSVC_WARNING_DISABLE(6385)
 					for (size_type i = 0; i < cnt; ++i)
@@ -820,8 +820,9 @@ namespace gaia {
 			iterator erase(iterator pos) {
 				GAIA_ASSERT(pos.m_ptr >= &m_data[0] && pos.m_ptr < &m_data[m_cap - 1]);
 
-				const auto idxStart = (size_type)GAIA_UTIL(distance(pos, begin()));
-				for (size_type i = idxStart; i < size() - 1; ++i)
+				const auto idxStart = (size_type)GAIA_UTIL::distance(pos, begin());
+				const auto items = size() - 1;
+				for (size_type i = idxStart; i < items; ++i)
 					m_data[i] = m_data[i + 1];
 				--m_cnt;
 				return iterator((T*)m_data + idxStart);
@@ -830,8 +831,9 @@ namespace gaia {
 			const_iterator erase(const_iterator pos) {
 				GAIA_ASSERT(pos.m_ptr >= &m_data[0] && pos.m_ptr < &m_data[m_cap - 1]);
 
-				const auto idxStart = (size_type)GAIA_UTIL(distance(pos, begin()));
-				for (size_type i = idxStart; i < size() - 1; ++i)
+				const auto idxStart = (size_type)GAIA_UTIL::distance(pos, begin());
+				const auto items = size() - 1;
+				for (size_type i = idxStart; i < items; ++i)
 					m_data[i] = m_data[i + 1];
 				--m_cnt;
 				return iterator((const T*)m_data + idxStart);
@@ -966,7 +968,7 @@ namespace gaia {
 		template <typename T, size_t N>
 		class sarr {
 		public:
-			using iterator_category = GAIA_UTIL(random_access_iterator_tag);
+			using iterator_category = GAIA_UTIL::random_access_iterator_tag;
 			using value_type = T;
 			using reference = T&;
 			using const_reference = const T&;
@@ -981,7 +983,7 @@ namespace gaia {
 
 			class iterator {
 			public:
-				using iterator_category = GAIA_UTIL(random_access_iterator_tag);
+				using iterator_category = GAIA_UTIL::random_access_iterator_tag;
 				using value_type = T;
 				using difference_type = std::ptrdiff_t;
 				using pointer = T*;
@@ -1070,7 +1072,7 @@ namespace gaia {
 
 			class const_iterator {
 			public:
-				using iterator_category = GAIA_UTIL(random_access_iterator_tag);
+				using iterator_category = GAIA_UTIL::random_access_iterator_tag;
 				using value_type = T;
 				using difference_type = std::ptrdiff_t;
 				using pointer = T*;
@@ -1282,7 +1284,7 @@ namespace gaia {
 		template <typename T, size_t N>
 		class sarr_ext {
 		public:
-			using iterator_category = GAIA_UTIL(random_access_iterator_tag);
+			using iterator_category = GAIA_UTIL::random_access_iterator_tag;
 			using value_type = T;
 			using reference = T&;
 			using const_reference = const T&;
@@ -1298,7 +1300,7 @@ namespace gaia {
 		public:
 			class iterator {
 			public:
-				using iterator_category = GAIA_UTIL(random_access_iterator_tag);
+				using iterator_category = GAIA_UTIL::random_access_iterator_tag;
 				using value_type = T;
 				using difference_type = std::ptrdiff_t;
 				using pointer = T*;
@@ -1387,7 +1389,7 @@ namespace gaia {
 
 			class const_iterator {
 			public:
-				using iterator_category = GAIA_UTIL(random_access_iterator_tag);
+				using iterator_category = GAIA_UTIL::random_access_iterator_tag;
 				using value_type = T;
 				using difference_type = std::ptrdiff_t;
 				using pointer = T*;
@@ -6358,12 +6360,12 @@ namespace gaia {
 			if (it == arr.end())
 				return BadIndex;
 
-			return GAIA_UTIL(distance(arr.begin(), it));
+			return GAIA_UTIL::distance(arr.begin(), it);
 		}
 
 		template <typename C>
 		constexpr auto get_index_unsafe(const C& arr, typename C::const_reference item) {
-			return GAIA_UTIL(distance(arr.begin(), find(arr, item)));
+			return GAIA_UTIL::distance(arr.begin(), find(arr, item));
 		}
 
 		template <typename UnaryPredicate, typename C>
@@ -6372,12 +6374,12 @@ namespace gaia {
 			if (it == arr.end())
 				return BadIndex;
 
-			return GAIA_UTIL(distance(arr.begin(), it));
+			return GAIA_UTIL::distance(arr.begin(), it);
 		}
 
 		template <typename UnaryPredicate, typename C>
 		constexpr auto get_index_if_unsafe(const C& arr, UnaryPredicate predicate) {
-			return GAIA_UTIL(distance(arr.begin(), find_if(arr, predicate)));
+			return GAIA_UTIL::distance(arr.begin(), find_if(arr, predicate));
 		}
 
 		template <typename C>
@@ -8271,19 +8273,19 @@ namespace gaia {
 			}
 
 			template <typename... TComponent>
-			EntityQuery& Any() {
+			GAIA_FORCEINLINE EntityQuery& Any() {
 				(AddComponent_Internal<TComponent>(ListType::LT_Any), ...);
 				return *this;
 			}
 
 			template <typename... TComponent>
-			EntityQuery& All() {
+			GAIA_FORCEINLINE EntityQuery& All() {
 				(AddComponent_Internal<TComponent>(ListType::LT_All), ...);
 				return *this;
 			}
 
 			template <typename... TComponent>
-			EntityQuery& None() {
+			GAIA_FORCEINLINE EntityQuery& None() {
 				(AddComponent_Internal<TComponent>(ListType::LT_None), ...);
 				return *this;
 			}
@@ -8304,7 +8306,7 @@ namespace gaia {
 			}
 
 			template <typename... TComponent>
-			EntityQuery& WithChanged() {
+			GAIA_FORCEINLINE EntityQuery& WithChanged() {
 				(WithChanged_Internal<TComponent>(), ...);
 				return *this;
 			}
@@ -9784,12 +9786,12 @@ namespace gaia {
 			//--------------------------------------------------------------------------------
 
 			template <typename Func>
-			void ForEachChunk_External(World& world, EntityQuery& query, Func func) {
+			GAIA_FORCEINLINE void ForEachChunk_External(World& world, EntityQuery& query, Func func) {
 				RunQueryOnChunks_Direct(world, query, func);
 			}
 
 			template <typename Func>
-			void ForEachChunk_Internal(World& world, EntityQuery&& queryTmp, Func func) {
+			GAIA_FORCEINLINE void ForEachChunk_Internal(World& world, EntityQuery&& queryTmp, Func func) {
 				RegisterComponents<Func>(world);
 				queryTmp.CalculateLookupHash(world);
 				RunQueryOnChunks_Direct(world, AddOrFindEntityQueryInCache(world, queryTmp), func);
@@ -9798,12 +9800,12 @@ namespace gaia {
 			//--------------------------------------------------------------------------------
 
 			template <typename Func>
-			void ForEach_External(World& world, EntityQuery& query, Func func) {
+			GAIA_FORCEINLINE void ForEach_External(World& world, EntityQuery& query, Func func) {
 				RunQueryOnChunks_Indirect(world, query, func);
 			}
 
 			template <typename Func>
-			void ForEach_Internal(World& world, EntityQuery&& queryTmp, Func func) {
+			GAIA_FORCEINLINE void ForEach_Internal(World& world, EntityQuery&& queryTmp, Func func) {
 				RegisterComponents<Func>(world);
 				queryTmp.CalculateLookupHash(world);
 				RunQueryOnChunks_Indirect_NoResolve(world, AddOrFindEntityQueryInCache(world, queryTmp), func);

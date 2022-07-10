@@ -1480,12 +1480,12 @@ namespace gaia {
 			//--------------------------------------------------------------------------------
 
 			template <typename Func>
-			void ForEachChunk_External(World& world, EntityQuery& query, Func func) {
+			GAIA_FORCEINLINE void ForEachChunk_External(World& world, EntityQuery& query, Func func) {
 				RunQueryOnChunks_Direct(world, query, func);
 			}
 
 			template <typename Func>
-			void ForEachChunk_Internal(World& world, EntityQuery&& queryTmp, Func func) {
+			GAIA_FORCEINLINE void ForEachChunk_Internal(World& world, EntityQuery&& queryTmp, Func func) {
 				RegisterComponents<Func>(world);
 				queryTmp.CalculateLookupHash(world);
 				RunQueryOnChunks_Direct(world, AddOrFindEntityQueryInCache(world, queryTmp), func);
@@ -1494,12 +1494,12 @@ namespace gaia {
 			//--------------------------------------------------------------------------------
 
 			template <typename Func>
-			void ForEach_External(World& world, EntityQuery& query, Func func) {
+			GAIA_FORCEINLINE void ForEach_External(World& world, EntityQuery& query, Func func) {
 				RunQueryOnChunks_Indirect(world, query, func);
 			}
 
 			template <typename Func>
-			void ForEach_Internal(World& world, EntityQuery&& queryTmp, Func func) {
+			GAIA_FORCEINLINE void ForEach_Internal(World& world, EntityQuery&& queryTmp, Func func) {
 				RegisterComponents<Func>(world);
 				queryTmp.CalculateLookupHash(world);
 				RunQueryOnChunks_Indirect_NoResolve(world, AddOrFindEntityQueryInCache(world, queryTmp), func);

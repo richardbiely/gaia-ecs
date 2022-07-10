@@ -13,7 +13,7 @@ namespace gaia {
 		template <typename T, size_t N>
 		class sarr {
 		public:
-			using iterator_category = GAIA_UTIL(random_access_iterator_tag);
+			using iterator_category = GAIA_UTIL::random_access_iterator_tag;
 			using value_type = T;
 			using reference = T&;
 			using const_reference = const T&;
@@ -28,7 +28,7 @@ namespace gaia {
 
 			class iterator {
 			public:
-				using iterator_category = GAIA_UTIL(random_access_iterator_tag);
+				using iterator_category = GAIA_UTIL::random_access_iterator_tag;
 				using value_type = T;
 				using difference_type = std::ptrdiff_t;
 				using pointer = T*;
@@ -117,7 +117,7 @@ namespace gaia {
 
 			class const_iterator {
 			public:
-				using iterator_category = GAIA_UTIL(random_access_iterator_tag);
+				using iterator_category = GAIA_UTIL::random_access_iterator_tag;
 				using value_type = T;
 				using difference_type = std::ptrdiff_t;
 				using pointer = T*;

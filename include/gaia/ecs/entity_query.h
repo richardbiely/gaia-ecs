@@ -493,19 +493,19 @@ namespace gaia {
 			}
 
 			template <typename... TComponent>
-			EntityQuery& Any() {
+			GAIA_FORCEINLINE EntityQuery& Any() {
 				(AddComponent_Internal<TComponent>(ListType::LT_Any), ...);
 				return *this;
 			}
 
 			template <typename... TComponent>
-			EntityQuery& All() {
+			GAIA_FORCEINLINE EntityQuery& All() {
 				(AddComponent_Internal<TComponent>(ListType::LT_All), ...);
 				return *this;
 			}
 
 			template <typename... TComponent>
-			EntityQuery& None() {
+			GAIA_FORCEINLINE EntityQuery& None() {
 				(AddComponent_Internal<TComponent>(ListType::LT_None), ...);
 				return *this;
 			}
@@ -526,7 +526,7 @@ namespace gaia {
 			}
 
 			template <typename... TComponent>
-			EntityQuery& WithChanged() {
+			GAIA_FORCEINLINE EntityQuery& WithChanged() {
 				(WithChanged_Internal<TComponent>(), ...);
 				return *this;
 			}
