@@ -9632,13 +9632,17 @@ namespace gaia {
 					++archetype.info.structuralChangesLocked;
 
 					auto exec = [&](const auto& chunksList) {
-						size_t chunkOffset = 0;
-						size_t batchSize = 0;
 						const size_t maxIters = chunksList.size();
+						size_t chunkOffset = 0;
+						size_t indexInBatch = 0;
+						size_t itemsLeft = maxIters;
+
 						do {
+							const size_t batchSize = itemsLeft > BatchSize ? BatchSize : itemsLeft;
+
 							// Prepare a buffer to iterate over
-							for (; chunkOffset < maxIters; ++chunkOffset) {
-								auto* pChunk = chunksList[chunkOffset];
+							for (size_t j = chunkOffset; j < chunkOffset + batchSize; ++j) {
+								auto* pChunk = chunksList[j];
 
 								if (!pChunk->HasEntities())
 									continue;
@@ -9647,17 +9651,17 @@ namespace gaia {
 								if (hasFilters && !CheckFilters(query, *pChunk))
 									continue;
 
-								tmp[batchSize++] = pChunk;
+								tmp[indexInBatch++] = pChunk;
 							}
 
 							// Execute functors in batches
-							const size_t size = batchSize;
-							for (size_t chunkIdx = 0; chunkIdx < size; ++chunkIdx)
+							for (size_t chunkIdx = 0; chunkIdx < indexInBatch; ++chunkIdx)
 								func(*tmp[chunkIdx]);
 
-							// Reset the batch size
-							batchSize = 0;
-						} while (chunkOffset < maxIters);
+							// Prepeare for the next loop
+							itemsLeft -= batchSize;
+							indexInBatch = 0;
+						} while (itemsLeft > 0);
 					};
 
 					if (query.CheckConstraints(true))
@@ -9690,13 +9694,17 @@ namespace gaia {
 					++archetype.info.structuralChangesLocked;
 
 					auto exec = [&](const auto& chunksList) {
-						size_t chunkOffset = 0;
-						size_t batchSize = 0;
 						const size_t maxIters = chunksList.size();
+						size_t chunkOffset = 0;
+						size_t indexInBatch = 0;
+						size_t itemsLeft = maxIters;
+
 						do {
+							const size_t batchSize = itemsLeft > BatchSize ? BatchSize : itemsLeft;
+
 							// Prepare a buffer to iterate over
-							for (; chunkOffset < maxIters; ++chunkOffset) {
-								auto* pChunk = chunksList[chunkOffset];
+							for (size_t j = chunkOffset; j < chunkOffset + batchSize; ++j) {
+								auto* pChunk = chunksList[j];
 
 								if (!pChunk->HasEntities())
 									continue;
@@ -9705,17 +9713,17 @@ namespace gaia {
 								if (hasFilters && !CheckFilters(query, *pChunk))
 									continue;
 
-								tmp[batchSize++] = pChunk;
+								tmp[indexInBatch++] = pChunk;
 							}
 
 							// Execute functors in batches
-							const size_t size = batchSize;
-							for (size_t chunkIdx = 0; chunkIdx < size; ++chunkIdx)
+							for (size_t chunkIdx = 0; chunkIdx < indexInBatch; ++chunkIdx)
 								world.ForEachEntityInChunk(InputArgs{}, *tmp[chunkIdx], func);
 
 							// Reset the batch size
-							batchSize = 0;
-						} while (chunkOffset < maxIters);
+							itemsLeft -= batchSize;
+							indexInBatch = 0;
+						} while (itemsLeft > 0);
 					};
 
 					if (query.CheckConstraints(true))
