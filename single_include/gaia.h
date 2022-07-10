@@ -9632,12 +9632,11 @@ namespace gaia {
 					++archetype.info.structuralChangesLocked;
 
 					auto exec = [&](const auto& chunksList) {
-						const size_t maxIters = chunksList.size();
 						size_t chunkOffset = 0;
 						size_t indexInBatch = 0;
-						size_t itemsLeft = maxIters;
 
-						do {
+						size_t itemsLeft = chunksList.size();
+						while (itemsLeft > 0) {
 							const size_t batchSize = itemsLeft > BatchSize ? BatchSize : itemsLeft;
 
 							// Prepare a buffer to iterate over
@@ -9655,13 +9654,15 @@ namespace gaia {
 							}
 
 							// Execute functors in batches
-							for (size_t chunkIdx = 0; chunkIdx < indexInBatch; ++chunkIdx)
-								func(*tmp[chunkIdx]);
+							if (indexInBatch == BatchSize || batchSize != BatchSize) {
+								for (size_t chunkIdx = 0; chunkIdx < indexInBatch; ++chunkIdx)
+									func(*tmp[chunkIdx]);
+								indexInBatch = 0;
+							}
 
 							// Prepeare for the next loop
 							itemsLeft -= batchSize;
-							indexInBatch = 0;
-						} while (itemsLeft > 0);
+						}
 					};
 
 					if (query.CheckConstraints(true))
@@ -9694,12 +9695,11 @@ namespace gaia {
 					++archetype.info.structuralChangesLocked;
 
 					auto exec = [&](const auto& chunksList) {
-						const size_t maxIters = chunksList.size();
 						size_t chunkOffset = 0;
 						size_t indexInBatch = 0;
-						size_t itemsLeft = maxIters;
 
-						do {
+						size_t itemsLeft = chunksList.size();
+						while (itemsLeft > 0) {
 							const size_t batchSize = itemsLeft > BatchSize ? BatchSize : itemsLeft;
 
 							// Prepare a buffer to iterate over
@@ -9718,12 +9718,17 @@ namespace gaia {
 
 							// Execute functors in batches
 							for (size_t chunkIdx = 0; chunkIdx < indexInBatch; ++chunkIdx)
-								world.ForEachEntityInChunk(InputArgs{}, *tmp[chunkIdx], func);
 
-							// Reset the batch size
+								// Execute functors in batches
+								if (indexInBatch == BatchSize || batchSize != BatchSize) {
+									for (size_t chunkIdx = 0; chunkIdx < indexInBatch; ++chunkIdx)
+										world.ForEachEntityInChunk(InputArgs{}, *tmp[chunkIdx], func);
+									indexInBatch = 0;
+								}
+
+							// Prepeare for the next loop
 							itemsLeft -= batchSize;
-							indexInBatch = 0;
-						} while (itemsLeft > 0);
+						}
 					};
 
 					if (query.CheckConstraints(true))
