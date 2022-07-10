@@ -13,7 +13,7 @@ namespace gaia {
 		template <typename T>
 		class darr {
 		public:
-			using iterator_category = GAIA_UTIL(random_access_iterator_tag);
+			using iterator_category = GAIA_UTIL::random_access_iterator_tag;
 			using value_type = T;
 			using reference = T&;
 			using const_reference = const T&;
@@ -32,7 +32,7 @@ namespace gaia {
 				friend class darr;
 
 			public:
-				using iterator_category = GAIA_UTIL(random_access_iterator_tag);
+				using iterator_category = GAIA_UTIL::random_access_iterator_tag;
 				using value_type = T;
 				using difference_type = std::ptrdiff_t;
 				using pointer = T*;
@@ -122,7 +122,7 @@ namespace gaia {
 				friend class darr;
 
 			public:
-				using iterator_category = GAIA_UTIL(random_access_iterator_tag);
+				using iterator_category = GAIA_UTIL::random_access_iterator_tag;
 				using value_type = T;
 				using difference_type = std::ptrdiff_t;
 				using pointer = T*;
@@ -224,7 +224,7 @@ namespace gaia {
 
 			template <typename InputIt>
 			darr(InputIt first, InputIt last) noexcept {
-				const auto count = (size_type)GAIA_UTIL(distance)(first, last);
+				const auto count = (size_type)GAIA_UTIL::distance(first, last);
 				resize(count);
 				size_type i = 0;
 				for (auto it = first; it != last; ++it)
@@ -349,7 +349,7 @@ namespace gaia {
 				else {
 					T* old = m_data;
 					m_data = new T[m_cap = (cap * 3) / 2 + 1];
-					
+
 					GAIA_MSVC_WARNING_PUSH()
 					GAIA_MSVC_WARNING_DISABLE(6385)
 					for (size_type i = 0; i < cnt; ++i)
@@ -378,8 +378,9 @@ namespace gaia {
 			iterator erase(iterator pos) {
 				GAIA_ASSERT(pos.m_ptr >= &m_data[0] && pos.m_ptr < &m_data[m_cap - 1]);
 
-				const auto idxStart = (size_type)GAIA_UTIL(distance(pos, begin()));
-				for (size_type i = idxStart; i < size() - 1; ++i)
+				const auto idxStart = (size_type)GAIA_UTIL::distance(pos, begin());
+				const auto items = size() - 1;
+				for (size_type i = idxStart; i < items; ++i)
 					m_data[i] = m_data[i + 1];
 				--m_cnt;
 				return iterator((T*)m_data + idxStart);
@@ -388,8 +389,9 @@ namespace gaia {
 			const_iterator erase(const_iterator pos) {
 				GAIA_ASSERT(pos.m_ptr >= &m_data[0] && pos.m_ptr < &m_data[m_cap - 1]);
 
-				const auto idxStart = (size_type)GAIA_UTIL(distance(pos, begin()));
-				for (size_type i = idxStart; i < size() - 1; ++i)
+				const auto idxStart = (size_type)GAIA_UTIL::distance(pos, begin());
+				const auto items = size() - 1;
+				for (size_type i = idxStart; i < items; ++i)
 					m_data[i] = m_data[i + 1];
 				--m_cnt;
 				return iterator((const T*)m_data + idxStart);
