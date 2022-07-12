@@ -304,9 +304,8 @@ namespace gaia {
 
 			void RegisterArchetype(Archetype* archetype) {
 				// Make sure hashes were set already
-				GAIA_ASSERT(archetype->genericHash != 0);
-				GAIA_ASSERT(archetype->chunkHash != 0);
-				GAIA_ASSERT(archetype->lookupHash.hash != 0);
+				GAIA_ASSERT(archetype==m_rootArchetype || (archetype->genericHash != 0 || archetype->chunkHash != 0));
+				GAIA_ASSERT(archetype==m_rootArchetype || archetype->lookupHash.hash != 0);
 
 				// Make sure the archetype is not registered yet
 				GAIA_ASSERT(!utils::has(m_archetypes, archetype));
