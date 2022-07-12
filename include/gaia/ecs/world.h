@@ -304,9 +304,9 @@ namespace gaia {
 
 			void RegisterArchetype(Archetype* archetype) {
 				// Make sure hashes were set already
-				GAIA_ASSERT(newArch->genericHash != 0);
-				GAIA_ASSERT(newArch->chunkHash != 0);
-				GAIA_ASSERT(newArch->lookupHash != 0);
+				GAIA_ASSERT(archetype->genericHash != 0);
+				GAIA_ASSERT(archetype->chunkHash != 0);
+				GAIA_ASSERT(archetype->lookupHash.hash != 0);
 
 				// Make sure the archetype is not registered yet
 				GAIA_ASSERT(!utils::has(m_archetypes, archetype));
@@ -617,11 +617,12 @@ namespace gaia {
 			*/
 			[[nodiscard]] Entity AllocateEntity() {
 				if (!m_freeEntities) {
+					const auto entityCnt = m_entities.size();
 					// We don't want to go out of range for new entities
-					GAIA_ASSERT(m_entities.size() < Entity::IdMask && "Trying to allocate too many entities!");
+					GAIA_ASSERT(entityCnt < Entity::IdMask && "Trying to allocate too many entities!");
 
 					m_entities.push_back({});
-					return {(EntityId)m_entities.size() - 1, 0};
+					return {(EntityId)entityCnt, 0};
 				} else {
 					// Make sure the list is not broken
 					GAIA_ASSERT(m_nextFreeEntity < m_entities.size() && "ECS recycle list broken!");

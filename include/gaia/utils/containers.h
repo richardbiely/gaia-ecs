@@ -1,4 +1,5 @@
 #pragma once
+#include <cstddef>
 #include <cstdint>
 
 #include "iterator.h"
@@ -27,7 +28,7 @@ namespace gaia {
 		constexpr auto get_index(const C& arr, typename C::const_reference item) {
 			const auto it = find(arr, item);
 			if (it == arr.end())
-				return BadIndex;
+				return (std::ptrdiff_t)BadIndex;
 
 			return GAIA_UTIL::distance(arr.begin(), it);
 		}

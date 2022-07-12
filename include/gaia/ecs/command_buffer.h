@@ -143,7 +143,7 @@ namespace gaia {
 				// Components
 				{
 					const auto* typeToRemove = GetComponentCache(m_world).GetComponentInfo<TComponent>();
-					GAIA_ASSERT(typesToRemove != nullptr);
+					GAIA_ASSERT(typeToRemove != nullptr);
 
 					// Component info
 					auto lastIndex = m_data.size();
