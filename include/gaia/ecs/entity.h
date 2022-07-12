@@ -1,20 +1,27 @@
 #pragma once
 #include <cinttypes>
+#include <type_traits>
+#include "../config/config.h"
 
 namespace gaia {
 	namespace ecs {
-		using EntityId = uint32_t;
-		using EntityGenId = uint32_t;
+		using EntityInternalType = uint32_t;
+		using EntityId = EntityInternalType;
+		using EntityGenId = EntityInternalType;
 
 		struct Entity final {
-			using EntityInternalType = uint32_t;
-			static constexpr EntityInternalType IdBits = 20; // A million entities
-			static constexpr EntityInternalType GenBits = 12; // 4096 generations
-			static constexpr EntityInternalType IdMask = (1u << IdBits) - 1;
-			static constexpr EntityInternalType GenMask = (1u << GenBits) - 1;
+			static constexpr EntityInternalType IdBits = GAIA_ENTITY_IDBITS;
+			static constexpr EntityInternalType GenBits = GAIA_ENTITY_GENBITS;
+			static constexpr EntityInternalType IdMask = (uint32_t)(uint64_t(1) << IdBits) - 1;
+			static constexpr EntityInternalType GenMask = (uint32_t)(uint64_t(1) << GenBits) - 1;
+
+			using EntitySizeType = std::conditional_t<(IdBits+GenBits>32), uint64_t, uint32_t>;
+			
 			static_assert(
-					IdBits + GenBits <= sizeof(EntityInternalType) * 8,
-					"Entity IdBits and GenBits must fit inside EntityInternalType");
+					IdBits + GenBits <= 64,
+					"Entity IdBits and GenBits must fit inside 64 bits");
+			static_assert(IdBits <= 31, "Entity IdBits must be at most 31 bits long");
+			static_assert(GenBits > 10, "Entity GenBits is recommended to be at least 10 bits long");
 
 		private:
 			struct EntityData {
@@ -26,7 +33,7 @@ namespace gaia {
 
 			union {
 				EntityData data;
-				EntityInternalType val;
+				EntitySizeType val;
 			};
 
 		public:

@@ -3,8 +3,6 @@
 
 namespace gaia {
 	namespace ecs {
-		using EntityId = uint32_t;
-		using EntityGenId = uint32_t;
 		struct Entity;
 
 		class Chunk;
