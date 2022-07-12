@@ -146,7 +146,7 @@
 // ...
 #endif
 
-#if !defined(GAIA_DISABLE_ASSERTS)
+#if defined(GAIA_DISABLE_ASSERTS)
 	#undef GAIA_ASSERT
 	#define GAIA_ASSERT(condition) (void(0))
 #elif !defined(GAIA_ASSERT)

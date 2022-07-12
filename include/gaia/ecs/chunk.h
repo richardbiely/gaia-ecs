@@ -223,8 +223,6 @@ namespace gaia {
 			[[nodiscard]] GAIA_FORCEINLINE uint8_t* GetDataPtrRW(ComponentType type, uint32_t infoIndex) {
 				// Searching for a component that's not there! Programmer mistake.
 				GAIA_ASSERT(HasComponent_Internal(type, infoIndex));
-				// Empty components shouldn't be used for writing!
-				GAIA_ASSERT(info->properties.size != 0);
 
 				const auto& infos = GetArchetypeComponentLookupList(header.owner, type);
 				const auto componentIdx = (uint32_t)utils::get_index_if_unsafe(infos, [&](const auto& info) {
