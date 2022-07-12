@@ -1411,14 +1411,11 @@ namespace gaia {
 							}
 
 							// Execute functors in batches
-							for (size_t chunkIdx = 0; chunkIdx < indexInBatch; ++chunkIdx)
-
-								// Execute functors in batches
-								if (indexInBatch == BatchSize || batchSize != BatchSize) {
-									for (size_t chunkIdx = 0; chunkIdx < indexInBatch; ++chunkIdx)
-										world.ForEachEntityInChunk(InputArgs{}, *tmp[chunkIdx], func);
-									indexInBatch = 0;
-								}
+							if (indexInBatch == BatchSize || batchSize != BatchSize) {
+								for (size_t chunkIdx = 0; chunkIdx < indexInBatch; ++chunkIdx)
+									world.ForEachEntityInChunk(InputArgs{}, *tmp[chunkIdx], func);
+								indexInBatch = 0;
+							}
 
 							// Prepeare for the next loop
 							itemsLeft -= batchSize;
