@@ -178,6 +178,8 @@ w.ForEach(q, [&](Position& p, const Velocity& v) {
 });
 ```
 
+Iterating over components not present in the query is not supported. This is done to prevent various logic errors which might sneak in  otherwise.
+
 ## Iteration over chunks
 Iteration over chunk gives you more power as it exposes to you the underlying chunk in which your data is contained.<br/>
 That means you can perform more kinds of operations, and it also opens doors for new kinds of optimizations.
