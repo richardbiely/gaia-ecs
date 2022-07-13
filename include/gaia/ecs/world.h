@@ -7,6 +7,7 @@
 #include "../containers/sarray.h"
 #include "../containers/sarray_ext.h"
 #include "../utils/containers.h"
+#include "../utils/hashing_policy.h"
 #include "../utils/span.h"
 #include "../utils/type_info.h"
 #include "../utils/utility.h"
@@ -18,7 +19,6 @@
 #include "entity.h"
 #include "entity_query.h"
 #include "fwd.h"
-#include "gaia/utils/hashing_policy.h"
 
 namespace gaia {
 	namespace ecs {
@@ -304,8 +304,8 @@ namespace gaia {
 
 			void RegisterArchetype(Archetype* archetype) {
 				// Make sure hashes were set already
-				GAIA_ASSERT(archetype==m_rootArchetype || (archetype->genericHash != 0 || archetype->chunkHash != 0));
-				GAIA_ASSERT(archetype==m_rootArchetype || archetype->lookupHash.hash != 0);
+				GAIA_ASSERT(archetype == m_rootArchetype || (archetype->genericHash != 0 || archetype->chunkHash != 0));
+				GAIA_ASSERT(archetype == m_rootArchetype || archetype->lookupHash.hash != 0);
 
 				// Make sure the archetype is not registered yet
 				GAIA_ASSERT(!utils::has(m_archetypes, archetype));
@@ -1311,7 +1311,7 @@ namespace gaia {
 			//--------------------------------------------------------------------------------
 
 			template <typename Func>
-			static void RunQueryOnChunks_Direct(World& world, EntityQuery& query, Func func) {
+			static void RunQueryOnChunks_Internal(World& world, EntityQuery& query, Func func) {
 				constexpr size_t BatchSize = 256U;
 				containers::sarray<Chunk*, BatchSize> tmp;
 
@@ -1371,78 +1371,6 @@ namespace gaia {
 				query.SetWorldVersion(world.GetWorldVersion());
 			}
 
-			template <typename Func>
-			static void RunQueryOnChunks_Indirect_NoResolve(World& world, EntityQuery& query, Func func) {
-				using InputArgs = decltype(utils::func_args(&Func::operator()));
-
-				constexpr size_t BatchSize = 256U;
-				containers::sarray<Chunk*, BatchSize> tmp;
-
-				// Update the world version
-				world.UpdateWorldVersion();
-
-				const bool hasFilters = query.HasFilters();
-
-				// Iterate over all archetypes
-				world.ForEachArchetype(query, [&](Archetype& archetype) {
-					GAIA_ASSERT(archetype.info.structuralChangesLocked < 8);
-					++archetype.info.structuralChangesLocked;
-
-					auto exec = [&](const auto& chunksList) {
-						size_t chunkOffset = 0;
-						size_t indexInBatch = 0;
-
-						size_t itemsLeft = chunksList.size();
-						while (itemsLeft > 0) {
-							const size_t batchSize = itemsLeft > BatchSize ? BatchSize : itemsLeft;
-
-							// Prepare a buffer to iterate over
-							for (size_t j = chunkOffset; j < chunkOffset + batchSize; ++j) {
-								auto* pChunk = chunksList[j];
-
-								if (!pChunk->HasEntities())
-									continue;
-								if (!query.CheckConstraints(!pChunk->IsDisabled()))
-									continue;
-								if (hasFilters && !CheckFilters(query, *pChunk))
-									continue;
-
-								tmp[indexInBatch++] = pChunk;
-							}
-
-							// Execute functors in batches
-							if (indexInBatch == BatchSize || batchSize != BatchSize) {
-								for (size_t chunkIdx = 0; chunkIdx < indexInBatch; ++chunkIdx)
-									world.ForEachEntityInChunk(InputArgs{}, *tmp[chunkIdx], func);
-								indexInBatch = 0;
-							}
-
-							// Prepeare for the next loop
-							itemsLeft -= batchSize;
-						}
-					};
-
-					if (query.CheckConstraints(true))
-						exec(archetype.chunks);
-					if (query.CheckConstraints(false))
-						exec(archetype.chunksDisabled);
-
-					GAIA_ASSERT(archetype.info.structuralChangesLocked > 0);
-					--archetype.info.structuralChangesLocked;
-				});
-
-				query.SetWorldVersion(world.GetWorldVersion());
-			}
-
-			template <typename Func>
-			static void RunQueryOnChunks_Indirect(World& world, EntityQuery& query, Func func) {
-#if GAIA_DEBUG
-				// Make sure we only use components specificed in the query
-				GAIA_ASSERT(CheckQuery<Func>(world, query));
-#endif
-				RunQueryOnChunks_Indirect_NoResolve(world, query, func);
-			}
-
 			//--------------------------------------------------------------------------------
 
 			template <typename... TComponent>
@@ -1491,28 +1419,44 @@ namespace gaia {
 
 			template <typename Func>
 			GAIA_FORCEINLINE void ForEachChunk_External(World& world, EntityQuery& query, Func func) {
-				RunQueryOnChunks_Direct(world, query, func);
+				RunQueryOnChunks_Internal(world, query, [&](Chunk& chunk) {
+					func(chunk);
+				});
 			}
 
 			template <typename Func>
 			GAIA_FORCEINLINE void ForEachChunk_Internal(World& world, EntityQuery&& queryTmp, Func func) {
 				RegisterComponents<Func>(world);
 				queryTmp.CalculateLookupHash(world);
-				RunQueryOnChunks_Direct(world, AddOrFindEntityQueryInCache(world, queryTmp), func);
+				RunQueryOnChunks_Internal(world, AddOrFindEntityQueryInCache(world, queryTmp), [&](Chunk& chunk) {
+					func(chunk);
+				});
 			}
 
 			//--------------------------------------------------------------------------------
 
 			template <typename Func>
 			GAIA_FORCEINLINE void ForEach_External(World& world, EntityQuery& query, Func func) {
-				RunQueryOnChunks_Indirect(world, query, func);
+#if GAIA_DEBUG
+				// Make sure we only use components specificed in the query
+				GAIA_ASSERT(CheckQuery<Func>(world, query));
+#endif
+
+				using InputArgs = decltype(utils::func_args(&Func::operator()));
+				RunQueryOnChunks_Internal(world, query, [&](Chunk& chunk) {
+					world.ForEachEntityInChunk(InputArgs{}, chunk, func);
+				});
 			}
 
 			template <typename Func>
 			GAIA_FORCEINLINE void ForEach_Internal(World& world, EntityQuery&& queryTmp, Func func) {
 				RegisterComponents<Func>(world);
 				queryTmp.CalculateLookupHash(world);
-				RunQueryOnChunks_Indirect_NoResolve(world, AddOrFindEntityQueryInCache(world, queryTmp), func);
+
+				using InputArgs = decltype(utils::func_args(&Func::operator()));
+				RunQueryOnChunks_Internal(world, AddOrFindEntityQueryInCache(world, queryTmp), [&](Chunk& chunk) {
+					world.ForEachEntityInChunk(InputArgs{}, chunk, func);
+				});
 			}
 
 			//--------------------------------------------------------------------------------
