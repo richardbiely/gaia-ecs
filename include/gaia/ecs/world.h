@@ -29,15 +29,15 @@ namespace gaia {
 			Chunk* m_pChunk;
 			uint32_t m_idx;
 
-			template <typename TComponent>
-			ComponentSetter& SetComponent(typename DeduceComponent<TComponent>::Type&& data) {
-				if constexpr (IsGenericComponent<TComponent>::value) {
-					using U = typename detail::ExtractComponentType_Generic<TComponent>::Type;
-					m_pChunk->template SetComponent<TComponent>(m_idx, std::forward<U>(data));
+			template <typename T>
+			ComponentSetter& SetComponent(typename DeduceComponent<T>::Type&& data) {
+				if constexpr (IsGenericComponent<T>::value) {
+					using U = typename detail::ExtractComponentType_Generic<T>::Type;
+					m_pChunk->template SetComponent<T>(m_idx, std::forward<U>(data));
 					return *this;
 				} else {
-					using U = typename detail::ExtractComponentType_Generic<TComponent>::Type;
-					m_pChunk->template SetComponent<TComponent>(std::forward<U>(data));
+					using U = typename detail::ExtractComponentType_Generic<T>::Type;
+					m_pChunk->template SetComponent<T>(std::forward<U>(data));
 					return *this;
 				}
 			}
@@ -1090,18 +1090,18 @@ namespace gaia {
 			entity is valid. Undefined behavior otherwise.
 			\return ComponentSetter object.
 			*/
-			template <typename TComponent>
+			template <typename T>
 			ComponentSetter AddComponent(Entity entity) {
-				VerifyComponent<TComponent>();
+				VerifyComponent<T>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
-				if constexpr (IsGenericComponent<TComponent>::value) {
-					using U = typename detail::ExtractComponentType_Generic<TComponent>::Type;
+				if constexpr (IsGenericComponent<T>::value) {
+					using U = typename detail::ExtractComponentType_Generic<T>::Type;
 					const auto* info = m_componentCache.GetOrCreateComponentInfo<U>();
 					auto& entityContainer = AddComponent_Internal(ComponentType::CT_Generic, entity, info);
 					return ComponentSetter{entityContainer.pChunk, entityContainer.idx};
 				} else {
-					using U = typename detail::ExtractComponentType_NonGeneric<TComponent>::Type;
+					using U = typename detail::ExtractComponentType_NonGeneric<T>::Type;
 					const auto* info = m_componentCache.GetOrCreateComponentInfo<U>();
 					auto& entityContainer = AddComponent_Internal(ComponentType::CT_Chunk, entity, info);
 					return ComponentSetter{entityContainer.pChunk, entityContainer.idx};
@@ -1114,24 +1114,24 @@ namespace gaia {
 			\param entity is valid. Undefined behavior otherwise.
 			\return ComponentSetter object.
 			*/
-			template <typename TComponent>
-			ComponentSetter AddComponent(Entity entity, typename DeduceComponent<TComponent>::Type&& data) {
-				VerifyComponent<TComponent>();
+			template <typename T>
+			ComponentSetter AddComponent(Entity entity, typename DeduceComponent<T>::Type&& data) {
+				VerifyComponent<T>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
-				if constexpr (IsGenericComponent<TComponent>::value) {
-					using U = typename detail::ExtractComponentType_Generic<TComponent>::Type;
+				if constexpr (IsGenericComponent<T>::value) {
+					using U = typename detail::ExtractComponentType_Generic<T>::Type;
 					const auto* info = m_componentCache.GetOrCreateComponentInfo<U>();
 					auto& entityContainer = AddComponent_Internal(ComponentType::CT_Generic, entity, info);
 					auto* pChunk = entityContainer.pChunk;
-					pChunk->template SetComponent<TComponent>(entityContainer.idx, std::forward<U>(data));
+					pChunk->template SetComponent<T>(entityContainer.idx, std::forward<U>(data));
 					return ComponentSetter{entityContainer.pChunk, entityContainer.idx};
 				} else {
-					using U = typename detail::ExtractComponentType_NonGeneric<TComponent>::Type;
+					using U = typename detail::ExtractComponentType_NonGeneric<T>::Type;
 					const auto* info = m_componentCache.GetOrCreateComponentInfo<U>();
 					auto& entityContainer = AddComponent_Internal(ComponentType::CT_Chunk, entity, info);
 					auto* pChunk = entityContainer.pChunk;
-					pChunk->template SetComponent<TComponent>(std::forward<U>(data));
+					pChunk->template SetComponent<T>(std::forward<U>(data));
 					return ComponentSetter{entityContainer.pChunk, entityContainer.idx};
 				}
 			}
@@ -1142,17 +1142,17 @@ namespace gaia {
 			\param entity is valid. Undefined behavior otherwise.
 			\return ComponentSetter object.
 			*/
-			template <typename TComponent>
+			template <typename T>
 			ComponentSetter RemoveComponent(Entity entity) {
-				VerifyComponent<TComponent>();
+				VerifyComponent<T>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
-				if constexpr (IsGenericComponent<TComponent>::value) {
-					using U = typename detail::ExtractComponentType_Generic<TComponent>::Type;
+				if constexpr (IsGenericComponent<T>::value) {
+					using U = typename detail::ExtractComponentType_Generic<T>::Type;
 					const auto* info = m_componentCache.GetOrCreateComponentInfo<U>();
 					return RemoveComponent_Internal(ComponentType::CT_Generic, entity, info);
 				} else {
-					using U = typename detail::ExtractComponentType_NonGeneric<TComponent>::Type;
+					using U = typename detail::ExtractComponentType_NonGeneric<T>::Type;
 					const auto* info = m_componentCache.GetOrCreateComponentInfo<U>();
 					return RemoveComponent_Internal(ComponentType::CT_Chunk, entity, info);
 				}
@@ -1164,14 +1164,14 @@ namespace gaia {
 			\param entity is valid. Undefined behavior otherwise.
 			\return ComponentSetter object.
 			*/
-			template <typename TComponent>
-			ComponentSetter SetComponent(Entity entity, typename DeduceComponent<TComponent>::Type&& data) {
-				VerifyComponent<TComponent>();
+			template <typename T>
+			ComponentSetter SetComponent(Entity entity, typename DeduceComponent<T>::Type&& data) {
+				VerifyComponent<T>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				auto& entityContainer = m_entities[entity.id()];
-				return ComponentSetter{entityContainer.pChunk, entityContainer.idx}.SetComponent<TComponent>(
-						std::forward<typename DeduceComponent<TComponent>::Type>(data));
+				return ComponentSetter{entityContainer.pChunk, entityContainer.idx}.SetComponent<T>(
+						std::forward<typename DeduceComponent<T>::Type>(data));
 			}
 
 			/*!
@@ -1179,18 +1179,18 @@ namespace gaia {
 			\warning It is expected the component was added to \param entity already. Undefined behavior otherwise.
 			\return Value stored in the component.
 			*/
-			template <typename TComponent>
+			template <typename T>
 			auto GetComponent(Entity entity) const {
-				VerifyComponent<TComponent>();
+				VerifyComponent<T>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
 				const auto* pChunk = entityContainer.pChunk;
 
-				if constexpr (IsGenericComponent<TComponent>::value)
-					return pChunk->GetComponent<TComponent>(entityContainer.idx);
+				if constexpr (IsGenericComponent<T>::value)
+					return pChunk->GetComponent<T>(entityContainer.idx);
 				else
-					return pChunk->GetComponent<TComponent>();
+					return pChunk->GetComponent<T>();
 			}
 
 			//----------------------------------------------------------------------
@@ -1199,14 +1199,14 @@ namespace gaia {
 			Tells if \param entity contains the component.
 			\return True if the component is present on entity.
 			*/
-			template <typename TComponent>
+			template <typename T>
 			[[nodiscard]] bool HasComponent(Entity entity) {
-				VerifyComponent<TComponent>();
+				VerifyComponent<T>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
 				if (const auto* pChunk = entityContainer.pChunk)
-					return pChunk->HasComponent<TComponent>();
+					return pChunk->HasComponent<T>();
 
 				return false;
 			}
@@ -1374,12 +1374,11 @@ namespace gaia {
 
 			//--------------------------------------------------------------------------------
 
-			template <typename... TComponent>
-			static void
-			RegisterComponents_Internal([[maybe_unused]] utils::func_type_list<TComponent...> types, World& world) {
-				static_assert(sizeof...(TComponent) > 0, "Empty EntityQuery is not supported in this context");
+			template <typename... T>
+			static void RegisterComponents_Internal([[maybe_unused]] utils::func_type_list<T...> types, World& world) {
+				static_assert(sizeof...(T) > 0, "Empty EntityQuery is not supported in this context");
 				auto& cc = world.GetComponentCache();
-				((void)cc.GetOrCreateComponentInfo<TComponent>(), ...);
+				((void)cc.GetOrCreateComponentInfo<T>(), ...);
 			}
 
 			template <typename Func>
