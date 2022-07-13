@@ -60,7 +60,7 @@ namespace gaia {
 			uint64_t chunkHash = 0;
 
 			//! Hash of components within this archetype - used for lookups
-			utils::direct_hash_key lookupHash {};
+			utils::direct_hash_key lookupHash{};
 			//! Hash of components within this archetype - used for matching
 			uint64_t matcherHash[ComponentType::CT_Count] = {0};
 			//! Archetype ID - used to address the archetype directly in the world's list or archetypes
@@ -410,6 +410,11 @@ namespace gaia {
 		}
 		[[nodiscard]] inline uint64_t GetArchetypeMatcherHash(const Archetype& archetype, ComponentType type) {
 			return archetype.GetMatcherHash(type);
+		}
+		[[nodiscard]] inline const ComponentInfo*
+		GetComponentInfoFromArchetype(const Archetype& archetype, uint32_t componentIdx) {
+			const auto& cc = GetComponentCache(archetype.GetWorld());
+			return cc.GetComponentInfoFromIdx(componentIdx);
 		}
 		[[nodiscard]] inline const ComponentInfoList&
 		GetArchetypeComponentInfoList(const Archetype& archetype, ComponentType type) {
