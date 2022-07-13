@@ -146,7 +146,7 @@
 // ...
 #endif
 
-#if !defined(GAIA_DISABLE_ASSERTS)
+#if defined(GAIA_DISABLE_ASSERTS)
 	#undef GAIA_ASSERT
 	#define GAIA_ASSERT(condition) (void(0))
 #elif !defined(GAIA_ASSERT)
@@ -211,6 +211,10 @@
 //------------------------------------------------------------------------------
 // General settings
 //------------------------------------------------------------------------------
+
+// Check entity.h IdBits and GenBits for more info
+#define GAIA_ENTITY_IDBITS 20
+#define GAIA_ENTITY_GENBITS 12
 
 //------------------------------------------------------------------------------
 // General settings
@@ -332,8 +336,12 @@ namespace gaia {
 #elif USE_VECTOR == 0
 
 	
+
 #include <cstddef>
 #include <initializer_list>
+#if !GAIA_DISABLE_ASSERTS
+	#include <memory>
+#endif
 #include <utility>
 
 #if GAIA_USE_STL_COMPATIBLE_CONTAINERS
@@ -6333,6 +6341,7 @@ namespace gaia {
 	} // namespace ecs
 } // namespace gaia
 
+#include <cstddef>
 #include <cstdint>
 
 namespace gaia {
@@ -6358,7 +6367,7 @@ namespace gaia {
 		constexpr auto get_index(const C& arr, typename C::const_reference item) {
 			const auto it = find(arr, item);
 			if (it == arr.end())
-				return BadIndex;
+				return (std::ptrdiff_t)BadIndex;
 
 			return GAIA_UTIL::distance(arr.begin(), it);
 		}
@@ -6734,8 +6743,6 @@ namespace gaia {
 
 namespace gaia {
 	namespace ecs {
-		using EntityId = uint32_t;
-		using EntityGenId = uint32_t;
 		struct Entity;
 
 		class Chunk;
@@ -6809,21 +6816,27 @@ namespace gaia {
 } // namespace gaia
 
 #include <cinttypes>
+#include <type_traits>
 
 namespace gaia {
 	namespace ecs {
-		using EntityId = uint32_t;
-		using EntityGenId = uint32_t;
+		using EntityInternalType = uint32_t;
+		using EntityId = EntityInternalType;
+		using EntityGenId = EntityInternalType;
 
 		struct Entity final {
-			using EntityInternalType = uint32_t;
-			static constexpr EntityInternalType IdBits = 20; // A million entities
-			static constexpr EntityInternalType GenBits = 12; // 4096 generations
-			static constexpr EntityInternalType IdMask = (1u << IdBits) - 1;
-			static constexpr EntityInternalType GenMask = (1u << GenBits) - 1;
+			static constexpr EntityInternalType IdBits = GAIA_ENTITY_IDBITS;
+			static constexpr EntityInternalType GenBits = GAIA_ENTITY_GENBITS;
+			static constexpr EntityInternalType IdMask = (uint32_t)(uint64_t(1) << IdBits) - 1;
+			static constexpr EntityInternalType GenMask = (uint32_t)(uint64_t(1) << GenBits) - 1;
+
+			using EntitySizeType = std::conditional_t<(IdBits+GenBits>32), uint64_t, uint32_t>;
+			
 			static_assert(
-					IdBits + GenBits <= sizeof(EntityInternalType) * 8,
-					"Entity IdBits and GenBits must fit inside EntityInternalType");
+					IdBits + GenBits <= 64,
+					"Entity IdBits and GenBits must fit inside 64 bits");
+			static_assert(IdBits <= 31, "Entity IdBits must be at most 31 bits long");
+			static_assert(GenBits > 10, "Entity GenBits is recommended to be at least 10 bits long");
 
 		private:
 			struct EntityData {
@@ -6835,7 +6848,7 @@ namespace gaia {
 
 			union {
 				EntityData data;
-				EntityInternalType val;
+				EntitySizeType val;
 			};
 
 		public:
@@ -6916,6 +6929,7 @@ namespace gaia {
 
 namespace gaia {
 	namespace ecs {
+		const ComponentInfo* GetComponentInfoFromArchetype(const Archetype& archetype, uint32_t componentIdx);
 		const ComponentInfoList& GetArchetypeComponentInfoList(const Archetype& archetype, ComponentType type);
 		const ComponentLookupList& GetArchetypeComponentLookupList(const Archetype& archetype, ComponentType type);
 
@@ -6938,7 +6952,7 @@ namespace gaia {
 			ChunkHeader header;
 			//! Archetype data. Entities first, followed by a lists of components.
 			uint8_t data[DATA_SIZE_NORESERVE];
-			
+
 			GAIA_MSVC_WARNING_PUSH()
 			GAIA_MSVC_WARNING_DISABLE(26495)
 
@@ -7121,8 +7135,8 @@ namespace gaia {
 			[[nodiscard]] GAIA_FORCEINLINE uint8_t* GetDataPtrRW(ComponentType type, uint32_t infoIndex) {
 				// Searching for a component that's not there! Programmer mistake.
 				GAIA_ASSERT(HasComponent_Internal(type, infoIndex));
-				// Empty components shouldn't be used for writing!
-				GAIA_ASSERT(info->properties.size != 0);
+				// Don't use this with empty components. It's impossible to write to them anyway.
+				GAIA_ASSERT(GetComponentInfoFromArchetype(header.owner, infoIndex)->properties.size != 0);
 
 				const auto& infos = GetArchetypeComponentLookupList(header.owner, type);
 				const auto componentIdx = (uint32_t)utils::get_index_if_unsafe(infos, [&](const auto& info) {
@@ -7422,7 +7436,7 @@ namespace gaia {
 			uint64_t chunkHash = 0;
 
 			//! Hash of components within this archetype - used for lookups
-			utils::direct_hash_key lookupHash {};
+			utils::direct_hash_key lookupHash{};
 			//! Hash of components within this archetype - used for matching
 			uint64_t matcherHash[ComponentType::CT_Count] = {0};
 			//! Archetype ID - used to address the archetype directly in the world's list or archetypes
@@ -7773,6 +7787,11 @@ namespace gaia {
 		[[nodiscard]] inline uint64_t GetArchetypeMatcherHash(const Archetype& archetype, ComponentType type) {
 			return archetype.GetMatcherHash(type);
 		}
+		[[nodiscard]] inline const ComponentInfo*
+		GetComponentInfoFromArchetype(const Archetype& archetype, uint32_t componentIdx) {
+			const auto& cc = GetComponentCache(archetype.GetWorld());
+			return cc.GetComponentInfoFromIdx(componentIdx);
+		}
 		[[nodiscard]] inline const ComponentInfoList&
 		GetArchetypeComponentInfoList(const Archetype& archetype, ComponentType type) {
 			return archetype.GetComponentInfoList(type);
@@ -7836,7 +7855,7 @@ namespace gaia {
 			bool m_sort = true;
 
 			template <typename T>
-			bool HasComponent_Internal([[maybe_unused]] ComponentIndexArray& arr) const {
+			bool HasComponent_Internal([[maybe_unused]] const ComponentIndexArray& arr) const {
 				if constexpr (std::is_same<T, Entity>::value) {
 					// Skip Entity input args
 					return true;
@@ -8610,9 +8629,8 @@ namespace gaia {
 
 			void RegisterArchetype(Archetype* archetype) {
 				// Make sure hashes were set already
-				GAIA_ASSERT(newArch->genericHash != 0);
-				GAIA_ASSERT(newArch->chunkHash != 0);
-				GAIA_ASSERT(newArch->lookupHash != 0);
+				GAIA_ASSERT(archetype==m_rootArchetype || (archetype->genericHash != 0 || archetype->chunkHash != 0));
+				GAIA_ASSERT(archetype==m_rootArchetype || archetype->lookupHash.hash != 0);
 
 				// Make sure the archetype is not registered yet
 				GAIA_ASSERT(!utils::has(m_archetypes, archetype));
@@ -8923,11 +8941,12 @@ namespace gaia {
 			*/
 			[[nodiscard]] Entity AllocateEntity() {
 				if (!m_freeEntities) {
+					const auto entityCnt = m_entities.size();
 					// We don't want to go out of range for new entities
-					GAIA_ASSERT(m_entities.size() < Entity::IdMask && "Trying to allocate too many entities!");
+					GAIA_ASSERT(entityCnt < Entity::IdMask && "Trying to allocate too many entities!");
 
 					m_entities.push_back({});
-					return {(EntityId)m_entities.size() - 1, 0};
+					return {(EntityId)entityCnt, 0};
 				} else {
 					// Make sure the list is not broken
 					GAIA_ASSERT(m_nextFreeEntity < m_entities.size() && "ECS recycle list broken!");
@@ -10283,7 +10302,7 @@ namespace gaia {
 				// Components
 				{
 					const auto* typeToRemove = GetComponentCache(m_world).GetComponentInfo<TComponent>();
-					GAIA_ASSERT(typesToRemove != nullptr);
+					GAIA_ASSERT(typeToRemove != nullptr);
 
 					// Component info
 					auto lastIndex = m_data.size();
