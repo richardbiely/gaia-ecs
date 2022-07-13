@@ -48,7 +48,7 @@ namespace gaia {
 			containers::darray<uint8_t> m_data;
 			uint32_t m_entities;
 
-			template <typename TEntity, typename TComponent>
+			template <typename TEntity, typename T>
 			void AddComponent_Internal(TEntity entity) {
 				// Entity
 				{
@@ -60,7 +60,7 @@ namespace gaia {
 				}
 				// Components
 				{
-					const auto* infoToAdd = GetComponentCache(m_world).GetOrCreateComponentInfo<TComponent>();
+					const auto* infoToAdd = GetComponentCache(m_world).GetOrCreateComponentInfo<T>();
 
 					// Component info
 					auto lastIndex = m_data.size();
@@ -89,34 +89,34 @@ namespace gaia {
 					mem = std::forward<U>(data);
 				}
 
-				index += sizeof(uint32_t) + sizeof(U);
+				index += (uint32_t)(sizeof(uint32_t) + sizeof(U));
 			}
 
-			template <typename TComponent>
-			void SetComponentNoEntityNoSize_Internal(TComponent&& data) {
+			template <typename T>
+			void SetComponentNoEntityNoSize_Internal(T&& data) {
 				// Data size
 				auto lastIndex = (uint32_t)m_data.size();
 
-				constexpr auto ComponentsSize = sizeof(TComponent);
+				constexpr auto ComponentsSize = sizeof(T);
 				constexpr auto ComponentTypeIdxSize = sizeof(uint32_t);
 				constexpr auto AddSize = ComponentsSize + ComponentTypeIdxSize;
 				m_data.resize(m_data.size() + AddSize);
 
 				// Component data
-				this->SetComponentFinal_Internal<TComponent>(lastIndex, std::forward<TComponent>(data));
+				this->SetComponentFinal_Internal<T>(lastIndex, std::forward<T>(data));
 			}
 
-			template <typename TComponent>
-			void SetComponentNoEntity_Internal(TComponent&& data) {
+			template <typename T>
+			void SetComponentNoEntity_Internal(T&& data) {
 				// Register components
-				(void)GetComponentCache(m_world).GetOrCreateComponentInfo<TComponent>();
+				(void)GetComponentCache(m_world).GetOrCreateComponentInfo<T>();
 
 				// Data
-				SetComponentNoEntityNoSize_Internal(std::forward<TComponent>(data));
+				SetComponentNoEntityNoSize_Internal(std::forward<T>(data));
 			}
 
-			template <typename TEntity, typename TComponent>
-			void SetComponent_Internal(TEntity entity, TComponent&& data) {
+			template <typename TEntity, typename T>
+			void SetComponent_Internal(TEntity entity, T&& data) {
 				// Entity
 				{
 					const auto lastIndex = m_data.size();
@@ -127,10 +127,10 @@ namespace gaia {
 				}
 
 				// Components
-				SetComponentNoEntity_Internal(std::forward<TComponent>(data));
+				SetComponentNoEntity_Internal(std::forward<T>(data));
 			}
 
-			template <typename TComponent>
+			template <typename T>
 			void RemoveComponent_Internal(Entity entity) {
 				// Entity
 				{
@@ -142,7 +142,7 @@ namespace gaia {
 				}
 				// Components
 				{
-					const auto* typeToRemove = GetComponentCache(m_world).GetComponentInfo<TComponent>();
+					const auto* typeToRemove = GetComponentCache(m_world).GetComponentInfo<T>();
 					GAIA_ASSERT(typeToRemove != nullptr);
 
 					// Component info
@@ -229,13 +229,13 @@ namespace gaia {
 			\return True if component could be added (e.g. maximum component count
 			on the archetype not exceeded). False otherwise.
 			*/
-			template <typename TComponent>
+			template <typename T>
 			bool AddComponent(Entity entity) {
-				using U = typename DeduceComponent<TComponent>::Type;
+				using U = typename DeduceComponent<T>::Type;
 				VerifyComponent<U>();
 
 				m_data.push_back(ADD_COMPONENT);
-				if constexpr (IsGenericComponent<TComponent>::value)
+				if constexpr (IsGenericComponent<T>::value)
 					m_data.push_back(ComponentType::CT_Generic);
 				else
 					m_data.push_back(ComponentType::CT_Chunk);
@@ -249,13 +249,13 @@ namespace gaia {
 			\return True if component could be added (e.g. maximum component count
 			on the archetype not exceeded). False otherwise.
 			*/
-			template <typename TComponent>
+			template <typename T>
 			bool AddComponent(TempEntity entity) {
-				using U = typename DeduceComponent<TComponent>::Type;
+				using U = typename DeduceComponent<T>::Type;
 				VerifyComponent<U>();
 
 				m_data.push_back(ADD_COMPONENT_TO_TEMPENTITY);
-				if constexpr (IsGenericComponent<TComponent>::value)
+				if constexpr (IsGenericComponent<T>::value)
 					m_data.push_back(ComponentType::CT_Generic);
 				else
 					m_data.push_back(ComponentType::CT_Chunk);
@@ -269,13 +269,13 @@ namespace gaia {
 			\return True if component could be added (e.g. maximum component count
 			on the archetype not exceeded). False otherwise.
 			*/
-			template <typename TComponent>
-			bool AddComponent(Entity entity, TComponent&& data) {
-				using U = typename DeduceComponent<TComponent>::Type;
+			template <typename T>
+			bool AddComponent(Entity entity, T&& data) {
+				using U = typename DeduceComponent<T>::Type;
 				VerifyComponent<U>();
 
 				m_data.push_back(ADD_COMPONENT_DATA);
-				if constexpr (IsGenericComponent<TComponent>::value)
+				if constexpr (IsGenericComponent<T>::value)
 					m_data.push_back(ComponentType::CT_Generic);
 				else
 					m_data.push_back(ComponentType::CT_Chunk);
@@ -290,13 +290,13 @@ namespace gaia {
 			\return True if component could be added (e.g. maximum component count
 			on the archetype not exceeded). False otherwise.
 			*/
-			template <typename TComponent>
-			bool AddComponent(TempEntity entity, TComponent&& data) {
-				using U = typename DeduceComponent<TComponent>::Type;
+			template <typename T>
+			bool AddComponent(TempEntity entity, T&& data) {
+				using U = typename DeduceComponent<T>::Type;
 				VerifyComponent<U>();
 
 				m_data.push_back(ADD_COMPONENT_TO_TEMPENTITY_DATA);
-				if constexpr (IsGenericComponent<TComponent>::value)
+				if constexpr (IsGenericComponent<T>::value)
 					m_data.push_back(ComponentType::CT_Generic);
 				else
 					m_data.push_back(ComponentType::CT_Chunk);
@@ -311,13 +311,13 @@ namespace gaia {
 			\warning Just like World::SetComponent, this function expects the
 			given component infos to exist. Undefined behavior otherwise.
 			*/
-			template <typename TComponent>
-			void SetComponent(Entity entity, TComponent&& data) {
-				using U = typename DeduceComponent<TComponent>::Type;
+			template <typename T>
+			void SetComponent(Entity entity, T&& data) {
+				using U = typename DeduceComponent<T>::Type;
 				VerifyComponent<U>();
 
 				m_data.push_back(SET_COMPONENT);
-				if constexpr (IsGenericComponent<TComponent>::value)
+				if constexpr (IsGenericComponent<T>::value)
 					m_data.push_back(ComponentType::CT_Generic);
 				else
 					m_data.push_back(ComponentType::CT_Chunk);
@@ -331,13 +331,13 @@ namespace gaia {
 			\warning Just like World::SetComponent, this function expects the
 			given component infos to exist. Undefined behavior otherwise.
 			*/
-			template <typename TComponent>
-			void SetComponent(TempEntity entity, TComponent&& data) {
-				using U = typename DeduceComponent<TComponent>::Type;
+			template <typename T>
+			void SetComponent(TempEntity entity, T&& data) {
+				using U = typename DeduceComponent<T>::Type;
 				VerifyComponent<U>();
 
 				m_data.push_back(SET_COMPONENT_FOR_TEMPENTITY);
-				if constexpr (IsGenericComponent<TComponent>::value)
+				if constexpr (IsGenericComponent<T>::value)
 					m_data.push_back(ComponentType::CT_Generic);
 				else
 					m_data.push_back(ComponentType::CT_Chunk);
@@ -347,13 +347,13 @@ namespace gaia {
 			/*!
 			Requests removal of a component from entity
 			*/
-			template <typename TComponent>
+			template <typename T>
 			void RemoveComponent(Entity entity) {
-				using U = typename DeduceComponent<TComponent>::Type;
+				using U = typename DeduceComponent<T>::Type;
 				VerifyComponent<U>();
 
 				m_data.push_back(REMOVE_COMPONENT);
-				if constexpr (IsGenericComponent<TComponent>::value)
+				if constexpr (IsGenericComponent<T>::value)
 					m_data.push_back(ComponentType::CT_Generic);
 				else
 					m_data.push_back(ComponentType::CT_Chunk);

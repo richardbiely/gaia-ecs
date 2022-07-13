@@ -153,9 +153,9 @@ namespace gaia {
 #endif
 			}
 
-			template <typename... TComponent>
+			template <typename... T>
 			void SetChangedFilter(ChangeFilterArray& arr, ComponentListData& componentListData) {
-				(SetChangedFilter_Internal<TComponent>(arr, componentListData), ...);
+				(SetChangedFilter_Internal<T>(arr, componentListData), ...);
 			}
 
 			//! Sorts internal component arrays by their type indices
@@ -492,42 +492,42 @@ namespace gaia {
 							 !m_listChangeFiltered[ComponentType::CT_Chunk].empty();
 			}
 
-			template <typename... TComponent>
+			template <typename... T>
 			GAIA_FORCEINLINE EntityQuery& Any() {
-				(AddComponent_Internal<TComponent>(ListType::LT_Any), ...);
+				(AddComponent_Internal<T>(ListType::LT_Any), ...);
 				return *this;
 			}
 
-			template <typename... TComponent>
+			template <typename... T>
 			GAIA_FORCEINLINE EntityQuery& All() {
-				(AddComponent_Internal<TComponent>(ListType::LT_All), ...);
+				(AddComponent_Internal<T>(ListType::LT_All), ...);
 				return *this;
 			}
 
-			template <typename... TComponent>
+			template <typename... T>
 			GAIA_FORCEINLINE EntityQuery& None() {
-				(AddComponent_Internal<TComponent>(ListType::LT_None), ...);
+				(AddComponent_Internal<T>(ListType::LT_None), ...);
 				return *this;
 			}
 
-			template <typename... TComponent>
+			template <typename... T>
 			bool HasAny() const {
-				return (HasComponent_Internal<TComponent>(ListType::LT_Any) || ...);
+				return (HasComponent_Internal<T>(ListType::LT_Any) || ...);
 			}
 
-			template <typename... TComponent>
+			template <typename... T>
 			bool HasAll() const {
-				return (HasComponent_Internal<TComponent>(ListType::LT_All) && ...);
+				return (HasComponent_Internal<T>(ListType::LT_All) && ...);
 			}
 
-			template <typename... TComponent>
+			template <typename... T>
 			bool HasNone() const {
-				return (!HasComponent_Internal<TComponent>(ListType::LT_None) && ...);
+				return (!HasComponent_Internal<T>(ListType::LT_None) && ...);
 			}
 
-			template <typename... TComponent>
+			template <typename... T>
 			GAIA_FORCEINLINE EntityQuery& WithChanged() {
-				(WithChanged_Internal<TComponent>(), ...);
+				(WithChanged_Internal<T>(), ...);
 				return *this;
 			}
 
