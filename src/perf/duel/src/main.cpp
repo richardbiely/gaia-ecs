@@ -1360,7 +1360,7 @@ PICOBENCH(BM_NonECS_BetterMemoryLayout).PICO_SETTINGS().label("OptimizedMemLayou
 // Memory organized in DoD style.
 // Performance target BM_ECS_WithSystems_Chunk.
 // "Groups" is there to simulate having items split into separate chunks similar to what ECS does.
-PICOBENCH_SUITE("BM_NonECS_DOD");
+PICOBENCH_SUITE("NonECS_DOD");
 PICOBENCH(BM_NonECS_DOD<1>).PICO_SETTINGS().baseline().label("Default");
 PICOBENCH(BM_NonECS_DOD<20>).PICO_SETTINGS().label("ChunkSize_20");
 PICOBENCH(BM_NonECS_DOD<40>).PICO_SETTINGS().label("ChunkSize_40");
