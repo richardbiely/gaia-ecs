@@ -1,6 +1,11 @@
 #pragma once
+#include "../../config/config.h"
+
 #include <cstddef>
 #include <initializer_list>
+#if !GAIA_DISABLE_ASSERTS
+	#include <memory>
+#endif
 #include <utility>
 
 #include "../../utils/iterator.h"

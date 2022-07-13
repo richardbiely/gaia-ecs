@@ -18,6 +18,7 @@
 
 namespace gaia {
 	namespace ecs {
+		const ComponentInfo* GetComponentInfoFromArchetype(const Archetype& archetype, uint32_t componentIdx);
 		const ComponentInfoList& GetArchetypeComponentInfoList(const Archetype& archetype, ComponentType type);
 		const ComponentLookupList& GetArchetypeComponentLookupList(const Archetype& archetype, ComponentType type);
 
@@ -40,7 +41,7 @@ namespace gaia {
 			ChunkHeader header;
 			//! Archetype data. Entities first, followed by a lists of components.
 			uint8_t data[DATA_SIZE_NORESERVE];
-			
+
 			GAIA_MSVC_WARNING_PUSH()
 			GAIA_MSVC_WARNING_DISABLE(26495)
 
@@ -223,6 +224,8 @@ namespace gaia {
 			[[nodiscard]] GAIA_FORCEINLINE uint8_t* GetDataPtrRW(ComponentType type, uint32_t infoIndex) {
 				// Searching for a component that's not there! Programmer mistake.
 				GAIA_ASSERT(HasComponent_Internal(type, infoIndex));
+				// Don't use this with empty components. It's impossible to write to them anyway.
+				GAIA_ASSERT(GetComponentInfoFromArchetype(header.owner, infoIndex)->properties.size != 0);
 
 				const auto& infos = GetArchetypeComponentLookupList(header.owner, type);
 				const auto componentIdx = (uint32_t)utils::get_index_if_unsafe(infos, [&](const auto& info) {

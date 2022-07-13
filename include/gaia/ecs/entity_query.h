@@ -56,7 +56,7 @@ namespace gaia {
 			bool m_sort = true;
 
 			template <typename T>
-			bool HasComponent_Internal([[maybe_unused]] ComponentIndexArray& arr) const {
+			bool HasComponent_Internal([[maybe_unused]] const ComponentIndexArray& arr) const {
 				if constexpr (std::is_same<T, Entity>::value) {
 					// Skip Entity input args
 					return true;
