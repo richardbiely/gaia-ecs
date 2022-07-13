@@ -164,7 +164,7 @@ namespace gaia {
 
 					const auto infoIndex = utils::type_info::index<U>();
 
-					if constexpr (IsGenericComponent<U>::value)
+					if constexpr (IsGenericComponent<T>::value)
 						return std::span<UConst>{(UConst*)GetDataPtr(ComponentType::CT_Generic, infoIndex), GetItemCount()};
 					else
 						return std::span<UConst>{(UConst*)GetDataPtr(ComponentType::CT_Chunk, infoIndex), 1};
@@ -191,7 +191,7 @@ namespace gaia {
 
 				const auto infoIndex = utils::type_info::index<U>();
 
-				if constexpr (IsGenericComponent<U>::value)
+				if constexpr (IsGenericComponent<T>::value)
 					return std::span<U>{(U*)GetDataPtrRW(ComponentType::CT_Generic, infoIndex), GetItemCount()};
 				else
 					return std::span<U>{(U*)GetDataPtrRW(ComponentType::CT_Chunk, infoIndex), 1};
@@ -257,7 +257,7 @@ namespace gaia {
 				using UOriginal = typename DeduceComponent<T>::TypeOriginal;
 				static_assert(IsReadOnlyType<UOriginal>::value);
 
-				return utils::auto_view_policy_get<std::add_const_t<U>>{View_Internal<U>()};
+				return utils::auto_view_policy_get<std::add_const_t<U>>{View_Internal<T>()};
 			}
 
 			/*!
@@ -269,7 +269,7 @@ namespace gaia {
 				using U = typename DeduceComponent<T>::Type;
 				static_assert(!std::is_same<U, Entity>::value);
 
-				return utils::auto_view_policy_set<U>{ViewRW_Internal<U>()};
+				return utils::auto_view_policy_set<U>{ViewRW_Internal<T>()};
 			}
 
 			/*!
@@ -315,7 +315,7 @@ namespace gaia {
 						IsGenericComponent<T>::value,
 						"SetComponent providing an index in chunk is only available for generic components");
 
-				ViewRW<U>()[index] = std::forward<U>(value);
+				ViewRW<T>()[index] = std::forward<U>(value);
 			}
 
 			template <typename T>
@@ -326,7 +326,7 @@ namespace gaia {
 						!IsGenericComponent<T>::value,
 						"SetComponent not providing an index in chunk is only available for non-generic components");
 
-				ViewRW<U>()[0] = std::forward<U>(value);
+				ViewRW<T>()[0] = std::forward<U>(value);
 			}
 
 			//----------------------------------------------------------------------
