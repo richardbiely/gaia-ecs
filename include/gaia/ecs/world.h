@@ -36,7 +36,7 @@ namespace gaia {
 					m_pChunk->template SetComponent<T>(m_idx, std::forward<U>(data));
 					return *this;
 				} else {
-					using U = typename detail::ExtractComponentType_Generic<T>::Type;
+					using U = typename detail::ExtractComponentType_NonGeneric<T>::Type;
 					m_pChunk->template SetComponent<T>(std::forward<U>(data));
 					return *this;
 				}
