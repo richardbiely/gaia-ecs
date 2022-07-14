@@ -3,7 +3,6 @@
 #include <cinttypes>
 #include <type_traits>
 
-
 namespace gaia {
 	namespace ecs {
 		using EntityInternalType = uint32_t;

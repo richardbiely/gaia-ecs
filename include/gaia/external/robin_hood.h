@@ -1097,7 +1097,7 @@ namespace robin_hood {
 				using value_type = typename Self::value_type;
 				using reference = typename std::conditional<IsConst, value_type const&, value_type&>::type;
 				using pointer = typename std::conditional<IsConst, value_type const*, value_type*>::type;
-				using iterator_category = gaia::utils::forward_iterator_tag;
+				using iterator_category = GAIA_UTIL::forward_iterator_tag;
 
 				// default constructed iterator can be compared to itself, but WON'T return true when
 				// compared to end().
@@ -1297,7 +1297,7 @@ namespace robin_hood {
 				// nothing found!
 				return mMask == 0 ? 0
 													: static_cast<size_t>(
-																gaia::utils::distance(mKeyVals, reinterpret_cast_no_cast_align_warning<Node*>(mInfo)));
+																GAIA_UTIL::distance(mKeyVals, reinterpret_cast_no_cast_align_warning<Node*>(mInfo)));
 			}
 
 			void cloneData(const Table& o) {
