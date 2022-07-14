@@ -10,7 +10,7 @@ namespace gaia {
 		//! Maximum number of components on archetype
 		constexpr uint32_t MAX_COMPONENTS_PER_ARCHETYPE = 32u;
 
-		[[nodiscard]] constexpr bool VerityArchetypeComponentCount(const uint32_t count) {
+		[[nodiscard]] constexpr bool VerityArchetypeComponentCount(uint32_t count) {
 			return count <= MAX_COMPONENTS_PER_ARCHETYPE;
 		}
 

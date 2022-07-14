@@ -75,8 +75,8 @@ namespace gaia {
 				return index;
 			}
 
-			void RemoveEntity(const uint32_t index, containers::darray<EntityContainer>& entities) {
-				// Ignore request on empty chunks
+			void RemoveEntity(uint32_t index, containers::darray<EntityContainer>& entities) {
+				// Ignore requests on empty chunks
 				if (header.items.count == 0)
 					return;
 
