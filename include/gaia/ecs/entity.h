@@ -1,7 +1,8 @@
 #pragma once
+#include "../config/config.h"
 #include <cinttypes>
 #include <type_traits>
-#include "../config/config.h"
+
 
 namespace gaia {
 	namespace ecs {
@@ -15,11 +16,9 @@ namespace gaia {
 			static constexpr EntityInternalType IdMask = (uint32_t)(uint64_t(1) << IdBits) - 1;
 			static constexpr EntityInternalType GenMask = (uint32_t)(uint64_t(1) << GenBits) - 1;
 
-			using EntitySizeType = std::conditional_t<(IdBits+GenBits>32), uint64_t, uint32_t>;
-			
-			static_assert(
-					IdBits + GenBits <= 64,
-					"Entity IdBits and GenBits must fit inside 64 bits");
+			using EntitySizeType = std::conditional_t<(IdBits + GenBits > 32), uint64_t, uint32_t>;
+
+			static_assert(IdBits + GenBits <= 64, "Entity IdBits and GenBits must fit inside 64 bits");
 			static_assert(IdBits <= 31, "Entity IdBits must be at most 31 bits long");
 			static_assert(GenBits > 10, "Entity GenBits is recommended to be at least 10 bits long");
 
@@ -101,6 +100,9 @@ namespace gaia {
 		struct EntityContainer {
 			//! Chunk the entity currently resides in
 			Chunk* pChunk;
+#if !GAIA_64
+			uint32_t pChunk_padding;
+#endif
 			//! For allocated entity: Index of entity within chunk.
 			//! For deleted entity: Index of the next entity in the implicit list.
 			uint32_t idx : 31;
