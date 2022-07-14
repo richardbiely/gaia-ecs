@@ -61,7 +61,7 @@
 #endif
 
 //------------------------------------------------------------------------------
-// Architecture and architecture features
+// Architecture features
 //------------------------------------------------------------------------------
 #define GAIA_64 0
 #if defined(_WIN64) || defined(_M_X64) || defined(_M_AMD64) || defined(__x86_64) || defined(__amd64) ||                \
@@ -107,14 +107,10 @@
 
 //------------------------------------------------------------------------------
 
-#if GAIA_DEBUG
-	#define GAIA_FORCEINLINE
+#if GAIA_COMPILER_MSVC || GAIA_COMPILER_ICC
+	#define GAIA_FORCEINLINE __forceinline
 #else
-	#if GAIA_COMPILER_MSVC || GAIA_COMPILER_ICC
-		#define GAIA_FORCEINLINE __forceinline
-	#else
-		#define GAIA_FORCEINLINE __attribute__((always_inline))
-	#endif
+	#define GAIA_FORCEINLINE __attribute__((always_inline))
 #endif
 
 //------------------------------------------------------------------------------
@@ -135,23 +131,6 @@
 	#define GAIA_API GAIA_EXPORT
 #else
 	#define GAIA_API
-#endif
-
-//------------------------------------------------------------------------------
-// Features
-//------------------------------------------------------------------------------
-#if defined(GAIA_PROFILER)
-// ...
-#else
-// ...
-#endif
-
-#if defined(GAIA_DISABLE_ASSERTS)
-	#undef GAIA_ASSERT
-	#define GAIA_ASSERT(condition) (void(0))
-#elif !defined(GAIA_ASSERT)
-	#include <cassert>
-	#define GAIA_ASSERT(condition) assert(condition)
 #endif
 
 //------------------------------------------------------------------------------

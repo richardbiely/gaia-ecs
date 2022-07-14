@@ -3,7 +3,7 @@
 #include "version.h"
 
 //------------------------------------------------------------------------------
-// General settings
+// Entity settings
 //------------------------------------------------------------------------------
 
 // Check entity.h IdBits and GenBits for more info
@@ -14,15 +14,8 @@
 // General settings
 //------------------------------------------------------------------------------
 
-//! If enabled, additional debug and verification code is used which
-//! slows things down but enables better security and diagnostics.
-//! Suitable for debug builds first and foremost. Therefore, it is
-//! enabled by default for debud builds.
-#if !defined(NDEBUG) || defined(_DEBUG)
-	#define GAIA_DEBUG 1
-#else
-	#define GAIA_DEBUG 0
-#endif
+//! If enabled, GAIA_DEBUG is defined despite using a "Release" bulid configuration for example
+#define GAIA_FORCE_DEBUG 0
 //! If enabled, no asserts are thrown even in debug builds
 #define GAIA_DISABLE_ASSERTS 0
 
@@ -36,13 +29,7 @@
 //! If enabled, STL containers are going to be used by the framework.
 #define GAIA_USE_STL_CONTAINERS 0
 //! If enabled, gaia containers stay compatible with STL by sticking to STL iterators.
-// TODO: FIXME: 0 won't work until all std utility functions are replaced with custom onces
 #define GAIA_USE_STL_COMPATIBLE_CONTAINERS 0
-#if GAIA_USE_STL_CONTAINERS || GAIA_USE_STL_COMPATIBLE_CONTAINERS
-	#define GAIA_UTIL std
-#else
-	#define GAIA_UTIL gaia::utils
-#endif
 
 //------------------------------------------------------------------------------
 // TODO features
@@ -58,26 +45,8 @@
 // Debug features
 //------------------------------------------------------------------------------
 
-#define GAIA_ECS_CHUNK_ALLOCATOR_CLEAN_MEMORY_WITH_GARBAGE GAIA_DEBUG
-#define GAIA_ECS_VALIDATE_CHUNKS GAIA_DEBUG
-#define GAIA_ECS_VALIDATE_ENTITY_LIST GAIA_DEBUG
+#define GAIA_ECS_CHUNK_ALLOCATOR_CLEAN_MEMORY_WITH_GARBAGE (GAIA_DEBUG || GAIA_FORCE_DEBUG)
+#define GAIA_ECS_VALIDATE_CHUNKS (GAIA_DEBUG || GAIA_FORCE_DEBUG)
+#define GAIA_ECS_VALIDATE_ENTITY_LIST (GAIA_DEBUG || GAIA_FORCE_DEBUG)
 
-#if defined(GAIA_ECS_DIAGS)
-	#undef GAIA_ECS_DIAG_ARCHETYPES
-	#undef GAIA_ECS_DIAG_REGISTERED_TYPES
-	#undef GAIA_ECS_DIAG_DELETED_ENTITIES
-
-	#define GAIA_ECS_DIAG_ARCHETYPES 1
-	#define GAIA_ECS_DIAG_REGISTERED_TYPES 1
-	#define GAIA_ECS_DIAG_DELETED_ENTITIES 1
-#else
-	#if !defined(GAIA_ECS_DIAG_ARCHETYPES)
-		#define GAIA_ECS_DIAG_ARCHETYPES 0
-	#endif
-	#if !defined(GAIA_ECS_DIAG_REGISTERED_TYPES)
-		#define GAIA_ECS_DIAG_REGISTERED_TYPES 0
-	#endif
-	#if !defined(GAIA_ECS_DIAG_DELETED_ENTITIES)
-		#define GAIA_ECS_DIAG_DELETED_ENTITIES 0
-	#endif
-#endif
+#include "config_core_end.h"
