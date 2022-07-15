@@ -61,7 +61,7 @@
 #endif
 
 //------------------------------------------------------------------------------
-// Architecture and architecture features
+// Architecture features
 //------------------------------------------------------------------------------
 #define GAIA_64 0
 #if defined(_WIN64) || defined(_M_X64) || defined(_M_AMD64) || defined(__x86_64) || defined(__amd64) ||                \
@@ -107,14 +107,10 @@
 
 //------------------------------------------------------------------------------
 
-#if GAIA_DEBUG
-	#define GAIA_FORCEINLINE
+#if GAIA_COMPILER_MSVC || GAIA_COMPILER_ICC
+	#define GAIA_FORCEINLINE __forceinline
 #else
-	#if GAIA_COMPILER_MSVC || GAIA_COMPILER_ICC
-		#define GAIA_FORCEINLINE __forceinline
-	#else
-		#define GAIA_FORCEINLINE __attribute__((always_inline))
-	#endif
+	#define GAIA_FORCEINLINE __attribute__((always_inline))
 #endif
 
 //------------------------------------------------------------------------------
@@ -135,23 +131,6 @@
 	#define GAIA_API GAIA_EXPORT
 #else
 	#define GAIA_API
-#endif
-
-//------------------------------------------------------------------------------
-// Features
-//------------------------------------------------------------------------------
-#if defined(GAIA_PROFILER)
-// ...
-#else
-// ...
-#endif
-
-#if defined(GAIA_DISABLE_ASSERTS)
-	#undef GAIA_ASSERT
-	#define GAIA_ASSERT(condition) (void(0))
-#elif !defined(GAIA_ASSERT)
-	#include <cassert>
-	#define GAIA_ASSERT(condition) assert(condition)
 #endif
 
 //------------------------------------------------------------------------------
@@ -209,7 +188,7 @@
 #define GAIA_VERSION_PATCH 0
 
 //------------------------------------------------------------------------------
-// General settings
+// Entity settings
 //------------------------------------------------------------------------------
 
 // Check entity.h IdBits and GenBits for more info
@@ -220,15 +199,8 @@
 // General settings
 //------------------------------------------------------------------------------
 
-//! If enabled, additional debug and verification code is used which
-//! slows things down but enables better security and diagnostics.
-//! Suitable for debug builds first and foremost. Therefore, it is
-//! enabled by default for debud builds.
-#if !defined(NDEBUG) || defined(_DEBUG)
-	#define GAIA_DEBUG 1
-#else
-	#define GAIA_DEBUG 0
-#endif
+//! If enabled, GAIA_DEBUG is defined despite using a "Release" bulid configuration for example
+#define GAIA_FORCE_DEBUG 0
 //! If enabled, no asserts are thrown even in debug builds
 #define GAIA_DISABLE_ASSERTS 0
 
@@ -242,13 +214,7 @@
 //! If enabled, STL containers are going to be used by the framework.
 #define GAIA_USE_STL_CONTAINERS 0
 //! If enabled, gaia containers stay compatible with STL by sticking to STL iterators.
-// TODO: FIXME: 0 won't work until all std utility functions are replaced with custom onces
 #define GAIA_USE_STL_COMPATIBLE_CONTAINERS 0
-#if GAIA_USE_STL_CONTAINERS || GAIA_USE_STL_COMPATIBLE_CONTAINERS
-	#define GAIA_UTIL std
-#else
-	#define GAIA_UTIL gaia::utils
-#endif
 
 //------------------------------------------------------------------------------
 // TODO features
@@ -264,9 +230,49 @@
 // Debug features
 //------------------------------------------------------------------------------
 
-#define GAIA_ECS_CHUNK_ALLOCATOR_CLEAN_MEMORY_WITH_GARBAGE GAIA_DEBUG
-#define GAIA_ECS_VALIDATE_CHUNKS GAIA_DEBUG
-#define GAIA_ECS_VALIDATE_ENTITY_LIST GAIA_DEBUG
+#define GAIA_ECS_CHUNK_ALLOCATOR_CLEAN_MEMORY_WITH_GARBAGE (GAIA_DEBUG || GAIA_FORCE_DEBUG)
+#define GAIA_ECS_VALIDATE_CHUNKS (GAIA_DEBUG || GAIA_FORCE_DEBUG)
+#define GAIA_ECS_VALIDATE_ENTITY_LIST (GAIA_DEBUG || GAIA_FORCE_DEBUG)
+
+//------------------------------------------------------------------------------
+// DO NOT MODIFY THIS FILE
+//------------------------------------------------------------------------------
+
+//------------------------------------------------------------------------------
+// General settings
+//------------------------------------------------------------------------------
+
+#if GAIA_USE_STL_CONTAINERS && !GAIA_USE_STL_COMPATIBLE_CONTAINERS
+	#undef GAIA_USE_STL_COMPATIBLE_CONTAINERS
+	#define GAIA_USE_STL_COMPATIBLE_CONTAINERS 1
+#endif
+#if GAIA_USE_STL_CONTAINERS || GAIA_USE_STL_COMPATIBLE_CONTAINERS
+	#define GAIA_UTIL std
+#else
+	#define GAIA_UTIL gaia::utils
+#endif
+
+//------------------------------------------------------------------------------
+// Debug features
+//------------------------------------------------------------------------------
+
+//! If enabled, additional debug and verification code is used which
+//! slows things down but enables better security and diagnostics.
+//! Suitable for debug builds first and foremost. Therefore, it is
+//! enabled by default for debud builds.
+#if !defined(NDEBUG) || defined(_DEBUG) || GAIA_FORCE_DEBUG
+	#define GAIA_DEBUG 1
+#else
+	#define GAIA_DEBUG 0
+#endif
+
+#if defined(GAIA_DISABLE_ASSERTS)
+	#undef GAIA_ASSERT
+	#define GAIA_ASSERT(condition) (void(0))
+#elif !defined(GAIA_ASSERT)
+	#include <cassert>
+	#define GAIA_ASSERT(condition) assert(condition)
+#endif
 
 #if defined(GAIA_ECS_DIAGS)
 	#undef GAIA_ECS_DIAG_ARCHETYPES
@@ -286,6 +292,26 @@
 	#if !defined(GAIA_ECS_DIAG_DELETED_ENTITIES)
 		#define GAIA_ECS_DIAG_DELETED_ENTITIES 0
 	#endif
+#endif
+
+#if !defined(GAIA_ECS_CHUNK_ALLOCATOR_CLEAN_MEMORY_WITH_GARBAGE)
+	#define GAIA_ECS_CHUNK_ALLOCATOR_CLEAN_MEMORY_WITH_GARBAGE GAIA_DEBUG
+#endif
+#if !defined(GAIA_ECS_VALIDATE_CHUNKS)
+	#define GAIA_ECS_VALIDATE_CHUNKS GAIA_DEBUG
+#endif
+#if !defined(GAIA_ECS_VALIDATE_ENTITY_LIST)
+	#define GAIA_ECS_VALIDATE_ENTITY_LIST GAIA_DEBUG
+#endif
+
+//------------------------------------------------------------------------------
+// Profiling features
+//------------------------------------------------------------------------------
+
+#if defined(GAIA_PROFILER)
+// ...
+#else
+// ...
 #endif
 
 #include <cstdio> // vsnprintf, sscanf, printf
@@ -1638,206 +1664,6 @@ namespace gaia {
 
 #endif
 
-#include <cstring>
-#include <type_traits>
-
-namespace gaia {
-	namespace utils {
-		/*!
-		Align a number to the requested byte alignment
-		\param num Number to align
-		\param alignment Requested alignment
-		\return Aligned number
-		*/
-		template <typename T, typename V>
-		constexpr T align(T num, V alignment) {
-			return alignment == 0 ? num : ((num + (alignment - 1)) / alignment) * alignment;
-		}
-
-		/*!
-		Align a number to the requested byte alignment
-		\tparam alignment Requested alignment in bytes
-		\param num Number to align
-		\return Aligned number
-		*/
-		template <size_t alignment, typename T>
-		constexpr T align(T num) {
-			return ((num + (alignment - 1)) & ~(alignment - 1));
-		}
-
-		/*!
-		Fill memory with 32 bit integer value
-		\param dest pointer to destination
-		\param num number of items to be filled (not data size!)
-		\param data 32bit data to be filled
-		*/
-		template <typename T>
-		void fill_array(T* dest, int num, const T& data) {
-			for (int n = 0; n < num; n++)
-				((T*)dest)[n] = data;
-		}
-
-		/*!
-		Convert form type \tparam From to type \tparam To without causing an
-		undefined behavior.
-
-		E.g.:
-		int i = {};
-		float f = *(*float)&i; // undefined behavior
-		memcpy(&f, &i, sizeof(float)); // okay
-		*/
-		template <
-				typename To, typename From,
-				typename = std::enable_if_t<
-						(sizeof(To) == sizeof(From)) && std::is_trivially_copyable_v<To> && std::is_trivially_copyable_v<From>>>
-		To bit_cast(const From& from) {
-			To to;
-			memmove(&to, &from, sizeof(To));
-			return to;
-		}
-
-		/*!
-		Pointer wrapper for reading memory in defined way (not causing undefined
-		behavior).
-		*/
-		template <typename T>
-		class const_unaligned_pointer {
-			const uint8_t* from;
-
-		public:
-			const_unaligned_pointer(): from(nullptr) {}
-			const_unaligned_pointer(const void* p): from((const uint8_t*)p) {}
-
-			T operator*() const {
-				T to;
-				memmove(&to, from, sizeof(T));
-				return to;
-			}
-
-			T operator[](ptrdiff_t d) const {
-				return *(*this + d);
-			}
-
-			const_unaligned_pointer operator+(ptrdiff_t d) const {
-				return const_unaligned_pointer(from + d * sizeof(T));
-			}
-			const_unaligned_pointer operator-(ptrdiff_t d) const {
-				return const_unaligned_pointer(from - d * sizeof(T));
-			}
-		};
-
-		/*!
-		Pointer wrapper for writing memory in defined way (not causing undefined
-		behavior).
-		*/
-		template <typename T>
-		class unaligned_ref {
-			void* m_p;
-
-		public:
-			unaligned_ref(void* p): m_p(p) {}
-
-			T operator=(const T& rvalue) {
-				memmove(m_p, &rvalue, sizeof(T));
-				return rvalue;
-			}
-
-			operator T() const {
-				T tmp;
-				memmove(&tmp, m_p, sizeof(T));
-				return tmp;
-			}
-		};
-
-		/*!
-		Pointer wrapper for writing memory in defined way (not causing undefined
-		behavior).
-		*/
-		template <typename T>
-		class unaligned_pointer {
-			uint8_t* m_p;
-
-		public:
-			unaligned_pointer(): m_p(nullptr) {}
-			unaligned_pointer(void* p): m_p((uint8_t*)p) {}
-
-			unaligned_ref<T> operator*() const {
-				return unaligned_ref<T>(m_p);
-			}
-
-			unaligned_ref<T> operator[](ptrdiff_t d) const {
-				return *(*this + d);
-			}
-
-			unaligned_pointer operator+(ptrdiff_t d) const {
-				return unaligned_pointer(m_p + d * sizeof(T));
-			}
-			unaligned_pointer operator-(ptrdiff_t d) const {
-				return unaligned_pointer(m_p - d * sizeof(T));
-			}
-		};
-	} // namespace utils
-} // namespace gaia
-
-#include <cinttypes>
-#include <cstdint>
-#include <type_traits>
-#include <utility>
-
-#include <cinttypes>
-#include <type_traits>
-
-#define USE_HASHMAP GAIA_USE_STL_CONTAINERS
-
-#if USE_HASHMAP == 1
-	#include <unordered_map>
-namespace gaia {
-	namespace containers {
-		template <typename Key, typename Data>
-		using map = std::unordered_map<Key, Data>;
-	} // namespace containers
-} // namespace gaia
-#elif USE_HASHMAP == 0
-	//                 ______  _____                 ______                _________
-//  ______________ ___  /_ ___(_)_______         ___  /_ ______ ______ ______  /
-//  __  ___/_  __ \__  __ \__  / __  __ \        __  __ \_  __ \_  __ \_  __  /
-//  _  /    / /_/ /_  /_/ /_  /  _  / / /        _  / / // /_/ // /_/ // /_/ /
-//  /_/     \____/ /_.___/ /_/   /_/ /_/ ________/_/ /_/ \____/ \____/ \__,_/
-//                                      _/_____/
-//
-// Fast & memory efficient hashtable based on robin hood hashing for C++11/14/17/20
-// https://github.com/martinus/robin-hood-hashing
-//
-// Licensed under the MIT License <http://opensource.org/licenses/MIT>.
-// SPDX-License-Identifier: MIT
-// Copyright (c) 2018-2021 Martin Ankerl <http://martin.ankerl.com>
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
-
-#ifndef ROBIN_HOOD_H_INCLUDED
-#define ROBIN_HOOD_H_INCLUDED
-
-// see https://semver.org/
-#define ROBIN_HOOD_VERSION_MAJOR 3 // for incompatible API changes
-#define ROBIN_HOOD_VERSION_MINOR 11 // for adding functionality in a backwards-compatible manner
-#define ROBIN_HOOD_VERSION_PATCH 5 // for backwards-compatible bug fixes
-
 #include <cstdint>
 #include <type_traits>
 #if GAIA_USE_STL_CONTAINERS
@@ -2037,6 +1863,206 @@ struct std::hash<gaia::utils::direct_hash_key> {
 	}
 };
 #endif
+
+#include <cstring>
+#include <type_traits>
+
+namespace gaia {
+	namespace utils {
+		/*!
+		Align a number to the requested byte alignment
+		\param num Number to align
+		\param alignment Requested alignment
+		\return Aligned number
+		*/
+		template <typename T, typename V>
+		constexpr T align(T num, V alignment) {
+			return alignment == 0 ? num : ((num + (alignment - 1)) / alignment) * alignment;
+		}
+
+		/*!
+		Align a number to the requested byte alignment
+		\tparam alignment Requested alignment in bytes
+		\param num Number to align
+		\return Aligned number
+		*/
+		template <size_t alignment, typename T>
+		constexpr T align(T num) {
+			return ((num + (alignment - 1)) & ~(alignment - 1));
+		}
+
+		/*!
+		Fill memory with 32 bit integer value
+		\param dest pointer to destination
+		\param num number of items to be filled (not data size!)
+		\param data 32bit data to be filled
+		*/
+		template <typename T>
+		void fill_array(T* dest, int num, const T& data) {
+			for (int n = 0; n < num; n++)
+				((T*)dest)[n] = data;
+		}
+
+		/*!
+		Convert form type \tparam From to type \tparam To without causing an
+		undefined behavior.
+
+		E.g.:
+		int i = {};
+		float f = *(*float)&i; // undefined behavior
+		memcpy(&f, &i, sizeof(float)); // okay
+		*/
+		template <
+				typename To, typename From,
+				typename = std::enable_if_t<
+						(sizeof(To) == sizeof(From)) && std::is_trivially_copyable_v<To> && std::is_trivially_copyable_v<From>>>
+		To bit_cast(const From& from) {
+			To to;
+			memmove(&to, &from, sizeof(To));
+			return to;
+		}
+
+		/*!
+		Pointer wrapper for reading memory in defined way (not causing undefined
+		behavior).
+		*/
+		template <typename T>
+		class const_unaligned_pointer {
+			const uint8_t* from;
+
+		public:
+			const_unaligned_pointer(): from(nullptr) {}
+			const_unaligned_pointer(const void* p): from((const uint8_t*)p) {}
+
+			T operator*() const {
+				T to;
+				memmove(&to, from, sizeof(T));
+				return to;
+			}
+
+			T operator[](ptrdiff_t d) const {
+				return *(*this + d);
+			}
+
+			const_unaligned_pointer operator+(ptrdiff_t d) const {
+				return const_unaligned_pointer(from + d * sizeof(T));
+			}
+			const_unaligned_pointer operator-(ptrdiff_t d) const {
+				return const_unaligned_pointer(from - d * sizeof(T));
+			}
+		};
+
+		/*!
+		Pointer wrapper for writing memory in defined way (not causing undefined
+		behavior).
+		*/
+		template <typename T>
+		class unaligned_ref {
+			void* m_p;
+
+		public:
+			unaligned_ref(void* p): m_p(p) {}
+
+			T operator=(const T& rvalue) {
+				memmove(m_p, &rvalue, sizeof(T));
+				return rvalue;
+			}
+
+			operator T() const {
+				T tmp;
+				memmove(&tmp, m_p, sizeof(T));
+				return tmp;
+			}
+		};
+
+		/*!
+		Pointer wrapper for writing memory in defined way (not causing undefined
+		behavior).
+		*/
+		template <typename T>
+		class unaligned_pointer {
+			uint8_t* m_p;
+
+		public:
+			unaligned_pointer(): m_p(nullptr) {}
+			unaligned_pointer(void* p): m_p((uint8_t*)p) {}
+
+			unaligned_ref<T> operator*() const {
+				return unaligned_ref<T>(m_p);
+			}
+
+			unaligned_ref<T> operator[](ptrdiff_t d) const {
+				return *(*this + d);
+			}
+
+			unaligned_pointer operator+(ptrdiff_t d) const {
+				return unaligned_pointer(m_p + d * sizeof(T));
+			}
+			unaligned_pointer operator-(ptrdiff_t d) const {
+				return unaligned_pointer(m_p - d * sizeof(T));
+			}
+		};
+	} // namespace utils
+} // namespace gaia
+
+#include <cinttypes>
+#include <cstdint>
+#include <type_traits>
+#include <utility>
+
+#include <cinttypes>
+#include <type_traits>
+
+#define USE_HASHMAP GAIA_USE_STL_CONTAINERS
+
+#if USE_HASHMAP == 1
+	#include <unordered_map>
+namespace gaia {
+	namespace containers {
+		template <typename Key, typename Data>
+		using map = std::unordered_map<Key, Data>;
+	} // namespace containers
+} // namespace gaia
+#elif USE_HASHMAP == 0
+	//                 ______  _____                 ______                _________
+//  ______________ ___  /_ ___(_)_______         ___  /_ ______ ______ ______  /
+//  __  ___/_  __ \__  __ \__  / __  __ \        __  __ \_  __ \_  __ \_  __  /
+//  _  /    / /_/ /_  /_/ /_  /  _  / / /        _  / / // /_/ // /_/ // /_/ /
+//  /_/     \____/ /_.___/ /_/   /_/ /_/ ________/_/ /_/ \____/ \____/ \__,_/
+//                                      _/_____/
+//
+// Fast & memory efficient hashtable based on robin hood hashing for C++11/14/17/20
+// https://github.com/martinus/robin-hood-hashing
+//
+// Licensed under the MIT License <http://opensource.org/licenses/MIT>.
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2018-2021 Martin Ankerl <http://martin.ankerl.com>
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+#ifndef ROBIN_HOOD_H_INCLUDED
+#define ROBIN_HOOD_H_INCLUDED
+
+// see https://semver.org/
+#define ROBIN_HOOD_VERSION_MAJOR 3 // for incompatible API changes
+#define ROBIN_HOOD_VERSION_MINOR 11 // for adding functionality in a backwards-compatible manner
+#define ROBIN_HOOD_VERSION_PATCH 5 // for backwards-compatible bug fixes
 
 #if GAIA_USE_STL_COMPATIBLE_CONTAINERS
 	#include <algorithm>
@@ -3646,7 +3672,7 @@ namespace robin_hood {
 				using value_type = typename Self::value_type;
 				using reference = typename std::conditional<IsConst, value_type const&, value_type&>::type;
 				using pointer = typename std::conditional<IsConst, value_type const*, value_type*>::type;
-				using iterator_category = gaia::utils::forward_iterator_tag;
+				using iterator_category = GAIA_UTIL::forward_iterator_tag;
 
 				// default constructed iterator can be compared to itself, but WON'T return true when
 				// compared to end().
@@ -3846,7 +3872,7 @@ namespace robin_hood {
 				// nothing found!
 				return mMask == 0 ? 0
 													: static_cast<size_t>(
-																gaia::utils::distance(mKeyVals, reinterpret_cast_no_cast_align_warning<Node*>(mInfo)));
+																GAIA_UTIL::distance(mKeyVals, reinterpret_cast_no_cast_align_warning<Node*>(mInfo)));
 			}
 
 			void cloneData(const Table& o) {
@@ -4964,7 +4990,7 @@ namespace gaia {
 		//! Maximum number of components on archetype
 		constexpr uint32_t MAX_COMPONENTS_PER_ARCHETYPE = 32u;
 
-		[[nodiscard]] constexpr bool VerityArchetypeComponentCount(const uint32_t count) {
+		[[nodiscard]] constexpr bool VerityArchetypeComponentCount(uint32_t count) {
 			return count <= MAX_COMPONENTS_PER_ARCHETYPE;
 		}
 
@@ -6830,11 +6856,9 @@ namespace gaia {
 			static constexpr EntityInternalType IdMask = (uint32_t)(uint64_t(1) << IdBits) - 1;
 			static constexpr EntityInternalType GenMask = (uint32_t)(uint64_t(1) << GenBits) - 1;
 
-			using EntitySizeType = std::conditional_t<(IdBits+GenBits>32), uint64_t, uint32_t>;
-			
-			static_assert(
-					IdBits + GenBits <= 64,
-					"Entity IdBits and GenBits must fit inside 64 bits");
+			using EntitySizeType = std::conditional_t<(IdBits + GenBits > 32), uint64_t, uint32_t>;
+
+			static_assert(IdBits + GenBits <= 64, "Entity IdBits and GenBits must fit inside 64 bits");
 			static_assert(IdBits <= 31, "Entity IdBits must be at most 31 bits long");
 			static_assert(GenBits > 10, "Entity GenBits is recommended to be at least 10 bits long");
 
@@ -6916,6 +6940,9 @@ namespace gaia {
 		struct EntityContainer {
 			//! Chunk the entity currently resides in
 			Chunk* pChunk;
+#if !GAIA_64
+			uint32_t pChunk_padding;
+#endif
 			//! For allocated entity: Index of entity within chunk.
 			//! For deleted entity: Index of the next entity in the implicit list.
 			uint32_t idx : 31;
@@ -6986,8 +7013,8 @@ namespace gaia {
 				return index;
 			}
 
-			void RemoveEntity(const uint32_t index, containers::darray<EntityContainer>& entities) {
-				// Ignore request on empty chunks
+			void RemoveEntity(uint32_t index, containers::darray<EntityContainer>& entities) {
+				// Ignore requests on empty chunks
 				if (header.items.count == 0)
 					return;
 
@@ -7075,7 +7102,7 @@ namespace gaia {
 
 					const auto infoIndex = utils::type_info::index<U>();
 
-					if constexpr (IsGenericComponent<U>::value)
+					if constexpr (IsGenericComponent<T>::value)
 						return std::span<UConst>{(UConst*)GetDataPtr(ComponentType::CT_Generic, infoIndex), GetItemCount()};
 					else
 						return std::span<UConst>{(UConst*)GetDataPtr(ComponentType::CT_Chunk, infoIndex), 1};
@@ -7102,7 +7129,7 @@ namespace gaia {
 
 				const auto infoIndex = utils::type_info::index<U>();
 
-				if constexpr (IsGenericComponent<U>::value)
+				if constexpr (IsGenericComponent<T>::value)
 					return std::span<U>{(U*)GetDataPtrRW(ComponentType::CT_Generic, infoIndex), GetItemCount()};
 				else
 					return std::span<U>{(U*)GetDataPtrRW(ComponentType::CT_Chunk, infoIndex), 1};
@@ -7168,7 +7195,7 @@ namespace gaia {
 				using UOriginal = typename DeduceComponent<T>::TypeOriginal;
 				static_assert(IsReadOnlyType<UOriginal>::value);
 
-				return utils::auto_view_policy_get<std::add_const_t<U>>{View_Internal<U>()};
+				return utils::auto_view_policy_get<std::add_const_t<U>>{View_Internal<T>()};
 			}
 
 			/*!
@@ -7180,7 +7207,7 @@ namespace gaia {
 				using U = typename DeduceComponent<T>::Type;
 				static_assert(!std::is_same<U, Entity>::value);
 
-				return utils::auto_view_policy_set<U>{ViewRW_Internal<U>()};
+				return utils::auto_view_policy_set<U>{ViewRW_Internal<T>()};
 			}
 
 			/*!
@@ -7226,7 +7253,7 @@ namespace gaia {
 						IsGenericComponent<T>::value,
 						"SetComponent providing an index in chunk is only available for generic components");
 
-				ViewRW<U>()[index] = std::forward<U>(value);
+				ViewRW<T>()[index] = std::forward<U>(value);
 			}
 
 			template <typename T>
@@ -7237,7 +7264,7 @@ namespace gaia {
 						!IsGenericComponent<T>::value,
 						"SetComponent not providing an index in chunk is only available for non-generic components");
 
-				ViewRW<U>()[0] = std::forward<U>(value);
+				ViewRW<T>()[0] = std::forward<U>(value);
 			}
 
 			//----------------------------------------------------------------------
@@ -7952,9 +7979,9 @@ namespace gaia {
 #endif
 			}
 
-			template <typename... TComponent>
+			template <typename... T>
 			void SetChangedFilter(ChangeFilterArray& arr, ComponentListData& componentListData) {
-				(SetChangedFilter_Internal<TComponent>(arr, componentListData), ...);
+				(SetChangedFilter_Internal<T>(arr, componentListData), ...);
 			}
 
 			//! Sorts internal component arrays by their type indices
@@ -8291,42 +8318,42 @@ namespace gaia {
 							 !m_listChangeFiltered[ComponentType::CT_Chunk].empty();
 			}
 
-			template <typename... TComponent>
+			template <typename... T>
 			GAIA_FORCEINLINE EntityQuery& Any() {
-				(AddComponent_Internal<TComponent>(ListType::LT_Any), ...);
+				(AddComponent_Internal<T>(ListType::LT_Any), ...);
 				return *this;
 			}
 
-			template <typename... TComponent>
+			template <typename... T>
 			GAIA_FORCEINLINE EntityQuery& All() {
-				(AddComponent_Internal<TComponent>(ListType::LT_All), ...);
+				(AddComponent_Internal<T>(ListType::LT_All), ...);
 				return *this;
 			}
 
-			template <typename... TComponent>
+			template <typename... T>
 			GAIA_FORCEINLINE EntityQuery& None() {
-				(AddComponent_Internal<TComponent>(ListType::LT_None), ...);
+				(AddComponent_Internal<T>(ListType::LT_None), ...);
 				return *this;
 			}
 
-			template <typename... TComponent>
+			template <typename... T>
 			bool HasAny() const {
-				return (HasComponent_Internal<TComponent>(ListType::LT_Any) || ...);
+				return (HasComponent_Internal<T>(ListType::LT_Any) || ...);
 			}
 
-			template <typename... TComponent>
+			template <typename... T>
 			bool HasAll() const {
-				return (HasComponent_Internal<TComponent>(ListType::LT_All) && ...);
+				return (HasComponent_Internal<T>(ListType::LT_All) && ...);
 			}
 
-			template <typename... TComponent>
+			template <typename... T>
 			bool HasNone() const {
-				return (!HasComponent_Internal<TComponent>(ListType::LT_None) && ...);
+				return (!HasComponent_Internal<T>(ListType::LT_None) && ...);
 			}
 
-			template <typename... TComponent>
+			template <typename... T>
 			GAIA_FORCEINLINE EntityQuery& WithChanged() {
-				(WithChanged_Internal<TComponent>(), ...);
+				(WithChanged_Internal<T>(), ...);
 				return *this;
 			}
 
@@ -8354,15 +8381,15 @@ namespace gaia {
 			Chunk* m_pChunk;
 			uint32_t m_idx;
 
-			template <typename TComponent>
-			ComponentSetter& SetComponent(typename DeduceComponent<TComponent>::Type&& data) {
-				if constexpr (IsGenericComponent<TComponent>::value) {
-					using U = typename detail::ExtractComponentType_Generic<TComponent>::Type;
-					m_pChunk->template SetComponent<TComponent>(m_idx, std::forward<U>(data));
+			template <typename T>
+			ComponentSetter& SetComponent(typename DeduceComponent<T>::Type&& data) {
+				if constexpr (IsGenericComponent<T>::value) {
+					using U = typename detail::ExtractComponentType_Generic<T>::Type;
+					m_pChunk->template SetComponent<T>(m_idx, std::forward<U>(data));
 					return *this;
 				} else {
-					using U = typename detail::ExtractComponentType_Generic<TComponent>::Type;
-					m_pChunk->template SetComponent<TComponent>(std::forward<U>(data));
+					using U = typename detail::ExtractComponentType_NonGeneric<T>::Type;
+					m_pChunk->template SetComponent<T>(std::forward<U>(data));
 					return *this;
 				}
 			}
@@ -8629,8 +8656,8 @@ namespace gaia {
 
 			void RegisterArchetype(Archetype* archetype) {
 				// Make sure hashes were set already
-				GAIA_ASSERT(archetype==m_rootArchetype || (archetype->genericHash != 0 || archetype->chunkHash != 0));
-				GAIA_ASSERT(archetype==m_rootArchetype || archetype->lookupHash.hash != 0);
+				GAIA_ASSERT(archetype == m_rootArchetype || (archetype->genericHash != 0 || archetype->chunkHash != 0));
+				GAIA_ASSERT(archetype == m_rootArchetype || archetype->lookupHash.hash != 0);
 
 				// Make sure the archetype is not registered yet
 				GAIA_ASSERT(!utils::has(m_archetypes, archetype));
@@ -9162,19 +9189,16 @@ namespace gaia {
 				VerifyRemoveComponent(archetype, entity, type, infoToRemove);
 #endif
 
-#if GAIA_ARCHETYPE_GRAPH
 				auto newArchetype = FindArchetype_RemoveComponents(&archetype, type, infoToRemove);
+				GAIA_ASSERT(newArchetype != nullptr);
 				MoveEntity(entity, *newArchetype);
-#else
-				if (auto newArchetype = FindArchetype_RemoveComponents(&archetype, type, infoToRemove))
-					MoveEntity(entity, *newArchetype);
-#endif
 
 				return ComponentSetter{pChunk, entityContainer.idx};
 			}
 
 			void Init() {
 				m_rootArchetype = CreateArchetype({}, {});
+				InitArchetype(m_rootArchetype, 0, 0, {CalculateLookupHash(containers::sarray<uint64_t, 2>{0, 0})});
 				RegisterArchetype(m_rootArchetype);
 			}
 
@@ -9414,19 +9438,18 @@ namespace gaia {
 			entity is valid. Undefined behavior otherwise.
 			\return ComponentSetter object.
 			*/
-			template <typename TComponent>
+			template <typename T>
 			ComponentSetter AddComponent(Entity entity) {
-				VerifyComponent<TComponent>();
+				VerifyComponent<T>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
-				if constexpr (IsGenericComponent<TComponent>::value) {
-					using U = typename detail::ExtractComponentType_Generic<TComponent>::Type;
-					const auto* info = m_componentCache.GetOrCreateComponentInfo<U>();
+				using U = typename DeduceComponent<T>::Type;
+				const auto* info = m_componentCache.GetOrCreateComponentInfo<U>();
+
+				if constexpr (IsGenericComponent<T>::value) {
 					auto& entityContainer = AddComponent_Internal(ComponentType::CT_Generic, entity, info);
 					return ComponentSetter{entityContainer.pChunk, entityContainer.idx};
 				} else {
-					using U = typename detail::ExtractComponentType_NonGeneric<TComponent>::Type;
-					const auto* info = m_componentCache.GetOrCreateComponentInfo<U>();
 					auto& entityContainer = AddComponent_Internal(ComponentType::CT_Chunk, entity, info);
 					return ComponentSetter{entityContainer.pChunk, entityContainer.idx};
 				}
@@ -9438,24 +9461,23 @@ namespace gaia {
 			\param entity is valid. Undefined behavior otherwise.
 			\return ComponentSetter object.
 			*/
-			template <typename TComponent>
-			ComponentSetter AddComponent(Entity entity, typename DeduceComponent<TComponent>::Type&& data) {
-				VerifyComponent<TComponent>();
+			template <typename T>
+			ComponentSetter AddComponent(Entity entity, typename DeduceComponent<T>::Type&& data) {
+				VerifyComponent<T>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
-				if constexpr (IsGenericComponent<TComponent>::value) {
-					using U = typename detail::ExtractComponentType_Generic<TComponent>::Type;
-					const auto* info = m_componentCache.GetOrCreateComponentInfo<U>();
+				using U = typename DeduceComponent<T>::Type;
+				const auto* info = m_componentCache.GetOrCreateComponentInfo<U>();
+
+				if constexpr (IsGenericComponent<T>::value) {
 					auto& entityContainer = AddComponent_Internal(ComponentType::CT_Generic, entity, info);
 					auto* pChunk = entityContainer.pChunk;
-					pChunk->template SetComponent<TComponent>(entityContainer.idx, std::forward<U>(data));
+					pChunk->template SetComponent<T>(entityContainer.idx, std::forward<U>(data));
 					return ComponentSetter{entityContainer.pChunk, entityContainer.idx};
 				} else {
-					using U = typename detail::ExtractComponentType_NonGeneric<TComponent>::Type;
-					const auto* info = m_componentCache.GetOrCreateComponentInfo<U>();
 					auto& entityContainer = AddComponent_Internal(ComponentType::CT_Chunk, entity, info);
 					auto* pChunk = entityContainer.pChunk;
-					pChunk->template SetComponent<TComponent>(std::forward<U>(data));
+					pChunk->template SetComponent<T>(std::forward<U>(data));
 					return ComponentSetter{entityContainer.pChunk, entityContainer.idx};
 				}
 			}
@@ -9466,18 +9488,17 @@ namespace gaia {
 			\param entity is valid. Undefined behavior otherwise.
 			\return ComponentSetter object.
 			*/
-			template <typename TComponent>
+			template <typename T>
 			ComponentSetter RemoveComponent(Entity entity) {
-				VerifyComponent<TComponent>();
+				VerifyComponent<T>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
-				if constexpr (IsGenericComponent<TComponent>::value) {
-					using U = typename detail::ExtractComponentType_Generic<TComponent>::Type;
-					const auto* info = m_componentCache.GetOrCreateComponentInfo<U>();
+				using U = typename DeduceComponent<T>::Type;
+				const auto* info = m_componentCache.GetOrCreateComponentInfo<U>();
+
+				if constexpr (IsGenericComponent<T>::value) {
 					return RemoveComponent_Internal(ComponentType::CT_Generic, entity, info);
 				} else {
-					using U = typename detail::ExtractComponentType_NonGeneric<TComponent>::Type;
-					const auto* info = m_componentCache.GetOrCreateComponentInfo<U>();
 					return RemoveComponent_Internal(ComponentType::CT_Chunk, entity, info);
 				}
 			}
@@ -9488,14 +9509,14 @@ namespace gaia {
 			\param entity is valid. Undefined behavior otherwise.
 			\return ComponentSetter object.
 			*/
-			template <typename TComponent>
-			ComponentSetter SetComponent(Entity entity, typename DeduceComponent<TComponent>::Type&& data) {
-				VerifyComponent<TComponent>();
+			template <typename T>
+			ComponentSetter SetComponent(Entity entity, typename DeduceComponent<T>::Type&& data) {
+				VerifyComponent<T>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				auto& entityContainer = m_entities[entity.id()];
-				return ComponentSetter{entityContainer.pChunk, entityContainer.idx}.SetComponent<TComponent>(
-						std::forward<typename DeduceComponent<TComponent>::Type>(data));
+				return ComponentSetter{entityContainer.pChunk, entityContainer.idx}.SetComponent<T>(
+						std::forward<typename DeduceComponent<T>::Type>(data));
 			}
 
 			/*!
@@ -9503,18 +9524,18 @@ namespace gaia {
 			\warning It is expected the component was added to \param entity already. Undefined behavior otherwise.
 			\return Value stored in the component.
 			*/
-			template <typename TComponent>
+			template <typename T>
 			auto GetComponent(Entity entity) const {
-				VerifyComponent<TComponent>();
+				VerifyComponent<T>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
 				const auto* pChunk = entityContainer.pChunk;
 
-				if constexpr (IsGenericComponent<TComponent>::value)
-					return pChunk->GetComponent<TComponent>(entityContainer.idx);
+				if constexpr (IsGenericComponent<T>::value)
+					return pChunk->GetComponent<T>(entityContainer.idx);
 				else
-					return pChunk->GetComponent<TComponent>();
+					return pChunk->GetComponent<T>();
 			}
 
 			//----------------------------------------------------------------------
@@ -9523,14 +9544,14 @@ namespace gaia {
 			Tells if \param entity contains the component.
 			\return True if the component is present on entity.
 			*/
-			template <typename TComponent>
+			template <typename T>
 			[[nodiscard]] bool HasComponent(Entity entity) {
-				VerifyComponent<TComponent>();
+				VerifyComponent<T>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
 				if (const auto* pChunk = entityContainer.pChunk)
-					return pChunk->HasComponent<TComponent>();
+					return pChunk->HasComponent<T>();
 
 				return false;
 			}
@@ -9636,7 +9657,7 @@ namespace gaia {
 			//--------------------------------------------------------------------------------
 
 			template <typename Func>
-			static void RunQueryOnChunks_Direct(World& world, EntityQuery& query, Func func) {
+			static void RunQueryOnChunks_Internal(World& world, EntityQuery& query, Func func) {
 				constexpr size_t BatchSize = 256U;
 				containers::sarray<Chunk*, BatchSize> tmp;
 
@@ -9696,86 +9717,13 @@ namespace gaia {
 				query.SetWorldVersion(world.GetWorldVersion());
 			}
 
-			template <typename Func>
-			static void RunQueryOnChunks_Indirect_NoResolve(World& world, EntityQuery& query, Func func) {
-				using InputArgs = decltype(utils::func_args(&Func::operator()));
-
-				constexpr size_t BatchSize = 256U;
-				containers::sarray<Chunk*, BatchSize> tmp;
-
-				// Update the world version
-				world.UpdateWorldVersion();
-
-				const bool hasFilters = query.HasFilters();
-
-				// Iterate over all archetypes
-				world.ForEachArchetype(query, [&](Archetype& archetype) {
-					GAIA_ASSERT(archetype.info.structuralChangesLocked < 8);
-					++archetype.info.structuralChangesLocked;
-
-					auto exec = [&](const auto& chunksList) {
-						size_t chunkOffset = 0;
-						size_t indexInBatch = 0;
-
-						size_t itemsLeft = chunksList.size();
-						while (itemsLeft > 0) {
-							const size_t batchSize = itemsLeft > BatchSize ? BatchSize : itemsLeft;
-
-							// Prepare a buffer to iterate over
-							for (size_t j = chunkOffset; j < chunkOffset + batchSize; ++j) {
-								auto* pChunk = chunksList[j];
-
-								if (!pChunk->HasEntities())
-									continue;
-								if (!query.CheckConstraints(!pChunk->IsDisabled()))
-									continue;
-								if (hasFilters && !CheckFilters(query, *pChunk))
-									continue;
-
-								tmp[indexInBatch++] = pChunk;
-							}
-
-							// Execute functors in batches
-							if (indexInBatch == BatchSize || batchSize != BatchSize) {
-								for (size_t chunkIdx = 0; chunkIdx < indexInBatch; ++chunkIdx)
-									world.ForEachEntityInChunk(InputArgs{}, *tmp[chunkIdx], func);
-								indexInBatch = 0;
-							}
-
-							// Prepeare for the next loop
-							itemsLeft -= batchSize;
-						}
-					};
-
-					if (query.CheckConstraints(true))
-						exec(archetype.chunks);
-					if (query.CheckConstraints(false))
-						exec(archetype.chunksDisabled);
-
-					GAIA_ASSERT(archetype.info.structuralChangesLocked > 0);
-					--archetype.info.structuralChangesLocked;
-				});
-
-				query.SetWorldVersion(world.GetWorldVersion());
-			}
-
-			template <typename Func>
-			static void RunQueryOnChunks_Indirect(World& world, EntityQuery& query, Func func) {
-#if GAIA_DEBUG
-				// Make sure we only use components specificed in the query
-				GAIA_ASSERT(CheckQuery<Func>(world, query));
-#endif
-				RunQueryOnChunks_Indirect_NoResolve(world, query, func);
-			}
-
 			//--------------------------------------------------------------------------------
 
-			template <typename... TComponent>
-			static void
-			RegisterComponents_Internal([[maybe_unused]] utils::func_type_list<TComponent...> types, World& world) {
-				static_assert(sizeof...(TComponent) > 0, "Empty EntityQuery is not supported in this context");
+			template <typename... T>
+			static void RegisterComponents_Internal([[maybe_unused]] utils::func_type_list<T...> types, World& world) {
+				static_assert(sizeof...(T) > 0, "Empty EntityQuery is not supported in this context");
 				auto& cc = world.GetComponentCache();
-				((void)cc.GetOrCreateComponentInfo<TComponent>(), ...);
+				((void)cc.GetOrCreateComponentInfo<T>(), ...);
 			}
 
 			template <typename Func>
@@ -9816,28 +9764,44 @@ namespace gaia {
 
 			template <typename Func>
 			GAIA_FORCEINLINE void ForEachChunk_External(World& world, EntityQuery& query, Func func) {
-				RunQueryOnChunks_Direct(world, query, func);
+				RunQueryOnChunks_Internal(world, query, [&](Chunk& chunk) {
+					func(chunk);
+				});
 			}
 
 			template <typename Func>
 			GAIA_FORCEINLINE void ForEachChunk_Internal(World& world, EntityQuery&& queryTmp, Func func) {
 				RegisterComponents<Func>(world);
 				queryTmp.CalculateLookupHash(world);
-				RunQueryOnChunks_Direct(world, AddOrFindEntityQueryInCache(world, queryTmp), func);
+				RunQueryOnChunks_Internal(world, AddOrFindEntityQueryInCache(world, queryTmp), [&](Chunk& chunk) {
+					func(chunk);
+				});
 			}
 
 			//--------------------------------------------------------------------------------
 
 			template <typename Func>
 			GAIA_FORCEINLINE void ForEach_External(World& world, EntityQuery& query, Func func) {
-				RunQueryOnChunks_Indirect(world, query, func);
+#if GAIA_DEBUG
+				// Make sure we only use components specificed in the query
+				GAIA_ASSERT(CheckQuery<Func>(world, query));
+#endif
+
+				using InputArgs = decltype(utils::func_args(&Func::operator()));
+				RunQueryOnChunks_Internal(world, query, [&](Chunk& chunk) {
+					world.ForEachEntityInChunk(InputArgs{}, chunk, func);
+				});
 			}
 
 			template <typename Func>
 			GAIA_FORCEINLINE void ForEach_Internal(World& world, EntityQuery&& queryTmp, Func func) {
 				RegisterComponents<Func>(world);
 				queryTmp.CalculateLookupHash(world);
-				RunQueryOnChunks_Indirect_NoResolve(world, AddOrFindEntityQueryInCache(world, queryTmp), func);
+
+				using InputArgs = decltype(utils::func_args(&Func::operator()));
+				RunQueryOnChunks_Internal(world, AddOrFindEntityQueryInCache(world, queryTmp), [&](Chunk& chunk) {
+					world.ForEachEntityInChunk(InputArgs{}, chunk, func);
+				});
 			}
 
 			//--------------------------------------------------------------------------------
@@ -10207,7 +10171,7 @@ namespace gaia {
 			containers::darray<uint8_t> m_data;
 			uint32_t m_entities;
 
-			template <typename TEntity, typename TComponent>
+			template <typename TEntity, typename T>
 			void AddComponent_Internal(TEntity entity) {
 				// Entity
 				{
@@ -10219,7 +10183,7 @@ namespace gaia {
 				}
 				// Components
 				{
-					const auto* infoToAdd = GetComponentCache(m_world).GetOrCreateComponentInfo<TComponent>();
+					const auto* infoToAdd = GetComponentCache(m_world).GetOrCreateComponentInfo<T>();
 
 					// Component info
 					auto lastIndex = m_data.size();
@@ -10248,34 +10212,34 @@ namespace gaia {
 					mem = std::forward<U>(data);
 				}
 
-				index += sizeof(uint32_t) + sizeof(U);
+				index += (uint32_t)(sizeof(uint32_t) + sizeof(U));
 			}
 
-			template <typename TComponent>
-			void SetComponentNoEntityNoSize_Internal(TComponent&& data) {
+			template <typename T>
+			void SetComponentNoEntityNoSize_Internal(T&& data) {
 				// Data size
 				auto lastIndex = (uint32_t)m_data.size();
 
-				constexpr auto ComponentsSize = sizeof(TComponent);
+				constexpr auto ComponentsSize = sizeof(T);
 				constexpr auto ComponentTypeIdxSize = sizeof(uint32_t);
 				constexpr auto AddSize = ComponentsSize + ComponentTypeIdxSize;
 				m_data.resize(m_data.size() + AddSize);
 
 				// Component data
-				this->SetComponentFinal_Internal<TComponent>(lastIndex, std::forward<TComponent>(data));
+				this->SetComponentFinal_Internal<T>(lastIndex, std::forward<T>(data));
 			}
 
-			template <typename TComponent>
-			void SetComponentNoEntity_Internal(TComponent&& data) {
+			template <typename T>
+			void SetComponentNoEntity_Internal(T&& data) {
 				// Register components
-				(void)GetComponentCache(m_world).GetOrCreateComponentInfo<TComponent>();
+				(void)GetComponentCache(m_world).GetOrCreateComponentInfo<T>();
 
 				// Data
-				SetComponentNoEntityNoSize_Internal(std::forward<TComponent>(data));
+				SetComponentNoEntityNoSize_Internal(std::forward<T>(data));
 			}
 
-			template <typename TEntity, typename TComponent>
-			void SetComponent_Internal(TEntity entity, TComponent&& data) {
+			template <typename TEntity, typename T>
+			void SetComponent_Internal(TEntity entity, T&& data) {
 				// Entity
 				{
 					const auto lastIndex = m_data.size();
@@ -10286,10 +10250,10 @@ namespace gaia {
 				}
 
 				// Components
-				SetComponentNoEntity_Internal(std::forward<TComponent>(data));
+				SetComponentNoEntity_Internal(std::forward<T>(data));
 			}
 
-			template <typename TComponent>
+			template <typename T>
 			void RemoveComponent_Internal(Entity entity) {
 				// Entity
 				{
@@ -10301,7 +10265,7 @@ namespace gaia {
 				}
 				// Components
 				{
-					const auto* typeToRemove = GetComponentCache(m_world).GetComponentInfo<TComponent>();
+					const auto* typeToRemove = GetComponentCache(m_world).GetComponentInfo<T>();
 					GAIA_ASSERT(typeToRemove != nullptr);
 
 					// Component info
@@ -10388,13 +10352,13 @@ namespace gaia {
 			\return True if component could be added (e.g. maximum component count
 			on the archetype not exceeded). False otherwise.
 			*/
-			template <typename TComponent>
+			template <typename T>
 			bool AddComponent(Entity entity) {
-				using U = typename DeduceComponent<TComponent>::Type;
+				using U = typename DeduceComponent<T>::Type;
 				VerifyComponent<U>();
 
 				m_data.push_back(ADD_COMPONENT);
-				if constexpr (IsGenericComponent<TComponent>::value)
+				if constexpr (IsGenericComponent<T>::value)
 					m_data.push_back(ComponentType::CT_Generic);
 				else
 					m_data.push_back(ComponentType::CT_Chunk);
@@ -10408,13 +10372,13 @@ namespace gaia {
 			\return True if component could be added (e.g. maximum component count
 			on the archetype not exceeded). False otherwise.
 			*/
-			template <typename TComponent>
+			template <typename T>
 			bool AddComponent(TempEntity entity) {
-				using U = typename DeduceComponent<TComponent>::Type;
+				using U = typename DeduceComponent<T>::Type;
 				VerifyComponent<U>();
 
 				m_data.push_back(ADD_COMPONENT_TO_TEMPENTITY);
-				if constexpr (IsGenericComponent<TComponent>::value)
+				if constexpr (IsGenericComponent<T>::value)
 					m_data.push_back(ComponentType::CT_Generic);
 				else
 					m_data.push_back(ComponentType::CT_Chunk);
@@ -10428,13 +10392,13 @@ namespace gaia {
 			\return True if component could be added (e.g. maximum component count
 			on the archetype not exceeded). False otherwise.
 			*/
-			template <typename TComponent>
-			bool AddComponent(Entity entity, TComponent&& data) {
-				using U = typename DeduceComponent<TComponent>::Type;
+			template <typename T>
+			bool AddComponent(Entity entity, T&& data) {
+				using U = typename DeduceComponent<T>::Type;
 				VerifyComponent<U>();
 
 				m_data.push_back(ADD_COMPONENT_DATA);
-				if constexpr (IsGenericComponent<TComponent>::value)
+				if constexpr (IsGenericComponent<T>::value)
 					m_data.push_back(ComponentType::CT_Generic);
 				else
 					m_data.push_back(ComponentType::CT_Chunk);
@@ -10449,13 +10413,13 @@ namespace gaia {
 			\return True if component could be added (e.g. maximum component count
 			on the archetype not exceeded). False otherwise.
 			*/
-			template <typename TComponent>
-			bool AddComponent(TempEntity entity, TComponent&& data) {
-				using U = typename DeduceComponent<TComponent>::Type;
+			template <typename T>
+			bool AddComponent(TempEntity entity, T&& data) {
+				using U = typename DeduceComponent<T>::Type;
 				VerifyComponent<U>();
 
 				m_data.push_back(ADD_COMPONENT_TO_TEMPENTITY_DATA);
-				if constexpr (IsGenericComponent<TComponent>::value)
+				if constexpr (IsGenericComponent<T>::value)
 					m_data.push_back(ComponentType::CT_Generic);
 				else
 					m_data.push_back(ComponentType::CT_Chunk);
@@ -10470,13 +10434,13 @@ namespace gaia {
 			\warning Just like World::SetComponent, this function expects the
 			given component infos to exist. Undefined behavior otherwise.
 			*/
-			template <typename TComponent>
-			void SetComponent(Entity entity, TComponent&& data) {
-				using U = typename DeduceComponent<TComponent>::Type;
+			template <typename T>
+			void SetComponent(Entity entity, T&& data) {
+				using U = typename DeduceComponent<T>::Type;
 				VerifyComponent<U>();
 
 				m_data.push_back(SET_COMPONENT);
-				if constexpr (IsGenericComponent<TComponent>::value)
+				if constexpr (IsGenericComponent<T>::value)
 					m_data.push_back(ComponentType::CT_Generic);
 				else
 					m_data.push_back(ComponentType::CT_Chunk);
@@ -10490,13 +10454,13 @@ namespace gaia {
 			\warning Just like World::SetComponent, this function expects the
 			given component infos to exist. Undefined behavior otherwise.
 			*/
-			template <typename TComponent>
-			void SetComponent(TempEntity entity, TComponent&& data) {
-				using U = typename DeduceComponent<TComponent>::Type;
+			template <typename T>
+			void SetComponent(TempEntity entity, T&& data) {
+				using U = typename DeduceComponent<T>::Type;
 				VerifyComponent<U>();
 
 				m_data.push_back(SET_COMPONENT_FOR_TEMPENTITY);
-				if constexpr (IsGenericComponent<TComponent>::value)
+				if constexpr (IsGenericComponent<T>::value)
 					m_data.push_back(ComponentType::CT_Generic);
 				else
 					m_data.push_back(ComponentType::CT_Chunk);
@@ -10506,13 +10470,13 @@ namespace gaia {
 			/*!
 			Requests removal of a component from entity
 			*/
-			template <typename TComponent>
+			template <typename T>
 			void RemoveComponent(Entity entity) {
-				using U = typename DeduceComponent<TComponent>::Type;
+				using U = typename DeduceComponent<T>::Type;
 				VerifyComponent<U>();
 
 				m_data.push_back(REMOVE_COMPONENT);
-				if constexpr (IsGenericComponent<TComponent>::value)
+				if constexpr (IsGenericComponent<T>::value)
 					m_data.push_back(ComponentType::CT_Generic);
 				else
 					m_data.push_back(ComponentType::CT_Chunk);
