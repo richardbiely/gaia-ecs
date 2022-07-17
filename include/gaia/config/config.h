@@ -14,7 +14,7 @@
 // General settings
 //------------------------------------------------------------------------------
 
-//! If enabled, GAIA_DEBUG is defined despite using a "Release" bulid configuration for example
+//! If enabled, GAIA_DEBUG is defined despite using a "Release" build configuration for example
 #define GAIA_FORCE_DEBUG 0
 //! If enabled, no asserts are thrown even in debug builds
 #define GAIA_DISABLE_ASSERTS 0
