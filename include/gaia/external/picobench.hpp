@@ -138,48 +138,43 @@
 
 namespace picobench {
 
-	namespace internal {
-		inline void UseCharPointer(char const volatile* var) {
-			(void)var;
-		}
-	} // namespace internal
-
-	// Force the compiler to flush pending writes to global memory. Acts as an
-	// effective read/write barrier
-	inline PICOBENCH_INLINE void ClobberMemory() {
-		std::atomic_signal_fence(std::memory_order_acq_rel);
-	}
-
 // The DoNotOptimize(...) function can be used to prevent a value or
 // expression from being optimized away by the compiler. This function is
 // intended to add little to no overhead.
 // See: https://youtu.be/nXaxk27zwlk?t=2441
 #ifndef PICOBENCH_HAS_NO_INLINE_ASSEMBLY
-	template <class Tp>
-	inline PICOBENCH_INLINE void DoNotOptimize(Tp const& value) {
+	template <class T>
+	inline PICOBENCH_INLINE void DoNotOptimize(T const& value) {
 		asm volatile("" : : "r,m"(value) : "memory");
 	}
 
-	template <class Tp>
-	inline PICOBENCH_INLINE void DoNotOptimize(Tp& value) {
+	template <class T>
+	inline PICOBENCH_INLINE void DoNotOptimize(T& value) {
 	#if defined(__clang__)
 		asm volatile("" : "+r,m"(value) : : "memory");
 	#else
 		asm volatile("" : "+m,r"(value) : : "memory");
 	#endif
 	}
+#else
+	namespace internal {
+		inline PICOBENCH_INLINE void UseCharPointer(char const volatile* var) {
+			(void)var;
+		}
+	} // namespace internal
 
-#elif defined(_MSC_VER)
-	template <class Tp>
-	inline PICOBENCH_INLINE void DoNotOptimize(Tp const& value) {
+	#if defined(_MSC_VER)
+	template <class T>
+	inline PICOBENCH_INLINE void DoNotOptimize(T const& value) {
 		internal::UseCharPointer(&reinterpret_cast<char const volatile&>(value));
 		_ReadWriteBarrier();
 	}
-#else
-	template <class Tp>
-	inline PICOBENCH_INLINE void DoNotOptimize(Tp const& value) {
+	#else
+	template <class T>
+	inline PICOBENCH_INLINE void DoNotOptimize(T const& value) {
 		internal::UseCharPointer(&reinterpret_cast<char const volatile&>(value));
 	}
+	#endif
 #endif
 
 #if defined(_MSC_VER) || defined(__MINGW32__) || defined(PICOBENCH_TEST)
