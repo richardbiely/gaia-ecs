@@ -384,9 +384,9 @@ cmake -DCMAKE_BUILD_TYPE=Release -S . -B "build"
 cmake --build "build" --config Release
 ```
 
-You can also use sanitizers with the project via -USE_SANITIZERS.
+You can also use sanitizers with the project via -DUSE_SANITIZER.
 ```bash
-cmake -DCMAKE_BUILD_TYPE=Release -USE_SANITIZERS=address -S . -B "build"
+cmake -DCMAKE_BUILD_TYPE=Release -DUSE_SANITIZER=address -S . -B "build"
 ```
 Possible options are listed in [cmake/sanitizers.cmake](https://github.com/richardbiely/gaia-ecs/blob/main/cmake/sanitizers.cmake).<br/>
 Note, some options don't work together or might not be supported by all compilers.
