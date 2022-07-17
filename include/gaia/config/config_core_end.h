@@ -26,10 +26,12 @@
 //! slows things down but enables better security and diagnostics.
 //! Suitable for debug builds first and foremost. Therefore, it is
 //! enabled by default for debud builds.
-#if !defined(NDEBUG) || defined(_DEBUG) || GAIA_FORCE_DEBUG
-	#define GAIA_DEBUG 1
-#else
-	#define GAIA_DEBUG 0
+#if !defined(GAIA_DEBUG)
+	#if !defined(NDEBUG) || defined(_DEBUG) || GAIA_FORCE_DEBUG
+		#define GAIA_DEBUG 1
+	#else
+		#define GAIA_DEBUG 0
+	#endif
 #endif
 
 #if defined(GAIA_DISABLE_ASSERTS)
@@ -37,7 +39,16 @@
 	#define GAIA_ASSERT(condition) (void(0))
 #elif !defined(GAIA_ASSERT)
 	#include <cassert>
-	#define GAIA_ASSERT(condition) assert(condition)
+	#if GAIA_DEBUG
+		#define GAIA_ASSERT(condition)                                                                                     \
+			{                                                                                                                \
+				bool cond_ret = condition;                                                                                     \
+				assert(cond_ret);                                                                                              \
+				DoNotOptimize(cond_ret)                                                                                        \
+			}
+	#else
+		#define GAIA_ASSERT(condition) assert(condition);
+	#endif
 #endif
 
 #if defined(GAIA_ECS_DIAGS)

@@ -179,3 +179,7 @@
 	#define GAIA_GCC_WARNING_POP()
 	#define GAIA_GCC_WARNING_DISABLE(warningId)
 #endif
+
+#if (!defined(__GNUC__) && !defined(__clang__)) || defined(__pnacl__) || defined(__EMSCRIPTEN__)
+	#define GAIA_HAS_NO_INLINE_ASSEMBLY 1
+#endif
