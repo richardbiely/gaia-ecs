@@ -121,17 +121,22 @@ w.SetComponent<Velocity>(e, {0, 0, 2}).
 
 ### Checking if component is attached to entity
 ```cpp
-// Check if entity e has Velocity.
+// Check if entity e has Velocity (via world).
+const bool hasVelocity = w.HasComponent<Velocity>(e);
+...
+
+// Check if entity e has Velocity (via chunk).
 const auto* pChunkA = w.GetChunk(e);
-bool hasVelocity = pChunkA->HasComponent<Velocity>(e);
+const bool hasVelocity = pChunkA->HasComponent<Velocity>();
+...
 
 // Check if entity e has Position and modify its value if it does.
 uint32_t entityIndexInChunk;
 auto* pChunkB = w.GetChunk(e, entityIndexInChunk);
-if (pChunkB->HasComponent<Position>(e))
+if (pChunkB->HasComponent<Position>())
 {
   auto pos = pChunkB->ViewRW<Position>();
-  pos[entityIndexInChunk].y = 1234; // position.y changed from 100 to 1234
+  pos[entityIndexInChunk].y = 1234; // position.y changed to 1234
 }
 ```
 
