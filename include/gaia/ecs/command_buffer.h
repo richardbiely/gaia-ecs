@@ -422,7 +422,7 @@ namespace gaia {
 								(void)infoIndex2;
 								i += sizeof(uint32_t);
 
-								auto* pComponentDataStart = pChunk->GetDataPtrRW(type, newInfo->infoIndex);
+								auto* pComponentDataStart = pChunk->GetDataPtrRW<false>(type, newInfo->infoIndex);
 								auto* pComponentData = (void*)&pComponentDataStart[indexInChunk * newInfo->properties.size];
 								memcpy(pComponentData, (const void*)&m_data[i], newInfo->properties.size);
 								i += newInfo->properties.size;
@@ -465,7 +465,7 @@ namespace gaia {
 								(void)infoIndex2;
 								i += sizeof(uint32_t);
 
-								auto* pComponentDataStart = pChunk->GetDataPtrRW(type, newInfo->infoIndex);
+								auto* pComponentDataStart = pChunk->GetDataPtrRW<false>(type, newInfo->infoIndex);
 								auto* pComponentData = (void*)&pComponentDataStart[indexInChunk * newInfo->properties.size];
 								memcpy(pComponentData, (const void*)&m_data[i], newInfo->properties.size);
 								i += newInfo->properties.size;
@@ -490,7 +490,7 @@ namespace gaia {
 								const auto* info = GetComponentCache(m_world).GetComponentInfoFromIdx(infoIndex);
 								i += sizeof(uint32_t);
 
-								auto* pComponentDataStart = pChunk->GetDataPtrRW(type, info->infoIndex);
+								auto* pComponentDataStart = pChunk->GetDataPtrRW<false>(type, info->infoIndex);
 								auto* pComponentData = (void*)&pComponentDataStart[indexInChunk * info->properties.size];
 								memcpy(pComponentData, (const void*)&m_data[i], info->properties.size);
 								i += info->properties.size;
@@ -523,7 +523,7 @@ namespace gaia {
 								const auto* info = GetComponentCache(m_world).GetComponentInfoFromIdx(infoIndex);
 								i += sizeof(uint32_t);
 
-								auto* pComponentDataStart = pChunk->GetDataPtrRW(type, info->infoIndex);
+								auto* pComponentDataStart = pChunk->GetDataPtrRW<false>(type, info->infoIndex);
 								auto* pComponentData = (void*)&pComponentDataStart[indexInChunk * info->properties.size];
 								memcpy(pComponentData, (const void*)&m_data[i], info->properties.size);
 								i += info->properties.size;

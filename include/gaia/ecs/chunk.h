@@ -174,9 +174,10 @@ namespace gaia {
 			/*!
 			Returns a read-write span of the component data. Also updates the world version for the component.
 			\tparam T Component
+			\tparam UpdateWorldVersion If true, the world version is updated as a result of the write access
 			\return Span of the component data.
 			*/
-			template <typename T>
+			template <typename T, bool UpdateWorldVersion>
 			[[nodiscard]] GAIA_FORCEINLINE auto ViewRW_Internal() {
 				using U = typename DeduceComponent<T>::Type;
 #if GAIA_COMPILER_MSVC && _MSC_VER <= 1916
@@ -191,10 +192,11 @@ namespace gaia {
 
 				const auto infoIndex = utils::type_info::index<U>();
 
+				constexpr bool uwv = UpdateWorldVersion;
 				if constexpr (IsGenericComponent<T>::value)
-					return std::span<U>{(U*)GetDataPtrRW(ComponentType::CT_Generic, infoIndex), GetItemCount()};
+					return std::span<U>{(U*)GetDataPtrRW<uwv>(ComponentType::CT_Generic, infoIndex), GetItemCount()};
 				else
-					return std::span<U>{(U*)GetDataPtrRW(ComponentType::CT_Chunk, infoIndex), 1};
+					return std::span<U>{(U*)GetDataPtrRW<uwv>(ComponentType::CT_Chunk, infoIndex), 1};
 			}
 
 			/*!
@@ -217,10 +219,12 @@ namespace gaia {
 
 			/*!
 			Returns a pointer do component data with read-write access. Also updates the world version for the component.
+			\tparam UpdateWorldVersion If true, the world version is updated as a result of the write access
 			\param type Component type
 			\param infoIndex Index of the component in the archetype
 			\return Pointer to component data.
 			*/
+			template <bool UpdateWorldVersion>
 			[[nodiscard]] GAIA_FORCEINLINE uint8_t* GetDataPtrRW(ComponentType type, uint32_t infoIndex) {
 				// Searching for a component that's not there! Programmer mistake.
 				GAIA_ASSERT(HasComponent_Internal(type, infoIndex));
@@ -232,8 +236,10 @@ namespace gaia {
 					return info.infoIndex == infoIndex;
 				});
 
-				// Update version number so we know RW access was used on chunk
-				header.UpdateWorldVersion(type, componentIdx);
+				if constexpr (UpdateWorldVersion) {
+					// Update version number so we know RW access was used on chunk
+					header.UpdateWorldVersion(type, componentIdx);
+				}
 
 				return (uint8_t*)&data[infos[componentIdx].offset];
 			}
@@ -269,7 +275,19 @@ namespace gaia {
 				using U = typename DeduceComponent<T>::Type;
 				static_assert(!std::is_same<U, Entity>::value);
 
-				return utils::auto_view_policy_set<U>{ViewRW_Internal<T>()};
+				return utils::auto_view_policy_set<U>{ViewRW_Internal<T, true>()};
+			}
+
+			/*!
+			Returns a mutable component view. Doesn't update the world version when the access is aquired.
+			\return Component view with read-write access
+			*/
+			template <typename T>
+			[[nodiscard]] auto ViewRWSilent() {
+				using U = typename DeduceComponent<T>::Type;
+				static_assert(!std::is_same<U, Entity>::value);
+
+				return utils::auto_view_policy_set<U>{ViewRW_Internal<T, false>()};
 			}
 
 			/*!
