@@ -239,7 +239,8 @@ namespace gaia {
 
 				const auto genericHash = CalculateLookupHash(infosGeneric);
 				const auto chunkHash = CalculateLookupHash(infosChunk);
-				const auto lookupHash = CalculateLookupHash(containers::sarray<uint64_t, 2>{genericHash, chunkHash});
+				utils::direct_hash_key lookupHash = {
+						CalculateLookupHash(containers::sarray<uint64_t, 2>{genericHash, chunkHash})};
 
 				auto newArch = Archetype::Create(*this, infosGeneric, infosChunk);
 
@@ -462,7 +463,7 @@ namespace gaia {
 				if (node == m_rootArchetype) {
 					if (type == ComponentType::CT_Generic) {
 						const auto genericHash = infoToAdd->lookupHash;
-						const auto lookupHash = CalculateLookupHash(containers::sarray<uint64_t, 2>{genericHash, 0});
+						utils::direct_hash_key lookupHash = {CalculateLookupHash(containers::sarray<uint64_t, 2>{genericHash, 0})};
 						node = FindArchetype(std::span<const ComponentInfo*>(&infoToAdd, 1), {}, lookupHash);
 						if (node == nullptr) {
 							node = CreateArchetype(std::span<const ComponentInfo*>(&infoToAdd, 1), {});
@@ -471,7 +472,7 @@ namespace gaia {
 						}
 					} else {
 						const auto chunkHash = infoToAdd->lookupHash;
-						const auto lookupHash = CalculateLookupHash(containers::sarray<uint64_t, 2>{0, chunkHash});
+						utils::direct_hash_key lookupHash = {CalculateLookupHash(containers::sarray<uint64_t, 2>{0, chunkHash})};
 						node = FindArchetype({}, std::span<const ComponentInfo*>(&infoToAdd, 1), lookupHash);
 						if (node == nullptr) {
 							node = CreateArchetype({}, std::span<const ComponentInfo*>(&infoToAdd, 1));
@@ -846,7 +847,9 @@ namespace gaia {
 
 			void Init() {
 				m_rootArchetype = CreateArchetype({}, {});
+#if !GAIA_ARCHETYPE_GRAPH
 				InitArchetype(m_rootArchetype, 0, 0, {CalculateLookupHash(containers::sarray<uint64_t, 2>{0, 0})});
+#endif
 				RegisterArchetype(m_rootArchetype);
 			}
 
