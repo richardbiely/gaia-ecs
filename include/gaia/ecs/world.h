@@ -1217,7 +1217,7 @@ namespace gaia {
 				if constexpr (IsReadOnlyType<UOriginal>::value)
 					return chunk.View_Internal<U>();
 				else
-					return chunk.ViewRW_Internal<U>();
+					return chunk.ViewRW_Internal<U, true>();
 			}
 
 			//--------------------------------------------------------------------------------
@@ -1228,7 +1228,7 @@ namespace gaia {
 				// Pointers to the respective component types in the chunk, e.g
 				// 		w.ForEach(q, [&](Position& p, const Velocity& v) {...}
 				// Translates to:
-				//  	auto p = chunk.ViewRW_Internal<Position>();
+				//  	auto p = chunk.ViewRW_Internal<Position, true>();
 				//		auto v = chunk.View_Internal<Velocity>();
 				auto dataPointerTuple = std::make_tuple(GetComponentView<T>(chunk)...);
 

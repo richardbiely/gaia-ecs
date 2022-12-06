@@ -119,6 +119,24 @@ w.SetComponent<Velocity>(e, {0, 0, 2}).
   SetComponent...;
 ```
 
+Both read and write operations are also accessible via views. These are what SetComponent / GetComponet uses internaly.
+```cpp
+auto *pChunk = w.GetChunk(e);
+// Read-only view. We can only use this to read values form our chunk.
+auto v = pChunk->View<Velocity>();
+Velocity vel = v[index];
+// Read-write view. We can use this one to also modify contents of our chunk.
+// These views automatically update the world version and can be used to detect
+// changes in chunk which is usually desirable.
+auto v_rw = pChunk->ViewRW<Velocity>();
+v_rw[index] = Velocity{};
+// Read-write silent view. Esentially the same as ViewRW with the exception
+// that it does not modify the world version and changes made by it can not
+// be detected.
+auto v_rws = pChunk–>ViewRWSilent<Velocity>();
+v_rws[index] = Velocity{};
+```
+
 ### Checking if component is attached to entity
 ```cpp
 // Check if entity e has Velocity (via world).
@@ -183,7 +201,7 @@ w.ForEach(q, [&](Position& p, const Velocity& v) {
 });
 ```
 
-Iterating over components not present in the query is not supported. This is done to prevent various logic errors which might sneak in  otherwise.
+Iterating over components not present in the query is not supported. This is done to prevent various logic errors which might sneak in otherwise.
 
 ## Iteration over chunks
 Iteration over chunk gives you more power as it exposes to you the underlying chunk in which your data is contained.<br/>

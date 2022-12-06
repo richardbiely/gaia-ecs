@@ -1511,6 +1511,20 @@ TEST_CASE("Query Filter - systems") {
 			GetWorld().ForEach([]([[maybe_unused]] Position& a) {});
 		}
 	};
+	class WriterSystemSilent final: public ecs::System {
+		ecs::EntityQuery m_q;
+
+	public:
+		void OnCreated() override {
+			m_q.All<Position>();
+		}
+		void OnUpdate() override {
+			GetWorld().ForEach(m_q, [&](ecs::Chunk& chunk) {
+				auto posRWView = chunk.ViewRWSilent<Position>();
+				(void)posRWView;
+			});
+		}
+	};
 	class ReaderSystem final: public ecs::System {
 		uint32_t m_expectedCnt = 0;
 
@@ -1533,10 +1547,12 @@ TEST_CASE("Query Filter - systems") {
 	};
 	ecs::SystemManager sm(w);
 	auto ws = sm.CreateSystem<WriterSystem>("writer");
+	auto wss = sm.CreateSystem<WriterSystemSilent>("writer_silent");
 	auto rs = sm.CreateSystem<ReaderSystem>("reader");
 
 	// first run always happens
 	ws->Enable(false);
+	wss->Enable(false);
 	rs->SetExpectedCount(1);
 	sm.Update();
 	// no change of position so ReaderSystem should't see changes
@@ -1548,6 +1564,11 @@ TEST_CASE("Query Filter - systems") {
 	sm.Update();
 	// no change of position so ReaderSystem shouldn't see changes
 	ws->Enable(false);
+	rs->SetExpectedCount(0);
+	sm.Update();
+	// silent writer enabled again. If should not cause an update
+	ws->Enable(false);
+	wss->Enable(true);
 	rs->SetExpectedCount(0);
 	sm.Update();
 }
