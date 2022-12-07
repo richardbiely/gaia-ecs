@@ -105,6 +105,8 @@ w.RemoveComponent<Velocity>(e);
 ```cpp
 // Change Velocity's value.
 w.SetComponent<Velocity>(e, {0, 0, 2});
+// Same as above but the world version is not updated so nobody gets notified of this change.
+w.SetComponentSilent<Velocity>(e, {4, 2, 0});
 // Read Velocity's value.
 auto velNew = w.GetComponent<Velocity>(e);
 ```
