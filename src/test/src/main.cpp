@@ -1497,6 +1497,31 @@ TEST_CASE("Query Filter - no systems") {
 		});
 		REQUIRE(cnt == 0);
 	}
+	{
+		w.UpdateWorldVersion();
+		w.SetComponentSilent<Position>(e, {});
+	}
+	{
+		uint32_t cnt = 0;
+		w.ForEach(q, [&]([[maybe_unused]] const Position& a) {
+			++cnt;
+		});
+		REQUIRE(cnt == 0);
+	}
+	{
+		w.UpdateWorldVersion();
+
+		auto ch = w.GetChunk(e);
+		auto p = ch->ViewRWSilent<Position>();
+		p[0] = {};
+	}
+	{
+		uint32_t cnt = 0;
+		w.ForEach(q, [&]([[maybe_unused]] const Position& a) {
+			++cnt;
+		});
+		REQUIRE(cnt == 0);
+	}
 }
 
 TEST_CASE("Query Filter - systems") {

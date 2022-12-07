@@ -347,6 +347,28 @@ namespace gaia {
 				ViewRW<T>()[0] = std::forward<U>(value);
 			}
 
+			template <typename T>
+			void SetComponentSilent(uint32_t index, typename DeduceComponent<T>::Type&& value) {
+				using U = typename DeduceComponent<T>::Type;
+
+				static_assert(
+						IsGenericComponent<T>::value,
+						"SetComponent providing an index in chunk is only available for generic components");
+
+				ViewRWSilent<T>()[index] = std::forward<U>(value);
+			}
+
+			template <typename T>
+			void SetComponentSilent(typename DeduceComponent<T>::Type&& value) {
+				using U = typename DeduceComponent<T>::Type;
+
+				static_assert(
+						!IsGenericComponent<T>::value,
+						"SetComponent not providing an index in chunk is only available for non-generic components");
+
+				ViewRWSilent<T>()[0] = std::forward<U>(value);
+			}
+
 			//----------------------------------------------------------------------
 			// Read component data
 			//----------------------------------------------------------------------

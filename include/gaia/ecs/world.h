@@ -41,6 +41,19 @@ namespace gaia {
 					return *this;
 				}
 			}
+
+			template <typename T>
+			ComponentSetter& SetComponentSilent(typename DeduceComponent<T>::Type&& data) {
+				if constexpr (IsGenericComponent<T>::value) {
+					using U = typename detail::ExtractComponentType_Generic<T>::Type;
+					m_pChunk->template SetComponentSilent<T>(m_idx, std::forward<U>(data));
+					return *this;
+				} else {
+					using U = typename detail::ExtractComponentType_NonGeneric<T>::Type;
+					m_pChunk->template SetComponentSilent<T>(std::forward<U>(data));
+					return *this;
+				}
+			}
 		};
 
 		//----------------------------------------------------------------------
@@ -1167,6 +1180,22 @@ namespace gaia {
 
 				auto& entityContainer = m_entities[entity.id()];
 				return ComponentSetter{entityContainer.pChunk, entityContainer.idx}.SetComponent<T>(
+						std::forward<typename DeduceComponent<T>::Type>(data));
+			}
+
+			/*!
+			Sets the value of component on \param entity.
+			\warning It is expected the component was added to \param entity already. Undefined behavior otherwise.
+			\param entity is valid. Undefined behavior otherwise.
+			\return ComponentSetter object.
+			*/
+			template <typename T>
+			ComponentSetter SetComponentSilent(Entity entity, typename DeduceComponent<T>::Type&& data) {
+				VerifyComponent<T>();
+				GAIA_ASSERT(IsEntityValid(entity));
+
+				auto& entityContainer = m_entities[entity.id()];
+				return ComponentSetter{entityContainer.pChunk, entityContainer.idx}.SetComponentSilent<T>(
 						std::forward<typename DeduceComponent<T>::Type>(data));
 			}
 
