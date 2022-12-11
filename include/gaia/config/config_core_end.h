@@ -34,7 +34,7 @@
 	#endif
 #endif
 
-#if defined(GAIA_DISABLE_ASSERTS)
+#if GAIA_DISABLE_ASSERTS
 	#undef GAIA_ASSERT
 	#define GAIA_ASSERT(condition) (void(0))
 #elif !defined(GAIA_ASSERT)
@@ -42,9 +42,9 @@
 	#if GAIA_DEBUG
 		#define GAIA_ASSERT(condition)                                                                                     \
 			{                                                                                                                \
-				bool cond_ret = condition;                                                                                     \
+				bool cond_ret = (condition);                                                                                   \
 				assert(cond_ret);                                                                                              \
-				DoNotOptimize(cond_ret)                                                                                        \
+				DoNotOptimize(cond_ret);                                                                                       \
 			}
 	#else
 		#define GAIA_ASSERT(condition) assert(condition);
