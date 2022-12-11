@@ -12,6 +12,9 @@ GAIA_MSVC_WARNING_DISABLE(4100)
 
 using namespace gaia;
 
+struct Int3 {
+	uint32_t x, y, z;
+};
 struct Position {
 	float x, y, z;
 };
@@ -254,24 +257,23 @@ TEST_CASE("Run-time sort") {
 	REQUIRE(arr[0] == 4);
 }
 
-TEST_CASE("EntityQuery - 2 components") {
-	// Real-time queries
-	ecs::EntityQuery qq1, qq2;
-	qq1.All<Position, Rotation>();
-	qq2.All<Rotation, Position>();
-	REQUIRE(
-			qq1.GetData(ecs::ComponentType::CT_Generic).hash[ecs::EntityQuery::ListType::LT_All] ==
-			qq2.GetData(ecs::ComponentType::CT_Generic).hash[ecs::EntityQuery::ListType::LT_All]);
-}
-
-TEST_CASE("EntityQuery - 4 components") {
-	// Real-time queries
-	ecs::EntityQuery qq1, qq2;
-	qq1.All<Position, Rotation, Acceleration, Something>();
-	qq2.All<Rotation, Something, Position, Acceleration>();
-	REQUIRE(
-			qq1.GetData(ecs::ComponentType::CT_Generic).hash[ecs::EntityQuery::ListType::LT_All] ==
-			qq2.GetData(ecs::ComponentType::CT_Generic).hash[ecs::EntityQuery::ListType::LT_All]);
+TEST_CASE("EntityQuery - equality") {
+	{
+		ecs::EntityQuery qq1, qq2;
+		qq1.All<Position, Rotation>();
+		qq2.All<Rotation, Position>();
+		REQUIRE(
+				qq1.GetData(ecs::ComponentType::CT_Generic).hash[ecs::EntityQuery::ListType::LT_All] ==
+				qq2.GetData(ecs::ComponentType::CT_Generic).hash[ecs::EntityQuery::ListType::LT_All]);
+	}
+	{
+		ecs::EntityQuery qq1, qq2;
+		qq1.All<Position, Rotation, Acceleration, Something>();
+		qq2.All<Rotation, Something, Position, Acceleration>();
+		REQUIRE(
+				qq1.GetData(ecs::ComponentType::CT_Generic).hash[ecs::EntityQuery::ListType::LT_All] ==
+				qq2.GetData(ecs::ComponentType::CT_Generic).hash[ecs::EntityQuery::ListType::LT_All]);
+	}
 }
 
 TEST_CASE("CreateEntity - no components") {
@@ -284,7 +286,7 @@ TEST_CASE("CreateEntity - no components") {
 		return e;
 	};
 
-	const uint32_t N = 100;
+	const uint32_t N = 10'000;
 	for (uint32_t i = 0; i < N; i++)
 		create(i);
 }
@@ -294,12 +296,17 @@ TEST_CASE("CreateEntity - 1 component") {
 
 	auto create = [&](uint32_t id) {
 		auto e = w.CreateEntity();
+		w.AddComponent<Int3>(e, {id, id, id});
 		const bool ok = e.id() == id && e.gen() == 0;
 		REQUIRE(ok);
+		auto pos = w.GetComponent<Int3>(e);
+		REQUIRE(pos.x == id);
+		REQUIRE(pos.y == id);
+		REQUIRE(pos.z == id);
 		return e;
 	};
 
-	const uint32_t N = 10000;
+	const uint32_t N = 10'000;
 	for (uint32_t i = 0; i < N; i++)
 		create(i);
 }
@@ -341,8 +348,13 @@ TEST_CASE("CreateAndRemoveEntity - 1 component") {
 
 	auto create = [&](uint32_t id) {
 		auto e = w.CreateEntity();
+		w.AddComponent<Int3>(e, {id, id, id});
 		const bool ok = e.id() == id && e.gen() == 0;
 		REQUIRE(ok);
+		auto pos = w.GetComponent<Int3>(e);
+		REQUIRE(pos.x == id);
+		REQUIRE(pos.y == id);
+		REQUIRE(pos.z == id);
 		return e;
 	};
 	auto remove = [&](ecs::Entity e) {
@@ -352,11 +364,13 @@ TEST_CASE("CreateAndRemoveEntity - 1 component") {
 		REQUIRE(ok);
 		auto ch = w.GetChunk(e);
 		REQUIRE(ch == nullptr);
+		const bool isEntityValid = w.IsEntityValid(e);
+		REQUIRE(!isEntityValid);
 	};
 
-	// 100,000 picked so we create enough entites that they overflow
+	// 10,000 picked so we create enough entites that they overflow
 	// into another chunk
-	const uint32_t N = 100'000;
+	const uint32_t N = 10'000;
 	containers::darray<ecs::Entity> arr;
 	arr.reserve(N);
 
@@ -672,195 +686,58 @@ TEST_CASE("RemoveComponent - generic, chunk") {
 	}
 }
 
-TEST_CASE("SetComponent - generic") {
+TEST_CASE("Usage 1 - simple query, 0 component") {
 	ecs::World w;
 
-	constexpr size_t N = 100;
-	containers::darray<ecs::Entity> arr;
-	arr.reserve(N);
+	auto e = w.CreateEntity();
 
-	for (size_t i = 0; i < N; ++i) {
-		arr.push_back(w.CreateEntity());
-		w.AddComponent<Rotation>(arr.back(), {});
-		w.AddComponent<Scale>(arr.back(), {});
-		w.AddComponent<Else>(arr.back(), {});
-		w.AddComponent<PositionNonTrivial>(arr.back(), {});
-	}
-
-	// Default values
-	for (const auto ent: arr) {
-		auto r = w.GetComponent<Rotation>(ent);
-		REQUIRE(r.x == 0);
-		REQUIRE(r.y == 0);
-		REQUIRE(r.z == 0);
-		REQUIRE(r.w == 0);
-
-		auto s = w.GetComponent<Scale>(ent);
-		REQUIRE(s.x == 0);
-		REQUIRE(s.y == 0);
-		REQUIRE(s.z == 0);
-
-		auto e = w.GetComponent<Else>(ent);
-		REQUIRE(e.value == false);
-
-		auto p = w.GetComponent<PositionNonTrivial>(ent);
-		REQUIRE(p.x == 1);
-		REQUIRE(p.y == 2);
-		REQUIRE(p.z == 3);
-	}
-
-	// Modify values
 	{
-		ecs::EntityQuery q;
-		q.All<Rotation, Scale, Else, PositionNonTrivial>();
-
-		w.ForEach(q, [&](ecs::Chunk& chunk) {
-			auto rotationView = chunk.ViewRW<Rotation>();
-			auto scaleView = chunk.ViewRW<Scale>();
-			auto elseView = chunk.ViewRW<Else>();
-			auto posView = chunk.ViewRW<PositionNonTrivial>();
-
-			for (size_t i = 0; i < chunk.GetItemCount(); ++i) {
-				rotationView[i] = {1, 2, 3, 4};
-				scaleView[i] = {11, 22, 33};
-				elseView[i] = {true};
-				posView[i] = {111, 222, 333};
-			}
+		uint32_t cnt = 0;
+		w.ForEach([&]([[maybe_unused]] const Acceleration& a) {
+			++cnt;
 		});
-
-		for (const auto ent: arr) {
-			auto r = w.GetComponent<Rotation>(ent);
-			REQUIRE(r.x == 1);
-			REQUIRE(r.y == 2);
-			REQUIRE(r.z == 3);
-			REQUIRE(r.w == 4);
-
-			auto s = w.GetComponent<Scale>(ent);
-			REQUIRE(s.x == 11);
-			REQUIRE(s.y == 22);
-			REQUIRE(s.z == 33);
-
-			auto e = w.GetComponent<Else>(ent);
-			REQUIRE(e.value == true);
-
-			auto p = w.GetComponent<PositionNonTrivial>(ent);
-			REQUIRE(p.x == 111);
-			REQUIRE(p.y == 222);
-			REQUIRE(p.z == 333);
-		}
+		REQUIRE(cnt == 0);
 	}
-
-	// Add one more component and check if the values are still fine after creating a new archetype
 	{
-		auto ent = w.CreateEntity(arr[0]);
-		w.AddComponent<Position>(ent, {5, 6, 7});
-
-		auto r = w.GetComponent<Rotation>(ent);
-		REQUIRE(r.x == 1);
-		REQUIRE(r.y == 2);
-		REQUIRE(r.z == 3);
-		REQUIRE(r.w == 4);
-
-		auto s = w.GetComponent<Scale>(ent);
-		REQUIRE(s.x == 11);
-		REQUIRE(s.y == 22);
-		REQUIRE(s.z == 33);
-
-		auto e = w.GetComponent<Else>(ent);
-		REQUIRE(e.value == true);
-
-		auto p = w.GetComponent<PositionNonTrivial>(ent);
-		REQUIRE(p.x == 111);
-		REQUIRE(p.y == 222);
-		REQUIRE(p.z == 333);
-	}
-}
-
-TEST_CASE("SetComponent - generic & chunk") {
-	ecs::World w;
-
-	constexpr size_t N = 100;
-	containers::darray<ecs::Entity> arr;
-	arr.reserve(N);
-
-	for (size_t i = 0; i < N; ++i) {
-		arr.push_back(w.CreateEntity());
-		w.AddComponent<Rotation>(arr.back(), {});
-		w.AddComponent<Scale>(arr.back(), {});
-		w.AddComponent<Else>(arr.back(), {});
-		w.AddComponent<ecs::AsChunk<Position>>(arr.back(), {});
-	}
-
-	// Default values
-	for (const auto ent: arr) {
-		auto r = w.GetComponent<Rotation>(ent);
-		REQUIRE(r.x == 0);
-		REQUIRE(r.y == 0);
-		REQUIRE(r.z == 0);
-		REQUIRE(r.w == 0);
-
-		auto s = w.GetComponent<Scale>(ent);
-		REQUIRE(s.x == 0);
-		REQUIRE(s.y == 0);
-		REQUIRE(s.z == 0);
-
-		auto e = w.GetComponent<Else>(ent);
-		REQUIRE(e.value == false);
-
-		auto p = w.GetComponent<ecs::AsChunk<Position>>(ent);
-		REQUIRE(p.x == 0);
-		REQUIRE(p.y == 0);
-		REQUIRE(p.z == 0);
-	}
-
-	// Modify values
-	{
-		ecs::EntityQuery q;
-		q.All<Rotation, Scale, Else>();
-
-		w.ForEach(q, [&](ecs::Chunk& chunk) {
-			auto rotationView = chunk.ViewRW<Rotation>();
-			auto scaleView = chunk.ViewRW<Scale>();
-			auto elseView = chunk.ViewRW<Else>();
-
-			chunk.SetComponent<ecs::AsChunk<Position>>({111, 222, 333});
-
-			for (size_t i = 0; i < chunk.GetItemCount(); ++i) {
-				rotationView[i] = {1, 2, 3, 4};
-				scaleView[i] = {11, 22, 33};
-				elseView[i] = {true};
-			}
+		uint32_t cnt = 0;
+		w.ForEach([&]([[maybe_unused]] const Position& a) {
+			++cnt;
 		});
+		REQUIRE(cnt == 0);
+	}
 
-		{
-			Position p = w.GetComponent<ecs::AsChunk<Position>>(arr[0]);
-			REQUIRE(p.x == 111);
-			REQUIRE(p.y == 222);
-			REQUIRE(p.z == 333);
-		}
-		{
-			for (const auto ent: arr) {
-				auto r = w.GetComponent<Rotation>(ent);
-				REQUIRE(r.x == 1);
-				REQUIRE(r.y == 2);
-				REQUIRE(r.z == 3);
-				REQUIRE(r.w == 4);
+	auto e1 = w.CreateEntity(e);
+	auto e2 = w.CreateEntity(e);
+	auto e3 = w.CreateEntity(e);
 
-				auto s = w.GetComponent<Scale>(ent);
-				REQUIRE(s.x == 11);
-				REQUIRE(s.y == 22);
-				REQUIRE(s.z == 33);
+	{
+		uint32_t cnt = 0;
+		w.ForEach([&]([[maybe_unused]] const Position& a) {
+			++cnt;
+		});
+		REQUIRE(cnt == 0);
+	}
 
-				auto e = w.GetComponent<Else>(ent);
-				REQUIRE(e.value == true);
-			}
-		}
-		{
-			auto p = w.GetComponent<ecs::AsChunk<Position>>(arr[0]);
-			REQUIRE(p.x == 111);
-			REQUIRE(p.y == 222);
-			REQUIRE(p.z == 333);
-		}
+	w.DeleteEntity(e1);
+
+	{
+		uint32_t cnt = 0;
+		w.ForEach([&]([[maybe_unused]] const Position& a) {
+			++cnt;
+		});
+		REQUIRE(cnt == 0);
+	}
+
+	w.DeleteEntity(e2);
+	w.DeleteEntity(e3);
+	w.DeleteEntity(e);
+
+	{
+		uint32_t cnt = 0;
+		w.ForEach([&]([[maybe_unused]] const Position& a) {
+			++cnt;
+		});
+		REQUIRE(cnt == 0);
 	}
 }
 
@@ -1177,6 +1054,198 @@ TEST_CASE("Usage 2 - simple query, many chunk components") {
 	}
 }
 
+TEST_CASE("SetComponent - generic") {
+	ecs::World w;
+
+	constexpr size_t N = 100;
+	containers::darray<ecs::Entity> arr;
+	arr.reserve(N);
+
+	for (size_t i = 0; i < N; ++i) {
+		arr.push_back(w.CreateEntity());
+		w.AddComponent<Rotation>(arr.back(), {});
+		w.AddComponent<Scale>(arr.back(), {});
+		w.AddComponent<Else>(arr.back(), {});
+		w.AddComponent<PositionNonTrivial>(arr.back(), {});
+	}
+
+	// Default values
+	for (const auto ent: arr) {
+		auto r = w.GetComponent<Rotation>(ent);
+		REQUIRE(r.x == 0);
+		REQUIRE(r.y == 0);
+		REQUIRE(r.z == 0);
+		REQUIRE(r.w == 0);
+
+		auto s = w.GetComponent<Scale>(ent);
+		REQUIRE(s.x == 0);
+		REQUIRE(s.y == 0);
+		REQUIRE(s.z == 0);
+
+		auto e = w.GetComponent<Else>(ent);
+		REQUIRE(e.value == false);
+
+		auto p = w.GetComponent<PositionNonTrivial>(ent);
+		REQUIRE(p.x == 1);
+		REQUIRE(p.y == 2);
+		REQUIRE(p.z == 3);
+	}
+
+	// Modify values
+	{
+		ecs::EntityQuery q;
+		q.All<Rotation, Scale, Else, PositionNonTrivial>();
+
+		w.ForEach(q, [&](ecs::Chunk& chunk) {
+			auto rotationView = chunk.ViewRW<Rotation>();
+			auto scaleView = chunk.ViewRW<Scale>();
+			auto elseView = chunk.ViewRW<Else>();
+			auto posView = chunk.ViewRW<PositionNonTrivial>();
+
+			for (size_t i = 0; i < chunk.GetItemCount(); ++i) {
+				rotationView[i] = {1, 2, 3, 4};
+				scaleView[i] = {11, 22, 33};
+				elseView[i] = {true};
+				posView[i] = {111, 222, 333};
+			}
+		});
+
+		for (const auto ent: arr) {
+			auto r = w.GetComponent<Rotation>(ent);
+			REQUIRE(r.x == 1);
+			REQUIRE(r.y == 2);
+			REQUIRE(r.z == 3);
+			REQUIRE(r.w == 4);
+
+			auto s = w.GetComponent<Scale>(ent);
+			REQUIRE(s.x == 11);
+			REQUIRE(s.y == 22);
+			REQUIRE(s.z == 33);
+
+			auto e = w.GetComponent<Else>(ent);
+			REQUIRE(e.value == true);
+
+			auto p = w.GetComponent<PositionNonTrivial>(ent);
+			REQUIRE(p.x == 111);
+			REQUIRE(p.y == 222);
+			REQUIRE(p.z == 333);
+		}
+	}
+
+	// Add one more component and check if the values are still fine after creating a new archetype
+	{
+		auto ent = w.CreateEntity(arr[0]);
+		w.AddComponent<Position>(ent, {5, 6, 7});
+
+		auto r = w.GetComponent<Rotation>(ent);
+		REQUIRE(r.x == 1);
+		REQUIRE(r.y == 2);
+		REQUIRE(r.z == 3);
+		REQUIRE(r.w == 4);
+
+		auto s = w.GetComponent<Scale>(ent);
+		REQUIRE(s.x == 11);
+		REQUIRE(s.y == 22);
+		REQUIRE(s.z == 33);
+
+		auto e = w.GetComponent<Else>(ent);
+		REQUIRE(e.value == true);
+
+		auto p = w.GetComponent<PositionNonTrivial>(ent);
+		REQUIRE(p.x == 111);
+		REQUIRE(p.y == 222);
+		REQUIRE(p.z == 333);
+	}
+}
+
+TEST_CASE("SetComponent - generic & chunk") {
+	ecs::World w;
+
+	constexpr size_t N = 100;
+	containers::darray<ecs::Entity> arr;
+	arr.reserve(N);
+
+	for (size_t i = 0; i < N; ++i) {
+		arr.push_back(w.CreateEntity());
+		w.AddComponent<Rotation>(arr.back(), {});
+		w.AddComponent<Scale>(arr.back(), {});
+		w.AddComponent<Else>(arr.back(), {});
+		w.AddComponent<ecs::AsChunk<Position>>(arr.back(), {});
+	}
+
+	// Default values
+	for (const auto ent: arr) {
+		auto r = w.GetComponent<Rotation>(ent);
+		REQUIRE(r.x == 0);
+		REQUIRE(r.y == 0);
+		REQUIRE(r.z == 0);
+		REQUIRE(r.w == 0);
+
+		auto s = w.GetComponent<Scale>(ent);
+		REQUIRE(s.x == 0);
+		REQUIRE(s.y == 0);
+		REQUIRE(s.z == 0);
+
+		auto e = w.GetComponent<Else>(ent);
+		REQUIRE(e.value == false);
+
+		auto p = w.GetComponent<ecs::AsChunk<Position>>(ent);
+		REQUIRE(p.x == 0);
+		REQUIRE(p.y == 0);
+		REQUIRE(p.z == 0);
+	}
+
+	// Modify values
+	{
+		ecs::EntityQuery q;
+		q.All<Rotation, Scale, Else>();
+
+		w.ForEach(q, [&](ecs::Chunk& chunk) {
+			auto rotationView = chunk.ViewRW<Rotation>();
+			auto scaleView = chunk.ViewRW<Scale>();
+			auto elseView = chunk.ViewRW<Else>();
+
+			chunk.SetComponent<ecs::AsChunk<Position>>({111, 222, 333});
+
+			for (size_t i = 0; i < chunk.GetItemCount(); ++i) {
+				rotationView[i] = {1, 2, 3, 4};
+				scaleView[i] = {11, 22, 33};
+				elseView[i] = {true};
+			}
+		});
+
+		{
+			Position p = w.GetComponent<ecs::AsChunk<Position>>(arr[0]);
+			REQUIRE(p.x == 111);
+			REQUIRE(p.y == 222);
+			REQUIRE(p.z == 333);
+		}
+		{
+			for (const auto ent: arr) {
+				auto r = w.GetComponent<Rotation>(ent);
+				REQUIRE(r.x == 1);
+				REQUIRE(r.y == 2);
+				REQUIRE(r.z == 3);
+				REQUIRE(r.w == 4);
+
+				auto s = w.GetComponent<Scale>(ent);
+				REQUIRE(s.x == 11);
+				REQUIRE(s.y == 22);
+				REQUIRE(s.z == 33);
+
+				auto e = w.GetComponent<Else>(ent);
+				REQUIRE(e.value == true);
+			}
+		}
+		{
+			auto p = w.GetComponent<ecs::AsChunk<Position>>(arr[0]);
+			REQUIRE(p.x == 111);
+			REQUIRE(p.y == 222);
+			REQUIRE(p.z == 333);
+		}
+	}
+}
+
 TEST_CASE("CommandBuffer") {
 	// Entity creation
 	{
@@ -1184,8 +1253,9 @@ TEST_CASE("CommandBuffer") {
 		ecs::CommandBuffer cb(w);
 
 		const uint32_t N = 100;
-		for (uint32_t i = 0; i < N; i++)
+		for (uint32_t i = 0; i < N; i++) {
 			[[maybe_unused]] auto tmp = cb.CreateEntity();
+		}
 
 		cb.Commit();
 
@@ -1203,8 +1273,9 @@ TEST_CASE("CommandBuffer") {
 		auto mainEntity = w.CreateEntity();
 
 		const uint32_t N = 100;
-		for (uint32_t i = 0; i < N; i++)
+		for (uint32_t i = 0; i < N; i++) {
 			[[maybe_unused]] auto tmp = cb.CreateEntity(mainEntity);
+		}
 
 		cb.Commit();
 
