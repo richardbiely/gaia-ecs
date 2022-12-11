@@ -169,7 +169,7 @@ namespace gaia {
 				}
 			}
 
-			void CalculateLookupHash(const World& world) {
+			void CalculateLookupHash() {
 				// Sort the arrays if necessary
 				if (m_sort) {
 					SortComponentArrays();
@@ -179,7 +179,7 @@ namespace gaia {
 				// Make sure we don't calculate the hash twice
 				GAIA_ASSERT(m_hashLookup.hash == 0);
 
-				const auto& cc = GetComponentCache(world);
+				const auto& cc = GetComponentCache();
 
 				// Contraints
 				uint64_t hashLookup = utils::hash_combine(m_hashLookup.hash, (uint64_t)m_constraints);
@@ -230,7 +230,7 @@ namespace gaia {
 				m_hashLookup = {utils::calculate_hash64(hashLookup)};
 			}
 
-			void CalculateMatcherHashes(const World& world) {
+			void CalculateMatcherHashes() {
 				if (!m_recalculate)
 					return;
 				m_recalculate = false;
@@ -243,7 +243,7 @@ namespace gaia {
 
 				// Calculate the matcher hash
 				{
-					const auto& cc = GetComponentCache(world);
+					const auto& cc = GetComponentCache();
 
 					for (auto& l: m_list) {
 						for (size_t i = 0; i < ListType::LT_Count; ++i) {
@@ -399,10 +399,8 @@ namespace gaia {
 			This is necessary so we do not iterate all chunks over and over again when running queries.
 			*/
 			void Match(const containers::darray<Archetype*>& archetypes) {
-				if (m_recalculate && !archetypes.empty()) {
-					const auto& world = archetypes[0]->GetWorld();
-					CalculateMatcherHashes(world);
-				}
+				if (m_recalculate && !archetypes.empty())
+					CalculateMatcherHashes();
 
 				for (size_t i = m_lastArchetypeId; i < archetypes.size(); i++) {
 					auto* pArchetype = archetypes[i];

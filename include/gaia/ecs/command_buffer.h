@@ -60,7 +60,7 @@ namespace gaia {
 				}
 				// Components
 				{
-					const auto* infoToAdd = GetComponentCache(m_world).GetOrCreateComponentInfo<T>();
+					const auto* infoToAdd = GetComponentCacheRW().GetOrCreateComponentInfo<T>();
 
 					// Component info
 					auto lastIndex = m_data.size();
@@ -109,7 +109,7 @@ namespace gaia {
 			template <typename T>
 			void SetComponentNoEntity_Internal(T&& data) {
 				// Register components
-				(void)GetComponentCache(m_world).GetOrCreateComponentInfo<T>();
+				(void)GetComponentCacheRW().GetOrCreateComponentInfo<T>();
 
 				// Data
 				SetComponentNoEntityNoSize_Internal(std::forward<T>(data));
@@ -142,7 +142,7 @@ namespace gaia {
 				}
 				// Components
 				{
-					const auto* typeToRemove = GetComponentCache(m_world).GetComponentInfo<T>();
+					const auto* typeToRemove = GetComponentCache().GetComponentInfo<T>();
 					GAIA_ASSERT(typeToRemove != nullptr);
 
 					// Component info
@@ -404,7 +404,7 @@ namespace gaia {
 
 							// Components
 							uint32_t infoIndex = utils::unaligned_ref<uint32_t>((void*)&m_data[i]);
-							const auto* newInfo = GetComponentCache(m_world).GetComponentInfoFromIdx(infoIndex);
+							const auto* newInfo = GetComponentCache().GetComponentInfoFromIdx(infoIndex);
 							i += sizeof(uint32_t);
 							m_world.AddComponent_Internal(type, entity, newInfo);
 
@@ -447,7 +447,7 @@ namespace gaia {
 
 							// Components
 							uint32_t infoIndex = utils::unaligned_ref<uint32_t>((void*)&m_data[i]);
-							const auto* newInfo = GetComponentCache(m_world).GetComponentInfoFromIdx(infoIndex);
+							const auto* newInfo = GetComponentCache().GetComponentInfoFromIdx(infoIndex);
 							i += sizeof(uint32_t);
 							m_world.AddComponent_Internal(type, entity, newInfo);
 
@@ -487,7 +487,7 @@ namespace gaia {
 							// Components
 							{
 								const auto infoIndex = utils::unaligned_ref<uint32_t>((void*)&m_data[i]);
-								const auto* info = GetComponentCache(m_world).GetComponentInfoFromIdx(infoIndex);
+								const auto* info = GetComponentCache().GetComponentInfoFromIdx(infoIndex);
 								i += sizeof(uint32_t);
 
 								auto* pComponentDataStart = pChunk->GetDataPtrRW<false>(type, info->infoIndex);
@@ -520,7 +520,7 @@ namespace gaia {
 							// Components
 							{
 								const auto infoIndex = utils::unaligned_ref<uint32_t>((void*)&m_data[i]);
-								const auto* info = GetComponentCache(m_world).GetComponentInfoFromIdx(infoIndex);
+								const auto* info = GetComponentCache().GetComponentInfoFromIdx(infoIndex);
 								i += sizeof(uint32_t);
 
 								auto* pComponentDataStart = pChunk->GetDataPtrRW<false>(type, info->infoIndex);
@@ -540,7 +540,7 @@ namespace gaia {
 
 							// Components
 							uint32_t infoIndex = utils::unaligned_ref<uint32_t>((void*)&m_data[i]);
-							const auto* newInfo = GetComponentCache(m_world).GetComponentInfoFromIdx(infoIndex);
+							const auto* newInfo = GetComponentCache().GetComponentInfoFromIdx(infoIndex);
 							i += sizeof(uint32_t);
 
 							m_world.RemoveComponent_Internal(type, e, newInfo);

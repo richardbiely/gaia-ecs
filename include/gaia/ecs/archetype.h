@@ -12,13 +12,13 @@
 #include "component.h"
 #include "component_cache.h"
 
-
 namespace gaia {
 	namespace ecs {
 		class World;
 
-		ComponentCache& GetComponentCache(World& world);
-		const ComponentCache& GetComponentCache(const World& world);
+		const ComponentCache& GetComponentCache();
+		ComponentCache& GetComponentCacheRW();
+
 		uint32_t GetWorldVersionFromWorld(const World& world);
 		void* AllocateChunkMemory(World& world);
 		void ReleaseChunkMemory(World& world, void* mem);
@@ -96,7 +96,7 @@ namespace gaia {
 				if (archetype.info.hasComponentWithCustomCreation) {
 					const auto& look = archetype.componentLookupData[ComponentType::CT_Generic];
 					for (size_t i = 0; i < look.size(); ++i) {
-						const auto& infoCreate = GetComponentCache(world).GetComponentCreateInfoFromIdx(look[i].infoIndex);
+						const auto& infoCreate = GetComponentCache().GetComponentCreateInfoFromIdx(look[i].infoIndex);
 						if (infoCreate.constructor == nullptr)
 							continue;
 						infoCreate.constructor((void*)((uint8_t*)pChunk + look[i].offset));
@@ -106,7 +106,7 @@ namespace gaia {
 				if (archetype.info.hasComponentWithCustomCreation) {
 					const auto& look = archetype.componentLookupData[ComponentType::CT_Chunk];
 					for (size_t i = 0; i < look.size(); ++i) {
-						const auto& infoCreate = GetComponentCache(world).GetComponentCreateInfoFromIdx(look[i].infoIndex);
+						const auto& infoCreate = GetComponentCache().GetComponentCreateInfoFromIdx(look[i].infoIndex);
 						if (infoCreate.constructor == nullptr)
 							continue;
 						infoCreate.constructor((void*)((uint8_t*)pChunk + look[i].offset));
@@ -129,7 +129,7 @@ namespace gaia {
 				if (archetype.info.hasComponentWithCustomCreation) {
 					const auto& look = archetype.componentLookupData[ComponentType::CT_Generic];
 					for (size_t i = 0; i < look.size(); ++i) {
-						const auto& infoCreate = GetComponentCache(world).GetComponentCreateInfoFromIdx(look[i].infoIndex);
+						const auto& infoCreate = GetComponentCache().GetComponentCreateInfoFromIdx(look[i].infoIndex);
 						if (infoCreate.destructor == nullptr)
 							continue;
 						infoCreate.destructor((void*)((uint8_t*)pChunk + look[i].offset));
@@ -139,7 +139,7 @@ namespace gaia {
 				if (archetype.info.hasComponentWithCustomCreation) {
 					const auto& look = archetype.componentLookupData[ComponentType::CT_Chunk];
 					for (size_t i = 0; i < look.size(); ++i) {
-						const auto& infoCreate = GetComponentCache(world).GetComponentCreateInfoFromIdx(look[i].infoIndex);
+						const auto& infoCreate = GetComponentCache().GetComponentCreateInfoFromIdx(look[i].infoIndex);
 						if (infoCreate.destructor == nullptr)
 							continue;
 						infoCreate.destructor((void*)((uint8_t*)pChunk + look[i].offset));
@@ -412,10 +412,8 @@ namespace gaia {
 		[[nodiscard]] inline uint64_t GetArchetypeMatcherHash(const Archetype& archetype, ComponentType type) {
 			return archetype.GetMatcherHash(type);
 		}
-		[[nodiscard]] inline const ComponentInfo*
-		GetComponentInfoFromArchetype(const Archetype& archetype, uint32_t componentIdx) {
-			const auto& cc = GetComponentCache(archetype.GetWorld());
-			return cc.GetComponentInfoFromIdx(componentIdx);
+		[[nodiscard]] inline const ComponentInfo* GetComponentInfoFromIdx(uint32_t componentIdx) {
+			return GetComponentCache().GetComponentInfoFromIdx(componentIdx);
 		}
 		[[nodiscard]] inline const ComponentInfoList&
 		GetArchetypeComponentInfoList(const Archetype& archetype, ComponentType type) {
