@@ -18,7 +18,7 @@
 
 namespace gaia {
 	namespace ecs {
-		const ComponentInfo* GetComponentInfoFromArchetype(const Archetype& archetype, uint32_t componentIdx);
+		const ComponentInfo* GetComponentInfoFromIdx(uint32_t componentIdx);
 		const ComponentInfoList& GetArchetypeComponentInfoList(const Archetype& archetype, ComponentType type);
 		const ComponentLookupList& GetArchetypeComponentLookupList(const Archetype& archetype, ComponentType type);
 
@@ -229,7 +229,7 @@ namespace gaia {
 				// Searching for a component that's not there! Programmer mistake.
 				GAIA_ASSERT(HasComponent_Internal(type, infoIndex));
 				// Don't use this with empty components. It's impossible to write to them anyway.
-				GAIA_ASSERT(GetComponentInfoFromArchetype(header.owner, infoIndex)->properties.size != 0);
+				GAIA_ASSERT(GetComponentInfoFromIdx(infoIndex)->properties.size != 0);
 
 				const auto& infos = GetArchetypeComponentLookupList(header.owner, type);
 				const auto componentIdx = (uint32_t)utils::get_index_if_unsafe(infos, [&](const auto& info) {
