@@ -1215,6 +1215,7 @@ namespace gaia {
 
 			/*!
 			Tells if \param entity contains the component.
+			Undefined behavior if \param entity is not valid.
 			\return True if the component is present on entity.
 			*/
 			template <typename T>
