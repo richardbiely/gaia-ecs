@@ -184,6 +184,45 @@
 	#define GAIA_HAS_NO_INLINE_ASSEMBLY 1
 #endif
 
+// The DoNotOptimize(...) function can be used to prevent a value or
+// expression from being optimized away by the compiler. This function is
+// intended to add little to no overhead.
+// See: https://youtu.be/nXaxk27zwlk?t=2441
+#if GAIA_HAS_NO_INLINE_ASSEMBLY
+template <class T>
+inline GAIA_FORCEINLINE void DoNotOptimize(T const& value) {
+	asm volatile("" : : "r,m"(value) : "memory");
+}
+
+template <class T>
+inline GAIA_FORCEINLINE void DoNotOptimize(T& value) {
+	#if defined(__clang__)
+	asm volatile("" : "+r,m"(value) : : "memory");
+	#else
+	asm volatile("" : "+m,r"(value) : : "memory");
+	#endif
+}
+#else
+namespace internal {
+	inline GAIA_FORCEINLINE void UseCharPointer(char const volatile* var) {
+		(void)var;
+	}
+} // namespace internal
+
+	#if defined(_MSC_VER)
+template <class T>
+inline GAIA_FORCEINLINE void DoNotOptimize(T const& value) {
+	internal::UseCharPointer(&reinterpret_cast<char const volatile&>(value));
+	_ReadWriteBarrier();
+}
+	#else
+template <class T>
+inline GAIA_FORCEINLINE void DoNotOptimize(T const& value) {
+	internal::UseCharPointer(&reinterpret_cast<char const volatile&>(value));
+}
+	#endif
+#endif
+
 // Breaking changes and big features
 #define GAIA_VERSION_MAJOR 0
 // Smaller changes and features
@@ -272,7 +311,7 @@
 	#endif
 #endif
 
-#if defined(GAIA_DISABLE_ASSERTS)
+#if GAIA_DISABLE_ASSERTS
 	#undef GAIA_ASSERT
 	#define GAIA_ASSERT(condition) (void(0))
 #elif !defined(GAIA_ASSERT)
@@ -280,9 +319,9 @@
 	#if GAIA_DEBUG
 		#define GAIA_ASSERT(condition)                                                                                     \
 			{                                                                                                                \
-				bool cond_ret = condition;                                                                                     \
+				bool cond_ret = (condition);                                                                                   \
 				assert(cond_ret);                                                                                              \
-				DoNotOptimize(cond_ret)                                                                                        \
+				DoNotOptimize(cond_ret);                                                                                       \
 			}
 	#else
 		#define GAIA_ASSERT(condition) assert(condition);
@@ -2627,46 +2666,6 @@ namespace gaia {
 #endif
 			}
 		}
-
-		// The DoNotOptimize(...) function can be used to prevent a value or
-// expression from being optimized away by the compiler. This function is
-// intended to add little to no overhead.
-// See: https://youtu.be/nXaxk27zwlk?t=2441
-#if GAIA_HAS_NO_INLINE_ASSEMBLY
-		template <class T>
-		inline GAIA_FORCEINLINE void DoNotOptimize(T const& value) {
-			asm volatile("" : : "r,m"(value) : "memory");
-		}
-
-		template <class T>
-		inline GAIA_FORCEINLINE void DoNotOptimize(T& value) {
-	#if defined(__clang__)
-			asm volatile("" : "+r,m"(value) : : "memory");
-	#else
-			asm volatile("" : "+m,r"(value) : : "memory");
-	#endif
-		}
-#else
-		namespace internal {
-			inline GAIA_FORCEINLINE void UseCharPointer(char const volatile* var) {
-				(void)var;
-			}
-		} // namespace internal
-
-	#if defined(_MSC_VER)
-		template <class T>
-		inline GAIA_FORCEINLINE void DoNotOptimize(T const& value) {
-			internal::UseCharPointer(&reinterpret_cast<char const volatile&>(value));
-			_ReadWriteBarrier();
-		}
-	#else
-		template <class T>
-		inline GAIA_FORCEINLINE void DoNotOptimize(T const& value) {
-			internal::UseCharPointer(&reinterpret_cast<char const volatile&>(value));
-		}
-	#endif
-#endif
-
 	} // namespace utils
 } // namespace gaia
 
@@ -7010,7 +7009,7 @@ namespace gaia {
 
 namespace gaia {
 	namespace ecs {
-		const ComponentInfo* GetComponentInfoFromArchetype(const Archetype& archetype, uint32_t componentIdx);
+		const ComponentInfo* GetComponentInfoFromIdx(uint32_t componentIdx);
 		const ComponentInfoList& GetArchetypeComponentInfoList(const Archetype& archetype, ComponentType type);
 		const ComponentLookupList& GetArchetypeComponentLookupList(const Archetype& archetype, ComponentType type);
 
@@ -7166,9 +7165,10 @@ namespace gaia {
 			/*!
 			Returns a read-write span of the component data. Also updates the world version for the component.
 			\tparam T Component
+			\tparam UpdateWorldVersion If true, the world version is updated as a result of the write access
 			\return Span of the component data.
 			*/
-			template <typename T>
+			template <typename T, bool UpdateWorldVersion>
 			[[nodiscard]] GAIA_FORCEINLINE auto ViewRW_Internal() {
 				using U = typename DeduceComponent<T>::Type;
 #if GAIA_COMPILER_MSVC && _MSC_VER <= 1916
@@ -7183,10 +7183,11 @@ namespace gaia {
 
 				const auto infoIndex = utils::type_info::index<U>();
 
+				constexpr bool uwv = UpdateWorldVersion;
 				if constexpr (IsGenericComponent<T>::value)
-					return std::span<U>{(U*)GetDataPtrRW(ComponentType::CT_Generic, infoIndex), GetItemCount()};
+					return std::span<U>{(U*)GetDataPtrRW<uwv>(ComponentType::CT_Generic, infoIndex), GetItemCount()};
 				else
-					return std::span<U>{(U*)GetDataPtrRW(ComponentType::CT_Chunk, infoIndex), 1};
+					return std::span<U>{(U*)GetDataPtrRW<uwv>(ComponentType::CT_Chunk, infoIndex), 1};
 			}
 
 			/*!
@@ -7209,23 +7210,27 @@ namespace gaia {
 
 			/*!
 			Returns a pointer do component data with read-write access. Also updates the world version for the component.
+			\tparam UpdateWorldVersion If true, the world version is updated as a result of the write access
 			\param type Component type
 			\param infoIndex Index of the component in the archetype
 			\return Pointer to component data.
 			*/
+			template <bool UpdateWorldVersion>
 			[[nodiscard]] GAIA_FORCEINLINE uint8_t* GetDataPtrRW(ComponentType type, uint32_t infoIndex) {
 				// Searching for a component that's not there! Programmer mistake.
 				GAIA_ASSERT(HasComponent_Internal(type, infoIndex));
 				// Don't use this with empty components. It's impossible to write to them anyway.
-				GAIA_ASSERT(GetComponentInfoFromArchetype(header.owner, infoIndex)->properties.size != 0);
+				GAIA_ASSERT(GetComponentInfoFromIdx(infoIndex)->properties.size != 0);
 
 				const auto& infos = GetArchetypeComponentLookupList(header.owner, type);
 				const auto componentIdx = (uint32_t)utils::get_index_if_unsafe(infos, [&](const auto& info) {
 					return info.infoIndex == infoIndex;
 				});
 
-				// Update version number so we know RW access was used on chunk
-				header.UpdateWorldVersion(type, componentIdx);
+				if constexpr (UpdateWorldVersion) {
+					// Update version number so we know RW access was used on chunk
+					header.UpdateWorldVersion(type, componentIdx);
+				}
 
 				return (uint8_t*)&data[infos[componentIdx].offset];
 			}
@@ -7261,7 +7266,19 @@ namespace gaia {
 				using U = typename DeduceComponent<T>::Type;
 				static_assert(!std::is_same<U, Entity>::value);
 
-				return utils::auto_view_policy_set<U>{ViewRW_Internal<T>()};
+				return utils::auto_view_policy_set<U>{ViewRW_Internal<T, true>()};
+			}
+
+			/*!
+			Returns a mutable component view. Doesn't update the world version when the access is aquired.
+			\return Component view with read-write access
+			*/
+			template <typename T>
+			[[nodiscard]] auto ViewRWSilent() {
+				using U = typename DeduceComponent<T>::Type;
+				static_assert(!std::is_same<U, Entity>::value);
+
+				return utils::auto_view_policy_set<U>{ViewRW_Internal<T, false>()};
 			}
 
 			/*!
@@ -7319,6 +7336,28 @@ namespace gaia {
 						"SetComponent not providing an index in chunk is only available for non-generic components");
 
 				ViewRW<T>()[0] = std::forward<U>(value);
+			}
+
+			template <typename T>
+			void SetComponentSilent(uint32_t index, typename DeduceComponent<T>::Type&& value) {
+				using U = typename DeduceComponent<T>::Type;
+
+				static_assert(
+						IsGenericComponent<T>::value,
+						"SetComponent providing an index in chunk is only available for generic components");
+
+				ViewRWSilent<T>()[index] = std::forward<U>(value);
+			}
+
+			template <typename T>
+			void SetComponentSilent(typename DeduceComponent<T>::Type&& value) {
+				using U = typename DeduceComponent<T>::Type;
+
+				static_assert(
+						!IsGenericComponent<T>::value,
+						"SetComponent not providing an index in chunk is only available for non-generic components");
+
+				ViewRWSilent<T>()[0] = std::forward<U>(value);
 			}
 
 			//----------------------------------------------------------------------
@@ -7473,8 +7512,9 @@ namespace gaia {
 	namespace ecs {
 		class World;
 
-		ComponentCache& GetComponentCache(World& world);
-		const ComponentCache& GetComponentCache(const World& world);
+		const ComponentCache& GetComponentCache();
+		ComponentCache& GetComponentCacheRW();
+
 		uint32_t GetWorldVersionFromWorld(const World& world);
 		void* AllocateChunkMemory(World& world);
 		void ReleaseChunkMemory(World& world, void* mem);
@@ -7552,7 +7592,7 @@ namespace gaia {
 				if (archetype.info.hasComponentWithCustomCreation) {
 					const auto& look = archetype.componentLookupData[ComponentType::CT_Generic];
 					for (size_t i = 0; i < look.size(); ++i) {
-						const auto& infoCreate = GetComponentCache(world).GetComponentCreateInfoFromIdx(look[i].infoIndex);
+						const auto& infoCreate = GetComponentCache().GetComponentCreateInfoFromIdx(look[i].infoIndex);
 						if (infoCreate.constructor == nullptr)
 							continue;
 						infoCreate.constructor((void*)((uint8_t*)pChunk + look[i].offset));
@@ -7562,7 +7602,7 @@ namespace gaia {
 				if (archetype.info.hasComponentWithCustomCreation) {
 					const auto& look = archetype.componentLookupData[ComponentType::CT_Chunk];
 					for (size_t i = 0; i < look.size(); ++i) {
-						const auto& infoCreate = GetComponentCache(world).GetComponentCreateInfoFromIdx(look[i].infoIndex);
+						const auto& infoCreate = GetComponentCache().GetComponentCreateInfoFromIdx(look[i].infoIndex);
 						if (infoCreate.constructor == nullptr)
 							continue;
 						infoCreate.constructor((void*)((uint8_t*)pChunk + look[i].offset));
@@ -7585,7 +7625,7 @@ namespace gaia {
 				if (archetype.info.hasComponentWithCustomCreation) {
 					const auto& look = archetype.componentLookupData[ComponentType::CT_Generic];
 					for (size_t i = 0; i < look.size(); ++i) {
-						const auto& infoCreate = GetComponentCache(world).GetComponentCreateInfoFromIdx(look[i].infoIndex);
+						const auto& infoCreate = GetComponentCache().GetComponentCreateInfoFromIdx(look[i].infoIndex);
 						if (infoCreate.destructor == nullptr)
 							continue;
 						infoCreate.destructor((void*)((uint8_t*)pChunk + look[i].offset));
@@ -7595,7 +7635,7 @@ namespace gaia {
 				if (archetype.info.hasComponentWithCustomCreation) {
 					const auto& look = archetype.componentLookupData[ComponentType::CT_Chunk];
 					for (size_t i = 0; i < look.size(); ++i) {
-						const auto& infoCreate = GetComponentCache(world).GetComponentCreateInfoFromIdx(look[i].infoIndex);
+						const auto& infoCreate = GetComponentCache().GetComponentCreateInfoFromIdx(look[i].infoIndex);
 						if (infoCreate.destructor == nullptr)
 							continue;
 						infoCreate.destructor((void*)((uint8_t*)pChunk + look[i].offset));
@@ -7868,10 +7908,8 @@ namespace gaia {
 		[[nodiscard]] inline uint64_t GetArchetypeMatcherHash(const Archetype& archetype, ComponentType type) {
 			return archetype.GetMatcherHash(type);
 		}
-		[[nodiscard]] inline const ComponentInfo*
-		GetComponentInfoFromArchetype(const Archetype& archetype, uint32_t componentIdx) {
-			const auto& cc = GetComponentCache(archetype.GetWorld());
-			return cc.GetComponentInfoFromIdx(componentIdx);
+		[[nodiscard]] inline const ComponentInfo* GetComponentInfoFromIdx(uint32_t componentIdx) {
+			return GetComponentCache().GetComponentInfoFromIdx(componentIdx);
 		}
 		[[nodiscard]] inline const ComponentInfoList&
 		GetArchetypeComponentInfoList(const Archetype& archetype, ComponentType type) {
@@ -7957,6 +7995,9 @@ namespace gaia {
 					// Unique infos only
 					if (utils::has(arr, infoIndex))
 						return;
+
+					// Make sure the component is always registered
+					(void)GetComponentCacheRW().GetOrCreateComponentInfo<T>();
 
 #if GAIA_DEBUG
 					// There's a limit to the amount of components which we can store
@@ -8049,7 +8090,7 @@ namespace gaia {
 				}
 			}
 
-			void CalculateLookupHash(const World& world) {
+			void CalculateLookupHash() {
 				// Sort the arrays if necessary
 				if (m_sort) {
 					SortComponentArrays();
@@ -8059,7 +8100,7 @@ namespace gaia {
 				// Make sure we don't calculate the hash twice
 				GAIA_ASSERT(m_hashLookup.hash == 0);
 
-				const auto& cc = GetComponentCache(world);
+				const auto& cc = GetComponentCache();
 
 				// Contraints
 				uint64_t hashLookup = utils::hash_combine(m_hashLookup.hash, (uint64_t)m_constraints);
@@ -8110,7 +8151,7 @@ namespace gaia {
 				m_hashLookup = {utils::calculate_hash64(hashLookup)};
 			}
 
-			void CalculateMatcherHashes(const World& world) {
+			void CalculateMatcherHashes() {
 				if (!m_recalculate)
 					return;
 				m_recalculate = false;
@@ -8123,7 +8164,7 @@ namespace gaia {
 
 				// Calculate the matcher hash
 				{
-					const auto& cc = GetComponentCache(world);
+					const auto& cc = GetComponentCache();
 
 					for (auto& l: m_list) {
 						for (size_t i = 0; i < ListType::LT_Count; ++i) {
@@ -8279,10 +8320,8 @@ namespace gaia {
 			This is necessary so we do not iterate all chunks over and over again when running queries.
 			*/
 			void Match(const containers::darray<Archetype*>& archetypes) {
-				if (m_recalculate && !archetypes.empty()) {
-					const auto& world = archetypes[0]->GetWorld();
-					CalculateMatcherHashes(world);
-				}
+				if (m_recalculate && !archetypes.empty())
+					CalculateMatcherHashes();
 
 				for (size_t i = m_lastArchetypeId; i < archetypes.size(); i++) {
 					auto* pArchetype = archetypes[i];
@@ -8447,6 +8486,19 @@ namespace gaia {
 					return *this;
 				}
 			}
+
+			template <typename T>
+			ComponentSetter& SetComponentSilent(typename DeduceComponent<T>::Type&& data) {
+				if constexpr (IsGenericComponent<T>::value) {
+					using U = typename detail::ExtractComponentType_Generic<T>::Type;
+					m_pChunk->template SetComponentSilent<T>(m_idx, std::forward<U>(data));
+					return *this;
+				} else {
+					using U = typename detail::ExtractComponentType_NonGeneric<T>::Type;
+					m_pChunk->template SetComponentSilent<T>(std::forward<U>(data));
+					return *this;
+				}
+			}
 		};
 
 		//----------------------------------------------------------------------
@@ -8460,8 +8512,6 @@ namespace gaia {
 
 			//! Allocator used to allocate chunks
 			ChunkAllocator m_chunkAllocator;
-			//! Cache of components used by the world
-			ComponentCache m_componentCache;
 
 			containers::map<utils::direct_hash_key, containers::darray<EntityQuery>> m_cachedQueries;
 			//! Map or archetypes mapping to the same hash - used for lookups
@@ -8494,14 +8544,6 @@ namespace gaia {
 			}
 
 		public:
-			ComponentCache& GetComponentCache() {
-				return m_componentCache;
-			}
-
-			const ComponentCache& GetComponentCache() const {
-				return m_componentCache;
-			}
-
 			void UpdateWorldVersion() {
 				UpdateVersion(m_worldVersion);
 			}
@@ -8645,7 +8687,8 @@ namespace gaia {
 
 				const auto genericHash = CalculateLookupHash(infosGeneric);
 				const auto chunkHash = CalculateLookupHash(infosChunk);
-				const auto lookupHash = CalculateLookupHash(containers::sarray<uint64_t, 2>{genericHash, chunkHash});
+				utils::direct_hash_key lookupHash = {
+						CalculateLookupHash(containers::sarray<uint64_t, 2>{genericHash, chunkHash})};
 
 				auto newArch = Archetype::Create(*this, infosGeneric, infosChunk);
 
@@ -8734,6 +8777,7 @@ namespace gaia {
 			void VerifyAddComponent(Archetype& archetype, Entity entity, ComponentType type, const ComponentInfo* infoToAdd) {
 				const auto& lookup = archetype.componentLookupData[type];
 				const size_t oldInfosCount = lookup.size();
+				const auto& cc = GetComponentCache();
 
 				// Make sure not to add too many infos
 				if (!VerityArchetypeComponentCount(1)) {
@@ -8741,19 +8785,19 @@ namespace gaia {
 					LOG_W("Trying to add a component to entity [%u.%u] but there's no space left!", entity.id(), entity.gen());
 					LOG_W("Already present:");
 					for (size_t i = 0; i < oldInfosCount; i++) {
-						const auto& info = m_componentCache.GetComponentCreateInfoFromIdx(lookup[i].infoIndex);
+						const auto& info = cc.GetComponentCreateInfoFromIdx(lookup[i].infoIndex);
 						LOG_W("> [%u] %.*s", (uint32_t)i, (uint32_t)info.name.size(), info.name.data());
 					}
 					LOG_W("Trying to add:");
 					{
-						const auto& info = m_componentCache.GetComponentCreateInfoFromIdx(infoToAdd->infoIndex);
+						const auto& info = cc.GetComponentCreateInfoFromIdx(infoToAdd->infoIndex);
 						LOG_W("> %.*s", (uint32_t)info.name.size(), info.name.data());
 					}
 				}
 
 				// Don't add the same component twice
 				for (size_t i = 0; i < lookup.size(); ++i) {
-					const auto& info = m_componentCache.GetComponentCreateInfoFromIdx(lookup[i].infoIndex);
+					const auto& info = cc.GetComponentCreateInfoFromIdx(lookup[i].infoIndex);
 					if (info.infoIndex == infoToAdd->infoIndex) {
 						GAIA_ASSERT(false && "Trying to add a duplicate component");
 
@@ -8796,14 +8840,16 @@ namespace gaia {
 					LOG_W("Trying to remove a component from entity [%u.%u] but it was never added", entity.id(), entity.gen());
 					LOG_W("Currently present:");
 
+					const auto& cc = GetComponentCache();
+
 					for (size_t k = 0; k < infos.size(); k++) {
-						const auto& info = m_componentCache.GetComponentCreateInfoFromIdx(infos[k]->infoIndex);
+						const auto& info = cc.GetComponentCreateInfoFromIdx(infos[k]->infoIndex);
 						LOG_W("> [%u] %.*s", (uint32_t)k, (uint32_t)info.name.size(), info.name.data());
 					}
 
 					{
 						LOG_W("Trying to remove:");
-						const auto& info = m_componentCache.GetComponentCreateInfoFromIdx(infoToRemove->infoIndex);
+						const auto& info = cc.GetComponentCreateInfoFromIdx(infoToRemove->infoIndex);
 						LOG_W("> %.*s", (uint32_t)info.name.size(), info.name.data());
 					}
 				}
@@ -8868,7 +8914,7 @@ namespace gaia {
 				if (node == m_rootArchetype) {
 					if (type == ComponentType::CT_Generic) {
 						const auto genericHash = infoToAdd->lookupHash;
-						const auto lookupHash = CalculateLookupHash(containers::sarray<uint64_t, 2>{genericHash, 0});
+						utils::direct_hash_key lookupHash = {CalculateLookupHash(containers::sarray<uint64_t, 2>{genericHash, 0})};
 						node = FindArchetype(std::span<const ComponentInfo*>(&infoToAdd, 1), {}, lookupHash);
 						if (node == nullptr) {
 							node = CreateArchetype(std::span<const ComponentInfo*>(&infoToAdd, 1), {});
@@ -8877,7 +8923,7 @@ namespace gaia {
 						}
 					} else {
 						const auto chunkHash = infoToAdd->lookupHash;
-						const auto lookupHash = CalculateLookupHash(containers::sarray<uint64_t, 2>{0, chunkHash});
+						utils::direct_hash_key lookupHash = {CalculateLookupHash(containers::sarray<uint64_t, 2>{0, chunkHash})};
 						node = FindArchetype({}, std::span<const ComponentInfo*>(&infoToAdd, 1), lookupHash);
 						if (node == nullptr) {
 							node = CreateArchetype({}, std::span<const ComponentInfo*>(&infoToAdd, 1));
@@ -9252,7 +9298,9 @@ namespace gaia {
 
 			void Init() {
 				m_rootArchetype = CreateArchetype({}, {});
+#if !GAIA_ARCHETYPE_GRAPH
 				InitArchetype(m_rootArchetype, 0, 0, {CalculateLookupHash(containers::sarray<uint64_t, 2>{0, 0})});
+#endif
 				RegisterArchetype(m_rootArchetype);
 			}
 
@@ -9498,7 +9546,7 @@ namespace gaia {
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				using U = typename DeduceComponent<T>::Type;
-				const auto* info = m_componentCache.GetOrCreateComponentInfo<U>();
+				const auto* info = GetComponentCacheRW().GetOrCreateComponentInfo<U>();
 
 				if constexpr (IsGenericComponent<T>::value) {
 					auto& entityContainer = AddComponent_Internal(ComponentType::CT_Generic, entity, info);
@@ -9521,7 +9569,7 @@ namespace gaia {
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				using U = typename DeduceComponent<T>::Type;
-				const auto* info = m_componentCache.GetOrCreateComponentInfo<U>();
+				const auto* info = GetComponentCacheRW().GetOrCreateComponentInfo<U>();
 
 				if constexpr (IsGenericComponent<T>::value) {
 					auto& entityContainer = AddComponent_Internal(ComponentType::CT_Generic, entity, info);
@@ -9548,7 +9596,7 @@ namespace gaia {
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				using U = typename DeduceComponent<T>::Type;
-				const auto* info = m_componentCache.GetOrCreateComponentInfo<U>();
+				const auto* info = GetComponentCacheRW().GetOrCreateComponentInfo<U>();
 
 				if constexpr (IsGenericComponent<T>::value) {
 					return RemoveComponent_Internal(ComponentType::CT_Generic, entity, info);
@@ -9570,6 +9618,22 @@ namespace gaia {
 
 				auto& entityContainer = m_entities[entity.id()];
 				return ComponentSetter{entityContainer.pChunk, entityContainer.idx}.SetComponent<T>(
+						std::forward<typename DeduceComponent<T>::Type>(data));
+			}
+
+			/*!
+			Sets the value of component on \param entity.
+			\warning It is expected the component was added to \param entity already. Undefined behavior otherwise.
+			\param entity is valid. Undefined behavior otherwise.
+			\return ComponentSetter object.
+			*/
+			template <typename T>
+			ComponentSetter SetComponentSilent(Entity entity, typename DeduceComponent<T>::Type&& data) {
+				VerifyComponent<T>();
+				GAIA_ASSERT(IsEntityValid(entity));
+
+				auto& entityContainer = m_entities[entity.id()];
+				return ComponentSetter{entityContainer.pChunk, entityContainer.idx}.SetComponentSilent<T>(
 						std::forward<typename DeduceComponent<T>::Type>(data));
 			}
 
@@ -9596,6 +9660,7 @@ namespace gaia {
 
 			/*!
 			Tells if \param entity contains the component.
+			Undefined behavior if \param entity is not valid.
 			\return True if the component is present on entity.
 			*/
 			template <typename T>
@@ -9620,7 +9685,7 @@ namespace gaia {
 				if constexpr (IsReadOnlyType<UOriginal>::value)
 					return chunk.View_Internal<U>();
 				else
-					return chunk.ViewRW_Internal<U>();
+					return chunk.ViewRW_Internal<U, true>();
 			}
 
 			//--------------------------------------------------------------------------------
@@ -9631,7 +9696,7 @@ namespace gaia {
 				// Pointers to the respective component types in the chunk, e.g
 				// 		w.ForEach(q, [&](Position& p, const Velocity& v) {...}
 				// Translates to:
-				//  	auto p = chunk.ViewRW_Internal<Position>();
+				//  	auto p = chunk.ViewRW_Internal<Position, true>();
 				//		auto v = chunk.View_Internal<Velocity>();
 				auto dataPointerTuple = std::make_tuple(GetComponentView<T>(chunk)...);
 
@@ -9774,16 +9839,16 @@ namespace gaia {
 			//--------------------------------------------------------------------------------
 
 			template <typename... T>
-			static void RegisterComponents_Internal([[maybe_unused]] utils::func_type_list<T...> types, World& world) {
+			static void RegisterComponents_Internal([[maybe_unused]] utils::func_type_list<T...> types) {
 				static_assert(sizeof...(T) > 0, "Empty EntityQuery is not supported in this context");
-				auto& cc = world.GetComponentCache();
+				auto& cc = GetComponentCacheRW();
 				((void)cc.GetOrCreateComponentInfo<T>(), ...);
 			}
 
 			template <typename Func>
-			static void RegisterComponents(World& world) {
+			static void RegisterComponents() {
 				using InputArgs = decltype(utils::func_args(&Func::operator()));
-				RegisterComponents_Internal(InputArgs{}, world);
+				RegisterComponents_Internal(InputArgs{});
 			}
 
 			//--------------------------------------------------------------------------------
@@ -9826,7 +9891,7 @@ namespace gaia {
 			template <typename Func>
 			GAIA_FORCEINLINE void ForEachChunk_Internal(World& world, EntityQuery&& queryTmp, Func func) {
 				RegisterComponents<Func>(world);
-				queryTmp.CalculateLookupHash(world);
+				queryTmp.CalculateLookupHash();
 				RunQueryOnChunks_Internal(world, AddOrFindEntityQueryInCache(world, queryTmp), [&](Chunk& chunk) {
 					func(chunk);
 				});
@@ -9849,8 +9914,8 @@ namespace gaia {
 
 			template <typename Func>
 			GAIA_FORCEINLINE void ForEach_Internal(World& world, EntityQuery&& queryTmp, Func func) {
-				RegisterComponents<Func>(world);
-				queryTmp.CalculateLookupHash(world);
+				RegisterComponents<Func>();
+				queryTmp.CalculateLookupHash();
 
 				using InputArgs = decltype(utils::func_args(&Func::operator()));
 				RunQueryOnChunks_Internal(world, AddOrFindEntityQueryInCache(world, queryTmp), [&](Chunk& chunk) {
@@ -9946,6 +10011,8 @@ namespace gaia {
 					return;
 				DiagArchetypes = false;
 
+				const auto& cc = GetComponentCache();
+
 				// Caclulate the number of entites in archetype
 				uint32_t entityCount = 0;
 				uint32_t entityCountDisabled = 0;
@@ -9988,12 +10055,12 @@ namespace gaia {
 					if (!genericComponents.empty()) {
 						LOG_N("  Generic components - count:%u", (uint32_t)genericComponents.size());
 						for (const auto* component: genericComponents)
-							logComponentInfo(component, m_componentCache.GetComponentCreateInfoFromIdx(component->infoIndex));
+							logComponentInfo(component, cc.GetComponentCreateInfoFromIdx(component->infoIndex));
 					}
 					if (!chunkComponents.empty()) {
 						LOG_N("  Chunk components - count:%u", (uint32_t)chunkComponents.size());
 						for (const auto* component: chunkComponents)
-							logComponentInfo(component, m_componentCache.GetComponentCreateInfoFromIdx(component->infoIndex));
+							logComponentInfo(component, cc.GetComponentCreateInfoFromIdx(component->infoIndex));
 					}
 
 #if GAIA_ARCHETYPE_GRAPH
@@ -10007,7 +10074,7 @@ namespace gaia {
 							if (!edgesG.empty()) {
 								LOG_N("    Generic - count:%u", (uint32_t)edgesG.size());
 								for (const auto& edge: edgesG) {
-									const auto& info = m_componentCache.GetComponentCreateInfoFromIdx(edge.info->infoIndex);
+									const auto& info = cc.GetComponentCreateInfoFromIdx(edge.info->infoIndex);
 									LOG_N(
 											"      %.*s (--> Archetype ID:%u)", (uint32_t)info.name.size(), info.name.data(),
 											edge.archetype->id);
@@ -10017,7 +10084,7 @@ namespace gaia {
 							if (!edgesC.empty()) {
 								LOG_N("    Chunk - count:%u", (uint32_t)edgesC.size());
 								for (const auto& edge: edgesC) {
-									const auto& info = m_componentCache.GetComponentCreateInfoFromIdx(edge.info->infoIndex);
+									const auto& info = cc.GetComponentCreateInfoFromIdx(edge.info->infoIndex);
 									LOG_N(
 											"      %.*s (--> Archetype ID:%u)", (uint32_t)info.name.size(), info.name.data(),
 											edge.archetype->id);
@@ -10112,7 +10179,7 @@ namespace gaia {
 					return;
 				DiagRegisteredTypes = false;
 
-				m_componentCache.Diag();
+				GetComponentCache().Diag();
 			}
 
 			/*!
@@ -10172,12 +10239,15 @@ namespace gaia {
 			}
 		};
 
-		inline ComponentCache& GetComponentCache(World& world) {
-			return world.GetComponentCache();
+		inline ComponentCache& GetComponentCacheRW() {
+			const auto& cc = GetComponentCache();
+			return const_cast<ComponentCache&>(cc);
 		}
-		inline const ComponentCache& GetComponentCache(const World& world) {
-			return world.GetComponentCache();
+		inline const ComponentCache& GetComponentCache() {
+			static ComponentCache cache;
+			return cache;
 		}
+
 		inline uint32_t GetWorldVersionFromWorld(const World& world) {
 			return world.GetWorldVersion();
 		}
@@ -10237,7 +10307,7 @@ namespace gaia {
 				}
 				// Components
 				{
-					const auto* infoToAdd = GetComponentCache(m_world).GetOrCreateComponentInfo<T>();
+					const auto* infoToAdd = GetComponentCacheRW().GetOrCreateComponentInfo<T>();
 
 					// Component info
 					auto lastIndex = m_data.size();
@@ -10286,7 +10356,7 @@ namespace gaia {
 			template <typename T>
 			void SetComponentNoEntity_Internal(T&& data) {
 				// Register components
-				(void)GetComponentCache(m_world).GetOrCreateComponentInfo<T>();
+				(void)GetComponentCacheRW().GetOrCreateComponentInfo<T>();
 
 				// Data
 				SetComponentNoEntityNoSize_Internal(std::forward<T>(data));
@@ -10319,7 +10389,7 @@ namespace gaia {
 				}
 				// Components
 				{
-					const auto* typeToRemove = GetComponentCache(m_world).GetComponentInfo<T>();
+					const auto* typeToRemove = GetComponentCache().GetComponentInfo<T>();
 					GAIA_ASSERT(typeToRemove != nullptr);
 
 					// Component info
@@ -10581,7 +10651,7 @@ namespace gaia {
 
 							// Components
 							uint32_t infoIndex = utils::unaligned_ref<uint32_t>((void*)&m_data[i]);
-							const auto* newInfo = GetComponentCache(m_world).GetComponentInfoFromIdx(infoIndex);
+							const auto* newInfo = GetComponentCache().GetComponentInfoFromIdx(infoIndex);
 							i += sizeof(uint32_t);
 							m_world.AddComponent_Internal(type, entity, newInfo);
 
@@ -10599,7 +10669,7 @@ namespace gaia {
 								(void)infoIndex2;
 								i += sizeof(uint32_t);
 
-								auto* pComponentDataStart = pChunk->GetDataPtrRW(type, newInfo->infoIndex);
+								auto* pComponentDataStart = pChunk->GetDataPtrRW<false>(type, newInfo->infoIndex);
 								auto* pComponentData = (void*)&pComponentDataStart[indexInChunk * newInfo->properties.size];
 								memcpy(pComponentData, (const void*)&m_data[i], newInfo->properties.size);
 								i += newInfo->properties.size;
@@ -10624,7 +10694,7 @@ namespace gaia {
 
 							// Components
 							uint32_t infoIndex = utils::unaligned_ref<uint32_t>((void*)&m_data[i]);
-							const auto* newInfo = GetComponentCache(m_world).GetComponentInfoFromIdx(infoIndex);
+							const auto* newInfo = GetComponentCache().GetComponentInfoFromIdx(infoIndex);
 							i += sizeof(uint32_t);
 							m_world.AddComponent_Internal(type, entity, newInfo);
 
@@ -10642,7 +10712,7 @@ namespace gaia {
 								(void)infoIndex2;
 								i += sizeof(uint32_t);
 
-								auto* pComponentDataStart = pChunk->GetDataPtrRW(type, newInfo->infoIndex);
+								auto* pComponentDataStart = pChunk->GetDataPtrRW<false>(type, newInfo->infoIndex);
 								auto* pComponentData = (void*)&pComponentDataStart[indexInChunk * newInfo->properties.size];
 								memcpy(pComponentData, (const void*)&m_data[i], newInfo->properties.size);
 								i += newInfo->properties.size;
@@ -10664,10 +10734,10 @@ namespace gaia {
 							// Components
 							{
 								const auto infoIndex = utils::unaligned_ref<uint32_t>((void*)&m_data[i]);
-								const auto* info = GetComponentCache(m_world).GetComponentInfoFromIdx(infoIndex);
+								const auto* info = GetComponentCache().GetComponentInfoFromIdx(infoIndex);
 								i += sizeof(uint32_t);
 
-								auto* pComponentDataStart = pChunk->GetDataPtrRW(type, info->infoIndex);
+								auto* pComponentDataStart = pChunk->GetDataPtrRW<false>(type, info->infoIndex);
 								auto* pComponentData = (void*)&pComponentDataStart[indexInChunk * info->properties.size];
 								memcpy(pComponentData, (const void*)&m_data[i], info->properties.size);
 								i += info->properties.size;
@@ -10697,10 +10767,10 @@ namespace gaia {
 							// Components
 							{
 								const auto infoIndex = utils::unaligned_ref<uint32_t>((void*)&m_data[i]);
-								const auto* info = GetComponentCache(m_world).GetComponentInfoFromIdx(infoIndex);
+								const auto* info = GetComponentCache().GetComponentInfoFromIdx(infoIndex);
 								i += sizeof(uint32_t);
 
-								auto* pComponentDataStart = pChunk->GetDataPtrRW(type, info->infoIndex);
+								auto* pComponentDataStart = pChunk->GetDataPtrRW<false>(type, info->infoIndex);
 								auto* pComponentData = (void*)&pComponentDataStart[indexInChunk * info->properties.size];
 								memcpy(pComponentData, (const void*)&m_data[i], info->properties.size);
 								i += info->properties.size;
@@ -10717,7 +10787,7 @@ namespace gaia {
 
 							// Components
 							uint32_t infoIndex = utils::unaligned_ref<uint32_t>((void*)&m_data[i]);
-							const auto* newInfo = GetComponentCache(m_world).GetComponentInfoFromIdx(infoIndex);
+							const auto* newInfo = GetComponentCache().GetComponentInfoFromIdx(infoIndex);
 							i += sizeof(uint32_t);
 
 							m_world.RemoveComponent_Internal(type, e, newInfo);
