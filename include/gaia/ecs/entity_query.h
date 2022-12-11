@@ -78,6 +78,9 @@ namespace gaia {
 					if (utils::has(arr, infoIndex))
 						return;
 
+					// Make sure the component is always registered
+					(void)GetComponentCacheRW().GetOrCreateComponentInfo<T>();
+
 #if GAIA_DEBUG
 					// There's a limit to the amount of components which we can store
 					if (arr.size() >= MAX_COMPONENTS_IN_QUERY) {
