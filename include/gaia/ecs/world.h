@@ -335,7 +335,7 @@ namespace gaia {
 				const auto& cc = GetComponentCache();
 
 				// Make sure not to add too many infos
-				if (!VerityArchetypeComponentCount(1)) {
+				if GAIA_UNLIKELY (!VerityArchetypeComponentCount(1)) {
 					GAIA_ASSERT(false && "Trying to add too many components to entity!");
 					LOG_W("Trying to add a component to entity [%u.%u] but there's no space left!", entity.id(), entity.gen());
 					LOG_W("Already present:");
@@ -388,9 +388,9 @@ namespace gaia {
 				}
 	#else
 				const auto& infos = archetype.componentInfos[type];
-				if (!utils::has_if(infos, [&](const auto* info) {
-							return info == infoToRemove;
-						})) {
+				if GAIA_UNLIKELY (!utils::has_if(infos, [&](const auto* info) {
+														return info == infoToRemove;
+													})) {
 					GAIA_ASSERT(false && "Trying to remove a component which wasn't added");
 					LOG_W("Trying to remove a component from entity [%u.%u] but it was never added", entity.id(), entity.gen());
 					LOG_W("Currently present:");
@@ -622,7 +622,7 @@ namespace gaia {
 			\return Entity
 			*/
 			[[nodiscard]] Entity AllocateEntity() {
-				if (!m_freeEntities) {
+				if GAIA_UNLIKELY (!m_freeEntities) {
 					const auto entityCnt = m_entities.size();
 					// We don't want to go out of range for new entities
 					GAIA_ASSERT(entityCnt < Entity::IdMask && "Trying to allocate too many entities!");
@@ -652,7 +652,7 @@ namespace gaia {
 				const auto gen = ++entityContainer.gen;
 
 				// Update our implicit list
-				if (!m_freeEntities) {
+				if GAIA_UNLIKELY (!m_freeEntities) {
 					m_nextFreeEntity = entityToDelete.id();
 					entityContainer.idx = Entity::IdMask;
 					entityContainer.gen = gen;
