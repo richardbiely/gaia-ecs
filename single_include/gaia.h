@@ -106,13 +106,23 @@
 #endif
 
 #if __cplusplus >= 202002L
-	#define GAIA_LIKELY(cond) (cond) [[likely]]
-	#define GAIA_UNLIKELY(cond) (cond) [[unlikely]]
-#elif GAIA_COMPILER_GCC || GAIA_COMPILER_CLANG
+	#if __has_cpp_attribute(likely)
+		#define GAIA_LIKELY(cond) (cond) [[likely]]
+	#endif
+	#if __has_cpp_attribute(unlikely)
+		#define GAIA_UNLIKELY(cond) (cond) [[unlikely]]
+	#endif
+#endif
+#if !defined(GAIA_LIKELY) && (GAIA_COMPILER_GCC || GAIA_COMPILER_CLANG)
 	#define GAIA_LIKELY(cond) (__builtin_expect((cond), 1))
+#endif
+#if !defined(GAIA_UNLIKELY) && (GAIA_COMPILER_GCC || GAIA_COMPILER_CLANG)
 	#define GAIA_UNLIKELY(cond) (__builtin_expect((cond), 0))
-#else
+#endif
+#ifndef GAIA_LIKELY
 	#define GAIA_LIKELY(cond) (cond)
+#endif
+#ifndef GAIA_UNLIKELY
 	#define GAIA_UNLIKELY(cond) (cond)
 #endif
 
@@ -2818,15 +2828,6 @@ namespace robin_hood {
 	#define ROBIN_HOOD_PRIVATE_DEFINITION_FALLTHROUGH()
 #endif
 
-// likely/unlikely
-#ifdef _MSC_VER
-	#define ROBIN_HOOD_LIKELY(condition) condition
-	#define ROBIN_HOOD_UNLIKELY(condition) condition
-#else
-	#define ROBIN_HOOD_LIKELY(condition) __builtin_expect(condition, 1)
-	#define ROBIN_HOOD_UNLIKELY(condition) __builtin_expect(condition, 0)
-#endif
-
 // detect if native wchar_t type is availiable in MSVC
 #ifdef _MSC_VER
 	#ifdef _NATIVE_WCHAR_T_DEFINED
@@ -2851,7 +2852,7 @@ namespace robin_hood {
 
 // workaround missing "is_trivially_copyable" in g++ < 5.0
 // See https://stackoverflow.com/a/31798726/48181
-#if defined(__GNUC__) && __GNUC__ < 5
+#if GAIA_COMPILER_GCC && __GNUC__ < 5
 	#define ROBIN_HOOD_IS_TRIVIALLY_COPYABLE(...) __has_trivial_copy(__VA_ARGS__)
 #else
 	#define ROBIN_HOOD_IS_TRIVIALLY_COPYABLE(...) std::is_trivially_copyable<__VA_ARGS__>::value
@@ -2903,7 +2904,7 @@ namespace robin_hood {
 
 		template <typename E, typename T, typename... Args>
 		T* assertNotNull(T* t, Args&&... args) {
-			if (ROBIN_HOOD_UNLIKELY(nullptr == t)) {
+			if GAIA_UNLIKELY (nullptr == t) {
 				doThrow<E>(std::forward<Args>(args)...);
 			}
 			return t;
@@ -3347,9 +3348,7 @@ namespace robin_hood {
 #define ROBIN_HOOD_HASH_INT(T)                                                                                         \
 	template <>                                                                                                          \
 	struct hash<T> {                                                                                                     \
-		size_t operator()(T const& obj) const noexcept {                                                                   \
-			return hash_int(static_cast<uint64_t>(obj));                                                                     \
-		}                                                                                                                  \
+		size_t operator()(T const& obj) const noexcept { return hash_int(static_cast<uint64_t>(obj)); }                    \
 	}
 
 #if defined(__GNUC__) && !defined(__clang__)
@@ -3811,15 +3810,15 @@ namespace robin_hood {
 					}
 #if defined(ROBIN_HOOD_DISABLE_INTRINSICS)
 					// we know for certain that within the next 8 bytes we'll find a non-zero one.
-					if (ROBIN_HOOD_UNLIKELY(0U == detail::unaligned_load<uint32_t>(mInfo))) {
+					if GAIA_UNLIKELY (0U == detail::unaligned_load<uint32_t>(mInfo)) {
 						mInfo += 4;
 						mKeyVals += 4;
 					}
-					if (ROBIN_HOOD_UNLIKELY(0U == detail::unaligned_load<uint16_t>(mInfo))) {
+					if GAIA_UNLIKELY (0U == detail::unaligned_load<uint16_t>(mInfo)) {
 						mInfo += 2;
 						mKeyVals += 2;
 					}
-					if (ROBIN_HOOD_UNLIKELY(0U == *mInfo)) {
+					if GAIA_UNLIKELY (0U == *mInfo) {
 						mInfo += 1;
 						mKeyVals += 1;
 					}
@@ -3887,7 +3886,7 @@ namespace robin_hood {
 				while (idx != insertion_idx) {
 					ROBIN_HOOD_COUNT(shiftUp)
 					mInfo[idx] = static_cast<uint8_t>(mInfo[idx - 1] + mInfoInc);
-					if (ROBIN_HOOD_UNLIKELY(mInfo[idx] + mInfoInc > 0xFF)) {
+					if GAIA_UNLIKELY (mInfo[idx] + mInfoInc > 0xFF) {
 						mMaxNumElementsAllowed = 0;
 					}
 					--idx;
@@ -3923,12 +3922,16 @@ namespace robin_hood {
 
 				do {
 					// unrolling this twice gives a bit of a speedup. More unrolling did not help.
-					if (info == mInfo[idx] && ROBIN_HOOD_LIKELY(WKeyEqual::operator()(key, mKeyVals[idx].getFirst()))) {
-						return idx;
+					if (info == mInfo[idx]) {
+						if GAIA_LIKELY (WKeyEqual::operator()(key, mKeyVals[idx].getFirst())) {
+							return idx;
+						}
 					}
 					next(&info, &idx);
-					if (info == mInfo[idx] && ROBIN_HOOD_LIKELY(WKeyEqual::operator()(key, mKeyVals[idx].getFirst()))) {
-						return idx;
+					if (info == mInfo[idx]) {
+						if GAIA_LIKELY (WKeyEqual::operator()(key, mKeyVals[idx].getFirst())) {
+							return idx;
+						}
 					}
 					next(&info, &idx);
 				} while (info <= mInfo[idx]);
@@ -3965,7 +3968,7 @@ namespace robin_hood {
 				// key not found, so we are now exactly where we want to insert it.
 				auto const insertion_idx = idx;
 				auto const insertion_info = static_cast<uint8_t>(info);
-				if (ROBIN_HOOD_UNLIKELY(insertion_info + mInfoInc > 0xFF)) {
+				if GAIA_UNLIKELY (insertion_info + mInfoInc > 0xFF) {
 					mMaxNumElementsAllowed = 0;
 				}
 
@@ -4579,7 +4582,7 @@ namespace robin_hood {
 				while (calcMaxNumElementsAllowed(newSize) < mNumElements && newSize != 0) {
 					newSize *= 2;
 				}
-				if (ROBIN_HOOD_UNLIKELY(newSize == 0)) {
+				if GAIA_UNLIKELY (newSize == 0) {
 					throwOverflowError();
 				}
 
@@ -4624,7 +4627,7 @@ namespace robin_hood {
 			}
 
 			[[nodiscard]] size_t calcMaxNumElementsAllowed(size_t maxElements) const noexcept {
-				if (ROBIN_HOOD_LIKELY(maxElements <= (size_t(-1) / 100))) {
+				if GAIA_LIKELY (maxElements <= (size_t(-1) / 100)) {
 					return maxElements * MaxLoadFactor100 / 100;
 				}
 
@@ -4656,7 +4659,7 @@ namespace robin_hood {
 				auto const total64 = ne * s + infos;
 				auto const total = static_cast<size_t>(total64);
 
-				if (ROBIN_HOOD_UNLIKELY(static_cast<uint64_t>(total) != total64)) {
+				if GAIA_UNLIKELY (static_cast<uint64_t>(total) != total64) {
 					throwOverflowError();
 				}
 				return total;
@@ -4684,7 +4687,7 @@ namespace robin_hood {
 				while (calcMaxNumElementsAllowed(newSize) < minElementsAllowed && newSize != 0) {
 					newSize *= 2;
 				}
-				if (ROBIN_HOOD_UNLIKELY(newSize == 0)) {
+				if GAIA_UNLIKELY (newSize == 0) {
 					throwOverflowError();
 				}
 
@@ -4849,7 +4852,7 @@ namespace robin_hood {
 					}
 
 					// unlikely that this evaluates to true
-					if (ROBIN_HOOD_UNLIKELY(mNumElements >= mMaxNumElementsAllowed)) {
+					if GAIA_UNLIKELY (mNumElements >= mMaxNumElementsAllowed) {
 						if (!increase_size()) {
 							return std::make_pair(size_t(0), InsertionState::overflow_error);
 						}
@@ -4859,7 +4862,7 @@ namespace robin_hood {
 					// key not found, so we are now exactly where we want to insert it.
 					auto const insertion_idx = idx;
 					auto const insertion_info = info;
-					if (ROBIN_HOOD_UNLIKELY(insertion_info + mInfoInc > 0xFF)) {
+					if GAIA_UNLIKELY (insertion_info + mInfoInc > 0xFF) {
 						mMaxNumElementsAllowed = 0;
 					}
 
@@ -5050,7 +5053,7 @@ namespace gaia {
 		//! Number of ticks before empty chunks are removed
 		constexpr uint32_t MAX_CHUNK_LIFESPAN = 8u;
 		//! Number of ticks before empty archetypes are removed
-		constexpr uint32_t MAX_ARCHETYPE_LIFESPAN = 8u;
+		// constexpr uint32_t MAX_ARCHETYPE_LIFESPAN = 8u; Keep commented until used to avoid compilation errors
 		//! Maximum number of components on archetype
 		constexpr uint32_t MAX_COMPONENTS_PER_ARCHETYPE = 32u;
 
