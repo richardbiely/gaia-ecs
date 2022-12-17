@@ -106,13 +106,23 @@
 #endif
 
 #if __cplusplus >= 202002L
-	#define GAIA_LIKELY(cond) (cond) [[likely]]
-	#define GAIA_UNLIKELY(cond) (cond) [[unlikely]]
-#elif GAIA_COMPILER_GCC || GAIA_COMPILER_CLANG
+	#if __has_cpp_attribute(likely)
+		#define GAIA_LIKELY(cond) (cond) [[likely]]
+	#endif
+	#if __has_cpp_attribute(unlikely)
+		#define GAIA_UNLIKELY(cond) (cond) [[unlikely]]
+	#endif
+#endif
+#if !defined(GAIA_LIKELY) && (GAIA_COMPILER_GCC || GAIA_COMPILER_CLANG)
 	#define GAIA_LIKELY(cond) (__builtin_expect((cond), 1))
+#endif
+#if !defined(GAIA_UNLIKELY) && (GAIA_COMPILER_GCC || GAIA_COMPILER_CLANG)
 	#define GAIA_UNLIKELY(cond) (__builtin_expect((cond), 0))
-#else
+#endif
+#ifndef GAIA_LIKELY
 	#define GAIA_LIKELY(cond) (cond)
+#endif
+#ifndef GAIA_UNLIKELY
 	#define GAIA_UNLIKELY(cond) (cond)
 #endif
 
