@@ -105,6 +105,17 @@
 	#define GAIA_RESTRICT
 #endif
 
+#if __cplusplus >= 202002L
+	#define GAIA_LIKELY(cond) (cond) [[likely]]
+	#define GAIA_LIKELY(cond) (cond) [[unlikely]]
+#elif GAIA_COMPILER_GCC || GAIA_COMPILER_CLANG
+	#define GAIA_LIKELY(cond) (__builtin_expect((cond), 1))
+	#define GAIA_UNLIKELY(cond) (__builtin_expect((cond), 0))
+#else
+	#define GAIA_LIKELY(cond) (cond)
+	#define GAIA_UNLIKELY(cond) (cond)
+#endif
+
 //------------------------------------------------------------------------------
 
 #if GAIA_COMPILER_MSVC || GAIA_COMPILER_ICC
@@ -5049,7 +5060,7 @@ namespace gaia {
 
 		[[nodiscard]] inline bool DidVersionChange(uint32_t changeVersion, uint32_t requiredVersion) {
 			// When a system runs for the first time, everything is considered changed.
-			if (requiredVersion == 0)
+			if GAIA_UNLIKELY (requiredVersion == 0)
 				return true;
 
 			// Supporting wrap-around for version numbers. ChangeVersion must be
@@ -5061,7 +5072,7 @@ namespace gaia {
 		inline void UpdateVersion(uint32_t& version) {
 			++version;
 			// Handle wrap-around, 0 is reserved for systems that have never run.
-			if (version == 0)
+			if GAIA_UNLIKELY (version == 0)
 				++version;
 		}
 	} // namespace ecs
@@ -7789,12 +7800,9 @@ namespace gaia {
 			//! Tries to locate a chunk for disabled entities that has some space left for a new one.
 			//! If not found a new chunk is created
 			[[nodiscard]] Chunk* FindOrCreateFreeChunkDisabled() {
-				if (auto* pChunk = FindOrCreateFreeChunk_Internal(chunksDisabled)) {
-					pChunk->header.info.disabled = true;
-					return pChunk;
-				}
-
-				return nullptr;
+				auto* pChunk = FindOrCreateFreeChunk_Internal(chunksDisabled);
+				pChunk->header.info.disabled = true;
+				return pChunk;
 			}
 
 			/*!
@@ -7993,7 +8001,7 @@ namespace gaia {
 					const auto infoIndex = utils::type_info::index<T>();
 
 					// Unique infos only
-					if (utils::has(arr, infoIndex))
+					if GAIA_UNLIKELY (utils::has(arr, infoIndex))
 						return;
 
 					// Make sure the component is always registered
@@ -8152,12 +8160,12 @@ namespace gaia {
 			}
 
 			void CalculateMatcherHashes() {
-				if (!m_recalculate)
+				if GAIA_LIKELY (!m_recalculate)
 					return;
 				m_recalculate = false;
 
 				// Sort the arrays if necessary
-				if (m_sort) {
+				if GAIA_UNLIKELY (m_sort) {
 					m_sort = false;
 					SortComponentArrays();
 				}
@@ -8320,7 +8328,7 @@ namespace gaia {
 			This is necessary so we do not iterate all chunks over and over again when running queries.
 			*/
 			void Match(const containers::darray<Archetype*>& archetypes) {
-				if (m_recalculate && !archetypes.empty())
+				if GAIA_UNLIKELY (m_recalculate && !archetypes.empty())
 					CalculateMatcherHashes();
 
 				for (size_t i = m_lastArchetypeId; i < archetypes.size(); i++) {
@@ -8780,7 +8788,7 @@ namespace gaia {
 				const auto& cc = GetComponentCache();
 
 				// Make sure not to add too many infos
-				if (!VerityArchetypeComponentCount(1)) {
+				if GAIA_UNLIKELY (!VerityArchetypeComponentCount(1)) {
 					GAIA_ASSERT(false && "Trying to add too many components to entity!");
 					LOG_W("Trying to add a component to entity [%u.%u] but there's no space left!", entity.id(), entity.gen());
 					LOG_W("Already present:");
@@ -8833,9 +8841,9 @@ namespace gaia {
 				}
 	#else
 				const auto& infos = archetype.componentInfos[type];
-				if (!utils::has_if(infos, [&](const auto* info) {
-							return info == infoToRemove;
-						})) {
+				if GAIA_UNLIKELY (!utils::has_if(infos, [&](const auto* info) {
+														return info == infoToRemove;
+													})) {
 					GAIA_ASSERT(false && "Trying to remove a component which wasn't added");
 					LOG_W("Trying to remove a component from entity [%u.%u] but it was never added", entity.id(), entity.gen());
 					LOG_W("Currently present:");
@@ -9067,7 +9075,7 @@ namespace gaia {
 			\return Entity
 			*/
 			[[nodiscard]] Entity AllocateEntity() {
-				if (!m_freeEntities) {
+				if GAIA_UNLIKELY (!m_freeEntities) {
 					const auto entityCnt = m_entities.size();
 					// We don't want to go out of range for new entities
 					GAIA_ASSERT(entityCnt < Entity::IdMask && "Trying to allocate too many entities!");
@@ -9097,7 +9105,7 @@ namespace gaia {
 				const auto gen = ++entityContainer.gen;
 
 				// Update our implicit list
-				if (!m_freeEntities) {
+				if GAIA_UNLIKELY (!m_freeEntities) {
 					m_nextFreeEntity = entityToDelete.id();
 					entityContainer.idx = Entity::IdMask;
 					entityContainer.gen = gen;
@@ -10963,7 +10971,7 @@ namespace gaia {
 					delete pSystem;
 				m_systemsToRemove.clear();
 
-				if (!m_systemsToCreate.empty()) {
+				if GAIA_UNLIKELY (!m_systemsToCreate.empty()) {
 					// Sort systems if necessary
 					SortSystems();
 
@@ -10995,7 +11003,7 @@ namespace gaia {
 				GAIA_SAFE_CONSTEXPR auto hash = utils::type_info::hash<std::decay_t<T>>();
 
 				const auto res = m_systemsMap.emplace(utils::direct_hash_key{hash}, nullptr);
-				if (!res.second)
+				if GAIA_UNLIKELY (!res.second)
 					return (T*)res.first->second;
 
 				BaseSystem* pSystem = new T();
