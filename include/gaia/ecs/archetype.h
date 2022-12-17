@@ -293,12 +293,9 @@ namespace gaia {
 			//! Tries to locate a chunk for disabled entities that has some space left for a new one.
 			//! If not found a new chunk is created
 			[[nodiscard]] Chunk* FindOrCreateFreeChunkDisabled() {
-				if (auto* pChunk = FindOrCreateFreeChunk_Internal(chunksDisabled)) {
-					pChunk->header.info.disabled = true;
-					return pChunk;
-				}
-
-				return nullptr;
+				auto* pChunk = FindOrCreateFreeChunk_Internal(chunksDisabled);
+				pChunk->header.info.disabled = true;
+				return pChunk;
 			}
 
 			/*!

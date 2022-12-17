@@ -75,7 +75,7 @@ namespace gaia {
 					const auto infoIndex = utils::type_info::index<T>();
 
 					// Unique infos only
-					if (utils::has(arr, infoIndex))
+					if GAIA_UNLIKELY (utils::has(arr, infoIndex))
 						return;
 
 					// Make sure the component is always registered
@@ -234,12 +234,12 @@ namespace gaia {
 			}
 
 			void CalculateMatcherHashes() {
-				if (!m_recalculate)
+				if GAIA_LIKELY (!m_recalculate)
 					return;
 				m_recalculate = false;
 
 				// Sort the arrays if necessary
-				if (m_sort) {
+				if GAIA_UNLIKELY (m_sort) {
 					m_sort = false;
 					SortComponentArrays();
 				}
@@ -402,7 +402,7 @@ namespace gaia {
 			This is necessary so we do not iterate all chunks over and over again when running queries.
 			*/
 			void Match(const containers::darray<Archetype*>& archetypes) {
-				if (m_recalculate && !archetypes.empty())
+				if GAIA_UNLIKELY (m_recalculate && !archetypes.empty())
 					CalculateMatcherHashes();
 
 				for (size_t i = m_lastArchetypeId; i < archetypes.size(); i++) {

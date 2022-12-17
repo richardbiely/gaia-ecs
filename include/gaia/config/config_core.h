@@ -105,6 +105,17 @@
 	#define GAIA_RESTRICT
 #endif
 
+#if __cplusplus >= 202002L
+	#define GAIA_LIKELY(cond) (cond) [[likely]]
+	#define GAIA_LIKELY(cond) (cond) [[unlikely]]
+#elif GAIA_COMPILER_GCC || GAIA_COMPILER_CLANG
+	#define GAIA_LIKELY(cond) (__builtin_expect((cond), 1))
+	#define GAIA_UNLIKELY(cond) (__builtin_expect((cond), 0))
+#else
+	#define GAIA_LIKELY(cond) (cond)
+	#define GAIA_UNLIKELY(cond) (cond)
+#endif
+
 //------------------------------------------------------------------------------
 
 #if GAIA_COMPILER_MSVC || GAIA_COMPILER_ICC
