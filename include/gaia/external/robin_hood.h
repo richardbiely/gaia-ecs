@@ -367,7 +367,7 @@ namespace robin_hood {
 			// Recalculating this each time saves us a size_t member.
 			// This ignores the fact that memory blocks might have been added manually with addOrFree. In
 			// practice, this should not matter much.
-			[[nodiscard]] size_t calcNumElementsToAlloc() const noexcept {
+			GAIA_NODISCARD size_t calcNumElementsToAlloc() const noexcept {
 				auto tmp = mListForFree;
 				size_t numAllocs = MinNumAllocs;
 
@@ -865,30 +865,30 @@ namespace robin_hood {
 				}
 
 				template <typename VT = value_type>
-				[[nodiscard]] typename std::enable_if<is_map, typename VT::first_type&>::type getFirst() noexcept {
+				GAIA_NODISCARD typename std::enable_if<is_map, typename VT::first_type&>::type getFirst() noexcept {
 					return mData.first;
 				}
 				template <typename VT = value_type>
-				[[nodiscard]] typename std::enable_if<is_set, VT&>::type getFirst() noexcept {
+				GAIA_NODISCARD typename std::enable_if<is_set, VT&>::type getFirst() noexcept {
 					return mData;
 				}
 
 				template <typename VT = value_type>
-				[[nodiscard]] typename std::enable_if<is_map, typename VT::first_type const&>::type getFirst() const noexcept {
+				GAIA_NODISCARD typename std::enable_if<is_map, typename VT::first_type const&>::type getFirst() const noexcept {
 					return mData.first;
 				}
 				template <typename VT = value_type>
-				[[nodiscard]] typename std::enable_if<is_set, VT const&>::type getFirst() const noexcept {
+				GAIA_NODISCARD typename std::enable_if<is_set, VT const&>::type getFirst() const noexcept {
 					return mData;
 				}
 
 				template <typename MT = mapped_type>
-				[[nodiscard]] typename std::enable_if<is_map, MT&>::type getSecond() noexcept {
+				GAIA_NODISCARD typename std::enable_if<is_map, MT&>::type getSecond() noexcept {
 					return mData.second;
 				}
 
 				template <typename MT = mapped_type>
-				[[nodiscard]] typename std::enable_if<is_set, MT const&>::type getSecond() const noexcept {
+				GAIA_NODISCARD typename std::enable_if<is_set, MT const&>::type getSecond() const noexcept {
 					return mData.second;
 				}
 
@@ -939,30 +939,30 @@ namespace robin_hood {
 				}
 
 				template <typename VT = value_type>
-				[[nodiscard]] typename std::enable_if<is_map, typename VT::first_type&>::type getFirst() noexcept {
+				GAIA_NODISCARD typename std::enable_if<is_map, typename VT::first_type&>::type getFirst() noexcept {
 					return mData->first;
 				}
 				template <typename VT = value_type>
-				[[nodiscard]] typename std::enable_if<is_set, VT&>::type getFirst() noexcept {
+				GAIA_NODISCARD typename std::enable_if<is_set, VT&>::type getFirst() noexcept {
 					return *mData;
 				}
 
 				template <typename VT = value_type>
-				[[nodiscard]] typename std::enable_if<is_map, typename VT::first_type const&>::type getFirst() const noexcept {
+				GAIA_NODISCARD typename std::enable_if<is_map, typename VT::first_type const&>::type getFirst() const noexcept {
 					return mData->first;
 				}
 				template <typename VT = value_type>
-				[[nodiscard]] typename std::enable_if<is_set, VT const&>::type getFirst() const noexcept {
+				GAIA_NODISCARD typename std::enable_if<is_set, VT const&>::type getFirst() const noexcept {
 					return *mData;
 				}
 
 				template <typename MT = mapped_type>
-				[[nodiscard]] typename std::enable_if<is_map, MT&>::type getSecond() noexcept {
+				GAIA_NODISCARD typename std::enable_if<is_map, MT&>::type getSecond() noexcept {
 					return mData->second;
 				}
 
 				template <typename MT = mapped_type>
-				[[nodiscard]] typename std::enable_if<is_map, MT const&>::type getSecond() const noexcept {
+				GAIA_NODISCARD typename std::enable_if<is_map, MT const&>::type getSecond() const noexcept {
 					return mData->second;
 				}
 
@@ -978,19 +978,19 @@ namespace robin_hood {
 			using Node = DataNode<Self, IsFlat>;
 
 			// helpers for insertKeyPrepareEmptySpot: extract first entry (only const required)
-			[[nodiscard]] key_type const& getFirstConst(Node const& n) const noexcept {
+			GAIA_NODISCARD key_type const& getFirstConst(Node const& n) const noexcept {
 				return n.getFirst();
 			}
 
 			// in case we have void mapped_type, we are not using a pair, thus we just route k through.
 			// No need to disable this because it's just not used if not applicable.
-			[[nodiscard]] key_type const& getFirstConst(key_type const& k) const noexcept {
+			GAIA_NODISCARD key_type const& getFirstConst(key_type const& k) const noexcept {
 				return k;
 			}
 
 			// in case we have non-void mapped_type, we have a standard robin_hood::pair
 			template <typename Q = mapped_type>
-			[[nodiscard]] typename std::enable_if<!std::is_void<Q>::value, key_type const&>::type
+			GAIA_NODISCARD typename std::enable_if<!std::is_void<Q>::value, key_type const&>::type
 			getFirstConst(value_type const& vt) const noexcept {
 				return vt.first;
 			}
@@ -1267,7 +1267,7 @@ namespace robin_hood {
 
 			// copy of find(), except that it returns iterator instead of const_iterator.
 			template <typename Other>
-			[[nodiscard]] size_t findIdx(Other const& key) const {
+			GAIA_NODISCARD size_t findIdx(Other const& key) const {
 				size_t idx{};
 				InfoType info{};
 				keyToIdx(key, &idx, &info);
@@ -1636,7 +1636,7 @@ namespace robin_hood {
 			}
 
 			template <typename... Args>
-			std::pair<iterator, bool> emplace(Args&&... args) {
+			GAIA_NODISCARD std::pair<iterator, bool> emplace(Args&&... args) {
 				ROBIN_HOOD_TRACE(this)
 				Node n{*this, std::forward<Args>(args)...};
 				auto idxAndState = insertKeyPrepareEmptySpot(getFirstConst(n));
@@ -1665,76 +1665,76 @@ namespace robin_hood {
 			}
 
 			template <typename... Args>
-			iterator emplace_hint(const_iterator position, Args&&... args) {
+			GAIA_NODISCARD iterator emplace_hint(const_iterator position, Args&&... args) {
 				(void)position;
 				return emplace(std::forward<Args>(args)...).first;
 			}
 
 			template <typename... Args>
-			std::pair<iterator, bool> try_emplace(const key_type& key, Args&&... args) {
+			GAIA_NODISCARD std::pair<iterator, bool> try_emplace(const key_type& key, Args&&... args) {
 				return try_emplace_impl(key, std::forward<Args>(args)...);
 			}
 
 			template <typename... Args>
-			std::pair<iterator, bool> try_emplace(key_type&& key, Args&&... args) {
+			GAIA_NODISCARD std::pair<iterator, bool> try_emplace(key_type&& key, Args&&... args) {
 				return try_emplace_impl(std::move(key), std::forward<Args>(args)...);
 			}
 
 			template <typename... Args>
-			iterator try_emplace(const_iterator hint, const key_type& key, Args&&... args) {
+			GAIA_NODISCARD iterator try_emplace(const_iterator hint, const key_type& key, Args&&... args) {
 				(void)hint;
 				return try_emplace_impl(key, std::forward<Args>(args)...).first;
 			}
 
 			template <typename... Args>
-			iterator try_emplace(const_iterator hint, key_type&& key, Args&&... args) {
+			GAIA_NODISCARD iterator try_emplace(const_iterator hint, key_type&& key, Args&&... args) {
 				(void)hint;
 				return try_emplace_impl(std::move(key), std::forward<Args>(args)...).first;
 			}
 
 			template <typename Mapped>
-			std::pair<iterator, bool> insert_or_assign(const key_type& key, Mapped&& obj) {
+			GAIA_NODISCARD std::pair<iterator, bool> insert_or_assign(const key_type& key, Mapped&& obj) {
 				return insertOrAssignImpl(key, std::forward<Mapped>(obj));
 			}
 
 			template <typename Mapped>
-			std::pair<iterator, bool> insert_or_assign(key_type&& key, Mapped&& obj) {
+			GAIA_NODISCARD std::pair<iterator, bool> insert_or_assign(key_type&& key, Mapped&& obj) {
 				return insertOrAssignImpl(std::move(key), std::forward<Mapped>(obj));
 			}
 
 			template <typename Mapped>
-			iterator insert_or_assign(const_iterator hint, const key_type& key, Mapped&& obj) {
+			GAIA_NODISCARD iterator insert_or_assign(const_iterator hint, const key_type& key, Mapped&& obj) {
 				(void)hint;
 				return insertOrAssignImpl(key, std::forward<Mapped>(obj)).first;
 			}
 
 			template <typename Mapped>
-			iterator insert_or_assign(const_iterator hint, key_type&& key, Mapped&& obj) {
+			GAIA_NODISCARD iterator insert_or_assign(const_iterator hint, key_type&& key, Mapped&& obj) {
 				(void)hint;
 				return insertOrAssignImpl(std::move(key), std::forward<Mapped>(obj)).first;
 			}
 
-			std::pair<iterator, bool> insert(const value_type& keyval) {
+			GAIA_NODISCARD std::pair<iterator, bool> insert(const value_type& keyval) {
 				ROBIN_HOOD_TRACE(this)
 				return emplace(keyval);
 			}
 
-			iterator insert(const_iterator hint, const value_type& keyval) {
+			GAIA_NODISCARD iterator insert(const_iterator hint, const value_type& keyval) {
 				(void)hint;
 				return emplace(keyval).first;
 			}
 
-			std::pair<iterator, bool> insert(value_type&& keyval) {
+			GAIA_NODISCARD std::pair<iterator, bool> insert(value_type&& keyval) {
 				return emplace(std::move(keyval));
 			}
 
-			iterator insert(const_iterator hint, value_type&& keyval) {
+			GAIA_NODISCARD iterator insert(const_iterator hint, value_type&& keyval) {
 				(void)hint;
 				return emplace(std::move(keyval)).first;
 			}
 
 			// Returns 1 if key is found, 0 otherwise.
-			size_t count(const key_type& key) const { // NOLINT(modernize-use-nodiscard)
+			GAIA_NODISCARD size_t count(const key_type& key) const { // NOLINT(modernize-use-nodiscard)
 				ROBIN_HOOD_TRACE(this)
 				auto kv = mKeyVals + findIdx(key);
 				if (kv != reinterpret_cast_no_cast_align_warning<Node*>(mInfo)) {
@@ -1745,7 +1745,7 @@ namespace robin_hood {
 
 			template <typename OtherKey, typename Self_ = Self>
 			// NOLINTNEXTLINE(modernize-use-nodiscard)
-			typename std::enable_if<Self_::is_transparent, size_t>::type count(const OtherKey& key) const {
+			GAIA_NODISCARD typename std::enable_if<Self_::is_transparent, size_t>::type count(const OtherKey& key) const {
 				ROBIN_HOOD_TRACE(this)
 				auto kv = mKeyVals + findIdx(key);
 				if (kv != reinterpret_cast_no_cast_align_warning<Node*>(mInfo)) {
@@ -1754,13 +1754,13 @@ namespace robin_hood {
 				return 0;
 			}
 
-			bool contains(const key_type& key) const { // NOLINT(modernize-use-nodiscard)
+			GAIA_NODISCARD bool contains(const key_type& key) const { // NOLINT(modernize-use-nodiscard)
 				return 1U == count(key);
 			}
 
 			template <typename OtherKey, typename Self_ = Self>
 			// NOLINTNEXTLINE(modernize-use-nodiscard)
-			typename std::enable_if<Self_::is_transparent, bool>::type contains(const OtherKey& key) const {
+			GAIA_NODISCARD typename std::enable_if<Self_::is_transparent, bool>::type contains(const OtherKey& key) const {
 				return 1U == count(key);
 			}
 
@@ -1768,7 +1768,7 @@ namespace robin_hood {
 			// Throws std::out_of_range if element cannot be found
 			template <typename Q = mapped_type>
 			// NOLINTNEXTLINE(modernize-use-nodiscard)
-			typename std::enable_if<!std::is_void<Q>::value, Q&>::type at(key_type const& key) {
+			GAIA_NODISCARD typename std::enable_if<!std::is_void<Q>::value, Q&>::type at(key_type const& key) {
 				ROBIN_HOOD_TRACE(this)
 				auto kv = mKeyVals + findIdx(key);
 				if (kv == reinterpret_cast_no_cast_align_warning<Node*>(mInfo)) {
@@ -1781,7 +1781,7 @@ namespace robin_hood {
 			// Throws std::out_of_range if element cannot be found
 			template <typename Q = mapped_type>
 			// NOLINTNEXTLINE(modernize-use-nodiscard)
-			typename std::enable_if<!std::is_void<Q>::value, Q const&>::type at(key_type const& key) const {
+			GAIA_NODISCARD typename std::enable_if<!std::is_void<Q>::value, Q const&>::type at(key_type const& key) const {
 				ROBIN_HOOD_TRACE(this)
 				auto kv = mKeyVals + findIdx(key);
 				if (kv == reinterpret_cast_no_cast_align_warning<Node*>(mInfo)) {
@@ -1790,21 +1790,21 @@ namespace robin_hood {
 				return kv->getSecond();
 			}
 
-			const_iterator find(const key_type& key) const { // NOLINT(modernize-use-nodiscard)
+			GAIA_NODISCARD const_iterator find(const key_type& key) const { // NOLINT(modernize-use-nodiscard)
 				ROBIN_HOOD_TRACE(this)
 				const size_t idx = findIdx(key);
 				return const_iterator{mKeyVals + idx, mInfo + idx};
 			}
 
 			template <typename OtherKey>
-			const_iterator find(const OtherKey& key, is_transparent_tag /*unused*/) const {
+			GAIA_NODISCARD const_iterator find(const OtherKey& key, is_transparent_tag /*unused*/) const {
 				ROBIN_HOOD_TRACE(this)
 				const size_t idx = findIdx(key);
 				return const_iterator{mKeyVals + idx, mInfo + idx};
 			}
 
 			template <typename OtherKey, typename Self_ = Self>
-			typename std::enable_if<
+			GAIA_NODISCARD typename std::enable_if<
 					Self_::is_transparent, // NOLINT(modernize-use-nodiscard)
 					const_iterator>::type // NOLINT(modernize-use-nodiscard)
 			find(const OtherKey& key) const { // NOLINT(modernize-use-nodiscard)
@@ -1813,38 +1813,38 @@ namespace robin_hood {
 				return const_iterator{mKeyVals + idx, mInfo + idx};
 			}
 
-			iterator find(const key_type& key) {
+			GAIA_NODISCARD iterator find(const key_type& key) {
 				ROBIN_HOOD_TRACE(this)
 				const size_t idx = findIdx(key);
 				return iterator{mKeyVals + idx, mInfo + idx};
 			}
 
 			template <typename OtherKey>
-			iterator find(const OtherKey& key, is_transparent_tag /*unused*/) {
+			GAIA_NODISCARD iterator find(const OtherKey& key, is_transparent_tag /*unused*/) {
 				ROBIN_HOOD_TRACE(this)
 				const size_t idx = findIdx(key);
 				return iterator{mKeyVals + idx, mInfo + idx};
 			}
 
 			template <typename OtherKey, typename Self_ = Self>
-			typename std::enable_if<Self_::is_transparent, iterator>::type find(const OtherKey& key) {
+			GAIA_NODISCARD typename std::enable_if<Self_::is_transparent, iterator>::type find(const OtherKey& key) {
 				ROBIN_HOOD_TRACE(this)
 				const size_t idx = findIdx(key);
 				return iterator{mKeyVals + idx, mInfo + idx};
 			}
 
-			iterator begin() {
+			GAIA_NODISCARD iterator begin() {
 				ROBIN_HOOD_TRACE(this)
 				if (empty()) {
 					return end();
 				}
 				return iterator(mKeyVals, mInfo, fast_forward_tag{});
 			}
-			const_iterator begin() const { // NOLINT(modernize-use-nodiscard)
+			GAIA_NODISCARD const_iterator begin() const { // NOLINT(modernize-use-nodiscard)
 				ROBIN_HOOD_TRACE(this)
 				return cbegin();
 			}
-			const_iterator cbegin() const { // NOLINT(modernize-use-nodiscard)
+			GAIA_NODISCARD const_iterator cbegin() const { // NOLINT(modernize-use-nodiscard)
 				ROBIN_HOOD_TRACE(this)
 				if (empty()) {
 					return cend();
@@ -1852,22 +1852,22 @@ namespace robin_hood {
 				return const_iterator(mKeyVals, mInfo, fast_forward_tag{});
 			}
 
-			iterator end() {
+			GAIA_NODISCARD iterator end() {
 				ROBIN_HOOD_TRACE(this)
 				// no need to supply valid info pointer: end() must not be dereferenced, and only node
 				// pointer is compared.
 				return iterator{reinterpret_cast_no_cast_align_warning<Node*>(mInfo), nullptr};
 			}
-			const_iterator end() const { // NOLINT(modernize-use-nodiscard)
+			GAIA_NODISCARD const_iterator end() const { // NOLINT(modernize-use-nodiscard)
 				ROBIN_HOOD_TRACE(this)
 				return cend();
 			}
-			const_iterator cend() const { // NOLINT(modernize-use-nodiscard)
+			GAIA_NODISCARD const_iterator cend() const { // NOLINT(modernize-use-nodiscard)
 				ROBIN_HOOD_TRACE(this)
 				return const_iterator{reinterpret_cast_no_cast_align_warning<Node*>(mInfo), nullptr};
 			}
 
-			iterator erase(const_iterator pos) {
+			GAIA_NODISCARD iterator erase(const_iterator pos) {
 				ROBIN_HOOD_TRACE(this)
 				// its safe to perform const cast here
 				// NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
@@ -1875,7 +1875,7 @@ namespace robin_hood {
 			}
 
 			// Erases element at pos, returns iterator to the next element.
-			iterator erase(iterator pos) {
+			GAIA_NODISCARD iterator erase(iterator pos) {
 				ROBIN_HOOD_TRACE(this)
 				// we assume that pos always points to a valid entry, and not end().
 				auto const idx = static_cast<size_t>(pos.mKeyVals - mKeyVals);
@@ -1892,7 +1892,7 @@ namespace robin_hood {
 				return ++pos;
 			}
 
-			size_t erase(const key_type& key) {
+			GAIA_NODISCARD size_t erase(const key_type& key) {
 				ROBIN_HOOD_TRACE(this)
 				size_t idx{};
 				InfoType info{};
@@ -1947,38 +1947,38 @@ namespace robin_hood {
 				}
 			}
 
-			size_type size() const noexcept { // NOLINT(modernize-use-nodiscard)
+			GAIA_NODISCARD size_type size() const noexcept { // NOLINT(modernize-use-nodiscard)
 				ROBIN_HOOD_TRACE(this)
 				return mNumElements;
 			}
 
-			size_type max_size() const noexcept { // NOLINT(modernize-use-nodiscard)
+			GAIA_NODISCARD size_type max_size() const noexcept { // NOLINT(modernize-use-nodiscard)
 				ROBIN_HOOD_TRACE(this)
 				return static_cast<size_type>(-1);
 			}
 
-			[[nodiscard]] bool empty() const noexcept {
+			GAIA_NODISCARD bool empty() const noexcept {
 				ROBIN_HOOD_TRACE(this)
 				return 0 == mNumElements;
 			}
 
-			float max_load_factor() const noexcept { // NOLINT(modernize-use-nodiscard)
+			GAIA_NODISCARD float max_load_factor() const noexcept { // NOLINT(modernize-use-nodiscard)
 				ROBIN_HOOD_TRACE(this)
 				return MaxLoadFactor100 / 100.0F;
 			}
 
 			// Average number of elements per bucket. Since we allow only 1 per bucket
-			float load_factor() const noexcept { // NOLINT(modernize-use-nodiscard)
+			GAIA_NODISCARD float load_factor() const noexcept { // NOLINT(modernize-use-nodiscard)
 				ROBIN_HOOD_TRACE(this)
 				return static_cast<float>(size()) / static_cast<float>(mMask + 1);
 			}
 
-			[[nodiscard]] size_t mask() const noexcept {
+			GAIA_NODISCARD size_t mask() const noexcept {
 				ROBIN_HOOD_TRACE(this)
 				return mMask;
 			}
 
-			[[nodiscard]] size_t calcMaxNumElementsAllowed(size_t maxElements) const noexcept {
+			GAIA_NODISCARD size_t calcMaxNumElementsAllowed(size_t maxElements) const noexcept {
 				if GAIA_LIKELY (maxElements <= (size_t(-1) / 100)) {
 					return maxElements * MaxLoadFactor100 / 100;
 				}
@@ -1987,19 +1987,19 @@ namespace robin_hood {
 				return (maxElements / 100) * MaxLoadFactor100;
 			}
 
-			[[nodiscard]] size_t calcNumBytesInfo(size_t numElements) const noexcept {
+			GAIA_NODISCARD size_t calcNumBytesInfo(size_t numElements) const noexcept {
 				// we add a uint64_t, which houses the sentinel (first byte) and padding so we can load
 				// 64bit types.
 				return numElements + sizeof(uint64_t);
 			}
 
-			[[nodiscard]] size_t calcNumElementsWithBuffer(size_t numElements) const noexcept {
+			GAIA_NODISCARD size_t calcNumElementsWithBuffer(size_t numElements) const noexcept {
 				auto maxNumElementsAllowed = calcMaxNumElementsAllowed(numElements);
 				return numElements + gaia::utils::get_min(maxNumElementsAllowed, (static_cast<size_t>(0xFF)));
 			}
 
 			// calculation only allowed for 2^n values
-			[[nodiscard]] size_t calcNumBytesTotal(size_t numElements) const {
+			GAIA_NODISCARD size_t calcNumBytesTotal(size_t numElements) const {
 #if ROBIN_HOOD(BITNESS) == 64
 				return numElements * sizeof(Node) + calcNumBytesInfo(numElements);
 #else
@@ -2020,14 +2020,14 @@ namespace robin_hood {
 
 		private:
 			template <typename Q = mapped_type>
-			[[nodiscard]] typename std::enable_if<!std::is_void<Q>::value, bool>::type has(const value_type& e) const {
+			GAIA_NODISCARD typename std::enable_if<!std::is_void<Q>::value, bool>::type has(const value_type& e) const {
 				ROBIN_HOOD_TRACE(this)
 				auto it = find(e.first);
 				return it != end() && it->second == e.second;
 			}
 
 			template <typename Q = mapped_type>
-			[[nodiscard]] typename std::enable_if<std::is_void<Q>::value, bool>::type has(const value_type& e) const {
+			GAIA_NODISCARD typename std::enable_if<std::is_void<Q>::value, bool>::type has(const value_type& e) const {
 				ROBIN_HOOD_TRACE(this)
 				return find(e) != end();
 			}

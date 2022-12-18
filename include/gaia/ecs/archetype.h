@@ -83,7 +83,7 @@ namespace gaia {
 			\param archetype Archetype of the chunk we want to allocate
 			\return Newly allocated chunk
 			*/
-			[[nodiscard]] static Chunk* AllocateChunk(const Archetype& archetype) {
+			GAIA_NODISCARD static Chunk* AllocateChunk(const Archetype& archetype) {
 				auto& world = const_cast<World&>(*archetype.parentWorld);
 #if GAIA_ECS_CHUNK_ALLOCATOR
 				auto pChunk = (Chunk*)AllocateChunkMemory(world);
@@ -154,7 +154,7 @@ namespace gaia {
 #endif
 			}
 
-			[[nodiscard]] static Archetype*
+			GAIA_NODISCARD static Archetype*
 			Create(World& pWorld, std::span<const ComponentInfo*> infosGeneric, std::span<const ComponentInfo*> infosChunk) {
 				auto newArch = new Archetype();
 				newArch->parentWorld = &pWorld;
@@ -263,7 +263,7 @@ namespace gaia {
 				return newArch;
 			}
 
-			[[nodiscard]] Chunk* FindOrCreateFreeChunk_Internal(containers::darray<Chunk*>& chunkArray) {
+			GAIA_NODISCARD Chunk* FindOrCreateFreeChunk_Internal(containers::darray<Chunk*>& chunkArray) {
 				if (!chunkArray.empty()) {
 					// Look for chunks with free space back-to-front.
 					// We do it this way because we always try to keep fully utilized and
@@ -286,13 +286,13 @@ namespace gaia {
 
 			//! Tries to locate a chunk that has some space left for a new entity.
 			//! If not found a new chunk is created
-			[[nodiscard]] Chunk* FindOrCreateFreeChunk() {
+			GAIA_NODISCARD Chunk* FindOrCreateFreeChunk() {
 				return FindOrCreateFreeChunk_Internal(chunks);
 			}
 
 			//! Tries to locate a chunk for disabled entities that has some space left for a new one.
 			//! If not found a new chunk is created
-			[[nodiscard]] Chunk* FindOrCreateFreeChunkDisabled() {
+			GAIA_NODISCARD Chunk* FindOrCreateFreeChunkDisabled() {
 				auto* pChunk = FindOrCreateFreeChunk_Internal(chunksDisabled);
 				pChunk->header.info.disabled = true;
 				return pChunk;
@@ -352,27 +352,27 @@ namespace gaia {
 					ReleaseChunk(pChunk);
 			}
 
-			[[nodiscard]] const World& GetWorld() const {
+			GAIA_NODISCARD const World& GetWorld() const {
 				return *parentWorld;
 			}
 
-			[[nodiscard]] uint32_t GetWorldVersion() const {
+			GAIA_NODISCARD uint32_t GetWorldVersion() const {
 				return GetWorldVersionFromWorld(*parentWorld);
 			}
 
-			[[nodiscard]] uint32_t GetCapacity() const {
+			GAIA_NODISCARD uint32_t GetCapacity() const {
 				return info.capacity;
 			}
 
-			[[nodiscard]] uint64_t GetMatcherHash(ComponentType type) const {
+			GAIA_NODISCARD uint64_t GetMatcherHash(ComponentType type) const {
 				return matcherHash[type];
 			}
 
-			[[nodiscard]] const ComponentInfoList& GetComponentInfoList(ComponentType type) const {
+			GAIA_NODISCARD const ComponentInfoList& GetComponentInfoList(ComponentType type) const {
 				return componentInfos[type];
 			}
 
-			[[nodiscard]] const ComponentLookupList& GetComponentLookupList(ComponentType type) const {
+			GAIA_NODISCARD const ComponentLookupList& GetComponentLookupList(ComponentType type) const {
 				return componentLookupData[type];
 			}
 
@@ -381,13 +381,13 @@ namespace gaia {
 			\return True if the component is present. False otherwise.
 			*/
 			template <typename T>
-			[[nodiscard]] bool HasComponent() const {
+			GAIA_NODISCARD bool HasComponent() const {
 				return HasComponent_Internal<T>();
 			}
 
 		private:
 			template <typename T>
-			[[nodiscard]] bool HasComponent_Internal() const {
+			GAIA_NODISCARD bool HasComponent_Internal() const {
 				using U = typename DeduceComponent<T>::Type;
 				const auto infoIndex = utils::type_info::index<U>();
 
@@ -403,20 +403,20 @@ namespace gaia {
 			}
 		};
 
-		[[nodiscard]] inline uint32_t GetWorldVersionFromArchetype(const Archetype& archetype) {
+		GAIA_NODISCARD inline uint32_t GetWorldVersionFromArchetype(const Archetype& archetype) {
 			return archetype.GetWorldVersion();
 		}
-		[[nodiscard]] inline uint64_t GetArchetypeMatcherHash(const Archetype& archetype, ComponentType type) {
+		GAIA_NODISCARD inline uint64_t GetArchetypeMatcherHash(const Archetype& archetype, ComponentType type) {
 			return archetype.GetMatcherHash(type);
 		}
-		[[nodiscard]] inline const ComponentInfo* GetComponentInfoFromIdx(uint32_t componentIdx) {
+		GAIA_NODISCARD inline const ComponentInfo* GetComponentInfoFromIdx(uint32_t componentIdx) {
 			return GetComponentCache().GetComponentInfoFromIdx(componentIdx);
 		}
-		[[nodiscard]] inline const ComponentInfoList&
+		GAIA_NODISCARD inline const ComponentInfoList&
 		GetArchetypeComponentInfoList(const Archetype& archetype, ComponentType type) {
 			return archetype.GetComponentInfoList(type);
 		}
-		[[nodiscard]] inline const ComponentLookupList&
+		GAIA_NODISCARD inline const ComponentLookupList&
 		GetArchetypeComponentLookupList(const Archetype& archetype, ComponentType type) {
 			return archetype.GetComponentLookupList(type);
 		}

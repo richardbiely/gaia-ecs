@@ -106,12 +106,18 @@
 #endif
 
 #if __cplusplus >= 202002L
+	#if __has_cpp_attribute(nodiscard)
+		#define GAIA_NODISCARD [[nodiscard]]
+	#endif
 	#if __has_cpp_attribute(likely)
 		#define GAIA_LIKELY(cond) (cond) [[likely]]
 	#endif
 	#if __has_cpp_attribute(unlikely)
 		#define GAIA_UNLIKELY(cond) (cond) [[unlikely]]
 	#endif
+#endif
+#ifndef GAIA_NODISCARD
+	#define GAIA_NODISCARD
 #endif
 #if !defined(GAIA_LIKELY) && (GAIA_COMPILER_GCC || GAIA_COMPILER_CLANG)
 	#define GAIA_LIKELY(cond) (__builtin_expect((cond), 1))

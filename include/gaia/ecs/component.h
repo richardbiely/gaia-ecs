@@ -110,7 +110,7 @@ namespace gaia {
 		constexpr uint64_t CalculateMatcherHash() noexcept;
 
 		template <typename T, typename... Rest>
-		[[nodiscard]] constexpr uint64_t CalculateMatcherHash() noexcept {
+		GAIA_NODISCARD constexpr uint64_t CalculateMatcherHash() noexcept {
 			if constexpr (sizeof...(Rest) == 0)
 				return detail::CalculateMatcherHash<T>();
 			else
@@ -118,14 +118,14 @@ namespace gaia {
 		}
 
 		template <>
-		[[nodiscard]] constexpr uint64_t CalculateMatcherHash() noexcept {
+		GAIA_NODISCARD constexpr uint64_t CalculateMatcherHash() noexcept {
 			return 0;
 		}
 
 		//-----------------------------------------------------------------------------------
 
 		template <typename Container>
-		[[nodiscard]] constexpr uint64_t CalculateLookupHash(Container arr) noexcept {
+		GAIA_NODISCARD constexpr uint64_t CalculateLookupHash(Container arr) noexcept {
 			constexpr auto arrSize = arr.size();
 			if constexpr (arrSize == 0) {
 				return 0;
@@ -142,7 +142,7 @@ namespace gaia {
 		constexpr uint64_t CalculateLookupHash() noexcept;
 
 		template <typename T, typename... Rest>
-		[[nodiscard]] constexpr uint64_t CalculateLookupHash() noexcept {
+		GAIA_NODISCARD constexpr uint64_t CalculateLookupHash() noexcept {
 			if constexpr (sizeof...(Rest) == 0)
 				return utils::type_info::hash<T>();
 			else
@@ -150,7 +150,7 @@ namespace gaia {
 		}
 
 		template <>
-		[[nodiscard]] constexpr uint64_t CalculateLookupHash() noexcept {
+		GAIA_NODISCARD constexpr uint64_t CalculateLookupHash() noexcept {
 			return 0;
 		}
 
@@ -172,7 +172,7 @@ namespace gaia {
 			uint32_t infoIndex;
 
 			template <typename T>
-			[[nodiscard]] static constexpr ComponentInfoCreate Calculate() {
+			GAIA_NODISCARD static constexpr ComponentInfoCreate Calculate() {
 				using U = typename DeduceComponent<T>::Type;
 
 				ComponentInfoCreate info{};
@@ -219,18 +219,18 @@ namespace gaia {
 				uint32_t soa : 1;
 			} properties{};
 
-			[[nodiscard]] bool operator==(const ComponentInfo& other) const {
+			GAIA_NODISCARD bool operator==(const ComponentInfo& other) const {
 				return lookupHash == other.lookupHash && infoIndex == other.infoIndex;
 			}
-			[[nodiscard]] bool operator!=(const ComponentInfo& other) const {
+			GAIA_NODISCARD bool operator!=(const ComponentInfo& other) const {
 				return lookupHash != other.lookupHash || infoIndex != other.infoIndex;
 			}
-			[[nodiscard]] bool operator<(const ComponentInfo& other) const {
+			GAIA_NODISCARD bool operator<(const ComponentInfo& other) const {
 				return lookupHash < other.lookupHash;
 			}
 
 			template <typename T>
-			[[nodiscard]] static constexpr ComponentInfo Calculate() {
+			GAIA_NODISCARD static constexpr ComponentInfo Calculate() {
 				using U = typename DeduceComponent<T>::Type;
 
 				ComponentInfo info{};
@@ -254,18 +254,18 @@ namespace gaia {
 			}
 		};
 
-		[[nodiscard]] inline uint64_t CalculateMatcherHash(uint64_t hashA, uint64_t hashB) noexcept {
+		GAIA_NODISCARD inline uint64_t CalculateMatcherHash(uint64_t hashA, uint64_t hashB) noexcept {
 			return utils::combine_or(hashA, hashB);
 		}
 
-		[[nodiscard]] inline uint64_t CalculateMatcherHash(std::span<const ComponentInfo*> infos) noexcept {
+		GAIA_NODISCARD inline uint64_t CalculateMatcherHash(std::span<const ComponentInfo*> infos) noexcept {
 			uint64_t hash = infos.empty() ? 0 : infos[0]->matcherHash;
 			for (size_t i = 1; i < infos.size(); ++i)
 				hash = utils::combine_or(hash, infos[i]->matcherHash);
 			return hash;
 		}
 
-		[[nodiscard]] inline uint64_t CalculateLookupHash(std::span<const ComponentInfo*> infos) noexcept {
+		GAIA_NODISCARD inline uint64_t CalculateLookupHash(std::span<const ComponentInfo*> infos) noexcept {
 			uint64_t hash = infos.empty() ? 0 : infos[0]->lookupHash;
 			for (size_t i = 1; i < infos.size(); ++i)
 				hash = utils::hash_combine(hash, infos[i]->lookupHash);

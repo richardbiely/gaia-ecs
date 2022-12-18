@@ -428,19 +428,19 @@ namespace gaia {
 				delete[] old;
 			}
 
-			[[nodiscard]] constexpr size_type size() const noexcept {
+			GAIA_NODISCARD constexpr size_type size() const noexcept {
 				return m_cnt;
 			}
 
-			[[nodiscard]] constexpr size_type capacity() const noexcept {
+			GAIA_NODISCARD constexpr size_type capacity() const noexcept {
 				return m_cap;
 			}
 
-			[[nodiscard]] constexpr bool empty() const noexcept {
+			GAIA_NODISCARD constexpr bool empty() const noexcept {
 				return size() == 0;
 			}
 
-			[[nodiscard]] constexpr size_type max_size() const noexcept {
+			GAIA_NODISCARD constexpr size_type max_size() const noexcept {
 				return 10'000'000;
 			}
 

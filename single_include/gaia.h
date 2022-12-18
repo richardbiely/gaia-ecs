@@ -106,12 +106,18 @@
 #endif
 
 #if __cplusplus >= 202002L
+	#if __has_cpp_attribute(nodiscard)
+		#define GAIA_NODISCARD [[nodiscard]]
+	#endif
 	#if __has_cpp_attribute(likely)
 		#define GAIA_LIKELY(cond) (cond) [[likely]]
 	#endif
 	#if __has_cpp_attribute(unlikely)
 		#define GAIA_UNLIKELY(cond) (cond) [[unlikely]]
 	#endif
+#endif
+#ifndef GAIA_NODISCARD
+	#define GAIA_NODISCARD
 #endif
 #if !defined(GAIA_LIKELY) && (GAIA_COMPILER_GCC || GAIA_COMPILER_CLANG)
 	#define GAIA_LIKELY(cond) (__builtin_expect((cond), 1))
@@ -624,7 +630,7 @@ namespace gaia {
 					++m_ptr;
 					return *this;
 				}
-				constexpr iterator& operator++(int) {
+				constexpr iterator operator++(int) {
 					iterator temp(*this);
 					++*this;
 					return temp;
@@ -633,7 +639,7 @@ namespace gaia {
 					--m_ptr;
 					return *this;
 				}
-				constexpr iterator& operator--(int) {
+				constexpr iterator operator--(int) {
 					iterator temp(*this);
 					--this;
 					return temp;
@@ -714,7 +720,7 @@ namespace gaia {
 					++m_ptr;
 					return *this;
 				}
-				constexpr const_iterator& operator++(int) {
+				constexpr const_iterator operator++(int) {
 					const_iterator temp(*this);
 					++*this;
 					return temp;
@@ -723,7 +729,7 @@ namespace gaia {
 					--m_ptr;
 					return *this;
 				}
-				constexpr const_iterator& operator--(int) {
+				constexpr const_iterator operator--(int) {
 					const_iterator temp(*this);
 					--this;
 					return temp;
@@ -974,19 +980,19 @@ namespace gaia {
 				delete[] old;
 			}
 
-			[[nodiscard]] constexpr size_type size() const noexcept {
+			GAIA_NODISCARD constexpr size_type size() const noexcept {
 				return m_cnt;
 			}
 
-			[[nodiscard]] constexpr size_type capacity() const noexcept {
+			GAIA_NODISCARD constexpr size_type capacity() const noexcept {
 				return m_cap;
 			}
 
-			[[nodiscard]] constexpr bool empty() const noexcept {
+			GAIA_NODISCARD constexpr bool empty() const noexcept {
 				return size() == 0;
 			}
 
-			[[nodiscard]] constexpr size_type max_size() const noexcept {
+			GAIA_NODISCARD constexpr size_type max_size() const noexcept {
 				return 10'000'000;
 			}
 
@@ -1134,7 +1140,7 @@ namespace gaia {
 					++m_ptr;
 					return *this;
 				}
-				constexpr iterator& operator++(int) {
+				constexpr iterator operator++(int) {
 					iterator temp(*this);
 					++*this;
 					return temp;
@@ -1143,7 +1149,7 @@ namespace gaia {
 					--m_ptr;
 					return *this;
 				}
-				constexpr iterator& operator--(int) {
+				constexpr iterator operator--(int) {
 					iterator temp(*this);
 					--this;
 					return temp;
@@ -1223,7 +1229,7 @@ namespace gaia {
 					++m_ptr;
 					return *this;
 				}
-				constexpr const_iterator& operator++(int) {
+				constexpr const_iterator operator++(int) {
 					const_iterator temp(*this);
 					++*this;
 					return temp;
@@ -1232,7 +1238,7 @@ namespace gaia {
 					--m_ptr;
 					return *this;
 				}
-				constexpr const_iterator& operator--(int) {
+				constexpr const_iterator operator--(int) {
 					const_iterator temp(*this);
 					--this;
 					return temp;
@@ -1284,15 +1290,15 @@ namespace gaia {
 				return (const_reference)m_data[pos];
 			}
 
-			[[nodiscard]] constexpr size_type size() const noexcept {
+			GAIA_NODISCARD constexpr size_type size() const noexcept {
 				return N;
 			}
 
-			[[nodiscard]] constexpr bool empty() const noexcept {
+			GAIA_NODISCARD constexpr bool empty() const noexcept {
 				return begin() == end();
 			}
 
-			[[nodiscard]] constexpr size_type max_size() const noexcept {
+			GAIA_NODISCARD constexpr size_type max_size() const noexcept {
 				return N;
 			}
 
@@ -1451,7 +1457,7 @@ namespace gaia {
 					++m_ptr;
 					return *this;
 				}
-				constexpr iterator& operator++(int) {
+				constexpr iterator operator++(int) {
 					iterator temp(*this);
 					++*this;
 					return temp;
@@ -1460,7 +1466,7 @@ namespace gaia {
 					--m_ptr;
 					return *this;
 				}
-				constexpr iterator& operator--(int) {
+				constexpr iterator operator--(int) {
 					iterator temp(*this);
 					--this;
 					return temp;
@@ -1540,7 +1546,7 @@ namespace gaia {
 					++m_ptr;
 					return *this;
 				}
-				constexpr const_iterator& operator++(int) {
+				constexpr const_iterator operator++(int) {
 					const_iterator temp(*this);
 					++*this;
 					return temp;
@@ -1549,7 +1555,7 @@ namespace gaia {
 					--m_ptr;
 					return *this;
 				}
-				constexpr const_iterator& operator--(int) {
+				constexpr const_iterator operator--(int) {
 					const_iterator temp(*this);
 					--this;
 					return temp;
@@ -1645,15 +1651,15 @@ namespace gaia {
 				m_pos = size - 1;
 			}
 
-			[[nodiscard]] constexpr size_type size() const noexcept {
+			GAIA_NODISCARD constexpr size_type size() const noexcept {
 				return m_pos + 1;
 			}
 
-			[[nodiscard]] constexpr bool empty() const noexcept {
+			GAIA_NODISCARD constexpr bool empty() const noexcept {
 				return size() == 0;
 			}
 
-			[[nodiscard]] constexpr size_type max_size() const noexcept {
+			GAIA_NODISCARD constexpr size_type max_size() const noexcept {
 				return N;
 			}
 
@@ -1776,7 +1782,7 @@ namespace gaia {
 			}
 
 			template <typename T>
-			[[nodiscard]] constexpr T hash_combine2(T lhs, T rhs) {
+			GAIA_NODISCARD constexpr T hash_combine2(T lhs, T rhs) {
 				hash_combine2_out(lhs, rhs);
 				return lhs;
 			}
@@ -3015,7 +3021,7 @@ namespace robin_hood {
 			// Recalculating this each time saves us a size_t member.
 			// This ignores the fact that memory blocks might have been added manually with addOrFree. In
 			// practice, this should not matter much.
-			[[nodiscard]] size_t calcNumElementsToAlloc() const noexcept {
+			GAIA_NODISCARD size_t calcNumElementsToAlloc() const noexcept {
 				auto tmp = mListForFree;
 				size_t numAllocs = MinNumAllocs;
 
@@ -3513,30 +3519,30 @@ namespace robin_hood {
 				}
 
 				template <typename VT = value_type>
-				[[nodiscard]] typename std::enable_if<is_map, typename VT::first_type&>::type getFirst() noexcept {
+				GAIA_NODISCARD typename std::enable_if<is_map, typename VT::first_type&>::type getFirst() noexcept {
 					return mData.first;
 				}
 				template <typename VT = value_type>
-				[[nodiscard]] typename std::enable_if<is_set, VT&>::type getFirst() noexcept {
+				GAIA_NODISCARD typename std::enable_if<is_set, VT&>::type getFirst() noexcept {
 					return mData;
 				}
 
 				template <typename VT = value_type>
-				[[nodiscard]] typename std::enable_if<is_map, typename VT::first_type const&>::type getFirst() const noexcept {
+				GAIA_NODISCARD typename std::enable_if<is_map, typename VT::first_type const&>::type getFirst() const noexcept {
 					return mData.first;
 				}
 				template <typename VT = value_type>
-				[[nodiscard]] typename std::enable_if<is_set, VT const&>::type getFirst() const noexcept {
+				GAIA_NODISCARD typename std::enable_if<is_set, VT const&>::type getFirst() const noexcept {
 					return mData;
 				}
 
 				template <typename MT = mapped_type>
-				[[nodiscard]] typename std::enable_if<is_map, MT&>::type getSecond() noexcept {
+				GAIA_NODISCARD typename std::enable_if<is_map, MT&>::type getSecond() noexcept {
 					return mData.second;
 				}
 
 				template <typename MT = mapped_type>
-				[[nodiscard]] typename std::enable_if<is_set, MT const&>::type getSecond() const noexcept {
+				GAIA_NODISCARD typename std::enable_if<is_set, MT const&>::type getSecond() const noexcept {
 					return mData.second;
 				}
 
@@ -3587,30 +3593,30 @@ namespace robin_hood {
 				}
 
 				template <typename VT = value_type>
-				[[nodiscard]] typename std::enable_if<is_map, typename VT::first_type&>::type getFirst() noexcept {
+				GAIA_NODISCARD typename std::enable_if<is_map, typename VT::first_type&>::type getFirst() noexcept {
 					return mData->first;
 				}
 				template <typename VT = value_type>
-				[[nodiscard]] typename std::enable_if<is_set, VT&>::type getFirst() noexcept {
+				GAIA_NODISCARD typename std::enable_if<is_set, VT&>::type getFirst() noexcept {
 					return *mData;
 				}
 
 				template <typename VT = value_type>
-				[[nodiscard]] typename std::enable_if<is_map, typename VT::first_type const&>::type getFirst() const noexcept {
+				GAIA_NODISCARD typename std::enable_if<is_map, typename VT::first_type const&>::type getFirst() const noexcept {
 					return mData->first;
 				}
 				template <typename VT = value_type>
-				[[nodiscard]] typename std::enable_if<is_set, VT const&>::type getFirst() const noexcept {
+				GAIA_NODISCARD typename std::enable_if<is_set, VT const&>::type getFirst() const noexcept {
 					return *mData;
 				}
 
 				template <typename MT = mapped_type>
-				[[nodiscard]] typename std::enable_if<is_map, MT&>::type getSecond() noexcept {
+				GAIA_NODISCARD typename std::enable_if<is_map, MT&>::type getSecond() noexcept {
 					return mData->second;
 				}
 
 				template <typename MT = mapped_type>
-				[[nodiscard]] typename std::enable_if<is_map, MT const&>::type getSecond() const noexcept {
+				GAIA_NODISCARD typename std::enable_if<is_map, MT const&>::type getSecond() const noexcept {
 					return mData->second;
 				}
 
@@ -3626,19 +3632,19 @@ namespace robin_hood {
 			using Node = DataNode<Self, IsFlat>;
 
 			// helpers for insertKeyPrepareEmptySpot: extract first entry (only const required)
-			[[nodiscard]] key_type const& getFirstConst(Node const& n) const noexcept {
+			GAIA_NODISCARD key_type const& getFirstConst(Node const& n) const noexcept {
 				return n.getFirst();
 			}
 
 			// in case we have void mapped_type, we are not using a pair, thus we just route k through.
 			// No need to disable this because it's just not used if not applicable.
-			[[nodiscard]] key_type const& getFirstConst(key_type const& k) const noexcept {
+			GAIA_NODISCARD key_type const& getFirstConst(key_type const& k) const noexcept {
 				return k;
 			}
 
 			// in case we have non-void mapped_type, we have a standard robin_hood::pair
 			template <typename Q = mapped_type>
-			[[nodiscard]] typename std::enable_if<!std::is_void<Q>::value, key_type const&>::type
+			GAIA_NODISCARD typename std::enable_if<!std::is_void<Q>::value, key_type const&>::type
 			getFirstConst(value_type const& vt) const noexcept {
 				return vt.first;
 			}
@@ -3915,7 +3921,7 @@ namespace robin_hood {
 
 			// copy of find(), except that it returns iterator instead of const_iterator.
 			template <typename Other>
-			[[nodiscard]] size_t findIdx(Other const& key) const {
+			GAIA_NODISCARD size_t findIdx(Other const& key) const {
 				size_t idx{};
 				InfoType info{};
 				keyToIdx(key, &idx, &info);
@@ -4284,7 +4290,7 @@ namespace robin_hood {
 			}
 
 			template <typename... Args>
-			std::pair<iterator, bool> emplace(Args&&... args) {
+			GAIA_NODISCARD std::pair<iterator, bool> emplace(Args&&... args) {
 				ROBIN_HOOD_TRACE(this)
 				Node n{*this, std::forward<Args>(args)...};
 				auto idxAndState = insertKeyPrepareEmptySpot(getFirstConst(n));
@@ -4313,76 +4319,76 @@ namespace robin_hood {
 			}
 
 			template <typename... Args>
-			iterator emplace_hint(const_iterator position, Args&&... args) {
+			GAIA_NODISCARD iterator emplace_hint(const_iterator position, Args&&... args) {
 				(void)position;
 				return emplace(std::forward<Args>(args)...).first;
 			}
 
 			template <typename... Args>
-			std::pair<iterator, bool> try_emplace(const key_type& key, Args&&... args) {
+			GAIA_NODISCARD std::pair<iterator, bool> try_emplace(const key_type& key, Args&&... args) {
 				return try_emplace_impl(key, std::forward<Args>(args)...);
 			}
 
 			template <typename... Args>
-			std::pair<iterator, bool> try_emplace(key_type&& key, Args&&... args) {
+			GAIA_NODISCARD std::pair<iterator, bool> try_emplace(key_type&& key, Args&&... args) {
 				return try_emplace_impl(std::move(key), std::forward<Args>(args)...);
 			}
 
 			template <typename... Args>
-			iterator try_emplace(const_iterator hint, const key_type& key, Args&&... args) {
+			GAIA_NODISCARD iterator try_emplace(const_iterator hint, const key_type& key, Args&&... args) {
 				(void)hint;
 				return try_emplace_impl(key, std::forward<Args>(args)...).first;
 			}
 
 			template <typename... Args>
-			iterator try_emplace(const_iterator hint, key_type&& key, Args&&... args) {
+			GAIA_NODISCARD iterator try_emplace(const_iterator hint, key_type&& key, Args&&... args) {
 				(void)hint;
 				return try_emplace_impl(std::move(key), std::forward<Args>(args)...).first;
 			}
 
 			template <typename Mapped>
-			std::pair<iterator, bool> insert_or_assign(const key_type& key, Mapped&& obj) {
+			GAIA_NODISCARD std::pair<iterator, bool> insert_or_assign(const key_type& key, Mapped&& obj) {
 				return insertOrAssignImpl(key, std::forward<Mapped>(obj));
 			}
 
 			template <typename Mapped>
-			std::pair<iterator, bool> insert_or_assign(key_type&& key, Mapped&& obj) {
+			GAIA_NODISCARD std::pair<iterator, bool> insert_or_assign(key_type&& key, Mapped&& obj) {
 				return insertOrAssignImpl(std::move(key), std::forward<Mapped>(obj));
 			}
 
 			template <typename Mapped>
-			iterator insert_or_assign(const_iterator hint, const key_type& key, Mapped&& obj) {
+			GAIA_NODISCARD iterator insert_or_assign(const_iterator hint, const key_type& key, Mapped&& obj) {
 				(void)hint;
 				return insertOrAssignImpl(key, std::forward<Mapped>(obj)).first;
 			}
 
 			template <typename Mapped>
-			iterator insert_or_assign(const_iterator hint, key_type&& key, Mapped&& obj) {
+			GAIA_NODISCARD iterator insert_or_assign(const_iterator hint, key_type&& key, Mapped&& obj) {
 				(void)hint;
 				return insertOrAssignImpl(std::move(key), std::forward<Mapped>(obj)).first;
 			}
 
-			std::pair<iterator, bool> insert(const value_type& keyval) {
+			GAIA_NODISCARD std::pair<iterator, bool> insert(const value_type& keyval) {
 				ROBIN_HOOD_TRACE(this)
 				return emplace(keyval);
 			}
 
-			iterator insert(const_iterator hint, const value_type& keyval) {
+			GAIA_NODISCARD iterator insert(const_iterator hint, const value_type& keyval) {
 				(void)hint;
 				return emplace(keyval).first;
 			}
 
-			std::pair<iterator, bool> insert(value_type&& keyval) {
+			GAIA_NODISCARD std::pair<iterator, bool> insert(value_type&& keyval) {
 				return emplace(std::move(keyval));
 			}
 
-			iterator insert(const_iterator hint, value_type&& keyval) {
+			GAIA_NODISCARD iterator insert(const_iterator hint, value_type&& keyval) {
 				(void)hint;
 				return emplace(std::move(keyval)).first;
 			}
 
 			// Returns 1 if key is found, 0 otherwise.
-			size_t count(const key_type& key) const { // NOLINT(modernize-use-nodiscard)
+			GAIA_NODISCARD size_t count(const key_type& key) const { // NOLINT(modernize-use-nodiscard)
 				ROBIN_HOOD_TRACE(this)
 				auto kv = mKeyVals + findIdx(key);
 				if (kv != reinterpret_cast_no_cast_align_warning<Node*>(mInfo)) {
@@ -4393,7 +4399,7 @@ namespace robin_hood {
 
 			template <typename OtherKey, typename Self_ = Self>
 			// NOLINTNEXTLINE(modernize-use-nodiscard)
-			typename std::enable_if<Self_::is_transparent, size_t>::type count(const OtherKey& key) const {
+			GAIA_NODISCARD typename std::enable_if<Self_::is_transparent, size_t>::type count(const OtherKey& key) const {
 				ROBIN_HOOD_TRACE(this)
 				auto kv = mKeyVals + findIdx(key);
 				if (kv != reinterpret_cast_no_cast_align_warning<Node*>(mInfo)) {
@@ -4402,13 +4408,13 @@ namespace robin_hood {
 				return 0;
 			}
 
-			bool contains(const key_type& key) const { // NOLINT(modernize-use-nodiscard)
+			GAIA_NODISCARD bool contains(const key_type& key) const { // NOLINT(modernize-use-nodiscard)
 				return 1U == count(key);
 			}
 
 			template <typename OtherKey, typename Self_ = Self>
 			// NOLINTNEXTLINE(modernize-use-nodiscard)
-			typename std::enable_if<Self_::is_transparent, bool>::type contains(const OtherKey& key) const {
+			GAIA_NODISCARD typename std::enable_if<Self_::is_transparent, bool>::type contains(const OtherKey& key) const {
 				return 1U == count(key);
 			}
 
@@ -4416,7 +4422,7 @@ namespace robin_hood {
 			// Throws std::out_of_range if element cannot be found
 			template <typename Q = mapped_type>
 			// NOLINTNEXTLINE(modernize-use-nodiscard)
-			typename std::enable_if<!std::is_void<Q>::value, Q&>::type at(key_type const& key) {
+			GAIA_NODISCARD typename std::enable_if<!std::is_void<Q>::value, Q&>::type at(key_type const& key) {
 				ROBIN_HOOD_TRACE(this)
 				auto kv = mKeyVals + findIdx(key);
 				if (kv == reinterpret_cast_no_cast_align_warning<Node*>(mInfo)) {
@@ -4429,7 +4435,7 @@ namespace robin_hood {
 			// Throws std::out_of_range if element cannot be found
 			template <typename Q = mapped_type>
 			// NOLINTNEXTLINE(modernize-use-nodiscard)
-			typename std::enable_if<!std::is_void<Q>::value, Q const&>::type at(key_type const& key) const {
+			GAIA_NODISCARD typename std::enable_if<!std::is_void<Q>::value, Q const&>::type at(key_type const& key) const {
 				ROBIN_HOOD_TRACE(this)
 				auto kv = mKeyVals + findIdx(key);
 				if (kv == reinterpret_cast_no_cast_align_warning<Node*>(mInfo)) {
@@ -4438,21 +4444,21 @@ namespace robin_hood {
 				return kv->getSecond();
 			}
 
-			const_iterator find(const key_type& key) const { // NOLINT(modernize-use-nodiscard)
+			GAIA_NODISCARD const_iterator find(const key_type& key) const { // NOLINT(modernize-use-nodiscard)
 				ROBIN_HOOD_TRACE(this)
 				const size_t idx = findIdx(key);
 				return const_iterator{mKeyVals + idx, mInfo + idx};
 			}
 
 			template <typename OtherKey>
-			const_iterator find(const OtherKey& key, is_transparent_tag /*unused*/) const {
+			GAIA_NODISCARD const_iterator find(const OtherKey& key, is_transparent_tag /*unused*/) const {
 				ROBIN_HOOD_TRACE(this)
 				const size_t idx = findIdx(key);
 				return const_iterator{mKeyVals + idx, mInfo + idx};
 			}
 
 			template <typename OtherKey, typename Self_ = Self>
-			typename std::enable_if<
+			GAIA_NODISCARD typename std::enable_if<
 					Self_::is_transparent, // NOLINT(modernize-use-nodiscard)
 					const_iterator>::type // NOLINT(modernize-use-nodiscard)
 			find(const OtherKey& key) const { // NOLINT(modernize-use-nodiscard)
@@ -4461,38 +4467,38 @@ namespace robin_hood {
 				return const_iterator{mKeyVals + idx, mInfo + idx};
 			}
 
-			iterator find(const key_type& key) {
+			GAIA_NODISCARD iterator find(const key_type& key) {
 				ROBIN_HOOD_TRACE(this)
 				const size_t idx = findIdx(key);
 				return iterator{mKeyVals + idx, mInfo + idx};
 			}
 
 			template <typename OtherKey>
-			iterator find(const OtherKey& key, is_transparent_tag /*unused*/) {
+			GAIA_NODISCARD iterator find(const OtherKey& key, is_transparent_tag /*unused*/) {
 				ROBIN_HOOD_TRACE(this)
 				const size_t idx = findIdx(key);
 				return iterator{mKeyVals + idx, mInfo + idx};
 			}
 
 			template <typename OtherKey, typename Self_ = Self>
-			typename std::enable_if<Self_::is_transparent, iterator>::type find(const OtherKey& key) {
+			GAIA_NODISCARD typename std::enable_if<Self_::is_transparent, iterator>::type find(const OtherKey& key) {
 				ROBIN_HOOD_TRACE(this)
 				const size_t idx = findIdx(key);
 				return iterator{mKeyVals + idx, mInfo + idx};
 			}
 
-			iterator begin() {
+			GAIA_NODISCARD iterator begin() {
 				ROBIN_HOOD_TRACE(this)
 				if (empty()) {
 					return end();
 				}
 				return iterator(mKeyVals, mInfo, fast_forward_tag{});
 			}
-			const_iterator begin() const { // NOLINT(modernize-use-nodiscard)
+			GAIA_NODISCARD const_iterator begin() const { // NOLINT(modernize-use-nodiscard)
 				ROBIN_HOOD_TRACE(this)
 				return cbegin();
 			}
-			const_iterator cbegin() const { // NOLINT(modernize-use-nodiscard)
+			GAIA_NODISCARD const_iterator cbegin() const { // NOLINT(modernize-use-nodiscard)
 				ROBIN_HOOD_TRACE(this)
 				if (empty()) {
 					return cend();
@@ -4500,22 +4506,22 @@ namespace robin_hood {
 				return const_iterator(mKeyVals, mInfo, fast_forward_tag{});
 			}
 
-			iterator end() {
+			GAIA_NODISCARD iterator end() {
 				ROBIN_HOOD_TRACE(this)
 				// no need to supply valid info pointer: end() must not be dereferenced, and only node
 				// pointer is compared.
 				return iterator{reinterpret_cast_no_cast_align_warning<Node*>(mInfo), nullptr};
 			}
-			const_iterator end() const { // NOLINT(modernize-use-nodiscard)
+			GAIA_NODISCARD const_iterator end() const { // NOLINT(modernize-use-nodiscard)
 				ROBIN_HOOD_TRACE(this)
 				return cend();
 			}
-			const_iterator cend() const { // NOLINT(modernize-use-nodiscard)
+			GAIA_NODISCARD const_iterator cend() const { // NOLINT(modernize-use-nodiscard)
 				ROBIN_HOOD_TRACE(this)
 				return const_iterator{reinterpret_cast_no_cast_align_warning<Node*>(mInfo), nullptr};
 			}
 
-			iterator erase(const_iterator pos) {
+			GAIA_NODISCARD iterator erase(const_iterator pos) {
 				ROBIN_HOOD_TRACE(this)
 				// its safe to perform const cast here
 				// NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
@@ -4523,7 +4529,7 @@ namespace robin_hood {
 			}
 
 			// Erases element at pos, returns iterator to the next element.
-			iterator erase(iterator pos) {
+			GAIA_NODISCARD iterator erase(iterator pos) {
 				ROBIN_HOOD_TRACE(this)
 				// we assume that pos always points to a valid entry, and not end().
 				auto const idx = static_cast<size_t>(pos.mKeyVals - mKeyVals);
@@ -4540,7 +4546,7 @@ namespace robin_hood {
 				return ++pos;
 			}
 
-			size_t erase(const key_type& key) {
+			GAIA_NODISCARD size_t erase(const key_type& key) {
 				ROBIN_HOOD_TRACE(this)
 				size_t idx{};
 				InfoType info{};
@@ -4595,38 +4601,38 @@ namespace robin_hood {
 				}
 			}
 
-			size_type size() const noexcept { // NOLINT(modernize-use-nodiscard)
+			GAIA_NODISCARD size_type size() const noexcept { // NOLINT(modernize-use-nodiscard)
 				ROBIN_HOOD_TRACE(this)
 				return mNumElements;
 			}
 
-			size_type max_size() const noexcept { // NOLINT(modernize-use-nodiscard)
+			GAIA_NODISCARD size_type max_size() const noexcept { // NOLINT(modernize-use-nodiscard)
 				ROBIN_HOOD_TRACE(this)
 				return static_cast<size_type>(-1);
 			}
 
-			[[nodiscard]] bool empty() const noexcept {
+			GAIA_NODISCARD bool empty() const noexcept {
 				ROBIN_HOOD_TRACE(this)
 				return 0 == mNumElements;
 			}
 
-			float max_load_factor() const noexcept { // NOLINT(modernize-use-nodiscard)
+			GAIA_NODISCARD float max_load_factor() const noexcept { // NOLINT(modernize-use-nodiscard)
 				ROBIN_HOOD_TRACE(this)
 				return MaxLoadFactor100 / 100.0F;
 			}
 
 			// Average number of elements per bucket. Since we allow only 1 per bucket
-			float load_factor() const noexcept { // NOLINT(modernize-use-nodiscard)
+			GAIA_NODISCARD float load_factor() const noexcept { // NOLINT(modernize-use-nodiscard)
 				ROBIN_HOOD_TRACE(this)
 				return static_cast<float>(size()) / static_cast<float>(mMask + 1);
 			}
 
-			[[nodiscard]] size_t mask() const noexcept {
+			GAIA_NODISCARD size_t mask() const noexcept {
 				ROBIN_HOOD_TRACE(this)
 				return mMask;
 			}
 
-			[[nodiscard]] size_t calcMaxNumElementsAllowed(size_t maxElements) const noexcept {
+			GAIA_NODISCARD size_t calcMaxNumElementsAllowed(size_t maxElements) const noexcept {
 				if GAIA_LIKELY (maxElements <= (size_t(-1) / 100)) {
 					return maxElements * MaxLoadFactor100 / 100;
 				}
@@ -4635,19 +4641,19 @@ namespace robin_hood {
 				return (maxElements / 100) * MaxLoadFactor100;
 			}
 
-			[[nodiscard]] size_t calcNumBytesInfo(size_t numElements) const noexcept {
+			GAIA_NODISCARD size_t calcNumBytesInfo(size_t numElements) const noexcept {
 				// we add a uint64_t, which houses the sentinel (first byte) and padding so we can load
 				// 64bit types.
 				return numElements + sizeof(uint64_t);
 			}
 
-			[[nodiscard]] size_t calcNumElementsWithBuffer(size_t numElements) const noexcept {
+			GAIA_NODISCARD size_t calcNumElementsWithBuffer(size_t numElements) const noexcept {
 				auto maxNumElementsAllowed = calcMaxNumElementsAllowed(numElements);
 				return numElements + gaia::utils::get_min(maxNumElementsAllowed, (static_cast<size_t>(0xFF)));
 			}
 
 			// calculation only allowed for 2^n values
-			[[nodiscard]] size_t calcNumBytesTotal(size_t numElements) const {
+			GAIA_NODISCARD size_t calcNumBytesTotal(size_t numElements) const {
 #if ROBIN_HOOD(BITNESS) == 64
 				return numElements * sizeof(Node) + calcNumBytesInfo(numElements);
 #else
@@ -4668,14 +4674,14 @@ namespace robin_hood {
 
 		private:
 			template <typename Q = mapped_type>
-			[[nodiscard]] typename std::enable_if<!std::is_void<Q>::value, bool>::type has(const value_type& e) const {
+			GAIA_NODISCARD typename std::enable_if<!std::is_void<Q>::value, bool>::type has(const value_type& e) const {
 				ROBIN_HOOD_TRACE(this)
 				auto it = find(e.first);
 				return it != end() && it->second == e.second;
 			}
 
 			template <typename Q = mapped_type>
-			[[nodiscard]] typename std::enable_if<std::is_void<Q>::value, bool>::type has(const value_type& e) const {
+			GAIA_NODISCARD typename std::enable_if<std::is_void<Q>::value, bool>::type has(const value_type& e) const {
 				ROBIN_HOOD_TRACE(this)
 				return find(e) != end();
 			}
@@ -5057,11 +5063,11 @@ namespace gaia {
 		//! Maximum number of components on archetype
 		constexpr uint32_t MAX_COMPONENTS_PER_ARCHETYPE = 32u;
 
-		[[nodiscard]] constexpr bool VerityArchetypeComponentCount(uint32_t count) {
+		GAIA_NODISCARD constexpr bool VerityArchetypeComponentCount(uint32_t count) {
 			return count <= MAX_COMPONENTS_PER_ARCHETYPE;
 		}
 
-		[[nodiscard]] inline bool DidVersionChange(uint32_t changeVersion, uint32_t requiredVersion) {
+		GAIA_NODISCARD inline bool DidVersionChange(uint32_t changeVersion, uint32_t requiredVersion) {
 			// When a system runs for the first time, everything is considered changed.
 			if GAIA_UNLIKELY (requiredVersion == 0)
 				return true;
@@ -5777,23 +5783,23 @@ namespace gaia {
 			constexpr static DataLayout Layout = DataLayout::AoS;
 			constexpr static size_t Alignment = alignof(ValueType);
 
-			[[nodiscard]] constexpr static ValueType getc(std::span<const ValueType> s, size_t idx) {
+			GAIA_NODISCARD constexpr static ValueType getc(std::span<const ValueType> s, size_t idx) {
 				return s[idx];
 			}
 
-			[[nodiscard]] constexpr static ValueType get(std::span<ValueType> s, size_t idx) {
+			GAIA_NODISCARD constexpr static ValueType get(std::span<ValueType> s, size_t idx) {
 				return s[idx];
 			}
 
-			[[nodiscard]] constexpr static const ValueType& getc_constref(std::span<const ValueType> s, size_t idx) {
+			GAIA_NODISCARD constexpr static const ValueType& getc_constref(std::span<const ValueType> s, size_t idx) {
 				return (const ValueType&)s[idx];
 			}
 
-			[[nodiscard]] constexpr static const ValueType& get_constref(std::span<ValueType> s, size_t idx) {
+			GAIA_NODISCARD constexpr static const ValueType& get_constref(std::span<ValueType> s, size_t idx) {
 				return (const ValueType&)s[idx];
 			}
 
-			[[nodiscard]] constexpr static ValueType& get_ref(std::span<ValueType> s, size_t idx) {
+			GAIA_NODISCARD constexpr static ValueType& get_ref(std::span<ValueType> s, size_t idx) {
 				return s[idx];
 			}
 
@@ -5809,15 +5815,15 @@ namespace gaia {
 
 			using view_policy = data_view_policy<DataLayout::AoS, ValueType>;
 
-			[[nodiscard]] const ValueType& operator[](size_t idx) const {
+			GAIA_NODISCARD const ValueType& operator[](size_t idx) const {
 				return view_policy::getc_constref(m_data, idx);
 			}
 
-			[[nodiscard]] const ValueType* data() const {
+			GAIA_NODISCARD const ValueType* data() const {
 				return m_data.data();
 			}
 
-			[[nodiscard]] auto view() const {
+			GAIA_NODISCARD auto view() const {
 				return m_data;
 			}
 		};
@@ -5829,19 +5835,19 @@ namespace gaia {
 
 			using view_policy = data_view_policy<DataLayout::AoS, ValueType>;
 
-			[[nodiscard]] ValueType& operator[](size_t idx) {
+			GAIA_NODISCARD ValueType& operator[](size_t idx) {
 				return view_policy::get_ref(m_data, idx);
 			}
 
-			[[nodiscard]] const ValueType& operator[](size_t idx) const {
+			GAIA_NODISCARD const ValueType& operator[](size_t idx) const {
 				return view_policy::getc_constref(m_data, idx);
 			}
 
-			[[nodiscard]] ValueType* data() const {
+			GAIA_NODISCARD ValueType* data() const {
 				return m_data.data();
 			}
 
-			[[nodiscard]] auto view() const {
+			GAIA_NODISCARD auto view() const {
 				return m_data;
 			}
 		};
@@ -5873,13 +5879,13 @@ namespace gaia {
 			template <size_t Ids>
 			using const_value_type = typename std::add_const<value_type<Ids>>::type;
 
-			[[nodiscard]] constexpr static ValueType get(std::span<const ValueType> s, const size_t idx) {
+			GAIA_NODISCARD constexpr static ValueType get(std::span<const ValueType> s, const size_t idx) {
 				auto t = struct_to_tuple(ValueType{});
 				return get_internal(t, s, idx, std::make_integer_sequence<size_t, std::tuple_size<decltype(t)>::value>());
 			}
 
 			template <size_t Ids>
-			[[nodiscard]] constexpr static auto get(std::span<const ValueType> s, const size_t idx = 0) {
+			GAIA_NODISCARD constexpr static auto get(std::span<const ValueType> s, const size_t idx = 0) {
 				using Tuple = decltype(struct_to_tuple(ValueType{}));
 				using MemberType = typename std::tuple_element<Ids, Tuple>::type;
 				const auto* ret = (const uint8_t*)s.data() + idx * sizeof(MemberType) +
@@ -5903,7 +5909,7 @@ namespace gaia {
 
 		private:
 			template <typename Tuple, size_t... Ids>
-			[[nodiscard]] constexpr static ValueType
+			GAIA_NODISCARD constexpr static ValueType
 			get_internal(Tuple& t, std::span<const ValueType> s, const size_t idx, std::integer_sequence<size_t, Ids...>) {
 				(get_internal<Tuple, Ids, typename std::tuple_element<Ids, Tuple>::type>(
 						 t, (const uint8_t*)s.data(),
@@ -5949,21 +5955,21 @@ namespace gaia {
 			//! Raw data pointed to by the view policy
 			std::span<const ValueType> m_data;
 
-			[[nodiscard]] constexpr auto operator[](size_t idx) const {
+			GAIA_NODISCARD constexpr auto operator[](size_t idx) const {
 				return view_policy::get(m_data, idx);
 			}
 
 			template <size_t Ids>
-			[[nodiscard]] constexpr auto get() const {
+			GAIA_NODISCARD constexpr auto get() const {
 				return std::span<typename data_view_policy_idx_info<Ids>::const_value_type>(
 						view_policy::template get<Ids>(m_data).data(), view_policy::template get<Ids>(m_data).size());
 			}
 
-			[[nodiscard]] const ValueType* data() const {
+			GAIA_NODISCARD const ValueType* data() const {
 				return m_data.data();
 			}
 
-			[[nodiscard]] auto view() const {
+			GAIA_NODISCARD auto view() const {
 				return m_data;
 			}
 		};
@@ -5991,15 +5997,15 @@ namespace gaia {
 				}
 			};
 
-			[[nodiscard]] constexpr auto operator[](size_t idx) const {
+			GAIA_NODISCARD constexpr auto operator[](size_t idx) const {
 				return view_policy::get(m_data, idx);
 			}
-			[[nodiscard]] constexpr auto operator[](size_t idx) {
+			GAIA_NODISCARD constexpr auto operator[](size_t idx) {
 				return setter(m_data, idx);
 			}
 
 			template <size_t Ids>
-			[[nodiscard]] constexpr auto get() const {
+			GAIA_NODISCARD constexpr auto get() const {
 				using value_type = typename data_view_policy_idx_info<Ids>::const_value_type;
 				const std::span<const ValueType> data((const ValueType*)m_data.data(), m_data.size());
 				return std::span<value_type>(
@@ -6007,16 +6013,16 @@ namespace gaia {
 			}
 
 			template <size_t Ids>
-			[[nodiscard]] constexpr auto set() {
+			GAIA_NODISCARD constexpr auto set() {
 				return std::span<typename data_view_policy_idx_info<Ids>::value_type>(
 						view_policy::template set<Ids>(m_data).data(), view_policy::template set<Ids>(m_data).size());
 			}
 
-			[[nodiscard]] ValueType* data() const {
+			GAIA_NODISCARD ValueType* data() const {
 				return m_data.data();
 			}
 
-			[[nodiscard]] auto view() const {
+			GAIA_NODISCARD auto view() const {
 				return m_data;
 			}
 		};
@@ -6056,7 +6062,7 @@ namespace gaia {
 
 		//! Provides statically generated unique identifier.
 		struct GAIA_API type_seq final {
-			[[nodiscard]] static uint32_t next() noexcept {
+			GAIA_NODISCARD static uint32_t next() noexcept {
 				static uint32_t value{};
 				return value++;
 			}
@@ -6108,12 +6114,12 @@ namespace gaia {
 			}
 
 			template <typename T>
-			[[nodiscard]] static constexpr const char* full_name() noexcept {
+			GAIA_NODISCARD static constexpr const char* full_name() noexcept {
 				return GAIA_PRETTY_FUNCTION;
 			}
 
 			template <typename T>
-			[[nodiscard]] static constexpr auto name() noexcept {
+			GAIA_NODISCARD static constexpr auto name() noexcept {
 				// MSVC:
 				//		const char* __cdecl ecs::ComponentInfo::name<struct ecs::EnfEntity>(void)
 				//   -> ecs::EnfEntity
@@ -6141,7 +6147,7 @@ namespace gaia {
 			}
 
 			template <typename T>
-			[[nodiscard]] static constexpr auto hash() noexcept {
+			GAIA_NODISCARD static constexpr auto hash() noexcept {
 #if GAIA_COMPILER_MSVC && _MSV_VER <= 1916
 				GAIA_MSVC_WARNING_PUSH()
 				GAIA_MSVC_WARNING_DISABLE(4307)
@@ -6257,7 +6263,7 @@ namespace gaia {
 		constexpr uint64_t CalculateMatcherHash() noexcept;
 
 		template <typename T, typename... Rest>
-		[[nodiscard]] constexpr uint64_t CalculateMatcherHash() noexcept {
+		GAIA_NODISCARD constexpr uint64_t CalculateMatcherHash() noexcept {
 			if constexpr (sizeof...(Rest) == 0)
 				return detail::CalculateMatcherHash<T>();
 			else
@@ -6265,14 +6271,14 @@ namespace gaia {
 		}
 
 		template <>
-		[[nodiscard]] constexpr uint64_t CalculateMatcherHash() noexcept {
+		GAIA_NODISCARD constexpr uint64_t CalculateMatcherHash() noexcept {
 			return 0;
 		}
 
 		//-----------------------------------------------------------------------------------
 
 		template <typename Container>
-		[[nodiscard]] constexpr uint64_t CalculateLookupHash(Container arr) noexcept {
+		GAIA_NODISCARD constexpr uint64_t CalculateLookupHash(Container arr) noexcept {
 			constexpr auto arrSize = arr.size();
 			if constexpr (arrSize == 0) {
 				return 0;
@@ -6289,7 +6295,7 @@ namespace gaia {
 		constexpr uint64_t CalculateLookupHash() noexcept;
 
 		template <typename T, typename... Rest>
-		[[nodiscard]] constexpr uint64_t CalculateLookupHash() noexcept {
+		GAIA_NODISCARD constexpr uint64_t CalculateLookupHash() noexcept {
 			if constexpr (sizeof...(Rest) == 0)
 				return utils::type_info::hash<T>();
 			else
@@ -6297,7 +6303,7 @@ namespace gaia {
 		}
 
 		template <>
-		[[nodiscard]] constexpr uint64_t CalculateLookupHash() noexcept {
+		GAIA_NODISCARD constexpr uint64_t CalculateLookupHash() noexcept {
 			return 0;
 		}
 
@@ -6319,7 +6325,7 @@ namespace gaia {
 			uint32_t infoIndex;
 
 			template <typename T>
-			[[nodiscard]] static constexpr ComponentInfoCreate Calculate() {
+			GAIA_NODISCARD static constexpr ComponentInfoCreate Calculate() {
 				using U = typename DeduceComponent<T>::Type;
 
 				ComponentInfoCreate info{};
@@ -6366,18 +6372,18 @@ namespace gaia {
 				uint32_t soa : 1;
 			} properties{};
 
-			[[nodiscard]] bool operator==(const ComponentInfo& other) const {
+			GAIA_NODISCARD bool operator==(const ComponentInfo& other) const {
 				return lookupHash == other.lookupHash && infoIndex == other.infoIndex;
 			}
-			[[nodiscard]] bool operator!=(const ComponentInfo& other) const {
+			GAIA_NODISCARD bool operator!=(const ComponentInfo& other) const {
 				return lookupHash != other.lookupHash || infoIndex != other.infoIndex;
 			}
-			[[nodiscard]] bool operator<(const ComponentInfo& other) const {
+			GAIA_NODISCARD bool operator<(const ComponentInfo& other) const {
 				return lookupHash < other.lookupHash;
 			}
 
 			template <typename T>
-			[[nodiscard]] static constexpr ComponentInfo Calculate() {
+			GAIA_NODISCARD static constexpr ComponentInfo Calculate() {
 				using U = typename DeduceComponent<T>::Type;
 
 				ComponentInfo info{};
@@ -6401,18 +6407,18 @@ namespace gaia {
 			}
 		};
 
-		[[nodiscard]] inline uint64_t CalculateMatcherHash(uint64_t hashA, uint64_t hashB) noexcept {
+		GAIA_NODISCARD inline uint64_t CalculateMatcherHash(uint64_t hashA, uint64_t hashB) noexcept {
 			return utils::combine_or(hashA, hashB);
 		}
 
-		[[nodiscard]] inline uint64_t CalculateMatcherHash(std::span<const ComponentInfo*> infos) noexcept {
+		GAIA_NODISCARD inline uint64_t CalculateMatcherHash(std::span<const ComponentInfo*> infos) noexcept {
 			uint64_t hash = infos.empty() ? 0 : infos[0]->matcherHash;
 			for (size_t i = 1; i < infos.size(); ++i)
 				hash = utils::combine_or(hash, infos[i]->matcherHash);
 			return hash;
 		}
 
-		[[nodiscard]] inline uint64_t CalculateLookupHash(std::span<const ComponentInfo*> infos) noexcept {
+		GAIA_NODISCARD inline uint64_t CalculateLookupHash(std::span<const ComponentInfo*> infos) noexcept {
 			uint64_t hash = infos.empty() ? 0 : infos[0]->lookupHash;
 			for (size_t i = 1; i < infos.size(); ++i)
 				hash = utils::hash_combine(hash, infos[i]->lookupHash);
@@ -6593,7 +6599,7 @@ namespace gaia {
 
 				MemoryPage(void* ptr): m_data(ptr), m_idx(0), m_usedBlocks(0), m_nextFreeBlock(0), m_freeBlocks(0) {}
 
-				[[nodiscard]] void* AllocChunk() {
+				GAIA_NODISCARD void* AllocChunk() {
 					if (!m_freeBlocks) {
 						// We don't want to go out of range for new blocks
 						GAIA_ASSERT(!IsFull() && "Trying to allocate too many blocks!");
@@ -6652,13 +6658,13 @@ namespace gaia {
 					--m_usedBlocks;
 				}
 
-				[[nodiscard]] uint32_t GetUsedBlocks() const {
+				GAIA_NODISCARD uint32_t GetUsedBlocks() const {
 					return m_usedBlocks;
 				}
-				[[nodiscard]] bool IsFull() const {
+				GAIA_NODISCARD bool IsFull() const {
 					return m_usedBlocks == NBlocks;
 				}
-				[[nodiscard]] bool IsEmpty() const {
+				GAIA_NODISCARD bool IsEmpty() const {
 					return m_usedBlocks == 0;
 				}
 			};
@@ -6954,10 +6960,10 @@ namespace gaia {
 			Entity(const Entity&) = default;
 			Entity& operator=(const Entity&) = default;
 
-			[[nodiscard]] constexpr bool operator==(const Entity& other) const noexcept {
+			GAIA_NODISCARD constexpr bool operator==(const Entity& other) const noexcept {
 				return val == other.val;
 			}
-			[[nodiscard]] constexpr bool operator!=(const Entity& other) const noexcept {
+			GAIA_NODISCARD constexpr bool operator!=(const Entity& other) const noexcept {
 				return val != other.val;
 			}
 
@@ -6973,31 +6979,31 @@ namespace gaia {
 		};
 
 		struct EntityNull_t {
-			[[nodiscard]] operator Entity() const noexcept {
+			GAIA_NODISCARD operator Entity() const noexcept {
 				return Entity(Entity::IdMask, Entity::GenMask);
 			}
 
-			[[nodiscard]] constexpr bool operator==(const EntityNull_t&) const noexcept {
+			GAIA_NODISCARD constexpr bool operator==(const EntityNull_t&) const noexcept {
 				return true;
 			}
-			[[nodiscard]] constexpr bool operator!=(const EntityNull_t&) const noexcept {
+			GAIA_NODISCARD constexpr bool operator!=(const EntityNull_t&) const noexcept {
 				return false;
 			}
 		};
 
-		[[nodiscard]] inline bool operator==(const EntityNull_t& null, const Entity& entity) noexcept {
+		GAIA_NODISCARD inline bool operator==(const EntityNull_t& null, const Entity& entity) noexcept {
 			return static_cast<Entity>(null).id() == entity.id();
 		}
 
-		[[nodiscard]] inline bool operator!=(const EntityNull_t& null, const Entity& entity) noexcept {
+		GAIA_NODISCARD inline bool operator!=(const EntityNull_t& null, const Entity& entity) noexcept {
 			return static_cast<Entity>(null).id() != entity.id();
 		}
 
-		[[nodiscard]] inline bool operator==(const Entity& entity, const EntityNull_t& null) noexcept {
+		GAIA_NODISCARD inline bool operator==(const Entity& entity, const EntityNull_t& null) noexcept {
 			return null == entity;
 		}
 
-		[[nodiscard]] inline bool operator!=(const Entity& entity, const EntityNull_t& null) noexcept {
+		GAIA_NODISCARD inline bool operator!=(const Entity& entity, const EntityNull_t& null) noexcept {
 			return null != entity;
 		}
 
@@ -7059,7 +7065,7 @@ namespace gaia {
 			\param type Component type
 			\return True if found. False otherwise.
 			*/
-			[[nodiscard]] bool HasComponent_Internal(ComponentType type, uint32_t infoIndex) const {
+			GAIA_NODISCARD bool HasComponent_Internal(ComponentType type, uint32_t infoIndex) const {
 				const auto& infos = GetArchetypeComponentLookupList(header.owner, type);
 				return utils::has_if(infos, [&](const auto& info) {
 					return info.infoIndex == infoIndex;
@@ -7070,7 +7076,7 @@ namespace gaia {
 			Make the \param entity entity a part of the chunk.
 			\return Index of the entity within the chunk.
 			*/
-			[[nodiscard]] uint32_t AddEntity(Entity entity) {
+			GAIA_NODISCARD uint32_t AddEntity(Entity entity) {
 				const auto index = header.items.count++;
 				SetEntity(index, entity);
 
@@ -7145,7 +7151,7 @@ namespace gaia {
 			\param index Index of the entity
 			\return Entity on a given index within the chunk.
 			*/
-			[[nodiscard]] const Entity GetEntity(uint32_t index) const {
+			GAIA_NODISCARD const Entity GetEntity(uint32_t index) const {
 				GAIA_ASSERT(index < header.items.count && "Entity index in chunk out of bounds!");
 
 				utils::unaligned_ref<Entity> mem((void*)&data[sizeof(Entity) * index]);
@@ -7158,7 +7164,7 @@ namespace gaia {
 			\return Const span of the component data.
 			*/
 			template <typename T>
-			[[nodiscard]] GAIA_FORCEINLINE auto View_Internal() const {
+			GAIA_NODISCARD GAIA_FORCEINLINE auto View_Internal() const {
 				using U = typename DeduceComponent<T>::Type;
 				using UConst = typename std::add_const_t<U>;
 
@@ -7183,7 +7189,7 @@ namespace gaia {
 			\return Span of the component data.
 			*/
 			template <typename T, bool UpdateWorldVersion>
-			[[nodiscard]] GAIA_FORCEINLINE auto ViewRW_Internal() {
+			GAIA_NODISCARD GAIA_FORCEINLINE auto ViewRW_Internal() {
 				using U = typename DeduceComponent<T>::Type;
 #if GAIA_COMPILER_MSVC && _MSC_VER <= 1916
 				// Workaround for MSVC 2017 bug where it incorrectly evaluates the static assert
@@ -7210,7 +7216,7 @@ namespace gaia {
 			\param infoIndex Index of the component in the archetype
 			\return Const pointer to component data.
 			*/
-			[[nodiscard]] GAIA_FORCEINLINE const uint8_t* GetDataPtr(ComponentType type, uint32_t infoIndex) const {
+			GAIA_NODISCARD GAIA_FORCEINLINE const uint8_t* GetDataPtr(ComponentType type, uint32_t infoIndex) const {
 				// Searching for a component that's not there! Programmer mistake.
 				GAIA_ASSERT(HasComponent_Internal(type, infoIndex));
 
@@ -7230,7 +7236,7 @@ namespace gaia {
 			\return Pointer to component data.
 			*/
 			template <bool UpdateWorldVersion>
-			[[nodiscard]] GAIA_FORCEINLINE uint8_t* GetDataPtrRW(ComponentType type, uint32_t infoIndex) {
+			GAIA_NODISCARD GAIA_FORCEINLINE uint8_t* GetDataPtrRW(ComponentType type, uint32_t infoIndex) {
 				// Searching for a component that's not there! Programmer mistake.
 				GAIA_ASSERT(HasComponent_Internal(type, infoIndex));
 				// Don't use this with empty components. It's impossible to write to them anyway.
@@ -7263,7 +7269,7 @@ namespace gaia {
 			\return Component view with read-only access
 			*/
 			template <typename T>
-			[[nodiscard]] auto View() const {
+			GAIA_NODISCARD auto View() const {
 				using U = typename DeduceComponent<T>::Type;
 				using UOriginal = typename DeduceComponent<T>::TypeOriginal;
 				static_assert(IsReadOnlyType<UOriginal>::value);
@@ -7276,7 +7282,7 @@ namespace gaia {
 			\return Component view with read-write access
 			*/
 			template <typename T>
-			[[nodiscard]] auto ViewRW() {
+			GAIA_NODISCARD auto ViewRW() {
 				using U = typename DeduceComponent<T>::Type;
 				static_assert(!std::is_same<U, Entity>::value);
 
@@ -7288,7 +7294,7 @@ namespace gaia {
 			\return Component view with read-write access
 			*/
 			template <typename T>
-			[[nodiscard]] auto ViewRWSilent() {
+			GAIA_NODISCARD auto ViewRWSilent() {
 				using U = typename DeduceComponent<T>::Type;
 				static_assert(!std::is_same<U, Entity>::value);
 
@@ -7300,7 +7306,7 @@ namespace gaia {
 			\param type Component type
 			\return Component index if the component was found. -1 otherwise.
 			*/
-			[[nodiscard]] uint32_t GetComponentIdx(ComponentType type, uint32_t infoIndex) const {
+			GAIA_NODISCARD uint32_t GetComponentIdx(ComponentType type, uint32_t infoIndex) const {
 				const auto& list = GetArchetypeComponentLookupList(header.owner, type);
 				const auto idx = (uint32_t)utils::get_index_if_unsafe(list, [&](const auto& info) {
 					return info.infoIndex == infoIndex;
@@ -7314,7 +7320,7 @@ namespace gaia {
 			\return True if the component is present. False otherwise.
 			*/
 			template <typename T>
-			[[nodiscard]] bool HasComponent() const {
+			GAIA_NODISCARD bool HasComponent() const {
 				if constexpr (IsGenericComponent<T>::value) {
 					using U = typename detail::ExtractComponentType_Generic<T>::Type;
 					const auto infoIndex = utils::type_info::index<U>();
@@ -7396,27 +7402,27 @@ namespace gaia {
 			//----------------------------------------------------------------------
 
 			//! Checks is this chunk is disabled
-			[[nodiscard]] bool IsDisabled() const {
+			GAIA_NODISCARD bool IsDisabled() const {
 				return header.info.disabled;
 			}
 
 			//! Checks is the full capacity of the has has been reached
-			[[nodiscard]] bool IsFull() const {
+			GAIA_NODISCARD bool IsFull() const {
 				return header.items.count >= header.items.capacity;
 			}
 
 			//! Checks is there are any entities in the chunk
-			[[nodiscard]] bool HasEntities() const {
+			GAIA_NODISCARD bool HasEntities() const {
 				return header.items.count > 0;
 			}
 
 			//! Returns the number of entities in the chunk
-			[[nodiscard]] uint32_t GetItemCount() const {
+			GAIA_NODISCARD uint32_t GetItemCount() const {
 				return header.items.count;
 			}
 
 			//! Returns true if the provided version is newer than the one stored internally
-			[[nodiscard]] bool DidChange(ComponentType type, uint32_t version, uint32_t componentIdx) const {
+			GAIA_NODISCARD bool DidChange(ComponentType type, uint32_t version, uint32_t componentIdx) const {
 				return DidVersionChange(header.versions[type][componentIdx], version);
 			}
 		};
@@ -7450,12 +7456,12 @@ namespace gaia {
 			}
 
 			template <typename T>
-			[[nodiscard]] const ComponentInfo* GetOrCreateComponentInfo() {
+			GAIA_NODISCARD const ComponentInfo* GetOrCreateComponentInfo() {
 				using U = typename DeduceComponent<T>::Type;
 				const auto index = utils::type_info::index<U>();
 
 				if (m_infoCreateByIndex.find(index) == m_infoCreateByIndex.end())
-					m_infoCreateByIndex.emplace(index, ComponentInfoCreate::Create<U>());
+					(void)m_infoCreateByIndex.emplace(index, ComponentInfoCreate::Create<U>());
 
 				{
 					const auto res = m_infoByIndex.emplace(index, nullptr);
@@ -7467,7 +7473,7 @@ namespace gaia {
 			}
 
 			template <typename T>
-			[[nodiscard]] const ComponentInfo* FindComponentInfo() const {
+			GAIA_NODISCARD const ComponentInfo* FindComponentInfo() const {
 				using U = typename DeduceComponent<T>::Type;
 
 				const auto index = utils::type_info::hash<U>();
@@ -7476,26 +7482,26 @@ namespace gaia {
 			}
 
 			template <typename T>
-			[[nodiscard]] const ComponentInfo* GetComponentInfo() const {
+			GAIA_NODISCARD const ComponentInfo* GetComponentInfo() const {
 				using U = typename DeduceComponent<T>::Type;
 				const auto index = utils::type_info::index<U>();
 				return GetComponentInfoFromIdx(index);
 			}
 
-			[[nodiscard]] const ComponentInfo* GetComponentInfoFromIdx(uint32_t componentIndex) const {
+			GAIA_NODISCARD const ComponentInfo* GetComponentInfoFromIdx(uint32_t componentIndex) const {
 				// Let's assume the component has been registered via AddComponent already!
 				GAIA_ASSERT(m_infoByIndex.find(componentIndex) != m_infoByIndex.end());
 				return m_infoByIndex.at(componentIndex);
 			}
 
-			[[nodiscard]] const ComponentInfoCreate& GetComponentCreateInfoFromIdx(uint32_t componentIndex) const {
+			GAIA_NODISCARD const ComponentInfoCreate& GetComponentCreateInfoFromIdx(uint32_t componentIndex) const {
 				// Let's assume the component has been registered via AddComponent already!
 				GAIA_ASSERT(m_infoCreateByIndex.find(componentIndex) != m_infoCreateByIndex.end());
 				return m_infoCreateByIndex.at(componentIndex);
 			}
 
 			template <typename T>
-			[[nodiscard]] bool HasComponentInfo() const {
+			GAIA_NODISCARD bool HasComponentInfo() const {
 				using U = typename DeduceComponent<T>::Type;
 				const auto index = utils::type_info::index<U>();
 				return m_infoCreateByIndex.find(index) != m_infoCreateByIndex.end();
@@ -7593,7 +7599,7 @@ namespace gaia {
 			\param archetype Archetype of the chunk we want to allocate
 			\return Newly allocated chunk
 			*/
-			[[nodiscard]] static Chunk* AllocateChunk(const Archetype& archetype) {
+			GAIA_NODISCARD static Chunk* AllocateChunk(const Archetype& archetype) {
 				auto& world = const_cast<World&>(*archetype.parentWorld);
 #if GAIA_ECS_CHUNK_ALLOCATOR
 				auto pChunk = (Chunk*)AllocateChunkMemory(world);
@@ -7664,7 +7670,7 @@ namespace gaia {
 #endif
 			}
 
-			[[nodiscard]] static Archetype*
+			GAIA_NODISCARD static Archetype*
 			Create(World& pWorld, std::span<const ComponentInfo*> infosGeneric, std::span<const ComponentInfo*> infosChunk) {
 				auto newArch = new Archetype();
 				newArch->parentWorld = &pWorld;
@@ -7773,7 +7779,7 @@ namespace gaia {
 				return newArch;
 			}
 
-			[[nodiscard]] Chunk* FindOrCreateFreeChunk_Internal(containers::darray<Chunk*>& chunkArray) {
+			GAIA_NODISCARD Chunk* FindOrCreateFreeChunk_Internal(containers::darray<Chunk*>& chunkArray) {
 				if (!chunkArray.empty()) {
 					// Look for chunks with free space back-to-front.
 					// We do it this way because we always try to keep fully utilized and
@@ -7796,13 +7802,13 @@ namespace gaia {
 
 			//! Tries to locate a chunk that has some space left for a new entity.
 			//! If not found a new chunk is created
-			[[nodiscard]] Chunk* FindOrCreateFreeChunk() {
+			GAIA_NODISCARD Chunk* FindOrCreateFreeChunk() {
 				return FindOrCreateFreeChunk_Internal(chunks);
 			}
 
 			//! Tries to locate a chunk for disabled entities that has some space left for a new one.
 			//! If not found a new chunk is created
-			[[nodiscard]] Chunk* FindOrCreateFreeChunkDisabled() {
+			GAIA_NODISCARD Chunk* FindOrCreateFreeChunkDisabled() {
 				auto* pChunk = FindOrCreateFreeChunk_Internal(chunksDisabled);
 				pChunk->header.info.disabled = true;
 				return pChunk;
@@ -7862,27 +7868,27 @@ namespace gaia {
 					ReleaseChunk(pChunk);
 			}
 
-			[[nodiscard]] const World& GetWorld() const {
+			GAIA_NODISCARD const World& GetWorld() const {
 				return *parentWorld;
 			}
 
-			[[nodiscard]] uint32_t GetWorldVersion() const {
+			GAIA_NODISCARD uint32_t GetWorldVersion() const {
 				return GetWorldVersionFromWorld(*parentWorld);
 			}
 
-			[[nodiscard]] uint32_t GetCapacity() const {
+			GAIA_NODISCARD uint32_t GetCapacity() const {
 				return info.capacity;
 			}
 
-			[[nodiscard]] uint64_t GetMatcherHash(ComponentType type) const {
+			GAIA_NODISCARD uint64_t GetMatcherHash(ComponentType type) const {
 				return matcherHash[type];
 			}
 
-			[[nodiscard]] const ComponentInfoList& GetComponentInfoList(ComponentType type) const {
+			GAIA_NODISCARD const ComponentInfoList& GetComponentInfoList(ComponentType type) const {
 				return componentInfos[type];
 			}
 
-			[[nodiscard]] const ComponentLookupList& GetComponentLookupList(ComponentType type) const {
+			GAIA_NODISCARD const ComponentLookupList& GetComponentLookupList(ComponentType type) const {
 				return componentLookupData[type];
 			}
 
@@ -7891,13 +7897,13 @@ namespace gaia {
 			\return True if the component is present. False otherwise.
 			*/
 			template <typename T>
-			[[nodiscard]] bool HasComponent() const {
+			GAIA_NODISCARD bool HasComponent() const {
 				return HasComponent_Internal<T>();
 			}
 
 		private:
 			template <typename T>
-			[[nodiscard]] bool HasComponent_Internal() const {
+			GAIA_NODISCARD bool HasComponent_Internal() const {
 				using U = typename DeduceComponent<T>::Type;
 				const auto infoIndex = utils::type_info::index<U>();
 
@@ -7913,20 +7919,20 @@ namespace gaia {
 			}
 		};
 
-		[[nodiscard]] inline uint32_t GetWorldVersionFromArchetype(const Archetype& archetype) {
+		GAIA_NODISCARD inline uint32_t GetWorldVersionFromArchetype(const Archetype& archetype) {
 			return archetype.GetWorldVersion();
 		}
-		[[nodiscard]] inline uint64_t GetArchetypeMatcherHash(const Archetype& archetype, ComponentType type) {
+		GAIA_NODISCARD inline uint64_t GetArchetypeMatcherHash(const Archetype& archetype, ComponentType type) {
 			return archetype.GetMatcherHash(type);
 		}
-		[[nodiscard]] inline const ComponentInfo* GetComponentInfoFromIdx(uint32_t componentIdx) {
+		GAIA_NODISCARD inline const ComponentInfo* GetComponentInfoFromIdx(uint32_t componentIdx) {
 			return GetComponentCache().GetComponentInfoFromIdx(componentIdx);
 		}
-		[[nodiscard]] inline const ComponentInfoList&
+		GAIA_NODISCARD inline const ComponentInfoList&
 		GetArchetypeComponentInfoList(const Archetype& archetype, ComponentType type) {
 			return archetype.GetComponentInfoList(type);
 		}
-		[[nodiscard]] inline const ComponentLookupList&
+		GAIA_NODISCARD inline const ComponentLookupList&
 		GetArchetypeComponentLookupList(const Archetype& archetype, ComponentType type) {
 			return archetype.GetComponentLookupList(type);
 		}
@@ -8075,7 +8081,7 @@ namespace gaia {
 					return;
 				}
 
-				GAIA_ASSERT("SetChangeFilter trying to filter ECS component which is not a part of the query");
+				GAIA_ASSERT(false && "SetChangeFilter trying to filter ECS component which is not a part of the query");
 #if GAIA_DEBUG
 				constexpr auto typeName = utils::type_info::name<T>();
 				LOG_E(
@@ -8202,7 +8208,7 @@ namespace gaia {
 								MatchArchetypeQueryRet::Skip is not relevant.
 				*/
 			template <ComponentType TComponentType>
-			[[nodiscard]] MatchArchetypeQueryRet Match(const ComponentInfoList& componentInfos, uint64_t matcherHash) const {
+			GAIA_NODISCARD MatchArchetypeQueryRet Match(const ComponentInfoList& componentInfos, uint64_t matcherHash) const {
 				const auto& queryList = GetData(TComponentType);
 				const uint64_t withNoneTest = matcherHash & queryList.hash[ListType::LT_None];
 				const uint64_t withAnyTest = matcherHash & queryList.hash[ListType::LT_Any];
@@ -8272,7 +8278,7 @@ namespace gaia {
 				return (withAnyTest != 0) ? MatchArchetypeQueryRet::Ok : MatchArchetypeQueryRet::Skip;
 			}
 
-			[[nodiscard]] bool operator==(const EntityQuery& other) const {
+			GAIA_NODISCARD bool operator==(const EntityQuery& other) const {
 				// Lookup hash must match
 				if (m_hashLookup != other.m_hashLookup)
 					return false;
@@ -8322,7 +8328,7 @@ namespace gaia {
 				return false;
 			}
 
-			[[nodiscard]] bool operator!=(const EntityQuery& other) const {
+			GAIA_NODISCARD bool operator!=(const EntityQuery& other) const {
 				return !operator==(other);
 			}
 
@@ -8399,11 +8405,11 @@ namespace gaia {
 			}
 
 		public:
-			[[nodiscard]] const ComponentListData& GetData(ComponentType type) const {
+			GAIA_NODISCARD const ComponentListData& GetData(ComponentType type) const {
 				return m_list[type];
 			}
 
-			[[nodiscard]] const ChangeFilterArray& GetFiltered(ComponentType type) const {
+			GAIA_NODISCARD const ChangeFilterArray& GetFiltered(ComponentType type) const {
 				return m_listChangeFiltered[type];
 			}
 
@@ -8412,12 +8418,12 @@ namespace gaia {
 				return *this;
 			}
 
-			[[nodiscard]] bool CheckConstraints(bool enabled) const {
+			GAIA_NODISCARD bool CheckConstraints(bool enabled) const {
 				return m_constraints == Constraints::AcceptAll || (enabled && m_constraints == Constraints::EnabledOnly) ||
 							 (!enabled && m_constraints == Constraints::DisabledOnly);
 			}
 
-			[[nodiscard]] bool HasFilters() const {
+			GAIA_NODISCARD bool HasFilters() const {
 				return !m_listChangeFiltered[ComponentType::CT_Generic].empty() ||
 							 !m_listChangeFiltered[ComponentType::CT_Chunk].empty();
 			}
@@ -8461,15 +8467,15 @@ namespace gaia {
 				return *this;
 			}
 
-			[[nodiscard]] uint32_t GetWorldVersion() const {
+			GAIA_NODISCARD uint32_t GetWorldVersion() const {
 				return m_worldVersion;
 			}
 
-			[[nodiscard]] containers::darray<Archetype*>::iterator begin() {
+			GAIA_NODISCARD containers::darray<Archetype*>::iterator begin() {
 				return m_archetypeCache.begin();
 			}
 
-			[[nodiscard]] containers::darray<Archetype*>::iterator end() {
+			GAIA_NODISCARD containers::darray<Archetype*>::iterator end() {
 				return m_archetypeCache.end();
 			}
 		};
@@ -8559,7 +8565,7 @@ namespace gaia {
 				UpdateVersion(m_worldVersion);
 			}
 
-			[[nodiscard]] bool IsEntityValid(Entity entity) const {
+			GAIA_NODISCARD bool IsEntityValid(Entity entity) const {
 				// Entity ID has to fit inside entity array
 				if (entity.id() >= m_entities.size())
 					return false;
@@ -8642,7 +8648,7 @@ namespace gaia {
 			\param lookupHash Archetype lookup hash
 			\return Pointer to archetype or nullptr
 			*/
-			[[nodiscard]] Archetype* FindArchetype(
+			GAIA_NODISCARD Archetype* FindArchetype(
 					std::span<const ComponentInfo*> infosGeneric, std::span<const ComponentInfo*> infosChunk,
 					utils::direct_hash_key lookupHash) {
 				// Search for the archetype in the map
@@ -8684,7 +8690,7 @@ namespace gaia {
 			\param infosChunk Span of chunk component infos
 			\return Pointer to the new archetype
 			*/
-			[[nodiscard]] Archetype*
+			GAIA_NODISCARD Archetype*
 			CreateArchetype(std::span<const ComponentInfo*> infosGeneric, std::span<const ComponentInfo*> infosChunk) {
 				// Make sure to sort the component infos so we receive the same hash no
 				// matter the order in which components are provided Bubble sort is
@@ -8716,7 +8722,7 @@ namespace gaia {
 			\param infosChunk Span of chunk component infos
 			\return Pointer to the new archetype
 			*/
-			[[nodiscard]] Archetype*
+			GAIA_NODISCARD Archetype*
 			CreateArchetype(std::span<const ComponentInfo*> infosGeneric, std::span<const ComponentInfo*> infosChunk) {
 				return Archetype::Create(*this, infosGeneric, infosChunk);
 			}
@@ -8733,7 +8739,7 @@ namespace gaia {
 			created. \param infosGeneric Span of generic component infos \param infosChunk Span of chunk component infos
 			\return Pointer to archetype
 			*/
-			[[nodiscard]] Archetype*
+			GAIA_NODISCARD Archetype*
 			FindOrCreateArchetype(std::span<const ComponentInfo*> infosGeneric, std::span<const ComponentInfo*> infosChunk) {
 				// Make sure to sort the component infos so we receive the same hash no
 				// matter the order in which components are provided Bubble sort is
@@ -8915,7 +8921,7 @@ namespace gaia {
 			\param infoToAdd Span of chunk components
 			\return Pointer to archetype
 			*/
-			[[nodiscard]] Archetype*
+			GAIA_NODISCARD Archetype*
 			FindOrCreateArchetype(Archetype* oldArchetype, ComponentType type, const ComponentInfo* infoToAdd) {
 				auto* node = oldArchetype;
 
@@ -9014,7 +9020,7 @@ namespace gaia {
 			\param typesToRemove Span of component infos we want to remove
 			\return Pointer to archetype
 			*/
-			[[nodiscard]] Archetype*
+			GAIA_NODISCARD Archetype*
 			FindArchetype_RemoveComponents(Archetype* archetype, ComponentType type, const ComponentInfo* intoToRemove) {
 #if GAIA_ARCHETYPE_GRAPH
 				// Follow the graph to the next archetype
@@ -9065,7 +9071,7 @@ namespace gaia {
 			\param entity Entity
 			\return Pointer to archetype
 			*/
-			[[nodiscard]] Archetype* GetArchetype(Entity entity) const {
+			GAIA_NODISCARD Archetype* GetArchetype(Entity entity) const {
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				auto& entityContainer = m_entities[entity.id()];
@@ -9077,7 +9083,7 @@ namespace gaia {
 			Allocates a new entity.
 			\return Entity
 			*/
-			[[nodiscard]] Entity AllocateEntity() {
+			GAIA_NODISCARD Entity AllocateEntity() {
 				if GAIA_UNLIKELY (!m_freeEntities) {
 					const auto entityCnt = m_entities.size();
 					// We don't want to go out of range for new entities
@@ -9365,7 +9371,7 @@ namespace gaia {
 			Returns the current version of the world.
 			\return World version number
 			*/
-			[[nodiscard]] uint32_t GetWorldVersion() const {
+			GAIA_NODISCARD uint32_t GetWorldVersion() const {
 				return m_worldVersion;
 			}
 
@@ -9375,7 +9381,7 @@ namespace gaia {
 			Creates a new empty entity
 			\return Entity
 			*/
-			[[nodiscard]] Entity CreateEntity() {
+			GAIA_NODISCARD Entity CreateEntity() {
 				return AllocateEntity();
 			}
 
@@ -9507,7 +9513,7 @@ namespace gaia {
 			Returns the number of active entities
 			\return Entity
 			*/
-			[[nodiscard]] uint32_t GetEntityCount() const {
+			GAIA_NODISCARD uint32_t GetEntityCount() const {
 				return (uint32_t)m_entities.size() - m_freeEntities;
 			}
 
@@ -9515,7 +9521,7 @@ namespace gaia {
 			Returns an entity at a given position
 			\return Entity
 			*/
-			[[nodiscard]] Entity GetEntity(uint32_t idx) const {
+			GAIA_NODISCARD Entity GetEntity(uint32_t idx) const {
 				GAIA_ASSERT(idx < m_entities.size());
 				auto& entityContainer = m_entities[idx];
 				return {idx, entityContainer.gen};
@@ -9525,7 +9531,7 @@ namespace gaia {
 			Returns a chunk containing the given entity.
 			\return Chunk or nullptr if not found
 			*/
-			[[nodiscard]] Chunk* GetChunk(Entity entity) const {
+			GAIA_NODISCARD Chunk* GetChunk(Entity entity) const {
 				GAIA_ASSERT(entity.id() < m_entities.size());
 				auto& entityContainer = m_entities[entity.id()];
 				return entityContainer.pChunk;
@@ -9536,7 +9542,7 @@ namespace gaia {
 			Index of the entity is stored in \param indexInChunk
 			\return Chunk or nullptr if not found
 			*/
-			[[nodiscard]] Chunk* GetChunk(Entity entity, uint32_t& indexInChunk) const {
+			GAIA_NODISCARD Chunk* GetChunk(Entity entity, uint32_t& indexInChunk) const {
 				GAIA_ASSERT(entity.id() < m_entities.size());
 				auto& entityContainer = m_entities[entity.id()];
 				indexInChunk = entityContainer.idx;
@@ -9675,7 +9681,7 @@ namespace gaia {
 			\return True if the component is present on entity.
 			*/
 			template <typename T>
-			[[nodiscard]] bool HasComponent(Entity entity) {
+			GAIA_NODISCARD bool HasComponent(Entity entity) {
 				VerifyComponent<T>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
@@ -9747,7 +9753,7 @@ namespace gaia {
 			}
 
 			template <typename... T>
-			[[nodiscard]] bool
+			GAIA_NODISCARD bool
 			UnpackArgsIntoQuery_Check([[maybe_unused]] utils::func_type_list<T...> types, EntityQuery& query) const {
 				if constexpr (sizeof...(T) > 0)
 					return query.HasAll<T...>();
@@ -9769,7 +9775,7 @@ namespace gaia {
 
 			//--------------------------------------------------------------------------------
 
-			[[nodiscard]] static bool CheckFilters(const EntityQuery& query, const Chunk& chunk) {
+			GAIA_NODISCARD static bool CheckFilters(const EntityQuery& query, const Chunk& chunk) {
 				GAIA_ASSERT(chunk.HasEntities() && "CheckFilters called on an empty chunk");
 
 				const auto lastWorldVersion = query.GetWorldVersion();
@@ -10433,7 +10439,7 @@ namespace gaia {
 			\return Entity that will be created. The id is not usable right away. It
 			will be filled with proper data after Commit()
 			*/
-			[[nodiscard]] TempEntity CreateEntity(Archetype& archetype) {
+			GAIA_NODISCARD TempEntity CreateEntity(Archetype& archetype) {
 				m_data.push_back(CREATE_ENTITY_FROM_ARCHETYPE);
 				const auto archetypeSize = sizeof(void*); // we'll serialize just the pointer
 				const auto lastIndex = m_data.size();
@@ -10460,7 +10466,7 @@ namespace gaia {
 			\return Entity that will be created. The id is not usable right away. It
 			will be filled with proper data after Commit()
 			*/
-			[[nodiscard]] TempEntity CreateEntity() {
+			GAIA_NODISCARD TempEntity CreateEntity() {
 				m_data.push_back(CREATE_ENTITY);
 				return {m_entities++};
 			}
@@ -10470,7 +10476,7 @@ namespace gaia {
 			entity \return Entity that will be created. The id is not usable right
 			away. It will be filled with proper data after Commit()
 			*/
-			[[nodiscard]] TempEntity CreateEntity(Entity entityFrom) {
+			GAIA_NODISCARD TempEntity CreateEntity(Entity entityFrom) {
 				m_data.push_back(CREATE_ENTITY_FROM_ENTITY);
 				const auto entitySize = sizeof(entityFrom);
 				const auto lastIndex = m_data.size();
@@ -10867,10 +10873,10 @@ namespace gaia {
 			BaseSystem& operator=(const BaseSystem&) = delete;
 
 		public:
-			[[nodiscard]] World& GetWorld() {
+			GAIA_NODISCARD World& GetWorld() {
 				return *m_world;
 			}
-			[[nodiscard]] const World& GetWorld() const {
+			GAIA_NODISCARD const World& GetWorld() const {
 				return *m_world;
 			}
 
@@ -10888,7 +10894,7 @@ namespace gaia {
 			}
 
 			//! Returns true if system is enabled
-			[[nodiscard]] bool IsEnabled() const {
+			GAIA_NODISCARD bool IsEnabled() const {
 				return m_enabled;
 			}
 
@@ -11056,7 +11062,7 @@ namespace gaia {
 			}
 
 			template <typename T>
-			[[nodiscard]] T* FindSystem() {
+			GAIA_NODISCARD T* FindSystem() {
 				GAIA_SAFE_CONSTEXPR auto hash = utils::type_info::hash<std::decay_t<T>>();
 
 				const auto it = m_systemsMap.find({hash});
@@ -11120,7 +11126,7 @@ namespace gaia {
 
 		public:
 			//! Returns the world version when the system was updated
-			[[nodiscard]] uint32_t GetLastSystemVersion() const {
+			GAIA_NODISCARD uint32_t GetLastSystemVersion() const {
 				return m_lastSystemVersion;
 			}
 		};

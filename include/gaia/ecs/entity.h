@@ -46,10 +46,10 @@ namespace gaia {
 			Entity(const Entity&) = default;
 			Entity& operator=(const Entity&) = default;
 
-			[[nodiscard]] constexpr bool operator==(const Entity& other) const noexcept {
+			GAIA_NODISCARD constexpr bool operator==(const Entity& other) const noexcept {
 				return val == other.val;
 			}
-			[[nodiscard]] constexpr bool operator!=(const Entity& other) const noexcept {
+			GAIA_NODISCARD constexpr bool operator!=(const Entity& other) const noexcept {
 				return val != other.val;
 			}
 
@@ -65,31 +65,31 @@ namespace gaia {
 		};
 
 		struct EntityNull_t {
-			[[nodiscard]] operator Entity() const noexcept {
+			GAIA_NODISCARD operator Entity() const noexcept {
 				return Entity(Entity::IdMask, Entity::GenMask);
 			}
 
-			[[nodiscard]] constexpr bool operator==(const EntityNull_t&) const noexcept {
+			GAIA_NODISCARD constexpr bool operator==(const EntityNull_t&) const noexcept {
 				return true;
 			}
-			[[nodiscard]] constexpr bool operator!=(const EntityNull_t&) const noexcept {
+			GAIA_NODISCARD constexpr bool operator!=(const EntityNull_t&) const noexcept {
 				return false;
 			}
 		};
 
-		[[nodiscard]] inline bool operator==(const EntityNull_t& null, const Entity& entity) noexcept {
+		GAIA_NODISCARD inline bool operator==(const EntityNull_t& null, const Entity& entity) noexcept {
 			return static_cast<Entity>(null).id() == entity.id();
 		}
 
-		[[nodiscard]] inline bool operator!=(const EntityNull_t& null, const Entity& entity) noexcept {
+		GAIA_NODISCARD inline bool operator!=(const EntityNull_t& null, const Entity& entity) noexcept {
 			return static_cast<Entity>(null).id() != entity.id();
 		}
 
-		[[nodiscard]] inline bool operator==(const Entity& entity, const EntityNull_t& null) noexcept {
+		GAIA_NODISCARD inline bool operator==(const Entity& entity, const EntityNull_t& null) noexcept {
 			return null == entity;
 		}
 
-		[[nodiscard]] inline bool operator!=(const Entity& entity, const EntityNull_t& null) noexcept {
+		GAIA_NODISCARD inline bool operator!=(const Entity& entity, const EntityNull_t& null) noexcept {
 			return null != entity;
 		}
 

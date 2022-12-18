@@ -31,12 +31,12 @@ namespace gaia {
 			}
 
 			template <typename T>
-			[[nodiscard]] const ComponentInfo* GetOrCreateComponentInfo() {
+			GAIA_NODISCARD const ComponentInfo* GetOrCreateComponentInfo() {
 				using U = typename DeduceComponent<T>::Type;
 				const auto index = utils::type_info::index<U>();
 
 				if (m_infoCreateByIndex.find(index) == m_infoCreateByIndex.end())
-					m_infoCreateByIndex.emplace(index, ComponentInfoCreate::Create<U>());
+					(void)m_infoCreateByIndex.emplace(index, ComponentInfoCreate::Create<U>());
 
 				{
 					const auto res = m_infoByIndex.emplace(index, nullptr);
@@ -48,7 +48,7 @@ namespace gaia {
 			}
 
 			template <typename T>
-			[[nodiscard]] const ComponentInfo* FindComponentInfo() const {
+			GAIA_NODISCARD const ComponentInfo* FindComponentInfo() const {
 				using U = typename DeduceComponent<T>::Type;
 
 				const auto index = utils::type_info::hash<U>();
@@ -57,26 +57,26 @@ namespace gaia {
 			}
 
 			template <typename T>
-			[[nodiscard]] const ComponentInfo* GetComponentInfo() const {
+			GAIA_NODISCARD const ComponentInfo* GetComponentInfo() const {
 				using U = typename DeduceComponent<T>::Type;
 				const auto index = utils::type_info::index<U>();
 				return GetComponentInfoFromIdx(index);
 			}
 
-			[[nodiscard]] const ComponentInfo* GetComponentInfoFromIdx(uint32_t componentIndex) const {
+			GAIA_NODISCARD const ComponentInfo* GetComponentInfoFromIdx(uint32_t componentIndex) const {
 				// Let's assume the component has been registered via AddComponent already!
 				GAIA_ASSERT(m_infoByIndex.find(componentIndex) != m_infoByIndex.end());
 				return m_infoByIndex.at(componentIndex);
 			}
 
-			[[nodiscard]] const ComponentInfoCreate& GetComponentCreateInfoFromIdx(uint32_t componentIndex) const {
+			GAIA_NODISCARD const ComponentInfoCreate& GetComponentCreateInfoFromIdx(uint32_t componentIndex) const {
 				// Let's assume the component has been registered via AddComponent already!
 				GAIA_ASSERT(m_infoCreateByIndex.find(componentIndex) != m_infoCreateByIndex.end());
 				return m_infoCreateByIndex.at(componentIndex);
 			}
 
 			template <typename T>
-			[[nodiscard]] bool HasComponentInfo() const {
+			GAIA_NODISCARD bool HasComponentInfo() const {
 				using U = typename DeduceComponent<T>::Type;
 				const auto index = utils::type_info::index<U>();
 				return m_infoCreateByIndex.find(index) != m_infoCreateByIndex.end();

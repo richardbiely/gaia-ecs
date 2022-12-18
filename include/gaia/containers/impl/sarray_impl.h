@@ -220,15 +220,15 @@ namespace gaia {
 				return (const_reference)m_data[pos];
 			}
 
-			[[nodiscard]] constexpr size_type size() const noexcept {
+			GAIA_NODISCARD constexpr size_type size() const noexcept {
 				return N;
 			}
 
-			[[nodiscard]] constexpr bool empty() const noexcept {
+			GAIA_NODISCARD constexpr bool empty() const noexcept {
 				return begin() == end();
 			}
 
-			[[nodiscard]] constexpr size_type max_size() const noexcept {
+			GAIA_NODISCARD constexpr size_type max_size() const noexcept {
 				return N;
 			}
 

@@ -8,7 +8,7 @@ namespace gaia {
 
 		//! Provides statically generated unique identifier.
 		struct GAIA_API type_seq final {
-			[[nodiscard]] static uint32_t next() noexcept {
+			GAIA_NODISCARD static uint32_t next() noexcept {
 				static uint32_t value{};
 				return value++;
 			}
@@ -60,12 +60,12 @@ namespace gaia {
 			}
 
 			template <typename T>
-			[[nodiscard]] static constexpr const char* full_name() noexcept {
+			GAIA_NODISCARD static constexpr const char* full_name() noexcept {
 				return GAIA_PRETTY_FUNCTION;
 			}
 
 			template <typename T>
-			[[nodiscard]] static constexpr auto name() noexcept {
+			GAIA_NODISCARD static constexpr auto name() noexcept {
 				// MSVC:
 				//		const char* __cdecl ecs::ComponentInfo::name<struct ecs::EnfEntity>(void)
 				//   -> ecs::EnfEntity
@@ -93,7 +93,7 @@ namespace gaia {
 			}
 
 			template <typename T>
-			[[nodiscard]] static constexpr auto hash() noexcept {
+			GAIA_NODISCARD static constexpr auto hash() noexcept {
 #if GAIA_COMPILER_MSVC && _MSV_VER <= 1916
 				GAIA_MSVC_WARNING_PUSH()
 				GAIA_MSVC_WARNING_DISABLE(4307)

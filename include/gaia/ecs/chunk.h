@@ -54,7 +54,7 @@ namespace gaia {
 			\param type Component type
 			\return True if found. False otherwise.
 			*/
-			[[nodiscard]] bool HasComponent_Internal(ComponentType type, uint32_t infoIndex) const {
+			GAIA_NODISCARD bool HasComponent_Internal(ComponentType type, uint32_t infoIndex) const {
 				const auto& infos = GetArchetypeComponentLookupList(header.owner, type);
 				return utils::has_if(infos, [&](const auto& info) {
 					return info.infoIndex == infoIndex;
@@ -65,7 +65,7 @@ namespace gaia {
 			Make the \param entity entity a part of the chunk.
 			\return Index of the entity within the chunk.
 			*/
-			[[nodiscard]] uint32_t AddEntity(Entity entity) {
+			GAIA_NODISCARD uint32_t AddEntity(Entity entity) {
 				const auto index = header.items.count++;
 				SetEntity(index, entity);
 
@@ -140,7 +140,7 @@ namespace gaia {
 			\param index Index of the entity
 			\return Entity on a given index within the chunk.
 			*/
-			[[nodiscard]] const Entity GetEntity(uint32_t index) const {
+			GAIA_NODISCARD const Entity GetEntity(uint32_t index) const {
 				GAIA_ASSERT(index < header.items.count && "Entity index in chunk out of bounds!");
 
 				utils::unaligned_ref<Entity> mem((void*)&data[sizeof(Entity) * index]);
@@ -153,7 +153,7 @@ namespace gaia {
 			\return Const span of the component data.
 			*/
 			template <typename T>
-			[[nodiscard]] GAIA_FORCEINLINE auto View_Internal() const {
+			GAIA_NODISCARD GAIA_FORCEINLINE auto View_Internal() const {
 				using U = typename DeduceComponent<T>::Type;
 				using UConst = typename std::add_const_t<U>;
 
@@ -178,7 +178,7 @@ namespace gaia {
 			\return Span of the component data.
 			*/
 			template <typename T, bool UpdateWorldVersion>
-			[[nodiscard]] GAIA_FORCEINLINE auto ViewRW_Internal() {
+			GAIA_NODISCARD GAIA_FORCEINLINE auto ViewRW_Internal() {
 				using U = typename DeduceComponent<T>::Type;
 #if GAIA_COMPILER_MSVC && _MSC_VER <= 1916
 				// Workaround for MSVC 2017 bug where it incorrectly evaluates the static assert
@@ -205,7 +205,7 @@ namespace gaia {
 			\param infoIndex Index of the component in the archetype
 			\return Const pointer to component data.
 			*/
-			[[nodiscard]] GAIA_FORCEINLINE const uint8_t* GetDataPtr(ComponentType type, uint32_t infoIndex) const {
+			GAIA_NODISCARD GAIA_FORCEINLINE const uint8_t* GetDataPtr(ComponentType type, uint32_t infoIndex) const {
 				// Searching for a component that's not there! Programmer mistake.
 				GAIA_ASSERT(HasComponent_Internal(type, infoIndex));
 
@@ -225,7 +225,7 @@ namespace gaia {
 			\return Pointer to component data.
 			*/
 			template <bool UpdateWorldVersion>
-			[[nodiscard]] GAIA_FORCEINLINE uint8_t* GetDataPtrRW(ComponentType type, uint32_t infoIndex) {
+			GAIA_NODISCARD GAIA_FORCEINLINE uint8_t* GetDataPtrRW(ComponentType type, uint32_t infoIndex) {
 				// Searching for a component that's not there! Programmer mistake.
 				GAIA_ASSERT(HasComponent_Internal(type, infoIndex));
 				// Don't use this with empty components. It's impossible to write to them anyway.
@@ -258,7 +258,7 @@ namespace gaia {
 			\return Component view with read-only access
 			*/
 			template <typename T>
-			[[nodiscard]] auto View() const {
+			GAIA_NODISCARD auto View() const {
 				using U = typename DeduceComponent<T>::Type;
 				using UOriginal = typename DeduceComponent<T>::TypeOriginal;
 				static_assert(IsReadOnlyType<UOriginal>::value);
@@ -271,7 +271,7 @@ namespace gaia {
 			\return Component view with read-write access
 			*/
 			template <typename T>
-			[[nodiscard]] auto ViewRW() {
+			GAIA_NODISCARD auto ViewRW() {
 				using U = typename DeduceComponent<T>::Type;
 				static_assert(!std::is_same<U, Entity>::value);
 
@@ -283,7 +283,7 @@ namespace gaia {
 			\return Component view with read-write access
 			*/
 			template <typename T>
-			[[nodiscard]] auto ViewRWSilent() {
+			GAIA_NODISCARD auto ViewRWSilent() {
 				using U = typename DeduceComponent<T>::Type;
 				static_assert(!std::is_same<U, Entity>::value);
 
@@ -295,7 +295,7 @@ namespace gaia {
 			\param type Component type
 			\return Component index if the component was found. -1 otherwise.
 			*/
-			[[nodiscard]] uint32_t GetComponentIdx(ComponentType type, uint32_t infoIndex) const {
+			GAIA_NODISCARD uint32_t GetComponentIdx(ComponentType type, uint32_t infoIndex) const {
 				const auto& list = GetArchetypeComponentLookupList(header.owner, type);
 				const auto idx = (uint32_t)utils::get_index_if_unsafe(list, [&](const auto& info) {
 					return info.infoIndex == infoIndex;
@@ -309,7 +309,7 @@ namespace gaia {
 			\return True if the component is present. False otherwise.
 			*/
 			template <typename T>
-			[[nodiscard]] bool HasComponent() const {
+			GAIA_NODISCARD bool HasComponent() const {
 				if constexpr (IsGenericComponent<T>::value) {
 					using U = typename detail::ExtractComponentType_Generic<T>::Type;
 					const auto infoIndex = utils::type_info::index<U>();
@@ -391,27 +391,27 @@ namespace gaia {
 			//----------------------------------------------------------------------
 
 			//! Checks is this chunk is disabled
-			[[nodiscard]] bool IsDisabled() const {
+			GAIA_NODISCARD bool IsDisabled() const {
 				return header.info.disabled;
 			}
 
 			//! Checks is the full capacity of the has has been reached
-			[[nodiscard]] bool IsFull() const {
+			GAIA_NODISCARD bool IsFull() const {
 				return header.items.count >= header.items.capacity;
 			}
 
 			//! Checks is there are any entities in the chunk
-			[[nodiscard]] bool HasEntities() const {
+			GAIA_NODISCARD bool HasEntities() const {
 				return header.items.count > 0;
 			}
 
 			//! Returns the number of entities in the chunk
-			[[nodiscard]] uint32_t GetItemCount() const {
+			GAIA_NODISCARD uint32_t GetItemCount() const {
 				return header.items.count;
 			}
 
 			//! Returns true if the provided version is newer than the one stored internally
-			[[nodiscard]] bool DidChange(ComponentType type, uint32_t version, uint32_t componentIdx) const {
+			GAIA_NODISCARD bool DidChange(ComponentType type, uint32_t version, uint32_t componentIdx) const {
 				return DidVersionChange(header.versions[type][componentIdx], version);
 			}
 		};

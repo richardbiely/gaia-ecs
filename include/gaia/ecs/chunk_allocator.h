@@ -92,7 +92,7 @@ namespace gaia {
 
 				MemoryPage(void* ptr): m_data(ptr), m_idx(0), m_usedBlocks(0), m_nextFreeBlock(0), m_freeBlocks(0) {}
 
-				[[nodiscard]] void* AllocChunk() {
+				GAIA_NODISCARD void* AllocChunk() {
 					if (!m_freeBlocks) {
 						// We don't want to go out of range for new blocks
 						GAIA_ASSERT(!IsFull() && "Trying to allocate too many blocks!");
@@ -151,13 +151,13 @@ namespace gaia {
 					--m_usedBlocks;
 				}
 
-				[[nodiscard]] uint32_t GetUsedBlocks() const {
+				GAIA_NODISCARD uint32_t GetUsedBlocks() const {
 					return m_usedBlocks;
 				}
-				[[nodiscard]] bool IsFull() const {
+				GAIA_NODISCARD bool IsFull() const {
 					return m_usedBlocks == NBlocks;
 				}
-				[[nodiscard]] bool IsEmpty() const {
+				GAIA_NODISCARD bool IsEmpty() const {
 					return m_usedBlocks == 0;
 				}
 			};

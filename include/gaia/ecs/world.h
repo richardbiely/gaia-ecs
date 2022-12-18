@@ -103,7 +103,7 @@ namespace gaia {
 				UpdateVersion(m_worldVersion);
 			}
 
-			[[nodiscard]] bool IsEntityValid(Entity entity) const {
+			GAIA_NODISCARD bool IsEntityValid(Entity entity) const {
 				// Entity ID has to fit inside entity array
 				if (entity.id() >= m_entities.size())
 					return false;
@@ -186,7 +186,7 @@ namespace gaia {
 			\param lookupHash Archetype lookup hash
 			\return Pointer to archetype or nullptr
 			*/
-			[[nodiscard]] Archetype* FindArchetype(
+			GAIA_NODISCARD Archetype* FindArchetype(
 					std::span<const ComponentInfo*> infosGeneric, std::span<const ComponentInfo*> infosChunk,
 					utils::direct_hash_key lookupHash) {
 				// Search for the archetype in the map
@@ -228,7 +228,7 @@ namespace gaia {
 			\param infosChunk Span of chunk component infos
 			\return Pointer to the new archetype
 			*/
-			[[nodiscard]] Archetype*
+			GAIA_NODISCARD Archetype*
 			CreateArchetype(std::span<const ComponentInfo*> infosGeneric, std::span<const ComponentInfo*> infosChunk) {
 				// Make sure to sort the component infos so we receive the same hash no
 				// matter the order in which components are provided Bubble sort is
@@ -260,7 +260,7 @@ namespace gaia {
 			\param infosChunk Span of chunk component infos
 			\return Pointer to the new archetype
 			*/
-			[[nodiscard]] Archetype*
+			GAIA_NODISCARD Archetype*
 			CreateArchetype(std::span<const ComponentInfo*> infosGeneric, std::span<const ComponentInfo*> infosChunk) {
 				return Archetype::Create(*this, infosGeneric, infosChunk);
 			}
@@ -277,7 +277,7 @@ namespace gaia {
 			created. \param infosGeneric Span of generic component infos \param infosChunk Span of chunk component infos
 			\return Pointer to archetype
 			*/
-			[[nodiscard]] Archetype*
+			GAIA_NODISCARD Archetype*
 			FindOrCreateArchetype(std::span<const ComponentInfo*> infosGeneric, std::span<const ComponentInfo*> infosChunk) {
 				// Make sure to sort the component infos so we receive the same hash no
 				// matter the order in which components are provided Bubble sort is
@@ -459,7 +459,7 @@ namespace gaia {
 			\param infoToAdd Span of chunk components
 			\return Pointer to archetype
 			*/
-			[[nodiscard]] Archetype*
+			GAIA_NODISCARD Archetype*
 			FindOrCreateArchetype(Archetype* oldArchetype, ComponentType type, const ComponentInfo* infoToAdd) {
 				auto* node = oldArchetype;
 
@@ -558,7 +558,7 @@ namespace gaia {
 			\param typesToRemove Span of component infos we want to remove
 			\return Pointer to archetype
 			*/
-			[[nodiscard]] Archetype*
+			GAIA_NODISCARD Archetype*
 			FindArchetype_RemoveComponents(Archetype* archetype, ComponentType type, const ComponentInfo* intoToRemove) {
 #if GAIA_ARCHETYPE_GRAPH
 				// Follow the graph to the next archetype
@@ -609,7 +609,7 @@ namespace gaia {
 			\param entity Entity
 			\return Pointer to archetype
 			*/
-			[[nodiscard]] Archetype* GetArchetype(Entity entity) const {
+			GAIA_NODISCARD Archetype* GetArchetype(Entity entity) const {
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				auto& entityContainer = m_entities[entity.id()];
@@ -621,7 +621,7 @@ namespace gaia {
 			Allocates a new entity.
 			\return Entity
 			*/
-			[[nodiscard]] Entity AllocateEntity() {
+			GAIA_NODISCARD Entity AllocateEntity() {
 				if GAIA_UNLIKELY (!m_freeEntities) {
 					const auto entityCnt = m_entities.size();
 					// We don't want to go out of range for new entities
@@ -909,7 +909,7 @@ namespace gaia {
 			Returns the current version of the world.
 			\return World version number
 			*/
-			[[nodiscard]] uint32_t GetWorldVersion() const {
+			GAIA_NODISCARD uint32_t GetWorldVersion() const {
 				return m_worldVersion;
 			}
 
@@ -919,7 +919,7 @@ namespace gaia {
 			Creates a new empty entity
 			\return Entity
 			*/
-			[[nodiscard]] Entity CreateEntity() {
+			GAIA_NODISCARD Entity CreateEntity() {
 				return AllocateEntity();
 			}
 
@@ -1051,7 +1051,7 @@ namespace gaia {
 			Returns the number of active entities
 			\return Entity
 			*/
-			[[nodiscard]] uint32_t GetEntityCount() const {
+			GAIA_NODISCARD uint32_t GetEntityCount() const {
 				return (uint32_t)m_entities.size() - m_freeEntities;
 			}
 
@@ -1059,7 +1059,7 @@ namespace gaia {
 			Returns an entity at a given position
 			\return Entity
 			*/
-			[[nodiscard]] Entity GetEntity(uint32_t idx) const {
+			GAIA_NODISCARD Entity GetEntity(uint32_t idx) const {
 				GAIA_ASSERT(idx < m_entities.size());
 				auto& entityContainer = m_entities[idx];
 				return {idx, entityContainer.gen};
@@ -1069,7 +1069,7 @@ namespace gaia {
 			Returns a chunk containing the given entity.
 			\return Chunk or nullptr if not found
 			*/
-			[[nodiscard]] Chunk* GetChunk(Entity entity) const {
+			GAIA_NODISCARD Chunk* GetChunk(Entity entity) const {
 				GAIA_ASSERT(entity.id() < m_entities.size());
 				auto& entityContainer = m_entities[entity.id()];
 				return entityContainer.pChunk;
@@ -1080,7 +1080,7 @@ namespace gaia {
 			Index of the entity is stored in \param indexInChunk
 			\return Chunk or nullptr if not found
 			*/
-			[[nodiscard]] Chunk* GetChunk(Entity entity, uint32_t& indexInChunk) const {
+			GAIA_NODISCARD Chunk* GetChunk(Entity entity, uint32_t& indexInChunk) const {
 				GAIA_ASSERT(entity.id() < m_entities.size());
 				auto& entityContainer = m_entities[entity.id()];
 				indexInChunk = entityContainer.idx;
@@ -1219,7 +1219,7 @@ namespace gaia {
 			\return True if the component is present on entity.
 			*/
 			template <typename T>
-			[[nodiscard]] bool HasComponent(Entity entity) {
+			GAIA_NODISCARD bool HasComponent(Entity entity) {
 				VerifyComponent<T>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
@@ -1291,7 +1291,7 @@ namespace gaia {
 			}
 
 			template <typename... T>
-			[[nodiscard]] bool
+			GAIA_NODISCARD bool
 			UnpackArgsIntoQuery_Check([[maybe_unused]] utils::func_type_list<T...> types, EntityQuery& query) const {
 				if constexpr (sizeof...(T) > 0)
 					return query.HasAll<T...>();
@@ -1313,7 +1313,7 @@ namespace gaia {
 
 			//--------------------------------------------------------------------------------
 
-			[[nodiscard]] static bool CheckFilters(const EntityQuery& query, const Chunk& chunk) {
+			GAIA_NODISCARD static bool CheckFilters(const EntityQuery& query, const Chunk& chunk) {
 				GAIA_ASSERT(chunk.HasEntities() && "CheckFilters called on an empty chunk");
 
 				const auto lastWorldVersion = query.GetWorldVersion();
