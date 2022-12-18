@@ -1283,6 +1283,8 @@ namespace gaia {
 			bool UnpackArgsIntoQuery_Check([[maybe_unused]] utils::func_type_list<T...> types, EntityQuery& query) const {
 				if constexpr (sizeof...(T) > 0)
 					return query.HasAll<T...>();
+				else
+					return true;
 			}
 
 			template <typename Func>
