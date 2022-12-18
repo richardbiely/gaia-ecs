@@ -161,7 +161,7 @@ namespace gaia {
 			\return Entity that will be created. The id is not usable right away. It
 			will be filled with proper data after Commit()
 			*/
-			[[nodiscard]] TempEntity CreateEntity(Archetype& archetype) {
+			GAIA_NODISCARD TempEntity CreateEntity(Archetype& archetype) {
 				m_data.push_back(CREATE_ENTITY_FROM_ARCHETYPE);
 				const auto archetypeSize = sizeof(void*); // we'll serialize just the pointer
 				const auto lastIndex = m_data.size();
@@ -188,7 +188,7 @@ namespace gaia {
 			\return Entity that will be created. The id is not usable right away. It
 			will be filled with proper data after Commit()
 			*/
-			[[nodiscard]] TempEntity CreateEntity() {
+			GAIA_NODISCARD TempEntity CreateEntity() {
 				m_data.push_back(CREATE_ENTITY);
 				return {m_entities++};
 			}
@@ -198,7 +198,7 @@ namespace gaia {
 			entity \return Entity that will be created. The id is not usable right
 			away. It will be filled with proper data after Commit()
 			*/
-			[[nodiscard]] TempEntity CreateEntity(Entity entityFrom) {
+			GAIA_NODISCARD TempEntity CreateEntity(Entity entityFrom) {
 				m_data.push_back(CREATE_ENTITY_FROM_ENTITY);
 				const auto entitySize = sizeof(entityFrom);
 				const auto lastIndex = m_data.size();

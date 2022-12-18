@@ -43,10 +43,10 @@ namespace gaia {
 			BaseSystem& operator=(const BaseSystem&) = delete;
 
 		public:
-			[[nodiscard]] World& GetWorld() {
+			GAIA_NODISCARD World& GetWorld() {
 				return *m_world;
 			}
-			[[nodiscard]] const World& GetWorld() const {
+			GAIA_NODISCARD const World& GetWorld() const {
 				return *m_world;
 			}
 
@@ -64,7 +64,7 @@ namespace gaia {
 			}
 
 			//! Returns true if system is enabled
-			[[nodiscard]] bool IsEnabled() const {
+			GAIA_NODISCARD bool IsEnabled() const {
 				return m_enabled;
 			}
 
@@ -156,7 +156,7 @@ namespace gaia {
 				for (auto* pSystem: m_systemsToRemove)
 					pSystem->OnDestroyed();
 				for (auto* pSystem: m_systemsToRemove)
-					m_systemsMap.erase({pSystem->m_hash});
+					(void)m_systemsMap.erase({pSystem->m_hash});
 				for (auto* pSystem: m_systemsToRemove) {
 					m_systems.erase(utils::find(m_systems, pSystem));
 				}
@@ -232,7 +232,7 @@ namespace gaia {
 			}
 
 			template <typename T>
-			[[nodiscard]] T* FindSystem() {
+			GAIA_NODISCARD T* FindSystem() {
 				GAIA_SAFE_CONSTEXPR auto hash = utils::type_info::hash<std::decay_t<T>>();
 
 				const auto it = m_systemsMap.find({hash});

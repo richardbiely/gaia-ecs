@@ -24,7 +24,7 @@ namespace gaia {
 
 		public:
 			//! Returns the world version when the system was updated
-			[[nodiscard]] uint32_t GetLastSystemVersion() const {
+			GAIA_NODISCARD uint32_t GetLastSystemVersion() const {
 				return m_lastSystemVersion;
 			}
 		};

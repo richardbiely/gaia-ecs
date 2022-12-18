@@ -273,7 +273,7 @@ namespace gaia {
 								MatchArchetypeQueryRet::Skip is not relevant.
 				*/
 			template <ComponentType TComponentType>
-			[[nodiscard]] MatchArchetypeQueryRet Match(const ComponentInfoList& componentInfos, uint64_t matcherHash) const {
+			GAIA_NODISCARD MatchArchetypeQueryRet Match(const ComponentInfoList& componentInfos, uint64_t matcherHash) const {
 				const auto& queryList = GetData(TComponentType);
 				const uint64_t withNoneTest = matcherHash & queryList.hash[ListType::LT_None];
 				const uint64_t withAnyTest = matcherHash & queryList.hash[ListType::LT_Any];
@@ -343,7 +343,7 @@ namespace gaia {
 				return (withAnyTest != 0) ? MatchArchetypeQueryRet::Ok : MatchArchetypeQueryRet::Skip;
 			}
 
-			[[nodiscard]] bool operator==(const EntityQuery& other) const {
+			GAIA_NODISCARD bool operator==(const EntityQuery& other) const {
 				// Lookup hash must match
 				if (m_hashLookup != other.m_hashLookup)
 					return false;
@@ -393,7 +393,7 @@ namespace gaia {
 				return false;
 			}
 
-			[[nodiscard]] bool operator!=(const EntityQuery& other) const {
+			GAIA_NODISCARD bool operator!=(const EntityQuery& other) const {
 				return !operator==(other);
 			}
 
@@ -470,11 +470,11 @@ namespace gaia {
 			}
 
 		public:
-			[[nodiscard]] const ComponentListData& GetData(ComponentType type) const {
+			GAIA_NODISCARD const ComponentListData& GetData(ComponentType type) const {
 				return m_list[type];
 			}
 
-			[[nodiscard]] const ChangeFilterArray& GetFiltered(ComponentType type) const {
+			GAIA_NODISCARD const ChangeFilterArray& GetFiltered(ComponentType type) const {
 				return m_listChangeFiltered[type];
 			}
 
@@ -483,12 +483,12 @@ namespace gaia {
 				return *this;
 			}
 
-			[[nodiscard]] bool CheckConstraints(bool enabled) const {
+			GAIA_NODISCARD bool CheckConstraints(bool enabled) const {
 				return m_constraints == Constraints::AcceptAll || (enabled && m_constraints == Constraints::EnabledOnly) ||
 							 (!enabled && m_constraints == Constraints::DisabledOnly);
 			}
 
-			[[nodiscard]] bool HasFilters() const {
+			GAIA_NODISCARD bool HasFilters() const {
 				return !m_listChangeFiltered[ComponentType::CT_Generic].empty() ||
 							 !m_listChangeFiltered[ComponentType::CT_Chunk].empty();
 			}
@@ -532,15 +532,15 @@ namespace gaia {
 				return *this;
 			}
 
-			[[nodiscard]] uint32_t GetWorldVersion() const {
+			GAIA_NODISCARD uint32_t GetWorldVersion() const {
 				return m_worldVersion;
 			}
 
-			[[nodiscard]] containers::darray<Archetype*>::iterator begin() {
+			GAIA_NODISCARD containers::darray<Archetype*>::iterator begin() {
 				return m_archetypeCache.begin();
 			}
 
-			[[nodiscard]] containers::darray<Archetype*>::iterator end() {
+			GAIA_NODISCARD containers::darray<Archetype*>::iterator end() {
 				return m_archetypeCache.end();
 			}
 		};
