@@ -56,6 +56,8 @@ if(MSVC)
   enable_cxx_compiler_flag_if_supported("/W4")
   enable_cxx_compiler_flag_if_supported("/WX")
 else()
+  enable_cxx_compiler_flag_if_supported("-fno-exceptions")
+
   # strictness rules
   enable_cxx_compiler_flag_if_supported("-Wall")
   enable_cxx_compiler_flag_if_supported("-Wextra")

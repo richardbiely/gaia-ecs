@@ -38,6 +38,8 @@ if(MSVC)
   # necessary because VS might complain about too many sections used in debug builds
   enable_cxx_compiler_flag_if_supported("/bigobj")
 else()
+  enable_cxx_compiler_flag_if_supported("-fno-exceptions")
+
   # strictness rules
   enable_cxx_compiler_flag_if_supported("-Wall")
   enable_cxx_compiler_flag_if_supported("-Wextra")
