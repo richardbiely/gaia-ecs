@@ -1248,20 +1248,31 @@ namespace gaia {
 			template <typename... T, typename Func>
 			GAIA_FORCEINLINE void
 			ForEachEntityInChunk([[maybe_unused]] utils::func_type_list<T...> types, Chunk& chunk, Func func) {
-				// Pointers to the respective component types in the chunk, e.g
-				// 		w.ForEach(q, [&](Position& p, const Velocity& v) {...}
-				// Translates to:
-				//  	auto p = chunk.ViewRW_Internal<Position, true>();
-				//		auto v = chunk.View_Internal<Velocity>();
-				auto dataPointerTuple = std::make_tuple(GetComponentView<T>(chunk)...);
-
-				// Iterate over each entity in the chunk.
-				// Translates to:
-				//		for (size_t i = 0; i < chunk.GetItemCount(); ++i)
-				//			func(p[i], v[i]);
 				const size_t size = chunk.GetItemCount();
-				for (size_t i = 0; i < size; ++i)
-					func(std::get<decltype(GetComponentView<T>(chunk))>(dataPointerTuple)[i]...);
+				if (!size)
+					return;
+
+				if constexpr (sizeof...(T) > 0) {
+					// Pointers to the respective component types in the chunk, e.g
+					// 		w.ForEach(q, [&](Position& p, const Velocity& v) {...}
+					// Translates to:
+					//  	auto p = chunk.ViewRW_Internal<Position, true>();
+					//		auto v = chunk.View_Internal<Velocity>();
+					auto dataPointerTuple = std::make_tuple(GetComponentView<T>(chunk)...);
+
+					// Iterate over each entity in the chunk.
+					// Translates to:
+					//		for (size_t i = 0; i < chunk.GetItemCount(); ++i)
+					//			func(p[i], v[i]);
+					func(std::get<decltype(GetComponentView<T>(chunk))>(dataPointerTuple)[0]...);
+					for (size_t i = 1; i < size; ++i)
+						func(std::get<decltype(GetComponentView<T>(chunk))>(dataPointerTuple)[i]...);
+				} else {
+					// No functor parameters. Do an empty loop.
+					func();
+					for (size_t i = 1; i < size; ++i)
+						func();
+				}
 			}
 
 			template <typename Func>
@@ -1275,12 +1286,13 @@ namespace gaia {
 
 			template <typename... T>
 			void UnpackArgsIntoQuery([[maybe_unused]] utils::func_type_list<T...> types, EntityQuery& query) const {
-				if constexpr (sizeof...(T) > 0)
-					query.All<T...>();
+				static_assert(sizeof...(T) > 0, "Inputs-less functors can not be unpacked to query");
+				query.All<T...>();
 			}
 
 			template <typename... T>
-			bool UnpackArgsIntoQuery_Check([[maybe_unused]] utils::func_type_list<T...> types, EntityQuery& query) const {
+			[[nodiscard]] bool
+			UnpackArgsIntoQuery_Check([[maybe_unused]] utils::func_type_list<T...> types, EntityQuery& query) const {
 				if constexpr (sizeof...(T) > 0)
 					return query.HasAll<T...>();
 				else
