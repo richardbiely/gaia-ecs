@@ -146,7 +146,7 @@ namespace gaia {
 					return;
 				}
 
-				GAIA_ASSERT("SetChangeFilter trying to filter ECS component which is not a part of the query");
+				GAIA_ASSERT(false && "SetChangeFilter trying to filter ECS component which is not a part of the query");
 #if GAIA_DEBUG
 				constexpr auto typeName = utils::type_info::name<T>();
 				LOG_E(
