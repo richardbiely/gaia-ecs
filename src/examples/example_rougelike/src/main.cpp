@@ -4,7 +4,6 @@
 	#include <fcntl.h>
 	#include <termios.h>
 	#include <unistd.h>
-	#include <term.h>
 #endif
 #include <cstdio>
 #include <cstdlib>
@@ -20,7 +19,7 @@ using namespace gaia;
 #ifndef _WIN32
 char get_char() {
 	char buf = 0;
-	struct termios old = {};
+	termios old{};
 	if (tcgetattr(0, &old) < 0)
 		perror("tcsetattr()");
 	old.c_lflag &= ~ICANON;
@@ -39,7 +38,7 @@ char get_char() {
 }
 
 void ClearScreen() {
-	[[maybe_unused]] int ret = system("clear");
+	(void)system("clear");
 }
 #else
 char get_char() {
@@ -649,17 +648,9 @@ class InputSystem final: public ecs::System {
 public:
 	void OnCreated() override {
 		m_q.All<Player, Velocity, Position, Orientation>();
-
-		// Generate a dummy input
-		putchar('\n');
 	}
 
 	void OnUpdate() override {
-#ifndef _WIN32
-		termios term_settings;
-		SetKeyboardNonBlock(term_settings);
-#endif
-
 		const char key = get_char();
 
 		g_world.terminate = key == KEY_QUIT;
@@ -679,32 +670,7 @@ public:
 				g_world.CreateArrow({p.x, p.y}, {o.x, o.y});
 			}
 		});
-
-#ifndef _WIN32
-		RestoreKeyboardBlocking(term_settings);
-#endif
 	}
-
-#ifndef _WIN32
-	void RestoreKeyboardBlocking(termios& initial_settings) {
-		tcsetattr(0, TCSANOW, &initial_settings);
-	}
-
-	void SetKeyboardNonBlock(termios& initial_settings) {
-		termios new_settings;
-		tcgetattr(0, &initial_settings);
-
-		memcpy((void*)&new_settings, (const void*)&initial_settings, sizeof(termios));
-		new_settings = initial_settings;
-		new_settings.c_lflag &= ~ICANON;
-		new_settings.c_lflag &= ~ECHO;
-		new_settings.c_lflag &= ~ISIG;
-		new_settings.c_cc[VMIN] = 0;
-		new_settings.c_cc[VTIME] = 0;
-
-		tcsetattr(0, TCSANOW, &new_settings);
-	}
-#endif
 };
 
 int main() {
