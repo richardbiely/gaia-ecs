@@ -37,10 +37,10 @@ namespace gaia {
 				using size_type = decltype(N);
 
 			private:
-				T* m_ptr;
+				pointer m_ptr;
 
 			public:
-				constexpr iterator(T* ptr): m_ptr(ptr) {}
+				constexpr iterator(pointer ptr): m_ptr(ptr) {}
 
 				constexpr iterator(const iterator& other): m_ptr(other.m_ptr) {}
 				constexpr iterator& operator=(const iterator& other) {
@@ -48,10 +48,10 @@ namespace gaia {
 					return *this;
 				}
 
-				constexpr T& operator*() const {
+				constexpr reference operator*() const {
 					return *m_ptr;
 				}
-				constexpr T* operator->() const {
+				constexpr pointer operator->() const {
 					return m_ptr;
 				}
 				constexpr iterator operator[](size_type offset) const {
@@ -118,18 +118,18 @@ namespace gaia {
 			class const_iterator {
 			public:
 				using iterator_category = GAIA_UTIL::random_access_iterator_tag;
-				using value_type = T;
+				using value_type = const T;
 				using difference_type = std::ptrdiff_t;
-				using pointer = T*;
-				using reference = T&;
+				using pointer = const T*;
+				using reference = const T&;
 
 				using size_type = decltype(N);
 
 			private:
-				const T* m_ptr;
+				pointer m_ptr;
 
 			public:
-				constexpr const_iterator(T* ptr): m_ptr(ptr) {}
+				constexpr const_iterator(pointer ptr): m_ptr(ptr) {}
 
 				constexpr const_iterator(const const_iterator& other): m_ptr(other.m_ptr) {}
 				constexpr iterator& operator=(const const_iterator& other) {
@@ -137,11 +137,11 @@ namespace gaia {
 					return *this;
 				}
 
-				constexpr const T& operator*() const {
-					return *(const T*)m_ptr;
+				constexpr reference operator*() const {
+					return *m_ptr;
 				}
-				constexpr const T* operator->() const {
-					return (const T*)m_ptr;
+				constexpr pointer operator->() const {
+					return m_ptr;
 				}
 				constexpr const_iterator operator[](size_type offset) const {
 					return {m_ptr + offset};
