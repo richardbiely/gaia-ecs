@@ -540,8 +540,16 @@ namespace gaia {
 				return m_archetypeCache.begin();
 			}
 
+			GAIA_NODISCARD containers::darray<Archetype*>::const_iterator begin() const {
+				return m_archetypeCache.cbegin();
+			}
+
 			GAIA_NODISCARD containers::darray<Archetype*>::iterator end() {
 				return m_archetypeCache.end();
+			}
+
+			GAIA_NODISCARD containers::darray<Archetype*>::const_iterator end() const {
+				return m_archetypeCache.cend();
 			}
 		};
 	} // namespace ecs
