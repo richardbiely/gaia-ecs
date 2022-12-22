@@ -612,7 +612,7 @@ public:
 class GameStateSystem: public ecs::System {
 	ecs::EntityQuery m_qp;
 	ecs::EntityQuery m_qe;
-	int m_lastEnemies = 0;
+	bool m_hadEnemies = true;
 
 public:
 	void OnCreated() override {
@@ -621,24 +621,18 @@ public:
 	}
 
 	void OnUpdate() override {
-		bool hasPlayer = false;
-		GetWorld().ForEach(m_qp, [&]() {
-			hasPlayer = true;
-		});
+		const bool hasPlayer = GetWorld().FromQuery(m_qp).HasItems();
 		if (!hasPlayer) {
 			printf("You are dead. Good job.\n");
 			g_world.terminate = true;
 		}
 
-		int enemies = 0;
-		GetWorld().ForEach(m_qe, [&]() {
-			++enemies;
-		});
-		if (m_lastEnemies > 0 && !enemies) {
+		const bool hasEnemies = GetWorld().FromQuery(m_qe).HasItems();
+		if (m_hadEnemies && !hasEnemies) {
 			printf("All enemies are gone. They must have died of old age waiting for you to kill them.\n");
 			g_world.terminate = true;
 		}
-		m_lastEnemies = enemies;
+		m_hadEnemies = hasEnemies;
 	}
 };
 

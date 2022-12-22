@@ -276,6 +276,50 @@ TEST_CASE("EntityQuery - equality") {
 	}
 }
 
+TEST_CASE("EntityQuery - QueryResult") {
+	ecs::World w;
+
+	auto create = [&]() {
+		auto e = w.CreateEntity();
+		w.AddComponent<Position>(e);
+	};
+
+	const uint32_t N = 10'000;
+	for (uint32_t i = 0; i < N; i++)
+		create();
+
+	ecs::EntityQuery q1;
+	q1.All<Position>();
+	ecs::EntityQuery q2;
+	q2.All<Rotation>();
+
+	{
+		const auto cnt = w.FromQuery(q1).GetItemCount();
+		const auto has = w.FromQuery(q1).HasItems();
+
+		size_t cnt2 = 0;
+		w.ForEach(q1, [&]() {
+			++cnt2;
+		});
+		REQUIRE(cnt == cnt2);
+		REQUIRE(cnt > 0);
+		REQUIRE(has == true);
+	}
+
+	{
+		const auto cnt = w.FromQuery(q2).GetItemCount();
+		const auto has = w.FromQuery(q2).HasItems();
+
+		size_t cnt2 = 0;
+		w.ForEach(q2, [&]() {
+			++cnt2;
+		});
+		REQUIRE(cnt == cnt2);
+		REQUIRE(cnt == 0);
+		REQUIRE(has == false);
+	}
+}
+
 TEST_CASE("CreateEntity - no components") {
 	ecs::World w;
 

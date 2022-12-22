@@ -1282,6 +1282,19 @@ namespace gaia {
 					func(*pArchetype);
 			}
 
+			template <typename Func>
+			GAIA_FORCEINLINE void ForEachArchetype_NoMatch(const EntityQuery& query, Func func) const {
+				for (const auto* pArchetype: query)
+					func(*pArchetype);
+			}
+
+			template <typename Func>
+			GAIA_FORCEINLINE void ForEachArchetypeCond_NoMatch(const EntityQuery& query, Func func) const {
+				for (const auto* pArchetype: query)
+					if (!func(*pArchetype))
+						break;
+			}
+
 			//--------------------------------------------------------------------------------
 
 			template <typename... T>
@@ -1540,6 +1553,87 @@ namespace gaia {
 				ForEach_Internal<Func>((World&)*this, std::move(query), func);
 			}
 
+			//--------------------------------------------------------------------------------
+
+			class QueryResult {
+				const World& m_w;
+				const EntityQuery& m_q;
+
+			public:
+				QueryResult(const World& w, const EntityQuery& q): m_w(w), m_q(q) {}
+
+				bool HasItems() const {
+					bool hasItems = false;
+
+					const bool hasFilters = m_q.HasFilters();
+
+					// Iterate over all archetypes
+					m_w.ForEachArchetypeCond_NoMatch(m_q, [&](const Archetype& archetype) {
+						auto exec = [&](const auto& chunksList) {
+							for (auto* pChunk: chunksList) {
+								if (!pChunk->HasEntities())
+									continue;
+								if (!m_q.CheckConstraints(!pChunk->IsDisabled()))
+									continue;
+								if (hasFilters && !CheckFilters(m_q, *pChunk))
+									continue;
+								hasItems = true;
+								break;
+							}
+						};
+
+						if (m_q.CheckConstraints(true)) {
+							exec(archetype.chunks);
+							if (hasItems)
+								return false;
+						}
+						if (m_q.CheckConstraints(false)) {
+							exec(archetype.chunksDisabled);
+							if (hasItems)
+								return false;
+						}
+
+						return true;
+					});
+
+					return hasItems;
+				}
+
+				size_t GetItemCount() const {
+					size_t itemCount = 0;
+
+					const bool hasFilters = m_q.HasFilters();
+
+					m_w.ForEachArchetype_NoMatch(m_q, [&](const Archetype& archetype) {
+						auto exec = [&](const auto& chunksList) {
+							for (auto* pChunk: chunksList) {
+								if (!pChunk->HasEntities())
+									continue;
+								if (!m_q.CheckConstraints(!pChunk->IsDisabled()))
+									continue;
+								if (hasFilters && !CheckFilters(m_q, *pChunk))
+									continue;
+								itemCount += pChunk->GetItemCount();
+							}
+						};
+
+						if (m_q.CheckConstraints(true))
+							exec(archetype.chunks);
+						if (m_q.CheckConstraints(false))
+							exec(archetype.chunksDisabled);
+					});
+
+					return itemCount;
+				}
+			};
+
+			GAIA_NODISCARD QueryResult FromQuery(EntityQuery& query) {
+				query.Match(m_archetypes);
+				return QueryResult(*this, query);
+			}
+
+			//--------------------------------------------------------------------------------
+
 			/*!
 			Collect garbage. Check all chunks and archetypes which are empty and have not been used for a while
 			and tries to delete them and release memory allocated by them.
@@ -1569,6 +1663,8 @@ namespace gaia {
 					const_cast<Archetype&>(pChunk->header.owner).RemoveChunk(pChunk);
 				m_chunksToRemove.clear();
 			}
+
+			//--------------------------------------------------------------------------------
 
 			/*!
 			Performs diagnostics on a specific archetype. Prints basic info about it and the chunks it contains.
