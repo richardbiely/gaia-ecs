@@ -37,7 +37,7 @@ namespace gaia {
 				using size_type = decltype(N);
 
 			private:
-				T* m_ptr;
+				pointer m_ptr;
 
 			public:
 				constexpr iterator(T* ptr): m_ptr(ptr) {}

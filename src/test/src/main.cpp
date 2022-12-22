@@ -279,20 +279,44 @@ TEST_CASE("EntityQuery - equality") {
 TEST_CASE("EntityQuery - QueryResult") {
 	ecs::World w;
 
-	auto create = [&]() {
+	auto create = [&](uint32_t i) {
 		auto e = w.CreateEntity();
-		w.AddComponent<Position>(e);
+		w.AddComponent<Position>(e, {(float)i, (float)i, (float)i});
 	};
 
 	const uint32_t N = 10'000;
 	for (uint32_t i = 0; i < N; i++)
-		create();
+		create(i);
 
 	ecs::EntityQuery q1;
 	q1.All<Position>();
 	ecs::EntityQuery q2;
 	q2.All<Rotation>();
 
+	{
+		gaia::containers::darr<gaia::ecs::Entity> arr;
+		w.FromQuery(q1).ToComponentOrEntityArray(arr);
+		for (size_t i = 0; i < arr.size(); ++i)
+			REQUIRE(arr[i].id() == i);
+	}
+	{
+		gaia::containers::darr<Position> arr;
+		w.FromQuery(q1).ToComponentOrEntityArray(arr);
+		for (size_t i = 0; i < arr.size(); ++i) {
+			const auto& pos = arr[i];
+			REQUIRE(pos.x == (float)i);
+			REQUIRE(pos.y == (float)i);
+			REQUIRE(pos.z == (float)i);
+		}
+	}
+	{
+		gaia::containers::darr<gaia::ecs::Chunk*> arr;
+		w.FromQuery(q1).ToChunkArray(arr);
+		size_t itemCount = 0;
+		for (const auto* pChunk: arr)
+			itemCount += pChunk->GetItemCount();
+		REQUIRE(itemCount == N);
+	}
 	{
 		const auto cnt = w.FromQuery(q1).GetItemCount();
 		const auto has = w.FromQuery(q1).HasItems();

@@ -28,7 +28,7 @@ namespace gaia {
 			using size_type = size_t;
 
 		private:
-			T* m_data = nullptr;
+			pointer m_data = nullptr;
 			size_type m_cnt = size_type(0);
 			size_type m_cap = size_type(0);
 
@@ -45,7 +45,7 @@ namespace gaia {
 				using size_type = darr::size_type;
 
 			private:
-				T* m_ptr;
+				pointer m_ptr;
 
 			public:
 				constexpr iterator(T* ptr): m_ptr(ptr) {}

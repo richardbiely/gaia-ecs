@@ -1562,26 +1562,31 @@ namespace gaia {
 			public:
 				QueryResult(const World& w, const EntityQuery& q): m_w(w), m_q(q) {}
 
+				//! Return true it there at least one result matching the query
+				/*!
+				Returns true or false depending on whether there are entities matching the query
+				\return True if there are any entites matchine the query. False otherwise.
+				*/
 				bool HasItems() const {
 					bool hasItems = false;
 
 					const bool hasFilters = m_q.HasFilters();
 
+					auto exec = [&](const auto& chunksList) {
+						for (auto* pChunk: chunksList) {
+							if (!pChunk->HasEntities())
+								continue;
+							if (!m_q.CheckConstraints(!pChunk->IsDisabled()))
+								continue;
+							if (hasFilters && !CheckFilters(m_q, *pChunk))
+								continue;
+							hasItems = true;
+							break;
+						}
+					};
+
 					// Iterate over all archetypes
 					m_w.ForEachArchetypeCond_NoMatch(m_q, [&](const Archetype& archetype) {
-						auto exec = [&](const auto& chunksList) {
-							for (auto* pChunk: chunksList) {
-								if (!pChunk->HasEntities())
-									continue;
-								if (!m_q.CheckConstraints(!pChunk->IsDisabled()))
-									continue;
-								if (hasFilters && !CheckFilters(m_q, *pChunk))
-									continue;
-								hasItems = true;
-								break;
-							}
-						};
-
 						if (m_q.CheckConstraints(true)) {
 							exec(archetype.chunks);
 							if (hasItems)
@@ -1599,24 +1604,28 @@ namespace gaia {
 					return hasItems;
 				}
 
+				/*!
+				Returns the number of entities matching the query
+				\return The number of matching entities
+				*/
 				size_t GetItemCount() const {
 					size_t itemCount = 0;
 
 					const bool hasFilters = m_q.HasFilters();
 
-					m_w.ForEachArchetype_NoMatch(m_q, [&](const Archetype& archetype) {
-						auto exec = [&](const auto& chunksList) {
-							for (auto* pChunk: chunksList) {
-								if (!pChunk->HasEntities())
-									continue;
-								if (!m_q.CheckConstraints(!pChunk->IsDisabled()))
-									continue;
-								if (hasFilters && !CheckFilters(m_q, *pChunk))
-									continue;
-								itemCount += pChunk->GetItemCount();
-							}
-						};
+					auto exec = [&](const auto& chunksList) {
+						for (auto* pChunk: chunksList) {
+							if (!pChunk->HasEntities())
+								continue;
+							if (!m_q.CheckConstraints(!pChunk->IsDisabled()))
+								continue;
+							if (hasFilters && !CheckFilters(m_q, *pChunk))
+								continue;
+							itemCount += pChunk->GetItemCount();
+						}
+					};
 
+					m_w.ForEachArchetype_NoMatch(m_q, [&](const Archetype& archetype) {
 						if (m_q.CheckConstraints(true))
 							exec(archetype.chunks);
 						if (m_q.CheckConstraints(false))
@@ -1624,6 +1633,77 @@ namespace gaia {
 					});
 
 					return itemCount;
+				}
+
+				/*!
+				Returns an array of components matching the query
+				\tparam Container Container storing entities or components
+				\return Array with entities or components
+				*/
+				template <typename Container>
+				void ToComponentOrEntityArray(Container& outArray) const {
+					using ContainerItemType = typename Container::value_type;
+
+					const size_t itemCount = GetItemCount();
+					outArray.reserve(itemCount);
+
+					const bool hasFilters = m_q.HasFilters();
+
+					auto exec = [&](const auto& chunksList) {
+						for (auto* pChunk: chunksList) {
+							if (!pChunk->HasEntities())
+								continue;
+							if (!m_q.CheckConstraints(!pChunk->IsDisabled()))
+								continue;
+							if (hasFilters && !CheckFilters(m_q, *pChunk))
+								continue;
+
+							const auto componentView = pChunk->template View<ContainerItemType>();
+							for (size_t i = 0; i < pChunk->GetItemCount(); ++i)
+								outArray.push_back(componentView[i]);
+						}
+					};
+
+					m_w.ForEachArchetype_NoMatch(m_q, [&](const Archetype& archetype) {
+						if (m_q.CheckConstraints(true))
+							exec(archetype.chunks);
+						if (m_q.CheckConstraints(false))
+							exec(archetype.chunksDisabled);
+					});
+				}
+
+				/*!
+				Returns an array of chunks matching the query
+				\return Array of chunks
+				*/
+				template <typename Container>
+				void ToChunkArray(Container& outArray) const {
+					static_assert(std::is_same<typename Container::value_type, Chunk*>::value);
+
+					const size_t itemCount = GetItemCount();
+					outArray.reserve(itemCount);
+
+					const bool hasFilters = m_q.HasFilters();
+
+					auto exec = [&](const auto& chunksList) {
+						for (auto* pChunk: chunksList) {
+							if (!pChunk->HasEntities())
+								continue;
+							if (!m_q.CheckConstraints(!pChunk->IsDisabled()))
+								continue;
+							if (hasFilters && !CheckFilters(m_q, *pChunk))
+								continue;
+
+							outArray.push_back(pChunk);
+						}
+					};
+
+					m_w.ForEachArchetype_NoMatch(m_q, [&](const Archetype& archetype) {
+						if (m_q.CheckConstraints(true))
+							exec(archetype.chunks);
+						if (m_q.CheckConstraints(false))
+							exec(archetype.chunksDisabled);
+					});
 				}
 			};
 

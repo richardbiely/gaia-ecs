@@ -580,7 +580,7 @@ namespace gaia {
 			using size_type = size_t;
 
 		private:
-			T* m_data = nullptr;
+			pointer m_data = nullptr;
 			size_type m_cnt = size_type(0);
 			size_type m_cap = size_type(0);
 
@@ -597,7 +597,7 @@ namespace gaia {
 				using size_type = darr::size_type;
 
 			private:
-				T* m_ptr;
+				pointer m_ptr;
 
 			public:
 				constexpr iterator(T* ptr): m_ptr(ptr) {}
@@ -680,17 +680,17 @@ namespace gaia {
 
 			public:
 				using iterator_category = GAIA_UTIL::random_access_iterator_tag;
-				using value_type = T;
+				using value_type = const T;
 				using difference_type = std::ptrdiff_t;
-				using pointer = T*;
-				using reference = T&;
+				using pointer = const T*;
+				using reference = const T&;
 				using size_type = darr::size_type;
 
 			private:
-				const T* m_ptr;
+				pointer m_ptr;
 
 			public:
-				constexpr const_iterator(T* ptr): m_ptr(ptr) {}
+				constexpr const_iterator(pointer ptr): m_ptr(ptr) {}
 
 				constexpr const_iterator(const const_iterator& other): m_ptr(other.m_ptr) {}
 				constexpr iterator& operator=(const const_iterator& other) {
@@ -698,11 +698,11 @@ namespace gaia {
 					return *this;
 				}
 
-				constexpr const T& operator*() const {
-					return *(const T*)m_ptr;
+				constexpr reference operator*() const {
+					return *m_ptr;
 				}
-				constexpr const T* operator->() const {
-					return (const T*)m_ptr;
+				constexpr pointer operator->() const {
+					return m_ptr;
 				}
 				constexpr const_iterator operator[](size_type offset) const {
 					return {m_ptr + offset};
@@ -1107,10 +1107,10 @@ namespace gaia {
 				using size_type = decltype(N);
 
 			private:
-				T* m_ptr;
+				pointer m_ptr;
 
 			public:
-				constexpr iterator(T* ptr): m_ptr(ptr) {}
+				constexpr iterator(pointer ptr): m_ptr(ptr) {}
 
 				constexpr iterator(const iterator& other): m_ptr(other.m_ptr) {}
 				constexpr iterator& operator=(const iterator& other) {
@@ -1118,10 +1118,10 @@ namespace gaia {
 					return *this;
 				}
 
-				constexpr T& operator*() const {
+				constexpr reference operator*() const {
 					return *m_ptr;
 				}
-				constexpr T* operator->() const {
+				constexpr pointer operator->() const {
 					return m_ptr;
 				}
 				constexpr iterator operator[](size_type offset) const {
@@ -1188,18 +1188,18 @@ namespace gaia {
 			class const_iterator {
 			public:
 				using iterator_category = GAIA_UTIL::random_access_iterator_tag;
-				using value_type = T;
+				using value_type = const T;
 				using difference_type = std::ptrdiff_t;
-				using pointer = T*;
-				using reference = T&;
+				using pointer = const T*;
+				using reference = const T&;
 
 				using size_type = decltype(N);
 
 			private:
-				const T* m_ptr;
+				pointer m_ptr;
 
 			public:
-				constexpr const_iterator(T* ptr): m_ptr(ptr) {}
+				constexpr const_iterator(pointer ptr): m_ptr(ptr) {}
 
 				constexpr const_iterator(const const_iterator& other): m_ptr(other.m_ptr) {}
 				constexpr iterator& operator=(const const_iterator& other) {
@@ -1207,11 +1207,11 @@ namespace gaia {
 					return *this;
 				}
 
-				constexpr const T& operator*() const {
-					return *(const T*)m_ptr;
+				constexpr reference operator*() const {
+					return *m_ptr;
 				}
-				constexpr const T* operator->() const {
-					return (const T*)m_ptr;
+				constexpr pointer operator->() const {
+					return m_ptr;
 				}
 				constexpr const_iterator operator[](size_type offset) const {
 					return {m_ptr + offset};
@@ -1420,11 +1420,10 @@ namespace gaia {
 				using difference_type = std::ptrdiff_t;
 				using pointer = T*;
 				using reference = T&;
-
 				using size_type = decltype(N);
 
 			private:
-				T* m_ptr;
+				pointer m_ptr;
 
 			public:
 				constexpr iterator(T* ptr): m_ptr(ptr) {}
@@ -1505,18 +1504,17 @@ namespace gaia {
 			class const_iterator {
 			public:
 				using iterator_category = GAIA_UTIL::random_access_iterator_tag;
-				using value_type = T;
+				using value_type = const T;
 				using difference_type = std::ptrdiff_t;
-				using pointer = T*;
-				using reference = T&;
-
+				using pointer = const T*;
+				using reference = const T&;
 				using size_type = decltype(N);
 
 			private:
-				const T* m_ptr;
+				pointer m_ptr;
 
 			public:
-				constexpr const_iterator(T* ptr): m_ptr(ptr) {}
+				constexpr const_iterator(pointer ptr): m_ptr(ptr) {}
 
 				constexpr const_iterator(const const_iterator& other): m_ptr(other.m_ptr) {}
 				constexpr iterator& operator=(const const_iterator& other) {
@@ -1524,11 +1522,11 @@ namespace gaia {
 					return *this;
 				}
 
-				constexpr const T& operator*() const {
-					return *(const T*)m_ptr;
+				constexpr reference operator*() const {
+					return *m_ptr;
 				}
-				constexpr const T* operator->() const {
-					return (const T*)m_ptr;
+				constexpr pointer operator->() const {
+					return m_ptr;
 				}
 				constexpr const_iterator operator[](size_type offset) const {
 					return {m_ptr + offset};
@@ -8475,8 +8473,16 @@ namespace gaia {
 				return m_archetypeCache.begin();
 			}
 
+			GAIA_NODISCARD containers::darray<Archetype*>::const_iterator begin() const {
+				return m_archetypeCache.cbegin();
+			}
+
 			GAIA_NODISCARD containers::darray<Archetype*>::iterator end() {
 				return m_archetypeCache.end();
+			}
+
+			GAIA_NODISCARD containers::darray<Archetype*>::const_iterator end() const {
+				return m_archetypeCache.cend();
 			}
 		};
 	} // namespace ecs
@@ -9744,6 +9750,19 @@ namespace gaia {
 					func(*pArchetype);
 			}
 
+			template <typename Func>
+			GAIA_FORCEINLINE void ForEachArchetype_NoMatch(const EntityQuery& query, Func func) const {
+				for (const auto* pArchetype: query)
+					func(*pArchetype);
+			}
+
+			template <typename Func>
+			GAIA_FORCEINLINE void ForEachArchetypeCond_NoMatch(const EntityQuery& query, Func func) const {
+				for (const auto* pArchetype: query)
+					if (!func(*pArchetype))
+						break;
+			}
+
 			//--------------------------------------------------------------------------------
 
 			template <typename... T>
@@ -10002,6 +10021,167 @@ namespace gaia {
 				ForEach_Internal<Func>((World&)*this, std::move(query), func);
 			}
 
+			//--------------------------------------------------------------------------------
+
+			class QueryResult {
+				const World& m_w;
+				const EntityQuery& m_q;
+
+			public:
+				QueryResult(const World& w, const EntityQuery& q): m_w(w), m_q(q) {}
+
+				//! Return true it there at least one result matching the query
+				/*!
+				Returns true or false depending on whether there are entities matching the query
+				\return True if there are any entites matchine the query. False otherwise.
+				*/
+				bool HasItems() const {
+					bool hasItems = false;
+
+					const bool hasFilters = m_q.HasFilters();
+
+					auto exec = [&](const auto& chunksList) {
+						for (auto* pChunk: chunksList) {
+							if (!pChunk->HasEntities())
+								continue;
+							if (!m_q.CheckConstraints(!pChunk->IsDisabled()))
+								continue;
+							if (hasFilters && !CheckFilters(m_q, *pChunk))
+								continue;
+							hasItems = true;
+							break;
+						}
+					};
+
+					// Iterate over all archetypes
+					m_w.ForEachArchetypeCond_NoMatch(m_q, [&](const Archetype& archetype) {
+						if (m_q.CheckConstraints(true)) {
+							exec(archetype.chunks);
+							if (hasItems)
+								return false;
+						}
+						if (m_q.CheckConstraints(false)) {
+							exec(archetype.chunksDisabled);
+							if (hasItems)
+								return false;
+						}
+
+						return true;
+					});
+
+					return hasItems;
+				}
+
+				/*!
+				Returns the number of entities matching the query
+				\return The number of matching entities
+				*/
+				size_t GetItemCount() const {
+					size_t itemCount = 0;
+
+					const bool hasFilters = m_q.HasFilters();
+
+					auto exec = [&](const auto& chunksList) {
+						for (auto* pChunk: chunksList) {
+							if (!pChunk->HasEntities())
+								continue;
+							if (!m_q.CheckConstraints(!pChunk->IsDisabled()))
+								continue;
+							if (hasFilters && !CheckFilters(m_q, *pChunk))
+								continue;
+							itemCount += pChunk->GetItemCount();
+						}
+					};
+
+					m_w.ForEachArchetype_NoMatch(m_q, [&](const Archetype& archetype) {
+						if (m_q.CheckConstraints(true))
+							exec(archetype.chunks);
+						if (m_q.CheckConstraints(false))
+							exec(archetype.chunksDisabled);
+					});
+
+					return itemCount;
+				}
+
+				/*!
+				Returns an array of components matching the query
+				\tparam Container Container storing entities or components
+				\return Array with entities or components
+				*/
+				template <typename Container>
+				void ToComponentOrEntityArray(Container& outArray) const {
+					using ContainerItemType = typename Container::value_type;
+
+					const size_t itemCount = GetItemCount();
+					outArray.reserve(itemCount);
+
+					const bool hasFilters = m_q.HasFilters();
+
+					auto exec = [&](const auto& chunksList) {
+						for (auto* pChunk: chunksList) {
+							if (!pChunk->HasEntities())
+								continue;
+							if (!m_q.CheckConstraints(!pChunk->IsDisabled()))
+								continue;
+							if (hasFilters && !CheckFilters(m_q, *pChunk))
+								continue;
+
+							const auto componentView = pChunk->template View<ContainerItemType>();
+							for (size_t i = 0; i < pChunk->GetItemCount(); ++i)
+								outArray.push_back(componentView[i]);
+						}
+					};
+
+					m_w.ForEachArchetype_NoMatch(m_q, [&](const Archetype& archetype) {
+						if (m_q.CheckConstraints(true))
+							exec(archetype.chunks);
+						if (m_q.CheckConstraints(false))
+							exec(archetype.chunksDisabled);
+					});
+				}
+
+				/*!
+				Returns an array of chunks matching the query
+				\return Array of chunks
+				*/
+				template <typename Container>
+				void ToChunkArray(Container& outArray) const {
+					static_assert(std::is_same<typename Container::value_type, Chunk*>::value);
+
+					const size_t itemCount = GetItemCount();
+					outArray.reserve(itemCount);
+
+					const bool hasFilters = m_q.HasFilters();
+
+					auto exec = [&](const auto& chunksList) {
+						for (auto* pChunk: chunksList) {
+							if (!pChunk->HasEntities())
+								continue;
+							if (!m_q.CheckConstraints(!pChunk->IsDisabled()))
+								continue;
+							if (hasFilters && !CheckFilters(m_q, *pChunk))
+								continue;
+
+							outArray.push_back(pChunk);
+						}
+					};
+
+					m_w.ForEachArchetype_NoMatch(m_q, [&](const Archetype& archetype) {
+						if (m_q.CheckConstraints(true))
+							exec(archetype.chunks);
+						if (m_q.CheckConstraints(false))
+							exec(archetype.chunksDisabled);
+					});
+				}
+			};
+
+			GAIA_NODISCARD QueryResult FromQuery(EntityQuery& query) {
+				query.Match(m_archetypes);
+				return QueryResult(*this, query);
+			}
+
+			//--------------------------------------------------------------------------------
+
 			/*!
 			Collect garbage. Check all chunks and archetypes which are empty and have not been used for a while
 			and tries to delete them and release memory allocated by them.
@@ -10031,6 +10211,8 @@ namespace gaia {
 					const_cast<Archetype&>(pChunk->header.owner).RemoveChunk(pChunk);
 				m_chunksToRemove.clear();
 			}
+
+			//--------------------------------------------------------------------------------
 
 			/*!
 			Performs diagnostics on a specific archetype. Prints basic info about it and the chunks it contains.
@@ -10986,7 +11168,7 @@ namespace gaia {
 				for (auto* pSystem: m_systemsToRemove)
 					pSystem->OnDestroyed();
 				for (auto* pSystem: m_systemsToRemove)
-					m_systemsMap.erase({pSystem->m_hash});
+					(void)m_systemsMap.erase({pSystem->m_hash});
 				for (auto* pSystem: m_systemsToRemove) {
 					m_systems.erase(utils::find(m_systems, pSystem));
 				}
