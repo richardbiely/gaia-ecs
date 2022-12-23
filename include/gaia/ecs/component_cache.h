@@ -36,7 +36,7 @@ namespace gaia {
 				const auto index = utils::type_info::index<U>();
 
 				if (m_infoCreateByIndex.find(index) == m_infoCreateByIndex.end())
-					(void)m_infoCreateByIndex.emplace(index, ComponentInfoCreate::Create<U>());
+					m_infoCreateByIndex.emplace(index, ComponentInfoCreate::Create<U>());
 
 				{
 					const auto res = m_infoByIndex.emplace(index, nullptr);
