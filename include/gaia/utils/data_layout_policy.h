@@ -148,7 +148,7 @@ namespace gaia {
 		template <typename ValueType>
 		using aos_view_policy_get = data_view_policy_get<DataLayout::AoS, ValueType>;
 		template <typename ValueType>
-		using aos_view_policy_set = data_view_policy_get<DataLayout::AoS, ValueType>;
+		using aos_view_policy_set = data_view_policy_set<DataLayout::AoS, ValueType>;
 
 		/*!
 		 * data_view_policy for accessing and storing data in the SoA way
@@ -323,7 +323,7 @@ namespace gaia {
 		template <typename ValueType>
 		using soa_view_policy_get = data_view_policy_get<DataLayout::SoA, ValueType>;
 		template <typename ValueType>
-		using soa_view_policy_set = data_view_policy_get<DataLayout::SoA, ValueType>;
+		using soa_view_policy_set = data_view_policy_set<DataLayout::SoA, ValueType>;
 
 		//----------------------------------------------------------------------
 		// Helpers
@@ -336,14 +336,14 @@ namespace gaia {
 		struct is_soa_layout<T, typename std::enable_if<T::Layout == DataLayout::SoA>::type>: std::true_type {};
 
 		template <typename T>
-		using auto_view_policy = std::conditional_t<
-				is_soa_layout<T>::value, data_view_policy<DataLayout::SoA, T>, data_view_policy<DataLayout::AoS, T>>;
+		inline constexpr bool is_soa_layout_v = is_soa_layout<T>::value;
+
 		template <typename T>
-		using auto_view_policy_get = std::conditional_t<
-				is_soa_layout<T>::value, data_view_policy_get<DataLayout::SoA, T>, data_view_policy_get<DataLayout::AoS, T>>;
+		using auto_view_policy = std::conditional_t<is_soa_layout_v<T>, soa_view_policy<T>, aos_view_policy<T>>;
 		template <typename T>
-		using auto_view_policy_set = std::conditional_t<
-				is_soa_layout<T>::value, data_view_policy_set<DataLayout::SoA, T>, data_view_policy_set<DataLayout::AoS, T>>;
+		using auto_view_policy_get = std::conditional_t<is_soa_layout_v<T>, soa_view_policy_get<T>, aos_view_policy_get<T>>;
+		template <typename T>
+		using auto_view_policy_set = std::conditional_t<is_soa_layout_v<T>, soa_view_policy_set<T>, aos_view_policy_set<T>>;
 
 	} // namespace utils
 } // namespace gaia
