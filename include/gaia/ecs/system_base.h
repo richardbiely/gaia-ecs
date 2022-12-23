@@ -156,7 +156,7 @@ namespace gaia {
 				for (auto* pSystem: m_systemsToRemove)
 					pSystem->OnDestroyed();
 				for (auto* pSystem: m_systemsToRemove)
-					(void)m_systemsMap.erase({pSystem->m_hash});
+					m_systemsMap.erase({pSystem->m_hash});
 				for (auto* pSystem: m_systemsToRemove) {
 					m_systems.erase(utils::find(m_systems, pSystem));
 				}
