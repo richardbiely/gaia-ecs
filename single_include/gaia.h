@@ -4288,7 +4288,7 @@ namespace robin_hood {
 			}
 
 			template <typename... Args>
-			GAIA_NODISCARD std::pair<iterator, bool> emplace(Args&&... args) {
+			std::pair<iterator, bool> emplace(Args&&... args) {
 				ROBIN_HOOD_TRACE(this)
 				Node n{*this, std::forward<Args>(args)...};
 				auto idxAndState = insertKeyPrepareEmptySpot(getFirstConst(n));
@@ -4317,76 +4317,76 @@ namespace robin_hood {
 			}
 
 			template <typename... Args>
-			GAIA_NODISCARD iterator emplace_hint(const_iterator position, Args&&... args) {
+			iterator emplace_hint(const_iterator position, Args&&... args) {
 				(void)position;
 				return emplace(std::forward<Args>(args)...).first;
 			}
 
 			template <typename... Args>
-			GAIA_NODISCARD std::pair<iterator, bool> try_emplace(const key_type& key, Args&&... args) {
+			std::pair<iterator, bool> try_emplace(const key_type& key, Args&&... args) {
 				return try_emplace_impl(key, std::forward<Args>(args)...);
 			}
 
 			template <typename... Args>
-			GAIA_NODISCARD std::pair<iterator, bool> try_emplace(key_type&& key, Args&&... args) {
+			std::pair<iterator, bool> try_emplace(key_type&& key, Args&&... args) {
 				return try_emplace_impl(std::move(key), std::forward<Args>(args)...);
 			}
 
 			template <typename... Args>
-			GAIA_NODISCARD iterator try_emplace(const_iterator hint, const key_type& key, Args&&... args) {
+			iterator try_emplace(const_iterator hint, const key_type& key, Args&&... args) {
 				(void)hint;
 				return try_emplace_impl(key, std::forward<Args>(args)...).first;
 			}
 
 			template <typename... Args>
-			GAIA_NODISCARD iterator try_emplace(const_iterator hint, key_type&& key, Args&&... args) {
+			iterator try_emplace(const_iterator hint, key_type&& key, Args&&... args) {
 				(void)hint;
 				return try_emplace_impl(std::move(key), std::forward<Args>(args)...).first;
 			}
 
 			template <typename Mapped>
-			GAIA_NODISCARD std::pair<iterator, bool> insert_or_assign(const key_type& key, Mapped&& obj) {
+			std::pair<iterator, bool> insert_or_assign(const key_type& key, Mapped&& obj) {
 				return insertOrAssignImpl(key, std::forward<Mapped>(obj));
 			}
 
 			template <typename Mapped>
-			GAIA_NODISCARD std::pair<iterator, bool> insert_or_assign(key_type&& key, Mapped&& obj) {
+			std::pair<iterator, bool> insert_or_assign(key_type&& key, Mapped&& obj) {
 				return insertOrAssignImpl(std::move(key), std::forward<Mapped>(obj));
 			}
 
 			template <typename Mapped>
-			GAIA_NODISCARD iterator insert_or_assign(const_iterator hint, const key_type& key, Mapped&& obj) {
+			iterator insert_or_assign(const_iterator hint, const key_type& key, Mapped&& obj) {
 				(void)hint;
 				return insertOrAssignImpl(key, std::forward<Mapped>(obj)).first;
 			}
 
 			template <typename Mapped>
-			GAIA_NODISCARD iterator insert_or_assign(const_iterator hint, key_type&& key, Mapped&& obj) {
+			iterator insert_or_assign(const_iterator hint, key_type&& key, Mapped&& obj) {
 				(void)hint;
 				return insertOrAssignImpl(std::move(key), std::forward<Mapped>(obj)).first;
 			}
 
-			GAIA_NODISCARD std::pair<iterator, bool> insert(const value_type& keyval) {
+			std::pair<iterator, bool> insert(const value_type& keyval) {
 				ROBIN_HOOD_TRACE(this)
 				return emplace(keyval);
 			}
 
-			GAIA_NODISCARD iterator insert(const_iterator hint, const value_type& keyval) {
+			iterator insert(const_iterator hint, const value_type& keyval) {
 				(void)hint;
 				return emplace(keyval).first;
 			}
 
-			GAIA_NODISCARD std::pair<iterator, bool> insert(value_type&& keyval) {
+			std::pair<iterator, bool> insert(value_type&& keyval) {
 				return emplace(std::move(keyval));
 			}
 
-			GAIA_NODISCARD iterator insert(const_iterator hint, value_type&& keyval) {
+			iterator insert(const_iterator hint, value_type&& keyval) {
 				(void)hint;
 				return emplace(std::move(keyval)).first;
 			}
 
 			// Returns 1 if key is found, 0 otherwise.
-			GAIA_NODISCARD size_t count(const key_type& key) const { // NOLINT(modernize-use-nodiscard)
+			GAIA_NODISCARD size_t count(const key_type& key) const {
 				ROBIN_HOOD_TRACE(this)
 				auto kv = mKeyVals + findIdx(key);
 				if (kv != reinterpret_cast_no_cast_align_warning<Node*>(mInfo)) {
@@ -4396,7 +4396,6 @@ namespace robin_hood {
 			}
 
 			template <typename OtherKey, typename Self_ = Self>
-			// NOLINTNEXTLINE(modernize-use-nodiscard)
 			GAIA_NODISCARD typename std::enable_if<Self_::is_transparent, size_t>::type count(const OtherKey& key) const {
 				ROBIN_HOOD_TRACE(this)
 				auto kv = mKeyVals + findIdx(key);
@@ -4406,12 +4405,11 @@ namespace robin_hood {
 				return 0;
 			}
 
-			GAIA_NODISCARD bool contains(const key_type& key) const { // NOLINT(modernize-use-nodiscard)
+			GAIA_NODISCARD bool contains(const key_type& key) const {
 				return 1U == count(key);
 			}
 
 			template <typename OtherKey, typename Self_ = Self>
-			// NOLINTNEXTLINE(modernize-use-nodiscard)
 			GAIA_NODISCARD typename std::enable_if<Self_::is_transparent, bool>::type contains(const OtherKey& key) const {
 				return 1U == count(key);
 			}
@@ -4419,7 +4417,6 @@ namespace robin_hood {
 			// Returns a reference to the value found for key.
 			// Throws std::out_of_range if element cannot be found
 			template <typename Q = mapped_type>
-			// NOLINTNEXTLINE(modernize-use-nodiscard)
 			GAIA_NODISCARD typename std::enable_if<!std::is_void<Q>::value, Q&>::type at(key_type const& key) {
 				ROBIN_HOOD_TRACE(this)
 				auto kv = mKeyVals + findIdx(key);
@@ -4432,7 +4429,6 @@ namespace robin_hood {
 			// Returns a reference to the value found for key.
 			// Throws std::out_of_range if element cannot be found
 			template <typename Q = mapped_type>
-			// NOLINTNEXTLINE(modernize-use-nodiscard)
 			GAIA_NODISCARD typename std::enable_if<!std::is_void<Q>::value, Q const&>::type at(key_type const& key) const {
 				ROBIN_HOOD_TRACE(this)
 				auto kv = mKeyVals + findIdx(key);
@@ -4442,7 +4438,7 @@ namespace robin_hood {
 				return kv->getSecond();
 			}
 
-			GAIA_NODISCARD const_iterator find(const key_type& key) const { // NOLINT(modernize-use-nodiscard)
+			GAIA_NODISCARD const_iterator find(const key_type& key) const {
 				ROBIN_HOOD_TRACE(this)
 				const size_t idx = findIdx(key);
 				return const_iterator{mKeyVals + idx, mInfo + idx};
@@ -4456,10 +4452,8 @@ namespace robin_hood {
 			}
 
 			template <typename OtherKey, typename Self_ = Self>
-			GAIA_NODISCARD typename std::enable_if<
-					Self_::is_transparent, // NOLINT(modernize-use-nodiscard)
-					const_iterator>::type // NOLINT(modernize-use-nodiscard)
-			find(const OtherKey& key) const { // NOLINT(modernize-use-nodiscard)
+			GAIA_NODISCARD typename std::enable_if<Self_::is_transparent, const_iterator>::type
+			find(const OtherKey& key) const {
 				ROBIN_HOOD_TRACE(this)
 				const size_t idx = findIdx(key);
 				return const_iterator{mKeyVals + idx, mInfo + idx};
@@ -4492,11 +4486,11 @@ namespace robin_hood {
 				}
 				return iterator(mKeyVals, mInfo, fast_forward_tag{});
 			}
-			GAIA_NODISCARD const_iterator begin() const { // NOLINT(modernize-use-nodiscard)
+			GAIA_NODISCARD const_iterator begin() const {
 				ROBIN_HOOD_TRACE(this)
 				return cbegin();
 			}
-			GAIA_NODISCARD const_iterator cbegin() const { // NOLINT(modernize-use-nodiscard)
+			GAIA_NODISCARD const_iterator cbegin() const {
 				ROBIN_HOOD_TRACE(this)
 				if (empty()) {
 					return cend();
@@ -4510,11 +4504,11 @@ namespace robin_hood {
 				// pointer is compared.
 				return iterator{reinterpret_cast_no_cast_align_warning<Node*>(mInfo), nullptr};
 			}
-			GAIA_NODISCARD const_iterator end() const { // NOLINT(modernize-use-nodiscard)
+			GAIA_NODISCARD const_iterator end() const {
 				ROBIN_HOOD_TRACE(this)
 				return cend();
 			}
-			GAIA_NODISCARD const_iterator cend() const { // NOLINT(modernize-use-nodiscard)
+			GAIA_NODISCARD const_iterator cend() const {
 				ROBIN_HOOD_TRACE(this)
 				return const_iterator{reinterpret_cast_no_cast_align_warning<Node*>(mInfo), nullptr};
 			}
@@ -4599,12 +4593,12 @@ namespace robin_hood {
 				}
 			}
 
-			GAIA_NODISCARD size_type size() const noexcept { // NOLINT(modernize-use-nodiscard)
+			GAIA_NODISCARD size_type size() const noexcept {
 				ROBIN_HOOD_TRACE(this)
 				return mNumElements;
 			}
 
-			GAIA_NODISCARD size_type max_size() const noexcept { // NOLINT(modernize-use-nodiscard)
+			GAIA_NODISCARD size_type max_size() const noexcept {
 				ROBIN_HOOD_TRACE(this)
 				return static_cast<size_type>(-1);
 			}
@@ -4614,13 +4608,13 @@ namespace robin_hood {
 				return 0 == mNumElements;
 			}
 
-			GAIA_NODISCARD float max_load_factor() const noexcept { // NOLINT(modernize-use-nodiscard)
+			GAIA_NODISCARD float max_load_factor() const noexcept {
 				ROBIN_HOOD_TRACE(this)
 				return MaxLoadFactor100 / 100.0F;
 			}
 
 			// Average number of elements per bucket. Since we allow only 1 per bucket
-			GAIA_NODISCARD float load_factor() const noexcept { // NOLINT(modernize-use-nodiscard)
+			GAIA_NODISCARD float load_factor() const noexcept {
 				ROBIN_HOOD_TRACE(this)
 				return static_cast<float>(size()) / static_cast<float>(mMask + 1);
 			}
@@ -5855,7 +5849,7 @@ namespace gaia {
 		template <typename ValueType>
 		using aos_view_policy_get = data_view_policy_get<DataLayout::AoS, ValueType>;
 		template <typename ValueType>
-		using aos_view_policy_set = data_view_policy_get<DataLayout::AoS, ValueType>;
+		using aos_view_policy_set = data_view_policy_set<DataLayout::AoS, ValueType>;
 
 		/*!
 		 * data_view_policy for accessing and storing data in the SoA way
@@ -6030,7 +6024,7 @@ namespace gaia {
 		template <typename ValueType>
 		using soa_view_policy_get = data_view_policy_get<DataLayout::SoA, ValueType>;
 		template <typename ValueType>
-		using soa_view_policy_set = data_view_policy_get<DataLayout::SoA, ValueType>;
+		using soa_view_policy_set = data_view_policy_set<DataLayout::SoA, ValueType>;
 
 		//----------------------------------------------------------------------
 		// Helpers
@@ -6043,14 +6037,14 @@ namespace gaia {
 		struct is_soa_layout<T, typename std::enable_if<T::Layout == DataLayout::SoA>::type>: std::true_type {};
 
 		template <typename T>
-		using auto_view_policy = std::conditional_t<
-				is_soa_layout<T>::value, data_view_policy<DataLayout::SoA, T>, data_view_policy<DataLayout::AoS, T>>;
+		inline constexpr bool is_soa_layout_v = is_soa_layout<T>::value;
+
 		template <typename T>
-		using auto_view_policy_get = std::conditional_t<
-				is_soa_layout<T>::value, data_view_policy_get<DataLayout::SoA, T>, data_view_policy_get<DataLayout::AoS, T>>;
+		using auto_view_policy = std::conditional_t<is_soa_layout_v<T>, soa_view_policy<T>, aos_view_policy<T>>;
 		template <typename T>
-		using auto_view_policy_set = std::conditional_t<
-				is_soa_layout<T>::value, data_view_policy_set<DataLayout::SoA, T>, data_view_policy_set<DataLayout::AoS, T>>;
+		using auto_view_policy_get = std::conditional_t<is_soa_layout_v<T>, soa_view_policy_get<T>, aos_view_policy_get<T>>;
+		template <typename T>
+		using auto_view_policy_set = std::conditional_t<is_soa_layout_v<T>, soa_view_policy_set<T>, aos_view_policy_set<T>>;
 
 	} // namespace utils
 } // namespace gaia
@@ -7459,7 +7453,7 @@ namespace gaia {
 				const auto index = utils::type_info::index<U>();
 
 				if (m_infoCreateByIndex.find(index) == m_infoCreateByIndex.end())
-					(void)m_infoCreateByIndex.emplace(index, ComponentInfoCreate::Create<U>());
+					m_infoCreateByIndex.emplace(index, ComponentInfoCreate::Create<U>());
 
 				{
 					const auto res = m_infoByIndex.emplace(index, nullptr);
@@ -11168,7 +11162,7 @@ namespace gaia {
 				for (auto* pSystem: m_systemsToRemove)
 					pSystem->OnDestroyed();
 				for (auto* pSystem: m_systemsToRemove)
-					(void)m_systemsMap.erase({pSystem->m_hash});
+					m_systemsMap.erase({pSystem->m_hash});
 				for (auto* pSystem: m_systemsToRemove) {
 					m_systems.erase(utils::find(m_systems, pSystem));
 				}
