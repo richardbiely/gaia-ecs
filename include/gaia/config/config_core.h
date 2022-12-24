@@ -132,6 +132,17 @@
 	#define GAIA_UNLIKELY(cond) (cond)
 #endif
 
+// GCC 7 and some later versions had a bug that would aritificaly restrict alignas for stack
+// variables to 16 bytes.
+// However, using the compiler custom attribute would still work. Therefore, because it is
+// more portable, we shall introduce the GAIA_ALIGNAS macro.
+// Read about the bug here: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=89357
+#if GAIA_COMPILER_GCC
+	#define GAIA_ALIGNAS(alignment) __attribute__((aligned(alignment)))
+#else
+	#define GAIA_ALIGNAS(alignment) alignas(alignment)
+#endif
+
 //------------------------------------------------------------------------------
 
 #if GAIA_COMPILER_MSVC || GAIA_COMPILER_ICC

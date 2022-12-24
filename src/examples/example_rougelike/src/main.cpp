@@ -38,7 +38,8 @@ char get_char() {
 }
 
 void ClearScreen() {
-	(void)system("clear");
+	auto res = system("clear");
+	(void)res;
 }
 #else
 char get_char() {
