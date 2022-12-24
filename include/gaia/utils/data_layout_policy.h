@@ -11,7 +11,9 @@ namespace gaia {
 	namespace utils {
 		enum class DataLayout {
 			AoS, //< Array Of Structures
-			SoA, //< Structure Of Arrays
+			SoA, //< Structure Of Arrays, 4 packed items, good for SSE and similar
+			SoA8, //< Structure Of Arrays, 8 packed items, good for AVX and similar
+			SoA16 //< Structure Of Arrays, 16 packed items, good for AVX512 and similar
 		};
 
 		// Helper templates
@@ -34,8 +36,28 @@ namespace gaia {
 
 		} // namespace detail
 
-		template <DataLayout TDataLayout>
+		template <DataLayout TDataLayout, typename TItem>
 		struct data_layout_properties;
+		template <typename TItem>
+		struct data_layout_properties<DataLayout::AoS, TItem> {
+			constexpr static size_t PackSize = 1;
+			constexpr static size_t Alignment = alignof(TItem);
+		};
+		template <typename TItem>
+		struct data_layout_properties<DataLayout::SoA, TItem> {
+			constexpr static size_t PackSize = 4;
+			constexpr static size_t Alignment = PackSize * 4;
+		};
+		template <typename TItem>
+		struct data_layout_properties<DataLayout::SoA8, TItem> {
+			constexpr static size_t PackSize = 8;
+			constexpr static size_t Alignment = PackSize * 4;
+		};
+		template <typename TItem>
+		struct data_layout_properties<DataLayout::SoA16, TItem> {
+			constexpr static size_t PackSize = 16;
+			constexpr static size_t Alignment = PackSize * 4;
+		};
 
 		template <DataLayout TDataLayout, typename TItem>
 		struct data_view_policy;
@@ -50,15 +72,6 @@ namespace gaia {
 		template <DataLayout TDataLayout, typename TItem, size_t Ids>
 		struct data_view_policy_set_idx;
 
-		template <>
-		struct data_layout_properties<DataLayout::AoS> {
-			constexpr static uint32_t PackSize = 1;
-		};
-		template <>
-		struct data_layout_properties<DataLayout::SoA> {
-			constexpr static uint32_t PackSize = 4;
-		};
-
 		/*!
 		 * data_view_policy for accessing and storing data in the AoS way
 		 *	Good for random access and when acessing data together.
@@ -70,9 +83,9 @@ namespace gaia {
 		 *		xyz xyz xyz xyz
 		 */
 		template <typename ValueType>
-		struct data_view_policy<DataLayout::AoS, ValueType> {
-			constexpr static DataLayout Layout = DataLayout::AoS;
-			constexpr static size_t Alignment = alignof(ValueType);
+		struct data_view_policy_aos {
+			constexpr static DataLayout Layout = data_layout_properties<DataLayout::AoS, ValueType>::Layout;
+			constexpr static size_t Alignment = data_layout_properties<DataLayout::AoS, ValueType>::Alignment;
 
 			GAIA_NODISCARD constexpr static ValueType getc(std::span<const ValueType> s, size_t idx) {
 				return s[idx];
@@ -100,11 +113,14 @@ namespace gaia {
 		};
 
 		template <typename ValueType>
-		struct data_view_policy_get<DataLayout::AoS, ValueType> {
+		struct data_view_policy<DataLayout::AoS, ValueType>: data_view_policy_aos<ValueType> {};
+
+		template <typename ValueType>
+		struct data_view_policy_aos_get {
+			using view_policy = data_view_policy_aos<ValueType>;
+
 			//! Raw data pointed to by the view policy
 			std::span<const ValueType> m_data;
-
-			using view_policy = data_view_policy<DataLayout::AoS, ValueType>;
 
 			GAIA_NODISCARD const ValueType& operator[](size_t idx) const {
 				return view_policy::getc_constref(m_data, idx);
@@ -120,11 +136,14 @@ namespace gaia {
 		};
 
 		template <typename ValueType>
-		struct data_view_policy_set<DataLayout::AoS, ValueType> {
+		struct data_view_policy_get<DataLayout::AoS, ValueType>: data_view_policy_aos_get<ValueType> {};
+
+		template <typename ValueType>
+		struct data_view_policy_aos_set {
+			using view_policy = data_view_policy_aos<ValueType>;
+
 			//! Raw data pointed to by the view policy
 			std::span<ValueType> m_data;
-
-			using view_policy = data_view_policy<DataLayout::AoS, ValueType>;
 
 			GAIA_NODISCARD ValueType& operator[](size_t idx) {
 				return view_policy::get_ref(m_data, idx);
@@ -144,11 +163,14 @@ namespace gaia {
 		};
 
 		template <typename ValueType>
-		using aos_view_policy = data_view_policy<DataLayout::AoS, ValueType>;
+		struct data_view_policy_set<DataLayout::AoS, ValueType>: data_view_policy_aos_set<ValueType> {};
+
 		template <typename ValueType>
-		using aos_view_policy_get = data_view_policy_get<DataLayout::AoS, ValueType>;
+		using aos_view_policy = data_view_policy_aos<ValueType>;
 		template <typename ValueType>
-		using aos_view_policy_set = data_view_policy_set<DataLayout::AoS, ValueType>;
+		using aos_view_policy_get = data_view_policy_aos_get<ValueType>;
+		template <typename ValueType>
+		using aos_view_policy_set = data_view_policy_aos_set<ValueType>;
 
 		/*!
 		 * data_view_policy for accessing and storing data in the SoA way
@@ -160,10 +182,10 @@ namespace gaia {
 		 * Memory is going be be organized as:
 		 *		xxxx yyyy zzzz
 		 */
-		template <typename ValueType>
-		struct data_view_policy<DataLayout::SoA, ValueType> {
-			constexpr static DataLayout Layout = DataLayout::SoA;
-			constexpr static size_t Alignment = 16;
+		template <DataLayout TDataLayout, typename ValueType>
+		struct data_view_policy_soa {
+			constexpr static DataLayout Layout = data_layout_properties<TDataLayout, ValueType>::Layout;
+			constexpr static size_t Alignment = data_layout_properties<TDataLayout, ValueType>::Alignment;
 
 			template <size_t Ids>
 			using value_type = typename std::tuple_element<Ids, decltype(struct_to_tuple(ValueType{}))>::type;
@@ -235,8 +257,22 @@ namespace gaia {
 		};
 
 		template <typename ValueType>
-		struct data_view_policy_get<DataLayout::SoA, ValueType> {
-			using view_policy = data_view_policy<DataLayout::SoA, ValueType>;
+		struct data_view_policy<DataLayout::SoA, ValueType>: data_view_policy_soa<DataLayout::SoA, ValueType> {};
+		template <typename ValueType>
+		struct data_view_policy<DataLayout::SoA8, ValueType>: data_view_policy_soa<DataLayout::SoA8, ValueType> {};
+		template <typename ValueType>
+		struct data_view_policy<DataLayout::SoA16, ValueType>: data_view_policy_soa<DataLayout::SoA16, ValueType> {};
+
+		template <typename ValueType>
+		using soa_view_policy = data_view_policy<DataLayout::SoA, ValueType>;
+		template <typename ValueType>
+		using soa8_view_policy = data_view_policy<DataLayout::SoA8, ValueType>;
+		template <typename ValueType>
+		using soa16_view_policy = data_view_policy<DataLayout::SoA16, ValueType>;
+
+		template <DataLayout TDataLayout, typename ValueType>
+		struct data_view_policy_soa_get {
+			using view_policy = data_view_policy_soa<TDataLayout, ValueType>;
 
 			template <size_t Ids>
 			struct data_view_policy_idx_info {
@@ -266,8 +302,23 @@ namespace gaia {
 		};
 
 		template <typename ValueType>
-		struct data_view_policy_set<DataLayout::SoA, ValueType> {
-			using view_policy = data_view_policy<DataLayout::SoA, ValueType>;
+		struct data_view_policy_get<DataLayout::SoA, ValueType>: data_view_policy_soa_get<DataLayout::SoA, ValueType> {};
+		template <typename ValueType>
+		struct data_view_policy_get<DataLayout::SoA8, ValueType>: data_view_policy_soa_get<DataLayout::SoA8, ValueType> {};
+		template <typename ValueType>
+		struct data_view_policy_get<DataLayout::SoA16, ValueType>:
+				data_view_policy_soa_get<DataLayout::SoA16, ValueType> {};
+
+		template <typename ValueType>
+		using soa_view_policy_get = data_view_policy_get<DataLayout::SoA, ValueType>;
+		template <typename ValueType>
+		using soa8_view_policy_get = data_view_policy_get<DataLayout::SoA8, ValueType>;
+		template <typename ValueType>
+		using soa16_view_policy_get = data_view_policy_get<DataLayout::SoA16, ValueType>;
+
+		template <DataLayout TDataLayout, typename ValueType>
+		struct data_view_policy_soa_set {
+			using view_policy = data_view_policy_soa<TDataLayout, ValueType>;
 
 			template <size_t Ids>
 			struct data_view_policy_idx_info {
@@ -319,11 +370,19 @@ namespace gaia {
 		};
 
 		template <typename ValueType>
-		using soa_view_policy = data_view_policy<DataLayout::SoA, ValueType>;
+		struct data_view_policy_set<DataLayout::SoA, ValueType>: data_view_policy_soa_set<DataLayout::SoA, ValueType> {};
 		template <typename ValueType>
-		using soa_view_policy_get = data_view_policy_get<DataLayout::SoA, ValueType>;
+		struct data_view_policy_set<DataLayout::SoA8, ValueType>: data_view_policy_soa_set<DataLayout::SoA8, ValueType> {};
+		template <typename ValueType>
+		struct data_view_policy_set<DataLayout::SoA16, ValueType>:
+				data_view_policy_soa_set<DataLayout::SoA16, ValueType> {};
+
 		template <typename ValueType>
 		using soa_view_policy_set = data_view_policy_set<DataLayout::SoA, ValueType>;
+		template <typename ValueType>
+		using soa8_view_policy_set = data_view_policy_set<DataLayout::SoA8, ValueType>;
+		template <typename ValueType>
+		using soa16_view_policy_set = data_view_policy_set<DataLayout::SoA16, ValueType>;
 
 		//----------------------------------------------------------------------
 		// Helpers
@@ -331,19 +390,27 @@ namespace gaia {
 
 		template <typename, typename = void>
 		struct is_soa_layout: std::false_type {};
-
 		template <typename T>
-		struct is_soa_layout<T, typename std::enable_if<T::Layout == DataLayout::SoA>::type>: std::true_type {};
-
+		struct is_soa_layout<T, typename std::enable_if<T::Layout != DataLayout::AoS>::type>: std::true_type {};
 		template <typename T>
 		inline constexpr bool is_soa_layout_v = is_soa_layout<T>::value;
 
+		namespace detail {
+			template <typename T, typename = void>
+			struct auto_view_policy_internal {
+				static constexpr DataLayout data_layout_type = DataLayout::AoS;
+			};
+			template <typename T>
+			struct auto_view_policy_internal<T, std::void_t<decltype(T::Layout)>> {
+				static constexpr DataLayout data_layout_type = T::Layout;
+			};
+		} // namespace detail
 		template <typename T>
-		using auto_view_policy = std::conditional_t<is_soa_layout_v<T>, soa_view_policy<T>, aos_view_policy<T>>;
+		using auto_view_policy = data_view_policy<detail::auto_view_policy_internal<T>::data_layout_type, T>;
 		template <typename T>
-		using auto_view_policy_get = std::conditional_t<is_soa_layout_v<T>, soa_view_policy_get<T>, aos_view_policy_get<T>>;
+		using auto_view_policy_get = data_view_policy_get<detail::auto_view_policy_internal<T>::data_layout_type, T>;
 		template <typename T>
-		using auto_view_policy_set = std::conditional_t<is_soa_layout_v<T>, soa_view_policy_set<T>, aos_view_policy_set<T>>;
+		using auto_view_policy_set = data_view_policy_set<detail::auto_view_policy_internal<T>::data_layout_type, T>;
 
 	} // namespace utils
 } // namespace gaia

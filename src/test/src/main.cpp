@@ -22,6 +22,14 @@ struct PositionSoA {
 	float x, y, z;
 	static constexpr auto Layout = utils::DataLayout::SoA;
 };
+struct PositionSoA8 {
+	float x, y, z;
+	static constexpr auto Layout = utils::DataLayout::SoA8;
+};
+struct PositionSoA16 {
+	float x, y, z;
+	static constexpr auto Layout = utils::DataLayout::SoA16;
+};
 struct PositionNonTrivial {
 	float x, y, z;
 	PositionNonTrivial() {
@@ -134,13 +142,13 @@ TEST_CASE("Containers - darray") {
 	REQUIRE(!utils::has(arr, 100));
 }
 
-TEST_CASE("DataLayout SoA") {
-	constexpr size_t N = 4U;
-	alignas(16) containers::sarray<PositionSoA, N> data{};
+template <size_t N, typename T>
+void TestDataLayoutSoA() {
+	GAIA_ALIGNAS(N * 4) containers::sarray<T, N> data{};
 	const float* arr = (const float*)&data[0];
 
-	using soa = gaia::utils::soa_view_policy<PositionSoA>;
-	using view_deduced = gaia::utils::auto_view_policy<PositionSoA>;
+	using soa = gaia::utils::soa_view_policy<T>;
+	using view_deduced = gaia::utils::auto_view_policy<T>;
 
 	for (size_t i = 0; i < N; ++i) {
 		const auto f = (float)i;
@@ -169,9 +177,21 @@ TEST_CASE("DataLayout SoA") {
 	}
 }
 
+TEST_CASE("DataLayout SoA") {
+	TestDataLayoutSoA<4, PositionSoA>();
+}
+
+TEST_CASE("DataLayout SoA8") {
+	TestDataLayoutSoA<8, PositionSoA8>();
+}
+
+TEST_CASE("DataLayout SoA16") {
+	TestDataLayoutSoA<16, PositionSoA16>();
+}
+
 TEST_CASE("DataLayout AoS") {
 	constexpr size_t N = 4U;
-	alignas(16) containers::sarray<Position, N> data{};
+	containers::sarray<Position, N> data{};
 	const float* arr = (const float*)&data[0];
 
 	using aos = gaia::utils::aos_view_policy<Position>;
