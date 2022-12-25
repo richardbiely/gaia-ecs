@@ -84,33 +84,30 @@ namespace gaia {
 			\return Newly allocated chunk
 			*/
 			GAIA_NODISCARD static Chunk* AllocateChunk(const Archetype& archetype) {
-				auto& world = const_cast<World&>(*archetype.parentWorld);
 #if GAIA_ECS_CHUNK_ALLOCATOR
+				auto& world = const_cast<World&>(*archetype.parentWorld);
+
 				auto pChunk = (Chunk*)AllocateChunkMemory(world);
 				new (pChunk) Chunk(archetype);
 #else
 				auto pChunk = new Chunk(archetype);
 #endif
 
-				// Call default constructors for components that need it
-				if (archetype.info.hasComponentWithCustomCreation) {
-					const auto& look = archetype.componentLookupData[ComponentType::CT_Generic];
+				auto callConstructors = [&](ComponentType ct) {
+					const auto& cc = GetComponentCache();
+					const auto& look = archetype.componentLookupData[ct];
 					for (size_t i = 0; i < look.size(); ++i) {
-						const auto& infoCreate = GetComponentCache().GetComponentCreateInfoFromIdx(look[i].infoIndex);
+						const auto& infoCreate = cc.GetComponentCreateInfoFromIdx(look[i].infoIndex);
 						if (infoCreate.constructor == nullptr)
 							continue;
 						infoCreate.constructor((void*)((uint8_t*)pChunk + look[i].offset));
 					}
-				}
-				// Call default constructors for chunk components that need it
+				};
+
+				// Call constructors for components that need it
 				if (archetype.info.hasComponentWithCustomCreation) {
-					const auto& look = archetype.componentLookupData[ComponentType::CT_Chunk];
-					for (size_t i = 0; i < look.size(); ++i) {
-						const auto& infoCreate = GetComponentCache().GetComponentCreateInfoFromIdx(look[i].infoIndex);
-						if (infoCreate.constructor == nullptr)
-							continue;
-						infoCreate.constructor((void*)((uint8_t*)pChunk + look[i].offset));
-					}
+					callConstructors(ComponentType::CT_Generic);
+					callConstructors(ComponentType::CT_Chunk);
 				}
 
 				pChunk->header.items.capacity = archetype.info.capacity;
@@ -123,30 +120,26 @@ namespace gaia {
 			*/
 			static void ReleaseChunk(Chunk* pChunk) {
 				const auto& archetype = pChunk->header.owner;
-				auto& world = const_cast<World&>(*archetype.parentWorld);
 
-				// Call destructors for types that need it
-				if (archetype.info.hasComponentWithCustomCreation) {
-					const auto& look = archetype.componentLookupData[ComponentType::CT_Generic];
+				auto callDestructors = [&](ComponentType ct) {
+					const auto& cc = GetComponentCache();
+					const auto& look = archetype.componentLookupData[ct];
 					for (size_t i = 0; i < look.size(); ++i) {
-						const auto& infoCreate = GetComponentCache().GetComponentCreateInfoFromIdx(look[i].infoIndex);
+						const auto& infoCreate = cc.GetComponentCreateInfoFromIdx(look[i].infoIndex);
 						if (infoCreate.destructor == nullptr)
 							continue;
 						infoCreate.destructor((void*)((uint8_t*)pChunk + look[i].offset));
 					}
-				}
-				// Call destructors for chunk components which need it
+				};
+
+				// Call destructors for components that need it
 				if (archetype.info.hasComponentWithCustomCreation) {
-					const auto& look = archetype.componentLookupData[ComponentType::CT_Chunk];
-					for (size_t i = 0; i < look.size(); ++i) {
-						const auto& infoCreate = GetComponentCache().GetComponentCreateInfoFromIdx(look[i].infoIndex);
-						if (infoCreate.destructor == nullptr)
-							continue;
-						infoCreate.destructor((void*)((uint8_t*)pChunk + look[i].offset));
-					}
+					callDestructors(ComponentType::CT_Generic);
+					callDestructors(ComponentType::CT_Chunk);
 				}
 
 #if GAIA_ECS_CHUNK_ALLOCATOR
+				auto& world = const_cast<World&>(*archetype.parentWorld);
 				pChunk->~Chunk();
 				ReleaseChunkMemory(world, pChunk);
 #else
