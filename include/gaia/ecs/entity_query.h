@@ -43,7 +43,7 @@ namespace gaia {
 			//! Version of the world for which the query has been called most recently
 			uint32_t m_worldVersion = 0;
 			//! Entity of the last added archetype in the world this query remembers
-			uint32_t m_lastArchetypeId = 0;
+			uint32_t m_lastArchetypeId = 1; // skip the root archetype
 			//! Lookup hash for this query
 			utils::direct_hash_key m_hashLookup{};
 			//! List of cached archetypes
