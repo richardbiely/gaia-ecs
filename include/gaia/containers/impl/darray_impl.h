@@ -251,10 +251,7 @@ namespace gaia {
 			}
 
 			darr& operator=(std::initializer_list<T> il) {
-				auto it = il.begin();
-				for (; it != il.end(); ++it)
-					push_back(std::move(*it));
-
+				*this = darr(il.begin(), il.end());
 				return *this;
 			}
 
@@ -272,7 +269,11 @@ namespace gaia {
 
 				m_cnt = other.m_cnt;
 				m_cap = other.m_cap;
+
+				auto oldData = m_data;
 				m_data = other.m_data;
+				if (oldData)
+					delete[] oldData;
 
 				other.m_cnt = 0;
 				other.m_cap = 0;
@@ -312,7 +313,7 @@ namespace gaia {
 					T* old = m_data;
 					m_data = new T[m_cap];
 					for (size_type i = 0; i < size(); ++i)
-						m_data[i] = old[i];
+						m_data[i] = std::move(old[i]);
 					delete[] old;
 				} else {
 					m_data = new T[m_cap];
@@ -328,7 +329,7 @@ namespace gaia {
 						T* old = m_data;
 						m_data = new T[m_cap];
 						for (size_type i = 0; i < size(); ++i)
-							m_data[i] = old[i];
+							m_data[i] = std::move(old[i]);
 						delete[] old;
 					} else {
 						m_data = new T[m_cap];
@@ -358,7 +359,7 @@ namespace gaia {
 					GAIA_MSVC_WARNING_PUSH()
 					GAIA_MSVC_WARNING_DISABLE(6385)
 					for (size_type i = 0; i < cnt; ++i)
-						m_data[i] = old[i];
+						m_data[i] = std::move(old[i]);
 					GAIA_MSVC_WARNING_POP()
 					delete[] old;
 				}
