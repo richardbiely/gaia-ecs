@@ -7353,7 +7353,7 @@ namespace gaia {
 				using UOriginal = typename DeduceComponent<T>::TypeOriginal;
 				static_assert(IsReadOnlyType<UOriginal>::value);
 
-				return utils::auto_view_policy_get<std::add_const_t<U>>{View_Internal<T>()};
+				return utils::auto_view_policy_get<std::add_const_t<U>>{{View_Internal<T>()}};
 			}
 
 			/*!
@@ -7365,7 +7365,7 @@ namespace gaia {
 				using U = typename DeduceComponent<T>::Type;
 				static_assert(!std::is_same<U, Entity>::value);
 
-				return utils::auto_view_policy_set<U>{ViewRW_Internal<T, true>()};
+				return utils::auto_view_policy_set<U>{{ViewRW_Internal<T, true>()}};
 			}
 
 			/*!
@@ -7377,7 +7377,7 @@ namespace gaia {
 				using U = typename DeduceComponent<T>::Type;
 				static_assert(!std::is_same<U, Entity>::value);
 
-				return utils::auto_view_policy_set<U>{ViewRW_Internal<T, false>()};
+				return utils::auto_view_policy_set<U>{{ViewRW_Internal<T, false>()}};
 			}
 
 			/*!
