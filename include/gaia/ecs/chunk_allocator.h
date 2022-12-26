@@ -66,50 +66,61 @@ namespace gaia {
 		*/
 		class ChunkAllocator {
 			struct MemoryBlock {
+				using MemoryBlockType = uint8_t;
+
 				//! For active block: Index of the block within page.
 				//! For passive block: Index of the next free block in the implicit list.
-				uint16_t idx;
+				MemoryBlockType idx;
 			};
 
 			struct MemoryPage {
-				static constexpr uint32_t NBlocks = 64;
+				static constexpr uint16_t NBlocks = 64;
 				static constexpr uint32_t Size = NBlocks * MemoryBlockSize;
-				static constexpr uint16_t InvalidBlockId = (uint16_t)-1;
+				static constexpr MemoryBlock::MemoryBlockType InvalidBlockId = -1;
+				static_assert(NBlocks < 1 << (sizeof(MemoryBlock::MemoryBlockType) * 8));
 				using iterator = containers::darray<MemoryPage*>::iterator;
 
 				//! Pointer to data managed by page
 				void* m_data;
 				//! Implicit list of blocks
-				containers::sarray_ext<MemoryBlock, (uint16_t)NBlocks> m_blocks;
+				MemoryBlock m_blocks[NBlocks];
 				//! Index in the list of pages
-				uint32_t m_idx;
+				uint32_t m_pageIdx;
+				//! Number of blocks in the block array
+				uint16_t m_blockCnt : 7;
 				//! Number of used blocks out of NBlocks
-				uint16_t m_usedBlocks;
+				uint16_t m_usedBlocks : 7;
 				//! Index of the next block to recycle
-				uint16_t m_nextFreeBlock;
+				uint16_t m_nextFreeBlock : 7;
 				//! Number of blocks to recycle
-				uint16_t m_freeBlocks;
+				uint16_t m_freeBlocks : 7;
 
-				MemoryPage(void* ptr): m_data(ptr), m_idx(0), m_usedBlocks(0), m_nextFreeBlock(0), m_freeBlocks(0) {}
+				MemoryPage(void* ptr):
+						m_data(ptr), m_pageIdx(0), m_blockCnt(0), m_usedBlocks(0), m_nextFreeBlock(0), m_freeBlocks(0) {}
 
 				GAIA_NODISCARD void* AllocChunk() {
+					auto GetChunkAddress = [&](size_t index) {
+						// Encode info about chunk's page in the memory block.
+						// The actual pointer returned is offset by UsableOffset bytes
+						uint8_t* pMemoryBlock = (uint8_t*)m_data + index * MemoryBlockSize;
+						*(uintptr_t*)pMemoryBlock = (uintptr_t)this;
+						return (void*)(pMemoryBlock + MemoryBlockUsableOffset);
+					};
+
 					if (!m_freeBlocks) {
 						// We don't want to go out of range for new blocks
 						GAIA_ASSERT(!IsFull() && "Trying to allocate too many blocks!");
 
 						++m_usedBlocks;
 
-						const size_t index = m_blocks.size();
-						GAIA_ASSERT(index < 16536U);
-						m_blocks.push_back({(uint16_t)m_blocks.size()});
+						const size_t index = m_blockCnt;
+						GAIA_ASSERT(index < NBlocks);
+						m_blocks[index].idx = (uint16_t)index;
+						++m_blockCnt;
 
-						// Encode info about chunk's page in the memory block.
-						// The actual pointer returned is offset by UsableOffset bytes
-						uint8_t* pMemoryBlock = (uint8_t*)m_data + index * MemoryBlockSize;
-						*(uintptr_t*)pMemoryBlock = (uintptr_t)this;
-						return (void*)(pMemoryBlock + MemoryBlockUsableOffset);
+						return GetChunkAddress(index);
 					} else {
-						GAIA_ASSERT(m_nextFreeBlock < m_blocks.size() && "Block allocator recycle containers::list broken!");
+						GAIA_ASSERT(m_nextFreeBlock < m_blockCnt && "Block allocator recycle containers::list broken!");
 
 						++m_usedBlocks;
 						--m_freeBlocks;
@@ -117,11 +128,7 @@ namespace gaia {
 						const size_t index = m_nextFreeBlock;
 						m_nextFreeBlock = m_blocks[m_nextFreeBlock].idx;
 
-						// Encode info about chunk's page in the memory block.
-						// The actual pointer returned is offset by UsableOffset bytes
-						uint8_t* pMemoryBlock = (uint8_t*)m_data + index * MemoryBlockSize;
-						*(uintptr_t*)pMemoryBlock = (uintptr_t)this;
-						return (void*)(pMemoryBlock + MemoryBlockUsableOffset);
+						return GetChunkAddress(index);
 					}
 				}
 
@@ -134,14 +141,14 @@ namespace gaia {
 					const auto blckAddr = (uintptr_t)pMemoryBlock;
 					const auto dataAddr = (uintptr_t)m_data;
 					GAIA_ASSERT(blckAddr >= dataAddr && blckAddr < dataAddr + MemoryPage::Size);
-					MemoryBlock block = {uint16_t((blckAddr - dataAddr) / MemoryBlockSize)};
+					MemoryBlock block = {MemoryBlock::MemoryBlockType((blckAddr - dataAddr) / MemoryBlockSize)};
 
 					auto& blockContainer = m_blocks[block.idx];
 
 					// Update our implicit containers::list
 					if (!m_freeBlocks) {
-						m_nextFreeBlock = block.idx;
 						blockContainer.idx = InvalidBlockId;
+						m_nextFreeBlock = block.idx;
 					} else {
 						blockContainer.idx = m_nextFreeBlock;
 						m_nextFreeBlock = block.idx;
@@ -185,7 +192,7 @@ namespace gaia {
 					// Initial allocation
 					auto pPage = AllocPage();
 					m_pagesFree.push_back(pPage);
-					pPage->m_idx = (uint32_t)m_pagesFree.size() - 1;
+					pPage->m_pageIdx = (uint32_t)m_pagesFree.size() - 1;
 					pChunk = pPage->AllocChunk();
 				} else {
 					auto pPage = m_pagesFree[0];
@@ -198,16 +205,16 @@ namespace gaia {
 						// Remove the page from the open list and update the swapped page's pointer
 						utils::erase_fast(m_pagesFree, 0);
 						if (!m_pagesFree.empty())
-							m_pagesFree[0]->m_idx = 0;
+							m_pagesFree[0]->m_pageIdx = 0;
 
 						// Move our page to the full list
 						m_pagesFull.push_back(pPage);
-						pPage->m_idx = (uint32_t)m_pagesFull.size() - 1;
+						pPage->m_pageIdx = (uint32_t)m_pagesFull.size() - 1;
 					}
 				}
 
 #if GAIA_ECS_CHUNK_ALLOCATOR_CLEAN_MEMORY_WITH_GARBAGE
-				// Fill allocated memory with 0xbaadf00d.
+				// Fill allocated memory with garbage.
 				// This way we always know if we treat the memory correctly.
 				utils::fill_array((uint32_t*)pChunk, (uint32_t)((ChunkMemorySize + 3) / sizeof(uint32_t)), 0x7fcdf00dU);
 #endif
@@ -224,7 +231,7 @@ namespace gaia {
 				auto* pPage = (MemoryPage*)pageAddr;
 
 #if GAIA_ECS_CHUNK_ALLOCATOR_CLEAN_MEMORY_WITH_GARBAGE
-				// Fill freed memory with 0xfeeefeee.
+				// Fill freed memory with garbage.
 				// This way we always know if we treat the memory correctly.
 				utils::fill_array((uint32_t*)chunk, (int)(ChunkMemorySize / sizeof(uint32_t)), 0xfeeefeeeU);
 #endif
@@ -253,11 +260,11 @@ namespace gaia {
 				if (pageFull) {
 					// Our page is no longer full. Remove it from the list and update the swapped page's pointer
 					if (m_pagesFull.size() > 1)
-						m_pagesFull.back()->m_idx = pPage->m_idx;
-					utils::erase_fast(m_pagesFull, pPage->m_idx);
+						m_pagesFull.back()->m_pageIdx = pPage->m_pageIdx;
+					utils::erase_fast(m_pagesFull, pPage->m_pageIdx);
 
 					// Move our page to the open list
-					pPage->m_idx = (uint32_t)m_pagesFree.size();
+					pPage->m_pageIdx = (uint32_t)m_pagesFree.size();
 					m_pagesFree.push_back(pPage);
 				}
 
@@ -309,7 +316,7 @@ namespace gaia {
 					utils::erase_fast(m_pagesFree, i);
 					FreePage(pPage);
 					if (!m_pagesFree.empty())
-						m_pagesFree[i]->m_idx = (uint32_t)i;
+						m_pagesFree[i]->m_pageIdx = (uint32_t)i;
 				}
 			}
 
