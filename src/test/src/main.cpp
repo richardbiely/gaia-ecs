@@ -189,6 +189,52 @@ TEST_CASE("DataLayout SoA16") {
 	TestDataLayoutSoA<16, PositionSoA16>();
 }
 
+template <typename T>
+void TestDataLayoutSoA_ECS() {
+	ecs::World w;
+
+	auto create = [&]() {
+		auto e = w.CreateEntity();
+		w.AddComponent<T>(e, {});
+	};
+
+	const uint32_t N = 10'000;
+	for (uint32_t i = 0; i < N; i++)
+		create();
+
+	ecs::EntityQuery q;
+	q.All<T>();
+	uint32_t j = 0;
+	w.ForEach(q, [&](ecs::Chunk& ch) {
+		auto t = ch.ViewRW<T>();
+		auto tx = t.template set<0>();
+		auto ty = t.template set<1>();
+		auto tz = t.template set<2>();
+		for (uint32_t i = 0; i < ch.GetItemCount(); ++i, ++j) {
+			float f = (float)j;
+			tx[i] = f;
+			ty[i] = f;
+			tz[i] = f;
+
+			REQUIRE(tx[i] == f);
+			REQUIRE(ty[i] == f);
+			REQUIRE(tz[i] == f);
+		}
+	});
+}
+
+TEST_CASE("DataLayout SoA - ECS") {
+	TestDataLayoutSoA_ECS<PositionSoA>();
+}
+
+TEST_CASE("DataLayout SoA8 - ECS") {
+	TestDataLayoutSoA_ECS<PositionSoA8>();
+}
+
+TEST_CASE("DataLayout SoA16 - ECS") {
+	TestDataLayoutSoA_ECS<PositionSoA16>();
+}
+
 TEST_CASE("DataLayout AoS") {
 	constexpr size_t N = 4U;
 	containers::sarray<Position, N> data{};
@@ -490,32 +536,17 @@ TEST_CASE("EnableEntity") {
 
 	w.EnableEntity(arr[1000], false);
 
-	uint32_t cnt = 0;
-	w.ForEach([&]([[maybe_unused]] const Position& p) {
-		++cnt;
-	});
-	REQUIRE(cnt == N - 1);
-
 	ecs::EntityQuery q;
 	q.All<Position>();
-	cnt = 0;
-	w.ForEach(q, [&]([[maybe_unused]] const Position& p) {
-		++cnt;
-	});
+	size_t cnt = w.FromQuery(q).GetItemCount();
 	REQUIRE(cnt == N - 1);
 
 	q.SetConstraints(ecs::EntityQuery::Constraints::AcceptAll);
-	cnt = 0;
-	w.ForEach(q, [&]([[maybe_unused]] const Position& p) {
-		++cnt;
-	});
+	cnt = w.FromQuery(q).GetItemCount();
 	REQUIRE(cnt == N);
 
 	q.SetConstraints(ecs::EntityQuery::Constraints::DisabledOnly);
-	cnt = 0;
-	w.ForEach(q, [&]([[maybe_unused]] const Position& p) {
-		++cnt;
-	});
+	cnt = w.FromQuery(q).GetItemCount();
 	REQUIRE(cnt == 1);
 
 	w.EnableEntity(arr[1000], true);
@@ -526,24 +557,15 @@ TEST_CASE("EnableEntity") {
 	});
 	REQUIRE(cnt == N);
 
-	cnt = 0;
-	w.ForEach(q, [&]([[maybe_unused]] const Position& p) {
-		++cnt;
-	});
+	cnt = w.FromQuery(q).GetItemCount();
 	REQUIRE(cnt == 0);
 
 	q.SetConstraints(ecs::EntityQuery::Constraints::EnabledOnly);
-	cnt = 0;
-	w.ForEach(q, [&]([[maybe_unused]] const Position& p) {
-		++cnt;
-	});
+	cnt = w.FromQuery(q).GetItemCount();
 	REQUIRE(cnt == N);
 
 	q.SetConstraints(ecs::EntityQuery::Constraints::AcceptAll);
-	cnt = 0;
-	w.ForEach(q, [&]([[maybe_unused]] const Position& p) {
-		++cnt;
-	});
+	cnt = w.FromQuery(q).GetItemCount();
 	REQUIRE(cnt == N);
 }
 
