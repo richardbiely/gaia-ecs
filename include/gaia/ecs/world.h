@@ -1264,13 +1264,11 @@ namespace gaia {
 					// Translates to:
 					//		for (size_t i = 0; i < chunk.GetItemCount(); ++i)
 					//			func(p[i], v[i]);
-					func(std::get<decltype(GetComponentView<T>(chunk))>(dataPointerTuple)[0]...);
-					for (size_t i = 1; i < size; ++i)
+					for (size_t i = 0; i < size; ++i)
 						func(std::get<decltype(GetComponentView<T>(chunk))>(dataPointerTuple)[i]...);
 				} else {
 					// No functor parameters. Do an empty loop.
-					func();
-					for (size_t i = 1; i < size; ++i)
+					for (size_t i = 0; i < size; ++i)
 						func();
 				}
 			}
