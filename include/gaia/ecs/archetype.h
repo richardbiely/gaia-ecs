@@ -162,10 +162,6 @@ namespace gaia {
 				newArch->edgesDel[ComponentType::CT_Chunk].reserve(1);
 #endif
 
-				// TODO: Calculate the number of entities per chunks precisely so we can
-				// fit more of them into chunk on average. Currently, DATA_SIZE_RESERVED
-				// is substracted but that's not optimal...
-
 				// Size of the entity + all of its generic components
 				size_t genericComponentListSize = sizeof(Entity);
 				for (const auto* info: infosGeneric) {
@@ -179,6 +175,10 @@ namespace gaia {
 					chunkComponentListSize += info->properties.size;
 					newArch->info.hasComponentWithCustomCreation |= info->properties.size != 0 && info->properties.soa != 0;
 				}
+
+				// TODO: Calculate the number of entities per chunks precisely so we can
+				// fit more of them into chunk on average. Currently, DATA_SIZE_RESERVED
+				// is substracted but that's not optimal...
 
 				// Number of components we can fit into one chunk
 				auto maxGenericItemsInArchetype = (Chunk::DATA_SIZE - chunkComponentListSize) / genericComponentListSize;
@@ -257,11 +257,13 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD Chunk* FindOrCreateFreeChunk_Internal(containers::darray<Chunk*>& chunkArray) {
-				if (!chunkArray.empty()) {
+				const auto chunkCnt = chunkArray.size();
+
+				if (chunkCnt > 0) {
 					// Look for chunks with free space back-to-front.
 					// We do it this way because we always try to keep fully utilized and
 					// thus only the one in the back should be free.
-					auto i = chunkArray.size() - 1;
+					auto i = chunkCnt - 1;
 					do {
 						auto pChunk = chunkArray[i];
 						GAIA_ASSERT(pChunk != nullptr);
@@ -272,7 +274,7 @@ namespace gaia {
 
 				// No free space found anywhere. Let's create a new one.
 				auto* pChunk = AllocateChunk(*this);
-				pChunk->header.index = (uint32_t)chunkArray.size();
+				pChunk->header.index = (uint32_t)chunkCnt;
 				chunkArray.push_back(pChunk);
 				return pChunk;
 			}
