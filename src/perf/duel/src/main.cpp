@@ -1052,8 +1052,8 @@ template <size_t Groups>
 void BM_NonECS_DOD_SoA(picobench::state& state) {
 	struct UnitDynamic {
 		static void updatePosition(containers::darray<PositionSoA>& p, const containers::darray<VelocitySoA>& v) {
-			gaia::utils::auto_view_policy_set<PositionSoA> pv{std::span(p.data(), p.size())};
-			gaia::utils::auto_view_policy_get<VelocitySoA> vv{std::span(v.data(), v.size())};
+			gaia::utils::auto_view_policy_set<PositionSoA> pv{{std::span(p.data(), p.size())}};
+			gaia::utils::auto_view_policy_get<VelocitySoA> vv{{std::span(v.data(), v.size())}};
 
 			auto ppx = pv.set<0>();
 			auto ppy = pv.set<1>();
@@ -1088,8 +1088,8 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 		}
 
 		static void handleGroundCollision(containers::darray<PositionSoA>& p, containers::darray<VelocitySoA>& v) {
-			gaia::utils::auto_view_policy_set<PositionSoA> pv{std::span(p.data(), p.size())};
-			gaia::utils::auto_view_policy_set<VelocitySoA> vv{std::span(v.data(), v.size())};
+			gaia::utils::auto_view_policy_set<PositionSoA> pv{{std::span(p.data(), p.size())}};
+			gaia::utils::auto_view_policy_set<VelocitySoA> vv{{std::span(v.data(), v.size())}};
 
 			auto ppy = pv.set<1>();
 			auto vvy = vv.set<1>();
@@ -1108,7 +1108,7 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 		}
 
 		static void applyGravity(containers::darray<VelocitySoA>& v) {
-			gaia::utils::auto_view_policy_set<VelocitySoA> vv{std::span(v.data(), v.size())};
+			gaia::utils::auto_view_policy_set<VelocitySoA> vv{{std::span(v.data(), v.size())}};
 
 			auto vvy = vv.set<1>();
 
@@ -1180,8 +1180,8 @@ void BM_NonECS_DOD_SoA_SIMD(picobench::state& state) {
 
 	struct UnitDynamic {
 		static void updatePosition(containers::darray<PositionSoA>& p, const containers::darray<VelocitySoA>& v) {
-			gaia::utils::auto_view_policy_set<PositionSoA> pv{std::span(p.data(), p.size())};
-			gaia::utils::auto_view_policy_get<VelocitySoA> vv{std::span(v.data(), v.size())};
+			gaia::utils::auto_view_policy_set<PositionSoA> pv{{std::span(p.data(), p.size())}};
+			gaia::utils::auto_view_policy_get<VelocitySoA> vv{{std::span(v.data(), v.size())}};
 
 			auto ppx = pv.set<0>();
 			auto ppy = pv.set<1>();
@@ -1232,8 +1232,8 @@ void BM_NonECS_DOD_SoA_SIMD(picobench::state& state) {
 		}
 
 		static void handleGroundCollision(containers::darray<PositionSoA>& p, containers::darray<VelocitySoA>& v) {
-			gaia::utils::auto_view_policy_set<PositionSoA> pv{std::span(p.data(), p.size())};
-			gaia::utils::auto_view_policy_set<VelocitySoA> vv{std::span(v.data(), v.size())};
+			gaia::utils::auto_view_policy_set<PositionSoA> pv{{std::span(p.data(), p.size())}};
+			gaia::utils::auto_view_policy_set<VelocitySoA> vv{{std::span(v.data(), v.size())}};
 
 			auto ppy = pv.set<1>();
 			auto vvy = vv.set<1>();
@@ -1269,7 +1269,7 @@ void BM_NonECS_DOD_SoA_SIMD(picobench::state& state) {
 		}
 
 		static void applyGravity(containers::darray<VelocitySoA>& v) {
-			gaia::utils::auto_view_policy_set<VelocitySoA> vv{std::span(v.data(), v.size())};
+			gaia::utils::auto_view_policy_set<VelocitySoA> vv{{std::span(v.data(), v.size())}};
 
 			auto vvy = vv.set<1>();
 			const auto size = v.size();
