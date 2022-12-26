@@ -87,13 +87,13 @@ namespace gaia {
 				//! Index in the list of pages
 				uint32_t m_pageIdx;
 				//! Number of blocks in the block array
-				uint16_t m_blockCnt : 7;
+				MemoryBlock::MemoryBlockType m_blockCnt;
 				//! Number of used blocks out of NBlocks
-				uint16_t m_usedBlocks : 7;
+				MemoryBlock::MemoryBlockType m_usedBlocks;
 				//! Index of the next block to recycle
-				uint16_t m_nextFreeBlock : 7;
+				MemoryBlock::MemoryBlockType m_nextFreeBlock;
 				//! Number of blocks to recycle
-				uint16_t m_freeBlocks : 7;
+				MemoryBlock::MemoryBlockType m_freeBlocks;
 
 				MemoryPage(void* ptr):
 						m_data(ptr), m_pageIdx(0), m_blockCnt(0), m_usedBlocks(0), m_nextFreeBlock(0), m_freeBlocks(0) {}
