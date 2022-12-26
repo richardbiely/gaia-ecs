@@ -814,10 +814,7 @@ namespace gaia {
 			}
 
 			darr& operator=(std::initializer_list<T> il) {
-				auto it = il.begin();
-				for (; it != il.end(); ++it)
-					push_back(std::move(*it));
-
+				*this = darr(il.begin(), il.end());
 				return *this;
 			}
 
@@ -835,7 +832,11 @@ namespace gaia {
 
 				m_cnt = other.m_cnt;
 				m_cap = other.m_cap;
+
+				auto oldData = m_data;
 				m_data = other.m_data;
+				if (oldData)
+					delete[] oldData;
 
 				other.m_cnt = 0;
 				other.m_cap = 0;
@@ -875,7 +876,7 @@ namespace gaia {
 					T* old = m_data;
 					m_data = new T[m_cap];
 					for (size_type i = 0; i < size(); ++i)
-						m_data[i] = old[i];
+						m_data[i] = std::move(old[i]);
 					delete[] old;
 				} else {
 					m_data = new T[m_cap];
@@ -891,7 +892,7 @@ namespace gaia {
 						T* old = m_data;
 						m_data = new T[m_cap];
 						for (size_type i = 0; i < size(); ++i)
-							m_data[i] = old[i];
+							m_data[i] = std::move(old[i]);
 						delete[] old;
 					} else {
 						m_data = new T[m_cap];
@@ -921,7 +922,7 @@ namespace gaia {
 					GAIA_MSVC_WARNING_PUSH()
 					GAIA_MSVC_WARNING_DISABLE(6385)
 					for (size_type i = 0; i < cnt; ++i)
-						m_data[i] = old[i];
+						m_data[i] = std::move(old[i]);
 					GAIA_MSVC_WARNING_POP()
 					delete[] old;
 				}
@@ -6624,7 +6625,8 @@ namespace gaia {
 namespace gaia {
 	namespace ecs {
 		static constexpr uint32_t MemoryBlockSize = 16384;
-		static constexpr uint32_t MemoryBlockUsableOffset = 16;
+		// TODO: For component aligned to 64 bytes the offset of 16 is not enough for some reason, figure it out
+		static constexpr uint32_t MemoryBlockUsableOffset = 32;
 		static constexpr uint32_t ChunkMemorySize = MemoryBlockSize - MemoryBlockUsableOffset;
 
 		struct ChunkAllocatorStats final {
@@ -6643,50 +6645,61 @@ namespace gaia {
 		*/
 		class ChunkAllocator {
 			struct MemoryBlock {
+				using MemoryBlockType = uint8_t;
+
 				//! For active block: Index of the block within page.
 				//! For passive block: Index of the next free block in the implicit list.
-				uint16_t idx;
+				MemoryBlockType idx;
 			};
 
 			struct MemoryPage {
-				static constexpr uint32_t NBlocks = 64;
+				static constexpr uint16_t NBlocks = 64;
 				static constexpr uint32_t Size = NBlocks * MemoryBlockSize;
-				static constexpr uint16_t InvalidBlockId = (uint16_t)-1;
+				static constexpr MemoryBlock::MemoryBlockType InvalidBlockId = -1;
+				static_assert(NBlocks < 1 << (sizeof(MemoryBlock::MemoryBlockType) * 8));
 				using iterator = containers::darray<MemoryPage*>::iterator;
 
 				//! Pointer to data managed by page
 				void* m_data;
 				//! Implicit list of blocks
-				containers::sarray_ext<MemoryBlock, (uint16_t)NBlocks> m_blocks;
+				MemoryBlock m_blocks[NBlocks];
 				//! Index in the list of pages
-				uint32_t m_idx;
+				uint32_t m_pageIdx;
+				//! Number of blocks in the block array
+				MemoryBlock::MemoryBlockType m_blockCnt;
 				//! Number of used blocks out of NBlocks
-				uint16_t m_usedBlocks;
+				MemoryBlock::MemoryBlockType m_usedBlocks;
 				//! Index of the next block to recycle
-				uint16_t m_nextFreeBlock;
+				MemoryBlock::MemoryBlockType m_nextFreeBlock;
 				//! Number of blocks to recycle
-				uint16_t m_freeBlocks;
+				MemoryBlock::MemoryBlockType m_freeBlocks;
 
-				MemoryPage(void* ptr): m_data(ptr), m_idx(0), m_usedBlocks(0), m_nextFreeBlock(0), m_freeBlocks(0) {}
+				MemoryPage(void* ptr):
+						m_data(ptr), m_pageIdx(0), m_blockCnt(0), m_usedBlocks(0), m_nextFreeBlock(0), m_freeBlocks(0) {}
 
 				GAIA_NODISCARD void* AllocChunk() {
+					auto GetChunkAddress = [&](size_t index) {
+						// Encode info about chunk's page in the memory block.
+						// The actual pointer returned is offset by UsableOffset bytes
+						uint8_t* pMemoryBlock = (uint8_t*)m_data + index * MemoryBlockSize;
+						*(uintptr_t*)pMemoryBlock = (uintptr_t)this;
+						return (void*)(pMemoryBlock + MemoryBlockUsableOffset);
+					};
+
 					if (!m_freeBlocks) {
 						// We don't want to go out of range for new blocks
 						GAIA_ASSERT(!IsFull() && "Trying to allocate too many blocks!");
 
 						++m_usedBlocks;
 
-						const size_t index = m_blocks.size();
-						GAIA_ASSERT(index < 16536U);
-						m_blocks.push_back({(uint16_t)m_blocks.size()});
+						const size_t index = m_blockCnt;
+						GAIA_ASSERT(index < NBlocks);
+						m_blocks[index].idx = (uint16_t)index;
+						++m_blockCnt;
 
-						// Encode info about chunk's page in the memory block.
-						// The actual pointer returned is offset by UsableOffset bytes
-						uint8_t* pMemoryBlock = (uint8_t*)m_data + index * MemoryBlockSize;
-						*(uintptr_t*)pMemoryBlock = (uintptr_t)this;
-						return (void*)(pMemoryBlock + MemoryBlockUsableOffset);
+						return GetChunkAddress(index);
 					} else {
-						GAIA_ASSERT(m_nextFreeBlock < m_blocks.size() && "Block allocator recycle containers::list broken!");
+						GAIA_ASSERT(m_nextFreeBlock < m_blockCnt && "Block allocator recycle containers::list broken!");
 
 						++m_usedBlocks;
 						--m_freeBlocks;
@@ -6694,11 +6707,7 @@ namespace gaia {
 						const size_t index = m_nextFreeBlock;
 						m_nextFreeBlock = m_blocks[m_nextFreeBlock].idx;
 
-						// Encode info about chunk's page in the memory block.
-						// The actual pointer returned is offset by UsableOffset bytes
-						uint8_t* pMemoryBlock = (uint8_t*)m_data + index * MemoryBlockSize;
-						*(uintptr_t*)pMemoryBlock = (uintptr_t)this;
-						return (void*)(pMemoryBlock + MemoryBlockUsableOffset);
+						return GetChunkAddress(index);
 					}
 				}
 
@@ -6711,14 +6720,14 @@ namespace gaia {
 					const auto blckAddr = (uintptr_t)pMemoryBlock;
 					const auto dataAddr = (uintptr_t)m_data;
 					GAIA_ASSERT(blckAddr >= dataAddr && blckAddr < dataAddr + MemoryPage::Size);
-					MemoryBlock block = {uint16_t((blckAddr - dataAddr) / MemoryBlockSize)};
+					MemoryBlock block = {MemoryBlock::MemoryBlockType((blckAddr - dataAddr) / MemoryBlockSize)};
 
 					auto& blockContainer = m_blocks[block.idx];
 
 					// Update our implicit containers::list
 					if (!m_freeBlocks) {
-						m_nextFreeBlock = block.idx;
 						blockContainer.idx = InvalidBlockId;
+						m_nextFreeBlock = block.idx;
 					} else {
 						blockContainer.idx = m_nextFreeBlock;
 						m_nextFreeBlock = block.idx;
@@ -6762,7 +6771,7 @@ namespace gaia {
 					// Initial allocation
 					auto pPage = AllocPage();
 					m_pagesFree.push_back(pPage);
-					pPage->m_idx = (uint32_t)m_pagesFree.size() - 1;
+					pPage->m_pageIdx = (uint32_t)m_pagesFree.size() - 1;
 					pChunk = pPage->AllocChunk();
 				} else {
 					auto pPage = m_pagesFree[0];
@@ -6775,16 +6784,16 @@ namespace gaia {
 						// Remove the page from the open list and update the swapped page's pointer
 						utils::erase_fast(m_pagesFree, 0);
 						if (!m_pagesFree.empty())
-							m_pagesFree[0]->m_idx = 0;
+							m_pagesFree[0]->m_pageIdx = 0;
 
 						// Move our page to the full list
 						m_pagesFull.push_back(pPage);
-						pPage->m_idx = (uint32_t)m_pagesFull.size() - 1;
+						pPage->m_pageIdx = (uint32_t)m_pagesFull.size() - 1;
 					}
 				}
 
 #if GAIA_ECS_CHUNK_ALLOCATOR_CLEAN_MEMORY_WITH_GARBAGE
-				// Fill allocated memory with 0xbaadf00d.
+				// Fill allocated memory with garbage.
 				// This way we always know if we treat the memory correctly.
 				utils::fill_array((uint32_t*)pChunk, (uint32_t)((ChunkMemorySize + 3) / sizeof(uint32_t)), 0x7fcdf00dU);
 #endif
@@ -6801,7 +6810,7 @@ namespace gaia {
 				auto* pPage = (MemoryPage*)pageAddr;
 
 #if GAIA_ECS_CHUNK_ALLOCATOR_CLEAN_MEMORY_WITH_GARBAGE
-				// Fill freed memory with 0xfeeefeee.
+				// Fill freed memory with garbage.
 				// This way we always know if we treat the memory correctly.
 				utils::fill_array((uint32_t*)chunk, (int)(ChunkMemorySize / sizeof(uint32_t)), 0xfeeefeeeU);
 #endif
@@ -6830,11 +6839,11 @@ namespace gaia {
 				if (pageFull) {
 					// Our page is no longer full. Remove it from the list and update the swapped page's pointer
 					if (m_pagesFull.size() > 1)
-						m_pagesFull.back()->m_idx = pPage->m_idx;
-					utils::erase_fast(m_pagesFull, pPage->m_idx);
+						m_pagesFull.back()->m_pageIdx = pPage->m_pageIdx;
+					utils::erase_fast(m_pagesFull, pPage->m_pageIdx);
 
 					// Move our page to the open list
-					pPage->m_idx = (uint32_t)m_pagesFree.size();
+					pPage->m_pageIdx = (uint32_t)m_pagesFree.size();
 					m_pagesFree.push_back(pPage);
 				}
 
@@ -6886,7 +6895,7 @@ namespace gaia {
 					utils::erase_fast(m_pagesFree, i);
 					FreePage(pPage);
 					if (!m_pagesFree.empty())
-						m_pagesFree[i]->m_idx = (uint32_t)i;
+						m_pagesFree[i]->m_pageIdx = (uint32_t)i;
 				}
 			}
 
@@ -7670,33 +7679,30 @@ namespace gaia {
 			\return Newly allocated chunk
 			*/
 			GAIA_NODISCARD static Chunk* AllocateChunk(const Archetype& archetype) {
-				auto& world = const_cast<World&>(*archetype.parentWorld);
 #if GAIA_ECS_CHUNK_ALLOCATOR
+				auto& world = const_cast<World&>(*archetype.parentWorld);
+
 				auto pChunk = (Chunk*)AllocateChunkMemory(world);
 				new (pChunk) Chunk(archetype);
 #else
 				auto pChunk = new Chunk(archetype);
 #endif
 
-				// Call default constructors for components that need it
-				if (archetype.info.hasComponentWithCustomCreation) {
-					const auto& look = archetype.componentLookupData[ComponentType::CT_Generic];
+				auto callConstructors = [&](ComponentType ct) {
+					const auto& cc = GetComponentCache();
+					const auto& look = archetype.componentLookupData[ct];
 					for (size_t i = 0; i < look.size(); ++i) {
-						const auto& infoCreate = GetComponentCache().GetComponentCreateInfoFromIdx(look[i].infoIndex);
+						const auto& infoCreate = cc.GetComponentCreateInfoFromIdx(look[i].infoIndex);
 						if (infoCreate.constructor == nullptr)
 							continue;
 						infoCreate.constructor((void*)((uint8_t*)pChunk + look[i].offset));
 					}
-				}
-				// Call default constructors for chunk components that need it
+				};
+
+				// Call constructors for components that need it
 				if (archetype.info.hasComponentWithCustomCreation) {
-					const auto& look = archetype.componentLookupData[ComponentType::CT_Chunk];
-					for (size_t i = 0; i < look.size(); ++i) {
-						const auto& infoCreate = GetComponentCache().GetComponentCreateInfoFromIdx(look[i].infoIndex);
-						if (infoCreate.constructor == nullptr)
-							continue;
-						infoCreate.constructor((void*)((uint8_t*)pChunk + look[i].offset));
-					}
+					callConstructors(ComponentType::CT_Generic);
+					callConstructors(ComponentType::CT_Chunk);
 				}
 
 				pChunk->header.items.capacity = archetype.info.capacity;
@@ -7709,30 +7715,26 @@ namespace gaia {
 			*/
 			static void ReleaseChunk(Chunk* pChunk) {
 				const auto& archetype = pChunk->header.owner;
-				auto& world = const_cast<World&>(*archetype.parentWorld);
 
-				// Call destructors for types that need it
-				if (archetype.info.hasComponentWithCustomCreation) {
-					const auto& look = archetype.componentLookupData[ComponentType::CT_Generic];
+				auto callDestructors = [&](ComponentType ct) {
+					const auto& cc = GetComponentCache();
+					const auto& look = archetype.componentLookupData[ct];
 					for (size_t i = 0; i < look.size(); ++i) {
-						const auto& infoCreate = GetComponentCache().GetComponentCreateInfoFromIdx(look[i].infoIndex);
+						const auto& infoCreate = cc.GetComponentCreateInfoFromIdx(look[i].infoIndex);
 						if (infoCreate.destructor == nullptr)
 							continue;
 						infoCreate.destructor((void*)((uint8_t*)pChunk + look[i].offset));
 					}
-				}
-				// Call destructors for chunk components which need it
+				};
+
+				// Call destructors for components that need it
 				if (archetype.info.hasComponentWithCustomCreation) {
-					const auto& look = archetype.componentLookupData[ComponentType::CT_Chunk];
-					for (size_t i = 0; i < look.size(); ++i) {
-						const auto& infoCreate = GetComponentCache().GetComponentCreateInfoFromIdx(look[i].infoIndex);
-						if (infoCreate.destructor == nullptr)
-							continue;
-						infoCreate.destructor((void*)((uint8_t*)pChunk + look[i].offset));
-					}
+					callDestructors(ComponentType::CT_Generic);
+					callDestructors(ComponentType::CT_Chunk);
 				}
 
 #if GAIA_ECS_CHUNK_ALLOCATOR
+				auto& world = const_cast<World&>(*archetype.parentWorld);
 				pChunk->~Chunk();
 				ReleaseChunkMemory(world, pChunk);
 #else
@@ -7755,10 +7757,6 @@ namespace gaia {
 				newArch->edgesDel[ComponentType::CT_Chunk].reserve(1);
 #endif
 
-				// TODO: Calculate the number of entities per chunks precisely so we can
-				// fit more of them into chunk on average. Currently, DATA_SIZE_RESERVED
-				// is substracted but that's not optimal...
-
 				// Size of the entity + all of its generic components
 				size_t genericComponentListSize = sizeof(Entity);
 				for (const auto* info: infosGeneric) {
@@ -7772,6 +7770,10 @@ namespace gaia {
 					chunkComponentListSize += info->properties.size;
 					newArch->info.hasComponentWithCustomCreation |= info->properties.size != 0 && info->properties.soa != 0;
 				}
+
+				// TODO: Calculate the number of entities per chunks precisely so we can
+				// fit more of them into chunk on average. Currently, DATA_SIZE_RESERVED
+				// is substracted but that's not optimal...
 
 				// Number of components we can fit into one chunk
 				auto maxGenericItemsInArchetype = (Chunk::DATA_SIZE - chunkComponentListSize) / genericComponentListSize;
@@ -7850,11 +7852,13 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD Chunk* FindOrCreateFreeChunk_Internal(containers::darray<Chunk*>& chunkArray) {
-				if (!chunkArray.empty()) {
+				const auto chunkCnt = chunkArray.size();
+
+				if (chunkCnt > 0) {
 					// Look for chunks with free space back-to-front.
 					// We do it this way because we always try to keep fully utilized and
 					// thus only the one in the back should be free.
-					auto i = chunkArray.size() - 1;
+					auto i = chunkCnt - 1;
 					do {
 						auto pChunk = chunkArray[i];
 						GAIA_ASSERT(pChunk != nullptr);
@@ -7865,7 +7869,7 @@ namespace gaia {
 
 				// No free space found anywhere. Let's create a new one.
 				auto* pChunk = AllocateChunk(*this);
-				pChunk->header.index = (uint32_t)chunkArray.size();
+				pChunk->header.index = (uint32_t)chunkCnt;
 				chunkArray.push_back(pChunk);
 				return pChunk;
 			}
@@ -8048,7 +8052,7 @@ namespace gaia {
 			//! Version of the world for which the query has been called most recently
 			uint32_t m_worldVersion = 0;
 			//! Entity of the last added archetype in the world this query remembers
-			uint32_t m_lastArchetypeId = 0;
+			uint32_t m_lastArchetypeId = 1; // skip the root archetype
 			//! Lookup hash for this query
 			utils::direct_hash_key m_hashLookup{};
 			//! List of cached archetypes
