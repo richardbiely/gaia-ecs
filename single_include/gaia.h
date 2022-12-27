@@ -4,6 +4,13 @@
 // DO NOT MODIFY THIS FILE
 //------------------------------------------------------------------------------
 
+#if __cplusplus >= 201703L || (defined(_MSVC_LANG) && _MSVC_LANG >= 201703L)
+#else
+	// We use some C++17+ features such as folding expressions, compile-time ifs
+	// and similar which makes it impossible to use Gaia-ECS with old compilers.
+	#error "To build Gaia-ECS a compiler capable of at least C++17 is necesary"
+#endif
+
 #define GAIA_SAFE_CONSTEXPR constexpr
 
 //------------------------------------------------------------------------------
@@ -9808,13 +9815,11 @@ namespace gaia {
 					// Translates to:
 					//		for (size_t i = 0; i < chunk.GetItemCount(); ++i)
 					//			func(p[i], v[i]);
-					func(std::get<decltype(GetComponentView<T>(chunk))>(dataPointerTuple)[0]...);
-					for (size_t i = 1; i < size; ++i)
+					for (size_t i = 0; i < size; ++i)
 						func(std::get<decltype(GetComponentView<T>(chunk))>(dataPointerTuple)[i]...);
 				} else {
 					// No functor parameters. Do an empty loop.
-					func();
-					for (size_t i = 1; i < size; ++i)
+					for (size_t i = 0; i < size; ++i)
 						func();
 				}
 			}

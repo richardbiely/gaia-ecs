@@ -1,4 +1,5 @@
 #pragma once
+#include "../config/config.h"
 
 #define USE_VECTOR GAIA_USE_STL_CONTAINERS
 
