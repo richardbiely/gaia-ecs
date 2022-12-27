@@ -360,13 +360,13 @@ TEST_CASE("EntityQuery - QueryResult") {
 	q2.All<Rotation>();
 
 	{
-		gaia::containers::darr<gaia::ecs::Entity> arr;
+		gaia::containers::darray<gaia::ecs::Entity> arr;
 		w.FromQuery(q1).ToComponentOrEntityArray(arr);
 		for (size_t i = 0; i < arr.size(); ++i)
 			REQUIRE(arr[i].id() == i);
 	}
 	{
-		gaia::containers::darr<Position> arr;
+		gaia::containers::darray<Position> arr;
 		w.FromQuery(q1).ToComponentOrEntityArray(arr);
 		for (size_t i = 0; i < arr.size(); ++i) {
 			const auto& pos = arr[i];
@@ -376,7 +376,7 @@ TEST_CASE("EntityQuery - QueryResult") {
 		}
 	}
 	{
-		gaia::containers::darr<gaia::ecs::Chunk*> arr;
+		gaia::containers::darray<gaia::ecs::Chunk*> arr;
 		w.FromQuery(q1).ToChunkArray(arr);
 		size_t itemCount = 0;
 		for (const auto* pChunk: arr)

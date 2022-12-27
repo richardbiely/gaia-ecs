@@ -1,4 +1,5 @@
 #pragma once
+#include "../config/config.h"
 
 #define USE_ARRAY GAIA_USE_STL_CONTAINERS
 

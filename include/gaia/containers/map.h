@@ -1,4 +1,5 @@
 #pragma once
+#include "../config/config.h"
 
 #define USE_HASHMAP GAIA_USE_STL_CONTAINERS
 
