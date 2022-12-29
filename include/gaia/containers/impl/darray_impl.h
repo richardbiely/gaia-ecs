@@ -3,6 +3,7 @@
 
 #include <cstddef>
 #include <initializer_list>
+#include <type_traits>
 #if !GAIA_DISABLE_ASSERTS
 	#include <memory>
 #endif
@@ -284,7 +285,6 @@ namespace gaia {
 			~darr() {
 				if (m_data != nullptr)
 					delete[] m_data;
-				m_data = nullptr;
 			}
 
 			constexpr pointer data() noexcept {
@@ -312,8 +312,7 @@ namespace gaia {
 				if (m_data) {
 					T* old = m_data;
 					m_data = new T[m_cap];
-					for (size_type i = 0; i < size(); ++i)
-						m_data[i] = std::move(old[i]);
+					transfer_data(m_data, old, size());
 					delete[] old;
 				} else {
 					m_data = new T[m_cap];
@@ -328,8 +327,7 @@ namespace gaia {
 					if (m_data) {
 						T* old = m_data;
 						m_data = new T[m_cap];
-						for (size_type i = 0; i < size(); ++i)
-							m_data[i] = std::move(old[i]);
+						transfer_data(m_data, old, size());
 						delete[] old;
 					} else {
 						m_data = new T[m_cap];
@@ -339,6 +337,21 @@ namespace gaia {
 			}
 
 		private:
+			void transfer_data(T* dst, const T* src, const size_type size) {
+				GAIA_MSVC_WARNING_PUSH()
+				GAIA_MSVC_WARNING_DISABLE(6385)
+
+				if constexpr (std::is_move_assignable_v<T>) {
+					for (size_type i = 0; i < size; ++i)
+						dst[i] = std::move(src[i]);
+				} else {
+					for (size_type i = 0; i < size; ++i)
+						dst[i] = src[i];
+				}
+
+				GAIA_MSVC_WARNING_POP()
+			}
+
 			void push_back_prepare() noexcept {
 				const auto cnt = size();
 				const auto cap = capacity();
@@ -355,12 +368,7 @@ namespace gaia {
 				else {
 					T* old = m_data;
 					m_data = new T[m_cap = (cap * 3) / 2 + 1];
-
-					GAIA_MSVC_WARNING_PUSH()
-					GAIA_MSVC_WARNING_DISABLE(6385)
-					for (size_type i = 0; i < cnt; ++i)
-						m_data[i] = std::move(old[i]);
-					GAIA_MSVC_WARNING_POP()
+					transfer_data(m_data, old, cnt);
 					delete[] old;
 				}
 			}
