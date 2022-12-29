@@ -100,7 +100,8 @@ namespace gaia {
 						const auto& infoCreate = cc.GetComponentCreateInfoFromIdx(look[i].infoIndex);
 						if (infoCreate.constructor == nullptr)
 							continue;
-						infoCreate.constructor((void*)((uint8_t*)pChunk + look[i].offset));
+						const void* first = (void*)((uint8_t*)pChunk + look[i].offset);
+						infoCreate.constructor(first, archetype.info.capacity);
 					}
 				};
 
@@ -128,7 +129,8 @@ namespace gaia {
 						const auto& infoCreate = cc.GetComponentCreateInfoFromIdx(look[i].infoIndex);
 						if (infoCreate.destructor == nullptr)
 							continue;
-						infoCreate.destructor((void*)((uint8_t*)pChunk + look[i].offset));
+						const void* first = (void*)((uint8_t*)pChunk + look[i].offset);
+						infoCreate.destructor(first, archetype.info.capacity);
 					}
 				};
 
