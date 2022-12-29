@@ -159,8 +159,8 @@ namespace gaia {
 		//----------------------------------------------------------------------
 
 		struct ComponentInfoCreate final {
-			using FuncConstructor = void(void*);
-			using FuncDestructor = void(void*);
+			using FuncConstructor = void(const void*, size_t);
+			using FuncDestructor = void(const void*, size_t);
 
 			//! [ 0-15] Component name
 			std::span<const char> name;
@@ -180,11 +180,15 @@ namespace gaia {
 				info.infoIndex = utils::type_info::index<U>();
 
 				if constexpr (!std::is_empty<U>::value && !utils::is_soa_layout<U>::value) {
-					info.constructor = [](void* ptr) {
-						new (ptr) T{};
+					info.constructor = [](const void* ptr, size_t cnt) {
+						const U* first = (const U*)ptr;
+						const U* last = (const U*)ptr + cnt;
+						std::uninitialized_default_construct(first, last);
 					};
-					info.destructor = [](void* ptr) {
-						((T*)ptr)->~T();
+					info.destructor = [](const void* ptr, size_t cnt) {
+						const U* first = (const U*)ptr;
+						const U* last = (const U*)ptr + cnt;
+						std::destroy(first, last);
 					};
 				}
 
