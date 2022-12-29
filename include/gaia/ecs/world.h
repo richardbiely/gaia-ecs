@@ -1982,22 +1982,22 @@ namespace gaia {
 			}
 		};
 
-		inline ComponentCache& GetComponentCacheRW() {
+		GAIA_FORCEINLINE ComponentCache& GetComponentCacheRW() {
 			const auto& cc = GetComponentCache();
 			return const_cast<ComponentCache&>(cc);
 		}
-		inline const ComponentCache& GetComponentCache() {
+		GAIA_FORCEINLINE const ComponentCache& GetComponentCache() {
 			static ComponentCache cache;
 			return cache;
 		}
 
-		inline uint32_t GetWorldVersionFromWorld(const World& world) {
+		GAIA_FORCEINLINE uint32_t GetWorldVersionFromWorld(const World& world) {
 			return world.GetWorldVersion();
 		}
-		inline void* AllocateChunkMemory(World& world) {
+		GAIA_FORCEINLINE void* AllocateChunkMemory(World& world) {
 			return world.AllocateChunkMemory();
 		}
-		inline void ReleaseChunkMemory(World& world, void* mem) {
+		GAIA_FORCEINLINE void ReleaseChunkMemory(World& world, void* mem) {
 			world.ReleaseChunkMemory(mem);
 		}
 	} // namespace ecs

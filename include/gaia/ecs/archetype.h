@@ -400,20 +400,20 @@ namespace gaia {
 			}
 		};
 
-		GAIA_NODISCARD inline uint32_t GetWorldVersionFromArchetype(const Archetype& archetype) {
+		GAIA_NODISCARD GAIA_FORCEINLINE uint32_t GetWorldVersionFromArchetype(const Archetype& archetype) {
 			return archetype.GetWorldVersion();
 		}
-		GAIA_NODISCARD inline uint64_t GetArchetypeMatcherHash(const Archetype& archetype, ComponentType type) {
+		GAIA_NODISCARD GAIA_FORCEINLINE uint64_t GetArchetypeMatcherHash(const Archetype& archetype, ComponentType type) {
 			return archetype.GetMatcherHash(type);
 		}
-		GAIA_NODISCARD inline const ComponentInfo* GetComponentInfoFromIdx(uint32_t componentIdx) {
+		GAIA_NODISCARD GAIA_FORCEINLINE const ComponentInfo* GetComponentInfoFromIdx(uint32_t componentIdx) {
 			return GetComponentCache().GetComponentInfoFromIdx(componentIdx);
 		}
-		GAIA_NODISCARD inline const ComponentInfoList&
+		GAIA_NODISCARD GAIA_FORCEINLINE const ComponentInfoList&
 		GetArchetypeComponentInfoList(const Archetype& archetype, ComponentType type) {
 			return archetype.GetComponentInfoList(type);
 		}
-		GAIA_NODISCARD inline const ComponentLookupList&
+		GAIA_NODISCARD GAIA_FORCEINLINE const ComponentLookupList&
 		GetArchetypeComponentLookupList(const Archetype& archetype, ComponentType type) {
 			return archetype.GetComponentLookupList(type);
 		}
