@@ -27,9 +27,9 @@
 #define GAIA_ECS_HASH GAIA_ECS_HASH_MURMUR2A
 
 //! If enabled, STL containers are going to be used by the framework.
-#define GAIA_USE_STL_CONTAINERS 0
+#define GAIA_USE_STL_CONTAINERS 1
 //! If enabled, gaia containers stay compatible with STL by sticking to STL iterators.
-#define GAIA_USE_STL_COMPATIBLE_CONTAINERS 0
+#define GAIA_USE_STL_COMPATIBLE_CONTAINERS (GAIA_USE_STL_CONTAINERS || 0)
 
 //------------------------------------------------------------------------------
 // TODO features
