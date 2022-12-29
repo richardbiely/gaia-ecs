@@ -155,7 +155,7 @@
 #if GAIA_COMPILER_MSVC || GAIA_COMPILER_ICC
 	#define GAIA_FORCEINLINE __forceinline
 #else
-	#define GAIA_FORCEINLINE __attribute__((always_inline))
+	#define GAIA_FORCEINLINE inline __attribute__((always_inline))
 #endif
 
 //------------------------------------------------------------------------------
@@ -235,12 +235,12 @@
 // See: https://youtu.be/nXaxk27zwlk?t=2441
 #if GAIA_HAS_NO_INLINE_ASSEMBLY
 template <class T>
-inline GAIA_FORCEINLINE void DoNotOptimize(T const& value) {
+GAIA_FORCEINLINE void DoNotOptimize(T const& value) {
 	asm volatile("" : : "r,m"(value) : "memory");
 }
 
 template <class T>
-inline GAIA_FORCEINLINE void DoNotOptimize(T& value) {
+GAIA_FORCEINLINE void DoNotOptimize(T& value) {
 	#if defined(__clang__)
 	asm volatile("" : "+r,m"(value) : : "memory");
 	#else
@@ -249,20 +249,20 @@ inline GAIA_FORCEINLINE void DoNotOptimize(T& value) {
 }
 #else
 namespace internal {
-	inline GAIA_FORCEINLINE void UseCharPointer(char const volatile* var) {
+	GAIA_FORCEINLINE void UseCharPointer(char const volatile* var) {
 		(void)var;
 	}
 } // namespace internal
 
 	#if defined(_MSC_VER)
 template <class T>
-inline GAIA_FORCEINLINE void DoNotOptimize(T const& value) {
+GAIA_FORCEINLINE void DoNotOptimize(T const& value) {
 	internal::UseCharPointer(&reinterpret_cast<char const volatile&>(value));
 	_ReadWriteBarrier();
 }
 	#else
 template <class T>
-inline GAIA_FORCEINLINE void DoNotOptimize(T const& value) {
+GAIA_FORCEINLINE void DoNotOptimize(T const& value) {
 	internal::UseCharPointer(&reinterpret_cast<char const volatile&>(value));
 }
 	#endif
