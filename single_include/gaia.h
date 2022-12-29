@@ -155,7 +155,7 @@
 #if GAIA_COMPILER_MSVC || GAIA_COMPILER_ICC
 	#define GAIA_FORCEINLINE __forceinline
 #else
-	#define GAIA_FORCEINLINE __attribute__((always_inline))
+	#define GAIA_FORCEINLINE inline __attribute__((always_inline))
 #endif
 
 //------------------------------------------------------------------------------
@@ -235,12 +235,12 @@
 // See: https://youtu.be/nXaxk27zwlk?t=2441
 #if GAIA_HAS_NO_INLINE_ASSEMBLY
 template <class T>
-inline GAIA_FORCEINLINE void DoNotOptimize(T const& value) {
+GAIA_FORCEINLINE void DoNotOptimize(T const& value) {
 	asm volatile("" : : "r,m"(value) : "memory");
 }
 
 template <class T>
-inline GAIA_FORCEINLINE void DoNotOptimize(T& value) {
+GAIA_FORCEINLINE void DoNotOptimize(T& value) {
 	#if defined(__clang__)
 	asm volatile("" : "+r,m"(value) : : "memory");
 	#else
@@ -249,20 +249,20 @@ inline GAIA_FORCEINLINE void DoNotOptimize(T& value) {
 }
 #else
 namespace internal {
-	inline GAIA_FORCEINLINE void UseCharPointer(char const volatile* var) {
+	GAIA_FORCEINLINE void UseCharPointer(char const volatile* var) {
 		(void)var;
 	}
 } // namespace internal
 
 	#if defined(_MSC_VER)
 template <class T>
-inline GAIA_FORCEINLINE void DoNotOptimize(T const& value) {
+GAIA_FORCEINLINE void DoNotOptimize(T const& value) {
 	internal::UseCharPointer(&reinterpret_cast<char const volatile&>(value));
 	_ReadWriteBarrier();
 }
 	#else
 template <class T>
-inline GAIA_FORCEINLINE void DoNotOptimize(T const& value) {
+GAIA_FORCEINLINE void DoNotOptimize(T const& value) {
 	internal::UseCharPointer(&reinterpret_cast<char const volatile&>(value));
 }
 	#endif
@@ -302,7 +302,7 @@ inline GAIA_FORCEINLINE void DoNotOptimize(T const& value) {
 //! If enabled, STL containers are going to be used by the framework.
 #define GAIA_USE_STL_CONTAINERS 0
 //! If enabled, gaia containers stay compatible with STL by sticking to STL iterators.
-#define GAIA_USE_STL_COMPATIBLE_CONTAINERS 0
+#define GAIA_USE_STL_COMPATIBLE_CONTAINERS (GAIA_USE_STL_CONTAINERS || 0)
 
 //------------------------------------------------------------------------------
 // TODO features
@@ -464,6 +464,7 @@ namespace gaia {
 
 #include <cstddef>
 #include <initializer_list>
+#include <type_traits>
 #if !GAIA_DISABLE_ASSERTS
 	#include <memory>
 #endif
@@ -882,8 +883,7 @@ namespace gaia {
 				if (m_data) {
 					T* old = m_data;
 					m_data = new T[m_cap];
-					for (size_type i = 0; i < size(); ++i)
-						m_data[i] = std::move(old[i]);
+					transfer_data(m_data, old, size());
 					delete[] old;
 				} else {
 					m_data = new T[m_cap];
@@ -898,8 +898,7 @@ namespace gaia {
 					if (m_data) {
 						T* old = m_data;
 						m_data = new T[m_cap];
-						for (size_type i = 0; i < size(); ++i)
-							m_data[i] = std::move(old[i]);
+						transfer_data(m_data, old, size());
 						delete[] old;
 					} else {
 						m_data = new T[m_cap];
@@ -909,6 +908,21 @@ namespace gaia {
 			}
 
 		private:
+			void transfer_data(T* dst, const T* src, const size_type size) {
+				GAIA_MSVC_WARNING_PUSH()
+				GAIA_MSVC_WARNING_DISABLE(6385)
+
+				if constexpr (std::is_move_assignable_v<T>) {
+					for (size_type i = 0; i < size; ++i)
+						dst[i] = std::move(src[i]);
+				} else {
+					for (size_type i = 0; i < size; ++i)
+						dst[i] = src[i];
+				}
+
+				GAIA_MSVC_WARNING_POP()
+			}
+
 			void push_back_prepare() noexcept {
 				const auto cnt = size();
 				const auto cap = capacity();
@@ -925,12 +939,7 @@ namespace gaia {
 				else {
 					T* old = m_data;
 					m_data = new T[m_cap = (cap * 3) / 2 + 1];
-
-					GAIA_MSVC_WARNING_PUSH()
-					GAIA_MSVC_WARNING_DISABLE(6385)
-					for (size_type i = 0; i < cnt; ++i)
-						m_data[i] = std::move(old[i]);
-					GAIA_MSVC_WARNING_POP()
+					transfer_data(m_data, old, cnt);
 					delete[] old;
 				}
 			}
@@ -6390,8 +6399,8 @@ namespace gaia {
 		//----------------------------------------------------------------------
 
 		struct ComponentInfoCreate final {
-			using FuncConstructor = void(void*);
-			using FuncDestructor = void(void*);
+			using FuncConstructor = void(const void*, size_t);
+			using FuncDestructor = void(const void*, size_t);
 
 			//! [ 0-15] Component name
 			std::span<const char> name;
@@ -6411,11 +6420,15 @@ namespace gaia {
 				info.infoIndex = utils::type_info::index<U>();
 
 				if constexpr (!std::is_empty<U>::value && !utils::is_soa_layout<U>::value) {
-					info.constructor = [](void* ptr) {
-						new (ptr) T{};
+					info.constructor = [](const void* ptr, size_t cnt) {
+						const U* first = (const U*)ptr;
+						const U* last = (const U*)ptr + cnt;
+						std::uninitialized_default_construct(first, last);
 					};
-					info.destructor = [](void* ptr) {
-						((T*)ptr)->~T();
+					info.destructor = [](const void* ptr, size_t cnt) {
+						const U* first = (const U*)ptr;
+						const U* last = (const U*)ptr + cnt;
+						std::destroy(first, last);
 					};
 				}
 
@@ -7702,7 +7715,8 @@ namespace gaia {
 						const auto& infoCreate = cc.GetComponentCreateInfoFromIdx(look[i].infoIndex);
 						if (infoCreate.constructor == nullptr)
 							continue;
-						infoCreate.constructor((void*)((uint8_t*)pChunk + look[i].offset));
+						const void* first = (void*)((uint8_t*)pChunk + look[i].offset);
+						infoCreate.constructor(first, archetype.info.capacity);
 					}
 				};
 
@@ -7730,7 +7744,8 @@ namespace gaia {
 						const auto& infoCreate = cc.GetComponentCreateInfoFromIdx(look[i].infoIndex);
 						if (infoCreate.destructor == nullptr)
 							continue;
-						infoCreate.destructor((void*)((uint8_t*)pChunk + look[i].offset));
+						const void* first = (void*)((uint8_t*)pChunk + look[i].offset);
+						infoCreate.destructor(first, archetype.info.capacity);
 					}
 				};
 
@@ -8000,20 +8015,20 @@ namespace gaia {
 			}
 		};
 
-		GAIA_NODISCARD inline uint32_t GetWorldVersionFromArchetype(const Archetype& archetype) {
+		GAIA_NODISCARD GAIA_FORCEINLINE uint32_t GetWorldVersionFromArchetype(const Archetype& archetype) {
 			return archetype.GetWorldVersion();
 		}
-		GAIA_NODISCARD inline uint64_t GetArchetypeMatcherHash(const Archetype& archetype, ComponentType type) {
+		GAIA_NODISCARD GAIA_FORCEINLINE uint64_t GetArchetypeMatcherHash(const Archetype& archetype, ComponentType type) {
 			return archetype.GetMatcherHash(type);
 		}
-		GAIA_NODISCARD inline const ComponentInfo* GetComponentInfoFromIdx(uint32_t componentIdx) {
+		GAIA_NODISCARD GAIA_FORCEINLINE const ComponentInfo* GetComponentInfoFromIdx(uint32_t componentIdx) {
 			return GetComponentCache().GetComponentInfoFromIdx(componentIdx);
 		}
-		GAIA_NODISCARD inline const ComponentInfoList&
+		GAIA_NODISCARD GAIA_FORCEINLINE const ComponentInfoList&
 		GetArchetypeComponentInfoList(const Archetype& archetype, ComponentType type) {
 			return archetype.GetComponentInfoList(type);
 		}
-		GAIA_NODISCARD inline const ComponentLookupList&
+		GAIA_NODISCARD GAIA_FORCEINLINE const ComponentLookupList&
 		GetArchetypeComponentLookupList(const Archetype& archetype, ComponentType type) {
 			return archetype.GetComponentLookupList(type);
 		}
@@ -10533,22 +10548,22 @@ namespace gaia {
 			}
 		};
 
-		inline ComponentCache& GetComponentCacheRW() {
+		GAIA_FORCEINLINE ComponentCache& GetComponentCacheRW() {
 			const auto& cc = GetComponentCache();
 			return const_cast<ComponentCache&>(cc);
 		}
-		inline const ComponentCache& GetComponentCache() {
+		GAIA_FORCEINLINE const ComponentCache& GetComponentCache() {
 			static ComponentCache cache;
 			return cache;
 		}
 
-		inline uint32_t GetWorldVersionFromWorld(const World& world) {
+		GAIA_FORCEINLINE uint32_t GetWorldVersionFromWorld(const World& world) {
 			return world.GetWorldVersion();
 		}
-		inline void* AllocateChunkMemory(World& world) {
+		GAIA_FORCEINLINE void* AllocateChunkMemory(World& world) {
 			return world.AllocateChunkMemory();
 		}
-		inline void ReleaseChunkMemory(World& world, void* mem) {
+		GAIA_FORCEINLINE void ReleaseChunkMemory(World& world, void* mem) {
 			world.ReleaseChunkMemory(mem);
 		}
 	} // namespace ecs
