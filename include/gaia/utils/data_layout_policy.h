@@ -40,21 +40,25 @@ namespace gaia {
 		struct data_layout_properties;
 		template <typename TItem>
 		struct data_layout_properties<DataLayout::AoS, TItem> {
+			constexpr static DataLayout Layout = DataLayout::AoS;
 			constexpr static size_t PackSize = 1;
 			constexpr static size_t Alignment = alignof(TItem);
 		};
 		template <typename TItem>
 		struct data_layout_properties<DataLayout::SoA, TItem> {
+			constexpr static DataLayout Layout = DataLayout::SoA;
 			constexpr static size_t PackSize = 4;
 			constexpr static size_t Alignment = PackSize * 4;
 		};
 		template <typename TItem>
 		struct data_layout_properties<DataLayout::SoA8, TItem> {
+			constexpr static DataLayout Layout = DataLayout::SoA8;
 			constexpr static size_t PackSize = 8;
 			constexpr static size_t Alignment = PackSize * 4;
 		};
 		template <typename TItem>
 		struct data_layout_properties<DataLayout::SoA16, TItem> {
+			constexpr static DataLayout Layout = DataLayout::SoA16;
 			constexpr static size_t PackSize = 16;
 			constexpr static size_t Alignment = PackSize * 4;
 		};
@@ -388,13 +392,6 @@ namespace gaia {
 		// Helpers
 		//----------------------------------------------------------------------
 
-		template <typename, typename = void>
-		struct is_soa_layout: std::false_type {};
-		template <typename T>
-		struct is_soa_layout<T, typename std::enable_if<T::Layout != DataLayout::AoS>::type>: std::true_type {};
-		template <typename T>
-		inline constexpr bool is_soa_layout_v = is_soa_layout<T>::value;
-
 		namespace detail {
 			template <typename T, typename = void>
 			struct auto_view_policy_internal {
@@ -404,13 +401,22 @@ namespace gaia {
 			struct auto_view_policy_internal<T, std::void_t<decltype(T::Layout)>> {
 				static constexpr DataLayout data_layout_type = T::Layout;
 			};
+
+			template <typename, typename = void>
+			struct is_soa_layout: std::false_type {};
+			template <typename T>
+			struct is_soa_layout<T, typename std::enable_if_t<T::Layout != DataLayout::AoS>>: std::true_type {};
 		} // namespace detail
+
 		template <typename T>
 		using auto_view_policy = data_view_policy<detail::auto_view_policy_internal<T>::data_layout_type, T>;
 		template <typename T>
 		using auto_view_policy_get = data_view_policy_get<detail::auto_view_policy_internal<T>::data_layout_type, T>;
 		template <typename T>
 		using auto_view_policy_set = data_view_policy_set<detail::auto_view_policy_internal<T>::data_layout_type, T>;
+
+		template <typename T>
+		inline constexpr bool is_soa_layout_v = detail::is_soa_layout<T>::value;
 
 	} // namespace utils
 } // namespace gaia

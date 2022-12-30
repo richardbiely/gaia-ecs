@@ -77,7 +77,7 @@ namespace gaia {
 			struct MemoryPage {
 				static constexpr uint16_t NBlocks = 64;
 				static constexpr uint32_t Size = NBlocks * MemoryBlockSize;
-				static constexpr MemoryBlock::MemoryBlockType InvalidBlockId = -1;
+				static constexpr MemoryBlock::MemoryBlockType InvalidBlockId = (MemoryBlock::MemoryBlockType)-1;
 				static_assert(NBlocks < 1 << (sizeof(MemoryBlock::MemoryBlockType) * 8));
 				using iterator = containers::darray<MemoryPage*>::iterator;
 
@@ -116,7 +116,7 @@ namespace gaia {
 
 						const size_t index = m_blockCnt;
 						GAIA_ASSERT(index < NBlocks);
-						m_blocks[index].idx = (uint16_t)index;
+						m_blocks[index].idx = (MemoryBlock::MemoryBlockType)index;
 						++m_blockCnt;
 
 						return GetChunkAddress(index);
