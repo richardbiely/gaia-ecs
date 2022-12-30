@@ -233,7 +233,7 @@
 // expression from being optimized away by the compiler. This function is
 // intended to add little to no overhead.
 // See: https://youtu.be/nXaxk27zwlk?t=2441
-#if GAIA_HAS_NO_INLINE_ASSEMBLY
+#if !GAIA_HAS_NO_INLINE_ASSEMBLY
 template <class T>
 GAIA_FORCEINLINE void DoNotOptimize(T const& value) {
 	asm volatile("" : : "r,m"(value) : "memory");
