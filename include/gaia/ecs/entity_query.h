@@ -57,7 +57,7 @@ namespace gaia {
 
 			template <typename T>
 			bool HasComponent_Internal([[maybe_unused]] const ComponentIndexArray& arr) const {
-				if constexpr (std::is_same<T, Entity>::value) {
+				if constexpr (std::is_same_v<T, Entity>) {
 					// Skip Entity input args
 					return true;
 				} else {
@@ -68,7 +68,7 @@ namespace gaia {
 
 			template <typename T>
 			void AddComponent_Internal([[maybe_unused]] ComponentIndexArray& arr) {
-				if constexpr (std::is_same<T, Entity>::value) {
+				if constexpr (std::is_same_v<T, Entity>) {
 					// Skip Entity input args
 					return;
 				} else {
@@ -110,7 +110,7 @@ namespace gaia {
 
 			template <typename T>
 			void SetChangedFilter_Internal(ChangeFilterArray& arrFilter, ComponentListData& componentListData) {
-				static_assert(!std::is_same<T, Entity>::value, "It doesn't make sense to use ChangedFilter with Entity");
+				static_assert(!std::is_same_v<T, Entity>, "It doesn't make sense to use ChangedFilter with Entity");
 
 				const auto infoIndex = utils::type_info::index<T>();
 
@@ -443,7 +443,7 @@ namespace gaia {
 			template <typename T>
 			EntityQuery& AddComponent_Internal(ListType listType) {
 				using U = typename DeduceComponent<T>::Type;
-				if constexpr (IsGenericComponent<T>::value)
+				if constexpr (IsGenericComponent<T>)
 					AddComponent_Internal<U>(m_list[ComponentType::CT_Generic].list[listType]);
 				else
 					AddComponent_Internal<U>(m_list[ComponentType::CT_Chunk].list[listType]);
@@ -453,7 +453,7 @@ namespace gaia {
 			template <typename T>
 			bool HasComponent_Internal(ListType listType) const {
 				using U = typename DeduceComponent<T>::Type;
-				if constexpr (IsGenericComponent<T>::value)
+				if constexpr (IsGenericComponent<T>)
 					return HasComponent_Internal<U>(m_list[ComponentType::CT_Generic].list[listType]);
 				else
 					return HasComponent_Internal<U>(m_list[ComponentType::CT_Chunk].list[listType]);
@@ -462,7 +462,7 @@ namespace gaia {
 			template <typename T>
 			EntityQuery& WithChanged_Internal() {
 				using U = typename DeduceComponent<T>::Type;
-				if constexpr (IsGenericComponent<T>::value)
+				if constexpr (IsGenericComponent<T>)
 					SetChangedFilter<U>(m_listChangeFiltered[ComponentType::CT_Generic], m_list[ComponentType::CT_Generic]);
 				else
 					SetChangedFilter<U>(m_listChangeFiltered[ComponentType::CT_Chunk], m_list[ComponentType::CT_Chunk]);

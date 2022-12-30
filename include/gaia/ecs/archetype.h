@@ -388,7 +388,7 @@ namespace gaia {
 				using U = typename DeduceComponent<T>::Type;
 				const auto infoIndex = utils::type_info::index<U>();
 
-				if constexpr (IsGenericComponent<T>::value) {
+				if constexpr (IsGenericComponent<T>) {
 					return utils::has_if(GetComponentLookupList(ComponentType::CT_Generic), [&](const auto& info) {
 						return info.infoIndex == infoIndex;
 					});

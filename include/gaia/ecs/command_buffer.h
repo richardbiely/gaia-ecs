@@ -235,7 +235,7 @@ namespace gaia {
 				VerifyComponent<U>();
 
 				m_data.push_back(ADD_COMPONENT);
-				if constexpr (IsGenericComponent<T>::value)
+				if constexpr (IsGenericComponent<T>)
 					m_data.push_back(ComponentType::CT_Generic);
 				else
 					m_data.push_back(ComponentType::CT_Chunk);
@@ -255,7 +255,7 @@ namespace gaia {
 				VerifyComponent<U>();
 
 				m_data.push_back(ADD_COMPONENT_TO_TEMPENTITY);
-				if constexpr (IsGenericComponent<T>::value)
+				if constexpr (IsGenericComponent<T>)
 					m_data.push_back(ComponentType::CT_Generic);
 				else
 					m_data.push_back(ComponentType::CT_Chunk);
@@ -275,7 +275,7 @@ namespace gaia {
 				VerifyComponent<U>();
 
 				m_data.push_back(ADD_COMPONENT_DATA);
-				if constexpr (IsGenericComponent<T>::value)
+				if constexpr (IsGenericComponent<T>)
 					m_data.push_back(ComponentType::CT_Generic);
 				else
 					m_data.push_back(ComponentType::CT_Chunk);
@@ -296,7 +296,7 @@ namespace gaia {
 				VerifyComponent<U>();
 
 				m_data.push_back(ADD_COMPONENT_TO_TEMPENTITY_DATA);
-				if constexpr (IsGenericComponent<T>::value)
+				if constexpr (IsGenericComponent<T>)
 					m_data.push_back(ComponentType::CT_Generic);
 				else
 					m_data.push_back(ComponentType::CT_Chunk);
@@ -317,7 +317,7 @@ namespace gaia {
 				VerifyComponent<U>();
 
 				m_data.push_back(SET_COMPONENT);
-				if constexpr (IsGenericComponent<T>::value)
+				if constexpr (IsGenericComponent<T>)
 					m_data.push_back(ComponentType::CT_Generic);
 				else
 					m_data.push_back(ComponentType::CT_Chunk);
@@ -337,7 +337,7 @@ namespace gaia {
 				VerifyComponent<U>();
 
 				m_data.push_back(SET_COMPONENT_FOR_TEMPENTITY);
-				if constexpr (IsGenericComponent<T>::value)
+				if constexpr (IsGenericComponent<T>)
 					m_data.push_back(ComponentType::CT_Generic);
 				else
 					m_data.push_back(ComponentType::CT_Chunk);
@@ -353,7 +353,7 @@ namespace gaia {
 				VerifyComponent<U>();
 
 				m_data.push_back(REMOVE_COMPONENT);
-				if constexpr (IsGenericComponent<T>::value)
+				if constexpr (IsGenericComponent<T>)
 					m_data.push_back(ComponentType::CT_Generic);
 				else
 					m_data.push_back(ComponentType::CT_Chunk);
