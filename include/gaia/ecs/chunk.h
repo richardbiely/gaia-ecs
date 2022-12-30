@@ -157,14 +157,14 @@ namespace gaia {
 				using U = typename DeduceComponent<T>::Type;
 				using UConst = typename std::add_const_t<U>;
 
-				if constexpr (std::is_same<U, Entity>::value) {
+				if constexpr (std::is_same_v<U, Entity>) {
 					return std::span<const Entity>{(const Entity*)&data[0], GetItemCount()};
 				} else {
-					static_assert(!std::is_empty<U>::value, "Attempting to get value of an empty component");
+					static_assert(!std::is_empty_v<U>, "Attempting to get value of an empty component");
 
 					const auto infoIndex = utils::type_info::index<U>();
 
-					if constexpr (IsGenericComponent<T>::value)
+					if constexpr (IsGenericComponent<T>)
 						return std::span<UConst>{(UConst*)GetDataPtr(ComponentType::CT_Generic, infoIndex), GetItemCount()};
 					else
 						return std::span<UConst>{(UConst*)GetDataPtr(ComponentType::CT_Chunk, infoIndex), 1};
@@ -184,16 +184,16 @@ namespace gaia {
 				// Workaround for MSVC 2017 bug where it incorrectly evaluates the static assert
 				// even in context where it shouldn't.
 				// Unfortunatelly, even runtime assert can't be used...
-				// GAIA_ASSERT(!std::is_same<U, Entity>::value);
+				// GAIA_ASSERT(!std::is_same_v<U, Entity>::value);
 #else
-				static_assert(!std::is_same<U, Entity>::value);
+				static_assert(!std::is_same_v<U, Entity>);
 #endif
-				static_assert(!std::is_empty<U>::value, "Attempting to set value of an empty component");
+				static_assert(!std::is_empty_v<U>, "Attempting to set value of an empty component");
 
 				const auto infoIndex = utils::type_info::index<U>();
 
 				constexpr bool uwv = UpdateWorldVersion;
-				if constexpr (IsGenericComponent<T>::value)
+				if constexpr (IsGenericComponent<T>)
 					return std::span<U>{(U*)GetDataPtrRW<uwv>(ComponentType::CT_Generic, infoIndex), GetItemCount()};
 				else
 					return std::span<U>{(U*)GetDataPtrRW<uwv>(ComponentType::CT_Chunk, infoIndex), 1};
@@ -273,7 +273,7 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD auto ViewRW() {
 				using U = typename DeduceComponent<T>::Type;
-				static_assert(!std::is_same<U, Entity>::value);
+				static_assert(!std::is_same_v<U, Entity>);
 
 				return utils::auto_view_policy_set<U>{{ViewRW_Internal<T, true>()}};
 			}
@@ -285,7 +285,7 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD auto ViewRWSilent() {
 				using U = typename DeduceComponent<T>::Type;
-				static_assert(!std::is_same<U, Entity>::value);
+				static_assert(!std::is_same_v<U, Entity>);
 
 				return utils::auto_view_policy_set<U>{{ViewRW_Internal<T, false>()}};
 			}
@@ -310,7 +310,7 @@ namespace gaia {
 			*/
 			template <typename T>
 			GAIA_NODISCARD bool HasComponent() const {
-				if constexpr (IsGenericComponent<T>::value) {
+				if constexpr (IsGenericComponent<T>) {
 					using U = typename detail::ExtractComponentType_Generic<T>::Type;
 					const auto infoIndex = utils::type_info::index<U>();
 					return HasComponent_Internal(ComponentType::CT_Generic, infoIndex);
@@ -330,8 +330,7 @@ namespace gaia {
 				using U = typename DeduceComponent<T>::Type;
 
 				static_assert(
-						IsGenericComponent<T>::value,
-						"SetComponent providing an index in chunk is only available for generic components");
+						IsGenericComponent<T>, "SetComponent providing an index in chunk is only available for generic components");
 
 				ViewRW<T>()[index] = std::forward<U>(value);
 			}
@@ -341,7 +340,7 @@ namespace gaia {
 				using U = typename DeduceComponent<T>::Type;
 
 				static_assert(
-						!IsGenericComponent<T>::value,
+						!IsGenericComponent<T>,
 						"SetComponent not providing an index in chunk is only available for non-generic components");
 
 				ViewRW<T>()[0] = std::forward<U>(value);
@@ -352,8 +351,7 @@ namespace gaia {
 				using U = typename DeduceComponent<T>::Type;
 
 				static_assert(
-						IsGenericComponent<T>::value,
-						"SetComponent providing an index in chunk is only available for generic components");
+						IsGenericComponent<T>, "SetComponent providing an index in chunk is only available for generic components");
 
 				ViewRWSilent<T>()[index] = std::forward<U>(value);
 			}
@@ -363,7 +361,7 @@ namespace gaia {
 				using U = typename DeduceComponent<T>::Type;
 
 				static_assert(
-						!IsGenericComponent<T>::value,
+						!IsGenericComponent<T>,
 						"SetComponent not providing an index in chunk is only available for non-generic components");
 
 				ViewRWSilent<T>()[0] = std::forward<U>(value);
@@ -376,15 +374,14 @@ namespace gaia {
 			template <typename T>
 			auto GetComponent(uint32_t index) const {
 				static_assert(
-						IsGenericComponent<T>::value, "GetComponent providing an index is only available for generic components");
+						IsGenericComponent<T>, "GetComponent providing an index is only available for generic components");
 				return View<T>()[index];
 			}
 
 			template <typename T>
 			auto GetComponent() const {
 				static_assert(
-						!IsGenericComponent<T>::value,
-						"GetComponent not providing an index is only available for non-generic components");
+						!IsGenericComponent<T>, "GetComponent not providing an index is only available for non-generic components");
 				return View<T>()[0];
 			}
 

@@ -244,8 +244,8 @@ namespace TCB_SPAN_NAMESPACE_NAME {
 		template <typename T, typename E>
 		struct is_container_element_type_compatible<
 				T, E,
-				typename std::enable_if<!std::is_same<
-						typename std::remove_cv<decltype(detail::data(std::declval<T>()))>::type, void>::value>::type>:
+				typename std::enable_if_t<!std::is_same_v<
+						typename std::remove_cv<decltype(detail::data(std::declval<T>()))>::type, void>>>:
 				std::is_convertible<remove_pointer_t<decltype(detail::data(std::declval<T>()))> (*)[], E (*)[]> {};
 
 		template <typename, typename = size_t>
@@ -499,8 +499,7 @@ namespace TCB_SPAN_NAMESPACE_NAME {
 		return {reinterpret_cast<const byte*>(s.data()), s.size_bytes()};
 	}
 
-	template <
-			class ElementType, size_t Extent, typename std::enable_if<!std::is_const<ElementType>::value, int>::type = 0>
+	template <class ElementType, size_t Extent, typename std::enable_if<!std::is_const_v<ElementType>, int>::type = 0>
 	span<byte, ((Extent == dynamic_extent) ? dynamic_extent : sizeof(ElementType) * Extent)>
 	as_writable_bytes(span<ElementType, Extent> s) noexcept {
 		return {reinterpret_cast<byte*>(s.data()), s.size_bytes()};

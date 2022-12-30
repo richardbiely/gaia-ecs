@@ -54,22 +54,35 @@ namespace gaia {
 				using Type = typename T::__Type;
 				using TypeOriginal = typename T::__TypeOriginal;
 			};
+
+			template <typename T, typename = void>
+			struct IsGenericComponent_Internal: std::true_type {};
+			template <typename T>
+			struct IsGenericComponent_Internal<T, decltype((void)T::__ComponentType, void())>: std::false_type {};
+
+			template <typename T>
+			struct IsComponentSizeValid_Internal: std::bool_constant<sizeof(T) < MAX_COMPONENTS_SIZE> {};
+			template <typename T>
+			struct IsComponentTypeValid_Internal:
+					std::bool_constant<std::is_trivially_copyable<T>::value && std::is_default_constructible<T>::value> {};
 		} // namespace detail
 
-		template <typename T, typename = void>
-		struct IsGenericComponent: std::true_type {};
 		template <typename T>
-		struct IsGenericComponent<T, decltype((void)T::__ComponentType, void())>: std::false_type {};
+		inline constexpr bool IsGenericComponent = detail::IsGenericComponent_Internal<T>::value;
+		template <typename T>
+		inline constexpr bool IsComponentSizeValid = detail::IsComponentSizeValid_Internal<T>::value;
+		template <typename T>
+		inline constexpr bool IsComponentTypeValid = detail::IsComponentTypeValid_Internal<T>::value;
 
 		template <typename T>
 		using DeduceComponent = std::conditional_t<
-				IsGenericComponent<T>::value, typename detail::ExtractComponentType_Generic<T>,
+				IsGenericComponent<T>, typename detail::ExtractComponentType_Generic<T>,
 				typename detail::ExtractComponentType_NonGeneric<T>>;
 
 		template <typename T>
 		struct IsReadOnlyType:
 				std::bool_constant<
-						std::is_const<std::remove_reference_t<std::remove_pointer_t<T>>>::value ||
+						std::is_const_v<std::remove_reference_t<std::remove_pointer_t<T>>> ||
 						(!std::is_pointer<T>::value && !std::is_reference<T>::value)> {};
 
 		//----------------------------------------------------------------------
@@ -77,22 +90,15 @@ namespace gaia {
 		//----------------------------------------------------------------------
 
 		template <typename T>
-		struct ComponentSizeValid: std::bool_constant<sizeof(T) < MAX_COMPONENTS_SIZE> {};
-
-		template <typename T>
-		struct ComponentTypeValid:
-				std::bool_constant<std::is_trivially_copyable<T>::value && std::is_default_constructible<T>::value> {};
-
-		template <typename T>
 		constexpr void VerifyComponent() {
 			using U = typename DeduceComponent<T>::Type;
 			// Make sure we only use this for "raw" types
-			static_assert(!std::is_const<U>::value);
-			static_assert(!std::is_pointer<U>::value);
-			static_assert(!std::is_reference<U>::value);
-			static_assert(!std::is_volatile<U>::value);
-			static_assert(ComponentSizeValid<U>::value, "MAX_COMPONENTS_SIZE in bytes is exceeded");
-			static_assert(ComponentTypeValid<U>::value, "Only components of trivial type are allowed");
+			static_assert(!std::is_const_v<U>);
+			static_assert(!std::is_pointer_v<U>);
+			static_assert(!std::is_reference_v<U>);
+			static_assert(!std::is_volatile_v<U>);
+			static_assert(IsComponentSizeValid<U>, "MAX_COMPONENTS_SIZE in bytes is exceeded");
+			static_assert(IsComponentTypeValid<U>, "Only components of trivial type are allowed");
 		}
 
 		//----------------------------------------------------------------------
@@ -179,7 +185,7 @@ namespace gaia {
 				info.name = utils::type_info::name<U>();
 				info.infoIndex = utils::type_info::index<U>();
 
-				if constexpr (!std::is_empty<U>::value && !utils::is_soa_layout<U>::value) {
+				if constexpr (!std::is_empty_v<U> && !utils::is_soa_layout_v<U>) {
 					info.constructor = [](const void* ptr, size_t cnt) {
 						const U* first = (const U*)ptr;
 						const U* last = (const U*)ptr + cnt;
@@ -242,10 +248,10 @@ namespace gaia {
 				info.matcherHash = CalculateMatcherHash<U>();
 				info.infoIndex = utils::type_info::index<U>();
 
-				if constexpr (!std::is_empty<U>::value) {
+				if constexpr (!std::is_empty_v<U>) {
 					info.properties.alig = utils::auto_view_policy<U>::Alignment;
 					info.properties.size = (uint32_t)sizeof(U);
-					info.properties.soa = utils::is_soa_layout<U>::value;
+					info.properties.soa = utils::is_soa_layout_v<U>;
 				}
 
 				return info;

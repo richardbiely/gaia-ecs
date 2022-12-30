@@ -31,7 +31,7 @@ namespace gaia {
 
 			template <typename T>
 			ComponentSetter& SetComponent(typename DeduceComponent<T>::Type&& data) {
-				if constexpr (IsGenericComponent<T>::value) {
+				if constexpr (IsGenericComponent<T>) {
 					using U = typename detail::ExtractComponentType_Generic<T>::Type;
 					m_pChunk->template SetComponent<T>(m_idx, std::forward<U>(data));
 					return *this;
@@ -44,7 +44,7 @@ namespace gaia {
 
 			template <typename T>
 			ComponentSetter& SetComponentSilent(typename DeduceComponent<T>::Type&& data) {
-				if constexpr (IsGenericComponent<T>::value) {
+				if constexpr (IsGenericComponent<T>) {
 					using U = typename detail::ExtractComponentType_Generic<T>::Type;
 					m_pChunk->template SetComponentSilent<T>(m_idx, std::forward<U>(data));
 					return *this;
@@ -1103,7 +1103,7 @@ namespace gaia {
 				using U = typename DeduceComponent<T>::Type;
 				const auto* info = GetComponentCacheRW().GetOrCreateComponentInfo<U>();
 
-				if constexpr (IsGenericComponent<T>::value) {
+				if constexpr (IsGenericComponent<T>) {
 					auto& entityContainer = AddComponent_Internal(ComponentType::CT_Generic, entity, info);
 					return ComponentSetter{entityContainer.pChunk, entityContainer.idx};
 				} else {
@@ -1126,7 +1126,7 @@ namespace gaia {
 				using U = typename DeduceComponent<T>::Type;
 				const auto* info = GetComponentCacheRW().GetOrCreateComponentInfo<U>();
 
-				if constexpr (IsGenericComponent<T>::value) {
+				if constexpr (IsGenericComponent<T>) {
 					auto& entityContainer = AddComponent_Internal(ComponentType::CT_Generic, entity, info);
 					auto* pChunk = entityContainer.pChunk;
 					pChunk->template SetComponent<T>(entityContainer.idx, std::forward<U>(data));
@@ -1153,7 +1153,7 @@ namespace gaia {
 				using U = typename DeduceComponent<T>::Type;
 				const auto* info = GetComponentCacheRW().GetOrCreateComponentInfo<U>();
 
-				if constexpr (IsGenericComponent<T>::value) {
+				if constexpr (IsGenericComponent<T>) {
 					return RemoveComponent_Internal(ComponentType::CT_Generic, entity, info);
 				} else {
 					return RemoveComponent_Internal(ComponentType::CT_Chunk, entity, info);
@@ -1205,7 +1205,7 @@ namespace gaia {
 				const auto& entityContainer = m_entities[entity.id()];
 				const auto* pChunk = entityContainer.pChunk;
 
-				if constexpr (IsGenericComponent<T>::value)
+				if constexpr (IsGenericComponent<T>)
 					return pChunk->GetComponent<T>(entityContainer.idx);
 				else
 					return pChunk->GetComponent<T>();
@@ -1676,7 +1676,7 @@ namespace gaia {
 				*/
 				template <typename Container>
 				void ToChunkArray(Container& outArray) const {
-					static_assert(std::is_same<typename Container::value_type, Chunk*>::value);
+					static_assert(std::is_same_v<typename Container::value_type, Chunk*>);
 
 					const size_t itemCount = GetItemCount();
 					outArray.reserve(itemCount);
