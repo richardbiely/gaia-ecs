@@ -233,7 +233,7 @@
 // expression from being optimized away by the compiler. This function is
 // intended to add little to no overhead.
 // See: https://youtu.be/nXaxk27zwlk?t=2441
-#if GAIA_HAS_NO_INLINE_ASSEMBLY
+#if !GAIA_HAS_NO_INLINE_ASSEMBLY
 template <class T>
 GAIA_FORCEINLINE void DoNotOptimize(T const& value) {
 	asm volatile("" : : "r,m"(value) : "memory");
@@ -855,7 +855,6 @@ namespace gaia {
 			~darr() {
 				if (m_data != nullptr)
 					delete[] m_data;
-				m_data = nullptr;
 			}
 
 			constexpr pointer data() noexcept {
@@ -5359,8 +5358,8 @@ namespace TCB_SPAN_NAMESPACE_NAME {
 		template <typename T, typename E>
 		struct is_container_element_type_compatible<
 				T, E,
-				typename std::enable_if<!std::is_same<
-						typename std::remove_cv<decltype(detail::data(std::declval<T>()))>::type, void>::value>::type>:
+				typename std::enable_if_t<!std::is_same_v<
+						typename std::remove_cv<decltype(detail::data(std::declval<T>()))>::type, void>>>:
 				std::is_convertible<remove_pointer_t<decltype(detail::data(std::declval<T>()))> (*)[], E (*)[]> {};
 
 		template <typename, typename = size_t>
@@ -5614,8 +5613,7 @@ namespace TCB_SPAN_NAMESPACE_NAME {
 		return {reinterpret_cast<const byte*>(s.data()), s.size_bytes()};
 	}
 
-	template <
-			class ElementType, size_t Extent, typename std::enable_if<!std::is_const<ElementType>::value, int>::type = 0>
+	template <class ElementType, size_t Extent, typename std::enable_if<!std::is_const_v<ElementType>, int>::type = 0>
 	span<byte, ((Extent == dynamic_extent) ? dynamic_extent : sizeof(ElementType) * Extent)>
 	as_writable_bytes(span<ElementType, Extent> s) noexcept {
 		return {reinterpret_cast<byte*>(s.data()), s.size_bytes()};
@@ -5769,21 +5767,25 @@ namespace gaia {
 		struct data_layout_properties;
 		template <typename TItem>
 		struct data_layout_properties<DataLayout::AoS, TItem> {
+			constexpr static DataLayout Layout = DataLayout::AoS;
 			constexpr static size_t PackSize = 1;
 			constexpr static size_t Alignment = alignof(TItem);
 		};
 		template <typename TItem>
 		struct data_layout_properties<DataLayout::SoA, TItem> {
+			constexpr static DataLayout Layout = DataLayout::SoA;
 			constexpr static size_t PackSize = 4;
 			constexpr static size_t Alignment = PackSize * 4;
 		};
 		template <typename TItem>
 		struct data_layout_properties<DataLayout::SoA8, TItem> {
+			constexpr static DataLayout Layout = DataLayout::SoA8;
 			constexpr static size_t PackSize = 8;
 			constexpr static size_t Alignment = PackSize * 4;
 		};
 		template <typename TItem>
 		struct data_layout_properties<DataLayout::SoA16, TItem> {
+			constexpr static DataLayout Layout = DataLayout::SoA16;
 			constexpr static size_t PackSize = 16;
 			constexpr static size_t Alignment = PackSize * 4;
 		};
@@ -6117,13 +6119,6 @@ namespace gaia {
 		// Helpers
 		//----------------------------------------------------------------------
 
-		template <typename, typename = void>
-		struct is_soa_layout: std::false_type {};
-		template <typename T>
-		struct is_soa_layout<T, typename std::enable_if<T::Layout != DataLayout::AoS>::type>: std::true_type {};
-		template <typename T>
-		inline constexpr bool is_soa_layout_v = is_soa_layout<T>::value;
-
 		namespace detail {
 			template <typename T, typename = void>
 			struct auto_view_policy_internal {
@@ -6133,13 +6128,22 @@ namespace gaia {
 			struct auto_view_policy_internal<T, std::void_t<decltype(T::Layout)>> {
 				static constexpr DataLayout data_layout_type = T::Layout;
 			};
+
+			template <typename, typename = void>
+			struct is_soa_layout: std::false_type {};
+			template <typename T>
+			struct is_soa_layout<T, typename std::enable_if_t<T::Layout != DataLayout::AoS>>: std::true_type {};
 		} // namespace detail
+
 		template <typename T>
 		using auto_view_policy = data_view_policy<detail::auto_view_policy_internal<T>::data_layout_type, T>;
 		template <typename T>
 		using auto_view_policy_get = data_view_policy_get<detail::auto_view_policy_internal<T>::data_layout_type, T>;
 		template <typename T>
 		using auto_view_policy_set = data_view_policy_set<detail::auto_view_policy_internal<T>::data_layout_type, T>;
+
+		template <typename T>
+		inline constexpr bool is_soa_layout_v = detail::is_soa_layout<T>::value;
 
 	} // namespace utils
 } // namespace gaia
@@ -6294,22 +6298,35 @@ namespace gaia {
 				using Type = typename T::__Type;
 				using TypeOriginal = typename T::__TypeOriginal;
 			};
+
+			template <typename T, typename = void>
+			struct IsGenericComponent_Internal: std::true_type {};
+			template <typename T>
+			struct IsGenericComponent_Internal<T, decltype((void)T::__ComponentType, void())>: std::false_type {};
+
+			template <typename T>
+			struct IsComponentSizeValid_Internal: std::bool_constant<sizeof(T) < MAX_COMPONENTS_SIZE> {};
+			template <typename T>
+			struct IsComponentTypeValid_Internal:
+					std::bool_constant<std::is_trivially_copyable<T>::value && std::is_default_constructible<T>::value> {};
 		} // namespace detail
 
-		template <typename T, typename = void>
-		struct IsGenericComponent: std::true_type {};
 		template <typename T>
-		struct IsGenericComponent<T, decltype((void)T::__ComponentType, void())>: std::false_type {};
+		inline constexpr bool IsGenericComponent = detail::IsGenericComponent_Internal<T>::value;
+		template <typename T>
+		inline constexpr bool IsComponentSizeValid = detail::IsComponentSizeValid_Internal<T>::value;
+		template <typename T>
+		inline constexpr bool IsComponentTypeValid = detail::IsComponentTypeValid_Internal<T>::value;
 
 		template <typename T>
 		using DeduceComponent = std::conditional_t<
-				IsGenericComponent<T>::value, typename detail::ExtractComponentType_Generic<T>,
+				IsGenericComponent<T>, typename detail::ExtractComponentType_Generic<T>,
 				typename detail::ExtractComponentType_NonGeneric<T>>;
 
 		template <typename T>
 		struct IsReadOnlyType:
 				std::bool_constant<
-						std::is_const<std::remove_reference_t<std::remove_pointer_t<T>>>::value ||
+						std::is_const_v<std::remove_reference_t<std::remove_pointer_t<T>>> ||
 						(!std::is_pointer<T>::value && !std::is_reference<T>::value)> {};
 
 		//----------------------------------------------------------------------
@@ -6317,22 +6334,15 @@ namespace gaia {
 		//----------------------------------------------------------------------
 
 		template <typename T>
-		struct ComponentSizeValid: std::bool_constant<sizeof(T) < MAX_COMPONENTS_SIZE> {};
-
-		template <typename T>
-		struct ComponentTypeValid:
-				std::bool_constant<std::is_trivially_copyable<T>::value && std::is_default_constructible<T>::value> {};
-
-		template <typename T>
 		constexpr void VerifyComponent() {
 			using U = typename DeduceComponent<T>::Type;
 			// Make sure we only use this for "raw" types
-			static_assert(!std::is_const<U>::value);
-			static_assert(!std::is_pointer<U>::value);
-			static_assert(!std::is_reference<U>::value);
-			static_assert(!std::is_volatile<U>::value);
-			static_assert(ComponentSizeValid<U>::value, "MAX_COMPONENTS_SIZE in bytes is exceeded");
-			static_assert(ComponentTypeValid<U>::value, "Only components of trivial type are allowed");
+			static_assert(!std::is_const_v<U>);
+			static_assert(!std::is_pointer_v<U>);
+			static_assert(!std::is_reference_v<U>);
+			static_assert(!std::is_volatile_v<U>);
+			static_assert(IsComponentSizeValid<U>, "MAX_COMPONENTS_SIZE in bytes is exceeded");
+			static_assert(IsComponentTypeValid<U>, "Only components of trivial type are allowed");
 		}
 
 		//----------------------------------------------------------------------
@@ -6419,7 +6429,7 @@ namespace gaia {
 				info.name = utils::type_info::name<U>();
 				info.infoIndex = utils::type_info::index<U>();
 
-				if constexpr (!std::is_empty<U>::value && !utils::is_soa_layout<U>::value) {
+				if constexpr (!std::is_empty_v<U> && !utils::is_soa_layout_v<U>) {
 					info.constructor = [](const void* ptr, size_t cnt) {
 						const U* first = (const U*)ptr;
 						const U* last = (const U*)ptr + cnt;
@@ -6482,10 +6492,10 @@ namespace gaia {
 				info.matcherHash = CalculateMatcherHash<U>();
 				info.infoIndex = utils::type_info::index<U>();
 
-				if constexpr (!std::is_empty<U>::value) {
+				if constexpr (!std::is_empty_v<U>) {
 					info.properties.alig = utils::auto_view_policy<U>::Alignment;
 					info.properties.size = (uint32_t)sizeof(U);
-					info.properties.soa = utils::is_soa_layout<U>::value;
+					info.properties.soa = utils::is_soa_layout_v<U>;
 				}
 
 				return info;
@@ -6675,7 +6685,7 @@ namespace gaia {
 			struct MemoryPage {
 				static constexpr uint16_t NBlocks = 64;
 				static constexpr uint32_t Size = NBlocks * MemoryBlockSize;
-				static constexpr MemoryBlock::MemoryBlockType InvalidBlockId = -1;
+				static constexpr MemoryBlock::MemoryBlockType InvalidBlockId = (MemoryBlock::MemoryBlockType)-1;
 				static_assert(NBlocks < 1 << (sizeof(MemoryBlock::MemoryBlockType) * 8));
 				using iterator = containers::darray<MemoryPage*>::iterator;
 
@@ -6714,7 +6724,7 @@ namespace gaia {
 
 						const size_t index = m_blockCnt;
 						GAIA_ASSERT(index < NBlocks);
-						m_blocks[index].idx = (uint16_t)index;
+						m_blocks[index].idx = (MemoryBlock::MemoryBlockType)index;
 						++m_blockCnt;
 
 						return GetChunkAddress(index);
@@ -7267,14 +7277,14 @@ namespace gaia {
 				using U = typename DeduceComponent<T>::Type;
 				using UConst = typename std::add_const_t<U>;
 
-				if constexpr (std::is_same<U, Entity>::value) {
+				if constexpr (std::is_same_v<U, Entity>) {
 					return std::span<const Entity>{(const Entity*)&data[0], GetItemCount()};
 				} else {
-					static_assert(!std::is_empty<U>::value, "Attempting to get value of an empty component");
+					static_assert(!std::is_empty_v<U>, "Attempting to get value of an empty component");
 
 					const auto infoIndex = utils::type_info::index<U>();
 
-					if constexpr (IsGenericComponent<T>::value)
+					if constexpr (IsGenericComponent<T>)
 						return std::span<UConst>{(UConst*)GetDataPtr(ComponentType::CT_Generic, infoIndex), GetItemCount()};
 					else
 						return std::span<UConst>{(UConst*)GetDataPtr(ComponentType::CT_Chunk, infoIndex), 1};
@@ -7294,16 +7304,16 @@ namespace gaia {
 				// Workaround for MSVC 2017 bug where it incorrectly evaluates the static assert
 				// even in context where it shouldn't.
 				// Unfortunatelly, even runtime assert can't be used...
-				// GAIA_ASSERT(!std::is_same<U, Entity>::value);
+				// GAIA_ASSERT(!std::is_same_v<U, Entity>::value);
 #else
-				static_assert(!std::is_same<U, Entity>::value);
+				static_assert(!std::is_same_v<U, Entity>);
 #endif
-				static_assert(!std::is_empty<U>::value, "Attempting to set value of an empty component");
+				static_assert(!std::is_empty_v<U>, "Attempting to set value of an empty component");
 
 				const auto infoIndex = utils::type_info::index<U>();
 
 				constexpr bool uwv = UpdateWorldVersion;
-				if constexpr (IsGenericComponent<T>::value)
+				if constexpr (IsGenericComponent<T>)
 					return std::span<U>{(U*)GetDataPtrRW<uwv>(ComponentType::CT_Generic, infoIndex), GetItemCount()};
 				else
 					return std::span<U>{(U*)GetDataPtrRW<uwv>(ComponentType::CT_Chunk, infoIndex), 1};
@@ -7383,7 +7393,7 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD auto ViewRW() {
 				using U = typename DeduceComponent<T>::Type;
-				static_assert(!std::is_same<U, Entity>::value);
+				static_assert(!std::is_same_v<U, Entity>);
 
 				return utils::auto_view_policy_set<U>{{ViewRW_Internal<T, true>()}};
 			}
@@ -7395,7 +7405,7 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD auto ViewRWSilent() {
 				using U = typename DeduceComponent<T>::Type;
-				static_assert(!std::is_same<U, Entity>::value);
+				static_assert(!std::is_same_v<U, Entity>);
 
 				return utils::auto_view_policy_set<U>{{ViewRW_Internal<T, false>()}};
 			}
@@ -7420,7 +7430,7 @@ namespace gaia {
 			*/
 			template <typename T>
 			GAIA_NODISCARD bool HasComponent() const {
-				if constexpr (IsGenericComponent<T>::value) {
+				if constexpr (IsGenericComponent<T>) {
 					using U = typename detail::ExtractComponentType_Generic<T>::Type;
 					const auto infoIndex = utils::type_info::index<U>();
 					return HasComponent_Internal(ComponentType::CT_Generic, infoIndex);
@@ -7440,8 +7450,7 @@ namespace gaia {
 				using U = typename DeduceComponent<T>::Type;
 
 				static_assert(
-						IsGenericComponent<T>::value,
-						"SetComponent providing an index in chunk is only available for generic components");
+						IsGenericComponent<T>, "SetComponent providing an index in chunk is only available for generic components");
 
 				ViewRW<T>()[index] = std::forward<U>(value);
 			}
@@ -7451,7 +7460,7 @@ namespace gaia {
 				using U = typename DeduceComponent<T>::Type;
 
 				static_assert(
-						!IsGenericComponent<T>::value,
+						!IsGenericComponent<T>,
 						"SetComponent not providing an index in chunk is only available for non-generic components");
 
 				ViewRW<T>()[0] = std::forward<U>(value);
@@ -7462,8 +7471,7 @@ namespace gaia {
 				using U = typename DeduceComponent<T>::Type;
 
 				static_assert(
-						IsGenericComponent<T>::value,
-						"SetComponent providing an index in chunk is only available for generic components");
+						IsGenericComponent<T>, "SetComponent providing an index in chunk is only available for generic components");
 
 				ViewRWSilent<T>()[index] = std::forward<U>(value);
 			}
@@ -7473,7 +7481,7 @@ namespace gaia {
 				using U = typename DeduceComponent<T>::Type;
 
 				static_assert(
-						!IsGenericComponent<T>::value,
+						!IsGenericComponent<T>,
 						"SetComponent not providing an index in chunk is only available for non-generic components");
 
 				ViewRWSilent<T>()[0] = std::forward<U>(value);
@@ -7486,15 +7494,14 @@ namespace gaia {
 			template <typename T>
 			auto GetComponent(uint32_t index) const {
 				static_assert(
-						IsGenericComponent<T>::value, "GetComponent providing an index is only available for generic components");
+						IsGenericComponent<T>, "GetComponent providing an index is only available for generic components");
 				return View<T>()[index];
 			}
 
 			template <typename T>
 			auto GetComponent() const {
 				static_assert(
-						!IsGenericComponent<T>::value,
-						"GetComponent not providing an index is only available for non-generic components");
+						!IsGenericComponent<T>, "GetComponent not providing an index is only available for non-generic components");
 				return View<T>()[0];
 			}
 
@@ -8003,7 +8010,7 @@ namespace gaia {
 				using U = typename DeduceComponent<T>::Type;
 				const auto infoIndex = utils::type_info::index<U>();
 
-				if constexpr (IsGenericComponent<T>::value) {
+				if constexpr (IsGenericComponent<T>) {
 					return utils::has_if(GetComponentLookupList(ComponentType::CT_Generic), [&](const auto& info) {
 						return info.infoIndex == infoIndex;
 					});
@@ -8088,7 +8095,7 @@ namespace gaia {
 
 			template <typename T>
 			bool HasComponent_Internal([[maybe_unused]] const ComponentIndexArray& arr) const {
-				if constexpr (std::is_same<T, Entity>::value) {
+				if constexpr (std::is_same_v<T, Entity>) {
 					// Skip Entity input args
 					return true;
 				} else {
@@ -8099,7 +8106,7 @@ namespace gaia {
 
 			template <typename T>
 			void AddComponent_Internal([[maybe_unused]] ComponentIndexArray& arr) {
-				if constexpr (std::is_same<T, Entity>::value) {
+				if constexpr (std::is_same_v<T, Entity>) {
 					// Skip Entity input args
 					return;
 				} else {
@@ -8141,7 +8148,7 @@ namespace gaia {
 
 			template <typename T>
 			void SetChangedFilter_Internal(ChangeFilterArray& arrFilter, ComponentListData& componentListData) {
-				static_assert(!std::is_same<T, Entity>::value, "It doesn't make sense to use ChangedFilter with Entity");
+				static_assert(!std::is_same_v<T, Entity>, "It doesn't make sense to use ChangedFilter with Entity");
 
 				const auto infoIndex = utils::type_info::index<T>();
 
@@ -8474,7 +8481,7 @@ namespace gaia {
 			template <typename T>
 			EntityQuery& AddComponent_Internal(ListType listType) {
 				using U = typename DeduceComponent<T>::Type;
-				if constexpr (IsGenericComponent<T>::value)
+				if constexpr (IsGenericComponent<T>)
 					AddComponent_Internal<U>(m_list[ComponentType::CT_Generic].list[listType]);
 				else
 					AddComponent_Internal<U>(m_list[ComponentType::CT_Chunk].list[listType]);
@@ -8484,7 +8491,7 @@ namespace gaia {
 			template <typename T>
 			bool HasComponent_Internal(ListType listType) const {
 				using U = typename DeduceComponent<T>::Type;
-				if constexpr (IsGenericComponent<T>::value)
+				if constexpr (IsGenericComponent<T>)
 					return HasComponent_Internal<U>(m_list[ComponentType::CT_Generic].list[listType]);
 				else
 					return HasComponent_Internal<U>(m_list[ComponentType::CT_Chunk].list[listType]);
@@ -8493,7 +8500,7 @@ namespace gaia {
 			template <typename T>
 			EntityQuery& WithChanged_Internal() {
 				using U = typename DeduceComponent<T>::Type;
-				if constexpr (IsGenericComponent<T>::value)
+				if constexpr (IsGenericComponent<T>)
 					SetChangedFilter<U>(m_listChangeFiltered[ComponentType::CT_Generic], m_list[ComponentType::CT_Generic]);
 				else
 					SetChangedFilter<U>(m_listChangeFiltered[ComponentType::CT_Chunk], m_list[ComponentType::CT_Chunk]);
@@ -8597,7 +8604,7 @@ namespace gaia {
 
 			template <typename T>
 			ComponentSetter& SetComponent(typename DeduceComponent<T>::Type&& data) {
-				if constexpr (IsGenericComponent<T>::value) {
+				if constexpr (IsGenericComponent<T>) {
 					using U = typename detail::ExtractComponentType_Generic<T>::Type;
 					m_pChunk->template SetComponent<T>(m_idx, std::forward<U>(data));
 					return *this;
@@ -8610,7 +8617,7 @@ namespace gaia {
 
 			template <typename T>
 			ComponentSetter& SetComponentSilent(typename DeduceComponent<T>::Type&& data) {
-				if constexpr (IsGenericComponent<T>::value) {
+				if constexpr (IsGenericComponent<T>) {
 					using U = typename detail::ExtractComponentType_Generic<T>::Type;
 					m_pChunk->template SetComponentSilent<T>(m_idx, std::forward<U>(data));
 					return *this;
@@ -9669,7 +9676,7 @@ namespace gaia {
 				using U = typename DeduceComponent<T>::Type;
 				const auto* info = GetComponentCacheRW().GetOrCreateComponentInfo<U>();
 
-				if constexpr (IsGenericComponent<T>::value) {
+				if constexpr (IsGenericComponent<T>) {
 					auto& entityContainer = AddComponent_Internal(ComponentType::CT_Generic, entity, info);
 					return ComponentSetter{entityContainer.pChunk, entityContainer.idx};
 				} else {
@@ -9692,7 +9699,7 @@ namespace gaia {
 				using U = typename DeduceComponent<T>::Type;
 				const auto* info = GetComponentCacheRW().GetOrCreateComponentInfo<U>();
 
-				if constexpr (IsGenericComponent<T>::value) {
+				if constexpr (IsGenericComponent<T>) {
 					auto& entityContainer = AddComponent_Internal(ComponentType::CT_Generic, entity, info);
 					auto* pChunk = entityContainer.pChunk;
 					pChunk->template SetComponent<T>(entityContainer.idx, std::forward<U>(data));
@@ -9719,7 +9726,7 @@ namespace gaia {
 				using U = typename DeduceComponent<T>::Type;
 				const auto* info = GetComponentCacheRW().GetOrCreateComponentInfo<U>();
 
-				if constexpr (IsGenericComponent<T>::value) {
+				if constexpr (IsGenericComponent<T>) {
 					return RemoveComponent_Internal(ComponentType::CT_Generic, entity, info);
 				} else {
 					return RemoveComponent_Internal(ComponentType::CT_Chunk, entity, info);
@@ -9771,7 +9778,7 @@ namespace gaia {
 				const auto& entityContainer = m_entities[entity.id()];
 				const auto* pChunk = entityContainer.pChunk;
 
-				if constexpr (IsGenericComponent<T>::value)
+				if constexpr (IsGenericComponent<T>)
 					return pChunk->GetComponent<T>(entityContainer.idx);
 				else
 					return pChunk->GetComponent<T>();
@@ -10242,7 +10249,7 @@ namespace gaia {
 				*/
 				template <typename Container>
 				void ToChunkArray(Container& outArray) const {
-					static_assert(std::is_same<typename Container::value_type, Chunk*>::value);
+					static_assert(std::is_same_v<typename Container::value_type, Chunk*>);
 
 					const size_t itemCount = GetItemCount();
 					outArray.reserve(itemCount);
@@ -10791,7 +10798,7 @@ namespace gaia {
 				VerifyComponent<U>();
 
 				m_data.push_back(ADD_COMPONENT);
-				if constexpr (IsGenericComponent<T>::value)
+				if constexpr (IsGenericComponent<T>)
 					m_data.push_back(ComponentType::CT_Generic);
 				else
 					m_data.push_back(ComponentType::CT_Chunk);
@@ -10811,7 +10818,7 @@ namespace gaia {
 				VerifyComponent<U>();
 
 				m_data.push_back(ADD_COMPONENT_TO_TEMPENTITY);
-				if constexpr (IsGenericComponent<T>::value)
+				if constexpr (IsGenericComponent<T>)
 					m_data.push_back(ComponentType::CT_Generic);
 				else
 					m_data.push_back(ComponentType::CT_Chunk);
@@ -10831,7 +10838,7 @@ namespace gaia {
 				VerifyComponent<U>();
 
 				m_data.push_back(ADD_COMPONENT_DATA);
-				if constexpr (IsGenericComponent<T>::value)
+				if constexpr (IsGenericComponent<T>)
 					m_data.push_back(ComponentType::CT_Generic);
 				else
 					m_data.push_back(ComponentType::CT_Chunk);
@@ -10852,7 +10859,7 @@ namespace gaia {
 				VerifyComponent<U>();
 
 				m_data.push_back(ADD_COMPONENT_TO_TEMPENTITY_DATA);
-				if constexpr (IsGenericComponent<T>::value)
+				if constexpr (IsGenericComponent<T>)
 					m_data.push_back(ComponentType::CT_Generic);
 				else
 					m_data.push_back(ComponentType::CT_Chunk);
@@ -10873,7 +10880,7 @@ namespace gaia {
 				VerifyComponent<U>();
 
 				m_data.push_back(SET_COMPONENT);
-				if constexpr (IsGenericComponent<T>::value)
+				if constexpr (IsGenericComponent<T>)
 					m_data.push_back(ComponentType::CT_Generic);
 				else
 					m_data.push_back(ComponentType::CT_Chunk);
@@ -10893,7 +10900,7 @@ namespace gaia {
 				VerifyComponent<U>();
 
 				m_data.push_back(SET_COMPONENT_FOR_TEMPENTITY);
-				if constexpr (IsGenericComponent<T>::value)
+				if constexpr (IsGenericComponent<T>)
 					m_data.push_back(ComponentType::CT_Generic);
 				else
 					m_data.push_back(ComponentType::CT_Chunk);
@@ -10909,7 +10916,7 @@ namespace gaia {
 				VerifyComponent<U>();
 
 				m_data.push_back(REMOVE_COMPONENT);
-				if constexpr (IsGenericComponent<T>::value)
+				if constexpr (IsGenericComponent<T>)
 					m_data.push_back(ComponentType::CT_Generic);
 				else
 					m_data.push_back(ComponentType::CT_Chunk);
