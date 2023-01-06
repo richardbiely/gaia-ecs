@@ -81,7 +81,7 @@ namespace gaia {
 				}
 				constexpr iterator operator--(int) {
 					iterator temp(*this);
-					--this;
+					--*this;
 					return temp;
 				}
 
@@ -131,7 +131,7 @@ namespace gaia {
 				constexpr const_iterator(pointer ptr): m_ptr(ptr) {}
 
 				constexpr const_iterator(const const_iterator& other): m_ptr(other.m_ptr) {}
-				constexpr iterator& operator=(const const_iterator& other) {
+				constexpr const_iterator& operator=(const const_iterator& other) {
 					m_ptr = other.m_ptr;
 					return *this;
 				}
@@ -169,7 +169,7 @@ namespace gaia {
 				}
 				constexpr const_iterator operator--(int) {
 					const_iterator temp(*this);
-					--this;
+					--*this;
 					return temp;
 				}
 
