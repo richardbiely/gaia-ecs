@@ -483,9 +483,29 @@ namespace gaia {
 				return *this;
 			}
 
+			GAIA_NODISCARD Constraints GetConstraints() const {
+				return m_constraints;
+			}
+
+			template <bool Enabled>
+			GAIA_NODISCARD bool CheckConstraints() const {
+				if GAIA_LIKELY (m_constraints == Constraints::AcceptAll)
+					return true;
+				if (Enabled && m_constraints == Constraints::EnabledOnly)
+					return true;
+				if (!Enabled && m_constraints == Constraints::DisabledOnly)
+					return true;
+				return false;
+			}
+
 			GAIA_NODISCARD bool CheckConstraints(bool enabled) const {
-				return m_constraints == Constraints::AcceptAll || (enabled && m_constraints == Constraints::EnabledOnly) ||
-							 (!enabled && m_constraints == Constraints::DisabledOnly);
+				if GAIA_LIKELY (m_constraints == Constraints::AcceptAll)
+					return true;
+				if (enabled && m_constraints == Constraints::EnabledOnly)
+					return true;
+				if (!enabled && m_constraints == Constraints::DisabledOnly)
+					return true;
+				return false;
 			}
 
 			GAIA_NODISCARD bool HasFilters() const {
