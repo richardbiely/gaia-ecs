@@ -356,11 +356,11 @@ void BM_ECS_WithSystems_Chunk_SoA(picobench::state& state) {
 				// as smart as Clang so they wouldn't be able to vectorize even though
 				// the oportunity is screaming.
 				////////////////////////////////////////////////////////////////////
-				// for (auto i = 0; i < ch.GetItemCount(); ++i)
+				// for (size_t i = 0; i < ch.GetItemCount(); ++i)
 				// 	ppx[i] += vvx[i] * dt;
-				// for (auto i = 0; i < ch.GetItemCount(); ++i)
+				// for (size_t i = 0; i < ch.GetItemCount(); ++i)
 				// 	ppy[i] += vvy[i] * dt;
-				// for (auto i = 0; i < ch.GetItemCount(); ++i)
+				// for (size_t i = 0; i < ch.GetItemCount(); ++i)
 				// 	ppz[i] += vvz[i] * dt;
 				////////////////////////////////////////////////////////////////////
 

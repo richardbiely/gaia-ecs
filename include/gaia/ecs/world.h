@@ -19,6 +19,7 @@
 #include "entity.h"
 #include "entity_query.h"
 #include "fwd.h"
+#include "gaia/config/config_core.h"
 
 namespace gaia {
 	namespace ecs {
@@ -1353,6 +1354,18 @@ namespace gaia {
 				return false;
 			}
 
+			GAIA_NODISCARD static bool
+			CanAcceptChunkForProcessing(const Chunk& chunk, const EntityQuery& q, bool hasFilters) {
+				if GAIA_UNLIKELY (!chunk.HasEntities())
+					return false;
+				if (!q.CheckConstraints(!chunk.IsDisabled()))
+					return false;
+				if (hasFilters && !CheckFilters(q, chunk))
+					return false;
+
+				return true;
+			}
+
 			//--------------------------------------------------------------------------------
 
 			template <typename Func>
@@ -1382,11 +1395,7 @@ namespace gaia {
 							for (size_t j = chunkOffset; j < chunkOffset + batchSize; ++j) {
 								auto* pChunk = chunksList[j];
 
-								if (!pChunk->HasEntities())
-									continue;
-								if (!query.CheckConstraints(!pChunk->IsDisabled()))
-									continue;
-								if (hasFilters && !CheckFilters(query, *pChunk))
+								if (!CanAcceptChunkForProcessing(*pChunk, query, hasFilters))
 									continue;
 
 								tmp[indexInBatch++] = pChunk;
@@ -1404,9 +1413,9 @@ namespace gaia {
 						}
 					};
 
-					if (query.CheckConstraints(true))
+					if (query.CheckConstraints<true>())
 						exec(archetype.chunks);
-					if (query.CheckConstraints(false))
+					if (query.CheckConstraints<false>())
 						exec(archetype.chunksDisabled);
 
 					GAIA_ASSERT(archetype.info.structuralChangesLocked > 0);
@@ -1572,11 +1581,7 @@ namespace gaia {
 
 					auto exec = [&](const auto& chunksList) {
 						for (auto* pChunk: chunksList) {
-							if (!pChunk->HasEntities())
-								continue;
-							if (!m_q.CheckConstraints(!pChunk->IsDisabled()))
-								continue;
-							if (hasFilters && !CheckFilters(m_q, *pChunk))
+							if (!CanAcceptChunkForProcessing(*pChunk, m_q, hasFilters))
 								continue;
 							hasItems = true;
 							break;
@@ -1585,12 +1590,12 @@ namespace gaia {
 
 					// Iterate over all archetypes
 					m_w.ForEachArchetypeCond_NoMatch(m_q, [&](const Archetype& archetype) {
-						if (m_q.CheckConstraints(true)) {
+						if (m_q.CheckConstraints<true>()) {
 							exec(archetype.chunks);
 							if (hasItems)
 								return false;
 						}
-						if (m_q.CheckConstraints(false)) {
+						if (m_q.CheckConstraints<false>()) {
 							exec(archetype.chunksDisabled);
 							if (hasItems)
 								return false;
@@ -1613,20 +1618,16 @@ namespace gaia {
 
 					auto exec = [&](const auto& chunksList) {
 						for (auto* pChunk: chunksList) {
-							if (!pChunk->HasEntities())
-								continue;
-							if (!m_q.CheckConstraints(!pChunk->IsDisabled()))
-								continue;
-							if (hasFilters && !CheckFilters(m_q, *pChunk))
+							if (!CanAcceptChunkForProcessing(*pChunk, m_q, hasFilters))
 								continue;
 							itemCount += pChunk->GetItemCount();
 						}
 					};
 
 					m_w.ForEachArchetype_NoMatch(m_q, [&](const Archetype& archetype) {
-						if (m_q.CheckConstraints(true))
+						if (m_q.CheckConstraints<true>())
 							exec(archetype.chunks);
-						if (m_q.CheckConstraints(false))
+						if (m_q.CheckConstraints<false>())
 							exec(archetype.chunksDisabled);
 					});
 
@@ -1649,11 +1650,7 @@ namespace gaia {
 
 					auto exec = [&](const auto& chunksList) {
 						for (auto* pChunk: chunksList) {
-							if (!pChunk->HasEntities())
-								continue;
-							if (!m_q.CheckConstraints(!pChunk->IsDisabled()))
-								continue;
-							if (hasFilters && !CheckFilters(m_q, *pChunk))
+							if (!CanAcceptChunkForProcessing(*pChunk, m_q, hasFilters))
 								continue;
 
 							const auto componentView = pChunk->template View<ContainerItemType>();
@@ -1663,9 +1660,9 @@ namespace gaia {
 					};
 
 					m_w.ForEachArchetype_NoMatch(m_q, [&](const Archetype& archetype) {
-						if (m_q.CheckConstraints(true))
+						if (m_q.CheckConstraints<true>())
 							exec(archetype.chunks);
-						if (m_q.CheckConstraints(false))
+						if (m_q.CheckConstraints<false>())
 							exec(archetype.chunksDisabled);
 					});
 				}
@@ -1685,11 +1682,7 @@ namespace gaia {
 
 					auto exec = [&](const auto& chunksList) {
 						for (auto* pChunk: chunksList) {
-							if (!pChunk->HasEntities())
-								continue;
-							if (!m_q.CheckConstraints(!pChunk->IsDisabled()))
-								continue;
-							if (hasFilters && !CheckFilters(m_q, *pChunk))
+							if (!CanAcceptChunkForProcessing(*pChunk, m_q, hasFilters))
 								continue;
 
 							outArray.push_back(pChunk);
@@ -1697,9 +1690,9 @@ namespace gaia {
 					};
 
 					m_w.ForEachArchetype_NoMatch(m_q, [&](const Archetype& archetype) {
-						if (m_q.CheckConstraints(true))
+						if (m_q.CheckConstraints<true>())
 							exec(archetype.chunks);
-						if (m_q.CheckConstraints(false))
+						if (m_q.CheckConstraints<false>())
 							exec(archetype.chunksDisabled);
 					});
 				}

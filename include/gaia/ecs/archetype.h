@@ -251,7 +251,7 @@ namespace gaia {
 					}
 				}
 
-				newArch->info.capacity = maxGenericItemsInArchetype;
+				newArch->info.capacity = (uint32_t)maxGenericItemsInArchetype;
 				newArch->matcherHash[ComponentType::CT_Generic] = CalculateMatcherHash(infosGeneric);
 				newArch->matcherHash[ComponentType::CT_Chunk] = CalculateMatcherHash(infosChunk);
 
