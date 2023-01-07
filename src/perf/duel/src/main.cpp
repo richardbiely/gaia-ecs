@@ -1362,28 +1362,35 @@ PICOBENCH(BM_NonECS_BetterMemoryLayout).PICO_SETTINGS().label("OptimizedMemLayou
 // "Groups" is there to simulate having items split into separate chunks similar to what ECS does.
 PICOBENCH_SUITE("NonECS_DOD");
 PICOBENCH(BM_NonECS_DOD<1>).PICO_SETTINGS().baseline().label("Default");
-PICOBENCH(BM_NonECS_DOD<20>).PICO_SETTINGS().label("ChunkSize_20");
-PICOBENCH(BM_NonECS_DOD<40>).PICO_SETTINGS().label("ChunkSize_40");
-PICOBENCH(BM_NonECS_DOD<80>).PICO_SETTINGS().label("ChunkSize_80");
-PICOBENCH(BM_NonECS_DOD<160>).PICO_SETTINGS().label("ChunkSize_160");
+PICOBENCH(BM_NonECS_DOD<20>).PICO_SETTINGS().label("Chunks_20");
+PICOBENCH(BM_NonECS_DOD<40>).PICO_SETTINGS().label("Chunks_40");
+PICOBENCH(BM_NonECS_DOD<80>).PICO_SETTINGS().label("Chunks_80");
+PICOBENCH(BM_NonECS_DOD<160>).PICO_SETTINGS().label("Chunks_160");
+PICOBENCH(BM_NonECS_DOD<200>).PICO_SETTINGS().label("Chunks_200");
+PICOBENCH(BM_NonECS_DOD<320>).PICO_SETTINGS().label("Chunks_320");
 // Best possible performance with no manual optimization.
 // Performance target for BM_ECS_WithSystems_Chunk_SoA.
 // "Groups" is there to simulate having items split into separate chunks similar to what ECS does.
 PICOBENCH_SUITE("NonECS_DOD_SoA");
 PICOBENCH(BM_NonECS_DOD_SoA<1>).PICO_SETTINGS().baseline().label("Default");
-PICOBENCH(BM_NonECS_DOD_SoA<20>).PICO_SETTINGS().label("ChunkSize_20");
-PICOBENCH(BM_NonECS_DOD_SoA<40>).PICO_SETTINGS().label("ChunkSize_40");
-PICOBENCH(BM_NonECS_DOD_SoA<80>).PICO_SETTINGS().label("ChunkSize_80");
-PICOBENCH(BM_NonECS_DOD_SoA<160>).PICO_SETTINGS().label("ChunkSize_160");
+PICOBENCH(BM_NonECS_DOD_SoA<20>).PICO_SETTINGS().label("Chunks_20");
+PICOBENCH(BM_NonECS_DOD_SoA<40>).PICO_SETTINGS().label("Chunks_40");
+PICOBENCH(BM_NonECS_DOD_SoA<80>).PICO_SETTINGS().label("Chunks_80");
+PICOBENCH(BM_NonECS_DOD_SoA<160>).PICO_SETTINGS().label("Chunks_160");
+PICOBENCH(BM_NonECS_DOD_SoA<200>).PICO_SETTINGS().label("Chunks_200");
+PICOBENCH(BM_NonECS_DOD_SoA<320>).PICO_SETTINGS().label("Chunks_320");
+
 // Best possible performance.
 // Performance target for BM_ECS_WithSystems_Chunk_SoA_SIMD.
 // "Groups" is there to simulate having items split into separate chunks similar to what ECS does.
 PICOBENCH_SUITE("NonECS_DOD_SoA_SIMD");
 PICOBENCH(BM_NonECS_DOD_SoA_SIMD<1>).PICO_SETTINGS().baseline().label("Default");
-PICOBENCH(BM_NonECS_DOD_SoA_SIMD<20>).PICO_SETTINGS().label("ChunkSize_20");
-PICOBENCH(BM_NonECS_DOD_SoA_SIMD<40>).PICO_SETTINGS().label("ChunkSize_40");
-PICOBENCH(BM_NonECS_DOD_SoA_SIMD<80>).PICO_SETTINGS().label("ChunkSize_80");
-PICOBENCH(BM_NonECS_DOD_SoA_SIMD<160>).PICO_SETTINGS().label("ChunkSize_160");
+PICOBENCH(BM_NonECS_DOD_SoA_SIMD<20>).PICO_SETTINGS().label("Chunks_20");
+PICOBENCH(BM_NonECS_DOD_SoA_SIMD<40>).PICO_SETTINGS().label("Chunks_40");
+PICOBENCH(BM_NonECS_DOD_SoA_SIMD<80>).PICO_SETTINGS().label("Chunks_80");
+PICOBENCH(BM_NonECS_DOD_SoA_SIMD<160>).PICO_SETTINGS().label("Chunks_160");
+PICOBENCH(BM_NonECS_DOD_SoA_SIMD<200>).PICO_SETTINGS().label("Chunks_200");
+PICOBENCH(BM_NonECS_DOD_SoA_SIMD<320>).PICO_SETTINGS().label("Chunks_320");
 
 // GaiaECS performance.
 PICOBENCH_SUITE("ECS");
