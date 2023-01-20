@@ -5,7 +5,7 @@
 namespace gaia {
 	namespace ecs {
 		//! Number of ticks before empty chunks are removed
-		constexpr uint32_t MAX_CHUNK_LIFESPAN = 8u;
+		constexpr uint16_t MAX_CHUNK_LIFESPAN = 8u;
 		//! Number of ticks before empty archetypes are removed
 		// constexpr uint32_t MAX_ARCHETYPE_LIFESPAN = 8u; Keep commented until used to avoid compilation errors
 		//! Maximum number of components on archetype

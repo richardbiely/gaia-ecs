@@ -660,7 +660,7 @@ namespace gaia {
 				}
 				constexpr iterator operator--(int) {
 					iterator temp(*this);
-					--this;
+					--*this;
 					return temp;
 				}
 
@@ -712,7 +712,7 @@ namespace gaia {
 				constexpr const_iterator(pointer ptr): m_ptr(ptr) {}
 
 				constexpr const_iterator(const const_iterator& other): m_ptr(other.m_ptr) {}
-				constexpr iterator& operator=(const const_iterator& other) {
+				constexpr const_iterator& operator=(const const_iterator& other) {
 					m_ptr = other.m_ptr;
 					return *this;
 				}
@@ -750,7 +750,7 @@ namespace gaia {
 				}
 				constexpr const_iterator operator--(int) {
 					const_iterator temp(*this);
-					--this;
+					--*this;
 					return temp;
 				}
 
@@ -1178,7 +1178,7 @@ namespace gaia {
 				}
 				constexpr iterator operator--(int) {
 					iterator temp(*this);
-					--this;
+					--*this;
 					return temp;
 				}
 
@@ -1229,7 +1229,7 @@ namespace gaia {
 				constexpr const_iterator(pointer ptr): m_ptr(ptr) {}
 
 				constexpr const_iterator(const const_iterator& other): m_ptr(other.m_ptr) {}
-				constexpr iterator& operator=(const const_iterator& other) {
+				constexpr const_iterator& operator=(const const_iterator& other) {
 					m_ptr = other.m_ptr;
 					return *this;
 				}
@@ -1267,7 +1267,7 @@ namespace gaia {
 				}
 				constexpr const_iterator operator--(int) {
 					const_iterator temp(*this);
-					--this;
+					--*this;
 					return temp;
 				}
 
@@ -1494,7 +1494,7 @@ namespace gaia {
 				}
 				constexpr iterator operator--(int) {
 					iterator temp(*this);
-					--this;
+					--*this;
 					return temp;
 				}
 
@@ -1544,7 +1544,7 @@ namespace gaia {
 				constexpr const_iterator(pointer ptr): m_ptr(ptr) {}
 
 				constexpr const_iterator(const const_iterator& other): m_ptr(other.m_ptr) {}
-				constexpr iterator& operator=(const const_iterator& other) {
+				constexpr const_iterator& operator=(const const_iterator& other) {
 					m_ptr = other.m_ptr;
 					return *this;
 				}
@@ -1582,7 +1582,7 @@ namespace gaia {
 				}
 				constexpr const_iterator operator--(int) {
 					const_iterator temp(*this);
-					--this;
+					--*this;
 					return temp;
 				}
 
@@ -5076,7 +5076,7 @@ namespace gaia {
 namespace gaia {
 	namespace ecs {
 		//! Number of ticks before empty chunks are removed
-		constexpr uint32_t MAX_CHUNK_LIFESPAN = 8u;
+		constexpr uint16_t MAX_CHUNK_LIFESPAN = 8u;
 		//! Number of ticks before empty archetypes are removed
 		// constexpr uint32_t MAX_ARCHETYPE_LIFESPAN = 8u; Keep commented until used to avoid compilation errors
 		//! Maximum number of components on archetype
@@ -6409,8 +6409,8 @@ namespace gaia {
 		//----------------------------------------------------------------------
 
 		struct ComponentInfoCreate final {
-			using FuncConstructor = void(const void*, size_t);
-			using FuncDestructor = void(const void*, size_t);
+			using FuncConstructor = void(void*, size_t);
+			using FuncDestructor = void(void*, size_t);
 
 			//! [ 0-15] Component name
 			std::span<const char> name;
@@ -6430,14 +6430,14 @@ namespace gaia {
 				info.infoIndex = utils::type_info::index<U>();
 
 				if constexpr (!std::is_empty_v<U> && !utils::is_soa_layout_v<U>) {
-					info.constructor = [](const void* ptr, size_t cnt) {
-						const U* first = (const U*)ptr;
-						const U* last = (const U*)ptr + cnt;
+					info.constructor = [](void* ptr, size_t cnt) {
+						auto first = (U*)ptr;
+						auto last = (U*)ptr + cnt;
 						std::uninitialized_default_construct(first, last);
 					};
-					info.destructor = [](const void* ptr, size_t cnt) {
-						const U* first = (const U*)ptr;
-						const U* last = (const U*)ptr + cnt;
+					info.destructor = [](void* ptr, size_t cnt) {
+						auto first = (U*)ptr;
+						auto last = (U*)ptr + cnt;
 						std::destroy(first, last);
 					};
 				}
@@ -6975,26 +6975,17 @@ namespace gaia {
 #if !GAIA_64
 			uint32_t owner_padding;
 #endif
-			// [8-11]
-			struct {
-				//! Number of items in the chunk.
-				uint32_t count : 16;
-				//! Capacity (copied from the owner archetype).
-				uint32_t capacity : 16;
-			} items{};
-
-			//! [12-15] Chunk index in its archetype list
-			uint32_t index{};
-
-			// [16-19]
-			struct {
-				//! Once removal is requested and it hits 0 the chunk is removed.
-				uint32_t lifespan : 31;
-				//! If true this chunk stores disabled entities
-				uint32_t disabled : 1;
-			} info{};
-
-			//! [20-275] Versions of individual components on chunk.
+			//! [8-9] Number of items in the chunk.
+			uint16_t count{};
+			//! [10-11] Capacity (copied from the owner archetype).
+			uint16_t capacity{};
+			//! [12-13] Chunk index in its archetype list
+			uint16_t index{};
+			//! [14-15] Once removal is requested and it hits 0 the chunk is removed.
+			uint16_t lifespan : 15;
+			//! [1 bit on byte 15] If true this chunk stores disabled entities
+			uint16_t disabled : 1;
+			//! [16-272] Versions of individual components on chunk.
 			uint32_t versions[ComponentType::CT_Count][MAX_COMPONENTS_PER_ARCHETYPE]{};
 
 			ChunkHeader(const Archetype& archetype): owner(archetype) {
@@ -7186,7 +7177,7 @@ namespace gaia {
 			\return Index of the entity within the chunk.
 			*/
 			GAIA_NODISCARD uint32_t AddEntity(Entity entity) {
-				const auto index = header.items.count++;
+				const auto index = header.count++;
 				SetEntity(index, entity);
 
 				header.UpdateWorldVersion(ComponentType::CT_Generic);
@@ -7197,17 +7188,17 @@ namespace gaia {
 
 			void RemoveEntity(uint32_t index, containers::darray<EntityContainer>& entities) {
 				// Ignore requests on empty chunks
-				if (header.items.count == 0)
+				if (header.count == 0)
 					return;
 
 				// We can't be removing from an index which is no longer there
-				GAIA_ASSERT(index < header.items.count);
+				GAIA_ASSERT(index < header.count);
 
 				// If there are at least two entities inside and it's not already the
 				// last one let's swap our entity with the last one in chunk.
-				if (header.items.count > 1 && header.items.count != index + 1) {
+				if (header.count > 1 && header.count != index + 1) {
 					// Swap data at index with the last one
-					const auto entity = GetEntity(header.items.count - 1);
+					const auto entity = GetEntity(header.count - 1);
 					SetEntity(index, entity);
 
 					const auto& componentInfos = GetArchetypeComponentInfoList(header.owner, ComponentType::CT_Generic);
@@ -7222,7 +7213,7 @@ namespace gaia {
 							continue;
 
 						const uint32_t idxFrom = look.offset + index * info->properties.size;
-						const uint32_t idxTo = look.offset + (header.items.count - 1) * info->properties.size;
+						const uint32_t idxTo = look.offset + (header.count - 1) * info->properties.size;
 
 						GAIA_ASSERT(idxFrom < Chunk::DATA_SIZE_NORESERVE);
 						GAIA_ASSERT(idxTo < Chunk::DATA_SIZE_NORESERVE);
@@ -7240,7 +7231,7 @@ namespace gaia {
 				header.UpdateWorldVersion(ComponentType::CT_Generic);
 				header.UpdateWorldVersion(ComponentType::CT_Chunk);
 
-				--header.items.count;
+				--header.count;
 			}
 
 			/*!
@@ -7249,7 +7240,7 @@ namespace gaia {
 			\param entity Entity to store in the chunk
 			*/
 			void SetEntity(uint32_t index, Entity entity) {
-				GAIA_ASSERT(index < header.items.count && "Entity index in chunk out of bounds!");
+				GAIA_ASSERT(index < header.count && "Entity index in chunk out of bounds!");
 
 				utils::unaligned_ref<Entity> mem((void*)&data[sizeof(Entity) * index]);
 				mem = entity;
@@ -7261,7 +7252,7 @@ namespace gaia {
 			\return Entity on a given index within the chunk.
 			*/
 			GAIA_NODISCARD const Entity GetEntity(uint32_t index) const {
-				GAIA_ASSERT(index < header.items.count && "Entity index in chunk out of bounds!");
+				GAIA_ASSERT(index < header.count && "Entity index in chunk out of bounds!");
 
 				utils::unaligned_ref<Entity> mem((void*)&data[sizeof(Entity) * index]);
 				return mem;
@@ -7509,22 +7500,22 @@ namespace gaia {
 
 			//! Checks is this chunk is disabled
 			GAIA_NODISCARD bool IsDisabled() const {
-				return header.info.disabled;
+				return header.disabled;
 			}
 
 			//! Checks is the full capacity of the has has been reached
 			GAIA_NODISCARD bool IsFull() const {
-				return header.items.count >= header.items.capacity;
+				return header.count >= header.capacity;
 			}
 
 			//! Checks is there are any entities in the chunk
 			GAIA_NODISCARD bool HasEntities() const {
-				return header.items.count > 0;
+				return header.count > 0;
 			}
 
 			//! Returns the number of entities in the chunk
 			GAIA_NODISCARD uint32_t GetItemCount() const {
-				return header.items.count;
+				return header.count;
 			}
 
 			//! Returns true if the provided version is newer than the one stored internally
@@ -7722,7 +7713,7 @@ namespace gaia {
 						const auto& infoCreate = cc.GetComponentCreateInfoFromIdx(look[i].infoIndex);
 						if (infoCreate.constructor == nullptr)
 							continue;
-						const void* first = (void*)((uint8_t*)pChunk + look[i].offset);
+						auto first = (void*)((uint8_t*)pChunk + look[i].offset);
 						infoCreate.constructor(first, archetype.info.capacity);
 					}
 				};
@@ -7733,7 +7724,7 @@ namespace gaia {
 					callConstructors(ComponentType::CT_Chunk);
 				}
 
-				pChunk->header.items.capacity = archetype.info.capacity;
+				pChunk->header.capacity = archetype.info.capacity;
 				return pChunk;
 			}
 
@@ -7751,7 +7742,7 @@ namespace gaia {
 						const auto& infoCreate = cc.GetComponentCreateInfoFromIdx(look[i].infoIndex);
 						if (infoCreate.destructor == nullptr)
 							continue;
-						const void* first = (void*)((uint8_t*)pChunk + look[i].offset);
+						auto first = (void*)((uint8_t*)pChunk + look[i].offset);
 						infoCreate.destructor(first, archetype.info.capacity);
 					}
 				};
@@ -7873,7 +7864,7 @@ namespace gaia {
 					}
 				}
 
-				newArch->info.capacity = maxGenericItemsInArchetype;
+				newArch->info.capacity = (uint32_t)maxGenericItemsInArchetype;
 				newArch->matcherHash[ComponentType::CT_Generic] = CalculateMatcherHash(infosGeneric);
 				newArch->matcherHash[ComponentType::CT_Chunk] = CalculateMatcherHash(infosChunk);
 
@@ -7913,7 +7904,7 @@ namespace gaia {
 			//! If not found a new chunk is created
 			GAIA_NODISCARD Chunk* FindOrCreateFreeChunkDisabled() {
 				auto* pChunk = FindOrCreateFreeChunk_Internal(chunksDisabled);
-				pChunk->header.info.disabled = true;
+				pChunk->header.disabled = true;
 				return pChunk;
 			}
 
@@ -8521,9 +8512,29 @@ namespace gaia {
 				return *this;
 			}
 
+			GAIA_NODISCARD Constraints GetConstraints() const {
+				return m_constraints;
+			}
+
+			template <bool Enabled>
+			GAIA_NODISCARD bool CheckConstraints() const {
+				if GAIA_LIKELY (m_constraints == Constraints::AcceptAll)
+					return true;
+				if (Enabled && m_constraints == Constraints::EnabledOnly)
+					return true;
+				if (!Enabled && m_constraints == Constraints::DisabledOnly)
+					return true;
+				return false;
+			}
+
 			GAIA_NODISCARD bool CheckConstraints(bool enabled) const {
-				return m_constraints == Constraints::AcceptAll || (enabled && m_constraints == Constraints::EnabledOnly) ||
-							 (!enabled && m_constraints == Constraints::DisabledOnly);
+				if GAIA_LIKELY (m_constraints == Constraints::AcceptAll)
+					return true;
+				if (enabled && m_constraints == Constraints::EnabledOnly)
+					return true;
+				if (!enabled && m_constraints == Constraints::DisabledOnly)
+					return true;
+				return false;
 			}
 
 			GAIA_NODISCARD bool HasFilters() const {
@@ -8730,7 +8741,7 @@ namespace gaia {
 
 				if (
 						// Skip chunks which already requested removal
-						pChunk->header.info.lifespan > 0 ||
+						pChunk->header.lifespan > 0 ||
 						// Skip non-empty chunks
 						pChunk->HasEntities())
 					return;
@@ -8747,7 +8758,7 @@ namespace gaia {
 				// be removed. The chunk might be reclaimed before GC happens but it
 				// simply ignores such requests. This way GC always has at most one
 				// record for removal for any given chunk.
-				pChunk->header.info.lifespan = MAX_CHUNK_LIFESPAN;
+				pChunk->header.lifespan = MAX_CHUNK_LIFESPAN;
 
 				m_chunksToRemove.push_back(pChunk);
 			}
@@ -9926,6 +9937,18 @@ namespace gaia {
 				return false;
 			}
 
+			GAIA_NODISCARD static bool
+			CanAcceptChunkForProcessing(const Chunk& chunk, const EntityQuery& q, bool hasFilters) {
+				if GAIA_UNLIKELY (!chunk.HasEntities())
+					return false;
+				if (!q.CheckConstraints(!chunk.IsDisabled()))
+					return false;
+				if (hasFilters && !CheckFilters(q, chunk))
+					return false;
+
+				return true;
+			}
+
 			//--------------------------------------------------------------------------------
 
 			template <typename Func>
@@ -9955,11 +9978,7 @@ namespace gaia {
 							for (size_t j = chunkOffset; j < chunkOffset + batchSize; ++j) {
 								auto* pChunk = chunksList[j];
 
-								if (!pChunk->HasEntities())
-									continue;
-								if (!query.CheckConstraints(!pChunk->IsDisabled()))
-									continue;
-								if (hasFilters && !CheckFilters(query, *pChunk))
+								if (!CanAcceptChunkForProcessing(*pChunk, query, hasFilters))
 									continue;
 
 								tmp[indexInBatch++] = pChunk;
@@ -9977,9 +9996,9 @@ namespace gaia {
 						}
 					};
 
-					if (query.CheckConstraints(true))
+					if (query.CheckConstraints<true>())
 						exec(archetype.chunks);
-					if (query.CheckConstraints(false))
+					if (query.CheckConstraints<false>())
 						exec(archetype.chunksDisabled);
 
 					GAIA_ASSERT(archetype.info.structuralChangesLocked > 0);
@@ -10145,11 +10164,7 @@ namespace gaia {
 
 					auto exec = [&](const auto& chunksList) {
 						for (auto* pChunk: chunksList) {
-							if (!pChunk->HasEntities())
-								continue;
-							if (!m_q.CheckConstraints(!pChunk->IsDisabled()))
-								continue;
-							if (hasFilters && !CheckFilters(m_q, *pChunk))
+							if (!CanAcceptChunkForProcessing(*pChunk, m_q, hasFilters))
 								continue;
 							hasItems = true;
 							break;
@@ -10158,12 +10173,12 @@ namespace gaia {
 
 					// Iterate over all archetypes
 					m_w.ForEachArchetypeCond_NoMatch(m_q, [&](const Archetype& archetype) {
-						if (m_q.CheckConstraints(true)) {
+						if (m_q.CheckConstraints<true>()) {
 							exec(archetype.chunks);
 							if (hasItems)
 								return false;
 						}
-						if (m_q.CheckConstraints(false)) {
+						if (m_q.CheckConstraints<false>()) {
 							exec(archetype.chunksDisabled);
 							if (hasItems)
 								return false;
@@ -10186,20 +10201,16 @@ namespace gaia {
 
 					auto exec = [&](const auto& chunksList) {
 						for (auto* pChunk: chunksList) {
-							if (!pChunk->HasEntities())
-								continue;
-							if (!m_q.CheckConstraints(!pChunk->IsDisabled()))
-								continue;
-							if (hasFilters && !CheckFilters(m_q, *pChunk))
+							if (!CanAcceptChunkForProcessing(*pChunk, m_q, hasFilters))
 								continue;
 							itemCount += pChunk->GetItemCount();
 						}
 					};
 
 					m_w.ForEachArchetype_NoMatch(m_q, [&](const Archetype& archetype) {
-						if (m_q.CheckConstraints(true))
+						if (m_q.CheckConstraints<true>())
 							exec(archetype.chunks);
-						if (m_q.CheckConstraints(false))
+						if (m_q.CheckConstraints<false>())
 							exec(archetype.chunksDisabled);
 					});
 
@@ -10222,11 +10233,7 @@ namespace gaia {
 
 					auto exec = [&](const auto& chunksList) {
 						for (auto* pChunk: chunksList) {
-							if (!pChunk->HasEntities())
-								continue;
-							if (!m_q.CheckConstraints(!pChunk->IsDisabled()))
-								continue;
-							if (hasFilters && !CheckFilters(m_q, *pChunk))
+							if (!CanAcceptChunkForProcessing(*pChunk, m_q, hasFilters))
 								continue;
 
 							const auto componentView = pChunk->template View<ContainerItemType>();
@@ -10236,9 +10243,9 @@ namespace gaia {
 					};
 
 					m_w.ForEachArchetype_NoMatch(m_q, [&](const Archetype& archetype) {
-						if (m_q.CheckConstraints(true))
+						if (m_q.CheckConstraints<true>())
 							exec(archetype.chunks);
-						if (m_q.CheckConstraints(false))
+						if (m_q.CheckConstraints<false>())
 							exec(archetype.chunksDisabled);
 					});
 				}
@@ -10258,11 +10265,7 @@ namespace gaia {
 
 					auto exec = [&](const auto& chunksList) {
 						for (auto* pChunk: chunksList) {
-							if (!pChunk->HasEntities())
-								continue;
-							if (!m_q.CheckConstraints(!pChunk->IsDisabled()))
-								continue;
-							if (hasFilters && !CheckFilters(m_q, *pChunk))
+							if (!CanAcceptChunkForProcessing(*pChunk, m_q, hasFilters))
 								continue;
 
 							outArray.push_back(pChunk);
@@ -10270,9 +10273,9 @@ namespace gaia {
 					};
 
 					m_w.ForEachArchetype_NoMatch(m_q, [&](const Archetype& archetype) {
-						if (m_q.CheckConstraints(true))
+						if (m_q.CheckConstraints<true>())
 							exec(archetype.chunks);
-						if (m_q.CheckConstraints(false))
+						if (m_q.CheckConstraints<false>())
 							exec(archetype.chunksDisabled);
 					});
 				}
@@ -10296,14 +10299,14 @@ namespace gaia {
 
 					// Skip reclaimed chunks
 					if (pChunk->HasEntities()) {
-						pChunk->header.info.lifespan = MAX_CHUNK_LIFESPAN;
+						pChunk->header.lifespan = MAX_CHUNK_LIFESPAN;
 						utils::erase_fast(m_chunksToRemove, i);
 						continue;
 					}
 
-					GAIA_ASSERT(pChunk->header.info.lifespan > 0);
-					--pChunk->header.info.lifespan;
-					if (pChunk->header.info.lifespan > 0) {
+					GAIA_ASSERT(pChunk->header.lifespan > 0);
+					--pChunk->header.lifespan;
+					if (pChunk->header.lifespan > 0) {
 						++i;
 						continue;
 					}
@@ -10444,8 +10447,8 @@ namespace gaia {
 							const auto* pChunk = chunks[i];
 							const auto& header = pChunk->header;
 							LOG_N(
-									"  Chunk #%04u, entities:%u/%u, lifespan:%u", (uint32_t)i, header.items.count,
-									header.owner.info.capacity, header.info.lifespan);
+									"  Chunk #%04u, entities:%u/%u, lifespan:%u", (uint32_t)i, header.count, header.owner.info.capacity,
+									header.lifespan);
 						}
 					};
 

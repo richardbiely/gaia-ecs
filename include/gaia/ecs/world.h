@@ -158,7 +158,7 @@ namespace gaia {
 
 				if (
 						// Skip chunks which already requested removal
-						pChunk->header.info.lifespan > 0 ||
+						pChunk->header.lifespan > 0 ||
 						// Skip non-empty chunks
 						pChunk->HasEntities())
 					return;
@@ -175,7 +175,7 @@ namespace gaia {
 				// be removed. The chunk might be reclaimed before GC happens but it
 				// simply ignores such requests. This way GC always has at most one
 				// record for removal for any given chunk.
-				pChunk->header.info.lifespan = MAX_CHUNK_LIFESPAN;
+				pChunk->header.lifespan = MAX_CHUNK_LIFESPAN;
 
 				m_chunksToRemove.push_back(pChunk);
 			}
@@ -1716,14 +1716,14 @@ namespace gaia {
 
 					// Skip reclaimed chunks
 					if (pChunk->HasEntities()) {
-						pChunk->header.info.lifespan = MAX_CHUNK_LIFESPAN;
+						pChunk->header.lifespan = MAX_CHUNK_LIFESPAN;
 						utils::erase_fast(m_chunksToRemove, i);
 						continue;
 					}
 
-					GAIA_ASSERT(pChunk->header.info.lifespan > 0);
-					--pChunk->header.info.lifespan;
-					if (pChunk->header.info.lifespan > 0) {
+					GAIA_ASSERT(pChunk->header.lifespan > 0);
+					--pChunk->header.lifespan;
+					if (pChunk->header.lifespan > 0) {
 						++i;
 						continue;
 					}
@@ -1864,8 +1864,8 @@ namespace gaia {
 							const auto* pChunk = chunks[i];
 							const auto& header = pChunk->header;
 							LOG_N(
-									"  Chunk #%04u, entities:%u/%u, lifespan:%u", (uint32_t)i, header.items.count,
-									header.owner.info.capacity, header.info.lifespan);
+									"  Chunk #%04u, entities:%u/%u, lifespan:%u", (uint32_t)i, header.count, header.owner.info.capacity,
+									header.lifespan);
 						}
 					};
 

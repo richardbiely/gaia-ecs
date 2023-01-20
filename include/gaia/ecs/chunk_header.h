@@ -17,26 +17,17 @@ namespace gaia {
 #if !GAIA_64
 			uint32_t owner_padding;
 #endif
-			// [8-11]
-			struct {
-				//! Number of items in the chunk.
-				uint32_t count : 16;
-				//! Capacity (copied from the owner archetype).
-				uint32_t capacity : 16;
-			} items{};
-
-			//! [12-15] Chunk index in its archetype list
-			uint32_t index{};
-
-			// [16-19]
-			struct {
-				//! Once removal is requested and it hits 0 the chunk is removed.
-				uint32_t lifespan : 31;
-				//! If true this chunk stores disabled entities
-				uint32_t disabled : 1;
-			} info{};
-
-			//! [20-275] Versions of individual components on chunk.
+			//! [8-9] Number of items in the chunk.
+			uint16_t count{};
+			//! [10-11] Capacity (copied from the owner archetype).
+			uint16_t capacity{};
+			//! [12-13] Chunk index in its archetype list
+			uint16_t index{};
+			//! [14-15] Once removal is requested and it hits 0 the chunk is removed.
+			uint16_t lifespan : 15;
+			//! [1 bit on byte 15] If true this chunk stores disabled entities
+			uint16_t disabled : 1;
+			//! [16-272] Versions of individual components on chunk.
 			uint32_t versions[ComponentType::CT_Count][MAX_COMPONENTS_PER_ARCHETYPE]{};
 
 			ChunkHeader(const Archetype& archetype): owner(archetype) {

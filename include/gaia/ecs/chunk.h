@@ -66,7 +66,7 @@ namespace gaia {
 			\return Index of the entity within the chunk.
 			*/
 			GAIA_NODISCARD uint32_t AddEntity(Entity entity) {
-				const auto index = header.items.count++;
+				const auto index = header.count++;
 				SetEntity(index, entity);
 
 				header.UpdateWorldVersion(ComponentType::CT_Generic);
@@ -77,17 +77,17 @@ namespace gaia {
 
 			void RemoveEntity(uint32_t index, containers::darray<EntityContainer>& entities) {
 				// Ignore requests on empty chunks
-				if (header.items.count == 0)
+				if (header.count == 0)
 					return;
 
 				// We can't be removing from an index which is no longer there
-				GAIA_ASSERT(index < header.items.count);
+				GAIA_ASSERT(index < header.count);
 
 				// If there are at least two entities inside and it's not already the
 				// last one let's swap our entity with the last one in chunk.
-				if (header.items.count > 1 && header.items.count != index + 1) {
+				if (header.count > 1 && header.count != index + 1) {
 					// Swap data at index with the last one
-					const auto entity = GetEntity(header.items.count - 1);
+					const auto entity = GetEntity(header.count - 1);
 					SetEntity(index, entity);
 
 					const auto& componentInfos = GetArchetypeComponentInfoList(header.owner, ComponentType::CT_Generic);
@@ -102,7 +102,7 @@ namespace gaia {
 							continue;
 
 						const uint32_t idxFrom = look.offset + index * info->properties.size;
-						const uint32_t idxTo = look.offset + (header.items.count - 1) * info->properties.size;
+						const uint32_t idxTo = look.offset + (header.count - 1) * info->properties.size;
 
 						GAIA_ASSERT(idxFrom < Chunk::DATA_SIZE_NORESERVE);
 						GAIA_ASSERT(idxTo < Chunk::DATA_SIZE_NORESERVE);
@@ -120,7 +120,7 @@ namespace gaia {
 				header.UpdateWorldVersion(ComponentType::CT_Generic);
 				header.UpdateWorldVersion(ComponentType::CT_Chunk);
 
-				--header.items.count;
+				--header.count;
 			}
 
 			/*!
@@ -129,7 +129,7 @@ namespace gaia {
 			\param entity Entity to store in the chunk
 			*/
 			void SetEntity(uint32_t index, Entity entity) {
-				GAIA_ASSERT(index < header.items.count && "Entity index in chunk out of bounds!");
+				GAIA_ASSERT(index < header.count && "Entity index in chunk out of bounds!");
 
 				utils::unaligned_ref<Entity> mem((void*)&data[sizeof(Entity) * index]);
 				mem = entity;
@@ -141,7 +141,7 @@ namespace gaia {
 			\return Entity on a given index within the chunk.
 			*/
 			GAIA_NODISCARD const Entity GetEntity(uint32_t index) const {
-				GAIA_ASSERT(index < header.items.count && "Entity index in chunk out of bounds!");
+				GAIA_ASSERT(index < header.count && "Entity index in chunk out of bounds!");
 
 				utils::unaligned_ref<Entity> mem((void*)&data[sizeof(Entity) * index]);
 				return mem;
@@ -389,22 +389,22 @@ namespace gaia {
 
 			//! Checks is this chunk is disabled
 			GAIA_NODISCARD bool IsDisabled() const {
-				return header.info.disabled;
+				return header.disabled;
 			}
 
 			//! Checks is the full capacity of the has has been reached
 			GAIA_NODISCARD bool IsFull() const {
-				return header.items.count >= header.items.capacity;
+				return header.count >= header.capacity;
 			}
 
 			//! Checks is there are any entities in the chunk
 			GAIA_NODISCARD bool HasEntities() const {
-				return header.items.count > 0;
+				return header.count > 0;
 			}
 
 			//! Returns the number of entities in the chunk
 			GAIA_NODISCARD uint32_t GetItemCount() const {
-				return header.items.count;
+				return header.count;
 			}
 
 			//! Returns true if the provided version is newer than the one stored internally
