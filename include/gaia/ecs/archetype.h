@@ -111,7 +111,7 @@ namespace gaia {
 					callConstructors(ComponentType::CT_Chunk);
 				}
 
-				pChunk->header.items.capacity = archetype.info.capacity;
+				pChunk->header.capacity = archetype.info.capacity;
 				return pChunk;
 			}
 
@@ -291,7 +291,7 @@ namespace gaia {
 			//! If not found a new chunk is created
 			GAIA_NODISCARD Chunk* FindOrCreateFreeChunkDisabled() {
 				auto* pChunk = FindOrCreateFreeChunk_Internal(chunksDisabled);
-				pChunk->header.info.disabled = true;
+				pChunk->header.disabled = true;
 				return pChunk;
 			}
 
