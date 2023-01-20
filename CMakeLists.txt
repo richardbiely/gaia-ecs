@@ -36,6 +36,16 @@ option(GAIA_BUILD_BENCHMARK "Build benchmark." OFF)
 option(GAIA_BUILD_EXAMPLES "Build examples." OFF)
 option(GAIA_GENERATE_CC "Use ninja to generate compile_commands.json as a post-build step." ON)
 
+if(GAIA_BUILD_UNITTEST)
+    set(GAIA_BUILD_SRC ON)
+elseif(GAIA_BUILD_BENCHMARK)
+    set(GAIA_BUILD_SRC ON)
+elseif(GAIA_BUILD_EXAMPLES)
+    set(GAIA_BUILD_SRC ON)
+else()
+    set(GAIA_BUILD_SRC OFF)
+endif()
+
 if(NOT WIN32 AND GAIA_USE_LIBCPP)
     include(CheckCXXSourceCompiles)
     include(CMakePushCheckState)
@@ -107,22 +117,8 @@ install(FILES "${PROJECT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
 
 install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME})
 
-# Unit test
-if(GAIA_BUILD_UNITTEST)
-    option(GAIA_FIND_CATCH2_PACKAGE "Enable finding Catch2 package." ON)
-    add_subdirectory(src/test)
-endif()
-
-# Benchmark
-if(GAIA_BUILD_BENCHMARK)
-    add_subdirectory(src/perf)
-endif()
-
-# Examples
-if(GAIA_BUILD_EXAMPLES)
-    add_subdirectory(src/examples/example1)
-    add_subdirectory(src/examples/example2)
-    add_subdirectory(src/examples/example_rougelike)
+if(GAIA_BUILD_SRC)
+    add_subdirectory(src)
 endif()
 
 # Generated compile_commands.json
