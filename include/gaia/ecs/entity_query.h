@@ -268,6 +268,45 @@ namespace gaia {
 			}
 
 			/*!
+				Tries to match a component query index from \param queryList against those in \param componentInfos.
+				\return True if there is a match, false otherwise.
+				*/
+			static GAIA_NODISCARD bool
+			CheckMatchOne(const ComponentInfoList& componentInfos, const ComponentIndexArray& queryList) {
+				for (const auto infoIndex: queryList) {
+					for (const auto& info: componentInfos) {
+						if (info->infoIndex == infoIndex) {
+							return true;
+						}
+					}
+				}
+
+				return false;
+			}
+
+			/*!
+				Tries to match all component query indices from \param queryList against those in \param componentInfos.
+				\return True if there is a match, false otherwise.
+				*/
+			static GAIA_NODISCARD bool
+			CheckMatchMany(const ComponentInfoList& componentInfos, const ComponentIndexArray& queryList) {
+				size_t matches = 0;
+
+				for (const auto infoIndex: queryList) {
+					for (const auto& info: componentInfos) {
+						if (info->infoIndex == infoIndex) {
+							if (++matches == queryList.size())
+								return true;
+
+							break;
+						}
+					}
+				}
+
+				return false;
+			}
+
+			/*!
 				Tries to match \param componentInfos with a given \param matcherHash.
 				\return MatchArchetypeQueryRet::Fail if there is no match, MatchArchetypeQueryRet::Ok for match or
 								MatchArchetypeQueryRet::Skip is not relevant.
@@ -287,25 +326,16 @@ namespace gaia {
 				if (!withAnyTest && queryList.hash[ListType::LT_Any] != 0)
 					return MatchArchetypeQueryRet::Fail;
 
-				// If there is any match with the withNoneList we quit
+				// If there is any match with withNoneList we quit
 				if (withNoneTest != 0) {
-					for (const auto infoIndex: queryList.list[ListType::LT_None]) {
-						for (const auto& info: componentInfos) {
-							if (info->infoIndex == infoIndex) {
-								return MatchArchetypeQueryRet::Fail;
-							}
-						}
-					}
+					if (CheckMatchOne(componentInfos, queryList.list[ListType::LT_None]))
+						return MatchArchetypeQueryRet::Fail;
 				}
 
-				// If there is any match with the withAnyTest
+				// If there is any match with withAnyTest
 				if (withAnyTest != 0) {
-					for (const auto infoIndex: queryList.list[ListType::LT_Any]) {
-						for (const auto& info: componentInfos) {
-							if (info->infoIndex == infoIndex)
-								goto checkWithAllMatches;
-						}
-					}
+					if (CheckMatchOne(componentInfos, queryList.list[ListType::LT_Any]))
+						goto checkWithAllMatches;
 
 					// At least one match necessary to continue
 					return MatchArchetypeQueryRet::Fail;
@@ -317,23 +347,10 @@ namespace gaia {
 					// If the number of queried components is greater than the
 					// number of components in archetype there's no need to search
 					if (queryList.list[ListType::LT_All].size() <= componentInfos.size()) {
-						uint32_t matches = 0;
-
 						// m_list[ListType::LT_All] first because we usually request for less
 						// components than there are components in archetype
-						for (const auto infoIndex: queryList.list[ListType::LT_All]) {
-							for (const auto& info: componentInfos) {
-								if (info->infoIndex != infoIndex)
-									continue;
-
-								// All requirements are fulfilled. Let's iterate
-								// over all chunks in archetype
-								if (++matches == queryList.list[ListType::LT_All].size())
-									return MatchArchetypeQueryRet::Ok;
-
-								break;
-							}
-						}
+						if (CheckMatchMany(componentInfos, queryList.list[ListType::LT_All]))
+							return MatchArchetypeQueryRet::Ok;
 					}
 
 					// No match found. We're done
