@@ -31,6 +31,9 @@
 //! If enabled, gaia containers stay compatible with STL by sticking to STL iterators.
 #define GAIA_USE_STL_COMPATIBLE_CONTAINERS (GAIA_USE_STL_CONTAINERS || 0)
 
+//! If enabled, explicit memory prefetching is used when querying chunks, possibly improving performance in edge-cases
+#define GAIA_USE_PREFETCH 1
+
 //------------------------------------------------------------------------------
 // TODO features
 //------------------------------------------------------------------------------

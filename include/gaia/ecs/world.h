@@ -1265,6 +1265,7 @@ namespace gaia {
 					// Translates to:
 					//		for (size_t i = 0; i < chunk.GetItemCount(); ++i)
 					//			func(p[i], v[i]);
+
 					for (size_t i = 0; i < size; ++i)
 						func(std::get<decltype(GetComponentView<T>(chunk))>(dataPointerTuple)[i]...);
 				} else {
@@ -1378,40 +1379,65 @@ namespace gaia {
 
 				const bool hasFilters = query.HasFilters();
 
+				auto exec = [&](const auto& chunksList) {
+					size_t chunkOffset = 0;
+					size_t indexInBatch = 0;
+
+					size_t itemsLeft = chunksList.size();
+					while (itemsLeft > 0) {
+						const size_t batchSize = itemsLeft > BatchSize ? BatchSize : itemsLeft;
+
+						// Prepare a buffer to iterate over
+						for (size_t j = chunkOffset; j < chunkOffset + batchSize; ++j) {
+							auto* pChunk = chunksList[j];
+
+							if (!CanAcceptChunkForProcessing(*pChunk, query, hasFilters))
+								continue;
+
+							tmp[indexInBatch++] = pChunk;
+						}
+
+						// Execute functors in batches
+						// This is what we're effectively doing:
+						// for (size_t chunkIdx = 0; chunkIdx < indexInBatch; ++chunkIdx)
+						//	func(*tmp[chunkIdx]);
+
+						if (GAIA_UNLIKELY(indexInBatch == 0)) {
+							// Nothing to do
+						} else if GAIA_UNLIKELY (indexInBatch == 1) {
+							// We only have one chunk to process
+							func(*tmp[0]);
+						} else {
+							// We have many chunks to process.
+							// Chunks might be located at different memory locations. Not even in the same memory page.
+							// Therefore, to make it easier for the CPU we give it a hint that we want to prefetch data
+							// for the next chunk explictely so we do not end up stalling later.
+							// Note, this is a micro optimization and on average it bring no performance benefit. It only
+							// helps with edge cases.
+							// Let us be conseratine for now and go with T2. That means we will try to keep our data at
+							// least in L3 cache or higher.
+							gaia::prefetch(&tmp[1]->data[0], PREFETCH_HINT_T2);
+							func(*tmp[0]);
+
+							size_t chunkIdx = 1;
+							for (; chunkIdx < indexInBatch - 1; ++chunkIdx) {
+								gaia::prefetch(&tmp[chunkIdx + 1]->data[0], PREFETCH_HINT_T2);
+								func(*tmp[chunkIdx]);
+							}
+
+							func(*tmp[chunkIdx]);
+						}
+
+						// Prepeare for the next loop
+						indexInBatch = 0;
+						itemsLeft -= batchSize;
+					}
+				};
+
 				// Iterate over all archetypes
 				world.ForEachArchetype(query, [&](Archetype& archetype) {
 					GAIA_ASSERT(archetype.info.structuralChangesLocked < 8);
 					++archetype.info.structuralChangesLocked;
-
-					auto exec = [&](const auto& chunksList) {
-						size_t chunkOffset = 0;
-						size_t indexInBatch = 0;
-
-						size_t itemsLeft = chunksList.size();
-						while (itemsLeft > 0) {
-							const size_t batchSize = itemsLeft > BatchSize ? BatchSize : itemsLeft;
-
-							// Prepare a buffer to iterate over
-							for (size_t j = chunkOffset; j < chunkOffset + batchSize; ++j) {
-								auto* pChunk = chunksList[j];
-
-								if (!CanAcceptChunkForProcessing(*pChunk, query, hasFilters))
-									continue;
-
-								tmp[indexInBatch++] = pChunk;
-							}
-
-							// Execute functors in batches
-							if (indexInBatch == BatchSize || batchSize != BatchSize) {
-								for (size_t chunkIdx = 0; chunkIdx < indexInBatch; ++chunkIdx)
-									func(*tmp[chunkIdx]);
-								indexInBatch = 0;
-							}
-
-							// Prepeare for the next loop
-							itemsLeft -= batchSize;
-						}
-					};
 
 					if (query.CheckConstraints<true>())
 						exec(archetype.chunks);

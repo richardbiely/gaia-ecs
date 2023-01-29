@@ -90,3 +90,83 @@
 #else
 // ...
 #endif
+
+//------------------------------------------------------------------------------
+// Prefetching
+//------------------------------------------------------------------------------
+
+namespace gaia {
+
+	enum PrefetchHint {
+		//! Temporal data — prefetch data into all levels of the cache hierarchy
+		PREFETCH_HINT_T0 = 3,
+		//! Temporal data with respect to first level cache misses — prefetch data into L2 cache and higher
+		PREFETCH_HINT_T1 = 2,
+		//! Temporal data with respect to second level cache misses — prefetch data into L3 cache and higher,
+		//! or an implementation-specific choice
+		PREFETCH_HINT_T2 = 1,
+		//! Non-temporal data with respect to all cache levels — prefetch data into non-temporal cache structure
+		//! and into a location close to the processor, minimizing cache pollution
+		PREFETCH_HINT_NTA = 0
+	};
+
+	//! Prefetch intrinsic
+	extern inline void prefetch([[maybe_unused]] const void* x, [[maybe_unused]] int hint) {
+#if GAIA_USE_PREFETCH
+	#if GAIA_COMPILER_CLANG
+		// In the gcc version of prefetch(), hint is only a constant _after_ inlining
+		// (assumed to have been successful).  llvm views things differently, and
+		// checks constant-ness _before_ inlining.  This leads to compilation errors
+		// with using the other version of this code with llvm.
+		//
+		// One way round this is to use a switch statement to explicitly match
+		// prefetch hint enumerations, and invoke __builtin_prefetch for each valid
+		// value.  llvm's optimization removes the switch and unused case statements
+		// after inlining, so that this boils down in the end to the same as for gcc;
+		// that is, a single inlined prefetchX instruction.
+		//
+		// Note that this version of prefetch() cannot verify constant-ness of hint.
+		// If client code calls prefetch() with a variable value for hint, it will
+		// receive the full expansion of the switch below, perhaps also not inlined.
+		// This should however not be a problem in the general case of well behaved
+		// caller code that uses the supplied prefetch hint enumerations.
+		switch (hint) {
+			case PREFETCH_HINT_T0:
+				__builtin_prefetch(x, 0, PREFETCH_HINT_T0);
+				break;
+			case PREFETCH_HINT_T1:
+				__builtin_prefetch(x, 0, PREFETCH_HINT_T1);
+				break;
+			case PREFETCH_HINT_T2:
+				__builtin_prefetch(x, 0, PREFETCH_HINT_T2);
+				break;
+			case PREFETCH_HINT_NTA:
+				__builtin_prefetch(x, 0, PREFETCH_HINT_NTA);
+				break;
+			default:
+				__builtin_prefetch(x);
+				break;
+		}
+	#elif GAIA_COMPILER_GCC
+		#if !defined(__i386) || defined(__SSE__)
+		if (__builtin_constant_p(hint)) {
+			__builtin_prefetch(x, 0, hint);
+		} else {
+			// Defaults to PREFETCH_HINT_T0
+			__builtin_prefetch(x);
+		}
+		#elif !GAIA_HAS_NO_INLINE_ASSEMBLY
+		// We want a __builtin_prefetch, but we build with the default -march=i386
+		// where __builtin_prefetch quietly turns into nothing.
+		// Once we crank up to -march=pentium3 or higher the __SSE__
+		// clause above will kick in with the builtin.
+		if (hint == PREFETCH_HINT_NTA)
+			asm volatile("prefetchnta (%0)" : : "r"(x));
+		#endif
+	#else
+			// Not implemented
+	#endif
+#endif
+	}
+
+} // namespace gaia

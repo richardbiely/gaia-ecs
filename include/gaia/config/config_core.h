@@ -225,7 +225,9 @@
 	#define GAIA_GCC_WARNING_DISABLE(warningId)
 #endif
 
+#define GAIA_HAS_NO_INLINE_ASSEMBLY 0
 #if (!defined(__GNUC__) && !defined(__clang__)) || defined(__pnacl__) || defined(__EMSCRIPTEN__)
+	#undef GAIA_HAS_NO_INLINE_ASSEMBLY
 	#define GAIA_HAS_NO_INLINE_ASSEMBLY 1
 #endif
 
