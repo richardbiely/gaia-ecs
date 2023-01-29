@@ -1416,12 +1416,12 @@ namespace gaia {
 							// helps with edge cases.
 							// Let us be conseratine for now and go with T2. That means we will try to keep our data at
 							// least in L3 cache or higher.
-							gaia::prefetch(&tmp[1]->data[0], PREFETCH_HINT_T2);
+							gaia::prefetch(&tmp[1], PREFETCH_HINT_T2);
 							func(*tmp[0]);
 
 							size_t chunkIdx = 1;
 							for (; chunkIdx < indexInBatch - 1; ++chunkIdx) {
-								gaia::prefetch(&tmp[chunkIdx + 1]->data[0], PREFETCH_HINT_T2);
+								gaia::prefetch(&tmp[chunkIdx + 1], PREFETCH_HINT_T2);
 								func(*tmp[chunkIdx]);
 							}
 
