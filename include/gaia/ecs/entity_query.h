@@ -24,13 +24,29 @@ namespace gaia {
 			//! Query matching result
 			enum class MatchArchetypeQueryRet { Fail, Ok, Skip };
 			//! Number of components that can be a part of EntityQuery
-			static constexpr uint32_t MAX_COMPONENTS_IN_QUERY = 8u;
+			static constexpr uint32_t MAX_COMPONENTS_IN_QUERY = 8U;
 
 		private:
+			struct ComponentIndexData {
+				//! Component index
+				uint32_t index : 31;
+				//! True for read/write, false for read-only
+				uint32_t rw : 1;
+
+				bool operator<(ComponentIndexData other) const {
+					return (uint32_t)index < (uint32_t)other.index;
+				}
+				bool operator>(ComponentIndexData other) const {
+					return (uint32_t)index > (uint32_t)other.index;
+				}
+			};
+			//! Make sure the struct remains small and we can pass it by copy rather than const ref
+			static_assert(sizeof(ComponentIndexData) == sizeof(uint32_t));
+
 			//! Array of component type indices
-			using ComponentIndexArray = containers::sarray_ext<uint32_t, MAX_COMPONENTS_IN_QUERY>;
+			using ComponentIndexArray = containers::sarray_ext<ComponentIndexData, MAX_COMPONENTS_IN_QUERY>;
 			//! Array of component type indices reserved for filtering
-			using ChangeFilterArray = ComponentIndexArray;
+			using ChangeFilterArray = containers::sarray_ext<uint32_t, MAX_COMPONENTS_IN_QUERY>;
 
 			struct ComponentListData {
 				ComponentIndexArray list[ListType::LT_Count]{};
@@ -54,6 +70,8 @@ namespace gaia {
 			bool m_recalculate = true;
 			//! If true, sorting infos is necessary
 			bool m_sort = true;
+			//! If true, all components have requested read-only access
+			bool m_readOnly = true;
 
 			template <typename T>
 			bool HasComponent_Internal([[maybe_unused]] const ComponentIndexArray& arr) const {
@@ -62,7 +80,9 @@ namespace gaia {
 					return true;
 				} else {
 					const auto infoIndex = utils::type_info::index<T>();
-					return utils::has(arr, infoIndex);
+					return utils::has_if(arr, [&](ComponentIndexData info) {
+						return info.index == infoIndex;
+					});
 				}
 			}
 
@@ -75,7 +95,10 @@ namespace gaia {
 					const auto infoIndex = utils::type_info::index<T>();
 
 					// Unique infos only
-					if GAIA_UNLIKELY (utils::has(arr, infoIndex))
+					const bool ret = utils::has_if(arr, [&](ComponentIndexData info) {
+						return info.index == infoIndex;
+					});
+					if GAIA_UNLIKELY (ret)
 						return;
 
 					// Make sure the component is always registered
@@ -97,7 +120,11 @@ namespace gaia {
 					}
 #endif
 
-					arr.push_back(infoIndex);
+					constexpr bool rw = std::is_const_v<T>;
+					arr.push_back({infoIndex, rw});
+					if constexpr (rw)
+						m_readOnly = false;
+
 					m_recalculate = true;
 					m_sort = true;
 
@@ -133,14 +160,14 @@ namespace gaia {
 
 				// Component has to be present in anyList or allList.
 				// NoneList makes no sense because we skip those in query processing anyway.
-				if (utils::has_if(componentListData.list[ListType::LT_Any], [infoIndex](auto idx) {
-							return idx == infoIndex;
+				if (utils::has_if(componentListData.list[ListType::LT_Any], [infoIndex](ComponentIndexData data) {
+							return data.index == infoIndex;
 						})) {
 					arrFilter.push_back(infoIndex);
 					return;
 				}
-				if (utils::has_if(componentListData.list[ListType::LT_All], [infoIndex](auto idx) {
-							return idx == infoIndex;
+				if (utils::has_if(componentListData.list[ListType::LT_All], [infoIndex](ComponentIndexData data) {
+							return data.index == infoIndex;
 						})) {
 					arrFilter.push_back(infoIndex);
 					return;
@@ -165,7 +192,7 @@ namespace gaia {
 			void SortComponentArrays() {
 				for (auto& l: m_list) {
 					for (auto& arr: l.list) {
-						utils::sort(arr, [](uint32_t left, uint32_t right) {
+						utils::sort(arr, [](ComponentIndexData left, ComponentIndexData right) {
 							return left < right;
 						});
 					}
@@ -206,7 +233,7 @@ namespace gaia {
 						const auto& arr = l.list[i];
 						hash = utils::hash_combine(hash, (uint64_t)i);
 						for (size_t j = 0; j < arr.size(); ++j) {
-							const auto* info = cc.GetComponentInfoFromIdx(arr[j]);
+							const auto* info = cc.GetComponentInfoFromIdx(arr[j].index);
 							GAIA_ASSERT(info != nullptr);
 							hash = utils::hash_combine(hash, info->lookupHash);
 						}
@@ -222,7 +249,7 @@ namespace gaia {
 						const auto& arr = l.list[i];
 						hash = utils::hash_combine(hash, (uint64_t)i);
 						for (size_t j = 0; j < arr.size(); ++j) {
-							const auto* info = cc.GetComponentInfoFromIdx(arr[j]);
+							const auto* info = cc.GetComponentInfoFromIdx(arr[j].index);
 							GAIA_ASSERT(info != nullptr);
 							hash = utils::hash_combine(hash, info->lookupHash);
 						}
@@ -253,12 +280,12 @@ namespace gaia {
 							auto& arr = l.list[i];
 
 							if (!arr.empty()) {
-								const auto* info = cc.GetComponentInfoFromIdx(arr[0]);
+								const auto* info = cc.GetComponentInfoFromIdx(arr[0].index);
 								GAIA_ASSERT(info != nullptr);
 								l.hash[i] = info->matcherHash;
 							}
 							for (size_t j = 1; j < arr.size(); ++j) {
-								const auto* info = cc.GetComponentInfoFromIdx(arr[j]);
+								const auto* info = cc.GetComponentInfoFromIdx(arr[j].index);
 								GAIA_ASSERT(info != nullptr);
 								l.hash[i] = utils::combine_or(l.hash[i], info->matcherHash);
 							}
@@ -273,9 +300,9 @@ namespace gaia {
 				*/
 			static GAIA_NODISCARD bool
 			CheckMatchOne(const ComponentInfoList& componentInfos, const ComponentIndexArray& queryList) {
-				for (const auto infoIndex: queryList) {
+				for (const auto infoQuery: queryList) {
 					for (const auto& info: componentInfos) {
-						if (info->infoIndex == infoIndex) {
+						if (info->infoIndex == infoQuery.index) {
 							return true;
 						}
 					}
@@ -292,9 +319,9 @@ namespace gaia {
 			CheckMatchMany(const ComponentInfoList& componentInfos, const ComponentIndexArray& queryList) {
 				size_t matches = 0;
 
-				for (const auto infoIndex: queryList) {
+				for (const auto infoQuery: queryList) {
 					for (const auto& info: componentInfos) {
-						if (info->infoIndex == infoIndex) {
+						if (info->infoIndex == infoQuery.index) {
 							if (++matches == queryList.size())
 								return true;
 
