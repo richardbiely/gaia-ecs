@@ -17,8 +17,9 @@ namespace gaia {
 		public:
 			ComponentCache() {
 				// Reserve enough storage space for most use-cases
-				m_infoByIndex.reserve(2048);
-				m_infoCreateByIndex.reserve(2048);
+				constexpr uint32_t DefaultComponentCacheSize = 2048;
+				m_infoByIndex.reserve(DefaultComponentCacheSize);
+				m_infoCreateByIndex.reserve(DefaultComponentCacheSize);
 			}
 
 			ComponentCache(ComponentCache&&) = delete;

@@ -1,6 +1,4 @@
 #pragma once
-#include <cinttypes>
-
 #include "../containers/darray.h"
 #include "../containers/sarray.h"
 #include "../containers/sarray_ext.h"
@@ -87,7 +85,7 @@ namespace gaia {
 #if GAIA_ECS_CHUNK_ALLOCATOR
 				auto& world = const_cast<World&>(*archetype.parentWorld);
 
-				auto pChunk = (Chunk*)AllocateChunkMemory(world);
+				auto* pChunk = (Chunk*)AllocateChunkMemory(world);
 				new (pChunk) Chunk(archetype);
 #else
 				auto pChunk = new Chunk(archetype);
@@ -100,7 +98,7 @@ namespace gaia {
 						const auto& infoCreate = cc.GetComponentCreateInfoFromIdx(look[i].infoIndex);
 						if (infoCreate.constructor == nullptr)
 							continue;
-						auto first = (void*)((uint8_t*)pChunk + look[i].offset);
+						auto* first = (void*)((uint8_t*)pChunk + look[i].offset);
 						infoCreate.constructor(first, archetype.info.capacity);
 					}
 				};
@@ -129,7 +127,7 @@ namespace gaia {
 						const auto& infoCreate = cc.GetComponentCreateInfoFromIdx(look[i].infoIndex);
 						if (infoCreate.destructor == nullptr)
 							continue;
-						auto first = (void*)((uint8_t*)pChunk + look[i].offset);
+						auto* first = (void*)((uint8_t*)pChunk + look[i].offset);
 						infoCreate.destructor(first, archetype.info.capacity);
 					}
 				};
@@ -151,7 +149,7 @@ namespace gaia {
 
 			GAIA_NODISCARD static Archetype*
 			Create(World& pWorld, std::span<const ComponentInfo*> infosGeneric, std::span<const ComponentInfo*> infosChunk) {
-				auto newArch = new Archetype();
+				auto* newArch = new Archetype();
 				newArch->parentWorld = &pWorld;
 
 #if GAIA_ARCHETYPE_GRAPH
@@ -168,14 +166,14 @@ namespace gaia {
 				size_t genericComponentListSize = sizeof(Entity);
 				for (const auto* info: infosGeneric) {
 					genericComponentListSize += info->properties.size;
-					newArch->info.hasComponentWithCustomCreation |= info->properties.size != 0 && info->properties.soa != 0;
+					newArch->info.hasComponentWithCustomCreation |= (info->properties.size != 0U) && info->properties.soa;
 				}
 
 				// Size of chunk components
 				size_t chunkComponentListSize = 0;
 				for (const auto* info: infosChunk) {
 					chunkComponentListSize += info->properties.size;
-					newArch->info.hasComponentWithCustomCreation |= info->properties.size != 0 && info->properties.soa != 0;
+					newArch->info.hasComponentWithCustomCreation |= (info->properties.size != 0U) && info->properties.soa;
 				}
 
 				// TODO: Calculate the number of entities per chunks precisely so we can
@@ -258,7 +256,7 @@ namespace gaia {
 				return newArch;
 			}
 
-			GAIA_NODISCARD Chunk* FindOrCreateFreeChunk_Internal(containers::darray<Chunk*>& chunkArray) {
+			GAIA_NODISCARD Chunk* FindOrCreateFreeChunk_Internal(containers::darray<Chunk*>& chunkArray) const {
 				const auto chunkCnt = chunkArray.size();
 
 				if (chunkCnt > 0) {
@@ -267,7 +265,7 @@ namespace gaia {
 					// thus only the one in the back should be free.
 					auto i = chunkCnt - 1;
 					do {
-						auto pChunk = chunkArray[i];
+						auto* pChunk = chunkArray[i];
 						GAIA_ASSERT(pChunk != nullptr);
 						if (!pChunk->IsFull())
 							return pChunk;

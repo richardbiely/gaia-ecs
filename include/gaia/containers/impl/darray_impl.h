@@ -51,12 +51,6 @@ namespace gaia {
 			public:
 				constexpr iterator(T* ptr): m_ptr(ptr) {}
 
-				constexpr iterator(const iterator& other): m_ptr(other.m_ptr) {}
-				constexpr iterator& operator=(const iterator& other) {
-					m_ptr = other.m_ptr;
-					return *this;
-				}
-
 				constexpr T& operator*() const {
 					return *m_ptr;
 				}
@@ -140,12 +134,6 @@ namespace gaia {
 
 			public:
 				constexpr const_iterator(pointer ptr): m_ptr(ptr) {}
-
-				constexpr const_iterator(const const_iterator& other): m_ptr(other.m_ptr) {}
-				constexpr const_iterator& operator=(const const_iterator& other) {
-					m_ptr = other.m_ptr;
-					return *this;
-				}
 
 				constexpr reference operator*() const {
 					return *m_ptr;
@@ -241,11 +229,7 @@ namespace gaia {
 
 			darr(const darr& other): darr(other.begin(), other.end()) {}
 
-			darr(darr&& other) noexcept {
-				m_cnt = other.m_cnt;
-				m_cap = other.m_cap;
-				m_data = other.m_data;
-
+			darr(darr&& other) noexcept: m_data(other.m_data), m_cnt(other.m_cnt), m_cap(other.m_cap) {
 				other.m_cnt = 0;
 				other.m_cap = 0;
 				other.m_data = nullptr;
@@ -273,8 +257,7 @@ namespace gaia {
 
 				auto oldData = m_data;
 				m_data = other.m_data;
-				if (oldData)
-					delete[] oldData;
+				delete[] oldData;
 
 				other.m_cnt = 0;
 				other.m_cap = 0;
@@ -283,8 +266,7 @@ namespace gaia {
 			}
 
 			~darr() {
-				if (m_data != nullptr)
-					delete[] m_data;
+				delete[] m_data;
 			}
 
 			constexpr pointer data() noexcept {

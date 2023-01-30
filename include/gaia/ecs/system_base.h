@@ -257,7 +257,7 @@ namespace gaia {
 							min = p;
 					}
 
-					auto tmp = m_systems[min];
+					auto *tmp = m_systems[min];
 					m_systems[min] = m_systems[l];
 					m_systems[l] = tmp;
 				}

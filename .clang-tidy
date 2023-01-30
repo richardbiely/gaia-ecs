@@ -1,0 +1,18 @@
+Checks:
+  portability-*,
+  performance-*,
+    -performance-no-int-to-ptr,
+  readability-*,
+    -readability-identifier-*,
+    -readability-braces-*,
+    -readability-isolate-declaration,
+    -readability-magic-numbers,
+  bugprone-*,
+  clang-analyzer-*,
+  cppcoreguidelines-*,
+    -cppcoreguidelines-owning-memory,
+    -cppcoreguidelines-no-malloc,
+    -cppcoreguidelines-avoid-c-arrays,
+    -cppcoreguidelines-avoid-goto,
+    -cppcoreguidelines-pro-type-*,
+    -cppcoreguidelines-pro-bounds-*

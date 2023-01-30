@@ -18,9 +18,9 @@
 
 namespace gaia {
 	namespace ecs {
-		const ComponentInfo* GetComponentInfoFromIdx(uint32_t componentIdx);
-		const ComponentInfoList& GetArchetypeComponentInfoList(const Archetype& archetype, ComponentType type);
-		const ComponentLookupList& GetArchetypeComponentLookupList(const Archetype& archetype, ComponentType type);
+		extern const ComponentInfo* GetComponentInfoFromIdx(uint32_t componentIdx);
+		extern const ComponentInfoList& GetArchetypeComponentInfoList(const Archetype& archetype, ComponentType type);
+		extern const ComponentLookupList& GetArchetypeComponentLookupList(const Archetype& archetype, ComponentType type);
 
 		class Chunk final {
 		public:
@@ -98,11 +98,11 @@ namespace gaia {
 						const auto& look = lookupList[i];
 
 						// Skip tag components
-						if (!info->properties.size)
+						if (info->properties.size == 0U)
 							continue;
 
 						const uint32_t idxFrom = look.offset + index * info->properties.size;
-						const uint32_t idxTo = look.offset + (header.count - 1) * info->properties.size;
+						const uint32_t idxTo = look.offset + (header.count - 1U) * info->properties.size;
 
 						GAIA_ASSERT(idxFrom < Chunk::DATA_SIZE_NORESERVE);
 						GAIA_ASSERT(idxTo < Chunk::DATA_SIZE_NORESERVE);
@@ -140,7 +140,7 @@ namespace gaia {
 			\param index Index of the entity
 			\return Entity on a given index within the chunk.
 			*/
-			GAIA_NODISCARD const Entity GetEntity(uint32_t index) const {
+			GAIA_NODISCARD Entity GetEntity(uint32_t index) const {
 				GAIA_ASSERT(index < header.count && "Entity index in chunk out of bounds!");
 
 				utils::unaligned_ref<Entity> mem((void*)&data[sizeof(Entity) * index]);

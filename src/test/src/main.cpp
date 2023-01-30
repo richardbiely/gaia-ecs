@@ -145,7 +145,7 @@ TEST_CASE("Containers - darray") {
 template <size_t N, typename T>
 void TestDataLayoutSoA() {
 	GAIA_ALIGNAS(N * 4) containers::sarray<T, N> data{};
-	const float* arr = (const float*)&data[0];
+	const auto* arr = (const float*)&data[0];
 
 	using soa = gaia::utils::soa_view_policy<T>;
 	using view_deduced = gaia::utils::auto_view_policy<T>;
@@ -211,7 +211,7 @@ void TestDataLayoutSoA_ECS() {
 		auto ty = t.template set<1>();
 		auto tz = t.template set<2>();
 		for (uint32_t i = 0; i < ch.GetItemCount(); ++i, ++j) {
-			float f = (float)j;
+			auto f = (float)j;
 			tx[i] = f;
 			ty[i] = f;
 			tz[i] = f;
@@ -238,7 +238,7 @@ TEST_CASE("DataLayout SoA16 - ECS") {
 TEST_CASE("DataLayout AoS") {
 	constexpr size_t N = 4U;
 	containers::sarray<Position, N> data{};
-	const float* arr = (const float*)&data[0];
+	const auto* arr = (const float*)&data[0];
 
 	using aos = gaia::utils::aos_view_policy<Position>;
 	using view_deduced = gaia::utils::auto_view_policy<Position>;

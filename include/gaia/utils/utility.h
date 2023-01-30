@@ -13,6 +13,18 @@ namespace gaia {
 	namespace utils {
 
 		template <typename T>
+		constexpr T as_bits(T value) {
+			static_assert(std::is_integral_v<T>);
+			return value * 8;
+		}
+
+		template <typename T>
+		constexpr T as_bytes(T value) {
+			static_assert(std::is_integral_v<T>);
+			return value / 8;
+		}
+
+		template <typename T>
 		constexpr void swap(T& left, T& right) {
 #if GAIA_USE_STL_COMPATIBLE_CONTAINERS
 			return std::swap(left, right);
@@ -89,7 +101,7 @@ namespace gaia {
 		//----------------------------------------------------------------------
 
 		template <typename... Args>
-		constexpr unsigned get_args_size(std::tuple<Args...> const&) {
+		constexpr unsigned get_args_size(std::tuple<Args...> const& /*no_name*/) {
 			return (sizeof(Args) + ...);
 		}
 
@@ -127,12 +139,12 @@ namespace gaia {
 
 		namespace detail {
 			template <typename Func, auto... Is>
-			constexpr void for_each_impl(Func func, std::index_sequence<Is...>) {
+			constexpr void for_each_impl(Func func, std::index_sequence<Is...> /*no_name*/) {
 				(func(std::integral_constant<decltype(Is), Is>{}), ...);
 			}
 
 			template <typename Tuple, typename Func, auto... Is>
-			void for_each_tuple_impl(Tuple&& tuple, Func func, std::index_sequence<Is...>) {
+			void for_each_tuple_impl(Tuple&& tuple, Func func, std::index_sequence<Is...> /*no_name*/) {
 				(func(std::get<Is>(tuple)), ...);
 			}
 		} // namespace detail
@@ -270,12 +282,14 @@ namespace gaia {
 		namespace detail {
 			template <typename Array, typename TSortFunc>
 			constexpr void comb_sort_impl(Array& array_, TSortFunc func) noexcept {
+				constexpr double Factor = 1.247330950103979;
 				using size_type = typename Array::size_type;
+
 				size_type gap = array_.size();
 				bool swapped = false;
 				while ((gap > size_type{1}) || swapped) {
 					if (gap > size_type{1}) {
-						gap = static_cast<size_type>(gap / 1.247330950103979);
+						gap = static_cast<size_type>(gap / Factor);
 					}
 					swapped = false;
 					for (size_type i = size_type{0}; gap + i < static_cast<size_type>(array_.size()); ++i) {
@@ -432,7 +446,7 @@ namespace gaia {
 		template <typename Container, typename TSortFunc>
 		void sort(Container& arr, TSortFunc func) {
 			if (arr.size() <= 1) {
-				return;
+				// Nothing to sort with just one item
 			} else if (arr.size() == 2) {
 				swap_if(arr[0], arr[1], func);
 			} else if (arr.size() == 3) {
@@ -530,10 +544,9 @@ namespace gaia {
 
 				swap_if(arr[3], arr[4], func);
 			} else if (arr.size() <= 32) {
-				size_t i, j;
-				size_t n = arr.size();
-				for (i = 0; i < n - 1; i++) {
-					for (j = 0; j < n - i - 1; j++) {
+				const size_t n = arr.size();
+				for (size_t i = 0; i < n - 1; i++) {
+					for (size_t j = 0; j < n - i - 1; j++) {
 						if (arr[j] > arr[j + 1])
 							utils::swap(arr[j], arr[j + 1]);
 					}

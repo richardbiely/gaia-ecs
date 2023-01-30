@@ -42,7 +42,7 @@
 	#if GAIA_DEBUG
 		#define GAIA_ASSERT(condition)                                                                                     \
 			{                                                                                                                \
-				bool cond_ret = (condition);                                                                                   \
+				const bool cond_ret = (condition);                                                                             \
 				assert(cond_ret);                                                                                              \
 				DoNotOptimize(cond_ret);                                                                                       \
 			}

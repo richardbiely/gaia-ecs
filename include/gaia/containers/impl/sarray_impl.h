@@ -24,7 +24,7 @@ namespace gaia {
 
 			static constexpr size_type extent = N;
 
-			T m_data[N ? N : 1]; // support zero-size arrays
+			T m_data[N != 0U ? N : 1]; // support zero-size arrays
 
 			class iterator {
 			public:
@@ -41,12 +41,6 @@ namespace gaia {
 
 			public:
 				constexpr iterator(pointer ptr): m_ptr(ptr) {}
-
-				constexpr iterator(const iterator& other): m_ptr(other.m_ptr) {}
-				constexpr iterator& operator=(const iterator& other) {
-					m_ptr = other.m_ptr;
-					return *this;
-				}
 
 				constexpr reference operator*() const {
 					return *m_ptr;
@@ -130,12 +124,6 @@ namespace gaia {
 
 			public:
 				constexpr const_iterator(pointer ptr): m_ptr(ptr) {}
-
-				constexpr const_iterator(const const_iterator& other): m_ptr(other.m_ptr) {}
-				constexpr const_iterator& operator=(const const_iterator& other) {
-					m_ptr = other.m_ptr;
-					return *this;
-				}
 
 				constexpr reference operator*() const {
 					return *m_ptr;
@@ -241,11 +229,11 @@ namespace gaia {
 			}
 
 			constexpr reference back() noexcept {
-				return N ? *(end() - 1) : *end();
+				return N != 0U ? *(end() - 1) : *end();
 			}
 
 			constexpr const_reference back() const noexcept {
-				return N ? *(end() - 1) : *end();
+				return N != 0U ? *(end() - 1) : *end();
 			}
 
 			constexpr iterator begin() const noexcept {
@@ -274,7 +262,7 @@ namespace gaia {
 
 		namespace detail {
 			template <typename T, std::size_t N, std::size_t... I>
-			constexpr sarr<std::remove_cv_t<T>, N> to_array_impl(T (&a)[N], std::index_sequence<I...>) {
+			constexpr sarr<std::remove_cv_t<T>, N> to_array_impl(T (&a)[N], std::index_sequence<I...> /*no_name*/) {
 				return {{a[I]...}};
 			}
 		} // namespace detail
