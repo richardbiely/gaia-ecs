@@ -377,7 +377,7 @@ namespace gaia {
 						} break;
 						case CREATE_ENTITY_FROM_ARCHETYPE: {
 							uintptr_t ptr = utils::unaligned_ref<uintptr_t>((void*)&m_data[i]);
-							Archetype* archetype = (Archetype*)ptr;
+							auto* archetype = (Archetype*)ptr;
 							i += sizeof(void*);
 							[[maybe_unused]] const auto res = entityMap.emplace(entities++, m_world.CreateEntity(*archetype));
 							GAIA_ASSERT(res.second);
@@ -482,7 +482,7 @@ namespace gaia {
 
 							const auto& entityContainer = m_world.m_entities[entity.id()];
 							auto* pChunk = entityContainer.pChunk;
-							const auto indexInChunk = type == ComponentType::CT_Chunk ? 0 : entityContainer.idx;
+							const auto indexInChunk = type == ComponentType::CT_Chunk ? 0U : entityContainer.idx;
 
 							// Components
 							{
@@ -491,7 +491,7 @@ namespace gaia {
 								i += sizeof(uint32_t);
 
 								auto* pComponentDataStart = pChunk->GetDataPtrRW<false>(type, info->infoIndex);
-								auto* pComponentData = (void*)&pComponentDataStart[indexInChunk * info->properties.size];
+								auto* pComponentData = (void*)&pComponentDataStart[indexInChunk * (uint32_t)info->properties.size];
 								memcpy(pComponentData, (const void*)&m_data[i], info->properties.size);
 								i += info->properties.size;
 							}
@@ -515,7 +515,7 @@ namespace gaia {
 
 							const auto& entityContainer = m_world.m_entities[entity.id()];
 							auto* pChunk = entityContainer.pChunk;
-							const auto indexInChunk = type == ComponentType::CT_Chunk ? 0 : entityContainer.idx;
+							const auto indexInChunk = type == ComponentType::CT_Chunk ? 0U : entityContainer.idx;
 
 							// Components
 							{
@@ -524,7 +524,7 @@ namespace gaia {
 								i += sizeof(uint32_t);
 
 								auto* pComponentDataStart = pChunk->GetDataPtrRW<false>(type, info->infoIndex);
-								auto* pComponentData = (void*)&pComponentDataStart[indexInChunk * info->properties.size];
+								auto* pComponentData = (void*)&pComponentDataStart[indexInChunk * (uint32_t)info->properties.size];
 								memcpy(pComponentData, (const void*)&m_data[i], info->properties.size);
 								i += info->properties.size;
 							}

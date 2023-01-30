@@ -91,8 +91,8 @@ namespace gaia {
 
 		namespace detail {
 			namespace murmur2a {
-				constexpr uint64_t seed_64_const = 0xe17a1465ull;
-				constexpr uint64_t m = 0xc6a4a7935bd1e995ull;
+				constexpr uint64_t seed_64_const = 0xe17a1465ULL;
+				constexpr uint64_t m = 0xc6a4a7935bd1e995ULL;
 				constexpr uint64_t r = 47;
 
 				constexpr uint64_t Load8(const char* data) {
@@ -163,10 +163,10 @@ namespace gaia {
 
 		constexpr uint64_t calculate_hash64(uint64_t value) {
 			value ^= value >> 33U;
-			value *= 0xff51afd7ed558ccdull;
+			value *= 0xff51afd7ed558ccdULL;
 			value ^= value >> 33U;
 
-			value *= 0xc4ceb9fe1a85ec53ull;
+			value *= 0xc4ceb9fe1a85ec53ULL;
 			value ^= value >> 33U;
 			return static_cast<size_t>(value);
 		}

@@ -2,6 +2,8 @@
 
 #include <cstdint>
 
+#include "../utils/span.h"
+
 #if defined(__GLIBC__) || defined(__sun) || defined(__CYGWIN__)
 	#include <alloca.h>
 	#define GAIA_ALIGNED_ALLOC(alig, size) aligned_alloc(alig, size)
@@ -69,8 +71,8 @@ namespace gaia {
 			struct MemoryBlock {
 				using MemoryBlockType = uint8_t;
 
-				//! For active block: Index of the block within page.
-				//! For passive block: Index of the next free block in the implicit list.
+				//! Active block : Index of the block within the page.
+				//! Passive block: Index of the next free block in the implicit list.
 				MemoryBlockType idx;
 			};
 
@@ -78,13 +80,14 @@ namespace gaia {
 				static constexpr uint16_t NBlocks = 64;
 				static constexpr uint32_t Size = NBlocks * MemoryBlockSize;
 				static constexpr MemoryBlock::MemoryBlockType InvalidBlockId = (MemoryBlock::MemoryBlockType)-1;
-				static_assert(NBlocks < 1 << (sizeof(MemoryBlock::MemoryBlockType) * 8));
+				static constexpr uint32_t MemoryLockTypeSizeInBits = utils::as_bits(sizeof(MemoryBlock::MemoryBlockType));
+				static_assert((uint32_t)NBlocks < (1 << MemoryLockTypeSizeInBits));
 				using iterator = containers::darray<MemoryPage*>::iterator;
 
 				//! Pointer to data managed by page
 				void* m_data;
 				//! Implicit list of blocks
-				MemoryBlock m_blocks[NBlocks];
+				MemoryBlock m_blocks[NBlocks]{};
 				//! Index in the list of pages
 				uint32_t m_pageIdx;
 				//! Number of blocks in the block array
@@ -108,7 +111,7 @@ namespace gaia {
 						return (void*)(pMemoryBlock + MemoryBlockUsableOffset);
 					};
 
-					if (!m_freeBlocks) {
+					if (m_freeBlocks == 0U) {
 						// We don't want to go out of range for new blocks
 						GAIA_ASSERT(!IsFull() && "Trying to allocate too many blocks!");
 
@@ -120,24 +123,24 @@ namespace gaia {
 						++m_blockCnt;
 
 						return GetChunkAddress(index);
-					} else {
-						GAIA_ASSERT(m_nextFreeBlock < m_blockCnt && "Block allocator recycle containers::list broken!");
-
-						++m_usedBlocks;
-						--m_freeBlocks;
-
-						const size_t index = m_nextFreeBlock;
-						m_nextFreeBlock = m_blocks[m_nextFreeBlock].idx;
-
-						return GetChunkAddress(index);
 					}
+
+					GAIA_ASSERT(m_nextFreeBlock < m_blockCnt && "Block allocator recycle containers::list broken!");
+
+					++m_usedBlocks;
+					--m_freeBlocks;
+
+					const size_t index = m_nextFreeBlock;
+					m_nextFreeBlock = m_blocks[m_nextFreeBlock].idx;
+
+					return GetChunkAddress(index);
 				}
 
-				void FreeChunk(void* chunk) {
+				void FreeChunk(void* pChunk) {
 					GAIA_ASSERT(m_freeBlocks <= NBlocks);
 
 					// Offset the chunk memory so we get the real block address
-					const uint8_t* pMemoryBlock = (uint8_t*)chunk - MemoryBlockUsableOffset;
+					const auto* pMemoryBlock = (uint8_t*)pChunk - MemoryBlockUsableOffset;
 
 					const auto blckAddr = (uintptr_t)pMemoryBlock;
 					const auto dataAddr = (uintptr_t)m_data;
@@ -147,7 +150,7 @@ namespace gaia {
 					auto& blockContainer = m_blocks[block.idx];
 
 					// Update our implicit containers::list
-					if (!m_freeBlocks) {
+					if (m_freeBlocks == 0U) {
 						blockContainer.idx = InvalidBlockId;
 						m_nextFreeBlock = block.idx;
 					} else {
@@ -191,12 +194,12 @@ namespace gaia {
 
 				if (m_pagesFree.empty()) {
 					// Initial allocation
-					auto pPage = AllocPage();
+					auto* pPage = AllocPage();
 					m_pagesFree.push_back(pPage);
 					pPage->m_pageIdx = (uint32_t)m_pagesFree.size() - 1;
 					pChunk = pPage->AllocChunk();
 				} else {
-					auto pPage = m_pagesFree[0];
+					auto* pPage = m_pagesFree[0];
 					GAIA_ASSERT(!pPage->IsFull());
 					// Allocate a new chunk
 					pChunk = pPage->AllocChunk();
@@ -217,7 +220,11 @@ namespace gaia {
 #if GAIA_ECS_CHUNK_ALLOCATOR_CLEAN_MEMORY_WITH_GARBAGE
 				// Fill allocated memory with garbage.
 				// This way we always know if we treat the memory correctly.
-				utils::fill_array((uint32_t*)pChunk, (uint32_t)((ChunkMemorySize + 3) / sizeof(uint32_t)), 0x7fcdf00dU);
+				constexpr uint32_t AllocMemDefValue = 0x7fcdf00dU;
+				constexpr uint32_t AllocSpanSize = (uint32_t)((ChunkMemorySize + 3) / sizeof(uint32_t));
+				std::span<uint32_t, AllocSpanSize> s((uint32_t*)pChunk, AllocSpanSize);
+				for (auto& val: s)
+					val = AllocMemDefValue;
 #endif
 
 				return pChunk;
@@ -226,15 +233,19 @@ namespace gaia {
 			/*!
 			Releases memory allocated for pointer
 			*/
-			void Release(void* chunk) {
+			void Release(void* pChunk) {
 				// Decode the page from the address
-				uintptr_t pageAddr = *(uintptr_t*)((uint8_t*)chunk - MemoryBlockUsableOffset);
+				uintptr_t pageAddr = *(uintptr_t*)((uint8_t*)pChunk - MemoryBlockUsableOffset);
 				auto* pPage = (MemoryPage*)pageAddr;
 
 #if GAIA_ECS_CHUNK_ALLOCATOR_CLEAN_MEMORY_WITH_GARBAGE
 				// Fill freed memory with garbage.
 				// This way we always know if we treat the memory correctly.
-				utils::fill_array((uint32_t*)chunk, (int)(ChunkMemorySize / sizeof(uint32_t)), 0xfeeefeeeU);
+				constexpr uint32_t FreedMemDefValue = 0xfeeefeeeU;
+				constexpr uint32_t FreedSpanSize = (uint32_t)((ChunkMemorySize + 3) / sizeof(uint32_t));
+				std::span<uint32_t, FreedSpanSize> s((uint32_t*)pChunk, FreedSpanSize);
+				for (auto& val: s)
+					val = FreedMemDefValue;
 #endif
 
 				const bool pageFull = pPage->IsFull();
@@ -270,7 +281,7 @@ namespace gaia {
 				}
 
 				// Free the chunk
-				pPage->FreeChunk(chunk);
+				pPage->FreeChunk(pChunk);
 			}
 
 			/*!
@@ -292,13 +303,15 @@ namespace gaia {
 			/*!
 			Returns allocator statistics
 			*/
-			void GetStats(ChunkAllocatorStats& stats) const {
+			ChunkAllocatorStats GetStats() const {
+				ChunkAllocatorStats stats{};
 				stats.NumPages = (uint32_t)m_pagesFree.size() + (uint32_t)m_pagesFull.size();
 				stats.NumFreePages = (uint32_t)m_pagesFree.size();
 				stats.AllocatedMemory = stats.NumPages * (size_t)MemoryPage::Size;
 				stats.UsedMemory = m_pagesFull.size() * (size_t)MemoryPage::Size;
 				for (auto* page: m_pagesFree)
 					stats.UsedMemory += page->GetUsedBlocks() * (size_t)MemoryBlockSize;
+				return stats;
 			}
 
 			/*!
@@ -322,12 +335,12 @@ namespace gaia {
 			}
 
 		private:
-			MemoryPage* AllocPage() {
-				auto* pageData = (uint8_t*)GAIA_ALIGNED_ALLOC(16, MemoryPage::Size);
+			static MemoryPage* AllocPage() {
+				auto* pageData = GAIA_ALIGNED_ALLOC(16, MemoryPage::Size);
 				return new MemoryPage(pageData);
 			}
 
-			void FreePage(MemoryPage* page) {
+			static void FreePage(MemoryPage* page) {
 				GAIA_ALIGNED_FREE(page->m_data);
 				delete page;
 			}

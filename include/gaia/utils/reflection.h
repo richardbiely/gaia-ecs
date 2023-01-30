@@ -11,7 +11,7 @@ namespace gaia {
 		//----------------------------------------------------------------------
 
 		template <typename S, size_t... Is, typename Tuple>
-		S tuple_to_struct(std::index_sequence<Is...>, Tuple&& tup) {
+		S tuple_to_struct(std::index_sequence<Is...> /*no_name*/, Tuple&& tup) {
 			return {std::get<Is>(std::forward<Tuple>(tup))...};
 		}
 

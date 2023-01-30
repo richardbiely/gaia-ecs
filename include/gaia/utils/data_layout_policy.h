@@ -226,8 +226,8 @@ namespace gaia {
 
 		private:
 			template <typename Tuple, size_t... Ids>
-			GAIA_NODISCARD constexpr static ValueType
-			get_internal(Tuple& t, std::span<const ValueType> s, const size_t idx, std::integer_sequence<size_t, Ids...>) {
+			GAIA_NODISCARD constexpr static ValueType get_internal(
+					Tuple& t, std::span<const ValueType> s, const size_t idx, std::integer_sequence<size_t, Ids...> /*no_name*/) {
 				(get_internal<Tuple, Ids, typename std::tuple_element<Ids, Tuple>::type>(
 						 t, (const uint8_t*)s.data(),
 						 idx * sizeof(typename std::tuple_element<Ids, Tuple>::type) +
@@ -244,7 +244,7 @@ namespace gaia {
 
 			template <typename Tuple, typename TValue, size_t... Ids>
 			constexpr static void
-			set_internal(Tuple& t, std::span<TValue> s, const size_t idx, std::integer_sequence<size_t, Ids...>) {
+			set_internal(Tuple& t, std::span<TValue> s, const size_t idx, std::integer_sequence<size_t, Ids...> /*no_name*/) {
 				(set_internal(
 						 (uint8_t*)s.data(),
 						 idx * sizeof(typename std::tuple_element<Ids, Tuple>::type) +

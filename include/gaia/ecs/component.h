@@ -28,7 +28,7 @@ namespace gaia {
 			CT_Count
 		};
 
-		inline const char* ComponentTypeString[ComponentType::CT_Count] = {"Generic", "Chunk"};
+		inline const char* const ComponentTypeString[ComponentType::CT_Count] = {"Generic", "Chunk"};
 
 		struct ComponentInfo;
 
@@ -38,9 +38,9 @@ namespace gaia {
 
 		template <typename T>
 		struct AsChunk {
-			using __Type = typename std::decay_t<typename std::remove_pointer_t<T>>;
-			using __TypeOriginal = T;
-			static constexpr ComponentType __ComponentType = ComponentType::CT_Chunk;
+			using TType = typename std::decay_t<typename std::remove_pointer_t<T>>;
+			using TTypeOriginal = T;
+			static constexpr ComponentType TComponentType = ComponentType::CT_Chunk;
 		};
 
 		namespace detail {
@@ -51,14 +51,14 @@ namespace gaia {
 			};
 			template <typename T>
 			struct ExtractComponentType_NonGeneric {
-				using Type = typename T::__Type;
-				using TypeOriginal = typename T::__TypeOriginal;
+				using Type = typename T::TType;
+				using TypeOriginal = typename T::TTypeOriginal;
 			};
 
 			template <typename T, typename = void>
 			struct IsGenericComponent_Internal: std::true_type {};
 			template <typename T>
-			struct IsGenericComponent_Internal<T, decltype((void)T::__ComponentType, void())>: std::false_type {};
+			struct IsGenericComponent_Internal<T, decltype((void)T::TComponentType, void())>: std::false_type {};
 
 			template <typename T>
 			struct IsComponentSizeValid_Internal: std::bool_constant<sizeof(T) < MAX_COMPONENTS_SIZE> {};

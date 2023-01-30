@@ -1,4 +1,5 @@
 #pragma once
+#include <cinttypes>
 #include <cstring>
 #include <type_traits>
 
@@ -24,18 +25,6 @@ namespace gaia {
 		template <size_t alignment, typename T>
 		constexpr T align(T num) {
 			return ((num + (alignment - 1)) & ~(alignment - 1));
-		}
-
-		/*!
-		Fill memory with 32 bit integer value
-		\param dest pointer to destination
-		\param num number of items to be filled (not data size!)
-		\param data 32bit data to be filled
-		*/
-		template <typename T>
-		void fill_array(T* dest, int num, const T& data) {
-			for (int n = 0; n < num; n++)
-				((T*)dest)[n] = data;
 		}
 
 		/*!
