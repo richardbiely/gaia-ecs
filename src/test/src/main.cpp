@@ -238,7 +238,7 @@ TEST_CASE("DataLayout SoA16 - ECS") {
 TEST_CASE("DataLayout AoS") {
 	constexpr size_t N = 4U;
 	containers::sarray<Position, N> data{};
-	const auto* arr = (const float*)&data[0];
+	const auto* arr = (const float*)data.data();
 
 	using aos = gaia::utils::aos_view_policy<Position>;
 	using view_deduced = gaia::utils::auto_view_policy<Position>;
@@ -358,16 +358,18 @@ TEST_CASE("EntityQuery - QueryResult") {
 	q1.All<Position>();
 	ecs::EntityQuery q2;
 	q2.All<Rotation>();
+	ecs::EntityQuery q3;
+	q3.All<Position, Rotation>();
 
 	{
 		gaia::containers::darray<gaia::ecs::Entity> arr;
-		w.FromQuery(q1).ToComponentOrEntityArray(arr);
+		w.FromQuery(q1).ToArray(arr);
 		for (size_t i = 0; i < arr.size(); ++i)
 			REQUIRE(arr[i].id() == i);
 	}
 	{
 		gaia::containers::darray<Position> arr;
-		w.FromQuery(q1).ToComponentOrEntityArray(arr);
+		w.FromQuery(q1).ToArray(arr);
 		for (size_t i = 0; i < arr.size(); ++i) {
 			const auto& pos = arr[i];
 			REQUIRE(pos.x == (float)i);
@@ -384,7 +386,7 @@ TEST_CASE("EntityQuery - QueryResult") {
 		REQUIRE(itemCount == N);
 	}
 	{
-		const auto cnt = w.FromQuery(q1).GetItemCount();
+		const auto cnt = w.FromQuery(q1).CalculateItemCount();
 		const auto has = w.FromQuery(q1).HasItems();
 
 		size_t cnt2 = 0;
@@ -397,7 +399,7 @@ TEST_CASE("EntityQuery - QueryResult") {
 	}
 
 	{
-		const auto cnt = w.FromQuery(q2).GetItemCount();
+		const auto cnt = w.FromQuery(q2).CalculateItemCount();
 		const auto has = w.FromQuery(q2).HasItems();
 
 		size_t cnt2 = 0;
@@ -407,6 +409,210 @@ TEST_CASE("EntityQuery - QueryResult") {
 		REQUIRE(cnt == cnt2);
 		REQUIRE(cnt == 0);
 		REQUIRE(has == false);
+	}
+
+	{
+		const auto cnt = w.FromQuery(q3).CalculateItemCount();
+		const auto has = w.FromQuery(q3).HasItems();
+
+		size_t cnt3 = 0;
+		w.ForEach(q3, [&]() {
+			++cnt3;
+		});
+		REQUIRE(cnt == cnt3);
+		REQUIRE(cnt == 0);
+		REQUIRE(has == false);
+	}
+}
+
+TEST_CASE("EntityQuery - QueryResult complex") {
+	ecs::World w;
+
+	auto create = [&](uint32_t i) {
+		auto e = w.CreateEntity();
+		w.AddComponent<Position>(e, {(float)i, (float)i, (float)i});
+		w.AddComponent<Scale>(e, {(float)i * 2, (float)i * 2, (float)i * 2});
+		if (i % 2 == 0)
+			w.AddComponent<Something>(e, {true});
+	};
+
+	const uint32_t N = 10'000;
+	for (uint32_t i = 0; i < N; i++)
+		create(i);
+
+	ecs::EntityQuery q1;
+	q1.All<Position>();
+	ecs::EntityQuery q2;
+	q2.All<Rotation>();
+	ecs::EntityQuery q3;
+	q3.All<Position, Rotation>();
+	ecs::EntityQuery q4;
+	q4.All<Position, Scale>();
+	ecs::EntityQuery q5;
+	q5.All<Position, Scale, Something>();
+
+	{
+		gaia::containers::darray<gaia::ecs::Entity> ents;
+		w.FromQuery(q1).ToArray(ents);
+		gaia::containers::darray<Position> arr;
+		w.FromQuery(q1).ToArray(arr);
+		REQUIRE(ents.size() == arr.size());
+
+		for (size_t i = 0; i < arr.size(); ++i) {
+			const auto& pos = arr[i];
+			const auto val = ents[i].id();
+			REQUIRE(pos.x == (float)val);
+			REQUIRE(pos.y == (float)val);
+			REQUIRE(pos.z == (float)val);
+		}
+	}
+	{
+		gaia::containers::darray<gaia::ecs::Chunk*> arr;
+		w.FromQuery(q1).ToChunkArray(arr);
+		size_t itemCount = 0;
+		for (const auto* pChunk: arr)
+			itemCount += pChunk->GetItemCount();
+		REQUIRE(itemCount == N);
+	}
+	{
+		const auto cnt = w.FromQuery(q1).CalculateItemCount();
+		const auto has = w.FromQuery(q1).HasItems();
+
+		size_t cnt2 = 0;
+		w.ForEach(q1, [&]() {
+			++cnt2;
+		});
+		REQUIRE(cnt == cnt2);
+		REQUIRE(cnt > 0);
+		REQUIRE(has == true);
+	}
+
+	{
+		const auto cnt = w.FromQuery(q2).CalculateItemCount();
+		const auto has = w.FromQuery(q2).HasItems();
+
+		size_t cnt2 = 0;
+		w.ForEach(q2, [&]() {
+			++cnt2;
+		});
+		REQUIRE(cnt == cnt2);
+		REQUIRE(cnt == 0);
+		REQUIRE(has == false);
+	}
+
+	{
+		const auto cnt = w.FromQuery(q3).CalculateItemCount();
+		const auto has = w.FromQuery(q3).HasItems();
+
+		size_t cnt3 = 0;
+		w.ForEach(q3, [&]() {
+			++cnt3;
+		});
+		REQUIRE(cnt == cnt3);
+		REQUIRE(cnt == 0);
+		REQUIRE(has == false);
+	}
+
+	{
+		gaia::containers::darray<gaia::ecs::Entity> ents;
+		w.FromQuery(q4).ToArray(ents);
+		gaia::containers::darray<Position> arr;
+		w.FromQuery(q4).ToArray(arr);
+		REQUIRE(ents.size() == arr.size());
+
+		for (size_t i = 0; i < arr.size(); ++i) {
+			const auto& pos = arr[i];
+			const auto val = ents[i].id();
+			REQUIRE(pos.x == (float)val);
+			REQUIRE(pos.y == (float)val);
+			REQUIRE(pos.z == (float)val);
+		}
+	}
+	{
+		gaia::containers::darray<gaia::ecs::Entity> ents;
+		w.FromQuery(q4).ToArray(ents);
+		gaia::containers::darray<Scale> arr;
+		w.FromQuery(q4).ToArray(arr);
+		REQUIRE(ents.size() == arr.size());
+
+		for (size_t i = 0; i < arr.size(); ++i) {
+			const auto& s = arr[i];
+			const auto val = ents[i].id() * 2;
+			REQUIRE(s.x == (float)val);
+			REQUIRE(s.y == (float)val);
+			REQUIRE(s.z == (float)val);
+		}
+	}
+	{
+		gaia::containers::darray<gaia::ecs::Chunk*> arr;
+		w.FromQuery(q4).ToChunkArray(arr);
+		size_t itemCount = 0;
+		for (const auto* pChunk: arr)
+			itemCount += pChunk->GetItemCount();
+		REQUIRE(itemCount == N);
+	}
+	{
+		const auto cnt = w.FromQuery(q4).CalculateItemCount();
+		const auto has = w.FromQuery(q4).HasItems();
+
+		size_t cnt4 = 0;
+		w.ForEach(q4, [&]() {
+			++cnt4;
+		});
+		REQUIRE(cnt == cnt4);
+		REQUIRE(cnt > 0);
+		REQUIRE(has == true);
+	}
+
+	{
+		gaia::containers::darray<gaia::ecs::Entity> ents;
+		w.FromQuery(q5).ToArray(ents);
+		gaia::containers::darray<Position> arr;
+		w.FromQuery(q5).ToArray(arr);
+		REQUIRE(ents.size() == arr.size());
+
+		for (size_t i = 0; i < arr.size(); ++i) {
+			const auto& pos = arr[i];
+			const auto val = ents[i].id();
+			REQUIRE(pos.x == (float)val);
+			REQUIRE(pos.y == (float)val);
+			REQUIRE(pos.z == (float)val);
+		}
+	}
+	{
+		gaia::containers::darray<gaia::ecs::Entity> ents;
+		w.FromQuery(q5).ToArray(ents);
+		gaia::containers::darray<Scale> arr;
+		w.FromQuery(q5).ToArray(arr);
+		REQUIRE(ents.size() == arr.size());
+
+		for (size_t i = 0; i < arr.size(); ++i) {
+			const auto& s = arr[i];
+			const auto val = ents[i].id() * 2;
+			REQUIRE(s.x == (float)val);
+			REQUIRE(s.y == (float)val);
+			REQUIRE(s.z == (float)val);
+		}
+	}
+	{
+		gaia::containers::darray<gaia::ecs::Chunk*> arr;
+		w.FromQuery(q5).ToChunkArray(arr);
+		size_t itemCount = 0;
+		for (const auto* pChunk: arr)
+			itemCount += pChunk->GetItemCount();
+		REQUIRE(itemCount == N / 2);
+	}
+	{
+		const auto cnt = w.FromQuery(q5).CalculateItemCount();
+		const auto has = w.FromQuery(q5).HasItems();
+
+		size_t cnt5 = 0;
+		w.ForEach(q5, [&]() {
+			++cnt5;
+		});
+		REQUIRE(cnt == cnt5);
+		REQUIRE(cnt > 0);
+		REQUIRE(has == true);
 	}
 }
 
@@ -538,15 +744,15 @@ TEST_CASE("EnableEntity") {
 
 	ecs::EntityQuery q;
 	q.All<Position>();
-	size_t cnt = w.FromQuery(q).GetItemCount();
+	size_t cnt = w.FromQuery(q).CalculateItemCount();
 	REQUIRE(cnt == N - 1);
 
 	q.SetConstraints(ecs::EntityQuery::Constraints::AcceptAll);
-	cnt = w.FromQuery(q).GetItemCount();
+	cnt = w.FromQuery(q).CalculateItemCount();
 	REQUIRE(cnt == N);
 
 	q.SetConstraints(ecs::EntityQuery::Constraints::DisabledOnly);
-	cnt = w.FromQuery(q).GetItemCount();
+	cnt = w.FromQuery(q).CalculateItemCount();
 	REQUIRE(cnt == 1);
 
 	w.EnableEntity(arr[1000], true);
@@ -557,15 +763,15 @@ TEST_CASE("EnableEntity") {
 	});
 	REQUIRE(cnt == N);
 
-	cnt = w.FromQuery(q).GetItemCount();
+	cnt = w.FromQuery(q).CalculateItemCount();
 	REQUIRE(cnt == 0);
 
 	q.SetConstraints(ecs::EntityQuery::Constraints::EnabledOnly);
-	cnt = w.FromQuery(q).GetItemCount();
+	cnt = w.FromQuery(q).CalculateItemCount();
 	REQUIRE(cnt == N);
 
 	q.SetConstraints(ecs::EntityQuery::Constraints::AcceptAll);
-	cnt = w.FromQuery(q).GetItemCount();
+	cnt = w.FromQuery(q).CalculateItemCount();
 	REQUIRE(cnt == N);
 }
 

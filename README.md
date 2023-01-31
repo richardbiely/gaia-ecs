@@ -81,6 +81,17 @@ auto e = w.CreateEntity();
 w.DeleteEntity(e);
 ```
 
+### Enabling and disabling entities
+Disabled entities are moved to chunks different from the rest. Because of that they do not take part in queries by default.<br/>
+Behavior of EnableEntity is similar to that of calling DeleteEntity/CreateEntity. However, the main benefit is that a disabled entity keeps its ID intact which means you can reference it freely.
+
+```cpp
+ecs::World w;
+auto e = w.CreateEntity();
+w.EnableEntity(e, false); // disable the entity
+w.EnableEntity(e, true); // enable the entity again
+```
+
 ### Adding and removing components
 ```cpp
 struct Position {
@@ -160,6 +171,84 @@ if (pChunkB->HasComponent<Position>())
 }
 ```
 
+## Query data
+For querying data you can use an EntityQuery. It can help you find all entities, components or chunks matching the specified set of components and constraints and returns them in the form of an array. You can also use them to quickly check is entities with the given set of rules exist or calculate how many of them there are.<br/> 
+```cpp
+EntityQuery q;
+q.All<Position>(); // consider only entities with Position
+
+// Fill the entities array with entities with a Position component.
+gaia::containers::darray<gaia::ecs::Entity> entities;
+w.FromQuery(q).ToArray(entities);
+// Fill the positions array with position data.
+gaia::containers::darray<Position> positions;
+w.FromQuery(q).ToArray(positions);
+// Print the result
+for (size_t i = 0; i < entities.size(); ++i)
+{
+  const auto& e = entities[i];
+  const auto& p = positions[i];
+  printf("Entity %u is located at [x,y,z]=[%f,%f,%f]\n", e.id(), p.x, p.y, p.z);
+}
+// Print the number of entities matching the query. For demonstration purposes only.
+// Because we already called ToArray we would normally use entities.size() or positions.size().
+printf("Number of results: %u", q.CalculateItemCount());
+```
+
+You can easily create more complex queries:
+```cpp
+ecs::EntityQuery q;
+q.All<Position, Velocity>();       // Take into account everything with Position and Velocity...
+q.Any<Something, SomethingElse>(); // ... at least Something or SomethingElse...
+q.None<Player>();                  // ... and no Player component...
+```
+
+You can also chain the operations or invoke various filters multiple times with unique components:
+```cpp
+ecs::EntityQuery q;
+q.All<Position>()                 // Take into account everything with Position...
+ .All<Velocity>()                 // ... and at the same time everything with Velocity...
+ .Any<Something, SomethingElse>() // ... at least Something or SomethingElse...
+ .None<Player>();                 // ... and no Player component...
+```
+
+Using WithChanged we can take it a step further and filter only data which actually changed. This becomes particulary useful when iterating as you will see later on.<br/>
+Note, if there are 100 Position components in the chunk and only one them changes, all of them are selected.<br/>
+This chunk-wide behavior is due to performance concerns as it is easier to reason about the entire chunk than each of its items separately.
+```cpp
+ecs::EntityQuery q;
+q.All<Position, Velocity>();       // Take into account everything with Position and Velocity...
+q.Any<Something, SomethingElse>(); // ... at least Something or SomethingElse...
+q.None<Player>();                  // ... and no Player component...
+q.WithChanged<Velocity>();         // ... but only such with their Velocity changed
+
+Query behavior can be modified by setting constraints. By default only enabled entities are taken into account. However, by changing constraints we can filter disabled entities exclusively or make the query consider both enabled and disabled entities:
+```cpp
+ecs::Entity e1, e2;
+// Create 2 entities with Position component
+w.CreateEntity(e1);
+w.CreateEntity(e2);
+w.AddComponent<Position>(e1);
+w.AddComponent<Position>(e2);
+// Disable the first entity
+w.EnableEntity(e1, false);
+
+ecs::EntityQuery q;
+q.All<Position>();
+gaia::containers::darray<gaia::ecs::Entity> entities;
+
+// Fills the array with only e2 because e1 is disabled.
+w.FromQuery(q).ToArray(entities);
+
+// Fills the array with both e1 and e2.
+q.SetConstraint(ecs::EntityQuery::Constraint::AcceptAll);
+w.FromQuery(q).ToArray(entities);
+
+// Fills the array with only e1 because e1 is disabled.
+q.SetConstraint(ecs::EntityQuery::Constraint::DisabledOnly);
+w.FromQuery(q).ToArray(entities);
+```
+
 ## Simple iteration
 You can perform operations on your data in multiple ways with ForEach being the simplest one.<br/>
 It provides the least room for optimization (that does not mean the generated code is slow by any means) but is very easy to read.
@@ -171,12 +260,12 @@ w.ForEach([&](Position& p, const Velocity& v) {
 });
 ```
 
-You can also be more specific by providing an EntityQuery. It describes which chunks are considered for iteration and the arugments you list in the ForEach tell what parts of their data you are going to work with.<br/>
+You can also be more specific by providing an EntityQuery.<br/>
 The example above creates an EntityQuery internally from the arguments provided to ForEach. However, this version can also be slower because it needs to do a lookup in the EntityQuery cache. Therefore, consider it only for non-critical parts of your code. Even though the code is longer, it's a good pratice to use explicit EntityQueries when possible.
 ```cpp
 ecs::EntityQuery q;
 q.All<Position, Velocity>(); // Take into account all chunks with Position and Velocity...
-q.None<Player>(); // ... but no Player component.
+q.None<Player>();            // ... but no Player component.
 
 w.ForEach(q, [&](Position& p, const Velocity& v) {
   // This operations runs for each entity with Position, Velocity and no Player
@@ -186,15 +275,12 @@ w.ForEach(q, [&](Position& p, const Velocity& v) {
 });
 ```
 
-Using WithChanged we can take it a step further and only perform the iteration if particular components change.<br/>
-Note, if there are 100 Position components in the chunk and only one them changes, ForEach performs for the entire chunk.<br/>
-This chunk-wide behavior is due to performance concerns as it is easier to reason about the entire chunk than each of its items separately.
+As mentioned earlier, using WithChanged we can make the iteration run only if particular components change. You can save quite a bit of performance using this technique.<br/>
 ```cpp
 ecs::EntityQuery q;
 q.All<Position, Velocity>(); // Take into account all chunks with Position and Velocity...
-q.Any<Something, SomethingElse>(); // ... at least Something or SomethingElse...
-q.None<Player>(); // ... no Player component...
-q.WithChanged<Velocity>(); // ... but only iterate when Velocity changes
+q.None<Player>();            // ... no Player component...
+q.WithChanged<Velocity>();   // ... but only iterate when Velocity changes
 
 w.ForEach(q, [&](Position& p, const Velocity& v) {
   p.x += v.x * dt;
@@ -203,7 +289,18 @@ w.ForEach(q, [&](Position& p, const Velocity& v) {
 });
 ```
 
-Iterating over components not present in the query is not supported. This is done to prevent various logic errors which might sneak in otherwise.
+Using constrains we can alter the iteration behavior:
+```cpp
+w.EnableEntity(e, false);
+
+q.SetConstraint(ecs::EntityQuery::Constraint::AcceptAll);
+w.ForEach(q, [](Position& p, const Velocity& v) {
+  // Both enabled and disabled entities are included in the query.
+  // ...
+});
+```
+
+A very important thing to remember is that iterating over components not present in the query is not supported. This is done to prevent various logic errors which might sneak in otherwise.
 
 ## Iteration over chunks
 Iteration over chunk gives you more power as it exposes to you the underlying chunk in which your data is contained.<br/>
@@ -241,46 +338,6 @@ w.ForEach(q, [](ecs::Chunk& ch) {
   }(vp.data(), vv.data(), ch.GetItemCount());
 });
 ```
-
-### Disabling entities
-Users are able to enable or disable entities when necessary.<br/>
-Disabled entities are moved to chunks different from the rest. 
-This also means that by default, disabled entities do not take part in queries. 
-```cpp
-ecs::EntityQuery q;
-q.All<Position, Velocity>();
-
-w.EnableEntity(e, false);
-w.ForEach(q, [](Position& p, const Velocity& v) {
-  // Entity e is not going to be included in this query.
-  // ...
-});
-
-w.EnableEntity(e, true);
-w.ForEach(q, [](Position& p, const Velocity& v) {
-  // Entity e is going to be included in this query.
-  // ...
-});
-```
-
-Default query behavior can be modified by setting query constrains:
-```cpp
-w.EnableEntity(e, false);
-
-q.SetConstraint(ecs::EntityQuery::Constraint::AcceptAll);
-w.ForEach(q, [](Position& p, const Velocity& v) {
-  // Both enabled and disabled entities are included in the query.
-  // ...
-});
-
-q.SetConstraint(ecs::EntityQuery::Constraint::DisabledOnly);
-w.ForEach(q, [](Position& p, const Velocity& v) {
-  // Only disabled entities are included.
-  // ...
-});
-```
-
-Behavior of EnableEntity is similar to that of calling DeleteEntity/CreateEntity. However, the main benefit is disabling an entity keeps its ID intact which means you can reference it freely.
 
 ## Making use of SoA component layout
 By default, all data inside components is treated as an array of structures (AoS) via an implicit
