@@ -193,6 +193,13 @@ for (size_t i = 0; i < entities.size(); ++i)
   printf("Entity %u is located at [x,y,z]=[%f,%f,%f]\n", e.id(), p.x, p.y, p.z);
 }
 
+// Fill the chunk array with chunks matching the query.
+gaia::containers::darray<ecs::Chunk*> chunks;
+w.FromQuery(q).ToChunkArray(chunks);
+for (const auto* pChunk: chunks) {
+  // ... do something
+}
+
 // Print the number of entities matching the query. For demonstration purposes only.
 // Because we already called ToArray we would normally use entities.size() or positions.size().
 printf("Number of results: %u", q.CalculateItemCount());
@@ -228,6 +235,7 @@ q.WithChanged<Velocity>();         // ... but only such with their Velocity chan
 Query behavior can be modified by setting constraints. By default only enabled entities are taken into account. However, by changing constraints we can filter disabled entities exclusively or make the query consider both enabled and disabled entities at the same time:
 ```cpp
 ecs::Entity e1, e2;
+
 // Create 2 entities with Position component
 w.CreateEntity(e1);
 w.CreateEntity(e2);
