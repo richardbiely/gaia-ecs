@@ -33,10 +33,10 @@ Being early in development, breaking changes to its API are possible. There are 
 * [Usage](#usage)
   * [Minimum requirements](#minimum-requirements)
   * [Basic operations](#basic-operations)
+  * [Data queries](#data-queries)
   * [Simple iteration](#simple-iteration)
-  * [Iteration over chunks](#iteration-over-chunks)
-  * [Disabling entities](#disabling-entities)
-  * [Making use of SoA component layout](#making-use-of-soa-component-layout)
+  * [Chunk iteration](#chunk-iteration)
+  * [Data layouts](#data-layouts)
   * [Delayed execution](#delayed-execution)
   * [Chunk components](#chunk-components)
 * [Requirements](#requirements)
@@ -171,7 +171,7 @@ if (pChunkB->HasComponent<Position>())
 }
 ```
 
-## Query data
+## Data queries
 For querying data you can use an EntityQuery. It can help you find all entities, components or chunks matching the specified set of components and constraints and returns them in the form of an array. You can also use them to quickly check is entities with the given set of rules exist or calculate how many of them there are.<br/> 
 ```cpp
 EntityQuery q;
@@ -314,8 +314,8 @@ w.ForEach(q, [](Position& p, const Velocity& v) {
 
 A very important thing to remember is that iterating over components not present in the query is not supported. This is done to prevent various logic errors which might sneak in otherwise.
 
-## Iteration over chunks
-Iteration over chunk gives you more power as it exposes to you the underlying chunk in which your data is contained.<br/>
+## Chunk iteration
+Iteration over chunks gives you more power as it exposes to you the underlying chunk in which your data is contained.<br/>
 That means you can perform more kinds of operations, and it also opens doors for new kinds of optimizations.
 ```cpp
 ecs::EntityQuery q;
@@ -351,7 +351,7 @@ w.ForEach(q, [](ecs::Chunk& ch) {
 });
 ```
 
-## Making use of SoA component layout
+## Data layouts
 By default, all data inside components is treated as an array of structures (AoS) via an implicit
 ```cpp
 static constexpr auto Layout = utils::DataLayout::AoS
