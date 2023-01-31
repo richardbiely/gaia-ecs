@@ -2040,18 +2040,6 @@ namespace gaia {
 		}
 
 		/*!
-		Fill memory of type \tparam T with a given value
-		\param dest pointer to destination
-		\param num number of items to be filled (not data size!)
-		\param data 32bit data to be filled
-		*/
-		template <typename T>
-		void fill_array(T* dest, int num, const T& data) {
-			for (int n = 0; n < num; n++)
-				dest[n] = data;
-		}
-
-		/*!
 		Convert form type \tparam From to type \tparam To without causing an
 		undefined behavior.
 
@@ -6797,11 +6785,11 @@ namespace gaia {
 					return GetChunkAddress(index);
 				}
 
-				void FreeChunk(void* chunk) {
+				void FreeChunk(void* pChunk) {
 					GAIA_ASSERT(m_freeBlocks <= NBlocks);
 
 					// Offset the chunk memory so we get the real block address
-					const auto* pMemoryBlock = (uint8_t*)chunk - MemoryBlockUsableOffset;
+					const auto* pMemoryBlock = (uint8_t*)pChunk - MemoryBlockUsableOffset;
 
 					const auto blckAddr = (uintptr_t)pMemoryBlock;
 					const auto dataAddr = (uintptr_t)m_data;
@@ -6882,7 +6870,10 @@ namespace gaia {
 				// Fill allocated memory with garbage.
 				// This way we always know if we treat the memory correctly.
 				constexpr uint32_t AllocMemDefValue = 0x7fcdf00dU;
-				utils::fill_array((uint32_t*)pChunk, (uint32_t)((ChunkMemorySize + 3) / sizeof(uint32_t)), AllocMemDefValue);
+				constexpr uint32_t AllocSpanSize = (uint32_t)((ChunkMemorySize + 3) / sizeof(uint32_t));
+				std::span<uint32_t, AllocSpanSize> s((uint32_t*)pChunk, AllocSpanSize);
+				for (auto& val: s)
+					val = AllocMemDefValue;
 #endif
 
 				return pChunk;
@@ -6891,16 +6882,19 @@ namespace gaia {
 			/*!
 			Releases memory allocated for pointer
 			*/
-			void Release(void* chunk) {
+			void Release(void* pChunk) {
 				// Decode the page from the address
-				uintptr_t pageAddr = *(uintptr_t*)((uint8_t*)chunk - MemoryBlockUsableOffset);
+				uintptr_t pageAddr = *(uintptr_t*)((uint8_t*)pChunk - MemoryBlockUsableOffset);
 				auto* pPage = (MemoryPage*)pageAddr;
 
 #if GAIA_ECS_CHUNK_ALLOCATOR_CLEAN_MEMORY_WITH_GARBAGE
 				// Fill freed memory with garbage.
 				// This way we always know if we treat the memory correctly.
 				constexpr uint32_t FreedMemDefValue = 0xfeeefeeeU;
-				utils::fill_array((uint32_t*)chunk, (int)(ChunkMemorySize / sizeof(uint32_t)), FreedMemDefValue);
+				constexpr uint32_t FreedSpanSize = (uint32_t)((ChunkMemorySize + 3) / sizeof(uint32_t));
+				std::span<uint32_t, FreedSpanSize> s((uint32_t*)pChunk, FreedSpanSize);
+				for (auto& val: s)
+					val = FreedMemDefValue;
 #endif
 
 				const bool pageFull = pPage->IsFull();
@@ -6936,7 +6930,7 @@ namespace gaia {
 				}
 
 				// Free the chunk
-				pPage->FreeChunk(chunk);
+				pPage->FreeChunk(pChunk);
 			}
 
 			/*!
@@ -10300,9 +10294,11 @@ namespace gaia {
 			public:
 				QueryResult(const World& w, const EntityQuery& q): m_w(w), m_q(q) {}
 
-				//! Return true it there at least one result matching the query
 				/*!
-				Returns true or false depending on whether there are entities matching the query
+				Returns true or false depending on whether there are entities matching the query.
+				\warning Only use if you only care if there are any entities matching the query.
+								 The result is not cached and repeated calls to the function might be slow.
+								 If you already called ToArray, checking if it is empty is preferred.
 				\return True if there are any entites matchine the query. False otherwise.
 				*/
 				bool HasItems() const {
@@ -10340,9 +10336,12 @@ namespace gaia {
 
 				/*!
 				Returns the number of entities matching the query
+				\warning Only use if you only care about the number of entities matching the query.
+								 The result is not cached and repeated calls to the function might be slow.
+								 If you already called ToArray, use the size provided by the array.
 				\return The number of matching entities
 				*/
-				size_t GetItemCount() const {
+				size_t CalculateItemCount() const {
 					size_t itemCount = 0;
 
 					const bool hasFilters = m_q.HasFilters();
@@ -10366,15 +10365,15 @@ namespace gaia {
 				}
 
 				/*!
-				Returns an array of components matching the query
+				Returns an array of components or entities matching the query
 				\tparam Container Container storing entities or components
 				\return Array with entities or components
 				*/
 				template <typename Container>
-				void ToComponentOrEntityArray(Container& outArray) const {
+				void ToArray(Container& outArray) const {
 					using ContainerItemType = typename Container::value_type;
 
-					const size_t itemCount = GetItemCount();
+					const size_t itemCount = CalculateItemCount();
 					outArray.reserve(itemCount);
 
 					const bool hasFilters = m_q.HasFilters();
@@ -10406,7 +10405,7 @@ namespace gaia {
 				void ToChunkArray(Container& outArray) const {
 					static_assert(std::is_same_v<typename Container::value_type, Chunk*>);
 
-					const size_t itemCount = GetItemCount();
+					const size_t itemCount = CalculateItemCount();
 					outArray.reserve(itemCount);
 
 					const bool hasFilters = m_q.HasFilters();

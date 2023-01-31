@@ -1613,9 +1613,11 @@ namespace gaia {
 			public:
 				QueryResult(const World& w, const EntityQuery& q): m_w(w), m_q(q) {}
 
-				//! Return true it there at least one result matching the query
 				/*!
-				Returns true or false depending on whether there are entities matching the query
+				Returns true or false depending on whether there are entities matching the query.
+				\warning Only use if you only care if there are any entities matching the query.
+								 The result is not cached and repeated calls to the function might be slow.
+								 If you already called ToArray, checking if it is empty is preferred.
 				\return True if there are any entites matchine the query. False otherwise.
 				*/
 				bool HasItems() const {
@@ -1653,9 +1655,12 @@ namespace gaia {
 
 				/*!
 				Returns the number of entities matching the query
+				\warning Only use if you only care about the number of entities matching the query.
+								 The result is not cached and repeated calls to the function might be slow.
+								 If you already called ToArray, use the size provided by the array.
 				\return The number of matching entities
 				*/
-				size_t GetItemCount() const {
+				size_t CalculateItemCount() const {
 					size_t itemCount = 0;
 
 					const bool hasFilters = m_q.HasFilters();
@@ -1679,15 +1684,15 @@ namespace gaia {
 				}
 
 				/*!
-				Returns an array of components matching the query
+				Returns an array of components or entities matching the query
 				\tparam Container Container storing entities or components
 				\return Array with entities or components
 				*/
 				template <typename Container>
-				void ToComponentOrEntityArray(Container& outArray) const {
+				void ToArray(Container& outArray) const {
 					using ContainerItemType = typename Container::value_type;
 
-					const size_t itemCount = GetItemCount();
+					const size_t itemCount = CalculateItemCount();
 					outArray.reserve(itemCount);
 
 					const bool hasFilters = m_q.HasFilters();
@@ -1719,7 +1724,7 @@ namespace gaia {
 				void ToChunkArray(Container& outArray) const {
 					static_assert(std::is_same_v<typename Container::value_type, Chunk*>);
 
-					const size_t itemCount = GetItemCount();
+					const size_t itemCount = CalculateItemCount();
 					outArray.reserve(itemCount);
 
 					const bool hasFilters = m_q.HasFilters();

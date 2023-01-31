@@ -12,7 +12,6 @@ Checks:
   cppcoreguidelines-*,
     -cppcoreguidelines-owning-memory,
     -cppcoreguidelines-no-malloc,
-    -cppcoreguidelines-avoid-c-arrays,
-    -cppcoreguidelines-avoid-goto,
+    -cppcoreguidelines-avoid-*,
     -cppcoreguidelines-pro-type-*,
     -cppcoreguidelines-pro-bounds-*
