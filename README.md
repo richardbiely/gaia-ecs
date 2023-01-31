@@ -180,9 +180,11 @@ q.All<Position>(); // consider only entities with Position
 // Fill the entities array with entities with a Position component.
 gaia::containers::darray<gaia::ecs::Entity> entities;
 w.FromQuery(q).ToArray(entities);
+
 // Fill the positions array with position data.
 gaia::containers::darray<Position> positions;
 w.FromQuery(q).ToArray(positions);
+
 // Print the result
 for (size_t i = 0; i < entities.size(); ++i)
 {
@@ -190,12 +192,13 @@ for (size_t i = 0; i < entities.size(); ++i)
   const auto& p = positions[i];
   printf("Entity %u is located at [x,y,z]=[%f,%f,%f]\n", e.id(), p.x, p.y, p.z);
 }
+
 // Print the number of entities matching the query. For demonstration purposes only.
 // Because we already called ToArray we would normally use entities.size() or positions.size().
 printf("Number of results: %u", q.CalculateItemCount());
 ```
 
-You can easily create more complex queries:
+More complex queries can be created by combining All, Any and None in any way you can imagine:
 ```cpp
 ecs::EntityQuery q;
 q.All<Position, Velocity>();       // Take into account everything with Position and Velocity...
@@ -203,7 +206,7 @@ q.Any<Something, SomethingElse>(); // ... at least Something or SomethingElse...
 q.None<Player>();                  // ... and no Player component...
 ```
 
-You can also chain the operations or invoke various filters multiple times with unique components:
+All EntityQuery perations can be chained and it is also possible to invoke various filters multiple times with unique components:
 ```cpp
 ecs::EntityQuery q;
 q.All<Position>()                 // Take into account everything with Position...
@@ -213,16 +216,16 @@ q.All<Position>()                 // Take into account everything with Position.
 ```
 
 Using WithChanged we can take it a step further and filter only data which actually changed. This becomes particulary useful when iterating as you will see later on.<br/>
-Note, if there are 100 Position components in the chunk and only one them changes, all of them are selected.<br/>
-This chunk-wide behavior is due to performance concerns as it is easier to reason about the entire chunk than each of its items separately.
+Note, if there are 100 Position components in the chunk and only one them changes, all or them are considered changed. This chunk-wide behavior is due to performance concerns as it is easier to reason about the entire chunk than each of its items separately.
 ```cpp
 ecs::EntityQuery q;
 q.All<Position, Velocity>();       // Take into account everything with Position and Velocity...
 q.Any<Something, SomethingElse>(); // ... at least Something or SomethingElse...
 q.None<Player>();                  // ... and no Player component...
 q.WithChanged<Velocity>();         // ... but only such with their Velocity changed
+```
 
-Query behavior can be modified by setting constraints. By default only enabled entities are taken into account. However, by changing constraints we can filter disabled entities exclusively or make the query consider both enabled and disabled entities:
+Query behavior can be modified by setting constraints. By default only enabled entities are taken into account. However, by changing constraints we can filter disabled entities exclusively or make the query consider both enabled and disabled entities at the same time:
 ```cpp
 ecs::Entity e1, e2;
 // Create 2 entities with Position component
@@ -230,6 +233,7 @@ w.CreateEntity(e1);
 w.CreateEntity(e2);
 w.AddComponent<Position>(e1);
 w.AddComponent<Position>(e2);
+
 // Disable the first entity
 w.EnableEntity(e1, false);
 
