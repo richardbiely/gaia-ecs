@@ -418,7 +418,7 @@ namespace gaia {
 				GAIA_ASSERT(last.m_pos >= last.m_pos);
 
 				transfer_data(first.m_pos, last.m_pos);
-				--m_cnt;
+				m_cnt -= (last.m_pos - first.m_pos);
 
 				return {(T*)m_data + size_type(last.m_pos)};
 			}
