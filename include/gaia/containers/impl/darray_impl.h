@@ -319,7 +319,7 @@ namespace gaia {
 			}
 
 		private:
-			void transfer_data(T* dst, const T* src, const size_type size) {
+			void transfer_data(GAIA_RESTRICT T* dst, GAIA_RESTRICT const T* src, size_type size) {
 				GAIA_MSVC_WARNING_PUSH()
 				GAIA_MSVC_WARNING_DISABLE(6385)
 
@@ -329,6 +329,21 @@ namespace gaia {
 				} else {
 					for (size_type i = 0; i < size; ++i)
 						dst[i] = src[i];
+				}
+
+				GAIA_MSVC_WARNING_POP()
+			}
+
+			void transfer_data(size_type from, size_type to) {
+				GAIA_MSVC_WARNING_PUSH()
+				GAIA_MSVC_WARNING_DISABLE(6385)
+
+				if constexpr (std::is_move_assignable_v<T>) {
+					for (size_type i = from; i < to; ++i)
+						m_data[i] = std::move(m_data[i + 1]);
+				} else {
+					for (size_type i = from; i < to; ++i)
+						m_data[i] = m_data[i + 1];
 				}
 
 				GAIA_MSVC_WARNING_POP()
@@ -346,7 +361,9 @@ namespace gaia {
 				if (m_data == nullptr) {
 					m_data = new T[m_cap = 4];
 				}
-				// Increase the size of an existing array in multiples of 1.5
+				// Increase the size of an existing array.
+				// We increase the capacity in multiples of 1.5 which is about the golden ratio (1.618).
+				// This means we prefer more frequent allocations over memory fragmentation.
 				else {
 					T* old = m_data;
 					m_data = new T[m_cap = (cap * 3) / 2 + 1];
@@ -375,10 +392,11 @@ namespace gaia {
 				GAIA_ASSERT(pos.m_ptr >= &m_data[0] && pos.m_ptr < &m_data[m_cap - 1]);
 
 				const auto idxStart = (size_type)GAIA_UTIL::distance(pos, begin());
-				const auto items = size() - 1;
-				for (size_type i = idxStart; i < items; ++i)
-					m_data[i] = m_data[i + 1];
+				const auto idxTo = size() - 1;
+
+				transfer_data(idxStart, idxTo);
 				--m_cnt;
+
 				return iterator((T*)m_data + idxStart);
 			}
 
@@ -386,12 +404,12 @@ namespace gaia {
 				GAIA_ASSERT(pos.m_ptr >= &m_data[0] && pos.m_ptr < &m_data[m_cap - 1]);
 
 				const auto idxStart = (size_type)GAIA_UTIL::distance(pos, begin());
-				const auto items = size() - 1;
-				for (size_type i = idxStart; i < items; ++i)
-					m_data[i] = m_data[i + 1];
+				const auto idxTo = size() - 1;
+
+				transfer_data(idxStart, idxTo);
 				--m_cnt;
+
 				return iterator((const T*)m_data + idxStart);
-				;
 			}
 
 			iterator erase(iterator first, iterator last) {
@@ -399,9 +417,9 @@ namespace gaia {
 				GAIA_ASSERT(last.m_pos >= 0 && last.m_pos < size());
 				GAIA_ASSERT(last.m_pos >= last.m_pos);
 
-				for (size_type i = first.m_pos; i < last.m_pos; ++i)
-					m_data[i] = m_data[i + 1];
+				transfer_data(first.m_pos, last.m_pos);
 				--m_cnt;
+
 				return {(T*)m_data + size_type(last.m_pos)};
 			}
 
@@ -414,8 +432,7 @@ namespace gaia {
 					return;
 				T* old = m_data;
 				m_data = new T[m_cap = m_cnt];
-				for (size_type i = 0; i < size(); ++i)
-					m_data[i] = old[i];
+				transfer_data(m_data, old, size());
 				delete[] old;
 			}
 
@@ -432,7 +449,7 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD constexpr size_type max_size() const noexcept {
-				return 10'000'000;
+				return static_cast<size_type>(-1);
 			}
 
 			reference front() noexcept {
