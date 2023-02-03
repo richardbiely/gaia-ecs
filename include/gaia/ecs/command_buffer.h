@@ -1,5 +1,6 @@
 #pragma once
 #include <cinttypes>
+#include <type_traits>
 
 #include "../config/config.h"
 #include "../containers/map.h"
@@ -43,34 +44,46 @@ namespace gaia {
 			};
 
 			friend class World;
+			using DataBuffer = containers::darray<uint8_t>;
 
 			World& m_world;
-			containers::darray<uint8_t> m_data;
+			DataBuffer m_data;
 			uint32_t m_entities;
+
+			template <typename T>
+			void AddData(T&& value) {
+				// When adding data, if what we add is exactly the same as the buffer type, we can simply push_back
+				if constexpr (
+						sizeof(T) == sizeof(DataBuffer::value_type) ||
+						(std::is_enum_v<T> && std::is_same_v<std::underlying_type<T>, DataBuffer::value_type>)) {
+					m_data.push_back(std::forward<T>(value));
+				}
+				// When the data type does not match the buffer type, we perform a memory safe operation
+				else {
+					const auto lastIndex = m_data.size();
+					m_data.resize(lastIndex + sizeof(T));
+
+					utils::unaligned_ref<T> mem(&m_data[lastIndex]);
+					mem = std::forward<T>(value);
+				}
+			}
+
+			template <typename T>
+			void SetData(T&& value, uint32_t& lastIndex) {
+				utils::unaligned_ref<T> mem(&m_data[lastIndex]);
+				mem = std::forward<T>(value);
+
+				lastIndex += sizeof(T);
+			}
 
 			template <typename TEntity, typename T>
 			void AddComponent_Internal(TEntity entity) {
 				// Entity
-				{
-					const auto lastIndex = m_data.size();
-					m_data.resize(m_data.size() + sizeof(TEntity));
+				AddData(entity);
 
-					utils::unaligned_ref<TEntity> to(&m_data[lastIndex]);
-					to = entity;
-				}
 				// Components
-				{
-					const auto* infoToAdd = GetComponentCacheRW().GetOrCreateComponentInfo<T>();
-
-					// Component info
-					auto lastIndex = m_data.size();
-					m_data.resize(m_data.size() + sizeof(uint32_t));
-
-					utils::unaligned_ref<uint32_t> to(&m_data[lastIndex]);
-					to = infoToAdd->infoIndex;
-
-					lastIndex += sizeof(uint32_t);
-				}
+				const auto* infoToAdd = GetComponentCacheRW().GetOrCreateComponentInfo<T>();
+				AddData(infoToAdd->infoIndex);
 			}
 
 			template <typename T>
@@ -78,18 +91,10 @@ namespace gaia {
 				using U = std::decay_t<T>;
 
 				// Component info
-				{
-					utils::unaligned_ref<uint32_t> mem((void*)&m_data[index]);
-					mem = utils::type_info::index<U>();
-				}
+				SetData(utils::type_info::index<U>(), index);
 
 				// Component data
-				{
-					utils::unaligned_ref<U> mem((void*)&m_data[index + sizeof(uint32_t)]);
-					mem = std::forward<U>(data);
-				}
-
-				index += (uint32_t)(sizeof(uint32_t) + sizeof(U));
+				SetData(std::forward<U>(data), index);
 			}
 
 			template <typename T>
@@ -118,13 +123,7 @@ namespace gaia {
 			template <typename TEntity, typename T>
 			void SetComponent_Internal(TEntity entity, T&& data) {
 				// Entity
-				{
-					const auto lastIndex = m_data.size();
-					m_data.resize(m_data.size() + sizeof(TEntity));
-
-					utils::unaligned_ref<TEntity> to(&m_data[lastIndex]);
-					to = entity;
-				}
+				AddData(entity);
 
 				// Components
 				SetComponentNoEntity_Internal(std::forward<T>(data));
@@ -133,26 +132,15 @@ namespace gaia {
 			template <typename T>
 			void RemoveComponent_Internal(Entity entity) {
 				// Entity
-				{
-					const auto lastIndex = m_data.size();
-					m_data.resize(m_data.size() + sizeof(Entity));
+				AddData(entity);
 
-					utils::unaligned_ref<Entity> to(&m_data[lastIndex]);
-					to = entity;
-				}
 				// Components
 				{
 					const auto* typeToRemove = GetComponentCache().GetComponentInfo<T>();
 					GAIA_ASSERT(typeToRemove != nullptr);
 
 					// Component info
-					auto lastIndex = m_data.size();
-					m_data.resize(m_data.size() + sizeof(uint32_t));
-
-					utils::unaligned_ref<uint32_t> to(&m_data[lastIndex]);
-					to = typeToRemove->infoIndex;
-
-					lastIndex += sizeof(uint32_t);
+					AddData(typeToRemove->infoIndex);
 				}
 			}
 
@@ -162,13 +150,8 @@ namespace gaia {
 			will be filled with proper data after Commit()
 			*/
 			GAIA_NODISCARD TempEntity CreateEntity(Archetype& archetype) {
-				m_data.push_back(CREATE_ENTITY_FROM_ARCHETYPE);
-				const auto archetypeSize = sizeof(void*); // we'll serialize just the pointer
-				const auto lastIndex = m_data.size();
-				m_data.resize(m_data.size() + archetypeSize);
-
-				utils::unaligned_ref<uintptr_t> to(&m_data[lastIndex]);
-				to = (uintptr_t)&archetype;
+				AddData(CREATE_ENTITY_FROM_ARCHETYPE);
+				AddData((uintptr_t)&archetype);
 
 				return {m_entities++};
 			}
@@ -189,7 +172,7 @@ namespace gaia {
 			will be filled with proper data after Commit()
 			*/
 			GAIA_NODISCARD TempEntity CreateEntity() {
-				m_data.push_back(CREATE_ENTITY);
+				AddData(CREATE_ENTITY);
 				return {m_entities++};
 			}
 
@@ -199,13 +182,8 @@ namespace gaia {
 			away. It will be filled with proper data after Commit()
 			*/
 			GAIA_NODISCARD TempEntity CreateEntity(Entity entityFrom) {
-				m_data.push_back(CREATE_ENTITY_FROM_ENTITY);
-				const auto entitySize = sizeof(entityFrom);
-				const auto lastIndex = m_data.size();
-				m_data.resize(m_data.size() + entitySize);
-
-				utils::unaligned_ref<Entity> to(&m_data[lastIndex]);
-				to = entityFrom;
+				AddData(CREATE_ENTITY_FROM_ENTITY);
+				AddData(entityFrom);
 
 				return {m_entities++};
 			}
@@ -214,13 +192,8 @@ namespace gaia {
 			Requests an existing \param entity to be removed.
 			*/
 			void DeleteEntity(Entity entity) {
-				m_data.push_back(DELETE_ENTITY);
-				const auto entitySize = sizeof(entity);
-				const auto lastIndex = m_data.size();
-				m_data.resize(m_data.size() + entitySize);
-
-				utils::unaligned_ref<Entity> to(&m_data[lastIndex]);
-				to = entity;
+				AddData(DELETE_ENTITY);
+				AddData(entity);
 			}
 
 			/*!
@@ -234,11 +207,11 @@ namespace gaia {
 				using U = typename DeduceComponent<T>::Type;
 				VerifyComponent<U>();
 
-				m_data.push_back(ADD_COMPONENT);
+				AddData(ADD_COMPONENT);
 				if constexpr (IsGenericComponent<T>)
-					m_data.push_back(ComponentType::CT_Generic);
+					AddData(ComponentType::CT_Generic);
 				else
-					m_data.push_back(ComponentType::CT_Chunk);
+					AddData(ComponentType::CT_Chunk);
 				AddComponent_Internal<Entity, U>(entity);
 				return true;
 			}
@@ -254,11 +227,11 @@ namespace gaia {
 				using U = typename DeduceComponent<T>::Type;
 				VerifyComponent<U>();
 
-				m_data.push_back(ADD_COMPONENT_TO_TEMPENTITY);
+				AddData(ADD_COMPONENT_TO_TEMPENTITY);
 				if constexpr (IsGenericComponent<T>)
-					m_data.push_back(ComponentType::CT_Generic);
+					AddData(ComponentType::CT_Generic);
 				else
-					m_data.push_back(ComponentType::CT_Chunk);
+					AddData(ComponentType::CT_Chunk);
 				AddComponent_Internal<TempEntity, U>(entity);
 				return true;
 			}
@@ -274,11 +247,11 @@ namespace gaia {
 				using U = typename DeduceComponent<T>::Type;
 				VerifyComponent<U>();
 
-				m_data.push_back(ADD_COMPONENT_DATA);
+				AddData(ADD_COMPONENT_DATA);
 				if constexpr (IsGenericComponent<T>)
-					m_data.push_back(ComponentType::CT_Generic);
+					AddData(ComponentType::CT_Generic);
 				else
-					m_data.push_back(ComponentType::CT_Chunk);
+					AddData(ComponentType::CT_Chunk);
 				AddComponent_Internal<Entity, U>(entity);
 				SetComponentNoEntityNoSize_Internal(std::forward<U>(data));
 				return true;
@@ -295,11 +268,11 @@ namespace gaia {
 				using U = typename DeduceComponent<T>::Type;
 				VerifyComponent<U>();
 
-				m_data.push_back(ADD_COMPONENT_TO_TEMPENTITY_DATA);
+				AddData(ADD_COMPONENT_TO_TEMPENTITY_DATA);
 				if constexpr (IsGenericComponent<T>)
-					m_data.push_back(ComponentType::CT_Generic);
+					AddData(ComponentType::CT_Generic);
 				else
-					m_data.push_back(ComponentType::CT_Chunk);
+					AddData(ComponentType::CT_Chunk);
 				AddComponent_Internal<TempEntity, U>(entity);
 				SetComponentNoEntityNoSize_Internal(std::forward<U>(data));
 				return true;
@@ -316,11 +289,11 @@ namespace gaia {
 				using U = typename DeduceComponent<T>::Type;
 				VerifyComponent<U>();
 
-				m_data.push_back(SET_COMPONENT);
+				AddData(SET_COMPONENT);
 				if constexpr (IsGenericComponent<T>)
-					m_data.push_back(ComponentType::CT_Generic);
+					AddData(ComponentType::CT_Generic);
 				else
-					m_data.push_back(ComponentType::CT_Chunk);
+					AddData(ComponentType::CT_Chunk);
 				SetComponent_Internal(entity, std::forward<U>(data));
 			}
 
@@ -336,11 +309,11 @@ namespace gaia {
 				using U = typename DeduceComponent<T>::Type;
 				VerifyComponent<U>();
 
-				m_data.push_back(SET_COMPONENT_FOR_TEMPENTITY);
+				AddData(SET_COMPONENT_FOR_TEMPENTITY);
 				if constexpr (IsGenericComponent<T>)
-					m_data.push_back(ComponentType::CT_Generic);
+					AddData(ComponentType::CT_Generic);
 				else
-					m_data.push_back(ComponentType::CT_Chunk);
+					AddData(ComponentType::CT_Chunk);
 				SetComponent_Internal(entity, std::forward<U>(data));
 			}
 
@@ -352,11 +325,11 @@ namespace gaia {
 				using U = typename DeduceComponent<T>::Type;
 				VerifyComponent<U>();
 
-				m_data.push_back(REMOVE_COMPONENT);
+				AddData(REMOVE_COMPONENT);
 				if constexpr (IsGenericComponent<T>)
-					m_data.push_back(ComponentType::CT_Generic);
+					AddData(ComponentType::CT_Generic);
 				else
-					m_data.push_back(ComponentType::CT_Chunk);
+					AddData(ComponentType::CT_Chunk);
 				RemoveComponent_Internal<U>(entity);
 			}
 
