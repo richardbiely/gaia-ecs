@@ -319,7 +319,7 @@ namespace gaia {
 			}
 
 		private:
-			void transfer_data(GAIA_RESTRICT T* dst, GAIA_RESTRICT const T* src, size_type size) {
+			void transfer_data(T* GAIA_RESTRICT dst, const T* GAIA_RESTRICT src, size_type size) {
 				GAIA_MSVC_WARNING_PUSH()
 				GAIA_MSVC_WARNING_DISABLE(6385)
 

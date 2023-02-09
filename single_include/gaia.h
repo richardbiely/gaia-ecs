@@ -972,7 +972,7 @@ namespace gaia {
 			}
 
 		private:
-			void transfer_data(T* dst, const T* src, const size_type size) {
+			void transfer_data(T* GAIA_RESTRICT dst, const T* GAIA_RESTRICT src, size_type size) {
 				GAIA_MSVC_WARNING_PUSH()
 				GAIA_MSVC_WARNING_DISABLE(6385)
 
@@ -982,6 +982,21 @@ namespace gaia {
 				} else {
 					for (size_type i = 0; i < size; ++i)
 						dst[i] = src[i];
+				}
+
+				GAIA_MSVC_WARNING_POP()
+			}
+
+			void transfer_data(size_type from, size_type to) {
+				GAIA_MSVC_WARNING_PUSH()
+				GAIA_MSVC_WARNING_DISABLE(6385)
+
+				if constexpr (std::is_move_assignable_v<T>) {
+					for (size_type i = from; i < to; ++i)
+						m_data[i] = std::move(m_data[i + 1]);
+				} else {
+					for (size_type i = from; i < to; ++i)
+						m_data[i] = m_data[i + 1];
 				}
 
 				GAIA_MSVC_WARNING_POP()
@@ -999,7 +1014,9 @@ namespace gaia {
 				if (m_data == nullptr) {
 					m_data = new T[m_cap = 4];
 				}
-				// Increase the size of an existing array in multiples of 1.5
+				// Increase the size of an existing array.
+				// We increase the capacity in multiples of 1.5 which is about the golden ratio (1.618).
+				// This means we prefer more frequent allocations over memory fragmentation.
 				else {
 					T* old = m_data;
 					m_data = new T[m_cap = (cap * 3) / 2 + 1];
@@ -1028,10 +1045,11 @@ namespace gaia {
 				GAIA_ASSERT(pos.m_ptr >= &m_data[0] && pos.m_ptr < &m_data[m_cap - 1]);
 
 				const auto idxStart = (size_type)GAIA_UTIL::distance(pos, begin());
-				const auto items = size() - 1;
-				for (size_type i = idxStart; i < items; ++i)
-					m_data[i] = m_data[i + 1];
+				const auto idxTo = size() - 1;
+
+				transfer_data(idxStart, idxTo);
 				--m_cnt;
+
 				return iterator((T*)m_data + idxStart);
 			}
 
@@ -1039,12 +1057,12 @@ namespace gaia {
 				GAIA_ASSERT(pos.m_ptr >= &m_data[0] && pos.m_ptr < &m_data[m_cap - 1]);
 
 				const auto idxStart = (size_type)GAIA_UTIL::distance(pos, begin());
-				const auto items = size() - 1;
-				for (size_type i = idxStart; i < items; ++i)
-					m_data[i] = m_data[i + 1];
+				const auto idxTo = size() - 1;
+
+				transfer_data(idxStart, idxTo);
 				--m_cnt;
+
 				return iterator((const T*)m_data + idxStart);
-				;
 			}
 
 			iterator erase(iterator first, iterator last) {
@@ -1052,9 +1070,9 @@ namespace gaia {
 				GAIA_ASSERT(last.m_pos >= 0 && last.m_pos < size());
 				GAIA_ASSERT(last.m_pos >= last.m_pos);
 
-				for (size_type i = first.m_pos; i < last.m_pos; ++i)
-					m_data[i] = m_data[i + 1];
-				--m_cnt;
+				transfer_data(first.m_pos, last.m_pos);
+				m_cnt -= (last.m_pos - first.m_pos);
+
 				return {(T*)m_data + size_type(last.m_pos)};
 			}
 
@@ -1067,8 +1085,7 @@ namespace gaia {
 					return;
 				T* old = m_data;
 				m_data = new T[m_cap = m_cnt];
-				for (size_type i = 0; i < size(); ++i)
-					m_data[i] = old[i];
+				transfer_data(m_data, old, size());
 				delete[] old;
 			}
 
@@ -1085,7 +1102,7 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD constexpr size_type max_size() const noexcept {
-				return 10'000'000;
+				return static_cast<size_type>(-1);
 			}
 
 			reference front() noexcept {
@@ -2099,9 +2116,8 @@ namespace gaia {
 		public:
 			unaligned_ref(void* p): m_p(p) {}
 
-			T operator=(const T& rvalue) {
+			void operator=(const T& rvalue) {
 				memmove(m_p, &rvalue, sizeof(T));
-				return rvalue;
 			}
 
 			operator T() const {
@@ -8089,6 +8105,7 @@ namespace gaia {
 } // namespace gaia
 
 #include <cinttypes>
+#include <type_traits>
 
 #include <cinttypes>
 #include <type_traits>
@@ -10296,15 +10313,16 @@ namespace gaia {
 
 				/*!
 				Returns true or false depending on whether there are entities matching the query.
+				\param ignoreFilters If true any filters which might be set on the entity query is ignored
 				\warning Only use if you only care if there are any entities matching the query.
 								 The result is not cached and repeated calls to the function might be slow.
 								 If you already called ToArray, checking if it is empty is preferred.
 				\return True if there are any entites matchine the query. False otherwise.
 				*/
-				bool HasItems() const {
+				bool HasItems(bool ignoreFilters = false) const {
 					bool hasItems = false;
 
-					const bool hasFilters = m_q.HasFilters();
+					const bool hasFilters = !ignoreFilters && m_q.HasFilters();
 
 					auto exec = [&](const auto& chunksList) {
 						for (auto* pChunk: chunksList) {
@@ -10336,15 +10354,16 @@ namespace gaia {
 
 				/*!
 				Returns the number of entities matching the query
+				\param ignoreFilters If true any filters which might be set on the entity query is ignored
 				\warning Only use if you only care about the number of entities matching the query.
 								 The result is not cached and repeated calls to the function might be slow.
 								 If you already called ToArray, use the size provided by the array.
 				\return The number of matching entities
 				*/
-				size_t CalculateItemCount() const {
+				size_t CalculateItemCount(bool ignoreFilters = false) const {
 					size_t itemCount = 0;
 
-					const bool hasFilters = m_q.HasFilters();
+					const bool hasFilters = !ignoreFilters && m_q.HasFilters();
 
 					auto exec = [&](const auto& chunksList) {
 						for (auto* pChunk: chunksList) {
@@ -10771,34 +10790,46 @@ namespace gaia {
 			};
 
 			friend class World;
+			using DataBuffer = containers::darray<uint8_t>;
 
 			World& m_world;
-			containers::darray<uint8_t> m_data;
+			DataBuffer m_data;
 			uint32_t m_entities;
+
+			template <typename T>
+			void AddData(T&& value) {
+				// When adding data, if what we add is exactly the same as the buffer type, we can simply push_back
+				if constexpr (
+						sizeof(T) == sizeof(DataBuffer::value_type) ||
+						(std::is_enum_v<T> && std::is_same_v<std::underlying_type<T>, DataBuffer::value_type>)) {
+					m_data.push_back(std::forward<T>(value));
+				}
+				// When the data type does not match the buffer type, we perform a memory safe operation
+				else {
+					const auto lastIndex = m_data.size();
+					m_data.resize(lastIndex + sizeof(T));
+
+					utils::unaligned_ref<T> mem(&m_data[lastIndex]);
+					mem = std::forward<T>(value);
+				}
+			}
+
+			template <typename T>
+			void SetData(T&& value, uint32_t& lastIndex) {
+				utils::unaligned_ref<T> mem(&m_data[lastIndex]);
+				mem = std::forward<T>(value);
+
+				lastIndex += sizeof(T);
+			}
 
 			template <typename TEntity, typename T>
 			void AddComponent_Internal(TEntity entity) {
 				// Entity
-				{
-					const auto lastIndex = m_data.size();
-					m_data.resize(m_data.size() + sizeof(TEntity));
+				AddData(entity);
 
-					utils::unaligned_ref<TEntity> to(&m_data[lastIndex]);
-					to = entity;
-				}
 				// Components
-				{
-					const auto* infoToAdd = GetComponentCacheRW().GetOrCreateComponentInfo<T>();
-
-					// Component info
-					auto lastIndex = m_data.size();
-					m_data.resize(m_data.size() + sizeof(uint32_t));
-
-					utils::unaligned_ref<uint32_t> to(&m_data[lastIndex]);
-					to = infoToAdd->infoIndex;
-
-					lastIndex += sizeof(uint32_t);
-				}
+				const auto* infoToAdd = GetComponentCacheRW().GetOrCreateComponentInfo<T>();
+				AddData(infoToAdd->infoIndex);
 			}
 
 			template <typename T>
@@ -10806,18 +10837,10 @@ namespace gaia {
 				using U = std::decay_t<T>;
 
 				// Component info
-				{
-					utils::unaligned_ref<uint32_t> mem((void*)&m_data[index]);
-					mem = utils::type_info::index<U>();
-				}
+				SetData(utils::type_info::index<U>(), index);
 
 				// Component data
-				{
-					utils::unaligned_ref<U> mem((void*)&m_data[index + sizeof(uint32_t)]);
-					mem = std::forward<U>(data);
-				}
-
-				index += (uint32_t)(sizeof(uint32_t) + sizeof(U));
+				SetData(std::forward<U>(data), index);
 			}
 
 			template <typename T>
@@ -10846,13 +10869,7 @@ namespace gaia {
 			template <typename TEntity, typename T>
 			void SetComponent_Internal(TEntity entity, T&& data) {
 				// Entity
-				{
-					const auto lastIndex = m_data.size();
-					m_data.resize(m_data.size() + sizeof(TEntity));
-
-					utils::unaligned_ref<TEntity> to(&m_data[lastIndex]);
-					to = entity;
-				}
+				AddData(entity);
 
 				// Components
 				SetComponentNoEntity_Internal(std::forward<T>(data));
@@ -10861,26 +10878,15 @@ namespace gaia {
 			template <typename T>
 			void RemoveComponent_Internal(Entity entity) {
 				// Entity
-				{
-					const auto lastIndex = m_data.size();
-					m_data.resize(m_data.size() + sizeof(Entity));
+				AddData(entity);
 
-					utils::unaligned_ref<Entity> to(&m_data[lastIndex]);
-					to = entity;
-				}
 				// Components
 				{
 					const auto* typeToRemove = GetComponentCache().GetComponentInfo<T>();
 					GAIA_ASSERT(typeToRemove != nullptr);
 
 					// Component info
-					auto lastIndex = m_data.size();
-					m_data.resize(m_data.size() + sizeof(uint32_t));
-
-					utils::unaligned_ref<uint32_t> to(&m_data[lastIndex]);
-					to = typeToRemove->infoIndex;
-
-					lastIndex += sizeof(uint32_t);
+					AddData(typeToRemove->infoIndex);
 				}
 			}
 
@@ -10890,13 +10896,8 @@ namespace gaia {
 			will be filled with proper data after Commit()
 			*/
 			GAIA_NODISCARD TempEntity CreateEntity(Archetype& archetype) {
-				m_data.push_back(CREATE_ENTITY_FROM_ARCHETYPE);
-				const auto archetypeSize = sizeof(void*); // we'll serialize just the pointer
-				const auto lastIndex = m_data.size();
-				m_data.resize(m_data.size() + archetypeSize);
-
-				utils::unaligned_ref<uintptr_t> to(&m_data[lastIndex]);
-				to = (uintptr_t)&archetype;
+				AddData(CREATE_ENTITY_FROM_ARCHETYPE);
+				AddData((uintptr_t)&archetype);
 
 				return {m_entities++};
 			}
@@ -10917,7 +10918,7 @@ namespace gaia {
 			will be filled with proper data after Commit()
 			*/
 			GAIA_NODISCARD TempEntity CreateEntity() {
-				m_data.push_back(CREATE_ENTITY);
+				AddData(CREATE_ENTITY);
 				return {m_entities++};
 			}
 
@@ -10927,13 +10928,8 @@ namespace gaia {
 			away. It will be filled with proper data after Commit()
 			*/
 			GAIA_NODISCARD TempEntity CreateEntity(Entity entityFrom) {
-				m_data.push_back(CREATE_ENTITY_FROM_ENTITY);
-				const auto entitySize = sizeof(entityFrom);
-				const auto lastIndex = m_data.size();
-				m_data.resize(m_data.size() + entitySize);
-
-				utils::unaligned_ref<Entity> to(&m_data[lastIndex]);
-				to = entityFrom;
+				AddData(CREATE_ENTITY_FROM_ENTITY);
+				AddData(entityFrom);
 
 				return {m_entities++};
 			}
@@ -10942,13 +10938,8 @@ namespace gaia {
 			Requests an existing \param entity to be removed.
 			*/
 			void DeleteEntity(Entity entity) {
-				m_data.push_back(DELETE_ENTITY);
-				const auto entitySize = sizeof(entity);
-				const auto lastIndex = m_data.size();
-				m_data.resize(m_data.size() + entitySize);
-
-				utils::unaligned_ref<Entity> to(&m_data[lastIndex]);
-				to = entity;
+				AddData(DELETE_ENTITY);
+				AddData(entity);
 			}
 
 			/*!
@@ -10962,11 +10953,11 @@ namespace gaia {
 				using U = typename DeduceComponent<T>::Type;
 				VerifyComponent<U>();
 
-				m_data.push_back(ADD_COMPONENT);
+				AddData(ADD_COMPONENT);
 				if constexpr (IsGenericComponent<T>)
-					m_data.push_back(ComponentType::CT_Generic);
+					AddData(ComponentType::CT_Generic);
 				else
-					m_data.push_back(ComponentType::CT_Chunk);
+					AddData(ComponentType::CT_Chunk);
 				AddComponent_Internal<Entity, U>(entity);
 				return true;
 			}
@@ -10982,11 +10973,11 @@ namespace gaia {
 				using U = typename DeduceComponent<T>::Type;
 				VerifyComponent<U>();
 
-				m_data.push_back(ADD_COMPONENT_TO_TEMPENTITY);
+				AddData(ADD_COMPONENT_TO_TEMPENTITY);
 				if constexpr (IsGenericComponent<T>)
-					m_data.push_back(ComponentType::CT_Generic);
+					AddData(ComponentType::CT_Generic);
 				else
-					m_data.push_back(ComponentType::CT_Chunk);
+					AddData(ComponentType::CT_Chunk);
 				AddComponent_Internal<TempEntity, U>(entity);
 				return true;
 			}
@@ -11002,11 +10993,11 @@ namespace gaia {
 				using U = typename DeduceComponent<T>::Type;
 				VerifyComponent<U>();
 
-				m_data.push_back(ADD_COMPONENT_DATA);
+				AddData(ADD_COMPONENT_DATA);
 				if constexpr (IsGenericComponent<T>)
-					m_data.push_back(ComponentType::CT_Generic);
+					AddData(ComponentType::CT_Generic);
 				else
-					m_data.push_back(ComponentType::CT_Chunk);
+					AddData(ComponentType::CT_Chunk);
 				AddComponent_Internal<Entity, U>(entity);
 				SetComponentNoEntityNoSize_Internal(std::forward<U>(data));
 				return true;
@@ -11023,11 +11014,11 @@ namespace gaia {
 				using U = typename DeduceComponent<T>::Type;
 				VerifyComponent<U>();
 
-				m_data.push_back(ADD_COMPONENT_TO_TEMPENTITY_DATA);
+				AddData(ADD_COMPONENT_TO_TEMPENTITY_DATA);
 				if constexpr (IsGenericComponent<T>)
-					m_data.push_back(ComponentType::CT_Generic);
+					AddData(ComponentType::CT_Generic);
 				else
-					m_data.push_back(ComponentType::CT_Chunk);
+					AddData(ComponentType::CT_Chunk);
 				AddComponent_Internal<TempEntity, U>(entity);
 				SetComponentNoEntityNoSize_Internal(std::forward<U>(data));
 				return true;
@@ -11044,11 +11035,11 @@ namespace gaia {
 				using U = typename DeduceComponent<T>::Type;
 				VerifyComponent<U>();
 
-				m_data.push_back(SET_COMPONENT);
+				AddData(SET_COMPONENT);
 				if constexpr (IsGenericComponent<T>)
-					m_data.push_back(ComponentType::CT_Generic);
+					AddData(ComponentType::CT_Generic);
 				else
-					m_data.push_back(ComponentType::CT_Chunk);
+					AddData(ComponentType::CT_Chunk);
 				SetComponent_Internal(entity, std::forward<U>(data));
 			}
 
@@ -11064,11 +11055,11 @@ namespace gaia {
 				using U = typename DeduceComponent<T>::Type;
 				VerifyComponent<U>();
 
-				m_data.push_back(SET_COMPONENT_FOR_TEMPENTITY);
+				AddData(SET_COMPONENT_FOR_TEMPENTITY);
 				if constexpr (IsGenericComponent<T>)
-					m_data.push_back(ComponentType::CT_Generic);
+					AddData(ComponentType::CT_Generic);
 				else
-					m_data.push_back(ComponentType::CT_Chunk);
+					AddData(ComponentType::CT_Chunk);
 				SetComponent_Internal(entity, std::forward<U>(data));
 			}
 
@@ -11080,206 +11071,264 @@ namespace gaia {
 				using U = typename DeduceComponent<T>::Type;
 				VerifyComponent<U>();
 
-				m_data.push_back(REMOVE_COMPONENT);
+				AddData(REMOVE_COMPONENT);
 				if constexpr (IsGenericComponent<T>)
-					m_data.push_back(ComponentType::CT_Generic);
+					AddData(ComponentType::CT_Generic);
 				else
-					m_data.push_back(ComponentType::CT_Chunk);
+					AddData(ComponentType::CT_Chunk);
 				RemoveComponent_Internal<U>(entity);
 			}
 
+		private:
+			struct CommandBufferCtx {
+				ecs::World& world;
+				DataBuffer& data;
+				uint32_t dataOffset;
+				uint32_t entities;
+				containers::map<uint32_t, Entity> entityMap;
+			};
+
+			using CmdBufferCmdFunc = void (*)(CommandBufferCtx& ctx);
+			static constexpr CmdBufferCmdFunc CommandBufferCmd[] = {
+					// CREATE_ENTITY
+					[](CommandBufferCtx& ctx) {
+						[[maybe_unused]] const auto res = ctx.entityMap.emplace(ctx.entities++, ctx.world.CreateEntity());
+						GAIA_ASSERT(res.second);
+					},
+					// CREATE_ENTITY_FROM_ARCHETYPE
+					[](CommandBufferCtx& ctx) {
+						uintptr_t ptr = utils::unaligned_ref<uintptr_t>((void*)&ctx.data[ctx.dataOffset]);
+						auto* pArchetype = (Archetype*)ptr;
+						ctx.dataOffset += sizeof(void*);
+						[[maybe_unused]] const auto res =
+								ctx.entityMap.emplace(ctx.entities++, ctx.world.CreateEntity(*pArchetype));
+						GAIA_ASSERT(res.second);
+					},
+					// CREATE_ENTITY_FROM_ENTITY
+					[](CommandBufferCtx& ctx) {
+						Entity entityFrom = utils::unaligned_ref<Entity>((void*)&ctx.data[ctx.dataOffset]);
+						ctx.dataOffset += sizeof(Entity);
+						[[maybe_unused]] const auto res = ctx.entityMap.emplace(ctx.entities++, ctx.world.CreateEntity(entityFrom));
+						GAIA_ASSERT(res.second);
+					},
+					// DELETE_ENTITY
+					[](CommandBufferCtx& ctx) {
+						Entity entity = utils::unaligned_ref<Entity>((void*)&ctx.data[ctx.dataOffset]);
+						ctx.dataOffset += sizeof(Entity);
+						ctx.world.DeleteEntity(entity);
+					},
+					// ADD_COMPONENT
+					[](CommandBufferCtx& ctx) {
+						// Type
+						ComponentType type = (ComponentType)ctx.data[ctx.dataOffset];
+						ctx.dataOffset += sizeof(ComponentType);
+						// Entity
+						Entity entity = utils::unaligned_ref<Entity>((void*)&ctx.data[ctx.dataOffset]);
+						ctx.dataOffset += sizeof(Entity);
+
+						// Components
+						uint32_t infoIndex = utils::unaligned_ref<uint32_t>((void*)&ctx.data[ctx.dataOffset]);
+						const auto* newInfo = GetComponentCache().GetComponentInfoFromIdx(infoIndex);
+						ctx.dataOffset += sizeof(uint32_t);
+						ctx.world.AddComponent_Internal(type, entity, newInfo);
+
+						uint32_t indexInChunk{};
+						[[maybe_unused]] auto* pChunk = ctx.world.GetChunk(entity, indexInChunk);
+						GAIA_ASSERT(pChunk != nullptr);
+					},
+					// ADD_COMPONENT_DATA
+					[](CommandBufferCtx& ctx) {
+						// Type
+						ComponentType type = (ComponentType)ctx.data[ctx.dataOffset];
+						ctx.dataOffset += sizeof(ComponentType);
+						// Entity
+						Entity entity = utils::unaligned_ref<Entity>((void*)&ctx.data[ctx.dataOffset]);
+						ctx.dataOffset += sizeof(Entity);
+
+						// Components
+						uint32_t infoIndex = utils::unaligned_ref<uint32_t>((void*)&ctx.data[ctx.dataOffset]);
+						const auto* newInfo = GetComponentCache().GetComponentInfoFromIdx(infoIndex);
+						ctx.dataOffset += sizeof(uint32_t);
+						ctx.world.AddComponent_Internal(type, entity, newInfo);
+
+						uint32_t indexInChunk{};
+						auto* pChunk = ctx.world.GetChunk(entity, indexInChunk);
+						GAIA_ASSERT(pChunk != nullptr);
+
+						if (type == ComponentType::CT_Chunk)
+							indexInChunk = 0;
+
+						// Skip the component index
+						// TODO: Don't include the component index here
+						uint32_t infoIndex2 = utils::unaligned_ref<uint32_t>((void*)&ctx.data[ctx.dataOffset]);
+						(void)infoIndex2;
+						ctx.dataOffset += sizeof(uint32_t);
+
+						auto* pComponentDataStart = pChunk->GetDataPtrRW<false>(type, newInfo->infoIndex);
+						auto* pComponentData = (void*)&pComponentDataStart[(size_t)indexInChunk * newInfo->properties.size];
+						memcpy(pComponentData, (const void*)&ctx.data[ctx.dataOffset], newInfo->properties.size);
+						ctx.dataOffset += newInfo->properties.size;
+					},
+					// ADD_COMPONENT_TO_TEMPENTITY
+					[](CommandBufferCtx& ctx) {
+						// Type
+						ComponentType type = (ComponentType)ctx.data[ctx.dataOffset];
+						ctx.dataOffset += sizeof(ComponentType);
+						// Entity
+						Entity e = utils::unaligned_ref<Entity>((void*)&ctx.data[ctx.dataOffset]);
+						ctx.dataOffset += sizeof(Entity);
+
+						// For delayed entities we have to do a look in our map
+						// of temporaries and find a link there
+						const auto it = ctx.entityMap.find(e.id());
+						// Link has to exist!
+						GAIA_ASSERT(it != ctx.entityMap.end());
+
+						Entity entity = it->second;
+
+						// Components
+						uint32_t infoIndex = utils::unaligned_ref<uint32_t>((void*)&ctx.data[ctx.dataOffset]);
+						const auto* newInfo = GetComponentCache().GetComponentInfoFromIdx(infoIndex);
+						ctx.dataOffset += sizeof(uint32_t);
+						ctx.world.AddComponent_Internal(type, entity, newInfo);
+
+						uint32_t indexInChunk{};
+						[[maybe_unused]] auto* pChunk = ctx.world.GetChunk(entity, indexInChunk);
+						GAIA_ASSERT(pChunk != nullptr);
+					},
+					// ADD_COMPONENT_TO_TEMPENTITY_DATA
+					[](CommandBufferCtx& ctx) {
+						// Type
+						ComponentType type = (ComponentType)ctx.data[ctx.dataOffset];
+						ctx.dataOffset += sizeof(ComponentType);
+						// Entity
+						Entity e = utils::unaligned_ref<Entity>((void*)&ctx.data[ctx.dataOffset]);
+						ctx.dataOffset += sizeof(Entity);
+
+						// For delayed entities we have to do a look in our map
+						// of temporaries and find a link there
+						const auto it = ctx.entityMap.find(e.id());
+						// Link has to exist!
+						GAIA_ASSERT(it != ctx.entityMap.end());
+
+						Entity entity = it->second;
+
+						// Components
+						uint32_t infoIndex = utils::unaligned_ref<uint32_t>((void*)&ctx.data[ctx.dataOffset]);
+						const auto* newInfo = GetComponentCache().GetComponentInfoFromIdx(infoIndex);
+						ctx.dataOffset += sizeof(uint32_t);
+						ctx.world.AddComponent_Internal(type, entity, newInfo);
+
+						uint32_t indexInChunk{};
+						auto* pChunk = ctx.world.GetChunk(entity, indexInChunk);
+						GAIA_ASSERT(pChunk != nullptr);
+
+						if (type == ComponentType::CT_Chunk)
+							indexInChunk = 0;
+
+						// Skip the type index
+						// TODO: Don't include the type index here
+						uint32_t infoIndex2 = utils::unaligned_ref<uint32_t>((void*)&ctx.data[ctx.dataOffset]);
+						(void)infoIndex2;
+						ctx.dataOffset += sizeof(uint32_t);
+
+						auto* pComponentDataStart = pChunk->GetDataPtrRW<false>(type, newInfo->infoIndex);
+						auto* pComponentData = (void*)&pComponentDataStart[(size_t)indexInChunk * newInfo->properties.size];
+						memcpy(pComponentData, (const void*)&ctx.data[ctx.dataOffset], newInfo->properties.size);
+						ctx.dataOffset += newInfo->properties.size;
+					},
+					// SET_COMPONENT
+					[](CommandBufferCtx& ctx) {
+						// Type
+						ComponentType type = (ComponentType)ctx.data[ctx.dataOffset];
+						ctx.dataOffset += sizeof(ComponentType);
+
+						// Entity
+						Entity entity = utils::unaligned_ref<Entity>((void*)&ctx.data[ctx.dataOffset]);
+						ctx.dataOffset += sizeof(Entity);
+
+						const auto& entityContainer = ctx.world.m_entities[entity.id()];
+						auto* pChunk = entityContainer.pChunk;
+						const auto indexInChunk = type == ComponentType::CT_Chunk ? 0U : entityContainer.idx;
+
+						// Components
+						{
+							const auto infoIndex = utils::unaligned_ref<uint32_t>((void*)&ctx.data[ctx.dataOffset]);
+							const auto* info = GetComponentCache().GetComponentInfoFromIdx(infoIndex);
+							ctx.dataOffset += sizeof(uint32_t);
+
+							auto* pComponentDataStart = pChunk->GetDataPtrRW<false>(type, info->infoIndex);
+							auto* pComponentData = (void*)&pComponentDataStart[(size_t)indexInChunk * info->properties.size];
+							memcpy(pComponentData, (const void*)&ctx.data[ctx.dataOffset], info->properties.size);
+							ctx.dataOffset += info->properties.size;
+						}
+					},
+					// SET_COMPONENT_FOR_TEMPENTITY
+					[](CommandBufferCtx& ctx) {
+						// Type
+						ComponentType type = (ComponentType)ctx.data[ctx.dataOffset];
+						ctx.dataOffset += sizeof(ComponentType);
+
+						// Entity
+						Entity e = utils::unaligned_ref<Entity>((void*)&ctx.data[ctx.dataOffset]);
+						ctx.dataOffset += sizeof(Entity);
+
+						// For delayed entities we have to do a look in our map
+						// of temporaries and find a link there
+						const auto it = ctx.entityMap.find(e.id());
+						// Link has to exist!
+						GAIA_ASSERT(it != ctx.entityMap.end());
+
+						Entity entity = it->second;
+
+						const auto& entityContainer = ctx.world.m_entities[entity.id()];
+						auto* pChunk = entityContainer.pChunk;
+						const auto indexInChunk = type == ComponentType::CT_Chunk ? 0U : entityContainer.idx;
+
+						// Components
+						{
+							const auto infoIndex = utils::unaligned_ref<uint32_t>((void*)&ctx.data[ctx.dataOffset]);
+							const auto* info = GetComponentCache().GetComponentInfoFromIdx(infoIndex);
+							ctx.dataOffset += sizeof(uint32_t);
+
+							auto* pComponentDataStart = pChunk->GetDataPtrRW<false>(type, info->infoIndex);
+							auto* pComponentData = (void*)&pComponentDataStart[(size_t)indexInChunk * info->properties.size];
+							memcpy(pComponentData, (const void*)&ctx.data[ctx.dataOffset], info->properties.size);
+							ctx.dataOffset += info->properties.size;
+						}
+					},
+					// REMOVE_COMPONENT
+					[](CommandBufferCtx& ctx) {
+						// Type
+						ComponentType type = utils::unaligned_ref<ComponentType>((void*)&ctx.data[ctx.dataOffset]);
+						ctx.dataOffset += sizeof(ComponentType);
+
+						// Entity
+						Entity e = utils::unaligned_ref<Entity>((void*)&ctx.data[ctx.dataOffset]);
+						ctx.dataOffset += sizeof(Entity);
+
+						// Components
+						uint32_t infoIndex = utils::unaligned_ref<uint32_t>((void*)&ctx.data[ctx.dataOffset]);
+						const auto* newInfo = GetComponentCache().GetComponentInfoFromIdx(infoIndex);
+						ctx.dataOffset += sizeof(uint32_t);
+
+						ctx.world.RemoveComponent_Internal(type, e, newInfo);
+					}};
+
+		public:
 			/*!
 			Commits all queued changes.
 			*/
 			void Commit() {
-				containers::map<uint32_t, Entity> entityMap;
-				uint32_t entities = 0;
-
 				// Extract data from the buffer
-				for (size_t i = 0; i < m_data.size();) {
-					const auto cmd = m_data[i++];
-					switch (cmd) {
-						case CREATE_ENTITY: {
-							[[maybe_unused]] const auto res = entityMap.emplace(entities++, m_world.CreateEntity());
-							GAIA_ASSERT(res.second);
-						} break;
-						case CREATE_ENTITY_FROM_ARCHETYPE: {
-							uintptr_t ptr = utils::unaligned_ref<uintptr_t>((void*)&m_data[i]);
-							auto* archetype = (Archetype*)ptr;
-							i += sizeof(void*);
-							[[maybe_unused]] const auto res = entityMap.emplace(entities++, m_world.CreateEntity(*archetype));
-							GAIA_ASSERT(res.second);
-						} break;
-						case CREATE_ENTITY_FROM_ENTITY: {
-							Entity entityFrom = utils::unaligned_ref<Entity>((void*)&m_data[i]);
-							i += sizeof(Entity);
-							[[maybe_unused]] const auto res = entityMap.emplace(entities++, m_world.CreateEntity(entityFrom));
-							GAIA_ASSERT(res.second);
-						} break;
-						case DELETE_ENTITY: {
-							Entity entity = utils::unaligned_ref<Entity>((void*)&m_data[i]);
-							i += sizeof(Entity);
-							m_world.DeleteEntity(entity);
-						} break;
-						case ADD_COMPONENT:
-						case ADD_COMPONENT_DATA: {
-							// Type
-							ComponentType type = (ComponentType)m_data[i];
-							i += sizeof(ComponentType);
-							// Entity
-							Entity entity = utils::unaligned_ref<Entity>((void*)&m_data[i]);
-							i += sizeof(Entity);
-
-							// Components
-							uint32_t infoIndex = utils::unaligned_ref<uint32_t>((void*)&m_data[i]);
-							const auto* newInfo = GetComponentCache().GetComponentInfoFromIdx(infoIndex);
-							i += sizeof(uint32_t);
-							m_world.AddComponent_Internal(type, entity, newInfo);
-
-							uint32_t indexInChunk;
-							auto* pChunk = m_world.GetChunk(entity, indexInChunk);
-							GAIA_ASSERT(pChunk != nullptr);
-
-							if (type == ComponentType::CT_Chunk)
-								indexInChunk = 0;
-
-							if (cmd == ADD_COMPONENT_DATA) {
-								// Skip the component index
-								// TODO: Don't include the component index here
-								uint32_t infoIndex2 = utils::unaligned_ref<uint32_t>((void*)&m_data[i]);
-								(void)infoIndex2;
-								i += sizeof(uint32_t);
-
-								auto* pComponentDataStart = pChunk->GetDataPtrRW<false>(type, newInfo->infoIndex);
-								auto* pComponentData = (void*)&pComponentDataStart[indexInChunk * newInfo->properties.size];
-								memcpy(pComponentData, (const void*)&m_data[i], newInfo->properties.size);
-								i += newInfo->properties.size;
-							}
-						} break;
-						case ADD_COMPONENT_TO_TEMPENTITY:
-						case ADD_COMPONENT_TO_TEMPENTITY_DATA: {
-							// Type
-							ComponentType type = (ComponentType)m_data[i];
-							i += sizeof(ComponentType);
-							// Entity
-							Entity e = utils::unaligned_ref<Entity>((void*)&m_data[i]);
-							i += sizeof(Entity);
-
-							// For delayed entities we have to do a look in our map
-							// of temporaries and find a link there
-							const auto it = entityMap.find(e.id());
-							// Link has to exist!
-							GAIA_ASSERT(it != entityMap.end());
-
-							Entity entity = it->second;
-
-							// Components
-							uint32_t infoIndex = utils::unaligned_ref<uint32_t>((void*)&m_data[i]);
-							const auto* newInfo = GetComponentCache().GetComponentInfoFromIdx(infoIndex);
-							i += sizeof(uint32_t);
-							m_world.AddComponent_Internal(type, entity, newInfo);
-
-							uint32_t indexInChunk;
-							auto* pChunk = m_world.GetChunk(entity, indexInChunk);
-							GAIA_ASSERT(pChunk != nullptr);
-
-							if (type == ComponentType::CT_Chunk)
-								indexInChunk = 0;
-
-							if (cmd == ADD_COMPONENT_TO_TEMPENTITY_DATA) {
-								// Skip the type index
-								// TODO: Don't include the type index here
-								uint32_t infoIndex2 = utils::unaligned_ref<uint32_t>((void*)&m_data[i]);
-								(void)infoIndex2;
-								i += sizeof(uint32_t);
-
-								auto* pComponentDataStart = pChunk->GetDataPtrRW<false>(type, newInfo->infoIndex);
-								auto* pComponentData = (void*)&pComponentDataStart[indexInChunk * newInfo->properties.size];
-								memcpy(pComponentData, (const void*)&m_data[i], newInfo->properties.size);
-								i += newInfo->properties.size;
-							}
-						} break;
-						case SET_COMPONENT: {
-							// Type
-							ComponentType type = (ComponentType)m_data[i];
-							i += sizeof(ComponentType);
-
-							// Entity
-							Entity entity = utils::unaligned_ref<Entity>((void*)&m_data[i]);
-							i += sizeof(Entity);
-
-							const auto& entityContainer = m_world.m_entities[entity.id()];
-							auto* pChunk = entityContainer.pChunk;
-							const auto indexInChunk = type == ComponentType::CT_Chunk ? 0U : entityContainer.idx;
-
-							// Components
-							{
-								const auto infoIndex = utils::unaligned_ref<uint32_t>((void*)&m_data[i]);
-								const auto* info = GetComponentCache().GetComponentInfoFromIdx(infoIndex);
-								i += sizeof(uint32_t);
-
-								auto* pComponentDataStart = pChunk->GetDataPtrRW<false>(type, info->infoIndex);
-								auto* pComponentData = (void*)&pComponentDataStart[indexInChunk * (uint32_t)info->properties.size];
-								memcpy(pComponentData, (const void*)&m_data[i], info->properties.size);
-								i += info->properties.size;
-							}
-						} break;
-						case SET_COMPONENT_FOR_TEMPENTITY: {
-							// Type
-							ComponentType type = (ComponentType)m_data[i];
-							i += sizeof(ComponentType);
-
-							// Entity
-							Entity e = utils::unaligned_ref<Entity>((void*)&m_data[i]);
-							i += sizeof(Entity);
-
-							// For delayed entities we have to do a look in our map
-							// of temporaries and find a link there
-							const auto it = entityMap.find(e.id());
-							// Link has to exist!
-							GAIA_ASSERT(it != entityMap.end());
-
-							Entity entity = it->second;
-
-							const auto& entityContainer = m_world.m_entities[entity.id()];
-							auto* pChunk = entityContainer.pChunk;
-							const auto indexInChunk = type == ComponentType::CT_Chunk ? 0U : entityContainer.idx;
-
-							// Components
-							{
-								const auto infoIndex = utils::unaligned_ref<uint32_t>((void*)&m_data[i]);
-								const auto* info = GetComponentCache().GetComponentInfoFromIdx(infoIndex);
-								i += sizeof(uint32_t);
-
-								auto* pComponentDataStart = pChunk->GetDataPtrRW<false>(type, info->infoIndex);
-								auto* pComponentData = (void*)&pComponentDataStart[indexInChunk * (uint32_t)info->properties.size];
-								memcpy(pComponentData, (const void*)&m_data[i], info->properties.size);
-								i += info->properties.size;
-							}
-						} break;
-						case REMOVE_COMPONENT: {
-							// Type
-							ComponentType type = utils::unaligned_ref<ComponentType>((void*)&m_data[i]);
-							i += sizeof(ComponentType);
-
-							// Entity
-							Entity e = utils::unaligned_ref<Entity>((void*)&m_data[i]);
-							i += sizeof(Entity);
-
-							// Components
-							uint32_t infoIndex = utils::unaligned_ref<uint32_t>((void*)&m_data[i]);
-							const auto* newInfo = GetComponentCache().GetComponentInfoFromIdx(infoIndex);
-							i += sizeof(uint32_t);
-
-							m_world.RemoveComponent_Internal(type, e, newInfo);
-						} break;
-					}
-				}
+				CommandBufferCtx ctx{m_world, m_data, 0, 0, {}};
+				while (ctx.dataOffset < m_data.size())
+					CommandBufferCmd[m_data[ctx.dataOffset++]](ctx);
 
 				m_entities = 0;
 				m_data.clear();
-			}
-		};
+			} // namespace ecs
+		}; // namespace gaia
 	} // namespace ecs
 } // namespace gaia
 

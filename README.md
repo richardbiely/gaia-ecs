@@ -72,6 +72,8 @@ One of the benefits of archetype-based architectures is fast iteration and good 
 ```cpp
 #include <gaia.h>
 ```
+The entire framework is placed in a namespace called <b>gaia</b>.
+
 ## Basic operations
 ### Creating and deleting entities
 ```cpp
@@ -178,11 +180,11 @@ EntityQuery q;
 q.All<Position>(); // consider only entities with Position
 
 // Fill the entities array with entities with a Position component.
-gaia::containers::darray<gaia::ecs::Entity> entities;
+containers::darray<ecs::Entity> entities;
 w.FromQuery(q).ToArray(entities);
 
 // Fill the positions array with position data.
-gaia::containers::darray<Position> positions;
+containers::darray<Position> positions;
 w.FromQuery(q).ToArray(positions);
 
 // Print the result
@@ -194,7 +196,7 @@ for (size_t i = 0; i < entities.size(); ++i)
 }
 
 // Fill the chunk array with chunks matching the query.
-gaia::containers::darray<ecs::Chunk*> chunks;
+containers::darray<ecs::Chunk*> chunks;
 w.FromQuery(q).ToChunkArray(chunks);
 for (const auto* pChunk: chunks) {
   // ... do something
@@ -247,7 +249,7 @@ w.EnableEntity(e1, false);
 
 ecs::EntityQuery q;
 q.All<Position>();
-gaia::containers::darray<gaia::ecs::Entity> entities;
+containers::darray<ecs::Entity> entities;
 
 // Fills the array with only e2 because e1 is disabled.
 w.FromQuery(q).ToArray(entities);
