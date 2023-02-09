@@ -87,9 +87,8 @@ namespace gaia {
 		public:
 			unaligned_ref(void* p): m_p(p) {}
 
-			T operator=(const T& rvalue) {
+			void operator=(const T& rvalue) {
 				memmove(m_p, &rvalue, sizeof(T));
-				return rvalue;
 			}
 
 			operator T() const {
