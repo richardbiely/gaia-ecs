@@ -5,12 +5,20 @@
 	#include <termios.h>
 	#include <unistd.h>
 #endif
+#include <algorithm>
+#include <bitset>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <queue>
+#include <unordered_set>
+#include <vector>
 
 #include <gaia.h>
 
 using namespace gaia;
+
+#define USE_PATHFINDING 0
 
 //----------------------------------------------------------------------
 // Platform-specific helpers
@@ -106,8 +114,8 @@ struct RigidBody {};
 
 //----------------------------------------------------------------------
 
-constexpr int ScreenX = 40;
-constexpr int ScreenY = 15;
+constexpr uint32_t ScreenX = 40;
+constexpr uint32_t ScreenY = 15;
 
 constexpr char KEY_LEFT = 'a';
 constexpr char KEY_RIGHT = 'd';
@@ -124,6 +132,202 @@ constexpr char TILE_ENEMY_ORC = 'O';
 constexpr char TILE_ARROW = '.';
 constexpr char TILE_POTION = 'h';
 constexpr char TILE_POISON = 'x';
+#if USE_PATHFINDING
+constexpr char TILE_PATH = 'W';
+#endif
+
+//----------------------------------------------------------------------
+// Path-finding
+//----------------------------------------------------------------------
+
+#if USE_PATHFINDING
+
+template <class T, class Container, class Compare>
+class PriorityQueue: public std::priority_queue<T, Container, Compare> {
+public:
+	using const_iterator = typename std::priority_queue<T, Container, Compare>::container_type::const_iterator;
+
+	template <typename Func>
+	bool has_if(Func func) const {
+		auto it = this->c.cbegin();
+		auto last = this->c.cend();
+		while (it != last) {
+			if (func(*it))
+				break;
+			++it;
+		}
+		return it != this->c.cend();
+	}
+};
+
+class AStar {
+	using MyPriorityPair = std::pair<float, uint32_t>; // f cost / ID
+
+	class MyPriorityCompare {
+	public:
+		bool operator()(MyPriorityPair a, MyPriorityPair b) const {
+			return a.first > b.first;
+		}
+	};
+
+	using MyPriorityQueue = PriorityQueue<MyPriorityPair, std::vector<MyPriorityPair>, MyPriorityCompare>;
+
+	static constexpr uint32_t MAX_NEIGHBORS = 4; // each node can have up to 4 neighbors
+
+public:
+	struct Node {
+	private:
+		//! ID of the node
+		uint32_t id;
+		//! Bitmask of neighbors in clockwise direction.
+		//! 0 - north, 1 - east, 2 - south, 3 - west
+		uint32_t neighbors : 4;
+		//! Cost. 2 bits per direction. With 4 directions 8 bits are necessary.
+		//! 0 - blocked
+		//! 1 - small cost
+		//! 2 - medium cost
+		//! 3 - big cost
+		uint32_t edge_costs : 8;
+
+	public:
+		Node() = default;
+		Node(uint32_t value): id(value) {}
+
+		void InitIndex(uint32_t index, uint32_t cost) {
+			SetNeighbor(index, cost != 0);
+			SetEdgeCost(index, cost);
+		}
+
+		uint32_t GetId() const {
+			return id;
+		}
+		bool HasNeighbor(uint32_t index) const {
+			return (((uint32_t)neighbors >> index) & 1U) != 0U;
+		}
+		uint32_t GetEdgeCost(uint32_t index) const {
+			return ((uint32_t)edge_costs >> (index * 2)) & 3U;
+		}
+
+	private:
+		void SetNeighbor(uint32_t index, bool value) {
+			const uint32_t mask = 1U << index;
+			neighbors = (neighbors & ~mask) | ((uint32_t)value << index);
+		}
+		void SetEdgeCost(uint32_t index, uint32_t cost) {
+			const uint32_t mask = (3U << (index * 2));
+			edge_costs = (edge_costs & ~mask) | ((cost & 3U) << (index * 2));
+		}
+	};
+
+	static constexpr uint32_t NodeIdToX(uint32_t id) {
+		return id % ScreenX;
+	}
+	static constexpr uint32_t NodeIdToY(uint32_t id) {
+		return id / ScreenX;
+	}
+	static constexpr uint32_t NodeIdFromXY(uint32_t x, uint32_t y) {
+		return y * ScreenX + x;
+	}
+
+	// Define a function to estimate the cost from a node to the end node (using Euclidean distance)
+	float HeuristicCostEstimate(const Node& current, const Node& goal) {
+		const uint32_t cid = current.GetId();
+		const uint32_t gid = goal.GetId();
+		const uint32_t dx = NodeIdToX(cid) - NodeIdToX(gid);
+		const uint32_t dy = NodeIdToY(cid) - NodeIdToY(gid);
+		const uint32_t dxx = dx * dx;
+		const uint32_t dyy = dy * dy;
+		return sqrtf((float)dxx + (float)dyy); // Euclidean distance
+	}
+
+	bool OpenSetContains(MyPriorityQueue& open_set, uint32_t index) {
+		return open_set.has_if([index](const std::pair<float, uint32_t>& elem) {
+			return elem.second == index;
+		}); // true if the node is in the open set, false otherwise
+	}
+
+	std::vector<uint32_t> FindPath(const std::vector<Node>& graph, uint32_t start_id, uint32_t goal_id) {
+		std::vector<uint32_t> path;
+		containers::map<uint32_t, uint32_t> parents; // key: ID, data: parentID
+		containers::map<uint32_t, std::pair<float, float>> scores; // key: ID, data: <g, f>
+		std::unordered_set<uint32_t> closed_set;
+		MyPriorityQueue open_set;
+
+		// Define the start and goal nodes
+		const Node& start_node = graph[start_id];
+		const Node& goal_node = graph[goal_id];
+
+		// Add the start node to the open set
+		open_set.push(std::make_pair(0, start_id));
+
+		// Initialize the costs
+		scores[start_id] = {0, HeuristicCostEstimate(start_node, goal_node)};
+
+		// Run the A* algorithm
+		while (!open_set.empty()) {
+			// Get the node with the lowest f score from the open set
+			const uint32_t current_id = open_set.top().second;
+			open_set.pop();
+
+			// Check if we've reached the goal node
+			if (current_id == goal_id) {
+				// Reconstruct the path
+				uint32_t node_id = goal_id;
+				while (node_id != start_id) {
+					path.push_back(node_id);
+					node_id = parents[node_id];
+				}
+				path.push_back(start_id);
+				reverse(path.begin(), path.end());
+				return path;
+			}
+
+			// Mark the current node as closed
+			closed_set.emplace(current_id);
+
+			constexpr int neighborOffsets[MAX_NEIGHBORS] = {-(int)ScreenX, 1, ScreenX, -1};
+
+			// Iterate over the neighbors of the current node
+			const Node& current_node = graph[current_id];
+			for (uint32_t i = 0; i < MAX_NEIGHBORS; ++i) {
+				// We need to have a neighbor
+				if (!current_node.HasNeighbor(i))
+					continue;
+
+				// The neighbor needs to be accessible
+				const auto neighborCost = (float)current_node.GetEdgeCost(i);
+				if (neighborCost <= 0.f)
+					continue;
+
+				// Skip this neighbor if it's already closed
+				const uint32_t neighbor_id = current_id + neighborOffsets[i]; // relative indexing
+				if (closed_set.find(neighbor_id) != closed_set.end())
+					continue;
+
+				const float tentative_g_score = scores[current_id].first + neighborCost;
+				if (tentative_g_score < scores[neighbor_id].first) {
+					// This is a better path to the neighbor node
+					const float f = tentative_g_score + HeuristicCostEstimate(graph[neighbor_id], goal_node);
+					parents[neighbor_id] = current_id;
+					scores[neighbor_id] = {tentative_g_score, f};
+					if (!OpenSetContains(open_set, neighbor_id))
+						open_set.push(std::make_pair(f, neighbor_id));
+				} else if (!OpenSetContains(open_set, neighbor_id)) {
+					// Unchecked field, try it
+					const float f = tentative_g_score + HeuristicCostEstimate(graph[neighbor_id], goal_node);
+					parents[neighbor_id] = current_id;
+					scores[neighbor_id] = {tentative_g_score, f};
+					open_set.push(std::make_pair(f, neighbor_id));
+				}
+			}
+		}
+
+		// If we get here, there's no path from start to goal
+		return path;
+	}
+};
+
+#endif
 
 //----------------------------------------------------------------------
 // Global definitions.
@@ -159,21 +363,60 @@ struct World {
 
 	void InitWorldMap() {
 		// map
-		for (int y = 0; y < ScreenY; y++) {
-			for (int x = 0; x < ScreenX; x++) {
+		for (uint32_t y = 0; y < ScreenY; ++y) {
+			for (uint32_t x = 0; x < ScreenX; ++x) {
 				map[y][x] = TILE_FREE;
 			}
 		}
 
 		// edges
-		for (int y = 1; y < ScreenY - 1; y++) {
+		for (uint32_t y = 1; y < ScreenY - 1; ++y) {
 			map[y][0] = TILE_WALL;
 			map[y][ScreenX - 1] = TILE_WALL;
 		}
-		for (int x = 0; x < ScreenX; x++) {
+		for (uint32_t x = 0; x < ScreenX; ++x) {
 			map[0][x] = TILE_WALL;
 			map[ScreenY - 1][x] = TILE_WALL;
 		}
+		// random obstacles in the upper right part
+		srand(0);
+		for (uint32_t y = 3; y < ScreenY / 2; ++y) {
+			for (uint32_t x = ScreenX / 2; x < ScreenX - 2; ++x) {
+				bool placeWall = (rand() % 4) == 0;
+				if (placeWall)
+					map[y][x] = TILE_WALL;
+			}
+		}
+
+#if USE_PATHFINDING
+		std::vector<AStar::Node> graph;
+		graph.reserve(ScreenX * ScreenY);
+		uint32_t index = 0;
+		for (uint32_t y = 0; y < ScreenY; ++y) {
+			for (uint32_t x = 0; x < ScreenX; ++x, ++index) {
+				AStar::Node node{index};
+
+				if (y > 0)
+					node.InitIndex(0, map[y - 1][x] != TILE_WALL);
+				if (x < ScreenX - 1)
+					node.InitIndex(1, map[y][x + 1] != TILE_WALL);
+				if (y < ScreenY - 1)
+					node.InitIndex(2, map[y + 1][x] != TILE_WALL);
+				if (x > 0)
+					node.InitIndex(3, map[y][x - 1] != TILE_WALL);
+
+				graph.push_back(std::move(node));
+			}
+		}
+
+		AStar astar;
+		auto path = astar.FindPath(graph, AStar::NodeIdFromXY(2, 2), AStar::NodeIdFromXY(30, 10));
+		for (auto id: path) {
+			const auto nx = AStar::NodeIdToX(id);
+			const auto ny = AStar::NodeIdToY(id);
+			map[ny][nx] = TILE_PATH;
+		}
+#endif
 	}
 
 	void CreatePlayer() {
@@ -478,6 +721,7 @@ public:
 			if (coll.e2 == ecs::EntityNull) {
 				uint32_t idx1;
 				auto* pChunk1 = GetWorld().GetChunk(coll.e1, idx1);
+				GAIA_ASSERT(pChunk1 != nullptr);
 
 				// An arrow colliding with something. Bring its health to 0 (destroyed).
 				// We could have simpy called GetWorld().DeleteEntity(coll.e1) but doing it
@@ -496,6 +740,8 @@ public:
 				uint32_t idx1, idx2;
 				auto* pChunk1 = GetWorld().GetChunk(coll.e1, idx1);
 				auto* pChunk2 = GetWorld().GetChunk(coll.e2, idx2);
+				GAIA_ASSERT(pChunk1 != nullptr);
+				GAIA_ASSERT(pChunk2 != nullptr);
 
 				// TODO: Add ability to get a list of components based on query
 
@@ -580,8 +826,8 @@ public:
 class RenderSystem final: public ecs::System {
 public:
 	void OnUpdate() override {
-		for (int y = 0; y < ScreenY; y++) {
-			for (int x = 0; x < ScreenX; x++) {
+		for (uint32_t y = 0; y < ScreenY; ++y) {
+			for (uint32_t x = 0; x < ScreenX; ++x) {
 				putchar(g_world.map[y][x]);
 			}
 			printf("\n");
