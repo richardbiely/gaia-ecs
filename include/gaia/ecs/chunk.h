@@ -29,7 +29,7 @@ namespace gaia {
 			static constexpr size_t DATA_SIZE_RESERVED = 128;
 			//! Size of one chunk's data part with components
 			static constexpr size_t DATA_SIZE = ChunkMemorySize - sizeof(ChunkHeader) - DATA_SIZE_RESERVED;
-			//! Size of one chunk's data part with components without the serve part
+			//! Size of one chunk's data part with components without the reserved part
 			static constexpr size_t DATA_SIZE_NORESERVE = ChunkMemorySize - sizeof(ChunkHeader);
 
 		private:
