@@ -308,25 +308,25 @@ namespace gaia {
 			}
 #endif
 
-			void RegisterArchetype(Archetype* archetype) {
+			void RegisterArchetype(Archetype* pArchetype) {
 				// Make sure hashes were set already
-				GAIA_ASSERT(archetype == m_rootArchetype || (archetype->genericHash != 0 || archetype->chunkHash != 0));
-				GAIA_ASSERT(archetype == m_rootArchetype || archetype->lookupHash.hash != 0);
+				GAIA_ASSERT(pArchetype == m_rootArchetype || (pArchetype->genericHash != 0 || pArchetype->chunkHash != 0));
+				GAIA_ASSERT(pArchetype == m_rootArchetype || pArchetype->lookupHash.hash != 0);
 
 				// Make sure the archetype is not registered yet
-				GAIA_ASSERT(!utils::has(m_archetypes, archetype));
+				GAIA_ASSERT(!utils::has(m_archetypes, pArchetype));
 
 				// Register the archetype
-				archetype->id = (uint32_t)m_archetypes.size();
-				m_archetypes.push_back(archetype);
+				pArchetype->id = (uint32_t)m_archetypes.size();
+				m_archetypes.push_back(pArchetype);
 
-				auto it = m_archetypeMap.find(archetype->lookupHash);
+				auto it = m_archetypeMap.find(pArchetype->lookupHash);
 				if (it == m_archetypeMap.end()) {
-					m_archetypeMap[archetype->lookupHash] = {archetype};
+					m_archetypeMap[pArchetype->lookupHash] = {pArchetype};
 				} else {
 					auto& archetypes = it->second;
-					GAIA_ASSERT(!utils::has(archetypes, archetype));
-					archetypes.push_back(archetype);
+					GAIA_ASSERT(!utils::has(archetypes, pArchetype));
+					archetypes.push_back(pArchetype);
 				}
 			}
 
