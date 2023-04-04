@@ -11,6 +11,7 @@
 #include "../utils/span.h"
 #include "../utils/type_info.h"
 #include "../utils/utility.h"
+#include "archetype.h"
 #include "chunk.h"
 #include "chunk_allocator.h"
 #include "command_buffer.h"
@@ -18,9 +19,6 @@
 #include "component_cache.h"
 #include "entity.h"
 #include "entity_query.h"
-#include "fwd.h"
-#include "gaia/config/config_core.h"
-#include "gaia/ecs/archetype.h"
 
 namespace gaia {
 	namespace ecs {

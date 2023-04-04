@@ -5,12 +5,12 @@
 #include "../containers/darray.h"
 #include "../containers/map.h"
 #include "../containers/sarray_ext.h"
-#include "../ecs/common.h"
 #include "../utils/data_layout_policy.h"
 #include "../utils/hashing_policy.h"
 #include "../utils/span.h"
 #include "../utils/type_info.h"
 #include "../utils/utility.h"
+#include "common.h"
 
 namespace gaia {
 	namespace ecs {
