@@ -269,15 +269,23 @@ namespace gaia {
 		}
 
 		GAIA_NODISCARD inline uint64_t CalculateMatcherHash(std::span<const ComponentInfo*> infos) noexcept {
-			uint64_t hash = infos.empty() ? 0 : infos[0]->matcherHash;
-			for (size_t i = 1; i < infos.size(); ++i)
+			const auto infosSize = infos.size();
+			if (infosSize == 0)
+				return 0;
+
+			uint64_t hash = infos[0]->matcherHash;
+			for (size_t i = 1; i < infosSize; ++i)
 				hash = utils::combine_or(hash, infos[i]->matcherHash);
 			return hash;
 		}
 
 		GAIA_NODISCARD inline uint64_t CalculateLookupHash(std::span<const ComponentInfo*> infos) noexcept {
-			uint64_t hash = infos.empty() ? 0 : infos[0]->lookupHash;
-			for (size_t i = 1; i < infos.size(); ++i)
+			const auto infosSize = infos.size();
+			if (infosSize == 0)
+				return 0;
+
+			uint64_t hash = infos[0]->lookupHash;
+			for (size_t i = 1; i < infosSize; ++i)
 				hash = utils::hash_combine(hash, infos[i]->lookupHash);
 			return hash;
 		}
