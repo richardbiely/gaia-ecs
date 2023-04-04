@@ -248,40 +248,6 @@ namespace gaia {
 				archetype->lookupHash = lookupHash;
 			}
 
-#if !GAIA_ARCHETYPE_GRAPH
-			/*!
-			Searches for an archetype given based on a given set of components. If no archetype is found a new one is
-			created. \param infosGeneric Span of generic component infos \param infosChunk Span of chunk component infos
-			\return Pointer to archetype
-			*/
-			GAIA_NODISCARD Archetype*
-			FindOrCreateArchetype(std::span<const ComponentInfo*> infosGeneric, std::span<const ComponentInfo*> infosChunk) {
-				// Make sure to sort the component infos so we receive the same hash no matter the order in which components
-				// are provided Bubble sort is okay. We're dealing with at most MAX_COMPONENTS_PER_ARCHETYPE items.
-				utils::sort(infosGeneric, [](const ComponentInfo* left, const ComponentInfo* right) {
-					return left->infoIndex < right->infoIndex;
-				});
-				utils::sort(infosChunk, [](const ComponentInfo* left, const ComponentInfo* right) {
-					return left->infoIndex < right->infoIndex;
-				});
-
-				// Calculate hash for our combination of components
-				const auto genericHash = CalculateLookupHash(infosGeneric);
-				const auto chunkHash = CalculateLookupHash(infosChunk);
-				utils::direct_hash_key lookupHash = {
-						CalculateLookupHash(containers::sarray<uint64_t, 2>{genericHash, chunkHash})};
-
-				Archetype* pArchetype = FindArchetype(infosGeneric, infosChunk, lookupHash);
-				if (pArchetype == nullptr) {
-					pArchetype = CreateArchetype(infosGeneric, infosChunk);
-					InitArchetype(archetype, genericHash, chunkHash, lookupHash);
-					RegisterArchetype(archetype);
-				}
-
-				return pArchetype;
-			}
-#endif
-
 			void RegisterArchetype(Archetype* pArchetype) {
 				// Make sure hashes were set already
 				GAIA_ASSERT(pArchetype == m_rootArchetype || (pArchetype->genericHash != 0 || pArchetype->chunkHash != 0));
@@ -558,7 +524,6 @@ namespace gaia {
 					infosNew[componentInfosSize] = infoToAdd;
 				}
 
-#if GAIA_ARCHETYPE_GRAPH
 				// Make sure to sort the component infos so we receive the same hash no matter the order in which components
 				// are provided Bubble sort is okay. We're dealing with at most MAX_COMPONENTS_PER_ARCHETYPE items.
 				utils::sort(infosNew, [](const ComponentInfo* left, const ComponentInfo* right) {
@@ -570,19 +535,21 @@ namespace gaia {
 				utils::direct_hash_key lookupHash = {
 						CalculateLookupHash(containers::sarray<uint64_t, 2>{hashes[0], hashes[1]})};
 
-				// Build the new archetype
+#if GAIA_ARCHETYPE_GRAPH
 				auto* pArchetypeRight =
 						CreateArchetype({infos[0]->data(), infos[0]->size()}, {infos[1]->data(), infos[1]->size()});
-
 				InitArchetype(pArchetypeRight, hashes[0], hashes[1], lookupHash);
 				RegisterArchetype(pArchetypeRight);
-				BuildGraphEdges(type, pArchetypeLeft, pArchetypeRight, infoToAdd);
 
-				// Build the rest of the graph as necessary
+				BuildGraphEdges(type, pArchetypeLeft, pArchetypeRight, infoToAdd);
 				TryBuildArchetypeGraph(pArchetypeRight, *infos[0], *infos[1]);
 #else
-				auto* pArchetypeRight =
-						FindOrCreateArchetype({infos[0]->data(), infos[0]->size()}, {infos[1]->data(), infos[1]->size()});
+				auto* pArchetypeRight = FindArchetype({*infos[0]}, {*infos[1]}, lookupHash);
+				if (pArchetypeRight == nullptr) {
+					pArchetypeRight = CreateArchetype({infos[0]->data(), infos[0]->size()}, {infos[1]->data(), infos[1]->size()});
+					InitArchetype(pArchetypeRight, hashes[0], hashes[1], lookupHash);
+					RegisterArchetype(pArchetypeRight);
+				}
 #endif
 
 				return pArchetypeRight;
@@ -619,25 +586,33 @@ namespace gaia {
 				infos[a] = &infosNew;
 				infos[b] = &archetype->componentInfos[b];
 
-				{
-					// Find the intersection
-					for (const auto* info: *infos[a]) {
-						if (info == intoToRemove)
-							goto nextIter;
+				// Find the intersection
+				for (const auto* info: *infos[a]) {
+					if (info == intoToRemove)
+						goto nextIter;
 
-						infosNew.push_back(info);
+					infosNew.push_back(info);
 
-					nextIter:
-						continue;
-					}
-
-					// Return if there's no change
-					if (infosNew.size() == infos[a]->size())
-						return nullptr;
+				nextIter:
+					continue;
 				}
 
-				auto* pArchetype =
-						FindOrCreateArchetype({infos[0]->data(), infos[0]->size()}, {infos[1]->data(), infos[1]->size()});
+				// Return if there's no change
+				if (infosNew.size() == infos[a]->size())
+					return nullptr;
+
+				// Calculate the hashes
+				const uint64_t hashes[2] = {CalculateLookupHash({*infos[0]}), CalculateLookupHash({*infos[1]})};
+				utils::direct_hash_key lookupHash = {
+						CalculateLookupHash(containers::sarray<uint64_t, 2>{hashes[0], hashes[1]})};
+
+				auto* pArchetype = FindArchetype({*infos[0]}, {*infos[1]}, lookupHash);
+				if (pArchetype == nullptr) {
+					pArchetype = CreateArchetype({infos[0]->data(), infos[0]->size()}, {infos[1]->data(), infos[1]->size()});
+					InitArchetype(pArchetype, hashes[0], hashes[1], lookupHash);
+					RegisterArchetype(pArchetype);
+				}
+
 				return pArchetype;
 			}
 #endif
