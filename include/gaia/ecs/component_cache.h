@@ -5,8 +5,8 @@
 #include "../config/config.h"
 #include "../config/logging.h"
 #include "../containers/map.h"
-#include "../ecs/component.h"
 #include "../utils/type_info.h"
+#include "component.h"
 
 namespace gaia {
 	namespace ecs {
