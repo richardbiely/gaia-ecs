@@ -453,7 +453,7 @@ namespace gaia {
 					InitArchetype(pArchetypeLeft, newInfos1Hash, newInfos2Hash, lookupHash);
 					RegisterArchetype(pArchetypeLeft);
 					BuildGraphEdges(type, pArchetypeLeft, pArchetypeRight, info);
-					TryBuildArchetypeGraph(pArchetypeLeft, type, infoGeneric, infoChunk);
+					TryBuildArchetypeGraph(pArchetypeLeft, infoGeneric, infoChunk);
 				} else if (pArchetypeLeft == m_rootArchetype) {
 					if (pArchetypeRight->FindDelEdgeArchetype(type, info) == nullptr)
 						BuildDelGraphEdges(type, pArchetypeLeft, pArchetypeRight, info);
@@ -461,12 +461,12 @@ namespace gaia {
 					if (pArchetypeRight->FindDelEdgeArchetype(type, info) == nullptr)
 						BuildGraphEdges(type, pArchetypeLeft, pArchetypeRight, info);
 
-					TryBuildArchetypeGraph(pArchetypeLeft, type, infoGeneric, infoChunk);
+					TryBuildArchetypeGraph(pArchetypeLeft, infoGeneric, infoChunk);
 				}
 			}
 
 			void TryBuildArchetypeGraph(
-					Archetype* pArchetypeRight, ComponentType type,
+					Archetype* pArchetypeRight,
 					const containers::sarray_ext<const ComponentInfo*, MAX_COMPONENTS_PER_ARCHETYPE>& infoGeneric,
 					const containers::sarray_ext<const ComponentInfo*, MAX_COMPONENTS_PER_ARCHETYPE>& infoChunk) {
 				GAIA_ASSERT(pArchetypeRight != m_rootArchetype);
@@ -482,11 +482,13 @@ namespace gaia {
 
 				// Step 1 - all original chunks components + one less generic component
 				for (const auto* info: infoGeneric)
-					TryBuildArchetypeGraph_Internal(pArchetypeRight, type, prepareNewInfos(info, infoGeneric), infoChunk, info);
+					TryBuildArchetypeGraph_Internal(
+							pArchetypeRight, ComponentType::CT_Generic, prepareNewInfos(info, infoGeneric), infoChunk, info);
 
 				// Step 2 - all original generic components + one less chunk component
 				for (const auto* info: infoChunk)
-					TryBuildArchetypeGraph_Internal(pArchetypeRight, type, infoGeneric, prepareNewInfos(info, infoChunk), info);
+					TryBuildArchetypeGraph_Internal(
+							pArchetypeRight, ComponentType::CT_Chunk, infoGeneric, prepareNewInfos(info, infoChunk), info);
 			}
 #endif
 
@@ -577,7 +579,7 @@ namespace gaia {
 				BuildGraphEdges(type, pArchetypeLeft, pArchetypeRight, infoToAdd);
 
 				// Build the rest of the graph as necessary
-				TryBuildArchetypeGraph(pArchetypeRight, type, *infos[0], *infos[1]);
+				TryBuildArchetypeGraph(pArchetypeRight, *infos[0], *infos[1]);
 #else
 				auto* pArchetypeRight =
 						FindOrCreateArchetype({infos[0]->data(), infos[0]->size()}, {infos[1]->data(), infos[1]->size()});
