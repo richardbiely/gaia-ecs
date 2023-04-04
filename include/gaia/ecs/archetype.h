@@ -317,24 +317,12 @@ namespace gaia {
 			}
 
 #if GAIA_ARCHETYPE_GRAPH
-			Archetype* FindDelEdgeArchetype(ComponentType type, const ComponentInfo* info) {
-				// Breath-first lookup.
-				// Go through all edges first. If nothing is found check each leaf and repeat until there is a match.
+			Archetype* FindDelEdgeArchetype(ComponentType type, const ComponentInfo* info) const {
 				const auto& edges = edgesDel[type];
 				const auto it = utils::find_if(edges, [info](const auto& edge) {
 					return edge.info == info;
 				});
-				if (it != edges.end())
-					return it->archetype;
-
-				// Not found right away, search deeper
-				for (const auto& edge: edges) {
-					auto ret = edge.archetype->FindDelEdgeArchetype(type, info);
-					if (ret != nullptr)
-						return edge.archetype;
-				}
-
-				return nullptr;
+				return it != edges.end() ? it->archetype : nullptr;
 			}
 #endif
 
