@@ -195,6 +195,13 @@ namespace gaia {
 					return nullptr;
 
 				const auto& archetypeArray = it->second;
+				GAIA_ASSERT(archetypeArray.size() > 0);
+
+				// More than one archetype can have the same lookup key. However, this should be extermely
+				// rare (basically it should never happen). For this reason, only search for the exact match
+				// if we happen to have more archetypes under the same hash.
+				if GAIA_LIKELY (archetypeArray.size() == 1)
+					return archetypeArray[0];
 
 				auto checkInfos = [&](const ComponentInfoList& list, const std::span<const ComponentInfo*>& infos) {
 					for (uint32_t j = 0; j < infos.size(); j++) {
