@@ -592,7 +592,7 @@ namespace gaia {
 				infos[b] = &archetype->componentInfos[b];
 
 				// Find the intersection
-				for (const auto* info: *infos[a]) {
+				for (const auto* info: archetype->componentInfos[a]) {
 					if (info == intoToRemove)
 						goto nextIter;
 
@@ -603,7 +603,7 @@ namespace gaia {
 				}
 
 				// Return if there's no change
-				if (infosNew.size() == infos[a]->size())
+				if (infosNew.size() == archetype->componentInfos[a].size())
 					return nullptr;
 
 				// Calculate the hashes
