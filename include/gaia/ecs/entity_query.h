@@ -217,12 +217,22 @@ namespace gaia {
 				// Filters
 				{
 					uint64_t hash = 0;
-					for (auto infoIndex: m_listChangeFiltered[ComponentType::CT_Generic])
-						hash = utils::hash_combine(hash, (uint64_t)infoIndex);
-					hash = utils::hash_combine(hash, (uint64_t)m_listChangeFiltered[ComponentType::CT_Generic].size());
-					for (auto infoIndex: m_listChangeFiltered[ComponentType::CT_Chunk])
-						hash = utils::hash_combine(hash, (uint64_t)infoIndex);
-					hash = utils::hash_combine(hash, (uint64_t)m_listChangeFiltered[ComponentType::CT_Chunk].size());
+
+					// Generic componet filters
+					{
+						for (auto infoIndex: m_listChangeFiltered[ComponentType::CT_Generic])
+							hash = utils::hash_combine(hash, (uint64_t)infoIndex);
+						hash = utils::hash_combine(hash, (uint64_t)m_listChangeFiltered[ComponentType::CT_Generic].size());
+					}
+
+					// Chunk component filters
+					{
+						for (auto infoIndex: m_listChangeFiltered[ComponentType::CT_Chunk])
+							hash = utils::hash_combine(hash, (uint64_t)infoIndex);
+						hash = utils::hash_combine(hash, (uint64_t)m_listChangeFiltered[ComponentType::CT_Chunk].size());
+					}
+
+					hashLookup = utils::hash_combine(hashLookup, hash);
 				}
 
 				// Generic components lookup hash
@@ -238,6 +248,7 @@ namespace gaia {
 							hash = utils::hash_combine(hash, info->lookupHash);
 						}
 					}
+
 					hashLookup = utils::hash_combine(hashLookup, hash);
 				}
 
@@ -254,6 +265,7 @@ namespace gaia {
 							hash = utils::hash_combine(hash, info->lookupHash);
 						}
 					}
+
 					hashLookup = utils::hash_combine(hashLookup, hash);
 				}
 
@@ -451,11 +463,11 @@ namespace gaia {
 
 				for (size_t i = m_lastArchetypeId; i < archetypes.size(); i++) {
 					auto* pArchetype = archetypes[i];
-#if GAIA_DEBUG
+	#if GAIA_DEBUG
 					auto& archetype = *pArchetype;
-#else
+	#else
 					const auto& archetype = *pArchetype;
-#endif
+	#endif
 
 					// Early exit if generic query doesn't match
 					const auto retGeneric = Match<ComponentType::CT_Generic>(
