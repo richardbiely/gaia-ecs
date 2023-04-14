@@ -446,7 +446,7 @@ namespace gaia {
 					}
 				}
 
-				return false;
+				return true;
 			}
 
 			GAIA_NODISCARD bool operator!=(const EntityQuery& other) const {
