@@ -80,7 +80,7 @@ namespace gaia {
 				static constexpr uint16_t NBlocks = 64;
 				static constexpr uint32_t Size = NBlocks * MemoryBlockSize;
 				static constexpr MemoryBlock::MemoryBlockType InvalidBlockId = (MemoryBlock::MemoryBlockType)-1;
-				static constexpr uint32_t MemoryLockTypeSizeInBits = utils::as_bits(sizeof(MemoryBlock::MemoryBlockType));
+				static constexpr uint32_t MemoryLockTypeSizeInBits = (uint32_t)utils::as_bits(sizeof(MemoryBlock::MemoryBlockType));
 				static_assert((uint32_t)NBlocks < (1 << MemoryLockTypeSizeInBits));
 				using iterator = containers::darray<MemoryPage*>::iterator;
 

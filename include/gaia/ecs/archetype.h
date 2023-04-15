@@ -272,9 +272,11 @@ namespace gaia {
 					} while (i-- > 0);
 				}
 
+				GAIA_ASSERT(chunkCnt < (uint32_t)UINT16_MAX);
+
 				// No free space found anywhere. Let's create a new one.
 				auto* pChunk = AllocateChunk(*this);
-				pChunk->header.index = (uint32_t)chunkCnt;
+				pChunk->header.index = (uint16_t)chunkCnt;
 				chunkArray.push_back(pChunk);
 				return pChunk;
 			}
