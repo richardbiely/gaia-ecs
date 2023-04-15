@@ -453,6 +453,39 @@ namespace gaia {
 				return !operator==(other);
 			}
 
+#if GAIA_ARCHETYPE_GRAPH
+			/*!
+			Tries to match the query against \param archetypes. For each matched archetype the archetype is cached.
+			This is necessary so we do not iterate all chunks over and over again when running queries.
+			*/
+			void Match(uint32_t lastArchetypeID) {
+				// if GAIA_UNLIKELY (m_recalculate && lastArchetypeID > 0)
+				// 	CalculateMatcherHashes();
+
+				// w.ArchetypeGraphTraverse(ComponentType::CT_Generic, [&]() {
+				// 	// Early exit if generic query doesn't match
+				// 	const auto retGeneric = Match<ComponentType::CT_Generic>(
+				// 			GetArchetypeComponentInfoList(archetype, ComponentType::CT_Generic),
+				// 			GetArchetypeMatcherHash(archetype, ComponentType::CT_Generic));
+				// 	if (retGeneric == EntityQuery::MatchArchetypeQueryRet::Fail)
+				// 		continue;
+
+				// 	// Early exit if chunk query doesn't match
+				// 	const auto retChunk = Match<ComponentType::CT_Chunk>(
+				// 			GetArchetypeComponentInfoList(archetype, ComponentType::CT_Chunk),
+				// 			GetArchetypeMatcherHash(archetype, ComponentType::CT_Chunk));
+				// 	if (retChunk == EntityQuery::MatchArchetypeQueryRet::Fail)
+				// 		continue;
+
+				// 	// If at least one query succeeded run our logic
+				// 	if (retGeneric == EntityQuery::MatchArchetypeQueryRet::Ok ||
+				// 			retChunk == EntityQuery::MatchArchetypeQueryRet::Ok)
+				// 		m_archetypeCache.push_back(pArchetype);
+				// });
+
+				m_lastArchetypeId = lastArchetypeID;
+			}
+#else
 			/*!
 			Tries to match the query against \param archetypes. For each matched archetype the archetype is cached.
 			This is necessary so we do not iterate all chunks over and over again when running queries.
@@ -491,6 +524,7 @@ namespace gaia {
 
 				m_lastArchetypeId = (uint32_t)archetypes.size();
 			}
+#endif
 
 			void SetWorldVersion(uint32_t worldVersion) {
 				m_worldVersion = worldVersion;

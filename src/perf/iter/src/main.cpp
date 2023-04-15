@@ -44,12 +44,29 @@ constexpr void AddComponents(ecs::World& w, uint32_t N) {
 
 template <size_t Iterations>
 void BM_CreateEntity_With_Component(picobench::state& state) {
-	for (auto _: state) {
-		(void)_;
+	for (auto s: state) {
+		(void)s;
 		ecs::World w;
+
 		AddComponents<float, 0, Iterations>(w, NEntities);
 	}
 }
+
+#if GAIA_ARCHETYPE_GRAPH
+template <size_t Iterations>
+void BM_CreateEntity_With_Component_HOT(picobench::state& state) {
+	for (auto s: state) {
+		(void)s;
+		ecs::World w;
+
+		state.stop_timer();
+		AddComponents<float, 0, Iterations>(w, 1);
+		state.start_timer();
+
+		AddComponents<float, 0, Iterations>(w, NEntities);
+	}
+}
+#endif
 
 constexpr size_t ForEachN = 1'000;
 
