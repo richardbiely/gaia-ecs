@@ -145,7 +145,7 @@ TEST_CASE("Containers - darray") {
 template <size_t N, typename T>
 void TestDataLayoutSoA() {
 	GAIA_ALIGNAS(N * 4) containers::sarray<T, N> data{};
-	const auto* arr = (const float*)&data[0];
+	const auto* arr = (const float*)data.data();
 
 	using soa = gaia::utils::soa_view_policy<T>;
 	using view_deduced = gaia::utils::auto_view_policy<T>;
@@ -665,7 +665,7 @@ TEST_CASE("CreateAndRemoveEntity - no components") {
 		auto de = w.GetEntity(e.id());
 		const bool ok = de.gen() == e.gen() + 1;
 		REQUIRE(ok);
-		auto ch = w.GetChunk(e);
+		auto *ch = w.GetChunk(e);
 		REQUIRE(ch == nullptr);
 	};
 
@@ -702,7 +702,7 @@ TEST_CASE("CreateAndRemoveEntity - 1 component") {
 		auto de = w.GetEntity(e.id());
 		const bool ok = de.gen() == e.gen() + 1;
 		REQUIRE(ok);
-		auto ch = w.GetChunk(e);
+		auto *ch = w.GetChunk(e);
 		REQUIRE(ch == nullptr);
 		const bool isEntityValid = w.IsEntityValid(e);
 		REQUIRE(!isEntityValid);
@@ -905,31 +905,32 @@ TEST_CASE("RemoveComponent - generic") {
 
 	{
 		w.AddComponent<Position>(e1);
-		w.AddComponent<Acceleration>(e1);
+		w.AddComponent<Rotation>(e1);
+
 		{
 			w.RemoveComponent<Position>(e1);
 			REQUIRE_FALSE(w.HasComponent<Position>(e1));
-			REQUIRE(w.HasComponent<Acceleration>(e1));
+			REQUIRE(w.HasComponent<Rotation>(e1));
 		}
 		{
-			w.RemoveComponent<Acceleration>(e1);
+			w.RemoveComponent<Rotation>(e1);
 			REQUIRE_FALSE(w.HasComponent<Position>(e1));
-			REQUIRE_FALSE(w.HasComponent<Acceleration>(e1));
+			REQUIRE_FALSE(w.HasComponent<Rotation>(e1));
 		}
 	}
 
 	{
-		w.AddComponent<Acceleration>(e1);
+		w.AddComponent<Rotation>(e1);
 		w.AddComponent<Position>(e1);
 		{
 			w.RemoveComponent<Position>(e1);
 			REQUIRE_FALSE(w.HasComponent<Position>(e1));
-			REQUIRE(w.HasComponent<Acceleration>(e1));
+			REQUIRE(w.HasComponent<Rotation>(e1));
 		}
 		{
-			w.RemoveComponent<Acceleration>(e1);
+			w.RemoveComponent<Rotation>(e1);
 			REQUIRE_FALSE(w.HasComponent<Position>(e1));
-			REQUIRE_FALSE(w.HasComponent<Acceleration>(e1));
+			REQUIRE_FALSE(w.HasComponent<Rotation>(e1));
 		}
 	}
 }
@@ -1898,7 +1899,7 @@ TEST_CASE("Query Filter - no systems") {
 	{
 		w.UpdateWorldVersion();
 
-		auto ch = w.GetChunk(e);
+		auto *ch = w.GetChunk(e);
 		auto p = ch->ViewRWSilent<Position>();
 		p[0] = {};
 	}
@@ -1958,9 +1959,9 @@ TEST_CASE("Query Filter - systems") {
 		}
 	};
 	ecs::SystemManager sm(w);
-	auto ws = sm.CreateSystem<WriterSystem>("writer");
-	auto wss = sm.CreateSystem<WriterSystemSilent>("writer_silent");
-	auto rs = sm.CreateSystem<ReaderSystem>("reader");
+	auto *ws = sm.CreateSystem<WriterSystem>("writer");
+	auto *wss = sm.CreateSystem<WriterSystemSilent>("writer_silent");
+	auto *rs = sm.CreateSystem<ReaderSystem>("reader");
 
 	// first run always happens
 	ws->Enable(false);
