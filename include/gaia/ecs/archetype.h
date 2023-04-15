@@ -31,7 +31,7 @@ namespace gaia {
 #if GAIA_ARCHETYPE_GRAPH
 			struct ArchetypeGraphEdge {
 				const ComponentInfo* info;
-				Archetype* archetype;
+				Archetype* pArchetype;
 			};
 #endif
 
@@ -322,7 +322,7 @@ namespace gaia {
 				const auto it = utils::find_if(edges, [info](const auto& edge) {
 					return edge.info == info;
 				});
-				return it != edges.end() ? it->archetype : nullptr;
+				return it != edges.end() ? it->pArchetype : nullptr;
 			}
 #endif
 
