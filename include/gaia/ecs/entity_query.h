@@ -581,10 +581,12 @@ namespace gaia {
 			GAIA_NODISCARD bool CheckConstraints() const {
 				if GAIA_LIKELY (m_constraints == Constraints::AcceptAll)
 					return true;
-				if (Enabled && m_constraints == Constraints::EnabledOnly)
-					return true;
-				if (!Enabled && m_constraints == Constraints::DisabledOnly)
-					return true;
+				if constexpr (Enabled)
+					if (m_constraints == Constraints::EnabledOnly)
+						return true;
+				if constexpr (!Enabled)
+					if (m_constraints == Constraints::DisabledOnly)
+						return true;
 				return false;
 			}
 

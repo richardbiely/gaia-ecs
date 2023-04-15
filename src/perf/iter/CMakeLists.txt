@@ -3,7 +3,7 @@ add_executable(${PROJ_NAME} src/main.cpp)
 
 if(MSVC)
   # necessary because VS might complain about too many sections used in debug builds
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /bigobj" PARENT_SCOPE)
+  target_compile_options(${PROJ_NAME} PRIVATE /bigobj)
 endif()
 
 # Benchmark framework
