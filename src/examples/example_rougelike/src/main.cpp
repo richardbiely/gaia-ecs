@@ -190,7 +190,11 @@ public:
 		uint32_t edge_costs : 8;
 
 	public:
-		Node() = default;
+		Node() {
+			id = 0;
+			neighbors = 0;
+			edge_cost = 0;
+		}
 		Node(uint32_t value): id(value) {}
 
 		void InitIndex(uint32_t index, uint32_t cost) {
@@ -230,7 +234,7 @@ public:
 	}
 
 	// Define a function to estimate the cost from a node to the end node (using Euclidean distance)
-	float HeuristicCostEstimate(const Node& current, const Node& goal) {
+	float HeuristicCostEstimate(const Node& current, const Node& goal) const {
 		const uint32_t cid = current.GetId();
 		const uint32_t gid = goal.GetId();
 		const uint32_t dx = NodeIdToX(cid) - NodeIdToX(gid);
@@ -240,14 +244,14 @@ public:
 		return sqrtf((float)dxx + (float)dyy); // Euclidean distance
 	}
 
-	bool OpenSetContains(MyPriorityQueue& open_set, uint32_t index) {
-		return open_set.has_if([index](const std::pair<float, uint32_t>& elem) {
+	bool OpenSetContains(const MyPriorityQueue& open_set, uint32_t index) const {
+		static_assert(sizeof(MyPriorityPair) <= 8); // So long it's small we can pass by value
+		return open_set.has_if([index](MyPriorityPair elem) {
 			return elem.second == index;
 		}); // true if the node is in the open set, false otherwise
 	}
 
 	std::vector<uint32_t> FindPath(const std::vector<Node>& graph, uint32_t start_id, uint32_t goal_id) {
-		std::vector<uint32_t> path;
 		containers::map<uint32_t, uint32_t> parents; // key: ID, data: parentID
 		containers::map<uint32_t, std::pair<float, float>> scores; // key: ID, data: <g, f>
 		std::unordered_set<uint32_t> closed_set;
@@ -271,6 +275,8 @@ public:
 
 			// Check if we've reached the goal node
 			if (current_id == goal_id) {
+				std::vector<uint32_t> path;
+
 				// Reconstruct the path
 				uint32_t node_id = goal_id;
 				while (node_id != start_id) {
@@ -296,7 +302,7 @@ public:
 
 				// The neighbor needs to be accessible
 				const auto neighborCost = (float)current_node.GetEdgeCost(i);
-				if (neighborCost <= 0.f)
+				if (neighborCost <= 0.F)
 					continue;
 
 				// Skip this neighbor if it's already closed
@@ -323,7 +329,7 @@ public:
 		}
 
 		// If we get here, there's no path from start to goal
-		return path;
+		return {};
 	}
 };
 
