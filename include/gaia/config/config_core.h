@@ -85,7 +85,7 @@
 		defined(i386) || defined(__x86_64__) || defined(_X86_)
 	#undef GAIA_ARCH
 	#define GAIA_ARCH GAIA_ARCH_X86
-#elif defined(__arm__) || defined(__aarch64__)
+#elif defined(__arm__) || defined(__aarch64__) || defined(_M_ARM64) || defined(_M_ARM64EC)
 	#undef GAIA_ARCH
 	#define GAIA_ARCH GAIA_ARCH_ARM
 #else
