@@ -144,18 +144,28 @@ namespace robin_hood {
 #if !defined(ROBIN_HOOD_DISABLE_INTRINSICS)
 	#ifdef _MSC_VER
 		#if ROBIN_HOOD(BITNESS) == 32
-			#define ROBIN_HOOD_PRIVATE_DEFINITION_BITSCANFORWARD() _BitScanForward
+			#define ROBIN_HOOD_PRIVATE_DEFINITION_CTZ() _BitScanForward
+			#define ROBIN_HOOD_PRIVATE_DEFINITION_CLZ() _BitScanReverse
 		#else
-			#define ROBIN_HOOD_PRIVATE_DEFINITION_BITSCANFORWARD() _BitScanForward64
+			#define ROBIN_HOOD_PRIVATE_DEFINITION_CTZ() _BitScanForward64
+			#define ROBIN_HOOD_PRIVATE_DEFINITION_CLZ() _BitScanReverse64
 		#endif
 		#if _MSV_VER <= 1916
 			#include <intrin.h>
 		#endif
-		#pragma intrinsic(ROBIN_HOOD(BITSCANFORWARD))
+
+		#pragma intrinsic(ROBIN_HOOD(CTZ))
 		#define ROBIN_HOOD_COUNT_TRAILING_ZEROES(x)                                                                        \
 			[](size_t mask) noexcept -> int {                                                                                \
 				unsigned long index;                                                                                           \
-				return ROBIN_HOOD(BITSCANFORWARD)(&index, mask) ? static_cast<int>(index) : ROBIN_HOOD(BITNESS);               \
+				return ROBIN_HOOD(CTZ)(&index, mask) ? static_cast<int>(index) : ROBIN_HOOD(BITNESS);               \
+			}(x)
+
+		#pragma intrinsic(ROBIN_HOOD(CLZ))
+		#define ROBIN_HOOD_COUNT_LEADING_ZEROES(x)                                                                         \
+			[](size_t mask) noexcept -> int {                                                                                \
+				unsigned long index;                                                                                           \
+				return ROBIN_HOOD(CLZ)(&index, mask) ? static_cast<int>(index) : ROBIN_HOOD(BITNESS);               \
 			}(x)
 	#else
 		#if ROBIN_HOOD(BITNESS) == 32
@@ -165,8 +175,9 @@ namespace robin_hood {
 			#define ROBIN_HOOD_PRIVATE_DEFINITION_CTZ() __builtin_ctzll
 			#define ROBIN_HOOD_PRIVATE_DEFINITION_CLZ() __builtin_clzll
 		#endif
-		#define ROBIN_HOOD_COUNT_LEADING_ZEROES(x) ((x) ? ROBIN_HOOD(CLZ)(x) : ROBIN_HOOD(BITNESS))
+		
 		#define ROBIN_HOOD_COUNT_TRAILING_ZEROES(x) ((x) ? ROBIN_HOOD(CTZ)(x) : ROBIN_HOOD(BITNESS))
+		#define ROBIN_HOOD_COUNT_LEADING_ZEROES(x) ((x) ? ROBIN_HOOD(CLZ)(x) : ROBIN_HOOD(BITNESS))
 	#endif
 #endif
 
