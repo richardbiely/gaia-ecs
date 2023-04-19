@@ -35,6 +35,7 @@ option(GAIA_BUILD_UNITTEST "Build unit test." OFF)
 option(GAIA_BUILD_BENCHMARK "Build benchmark." OFF)
 option(GAIA_BUILD_EXAMPLES "Build examples." OFF)
 option(GAIA_GENERATE_CC "Use ninja to generate compile_commands.json as a post-build step." ON)
+option(GAIA_CACHEGRIND "Cachegrind build" OFF)
 
 if(GAIA_BUILD_UNITTEST)
     set(GAIA_BUILD_SRC ON)

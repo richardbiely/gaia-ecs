@@ -16,6 +16,7 @@ RUN apt install -y \
     git \
     ninja-build \
     dos2unix \
-    neovim
+    neovim \
+    valgrind
 
 CMD /bin/bash

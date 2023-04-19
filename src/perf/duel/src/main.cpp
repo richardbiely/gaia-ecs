@@ -1350,8 +1350,16 @@ void BM_NonECS_DOD_SoA_SIMD(picobench::state& state) {
 	}
 }
 
-#define PICO_SETTINGS() iterations({8192}).samples(3)
+#ifdef GAIA_CACHEGRIND
+	#define PICO_SETTINGS() iterations({8192}).samples(1)
+#else
+	#define PICO_SETTINGS() iterations({8192}).samples(3)
+#endif
 
+#ifdef GAIA_CACHEGRIND
+// PICOBENCH(BM_NonECS_DOD<80>).PICO_SETTINGS().label("DOD_Chunks_80");
+PICOBENCH(BM_ECS_WithSystems_Chunk).PICO_SETTINGS().label("ECS_Systems_Chunk");
+#else
 //  Ordinary coding style.
 PICOBENCH(BM_NonECS).PICO_SETTINGS().label("Default");
 // Ordinary coding style with optimized memory layout (imagine using custom allocators
@@ -1399,3 +1407,5 @@ PICOBENCH(BM_ECS_WithSystems).PICO_SETTINGS().label("Systems");
 PICOBENCH(BM_ECS_WithSystems_Chunk).PICO_SETTINGS().label("Systems_Chunk");
 PICOBENCH(BM_ECS_WithSystems_Chunk_SoA).PICO_SETTINGS().label("Systems_Chunk_SoA");
 PICOBENCH(BM_ECS_WithSystems_Chunk_SoA_SIMD).PICO_SETTINGS().label("Systems_Chunk_SoA_SIMD");
+
+#endif
