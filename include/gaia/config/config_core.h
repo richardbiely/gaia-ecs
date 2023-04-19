@@ -27,28 +27,28 @@
 #define GAIA_COMPILER_GCC 0
 #define GAIA_COMPILER_MSVC 0
 #define GAIA_COMPILER_ICC 0
-#define GAIA_COMPILED_DETECTED 0
+#define GAIA_COMPILER_DETECTED 0
 
-#if !GAIA_COMPILED_DETECTED && (defined(__clang__))
+#if !GAIA_COMPILER_DETECTED && (defined(__clang__))
 // Clang check is performed first as it might pretend to be MSVC or GCC by
 // defining their predefined macros.
 	#undef GAIA_COMPILER_CLANG
 	#define GAIA_COMPILER_CLANG 1
-	#undef GAIA_COMPILED_DETECTED
-	#define GAIA_COMPILED_DETECTED 1
+	#undef GAIA_COMPILER_DETECTED
+	#define GAIA_COMPILER_DETECTED 1
 #endif
-#if !GAIA_COMPILED_DETECTED &&                                                                                         \
+#if !GAIA_COMPILER_DETECTED &&                                                                                         \
 		(defined(__INTEL_COMPILER) || defined(__ICC) || defined(__ICL) || defined(__INTEL_LLVM_COMPILER))
 	#undef GAIA_COMPILER_ICC
 	#define GAIA_COMPILER_ICC 1
-	#undef GAIA_COMPILED_DETECTED
-	#define GAIA_COMPILED_DETECTED 1
+	#undef GAIA_COMPILER_DETECTED
+	#define GAIA_COMPILER_DETECTED 1
 #endif
-#if !GAIA_COMPILED_DETECTED && (defined(__SNC__) || defined(__GNUC__))
+#if !GAIA_COMPILER_DETECTED && (defined(__SNC__) || defined(__GNUC__))
 	#undef GAIA_COMPILER_GCC
 	#define GAIA_COMPILER_GCC 1
-	#undef GAIA_COMPILED_DETECTED
-	#define GAIA_COMPILED_DETECTED 1
+	#undef GAIA_COMPILER_DETECTED
+	#define GAIA_COMPILER_DETECTED 1
 	#if __GNUC__ <= 7
 		// In some contexts, e.g. when evaluating PRETTY_FUNCTION, GCC has a bug
 		// where the string is not defined a constexpr and thus can't be evaluated
@@ -57,13 +57,13 @@
 		#define GAIA_SAFE_CONSTEXPR const
 	#endif
 #endif
-#if !GAIA_COMPILED_DETECTED && (defined(_MSC_VER))
+#if !GAIA_COMPILER_DETECTED && (defined(_MSC_VER))
 	#undef GAIA_COMPILER_MSVC
 	#define GAIA_COMPILER_MSVC 1
-	#undef GAIA_COMPILED_DETECTED
-	#define GAIA_COMPILED_DETECTED 1
+	#undef GAIA_COMPILER_DETECTED
+	#define GAIA_COMPILER_DETECTED 1
 #endif
-#if !GAIA_COMPILED_DETECTED
+#if !GAIA_COMPILER_DETECTED
 	#error "Unrecognized compiler"
 #endif
 
