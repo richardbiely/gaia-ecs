@@ -1,6 +1,7 @@
-#define PICOBENCH_IMPLEMENT_WITH_MAIN
+#define PICOBENCH_IMPLEMENT
 #include "gaia/external/picobench.hpp"
 #include <gaia.h>
+#include <string_view>
 
 #if GAIA_ARCH != GAIA_ARCH_ARM
 	#include <immintrin.h>
@@ -1356,56 +1357,98 @@ void BM_NonECS_DOD_SoA_SIMD(picobench::state& state) {
 	#define PICO_SETTINGS() iterations({8192}).samples(3)
 #endif
 
-#ifdef GAIA_CACHEGRIND
-// PICOBENCH(BM_NonECS_DOD<80>).PICO_SETTINGS().label("DOD_Chunks_80");
-PICOBENCH(BM_ECS_WithSystems_Chunk).PICO_SETTINGS().label("ECS_Systems_Chunk");
-#else
-//  Ordinary coding style.
-PICOBENCH(BM_NonECS).PICO_SETTINGS().label("Default");
-// Ordinary coding style with optimized memory layout (imagine using custom allocators
-// to keep things close and tidy in memory).
-PICOBENCH(BM_NonECS_BetterMemoryLayout).PICO_SETTINGS().label("OptimizedMemLayout");
-// Memory organized in DoD style.
-// Performance target BM_ECS_WithSystems_Chunk.
-// "Groups" is there to simulate having items split into separate chunks similar to what ECS does.
-PICOBENCH_SUITE("NonECS_DOD");
-PICOBENCH(BM_NonECS_DOD<1>).PICO_SETTINGS().baseline().label("Default");
-PICOBENCH(BM_NonECS_DOD<20>).PICO_SETTINGS().label("Chunks_20");
-PICOBENCH(BM_NonECS_DOD<40>).PICO_SETTINGS().label("Chunks_40");
-PICOBENCH(BM_NonECS_DOD<80>).PICO_SETTINGS().label("Chunks_80");
-PICOBENCH(BM_NonECS_DOD<160>).PICO_SETTINGS().label("Chunks_160");
-PICOBENCH(BM_NonECS_DOD<200>).PICO_SETTINGS().label("Chunks_200");
-PICOBENCH(BM_NonECS_DOD<320>).PICO_SETTINGS().label("Chunks_320");
-// Best possible performance with no manual optimization.
-// Performance target for BM_ECS_WithSystems_Chunk_SoA.
-// "Groups" is there to simulate having items split into separate chunks similar to what ECS does.
-PICOBENCH_SUITE("NonECS_DOD_SoA");
-PICOBENCH(BM_NonECS_DOD_SoA<1>).PICO_SETTINGS().baseline().label("Default");
-PICOBENCH(BM_NonECS_DOD_SoA<20>).PICO_SETTINGS().label("Chunks_20");
-PICOBENCH(BM_NonECS_DOD_SoA<40>).PICO_SETTINGS().label("Chunks_40");
-PICOBENCH(BM_NonECS_DOD_SoA<80>).PICO_SETTINGS().label("Chunks_80");
-PICOBENCH(BM_NonECS_DOD_SoA<160>).PICO_SETTINGS().label("Chunks_160");
-PICOBENCH(BM_NonECS_DOD_SoA<200>).PICO_SETTINGS().label("Chunks_200");
-PICOBENCH(BM_NonECS_DOD_SoA<320>).PICO_SETTINGS().label("Chunks_320");
+#define PICOBENCH_SUITE_REG(name) r.current_suite_name() = name;
+#define PICOBENCH_REG(func) (void)r.add_benchmark(#func, func)
 
-// Best possible performance.
-// Performance target for BM_ECS_WithSystems_Chunk_SoA_SIMD.
-// "Groups" is there to simulate having items split into separate chunks similar to what ECS does.
-PICOBENCH_SUITE("NonECS_DOD_SoA_SIMD");
-PICOBENCH(BM_NonECS_DOD_SoA_SIMD<1>).PICO_SETTINGS().baseline().label("Default");
-PICOBENCH(BM_NonECS_DOD_SoA_SIMD<20>).PICO_SETTINGS().label("Chunks_20");
-PICOBENCH(BM_NonECS_DOD_SoA_SIMD<40>).PICO_SETTINGS().label("Chunks_40");
-PICOBENCH(BM_NonECS_DOD_SoA_SIMD<80>).PICO_SETTINGS().label("Chunks_80");
-PICOBENCH(BM_NonECS_DOD_SoA_SIMD<160>).PICO_SETTINGS().label("Chunks_160");
-PICOBENCH(BM_NonECS_DOD_SoA_SIMD<200>).PICO_SETTINGS().label("Chunks_200");
-PICOBENCH(BM_NonECS_DOD_SoA_SIMD<320>).PICO_SETTINGS().label("Chunks_320");
+int main(int argc, char* argv[]) {
+	picobench::runner r(true);
+	r.parse_cmd_line(argc, argv);
 
-// GaiaECS performance.
-PICOBENCH_SUITE("ECS");
-PICOBENCH(BM_ECS).PICO_SETTINGS().baseline().label("Default");
-PICOBENCH(BM_ECS_WithSystems).PICO_SETTINGS().label("Systems");
-PICOBENCH(BM_ECS_WithSystems_Chunk).PICO_SETTINGS().label("Systems_Chunk");
-PICOBENCH(BM_ECS_WithSystems_Chunk_SoA).PICO_SETTINGS().label("Systems_Chunk_SoA");
-PICOBENCH(BM_ECS_WithSystems_Chunk_SoA_SIMD).PICO_SETTINGS().label("Systems_Chunk_SoA_SIMD");
+	// If picobench encounters an unknown command line argument it returns false and sets an error.
+	// Ignore this behavior.
+	// We only need to make sure to provide the custom arguments after the picobench ones.
+	if (r.error() == picobench::error_unknown_cmd_line_argument)
+		r.set_error(picobench::no_error);
 
-#endif
+	// With Cachegrind enabled we want to be able to pick what benchmark to run so it is easier
+	// for us to isolate the results.
+	{
+		bool cachegrind = false;
+		bool test_dod = false;
+
+		const gaia::containers::darr<std::string_view> args(argv + 1, argv + argc);
+		for (const auto& arg: args) {
+			if (arg == "-cg") {
+				cachegrind = true;
+				continue;
+			}
+			if (arg == "-dod") {
+				test_dod = true;
+				continue;
+			}
+		}
+
+		if (cachegrind) {
+			if (test_dod) {
+				// PICOBENCH_SUITE_REG("NonECS_DOD");
+				PICOBENCH_REG(BM_NonECS_DOD<80>).PICO_SETTINGS().label("DOD_Chunks_80");
+			} else {
+				// PICOBENCH_SUITE_REG("ECS");
+				PICOBENCH_REG(BM_ECS_WithSystems_Chunk).PICO_SETTINGS().label("Systems_Chunk");
+			}
+		} else {
+			//  Ordinary coding style.
+			PICOBENCH_REG(BM_NonECS).PICO_SETTINGS().label("Default");
+
+			// Ordinary coding style with optimized memory layout (imagine using custom allocators
+			// to keep things close and tidy in memory).
+			PICOBENCH_REG(BM_NonECS_BetterMemoryLayout).PICO_SETTINGS().label("OptimizedMemLayout");
+
+			// Memory organized in DoD style.
+			// Performance target BM_ECS_WithSystems_Chunk.
+			// "Groups" is there to simulate having items split into separate chunks similar to what ECS does.
+			PICOBENCH_SUITE_REG("NonECS_DOD");
+			PICOBENCH_REG(BM_NonECS_DOD<1>).PICO_SETTINGS().baseline().label("Default");
+			PICOBENCH_REG(BM_NonECS_DOD<20>).PICO_SETTINGS().label("Chunks_20");
+			PICOBENCH_REG(BM_NonECS_DOD<40>).PICO_SETTINGS().label("Chunks_40");
+			PICOBENCH_REG(BM_NonECS_DOD<80>).PICO_SETTINGS().label("Chunks_80");
+			PICOBENCH_REG(BM_NonECS_DOD<160>).PICO_SETTINGS().label("Chunks_160");
+			PICOBENCH_REG(BM_NonECS_DOD<200>).PICO_SETTINGS().label("Chunks_200");
+			PICOBENCH_REG(BM_NonECS_DOD<320>).PICO_SETTINGS().label("Chunks_320");
+
+			// Best possible performance with no manual optimization.
+			// Performance target for BM_ECS_WithSystems_Chunk_SoA.
+			// "Groups" is there to simulate having items split into separate chunks similar to what ECS does.
+			PICOBENCH_SUITE_REG("NonECS_DOD_SoA");
+			PICOBENCH_REG(BM_NonECS_DOD_SoA<1>).PICO_SETTINGS().baseline().label("Default");
+			PICOBENCH_REG(BM_NonECS_DOD_SoA<20>).PICO_SETTINGS().label("Chunks_20");
+			PICOBENCH_REG(BM_NonECS_DOD_SoA<40>).PICO_SETTINGS().label("Chunks_40");
+			PICOBENCH_REG(BM_NonECS_DOD_SoA<80>).PICO_SETTINGS().label("Chunks_80");
+			PICOBENCH_REG(BM_NonECS_DOD_SoA<160>).PICO_SETTINGS().label("Chunks_160");
+			PICOBENCH_REG(BM_NonECS_DOD_SoA<200>).PICO_SETTINGS().label("Chunks_200");
+			PICOBENCH_REG(BM_NonECS_DOD_SoA<320>).PICO_SETTINGS().label("Chunks_320");
+
+			// Best possible performance.
+			// Performance target for BM_ECS_WithSystems_Chunk_SoA_SIMD.
+			// "Groups" is there to simulate having items split into separate chunks similar to what ECS does.
+			PICOBENCH_SUITE_REG("NonECS_DOD_SoA_SIMD");
+			PICOBENCH_REG(BM_NonECS_DOD_SoA_SIMD<1>).PICO_SETTINGS().baseline().label("Default");
+			PICOBENCH_REG(BM_NonECS_DOD_SoA_SIMD<20>).PICO_SETTINGS().label("Chunks_20");
+			PICOBENCH_REG(BM_NonECS_DOD_SoA_SIMD<40>).PICO_SETTINGS().label("Chunks_40");
+			PICOBENCH_REG(BM_NonECS_DOD_SoA_SIMD<80>).PICO_SETTINGS().label("Chunks_80");
+			PICOBENCH_REG(BM_NonECS_DOD_SoA_SIMD<160>).PICO_SETTINGS().label("Chunks_160");
+			PICOBENCH_REG(BM_NonECS_DOD_SoA_SIMD<200>).PICO_SETTINGS().label("Chunks_200");
+			PICOBENCH_REG(BM_NonECS_DOD_SoA_SIMD<320>).PICO_SETTINGS().label("Chunks_320");
+
+			// GaiaECS performance.
+			PICOBENCH_SUITE_REG("ECS");
+			PICOBENCH_REG(BM_ECS).PICO_SETTINGS().baseline().label("Default");
+			PICOBENCH_REG(BM_ECS_WithSystems).PICO_SETTINGS().label("Systems");
+			PICOBENCH_REG(BM_ECS_WithSystems_Chunk).PICO_SETTINGS().label("Systems_Chunk");
+			PICOBENCH_REG(BM_ECS_WithSystems_Chunk_SoA).PICO_SETTINGS().label("Systems_Chunk_SoA");
+			PICOBENCH_REG(BM_ECS_WithSystems_Chunk_SoA_SIMD).PICO_SETTINGS().label("Systems_Chunk_SoA_SIMD");
+		}
+	}
+
+	return r.run(0);
+}
