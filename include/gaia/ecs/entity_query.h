@@ -201,7 +201,7 @@ namespace gaia {
 
 			void CalculateLookupHash() {
 				// Sort the arrays if necessary
-				if (m_sort) {
+				if GAIA_UNLIKELY (m_sort) {
 					SortComponentArrays();
 					m_sort = false;
 				}
@@ -215,55 +215,29 @@ namespace gaia {
 				uint64_t hashLookup = utils::hash_combine(m_hashLookup.hash, (uint64_t)m_constraints);
 
 				// Filters
-				{
+				for (size_t i = 0; i < ComponentType::CT_Count; ++i) {
 					uint64_t hash = 0;
 
-					// Generic componet filters
-					{
-						for (auto infoIndex: m_listChangeFiltered[ComponentType::CT_Generic])
-							hash = utils::hash_combine(hash, (uint64_t)infoIndex);
-						hash = utils::hash_combine(hash, (uint64_t)m_listChangeFiltered[ComponentType::CT_Generic].size());
-					}
-
-					// Chunk component filters
-					{
-						for (auto infoIndex: m_listChangeFiltered[ComponentType::CT_Chunk])
-							hash = utils::hash_combine(hash, (uint64_t)infoIndex);
-						hash = utils::hash_combine(hash, (uint64_t)m_listChangeFiltered[ComponentType::CT_Chunk].size());
-					}
+					const auto& l = m_listChangeFiltered[i];
+					for (auto index: l)
+						hash = utils::hash_combine(hash, (uint64_t)index);
+					hash = utils::hash_combine(hash, (uint64_t)l.size());
 
 					hashLookup = utils::hash_combine(hashLookup, hash);
 				}
 
-				// Generic components lookup hash
-				{
+				// Components
+				for (size_t i = 0; i < ComponentType::CT_Count; ++i) {
 					uint64_t hash = 0;
-					const auto& l = m_list[ComponentType::CT_Generic];
-					for (size_t i = 0; i < ListType::LT_Count; ++i) {
-						const auto& arr = l.list[i];
-						hash = utils::hash_combine(hash, (uint64_t)i);
-						for (size_t j = 0; j < arr.size(); ++j) {
-							const auto* info = cc.GetComponentInfoFromIdx(arr[j].index);
+
+					const auto& l = m_list[i];
+					for (const auto& components: l.list) {
+						for (auto data: components) {
+							const auto* info = cc.GetComponentInfoFromIdx(data.index);
 							GAIA_ASSERT(info != nullptr);
 							hash = utils::hash_combine(hash, info->lookupHash);
 						}
-					}
-
-					hashLookup = utils::hash_combine(hashLookup, hash);
-				}
-
-				// Chunk components lookup hash
-				{
-					uint64_t hash = 0;
-					const auto& l = m_list[ComponentType::CT_Chunk];
-					for (size_t i = 0; i < ListType::LT_Count; ++i) {
-						const auto& arr = l.list[i];
-						hash = utils::hash_combine(hash, (uint64_t)i);
-						for (size_t j = 0; j < arr.size(); ++j) {
-							const auto* info = cc.GetComponentInfoFromIdx(arr[j].index);
-							GAIA_ASSERT(info != nullptr);
-							hash = utils::hash_combine(hash, info->lookupHash);
-						}
+						hash = utils::hash_combine(hash, (uint64_t)components.size());
 					}
 
 					hashLookup = utils::hash_combine(hashLookup, hash);
