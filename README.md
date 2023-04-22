@@ -174,7 +174,7 @@ if (pChunkB->HasComponent<Position>())
 ```
 
 ## Data queries
-For querying data you can use an EntityQuery. It can help you find all entities, components or chunks matching the specified set of components and constraints and returns them in the form of an array. You can also use them to quickly check is entities with the given set of rules exist or calculate how many of them there are.<br/> 
+For querying data you can use an EntityQuery. It can help you find all entities, components or chunks matching the specified set of components and constraints and returns them in the form of an array. You can also use them to quickly check is entities satisfing the given set of rules exist or calculate how many of them there are.<br/> 
 ```cpp
 EntityQuery q;
 q.All<Position>(); // consider only entities with Position

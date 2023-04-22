@@ -38,9 +38,13 @@ struct Direction {
 };
 struct Health {
 	int value;
+	int max;
 };
 struct IsEnemy {
 	bool value;
+};
+struct Dummy {
+	int value[24];
 };
 
 constexpr size_t N = 32'000; // kept a multiple of 32 to keep it simple even for SIMD code
@@ -119,7 +123,7 @@ void CreateECSEntities_Dynamic(ecs::World& w) {
 		else
 			w.AddComponent<Velocity>(e, {0, 0, 1});
 		w.AddComponent<Direction>(e, {0, 0, 1});
-		w.AddComponent<Health>(e, {100});
+		w.AddComponent<Health>(e, {100, 100});
 		for (size_t i = 0; i < N / 4; i++) {
 			[[maybe_unused]] auto newentity = w.CreateEntity(e);
 		}
@@ -137,7 +141,7 @@ void CreateECSEntities_Dynamic(ecs::World& w) {
 		else
 			w.AddComponent<Velocity>(e, {0, 0, 1});
 		w.AddComponent<Direction>(e, {0, 0, 1});
-		w.AddComponent<Health>(e, {100});
+		w.AddComponent<Health>(e, {100, 100});
 		w.AddComponent<IsEnemy>(e, {false});
 		for (size_t i = 0; i < N / 4; i++) {
 			[[maybe_unused]] auto newentity = w.CreateEntity(e);
@@ -152,6 +156,7 @@ void BM_ECS(picobench::state& state) {
 
 	auto queryPosVel = ecs::EntityQuery().All<Position, Velocity>();
 	auto queryVel = ecs::EntityQuery().All<Position, Velocity>();
+	auto queryHealth = ecs::EntityQuery().All<Health>();
 
 	srand(0);
 	for (auto _: state) {
@@ -175,6 +180,13 @@ void BM_ECS(picobench::state& state) {
 		w.ForEach(queryVel, [&](Velocity& v) {
 			v.y += 9.81f * dt;
 		});
+		// Calculate the number of units alive
+		uint32_t aliveUnits = 0;
+		w.ForEach(queryHealth, [&](Health& h) {
+			if (h.value > 0)
+				++aliveUnits;
+		});
+		(void)aliveUnits;
 	}
 }
 
@@ -227,11 +239,28 @@ void BM_ECS_WithSystems(picobench::state& state) {
 			});
 		}
 	};
+	class CalculateAliveUnitsSystem final: public ecs::System {
+		ecs::EntityQuery m_q;
+
+	public:
+		void OnCreated() override {
+			m_q.All<Health>();
+		}
+		void OnUpdate() override {
+			uint32_t aliveUnits = 0;
+			GetWorld().ForEach(m_q, [&](const Health& h) {
+				if (h.value > 0)
+					++aliveUnits;
+			});
+			(void)aliveUnits;
+		}
+	};
 
 	ecs::SystemManager sm(w);
 	sm.CreateSystem<PositionSystem>("position");
 	sm.CreateSystem<CollisionSystem>("collision");
 	sm.CreateSystem<GravitySystem>("gravity");
+	sm.CreateSystem<CalculateAliveUnitsSystem>("aliveUnits");
 
 	srand(0);
 	for (auto _: state) {
@@ -312,11 +341,34 @@ void BM_ECS_WithSystems_Chunk(picobench::state& state) {
 			});
 		}
 	};
+	class CalculateAliveUnitsSystem final: public ecs::System {
+		ecs::EntityQuery m_q;
+
+	public:
+		void OnCreated() override {
+			m_q.All<Health>();
+		}
+		void OnUpdate() override {
+			uint32_t aliveUnits = 0;
+			GetWorld().ForEach(m_q, [&](const ecs::Chunk& ch) {
+				auto h = ch.View<Health>();
+
+				[&](const Health* GAIA_RESTRICT h, const size_t size) {
+					for (size_t i = 0; i < size; ++i) {
+						if (h[i].value > 0)
+							++aliveUnits;
+					}
+				}(h.data(), ch.GetItemCount());
+			});
+			(void)aliveUnits;
+		}
+	};
 
 	ecs::SystemManager sm(w);
 	sm.CreateSystem<PositionSystem>("position");
 	sm.CreateSystem<CollisionSystem>("collision");
 	sm.CreateSystem<GravitySystem>("gravity");
+	sm.CreateSystem<CalculateAliveUnitsSystem>("aliveUnits");
 
 	srand(0);
 	for (auto _: state) {
@@ -451,11 +503,34 @@ void BM_ECS_WithSystems_Chunk_SoA(picobench::state& state) {
 			});
 		}
 	};
+	class CalculateAliveUnitsSystem final: public ecs::System {
+		ecs::EntityQuery m_q;
+
+	public:
+		void OnCreated() override {
+			m_q.All<Health>();
+		}
+		void OnUpdate() override {
+			uint32_t aliveUnits = 0;
+			GetWorld().ForEach(m_q, [&](const ecs::Chunk& ch) {
+				auto h = ch.View<Health>();
+
+				[&](const Health* GAIA_RESTRICT h, const size_t size) {
+					for (size_t i = 0; i < size; ++i) {
+						if (h[i].value > 0)
+							++aliveUnits;
+					}
+				}(h.data(), ch.GetItemCount());
+			});
+			(void)aliveUnits;
+		}
+	};
 
 	ecs::SystemManager sm(w);
 	sm.CreateSystem<PositionSystem>("position");
 	sm.CreateSystem<CollisionSystem>("collision");
 	sm.CreateSystem<GravitySystem>("gravity");
+	sm.CreateSystem<CalculateAliveUnitsSystem>("aliveUnits");
 
 	srand(0);
 	for (auto _: state) {
@@ -664,10 +739,34 @@ void BM_ECS_WithSystems_Chunk_SoA_SIMD(picobench::state& state) {
 		}
 	};
 
+	class CalculateAliveUnitsSystem final: public ecs::System {
+		ecs::EntityQuery m_q;
+
+	public:
+		void OnCreated() override {
+			m_q.All<Health>();
+		}
+		void OnUpdate() override {
+			uint32_t aliveUnits = 0;
+			GetWorld().ForEach(m_q, [&](const ecs::Chunk& ch) {
+				auto h = ch.View<Health>();
+
+				[&](const Health* GAIA_RESTRICT h, const size_t size) {
+					for (size_t i = 0; i < size; ++i) {
+						if (h[i].value > 0)
+							++aliveUnits;
+					}
+				}(h.data(), ch.GetItemCount());
+			});
+			(void)aliveUnits;
+		}
+	};
+
 	ecs::SystemManager sm(w);
 	sm.CreateSystem<PositionSystem>("position");
 	sm.CreateSystem<CollisionSystem>("collision");
 	sm.CreateSystem<GravitySystem>("gravity");
+	sm.CreateSystem<CalculateAliveUnitsSystem>("aliveUnits");
 
 	srand(0);
 	for (auto _: state) {
@@ -678,11 +777,14 @@ void BM_ECS_WithSystems_Chunk_SoA_SIMD(picobench::state& state) {
 	}
 }
 
-void BM_NonECS(picobench::state& state) {
+namespace NonECS {
 	struct IUnit {
 		Position p;
 		Rotation r;
 		Scale s;
+		//! This is a bunch of generic data that keeps getting added
+		//! to the base class over its lifetime and is rarely used ever.
+		Dummy dummy;
 
 		IUnit() = default;
 		virtual ~IUnit() = default;
@@ -690,12 +792,16 @@ void BM_NonECS(picobench::state& state) {
 		virtual void updatePosition(float deltaTime) = 0;
 		virtual void handleGroundCollision(float deltaTime) = 0;
 		virtual void applyGravity(float deltaTime) = 0;
+		virtual bool isAlive() const = 0;
 	};
 
 	struct UnitStatic: public IUnit {
 		void updatePosition([[maybe_unused]] float deltaTime) override {}
 		void handleGroundCollision([[maybe_unused]] float deltaTime) override {}
 		void applyGravity([[maybe_unused]] float deltaTime) override {}
+		bool isAlive() const override {
+			return true;
+		}
 	};
 
 	struct UnitDynamic1: public IUnit {
@@ -715,7 +821,12 @@ void BM_NonECS(picobench::state& state) {
 		void applyGravity(float deltaTime) override {
 			v.y += 9.81f * deltaTime;
 		}
+
+		bool isAlive() const override {
+			return true;
+		}
 	};
+
 	struct UnitDynamic2: public IUnit {
 		Velocity v;
 		Direction d;
@@ -734,7 +845,11 @@ void BM_NonECS(picobench::state& state) {
 		void applyGravity(float deltaTime) override {
 			v.y += 9.81f * deltaTime;
 		}
+		bool isAlive() const override {
+			return true;
+		}
 	};
+
 	struct UnitDynamic3: public IUnit {
 		Velocity v;
 		Direction d;
@@ -754,7 +869,11 @@ void BM_NonECS(picobench::state& state) {
 		void applyGravity(float deltaTime) override {
 			v.y += 9.81f * deltaTime;
 		}
+		bool isAlive() const override {
+			return h.value > 0;
+		}
 	};
+
 	struct UnitDynamic4: public IUnit {
 		Velocity v;
 		Direction d;
@@ -775,7 +894,15 @@ void BM_NonECS(picobench::state& state) {
 		void applyGravity(float deltaTime) override {
 			v.y += 9.81f * deltaTime;
 		}
+		bool isAlive() const override {
+			return h.value > 0;
+		}
 	};
+} // namespace NonECS
+
+template <bool AlternativeExecOrder>
+void BM_NonECS(picobench::state& state) {
+	using namespace NonECS;
 
 	// Create entities.
 	// We allocate via new to simulate the usual kind of behavior in games
@@ -831,12 +958,31 @@ void BM_NonECS(picobench::state& state) {
 		(void)_;
 		dt = CalculateDelta(state);
 
+		uint32_t aliveUnits = 0;
+
 		// Process entities
-		for (auto& u: units) {
-			u->updatePosition(dt);
-			u->handleGroundCollision(dt);
-			u->applyGravity(dt);
+		if constexpr (AlternativeExecOrder) {
+			for (auto& u: units)
+				u->updatePosition(dt);
+			for (auto& u: units)
+				u->handleGroundCollision(dt);
+			for (auto& u: units)
+				u->applyGravity(dt);
+			for (auto& u: units) {
+				if (u->isAlive())
+					++aliveUnits;
+			}
+		} else {
+			for (auto& u: units) {
+				u->updatePosition(dt);
+				u->handleGroundCollision(dt);
+				u->applyGravity(dt);
+				if (u->isAlive())
+					++aliveUnits;
+			}
 		}
+
+		(void)aliveUnits;
 	}
 
 	for (auto& u: units) {
@@ -844,21 +990,26 @@ void BM_NonECS(picobench::state& state) {
 	}
 }
 
-void BM_NonECS_BetterMemoryLayout(picobench::state& state) {
-	struct UnitStatic {
+namespace NonECS_BetterMemoryLayout {
+	struct UnitData {
 		Position p;
 		Rotation r;
 		Scale s;
+		//! This is a bunch of generic data that keeps getting added
+		//! to the base class over its lifetime and is rarely used ever.
+		Dummy dummy;
+	};
 
+	struct UnitStatic: UnitData {
 		void updatePosition([[maybe_unused]] float deltaTime) {}
 		void handleGroundCollision([[maybe_unused]] float deltaTime) {}
 		void applyGravity([[maybe_unused]] float deltaTime) {}
+		bool isAlive() const {
+			return true;
+		}
 	};
 
-	struct UnitDynamic1 {
-		Position p;
-		Rotation r;
-		Scale s;
+	struct UnitDynamic1: UnitData {
 		Velocity v;
 
 		void updatePosition(float deltaTime) {
@@ -875,6 +1026,9 @@ void BM_NonECS_BetterMemoryLayout(picobench::state& state) {
 		void applyGravity(float deltaTime) {
 			v.y += 9.81f * deltaTime;
 		}
+		bool isAlive() const {
+			return true;
+		}
 	};
 
 	struct UnitDynamic2: public UnitDynamic1 {
@@ -883,11 +1037,21 @@ void BM_NonECS_BetterMemoryLayout(picobench::state& state) {
 
 	struct UnitDynamic3: public UnitDynamic2 {
 		Health h;
+
+		using UnitDynamic2::isAlive;
+		bool isAlive() const {
+			return h.value > 0;
+		}
 	};
 
 	struct UnitDynamic4: public UnitDynamic3 {
 		IsEnemy e;
 	};
+} // namespace NonECS_BetterMemoryLayout
+
+template <bool AlternativeExecOrder>
+void BM_NonECS_BetterMemoryLayout(picobench::state& state) {
+	using namespace NonECS_BetterMemoryLayout;
 
 	// Create entities.
 	containers::darray<UnitStatic> units_static(N);
@@ -928,7 +1092,7 @@ void BM_NonECS_BetterMemoryLayout(picobench::state& state) {
 		u.v = {0, 0, 1};
 		u.s = {1, 1, 1};
 		u.d = {0, 0, 1};
-		u.h = {100};
+		u.h = {100, 100};
 		units_dynamic3[i] = std::move(u);
 	}
 	for (size_t i = 0; i < N / 4; i++) {
@@ -938,16 +1102,25 @@ void BM_NonECS_BetterMemoryLayout(picobench::state& state) {
 		u.s = {1, 1, 1};
 		u.v = {0, 0, 1};
 		u.d = {0, 0, 1};
-		u.h = {100};
+		u.h = {100, 100};
 		u.e = {false};
 		units_dynamic4[i] = std::move(u);
 	}
 
 	auto exec = [](auto& arr) {
-		for (auto& u: arr) {
-			u.updatePosition(dt);
-			u.handleGroundCollision(dt);
-			u.applyGravity(dt);
+		if constexpr (AlternativeExecOrder) {
+			for (auto& u: arr)
+				u.updatePosition(dt);
+			for (auto& u: arr)
+				u.handleGroundCollision(dt);
+			for (auto& u: arr)
+				u.applyGravity(dt);
+		} else {
+			for (auto& u: arr) {
+				u.updatePosition(dt);
+				u.handleGroundCollision(dt);
+				u.applyGravity(dt);
+			}
 		}
 	};
 
@@ -961,8 +1134,19 @@ void BM_NonECS_BetterMemoryLayout(picobench::state& state) {
 		exec(units_dynamic2);
 		exec(units_dynamic3);
 		exec(units_dynamic4);
+
+		uint32_t aliveUnits = 0;
+		for (auto& u: units_dynamic3) {
+			if (u.isAlive())
+				++aliveUnits;
+		}
+		for (auto& u: units_dynamic4) {
+			if (u.isAlive())
+				++aliveUnits;
+		}
+		(void)aliveUnits;
 	}
-}
+} // namespace BM_NonECS_BetterMemoryLayout(picobench::state
 
 template <uint32_t Groups>
 void BM_NonECS_DOD(picobench::state& state) {
@@ -993,6 +1177,17 @@ void BM_NonECS_DOD(picobench::state& state) {
 				for (size_t i = 0; i < size; i++)
 					v[i].y += 9.81f * deltaTime;
 			}(v.data(), v.size());
+		}
+
+		static uint32_t calculateAliveUnits(const containers::darray<Health>& h) {
+			uint32_t aliveUnits = 0;
+			[&](Health* GAIA_RESTRICT h, const size_t size) {
+				for (size_t i = 0; i < size; i++) {
+					if (h[i].value > 0)
+						++aliveUnits;
+				}
+			}(h.data(), h.size());
+			return aliveUnits;
 		}
 	};
 
@@ -1029,7 +1224,7 @@ void BM_NonECS_DOD(picobench::state& state) {
 			g.units_s[i] = {1, 1, 1};
 			g.units_v[i] = {0, 0, 1};
 			g.units_d[i] = {0, 0, 1};
-			g.units_h[i] = {100};
+			g.units_h[i] = {100, 100};
 			g.units_e[i] = {false};
 		}
 	}
@@ -1039,13 +1234,19 @@ void BM_NonECS_DOD(picobench::state& state) {
 		(void)_;
 		dt = CalculateDelta(state);
 
-		// Process static entities
 		for (auto& g: dynamic_groups)
 			UnitDynamic::updatePosition(g.units_p, g.units_v, dt);
+
 		for (auto& g: dynamic_groups)
 			UnitDynamic::handleGroundCollision(g.units_p, g.units_v);
+
 		for (auto& g: dynamic_groups)
 			UnitDynamic::applyGravity(g.units_v, dt);
+
+		uint32_t aliveUnits = 0;
+		for (auto& g: dynamic_groups)
+			aliveUnits += UnitDynamic::calculateAliveUnits(g.units_h);
+		(void)aliveUnits;
 	}
 }
 
@@ -1109,7 +1310,7 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 		}
 
 		static void applyGravity(containers::darray<VelocitySoA>& v) {
-			gaia::utils::auto_view_policy_set<VelocitySoA> vv{{std::span(v.data(), v.size())}};
+			gaia::utils::auto_view_policy_set<VelocitySoA> vv{v};
 
 			auto vvy = vv.set<1>();
 
@@ -1120,6 +1321,17 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 
 			const auto size = v.size();
 			exec(vvy.data(), size);
+		}
+
+		static uint32_t calculateAliveUnits(const containers::darray<Health>& h) {
+			uint32_t aliveUnits = 0;
+			[&](Health* GAIA_RESTRICT h, const size_t size) {
+				for (size_t i = 0; i < size; i++) {
+					if (h[i].value > 0)
+						++aliveUnits;
+				}
+			}(h.data(), h.size());
+			return aliveUnits;
 		}
 	};
 
@@ -1156,7 +1368,7 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 			g.units_s[i] = {1, 1, 1};
 			g.units_v[i] = {0, 0, 1};
 			g.units_d[i] = {0, 0, 1};
-			g.units_h[i] = {100};
+			g.units_h[i] = {100, 100};
 			g.units_e[i] = {false};
 		}
 	}
@@ -1166,13 +1378,19 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 		(void)_;
 		dt = CalculateDelta(state);
 
-		// Process static entities
 		for (auto& g: dynamic_groups)
 			UnitDynamic::updatePosition(g.units_p, g.units_v);
+
 		for (auto& g: dynamic_groups)
 			UnitDynamic::handleGroundCollision(g.units_p, g.units_v);
+
 		for (auto& g: dynamic_groups)
 			UnitDynamic::applyGravity(g.units_v);
+
+		uint32_t aliveUnits = 0;
+		for (auto& g: dynamic_groups)
+			aliveUnits += UnitDynamic::calculateAliveUnits(g.units_h);
+		(void)aliveUnits;
 	}
 }
 
@@ -1296,6 +1514,17 @@ void BM_NonECS_DOD_SoA_SIMD(picobench::state& state) {
 			for (; i < size; i++)
 				exec2(vvy.data(), i);
 		}
+
+		static uint32_t calculateAliveUnits(const containers::darray<Health>& h) {
+			uint32_t aliveUnits = 0;
+			[&](Health* GAIA_RESTRICT h, const size_t size) {
+				for (size_t i = 0; i < size; i++) {
+					if (h[i].value > 0)
+						++aliveUnits;
+				}
+			}(h.data(), h.size());
+			return aliveUnits;
+		}
 	};
 
 	constexpr size_t NGroup = N / Groups;
@@ -1331,7 +1560,7 @@ void BM_NonECS_DOD_SoA_SIMD(picobench::state& state) {
 			g.units_s[i] = {1, 1, 1};
 			g.units_v[i] = {0, 0, 1};
 			g.units_d[i] = {0, 0, 1};
-			g.units_h[i] = {100};
+			g.units_h[i] = {100, 100};
 			g.units_e[i] = {false};
 		}
 	}
@@ -1341,13 +1570,19 @@ void BM_NonECS_DOD_SoA_SIMD(picobench::state& state) {
 		(void)_;
 		dt = CalculateDelta(state);
 
-		// Process static entities
 		for (auto& g: dynamic_groups)
 			UnitDynamic::updatePosition(g.units_p, g.units_v);
+
 		for (auto& g: dynamic_groups)
 			UnitDynamic::handleGroundCollision(g.units_p, g.units_v);
+
 		for (auto& g: dynamic_groups)
 			UnitDynamic::applyGravity(g.units_v);
+
+		uint32_t aliveUnits = 0;
+		for (auto& g: dynamic_groups)
+			aliveUnits += UnitDynamic::calculateAliveUnits(g.units_h);
+		(void)aliveUnits;
 	}
 }
 
@@ -1398,11 +1633,13 @@ int main(int argc, char* argv[]) {
 			}
 		} else {
 			//  Ordinary coding style.
-			PICOBENCH_REG(BM_NonECS).PICO_SETTINGS().label("Default");
+			PICOBENCH_REG(BM_NonECS<false>).PICO_SETTINGS().label("Default");
+			PICOBENCH_REG(BM_NonECS<true>).PICO_SETTINGS().label("Default2");
 
 			// Ordinary coding style with optimized memory layout (imagine using custom allocators
 			// to keep things close and tidy in memory).
-			PICOBENCH_REG(BM_NonECS_BetterMemoryLayout).PICO_SETTINGS().label("OptimizedMemLayout");
+			PICOBENCH_REG(BM_NonECS_BetterMemoryLayout<false>).PICO_SETTINGS().label("OptimizedMemLayout");
+			PICOBENCH_REG(BM_NonECS_BetterMemoryLayout<true>).PICO_SETTINGS().label("OptimizedMemLayout2");
 
 			// Memory organized in DoD style.
 			// Performance target BM_ECS_WithSystems_Chunk.
