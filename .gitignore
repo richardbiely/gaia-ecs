@@ -1,6 +1,7 @@
 build*
 ninja
 out
+*.out*
 .vs
 .cache
 CMakeCache.txt
