@@ -27,28 +27,28 @@
 #define GAIA_COMPILER_GCC 0
 #define GAIA_COMPILER_MSVC 0
 #define GAIA_COMPILER_ICC 0
-#define GAIA_COMPILED_DETECTED 0
+#define GAIA_COMPILER_DETECTED 0
 
-#if !GAIA_COMPILED_DETECTED && (defined(__clang__))
+#if !GAIA_COMPILER_DETECTED && (defined(__clang__))
 // Clang check is performed first as it might pretend to be MSVC or GCC by
 // defining their predefined macros.
 	#undef GAIA_COMPILER_CLANG
 	#define GAIA_COMPILER_CLANG 1
-	#undef GAIA_COMPILED_DETECTED
-	#define GAIA_COMPILED_DETECTED 1
+	#undef GAIA_COMPILER_DETECTED
+	#define GAIA_COMPILER_DETECTED 1
 #endif
-#if !GAIA_COMPILED_DETECTED &&                                                                                         \
+#if !GAIA_COMPILER_DETECTED &&                                                                                         \
 		(defined(__INTEL_COMPILER) || defined(__ICC) || defined(__ICL) || defined(__INTEL_LLVM_COMPILER))
 	#undef GAIA_COMPILER_ICC
 	#define GAIA_COMPILER_ICC 1
-	#undef GAIA_COMPILED_DETECTED
-	#define GAIA_COMPILED_DETECTED 1
+	#undef GAIA_COMPILER_DETECTED
+	#define GAIA_COMPILER_DETECTED 1
 #endif
-#if !GAIA_COMPILED_DETECTED && (defined(__SNC__) || defined(__GNUC__))
+#if !GAIA_COMPILER_DETECTED && (defined(__SNC__) || defined(__GNUC__))
 	#undef GAIA_COMPILER_GCC
 	#define GAIA_COMPILER_GCC 1
-	#undef GAIA_COMPILED_DETECTED
-	#define GAIA_COMPILED_DETECTED 1
+	#undef GAIA_COMPILER_DETECTED
+	#define GAIA_COMPILER_DETECTED 1
 	#if __GNUC__ <= 7
 		// In some contexts, e.g. when evaluating PRETTY_FUNCTION, GCC has a bug
 		// where the string is not defined a constexpr and thus can't be evaluated
@@ -57,13 +57,13 @@
 		#define GAIA_SAFE_CONSTEXPR const
 	#endif
 #endif
-#if !GAIA_COMPILED_DETECTED && (defined(_MSC_VER))
+#if !GAIA_COMPILER_DETECTED && (defined(_MSC_VER))
 	#undef GAIA_COMPILER_MSVC
 	#define GAIA_COMPILER_MSVC 1
-	#undef GAIA_COMPILED_DETECTED
-	#define GAIA_COMPILED_DETECTED 1
+	#undef GAIA_COMPILER_DETECTED
+	#define GAIA_COMPILER_DETECTED 1
 #endif
-#if !GAIA_COMPILED_DETECTED
+#if !GAIA_COMPILER_DETECTED
 	#error "Unrecognized compiler"
 #endif
 
@@ -85,7 +85,7 @@
 		defined(i386) || defined(__x86_64__) || defined(_X86_)
 	#undef GAIA_ARCH
 	#define GAIA_ARCH GAIA_ARCH_X86
-#elif defined(__arm__) || defined(__aarch64__)
+#elif defined(__arm__) || defined(__aarch64__) || defined(_M_ARM64) || defined(_M_ARM64EC)
 	#undef GAIA_ARCH
 	#define GAIA_ARCH GAIA_ARCH_ARM
 #else
@@ -2882,18 +2882,28 @@ namespace robin_hood {
 #if !defined(ROBIN_HOOD_DISABLE_INTRINSICS)
 	#ifdef _MSC_VER
 		#if ROBIN_HOOD(BITNESS) == 32
-			#define ROBIN_HOOD_PRIVATE_DEFINITION_BITSCANFORWARD() _BitScanForward
+			#define ROBIN_HOOD_PRIVATE_DEFINITION_CTZ() _BitScanForward
+			#define ROBIN_HOOD_PRIVATE_DEFINITION_CLZ() _BitScanReverse
 		#else
-			#define ROBIN_HOOD_PRIVATE_DEFINITION_BITSCANFORWARD() _BitScanForward64
+			#define ROBIN_HOOD_PRIVATE_DEFINITION_CTZ() _BitScanForward64
+			#define ROBIN_HOOD_PRIVATE_DEFINITION_CLZ() _BitScanReverse64
 		#endif
 		#if _MSV_VER <= 1916
 			#include <intrin.h>
 		#endif
-		#pragma intrinsic(ROBIN_HOOD(BITSCANFORWARD))
+
+		#pragma intrinsic(ROBIN_HOOD(CTZ))
 		#define ROBIN_HOOD_COUNT_TRAILING_ZEROES(x)                                                                        \
 			[](size_t mask) noexcept -> int {                                                                                \
 				unsigned long index;                                                                                           \
-				return ROBIN_HOOD(BITSCANFORWARD)(&index, mask) ? static_cast<int>(index) : ROBIN_HOOD(BITNESS);               \
+				return ROBIN_HOOD(CTZ)(&index, mask) ? static_cast<int>(index) : ROBIN_HOOD(BITNESS);               \
+			}(x)
+
+		#pragma intrinsic(ROBIN_HOOD(CLZ))
+		#define ROBIN_HOOD_COUNT_LEADING_ZEROES(x)                                                                         \
+			[](size_t mask) noexcept -> int {                                                                                \
+				unsigned long index;                                                                                           \
+				return ROBIN_HOOD(CLZ)(&index, mask) ? static_cast<int>(index) : ROBIN_HOOD(BITNESS);               \
 			}(x)
 	#else
 		#if ROBIN_HOOD(BITNESS) == 32
@@ -2903,8 +2913,9 @@ namespace robin_hood {
 			#define ROBIN_HOOD_PRIVATE_DEFINITION_CTZ() __builtin_ctzll
 			#define ROBIN_HOOD_PRIVATE_DEFINITION_CLZ() __builtin_clzll
 		#endif
-		#define ROBIN_HOOD_COUNT_LEADING_ZEROES(x) ((x) ? ROBIN_HOOD(CLZ)(x) : ROBIN_HOOD(BITNESS))
+		
 		#define ROBIN_HOOD_COUNT_TRAILING_ZEROES(x) ((x) ? ROBIN_HOOD(CTZ)(x) : ROBIN_HOOD(BITNESS))
+		#define ROBIN_HOOD_COUNT_LEADING_ZEROES(x) ((x) ? ROBIN_HOOD(CLZ)(x) : ROBIN_HOOD(BITNESS))
 	#endif
 #endif
 
@@ -6753,7 +6764,7 @@ namespace gaia {
 				static constexpr uint16_t NBlocks = 64;
 				static constexpr uint32_t Size = NBlocks * MemoryBlockSize;
 				static constexpr MemoryBlock::MemoryBlockType InvalidBlockId = (MemoryBlock::MemoryBlockType)-1;
-				static constexpr uint32_t MemoryLockTypeSizeInBits = utils::as_bits(sizeof(MemoryBlock::MemoryBlockType));
+				static constexpr uint32_t MemoryLockTypeSizeInBits = (uint32_t)utils::as_bits(sizeof(MemoryBlock::MemoryBlockType));
 				static_assert((uint32_t)NBlocks < (1 << MemoryLockTypeSizeInBits));
 				using iterator = containers::darray<MemoryPage*>::iterator;
 
@@ -7725,7 +7736,7 @@ namespace gaia {
 #if GAIA_ARCHETYPE_GRAPH
 			struct ArchetypeGraphEdge {
 				const ComponentInfo* info;
-				Archetype* archetype;
+				Archetype* pArchetype;
 			};
 #endif
 
@@ -7966,9 +7977,11 @@ namespace gaia {
 					} while (i-- > 0);
 				}
 
+				GAIA_ASSERT(chunkCnt < (uint32_t)UINT16_MAX);
+
 				// No free space found anywhere. Let's create a new one.
 				auto* pChunk = AllocateChunk(*this);
-				pChunk->header.index = (uint32_t)chunkCnt;
+				pChunk->header.index = (uint16_t)chunkCnt;
 				chunkArray.push_back(pChunk);
 				return pChunk;
 			}
@@ -8016,7 +8029,7 @@ namespace gaia {
 				const auto it = utils::find_if(edges, [info](const auto& edge) {
 					return edge.info == info;
 				});
-				return it != edges.end() ? it->archetype : nullptr;
+				return it != edges.end() ? it->pArchetype : nullptr;
 			}
 #endif
 
@@ -8105,6 +8118,31 @@ namespace gaia {
 
 #include <cinttypes>
 #include <type_traits>
+
+#define USE_HASHSET GAIA_USE_STL_CONTAINERS
+
+#if USE_HASHSET == 1
+	#include <unordered_set>
+namespace gaia {
+	namespace containers {
+		template <typename Key>
+		using set = std::unordered_set<Key>;
+	} // namespace containers
+} // namespace gaia
+#elif USE_HASHSET == 0
+	
+namespace gaia {
+	namespace containers {
+		template <typename Key>
+		using set = robin_hood::unordered_flat_set<Key>;
+	} // namespace containers
+} // namespace gaia
+#else
+
+	// You can add your custom container here
+	#error Unsupported value used for USE_HASHSET
+
+#endif
 
 #include <tuple>
 
@@ -8298,7 +8336,7 @@ namespace gaia {
 
 			void CalculateLookupHash() {
 				// Sort the arrays if necessary
-				if (m_sort) {
+				if GAIA_UNLIKELY (m_sort) {
 					SortComponentArrays();
 					m_sort = false;
 				}
@@ -8312,45 +8350,31 @@ namespace gaia {
 				uint64_t hashLookup = utils::hash_combine(m_hashLookup.hash, (uint64_t)m_constraints);
 
 				// Filters
-				{
+				for (size_t i = 0; i < ComponentType::CT_Count; ++i) {
 					uint64_t hash = 0;
-					for (auto infoIndex: m_listChangeFiltered[ComponentType::CT_Generic])
-						hash = utils::hash_combine(hash, (uint64_t)infoIndex);
-					hash = utils::hash_combine(hash, (uint64_t)m_listChangeFiltered[ComponentType::CT_Generic].size());
-					for (auto infoIndex: m_listChangeFiltered[ComponentType::CT_Chunk])
-						hash = utils::hash_combine(hash, (uint64_t)infoIndex);
-					hash = utils::hash_combine(hash, (uint64_t)m_listChangeFiltered[ComponentType::CT_Chunk].size());
-				}
 
-				// Generic components lookup hash
-				{
-					uint64_t hash = 0;
-					const auto& l = m_list[ComponentType::CT_Generic];
-					for (size_t i = 0; i < ListType::LT_Count; ++i) {
-						const auto& arr = l.list[i];
-						hash = utils::hash_combine(hash, (uint64_t)i);
-						for (size_t j = 0; j < arr.size(); ++j) {
-							const auto* info = cc.GetComponentInfoFromIdx(arr[j].index);
-							GAIA_ASSERT(info != nullptr);
-							hash = utils::hash_combine(hash, info->lookupHash);
-						}
-					}
+					const auto& l = m_listChangeFiltered[i];
+					for (auto index: l)
+						hash = utils::hash_combine(hash, (uint64_t)index);
+					hash = utils::hash_combine(hash, (uint64_t)l.size());
+
 					hashLookup = utils::hash_combine(hashLookup, hash);
 				}
 
-				// Chunk components lookup hash
-				{
+				// Components
+				for (size_t i = 0; i < ComponentType::CT_Count; ++i) {
 					uint64_t hash = 0;
-					const auto& l = m_list[ComponentType::CT_Chunk];
-					for (size_t i = 0; i < ListType::LT_Count; ++i) {
-						const auto& arr = l.list[i];
-						hash = utils::hash_combine(hash, (uint64_t)i);
-						for (size_t j = 0; j < arr.size(); ++j) {
-							const auto* info = cc.GetComponentInfoFromIdx(arr[j].index);
+
+					const auto& l = m_list[i];
+					for (const auto& components: l.list) {
+						for (auto data: components) {
+							const auto* info = cc.GetComponentInfoFromIdx(data.index);
 							GAIA_ASSERT(info != nullptr);
 							hash = utils::hash_combine(hash, info->lookupHash);
 						}
+						hash = utils::hash_combine(hash, (uint64_t)components.size());
 					}
+
 					hashLookup = utils::hash_combine(hashLookup, hash);
 				}
 
@@ -8531,13 +8555,46 @@ namespace gaia {
 					}
 				}
 
-				return false;
+				return true;
 			}
 
 			GAIA_NODISCARD bool operator!=(const EntityQuery& other) const {
 				return !operator==(other);
 			}
 
+#if GAIA_ARCHETYPE_GRAPH
+			/*!
+			Tries to match the query against \param archetypes. For each matched archetype the archetype is cached.
+			This is necessary so we do not iterate all chunks over and over again when running queries.
+			*/
+			void Match(uint32_t lastArchetypeID) {
+				// if GAIA_UNLIKELY (m_recalculate && lastArchetypeID > 0)
+				// 	CalculateMatcherHashes();
+
+				// w.ArchetypeGraphTraverse(ComponentType::CT_Generic, [&]() {
+				// 	// Early exit if generic query doesn't match
+				// 	const auto retGeneric = Match<ComponentType::CT_Generic>(
+				// 			GetArchetypeComponentInfoList(archetype, ComponentType::CT_Generic),
+				// 			GetArchetypeMatcherHash(archetype, ComponentType::CT_Generic));
+				// 	if (retGeneric == EntityQuery::MatchArchetypeQueryRet::Fail)
+				// 		continue;
+
+				// 	// Early exit if chunk query doesn't match
+				// 	const auto retChunk = Match<ComponentType::CT_Chunk>(
+				// 			GetArchetypeComponentInfoList(archetype, ComponentType::CT_Chunk),
+				// 			GetArchetypeMatcherHash(archetype, ComponentType::CT_Chunk));
+				// 	if (retChunk == EntityQuery::MatchArchetypeQueryRet::Fail)
+				// 		continue;
+
+				// 	// If at least one query succeeded run our logic
+				// 	if (retGeneric == EntityQuery::MatchArchetypeQueryRet::Ok ||
+				// 			retChunk == EntityQuery::MatchArchetypeQueryRet::Ok)
+				// 		m_archetypeCache.push_back(pArchetype);
+				// });
+
+				m_lastArchetypeId = lastArchetypeID;
+			}
+#else
 			/*!
 			Tries to match the query against \param archetypes. For each matched archetype the archetype is cached.
 			This is necessary so we do not iterate all chunks over and over again when running queries.
@@ -8548,11 +8605,11 @@ namespace gaia {
 
 				for (size_t i = m_lastArchetypeId; i < archetypes.size(); i++) {
 					auto* pArchetype = archetypes[i];
-#if GAIA_DEBUG
+	#if GAIA_DEBUG
 					auto& archetype = *pArchetype;
-#else
+	#else
 					const auto& archetype = *pArchetype;
-#endif
+	#endif
 
 					// Early exit if generic query doesn't match
 					const auto retGeneric = Match<ComponentType::CT_Generic>(
@@ -8576,6 +8633,7 @@ namespace gaia {
 
 				m_lastArchetypeId = (uint32_t)archetypes.size();
 			}
+#endif
 
 			void SetWorldVersion(uint32_t worldVersion) {
 				m_worldVersion = worldVersion;
@@ -8632,10 +8690,12 @@ namespace gaia {
 			GAIA_NODISCARD bool CheckConstraints() const {
 				if GAIA_LIKELY (m_constraints == Constraints::AcceptAll)
 					return true;
-				if (Enabled && m_constraints == Constraints::EnabledOnly)
-					return true;
-				if (!Enabled && m_constraints == Constraints::DisabledOnly)
-					return true;
+				if constexpr (Enabled)
+					if (m_constraints == Constraints::EnabledOnly)
+						return true;
+				if constexpr (!Enabled)
+					if (m_constraints == Constraints::DisabledOnly)
+						return true;
 				return false;
 			}
 
@@ -8975,7 +9035,6 @@ namespace gaia {
 			static void
 			VerifyAddComponent(Archetype& archetype, Entity entity, ComponentType type, const ComponentInfo* infoToAdd) {
 				const auto& lookup = archetype.componentLookupData[type];
-				const size_t oldInfosCount = lookup.size();
 				const auto& cc = GetComponentCache();
 
 				// Make sure not to add too many infos
@@ -8983,6 +9042,7 @@ namespace gaia {
 					GAIA_ASSERT(false && "Trying to add too many components to entity!");
 					LOG_W("Trying to add a component to entity [%u.%u] but there's no space left!", entity.id(), entity.gen());
 					LOG_W("Already present:");
+					const size_t oldInfosCount = lookup.size();
 					for (size_t i = 0; i < oldInfosCount; i++) {
 						const auto& info = cc.GetComponentCreateInfoFromIdx(lookup[i].infoIndex);
 						LOG_W("> [%u] %.*s", (uint32_t)i, (uint32_t)info.name.size(), info.name.data());
@@ -9064,11 +9124,6 @@ namespace gaia {
 				right->edgesDel[type].push_back({info, left});
 			}
 
-			static GAIA_FORCEINLINE void
-			BuildDelGraphEdges(ComponentType type, Archetype* left, Archetype* right, const ComponentInfo* info) {
-				right->edgesDel[type].push_back({info, left});
-			}
-
 			/*!
 			Checks if archetype \param left is a superset of archetype \param right (contains all its infos).
 			\param left Entity to delete
@@ -9123,7 +9178,7 @@ namespace gaia {
 					TryBuildArchetypeGraph(pArchetypeLeft, infoGeneric, infoChunk);
 				} else if (pArchetypeLeft == m_rootArchetype) {
 					if (pArchetypeRight->FindDelEdgeArchetype(type, info) == nullptr)
-						BuildDelGraphEdges(type, pArchetypeLeft, pArchetypeRight, info);
+						BuildGraphEdges(type, pArchetypeLeft, pArchetypeRight, info);
 				} else {
 					if (pArchetypeRight->FindDelEdgeArchetype(type, info) == nullptr)
 						BuildGraphEdges(type, pArchetypeLeft, pArchetypeRight, info);
@@ -9157,6 +9212,42 @@ namespace gaia {
 					TryBuildArchetypeGraph_Internal(
 							pArchetypeRight, ComponentType::CT_Chunk, infoGeneric, prepareNewInfos(info, infoChunk), info);
 			}
+
+			template <typename Func>
+			EntityQuery::MatchArchetypeQueryRet ArchetypeGraphTraverse(ComponentType type, Func func) const {
+				// Use a stack to store the nodes we need to visit
+				// TODO: Replace with std::stack or an alternative
+				containers::darr<const Archetype*> stack;
+				stack.reserve(MAX_COMPONENTS_PER_ARCHETYPE + MAX_COMPONENTS_PER_ARCHETYPE);
+				containers::set<const Archetype*> visited;
+
+				// Push all children of the root archetype onto the stack
+				for (const auto& edge: m_rootArchetype->edgesAdd[(uint32_t)type])
+					stack.push_back(edge.pArchetype);
+
+				while (!stack.empty()) {
+					// Pop the top node from the stack
+					const Archetype* pArchetype = *stack.begin();
+					stack.erase(stack.begin());
+
+					// Decide whether to accept the node or skip it
+					const auto ret = func(*pArchetype);
+					if (ret == EntityQuery::MatchArchetypeQueryRet::Fail)
+						return ret;
+					if (ret == EntityQuery::MatchArchetypeQueryRet::Skip)
+						continue;
+
+					// Push all of the children of the current node onto the stack
+					for (const auto& edge: pArchetype->edgesAdd[(uint32_t)type]) {
+						if (visited.contains(edge.pArchetype))
+							continue;
+						visited.insert(edge.pArchetype);
+						stack.push_back(edge.pArchetype);
+					}
+				}
+
+				return EntityQuery::MatchArchetypeQueryRet::Ok;
+			}
 #endif
 
 			/*!
@@ -9181,7 +9272,7 @@ namespace gaia {
 							pArchetypeRight = CreateArchetype(std::span<const ComponentInfo*>(&infoToAdd, 1), {});
 							InitArchetype(pArchetypeRight, genericHash, 0, lookupHash);
 							RegisterArchetype(pArchetypeRight);
-							BuildDelGraphEdges(type, pArchetypeLeft, pArchetypeRight, infoToAdd);
+							BuildGraphEdges(type, pArchetypeLeft, pArchetypeRight, infoToAdd);
 						}
 					} else {
 						const auto chunkHash = infoToAdd->lookupHash;
@@ -9191,7 +9282,7 @@ namespace gaia {
 							pArchetypeRight = CreateArchetype({}, std::span<const ComponentInfo*>(&infoToAdd, 1));
 							InitArchetype(pArchetypeRight, 0, chunkHash, lookupHash);
 							RegisterArchetype(pArchetypeRight);
-							BuildDelGraphEdges(type, pArchetypeLeft, pArchetypeRight, infoToAdd);
+							BuildGraphEdges(type, pArchetypeLeft, pArchetypeRight, infoToAdd);
 						}
 					}
 
@@ -9203,7 +9294,7 @@ namespace gaia {
 				});
 
 				if (it != pArchetypeLeft->edgesAdd[type].end())
-					return it->archetype;
+					return it->pArchetype;
 #endif
 
 				const uint32_t a = type;
@@ -9288,7 +9379,7 @@ namespace gaia {
 				infos[b] = &archetype->componentInfos[b];
 
 				// Find the intersection
-				for (const auto* info: *infos[a]) {
+				for (const auto* info: archetype->componentInfos[a]) {
 					if (info == intoToRemove)
 						goto nextIter;
 
@@ -9299,7 +9390,7 @@ namespace gaia {
 				}
 
 				// Return if there's no change
-				if (infosNew.size() == infos[a]->size())
+				if (infosNew.size() == archetype->componentInfos[a].size())
 					return nullptr;
 
 				// Calculate the hashes
@@ -9999,7 +10090,15 @@ namespace gaia {
 
 			template <typename Func>
 			GAIA_FORCEINLINE void ForEachArchetype(EntityQuery& query, Func func) {
+#if GAIA_ARCHETYPE_GRAPH
+				// query.Match(*this, (uint32_t)m_archetypes.size());
+				ArchetypeGraphTraverse(ComponentType::CT_Generic, [&](const Archetype& archetype) {
+					(void)archetype;
+					return EntityQuery::MatchArchetypeQueryRet::Ok;
+				});
+#else
 				query.Match(m_archetypes);
+#endif
 				for (auto* pArchetype: query)
 					func(*pArchetype);
 			}
@@ -10089,14 +10188,26 @@ namespace gaia {
 				return true;
 			}
 
+			template <bool HasFilters>
+			GAIA_NODISCARD static bool CanAcceptChunkForProcessing(const Chunk& chunk, const EntityQuery& q) {
+				if GAIA_UNLIKELY (!chunk.HasEntities())
+					return false;
+				if (!q.CheckConstraints(!chunk.IsDisabled()))
+					return false;
+				if constexpr (HasFilters) {
+					if (!CheckFilters(q, chunk))
+						return false;
+				}
+
+				return true;
+			}
+
 			//--------------------------------------------------------------------------------
 
-			template <typename Func>
+			template <bool HasFilters, typename Func>
 			static void ProcessQueryOnChunks(const containers::darray<Chunk*>& chunksList, EntityQuery& query, Func func) {
 				constexpr size_t BatchSize = 256U;
 				containers::sarray<Chunk*, BatchSize> tmp;
-
-				const bool hasFilters = query.HasFilters();
 
 				size_t chunkOffset = 0;
 				size_t indexInBatch = 0;
@@ -10109,7 +10220,7 @@ namespace gaia {
 					for (size_t j = chunkOffset; j < chunkOffset + batchSize; ++j) {
 						auto* pChunk = chunksList[j];
 
-						if (!CanAcceptChunkForProcessing(*pChunk, query, hasFilters))
+						if (!CanAcceptChunkForProcessing<HasFilters>(*pChunk, query))
 							continue;
 
 						tmp[indexInBatch++] = pChunk;
@@ -10132,7 +10243,7 @@ namespace gaia {
 						// for the next chunk explictely so we do not end up stalling later.
 						// Note, this is a micro optimization and on average it bring no performance benefit. It only
 						// helps with edge cases.
-						// Let us be conseratine for now and go with T2. That means we will try to keep our data at
+						// Let us be conservatine for now and go with T2. That means we will try to keep our data at
 						// least in L3 cache or higher.
 						gaia::prefetch(&tmp[1], PREFETCH_HINT_T2);
 						func(*tmp[0]);
@@ -10157,19 +10268,36 @@ namespace gaia {
 				// Update the world version
 				world.UpdateWorldVersion();
 
-				// Iterate over all archetypes
-				world.ForEachArchetype(query, [&](Archetype& archetype) {
-					GAIA_ASSERT(archetype.info.structuralChangesLocked < 8);
-					++archetype.info.structuralChangesLocked;
+				const bool hasFilters = query.HasFilters();
+				if (hasFilters) {
+					// Iterate over all archetypes
+					world.ForEachArchetype(query, [&](Archetype& archetype) {
+						GAIA_ASSERT(archetype.info.structuralChangesLocked < 8);
+						++archetype.info.structuralChangesLocked;
 
-					if (query.CheckConstraints<true>())
-						ProcessQueryOnChunks(archetype.chunks, query, func);
-					if (query.CheckConstraints<false>())
-						ProcessQueryOnChunks(archetype.chunksDisabled, query, func);
+						if (query.CheckConstraints<true>())
+							ProcessQueryOnChunks<true>(archetype.chunks, query, func);
+						if (query.CheckConstraints<false>())
+							ProcessQueryOnChunks<true>(archetype.chunksDisabled, query, func);
 
-					GAIA_ASSERT(archetype.info.structuralChangesLocked > 0);
-					--archetype.info.structuralChangesLocked;
-				});
+						GAIA_ASSERT(archetype.info.structuralChangesLocked > 0);
+						--archetype.info.structuralChangesLocked;
+					});
+				} else {
+					// Iterate over all archetypes
+					world.ForEachArchetype(query, [&](Archetype& archetype) {
+						GAIA_ASSERT(archetype.info.structuralChangesLocked < 8);
+						++archetype.info.structuralChangesLocked;
+
+						if (query.CheckConstraints<true>())
+							ProcessQueryOnChunks<false>(archetype.chunks, query, func);
+						if (query.CheckConstraints<false>())
+							ProcessQueryOnChunks<false>(archetype.chunksDisabled, query, func);
+
+						GAIA_ASSERT(archetype.info.structuralChangesLocked > 0);
+						--archetype.info.structuralChangesLocked;
+					});
+				}
 
 				query.SetWorldVersion(world.GetWorldVersion());
 			}
@@ -10331,30 +10459,78 @@ namespace gaia {
 
 					const bool hasFilters = !ignoreFilters && m_q.HasFilters();
 
-					auto exec = [&](const auto& chunksList) {
+					auto execWithFiltersON = [&](const auto& chunksList) {
 						for (auto* pChunk: chunksList) {
-							if (!CanAcceptChunkForProcessing(*pChunk, m_q, hasFilters))
+							if (!CanAcceptChunkForProcessing<true>(*pChunk, m_q))
 								continue;
 							hasItems = true;
 							break;
 						}
 					};
 
-					// Iterate over all archetypes
-					m_w.ForEachArchetypeCond_NoMatch(m_q, [&](const Archetype& archetype) {
-						if (m_q.CheckConstraints<true>()) {
-							exec(archetype.chunks);
-							if (hasItems)
-								return false;
+					auto execWithFiltersOFF = [&](const auto& chunksList) {
+						for (auto* pChunk: chunksList) {
+							if (!CanAcceptChunkForProcessing<false>(*pChunk, m_q))
+								continue;
+							hasItems = true;
+							break;
 						}
-						if (m_q.CheckConstraints<false>()) {
-							exec(archetype.chunksDisabled);
-							if (hasItems)
-								return false;
+					};
+
+					if (hasItems) {
+						if (hasFilters) {
+							// Iterate over all archetypes
+							m_w.ForEachArchetypeCond_NoMatch(m_q, [&](const Archetype& archetype) {
+								if (m_q.CheckConstraints<true>()) {
+									execWithFiltersON(archetype.chunks);
+									return false;
+								}
+								if (m_q.CheckConstraints<false>()) {
+									execWithFiltersON(archetype.chunksDisabled);
+									return false;
+								}
+
+								return true;
+							});
+						} else {
+							// Iterate over all archetypes
+							m_w.ForEachArchetypeCond_NoMatch(m_q, [&](const Archetype& archetype) {
+								if (m_q.CheckConstraints<true>()) {
+									execWithFiltersOFF(archetype.chunks);
+									return false;
+								}
+								if (m_q.CheckConstraints<false>()) {
+									execWithFiltersOFF(archetype.chunksDisabled);
+									return false;
+								}
+
+								return true;
+							});
 						}
 
-						return true;
-					});
+					} else {
+						if (hasFilters) {
+							// Iterate over all archetypes
+							m_w.ForEachArchetypeCond_NoMatch(m_q, [&](const Archetype& archetype) {
+								if (m_q.CheckConstraints<true>())
+									execWithFiltersON(archetype.chunks);
+								if (m_q.CheckConstraints<false>())
+									execWithFiltersON(archetype.chunksDisabled);
+
+								return true;
+							});
+						} else {
+							// Iterate over all archetypes
+							m_w.ForEachArchetypeCond_NoMatch(m_q, [&](const Archetype& archetype) {
+								if (m_q.CheckConstraints<true>())
+									execWithFiltersOFF(archetype.chunks);
+								if (m_q.CheckConstraints<false>())
+									execWithFiltersOFF(archetype.chunksDisabled);
+
+								return true;
+							});
+						}
+					}
 
 					return hasItems;
 				}
@@ -10372,20 +10548,35 @@ namespace gaia {
 
 					const bool hasFilters = !ignoreFilters && m_q.HasFilters();
 
-					auto exec = [&](const auto& chunksList) {
+					auto execWithFiltersON = [&](const auto& chunksList) {
 						for (auto* pChunk: chunksList) {
-							if (!CanAcceptChunkForProcessing(*pChunk, m_q, hasFilters))
-								continue;
-							itemCount += pChunk->GetItemCount();
+							if (CanAcceptChunkForProcessing<true>(*pChunk, m_q))
+								itemCount += pChunk->GetItemCount();
 						}
 					};
 
-					m_w.ForEachArchetype_NoMatch(m_q, [&](const Archetype& archetype) {
-						if (m_q.CheckConstraints<true>())
-							exec(archetype.chunks);
-						if (m_q.CheckConstraints<false>())
-							exec(archetype.chunksDisabled);
-					});
+					auto execWithFiltersOFF = [&](const auto& chunksList) {
+						for (auto* pChunk: chunksList) {
+							if (CanAcceptChunkForProcessing<false>(*pChunk, m_q))
+								itemCount += pChunk->GetItemCount();
+						}
+					};
+
+					if (hasFilters) {
+						m_w.ForEachArchetype_NoMatch(m_q, [&](const Archetype& archetype) {
+							if (m_q.CheckConstraints<true>())
+								execWithFiltersON(archetype.chunks);
+							if (m_q.CheckConstraints<false>())
+								execWithFiltersON(archetype.chunksDisabled);
+						});
+					} else {
+						m_w.ForEachArchetype_NoMatch(m_q, [&](const Archetype& archetype) {
+							if (m_q.CheckConstraints<true>())
+								execWithFiltersOFF(archetype.chunks);
+							if (m_q.CheckConstraints<false>())
+								execWithFiltersOFF(archetype.chunksDisabled);
+						});
+					}
 
 					return itemCount;
 				}
@@ -10404,23 +10595,41 @@ namespace gaia {
 
 					const bool hasFilters = m_q.HasFilters();
 
-					auto exec = [&](const auto& chunksList) {
-						for (auto* pChunk: chunksList) {
-							if (!CanAcceptChunkForProcessing(*pChunk, m_q, hasFilters))
-								continue;
+					auto addChunk = [&](Chunk* pChunk) {
+						const auto componentView = pChunk->template View<ContainerItemType>();
+						for (size_t i = 0; i < pChunk->GetItemCount(); ++i)
+							outArray.push_back(componentView[i]);
+					};
 
-							const auto componentView = pChunk->template View<ContainerItemType>();
-							for (size_t i = 0; i < pChunk->GetItemCount(); ++i)
-								outArray.push_back(componentView[i]);
+					auto execWithFiltersON = [&](const auto& chunksList) {
+						for (auto* pChunk: chunksList) {
+							if (CanAcceptChunkForProcessing<true>(*pChunk, m_q))
+								addChunk(pChunk);
 						}
 					};
 
-					m_w.ForEachArchetype_NoMatch(m_q, [&](const Archetype& archetype) {
-						if (m_q.CheckConstraints<true>())
-							exec(archetype.chunks);
-						if (m_q.CheckConstraints<false>())
-							exec(archetype.chunksDisabled);
-					});
+					auto execWithFiltersOFF = [&](const auto& chunksList) {
+						for (auto* pChunk: chunksList) {
+							if (CanAcceptChunkForProcessing<false>(*pChunk, m_q))
+								addChunk(pChunk);
+						}
+					};
+
+					if (hasFilters) {
+						m_w.ForEachArchetype_NoMatch(m_q, [&](const Archetype& archetype) {
+							if (m_q.CheckConstraints<true>())
+								execWithFiltersON(archetype.chunks);
+							if (m_q.CheckConstraints<false>())
+								execWithFiltersON(archetype.chunksDisabled);
+						});
+					} else {
+						m_w.ForEachArchetype_NoMatch(m_q, [&](const Archetype& archetype) {
+							if (m_q.CheckConstraints<true>())
+								execWithFiltersOFF(archetype.chunks);
+							if (m_q.CheckConstraints<false>())
+								execWithFiltersOFF(archetype.chunksDisabled);
+						});
+					}
 				}
 
 				/*!
@@ -10436,21 +10645,35 @@ namespace gaia {
 
 					const bool hasFilters = m_q.HasFilters();
 
-					auto exec = [&](const auto& chunksList) {
+					auto execWithFiltersON = [&](const auto& chunksList) {
 						for (auto* pChunk: chunksList) {
-							if (!CanAcceptChunkForProcessing(*pChunk, m_q, hasFilters))
-								continue;
-
-							outArray.push_back(pChunk);
+							if (CanAcceptChunkForProcessing<true>(*pChunk, m_q))
+								outArray.push_back(pChunk);
 						}
 					};
 
-					m_w.ForEachArchetype_NoMatch(m_q, [&](const Archetype& archetype) {
-						if (m_q.CheckConstraints<true>())
-							exec(archetype.chunks);
-						if (m_q.CheckConstraints<false>())
-							exec(archetype.chunksDisabled);
-					});
+					auto execWithFiltersOFF = [&](const auto& chunksList) {
+						for (auto* pChunk: chunksList) {
+							if (CanAcceptChunkForProcessing<false>(*pChunk, m_q))
+								outArray.push_back(pChunk);
+						}
+					};
+
+					if (hasFilters) {
+						m_w.ForEachArchetype_NoMatch(m_q, [&](const Archetype& archetype) {
+							if (m_q.CheckConstraints<true>())
+								execWithFiltersON(archetype.chunks);
+							if (m_q.CheckConstraints<false>())
+								execWithFiltersON(archetype.chunksDisabled);
+						});
+					} else {
+						m_w.ForEachArchetype_NoMatch(m_q, [&](const Archetype& archetype) {
+							if (m_q.CheckConstraints<true>())
+								execWithFiltersOFF(archetype.chunks);
+							if (m_q.CheckConstraints<false>())
+								execWithFiltersOFF(archetype.chunksDisabled);
+						});
+					}
 				}
 			};
 
@@ -10564,7 +10787,7 @@ namespace gaia {
 								const auto& info = cc.GetComponentCreateInfoFromIdx(edge.info->infoIndex);
 								LOG_N(
 										"      %.*s (--> Archetype ID:%u)", (uint32_t)info.name.size(), info.name.data(),
-										edge.archetype->id);
+										edge.pArchetype->id);
 							}
 						}
 
@@ -10574,7 +10797,7 @@ namespace gaia {
 								const auto& info = cc.GetComponentCreateInfoFromIdx(edge.info->infoIndex);
 								LOG_N(
 										"      %.*s (--> Archetype ID:%u)", (uint32_t)info.name.size(), info.name.data(),
-										edge.archetype->id);
+										edge.pArchetype->id);
 							}
 						}
 					}
@@ -10594,7 +10817,7 @@ namespace gaia {
 								const auto& info = cc.GetComponentCreateInfoFromIdx(edge.info->infoIndex);
 								LOG_N(
 										"      %.*s (--> Archetype ID:%u)", (uint32_t)info.name.size(), info.name.data(),
-										edge.archetype->id);
+										edge.pArchetype->id);
 							}
 						}
 
@@ -10604,7 +10827,7 @@ namespace gaia {
 								const auto& info = cc.GetComponentCreateInfoFromIdx(edge.info->infoIndex);
 								LOG_N(
 										"      %.*s (--> Archetype ID:%u)", (uint32_t)info.name.size(), info.name.data(),
-										edge.archetype->id);
+										edge.pArchetype->id);
 							}
 						}
 					}
