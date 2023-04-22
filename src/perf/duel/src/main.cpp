@@ -1310,7 +1310,7 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 		}
 
 		static void applyGravity(containers::darray<VelocitySoA>& v) {
-			gaia::utils::auto_view_policy_set<VelocitySoA> vv{v};
+			gaia::utils::auto_view_policy_set<VelocitySoA> vv{{std::span(v.data(), v.size())}};
 
 			auto vvy = vv.set<1>();
 
