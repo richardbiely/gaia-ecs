@@ -1,0 +1,66 @@
+#!/bin/bash
+
+PATH_BASE="build-clang"
+mkdir ${PATH_BASE} -p
+
+####################################################################
+# Compiler
+####################################################################
+
+export CC=/usr/bin/clang
+export CXX=/usr/bin/clang++
+
+####################################################################
+# Build the project
+####################################################################
+
+BUILD_SETTINGS_COMMON="-DGAIA_BUILD_UNITTEST=OFF -DGAIA_BUILD_BENCHMARK=ON -DGAIA_BUILD_EXAMPLES=OFF -DGAIA_GENERATE_CC=OFF"
+PATH_RELEASE="./${PATH_BASE}/release_cachegrind"
+
+# Release mode
+cmake -E make_directory ${PATH_RELEASE}
+cmake -DCMAKE_BUILD_TYPE=Release ${BUILD_SETTINGS_COMMON} -S .. -B ${PATH_RELEASE}
+cmake --build ${PATH_RELEASE} --config RelWithDebInfo
+
+####################################################################
+# Run cachegrind
+####################################################################
+
+OUTPUT_BASE="src/perf/duel/gaia_perf_duel"
+OUTPUT_ARGS_DOD="-cg -dod"
+OUTPUT_ARGS_ECS="-cg"
+
+VALGRIND_ARGS="--tool=cachegrind"
+
+# Debug mode
+chmod +x ${PATH_RELEASE}/${OUTPUT_BASE}
+
+# We need to adjust how cachegrind is called based on what CPU we have.
+VENDOR_ID=$(grep vendor_id /proc/cpuinfo | cut -d ':' -f 2 | tr -d ' ')
+if [[ "$vendor_id" =~ "GenuineIntel|AuthenticAMD" ]]; then
+    # Most Intel a AMD CPUs should work just fine using a generic cachegrind call
+    VALGRIND_ARGS_CUSTOM=""
+else
+    # If we are not an x86 CPU we will assume an ARM. Namely Apple M1.
+    # Docker at least up to version 4.17 is somewhat broken for ARM CPUs and does not propagate /proc/cpuinfo to the virtual machine.
+    # Therefore, there is no easy way for us to tell what CPU is used. Obviously, we could use a 3rd party program or write our own.
+    # However, virtually noone besides the maintainers is going to use this tool so we take the incorrect but good-enough-for-now way
+    # and will assume an Apple M1.
+
+    # M1 chips are not detected properly so we have to force cache sizes.
+    # M1 has both performance and efficiency cores which differ in their setup:
+    #     performance cores: I1=192kiB 8-way, D1=131kiB 8-way, L2=12MiB 16-way
+    #     efficiency cores : I1=128kiB 8-way, D1=64kiB 8-way, L2=4MiB 16-way
+    # Unfortunatelly, Cachegrind thinks the cache can only be a power of 2 in size. Therefore, performance cores can't be measured
+    # properly and we have to simulate at least the efficiency cores.
+
+    # M1 performance core (won't run because L1 cache is not a power of 2):
+    # VALGRIND_ARGS_CUSTOM="--I1=196608,8,128 --D1=131072,8,128 --L2=12582912,16,128"
+    # M1 efficiency core:
+    VALGRIND_ARGS_CUSTOM="--I1=131072,8,128 --D1=65536,8,128 --L2=4194304,16,128"
+fi
+
+echo "Cachegrind - measuring DOD performance"
+valgrind ${VALGRIND_ARGS} ${VALGRIND_ARGS_CUSTOM} --cachegrind-out-file=cachegrind.out.dod ${PATH_RELEASE}/${OUTPUT_BASE} ${OUTPUT_ARGS_DOD}
+echo "Cachegrind - measuring ECS performance"
+valgrind ${VALGRIND_ARGS} ${VALGRIND_ARGS_CUSTOM} --cachegrind-out-file=cachegrind.out.ecs ${PATH_RELEASE}/${OUTPUT_BASE} ${OUTPUT_ARGS_ECS}

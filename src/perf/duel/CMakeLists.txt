@@ -4,9 +4,5 @@ add_executable(${PROJ_NAME} src/main.cpp)
 # Preprocessor
 add_definitions(-DGAIA_DEBUG=0)
 
-if(GAIA_CACHEGRIND)
-  add_definitions(-DGAIA_CACHEGRIND)
-endif()
-
 # Benchmark framework
 target_include_directories(${PROJ_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/include)
