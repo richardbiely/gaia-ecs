@@ -1586,12 +1586,8 @@ void BM_NonECS_DOD_SoA_SIMD(picobench::state& state) {
 	}
 }
 
-#ifdef GAIA_CACHEGRIND
-	#define PICO_SETTINGS() iterations({8192}).samples(1)
-#else
-	#define PICO_SETTINGS() iterations({8192}).samples(3)
-#endif
-
+#define PICO_SETTINGS() iterations({8192}).samples(3)
+#define PICO_SETTINGS_1() iterations({8192}).samples(1)
 #define PICOBENCH_SUITE_REG(name) r.current_suite_name() = name;
 #define PICOBENCH_REG(func) (void)r.add_benchmark(#func, func)
 
@@ -1626,10 +1622,10 @@ int main(int argc, char* argv[]) {
 		if (cachegrind) {
 			if (test_dod) {
 				// PICOBENCH_SUITE_REG("NonECS_DOD");
-				PICOBENCH_REG(BM_NonECS_DOD<80>).PICO_SETTINGS().label("DOD_Chunks_80");
+				PICOBENCH_REG(BM_NonECS_DOD<80>).PICO_SETTINGS_1().label("DOD_Chunks_80");
 			} else {
 				// PICOBENCH_SUITE_REG("ECS");
-				PICOBENCH_REG(BM_ECS_WithSystems_Chunk).PICO_SETTINGS().label("Systems_Chunk");
+				PICOBENCH_REG(BM_ECS_WithSystems_Chunk).PICO_SETTINGS_1().label("Systems_Chunk");
 			}
 		} else {
 			//  Ordinary coding style.
