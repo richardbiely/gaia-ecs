@@ -1,0 +1,44 @@
+{
+  // See https://go.microsoft.com/fwlink/?LinkId=733558
+  // for the documentation about the tasks.json format
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Run Linux (Docker)",
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}/docker"
+      },
+      "windows": {
+        "command": "setup.bat"
+      },
+      "linux": {
+        "command": ""
+      },
+      "osx": {
+        "command": "bash",
+        "args": [
+          "setup.sh"
+        ],
+      },
+      "group": "build",
+      "presentation": {
+        "reveal": "always"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Profiler",
+      "type": "shell",
+      "command": "${workspaceFolder}/build/_deps/tracy-src/profiler/build/unix/Tracy-release",
+      "windows": {
+        "command": "${workspaceFolder}/build/_deps/tracy-src/profiler/build/win32/Tracy-release.exe",
+      },
+      "group": "build",
+      "presentation": {
+        "reveal": "always"
+      },
+      "problemMatcher": []
+    },
+  ]
+}

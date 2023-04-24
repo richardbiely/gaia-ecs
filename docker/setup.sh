@@ -9,7 +9,7 @@ docker stop -t 0 ${imagename}
 # make sure the container is removed
 docker rm ${imagename}
 
-# build the image if necessasary
+# build the image if necessary
 docker build --tag ${imagename} .
 
 # start the container
