@@ -1,6 +1,17 @@
 #!/bin/bash
 
 PATH_BASE="build-gcc"
+
+while getopts ":c" flag; do
+    case "${flag}" in
+        c) # remove the build direcetory
+          rm -rf ${PATH_BASE};;
+        \?) # invalid option
+         echo "Error: Invalid option"
+         exit;;
+    esac
+done
+
 mkdir ${PATH_BASE} -p
 
 ####################################################################
@@ -16,7 +27,7 @@ export CXX=/usr/bin/g++-7
 
 BUILD_SETTINGS_COMMON="-DGAIA_BUILD_UNITTEST=ON -DGAIA_BUILD_BENCHMARK=ON -DGAIA_BUILD_EXAMPLES=ON -DGAIA_GENERATE_CC=OFF"
 PATH_DEBUG="./${PATH_BASE}/debug"
-PATH_DEBUG_PROF="${PATH_DEBUG}_prof"
+PATH_DEBUG_PROF="${PATH_DEBUG}-prof"
 PATH_RELEASE="./${PATH_BASE}/release"
 
 # Debug mode

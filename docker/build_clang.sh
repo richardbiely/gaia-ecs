@@ -1,6 +1,17 @@
 #!/bin/bash
 
 PATH_BASE="build-clang"
+
+while getopts ":c" flag; do
+    case "${flag}" in
+        c) # remove the build direcetory
+          rm -rf ${PATH_BASE};;
+        \?) # invalid option
+         echo "Error: Invalid option"
+         exit;;
+    esac
+done
+
 mkdir ${PATH_BASE} -p
 
 ####################################################################
@@ -16,10 +27,10 @@ export CXX=/usr/bin/clang++
 
 BUILD_SETTINGS_COMMON="-DGAIA_BUILD_UNITTEST=ON -DGAIA_BUILD_BENCHMARK=ON -DGAIA_BUILD_EXAMPLES=ON -DGAIA_GENERATE_CC=OFF"
 PATH_DEBUG="./${PATH_BASE}/debug"
-PATH_DEBUG_PROF="${PATH_DEBUG}_prof"
+PATH_DEBUG_PROF="${PATH_DEBUG}-prof"
 PATH_RELEASE="./${PATH_BASE}/release"
-PATH_RELEASE_ADDR="./${PATH_BASE}/release-addr"
-PATH_RELEASE_MEM="./${PATH_BASE}/release-mem"
+PATH_RELEASE_ADDR="${PATH_RELEASE}-addr"
+PATH_RELEASE_MEM="${PATH_RELEASE}-mem"
 
 # Debug mode
 cmake -E make_directory ${PATH_DEBUG}
@@ -38,12 +49,12 @@ cmake --build ${PATH_RELEASE} --config Release
 
 # Release mode - adress sanitizers
 cmake -E make_directory ${PATH_RELEASE_ADDR}
-cmake -DCMAKE_BUILD_TYPE=Release ${BUILD_SETTINGS_COMMON} -DGAIA_DEBUG=1 -DUSE_SANITIZER='Address;Undefined' -S .. -B ${PATH_RELEASE_ADDR}
+cmake --no-warn-unused-cli -DCMAKE_BUILD_TYPE=Release ${BUILD_SETTINGS_COMMON} -DGAIA_DEBUG=1 -DUSE_SANITIZER='Address;Undefined' -S .. -B ${PATH_RELEASE_ADDR}
 cmake --build ${PATH_RELEASE_ADDR} --config Release
 
 # Release mode - memory sanitizers
 cmake -E make_directory ${PATH_RELEASE_MEM}
-cmake -DCMAKE_BUILD_TYPE=Release ${BUILD_SETTINGS_COMMON} -DGAIA_DEBUG=1 -DUSE_SANITIZER='Memory;MemoryWithOrigins' -S .. -B ${PATH_RELEASE_MEM}
+cmake --no-warn-unused-cli -DCMAKE_BUILD_TYPE=Release ${BUILD_SETTINGS_COMMON} -DGAIA_DEBUG=1 -DUSE_SANITIZER='Memory;MemoryWithOrigins' -S .. -B ${PATH_RELEASE_MEM}
 cmake --build ${PATH_RELEASE_MEM} --config Release
 
 ####################################################################

@@ -1,6 +1,17 @@
 #!/bin/bash
 
 PATH_BASE="build-clang"
+
+while getopts ":c" flag; do
+    case "${flag}" in
+        c) # remove the build direcetory
+          rm -rf ${PATH_BASE};;
+        \?) # invalid option
+         echo "Error: Invalid option"
+         exit;;
+    esac
+done
+
 mkdir ${PATH_BASE} -p
 
 ####################################################################
@@ -15,7 +26,7 @@ export CXX=/usr/bin/clang++
 ####################################################################
 
 BUILD_SETTINGS_COMMON="-DGAIA_BUILD_UNITTEST=OFF -DGAIA_BUILD_BENCHMARK=ON -DGAIA_BUILD_EXAMPLES=OFF -DGAIA_GENERATE_CC=OFF"
-PATH_RELEASE="./${PATH_BASE}/release_cachegrind"
+PATH_RELEASE="./${PATH_BASE}/release-cachegrind"
 
 # Release mode
 cmake -E make_directory ${PATH_RELEASE}
