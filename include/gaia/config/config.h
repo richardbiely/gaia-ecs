@@ -38,8 +38,6 @@
 // TODO features
 //------------------------------------------------------------------------------
 
-//! If enabled, profiler traces are inserted into generated code
-#define GAIA_PROFILER 0
 //! If enabled, archetype graph is used to speed up component adding and removal.
 //! NOTE: Not ready
 #define GAIA_ARCHETYPE_GRAPH 0

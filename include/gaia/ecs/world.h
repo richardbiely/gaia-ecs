@@ -3,6 +3,7 @@
 #include <type_traits>
 
 #include "../config/config.h"
+#include "../config/profiler.h"
 #include "../containers/map.h"
 #include "../containers/sarray.h"
 #include "../containers/sarray_ext.h"
@@ -1460,6 +1461,8 @@ namespace gaia {
 
 				size_t itemsLeft = chunksList.size();
 				while (itemsLeft > 0) {
+					GAIA_PROF_START(PrepareChunks);
+
 					const size_t batchSize = itemsLeft > BatchSize ? BatchSize : itemsLeft;
 
 					// Prepare a buffer to iterate over
@@ -1471,6 +1474,9 @@ namespace gaia {
 
 						tmp[indexInBatch++] = pChunk;
 					}
+
+					GAIA_PROF_STOP();
+					GAIA_PROF_START(ExecChunks);
 
 					// Execute functors in batches
 					// This is what we're effectively doing:
@@ -1502,6 +1508,8 @@ namespace gaia {
 
 						func(*tmp[chunkIdx]);
 					}
+
+					GAIA_PROF_STOP();
 
 					// Prepeare for the next loop
 					indexInBatch = 0;
@@ -1595,6 +1603,8 @@ namespace gaia {
 
 			template <typename Func>
 			GAIA_FORCEINLINE void ForEachChunk_External(World& world, EntityQuery& query, Func func) {
+				GAIA_PROF_SCOPE(ForEachChunk);
+
 				RunQueryOnChunks_Internal(world, query, [&](Chunk& chunk) {
 					func(chunk);
 				});
@@ -1613,6 +1623,8 @@ namespace gaia {
 
 			template <typename Func>
 			GAIA_FORCEINLINE void ForEach_External(World& world, EntityQuery& query, Func func) {
+				GAIA_PROF_SCOPE(ForEach);
+
 #if GAIA_DEBUG
 				// Make sure we only use components specificed in the query
 				GAIA_ASSERT(CheckQuery<Func>(world, query));

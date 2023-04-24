@@ -2,48 +2,15 @@
 
 #include <cstdint>
 
-#include "../utils/span.h"
-
-#if defined(__GLIBC__) || defined(__sun) || defined(__CYGWIN__)
-	#include <alloca.h>
-	#define GAIA_ALIGNED_ALLOC(alig, size) aligned_alloc(alig, size)
-	#if !defined(aligned_free)
-		#define GAIA_ALIGNED_FREE free
-	#else
-		#define GAIA_ALIGNED_FREE aligned_free
-	#endif
-#elif defined(_WIN32)
-	#include <malloc.h>
-	// Clang with MSVC codegen needs some remapping
-	#if !defined(aligned_alloc)
-		#define GAIA_ALIGNED_ALLOC(alig, size) _aligned_malloc(size, alig)
-	#else
-		#define GAIA_ALIGNED_ALLOC(alig, size) aligned_alloc(alig, size)
-	#endif
-	#if !defined(aligned_free)
-		#define GAIA_ALIGNED_FREE _aligned_free
-	#else
-		#define GAIA_ALIGNED_FREE aligned_free
-	#endif
-#else
-	#define GAIA_ALIGNED_ALLOC(alig, size) aligned_alloc(alig, size)
-	#if !defined(aligned_free)
-		#define GAIA_ALIGNED_FREE free
-	#else
-		#define GAIA_ALIGNED_FREE aligned_free
-	#endif
-#endif
-
 #include "../config/config.h"
 #include "../config/logging.h"
+#include "../config/profiler.h"
 #include "../containers/darray.h"
 #include "../containers/sarray_ext.h"
 #include "../utils/containers.h"
+#include "../utils/mem.h"
+#include "../utils/span.h"
 #include "../utils/utility.h"
-
-#if GAIA_ECS_CHUNK_ALLOCATOR_CLEAN_MEMORY_WITH_GARBAGE
-	#include "../utils/mem.h"
-#endif
 #include "common.h"
 
 namespace gaia {
@@ -187,6 +154,11 @@ namespace gaia {
 			~ChunkAllocator() {
 				FreeAll();
 			}
+
+			ChunkAllocator(ChunkAllocator&& world) = delete;
+			ChunkAllocator(const ChunkAllocator& world) = delete;
+			ChunkAllocator& operator=(ChunkAllocator&&) = delete;
+			ChunkAllocator& operator=(const ChunkAllocator&) = delete;
 
 			/*!
 			Allocates memory
@@ -338,12 +310,12 @@ namespace gaia {
 
 		private:
 			static MemoryPage* AllocPage() {
-				auto* pageData = GAIA_ALIGNED_ALLOC(16, MemoryPage::Size);
-				return new MemoryPage(pageData);
+				auto* pPageData = utils::alloc_alig(16, MemoryPage::Size);
+				return new MemoryPage(pPageData);
 			}
 
 			static void FreePage(MemoryPage* page) {
-				GAIA_ALIGNED_FREE(page->m_data);
+				utils::free_alig(page->m_data);
 				delete page;
 			}
 		};
