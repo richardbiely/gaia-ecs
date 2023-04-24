@@ -197,7 +197,7 @@ namespace gaia {
 					return nullptr;
 
 				const auto& archetypeArray = it->second;
-				GAIA_ASSERT(archetypeArray.size() > 0);
+				GAIA_ASSERT(!archetypeArray.empty());
 
 				// More than one archetype can have the same lookup key. However, this should be extermely
 				// rare (basically it should never happen). For this reason, only search for the exact match

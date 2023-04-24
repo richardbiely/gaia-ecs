@@ -125,6 +125,11 @@ namespace gaia {
 				Clear();
 			}
 
+			BaseSystemManager(BaseSystemManager&& world) = delete;
+			BaseSystemManager(const BaseSystemManager& world) = delete;
+			BaseSystemManager& operator=(BaseSystemManager&&) = delete;
+			BaseSystemManager& operator=(const BaseSystemManager&) = delete;
+
 			void Clear() {
 				for (auto* pSystem: m_systems)
 					pSystem->Enable(false);
@@ -183,10 +188,10 @@ namespace gaia {
 					if (!pSystem->IsEnabled())
 						continue;
 
-					pSystem->BeforeOnUpdate();
-					pSystem->OnUpdate();
-					pSystem->AfterOnUpdate();
-				}
+						pSystem->BeforeOnUpdate();
+						pSystem->OnUpdate();
+						pSystem->AfterOnUpdate();
+					}
 
 				OnAfterUpdate();
 			}
@@ -257,7 +262,7 @@ namespace gaia {
 							min = p;
 					}
 
-					auto *tmp = m_systems[min];
+					auto* tmp = m_systems[min];
 					m_systems[min] = m_systems[l];
 					m_systems[l] = tmp;
 				}

@@ -44,6 +44,7 @@
 #include "../utils/utility.h"
 #include <cstdlib>
 #include <cstring>
+#include <functional>
 #include <initializer_list>
 #include <new>
 #include <tuple>
@@ -158,14 +159,14 @@ namespace robin_hood {
 		#define ROBIN_HOOD_COUNT_TRAILING_ZEROES(x)                                                                        \
 			[](size_t mask) noexcept -> int {                                                                                \
 				unsigned long index;                                                                                           \
-				return ROBIN_HOOD(CTZ)(&index, mask) ? static_cast<int>(index) : ROBIN_HOOD(BITNESS);               \
+				return ROBIN_HOOD(CTZ)(&index, mask) ? static_cast<int>(index) : ROBIN_HOOD(BITNESS);                          \
 			}(x)
 
 		#pragma intrinsic(ROBIN_HOOD(CLZ))
 		#define ROBIN_HOOD_COUNT_LEADING_ZEROES(x)                                                                         \
 			[](size_t mask) noexcept -> int {                                                                                \
 				unsigned long index;                                                                                           \
-				return ROBIN_HOOD(CLZ)(&index, mask) ? static_cast<int>(index) : ROBIN_HOOD(BITNESS);               \
+				return ROBIN_HOOD(CLZ)(&index, mask) ? static_cast<int>(index) : ROBIN_HOOD(BITNESS);                          \
 			}(x)
 	#else
 		#if ROBIN_HOOD(BITNESS) == 32
@@ -175,7 +176,7 @@ namespace robin_hood {
 			#define ROBIN_HOOD_PRIVATE_DEFINITION_CTZ() __builtin_ctzll
 			#define ROBIN_HOOD_PRIVATE_DEFINITION_CLZ() __builtin_clzll
 		#endif
-		
+
 		#define ROBIN_HOOD_COUNT_TRAILING_ZEROES(x) ((x) ? ROBIN_HOOD(CTZ)(x) : ROBIN_HOOD(BITNESS))
 		#define ROBIN_HOOD_COUNT_LEADING_ZEROES(x) ((x) ? ROBIN_HOOD(CLZ)(x) : ROBIN_HOOD(BITNESS))
 	#endif

@@ -160,6 +160,7 @@ namespace gaia {
 			CommandBuffer(World& world): m_world(world), m_entities(0) {
 				m_data.reserve(256);
 			}
+			~CommandBuffer() {}
 
 			CommandBuffer(CommandBuffer&&) = delete;
 			CommandBuffer(const CommandBuffer&) = delete;

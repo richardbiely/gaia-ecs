@@ -7,11 +7,16 @@ Checks:
     -readability-braces-*,
     -readability-isolate-declaration,
     -readability-magic-numbers,
+    -readability-function-cognitive-complexity,
   bugprone-*,
+    -bugprone-easily-swappable-parameters,
+    -bugprone-lambda-function-name,
   clang-analyzer-*,
   cppcoreguidelines-*,
     -cppcoreguidelines-owning-memory,
     -cppcoreguidelines-no-malloc,
     -cppcoreguidelines-avoid-*,
     -cppcoreguidelines-pro-type-*,
-    -cppcoreguidelines-pro-bounds-*
+    -cppcoreguidelines-pro-bounds-*,
+    -cppcoreguidelines-non-private-member-variables-in-classes
+    

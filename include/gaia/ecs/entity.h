@@ -40,6 +40,7 @@ namespace gaia {
 				data.id = id;
 				data.gen = gen;
 			}
+			~Entity() = default;
 
 			Entity(Entity&&) = default;
 			Entity& operator=(Entity&&) = default;
@@ -69,10 +70,10 @@ namespace gaia {
 				return Entity(Entity::IdMask, Entity::GenMask);
 			}
 
-			GAIA_NODISCARD constexpr bool operator==(const EntityNull_t&) const noexcept {
+			GAIA_NODISCARD constexpr bool operator==([[maybe_unused]] const EntityNull_t& null) const noexcept {
 				return true;
 			}
-			GAIA_NODISCARD constexpr bool operator!=(const EntityNull_t&) const noexcept {
+			GAIA_NODISCARD constexpr bool operator!=([[maybe_unused]] const EntityNull_t& null) const noexcept {
 				return false;
 			}
 		};
