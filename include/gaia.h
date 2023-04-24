@@ -1,5 +1,6 @@
 #include "gaia/config/config.h"
 #include "gaia/config/logging.h"
+#include "gaia/config/profiler.h"
 
 #include "gaia/ecs/archetype.h"
 #include "gaia/ecs/chunk.h"

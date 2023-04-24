@@ -1,10 +1,70 @@
 #pragma once
+#include "../config/profiler.h"
 #include <cinttypes>
 #include <cstring>
 #include <type_traits>
 
+#if defined(__GLIBC__) || defined(__sun) || defined(__CYGWIN__)
+	#include <alloca.h>
+#elif defined(_WIN32)
+	#include <malloc.h>
+#endif
+
 namespace gaia {
 	namespace utils {
+		void* alloc(size_t size) {
+			void* ptr = ::malloc(size);
+			GAIA_PROF_ALLOC(ptr, size);
+			return ptr;
+		}
+
+		void* alloc_alig(size_t alig, size_t size) {
+#if defined(__GLIBC__) || defined(__sun) || defined(__CYGWIN__)
+			void* ptr = ::aligned_alloc(alig, size);
+#elif defined(_WIN32)
+	// Clang with MSVC codegen needs some remapping
+	#if !defined(aligned_alloc)
+			void* ptr = ::_aligned_malloc(size, alig);
+	#else
+			void* ptr = ::aligned_alloc(alig, size);
+	#endif
+#else
+			void* ptr = ::aligned_alloc(alig, size);
+#endif
+
+			GAIA_PROF_ALLOC(ptr, size);
+			return ptr;
+		}
+
+		void free(void* ptr) {
+			::free(ptr);
+			GAIA_PROF_FREE(ptr);
+		}
+
+		void free_alig(void* ptr) {
+#if defined(__GLIBC__) || defined(__sun) || defined(__CYGWIN__)
+	#if !defined(aligned_free)
+			::free(ptr);
+	#else
+			::aligned_free(ptr);
+	#endif
+#elif defined(_WIN32)
+	#if !defined(aligned_free)
+			::_aligned_free(ptr);
+	#else
+			::aligned_free(ptr);
+	#endif
+#else
+	#if !defined(aligned_free)
+			::free(ptr);
+	#else
+			::aligned_free(ptr);
+	#endif
+#endif
+
+			GAIA_PROF_FREE(ptr);
+		}
+
 		/*!
 		Align a number to the requested byte alignment
 		\param num Number to align
@@ -30,17 +90,15 @@ namespace gaia {
 		/*!
 		Convert form type \tparam From to type \tparam To without causing an
 		undefined behavior.
-
-		E.g.:
-		int i = {};
-		float f = *(*float)&i; // undefined behavior
-		memcpy(&f, &i, sizeof(float)); // okay
-		*/
+		 */
 		template <
 				typename To, typename From,
 				typename = std::enable_if_t<
 						(sizeof(To) == sizeof(From)) && std::is_trivially_copyable_v<To> && std::is_trivially_copyable_v<From>>>
 		To bit_cast(const From& from) {
+			// int i = {};
+			// float f = *(*float)&i; // undefined behavior
+			// memcpy(&f, &i, sizeof(float)); // okay
 			To to;
 			memmove(&to, &from, sizeof(To));
 			return to;

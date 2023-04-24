@@ -104,6 +104,10 @@
 	#define GAIA_PRETTY_FUNCTION_SUFFIX ']'
 #endif
 
+#define GAIA_STRINGIZE(x) #x
+#define GAIA_CONCAT_IMPL(x, y) x##y
+#define GAIA_CONCAT(x, y) GAIA_CONCAT_IMPL(x, y)
+
 //------------------------------------------------------------------------------
 
 #if (GAIA_COMPILER_MSVC && _MSC_VER >= 1400) || GAIA_COMPILER_GCC || GAIA_COMPILER_CLANG
@@ -201,9 +205,9 @@
 	#define DO_PRAGMA(x) DO_PRAGMA_(x)
 	#define GAIA_CLANG_WARNING_PUSH() _Pragma("clang diagnostic push")
 	#define GAIA_CLANG_WARNING_POP() _Pragma("clang diagnostic pop")
-	#define GAIA_CLANG_WARNING_DISABLE(warningId) _Pragma(GAIA_STRINGIZE_MACRO(clang diagnostic ignored #warningId))
-	#define GAIA_CLANG_WARNING_ERROR(warningId) _Pragma(GAIA_STRINGIZE_MACRO(clang diagnostic error #warningId))
-	#define GAIA_CLANG_WARNING_ALLOW(warningId) _Pragma(GAIA_STRINGIZE_MACRO(clang diagnostic warning #warningId))
+	#define GAIA_CLANG_WARNING_DISABLE(warningId) _Pragma(GAIA_STRINGIZE(clang diagnostic ignored #warningId))
+	#define GAIA_CLANG_WARNING_ERROR(warningId) _Pragma(GAIA_STRINGIZE(clang diagnostic error #warningId))
+	#define GAIA_CLANG_WARNING_ALLOW(warningId) _Pragma(GAIA_STRINGIZE(clang diagnostic warning #warningId))
 #else
 	#define GAIA_CLANG_WARNING_PUSH()
 	#define GAIA_CLANG_WARNING_POP()
@@ -217,7 +221,7 @@
 	#define DO_PRAGMA(x) DO_PRAGMA_(x)
 	#define GAIA_GCC_WARNING_PUSH() _Pragma("GCC diagnostic push")
 	#define GAIA_GCC_WARNING_POP() _Pragma("GCC diagnostic pop")
-	#define GAIA_GCC_WARNING_ERROR(warningId) _Pragma(GAIA_STRINGIZE_MACRO(GCC diagnostic error warningId))
+	#define GAIA_GCC_WARNING_ERROR(warningId) _Pragma(GAIA_STRINGIZE(GCC diagnostic error warningId))
 	#define GAIA_GCC_WARNING_DISABLE(warningId) DO_PRAGMA(GCC diagnostic ignored #warningId)
 #else
 	#define GAIA_GCC_WARNING_PUSH()
@@ -313,8 +317,6 @@ GAIA_FORCEINLINE void DoNotOptimize(T const& value) {
 // TODO features
 //------------------------------------------------------------------------------
 
-//! If enabled, profiler traces are inserted into generated code
-#define GAIA_PROFILER 0
 //! If enabled, archetype graph is used to speed up component adding and removal.
 //! NOTE: Not ready
 #define GAIA_ARCHETYPE_GRAPH 0
@@ -406,16 +408,6 @@ GAIA_FORCEINLINE void DoNotOptimize(T const& value) {
 #endif
 #if !defined(GAIA_ECS_VALIDATE_ENTITY_LIST)
 	#define GAIA_ECS_VALIDATE_ENTITY_LIST GAIA_DEBUG
-#endif
-
-//------------------------------------------------------------------------------
-// Profiling features
-//------------------------------------------------------------------------------
-
-#if defined(GAIA_PROFILER)
-// ...
-#else
-// ...
 #endif
 
 //------------------------------------------------------------------------------
@@ -528,6 +520,129 @@ namespace gaia {
 		fprintf(stderr, __VA_ARGS__);                                                                                      \
 		fprintf(stderr, "\n");                                                                                             \
 	}
+
+#if GAIA_PROFILE_CPU || GAIA_PROFILE_MEM
+	#ifndef ENABLE_TRACY
+		// Enable collecting tracy data
+		#define ENABLE_TRACY
+// Keep it small on Windows
+// TODO: What if user doesn't want this?
+// #if defined(_WIN32) && !defined(WIN32_LEAN_AND_MEAN)
+// 	#define WIN32_LEAN_AND_MEAN
+// #endif
+GAIA_MSVC_WARNING_PUSH()
+GAIA_MSVC_WARNING_DISABLE(4668)
+		#include <tracy/Tracy.hpp>
+		#include <tracy/TracyC.h>
+GAIA_MSVC_WARNING_POP()
+	#endif
+#endif
+
+#if GAIA_PROFILE_CPU
+
+namespace tracy {
+
+	//! Zone used for tracking zones with names first available in run-time
+	struct ZoneRT {
+		TracyCZoneCtx m_ctx;
+
+		ZoneRT(const char* name, const char* file, uint32_t line, const char* function) {
+			const auto srcloc =
+					___tracy_alloc_srcloc_name(line, file, strlen(file), function, strlen(function), name, strlen(name));
+			m_ctx = ___tracy_emit_zone_begin_alloc(srcloc, 1);
+		}
+		~ZoneRT() {
+			TracyCZoneEnd(m_ctx);
+		}
+	};
+
+	struct ScopeStack {
+		static constexpr uint32_t StackSize = 64;
+
+		uint32_t count;
+		TracyCZoneCtx buffer[StackSize];
+	};
+
+	inline thread_local ScopeStack t_ScopeStack;
+
+	void ZoneBegin(const ___tracy_source_location_data* srcloc) {
+		auto& stack = t_ScopeStack;
+		const auto pos = stack.count++;
+		if (pos < ScopeStack::StackSize) {
+			stack.buffer[pos] = ___tracy_emit_zone_begin(srcloc, 1);
+		}
+	}
+
+	void ZoneRTBegin(uint64_t srcloc) {
+		auto& stack = t_ScopeStack;
+		const auto pos = stack.count++;
+		if (pos < ScopeStack::StackSize)
+			stack.buffer[pos] = ___tracy_emit_zone_begin_alloc(srcloc, 1);
+	}
+
+	void ZoneEnd() {
+		auto& stack = t_ScopeStack;
+		GAIA_ASSERT(stack.count > 0);
+		const auto pos = --stack.count;
+		if (pos < ScopeStack::StackSize)
+			___tracy_emit_zone_end(stack.buffer[pos]);
+	}
+} // namespace tracy
+
+	#define TRACY_ZoneNamedRT(name, function)                                                                            \
+		tracy::ZoneRT TracyConcat(__tracy_zone_dynamic, __LINE__)(name, __FILE__, __LINE__, function);
+
+	#define TRACY_ZoneNamedRTBegin(name, function)                                                                       \
+		tracy::ZoneRTBegin(___tracy_alloc_srcloc_name(                                                                     \
+				__LINE__, __FILE__, strlen(__FILE__), function, strlen(function), name, strlen(name)));
+
+	#define TRACY_ZoneBegin(name, function)                                                                              \
+		static constexpr ___tracy_source_location_data TracyConcat(__tracy_source_location, __LINE__) {                    \
+			name "", function, __FILE__, uint32_t(__LINE__), 0,                                                              \
+		}
+	#define TRACY_ZoneEnd() tracy::ZoneEnd()
+
+//------------------------------------------------------------------------
+// Tracy profiler GAIA implementation
+//------------------------------------------------------------------------
+
+	#define GAIA_PROF_START_IMPL(name, function)                                                                         \
+		TRACY_ZoneBegin(name, function);                                                                                   \
+		tracy::ZoneBegin(&TracyConcat(__tracy_source_location, __LINE__));
+
+	#define GAIA_PROF_STOP_IMPL() TRACY_ZoneEnd()
+
+	#define GAIA_PROF_SCOPE_IMPL(name) ZoneNamedN(GAIA_CONCAT(___tracy_scoped_zone_, __LINE__), name "", 1)
+	#define GAIA_PROF_SCOPE_DYN_IMPL(name) TRACY_ZoneNamedRT(name, GAIA_PRETTY_FUNCTION)
+
+	#define GAIA_PROF_FRAME() FrameMark
+	#define GAIA_PROF_SCOPE(x) GAIA_PROF_SCOPE_IMPL(#x)
+	#define GAIA_PROF_SCOPE2(x) GAIA_PROF_SCOPE_DYN_IMPL(x)
+	#define GAIA_PROF_START(x) GAIA_PROF_START_IMPL(#x, GAIA_PRETTY_FUNCTION)
+	#define GAIA_PROF_STOP() GAIA_PROF_STOP_IMPL()
+	#define GAIA_PROF_LOG(text, size) TracyMessage(text, size)
+	#define GAIA_PROF_VALUE(text, value) TracyPlot(text, value)
+#else
+	#define GAIA_PROF_FRAME() ((void)0)
+	#define GAIA_PROF_SCOPE(x) ((void)0)
+	#define GAIA_PROF_SCOPE2(x) ((void)0)
+	#define GAIA_PROF_START(x) ((void)0)
+	#define GAIA_PROF_STOP() ((void)0)
+	#define GAIA_PROF_LOG(text, size) ((void)0)
+	#define GAIA_PROF_VALUE(text, value) ((void)0)
+#endif
+
+#if GAIA_PROFILE_MEM
+	#define GAIA_PROF_ALLOC(ptr, size) TracyAlloc(ptr, size)
+	#define GAIA_PROF_ALLOC2(ptr, size, name) TracyAllocN(ptr, size, name)
+	#define GAIA_PROF_FREE(ptr) TracyFree(ptr)
+	#define GAIA_PROF_FREE2(ptr, name) TracyFreeN(ptr, name)
+#else
+	#define GAIA_PROF_ALLOC(p, size) ((void)0)
+	#define GAIA_PROF_ALLOC2(p, size, name) ((void)0)
+	#define GAIA_PROF_FREE(p) ((void)0)
+	#define GAIA_PROF_FREE2(p, name) ((void)0)
+#endif
 
 #define USE_VECTOR GAIA_USE_STL_CONTAINERS
 
@@ -2032,8 +2147,67 @@ struct std::hash<gaia::utils::direct_hash_key> {
 #include <cstring>
 #include <type_traits>
 
+#if defined(__GLIBC__) || defined(__sun) || defined(__CYGWIN__)
+	#include <alloca.h>
+#elif defined(_WIN32)
+	#include <malloc.h>
+#endif
+
 namespace gaia {
 	namespace utils {
+		void* alloc(size_t size) {
+			void* ptr = ::malloc(size);
+			GAIA_PROF_ALLOC(ptr, size);
+			return ptr;
+		}
+
+		void* alloc_alig(size_t alig, size_t size) {
+#if defined(__GLIBC__) || defined(__sun) || defined(__CYGWIN__)
+			void* ptr = ::aligned_alloc(alig, size);
+#elif defined(_WIN32)
+	// Clang with MSVC codegen needs some remapping
+	#if !defined(aligned_alloc)
+			void* ptr = ::_aligned_malloc(size, alig);
+	#else
+			void* ptr = ::aligned_alloc(alig, size);
+	#endif
+#else
+			void* ptr = ::aligned_alloc(alig, size);
+#endif
+
+			GAIA_PROF_ALLOC(ptr, size);
+			return ptr;
+		}
+
+		void free(void* ptr) {
+			::free(ptr);
+			GAIA_PROF_FREE(ptr);
+		}
+
+		void free_alig(void* ptr) {
+#if defined(__GLIBC__) || defined(__sun) || defined(__CYGWIN__)
+	#if !defined(aligned_free)
+			::free(ptr);
+	#else
+			::aligned_free(ptr);
+	#endif
+#elif defined(_WIN32)
+	#if !defined(aligned_free)
+			::_aligned_free(ptr);
+	#else
+			::aligned_free(ptr);
+	#endif
+#else
+	#if !defined(aligned_free)
+			::free(ptr);
+	#else
+			::aligned_free(ptr);
+	#endif
+#endif
+
+			GAIA_PROF_FREE(ptr);
+		}
+
 		/*!
 		Align a number to the requested byte alignment
 		\param num Number to align
@@ -2059,17 +2233,15 @@ namespace gaia {
 		/*!
 		Convert form type \tparam From to type \tparam To without causing an
 		undefined behavior.
-
-		E.g.:
-		int i = {};
-		float f = *(*float)&i; // undefined behavior
-		memcpy(&f, &i, sizeof(float)); // okay
-		*/
+		 */
 		template <
 				typename To, typename From,
 				typename = std::enable_if_t<
 						(sizeof(To) == sizeof(From)) && std::is_trivially_copyable_v<To> && std::is_trivially_copyable_v<From>>>
 		To bit_cast(const From& from) {
+			// int i = {};
+			// float f = *(*float)&i; // undefined behavior
+			// memcpy(&f, &i, sizeof(float)); // okay
 			To to;
 			memmove(&to, &from, sizeof(To));
 			return to;
@@ -2782,6 +2954,7 @@ namespace gaia {
 
 #include <cstdlib>
 #include <cstring>
+#include <functional>
 #include <initializer_list>
 #include <new>
 #include <tuple>
@@ -2896,14 +3069,14 @@ namespace robin_hood {
 		#define ROBIN_HOOD_COUNT_TRAILING_ZEROES(x)                                                                        \
 			[](size_t mask) noexcept -> int {                                                                                \
 				unsigned long index;                                                                                           \
-				return ROBIN_HOOD(CTZ)(&index, mask) ? static_cast<int>(index) : ROBIN_HOOD(BITNESS);               \
+				return ROBIN_HOOD(CTZ)(&index, mask) ? static_cast<int>(index) : ROBIN_HOOD(BITNESS);                          \
 			}(x)
 
 		#pragma intrinsic(ROBIN_HOOD(CLZ))
 		#define ROBIN_HOOD_COUNT_LEADING_ZEROES(x)                                                                         \
 			[](size_t mask) noexcept -> int {                                                                                \
 				unsigned long index;                                                                                           \
-				return ROBIN_HOOD(CLZ)(&index, mask) ? static_cast<int>(index) : ROBIN_HOOD(BITNESS);               \
+				return ROBIN_HOOD(CLZ)(&index, mask) ? static_cast<int>(index) : ROBIN_HOOD(BITNESS);                          \
 			}(x)
 	#else
 		#if ROBIN_HOOD(BITNESS) == 32
@@ -2913,7 +3086,7 @@ namespace robin_hood {
 			#define ROBIN_HOOD_PRIVATE_DEFINITION_CTZ() __builtin_ctzll
 			#define ROBIN_HOOD_PRIVATE_DEFINITION_CLZ() __builtin_clzll
 		#endif
-		
+
 		#define ROBIN_HOOD_COUNT_TRAILING_ZEROES(x) ((x) ? ROBIN_HOOD(CTZ)(x) : ROBIN_HOOD(BITNESS))
 		#define ROBIN_HOOD_COUNT_LEADING_ZEROES(x) ((x) ? ROBIN_HOOD(CLZ)(x) : ROBIN_HOOD(BITNESS))
 	#endif
@@ -6696,40 +6869,6 @@ namespace gaia {
 
 #include <cstdint>
 
-#if defined(__GLIBC__) || defined(__sun) || defined(__CYGWIN__)
-	#include <alloca.h>
-	#define GAIA_ALIGNED_ALLOC(alig, size) aligned_alloc(alig, size)
-	#if !defined(aligned_free)
-		#define GAIA_ALIGNED_FREE free
-	#else
-		#define GAIA_ALIGNED_FREE aligned_free
-	#endif
-#elif defined(_WIN32)
-	#include <malloc.h>
-	// Clang with MSVC codegen needs some remapping
-	#if !defined(aligned_alloc)
-		#define GAIA_ALIGNED_ALLOC(alig, size) _aligned_malloc(size, alig)
-	#else
-		#define GAIA_ALIGNED_ALLOC(alig, size) aligned_alloc(alig, size)
-	#endif
-	#if !defined(aligned_free)
-		#define GAIA_ALIGNED_FREE _aligned_free
-	#else
-		#define GAIA_ALIGNED_FREE aligned_free
-	#endif
-#else
-	#define GAIA_ALIGNED_ALLOC(alig, size) aligned_alloc(alig, size)
-	#if !defined(aligned_free)
-		#define GAIA_ALIGNED_FREE free
-	#else
-		#define GAIA_ALIGNED_FREE aligned_free
-	#endif
-#endif
-
-#if GAIA_ECS_CHUNK_ALLOCATOR_CLEAN_MEMORY_WITH_GARBAGE
-	
-#endif
-
 namespace gaia {
 	namespace ecs {
 		static constexpr uint32_t MemoryBlockSize = 16384;
@@ -6764,7 +6903,8 @@ namespace gaia {
 				static constexpr uint16_t NBlocks = 64;
 				static constexpr uint32_t Size = NBlocks * MemoryBlockSize;
 				static constexpr MemoryBlock::MemoryBlockType InvalidBlockId = (MemoryBlock::MemoryBlockType)-1;
-				static constexpr uint32_t MemoryLockTypeSizeInBits = (uint32_t)utils::as_bits(sizeof(MemoryBlock::MemoryBlockType));
+				static constexpr uint32_t MemoryLockTypeSizeInBits =
+						(uint32_t)utils::as_bits(sizeof(MemoryBlock::MemoryBlockType));
 				static_assert((uint32_t)NBlocks < (1 << MemoryLockTypeSizeInBits));
 				using iterator = containers::darray<MemoryPage*>::iterator;
 
@@ -6866,9 +7006,15 @@ namespace gaia {
 			ChunkAllocatorStats m_stats{};
 
 		public:
+			ChunkAllocator() = default;
 			~ChunkAllocator() {
 				FreeAll();
 			}
+
+			ChunkAllocator(ChunkAllocator&& world) = delete;
+			ChunkAllocator(const ChunkAllocator& world) = delete;
+			ChunkAllocator& operator=(ChunkAllocator&&) = delete;
+			ChunkAllocator& operator=(const ChunkAllocator&) = delete;
 
 			/*!
 			Allocates memory
@@ -7020,12 +7166,12 @@ namespace gaia {
 
 		private:
 			static MemoryPage* AllocPage() {
-				auto* pageData = GAIA_ALIGNED_ALLOC(16, MemoryPage::Size);
-				return new MemoryPage(pageData);
+				auto* pPageData = utils::alloc_alig(16, MemoryPage::Size);
+				return new MemoryPage(pPageData);
 			}
 
 			static void FreePage(MemoryPage* page) {
-				GAIA_ALIGNED_FREE(page->m_data);
+				utils::free_alig(page->m_data);
 				delete page;
 			}
 		};
@@ -7143,6 +7289,7 @@ namespace gaia {
 				data.id = id;
 				data.gen = gen;
 			}
+			~Entity() = default;
 
 			Entity(Entity&&) = default;
 			Entity& operator=(Entity&&) = default;
@@ -7172,10 +7319,10 @@ namespace gaia {
 				return Entity(Entity::IdMask, Entity::GenMask);
 			}
 
-			GAIA_NODISCARD constexpr bool operator==(const EntityNull_t&) const noexcept {
+			GAIA_NODISCARD constexpr bool operator==([[maybe_unused]] const EntityNull_t& null) const noexcept {
 				return true;
 			}
-			GAIA_NODISCARD constexpr bool operator!=(const EntityNull_t&) const noexcept {
+			GAIA_NODISCARD constexpr bool operator!=([[maybe_unused]] const EntityNull_t& null) const noexcept {
 				return false;
 			}
 		};
@@ -8951,7 +9098,7 @@ namespace gaia {
 					return nullptr;
 
 				const auto& archetypeArray = it->second;
-				GAIA_ASSERT(archetypeArray.size() > 0);
+				GAIA_ASSERT(!archetypeArray.empty());
 
 				// More than one archetype can have the same lookup key. However, this should be extermely
 				// rare (basically it should never happen). For this reason, only search for the exact match
@@ -10214,6 +10361,8 @@ namespace gaia {
 
 				size_t itemsLeft = chunksList.size();
 				while (itemsLeft > 0) {
+					GAIA_PROF_START(PrepareChunks);
+
 					const size_t batchSize = itemsLeft > BatchSize ? BatchSize : itemsLeft;
 
 					// Prepare a buffer to iterate over
@@ -10225,6 +10374,9 @@ namespace gaia {
 
 						tmp[indexInBatch++] = pChunk;
 					}
+
+					GAIA_PROF_STOP();
+					GAIA_PROF_START(ExecChunks);
 
 					// Execute functors in batches
 					// This is what we're effectively doing:
@@ -10256,6 +10408,8 @@ namespace gaia {
 
 						func(*tmp[chunkIdx]);
 					}
+
+					GAIA_PROF_STOP();
 
 					// Prepeare for the next loop
 					indexInBatch = 0;
@@ -10349,6 +10503,8 @@ namespace gaia {
 
 			template <typename Func>
 			GAIA_FORCEINLINE void ForEachChunk_External(World& world, EntityQuery& query, Func func) {
+				GAIA_PROF_SCOPE(ForEachChunk);
+
 				RunQueryOnChunks_Internal(world, query, [&](Chunk& chunk) {
 					func(chunk);
 				});
@@ -10367,6 +10523,8 @@ namespace gaia {
 
 			template <typename Func>
 			GAIA_FORCEINLINE void ForEach_External(World& world, EntityQuery& query, Func func) {
+				GAIA_PROF_SCOPE(ForEach);
+
 #if GAIA_DEBUG
 				// Make sure we only use components specificed in the query
 				GAIA_ASSERT(CheckQuery<Func>(world, query));
@@ -11136,6 +11294,7 @@ namespace gaia {
 			CommandBuffer(World& world): m_world(world), m_entities(0) {
 				m_data.reserve(256);
 			}
+			~CommandBuffer() {}
 
 			CommandBuffer(CommandBuffer&&) = delete;
 			CommandBuffer(const CommandBuffer&) = delete;
@@ -11684,6 +11843,11 @@ namespace gaia {
 				Clear();
 			}
 
+			BaseSystemManager(BaseSystemManager&& world) = delete;
+			BaseSystemManager(const BaseSystemManager& world) = delete;
+			BaseSystemManager& operator=(BaseSystemManager&&) = delete;
+			BaseSystemManager& operator=(const BaseSystemManager&) = delete;
+
 			void Clear() {
 				for (auto* pSystem: m_systems)
 					pSystem->Enable(false);
@@ -11742,12 +11906,17 @@ namespace gaia {
 					if (!pSystem->IsEnabled())
 						continue;
 
-					pSystem->BeforeOnUpdate();
-					pSystem->OnUpdate();
-					pSystem->AfterOnUpdate();
+					{
+						GAIA_PROF_SCOPE2(&pSystem->m_name[0]);
+						pSystem->BeforeOnUpdate();
+						pSystem->OnUpdate();
+						pSystem->AfterOnUpdate();
+					}
 				}
 
 				OnAfterUpdate();
+
+				GAIA_PROF_FRAME();
 			}
 
 			template <typename T>
@@ -11816,7 +11985,7 @@ namespace gaia {
 							min = p;
 					}
 
-					auto *tmp = m_systems[min];
+					auto* tmp = m_systems[min];
 					m_systems[min] = m_systems[l];
 					m_systems[l] = tmp;
 				}

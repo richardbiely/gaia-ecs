@@ -36,6 +36,10 @@ option(GAIA_BUILD_BENCHMARK "Build benchmark." OFF)
 option(GAIA_BUILD_EXAMPLES "Build examples." OFF)
 option(GAIA_GENERATE_CC "Use ninja to generate compile_commands.json as a post-build step." ON)
 
+option(GAIA_PROFILER_CPU "Enable CPU profiling." OFF)
+option(GAIA_PROFILER_MEM "Enable memory profiling." OFF)
+option(GAIA_PROFILER_BUILD "Build profiler if possible." OFF)
+
 if(GAIA_BUILD_UNITTEST)
     set(GAIA_BUILD_SRC ON)
 elseif(GAIA_BUILD_BENCHMARK)

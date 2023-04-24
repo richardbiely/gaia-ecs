@@ -44,10 +44,14 @@ if(GAIA_BUILD_SRC)
     enable_cxx_compiler_flag_if_supported("-fno-exceptions")
 
     # strictness rules
-    enable_cxx_compiler_flag_if_supported("-Wall")
-    enable_cxx_compiler_flag_if_supported("-Wextra")
-    enable_cxx_compiler_flag_if_supported("-pedantic")
-    enable_cxx_compiler_flag_if_supported("-Werror")
+    if(!GAIA_PROFILER_CPU AND !GAIA_PROFILER_MEM)
+      # Tracy profiler is not written with strictness and warnings-as-errors in mind
+      # so rather than reading spam in the build output we disable these when profiling.
+      enable_cxx_compiler_flag_if_supported("-Wall")
+      enable_cxx_compiler_flag_if_supported("-Wextra")
+      enable_cxx_compiler_flag_if_supported("-pedantic")
+      enable_cxx_compiler_flag_if_supported("-Werror")
+    endif()
 
     # fast-math
     enable_cxx_compiler_flag_if_supported("-ffast-math")
@@ -56,10 +60,10 @@ if(GAIA_BUILD_SRC)
     # instruction sets
     if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm")
       enable_cxx_compiler_flag_if_supported("-mfpu=neon")
-    else(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm")
+    else()
       enable_cxx_compiler_flag_if_supported("-msse4.1")
       enable_cxx_compiler_flag_if_supported("-mfma")
-    endif(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm")
+    endif()
   endif()
 
   if(MSVC)
@@ -76,9 +80,69 @@ if(GAIA_BUILD_SRC)
     add_definitions(-D_HAS_EXCEPTIONS=0)
   endif()
 
+  # Enable Catch if necessary
+  if(GAIA_BUILD_UNITTEST OR GAIA_PROFILER_CPU OR GAIA_PROFILER_MEM)
+    option(GAIA_FIND_CATCH2_PACKAGE "Enable finding Catch2 package." ON)
+  endif()
+
+  if(GAIA_FIND_CATCH2_PACKAGE)
+    Include(FetchContent)
+
+    FetchContent_Declare(
+      Catch2
+      GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+      GIT_TAG v2.13.7
+    )
+
+    FetchContent_GetProperties(Catch2)
+
+    if(NOT catch2_POPULATED)
+      FetchContent_Populate(Catch2)
+      add_subdirectory(${catch2_SOURCE_DIR} ${catch2_BINARY_DIR})
+    endif()
+
+    # Shortcut for the above commands but only available since 3.14
+    # FetchContent_MakeAvailable(Catch2)
+    list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/contrib)
+  else()
+    find_package(Catch2 CONFIG REQUIRED 2)
+  endif()
+
+  if(GAIA_PROFILER_CPU OR GAIA_PROFILER_MEM)
+    if(GAIA_FIND_CATCH2_PACKAGE)
+      FetchContent_Declare(tracy
+        GIT_REPOSITORY https://github.com/wolfpld/tracy.git
+        GIT_TAG v0.9.1
+        GIT_SHALLOW TRUE
+        GIT_PROGRESS TRUE
+      )
+
+      FetchContent_MakeAvailable(tracy)
+    else()
+      find_package(tracy CONFIG REQUIRED 0.9.1)
+    endif()
+
+    if(GAIA_PROFILER_BUILD)
+      # Add a custom target to build the Tracy profiler GUI
+      if(UNIX)
+        set(tracy_profiler_build_dir ${tracy_SOURCE_DIR}/profiler/build/unix)
+      elseif(WIN32)
+        set(tracy_profiler_build_dir ${tracy_SOURCE_DIR}/profiler/build/win32)
+      else()
+        message(WARNING "Unsupported platform. Building profiler won't be possible")
+      endif()
+
+      if(DEFINED tracy_profiler_build_dir)
+        add_custom_target(build_tracy_profiler_gui ALL
+          COMMAND make release
+          WORKING_DIRECTORY ${tracy_profiler_build_dir}
+        )
+      endif()
+    endif()
+  endif()
+
   # Unit test
   if(GAIA_BUILD_UNITTEST)
-    option(GAIA_FIND_CATCH2_PACKAGE "Enable finding Catch2 package." ON)
     add_subdirectory(test)
   endif()
 

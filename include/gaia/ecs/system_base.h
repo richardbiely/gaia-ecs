@@ -3,6 +3,7 @@
 #include <cstring>
 
 #include "../config/config.h"
+#include "../config/profiler.h"
 #if GAIA_DEBUG
 	#include "../config/logging.h"
 #endif
@@ -188,12 +189,17 @@ namespace gaia {
 					if (!pSystem->IsEnabled())
 						continue;
 
+					{
+						GAIA_PROF_SCOPE2(&pSystem->m_name[0]);
 						pSystem->BeforeOnUpdate();
 						pSystem->OnUpdate();
 						pSystem->AfterOnUpdate();
 					}
+				}
 
 				OnAfterUpdate();
+
+				GAIA_PROF_FRAME();
 			}
 
 			template <typename T>
