@@ -1211,8 +1211,9 @@ namespace robin_hood {
 			void keyToIdx(HashKey&& key, size_t* idx, InfoType* info) const {
 				auto h = static_cast<uint64_t>(WHash::operator()(key));
 
-				// direct_hash_key is expected to a proper hash. No additional hash tricks are required
-				if constexpr (!std::is_same_v<HashKey, gaia::utils::direct_hash_key>) {
+				// direct_hash_key is expected to be a proper hash. No additional hash tricks are required
+				using HashKeyRaw = std::decay_t<HashKey>;
+				if constexpr (!std::is_same_v<HashKeyRaw, gaia::utils::direct_hash_key>) {
 					// In addition to whatever hash is used, add another mul & shift so we get better hashing.
 					// This serves as a bad hash prevention, if the given data is
 					// badly mixed.
