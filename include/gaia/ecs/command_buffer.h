@@ -347,7 +347,7 @@ namespace gaia {
 			static constexpr CmdBufferCmdFunc CommandBufferCmd[] = {
 					// CREATE_ENTITY
 					[](CommandBufferCtx& ctx) {
-						[[maybe_unused]] const auto res = ctx.entityMap.emplace(ctx.entities++, ctx.world.CreateEntity());
+						[[maybe_unused]] const auto res = ctx.entityMap.try_emplace(ctx.entities++, ctx.world.CreateEntity());
 						GAIA_ASSERT(res.second);
 					},
 					// CREATE_ENTITY_FROM_ARCHETYPE
@@ -356,14 +356,14 @@ namespace gaia {
 						auto* pArchetype = (Archetype*)ptr;
 						ctx.dataOffset += sizeof(void*);
 						[[maybe_unused]] const auto res =
-								ctx.entityMap.emplace(ctx.entities++, ctx.world.CreateEntity(*pArchetype));
+								ctx.entityMap.try_emplace(ctx.entities++, ctx.world.CreateEntity(*pArchetype));
 						GAIA_ASSERT(res.second);
 					},
 					// CREATE_ENTITY_FROM_ENTITY
 					[](CommandBufferCtx& ctx) {
 						Entity entityFrom = utils::unaligned_ref<Entity>((void*)&ctx.data[ctx.dataOffset]);
 						ctx.dataOffset += sizeof(Entity);
-						[[maybe_unused]] const auto res = ctx.entityMap.emplace(ctx.entities++, ctx.world.CreateEntity(entityFrom));
+						[[maybe_unused]] const auto res = ctx.entityMap.try_emplace(ctx.entities++, ctx.world.CreateEntity(entityFrom));
 						GAIA_ASSERT(res.second);
 					},
 					// DELETE_ENTITY
