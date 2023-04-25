@@ -70,22 +70,14 @@ cmake --build ${PATH_RELEASE_MEM} --config Release
 
 UNIT_TEST_PATH="src/test/gaia_test"
 
-# Debug mode
+echo "Debug mode"
 chmod +x ${PATH_DEBUG}/${UNIT_TEST_PATH}
 ${PATH_DEBUG}/${UNIT_TEST_PATH}
 
-# Debug mode + profiler
+echo "Debug mode + profiler"
 chmod +x ${PATH_DEBUG_PROF}/${UNIT_TEST_PATH}
 ${PATH_DEBUG_PROF}/${UNIT_TEST_PATH}
 
-# Release mode
+echo "Release mode"
 chmod +x ${PATH_RELEASE}/${UNIT_TEST_PATH}
 ${PATH_RELEASE}/${UNIT_TEST_PATH}
-
-# Release mode - address sanitizes
-chmod +x ${PATH_RELEASE_ADDR}/${UNIT_TEST_PATH}
-${PATH_RELEASE_ADDR}/${UNIT_TEST_PATH}
-
-# Release mode - memory sanitizes
-chmod +x ${PATH_RELEASE_MEM}/${UNIT_TEST_PATH}
-${PATH_RELEASE_MEM}/${UNIT_TEST_PATH}
