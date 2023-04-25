@@ -25,9 +25,14 @@ export CXX=/usr/bin/clang++
 # Build the project
 ####################################################################
 
-BUILD_SETTINGS_COMMON_BASE="-DGAIA_BUILD_UNITTEST=ON -DGAIA_BUILD_BENCHMARK=ON -DGAIA_BUILD_EXAMPLES=ON -DGAIA_GENERATE_CC=OFF -DGAIA_PROFILER_BUILD=OFF"
-BUILD_SETTINGS_COMMON="${BUILD_SETTINGS_COMMON_BASE} -DGAIA_PROFILER_CPU=OFF -DGAIA_PROFILER_MEM=OFF"
+# Build parameters
+BUILD_SETTINGS_COMMON_BASE="-DGAIA_BUILD_BENCHMARK=ON -DGAIA_BUILD_EXAMPLES=ON -DGAIA_GENERATE_CC=OFF -DGAIA_PROFILER_BUILD=OFF"
+BUILD_SETTINGS_COMMON="${BUILD_SETTINGS_COMMON_BASE} -DGAIA_BUILD_UNITTEST=ON -DGAIA_PROFILER_CPU=OFF -DGAIA_PROFILER_MEM=OFF"
 BUILD_SETTINGS_COMMON_PROF="${BUILD_SETTINGS_COMMON_BASE} -DGAIA_PROFILER_CPU=ON -DGAIA_PROFILER_MEM=ON"
+# For sanitizer builds we have to turn off unit tests because Catch2 generates unitialized memory alerts
+BUILD_SETTINGS_COMMON_SANI="${BUILD_SETTINGS_COMMON_BASE} -DGAIA_BUILD_UNITTEST=OFF -DGAIA_PROFILER_CPU=OFF -DGAIA_PROFILER_MEM=OFF -DGAIA_ECS_CHUNK_ALLOCATOR=0"
+
+# Paths
 PATH_DEBUG="./${PATH_BASE}/debug"
 PATH_DEBUG_PROF="${PATH_DEBUG}-prof"
 PATH_RELEASE="./${PATH_BASE}/release"
@@ -51,12 +56,12 @@ cmake --build ${PATH_RELEASE} --config Release
 
 # Release mode - adress sanitizers
 cmake -E make_directory ${PATH_RELEASE_ADDR}
-cmake --no-warn-unused-cli -DCMAKE_BUILD_TYPE=Release ${BUILD_SETTINGS_COMMON} -DGAIA_DEBUG=1 -DUSE_SANITIZER='Address;Undefined' -S .. -B ${PATH_RELEASE_ADDR}
+cmake --no-warn-unused-cli -DCMAKE_BUILD_TYPE=Release ${BUILD_SETTINGS_COMMON_SANI} -DUSE_SANITIZER='Address;Undefined' -S .. -B ${PATH_RELEASE_ADDR}
 cmake --build ${PATH_RELEASE_ADDR} --config Release
 
 # Release mode - memory sanitizers
 cmake -E make_directory ${PATH_RELEASE_MEM}
-cmake --no-warn-unused-cli -DCMAKE_BUILD_TYPE=Release ${BUILD_SETTINGS_COMMON} -DGAIA_DEBUG=1 -DUSE_SANITIZER='Memory;MemoryWithOrigins' -S .. -B ${PATH_RELEASE_MEM}
+cmake --no-warn-unused-cli -DCMAKE_BUILD_TYPE=Release ${BUILD_SETTINGS_COMMON_SANI} -DUSE_SANITIZER='Memory;MemoryWithOrigins' -S .. -B ${PATH_RELEASE_MEM}
 cmake --build ${PATH_RELEASE_MEM} --config Release
 
 ####################################################################
