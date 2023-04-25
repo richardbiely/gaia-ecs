@@ -32,16 +32,8 @@ struct PositionSoA16 {
 };
 struct PositionNonTrivial {
 	float x, y, z;
-	PositionNonTrivial() {
-		x = 1;
-		y = 2;
-		z = 3;
-	}
-	PositionNonTrivial(float xx, float yy, float zz) {
-		x = xx;
-		y = yy;
-		z = zz;
-	}
+	PositionNonTrivial(): x(1), y(2), z(3) {}
+	PositionNonTrivial(float xx, float yy, float zz): x(xx), y(yy), z(zz) {}
 };
 struct Acceleration {
 	float x, y, z;
@@ -665,7 +657,7 @@ TEST_CASE("CreateAndRemoveEntity - no components") {
 		auto de = w.GetEntity(e.id());
 		const bool ok = de.gen() == e.gen() + 1;
 		REQUIRE(ok);
-		auto *ch = w.GetChunk(e);
+		auto* ch = w.GetChunk(e);
 		REQUIRE(ch == nullptr);
 	};
 
@@ -702,7 +694,7 @@ TEST_CASE("CreateAndRemoveEntity - 1 component") {
 		auto de = w.GetEntity(e.id());
 		const bool ok = de.gen() == e.gen() + 1;
 		REQUIRE(ok);
-		auto *ch = w.GetChunk(e);
+		auto* ch = w.GetChunk(e);
 		REQUIRE(ch == nullptr);
 		const bool isEntityValid = w.IsEntityValid(e);
 		REQUIRE(!isEntityValid);
@@ -1899,7 +1891,7 @@ TEST_CASE("Query Filter - no systems") {
 	{
 		w.UpdateWorldVersion();
 
-		auto *ch = w.GetChunk(e);
+		auto* ch = w.GetChunk(e);
 		auto p = ch->ViewRWSilent<Position>();
 		p[0] = {};
 	}
