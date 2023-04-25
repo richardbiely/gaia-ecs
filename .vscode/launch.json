@@ -27,10 +27,10 @@
       "externalConsole": false
     },
     {
-      "name": "(lldb) rougelike",
+      "name": "(lldb) roguelike",
       "type": "lldb",
       "request": "launch",
-      "program": "${workspaceFolder}/build/src/examples/example_rougelike/gaia_example_rougelike",
+      "program": "${workspaceFolder}/build/src/examples/example_rougelike/gaia_example_roguelike",
       "args": [],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",

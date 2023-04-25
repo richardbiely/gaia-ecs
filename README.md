@@ -505,7 +505,7 @@ Examples are built if GAIA_BUILD_EXAMPLES is enabled when configuring the projec
 * [External](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example_external) - a dummy example explaining how to use the framework in an external project
 * [Standalone](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example1) - the same as the previous one but showing how Gaia-ECS is used as a standalone project
 * [Basic](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example2) - simple example using some basic framework features
-* [Rougelike](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example_rougelike) - Rouglelike game putting all parts of the framework to use and represents a complex example of how everything would be used in practice; it is work-in-progress and changes and evolves with the project
+* [Roguelike](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example_rougelike) - Roguelike game putting all parts of the framework to use and represents a complex example of how everything would be used in practice; it is work-in-progress and changes and evolves with the project
 
 # Benchmarks
 To be able to reason about the project's performance benchmarks and prevent regressions benchmarks were created.<br/>

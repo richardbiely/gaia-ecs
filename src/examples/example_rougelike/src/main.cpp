@@ -923,7 +923,7 @@ public:
 int main() {
 	ClearScreen();
 	printf(
-			"Welcome to the rudimenatiest of rougelikes driven by Gaia-ECS.\n"
+			"Welcome to the rudimenatiest of roguelikes driven by Gaia-ECS.\n"
 			"\nControls:\n"
 			"  %c, %c, %c, %c - movement\n"
 			"  %c - shoot an arrow\n"
