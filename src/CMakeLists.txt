@@ -1,93 +1,101 @@
-if(GAIA_BUILD_SRC)
-  # Compiler settings
-  include(CheckCXXCompilerFlag)
+if(!GAIA_BUILD_SRC)
+  return()
+endif()
 
-  set(CMAKE_C_STANDARD 17)
-  set(CMAKE_CXX_STANDARD 17)
-  set(CMAKE_CXX_STANDARD_REQUIRED ON)
-  set(CMAKE_CXX_EXTENSIONS OFF)
-  set(CMAKE_REQUIRED_QUIET TRUE)
+# Compiler settings
+include(CheckCXXCompilerFlag)
 
-  function(enable_cxx_compiler_flag_if_supported flag)
-    string(FIND "${CMAKE_CXX_FLAGS}" "${flag}" flag_already_set)
+set(CMAKE_C_STANDARD 17)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_REQUIRED_QUIET TRUE)
 
-    if(flag_already_set EQUAL -1)
-      check_cxx_compiler_flag("${flag}" flag_supported)
+function(enable_cxx_compiler_flag_if_supported flag)
+  string(FIND "${CMAKE_CXX_FLAGS}" "${flag}" flag_already_set)
 
-      if(flag_supported)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${flag}" PARENT_SCOPE)
-      endif()
+  if(flag_already_set EQUAL -1)
+    check_cxx_compiler_flag("${flag}" flag_supported)
 
-      unset(flag_supported CACHE)
+    if(flag_supported)
+      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${flag}" PARENT_SCOPE)
     endif()
-  endfunction()
 
-  if(MSVC)
-    # parallel build
-    enable_cxx_compiler_flag_if_supported("/MP")
+    unset(flag_supported CACHE)
+  endif()
+endfunction()
 
-    # strictness rules
-    enable_cxx_compiler_flag_if_supported("/W4")
-    enable_cxx_compiler_flag_if_supported("/WX")
+if(MSVC)
+  # parallel build
+  enable_cxx_compiler_flag_if_supported("/MP")
 
-    # fast-math
-    enable_cxx_compiler_flag_if_supported("/fp:fast")
+  # strictness rules
+  enable_cxx_compiler_flag_if_supported("/W4")
+  enable_cxx_compiler_flag_if_supported("/WX")
 
-    # instruction sets
-    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-      enable_cxx_compiler_flag_if_supported("-msse4.1")
-      enable_cxx_compiler_flag_if_supported("-mfma")
-    else()
-      enable_cxx_compiler_flag_if_supported("/arch:AVX2")
-    endif()
+  # fast-math
+  enable_cxx_compiler_flag_if_supported("/fp:fast")
+
+  # instruction sets
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    enable_cxx_compiler_flag_if_supported("-msse4.1")
+    enable_cxx_compiler_flag_if_supported("-mfma")
   else()
-    enable_cxx_compiler_flag_if_supported("-fno-exceptions")
+    enable_cxx_compiler_flag_if_supported("/arch:AVX2")
+  endif()
+else()
+  enable_cxx_compiler_flag_if_supported("-fno-exceptions")
 
-    # strictness rules
-    if(!GAIA_PROFILER_CPU AND !GAIA_PROFILER_MEM)
-      # Tracy profiler is not written with strictness and warnings-as-errors in mind
-      # so rather than reading spam in the build output we disable these when profiling.
-      enable_cxx_compiler_flag_if_supported("-Wall")
-      enable_cxx_compiler_flag_if_supported("-Wextra")
-      enable_cxx_compiler_flag_if_supported("-pedantic")
-      enable_cxx_compiler_flag_if_supported("-Werror")
-    endif()
-
-    # fast-math
-    enable_cxx_compiler_flag_if_supported("-ffast-math")
-    enable_cxx_compiler_flag_if_supported("-fno-math-errno")
-
-    # instruction sets
-    if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm|aarch")
-      enable_cxx_compiler_flag_if_supported("-mfpu=neon")
-    else()
-      enable_cxx_compiler_flag_if_supported("-msse4.1")
-      enable_cxx_compiler_flag_if_supported("-mfma")
-    endif()
+  # strictness rules
+  # Tracy profiler is not written with strictness and warnings-as-errors in mind
+  # so rather than reading spam in the build output we disable any strictness
+  # rules and deprecation warnings when profiling.
+  if(!GAIA_PROFILER_CPU AND !GAIA_PROFILER_MEM)
+    enable_cxx_compiler_flag_if_supported("-Wall")
+    enable_cxx_compiler_flag_if_supported("-Wextra")
+    enable_cxx_compiler_flag_if_supported("-pedantic")
+    enable_cxx_compiler_flag_if_supported("-Werror")
+  else()
+    enable_cxx_compiler_flag_if_supported("-Wno-deprecated-declarations")
   endif()
 
-  if(MSVC)
-    # TODO: Enable this once it lands
-    # https://gitlab.kitware.com/cmake/cmake/-/merge_requests/4634
-    # set(CMAKE_CXX_EXCEPTIONS OFF)
-    # set(CMAKE_CXX_RTTI OFF)
+  # fast-math
+  enable_cxx_compiler_flag_if_supported("-ffast-math")
+  enable_cxx_compiler_flag_if_supported("-fno-math-errno")
 
-    # Turn off RTTI
-    string(REGEX REPLACE "/GR" "/GR-" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-
-    # Turn off exceptions (including in STL)
-    string(REGEX REPLACE "/EHsc" "/EHs-c-" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-    add_definitions(-D_HAS_EXCEPTIONS=0)
+  # instruction sets
+  if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm|aarch")
+    enable_cxx_compiler_flag_if_supported("-mfpu=neon")
+  else()
+    enable_cxx_compiler_flag_if_supported("-msse4.1")
+    enable_cxx_compiler_flag_if_supported("-mfma")
   endif()
+endif()
 
-  # Enable Catch if necessary
-  if(GAIA_BUILD_UNITTEST OR GAIA_PROFILER_CPU OR GAIA_PROFILER_MEM)
-    option(GAIA_FIND_CATCH2_PACKAGE "Enable finding Catch2 package." ON)
-  endif()
+if(MSVC)
+  # TODO: Enable this once it lands
+  # https://gitlab.kitware.com/cmake/cmake/-/merge_requests/4634
+  # set(CMAKE_CXX_EXCEPTIONS OFF)
+  # set(CMAKE_CXX_RTTI OFF)
 
-  if(GAIA_FIND_CATCH2_PACKAGE)
-    Include(FetchContent)
+  # Turn off RTTI
+  string(REGEX REPLACE "/GR" "/GR-" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
+  # Turn off exceptions (including in STL)
+  string(REGEX REPLACE "/EHsc" "/EHs-c-" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+  add_definitions(-D_HAS_EXCEPTIONS=0)
+endif()
+
+# Enable Catch if necessary
+set(IS_FETCH_AVAILABLE OFF)
+
+if(GAIA_BUILD_UNITTEST OR GAIA_PROFILER_CPU OR GAIA_PROFILER_MEM)
+  Include(FetchContent OPTIONAL)
+  set(IS_FETCH_AVAILABLE FETCHCONTENT_FOUND)
+endif()
+
+if(GAIA_BUILD_UNITTEST)
+  if(IS_FETCH_AVAILABLE)
     FetchContent_Declare(
       Catch2
       GIT_REPOSITORY https://github.com/catchorg/Catch2.git
@@ -107,54 +115,54 @@ if(GAIA_BUILD_SRC)
   else()
     find_package(Catch2 CONFIG REQUIRED 2)
   endif()
+endif()
 
-  if(GAIA_PROFILER_CPU OR GAIA_PROFILER_MEM)
-    if(GAIA_FIND_CATCH2_PACKAGE)
-      FetchContent_Declare(tracy
-        GIT_REPOSITORY https://github.com/wolfpld/tracy.git
-        GIT_TAG v0.9.1
-        GIT_SHALLOW TRUE
-        GIT_PROGRESS TRUE
-      )
+if(GAIA_PROFILER_CPU OR GAIA_PROFILER_MEM)
+  if(IS_FETCH_AVAILABLE)
+    FetchContent_Declare(tracy
+      GIT_REPOSITORY https://github.com/wolfpld/tracy.git
+      GIT_TAG v0.9.1
+      GIT_SHALLOW TRUE
+      GIT_PROGRESS TRUE
+    )
 
-      FetchContent_MakeAvailable(tracy)
+    FetchContent_MakeAvailable(tracy)
+  else()
+    find_package(tracy CONFIG REQUIRED 0.9.1)
+  endif()
+
+  if(GAIA_PROFILER_BUILD)
+    # Add a custom target to build the Tracy profiler GUI
+    if(UNIX)
+      set(tracy_profiler_build_dir ${tracy_SOURCE_DIR}/profiler/build/unix)
+    elseif(WIN32)
+      set(tracy_profiler_build_dir ${tracy_SOURCE_DIR}/profiler/build/win32)
     else()
-      find_package(tracy CONFIG REQUIRED 0.9.1)
+      message(WARNING "Unsupported platform. Building profiler won't be possible")
     endif()
 
-    if(GAIA_PROFILER_BUILD)
-      # Add a custom target to build the Tracy profiler GUI
-      if(UNIX)
-        set(tracy_profiler_build_dir ${tracy_SOURCE_DIR}/profiler/build/unix)
-      elseif(WIN32)
-        set(tracy_profiler_build_dir ${tracy_SOURCE_DIR}/profiler/build/win32)
-      else()
-        message(WARNING "Unsupported platform. Building profiler won't be possible")
-      endif()
-
-      if(DEFINED tracy_profiler_build_dir)
-        add_custom_target(build_tracy_profiler_gui ALL
-          COMMAND make release
-          WORKING_DIRECTORY ${tracy_profiler_build_dir}
-        )
-      endif()
+    if(DEFINED tracy_profiler_build_dir)
+      add_custom_target(build_tracy_profiler_gui ALL
+        COMMAND make release
+        WORKING_DIRECTORY ${tracy_profiler_build_dir}
+      )
     endif()
   endif()
+endif()
 
-  # Unit test
-  if(GAIA_BUILD_UNITTEST)
-    add_subdirectory(test)
-  endif()
+# Unit test
+if(GAIA_BUILD_UNITTEST)
+  add_subdirectory(test)
+endif()
 
-  # Benchmark
-  if(GAIA_BUILD_BENCHMARK)
-    add_subdirectory(perf)
-  endif()
+# Benchmark
+if(GAIA_BUILD_BENCHMARK)
+  add_subdirectory(perf)
+endif()
 
-  # Examples
-  if(GAIA_BUILD_EXAMPLES)
-    add_subdirectory(examples/example1)
-    add_subdirectory(examples/example2)
-    add_subdirectory(examples/example_rougelike)
-  endif()
+# Examples
+if(GAIA_BUILD_EXAMPLES)
+  add_subdirectory(examples/example1)
+  add_subdirectory(examples/example2)
+  add_subdirectory(examples/example_rougelike)
 endif()
