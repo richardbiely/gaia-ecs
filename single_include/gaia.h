@@ -7820,9 +7820,15 @@ namespace gaia {
 				using U = typename DeduceComponent<T>::Type;
 
 				const auto index = utils::type_info::index<U>();
-				(void)m_infoCreateByIndex.try_emplace(index, ComponentInfoCreate::Create<U>());
-				const auto res = m_infoByIndex.try_emplace(index, ComponentInfo::Create<U>());
-				return res.first->second;
+
+				const auto res1 = m_infoCreateByIndex.try_emplace(index, ComponentInfoCreate{});
+				if GAIA_UNLIKELY (res1.second)
+					res1.first->second = ComponentInfoCreate::Create<U>();
+
+				const auto res2 = m_infoByIndex.try_emplace(index, nullptr);
+				if GAIA_UNLIKELY (res2.second)
+					res2.first->second = ComponentInfo::Create<U>();
+				return res2.first->second;
 			}
 
 			template <typename T>
@@ -7837,8 +7843,8 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD const ComponentInfo* GetComponentInfo() const {
 				using U = typename DeduceComponent<T>::Type;
-
 				const auto index = utils::type_info::index<U>();
+				
 				return GetComponentInfoFromIdx(index);
 			}
 
@@ -7866,8 +7872,8 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD bool HasComponentInfo() const {
 				using U = typename DeduceComponent<T>::Type;
-
 				const auto index = utils::type_info::index<U>();
+
 				return m_infoCreateByIndex.find(index) != m_infoCreateByIndex.end();
 			}
 
