@@ -3,49 +3,75 @@
 #include "version.h"
 
 //------------------------------------------------------------------------------
-// Entity settings
-//------------------------------------------------------------------------------
-
-// Check entity.h IdBits and GenBits for more info
-#define GAIA_ENTITY_IDBITS 20
-#define GAIA_ENTITY_GENBITS 12
-
-//------------------------------------------------------------------------------
-// General settings
+// General settings.
+// You are free to modify these.
 //------------------------------------------------------------------------------
 
 //! If enabled, GAIA_DEBUG is defined despite using a "Release" build configuration for example
-#define GAIA_FORCE_DEBUG 0
+#if !defined(GAIA_FORCE_DEBUG)
+	#define GAIA_FORCE_DEBUG 0
+#endif
 //! If enabled, no asserts are thrown even in debug builds
-#define GAIA_DISABLE_ASSERTS 0
-
+#if !defined(GAIA_DISABLE_ASSERTS)
+	#define GAIA_DISABLE_ASSERTS 0
+#endif
 //! If enabled, diagnostics are enabled
-#define GAIA_ECS_DIAGS 1
+#if !defined(GAIA_ECS_DIAGS)
+	#define GAIA_ECS_DIAGS 1
+#endif
+
+//! If enabled, STL containers are going to be used by the framework.
+#if !defined(GAIA_USE_STL_CONTAINERS)
+	#define GAIA_USE_STL_CONTAINERS 0
+#endif
+//! If enabled, internal containers stay compatible with STL by sticking to STL iterators.
+#if !defined(GAIA_USE_STL_COMPATIBLE_CONTAINERS)
+	#define GAIA_USE_STL_COMPATIBLE_CONTAINERS (GAIA_USE_STL_CONTAINERS || 0)
+#endif
+
+//! Number of bits used for the entity identifier.
+//! You should only touch this if you need more than 2^20 entities which should be fairly
+//! difficult to achieve.
+//! Check entity.h IdBits and GenBits for more info.
+#if !defined(GAIA_ENTITY_IDBITS)
+	#define GAIA_ENTITY_IDBITS 20
+#endif
+//! Number of bits used for the entity generation.
+//! You should only touch this if you need more than 2^12 generations for your entities
+//! which should be fairly difficult to achive.
+//! Check entity.h IdBits and GenBits for more info.
+#if !defined(GAIA_ENTITY_GENBITS)
+	#define GAIA_ENTITY_GENBITS 12
+#endif
+
+//------------------------------------------------------------------------------
+// Internal features.
+// You are free to modify these but you probably should not.
+// It is expected to only use them when something doesn't work as expected
+// or as some sort of workaround.
+//------------------------------------------------------------------------------
+
 //! If enabled, custom allocator is used for allocating archetype chunks.
 #ifndef GAIA_ECS_CHUNK_ALLOCATOR
 	#define GAIA_ECS_CHUNK_ALLOCATOR 1
 #endif
 
 //! Hashing algorithm. GAIA_ECS_HASH_FNV1A or GAIA_ECS_HASH_MURMUR2A
-#define GAIA_ECS_HASH GAIA_ECS_HASH_MURMUR2A
+#ifndef GAIA_ECS_HASH
+	#define GAIA_ECS_HASH GAIA_ECS_HASH_MURMUR2A
+#endif
 
-//! If enabled, STL containers are going to be used by the framework.
-#define GAIA_USE_STL_CONTAINERS 0
-//! If enabled, gaia containers stay compatible with STL by sticking to STL iterators.
-#define GAIA_USE_STL_COMPATIBLE_CONTAINERS (GAIA_USE_STL_CONTAINERS || 0)
-
-//! If enabled, explicit memory prefetching is used when querying chunks, possibly improving performance in edge-cases
-#define GAIA_USE_PREFETCH 1
+//! If enabled, explicit memory prefetching is used when querying chunks, possibly improving performance in
+//! edge-cases
+#ifndef GAIA_USE_PREFETCH
+	#define GAIA_USE_PREFETCH 1
+#endif
 
 //! If enabled, archetype graph is used to speed up component adding and removal.
-#define GAIA_ARCHETYPE_GRAPH 1
+#ifndef GAIA_ARCHETYPE_GRAPH
+	#define GAIA_ARCHETYPE_GRAPH 1
+#endif
 
 //------------------------------------------------------------------------------
-// Debug features
-//------------------------------------------------------------------------------
-
-#define GAIA_ECS_CHUNK_ALLOCATOR_CLEAN_MEMORY_WITH_GARBAGE (GAIA_DEBUG || GAIA_FORCE_DEBUG)
-#define GAIA_ECS_VALIDATE_CHUNKS (GAIA_DEBUG || GAIA_FORCE_DEBUG)
-#define GAIA_ECS_VALIDATE_ENTITY_LIST (GAIA_DEBUG || GAIA_FORCE_DEBUG)
 
 #include "config_core_end.h"
