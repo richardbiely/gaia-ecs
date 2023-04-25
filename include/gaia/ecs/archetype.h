@@ -30,8 +30,7 @@ namespace gaia {
 
 #if GAIA_ARCHETYPE_GRAPH
 			struct ArchetypeGraphEdge {
-				const ComponentInfo* info;
-				Archetype* pArchetype;
+				uint32_t archetypeId;
 			};
 #endif
 
@@ -44,10 +43,12 @@ namespace gaia {
 			containers::darray<Chunk*> chunksDisabled;
 
 #if GAIA_ARCHETYPE_GRAPH
-			//! List of edges in the archetype graph when adding components
-			containers::darray<ArchetypeGraphEdge> edgesAdd[ComponentType::CT_Count];
-			//! List of edges in the archetype graph when removing components
-			containers::darray<ArchetypeGraphEdge> edgesDel[ComponentType::CT_Count];
+			//! Map of edges in the archetype graph when adding components.
+			//! key: componentID, data: ArchetypeGraphEdge
+			containers::map<uint32_t, ArchetypeGraphEdge> edgesAdd[ComponentType::CT_Count];
+			//! Map of edges in the archetype graph when removing components.
+			//! key: componentID, data: ArchetypeGraphEdge
+			containers::map<uint32_t, ArchetypeGraphEdge> edgesDel[ComponentType::CT_Count];
 #endif
 
 			//! Description of components within this archetype
@@ -324,20 +325,28 @@ namespace gaia {
 			}
 
 #if GAIA_ARCHETYPE_GRAPH
-			Archetype* FindAddEdgeArchetype(ComponentType type, const ComponentInfo* info) const {
-				const auto& edges = edgesAdd[type];
-				const auto it = utils::find_if(edges, [info](const auto& edge) {
-					return edge.info == info;
-				});
-				return it != edges.end() ? it->pArchetype : nullptr;
+			//! Create an edge in the graph leading from this archetype to \param archetypeId via component \param info.
+			void AddEdgeArchetypeRight(ComponentType type, const ComponentInfo* info, uint32_t archetypeId) {
+				GAIA_ASSERT(left->FindAddEdgeArchetypeId(type, info) == (uint32_t)-1);
+				(void)edgesAdd[type].emplace(info->infoIndex, ArchetypeGraphEdge{archetypeId});
 			}
 
-			Archetype* FindDelEdgeArchetype(ComponentType type, const ComponentInfo* info) const {
+			//! Create an edge in the graph leading from this archetype to \param archetypeId via component \param info.
+			void AddEdgeArchetypeLeft(ComponentType type, const ComponentInfo* info, uint32_t archetypeId) {
+				GAIA_ASSERT(right->FindDelEdgeArchetypeId(type, info) == (uint32_t)-1);
+				(void)edgesDel[type].emplace(info->infoIndex, ArchetypeGraphEdge{archetypeId});
+			}
+
+			uint32_t FindAddEdgeArchetypeId(ComponentType type, const ComponentInfo* info) const {
+				const auto& edges = edgesAdd[type];
+				const auto it = edges.find(info->infoIndex);
+				return it != edges.end() ? it->second.archetypeId : (uint32_t)-1;
+			}
+
+			uint32_t FindDelEdgeArchetypeId(ComponentType type, const ComponentInfo* info) const {
 				const auto& edges = edgesDel[type];
-				const auto it = utils::find_if(edges, [info](const auto& edge) {
-					return edge.info == info;
-				});
-				return it != edges.end() ? it->pArchetype : nullptr;
+				const auto it = edges.find(info->infoIndex);
+				return it != edges.end() ? it->second.archetypeId : (uint32_t)-1;
 			}
 #endif
 

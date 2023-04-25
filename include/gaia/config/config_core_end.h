@@ -47,7 +47,7 @@
 				DoNotOptimize(cond_ret);                                                                                       \
 			}
 	#else
-		#define GAIA_ASSERT(condition) assert(condition);
+		#define GAIA_ASSERT(condition) assert(condition)
 	#endif
 #endif
 
