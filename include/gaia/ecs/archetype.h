@@ -76,6 +76,11 @@ namespace gaia {
 			// Constructor is hidden. Create archetypes via Create
 			Archetype() = default;
 
+			Archetype(Archetype&& world) = delete;
+			Archetype(const Archetype& world) = delete;
+			Archetype& operator=(Archetype&&) = delete;
+			Archetype& operator=(const Archetype&) = delete;
+
 			/*!
 			Allocates memory for a new chunk.
 			\param archetype Archetype of the chunk we want to allocate

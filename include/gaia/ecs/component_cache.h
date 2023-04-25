@@ -21,15 +21,14 @@ namespace gaia {
 				m_infoByIndex.reserve(DefaultComponentCacheSize);
 				m_infoCreateByIndex.reserve(DefaultComponentCacheSize);
 			}
+			~ComponentCache() {
+				ClearRegisteredInfoCache();
+			}
 
 			ComponentCache(ComponentCache&&) = delete;
 			ComponentCache(const ComponentCache&) = delete;
 			ComponentCache& operator=(ComponentCache&&) = delete;
 			ComponentCache& operator=(const ComponentCache&) = delete;
-
-			~ComponentCache() {
-				ClearRegisteredInfoCache();
-			}
 
 			template <typename T>
 			GAIA_NODISCARD const ComponentInfo* GetOrCreateComponentInfo() {
