@@ -22,8 +22,11 @@
 //! If enabled, diagnostics are enabled
 #define GAIA_ECS_DIAGS 1
 //! If enabled, custom allocator is used for allocating archetype chunks.
-#define GAIA_ECS_CHUNK_ALLOCATOR 1
+#ifndef GAIA_ECS_CHUNK_ALLOCATOR
+	#define GAIA_ECS_CHUNK_ALLOCATOR 1
+#endif
 
+//! Hashing algorithm. GAIA_ECS_HASH_FNV1A or GAIA_ECS_HASH_MURMUR2A
 #define GAIA_ECS_HASH GAIA_ECS_HASH_MURMUR2A
 
 //! If enabled, STL containers are going to be used by the framework.
