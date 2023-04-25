@@ -4145,8 +4145,9 @@ namespace robin_hood {
 			void keyToIdx(HashKey&& key, size_t* idx, InfoType* info) const {
 				auto h = static_cast<uint64_t>(WHash::operator()(key));
 
-				// direct_hash_key is expected to a proper hash. No additional hash tricks are required
-				if constexpr (!std::is_same_v<HashKey, gaia::utils::direct_hash_key>) {
+				// direct_hash_key is expected to be a proper hash. No additional hash tricks are required
+				using HashKeyRaw = std::decay_t<HashKey>;
+				if constexpr (!std::is_same_v<HashKeyRaw, gaia::utils::direct_hash_key>) {
 					// In addition to whatever hash is used, add another mul & shift so we get better hashing.
 					// This serves as a bad hash prevention, if the given data is
 					// badly mixed.
@@ -7795,6 +7796,7 @@ namespace gaia {
 		class ComponentCache {
 			containers::map<uint32_t, const ComponentInfo*> m_infoByIndex;
 			containers::map<uint32_t, ComponentInfoCreate> m_infoCreateByIndex;
+			containers::map<utils::direct_hash_key, const ComponentInfo*> m_infoByHash;
 
 		public:
 			ComponentCache() {
@@ -7802,6 +7804,7 @@ namespace gaia {
 				constexpr uint32_t DefaultComponentCacheSize = 2048;
 				m_infoByIndex.reserve(DefaultComponentCacheSize);
 				m_infoCreateByIndex.reserve(DefaultComponentCacheSize);
+				m_infoByHash.reserve(DefaultComponentCacheSize);
 			}
 			~ComponentCache() {
 				ClearRegisteredInfoCache();
@@ -7815,25 +7818,18 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD const ComponentInfo* GetOrCreateComponentInfo() {
 				using U = typename DeduceComponent<T>::Type;
+
 				const auto index = utils::type_info::index<U>();
-
-				if (m_infoCreateByIndex.find(index) == m_infoCreateByIndex.end())
-					m_infoCreateByIndex.emplace(index, ComponentInfoCreate::Create<U>());
-
-				{
-					const auto res = m_infoByIndex.emplace(index, nullptr);
-					if (res.second)
-						res.first->second = ComponentInfo::Create<U>();
-
-					return res.first->second;
-				}
+				(void)m_infoCreateByIndex.try_emplace(index, ComponentInfoCreate::Create<U>());
+				const auto res = m_infoByIndex.try_emplace(index, ComponentInfo::Create<U>());
+				return res.first->second;
 			}
 
 			template <typename T>
 			GAIA_NODISCARD const ComponentInfo* FindComponentInfo() const {
 				using U = typename DeduceComponent<T>::Type;
 
-				const auto index = utils::type_info::hash<U>();
+				const auto index = utils::type_info::index<U>();
 				const auto it = m_infoByIndex.find(index);
 				return it != m_infoByIndex.end() ? it->second : (const ComponentInfo*)nullptr;
 			}
@@ -7841,25 +7837,36 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD const ComponentInfo* GetComponentInfo() const {
 				using U = typename DeduceComponent<T>::Type;
+
 				const auto index = utils::type_info::index<U>();
 				return GetComponentInfoFromIdx(index);
 			}
 
-			GAIA_NODISCARD const ComponentInfo* GetComponentInfoFromIdx(uint32_t componentIndex) const {
+			GAIA_NODISCARD const ComponentInfo* GetComponentInfoFromIdx(uint32_t index) const {
 				// Let's assume the component has been registered via AddComponent already!
-				GAIA_ASSERT(m_infoByIndex.find(componentIndex) != m_infoByIndex.end());
-				return m_infoByIndex.at(componentIndex);
+				const auto it = m_infoByIndex.find(index);
+				GAIA_ASSERT(it != m_infoByIndex.end());
+				return it->second;
 			}
 
-			GAIA_NODISCARD const ComponentInfoCreate& GetComponentCreateInfoFromIdx(uint32_t componentIndex) const {
+			GAIA_NODISCARD const ComponentInfoCreate& GetComponentCreateInfoFromIdx(uint32_t index) const {
 				// Let's assume the component has been registered via AddComponent already!
-				GAIA_ASSERT(m_infoCreateByIndex.find(componentIndex) != m_infoCreateByIndex.end());
-				return m_infoCreateByIndex.at(componentIndex);
+				const auto it = m_infoCreateByIndex.find(index);
+				GAIA_ASSERT(it != m_infoCreateByIndex.end());
+				return it->second;
+			}
+
+			GAIA_NODISCARD const ComponentInfo* GetComponentInfoFromHash(utils::direct_hash_key hash) const {
+				// Let's assume the component has been registered via AddComponent already!
+				const auto it = m_infoByHash.find(hash);
+				GAIA_ASSERT(it != m_infoByHash.end());
+				return it->second;
 			}
 
 			template <typename T>
 			GAIA_NODISCARD bool HasComponentInfo() const {
 				using U = typename DeduceComponent<T>::Type;
+
 				const auto index = utils::type_info::index<U>();
 				return m_infoCreateByIndex.find(index) != m_infoCreateByIndex.end();
 			}
@@ -7880,6 +7887,7 @@ namespace gaia {
 					delete pair.second;
 				m_infoByIndex.clear();
 				m_infoCreateByIndex.clear();
+				m_infoByHash.clear();
 			}
 		};
 	} // namespace ecs
@@ -7920,10 +7928,10 @@ namespace gaia {
 #if GAIA_ARCHETYPE_GRAPH
 			//! Map of edges in the archetype graph when adding components.
 			//! key: componentID, data: ArchetypeGraphEdge
-			containers::map<uint32_t, ArchetypeGraphEdge> edgesAdd[ComponentType::CT_Count];
+			containers::map<utils::direct_hash_key, ArchetypeGraphEdge> edgesAdd[ComponentType::CT_Count];
 			//! Map of edges in the archetype graph when removing components.
 			//! key: componentID, data: ArchetypeGraphEdge
-			containers::map<uint32_t, ArchetypeGraphEdge> edgesDel[ComponentType::CT_Count];
+			containers::map<utils::direct_hash_key, ArchetypeGraphEdge> edgesDel[ComponentType::CT_Count];
 #endif
 
 			//! Description of components within this archetype
@@ -8202,25 +8210,27 @@ namespace gaia {
 #if GAIA_ARCHETYPE_GRAPH
 			//! Create an edge in the graph leading from this archetype to \param archetypeId via component \param info.
 			void AddEdgeArchetypeRight(ComponentType type, const ComponentInfo* info, uint32_t archetypeId) {
-				GAIA_ASSERT(left->FindAddEdgeArchetypeId(type, info) == (uint32_t)-1);
-				(void)edgesAdd[type].emplace(info->infoIndex, ArchetypeGraphEdge{archetypeId});
+				[[maybe_unused]] const auto ret =
+						edgesAdd[type].try_emplace({info->lookupHash}, ArchetypeGraphEdge{archetypeId});
+				GAIA_ASSERT(ret.second);
 			}
 
 			//! Create an edge in the graph leading from this archetype to \param archetypeId via component \param info.
 			void AddEdgeArchetypeLeft(ComponentType type, const ComponentInfo* info, uint32_t archetypeId) {
-				GAIA_ASSERT(right->FindDelEdgeArchetypeId(type, info) == (uint32_t)-1);
-				(void)edgesDel[type].emplace(info->infoIndex, ArchetypeGraphEdge{archetypeId});
+				[[maybe_unused]] const auto ret =
+						edgesDel[type].try_emplace({info->lookupHash}, ArchetypeGraphEdge{archetypeId});
+				GAIA_ASSERT(ret.second);
 			}
 
 			uint32_t FindAddEdgeArchetypeId(ComponentType type, const ComponentInfo* info) const {
 				const auto& edges = edgesAdd[type];
-				const auto it = edges.find(info->infoIndex);
+				const auto it = edges.find({info->lookupHash});
 				return it != edges.end() ? it->second.archetypeId : (uint32_t)-1;
 			}
 
 			uint32_t FindDelEdgeArchetypeId(ComponentType type, const ComponentInfo* info) const {
 				const auto& edges = edgesDel[type];
-				const auto it = edges.find(info->infoIndex);
+				const auto it = edges.find({info->lookupHash});
 				return it != edges.end() ? it->second.archetypeId : (uint32_t)-1;
 			}
 #endif
@@ -10842,7 +10852,8 @@ namespace gaia {
 						if (!edgesG.empty()) {
 							LOG_N("    Generic - count:%u", (uint32_t)edgesG.size());
 							for (const auto& edge: edgesG) {
-								const auto& info = cc.GetComponentCreateInfoFromIdx(edge.first);
+								const auto* pInfo = cc.GetComponentInfoFromHash(edge.first);
+								const auto& info = cc.GetComponentCreateInfoFromIdx(pInfo->infoIndex);
 								LOG_N(
 										"      %.*s (--> Archetype ID:%u)", (uint32_t)info.name.size(), info.name.data(),
 										edge.second.archetypeId);
@@ -10852,7 +10863,8 @@ namespace gaia {
 						if (!edgesC.empty()) {
 							LOG_N("    Chunk - count:%u", (uint32_t)edgesC.size());
 							for (const auto& edge: edgesC) {
-								const auto& info = cc.GetComponentCreateInfoFromIdx(edge.first);
+								const auto* pInfo = cc.GetComponentInfoFromHash(edge.first);
+								const auto& info = cc.GetComponentCreateInfoFromIdx(pInfo->infoIndex);
 								LOG_N(
 										"      %.*s (--> Archetype ID:%u)", (uint32_t)info.name.size(), info.name.data(),
 										edge.second.archetypeId);
@@ -10872,7 +10884,8 @@ namespace gaia {
 						if (!edgesG.empty()) {
 							LOG_N("    Generic - count:%u", (uint32_t)edgesG.size());
 							for (const auto& edge: edgesG) {
-								const auto& info = cc.GetComponentCreateInfoFromIdx(edge.first);
+								const auto* pInfo = cc.GetComponentInfoFromHash(edge.first);
+								const auto& info = cc.GetComponentCreateInfoFromIdx(pInfo->infoIndex);
 								LOG_N(
 										"      %.*s (--> Archetype ID:%u)", (uint32_t)info.name.size(), info.name.data(),
 										edge.second.archetypeId);
@@ -10882,7 +10895,8 @@ namespace gaia {
 						if (!edgesC.empty()) {
 							LOG_N("    Chunk - count:%u", (uint32_t)edgesC.size());
 							for (const auto& edge: edgesC) {
-								const auto& info = cc.GetComponentCreateInfoFromIdx(edge.first);
+								const auto* pInfo = cc.GetComponentInfoFromHash(edge.first);
+								const auto& info = cc.GetComponentCreateInfoFromIdx(pInfo->infoIndex);
 								LOG_N(
 										"      %.*s (--> Archetype ID:%u)", (uint32_t)info.name.size(), info.name.data(),
 										edge.second.archetypeId);
@@ -11381,7 +11395,7 @@ namespace gaia {
 			static constexpr CmdBufferCmdFunc CommandBufferCmd[] = {
 					// CREATE_ENTITY
 					[](CommandBufferCtx& ctx) {
-						[[maybe_unused]] const auto res = ctx.entityMap.emplace(ctx.entities++, ctx.world.CreateEntity());
+						[[maybe_unused]] const auto res = ctx.entityMap.try_emplace(ctx.entities++, ctx.world.CreateEntity());
 						GAIA_ASSERT(res.second);
 					},
 					// CREATE_ENTITY_FROM_ARCHETYPE
@@ -11390,14 +11404,14 @@ namespace gaia {
 						auto* pArchetype = (Archetype*)ptr;
 						ctx.dataOffset += sizeof(void*);
 						[[maybe_unused]] const auto res =
-								ctx.entityMap.emplace(ctx.entities++, ctx.world.CreateEntity(*pArchetype));
+								ctx.entityMap.try_emplace(ctx.entities++, ctx.world.CreateEntity(*pArchetype));
 						GAIA_ASSERT(res.second);
 					},
 					// CREATE_ENTITY_FROM_ENTITY
 					[](CommandBufferCtx& ctx) {
 						Entity entityFrom = utils::unaligned_ref<Entity>((void*)&ctx.data[ctx.dataOffset]);
 						ctx.dataOffset += sizeof(Entity);
-						[[maybe_unused]] const auto res = ctx.entityMap.emplace(ctx.entities++, ctx.world.CreateEntity(entityFrom));
+						[[maybe_unused]] const auto res = ctx.entityMap.try_emplace(ctx.entities++, ctx.world.CreateEntity(entityFrom));
 						GAIA_ASSERT(res.second);
 					},
 					// DELETE_ENTITY
@@ -11823,7 +11837,7 @@ namespace gaia {
 			T* CreateSystem(const char* name) {
 				GAIA_SAFE_CONSTEXPR auto hash = utils::type_info::hash<std::decay_t<T>>();
 
-				const auto res = m_systemsMap.emplace(utils::direct_hash_key{hash}, nullptr);
+				const auto res = m_systemsMap.try_emplace(utils::direct_hash_key{hash}, nullptr);
 				if GAIA_UNLIKELY (!res.second)
 					return (T*)res.first->second;
 

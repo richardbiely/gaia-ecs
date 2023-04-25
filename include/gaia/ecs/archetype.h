@@ -45,10 +45,10 @@ namespace gaia {
 #if GAIA_ARCHETYPE_GRAPH
 			//! Map of edges in the archetype graph when adding components.
 			//! key: componentID, data: ArchetypeGraphEdge
-			containers::map<uint32_t, ArchetypeGraphEdge> edgesAdd[ComponentType::CT_Count];
+			containers::map<utils::direct_hash_key, ArchetypeGraphEdge> edgesAdd[ComponentType::CT_Count];
 			//! Map of edges in the archetype graph when removing components.
 			//! key: componentID, data: ArchetypeGraphEdge
-			containers::map<uint32_t, ArchetypeGraphEdge> edgesDel[ComponentType::CT_Count];
+			containers::map<utils::direct_hash_key, ArchetypeGraphEdge> edgesDel[ComponentType::CT_Count];
 #endif
 
 			//! Description of components within this archetype
@@ -327,25 +327,27 @@ namespace gaia {
 #if GAIA_ARCHETYPE_GRAPH
 			//! Create an edge in the graph leading from this archetype to \param archetypeId via component \param info.
 			void AddEdgeArchetypeRight(ComponentType type, const ComponentInfo* info, uint32_t archetypeId) {
-				[[maybe_unused]] const auto ret = edgesAdd[type].try_emplace(info->infoIndex, ArchetypeGraphEdge{archetypeId});
+				[[maybe_unused]] const auto ret =
+						edgesAdd[type].try_emplace({info->lookupHash}, ArchetypeGraphEdge{archetypeId});
 				GAIA_ASSERT(ret.second);
 			}
 
 			//! Create an edge in the graph leading from this archetype to \param archetypeId via component \param info.
 			void AddEdgeArchetypeLeft(ComponentType type, const ComponentInfo* info, uint32_t archetypeId) {
-				[[maybe_unused]] const auto ret = edgesDel[type].try_emplace(info->infoIndex, ArchetypeGraphEdge{archetypeId});
+				[[maybe_unused]] const auto ret =
+						edgesDel[type].try_emplace({info->lookupHash}, ArchetypeGraphEdge{archetypeId});
 				GAIA_ASSERT(ret.second);
 			}
 
 			uint32_t FindAddEdgeArchetypeId(ComponentType type, const ComponentInfo* info) const {
 				const auto& edges = edgesAdd[type];
-				const auto it = edges.find(info->infoIndex);
+				const auto it = edges.find({info->lookupHash});
 				return it != edges.end() ? it->second.archetypeId : (uint32_t)-1;
 			}
 
 			uint32_t FindDelEdgeArchetypeId(ComponentType type, const ComponentInfo* info) const {
 				const auto& edges = edgesDel[type];
-				const auto it = edges.find(info->infoIndex);
+				const auto it = edges.find({info->lookupHash});
 				return it != edges.end() ? it->second.archetypeId : (uint32_t)-1;
 			}
 #endif

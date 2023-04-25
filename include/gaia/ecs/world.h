@@ -1919,7 +1919,8 @@ namespace gaia {
 						if (!edgesG.empty()) {
 							LOG_N("    Generic - count:%u", (uint32_t)edgesG.size());
 							for (const auto& edge: edgesG) {
-								const auto& info = cc.GetComponentCreateInfoFromIdx(edge.first);
+								const auto* pInfo = cc.GetComponentInfoFromHash(edge.first);
+								const auto& info = cc.GetComponentCreateInfoFromIdx(pInfo->infoIndex);
 								LOG_N(
 										"      %.*s (--> Archetype ID:%u)", (uint32_t)info.name.size(), info.name.data(),
 										edge.second.archetypeId);
@@ -1929,7 +1930,8 @@ namespace gaia {
 						if (!edgesC.empty()) {
 							LOG_N("    Chunk - count:%u", (uint32_t)edgesC.size());
 							for (const auto& edge: edgesC) {
-								const auto& info = cc.GetComponentCreateInfoFromIdx(edge.first);
+								const auto* pInfo = cc.GetComponentInfoFromHash(edge.first);
+								const auto& info = cc.GetComponentCreateInfoFromIdx(pInfo->infoIndex);
 								LOG_N(
 										"      %.*s (--> Archetype ID:%u)", (uint32_t)info.name.size(), info.name.data(),
 										edge.second.archetypeId);
@@ -1949,7 +1951,8 @@ namespace gaia {
 						if (!edgesG.empty()) {
 							LOG_N("    Generic - count:%u", (uint32_t)edgesG.size());
 							for (const auto& edge: edgesG) {
-								const auto& info = cc.GetComponentCreateInfoFromIdx(edge.first);
+								const auto* pInfo = cc.GetComponentInfoFromHash(edge.first);
+								const auto& info = cc.GetComponentCreateInfoFromIdx(pInfo->infoIndex);
 								LOG_N(
 										"      %.*s (--> Archetype ID:%u)", (uint32_t)info.name.size(), info.name.data(),
 										edge.second.archetypeId);
@@ -1959,7 +1962,8 @@ namespace gaia {
 						if (!edgesC.empty()) {
 							LOG_N("    Chunk - count:%u", (uint32_t)edgesC.size());
 							for (const auto& edge: edgesC) {
-								const auto& info = cc.GetComponentCreateInfoFromIdx(edge.first);
+								const auto* pInfo = cc.GetComponentInfoFromHash(edge.first);
+								const auto& info = cc.GetComponentCreateInfoFromIdx(pInfo->infoIndex);
 								LOG_N(
 										"      %.*s (--> Archetype ID:%u)", (uint32_t)info.name.size(), info.name.data(),
 										edge.second.archetypeId);

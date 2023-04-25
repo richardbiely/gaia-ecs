@@ -13,6 +13,7 @@ namespace gaia {
 		class ComponentCache {
 			containers::map<uint32_t, const ComponentInfo*> m_infoByIndex;
 			containers::map<uint32_t, ComponentInfoCreate> m_infoCreateByIndex;
+			containers::map<utils::direct_hash_key, const ComponentInfo*> m_infoByHash;
 
 		public:
 			ComponentCache() {
@@ -20,6 +21,7 @@ namespace gaia {
 				constexpr uint32_t DefaultComponentCacheSize = 2048;
 				m_infoByIndex.reserve(DefaultComponentCacheSize);
 				m_infoCreateByIndex.reserve(DefaultComponentCacheSize);
+				m_infoByHash.reserve(DefaultComponentCacheSize);
 			}
 			~ComponentCache() {
 				ClearRegisteredInfoCache();
@@ -33,22 +35,18 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD const ComponentInfo* GetOrCreateComponentInfo() {
 				using U = typename DeduceComponent<T>::Type;
+
 				const auto index = utils::type_info::index<U>();
-
-				if (m_infoCreateByIndex.find(index) == m_infoCreateByIndex.end())
-					(void)m_infoCreateByIndex.try_emplace(index, ComponentInfoCreate::Create<U>());
-
-				{
-					const auto res = m_infoByIndex.try_emplace(index, ComponentInfo::Create<U>());
-					return res.first->second;
-				}
+				(void)m_infoCreateByIndex.try_emplace(index, ComponentInfoCreate::Create<U>());
+				const auto res = m_infoByIndex.try_emplace(index, ComponentInfo::Create<U>());
+				return res.first->second;
 			}
 
 			template <typename T>
 			GAIA_NODISCARD const ComponentInfo* FindComponentInfo() const {
 				using U = typename DeduceComponent<T>::Type;
 
-				const auto index = utils::type_info::hash<U>();
+				const auto index = utils::type_info::index<U>();
 				const auto it = m_infoByIndex.find(index);
 				return it != m_infoByIndex.end() ? it->second : (const ComponentInfo*)nullptr;
 			}
@@ -56,25 +54,36 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD const ComponentInfo* GetComponentInfo() const {
 				using U = typename DeduceComponent<T>::Type;
+
 				const auto index = utils::type_info::index<U>();
 				return GetComponentInfoFromIdx(index);
 			}
 
-			GAIA_NODISCARD const ComponentInfo* GetComponentInfoFromIdx(uint32_t componentIndex) const {
+			GAIA_NODISCARD const ComponentInfo* GetComponentInfoFromIdx(uint32_t index) const {
 				// Let's assume the component has been registered via AddComponent already!
-				GAIA_ASSERT(m_infoByIndex.find(componentIndex) != m_infoByIndex.end());
-				return m_infoByIndex.at(componentIndex);
+				const auto it = m_infoByIndex.find(index);
+				GAIA_ASSERT(it != m_infoByIndex.end());
+				return it->second;
 			}
 
-			GAIA_NODISCARD const ComponentInfoCreate& GetComponentCreateInfoFromIdx(uint32_t componentIndex) const {
+			GAIA_NODISCARD const ComponentInfoCreate& GetComponentCreateInfoFromIdx(uint32_t index) const {
 				// Let's assume the component has been registered via AddComponent already!
-				GAIA_ASSERT(m_infoCreateByIndex.find(componentIndex) != m_infoCreateByIndex.end());
-				return m_infoCreateByIndex.at(componentIndex);
+				const auto it = m_infoCreateByIndex.find(index);
+				GAIA_ASSERT(it != m_infoCreateByIndex.end());
+				return it->second;
+			}
+
+			GAIA_NODISCARD const ComponentInfo* GetComponentInfoFromHash(utils::direct_hash_key hash) const {
+				// Let's assume the component has been registered via AddComponent already!
+				const auto it = m_infoByHash.find(hash);
+				GAIA_ASSERT(it != m_infoByHash.end());
+				return it->second;
 			}
 
 			template <typename T>
 			GAIA_NODISCARD bool HasComponentInfo() const {
 				using U = typename DeduceComponent<T>::Type;
+
 				const auto index = utils::type_info::index<U>();
 				return m_infoCreateByIndex.find(index) != m_infoCreateByIndex.end();
 			}
@@ -95,6 +104,7 @@ namespace gaia {
 					delete pair.second;
 				m_infoByIndex.clear();
 				m_infoCreateByIndex.clear();
+				m_infoByHash.clear();
 			}
 		};
 	} // namespace ecs
