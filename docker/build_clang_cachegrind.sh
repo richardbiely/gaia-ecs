@@ -25,12 +25,13 @@ export CXX=/usr/bin/clang++
 # Build the project
 ####################################################################
 
-BUILD_SETTINGS_COMMON="-DGAIA_BUILD_UNITTEST=OFF -DGAIA_BUILD_BENCHMARK=ON -DGAIA_BUILD_EXAMPLES=OFF -DGAIA_GENERATE_CC=OFF"
+BUILD_SETTINGS_COMMON_BASE="-DGAIA_BUILD_UNITTEST=OFF -DGAIA_BUILD_BENCHMARK=ON -DGAIA_BUILD_EXAMPLES=OFF -DGAIA_GENERATE_CC=OFF -DGAIA_PROFILER_BUILD=OFF"
+BUILD_SETTINGS_COMMON="${BUILD_SETTINGS_COMMON_BASE} -DGAIA_PROFILER_CPU=OFF -DGAIA_PROFILER_MEM=OFF"
 PATH_RELEASE="./${PATH_BASE}/release-cachegrind"
 
 # Release mode
 cmake -E make_directory ${PATH_RELEASE}
-cmake -DCMAKE_BUILD_TYPE=Release ${BUILD_SETTINGS_COMMON} -S .. -B ${PATH_RELEASE}
+cmake -DCMAKE_BUILD_TYPE=Release ${BUILD_SETTINGS_COMMON} -DGAIA_DEBUG=0 -S .. -B ${PATH_RELEASE}
 cmake --build ${PATH_RELEASE} --config RelWithDebInfo
 
 ####################################################################
