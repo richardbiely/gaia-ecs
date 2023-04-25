@@ -243,19 +243,9 @@ namespace gaia {
 			}
 
 			/*!
-			Initializes the archetype with hash values for each kind of component types.
-			\param genericHash Generic components hash
-			\param chunkHash Chunk components hash
-			\param lookupHash Hash used for archetype lookup purposes
-			\return Pointer to the new archetype
+			Registers the archetype in the world.
+			\param pArchetype Archetype to register
 			*/
-			static void
-			InitArchetype(Archetype* archetype, uint64_t genericHash, uint64_t chunkHash, utils::direct_hash_key lookupHash) {
-				archetype->genericHash = genericHash;
-				archetype->chunkHash = chunkHash;
-				archetype->lookupHash = lookupHash;
-			}
-
 			void RegisterArchetype(Archetype* pArchetype) {
 				// Make sure hashes were set already
 				GAIA_ASSERT(pArchetype == m_rootArchetype || (pArchetype->genericHash != 0 || pArchetype->chunkHash != 0));
@@ -317,28 +307,6 @@ namespace gaia {
 
 			static void VerifyRemoveComponent(
 					Archetype& archetype, Entity entity, ComponentType type, const ComponentInfo* infoToRemove) {
-	#if GAIA_ARCHETYPE_GRAPH
-				auto* pArchetypeLeft = archetype.FindDelEdgeArchetype(type, infoToRemove);
-				if (pArchetypeLeft == nullptr) {
-					GAIA_ASSERT(false && "Trying to remove a component which wasn't added");
-					LOG_W("Trying to remove a component from entity [%u.%u] but it was never added", entity.id(), entity.gen());
-					LOG_W("Currently present:");
-
-					const auto& cc = GetComponentCache();
-
-					const auto& infos = archetype.componentInfos[type];
-					for (size_t k = 0; k < infos.size(); k++) {
-						const auto& info = cc.GetComponentCreateInfoFromIdx(infos[k]->infoIndex);
-						LOG_W("> [%u] %.*s", (uint32_t)k, (uint32_t)info.name.size(), info.name.data());
-					}
-
-					{
-						LOG_W("Trying to remove:");
-						const auto& info = cc.GetComponentCreateInfoFromIdx(infoToRemove->infoIndex);
-						LOG_W("> %.*s", (uint32_t)info.name.size(), info.name.data());
-					}
-				}
-	#else
 				const auto& infos = archetype.componentInfos[type];
 				if GAIA_UNLIKELY (!utils::has_if(infos, [&](const auto* info) {
 														return info == infoToRemove;
@@ -360,104 +328,20 @@ namespace gaia {
 						LOG_W("> %.*s", (uint32_t)info.name.size(), info.name.data());
 					}
 				}
-	#endif
 			}
 #endif
 
 #if GAIA_ARCHETYPE_GRAPH
 			static GAIA_FORCEINLINE void
 			BuildGraphEdges(ComponentType type, Archetype* left, Archetype* right, const ComponentInfo* info) {
+				GAIA_ASSERT(!utils::has_if(left->edgesAdd[type], [info](const auto& edge) {
+					return edge.info == info;
+				}));
+				GAIA_ASSERT(!utils::has_if(right->edgesDel[type], [info](const auto& edge) {
+					return edge.info == info;
+				}));
 				left->edgesAdd[type].push_back({info, right});
 				right->edgesDel[type].push_back({info, left});
-			}
-
-			/*!
-			Checks if archetype \param left is a superset of archetype \param right (contains all its infos).
-			\param left Entity to delete
-			\param right Entity to delete
-			\return Returns true if left is a superset of right
-			*/
-			static bool IsSuperSet(ComponentType type, Archetype& left, Archetype& right) {
-				size_t i = 0;
-				size_t j = 0;
-
-				const auto& infosLeft = left.componentInfos[type];
-				const auto& infosRight = right.componentInfos[type];
-				if (infosLeft.size() < infosRight.size())
-					return false;
-
-				// Arrays are sorted so we can do linear intersection lookup
-				while (i < infosLeft.size() && j < infosRight.size()) {
-					const auto* infoLeft = infosLeft[i];
-					const auto* infoRight = infosRight[j];
-
-					if (infoLeft == infoRight) {
-						++i;
-						++j;
-					} else if (infoLeft->infoIndex < infoRight->infoIndex)
-						++i;
-					else
-						return false;
-				}
-
-				return j == infosRight.size();
-			}
-
-			void TryBuildArchetypeGraph_Internal(
-					Archetype* pArchetypeRight, ComponentType type,
-					const containers::sarray_ext<const ComponentInfo*, MAX_COMPONENTS_PER_ARCHETYPE>& infoGeneric,
-					const containers::sarray_ext<const ComponentInfo*, MAX_COMPONENTS_PER_ARCHETYPE>& infoChunk,
-					const ComponentInfo* info) {
-				const auto newInfos1Hash = CalculateLookupHash({infoGeneric});
-				const auto newInfos2Hash = CalculateLookupHash({infoChunk});
-
-				// Calculate hash for our combination of components
-				utils::direct_hash_key lookupHash = {
-						CalculateLookupHash(containers::sarray<uint64_t, 2>{newInfos1Hash, newInfos2Hash})};
-
-				Archetype* pArchetypeLeft = FindArchetype(infoGeneric, infoChunk, lookupHash);
-				if (pArchetypeLeft == nullptr) {
-					pArchetypeLeft =
-							CreateArchetype({infoGeneric.data(), infoGeneric.size()}, {infoChunk.data(), infoChunk.size()});
-					InitArchetype(pArchetypeLeft, newInfos1Hash, newInfos2Hash, lookupHash);
-					RegisterArchetype(pArchetypeLeft);
-					BuildGraphEdges(type, pArchetypeLeft, pArchetypeRight, info);
-					TryBuildArchetypeGraph(pArchetypeLeft, infoGeneric, infoChunk);
-				} else if (pArchetypeLeft == m_rootArchetype) {
-					if (pArchetypeRight->FindDelEdgeArchetype(type, info) == nullptr)
-						BuildGraphEdges(type, pArchetypeLeft, pArchetypeRight, info);
-				} else {
-					if (pArchetypeRight->FindDelEdgeArchetype(type, info) == nullptr)
-						BuildGraphEdges(type, pArchetypeLeft, pArchetypeRight, info);
-
-					TryBuildArchetypeGraph(pArchetypeLeft, infoGeneric, infoChunk);
-				}
-			}
-
-			void TryBuildArchetypeGraph(
-					Archetype* pArchetypeRight,
-					const containers::sarray_ext<const ComponentInfo*, MAX_COMPONENTS_PER_ARCHETYPE>& infoGeneric,
-					const containers::sarray_ext<const ComponentInfo*, MAX_COMPONENTS_PER_ARCHETYPE>& infoChunk) {
-				GAIA_ASSERT(pArchetypeRight != m_rootArchetype);
-
-				auto prepareNewInfos = [&](const auto* info, const auto& infos) {
-					containers::sarray_ext<const ComponentInfo*, MAX_COMPONENTS_PER_ARCHETYPE> newInfos;
-					for (const auto* infoToCopy: infos) {
-						if (infoToCopy != info)
-							newInfos.push_back(infoToCopy);
-					}
-					return newInfos;
-				};
-
-				// Step 1 - all original chunks components + one less generic component
-				for (const auto* info: infoGeneric)
-					TryBuildArchetypeGraph_Internal(
-							pArchetypeRight, ComponentType::CT_Generic, prepareNewInfos(info, infoGeneric), infoChunk, info);
-
-				// Step 2 - all original generic components + one less chunk component
-				for (const auto* info: infoChunk)
-					TryBuildArchetypeGraph_Internal(
-							pArchetypeRight, ComponentType::CT_Chunk, infoGeneric, prepareNewInfos(info, infoChunk), info);
 			}
 
 			template <typename Func>
@@ -498,14 +382,15 @@ namespace gaia {
 #endif
 
 			/*!
-			Searches for an archetype based on the given set of components. If no archetype is found a new one is created.
-			\param pArchetypeLeft Archetype we originate from
-			\param type Component infos
-			\param infoToAdd Span of chunk components
+			Searches for an archetype which is formed by adding \param type to \param pArchetypeLeft.
+			If no such archetype is found a new one is created.
+			\param pArchetypeLeft Archetype we originate from.
+			\param type Component infos.
+			\param infoToAdd Component we want to add.
 			\return Pointer to archetype
 			*/
-			GAIA_NODISCARD Archetype*
-			FindOrCreateArchetype(Archetype* pArchetypeLeft, ComponentType type, const ComponentInfo* infoToAdd) {
+			GAIA_NODISCARD Archetype* FindOrCreateArchetype_AddComponent(
+					Archetype* pArchetypeLeft, ComponentType type, const ComponentInfo* infoToAdd) {
 #if GAIA_ARCHETYPE_GRAPH
 				// We don't want to store edges for the root archetype because the more components there are the longer
 				// it would take to find anything. Therefore, for the root archetype we simply make a lookup.
@@ -517,7 +402,7 @@ namespace gaia {
 						pArchetypeRight = FindArchetype(std::span<const ComponentInfo*>(&infoToAdd, 1), {}, lookupHash);
 						if (pArchetypeRight == nullptr) {
 							pArchetypeRight = CreateArchetype(std::span<const ComponentInfo*>(&infoToAdd, 1), {});
-							InitArchetype(pArchetypeRight, genericHash, 0, lookupHash);
+							pArchetypeRight->Init(genericHash, 0, lookupHash);
 							RegisterArchetype(pArchetypeRight);
 							BuildGraphEdges(type, pArchetypeLeft, pArchetypeRight, infoToAdd);
 						}
@@ -527,7 +412,7 @@ namespace gaia {
 						pArchetypeRight = FindArchetype({}, std::span<const ComponentInfo*>(&infoToAdd, 1), lookupHash);
 						if (pArchetypeRight == nullptr) {
 							pArchetypeRight = CreateArchetype({}, std::span<const ComponentInfo*>(&infoToAdd, 1));
-							InitArchetype(pArchetypeRight, 0, chunkHash, lookupHash);
+							pArchetypeRight->Init(0, chunkHash, lookupHash);
 							RegisterArchetype(pArchetypeRight);
 							BuildGraphEdges(type, pArchetypeLeft, pArchetypeRight, infoToAdd);
 						}
@@ -536,12 +421,12 @@ namespace gaia {
 					return pArchetypeRight;
 				}
 
-				const auto it = utils::find_if(pArchetypeLeft->edgesAdd[type], [infoToAdd](const auto& edge) {
-					return edge.info == infoToAdd;
-				});
-
-				if (it != pArchetypeLeft->edgesAdd[type].end())
-					return it->pArchetype;
+				// Check if the component is found when following the "add" edges
+				{
+					auto* pArchetype = pArchetypeLeft->FindAddEdgeArchetype(type, infoToAdd);
+					if (pArchetype != nullptr)
+						return pArchetype;
+				}
 #endif
 
 				const uint32_t a = type;
@@ -574,60 +459,51 @@ namespace gaia {
 				utils::direct_hash_key lookupHash = {
 						CalculateLookupHash(containers::sarray<uint64_t, 2>{hashes[0], hashes[1]})};
 
-#if GAIA_ARCHETYPE_GRAPH
-				auto* pArchetypeRight =
-						CreateArchetype({infos[0]->data(), infos[0]->size()}, {infos[1]->data(), infos[1]->size()});
-				InitArchetype(pArchetypeRight, hashes[0], hashes[1], lookupHash);
-				RegisterArchetype(pArchetypeRight);
-
-				BuildGraphEdges(type, pArchetypeLeft, pArchetypeRight, infoToAdd);
-				TryBuildArchetypeGraph(pArchetypeRight, *infos[0], *infos[1]);
-#else
 				auto* pArchetypeRight = FindArchetype({*infos[0]}, {*infos[1]}, lookupHash);
 				if (pArchetypeRight == nullptr) {
 					pArchetypeRight = CreateArchetype({infos[0]->data(), infos[0]->size()}, {infos[1]->data(), infos[1]->size()});
-					InitArchetype(pArchetypeRight, hashes[0], hashes[1], lookupHash);
+					pArchetypeRight->Init(hashes[0], hashes[1], lookupHash);
 					RegisterArchetype(pArchetypeRight);
-				}
+
+#if GAIA_ARCHETYPE_GRAPH
+					// Build the graph edges so that the next time we want to add this component we can do it the quick way
+					BuildGraphEdges(type, pArchetypeLeft, pArchetypeRight, infoToAdd);
 #endif
+				}
 
 				return pArchetypeRight;
 			}
 
+			/*!
+			Searches for an archetype which is formed by removing \param type from \param pArchetypeRight.
+			If no such archetype is found a new one is created.
+			\param pArchetypeRight Archetype we originate from.
+			\param type Component infos.
+			\param infoToRemove Component we want to remove.
+			\return Pointer to archetype
+			*/
+			GAIA_NODISCARD Archetype* FindOrCreateArchetype_RemoveComponent(
+					Archetype* pArchetypeRight, ComponentType type, const ComponentInfo* infoToRemove) {
 #if GAIA_ARCHETYPE_GRAPH
-			/*!
-				Searches for a parent archetype that contains the given component of \param type.
-				\param archetype Archetype to search from
-				\param type Component type
-				\param typesToRemove Span of component infos we want to remove
-				\return Pointer to archetype
-				*/
-			static GAIA_NODISCARD Archetype*
-			FindArchetype_RemoveComponents(Archetype* archetype, ComponentType type, const ComponentInfo* intoToRemove) {
-				// Follow the graph to the next archetype
-				return archetype->FindDelEdgeArchetype(type, intoToRemove);
-			}
-#else
-			/*!
-				Searches for a parent archetype that contains the given component of \param type.
-				\param archetype Archetype to search from
-				\param type Component type
-				\param typesToRemove Span of component infos we want to remove
-				\return Pointer to archetype
-				*/
-			GAIA_NODISCARD Archetype*
-			FindArchetype_RemoveComponents(Archetype* archetype, ComponentType type, const ComponentInfo* intoToRemove) {
+				// Check if the component is found when following the "del" edges
+				{
+					auto* pArchetype = pArchetypeRight->FindDelEdgeArchetype(type, infoToRemove);
+					if (pArchetype != nullptr)
+						return pArchetype;
+				}
+#endif
+
 				const uint32_t a = type;
 				const uint32_t b = (type + 1) & 1;
 				const containers::sarray_ext<const ComponentInfo*, MAX_COMPONENTS_PER_ARCHETYPE>* infos[2];
 
 				containers::sarray_ext<const ComponentInfo*, MAX_COMPONENTS_PER_ARCHETYPE> infosNew;
 				infos[a] = &infosNew;
-				infos[b] = &archetype->componentInfos[b];
+				infos[b] = &pArchetypeRight->componentInfos[b];
 
 				// Find the intersection
-				for (const auto* info: archetype->componentInfos[a]) {
-					if (info == intoToRemove)
+				for (const auto* info: pArchetypeRight->componentInfos[a]) {
+					if (info == infoToRemove)
 						goto nextIter;
 
 					infosNew.push_back(info);
@@ -637,7 +513,7 @@ namespace gaia {
 				}
 
 				// Return if there's no change
-				if (infosNew.size() == archetype->componentInfos[a].size())
+				if (infosNew.size() == pArchetypeRight->componentInfos[a].size())
 					return nullptr;
 
 				// Calculate the hashes
@@ -648,13 +524,17 @@ namespace gaia {
 				auto* pArchetype = FindArchetype({*infos[0]}, {*infos[1]}, lookupHash);
 				if (pArchetype == nullptr) {
 					pArchetype = CreateArchetype({infos[0]->data(), infos[0]->size()}, {infos[1]->data(), infos[1]->size()});
-					InitArchetype(pArchetype, hashes[0], hashes[1], lookupHash);
+					pArchetype->Init(hashes[0], hashes[1], lookupHash);
 					RegisterArchetype(pArchetype);
+
+#if GAIA_ARCHETYPE_GRAPH
+					// Build the graph edges so that the next time we want to remove this component we can do it the quick way
+					BuildGraphEdges(type, pArchetype, pArchetypeRight, infoToRemove);
+#endif
 				}
 
 				return pArchetype;
 			}
-#endif
 
 			/*!
 			Returns an array of archetypes registered in the world
@@ -871,7 +751,7 @@ namespace gaia {
 					VerifyAddComponent(archetype, entity, type, infoToAdd);
 #endif
 
-					auto* pTargetArchetype = FindOrCreateArchetype(&archetype, type, infoToAdd);
+					auto* pTargetArchetype = FindOrCreateArchetype_AddComponent(&archetype, type, infoToAdd);
 					MoveEntity(entity, *pTargetArchetype);
 				}
 				// Adding a component to an empty entity
@@ -885,7 +765,7 @@ namespace gaia {
 					VerifyAddComponent(archetype, entity, type, infoToAdd);
 #endif
 
-					auto* pTargetArchetype = FindOrCreateArchetype(&archetype, type, infoToAdd);
+					auto* pTargetArchetype = FindOrCreateArchetype_AddComponent(&archetype, type, infoToAdd);
 					StoreEntity(entity, pTargetArchetype->FindOrCreateFreeChunk());
 				}
 
@@ -904,7 +784,7 @@ namespace gaia {
 				VerifyRemoveComponent(archetype, entity, type, infoToRemove);
 #endif
 
-				auto* newArchetype = FindArchetype_RemoveComponents(&archetype, type, infoToRemove);
+				auto* newArchetype = FindOrCreateArchetype_RemoveComponent(&archetype, type, infoToRemove);
 				GAIA_ASSERT(newArchetype != nullptr);
 				MoveEntity(entity, *newArchetype);
 
@@ -913,7 +793,7 @@ namespace gaia {
 
 			void Init() {
 				m_rootArchetype = CreateArchetype({}, {});
-				InitArchetype(m_rootArchetype, 0, 0, {CalculateLookupHash(containers::sarray<uint64_t, 2>{0, 0})});
+				m_rootArchetype->Init(0, 0, {CalculateLookupHash(containers::sarray<uint64_t, 2>{0, 0})});
 				RegisterArchetype(m_rootArchetype);
 			}
 
@@ -1337,8 +1217,8 @@ namespace gaia {
 
 			template <typename Func>
 			GAIA_FORCEINLINE void ForEachArchetype(EntityQuery& query, Func func) {
-#if GAIA_ARCHETYPE_GRAPH
-				// query.Match(*this, (uint32_t)m_archetypes.size());
+#if 0 // GAIA_ARCHETYPE_GRAPH
+			// TODO: Make it so we only traverse archetypes that are relevant rather than all of them
 				ArchetypeGraphTraverse(ComponentType::CT_Generic, [&](const Archetype& archetype) {
 					(void)archetype;
 					return EntityQuery::MatchArchetypeQueryRet::Ok;

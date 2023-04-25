@@ -37,13 +37,8 @@
 //! If enabled, explicit memory prefetching is used when querying chunks, possibly improving performance in edge-cases
 #define GAIA_USE_PREFETCH 1
 
-//------------------------------------------------------------------------------
-// TODO features
-//------------------------------------------------------------------------------
-
 //! If enabled, archetype graph is used to speed up component adding and removal.
-//! NOTE: Not ready
-#define GAIA_ARCHETYPE_GRAPH 0
+#define GAIA_ARCHETYPE_GRAPH 1
 
 //------------------------------------------------------------------------------
 // Debug features

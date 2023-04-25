@@ -723,8 +723,7 @@ TEST_CASE("EnableEntity") {
 		return e;
 	};
 
-	// 100,000 picked so we create enough entites that they overflow
-	// into another chunk
+	// 100,000 picked so we create enough entites that they overflow into another chunk
 	const uint32_t N = 100'000;
 	containers::darray<ecs::Entity> arr;
 	arr.reserve(N);

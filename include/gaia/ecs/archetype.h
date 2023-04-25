@@ -324,6 +324,14 @@ namespace gaia {
 			}
 
 #if GAIA_ARCHETYPE_GRAPH
+			Archetype* FindAddEdgeArchetype(ComponentType type, const ComponentInfo* info) const {
+				const auto& edges = edgesAdd[type];
+				const auto it = utils::find_if(edges, [info](const auto& edge) {
+					return edge.info == info;
+				});
+				return it != edges.end() ? it->pArchetype : nullptr;
+			}
+
 			Archetype* FindDelEdgeArchetype(ComponentType type, const ComponentInfo* info) const {
 				const auto& edges = edgesDel[type];
 				const auto it = utils::find_if(edges, [info](const auto& edge) {
@@ -340,6 +348,18 @@ namespace gaia {
 					ReleaseChunk(pChunk);
 				for (auto* pChunk: chunksDisabled)
 					ReleaseChunk(pChunk);
+			}
+
+			/*!
+			Initializes the archetype with hash values for each kind of component types.
+			\param genericHash Generic components hash
+			\param chunkHash Chunk components hash
+			\param lookupHash Hash used for archetype lookup purposes
+			*/
+			void Init(uint64_t genericHash, uint64_t chunkHash, utils::direct_hash_key lookupHash) {
+				this->genericHash = genericHash;
+				this->chunkHash = chunkHash;
+				this->lookupHash = lookupHash;
 			}
 
 			GAIA_NODISCARD const World& GetWorld() const {

@@ -48,25 +48,17 @@ void BM_CreateEntity_With_Component(picobench::state& state) {
 		(void)s;
 		ecs::World w;
 
-		AddComponents<float, 0, Iterations>(w, NEntities);
-	}
-}
-
 #if GAIA_ARCHETYPE_GRAPH
-template <size_t Iterations>
-void BM_CreateEntity_With_Component_HOT(picobench::state& state) {
-	for (auto s: state) {
-		(void)s;
-		ecs::World w;
-
+		// Simulate the hot path. This happens when the component was
+		// added at least once and thus the graph edges are already created.
 		state.stop_timer();
 		AddComponents<float, 0, Iterations>(w, 1);
 		state.start_timer();
+#endif
 
 		AddComponents<float, 0, Iterations>(w, NEntities);
 	}
 }
-#endif
 
 constexpr size_t ForEachN = 1'000;
 
@@ -515,6 +507,8 @@ PICOBENCH(BM_CreateEntity_With_Component<1>).PICO_SETTINGS().label("1 component"
 PICOBENCH(BM_CreateEntity_With_Component<2>).PICO_SETTINGS().label("2 components");
 PICOBENCH(BM_CreateEntity_With_Component<4>).PICO_SETTINGS().label("4 components");
 PICOBENCH(BM_CreateEntity_With_Component<8>).PICO_SETTINGS().label("8 components");
+PICOBENCH(BM_CreateEntity_With_Component<16>).PICO_SETTINGS().label("16 components");
+PICOBENCH(BM_CreateEntity_With_Component<32>).PICO_SETTINGS().label("32 components");
 
 PICOBENCH_SUITE("Direct iteration - external query");
 PICOBENCH(BM_ForEach_1_Archetype).PICO_SETTINGS().label("1 archetype");
