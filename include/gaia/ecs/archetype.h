@@ -327,14 +327,14 @@ namespace gaia {
 #if GAIA_ARCHETYPE_GRAPH
 			//! Create an edge in the graph leading from this archetype to \param archetypeId via component \param info.
 			void AddEdgeArchetypeRight(ComponentType type, const ComponentInfo* info, uint32_t archetypeId) {
-				GAIA_ASSERT(left->FindAddEdgeArchetypeId(type, info) == (uint32_t)-1);
-				(void)edgesAdd[type].emplace(info->infoIndex, ArchetypeGraphEdge{archetypeId});
+				[[maybe_unused]] const auto ret = edgesAdd[type].try_emplace(info->infoIndex, ArchetypeGraphEdge{archetypeId});
+				GAIA_ASSERT(ret.second);
 			}
 
 			//! Create an edge in the graph leading from this archetype to \param archetypeId via component \param info.
 			void AddEdgeArchetypeLeft(ComponentType type, const ComponentInfo* info, uint32_t archetypeId) {
-				GAIA_ASSERT(right->FindDelEdgeArchetypeId(type, info) == (uint32_t)-1);
-				(void)edgesDel[type].emplace(info->infoIndex, ArchetypeGraphEdge{archetypeId});
+				[[maybe_unused]] const auto ret = edgesDel[type].try_emplace(info->infoIndex, ArchetypeGraphEdge{archetypeId});
+				GAIA_ASSERT(ret.second);
 			}
 
 			uint32_t FindAddEdgeArchetypeId(ComponentType type, const ComponentInfo* info) const {

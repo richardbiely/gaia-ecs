@@ -206,7 +206,7 @@ namespace gaia {
 			T* CreateSystem(const char* name) {
 				GAIA_SAFE_CONSTEXPR auto hash = utils::type_info::hash<std::decay_t<T>>();
 
-				const auto res = m_systemsMap.emplace(utils::direct_hash_key{hash}, nullptr);
+				const auto res = m_systemsMap.try_emplace(utils::direct_hash_key{hash}, nullptr);
 				if GAIA_UNLIKELY (!res.second)
 					return (T*)res.first->second;
 
