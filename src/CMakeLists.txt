@@ -61,12 +61,11 @@ else()
 
   # fast-math
   enable_cxx_compiler_flag_if_supported("-ffast-math")
-  enable_cxx_compiler_flag_if_supported("-fno-math-errno")
 
   # instruction sets
-  if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm|aarch")
-    enable_cxx_compiler_flag_if_supported("-mfpu=neon")
-  else()
+  enable_cxx_compiler_flag_if_supported("-ftree-vectorize")
+
+  if(${CMAKE_SYSTEM_PROCESSOR} MATCHES ~"arm|aarch")
     enable_cxx_compiler_flag_if_supported("-msse4.1")
     enable_cxx_compiler_flag_if_supported("-mfma")
   endif()
