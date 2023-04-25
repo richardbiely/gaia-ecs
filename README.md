@@ -45,6 +45,7 @@ Being early in development, breaking changes to its API are possible. There are 
 * [Installation](#installation)
 * [Examples](#examples)
 * [Benchmarks](#benchmarks)
+* [Profiling](#profiling)
 * [Future](#future)
 * [Contributions](#contributions)
 * [License](#license)
@@ -513,12 +514,16 @@ Benchmarking relies on a modified [picobench](https://github.com/iboB/picobench)
 * [Duel](https://github.com/richardbiely/gaia-ecs/tree/main/src/perf/duel) - duel compares different coding approaches such as the basic model with uncontrolled OOP with data all-over-the heap, OOP where allocators are used to controlling memory fragmentation and different ways of data-oriented design and it puts them to test against our ECS framework itself; DOD performance is the target level we want to reach or at least be as close as possible to with this project because it does not get any faster than that 
 * [Iteration](https://github.com/richardbiely/gaia-ecs/tree/main/src/perf/iter) - this benchmark focuses on the performance of creating and removing entities and components of various sizes and also covers iteration performance with different numbers of entities and archetypes
 
+# Profiling
+It is possible to measure performance and memory usage of the gramework via any 3rd party tool. However, support for [Tracy](https://github.com/wolfpld/tracy) is added by default.<br/>
+The CPU part can be controlled via -DGAIA_PROF_CPU=ON/OFF (OFF by default) while -DGAIA_PROF_MEM=ON/OFF is responsible for profiling memory allocations (OFF by default). If you want to build the profiler server yourself you can use -DGAIA_PROF_CPU=ON (OFF by default).<br/>
+This is a low-level feature mostly targeted for maintainers. However, if paired with your own profiler code it can become a very helpful tool.
+
 # Future
 Currently, many new features and improvements to the current system are planned.<br/>
 Among the most prominent ones those are:
 * scheduler - a system that would allow parallel execution of all systems by default, work stealing, and an easy setup of dependencies
 * scenes - a way to serialize the state of chunks or entire worlds
-* profiling scopes - to allow easy measurement of performance in production
 * debugger - an editor that would give one an overview of worlds created by the framework (number of entities, chunk fragmentation, systems running, etc.)
 
 # Contributions

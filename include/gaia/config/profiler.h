@@ -80,11 +80,7 @@ namespace tracy {
 		static constexpr ___tracy_source_location_data TracyConcat(__tracy_source_location, __LINE__) {                    \
 			name "", function, __FILE__, uint32_t(__LINE__), 0,                                                              \
 		}
-	#define TRACY_ZoneEnd() tracy::ZoneEnd()
-
-//------------------------------------------------------------------------
-// Tracy profiler GAIA implementation
-//------------------------------------------------------------------------
+	#define TRACY_ZoneEnd() tracy::ZoneEnd
 
 	#define GAIA_PROF_START_IMPL(name, function)                                                                         \
 		TRACY_ZoneBegin(name, function);                                                                                   \
@@ -95,31 +91,85 @@ namespace tracy {
 	#define GAIA_PROF_SCOPE_IMPL(name) ZoneNamedN(GAIA_CONCAT(___tracy_scoped_zone_, __LINE__), name "", 1)
 	#define GAIA_PROF_SCOPE_DYN_IMPL(name) TRACY_ZoneNamedRT(name, GAIA_PRETTY_FUNCTION)
 
-	#define GAIA_PROF_FRAME() FrameMark
-	#define GAIA_PROF_SCOPE(x) GAIA_PROF_SCOPE_IMPL(#x)
-	#define GAIA_PROF_SCOPE2(x) GAIA_PROF_SCOPE_DYN_IMPL(x)
-	#define GAIA_PROF_START(x) GAIA_PROF_START_IMPL(#x, GAIA_PRETTY_FUNCTION)
-	#define GAIA_PROF_STOP() GAIA_PROF_STOP_IMPL()
-	#define GAIA_PROF_LOG(text, size) TracyMessage(text, size)
-	#define GAIA_PROF_VALUE(text, value) TracyPlot(text, value)
+//------------------------------------------------------------------------
+// Tracy profiler GAIA implementation
+//------------------------------------------------------------------------
+
+	//! Marks the end of frame
+	#if !defined(GAIA_PROF_FRAME)
+		#define GAIA_PROF_FRAME() FrameMark
+	#endif
+	//! Profiling zone bounded by the scope. The zone is named after a unique compile-time string
+	#if !defined(GAIA_PROF_SCOPE)
+		#define GAIA_PROF_SCOPE(zoneName) GAIA_PROF_SCOPE_IMPL(#zoneName)
+	#endif
+	//! Profiling zone bounded by the scope. The zone is named after a run-time string
+	#if !defined(GAIA_PROF_SCOPE2)
+		#define GAIA_PROF_SCOPE2(zoneName) GAIA_PROF_SCOPE_DYN_IMPL(zoneName)
+	#endif
+	//! Profiling zone with user-defined scope - start. The zone is named after a unique compile-time string
+	#if !defined(GAIA_PROF_START)
+		#define GAIA_PROF_START(zoneName) GAIA_PROF_START_IMPL(#zoneName, GAIA_PRETTY_FUNCTION)
+	#endif
+	//! Profiling zone with user-defined scope - stop.
+	#if !defined(GAIA_PROF_STOP)
+		#define GAIA_PROF_STOP() GAIA_PROF_STOP_IMPL()
+	#endif
 #else
-	#define GAIA_PROF_FRAME() ((void)0)
-	#define GAIA_PROF_SCOPE(x) ((void)0)
-	#define GAIA_PROF_SCOPE2(x) ((void)0)
-	#define GAIA_PROF_START(x) ((void)0)
-	#define GAIA_PROF_STOP() ((void)0)
-	#define GAIA_PROF_LOG(text, size) ((void)0)
-	#define GAIA_PROF_VALUE(text, value) ((void)0)
+	//! Marks the end of frame
+	#if !defined(GAIA_PROF_FRAME)
+		#define GAIA_PROF_FRAME()
+	#endif
+	//! Profiling zone bounded by the scope. The zone is named after a unique compile-time string
+	#if !defined(GAIA_PROF_SCOPE)
+		#define GAIA_PROF_SCOPE(zoneName)
+	#endif
+	//! Profiling zone bounded by the scope. The zone is named after a run-time string
+	#if !defined(GAIA_PROF_SCOPE2)
+		#define GAIA_PROF_SCOPE2(zoneName)
+	#endif
+	//! Profiling zone with user-defined scope - start. The zone is named after a unique compile-time string
+	#if !defined(GAIA_PROF_START)
+		#define GAIA_PROF_START(zoneName)
+	#endif
+	//! Profiling zone with user-defined scope - stop.
+	#if !defined(GAIA_PROF_STOP)
+		#define GAIA_PROF_STOP()
+	#endif
 #endif
 
 #if GAIA_PROFILER_MEM
-	#define GAIA_PROF_ALLOC(ptr, size) TracyAlloc(ptr, size)
-	#define GAIA_PROF_ALLOC2(ptr, size, name) TracyAllocN(ptr, size, name)
-	#define GAIA_PROF_FREE(ptr) TracyFree(ptr)
-	#define GAIA_PROF_FREE2(ptr, name) TracyFreeN(ptr, name)
+	//! Marks a memory allocation event. The event is named after a unique compile-time string
+	#if !defined(GAIA_PROF_ALLOC)
+		#define GAIA_PROF_ALLOC(ptr, size) TracyAlloc(ptr, size)
+	#endif
+	//! Marks a memory allocation event. The event is named after a run-time string
+	#if !defined(GAIA_PROF_ALLOC2)
+		#define GAIA_PROF_ALLOC2(ptr, size, name) TracyAllocN(ptr, size, name)
+	#endif
+	//! Marks a memory release event. The event is named after a unique compile-time string
+	#if !defined(GAIA_PROF_FREE)
+		#define GAIA_PROF_FREE(ptr) TracyFree(ptr)
+	#endif
+	//! Marks a memory release event. The event is named after a run-time string
+	#if !defined(GAIA_PROF_FREE2)
+		#define GAIA_PROF_FREE2(ptr, name) TracyFreeN(ptr, name)
+	#endif
 #else
-	#define GAIA_PROF_ALLOC(p, size) ((void)0)
-	#define GAIA_PROF_ALLOC2(p, size, name) ((void)0)
-	#define GAIA_PROF_FREE(p) ((void)0)
-	#define GAIA_PROF_FREE2(p, name) ((void)0)
+	//! Marks a memory allocation event. The event is named after a unique compile-time string
+	#if !defined(GAIA_PROF_ALLOC)
+		#define GAIA_PROF_ALLOC(ptr, size)
+	#endif
+	//! Marks a memory allocation event. The event is named after a run-time string
+	#if !defined(GAIA_PROF_ALLOC2)
+		#define GAIA_PROF_ALLOC2(ptr, size, name)
+	#endif
+	//! Marks a memory release event. The event is named after a unique compile-time string
+	#if !defined(GAIA_PROF_FREE)
+		#define GAIA_PROF_FREE(ptr)
+	#endif
+	//! Marks a memory release event. The event is named after a run-time string
+	#if !defined(GAIA_PROF_FREE2)
+		#define GAIA_PROF_FREE2(ptr, name)
+	#endif
 #endif
