@@ -8265,28 +8265,28 @@ namespace gaia {
 
 #if GAIA_ARCHETYPE_GRAPH
 			//! Create an edge in the graph leading from this archetype to \param archetypeId via component \param info.
-			void AddEdgeArchetypeRight(ComponentType type, const ComponentInfo* info, uint32_t archetypeId) {
+			void AddEdgeArchetypeRight(ComponentType type, const ComponentInfo* pInfo, uint32_t archetypeId) {
 				[[maybe_unused]] const auto ret =
-						edgesAdd[type].try_emplace({info->lookupHash}, ArchetypeGraphEdge{archetypeId});
+						edgesAdd[type].try_emplace({pInfo->lookupHash}, ArchetypeGraphEdge{archetypeId});
 				GAIA_ASSERT(ret.second);
 			}
 
 			//! Create an edge in the graph leading from this archetype to \param archetypeId via component \param info.
-			void AddEdgeArchetypeLeft(ComponentType type, const ComponentInfo* info, uint32_t archetypeId) {
+			void AddEdgeArchetypeLeft(ComponentType type, const ComponentInfo* pInfo, uint32_t archetypeId) {
 				[[maybe_unused]] const auto ret =
-						edgesDel[type].try_emplace({info->lookupHash}, ArchetypeGraphEdge{archetypeId});
+						edgesDel[type].try_emplace({pInfo->lookupHash}, ArchetypeGraphEdge{archetypeId});
 				GAIA_ASSERT(ret.second);
 			}
 
-			uint32_t FindAddEdgeArchetypeId(ComponentType type, const ComponentInfo* info) const {
+			uint32_t FindAddEdgeArchetypeId(ComponentType type, const ComponentInfo* pInfo) const {
 				const auto& edges = edgesAdd[type];
-				const auto it = edges.find({info->lookupHash});
+				const auto it = edges.find({pInfo->lookupHash});
 				return it != edges.end() ? it->second.archetypeId : (uint32_t)-1;
 			}
 
-			uint32_t FindDelEdgeArchetypeId(ComponentType type, const ComponentInfo* info) const {
+			uint32_t FindDelEdgeArchetypeId(ComponentType type, const ComponentInfo* pInfo) const {
 				const auto& edges = edgesDel[type];
-				const auto it = edges.find({info->lookupHash});
+				const auto it = edges.find({pInfo->lookupHash});
 				return it != edges.end() ? it->second.archetypeId : (uint32_t)-1;
 			}
 #endif
@@ -8302,14 +8302,14 @@ namespace gaia {
 
 			/*!
 			Initializes the archetype with hash values for each kind of component types.
-			\param genericHash Generic components hash
-			\param chunkHash Chunk components hash
-			\param lookupHash Hash used for archetype lookup purposes
+			\param hashGeneric Generic components hash
+			\param hashChunk Chunk components hash
+			\param hashLookup Hash used for archetype lookup purposes
 			*/
-			void Init(uint64_t genericHash, uint64_t chunkHash, utils::direct_hash_key lookupHash) {
-				this->genericHash = genericHash;
-				this->chunkHash = chunkHash;
-				this->lookupHash = lookupHash;
+			void Init(uint64_t hashGeneric, uint64_t hashChunk, utils::direct_hash_key hashLookup) {
+				this->genericHash = hashGeneric;
+				this->chunkHash = hashChunk;
+				this->lookupHash = hashLookup;
 			}
 
 			GAIA_NODISCARD const World& GetWorld() const {

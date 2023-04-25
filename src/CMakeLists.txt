@@ -112,7 +112,7 @@ if(GAIA_BUILD_UNITTEST)
     # FetchContent_MakeAvailable(Catch2)
     list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/contrib)
   else()
-    find_package(Catch2 CONFIG REQUIRED 2)
+    find_package(Catch2 CONFIG REQUIRED 2.13.7)
   endif()
 endif()
 
