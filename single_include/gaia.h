@@ -400,7 +400,7 @@ GAIA_FORCEINLINE void DoNotOptimize(T const& value) {
 				DoNotOptimize(cond_ret);                                                                                       \
 			}
 	#else
-		#define GAIA_ASSERT(condition) assert(condition);
+		#define GAIA_ASSERT(condition) assert(condition)
 	#endif
 #endif
 
@@ -7905,8 +7905,7 @@ namespace gaia {
 
 #if GAIA_ARCHETYPE_GRAPH
 			struct ArchetypeGraphEdge {
-				const ComponentInfo* info;
-				Archetype* pArchetype;
+				uint32_t archetypeId;
 			};
 #endif
 
@@ -7919,10 +7918,12 @@ namespace gaia {
 			containers::darray<Chunk*> chunksDisabled;
 
 #if GAIA_ARCHETYPE_GRAPH
-			//! List of edges in the archetype graph when adding components
-			containers::darray<ArchetypeGraphEdge> edgesAdd[ComponentType::CT_Count];
-			//! List of edges in the archetype graph when removing components
-			containers::darray<ArchetypeGraphEdge> edgesDel[ComponentType::CT_Count];
+			//! Map of edges in the archetype graph when adding components.
+			//! key: componentID, data: ArchetypeGraphEdge
+			containers::map<uint32_t, ArchetypeGraphEdge> edgesAdd[ComponentType::CT_Count];
+			//! Map of edges in the archetype graph when removing components.
+			//! key: componentID, data: ArchetypeGraphEdge
+			containers::map<uint32_t, ArchetypeGraphEdge> edgesDel[ComponentType::CT_Count];
 #endif
 
 			//! Description of components within this archetype
@@ -8199,20 +8200,28 @@ namespace gaia {
 			}
 
 #if GAIA_ARCHETYPE_GRAPH
-			Archetype* FindAddEdgeArchetype(ComponentType type, const ComponentInfo* info) const {
-				const auto& edges = edgesAdd[type];
-				const auto it = utils::find_if(edges, [info](const auto& edge) {
-					return edge.info == info;
-				});
-				return it != edges.end() ? it->pArchetype : nullptr;
+			//! Create an edge in the graph leading from this archetype to \param archetypeId via component \param info.
+			void AddEdgeArchetypeRight(ComponentType type, const ComponentInfo* info, uint32_t archetypeId) {
+				GAIA_ASSERT(left->FindAddEdgeArchetypeId(type, info) == (uint32_t)-1);
+				(void)edgesAdd[type].emplace(info->infoIndex, ArchetypeGraphEdge{archetypeId});
 			}
 
-			Archetype* FindDelEdgeArchetype(ComponentType type, const ComponentInfo* info) const {
+			//! Create an edge in the graph leading from this archetype to \param archetypeId via component \param info.
+			void AddEdgeArchetypeLeft(ComponentType type, const ComponentInfo* info, uint32_t archetypeId) {
+				GAIA_ASSERT(right->FindDelEdgeArchetypeId(type, info) == (uint32_t)-1);
+				(void)edgesDel[type].emplace(info->infoIndex, ArchetypeGraphEdge{archetypeId});
+			}
+
+			uint32_t FindAddEdgeArchetypeId(ComponentType type, const ComponentInfo* info) const {
+				const auto& edges = edgesAdd[type];
+				const auto it = edges.find(info->infoIndex);
+				return it != edges.end() ? it->second.archetypeId : (uint32_t)-1;
+			}
+
+			uint32_t FindDelEdgeArchetypeId(ComponentType type, const ComponentInfo* info) const {
 				const auto& edges = edgesDel[type];
-				const auto it = utils::find_if(edges, [info](const auto& edge) {
-					return edge.info == info;
-				});
-				return it != edges.end() ? it->pArchetype : nullptr;
+				const auto it = edges.find(info->infoIndex);
+				return it != edges.end() ? it->second.archetypeId : (uint32_t)-1;
 			}
 #endif
 
@@ -9248,32 +9257,28 @@ namespace gaia {
 #if GAIA_ARCHETYPE_GRAPH
 			static GAIA_FORCEINLINE void
 			BuildGraphEdges(ComponentType type, Archetype* left, Archetype* right, const ComponentInfo* info) {
-				GAIA_ASSERT(!utils::has_if(left->edgesAdd[type], [info](const auto& edge) {
-					return edge.info == info;
-				}));
-				GAIA_ASSERT(!utils::has_if(right->edgesDel[type], [info](const auto& edge) {
-					return edge.info == info;
-				}));
-				left->edgesAdd[type].push_back({info, right});
-				right->edgesDel[type].push_back({info, left});
+				left->AddEdgeArchetypeRight(type, info, right->id);
+				right->AddEdgeArchetypeLeft(type, info, left->id);
 			}
 
 			template <typename Func>
 			EntityQuery::MatchArchetypeQueryRet ArchetypeGraphTraverse(ComponentType type, Func func) const {
 				// Use a stack to store the nodes we need to visit
 				// TODO: Replace with std::stack or an alternative
-				containers::darr<const Archetype*> stack;
+				containers::darr<uint32_t> stack;
 				stack.reserve(MAX_COMPONENTS_PER_ARCHETYPE + MAX_COMPONENTS_PER_ARCHETYPE);
-				containers::set<const Archetype*> visited;
+				containers::set<uint32_t> visited;
 
 				// Push all children of the root archetype onto the stack
 				for (const auto& edge: m_rootArchetype->edgesAdd[(uint32_t)type])
-					stack.push_back(edge.pArchetype);
+					stack.push_back(edge.second.archetypeId);
 
 				while (!stack.empty()) {
 					// Pop the top node from the stack
-					const Archetype* pArchetype = *stack.begin();
+					const uint32_t archetypeId = *stack.begin();
 					stack.erase(stack.begin());
+
+					const auto* pArchetype = m_archetypes[archetypeId];
 
 					// Decide whether to accept the node or skip it
 					const auto ret = func(*pArchetype);
@@ -9284,10 +9289,10 @@ namespace gaia {
 
 					// Push all of the children of the current node onto the stack
 					for (const auto& edge: pArchetype->edgesAdd[(uint32_t)type]) {
-						if (visited.contains(edge.pArchetype))
+						if (visited.contains(edge.second.archetypeId))
 							continue;
-						visited.insert(edge.pArchetype);
-						stack.push_back(edge.pArchetype);
+						visited.insert(edge.second.archetypeId);
+						stack.push_back(edge.second.archetypeId);
 					}
 				}
 
@@ -9307,7 +9312,8 @@ namespace gaia {
 					Archetype* pArchetypeLeft, ComponentType type, const ComponentInfo* infoToAdd) {
 #if GAIA_ARCHETYPE_GRAPH
 				// We don't want to store edges for the root archetype because the more components there are the longer
-				// it would take to find anything. Therefore, for the root archetype we simply make a lookup.
+				// it would take to find anything. Therefore, for the root archetype we always make a lookup.
+				// However, compared to an oridnary lookup, this path is stripped as much as possible.
 				if (pArchetypeLeft == m_rootArchetype) {
 					Archetype* pArchetypeRight = nullptr;
 					if (type == ComponentType::CT_Generic) {
@@ -9337,9 +9343,9 @@ namespace gaia {
 
 				// Check if the component is found when following the "add" edges
 				{
-					auto* pArchetype = pArchetypeLeft->FindAddEdgeArchetype(type, infoToAdd);
-					if (pArchetype != nullptr)
-						return pArchetype;
+					const uint32_t archetypeId = pArchetypeLeft->FindAddEdgeArchetypeId(type, infoToAdd);
+					if (archetypeId != (uint32_t)-1)
+						return m_archetypes[archetypeId];
 				}
 #endif
 
@@ -9401,9 +9407,9 @@ namespace gaia {
 #if GAIA_ARCHETYPE_GRAPH
 				// Check if the component is found when following the "del" edges
 				{
-					auto* pArchetype = pArchetypeRight->FindDelEdgeArchetype(type, infoToRemove);
-					if (pArchetype != nullptr)
-						return pArchetype;
+					const uint32_t archetypeId = pArchetypeRight->FindDelEdgeArchetypeId(type, infoToRemove);
+					if (archetypeId != (uint32_t)-1)
+						return m_archetypes[archetypeId];
 				}
 #endif
 
@@ -10836,20 +10842,20 @@ namespace gaia {
 						if (!edgesG.empty()) {
 							LOG_N("    Generic - count:%u", (uint32_t)edgesG.size());
 							for (const auto& edge: edgesG) {
-								const auto& info = cc.GetComponentCreateInfoFromIdx(edge.info->infoIndex);
+								const auto& info = cc.GetComponentCreateInfoFromIdx(edge.first);
 								LOG_N(
 										"      %.*s (--> Archetype ID:%u)", (uint32_t)info.name.size(), info.name.data(),
-										edge.pArchetype->id);
+										edge.second.archetypeId);
 							}
 						}
 
 						if (!edgesC.empty()) {
 							LOG_N("    Chunk - count:%u", (uint32_t)edgesC.size());
 							for (const auto& edge: edgesC) {
-								const auto& info = cc.GetComponentCreateInfoFromIdx(edge.info->infoIndex);
+								const auto& info = cc.GetComponentCreateInfoFromIdx(edge.first);
 								LOG_N(
 										"      %.*s (--> Archetype ID:%u)", (uint32_t)info.name.size(), info.name.data(),
-										edge.pArchetype->id);
+										edge.second.archetypeId);
 							}
 						}
 					}
@@ -10866,20 +10872,20 @@ namespace gaia {
 						if (!edgesG.empty()) {
 							LOG_N("    Generic - count:%u", (uint32_t)edgesG.size());
 							for (const auto& edge: edgesG) {
-								const auto& info = cc.GetComponentCreateInfoFromIdx(edge.info->infoIndex);
+								const auto& info = cc.GetComponentCreateInfoFromIdx(edge.first);
 								LOG_N(
 										"      %.*s (--> Archetype ID:%u)", (uint32_t)info.name.size(), info.name.data(),
-										edge.pArchetype->id);
+										edge.second.archetypeId);
 							}
 						}
 
 						if (!edgesC.empty()) {
 							LOG_N("    Chunk - count:%u", (uint32_t)edgesC.size());
 							for (const auto& edge: edgesC) {
-								const auto& info = cc.GetComponentCreateInfoFromIdx(edge.info->infoIndex);
+								const auto& info = cc.GetComponentCreateInfoFromIdx(edge.first);
 								LOG_N(
 										"      %.*s (--> Archetype ID:%u)", (uint32_t)info.name.size(), info.name.data(),
-										edge.pArchetype->id);
+										edge.second.archetypeId);
 							}
 						}
 					}
