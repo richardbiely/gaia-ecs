@@ -10,25 +10,27 @@
 namespace gaia {
 	namespace utils {
 
-		//! Combines values via OR.
-		template <typename... T>
-		constexpr auto combine_or([[maybe_unused]] T... t) {
-			return (... | t);
-		}
-
-		struct direct_hash_key {
-			uint64_t hash;
-			bool operator==(direct_hash_key other) const {
-				return hash == other.hash;
-			}
-			bool operator!=(direct_hash_key other) const {
-				return hash != other.hash;
-			}
-		};
-
-		//-----------------------------------------------------------------------------------
-
 		namespace detail {
+			template <typename T>
+			struct direct_hash_key {
+				static_assert(std::is_integral_v<T>);
+				static constexpr bool IsDirectHashKey = true;
+
+				T hash;
+				bool operator==(direct_hash_key other) const {
+					return hash == other.hash;
+				}
+				bool operator!=(direct_hash_key other) const {
+					return hash != other.hash;
+				}
+			};
+
+			template <typename, typename = void>
+			struct is_direct_hash_key: std::false_type {};
+			template <typename T>
+			struct is_direct_hash_key<T, typename std::enable_if_t<T::IsDirectHashKey>>: std::true_type {};
+
+			//-----------------------------------------------------------------------------------
 
 			constexpr void hash_combine2_out(uint32_t& lhs, uint32_t rhs) {
 				lhs ^= rhs + 0x9e3779b9 + (lhs << 6) + (lhs >> 2);
@@ -43,6 +45,17 @@ namespace gaia {
 				return lhs;
 			}
 		} // namespace detail
+
+		using direct_hash_key = detail::direct_hash_key<uint64_t>;
+
+		template <typename T>
+		inline constexpr bool is_direct_hash_key_v = detail::is_direct_hash_key<T>::value;
+
+		//! Combines values via OR.
+		template <typename... T>
+		constexpr auto combine_or([[maybe_unused]] T... t) {
+			return (... | t);
+		}
 
 		//! Combines hashes into another complex one
 		template <typename T, typename... Rest>
