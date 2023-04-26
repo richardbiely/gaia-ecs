@@ -4,12 +4,11 @@
 
 #include "../config/config.h"
 #include "../config/profiler.h"
-#include "../containers/map.h"
 #include "../containers/darray.h"
+#include "../containers/map.h"
 #include "../containers/sarray.h"
 #include "../containers/sarray_ext.h"
 #include "../containers/set.h"
-#include "../utils/containers.h"
 #include "../utils/hashing_policy.h"
 #include "../utils/span.h"
 #include "../utils/type_info.h"

@@ -2026,25 +2026,13 @@ namespace gaia {
 namespace gaia {
 	namespace utils {
 
-		//! Combines values via OR.
-		template <typename... T>
-		constexpr auto combine_or([[maybe_unused]] T... t) {
-			return (... | t);
-		}
-
-		struct direct_hash_key {
-			uint64_t hash;
-			bool operator==(direct_hash_key other) const {
-				return hash == other.hash;
-			}
-			bool operator!=(direct_hash_key other) const {
-				return hash != other.hash;
-			}
-		};
-
-		//-----------------------------------------------------------------------------------
-
 		namespace detail {
+			template <typename, typename = void>
+			struct is_direct_hash_key: std::false_type {};
+			template <typename T>
+			struct is_direct_hash_key<T, typename std::enable_if_t<T::IsDirectHashKey>>: std::true_type {};
+
+			//-----------------------------------------------------------------------------------
 
 			constexpr void hash_combine2_out(uint32_t& lhs, uint32_t rhs) {
 				lhs ^= rhs + 0x9e3779b9 + (lhs << 6) + (lhs >> 2);
@@ -2059,6 +2047,29 @@ namespace gaia {
 				return lhs;
 			}
 		} // namespace detail
+
+		template <typename T>
+		inline constexpr bool is_direct_hash_key_v = detail::is_direct_hash_key<T>::value;
+
+		template <typename T>
+		struct direct_hash_key {
+			static_assert(std::is_integral_v<T>);
+			static constexpr bool IsDirectHashKey = true;
+
+			T hash;
+			bool operator==(direct_hash_key other) const {
+				return hash == other.hash;
+			}
+			bool operator!=(direct_hash_key other) const {
+				return hash != other.hash;
+			}
+		};
+
+		//! Combines values via OR.
+		template <typename... T>
+		constexpr auto combine_or([[maybe_unused]] T... t) {
+			return (... | t);
+		}
 
 		//! Combines hashes into another complex one
 		template <typename T, typename... Rest>
@@ -2209,12 +2220,19 @@ namespace gaia {
 } // namespace gaia
 
 #if GAIA_USE_STL_CONTAINERS
-template <>
-struct std::hash<gaia::utils::direct_hash_key> {
-	size_t operator()(gaia::utils::direct_hash_key value) const noexcept {
-		return value.hash;
-	}
-};
+
+	#define REGISTER_HASH_TYPE_IMPL(type)                                                                                \
+		template <>                                                                                                        \
+		struct std::hash<type> {                                                                                           \
+			size_t operator()(type obj) const noexcept { return obj.hash; }                                                  \
+		};
+
+REGISTER_HASH_TYPE_IMPL(gaia::utils::direct_hash_key<uint64_t>)
+REGISTER_HASH_TYPE_IMPL(gaia::utils::direct_hash_key<uint32_t>)
+
+	#define REGISTER_HASH_TYPE(type)
+#else
+	#define REGISTER_HASH_TYPE(type)
 #endif
 
 #include <cinttypes>
@@ -2469,8 +2487,9 @@ namespace gaia {
 #include <type_traits>
 
 namespace gaia {
-	namespace utils {
+	constexpr size_t BadIndex = size_t(-1);
 
+	namespace utils {
 		template <typename T>
 		constexpr T as_bits(T value) {
 			static_assert(std::is_integral_v<T>);
@@ -2597,6 +2616,22 @@ namespace gaia {
 		//----------------------------------------------------------------------
 
 		namespace detail {
+#define DEFINE_HAS_FUNCTION(function_name)                                                                             \
+	template <typename T, typename... TArgs>                                                                             \
+	auto has_##function_name(TArgs&&... args)                                                                            \
+			->decltype(std::declval<T>().function_name(std::forward<TArgs>(args)...), std::true_type{}) {                    \
+		return std::true_type{};                                                                                           \
+	}                                                                                                                    \
+                                                                                                                       \
+	template <typename T>                                                                                                \
+	auto has_##function_name(...)->std::false_type {                                                                     \
+		return std::false_type{};                                                                                          \
+	}
+
+			DEFINE_HAS_FUNCTION(find)
+			DEFINE_HAS_FUNCTION(find_if)
+			DEFINE_HAS_FUNCTION(find_if_not)
+
 			template <typename Func, auto... Is>
 			constexpr void for_each_impl(Func func, std::index_sequence<Is...> /*no_name*/) {
 				(func(std::integral_constant<decltype(Is), Is>{}), ...);
@@ -2607,6 +2642,10 @@ namespace gaia {
 				(func(std::get<Is>(tuple)), ...);
 			}
 		} // namespace detail
+
+		//----------------------------------------------------------------------
+		// Looping
+		//----------------------------------------------------------------------
 
 		//! Compile-time for loop. Performs \tparam Iters iterations.
 		//!
@@ -2667,14 +2706,19 @@ namespace gaia {
 					std::make_index_sequence<std::tuple_size<std::remove_reference_t<Tuple>>::value>{});
 		}
 
+		template <typename C, typename Func>
+		constexpr auto for_each(const C& arr, Func func) {
+			return for_each(arr.begin(), arr.end(), func);
+		}
+
 		//----------------------------------------------------------------------
 		// Lookups
 		//----------------------------------------------------------------------
 
 		template <typename InputIt, typename T>
-		constexpr InputIt find(InputIt first, InputIt last, const T& value) {
+		constexpr InputIt find(InputIt first, InputIt last, T&& value) {
 #if GAIA_USE_STL_COMPATIBLE_CONTAINERS
-			return std::find(first, last, value);
+			return std::find(first, last, std::forward<T>(value));
 #else
 			for (; first != last; ++first) {
 				if (*first == value) {
@@ -2683,6 +2727,14 @@ namespace gaia {
 			}
 			return last;
 #endif
+		}
+
+		template <typename C, typename V>
+		constexpr auto find(const C& arr, V&& item) {
+			if constexpr (decltype(detail::has_find<C>(item))::value)
+				return arr.find(std::forward<V>(item));
+			else
+				return find(arr.begin(), arr.end(), std::forward<V>(item));
 		}
 
 		template <typename InputIt, typename Func>
@@ -2699,6 +2751,14 @@ namespace gaia {
 #endif
 		}
 
+		template <typename UnaryPredicate, typename C>
+		constexpr auto find_if(const C& arr, UnaryPredicate predicate) {
+			if constexpr (decltype(detail::has_find_if<C>(predicate))::value)
+				return arr.find_id(predicate);
+			else
+				return find_if(arr.begin(), arr.end(), predicate);
+		}
+
 		template <typename InputIt, typename Func>
 		constexpr InputIt find_if_not(InputIt first, InputIt last, Func func) {
 #if GAIA_USE_STL_COMPATIBLE_CONTAINERS
@@ -2711,6 +2771,73 @@ namespace gaia {
 			}
 			return last;
 #endif
+		}
+
+		template <typename UnaryPredicate, typename C>
+		constexpr auto find_if_not(const C& arr, UnaryPredicate predicate) {
+			if constexpr (decltype(detail::has_find_if_not<C>(predicate))::value)
+				return arr.find_if_not(predicate);
+			else
+				return find_if_not(arr.begin(), arr.end(), predicate);
+		}
+
+		//----------------------------------------------------------------------
+
+		template <typename C, typename V>
+		constexpr bool has(const C& arr, V&& item) {
+			const auto it = find(arr, std::forward<V>(item));
+			return it != arr.end();
+		}
+
+		template <typename UnaryPredicate, typename C>
+		constexpr bool has_if(const C& arr, UnaryPredicate predicate) {
+			const auto it = find_if(arr, predicate);
+			return it != arr.end();
+		}
+
+		//----------------------------------------------------------------------
+
+		template <typename C>
+		constexpr auto get_index(const C& arr, typename C::const_reference item) {
+			const auto it = find(arr, item);
+			if (it == arr.end())
+				return (std::ptrdiff_t)BadIndex;
+
+			return distance(arr.begin(), it);
+		}
+
+		template <typename C>
+		constexpr auto get_index_unsafe(const C& arr, typename C::const_reference item) {
+			return distance(arr.begin(), find(arr, item));
+		}
+
+		template <typename UnaryPredicate, typename C>
+		constexpr auto get_index_if(const C& arr, UnaryPredicate predicate) {
+			const auto it = find_if(arr, predicate);
+			if (it == arr.end())
+				return BadIndex;
+
+			return distance(arr.begin(), it);
+		}
+
+		template <typename UnaryPredicate, typename C>
+		constexpr auto get_index_if_unsafe(const C& arr, UnaryPredicate predicate) {
+			return distance(arr.begin(), find_if(arr, predicate));
+		}
+
+		//----------------------------------------------------------------------
+		// Erasure
+		//----------------------------------------------------------------------
+
+		template <typename C>
+		void erase_fast(C& arr, size_t idx) {
+			if (idx >= arr.size())
+				return;
+
+			if (idx + 1 != arr.size())
+				utils::swap(arr[idx], arr[arr.size() - 1]);
+
+			arr.pop_back();
 		}
 
 		//----------------------------------------------------------------------
@@ -3686,9 +3813,9 @@ namespace robin_hood {
 		}
 	};
 
-	template <>
-	struct hash<gaia::utils::direct_hash_key> {
-		size_t operator()(const gaia::utils::direct_hash_key& obj) const noexcept {
+	template <typename T>
+	struct hash<T, typename std::enable_if<gaia::utils::is_direct_hash_key_v<T>>::type> {
+		size_t operator()(const T& obj) const noexcept {
 			return obj.hash;
 		}
 	};
@@ -4197,7 +4324,7 @@ namespace robin_hood {
 
 				// direct_hash_key is expected to be a proper hash. No additional hash tricks are required
 				using HashKeyRaw = std::decay_t<HashKey>;
-				if constexpr (!std::is_same_v<HashKeyRaw, gaia::utils::direct_hash_key>) {
+				if constexpr (!gaia::utils::is_direct_hash_key_v<HashKeyRaw>) {
 					// In addition to whatever hash is used, add another mul & shift so we get better hashing.
 					// This serves as a bad hash prevention, if the given data is
 					// badly mixed.
@@ -6594,6 +6721,10 @@ namespace gaia {
 
 		struct ComponentInfo;
 
+		using ComponentHash = utils::direct_hash_key<uint64_t>;
+		using ComponentIndexHash = utils::direct_hash_key<uint32_t>;
+		using ComponentIndex = uint32_t;
+
 		//----------------------------------------------------------------------
 		// Component type deduction
 		//----------------------------------------------------------------------
@@ -6867,80 +6998,8 @@ namespace gaia {
 	} // namespace ecs
 } // namespace gaia
 
-#include <cstddef>
-#include <cstdint>
-
-namespace gaia {
-	namespace utils {
-		constexpr size_t BadIndex = size_t(-1);
-
-		template <typename C, typename Func>
-		constexpr auto for_each(const C& arr, Func func) {
-			return utils::for_each(arr.begin(), arr.end(), func);
-		}
-
-		template <typename C>
-		constexpr auto find(const C& arr, typename C::const_reference item) {
-			return utils::find(arr.begin(), arr.end(), item);
-		}
-
-		template <typename UnaryPredicate, typename C>
-		constexpr auto find_if(const C& arr, UnaryPredicate predicate) {
-			return utils::find_if(arr.begin(), arr.end(), predicate);
-		}
-
-		template <typename C>
-		constexpr auto get_index(const C& arr, typename C::const_reference item) {
-			const auto it = find(arr, item);
-			if (it == arr.end())
-				return (std::ptrdiff_t)BadIndex;
-
-			return GAIA_UTIL::distance(arr.begin(), it);
-		}
-
-		template <typename C>
-		constexpr auto get_index_unsafe(const C& arr, typename C::const_reference item) {
-			return GAIA_UTIL::distance(arr.begin(), find(arr, item));
-		}
-
-		template <typename UnaryPredicate, typename C>
-		constexpr auto get_index_if(const C& arr, UnaryPredicate predicate) {
-			const auto it = find_if(arr, predicate);
-			if (it == arr.end())
-				return BadIndex;
-
-			return GAIA_UTIL::distance(arr.begin(), it);
-		}
-
-		template <typename UnaryPredicate, typename C>
-		constexpr auto get_index_if_unsafe(const C& arr, UnaryPredicate predicate) {
-			return GAIA_UTIL::distance(arr.begin(), find_if(arr, predicate));
-		}
-
-		template <typename C>
-		constexpr bool has(const C& arr, typename C::const_reference item) {
-			const auto it = find(arr, item);
-			return it != arr.end();
-		}
-
-		template <typename UnaryPredicate, typename C>
-		constexpr bool has_if(const C& arr, UnaryPredicate predicate) {
-			const auto it = find_if(arr, predicate);
-			return it != arr.end();
-		}
-
-		template <typename C>
-		void erase_fast(C& arr, size_t idx) {
-			if (idx >= arr.size())
-				return;
-
-			if (idx + 1 != arr.size())
-				utils::swap(arr[idx], arr[arr.size() - 1]);
-
-			arr.pop_back();
-		}
-	} // namespace utils
-} // namespace gaia
+REGISTER_HASH_TYPE(gaia::ecs::ComponentHash)
+REGISTER_HASH_TYPE(gaia::ecs::ComponentIndexHash)
 
 #include <cstdint>
 
@@ -7846,7 +7905,7 @@ namespace gaia {
 		class ComponentCache {
 			containers::map<uint32_t, const ComponentInfo*> m_infoByIndex;
 			containers::map<uint32_t, ComponentInfoCreate> m_infoCreateByIndex;
-			containers::map<utils::direct_hash_key, const ComponentInfo*> m_infoByHash;
+			containers::map<ComponentHash, const ComponentInfo*> m_infoByHash;
 
 		public:
 			ComponentCache() {
@@ -7865,6 +7924,8 @@ namespace gaia {
 			ComponentCache& operator=(ComponentCache&&) = delete;
 			ComponentCache& operator=(const ComponentCache&) = delete;
 
+			//! Registers the component info for \tparam T. If it already exists it is returned.
+			//! \return Component info
 			template <typename T>
 			GAIA_NODISCARD const ComponentInfo* GetOrCreateComponentInfo() {
 				using U = typename DeduceComponent<T>::Type;
@@ -7876,55 +7937,62 @@ namespace gaia {
 					res1.first->second = ComponentInfoCreate::Create<U>();
 
 				const auto res2 = m_infoByIndex.try_emplace(index, nullptr);
-				if GAIA_UNLIKELY (res2.second)
-					res2.first->second = ComponentInfo::Create<U>();
+				if GAIA_UNLIKELY (res2.second) {
+					const auto* pInfo = ComponentInfo::Create<U>();
+					res2.first->second = pInfo;
+					GAIA_SAFE_CONSTEXPR auto hash = utils::type_info::hash<U>();
+					(void)m_infoByHash.try_emplace({hash}, pInfo);
+				}
 				return res2.first->second;
 			}
 
+			//! Returns the component info for \tparam T.
+			//! \return Component info if it exists, nullptr otherwise.
 			template <typename T>
 			GAIA_NODISCARD const ComponentInfo* FindComponentInfo() const {
 				using U = typename DeduceComponent<T>::Type;
 
-				const auto index = utils::type_info::index<U>();
-				const auto it = m_infoByIndex.find(index);
-				return it != m_infoByIndex.end() ? it->second : (const ComponentInfo*)nullptr;
+				GAIA_SAFE_CONSTEXPR auto hash = utils::type_info::hash<U>();
+				const auto it = m_infoByHash.find({hash});
+				return it != m_infoByHash.end() ? it->second : (const ComponentInfo*)nullptr;
 			}
 
+			//! Returns the component info for \tparam T.
+			//! \warning It is expected the component already exists! Undefined behavior otherwise.
+			//! \return Component info
 			template <typename T>
 			GAIA_NODISCARD const ComponentInfo* GetComponentInfo() const {
 				using U = typename DeduceComponent<T>::Type;
-				const auto index = utils::type_info::index<U>();
-				
-				return GetComponentInfoFromIdx(index);
+				GAIA_SAFE_CONSTEXPR auto hash = utils::type_info::hash<U>();
+
+				return GetComponentInfoFromHash({hash});
 			}
 
+			//! Returns the component info given the \param index.
+			//! \warning It is expected the component info with a given index exists! Undefined behavior otherwise.
+			//! \return Component info
 			GAIA_NODISCARD const ComponentInfo* GetComponentInfoFromIdx(uint32_t index) const {
-				// Let's assume the component has been registered via AddComponent already!
 				const auto it = m_infoByIndex.find(index);
 				GAIA_ASSERT(it != m_infoByIndex.end());
 				return it->second;
 			}
 
+			//! Returns the component creation info given the \param index.
+			//! \warning It is expected the component info with a given index exists! Undefined behavior otherwise.
+			//! \return Component info
 			GAIA_NODISCARD const ComponentInfoCreate& GetComponentCreateInfoFromIdx(uint32_t index) const {
-				// Let's assume the component has been registered via AddComponent already!
 				const auto it = m_infoCreateByIndex.find(index);
 				GAIA_ASSERT(it != m_infoCreateByIndex.end());
 				return it->second;
 			}
 
-			GAIA_NODISCARD const ComponentInfo* GetComponentInfoFromHash(utils::direct_hash_key hash) const {
-				// Let's assume the component has been registered via AddComponent already!
+			//! Returns the component info given the \param hash.
+			//! \warning It is expected the component info with a given index exists! Undefined behavior otherwise.
+			//! \return Component info
+			GAIA_NODISCARD const ComponentInfo* GetComponentInfoFromHash(ComponentHash hash) const {
 				const auto it = m_infoByHash.find(hash);
 				GAIA_ASSERT(it != m_infoByHash.end());
 				return it->second;
-			}
-
-			template <typename T>
-			GAIA_NODISCARD bool HasComponentInfo() const {
-				using U = typename DeduceComponent<T>::Type;
-				const auto index = utils::type_info::index<U>();
-
-				return m_infoCreateByIndex.find(index) != m_infoCreateByIndex.end();
 			}
 
 			void Diag() const {
@@ -7961,6 +8029,9 @@ namespace gaia {
 		void ReleaseChunkMemory(World& world, void* mem);
 
 		class Archetype final {
+		public:
+			using LookupHash = utils::direct_hash_key<uint64_t>;
+
 		private:
 			friend class World;
 			friend class CommandBuffer;
@@ -7982,12 +8053,10 @@ namespace gaia {
 			containers::darray<Chunk*> chunksDisabled;
 
 #if GAIA_ARCHETYPE_GRAPH
-			//! Map of edges in the archetype graph when adding components.
-			//! key: componentID, data: ArchetypeGraphEdge
-			containers::map<utils::direct_hash_key, ArchetypeGraphEdge> edgesAdd[ComponentType::CT_Count];
-			//! Map of edges in the archetype graph when removing components.
-			//! key: componentID, data: ArchetypeGraphEdge
-			containers::map<utils::direct_hash_key, ArchetypeGraphEdge> edgesDel[ComponentType::CT_Count];
+			//! Map of edges in the archetype graph when adding components
+			containers::map<ComponentHash, ArchetypeGraphEdge> edgesAdd[ComponentType::CT_Count];
+			//! Map of edges in the archetype graph when removing components
+			containers::map<ComponentHash, ArchetypeGraphEdge> edgesDel[ComponentType::CT_Count];
 #endif
 
 			//! Description of components within this archetype
@@ -7999,7 +8068,7 @@ namespace gaia {
 			uint64_t chunkHash = 0;
 
 			//! Hash of components within this archetype - used for lookups
-			utils::direct_hash_key lookupHash{};
+			ComponentHash lookupHash{};
 			//! Hash of components within this archetype - used for matching
 			uint64_t matcherHash[ComponentType::CT_Count] = {0};
 			//! Archetype ID - used to address the archetype directly in the world's list or archetypes
@@ -8267,26 +8336,26 @@ namespace gaia {
 			//! Create an edge in the graph leading from this archetype to \param archetypeId via component \param info.
 			void AddEdgeArchetypeRight(ComponentType type, const ComponentInfo* pInfo, uint32_t archetypeId) {
 				[[maybe_unused]] const auto ret =
-						edgesAdd[type].try_emplace({pInfo->lookupHash}, ArchetypeGraphEdge{archetypeId});
+						edgesAdd[type].try_emplace({pInfo->infoIndex}, ArchetypeGraphEdge{archetypeId});
 				GAIA_ASSERT(ret.second);
 			}
 
 			//! Create an edge in the graph leading from this archetype to \param archetypeId via component \param info.
 			void AddEdgeArchetypeLeft(ComponentType type, const ComponentInfo* pInfo, uint32_t archetypeId) {
 				[[maybe_unused]] const auto ret =
-						edgesDel[type].try_emplace({pInfo->lookupHash}, ArchetypeGraphEdge{archetypeId});
+						edgesDel[type].try_emplace({pInfo->infoIndex}, ArchetypeGraphEdge{archetypeId});
 				GAIA_ASSERT(ret.second);
 			}
 
 			uint32_t FindAddEdgeArchetypeId(ComponentType type, const ComponentInfo* pInfo) const {
 				const auto& edges = edgesAdd[type];
-				const auto it = edges.find({pInfo->lookupHash});
+				const auto it = edges.find({pInfo->infoIndex});
 				return it != edges.end() ? it->second.archetypeId : (uint32_t)-1;
 			}
 
 			uint32_t FindDelEdgeArchetypeId(ComponentType type, const ComponentInfo* pInfo) const {
 				const auto& edges = edgesDel[type];
-				const auto it = edges.find({pInfo->lookupHash});
+				const auto it = edges.find({pInfo->infoIndex});
 				return it != edges.end() ? it->second.archetypeId : (uint32_t)-1;
 			}
 #endif
@@ -8306,7 +8375,7 @@ namespace gaia {
 			\param hashChunk Chunk components hash
 			\param hashLookup Hash used for archetype lookup purposes
 			*/
-			void Init(uint64_t hashGeneric, uint64_t hashChunk, utils::direct_hash_key hashLookup) {
+			void Init(uint64_t hashGeneric, uint64_t hashChunk, ComponentHash hashLookup) {
 				this->genericHash = hashGeneric;
 				this->chunkHash = hashChunk;
 				this->lookupHash = hashLookup;
@@ -8383,6 +8452,8 @@ namespace gaia {
 	} // namespace ecs
 } // namespace gaia
 
+REGISTER_HASH_TYPE(gaia::ecs::Archetype::LookupHash)
+
 #include <cinttypes>
 #include <type_traits>
 
@@ -8422,6 +8493,7 @@ namespace gaia {
 			friend class World;
 
 		public:
+			using LookupHash = utils::direct_hash_key<uint64_t>;
 			//! List type
 			enum ListType : uint8_t { LT_None, LT_Any, LT_All, LT_Count };
 			//! Query constraints
@@ -8466,7 +8538,7 @@ namespace gaia {
 			//! Entity of the last added archetype in the world this query remembers
 			uint32_t m_lastArchetypeId = 1; // skip the root archetype
 			//! Lookup hash for this query
-			utils::direct_hash_key m_hashLookup{};
+			LookupHash m_hashLookup{};
 			//! List of cached archetypes
 			containers::darray<Archetype*> m_archetypeCache;
 			//! Tell what kinds of chunks are going to be accepted by the query
@@ -8639,7 +8711,6 @@ namespace gaia {
 					for (const auto& components: l.list) {
 						for (auto data: components) {
 							const auto* info = cc.GetComponentInfoFromIdx(data.index);
-							GAIA_ASSERT(info != nullptr);
 							hash = utils::hash_combine(hash, info->lookupHash);
 						}
 						hash = utils::hash_combine(hash, (uint64_t)components.size());
@@ -8672,12 +8743,10 @@ namespace gaia {
 
 							if (!arr.empty()) {
 								const auto* info = cc.GetComponentInfoFromIdx(arr[0].index);
-								GAIA_ASSERT(info != nullptr);
 								l.hash[i] = info->matcherHash;
 							}
 							for (size_t j = 1; j < arr.size(); ++j) {
 								const auto* info = cc.GetComponentInfoFromIdx(arr[j].index);
-								GAIA_ASSERT(info != nullptr);
 								l.hash[i] = utils::combine_or(l.hash[i], info->matcherHash);
 							}
 						}
@@ -9060,9 +9129,9 @@ namespace gaia {
 			//! Allocator used to allocate chunks
 			ChunkAllocator m_chunkAllocator;
 
-			containers::map<utils::direct_hash_key, containers::darray<EntityQuery>> m_cachedQueries;
+			containers::map<EntityQuery::LookupHash, containers::darray<EntityQuery>> m_cachedQueries;
 			//! Map or archetypes mapping to the same hash - used for lookups
-			containers::map<utils::direct_hash_key, containers::darray<Archetype*>> m_archetypeMap;
+			containers::map<Archetype::LookupHash, containers::darray<Archetype*>> m_archetypeMap;
 			//! List of archetypes - used for iteration
 			containers::darray<Archetype*> m_archetypes;
 			//! Root archetype
@@ -9180,7 +9249,7 @@ namespace gaia {
 			*/
 			GAIA_NODISCARD Archetype* FindArchetype(
 					std::span<const ComponentInfo*> infosGeneric, std::span<const ComponentInfo*> infosChunk,
-					utils::direct_hash_key lookupHash) {
+					Archetype::LookupHash lookupHash) {
 				// Search for the archetype in the map
 				const auto it = m_archetypeMap.find(lookupHash);
 				if (it == m_archetypeMap.end())
@@ -9331,7 +9400,7 @@ namespace gaia {
 			EntityQuery::MatchArchetypeQueryRet ArchetypeGraphTraverse(ComponentType type, Func func) const {
 				// Use a stack to store the nodes we need to visit
 				// TODO: Replace with std::stack or an alternative
-				containers::darr<uint32_t> stack;
+				containers::darray<uint32_t> stack;
 				stack.reserve(MAX_COMPONENTS_PER_ARCHETYPE + MAX_COMPONENTS_PER_ARCHETYPE);
 				containers::set<uint32_t> visited;
 
@@ -9355,7 +9424,7 @@ namespace gaia {
 
 					// Push all of the children of the current node onto the stack
 					for (const auto& edge: pArchetype->edgesAdd[(uint32_t)type]) {
-						if (visited.contains(edge.second.archetypeId))
+						if (utils::has(visited, edge.second.archetypeId))
 							continue;
 						visited.insert(edge.second.archetypeId);
 						stack.push_back(edge.second.archetypeId);
@@ -9384,7 +9453,7 @@ namespace gaia {
 					Archetype* pArchetypeRight = nullptr;
 					if (type == ComponentType::CT_Generic) {
 						const auto genericHash = infoToAdd->lookupHash;
-						utils::direct_hash_key lookupHash = {CalculateLookupHash(containers::sarray<uint64_t, 2>{genericHash, 0})};
+						Archetype::LookupHash lookupHash = {CalculateLookupHash(containers::sarray<uint64_t, 2>{genericHash, 0})};
 						pArchetypeRight = FindArchetype(std::span<const ComponentInfo*>(&infoToAdd, 1), {}, lookupHash);
 						if (pArchetypeRight == nullptr) {
 							pArchetypeRight = CreateArchetype(std::span<const ComponentInfo*>(&infoToAdd, 1), {});
@@ -9394,7 +9463,7 @@ namespace gaia {
 						}
 					} else {
 						const auto chunkHash = infoToAdd->lookupHash;
-						utils::direct_hash_key lookupHash = {CalculateLookupHash(containers::sarray<uint64_t, 2>{0, chunkHash})};
+						Archetype::LookupHash lookupHash = {CalculateLookupHash(containers::sarray<uint64_t, 2>{0, chunkHash})};
 						pArchetypeRight = FindArchetype({}, std::span<const ComponentInfo*>(&infoToAdd, 1), lookupHash);
 						if (pArchetypeRight == nullptr) {
 							pArchetypeRight = CreateArchetype({}, std::span<const ComponentInfo*>(&infoToAdd, 1));
@@ -9442,8 +9511,7 @@ namespace gaia {
 
 				// Once sorted we can calculate the hashes
 				const uint64_t hashes[2] = {CalculateLookupHash({*infos[0]}), CalculateLookupHash({*infos[1]})};
-				utils::direct_hash_key lookupHash = {
-						CalculateLookupHash(containers::sarray<uint64_t, 2>{hashes[0], hashes[1]})};
+				Archetype::LookupHash lookupHash = {CalculateLookupHash(containers::sarray<uint64_t, 2>{hashes[0], hashes[1]})};
 
 				auto* pArchetypeRight = FindArchetype({*infos[0]}, {*infos[1]}, lookupHash);
 				if (pArchetypeRight == nullptr) {
@@ -9504,8 +9572,7 @@ namespace gaia {
 
 				// Calculate the hashes
 				const uint64_t hashes[2] = {CalculateLookupHash({*infos[0]}), CalculateLookupHash({*infos[1]})};
-				utils::direct_hash_key lookupHash = {
-						CalculateLookupHash(containers::sarray<uint64_t, 2>{hashes[0], hashes[1]})};
+				Archetype::LookupHash lookupHash = {CalculateLookupHash(containers::sarray<uint64_t, 2>{hashes[0], hashes[1]})};
 
 				auto* pArchetype = FindArchetype({*infos[0]}, {*infos[1]}, lookupHash);
 				if (pArchetype == nullptr) {
@@ -11797,9 +11864,11 @@ namespace gaia {
 
 		class BaseSystemManager {
 		protected:
+			using SystemHash = utils::direct_hash_key<uint64_t>;
+
 			World& m_world;
 			//! Map of all systems - used for look-ups only
-			containers::map<utils::direct_hash_key, BaseSystem*> m_systemsMap;
+			containers::map<SystemHash, BaseSystem*> m_systemsMap;
 			//! List of system - used for iteration
 			containers::darray<BaseSystem*> m_systems;
 			//! List of new systems which need to be initialised
@@ -11893,7 +11962,7 @@ namespace gaia {
 			T* CreateSystem(const char* name) {
 				GAIA_SAFE_CONSTEXPR auto hash = utils::type_info::hash<std::decay_t<T>>();
 
-				const auto res = m_systemsMap.try_emplace(utils::direct_hash_key{hash}, nullptr);
+				const auto res = m_systemsMap.try_emplace({hash}, nullptr);
 				if GAIA_UNLIKELY (!res.second)
 					return (T*)res.first->second;
 

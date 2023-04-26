@@ -9,9 +9,9 @@
 #endif
 #include "../containers/darray.h"
 #include "../containers/map.h"
-#include "../utils/containers.h"
 #include "../utils/hashing_policy.h"
 #include "../utils/type_info.h"
+#include "../utils/utility.h"
 
 namespace gaia {
 	namespace ecs {
