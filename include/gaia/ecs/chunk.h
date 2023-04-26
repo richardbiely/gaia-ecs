@@ -297,10 +297,10 @@ namespace gaia {
 			*/
 			GAIA_NODISCARD uint32_t GetComponentIdx(ComponentType type, uint32_t infoIndex) const {
 				const auto& list = GetArchetypeComponentLookupList(header.owner, type);
-				const auto idx = (uint32_t)utils::get_index_if_unsafe(list, [&](const auto& info) {
+				const auto idx = utils::get_index_if_unsafe(list, [&](const auto& info) {
 					return info.infoIndex == infoIndex;
 				});
-				GAIA_ASSERT(idx != (uint32_t)-1);
+				GAIA_ASSERT(idx != BadIndex);
 				return (uint32_t)idx;
 			}
 
