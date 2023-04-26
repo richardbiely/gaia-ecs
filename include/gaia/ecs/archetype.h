@@ -410,8 +410,7 @@ namespace gaia {
 		private:
 			template <typename T>
 			GAIA_NODISCARD bool HasComponent_Internal() const {
-				using U = typename DeduceComponent<T>::Type;
-				const auto infoIndex = utils::type_info::index<U>();
+				const auto infoIndex = GetComponentIndex<T>();
 
 				if constexpr (IsGenericComponent<T>) {
 					return utils::has_if(GetComponentLookupList(ComponentType::CT_Generic), [&](const auto& info) {
@@ -425,20 +424,20 @@ namespace gaia {
 			}
 		};
 
-		GAIA_NODISCARD GAIA_FORCEINLINE uint32_t GetWorldVersionFromArchetype(const Archetype& archetype) {
+		GAIA_NODISCARD inline uint32_t GetWorldVersionFromArchetype(const Archetype& archetype) {
 			return archetype.GetWorldVersion();
 		}
-		GAIA_NODISCARD GAIA_FORCEINLINE uint64_t GetArchetypeMatcherHash(const Archetype& archetype, ComponentType type) {
+		GAIA_NODISCARD inline uint64_t GetArchetypeMatcherHash(const Archetype& archetype, ComponentType type) {
 			return archetype.GetMatcherHash(type);
 		}
-		GAIA_NODISCARD GAIA_FORCEINLINE const ComponentInfo* GetComponentInfoFromIdx(uint32_t componentIdx) {
+		GAIA_NODISCARD inline const ComponentInfo* GetComponentInfoFromIdx(uint32_t componentIdx) {
 			return GetComponentCache().GetComponentInfoFromIdx(componentIdx);
 		}
-		GAIA_NODISCARD GAIA_FORCEINLINE const ComponentInfoList&
+		GAIA_NODISCARD inline const ComponentInfoList&
 		GetArchetypeComponentInfoList(const Archetype& archetype, ComponentType type) {
 			return archetype.GetComponentInfoList(type);
 		}
-		GAIA_NODISCARD GAIA_FORCEINLINE const ComponentLookupList&
+		GAIA_NODISCARD inline const ComponentLookupList&
 		GetArchetypeComponentLookupList(const Archetype& archetype, ComponentType type) {
 			return archetype.GetComponentLookupList(type);
 		}

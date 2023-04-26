@@ -162,7 +162,7 @@ namespace gaia {
 				} else {
 					static_assert(!std::is_empty_v<U>, "Attempting to get value of an empty component");
 
-					const auto infoIndex = utils::type_info::index<U>();
+					const auto infoIndex = GetComponentIndexUnsafe<U>();
 
 					if constexpr (IsGenericComponent<T>)
 						return std::span<UConst>{(UConst*)GetDataPtr(ComponentType::CT_Generic, infoIndex), GetItemCount()};
@@ -190,7 +190,7 @@ namespace gaia {
 #endif
 				static_assert(!std::is_empty_v<U>, "Attempting to set value of an empty component");
 
-				const auto infoIndex = utils::type_info::index<U>();
+				const auto infoIndex = GetComponentIndexUnsafe<U>();
 
 				constexpr bool uwv = UpdateWorldVersion;
 				if constexpr (IsGenericComponent<T>)
@@ -312,11 +312,11 @@ namespace gaia {
 			GAIA_NODISCARD bool HasComponent() const {
 				if constexpr (IsGenericComponent<T>) {
 					using U = typename detail::ExtractComponentType_Generic<T>::Type;
-					const auto infoIndex = utils::type_info::index<U>();
+					const auto infoIndex = GetComponentIndexUnsafe<U>();
 					return HasComponent_Internal(ComponentType::CT_Generic, infoIndex);
 				} else {
 					using U = typename detail::ExtractComponentType_NonGeneric<T>::Type;
-					const auto infoIndex = utils::type_info::index<U>();
+					const auto infoIndex = GetComponentIndexUnsafe<U>();
 					return HasComponent_Internal(ComponentType::CT_Chunk, infoIndex);
 				}
 			}

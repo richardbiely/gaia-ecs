@@ -79,7 +79,7 @@ namespace gaia {
 					// Skip Entity input args
 					return true;
 				} else {
-					const auto infoIndex = utils::type_info::index<T>();
+					const auto infoIndex = GetComponentIndex<T>();
 					return utils::has_if(arr, [&](ComponentIndexData info) {
 						return info.index == infoIndex;
 					});
@@ -92,7 +92,7 @@ namespace gaia {
 					// Skip Entity input args
 					return;
 				} else {
-					const auto infoIndex = utils::type_info::index<T>();
+					const auto infoIndex = GetComponentIndex<T>();
 
 					// Unique infos only
 					const bool ret = utils::has_if(arr, [&](ComponentIndexData info) {
