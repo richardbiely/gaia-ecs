@@ -1213,7 +1213,7 @@ namespace robin_hood {
 
 				// direct_hash_key is expected to be a proper hash. No additional hash tricks are required
 				using HashKeyRaw = std::decay_t<HashKey>;
-				if constexpr (!std::is_same_v<HashKeyRaw, gaia::utils::direct_hash_key>) {
+				if constexpr (!gaia::utils::is_direct_hash_key_v<HashKeyRaw>) {
 					// In addition to whatever hash is used, add another mul & shift so we get better hashing.
 					// This serves as a bad hash prevention, if the given data is
 					// badly mixed.
