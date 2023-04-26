@@ -31,6 +31,8 @@ namespace gaia {
 			friend class Chunk;
 			friend struct ChunkHeader;
 
+			static constexpr uint32_t BadIndex = (uint32_t)-1;
+
 #if GAIA_ARCHETYPE_GRAPH
 			struct ArchetypeGraphEdge {
 				uint32_t archetypeId;
@@ -343,17 +345,25 @@ namespace gaia {
 			uint32_t FindAddEdgeArchetypeId(ComponentType type, const ComponentInfo* pInfo) const {
 				const auto& edges = edgesAdd[type];
 				const auto it = edges.find({pInfo->infoIndex});
-				return it != edges.end() ? it->second.archetypeId : (uint32_t)-1;
+				return it != edges.end() ? it->second.archetypeId : BadIndex;
 			}
 
 			uint32_t FindDelEdgeArchetypeId(ComponentType type, const ComponentInfo* pInfo) const {
 				const auto& edges = edgesDel[type];
 				const auto it = edges.find({pInfo->infoIndex});
-				return it != edges.end() ? it->second.archetypeId : (uint32_t)-1;
+				return it != edges.end() ? it->second.archetypeId : BadIndex;
 			}
 #endif
 
 		public:
+			/*!
+			Checks if the archetype id is valid.
+			\return True if the id is valid, false otherwise.
+			*/
+			static bool IsIdValid(uint32_t id) {
+				return id != BadIndex;
+			}
+
 			~Archetype() {
 				// Delete all archetype chunks
 				for (auto* pChunk: chunks)

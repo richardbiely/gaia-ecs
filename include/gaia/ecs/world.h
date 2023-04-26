@@ -421,7 +421,7 @@ namespace gaia {
 				// Check if the component is found when following the "add" edges
 				{
 					const uint32_t archetypeId = pArchetypeLeft->FindAddEdgeArchetypeId(type, pInfoToAdd);
-					if (archetypeId != (uint32_t)-1)
+					if (Archetype::IsIdValid(archetypeId))
 						return m_archetypes[archetypeId];
 				}
 #endif
@@ -484,7 +484,7 @@ namespace gaia {
 				// Check if the component is found when following the "del" edges
 				{
 					const uint32_t archetypeId = pArchetypeRight->FindDelEdgeArchetypeId(type, pInfoToRemove);
-					if (archetypeId != (uint32_t)-1)
+					if (Archetype::IsIdValid(archetypeId))
 						return m_archetypes[archetypeId];
 				}
 #endif
