@@ -1,6 +1,7 @@
 #define PICOBENCH_IMPLEMENT
+#include "gaia.h"
+#include "gaia/containers/impl/darray_impl.h"
 #include "gaia/external/picobench.hpp"
-#include <gaia.h>
 #include <string_view>
 
 #if GAIA_ARCH != GAIA_ARCH_ARM
@@ -1181,7 +1182,7 @@ void BM_NonECS_DOD(picobench::state& state) {
 
 		static uint32_t calculateAliveUnits(const containers::darray<Health>& h) {
 			uint32_t aliveUnits = 0;
-			[&](Health* GAIA_RESTRICT h, const size_t size) {
+			[&](const Health* GAIA_RESTRICT h, const size_t size) {
 				for (size_t i = 0; i < size; i++) {
 					if (h[i].value > 0)
 						++aliveUnits;
@@ -1325,7 +1326,7 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 
 		static uint32_t calculateAliveUnits(const containers::darray<Health>& h) {
 			uint32_t aliveUnits = 0;
-			[&](Health* GAIA_RESTRICT h, const size_t size) {
+			[&](const Health* GAIA_RESTRICT h, const size_t size) {
 				for (size_t i = 0; i < size; i++) {
 					if (h[i].value > 0)
 						++aliveUnits;
@@ -1517,7 +1518,7 @@ void BM_NonECS_DOD_SoA_SIMD(picobench::state& state) {
 
 		static uint32_t calculateAliveUnits(const containers::darray<Health>& h) {
 			uint32_t aliveUnits = 0;
-			[&](Health* GAIA_RESTRICT h, const size_t size) {
+			[&](const Health* GAIA_RESTRICT h, const size_t size) {
 				for (size_t i = 0; i < size; i++) {
 					if (h[i].value > 0)
 						++aliveUnits;
