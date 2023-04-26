@@ -7,7 +7,6 @@
 #include "../config/profiler.h"
 #include "../containers/darray.h"
 #include "../containers/sarray_ext.h"
-#include "../utils/containers.h"
 #include "../utils/mem.h"
 #include "../utils/span.h"
 #include "../utils/utility.h"

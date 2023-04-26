@@ -3,7 +3,6 @@
 
 #include "../containers/darray.h"
 #include "../containers/sarray_ext.h"
-#include "../utils/containers.h"
 #include "../utils/hashing_policy.h"
 #include "../utils/utility.h"
 #include "archetype.h"

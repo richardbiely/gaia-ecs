@@ -137,7 +137,7 @@ namespace gaia {
 		//----------------------------------------------------------------------
 
 		namespace detail {
-#define HAS_FUNCTION(function_name)                                                                                    \
+#define DEFINE_HAS_FUNCTION(function_name)                                                                             \
 	template <typename T, typename... TArgs>                                                                             \
 	auto has_##function_name(TArgs&&... args)                                                                            \
 			->decltype(std::declval<T>().function_name(std::forward<TArgs>(args)...), std::true_type{}) {                    \
@@ -149,8 +149,9 @@ namespace gaia {
 		return std::false_type{};                                                                                          \
 	}
 
-			HAS_FUNCTION(find)
-			HAS_FUNCTION(find_if)
+			DEFINE_HAS_FUNCTION(find)
+			DEFINE_HAS_FUNCTION(find_if)
+			DEFINE_HAS_FUNCTION(find_if_not)
 
 			template <typename Func, auto... Is>
 			constexpr void for_each_impl(Func func, std::index_sequence<Is...> /*no_name*/) {
@@ -164,7 +165,7 @@ namespace gaia {
 		} // namespace detail
 
 		//----------------------------------------------------------------------
-		// Compile-time loops
+		// Looping
 		//----------------------------------------------------------------------
 
 		//! Compile-time for loop. Performs \tparam Iters iterations.
@@ -224,6 +225,11 @@ namespace gaia {
 			detail::for_each_tuple_impl(
 					std::forward<Tuple>(tuple), func,
 					std::make_index_sequence<std::tuple_size<std::remove_reference_t<Tuple>>::value>{});
+		}
+
+		template <typename C, typename Func>
+		constexpr auto for_each(const C& arr, Func func) {
+			return for_each(arr.begin(), arr.end(), func);
 		}
 
 		//----------------------------------------------------------------------
@@ -288,6 +294,16 @@ namespace gaia {
 #endif
 		}
 
+		template <typename UnaryPredicate, typename C>
+		constexpr auto find_if_not(const C& arr, UnaryPredicate predicate) {
+			if constexpr (decltype(detail::has_find_if_not<C>(predicate))::value)
+				return arr.find_if_not(predicate);
+			else
+				return find_if_not(arr.begin(), arr.end(), predicate);
+		}
+
+		//----------------------------------------------------------------------
+
 		template <typename C, typename V>
 		constexpr bool has(const C& arr, V&& item) {
 			const auto it = find(arr, std::forward<V>(item));
@@ -298,6 +314,51 @@ namespace gaia {
 		constexpr bool has_if(const C& arr, UnaryPredicate predicate) {
 			const auto it = find_if(arr, predicate);
 			return it != arr.end();
+		}
+
+		//----------------------------------------------------------------------
+
+		template <typename C>
+		constexpr auto get_index(const C& arr, typename C::const_reference item) {
+			const auto it = find(arr, item);
+			if (it == arr.end())
+				return (std::ptrdiff_t)BadIndex;
+
+			return distance(arr.begin(), it);
+		}
+
+		template <typename C>
+		constexpr auto get_index_unsafe(const C& arr, typename C::const_reference item) {
+			return distance(arr.begin(), find(arr, item));
+		}
+
+		template <typename UnaryPredicate, typename C>
+		constexpr auto get_index_if(const C& arr, UnaryPredicate predicate) {
+			const auto it = find_if(arr, predicate);
+			if (it == arr.end())
+				return BadIndex;
+
+			return distance(arr.begin(), it);
+		}
+
+		template <typename UnaryPredicate, typename C>
+		constexpr auto get_index_if_unsafe(const C& arr, UnaryPredicate predicate) {
+			return distance(arr.begin(), find_if(arr, predicate));
+		}
+
+		//----------------------------------------------------------------------
+		// Erasure
+		//----------------------------------------------------------------------
+
+		template <typename C>
+		void erase_fast(C& arr, size_t idx) {
+			if (idx >= arr.size())
+				return;
+
+			if (idx + 1 != arr.size())
+				utils::swap(arr[idx], arr[arr.size() - 1]);
+
+			arr.pop_back();
 		}
 
 		//----------------------------------------------------------------------
