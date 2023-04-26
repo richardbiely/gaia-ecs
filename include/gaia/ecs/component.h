@@ -32,6 +32,10 @@ namespace gaia {
 
 		struct ComponentInfo;
 
+		using ComponentHash = utils::direct_hash_key<uint64_t>;
+		using ComponentIndexHash = utils::direct_hash_key<uint32_t>;
+		using ComponentIndex = uint32_t;
+
 		//----------------------------------------------------------------------
 		// Component type deduction
 		//----------------------------------------------------------------------
@@ -304,3 +308,6 @@ namespace gaia {
 
 	} // namespace ecs
 } // namespace gaia
+
+REGISTER_HASH_TYPE(gaia::ecs::ComponentHash)
+REGISTER_HASH_TYPE(gaia::ecs::ComponentIndexHash)

@@ -702,9 +702,9 @@ namespace robin_hood {
 		}
 	};
 
-	template <>
-	struct hash<gaia::utils::direct_hash_key> {
-		size_t operator()(const gaia::utils::direct_hash_key& obj) const noexcept {
+	template <typename T>
+	struct hash<T, typename std::enable_if<gaia::utils::is_direct_hash_key_v<T>>::type> {
+		size_t operator()(const T& obj) const noexcept {
 			return obj.hash;
 		}
 	};

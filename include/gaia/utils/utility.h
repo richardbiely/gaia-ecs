@@ -7,11 +7,10 @@
 #include <tuple>
 #include <type_traits>
 
-#include "../containers/sarray.h"
-
 namespace gaia {
-	namespace utils {
+	constexpr size_t BadIndex = size_t(-1);
 
+	namespace utils {
 		template <typename T>
 		constexpr T as_bits(T value) {
 			static_assert(std::is_integral_v<T>);
@@ -138,6 +137,21 @@ namespace gaia {
 		//----------------------------------------------------------------------
 
 		namespace detail {
+#define HAS_FUNCTION(function_name)                                                                                    \
+	template <typename T, typename... TArgs>                                                                             \
+	auto has_##function_name(TArgs&&... args)                                                                            \
+			->decltype(std::declval<T>().function_name(std::forward<TArgs>(args)...), std::true_type{}) {                    \
+		return std::true_type{};                                                                                           \
+	}                                                                                                                    \
+                                                                                                                       \
+	template <typename T>                                                                                                \
+	auto has_##function_name(...)->std::false_type {                                                                     \
+		return std::false_type{};                                                                                          \
+	}
+
+			HAS_FUNCTION(find)
+			HAS_FUNCTION(find_if)
+
 			template <typename Func, auto... Is>
 			constexpr void for_each_impl(Func func, std::index_sequence<Is...> /*no_name*/) {
 				(func(std::integral_constant<decltype(Is), Is>{}), ...);
@@ -148,6 +162,10 @@ namespace gaia {
 				(func(std::get<Is>(tuple)), ...);
 			}
 		} // namespace detail
+
+		//----------------------------------------------------------------------
+		// Compile-time loops
+		//----------------------------------------------------------------------
 
 		//! Compile-time for loop. Performs \tparam Iters iterations.
 		//!
@@ -213,9 +231,9 @@ namespace gaia {
 		//----------------------------------------------------------------------
 
 		template <typename InputIt, typename T>
-		constexpr InputIt find(InputIt first, InputIt last, const T& value) {
+		constexpr InputIt find(InputIt first, InputIt last, T&& value) {
 #if GAIA_USE_STL_COMPATIBLE_CONTAINERS
-			return std::find(first, last, value);
+			return std::find(first, last, std::forward<T>(value));
 #else
 			for (; first != last; ++first) {
 				if (*first == value) {
@@ -224,6 +242,14 @@ namespace gaia {
 			}
 			return last;
 #endif
+		}
+
+		template <typename C, typename V>
+		constexpr auto find(const C& arr, V&& item) {
+			if constexpr (decltype(detail::has_find<C>(item))::value)
+				return arr.find(std::forward<V>(item));
+			else
+				return find(arr.begin(), arr.end(), std::forward<V>(item));
 		}
 
 		template <typename InputIt, typename Func>
@@ -240,6 +266,14 @@ namespace gaia {
 #endif
 		}
 
+		template <typename UnaryPredicate, typename C>
+		constexpr auto find_if(const C& arr, UnaryPredicate predicate) {
+			if constexpr (decltype(detail::has_find_if<C>(predicate))::value)
+				return arr.find_id(predicate);
+			else
+				return find_if(arr.begin(), arr.end(), predicate);
+		}
+
 		template <typename InputIt, typename Func>
 		constexpr InputIt find_if_not(InputIt first, InputIt last, Func func) {
 #if GAIA_USE_STL_COMPATIBLE_CONTAINERS
@@ -252,6 +286,18 @@ namespace gaia {
 			}
 			return last;
 #endif
+		}
+
+		template <typename C, typename V>
+		constexpr bool has(const C& arr, V&& item) {
+			const auto it = find(arr, std::forward<V>(item));
+			return it != arr.end();
+		}
+
+		template <typename UnaryPredicate, typename C>
+		constexpr bool has_if(const C& arr, UnaryPredicate predicate) {
+			const auto it = find_if(arr, predicate);
+			return it != arr.end();
 		}
 
 		//----------------------------------------------------------------------

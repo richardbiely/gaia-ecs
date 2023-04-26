@@ -11,20 +11,6 @@ namespace gaia {
 	namespace utils {
 
 		namespace detail {
-			template <typename T>
-			struct direct_hash_key {
-				static_assert(std::is_integral_v<T>);
-				static constexpr bool IsDirectHashKey = true;
-
-				T hash;
-				bool operator==(direct_hash_key other) const {
-					return hash == other.hash;
-				}
-				bool operator!=(direct_hash_key other) const {
-					return hash != other.hash;
-				}
-			};
-
 			template <typename, typename = void>
 			struct is_direct_hash_key: std::false_type {};
 			template <typename T>
@@ -46,10 +32,22 @@ namespace gaia {
 			}
 		} // namespace detail
 
-		using direct_hash_key = detail::direct_hash_key<uint64_t>;
-
 		template <typename T>
 		inline constexpr bool is_direct_hash_key_v = detail::is_direct_hash_key<T>::value;
+
+		template <typename T>
+		struct direct_hash_key {
+			static_assert(std::is_integral_v<T>);
+			static constexpr bool IsDirectHashKey = true;
+
+			T hash;
+			bool operator==(direct_hash_key other) const {
+				return hash == other.hash;
+			}
+			bool operator!=(direct_hash_key other) const {
+				return hash != other.hash;
+			}
+		};
 
 		//! Combines values via OR.
 		template <typename... T>
@@ -206,10 +204,17 @@ namespace gaia {
 } // namespace gaia
 
 #if GAIA_USE_STL_CONTAINERS
-template <>
-struct std::hash<gaia::utils::direct_hash_key> {
-	size_t operator()(gaia::utils::direct_hash_key value) const noexcept {
-		return value.hash;
-	}
-};
+
+	#define REGISTER_HASH_TYPE_IMPL(type)                                                                                \
+		template <>                                                                                                        \
+		struct std::hash<type> {                                                                                           \
+			size_t operator()(type obj) const noexcept { return obj.hash; }                                                  \
+		};
+
+REGISTER_HASH_TYPE_IMPL(gaia::utils::direct_hash_key<uint64_t>)
+REGISTER_HASH_TYPE_IMPL(gaia::utils::direct_hash_key<uint32_t>)
+
+	#define REGISTER_HASH_TYPE(type)
+#else
+	#define REGISTER_HASH_TYPE(type)
 #endif

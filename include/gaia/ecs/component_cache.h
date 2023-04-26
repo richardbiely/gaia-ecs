@@ -13,7 +13,7 @@ namespace gaia {
 		class ComponentCache {
 			containers::map<uint32_t, const ComponentInfo*> m_infoByIndex;
 			containers::map<uint32_t, ComponentInfoCreate> m_infoCreateByIndex;
-			containers::map<utils::direct_hash_key, const ComponentInfo*> m_infoByHash;
+			containers::map<ComponentHash, const ComponentInfo*> m_infoByHash;
 
 		public:
 			ComponentCache() {
@@ -48,7 +48,7 @@ namespace gaia {
 				if GAIA_UNLIKELY (res2.second) {
 					const auto* pInfo = ComponentInfo::Create<U>();
 					res2.first->second = pInfo;
-					constexpr auto hash = utils::type_info::hash<U>();
+					GAIA_SAFE_CONSTEXPR auto hash = utils::type_info::hash<U>();
 					(void)m_infoByHash.try_emplace({hash}, pInfo);
 				}
 				return res2.first->second;
@@ -60,7 +60,7 @@ namespace gaia {
 			GAIA_NODISCARD const ComponentInfo* FindComponentInfo() const {
 				using U = typename DeduceComponent<T>::Type;
 
-				const auto hash = utils::type_info::hash<U>();
+				GAIA_SAFE_CONSTEXPR auto hash = utils::type_info::hash<U>();
 				const auto it = m_infoByHash.find({hash});
 				return it != m_infoByHash.end() ? it->second : (const ComponentInfo*)nullptr;
 			}
@@ -71,7 +71,7 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD const ComponentInfo* GetComponentInfo() const {
 				using U = typename DeduceComponent<T>::Type;
-				const auto hash = utils::type_info::hash<U>();
+				GAIA_SAFE_CONSTEXPR auto hash = utils::type_info::hash<U>();
 
 				return GetComponentInfoFromHash({hash});
 			}
@@ -97,7 +97,7 @@ namespace gaia {
 			//! Returns the component info given the \param hash.
 			//! \warning It is expected the component info with a given index exists! Undefined behavior otherwise.
 			//! \return Component info
-			GAIA_NODISCARD const ComponentInfo* GetComponentInfoFromHash(utils::direct_hash_key hash) const {
+			GAIA_NODISCARD const ComponentInfo* GetComponentInfoFromHash(ComponentHash hash) const {
 				const auto it = m_infoByHash.find(hash);
 				GAIA_ASSERT(it != m_infoByHash.end());
 				return it->second;

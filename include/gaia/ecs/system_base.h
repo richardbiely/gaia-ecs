@@ -110,9 +110,11 @@ namespace gaia {
 
 		class BaseSystemManager {
 		protected:
+			using SystemHash = utils::direct_hash_key<uint64_t>;
+
 			World& m_world;
 			//! Map of all systems - used for look-ups only
-			containers::map<utils::direct_hash_key, BaseSystem*> m_systemsMap;
+			containers::map<SystemHash, BaseSystem*> m_systemsMap;
 			//! List of system - used for iteration
 			containers::darray<BaseSystem*> m_systems;
 			//! List of new systems which need to be initialised
@@ -206,7 +208,7 @@ namespace gaia {
 			T* CreateSystem(const char* name) {
 				GAIA_SAFE_CONSTEXPR auto hash = utils::type_info::hash<std::decay_t<T>>();
 
-				const auto res = m_systemsMap.try_emplace(utils::direct_hash_key{hash}, nullptr);
+				const auto res = m_systemsMap.try_emplace({hash}, nullptr);
 				if GAIA_UNLIKELY (!res.second)
 					return (T*)res.first->second;
 

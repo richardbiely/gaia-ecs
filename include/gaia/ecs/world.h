@@ -5,6 +5,7 @@
 #include "../config/config.h"
 #include "../config/profiler.h"
 #include "../containers/map.h"
+#include "../containers/darray.h"
 #include "../containers/sarray.h"
 #include "../containers/sarray_ext.h"
 #include "../containers/set.h"
@@ -71,9 +72,9 @@ namespace gaia {
 			//! Allocator used to allocate chunks
 			ChunkAllocator m_chunkAllocator;
 
-			containers::map<utils::direct_hash_key, containers::darray<EntityQuery>> m_cachedQueries;
+			containers::map<EntityQuery::LookupHash, containers::darray<EntityQuery>> m_cachedQueries;
 			//! Map or archetypes mapping to the same hash - used for lookups
-			containers::map<utils::direct_hash_key, containers::darray<Archetype*>> m_archetypeMap;
+			containers::map<Archetype::LookupHash, containers::darray<Archetype*>> m_archetypeMap;
 			//! List of archetypes - used for iteration
 			containers::darray<Archetype*> m_archetypes;
 			//! Root archetype
@@ -191,7 +192,7 @@ namespace gaia {
 			*/
 			GAIA_NODISCARD Archetype* FindArchetype(
 					std::span<const ComponentInfo*> infosGeneric, std::span<const ComponentInfo*> infosChunk,
-					utils::direct_hash_key lookupHash) {
+					Archetype::LookupHash lookupHash) {
 				// Search for the archetype in the map
 				const auto it = m_archetypeMap.find(lookupHash);
 				if (it == m_archetypeMap.end())
@@ -342,7 +343,7 @@ namespace gaia {
 			EntityQuery::MatchArchetypeQueryRet ArchetypeGraphTraverse(ComponentType type, Func func) const {
 				// Use a stack to store the nodes we need to visit
 				// TODO: Replace with std::stack or an alternative
-				containers::darr<uint32_t> stack;
+				containers::darray<uint32_t> stack;
 				stack.reserve(MAX_COMPONENTS_PER_ARCHETYPE + MAX_COMPONENTS_PER_ARCHETYPE);
 				containers::set<uint32_t> visited;
 
@@ -366,7 +367,7 @@ namespace gaia {
 
 					// Push all of the children of the current node onto the stack
 					for (const auto& edge: pArchetype->edgesAdd[(uint32_t)type]) {
-						if (visited.contains(edge.second.archetypeId))
+						if (utils::has(visited, edge.second.archetypeId))
 							continue;
 						visited.insert(edge.second.archetypeId);
 						stack.push_back(edge.second.archetypeId);
@@ -395,7 +396,7 @@ namespace gaia {
 					Archetype* pArchetypeRight = nullptr;
 					if (type == ComponentType::CT_Generic) {
 						const auto genericHash = infoToAdd->lookupHash;
-						utils::direct_hash_key lookupHash = {CalculateLookupHash(containers::sarray<uint64_t, 2>{genericHash, 0})};
+						Archetype::LookupHash lookupHash = {CalculateLookupHash(containers::sarray<uint64_t, 2>{genericHash, 0})};
 						pArchetypeRight = FindArchetype(std::span<const ComponentInfo*>(&infoToAdd, 1), {}, lookupHash);
 						if (pArchetypeRight == nullptr) {
 							pArchetypeRight = CreateArchetype(std::span<const ComponentInfo*>(&infoToAdd, 1), {});
@@ -405,7 +406,7 @@ namespace gaia {
 						}
 					} else {
 						const auto chunkHash = infoToAdd->lookupHash;
-						utils::direct_hash_key lookupHash = {CalculateLookupHash(containers::sarray<uint64_t, 2>{0, chunkHash})};
+						Archetype::LookupHash lookupHash = {CalculateLookupHash(containers::sarray<uint64_t, 2>{0, chunkHash})};
 						pArchetypeRight = FindArchetype({}, std::span<const ComponentInfo*>(&infoToAdd, 1), lookupHash);
 						if (pArchetypeRight == nullptr) {
 							pArchetypeRight = CreateArchetype({}, std::span<const ComponentInfo*>(&infoToAdd, 1));
@@ -453,8 +454,7 @@ namespace gaia {
 
 				// Once sorted we can calculate the hashes
 				const uint64_t hashes[2] = {CalculateLookupHash({*infos[0]}), CalculateLookupHash({*infos[1]})};
-				utils::direct_hash_key lookupHash = {
-						CalculateLookupHash(containers::sarray<uint64_t, 2>{hashes[0], hashes[1]})};
+				Archetype::LookupHash lookupHash = {CalculateLookupHash(containers::sarray<uint64_t, 2>{hashes[0], hashes[1]})};
 
 				auto* pArchetypeRight = FindArchetype({*infos[0]}, {*infos[1]}, lookupHash);
 				if (pArchetypeRight == nullptr) {
@@ -515,8 +515,7 @@ namespace gaia {
 
 				// Calculate the hashes
 				const uint64_t hashes[2] = {CalculateLookupHash({*infos[0]}), CalculateLookupHash({*infos[1]})};
-				utils::direct_hash_key lookupHash = {
-						CalculateLookupHash(containers::sarray<uint64_t, 2>{hashes[0], hashes[1]})};
+				Archetype::LookupHash lookupHash = {CalculateLookupHash(containers::sarray<uint64_t, 2>{hashes[0], hashes[1]})};
 
 				auto* pArchetype = FindArchetype({*infos[0]}, {*infos[1]}, lookupHash);
 				if (pArchetype == nullptr) {

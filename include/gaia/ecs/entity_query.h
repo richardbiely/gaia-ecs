@@ -17,6 +17,7 @@ namespace gaia {
 			friend class World;
 
 		public:
+			using LookupHash = utils::direct_hash_key<uint64_t>;
 			//! List type
 			enum ListType : uint8_t { LT_None, LT_Any, LT_All, LT_Count };
 			//! Query constraints
@@ -61,7 +62,7 @@ namespace gaia {
 			//! Entity of the last added archetype in the world this query remembers
 			uint32_t m_lastArchetypeId = 1; // skip the root archetype
 			//! Lookup hash for this query
-			utils::direct_hash_key m_hashLookup{};
+			LookupHash m_hashLookup{};
 			//! List of cached archetypes
 			containers::darray<Archetype*> m_archetypeCache;
 			//! Tell what kinds of chunks are going to be accepted by the query
