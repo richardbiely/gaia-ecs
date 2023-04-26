@@ -234,7 +234,6 @@ namespace gaia {
 					for (const auto& components: l.list) {
 						for (auto data: components) {
 							const auto* info = cc.GetComponentInfoFromIdx(data.index);
-							GAIA_ASSERT(info != nullptr);
 							hash = utils::hash_combine(hash, info->lookupHash);
 						}
 						hash = utils::hash_combine(hash, (uint64_t)components.size());
@@ -267,12 +266,10 @@ namespace gaia {
 
 							if (!arr.empty()) {
 								const auto* info = cc.GetComponentInfoFromIdx(arr[0].index);
-								GAIA_ASSERT(info != nullptr);
 								l.hash[i] = info->matcherHash;
 							}
 							for (size_t j = 1; j < arr.size(); ++j) {
 								const auto* info = cc.GetComponentInfoFromIdx(arr[j].index);
-								GAIA_ASSERT(info != nullptr);
 								l.hash[i] = utils::combine_or(l.hash[i], info->matcherHash);
 							}
 						}
