@@ -32,6 +32,8 @@ namespace gaia {
 			ComponentCache& operator=(ComponentCache&&) = delete;
 			ComponentCache& operator=(const ComponentCache&) = delete;
 
+			//! Registers the component info for \tparam T. If it already exists it is returned.
+			//! \return Component info
 			template <typename T>
 			GAIA_NODISCARD const ComponentInfo* GetOrCreateComponentInfo() {
 				using U = typename DeduceComponent<T>::Type;
@@ -43,55 +45,62 @@ namespace gaia {
 					res1.first->second = ComponentInfoCreate::Create<U>();
 
 				const auto res2 = m_infoByIndex.try_emplace(index, nullptr);
-				if GAIA_UNLIKELY (res2.second)
-					res2.first->second = ComponentInfo::Create<U>();
+				if GAIA_UNLIKELY (res2.second) {
+					const auto* pInfo = ComponentInfo::Create<U>();
+					res2.first->second = pInfo;
+					constexpr auto hash = utils::type_info::hash<U>();
+					(void)m_infoByHash.try_emplace({hash}, pInfo);
+				}
 				return res2.first->second;
 			}
 
+			//! Returns the component info for \tparam T.
+			//! \return Component info if it exists, nullptr otherwise.
 			template <typename T>
 			GAIA_NODISCARD const ComponentInfo* FindComponentInfo() const {
 				using U = typename DeduceComponent<T>::Type;
 
-				const auto index = utils::type_info::index<U>();
-				const auto it = m_infoByIndex.find(index);
-				return it != m_infoByIndex.end() ? it->second : (const ComponentInfo*)nullptr;
+				const auto hash = utils::type_info::hash<U>();
+				const auto it = m_infoByHash.find({hash});
+				return it != m_infoByHash.end() ? it->second : (const ComponentInfo*)nullptr;
 			}
 
+			//! Returns the component info for \tparam T.
+			//! \warning It is expected the component already exists! Undefined behavior otherwise.
+			//! \return Component info
 			template <typename T>
 			GAIA_NODISCARD const ComponentInfo* GetComponentInfo() const {
 				using U = typename DeduceComponent<T>::Type;
-				const auto index = utils::type_info::index<U>();
-				
-				return GetComponentInfoFromIdx(index);
+				const auto hash = utils::type_info::hash<U>();
+
+				return GetComponentInfoFromHash({hash});
 			}
 
+			//! Returns the component info given the \param index.
+			//! \warning It is expected the component info with a given index exists! Undefined behavior otherwise.
+			//! \return Component info
 			GAIA_NODISCARD const ComponentInfo* GetComponentInfoFromIdx(uint32_t index) const {
-				// Let's assume the component has been registered via AddComponent already!
 				const auto it = m_infoByIndex.find(index);
 				GAIA_ASSERT(it != m_infoByIndex.end());
 				return it->second;
 			}
 
+			//! Returns the component creation info given the \param index.
+			//! \warning It is expected the component info with a given index exists! Undefined behavior otherwise.
+			//! \return Component info
 			GAIA_NODISCARD const ComponentInfoCreate& GetComponentCreateInfoFromIdx(uint32_t index) const {
-				// Let's assume the component has been registered via AddComponent already!
 				const auto it = m_infoCreateByIndex.find(index);
 				GAIA_ASSERT(it != m_infoCreateByIndex.end());
 				return it->second;
 			}
 
+			//! Returns the component info given the \param hash.
+			//! \warning It is expected the component info with a given index exists! Undefined behavior otherwise.
+			//! \return Component info
 			GAIA_NODISCARD const ComponentInfo* GetComponentInfoFromHash(utils::direct_hash_key hash) const {
-				// Let's assume the component has been registered via AddComponent already!
 				const auto it = m_infoByHash.find(hash);
 				GAIA_ASSERT(it != m_infoByHash.end());
 				return it->second;
-			}
-
-			template <typename T>
-			GAIA_NODISCARD bool HasComponentInfo() const {
-				using U = typename DeduceComponent<T>::Type;
-				const auto index = utils::type_info::index<U>();
-
-				return m_infoCreateByIndex.find(index) != m_infoCreateByIndex.end();
 			}
 
 			void Diag() const {
