@@ -1060,15 +1060,15 @@ namespace gaia {
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				using U = typename DeduceComponent<T>::Type;
-				const auto* info = GetComponentCacheRW().GetOrCreateComponentInfo<U>();
+				const auto* pInfo = GetComponentCacheRW().GetOrCreateComponentInfo<U>();
 
 				if constexpr (IsGenericComponent<T>) {
-					auto& entityContainer = AddComponent_Internal(ComponentType::CT_Generic, entity, info);
+					auto& entityContainer = AddComponent_Internal(ComponentType::CT_Generic, entity, pInfo);
 					auto* pChunk = entityContainer.pChunk;
 					pChunk->template SetComponent<T>(entityContainer.idx, std::forward<U>(data));
 					return ComponentSetter{entityContainer.pChunk, entityContainer.idx};
 				} else {
-					auto& entityContainer = AddComponent_Internal(ComponentType::CT_Chunk, entity, info);
+					auto& entityContainer = AddComponent_Internal(ComponentType::CT_Chunk, entity, pInfo);
 					auto* pChunk = entityContainer.pChunk;
 					pChunk->template SetComponent<T>(std::forward<U>(data));
 					return ComponentSetter{entityContainer.pChunk, entityContainer.idx};
@@ -1087,12 +1087,12 @@ namespace gaia {
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				using U = typename DeduceComponent<T>::Type;
-				const auto* info = GetComponentCacheRW().GetOrCreateComponentInfo<U>();
+				const auto* pInfo = GetComponentCacheRW().GetOrCreateComponentInfo<U>();
 
 				if constexpr (IsGenericComponent<T>) {
-					return RemoveComponent_Internal(ComponentType::CT_Generic, entity, info);
+					return RemoveComponent_Internal(ComponentType::CT_Generic, entity, pInfo);
 				} else {
-					return RemoveComponent_Internal(ComponentType::CT_Chunk, entity, info);
+					return RemoveComponent_Internal(ComponentType::CT_Chunk, entity, pInfo);
 				}
 			}
 

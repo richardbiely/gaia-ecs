@@ -33,8 +33,6 @@ namespace gaia {
 		struct ComponentInfo;
 
 		using ComponentHash = utils::direct_hash_key<uint64_t>;
-		using ComponentIndexHash = utils::direct_hash_key<uint32_t>;
-		using ComponentIndex = uint32_t;
 
 		//----------------------------------------------------------------------
 		// Component type deduction
@@ -82,6 +80,26 @@ namespace gaia {
 		using DeduceComponent = std::conditional_t<
 				IsGenericComponent<T>, typename detail::ExtractComponentType_Generic<T>,
 				typename detail::ExtractComponentType_NonGeneric<T>>;
+
+		//! Returns the index of the component \tparam T
+		//! \return Component index
+		template <typename T>
+		GAIA_NODISCARD inline uint32_t GetComponentIndex() {
+			using U = typename DeduceComponent<T>::Type;
+			return utils::type_info::index<U>();
+		}
+
+		//! Returns the index of the component \tparam T
+		//! \warning Does not perform any deduction for \tparam T.
+		//!          Passing "const X" and "X" would therefore yield to different results.
+		//!          Therefore, this must be used only when we known \tparam T is the deduced "raw" type.
+		//! \return Component index
+		template <typename T>
+		GAIA_NODISCARD inline uint32_t GetComponentIndexUnsafe() {
+			// This is essentially the same thing as GetComponentIndex but when used correctly
+			// we can save some compilation time.
+			return utils::type_info::index<T>();
+		}
 
 		template <typename T>
 		struct IsReadOnlyType:
@@ -187,7 +205,7 @@ namespace gaia {
 
 				ComponentInfoCreate info{};
 				info.name = utils::type_info::name<U>();
-				info.infoIndex = utils::type_info::index<U>();
+				info.infoIndex = GetComponentIndexUnsafe<U>();
 
 				if constexpr (!std::is_empty_v<U> && !utils::is_soa_layout_v<U>) {
 					info.constructor = [](void* ptr, size_t cnt) {
@@ -310,4 +328,3 @@ namespace gaia {
 } // namespace gaia
 
 REGISTER_HASH_TYPE(gaia::ecs::ComponentHash)
-REGISTER_HASH_TYPE(gaia::ecs::ComponentIndexHash)

@@ -241,12 +241,12 @@
 // See: https://youtu.be/nXaxk27zwlk?t=2441
 #if !GAIA_HAS_NO_INLINE_ASSEMBLY
 template <class T>
-GAIA_FORCEINLINE void DoNotOptimize(T const& value) {
+inline void DoNotOptimize(T const& value) {
 	asm volatile("" : : "r,m"(value) : "memory");
 }
 
 template <class T>
-GAIA_FORCEINLINE void DoNotOptimize(T& value) {
+inline void DoNotOptimize(T& value) {
 	#if defined(__clang__)
 	asm volatile("" : "+r,m"(value) : : "memory");
 	#else
@@ -255,20 +255,20 @@ GAIA_FORCEINLINE void DoNotOptimize(T& value) {
 }
 #else
 namespace internal {
-	GAIA_FORCEINLINE void UseCharPointer(char const volatile* var) {
+	inline void UseCharPointer(char const volatile* var) {
 		(void)var;
 	}
 } // namespace internal
 
 	#if defined(_MSC_VER)
 template <class T>
-GAIA_FORCEINLINE void DoNotOptimize(T const& value) {
+inline void DoNotOptimize(T const& value) {
 	internal::UseCharPointer(&reinterpret_cast<char const volatile&>(value));
 	_ReadWriteBarrier();
 }
 	#else
 template <class T>
-GAIA_FORCEINLINE void DoNotOptimize(T const& value) {
+inline void DoNotOptimize(T const& value) {
 	internal::UseCharPointer(&reinterpret_cast<char const volatile&>(value));
 }
 	#endif
@@ -1196,7 +1196,7 @@ namespace gaia {
 				const auto cap = capacity();
 
 				// Unless we reached the capacity don't do anything
-				if (cnt != cap)
+				if GAIA_LIKELY (cnt != cap)
 					return;
 
 				// If no data is allocated go with at least 4 elements
@@ -2230,6 +2230,9 @@ namespace gaia {
 REGISTER_HASH_TYPE_IMPL(gaia::utils::direct_hash_key<uint64_t>)
 REGISTER_HASH_TYPE_IMPL(gaia::utils::direct_hash_key<uint32_t>)
 
+	// Keeping this empty for now. Instead we register the types using the above.
+	// The thing is any version of direct_hash_key<T> is going to be treated the same
+	// way and because we are a header-only library there would be duplicates.
 	#define REGISTER_HASH_TYPE(type)
 #else
 	#define REGISTER_HASH_TYPE(type)
@@ -6722,8 +6725,6 @@ namespace gaia {
 		struct ComponentInfo;
 
 		using ComponentHash = utils::direct_hash_key<uint64_t>;
-		using ComponentIndexHash = utils::direct_hash_key<uint32_t>;
-		using ComponentIndex = uint32_t;
 
 		//----------------------------------------------------------------------
 		// Component type deduction
@@ -6771,6 +6772,26 @@ namespace gaia {
 		using DeduceComponent = std::conditional_t<
 				IsGenericComponent<T>, typename detail::ExtractComponentType_Generic<T>,
 				typename detail::ExtractComponentType_NonGeneric<T>>;
+
+		//! Returns the index of the component \tparam T
+		//! \return Component index
+		template <typename T>
+		GAIA_NODISCARD inline uint32_t GetComponentIndex() {
+			using U = typename DeduceComponent<T>::Type;
+			return utils::type_info::index<U>();
+		}
+
+		//! Returns the index of the component \tparam T
+		//! \warning Does not perform any deduction for \tparam T.
+		//!          Passing "const X" and "X" would therefore yield to different results.
+		//!          Therefore, this must be used only when we known \tparam T is the deduced "raw" type.
+		//! \return Component index
+		template <typename T>
+		GAIA_NODISCARD inline uint32_t GetComponentIndexUnsafe() {
+			// This is essentially the same thing as GetComponentIndex but when used correctly
+			// we can save some compilation time.
+			return utils::type_info::index<T>();
+		}
 
 		template <typename T>
 		struct IsReadOnlyType:
@@ -6876,7 +6897,7 @@ namespace gaia {
 
 				ComponentInfoCreate info{};
 				info.name = utils::type_info::name<U>();
-				info.infoIndex = utils::type_info::index<U>();
+				info.infoIndex = GetComponentIndexUnsafe<U>();
 
 				if constexpr (!std::is_empty_v<U> && !utils::is_soa_layout_v<U>) {
 					info.constructor = [](void* ptr, size_t cnt) {
@@ -6999,7 +7020,6 @@ namespace gaia {
 } // namespace gaia
 
 REGISTER_HASH_TYPE(gaia::ecs::ComponentHash)
-REGISTER_HASH_TYPE(gaia::ecs::ComponentIndexHash)
 
 #include <cstdint>
 
@@ -7643,7 +7663,7 @@ namespace gaia {
 				} else {
 					static_assert(!std::is_empty_v<U>, "Attempting to get value of an empty component");
 
-					const auto infoIndex = utils::type_info::index<U>();
+					const auto infoIndex = GetComponentIndexUnsafe<U>();
 
 					if constexpr (IsGenericComponent<T>)
 						return std::span<UConst>{(UConst*)GetDataPtr(ComponentType::CT_Generic, infoIndex), GetItemCount()};
@@ -7671,7 +7691,7 @@ namespace gaia {
 #endif
 				static_assert(!std::is_empty_v<U>, "Attempting to set value of an empty component");
 
-				const auto infoIndex = utils::type_info::index<U>();
+				const auto infoIndex = GetComponentIndexUnsafe<U>();
 
 				constexpr bool uwv = UpdateWorldVersion;
 				if constexpr (IsGenericComponent<T>)
@@ -7793,11 +7813,11 @@ namespace gaia {
 			GAIA_NODISCARD bool HasComponent() const {
 				if constexpr (IsGenericComponent<T>) {
 					using U = typename detail::ExtractComponentType_Generic<T>::Type;
-					const auto infoIndex = utils::type_info::index<U>();
+					const auto infoIndex = GetComponentIndexUnsafe<U>();
 					return HasComponent_Internal(ComponentType::CT_Generic, infoIndex);
 				} else {
 					using U = typename detail::ExtractComponentType_NonGeneric<T>::Type;
-					const auto infoIndex = utils::type_info::index<U>();
+					const auto infoIndex = GetComponentIndexUnsafe<U>();
 					return HasComponent_Internal(ComponentType::CT_Chunk, infoIndex);
 				}
 			}
@@ -7903,8 +7923,8 @@ namespace gaia {
 namespace gaia {
 	namespace ecs {
 		class ComponentCache {
-			containers::map<uint32_t, const ComponentInfo*> m_infoByIndex;
-			containers::map<uint32_t, ComponentInfoCreate> m_infoCreateByIndex;
+			containers::darray<const ComponentInfo*> m_infoByIndex;
+			containers::darray<ComponentInfoCreate> m_infoCreateByIndex;
 			containers::map<ComponentHash, const ComponentInfo*> m_infoByHash;
 
 		public:
@@ -7929,21 +7949,44 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD const ComponentInfo* GetOrCreateComponentInfo() {
 				using U = typename DeduceComponent<T>::Type;
+				const auto index = GetComponentIndexUnsafe<U>();
 
-				const auto index = utils::type_info::index<U>();
-
-				const auto res1 = m_infoCreateByIndex.try_emplace(index, ComponentInfoCreate{});
-				if GAIA_UNLIKELY (res1.second)
-					res1.first->second = ComponentInfoCreate::Create<U>();
-
-				const auto res2 = m_infoByIndex.try_emplace(index, nullptr);
-				if GAIA_UNLIKELY (res2.second) {
+				auto createInfo = [&]() {
 					const auto* pInfo = ComponentInfo::Create<U>();
-					res2.first->second = pInfo;
+					m_infoByIndex[index] = pInfo;
+					m_infoCreateByIndex[index] = ComponentInfoCreate::Create<U>();
 					GAIA_SAFE_CONSTEXPR auto hash = utils::type_info::hash<U>();
-					(void)m_infoByHash.try_emplace({hash}, pInfo);
+					[[maybe_unused]] const auto res = m_infoByHash.try_emplace({hash}, pInfo);
+					// This has to be the first time this has has been added!
+					GAIA_ASSERT(res.second);
+					return pInfo;
+				};
+
+				if GAIA_UNLIKELY (index >= m_infoByIndex.size()) {
+					const auto oldSize = m_infoByIndex.size();
+					const auto newSize = index + 1U;
+
+					// Increase the capacity by multiples of 128
+					constexpr uint32_t CapacityIncreaseSize = 128;
+					const auto newCapacity = (newSize / CapacityIncreaseSize) * CapacityIncreaseSize + CapacityIncreaseSize;
+					m_infoByIndex.reserve(newCapacity);
+
+					// Update the size
+					m_infoByIndex.resize(newSize);
+					m_infoCreateByIndex.resize(newSize);
+
+					// Make sure that unused memory is initialized to nullptr
+					for (size_t i = oldSize; i < newSize; ++i)
+						m_infoByIndex[i] = nullptr;
+
+					return createInfo();
 				}
-				return res2.first->second;
+
+				if GAIA_UNLIKELY (m_infoByIndex[index] == nullptr) {
+					return createInfo();
+				}
+
+				return m_infoByIndex[index];
 			}
 
 			//! Returns the component info for \tparam T.
@@ -7972,18 +8015,18 @@ namespace gaia {
 			//! \warning It is expected the component info with a given index exists! Undefined behavior otherwise.
 			//! \return Component info
 			GAIA_NODISCARD const ComponentInfo* GetComponentInfoFromIdx(uint32_t index) const {
-				const auto it = m_infoByIndex.find(index);
-				GAIA_ASSERT(it != m_infoByIndex.end());
-				return it->second;
+				GAIA_ASSERT(index < m_infoByIndex.size());
+				const auto* pInfo = m_infoByIndex[index];
+				GAIA_ASSERT(pInfo != nullptr);
+				return pInfo;
 			}
 
 			//! Returns the component creation info given the \param index.
 			//! \warning It is expected the component info with a given index exists! Undefined behavior otherwise.
 			//! \return Component info
 			GAIA_NODISCARD const ComponentInfoCreate& GetComponentCreateInfoFromIdx(uint32_t index) const {
-				const auto it = m_infoCreateByIndex.find(index);
-				GAIA_ASSERT(it != m_infoCreateByIndex.end());
-				return it->second;
+				GAIA_ASSERT(index < m_infoCreateByIndex.size());
+				return m_infoCreateByIndex[index];
 			}
 
 			//! Returns the component info given the \param hash.
@@ -7999,16 +8042,16 @@ namespace gaia {
 				const auto registeredTypes = (uint32_t)m_infoCreateByIndex.size();
 				LOG_N("Registered infos: %u", registeredTypes);
 
-				for (const auto& pair: m_infoCreateByIndex) {
-					const auto& info = pair.second;
+				for (const auto& info: m_infoCreateByIndex) {
+					const auto* pInfo = GetComponentInfoFromIdx(info.infoIndex);
 					LOG_N("  (%p) index:%010u, %.*s", (void*)&info, info.infoIndex, (uint32_t)info.name.size(), info.name.data());
 				}
 			}
 
 		private:
 			void ClearRegisteredInfoCache() {
-				for (auto& pair: m_infoByIndex)
-					delete pair.second;
+				for (const auto* pInfo: m_infoByIndex)
+					delete pInfo;
 				m_infoByIndex.clear();
 				m_infoCreateByIndex.clear();
 				m_infoByHash.clear();
@@ -8417,8 +8460,7 @@ namespace gaia {
 		private:
 			template <typename T>
 			GAIA_NODISCARD bool HasComponent_Internal() const {
-				using U = typename DeduceComponent<T>::Type;
-				const auto infoIndex = utils::type_info::index<U>();
+				const auto infoIndex = GetComponentIndex<T>();
 
 				if constexpr (IsGenericComponent<T>) {
 					return utils::has_if(GetComponentLookupList(ComponentType::CT_Generic), [&](const auto& info) {
@@ -8432,20 +8474,20 @@ namespace gaia {
 			}
 		};
 
-		GAIA_NODISCARD GAIA_FORCEINLINE uint32_t GetWorldVersionFromArchetype(const Archetype& archetype) {
+		GAIA_NODISCARD inline uint32_t GetWorldVersionFromArchetype(const Archetype& archetype) {
 			return archetype.GetWorldVersion();
 		}
-		GAIA_NODISCARD GAIA_FORCEINLINE uint64_t GetArchetypeMatcherHash(const Archetype& archetype, ComponentType type) {
+		GAIA_NODISCARD inline uint64_t GetArchetypeMatcherHash(const Archetype& archetype, ComponentType type) {
 			return archetype.GetMatcherHash(type);
 		}
-		GAIA_NODISCARD GAIA_FORCEINLINE const ComponentInfo* GetComponentInfoFromIdx(uint32_t componentIdx) {
+		GAIA_NODISCARD inline const ComponentInfo* GetComponentInfoFromIdx(uint32_t componentIdx) {
 			return GetComponentCache().GetComponentInfoFromIdx(componentIdx);
 		}
-		GAIA_NODISCARD GAIA_FORCEINLINE const ComponentInfoList&
+		GAIA_NODISCARD inline const ComponentInfoList&
 		GetArchetypeComponentInfoList(const Archetype& archetype, ComponentType type) {
 			return archetype.GetComponentInfoList(type);
 		}
-		GAIA_NODISCARD GAIA_FORCEINLINE const ComponentLookupList&
+		GAIA_NODISCARD inline const ComponentLookupList&
 		GetArchetypeComponentLookupList(const Archetype& archetype, ComponentType type) {
 			return archetype.GetComponentLookupList(type);
 		}
@@ -8556,7 +8598,7 @@ namespace gaia {
 					// Skip Entity input args
 					return true;
 				} else {
-					const auto infoIndex = utils::type_info::index<T>();
+					const auto infoIndex = GetComponentIndex<T>();
 					return utils::has_if(arr, [&](ComponentIndexData info) {
 						return info.index == infoIndex;
 					});
@@ -8569,7 +8611,7 @@ namespace gaia {
 					// Skip Entity input args
 					return;
 				} else {
-					const auto infoIndex = utils::type_info::index<T>();
+					const auto infoIndex = GetComponentIndex<T>();
 
 					// Unique infos only
 					const bool ret = utils::has_if(arr, [&](ComponentIndexData info) {
@@ -10118,15 +10160,15 @@ namespace gaia {
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				using U = typename DeduceComponent<T>::Type;
-				const auto* info = GetComponentCacheRW().GetOrCreateComponentInfo<U>();
+				const auto* pInfo = GetComponentCacheRW().GetOrCreateComponentInfo<U>();
 
 				if constexpr (IsGenericComponent<T>) {
-					auto& entityContainer = AddComponent_Internal(ComponentType::CT_Generic, entity, info);
+					auto& entityContainer = AddComponent_Internal(ComponentType::CT_Generic, entity, pInfo);
 					auto* pChunk = entityContainer.pChunk;
 					pChunk->template SetComponent<T>(entityContainer.idx, std::forward<U>(data));
 					return ComponentSetter{entityContainer.pChunk, entityContainer.idx};
 				} else {
-					auto& entityContainer = AddComponent_Internal(ComponentType::CT_Chunk, entity, info);
+					auto& entityContainer = AddComponent_Internal(ComponentType::CT_Chunk, entity, pInfo);
 					auto* pChunk = entityContainer.pChunk;
 					pChunk->template SetComponent<T>(std::forward<U>(data));
 					return ComponentSetter{entityContainer.pChunk, entityContainer.idx};
@@ -10145,12 +10187,12 @@ namespace gaia {
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				using U = typename DeduceComponent<T>::Type;
-				const auto* info = GetComponentCacheRW().GetOrCreateComponentInfo<U>();
+				const auto* pInfo = GetComponentCacheRW().GetOrCreateComponentInfo<U>();
 
 				if constexpr (IsGenericComponent<T>) {
-					return RemoveComponent_Internal(ComponentType::CT_Generic, entity, info);
+					return RemoveComponent_Internal(ComponentType::CT_Generic, entity, pInfo);
 				} else {
-					return RemoveComponent_Internal(ComponentType::CT_Chunk, entity, info);
+					return RemoveComponent_Internal(ComponentType::CT_Chunk, entity, pInfo);
 				}
 			}
 

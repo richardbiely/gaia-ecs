@@ -4,6 +4,7 @@
 
 #include "../config/config.h"
 #include "../config/logging.h"
+#include "../containers/darray.h"
 #include "../containers/map.h"
 #include "../utils/type_info.h"
 #include "component.h"
@@ -11,8 +12,8 @@
 namespace gaia {
 	namespace ecs {
 		class ComponentCache {
-			containers::map<uint32_t, const ComponentInfo*> m_infoByIndex;
-			containers::map<uint32_t, ComponentInfoCreate> m_infoCreateByIndex;
+			containers::darray<const ComponentInfo*> m_infoByIndex;
+			containers::darray<ComponentInfoCreate> m_infoCreateByIndex;
 			containers::map<ComponentHash, const ComponentInfo*> m_infoByHash;
 
 		public:
@@ -37,21 +38,44 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD const ComponentInfo* GetOrCreateComponentInfo() {
 				using U = typename DeduceComponent<T>::Type;
+				const auto index = GetComponentIndexUnsafe<U>();
 
-				const auto index = utils::type_info::index<U>();
-
-				const auto res1 = m_infoCreateByIndex.try_emplace(index, ComponentInfoCreate{});
-				if GAIA_UNLIKELY (res1.second)
-					res1.first->second = ComponentInfoCreate::Create<U>();
-
-				const auto res2 = m_infoByIndex.try_emplace(index, nullptr);
-				if GAIA_UNLIKELY (res2.second) {
+				auto createInfo = [&]() {
 					const auto* pInfo = ComponentInfo::Create<U>();
-					res2.first->second = pInfo;
+					m_infoByIndex[index] = pInfo;
+					m_infoCreateByIndex[index] = ComponentInfoCreate::Create<U>();
 					GAIA_SAFE_CONSTEXPR auto hash = utils::type_info::hash<U>();
-					(void)m_infoByHash.try_emplace({hash}, pInfo);
+					[[maybe_unused]] const auto res = m_infoByHash.try_emplace({hash}, pInfo);
+					// This has to be the first time this has has been added!
+					GAIA_ASSERT(res.second);
+					return pInfo;
+				};
+
+				if GAIA_UNLIKELY (index >= m_infoByIndex.size()) {
+					const auto oldSize = m_infoByIndex.size();
+					const auto newSize = index + 1U;
+
+					// Increase the capacity by multiples of 128
+					constexpr uint32_t CapacityIncreaseSize = 128;
+					const auto newCapacity = (newSize / CapacityIncreaseSize) * CapacityIncreaseSize + CapacityIncreaseSize;
+					m_infoByIndex.reserve(newCapacity);
+
+					// Update the size
+					m_infoByIndex.resize(newSize);
+					m_infoCreateByIndex.resize(newSize);
+
+					// Make sure that unused memory is initialized to nullptr
+					for (size_t i = oldSize; i < newSize; ++i)
+						m_infoByIndex[i] = nullptr;
+
+					return createInfo();
 				}
-				return res2.first->second;
+
+				if GAIA_UNLIKELY (m_infoByIndex[index] == nullptr) {
+					return createInfo();
+				}
+
+				return m_infoByIndex[index];
 			}
 
 			//! Returns the component info for \tparam T.
@@ -80,18 +104,18 @@ namespace gaia {
 			//! \warning It is expected the component info with a given index exists! Undefined behavior otherwise.
 			//! \return Component info
 			GAIA_NODISCARD const ComponentInfo* GetComponentInfoFromIdx(uint32_t index) const {
-				const auto it = m_infoByIndex.find(index);
-				GAIA_ASSERT(it != m_infoByIndex.end());
-				return it->second;
+				GAIA_ASSERT(index < m_infoByIndex.size());
+				const auto* pInfo = m_infoByIndex[index];
+				GAIA_ASSERT(pInfo != nullptr);
+				return pInfo;
 			}
 
 			//! Returns the component creation info given the \param index.
 			//! \warning It is expected the component info with a given index exists! Undefined behavior otherwise.
 			//! \return Component info
 			GAIA_NODISCARD const ComponentInfoCreate& GetComponentCreateInfoFromIdx(uint32_t index) const {
-				const auto it = m_infoCreateByIndex.find(index);
-				GAIA_ASSERT(it != m_infoCreateByIndex.end());
-				return it->second;
+				GAIA_ASSERT(index < m_infoCreateByIndex.size());
+				return m_infoCreateByIndex[index];
 			}
 
 			//! Returns the component info given the \param hash.
@@ -107,16 +131,16 @@ namespace gaia {
 				const auto registeredTypes = (uint32_t)m_infoCreateByIndex.size();
 				LOG_N("Registered infos: %u", registeredTypes);
 
-				for (const auto& pair: m_infoCreateByIndex) {
-					const auto& info = pair.second;
+				for (const auto& info: m_infoCreateByIndex) {
+					const auto* pInfo = GetComponentInfoFromIdx(info.infoIndex);
 					LOG_N("  (%p) index:%010u, %.*s", (void*)&info, info.infoIndex, (uint32_t)info.name.size(), info.name.data());
 				}
 			}
 
 		private:
 			void ClearRegisteredInfoCache() {
-				for (auto& pair: m_infoByIndex)
-					delete pair.second;
+				for (const auto* pInfo: m_infoByIndex)
+					delete pInfo;
 				m_infoByIndex.clear();
 				m_infoCreateByIndex.clear();
 				m_infoByHash.clear();

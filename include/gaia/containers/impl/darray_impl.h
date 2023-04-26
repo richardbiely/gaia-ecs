@@ -354,7 +354,7 @@ namespace gaia {
 				const auto cap = capacity();
 
 				// Unless we reached the capacity don't do anything
-				if (cnt != cap)
+				if GAIA_LIKELY (cnt != cap)
 					return;
 
 				// If no data is allocated go with at least 4 elements
