@@ -7,21 +7,9 @@
 
 namespace gaia {
 	namespace utils {
-		constexpr size_t BadIndex = size_t(-1);
-
 		template <typename C, typename Func>
 		constexpr auto for_each(const C& arr, Func func) {
 			return utils::for_each(arr.begin(), arr.end(), func);
-		}
-
-		template <typename C>
-		constexpr auto find(const C& arr, typename C::const_reference item) {
-			return utils::find(arr.begin(), arr.end(), item);
-		}
-
-		template <typename UnaryPredicate, typename C>
-		constexpr auto find_if(const C& arr, UnaryPredicate predicate) {
-			return utils::find_if(arr.begin(), arr.end(), predicate);
 		}
 
 		template <typename C>
@@ -50,18 +38,6 @@ namespace gaia {
 		template <typename UnaryPredicate, typename C>
 		constexpr auto get_index_if_unsafe(const C& arr, UnaryPredicate predicate) {
 			return GAIA_UTIL::distance(arr.begin(), find_if(arr, predicate));
-		}
-
-		template <typename C>
-		constexpr bool has(const C& arr, typename C::const_reference item) {
-			const auto it = find(arr, item);
-			return it != arr.end();
-		}
-
-		template <typename UnaryPredicate, typename C>
-		constexpr bool has_if(const C& arr, UnaryPredicate predicate) {
-			const auto it = find_if(arr, predicate);
-			return it != arr.end();
 		}
 
 		template <typename C>

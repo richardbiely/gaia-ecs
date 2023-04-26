@@ -22,6 +22,9 @@ namespace gaia {
 		void ReleaseChunkMemory(World& world, void* mem);
 
 		class Archetype final {
+		public:
+			using LookupHash = utils::direct_hash_key<uint64_t>;
+
 		private:
 			friend class World;
 			friend class CommandBuffer;
@@ -43,12 +46,10 @@ namespace gaia {
 			containers::darray<Chunk*> chunksDisabled;
 
 #if GAIA_ARCHETYPE_GRAPH
-			//! Map of edges in the archetype graph when adding components.
-			//! key: componentID, data: ArchetypeGraphEdge
-			containers::map<utils::direct_hash_key, ArchetypeGraphEdge> edgesAdd[ComponentType::CT_Count];
-			//! Map of edges in the archetype graph when removing components.
-			//! key: componentID, data: ArchetypeGraphEdge
-			containers::map<utils::direct_hash_key, ArchetypeGraphEdge> edgesDel[ComponentType::CT_Count];
+			//! Map of edges in the archetype graph when adding components
+			containers::map<ComponentHash, ArchetypeGraphEdge> edgesAdd[ComponentType::CT_Count];
+			//! Map of edges in the archetype graph when removing components
+			containers::map<ComponentHash, ArchetypeGraphEdge> edgesDel[ComponentType::CT_Count];
 #endif
 
 			//! Description of components within this archetype
@@ -60,7 +61,7 @@ namespace gaia {
 			uint64_t chunkHash = 0;
 
 			//! Hash of components within this archetype - used for lookups
-			utils::direct_hash_key lookupHash{};
+			ComponentHash lookupHash{};
 			//! Hash of components within this archetype - used for matching
 			uint64_t matcherHash[ComponentType::CT_Count] = {0};
 			//! Archetype ID - used to address the archetype directly in the world's list or archetypes
@@ -328,26 +329,26 @@ namespace gaia {
 			//! Create an edge in the graph leading from this archetype to \param archetypeId via component \param info.
 			void AddEdgeArchetypeRight(ComponentType type, const ComponentInfo* pInfo, uint32_t archetypeId) {
 				[[maybe_unused]] const auto ret =
-						edgesAdd[type].try_emplace({pInfo->lookupHash}, ArchetypeGraphEdge{archetypeId});
+						edgesAdd[type].try_emplace({pInfo->infoIndex}, ArchetypeGraphEdge{archetypeId});
 				GAIA_ASSERT(ret.second);
 			}
 
 			//! Create an edge in the graph leading from this archetype to \param archetypeId via component \param info.
 			void AddEdgeArchetypeLeft(ComponentType type, const ComponentInfo* pInfo, uint32_t archetypeId) {
 				[[maybe_unused]] const auto ret =
-						edgesDel[type].try_emplace({pInfo->lookupHash}, ArchetypeGraphEdge{archetypeId});
+						edgesDel[type].try_emplace({pInfo->infoIndex}, ArchetypeGraphEdge{archetypeId});
 				GAIA_ASSERT(ret.second);
 			}
 
 			uint32_t FindAddEdgeArchetypeId(ComponentType type, const ComponentInfo* pInfo) const {
 				const auto& edges = edgesAdd[type];
-				const auto it = edges.find({pInfo->lookupHash});
+				const auto it = edges.find({pInfo->infoIndex});
 				return it != edges.end() ? it->second.archetypeId : (uint32_t)-1;
 			}
 
 			uint32_t FindDelEdgeArchetypeId(ComponentType type, const ComponentInfo* pInfo) const {
 				const auto& edges = edgesDel[type];
-				const auto it = edges.find({pInfo->lookupHash});
+				const auto it = edges.find({pInfo->infoIndex});
 				return it != edges.end() ? it->second.archetypeId : (uint32_t)-1;
 			}
 #endif
@@ -367,7 +368,7 @@ namespace gaia {
 			\param hashChunk Chunk components hash
 			\param hashLookup Hash used for archetype lookup purposes
 			*/
-			void Init(uint64_t hashGeneric, uint64_t hashChunk, utils::direct_hash_key hashLookup) {
+			void Init(uint64_t hashGeneric, uint64_t hashChunk, ComponentHash hashLookup) {
 				this->genericHash = hashGeneric;
 				this->chunkHash = hashChunk;
 				this->lookupHash = hashLookup;
@@ -443,3 +444,5 @@ namespace gaia {
 		}
 	} // namespace ecs
 } // namespace gaia
+
+REGISTER_HASH_TYPE(gaia::ecs::Archetype::LookupHash)
