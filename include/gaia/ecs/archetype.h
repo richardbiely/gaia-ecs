@@ -171,16 +171,16 @@ namespace gaia {
 
 				// Size of the entity + all of its generic components
 				size_t genericComponentListSize = sizeof(Entity);
-				for (const auto* info: infosGeneric) {
-					genericComponentListSize += info->properties.size;
-					newArch->info.hasComponentWithCustomCreation |= (info->properties.size != 0U) && info->properties.soa;
+				for (const auto* pInfo: infosGeneric) {
+					genericComponentListSize += pInfo->properties.size;
+					newArch->info.hasComponentWithCustomCreation |= (pInfo->properties.size != 0U) && pInfo->properties.soa;
 				}
 
 				// Size of chunk components
 				size_t chunkComponentListSize = 0;
-				for (const auto* info: infosChunk) {
-					chunkComponentListSize += info->properties.size;
-					newArch->info.hasComponentWithCustomCreation |= (info->properties.size != 0U) && info->properties.soa;
+				for (const auto* pInfo: infosChunk) {
+					chunkComponentListSize += pInfo->properties.size;
+					newArch->info.hasComponentWithCustomCreation |= (pInfo->properties.size != 0U) && pInfo->properties.soa;
 				}
 
 				// TODO: Calculate the number of entities per chunks precisely so we can
@@ -196,8 +196,8 @@ namespace gaia {
 
 				// Add generic infos
 				for (size_t i = 0; i < infosGeneric.size(); i++) {
-					const auto* info = infosGeneric[i];
-					const auto alignment = info->properties.alig;
+					const auto* pInfo = infosGeneric[i];
+					const auto alignment = pInfo->properties.alig;
 					if (alignment != 0) {
 						const size_t padding = utils::align(alignedOffset, alignment) - alignedOffset;
 						componentOffset += padding;
@@ -207,28 +207,28 @@ namespace gaia {
 						GAIA_ASSERT(componentOffset <= Chunk::DATA_SIZE_NORESERVE);
 
 						// Register the component info
-						newArch->componentInfos[ComponentType::CT_Generic].push_back(info);
+						newArch->componentInfos[ComponentType::CT_Generic].push_back(pInfo);
 						newArch->componentLookupData[ComponentType::CT_Generic].push_back(
-								{info->infoIndex, (uint32_t)componentOffset});
+								{pInfo->infoIndex, (uint32_t)componentOffset});
 
 						// Make sure the following component list is properly aligned
-						componentOffset += info->properties.size * maxGenericItemsInArchetype;
-						alignedOffset += info->properties.size * maxGenericItemsInArchetype;
+						componentOffset += pInfo->properties.size * maxGenericItemsInArchetype;
+						alignedOffset += pInfo->properties.size * maxGenericItemsInArchetype;
 
 						// Make sure we didn't exceed the chunk size
 						GAIA_ASSERT(componentOffset <= Chunk::DATA_SIZE_NORESERVE);
 					} else {
 						// Register the component info
-						newArch->componentInfos[ComponentType::CT_Generic].push_back(info);
+						newArch->componentInfos[ComponentType::CT_Generic].push_back(pInfo);
 						newArch->componentLookupData[ComponentType::CT_Generic].push_back(
-								{info->infoIndex, (uint32_t)componentOffset});
+								{pInfo->infoIndex, (uint32_t)componentOffset});
 					}
 				}
 
 				// Add chunk infos
 				for (size_t i = 0; i < infosChunk.size(); i++) {
-					const auto* info = infosChunk[i];
-					const auto alignment = info->properties.alig;
+					const auto* pInfo = infosChunk[i];
+					const auto alignment = pInfo->properties.alig;
 					if (alignment != 0) {
 						const size_t padding = utils::align(alignedOffset, alignment) - alignedOffset;
 						componentOffset += padding;
@@ -238,21 +238,21 @@ namespace gaia {
 						GAIA_ASSERT(componentOffset <= Chunk::DATA_SIZE_NORESERVE);
 
 						// Register the component info
-						newArch->componentInfos[ComponentType::CT_Chunk].push_back(info);
+						newArch->componentInfos[ComponentType::CT_Chunk].push_back(pInfo);
 						newArch->componentLookupData[ComponentType::CT_Chunk].push_back(
-								{info->infoIndex, (uint32_t)componentOffset});
+								{pInfo->infoIndex, (uint32_t)componentOffset});
 
 						// Make sure the following component list is properly aligned
-						componentOffset += info->properties.size;
-						alignedOffset += info->properties.size;
+						componentOffset += pInfo->properties.size;
+						alignedOffset += pInfo->properties.size;
 
 						// Make sure we didn't exceed the chunk size
 						GAIA_ASSERT(componentOffset <= Chunk::DATA_SIZE_NORESERVE);
 					} else {
 						// Register the component info
-						newArch->componentInfos[ComponentType::CT_Chunk].push_back(info);
+						newArch->componentInfos[ComponentType::CT_Chunk].push_back(pInfo);
 						newArch->componentLookupData[ComponentType::CT_Chunk].push_back(
-								{info->infoIndex, (uint32_t)componentOffset});
+								{pInfo->infoIndex, (uint32_t)componentOffset});
 					}
 				}
 
