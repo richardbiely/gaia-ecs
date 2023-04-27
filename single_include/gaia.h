@@ -6760,9 +6760,7 @@ namespace gaia {
 			template <typename T>
 			struct IsComponentTypeValid_Internal:
 					std::bool_constant<
-							// Everything needs to be default constructible
-							std::is_default_constructible_v<T> &&
-							// SoA types need to be trivial
+							// SoA types need to be trivial. No restrictions otherwise.
 							(!utils::is_soa_layout_v<T> || std::is_trivially_copyable_v<T>)> {};
 		} // namespace detail
 
@@ -6817,7 +6815,7 @@ namespace gaia {
 			static_assert(!std::is_reference_v<U>);
 			static_assert(!std::is_volatile_v<U>);
 			static_assert(IsComponentSizeValid<U>, "MAX_COMPONENTS_SIZE in bytes is exceeded");
-			static_assert(IsComponentTypeValid<U>, "Only components of trivial type are allowed");
+			static_assert(IsComponentTypeValid<U>, "Component type restrictions not met");
 		}
 
 		//----------------------------------------------------------------------
@@ -7672,7 +7670,7 @@ namespace gaia {
 							info.copy(pSrc, pDst);
 						} else
 							memmove(pDst, (const void*)pSrc, pInfo->properties.size);
-							
+
 						if (pInfo->properties.destructible == 1)
 							info.destructor(pSrc, 1);
 					}
@@ -7938,17 +7936,28 @@ namespace gaia {
 			//----------------------------------------------------------------------
 
 			template <typename T>
+			auto GetComponent_Internal(uint32_t index) const {
+				using U = typename DeduceComponent<T>::Type;
+				using RetValue = decltype(View<T>()[0]);
+
+				if constexpr (sizeof(RetValue) > 8)
+					return (const U&)View<T>()[index];
+				else
+					return View<T>()[index];
+			}
+
+			template <typename T>
 			auto GetComponent(uint32_t index) const {
 				static_assert(
 						IsGenericComponent<T>, "GetComponent providing an index is only available for generic components");
-				return View<T>()[index];
+				return GetComponent_Internal<T>(index);
 			}
 
 			template <typename T>
 			auto GetComponent() const {
 				static_assert(
 						!IsGenericComponent<T>, "GetComponent not providing an index is only available for non-generic components");
-				return View<T>()[0];
+				return GetComponent_Internal<T>(0);
 			}
 
 			//----------------------------------------------------------------------

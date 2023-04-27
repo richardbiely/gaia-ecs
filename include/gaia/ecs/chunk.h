@@ -118,7 +118,7 @@ namespace gaia {
 							info.copy(pSrc, pDst);
 						} else
 							memmove(pDst, (const void*)pSrc, pInfo->properties.size);
-							
+
 						if (pInfo->properties.destructible == 1)
 							info.destructor(pSrc, 1);
 					}
@@ -384,17 +384,28 @@ namespace gaia {
 			//----------------------------------------------------------------------
 
 			template <typename T>
+			auto GetComponent_Internal(uint32_t index) const {
+				using U = typename DeduceComponent<T>::Type;
+				using RetValue = decltype(View<T>()[0]);
+
+				if constexpr (sizeof(RetValue) > 8)
+					return (const U&)View<T>()[index];
+				else
+					return View<T>()[index];
+			}
+
+			template <typename T>
 			auto GetComponent(uint32_t index) const {
 				static_assert(
 						IsGenericComponent<T>, "GetComponent providing an index is only available for generic components");
-				return View<T>()[index];
+				return GetComponent_Internal<T>(index);
 			}
 
 			template <typename T>
 			auto GetComponent() const {
 				static_assert(
 						!IsGenericComponent<T>, "GetComponent not providing an index is only available for non-generic components");
-				return View<T>()[0];
+				return GetComponent_Internal<T>(0);
 			}
 
 			//----------------------------------------------------------------------

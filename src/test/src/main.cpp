@@ -1567,13 +1567,13 @@ TEST_CASE("Components - non trivial") {
 
 	// Default values
 	for (const auto ent: arr) {
-		auto s1 = w.GetComponent<StringComponent>(ent);
+		const auto& s1 = w.GetComponent<StringComponent>(ent);
 		REQUIRE(s1.value.empty());
 
-		auto s2 = w.GetComponent<StringComponent2>(ent);
+		const auto& s2 = w.GetComponent<StringComponent2>(ent);
 		REQUIRE(s2.value == DefaultValue);
 
-		auto p = w.GetComponent<PositionNonTrivial>(ent);
+		const auto& p = w.GetComponent<PositionNonTrivial>(ent);
 		REQUIRE(p.x == 1);
 		REQUIRE(p.y == 2);
 		REQUIRE(p.z == 3);
@@ -1615,13 +1615,13 @@ TEST_CASE("Components - non trivial") {
 		auto ent = w.CreateEntity(arr[0]);
 		w.AddComponent<Position>(ent, {5, 6, 7});
 
-		auto s1 = w.GetComponent<StringComponent>(ent);
+		const auto& s1 = w.GetComponent<StringComponent>(ent);
 		REQUIRE(s1.value == "string_component");
 
-		auto s2 = w.GetComponent<StringComponent2>(ent);
+		const auto& s2 = w.GetComponent<StringComponent2>(ent);
 		REQUIRE(s2.value == "another_text");
 
-		auto p = w.GetComponent<PositionNonTrivial>(ent);
+		const auto& p = w.GetComponent<PositionNonTrivial>(ent);
 		REQUIRE(p.x == 111);
 		REQUIRE(p.y == 222);
 		REQUIRE(p.z == 333);
