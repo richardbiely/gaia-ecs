@@ -114,9 +114,9 @@ namespace gaia {
 				const auto& archetype = pChunk->header.owner;
 				const auto& cc = GetComponentCache();
 
-				auto callDestructors = [&](ComponentType ct) {
-					const auto& looks = archetype.componentLookupData[ct];
-					const auto itemCount = (uint32_t)ComponentType::CT_Generic ? pChunk->GetItemCount() : 1U;
+				auto callDestructors = [&](ComponentType type) {
+					const auto& looks = archetype.componentLookupData[type];
+					const auto itemCount = type == ComponentType::CT_Generic ? pChunk->GetItemCount() : 1U;
 					for (auto look: looks) {
 						const auto& infoCreate = cc.GetComponentCreateInfoFromIdx(look.infoIndex);
 						if (infoCreate.destructor == nullptr)
