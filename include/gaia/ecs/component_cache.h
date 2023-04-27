@@ -131,10 +131,8 @@ namespace gaia {
 				const auto registeredTypes = (uint32_t)m_infoCreateByIndex.size();
 				LOG_N("Registered infos: %u", registeredTypes);
 
-				for (const auto& info: m_infoCreateByIndex) {
-					const auto* pInfo = GetComponentInfoFromIdx(info.infoIndex);
+				for (const auto& info: m_infoCreateByIndex)
 					LOG_N("  (%p) index:%010u, %.*s", (void*)&info, info.infoIndex, (uint32_t)info.name.size(), info.name.data());
-				}
 			}
 
 		private:
