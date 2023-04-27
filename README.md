@@ -135,16 +135,16 @@ w.SetComponent<Velocity>(e, {0, 0, 2}).
 
 Components are returned by value for components with size up to 8 bytes (including). Bigger components are returned by const reference.
 ```cpp
-// Read Velocity's value. The value is returned by const reference
-const auto& velNew = w.GetComponent<Velocity>(e);
+// Read Velocity's value. As shown above Velocity is 12 bytes in size. Therefore, it is returned by const reference.
+const auto& velRef = w.GetComponent<Velocity>(e);
 // However, it is easy to store a copy.
-auto velNewByVal = w.GetComponent<Velocity>(e);
+auto velCopy = w.GetComponent<Velocity>(e);
 ```
 
-Both read and write operations are also accessible via views. These are what SetComponent / GetComponent uses internaly.
+Both read and write operations are also accessible via views. Following is an example which shows how one can use them. Note, this is essentially what SetComponent / GetComponent does internaly.
 ```cpp
 uint32_t entityIndexInChunk;
-auto *pChunk = w.GetChunk(e, entityIndexInChunk);
+auto* pChunk = w.GetChunk(e, entityIndexInChunk);
 
 // Read-only view. We can only use this to read values form our chunk.
 auto velocity_view = pChunk->View<Velocity>();
