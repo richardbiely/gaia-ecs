@@ -1138,7 +1138,7 @@ namespace gaia {
 				VerifyComponent<T>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
-				auto& entityContainer = m_entities[entity.id()];
+				const auto& entityContainer = m_entities[entity.id()];
 				return ComponentSetter{entityContainer.pChunk, entityContainer.idx}.SetComponent<T>(
 						std::forward<typename DeduceComponent<T>::Type>(data));
 			}
@@ -1154,7 +1154,7 @@ namespace gaia {
 				VerifyComponent<T>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
-				auto& entityContainer = m_entities[entity.id()];
+				const auto& entityContainer = m_entities[entity.id()];
 				return ComponentSetter{entityContainer.pChunk, entityContainer.idx}.SetComponentSilent<T>(
 						std::forward<typename DeduceComponent<T>::Type>(data));
 			}
