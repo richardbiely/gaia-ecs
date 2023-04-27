@@ -121,8 +121,6 @@ w.RemoveComponent<Velocity>(e);
 w.SetComponent<Velocity>(e, {0, 0, 2});
 // Same as above but the world version is not updated so nobody gets notified of this change.
 w.SetComponentSilent<Velocity>(e, {4, 2, 0});
-// Read Velocity's value.
-auto velNew = w.GetComponent<Velocity>(e);
 ```
 
 In case there are more different components on your entity you would like to change the value of you can achive it via SetComponent chaining:
@@ -135,22 +133,34 @@ w.SetComponent<Velocity>(e, {0, 0, 2}).
   SetComponent...;
 ```
 
-Both read and write operations are also accessible via views. These are what SetComponent / GetComponet uses internaly.
+Components are returned by value for components with size up to 8 bytes (including). Bigger components are returned by const reference.
 ```cpp
-auto *pChunk = w.GetChunk(e);
+// Read Velocity's value. The value is returned by const reference
+const auto& velNew = w.GetComponent<Velocity>(e);
+// However, it is easy to store a copy.
+auto velNewByVal = w.GetComponent<Velocity>(e);
+```
+
+Both read and write operations are also accessible via views. These are what SetComponent / GetComponent uses internaly.
+```cpp
+uint32_t entityIndexInChunk;
+auto *pChunk = w.GetChunk(e, entityIndexInChunk);
+
 // Read-only view. We can only use this to read values form our chunk.
-auto v = pChunk->View<Velocity>();
-Velocity vel = v[index];
+auto velocity_view = pChunk->View<Velocity>();
+Velocity vel = velocity_view[entityIndexInChunk];
+
 // Read-write view. We can use this one to also modify contents of our chunk.
 // These views automatically update the world version and can be used to detect
 // changes in chunk which is usually desirable.
-auto v_rw = pChunk->ViewRW<Velocity>();
-v_rw[index] = Velocity{};
+auto velocity_view_rw = pChunk->ViewRW<Velocity>();
+velocity_view_rw[entityIndexInChunk] = Velocity{};
+
 // Read-write silent view. Esentially the same as ViewRW with the exception
 // that it does not modify the world version and changes made by it can not
 // be detected.
-auto v_rws = pChunk–>ViewRWSilent<Velocity>();
-v_rws[index] = Velocity{};
+auto velocity_view_rws = pChunk–>ViewRWSilent<Velocity>();
+velocity_view_rws[entityIndexInChunk] = Velocity{};
 ```
 
 ### Checking if component is attached to entity
