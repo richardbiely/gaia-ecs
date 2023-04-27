@@ -384,7 +384,7 @@ namespace gaia {
 			//----------------------------------------------------------------------
 
 			template <typename T>
-			auto GetComponent_Internal(uint32_t index) const {
+			GAIA_NODISCARD auto GetComponent_Internal(uint32_t index) const {
 				using U = typename DeduceComponent<T>::Type;
 				using RetValue = decltype(View<T>()[0]);
 
@@ -395,14 +395,14 @@ namespace gaia {
 			}
 
 			template <typename T>
-			auto GetComponent(uint32_t index) const {
+			GAIA_NODISCARD auto GetComponent(uint32_t index) const {
 				static_assert(
 						IsGenericComponent<T>, "GetComponent providing an index is only available for generic components");
 				return GetComponent_Internal<T>(index);
 			}
 
 			template <typename T>
-			auto GetComponent() const {
+			GAIA_NODISCARD auto GetComponent() const {
 				static_assert(
 						!IsGenericComponent<T>, "GetComponent not providing an index is only available for non-generic components");
 				return GetComponent_Internal<T>(0);
