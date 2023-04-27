@@ -77,7 +77,7 @@ namespace gaia {
 			//! List of archetypes - used for iteration
 			containers::darray<Archetype*> m_archetypes;
 			//! Root archetype
-			Archetype* m_rootArchetype = nullptr;
+			Archetype* m_pRootArchetype = nullptr;
 
 			//! Implicit list of entities. Used for look-ups only when searching for
 			//! entities in chunks + data validation
@@ -93,7 +93,7 @@ namespace gaia {
 			//! With every structural change world version changes
 			uint32_t m_worldVersion = 0;
 
-			void* AllocateChunkMemory() {
+			GAIA_NODISCARD void* AllocateChunkMemory() {
 				return m_chunkAllocator.Allocate();
 			}
 
@@ -107,7 +107,7 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD bool IsEntityValid(Entity entity) const {
-				// Entity ID has to fit inside entity array
+				// Entity ID has to fit inside the entity array
 				if (entity.id() >= m_entities.size())
 					return false;
 
@@ -115,8 +115,7 @@ namespace gaia {
 				// Generation ID has to match the one in the array
 				if (entityContainer.gen != entity.gen())
 					return false;
-				// If chunk information is present the entity at the pointed index has
-				// to match our entity
+				// If chunk information is present the entity at the pointed index has to match our entity
 				if ((entityContainer.pChunk != nullptr) && entityContainer.pChunk->GetEntity(entityContainer.idx) != entity)
 					return false;
 
@@ -136,8 +135,8 @@ namespace gaia {
 					m_chunksToRemove = {};
 
 					// Delete all allocated chunks and their parent archetypes
-					for (auto* archetype: m_archetypes)
-						delete archetype;
+					for (auto* pArchetype: m_archetypes)
+						delete pArchetype;
 
 					m_archetypes = {};
 					m_archetypeMap = {};
@@ -248,8 +247,8 @@ namespace gaia {
 			*/
 			void RegisterArchetype(Archetype* pArchetype) {
 				// Make sure hashes were set already
-				GAIA_ASSERT(pArchetype == m_rootArchetype || (pArchetype->genericHash != 0 || pArchetype->chunkHash != 0));
-				GAIA_ASSERT(pArchetype == m_rootArchetype || pArchetype->lookupHash.hash != 0);
+				GAIA_ASSERT(pArchetype == m_pRootArchetype || (pArchetype->genericHash != 0 || pArchetype->chunkHash != 0));
+				GAIA_ASSERT(pArchetype == m_pRootArchetype || pArchetype->lookupHash.hash != 0);
 
 				// Make sure the archetype is not registered yet
 				GAIA_ASSERT(!utils::has(m_archetypes, pArchetype));
@@ -347,7 +346,7 @@ namespace gaia {
 				containers::set<uint32_t> visited;
 
 				// Push all children of the root archetype onto the stack
-				for (const auto& edge: m_rootArchetype->edgesAdd[(uint32_t)type])
+				for (const auto& edge: m_pRootArchetype->edgesAdd[(uint32_t)type])
 					stack.push_back(edge.second.archetypeId);
 
 				while (!stack.empty()) {
@@ -391,7 +390,7 @@ namespace gaia {
 				// We don't want to store edges for the root archetype because the more components there are the longer
 				// it would take to find anything. Therefore, for the root archetype we always make a lookup.
 				// However, compared to an oridnary lookup, this path is stripped as much as possible.
-				if (pArchetypeLeft == m_rootArchetype) {
+				if (pArchetypeLeft == m_pRootArchetype) {
 					Archetype* pArchetypeRight = nullptr;
 					if (type == ComponentType::CT_Generic) {
 						const auto genericHash = pInfoToAdd->lookupHash;
@@ -766,7 +765,7 @@ namespace gaia {
 				}
 				// Adding a component to an empty entity
 				else {
-					auto& archetype = const_cast<Archetype&>(*m_rootArchetype);
+					auto& archetype = const_cast<Archetype&>(*m_pRootArchetype);
 
 					GAIA_ASSERT(
 							!archetype.info.structuralChangesLocked && "New components can't be added while chunk is being iterated "
@@ -795,17 +794,17 @@ namespace gaia {
 				VerifyRemoveComponent(archetype, entity, type, pInfoToRemove);
 #endif
 
-				auto* newArchetype = FindOrCreateArchetype_RemoveComponent(&archetype, type, pInfoToRemove);
-				GAIA_ASSERT(newArchetype != nullptr);
-				MoveEntity(entity, pInfoToRemove, *newArchetype);
+				auto* pNewArchetype = FindOrCreateArchetype_RemoveComponent(&archetype, type, pInfoToRemove);
+				GAIA_ASSERT(pNewArchetype != nullptr);
+				MoveEntity(entity, pInfoToRemove, *pNewArchetype);
 
 				return ComponentSetter{pChunk, entityContainer.idx};
 			}
 
 			void Init() {
-				m_rootArchetype = CreateArchetype({}, {});
-				m_rootArchetype->Init(0, 0, {CalculateLookupHash(containers::sarray<uint64_t, 2>{0, 0})});
-				RegisterArchetype(m_rootArchetype);
+				m_pRootArchetype = CreateArchetype({}, {});
+				m_pRootArchetype->Init(0, 0, {CalculateLookupHash(containers::sarray<uint64_t, 2>{0, 0})});
+				RegisterArchetype(m_pRootArchetype);
 			}
 
 			void Done() {
@@ -827,8 +826,8 @@ namespace gaia {
 			Creates a new entity from archetype
 			\return Entity
 			*/
-			Entity CreateEntity(Archetype& archetype) {
-				Entity entity = AllocateEntity();
+			GAIA_NODISCARD Entity CreateEntity(Archetype& archetype) {
+				const auto entity = CreateEntity();
 
 				auto* pChunk = m_entities[entity.id()].pChunk;
 				if (pChunk == nullptr)
@@ -876,7 +875,7 @@ namespace gaia {
 			\param entity Entity
 			\return Entity
 			*/
-			Entity CreateEntity(Entity entity) {
+			GAIA_NODISCARD Entity CreateEntity(Entity entity) {
 				auto& entityContainer = m_entities[entity.id()];
 
 				auto* pChunk = entityContainer.pChunk;
@@ -1165,7 +1164,7 @@ namespace gaia {
 			\return Value stored in the component.
 			*/
 			template <typename T>
-			auto GetComponent(Entity entity) const {
+			GAIA_NODISCARD auto GetComponent(Entity entity) const {
 				VerifyComponent<T>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
@@ -1186,7 +1185,7 @@ namespace gaia {
 			\return True if the component is present on entity.
 			*/
 			template <typename T>
-			GAIA_NODISCARD bool HasComponent(Entity entity) {
+			GAIA_NODISCARD bool HasComponent(Entity entity) const {
 				VerifyComponent<T>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
@@ -1201,7 +1200,7 @@ namespace gaia {
 
 		private:
 			template <typename T>
-			constexpr GAIA_FORCEINLINE auto GetComponentView(Chunk& chunk) const {
+			constexpr GAIA_NODISCARD GAIA_FORCEINLINE auto GetComponentView(Chunk& chunk) const {
 				using U = typename DeduceComponent<T>::Type;
 				using UOriginal = typename DeduceComponent<T>::TypeOriginal;
 				if constexpr (IsReadOnlyType<UOriginal>::value)
@@ -2137,22 +2136,25 @@ namespace gaia {
 			}
 		};
 
-		GAIA_FORCEINLINE ComponentCache& GetComponentCacheRW() {
-			const auto& cc = GetComponentCache();
-			return const_cast<ComponentCache&>(cc);
-		}
-		GAIA_FORCEINLINE const ComponentCache& GetComponentCache() {
+		GAIA_NODISCARD inline const ComponentCache& GetComponentCache() {
 			static ComponentCache cache;
 			return cache;
 		}
 
-		GAIA_FORCEINLINE uint32_t GetWorldVersionFromWorld(const World& world) {
+		GAIA_NODISCARD inline ComponentCache& GetComponentCacheRW() {
+			const auto& cc = GetComponentCache();
+			return const_cast<ComponentCache&>(cc);
+		}
+
+		GAIA_NODISCARD inline uint32_t GetWorldVersionFromWorld(const World& world) {
 			return world.GetWorldVersion();
 		}
-		GAIA_FORCEINLINE void* AllocateChunkMemory(World& world) {
+
+		GAIA_NODISCARD inline void* AllocateChunkMemory(World& world) {
 			return world.AllocateChunkMemory();
 		}
-		GAIA_FORCEINLINE void ReleaseChunkMemory(World& world, void* mem) {
+
+		inline void ReleaseChunkMemory(World& world, void* mem) {
 			world.ReleaseChunkMemory(mem);
 		}
 	} // namespace ecs

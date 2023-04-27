@@ -327,13 +327,13 @@ namespace gaia {
 				GAIA_ASSERT(ret.second);
 			}
 
-			uint32_t FindAddEdgeArchetypeId(ComponentType type, const ComponentInfo* pInfo) const {
+			GAIA_NODISCARD uint32_t FindAddEdgeArchetypeId(ComponentType type, const ComponentInfo* pInfo) const {
 				const auto& edges = edgesAdd[type];
 				const auto it = edges.find({pInfo->infoIndex});
 				return it != edges.end() ? it->second.archetypeId : BadIndex;
 			}
 
-			uint32_t FindDelEdgeArchetypeId(ComponentType type, const ComponentInfo* pInfo) const {
+			GAIA_NODISCARD uint32_t FindDelEdgeArchetypeId(ComponentType type, const ComponentInfo* pInfo) const {
 				const auto& edges = edgesDel[type];
 				const auto it = edges.find({pInfo->infoIndex});
 				return it != edges.end() ? it->second.archetypeId : BadIndex;
@@ -422,19 +422,24 @@ namespace gaia {
 		GAIA_NODISCARD inline uint32_t GetWorldVersionFromArchetype(const Archetype& archetype) {
 			return archetype.GetWorldVersion();
 		}
+
 		GAIA_NODISCARD inline uint64_t GetArchetypeMatcherHash(const Archetype& archetype, ComponentType type) {
 			return archetype.GetMatcherHash(type);
 		}
+
 		GAIA_NODISCARD inline const ComponentInfo* GetComponentInfoFromIdx(uint32_t index) {
 			return GetComponentCache().GetComponentInfoFromIdx(index);
 		}
+
 		GAIA_NODISCARD inline const ComponentInfoCreate& GetComponentCreateInfoFromIdx(uint32_t index) {
 			return GetComponentCache().GetComponentCreateInfoFromIdx(index);
 		}
+
 		GAIA_NODISCARD inline const ComponentInfoList&
 		GetArchetypeComponentInfoList(const Archetype& archetype, ComponentType type) {
 			return archetype.GetComponentInfoList(type);
 		}
+
 		GAIA_NODISCARD inline const ComponentLookupList&
 		GetArchetypeComponentLookupList(const Archetype& archetype, ComponentType type) {
 			return archetype.GetComponentLookupList(type);
