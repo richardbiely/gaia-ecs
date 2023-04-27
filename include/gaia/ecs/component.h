@@ -69,9 +69,7 @@ namespace gaia {
 			template <typename T>
 			struct IsComponentTypeValid_Internal:
 					std::bool_constant<
-							// Everything needs to be default constructible
-							std::is_default_constructible_v<T> &&
-							// SoA types need to be trivial
+							// SoA types need to be trivial. No restrictions otherwise.
 							(!utils::is_soa_layout_v<T> || std::is_trivially_copyable_v<T>)> {};
 		} // namespace detail
 
@@ -126,7 +124,7 @@ namespace gaia {
 			static_assert(!std::is_reference_v<U>);
 			static_assert(!std::is_volatile_v<U>);
 			static_assert(IsComponentSizeValid<U>, "MAX_COMPONENTS_SIZE in bytes is exceeded");
-			static_assert(IsComponentTypeValid<U>, "Only components of trivial type are allowed");
+			static_assert(IsComponentTypeValid<U>, "Component type restrictions not met");
 		}
 
 		//----------------------------------------------------------------------
