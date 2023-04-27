@@ -11,6 +11,7 @@
 #include "../utils/type_info.h"
 #include "../utils/utility.h"
 #include "common.h"
+#include "gaia/config/config_core.h"
 
 namespace gaia {
 	namespace ecs {
@@ -64,9 +65,14 @@ namespace gaia {
 
 			template <typename T>
 			struct IsComponentSizeValid_Internal: std::bool_constant<sizeof(T) < MAX_COMPONENTS_SIZE> {};
+
 			template <typename T>
 			struct IsComponentTypeValid_Internal:
-					std::bool_constant<std::is_trivially_copyable<T>::value && std::is_default_constructible<T>::value> {};
+					std::bool_constant<
+							// Everything needs to be default constructible
+							std::is_default_constructible_v<T> &&
+							// SoA types need to be trivial
+							(!utils::is_soa_layout_v<T> || std::is_trivially_copyable_v<T>)> {};
 		} // namespace detail
 
 		template <typename T>
@@ -187,17 +193,20 @@ namespace gaia {
 		//----------------------------------------------------------------------
 
 		struct ComponentInfoCreate final {
-			using FuncConstructor = void(void*, size_t);
 			using FuncDestructor = void(void*, size_t);
+			using FuncCopy = void(void*, void*);
+			using FuncMove = void(void*, void*);
 
-			//! [ 0-15] Component name
+			//! Component name
 			std::span<const char> name;
-			//! [16-31] Constructor to call when the component is being constructed
-			FuncConstructor* constructor;
-			//! [32-47] Destructor to call when the component is being destroyed
-			FuncDestructor* destructor;
-			//! [48-51] Unique component identifier
-			uint32_t infoIndex;
+			//! Destructor to call when the component is destroyed
+			FuncDestructor* destructor = nullptr;
+			//! Function to call when the component is copied
+			FuncMove* copy = nullptr;
+			//! Fucntion to call when the component is moved
+			FuncMove* move = nullptr;
+			//! Unique component identifier
+			uint32_t infoIndex = (uint32_t)-1;
 
 			template <typename T>
 			GAIA_NODISCARD static constexpr ComponentInfoCreate Calculate() {
@@ -208,23 +217,53 @@ namespace gaia {
 				info.infoIndex = GetComponentIndexUnsafe<U>();
 
 				if constexpr (!std::is_empty_v<U> && !utils::is_soa_layout_v<U>) {
-					info.constructor = [](void* ptr, size_t cnt) {
-						auto first = (U*)ptr;
-						auto last = (U*)ptr + cnt;
-						std::uninitialized_default_construct(first, last);
-					};
-					info.destructor = [](void* ptr, size_t cnt) {
-						auto first = (U*)ptr;
-						auto last = (U*)ptr + cnt;
-						std::destroy(first, last);
-					};
+					// Custom destruction
+					if constexpr (!std::is_trivially_destructible_v<U>) {
+						info.destructor = [](void* ptr, size_t cnt) {
+							auto first = (U*)ptr;
+							auto last = (U*)ptr + cnt;
+							std::destroy(first, last);
+						};
+					}
+
+					// Copyability
+					if (!std::is_trivially_copyable_v<U>) {
+						if constexpr (std::is_copy_assignable_v<U>) {
+							info.copy = [](void* from, void* to) {
+								auto src = (U*)from;
+								auto dst = (U*)to;
+								*dst = *src;
+							};
+						} else if constexpr (std::is_copy_constructible_v<U>) {
+							info.copy = [](void* from, void* to) {
+								auto src = (U*)from;
+								auto dst = (U*)to;
+								*dst = U(*src);
+							};
+						}
+					}
+
+					// Movability
+					if constexpr (!std::is_trivially_move_assignable_v<U> && std::is_move_assignable_v<U>) {
+						info.move = [](void* from, void* to) {
+							auto src = (U*)from;
+							auto dst = (U*)to;
+							*dst = std::move(*src);
+						};
+					} else if constexpr (!std::is_trivially_move_constructible_v<U> && std::is_move_constructible_v<U>) {
+						info.move = [](void* from, void* to) {
+							auto src = (U*)from;
+							auto dst = (U*)to;
+							*dst = U(std::move(*src));
+						};
+					}
 				}
 
 				return info;
 			}
 
 			template <typename T>
-			static ComponentInfoCreate Create() {
+			GAIA_NODISCARD static ComponentInfoCreate Create() {
 				using U = std::decay_t<T>;
 				return ComponentInfoCreate::Calculate<U>();
 			}
@@ -235,13 +274,13 @@ namespace gaia {
 		//----------------------------------------------------------------------
 
 		struct ComponentInfo final {
-			//! [0-7] Complex hash used for look-ups
+			//! Complex hash used for look-ups
 			uint64_t lookupHash;
-			//! [8-15] Simple hash used for matching component
+			//! Simple hash used for matching component
 			uint64_t matcherHash;
-			//! [16-19] Unique component identifier
+			//! Unique component identifier
 			uint32_t infoIndex;
-			//! [20-23]
+			//! Varoious
 			struct {
 				//! Component alignment
 				uint32_t alig: MAX_COMPONENTS_SIZE_BITS;
@@ -249,6 +288,12 @@ namespace gaia {
 				uint32_t size: MAX_COMPONENTS_SIZE_BITS;
 				//! Tells if the component is laid out in SoA style
 				uint32_t soa : 1;
+				//! Tells if the component is destructible
+				uint32_t destructible : 1;
+				//! Tells if the component is copyable
+				uint32_t copyable : 1;
+				//! Tells if the component is movable
+				uint32_t movable : 1;
 			} properties{};
 
 			GAIA_NODISCARD bool operator==(const ComponentInfo& other) const {
@@ -273,7 +318,16 @@ namespace gaia {
 				if constexpr (!std::is_empty_v<U>) {
 					info.properties.alig = utils::auto_view_policy<U>::Alignment;
 					info.properties.size = (uint32_t)sizeof(U);
-					info.properties.soa = utils::is_soa_layout_v<U>;
+
+					if constexpr (utils::is_soa_layout_v<U>) {
+						info.properties.soa = 1;
+					} else {
+						info.properties.destructible = !std::is_trivially_destructible_v<U>;
+						info.properties.copyable =
+								!std::is_trivially_copyable_v<U> && (std::is_copy_assignable_v<U> || std::is_copy_constructible_v<U>);
+						info.properties.movable = (!std::is_trivially_move_assignable_v<U> && std::is_move_assignable_v<U>) ||
+																			(!std::is_trivially_move_constructible_v<U> && std::is_move_constructible_v<U>);
+					}
 				}
 
 				return info;
