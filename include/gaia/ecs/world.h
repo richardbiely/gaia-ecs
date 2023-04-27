@@ -620,10 +620,9 @@ namespace gaia {
 			Moves an entity along with all its generic components from its current to another
 			chunk in a new archetype.
 			\param oldEntity Entity to move
-			\param pInfo Component type which we are adding/removing
 			\param newArchetype Target archetype
 			*/
-			void MoveEntity(Entity oldEntity, const ComponentInfo* pInfo, Archetype& newArchetype) {
+			void MoveEntity(Entity oldEntity, Archetype& newArchetype) {
 				const auto& cc = GetComponentCache();
 
 				auto& entityContainer = m_entities[oldEntity.id()];
@@ -761,7 +760,7 @@ namespace gaia {
 #endif
 
 					auto* pTargetArchetype = FindOrCreateArchetype_AddComponent(&archetype, type, pInfoToAdd);
-					MoveEntity(entity, pInfoToAdd, *pTargetArchetype);
+					MoveEntity(entity, *pTargetArchetype);
 				}
 				// Adding a component to an empty entity
 				else {
@@ -796,7 +795,7 @@ namespace gaia {
 
 				auto* pNewArchetype = FindOrCreateArchetype_RemoveComponent(&archetype, type, pInfoToRemove);
 				GAIA_ASSERT(pNewArchetype != nullptr);
-				MoveEntity(entity, pInfoToRemove, *pNewArchetype);
+				MoveEntity(entity, *pNewArchetype);
 
 				return ComponentSetter{pChunk, entityContainer.idx};
 			}

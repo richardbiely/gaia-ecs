@@ -7936,7 +7936,7 @@ namespace gaia {
 			//----------------------------------------------------------------------
 
 			template <typename T>
-			auto GetComponent_Internal(uint32_t index) const {
+			GAIA_NODISCARD auto GetComponent_Internal(uint32_t index) const {
 				using U = typename DeduceComponent<T>::Type;
 				using RetValue = decltype(View<T>()[0]);
 
@@ -7947,14 +7947,14 @@ namespace gaia {
 			}
 
 			template <typename T>
-			auto GetComponent(uint32_t index) const {
+			GAIA_NODISCARD auto GetComponent(uint32_t index) const {
 				static_assert(
 						IsGenericComponent<T>, "GetComponent providing an index is only available for generic components");
 				return GetComponent_Internal<T>(index);
 			}
 
 			template <typename T>
-			auto GetComponent() const {
+			GAIA_NODISCARD auto GetComponent() const {
 				static_assert(
 						!IsGenericComponent<T>, "GetComponent not providing an index is only available for non-generic components");
 				return GetComponent_Internal<T>(0);
@@ -8116,10 +8116,8 @@ namespace gaia {
 				const auto registeredTypes = (uint32_t)m_infoCreateByIndex.size();
 				LOG_N("Registered infos: %u", registeredTypes);
 
-				for (const auto& info: m_infoCreateByIndex) {
-					const auto* pInfo = GetComponentInfoFromIdx(info.infoIndex);
+				for (const auto& info: m_infoCreateByIndex)
 					LOG_N("  (%p) index:%010u, %.*s", (void*)&info, info.infoIndex, (uint32_t)info.name.size(), info.name.data());
-				}
 			}
 
 		private:
@@ -8238,9 +8236,9 @@ namespace gaia {
 				const auto& archetype = pChunk->header.owner;
 				const auto& cc = GetComponentCache();
 
-				auto callDestructors = [&](ComponentType ct) {
-					const auto& looks = archetype.componentLookupData[ct];
-					const auto itemCount = (uint32_t)ComponentType::CT_Generic ? pChunk->GetItemCount() : 1U;
+				auto callDestructors = [&](ComponentType type) {
+					const auto& looks = archetype.componentLookupData[type];
+					const auto itemCount = type == ComponentType::CT_Generic ? pChunk->GetItemCount() : 1U;
 					for (auto look: looks) {
 						const auto& infoCreate = cc.GetComponentCreateInfoFromIdx(look.infoIndex);
 						if (infoCreate.destructor == nullptr)
@@ -8451,13 +8449,13 @@ namespace gaia {
 				GAIA_ASSERT(ret.second);
 			}
 
-			uint32_t FindAddEdgeArchetypeId(ComponentType type, const ComponentInfo* pInfo) const {
+			GAIA_NODISCARD uint32_t FindAddEdgeArchetypeId(ComponentType type, const ComponentInfo* pInfo) const {
 				const auto& edges = edgesAdd[type];
 				const auto it = edges.find({pInfo->infoIndex});
 				return it != edges.end() ? it->second.archetypeId : BadIndex;
 			}
 
-			uint32_t FindDelEdgeArchetypeId(ComponentType type, const ComponentInfo* pInfo) const {
+			GAIA_NODISCARD uint32_t FindDelEdgeArchetypeId(ComponentType type, const ComponentInfo* pInfo) const {
 				const auto& edges = edgesDel[type];
 				const auto it = edges.find({pInfo->infoIndex});
 				return it != edges.end() ? it->second.archetypeId : BadIndex;
@@ -8546,19 +8544,24 @@ namespace gaia {
 		GAIA_NODISCARD inline uint32_t GetWorldVersionFromArchetype(const Archetype& archetype) {
 			return archetype.GetWorldVersion();
 		}
+
 		GAIA_NODISCARD inline uint64_t GetArchetypeMatcherHash(const Archetype& archetype, ComponentType type) {
 			return archetype.GetMatcherHash(type);
 		}
+
 		GAIA_NODISCARD inline const ComponentInfo* GetComponentInfoFromIdx(uint32_t index) {
 			return GetComponentCache().GetComponentInfoFromIdx(index);
 		}
+
 		GAIA_NODISCARD inline const ComponentInfoCreate& GetComponentCreateInfoFromIdx(uint32_t index) {
 			return GetComponentCache().GetComponentCreateInfoFromIdx(index);
 		}
+
 		GAIA_NODISCARD inline const ComponentInfoList&
 		GetArchetypeComponentInfoList(const Archetype& archetype, ComponentType type) {
 			return archetype.GetComponentInfoList(type);
 		}
+
 		GAIA_NODISCARD inline const ComponentLookupList&
 		GetArchetypeComponentLookupList(const Archetype& archetype, ComponentType type) {
 			return archetype.GetComponentLookupList(type);
@@ -9249,7 +9252,7 @@ namespace gaia {
 			//! List of archetypes - used for iteration
 			containers::darray<Archetype*> m_archetypes;
 			//! Root archetype
-			Archetype* m_rootArchetype = nullptr;
+			Archetype* m_pRootArchetype = nullptr;
 
 			//! Implicit list of entities. Used for look-ups only when searching for
 			//! entities in chunks + data validation
@@ -9265,7 +9268,7 @@ namespace gaia {
 			//! With every structural change world version changes
 			uint32_t m_worldVersion = 0;
 
-			void* AllocateChunkMemory() {
+			GAIA_NODISCARD void* AllocateChunkMemory() {
 				return m_chunkAllocator.Allocate();
 			}
 
@@ -9279,7 +9282,7 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD bool IsEntityValid(Entity entity) const {
-				// Entity ID has to fit inside entity array
+				// Entity ID has to fit inside the entity array
 				if (entity.id() >= m_entities.size())
 					return false;
 
@@ -9287,8 +9290,7 @@ namespace gaia {
 				// Generation ID has to match the one in the array
 				if (entityContainer.gen != entity.gen())
 					return false;
-				// If chunk information is present the entity at the pointed index has
-				// to match our entity
+				// If chunk information is present the entity at the pointed index has to match our entity
 				if ((entityContainer.pChunk != nullptr) && entityContainer.pChunk->GetEntity(entityContainer.idx) != entity)
 					return false;
 
@@ -9308,8 +9310,8 @@ namespace gaia {
 					m_chunksToRemove = {};
 
 					// Delete all allocated chunks and their parent archetypes
-					for (auto* archetype: m_archetypes)
-						delete archetype;
+					for (auto* pArchetype: m_archetypes)
+						delete pArchetype;
 
 					m_archetypes = {};
 					m_archetypeMap = {};
@@ -9420,8 +9422,8 @@ namespace gaia {
 			*/
 			void RegisterArchetype(Archetype* pArchetype) {
 				// Make sure hashes were set already
-				GAIA_ASSERT(pArchetype == m_rootArchetype || (pArchetype->genericHash != 0 || pArchetype->chunkHash != 0));
-				GAIA_ASSERT(pArchetype == m_rootArchetype || pArchetype->lookupHash.hash != 0);
+				GAIA_ASSERT(pArchetype == m_pRootArchetype || (pArchetype->genericHash != 0 || pArchetype->chunkHash != 0));
+				GAIA_ASSERT(pArchetype == m_pRootArchetype || pArchetype->lookupHash.hash != 0);
 
 				// Make sure the archetype is not registered yet
 				GAIA_ASSERT(!utils::has(m_archetypes, pArchetype));
@@ -9519,7 +9521,7 @@ namespace gaia {
 				containers::set<uint32_t> visited;
 
 				// Push all children of the root archetype onto the stack
-				for (const auto& edge: m_rootArchetype->edgesAdd[(uint32_t)type])
+				for (const auto& edge: m_pRootArchetype->edgesAdd[(uint32_t)type])
 					stack.push_back(edge.second.archetypeId);
 
 				while (!stack.empty()) {
@@ -9563,7 +9565,7 @@ namespace gaia {
 				// We don't want to store edges for the root archetype because the more components there are the longer
 				// it would take to find anything. Therefore, for the root archetype we always make a lookup.
 				// However, compared to an oridnary lookup, this path is stripped as much as possible.
-				if (pArchetypeLeft == m_rootArchetype) {
+				if (pArchetypeLeft == m_pRootArchetype) {
 					Archetype* pArchetypeRight = nullptr;
 					if (type == ComponentType::CT_Generic) {
 						const auto genericHash = pInfoToAdd->lookupHash;
@@ -9793,10 +9795,9 @@ namespace gaia {
 			Moves an entity along with all its generic components from its current to another
 			chunk in a new archetype.
 			\param oldEntity Entity to move
-			\param pInfo Component type which we are adding/removing
 			\param newArchetype Target archetype
 			*/
-			void MoveEntity(Entity oldEntity, const ComponentInfo* pInfo, Archetype& newArchetype) {
+			void MoveEntity(Entity oldEntity, Archetype& newArchetype) {
 				const auto& cc = GetComponentCache();
 
 				auto& entityContainer = m_entities[oldEntity.id()];
@@ -9934,11 +9935,11 @@ namespace gaia {
 #endif
 
 					auto* pTargetArchetype = FindOrCreateArchetype_AddComponent(&archetype, type, pInfoToAdd);
-					MoveEntity(entity, pInfoToAdd, *pTargetArchetype);
+					MoveEntity(entity, *pTargetArchetype);
 				}
 				// Adding a component to an empty entity
 				else {
-					auto& archetype = const_cast<Archetype&>(*m_rootArchetype);
+					auto& archetype = const_cast<Archetype&>(*m_pRootArchetype);
 
 					GAIA_ASSERT(
 							!archetype.info.structuralChangesLocked && "New components can't be added while chunk is being iterated "
@@ -9967,17 +9968,17 @@ namespace gaia {
 				VerifyRemoveComponent(archetype, entity, type, pInfoToRemove);
 #endif
 
-				auto* newArchetype = FindOrCreateArchetype_RemoveComponent(&archetype, type, pInfoToRemove);
-				GAIA_ASSERT(newArchetype != nullptr);
-				MoveEntity(entity, pInfoToRemove, *newArchetype);
+				auto* pNewArchetype = FindOrCreateArchetype_RemoveComponent(&archetype, type, pInfoToRemove);
+				GAIA_ASSERT(pNewArchetype != nullptr);
+				MoveEntity(entity, *pNewArchetype);
 
 				return ComponentSetter{pChunk, entityContainer.idx};
 			}
 
 			void Init() {
-				m_rootArchetype = CreateArchetype({}, {});
-				m_rootArchetype->Init(0, 0, {CalculateLookupHash(containers::sarray<uint64_t, 2>{0, 0})});
-				RegisterArchetype(m_rootArchetype);
+				m_pRootArchetype = CreateArchetype({}, {});
+				m_pRootArchetype->Init(0, 0, {CalculateLookupHash(containers::sarray<uint64_t, 2>{0, 0})});
+				RegisterArchetype(m_pRootArchetype);
 			}
 
 			void Done() {
@@ -9999,8 +10000,8 @@ namespace gaia {
 			Creates a new entity from archetype
 			\return Entity
 			*/
-			Entity CreateEntity(Archetype& archetype) {
-				Entity entity = AllocateEntity();
+			GAIA_NODISCARD Entity CreateEntity(Archetype& archetype) {
+				const auto entity = CreateEntity();
 
 				auto* pChunk = m_entities[entity.id()].pChunk;
 				if (pChunk == nullptr)
@@ -10048,7 +10049,7 @@ namespace gaia {
 			\param entity Entity
 			\return Entity
 			*/
-			Entity CreateEntity(Entity entity) {
+			GAIA_NODISCARD Entity CreateEntity(Entity entity) {
 				auto& entityContainer = m_entities[entity.id()];
 
 				auto* pChunk = entityContainer.pChunk;
@@ -10337,7 +10338,7 @@ namespace gaia {
 			\return Value stored in the component.
 			*/
 			template <typename T>
-			auto GetComponent(Entity entity) const {
+			GAIA_NODISCARD auto GetComponent(Entity entity) const {
 				VerifyComponent<T>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
@@ -10358,7 +10359,7 @@ namespace gaia {
 			\return True if the component is present on entity.
 			*/
 			template <typename T>
-			GAIA_NODISCARD bool HasComponent(Entity entity) {
+			GAIA_NODISCARD bool HasComponent(Entity entity) const {
 				VerifyComponent<T>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
@@ -10373,7 +10374,7 @@ namespace gaia {
 
 		private:
 			template <typename T>
-			constexpr GAIA_FORCEINLINE auto GetComponentView(Chunk& chunk) const {
+			constexpr GAIA_NODISCARD GAIA_FORCEINLINE auto GetComponentView(Chunk& chunk) const {
 				using U = typename DeduceComponent<T>::Type;
 				using UOriginal = typename DeduceComponent<T>::TypeOriginal;
 				if constexpr (IsReadOnlyType<UOriginal>::value)
@@ -11309,22 +11310,25 @@ namespace gaia {
 			}
 		};
 
-		GAIA_FORCEINLINE ComponentCache& GetComponentCacheRW() {
-			const auto& cc = GetComponentCache();
-			return const_cast<ComponentCache&>(cc);
-		}
-		GAIA_FORCEINLINE const ComponentCache& GetComponentCache() {
+		GAIA_NODISCARD inline const ComponentCache& GetComponentCache() {
 			static ComponentCache cache;
 			return cache;
 		}
 
-		GAIA_FORCEINLINE uint32_t GetWorldVersionFromWorld(const World& world) {
+		GAIA_NODISCARD inline ComponentCache& GetComponentCacheRW() {
+			const auto& cc = GetComponentCache();
+			return const_cast<ComponentCache&>(cc);
+		}
+
+		GAIA_NODISCARD inline uint32_t GetWorldVersionFromWorld(const World& world) {
 			return world.GetWorldVersion();
 		}
-		GAIA_FORCEINLINE void* AllocateChunkMemory(World& world) {
+
+		GAIA_NODISCARD inline void* AllocateChunkMemory(World& world) {
 			return world.AllocateChunkMemory();
 		}
-		GAIA_FORCEINLINE void ReleaseChunkMemory(World& world, void* mem) {
+
+		inline void ReleaseChunkMemory(World& world, void* mem) {
 			world.ReleaseChunkMemory(mem);
 		}
 	} // namespace ecs
