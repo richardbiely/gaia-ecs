@@ -391,25 +391,25 @@ namespace gaia {
 			iterator erase(iterator pos) {
 				GAIA_ASSERT(pos.m_ptr >= &m_data[0] && pos.m_ptr < &m_data[m_cap - 1]);
 
-				const auto idxStart = (size_type)GAIA_UTIL::distance(pos, begin());
-				const auto idxTo = size() - 1;
+				const auto idxSrc = (size_type)GAIA_UTIL::distance(pos, begin());
+				const auto idxDst = size() - 1;
 
-				transfer_data(idxStart, idxTo);
+				transfer_data(idxSrc, idxDst);
 				--m_cnt;
 
-				return iterator((T*)m_data + idxStart);
+				return iterator((T*)m_data + idxSrc);
 			}
 
 			const_iterator erase(const_iterator pos) {
 				GAIA_ASSERT(pos.m_ptr >= &m_data[0] && pos.m_ptr < &m_data[m_cap - 1]);
 
-				const auto idxStart = (size_type)GAIA_UTIL::distance(pos, begin());
-				const auto idxTo = size() - 1;
+				const auto idxSrc = (size_type)GAIA_UTIL::distance(pos, begin());
+				const auto idxDst = size() - 1;
 
-				transfer_data(idxStart, idxTo);
+				transfer_data(idxSrc, idxDst);
 				--m_cnt;
 
-				return iterator((const T*)m_data + idxStart);
+				return iterator((const T*)m_data + idxSrc);
 			}
 
 			iterator erase(iterator first, iterator last) {

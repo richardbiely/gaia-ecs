@@ -71,8 +71,10 @@ namespace gaia {
 			struct {
 				//! The number of entities this archetype can take (e.g 5 = 5 entities with all their components)
 				uint32_t capacity : 16;
-				//! True if there's a component that requires custom construction or destruction
-				uint32_t hasComponentWithCustomCreation : 1;
+				//! True if there's a component that requires custom destruction
+				uint32_t hasGenericComponentWithCustomDestruction : 1;
+				//! True if there's a component that requires custom destruction
+				uint32_t hasChunkComponentWithCustomDestruction : 1;
 				//! Updated when chunks are being iterated. Used to inform of structural changes when they shouldn't happen.
 				uint32_t structuralChangesLocked : 4;
 			} info{};
@@ -100,24 +102,6 @@ namespace gaia {
 				auto pChunk = new Chunk(archetype);
 #endif
 
-				auto callConstructors = [&](ComponentType ct) {
-					const auto& cc = GetComponentCache();
-					const auto& look = archetype.componentLookupData[ct];
-					for (size_t i = 0; i < look.size(); ++i) {
-						const auto& infoCreate = cc.GetComponentCreateInfoFromIdx(look[i].infoIndex);
-						if (infoCreate.constructor == nullptr)
-							continue;
-						auto* first = (void*)((uint8_t*)pChunk + look[i].offset);
-						infoCreate.constructor(first, archetype.info.capacity);
-					}
-				};
-
-				// Call constructors for components that need it
-				if (archetype.info.hasComponentWithCustomCreation) {
-					callConstructors(ComponentType::CT_Generic);
-					callConstructors(ComponentType::CT_Chunk);
-				}
-
 				pChunk->header.capacity = archetype.info.capacity;
 				return pChunk;
 			}
@@ -128,24 +112,25 @@ namespace gaia {
 			*/
 			static void ReleaseChunk(Chunk* pChunk) {
 				const auto& archetype = pChunk->header.owner;
+				const auto& cc = GetComponentCache();
 
 				auto callDestructors = [&](ComponentType ct) {
-					const auto& cc = GetComponentCache();
-					const auto& look = archetype.componentLookupData[ct];
-					for (size_t i = 0; i < look.size(); ++i) {
-						const auto& infoCreate = cc.GetComponentCreateInfoFromIdx(look[i].infoIndex);
+					const auto& looks = archetype.componentLookupData[ct];
+					const auto itemCount = (uint32_t)ComponentType::CT_Generic ? pChunk->GetItemCount() : 1U;
+					for (auto look: looks) {
+						const auto& infoCreate = cc.GetComponentCreateInfoFromIdx(look.infoIndex);
 						if (infoCreate.destructor == nullptr)
 							continue;
-						auto* first = (void*)((uint8_t*)pChunk + look[i].offset);
-						infoCreate.destructor(first, archetype.info.capacity);
+						auto* pSrc = (void*)((uint8_t*)pChunk + look.offset);
+						infoCreate.destructor(pSrc, itemCount);
 					}
 				};
 
 				// Call destructors for components that need it
-				if (archetype.info.hasComponentWithCustomCreation) {
+				if (archetype.info.hasGenericComponentWithCustomDestruction == 1)
 					callDestructors(ComponentType::CT_Generic);
+				if (archetype.info.hasChunkComponentWithCustomDestruction == 1)
 					callDestructors(ComponentType::CT_Chunk);
-				}
 
 #if GAIA_ECS_CHUNK_ALLOCATOR
 				auto& world = const_cast<World&>(*archetype.parentWorld);
@@ -175,14 +160,14 @@ namespace gaia {
 				size_t genericComponentListSize = sizeof(Entity);
 				for (const auto* pInfo: infosGeneric) {
 					genericComponentListSize += pInfo->properties.size;
-					newArch->info.hasComponentWithCustomCreation |= (pInfo->properties.size != 0U) && pInfo->properties.soa;
+					newArch->info.hasGenericComponentWithCustomDestruction |= (pInfo->properties.destructible != 0);
 				}
 
 				// Size of chunk components
 				size_t chunkComponentListSize = 0;
 				for (const auto* pInfo: infosChunk) {
 					chunkComponentListSize += pInfo->properties.size;
-					newArch->info.hasComponentWithCustomCreation |= (pInfo->properties.size != 0U) && pInfo->properties.soa;
+					newArch->info.hasChunkComponentWithCustomDestruction |= (pInfo->properties.destructible != 0);
 				}
 
 				// TODO: Calculate the number of entities per chunks precisely so we can
@@ -440,8 +425,11 @@ namespace gaia {
 		GAIA_NODISCARD inline uint64_t GetArchetypeMatcherHash(const Archetype& archetype, ComponentType type) {
 			return archetype.GetMatcherHash(type);
 		}
-		GAIA_NODISCARD inline const ComponentInfo* GetComponentInfoFromIdx(uint32_t componentIdx) {
-			return GetComponentCache().GetComponentInfoFromIdx(componentIdx);
+		GAIA_NODISCARD inline const ComponentInfo* GetComponentInfoFromIdx(uint32_t index) {
+			return GetComponentCache().GetComponentInfoFromIdx(index);
+		}
+		GAIA_NODISCARD inline const ComponentInfoCreate& GetComponentCreateInfoFromIdx(uint32_t index) {
+			return GetComponentCache().GetComponentCreateInfoFromIdx(index);
 		}
 		GAIA_NODISCARD inline const ComponentInfoList&
 		GetArchetypeComponentInfoList(const Archetype& archetype, ComponentType type) {

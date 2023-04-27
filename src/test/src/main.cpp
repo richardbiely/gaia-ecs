@@ -10,6 +10,8 @@ GAIA_MSVC_WARNING_DISABLE(4100)
 #define CATCH_CONFIG_MAIN
 #include <catch2/catch.hpp>
 
+#include <string>
+
 using namespace gaia;
 
 struct Int3 {
@@ -29,11 +31,6 @@ struct PositionSoA8 {
 struct PositionSoA16 {
 	float x, y, z;
 	static constexpr auto Layout = utils::DataLayout::SoA16;
-};
-struct PositionNonTrivial {
-	float x, y, z;
-	PositionNonTrivial(): x(1), y(2), z(3) {}
-	PositionNonTrivial(float xx, float yy, float zz): x(xx), y(yy), z(zz) {}
 };
 struct Acceleration {
 	float x, y, z;
@@ -1374,7 +1371,6 @@ TEST_CASE("SetComponent - generic") {
 		w.AddComponent<Rotation>(arr.back(), {});
 		w.AddComponent<Scale>(arr.back(), {});
 		w.AddComponent<Else>(arr.back(), {});
-		w.AddComponent<PositionNonTrivial>(arr.back(), {});
 	}
 
 	// Default values
@@ -1392,29 +1388,22 @@ TEST_CASE("SetComponent - generic") {
 
 		auto e = w.GetComponent<Else>(ent);
 		REQUIRE(e.value == false);
-
-		auto p = w.GetComponent<PositionNonTrivial>(ent);
-		REQUIRE(p.x == 1);
-		REQUIRE(p.y == 2);
-		REQUIRE(p.z == 3);
 	}
 
 	// Modify values
 	{
 		ecs::EntityQuery q;
-		q.All<Rotation, Scale, Else, PositionNonTrivial>();
+		q.All<Rotation, Scale, Else>();
 
 		w.ForEach(q, [&](ecs::Chunk& chunk) {
 			auto rotationView = chunk.ViewRW<Rotation>();
 			auto scaleView = chunk.ViewRW<Scale>();
 			auto elseView = chunk.ViewRW<Else>();
-			auto posView = chunk.ViewRW<PositionNonTrivial>();
 
 			for (size_t i = 0; i < chunk.GetItemCount(); ++i) {
 				rotationView[i] = {1, 2, 3, 4};
 				scaleView[i] = {11, 22, 33};
 				elseView[i] = {true};
-				posView[i] = {111, 222, 333};
 			}
 		});
 
@@ -1432,11 +1421,6 @@ TEST_CASE("SetComponent - generic") {
 
 			auto e = w.GetComponent<Else>(ent);
 			REQUIRE(e.value == true);
-
-			auto p = w.GetComponent<PositionNonTrivial>(ent);
-			REQUIRE(p.x == 111);
-			REQUIRE(p.y == 222);
-			REQUIRE(p.z == 333);
 		}
 	}
 
@@ -1458,11 +1442,6 @@ TEST_CASE("SetComponent - generic") {
 
 		auto e = w.GetComponent<Else>(ent);
 		REQUIRE(e.value == true);
-
-		auto p = w.GetComponent<PositionNonTrivial>(ent);
-		REQUIRE(p.x == 111);
-		REQUIRE(p.y == 222);
-		REQUIRE(p.z == 333);
 	}
 }
 
@@ -1551,6 +1530,101 @@ TEST_CASE("SetComponent - generic & chunk") {
 			REQUIRE(p.y == 222);
 			REQUIRE(p.z == 333);
 		}
+	}
+}
+
+TEST_CASE("Components - non trivial") {
+
+	struct PositionNonTrivial {
+		float x, y, z;
+		PositionNonTrivial(): x(1), y(2), z(3) {}
+		PositionNonTrivial(float xx, float yy, float zz): x(xx), y(yy), z(zz) {}
+	};
+	struct StringComponent {
+		std::string value;
+	};
+	static constexpr const char* DefaultValue = "test";
+	struct StringComponent2 {
+		std::string value;
+		StringComponent2(): value(DefaultValue) {}
+		~StringComponent2() {
+			value = "empty";
+		}
+	};
+
+	ecs::World w;
+
+	constexpr size_t N = 100;
+	containers::darray<ecs::Entity> arr;
+	arr.reserve(N);
+
+	for (size_t i = 0; i < N; ++i) {
+		arr.push_back(w.CreateEntity());
+		w.AddComponent<StringComponent>(arr.back(), {});
+		w.AddComponent<StringComponent2>(arr.back(), {});
+		w.AddComponent<PositionNonTrivial>(arr.back(), {});
+	}
+
+	// Default values
+	for (const auto ent: arr) {
+		auto s1 = w.GetComponent<StringComponent>(ent);
+		REQUIRE(s1.value.empty());
+
+		auto s2 = w.GetComponent<StringComponent2>(ent);
+		REQUIRE(s2.value == DefaultValue);
+
+		auto p = w.GetComponent<PositionNonTrivial>(ent);
+		REQUIRE(p.x == 1);
+		REQUIRE(p.y == 2);
+		REQUIRE(p.z == 3);
+	}
+
+	// Modify values
+	{
+		ecs::EntityQuery q;
+		q.All<StringComponent, StringComponent2, PositionNonTrivial>();
+
+		w.ForEach(q, [&](ecs::Chunk& chunk) {
+			auto strView = chunk.ViewRW<StringComponent>();
+			auto str2View = chunk.ViewRW<StringComponent2>();
+			auto posView = chunk.ViewRW<PositionNonTrivial>();
+
+			for (size_t i = 0; i < chunk.GetItemCount(); ++i) {
+				strView[i] = {"string_component"};
+				str2View[i].value = "another_text";
+				posView[i] = {111, 222, 333};
+			}
+		});
+
+		for (const auto ent: arr) {
+			auto s1 = w.GetComponent<StringComponent>(ent);
+			REQUIRE(s1.value == "string_component");
+
+			auto s2 = w.GetComponent<StringComponent2>(ent);
+			REQUIRE(s2.value == "another_text");
+
+			auto p = w.GetComponent<PositionNonTrivial>(ent);
+			REQUIRE(p.x == 111);
+			REQUIRE(p.y == 222);
+			REQUIRE(p.z == 333);
+		}
+	}
+
+	// Add one more component and check if the values are still fine after creating a new archetype
+	{
+		auto ent = w.CreateEntity(arr[0]);
+		w.AddComponent<Position>(ent, {5, 6, 7});
+
+		auto s1 = w.GetComponent<StringComponent>(ent);
+		REQUIRE(s1.value == "string_component");
+
+		auto s2 = w.GetComponent<StringComponent2>(ent);
+		REQUIRE(s2.value == "another_text");
+
+		auto p = w.GetComponent<PositionNonTrivial>(ent);
+		REQUIRE(p.x == 111);
+		REQUIRE(p.y == 222);
+		REQUIRE(p.z == 333);
 	}
 }
 

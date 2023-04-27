@@ -18,7 +18,8 @@
 
 namespace gaia {
 	namespace ecs {
-		extern const ComponentInfo* GetComponentInfoFromIdx(uint32_t componentIdx);
+		extern const ComponentInfo* GetComponentInfoFromIdx(uint32_t index);
+		extern const ComponentInfoCreate& GetComponentCreateInfoFromIdx(uint32_t index);
 		extern const ComponentInfoList& GetArchetypeComponentInfoList(const Archetype& archetype, ComponentType type);
 		extern const ComponentLookupList& GetArchetypeComponentLookupList(const Archetype& archetype, ComponentType type);
 
@@ -84,31 +85,42 @@ namespace gaia {
 				GAIA_ASSERT(index < header.count);
 
 				// If there are at least two entities inside and it's not already the
-				// last one let's swap our entity with the last one in chunk.
+				// last one let's swap our entity with the last one in the chunk.
 				if (header.count > 1 && header.count != index + 1) {
 					// Swap data at index with the last one
 					const auto entity = GetEntity(header.count - 1);
 					SetEntity(index, entity);
 
-					const auto& componentInfos = GetArchetypeComponentInfoList(header.owner, ComponentType::CT_Generic);
-					const auto& lookupList = GetArchetypeComponentLookupList(header.owner, ComponentType::CT_Generic);
+					const auto& infos = GetArchetypeComponentInfoList(header.owner, ComponentType::CT_Generic);
+					const auto& looks = GetArchetypeComponentLookupList(header.owner, ComponentType::CT_Generic);
 
-					for (size_t i = 0; i < componentInfos.size(); i++) {
-						const auto& info = componentInfos[i];
-						const auto& look = lookupList[i];
-
-						// Skip tag components
-						if (info->properties.size == 0U)
+					for (size_t i = 0; i < infos.size(); i++) {
+						const auto* pInfo = infos[i];
+						if (pInfo->properties.size == 0U)
 							continue;
 
-						const uint32_t idxFrom = look.offset + index * info->properties.size;
-						const uint32_t idxTo = look.offset + (header.count - 1U) * info->properties.size;
+						const auto offset = looks[i].offset;
+						const auto idxSrc = offset + index * pInfo->properties.size;
+						const auto idxDst = offset + (header.count - 1U) * pInfo->properties.size;
 
-						GAIA_ASSERT(idxFrom < Chunk::DATA_SIZE_NORESERVE);
-						GAIA_ASSERT(idxTo < Chunk::DATA_SIZE_NORESERVE);
-						GAIA_ASSERT(idxFrom != idxTo);
+						GAIA_ASSERT(idxSrc < Chunk::DATA_SIZE_NORESERVE);
+						GAIA_ASSERT(idxDst < Chunk::DATA_SIZE_NORESERVE);
+						GAIA_ASSERT(idxSrc != idxDst);
 
-						memcpy(&data[idxFrom], &data[idxTo], info->properties.size);
+						auto* pSrc = (void*)&data[idxSrc];
+						auto* pDst = (void*)&data[idxDst];
+
+						const auto& info = GetComponentCreateInfoFromIdx(pInfo->infoIndex);
+
+						if (pInfo->properties.movable == 1) {
+							info.move(pSrc, pDst);
+						} else if (pInfo->properties.copyable == 1) {
+							info.copy(pSrc, pDst);
+						} else
+							memmove(pDst, (const void*)pSrc, pInfo->properties.size);
+							
+						if (pInfo->properties.destructible == 1)
+							info.destructor(pSrc, 1);
 					}
 
 					// Entity has been replaced with the last one in chunk.
