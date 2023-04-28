@@ -40,5 +40,26 @@
       },
       "problemMatcher": []
     },
+    {
+      "label": "Merge files into a single header",
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "linux": {
+        "command": "make_single.header.sh"
+      },
+      "osx": {
+        "command": "bash",
+        "args": [
+          "make_single_header.sh"
+        ],
+      },
+      "group": "build",
+      "presentation": {
+        "reveal": "always"
+      },
+      "problemMatcher": []
+    },
   ]
 }
