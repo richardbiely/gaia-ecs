@@ -8,6 +8,7 @@ Checks:
     -readability-isolate-declaration,
     -readability-magic-numbers,
     -readability-function-cognitive-complexity,
+    -readability-uppercase-*,
   bugprone-*,
     -bugprone-easily-swappable-parameters,
     -bugprone-lambda-function-name,
