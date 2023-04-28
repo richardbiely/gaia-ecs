@@ -38,6 +38,7 @@ option(GAIA_BUILD_UNITTEST "Build unit test." OFF)
 option(GAIA_BUILD_BENCHMARK "Build benchmark." OFF)
 option(GAIA_BUILD_EXAMPLES "Build examples." OFF)
 option(GAIA_GENERATE_CC "Use ninja to generate compile_commands.json as a post-build step." ON)
+option(GAIA_MAKE_SINGLE_HEADER "Make the single file header automatically." OFF)
 
 option(GAIA_PROFILER_CPU "Enable CPU profiling." OFF)
 option(GAIA_PROFILER_MEM "Enable memory profiling." OFF)
@@ -128,11 +129,25 @@ if(GAIA_BUILD_SRC)
     add_subdirectory(src)
 endif()
 
-# Generated compile_commands.json
 if(GAIA_GENERATE_CC)
     add_custom_target(generate_compile_commands ALL)
     add_custom_command(
         TARGET generate_compile_commands POST_BUILD
         COMMAND ${CMAKE_COMMAND} -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -G "Ninja" -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -S ${CMAKE_SOURCE_DIR} -B ${CMAKE_SOURCE_DIR}/ninja
+        COMMENT "Generating compile_commands.json"
     )
+endif()
+
+if(GAIA_MAKE_SINGLE_HEADER)
+    if(NOT UNIX)
+        message(WARNING "Merging files into a single header is only supported on Unix systems")
+    else()
+        add_custom_target(generate_single_header ALL)
+        add_custom_command(
+            TARGET generate_single_header POST_BUILD
+            COMMAND ./make_single_header.sh
+            WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+            COMMENT "Merging files into a single header"
+        )
+    endif()
 endif()
