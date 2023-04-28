@@ -546,9 +546,6 @@ namespace gaia {
 	}
 
 #if GAIA_PROFILER_CPU || GAIA_PROFILER_MEM
-	#ifndef ENABLE_TRACY
-		// Enable collecting tracy data
-		#define ENABLE_TRACY
 // Keep it small on Windows
 // TODO: What if user doesn't want this?
 // #if defined(_WIN32) && !defined(WIN32_LEAN_AND_MEAN)
@@ -556,10 +553,9 @@ namespace gaia {
 // #endif
 GAIA_MSVC_WARNING_PUSH()
 GAIA_MSVC_WARNING_DISABLE(4668)
-		#include <tracy/Tracy.hpp>
-		#include <tracy/TracyC.h>
+	#include <tracy/Tracy.hpp>
+	#include <tracy/TracyC.h>
 GAIA_MSVC_WARNING_POP()
-	#endif
 #endif
 
 #if GAIA_PROFILER_CPU
@@ -8842,6 +8838,9 @@ namespace gaia {
 			void CalculateMatcherHashes() {
 				if GAIA_LIKELY (!m_recalculate)
 					return;
+
+				GAIA_PROF_SCOPE(CalculateMatcherHashes);
+
 				m_recalculate = false;
 
 				// Sort the arrays if necessary
@@ -10645,37 +10644,9 @@ namespace gaia {
 
 			//--------------------------------------------------------------------------------
 
-			static EntityQuery& AddOrFindEntityQueryInCache(World& world, EntityQuery& queryTmp) {
-				EntityQuery* query = nullptr;
-
-				auto it = world.m_cachedQueries.find(queryTmp.m_hashLookup);
-				if (it == world.m_cachedQueries.end()) {
-					const auto hash = queryTmp.m_hashLookup;
-					world.m_cachedQueries[hash] = {std::move(queryTmp)};
-					query = &world.m_cachedQueries[hash].back();
-				} else {
-					auto& queries = it->second;
-
-					// Make sure the same hash gets us to the proper query
-					for (const auto& q: queries) {
-						if (q != queryTmp)
-							continue;
-						query = &queries.back();
-						return *query;
-					}
-
-					queries.push_back(std::move(queryTmp));
-					query = &queries.back();
-				}
-
-				return *query;
-			}
-
-			//--------------------------------------------------------------------------------
-
 			template <typename Func>
 			GAIA_FORCEINLINE void ForEachChunk_External(World& world, EntityQuery& query, Func func) {
-				GAIA_PROF_SCOPE(ForEachChunk);
+				GAIA_PROF_SCOPE(ForEachChunk_E);
 
 				RunQueryOnChunks_Internal(world, query, [&](Chunk& chunk) {
 					func(chunk);
@@ -10683,20 +10654,8 @@ namespace gaia {
 			}
 
 			template <typename Func>
-			GAIA_FORCEINLINE void ForEachChunk_Internal(World& world, EntityQuery&& queryTmp, Func func) {
-				RegisterComponents<Func>(world);
-				queryTmp.CalculateLookupHash();
-				
-				RunQueryOnChunks_Internal(world, AddOrFindEntityQueryInCache(world, queryTmp), [&](Chunk& chunk) {
-					func(chunk);
-				});
-			}
-
-			//--------------------------------------------------------------------------------
-
-			template <typename Func>
 			GAIA_FORCEINLINE void ForEach_External(World& world, EntityQuery& query, Func func) {
-				GAIA_PROF_SCOPE(ForEach);
+				GAIA_PROF_SCOPE(ForEach_E);
 
 #if GAIA_DEBUG
 				// Make sure we only use components specificed in the query
@@ -10710,12 +10669,39 @@ namespace gaia {
 			}
 
 			template <typename Func>
-			GAIA_FORCEINLINE void ForEach_Internal(World& world, EntityQuery&& queryTmp, Func func) {
+			GAIA_FORCEINLINE void ForEach_Internal(World& world, Func func) {
+				GAIA_PROF_SCOPE(ForEach_I);
+
 				RegisterComponents<Func>();
+
+				EntityQuery queryTmp;
+				ResolveQuery<Func>((World&)*this, queryTmp);
 				queryTmp.CalculateLookupHash();
 
+				auto addOrFindEntityQueryInCache = [&]() -> EntityQuery& {
+					auto it = world.m_cachedQueries.find(queryTmp.m_hashLookup);
+					if (it == world.m_cachedQueries.end()) {
+						const auto hash = queryTmp.m_hashLookup;
+						world.m_cachedQueries[hash] = {std::move(queryTmp)};
+						return world.m_cachedQueries[hash].back();
+					}
+
+					auto& queries = it->second;
+
+					// Make sure the same hash gets us to the proper query
+					for (const auto& q: queries) {
+						if (q != queryTmp)
+							continue;
+						return queries.back();
+					}
+
+					queries.push_back(std::move(queryTmp));
+					return queries.back();
+				};
+
 				using InputArgs = decltype(utils::func_args(&Func::operator()));
-				RunQueryOnChunks_Internal(world, AddOrFindEntityQueryInCache(world, queryTmp), [&](Chunk& chunk) {
+				EntityQuery& queryCached = addOrFindEntityQueryInCache();
+				RunQueryOnChunks_Internal(world, queryCached, [&](Chunk& chunk) {
 					world.ForEachEntityInChunk(InputArgs{}, chunk, func);
 				});
 			}
@@ -10749,9 +10735,7 @@ namespace gaia {
 				static_assert(
 						!std::is_invocable<Func, Chunk&>::value, "Calling query-less ForEach is not supported for chunk iteration");
 
-				EntityQuery query;
-				ResolveQuery<Func>((World&)*this, query);
-				ForEach_Internal<Func>((World&)*this, std::move(query), func);
+				ForEach_Internal<Func>((World&)*this, func);
 			}
 
 			//--------------------------------------------------------------------------------
