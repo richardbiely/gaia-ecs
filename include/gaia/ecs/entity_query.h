@@ -1,6 +1,7 @@
 #pragma once
 #include <tuple>
 
+#include "../config/profiler.h"
 #include "../containers/darray.h"
 #include "../containers/sarray_ext.h"
 #include "../utils/hashing_policy.h"
@@ -248,6 +249,9 @@ namespace gaia {
 			void CalculateMatcherHashes() {
 				if GAIA_LIKELY (!m_recalculate)
 					return;
+
+				GAIA_PROF_SCOPE(CalculateMatcherHashes);
+
 				m_recalculate = false;
 
 				// Sort the arrays if necessary
