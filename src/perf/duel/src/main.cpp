@@ -188,6 +188,8 @@ void BM_ECS(picobench::state& state) {
 				++aliveUnits;
 		});
 		(void)aliveUnits;
+
+		GAIA_PROF_FRAME();
 	}
 }
 
@@ -982,8 +984,9 @@ void BM_NonECS(picobench::state& state) {
 					++aliveUnits;
 			}
 		}
-
 		(void)aliveUnits;
+
+		GAIA_PROF_FRAME();
 	}
 
 	for (auto& u: units) {
@@ -1146,6 +1149,8 @@ void BM_NonECS_BetterMemoryLayout(picobench::state& state) {
 				++aliveUnits;
 		}
 		(void)aliveUnits;
+
+		GAIA_PROF_FRAME();
 	}
 } // namespace BM_NonECS_BetterMemoryLayout(picobench::state
 
@@ -1235,19 +1240,33 @@ void BM_NonECS_DOD(picobench::state& state) {
 		(void)_;
 		dt = CalculateDelta(state);
 
-		for (auto& g: dynamic_groups)
-			UnitDynamic::updatePosition(g.units_p, g.units_v, dt);
+		{
+			GAIA_PROF_SCOPE(updatePosition);
 
-		for (auto& g: dynamic_groups)
-			UnitDynamic::handleGroundCollision(g.units_p, g.units_v);
+			for (auto& g: dynamic_groups)
+				UnitDynamic::updatePosition(g.units_p, g.units_v, dt);
+		}
 
-		for (auto& g: dynamic_groups)
-			UnitDynamic::applyGravity(g.units_v, dt);
+		{
+			GAIA_PROF_SCOPE(handleGroundPosition);
+
+			for (auto& g: dynamic_groups)
+				UnitDynamic::handleGroundCollision(g.units_p, g.units_v);
+		}
+
+		{
+			GAIA_PROF_SCOPE(applyGravity);
+
+			for (auto& g: dynamic_groups)
+				UnitDynamic::applyGravity(g.units_v, dt);
+		}
 
 		uint32_t aliveUnits = 0;
 		for (auto& g: dynamic_groups)
 			aliveUnits += UnitDynamic::calculateAliveUnits(g.units_h);
 		(void)aliveUnits;
+
+		GAIA_PROF_FRAME();
 	}
 }
 
@@ -1255,6 +1274,8 @@ template <size_t Groups>
 void BM_NonECS_DOD_SoA(picobench::state& state) {
 	struct UnitDynamic {
 		static void updatePosition(containers::darray<PositionSoA>& p, const containers::darray<VelocitySoA>& v) {
+			GAIA_PROF_SCOPE(updatePosition);
+
 			gaia::utils::auto_view_policy_set<PositionSoA> pv{{std::span(p.data(), p.size())}};
 			gaia::utils::auto_view_policy_get<VelocitySoA> vv{{std::span(v.data(), v.size())}};
 
@@ -1291,6 +1312,8 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 		}
 
 		static void handleGroundCollision(containers::darray<PositionSoA>& p, containers::darray<VelocitySoA>& v) {
+			GAIA_PROF_SCOPE(handleGroundCollision);
+
 			gaia::utils::auto_view_policy_set<PositionSoA> pv{{std::span(p.data(), p.size())}};
 			gaia::utils::auto_view_policy_set<VelocitySoA> vv{{std::span(v.data(), v.size())}};
 
@@ -1311,6 +1334,8 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 		}
 
 		static void applyGravity(containers::darray<VelocitySoA>& v) {
+			GAIA_PROF_SCOPE(applyGravity);
+
 			gaia::utils::auto_view_policy_set<VelocitySoA> vv{{std::span(v.data(), v.size())}};
 
 			auto vvy = vv.set<1>();
@@ -1325,6 +1350,8 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 		}
 
 		static uint32_t calculateAliveUnits(const containers::darray<Health>& h) {
+			GAIA_PROF_SCOPE(calculateAliveUnits);
+
 			uint32_t aliveUnits = 0;
 			[&](const Health* GAIA_RESTRICT h, const size_t size) {
 				for (size_t i = 0; i < size; i++) {
@@ -1392,6 +1419,8 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 		for (auto& g: dynamic_groups)
 			aliveUnits += UnitDynamic::calculateAliveUnits(g.units_h);
 		(void)aliveUnits;
+
+		GAIA_PROF_FRAME();
 	}
 }
 
@@ -1400,6 +1429,8 @@ void BM_NonECS_DOD_SoA_SIMD(picobench::state& state) {
 
 	struct UnitDynamic {
 		static void updatePosition(containers::darray<PositionSoA>& p, const containers::darray<VelocitySoA>& v) {
+			GAIA_PROF_SCOPE(updatePosition);
+
 			gaia::utils::auto_view_policy_set<PositionSoA> pv{{std::span(p.data(), p.size())}};
 			gaia::utils::auto_view_policy_get<VelocitySoA> vv{{std::span(v.data(), v.size())}};
 
@@ -1452,6 +1483,8 @@ void BM_NonECS_DOD_SoA_SIMD(picobench::state& state) {
 		}
 
 		static void handleGroundCollision(containers::darray<PositionSoA>& p, containers::darray<VelocitySoA>& v) {
+			GAIA_PROF_SCOPE(handleGroundCollision);
+
 			gaia::utils::auto_view_policy_set<PositionSoA> pv{{std::span(p.data(), p.size())}};
 			gaia::utils::auto_view_policy_set<VelocitySoA> vv{{std::span(v.data(), v.size())}};
 
@@ -1489,6 +1522,8 @@ void BM_NonECS_DOD_SoA_SIMD(picobench::state& state) {
 		}
 
 		static void applyGravity(containers::darray<VelocitySoA>& v) {
+			GAIA_PROF_SCOPE(applyGravity);
+
 			gaia::utils::auto_view_policy_set<VelocitySoA> vv{{std::span(v.data(), v.size())}};
 
 			auto vvy = vv.set<1>();
@@ -1517,6 +1552,8 @@ void BM_NonECS_DOD_SoA_SIMD(picobench::state& state) {
 		}
 
 		static uint32_t calculateAliveUnits(const containers::darray<Health>& h) {
+			GAIA_PROF_SCOPE(calculateAliveUnits);
+
 			uint32_t aliveUnits = 0;
 			[&](const Health* GAIA_RESTRICT h, const size_t size) {
 				for (size_t i = 0; i < size; i++) {
@@ -1584,6 +1621,8 @@ void BM_NonECS_DOD_SoA_SIMD(picobench::state& state) {
 		for (auto& g: dynamic_groups)
 			aliveUnits += UnitDynamic::calculateAliveUnits(g.units_h);
 		(void)aliveUnits;
+
+		GAIA_PROF_FRAME();
 	}
 }
 
