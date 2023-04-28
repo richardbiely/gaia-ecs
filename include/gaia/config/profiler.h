@@ -2,9 +2,6 @@
 #include "config.h"
 
 #if GAIA_PROFILER_CPU || GAIA_PROFILER_MEM
-	#ifndef ENABLE_TRACY
-		// Enable collecting tracy data
-		#define ENABLE_TRACY
 // Keep it small on Windows
 // TODO: What if user doesn't want this?
 // #if defined(_WIN32) && !defined(WIN32_LEAN_AND_MEAN)
@@ -12,10 +9,9 @@
 // #endif
 GAIA_MSVC_WARNING_PUSH()
 GAIA_MSVC_WARNING_DISABLE(4668)
-		#include <tracy/Tracy.hpp>
-		#include <tracy/TracyC.h>
+	#include <tracy/Tracy.hpp>
+	#include <tracy/TracyC.h>
 GAIA_MSVC_WARNING_POP()
-	#endif
 #endif
 
 #if GAIA_PROFILER_CPU
