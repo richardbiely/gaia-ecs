@@ -43,8 +43,8 @@ namespace gaia {
 			~Entity() = default;
 
 			Entity(Entity&&) = default;
-			Entity& operator=(Entity&&) = default;
 			Entity(const Entity&) = default;
+			Entity& operator=(Entity&&) = default;
 			Entity& operator=(const Entity&) = default;
 
 			GAIA_NODISCARD constexpr bool operator==(const Entity& other) const noexcept {

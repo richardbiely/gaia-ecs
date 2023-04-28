@@ -7497,8 +7497,8 @@ namespace gaia {
 			~Entity() = default;
 
 			Entity(Entity&&) = default;
-			Entity& operator=(Entity&&) = default;
 			Entity(const Entity&) = default;
+			Entity& operator=(Entity&&) = default;
 			Entity& operator=(const Entity&) = default;
 
 			GAIA_NODISCARD constexpr bool operator==(const Entity& other) const noexcept {
@@ -9062,13 +9062,12 @@ namespace gaia {
 			}
 
 			template <typename T>
-			EntityQuery& AddComponent_Internal(ListType listType) {
+			void AddComponent_Internal(ListType listType) {
 				using U = typename DeduceComponent<T>::Type;
 				if constexpr (IsGenericComponent<T>)
 					AddComponent_Internal<U>(m_list[ComponentType::CT_Generic].list[listType]);
 				else
 					AddComponent_Internal<U>(m_list[ComponentType::CT_Chunk].list[listType]);
-				return *this;
 			}
 
 			template <typename T>
@@ -9081,13 +9080,12 @@ namespace gaia {
 			}
 
 			template <typename T>
-			EntityQuery& WithChanged_Internal() {
+			void WithChanged_Internal() {
 				using U = typename DeduceComponent<T>::Type;
 				if constexpr (IsGenericComponent<T>)
 					SetChangedFilter<U>(m_listChangeFiltered[ComponentType::CT_Generic], m_list[ComponentType::CT_Generic]);
 				else
 					SetChangedFilter<U>(m_listChangeFiltered[ComponentType::CT_Chunk], m_list[ComponentType::CT_Chunk]);
-				return *this;
 			}
 
 		public:
@@ -9112,23 +9110,18 @@ namespace gaia {
 			GAIA_NODISCARD bool CheckConstraints() const {
 				if GAIA_LIKELY (m_constraints == Constraints::AcceptAll)
 					return true;
+
 				if constexpr (Enabled)
-					if (m_constraints == Constraints::EnabledOnly)
-						return true;
-				if constexpr (!Enabled)
-					if (m_constraints == Constraints::DisabledOnly)
-						return true;
-				return false;
+					return m_constraints == Constraints::EnabledOnly;
+				else
+					return m_constraints == Constraints::DisabledOnly;
 			}
 
 			GAIA_NODISCARD bool CheckConstraints(bool enabled) const {
 				if GAIA_LIKELY (m_constraints == Constraints::AcceptAll)
 					return true;
-				if (enabled && m_constraints == Constraints::EnabledOnly)
-					return true;
-				if (!enabled && m_constraints == Constraints::DisabledOnly)
-					return true;
-				return false;
+
+				return enabled ? m_constraints == Constraints::EnabledOnly : m_constraints == Constraints::DisabledOnly;
 			}
 
 			GAIA_NODISCARD bool HasFilters() const {
@@ -10693,6 +10686,7 @@ namespace gaia {
 			GAIA_FORCEINLINE void ForEachChunk_Internal(World& world, EntityQuery&& queryTmp, Func func) {
 				RegisterComponents<Func>(world);
 				queryTmp.CalculateLookupHash();
+				
 				RunQueryOnChunks_Internal(world, AddOrFindEntityQueryInCache(world, queryTmp), [&](Chunk& chunk) {
 					func(chunk);
 				});
@@ -10741,20 +10735,6 @@ namespace gaia {
 					ForEachChunk_External((World&)*this, query, func);
 				else
 					ForEach_External((World&)*this, query, func);
-			}
-
-			/*!
-			Iterates over all chunks satisfying conditions set by \param query and calls \param func for all of them.
-			\warning Iterating using ecs::Chunk makes it possible to perform optimizations otherwise not possible with
-							other methods of iteration as it exposes the chunk itself. On the other hand, it is more verbose
-							and takes more lines of code when used.
-			*/
-			template <typename Func>
-			void ForEach(EntityQuery&& query, Func func) {
-				if constexpr (std::is_invocable<Func, Chunk&>::value)
-					ForEachChunk_Internal((World&)*this, std::forward<EntityQuery>(query), func);
-				else
-					ForEach_Internal((World&)*this, std::forward<EntityQuery>(query), func);
 			}
 
 			/*!

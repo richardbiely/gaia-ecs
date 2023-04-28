@@ -1518,6 +1518,7 @@ namespace gaia {
 			GAIA_FORCEINLINE void ForEachChunk_Internal(World& world, EntityQuery&& queryTmp, Func func) {
 				RegisterComponents<Func>(world);
 				queryTmp.CalculateLookupHash();
+				
 				RunQueryOnChunks_Internal(world, AddOrFindEntityQueryInCache(world, queryTmp), [&](Chunk& chunk) {
 					func(chunk);
 				});
@@ -1566,20 +1567,6 @@ namespace gaia {
 					ForEachChunk_External((World&)*this, query, func);
 				else
 					ForEach_External((World&)*this, query, func);
-			}
-
-			/*!
-			Iterates over all chunks satisfying conditions set by \param query and calls \param func for all of them.
-			\warning Iterating using ecs::Chunk makes it possible to perform optimizations otherwise not possible with
-							other methods of iteration as it exposes the chunk itself. On the other hand, it is more verbose
-							and takes more lines of code when used.
-			*/
-			template <typename Func>
-			void ForEach(EntityQuery&& query, Func func) {
-				if constexpr (std::is_invocable<Func, Chunk&>::value)
-					ForEachChunk_Internal((World&)*this, std::forward<EntityQuery>(query), func);
-				else
-					ForEach_Internal((World&)*this, std::forward<EntityQuery>(query), func);
 			}
 
 			/*!
