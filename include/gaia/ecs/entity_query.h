@@ -51,7 +51,7 @@ namespace gaia {
 
 			struct ComponentListData {
 				ComponentIndexArray list[ListType::LT_Count]{};
-				uint64_t hash[ListType::LT_Count]{};
+				ComponentMatcherHash hash[ListType::LT_Count]{};
 			};
 			//! List of querried components
 			ComponentListData m_list[ComponentType::CT_Count]{};
@@ -213,31 +213,31 @@ namespace gaia {
 				const auto& cc = GetComponentCache();
 
 				// Contraints
-				uint64_t hashLookup = utils::hash_combine(m_hashLookup.hash, (uint64_t)m_constraints);
+				LookupHash::Type hashLookup = utils::hash_combine(m_hashLookup.hash, (uint64_t)m_constraints);
 
 				// Filters
 				for (size_t i = 0; i < ComponentType::CT_Count; ++i) {
-					uint64_t hash = 0;
+					LookupHash::Type hash = 0;
 
 					const auto& l = m_listChangeFiltered[i];
 					for (auto index: l)
-						hash = utils::hash_combine(hash, (uint64_t)index);
-					hash = utils::hash_combine(hash, (uint64_t)l.size());
+						hash = utils::hash_combine(hash, (LookupHash::Type)index);
+					hash = utils::hash_combine(hash, (LookupHash::Type)l.size());
 
 					hashLookup = utils::hash_combine(hashLookup, hash);
 				}
 
 				// Components
 				for (size_t i = 0; i < ComponentType::CT_Count; ++i) {
-					uint64_t hash = 0;
+					LookupHash::Type hash = 0;
 
 					const auto& l = m_list[i];
 					for (const auto& components: l.list) {
 						for (auto data: components) {
 							const auto* pInfo = cc.GetComponentInfoFromIdx(data.index);
-							hash = utils::hash_combine(hash, pInfo->lookupHash);
+							hash = utils::hash_combine(hash, pInfo->lookupHash.hash);
 						}
-						hash = utils::hash_combine(hash, (uint64_t)components.size());
+						hash = utils::hash_combine(hash, (LookupHash::Type)components.size());
 					}
 
 					hashLookup = utils::hash_combine(hashLookup, hash);
@@ -267,15 +267,17 @@ namespace gaia {
 					for (auto& l: m_list) {
 						for (size_t i = 0; i < ListType::LT_Count; ++i) {
 							auto& arr = l.list[i];
+							if (arr.empty())
+								continue;
 
-							if (!arr.empty()) {
-								const auto* pInfo = cc.GetComponentInfoFromIdx(arr[0].index);
-								l.hash[i] = pInfo->matcherHash;
-							}
+							const auto* pInfo = cc.GetComponentInfoFromIdx(arr[0].index);
+							ComponentMatcherHash::Type hash = pInfo->matcherHash.hash;
 							for (size_t j = 1; j < arr.size(); ++j) {
 								const auto* pInfo = cc.GetComponentInfoFromIdx(arr[j].index);
-								l.hash[i] = utils::combine_or(l.hash[i], pInfo->matcherHash);
+								hash = utils::combine_or(hash, pInfo->matcherHash.hash);
 							}
+
+							l.hash[i] = {hash};
 						}
 					}
 				}
@@ -326,18 +328,18 @@ namespace gaia {
 								MatchArchetypeQueryRet::Skip is not relevant.
 				*/
 			template <ComponentType TComponentType>
-			GAIA_NODISCARD MatchArchetypeQueryRet Match(const ComponentInfoList& componentInfos, uint64_t matcherHash) const {
+			GAIA_NODISCARD MatchArchetypeQueryRet Match(const ComponentInfoList& componentInfos, ComponentMatcherHash matcherHash) const {
 				const auto& queryList = GetData(TComponentType);
-				const uint64_t withNoneTest = matcherHash & queryList.hash[ListType::LT_None];
-				const uint64_t withAnyTest = matcherHash & queryList.hash[ListType::LT_Any];
-				const uint64_t withAllTest = matcherHash & queryList.hash[ListType::LT_All];
+				const auto withNoneTest = matcherHash.hash & queryList.hash[ListType::LT_None].hash;
+				const auto withAnyTest = matcherHash.hash & queryList.hash[ListType::LT_Any].hash;
+				const auto withAllTest = matcherHash.hash & queryList.hash[ListType::LT_All].hash;
 
 				// If withAllTest is empty but we wanted something
-				if (!withAllTest && queryList.hash[ListType::LT_All] != 0)
+				if (!withAllTest && queryList.hash[ListType::LT_All].hash != 0)
 					return MatchArchetypeQueryRet::Fail;
 
 				// If withAnyTest is empty but we wanted something
-				if (!withAnyTest && queryList.hash[ListType::LT_Any] != 0)
+				if (!withAnyTest && queryList.hash[ListType::LT_Any].hash != 0)
 					return MatchArchetypeQueryRet::Fail;
 
 				// If there is any match with withNoneList we quit

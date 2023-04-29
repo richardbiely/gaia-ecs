@@ -2049,6 +2049,8 @@ namespace gaia {
 
 		template <typename T>
 		struct direct_hash_key {
+			using Type = T;
+
 			static_assert(std::is_integral_v<T>);
 			static constexpr bool IsDirectHashKey = true;
 
@@ -6720,7 +6722,8 @@ namespace gaia {
 
 		struct ComponentInfo;
 
-		using ComponentHash = utils::direct_hash_key<uint64_t>;
+		using ComponentLookupHash = utils::direct_hash_key<uint64_t>;
+		using ComponentMatcherHash = utils::direct_hash_key<uint64_t>;
 
 		//----------------------------------------------------------------------
 		// Component type deduction
@@ -6826,51 +6829,51 @@ namespace gaia {
 		} // namespace detail
 
 		template <typename = void, typename...>
-		constexpr uint64_t CalculateMatcherHash() noexcept;
+		constexpr ComponentMatcherHash CalculateMatcherHash() noexcept;
 
 		template <typename T, typename... Rest>
-		GAIA_NODISCARD constexpr uint64_t CalculateMatcherHash() noexcept {
+		GAIA_NODISCARD constexpr ComponentMatcherHash CalculateMatcherHash() noexcept {
 			if constexpr (sizeof...(Rest) == 0)
-				return detail::CalculateMatcherHash<T>();
+				return {detail::CalculateMatcherHash<T>()};
 			else
-				return utils::combine_or(detail::CalculateMatcherHash<T>(), detail::CalculateMatcherHash<Rest>()...);
+				return {utils::combine_or(detail::CalculateMatcherHash<T>(), detail::CalculateMatcherHash<Rest>()...)};
 		}
 
 		template <>
-		GAIA_NODISCARD constexpr uint64_t CalculateMatcherHash() noexcept {
-			return 0;
+		GAIA_NODISCARD constexpr ComponentMatcherHash CalculateMatcherHash() noexcept {
+			return {0};
 		}
 
 		//-----------------------------------------------------------------------------------
 
 		template <typename Container>
-		GAIA_NODISCARD constexpr uint64_t CalculateLookupHash(Container arr) noexcept {
+		GAIA_NODISCARD constexpr ComponentLookupHash CalculateLookupHash(Container arr) noexcept {
 			constexpr auto arrSize = arr.size();
 			if constexpr (arrSize == 0) {
-				return 0;
+				return {0};
 			} else {
-				uint64_t hash = arr[0];
+				ComponentLookupHash::Type hash = arr[0];
 				utils::for_each<arrSize - 1>([&hash, &arr](auto i) {
 					hash = utils::hash_combine(hash, arr[i + 1]);
 				});
-				return hash;
+				return {hash};
 			}
 		}
 
 		template <typename = void, typename...>
-		constexpr uint64_t CalculateLookupHash() noexcept;
+		constexpr ComponentLookupHash CalculateLookupHash() noexcept;
 
 		template <typename T, typename... Rest>
-		GAIA_NODISCARD constexpr uint64_t CalculateLookupHash() noexcept {
+		GAIA_NODISCARD constexpr ComponentLookupHash CalculateLookupHash() noexcept {
 			if constexpr (sizeof...(Rest) == 0)
-				return utils::type_info::hash<T>();
+				return {utils::type_info::hash<T>()};
 			else
-				return utils::hash_combine(utils::type_info::hash<T>(), utils::type_info::hash<Rest>()...);
+				return {utils::hash_combine(utils::type_info::hash<T>(), utils::type_info::hash<Rest>()...)};
 		}
 
 		template <>
-		GAIA_NODISCARD constexpr uint64_t CalculateLookupHash() noexcept {
-			return 0;
+		GAIA_NODISCARD constexpr ComponentLookupHash CalculateLookupHash() noexcept {
+			return {0};
 		}
 
 		//----------------------------------------------------------------------
@@ -6960,12 +6963,12 @@ namespace gaia {
 
 		struct ComponentInfo final {
 			//! Complex hash used for look-ups
-			uint64_t lookupHash;
+			ComponentLookupHash lookupHash;
 			//! Simple hash used for matching component
-			uint64_t matcherHash;
+			ComponentMatcherHash matcherHash;
 			//! Unique component identifier
 			uint32_t infoIndex;
-			//! Varoious
+			//! Various component properties
 			struct {
 				//! Component alignment
 				uint32_t alig: MAX_COMPONENTS_SIZE_BITS;
@@ -6988,7 +6991,7 @@ namespace gaia {
 				return lookupHash != other.lookupHash || infoIndex != other.infoIndex;
 			}
 			GAIA_NODISCARD bool operator<(const ComponentInfo& other) const {
-				return lookupHash < other.lookupHash;
+				return infoIndex < other.infoIndex;
 			}
 
 			template <typename T>
@@ -6996,7 +6999,7 @@ namespace gaia {
 				using U = typename DeduceComponent<T>::Type;
 
 				ComponentInfo info{};
-				info.lookupHash = utils::type_info::hash<U>();
+				info.lookupHash = {utils::type_info::hash<U>()};
 				info.matcherHash = CalculateMatcherHash<U>();
 				info.infoIndex = utils::type_info::index<U>();
 
@@ -7029,26 +7032,26 @@ namespace gaia {
 			return utils::combine_or(hashA, hashB);
 		}
 
-		GAIA_NODISCARD inline uint64_t CalculateMatcherHash(std::span<const ComponentInfo*> infos) noexcept {
+		GAIA_NODISCARD inline ComponentMatcherHash CalculateMatcherHash(std::span<const ComponentInfo*> infos) noexcept {
 			const auto infosSize = infos.size();
 			if (infosSize == 0)
-				return 0;
+				return {0};
 
-			uint64_t hash = infos[0]->matcherHash;
+			ComponentMatcherHash::Type hash = infos[0]->matcherHash.hash;
 			for (size_t i = 1; i < infosSize; ++i)
-				hash = utils::combine_or(hash, infos[i]->matcherHash);
-			return hash;
+				hash = utils::combine_or(hash, infos[i]->matcherHash.hash);
+			return {hash};
 		}
 
-		GAIA_NODISCARD inline uint64_t CalculateLookupHash(std::span<const ComponentInfo*> infos) noexcept {
+		GAIA_NODISCARD inline ComponentLookupHash CalculateLookupHash(std::span<const ComponentInfo*> infos) noexcept {
 			const auto infosSize = infos.size();
 			if (infosSize == 0)
-				return 0;
+				return {0};
 
-			uint64_t hash = infos[0]->lookupHash;
+			ComponentLookupHash::Type hash = infos[0]->lookupHash.hash;
 			for (size_t i = 1; i < infosSize; ++i)
-				hash = utils::hash_combine(hash, infos[i]->lookupHash);
-			return hash;
+				hash = utils::hash_combine(hash, infos[i]->lookupHash.hash);
+			return {hash};
 		}
 
 		//----------------------------------------------------------------------
@@ -7066,7 +7069,8 @@ namespace gaia {
 	} // namespace ecs
 } // namespace gaia
 
-REGISTER_HASH_TYPE(gaia::ecs::ComponentHash)
+REGISTER_HASH_TYPE(gaia::ecs::ComponentLookupHash)
+REGISTER_HASH_TYPE(gaia::ecs::ComponentMatcherHash)
 
 #include <cstdint>
 
@@ -7995,7 +7999,7 @@ namespace gaia {
 		class ComponentCache {
 			containers::darray<const ComponentInfo*> m_infoByIndex;
 			containers::darray<ComponentInfoCreate> m_infoCreateByIndex;
-			containers::map<ComponentHash, const ComponentInfo*> m_infoByHash;
+			containers::map<ComponentLookupHash, const ComponentInfo*> m_infoByHash;
 
 		public:
 			ComponentCache() {
@@ -8102,7 +8106,7 @@ namespace gaia {
 			//! Returns the component info given the \param hash.
 			//! \warning It is expected the component info with a given index exists! Undefined behavior otherwise.
 			//! \return Component info
-			GAIA_NODISCARD const ComponentInfo* GetComponentInfoFromHash(ComponentHash hash) const {
+			GAIA_NODISCARD const ComponentInfo* GetComponentInfoFromHash(ComponentLookupHash hash) const {
 				const auto it = m_infoByHash.find(hash);
 				GAIA_ASSERT(it != m_infoByHash.end());
 				return it->second;
@@ -8142,6 +8146,8 @@ namespace gaia {
 		class Archetype final {
 		public:
 			using LookupHash = utils::direct_hash_key<uint64_t>;
+			using GenericComponentHash = utils::direct_hash_key<uint64_t>;
+			using ChunkComponentHash = utils::direct_hash_key<uint64_t>;
 
 		private:
 			friend class World;
@@ -8167,9 +8173,9 @@ namespace gaia {
 
 #if GAIA_ARCHETYPE_GRAPH
 			//! Map of edges in the archetype graph when adding components
-			containers::map<ComponentHash, ArchetypeGraphEdge> edgesAdd[ComponentType::CT_Count];
+			containers::map<ComponentLookupHash, ArchetypeGraphEdge> edgesAdd[ComponentType::CT_Count];
 			//! Map of edges in the archetype graph when removing components
-			containers::map<ComponentHash, ArchetypeGraphEdge> edgesDel[ComponentType::CT_Count];
+			containers::map<ComponentLookupHash, ArchetypeGraphEdge> edgesDel[ComponentType::CT_Count];
 #endif
 
 			//! Description of components within this archetype
@@ -8177,13 +8183,13 @@ namespace gaia {
 			//! Lookup hashes of components within this archetype
 			containers::sarray<ComponentLookupList, ComponentType::CT_Count> componentLookupData;
 
-			uint64_t genericHash = 0;
-			uint64_t chunkHash = 0;
+			GenericComponentHash genericHash = {0};
+			ChunkComponentHash chunkHash = {0};
 
 			//! Hash of components within this archetype - used for lookups
-			ComponentHash lookupHash{};
+			ComponentLookupHash lookupHash = {0};
 			//! Hash of components within this archetype - used for matching
-			uint64_t matcherHash[ComponentType::CT_Count] = {0};
+			ComponentMatcherHash matcherHash[ComponentType::CT_Count] = {0};
 			//! Archetype ID - used to address the archetype directly in the world's list or archetypes
 			uint32_t id = 0;
 			struct {
@@ -8204,6 +8210,11 @@ namespace gaia {
 			Archetype(const Archetype& world) = delete;
 			Archetype& operator=(Archetype&&) = delete;
 			Archetype& operator=(const Archetype&) = delete;
+
+			GAIA_NODISCARD static LookupHash
+			CalculateLookupHash(GenericComponentHash genericHash, ChunkComponentHash chunkHash) noexcept {
+				return {utils::hash_combine(genericHash.hash, chunkHash.hash)};
+			}
 
 			/*!
 			Allocates memory for a new chunk.
@@ -8434,26 +8445,26 @@ namespace gaia {
 			//! Create an edge in the graph leading from this archetype to \param archetypeId via component \param info.
 			void AddEdgeArchetypeRight(ComponentType type, const ComponentInfo* pInfo, uint32_t archetypeId) {
 				[[maybe_unused]] const auto ret =
-						edgesAdd[type].try_emplace({pInfo->infoIndex}, ArchetypeGraphEdge{archetypeId});
+						edgesAdd[type].try_emplace({pInfo->lookupHash}, ArchetypeGraphEdge{archetypeId});
 				GAIA_ASSERT(ret.second);
 			}
 
 			//! Create an edge in the graph leading from this archetype to \param archetypeId via component \param info.
 			void AddEdgeArchetypeLeft(ComponentType type, const ComponentInfo* pInfo, uint32_t archetypeId) {
 				[[maybe_unused]] const auto ret =
-						edgesDel[type].try_emplace({pInfo->infoIndex}, ArchetypeGraphEdge{archetypeId});
+						edgesDel[type].try_emplace({pInfo->lookupHash}, ArchetypeGraphEdge{archetypeId});
 				GAIA_ASSERT(ret.second);
 			}
 
 			GAIA_NODISCARD uint32_t FindAddEdgeArchetypeId(ComponentType type, const ComponentInfo* pInfo) const {
 				const auto& edges = edgesAdd[type];
-				const auto it = edges.find({pInfo->infoIndex});
+				const auto it = edges.find({pInfo->lookupHash});
 				return it != edges.end() ? it->second.archetypeId : BadIndex;
 			}
 
 			GAIA_NODISCARD uint32_t FindDelEdgeArchetypeId(ComponentType type, const ComponentInfo* pInfo) const {
 				const auto& edges = edgesDel[type];
-				const auto it = edges.find({pInfo->infoIndex});
+				const auto it = edges.find({pInfo->lookupHash});
 				return it != edges.end() ? it->second.archetypeId : BadIndex;
 			}
 #endif
@@ -8481,7 +8492,7 @@ namespace gaia {
 			\param hashChunk Chunk components hash
 			\param hashLookup Hash used for archetype lookup purposes
 			*/
-			void Init(uint64_t hashGeneric, uint64_t hashChunk, ComponentHash hashLookup) {
+			void Init(GenericComponentHash hashGeneric, ChunkComponentHash hashChunk, ComponentLookupHash hashLookup) {
 				this->genericHash = hashGeneric;
 				this->chunkHash = hashChunk;
 				this->lookupHash = hashLookup;
@@ -8499,7 +8510,7 @@ namespace gaia {
 				return info.capacity;
 			}
 
-			GAIA_NODISCARD uint64_t GetMatcherHash(ComponentType type) const {
+			GAIA_NODISCARD ComponentMatcherHash GetMatcherHash(ComponentType type) const {
 				return matcherHash[type];
 			}
 
@@ -8541,7 +8552,7 @@ namespace gaia {
 			return archetype.GetWorldVersion();
 		}
 
-		GAIA_NODISCARD inline uint64_t GetArchetypeMatcherHash(const Archetype& archetype, ComponentType type) {
+		GAIA_NODISCARD inline ComponentMatcherHash GetArchetypeMatcherHash(const Archetype& archetype, ComponentType type) {
 			return archetype.GetMatcherHash(type);
 		}
 
@@ -8566,6 +8577,8 @@ namespace gaia {
 } // namespace gaia
 
 REGISTER_HASH_TYPE(gaia::ecs::Archetype::LookupHash)
+REGISTER_HASH_TYPE(gaia::ecs::Archetype::GenericComponentHash)
+REGISTER_HASH_TYPE(gaia::ecs::Archetype::ChunkComponentHash)
 
 #include <cinttypes>
 #include <type_traits>
@@ -8640,7 +8653,7 @@ namespace gaia {
 
 			struct ComponentListData {
 				ComponentIndexArray list[ListType::LT_Count]{};
-				uint64_t hash[ListType::LT_Count]{};
+				ComponentMatcherHash hash[ListType::LT_Count]{};
 			};
 			//! List of querried components
 			ComponentListData m_list[ComponentType::CT_Count]{};
@@ -8802,31 +8815,31 @@ namespace gaia {
 				const auto& cc = GetComponentCache();
 
 				// Contraints
-				uint64_t hashLookup = utils::hash_combine(m_hashLookup.hash, (uint64_t)m_constraints);
+				LookupHash::Type hashLookup = utils::hash_combine(m_hashLookup.hash, (uint64_t)m_constraints);
 
 				// Filters
 				for (size_t i = 0; i < ComponentType::CT_Count; ++i) {
-					uint64_t hash = 0;
+					LookupHash::Type hash = 0;
 
 					const auto& l = m_listChangeFiltered[i];
 					for (auto index: l)
-						hash = utils::hash_combine(hash, (uint64_t)index);
-					hash = utils::hash_combine(hash, (uint64_t)l.size());
+						hash = utils::hash_combine(hash, (LookupHash::Type)index);
+					hash = utils::hash_combine(hash, (LookupHash::Type)l.size());
 
 					hashLookup = utils::hash_combine(hashLookup, hash);
 				}
 
 				// Components
 				for (size_t i = 0; i < ComponentType::CT_Count; ++i) {
-					uint64_t hash = 0;
+					LookupHash::Type hash = 0;
 
 					const auto& l = m_list[i];
 					for (const auto& components: l.list) {
 						for (auto data: components) {
 							const auto* pInfo = cc.GetComponentInfoFromIdx(data.index);
-							hash = utils::hash_combine(hash, pInfo->lookupHash);
+							hash = utils::hash_combine(hash, pInfo->lookupHash.hash);
 						}
-						hash = utils::hash_combine(hash, (uint64_t)components.size());
+						hash = utils::hash_combine(hash, (LookupHash::Type)components.size());
 					}
 
 					hashLookup = utils::hash_combine(hashLookup, hash);
@@ -8856,15 +8869,17 @@ namespace gaia {
 					for (auto& l: m_list) {
 						for (size_t i = 0; i < ListType::LT_Count; ++i) {
 							auto& arr = l.list[i];
+							if (arr.empty())
+								continue;
 
-							if (!arr.empty()) {
-								const auto* pInfo = cc.GetComponentInfoFromIdx(arr[0].index);
-								l.hash[i] = pInfo->matcherHash;
-							}
+							const auto* pInfo = cc.GetComponentInfoFromIdx(arr[0].index);
+							ComponentMatcherHash::Type hash = pInfo->matcherHash.hash;
 							for (size_t j = 1; j < arr.size(); ++j) {
 								const auto* pInfo = cc.GetComponentInfoFromIdx(arr[j].index);
-								l.hash[i] = utils::combine_or(l.hash[i], pInfo->matcherHash);
+								hash = utils::combine_or(hash, pInfo->matcherHash.hash);
 							}
+
+							l.hash[i] = {hash};
 						}
 					}
 				}
@@ -8915,18 +8930,18 @@ namespace gaia {
 								MatchArchetypeQueryRet::Skip is not relevant.
 				*/
 			template <ComponentType TComponentType>
-			GAIA_NODISCARD MatchArchetypeQueryRet Match(const ComponentInfoList& componentInfos, uint64_t matcherHash) const {
+			GAIA_NODISCARD MatchArchetypeQueryRet Match(const ComponentInfoList& componentInfos, ComponentMatcherHash matcherHash) const {
 				const auto& queryList = GetData(TComponentType);
-				const uint64_t withNoneTest = matcherHash & queryList.hash[ListType::LT_None];
-				const uint64_t withAnyTest = matcherHash & queryList.hash[ListType::LT_Any];
-				const uint64_t withAllTest = matcherHash & queryList.hash[ListType::LT_All];
+				const auto withNoneTest = matcherHash.hash & queryList.hash[ListType::LT_None].hash;
+				const auto withAnyTest = matcherHash.hash & queryList.hash[ListType::LT_Any].hash;
+				const auto withAllTest = matcherHash.hash & queryList.hash[ListType::LT_All].hash;
 
 				// If withAllTest is empty but we wanted something
-				if (!withAllTest && queryList.hash[ListType::LT_All] != 0)
+				if (!withAllTest && queryList.hash[ListType::LT_All].hash != 0)
 					return MatchArchetypeQueryRet::Fail;
 
 				// If withAnyTest is empty but we wanted something
-				if (!withAnyTest && queryList.hash[ListType::LT_Any] != 0)
+				if (!withAnyTest && queryList.hash[ListType::LT_Any].hash != 0)
 					return MatchArchetypeQueryRet::Fail;
 
 				// If there is any match with withNoneList we quit
@@ -9561,21 +9576,21 @@ namespace gaia {
 					Archetype* pArchetypeRight = nullptr;
 					if (type == ComponentType::CT_Generic) {
 						const auto genericHash = pInfoToAdd->lookupHash;
-						Archetype::LookupHash lookupHash = {CalculateLookupHash(containers::sarray<uint64_t, 2>{genericHash, 0})};
+						const auto lookupHash = Archetype::CalculateLookupHash(genericHash, {0});
 						pArchetypeRight = FindArchetype(std::span<const ComponentInfo*>(&pInfoToAdd, 1), {}, lookupHash);
 						if (pArchetypeRight == nullptr) {
 							pArchetypeRight = CreateArchetype(std::span<const ComponentInfo*>(&pInfoToAdd, 1), {});
-							pArchetypeRight->Init(genericHash, 0, lookupHash);
+							pArchetypeRight->Init({genericHash}, {0}, lookupHash);
 							RegisterArchetype(pArchetypeRight);
 							BuildGraphEdges(type, pArchetypeLeft, pArchetypeRight, pInfoToAdd);
 						}
 					} else {
 						const auto chunkHash = pInfoToAdd->lookupHash;
-						Archetype::LookupHash lookupHash = {CalculateLookupHash(containers::sarray<uint64_t, 2>{0, chunkHash})};
+						const auto lookupHash = Archetype::CalculateLookupHash({0}, chunkHash);
 						pArchetypeRight = FindArchetype({}, std::span<const ComponentInfo*>(&pInfoToAdd, 1), lookupHash);
 						if (pArchetypeRight == nullptr) {
 							pArchetypeRight = CreateArchetype({}, std::span<const ComponentInfo*>(&pInfoToAdd, 1));
-							pArchetypeRight->Init(0, chunkHash, lookupHash);
+							pArchetypeRight->Init({0}, {chunkHash}, lookupHash);
 							RegisterArchetype(pArchetypeRight);
 							BuildGraphEdges(type, pArchetypeLeft, pArchetypeRight, pInfoToAdd);
 						}
@@ -9618,13 +9633,14 @@ namespace gaia {
 				});
 
 				// Once sorted we can calculate the hashes
-				const uint64_t hashes[2] = {CalculateLookupHash({*infos[0]}), CalculateLookupHash({*infos[1]})};
-				Archetype::LookupHash lookupHash = {CalculateLookupHash(containers::sarray<uint64_t, 2>{hashes[0], hashes[1]})};
+				const Archetype::GenericComponentHash genericHash = {gaia::ecs::CalculateLookupHash({*infos[0]}).hash};
+				const Archetype::ChunkComponentHash chunkHash = {gaia::ecs::CalculateLookupHash({*infos[1]}).hash};
+				const auto lookupHash = Archetype::CalculateLookupHash(genericHash, chunkHash);
 
 				auto* pArchetypeRight = FindArchetype({*infos[0]}, {*infos[1]}, lookupHash);
 				if (pArchetypeRight == nullptr) {
 					pArchetypeRight = CreateArchetype({infos[0]->data(), infos[0]->size()}, {infos[1]->data(), infos[1]->size()});
-					pArchetypeRight->Init(hashes[0], hashes[1], lookupHash);
+					pArchetypeRight->Init(genericHash, chunkHash, lookupHash);
 					RegisterArchetype(pArchetypeRight);
 
 #if GAIA_ARCHETYPE_GRAPH
@@ -9679,13 +9695,14 @@ namespace gaia {
 					return nullptr;
 
 				// Calculate the hashes
-				const uint64_t hashes[2] = {CalculateLookupHash({*infos[0]}), CalculateLookupHash({*infos[1]})};
-				Archetype::LookupHash lookupHash = {CalculateLookupHash(containers::sarray<uint64_t, 2>{hashes[0], hashes[1]})};
+				const Archetype::GenericComponentHash genericHash = {gaia::ecs::CalculateLookupHash({*infos[0]}).hash};
+				const Archetype::ChunkComponentHash chunkHash = {gaia::ecs::CalculateLookupHash({*infos[1]}).hash};
+				const auto lookupHash = Archetype::CalculateLookupHash(genericHash, chunkHash);
 
 				auto* pArchetype = FindArchetype({*infos[0]}, {*infos[1]}, lookupHash);
 				if (pArchetype == nullptr) {
 					pArchetype = CreateArchetype({infos[0]->data(), infos[0]->size()}, {infos[1]->data(), infos[1]->size()});
-					pArchetype->Init(hashes[0], hashes[1], lookupHash);
+					pArchetype->Init(genericHash, lookupHash, lookupHash);
 					RegisterArchetype(pArchetype);
 
 #if GAIA_ARCHETYPE_GRAPH
@@ -9969,7 +9986,7 @@ namespace gaia {
 
 			void Init() {
 				m_pRootArchetype = CreateArchetype({}, {});
-				m_pRootArchetype->Init(0, 0, {CalculateLookupHash(containers::sarray<uint64_t, 2>{0, 0})});
+				m_pRootArchetype->Init({0}, {0}, Archetype::CalculateLookupHash({0}, {0}));
 				RegisterArchetype(m_pRootArchetype);
 			}
 
@@ -11046,15 +11063,15 @@ namespace gaia {
 						"mask:%016" PRIx64 "/%016" PRIx64 ", "
 						"chunks:%u, data size:%3u B (%u/%u), "
 						"entities:%u/%u (disabled:%u)",
-						archetype.id, archetype.lookupHash.hash, archetype.matcherHash[ComponentType::CT_Generic],
-						archetype.matcherHash[ComponentType::CT_Chunk], (uint32_t)archetype.chunks.size(),
+						archetype.id, archetype.lookupHash.hash, archetype.matcherHash[ComponentType::CT_Generic].hash,
+						archetype.matcherHash[ComponentType::CT_Chunk].hash, (uint32_t)archetype.chunks.size(),
 						genericComponentsSize + chunkComponentsSize, genericComponentsSize, chunkComponentsSize, entityCount,
 						archetype.info.capacity, entityCountDisabled);
 
 				auto logComponentInfo = [](const ComponentInfo* info, const ComponentInfoCreate& infoStatic) {
 					LOG_N(
 							"    (%p) lookupHash:%016" PRIx64 ", mask:%016" PRIx64 ", size:%3u B, align:%3u B, %.*s", (void*)info,
-							info->lookupHash, info->matcherHash, info->properties.size, info->properties.alig,
+							info->lookupHash.hash, info->matcherHash.hash, info->properties.size, info->properties.alig,
 							(uint32_t)infoStatic.name.size(), infoStatic.name.data());
 				};
 

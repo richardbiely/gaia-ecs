@@ -24,6 +24,8 @@ namespace gaia {
 		class Archetype final {
 		public:
 			using LookupHash = utils::direct_hash_key<uint64_t>;
+			using GenericComponentHash = utils::direct_hash_key<uint64_t>;
+			using ChunkComponentHash = utils::direct_hash_key<uint64_t>;
 
 		private:
 			friend class World;
@@ -49,9 +51,9 @@ namespace gaia {
 
 #if GAIA_ARCHETYPE_GRAPH
 			//! Map of edges in the archetype graph when adding components
-			containers::map<ComponentHash, ArchetypeGraphEdge> edgesAdd[ComponentType::CT_Count];
+			containers::map<ComponentLookupHash, ArchetypeGraphEdge> edgesAdd[ComponentType::CT_Count];
 			//! Map of edges in the archetype graph when removing components
-			containers::map<ComponentHash, ArchetypeGraphEdge> edgesDel[ComponentType::CT_Count];
+			containers::map<ComponentLookupHash, ArchetypeGraphEdge> edgesDel[ComponentType::CT_Count];
 #endif
 
 			//! Description of components within this archetype
@@ -59,13 +61,13 @@ namespace gaia {
 			//! Lookup hashes of components within this archetype
 			containers::sarray<ComponentLookupList, ComponentType::CT_Count> componentLookupData;
 
-			uint64_t genericHash = 0;
-			uint64_t chunkHash = 0;
+			GenericComponentHash genericHash = {0};
+			ChunkComponentHash chunkHash = {0};
 
 			//! Hash of components within this archetype - used for lookups
-			ComponentHash lookupHash{};
+			ComponentLookupHash lookupHash = {0};
 			//! Hash of components within this archetype - used for matching
-			uint64_t matcherHash[ComponentType::CT_Count] = {0};
+			ComponentMatcherHash matcherHash[ComponentType::CT_Count] = {0};
 			//! Archetype ID - used to address the archetype directly in the world's list or archetypes
 			uint32_t id = 0;
 			struct {
@@ -86,6 +88,11 @@ namespace gaia {
 			Archetype(const Archetype& world) = delete;
 			Archetype& operator=(Archetype&&) = delete;
 			Archetype& operator=(const Archetype&) = delete;
+
+			GAIA_NODISCARD static LookupHash
+			CalculateLookupHash(GenericComponentHash genericHash, ChunkComponentHash chunkHash) noexcept {
+				return {utils::hash_combine(genericHash.hash, chunkHash.hash)};
+			}
 
 			/*!
 			Allocates memory for a new chunk.
@@ -316,26 +323,26 @@ namespace gaia {
 			//! Create an edge in the graph leading from this archetype to \param archetypeId via component \param info.
 			void AddEdgeArchetypeRight(ComponentType type, const ComponentInfo* pInfo, uint32_t archetypeId) {
 				[[maybe_unused]] const auto ret =
-						edgesAdd[type].try_emplace({pInfo->infoIndex}, ArchetypeGraphEdge{archetypeId});
+						edgesAdd[type].try_emplace({pInfo->lookupHash}, ArchetypeGraphEdge{archetypeId});
 				GAIA_ASSERT(ret.second);
 			}
 
 			//! Create an edge in the graph leading from this archetype to \param archetypeId via component \param info.
 			void AddEdgeArchetypeLeft(ComponentType type, const ComponentInfo* pInfo, uint32_t archetypeId) {
 				[[maybe_unused]] const auto ret =
-						edgesDel[type].try_emplace({pInfo->infoIndex}, ArchetypeGraphEdge{archetypeId});
+						edgesDel[type].try_emplace({pInfo->lookupHash}, ArchetypeGraphEdge{archetypeId});
 				GAIA_ASSERT(ret.second);
 			}
 
 			GAIA_NODISCARD uint32_t FindAddEdgeArchetypeId(ComponentType type, const ComponentInfo* pInfo) const {
 				const auto& edges = edgesAdd[type];
-				const auto it = edges.find({pInfo->infoIndex});
+				const auto it = edges.find({pInfo->lookupHash});
 				return it != edges.end() ? it->second.archetypeId : BadIndex;
 			}
 
 			GAIA_NODISCARD uint32_t FindDelEdgeArchetypeId(ComponentType type, const ComponentInfo* pInfo) const {
 				const auto& edges = edgesDel[type];
-				const auto it = edges.find({pInfo->infoIndex});
+				const auto it = edges.find({pInfo->lookupHash});
 				return it != edges.end() ? it->second.archetypeId : BadIndex;
 			}
 #endif
@@ -363,7 +370,7 @@ namespace gaia {
 			\param hashChunk Chunk components hash
 			\param hashLookup Hash used for archetype lookup purposes
 			*/
-			void Init(uint64_t hashGeneric, uint64_t hashChunk, ComponentHash hashLookup) {
+			void Init(GenericComponentHash hashGeneric, ChunkComponentHash hashChunk, ComponentLookupHash hashLookup) {
 				this->genericHash = hashGeneric;
 				this->chunkHash = hashChunk;
 				this->lookupHash = hashLookup;
@@ -381,7 +388,7 @@ namespace gaia {
 				return info.capacity;
 			}
 
-			GAIA_NODISCARD uint64_t GetMatcherHash(ComponentType type) const {
+			GAIA_NODISCARD ComponentMatcherHash GetMatcherHash(ComponentType type) const {
 				return matcherHash[type];
 			}
 
@@ -423,7 +430,7 @@ namespace gaia {
 			return archetype.GetWorldVersion();
 		}
 
-		GAIA_NODISCARD inline uint64_t GetArchetypeMatcherHash(const Archetype& archetype, ComponentType type) {
+		GAIA_NODISCARD inline ComponentMatcherHash GetArchetypeMatcherHash(const Archetype& archetype, ComponentType type) {
 			return archetype.GetMatcherHash(type);
 		}
 
@@ -448,3 +455,5 @@ namespace gaia {
 } // namespace gaia
 
 REGISTER_HASH_TYPE(gaia::ecs::Archetype::LookupHash)
+REGISTER_HASH_TYPE(gaia::ecs::Archetype::GenericComponentHash)
+REGISTER_HASH_TYPE(gaia::ecs::Archetype::ChunkComponentHash)

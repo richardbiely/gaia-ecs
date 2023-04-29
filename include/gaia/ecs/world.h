@@ -394,21 +394,21 @@ namespace gaia {
 					Archetype* pArchetypeRight = nullptr;
 					if (type == ComponentType::CT_Generic) {
 						const auto genericHash = pInfoToAdd->lookupHash;
-						Archetype::LookupHash lookupHash = {CalculateLookupHash(containers::sarray<uint64_t, 2>{genericHash, 0})};
+						const auto lookupHash = Archetype::CalculateLookupHash(genericHash, {0});
 						pArchetypeRight = FindArchetype(std::span<const ComponentInfo*>(&pInfoToAdd, 1), {}, lookupHash);
 						if (pArchetypeRight == nullptr) {
 							pArchetypeRight = CreateArchetype(std::span<const ComponentInfo*>(&pInfoToAdd, 1), {});
-							pArchetypeRight->Init(genericHash, 0, lookupHash);
+							pArchetypeRight->Init({genericHash}, {0}, lookupHash);
 							RegisterArchetype(pArchetypeRight);
 							BuildGraphEdges(type, pArchetypeLeft, pArchetypeRight, pInfoToAdd);
 						}
 					} else {
 						const auto chunkHash = pInfoToAdd->lookupHash;
-						Archetype::LookupHash lookupHash = {CalculateLookupHash(containers::sarray<uint64_t, 2>{0, chunkHash})};
+						const auto lookupHash = Archetype::CalculateLookupHash({0}, chunkHash);
 						pArchetypeRight = FindArchetype({}, std::span<const ComponentInfo*>(&pInfoToAdd, 1), lookupHash);
 						if (pArchetypeRight == nullptr) {
 							pArchetypeRight = CreateArchetype({}, std::span<const ComponentInfo*>(&pInfoToAdd, 1));
-							pArchetypeRight->Init(0, chunkHash, lookupHash);
+							pArchetypeRight->Init({0}, {chunkHash}, lookupHash);
 							RegisterArchetype(pArchetypeRight);
 							BuildGraphEdges(type, pArchetypeLeft, pArchetypeRight, pInfoToAdd);
 						}
@@ -451,13 +451,14 @@ namespace gaia {
 				});
 
 				// Once sorted we can calculate the hashes
-				const uint64_t hashes[2] = {CalculateLookupHash({*infos[0]}), CalculateLookupHash({*infos[1]})};
-				Archetype::LookupHash lookupHash = {CalculateLookupHash(containers::sarray<uint64_t, 2>{hashes[0], hashes[1]})};
+				const Archetype::GenericComponentHash genericHash = {gaia::ecs::CalculateLookupHash({*infos[0]}).hash};
+				const Archetype::ChunkComponentHash chunkHash = {gaia::ecs::CalculateLookupHash({*infos[1]}).hash};
+				const auto lookupHash = Archetype::CalculateLookupHash(genericHash, chunkHash);
 
 				auto* pArchetypeRight = FindArchetype({*infos[0]}, {*infos[1]}, lookupHash);
 				if (pArchetypeRight == nullptr) {
 					pArchetypeRight = CreateArchetype({infos[0]->data(), infos[0]->size()}, {infos[1]->data(), infos[1]->size()});
-					pArchetypeRight->Init(hashes[0], hashes[1], lookupHash);
+					pArchetypeRight->Init(genericHash, chunkHash, lookupHash);
 					RegisterArchetype(pArchetypeRight);
 
 #if GAIA_ARCHETYPE_GRAPH
@@ -512,13 +513,14 @@ namespace gaia {
 					return nullptr;
 
 				// Calculate the hashes
-				const uint64_t hashes[2] = {CalculateLookupHash({*infos[0]}), CalculateLookupHash({*infos[1]})};
-				Archetype::LookupHash lookupHash = {CalculateLookupHash(containers::sarray<uint64_t, 2>{hashes[0], hashes[1]})};
+				const Archetype::GenericComponentHash genericHash = {gaia::ecs::CalculateLookupHash({*infos[0]}).hash};
+				const Archetype::ChunkComponentHash chunkHash = {gaia::ecs::CalculateLookupHash({*infos[1]}).hash};
+				const auto lookupHash = Archetype::CalculateLookupHash(genericHash, chunkHash);
 
 				auto* pArchetype = FindArchetype({*infos[0]}, {*infos[1]}, lookupHash);
 				if (pArchetype == nullptr) {
 					pArchetype = CreateArchetype({infos[0]->data(), infos[0]->size()}, {infos[1]->data(), infos[1]->size()});
-					pArchetype->Init(hashes[0], hashes[1], lookupHash);
+					pArchetype->Init(genericHash, lookupHash, lookupHash);
 					RegisterArchetype(pArchetype);
 
 #if GAIA_ARCHETYPE_GRAPH
@@ -802,7 +804,7 @@ namespace gaia {
 
 			void Init() {
 				m_pRootArchetype = CreateArchetype({}, {});
-				m_pRootArchetype->Init(0, 0, {CalculateLookupHash(containers::sarray<uint64_t, 2>{0, 0})});
+				m_pRootArchetype->Init({0}, {0}, Archetype::CalculateLookupHash({0}, {0}));
 				RegisterArchetype(m_pRootArchetype);
 			}
 
@@ -1879,15 +1881,15 @@ namespace gaia {
 						"mask:%016" PRIx64 "/%016" PRIx64 ", "
 						"chunks:%u, data size:%3u B (%u/%u), "
 						"entities:%u/%u (disabled:%u)",
-						archetype.id, archetype.lookupHash.hash, archetype.matcherHash[ComponentType::CT_Generic],
-						archetype.matcherHash[ComponentType::CT_Chunk], (uint32_t)archetype.chunks.size(),
+						archetype.id, archetype.lookupHash.hash, archetype.matcherHash[ComponentType::CT_Generic].hash,
+						archetype.matcherHash[ComponentType::CT_Chunk].hash, (uint32_t)archetype.chunks.size(),
 						genericComponentsSize + chunkComponentsSize, genericComponentsSize, chunkComponentsSize, entityCount,
 						archetype.info.capacity, entityCountDisabled);
 
 				auto logComponentInfo = [](const ComponentInfo* info, const ComponentInfoCreate& infoStatic) {
 					LOG_N(
 							"    (%p) lookupHash:%016" PRIx64 ", mask:%016" PRIx64 ", size:%3u B, align:%3u B, %.*s", (void*)info,
-							info->lookupHash, info->matcherHash, info->properties.size, info->properties.alig,
+							info->lookupHash.hash, info->matcherHash.hash, info->properties.size, info->properties.alig,
 							(uint32_t)infoStatic.name.size(), infoStatic.name.data());
 				};
 

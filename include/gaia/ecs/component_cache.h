@@ -14,7 +14,7 @@ namespace gaia {
 		class ComponentCache {
 			containers::darray<const ComponentInfo*> m_infoByIndex;
 			containers::darray<ComponentInfoCreate> m_infoCreateByIndex;
-			containers::map<ComponentHash, const ComponentInfo*> m_infoByHash;
+			containers::map<ComponentLookupHash, const ComponentInfo*> m_infoByHash;
 
 		public:
 			ComponentCache() {
@@ -121,7 +121,7 @@ namespace gaia {
 			//! Returns the component info given the \param hash.
 			//! \warning It is expected the component info with a given index exists! Undefined behavior otherwise.
 			//! \return Component info
-			GAIA_NODISCARD const ComponentInfo* GetComponentInfoFromHash(ComponentHash hash) const {
+			GAIA_NODISCARD const ComponentInfo* GetComponentInfoFromHash(ComponentLookupHash hash) const {
 				const auto it = m_infoByHash.find(hash);
 				GAIA_ASSERT(it != m_infoByHash.end());
 				return it->second;
