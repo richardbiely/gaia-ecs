@@ -1218,8 +1218,7 @@ namespace gaia {
 			GAIA_FORCEINLINE void
 			ForEachEntityInChunk([[maybe_unused]] utils::func_type_list<T...> types, Chunk& chunk, Func func) {
 				const size_t size = chunk.GetItemCount();
-				if (!size)
-					return;
+				GAIA_ASSERT(size > 0);
 
 				if constexpr (sizeof...(T) > 0) {
 					// Pointers to the respective component types in the chunk, e.g
