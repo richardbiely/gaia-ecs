@@ -20,6 +20,7 @@
 #include "common.h"
 #include "component.h"
 #include "component_cache.h"
+#include "component_utils.h"
 #include "entity.h"
 #include "entity_query.h"
 
@@ -445,9 +446,7 @@ namespace gaia {
 
 				// Make sure to sort the component infos so we receive the same hash no matter the order in which components
 				// are provided Bubble sort is okay. We're dealing with at most MAX_COMPONENTS_PER_ARCHETYPE items.
-				utils::sort(infosNew, [](const uint32_t left, const uint32_t right) {
-					return left < right;
-				});
+				SortComponents(infosNew);
 
 				// Once sorted we can calculate the hashes
 				const Archetype::GenericComponentHash genericHash = {gaia::ecs::CalculateLookupHash({*infos[0]}).hash};

@@ -9,6 +9,7 @@
 #include "archetype.h"
 #include "common.h"
 #include "component.h"
+#include "component_utils.h"
 #include "fwd.h"
 
 namespace gaia {
@@ -172,13 +173,9 @@ namespace gaia {
 
 			//! Sorts internal component arrays by their type indices
 			void SortComponentArrays() {
-				for (auto& l: m_list) {
-					for (auto& indices: l.indices) {
-						utils::sort(indices, [](uint32_t left, uint32_t right) {
-							return left < right;
-						});
-					}
-				}
+				for (auto& l: m_list)
+					for (auto& indices: l.indices) 
+						SortComponents(indices);
 			}
 
 			void CalculateLookupHash() {
