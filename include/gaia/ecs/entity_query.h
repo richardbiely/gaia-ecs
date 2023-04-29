@@ -480,20 +480,14 @@ namespace gaia {
 
 			template <bool Enabled>
 			GAIA_NODISCARD bool CheckConstraints() const {
-				if GAIA_LIKELY (m_constraints == Constraints::AcceptAll)
+				// By default we only evaluate EnabledOnly changes. AcceptAll is something that has to be asked for explicitely.
+				if GAIA_UNLIKELY (m_constraints == Constraints::AcceptAll)
 					return true;
 
 				if constexpr (Enabled)
 					return m_constraints == Constraints::EnabledOnly;
 				else
 					return m_constraints == Constraints::DisabledOnly;
-			}
-
-			GAIA_NODISCARD bool CheckConstraints(bool enabled) const {
-				if GAIA_LIKELY (m_constraints == Constraints::AcceptAll)
-					return true;
-
-				return enabled ? m_constraints == Constraints::EnabledOnly : m_constraints == Constraints::DisabledOnly;
 			}
 
 			GAIA_NODISCARD bool HasFilters() const {
