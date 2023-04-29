@@ -11901,8 +11901,10 @@ namespace gaia {
 
 			// A world this system belongs to
 			World* m_world = nullptr;
+#if GAIA_PROFILER_CPU
 			//! System's name
 			char m_name[MaxSystemNameLength]{};
+#endif
 			//! System's hash code
 			uint64_t m_hash = 0;
 			//! If true, the system is enabled and running
@@ -12081,7 +12083,7 @@ namespace gaia {
 			}
 
 			template <typename T>
-			T* CreateSystem(const char* name) {
+			T* CreateSystem([[maybe_unused]] const char* name = nullptr) {
 				GAIA_SAFE_CONSTEXPR auto hash = utils::type_info::hash<std::decay_t<T>>();
 
 				const auto res = m_systemsMap.try_emplace({hash}, nullptr);
@@ -12091,12 +12093,26 @@ namespace gaia {
 				BaseSystem* pSystem = new T();
 				pSystem->m_world = &m_world;
 
-#if GAIA_COMPILER_MSVC || defined(_WIN32)
-				strncpy_s(pSystem->m_name, name, (size_t)-1);
-#else
-				strncpy(pSystem->m_name, name, MaxSystemNameLength - 1);
-#endif
+#if GAIA_PROFILER_CPU
+				if (name == nullptr) {
+					constexpr auto ct_name = utils::type_info::name<T>();
+					const size_t len = ct_name.size() > MaxSystemNameLength - 1 ? MaxSystemNameLength - 1 : ct_name.size();
+
+	#if GAIA_COMPILER_MSVC || defined(_WIN32)
+					strncpy_s(pSystem->m_name, ct_name.data(), len);
+	#else
+					strncpy(pSystem->m_name, ct_name.data(), len);
+	#endif
+				} else {
+	#if GAIA_COMPILER_MSVC || defined(_WIN32)
+					strncpy_s(pSystem->m_name, name, (size_t)-1);
+	#else
+					strncpy(pSystem->m_name, name, MaxSystemNameLength - 1);
+	#endif
+				}
+
 				pSystem->m_name[MaxSystemNameLength - 1] = 0;
+#endif
 
 				pSystem->m_hash = hash;
 				res.first->second = pSystem;

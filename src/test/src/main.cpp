@@ -2034,9 +2034,9 @@ TEST_CASE("Query Filter - systems") {
 		}
 	};
 	ecs::SystemManager sm(w);
-	auto* ws = sm.CreateSystem<WriterSystem>("WriterSystem");
-	auto* wss = sm.CreateSystem<WriterSystemSilent>("WriterSystemSilent");
-	auto* rs = sm.CreateSystem<ReaderSystem>("ReaderSystem");
+	auto* ws = sm.CreateSystem<WriterSystem>();
+	auto* wss = sm.CreateSystem<WriterSystemSilent>();
+	auto* rs = sm.CreateSystem<ReaderSystem>();
 
 	// first run always happens
 	ws->Enable(false);
