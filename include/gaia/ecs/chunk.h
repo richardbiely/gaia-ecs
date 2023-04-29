@@ -21,7 +21,7 @@ namespace gaia {
 		extern const ComponentInfo* GetComponentInfoFromIdx(uint32_t index);
 		extern const ComponentInfoCreate& GetComponentCreateInfoFromIdx(uint32_t index);
 		extern const ComponentInfoList& GetArchetypeComponentInfoList(const Archetype& archetype, ComponentType type);
-		extern const ComponentLookupList& GetArchetypeComponentLookupList(const Archetype& archetype, ComponentType type);
+		extern const ComponentOffsetList& GetArchetypeComponentOffsetList(const Archetype& archetype, ComponentType type);
 
 		class Chunk final {
 		public:
@@ -56,10 +56,8 @@ namespace gaia {
 			\return True if found. False otherwise.
 			*/
 			GAIA_NODISCARD bool HasComponent_Internal(ComponentType type, uint32_t infoIndex) const {
-				const auto& infos = GetArchetypeComponentLookupList(header.owner, type);
-				return utils::has_if(infos, [&](const auto& info) {
-					return info.infoIndex == infoIndex;
-				});
+				const auto& infos = GetArchetypeComponentInfoList(header.owner, type);
+				return utils::has(infos, infoIndex);
 			}
 
 			/*!
@@ -92,14 +90,14 @@ namespace gaia {
 					SetEntity(index, entity);
 
 					const auto& infos = GetArchetypeComponentInfoList(header.owner, ComponentType::CT_Generic);
-					const auto& looks = GetArchetypeComponentLookupList(header.owner, ComponentType::CT_Generic);
+					const auto& offs = GetArchetypeComponentOffsetList(header.owner, ComponentType::CT_Generic);
 
 					for (size_t i = 0; i < infos.size(); i++) {
-						const auto* pInfo = infos[i];
+						const auto* pInfo = GetComponentInfoFromIdx(infos[i]);
 						if (pInfo->properties.size == 0U)
 							continue;
 
-						const auto offset = looks[i].offset;
+						const auto offset = offs[i];
 						const auto idxSrc = offset + index * pInfo->properties.size;
 						const auto idxDst = offset + (header.count - 1U) * pInfo->properties.size;
 
@@ -214,19 +212,18 @@ namespace gaia {
 			/*!
 			Returns a pointer do component data with read-only access.
 			\param type Component type
-			\param infoIndex Index of the component in the archetype
+			\param infoIndex Component info index
 			\return Const pointer to component data.
 			*/
 			GAIA_NODISCARD GAIA_FORCEINLINE const uint8_t* GetDataPtr(ComponentType type, uint32_t infoIndex) const {
 				// Searching for a component that's not there! Programmer mistake.
 				GAIA_ASSERT(HasComponent_Internal(type, infoIndex));
 
-				const auto& infos = GetArchetypeComponentLookupList(header.owner, type);
-				const auto componentIdx = utils::get_index_if_unsafe(infos, [&](const auto& info) {
-					return info.infoIndex == infoIndex;
-				});
+				const auto& infos = GetArchetypeComponentInfoList(header.owner, type);
+				const auto& offs = GetArchetypeComponentOffsetList(header.owner, type);
+				const auto idx = utils::get_index_unsafe(infos, infoIndex);
 
-				return (const uint8_t*)&data[infos[componentIdx].offset];
+				return (const uint8_t*)&data[offs[idx]];
 			}
 
 			/*!
@@ -243,17 +240,16 @@ namespace gaia {
 				// Don't use this with empty components. It's impossible to write to them anyway.
 				GAIA_ASSERT(GetComponentInfoFromIdx(infoIndex)->properties.size != 0);
 
-				const auto& infos = GetArchetypeComponentLookupList(header.owner, type);
-				const auto componentIdx = (uint32_t)utils::get_index_if_unsafe(infos, [&](const auto& info) {
-					return info.infoIndex == infoIndex;
-				});
+				const auto& infos = GetArchetypeComponentInfoList(header.owner, type);
+				const auto& offs = GetArchetypeComponentOffsetList(header.owner, type);
+				const auto idx = utils::get_index_unsafe(infos, infoIndex);
 
 				if constexpr (UpdateWorldVersion) {
 					// Update version number so we know RW access was used on chunk
-					header.UpdateWorldVersion(type, componentIdx);
+					header.UpdateWorldVersion(type, idx);
 				}
 
-				return (uint8_t*)&data[infos[componentIdx].offset];
+				return (uint8_t*)&data[offs[idx]];
 			}
 
 		public:
@@ -300,20 +296,6 @@ namespace gaia {
 				static_assert(!std::is_same_v<U, Entity>);
 
 				return utils::auto_view_policy_set<U>{{ViewRW_Internal<T, false>()}};
-			}
-
-			/*!
-			Returns the internal index of a component based on the provided \param infoIndex.
-			\param type Component type
-			\return Component index if the component was found. -1 otherwise.
-			*/
-			GAIA_NODISCARD uint32_t GetComponentIdx(ComponentType type, uint32_t infoIndex) const {
-				const auto& list = GetArchetypeComponentLookupList(header.owner, type);
-				const auto idx = utils::get_index_if_unsafe(list, [&](const auto& info) {
-					return info.infoIndex == infoIndex;
-				});
-				GAIA_ASSERT(idx != BadIndex);
-				return (uint32_t)idx;
 			}
 
 			/*!
