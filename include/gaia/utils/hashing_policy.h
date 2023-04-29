@@ -37,6 +37,8 @@ namespace gaia {
 
 		template <typename T>
 		struct direct_hash_key {
+			using Type = T;
+
 			static_assert(std::is_integral_v<T>);
 			static constexpr bool IsDirectHashKey = true;
 
