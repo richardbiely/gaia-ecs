@@ -82,8 +82,8 @@ namespace gaia {
 				AddData(entity);
 
 				// Components
-				const auto* pInfoToAdd = GetComponentCacheRW().GetOrCreateComponentInfo<T>();
-				AddData(pInfoToAdd->infoIndex);
+				const auto& infoToAdd = GetComponentCacheRW().GetOrCreateComponentInfo<T>();
+				AddData(infoToAdd.componentId);
 			}
 
 			template <typename T>
@@ -91,7 +91,7 @@ namespace gaia {
 				using U = std::decay_t<T>;
 
 				// Component info
-				SetData(utils::type_info::index<U>(), index);
+				SetData(utils::type_info::id<U>(), index);
 
 				// Component data
 				SetData(std::forward<U>(data), index);
@@ -136,11 +136,10 @@ namespace gaia {
 
 				// Components
 				{
-					const auto* typeToRemove = GetComponentCache().GetComponentInfo<T>();
-					GAIA_ASSERT(typeToRemove != nullptr);
+					const auto& typeToRemove = GetComponentCache().GetComponentInfo<T>();
 
 					// Component info
-					AddData(typeToRemove->infoIndex);
+					AddData(typeToRemove.componentId);
 				}
 			}
 
@@ -376,17 +375,17 @@ namespace gaia {
 					// ADD_COMPONENT
 					[](CommandBufferCtx& ctx) {
 						// Type
-						ComponentType type = (ComponentType)ctx.data[ctx.dataOffset];
+						ComponentType componentType = (ComponentType)ctx.data[ctx.dataOffset];
 						ctx.dataOffset += sizeof(ComponentType);
 						// Entity
 						Entity entity = utils::unaligned_ref<Entity>((void*)&ctx.data[ctx.dataOffset]);
 						ctx.dataOffset += sizeof(Entity);
 
 						// Components
-						uint32_t infoIndex = utils::unaligned_ref<uint32_t>((void*)&ctx.data[ctx.dataOffset]);
-						const auto* newInfo = GetComponentCache().GetComponentInfoFromIdx(infoIndex);
+						uint32_t componentId = utils::unaligned_ref<uint32_t>((void*)&ctx.data[ctx.dataOffset]);
+						const auto& newInfo = GetComponentCache().GetComponentInfo(componentId);
 						ctx.dataOffset += sizeof(uint32_t);
-						ctx.world.AddComponent_Internal(type, entity, newInfo);
+						ctx.world.AddComponent_Internal(componentType, entity, newInfo);
 
 						uint32_t indexInChunk{};
 						[[maybe_unused]] auto* pChunk = ctx.world.GetChunk(entity, indexInChunk);
@@ -395,40 +394,40 @@ namespace gaia {
 					// ADD_COMPONENT_DATA
 					[](CommandBufferCtx& ctx) {
 						// Type
-						ComponentType type = (ComponentType)ctx.data[ctx.dataOffset];
+						ComponentType componentType = (ComponentType)ctx.data[ctx.dataOffset];
 						ctx.dataOffset += sizeof(ComponentType);
 						// Entity
 						Entity entity = utils::unaligned_ref<Entity>((void*)&ctx.data[ctx.dataOffset]);
 						ctx.dataOffset += sizeof(Entity);
 
 						// Components
-						uint32_t infoIndex = utils::unaligned_ref<uint32_t>((void*)&ctx.data[ctx.dataOffset]);
-						const auto* newInfo = GetComponentCache().GetComponentInfoFromIdx(infoIndex);
+						uint32_t componentId = utils::unaligned_ref<uint32_t>((void*)&ctx.data[ctx.dataOffset]);
+						const auto& newInfo = GetComponentCache().GetComponentInfo(componentId);
 						ctx.dataOffset += sizeof(uint32_t);
-						ctx.world.AddComponent_Internal(type, entity, newInfo);
+						ctx.world.AddComponent_Internal(componentType, entity, newInfo);
 
 						uint32_t indexInChunk{};
 						auto* pChunk = ctx.world.GetChunk(entity, indexInChunk);
 						GAIA_ASSERT(pChunk != nullptr);
 
-						if (type == ComponentType::CT_Chunk)
+						if (componentType == ComponentType::CT_Chunk)
 							indexInChunk = 0;
 
 						// Skip the component index
 						// TODO: Don't include the component index here
-						uint32_t infoIndex2 = utils::unaligned_ref<uint32_t>((void*)&ctx.data[ctx.dataOffset]);
-						(void)infoIndex2;
+						uint32_t componentId2 = utils::unaligned_ref<uint32_t>((void*)&ctx.data[ctx.dataOffset]);
+						(void)componentId2;
 						ctx.dataOffset += sizeof(uint32_t);
 
-						auto* pComponentDataStart = pChunk->GetDataPtrRW<false>(type, newInfo->infoIndex);
-						auto* pComponentData = (void*)&pComponentDataStart[(size_t)indexInChunk * newInfo->properties.size];
-						memcpy(pComponentData, (const void*)&ctx.data[ctx.dataOffset], newInfo->properties.size);
-						ctx.dataOffset += newInfo->properties.size;
+						auto* pComponentDataStart = pChunk->GetDataPtrRW<false>(componentType, newInfo.componentId);
+						auto* pComponentData = (void*)&pComponentDataStart[(size_t)indexInChunk * newInfo.properties.size];
+						memcpy(pComponentData, (const void*)&ctx.data[ctx.dataOffset], newInfo.properties.size);
+						ctx.dataOffset += newInfo.properties.size;
 					},
 					// ADD_COMPONENT_TO_TEMPENTITY
 					[](CommandBufferCtx& ctx) {
 						// Type
-						ComponentType type = (ComponentType)ctx.data[ctx.dataOffset];
+						ComponentType componentType = (ComponentType)ctx.data[ctx.dataOffset];
 						ctx.dataOffset += sizeof(ComponentType);
 						// Entity
 						Entity e = utils::unaligned_ref<Entity>((void*)&ctx.data[ctx.dataOffset]);
@@ -443,10 +442,10 @@ namespace gaia {
 						Entity entity = it->second;
 
 						// Components
-						uint32_t infoIndex = utils::unaligned_ref<uint32_t>((void*)&ctx.data[ctx.dataOffset]);
-						const auto* newInfo = GetComponentCache().GetComponentInfoFromIdx(infoIndex);
+						uint32_t componentId = utils::unaligned_ref<uint32_t>((void*)&ctx.data[ctx.dataOffset]);
+						const auto& newInfo = GetComponentCache().GetComponentInfo(componentId);
 						ctx.dataOffset += sizeof(uint32_t);
-						ctx.world.AddComponent_Internal(type, entity, newInfo);
+						ctx.world.AddComponent_Internal(componentType, entity, newInfo);
 
 						uint32_t indexInChunk{};
 						[[maybe_unused]] auto* pChunk = ctx.world.GetChunk(entity, indexInChunk);
@@ -455,7 +454,7 @@ namespace gaia {
 					// ADD_COMPONENT_TO_TEMPENTITY_DATA
 					[](CommandBufferCtx& ctx) {
 						// Type
-						ComponentType type = (ComponentType)ctx.data[ctx.dataOffset];
+						ComponentType componentType = (ComponentType)ctx.data[ctx.dataOffset];
 						ctx.dataOffset += sizeof(ComponentType);
 						// Entity
 						Entity e = utils::unaligned_ref<Entity>((void*)&ctx.data[ctx.dataOffset]);
@@ -470,33 +469,33 @@ namespace gaia {
 						Entity entity = it->second;
 
 						// Components
-						uint32_t infoIndex = utils::unaligned_ref<uint32_t>((void*)&ctx.data[ctx.dataOffset]);
-						const auto* newInfo = GetComponentCache().GetComponentInfoFromIdx(infoIndex);
+						uint32_t componentId = utils::unaligned_ref<uint32_t>((void*)&ctx.data[ctx.dataOffset]);
+						const auto& newInfo = GetComponentCache().GetComponentInfo(componentId);
 						ctx.dataOffset += sizeof(uint32_t);
-						ctx.world.AddComponent_Internal(type, entity, newInfo);
+						ctx.world.AddComponent_Internal(componentType, entity, newInfo);
 
 						uint32_t indexInChunk{};
 						auto* pChunk = ctx.world.GetChunk(entity, indexInChunk);
 						GAIA_ASSERT(pChunk != nullptr);
 
-						if (type == ComponentType::CT_Chunk)
+						if (componentType == ComponentType::CT_Chunk)
 							indexInChunk = 0;
 
 						// Skip the type index
 						// TODO: Don't include the type index here
-						uint32_t infoIndex2 = utils::unaligned_ref<uint32_t>((void*)&ctx.data[ctx.dataOffset]);
-						(void)infoIndex2;
+						uint32_t componentId2 = utils::unaligned_ref<uint32_t>((void*)&ctx.data[ctx.dataOffset]);
+						(void)componentId2;
 						ctx.dataOffset += sizeof(uint32_t);
 
-						auto* pComponentDataStart = pChunk->GetDataPtrRW<false>(type, newInfo->infoIndex);
-						auto* pComponentData = (void*)&pComponentDataStart[(size_t)indexInChunk * newInfo->properties.size];
-						memcpy(pComponentData, (const void*)&ctx.data[ctx.dataOffset], newInfo->properties.size);
-						ctx.dataOffset += newInfo->properties.size;
+						auto* pComponentDataStart = pChunk->GetDataPtrRW<false>(componentType, newInfo.componentId);
+						auto* pComponentData = (void*)&pComponentDataStart[(size_t)indexInChunk * newInfo.properties.size];
+						memcpy(pComponentData, (const void*)&ctx.data[ctx.dataOffset], newInfo.properties.size);
+						ctx.dataOffset += newInfo.properties.size;
 					},
 					// SET_COMPONENT
 					[](CommandBufferCtx& ctx) {
 						// Type
-						ComponentType type = (ComponentType)ctx.data[ctx.dataOffset];
+						ComponentType componentType = (ComponentType)ctx.data[ctx.dataOffset];
 						ctx.dataOffset += sizeof(ComponentType);
 
 						// Entity
@@ -505,24 +504,24 @@ namespace gaia {
 
 						const auto& entityContainer = ctx.world.m_entities[entity.id()];
 						auto* pChunk = entityContainer.pChunk;
-						const auto indexInChunk = type == ComponentType::CT_Chunk ? 0U : entityContainer.idx;
+						const auto indexInChunk = componentType == ComponentType::CT_Chunk ? 0U : entityContainer.idx;
 
 						// Components
 						{
-							const auto infoIndex = utils::unaligned_ref<uint32_t>((void*)&ctx.data[ctx.dataOffset]);
-							const auto* pInfo = GetComponentCache().GetComponentInfoFromIdx(infoIndex);
+							const auto componentId = utils::unaligned_ref<uint32_t>((void*)&ctx.data[ctx.dataOffset]);
+							const auto& info = GetComponentCache().GetComponentInfo(componentId);
 							ctx.dataOffset += sizeof(uint32_t);
 
-							auto* pComponentDataStart = pChunk->GetDataPtrRW<false>(type, pInfo->infoIndex);
-							auto* pComponentData = (void*)&pComponentDataStart[(size_t)indexInChunk * pInfo->properties.size];
-							memcpy(pComponentData, (const void*)&ctx.data[ctx.dataOffset], pInfo->properties.size);
-							ctx.dataOffset += pInfo->properties.size;
+							auto* pComponentDataStart = pChunk->GetDataPtrRW<false>(componentType, info.componentId);
+							auto* pComponentData = (void*)&pComponentDataStart[(size_t)indexInChunk * info.properties.size];
+							memcpy(pComponentData, (const void*)&ctx.data[ctx.dataOffset], info.properties.size);
+							ctx.dataOffset += info.properties.size;
 						}
 					},
 					// SET_COMPONENT_FOR_TEMPENTITY
 					[](CommandBufferCtx& ctx) {
 						// Type
-						ComponentType type = (ComponentType)ctx.data[ctx.dataOffset];
+						ComponentType componentType = (ComponentType)ctx.data[ctx.dataOffset];
 						ctx.dataOffset += sizeof(ComponentType);
 
 						// Entity
@@ -539,24 +538,24 @@ namespace gaia {
 
 						const auto& entityContainer = ctx.world.m_entities[entity.id()];
 						auto* pChunk = entityContainer.pChunk;
-						const auto indexInChunk = type == ComponentType::CT_Chunk ? 0U : entityContainer.idx;
+						const auto indexInChunk = componentType == ComponentType::CT_Chunk ? 0U : entityContainer.idx;
 
 						// Components
 						{
-							const auto infoIndex = utils::unaligned_ref<uint32_t>((void*)&ctx.data[ctx.dataOffset]);
-							const auto* pInfo = GetComponentCache().GetComponentInfoFromIdx(infoIndex);
+							const auto componentId = utils::unaligned_ref<uint32_t>((void*)&ctx.data[ctx.dataOffset]);
+							const auto& info = GetComponentCache().GetComponentInfo(componentId);
 							ctx.dataOffset += sizeof(uint32_t);
 
-							auto* pComponentDataStart = pChunk->GetDataPtrRW<false>(type, pInfo->infoIndex);
-							auto* pComponentData = (void*)&pComponentDataStart[(size_t)indexInChunk * pInfo->properties.size];
-							memcpy(pComponentData, (const void*)&ctx.data[ctx.dataOffset], pInfo->properties.size);
-							ctx.dataOffset += pInfo->properties.size;
+							auto* pComponentDataStart = pChunk->GetDataPtrRW<false>(componentType, info.componentId);
+							auto* pComponentData = (void*)&pComponentDataStart[(size_t)indexInChunk * info.properties.size];
+							memcpy(pComponentData, (const void*)&ctx.data[ctx.dataOffset], info.properties.size);
+							ctx.dataOffset += info.properties.size;
 						}
 					},
 					// REMOVE_COMPONENT
 					[](CommandBufferCtx& ctx) {
 						// Type
-						ComponentType type = utils::unaligned_ref<ComponentType>((void*)&ctx.data[ctx.dataOffset]);
+						ComponentType componentType = utils::unaligned_ref<ComponentType>((void*)&ctx.data[ctx.dataOffset]);
 						ctx.dataOffset += sizeof(ComponentType);
 
 						// Entity
@@ -564,11 +563,11 @@ namespace gaia {
 						ctx.dataOffset += sizeof(Entity);
 
 						// Components
-						uint32_t infoIndex = utils::unaligned_ref<uint32_t>((void*)&ctx.data[ctx.dataOffset]);
-						const auto* newInfo = GetComponentCache().GetComponentInfoFromIdx(infoIndex);
+						uint32_t componentId = utils::unaligned_ref<uint32_t>((void*)&ctx.data[ctx.dataOffset]);
+						const auto& newInfo = GetComponentCache().GetComponentInfo(componentId);
 						ctx.dataOffset += sizeof(uint32_t);
 
-						ctx.world.RemoveComponent_Internal(type, e, newInfo);
+						ctx.world.RemoveComponent_Internal(componentType, e, newInfo);
 					}};
 
 		public:

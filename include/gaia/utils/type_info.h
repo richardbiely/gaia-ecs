@@ -55,7 +55,7 @@ namespace gaia {
 
 		public:
 			template <typename T>
-			static uint32_t index() noexcept {
+			static uint32_t id() noexcept {
 				return type_group<type_info>::id<T>;
 			}
 
