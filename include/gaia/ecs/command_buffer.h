@@ -403,6 +403,7 @@ namespace gaia {
 						// Components
 						uint32_t componentId = utils::unaligned_ref<uint32_t>((void*)&ctx.data[ctx.dataOffset]);
 						const auto& newInfo = GetComponentCache().GetComponentInfo(componentId);
+						const auto& newDesc = GetComponentCache().GetComponentDesc(componentId);
 						ctx.dataOffset += sizeof(uint32_t);
 						ctx.world.AddComponent_Internal(componentType, entity, newInfo);
 
@@ -420,9 +421,9 @@ namespace gaia {
 						ctx.dataOffset += sizeof(uint32_t);
 
 						auto* pComponentDataStart = pChunk->GetDataPtrRW<false>(componentType, newInfo.componentId);
-						auto* pComponentData = (void*)&pComponentDataStart[(size_t)indexInChunk * newInfo.properties.size];
-						memcpy(pComponentData, (const void*)&ctx.data[ctx.dataOffset], newInfo.properties.size);
-						ctx.dataOffset += newInfo.properties.size;
+						auto* pComponentData = (void*)&pComponentDataStart[(size_t)indexInChunk * newDesc.properties.size];
+						memcpy(pComponentData, (const void*)&ctx.data[ctx.dataOffset], newDesc.properties.size);
+						ctx.dataOffset += newDesc.properties.size;
 					},
 					// ADD_COMPONENT_TO_TEMPENTITY
 					[](CommandBufferCtx& ctx) {
@@ -471,6 +472,7 @@ namespace gaia {
 						// Components
 						uint32_t componentId = utils::unaligned_ref<uint32_t>((void*)&ctx.data[ctx.dataOffset]);
 						const auto& newInfo = GetComponentCache().GetComponentInfo(componentId);
+						const auto& newDesc = GetComponentCache().GetComponentDesc(componentId);
 						ctx.dataOffset += sizeof(uint32_t);
 						ctx.world.AddComponent_Internal(componentType, entity, newInfo);
 
@@ -488,9 +490,9 @@ namespace gaia {
 						ctx.dataOffset += sizeof(uint32_t);
 
 						auto* pComponentDataStart = pChunk->GetDataPtrRW<false>(componentType, newInfo.componentId);
-						auto* pComponentData = (void*)&pComponentDataStart[(size_t)indexInChunk * newInfo.properties.size];
-						memcpy(pComponentData, (const void*)&ctx.data[ctx.dataOffset], newInfo.properties.size);
-						ctx.dataOffset += newInfo.properties.size;
+						auto* pComponentData = (void*)&pComponentDataStart[(size_t)indexInChunk * newDesc.properties.size];
+						memcpy(pComponentData, (const void*)&ctx.data[ctx.dataOffset], newDesc.properties.size);
+						ctx.dataOffset += newDesc.properties.size;
 					},
 					// SET_COMPONENT
 					[](CommandBufferCtx& ctx) {
@@ -509,13 +511,13 @@ namespace gaia {
 						// Components
 						{
 							const auto componentId = utils::unaligned_ref<uint32_t>((void*)&ctx.data[ctx.dataOffset]);
-							const auto& info = GetComponentCache().GetComponentInfo(componentId);
+							const auto& desc = GetComponentCache().GetComponentDesc(componentId);
 							ctx.dataOffset += sizeof(uint32_t);
 
-							auto* pComponentDataStart = pChunk->GetDataPtrRW<false>(componentType, info.componentId);
-							auto* pComponentData = (void*)&pComponentDataStart[(size_t)indexInChunk * info.properties.size];
-							memcpy(pComponentData, (const void*)&ctx.data[ctx.dataOffset], info.properties.size);
-							ctx.dataOffset += info.properties.size;
+							auto* pComponentDataStart = pChunk->GetDataPtrRW<false>(componentType, componentId);
+							auto* pComponentData = (void*)&pComponentDataStart[(size_t)indexInChunk * desc.properties.size];
+							memcpy(pComponentData, (const void*)&ctx.data[ctx.dataOffset], desc.properties.size);
+							ctx.dataOffset += desc.properties.size;
 						}
 					},
 					// SET_COMPONENT_FOR_TEMPENTITY
@@ -543,13 +545,13 @@ namespace gaia {
 						// Components
 						{
 							const auto componentId = utils::unaligned_ref<uint32_t>((void*)&ctx.data[ctx.dataOffset]);
-							const auto& info = GetComponentCache().GetComponentInfo(componentId);
+							const auto& desc = GetComponentCache().GetComponentDesc(componentId);
 							ctx.dataOffset += sizeof(uint32_t);
 
-							auto* pComponentDataStart = pChunk->GetDataPtrRW<false>(componentType, info.componentId);
-							auto* pComponentData = (void*)&pComponentDataStart[(size_t)indexInChunk * info.properties.size];
-							memcpy(pComponentData, (const void*)&ctx.data[ctx.dataOffset], info.properties.size);
-							ctx.dataOffset += info.properties.size;
+							auto* pComponentDataStart = pChunk->GetDataPtrRW<false>(componentType, componentId);
+							auto* pComponentData = (void*)&pComponentDataStart[(size_t)indexInChunk * desc.properties.size];
+							memcpy(pComponentData, (const void*)&ctx.data[ctx.dataOffset], desc.properties.size);
+							ctx.dataOffset += desc.properties.size;
 						}
 					},
 					// REMOVE_COMPONENT

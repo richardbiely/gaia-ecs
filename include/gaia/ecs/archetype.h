@@ -128,7 +128,7 @@ namespace gaia {
 					const auto itemCount = componentType == ComponentType::CT_Generic ? pChunk->GetItemCount() : 1U;
 					for (size_t i = 0; i < componentIds.size(); ++i) {
 						const auto componentId = componentIds[i];
-						const auto& infoCreate = cc.GetComponentCreateInfo(componentId);
+						const auto& infoCreate = cc.GetComponentDesc(componentId);
 						if (infoCreate.destructor == nullptr)
 							continue;
 						auto* pSrc = (void*)((uint8_t*)pChunk + offsets[i]);
@@ -171,17 +171,17 @@ namespace gaia {
 				// Size of the entity + all of its generic components
 				size_t genericComponentListSize = sizeof(Entity);
 				for (const uint32_t componentId: componentIdsGeneric) {
-					const auto& info = cc.GetComponentInfo(componentId);
-					genericComponentListSize += info.properties.size;
-					newArch->info.hasGenericComponentWithCustomDestruction |= (info.properties.destructible != 0);
+					const auto& desc = cc.GetComponentDesc(componentId);
+					genericComponentListSize += desc.properties.size;
+					newArch->info.hasGenericComponentWithCustomDestruction |= (desc.properties.destructible != 0);
 				}
 
 				// Size of chunk components
 				size_t chunkComponentListSize = 0;
 				for (const uint32_t componentId: componentIdsChunk) {
-					const auto& info = cc.GetComponentInfo(componentId);
-					chunkComponentListSize += info.properties.size;
-					newArch->info.hasChunkComponentWithCustomDestruction |= (info.properties.destructible != 0);
+					const auto& desc = cc.GetComponentDesc(componentId);
+					chunkComponentListSize += desc.properties.size;
+					newArch->info.hasChunkComponentWithCustomDestruction |= (desc.properties.destructible != 0);
 				}
 
 				// TODO: Calculate the number of entities per chunks precisely so we can
@@ -197,8 +197,8 @@ namespace gaia {
 
 				// Add generic infos
 				for (const uint32_t componentId: componentIdsGeneric) {
-					const auto& info = cc.GetComponentInfo(componentId);
-					const auto alignment = info.properties.alig;
+					const auto& desc = cc.GetComponentDesc(componentId);
+					const auto alignment = desc.properties.alig;
 					if (alignment != 0) {
 						const size_t padding = utils::align(alignedOffset, alignment) - alignedOffset;
 						componentOffsets += padding;
@@ -212,8 +212,8 @@ namespace gaia {
 						newArch->componentOffsets[ComponentType::CT_Generic].push_back((uint32_t)componentOffsets);
 
 						// Make sure the following component list is properly aligned
-						componentOffsets += info.properties.size * maxGenericItemsInArchetype;
-						alignedOffset += info.properties.size * maxGenericItemsInArchetype;
+						componentOffsets += desc.properties.size * maxGenericItemsInArchetype;
+						alignedOffset += desc.properties.size * maxGenericItemsInArchetype;
 
 						// Make sure we didn't exceed the chunk size
 						GAIA_ASSERT(componentOffsets <= Chunk::DATA_SIZE_NORESERVE);
@@ -226,8 +226,8 @@ namespace gaia {
 
 				// Add chunk infos
 				for (const uint32_t componentId: componentIdsChunk) {
-					const auto& info = cc.GetComponentInfo(componentId);
-					const auto alignment = info.properties.alig;
+					const auto& desc = cc.GetComponentDesc(componentId);
+					const auto alignment = desc.properties.alig;
 					if (alignment != 0) {
 						const size_t padding = utils::align(alignedOffset, alignment) - alignedOffset;
 						componentOffsets += padding;
@@ -241,8 +241,8 @@ namespace gaia {
 						newArch->componentOffsets[ComponentType::CT_Chunk].push_back((uint32_t)componentOffsets);
 
 						// Make sure the following component list is properly aligned
-						componentOffsets += info.properties.size;
-						alignedOffset += info.properties.size;
+						componentOffsets += desc.properties.size;
+						alignedOffset += desc.properties.size;
 
 						// Make sure we didn't exceed the chunk size
 						GAIA_ASSERT(componentOffsets <= Chunk::DATA_SIZE_NORESERVE);
@@ -449,8 +449,8 @@ namespace gaia {
 			return GetComponentCache().GetComponentInfo(componentId);
 		}
 
-		GAIA_NODISCARD inline const ComponentInfoCreate& GetComponentCreateInfo(ComponentId componentId) {
-			return GetComponentCache().GetComponentCreateInfo(componentId);
+		GAIA_NODISCARD inline const ComponentDesc& GetComponentDesc(ComponentId componentId) {
+			return GetComponentCache().GetComponentDesc(componentId);
 		}
 
 		GAIA_NODISCARD inline const ComponentIdList&

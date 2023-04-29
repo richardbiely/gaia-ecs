@@ -13,14 +13,14 @@ namespace gaia {
 	namespace ecs {
 		class ComponentCache {
 			containers::darray<const ComponentInfo*> m_infoByIndex;
-			containers::darray<ComponentInfoCreate> m_infoCreateByIndex;
+			containers::darray<ComponentDesc> m_descByIndex;
 			containers::map<ComponentLookupHash, const ComponentInfo*> m_infoByHash;
 
 			ComponentCache() {
 				// Reserve enough storage space for most use-cases
 				constexpr uint32_t DefaultComponentCacheSize = 2048;
 				m_infoByIndex.reserve(DefaultComponentCacheSize);
-				m_infoCreateByIndex.reserve(DefaultComponentCacheSize);
+				m_descByIndex.reserve(DefaultComponentCacheSize);
 				m_infoByHash.reserve(DefaultComponentCacheSize);
 			}
 
@@ -49,7 +49,7 @@ namespace gaia {
 				auto createInfo = [&]() -> const ComponentInfo& {
 					const auto* pInfo = ComponentInfo::Create<U>();
 					m_infoByIndex[index] = pInfo;
-					m_infoCreateByIndex[index] = ComponentInfoCreate::Create<U>();
+					m_descByIndex[index] = ComponentDesc::Create<U>();
 					GAIA_SAFE_CONSTEXPR auto hash = utils::type_info::hash<U>();
 					[[maybe_unused]] const auto res = m_infoByHash.try_emplace({hash}, pInfo);
 					// This has to be the first time this has has been added!
@@ -68,7 +68,7 @@ namespace gaia {
 
 					// Update the size
 					m_infoByIndex.resize(newSize);
-					m_infoCreateByIndex.resize(newSize);
+					m_descByIndex.resize(newSize);
 
 					// Make sure that unused memory is initialized to nullptr
 					for (size_t i = oldSize; i < newSize; ++i)
@@ -119,9 +119,9 @@ namespace gaia {
 			//! Returns the component creation info given the \param index.
 			//! \warning It is expected the component info with a given index exists! Undefined behavior otherwise.
 			//! \return Component info
-			GAIA_NODISCARD const ComponentInfoCreate& GetComponentCreateInfo(ComponentId index) const {
-				GAIA_ASSERT(index < m_infoCreateByIndex.size());
-				return m_infoCreateByIndex[index];
+			GAIA_NODISCARD const ComponentDesc& GetComponentDesc(ComponentId index) const {
+				GAIA_ASSERT(index < m_descByIndex.size());
+				return m_descByIndex[index];
 			}
 
 			//! Returns the component info given the \param hash.
@@ -135,12 +135,12 @@ namespace gaia {
 			}
 
 			void Diag() const {
-				const auto registeredTypes = (uint32_t)m_infoCreateByIndex.size();
+				const auto registeredTypes = (uint32_t)m_descByIndex.size();
 				LOG_N("Registered infos: %u", registeredTypes);
 
-				for (const auto& info: m_infoCreateByIndex)
+				for (const auto& desc: m_descByIndex)
 					LOG_N(
-							"  (%p) index:%010u, %.*s", (void*)&info, info.componentId, (uint32_t)info.name.size(), info.name.data());
+							"  index:%010u, %.*s", desc.componentId, (uint32_t)desc.name.size(), desc.name.data());
 			}
 
 		private:
@@ -148,7 +148,7 @@ namespace gaia {
 				for (const auto* pInfo: m_infoByIndex)
 					delete pInfo;
 				m_infoByIndex.clear();
-				m_infoCreateByIndex.clear();
+				m_descByIndex.clear();
 				m_infoByHash.clear();
 			}
 		};
