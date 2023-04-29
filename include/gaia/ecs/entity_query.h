@@ -21,9 +21,9 @@ namespace gaia {
 			//! List type
 			enum ListType : uint8_t { LT_None, LT_Any, LT_All, LT_Count };
 			//! Query constraints
-			enum class Constraints { EnabledOnly, DisabledOnly, AcceptAll };
+			enum class Constraints : uint8_t { EnabledOnly, DisabledOnly, AcceptAll };
 			//! Query matching result
-			enum class MatchArchetypeQueryRet { Fail, Ok, Skip };
+			enum class MatchArchetypeQueryRet : uint8_t { Fail, Ok, Skip };
 			//! Number of components that can be a part of EntityQuery
 			static constexpr uint32_t MAX_COMPONENTS_IN_QUERY = 8U;
 
@@ -38,21 +38,23 @@ namespace gaia {
 				ComponentIndexArray indices[ListType::LT_Count]{};
 				//! List of component matcher hashes
 				ComponentMatcherHash hash[ListType::LT_Count]{};
-				//! Read-write mask
-				uint32_t rw[ListType::LT_Count]{};
 			};
 			//! List of querried components
 			ComponentListData m_list[ComponentType::CT_Count]{};
 			//! List of filtered components
 			ChangeFilterArray m_listChangeFiltered[ComponentType::CT_Count]{};
-			//! Version of the world for which the query has been called most recently
-			uint32_t m_worldVersion = 0;
-			//! Entity of the last added archetype in the world this query remembers
-			uint32_t m_lastArchetypeId = 1; // skip the root archetype
 			//! Lookup hash for this query
 			LookupHash m_hashLookup{};
 			//! List of cached archetypes
 			containers::darray<Archetype*> m_archetypeCache;
+			//! Version of the world for which the query has been called most recently
+			uint32_t m_worldVersion = 0;
+			//! Entity of the last added archetype in the world this query remembers
+			uint32_t m_lastArchetypeId = 1; // skip the root archetype
+			//! Read-write mask. Bit 0 stands for component 0 in component arrays.
+			//! A set bit means write access is requested.
+			uint8_t m_rw[ComponentType::CT_Count]{};
+			static_assert(MAX_COMPONENTS_IN_QUERY == 8); // Make sure that MAX_COMPONENTS_IN_QUERY can fit into m_rw
 			//! Tell what kinds of chunks are going to be accepted by the query
 			Constraints m_constraints = Constraints::EnabledOnly;
 			//! If true, we need to recalculate hashes
@@ -105,9 +107,9 @@ namespace gaia {
 					}
 #endif
 
-					constexpr bool rw = std::is_const_v<T>;
-					if constexpr (rw) {
-						list.rw[(uint32_t)componentType] |= (1U << (uint32_t)indices.size());
+					constexpr bool isReadOnly = std::is_const_v<T>;
+					if constexpr (!isReadOnly) {
+						m_rw[(uint32_t)componentType] |= (1U << (uint32_t)indices.size());
 					}
 					indices.push_back(infoIndex);
 
