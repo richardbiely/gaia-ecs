@@ -1,6 +1,5 @@
 #define PICOBENCH_IMPLEMENT
 #include "gaia.h"
-#include "gaia/containers/impl/darray_impl.h"
 #include "gaia/external/picobench.hpp"
 #include <string_view>
 
@@ -159,6 +158,11 @@ void BM_ECS(picobench::state& state) {
 	auto queryVel = ecs::EntityQuery().All<Position, Velocity>();
 	auto queryHealth = ecs::EntityQuery().All<Health>();
 
+	// We want benchmark the hot-path. In real-world scenarios queries are almost never recalculated.
+	(void)w.FromQuery(queryPosVel).HasItems();
+	(void)w.FromQuery(queryVel).HasItems();
+	(void)w.FromQuery(queryHealth).HasItems();
+
 	srand(0);
 	for (auto _: state) {
 		(void)_;
@@ -193,35 +197,44 @@ void BM_ECS(picobench::state& state) {
 	}
 }
 
+class TestSystem: public ecs::System {
+protected:
+	ecs::EntityQuery* m_q;
+
+public:
+	void Init(ecs::EntityQuery* q) {
+		m_q = q;
+	}
+};
+
 void BM_ECS_WithSystems(picobench::state& state) {
 	ecs::World w;
 	CreateECSEntities_Static<false>(w);
 	CreateECSEntities_Dynamic<false>(w);
 
-	class PositionSystem final: public ecs::System {
-		ecs::EntityQuery m_q;
+	auto queryPosVel = ecs::EntityQuery().All<Position, Velocity>();
+	auto queryVel = ecs::EntityQuery().All<Position, Velocity>();
+	auto queryHealth = ecs::EntityQuery().All<Health>();
 
+	// We want benchmark the hot-path. In real-world scenarios queries are almost never recalculated.
+	(void)w.FromQuery(queryPosVel).HasItems();
+	(void)w.FromQuery(queryVel).HasItems();
+	(void)w.FromQuery(queryHealth).HasItems();
+
+	class PositionSystem final: public TestSystem {
 	public:
-		void OnCreated() override {
-			m_q.All<Position, Velocity>();
-		}
 		void OnUpdate() override {
-			GetWorld().ForEach(m_q, [](Position& p, const Velocity& v) {
+			GetWorld().ForEach(*m_q, [](Position& p, const Velocity& v) {
 				p.x += v.x * dt;
 				p.y += v.y * dt;
 				p.z += v.z * dt;
 			});
 		}
 	};
-	class CollisionSystem final: public ecs::System {
-		ecs::EntityQuery m_q;
-
+	class CollisionSystem final: public TestSystem {
 	public:
-		void OnCreated() override {
-			m_q.All<Position, Velocity>();
-		}
 		void OnUpdate() override {
-			GetWorld().ForEach(m_q, [](Position& p, Velocity& v) {
+			GetWorld().ForEach(*m_q, [](Position& p, Velocity& v) {
 				if (p.y < 0.0f) {
 					p.y = 0.0f;
 					v.y = 0.0f;
@@ -229,29 +242,19 @@ void BM_ECS_WithSystems(picobench::state& state) {
 			});
 		}
 	};
-	class GravitySystem final: public ecs::System {
-		ecs::EntityQuery m_q;
-
+	class GravitySystem final: public TestSystem {
 	public:
-		void OnCreated() override {
-			m_q.All<Velocity>();
-		}
 		void OnUpdate() override {
-			GetWorld().ForEach(m_q, [](Velocity& v) {
+			GetWorld().ForEach(*m_q, [](Velocity& v) {
 				v.y += 9.81f * dt;
 			});
 		}
 	};
-	class CalculateAliveUnitsSystem final: public ecs::System {
-		ecs::EntityQuery m_q;
-
+	class CalculateAliveUnitsSystem final: public TestSystem {
 	public:
-		void OnCreated() override {
-			m_q.All<Health>();
-		}
 		void OnUpdate() override {
 			uint32_t aliveUnits = 0;
-			GetWorld().ForEach(m_q, [&](const Health& h) {
+			GetWorld().ForEach(*m_q, [&](const Health& h) {
 				if (h.value > 0)
 					++aliveUnits;
 			});
@@ -260,10 +263,10 @@ void BM_ECS_WithSystems(picobench::state& state) {
 	};
 
 	ecs::SystemManager sm(w);
-	sm.CreateSystem<PositionSystem>();
-	sm.CreateSystem<CollisionSystem>();
-	sm.CreateSystem<GravitySystem>();
-	sm.CreateSystem<CalculateAliveUnitsSystem>();
+	sm.CreateSystem<PositionSystem>()->Init(&queryPosVel);
+	sm.CreateSystem<CollisionSystem>()->Init(&queryPosVel);
+	sm.CreateSystem<GravitySystem>()->Init(&queryVel);
+	sm.CreateSystem<CalculateAliveUnitsSystem>()->Init(&queryHealth);
 
 	srand(0);
 	for (auto _: state) {
@@ -279,15 +282,19 @@ void BM_ECS_WithSystems_Chunk(picobench::state& state) {
 	CreateECSEntities_Static<false>(w);
 	CreateECSEntities_Dynamic<false>(w);
 
-	class PositionSystem final: public ecs::System {
-		ecs::EntityQuery m_q;
+	auto queryPosVel = ecs::EntityQuery().All<Position, Velocity>();
+	auto queryVel = ecs::EntityQuery().All<Position, Velocity>();
+	auto queryHealth = ecs::EntityQuery().All<Health>();
 
+	// We want benchmark the hot-path. In real-world scenarios queries are almost never recalculated.
+	(void)w.FromQuery(queryPosVel).HasItems();
+	(void)w.FromQuery(queryVel).HasItems();
+	(void)w.FromQuery(queryHealth).HasItems();
+
+	class PositionSystem final: public TestSystem {
 	public:
-		void OnCreated() override {
-			m_q.All<Position, Velocity>();
-		}
 		void OnUpdate() override {
-			GetWorld().ForEach(m_q, [](ecs::Chunk& ch) {
+			GetWorld().ForEach(*m_q, [](ecs::Chunk& ch) {
 				auto p = ch.ViewRW<Position>();
 				auto v = ch.View<Velocity>();
 
@@ -302,15 +309,10 @@ void BM_ECS_WithSystems_Chunk(picobench::state& state) {
 		}
 	};
 
-	class CollisionSystem final: public ecs::System {
-		ecs::EntityQuery m_q;
-
+	class CollisionSystem final: public TestSystem {
 	public:
-		void OnCreated() override {
-			m_q.All<Position, Velocity>();
-		}
 		void OnUpdate() override {
-			GetWorld().ForEach(m_q, [](ecs::Chunk& ch) {
+			GetWorld().ForEach(*m_q, [](ecs::Chunk& ch) {
 				auto p = ch.ViewRW<Position>();
 				auto v = ch.ViewRW<Velocity>();
 
@@ -325,16 +327,10 @@ void BM_ECS_WithSystems_Chunk(picobench::state& state) {
 			});
 		}
 	};
-	class GravitySystem final: public ecs::System {
-		ecs::EntityQuery m_q;
-
+	class GravitySystem final: public TestSystem {
 	public:
-		void OnCreated() override {
-			m_q.All<Velocity>();
-		}
-
 		void OnUpdate() override {
-			GetWorld().ForEach(m_q, [](ecs::Chunk& ch) {
+			GetWorld().ForEach(*m_q, [](ecs::Chunk& ch) {
 				auto v = ch.ViewRW<Velocity>();
 
 				[&](Velocity* GAIA_RESTRICT v, const size_t size) {
@@ -344,16 +340,11 @@ void BM_ECS_WithSystems_Chunk(picobench::state& state) {
 			});
 		}
 	};
-	class CalculateAliveUnitsSystem final: public ecs::System {
-		ecs::EntityQuery m_q;
-
+	class CalculateAliveUnitsSystem final: public TestSystem {
 	public:
-		void OnCreated() override {
-			m_q.All<Health>();
-		}
 		void OnUpdate() override {
 			uint32_t aliveUnits = 0;
-			GetWorld().ForEach(m_q, [&](const ecs::Chunk& ch) {
+			GetWorld().ForEach(*m_q, [&](const ecs::Chunk& ch) {
 				auto h = ch.View<Health>();
 
 				[&](const Health* GAIA_RESTRICT h, const size_t size) {
@@ -368,10 +359,10 @@ void BM_ECS_WithSystems_Chunk(picobench::state& state) {
 	};
 
 	ecs::SystemManager sm(w);
-	sm.CreateSystem<PositionSystem>();
-	sm.CreateSystem<CollisionSystem>();
-	sm.CreateSystem<GravitySystem>();
-	sm.CreateSystem<CalculateAliveUnitsSystem>();
+	sm.CreateSystem<PositionSystem>()->Init(&queryPosVel);
+	sm.CreateSystem<CollisionSystem>()->Init(&queryPosVel);
+	sm.CreateSystem<GravitySystem>()->Init(&queryVel);
+	sm.CreateSystem<CalculateAliveUnitsSystem>()->Init(&queryHealth);
 
 	srand(0);
 	for (auto _: state) {
@@ -387,15 +378,19 @@ void BM_ECS_WithSystems_Chunk_SoA(picobench::state& state) {
 	CreateECSEntities_Static<true>(w);
 	CreateECSEntities_Dynamic<true>(w);
 
-	class PositionSystem final: public ecs::System {
-		ecs::EntityQuery m_q;
+	auto queryPosVel = ecs::EntityQuery().All<PositionSoA, VelocitySoA>();
+	auto queryVel = ecs::EntityQuery().All<PositionSoA, VelocitySoA>();
+	auto queryHealth = ecs::EntityQuery().All<Health>();
 
+	// We want benchmark the hot-path. In real-world scenarios queries are almost never recalculated.
+	(void)w.FromQuery(queryPosVel).HasItems();
+	(void)w.FromQuery(queryVel).HasItems();
+	(void)w.FromQuery(queryHealth).HasItems();
+
+	class PositionSystem final: public TestSystem {
 	public:
-		void OnCreated() override {
-			m_q.All<PositionSoA, VelocitySoA>();
-		}
 		void OnUpdate() override {
-			GetWorld().ForEach(m_q, [](ecs::Chunk& ch) {
+			GetWorld().ForEach(*m_q, [](ecs::Chunk& ch) {
 				auto p = ch.ViewRW<PositionSoA>();
 				auto v = ch.View<VelocitySoA>();
 
@@ -432,15 +427,10 @@ void BM_ECS_WithSystems_Chunk_SoA(picobench::state& state) {
 			});
 		}
 	};
-	class CollisionSystem final: public ecs::System {
-		ecs::EntityQuery m_q;
-
+	class CollisionSystem final: public TestSystem {
 	public:
-		void OnCreated() override {
-			m_q.All<PositionSoA, VelocitySoA>();
-		}
 		void OnUpdate() override {
-			GetWorld().ForEach(m_q, [](ecs::Chunk& ch) {
+			GetWorld().ForEach(*m_q, [](ecs::Chunk& ch) {
 				auto p = ch.ViewRW<PositionSoA>();
 				auto v = ch.ViewRW<VelocitySoA>();
 
@@ -474,16 +464,10 @@ void BM_ECS_WithSystems_Chunk_SoA(picobench::state& state) {
 			});
 		}
 	};
-	class GravitySystem final: public ecs::System {
-		ecs::EntityQuery m_q;
-
+	class GravitySystem final: public TestSystem {
 	public:
-		void OnCreated() override {
-			m_q.All<VelocitySoA>();
-		}
-
 		void OnUpdate() override {
-			GetWorld().ForEach(m_q, [](ecs::Chunk& ch) {
+			GetWorld().ForEach(*m_q, [](ecs::Chunk& ch) {
 				auto v = ch.ViewRW<VelocitySoA>();
 				auto vvy = v.set<1>();
 
@@ -506,16 +490,11 @@ void BM_ECS_WithSystems_Chunk_SoA(picobench::state& state) {
 			});
 		}
 	};
-	class CalculateAliveUnitsSystem final: public ecs::System {
-		ecs::EntityQuery m_q;
-
+	class CalculateAliveUnitsSystem final: public TestSystem {
 	public:
-		void OnCreated() override {
-			m_q.All<Health>();
-		}
 		void OnUpdate() override {
 			uint32_t aliveUnits = 0;
-			GetWorld().ForEach(m_q, [&](const ecs::Chunk& ch) {
+			GetWorld().ForEach(*m_q, [&](const ecs::Chunk& ch) {
 				auto h = ch.View<Health>();
 
 				[&](const Health* GAIA_RESTRICT h, const size_t size) {
@@ -530,10 +509,10 @@ void BM_ECS_WithSystems_Chunk_SoA(picobench::state& state) {
 	};
 
 	ecs::SystemManager sm(w);
-	sm.CreateSystem<PositionSystem>();
-	sm.CreateSystem<CollisionSystem>();
-	sm.CreateSystem<GravitySystem>();
-	sm.CreateSystem<CalculateAliveUnitsSystem>();
+	sm.CreateSystem<PositionSystem>()->Init(&queryPosVel);
+	sm.CreateSystem<CollisionSystem>()->Init(&queryPosVel);
+	sm.CreateSystem<GravitySystem>()->Init(&queryVel);
+	sm.CreateSystem<CalculateAliveUnitsSystem>()->Init(&queryHealth);
 
 	srand(0);
 	for (auto _: state) {
@@ -594,15 +573,19 @@ void BM_ECS_WithSystems_Chunk_SoA_SIMD(picobench::state& state) {
 	CreateECSEntities_Static<true>(w);
 	CreateECSEntities_Dynamic<true>(w);
 
-	class PositionSystem final: public ecs::System {
-		ecs::EntityQuery m_q;
+	auto queryPosVel = ecs::EntityQuery().All<PositionSoA, VelocitySoA>();
+	auto queryVel = ecs::EntityQuery().All<PositionSoA, VelocitySoA>();
+	auto queryHealth = ecs::EntityQuery().All<Health>();
 
+	// We want benchmark the hot-path. In real-world scenarios queries are almost never recalculated.
+	(void)w.FromQuery(queryPosVel).HasItems();
+	(void)w.FromQuery(queryVel).HasItems();
+	(void)w.FromQuery(queryHealth).HasItems();
+
+	class PositionSystem final: public TestSystem {
 	public:
-		void OnCreated() override {
-			m_q.All<PositionSoA, VelocitySoA>();
-		}
 		void OnUpdate() override {
-			GetWorld().ForEach(m_q, [](ecs::Chunk& ch) {
+			GetWorld().ForEach(*m_q, [](ecs::Chunk& ch) {
 				auto p = ch.ViewRW<PositionSoA>();
 				auto v = ch.View<VelocitySoA>();
 
@@ -656,15 +639,10 @@ void BM_ECS_WithSystems_Chunk_SoA_SIMD(picobench::state& state) {
 		}
 	};
 
-	class CollisionSystem final: public ecs::System {
-		ecs::EntityQuery m_q;
-
+	class CollisionSystem final: public TestSystem {
 	public:
-		void OnCreated() override {
-			m_q.All<PositionSoA, VelocitySoA>();
-		}
 		void OnUpdate() override {
-			GetWorld().ForEach(m_q, [](ecs::Chunk& ch) {
+			GetWorld().ForEach(*m_q, [](ecs::Chunk& ch) {
 				auto p = ch.ViewRW<PositionSoA>();
 				auto v = ch.ViewRW<VelocitySoA>();
 
@@ -703,16 +681,10 @@ void BM_ECS_WithSystems_Chunk_SoA_SIMD(picobench::state& state) {
 		}
 	};
 
-	class GravitySystem final: public ecs::System {
-		ecs::EntityQuery m_q;
-
+	class GravitySystem final: public TestSystem {
 	public:
-		void OnCreated() override {
-			m_q.All<VelocitySoA>();
-		}
-
 		void OnUpdate() override {
-			GetWorld().ForEach(m_q, [](ecs::Chunk& ch) {
+			GetWorld().ForEach(*m_q, [](ecs::Chunk& ch) {
 				auto v = ch.ViewRW<VelocitySoA>();
 
 				auto vvy = v.set<1>();
@@ -742,16 +714,11 @@ void BM_ECS_WithSystems_Chunk_SoA_SIMD(picobench::state& state) {
 		}
 	};
 
-	class CalculateAliveUnitsSystem final: public ecs::System {
-		ecs::EntityQuery m_q;
-
+	class CalculateAliveUnitsSystem final: public TestSystem {
 	public:
-		void OnCreated() override {
-			m_q.All<Health>();
-		}
 		void OnUpdate() override {
 			uint32_t aliveUnits = 0;
-			GetWorld().ForEach(m_q, [&](const ecs::Chunk& ch) {
+			GetWorld().ForEach(*m_q, [&](const ecs::Chunk& ch) {
 				auto h = ch.View<Health>();
 
 				[&](const Health* GAIA_RESTRICT h, const size_t size) {
@@ -766,10 +733,10 @@ void BM_ECS_WithSystems_Chunk_SoA_SIMD(picobench::state& state) {
 	};
 
 	ecs::SystemManager sm(w);
-	sm.CreateSystem<PositionSystem>();
-	sm.CreateSystem<CollisionSystem>();
-	sm.CreateSystem<GravitySystem>();
-	sm.CreateSystem<CalculateAliveUnitsSystem>();
+	sm.CreateSystem<PositionSystem>()->Init(&queryPosVel);
+	sm.CreateSystem<CollisionSystem>()->Init(&queryPosVel);
+	sm.CreateSystem<GravitySystem>()->Init(&queryVel);
+	sm.CreateSystem<CalculateAliveUnitsSystem>()->Init(&queryHealth);
 
 	srand(0);
 	for (auto _: state) {
@@ -1647,7 +1614,7 @@ int main(int argc, char* argv[]) {
 		bool cachegrind = false;
 		bool test_dod = false;
 
-		const gaia::containers::darr<std::string_view> args(argv + 1, argv + argc);
+		const gaia::containers::darray<std::string_view> args(argv + 1, argv + argc);
 		for (const auto& arg: args) {
 			if (arg == "-cg") {
 				cachegrind = true;
