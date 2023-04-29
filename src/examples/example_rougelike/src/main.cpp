@@ -941,21 +941,21 @@ int main() {
 			TILE_POTION, TILE_POISON, TILE_WALL);
 
 	// Pre-simulation step
-	g_smSimulation.CreateSystem<InputSystem>("input");
-	g_smPreSimulation.CreateSystem<UpdateMapSystem>("updateblocked");
+	g_smSimulation.CreateSystem<InputSystem>();
+	g_smPreSimulation.CreateSystem<UpdateMapSystem>();
 	// Simulation
-	g_smSimulation.CreateSystem<OrientationSystem>("orientation");
-	g_smSimulation.CreateSystem<CollisionSystem>("collision");
-	g_smSimulation.CreateSystem<MoveSystem>("move");
-	g_smSimulation.CreateSystem<HandleDamageSystem>("damagesystem");
-	g_smSimulation.CreateSystem<HandleItemHitSystem>("itemhitsystem");
-	g_smSimulation.CreateSystem<HandleHealthSystem>("handlehealth");
-	g_smSimulation.CreateSystem<HandleDeathSystem>("handledeath");
+	g_smSimulation.CreateSystem<OrientationSystem>();
+	g_smSimulation.CreateSystem<CollisionSystem>();
+	g_smSimulation.CreateSystem<MoveSystem>();
+	g_smSimulation.CreateSystem<HandleDamageSystem>();
+	g_smSimulation.CreateSystem<HandleItemHitSystem>();
+	g_smSimulation.CreateSystem<HandleHealthSystem>();
+	g_smSimulation.CreateSystem<HandleDeathSystem>();
 	// Post-simulation step
-	g_smPostSimulation.CreateSystem<WriteSpritesToMapSystem>("spritestomap");
-	g_smPostSimulation.CreateSystem<RenderSystem>("render");
-	g_smPostSimulation.CreateSystem<UISystem>("ui");
-	g_smPostSimulation.CreateSystem<GameStateSystem>("ui");
+	g_smPostSimulation.CreateSystem<WriteSpritesToMapSystem>();
+	g_smPostSimulation.CreateSystem<RenderSystem>();
+	g_smPostSimulation.CreateSystem<UISystem>();
+	g_smPostSimulation.CreateSystem<GameStateSystem>();
 
 	g_world.Init();
 	while (!g_world.terminate) {

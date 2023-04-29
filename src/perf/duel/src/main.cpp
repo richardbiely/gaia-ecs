@@ -260,10 +260,10 @@ void BM_ECS_WithSystems(picobench::state& state) {
 	};
 
 	ecs::SystemManager sm(w);
-	sm.CreateSystem<PositionSystem>("PositionSystem");
-	sm.CreateSystem<CollisionSystem>("CollisionSystem");
-	sm.CreateSystem<GravitySystem>("GravitySystem");
-	sm.CreateSystem<CalculateAliveUnitsSystem>("CalculateAliveUnitsSystem");
+	sm.CreateSystem<PositionSystem>();
+	sm.CreateSystem<CollisionSystem>();
+	sm.CreateSystem<GravitySystem>();
+	sm.CreateSystem<CalculateAliveUnitsSystem>();
 
 	srand(0);
 	for (auto _: state) {
@@ -368,10 +368,10 @@ void BM_ECS_WithSystems_Chunk(picobench::state& state) {
 	};
 
 	ecs::SystemManager sm(w);
-	sm.CreateSystem<PositionSystem>("PositionSystem");
-	sm.CreateSystem<CollisionSystem>("CollisionSystem");
-	sm.CreateSystem<GravitySystem>("GravitySystem");
-	sm.CreateSystem<CalculateAliveUnitsSystem>("CalculateAliveUnitsSystem");
+	sm.CreateSystem<PositionSystem>();
+	sm.CreateSystem<CollisionSystem>();
+	sm.CreateSystem<GravitySystem>();
+	sm.CreateSystem<CalculateAliveUnitsSystem>();
 
 	srand(0);
 	for (auto _: state) {
@@ -530,10 +530,10 @@ void BM_ECS_WithSystems_Chunk_SoA(picobench::state& state) {
 	};
 
 	ecs::SystemManager sm(w);
-	sm.CreateSystem<PositionSystem>("PositionSystem");
-	sm.CreateSystem<CollisionSystem>("CollisionSystem");
-	sm.CreateSystem<GravitySystem>("GravitySystem");
-	sm.CreateSystem<CalculateAliveUnitsSystem>("CalculateAliveUnitsSystem");
+	sm.CreateSystem<PositionSystem>();
+	sm.CreateSystem<CollisionSystem>();
+	sm.CreateSystem<GravitySystem>();
+	sm.CreateSystem<CalculateAliveUnitsSystem>();
 
 	srand(0);
 	for (auto _: state) {
@@ -766,10 +766,10 @@ void BM_ECS_WithSystems_Chunk_SoA_SIMD(picobench::state& state) {
 	};
 
 	ecs::SystemManager sm(w);
-	sm.CreateSystem<PositionSystem>("PositionSystem");
-	sm.CreateSystem<CollisionSystem>("CollisionSystem");
-	sm.CreateSystem<GravitySystem>("GravitySystem");
-	sm.CreateSystem<CalculateAliveUnitsSystem>("CalculateAliveUnitsSystem");
+	sm.CreateSystem<PositionSystem>();
+	sm.CreateSystem<CollisionSystem>();
+	sm.CreateSystem<GravitySystem>();
+	sm.CreateSystem<CalculateAliveUnitsSystem>();
 
 	srand(0);
 	for (auto _: state) {
