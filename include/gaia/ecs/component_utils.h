@@ -5,6 +5,9 @@
 
 namespace gaia {
 	namespace ecs {
+		//! Calculates a component matcher hash from the provided component ids
+		//! \param componentIds Span of component ids
+		//! \return Component matcher hash
 		GAIA_NODISCARD inline ComponentMatcherHash CalculateMatcherHash(ComponentIdSpan componentIds) noexcept {
 			const auto infosSize = componentIds.size();
 			if (infosSize == 0)
@@ -17,6 +20,9 @@ namespace gaia {
 			return {hash};
 		}
 
+		//! Calculates a component lookup hash from the provided component ids
+		//! \param componentIds Span of component ids
+		//! \return Component lookup hash
 		GAIA_NODISCARD inline ComponentLookupHash CalculateLookupHash(ComponentIdSpan componentIds) noexcept {
 			const auto infosSize = componentIds.size();
 			if (infosSize == 0)
@@ -27,6 +33,14 @@ namespace gaia {
 			for (size_t i = 1; i < infosSize; ++i)
 				hash = utils::hash_combine(hash, cc.GetComponentInfo(componentIds[i]).lookupHash.hash);
 			return {hash};
+		}
+
+		//! Sorts component ids
+		template <typename Container>
+		inline void SortComponents(Container& c) {
+			utils::sort(c, [](ComponentId left, ComponentId right) {
+				return left < right;
+			});
 		}
 	} // namespace ecs
 } // namespace gaia
