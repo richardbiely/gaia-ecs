@@ -16,7 +16,6 @@ namespace gaia {
 			containers::darray<ComponentInfoCreate> m_infoCreateByIndex;
 			containers::map<ComponentLookupHash, const ComponentInfo*> m_infoByHash;
 
-		public:
 			ComponentCache() {
 				// Reserve enough storage space for most use-cases
 				constexpr uint32_t DefaultComponentCacheSize = 2048;
@@ -24,6 +23,13 @@ namespace gaia {
 				m_infoCreateByIndex.reserve(DefaultComponentCacheSize);
 				m_infoByHash.reserve(DefaultComponentCacheSize);
 			}
+
+		public:
+			static ComponentCache& Get() {
+				static ComponentCache cache;
+				return cache;
+			}
+
 			~ComponentCache() {
 				ClearRegisteredInfoCache();
 			}
@@ -144,5 +150,13 @@ namespace gaia {
 				m_infoByHash.clear();
 			}
 		};
+
+		GAIA_NODISCARD inline const ComponentCache& GetComponentCache() {
+			return (const ComponentCache&)ComponentCache::Get();
+		}
+
+		GAIA_NODISCARD inline ComponentCache& GetComponentCacheRW() {
+			return ComponentCache::Get();
+		}
 	} // namespace ecs
 } // namespace gaia

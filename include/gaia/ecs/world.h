@@ -247,7 +247,7 @@ namespace gaia {
 			*/
 			void RegisterArchetype(Archetype* pArchetype) {
 				// Make sure hashes were set already
-				GAIA_ASSERT(pArchetype == m_pRootArchetype || (pArchetype->genericHash != 0 || pArchetype->chunkHash != 0));
+				GAIA_ASSERT(pArchetype == m_pRootArchetype || (pArchetype->genericHash.hash != 0 || pArchetype->chunkHash.hash != 0));
 				GAIA_ASSERT(pArchetype == m_pRootArchetype || pArchetype->lookupHash.hash != 0);
 
 				// Make sure the archetype is not registered yet
@@ -2108,16 +2108,6 @@ namespace gaia {
 				DiagMemory();
 			}
 		};
-
-		GAIA_NODISCARD inline const ComponentCache& GetComponentCache() {
-			static ComponentCache cache;
-			return cache;
-		}
-
-		GAIA_NODISCARD inline ComponentCache& GetComponentCacheRW() {
-			const auto& cc = GetComponentCache();
-			return const_cast<ComponentCache&>(cc);
-		}
 
 		GAIA_NODISCARD inline uint32_t GetWorldVersionFromWorld(const World& world) {
 			return world.GetWorldVersion();

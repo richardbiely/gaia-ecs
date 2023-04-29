@@ -9,6 +9,7 @@
 #include "chunk_header.h"
 #include "component.h"
 #include "component_cache.h"
+#include "component_utils.h"
 
 namespace gaia {
 	namespace ecs {

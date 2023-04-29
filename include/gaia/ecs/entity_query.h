@@ -28,30 +28,18 @@ namespace gaia {
 			static constexpr uint32_t MAX_COMPONENTS_IN_QUERY = 8U;
 
 		private:
-			struct ComponentIndexData {
-				//! Component index
-				uint32_t index : 31;
-				//! True for read/write, false for read-only
-				uint32_t rw : 1;
-
-				bool operator<(ComponentIndexData other) const {
-					return (uint32_t)index < (uint32_t)other.index;
-				}
-				bool operator>(ComponentIndexData other) const {
-					return (uint32_t)index > (uint32_t)other.index;
-				}
-			};
-			//! Make sure the struct remains small and we can pass it by copy rather than const ref
-			static_assert(sizeof(ComponentIndexData) == sizeof(uint32_t));
-
 			//! Array of component type indices
-			using ComponentIndexArray = containers::sarray_ext<ComponentIndexData, MAX_COMPONENTS_IN_QUERY>;
+			using ComponentIndexArray = containers::sarray_ext<uint32_t, MAX_COMPONENTS_IN_QUERY>;
 			//! Array of component type indices reserved for filtering
 			using ChangeFilterArray = containers::sarray_ext<uint32_t, MAX_COMPONENTS_IN_QUERY>;
 
 			struct ComponentListData {
-				ComponentIndexArray list[ListType::LT_Count]{};
+				//! List of component indices
+				ComponentIndexArray indices[ListType::LT_Count]{};
+				//! List of component matcher hashes
 				ComponentMatcherHash hash[ListType::LT_Count]{};
+				//! Read-write mask
+				uint32_t rw[ListType::LT_Count]{};
 			};
 			//! List of querried components
 			ComponentListData m_list[ComponentType::CT_Count]{};
@@ -81,24 +69,22 @@ namespace gaia {
 					return true;
 				} else {
 					const auto infoIndex = GetComponentIndex<T>();
-					return utils::has_if(arr, [&](ComponentIndexData info) {
-						return info.index == infoIndex;
-					});
+					return utils::has(arr, infoIndex);
 				}
 			}
 
 			template <typename T>
-			void AddComponent_Internal([[maybe_unused]] ComponentIndexArray& arr) {
+			void AddComponent_Internal([[maybe_unused]] ListType listType, [[maybe_unused]] ComponentType componentType) {
 				if constexpr (std::is_same_v<T, Entity>) {
 					// Skip Entity input args
 					return;
 				} else {
 					const auto infoIndex = GetComponentIndex<T>();
+					auto& list = m_list[componentType];
+					auto& indices = list.indices[listType];
 
 					// Unique infos only
-					const bool ret = utils::has_if(arr, [&](ComponentIndexData info) {
-						return info.index == infoIndex;
-					});
+					const bool ret = utils::has(indices, infoIndex);
 					if GAIA_UNLIKELY (ret)
 						return;
 
@@ -107,7 +93,7 @@ namespace gaia {
 
 #if GAIA_DEBUG
 					// There's a limit to the amount of components which we can store
-					if (arr.size() >= MAX_COMPONENTS_IN_QUERY) {
+					if (indices.size() >= MAX_COMPONENTS_IN_QUERY) {
 						GAIA_ASSERT(
 								false && "Trying to create an ECS query with too many "
 												 "components!");
@@ -122,9 +108,11 @@ namespace gaia {
 #endif
 
 					constexpr bool rw = std::is_const_v<T>;
-					arr.push_back({infoIndex, rw});
 					if constexpr (rw)
 						m_readOnly = false;
+
+					list.rw[(uint32_t)componentType] |= (1U << (uint32_t)indices.size());
+					indices.push_back(infoIndex);
 
 					m_recalculate = true;
 					m_sort = true;
@@ -161,15 +149,11 @@ namespace gaia {
 
 				// Component has to be present in anyList or allList.
 				// NoneList makes no sense because we skip those in query processing anyway.
-				if (utils::has_if(componentListData.list[ListType::LT_Any], [infoIndex](ComponentIndexData data) {
-							return data.index == infoIndex;
-						})) {
+				if (utils::has(componentListData.indices[ListType::LT_Any], infoIndex)) {
 					arrFilter.push_back(infoIndex);
 					return;
 				}
-				if (utils::has_if(componentListData.list[ListType::LT_All], [infoIndex](ComponentIndexData data) {
-							return data.index == infoIndex;
-						})) {
+				if (utils::has(componentListData.indices[ListType::LT_All], infoIndex)) {
 					arrFilter.push_back(infoIndex);
 					return;
 				}
@@ -192,8 +176,8 @@ namespace gaia {
 			//! Sorts internal component arrays by their type indices
 			void SortComponentArrays() {
 				for (auto& l: m_list) {
-					for (auto& arr: l.list) {
-						utils::sort(arr, [](ComponentIndexData left, ComponentIndexData right) {
+					for (auto& indices: l.indices) {
+						utils::sort(indices, [](uint32_t left, uint32_t right) {
 							return left < right;
 						});
 					}
@@ -232,12 +216,12 @@ namespace gaia {
 					LookupHash::Type hash = 0;
 
 					const auto& l = m_list[i];
-					for (const auto& components: l.list) {
-						for (auto data: components) {
-							const auto* pInfo = cc.GetComponentInfoFromIdx(data.index);
+					for (const auto& indices: l.indices) {
+						for (const auto index: indices) {
+							const auto* pInfo = cc.GetComponentInfoFromIdx(index);
 							hash = utils::hash_combine(hash, pInfo->lookupHash.hash);
 						}
-						hash = utils::hash_combine(hash, (LookupHash::Type)components.size());
+						hash = utils::hash_combine(hash, (LookupHash::Type)indices.size());
 					}
 
 					hashLookup = utils::hash_combine(hashLookup, hash);
@@ -261,57 +245,40 @@ namespace gaia {
 				}
 
 				// Calculate the matcher hash
-				{
-					const auto& cc = GetComponentCache();
-
-					for (auto& l: m_list) {
-						for (size_t i = 0; i < ListType::LT_Count; ++i) {
-							auto& arr = l.list[i];
-							if (arr.empty())
-								continue;
-
-							const auto* pInfo = cc.GetComponentInfoFromIdx(arr[0].index);
-							ComponentMatcherHash::Type hash = pInfo->matcherHash.hash;
-							for (size_t j = 1; j < arr.size(); ++j) {
-								const auto* pInfo = cc.GetComponentInfoFromIdx(arr[j].index);
-								hash = utils::combine_or(hash, pInfo->matcherHash.hash);
-							}
-
-							l.hash[i] = {hash};
-						}
-					}
+				for (auto& l: m_list) {
+					for (size_t i = 0; i < ListType::LT_Count; ++i)
+						l.hash[i] = CalculateMatcherHash(l.indices[i]);
 				}
 			}
 
 			/*!
-				Tries to match a component query index from \param queryList against those in \param componentInfos.
+				Tries to match a component query index from \param indices against those in \param componentInfos.
 				\return True if there is a match, false otherwise.
 				*/
 			static GAIA_NODISCARD bool
-			CheckMatchOne(const ComponentInfoList& componentInfos, const ComponentIndexArray& queryList) {
-				for (const auto infoQuery: queryList) {
-					for (const auto& info: componentInfos) {
-						if (info->infoIndex == infoQuery.index) {
-							return true;
-						}
-					}
+			CheckMatchOne(const ComponentInfoList& componentInfos, const ComponentIndexArray& indices) {
+				for (const auto index: indices) {
+					if (utils::has_if(componentInfos, [index](const ComponentInfo* pInfo) {
+								return pInfo->infoIndex == index;
+							}))
+						return true;
 				}
 
 				return false;
 			}
 
 			/*!
-				Tries to match all component query indices from \param queryList against those in \param componentInfos.
+				Tries to match all component query indices from \param indices against those in \param componentInfos.
 				\return True if there is a match, false otherwise.
 				*/
 			static GAIA_NODISCARD bool
-			CheckMatchMany(const ComponentInfoList& componentInfos, const ComponentIndexArray& queryList) {
+			CheckMatchMany(const ComponentInfoList& componentInfos, const ComponentIndexArray& indices) {
 				size_t matches = 0;
 
-				for (const auto infoQuery: queryList) {
+				for (const auto index: indices) {
 					for (const auto& info: componentInfos) {
-						if (info->infoIndex == infoQuery.index) {
-							if (++matches == queryList.size())
+						if (info->infoIndex == index) {
+							if (++matches == indices.size())
 								return true;
 
 							break;
@@ -328,7 +295,8 @@ namespace gaia {
 								MatchArchetypeQueryRet::Skip is not relevant.
 				*/
 			template <ComponentType TComponentType>
-			GAIA_NODISCARD MatchArchetypeQueryRet Match(const ComponentInfoList& componentInfos, ComponentMatcherHash matcherHash) const {
+			GAIA_NODISCARD MatchArchetypeQueryRet
+			Match(const ComponentInfoList& componentInfos, ComponentMatcherHash matcherHash) const {
 				const auto& queryList = GetData(TComponentType);
 				const auto withNoneTest = matcherHash.hash & queryList.hash[ListType::LT_None].hash;
 				const auto withAnyTest = matcherHash.hash & queryList.hash[ListType::LT_Any].hash;
@@ -344,13 +312,13 @@ namespace gaia {
 
 				// If there is any match with withNoneList we quit
 				if (withNoneTest != 0) {
-					if (CheckMatchOne(componentInfos, queryList.list[ListType::LT_None]))
+					if (CheckMatchOne(componentInfos, queryList.indices[ListType::LT_None]))
 						return MatchArchetypeQueryRet::Fail;
 				}
 
 				// If there is any match with withAnyTest
 				if (withAnyTest != 0) {
-					if (CheckMatchOne(componentInfos, queryList.list[ListType::LT_Any]))
+					if (CheckMatchOne(componentInfos, queryList.indices[ListType::LT_Any]))
 						goto checkWithAllMatches;
 
 					// At least one match necessary to continue
@@ -362,10 +330,10 @@ namespace gaia {
 				if (withAllTest != 0) {
 					// If the number of queried components is greater than the
 					// number of components in archetype there's no need to search
-					if (queryList.list[ListType::LT_All].size() <= componentInfos.size()) {
+					if (queryList.indices[ListType::LT_All].size() <= componentInfos.size()) {
 						// m_list[ListType::LT_All] first because we usually request for less
 						// components than there are components in archetype
-						if (CheckMatchMany(componentInfos, queryList.list[ListType::LT_All]))
+						if (CheckMatchMany(componentInfos, queryList.indices[ListType::LT_All]))
 							return MatchArchetypeQueryRet::Ok;
 					}
 
@@ -390,7 +358,7 @@ namespace gaia {
 
 					// Component count needes to be the same
 					for (size_t i = 0; i < ListType::LT_Count; ++i) {
-						if (queryList.list[i].size() != otherList.list[i].size())
+						if (queryList.indices[i].size() != otherList.indices[i].size())
 							return false;
 					}
 
@@ -407,8 +375,8 @@ namespace gaia {
 					// Components need to be the same
 					for (size_t i = 0; i < ListType::LT_Count; ++i) {
 						const auto ret = std::memcmp(
-								(const void*)&queryList.list[i], (const void*)&otherList.list[i],
-								queryList.list[i].size() * sizeof(queryList.list[0]));
+								(const void*)&queryList.indices[i], (const void*)&otherList.indices[i],
+								queryList.indices[i].size() * sizeof(queryList.indices[0]));
 						if (ret != 0)
 							return false;
 					}
@@ -477,18 +445,18 @@ namespace gaia {
 			void AddComponent_Internal(ListType listType) {
 				using U = typename DeduceComponent<T>::Type;
 				if constexpr (IsGenericComponent<T>)
-					AddComponent_Internal<U>(m_list[ComponentType::CT_Generic].list[listType]);
+					AddComponent_Internal<U>(listType, ComponentType::CT_Generic);
 				else
-					AddComponent_Internal<U>(m_list[ComponentType::CT_Chunk].list[listType]);
+					AddComponent_Internal<U>(listType, ComponentType::CT_Chunk);
 			}
 
 			template <typename T>
 			bool HasComponent_Internal(ListType listType) const {
 				using U = typename DeduceComponent<T>::Type;
 				if constexpr (IsGenericComponent<T>)
-					return HasComponent_Internal<U>(m_list[ComponentType::CT_Generic].list[listType]);
+					return HasComponent_Internal<U>(m_list[ComponentType::CT_Generic].indices[listType]);
 				else
-					return HasComponent_Internal<U>(m_list[ComponentType::CT_Chunk].list[listType]);
+					return HasComponent_Internal<U>(m_list[ComponentType::CT_Chunk].indices[listType]);
 			}
 
 			template <typename T>
