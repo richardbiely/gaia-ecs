@@ -19,7 +19,7 @@
 namespace gaia {
 	namespace ecs {
 		extern const ComponentInfo& GetComponentInfo(ComponentId componentId);
-		extern const ComponentInfoCreate& GetComponentCreateInfo(ComponentId componentId);
+		extern const ComponentDesc& GetComponentDesc(ComponentId componentId);
 		extern const ComponentIdList&
 		GetArchetypeComponentInfoList(const Archetype& archetype, ComponentType componentType);
 		extern const ComponentOffsetList&
@@ -95,13 +95,13 @@ namespace gaia {
 					const auto& offsets = GetArchetypeComponentOffsetList(header.owner, ComponentType::CT_Generic);
 
 					for (size_t i = 0; i < componentIds.size(); i++) {
-						const auto& info = GetComponentInfo(componentIds[i]);
-						if (info.properties.size == 0U)
+						const auto& desc = GetComponentDesc(componentIds[i]);
+						if (desc.properties.size == 0U)
 							continue;
 
 						const auto offset = offsets[i];
-						const auto idxSrc = offset + index * info.properties.size;
-						const auto idxDst = offset + (header.count - 1U) * info.properties.size;
+						const auto idxSrc = offset + index * desc.properties.size;
+						const auto idxDst = offset + (header.count - 1U) * desc.properties.size;
 
 						GAIA_ASSERT(idxSrc < Chunk::DATA_SIZE_NORESERVE);
 						GAIA_ASSERT(idxDst < Chunk::DATA_SIZE_NORESERVE);
@@ -110,17 +110,15 @@ namespace gaia {
 						auto* pSrc = (void*)&data[idxSrc];
 						auto* pDst = (void*)&data[idxDst];
 
-						const auto& infoCreate = GetComponentCreateInfo(info.componentId);
-
-						if (info.properties.movable == 1) {
-							infoCreate.move(pSrc, pDst);
-						} else if (info.properties.copyable == 1) {
-							infoCreate.copy(pSrc, pDst);
+						if (desc.properties.movable == 1) {
+							desc.move(pSrc, pDst);
+						} else if (desc.properties.copyable == 1) {
+							desc.copy(pSrc, pDst);
 						} else
-							memmove(pDst, (const void*)pSrc, info.properties.size);
+							memmove(pDst, (const void*)pSrc, desc.properties.size);
 
-						if (info.properties.destructible == 1)
-							infoCreate.destructor(pSrc, 1);
+						if (desc.properties.destructible == 1)
+							desc.destructor(pSrc, 1);
 					}
 
 					// Entity has been replaced with the last one in chunk.
@@ -241,7 +239,7 @@ namespace gaia {
 				// Searching for a component that's not there! Programmer mistake.
 				GAIA_ASSERT(HasComponent_Internal(componentType, componentId));
 				// Don't use this with empty components. It's impossible to write to them anyway.
-				GAIA_ASSERT(GetComponentInfo(componentId).properties.size != 0);
+				GAIA_ASSERT(GetComponentDesc(componentId).properties.size != 0);
 
 				const auto& componentIds = GetArchetypeComponentInfoList(header.owner, componentType);
 				const auto& offsets = GetArchetypeComponentOffsetList(header.owner, componentType);
