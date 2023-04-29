@@ -8694,8 +8694,6 @@ namespace gaia {
 			bool m_recalculate = true;
 			//! If true, sorting infos is necessary
 			bool m_sort = true;
-			//! If true, all components have requested read-only access
-			bool m_readOnly = true;
 
 			template <typename T>
 			bool HasComponent_Internal([[maybe_unused]] const ComponentIndexArray& arr) const {
@@ -8743,10 +8741,9 @@ namespace gaia {
 #endif
 
 					constexpr bool rw = std::is_const_v<T>;
-					if constexpr (rw)
-						m_readOnly = false;
-
-					list.rw[(uint32_t)componentType] |= (1U << (uint32_t)indices.size());
+					if constexpr (rw) {
+						list.rw[(uint32_t)componentType] |= (1U << (uint32_t)indices.size());
+					}
 					indices.push_back(infoIndex);
 
 					m_recalculate = true;
