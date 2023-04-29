@@ -33,6 +33,7 @@ namespace gaia {
 
 		struct ComponentInfo;
 
+		using ComponentId = uint32_t;
 		using ComponentLookupHash = utils::direct_hash_key<uint64_t>;
 		using ComponentMatcherHash = utils::direct_hash_key<uint64_t>;
 
@@ -89,9 +90,9 @@ namespace gaia {
 		//! Returns the index of the component \tparam T
 		//! \return Component index
 		template <typename T>
-		GAIA_NODISCARD inline uint32_t GetComponentIndex() {
+		GAIA_NODISCARD inline ComponentId GetComponentId() {
 			using U = typename DeduceComponent<T>::Type;
-			return utils::type_info::index<U>();
+			return utils::type_info::id<U>();
 		}
 
 		//! Returns the index of the component \tparam T
@@ -100,10 +101,10 @@ namespace gaia {
 		//!          Therefore, this must be used only when we known \tparam T is the deduced "raw" type.
 		//! \return Component index
 		template <typename T>
-		GAIA_NODISCARD inline uint32_t GetComponentIndexUnsafe() {
-			// This is essentially the same thing as GetComponentIndex but when used correctly
+		GAIA_NODISCARD inline uint32_t GetComponentIdUnsafe() {
+			// This is essentially the same thing as GetComponentId but when used correctly
 			// we can save some compilation time.
-			return utils::type_info::index<T>();
+			return utils::type_info::id<T>();
 		}
 
 		template <typename T>
@@ -205,7 +206,7 @@ namespace gaia {
 			//! Fucntion to call when the component is moved
 			FuncMove* move = nullptr;
 			//! Unique component identifier
-			uint32_t infoIndex = (uint32_t)-1;
+			ComponentId componentId = (ComponentId)-1;
 
 			template <typename T>
 			GAIA_NODISCARD static constexpr ComponentInfoCreate Calculate() {
@@ -213,7 +214,7 @@ namespace gaia {
 
 				ComponentInfoCreate info{};
 				info.name = utils::type_info::name<U>();
-				info.infoIndex = GetComponentIndexUnsafe<U>();
+				info.componentId = GetComponentIdUnsafe<U>();
 
 				if constexpr (!std::is_empty_v<U> && !utils::is_soa_layout_v<U>) {
 					// Custom destruction
@@ -278,7 +279,7 @@ namespace gaia {
 			//! Simple hash used for matching component
 			ComponentMatcherHash matcherHash;
 			//! Unique component identifier
-			uint32_t infoIndex;
+			ComponentId componentId;
 			//! Various component properties
 			struct {
 				//! Component alignment
@@ -296,13 +297,13 @@ namespace gaia {
 			} properties{};
 
 			GAIA_NODISCARD bool operator==(const ComponentInfo& other) const {
-				return lookupHash == other.lookupHash && infoIndex == other.infoIndex;
+				return lookupHash == other.lookupHash && componentId == other.componentId;
 			}
 			GAIA_NODISCARD bool operator!=(const ComponentInfo& other) const {
-				return lookupHash != other.lookupHash || infoIndex != other.infoIndex;
+				return lookupHash != other.lookupHash || componentId != other.componentId;
 			}
 			GAIA_NODISCARD bool operator<(const ComponentInfo& other) const {
-				return infoIndex < other.infoIndex;
+				return componentId < other.componentId;
 			}
 
 			template <typename T>
@@ -312,7 +313,7 @@ namespace gaia {
 				ComponentInfo info{};
 				info.lookupHash = {utils::type_info::hash<U>()};
 				info.matcherHash = CalculateMatcherHash<U>();
-				info.infoIndex = utils::type_info::index<U>();
+				info.componentId = utils::type_info::id<U>();
 
 				if constexpr (!std::is_empty_v<U>) {
 					info.properties.alig = utils::auto_view_policy<U>::Alignment;
@@ -339,14 +340,14 @@ namespace gaia {
 			}
 		};
 
-		using ComponentInfoList = containers::sarray_ext<uint32_t, MAX_COMPONENTS_PER_ARCHETYPE>;
-		using ComponentInfoSpan = std::span<const uint32_t>;
+		using ComponentIdList = containers::sarray_ext<ComponentId, MAX_COMPONENTS_PER_ARCHETYPE>;
+		using ComponentIdSpan = std::span<const ComponentId>;
 
 		//----------------------------------------------------------------------
 		// ComponentLookupData
 		//----------------------------------------------------------------------
 
-		using ComponentOffsetList = containers::sarray_ext<uint32_t, MAX_COMPONENTS_PER_ARCHETYPE>;
+		using ComponentOffsetList = containers::sarray_ext<ComponentId, MAX_COMPONENTS_PER_ARCHETYPE>;
 
 	} // namespace ecs
 } // namespace gaia

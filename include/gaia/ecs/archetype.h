@@ -58,7 +58,7 @@ namespace gaia {
 #endif
 
 			//! Description of components within this archetype
-			containers::sarray<ComponentInfoList, ComponentType::CT_Count> componentInfos;
+			containers::sarray<ComponentIdList, ComponentType::CT_Count> componentIds;
 			//! Lookup hashes of components within this archetype
 			containers::sarray<ComponentOffsetList, ComponentType::CT_Count> componentOffsets;
 
@@ -122,16 +122,16 @@ namespace gaia {
 				const auto& archetype = pChunk->header.owner;
 				const auto& cc = GetComponentCache();
 
-				auto callDestructors = [&](ComponentType type) {
-					const auto& infos = archetype.componentInfos[type];
-					const auto& offs = archetype.componentOffsets[type];
-					const auto itemCount = type == ComponentType::CT_Generic ? pChunk->GetItemCount() : 1U;
-					for (size_t i = 0; i < infos.size(); ++i) {
-						const auto infoIndex = infos[i];
-						const auto& infoCreate = cc.GetComponentCreateInfoFromIdx(infoIndex);
+				auto callDestructors = [&](ComponentType componentType) {
+					const auto& componentIds = archetype.componentIds[componentType];
+					const auto& offsets = archetype.componentOffsets[componentType];
+					const auto itemCount = componentType == ComponentType::CT_Generic ? pChunk->GetItemCount() : 1U;
+					for (size_t i = 0; i < componentIds.size(); ++i) {
+						const auto componentId = componentIds[i];
+						const auto& infoCreate = cc.GetComponentCreateInfo(componentId);
 						if (infoCreate.destructor == nullptr)
 							continue;
-						auto* pSrc = (void*)((uint8_t*)pChunk + offs[i]);
+						auto* pSrc = (void*)((uint8_t*)pChunk + offsets[i]);
 						infoCreate.destructor(pSrc, itemCount);
 					}
 				};
@@ -152,7 +152,7 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD static Archetype*
-			Create(World& pWorld, ComponentInfoSpan infosGeneric, ComponentInfoSpan infosChunk) {
+			Create(World& pWorld, ComponentIdSpan componentIdsGeneric, ComponentIdSpan componentIdsChunk) {
 				auto* newArch = new Archetype();
 				newArch->parentWorld = &pWorld;
 
@@ -170,18 +170,18 @@ namespace gaia {
 
 				// Size of the entity + all of its generic components
 				size_t genericComponentListSize = sizeof(Entity);
-				for (const uint32_t infoIndex: infosGeneric) {
-					const auto* pInfo = cc.GetComponentInfoFromIdx(infoIndex);
-					genericComponentListSize += pInfo->properties.size;
-					newArch->info.hasGenericComponentWithCustomDestruction |= (pInfo->properties.destructible != 0);
+				for (const uint32_t componentId: componentIdsGeneric) {
+					const auto& info = cc.GetComponentInfo(componentId);
+					genericComponentListSize += info.properties.size;
+					newArch->info.hasGenericComponentWithCustomDestruction |= (info.properties.destructible != 0);
 				}
 
 				// Size of chunk components
 				size_t chunkComponentListSize = 0;
-				for (const uint32_t infoIndex: infosChunk) {
-					const auto* pInfo = cc.GetComponentInfoFromIdx(infoIndex);
-					chunkComponentListSize += pInfo->properties.size;
-					newArch->info.hasChunkComponentWithCustomDestruction |= (pInfo->properties.destructible != 0);
+				for (const uint32_t componentId: componentIdsChunk) {
+					const auto& info = cc.GetComponentInfo(componentId);
+					chunkComponentListSize += info.properties.size;
+					newArch->info.hasChunkComponentWithCustomDestruction |= (info.properties.destructible != 0);
 				}
 
 				// TODO: Calculate the number of entities per chunks precisely so we can
@@ -196,9 +196,9 @@ namespace gaia {
 				auto alignedOffset = sizeof(ChunkHeader) + componentOffsets;
 
 				// Add generic infos
-				for (const uint32_t infoIndex: infosGeneric) {
-					const auto* pInfo = cc.GetComponentInfoFromIdx(infoIndex);
-					const auto alignment = pInfo->properties.alig;
+				for (const uint32_t componentId: componentIdsGeneric) {
+					const auto& info = cc.GetComponentInfo(componentId);
+					const auto alignment = info.properties.alig;
 					if (alignment != 0) {
 						const size_t padding = utils::align(alignedOffset, alignment) - alignedOffset;
 						componentOffsets += padding;
@@ -208,26 +208,26 @@ namespace gaia {
 						GAIA_ASSERT(componentOffsets <= Chunk::DATA_SIZE_NORESERVE);
 
 						// Register the component info
-						newArch->componentInfos[ComponentType::CT_Generic].push_back(infoIndex);
+						newArch->componentIds[ComponentType::CT_Generic].push_back(componentId);
 						newArch->componentOffsets[ComponentType::CT_Generic].push_back((uint32_t)componentOffsets);
 
 						// Make sure the following component list is properly aligned
-						componentOffsets += pInfo->properties.size * maxGenericItemsInArchetype;
-						alignedOffset += pInfo->properties.size * maxGenericItemsInArchetype;
+						componentOffsets += info.properties.size * maxGenericItemsInArchetype;
+						alignedOffset += info.properties.size * maxGenericItemsInArchetype;
 
 						// Make sure we didn't exceed the chunk size
 						GAIA_ASSERT(componentOffsets <= Chunk::DATA_SIZE_NORESERVE);
 					} else {
 						// Register the component info
-						newArch->componentInfos[ComponentType::CT_Generic].push_back(infoIndex);
+						newArch->componentIds[ComponentType::CT_Generic].push_back(componentId);
 						newArch->componentOffsets[ComponentType::CT_Generic].push_back((uint32_t)componentOffsets);
 					}
 				}
 
 				// Add chunk infos
-				for (const uint32_t infoIndex: infosChunk) {
-					const auto* pInfo = cc.GetComponentInfoFromIdx(infoIndex);
-					const auto alignment = pInfo->properties.alig;
+				for (const uint32_t componentId: componentIdsChunk) {
+					const auto& info = cc.GetComponentInfo(componentId);
+					const auto alignment = info.properties.alig;
 					if (alignment != 0) {
 						const size_t padding = utils::align(alignedOffset, alignment) - alignedOffset;
 						componentOffsets += padding;
@@ -237,25 +237,25 @@ namespace gaia {
 						GAIA_ASSERT(componentOffsets <= Chunk::DATA_SIZE_NORESERVE);
 
 						// Register the component info
-						newArch->componentInfos[ComponentType::CT_Chunk].push_back(infoIndex);
+						newArch->componentIds[ComponentType::CT_Chunk].push_back(componentId);
 						newArch->componentOffsets[ComponentType::CT_Chunk].push_back((uint32_t)componentOffsets);
 
 						// Make sure the following component list is properly aligned
-						componentOffsets += pInfo->properties.size;
-						alignedOffset += pInfo->properties.size;
+						componentOffsets += info.properties.size;
+						alignedOffset += info.properties.size;
 
 						// Make sure we didn't exceed the chunk size
 						GAIA_ASSERT(componentOffsets <= Chunk::DATA_SIZE_NORESERVE);
 					} else {
 						// Register the component info
-						newArch->componentInfos[ComponentType::CT_Chunk].push_back(infoIndex);
+						newArch->componentIds[ComponentType::CT_Chunk].push_back(componentId);
 						newArch->componentOffsets[ComponentType::CT_Chunk].push_back((uint32_t)componentOffsets);
 					}
 				}
 
 				newArch->info.capacity = (uint32_t)maxGenericItemsInArchetype;
-				newArch->matcherHash[ComponentType::CT_Generic] = CalculateMatcherHash(infosGeneric);
-				newArch->matcherHash[ComponentType::CT_Chunk] = CalculateMatcherHash(infosChunk);
+				newArch->matcherHash[ComponentType::CT_Generic] = CalculateMatcherHash(componentIdsGeneric);
+				newArch->matcherHash[ComponentType::CT_Chunk] = CalculateMatcherHash(componentIdsChunk);
 
 				return newArch;
 			}
@@ -324,28 +324,28 @@ namespace gaia {
 
 #if GAIA_ARCHETYPE_GRAPH
 			//! Create an edge in the graph leading from this archetype to \param archetypeId via component \param info.
-			void AddEdgeArchetypeRight(ComponentType type, const ComponentInfo* pInfo, uint32_t archetypeId) {
+			void AddEdgeArchetypeRight(ComponentType componentType, const ComponentInfo& info, uint32_t archetypeId) {
 				[[maybe_unused]] const auto ret =
-						edgesAdd[type].try_emplace({pInfo->lookupHash}, ArchetypeGraphEdge{archetypeId});
+						edgesAdd[componentType].try_emplace({info.lookupHash}, ArchetypeGraphEdge{archetypeId});
 				GAIA_ASSERT(ret.second);
 			}
 
 			//! Create an edge in the graph leading from this archetype to \param archetypeId via component \param info.
-			void AddEdgeArchetypeLeft(ComponentType type, const ComponentInfo* pInfo, uint32_t archetypeId) {
+			void AddEdgeArchetypeLeft(ComponentType componentType, const ComponentInfo& info, uint32_t archetypeId) {
 				[[maybe_unused]] const auto ret =
-						edgesDel[type].try_emplace({pInfo->lookupHash}, ArchetypeGraphEdge{archetypeId});
+						edgesDel[componentType].try_emplace({info.lookupHash}, ArchetypeGraphEdge{archetypeId});
 				GAIA_ASSERT(ret.second);
 			}
 
-			GAIA_NODISCARD uint32_t FindAddEdgeArchetypeId(ComponentType type, const ComponentInfo* pInfo) const {
-				const auto& edges = edgesAdd[type];
-				const auto it = edges.find({pInfo->lookupHash});
+			GAIA_NODISCARD uint32_t FindAddEdgeArchetypeId(ComponentType componentType, const ComponentInfo& info) const {
+				const auto& edges = edgesAdd[componentType];
+				const auto it = edges.find({info.lookupHash});
 				return it != edges.end() ? it->second.archetypeId : BadIndex;
 			}
 
-			GAIA_NODISCARD uint32_t FindDelEdgeArchetypeId(ComponentType type, const ComponentInfo* pInfo) const {
-				const auto& edges = edgesDel[type];
-				const auto it = edges.find({pInfo->lookupHash});
+			GAIA_NODISCARD uint32_t FindDelEdgeArchetypeId(ComponentType componentType, const ComponentInfo& info) const {
+				const auto& edges = edgesDel[componentType];
+				const auto it = edges.find({info.lookupHash});
 				return it != edges.end() ? it->second.archetypeId : BadIndex;
 			}
 #endif
@@ -391,16 +391,16 @@ namespace gaia {
 				return info.capacity;
 			}
 
-			GAIA_NODISCARD ComponentMatcherHash GetMatcherHash(ComponentType type) const {
-				return matcherHash[type];
+			GAIA_NODISCARD ComponentMatcherHash GetMatcherHash(ComponentType componentType) const {
+				return matcherHash[componentType];
 			}
 
-			GAIA_NODISCARD const ComponentInfoList& GetComponentInfoList(ComponentType type) const {
-				return componentInfos[type];
+			GAIA_NODISCARD const ComponentIdList& GetComponentInfoList(ComponentType componentType) const {
+				return componentIds[componentType];
 			}
 
-			GAIA_NODISCARD const ComponentOffsetList& GetComponentOffsetList(ComponentType type) const {
-				return componentOffsets[type];
+			GAIA_NODISCARD const ComponentOffsetList& GetComponentOffsetList(ComponentType componentType) const {
+				return componentOffsets[componentType];
 			}
 
 			/*!
@@ -413,12 +413,12 @@ namespace gaia {
 			}
 
 			/*!
-			Returns the internal index of a component based on the provided \param infoIndex.
-			\param type Component type
+			Returns the internal index of a component based on the provided \param componentId.
+			\param componentType Component type
 			\return Component index if the component was found. -1 otherwise.
 			*/
-			GAIA_NODISCARD uint32_t GetComponentIdx(ComponentType type, uint32_t infoIndex) const {
-				const auto idx = utils::get_index_unsafe(componentInfos[type], infoIndex);
+			GAIA_NODISCARD uint32_t GetComponentIdx(ComponentType componentType, ComponentId componentId) const {
+				const auto idx = utils::get_index_unsafe(componentIds[componentType], componentId);
 				GAIA_ASSERT(idx != BadIndex);
 				return (uint32_t)idx;
 			}
@@ -426,12 +426,12 @@ namespace gaia {
 		private:
 			template <typename T>
 			GAIA_NODISCARD bool HasComponent_Internal() const {
-				const auto infoIndex = GetComponentIndex<T>();
+				const auto componentId = GetComponentId<T>();
 
 				if constexpr (IsGenericComponent<T>) {
-					return utils::has(GetComponentInfoList(ComponentType::CT_Generic), infoIndex);
+					return utils::has(GetComponentInfoList(ComponentType::CT_Generic), componentId);
 				} else {
-					return utils::has(GetComponentInfoList(ComponentType::CT_Chunk), infoIndex);
+					return utils::has(GetComponentInfoList(ComponentType::CT_Chunk), componentId);
 				}
 			}
 		};
@@ -440,26 +440,27 @@ namespace gaia {
 			return archetype.GetWorldVersion();
 		}
 
-		GAIA_NODISCARD inline ComponentMatcherHash GetArchetypeMatcherHash(const Archetype& archetype, ComponentType type) {
-			return archetype.GetMatcherHash(type);
+		GAIA_NODISCARD inline ComponentMatcherHash
+		GetArchetypeMatcherHash(const Archetype& archetype, ComponentType componentType) {
+			return archetype.GetMatcherHash(componentType);
 		}
 
-		GAIA_NODISCARD inline const ComponentInfo* GetComponentInfoFromIdx(uint32_t index) {
-			return GetComponentCache().GetComponentInfoFromIdx(index);
+		GAIA_NODISCARD inline const ComponentInfo& GetComponentInfo(ComponentId componentId) {
+			return GetComponentCache().GetComponentInfo(componentId);
 		}
 
-		GAIA_NODISCARD inline const ComponentInfoCreate& GetComponentCreateInfoFromIdx(uint32_t index) {
-			return GetComponentCache().GetComponentCreateInfoFromIdx(index);
+		GAIA_NODISCARD inline const ComponentInfoCreate& GetComponentCreateInfo(ComponentId componentId) {
+			return GetComponentCache().GetComponentCreateInfo(componentId);
 		}
 
-		GAIA_NODISCARD inline const ComponentInfoList&
-		GetArchetypeComponentInfoList(const Archetype& archetype, ComponentType type) {
-			return archetype.GetComponentInfoList(type);
+		GAIA_NODISCARD inline const ComponentIdList&
+		GetArchetypeComponentInfoList(const Archetype& archetype, ComponentType componentType) {
+			return archetype.GetComponentInfoList(componentType);
 		}
 
 		GAIA_NODISCARD inline const ComponentOffsetList&
-		GetArchetypeComponentOffsetList(const Archetype& archetype, ComponentType type) {
-			return archetype.GetComponentOffsetList(type);
+		GetArchetypeComponentOffsetList(const Archetype& archetype, ComponentType componentType) {
+			return archetype.GetComponentOffsetList(componentType);
 		}
 	} // namespace ecs
 } // namespace gaia

@@ -18,10 +18,12 @@
 
 namespace gaia {
 	namespace ecs {
-		extern const ComponentInfo* GetComponentInfoFromIdx(uint32_t index);
-		extern const ComponentInfoCreate& GetComponentCreateInfoFromIdx(uint32_t index);
-		extern const ComponentInfoList& GetArchetypeComponentInfoList(const Archetype& archetype, ComponentType type);
-		extern const ComponentOffsetList& GetArchetypeComponentOffsetList(const Archetype& archetype, ComponentType type);
+		extern const ComponentInfo& GetComponentInfo(ComponentId componentId);
+		extern const ComponentInfoCreate& GetComponentCreateInfo(ComponentId componentId);
+		extern const ComponentIdList&
+		GetArchetypeComponentInfoList(const Archetype& archetype, ComponentType componentType);
+		extern const ComponentOffsetList&
+		GetArchetypeComponentOffsetList(const Archetype& archetype, ComponentType componentType);
 
 		class Chunk final {
 		public:
@@ -51,13 +53,13 @@ namespace gaia {
 			GAIA_MSVC_WARNING_POP()
 
 			/*!
-			Checks if a component is present in the archetype based on the provided \param infoIndex.
-			\param type Component type
+			Checks if a component is present in the archetype based on the provided \param componentId.
+			\param componentType Component type
 			\return True if found. False otherwise.
 			*/
-			GAIA_NODISCARD bool HasComponent_Internal(ComponentType type, uint32_t infoIndex) const {
-				const auto& infos = GetArchetypeComponentInfoList(header.owner, type);
-				return utils::has(infos, infoIndex);
+			GAIA_NODISCARD bool HasComponent_Internal(ComponentType componentType, uint32_t componentId) const {
+				const auto& componentIds = GetArchetypeComponentInfoList(header.owner, componentType);
+				return utils::has(componentIds, componentId);
 			}
 
 			/*!
@@ -89,17 +91,17 @@ namespace gaia {
 					const auto entity = GetEntity(header.count - 1);
 					SetEntity(index, entity);
 
-					const auto& infos = GetArchetypeComponentInfoList(header.owner, ComponentType::CT_Generic);
-					const auto& offs = GetArchetypeComponentOffsetList(header.owner, ComponentType::CT_Generic);
+					const auto& componentIds = GetArchetypeComponentInfoList(header.owner, ComponentType::CT_Generic);
+					const auto& offsets = GetArchetypeComponentOffsetList(header.owner, ComponentType::CT_Generic);
 
-					for (size_t i = 0; i < infos.size(); i++) {
-						const auto* pInfo = GetComponentInfoFromIdx(infos[i]);
-						if (pInfo->properties.size == 0U)
+					for (size_t i = 0; i < componentIds.size(); i++) {
+						const auto& info = GetComponentInfo(componentIds[i]);
+						if (info.properties.size == 0U)
 							continue;
 
-						const auto offset = offs[i];
-						const auto idxSrc = offset + index * pInfo->properties.size;
-						const auto idxDst = offset + (header.count - 1U) * pInfo->properties.size;
+						const auto offset = offsets[i];
+						const auto idxSrc = offset + index * info.properties.size;
+						const auto idxDst = offset + (header.count - 1U) * info.properties.size;
 
 						GAIA_ASSERT(idxSrc < Chunk::DATA_SIZE_NORESERVE);
 						GAIA_ASSERT(idxDst < Chunk::DATA_SIZE_NORESERVE);
@@ -108,17 +110,17 @@ namespace gaia {
 						auto* pSrc = (void*)&data[idxSrc];
 						auto* pDst = (void*)&data[idxDst];
 
-						const auto& info = GetComponentCreateInfoFromIdx(pInfo->infoIndex);
+						const auto& infoCreate = GetComponentCreateInfo(info.componentId);
 
-						if (pInfo->properties.movable == 1) {
-							info.move(pSrc, pDst);
-						} else if (pInfo->properties.copyable == 1) {
-							info.copy(pSrc, pDst);
+						if (info.properties.movable == 1) {
+							infoCreate.move(pSrc, pDst);
+						} else if (info.properties.copyable == 1) {
+							infoCreate.copy(pSrc, pDst);
 						} else
-							memmove(pDst, (const void*)pSrc, pInfo->properties.size);
+							memmove(pDst, (const void*)pSrc, info.properties.size);
 
-						if (pInfo->properties.destructible == 1)
-							info.destructor(pSrc, 1);
+						if (info.properties.destructible == 1)
+							infoCreate.destructor(pSrc, 1);
 					}
 
 					// Entity has been replaced with the last one in chunk.
@@ -172,12 +174,12 @@ namespace gaia {
 				} else {
 					static_assert(!std::is_empty_v<U>, "Attempting to get value of an empty component");
 
-					const auto infoIndex = GetComponentIndexUnsafe<U>();
+					const auto componentId = GetComponentIdUnsafe<U>();
 
 					if constexpr (IsGenericComponent<T>)
-						return std::span<UConst>{(UConst*)GetDataPtr(ComponentType::CT_Generic, infoIndex), GetItemCount()};
+						return std::span<UConst>{(UConst*)GetDataPtr(ComponentType::CT_Generic, componentId), GetItemCount()};
 					else
-						return std::span<UConst>{(UConst*)GetDataPtr(ComponentType::CT_Chunk, infoIndex), 1};
+						return std::span<UConst>{(UConst*)GetDataPtr(ComponentType::CT_Chunk, componentId), 1};
 				}
 			}
 
@@ -200,56 +202,57 @@ namespace gaia {
 #endif
 				static_assert(!std::is_empty_v<U>, "Attempting to set value of an empty component");
 
-				const auto infoIndex = GetComponentIndexUnsafe<U>();
+				const auto componentId = GetComponentIdUnsafe<U>();
 
 				constexpr bool uwv = UpdateWorldVersion;
 				if constexpr (IsGenericComponent<T>)
-					return std::span<U>{(U*)GetDataPtrRW<uwv>(ComponentType::CT_Generic, infoIndex), GetItemCount()};
+					return std::span<U>{(U*)GetDataPtrRW<uwv>(ComponentType::CT_Generic, componentId), GetItemCount()};
 				else
-					return std::span<U>{(U*)GetDataPtrRW<uwv>(ComponentType::CT_Chunk, infoIndex), 1};
+					return std::span<U>{(U*)GetDataPtrRW<uwv>(ComponentType::CT_Chunk, componentId), 1};
 			}
 
 			/*!
 			Returns a pointer do component data with read-only access.
-			\param type Component type
-			\param infoIndex Component info index
+			\param componentType Component type
+			\param componentId Component info index
 			\return Const pointer to component data.
 			*/
-			GAIA_NODISCARD GAIA_FORCEINLINE const uint8_t* GetDataPtr(ComponentType type, uint32_t infoIndex) const {
+			GAIA_NODISCARD GAIA_FORCEINLINE const uint8_t*
+			GetDataPtr(ComponentType componentType, uint32_t componentId) const {
 				// Searching for a component that's not there! Programmer mistake.
-				GAIA_ASSERT(HasComponent_Internal(type, infoIndex));
+				GAIA_ASSERT(HasComponent_Internal(componentType, componentId));
 
-				const auto& infos = GetArchetypeComponentInfoList(header.owner, type);
-				const auto& offs = GetArchetypeComponentOffsetList(header.owner, type);
-				const auto idx = utils::get_index_unsafe(infos, infoIndex);
+				const auto& componentIds = GetArchetypeComponentInfoList(header.owner, componentType);
+				const auto& offsets = GetArchetypeComponentOffsetList(header.owner, componentType);
+				const auto idx = utils::get_index_unsafe(componentIds, componentId);
 
-				return (const uint8_t*)&data[offs[idx]];
+				return (const uint8_t*)&data[offsets[idx]];
 			}
 
 			/*!
 			Returns a pointer do component data with read-write access. Also updates the world version for the component.
 			\tparam UpdateWorldVersion If true, the world version is updated as a result of the write access
-			\param type Component type
-			\param infoIndex Index of the component in the archetype
+			\param componentType Component type
+			\param componentId Index of the component in the archetype
 			\return Pointer to component data.
 			*/
 			template <bool UpdateWorldVersion>
-			GAIA_NODISCARD GAIA_FORCEINLINE uint8_t* GetDataPtrRW(ComponentType type, uint32_t infoIndex) {
+			GAIA_NODISCARD GAIA_FORCEINLINE uint8_t* GetDataPtrRW(ComponentType componentType, uint32_t componentId) {
 				// Searching for a component that's not there! Programmer mistake.
-				GAIA_ASSERT(HasComponent_Internal(type, infoIndex));
+				GAIA_ASSERT(HasComponent_Internal(componentType, componentId));
 				// Don't use this with empty components. It's impossible to write to them anyway.
-				GAIA_ASSERT(GetComponentInfoFromIdx(infoIndex)->properties.size != 0);
+				GAIA_ASSERT(GetComponentInfo(componentId).properties.size != 0);
 
-				const auto& infos = GetArchetypeComponentInfoList(header.owner, type);
-				const auto& offs = GetArchetypeComponentOffsetList(header.owner, type);
-				const auto idx = utils::get_index_unsafe(infos, infoIndex);
+				const auto& componentIds = GetArchetypeComponentInfoList(header.owner, componentType);
+				const auto& offsets = GetArchetypeComponentOffsetList(header.owner, componentType);
+				const auto idx = utils::get_index_unsafe(componentIds, componentId);
 
 				if constexpr (UpdateWorldVersion) {
 					// Update version number so we know RW access was used on chunk
-					header.UpdateWorldVersion(type, idx);
+					header.UpdateWorldVersion(componentType, idx);
 				}
 
-				return (uint8_t*)&data[offs[idx]];
+				return (uint8_t*)&data[offsets[idx]];
 			}
 
 		public:
@@ -306,12 +309,12 @@ namespace gaia {
 			GAIA_NODISCARD bool HasComponent() const {
 				if constexpr (IsGenericComponent<T>) {
 					using U = typename detail::ExtractComponentType_Generic<T>::Type;
-					const auto infoIndex = GetComponentIndexUnsafe<U>();
-					return HasComponent_Internal(ComponentType::CT_Generic, infoIndex);
+					const auto componentId = GetComponentIdUnsafe<U>();
+					return HasComponent_Internal(ComponentType::CT_Generic, componentId);
 				} else {
 					using U = typename detail::ExtractComponentType_NonGeneric<T>::Type;
-					const auto infoIndex = GetComponentIndexUnsafe<U>();
-					return HasComponent_Internal(ComponentType::CT_Chunk, infoIndex);
+					const auto componentId = GetComponentIdUnsafe<U>();
+					return HasComponent_Internal(ComponentType::CT_Chunk, componentId);
 				}
 			}
 
@@ -413,8 +416,8 @@ namespace gaia {
 			}
 
 			//! Returns true if the provided version is newer than the one stored internally
-			GAIA_NODISCARD bool DidChange(ComponentType type, uint32_t version, uint32_t componentIdx) const {
-				return DidVersionChange(header.versions[type][componentIdx], version);
+			GAIA_NODISCARD bool DidChange(ComponentType componentType, uint32_t version, uint32_t componentIdx) const {
+				return DidVersionChange(header.versions[componentType][componentIdx], version);
 			}
 		};
 		static_assert(sizeof(Chunk) <= ChunkMemorySize, "Chunk size must match ChunkMemorySize!");
