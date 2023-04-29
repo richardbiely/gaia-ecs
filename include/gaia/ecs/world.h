@@ -1331,24 +1331,11 @@ namespace gaia {
 				return false;
 			}
 
-			GAIA_NODISCARD static bool
-			CanAcceptChunkForProcessing(const Chunk& chunk, const EntityQuery& q, bool hasFilters) {
-				if GAIA_UNLIKELY (!chunk.HasEntities())
-					return false;
-				if (!q.CheckConstraints(!chunk.IsDisabled()))
-					return false;
-				if (hasFilters && !CheckFilters(q, chunk))
-					return false;
-
-				return true;
-			}
-
 			template <bool HasFilters>
 			GAIA_NODISCARD static bool CanAcceptChunkForProcessing(const Chunk& chunk, const EntityQuery& q) {
 				if GAIA_UNLIKELY (!chunk.HasEntities())
 					return false;
-				if (!q.CheckConstraints(!chunk.IsDisabled()))
-					return false;
+
 				if constexpr (HasFilters) {
 					if (!CheckFilters(q, chunk))
 						return false;

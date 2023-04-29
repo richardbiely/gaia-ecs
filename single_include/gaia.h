@@ -9092,20 +9092,14 @@ namespace gaia {
 
 			template <bool Enabled>
 			GAIA_NODISCARD bool CheckConstraints() const {
-				if GAIA_LIKELY (m_constraints == Constraints::AcceptAll)
+				// By default we only evaluate EnabledOnly changes. AcceptAll is something that has to be asked for explicitely.
+				if GAIA_UNLIKELY (m_constraints == Constraints::AcceptAll)
 					return true;
 
 				if constexpr (Enabled)
 					return m_constraints == Constraints::EnabledOnly;
 				else
 					return m_constraints == Constraints::DisabledOnly;
-			}
-
-			GAIA_NODISCARD bool CheckConstraints(bool enabled) const {
-				if GAIA_LIKELY (m_constraints == Constraints::AcceptAll)
-					return true;
-
-				return enabled ? m_constraints == Constraints::EnabledOnly : m_constraints == Constraints::DisabledOnly;
 			}
 
 			GAIA_NODISCARD bool HasFilters() const {
@@ -10483,24 +10477,11 @@ namespace gaia {
 				return false;
 			}
 
-			GAIA_NODISCARD static bool
-			CanAcceptChunkForProcessing(const Chunk& chunk, const EntityQuery& q, bool hasFilters) {
-				if GAIA_UNLIKELY (!chunk.HasEntities())
-					return false;
-				if (!q.CheckConstraints(!chunk.IsDisabled()))
-					return false;
-				if (hasFilters && !CheckFilters(q, chunk))
-					return false;
-
-				return true;
-			}
-
 			template <bool HasFilters>
 			GAIA_NODISCARD static bool CanAcceptChunkForProcessing(const Chunk& chunk, const EntityQuery& q) {
 				if GAIA_UNLIKELY (!chunk.HasEntities())
 					return false;
-				if (!q.CheckConstraints(!chunk.IsDisabled()))
-					return false;
+
 				if constexpr (HasFilters) {
 					if (!CheckFilters(q, chunk))
 						return false;
@@ -10529,6 +10510,8 @@ namespace gaia {
 					for (size_t j = chunkOffset; j < chunkOffset + batchSize; ++j) {
 						auto* pChunk = chunksList[j];
 
+						// Check if the chunk can be accepted for processing. Constraints checked before ProcessQueryOnChunks is
+						// called.
 						if (!CanAcceptChunkForProcessing<HasFilters>(*pChunk, query))
 							continue;
 
