@@ -8698,13 +8698,13 @@ namespace gaia {
 			bool m_sort = true;
 
 			template <typename T>
-			bool HasComponent_Internal([[maybe_unused]] const ComponentIndexArray& arr) const {
+			bool HasComponent_Internal([[maybe_unused]] const ComponentIndexArray& indices) const {
 				if constexpr (std::is_same_v<T, Entity>) {
 					// Skip Entity input args
 					return true;
 				} else {
 					const auto infoIndex = GetComponentIndex<T>();
-					return utils::has(arr, infoIndex);
+					return utils::has(indices, infoIndex);
 				}
 			}
 
@@ -8828,8 +8828,6 @@ namespace gaia {
 				// Make sure we don't calculate the hash twice
 				GAIA_ASSERT(m_hashLookup.hash == 0);
 
-				const auto& cc = GetComponentCache();
-
 				// Contraints
 				LookupHash::Type hashLookup = utils::hash_combine(m_hashLookup.hash, (uint64_t)m_constraints);
 
@@ -8852,8 +8850,7 @@ namespace gaia {
 					const auto& l = m_list[i];
 					for (const auto& indices: l.indices) {
 						for (const auto index: indices) {
-							const auto* pInfo = cc.GetComponentInfoFromIdx(index);
-							hash = utils::hash_combine(hash, pInfo->lookupHash.hash);
+							hash = utils::hash_combine(hash, (LookupHash::Type)index);
 						}
 						hash = utils::hash_combine(hash, (LookupHash::Type)indices.size());
 					}
@@ -8890,10 +8887,10 @@ namespace gaia {
 				\return True if there is a match, false otherwise.
 				*/
 			static GAIA_NODISCARD bool
-			CheckMatchOne(const ComponentInfoList& componentInfos, const ComponentIndexArray& indices) {
+			CheckMatchOne(const ComponentLookupList& componentInfos, const ComponentIndexArray& indices) {
 				for (const auto index: indices) {
-					if (utils::has_if(componentInfos, [index](const ComponentInfo* pInfo) {
-								return pInfo->infoIndex == index;
+					if (utils::has_if(componentInfos, [index](const ComponentLookupData& info) {
+								return info.infoIndex == index;
 							}))
 						return true;
 				}
@@ -8906,12 +8903,12 @@ namespace gaia {
 				\return True if there is a match, false otherwise.
 				*/
 			static GAIA_NODISCARD bool
-			CheckMatchMany(const ComponentInfoList& componentInfos, const ComponentIndexArray& indices) {
+			CheckMatchMany(const ComponentLookupList& componentInfos, const ComponentIndexArray& indices) {
 				size_t matches = 0;
 
 				for (const auto index: indices) {
 					for (const auto& info: componentInfos) {
-						if (info->infoIndex == index) {
+						if (info.infoIndex == index) {
 							if (++matches == indices.size())
 								return true;
 
@@ -8930,7 +8927,7 @@ namespace gaia {
 				*/
 			template <ComponentType TComponentType>
 			GAIA_NODISCARD MatchArchetypeQueryRet
-			Match(const ComponentInfoList& componentInfos, ComponentMatcherHash matcherHash) const {
+			Match(const ComponentLookupList& componentInfos, ComponentMatcherHash matcherHash) const {
 				const auto& queryList = GetData(TComponentType);
 				const auto withNoneTest = matcherHash.hash & queryList.hash[ListType::LT_None].hash;
 				const auto withAnyTest = matcherHash.hash & queryList.hash[ListType::LT_Any].hash;
@@ -9050,14 +9047,14 @@ namespace gaia {
 
 					// Early exit if generic query doesn't match
 					const auto retGeneric = Match<ComponentType::CT_Generic>(
-							GetArchetypeComponentInfoList(archetype, ComponentType::CT_Generic),
+							GetArchetypeComponentLookupList(archetype, ComponentType::CT_Generic),
 							GetArchetypeMatcherHash(archetype, ComponentType::CT_Generic));
 					if (retGeneric == EntityQuery::MatchArchetypeQueryRet::Fail)
 						continue;
 
 					// Early exit if chunk query doesn't match
 					const auto retChunk = Match<ComponentType::CT_Chunk>(
-							GetArchetypeComponentInfoList(archetype, ComponentType::CT_Chunk),
+							GetArchetypeComponentLookupList(archetype, ComponentType::CT_Chunk),
 							GetArchetypeMatcherHash(archetype, ComponentType::CT_Chunk));
 					if (retChunk == EntityQuery::MatchArchetypeQueryRet::Fail)
 						continue;
