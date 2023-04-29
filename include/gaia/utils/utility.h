@@ -324,12 +324,12 @@ namespace gaia {
 			if (it == arr.end())
 				return (std::ptrdiff_t)BadIndex;
 
-			return distance(arr.begin(), it);
+			return GAIA_UTIL::distance(arr.begin(), it);
 		}
 
 		template <typename C>
 		constexpr auto get_index_unsafe(const C& arr, typename C::const_reference item) {
-			return distance(arr.begin(), find(arr, item));
+			return GAIA_UTIL::distance(arr.begin(), find(arr, item));
 		}
 
 		template <typename UnaryPredicate, typename C>
@@ -338,12 +338,12 @@ namespace gaia {
 			if (it == arr.end())
 				return BadIndex;
 
-			return distance(arr.begin(), it);
+			return GAIA_UTIL::distance(arr.begin(), it);
 		}
 
 		template <typename UnaryPredicate, typename C>
 		constexpr auto get_index_if_unsafe(const C& arr, UnaryPredicate predicate) {
-			return distance(arr.begin(), find_if(arr, predicate));
+			return GAIA_UTIL::distance(arr.begin(), find_if(arr, predicate));
 		}
 
 		//----------------------------------------------------------------------
