@@ -94,9 +94,7 @@ namespace gaia {
 #if GAIA_DEBUG
 					// There's a limit to the amount of components which we can store
 					if (indices.size() >= MAX_COMPONENTS_IN_QUERY) {
-						GAIA_ASSERT(
-								false && "Trying to create an ECS query with too many "
-												 "components!");
+						GAIA_ASSERT(false && "Trying to create an ECS query with too many components!");
 
 						constexpr auto typeName = utils::type_info::name<T>();
 						LOG_E(
@@ -252,11 +250,9 @@ namespace gaia {
 				\return True if there is a match, false otherwise.
 				*/
 			static GAIA_NODISCARD bool
-			CheckMatchOne(const ComponentLookupList& componentInfos, const ComponentIndexArray& indices) {
-				for (const auto index: indices) {
-					if (utils::has_if(componentInfos, [index](const ComponentLookupData& info) {
-								return info.infoIndex == index;
-							}))
+			CheckMatchOne(const ComponentInfoList& componentInfos, const ComponentIndexArray& indices) {
+				for (const auto infoIndex: indices) {
+					if (utils::has(componentInfos, infoIndex))
 						return true;
 				}
 
@@ -268,12 +264,12 @@ namespace gaia {
 				\return True if there is a match, false otherwise.
 				*/
 			static GAIA_NODISCARD bool
-			CheckMatchMany(const ComponentLookupList& componentInfos, const ComponentIndexArray& indices) {
+			CheckMatchMany(const ComponentInfoList& componentInfos, const ComponentIndexArray& indices) {
 				size_t matches = 0;
 
-				for (const auto index: indices) {
-					for (const auto& info: componentInfos) {
-						if (info.infoIndex == index) {
+				for (const auto indices_Index: indices) {
+					for (const auto infoIndex: componentInfos) {
+						if (infoIndex == indices_Index) {
 							if (++matches == indices.size())
 								return true;
 
@@ -292,7 +288,7 @@ namespace gaia {
 				*/
 			template <ComponentType TComponentType>
 			GAIA_NODISCARD MatchArchetypeQueryRet
-			Match(const ComponentLookupList& componentInfos, ComponentMatcherHash matcherHash) const {
+			Match(const ComponentInfoList& componentInfos, ComponentMatcherHash matcherHash) const {
 				const auto& queryList = GetData(TComponentType);
 				const auto withNoneTest = matcherHash.hash & queryList.hash[ListType::LT_None].hash;
 				const auto withAnyTest = matcherHash.hash & queryList.hash[ListType::LT_Any].hash;
@@ -412,14 +408,14 @@ namespace gaia {
 
 					// Early exit if generic query doesn't match
 					const auto retGeneric = Match<ComponentType::CT_Generic>(
-							GetArchetypeComponentLookupList(archetype, ComponentType::CT_Generic),
+							GetArchetypeComponentInfoList(archetype, ComponentType::CT_Generic),
 							GetArchetypeMatcherHash(archetype, ComponentType::CT_Generic));
 					if (retGeneric == EntityQuery::MatchArchetypeQueryRet::Fail)
 						continue;
 
 					// Early exit if chunk query doesn't match
 					const auto retChunk = Match<ComponentType::CT_Chunk>(
-							GetArchetypeComponentLookupList(archetype, ComponentType::CT_Chunk),
+							GetArchetypeComponentInfoList(archetype, ComponentType::CT_Chunk),
 							GetArchetypeMatcherHash(archetype, ComponentType::CT_Chunk));
 					if (retChunk == EntityQuery::MatchArchetypeQueryRet::Fail)
 						continue;

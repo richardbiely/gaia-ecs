@@ -339,20 +339,14 @@ namespace gaia {
 			}
 		};
 
-		using ComponentInfoList = containers::sarray_ext<const ComponentInfo*, MAX_COMPONENTS_PER_ARCHETYPE>;
+		using ComponentInfoList = containers::sarray_ext<uint32_t, MAX_COMPONENTS_PER_ARCHETYPE>;
+		using ComponentInfoSpan = std::span<const uint32_t>;
 
 		//----------------------------------------------------------------------
 		// ComponentLookupData
 		//----------------------------------------------------------------------
 
-		struct ComponentLookupData final {
-			//! Component info index. A copy of the value in ComponentInfo
-			uint32_t infoIndex;
-			//! Distance in bytes from the archetype's chunk data segment
-			uint32_t offset;
-		};
-
-		using ComponentLookupList = containers::sarray_ext<ComponentLookupData, MAX_COMPONENTS_PER_ARCHETYPE>;
+		using ComponentOffsetList = containers::sarray_ext<uint32_t, MAX_COMPONENTS_PER_ARCHETYPE>;
 
 	} // namespace ecs
 } // namespace gaia
