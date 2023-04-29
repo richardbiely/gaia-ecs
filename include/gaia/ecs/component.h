@@ -188,7 +188,7 @@ namespace gaia {
 		}
 
 		//----------------------------------------------------------------------
-		// ComponentInfo
+		// ComponentInfoCreate
 		//----------------------------------------------------------------------
 
 		struct ComponentInfoCreate final {
@@ -339,32 +339,10 @@ namespace gaia {
 			}
 		};
 
-		GAIA_NODISCARD inline uint64_t CalculateMatcherHash(uint64_t hashA, uint64_t hashB) noexcept {
-			return utils::combine_or(hashA, hashB);
-		}
+		using ComponentInfoList = containers::sarray_ext<const ComponentInfo*, MAX_COMPONENTS_PER_ARCHETYPE>;
 
-		GAIA_NODISCARD inline ComponentMatcherHash CalculateMatcherHash(std::span<const ComponentInfo*> infos) noexcept {
-			const auto infosSize = infos.size();
-			if (infosSize == 0)
-				return {0};
-
-			ComponentMatcherHash::Type hash = infos[0]->matcherHash.hash;
-			for (size_t i = 1; i < infosSize; ++i)
-				hash = utils::combine_or(hash, infos[i]->matcherHash.hash);
-			return {hash};
-		}
-
-		GAIA_NODISCARD inline ComponentLookupHash CalculateLookupHash(std::span<const ComponentInfo*> infos) noexcept {
-			const auto infosSize = infos.size();
-			if (infosSize == 0)
-				return {0};
-
-			ComponentLookupHash::Type hash = infos[0]->lookupHash.hash;
-			for (size_t i = 1; i < infosSize; ++i)
-				hash = utils::hash_combine(hash, infos[i]->lookupHash.hash);
-			return {hash};
-		}
-
+		//----------------------------------------------------------------------
+		// ComponentLookupData
 		//----------------------------------------------------------------------
 
 		struct ComponentLookupData final {
@@ -374,7 +352,6 @@ namespace gaia {
 			uint32_t offset;
 		};
 
-		using ComponentInfoList = containers::sarray_ext<const ComponentInfo*, MAX_COMPONENTS_PER_ARCHETYPE>;
 		using ComponentLookupList = containers::sarray_ext<ComponentLookupData, MAX_COMPONENTS_PER_ARCHETYPE>;
 
 	} // namespace ecs
