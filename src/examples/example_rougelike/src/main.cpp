@@ -499,7 +499,7 @@ class UpdateMapSystem final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q.All<Position, RigidBody>();
+		m_q.All<const Position, RigidBody>();
 	}
 	void OnUpdate() override {
 		g_world.content.clear();
@@ -526,7 +526,7 @@ class CollisionSystem final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q.All<Position, Velocity, RigidBody>();
+		m_q.All<const Position, const Velocity, const RigidBody>();
 	}
 
 	void OnUpdate() override {
@@ -633,7 +633,7 @@ class OrientationSystem final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q.All<Orientation, Velocity>().WithChanged<Velocity>();
+		m_q.All<Orientation, const Velocity>().WithChanged<Velocity>();
 	}
 
 	void OnUpdate() override {
@@ -656,7 +656,7 @@ class MoveSystem final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q.All<Position, Velocity>();
+		m_q.All<Position, const Velocity>();
 	}
 
 	void OnUpdate() override {
@@ -798,7 +798,7 @@ class HandleDeathSystem final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q.All<Health, Position>().WithChanged<Health>();
+		m_q.All<const Health, const Position>().WithChanged<Health>();
 	}
 
 	void OnUpdate() override {
@@ -817,7 +817,7 @@ class WriteSpritesToMapSystem final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q.All<Position, Sprite>();
+		m_q.All<const Position, const Sprite>();
 	}
 
 	void OnUpdate() override {
@@ -847,8 +847,8 @@ class UISystem final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_qp.All<Health, Player>();
-		m_qe.All<Health>().None<Player, Item>();
+		m_qp.All<const Health, Player>();
+		m_qe.All<const Health>().None<Player, Item>();
 	}
 
 	void OnUpdate() override {
@@ -869,8 +869,8 @@ class GameStateSystem: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_qp.All<Health, Player>();
-		m_qe.All<Health>().None<Player, Item>();
+		m_qp.All<const Health, Player>();
+		m_qe.All<const Health>().None<Player, Item>();
 	}
 
 	void OnUpdate() override {
@@ -894,7 +894,7 @@ class InputSystem final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q.All<Player, Velocity, Position, Orientation>();
+		m_q.All<const Player, Velocity, const Position, const Orientation>();
 	}
 
 	void OnUpdate() override {

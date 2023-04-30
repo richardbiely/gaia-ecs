@@ -299,9 +299,7 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD auto View() const {
 				using U = typename DeduceComponent<T>::Type;
-				using UOriginal = typename DeduceComponent<T>::TypeOriginal;
-				static_assert(IsReadOnlyType<UOriginal>::value);
-
+				
 				return utils::auto_view_policy_get<std::add_const_t<U>>{{View_Internal<T>()}};
 			}
 

@@ -47,7 +47,13 @@
 				DoNotOptimize(cond_ret);                                                                                       \
 			}
 	#else
-		#define GAIA_ASSERT(condition) assert(condition)
+		#if GAIA_FORCE_DEBUG
+			#define GAIA_ASSERT(condition)                                                                                   \
+				if (!(condition))                                                                                              \
+				GAIA_LOG_E("Condition not met! Line:%d, File:%s\n", __LINE__, __FILE__)
+		#else
+			#define GAIA_ASSERT(condition) assert(condition)
+		#endif
 	#endif
 #endif
 

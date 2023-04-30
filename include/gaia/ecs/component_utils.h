@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../utils/utility.h"
 #include "component.h"
 #include "component_cache.h"
 
@@ -35,12 +36,12 @@ namespace gaia {
 			return {hash};
 		}
 
+		using SortComponentCond = utils::is_smaller<ComponentId>;
+
 		//! Sorts component ids
 		template <typename Container>
 		inline void SortComponents(Container& c) {
-			utils::sort(c, [](ComponentId left, ComponentId right) {
-				return left < right;
-			});
+			utils::sort(c, SortComponentCond{});
 		}
 	} // namespace ecs
 } // namespace gaia

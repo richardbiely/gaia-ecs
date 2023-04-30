@@ -1,5 +1,6 @@
 #pragma once
 #include <tuple>
+#include <type_traits>
 
 #include "../config/profiler.h"
 #include "../containers/darray.h"
@@ -64,18 +65,31 @@ namespace gaia {
 			bool m_sort = true;
 
 			template <typename T>
-			bool HasComponent_Internal([[maybe_unused]] const ComponentIdArray& componentIds) const {
+			bool HasComponent_Internal(
+					[[maybe_unused]] ListType listType, [[maybe_unused]] ComponentType componentType, bool isReadWrite) const {
 				if constexpr (std::is_same_v<T, Entity>) {
 					// Skip Entity input args
 					return true;
 				} else {
+					const ComponentIdArray& componentIds = m_list[componentType].componentIds[listType];
+
+					// Component id has to be present
 					const auto componentId = GetComponentId<T>();
-					return utils::has(componentIds, componentId);
+					const auto idx = utils::get_index(componentIds, componentId);
+					if (idx == BadIndex)
+						return false;
+
+					// Read-write mask must match
+					const uint8_t maskRW = (uint32_t)m_rw[componentType] & (1U << (uint32_t)idx);
+					const uint8_t maskXX = (uint32_t)isReadWrite << idx;
+					return maskRW == maskXX;
 				}
 			}
 
 			template <typename T>
-			void AddComponent_Internal([[maybe_unused]] ListType listType, [[maybe_unused]] ComponentType componentType) {
+			void AddComponent_Internal(
+					[[maybe_unused]] ListType listType, [[maybe_unused]] ComponentType componentType,
+					[[maybe_unused]] bool isReadWrite) {
 				if constexpr (std::is_same_v<T, Entity>) {
 					// Skip Entity input args
 					return;
@@ -106,10 +120,8 @@ namespace gaia {
 					}
 #endif
 
-					constexpr bool isReadOnly = std::is_const_v<T>;
-					if constexpr (!isReadOnly) {
-						m_rw[(uint32_t)componentType] |= (1U << (uint32_t)componentIds.size());
-					}
+					m_rw[componentType] |= (uint8_t)isReadWrite << (uint8_t)componentIds.size();
+
 					componentIds.push_back(componentId);
 
 					m_recalculate = true;
@@ -173,9 +185,26 @@ namespace gaia {
 
 			//! Sorts internal component arrays
 			void SortComponentArrays() {
-				for (auto& l: m_list)
-					for (auto& componentIds: l.componentIds)
-						SortComponents(componentIds);
+				for (size_t i = 0; i < ComponentType::CT_Count; ++i) {
+					auto& l = m_list[i];
+					for (auto& componentIds: l.componentIds) {
+						// Make sure the read-write mask remains correct after sorting
+						utils::sort(componentIds, SortComponentCond{}, [&](uint32_t left, uint32_t right) {
+							// Swap component ids
+							utils::swap(componentIds[left], componentIds[right]);
+
+							// Swap the bits in the read-write mask
+							const uint32_t b0 = m_rw[i] & (1U << left);
+							const uint32_t b1 = m_rw[i] & (1U << right);
+							// XOR the two bits
+							const uint32_t bxor = (b0 ^ b1);
+							// Put the XOR bits back to their original positions
+							const uint32_t mask = (bxor << left) | (bxor << right);
+							// XOR mask with the original one effectivelly swapping the bits
+							m_rw[i] = m_rw[i] ^ (uint8_t)mask;
+						});
+					}
+				}
 			}
 
 			void CalculateLookupHash() {
@@ -215,6 +244,7 @@ namespace gaia {
 						hash = utils::hash_combine(hash, (LookupHash::Type)componentIds.size());
 					}
 
+					hash = utils::hash_combine(hash, (LookupHash::Type)m_rw[i]);
 					hashLookup = utils::hash_combine(hashLookup, hash);
 				}
 
@@ -342,6 +372,14 @@ namespace gaia {
 					return false;
 
 				for (size_t j = 0; j < ComponentType::CT_Count; ++j) {
+					// Read-write access has to be the same
+					if (m_rw[j] != other.m_rw[j])
+						return false;
+
+					// Filter count needs to be the same
+					if (m_listChangeFiltered[j].size() != other.m_listChangeFiltered[j].size())
+						return false;
+
 					const auto& queryList = m_list[j];
 					const auto& otherList = other.m_list[j];
 
@@ -356,10 +394,6 @@ namespace gaia {
 						if (queryList.hash[i] != otherList.hash[i])
 							return false;
 					}
-
-					// Filter count needs to be the same
-					if (m_listChangeFiltered[j].size() != other.m_listChangeFiltered[j].size())
-						return false;
 
 					// Components need to be the same
 					for (size_t i = 0; i < ListType::LT_Count; ++i) {
@@ -433,19 +467,27 @@ namespace gaia {
 			template <typename T>
 			void AddComponent_Internal(ListType listType) {
 				using U = typename DeduceComponent<T>::Type;
+				using UOriginal = typename DeduceComponent<T>::TypeOriginal;
+				using UOriginalPR = std::remove_reference_t<std::remove_pointer_t<UOriginal>>;
+				constexpr bool isReadWrite = std::is_same_v<U, UOriginal> || !std::is_const_v<UOriginalPR>;
+
 				if constexpr (IsGenericComponent<T>)
-					AddComponent_Internal<U>(listType, ComponentType::CT_Generic);
+					AddComponent_Internal<U>(listType, ComponentType::CT_Generic, isReadWrite);
 				else
-					AddComponent_Internal<U>(listType, ComponentType::CT_Chunk);
+					AddComponent_Internal<U>(listType, ComponentType::CT_Chunk, isReadWrite);
 			}
 
 			template <typename T>
 			bool HasComponent_Internal(ListType listType) const {
 				using U = typename DeduceComponent<T>::Type;
+				using UOriginal = typename DeduceComponent<T>::TypeOriginal;
+				using UOriginalPR = std::remove_reference_t<std::remove_pointer_t<UOriginal>>;
+				constexpr bool isReadWrite = std::is_same_v<U, UOriginal> || !std::is_const_v<UOriginalPR>;
+
 				if constexpr (IsGenericComponent<T>)
-					return HasComponent_Internal<U>(m_list[ComponentType::CT_Generic].componentIds[listType]);
+					return HasComponent_Internal<U>(listType, ComponentType::CT_Generic, isReadWrite);
 				else
-					return HasComponent_Internal<U>(m_list[ComponentType::CT_Chunk].componentIds[listType]);
+					return HasComponent_Internal<U>(listType, ComponentType::CT_Chunk, isReadWrite);
 			}
 
 			template <typename T>
@@ -477,7 +519,8 @@ namespace gaia {
 
 			template <bool Enabled>
 			GAIA_NODISCARD bool CheckConstraints() const {
-				// By default we only evaluate EnabledOnly changes. AcceptAll is something that has to be asked for explicitely.
+				// By default we only evaluate EnabledOnly changes. AcceptAll is something that has to be asked for
+				// explicitely.
 				if GAIA_UNLIKELY (m_constraints == Constraints::AcceptAll)
 					return true;
 

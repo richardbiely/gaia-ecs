@@ -154,14 +154,16 @@ void BM_ECS(picobench::state& state) {
 	CreateECSEntities_Static<false>(w);
 	CreateECSEntities_Dynamic<false>(w);
 
+	auto queryPosCVel = ecs::EntityQuery().All<Position, const Velocity>();
 	auto queryPosVel = ecs::EntityQuery().All<Position, Velocity>();
-	auto queryVel = ecs::EntityQuery().All<Position, Velocity>();
-	auto queryHealth = ecs::EntityQuery().All<Health>();
+	auto queryVel = ecs::EntityQuery().All<Velocity>();
+	auto queryCHealth = ecs::EntityQuery().All<const Health>();
 
 	// We want benchmark the hot-path. In real-world scenarios queries are almost never recalculated.
+	(void)w.FromQuery(queryPosCVel).HasItems();
 	(void)w.FromQuery(queryPosVel).HasItems();
 	(void)w.FromQuery(queryVel).HasItems();
-	(void)w.FromQuery(queryHealth).HasItems();
+	(void)w.FromQuery(queryCHealth).HasItems();
 
 	srand(0);
 	for (auto _: state) {
@@ -169,7 +171,7 @@ void BM_ECS(picobench::state& state) {
 		dt = CalculateDelta(state);
 
 		// Update position
-		w.ForEach(queryPosVel, [&](Position& p, const Velocity& v) {
+		w.ForEach(queryPosCVel, [&](Position& p, const Velocity& v) {
 			p.x += v.x * dt;
 			p.y += v.y * dt;
 			p.z += v.z * dt;
@@ -187,7 +189,7 @@ void BM_ECS(picobench::state& state) {
 		});
 		// Calculate the number of units alive
 		uint32_t aliveUnits = 0;
-		w.ForEach(queryHealth, [&](Health& h) {
+		w.ForEach(queryCHealth, [&](const Health& h) {
 			if (h.value > 0)
 				++aliveUnits;
 		});
@@ -212,14 +214,16 @@ void BM_ECS_WithSystems(picobench::state& state) {
 	CreateECSEntities_Static<false>(w);
 	CreateECSEntities_Dynamic<false>(w);
 
+	auto queryPosCVel = ecs::EntityQuery().All<Position, const Velocity>();
 	auto queryPosVel = ecs::EntityQuery().All<Position, Velocity>();
-	auto queryVel = ecs::EntityQuery().All<Position, Velocity>();
-	auto queryHealth = ecs::EntityQuery().All<Health>();
+	auto queryVel = ecs::EntityQuery().All<Velocity>();
+	auto queryCHealth = ecs::EntityQuery().All<const Health>();
 
 	// We want benchmark the hot-path. In real-world scenarios queries are almost never recalculated.
+	(void)w.FromQuery(queryPosCVel).HasItems();
 	(void)w.FromQuery(queryPosVel).HasItems();
 	(void)w.FromQuery(queryVel).HasItems();
-	(void)w.FromQuery(queryHealth).HasItems();
+	(void)w.FromQuery(queryCHealth).HasItems();
 
 	class PositionSystem final: public TestSystem {
 	public:
@@ -263,10 +267,10 @@ void BM_ECS_WithSystems(picobench::state& state) {
 	};
 
 	ecs::SystemManager sm(w);
-	sm.CreateSystem<PositionSystem>()->Init(&queryPosVel);
+	sm.CreateSystem<PositionSystem>()->Init(&queryPosCVel);
 	sm.CreateSystem<CollisionSystem>()->Init(&queryPosVel);
 	sm.CreateSystem<GravitySystem>()->Init(&queryVel);
-	sm.CreateSystem<CalculateAliveUnitsSystem>()->Init(&queryHealth);
+	sm.CreateSystem<CalculateAliveUnitsSystem>()->Init(&queryCHealth);
 
 	srand(0);
 	for (auto _: state) {
@@ -282,14 +286,16 @@ void BM_ECS_WithSystems_Chunk(picobench::state& state) {
 	CreateECSEntities_Static<false>(w);
 	CreateECSEntities_Dynamic<false>(w);
 
+	auto queryPosCVel = ecs::EntityQuery().All<Position, const Velocity>();
 	auto queryPosVel = ecs::EntityQuery().All<Position, Velocity>();
-	auto queryVel = ecs::EntityQuery().All<Position, Velocity>();
-	auto queryHealth = ecs::EntityQuery().All<Health>();
+	auto queryVel = ecs::EntityQuery().All<Velocity>();
+	auto queryCHealth = ecs::EntityQuery().All<const Health>();
 
 	// We want benchmark the hot-path. In real-world scenarios queries are almost never recalculated.
+	(void)w.FromQuery(queryPosCVel).HasItems();
 	(void)w.FromQuery(queryPosVel).HasItems();
 	(void)w.FromQuery(queryVel).HasItems();
-	(void)w.FromQuery(queryHealth).HasItems();
+	(void)w.FromQuery(queryCHealth).HasItems();
 
 	class PositionSystem final: public TestSystem {
 	public:
@@ -359,10 +365,10 @@ void BM_ECS_WithSystems_Chunk(picobench::state& state) {
 	};
 
 	ecs::SystemManager sm(w);
-	sm.CreateSystem<PositionSystem>()->Init(&queryPosVel);
+	sm.CreateSystem<PositionSystem>()->Init(&queryPosCVel);
 	sm.CreateSystem<CollisionSystem>()->Init(&queryPosVel);
 	sm.CreateSystem<GravitySystem>()->Init(&queryVel);
-	sm.CreateSystem<CalculateAliveUnitsSystem>()->Init(&queryHealth);
+	sm.CreateSystem<CalculateAliveUnitsSystem>()->Init(&queryCHealth);
 
 	srand(0);
 	for (auto _: state) {
@@ -378,14 +384,16 @@ void BM_ECS_WithSystems_Chunk_SoA(picobench::state& state) {
 	CreateECSEntities_Static<true>(w);
 	CreateECSEntities_Dynamic<true>(w);
 
+	auto queryPosCVel = ecs::EntityQuery().All<PositionSoA, const VelocitySoA>();
 	auto queryPosVel = ecs::EntityQuery().All<PositionSoA, VelocitySoA>();
-	auto queryVel = ecs::EntityQuery().All<PositionSoA, VelocitySoA>();
-	auto queryHealth = ecs::EntityQuery().All<Health>();
+	auto queryVel = ecs::EntityQuery().All<VelocitySoA>();
+	auto queryCHealth = ecs::EntityQuery().All<const Health>();
 
 	// We want benchmark the hot-path. In real-world scenarios queries are almost never recalculated.
+	(void)w.FromQuery(queryPosCVel).HasItems();
 	(void)w.FromQuery(queryPosVel).HasItems();
 	(void)w.FromQuery(queryVel).HasItems();
-	(void)w.FromQuery(queryHealth).HasItems();
+	(void)w.FromQuery(queryCHealth).HasItems();
 
 	class PositionSystem final: public TestSystem {
 	public:
@@ -509,10 +517,10 @@ void BM_ECS_WithSystems_Chunk_SoA(picobench::state& state) {
 	};
 
 	ecs::SystemManager sm(w);
-	sm.CreateSystem<PositionSystem>()->Init(&queryPosVel);
+	sm.CreateSystem<PositionSystem>()->Init(&queryPosCVel);
 	sm.CreateSystem<CollisionSystem>()->Init(&queryPosVel);
 	sm.CreateSystem<GravitySystem>()->Init(&queryVel);
-	sm.CreateSystem<CalculateAliveUnitsSystem>()->Init(&queryHealth);
+	sm.CreateSystem<CalculateAliveUnitsSystem>()->Init(&queryCHealth);
 
 	srand(0);
 	for (auto _: state) {
@@ -573,14 +581,16 @@ void BM_ECS_WithSystems_Chunk_SoA_SIMD(picobench::state& state) {
 	CreateECSEntities_Static<true>(w);
 	CreateECSEntities_Dynamic<true>(w);
 
+	auto queryPosCVel = ecs::EntityQuery().All<PositionSoA, const VelocitySoA>();
 	auto queryPosVel = ecs::EntityQuery().All<PositionSoA, VelocitySoA>();
-	auto queryVel = ecs::EntityQuery().All<PositionSoA, VelocitySoA>();
-	auto queryHealth = ecs::EntityQuery().All<Health>();
+	auto queryVel = ecs::EntityQuery().All<VelocitySoA>();
+	auto queryCHealth = ecs::EntityQuery().All<const Health>();
 
 	// We want benchmark the hot-path. In real-world scenarios queries are almost never recalculated.
+	(void)w.FromQuery(queryPosCVel).HasItems();
 	(void)w.FromQuery(queryPosVel).HasItems();
 	(void)w.FromQuery(queryVel).HasItems();
-	(void)w.FromQuery(queryHealth).HasItems();
+	(void)w.FromQuery(queryCHealth).HasItems();
 
 	class PositionSystem final: public TestSystem {
 	public:
@@ -733,10 +743,10 @@ void BM_ECS_WithSystems_Chunk_SoA_SIMD(picobench::state& state) {
 	};
 
 	ecs::SystemManager sm(w);
-	sm.CreateSystem<PositionSystem>()->Init(&queryPosVel);
+	sm.CreateSystem<PositionSystem>()->Init(&queryPosCVel);
 	sm.CreateSystem<CollisionSystem>()->Init(&queryPosVel);
 	sm.CreateSystem<GravitySystem>()->Init(&queryVel);
-	sm.CreateSystem<CalculateAliveUnitsSystem>()->Init(&queryHealth);
+	sm.CreateSystem<CalculateAliveUnitsSystem>()->Init(&queryCHealth);
 
 	srand(0);
 	for (auto _: state) {
@@ -1635,50 +1645,50 @@ int main(int argc, char* argv[]) {
 				PICOBENCH_REG(BM_ECS_WithSystems_Chunk).PICO_SETTINGS_1().label("Systems_Chunk");
 			}
 		} else {
-			//  Ordinary coding style.
-			PICOBENCH_REG(BM_NonECS<false>).PICO_SETTINGS().label("Default");
-			PICOBENCH_REG(BM_NonECS<true>).PICO_SETTINGS().label("Default2");
+			// //  Ordinary coding style.
+			// PICOBENCH_REG(BM_NonECS<false>).PICO_SETTINGS().label("Default");
+			// PICOBENCH_REG(BM_NonECS<true>).PICO_SETTINGS().label("Default2");
 
-			// Ordinary coding style with optimized memory layout (imagine using custom allocators
-			// to keep things close and tidy in memory).
-			PICOBENCH_REG(BM_NonECS_BetterMemoryLayout<false>).PICO_SETTINGS().label("OptimizedMemLayout");
-			PICOBENCH_REG(BM_NonECS_BetterMemoryLayout<true>).PICO_SETTINGS().label("OptimizedMemLayout2");
+			// // Ordinary coding style with optimized memory layout (imagine using custom allocators
+			// // to keep things close and tidy in memory).
+			// PICOBENCH_REG(BM_NonECS_BetterMemoryLayout<false>).PICO_SETTINGS().label("OptimizedMemLayout");
+			// PICOBENCH_REG(BM_NonECS_BetterMemoryLayout<true>).PICO_SETTINGS().label("OptimizedMemLayout2");
 
-			// Memory organized in DoD style.
-			// Performance target BM_ECS_WithSystems_Chunk.
-			// "Groups" is there to simulate having items split into separate chunks similar to what ECS does.
-			PICOBENCH_SUITE_REG("NonECS_DOD");
-			PICOBENCH_REG(BM_NonECS_DOD<1>).PICO_SETTINGS().baseline().label("Default");
-			PICOBENCH_REG(BM_NonECS_DOD<20>).PICO_SETTINGS().label("Chunks_20");
-			PICOBENCH_REG(BM_NonECS_DOD<40>).PICO_SETTINGS().label("Chunks_40");
-			PICOBENCH_REG(BM_NonECS_DOD<80>).PICO_SETTINGS().label("Chunks_80");
-			PICOBENCH_REG(BM_NonECS_DOD<160>).PICO_SETTINGS().label("Chunks_160");
-			PICOBENCH_REG(BM_NonECS_DOD<200>).PICO_SETTINGS().label("Chunks_200");
-			PICOBENCH_REG(BM_NonECS_DOD<320>).PICO_SETTINGS().label("Chunks_320");
+			// // Memory organized in DoD style.
+			// // Performance target BM_ECS_WithSystems_Chunk.
+			// // "Groups" is there to simulate having items split into separate chunks similar to what ECS does.
+			// PICOBENCH_SUITE_REG("NonECS_DOD");
+			// PICOBENCH_REG(BM_NonECS_DOD<1>).PICO_SETTINGS().baseline().label("Default");
+			// PICOBENCH_REG(BM_NonECS_DOD<20>).PICO_SETTINGS().label("Chunks_20");
+			// PICOBENCH_REG(BM_NonECS_DOD<40>).PICO_SETTINGS().label("Chunks_40");
+			// PICOBENCH_REG(BM_NonECS_DOD<80>).PICO_SETTINGS().label("Chunks_80");
+			// PICOBENCH_REG(BM_NonECS_DOD<160>).PICO_SETTINGS().label("Chunks_160");
+			// PICOBENCH_REG(BM_NonECS_DOD<200>).PICO_SETTINGS().label("Chunks_200");
+			// PICOBENCH_REG(BM_NonECS_DOD<320>).PICO_SETTINGS().label("Chunks_320");
 
-			// Best possible performance with no manual optimization.
-			// Performance target for BM_ECS_WithSystems_Chunk_SoA.
-			// "Groups" is there to simulate having items split into separate chunks similar to what ECS does.
-			PICOBENCH_SUITE_REG("NonECS_DOD_SoA");
-			PICOBENCH_REG(BM_NonECS_DOD_SoA<1>).PICO_SETTINGS().baseline().label("Default");
-			PICOBENCH_REG(BM_NonECS_DOD_SoA<20>).PICO_SETTINGS().label("Chunks_20");
-			PICOBENCH_REG(BM_NonECS_DOD_SoA<40>).PICO_SETTINGS().label("Chunks_40");
-			PICOBENCH_REG(BM_NonECS_DOD_SoA<80>).PICO_SETTINGS().label("Chunks_80");
-			PICOBENCH_REG(BM_NonECS_DOD_SoA<160>).PICO_SETTINGS().label("Chunks_160");
-			PICOBENCH_REG(BM_NonECS_DOD_SoA<200>).PICO_SETTINGS().label("Chunks_200");
-			PICOBENCH_REG(BM_NonECS_DOD_SoA<320>).PICO_SETTINGS().label("Chunks_320");
+			// // Best possible performance with no manual optimization.
+			// // Performance target for BM_ECS_WithSystems_Chunk_SoA.
+			// // "Groups" is there to simulate having items split into separate chunks similar to what ECS does.
+			// PICOBENCH_SUITE_REG("NonECS_DOD_SoA");
+			// PICOBENCH_REG(BM_NonECS_DOD_SoA<1>).PICO_SETTINGS().baseline().label("Default");
+			// PICOBENCH_REG(BM_NonECS_DOD_SoA<20>).PICO_SETTINGS().label("Chunks_20");
+			// PICOBENCH_REG(BM_NonECS_DOD_SoA<40>).PICO_SETTINGS().label("Chunks_40");
+			// PICOBENCH_REG(BM_NonECS_DOD_SoA<80>).PICO_SETTINGS().label("Chunks_80");
+			// PICOBENCH_REG(BM_NonECS_DOD_SoA<160>).PICO_SETTINGS().label("Chunks_160");
+			// PICOBENCH_REG(BM_NonECS_DOD_SoA<200>).PICO_SETTINGS().label("Chunks_200");
+			// PICOBENCH_REG(BM_NonECS_DOD_SoA<320>).PICO_SETTINGS().label("Chunks_320");
 
-			// Best possible performance.
-			// Performance target for BM_ECS_WithSystems_Chunk_SoA_SIMD.
-			// "Groups" is there to simulate having items split into separate chunks similar to what ECS does.
-			PICOBENCH_SUITE_REG("NonECS_DOD_SoA_SIMD");
-			PICOBENCH_REG(BM_NonECS_DOD_SoA_SIMD<1>).PICO_SETTINGS().baseline().label("Default");
-			PICOBENCH_REG(BM_NonECS_DOD_SoA_SIMD<20>).PICO_SETTINGS().label("Chunks_20");
-			PICOBENCH_REG(BM_NonECS_DOD_SoA_SIMD<40>).PICO_SETTINGS().label("Chunks_40");
-			PICOBENCH_REG(BM_NonECS_DOD_SoA_SIMD<80>).PICO_SETTINGS().label("Chunks_80");
-			PICOBENCH_REG(BM_NonECS_DOD_SoA_SIMD<160>).PICO_SETTINGS().label("Chunks_160");
-			PICOBENCH_REG(BM_NonECS_DOD_SoA_SIMD<200>).PICO_SETTINGS().label("Chunks_200");
-			PICOBENCH_REG(BM_NonECS_DOD_SoA_SIMD<320>).PICO_SETTINGS().label("Chunks_320");
+			// // Best possible performance.
+			// // Performance target for BM_ECS_WithSystems_Chunk_SoA_SIMD.
+			// // "Groups" is there to simulate having items split into separate chunks similar to what ECS does.
+			// PICOBENCH_SUITE_REG("NonECS_DOD_SoA_SIMD");
+			// PICOBENCH_REG(BM_NonECS_DOD_SoA_SIMD<1>).PICO_SETTINGS().baseline().label("Default");
+			// PICOBENCH_REG(BM_NonECS_DOD_SoA_SIMD<20>).PICO_SETTINGS().label("Chunks_20");
+			// PICOBENCH_REG(BM_NonECS_DOD_SoA_SIMD<40>).PICO_SETTINGS().label("Chunks_40");
+			// PICOBENCH_REG(BM_NonECS_DOD_SoA_SIMD<80>).PICO_SETTINGS().label("Chunks_80");
+			// PICOBENCH_REG(BM_NonECS_DOD_SoA_SIMD<160>).PICO_SETTINGS().label("Chunks_160");
+			// PICOBENCH_REG(BM_NonECS_DOD_SoA_SIMD<200>).PICO_SETTINGS().label("Chunks_200");
+			// PICOBENCH_REG(BM_NonECS_DOD_SoA_SIMD<320>).PICO_SETTINGS().label("Chunks_320");
 
 			// GaiaECS performance.
 			PICOBENCH_SUITE_REG("ECS");

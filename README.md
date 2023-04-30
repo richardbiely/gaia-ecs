@@ -289,7 +289,7 @@ You can also be more specific by providing an EntityQuery.<br/>
 The example above creates an EntityQuery internally from the arguments provided to ForEach. However, this version can also be slower because it needs to do a lookup in the EntityQuery cache. Therefore, consider it only for non-critical parts of your code. Even though the code is longer, it's a good pratice to use explicit EntityQueries when possible.
 ```cpp
 ecs::EntityQuery q;
-q.All<Position, Velocity>(); // Take into account all chunks with Position and Velocity...
+q.All<Position, const Velocity>(); // Take into account all chunks with Position and Velocity...
 q.None<Player>();            // ... but no Player component.
 
 w.ForEach(q, [&](Position& p, const Velocity& v) {
@@ -303,7 +303,7 @@ w.ForEach(q, [&](Position& p, const Velocity& v) {
 As mentioned earlier, using WithChanged we can make the iteration run only if particular components change. You can save quite a bit of performance using this technique.<br/>
 ```cpp
 ecs::EntityQuery q;
-q.All<Position, Velocity>(); // Take into account all chunks with Position and Velocity...
+q.All<Position, const Velocity>(); // Take into account all chunks with Position and Velocity...
 q.None<Player>();            // ... no Player component...
 q.WithChanged<Velocity>();   // ... but only iterate when Velocity changes
 
@@ -332,7 +332,7 @@ Iteration over chunks gives you more power as it exposes to you the underlying c
 That means you can perform more kinds of operations, and it also opens doors for new kinds of optimizations.
 ```cpp
 ecs::EntityQuery q;
-q.All<Position,Velocity>();
+q.All<Position, const Velocity>();
 
 w.ForEach(q, [](ecs::Chunk& ch) {
   auto p = ch.ViewRW<Position>(); // Read-write access to Position
@@ -389,7 +389,7 @@ struct VelocitySoA {
   static constexpr auto Layout = utils::DataLayout::SoA;
 };
 ...
-w.ForEach(ecs::EntityQuery().All<PositionSoA,VelocitySoA>, [](ecs::Chunk& ch) {
+w.ForEach(ecs::EntityQuery().All<PositionSoA, const VelocitySoA>, [](ecs::Chunk& ch) {
   auto vp = ch.ViewRW<PositionSoA>(); // read-write access to PositionSoA
   auto vv = ch.View<VelocitySoA>(); // read-only access to VelocitySoA
 
@@ -534,6 +534,7 @@ Currently, many new features and improvements to the current system are planned.
 Among the most prominent ones those are:
 * scheduler - a system that would allow parallel execution of all systems by default, work stealing, and an easy setup of dependencies
 * scenes - a way to serialize the state of chunks or entire worlds
+* scripting - expose low-level structures of the framework so it can be implemented by various other languages including scripting ones
 * debugger - an editor that would give one an overview of worlds created by the framework (number of entities, chunk fragmentation, systems running, etc.)
 
 # Contributions
