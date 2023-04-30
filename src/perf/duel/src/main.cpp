@@ -1645,50 +1645,50 @@ int main(int argc, char* argv[]) {
 				PICOBENCH_REG(BM_ECS_WithSystems_Chunk).PICO_SETTINGS_1().label("Systems_Chunk");
 			}
 		} else {
-			// //  Ordinary coding style.
-			// PICOBENCH_REG(BM_NonECS<false>).PICO_SETTINGS().label("Default");
-			// PICOBENCH_REG(BM_NonECS<true>).PICO_SETTINGS().label("Default2");
+			//  Ordinary coding style.
+			PICOBENCH_REG(BM_NonECS<false>).PICO_SETTINGS().label("Default");
+			PICOBENCH_REG(BM_NonECS<true>).PICO_SETTINGS().label("Default2");
 
-			// // Ordinary coding style with optimized memory layout (imagine using custom allocators
-			// // to keep things close and tidy in memory).
-			// PICOBENCH_REG(BM_NonECS_BetterMemoryLayout<false>).PICO_SETTINGS().label("OptimizedMemLayout");
-			// PICOBENCH_REG(BM_NonECS_BetterMemoryLayout<true>).PICO_SETTINGS().label("OptimizedMemLayout2");
+			// Ordinary coding style with optimized memory layout (imagine using custom allocators
+			// to keep things close and tidy in memory).
+			PICOBENCH_REG(BM_NonECS_BetterMemoryLayout<false>).PICO_SETTINGS().label("OptimizedMemLayout");
+			PICOBENCH_REG(BM_NonECS_BetterMemoryLayout<true>).PICO_SETTINGS().label("OptimizedMemLayout2");
 
-			// // Memory organized in DoD style.
-			// // Performance target BM_ECS_WithSystems_Chunk.
-			// // "Groups" is there to simulate having items split into separate chunks similar to what ECS does.
-			// PICOBENCH_SUITE_REG("NonECS_DOD");
-			// PICOBENCH_REG(BM_NonECS_DOD<1>).PICO_SETTINGS().baseline().label("Default");
-			// PICOBENCH_REG(BM_NonECS_DOD<20>).PICO_SETTINGS().label("Chunks_20");
-			// PICOBENCH_REG(BM_NonECS_DOD<40>).PICO_SETTINGS().label("Chunks_40");
-			// PICOBENCH_REG(BM_NonECS_DOD<80>).PICO_SETTINGS().label("Chunks_80");
-			// PICOBENCH_REG(BM_NonECS_DOD<160>).PICO_SETTINGS().label("Chunks_160");
-			// PICOBENCH_REG(BM_NonECS_DOD<200>).PICO_SETTINGS().label("Chunks_200");
-			// PICOBENCH_REG(BM_NonECS_DOD<320>).PICO_SETTINGS().label("Chunks_320");
+			// Memory organized in DoD style.
+			// Performance target BM_ECS_WithSystems_Chunk.
+			// "Groups" is there to simulate having items split into separate chunks similar to what ECS does.
+			PICOBENCH_SUITE_REG("NonECS_DOD");
+			PICOBENCH_REG(BM_NonECS_DOD<1>).PICO_SETTINGS().baseline().label("Default");
+			PICOBENCH_REG(BM_NonECS_DOD<20>).PICO_SETTINGS().label("Chunks_20");
+			PICOBENCH_REG(BM_NonECS_DOD<40>).PICO_SETTINGS().label("Chunks_40");
+			PICOBENCH_REG(BM_NonECS_DOD<80>).PICO_SETTINGS().label("Chunks_80");
+			PICOBENCH_REG(BM_NonECS_DOD<160>).PICO_SETTINGS().label("Chunks_160");
+			PICOBENCH_REG(BM_NonECS_DOD<200>).PICO_SETTINGS().label("Chunks_200");
+			PICOBENCH_REG(BM_NonECS_DOD<320>).PICO_SETTINGS().label("Chunks_320");
 
-			// // Best possible performance with no manual optimization.
-			// // Performance target for BM_ECS_WithSystems_Chunk_SoA.
-			// // "Groups" is there to simulate having items split into separate chunks similar to what ECS does.
-			// PICOBENCH_SUITE_REG("NonECS_DOD_SoA");
-			// PICOBENCH_REG(BM_NonECS_DOD_SoA<1>).PICO_SETTINGS().baseline().label("Default");
-			// PICOBENCH_REG(BM_NonECS_DOD_SoA<20>).PICO_SETTINGS().label("Chunks_20");
-			// PICOBENCH_REG(BM_NonECS_DOD_SoA<40>).PICO_SETTINGS().label("Chunks_40");
-			// PICOBENCH_REG(BM_NonECS_DOD_SoA<80>).PICO_SETTINGS().label("Chunks_80");
-			// PICOBENCH_REG(BM_NonECS_DOD_SoA<160>).PICO_SETTINGS().label("Chunks_160");
-			// PICOBENCH_REG(BM_NonECS_DOD_SoA<200>).PICO_SETTINGS().label("Chunks_200");
-			// PICOBENCH_REG(BM_NonECS_DOD_SoA<320>).PICO_SETTINGS().label("Chunks_320");
+			// Best possible performance with no manual optimization.
+			// Performance target for BM_ECS_WithSystems_Chunk_SoA.
+			// "Groups" is there to simulate having items split into separate chunks similar to what ECS does.
+			PICOBENCH_SUITE_REG("NonECS_DOD_SoA");
+			PICOBENCH_REG(BM_NonECS_DOD_SoA<1>).PICO_SETTINGS().baseline().label("Default");
+			PICOBENCH_REG(BM_NonECS_DOD_SoA<20>).PICO_SETTINGS().label("Chunks_20");
+			PICOBENCH_REG(BM_NonECS_DOD_SoA<40>).PICO_SETTINGS().label("Chunks_40");
+			PICOBENCH_REG(BM_NonECS_DOD_SoA<80>).PICO_SETTINGS().label("Chunks_80");
+			PICOBENCH_REG(BM_NonECS_DOD_SoA<160>).PICO_SETTINGS().label("Chunks_160");
+			PICOBENCH_REG(BM_NonECS_DOD_SoA<200>).PICO_SETTINGS().label("Chunks_200");
+			PICOBENCH_REG(BM_NonECS_DOD_SoA<320>).PICO_SETTINGS().label("Chunks_320");
 
-			// // Best possible performance.
-			// // Performance target for BM_ECS_WithSystems_Chunk_SoA_SIMD.
-			// // "Groups" is there to simulate having items split into separate chunks similar to what ECS does.
-			// PICOBENCH_SUITE_REG("NonECS_DOD_SoA_SIMD");
-			// PICOBENCH_REG(BM_NonECS_DOD_SoA_SIMD<1>).PICO_SETTINGS().baseline().label("Default");
-			// PICOBENCH_REG(BM_NonECS_DOD_SoA_SIMD<20>).PICO_SETTINGS().label("Chunks_20");
-			// PICOBENCH_REG(BM_NonECS_DOD_SoA_SIMD<40>).PICO_SETTINGS().label("Chunks_40");
-			// PICOBENCH_REG(BM_NonECS_DOD_SoA_SIMD<80>).PICO_SETTINGS().label("Chunks_80");
-			// PICOBENCH_REG(BM_NonECS_DOD_SoA_SIMD<160>).PICO_SETTINGS().label("Chunks_160");
-			// PICOBENCH_REG(BM_NonECS_DOD_SoA_SIMD<200>).PICO_SETTINGS().label("Chunks_200");
-			// PICOBENCH_REG(BM_NonECS_DOD_SoA_SIMD<320>).PICO_SETTINGS().label("Chunks_320");
+			// Best possible performance.
+			// Performance target for BM_ECS_WithSystems_Chunk_SoA_SIMD.
+			// "Groups" is there to simulate having items split into separate chunks similar to what ECS does.
+			PICOBENCH_SUITE_REG("NonECS_DOD_SoA_SIMD");
+			PICOBENCH_REG(BM_NonECS_DOD_SoA_SIMD<1>).PICO_SETTINGS().baseline().label("Default");
+			PICOBENCH_REG(BM_NonECS_DOD_SoA_SIMD<20>).PICO_SETTINGS().label("Chunks_20");
+			PICOBENCH_REG(BM_NonECS_DOD_SoA_SIMD<40>).PICO_SETTINGS().label("Chunks_40");
+			PICOBENCH_REG(BM_NonECS_DOD_SoA_SIMD<80>).PICO_SETTINGS().label("Chunks_80");
+			PICOBENCH_REG(BM_NonECS_DOD_SoA_SIMD<160>).PICO_SETTINGS().label("Chunks_160");
+			PICOBENCH_REG(BM_NonECS_DOD_SoA_SIMD<200>).PICO_SETTINGS().label("Chunks_200");
+			PICOBENCH_REG(BM_NonECS_DOD_SoA_SIMD<320>).PICO_SETTINGS().label("Chunks_320");
 
 			// GaiaECS performance.
 			PICOBENCH_SUITE_REG("ECS");
