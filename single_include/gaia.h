@@ -2544,13 +2544,13 @@ namespace gaia {
 		}
 
 		template <typename C, typename TCmpFunc, typename TSortFunc>
-		constexpr void try_swap_if(C& c, uint32_t lhs, uint32_t rhs, TCmpFunc cmpFunc, TSortFunc sortFunc) noexcept {
+		constexpr void try_swap_if(C& c, size_t lhs, size_t rhs, TCmpFunc cmpFunc, TSortFunc sortFunc) noexcept {
 			if (!cmpFunc(c[lhs], c[rhs]))
 				sortFunc(lhs, rhs);
 		}
 
 		template <typename C, typename TCmpFunc, typename TSortFunc>
-		constexpr void try_swap_if_not(C& c, uint32_t lhs, uint32_t rhs, TCmpFunc cmpFunc, TSortFunc sortFunc) noexcept {
+		constexpr void try_swap_if_not(C& c, size_t lhs, size_t rhs, TCmpFunc cmpFunc, TSortFunc sortFunc) noexcept {
 			if (cmpFunc(c[lhs], c[rhs]))
 				sortFunc(lhs, rhs);
 		}
@@ -9039,7 +9039,7 @@ namespace gaia {
 					auto& l = m_list[i];
 					for (auto& componentIds: l.componentIds) {
 						// Make sure the read-write mask remains correct after sorting
-						utils::sort(componentIds, SortComponentCond{}, [&](uint32_t left, uint32_t right) {
+						utils::sort(componentIds, SortComponentCond{}, [&](size_t left, size_t right) {
 							// Swap component ids
 							utils::swap(componentIds[left], componentIds[right]);
 
@@ -9319,7 +9319,8 @@ namespace gaia {
 				using U = typename DeduceComponent<T>::Type;
 				using UOriginal = typename DeduceComponent<T>::TypeOriginal;
 				using UOriginalPR = std::remove_reference_t<std::remove_pointer_t<UOriginal>>;
-				constexpr bool isReadWrite = std::is_same_v<U, UOriginal> || !std::is_const_v<UOriginalPR>;
+				constexpr bool isReadWrite =
+						std::is_same_v<U, UOriginal> || !std::is_const_v<UOriginalPR> && !std::is_empty_v<U>;
 
 				if constexpr (IsGenericComponent<T>)
 					AddComponent_Internal<U>(listType, ComponentType::CT_Generic, isReadWrite);
@@ -9332,7 +9333,8 @@ namespace gaia {
 				using U = typename DeduceComponent<T>::Type;
 				using UOriginal = typename DeduceComponent<T>::TypeOriginal;
 				using UOriginalPR = std::remove_reference_t<std::remove_pointer_t<UOriginal>>;
-				constexpr bool isReadWrite = std::is_same_v<U, UOriginal> || !std::is_const_v<UOriginalPR>;
+				constexpr bool isReadWrite =
+						std::is_same_v<U, UOriginal> || !std::is_const_v<UOriginalPR> && !std::is_empty_v<U>;
 
 				if constexpr (IsGenericComponent<T>)
 					return HasComponent_Internal<U>(listType, ComponentType::CT_Generic, isReadWrite);
