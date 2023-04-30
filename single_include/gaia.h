@@ -6776,21 +6776,21 @@ namespace gaia {
 				IsGenericComponent<T>, typename detail::ExtractComponentType_Generic<T>,
 				typename detail::ExtractComponentType_NonGeneric<T>>;
 
-		//! Returns the index of the component \tparam T
-		//! \return Component index
+		//! Returns the component id for \tparam T
+		//! \return Component id
 		template <typename T>
 		GAIA_NODISCARD inline ComponentId GetComponentId() {
 			using U = typename DeduceComponent<T>::Type;
 			return utils::type_info::id<U>();
 		}
 
-		//! Returns the index of the component \tparam T
+		//! Returns the component id for \tparam T
 		//! \warning Does not perform any deduction for \tparam T.
 		//!          Passing "const X" and "X" would therefore yield to different results.
 		//!          Therefore, this must be used only when we known \tparam T is the deduced "raw" type.
-		//! \return Component index
+		//! \return Component id
 		template <typename T>
-		GAIA_NODISCARD inline uint32_t GetComponentIdUnsafe() {
+		GAIA_NODISCARD inline ComponentId GetComponentIdUnsafe() {
 			// This is essentially the same thing as GetComponentId but when used correctly
 			// we can save some compilation time.
 			return utils::type_info::id<T>();
@@ -7579,6 +7579,7 @@ namespace gaia {
 
 			/*!
 			Checks if a component is present in the archetype based on the provided \param componentId.
+			\param componentId Component id
 			\param componentType Component type
 			\return True if found. False otherwise.
 			*/
@@ -7601,6 +7602,9 @@ namespace gaia {
 				return index;
 			}
 
+			/*!
+			Remove the entity at \param index from the \param entities array.
+			*/
 			void RemoveEntity(uint32_t index, containers::darray<EntityContainer>& entities) {
 				// Ignore requests on empty chunks
 				if (header.count == 0)
@@ -7737,7 +7741,7 @@ namespace gaia {
 			/*!
 			Returns a pointer do component data with read-only access.
 			\param componentType Component type
-			\param componentId Component info index
+			\param componentId Component id
 			\return Const pointer to component data.
 			*/
 			GAIA_NODISCARD GAIA_FORCEINLINE const uint8_t*
@@ -7756,7 +7760,7 @@ namespace gaia {
 			Returns a pointer do component data with read-write access. Also updates the world version for the component.
 			\tparam UpdateWorldVersion If true, the world version is updated as a result of the write access
 			\param componentType Component type
-			\param componentId Index of the component in the archetype
+			\param componentId Component id
 			\return Pointer to component data.
 			*/
 			template <bool UpdateWorldVersion>
@@ -7776,6 +7780,26 @@ namespace gaia {
 				}
 
 				return (uint8_t*)&data[offsets[idx]];
+			}
+
+			/*!
+			Returns the value stored in the component \tparam T on \param index in the chunk.
+			\warning It is expected the \param index is valid. Undefined behavior otherwise.
+			\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
+			\tparam T Component
+			\param index Index of entity in the chunk
+			\return Value stored in the component.
+			*/
+			template <typename T>
+			GAIA_NODISCARD auto GetComponent_Internal(uint32_t index) const {
+				using U = typename DeduceComponent<T>::Type;
+				using RetValue = decltype(View<T>()[0]);
+
+				GAIA_ASSERT(index < header.count);
+				if constexpr (sizeof(RetValue) > 8)
+					return (const U&)View<T>()[index];
+				else
+					return View<T>()[index];
 			}
 
 		public:
@@ -7845,45 +7869,75 @@ namespace gaia {
 			// Set component data
 			//----------------------------------------------------------------------
 
+			/*!
+			Sets the value of the chunk component \tparam T on \param index in the chunk.
+			\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
+			\tparam T Component
+			\param index Index of entity in the chunk
+			\param value Value to set for the component
+			*/
 			template <typename T>
 			void SetComponent(uint32_t index, typename DeduceComponent<T>::Type&& value) {
 				using U = typename DeduceComponent<T>::Type;
 
 				static_assert(
-						IsGenericComponent<T>, "SetComponent providing an index in chunk is only available for generic components");
+						IsGenericComponent<T>, "SetComponent providing an index can only be used with generic components");
 
+				GAIA_ASSERT(index < header.capacity);
 				ViewRW<T>()[index] = std::forward<U>(value);
 			}
 
+			/*!
+			Sets the value of the chunk component \tparam T in the chunk.
+			\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
+			\tparam T Component
+			\param value Value to set for the component
+			*/
 			template <typename T>
 			void SetComponent(typename DeduceComponent<T>::Type&& value) {
 				using U = typename DeduceComponent<T>::Type;
 
 				static_assert(
-						!IsGenericComponent<T>,
-						"SetComponent not providing an index in chunk is only available for non-generic components");
+						!IsGenericComponent<T>, "SetComponent not providing an index can only be used with chunk components");
 
+				GAIA_ASSERT(0 < header.capacity);
 				ViewRW<T>()[0] = std::forward<U>(value);
 			}
 
+			/*!
+			Sets the value of the chunk component \tparam T on \param index in the chunk.
+			\warning World version is not updated so EntityQuery filters will not be able to catch this change.
+			\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
+			\tparam T Component
+			\param index Index of entity in the chunk
+			\param value Value to set for the component
+			*/
 			template <typename T>
 			void SetComponentSilent(uint32_t index, typename DeduceComponent<T>::Type&& value) {
 				using U = typename DeduceComponent<T>::Type;
 
 				static_assert(
-						IsGenericComponent<T>, "SetComponent providing an index in chunk is only available for generic components");
+						IsGenericComponent<T>, "SetComponentSilent providing an index can only be used with generic components");
 
+				GAIA_ASSERT(index < header.capacity);
 				ViewRWSilent<T>()[index] = std::forward<U>(value);
 			}
 
+			/*!
+			Sets the value of the chunk component \tparam T in the chunk.
+			\warning World version is not updated so EntityQuery filters will not be able to catch this change.
+			\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
+			\tparam T Component
+			\param value Value to set for the component
+			*/
 			template <typename T>
 			void SetComponentSilent(typename DeduceComponent<T>::Type&& value) {
 				using U = typename DeduceComponent<T>::Type;
 
 				static_assert(
-						!IsGenericComponent<T>,
-						"SetComponent not providing an index in chunk is only available for non-generic components");
+						!IsGenericComponent<T>, "SetComponentSilent not providing an index can only be used with chunk components");
 
+				GAIA_ASSERT(0 < header.capacity);
 				ViewRWSilent<T>()[0] = std::forward<U>(value);
 			}
 
@@ -7891,28 +7945,31 @@ namespace gaia {
 			// Read component data
 			//----------------------------------------------------------------------
 
-			template <typename T>
-			GAIA_NODISCARD auto GetComponent_Internal(uint32_t index) const {
-				using U = typename DeduceComponent<T>::Type;
-				using RetValue = decltype(View<T>()[0]);
-
-				if constexpr (sizeof(RetValue) > 8)
-					return (const U&)View<T>()[index];
-				else
-					return View<T>()[index];
-			}
-
+			/*!
+			Returns the value stored in the component \tparam T on \param index in the chunk.
+			\warning It is expected the \param index is valid. Undefined behavior otherwise.
+			\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
+			\tparam T Component
+			\param index Index of entity in the chunk
+			\return Value stored in the component.
+			*/
 			template <typename T>
 			GAIA_NODISCARD auto GetComponent(uint32_t index) const {
 				static_assert(
-						IsGenericComponent<T>, "GetComponent providing an index is only available for generic components");
+						IsGenericComponent<T>, "GetComponent providing an index can only be used with generic components");
 				return GetComponent_Internal<T>(index);
 			}
 
+			/*!
+			Returns the value stored in the chunk component \tparam T.
+			\warning It is expected the chunk component \tparam T is present. Undefined behavior otherwise.
+			\tparam T Component
+			\return Value stored in the component.
+			*/
 			template <typename T>
 			GAIA_NODISCARD auto GetComponent() const {
 				static_assert(
-						!IsGenericComponent<T>, "GetComponent not providing an index is only available for non-generic components");
+						!IsGenericComponent<T>, "GetComponent not providing an index can only be used with chunk components");
 				return GetComponent_Internal<T>(0);
 			}
 
@@ -7985,12 +8042,12 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD const ComponentInfo& GetOrCreateComponentInfo() {
 				using U = typename DeduceComponent<T>::Type;
-				const auto index = GetComponentIdUnsafe<U>();
+				const auto componentId = GetComponentIdUnsafe<U>();
 
 				auto createInfo = [&]() -> const ComponentInfo& {
 					const auto* pInfo = ComponentInfo::Create<U>();
-					m_infoByIndex[index] = pInfo;
-					m_descByIndex[index] = ComponentDesc::Create<U>();
+					m_infoByIndex[componentId] = pInfo;
+					m_descByIndex[componentId] = ComponentDesc::Create<U>();
 					GAIA_SAFE_CONSTEXPR auto hash = utils::type_info::hash<U>();
 					[[maybe_unused]] const auto res = m_infoByHash.try_emplace({hash}, pInfo);
 					// This has to be the first time this has has been added!
@@ -7998,9 +8055,9 @@ namespace gaia {
 					return *pInfo;
 				};
 
-				if GAIA_UNLIKELY (index >= m_infoByIndex.size()) {
+				if GAIA_UNLIKELY (componentId >= m_infoByIndex.size()) {
 					const auto oldSize = m_infoByIndex.size();
-					const auto newSize = index + 1U;
+					const auto newSize = componentId + 1U;
 
 					// Increase the capacity by multiples of 128
 					constexpr uint32_t CapacityIncreaseSize = 128;
@@ -8018,11 +8075,11 @@ namespace gaia {
 					return createInfo();
 				}
 
-				if GAIA_UNLIKELY (m_infoByIndex[index] == nullptr) {
+				if GAIA_UNLIKELY (m_infoByIndex[componentId] == nullptr) {
 					return createInfo();
 				}
 
-				return *m_infoByIndex[index];
+				return *m_infoByIndex[componentId];
 			}
 
 			//! Returns the component info for \tparam T.
@@ -8047,26 +8104,26 @@ namespace gaia {
 				return GetComponentInfoFromHash({hash});
 			}
 
-			//! Returns the component info given the \param index.
-			//! \warning It is expected the component info with a given index exists! Undefined behavior otherwise.
+			//! Returns the component info given the \param componentId.
+			//! \warning It is expected the component info with a given component id exists! Undefined behavior otherwise.
 			//! \return Component info
-			GAIA_NODISCARD const ComponentInfo& GetComponentInfo(ComponentId index) const {
-				GAIA_ASSERT(index < m_infoByIndex.size());
-				const auto* pInfo = m_infoByIndex[index];
+			GAIA_NODISCARD const ComponentInfo& GetComponentInfo(ComponentId componentId) const {
+				GAIA_ASSERT(componentId < m_infoByIndex.size());
+				const auto* pInfo = m_infoByIndex[componentId];
 				GAIA_ASSERT(pInfo != nullptr);
 				return *pInfo;
 			}
 
-			//! Returns the component creation info given the \param index.
-			//! \warning It is expected the component info with a given index exists! Undefined behavior otherwise.
+			//! Returns the component creation info given the \param componentId.
+			//! \warning It is expected the component info with a given component id exists! Undefined behavior otherwise.
 			//! \return Component info
-			GAIA_NODISCARD const ComponentDesc& GetComponentDesc(ComponentId index) const {
-				GAIA_ASSERT(index < m_descByIndex.size());
-				return m_descByIndex[index];
+			GAIA_NODISCARD const ComponentDesc& GetComponentDesc(ComponentId componentId) const {
+				GAIA_ASSERT(componentId < m_descByIndex.size());
+				return m_descByIndex[componentId];
 			}
 
 			//! Returns the component info given the \param hash.
-			//! \warning It is expected the component info with a given index exists! Undefined behavior otherwise.
+			//! \warning It is expected the component info with a given component id exists! Undefined behavior otherwise.
 			//! \return Component info
 			GAIA_NODISCARD const ComponentInfo& GetComponentInfoFromHash(ComponentLookupHash hash) const {
 				const auto it = m_infoByHash.find(hash);
@@ -8081,7 +8138,7 @@ namespace gaia {
 
 				for (const auto& desc: m_descByIndex)
 					LOG_N(
-							"  index:%010u, %.*s", desc.componentId, (uint32_t)desc.name.size(), desc.name.data());
+							"  id:%010u, %.*s", desc.componentId, (uint32_t)desc.name.size(), desc.name.data());
 			}
 
 		private:
@@ -8821,8 +8878,8 @@ namespace gaia {
 					LookupHash::Type hash = 0;
 
 					const auto& l = m_listChangeFiltered[i];
-					for (auto index: l)
-						hash = utils::hash_combine(hash, (LookupHash::Type)index);
+					for (auto componentId: l)
+						hash = utils::hash_combine(hash, (LookupHash::Type)componentId);
 					hash = utils::hash_combine(hash, (LookupHash::Type)l.size());
 
 					hashLookup = utils::hash_combine(hashLookup, hash);
@@ -8834,8 +8891,8 @@ namespace gaia {
 
 					const auto& l = m_list[i];
 					for (const auto& componentIds: l.componentIds) {
-						for (const auto index: componentIds) {
-							hash = utils::hash_combine(hash, (LookupHash::Type)index);
+						for (const auto componentId: componentIds) {
+							hash = utils::hash_combine(hash, (LookupHash::Type)componentId);
 						}
 						hash = utils::hash_combine(hash, (LookupHash::Type)componentIds.size());
 					}
@@ -10214,9 +10271,11 @@ namespace gaia {
 			//----------------------------------------------------------------------
 
 			/*!
-			Attaches a new component to \param entity.
-			\warning It is expected the component is not there yet and that \param
-			entity is valid. Undefined behavior otherwise.
+			Attaches a new component \tparam T to \param entity.
+			\warning It is expected the component is not present on \param entity yet. Undefined behavior otherwise.
+			\warning It is expected \param entity is valid. Undefined behavior otherwise.
+			\tparam T Component
+			\param entity Entity
 			\return ComponentSetter object.
 			*/
 			template <typename T>
@@ -10237,13 +10296,16 @@ namespace gaia {
 			}
 
 			/*!
-			Attaches a component to \param entity. Also sets its value.
-			\warning It is expected the component is not there yet and that
-			\param entity is valid. Undefined behavior otherwise.
+			Attaches a new component \tparam T to \param entity. Also sets its value.
+			\warning It is expected the component is not present on \param entity yet. Undefined behavior otherwise.
+			\warning It is expected \param entity is valid. Undefined behavior otherwise.
+			\tparam T Component
+			\param entity Entity
+			\param value Value to set for the component
 			\return ComponentSetter object.
 			*/
 			template <typename T>
-			ComponentSetter AddComponent(Entity entity, typename DeduceComponent<T>::Type&& data) {
+			ComponentSetter AddComponent(Entity entity, typename DeduceComponent<T>::Type&& value) {
 				VerifyComponent<T>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
@@ -10253,20 +10315,22 @@ namespace gaia {
 				if constexpr (IsGenericComponent<T>) {
 					auto& entityContainer = AddComponent_Internal(ComponentType::CT_Generic, entity, info);
 					auto* pChunk = entityContainer.pChunk;
-					pChunk->template SetComponent<T>(entityContainer.idx, std::forward<U>(data));
+					pChunk->template SetComponent<T>(entityContainer.idx, std::forward<U>(value));
 					return ComponentSetter{entityContainer.pChunk, entityContainer.idx};
 				} else {
 					auto& entityContainer = AddComponent_Internal(ComponentType::CT_Chunk, entity, info);
 					auto* pChunk = entityContainer.pChunk;
-					pChunk->template SetComponent<T>(std::forward<U>(data));
+					pChunk->template SetComponent<T>(std::forward<U>(value));
 					return ComponentSetter{entityContainer.pChunk, entityContainer.idx};
 				}
 			}
 
 			/*!
-			Removes a component from \param entity.
-			\warning It is expected the component is not there yet and that
-			\param entity is valid. Undefined behavior otherwise.
+			Removes a component \tparam T from \param entity.
+			\warning It is expected the component is present on \param entity. Undefined behavior otherwise.
+			\warning It is expected \param entity is valid. Undefined behavior otherwise.
+			\tparam T Component
+			\param entity Entity
 			\return ComponentSetter object.
 			*/
 			template <typename T>
@@ -10284,40 +10348,49 @@ namespace gaia {
 			}
 
 			/*!
-			Sets the value of component on \param entity.
-			\warning It is expected the component was added to \param entity already. Undefined behavior otherwise.
-			\param entity is valid. Undefined behavior otherwise.
+			Sets the value of the component \tparam T on \param entity.
+			\warning It is expected the component is present on \param entity. Undefined behavior otherwise.
+			\warning It is expected \param entity is valid. Undefined behavior otherwise.
+			\tparam T Component
+			\param entity Entity
+			\param value Value to set for the component
 			\return ComponentSetter object.
 			*/
 			template <typename T>
-			ComponentSetter SetComponent(Entity entity, typename DeduceComponent<T>::Type&& data) {
+			ComponentSetter SetComponent(Entity entity, typename DeduceComponent<T>::Type&& value) {
 				VerifyComponent<T>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
 				return ComponentSetter{entityContainer.pChunk, entityContainer.idx}.SetComponent<T>(
-						std::forward<typename DeduceComponent<T>::Type>(data));
+						std::forward<typename DeduceComponent<T>::Type>(value));
 			}
 
 			/*!
-			Sets the value of component on \param entity.
-			\warning It is expected the component was added to \param entity already. Undefined behavior otherwise.
-			\param entity is valid. Undefined behavior otherwise.
+			Sets the value of the component \tparam T on \param entity.
+			\warning It is expected the component is present on \param entity. Undefined behavior otherwise.
+			\warning It is expected \param entity is valid. Undefined behavior otherwise.
+			\tparam T Component
+			\param entity Entity
+			\param value Value to set for the component
 			\return ComponentSetter object.
 			*/
 			template <typename T>
-			ComponentSetter SetComponentSilent(Entity entity, typename DeduceComponent<T>::Type&& data) {
+			ComponentSetter SetComponentSilent(Entity entity, typename DeduceComponent<T>::Type&& value) {
 				VerifyComponent<T>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
 				return ComponentSetter{entityContainer.pChunk, entityContainer.idx}.SetComponentSilent<T>(
-						std::forward<typename DeduceComponent<T>::Type>(data));
+						std::forward<typename DeduceComponent<T>::Type>(value));
 			}
 
 			/*!
-			Returns the value stored in the component on \param entity.
-			\warning It is expected the component was added to \param entity already. Undefined behavior otherwise.
+			Returns the value stored in the component \tparam T on \param entity.
+			\warning It is expected the component is present on \param entity. Undefined behavior otherwise.
+			\warning It is expected \param entity is valid. Undefined behavior otherwise.
+			\tparam T Component
+			\param entity Entity
 			\return Value stored in the component.
 			*/
 			template <typename T>
@@ -10337,8 +10410,10 @@ namespace gaia {
 			//----------------------------------------------------------------------
 
 			/*!
-			Tells if \param entity contains the component.
-			Undefined behavior if \param entity is not valid.
+			Tells if \param entity contains the component \tparam T.
+			\warning It is expected \param entity is valid. Undefined behavior otherwise.
+			\tparam T Component
+			\param entity Entity
 			\return True if the component is present on entity.
 			*/
 			template <typename T>
