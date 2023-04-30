@@ -5,7 +5,7 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "(lldb) example1",
+      "name": "(lldb) example - example1",
       "type": "lldb",
       "request": "launch",
       "program": "${workspaceFolder}/build/src/examples/example1/gaia_example1",
@@ -16,7 +16,7 @@
       "externalConsole": false,
     },
     {
-      "name": "(lldb) example2",
+      "name": "(lldb) example - example2",
       "type": "lldb",
       "request": "launch",
       "program": "${workspaceFolder}/build/src/examples/example2/gaia_example2",
@@ -27,7 +27,7 @@
       "externalConsole": false
     },
     {
-      "name": "(lldb) roguelike",
+      "name": "(lldb) example - roguelike",
       "type": "lldb",
       "request": "launch",
       "program": "${workspaceFolder}/build/src/examples/example_rougelike/gaia_example_roguelike",
