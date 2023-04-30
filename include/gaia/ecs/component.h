@@ -2,6 +2,7 @@
 #include <cinttypes>
 #include <type_traits>
 
+#include "../config/config_core.h"
 #include "../containers/darray.h"
 #include "../containers/map.h"
 #include "../containers/sarray_ext.h"
@@ -11,7 +12,6 @@
 #include "../utils/type_info.h"
 #include "../utils/utility.h"
 #include "common.h"
-#include "gaia/config/config_core.h"
 
 namespace gaia {
 	namespace ecs {

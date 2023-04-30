@@ -162,58 +162,6 @@ namespace gaia {
 			}
 
 			/*!
-			Returns a read-only span of the component data.
-			\tparam T Component
-			\return Const span of the component data.
-			*/
-			template <typename T>
-			GAIA_NODISCARD GAIA_FORCEINLINE auto View_Internal() const {
-				using U = typename DeduceComponent<T>::Type;
-				using UConst = typename std::add_const_t<U>;
-
-				if constexpr (std::is_same_v<U, Entity>) {
-					return std::span<const Entity>{(const Entity*)&data[0], GetItemCount()};
-				} else {
-					static_assert(!std::is_empty_v<U>, "Attempting to get value of an empty component");
-
-					const auto componentId = GetComponentIdUnsafe<U>();
-
-					if constexpr (IsGenericComponent<T>)
-						return std::span<UConst>{(UConst*)GetDataPtr(ComponentType::CT_Generic, componentId), GetItemCount()};
-					else
-						return std::span<UConst>{(UConst*)GetDataPtr(ComponentType::CT_Chunk, componentId), 1};
-				}
-			}
-
-			/*!
-			Returns a read-write span of the component data. Also updates the world version for the component.
-			\tparam T Component
-			\tparam UpdateWorldVersion If true, the world version is updated as a result of the write access
-			\return Span of the component data.
-			*/
-			template <typename T, bool UpdateWorldVersion>
-			GAIA_NODISCARD GAIA_FORCEINLINE auto ViewRW_Internal() {
-				using U = typename DeduceComponent<T>::Type;
-#if GAIA_COMPILER_MSVC && _MSC_VER <= 1916
-				// Workaround for MSVC 2017 bug where it incorrectly evaluates the static assert
-				// even in context where it shouldn't.
-				// Unfortunatelly, even runtime assert can't be used...
-				// GAIA_ASSERT(!std::is_same_v<U, Entity>::value);
-#else
-				static_assert(!std::is_same_v<U, Entity>);
-#endif
-				static_assert(!std::is_empty_v<U>, "Attempting to set value of an empty component");
-
-				const auto componentId = GetComponentIdUnsafe<U>();
-
-				constexpr bool uwv = UpdateWorldVersion;
-				if constexpr (IsGenericComponent<T>)
-					return std::span<U>{(U*)GetDataPtrRW<uwv>(ComponentType::CT_Generic, componentId), GetItemCount()};
-				else
-					return std::span<U>{(U*)GetDataPtrRW<uwv>(ComponentType::CT_Chunk, componentId), 1};
-			}
-
-			/*!
 			Returns a pointer do component data with read-only access.
 			\param componentType Component type
 			\param componentId Component id
@@ -232,7 +180,9 @@ namespace gaia {
 			}
 
 			/*!
-			Returns a pointer do component data with read-write access. Also updates the world version for the component.
+			Returns a pointer to component data within chunk with read-write access.
+			Also updates the world version for the component.
+			\warning It is expected the component with \param componentId is present. Undefined behavior otherwise.
 			\tparam UpdateWorldVersion If true, the world version is updated as a result of the write access
 			\param componentType Component type
 			\param componentId Component id
@@ -255,6 +205,60 @@ namespace gaia {
 				}
 
 				return (uint8_t*)&data[offsets[idx]];
+			}
+
+			/*!
+			Returns a read-only span of the component data.
+			\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
+			\tparam T Component
+			\return Span of read-only component data.
+			*/
+			template <typename T>
+			GAIA_NODISCARD GAIA_FORCEINLINE auto View_Internal() const {
+				using U = typename DeduceComponent<T>::Type;
+				using UConst = typename std::add_const_t<U>;
+
+				if constexpr (std::is_same_v<U, Entity>) {
+					return std::span<const Entity>{(const Entity*)&data[0], GetItemCount()};
+				} else {
+					static_assert(!std::is_empty_v<U>, "Attempting to get value of an empty component");
+
+					const auto componentId = GetComponentIdUnsafe<U>();
+
+					if constexpr (IsGenericComponent<T>)
+						return std::span<UConst>{(UConst*)GetDataPtr(ComponentType::CT_Generic, componentId), GetItemCount()};
+					else
+						return std::span<UConst>{(UConst*)GetDataPtr(ComponentType::CT_Chunk, componentId), 1};
+				}
+			}
+
+			/*!
+			Returns a read-write span of the component data. Also updates the world version for the component.
+			\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
+			\tparam T Component
+			\tparam UpdateWorldVersion If true, the world version is updated as a result of the write access
+			\return Span of read-write component data.
+			*/
+			template <typename T, bool UpdateWorldVersion>
+			GAIA_NODISCARD GAIA_FORCEINLINE auto ViewRW_Internal() {
+				using U = typename DeduceComponent<T>::Type;
+#if GAIA_COMPILER_MSVC && _MSC_VER <= 1916
+				// Workaround for MSVC 2017 bug where it incorrectly evaluates the static assert
+				// even in context where it shouldn't.
+				// Unfortunatelly, even runtime assert can't be used...
+				// GAIA_ASSERT(!std::is_same_v<U, Entity>::value);
+#else
+				static_assert(!std::is_same_v<U, Entity>);
+#endif
+				static_assert(!std::is_empty_v<U>, "Attempting to set value of an empty component");
+
+				const auto componentId = GetComponentIdUnsafe<U>();
+
+				constexpr bool uwv = UpdateWorldVersion;
+				if constexpr (IsGenericComponent<T>)
+					return std::span<U>{(U*)GetDataPtrRW<uwv>(ComponentType::CT_Generic, componentId), GetItemCount()};
+				else
+					return std::span<U>{(U*)GetDataPtrRW<uwv>(ComponentType::CT_Chunk, componentId), 1};
 			}
 
 			/*!
@@ -288,7 +292,9 @@ namespace gaia {
 
 			/*!
 			Returns a read-only entity or component view.
-			\return Component view with read-only access
+			\warning If \tparam T is a component it is expected it is present. Undefined behavior otherwise.
+			\tparam T Component or Entity
+			\return Entity of component view with read-only access
 			*/
 			template <typename T>
 			GAIA_NODISCARD auto View() const {
@@ -300,8 +306,10 @@ namespace gaia {
 			}
 
 			/*!
-			Returns a mutable component view.
-			\return Component view with read-write access
+			Returns a mutable entity or component view.
+			\warning If \tparam T is a component it is expected it is present. Undefined behavior otherwise.
+			\tparam T Component or Entity
+			\return Entity or component view with read-write access
 			*/
 			template <typename T>
 			GAIA_NODISCARD auto ViewRW() {
@@ -312,7 +320,10 @@ namespace gaia {
 			}
 
 			/*!
-			Returns a mutable component view. Doesn't update the world version when the access is aquired.
+			Returns a mutable component view.
+			Doesn't update the world version when the access is aquired.
+			\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
+			\tparam T Component
 			\return Component view with read-write access
 			*/
 			template <typename T>
@@ -324,7 +335,8 @@ namespace gaia {
 			}
 
 			/*!
-			Checks if component is present on the chunk.
+			Checks if component \tparam T is present in the chunk.
+			\tparam T Component
 			\return True if the component is present. False otherwise.
 			*/
 			template <typename T>
