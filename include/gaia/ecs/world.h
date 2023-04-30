@@ -278,17 +278,18 @@ namespace gaia {
 				// Make sure not to add too many infos
 				if GAIA_UNLIKELY (!VerityArchetypeComponentCount(1)) {
 					GAIA_ASSERT(false && "Trying to add too many components to entity!");
-					LOG_W("Trying to add a component to entity [%u.%u] but there's no space left!", entity.id(), entity.gen());
-					LOG_W("Already present:");
+					GAIA_LOG_W(
+							"Trying to add a component to entity [%u.%u] but there's no space left!", entity.id(), entity.gen());
+					GAIA_LOG_W("Already present:");
 					const size_t oldInfosCount = componentIds.size();
 					for (size_t i = 0; i < oldInfosCount; i++) {
 						const auto& info = cc.GetComponentDesc(componentIds[i]);
-						LOG_W("> [%u] %.*s", (uint32_t)i, (uint32_t)info.name.size(), info.name.data());
+						GAIA_LOG_W("> [%u] %.*s", (uint32_t)i, (uint32_t)info.name.size(), info.name.data());
 					}
-					LOG_W("Trying to add:");
+					GAIA_LOG_W("Trying to add:");
 					{
 						const auto& info = cc.GetComponentDesc(infoToAdd.componentId);
-						LOG_W("> %.*s", (uint32_t)info.name.size(), info.name.data());
+						GAIA_LOG_W("> %.*s", (uint32_t)info.name.size(), info.name.data());
 					}
 				}
 
@@ -298,10 +299,10 @@ namespace gaia {
 					if (info.componentId == infoToAdd.componentId) {
 						GAIA_ASSERT(false && "Trying to add a duplicate component");
 
-						LOG_W(
+						GAIA_LOG_W(
 								"Trying to add a duplicate of component %s to entity [%u.%u]", ComponentTypeString[componentType],
 								entity.id(), entity.gen());
-						LOG_W("> %.*s", (uint32_t)info.name.size(), info.name.data());
+						GAIA_LOG_W("> %.*s", (uint32_t)info.name.size(), info.name.data());
 					}
 				}
 			}
@@ -311,20 +312,21 @@ namespace gaia {
 				const auto& componentIds = archetype.componentIds[componentType];
 				if GAIA_UNLIKELY (!utils::has(componentIds, infoToRemove.componentId)) {
 					GAIA_ASSERT(false && "Trying to remove a component which wasn't added");
-					LOG_W("Trying to remove a component from entity [%u.%u] but it was never added", entity.id(), entity.gen());
-					LOG_W("Currently present:");
+					GAIA_LOG_W(
+							"Trying to remove a component from entity [%u.%u] but it was never added", entity.id(), entity.gen());
+					GAIA_LOG_W("Currently present:");
 
 					const auto& cc = GetComponentCache();
 
 					for (size_t k = 0; k < componentIds.size(); k++) {
 						const auto& info = cc.GetComponentDesc(componentIds[k]);
-						LOG_W("> [%u] %.*s", (uint32_t)k, (uint32_t)info.name.size(), info.name.data());
+						GAIA_LOG_W("> [%u] %.*s", (uint32_t)k, (uint32_t)info.name.size(), info.name.data());
 					}
 
 					{
-						LOG_W("Trying to remove:");
+						GAIA_LOG_W("Trying to remove:");
 						const auto& info = cc.GetComponentDesc(infoToRemove.componentId);
-						LOG_W("> %.*s", (uint32_t)info.name.size(), info.name.data());
+						GAIA_LOG_W("> %.*s", (uint32_t)info.name.size(), info.name.data());
 					}
 				}
 			}
@@ -818,7 +820,7 @@ namespace gaia {
 				ChunkAllocatorStats memstats = m_chunkAllocator.GetStats();
 				if (memstats.AllocatedMemory != 0) {
 					GAIA_ASSERT(false && "ECS leaking memory");
-					LOG_W("ECS leaking memory!");
+					GAIA_LOG_W("ECS leaking memory!");
 					DiagMemory();
 				}
 #endif
@@ -1884,7 +1886,7 @@ namespace gaia {
 					chunkComponentsSize += desc.properties.size;
 				}
 
-				LOG_N(
+				GAIA_LOG_N(
 						"Archetype ID:%u, "
 						"lookupHash:%016" PRIx64 ", "
 						"mask:%016" PRIx64 "/%016" PRIx64 ", "
@@ -1896,20 +1898,20 @@ namespace gaia {
 						archetype.info.capacity, entityCountDisabled);
 
 				auto logComponentInfo = [](const ComponentInfo& info, const ComponentDesc& desc) {
-					LOG_N(
+					GAIA_LOG_N(
 							"    lookupHash:%016" PRIx64 ", mask:%016" PRIx64 ", size:%3u B, align:%3u B, %.*s", info.lookupHash.hash,
 							info.matcherHash.hash, desc.properties.size, desc.properties.alig, (uint32_t)desc.name.size(),
 							desc.name.data());
 				};
 
 				if (!genericComponents.empty()) {
-					LOG_N("  Generic components - count:%u", (uint32_t)genericComponents.size());
+					GAIA_LOG_N("  Generic components - count:%u", (uint32_t)genericComponents.size());
 					for (const auto componentId: genericComponents) {
 						const auto& info = cc.GetComponentInfo(componentId);
 						logComponentInfo(info, cc.GetComponentDesc(componentId));
 					}
 					if (!chunkComponents.empty()) {
-						LOG_N("  Chunk components - count:%u", (uint32_t)chunkComponents.size());
+						GAIA_LOG_N("  Chunk components - count:%u", (uint32_t)chunkComponents.size());
 						for (const auto componentId: chunkComponents) {
 							const auto& info = cc.GetComponentInfo(componentId);
 							logComponentInfo(info, cc.GetComponentDesc(componentId));
@@ -1928,25 +1930,25 @@ namespace gaia {
 					const auto& edgesC = archetype.edgesAdd[ComponentType::CT_Chunk];
 					const auto edgeCount = (uint32_t)(edgesG.size() + edgesC.size());
 					if (edgeCount > 0) {
-						LOG_N("  Add edges - count:%u", edgeCount);
+						GAIA_LOG_N("  Add edges - count:%u", edgeCount);
 
 						if (!edgesG.empty()) {
-							LOG_N("    Generic - count:%u", (uint32_t)edgesG.size());
+							GAIA_LOG_N("    Generic - count:%u", (uint32_t)edgesG.size());
 							for (const auto& edge: edgesG) {
 								const auto& info = cc.GetComponentInfoFromHash(edge.first);
 								const auto& infoCreate = cc.GetComponentDesc(info.componentId);
-								LOG_N(
+								GAIA_LOG_N(
 										"      %.*s (--> Archetype ID:%u)", (uint32_t)infoCreate.name.size(), infoCreate.name.data(),
 										edge.second.archetypeId);
 							}
 						}
 
 						if (!edgesC.empty()) {
-							LOG_N("    Chunk - count:%u", (uint32_t)edgesC.size());
+							GAIA_LOG_N("    Chunk - count:%u", (uint32_t)edgesC.size());
 							for (const auto& edge: edgesC) {
 								const auto& info = cc.GetComponentInfoFromHash(edge.first);
 								const auto& infoCreate = cc.GetComponentDesc(info.componentId);
-								LOG_N(
+								GAIA_LOG_N(
 										"      %.*s (--> Archetype ID:%u)", (uint32_t)infoCreate.name.size(), infoCreate.name.data(),
 										edge.second.archetypeId);
 							}
@@ -1960,25 +1962,25 @@ namespace gaia {
 					const auto& edgesC = archetype.edgesDel[ComponentType::CT_Chunk];
 					const auto edgeCount = (uint32_t)(edgesG.size() + edgesC.size());
 					if (edgeCount > 0) {
-						LOG_N("  Del edges - count:%u", edgeCount);
+						GAIA_LOG_N("  Del edges - count:%u", edgeCount);
 
 						if (!edgesG.empty()) {
-							LOG_N("    Generic - count:%u", (uint32_t)edgesG.size());
+							GAIA_LOG_N("    Generic - count:%u", (uint32_t)edgesG.size());
 							for (const auto& edge: edgesG) {
 								const auto& info = cc.GetComponentInfoFromHash(edge.first);
 								const auto& infoCreate = cc.GetComponentDesc(info.componentId);
-								LOG_N(
+								GAIA_LOG_N(
 										"      %.*s (--> Archetype ID:%u)", (uint32_t)infoCreate.name.size(), infoCreate.name.data(),
 										edge.second.archetypeId);
 							}
 						}
 
 						if (!edgesC.empty()) {
-							LOG_N("    Chunk - count:%u", (uint32_t)edgesC.size());
+							GAIA_LOG_N("    Chunk - count:%u", (uint32_t)edgesC.size());
 							for (const auto& edge: edgesC) {
 								const auto& info = cc.GetComponentInfoFromHash(edge.first);
 								const auto& infoCreate = cc.GetComponentDesc(info.componentId);
-								LOG_N(
+								GAIA_LOG_N(
 										"      %.*s (--> Archetype ID:%u)", (uint32_t)infoCreate.name.size(), infoCreate.name.data(),
 										edge.second.archetypeId);
 							}
@@ -1993,7 +1995,7 @@ namespace gaia {
 					for (size_t i = 0; i < chunks.size(); ++i) {
 						const auto* pChunk = chunks[i];
 						const auto& header = pChunk->header;
-						LOG_N(
+						GAIA_LOG_N(
 								"  Chunk #%04u, entities:%u/%u, lifespan:%u", (uint32_t)i, header.count, header.owner.info.capacity,
 								header.lifespan);
 					}
@@ -2003,7 +2005,7 @@ namespace gaia {
 				{
 					const auto& chunks = archetype.chunks;
 					if (!chunks.empty())
-						LOG_N("  Enabled chunks");
+						GAIA_LOG_N("  Enabled chunks");
 
 					logChunks(chunks);
 				}
@@ -2012,7 +2014,7 @@ namespace gaia {
 				{
 					const auto& chunks = archetype.chunksDisabled;
 					if (!chunks.empty())
-						LOG_N("  Disabled chunks");
+						GAIA_LOG_N("  Disabled chunks");
 
 					logChunks(chunks);
 				}
@@ -2044,7 +2046,7 @@ namespace gaia {
 					return;
 
 				// Print archetype info
-				LOG_N("Archetypes:%u", (uint32_t)m_archetypes.size());
+				GAIA_LOG_N("Archetypes:%u", (uint32_t)m_archetypes.size());
 				for (const auto* archetype: m_archetypes) {
 					DiagArchetype(*archetype);
 					DiagArchetypes = true;
@@ -2078,19 +2080,19 @@ namespace gaia {
 
 				ValidateEntityList();
 
-				LOG_N("Deleted entities: %u", m_freeEntities);
+				GAIA_LOG_N("Deleted entities: %u", m_freeEntities);
 				if (m_freeEntities != 0U) {
-					LOG_N("  --> %u", m_nextFreeEntity);
+					GAIA_LOG_N("  --> %u", m_nextFreeEntity);
 
 					uint32_t iters = 0;
 					auto fe = m_entities[m_nextFreeEntity].idx;
 					while (fe != Entity::IdMask) {
-						LOG_N("  --> %u", m_entities[fe].idx);
+						GAIA_LOG_N("  --> %u", m_entities[fe].idx);
 						fe = m_entities[fe].idx;
 						++iters;
 						if ((iters == 0U) || iters > m_freeEntities) {
-							LOG_E("  Entities recycle list contains inconsistent "
-										"data!");
+							GAIA_LOG_E("  Entities recycle list contains inconsistent "
+												 "data!");
 							break;
 						}
 					}
@@ -2102,13 +2104,13 @@ namespace gaia {
 			*/
 			void DiagMemory() const {
 				ChunkAllocatorStats memstats = m_chunkAllocator.GetStats();
-				LOG_N("ChunkAllocator stats");
-				LOG_N("  Allocated: %" PRIu64 " B", memstats.AllocatedMemory);
-				LOG_N("  Used: %" PRIu64 " B", memstats.AllocatedMemory - memstats.UsedMemory);
-				LOG_N("  Overhead: %" PRIu64 " B", memstats.UsedMemory);
-				LOG_N("  Utilization: %.1f%%", 100.0 * ((double)memstats.UsedMemory / (double)memstats.AllocatedMemory));
-				LOG_N("  Pages: %u", memstats.NumPages);
-				LOG_N("  Free pages: %u", memstats.NumFreePages);
+				GAIA_LOG_N("ChunkAllocator stats");
+				GAIA_LOG_N("  Allocated: %" PRIu64 " B", memstats.AllocatedMemory);
+				GAIA_LOG_N("  Used: %" PRIu64 " B", memstats.AllocatedMemory - memstats.UsedMemory);
+				GAIA_LOG_N("  Overhead: %" PRIu64 " B", memstats.UsedMemory);
+				GAIA_LOG_N("  Utilization: %.1f%%", 100.0 * ((double)memstats.UsedMemory / (double)memstats.AllocatedMemory));
+				GAIA_LOG_N("  Pages: %u", memstats.NumPages);
+				GAIA_LOG_N("  Free pages: %u", memstats.NumFreePages);
 			}
 
 			/*!

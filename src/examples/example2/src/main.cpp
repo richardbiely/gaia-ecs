@@ -41,7 +41,7 @@ int main() {
 	}
 
 	auto p1 = w.GetComponent<Position>(e);
-	LOG_N("Entity 0 moved from [%.2f,%.2f,%.2f] to [%.2f,%.2f,%.2f]", p0.x, p0.y, p0.z, p1.x, p1.y, p1.z);
+	GAIA_LOG_N("Entity 0 moved from [%.2f,%.2f,%.2f] to [%.2f,%.2f,%.2f]", p0.x, p0.y, p0.z, p1.x, p1.y, p1.z);
 
 	return 0;
 }

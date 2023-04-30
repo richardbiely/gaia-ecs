@@ -136,11 +136,10 @@ namespace gaia {
 
 			void Diag() const {
 				const auto registeredTypes = (uint32_t)m_descByIndex.size();
-				LOG_N("Registered infos: %u", registeredTypes);
+				GAIA_LOG_N("Registered infos: %u", registeredTypes);
 
 				for (const auto& desc: m_descByIndex)
-					LOG_N(
-							"  id:%010u, %.*s", desc.componentId, (uint32_t)desc.name.size(), desc.name.data());
+					GAIA_LOG_N("  id:%010u, %.*s", desc.componentId, (uint32_t)desc.name.size(), desc.name.data());
 			}
 
 		private:

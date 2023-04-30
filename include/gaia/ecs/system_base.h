@@ -297,7 +297,7 @@ namespace gaia {
 					if (!m_systems[j - 1]->DependsOn(m_systems[j]))
 						continue;
 					GAIA_ASSERT(false && "Wrong systems dependencies!");
-					LOG_E("Wrong systems dependencies!");
+					GAIA_LOG_E("Wrong systems dependencies!");
 				}
 #endif
 			}
