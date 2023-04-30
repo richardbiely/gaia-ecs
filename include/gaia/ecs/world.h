@@ -1059,9 +1059,11 @@ namespace gaia {
 			//----------------------------------------------------------------------
 
 			/*!
-			Attaches a new component to \param entity.
-			\warning It is expected the component is not there yet and that \param
-			entity is valid. Undefined behavior otherwise.
+			Attaches a new component \tparam T to \param entity.
+			\warning It is expected the component is not present on \param entity yet. Undefined behavior otherwise.
+			\warning It is expected \param entity is valid. Undefined behavior otherwise.
+			\tparam T Component
+			\param entity Entity
 			\return ComponentSetter object.
 			*/
 			template <typename T>
@@ -1082,13 +1084,16 @@ namespace gaia {
 			}
 
 			/*!
-			Attaches a component to \param entity. Also sets its value.
-			\warning It is expected the component is not there yet and that
-			\param entity is valid. Undefined behavior otherwise.
+			Attaches a new component \tparam T to \param entity. Also sets its value.
+			\warning It is expected the component is not present on \param entity yet. Undefined behavior otherwise.
+			\warning It is expected \param entity is valid. Undefined behavior otherwise.
+			\tparam T Component
+			\param entity Entity
+			\param value Value to set for the component
 			\return ComponentSetter object.
 			*/
 			template <typename T>
-			ComponentSetter AddComponent(Entity entity, typename DeduceComponent<T>::Type&& data) {
+			ComponentSetter AddComponent(Entity entity, typename DeduceComponent<T>::Type&& value) {
 				VerifyComponent<T>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
@@ -1098,20 +1103,22 @@ namespace gaia {
 				if constexpr (IsGenericComponent<T>) {
 					auto& entityContainer = AddComponent_Internal(ComponentType::CT_Generic, entity, info);
 					auto* pChunk = entityContainer.pChunk;
-					pChunk->template SetComponent<T>(entityContainer.idx, std::forward<U>(data));
+					pChunk->template SetComponent<T>(entityContainer.idx, std::forward<U>(value));
 					return ComponentSetter{entityContainer.pChunk, entityContainer.idx};
 				} else {
 					auto& entityContainer = AddComponent_Internal(ComponentType::CT_Chunk, entity, info);
 					auto* pChunk = entityContainer.pChunk;
-					pChunk->template SetComponent<T>(std::forward<U>(data));
+					pChunk->template SetComponent<T>(std::forward<U>(value));
 					return ComponentSetter{entityContainer.pChunk, entityContainer.idx};
 				}
 			}
 
 			/*!
-			Removes a component from \param entity.
-			\warning It is expected the component is not there yet and that
-			\param entity is valid. Undefined behavior otherwise.
+			Removes a component \tparam T from \param entity.
+			\warning It is expected the component is present on \param entity. Undefined behavior otherwise.
+			\warning It is expected \param entity is valid. Undefined behavior otherwise.
+			\tparam T Component
+			\param entity Entity
 			\return ComponentSetter object.
 			*/
 			template <typename T>
@@ -1129,40 +1136,49 @@ namespace gaia {
 			}
 
 			/*!
-			Sets the value of component on \param entity.
-			\warning It is expected the component was added to \param entity already. Undefined behavior otherwise.
-			\param entity is valid. Undefined behavior otherwise.
+			Sets the value of the component \tparam T on \param entity.
+			\warning It is expected the component is present on \param entity. Undefined behavior otherwise.
+			\warning It is expected \param entity is valid. Undefined behavior otherwise.
+			\tparam T Component
+			\param entity Entity
+			\param value Value to set for the component
 			\return ComponentSetter object.
 			*/
 			template <typename T>
-			ComponentSetter SetComponent(Entity entity, typename DeduceComponent<T>::Type&& data) {
+			ComponentSetter SetComponent(Entity entity, typename DeduceComponent<T>::Type&& value) {
 				VerifyComponent<T>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
 				return ComponentSetter{entityContainer.pChunk, entityContainer.idx}.SetComponent<T>(
-						std::forward<typename DeduceComponent<T>::Type>(data));
+						std::forward<typename DeduceComponent<T>::Type>(value));
 			}
 
 			/*!
-			Sets the value of component on \param entity.
-			\warning It is expected the component was added to \param entity already. Undefined behavior otherwise.
-			\param entity is valid. Undefined behavior otherwise.
+			Sets the value of the component \tparam T on \param entity.
+			\warning It is expected the component is present on \param entity. Undefined behavior otherwise.
+			\warning It is expected \param entity is valid. Undefined behavior otherwise.
+			\tparam T Component
+			\param entity Entity
+			\param value Value to set for the component
 			\return ComponentSetter object.
 			*/
 			template <typename T>
-			ComponentSetter SetComponentSilent(Entity entity, typename DeduceComponent<T>::Type&& data) {
+			ComponentSetter SetComponentSilent(Entity entity, typename DeduceComponent<T>::Type&& value) {
 				VerifyComponent<T>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
 				return ComponentSetter{entityContainer.pChunk, entityContainer.idx}.SetComponentSilent<T>(
-						std::forward<typename DeduceComponent<T>::Type>(data));
+						std::forward<typename DeduceComponent<T>::Type>(value));
 			}
 
 			/*!
-			Returns the value stored in the component on \param entity.
-			\warning It is expected the component was added to \param entity already. Undefined behavior otherwise.
+			Returns the value stored in the component \tparam T on \param entity.
+			\warning It is expected the component is present on \param entity. Undefined behavior otherwise.
+			\warning It is expected \param entity is valid. Undefined behavior otherwise.
+			\tparam T Component
+			\param entity Entity
 			\return Value stored in the component.
 			*/
 			template <typename T>
@@ -1182,8 +1198,10 @@ namespace gaia {
 			//----------------------------------------------------------------------
 
 			/*!
-			Tells if \param entity contains the component.
-			Undefined behavior if \param entity is not valid.
+			Tells if \param entity contains the component \tparam T.
+			\warning It is expected \param entity is valid. Undefined behavior otherwise.
+			\tparam T Component
+			\param entity Entity
 			\return True if the component is present on entity.
 			*/
 			template <typename T>
