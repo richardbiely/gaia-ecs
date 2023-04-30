@@ -2,6 +2,9 @@
 @cond TURN_OFF_DOXYGEN
 -->
 # gaia-ecs
+
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/fb1742dfa0534650a1c7c6ebed0c4fdb)](https://app.codacy.com/gh/richardbiely/gaia-ecs?utm_source=github.com&utm_medium=referral&utm_content=richardbiely/gaia-ecs&utm_campaign=Badge_Grade)
+
 [![Build Status][badge.actions]][actions]
 [![language][badge.language]][language]
 [![license][badge.license]][license]
