@@ -189,7 +189,7 @@ namespace gaia {
 					auto& l = m_list[i];
 					for (auto& componentIds: l.componentIds) {
 						// Make sure the read-write mask remains correct after sorting
-						utils::sort(componentIds, SortComponentCond{}, [&](uint32_t left, uint32_t right) {
+						utils::sort(componentIds, SortComponentCond{}, [&](size_t left, size_t right) {
 							// Swap component ids
 							utils::swap(componentIds[left], componentIds[right]);
 
