@@ -3,30 +3,41 @@
 #include <cstdio> // vsnprintf, sscanf, printf
 
 //! Log - debug
-#define LOG_D(...)                                                                                                     \
-	{                                                                                                                    \
-		fprintf(stdout, "D: ");                                                                                            \
-		fprintf(stdout, __VA_ARGS__);                                                                                      \
-		fprintf(stdout, "\n");                                                                                             \
-	}
+#ifndef GAIA_LOG_D
+	#define GAIA_LOG_D(...)                                                                                              \
+		{                                                                                                                  \
+			fprintf(stdout, "D: ");                                                                                          \
+			fprintf(stdout, __VA_ARGS__);                                                                                    \
+			fprintf(stdout, "\n");                                                                                           \
+		}
+#endif
+
 //! Log - normal/informational
-#define LOG_N(...)                                                                                                     \
-	{                                                                                                                    \
-		fprintf(stdout, "I: ");                                                                                            \
-		fprintf(stdout, __VA_ARGS__);                                                                                      \
-		fprintf(stdout, "\n");                                                                                             \
-	}
+#ifndef GAIA_LOG_N
+	#define GAIA_LOG_N(...)                                                                                              \
+		{                                                                                                                  \
+			fprintf(stdout, "I: ");                                                                                          \
+			fprintf(stdout, __VA_ARGS__);                                                                                    \
+			fprintf(stdout, "\n");                                                                                           \
+		}
+#endif
+
 //! Log - warning
-#define LOG_W(...)                                                                                                     \
-	{                                                                                                                    \
-		fprintf(stderr, "W: ");                                                                                            \
-		fprintf(stderr, __VA_ARGS__);                                                                                      \
-		fprintf(stderr, "\n");                                                                                             \
-	}
+#ifndef GAIA_LOG_W
+	#define GAIA_LOG_W(...)                                                                                              \
+		{                                                                                                                  \
+			fprintf(stderr, "W: ");                                                                                          \
+			fprintf(stderr, __VA_ARGS__);                                                                                    \
+			fprintf(stderr, "\n");                                                                                           \
+		}
+#endif
+
 //! Log - error
-#define LOG_E(...)                                                                                                     \
-	{                                                                                                                    \
-		fprintf(stderr, "E: ");                                                                                            \
-		fprintf(stderr, __VA_ARGS__);                                                                                      \
-		fprintf(stderr, "\n");                                                                                             \
-	}
+#ifndef GAIA_LOG_E
+	#define GAIA_LOG_E(...)                                                                                              \
+		{                                                                                                                  \
+			fprintf(stderr, "E: ");                                                                                          \
+			fprintf(stderr, __VA_ARGS__);                                                                                    \
+			fprintf(stderr, "\n");                                                                                           \
+		}
+#endif
