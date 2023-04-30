@@ -1504,7 +1504,7 @@ namespace gaia {
 				GAIA_PROF_SCOPE(ForEach_E);
 
 #if GAIA_DEBUG
-				// Make sure we only use components specificed in the query
+				// Make sure we only use components specified in the query
 				GAIA_ASSERT(CheckQuery<Func>(world, query));
 #endif
 

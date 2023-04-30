@@ -34,15 +34,28 @@ namespace gaia {
 #endif
 		}
 
-		template <typename InputIt, typename Func>
-		constexpr Func for_each(InputIt first, InputIt last, Func func) {
-#if GAIA_USE_STL_COMPATIBLE_CONTAINERS
-			return std::for_each(first, last, func);
-#else
-			for (; first != last; ++first)
-				func(*first);
-			return func;
-#endif
+		template <typename T, typename TCmpFunc>
+		constexpr void swap_if(T& lhs, T& rhs, TCmpFunc cmpFunc) noexcept {
+			if (!cmpFunc(lhs, rhs))
+				utils::swap(lhs, rhs);
+		}
+
+		template <typename T, typename TCmpFunc>
+		constexpr void swap_if_not(T& lhs, T& rhs, TCmpFunc cmpFunc) noexcept {
+			if (cmpFunc(lhs, rhs))
+				utils::swap(lhs, rhs);
+		}
+
+		template <typename C, typename TCmpFunc, typename TSortFunc>
+		constexpr void try_swap_if(C& c, uint32_t lhs, uint32_t rhs, TCmpFunc cmpFunc, TSortFunc sortFunc) noexcept {
+			if (!cmpFunc(c[lhs], c[rhs]))
+				sortFunc(lhs, rhs);
+		}
+
+		template <typename C, typename TCmpFunc, typename TSortFunc>
+		constexpr void try_swap_if_not(C& c, uint32_t lhs, uint32_t rhs, TCmpFunc cmpFunc, TSortFunc sortFunc) noexcept {
+			if (cmpFunc(c[lhs], c[rhs]))
+				sortFunc(lhs, rhs);
 		}
 
 		template <class ForwardIt, class T>
@@ -227,6 +240,17 @@ namespace gaia {
 					std::make_index_sequence<std::tuple_size<std::remove_reference_t<Tuple>>::value>{});
 		}
 
+		template <typename InputIt, typename Func>
+		constexpr Func for_each(InputIt first, InputIt last, Func func) {
+#if GAIA_USE_STL_COMPATIBLE_CONTAINERS
+			return std::for_each(first, last, func);
+#else
+			for (; first != last; ++first)
+				func(*first);
+			return func;
+#endif
+		}
+
 		template <typename C, typename Func>
 		constexpr auto for_each(const C& arr, Func func) {
 			return for_each(arr.begin(), arr.end(), func);
@@ -322,14 +346,14 @@ namespace gaia {
 		constexpr auto get_index(const C& arr, typename C::const_reference item) {
 			const auto it = find(arr, item);
 			if (it == arr.end())
-				return (std::ptrdiff_t)BadIndex;
+				return BadIndex;
 
-			return GAIA_UTIL::distance(arr.begin(), it);
+			return (decltype(BadIndex))GAIA_UTIL::distance(arr.begin(), it);
 		}
 
 		template <typename C>
 		constexpr auto get_index_unsafe(const C& arr, typename C::const_reference item) {
-			return GAIA_UTIL::distance(arr.begin(), find(arr, item));
+			return (decltype(BadIndex))GAIA_UTIL::distance(arr.begin(), find(arr, item));
 		}
 
 		template <typename UnaryPredicate, typename C>
@@ -338,12 +362,12 @@ namespace gaia {
 			if (it == arr.end())
 				return BadIndex;
 
-			return GAIA_UTIL::distance(arr.begin(), it);
+			return (decltype(BadIndex))GAIA_UTIL::distance(arr.begin(), it);
 		}
 
 		template <typename UnaryPredicate, typename C>
 		constexpr auto get_index_if_unsafe(const C& arr, UnaryPredicate predicate) {
-			return GAIA_UTIL::distance(arr.begin(), find_if(arr, predicate));
+			return (decltype(BadIndex))GAIA_UTIL::distance(arr.begin(), find_if(arr, predicate));
 		}
 
 		//----------------------------------------------------------------------
@@ -379,13 +403,6 @@ namespace gaia {
 			}
 		};
 
-		template <typename T, typename Func>
-		constexpr void swap_if(T& lhs, T& rhs, Func func) noexcept {
-			T t = func(lhs, rhs) ? std::move(lhs) : std::move(rhs);
-			rhs = func(lhs, rhs) ? std::move(rhs) : std::move(lhs);
-			lhs = std::move(t);
-		}
-
 		namespace detail {
 			template <typename Array, typename TSortFunc>
 			constexpr void comb_sort_impl(Array& array_, TSortFunc func) noexcept {
@@ -410,25 +427,25 @@ namespace gaia {
 				}
 			}
 
-			template <typename Container>
-			int quick_sort_partition(Container& arr, int low, int high) {
+			template <typename Container, typename TSortFunc>
+			int quick_sort_partition(Container& arr, TSortFunc func, int low, int high) {
 				const auto& pivot = arr[high];
 				int i = low - 1;
 				for (int j = low; j <= high - 1; j++) {
-					if (arr[j] < pivot)
+					if (func(arr[j], pivot))
 						utils::swap(arr[++i], arr[j]);
 				}
 				utils::swap(arr[++i], arr[high]);
 				return i;
 			}
 
-			template <typename Container>
-			void quick_sort(Container& arr, int low, int high) {
+			template <typename Container, typename TSortFunc>
+			void quick_sort(Container& arr, TSortFunc func, int low, int high) {
 				if (low >= high)
 					return;
-				auto pos = quick_sort_partition(arr, low, high);
-				quick_sort(arr, low, pos - 1);
-				quick_sort(arr, pos + 1, high);
+				auto pos = quick_sort_partition(arr, func, low, high);
+				quick_sort(arr, func, low, pos - 1);
+				quick_sort(arr, func, pos + 1, high);
 			}
 		} // namespace detail
 
@@ -548,10 +565,14 @@ namespace gaia {
 			}
 		}
 
-		//! Sorting including a sorting network for containers up to 8 elements in size.
-		//! Ordinary sorting used for bigger containers.
-		template <typename Container, typename TSortFunc>
-		void sort(Container& arr, TSortFunc func) {
+		//! Sort the array \param arr given a comparison function \param cmpFunc.
+		//! Sorts using a sorting network up to 8 elements. Quick sort above 32.
+		//! \tparam Container Container to sort
+		//! \tparam TCmpFunc Comparision function
+		//! \param arr Container to sort
+		//! \param func Comparision function
+		template <typename Container, typename TCmpFunc>
+		void sort(Container& arr, TCmpFunc func) {
 			if (arr.size() <= 1) {
 				// Nothing to sort with just one item
 			} else if (arr.size() == 2) {
@@ -653,10 +674,8 @@ namespace gaia {
 			} else if (arr.size() <= 32) {
 				const size_t n = arr.size();
 				for (size_t i = 0; i < n - 1; i++) {
-					for (size_t j = 0; j < n - i - 1; j++) {
-						if (arr[j] > arr[j + 1])
-							utils::swap(arr[j], arr[j + 1]);
-					}
+					for (size_t j = 0; j < n - i - 1; j++)
+						swap_if(arr[j], arr[j + 1], func);
 				}
 			} else {
 #if GAIA_USE_STL_COMPATIBLE_CONTAINERS
@@ -666,9 +685,132 @@ namespace gaia {
 				GAIA_MSVC_WARNING_POP()
 #else
 				const int n = (int)arr.size();
-				detail::quick_sort(arr, 0, n - 1);
+				detail::quick_sort(arr, func, 0, n - 1);
 
 #endif
+			}
+		}
+
+		//! Sort the array \param arr given a comparison function \param cmpFunc.
+		//! If cmpFunc returns true it performs \param sortFunc which can perform the sorting.
+		//! Use when it is necessary to sort multiple arrays at once.
+		//! Sorts using a sorting network up to 8 elements.
+		//! \warning Currently only up to 32 elements are supported.
+		//! \tparam Container Container to sort
+		//! \tparam TCmpFunc Comparision function
+		//! \tparam TSortFunc Sorting function
+		//! \param arr Container to sort
+		//! \param func Comparision function
+		//! \param sortFunc Sorting function
+		template <typename Container, typename TCmpFunc, typename TSortFunc>
+		void sort(Container& arr, TCmpFunc func, TSortFunc sortFunc) {
+			if (arr.size() <= 1) {
+				// Nothing to sort with just one item
+			} else if (arr.size() == 2) {
+				try_swap_if(arr, 0, 1, func, sortFunc);
+			} else if (arr.size() == 3) {
+				try_swap_if(arr, 1, 2, func, sortFunc);
+				try_swap_if(arr, 0, 2, func, sortFunc);
+				try_swap_if(arr, 0, 1, func, sortFunc);
+			} else if (arr.size() == 4) {
+				try_swap_if(arr, 0, 1, func, sortFunc);
+				try_swap_if(arr, 2, 3, func, sortFunc);
+
+				try_swap_if(arr, 0, 2, func, sortFunc);
+				try_swap_if(arr, 1, 3, func, sortFunc);
+
+				try_swap_if(arr, 1, 2, func, sortFunc);
+			} else if (arr.size() == 5) {
+				try_swap_if(arr, 0, 1, func, sortFunc);
+				try_swap_if(arr, 3, 4, func, sortFunc);
+
+				try_swap_if(arr, 2, 4, func, sortFunc);
+
+				try_swap_if(arr, 2, 3, func, sortFunc);
+				try_swap_if(arr, 1, 4, func, sortFunc);
+
+				try_swap_if(arr, 0, 3, func, sortFunc);
+
+				try_swap_if(arr, 0, 2, func, sortFunc);
+				try_swap_if(arr, 1, 3, func, sortFunc);
+
+				try_swap_if(arr, 1, 2, func, sortFunc);
+			} else if (arr.size() == 6) {
+				try_swap_if(arr, 1, 2, func, sortFunc);
+				try_swap_if(arr, 4, 5, func, sortFunc);
+
+				try_swap_if(arr, 0, 2, func, sortFunc);
+				try_swap_if(arr, 3, 5, func, sortFunc);
+
+				try_swap_if(arr, 0, 1, func, sortFunc);
+				try_swap_if(arr, 3, 4, func, sortFunc);
+				try_swap_if(arr, 2, 5, func, sortFunc);
+
+				try_swap_if(arr, 0, 3, func, sortFunc);
+				try_swap_if(arr, 1, 4, func, sortFunc);
+
+				try_swap_if(arr, 2, 4, func, sortFunc);
+				try_swap_if(arr, 1, 3, func, sortFunc);
+
+				try_swap_if(arr, 2, 3, func, sortFunc);
+			} else if (arr.size() == 7) {
+				try_swap_if(arr, 1, 2, func, sortFunc);
+				try_swap_if(arr, 3, 4, func, sortFunc);
+				try_swap_if(arr, 5, 6, func, sortFunc);
+
+				try_swap_if(arr, 0, 2, func, sortFunc);
+				try_swap_if(arr, 3, 5, func, sortFunc);
+				try_swap_if(arr, 4, 6, func, sortFunc);
+
+				try_swap_if(arr, 0, 1, func, sortFunc);
+				try_swap_if(arr, 4, 5, func, sortFunc);
+				try_swap_if(arr, 2, 6, func, sortFunc);
+
+				try_swap_if(arr, 0, 4, func, sortFunc);
+				try_swap_if(arr, 1, 5, func, sortFunc);
+
+				try_swap_if(arr, 0, 3, func, sortFunc);
+				try_swap_if(arr, 2, 5, func, sortFunc);
+
+				try_swap_if(arr, 1, 3, func, sortFunc);
+				try_swap_if(arr, 2, 4, func, sortFunc);
+
+				try_swap_if(arr, 2, 3, func, sortFunc);
+			} else if (arr.size() == 8) {
+				try_swap_if(arr, 0, 1, func, sortFunc);
+				try_swap_if(arr, 2, 3, func, sortFunc);
+				try_swap_if(arr, 4, 5, func, sortFunc);
+				try_swap_if(arr, 6, 7, func, sortFunc);
+
+				try_swap_if(arr, 0, 2, func, sortFunc);
+				try_swap_if(arr, 1, 3, func, sortFunc);
+				try_swap_if(arr, 4, 6, func, sortFunc);
+				try_swap_if(arr, 5, 7, func, sortFunc);
+
+				try_swap_if(arr, 1, 2, func, sortFunc);
+				try_swap_if(arr, 5, 6, func, sortFunc);
+				try_swap_if(arr, 0, 4, func, sortFunc);
+				try_swap_if(arr, 3, 7, func, sortFunc);
+
+				try_swap_if(arr, 1, 5, func, sortFunc);
+				try_swap_if(arr, 2, 6, func, sortFunc);
+
+				try_swap_if(arr, 1, 4, func, sortFunc);
+				try_swap_if(arr, 3, 6, func, sortFunc);
+
+				try_swap_if(arr, 2, 4, func, sortFunc);
+				try_swap_if(arr, 3, 5, func, sortFunc);
+
+				try_swap_if(arr, 3, 4, func, sortFunc);
+			} else if (arr.size() <= 32) {
+				const size_t n = arr.size();
+				for (size_t i = 0; i < n - 1; i++)
+					for (size_t j = 0; j < n - i - 1; j++)
+						try_swap_if(arr, j, j + 1, func, sortFunc);
+			} else {
+				GAIA_ASSERT(false && "sort currently supports at most 32 items in the array");
+				// const int n = (int)arr.size();
+				// detail::quick_sort(arr, 0, n - 1);
 			}
 		}
 	} // namespace utils

@@ -400,7 +400,13 @@ inline void DoNotOptimize(T const& value) {
 				DoNotOptimize(cond_ret);                                                                                       \
 			}
 	#else
-		#define GAIA_ASSERT(condition) assert(condition)
+		#if GAIA_FORCE_DEBUG
+			#define GAIA_ASSERT(condition)                                                                                   \
+				if (!(condition))                                                                                              \
+				GAIA_LOG_E("Condition not met! Line:%d, File:%s\n", __LINE__, __FILE__)
+		#else
+			#define GAIA_ASSERT(condition) assert(condition)
+		#endif
 	#endif
 #endif
 
@@ -2525,15 +2531,28 @@ namespace gaia {
 #endif
 		}
 
-		template <typename InputIt, typename Func>
-		constexpr Func for_each(InputIt first, InputIt last, Func func) {
-#if GAIA_USE_STL_COMPATIBLE_CONTAINERS
-			return std::for_each(first, last, func);
-#else
-			for (; first != last; ++first)
-				func(*first);
-			return func;
-#endif
+		template <typename T, typename TCmpFunc>
+		constexpr void swap_if(T& lhs, T& rhs, TCmpFunc cmpFunc) noexcept {
+			if (!cmpFunc(lhs, rhs))
+				utils::swap(lhs, rhs);
+		}
+
+		template <typename T, typename TCmpFunc>
+		constexpr void swap_if_not(T& lhs, T& rhs, TCmpFunc cmpFunc) noexcept {
+			if (cmpFunc(lhs, rhs))
+				utils::swap(lhs, rhs);
+		}
+
+		template <typename C, typename TCmpFunc, typename TSortFunc>
+		constexpr void try_swap_if(C& c, uint32_t lhs, uint32_t rhs, TCmpFunc cmpFunc, TSortFunc sortFunc) noexcept {
+			if (!cmpFunc(c[lhs], c[rhs]))
+				sortFunc(lhs, rhs);
+		}
+
+		template <typename C, typename TCmpFunc, typename TSortFunc>
+		constexpr void try_swap_if_not(C& c, uint32_t lhs, uint32_t rhs, TCmpFunc cmpFunc, TSortFunc sortFunc) noexcept {
+			if (cmpFunc(c[lhs], c[rhs]))
+				sortFunc(lhs, rhs);
 		}
 
 		template <class ForwardIt, class T>
@@ -2718,6 +2737,17 @@ namespace gaia {
 					std::make_index_sequence<std::tuple_size<std::remove_reference_t<Tuple>>::value>{});
 		}
 
+		template <typename InputIt, typename Func>
+		constexpr Func for_each(InputIt first, InputIt last, Func func) {
+#if GAIA_USE_STL_COMPATIBLE_CONTAINERS
+			return std::for_each(first, last, func);
+#else
+			for (; first != last; ++first)
+				func(*first);
+			return func;
+#endif
+		}
+
 		template <typename C, typename Func>
 		constexpr auto for_each(const C& arr, Func func) {
 			return for_each(arr.begin(), arr.end(), func);
@@ -2813,14 +2843,14 @@ namespace gaia {
 		constexpr auto get_index(const C& arr, typename C::const_reference item) {
 			const auto it = find(arr, item);
 			if (it == arr.end())
-				return (std::ptrdiff_t)BadIndex;
+				return BadIndex;
 
-			return GAIA_UTIL::distance(arr.begin(), it);
+			return (decltype(BadIndex))GAIA_UTIL::distance(arr.begin(), it);
 		}
 
 		template <typename C>
 		constexpr auto get_index_unsafe(const C& arr, typename C::const_reference item) {
-			return GAIA_UTIL::distance(arr.begin(), find(arr, item));
+			return (decltype(BadIndex))GAIA_UTIL::distance(arr.begin(), find(arr, item));
 		}
 
 		template <typename UnaryPredicate, typename C>
@@ -2829,12 +2859,12 @@ namespace gaia {
 			if (it == arr.end())
 				return BadIndex;
 
-			return GAIA_UTIL::distance(arr.begin(), it);
+			return (decltype(BadIndex))GAIA_UTIL::distance(arr.begin(), it);
 		}
 
 		template <typename UnaryPredicate, typename C>
 		constexpr auto get_index_if_unsafe(const C& arr, UnaryPredicate predicate) {
-			return GAIA_UTIL::distance(arr.begin(), find_if(arr, predicate));
+			return (decltype(BadIndex))GAIA_UTIL::distance(arr.begin(), find_if(arr, predicate));
 		}
 
 		//----------------------------------------------------------------------
@@ -2870,13 +2900,6 @@ namespace gaia {
 			}
 		};
 
-		template <typename T, typename Func>
-		constexpr void swap_if(T& lhs, T& rhs, Func func) noexcept {
-			T t = func(lhs, rhs) ? std::move(lhs) : std::move(rhs);
-			rhs = func(lhs, rhs) ? std::move(rhs) : std::move(lhs);
-			lhs = std::move(t);
-		}
-
 		namespace detail {
 			template <typename Array, typename TSortFunc>
 			constexpr void comb_sort_impl(Array& array_, TSortFunc func) noexcept {
@@ -2901,25 +2924,25 @@ namespace gaia {
 				}
 			}
 
-			template <typename Container>
-			int quick_sort_partition(Container& arr, int low, int high) {
+			template <typename Container, typename TSortFunc>
+			int quick_sort_partition(Container& arr, TSortFunc func, int low, int high) {
 				const auto& pivot = arr[high];
 				int i = low - 1;
 				for (int j = low; j <= high - 1; j++) {
-					if (arr[j] < pivot)
+					if (func(arr[j], pivot))
 						utils::swap(arr[++i], arr[j]);
 				}
 				utils::swap(arr[++i], arr[high]);
 				return i;
 			}
 
-			template <typename Container>
-			void quick_sort(Container& arr, int low, int high) {
+			template <typename Container, typename TSortFunc>
+			void quick_sort(Container& arr, TSortFunc func, int low, int high) {
 				if (low >= high)
 					return;
-				auto pos = quick_sort_partition(arr, low, high);
-				quick_sort(arr, low, pos - 1);
-				quick_sort(arr, pos + 1, high);
+				auto pos = quick_sort_partition(arr, func, low, high);
+				quick_sort(arr, func, low, pos - 1);
+				quick_sort(arr, func, pos + 1, high);
 			}
 		} // namespace detail
 
@@ -3039,10 +3062,14 @@ namespace gaia {
 			}
 		}
 
-		//! Sorting including a sorting network for containers up to 8 elements in size.
-		//! Ordinary sorting used for bigger containers.
-		template <typename Container, typename TSortFunc>
-		void sort(Container& arr, TSortFunc func) {
+		//! Sort the array \param arr given a comparison function \param cmpFunc.
+		//! Sorts using a sorting network up to 8 elements. Quick sort above 32.
+		//! \tparam Container Container to sort
+		//! \tparam TCmpFunc Comparision function
+		//! \param arr Container to sort
+		//! \param func Comparision function
+		template <typename Container, typename TCmpFunc>
+		void sort(Container& arr, TCmpFunc func) {
 			if (arr.size() <= 1) {
 				// Nothing to sort with just one item
 			} else if (arr.size() == 2) {
@@ -3144,10 +3171,8 @@ namespace gaia {
 			} else if (arr.size() <= 32) {
 				const size_t n = arr.size();
 				for (size_t i = 0; i < n - 1; i++) {
-					for (size_t j = 0; j < n - i - 1; j++) {
-						if (arr[j] > arr[j + 1])
-							utils::swap(arr[j], arr[j + 1]);
-					}
+					for (size_t j = 0; j < n - i - 1; j++)
+						swap_if(arr[j], arr[j + 1], func);
 				}
 			} else {
 #if GAIA_USE_STL_COMPATIBLE_CONTAINERS
@@ -3157,9 +3182,132 @@ namespace gaia {
 				GAIA_MSVC_WARNING_POP()
 #else
 				const int n = (int)arr.size();
-				detail::quick_sort(arr, 0, n - 1);
+				detail::quick_sort(arr, func, 0, n - 1);
 
 #endif
+			}
+		}
+
+		//! Sort the array \param arr given a comparison function \param cmpFunc.
+		//! If cmpFunc returns true it performs \param sortFunc which can perform the sorting.
+		//! Use when it is necessary to sort multiple arrays at once.
+		//! Sorts using a sorting network up to 8 elements.
+		//! \warning Currently only up to 32 elements are supported.
+		//! \tparam Container Container to sort
+		//! \tparam TCmpFunc Comparision function
+		//! \tparam TSortFunc Sorting function
+		//! \param arr Container to sort
+		//! \param func Comparision function
+		//! \param sortFunc Sorting function
+		template <typename Container, typename TCmpFunc, typename TSortFunc>
+		void sort(Container& arr, TCmpFunc func, TSortFunc sortFunc) {
+			if (arr.size() <= 1) {
+				// Nothing to sort with just one item
+			} else if (arr.size() == 2) {
+				try_swap_if(arr, 0, 1, func, sortFunc);
+			} else if (arr.size() == 3) {
+				try_swap_if(arr, 1, 2, func, sortFunc);
+				try_swap_if(arr, 0, 2, func, sortFunc);
+				try_swap_if(arr, 0, 1, func, sortFunc);
+			} else if (arr.size() == 4) {
+				try_swap_if(arr, 0, 1, func, sortFunc);
+				try_swap_if(arr, 2, 3, func, sortFunc);
+
+				try_swap_if(arr, 0, 2, func, sortFunc);
+				try_swap_if(arr, 1, 3, func, sortFunc);
+
+				try_swap_if(arr, 1, 2, func, sortFunc);
+			} else if (arr.size() == 5) {
+				try_swap_if(arr, 0, 1, func, sortFunc);
+				try_swap_if(arr, 3, 4, func, sortFunc);
+
+				try_swap_if(arr, 2, 4, func, sortFunc);
+
+				try_swap_if(arr, 2, 3, func, sortFunc);
+				try_swap_if(arr, 1, 4, func, sortFunc);
+
+				try_swap_if(arr, 0, 3, func, sortFunc);
+
+				try_swap_if(arr, 0, 2, func, sortFunc);
+				try_swap_if(arr, 1, 3, func, sortFunc);
+
+				try_swap_if(arr, 1, 2, func, sortFunc);
+			} else if (arr.size() == 6) {
+				try_swap_if(arr, 1, 2, func, sortFunc);
+				try_swap_if(arr, 4, 5, func, sortFunc);
+
+				try_swap_if(arr, 0, 2, func, sortFunc);
+				try_swap_if(arr, 3, 5, func, sortFunc);
+
+				try_swap_if(arr, 0, 1, func, sortFunc);
+				try_swap_if(arr, 3, 4, func, sortFunc);
+				try_swap_if(arr, 2, 5, func, sortFunc);
+
+				try_swap_if(arr, 0, 3, func, sortFunc);
+				try_swap_if(arr, 1, 4, func, sortFunc);
+
+				try_swap_if(arr, 2, 4, func, sortFunc);
+				try_swap_if(arr, 1, 3, func, sortFunc);
+
+				try_swap_if(arr, 2, 3, func, sortFunc);
+			} else if (arr.size() == 7) {
+				try_swap_if(arr, 1, 2, func, sortFunc);
+				try_swap_if(arr, 3, 4, func, sortFunc);
+				try_swap_if(arr, 5, 6, func, sortFunc);
+
+				try_swap_if(arr, 0, 2, func, sortFunc);
+				try_swap_if(arr, 3, 5, func, sortFunc);
+				try_swap_if(arr, 4, 6, func, sortFunc);
+
+				try_swap_if(arr, 0, 1, func, sortFunc);
+				try_swap_if(arr, 4, 5, func, sortFunc);
+				try_swap_if(arr, 2, 6, func, sortFunc);
+
+				try_swap_if(arr, 0, 4, func, sortFunc);
+				try_swap_if(arr, 1, 5, func, sortFunc);
+
+				try_swap_if(arr, 0, 3, func, sortFunc);
+				try_swap_if(arr, 2, 5, func, sortFunc);
+
+				try_swap_if(arr, 1, 3, func, sortFunc);
+				try_swap_if(arr, 2, 4, func, sortFunc);
+
+				try_swap_if(arr, 2, 3, func, sortFunc);
+			} else if (arr.size() == 8) {
+				try_swap_if(arr, 0, 1, func, sortFunc);
+				try_swap_if(arr, 2, 3, func, sortFunc);
+				try_swap_if(arr, 4, 5, func, sortFunc);
+				try_swap_if(arr, 6, 7, func, sortFunc);
+
+				try_swap_if(arr, 0, 2, func, sortFunc);
+				try_swap_if(arr, 1, 3, func, sortFunc);
+				try_swap_if(arr, 4, 6, func, sortFunc);
+				try_swap_if(arr, 5, 7, func, sortFunc);
+
+				try_swap_if(arr, 1, 2, func, sortFunc);
+				try_swap_if(arr, 5, 6, func, sortFunc);
+				try_swap_if(arr, 0, 4, func, sortFunc);
+				try_swap_if(arr, 3, 7, func, sortFunc);
+
+				try_swap_if(arr, 1, 5, func, sortFunc);
+				try_swap_if(arr, 2, 6, func, sortFunc);
+
+				try_swap_if(arr, 1, 4, func, sortFunc);
+				try_swap_if(arr, 3, 6, func, sortFunc);
+
+				try_swap_if(arr, 2, 4, func, sortFunc);
+				try_swap_if(arr, 3, 5, func, sortFunc);
+
+				try_swap_if(arr, 3, 4, func, sortFunc);
+			} else if (arr.size() <= 32) {
+				const size_t n = arr.size();
+				for (size_t i = 0; i < n - 1; i++)
+					for (size_t j = 0; j < n - i - 1; j++)
+						try_swap_if(arr, j, j + 1, func, sortFunc);
+			} else {
+				GAIA_ASSERT(false && "sort currently supports at most 32 items in the array");
+				// const int n = (int)arr.size();
+				// detail::quick_sort(arr, 0, n - 1);
 			}
 		}
 	} // namespace utils
@@ -7710,7 +7858,7 @@ namespace gaia {
 
 				const auto& componentIds = GetArchetypeComponentInfoList(m_header.owner, componentType);
 				const auto& offsets = GetArchetypeComponentOffsetList(m_header.owner, componentType);
-				const auto idx = utils::get_index_unsafe(componentIds, componentId);
+				const auto idx = (uint32_t)utils::get_index_unsafe(componentIds, componentId);
 
 				return (const uint8_t*)&m_data[offsets[idx]];
 			}
@@ -7733,7 +7881,7 @@ namespace gaia {
 
 				const auto& componentIds = GetArchetypeComponentInfoList(m_header.owner, componentType);
 				const auto& offsets = GetArchetypeComponentOffsetList(m_header.owner, componentType);
-				const auto idx = utils::get_index_unsafe(componentIds, componentId);
+				const auto idx = (uint32_t)utils::get_index_unsafe(componentIds, componentId);
 
 				if constexpr (UpdateWorldVersion) {
 					// Update version number so we know RW access was used on chunk
@@ -7835,9 +7983,7 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD auto View() const {
 				using U = typename DeduceComponent<T>::Type;
-				using UOriginal = typename DeduceComponent<T>::TypeOriginal;
-				static_assert(IsReadOnlyType<UOriginal>::value);
-
+				
 				return utils::auto_view_policy_get<std::add_const_t<U>>{{View_Internal<T>()}};
 			}
 
@@ -8215,12 +8361,12 @@ namespace gaia {
 			return {hash};
 		}
 
+		using SortComponentCond = utils::is_smaller<ComponentId>;
+
 		//! Sorts component ids
 		template <typename Container>
 		inline void SortComponents(Container& c) {
-			utils::sort(c, [](ComponentId left, ComponentId right) {
-				return left < right;
-			});
+			utils::sort(c, SortComponentCond{});
 		}
 	} // namespace ecs
 } // namespace gaia
@@ -8715,6 +8861,7 @@ namespace gaia {
 #endif
 
 #include <tuple>
+#include <type_traits>
 
 namespace gaia {
 	namespace ecs {
@@ -8768,18 +8915,31 @@ namespace gaia {
 			bool m_sort = true;
 
 			template <typename T>
-			bool HasComponent_Internal([[maybe_unused]] const ComponentIdArray& componentIds) const {
+			bool HasComponent_Internal(
+					[[maybe_unused]] ListType listType, [[maybe_unused]] ComponentType componentType, bool isReadWrite) const {
 				if constexpr (std::is_same_v<T, Entity>) {
 					// Skip Entity input args
 					return true;
 				} else {
+					const ComponentIdArray& componentIds = m_list[componentType].componentIds[listType];
+
+					// Component id has to be present
 					const auto componentId = GetComponentId<T>();
-					return utils::has(componentIds, componentId);
+					const auto idx = utils::get_index(componentIds, componentId);
+					if (idx == BadIndex)
+						return false;
+
+					// Read-write mask must match
+					const uint8_t maskRW = (uint32_t)m_rw[componentType] & (1U << (uint32_t)idx);
+					const uint8_t maskXX = (uint32_t)isReadWrite << idx;
+					return maskRW == maskXX;
 				}
 			}
 
 			template <typename T>
-			void AddComponent_Internal([[maybe_unused]] ListType listType, [[maybe_unused]] ComponentType componentType) {
+			void AddComponent_Internal(
+					[[maybe_unused]] ListType listType, [[maybe_unused]] ComponentType componentType,
+					[[maybe_unused]] bool isReadWrite) {
 				if constexpr (std::is_same_v<T, Entity>) {
 					// Skip Entity input args
 					return;
@@ -8810,10 +8970,8 @@ namespace gaia {
 					}
 #endif
 
-					constexpr bool isReadOnly = std::is_const_v<T>;
-					if constexpr (!isReadOnly) {
-						m_rw[(uint32_t)componentType] |= (1U << (uint32_t)componentIds.size());
-					}
+					m_rw[componentType] |= (uint8_t)isReadWrite << (uint8_t)componentIds.size();
+
 					componentIds.push_back(componentId);
 
 					m_recalculate = true;
@@ -8877,9 +9035,26 @@ namespace gaia {
 
 			//! Sorts internal component arrays
 			void SortComponentArrays() {
-				for (auto& l: m_list)
-					for (auto& componentIds: l.componentIds)
-						SortComponents(componentIds);
+				for (size_t i = 0; i < ComponentType::CT_Count; ++i) {
+					auto& l = m_list[i];
+					for (auto& componentIds: l.componentIds) {
+						// Make sure the read-write mask remains correct after sorting
+						utils::sort(componentIds, SortComponentCond{}, [&](uint32_t left, uint32_t right) {
+							// Swap component ids
+							utils::swap(componentIds[left], componentIds[right]);
+
+							// Swap the bits in the read-write mask
+							const uint32_t b0 = m_rw[i] & (1U << left);
+							const uint32_t b1 = m_rw[i] & (1U << right);
+							// XOR the two bits
+							const uint32_t bxor = (b0 ^ b1);
+							// Put the XOR bits back to their original positions
+							const uint32_t mask = (bxor << left) | (bxor << right);
+							// XOR mask with the original one effectivelly swapping the bits
+							m_rw[i] = m_rw[i] ^ (uint8_t)mask;
+						});
+					}
+				}
 			}
 
 			void CalculateLookupHash() {
@@ -8919,6 +9094,7 @@ namespace gaia {
 						hash = utils::hash_combine(hash, (LookupHash::Type)componentIds.size());
 					}
 
+					hash = utils::hash_combine(hash, (LookupHash::Type)m_rw[i]);
 					hashLookup = utils::hash_combine(hashLookup, hash);
 				}
 
@@ -9046,6 +9222,14 @@ namespace gaia {
 					return false;
 
 				for (size_t j = 0; j < ComponentType::CT_Count; ++j) {
+					// Read-write access has to be the same
+					if (m_rw[j] != other.m_rw[j])
+						return false;
+
+					// Filter count needs to be the same
+					if (m_listChangeFiltered[j].size() != other.m_listChangeFiltered[j].size())
+						return false;
+
 					const auto& queryList = m_list[j];
 					const auto& otherList = other.m_list[j];
 
@@ -9060,10 +9244,6 @@ namespace gaia {
 						if (queryList.hash[i] != otherList.hash[i])
 							return false;
 					}
-
-					// Filter count needs to be the same
-					if (m_listChangeFiltered[j].size() != other.m_listChangeFiltered[j].size())
-						return false;
 
 					// Components need to be the same
 					for (size_t i = 0; i < ListType::LT_Count; ++i) {
@@ -9137,19 +9317,27 @@ namespace gaia {
 			template <typename T>
 			void AddComponent_Internal(ListType listType) {
 				using U = typename DeduceComponent<T>::Type;
+				using UOriginal = typename DeduceComponent<T>::TypeOriginal;
+				using UOriginalPR = std::remove_reference_t<std::remove_pointer_t<UOriginal>>;
+				constexpr bool isReadWrite = std::is_same_v<U, UOriginal> || !std::is_const_v<UOriginalPR>;
+
 				if constexpr (IsGenericComponent<T>)
-					AddComponent_Internal<U>(listType, ComponentType::CT_Generic);
+					AddComponent_Internal<U>(listType, ComponentType::CT_Generic, isReadWrite);
 				else
-					AddComponent_Internal<U>(listType, ComponentType::CT_Chunk);
+					AddComponent_Internal<U>(listType, ComponentType::CT_Chunk, isReadWrite);
 			}
 
 			template <typename T>
 			bool HasComponent_Internal(ListType listType) const {
 				using U = typename DeduceComponent<T>::Type;
+				using UOriginal = typename DeduceComponent<T>::TypeOriginal;
+				using UOriginalPR = std::remove_reference_t<std::remove_pointer_t<UOriginal>>;
+				constexpr bool isReadWrite = std::is_same_v<U, UOriginal> || !std::is_const_v<UOriginalPR>;
+
 				if constexpr (IsGenericComponent<T>)
-					return HasComponent_Internal<U>(m_list[ComponentType::CT_Generic].componentIds[listType]);
+					return HasComponent_Internal<U>(listType, ComponentType::CT_Generic, isReadWrite);
 				else
-					return HasComponent_Internal<U>(m_list[ComponentType::CT_Chunk].componentIds[listType]);
+					return HasComponent_Internal<U>(listType, ComponentType::CT_Chunk, isReadWrite);
 			}
 
 			template <typename T>
@@ -9181,7 +9369,8 @@ namespace gaia {
 
 			template <bool Enabled>
 			GAIA_NODISCARD bool CheckConstraints() const {
-				// By default we only evaluate EnabledOnly changes. AcceptAll is something that has to be asked for explicitely.
+				// By default we only evaluate EnabledOnly changes. AcceptAll is something that has to be asked for
+				// explicitely.
 				if GAIA_UNLIKELY (m_constraints == Constraints::AcceptAll)
 					return true;
 
@@ -10738,7 +10927,7 @@ namespace gaia {
 				GAIA_PROF_SCOPE(ForEach_E);
 
 #if GAIA_DEBUG
-				// Make sure we only use components specificed in the query
+				// Make sure we only use components specified in the query
 				GAIA_ASSERT(CheckQuery<Func>(world, query));
 #endif
 

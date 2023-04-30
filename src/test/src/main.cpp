@@ -275,41 +275,60 @@ TEST_CASE("EntityNull") {
 	REQUIRE_FALSE(ecs::EntityNull == e);
 }
 
-TEST_CASE("Compile-time sort ascending") {
-	containers::sarray<int, 5> arr = {4, 2, 1, 3, 0};
-	utils::sort_ct(arr, utils::is_smaller<int>());
-	REQUIRE(arr[0] == 0);
-	REQUIRE(arr[1] == 1);
-	REQUIRE(arr[2] == 2);
-	REQUIRE(arr[3] == 3);
-	REQUIRE(arr[4] == 4);
-}
-
 TEST_CASE("Compile-time sort descending") {
-	containers::sarray<int, 5> arr = {4, 2, 1, 3, 0};
-	utils::sort_ct(arr, utils::is_greater<int>());
-	REQUIRE(arr[4] == 0);
-	REQUIRE(arr[3] == 1);
-	REQUIRE(arr[2] == 2);
-	REQUIRE(arr[1] == 3);
-	REQUIRE(arr[0] == 4);
+	containers::sarray<uint32_t, 5> arr = {4, 2, 1, 3, 0};
+	utils::sort_ct(arr, utils::is_greater<uint32_t>());
+	for (size_t i = 0; i < arr.size(); ++i)
+		REQUIRE(arr[arr.size() - i - 1] == i);
 }
 
-TEST_CASE("Run-time sort") {
-	containers::sarray<int, 5> arr = {4, 2, 1, 3, 0};
-	utils::sort(arr, utils::is_smaller<int>());
-	REQUIRE(arr[0] == 0);
-	REQUIRE(arr[1] == 1);
-	REQUIRE(arr[2] == 2);
-	REQUIRE(arr[3] == 3);
-	REQUIRE(arr[4] == 4);
+TEST_CASE("Compile-time sort ascending") {
+	containers::sarray<uint32_t, 5> arr = {4, 2, 1, 3, 0};
+	utils::sort_ct(arr, utils::is_smaller<uint32_t>());
+	for (size_t i = 0; i < arr.size(); ++i)
+		REQUIRE(arr[i] == i);
+}
 
-	utils::sort(arr, utils::is_greater<int>());
-	REQUIRE(arr[4] == 0);
-	REQUIRE(arr[3] == 1);
-	REQUIRE(arr[2] == 2);
-	REQUIRE(arr[1] == 3);
-	REQUIRE(arr[0] == 4);
+TEST_CASE("Run-time sort - sorting network") {
+	containers::sarray<uint32_t, 5> arr;
+	for (uint32_t i = 0; i < arr.size(); ++i)
+		arr[i] = i;
+
+	utils::sort(arr, utils::is_greater<uint32_t>());
+	for (size_t i = 0; i < arr.size(); ++i)
+		REQUIRE(arr[arr.size() - i - 1] == i);
+
+	utils::sort(arr, utils::is_smaller<uint32_t>());
+	for (size_t i = 0; i < arr.size(); ++i)
+		REQUIRE(arr[i] == i);
+}
+
+TEST_CASE("Run-time sort - bubble sort") {
+	containers::sarray<uint32_t, 15> arr;
+	for (uint32_t i = 0; i < arr.size(); ++i)
+		arr[i] = i;
+
+	utils::sort(arr, utils::is_greater<uint32_t>());
+	for (size_t i = 0; i < arr.size(); ++i)
+		REQUIRE(arr[arr.size() - i - 1] == i);
+
+	utils::sort(arr, utils::is_smaller<uint32_t>());
+	for (size_t i = 0; i < arr.size(); ++i)
+		REQUIRE(arr[i] == i);
+}
+
+TEST_CASE("Run-time sort - quick sort") {
+	containers::sarray<uint32_t, 45> arr;
+	for (uint32_t i = 0; i < arr.size(); ++i)
+		arr[i] = i;
+
+	utils::sort(arr, utils::is_greater<uint32_t>());
+	for (size_t i = 0; i < arr.size(); ++i)
+		REQUIRE(arr[arr.size() - i - 1] == i);
+
+	utils::sort(arr, utils::is_smaller<uint32_t>());
+	for (size_t i = 0; i < arr.size(); ++i)
+		REQUIRE(arr[i] == i);
 }
 
 TEST_CASE("EntityQuery - equality") {
@@ -1922,7 +1941,7 @@ TEST_CASE("CommandBuffer") {
 TEST_CASE("Query Filter - no systems") {
 	ecs::World w;
 	ecs::EntityQuery q;
-	q.All<Position>().WithChanged<Position>();
+	q.All<const Position>().WithChanged<Position>();
 
 	auto e = w.CreateEntity();
 	w.AddComponent<Position>(e);
@@ -2023,7 +2042,7 @@ TEST_CASE("Query Filter - systems") {
 			m_expectedCnt = cnt;
 		}
 		void OnCreated() override {
-			m_q.All<Position>().WithChanged<Position>();
+			m_q.All<const Position>().WithChanged<Position>();
 		}
 		void OnUpdate() override {
 			uint32_t cnt = 0;
