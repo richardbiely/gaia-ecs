@@ -38,7 +38,7 @@
       "externalConsole": false
     },
     {
-      "name": "(lldb) feature test",
+      "name": "(lldb) unit test",
       "type": "lldb",
       "request": "launch",
       "program": "${workspaceFolder}/build/src/test/gaia_test",
@@ -49,7 +49,7 @@
       "externalConsole": false
     },
     {
-      "name": "(lldb) perf test - duel",
+      "name": "(lldb) perf - duel",
       "type": "lldb",
       "request": "launch",
       "program": "${workspaceFolder}/build/src/perf/duel/gaia_perf_duel",
@@ -60,7 +60,7 @@
       "externalConsole": false
     },
     {
-      "name": "(lldb) perf test - iteration",
+      "name": "(lldb) perf - iteration",
       "type": "lldb",
       "request": "launch",
       "program": "${workspaceFolder}/build/src/perf/iter/gaia_perf_iter",
