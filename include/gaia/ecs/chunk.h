@@ -41,14 +41,14 @@ namespace gaia {
 			friend class CommandBuffer;
 
 			//! Archetype header with info about the archetype
-			ChunkHeader header;
+			ChunkHeader m_header;
 			//! Archetype data. Entities first, followed by a lists of components.
-			uint8_t data[DATA_SIZE_NORESERVE];
+			uint8_t m_data[DATA_SIZE_NORESERVE];
 
 			GAIA_MSVC_WARNING_PUSH()
 			GAIA_MSVC_WARNING_DISABLE(26495)
 
-			Chunk(const Archetype& archetype): header(archetype) {}
+			Chunk(const Archetype& archetype): m_header(archetype) {}
 
 			GAIA_MSVC_WARNING_POP()
 
@@ -59,7 +59,7 @@ namespace gaia {
 			\return True if found. False otherwise.
 			*/
 			GAIA_NODISCARD bool HasComponent_Internal(ComponentType componentType, uint32_t componentId) const {
-				const auto& componentIds = GetArchetypeComponentInfoList(header.owner, componentType);
+				const auto& componentIds = GetArchetypeComponentInfoList(m_header.owner, componentType);
 				return utils::has(componentIds, componentId);
 			}
 
@@ -68,11 +68,11 @@ namespace gaia {
 			\return Index of the entity within the chunk.
 			*/
 			GAIA_NODISCARD uint32_t AddEntity(Entity entity) {
-				const auto index = header.count++;
+				const auto index = m_header.count++;
 				SetEntity(index, entity);
 
-				header.UpdateWorldVersion(ComponentType::CT_Generic);
-				header.UpdateWorldVersion(ComponentType::CT_Chunk);
+				m_header.UpdateWorldVersion(ComponentType::CT_Generic);
+				m_header.UpdateWorldVersion(ComponentType::CT_Chunk);
 
 				return index;
 			}
@@ -82,21 +82,21 @@ namespace gaia {
 			*/
 			void RemoveEntity(uint32_t index, containers::darray<EntityContainer>& entities) {
 				// Ignore requests on empty chunks
-				if (header.count == 0)
+				if (m_header.count == 0)
 					return;
 
 				// We can't be removing from an index which is no longer there
-				GAIA_ASSERT(index < header.count);
+				GAIA_ASSERT(index < m_header.count);
 
 				// If there are at least two entities inside and it's not already the
 				// last one let's swap our entity with the last one in the chunk.
-				if (header.count > 1 && header.count != index + 1) {
+				if (m_header.count > 1 && m_header.count != index + 1) {
 					// Swap data at index with the last one
-					const auto entity = GetEntity(header.count - 1);
+					const auto entity = GetEntity(m_header.count - 1);
 					SetEntity(index, entity);
 
-					const auto& componentIds = GetArchetypeComponentInfoList(header.owner, ComponentType::CT_Generic);
-					const auto& offsets = GetArchetypeComponentOffsetList(header.owner, ComponentType::CT_Generic);
+					const auto& componentIds = GetArchetypeComponentInfoList(m_header.owner, ComponentType::CT_Generic);
+					const auto& offsets = GetArchetypeComponentOffsetList(m_header.owner, ComponentType::CT_Generic);
 
 					for (size_t i = 0; i < componentIds.size(); i++) {
 						const auto& desc = GetComponentDesc(componentIds[i]);
@@ -105,14 +105,14 @@ namespace gaia {
 
 						const auto offset = offsets[i];
 						const auto idxSrc = offset + index * desc.properties.size;
-						const auto idxDst = offset + (header.count - 1U) * desc.properties.size;
+						const auto idxDst = offset + (m_header.count - 1U) * desc.properties.size;
 
 						GAIA_ASSERT(idxSrc < Chunk::DATA_SIZE_NORESERVE);
 						GAIA_ASSERT(idxDst < Chunk::DATA_SIZE_NORESERVE);
 						GAIA_ASSERT(idxSrc != idxDst);
 
-						auto* pSrc = (void*)&data[idxSrc];
-						auto* pDst = (void*)&data[idxDst];
+						auto* pSrc = (void*)&m_data[idxSrc];
+						auto* pDst = (void*)&m_data[idxDst];
 
 						if (desc.properties.movable == 1) {
 							desc.move(pSrc, pDst);
@@ -131,10 +131,10 @@ namespace gaia {
 					entities[entity.id()].gen = entity.gen();
 				}
 
-				header.UpdateWorldVersion(ComponentType::CT_Generic);
-				header.UpdateWorldVersion(ComponentType::CT_Chunk);
+				m_header.UpdateWorldVersion(ComponentType::CT_Generic);
+				m_header.UpdateWorldVersion(ComponentType::CT_Chunk);
 
-				--header.count;
+				--m_header.count;
 			}
 
 			/*!
@@ -143,9 +143,9 @@ namespace gaia {
 			\param entity Entity to store in the chunk
 			*/
 			void SetEntity(uint32_t index, Entity entity) {
-				GAIA_ASSERT(index < header.count && "Entity index in chunk out of bounds!");
+				GAIA_ASSERT(index < m_header.count && "Entity index in chunk out of bounds!");
 
-				utils::unaligned_ref<Entity> mem((void*)&data[sizeof(Entity) * index]);
+				utils::unaligned_ref<Entity> mem((void*)&m_data[sizeof(Entity) * index]);
 				mem = entity;
 			}
 
@@ -155,9 +155,9 @@ namespace gaia {
 			\return Entity on a given index within the chunk.
 			*/
 			GAIA_NODISCARD Entity GetEntity(uint32_t index) const {
-				GAIA_ASSERT(index < header.count && "Entity index in chunk out of bounds!");
+				GAIA_ASSERT(index < m_header.count && "Entity index in chunk out of bounds!");
 
-				utils::unaligned_ref<Entity> mem((void*)&data[sizeof(Entity) * index]);
+				utils::unaligned_ref<Entity> mem((void*)&m_data[sizeof(Entity) * index]);
 				return mem;
 			}
 
@@ -172,11 +172,11 @@ namespace gaia {
 				// Searching for a component that's not there! Programmer mistake.
 				GAIA_ASSERT(HasComponent_Internal(componentType, componentId));
 
-				const auto& componentIds = GetArchetypeComponentInfoList(header.owner, componentType);
-				const auto& offsets = GetArchetypeComponentOffsetList(header.owner, componentType);
-				const auto idx = utils::get_index_unsafe(componentIds, componentId);
+				const auto& componentIds = GetArchetypeComponentInfoList(m_header.owner, componentType);
+				const auto& offsets = GetArchetypeComponentOffsetList(m_header.owner, componentType);
+				const auto idx = (uint32_t)utils::get_index_unsafe(componentIds, componentId);
 
-				return (const uint8_t*)&data[offsets[idx]];
+				return (const uint8_t*)&m_data[offsets[idx]];
 			}
 
 			/*!
@@ -195,16 +195,16 @@ namespace gaia {
 				// Don't use this with empty components. It's impossible to write to them anyway.
 				GAIA_ASSERT(GetComponentDesc(componentId).properties.size != 0);
 
-				const auto& componentIds = GetArchetypeComponentInfoList(header.owner, componentType);
-				const auto& offsets = GetArchetypeComponentOffsetList(header.owner, componentType);
-				const auto idx = utils::get_index_unsafe(componentIds, componentId);
+				const auto& componentIds = GetArchetypeComponentInfoList(m_header.owner, componentType);
+				const auto& offsets = GetArchetypeComponentOffsetList(m_header.owner, componentType);
+				const auto idx = (uint32_t)utils::get_index_unsafe(componentIds, componentId);
 
 				if constexpr (UpdateWorldVersion) {
 					// Update version number so we know RW access was used on chunk
-					header.UpdateWorldVersion(componentType, idx);
+					m_header.UpdateWorldVersion(componentType, idx);
 				}
 
-				return (uint8_t*)&data[offsets[idx]];
+				return (uint8_t*)&m_data[offsets[idx]];
 			}
 
 			/*!
@@ -219,7 +219,7 @@ namespace gaia {
 				using UConst = typename std::add_const_t<U>;
 
 				if constexpr (std::is_same_v<U, Entity>) {
-					return std::span<const Entity>{(const Entity*)&data[0], GetItemCount()};
+					return std::span<const Entity>{(const Entity*)&m_data[0], GetItemCount()};
 				} else {
 					static_assert(!std::is_empty_v<U>, "Attempting to get value of an empty component");
 
@@ -274,7 +274,7 @@ namespace gaia {
 				using U = typename DeduceComponent<T>::Type;
 				using RetValue = decltype(View<T>()[0]);
 
-				GAIA_ASSERT(index < header.count);
+				GAIA_ASSERT(index < m_header.count);
 				if constexpr (sizeof(RetValue) > 8)
 					return (const U&)View<T>()[index];
 				else
@@ -287,7 +287,7 @@ namespace gaia {
 			\return Parent archetype
 			*/
 			const Archetype& GetArchetype() const {
-				return header.owner;
+				return m_header.owner;
 			}
 
 			/*!
@@ -370,7 +370,7 @@ namespace gaia {
 				static_assert(
 						IsGenericComponent<T>, "SetComponent providing an index can only be used with generic components");
 
-				GAIA_ASSERT(index < header.capacity);
+				GAIA_ASSERT(index < m_header.capacity);
 				ViewRW<T>()[index] = std::forward<U>(value);
 			}
 
@@ -387,7 +387,7 @@ namespace gaia {
 				static_assert(
 						!IsGenericComponent<T>, "SetComponent not providing an index can only be used with chunk components");
 
-				GAIA_ASSERT(0 < header.capacity);
+				GAIA_ASSERT(0 < m_header.capacity);
 				ViewRW<T>()[0] = std::forward<U>(value);
 			}
 
@@ -406,7 +406,7 @@ namespace gaia {
 				static_assert(
 						IsGenericComponent<T>, "SetComponentSilent providing an index can only be used with generic components");
 
-				GAIA_ASSERT(index < header.capacity);
+				GAIA_ASSERT(index < m_header.capacity);
 				ViewRWSilent<T>()[index] = std::forward<U>(value);
 			}
 
@@ -424,7 +424,7 @@ namespace gaia {
 				static_assert(
 						!IsGenericComponent<T>, "SetComponentSilent not providing an index can only be used with chunk components");
 
-				GAIA_ASSERT(0 < header.capacity);
+				GAIA_ASSERT(0 < m_header.capacity);
 				ViewRWSilent<T>()[0] = std::forward<U>(value);
 			}
 
@@ -464,27 +464,27 @@ namespace gaia {
 
 			//! Checks is this chunk is disabled
 			GAIA_NODISCARD bool IsDisabled() const {
-				return header.disabled;
+				return m_header.disabled;
 			}
 
 			//! Checks is the full capacity of the has has been reached
 			GAIA_NODISCARD bool IsFull() const {
-				return header.count >= header.capacity;
+				return m_header.count >= m_header.capacity;
 			}
 
 			//! Checks is there are any entities in the chunk
 			GAIA_NODISCARD bool HasEntities() const {
-				return header.count > 0;
+				return m_header.count > 0;
 			}
 
 			//! Returns the number of entities in the chunk
 			GAIA_NODISCARD uint32_t GetItemCount() const {
-				return header.count;
+				return m_header.count;
 			}
 
 			//! Returns true if the provided version is newer than the one stored internally
 			GAIA_NODISCARD bool DidChange(ComponentType componentType, uint32_t version, uint32_t componentIdx) const {
-				return DidVersionChange(header.versions[componentType][componentIdx], version);
+				return DidVersionChange(m_header.versions[componentType][componentIdx], version);
 			}
 		};
 		static_assert(sizeof(Chunk) <= ChunkMemorySize, "Chunk size must match ChunkMemorySize!");
