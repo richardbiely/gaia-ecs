@@ -87,21 +87,21 @@ namespace gaia {
 				IsGenericComponent<T>, typename detail::ExtractComponentType_Generic<T>,
 				typename detail::ExtractComponentType_NonGeneric<T>>;
 
-		//! Returns the index of the component \tparam T
-		//! \return Component index
+		//! Returns the component id for \tparam T
+		//! \return Component id
 		template <typename T>
 		GAIA_NODISCARD inline ComponentId GetComponentId() {
 			using U = typename DeduceComponent<T>::Type;
 			return utils::type_info::id<U>();
 		}
 
-		//! Returns the index of the component \tparam T
+		//! Returns the component id for \tparam T
 		//! \warning Does not perform any deduction for \tparam T.
 		//!          Passing "const X" and "X" would therefore yield to different results.
 		//!          Therefore, this must be used only when we known \tparam T is the deduced "raw" type.
-		//! \return Component index
+		//! \return Component id
 		template <typename T>
-		GAIA_NODISCARD inline uint32_t GetComponentIdUnsafe() {
+		GAIA_NODISCARD inline ComponentId GetComponentIdUnsafe() {
 			// This is essentially the same thing as GetComponentId but when used correctly
 			// we can save some compilation time.
 			return utils::type_info::id<T>();
