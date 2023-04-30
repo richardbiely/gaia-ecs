@@ -212,7 +212,7 @@ namespace gaia {
 			/*!
 			Returns a pointer do component data with read-only access.
 			\param componentType Component type
-			\param componentId Component info index
+			\param componentId Component id
 			\return Const pointer to component data.
 			*/
 			GAIA_NODISCARD GAIA_FORCEINLINE const uint8_t*
@@ -231,7 +231,7 @@ namespace gaia {
 			Returns a pointer do component data with read-write access. Also updates the world version for the component.
 			\tparam UpdateWorldVersion If true, the world version is updated as a result of the write access
 			\param componentType Component type
-			\param componentId Index of the component in the archetype
+			\param componentId Component id
 			\return Pointer to component data.
 			*/
 			template <bool UpdateWorldVersion>
@@ -325,7 +325,7 @@ namespace gaia {
 				using U = typename DeduceComponent<T>::Type;
 
 				static_assert(
-						IsGenericComponent<T>, "SetComponent providing an index in chunk is only available for generic components");
+						IsGenericComponent<T>, "SetComponent providing an index can only be used with generic components");
 
 				ViewRW<T>()[index] = std::forward<U>(value);
 			}
@@ -335,8 +335,7 @@ namespace gaia {
 				using U = typename DeduceComponent<T>::Type;
 
 				static_assert(
-						!IsGenericComponent<T>,
-						"SetComponent not providing an index in chunk is only available for non-generic components");
+						!IsGenericComponent<T>, "SetComponent not providing an index can only be used with chunk components");
 
 				ViewRW<T>()[0] = std::forward<U>(value);
 			}
@@ -346,7 +345,7 @@ namespace gaia {
 				using U = typename DeduceComponent<T>::Type;
 
 				static_assert(
-						IsGenericComponent<T>, "SetComponent providing an index in chunk is only available for generic components");
+						IsGenericComponent<T>, "SetComponentSilent providing an index can only be used with generic components");
 
 				ViewRWSilent<T>()[index] = std::forward<U>(value);
 			}
@@ -356,8 +355,7 @@ namespace gaia {
 				using U = typename DeduceComponent<T>::Type;
 
 				static_assert(
-						!IsGenericComponent<T>,
-						"SetComponent not providing an index in chunk is only available for non-generic components");
+						!IsGenericComponent<T>, "SetComponentSilent not providing an index can only be used with chunk components");
 
 				ViewRWSilent<T>()[0] = std::forward<U>(value);
 			}
@@ -380,14 +378,14 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD auto GetComponent(uint32_t index) const {
 				static_assert(
-						IsGenericComponent<T>, "GetComponent providing an index is only available for generic components");
+						IsGenericComponent<T>, "GetComponent providing an index can only be used with generic components");
 				return GetComponent_Internal<T>(index);
 			}
 
 			template <typename T>
 			GAIA_NODISCARD auto GetComponent() const {
 				static_assert(
-						!IsGenericComponent<T>, "GetComponent not providing an index is only available for non-generic components");
+						!IsGenericComponent<T>, "GetComponent not providing an index can only be used with chunk components");
 				return GetComponent_Internal<T>(0);
 			}
 

@@ -44,12 +44,12 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD const ComponentInfo& GetOrCreateComponentInfo() {
 				using U = typename DeduceComponent<T>::Type;
-				const auto index = GetComponentIdUnsafe<U>();
+				const auto componentId = GetComponentIdUnsafe<U>();
 
 				auto createInfo = [&]() -> const ComponentInfo& {
 					const auto* pInfo = ComponentInfo::Create<U>();
-					m_infoByIndex[index] = pInfo;
-					m_descByIndex[index] = ComponentDesc::Create<U>();
+					m_infoByIndex[componentId] = pInfo;
+					m_descByIndex[componentId] = ComponentDesc::Create<U>();
 					GAIA_SAFE_CONSTEXPR auto hash = utils::type_info::hash<U>();
 					[[maybe_unused]] const auto res = m_infoByHash.try_emplace({hash}, pInfo);
 					// This has to be the first time this has has been added!
@@ -57,9 +57,9 @@ namespace gaia {
 					return *pInfo;
 				};
 
-				if GAIA_UNLIKELY (index >= m_infoByIndex.size()) {
+				if GAIA_UNLIKELY (componentId >= m_infoByIndex.size()) {
 					const auto oldSize = m_infoByIndex.size();
-					const auto newSize = index + 1U;
+					const auto newSize = componentId + 1U;
 
 					// Increase the capacity by multiples of 128
 					constexpr uint32_t CapacityIncreaseSize = 128;
@@ -77,11 +77,11 @@ namespace gaia {
 					return createInfo();
 				}
 
-				if GAIA_UNLIKELY (m_infoByIndex[index] == nullptr) {
+				if GAIA_UNLIKELY (m_infoByIndex[componentId] == nullptr) {
 					return createInfo();
 				}
 
-				return *m_infoByIndex[index];
+				return *m_infoByIndex[componentId];
 			}
 
 			//! Returns the component info for \tparam T.
@@ -106,26 +106,26 @@ namespace gaia {
 				return GetComponentInfoFromHash({hash});
 			}
 
-			//! Returns the component info given the \param index.
-			//! \warning It is expected the component info with a given index exists! Undefined behavior otherwise.
+			//! Returns the component info given the \param componentId.
+			//! \warning It is expected the component info with a given component id exists! Undefined behavior otherwise.
 			//! \return Component info
-			GAIA_NODISCARD const ComponentInfo& GetComponentInfo(ComponentId index) const {
-				GAIA_ASSERT(index < m_infoByIndex.size());
-				const auto* pInfo = m_infoByIndex[index];
+			GAIA_NODISCARD const ComponentInfo& GetComponentInfo(ComponentId componentId) const {
+				GAIA_ASSERT(componentId < m_infoByIndex.size());
+				const auto* pInfo = m_infoByIndex[componentId];
 				GAIA_ASSERT(pInfo != nullptr);
 				return *pInfo;
 			}
 
-			//! Returns the component creation info given the \param index.
-			//! \warning It is expected the component info with a given index exists! Undefined behavior otherwise.
+			//! Returns the component creation info given the \param componentId.
+			//! \warning It is expected the component info with a given component id exists! Undefined behavior otherwise.
 			//! \return Component info
-			GAIA_NODISCARD const ComponentDesc& GetComponentDesc(ComponentId index) const {
-				GAIA_ASSERT(index < m_descByIndex.size());
-				return m_descByIndex[index];
+			GAIA_NODISCARD const ComponentDesc& GetComponentDesc(ComponentId componentId) const {
+				GAIA_ASSERT(componentId < m_descByIndex.size());
+				return m_descByIndex[componentId];
 			}
 
 			//! Returns the component info given the \param hash.
-			//! \warning It is expected the component info with a given index exists! Undefined behavior otherwise.
+			//! \warning It is expected the component info with a given component id exists! Undefined behavior otherwise.
 			//! \return Component info
 			GAIA_NODISCARD const ComponentInfo& GetComponentInfoFromHash(ComponentLookupHash hash) const {
 				const auto it = m_infoByHash.find(hash);
@@ -140,7 +140,7 @@ namespace gaia {
 
 				for (const auto& desc: m_descByIndex)
 					LOG_N(
-							"  index:%010u, %.*s", desc.componentId, (uint32_t)desc.name.size(), desc.name.data());
+							"  id:%010u, %.*s", desc.componentId, (uint32_t)desc.name.size(), desc.name.data());
 			}
 
 		private:
