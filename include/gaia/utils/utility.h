@@ -47,13 +47,13 @@ namespace gaia {
 		}
 
 		template <typename C, typename TCmpFunc, typename TSortFunc>
-		constexpr void try_swap_if(C& c, uint32_t lhs, uint32_t rhs, TCmpFunc cmpFunc, TSortFunc sortFunc) noexcept {
+		constexpr void try_swap_if(C& c, size_t lhs, size_t rhs, TCmpFunc cmpFunc, TSortFunc sortFunc) noexcept {
 			if (!cmpFunc(c[lhs], c[rhs]))
 				sortFunc(lhs, rhs);
 		}
 
 		template <typename C, typename TCmpFunc, typename TSortFunc>
-		constexpr void try_swap_if_not(C& c, uint32_t lhs, uint32_t rhs, TCmpFunc cmpFunc, TSortFunc sortFunc) noexcept {
+		constexpr void try_swap_if_not(C& c, size_t lhs, size_t rhs, TCmpFunc cmpFunc, TSortFunc sortFunc) noexcept {
 			if (cmpFunc(c[lhs], c[rhs]))
 				sortFunc(lhs, rhs);
 		}

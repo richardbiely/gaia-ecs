@@ -6,14 +6,27 @@ using namespace gaia;
 
 constexpr size_t NEntities = 1'000;
 
+void AddEntities(ecs::World& w, uint32_t n) {
+	for (size_t i = 0; i < n; ++i) {
+		[[maybe_unused]] auto e = w.CreateEntity();
+		picobench::DoNotOptimize(e);
+	}
+}
+
 void BM_CreateEntity(picobench::state& state) {
 	for (auto _: state) {
 		(void)_;
 		ecs::World w;
-		for (size_t i = 0; i < NEntities; ++i) {
-			[[maybe_unused]] auto e = w.CreateEntity();
-			picobench::DoNotOptimize(e);
-		}
+
+#if GAIA_ARCHETYPE_GRAPH
+		// Simulate the hot path. This happens when the component was
+		// added at least once and thus the graph edges are already created.
+		state.stop_timer();
+		AddEntities(w, 1);
+		state.start_timer();
+#endif
+
+		AddEntities(w, NEntities);
 	}
 }
 
@@ -35,8 +48,8 @@ namespace detail {
 } // namespace detail
 
 template <typename T, size_t TCount, size_t Iterations>
-constexpr void AddComponents(ecs::World& w, uint32_t N) {
-	for (size_t i = 0; i < N; ++i) {
+constexpr void AddComponents(ecs::World& w, uint32_t n) {
+	for (size_t i = 0; i < n; ++i) {
 		[[maybe_unused]] auto e = w.CreateEntity();
 		detail::AddComponents<T, TCount, Iterations>(w, e);
 	}
