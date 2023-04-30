@@ -5,14 +5,17 @@
 [![Build Status][badge.actions]][actions]
 [![language][badge.language]][language]
 [![license][badge.license]][license]
+[![codacy][badge.codacy]][codacy]
 
 [badge.actions]: https://github.com/richardbiely/gaia-ecs/workflows/build/badge.svg
 [badge.language]: https://img.shields.io/badge/language-C%2B%2B17-yellow
 [badge.license]: https://img.shields.io/badge/license-MIT-blue
+[badge.codacy]: https://app.codacy.com/project/badge/Grade/bb28fa362fce4054bbaf7a6ba9aed140
 
 [actions]: https://github.com/richardbiely/gaia-ecs/actions
 [language]: https://en.wikipedia.org/wiki/C%2B%2B17
 [license]: https://en.wikipedia.org/wiki/MIT_License
+[codacy]: https://app.codacy.com/gh/richardbiely/gaia-ecs/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade
 
 Gaia-ECS is an entity component system framework. Some of its current features and highlights are:</br>
 * easy-to-use and safe API designed in such a way it tries to prevent you from using bad coding patterns
