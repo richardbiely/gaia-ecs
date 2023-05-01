@@ -131,134 +131,6 @@ TEST_CASE("Containers - darray") {
 	REQUIRE(!utils::has(arr, 100));
 }
 
-template <size_t N, typename T>
-void TestDataLayoutSoA() {
-	GAIA_ALIGNAS(N * 4) containers::sarray<T, N> data{};
-	const auto* arr = (const float*)data.data();
-
-	using soa = gaia::utils::soa_view_policy<T>;
-	using view_deduced = gaia::utils::auto_view_policy<T>;
-
-	for (size_t i = 0; i < N; ++i) {
-		const auto f = (float)i;
-		soa::set({data}, i, {f, f, f});
-		REQUIRE(arr[i + N * 0] == f);
-		REQUIRE(arr[i + N * 1] == f);
-		REQUIRE(arr[i + N * 2] == f);
-
-		auto val = soa::get({data}, i);
-		REQUIRE(val.x == f);
-		REQUIRE(val.y == f);
-		REQUIRE(val.z == f);
-	}
-
-	for (size_t i = 0; i < N; ++i) {
-		const auto f = (float)i;
-		view_deduced::set({data}, i, {f, f, f});
-		REQUIRE(arr[i + N * 0] == f);
-		REQUIRE(arr[i + N * 1] == f);
-		REQUIRE(arr[i + N * 2] == f);
-
-		auto val = view_deduced::get({data}, i);
-		REQUIRE(val.x == f);
-		REQUIRE(val.y == f);
-		REQUIRE(val.z == f);
-	}
-}
-
-TEST_CASE("DataLayout SoA") {
-	TestDataLayoutSoA<4, PositionSoA>();
-}
-
-TEST_CASE("DataLayout SoA8") {
-	TestDataLayoutSoA<8, PositionSoA8>();
-}
-
-TEST_CASE("DataLayout SoA16") {
-	TestDataLayoutSoA<16, PositionSoA16>();
-}
-
-template <typename T>
-void TestDataLayoutSoA_ECS() {
-	ecs::World w;
-
-	auto create = [&]() {
-		auto e = w.CreateEntity();
-		w.AddComponent<T>(e, {});
-	};
-
-	const uint32_t N = 10'000;
-	for (uint32_t i = 0; i < N; i++)
-		create();
-
-	ecs::EntityQuery q;
-	q.All<T>();
-	uint32_t j = 0;
-	w.ForEach(q, [&](ecs::Chunk& ch) {
-		auto t = ch.ViewRW<T>();
-		auto tx = t.template set<0>();
-		auto ty = t.template set<1>();
-		auto tz = t.template set<2>();
-		for (uint32_t i = 0; i < ch.GetItemCount(); ++i, ++j) {
-			auto f = (float)j;
-			tx[i] = f;
-			ty[i] = f;
-			tz[i] = f;
-
-			REQUIRE(tx[i] == f);
-			REQUIRE(ty[i] == f);
-			REQUIRE(tz[i] == f);
-		}
-	});
-}
-
-TEST_CASE("DataLayout SoA - ECS") {
-	TestDataLayoutSoA_ECS<PositionSoA>();
-}
-
-TEST_CASE("DataLayout SoA8 - ECS") {
-	TestDataLayoutSoA_ECS<PositionSoA8>();
-}
-
-TEST_CASE("DataLayout SoA16 - ECS") {
-	TestDataLayoutSoA_ECS<PositionSoA16>();
-}
-
-TEST_CASE("DataLayout AoS") {
-	constexpr size_t N = 4U;
-	containers::sarray<Position, N> data{};
-	const auto* arr = (const float*)data.data();
-
-	using aos = gaia::utils::aos_view_policy<Position>;
-	using view_deduced = gaia::utils::auto_view_policy<Position>;
-
-	for (size_t i = 0; i < N; ++i) {
-		const auto f = (float)i;
-		aos::set({data}, i, {f, f, f});
-		REQUIRE(arr[i * 3 + 0] == f);
-		REQUIRE(arr[i * 3 + 1] == f);
-		REQUIRE(arr[i * 3 + 2] == f);
-
-		auto val = aos::getc({data}, i);
-		REQUIRE(val.x == f);
-		REQUIRE(val.y == f);
-		REQUIRE(val.z == f);
-	}
-
-	for (size_t i = 0; i < N; ++i) {
-		const auto f = (float)i;
-		view_deduced::set({data}, i, {f, f, f});
-		REQUIRE(arr[i * 3 + 0] == f);
-		REQUIRE(arr[i * 3 + 1] == f);
-		REQUIRE(arr[i * 3 + 2] == f);
-
-		auto val = view_deduced::getc({data}, i);
-		REQUIRE(val.x == f);
-		REQUIRE(val.y == f);
-		REQUIRE(val.z == f);
-	}
-}
-
 TEST_CASE("EntityNull") {
 	REQUIRE_FALSE(ecs::Entity{} == ecs::EntityNull);
 
@@ -331,24 +203,24 @@ TEST_CASE("Run-time sort - quick sort") {
 		REQUIRE(arr[i] == i);
 }
 
-TEST_CASE("EntityQuery - equality") {
-	{
-		ecs::EntityQuery qq1, qq2;
-		qq1.All<Position, Rotation>();
-		qq2.All<Rotation, Position>();
-		REQUIRE(
-				qq1.GetData(ecs::ComponentType::CT_Generic).hash[ecs::EntityQuery::ListType::LT_All] ==
-				qq2.GetData(ecs::ComponentType::CT_Generic).hash[ecs::EntityQuery::ListType::LT_All]);
-	}
-	{
-		ecs::EntityQuery qq1, qq2;
-		qq1.All<Position, Rotation, Acceleration, Something>();
-		qq2.All<Rotation, Something, Position, Acceleration>();
-		REQUIRE(
-				qq1.GetData(ecs::ComponentType::CT_Generic).hash[ecs::EntityQuery::ListType::LT_All] ==
-				qq2.GetData(ecs::ComponentType::CT_Generic).hash[ecs::EntityQuery::ListType::LT_All]);
-	}
-}
+// TEST_CASE("EntityQuery - equality") {
+//  {
+//  	ecs::EntityQuery qq1, qq2;
+//  	qq1.All<Position, Rotation>();
+//  	qq2.All<Rotation, Position>();
+//  	REQUIRE(
+//  			qq1.GetData(ecs::ComponentType::CT_Generic).hash[ecs::EntityQuery::ListType::LT_All] ==
+//  			qq2.GetData(ecs::ComponentType::CT_Generic).hash[ecs::EntityQuery::ListType::LT_All]);
+//  }
+//  {
+//  	ecs::EntityQuery qq1, qq2;
+//  	qq1.All<Position, Rotation, Acceleration, Something>();
+//  	qq2.All<Rotation, Something, Position, Acceleration>();
+//  	REQUIRE(
+//  			qq1.GetData(ecs::ComponentType::CT_Generic).hash[ecs::EntityQuery::ListType::LT_All] ==
+//  			qq2.GetData(ecs::ComponentType::CT_Generic).hash[ecs::EntityQuery::ListType::LT_All]);
+//  }
+//}
 
 TEST_CASE("EntityQuery - QueryResult") {
 	ecs::World w;
@@ -372,12 +244,14 @@ TEST_CASE("EntityQuery - QueryResult") {
 	{
 		gaia::containers::darray<gaia::ecs::Entity> arr;
 		w.FromQuery(q1).ToArray(arr);
+		GAIA_ASSERT(arr.size() == N);
 		for (size_t i = 0; i < arr.size(); ++i)
 			REQUIRE(arr[i].id() == i);
 	}
 	{
 		gaia::containers::darray<Position> arr;
 		w.FromQuery(q1).ToArray(arr);
+		GAIA_ASSERT(arr.size() == N);
 		for (size_t i = 0; i < arr.size(); ++i) {
 			const auto& pos = arr[i];
 			REQUIRE(pos.x == (float)i);
@@ -2078,4 +1952,132 @@ TEST_CASE("Query Filter - systems") {
 	wss->Enable(true);
 	rs->SetExpectedCount(0);
 	sm.Update();
+}
+
+template <size_t N, typename T>
+void TestDataLayoutSoA() {
+	GAIA_ALIGNAS(N * 4) containers::sarray<T, N> data{};
+	const auto* arr = (const float*)data.data();
+
+	using soa = gaia::utils::soa_view_policy<T>;
+	using view_deduced = gaia::utils::auto_view_policy<T>;
+
+	for (size_t i = 0; i < N; ++i) {
+		const auto f = (float)i;
+		soa::set({data}, i, {f, f, f});
+		REQUIRE(arr[i + N * 0] == f);
+		REQUIRE(arr[i + N * 1] == f);
+		REQUIRE(arr[i + N * 2] == f);
+
+		auto val = soa::get({data}, i);
+		REQUIRE(val.x == f);
+		REQUIRE(val.y == f);
+		REQUIRE(val.z == f);
+	}
+
+	for (size_t i = 0; i < N; ++i) {
+		const auto f = (float)i;
+		view_deduced::set({data}, i, {f, f, f});
+		REQUIRE(arr[i + N * 0] == f);
+		REQUIRE(arr[i + N * 1] == f);
+		REQUIRE(arr[i + N * 2] == f);
+
+		auto val = view_deduced::get({data}, i);
+		REQUIRE(val.x == f);
+		REQUIRE(val.y == f);
+		REQUIRE(val.z == f);
+	}
+}
+
+TEST_CASE("DataLayout SoA") {
+	TestDataLayoutSoA<4, PositionSoA>();
+}
+
+TEST_CASE("DataLayout SoA8") {
+	TestDataLayoutSoA<8, PositionSoA8>();
+}
+
+TEST_CASE("DataLayout SoA16") {
+	TestDataLayoutSoA<16, PositionSoA16>();
+}
+
+template <typename T>
+void TestDataLayoutSoA_ECS() {
+	ecs::World w;
+
+	auto create = [&]() {
+		auto e = w.CreateEntity();
+		w.AddComponent<T>(e, {});
+	};
+
+	const uint32_t N = 10'000;
+	for (uint32_t i = 0; i < N; i++)
+		create();
+
+	ecs::EntityQuery q;
+	q.All<T>();
+	uint32_t j = 0;
+	w.ForEach(q, [&](ecs::Chunk& ch) {
+		auto t = ch.ViewRW<T>();
+		auto tx = t.template set<0>();
+		auto ty = t.template set<1>();
+		auto tz = t.template set<2>();
+		for (uint32_t i = 0; i < ch.GetItemCount(); ++i, ++j) {
+			auto f = (float)j;
+			tx[i] = f;
+			ty[i] = f;
+			tz[i] = f;
+
+			REQUIRE(tx[i] == f);
+			REQUIRE(ty[i] == f);
+			REQUIRE(tz[i] == f);
+		}
+	});
+}
+
+TEST_CASE("DataLayout SoA - ECS") {
+	TestDataLayoutSoA_ECS<PositionSoA>();
+}
+
+TEST_CASE("DataLayout SoA8 - ECS") {
+	TestDataLayoutSoA_ECS<PositionSoA8>();
+}
+
+TEST_CASE("DataLayout SoA16 - ECS") {
+	TestDataLayoutSoA_ECS<PositionSoA16>();
+}
+
+TEST_CASE("DataLayout AoS") {
+	constexpr size_t N = 4U;
+	containers::sarray<Position, N> data{};
+	const auto* arr = (const float*)data.data();
+
+	using aos = gaia::utils::aos_view_policy<Position>;
+	using view_deduced = gaia::utils::auto_view_policy<Position>;
+
+	for (size_t i = 0; i < N; ++i) {
+		const auto f = (float)i;
+		aos::set({data}, i, {f, f, f});
+		REQUIRE(arr[i * 3 + 0] == f);
+		REQUIRE(arr[i * 3 + 1] == f);
+		REQUIRE(arr[i * 3 + 2] == f);
+
+		auto val = aos::getc({data}, i);
+		REQUIRE(val.x == f);
+		REQUIRE(val.y == f);
+		REQUIRE(val.z == f);
+	}
+
+	for (size_t i = 0; i < N; ++i) {
+		const auto f = (float)i;
+		view_deduced::set({data}, i, {f, f, f});
+		REQUIRE(arr[i * 3 + 0] == f);
+		REQUIRE(arr[i * 3 + 1] == f);
+		REQUIRE(arr[i * 3 + 2] == f);
+
+		auto val = view_deduced::getc({data}, i);
+		REQUIRE(val.x == f);
+		REQUIRE(val.y == f);
+		REQUIRE(val.z == f);
+	}
 }

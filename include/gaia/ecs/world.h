@@ -23,6 +23,7 @@
 #include "component_utils.h"
 #include "entity.h"
 #include "entity_query.h"
+#include "entity_query_cache.h"
 
 namespace gaia {
 	namespace ecs {
@@ -71,8 +72,8 @@ namespace gaia {
 
 			//! Allocator used to allocate chunks
 			ChunkAllocator m_chunkAllocator;
-
-			containers::map<EntityQuery::LookupHash, containers::darray<EntityQuery>> m_cachedQueries;
+			//! Cache of entity queries
+			EntityQueryCache m_cachedQueries;
 			//! Map or archetypes mapping to the same hash - used for lookups
 			containers::map<Archetype::LookupHash, containers::darray<Archetype*>> m_archetypeMap;
 			//! List of archetypes - used for iteration
@@ -341,7 +342,7 @@ namespace gaia {
 			}
 
 			template <typename Func>
-			EntityQuery::MatchArchetypeQueryRet ArchetypeGraphTraverse(ComponentType componentType, Func func) const {
+			EntityQueryInfo::MatchArchetypeQueryRet ArchetypeGraphTraverse(ComponentType componentType, Func func) const {
 				// Use a stack to store the nodes we need to visit
 				// TODO: Replace with std::stack or an alternative
 				containers::darray<uint32_t> stack;
@@ -361,9 +362,9 @@ namespace gaia {
 
 					// Decide whether to accept the node or skip it
 					const auto ret = func(*pArchetype);
-					if (ret == EntityQuery::MatchArchetypeQueryRet::Fail)
+					if (ret == EntityQueryInfo::MatchArchetypeQueryRet::Fail)
 						return ret;
-					if (ret == EntityQuery::MatchArchetypeQueryRet::Skip)
+					if (ret == EntityQueryInfo::MatchArchetypeQueryRet::Skip)
 						continue;
 
 					// Push all of the children of the current node onto the stack
@@ -375,7 +376,7 @@ namespace gaia {
 					}
 				}
 
-				return EntityQuery::MatchArchetypeQueryRet::Ok;
+				return EntityQueryInfo::MatchArchetypeQueryRet::Ok;
 			}
 #endif
 
@@ -1273,22 +1274,26 @@ namespace gaia {
 					(void)archetype;
 					return EntityQuery::MatchArchetypeQueryRet::Ok;
 				});
-#else
-				query.Match(m_archetypes);
-#endif
 				for (auto* pArchetype: query)
 					func(*pArchetype);
+#else
+				auto& queryInfo = m_cachedQueries.Get(query);
+				queryInfo.Match(m_archetypes);
+
+				for (auto* pArchetype: queryInfo)
+					func(*pArchetype);
+#endif
 			}
 
 			template <typename Func>
-			GAIA_FORCEINLINE void ForEachArchetype_NoMatch(const EntityQuery& query, Func func) const {
-				for (const auto* pArchetype: query)
+			GAIA_FORCEINLINE void ForEachArchetype_NoMatch(const EntityQueryInfo& queryInfo, Func func) const {
+				for (const auto* pArchetype: queryInfo)
 					func(*pArchetype);
 			}
 
 			template <typename Func>
-			GAIA_FORCEINLINE void ForEachArchetypeCond_NoMatch(const EntityQuery& query, Func func) const {
-				for (const auto* pArchetype: query)
+			GAIA_FORCEINLINE void ForEachArchetypeCond_NoMatch(const EntityQueryInfo& queryInfo, Func func) const {
+				for (const auto* pArchetype: queryInfo)
 					if (!func(*pArchetype))
 						break;
 			}
@@ -1303,9 +1308,9 @@ namespace gaia {
 
 			template <typename... T>
 			GAIA_NODISCARD bool
-			UnpackArgsIntoQuery_Check([[maybe_unused]] utils::func_type_list<T...> types, EntityQuery& query) const {
+			UnpackArgsIntoQuery_Check([[maybe_unused]] utils::func_type_list<T...> types, EntityQueryInfo& queryInfo) const {
 				if constexpr (sizeof...(T) > 0)
-					return query.HasAll<T...>();
+					return queryInfo.HasAll<T...>();
 				else
 					return true;
 			}
@@ -1317,34 +1322,32 @@ namespace gaia {
 			}
 
 			template <typename Func>
-			static bool CheckQuery(World& world, EntityQuery& query) {
+			static bool CheckQuery(World& world, EntityQueryInfo& queryInfo) {
 				using InputArgs = decltype(utils::func_args(&Func::operator()));
-				return world.UnpackArgsIntoQuery_Check(InputArgs{}, query);
+				return world.UnpackArgsIntoQuery_Check(InputArgs{}, queryInfo);
 			}
 
 			//--------------------------------------------------------------------------------
 
-			GAIA_NODISCARD static bool CheckFilters(const EntityQuery& query, const Chunk& chunk) {
+			GAIA_NODISCARD static bool CheckFilters(const EntityQueryInfo& queryInfo, const Chunk& chunk) {
 				GAIA_ASSERT(chunk.HasEntities() && "CheckFilters called on an empty chunk");
-
-				const auto lastWorldVersion = query.GetWorldVersion();
 
 				// See if any generic component has changed
 				{
-					const auto& filtered = query.GetFiltered(ComponentType::CT_Generic);
+					const auto& filtered = queryInfo.GetFiltered(ComponentType::CT_Generic);
 					for (auto componentId: filtered) {
 						const uint32_t componentIdx = chunk.GetArchetype().GetComponentIdx(ComponentType::CT_Generic, componentId);
-						if (chunk.DidChange(ComponentType::CT_Generic, lastWorldVersion, componentIdx))
+						if (chunk.DidChange(ComponentType::CT_Generic, queryInfo.GetWorldVersion(), componentIdx))
 							return true;
 					}
 				}
 
 				// See if any chunk component has changed
 				{
-					const auto& filtered = query.GetFiltered(ComponentType::CT_Chunk);
+					const auto& filtered = queryInfo.GetFiltered(ComponentType::CT_Chunk);
 					for (auto componentId: filtered) {
 						const uint32_t componentIdx = chunk.GetArchetype().GetComponentIdx(ComponentType::CT_Chunk, componentId);
-						if (chunk.DidChange(ComponentType::CT_Chunk, lastWorldVersion, componentIdx))
+						if (chunk.DidChange(ComponentType::CT_Chunk, queryInfo.GetWorldVersion(), componentIdx))
 							return true;
 					}
 				}
@@ -1354,12 +1357,12 @@ namespace gaia {
 			}
 
 			template <bool HasFilters>
-			GAIA_NODISCARD static bool CanAcceptChunkForProcessing(const Chunk& chunk, const EntityQuery& q) {
+			GAIA_NODISCARD static bool CanAcceptChunkForProcessing(const Chunk& chunk, const EntityQueryInfo& queryInfo) {
 				if GAIA_UNLIKELY (!chunk.HasEntities())
 					return false;
 
 				if constexpr (HasFilters) {
-					if (!CheckFilters(q, chunk))
+					if (!CheckFilters(queryInfo, chunk))
 						return false;
 				}
 
@@ -1369,7 +1372,8 @@ namespace gaia {
 			//--------------------------------------------------------------------------------
 
 			template <bool HasFilters, typename Func>
-			static void ProcessQueryOnChunks(const containers::darray<Chunk*>& chunksList, EntityQuery& query, Func func) {
+			static void
+			ProcessQueryOnChunks(const containers::darray<Chunk*>& chunksList, const EntityQueryInfo& queryInfo, Func func) {
 				constexpr size_t BatchSize = 256U;
 				containers::sarray<Chunk*, BatchSize> tmp;
 
@@ -1386,7 +1390,7 @@ namespace gaia {
 					for (size_t j = chunkOffset; j < chunkOffset + batchSize; ++j) {
 						auto* pChunk = chunksList[j];
 
-						if (!CanAcceptChunkForProcessing<HasFilters>(*pChunk, query))
+						if (!CanAcceptChunkForProcessing<HasFilters>(*pChunk, queryInfo))
 							continue;
 
 						tmp[indexInBatch++] = pChunk;
@@ -1435,11 +1439,11 @@ namespace gaia {
 			}
 
 			template <typename Func>
-			static void RunQueryOnChunks_Internal(World& world, EntityQuery& query, Func func) {
+			static void RunQueryOnChunks_Internal(World& world, EntityQuery& query, EntityQueryInfo& queryInfo, Func func) {
 				// Update the world version
 				world.UpdateWorldVersion();
 
-				const bool hasFilters = query.HasFilters();
+				const bool hasFilters = queryInfo.HasFilters();
 				if (hasFilters) {
 					// Iterate over all archetypes
 					world.ForEachArchetype(query, [&](Archetype& archetype) {
@@ -1447,9 +1451,9 @@ namespace gaia {
 						++archetype.m_properties.structuralChangesLocked;
 
 						if (query.CheckConstraints<true>())
-							ProcessQueryOnChunks<true>(archetype.m_chunks, query, func);
+							ProcessQueryOnChunks<true>(archetype.m_chunks, queryInfo, func);
 						if (query.CheckConstraints<false>())
-							ProcessQueryOnChunks<true>(archetype.m_chunksDisabled, query, func);
+							ProcessQueryOnChunks<true>(archetype.m_chunksDisabled, queryInfo, func);
 
 						GAIA_ASSERT(archetype.m_properties.structuralChangesLocked > 0);
 						--archetype.m_properties.structuralChangesLocked;
@@ -1461,16 +1465,16 @@ namespace gaia {
 						++archetype.m_properties.structuralChangesLocked;
 
 						if (query.CheckConstraints<true>())
-							ProcessQueryOnChunks<false>(archetype.m_chunks, query, func);
+							ProcessQueryOnChunks<false>(archetype.m_chunks, queryInfo, func);
 						if (query.CheckConstraints<false>())
-							ProcessQueryOnChunks<false>(archetype.m_chunksDisabled, query, func);
+							ProcessQueryOnChunks<false>(archetype.m_chunksDisabled, queryInfo, func);
 
 						GAIA_ASSERT(archetype.m_properties.structuralChangesLocked > 0);
 						--archetype.m_properties.structuralChangesLocked;
 					});
 				}
 
-				query.SetWorldVersion(world.GetWorldVersion());
+				queryInfo.SetWorldVersion(world.GetWorldVersion());
 			}
 
 			//--------------------------------------------------------------------------------
@@ -1494,7 +1498,11 @@ namespace gaia {
 			GAIA_FORCEINLINE void ForEachChunk_External(World& world, EntityQuery& query, Func func) {
 				GAIA_PROF_SCOPE(ForEachChunk_E);
 
-				RunQueryOnChunks_Internal(world, query, [&](Chunk& chunk) {
+				EntityQueryInfo::LookupCtx ctx;
+				query.Commit(ctx);
+				auto& queryInfo = m_cachedQueries.GetOrCreate(query, std::move(ctx));
+
+				RunQueryOnChunks_Internal(world, query, queryInfo, [&](Chunk& chunk) {
 					func(chunk);
 				});
 			}
@@ -1503,13 +1511,17 @@ namespace gaia {
 			GAIA_FORCEINLINE void ForEach_External(World& world, EntityQuery& query, Func func) {
 				GAIA_PROF_SCOPE(ForEach_E);
 
+				EntityQueryInfo::LookupCtx ctx;
+				query.Commit(ctx);
+				auto& queryInfo = m_cachedQueries.GetOrCreate(query, std::move(ctx));
+
 #if GAIA_DEBUG
 				// Make sure we only use components specified in the query
-				GAIA_ASSERT(CheckQuery<Func>(world, query));
+				GAIA_ASSERT(CheckQuery<Func>(world, queryInfo));
 #endif
 
 				using InputArgs = decltype(utils::func_args(&Func::operator()));
-				RunQueryOnChunks_Internal(world, query, [&](Chunk& chunk) {
+				RunQueryOnChunks_Internal(world, query, queryInfo, [&](Chunk& chunk) {
 					world.ForEachEntityInChunk(InputArgs{}, chunk, func);
 				});
 			}
@@ -1520,34 +1532,15 @@ namespace gaia {
 
 				RegisterComponents<Func>();
 
-				EntityQuery queryTmp;
-				ResolveQuery<Func>((World&)*this, queryTmp);
-				queryTmp.CalculateLookupHash();
+				EntityQuery query;
+				ResolveQuery<Func>((World&)*this, query);
 
-				auto addOrFindEntityQueryInCache = [&]() -> EntityQuery& {
-					auto it = world.m_cachedQueries.find(queryTmp.m_hashLookup);
-					if (it == world.m_cachedQueries.end()) {
-						const auto hash = queryTmp.m_hashLookup;
-						world.m_cachedQueries[hash] = {std::move(queryTmp)};
-						return world.m_cachedQueries[hash].back();
-					}
-
-					auto& queries = it->second;
-
-					// Make sure the same hash gets us to the proper query
-					for (const auto& q: queries) {
-						if (q != queryTmp)
-							continue;
-						return queries.back();
-					}
-
-					queries.push_back(std::move(queryTmp));
-					return queries.back();
-				};
+				EntityQueryInfo::LookupCtx ctx;
+				query.Commit(ctx);
+				auto& queryInfo = m_cachedQueries.GetOrCreate(query, std::move(ctx));
 
 				using InputArgs = decltype(utils::func_args(&Func::operator()));
-				EntityQuery& queryCached = addOrFindEntityQueryInCache();
-				RunQueryOnChunks_Internal(world, queryCached, [&](Chunk& chunk) {
+				RunQueryOnChunks_Internal(world, query, queryInfo, [&](Chunk& chunk) {
 					world.ForEachEntityInChunk(InputArgs{}, chunk, func);
 				});
 			}
@@ -1588,10 +1581,12 @@ namespace gaia {
 
 			class QueryResult {
 				const World& m_w;
-				const EntityQuery& m_q;
+				const EntityQuery& m_query;
+				const EntityQueryInfo& m_queryInfo;
 
 			public:
-				QueryResult(const World& w, const EntityQuery& q): m_w(w), m_q(q) {}
+				QueryResult(const World& w, const EntityQuery& q, const EntityQueryInfo& qi):
+						m_w(w), m_query(q), m_queryInfo(qi) {}
 
 				/*!
 				Returns true or false depending on whether there are entities matching the query.
@@ -1604,11 +1599,11 @@ namespace gaia {
 				bool HasItems(bool ignoreFilters = false) const {
 					bool hasItems = false;
 
-					const bool hasFilters = !ignoreFilters && m_q.HasFilters();
+					const bool hasFilters = !ignoreFilters && m_queryInfo.HasFilters();
 
 					auto execWithFiltersON = [&](const auto& chunksList) {
 						for (auto* pChunk: chunksList) {
-							if (!CanAcceptChunkForProcessing<true>(*pChunk, m_q))
+							if (!CanAcceptChunkForProcessing<true>(*pChunk, m_queryInfo))
 								continue;
 							hasItems = true;
 							break;
@@ -1617,7 +1612,7 @@ namespace gaia {
 
 					auto execWithFiltersOFF = [&](const auto& chunksList) {
 						for (auto* pChunk: chunksList) {
-							if (!CanAcceptChunkForProcessing<false>(*pChunk, m_q))
+							if (!CanAcceptChunkForProcessing<false>(*pChunk, m_queryInfo))
 								continue;
 							hasItems = true;
 							break;
@@ -1627,12 +1622,12 @@ namespace gaia {
 					if (hasItems) {
 						if (hasFilters) {
 							// Iterate over all archetypes
-							m_w.ForEachArchetypeCond_NoMatch(m_q, [&](const Archetype& archetype) {
-								if (m_q.CheckConstraints<true>()) {
+							m_w.ForEachArchetypeCond_NoMatch(m_queryInfo, [&](const Archetype& archetype) {
+								if (m_query.CheckConstraints<true>()) {
 									execWithFiltersON(archetype.m_chunks);
 									return false;
 								}
-								if (m_q.CheckConstraints<false>()) {
+								if (m_query.CheckConstraints<false>()) {
 									execWithFiltersON(archetype.m_chunksDisabled);
 									return false;
 								}
@@ -1641,12 +1636,12 @@ namespace gaia {
 							});
 						} else {
 							// Iterate over all archetypes
-							m_w.ForEachArchetypeCond_NoMatch(m_q, [&](const Archetype& archetype) {
-								if (m_q.CheckConstraints<true>()) {
+							m_w.ForEachArchetypeCond_NoMatch(m_queryInfo, [&](const Archetype& archetype) {
+								if (m_query.CheckConstraints<true>()) {
 									execWithFiltersOFF(archetype.m_chunks);
 									return false;
 								}
-								if (m_q.CheckConstraints<false>()) {
+								if (m_query.CheckConstraints<false>()) {
 									execWithFiltersOFF(archetype.m_chunksDisabled);
 									return false;
 								}
@@ -1658,20 +1653,20 @@ namespace gaia {
 					} else {
 						if (hasFilters) {
 							// Iterate over all archetypes
-							m_w.ForEachArchetypeCond_NoMatch(m_q, [&](const Archetype& archetype) {
-								if (m_q.CheckConstraints<true>())
+							m_w.ForEachArchetypeCond_NoMatch(m_queryInfo, [&](const Archetype& archetype) {
+								if (m_query.CheckConstraints<true>())
 									execWithFiltersON(archetype.m_chunks);
-								if (m_q.CheckConstraints<false>())
+								if (m_query.CheckConstraints<false>())
 									execWithFiltersON(archetype.m_chunksDisabled);
 
 								return true;
 							});
 						} else {
 							// Iterate over all archetypes
-							m_w.ForEachArchetypeCond_NoMatch(m_q, [&](const Archetype& archetype) {
-								if (m_q.CheckConstraints<true>())
+							m_w.ForEachArchetypeCond_NoMatch(m_queryInfo, [&](const Archetype& archetype) {
+								if (m_query.CheckConstraints<true>())
 									execWithFiltersOFF(archetype.m_chunks);
-								if (m_q.CheckConstraints<false>())
+								if (m_query.CheckConstraints<false>())
 									execWithFiltersOFF(archetype.m_chunksDisabled);
 
 								return true;
@@ -1693,34 +1688,34 @@ namespace gaia {
 				size_t CalculateItemCount(bool ignoreFilters = false) const {
 					size_t itemCount = 0;
 
-					const bool hasFilters = !ignoreFilters && m_q.HasFilters();
+					const bool hasFilters = !ignoreFilters && m_queryInfo.HasFilters();
 
 					auto execWithFiltersON = [&](const auto& chunksList) {
 						for (auto* pChunk: chunksList) {
-							if (CanAcceptChunkForProcessing<true>(*pChunk, m_q))
+							if (CanAcceptChunkForProcessing<true>(*pChunk, m_queryInfo))
 								itemCount += pChunk->GetItemCount();
 						}
 					};
 
 					auto execWithFiltersOFF = [&](const auto& chunksList) {
 						for (auto* pChunk: chunksList) {
-							if (CanAcceptChunkForProcessing<false>(*pChunk, m_q))
+							if (CanAcceptChunkForProcessing<false>(*pChunk, m_queryInfo))
 								itemCount += pChunk->GetItemCount();
 						}
 					};
 
 					if (hasFilters) {
-						m_w.ForEachArchetype_NoMatch(m_q, [&](const Archetype& archetype) {
-							if (m_q.CheckConstraints<true>())
+						m_w.ForEachArchetype_NoMatch(m_queryInfo, [&](const Archetype& archetype) {
+							if (m_query.CheckConstraints<true>())
 								execWithFiltersON(archetype.m_chunks);
-							if (m_q.CheckConstraints<false>())
+							if (m_query.CheckConstraints<false>())
 								execWithFiltersON(archetype.m_chunksDisabled);
 						});
 					} else {
-						m_w.ForEachArchetype_NoMatch(m_q, [&](const Archetype& archetype) {
-							if (m_q.CheckConstraints<true>())
+						m_w.ForEachArchetype_NoMatch(m_queryInfo, [&](const Archetype& archetype) {
+							if (m_query.CheckConstraints<true>())
 								execWithFiltersOFF(archetype.m_chunks);
-							if (m_q.CheckConstraints<false>())
+							if (m_query.CheckConstraints<false>())
 								execWithFiltersOFF(archetype.m_chunksDisabled);
 						});
 					}
@@ -1740,7 +1735,7 @@ namespace gaia {
 					const size_t itemCount = CalculateItemCount();
 					outArray.reserve(itemCount);
 
-					const bool hasFilters = m_q.HasFilters();
+					const bool hasFilters = m_queryInfo.HasFilters();
 
 					auto addChunk = [&](Chunk* pChunk) {
 						const auto componentView = pChunk->template View<ContainerItemType>();
@@ -1750,30 +1745,30 @@ namespace gaia {
 
 					auto execWithFiltersON = [&](const auto& chunksList) {
 						for (auto* pChunk: chunksList) {
-							if (CanAcceptChunkForProcessing<true>(*pChunk, m_q))
+							if (CanAcceptChunkForProcessing<true>(*pChunk, m_queryInfo))
 								addChunk(pChunk);
 						}
 					};
 
 					auto execWithFiltersOFF = [&](const auto& chunksList) {
 						for (auto* pChunk: chunksList) {
-							if (CanAcceptChunkForProcessing<false>(*pChunk, m_q))
+							if (CanAcceptChunkForProcessing<false>(*pChunk, m_queryInfo))
 								addChunk(pChunk);
 						}
 					};
 
 					if (hasFilters) {
-						m_w.ForEachArchetype_NoMatch(m_q, [&](const Archetype& archetype) {
-							if (m_q.CheckConstraints<true>())
+						m_w.ForEachArchetype_NoMatch(m_queryInfo, [&](const Archetype& archetype) {
+							if (m_query.CheckConstraints<true>())
 								execWithFiltersON(archetype.m_chunks);
-							if (m_q.CheckConstraints<false>())
+							if (m_query.CheckConstraints<false>())
 								execWithFiltersON(archetype.m_chunksDisabled);
 						});
 					} else {
-						m_w.ForEachArchetype_NoMatch(m_q, [&](const Archetype& archetype) {
-							if (m_q.CheckConstraints<true>())
+						m_w.ForEachArchetype_NoMatch(m_queryInfo, [&](const Archetype& archetype) {
+							if (m_query.CheckConstraints<true>())
 								execWithFiltersOFF(archetype.m_chunks);
-							if (m_q.CheckConstraints<false>())
+							if (m_query.CheckConstraints<false>())
 								execWithFiltersOFF(archetype.m_chunksDisabled);
 						});
 					}
@@ -1790,34 +1785,34 @@ namespace gaia {
 					const size_t itemCount = CalculateItemCount();
 					outArray.reserve(itemCount);
 
-					const bool hasFilters = m_q.HasFilters();
+					const bool hasFilters = m_queryInfo.HasFilters();
 
 					auto execWithFiltersON = [&](const auto& chunksList) {
 						for (auto* pChunk: chunksList) {
-							if (CanAcceptChunkForProcessing<true>(*pChunk, m_q))
+							if (CanAcceptChunkForProcessing<true>(*pChunk, m_queryInfo))
 								outArray.push_back(pChunk);
 						}
 					};
 
 					auto execWithFiltersOFF = [&](const auto& chunksList) {
 						for (auto* pChunk: chunksList) {
-							if (CanAcceptChunkForProcessing<false>(*pChunk, m_q))
+							if (CanAcceptChunkForProcessing<false>(*pChunk, m_queryInfo))
 								outArray.push_back(pChunk);
 						}
 					};
 
 					if (hasFilters) {
-						m_w.ForEachArchetype_NoMatch(m_q, [&](const Archetype& archetype) {
-							if (m_q.CheckConstraints<true>())
+						m_w.ForEachArchetype_NoMatch(m_queryInfo, [&](const Archetype& archetype) {
+							if (m_query.CheckConstraints<true>())
 								execWithFiltersON(archetype.m_chunks);
-							if (m_q.CheckConstraints<false>())
+							if (m_query.CheckConstraints<false>())
 								execWithFiltersON(archetype.m_chunksDisabled);
 						});
 					} else {
-						m_w.ForEachArchetype_NoMatch(m_q, [&](const Archetype& archetype) {
-							if (m_q.CheckConstraints<true>())
+						m_w.ForEachArchetype_NoMatch(m_queryInfo, [&](const Archetype& archetype) {
+							if (m_query.CheckConstraints<true>())
 								execWithFiltersOFF(archetype.m_chunks);
-							if (m_q.CheckConstraints<false>())
+							if (m_query.CheckConstraints<false>())
 								execWithFiltersOFF(archetype.m_chunksDisabled);
 						});
 					}
@@ -1825,8 +1820,13 @@ namespace gaia {
 			};
 
 			GAIA_NODISCARD QueryResult FromQuery(EntityQuery& query) {
-				query.Match(m_archetypes);
-				return QueryResult(*this, query);
+				EntityQueryInfo::LookupCtx ctx;
+				query.Commit(ctx);
+
+				auto& queryInfo = m_cachedQueries.GetOrCreate(query, std::move(ctx));
+				queryInfo.Match(m_archetypes);
+
+				return QueryResult(*this, query, queryInfo);
 			}
 
 			//--------------------------------------------------------------------------------

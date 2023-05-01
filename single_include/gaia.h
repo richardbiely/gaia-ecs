@@ -7702,12 +7702,10 @@ namespace gaia {
 
 namespace gaia {
 	namespace ecs {
-		extern const ComponentInfo& GetComponentInfo(ComponentId componentId);
-		extern const ComponentDesc& GetComponentDesc(ComponentId componentId);
-		extern const ComponentIdList&
-		GetArchetypeComponentInfoList(const Archetype& archetype, ComponentType componentType);
-		extern const ComponentOffsetList&
-		GetArchetypeComponentOffsetList(const Archetype& archetype, ComponentType componentType);
+		const ComponentInfo& GetComponentInfo(ComponentId componentId);
+		const ComponentDesc& GetComponentDesc(ComponentId componentId);
+		const ComponentIdList& GetArchetypeComponentInfoList(const Archetype& archetype, ComponentType componentType);
+		const ComponentOffsetList& GetArchetypeComponentOffsetList(const Archetype& archetype, ComponentType componentType);
 
 		class Chunk final {
 		public:
@@ -7983,7 +7981,7 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD auto View() const {
 				using U = typename DeduceComponent<T>::Type;
-				
+
 				return utils::auto_view_policy_get<std::add_const_t<U>>{{View_Internal<T>()}};
 			}
 
@@ -8865,25 +8863,29 @@ namespace gaia {
 
 namespace gaia {
 	namespace ecs {
-		class EntityQuery final {
+		struct Entity;
+		class Archetype;
+
+		const ComponentIdList& GetArchetypeComponentInfoList(const Archetype& archetype, ComponentType componentType);
+		ComponentMatcherHash GetArchetypeMatcherHash(const Archetype& archetype, ComponentType componentType);
+
+		class EntityQueryInfo {
 			friend class World;
 
 		public:
-			using LookupHash = utils::direct_hash_key<uint64_t>;
-			//! List type
-			enum ListType : uint8_t { LT_None, LT_Any, LT_All, LT_Count };
-			//! Query constraints
-			enum class Constraints : uint8_t { EnabledOnly, DisabledOnly, AcceptAll };
-			//! Query matching result
-			enum class MatchArchetypeQueryRet : uint8_t { Fail, Ok, Skip };
 			//! Number of components that can be a part of EntityQuery
 			static constexpr uint32_t MAX_COMPONENTS_IN_QUERY = 8U;
 
-		private:
+			using LookupHash = utils::direct_hash_key<uint64_t>;
 			//! Array of component ids
 			using ComponentIdArray = containers::sarray_ext<ComponentId, MAX_COMPONENTS_IN_QUERY>;
 			//! Array of component ids reserved for filtering
 			using ChangeFilterArray = containers::sarray_ext<ComponentId, MAX_COMPONENTS_IN_QUERY>;
+
+			//! List type
+			enum ListType : uint8_t { LT_None, LT_Any, LT_All, LT_Count };
+			//! Query matching result
+			enum class MatchArchetypeQueryRet : uint8_t { Fail, Ok, Skip };
 
 			struct ComponentListData {
 				//! List of component ids
@@ -8891,28 +8893,101 @@ namespace gaia {
 				//! List of component matcher hashes
 				ComponentMatcherHash hash[ListType::LT_Count]{};
 			};
-			//! List of querried components
-			ComponentListData m_list[ComponentType::CT_Count]{};
-			//! List of filtered components
-			ChangeFilterArray m_listChangeFiltered[ComponentType::CT_Count]{};
-			//! Lookup hash for this query
-			LookupHash m_hashLookup{};
-			//! List of cached archetypes
+
+			struct LookupCtx {
+				//! Lookup hash for this query
+				LookupHash hashLookup{};
+				//! Cache id
+				uint32_t cacheId = (uint32_t)-1;
+				//! List of querried components
+				ComponentListData list[ComponentType::CT_Count]{};
+				//! List of filtered components
+				ChangeFilterArray listChangeFiltered[ComponentType::CT_Count]{};
+				//! Read-write mask. Bit 0 stands for component 0 in component arrays.
+				//! A set bit means write access is requested.
+				uint8_t rw[ComponentType::CT_Count]{};
+				static_assert(
+						EntityQueryInfo::MAX_COMPONENTS_IN_QUERY == 8); // Make sure that MAX_COMPONENTS_IN_QUERY can fit into m_rw
+
+				GAIA_NODISCARD bool operator==(const LookupCtx& other) const {
+					// Fast path when cache ids are set
+					if (cacheId != (uint32_t)-1 && cacheId == other.cacheId)
+						return true;
+
+					// Lookup hash must match
+					if (hashLookup != other.hashLookup)
+						return false;
+
+					for (size_t j = 0; j < ComponentType::CT_Count; ++j) {
+						// Read-write access has to be the same
+						if (rw[j] != other.rw[j])
+							return false;
+
+						// Filter count needs to be the same
+						if (listChangeFiltered[j].size() != other.listChangeFiltered[j].size())
+							return false;
+
+						const auto& queryList = list[j];
+						const auto& otherList = other.list[j];
+
+						// Component count needes to be the same
+						for (size_t i = 0; i < ListType::LT_Count; ++i) {
+							if (queryList.componentIds[i].size() != otherList.componentIds[i].size())
+								return false;
+						}
+
+						// Matches hashes need to be the same
+						for (size_t i = 0; i < ListType::LT_Count; ++i) {
+							if (queryList.hash[i] != otherList.hash[i])
+								return false;
+						}
+
+						// Components need to be the same
+						for (size_t i = 0; i < ListType::LT_Count; ++i) {
+							const auto ret = std::memcmp(
+									(const void*)&queryList.componentIds[i], (const void*)&otherList.componentIds[i],
+									queryList.componentIds[i].size() * sizeof(queryList.componentIds[0]));
+							if (ret != 0)
+								return false;
+						}
+
+						// Filters need to be the same
+						{
+							const auto ret = std::memcmp(
+									(const void*)&listChangeFiltered[j], (const void*)&other.listChangeFiltered[j],
+									listChangeFiltered[j].size() * sizeof(listChangeFiltered[0]));
+							if (ret != 0)
+								return false;
+						}
+					}
+
+					return true;
+				}
+
+				GAIA_NODISCARD bool operator!=(const LookupCtx& other) const {
+					return !operator==(other);
+				};
+			};
+
+		private:
+			//! Lookup context
+			LookupCtx m_lookupCtx;
+			//! List of archetypes matching the query
 			containers::darray<Archetype*> m_archetypeCache;
-			//! Version of the world for which the query has been called most recently
-			uint32_t m_worldVersion = 0;
 			//! Entity of the last added archetype in the world this query remembers
 			uint32_t m_lastArchetypeId = 1; // skip the root archetype
-			//! Read-write mask. Bit 0 stands for component 0 in component arrays.
-			//! A set bit means write access is requested.
-			uint8_t m_rw[ComponentType::CT_Count]{};
-			static_assert(MAX_COMPONENTS_IN_QUERY == 8); // Make sure that MAX_COMPONENTS_IN_QUERY can fit into m_rw
-			//! Tell what kinds of chunks are going to be accepted by the query
-			Constraints m_constraints = Constraints::EnabledOnly;
-			//! If true, we need to recalculate hashes
-			bool m_recalculate = true;
-			//! If true, sorting infos is necessary
-			bool m_sort = true;
+			//! Version of the world for which the query has been called most recently
+			uint32_t m_worldVersion = 0;
+
+			// EntityQueryInfo() = default;
+
+			void SetWorldVersion(uint32_t version) {
+				m_worldVersion = version;
+			}
+
+			GAIA_NODISCARD uint32_t GetWorldVersion() const {
+				return m_worldVersion;
+			}
 
 			template <typename T>
 			bool HasComponent_Internal(
@@ -8921,7 +8996,7 @@ namespace gaia {
 					// Skip Entity input args
 					return true;
 				} else {
-					const ComponentIdArray& componentIds = m_list[componentType].componentIds[listType];
+					const ComponentIdArray& componentIds = m_lookupCtx.list[componentType].componentIds[listType];
 
 					// Component id has to be present
 					const auto componentId = GetComponentId<T>();
@@ -8930,113 +9005,33 @@ namespace gaia {
 						return false;
 
 					// Read-write mask must match
-					const uint8_t maskRW = (uint32_t)m_rw[componentType] & (1U << (uint32_t)idx);
+					const uint8_t maskRW = (uint32_t)m_lookupCtx.rw[componentType] & (1U << (uint32_t)idx);
 					const uint8_t maskXX = (uint32_t)isReadWrite << idx;
 					return maskRW == maskXX;
 				}
 			}
 
-			template <typename T>
-			void AddComponent_Internal(
-					[[maybe_unused]] ListType listType, [[maybe_unused]] ComponentType componentType,
-					[[maybe_unused]] bool isReadWrite) {
-				if constexpr (std::is_same_v<T, Entity>) {
-					// Skip Entity input args
-					return;
-				} else {
-					const auto componentId = GetComponentId<T>();
-					auto& list = m_list[componentType];
-					auto& componentIds = list.componentIds[listType];
-
-					// Unique infos only
-					const bool ret = utils::has(componentIds, componentId);
-					if GAIA_UNLIKELY (ret)
-						return;
-
-					// Make sure the component is always registered
-					(void)GetComponentCacheRW().GetOrCreateComponentInfo<T>();
-
-#if GAIA_DEBUG
-					// There's a limit to the amount of components which we can store
-					if (componentIds.size() >= MAX_COMPONENTS_IN_QUERY) {
-						GAIA_ASSERT(false && "Trying to create an ECS query with too many components!");
-
-						constexpr auto typeName = utils::type_info::name<T>();
-						GAIA_LOG_E(
-								"Trying to add ECS component '%.*s' to an already full ECS query!", (uint32_t)typeName.size(),
-								typeName.data());
-
-						return;
-					}
-#endif
-
-					m_rw[componentType] |= (uint8_t)isReadWrite << (uint8_t)componentIds.size();
-
-					componentIds.push_back(componentId);
-
-					m_recalculate = true;
-					m_sort = true;
-
-					// Any updates to components in the query invalidate the cache.
-					// If possible, we should first prepare the query and not touch if afterwards.
-					GAIA_ASSERT(m_archetypeCache.empty());
-					m_archetypeCache.clear();
-				}
+		public:
+			static GAIA_NODISCARD EntityQueryInfo Create(LookupCtx&& ctx) {
+				EntityQueryInfo info;
+				EntityQueryInfo::CalculateMatcherHashes(ctx);
+				info.m_lookupCtx = std::move(ctx);
+				return info;
 			}
 
-			template <typename T>
-			void SetChangedFilter_Internal(ChangeFilterArray& arrFilter, ComponentListData& componentListData) {
-				static_assert(!std::is_same_v<T, Entity>, "It doesn't make sense to use ChangedFilter with Entity");
-
-				const auto componentId = utils::type_info::id<T>();
-
-				// Unique infos only
-				GAIA_ASSERT(!utils::has(arrFilter, componentId) && "Filter doesn't contain unique infos");
-
-#if GAIA_DEBUG
-				// There's a limit to the amount of components which we can store
-				if (arrFilter.size() >= MAX_COMPONENTS_IN_QUERY) {
-					GAIA_ASSERT(false && "Trying to create an ECS filter query with too many components!");
-
-					constexpr auto typeName = utils::type_info::name<T>();
-					GAIA_LOG_E(
-							"Trying to add ECS component %.*s to an already full filter query!", (uint32_t)typeName.size(),
-							typeName.data());
-
-					return;
-				}
-#endif
-
-				// Component has to be present in anyList or allList.
-				// NoneList makes no sense because we skip those in query processing anyway.
-				if (utils::has(componentListData.componentIds[ListType::LT_Any], componentId)) {
-					arrFilter.push_back(componentId);
-					return;
-				}
-				if (utils::has(componentListData.componentIds[ListType::LT_All], componentId)) {
-					arrFilter.push_back(componentId);
-					return;
-				}
-
-				GAIA_ASSERT(false && "SetChangeFilter trying to filter ECS component which is not a part of the query");
-#if GAIA_DEBUG
-				constexpr auto typeName = utils::type_info::name<T>();
-				GAIA_LOG_E(
-						"SetChangeFilter trying to filter ECS component %.*s but "
-						"it's not a part of the query!",
-						(uint32_t)typeName.size(), typeName.data());
-#endif
+			void Init(uint32_t id) {
+				GAIA_ASSERT(m_lookupCtx.cacheId == (uint32_t)-1);
+				m_lookupCtx.cacheId = id;
 			}
 
-			template <typename... T>
-			void SetChangedFilter(ChangeFilterArray& arr, ComponentListData& componentListData) {
-				(SetChangedFilter_Internal<T>(arr, componentListData), ...);
+			uint32_t GetCacheId() const {
+				return m_lookupCtx.cacheId;
 			}
 
 			//! Sorts internal component arrays
-			void SortComponentArrays() {
+			static void SortComponentArrays(LookupCtx& ctx) {
 				for (size_t i = 0; i < ComponentType::CT_Count; ++i) {
-					auto& l = m_list[i];
+					auto& l = ctx.list[i];
 					for (auto& componentIds: l.componentIds) {
 						// Make sure the read-write mask remains correct after sorting
 						utils::sort(componentIds, SortComponentCond{}, [&](size_t left, size_t right) {
@@ -9044,37 +9039,30 @@ namespace gaia {
 							utils::swap(componentIds[left], componentIds[right]);
 
 							// Swap the bits in the read-write mask
-							const uint32_t b0 = m_rw[i] & (1U << left);
-							const uint32_t b1 = m_rw[i] & (1U << right);
+							const uint32_t b0 = ctx.rw[i] & (1U << left);
+							const uint32_t b1 = ctx.rw[i] & (1U << right);
 							// XOR the two bits
 							const uint32_t bxor = (b0 ^ b1);
 							// Put the XOR bits back to their original positions
 							const uint32_t mask = (bxor << left) | (bxor << right);
 							// XOR mask with the original one effectivelly swapping the bits
-							m_rw[i] = m_rw[i] ^ (uint8_t)mask;
+							ctx.rw[i] = ctx.rw[i] ^ (uint8_t)mask;
 						});
 					}
 				}
 			}
 
-			void CalculateLookupHash() {
-				// Sort the arrays if necessary
-				if GAIA_UNLIKELY (m_sort) {
-					SortComponentArrays();
-					m_sort = false;
-				}
-
+			static void CalculateLookupHash(LookupCtx& ctx) {
 				// Make sure we don't calculate the hash twice
-				GAIA_ASSERT(m_hashLookup.hash == 0);
+				GAIA_ASSERT(ctx.hashLookup.hash == 0);
 
-				// Contraints
-				LookupHash::Type hashLookup = utils::hash_combine(m_hashLookup.hash, (uint64_t)m_constraints);
+				LookupHash::Type hashLookup = 0;
 
 				// Filters
 				for (size_t i = 0; i < ComponentType::CT_Count; ++i) {
 					LookupHash::Type hash = 0;
 
-					const auto& l = m_listChangeFiltered[i];
+					const auto& l = ctx.listChangeFiltered[i];
 					for (auto componentId: l)
 						hash = utils::hash_combine(hash, (LookupHash::Type)componentId);
 					hash = utils::hash_combine(hash, (LookupHash::Type)l.size());
@@ -9086,7 +9074,7 @@ namespace gaia {
 				for (size_t i = 0; i < ComponentType::CT_Count; ++i) {
 					LookupHash::Type hash = 0;
 
-					const auto& l = m_list[i];
+					const auto& l = ctx.list[i];
 					for (const auto& componentIds: l.componentIds) {
 						for (const auto componentId: componentIds) {
 							hash = utils::hash_combine(hash, (LookupHash::Type)componentId);
@@ -9094,38 +9082,26 @@ namespace gaia {
 						hash = utils::hash_combine(hash, (LookupHash::Type)componentIds.size());
 					}
 
-					hash = utils::hash_combine(hash, (LookupHash::Type)m_rw[i]);
+					hash = utils::hash_combine(hash, (LookupHash::Type)ctx.rw[i]);
 					hashLookup = utils::hash_combine(hashLookup, hash);
 				}
 
-				m_hashLookup = {utils::calculate_hash64(hashLookup)};
+				ctx.hashLookup = {utils::calculate_hash64(hashLookup)};
 			}
 
-			void CalculateMatcherHashes() {
-				if GAIA_LIKELY (!m_recalculate)
-					return;
-
-				GAIA_PROF_SCOPE(CalculateMatcherHashes);
-
-				m_recalculate = false;
-
+			static void CalculateMatcherHashes(LookupCtx& ctx) {
 				// Sort the arrays if necessary
-				if GAIA_UNLIKELY (m_sort) {
-					m_sort = false;
-					SortComponentArrays();
-				}
+				SortComponentArrays(ctx);
 
 				// Calculate the matcher hash
-				for (auto& l: m_list) {
+				for (auto& l: ctx.list) {
 					for (size_t i = 0; i < ListType::LT_Count; ++i)
 						l.hash[i] = CalculateMatcherHash(l.componentIds[i]);
 				}
 			}
 
-			/*!
-				Tries to match component ids in \param componentIdsQuery with those in \param componentIds.
-				\return True if there is a match, false otherwise.
-				*/
+			//! Tries to match component ids in \param componentIdsQuery with those in \param componentIds.
+			//! \return True if there is a match, false otherwise.
 			static GAIA_NODISCARD bool
 			CheckMatchOne(const ComponentIdList& componentIds, const ComponentIdArray& componentIdsQuery) {
 				for (const auto componentId: componentIdsQuery) {
@@ -9136,10 +9112,8 @@ namespace gaia {
 				return false;
 			}
 
-			/*!
-				Tries to match all component ids in \param componentIdsQuery with those in \param componentIds.
-				\return True if there is a match, false otherwise.
-				*/
+			//! Tries to match all component ids in \param componentIdsQuery with those in \param componentIds.
+			//! \return True if there is a match, false otherwise.
 			static GAIA_NODISCARD bool
 			CheckMatchMany(const ComponentIdList& componentIds, const ComponentIdArray& componentIdsQuery) {
 				size_t matches = 0;
@@ -9158,11 +9132,9 @@ namespace gaia {
 				return false;
 			}
 
-			/*!
-				Tries to match \param componentIds with a given \param matcherHash.
-				\return MatchArchetypeQueryRet::Fail if there is no match, MatchArchetypeQueryRet::Ok for match or
-								MatchArchetypeQueryRet::Skip is not relevant.
-				*/
+			//! Tries to match \param componentIds with a given \param matcherHash.
+			//! \return MatchArchetypeQueryRet::Fail if there is no match, MatchArchetypeQueryRet::Ok for match or
+			//! MatchArchetypeQueryRet::Skip is not relevant.
 			template <ComponentType TComponentType>
 			GAIA_NODISCARD MatchArchetypeQueryRet
 			Match(const ComponentIdList& componentIds, ComponentMatcherHash matcherHash) const {
@@ -9213,72 +9185,17 @@ namespace gaia {
 				return (withAnyTest != 0) ? MatchArchetypeQueryRet::Ok : MatchArchetypeQueryRet::Skip;
 			}
 
-			GAIA_NODISCARD bool operator==(const EntityQuery& other) const {
-				// Lookup hash must match
-				if (m_hashLookup != other.m_hashLookup)
-					return false;
-
-				if (m_constraints != other.m_constraints)
-					return false;
-
-				for (size_t j = 0; j < ComponentType::CT_Count; ++j) {
-					// Read-write access has to be the same
-					if (m_rw[j] != other.m_rw[j])
-						return false;
-
-					// Filter count needs to be the same
-					if (m_listChangeFiltered[j].size() != other.m_listChangeFiltered[j].size())
-						return false;
-
-					const auto& queryList = m_list[j];
-					const auto& otherList = other.m_list[j];
-
-					// Component count needes to be the same
-					for (size_t i = 0; i < ListType::LT_Count; ++i) {
-						if (queryList.componentIds[i].size() != otherList.componentIds[i].size())
-							return false;
-					}
-
-					// Matches hashes need to be the same
-					for (size_t i = 0; i < ListType::LT_Count; ++i) {
-						if (queryList.hash[i] != otherList.hash[i])
-							return false;
-					}
-
-					// Components need to be the same
-					for (size_t i = 0; i < ListType::LT_Count; ++i) {
-						const auto ret = std::memcmp(
-								(const void*)&queryList.componentIds[i], (const void*)&otherList.componentIds[i],
-								queryList.componentIds[i].size() * sizeof(queryList.componentIds[0]));
-						if (ret != 0)
-							return false;
-					}
-
-					// Filters need to be the same
-					{
-						const auto ret = std::memcmp(
-								(const void*)&m_listChangeFiltered[j], (const void*)&other.m_listChangeFiltered[j],
-								m_listChangeFiltered[j].size() * sizeof(m_listChangeFiltered[0]));
-						if (ret != 0)
-							return false;
-					}
-				}
-
-				return true;
+			GAIA_NODISCARD bool operator==(const LookupCtx& other) const {
+				return m_lookupCtx == other;
 			}
 
-			GAIA_NODISCARD bool operator!=(const EntityQuery& other) const {
+			GAIA_NODISCARD bool operator!=(const LookupCtx& other) const {
 				return !operator==(other);
 			}
 
-			/*!
-			Tries to match the query against \param archetypes. For each matched archetype the archetype is cached.
-			This is necessary so we do not iterate all chunks over and over again when running queries.
-			*/
+			//! Tries to match the query against \param archetypes. For each matched archetype the archetype is cached.
+			//! This is necessary so we do not iterate all chunks over and over again when running queries.
 			void Match(const containers::darray<Archetype*>& archetypes) {
-				if GAIA_UNLIKELY (m_recalculate && !archetypes.empty())
-					CalculateMatcherHashes();
-
 				for (size_t i = m_lastArchetypeId; i < archetypes.size(); i++) {
 					auto* pArchetype = archetypes[i];
 #if GAIA_DEBUG
@@ -9291,41 +9208,22 @@ namespace gaia {
 					const auto retGeneric = Match<ComponentType::CT_Generic>(
 							GetArchetypeComponentInfoList(archetype, ComponentType::CT_Generic),
 							GetArchetypeMatcherHash(archetype, ComponentType::CT_Generic));
-					if (retGeneric == EntityQuery::MatchArchetypeQueryRet::Fail)
+					if (retGeneric == MatchArchetypeQueryRet::Fail)
 						continue;
 
 					// Early exit if chunk query doesn't match
 					const auto retChunk = Match<ComponentType::CT_Chunk>(
 							GetArchetypeComponentInfoList(archetype, ComponentType::CT_Chunk),
 							GetArchetypeMatcherHash(archetype, ComponentType::CT_Chunk));
-					if (retChunk == EntityQuery::MatchArchetypeQueryRet::Fail)
+					if (retChunk == MatchArchetypeQueryRet::Fail)
 						continue;
 
 					// If at least one query succeeded run our logic
-					if (retGeneric == EntityQuery::MatchArchetypeQueryRet::Ok ||
-							retChunk == EntityQuery::MatchArchetypeQueryRet::Ok)
+					if (retGeneric == MatchArchetypeQueryRet::Ok || retChunk == MatchArchetypeQueryRet::Ok)
 						m_archetypeCache.push_back(pArchetype);
 				}
 
 				m_lastArchetypeId = (uint32_t)archetypes.size();
-			}
-
-			void SetWorldVersion(uint32_t worldVersion) {
-				m_worldVersion = worldVersion;
-			}
-
-			template <typename T>
-			void AddComponent_Internal(ListType listType) {
-				using U = typename DeduceComponent<T>::Type;
-				using UOriginal = typename DeduceComponent<T>::TypeOriginal;
-				using UOriginalPR = std::remove_reference_t<std::remove_pointer_t<UOriginal>>;
-				constexpr bool isReadWrite =
-						std::is_same_v<U, UOriginal> || !std::is_const_v<UOriginalPR> && !std::is_empty_v<U>;
-
-				if constexpr (IsGenericComponent<T>)
-					AddComponent_Internal<U>(listType, ComponentType::CT_Generic, isReadWrite);
-				else
-					AddComponent_Internal<U>(listType, ComponentType::CT_Chunk, isReadWrite);
 			}
 
 			template <typename T>
@@ -9342,67 +9240,18 @@ namespace gaia {
 					return HasComponent_Internal<U>(listType, ComponentType::CT_Chunk, isReadWrite);
 			}
 
-			template <typename T>
-			void WithChanged_Internal() {
-				using U = typename DeduceComponent<T>::Type;
-				if constexpr (IsGenericComponent<T>)
-					SetChangedFilter<U>(m_listChangeFiltered[ComponentType::CT_Generic], m_list[ComponentType::CT_Generic]);
-				else
-					SetChangedFilter<U>(m_listChangeFiltered[ComponentType::CT_Chunk], m_list[ComponentType::CT_Chunk]);
-			}
-
-		public:
+		private:
 			GAIA_NODISCARD const ComponentListData& GetData(ComponentType componentType) const {
-				return m_list[componentType];
+				return m_lookupCtx.list[componentType];
 			}
 
 			GAIA_NODISCARD const ChangeFilterArray& GetFiltered(ComponentType componentType) const {
-				return m_listChangeFiltered[componentType];
-			}
-
-			EntityQuery& SetConstraints(Constraints value) {
-				m_constraints = value;
-				return *this;
-			}
-
-			GAIA_NODISCARD Constraints GetConstraints() const {
-				return m_constraints;
-			}
-
-			template <bool Enabled>
-			GAIA_NODISCARD bool CheckConstraints() const {
-				// By default we only evaluate EnabledOnly changes. AcceptAll is something that has to be asked for
-				// explicitely.
-				if GAIA_UNLIKELY (m_constraints == Constraints::AcceptAll)
-					return true;
-
-				if constexpr (Enabled)
-					return m_constraints == Constraints::EnabledOnly;
-				else
-					return m_constraints == Constraints::DisabledOnly;
+				return m_lookupCtx.listChangeFiltered[componentType];
 			}
 
 			GAIA_NODISCARD bool HasFilters() const {
-				return !m_listChangeFiltered[ComponentType::CT_Generic].empty() ||
-							 !m_listChangeFiltered[ComponentType::CT_Chunk].empty();
-			}
-
-			template <typename... T>
-			GAIA_FORCEINLINE EntityQuery& Any() {
-				(AddComponent_Internal<T>(ListType::LT_Any), ...);
-				return *this;
-			}
-
-			template <typename... T>
-			GAIA_FORCEINLINE EntityQuery& All() {
-				(AddComponent_Internal<T>(ListType::LT_All), ...);
-				return *this;
-			}
-
-			template <typename... T>
-			GAIA_FORCEINLINE EntityQuery& None() {
-				(AddComponent_Internal<T>(ListType::LT_None), ...);
-				return *this;
+				return !m_lookupCtx.listChangeFiltered[ComponentType::CT_Generic].empty() ||
+							 !m_lookupCtx.listChangeFiltered[ComponentType::CT_Chunk].empty();
 			}
 
 			template <typename... T>
@@ -9420,16 +9269,6 @@ namespace gaia {
 				return (!HasComponent_Internal<T>(ListType::LT_None) && ...);
 			}
 
-			template <typename... T>
-			GAIA_FORCEINLINE EntityQuery& WithChanged() {
-				(WithChanged_Internal<T>(), ...);
-				return *this;
-			}
-
-			GAIA_NODISCARD uint32_t GetWorldVersion() const {
-				return m_worldVersion;
-			}
-
 			GAIA_NODISCARD containers::darray<Archetype*>::iterator begin() {
 				return m_archetypeCache.begin();
 			}
@@ -9445,6 +9284,479 @@ namespace gaia {
 			GAIA_NODISCARD containers::darray<Archetype*>::const_iterator end() const {
 				return m_archetypeCache.cend();
 			}
+		};
+	} // namespace ecs
+} // namespace gaia
+
+namespace gaia {
+	namespace ecs {
+		class Archetype;
+
+		class EntityQuery final {
+		public:
+			//! Query constraints
+			enum class Constraints : uint8_t { EnabledOnly, DisabledOnly, AcceptAll };
+
+		private:
+			friend class World;
+			using DataBuffer = containers::darray<uint8_t>;
+
+			//! Command buffer command type
+			enum CommandBufferCmd : uint8_t { ALL, ANY, NONE, ADD_FILTER };
+
+			class CommandBuffer {
+				//! Buffer holding raw data
+				DataBuffer m_data;
+				//! Current position in the buffer
+				uint32_t m_dataPos = 0;
+
+			public:
+				CommandBuffer() {
+					m_data.reserve(256);
+				}
+
+				void Reset() {
+					m_dataPos = 0;
+					m_data.clear();
+				}
+
+				//! Returns the number of bytes written in the buffer
+				GAIA_NODISCARD uint32_t Size() const {
+					return (uint32_t)m_data.size();
+				}
+
+				//! Changes the current position in the buffer
+				void Seek(uint32_t pos) {
+					m_dataPos = pos;
+				}
+
+				GAIA_NODISCARD uint32_t GetPos() const {
+					return m_dataPos;
+				}
+
+				template <typename T>
+				void Save(T&& value) {
+					// When adding data, if what we add is exactly the same as the buffer type, we can simply push_back
+					if constexpr (
+							sizeof(T) == sizeof(DataBuffer::value_type) ||
+							(std::is_enum_v<T> && std::is_same_v<std::underlying_type<T>, DataBuffer::value_type>)) {
+						m_data.push_back(std::forward<T>(value));
+					}
+					// When the data type does not match the buffer type, we perform a memory safe operation
+					else {
+						const auto lastIndex = m_data.size();
+						m_data.resize(lastIndex + sizeof(T));
+
+						utils::unaligned_ref<T> mem(&m_data[lastIndex]);
+						mem = std::forward<T>(value);
+					}
+				}
+
+				template <typename T>
+				void Load(T& value) {
+					// When adding data, if what we add is exactly the same as the buffer type, we can simply push_back
+					if constexpr (
+							sizeof(T) == sizeof(DataBuffer::value_type) ||
+							(std::is_enum_v<T> && std::is_same_v<std::underlying_type<T>, DataBuffer::value_type>)) {
+						value = (T)m_data[m_dataPos];
+					}
+					// When the data type does not match the buffer type, we perform a memory safe operation
+					else {
+						value = utils::unaligned_ref<T>((void*)&m_data[m_dataPos]);
+					}
+
+					m_dataPos += sizeof(T);
+				}
+			};
+
+			struct Command_Base {
+				ComponentId componentId;
+				ComponentType componentType;
+				bool isReadWrite;
+
+				void Save(CommandBuffer& buffer) {
+					buffer.Save(componentId);
+					buffer.Save(componentType);
+					buffer.Save(isReadWrite);
+				}
+				void Load(CommandBuffer& buffer) {
+					buffer.Load(componentId);
+					buffer.Load(componentType);
+					buffer.Load(isReadWrite);
+				}
+
+				void Exec(EntityQueryInfo::LookupCtx& ctx, EntityQueryInfo::ListType listType) {
+					auto& list = ctx.list[componentType];
+					auto& componentIds = list.componentIds[listType];
+
+					// Unique component ids only
+					GAIA_ASSERT(!utils::has(componentIds, componentId));
+
+#if GAIA_DEBUG
+					// There's a limit to the amount of components which we can store
+					if (componentIds.size() >= EntityQueryInfo::MAX_COMPONENTS_IN_QUERY) {
+						GAIA_ASSERT(false && "Trying to create an ECS query with too many components!");
+
+						const auto& cc = GetComponentCache();
+						auto componentName = cc.GetComponentDesc(componentId).name;
+						GAIA_LOG_E(
+								"Trying to add ECS component '%.*s' to an already full ECS query!", (uint32_t)componentName.size(),
+								componentName.data());
+
+						return;
+					}
+#endif
+
+					ctx.rw[componentType] |= (uint8_t)isReadWrite << (uint8_t)componentIds.size();
+					componentIds.push_back(componentId);
+				}
+			};
+			struct Command_All: public Command_Base {
+				static constexpr CommandBufferCmd Id = CommandBufferCmd::ALL;
+
+				void Exec(EntityQueryInfo::LookupCtx& ctx) {
+					Command_Base::Exec(ctx, EntityQueryInfo::ListType::LT_All);
+				}
+			};
+			struct Command_Any: public Command_Base {
+				static constexpr CommandBufferCmd Id = CommandBufferCmd::ANY;
+
+				void Exec(EntityQueryInfo::LookupCtx& ctx) {
+					Command_Base::Exec(ctx, EntityQueryInfo::ListType::LT_Any);
+				}
+			};
+			struct Command_None: public Command_Base {
+				static constexpr CommandBufferCmd Id = CommandBufferCmd::NONE;
+
+				void Exec(EntityQueryInfo::LookupCtx& ctx) {
+					Command_Base::Exec(ctx, EntityQueryInfo::ListType::LT_None);
+				}
+			};
+			struct Command_Filter {
+				static constexpr CommandBufferCmd Id = CommandBufferCmd::ADD_FILTER;
+
+				ComponentId componentId;
+				ComponentType componentType;
+
+				void Save(CommandBuffer& buffer) {
+					buffer.Save(componentId);
+					buffer.Save(componentType);
+				}
+				void Load(CommandBuffer& buffer) {
+					buffer.Load(componentId);
+					buffer.Load(componentType);
+				}
+
+				void Exec(EntityQueryInfo::LookupCtx& ctx) {
+					auto& list = ctx.list[componentType];
+					auto& arrFilter = ctx.listChangeFiltered[componentType];
+
+					// Unique component ids only
+					GAIA_ASSERT(!utils::has(arrFilter, componentId));
+
+#if GAIA_DEBUG
+					// There's a limit to the amount of components which we can store
+					if (arrFilter.size() >= EntityQueryInfo::MAX_COMPONENTS_IN_QUERY) {
+						GAIA_ASSERT(false && "Trying to create an ECS filter query with too many components!");
+
+						const auto& cc = GetComponentCache();
+						auto componentName = cc.GetComponentDesc(componentId).name;
+						GAIA_LOG_E(
+								"Trying to add ECS component %.*s to an already full filter query!", (uint32_t)componentName.size(),
+								componentName.data());
+						return;
+					}
+#endif
+
+					// Component has to be present in anyList or allList.
+					// NoneList makes no sense because we skip those in query processing anyway.
+					if (utils::has(list.componentIds[EntityQueryInfo::ListType::LT_Any], componentId)) {
+						arrFilter.push_back(componentId);
+						return;
+					}
+					if (utils::has(list.componentIds[EntityQueryInfo::ListType::LT_All], componentId)) {
+						arrFilter.push_back(componentId);
+						return;
+					}
+
+					GAIA_ASSERT(false && "SetChangeFilter trying to filter ECS component which is not a part of the query");
+#if GAIA_DEBUG
+					const auto& cc = GetComponentCache();
+					auto componentName = cc.GetComponentDesc(componentId).name;
+					GAIA_LOG_E(
+							"SetChangeFilter trying to filter ECS component %.*s but "
+							"it's not a part of the query!",
+							(uint32_t)componentName.size(), componentName.data());
+#endif
+				}
+			};
+
+			using CmdBufferCmdFunc = void (*)(CommandBuffer& buffer, EntityQueryInfo::LookupCtx& ctx);
+			static constexpr CmdBufferCmdFunc CommandBufferRead[] = {
+					// All
+					[](CommandBuffer& buffer, EntityQueryInfo::LookupCtx& ctx) {
+						Command_All cmd;
+						cmd.Load(buffer);
+						cmd.Exec(ctx);
+					},
+					// Any
+					[](CommandBuffer& buffer, EntityQueryInfo::LookupCtx& ctx) {
+						Command_Any cmd;
+						cmd.Load(buffer);
+						cmd.Exec(ctx);
+					},
+					// None
+					[](CommandBuffer& buffer, EntityQueryInfo::LookupCtx& ctx) {
+						Command_None cmd;
+						cmd.Load(buffer);
+						cmd.Exec(ctx);
+					},
+					// Add filter
+					[](CommandBuffer& buffer, EntityQueryInfo::LookupCtx& ctx) {
+						Command_Filter cmd;
+						cmd.Load(buffer);
+						cmd.Exec(ctx);
+					}};
+
+			CommandBuffer m_cmdBuffer;
+			//! Lookup hash for this query
+			EntityQueryInfo::LookupHash m_hashLookup{};
+			//! Query cache id
+			uint32_t m_cacheId = (uint32_t)-1;
+			//! Tell what kinds of chunks are going to be accepted by the query
+			EntityQuery::Constraints m_constraints = EntityQuery::Constraints::EnabledOnly;
+
+			template <typename T>
+			void AddComponent_Internal(EntityQueryInfo::ListType listType) {
+				using U = typename DeduceComponent<T>::Type;
+				using UOriginal = typename DeduceComponent<T>::TypeOriginal;
+				using UOriginalPR = std::remove_reference_t<std::remove_pointer_t<UOriginal>>;
+
+				const auto componentId = GetComponentIdUnsafe<U>();
+				constexpr auto componentType = IsGenericComponent<T> ? ComponentType::CT_Generic : ComponentType::CT_Chunk;
+				constexpr bool isReadWrite =
+						std::is_same_v<U, UOriginal> || !std::is_const_v<UOriginalPR> && !std::is_empty_v<U>;
+
+				// Make sure the component is always registered
+				auto& cc = GetComponentCacheRW();
+				(void)cc.GetOrCreateComponentInfo<T>();
+
+				switch (listType) {
+					case EntityQueryInfo::ListType::LT_All:
+						m_cmdBuffer.Save(Command_All::Id);
+						Command_All{componentId, componentType, isReadWrite}.Save(m_cmdBuffer);
+						break;
+					case EntityQueryInfo::ListType::LT_Any:
+						m_cmdBuffer.Save(Command_Any::Id);
+						Command_Any{componentId, componentType, isReadWrite}.Save(m_cmdBuffer);
+						break;
+					case EntityQueryInfo::ListType::LT_None:
+						m_cmdBuffer.Save(Command_None::Id);
+						Command_None{componentId, componentType, isReadWrite}.Save(m_cmdBuffer);
+						break;
+					default:
+						GAIA_ASSERT(false && "Invalid command id in EntityQuery command buffer");
+						break;
+				}
+			}
+
+			template <typename T>
+			void WithChanged_Internal() {
+				using U = typename DeduceComponent<T>::Type;
+				using UOriginal = typename DeduceComponent<T>::TypeOriginal;
+				using UOriginalPR = std::remove_reference_t<std::remove_pointer_t<UOriginal>>;
+
+				const auto componentId = GetComponentIdUnsafe<U>();
+				constexpr auto componentType = IsGenericComponent<T> ? ComponentType::CT_Generic : ComponentType::CT_Chunk;
+
+				m_cmdBuffer.Save(Command_Filter::Id);
+				Command_Filter{componentId, componentType}.Save(m_cmdBuffer);
+			}
+
+		public:
+			void Init(EntityQueryInfo::LookupHash hash, uint32_t id) {
+				GAIA_ASSERT(m_cacheId == (uint32_t)-1);
+				m_hashLookup = hash;
+				m_cacheId = id;
+			}
+
+			EntityQueryInfo::LookupHash GetLookupHash() const {
+				return m_hashLookup;
+			}
+
+			uint32_t GetCacheId() const {
+				return m_cacheId;
+			}
+
+			template <typename... T>
+			EntityQuery& All() {
+				// Invalidte the query
+				m_hashLookup = {0};
+				// Add commands to the command buffer
+				(AddComponent_Internal<T>(EntityQueryInfo::ListType::LT_All), ...);
+				return *this;
+			}
+
+			template <typename... T>
+			EntityQuery& Any() {
+				// Invalidte the query
+				m_hashLookup = {0};
+				// Add commands to the command buffer
+				(AddComponent_Internal<T>(EntityQueryInfo::ListType::LT_Any), ...);
+				return *this;
+			}
+
+			template <typename... T>
+			EntityQuery& None() {
+				// Invalidte the query
+				m_hashLookup = {0};
+				// Add commands to the command buffer
+				(AddComponent_Internal<T>(EntityQueryInfo::ListType::LT_None), ...);
+				return *this;
+			}
+
+			template <typename... T>
+			GAIA_FORCEINLINE EntityQuery& WithChanged() {
+				// Invalidte the query
+				m_hashLookup = {0};
+				// Add commands to the command buffer
+				(WithChanged_Internal<T>(), ...);
+				return *this;
+			}
+
+			EntityQuery& SetConstraints(EntityQuery::Constraints value) {
+				m_constraints = value;
+				return *this;
+			}
+
+			GAIA_NODISCARD EntityQuery::Constraints GetConstraints() const {
+				return m_constraints;
+			}
+
+			template <bool Enabled>
+			GAIA_NODISCARD bool CheckConstraints() const {
+				// By default we only evaluate EnabledOnly changes. AcceptAll is something that has to be asked for
+				// explicitely.
+				if GAIA_UNLIKELY (m_constraints == EntityQuery::Constraints::AcceptAll)
+					return true;
+
+				if constexpr (Enabled)
+					return m_constraints == EntityQuery::Constraints::EnabledOnly;
+				else
+					return m_constraints == EntityQuery::Constraints::DisabledOnly;
+			}
+
+			GAIA_NODISCARD void Commit(EntityQueryInfo::LookupCtx& ctx) {
+				// No need to commit anything if we already have the lookup hash
+				if (m_hashLookup.hash != 0) {
+					ctx.hashLookup = m_hashLookup;
+					ctx.cacheId = m_cacheId;
+					return;
+				}
+
+				// Read data from buffer andd fill the context with data
+				m_cmdBuffer.Seek(0);
+
+				while (m_cmdBuffer.GetPos() < m_cmdBuffer.Size()) {
+					CommandBufferCmd id{};
+					m_cmdBuffer.Load(id);
+					CommandBufferRead[id](m_cmdBuffer, ctx);
+				}
+
+				// Calculate the lookup hash from the provided context
+				EntityQueryInfo::CalculateLookupHash(ctx);
+
+				// We can free all temporary data now
+				m_cmdBuffer.Reset();
+			}
+		};
+	} // namespace ecs
+} // namespace gaia
+
+namespace gaia {
+	namespace ecs {
+		class EntityQueryCache {
+			containers::map<EntityQueryInfo::LookupHash, containers::darray<EntityQueryInfo>> m_cachedQueries;
+
+		public:
+			EntityQueryCache() = default;
+
+			EntityQueryCache(EntityQueryCache&&) = delete;
+			EntityQueryCache(const EntityQueryCache&) = delete;
+			EntityQueryCache& operator=(EntityQueryCache&&) = delete;
+			EntityQueryCache& operator=(const EntityQueryCache&) = delete;
+
+			//! Searches for an entity query info from the provided \param query.
+			//! \param query Query used to search for query info
+			//! \return Entity query info or nullptr if not found
+			EntityQueryInfo* Find(const EntityQuery& query) const {
+				const auto hash = query.GetLookupHash();
+				const auto id = query.GetCacheId();
+
+				auto it = m_cachedQueries.find(hash);
+				GAIA_ASSERT(it != m_cachedQueries.end());
+
+				const auto& queries = it->second;
+				for (auto& q: queries) {
+					if (q.GetCacheId() != id)
+						continue;
+					return &q;
+				}
+
+				return nullptr;
+			};
+
+			//! Returns an already existing entity query info from the provided \param query.
+			//! \warning It is expected that the query has already been registered. Undefined behavior otherwise.
+			//! \param query Query used to search for query info
+			//! \return Entity query info
+			EntityQueryInfo& Get(const EntityQuery& query) const {
+				auto* pInfo = Find(query);
+				GAIA_ASSERT(pInfo != nullptr);
+				return *pInfo;
+			};
+
+			//! Registers the provided entity query lookup context \param ctx. If it already exists it is returned.
+			//! \return Entity query info
+			EntityQueryInfo& GetOrCreate(EntityQuery& query, EntityQueryInfo::LookupCtx&& ctx) {
+				GAIA_ASSERT(ctx.hashLookup.hash != 0);
+
+				// Check if the query info exists first
+				auto it = m_cachedQueries.find(ctx.hashLookup);
+				if GAIA_UNLIKELY (it == m_cachedQueries.end()) {
+					// Query info does not exist so we need to create it and update the orignal query accordingly.
+					const auto hash = ctx.hashLookup;
+
+					auto info = EntityQueryInfo::Create(std::move(ctx));
+					info.Init(0);
+					query.Init(hash, 0);
+
+					m_cachedQueries[hash] = {std::move(info)};
+					return m_cachedQueries[hash].back();
+				}
+
+				auto& queries = it->second;
+
+				// Record with the query info lookup hash exists but we need to check if the query itself is a part of it.
+				if GAIA_LIKELY (query.GetCacheId() != (int32_t)-1) {
+					// Make sure the same hash gets us to the proper query
+					for (auto& q: queries) {
+						if (q != ctx)
+							continue;
+						return q;
+					}
+
+					GAIA_ASSERT(false && "EntityQueryInfo not found despite having its lookupHash and cacheId set!");
+				}
+
+				// This query has not been added anywhere yet. Let's change that.
+				auto info = EntityQueryInfo::Create(std::move(ctx));
+				info.Init((uint32_t)queries.size());
+				query.Init(ctx.hashLookup, (uint32_t)queries.size());
+
+				queries.push_back(std::move(info));
+				return queries.back();
+			};
 		};
 	} // namespace ecs
 } // namespace gaia
@@ -9496,8 +9808,8 @@ namespace gaia {
 
 			//! Allocator used to allocate chunks
 			ChunkAllocator m_chunkAllocator;
-
-			containers::map<EntityQuery::LookupHash, containers::darray<EntityQuery>> m_cachedQueries;
+			//! Cache of entity queries
+			EntityQueryCache m_cachedQueries;
 			//! Map or archetypes mapping to the same hash - used for lookups
 			containers::map<Archetype::LookupHash, containers::darray<Archetype*>> m_archetypeMap;
 			//! List of archetypes - used for iteration
@@ -9766,7 +10078,7 @@ namespace gaia {
 			}
 
 			template <typename Func>
-			EntityQuery::MatchArchetypeQueryRet ArchetypeGraphTraverse(ComponentType componentType, Func func) const {
+			EntityQueryInfo::MatchArchetypeQueryRet ArchetypeGraphTraverse(ComponentType componentType, Func func) const {
 				// Use a stack to store the nodes we need to visit
 				// TODO: Replace with std::stack or an alternative
 				containers::darray<uint32_t> stack;
@@ -9786,9 +10098,9 @@ namespace gaia {
 
 					// Decide whether to accept the node or skip it
 					const auto ret = func(*pArchetype);
-					if (ret == EntityQuery::MatchArchetypeQueryRet::Fail)
+					if (ret == EntityQueryInfo::MatchArchetypeQueryRet::Fail)
 						return ret;
-					if (ret == EntityQuery::MatchArchetypeQueryRet::Skip)
+					if (ret == EntityQueryInfo::MatchArchetypeQueryRet::Skip)
 						continue;
 
 					// Push all of the children of the current node onto the stack
@@ -9800,7 +10112,7 @@ namespace gaia {
 					}
 				}
 
-				return EntityQuery::MatchArchetypeQueryRet::Ok;
+				return EntityQueryInfo::MatchArchetypeQueryRet::Ok;
 			}
 #endif
 
@@ -10698,22 +11010,26 @@ namespace gaia {
 					(void)archetype;
 					return EntityQuery::MatchArchetypeQueryRet::Ok;
 				});
-#else
-				query.Match(m_archetypes);
-#endif
 				for (auto* pArchetype: query)
 					func(*pArchetype);
+#else
+				auto& queryInfo = m_cachedQueries.Get(query);
+				queryInfo.Match(m_archetypes);
+
+				for (auto* pArchetype: queryInfo)
+					func(*pArchetype);
+#endif
 			}
 
 			template <typename Func>
-			GAIA_FORCEINLINE void ForEachArchetype_NoMatch(const EntityQuery& query, Func func) const {
-				for (const auto* pArchetype: query)
+			GAIA_FORCEINLINE void ForEachArchetype_NoMatch(const EntityQueryInfo& queryInfo, Func func) const {
+				for (const auto* pArchetype: queryInfo)
 					func(*pArchetype);
 			}
 
 			template <typename Func>
-			GAIA_FORCEINLINE void ForEachArchetypeCond_NoMatch(const EntityQuery& query, Func func) const {
-				for (const auto* pArchetype: query)
+			GAIA_FORCEINLINE void ForEachArchetypeCond_NoMatch(const EntityQueryInfo& queryInfo, Func func) const {
+				for (const auto* pArchetype: queryInfo)
 					if (!func(*pArchetype))
 						break;
 			}
@@ -10728,9 +11044,9 @@ namespace gaia {
 
 			template <typename... T>
 			GAIA_NODISCARD bool
-			UnpackArgsIntoQuery_Check([[maybe_unused]] utils::func_type_list<T...> types, EntityQuery& query) const {
+			UnpackArgsIntoQuery_Check([[maybe_unused]] utils::func_type_list<T...> types, EntityQueryInfo& queryInfo) const {
 				if constexpr (sizeof...(T) > 0)
-					return query.HasAll<T...>();
+					return queryInfo.HasAll<T...>();
 				else
 					return true;
 			}
@@ -10742,34 +11058,32 @@ namespace gaia {
 			}
 
 			template <typename Func>
-			static bool CheckQuery(World& world, EntityQuery& query) {
+			static bool CheckQuery(World& world, EntityQueryInfo& queryInfo) {
 				using InputArgs = decltype(utils::func_args(&Func::operator()));
-				return world.UnpackArgsIntoQuery_Check(InputArgs{}, query);
+				return world.UnpackArgsIntoQuery_Check(InputArgs{}, queryInfo);
 			}
 
 			//--------------------------------------------------------------------------------
 
-			GAIA_NODISCARD static bool CheckFilters(const EntityQuery& query, const Chunk& chunk) {
+			GAIA_NODISCARD static bool CheckFilters(const EntityQueryInfo& queryInfo, const Chunk& chunk) {
 				GAIA_ASSERT(chunk.HasEntities() && "CheckFilters called on an empty chunk");
-
-				const auto lastWorldVersion = query.GetWorldVersion();
 
 				// See if any generic component has changed
 				{
-					const auto& filtered = query.GetFiltered(ComponentType::CT_Generic);
+					const auto& filtered = queryInfo.GetFiltered(ComponentType::CT_Generic);
 					for (auto componentId: filtered) {
 						const uint32_t componentIdx = chunk.GetArchetype().GetComponentIdx(ComponentType::CT_Generic, componentId);
-						if (chunk.DidChange(ComponentType::CT_Generic, lastWorldVersion, componentIdx))
+						if (chunk.DidChange(ComponentType::CT_Generic, queryInfo.GetWorldVersion(), componentIdx))
 							return true;
 					}
 				}
 
 				// See if any chunk component has changed
 				{
-					const auto& filtered = query.GetFiltered(ComponentType::CT_Chunk);
+					const auto& filtered = queryInfo.GetFiltered(ComponentType::CT_Chunk);
 					for (auto componentId: filtered) {
 						const uint32_t componentIdx = chunk.GetArchetype().GetComponentIdx(ComponentType::CT_Chunk, componentId);
-						if (chunk.DidChange(ComponentType::CT_Chunk, lastWorldVersion, componentIdx))
+						if (chunk.DidChange(ComponentType::CT_Chunk, queryInfo.GetWorldVersion(), componentIdx))
 							return true;
 					}
 				}
@@ -10779,12 +11093,12 @@ namespace gaia {
 			}
 
 			template <bool HasFilters>
-			GAIA_NODISCARD static bool CanAcceptChunkForProcessing(const Chunk& chunk, const EntityQuery& q) {
+			GAIA_NODISCARD static bool CanAcceptChunkForProcessing(const Chunk& chunk, const EntityQueryInfo& queryInfo) {
 				if GAIA_UNLIKELY (!chunk.HasEntities())
 					return false;
 
 				if constexpr (HasFilters) {
-					if (!CheckFilters(q, chunk))
+					if (!CheckFilters(queryInfo, chunk))
 						return false;
 				}
 
@@ -10794,7 +11108,8 @@ namespace gaia {
 			//--------------------------------------------------------------------------------
 
 			template <bool HasFilters, typename Func>
-			static void ProcessQueryOnChunks(const containers::darray<Chunk*>& chunksList, EntityQuery& query, Func func) {
+			static void
+			ProcessQueryOnChunks(const containers::darray<Chunk*>& chunksList, const EntityQueryInfo& queryInfo, Func func) {
 				constexpr size_t BatchSize = 256U;
 				containers::sarray<Chunk*, BatchSize> tmp;
 
@@ -10811,7 +11126,7 @@ namespace gaia {
 					for (size_t j = chunkOffset; j < chunkOffset + batchSize; ++j) {
 						auto* pChunk = chunksList[j];
 
-						if (!CanAcceptChunkForProcessing<HasFilters>(*pChunk, query))
+						if (!CanAcceptChunkForProcessing<HasFilters>(*pChunk, queryInfo))
 							continue;
 
 						tmp[indexInBatch++] = pChunk;
@@ -10860,11 +11175,11 @@ namespace gaia {
 			}
 
 			template <typename Func>
-			static void RunQueryOnChunks_Internal(World& world, EntityQuery& query, Func func) {
+			static void RunQueryOnChunks_Internal(World& world, EntityQuery& query, EntityQueryInfo& queryInfo, Func func) {
 				// Update the world version
 				world.UpdateWorldVersion();
 
-				const bool hasFilters = query.HasFilters();
+				const bool hasFilters = queryInfo.HasFilters();
 				if (hasFilters) {
 					// Iterate over all archetypes
 					world.ForEachArchetype(query, [&](Archetype& archetype) {
@@ -10872,9 +11187,9 @@ namespace gaia {
 						++archetype.m_properties.structuralChangesLocked;
 
 						if (query.CheckConstraints<true>())
-							ProcessQueryOnChunks<true>(archetype.m_chunks, query, func);
+							ProcessQueryOnChunks<true>(archetype.m_chunks, queryInfo, func);
 						if (query.CheckConstraints<false>())
-							ProcessQueryOnChunks<true>(archetype.m_chunksDisabled, query, func);
+							ProcessQueryOnChunks<true>(archetype.m_chunksDisabled, queryInfo, func);
 
 						GAIA_ASSERT(archetype.m_properties.structuralChangesLocked > 0);
 						--archetype.m_properties.structuralChangesLocked;
@@ -10886,16 +11201,16 @@ namespace gaia {
 						++archetype.m_properties.structuralChangesLocked;
 
 						if (query.CheckConstraints<true>())
-							ProcessQueryOnChunks<false>(archetype.m_chunks, query, func);
+							ProcessQueryOnChunks<false>(archetype.m_chunks, queryInfo, func);
 						if (query.CheckConstraints<false>())
-							ProcessQueryOnChunks<false>(archetype.m_chunksDisabled, query, func);
+							ProcessQueryOnChunks<false>(archetype.m_chunksDisabled, queryInfo, func);
 
 						GAIA_ASSERT(archetype.m_properties.structuralChangesLocked > 0);
 						--archetype.m_properties.structuralChangesLocked;
 					});
 				}
 
-				query.SetWorldVersion(world.GetWorldVersion());
+				queryInfo.SetWorldVersion(world.GetWorldVersion());
 			}
 
 			//--------------------------------------------------------------------------------
@@ -10919,7 +11234,11 @@ namespace gaia {
 			GAIA_FORCEINLINE void ForEachChunk_External(World& world, EntityQuery& query, Func func) {
 				GAIA_PROF_SCOPE(ForEachChunk_E);
 
-				RunQueryOnChunks_Internal(world, query, [&](Chunk& chunk) {
+				EntityQueryInfo::LookupCtx ctx;
+				query.Commit(ctx);
+				auto& queryInfo = m_cachedQueries.GetOrCreate(query, std::move(ctx));
+
+				RunQueryOnChunks_Internal(world, query, queryInfo, [&](Chunk& chunk) {
 					func(chunk);
 				});
 			}
@@ -10928,13 +11247,17 @@ namespace gaia {
 			GAIA_FORCEINLINE void ForEach_External(World& world, EntityQuery& query, Func func) {
 				GAIA_PROF_SCOPE(ForEach_E);
 
+				EntityQueryInfo::LookupCtx ctx;
+				query.Commit(ctx);
+				auto& queryInfo = m_cachedQueries.GetOrCreate(query, std::move(ctx));
+
 #if GAIA_DEBUG
 				// Make sure we only use components specified in the query
-				GAIA_ASSERT(CheckQuery<Func>(world, query));
+				GAIA_ASSERT(CheckQuery<Func>(world, queryInfo));
 #endif
 
 				using InputArgs = decltype(utils::func_args(&Func::operator()));
-				RunQueryOnChunks_Internal(world, query, [&](Chunk& chunk) {
+				RunQueryOnChunks_Internal(world, query, queryInfo, [&](Chunk& chunk) {
 					world.ForEachEntityInChunk(InputArgs{}, chunk, func);
 				});
 			}
@@ -10945,34 +11268,15 @@ namespace gaia {
 
 				RegisterComponents<Func>();
 
-				EntityQuery queryTmp;
-				ResolveQuery<Func>((World&)*this, queryTmp);
-				queryTmp.CalculateLookupHash();
+				EntityQuery query;
+				ResolveQuery<Func>((World&)*this, query);
 
-				auto addOrFindEntityQueryInCache = [&]() -> EntityQuery& {
-					auto it = world.m_cachedQueries.find(queryTmp.m_hashLookup);
-					if (it == world.m_cachedQueries.end()) {
-						const auto hash = queryTmp.m_hashLookup;
-						world.m_cachedQueries[hash] = {std::move(queryTmp)};
-						return world.m_cachedQueries[hash].back();
-					}
-
-					auto& queries = it->second;
-
-					// Make sure the same hash gets us to the proper query
-					for (const auto& q: queries) {
-						if (q != queryTmp)
-							continue;
-						return queries.back();
-					}
-
-					queries.push_back(std::move(queryTmp));
-					return queries.back();
-				};
+				EntityQueryInfo::LookupCtx ctx;
+				query.Commit(ctx);
+				auto& queryInfo = m_cachedQueries.GetOrCreate(query, std::move(ctx));
 
 				using InputArgs = decltype(utils::func_args(&Func::operator()));
-				EntityQuery& queryCached = addOrFindEntityQueryInCache();
-				RunQueryOnChunks_Internal(world, queryCached, [&](Chunk& chunk) {
+				RunQueryOnChunks_Internal(world, query, queryInfo, [&](Chunk& chunk) {
 					world.ForEachEntityInChunk(InputArgs{}, chunk, func);
 				});
 			}
@@ -11013,10 +11317,12 @@ namespace gaia {
 
 			class QueryResult {
 				const World& m_w;
-				const EntityQuery& m_q;
+				const EntityQuery& m_query;
+				const EntityQueryInfo& m_queryInfo;
 
 			public:
-				QueryResult(const World& w, const EntityQuery& q): m_w(w), m_q(q) {}
+				QueryResult(const World& w, const EntityQuery& q, const EntityQueryInfo& qi):
+						m_w(w), m_query(q), m_queryInfo(qi) {}
 
 				/*!
 				Returns true or false depending on whether there are entities matching the query.
@@ -11029,11 +11335,11 @@ namespace gaia {
 				bool HasItems(bool ignoreFilters = false) const {
 					bool hasItems = false;
 
-					const bool hasFilters = !ignoreFilters && m_q.HasFilters();
+					const bool hasFilters = !ignoreFilters && m_queryInfo.HasFilters();
 
 					auto execWithFiltersON = [&](const auto& chunksList) {
 						for (auto* pChunk: chunksList) {
-							if (!CanAcceptChunkForProcessing<true>(*pChunk, m_q))
+							if (!CanAcceptChunkForProcessing<true>(*pChunk, m_queryInfo))
 								continue;
 							hasItems = true;
 							break;
@@ -11042,7 +11348,7 @@ namespace gaia {
 
 					auto execWithFiltersOFF = [&](const auto& chunksList) {
 						for (auto* pChunk: chunksList) {
-							if (!CanAcceptChunkForProcessing<false>(*pChunk, m_q))
+							if (!CanAcceptChunkForProcessing<false>(*pChunk, m_queryInfo))
 								continue;
 							hasItems = true;
 							break;
@@ -11052,12 +11358,12 @@ namespace gaia {
 					if (hasItems) {
 						if (hasFilters) {
 							// Iterate over all archetypes
-							m_w.ForEachArchetypeCond_NoMatch(m_q, [&](const Archetype& archetype) {
-								if (m_q.CheckConstraints<true>()) {
+							m_w.ForEachArchetypeCond_NoMatch(m_queryInfo, [&](const Archetype& archetype) {
+								if (m_query.CheckConstraints<true>()) {
 									execWithFiltersON(archetype.m_chunks);
 									return false;
 								}
-								if (m_q.CheckConstraints<false>()) {
+								if (m_query.CheckConstraints<false>()) {
 									execWithFiltersON(archetype.m_chunksDisabled);
 									return false;
 								}
@@ -11066,12 +11372,12 @@ namespace gaia {
 							});
 						} else {
 							// Iterate over all archetypes
-							m_w.ForEachArchetypeCond_NoMatch(m_q, [&](const Archetype& archetype) {
-								if (m_q.CheckConstraints<true>()) {
+							m_w.ForEachArchetypeCond_NoMatch(m_queryInfo, [&](const Archetype& archetype) {
+								if (m_query.CheckConstraints<true>()) {
 									execWithFiltersOFF(archetype.m_chunks);
 									return false;
 								}
-								if (m_q.CheckConstraints<false>()) {
+								if (m_query.CheckConstraints<false>()) {
 									execWithFiltersOFF(archetype.m_chunksDisabled);
 									return false;
 								}
@@ -11083,20 +11389,20 @@ namespace gaia {
 					} else {
 						if (hasFilters) {
 							// Iterate over all archetypes
-							m_w.ForEachArchetypeCond_NoMatch(m_q, [&](const Archetype& archetype) {
-								if (m_q.CheckConstraints<true>())
+							m_w.ForEachArchetypeCond_NoMatch(m_queryInfo, [&](const Archetype& archetype) {
+								if (m_query.CheckConstraints<true>())
 									execWithFiltersON(archetype.m_chunks);
-								if (m_q.CheckConstraints<false>())
+								if (m_query.CheckConstraints<false>())
 									execWithFiltersON(archetype.m_chunksDisabled);
 
 								return true;
 							});
 						} else {
 							// Iterate over all archetypes
-							m_w.ForEachArchetypeCond_NoMatch(m_q, [&](const Archetype& archetype) {
-								if (m_q.CheckConstraints<true>())
+							m_w.ForEachArchetypeCond_NoMatch(m_queryInfo, [&](const Archetype& archetype) {
+								if (m_query.CheckConstraints<true>())
 									execWithFiltersOFF(archetype.m_chunks);
-								if (m_q.CheckConstraints<false>())
+								if (m_query.CheckConstraints<false>())
 									execWithFiltersOFF(archetype.m_chunksDisabled);
 
 								return true;
@@ -11118,34 +11424,34 @@ namespace gaia {
 				size_t CalculateItemCount(bool ignoreFilters = false) const {
 					size_t itemCount = 0;
 
-					const bool hasFilters = !ignoreFilters && m_q.HasFilters();
+					const bool hasFilters = !ignoreFilters && m_queryInfo.HasFilters();
 
 					auto execWithFiltersON = [&](const auto& chunksList) {
 						for (auto* pChunk: chunksList) {
-							if (CanAcceptChunkForProcessing<true>(*pChunk, m_q))
+							if (CanAcceptChunkForProcessing<true>(*pChunk, m_queryInfo))
 								itemCount += pChunk->GetItemCount();
 						}
 					};
 
 					auto execWithFiltersOFF = [&](const auto& chunksList) {
 						for (auto* pChunk: chunksList) {
-							if (CanAcceptChunkForProcessing<false>(*pChunk, m_q))
+							if (CanAcceptChunkForProcessing<false>(*pChunk, m_queryInfo))
 								itemCount += pChunk->GetItemCount();
 						}
 					};
 
 					if (hasFilters) {
-						m_w.ForEachArchetype_NoMatch(m_q, [&](const Archetype& archetype) {
-							if (m_q.CheckConstraints<true>())
+						m_w.ForEachArchetype_NoMatch(m_queryInfo, [&](const Archetype& archetype) {
+							if (m_query.CheckConstraints<true>())
 								execWithFiltersON(archetype.m_chunks);
-							if (m_q.CheckConstraints<false>())
+							if (m_query.CheckConstraints<false>())
 								execWithFiltersON(archetype.m_chunksDisabled);
 						});
 					} else {
-						m_w.ForEachArchetype_NoMatch(m_q, [&](const Archetype& archetype) {
-							if (m_q.CheckConstraints<true>())
+						m_w.ForEachArchetype_NoMatch(m_queryInfo, [&](const Archetype& archetype) {
+							if (m_query.CheckConstraints<true>())
 								execWithFiltersOFF(archetype.m_chunks);
-							if (m_q.CheckConstraints<false>())
+							if (m_query.CheckConstraints<false>())
 								execWithFiltersOFF(archetype.m_chunksDisabled);
 						});
 					}
@@ -11165,7 +11471,7 @@ namespace gaia {
 					const size_t itemCount = CalculateItemCount();
 					outArray.reserve(itemCount);
 
-					const bool hasFilters = m_q.HasFilters();
+					const bool hasFilters = m_queryInfo.HasFilters();
 
 					auto addChunk = [&](Chunk* pChunk) {
 						const auto componentView = pChunk->template View<ContainerItemType>();
@@ -11175,30 +11481,30 @@ namespace gaia {
 
 					auto execWithFiltersON = [&](const auto& chunksList) {
 						for (auto* pChunk: chunksList) {
-							if (CanAcceptChunkForProcessing<true>(*pChunk, m_q))
+							if (CanAcceptChunkForProcessing<true>(*pChunk, m_queryInfo))
 								addChunk(pChunk);
 						}
 					};
 
 					auto execWithFiltersOFF = [&](const auto& chunksList) {
 						for (auto* pChunk: chunksList) {
-							if (CanAcceptChunkForProcessing<false>(*pChunk, m_q))
+							if (CanAcceptChunkForProcessing<false>(*pChunk, m_queryInfo))
 								addChunk(pChunk);
 						}
 					};
 
 					if (hasFilters) {
-						m_w.ForEachArchetype_NoMatch(m_q, [&](const Archetype& archetype) {
-							if (m_q.CheckConstraints<true>())
+						m_w.ForEachArchetype_NoMatch(m_queryInfo, [&](const Archetype& archetype) {
+							if (m_query.CheckConstraints<true>())
 								execWithFiltersON(archetype.m_chunks);
-							if (m_q.CheckConstraints<false>())
+							if (m_query.CheckConstraints<false>())
 								execWithFiltersON(archetype.m_chunksDisabled);
 						});
 					} else {
-						m_w.ForEachArchetype_NoMatch(m_q, [&](const Archetype& archetype) {
-							if (m_q.CheckConstraints<true>())
+						m_w.ForEachArchetype_NoMatch(m_queryInfo, [&](const Archetype& archetype) {
+							if (m_query.CheckConstraints<true>())
 								execWithFiltersOFF(archetype.m_chunks);
-							if (m_q.CheckConstraints<false>())
+							if (m_query.CheckConstraints<false>())
 								execWithFiltersOFF(archetype.m_chunksDisabled);
 						});
 					}
@@ -11215,34 +11521,34 @@ namespace gaia {
 					const size_t itemCount = CalculateItemCount();
 					outArray.reserve(itemCount);
 
-					const bool hasFilters = m_q.HasFilters();
+					const bool hasFilters = m_queryInfo.HasFilters();
 
 					auto execWithFiltersON = [&](const auto& chunksList) {
 						for (auto* pChunk: chunksList) {
-							if (CanAcceptChunkForProcessing<true>(*pChunk, m_q))
+							if (CanAcceptChunkForProcessing<true>(*pChunk, m_queryInfo))
 								outArray.push_back(pChunk);
 						}
 					};
 
 					auto execWithFiltersOFF = [&](const auto& chunksList) {
 						for (auto* pChunk: chunksList) {
-							if (CanAcceptChunkForProcessing<false>(*pChunk, m_q))
+							if (CanAcceptChunkForProcessing<false>(*pChunk, m_queryInfo))
 								outArray.push_back(pChunk);
 						}
 					};
 
 					if (hasFilters) {
-						m_w.ForEachArchetype_NoMatch(m_q, [&](const Archetype& archetype) {
-							if (m_q.CheckConstraints<true>())
+						m_w.ForEachArchetype_NoMatch(m_queryInfo, [&](const Archetype& archetype) {
+							if (m_query.CheckConstraints<true>())
 								execWithFiltersON(archetype.m_chunks);
-							if (m_q.CheckConstraints<false>())
+							if (m_query.CheckConstraints<false>())
 								execWithFiltersON(archetype.m_chunksDisabled);
 						});
 					} else {
-						m_w.ForEachArchetype_NoMatch(m_q, [&](const Archetype& archetype) {
-							if (m_q.CheckConstraints<true>())
+						m_w.ForEachArchetype_NoMatch(m_queryInfo, [&](const Archetype& archetype) {
+							if (m_query.CheckConstraints<true>())
 								execWithFiltersOFF(archetype.m_chunks);
-							if (m_q.CheckConstraints<false>())
+							if (m_query.CheckConstraints<false>())
 								execWithFiltersOFF(archetype.m_chunksDisabled);
 						});
 					}
@@ -11250,8 +11556,13 @@ namespace gaia {
 			};
 
 			GAIA_NODISCARD QueryResult FromQuery(EntityQuery& query) {
-				query.Match(m_archetypes);
-				return QueryResult(*this, query);
+				EntityQueryInfo::LookupCtx ctx;
+				query.Commit(ctx);
+
+				auto& queryInfo = m_cachedQueries.GetOrCreate(query, std::move(ctx));
+				queryInfo.Match(m_archetypes);
+
+				return QueryResult(*this, query, queryInfo);
 			}
 
 			//--------------------------------------------------------------------------------
