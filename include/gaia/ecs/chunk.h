@@ -18,12 +18,10 @@
 
 namespace gaia {
 	namespace ecs {
-		extern const ComponentInfo& GetComponentInfo(ComponentId componentId);
-		extern const ComponentDesc& GetComponentDesc(ComponentId componentId);
-		extern const ComponentIdList&
-		GetArchetypeComponentInfoList(const Archetype& archetype, ComponentType componentType);
-		extern const ComponentOffsetList&
-		GetArchetypeComponentOffsetList(const Archetype& archetype, ComponentType componentType);
+		const ComponentInfo& GetComponentInfo(ComponentId componentId);
+		const ComponentDesc& GetComponentDesc(ComponentId componentId);
+		const ComponentIdList& GetArchetypeComponentInfoList(const Archetype& archetype, ComponentType componentType);
+		const ComponentOffsetList& GetArchetypeComponentOffsetList(const Archetype& archetype, ComponentType componentType);
 
 		class Chunk final {
 		public:
@@ -299,7 +297,7 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD auto View() const {
 				using U = typename DeduceComponent<T>::Type;
-				
+
 				return utils::auto_view_policy_get<std::add_const_t<U>>{{View_Internal<T>()}};
 			}
 
