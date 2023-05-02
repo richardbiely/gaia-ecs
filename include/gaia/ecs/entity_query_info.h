@@ -125,8 +125,6 @@ namespace gaia {
 			//! Version of the world for which the query has been called most recently
 			uint32_t m_worldVersion = 0;
 
-			// EntityQueryInfo() = default;
-
 			void SetWorldVersion(uint32_t version) {
 				m_worldVersion = version;
 			}
@@ -198,6 +196,17 @@ namespace gaia {
 				}
 			}
 
+			static void CalculateMatcherHashes(LookupCtx& ctx) {
+				// Sort the arrays if necessary
+				SortComponentArrays(ctx);
+
+				// Calculate the matcher hash
+				for (auto& l: ctx.list) {
+					for (size_t i = 0; i < ListType::LT_Count; ++i)
+						l.hash[i] = CalculateMatcherHash(l.componentIds[i]);
+				}
+			}
+
 			static void CalculateLookupHash(LookupCtx& ctx) {
 				// Make sure we don't calculate the hash twice
 				GAIA_ASSERT(ctx.hashLookup.hash == 0);
@@ -233,17 +242,6 @@ namespace gaia {
 				}
 
 				ctx.hashLookup = {utils::calculate_hash64(hashLookup)};
-			}
-
-			static void CalculateMatcherHashes(LookupCtx& ctx) {
-				// Sort the arrays if necessary
-				SortComponentArrays(ctx);
-
-				// Calculate the matcher hash
-				for (auto& l: ctx.list) {
-					for (size_t i = 0; i < ListType::LT_Count; ++i)
-						l.hash[i] = CalculateMatcherHash(l.componentIds[i]);
-				}
 			}
 
 			//! Tries to match component ids in \param componentIdsQuery with those in \param componentIds.
