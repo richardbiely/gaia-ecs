@@ -1,9 +1,11 @@
 #pragma once
+#include "../config/config.h"
 
-#if __cpp_lib_span
+#define USE_SPAN GAIA_USE_STL_CONTAINERS
+
+#if USE_SPAN && __cpp_lib_span
 	#include <span>
 #else
-	// Workaround for pre-C++20 compilers <span>
 	#include "../external/span.hpp"
 namespace std {
 	using tcb::span;
