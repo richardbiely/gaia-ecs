@@ -22,6 +22,8 @@ namespace gaia {
 			using difference_type = std::ptrdiff_t;
 			using size_type = decltype(N);
 
+			static constexpr size_type extent = N;
+
 		private:
 			T m_data[N != 0U ? N : 1]; // support zero-size arrays
 			size_type m_pos;
