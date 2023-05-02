@@ -1,6 +1,6 @@
 #pragma once
+#include "../config/config_core_end.h"
 #include "entity_query.h"
-#include "gaia/config/config_core_end.h"
 
 namespace gaia {
 	namespace ecs {
@@ -9,6 +9,7 @@ namespace gaia {
 
 		public:
 			EntityQueryCache() = default;
+			~EntityQueryCache() = default;
 
 			EntityQueryCache(EntityQueryCache&&) = delete;
 			EntityQueryCache(const EntityQueryCache&) = delete;

@@ -11,8 +11,8 @@
 #include "component.h"
 #include "component_cache.h"
 #include "component_utils.h"
+#include "data_buffer.h"
 #include "entity_query_info.h"
-#include "gaia/ecs/fwd.h"
 
 namespace gaia {
 	namespace ecs {
@@ -25,87 +25,21 @@ namespace gaia {
 
 		private:
 			friend class World;
-			using DataBuffer = containers::darray<uint8_t>;
 
 			//! Command buffer command type
 			enum CommandBufferCmd : uint8_t { ALL, ANY, NONE, ADD_FILTER };
-
-			class CommandBuffer {
-				//! Buffer holding raw data
-				DataBuffer m_data;
-				//! Current position in the buffer
-				uint32_t m_dataPos = 0;
-
-			public:
-				CommandBuffer() {
-					m_data.reserve(256);
-				}
-
-				void Reset() {
-					m_dataPos = 0;
-					m_data.clear();
-				}
-
-				//! Returns the number of bytes written in the buffer
-				GAIA_NODISCARD uint32_t Size() const {
-					return (uint32_t)m_data.size();
-				}
-
-				//! Changes the current position in the buffer
-				void Seek(uint32_t pos) {
-					m_dataPos = pos;
-				}
-
-				GAIA_NODISCARD uint32_t GetPos() const {
-					return m_dataPos;
-				}
-
-				template <typename T>
-				void Save(T&& value) {
-					// When adding data, if what we add is exactly the same as the buffer type, we can simply push_back
-					if constexpr (
-							sizeof(T) == sizeof(DataBuffer::value_type) ||
-							(std::is_enum_v<T> && std::is_same_v<std::underlying_type<T>, DataBuffer::value_type>)) {
-						m_data.push_back(std::forward<T>(value));
-					}
-					// When the data type does not match the buffer type, we perform a memory safe operation
-					else {
-						const auto lastIndex = m_data.size();
-						m_data.resize(lastIndex + sizeof(T));
-
-						utils::unaligned_ref<T> mem(&m_data[lastIndex]);
-						mem = std::forward<T>(value);
-					}
-				}
-
-				template <typename T>
-				void Load(T& value) {
-					// When adding data, if what we add is exactly the same as the buffer type, we can simply push_back
-					if constexpr (
-							sizeof(T) == sizeof(DataBuffer::value_type) ||
-							(std::is_enum_v<T> && std::is_same_v<std::underlying_type<T>, DataBuffer::value_type>)) {
-						value = (T)m_data[m_dataPos];
-					}
-					// When the data type does not match the buffer type, we perform a memory safe operation
-					else {
-						value = utils::unaligned_ref<T>((void*)&m_data[m_dataPos]);
-					}
-
-					m_dataPos += sizeof(T);
-				}
-			};
 
 			struct Command_Base {
 				ComponentId componentId;
 				ComponentType componentType;
 				bool isReadWrite;
 
-				void Save(CommandBuffer& buffer) {
+				void Save(DataBuffer& buffer) {
 					buffer.Save(componentId);
 					buffer.Save(componentType);
 					buffer.Save(isReadWrite);
 				}
-				void Load(CommandBuffer& buffer) {
+				void Load(DataBuffer& buffer) {
 					buffer.Load(componentId);
 					buffer.Load(componentType);
 					buffer.Load(isReadWrite);
@@ -164,11 +98,11 @@ namespace gaia {
 				ComponentId componentId;
 				ComponentType componentType;
 
-				void Save(CommandBuffer& buffer) {
+				void Save(DataBuffer& buffer) {
 					buffer.Save(componentId);
 					buffer.Save(componentType);
 				}
-				void Load(CommandBuffer& buffer) {
+				void Load(DataBuffer& buffer) {
 					buffer.Load(componentId);
 					buffer.Load(componentType);
 				}
@@ -217,34 +151,34 @@ namespace gaia {
 				}
 			};
 
-			using CmdBufferCmdFunc = void (*)(CommandBuffer& buffer, EntityQueryInfo::LookupCtx& ctx);
+			using CmdBufferCmdFunc = void (*)(DataBuffer& buffer, EntityQueryInfo::LookupCtx& ctx);
 			static constexpr CmdBufferCmdFunc CommandBufferRead[] = {
 					// All
-					[](CommandBuffer& buffer, EntityQueryInfo::LookupCtx& ctx) {
+					[](DataBuffer& buffer, EntityQueryInfo::LookupCtx& ctx) {
 						Command_All cmd;
 						cmd.Load(buffer);
 						cmd.Exec(ctx);
 					},
 					// Any
-					[](CommandBuffer& buffer, EntityQueryInfo::LookupCtx& ctx) {
+					[](DataBuffer& buffer, EntityQueryInfo::LookupCtx& ctx) {
 						Command_Any cmd;
 						cmd.Load(buffer);
 						cmd.Exec(ctx);
 					},
 					// None
-					[](CommandBuffer& buffer, EntityQueryInfo::LookupCtx& ctx) {
+					[](DataBuffer& buffer, EntityQueryInfo::LookupCtx& ctx) {
 						Command_None cmd;
 						cmd.Load(buffer);
 						cmd.Exec(ctx);
 					},
 					// Add filter
-					[](CommandBuffer& buffer, EntityQueryInfo::LookupCtx& ctx) {
+					[](DataBuffer& buffer, EntityQueryInfo::LookupCtx& ctx) {
 						Command_Filter cmd;
 						cmd.Load(buffer);
 						cmd.Exec(ctx);
 					}};
 
-			CommandBuffer m_cmdBuffer;
+			DataBuffer m_cmdBuffer;
 			//! Lookup hash for this query
 			EntityQueryInfo::LookupHash m_hashLookup{};
 			//! Query cache id
@@ -380,9 +314,8 @@ namespace gaia {
 					return;
 				}
 
-				// Read data from buffer andd fill the context with data
+				// Read data from buffer and execute the command stored in it
 				m_cmdBuffer.Seek(0);
-
 				while (m_cmdBuffer.GetPos() < m_cmdBuffer.Size()) {
 					CommandBufferCmd id{};
 					m_cmdBuffer.Load(id);

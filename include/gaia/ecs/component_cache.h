@@ -61,7 +61,7 @@ namespace gaia {
 					const auto oldSize = m_infoByIndex.size();
 					const auto newSize = componentId + 1U;
 
-					// Increase the capacity by multiples of 128
+					// Increase the capacity by multiples of CapacityIncreaseSize
 					constexpr uint32_t CapacityIncreaseSize = 128;
 					const auto newCapacity = (newSize / CapacityIncreaseSize) * CapacityIncreaseSize + CapacityIncreaseSize;
 					m_infoByIndex.reserve(newCapacity);
