@@ -15,12 +15,7 @@ namespace gaia {
 	namespace ecs {
 		class World;
 
-		const ComponentCache& GetComponentCache();
-		ComponentCache& GetComponentCacheRW();
-
-		uint32_t GetWorldVersionFromWorld(const World& world);
-		void* AllocateChunkMemory(World& world);
-		void ReleaseChunkMemory(World& world, void* mem);
+		const uint32_t& GetWorldVersionFromWorld(const World& world);
 
 		class Archetype final {
 		public:
@@ -70,7 +65,9 @@ namespace gaia {
 			//! Hash of components within this archetype - used for matching
 			ComponentMatcherHash m_matcherHash[ComponentType::CT_Count] = {0};
 			//! Archetype ID - used to address the archetype directly in the world's list or archetypes
-			uint32_t id = 0;
+			uint32_t m_archetypeId = 0;
+			//! Reference to the parent world's version number
+			const uint32_t& m_worldVersion;
 			struct {
 				//! The number of entities this archetype can take (e.g 5 = 5 entities with all their components)
 				uint32_t capacity : 16;
@@ -83,7 +80,7 @@ namespace gaia {
 			} m_properties{};
 
 			// Constructor is hidden. Create archetypes via Create
-			Archetype() = default;
+			Archetype(const uint32_t& worldVersion): m_worldVersion(worldVersion){};
 
 			Archetype(Archetype&& world) = delete;
 			Archetype(const Archetype& world) = delete;
@@ -96,35 +93,15 @@ namespace gaia {
 			}
 
 			/*!
-			Allocates memory for a new chunk.
-			\param archetype Archetype of the chunk we want to allocate
-			\return Newly allocated chunk
-			*/
-			GAIA_NODISCARD static Chunk* AllocateChunk(const Archetype& archetype) {
-#if GAIA_ECS_CHUNK_ALLOCATOR
-				auto& world = const_cast<World&>(*archetype.m_pParentWorld);
-
-				auto* pChunk = (Chunk*)AllocateChunkMemory(world);
-				new (pChunk) Chunk(archetype);
-#else
-				auto pChunk = new Chunk(archetype);
-#endif
-
-				pChunk->m_header.capacity = archetype.m_properties.capacity;
-				return pChunk;
-			}
-
-			/*!
 			Releases all memory allocated by \param pChunk.
 			\param pChunk Chunk which we want to destroy
 			*/
-			static void ReleaseChunk(Chunk* pChunk) {
-				const auto& archetype = pChunk->m_header.owner;
-				const auto& cc = GetComponentCache();
+			void ReleaseChunk(Chunk* pChunk) const {
+				const auto& cc = ComponentCache::Get();
 
 				auto callDestructors = [&](ComponentType componentType) {
-					const auto& componentIds = archetype.m_componentIds[componentType];
-					const auto& offsets = archetype.m_componentOffsets[componentType];
+					const auto& componentIds = m_componentIds[componentType];
+					const auto& offsets = m_componentOffsets[componentType];
 					const auto itemCount = componentType == ComponentType::CT_Generic ? pChunk->GetItemCount() : 1U;
 					for (size_t i = 0; i < componentIds.size(); ++i) {
 						const auto componentId = componentIds[i];
@@ -137,24 +114,18 @@ namespace gaia {
 				};
 
 				// Call destructors for components that need it
-				if (archetype.m_properties.hasGenericComponentWithCustomDestruction == 1)
+				if (m_properties.hasGenericComponentWithCustomDestruction == 1)
 					callDestructors(ComponentType::CT_Generic);
-				if (archetype.m_properties.hasChunkComponentWithCustomDestruction == 1)
+				if (m_properties.hasChunkComponentWithCustomDestruction == 1)
 					callDestructors(ComponentType::CT_Chunk);
 
-#if GAIA_ECS_CHUNK_ALLOCATOR
-				auto& world = const_cast<World&>(*archetype.m_pParentWorld);
-				pChunk->~Chunk();
-				ReleaseChunkMemory(world, pChunk);
-#else
-				delete pChunk;
-#endif
+				Chunk::Release(pChunk);
 			}
 
 			GAIA_NODISCARD static Archetype*
-			Create(World& pWorld, ComponentIdSpan componentIdsGeneric, ComponentIdSpan componentIdsChunk) {
-				auto* newArch = new Archetype();
-				newArch->m_pParentWorld = &pWorld;
+			Create(World& world, ComponentIdSpan componentIdsGeneric, ComponentIdSpan componentIdsChunk) {
+				auto* newArch = new Archetype(GetWorldVersionFromWorld(world));
+				newArch->m_pParentWorld = &world;
 
 #if GAIA_ARCHETYPE_GRAPH
 				// Preallocate arrays for graph edges
@@ -166,7 +137,7 @@ namespace gaia {
 				newArch->m_edgesDel[ComponentType::CT_Chunk].reserve(1);
 #endif
 
-				const auto& cc = GetComponentCache();
+				const auto& cc = ComponentCache::Get();
 
 				// Size of the entity + all of its generic components
 				size_t genericComponentListSize = sizeof(Entity);
@@ -276,11 +247,12 @@ namespace gaia {
 					} while (i-- > 0);
 				}
 
-				GAIA_ASSERT(chunkCnt < (uint32_t)UINT16_MAX);
+				GAIA_ASSERT(chunkCnt < UINT16_MAX);
 
-				// No free space found anywhere. Let's create a new one.
-				auto* pChunk = AllocateChunk(*this);
-				pChunk->m_header.index = (uint16_t)chunkCnt;
+				// No free space found anywhere. Let's create a new chunk.
+				auto* pChunk = Chunk::Create(
+						m_archetypeId, (uint16_t)chunkCnt, m_worldVersion, m_properties.capacity, m_componentIds, m_componentOffsets);
+
 				chunkArray.push_back(pChunk);
 				return pChunk;
 			}
@@ -295,7 +267,7 @@ namespace gaia {
 			//! If not found a new chunk is created
 			GAIA_NODISCARD Chunk* FindOrCreateFreeChunkDisabled() {
 				auto* pChunk = FindOrCreateFreeChunk_Internal(m_chunksDisabled);
-				pChunk->m_header.disabled = true;
+				pChunk->SetDisabled(true);
 				return pChunk;
 			}
 
@@ -305,13 +277,13 @@ namespace gaia {
 			*/
 			void RemoveChunk(Chunk* pChunk) {
 				const bool isDisabled = pChunk->IsDisabled();
-				const auto chunkIndex = pChunk->m_header.index;
+				const auto chunkIndex = pChunk->GetChunkIndex();
 
 				ReleaseChunk(pChunk);
 
 				auto remove = [&](auto& chunkArray) {
 					if (chunkArray.size() > 1)
-						chunkArray.back()->m_header.index = chunkIndex;
+						chunkArray.back()->SetChunkIndex(chunkIndex);
 					GAIA_ASSERT(chunkIndex == utils::get_index(chunkArray, pChunk));
 					utils::erase_fast(chunkArray, chunkIndex);
 				};
@@ -379,6 +351,20 @@ namespace gaia {
 				m_lookupHash = hashLookup;
 			}
 
+			void SetStructuralChanges(bool value) {
+				if (value) {
+					GAIA_ASSERT(m_properties.structuralChangesLocked < 16);
+					++m_properties.structuralChangesLocked;
+				} else {
+					GAIA_ASSERT(m_properties.structuralChangesLocked > 0);
+					--m_properties.structuralChangesLocked;
+				}
+			}
+
+			bool IsStructuralChangesLock() const {
+				return m_properties.structuralChangesLocked != 0;
+			}
+
 			GAIA_NODISCARD const World& GetWorld() const {
 				return *m_pParentWorld;
 			}
@@ -395,7 +381,7 @@ namespace gaia {
 				return m_matcherHash[componentType];
 			}
 
-			GAIA_NODISCARD const ComponentIdList& GetComponentInfoList(ComponentType componentType) const {
+			GAIA_NODISCARD const ComponentIdList& GetComponentIdList(ComponentType componentType) const {
 				return m_componentIds[componentType];
 			}
 
@@ -424,38 +410,41 @@ namespace gaia {
 			}
 
 		private:
+			/*!
+			Checks if a component with \param componentId and type \param componentType is present in the archetype.
+			\param componentId Component id
+			\param componentType Component type
+			\return True if found. False otherwise.
+			*/
+			GAIA_NODISCARD bool HasComponent_Internal(ComponentType componentType, uint32_t componentId) const {
+				const auto& componentIds = GetComponentIdList(componentType);
+				return utils::has(componentIds, componentId);
+			}
+
+			/*!
+			Checks if a component of type \tparam T is present in the archetype.
+			\return True if found. False otherwise.
+			*/
 			template <typename T>
 			GAIA_NODISCARD bool HasComponent_Internal() const {
 				const auto componentId = GetComponentId<T>();
 
 				if constexpr (IsGenericComponent<T>) {
-					return utils::has(GetComponentInfoList(ComponentType::CT_Generic), componentId);
+					return HasComponent_Internal(ComponentType::CT_Generic, componentId);
 				} else {
-					return utils::has(GetComponentInfoList(ComponentType::CT_Chunk), componentId);
+					return HasComponent_Internal(ComponentType::CT_Chunk, componentId);
 				}
 			}
 		};
-
-		GAIA_NODISCARD inline uint32_t GetWorldVersionFromArchetype(const Archetype& archetype) {
-			return archetype.GetWorldVersion();
-		}
 
 		GAIA_NODISCARD inline ComponentMatcherHash
 		GetArchetypeMatcherHash(const Archetype& archetype, ComponentType componentType) {
 			return archetype.GetMatcherHash(componentType);
 		}
 
-		GAIA_NODISCARD inline const ComponentInfo& GetComponentInfo(ComponentId componentId) {
-			return GetComponentCache().GetComponentInfo(componentId);
-		}
-
-		GAIA_NODISCARD inline const ComponentDesc& GetComponentDesc(ComponentId componentId) {
-			return GetComponentCache().GetComponentDesc(componentId);
-		}
-
 		GAIA_NODISCARD inline const ComponentIdList&
 		GetArchetypeComponentInfoList(const Archetype& archetype, ComponentType componentType) {
-			return archetype.GetComponentInfoList(componentType);
+			return archetype.GetComponentIdList(componentType);
 		}
 
 		GAIA_NODISCARD inline const ComponentOffsetList&

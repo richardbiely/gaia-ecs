@@ -9,20 +9,15 @@
 #include "../ecs/component.h"
 #include "../utils/mem.h"
 #include "../utils/utility.h"
-#include "archetype.h"
 #include "chunk_allocator.h"
 #include "chunk_header.h"
 #include "common.h"
+#include "component_cache.h"
 #include "entity.h"
 #include "fwd.h"
 
 namespace gaia {
 	namespace ecs {
-		const ComponentInfo& GetComponentInfo(ComponentId componentId);
-		const ComponentDesc& GetComponentDesc(ComponentId componentId);
-		const ComponentIdList& GetArchetypeComponentInfoList(const Archetype& archetype, ComponentType componentType);
-		const ComponentOffsetList& GetArchetypeComponentOffsetList(const Archetype& archetype, ComponentType componentType);
-
 		class Chunk final {
 		public:
 			//! Size of data at the end of the chunk reserved for special purposes
@@ -35,34 +30,32 @@ namespace gaia {
 
 		private:
 			friend class World;
-			friend class Archetype;
 			friend class CommandBuffer;
 
-			//! Archetype header with info about the archetype
+			//! Chunk header
 			ChunkHeader m_header;
-			//! Archetype data. Entities first, followed by a lists of components.
+			//! Chunk data (entites + components)
 			uint8_t m_data[DATA_SIZE_NORESERVE];
 
 			GAIA_MSVC_WARNING_PUSH()
 			GAIA_MSVC_WARNING_DISABLE(26495)
 
-			Chunk(const Archetype& archetype): m_header(archetype) {}
+			Chunk(
+					uint32_t archetypeId, uint16_t chunkIndex, const uint32_t& worldVersion, uint16_t capacity,
+					const containers::sarray<ComponentIdList, ComponentType::CT_Count>& componentIds,
+					const containers::sarray<ComponentOffsetList, ComponentType::CT_Count>& componentOffsets):
+					m_header(worldVersion) {
+				m_header.archetypeId = archetypeId;
+				m_header.index = chunkIndex;
+				m_header.capacity = capacity;
+				m_header.componentIds = componentIds;
+				m_header.componentOffsets = componentOffsets;
+			}
 
 			GAIA_MSVC_WARNING_POP()
 
 			/*!
-			Checks if a component is present in the archetype based on the provided \param componentId.
-			\param componentId Component id
-			\param componentType Component type
-			\return True if found. False otherwise.
-			*/
-			GAIA_NODISCARD bool HasComponent_Internal(ComponentType componentType, uint32_t componentId) const {
-				const auto& componentIds = GetArchetypeComponentInfoList(m_header.owner, componentType);
-				return utils::has(componentIds, componentId);
-			}
-
-			/*!
-			Make the \param entity entity a part of the chunk.
+			Make the \param entity entity a part of the chunk at the version of the world
 			\return Index of the entity within the chunk.
 			*/
 			GAIA_NODISCARD uint32_t AddEntity(Entity entity) {
@@ -78,7 +71,9 @@ namespace gaia {
 			/*!
 			Remove the entity at \param index from the \param entities array.
 			*/
-			void RemoveEntity(uint32_t index, containers::darray<EntityContainer>& entities) {
+			void RemoveEntity(
+					uint32_t index, containers::darray<EntityContainer>& entities, const ComponentIdList& componentIds,
+					const ComponentOffsetList& offsets) {
 				// Ignore requests on empty chunks
 				if (m_header.count == 0)
 					return;
@@ -93,11 +88,8 @@ namespace gaia {
 					const auto entity = GetEntity(m_header.count - 1);
 					SetEntity(index, entity);
 
-					const auto& componentIds = GetArchetypeComponentInfoList(m_header.owner, ComponentType::CT_Generic);
-					const auto& offsets = GetArchetypeComponentOffsetList(m_header.owner, ComponentType::CT_Generic);
-
 					for (size_t i = 0; i < componentIds.size(); i++) {
-						const auto& desc = GetComponentDesc(componentIds[i]);
+						const auto& desc = ComponentCache::Get().GetComponentDesc(componentIds[i]);
 						if (desc.properties.size == 0U)
 							continue;
 
@@ -160,7 +152,18 @@ namespace gaia {
 			}
 
 			/*!
-			Returns a pointer do component data with read-only access.
+			Checks if a component with \param componentId and type \param componentType is present in the archetype.
+			\param componentId Component id
+			\param componentType Component type
+			\return True if found. False otherwise.
+			*/
+			GAIA_NODISCARD bool HasComponent_Internal(ComponentType componentType, uint32_t componentId) const {
+				const auto& componentIds = m_header.componentIds[componentType];
+				return utils::has(componentIds, componentId);
+			}
+
+			/*!
+			Returns a pointer to component data with read-only access.
 			\param componentType Component type
 			\param componentId Component id
 			\return Const pointer to component data.
@@ -170,8 +173,8 @@ namespace gaia {
 				// Searching for a component that's not there! Programmer mistake.
 				GAIA_ASSERT(HasComponent_Internal(componentType, componentId));
 
-				const auto& componentIds = GetArchetypeComponentInfoList(m_header.owner, componentType);
-				const auto& offsets = GetArchetypeComponentOffsetList(m_header.owner, componentType);
+				const auto& componentIds = m_header.componentIds[componentType];
+				const auto& offsets = m_header.componentOffsets[componentType];
 				const auto idx = (uint32_t)utils::get_index_unsafe(componentIds, componentId);
 
 				return (const uint8_t*)&m_data[offsets[idx]];
@@ -191,14 +194,15 @@ namespace gaia {
 				// Searching for a component that's not there! Programmer mistake.
 				GAIA_ASSERT(HasComponent_Internal(componentType, componentId));
 				// Don't use this with empty components. It's impossible to write to them anyway.
-				GAIA_ASSERT(GetComponentDesc(componentId).properties.size != 0);
+				GAIA_ASSERT(ComponentCache::Get().GetComponentDesc(componentId).properties.size != 0);
 
-				const auto& componentIds = GetArchetypeComponentInfoList(m_header.owner, componentType);
-				const auto& offsets = GetArchetypeComponentOffsetList(m_header.owner, componentType);
+				const auto& componentIds = m_header.componentIds[componentType];
+				const auto& offsets = m_header.componentOffsets[componentType];
 				const auto idx = (uint32_t)utils::get_index_unsafe(componentIds, componentId);
 
 				if constexpr (UpdateWorldVersion) {
 					// Update version number so we know RW access was used on chunk
+					// TODO: Broken. World version is set to a component index rather than a proper for version number.
 					m_header.UpdateWorldVersion(componentType, idx);
 				}
 
@@ -281,11 +285,31 @@ namespace gaia {
 
 		public:
 			/*!
-			Returns the parent archetype.
-			\return Parent archetype
+			Allocates memory for a new chunk.
+			\param chunkIndex Index of this chunk within the parent archetype
+			\return Newly allocated chunk
 			*/
-			const Archetype& GetArchetype() const {
-				return m_header.owner;
+			static Chunk* Create(
+					uint32_t archetypeId, uint16_t chunkIndex, const uint32_t& worldVersion, uint16_t capacity,
+					const containers::sarray<ComponentIdList, ComponentType::CT_Count>& componentIds,
+					const containers::sarray<ComponentOffsetList, ComponentType::CT_Count>& componentOffsets) {
+#if GAIA_ECS_CHUNK_ALLOCATOR
+				auto* pChunk = (Chunk*)ChunkAllocator::Get().Allocate();
+				new (pChunk) Chunk(archetypeId, chunkIndex, worldVersion, capacity, componentIds, componentOffsets);
+#else
+				auto pChunk = new Chunk(archetypeId, chunkIndex, worldVersion, capacity, componentIds, componentOffsets);
+#endif
+
+				return pChunk;
+			}
+
+			static void Release(Chunk* pChunk) {
+#if GAIA_ECS_CHUNK_ALLOCATOR
+				pChunk->~Chunk();
+				ChunkAllocator::Get().Release(pChunk);
+#else
+				delete pChunk;
+#endif
 			}
 
 			/*!
@@ -457,6 +481,31 @@ namespace gaia {
 			}
 
 			//----------------------------------------------------------------------
+
+			GAIA_NODISCARD uint32_t GetArchetypeId() const {
+				return m_header.archetypeId;
+			}
+
+			void SetChunkIndex(uint16_t value) {
+				m_header.index = value;
+			}
+
+			GAIA_NODISCARD uint16_t GetChunkIndex() const {
+				return m_header.index;
+			}
+
+			void SetDisabled(bool value) {
+				m_header.disabled = value;
+			}
+
+			GAIA_NODISCARD bool GetDisabled() const {
+				return m_header.disabled;
+			}
+
+			//! Checks is this chunk is dying
+			GAIA_NODISCARD bool IsDying() const {
+				return m_header.lifespan > 0;
+			}
 
 			//! Checks is this chunk is disabled
 			GAIA_NODISCARD bool IsDisabled() const {

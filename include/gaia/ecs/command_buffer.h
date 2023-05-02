@@ -56,7 +56,7 @@ namespace gaia {
 				m_data.Save(entity);
 
 				// Components
-				const auto& infoToAdd = GetComponentCacheRW().GetOrCreateComponentInfo<T>();
+				const auto& infoToAdd = ComponentCache::Get().GetOrCreateComponentInfo<T>();
 				m_data.Save(infoToAdd.componentId);
 			}
 
@@ -76,7 +76,7 @@ namespace gaia {
 			template <typename T>
 			void SetComponentNoEntity_Internal(T&& data) {
 				// Register components
-				(void)GetComponentCacheRW().GetOrCreateComponentInfo<T>();
+				(void)ComponentCache::Get().GetOrCreateComponentInfo<T>();
 
 				// Data
 				SetComponentNoEntityNoSize_Internal(std::forward<T>(data));
@@ -97,7 +97,7 @@ namespace gaia {
 				m_data.Save(entity);
 
 				// Components
-				const auto& typeToRemove = GetComponentCache().GetComponentInfo<T>();
+				const auto& typeToRemove = ComponentCache::Get().GetComponentInfo<T>();
 				m_data.Save(typeToRemove.componentId);
 			}
 
@@ -341,7 +341,7 @@ namespace gaia {
 						ComponentId componentId{};
 						ctx.data.Load(componentId);
 
-						const auto& newInfo = GetComponentCache().GetComponentInfo(componentId);
+						const auto& newInfo = ComponentCache::Get().GetComponentInfo(componentId);
 						ctx.world.AddComponent_Internal(componentType, entity, newInfo);
 
 						uint32_t indexInChunk{};
@@ -362,8 +362,8 @@ namespace gaia {
 						(void)componentId2;
 
 						// Components
-						const auto& newInfo = GetComponentCache().GetComponentInfo(componentId);
-						const auto& newDesc = GetComponentCache().GetComponentDesc(componentId);
+						const auto& newInfo = ComponentCache::Get().GetComponentInfo(componentId);
+						const auto& newDesc = ComponentCache::Get().GetComponentDesc(componentId);
 						ctx.world.AddComponent_Internal(componentType, entity, newInfo);
 
 						uint32_t indexInChunk{};
@@ -394,7 +394,7 @@ namespace gaia {
 						Entity entity = it->second;
 
 						// Components
-						const auto& newInfo = GetComponentCache().GetComponentInfo(componentId);
+						const auto& newInfo = ComponentCache::Get().GetComponentInfo(componentId);
 						ctx.world.AddComponent_Internal(componentType, entity, newInfo);
 
 						uint32_t indexInChunk{};
@@ -423,8 +423,8 @@ namespace gaia {
 						Entity entity = it->second;
 
 						// Components
-						const auto& newInfo = GetComponentCache().GetComponentInfo(componentId);
-						const auto& newDesc = GetComponentCache().GetComponentDesc(componentId);
+						const auto& newInfo = ComponentCache::Get().GetComponentInfo(componentId);
+						const auto& newDesc = ComponentCache::Get().GetComponentDesc(componentId);
 						ctx.world.AddComponent_Internal(componentType, entity, newInfo);
 
 						uint32_t indexInChunk{};
@@ -453,7 +453,7 @@ namespace gaia {
 
 						// Components
 						{
-							const auto& desc = GetComponentCache().GetComponentDesc(componentId);
+							const auto& desc = ComponentCache::Get().GetComponentDesc(componentId);
 
 							auto* pComponentDataStart = pChunk->GetDataPtrRW<false>(componentType, componentId);
 							auto* pComponentData = (void*)&pComponentDataStart[(size_t)indexInChunk * desc.properties.size];
@@ -483,7 +483,7 @@ namespace gaia {
 
 						// Components
 						{
-							const auto& desc = GetComponentCache().GetComponentDesc(componentId);
+							const auto& desc = ComponentCache::Get().GetComponentDesc(componentId);
 
 							auto* pComponentDataStart = pChunk->GetDataPtrRW<false>(componentType, componentId);
 							auto* pComponentData = (void*)&pComponentDataStart[(size_t)indexInChunk * desc.properties.size];
@@ -500,7 +500,7 @@ namespace gaia {
 						ctx.data.Load(componentId);
 
 						// Components
-						const auto& newInfo = GetComponentCache().GetComponentInfo(componentId);
+						const auto& newInfo = ComponentCache::Get().GetComponentInfo(componentId);
 						ctx.world.RemoveComponent_Internal(componentType, entity, newInfo);
 					}};
 

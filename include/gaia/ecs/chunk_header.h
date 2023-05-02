@@ -8,49 +8,46 @@
 
 namespace gaia {
 	namespace ecs {
-		uint32_t GetWorldVersionFromArchetype(const Archetype& archetype);
-
 		struct ChunkHeader final {
 		public:
-			//! [0-7] Archetype that created this chunk.
-			const Archetype& owner;
-#if !GAIA_64
-			uint32_t owner_padding;
-#endif
-			//! [8-9] Number of items in the chunk.
+			//! Archetype the chunk belongs to
+			uint32_t archetypeId;
+			//! Number of items in the chunk.
 			uint16_t count{};
-			//! [10-11] Capacity (copied from the owner archetype).
+			//! Capacity (copied from the owner archetype).
 			uint16_t capacity{};
-			//! [12-13] Chunk index in its archetype list
+			//! Chunk index in its archetype list
 			uint16_t index{};
-			//! [14-15] Once removal is requested and it hits 0 the chunk is removed.
+			//! Once removal is requested and it hits 0 the chunk is removed.
 			uint16_t lifespan : 15;
-			//! [1 bit on byte 15] If true this chunk stores disabled entities
+			//! If true this chunk stores disabled entities
 			uint16_t disabled : 1;
-			//! [16-272] Versions of individual components on chunk.
+			//! Description of components within this archetype (copied from the owner archetype)
+			containers::sarray<ComponentIdList, ComponentType::CT_Count> componentIds;
+			//! Lookup hashes of components within this archetype (copied from the owner archetype)
+			containers::sarray<ComponentOffsetList, ComponentType::CT_Count> componentOffsets;
+			//! Versions of individual components on chunk.
+			const uint32_t& worldVersion;
+			//! Versions of individual components on chunk.
 			uint32_t versions[ComponentType::CT_Count][MAX_COMPONENTS_PER_ARCHETYPE]{};
 
-			ChunkHeader(const Archetype& archetype): owner(archetype) {
+			ChunkHeader(const uint32_t& version): worldVersion(version) {
 				// Make sure the alignment is right
 				GAIA_ASSERT(uintptr_t(this) % 8 == 0);
 			}
 
 			GAIA_FORCEINLINE void UpdateWorldVersion(ComponentType componentType, uint32_t componentIdx) {
-				const auto gv = GetWorldVersionFromArchetype(owner);
-
 				// Make sure only proper input is provided
 				GAIA_ASSERT(componentIdx != UINT32_MAX && componentIdx < MAX_COMPONENTS_PER_ARCHETYPE);
 
 				// Update all components' version
-				versions[componentType][componentIdx] = gv;
+				versions[componentType][componentIdx] = worldVersion;
 			}
 
 			GAIA_FORCEINLINE void UpdateWorldVersion(ComponentType componentType) {
-				const auto gv = GetWorldVersionFromArchetype(owner);
-
 				// Update all components' version
 				for (size_t i = 0; i < MAX_COMPONENTS_PER_ARCHETYPE; i++)
-					versions[componentType][i] = gv;
+					versions[componentType][i] = worldVersion;
 			}
 		};
 	} // namespace ecs

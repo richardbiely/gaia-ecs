@@ -151,13 +151,5 @@ namespace gaia {
 				m_infoByHash.clear();
 			}
 		};
-
-		GAIA_NODISCARD inline const ComponentCache& GetComponentCache() {
-			return (const ComponentCache&)ComponentCache::Get();
-		}
-
-		GAIA_NODISCARD inline ComponentCache& GetComponentCacheRW() {
-			return ComponentCache::Get();
-		}
 	} // namespace ecs
 } // namespace gaia

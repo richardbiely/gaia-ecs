@@ -16,7 +16,6 @@
 #include "archetype.h"
 #include "chunk.h"
 #include "chunk_allocator.h"
-#include "command_buffer.h"
 #include "common.h"
 #include "component.h"
 #include "component_cache.h"
@@ -71,8 +70,6 @@ namespace gaia {
 			friend void* AllocateChunkMemory(World& world);
 			friend void ReleaseChunkMemory(World& world, void* mem);
 
-			//! Allocator used to allocate chunks
-			ChunkAllocator m_chunkAllocator;
 			//! Cache of entity queries
 			EntityQueryCache m_cachedQueries;
 			//! Map or archetypes mapping to the same hash - used for lookups
@@ -95,14 +92,6 @@ namespace gaia {
 
 			//! With every structural change world version changes
 			uint32_t m_worldVersion = 0;
-
-			GAIA_NODISCARD void* AllocateChunkMemory() {
-				return m_chunkAllocator.Allocate();
-			}
-
-			void ReleaseChunkMemory(void* mem) {
-				m_chunkAllocator.Release(mem);
-			}
 
 		public:
 			void UpdateWorldVersion() {
@@ -153,35 +142,34 @@ namespace gaia {
 			\param entityChunkIndex Index of entity within its chunk
 			*/
 			void RemoveEntity(Chunk* pChunk, uint32_t entityChunkIndex) {
+				const auto& archetype = *m_archetypes[pChunk->m_header.archetypeId];
+
 				GAIA_ASSERT(
-						!pChunk->m_header.owner.m_properties.structuralChangesLocked &&
+						!archetype.m_properties.structuralChangesLocked &&
 						"Entities can't be removed while chunk is being iterated "
 						"(structural changes are forbidden during this time!)");
 
-				pChunk->RemoveEntity(entityChunkIndex, m_entities);
+				pChunk->RemoveEntity(
+						entityChunkIndex, m_entities, archetype.GetComponentIdList(ComponentType::CT_Generic),
+						archetype.GetComponentOffsetList(ComponentType::CT_Generic));
 
-				if (
-						// Skip chunks which already requested removal
-						pChunk->m_header.lifespan > 0 ||
-						// Skip non-empty chunks
-						pChunk->HasEntities())
-					return;
+				if (!pChunk->IsDying() && !pChunk->HasEntities()) {
+					// When the chunk is emptied we want it to be removed. We can't do it
+					// right away and need to wait for world's GC to be called.
+					//
+					// However, we need to prevent the following:
+					//    1) chunk is emptied + add to some removal list
+					//    2) chunk is reclaimed
+					//    3) chunk is emptied again + add to some removal list again
+					//
+					// Therefore, we have a flag telling us the chunk is already waiting to
+					// be removed. The chunk might be reclaimed before GC happens but it
+					// simply ignores such requests. This way GC always has at most one
+					// record for removal for any given chunk.
+					pChunk->m_header.lifespan = MAX_CHUNK_LIFESPAN;
 
-				// When the chunk is emptied we want it to be removed. We can't do it
-				// right away and need to wait for world's GC to be called.
-				//
-				// However, we need to prevent the following:
-				//    1) chunk is emptied + add to some removal list
-				//    2) chunk is reclaimed
-				//    3) chunk is emptied again + add to some removal list again
-				//
-				// Therefore, we have a flag telling us the chunk is already waiting to
-				// be removed. The chunk might be reclaimed before GC happens but it
-				// simply ignores such requests. This way GC always has at most one
-				// record for removal for any given chunk.
-				pChunk->m_header.lifespan = MAX_CHUNK_LIFESPAN;
-
-				m_chunksToRemove.push_back(pChunk);
+					m_chunksToRemove.push_back(pChunk);
+				}
 			}
 
 			/*!
@@ -259,7 +247,7 @@ namespace gaia {
 				GAIA_ASSERT(!utils::has(m_archetypes, pArchetype));
 
 				// Register the archetype
-				pArchetype->id = (uint32_t)m_archetypes.size();
+				pArchetype->m_archetypeId = (uint32_t)m_archetypes.size();
 				m_archetypes.push_back(pArchetype);
 
 				auto it = m_archetypeMap.find(pArchetype->m_lookupHash);
@@ -276,7 +264,7 @@ namespace gaia {
 			static void VerifyAddComponent(
 					Archetype& archetype, Entity entity, ComponentType componentType, const ComponentInfo& infoToAdd) {
 				const auto& componentIds = archetype.m_componentIds[componentType];
-				const auto& cc = GetComponentCache();
+				const auto& cc = ComponentCache::Get();
 
 				// Make sure not to add too many infos
 				if GAIA_UNLIKELY (!VerityArchetypeComponentCount(1)) {
@@ -319,7 +307,7 @@ namespace gaia {
 							"Trying to remove a component from entity [%u.%u] but it was never added", entity.id(), entity.gen());
 					GAIA_LOG_W("Currently present:");
 
-					const auto& cc = GetComponentCache();
+					const auto& cc = ComponentCache::Get();
 
 					for (size_t k = 0; k < componentIds.size(); k++) {
 						const auto& info = cc.GetComponentDesc(componentIds[k]);
@@ -338,8 +326,8 @@ namespace gaia {
 #if GAIA_ARCHETYPE_GRAPH
 			static GAIA_FORCEINLINE void
 			BuildGraphEdges(ComponentType componentType, Archetype* left, Archetype* right, const ComponentInfo& info) {
-				left->AddEdgeArchetypeRight(componentType, info, right->id);
-				right->AddEdgeArchetypeLeft(componentType, info, left->id);
+				left->AddEdgeArchetypeRight(componentType, info, right->m_archetypeId);
+				right->AddEdgeArchetypeLeft(componentType, info, left->m_archetypeId);
 			}
 
 			template <typename Func>
@@ -547,14 +535,14 @@ namespace gaia {
 			/*!
 			Returns the archetype the entity belongs to.
 			\param entity Entity
-			\return Pointer to archetype
+			\return Reference to the archetype
 			*/
-			GAIA_NODISCARD Archetype* GetArchetype(Entity entity) const {
+			GAIA_NODISCARD Archetype& GetArchetype(Entity entity) const {
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
 				auto* pChunk = entityContainer.pChunk;
-				return pChunk != nullptr ? const_cast<Archetype*>(&pChunk->m_header.owner) : nullptr;
+				return pChunk == nullptr ? *m_pRootArchetype : *m_archetypes[pChunk->m_header.archetypeId];
 			}
 
 			/*!
@@ -612,7 +600,7 @@ namespace gaia {
 			void StoreEntity(Entity entity, Chunk* pChunk) {
 				GAIA_ASSERT(pChunk != nullptr);
 				GAIA_ASSERT(
-						!pChunk->m_header.owner.m_properties.structuralChangesLocked &&
+						!GetArchetype(entity).m_properties.structuralChangesLocked &&
 						"Entities can't be added while chunk is being iterated "
 						"(structural changes are forbidden during this time!)");
 
@@ -629,12 +617,12 @@ namespace gaia {
 			\param newArchetype Target archetype
 			*/
 			void MoveEntity(Entity oldEntity, Archetype& newArchetype) {
-				const auto& cc = GetComponentCache();
+				const auto& cc = ComponentCache::Get();
 
 				auto& entityContainer = m_entities[oldEntity.id()];
 				auto* pOldChunk = entityContainer.pChunk;
 				const auto oldIndex = entityContainer.idx;
-				const auto& oldArchetype = pOldChunk->m_header.owner;
+				const auto& oldArchetype = *m_archetypes[pOldChunk->m_header.archetypeId];
 
 				// Find a new chunk for the entity and move it inside.
 				// Old entity ID needs to remain valid or lookups would break.
@@ -757,7 +745,7 @@ namespace gaia {
 
 				// Adding a component to an entity which already is a part of some chunk
 				if (pChunk != nullptr) {
-					auto& archetype = const_cast<Archetype&>(pChunk->m_header.owner);
+					auto& archetype = *m_archetypes[pChunk->m_header.archetypeId];
 
 					GAIA_ASSERT(
 							!archetype.m_properties.structuralChangesLocked &&
@@ -794,7 +782,7 @@ namespace gaia {
 			RemoveComponent_Internal(ComponentType componentType, Entity entity, const ComponentInfo& infoToRemove) {
 				auto& entityContainer = m_entities[entity.id()];
 				auto* pChunk = entityContainer.pChunk;
-				auto& archetype = const_cast<Archetype&>(pChunk->m_header.owner);
+				auto& archetype = *m_archetypes[pChunk->m_header.archetypeId];
 
 				GAIA_ASSERT(
 						!archetype.m_properties.structuralChangesLocked &&
@@ -819,15 +807,16 @@ namespace gaia {
 
 			void Done() {
 				Cleanup();
-				m_chunkAllocator.Flush();
 
-#if GAIA_DEBUG
+				ChunkAllocator::Get().Flush();
+
+#if GAIA_DEBUG && GAIA_ECS_CHUNK_ALLOCATOR
 				// Make sure there are no leaks
-				ChunkAllocatorStats memstats = m_chunkAllocator.GetStats();
+				ChunkAllocatorStats memstats = ChunkAllocator::Get().GetStats();
 				if (memstats.AllocatedMemory != 0) {
 					GAIA_ASSERT(false && "ECS leaking memory");
 					GAIA_LOG_W("ECS leaking memory!");
-					DiagMemory();
+					ChunkAllocator::Get().Diag();
 				}
 #endif
 			}
@@ -866,7 +855,7 @@ namespace gaia {
 			Returns the current version of the world.
 			\return World version number
 			*/
-			GAIA_NODISCARD uint32_t GetWorldVersion() const {
+			GAIA_NODISCARD const uint32_t& GetWorldVersion() const {
 				return m_worldVersion;
 			}
 
@@ -894,7 +883,7 @@ namespace gaia {
 				if GAIA_UNLIKELY (pChunk == nullptr)
 					return CreateEntity();
 
-				auto& archetype = const_cast<Archetype&>(pChunk->m_header.owner);
+				auto& archetype = *m_archetypes[pChunk->m_header.archetypeId];
 
 				const auto newEntity = CreateEntity(archetype);
 				auto& newEntityContainer = m_entities[newEntity.id()];
@@ -909,7 +898,7 @@ namespace gaia {
 				const auto& componentIds = archetype.m_componentIds[ComponentType::CT_Generic];
 				const auto& offsets = archetype.m_componentOffsets[ComponentType::CT_Generic];
 
-				const auto& cc = GetComponentCache();
+				const auto& cc = ComponentCache::Get();
 
 				for (size_t i = 0; i < componentIds.size(); i++) {
 					const auto& desc = cc.GetComponentDesc(componentIds[i]);
@@ -971,7 +960,7 @@ namespace gaia {
 				auto& entityContainer = m_entities[entity.id()];
 
 				GAIA_ASSERT(
-						(!entityContainer.pChunk || !entityContainer.pChunk->m_header.owner.m_properties.structuralChangesLocked) &&
+						(!entityContainer.pChunk || !GetArchetype(entity).m_properties.structuralChangesLocked) &&
 						"Entities can't be enabled/disabled while chunk is being iterated "
 						"(structural changes are forbidden during this time!)");
 
@@ -980,7 +969,7 @@ namespace gaia {
 				entityContainer.disabled = !enable;
 
 				if (auto* pChunkFrom = entityContainer.pChunk) {
-					auto& archetype = const_cast<Archetype&>(pChunkFrom->m_header.owner);
+					auto& archetype = *m_archetypes[pChunkFrom->m_header.archetypeId];
 
 					// Create a spot in the new chunk
 					auto* pChunkTo = enable ? archetype.FindOrCreateFreeChunk() : archetype.FindOrCreateFreeChunkDisabled();
@@ -991,7 +980,7 @@ namespace gaia {
 						const auto& componentIds = archetype.m_componentIds[ComponentType::CT_Generic];
 						const auto& offsets = archetype.m_componentOffsets[ComponentType::CT_Generic];
 
-						const auto& cc = GetComponentCache();
+						const auto& cc = ComponentCache::Get();
 
 						for (size_t i = 0; i < componentIds.size(); i++) {
 							const auto& desc = cc.GetComponentDesc(componentIds[i]);
@@ -1016,7 +1005,9 @@ namespace gaia {
 					}
 
 					// Remove the entity from the old chunk
-					pChunkFrom->RemoveEntity(entityContainer.idx, m_entities);
+					pChunkFrom->RemoveEntity(
+							entityContainer.idx, m_entities, archetype.GetComponentIdList(ComponentType::CT_Generic),
+							archetype.GetComponentOffsetList(ComponentType::CT_Generic));
 
 					// Update the entity container with new info
 					entityContainer.pChunk = pChunkTo;
@@ -1080,7 +1071,7 @@ namespace gaia {
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				using U = typename DeduceComponent<T>::Type;
-				const auto& info = GetComponentCacheRW().GetOrCreateComponentInfo<U>();
+				const auto& info = ComponentCache::Get().GetOrCreateComponentInfo<U>();
 
 				if constexpr (IsGenericComponent<T>) {
 					auto& entityContainer = AddComponent_Internal(ComponentType::CT_Generic, entity, info);
@@ -1106,7 +1097,7 @@ namespace gaia {
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				using U = typename DeduceComponent<T>::Type;
-				const auto& info = GetComponentCacheRW().GetOrCreateComponentInfo<U>();
+				const auto& info = ComponentCache::Get().GetOrCreateComponentInfo<U>();
 
 				if constexpr (IsGenericComponent<T>) {
 					auto& entityContainer = AddComponent_Internal(ComponentType::CT_Generic, entity, info);
@@ -1135,7 +1126,7 @@ namespace gaia {
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				using U = typename DeduceComponent<T>::Type;
-				const auto& info = GetComponentCacheRW().GetOrCreateComponentInfo<U>();
+				const auto& info = ComponentCache::Get().GetOrCreateComponentInfo<U>();
 
 				if constexpr (IsGenericComponent<T>)
 					return RemoveComponent_Internal(ComponentType::CT_Generic, entity, info);
@@ -1334,14 +1325,15 @@ namespace gaia {
 
 			//--------------------------------------------------------------------------------
 
-			GAIA_NODISCARD static bool CheckFilters(const EntityQueryInfo& queryInfo, const Chunk& chunk) {
+			GAIA_NODISCARD bool CheckFilters(const EntityQueryInfo& queryInfo, const Chunk& chunk) const {
 				GAIA_ASSERT(chunk.HasEntities() && "CheckFilters called on an empty chunk");
 
 				// See if any generic component has changed
 				{
 					const auto& filtered = queryInfo.GetFiltered(ComponentType::CT_Generic);
 					for (auto componentId: filtered) {
-						const uint32_t componentIdx = chunk.GetArchetype().GetComponentIdx(ComponentType::CT_Generic, componentId);
+						const auto& archetype = *m_archetypes[chunk.m_header.archetypeId];
+						const auto componentIdx = archetype.GetComponentIdx(ComponentType::CT_Generic, componentId);
 						if (chunk.DidChange(ComponentType::CT_Generic, queryInfo.GetWorldVersion(), componentIdx))
 							return true;
 					}
@@ -1351,7 +1343,8 @@ namespace gaia {
 				{
 					const auto& filtered = queryInfo.GetFiltered(ComponentType::CT_Chunk);
 					for (auto componentId: filtered) {
-						const uint32_t componentIdx = chunk.GetArchetype().GetComponentIdx(ComponentType::CT_Chunk, componentId);
+						const auto& archetype = *m_archetypes[chunk.m_header.archetypeId];
+						const uint32_t componentIdx = archetype.GetComponentIdx(ComponentType::CT_Chunk, componentId);
 						if (chunk.DidChange(ComponentType::CT_Chunk, queryInfo.GetWorldVersion(), componentIdx))
 							return true;
 					}
@@ -1362,7 +1355,7 @@ namespace gaia {
 			}
 
 			template <bool HasFilters>
-			GAIA_NODISCARD static bool CanAcceptChunkForProcessing(const Chunk& chunk, const EntityQueryInfo& queryInfo) {
+			GAIA_NODISCARD bool CanAcceptChunkForProcessing(const Chunk& chunk, const EntityQueryInfo& queryInfo) const {
 				if GAIA_UNLIKELY (!chunk.HasEntities())
 					return false;
 
@@ -1379,9 +1372,8 @@ namespace gaia {
 			using CChunkSpan = std::span<const Chunk*>;
 			using ChunkBatchedList = containers::sarray_ext<Chunk*, 256U>;
 
-			template <bool HasFilters, typename Func>
-			static void ChunkBatch_Prepare(
-					Func func, CChunkSpan chunkSpan, const EntityQueryInfo& queryInfo, ChunkBatchedList& chunkBatch) {
+			template <bool HasFilters>
+			void ChunkBatch_Prepare(CChunkSpan chunkSpan, const EntityQueryInfo& queryInfo, ChunkBatchedList& chunkBatch) {
 				GAIA_PROF_SCOPE(PrepareChunkBatch);
 
 				for (const auto* pChunk: chunkSpan) {
@@ -1431,7 +1423,7 @@ namespace gaia {
 			//--------------------------------------------------------------------------------
 
 			template <bool HasFilters, typename Func>
-			static void
+			void
 			ProcessQueryOnChunks(Func func, const containers::darray<Chunk*>& chunksList, const EntityQueryInfo& queryInfo) {
 				size_t chunkOffset = 0;
 
@@ -1440,7 +1432,7 @@ namespace gaia {
 					ChunkBatchedList chunkBatch;
 					const size_t batchSize = itemsLeft > ChunkBatchedList::extent ? ChunkBatchedList::extent : itemsLeft;
 					ChunkBatch_Prepare<HasFilters>(
-							func, CChunkSpan((const Chunk**)&chunksList[chunkOffset], batchSize), queryInfo, chunkBatch);
+							CChunkSpan((const Chunk**)&chunksList[chunkOffset], batchSize), queryInfo, chunkBatch);
 					ChunkBatch_Perform(func, chunkBatch);
 
 					itemsLeft -= batchSize;
@@ -1459,30 +1451,26 @@ namespace gaia {
 				if (hasFilters) {
 					// Iterate over all archetypes
 					world.ForEachArchetype(query, [&](Archetype& archetype) {
-						GAIA_ASSERT(archetype.m_properties.structuralChangesLocked < 8);
-						++archetype.m_properties.structuralChangesLocked;
+						archetype.SetStructuralChanges(true);
 
 						if (query.CheckConstraints<true>())
-							ProcessQueryOnChunks<true>(func, archetype.m_chunks, queryInfo);
+							world.ProcessQueryOnChunks<true>(func, archetype.m_chunks, queryInfo);
 						if (query.CheckConstraints<false>())
-							ProcessQueryOnChunks<true>(func, archetype.m_chunksDisabled, queryInfo);
+							world.ProcessQueryOnChunks<true>(func, archetype.m_chunksDisabled, queryInfo);
 
-						GAIA_ASSERT(archetype.m_properties.structuralChangesLocked > 0);
-						--archetype.m_properties.structuralChangesLocked;
+						archetype.SetStructuralChanges(false);
 					});
 				} else {
 					// Iterate over all archetypes
 					world.ForEachArchetype(query, [&](Archetype& archetype) {
-						GAIA_ASSERT(archetype.m_properties.structuralChangesLocked < 8);
-						++archetype.m_properties.structuralChangesLocked;
+						archetype.SetStructuralChanges(true);
 
 						if (query.CheckConstraints<true>())
-							ProcessQueryOnChunks<false>(func, archetype.m_chunks, queryInfo);
+							world.ProcessQueryOnChunks<false>(func, archetype.m_chunks, queryInfo);
 						if (query.CheckConstraints<false>())
-							ProcessQueryOnChunks<false>(func, archetype.m_chunksDisabled, queryInfo);
+							world.ProcessQueryOnChunks<false>(func, archetype.m_chunksDisabled, queryInfo);
 
-						GAIA_ASSERT(archetype.m_properties.structuralChangesLocked > 0);
-						--archetype.m_properties.structuralChangesLocked;
+						archetype.SetStructuralChanges(false);
 					});
 				}
 
@@ -1494,7 +1482,7 @@ namespace gaia {
 			template <typename... T>
 			static void RegisterComponents_Internal(utils::func_type_list<T...> /*no_name*/) {
 				static_assert(sizeof...(T) > 0, "Empty EntityQuery is not supported in this context");
-				auto& cc = GetComponentCacheRW();
+				auto& cc = ComponentCache::Get();
 				((void)cc.GetOrCreateComponentInfo<T>(), ...);
 			}
 
@@ -1615,7 +1603,7 @@ namespace gaia {
 
 					auto execWithFiltersON = [&](const auto& chunksList) {
 						for (auto* pChunk: chunksList) {
-							if (!CanAcceptChunkForProcessing<true>(*pChunk, m_queryInfo))
+							if (!m_w.CanAcceptChunkForProcessing<true>(*pChunk, m_queryInfo))
 								continue;
 							hasItems = true;
 							break;
@@ -1624,7 +1612,7 @@ namespace gaia {
 
 					auto execWithFiltersOFF = [&](const auto& chunksList) {
 						for (auto* pChunk: chunksList) {
-							if (!CanAcceptChunkForProcessing<false>(*pChunk, m_queryInfo))
+							if (!m_w.CanAcceptChunkForProcessing<false>(*pChunk, m_queryInfo))
 								continue;
 							hasItems = true;
 							break;
@@ -1704,14 +1692,14 @@ namespace gaia {
 
 					auto execWithFiltersON = [&](const auto& chunksList) {
 						for (auto* pChunk: chunksList) {
-							if (CanAcceptChunkForProcessing<true>(*pChunk, m_queryInfo))
+							if (m_w.CanAcceptChunkForProcessing<true>(*pChunk, m_queryInfo))
 								itemCount += pChunk->GetItemCount();
 						}
 					};
 
 					auto execWithFiltersOFF = [&](const auto& chunksList) {
 						for (auto* pChunk: chunksList) {
-							if (CanAcceptChunkForProcessing<false>(*pChunk, m_queryInfo))
+							if (m_w.CanAcceptChunkForProcessing<false>(*pChunk, m_queryInfo))
 								itemCount += pChunk->GetItemCount();
 						}
 					};
@@ -1757,14 +1745,14 @@ namespace gaia {
 
 					auto execWithFiltersON = [&](const auto& chunksList) {
 						for (auto* pChunk: chunksList) {
-							if (CanAcceptChunkForProcessing<true>(*pChunk, m_queryInfo))
+							if (m_w.CanAcceptChunkForProcessing<true>(*pChunk, m_queryInfo))
 								addChunk(pChunk);
 						}
 					};
 
 					auto execWithFiltersOFF = [&](const auto& chunksList) {
 						for (auto* pChunk: chunksList) {
-							if (CanAcceptChunkForProcessing<false>(*pChunk, m_queryInfo))
+							if (m_w.CanAcceptChunkForProcessing<false>(*pChunk, m_queryInfo))
 								addChunk(pChunk);
 						}
 					};
@@ -1801,14 +1789,14 @@ namespace gaia {
 
 					auto execWithFiltersON = [&](const auto& chunksList) {
 						for (auto* pChunk: chunksList) {
-							if (CanAcceptChunkForProcessing<true>(*pChunk, m_queryInfo))
+							if (m_w.CanAcceptChunkForProcessing<true>(*pChunk, m_queryInfo))
 								outArray.push_back(pChunk);
 						}
 					};
 
 					auto execWithFiltersOFF = [&](const auto& chunksList) {
 						for (auto* pChunk: chunksList) {
-							if (CanAcceptChunkForProcessing<false>(*pChunk, m_queryInfo))
+							if (m_w.CanAcceptChunkForProcessing<false>(*pChunk, m_queryInfo))
 								outArray.push_back(pChunk);
 						}
 					};
@@ -1844,8 +1832,8 @@ namespace gaia {
 			//--------------------------------------------------------------------------------
 
 			/*!
-			Collect garbage. Check all chunks and archetypes which are empty and have not been used for a while
-			and tries to delete them and release memory allocated by them.
+			Garbage collection. Checks all chunks and archetypes which are empty and have not been
+			used for a while and tries to delete them and release memory allocated by them.
 			*/
 			void GC() {
 				// Handle chunks
@@ -1868,15 +1856,17 @@ namespace gaia {
 				}
 
 				// Remove all dead chunks
-				for (auto* pChunk: m_chunksToRemove)
-					const_cast<Archetype&>(pChunk->m_header.owner).RemoveChunk(pChunk);
+				for (auto* pChunk: m_chunksToRemove) {
+					auto& archetype = *m_archetypes[pChunk->m_header.archetypeId];
+					archetype.RemoveChunk(pChunk);
+				}
 				m_chunksToRemove.clear();
 			}
 
 			//--------------------------------------------------------------------------------
 
 			static void DiagArchetype_PrintBasicInfo(const Archetype& archetype) {
-				const auto& cc = GetComponentCache();
+				const auto& cc = ComponentCache::Get();
 				const auto& genericComponents = archetype.m_componentIds[ComponentType::CT_Generic];
 				const auto& chunkComponents = archetype.m_componentIds[ComponentType::CT_Chunk];
 
@@ -1908,7 +1898,8 @@ namespace gaia {
 						"mask:%016" PRIx64 "/%016" PRIx64 ", "
 						"chunks:%u, data size:%3u B (%u/%u), "
 						"entities:%u/%u (disabled:%u)",
-						archetype.id, archetype.m_lookupHash.hash, archetype.m_matcherHash[ComponentType::CT_Generic].hash,
+						archetype.m_archetypeId, archetype.m_lookupHash.hash,
+						archetype.m_matcherHash[ComponentType::CT_Generic].hash,
 						archetype.m_matcherHash[ComponentType::CT_Chunk].hash, (uint32_t)archetype.m_chunks.size(),
 						genericComponentsSize + chunkComponentsSize, genericComponentsSize, chunkComponentsSize, entityCount,
 						archetype.m_properties.capacity, entityCountDisabled);
@@ -1938,7 +1929,7 @@ namespace gaia {
 
 #if GAIA_ARCHETYPE_GRAPH
 			static void DiagArchetype_PrintGraphInfo(const Archetype& archetype) {
-				const auto& cc = GetComponentCache();
+				const auto& cc = ComponentCache::Get();
 
 				// Add edges (movement towards the leafs)
 				{
@@ -2012,8 +2003,8 @@ namespace gaia {
 						const auto* pChunk = chunks[i];
 						const auto& header = pChunk->m_header;
 						GAIA_LOG_N(
-								"  Chunk #%04u, entities:%u/%u, lifespan:%u", (uint32_t)i, header.count,
-								header.owner.m_properties.capacity, header.lifespan);
+								"  Chunk #%04u, entities:%u/%u, lifespan:%u", (uint32_t)i, header.count, header.capacity,
+								header.lifespan);
 					}
 				};
 
@@ -2081,7 +2072,7 @@ namespace gaia {
 					return;
 				DiagRegisteredTypes = false;
 
-				GetComponentCache().Diag();
+				ComponentCache::Get().Diag();
 			}
 
 			/*!
@@ -2116,40 +2107,18 @@ namespace gaia {
 			}
 
 			/*!
-			Performs diagnostics of the memory used by the world.
-			*/
-			void DiagMemory() const {
-				ChunkAllocatorStats memstats = m_chunkAllocator.GetStats();
-				GAIA_LOG_N("ChunkAllocator stats");
-				GAIA_LOG_N("  Allocated: %" PRIu64 " B", memstats.AllocatedMemory);
-				GAIA_LOG_N("  Used: %" PRIu64 " B", memstats.AllocatedMemory - memstats.UsedMemory);
-				GAIA_LOG_N("  Overhead: %" PRIu64 " B", memstats.UsedMemory);
-				GAIA_LOG_N("  Utilization: %.1f%%", 100.0 * ((double)memstats.UsedMemory / (double)memstats.AllocatedMemory));
-				GAIA_LOG_N("  Pages: %u", memstats.NumPages);
-				GAIA_LOG_N("  Free pages: %u", memstats.NumFreePages);
-			}
-
-			/*!
 			Performs all diagnostics.
 			*/
 			void Diag() const {
 				DiagArchetypes();
 				DiagRegisteredTypes();
 				DiagEntities();
-				DiagMemory();
 			}
 		};
 
-		GAIA_NODISCARD inline uint32_t GetWorldVersionFromWorld(const World& world) {
+		GAIA_NODISCARD inline const uint32_t& GetWorldVersionFromWorld(const World& world) {
 			return world.GetWorldVersion();
 		}
 
-		GAIA_NODISCARD inline void* AllocateChunkMemory(World& world) {
-			return world.AllocateChunkMemory();
-		}
-
-		inline void ReleaseChunkMemory(World& world, void* mem) {
-			world.ReleaseChunkMemory(mem);
-		}
 	} // namespace ecs
 } // namespace gaia
