@@ -148,8 +148,14 @@ namespace gaia {
 			//! Allocator statistics
 			ChunkAllocatorStats m_stats{};
 
-		public:
 			ChunkAllocator() = default;
+
+		public:
+			static ChunkAllocator& Get() {
+				static ChunkAllocator allocator;
+				return allocator;
+			}
+
 			~ChunkAllocator() {
 				FreeAll();
 			}
@@ -305,6 +311,20 @@ namespace gaia {
 					if (!m_pagesFree.empty())
 						m_pagesFree[i]->m_pageIdx = (uint32_t)i;
 				}
+			}
+
+			/*!
+			Performs diagnostics of the memory used.
+			*/
+			void Diag() const {
+				ChunkAllocatorStats memstats = GetStats();
+				GAIA_LOG_N("ChunkAllocator stats");
+				GAIA_LOG_N("  Allocated: %" PRIu64 " B", memstats.AllocatedMemory);
+				GAIA_LOG_N("  Used: %" PRIu64 " B", memstats.AllocatedMemory - memstats.UsedMemory);
+				GAIA_LOG_N("  Overhead: %" PRIu64 " B", memstats.UsedMemory);
+				GAIA_LOG_N("  Utilization: %.1f%%", 100.0 * ((double)memstats.UsedMemory / (double)memstats.AllocatedMemory));
+				GAIA_LOG_N("  Pages: %u", memstats.NumPages);
+				GAIA_LOG_N("  Free pages: %u", memstats.NumFreePages);
 			}
 
 		private:

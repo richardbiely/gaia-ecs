@@ -62,7 +62,7 @@ namespace gaia {
 					if (componentIds.size() >= EntityQueryInfo::MAX_COMPONENTS_IN_QUERY) {
 						GAIA_ASSERT(false && "Trying to create an ECS query with too many components!");
 
-						const auto& cc = GetComponentCache();
+						const auto& cc = ComponentCache::Get();
 						auto componentName = cc.GetComponentDesc(componentId).name;
 						GAIA_LOG_E(
 								"Trying to add ECS component '%.*s' to an already full ECS query!", (uint32_t)componentName.size(),
@@ -104,7 +104,7 @@ namespace gaia {
 					if (arrFilter.size() >= EntityQueryInfo::MAX_COMPONENTS_IN_QUERY) {
 						GAIA_ASSERT(false && "Trying to create an ECS filter query with too many components!");
 
-						const auto& cc = GetComponentCache();
+						const auto& cc = ComponentCache::Get();
 						auto componentName = cc.GetComponentDesc(componentId).name;
 						GAIA_LOG_E(
 								"Trying to add ECS component %.*s to an already full filter query!", (uint32_t)componentName.size(),
@@ -126,7 +126,7 @@ namespace gaia {
 
 					GAIA_ASSERT(false && "SetChangeFilter trying to filter ECS component which is not a part of the query");
 #if GAIA_DEBUG
-					const auto& cc = GetComponentCache();
+					const auto& cc = ComponentCache::Get();
 					auto componentName = cc.GetComponentDesc(componentId).name;
 					GAIA_LOG_E(
 							"SetChangeFilter trying to filter ECS component %.*s but "
@@ -171,7 +171,7 @@ namespace gaia {
 						std::is_same_v<U, UOriginal> || !std::is_const_v<UOriginalPR> && !std::is_empty_v<U>;
 
 				// Make sure the component is always registered
-				auto& cc = GetComponentCacheRW();
+				auto& cc = ComponentCache::Get();
 				(void)cc.GetOrCreateComponentInfo<T>();
 
 				m_cmdBuffer.Save(Command_AddComponent::Id);

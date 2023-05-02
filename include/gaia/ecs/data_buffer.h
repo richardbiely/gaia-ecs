@@ -26,7 +26,6 @@ namespace gaia {
 				constexpr uint32_t CapacityIncreaseSize = 128U;
 
 				// Make sure there is enough capacity to hold our data
-				const auto oldSize = m_data.size();
 				const auto newSize = m_data.size() + size;
 				const auto newCapacity = (newSize / CapacityIncreaseSize) * CapacityIncreaseSize + CapacityIncreaseSize;
 				m_data.reserve(newCapacity);
