@@ -27,25 +27,30 @@ namespace gaia {
 			friend class World;
 
 			//! Command buffer command type
-			enum CommandBufferCmd : uint8_t { ALL, ANY, NONE, ADD_FILTER };
+			enum CommandBufferCmd : uint8_t { ADD_COMPONENT, ADD_FILTER };
 
-			struct Command_Base {
+			struct Command_AddComponent {
+				static constexpr CommandBufferCmd Id = CommandBufferCmd::ADD_COMPONENT;
+
 				ComponentId componentId;
 				ComponentType componentType;
+				EntityQueryInfo::ListType listType;
 				bool isReadWrite;
 
 				void Save(DataBuffer& buffer) {
 					buffer.Save(componentId);
 					buffer.Save(componentType);
+					buffer.Save(listType);
 					buffer.Save(isReadWrite);
 				}
 				void Load(DataBuffer& buffer) {
 					buffer.Load(componentId);
 					buffer.Load(componentType);
+					buffer.Load(listType);
 					buffer.Load(isReadWrite);
 				}
 
-				void Exec(EntityQueryInfo::LookupCtx& ctx, EntityQueryInfo::ListType listType) {
+				void Exec(EntityQueryInfo::LookupCtx& ctx) {
 					auto& list = ctx.list[componentType];
 					auto& componentIds = list.componentIds[listType];
 
@@ -71,27 +76,7 @@ namespace gaia {
 					componentIds.push_back(componentId);
 				}
 			};
-			struct Command_All: public Command_Base {
-				static constexpr CommandBufferCmd Id = CommandBufferCmd::ALL;
 
-				void Exec(EntityQueryInfo::LookupCtx& ctx) {
-					Command_Base::Exec(ctx, EntityQueryInfo::ListType::LT_All);
-				}
-			};
-			struct Command_Any: public Command_Base {
-				static constexpr CommandBufferCmd Id = CommandBufferCmd::ANY;
-
-				void Exec(EntityQueryInfo::LookupCtx& ctx) {
-					Command_Base::Exec(ctx, EntityQueryInfo::ListType::LT_Any);
-				}
-			};
-			struct Command_None: public Command_Base {
-				static constexpr CommandBufferCmd Id = CommandBufferCmd::NONE;
-
-				void Exec(EntityQueryInfo::LookupCtx& ctx) {
-					Command_Base::Exec(ctx, EntityQueryInfo::ListType::LT_None);
-				}
-			};
 			struct Command_Filter {
 				static constexpr CommandBufferCmd Id = CommandBufferCmd::ADD_FILTER;
 
@@ -153,21 +138,9 @@ namespace gaia {
 
 			using CmdBufferCmdFunc = void (*)(DataBuffer& buffer, EntityQueryInfo::LookupCtx& ctx);
 			static constexpr CmdBufferCmdFunc CommandBufferRead[] = {
-					// All
+					// Add component
 					[](DataBuffer& buffer, EntityQueryInfo::LookupCtx& ctx) {
-						Command_All cmd;
-						cmd.Load(buffer);
-						cmd.Exec(ctx);
-					},
-					// Any
-					[](DataBuffer& buffer, EntityQueryInfo::LookupCtx& ctx) {
-						Command_Any cmd;
-						cmd.Load(buffer);
-						cmd.Exec(ctx);
-					},
-					// None
-					[](DataBuffer& buffer, EntityQueryInfo::LookupCtx& ctx) {
-						Command_None cmd;
+						Command_AddComponent cmd;
 						cmd.Load(buffer);
 						cmd.Exec(ctx);
 					},
@@ -201,23 +174,8 @@ namespace gaia {
 				auto& cc = GetComponentCacheRW();
 				(void)cc.GetOrCreateComponentInfo<T>();
 
-				switch (listType) {
-					case EntityQueryInfo::ListType::LT_All:
-						m_cmdBuffer.Save(Command_All::Id);
-						Command_All{componentId, componentType, isReadWrite}.Save(m_cmdBuffer);
-						break;
-					case EntityQueryInfo::ListType::LT_Any:
-						m_cmdBuffer.Save(Command_Any::Id);
-						Command_Any{componentId, componentType, isReadWrite}.Save(m_cmdBuffer);
-						break;
-					case EntityQueryInfo::ListType::LT_None:
-						m_cmdBuffer.Save(Command_None::Id);
-						Command_None{componentId, componentType, isReadWrite}.Save(m_cmdBuffer);
-						break;
-					default:
-						GAIA_ASSERT(false && "Invalid command id in EntityQuery command buffer");
-						break;
-				}
+				m_cmdBuffer.Save(Command_AddComponent::Id);
+				Command_AddComponent{componentId, componentType, listType, isReadWrite}.Save(m_cmdBuffer);
 			}
 
 			template <typename T>
@@ -276,7 +234,7 @@ namespace gaia {
 			}
 
 			template <typename... T>
-			GAIA_FORCEINLINE EntityQuery& WithChanged() {
+			EntityQuery& WithChanged() {
 				// Invalidte the query
 				m_hashLookup = {0};
 				// Add commands to the command buffer
@@ -306,7 +264,7 @@ namespace gaia {
 					return m_constraints == EntityQuery::Constraints::DisabledOnly;
 			}
 
-			GAIA_NODISCARD void Commit(EntityQueryInfo::LookupCtx& ctx) {
+			void Commit(EntityQueryInfo::LookupCtx& ctx) {
 				// No need to commit anything if we already have the lookup hash
 				if (m_hashLookup.hash != 0) {
 					ctx.hashLookup = m_hashLookup;
