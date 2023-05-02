@@ -24,6 +24,7 @@
 #include "entity.h"
 #include "entity_query.h"
 #include "entity_query_cache.h"
+#include "entity_query_info.h"
 
 namespace gaia {
 	namespace ecs {
@@ -1266,6 +1267,8 @@ namespace gaia {
 				}
 			}
 
+			//--------------------------------------------------------------------------------
+
 			template <typename Func>
 			GAIA_FORCEINLINE void ForEachArchetype(EntityQuery& query, Func func) {
 #if 0 // GAIA_ARCHETYPE_GRAPH
@@ -1285,6 +1288,8 @@ namespace gaia {
 #endif
 			}
 
+			//--------------------------------------------------------------------------------
+
 			template <typename Func>
 			GAIA_FORCEINLINE void ForEachArchetype_NoMatch(const EntityQueryInfo& queryInfo, Func func) const {
 				for (const auto* pArchetype: queryInfo)
@@ -1301,14 +1306,14 @@ namespace gaia {
 			//--------------------------------------------------------------------------------
 
 			template <typename... T>
-			void UnpackArgsIntoQuery([[maybe_unused]] utils::func_type_list<T...> types, EntityQuery& query) const {
+			void UnpackArgsIntoQuery(EntityQuery& query, [[maybe_unused]] utils::func_type_list<T...> types) const {
 				static_assert(sizeof...(T) > 0, "Inputs-less functors can not be unpacked to query");
 				query.All<T...>();
 			}
 
 			template <typename... T>
-			GAIA_NODISCARD bool
-			UnpackArgsIntoQuery_Check([[maybe_unused]] utils::func_type_list<T...> types, EntityQueryInfo& queryInfo) const {
+			GAIA_NODISCARD bool UnpackArgsIntoQuery_Check(
+					const EntityQueryInfo& queryInfo, [[maybe_unused]] utils::func_type_list<T...> types) const {
 				if constexpr (sizeof...(T) > 0)
 					return queryInfo.HasAll<T...>();
 				else
@@ -1318,13 +1323,13 @@ namespace gaia {
 			template <typename Func>
 			static void ResolveQuery(World& world, EntityQuery& query) {
 				using InputArgs = decltype(utils::func_args(&Func::operator()));
-				world.UnpackArgsIntoQuery(InputArgs{}, query);
+				world.UnpackArgsIntoQuery(query, InputArgs{});
 			}
 
 			template <typename Func>
-			static bool CheckQuery(World& world, EntityQueryInfo& queryInfo) {
+			static bool CheckQuery(World& world, const EntityQueryInfo& queryInfo) {
 				using InputArgs = decltype(utils::func_args(&Func::operator()));
-				return world.UnpackArgsIntoQuery_Check(InputArgs{}, queryInfo);
+				return world.UnpackArgsIntoQuery_Check(queryInfo, InputArgs{});
 			}
 
 			//--------------------------------------------------------------------------------
@@ -1371,72 +1376,79 @@ namespace gaia {
 
 			//--------------------------------------------------------------------------------
 
+			using CChunkSpan = std::span<const Chunk*>;
+			using ChunkBatchedList = containers::sarray_ext<Chunk*, 256U>;
+
+			template <bool HasFilters, typename Func>
+			static void ChunkBatch_Prepare(
+					Func func, CChunkSpan chunkSpan, const EntityQueryInfo& queryInfo, ChunkBatchedList& chunkBatch) {
+				GAIA_PROF_SCOPE(PrepareChunkBatch);
+
+				for (const auto* pChunk: chunkSpan) {
+					if (!CanAcceptChunkForProcessing<HasFilters>(*pChunk, queryInfo))
+						continue;
+
+					chunkBatch.push_back(const_cast<Chunk*>(pChunk));
+				}
+			}
+
+			//! Execute functors in batches
+			template <typename Func>
+			static void ChunkBatch_Perform(Func func, const ChunkBatchedList& chunks) {
+				GAIA_PROF_SCOPE(RunFuncOnChunkBatch);
+
+				// This is what the function is doing:
+				// for (auto *pChunk: chunks)
+				//	func(*pChunk);
+
+				if (GAIA_UNLIKELY(chunks.size() == 0)) {
+					// Nothing to do
+				} else if GAIA_UNLIKELY (chunks.size() == 1) {
+					// We only have one chunk to process
+					func(*chunks[0]);
+				} else {
+					// We have many chunks to process.
+					// Chunks might be located at different memory locations. Not even in the same memory page.
+					// Therefore, to make it easier for the CPU we give it a hint that we want to prefetch data
+					// for the next chunk explictely so we do not end up stalling later.
+					// Note, this is a micro optimization and on average it bring no performance benefit. It only
+					// helps with edge cases.
+					// Let us be conservatine for now and go with T2. That means we will try to keep our data at
+					// least in L3 cache or higher.
+					gaia::prefetch(&chunks[1], PrefetchHint::PREFETCH_HINT_T2);
+					func(*chunks[0]);
+
+					size_t chunkIdx = 1;
+					for (; chunkIdx < chunks.size() - 1; ++chunkIdx) {
+						gaia::prefetch(&chunks[chunkIdx + 1], PrefetchHint::PREFETCH_HINT_T2);
+						func(*chunks[chunkIdx]);
+					}
+
+					func(*chunks[chunkIdx]);
+				}
+			}
+
+			//--------------------------------------------------------------------------------
+
 			template <bool HasFilters, typename Func>
 			static void
-			ProcessQueryOnChunks(const containers::darray<Chunk*>& chunksList, const EntityQueryInfo& queryInfo, Func func) {
-				constexpr size_t BatchSize = 256U;
-				containers::sarray<Chunk*, BatchSize> tmp;
-
+			ProcessQueryOnChunks(Func func, const containers::darray<Chunk*>& chunksList, const EntityQueryInfo& queryInfo) {
 				size_t chunkOffset = 0;
-				size_t indexInBatch = 0;
 
 				size_t itemsLeft = chunksList.size();
 				while (itemsLeft > 0) {
-					GAIA_PROF_START(PrepareChunks);
+					ChunkBatchedList chunkBatch;
+					const size_t batchSize = itemsLeft > ChunkBatchedList::extent ? ChunkBatchedList::extent : itemsLeft;
+					ChunkBatch_Prepare<HasFilters>(
+							func, CChunkSpan((const Chunk**)&chunksList[chunkOffset], batchSize), queryInfo, chunkBatch);
+					ChunkBatch_Perform(func, chunkBatch);
 
-					const size_t batchSize = itemsLeft > BatchSize ? BatchSize : itemsLeft;
-
-					// Prepare a buffer to iterate over
-					for (size_t j = chunkOffset; j < chunkOffset + batchSize; ++j) {
-						auto* pChunk = chunksList[j];
-
-						if (!CanAcceptChunkForProcessing<HasFilters>(*pChunk, queryInfo))
-							continue;
-
-						tmp[indexInBatch++] = pChunk;
-					}
-
-					GAIA_PROF_STOP();
-					GAIA_PROF_START(ExecChunks);
-
-					// Execute functors in batches
-					// This is what we're effectively doing:
-					// for (size_t chunkIdx = 0; chunkIdx < indexInBatch; ++chunkIdx)
-					//	func(*tmp[chunkIdx]);
-
-					if (GAIA_UNLIKELY(indexInBatch == 0)) {
-						// Nothing to do
-					} else if GAIA_UNLIKELY (indexInBatch == 1) {
-						// We only have one chunk to process
-						func(*tmp[0]);
-					} else {
-						// We have many chunks to process.
-						// Chunks might be located at different memory locations. Not even in the same memory page.
-						// Therefore, to make it easier for the CPU we give it a hint that we want to prefetch data
-						// for the next chunk explictely so we do not end up stalling later.
-						// Note, this is a micro optimization and on average it bring no performance benefit. It only
-						// helps with edge cases.
-						// Let us be conservatine for now and go with T2. That means we will try to keep our data at
-						// least in L3 cache or higher.
-						gaia::prefetch(&tmp[1], PREFETCH_HINT_T2);
-						func(*tmp[0]);
-
-						size_t chunkIdx = 1;
-						for (; chunkIdx < indexInBatch - 1; ++chunkIdx) {
-							gaia::prefetch(&tmp[chunkIdx + 1], PREFETCH_HINT_T2);
-							func(*tmp[chunkIdx]);
-						}
-
-						func(*tmp[chunkIdx]);
-					}
-
-					GAIA_PROF_STOP();
-
-					// Prepeare for the next loop
-					indexInBatch = 0;
 					itemsLeft -= batchSize;
+					chunkOffset += batchSize;
 				}
 			}
+
+			//--------------------------------------------------------------------------------
 
 			template <typename Func>
 			static void RunQueryOnChunks_Internal(World& world, EntityQuery& query, EntityQueryInfo& queryInfo, Func func) {
@@ -1451,9 +1463,9 @@ namespace gaia {
 						++archetype.m_properties.structuralChangesLocked;
 
 						if (query.CheckConstraints<true>())
-							ProcessQueryOnChunks<true>(archetype.m_chunks, queryInfo, func);
+							ProcessQueryOnChunks<true>(func, archetype.m_chunks, queryInfo);
 						if (query.CheckConstraints<false>())
-							ProcessQueryOnChunks<true>(archetype.m_chunksDisabled, queryInfo, func);
+							ProcessQueryOnChunks<true>(func, archetype.m_chunksDisabled, queryInfo);
 
 						GAIA_ASSERT(archetype.m_properties.structuralChangesLocked > 0);
 						--archetype.m_properties.structuralChangesLocked;
@@ -1465,9 +1477,9 @@ namespace gaia {
 						++archetype.m_properties.structuralChangesLocked;
 
 						if (query.CheckConstraints<true>())
-							ProcessQueryOnChunks<false>(archetype.m_chunks, queryInfo, func);
+							ProcessQueryOnChunks<false>(func, archetype.m_chunks, queryInfo);
 						if (query.CheckConstraints<false>())
-							ProcessQueryOnChunks<false>(archetype.m_chunksDisabled, queryInfo, func);
+							ProcessQueryOnChunks<false>(func, archetype.m_chunksDisabled, queryInfo);
 
 						GAIA_ASSERT(archetype.m_properties.structuralChangesLocked > 0);
 						--archetype.m_properties.structuralChangesLocked;

@@ -93,7 +93,7 @@
 
 namespace gaia {
 
-	enum PrefetchHint {
+	enum PrefetchHint: int {
 		//! Temporal data — prefetch data into all levels of the cache hierarchy
 		PREFETCH_HINT_T0 = 3,
 		//! Temporal data with respect to first level cache misses — prefetch data into L2 cache and higher
