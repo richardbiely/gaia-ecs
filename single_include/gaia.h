@@ -7893,7 +7893,7 @@ namespace gaia {
 			GAIA_MSVC_WARNING_DISABLE(26495)
 
 			Chunk(
-					uint32_t archetypeId, uint32_t chunkIndex, const uint32_t& worldVersion, uint16_t capacity,
+					uint32_t archetypeId, uint16_t chunkIndex, const uint32_t& worldVersion, uint16_t capacity,
 					const containers::sarray<ComponentIdList, ComponentType::CT_Count>& componentIds,
 					const containers::sarray<ComponentOffsetList, ComponentType::CT_Count>& componentOffsets):
 					m_header(worldVersion) {
@@ -8142,7 +8142,7 @@ namespace gaia {
 			\return Newly allocated chunk
 			*/
 			static Chunk* Create(
-					uint32_t archetypeId, uint32_t chunkIndex, const uint32_t& worldVersion, uint16_t capacity,
+					uint32_t archetypeId, uint16_t chunkIndex, const uint32_t& worldVersion, uint16_t capacity,
 					const containers::sarray<ComponentIdList, ComponentType::CT_Count>& componentIds,
 					const containers::sarray<ComponentOffsetList, ComponentType::CT_Count>& componentOffsets) {
 #if GAIA_ECS_CHUNK_ALLOCATOR
@@ -8338,11 +8338,11 @@ namespace gaia {
 				return m_header.archetypeId;
 			}
 
-			void SetChunkIndex(uint32_t value) {
+			void SetChunkIndex(uint16_t value) {
 				m_header.index = value;
 			}
 
-			GAIA_NODISCARD uint32_t GetChunkIndex() const {
+			GAIA_NODISCARD uint16_t GetChunkIndex() const {
 				return m_header.index;
 			}
 
@@ -8670,7 +8670,7 @@ namespace gaia {
 
 				// No free space found anywhere. Let's create a new chunk.
 				auto* pChunk = Chunk::Create(
-						m_archetypeId, chunkCnt, m_worldVersion, m_properties.capacity, m_componentIds, m_componentOffsets);
+						m_archetypeId, (uint16_t)chunkCnt, m_worldVersion, m_properties.capacity, m_componentIds, m_componentOffsets);
 
 				chunkArray.push_back(pChunk);
 				return pChunk;
@@ -8903,7 +8903,6 @@ namespace gaia {
 				constexpr uint32_t CapacityIncreaseSize = 128U;
 
 				// Make sure there is enough capacity to hold our data
-				const auto oldSize = m_data.size();
 				const auto newSize = m_data.size() + size;
 				const auto newCapacity = (newSize / CapacityIncreaseSize) * CapacityIncreaseSize + CapacityIncreaseSize;
 				m_data.reserve(newCapacity);
@@ -11147,9 +11146,8 @@ namespace gaia {
 			using CChunkSpan = std::span<const Chunk*>;
 			using ChunkBatchedList = containers::sarray_ext<Chunk*, 256U>;
 
-			template <bool HasFilters, typename Func>
-			void ChunkBatch_Prepare(
-					Func func, CChunkSpan chunkSpan, const EntityQueryInfo& queryInfo, ChunkBatchedList& chunkBatch) {
+			template <bool HasFilters>
+			void ChunkBatch_Prepare(CChunkSpan chunkSpan, const EntityQueryInfo& queryInfo, ChunkBatchedList& chunkBatch) {
 				GAIA_PROF_SCOPE(PrepareChunkBatch);
 
 				for (const auto* pChunk: chunkSpan) {
@@ -11208,7 +11206,7 @@ namespace gaia {
 					ChunkBatchedList chunkBatch;
 					const size_t batchSize = itemsLeft > ChunkBatchedList::extent ? ChunkBatchedList::extent : itemsLeft;
 					ChunkBatch_Prepare<HasFilters>(
-							func, CChunkSpan((const Chunk**)&chunksList[chunkOffset], batchSize), queryInfo, chunkBatch);
+							CChunkSpan((const Chunk**)&chunksList[chunkOffset], batchSize), queryInfo, chunkBatch);
 					ChunkBatch_Perform(func, chunkBatch);
 
 					itemsLeft -= batchSize;
