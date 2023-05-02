@@ -446,7 +446,7 @@ inline void DoNotOptimize(T const& value) {
 
 namespace gaia {
 
-	enum PrefetchHint {
+	enum PrefetchHint: int {
 		//! Temporal data — prefetch data into all levels of the cache hierarchy
 		PREFETCH_HINT_T0 = 3,
 		//! Temporal data with respect to first level cache misses — prefetch data into L2 cache and higher
@@ -1706,6 +1706,8 @@ namespace gaia {
 			using const_pointer = T*;
 			using difference_type = std::ptrdiff_t;
 			using size_type = decltype(N);
+
+			static constexpr size_type extent = N;
 
 		private:
 			T m_data[N != 0U ? N : 1]; // support zero-size arrays
@@ -5680,10 +5682,11 @@ namespace gaia {
 #include <type_traits>
 #include <utility>
 
-#if __cpp_lib_span
+#define USE_SPAN GAIA_USE_STL_CONTAINERS
+
+#if USE_SPAN && __cpp_lib_span
 	#include <span>
 #else
-	// Workaround for pre-C++20 compilers <span>
 	
 /*
 This is an implementation of C++20's std::span
@@ -9078,8 +9081,6 @@ namespace gaia {
 			//! Version of the world for which the query has been called most recently
 			uint32_t m_worldVersion = 0;
 
-			// EntityQueryInfo() = default;
-
 			void SetWorldVersion(uint32_t version) {
 				m_worldVersion = version;
 			}
@@ -9151,6 +9152,17 @@ namespace gaia {
 				}
 			}
 
+			static void CalculateMatcherHashes(LookupCtx& ctx) {
+				// Sort the arrays if necessary
+				SortComponentArrays(ctx);
+
+				// Calculate the matcher hash
+				for (auto& l: ctx.list) {
+					for (size_t i = 0; i < ListType::LT_Count; ++i)
+						l.hash[i] = CalculateMatcherHash(l.componentIds[i]);
+				}
+			}
+
 			static void CalculateLookupHash(LookupCtx& ctx) {
 				// Make sure we don't calculate the hash twice
 				GAIA_ASSERT(ctx.hashLookup.hash == 0);
@@ -9186,17 +9198,6 @@ namespace gaia {
 				}
 
 				ctx.hashLookup = {utils::calculate_hash64(hashLookup)};
-			}
-
-			static void CalculateMatcherHashes(LookupCtx& ctx) {
-				// Sort the arrays if necessary
-				SortComponentArrays(ctx);
-
-				// Calculate the matcher hash
-				for (auto& l: ctx.list) {
-					for (size_t i = 0; i < ListType::LT_Count; ++i)
-						l.hash[i] = CalculateMatcherHash(l.componentIds[i]);
-				}
 			}
 
 			//! Tries to match component ids in \param componentIdsQuery with those in \param componentIds.
@@ -9400,25 +9401,30 @@ namespace gaia {
 			friend class World;
 
 			//! Command buffer command type
-			enum CommandBufferCmd : uint8_t { ALL, ANY, NONE, ADD_FILTER };
+			enum CommandBufferCmd : uint8_t { ADD_COMPONENT, ADD_FILTER };
 
-			struct Command_Base {
+			struct Command_AddComponent {
+				static constexpr CommandBufferCmd Id = CommandBufferCmd::ADD_COMPONENT;
+
 				ComponentId componentId;
 				ComponentType componentType;
+				EntityQueryInfo::ListType listType;
 				bool isReadWrite;
 
 				void Save(DataBuffer& buffer) {
 					buffer.Save(componentId);
 					buffer.Save(componentType);
+					buffer.Save(listType);
 					buffer.Save(isReadWrite);
 				}
 				void Load(DataBuffer& buffer) {
 					buffer.Load(componentId);
 					buffer.Load(componentType);
+					buffer.Load(listType);
 					buffer.Load(isReadWrite);
 				}
 
-				void Exec(EntityQueryInfo::LookupCtx& ctx, EntityQueryInfo::ListType listType) {
+				void Exec(EntityQueryInfo::LookupCtx& ctx) {
 					auto& list = ctx.list[componentType];
 					auto& componentIds = list.componentIds[listType];
 
@@ -9444,27 +9450,7 @@ namespace gaia {
 					componentIds.push_back(componentId);
 				}
 			};
-			struct Command_All: public Command_Base {
-				static constexpr CommandBufferCmd Id = CommandBufferCmd::ALL;
 
-				void Exec(EntityQueryInfo::LookupCtx& ctx) {
-					Command_Base::Exec(ctx, EntityQueryInfo::ListType::LT_All);
-				}
-			};
-			struct Command_Any: public Command_Base {
-				static constexpr CommandBufferCmd Id = CommandBufferCmd::ANY;
-
-				void Exec(EntityQueryInfo::LookupCtx& ctx) {
-					Command_Base::Exec(ctx, EntityQueryInfo::ListType::LT_Any);
-				}
-			};
-			struct Command_None: public Command_Base {
-				static constexpr CommandBufferCmd Id = CommandBufferCmd::NONE;
-
-				void Exec(EntityQueryInfo::LookupCtx& ctx) {
-					Command_Base::Exec(ctx, EntityQueryInfo::ListType::LT_None);
-				}
-			};
 			struct Command_Filter {
 				static constexpr CommandBufferCmd Id = CommandBufferCmd::ADD_FILTER;
 
@@ -9526,21 +9512,9 @@ namespace gaia {
 
 			using CmdBufferCmdFunc = void (*)(DataBuffer& buffer, EntityQueryInfo::LookupCtx& ctx);
 			static constexpr CmdBufferCmdFunc CommandBufferRead[] = {
-					// All
+					// Add component
 					[](DataBuffer& buffer, EntityQueryInfo::LookupCtx& ctx) {
-						Command_All cmd;
-						cmd.Load(buffer);
-						cmd.Exec(ctx);
-					},
-					// Any
-					[](DataBuffer& buffer, EntityQueryInfo::LookupCtx& ctx) {
-						Command_Any cmd;
-						cmd.Load(buffer);
-						cmd.Exec(ctx);
-					},
-					// None
-					[](DataBuffer& buffer, EntityQueryInfo::LookupCtx& ctx) {
-						Command_None cmd;
+						Command_AddComponent cmd;
 						cmd.Load(buffer);
 						cmd.Exec(ctx);
 					},
@@ -9574,23 +9548,8 @@ namespace gaia {
 				auto& cc = GetComponentCacheRW();
 				(void)cc.GetOrCreateComponentInfo<T>();
 
-				switch (listType) {
-					case EntityQueryInfo::ListType::LT_All:
-						m_cmdBuffer.Save(Command_All::Id);
-						Command_All{componentId, componentType, isReadWrite}.Save(m_cmdBuffer);
-						break;
-					case EntityQueryInfo::ListType::LT_Any:
-						m_cmdBuffer.Save(Command_Any::Id);
-						Command_Any{componentId, componentType, isReadWrite}.Save(m_cmdBuffer);
-						break;
-					case EntityQueryInfo::ListType::LT_None:
-						m_cmdBuffer.Save(Command_None::Id);
-						Command_None{componentId, componentType, isReadWrite}.Save(m_cmdBuffer);
-						break;
-					default:
-						GAIA_ASSERT(false && "Invalid command id in EntityQuery command buffer");
-						break;
-				}
+				m_cmdBuffer.Save(Command_AddComponent::Id);
+				Command_AddComponent{componentId, componentType, listType, isReadWrite}.Save(m_cmdBuffer);
 			}
 
 			template <typename T>
@@ -9649,7 +9608,7 @@ namespace gaia {
 			}
 
 			template <typename... T>
-			GAIA_FORCEINLINE EntityQuery& WithChanged() {
+			EntityQuery& WithChanged() {
 				// Invalidte the query
 				m_hashLookup = {0};
 				// Add commands to the command buffer
@@ -9679,7 +9638,7 @@ namespace gaia {
 					return m_constraints == EntityQuery::Constraints::DisabledOnly;
 			}
 
-			GAIA_NODISCARD void Commit(EntityQueryInfo::LookupCtx& ctx) {
+			void Commit(EntityQueryInfo::LookupCtx& ctx) {
 				// No need to commit anything if we already have the lookup hash
 				if (m_hashLookup.hash != 0) {
 					ctx.hashLookup = m_hashLookup;
@@ -11035,6 +10994,8 @@ namespace gaia {
 				}
 			}
 
+			//--------------------------------------------------------------------------------
+
 			template <typename Func>
 			GAIA_FORCEINLINE void ForEachArchetype(EntityQuery& query, Func func) {
 #if 0 // GAIA_ARCHETYPE_GRAPH
@@ -11054,6 +11015,8 @@ namespace gaia {
 #endif
 			}
 
+			//--------------------------------------------------------------------------------
+
 			template <typename Func>
 			GAIA_FORCEINLINE void ForEachArchetype_NoMatch(const EntityQueryInfo& queryInfo, Func func) const {
 				for (const auto* pArchetype: queryInfo)
@@ -11070,14 +11033,14 @@ namespace gaia {
 			//--------------------------------------------------------------------------------
 
 			template <typename... T>
-			void UnpackArgsIntoQuery([[maybe_unused]] utils::func_type_list<T...> types, EntityQuery& query) const {
+			void UnpackArgsIntoQuery(EntityQuery& query, [[maybe_unused]] utils::func_type_list<T...> types) const {
 				static_assert(sizeof...(T) > 0, "Inputs-less functors can not be unpacked to query");
 				query.All<T...>();
 			}
 
 			template <typename... T>
-			GAIA_NODISCARD bool
-			UnpackArgsIntoQuery_Check([[maybe_unused]] utils::func_type_list<T...> types, EntityQueryInfo& queryInfo) const {
+			GAIA_NODISCARD bool UnpackArgsIntoQuery_Check(
+					const EntityQueryInfo& queryInfo, [[maybe_unused]] utils::func_type_list<T...> types) const {
 				if constexpr (sizeof...(T) > 0)
 					return queryInfo.HasAll<T...>();
 				else
@@ -11087,13 +11050,13 @@ namespace gaia {
 			template <typename Func>
 			static void ResolveQuery(World& world, EntityQuery& query) {
 				using InputArgs = decltype(utils::func_args(&Func::operator()));
-				world.UnpackArgsIntoQuery(InputArgs{}, query);
+				world.UnpackArgsIntoQuery(query, InputArgs{});
 			}
 
 			template <typename Func>
-			static bool CheckQuery(World& world, EntityQueryInfo& queryInfo) {
+			static bool CheckQuery(World& world, const EntityQueryInfo& queryInfo) {
 				using InputArgs = decltype(utils::func_args(&Func::operator()));
-				return world.UnpackArgsIntoQuery_Check(InputArgs{}, queryInfo);
+				return world.UnpackArgsIntoQuery_Check(queryInfo, InputArgs{});
 			}
 
 			//--------------------------------------------------------------------------------
@@ -11140,72 +11103,79 @@ namespace gaia {
 
 			//--------------------------------------------------------------------------------
 
+			using CChunkSpan = std::span<const Chunk*>;
+			using ChunkBatchedList = containers::sarray_ext<Chunk*, 256U>;
+
+			template <bool HasFilters, typename Func>
+			static void ChunkBatch_Prepare(
+					Func func, CChunkSpan chunkSpan, const EntityQueryInfo& queryInfo, ChunkBatchedList& chunkBatch) {
+				GAIA_PROF_SCOPE(PrepareChunkBatch);
+
+				for (const auto* pChunk: chunkSpan) {
+					if (!CanAcceptChunkForProcessing<HasFilters>(*pChunk, queryInfo))
+						continue;
+
+					chunkBatch.push_back(const_cast<Chunk*>(pChunk));
+				}
+			}
+
+			//! Execute functors in batches
+			template <typename Func>
+			static void ChunkBatch_Perform(Func func, const ChunkBatchedList& chunks) {
+				GAIA_PROF_SCOPE(RunFuncOnChunkBatch);
+
+				// This is what the function is doing:
+				// for (auto *pChunk: chunks)
+				//	func(*pChunk);
+
+				if (GAIA_UNLIKELY(chunks.size() == 0)) {
+					// Nothing to do
+				} else if GAIA_UNLIKELY (chunks.size() == 1) {
+					// We only have one chunk to process
+					func(*chunks[0]);
+				} else {
+					// We have many chunks to process.
+					// Chunks might be located at different memory locations. Not even in the same memory page.
+					// Therefore, to make it easier for the CPU we give it a hint that we want to prefetch data
+					// for the next chunk explictely so we do not end up stalling later.
+					// Note, this is a micro optimization and on average it bring no performance benefit. It only
+					// helps with edge cases.
+					// Let us be conservatine for now and go with T2. That means we will try to keep our data at
+					// least in L3 cache or higher.
+					gaia::prefetch(&chunks[1], PrefetchHint::PREFETCH_HINT_T2);
+					func(*chunks[0]);
+
+					size_t chunkIdx = 1;
+					for (; chunkIdx < chunks.size() - 1; ++chunkIdx) {
+						gaia::prefetch(&chunks[chunkIdx + 1], PrefetchHint::PREFETCH_HINT_T2);
+						func(*chunks[chunkIdx]);
+					}
+
+					func(*chunks[chunkIdx]);
+				}
+			}
+
+			//--------------------------------------------------------------------------------
+
 			template <bool HasFilters, typename Func>
 			static void
-			ProcessQueryOnChunks(const containers::darray<Chunk*>& chunksList, const EntityQueryInfo& queryInfo, Func func) {
-				constexpr size_t BatchSize = 256U;
-				containers::sarray<Chunk*, BatchSize> tmp;
-
+			ProcessQueryOnChunks(Func func, const containers::darray<Chunk*>& chunksList, const EntityQueryInfo& queryInfo) {
 				size_t chunkOffset = 0;
-				size_t indexInBatch = 0;
 
 				size_t itemsLeft = chunksList.size();
 				while (itemsLeft > 0) {
-					GAIA_PROF_START(PrepareChunks);
+					ChunkBatchedList chunkBatch;
+					const size_t batchSize = itemsLeft > ChunkBatchedList::extent ? ChunkBatchedList::extent : itemsLeft;
+					ChunkBatch_Prepare<HasFilters>(
+							func, CChunkSpan((const Chunk**)&chunksList[chunkOffset], batchSize), queryInfo, chunkBatch);
+					ChunkBatch_Perform(func, chunkBatch);
 
-					const size_t batchSize = itemsLeft > BatchSize ? BatchSize : itemsLeft;
-
-					// Prepare a buffer to iterate over
-					for (size_t j = chunkOffset; j < chunkOffset + batchSize; ++j) {
-						auto* pChunk = chunksList[j];
-
-						if (!CanAcceptChunkForProcessing<HasFilters>(*pChunk, queryInfo))
-							continue;
-
-						tmp[indexInBatch++] = pChunk;
-					}
-
-					GAIA_PROF_STOP();
-					GAIA_PROF_START(ExecChunks);
-
-					// Execute functors in batches
-					// This is what we're effectively doing:
-					// for (size_t chunkIdx = 0; chunkIdx < indexInBatch; ++chunkIdx)
-					//	func(*tmp[chunkIdx]);
-
-					if (GAIA_UNLIKELY(indexInBatch == 0)) {
-						// Nothing to do
-					} else if GAIA_UNLIKELY (indexInBatch == 1) {
-						// We only have one chunk to process
-						func(*tmp[0]);
-					} else {
-						// We have many chunks to process.
-						// Chunks might be located at different memory locations. Not even in the same memory page.
-						// Therefore, to make it easier for the CPU we give it a hint that we want to prefetch data
-						// for the next chunk explictely so we do not end up stalling later.
-						// Note, this is a micro optimization and on average it bring no performance benefit. It only
-						// helps with edge cases.
-						// Let us be conservatine for now and go with T2. That means we will try to keep our data at
-						// least in L3 cache or higher.
-						gaia::prefetch(&tmp[1], PREFETCH_HINT_T2);
-						func(*tmp[0]);
-
-						size_t chunkIdx = 1;
-						for (; chunkIdx < indexInBatch - 1; ++chunkIdx) {
-							gaia::prefetch(&tmp[chunkIdx + 1], PREFETCH_HINT_T2);
-							func(*tmp[chunkIdx]);
-						}
-
-						func(*tmp[chunkIdx]);
-					}
-
-					GAIA_PROF_STOP();
-
-					// Prepeare for the next loop
-					indexInBatch = 0;
 					itemsLeft -= batchSize;
+					chunkOffset += batchSize;
 				}
 			}
+
+			//--------------------------------------------------------------------------------
 
 			template <typename Func>
 			static void RunQueryOnChunks_Internal(World& world, EntityQuery& query, EntityQueryInfo& queryInfo, Func func) {
@@ -11220,9 +11190,9 @@ namespace gaia {
 						++archetype.m_properties.structuralChangesLocked;
 
 						if (query.CheckConstraints<true>())
-							ProcessQueryOnChunks<true>(archetype.m_chunks, queryInfo, func);
+							ProcessQueryOnChunks<true>(func, archetype.m_chunks, queryInfo);
 						if (query.CheckConstraints<false>())
-							ProcessQueryOnChunks<true>(archetype.m_chunksDisabled, queryInfo, func);
+							ProcessQueryOnChunks<true>(func, archetype.m_chunksDisabled, queryInfo);
 
 						GAIA_ASSERT(archetype.m_properties.structuralChangesLocked > 0);
 						--archetype.m_properties.structuralChangesLocked;
@@ -11234,9 +11204,9 @@ namespace gaia {
 						++archetype.m_properties.structuralChangesLocked;
 
 						if (query.CheckConstraints<true>())
-							ProcessQueryOnChunks<false>(archetype.m_chunks, queryInfo, func);
+							ProcessQueryOnChunks<false>(func, archetype.m_chunks, queryInfo);
 						if (query.CheckConstraints<false>())
-							ProcessQueryOnChunks<false>(archetype.m_chunksDisabled, queryInfo, func);
+							ProcessQueryOnChunks<false>(func, archetype.m_chunksDisabled, queryInfo);
 
 						GAIA_ASSERT(archetype.m_properties.structuralChangesLocked > 0);
 						--archetype.m_properties.structuralChangesLocked;
@@ -11938,20 +11908,6 @@ namespace gaia {
 				SET_COMPONENT,
 				SET_COMPONENT_FOR_TEMPENTITY,
 				REMOVE_COMPONENT
-			};
-
-			struct Command_CreateEntity {
-				static constexpr CommandBufferCmd Id = CommandBufferCmd::CREATE_ENTITY;
-			};
-			struct Command_CreateEntityFromEntity {
-				static constexpr CommandBufferCmd Id = CommandBufferCmd::CREATE_ENTITY_FROM_ENTITY;
-				Entity entityFrom;
-			};
-			struct Command_AddComponent {
-				static constexpr CommandBufferCmd Id = CommandBufferCmd::ADD_COMPONENT;
-				ComponentType componentType;
-				Entity entity;
-				ComponentId componentId;
 			};
 
 			friend class World;
