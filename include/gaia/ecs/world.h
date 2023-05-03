@@ -137,7 +137,7 @@ namespace gaia {
 
 		private:
 			EntityQueryInfo& GetQueryInfo(EntityQuery& query) {
-				EntityQueryInfo::LookupCtx ctx;
+				query::LookupCtx ctx;
 				query.Commit(ctx);
 
 				auto& queryInfo = m_cachedQueries.Get(query.GetLookupHash().hash, query.GetCacheId());
@@ -145,7 +145,7 @@ namespace gaia {
 			}
 
 			EntityQueryInfo& GetOrCreateQueryInfo(EntityQuery& query) {
-				EntityQueryInfo::LookupCtx ctx;
+				query::LookupCtx ctx;
 				query.Commit(ctx);
 
 				auto& queryInfo = m_cachedQueries.GetOrCreate(std::move(ctx));

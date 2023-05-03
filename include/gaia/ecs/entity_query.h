@@ -12,7 +12,7 @@
 #include "component_cache.h"
 #include "component_utils.h"
 #include "data_buffer.h"
-#include "entity_query_info.h"
+#include "entity_query_common.h"
 
 namespace gaia {
 	namespace ecs {
@@ -30,7 +30,7 @@ namespace gaia {
 
 				ComponentId componentId;
 				ComponentType componentType;
-				EntityQueryInfo::ListType listType;
+				query::ListType listType;
 				bool isReadWrite;
 
 				void Save(DataBuffer& buffer) {
@@ -46,7 +46,7 @@ namespace gaia {
 					buffer.Load(isReadWrite);
 				}
 
-				void Exec(EntityQueryInfo::LookupCtx& ctx) {
+				void Exec(query::LookupCtx& ctx) {
 					auto& list = ctx.list[componentType];
 					auto& componentIds = list.componentIds[listType];
 
@@ -55,7 +55,7 @@ namespace gaia {
 
 #if GAIA_DEBUG
 					// There's a limit to the amount of components which we can store
-					if (componentIds.size() >= EntityQueryInfo::MAX_COMPONENTS_IN_QUERY) {
+					if (componentIds.size() >= query::MAX_COMPONENTS_IN_QUERY) {
 						GAIA_ASSERT(false && "Trying to create an ECS query with too many components!");
 
 						const auto& cc = ComponentCache::Get();
@@ -88,7 +88,7 @@ namespace gaia {
 					buffer.Load(componentType);
 				}
 
-				void Exec(EntityQueryInfo::LookupCtx& ctx) {
+				void Exec(query::LookupCtx& ctx) {
 					auto& list = ctx.list[componentType];
 					auto& arrFilter = ctx.listChangeFiltered[componentType];
 
@@ -97,7 +97,7 @@ namespace gaia {
 
 #if GAIA_DEBUG
 					// There's a limit to the amount of components which we can store
-					if (arrFilter.size() >= EntityQueryInfo::MAX_COMPONENTS_IN_QUERY) {
+					if (arrFilter.size() >= query::MAX_COMPONENTS_IN_QUERY) {
 						GAIA_ASSERT(false && "Trying to create an ECS filter query with too many components!");
 
 						const auto& cc = ComponentCache::Get();
@@ -111,11 +111,11 @@ namespace gaia {
 
 					// Component has to be present in anyList or allList.
 					// NoneList makes no sense because we skip those in query processing anyway.
-					if (utils::has(list.componentIds[EntityQueryInfo::ListType::LT_Any], componentId)) {
+					if (utils::has(list.componentIds[query::ListType::LT_Any], componentId)) {
 						arrFilter.push_back(componentId);
 						return;
 					}
-					if (utils::has(list.componentIds[EntityQueryInfo::ListType::LT_All], componentId)) {
+					if (utils::has(list.componentIds[query::ListType::LT_All], componentId)) {
 						arrFilter.push_back(componentId);
 						return;
 					}
@@ -132,16 +132,16 @@ namespace gaia {
 				}
 			};
 
-			using CmdBufferCmdFunc = void (*)(DataBuffer& buffer, EntityQueryInfo::LookupCtx& ctx);
+			using CmdBufferCmdFunc = void (*)(DataBuffer& buffer, query::LookupCtx& ctx);
 			static constexpr CmdBufferCmdFunc CommandBufferRead[] = {
 					// Add component
-					[](DataBuffer& buffer, EntityQueryInfo::LookupCtx& ctx) {
+					[](DataBuffer& buffer, query::LookupCtx& ctx) {
 						Command_AddComponent cmd;
 						cmd.Load(buffer);
 						cmd.Exec(ctx);
 					},
 					// Add filter
-					[](DataBuffer& buffer, EntityQueryInfo::LookupCtx& ctx) {
+					[](DataBuffer& buffer, query::LookupCtx& ctx) {
 						Command_Filter cmd;
 						cmd.Load(buffer);
 						cmd.Exec(ctx);
@@ -149,14 +149,14 @@ namespace gaia {
 
 			DataBuffer m_cmdBuffer;
 			//! Lookup hash for this query
-			EntityQueryInfo::LookupHash m_hashLookup{};
+			query::LookupHash m_hashLookup{};
 			//! Query cache id
 			uint32_t m_cacheId = (uint32_t)-1;
 			//! Tell what kinds of chunks are going to be accepted by the query
 			EntityQuery::Constraints m_constraints = EntityQuery::Constraints::EnabledOnly;
 
 			template <typename T>
-			void AddComponent_Internal(EntityQueryInfo::ListType listType) {
+			void AddComponent_Internal(query::ListType listType) {
 				using U = typename DeduceComponent<T>::Type;
 				using UOriginal = typename DeduceComponent<T>::TypeOriginal;
 				using UOriginalPR = std::remove_reference_t<std::remove_pointer_t<UOriginal>>;
@@ -188,13 +188,13 @@ namespace gaia {
 			}
 
 		public:
-			void Init(EntityQueryInfo::LookupHash hash, uint32_t id) {
+			void Init(query::LookupHash hash, uint32_t id) {
 				GAIA_ASSERT(m_cacheId == (uint32_t)-1 || m_hashLookup == hash && m_cacheId == id);
 				m_hashLookup = hash;
 				m_cacheId = id;
 			}
 
-			EntityQueryInfo::LookupHash GetLookupHash() const {
+			query::LookupHash GetLookupHash() const {
 				return m_hashLookup;
 			}
 
@@ -207,7 +207,7 @@ namespace gaia {
 				// Invalidte the query
 				m_hashLookup = {0};
 				// Add commands to the command buffer
-				(AddComponent_Internal<T>(EntityQueryInfo::ListType::LT_All), ...);
+				(AddComponent_Internal<T>(query::ListType::LT_All), ...);
 				return *this;
 			}
 
@@ -216,7 +216,7 @@ namespace gaia {
 				// Invalidte the query
 				m_hashLookup = {0};
 				// Add commands to the command buffer
-				(AddComponent_Internal<T>(EntityQueryInfo::ListType::LT_Any), ...);
+				(AddComponent_Internal<T>(query::ListType::LT_Any), ...);
 				return *this;
 			}
 
@@ -225,7 +225,7 @@ namespace gaia {
 				// Invalidte the query
 				m_hashLookup = {0};
 				// Add commands to the command buffer
-				(AddComponent_Internal<T>(EntityQueryInfo::ListType::LT_None), ...);
+				(AddComponent_Internal<T>(query::ListType::LT_None), ...);
 				return *this;
 			}
 
@@ -260,7 +260,7 @@ namespace gaia {
 					return m_constraints == EntityQuery::Constraints::DisabledOnly;
 			}
 
-			void Commit(EntityQueryInfo::LookupCtx& ctx) {
+			void Commit(query::LookupCtx& ctx) {
 				// No need to commit anything if we already have the lookup hash
 				if (m_hashLookup.hash != 0) {
 					ctx.hashLookup = m_hashLookup;
@@ -277,7 +277,7 @@ namespace gaia {
 				}
 
 				// Calculate the lookup hash from the provided context
-				EntityQueryInfo::CalculateLookupHash(ctx);
+				query::CalculateLookupHash(ctx);
 
 				// We can free all temporary data now
 				m_cmdBuffer.Reset();
