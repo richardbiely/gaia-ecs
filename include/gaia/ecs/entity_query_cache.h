@@ -5,7 +5,7 @@
 namespace gaia {
 	namespace ecs {
 		class EntityQueryCache {
-			containers::map<query::LookupHash, containers::darray<EntityQueryInfo>> m_cachedQueries;
+			containers::map<query::LookupHash, containers::darray<EntityQueryInfo>> m_queryCache;
 
 		public:
 			EntityQueryCache() = default;
@@ -20,8 +20,8 @@ namespace gaia {
 			//! \param query Query used to search for query info
 			//! \return Entity query info or nullptr if not found
 			EntityQueryInfo* Find(uint64_t lookupHash, uint32_t cacheId) const {
-				auto it = m_cachedQueries.find({lookupHash});
-				GAIA_ASSERT(it != m_cachedQueries.end());
+				auto it = m_queryCache.find({lookupHash});
+				GAIA_ASSERT(it != m_queryCache.end());
 
 				const auto& queries = it->second;
 				for (auto& q: queries) {
@@ -49,14 +49,14 @@ namespace gaia {
 				GAIA_ASSERT(ctx.hashLookup.hash != 0);
 
 				// Check if the query info exists first
-				auto it = m_cachedQueries.find(ctx.hashLookup);
-				if GAIA_UNLIKELY (it == m_cachedQueries.end()) {
+				auto it = m_queryCache.find(ctx.hashLookup);
+				if GAIA_UNLIKELY (it == m_queryCache.end()) {
 					// Query info does not exist so we need to create it and update the orignal query accordingly.
 					const auto hash = ctx.hashLookup;
 
 					auto info = EntityQueryInfo::Create(0, std::move(ctx));
-					m_cachedQueries[hash] = {std::move(info)};
-					return m_cachedQueries[hash].back();
+					m_queryCache[hash] = {std::move(info)};
+					return m_queryCache[hash].back();
 				}
 
 				auto& queries = it->second;

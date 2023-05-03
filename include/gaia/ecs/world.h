@@ -71,7 +71,7 @@ namespace gaia {
 			friend void ReleaseChunkMemory(World& world, void* mem);
 
 			//! Cache of entity queries
-			EntityQueryCache m_cachedQueries;
+			EntityQueryCache m_queryCache;
 			//! Map or archetypes mapping to the same hash - used for lookups
 			containers::map<Archetype::LookupHash, containers::darray<Archetype*>> m_archetypeMap;
 			//! List of archetypes - used for iteration
@@ -93,67 +93,7 @@ namespace gaia {
 			//! With every structural change world version changes
 			uint32_t m_worldVersion = 0;
 
-		public:
-			void UpdateWorldVersion() {
-				UpdateVersion(m_worldVersion);
-			}
-
-			GAIA_NODISCARD bool IsEntityValid(Entity entity) const {
-				// Entity ID has to fit inside the entity array
-				if (entity.id() >= m_entities.size())
-					return false;
-
-				const auto& entityContainer = m_entities[entity.id()];
-				// Generation ID has to match the one in the array
-				if (entityContainer.gen != entity.gen())
-					return false;
-				// If chunk information is present the entity at the pointed index has to match our entity
-				if ((entityContainer.pChunk != nullptr) && entityContainer.pChunk->GetEntity(entityContainer.idx) != entity)
-					return false;
-
-				return true;
-			}
-
-			void Cleanup() {
-				// Clear entities
-				{
-					m_entities = {};
-					m_nextFreeEntity = 0;
-					m_freeEntities = 0;
-				}
-
-				// Clear archetypes
-				{
-					m_chunksToRemove = {};
-
-					// Delete all allocated chunks and their parent archetypes
-					for (auto* pArchetype: m_archetypes)
-						delete pArchetype;
-
-					m_archetypes = {};
-					m_archetypeMap = {};
-				}
-			}
-
 		private:
-			EntityQueryInfo& GetQueryInfo(EntityQuery& query) {
-				query::LookupCtx ctx;
-				query.Commit(ctx);
-
-				auto& queryInfo = m_cachedQueries.Get(query.GetLookupHash().hash, query.GetCacheId());
-				return queryInfo;
-			}
-
-			EntityQueryInfo& GetOrCreateQueryInfo(EntityQuery& query) {
-				query::LookupCtx ctx;
-				query.Commit(ctx);
-
-				auto& queryInfo = m_cachedQueries.GetOrCreate(std::move(ctx));
-				query.Init(queryInfo.GetLookupHash(), queryInfo.GetCacheId());
-
-				return queryInfo;
-			}
-
 			/*!
 			Remove an entity from chunk.
 			\param pChunk Chunk we remove the entity from
@@ -869,11 +809,50 @@ namespace gaia {
 			World& operator=(World&&) = delete;
 			World& operator=(const World&) = delete;
 
+			GAIA_NODISCARD bool IsEntityValid(Entity entity) const {
+				// Entity ID has to fit inside the entity array
+				if (entity.id() >= m_entities.size())
+					return false;
+
+				const auto& entityContainer = m_entities[entity.id()];
+				// Generation ID has to match the one in the array
+				if (entityContainer.gen != entity.gen())
+					return false;
+				// If chunk information is present the entity at the pointed index has to match our entity
+				if ((entityContainer.pChunk != nullptr) && entityContainer.pChunk->GetEntity(entityContainer.idx) != entity)
+					return false;
+
+				return true;
+			}
+
+			void Cleanup() {
+				// Clear entities
+				{
+					m_entities = {};
+					m_nextFreeEntity = 0;
+					m_freeEntities = 0;
+				}
+
+				// Clear archetypes
+				{
+					m_chunksToRemove = {};
+
+					// Delete all allocated chunks and their parent archetypes
+					for (auto* pArchetype: m_archetypes)
+						delete pArchetype;
+
+					m_archetypes = {};
+					m_archetypeMap = {};
+				}
+			}
+
+			//----------------------------------------------------------------------
+
 			/*!
 			Returns the current version of the world.
 			\return World version number
 			*/
-			GAIA_NODISCARD const uint32_t& GetWorldVersion() const {
+			GAIA_NODISCARD  uint32_t& GetWorldVersion() {
 				return m_worldVersion;
 			}
 
@@ -1248,254 +1227,11 @@ namespace gaia {
 
 			//--------------------------------------------------------------------------------
 
-			template <typename... T, typename Func>
-			GAIA_FORCEINLINE void
-			ForEachEntityInChunk([[maybe_unused]] utils::func_type_list<T...> types, Chunk& chunk, Func func) {
-				const size_t size = chunk.GetItemCount();
-				GAIA_ASSERT(size > 0);
-
-				if constexpr (sizeof...(T) > 0) {
-					// Pointers to the respective component types in the chunk, e.g
-					// 		w.ForEach(q, [&](Position& p, const Velocity& v) {...}
-					// Translates to:
-					//  	auto p = chunk.ViewRW_Internal<Position, true>();
-					//		auto v = chunk.View_Internal<Velocity>();
-					auto dataPointerTuple = std::make_tuple(GetComponentView<T>(chunk)...);
-
-					// Iterate over each entity in the chunk.
-					// Translates to:
-					//		for (size_t i = 0; i < chunk.GetItemCount(); ++i)
-					//			func(p[i], v[i]);
-
-					for (size_t i = 0; i < size; ++i)
-						func(std::get<decltype(GetComponentView<T>(chunk))>(dataPointerTuple)[i]...);
-				} else {
-					// No functor parameters. Do an empty loop.
-					for (size_t i = 0; i < size; ++i)
-						func();
-				}
-			}
-
-			//--------------------------------------------------------------------------------
-
-			template <typename Func>
-			GAIA_FORCEINLINE void ForEachArchetype(EntityQuery& query, Func func) {
-#if 0 // GAIA_ARCHETYPE_GRAPH
-			// TODO: Make it so we only traverse archetypes that are relevant rather than all of them
-				ArchetypeGraphTraverse(ComponentType::CT_Generic, [&](const Archetype& archetype) {
-					(void)archetype;
-					return EntityQuery::MatchArchetypeQueryRet::Ok;
-				});
-				for (auto* pArchetype: query)
-					func(*pArchetype);
-#else
-				auto& queryInfo = GetQueryInfo(query);
-				queryInfo.Match(m_archetypes);
-
-				for (auto* pArchetype: queryInfo)
-					func(*pArchetype);
-#endif
-			}
-
-			//--------------------------------------------------------------------------------
-
-			template <typename Func>
-			GAIA_FORCEINLINE void ForEachArchetype_NoMatch(const EntityQueryInfo& queryInfo, Func func) const {
-				for (const auto* pArchetype: queryInfo)
-					func(*pArchetype);
-			}
-
-			template <typename Func>
-			GAIA_FORCEINLINE void ForEachArchetypeCond_NoMatch(const EntityQueryInfo& queryInfo, Func func) const {
-				for (const auto* pArchetype: queryInfo)
-					if (!func(*pArchetype))
-						break;
-			}
-
-			//--------------------------------------------------------------------------------
-
 			template <typename... T>
 			void UnpackArgsIntoQuery(EntityQuery& query, [[maybe_unused]] utils::func_type_list<T...> types) const {
 				static_assert(sizeof...(T) > 0, "Inputs-less functors can not be unpacked to query");
 				query.All<T...>();
 			}
-
-			template <typename... T>
-			GAIA_NODISCARD bool UnpackArgsIntoQuery_Check(
-					const EntityQueryInfo& queryInfo, [[maybe_unused]] utils::func_type_list<T...> types) const {
-				if constexpr (sizeof...(T) > 0)
-					return queryInfo.HasAll<T...>();
-				else
-					return true;
-			}
-
-			template <typename Func>
-			static void ResolveQuery(World& world, EntityQuery& query) {
-				using InputArgs = decltype(utils::func_args(&Func::operator()));
-				world.UnpackArgsIntoQuery(query, InputArgs{});
-			}
-
-			template <typename Func>
-			static bool CheckQuery(World& world, const EntityQueryInfo& queryInfo) {
-				using InputArgs = decltype(utils::func_args(&Func::operator()));
-				return world.UnpackArgsIntoQuery_Check(queryInfo, InputArgs{});
-			}
-
-			//--------------------------------------------------------------------------------
-
-			GAIA_NODISCARD bool CheckFilters(const EntityQueryInfo& queryInfo, const Chunk& chunk) const {
-				GAIA_ASSERT(chunk.HasEntities() && "CheckFilters called on an empty chunk");
-
-				// See if any generic component has changed
-				{
-					const auto& filtered = queryInfo.GetFiltered(ComponentType::CT_Generic);
-					for (auto componentId: filtered) {
-						const auto& archetype = *m_archetypes[chunk.m_header.archetypeId];
-						const auto componentIdx = archetype.GetComponentIdx(ComponentType::CT_Generic, componentId);
-						if (chunk.DidChange(ComponentType::CT_Generic, queryInfo.GetWorldVersion(), componentIdx))
-							return true;
-					}
-				}
-
-				// See if any chunk component has changed
-				{
-					const auto& filtered = queryInfo.GetFiltered(ComponentType::CT_Chunk);
-					for (auto componentId: filtered) {
-						const auto& archetype = *m_archetypes[chunk.m_header.archetypeId];
-						const uint32_t componentIdx = archetype.GetComponentIdx(ComponentType::CT_Chunk, componentId);
-						if (chunk.DidChange(ComponentType::CT_Chunk, queryInfo.GetWorldVersion(), componentIdx))
-							return true;
-					}
-				}
-
-				// Skip unchanged chunks.
-				return false;
-			}
-
-			template <bool HasFilters>
-			GAIA_NODISCARD bool CanAcceptChunkForProcessing(const Chunk& chunk, const EntityQueryInfo& queryInfo) const {
-				if GAIA_UNLIKELY (!chunk.HasEntities())
-					return false;
-
-				if constexpr (HasFilters) {
-					if (!CheckFilters(queryInfo, chunk))
-						return false;
-				}
-
-				return true;
-			}
-
-			//--------------------------------------------------------------------------------
-
-			using CChunkSpan = std::span<const Chunk*>;
-			using ChunkBatchedList = containers::sarray_ext<Chunk*, 256U>;
-
-			template <bool HasFilters>
-			void ChunkBatch_Prepare(CChunkSpan chunkSpan, const EntityQueryInfo& queryInfo, ChunkBatchedList& chunkBatch) {
-				GAIA_PROF_SCOPE(PrepareChunkBatch);
-
-				for (const auto* pChunk: chunkSpan) {
-					if (!CanAcceptChunkForProcessing<HasFilters>(*pChunk, queryInfo))
-						continue;
-
-					chunkBatch.push_back(const_cast<Chunk*>(pChunk));
-				}
-			}
-
-			//! Execute functors in batches
-			template <typename Func>
-			static void ChunkBatch_Perform(Func func, const ChunkBatchedList& chunks) {
-				GAIA_PROF_SCOPE(RunFuncOnChunkBatch);
-
-				// This is what the function is doing:
-				// for (auto *pChunk: chunks)
-				//	func(*pChunk);
-
-				if (GAIA_UNLIKELY(chunks.size() == 0)) {
-					// Nothing to do
-				} else if GAIA_UNLIKELY (chunks.size() == 1) {
-					// We only have one chunk to process
-					func(*chunks[0]);
-				} else {
-					// We have many chunks to process.
-					// Chunks might be located at different memory locations. Not even in the same memory page.
-					// Therefore, to make it easier for the CPU we give it a hint that we want to prefetch data
-					// for the next chunk explictely so we do not end up stalling later.
-					// Note, this is a micro optimization and on average it bring no performance benefit. It only
-					// helps with edge cases.
-					// Let us be conservatine for now and go with T2. That means we will try to keep our data at
-					// least in L3 cache or higher.
-					gaia::prefetch(&chunks[1], PrefetchHint::PREFETCH_HINT_T2);
-					func(*chunks[0]);
-
-					size_t chunkIdx = 1;
-					for (; chunkIdx < chunks.size() - 1; ++chunkIdx) {
-						gaia::prefetch(&chunks[chunkIdx + 1], PrefetchHint::PREFETCH_HINT_T2);
-						func(*chunks[chunkIdx]);
-					}
-
-					func(*chunks[chunkIdx]);
-				}
-			}
-
-			//--------------------------------------------------------------------------------
-
-			template <bool HasFilters, typename Func>
-			void
-			ProcessQueryOnChunks(Func func, const containers::darray<Chunk*>& chunksList, const EntityQueryInfo& queryInfo) {
-				size_t chunkOffset = 0;
-
-				size_t itemsLeft = chunksList.size();
-				while (itemsLeft > 0) {
-					ChunkBatchedList chunkBatch;
-					const size_t batchSize = itemsLeft > ChunkBatchedList::extent ? ChunkBatchedList::extent : itemsLeft;
-					ChunkBatch_Prepare<HasFilters>(
-							CChunkSpan((const Chunk**)&chunksList[chunkOffset], batchSize), queryInfo, chunkBatch);
-					ChunkBatch_Perform(func, chunkBatch);
-
-					itemsLeft -= batchSize;
-					chunkOffset += batchSize;
-				}
-			}
-
-			//--------------------------------------------------------------------------------
-
-			template <typename Func>
-			static void RunQueryOnChunks_Internal(World& world, EntityQuery& query, EntityQueryInfo& queryInfo, Func func) {
-				// Update the world version
-				world.UpdateWorldVersion();
-
-				const bool hasFilters = queryInfo.HasFilters();
-				if (hasFilters) {
-					// Iterate over all archetypes
-					world.ForEachArchetype(query, [&](Archetype& archetype) {
-						archetype.SetStructuralChanges(true);
-
-						if (query.CheckConstraints<true>())
-							world.ProcessQueryOnChunks<true>(func, archetype.m_chunks, queryInfo);
-						if (query.CheckConstraints<false>())
-							world.ProcessQueryOnChunks<true>(func, archetype.m_chunksDisabled, queryInfo);
-
-						archetype.SetStructuralChanges(false);
-					});
-				} else {
-					// Iterate over all archetypes
-					world.ForEachArchetype(query, [&](Archetype& archetype) {
-						archetype.SetStructuralChanges(true);
-
-						if (query.CheckConstraints<true>())
-							world.ProcessQueryOnChunks<false>(func, archetype.m_chunks, queryInfo);
-						if (query.CheckConstraints<false>())
-							world.ProcessQueryOnChunks<false>(func, archetype.m_chunksDisabled, queryInfo);
-
-						archetype.SetStructuralChanges(false);
-					});
-				}
-
-				queryInfo.SetWorldVersion(world.GetWorldVersion());
-			}
-
-			//--------------------------------------------------------------------------------
 
 			template <typename... T>
 			static void RegisterComponents_Internal(utils::func_type_list<T...> /*no_name*/) {
@@ -1510,68 +1246,9 @@ namespace gaia {
 				RegisterComponents_Internal(InputArgs{});
 			}
 
-			//--------------------------------------------------------------------------------
-
-			template <typename Func>
-			GAIA_FORCEINLINE void ForEachChunk_External(World& world, EntityQuery& query, Func func) {
-				GAIA_PROF_SCOPE(ForEachChunk_E);
-
-				auto& queryInfo = GetOrCreateQueryInfo(query);
-
-				RunQueryOnChunks_Internal(world, query, queryInfo, [&](Chunk& chunk) {
-					func(chunk);
-				});
-			}
-
-			template <typename Func>
-			GAIA_FORCEINLINE void ForEach_External(World& world, EntityQuery& query, Func func) {
-				GAIA_PROF_SCOPE(ForEach_E);
-
-				auto& queryInfo = GetOrCreateQueryInfo(query);
-
-#if GAIA_DEBUG
-				// Make sure we only use components specified in the query
-				GAIA_ASSERT(CheckQuery<Func>(world, queryInfo));
-#endif
-
-				using InputArgs = decltype(utils::func_args(&Func::operator()));
-				RunQueryOnChunks_Internal(world, query, queryInfo, [&](Chunk& chunk) {
-					world.ForEachEntityInChunk(InputArgs{}, chunk, func);
-				});
-			}
-
-			template <typename Func>
-			GAIA_FORCEINLINE void ForEach_Internal(World& world, Func func) {
-				GAIA_PROF_SCOPE(ForEach_I);
-
-				RegisterComponents<Func>();
-
-				EntityQuery query;
-				ResolveQuery<Func>((World&)*this, query);
-
-				auto& queryInfo = GetOrCreateQueryInfo(query);
-
-				using InputArgs = decltype(utils::func_args(&Func::operator()));
-				RunQueryOnChunks_Internal(world, query, queryInfo, [&](Chunk& chunk) {
-					world.ForEachEntityInChunk(InputArgs{}, chunk, func);
-				});
-			}
-
-			//--------------------------------------------------------------------------------
-
 		public:
-			/*!
-			Iterates over all chunks satisfying conditions set by \param query and calls \param func for all of them.
-			\warning Iterating using ecs::Chunk makes it possible to perform optimizations otherwise not possible with
-							other methods of iteration as it exposes the chunk itself. On the other hand, it is more verbose
-							and takes more lines of code when used.
-			*/
-			template <typename Func>
-			void ForEach(EntityQuery& query, Func func) {
-				if constexpr (std::is_invocable<Func, Chunk&>::value)
-					ForEachChunk_External((World&)*this, query, func);
-				else
-					ForEach_External((World&)*this, query, func);
+			EntityQuery CreateQuery() {
+				return EntityQuery(m_queryCache, m_worldVersion, m_archetypes);
 			}
 
 			/*!
@@ -1586,258 +1263,14 @@ namespace gaia {
 				static_assert(
 						!std::is_invocable<Func, Chunk&>::value, "Calling query-less ForEach is not supported for chunk iteration");
 
-				ForEach_Internal<Func>((World&)*this, func);
+				using InputArgs = decltype(utils::func_args(&Func::operator()));
+
+				RegisterComponents<Func>();
+
+				EntityQuery query = CreateQuery();
+				UnpackArgsIntoQuery(query, InputArgs{});
+				query.ForEach(func);
 			}
-
-			//--------------------------------------------------------------------------------
-
-			class QueryResult {
-				const World& m_w;
-				const EntityQuery& m_query;
-				const EntityQueryInfo& m_queryInfo;
-
-			public:
-				QueryResult(const World& w, const EntityQuery& q, const EntityQueryInfo& qi):
-						m_w(w), m_query(q), m_queryInfo(qi) {}
-
-				/*!
-				Returns true or false depending on whether there are entities matching the query.
-				\param ignoreFilters If true any filters which might be set on the entity query is ignored
-				\warning Only use if you only care if there are any entities matching the query.
-								 The result is not cached and repeated calls to the function might be slow.
-								 If you already called ToArray, checking if it is empty is preferred.
-				\return True if there are any entites matchine the query. False otherwise.
-				*/
-				bool HasItems(bool ignoreFilters = false) const {
-					bool hasItems = false;
-
-					const bool hasFilters = !ignoreFilters && m_queryInfo.HasFilters();
-
-					auto execWithFiltersON = [&](const auto& chunksList) {
-						for (auto* pChunk: chunksList) {
-							if (!m_w.CanAcceptChunkForProcessing<true>(*pChunk, m_queryInfo))
-								continue;
-							hasItems = true;
-							break;
-						}
-					};
-
-					auto execWithFiltersOFF = [&](const auto& chunksList) {
-						for (auto* pChunk: chunksList) {
-							if (!m_w.CanAcceptChunkForProcessing<false>(*pChunk, m_queryInfo))
-								continue;
-							hasItems = true;
-							break;
-						}
-					};
-
-					if (hasItems) {
-						if (hasFilters) {
-							// Iterate over all archetypes
-							m_w.ForEachArchetypeCond_NoMatch(m_queryInfo, [&](const Archetype& archetype) {
-								if (m_query.CheckConstraints<true>()) {
-									execWithFiltersON(archetype.m_chunks);
-									return false;
-								}
-								if (m_query.CheckConstraints<false>()) {
-									execWithFiltersON(archetype.m_chunksDisabled);
-									return false;
-								}
-
-								return true;
-							});
-						} else {
-							// Iterate over all archetypes
-							m_w.ForEachArchetypeCond_NoMatch(m_queryInfo, [&](const Archetype& archetype) {
-								if (m_query.CheckConstraints<true>()) {
-									execWithFiltersOFF(archetype.m_chunks);
-									return false;
-								}
-								if (m_query.CheckConstraints<false>()) {
-									execWithFiltersOFF(archetype.m_chunksDisabled);
-									return false;
-								}
-
-								return true;
-							});
-						}
-
-					} else {
-						if (hasFilters) {
-							// Iterate over all archetypes
-							m_w.ForEachArchetypeCond_NoMatch(m_queryInfo, [&](const Archetype& archetype) {
-								if (m_query.CheckConstraints<true>())
-									execWithFiltersON(archetype.m_chunks);
-								if (m_query.CheckConstraints<false>())
-									execWithFiltersON(archetype.m_chunksDisabled);
-
-								return true;
-							});
-						} else {
-							// Iterate over all archetypes
-							m_w.ForEachArchetypeCond_NoMatch(m_queryInfo, [&](const Archetype& archetype) {
-								if (m_query.CheckConstraints<true>())
-									execWithFiltersOFF(archetype.m_chunks);
-								if (m_query.CheckConstraints<false>())
-									execWithFiltersOFF(archetype.m_chunksDisabled);
-
-								return true;
-							});
-						}
-					}
-
-					return hasItems;
-				}
-
-				/*!
-				Returns the number of entities matching the query
-				\param ignoreFilters If true any filters which might be set on the entity query is ignored
-				\warning Only use if you only care about the number of entities matching the query.
-								 The result is not cached and repeated calls to the function might be slow.
-								 If you already called ToArray, use the size provided by the array.
-				\return The number of matching entities
-				*/
-				size_t CalculateItemCount(bool ignoreFilters = false) const {
-					size_t itemCount = 0;
-
-					const bool hasFilters = !ignoreFilters && m_queryInfo.HasFilters();
-
-					auto execWithFiltersON = [&](const auto& chunksList) {
-						for (auto* pChunk: chunksList) {
-							if (m_w.CanAcceptChunkForProcessing<true>(*pChunk, m_queryInfo))
-								itemCount += pChunk->GetItemCount();
-						}
-					};
-
-					auto execWithFiltersOFF = [&](const auto& chunksList) {
-						for (auto* pChunk: chunksList) {
-							if (m_w.CanAcceptChunkForProcessing<false>(*pChunk, m_queryInfo))
-								itemCount += pChunk->GetItemCount();
-						}
-					};
-
-					if (hasFilters) {
-						m_w.ForEachArchetype_NoMatch(m_queryInfo, [&](const Archetype& archetype) {
-							if (m_query.CheckConstraints<true>())
-								execWithFiltersON(archetype.m_chunks);
-							if (m_query.CheckConstraints<false>())
-								execWithFiltersON(archetype.m_chunksDisabled);
-						});
-					} else {
-						m_w.ForEachArchetype_NoMatch(m_queryInfo, [&](const Archetype& archetype) {
-							if (m_query.CheckConstraints<true>())
-								execWithFiltersOFF(archetype.m_chunks);
-							if (m_query.CheckConstraints<false>())
-								execWithFiltersOFF(archetype.m_chunksDisabled);
-						});
-					}
-
-					return itemCount;
-				}
-
-				/*!
-				Returns an array of components or entities matching the query
-				\tparam Container Container storing entities or components
-				\return Array with entities or components
-				*/
-				template <typename Container>
-				void ToArray(Container& outArray) const {
-					using ContainerItemType = typename Container::value_type;
-
-					const size_t itemCount = CalculateItemCount();
-					outArray.reserve(itemCount);
-
-					const bool hasFilters = m_queryInfo.HasFilters();
-
-					auto addChunk = [&](Chunk* pChunk) {
-						const auto componentView = pChunk->template View<ContainerItemType>();
-						for (size_t i = 0; i < pChunk->GetItemCount(); ++i)
-							outArray.push_back(componentView[i]);
-					};
-
-					auto execWithFiltersON = [&](const auto& chunksList) {
-						for (auto* pChunk: chunksList) {
-							if (m_w.CanAcceptChunkForProcessing<true>(*pChunk, m_queryInfo))
-								addChunk(pChunk);
-						}
-					};
-
-					auto execWithFiltersOFF = [&](const auto& chunksList) {
-						for (auto* pChunk: chunksList) {
-							if (m_w.CanAcceptChunkForProcessing<false>(*pChunk, m_queryInfo))
-								addChunk(pChunk);
-						}
-					};
-
-					if (hasFilters) {
-						m_w.ForEachArchetype_NoMatch(m_queryInfo, [&](const Archetype& archetype) {
-							if (m_query.CheckConstraints<true>())
-								execWithFiltersON(archetype.m_chunks);
-							if (m_query.CheckConstraints<false>())
-								execWithFiltersON(archetype.m_chunksDisabled);
-						});
-					} else {
-						m_w.ForEachArchetype_NoMatch(m_queryInfo, [&](const Archetype& archetype) {
-							if (m_query.CheckConstraints<true>())
-								execWithFiltersOFF(archetype.m_chunks);
-							if (m_query.CheckConstraints<false>())
-								execWithFiltersOFF(archetype.m_chunksDisabled);
-						});
-					}
-				}
-
-				/*!
-				Returns an array of chunks matching the query
-				\return Array of chunks
-				*/
-				template <typename Container>
-				void ToChunkArray(Container& outArray) const {
-					static_assert(std::is_same_v<typename Container::value_type, Chunk*>);
-
-					const size_t itemCount = CalculateItemCount();
-					outArray.reserve(itemCount);
-
-					const bool hasFilters = m_queryInfo.HasFilters();
-
-					auto execWithFiltersON = [&](const auto& chunksList) {
-						for (auto* pChunk: chunksList) {
-							if (m_w.CanAcceptChunkForProcessing<true>(*pChunk, m_queryInfo))
-								outArray.push_back(pChunk);
-						}
-					};
-
-					auto execWithFiltersOFF = [&](const auto& chunksList) {
-						for (auto* pChunk: chunksList) {
-							if (m_w.CanAcceptChunkForProcessing<false>(*pChunk, m_queryInfo))
-								outArray.push_back(pChunk);
-						}
-					};
-
-					if (hasFilters) {
-						m_w.ForEachArchetype_NoMatch(m_queryInfo, [&](const Archetype& archetype) {
-							if (m_query.CheckConstraints<true>())
-								execWithFiltersON(archetype.m_chunks);
-							if (m_query.CheckConstraints<false>())
-								execWithFiltersON(archetype.m_chunksDisabled);
-						});
-					} else {
-						m_w.ForEachArchetype_NoMatch(m_queryInfo, [&](const Archetype& archetype) {
-							if (m_query.CheckConstraints<true>())
-								execWithFiltersOFF(archetype.m_chunks);
-							if (m_query.CheckConstraints<false>())
-								execWithFiltersOFF(archetype.m_chunksDisabled);
-						});
-					}
-				}
-			};
-
-			GAIA_NODISCARD QueryResult FromQuery(EntityQuery& query) {
-				auto& queryInfo = GetOrCreateQueryInfo(query);
-				queryInfo.Match(m_archetypes);
-				return QueryResult(*this, query, queryInfo);
-			}
-
-			//--------------------------------------------------------------------------------
 
 			/*!
 			Garbage collection. Checks all chunks and archetypes which are empty and have not been
@@ -2124,7 +1557,7 @@ namespace gaia {
 			}
 		};
 
-		GAIA_NODISCARD inline const uint32_t& GetWorldVersionFromWorld(const World& world) {
+		GAIA_NODISCARD inline uint32_t& GetWorldVersionFromWorld(World& world) {
 			return world.GetWorldVersion();
 		}
 

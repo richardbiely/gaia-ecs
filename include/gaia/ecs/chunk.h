@@ -41,7 +41,7 @@ namespace gaia {
 			GAIA_MSVC_WARNING_DISABLE(26495)
 
 			Chunk(
-					uint32_t archetypeId, uint16_t chunkIndex, const uint32_t& worldVersion, uint16_t capacity,
+					uint32_t archetypeId, uint16_t chunkIndex, uint16_t capacity, uint32_t& worldVersion,
 					const containers::sarray<ComponentIdList, ComponentType::CT_Count>& componentIds,
 					const containers::sarray<ComponentOffsetList, ComponentType::CT_Count>& componentOffsets):
 					m_header(worldVersion) {
@@ -62,6 +62,7 @@ namespace gaia {
 				const auto index = m_header.count++;
 				SetEntity(index, entity);
 
+				UpdateVersion(m_header.worldVersion);
 				m_header.UpdateWorldVersion(ComponentType::CT_Generic);
 				m_header.UpdateWorldVersion(ComponentType::CT_Chunk);
 
@@ -121,6 +122,7 @@ namespace gaia {
 					entities[entity.id()].gen = entity.gen();
 				}
 
+				UpdateVersion(m_header.worldVersion);
 				m_header.UpdateWorldVersion(ComponentType::CT_Generic);
 				m_header.UpdateWorldVersion(ComponentType::CT_Chunk);
 
@@ -175,9 +177,10 @@ namespace gaia {
 
 				const auto& componentIds = m_header.componentIds[componentType];
 				const auto& offsets = m_header.componentOffsets[componentType];
-				const auto idx = (uint32_t)utils::get_index_unsafe(componentIds, componentId);
+				const auto componentIdx = (uint32_t)utils::get_index_unsafe(componentIds, componentId);
+				const auto offset = offsets[componentIdx];
 
-				return (const uint8_t*)&m_data[offsets[idx]];
+				return (const uint8_t*)&m_data[offset];
 			}
 
 			/*!
@@ -198,15 +201,16 @@ namespace gaia {
 
 				const auto& componentIds = m_header.componentIds[componentType];
 				const auto& offsets = m_header.componentOffsets[componentType];
-				const auto idx = (uint32_t)utils::get_index_unsafe(componentIds, componentId);
+				const auto componentIdx = (uint32_t)utils::get_index_unsafe(componentIds, componentId);
+				const auto offset = offsets[componentIdx];
 
 				if constexpr (UpdateWorldVersion) {
+					UpdateVersion(m_header.worldVersion);
 					// Update version number so we know RW access was used on chunk
-					// TODO: Broken. World version is set to a component index rather than a proper for version number.
-					m_header.UpdateWorldVersion(componentType, idx);
+					m_header.UpdateWorldVersion(componentType, componentIdx);
 				}
 
-				return (uint8_t*)&m_data[offsets[idx]];
+				return (uint8_t*)&m_data[offset];
 			}
 
 			/*!
@@ -227,9 +231,10 @@ namespace gaia {
 
 					const auto componentId = GetComponentIdUnsafe<U>();
 
-					if constexpr (IsGenericComponent<T>)
-						return std::span<UConst>{(UConst*)GetDataPtr(ComponentType::CT_Generic, componentId), GetItemCount()};
-					else
+					if constexpr (IsGenericComponent<T>) {
+						const uint32_t count = GetItemCount();
+						return std::span<UConst>{(UConst*)GetDataPtr(ComponentType::CT_Generic, componentId), count};
+					} else
 						return std::span<UConst>{(UConst*)GetDataPtr(ComponentType::CT_Chunk, componentId), 1};
 				}
 			}
@@ -256,11 +261,11 @@ namespace gaia {
 
 				const auto componentId = GetComponentIdUnsafe<U>();
 
-				constexpr bool uwv = UpdateWorldVersion;
-				if constexpr (IsGenericComponent<T>)
-					return std::span<U>{(U*)GetDataPtrRW<uwv>(ComponentType::CT_Generic, componentId), GetItemCount()};
-				else
-					return std::span<U>{(U*)GetDataPtrRW<uwv>(ComponentType::CT_Chunk, componentId), 1};
+				if constexpr (IsGenericComponent<T>) {
+					const uint32_t count = GetItemCount();
+					return std::span<U>{(U*)GetDataPtrRW<UpdateWorldVersion>(ComponentType::CT_Generic, componentId), count};
+				} else
+					return std::span<U>{(U*)GetDataPtrRW<UpdateWorldVersion>(ComponentType::CT_Chunk, componentId), 1};
 			}
 
 			/*!
@@ -290,14 +295,14 @@ namespace gaia {
 			\return Newly allocated chunk
 			*/
 			static Chunk* Create(
-					uint32_t archetypeId, uint16_t chunkIndex, const uint32_t& worldVersion, uint16_t capacity,
+					uint32_t archetypeId, uint16_t chunkIndex, uint16_t capacity, uint32_t& worldVersion,
 					const containers::sarray<ComponentIdList, ComponentType::CT_Count>& componentIds,
 					const containers::sarray<ComponentOffsetList, ComponentType::CT_Count>& componentOffsets) {
 #if GAIA_ECS_CHUNK_ALLOCATOR
 				auto* pChunk = (Chunk*)ChunkAllocator::Get().Allocate();
-				new (pChunk) Chunk(archetypeId, chunkIndex, worldVersion, capacity, componentIds, componentOffsets);
+				new (pChunk) Chunk(archetypeId, chunkIndex, capacity, worldVersion, componentIds, componentOffsets);
 #else
-				auto pChunk = new Chunk(archetypeId, chunkIndex, worldVersion, capacity, componentIds, componentOffsets);
+				auto pChunk = new Chunk(archetypeId, chunkIndex, capacity, worldVersion, componentIds, componentOffsets);
 #endif
 
 				return pChunk;
@@ -478,6 +483,47 @@ namespace gaia {
 				static_assert(
 						!IsGenericComponent<T>, "GetComponent not providing an index can only be used with chunk components");
 				return GetComponent_Internal<T>(0);
+			}
+
+			//----------------------------------------------------------------------
+			// Iteration
+			//----------------------------------------------------------------------
+
+			template <typename T>
+			constexpr GAIA_NODISCARD GAIA_FORCEINLINE auto GetComponentView() {
+				using U = typename DeduceComponent<T>::Type;
+				using UOriginal = typename DeduceComponent<T>::TypeOriginal;
+				if constexpr (IsReadOnlyType<UOriginal>::value)
+					return View_Internal<U>();
+				else
+					return ViewRW_Internal<U, true>();
+			}
+
+			template <typename... T, typename Func>
+			GAIA_FORCEINLINE void ForEach([[maybe_unused]] utils::func_type_list<T...> types, Func func) {
+				const size_t size = GetItemCount();
+				GAIA_ASSERT(size > 0);
+
+				if constexpr (sizeof...(T) > 0) {
+					// Pointers to the respective component types in the chunk, e.g
+					// 		q.ForEach([&](Position& p, const Velocity& v) {...}
+					// Translates to:
+					//  	auto p = chunk.ViewRW_Internal<Position, true>();
+					//		auto v = chunk.View_Internal<Velocity>();
+					auto dataPointerTuple = std::make_tuple(GetComponentView<T>()...);
+
+					// Iterate over each entity in the chunk.
+					// Translates to:
+					//		for (size_t i = 0; i < chunk.GetItemCount(); ++i)
+					//			func(p[i], v[i]);
+
+					for (size_t i = 0; i < size; ++i)
+						func(std::get<decltype(GetComponentView<T>())>(dataPointerTuple)[i]...);
+				} else {
+					// No functor parameters. Do an empty loop.
+					for (size_t i = 0; i < size; ++i)
+						func();
+				}
 			}
 
 			//----------------------------------------------------------------------

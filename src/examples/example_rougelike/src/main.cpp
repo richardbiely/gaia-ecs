@@ -499,11 +499,11 @@ class UpdateMapSystem final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q.All<const Position, RigidBody>();
+		m_q = GetWorld().CreateQuery().All<const Position, RigidBody>();
 	}
 	void OnUpdate() override {
 		g_world.content.clear();
-		GetWorld().ForEach(m_q, [&](ecs::Entity e, const Position& p) {
+		m_q.ForEach([&](ecs::Entity e, const Position& p) {
 			g_world.content[p].push_back(e);
 		});
 	}
@@ -526,7 +526,7 @@ class CollisionSystem final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q.All<const Position, const Velocity, const RigidBody>();
+		m_q = GetWorld().CreateQuery().All<const Position, const Velocity, const RigidBody>();
 	}
 
 	void OnUpdate() override {
@@ -537,7 +537,7 @@ public:
 			return val < 0 ? -1 : 1;
 		};
 
-		GetWorld().ForEach(m_q, [&](ecs::Chunk& chunk) {
+		m_q.ForEach([&](ecs::Chunk& chunk) {
 			auto ent = chunk.View<ecs::Entity>();
 			auto vel = chunk.View<Velocity>();
 			auto pos = chunk.View<Position>();
@@ -633,12 +633,12 @@ class OrientationSystem final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q.All<Orientation, const Velocity>().WithChanged<Velocity>();
+		m_q = GetWorld().CreateQuery().All<Orientation, const Velocity>().WithChanged<Velocity>();
 	}
 
 	void OnUpdate() override {
 		// Update orientation based on the current velocity
-		GetWorld().ForEach(m_q, [&](Orientation& o, const Velocity& v) {
+		m_q.ForEach([&](Orientation& o, const Velocity& v) {
 			if (v.x != 0) {
 				o.x = v.x > 0 ? 1 : -1;
 				o.y = 0;
@@ -656,12 +656,12 @@ class MoveSystem final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q.All<Position, const Velocity>();
+		m_q = GetWorld().CreateQuery().All<Position, const Velocity>();
 	}
 
 	void OnUpdate() override {
 		// Update position based on current velocity
-		GetWorld().ForEach(m_q, [&](Position& p, const Velocity& v) {
+		m_q.ForEach([&](Position& p, const Velocity& v) {
 			p.x += v.x;
 			p.y += v.y;
 		});
@@ -782,11 +782,11 @@ class HandleHealthSystem final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q.All<Health>().WithChanged<Health>();
+		m_q = GetWorld().CreateQuery().All<Health>().WithChanged<Health>();
 	}
 
 	void OnUpdate() override {
-		GetWorld().ForEach(m_q, [&](Health& h) {
+		m_q.ForEach([&](Health& h) {
 			if (h.value > h.valueMax)
 				h.value = h.valueMax;
 		});
@@ -798,11 +798,11 @@ class HandleDeathSystem final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q.All<const Health, const Position>().WithChanged<Health>();
+		m_q = GetWorld().CreateQuery().All<const Health, const Position>().WithChanged<Health>();
 	}
 
 	void OnUpdate() override {
-		GetWorld().ForEach(m_q, [&](ecs::Entity e, const Health& h, const Position& p) {
+		m_q.ForEach([&](ecs::Entity e, const Health& h, const Position& p) {
 			if (h.value > 0)
 				return;
 
@@ -817,13 +817,13 @@ class WriteSpritesToMapSystem final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q.All<const Position, const Sprite>();
+		m_q = GetWorld().CreateQuery().All<const Position, const Sprite>();
 	}
 
 	void OnUpdate() override {
 		ClearScreen();
 		g_world.InitWorldMap();
-		GetWorld().ForEach(m_q, [&](const Position& p, const Sprite& s) {
+		m_q.ForEach([&](const Position& p, const Sprite& s) {
 			g_world.map[p.y][p.x] = s.value;
 		});
 	}
@@ -852,11 +852,11 @@ public:
 	}
 
 	void OnUpdate() override {
-		GetWorld().ForEach(m_qp, [](const Health& h) {
+		m_qp.ForEach([](const Health& h) {
 			printf("Player health: %d/%d\n", h.value, h.valueMax);
 		});
 
-		GetWorld().ForEach(m_qe, [&](ecs::Entity e, const Health& h) {
+		m_qe.ForEach([&](ecs::Entity e, const Health& h) {
 			printf("Enemy %u:%u health: %d/%d\n", e.id(), e.gen(), h.value, h.valueMax);
 		});
 	}
@@ -874,13 +874,13 @@ public:
 	}
 
 	void OnUpdate() override {
-		const bool hasPlayer = GetWorld().FromQuery(m_qp).HasItems();
+		const bool hasPlayer = m_qp.HasItems();
 		if (!hasPlayer) {
 			printf("You are dead. Good job.\n");
 			g_world.terminate = true;
 		}
 
-		const bool hasEnemies = GetWorld().FromQuery(m_qe).HasItems();
+		const bool hasEnemies = m_qe.HasItems();
 		if (m_hadEnemies && !hasEnemies) {
 			printf("All enemies are gone. They must have died of old age waiting for you to kill them.\n");
 			g_world.terminate = true;
@@ -894,7 +894,7 @@ class InputSystem final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q.All<const Player, Velocity, const Position, const Orientation>();
+		m_q = GetWorld().CreateQuery().All<const Player, Velocity, const Position, const Orientation>();
 	}
 
 	void OnUpdate() override {
@@ -903,7 +903,7 @@ public:
 		g_world.terminate = key == KEY_QUIT;
 
 		// Player movement
-		GetWorld().ForEach(m_q, [&](Velocity& v, const Position& p, const Orientation& o) {
+		m_q.ForEach([&](Velocity& v, const Position& p, const Orientation& o) {
 			v = {0, 0};
 			if (key == KEY_UP) {
 				v = {0, -1};
