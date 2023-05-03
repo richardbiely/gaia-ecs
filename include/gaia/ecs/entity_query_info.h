@@ -53,6 +53,20 @@ namespace gaia {
 				}
 			}
 
+			template <typename T>
+			bool HasComponent_Internal(query::ListType listType) const {
+				using U = typename DeduceComponent<T>::Type;
+				using UOriginal = typename DeduceComponent<T>::TypeOriginal;
+				using UOriginalPR = std::remove_reference_t<std::remove_pointer_t<UOriginal>>;
+				constexpr bool isReadWrite =
+						std::is_same_v<U, UOriginal> || !std::is_const_v<UOriginalPR> && !std::is_empty_v<U>;
+
+				if constexpr (IsGenericComponent<T>)
+					return HasComponent_Internal<U>(listType, ComponentType::CT_Generic, isReadWrite);
+				else
+					return HasComponent_Internal<U>(listType, ComponentType::CT_Chunk, isReadWrite);
+			}
+
 			//! Tries to match component ids in \param componentIdsQuery with those in \param componentIds.
 			//! \return True if there is a match, false otherwise.
 			static GAIA_NODISCARD bool
@@ -208,21 +222,6 @@ namespace gaia {
 				m_lastArchetypeId = (uint32_t)archetypes.size();
 			}
 
-			template <typename T>
-			bool HasComponent_Internal(query::ListType listType) const {
-				using U = typename DeduceComponent<T>::Type;
-				using UOriginal = typename DeduceComponent<T>::TypeOriginal;
-				using UOriginalPR = std::remove_reference_t<std::remove_pointer_t<UOriginal>>;
-				constexpr bool isReadWrite =
-						std::is_same_v<U, UOriginal> || !std::is_const_v<UOriginalPR> && !std::is_empty_v<U>;
-
-				if constexpr (IsGenericComponent<T>)
-					return HasComponent_Internal<U>(listType, ComponentType::CT_Generic, isReadWrite);
-				else
-					return HasComponent_Internal<U>(listType, ComponentType::CT_Chunk, isReadWrite);
-			}
-
-		public:
 			GAIA_NODISCARD const query::ComponentListData& GetData(ComponentType componentType) const {
 				return m_lookupCtx.list[componentType];
 			}
