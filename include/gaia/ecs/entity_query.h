@@ -162,11 +162,11 @@ namespace gaia {
 			//! Tell what kinds of chunks are going to be accepted by the query
 			EntityQuery::Constraints m_constraints = EntityQuery::Constraints::EnabledOnly;
 
-			//! Entity query cache
+			//! Entity query cache (stable pointer to parent world's query cache)
 			EntityQueryCache* m_entityQueryCache{};
-			//! World version
+			//! World version (stable pointer to parent world's world version)
 			uint32_t* m_worldVersion{};
-			//! List of achetypes
+			//! List of achetypes (stable pointer to parent world's archetype array)
 			containers::darray<Archetype*>* m_archetypes{};
 
 			//--------------------------------------------------------------------------------

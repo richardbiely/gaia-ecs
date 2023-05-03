@@ -26,7 +26,7 @@ namespace gaia {
 			containers::sarray<ComponentIdList, ComponentType::CT_Count> componentIds;
 			//! Lookup hashes of components within this archetype (copied from the owner archetype)
 			containers::sarray<ComponentOffsetList, ComponentType::CT_Count> componentOffsets;
-			//! Version of the world
+			//! Version of the world (stable pointer to parent world's world version)
 			uint32_t& worldVersion;
 			//! Versions of individual components on chunk.
 			uint32_t versions[ComponentType::CT_Count][MAX_COMPONENTS_PER_ARCHETYPE]{};
