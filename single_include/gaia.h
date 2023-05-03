@@ -9170,6 +9170,10 @@ namespace gaia {
 				m_lookupCtx.cacheId = id;
 			}
 
+			EntityQueryInfo::LookupHash GetLookupHash() const {
+				return m_lookupCtx.hashLookup;
+			}
+
 			uint32_t GetCacheId() const {
 				return m_lookupCtx.cacheId;
 			}
@@ -9436,16 +9440,12 @@ namespace gaia {
 
 namespace gaia {
 	namespace ecs {
-		class Archetype;
-
 		class EntityQuery final {
 		public:
 			//! Query constraints
 			enum class Constraints : uint8_t { EnabledOnly, DisabledOnly, AcceptAll };
 
 		private:
-			friend class World;
-
 			//! Command buffer command type
 			enum CommandBufferCmd : uint8_t { ADD_COMPONENT, ADD_FILTER };
 
@@ -9613,7 +9613,7 @@ namespace gaia {
 
 		public:
 			void Init(EntityQueryInfo::LookupHash hash, uint32_t id) {
-				GAIA_ASSERT(m_cacheId == (uint32_t)-1);
+				GAIA_ASSERT(m_cacheId == (uint32_t)-1 || m_hashLookup == hash && m_cacheId == id);
 				m_hashLookup = hash;
 				m_cacheId = id;
 			}
@@ -9727,16 +9727,13 @@ namespace gaia {
 			//! Searches for an entity query info from the provided \param query.
 			//! \param query Query used to search for query info
 			//! \return Entity query info or nullptr if not found
-			EntityQueryInfo* Find(const EntityQuery& query) const {
-				const auto hash = query.GetLookupHash();
-				const auto id = query.GetCacheId();
-
-				auto it = m_cachedQueries.find(hash);
+			EntityQueryInfo* Find(uint64_t lookupHash, uint32_t cacheId) const {
+				auto it = m_cachedQueries.find({lookupHash});
 				GAIA_ASSERT(it != m_cachedQueries.end());
 
 				const auto& queries = it->second;
 				for (auto& q: queries) {
-					if (q.GetCacheId() != id)
+					if (q.GetCacheId() != cacheId)
 						continue;
 					return &q;
 				}
@@ -9748,15 +9745,15 @@ namespace gaia {
 			//! \warning It is expected that the query has already been registered. Undefined behavior otherwise.
 			//! \param query Query used to search for query info
 			//! \return Entity query info
-			EntityQueryInfo& Get(const EntityQuery& query) const {
-				auto* pInfo = Find(query);
+			EntityQueryInfo& Get(uint64_t lookupHash, uint32_t cacheId) const {
+				auto* pInfo = Find(lookupHash, cacheId);
 				GAIA_ASSERT(pInfo != nullptr);
 				return *pInfo;
 			};
 
 			//! Registers the provided entity query lookup context \param ctx. If it already exists it is returned.
 			//! \return Entity query info
-			EntityQueryInfo& GetOrCreate(EntityQuery& query, EntityQueryInfo::LookupCtx&& ctx) {
+			EntityQueryInfo& GetOrCreate(EntityQueryInfo::LookupCtx&& ctx) {
 				GAIA_ASSERT(ctx.hashLookup.hash != 0);
 
 				// Check if the query info exists first
@@ -9767,7 +9764,6 @@ namespace gaia {
 
 					auto info = EntityQueryInfo::Create(std::move(ctx));
 					info.Init(0);
-					query.Init(hash, 0);
 
 					m_cachedQueries[hash] = {std::move(info)};
 					return m_cachedQueries[hash].back();
@@ -9776,7 +9772,7 @@ namespace gaia {
 				auto& queries = it->second;
 
 				// Record with the query info lookup hash exists but we need to check if the query itself is a part of it.
-				if GAIA_LIKELY (query.GetCacheId() != (int32_t)-1) {
+				if GAIA_LIKELY (ctx.cacheId != (int32_t)-1) {
 					// Make sure the same hash gets us to the proper query
 					for (auto& q: queries) {
 						if (q != ctx)
@@ -9790,7 +9786,6 @@ namespace gaia {
 				// This query has not been added anywhere yet. Let's change that.
 				auto info = EntityQueryInfo::Create(std::move(ctx));
 				info.Init((uint32_t)queries.size());
-				query.Init(ctx.hashLookup, (uint32_t)queries.size());
 
 				queries.push_back(std::move(info));
 				return queries.back();
@@ -9910,6 +9905,24 @@ namespace gaia {
 			}
 
 		private:
+			EntityQueryInfo& GetQueryInfo(EntityQuery& query) {
+				EntityQueryInfo::LookupCtx ctx;
+				query.Commit(ctx);
+
+				auto& queryInfo = m_cachedQueries.Get(query.GetLookupHash().hash, query.GetCacheId());
+				return queryInfo;
+			}
+
+			EntityQueryInfo& GetOrCreateQueryInfo(EntityQuery& query) {
+				EntityQueryInfo::LookupCtx ctx;
+				query.Commit(ctx);
+
+				auto& queryInfo = m_cachedQueries.GetOrCreate(std::move(ctx));
+				query.Init(queryInfo.GetLookupHash(), queryInfo.GetCacheId());
+
+				return queryInfo;
+			}
+
 			/*!
 			Remove an entity from chunk.
 			\param pChunk Chunk we remove the entity from
@@ -11045,7 +11058,7 @@ namespace gaia {
 				for (auto* pArchetype: query)
 					func(*pArchetype);
 #else
-				auto& queryInfo = m_cachedQueries.Get(query);
+				auto& queryInfo = GetQueryInfo(query);
 				queryInfo.Match(m_archetypes);
 
 				for (auto* pArchetype: queryInfo)
@@ -11272,9 +11285,7 @@ namespace gaia {
 			GAIA_FORCEINLINE void ForEachChunk_External(World& world, EntityQuery& query, Func func) {
 				GAIA_PROF_SCOPE(ForEachChunk_E);
 
-				EntityQueryInfo::LookupCtx ctx;
-				query.Commit(ctx);
-				auto& queryInfo = m_cachedQueries.GetOrCreate(query, std::move(ctx));
+				auto& queryInfo = GetOrCreateQueryInfo(query);
 
 				RunQueryOnChunks_Internal(world, query, queryInfo, [&](Chunk& chunk) {
 					func(chunk);
@@ -11285,9 +11296,7 @@ namespace gaia {
 			GAIA_FORCEINLINE void ForEach_External(World& world, EntityQuery& query, Func func) {
 				GAIA_PROF_SCOPE(ForEach_E);
 
-				EntityQueryInfo::LookupCtx ctx;
-				query.Commit(ctx);
-				auto& queryInfo = m_cachedQueries.GetOrCreate(query, std::move(ctx));
+				auto& queryInfo = GetOrCreateQueryInfo(query);
 
 #if GAIA_DEBUG
 				// Make sure we only use components specified in the query
@@ -11309,9 +11318,7 @@ namespace gaia {
 				EntityQuery query;
 				ResolveQuery<Func>((World&)*this, query);
 
-				EntityQueryInfo::LookupCtx ctx;
-				query.Commit(ctx);
-				auto& queryInfo = m_cachedQueries.GetOrCreate(query, std::move(ctx));
+				auto& queryInfo = GetOrCreateQueryInfo(query);
 
 				using InputArgs = decltype(utils::func_args(&Func::operator()));
 				RunQueryOnChunks_Internal(world, query, queryInfo, [&](Chunk& chunk) {
@@ -11594,12 +11601,8 @@ namespace gaia {
 			};
 
 			GAIA_NODISCARD QueryResult FromQuery(EntityQuery& query) {
-				EntityQueryInfo::LookupCtx ctx;
-				query.Commit(ctx);
-
-				auto& queryInfo = m_cachedQueries.GetOrCreate(query, std::move(ctx));
+				auto& queryInfo = GetOrCreateQueryInfo(query);
 				queryInfo.Match(m_archetypes);
-
 				return QueryResult(*this, query, queryInfo);
 			}
 
