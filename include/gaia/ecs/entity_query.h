@@ -320,8 +320,6 @@ namespace gaia {
 			//! Execute functors in batches
 			template <typename Func>
 			static void ChunkBatch_Perform(Func func, const ChunkBatchedList& chunks) {
-				GAIA_PROF_SCOPE(ChunkBatch_Perform);
-
 				// This is what the function is doing:
 				// for (auto *pChunk: chunks)
 				//	func(*pChunk);
@@ -329,6 +327,8 @@ namespace gaia {
 				// No chunks, nothing to do here
 				if (GAIA_UNLIKELY(chunks.empty()))
 					return;
+
+				GAIA_PROF_SCOPE(ChunkBatch_Perform);
 
 				// We only have one chunk to process
 				if GAIA_UNLIKELY (chunks.size() == 1) {
