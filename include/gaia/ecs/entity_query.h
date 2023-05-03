@@ -16,16 +16,12 @@
 
 namespace gaia {
 	namespace ecs {
-		class Archetype;
-
 		class EntityQuery final {
 		public:
 			//! Query constraints
 			enum class Constraints : uint8_t { EnabledOnly, DisabledOnly, AcceptAll };
 
 		private:
-			friend class World;
-
 			//! Command buffer command type
 			enum CommandBufferCmd : uint8_t { ADD_COMPONENT, ADD_FILTER };
 
@@ -193,7 +189,7 @@ namespace gaia {
 
 		public:
 			void Init(EntityQueryInfo::LookupHash hash, uint32_t id) {
-				GAIA_ASSERT(m_cacheId == (uint32_t)-1);
+				GAIA_ASSERT(m_cacheId == (uint32_t)-1 || m_hashLookup == hash && m_cacheId == id);
 				m_hashLookup = hash;
 				m_cacheId = id;
 			}

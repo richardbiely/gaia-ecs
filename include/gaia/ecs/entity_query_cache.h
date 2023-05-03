@@ -1,6 +1,6 @@
 #pragma once
 #include "../config/config_core_end.h"
-#include "entity_query.h"
+#include "entity_query_info.h"
 
 namespace gaia {
 	namespace ecs {
@@ -19,16 +19,13 @@ namespace gaia {
 			//! Searches for an entity query info from the provided \param query.
 			//! \param query Query used to search for query info
 			//! \return Entity query info or nullptr if not found
-			EntityQueryInfo* Find(const EntityQuery& query) const {
-				const auto hash = query.GetLookupHash();
-				const auto id = query.GetCacheId();
-
-				auto it = m_cachedQueries.find(hash);
+			EntityQueryInfo* Find(uint64_t lookupHash, uint32_t cacheId) const {
+				auto it = m_cachedQueries.find({lookupHash});
 				GAIA_ASSERT(it != m_cachedQueries.end());
 
 				const auto& queries = it->second;
 				for (auto& q: queries) {
-					if (q.GetCacheId() != id)
+					if (q.GetCacheId() != cacheId)
 						continue;
 					return &q;
 				}
@@ -40,15 +37,15 @@ namespace gaia {
 			//! \warning It is expected that the query has already been registered. Undefined behavior otherwise.
 			//! \param query Query used to search for query info
 			//! \return Entity query info
-			EntityQueryInfo& Get(const EntityQuery& query) const {
-				auto* pInfo = Find(query);
+			EntityQueryInfo& Get(uint64_t lookupHash, uint32_t cacheId) const {
+				auto* pInfo = Find(lookupHash, cacheId);
 				GAIA_ASSERT(pInfo != nullptr);
 				return *pInfo;
 			};
 
 			//! Registers the provided entity query lookup context \param ctx. If it already exists it is returned.
 			//! \return Entity query info
-			EntityQueryInfo& GetOrCreate(EntityQuery& query, EntityQueryInfo::LookupCtx&& ctx) {
+			EntityQueryInfo& GetOrCreate(EntityQueryInfo::LookupCtx&& ctx) {
 				GAIA_ASSERT(ctx.hashLookup.hash != 0);
 
 				// Check if the query info exists first
@@ -59,7 +56,6 @@ namespace gaia {
 
 					auto info = EntityQueryInfo::Create(std::move(ctx));
 					info.Init(0);
-					query.Init(hash, 0);
 
 					m_cachedQueries[hash] = {std::move(info)};
 					return m_cachedQueries[hash].back();
@@ -68,7 +64,7 @@ namespace gaia {
 				auto& queries = it->second;
 
 				// Record with the query info lookup hash exists but we need to check if the query itself is a part of it.
-				if GAIA_LIKELY (query.GetCacheId() != (int32_t)-1) {
+				if GAIA_LIKELY (ctx.cacheId != (int32_t)-1) {
 					// Make sure the same hash gets us to the proper query
 					for (auto& q: queries) {
 						if (q != ctx)
@@ -82,7 +78,6 @@ namespace gaia {
 				// This query has not been added anywhere yet. Let's change that.
 				auto info = EntityQueryInfo::Create(std::move(ctx));
 				info.Init((uint32_t)queries.size());
-				query.Init(ctx.hashLookup, (uint32_t)queries.size());
 
 				queries.push_back(std::move(info));
 				return queries.back();

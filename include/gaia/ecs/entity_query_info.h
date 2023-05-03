@@ -168,6 +168,10 @@ namespace gaia {
 				m_lookupCtx.cacheId = id;
 			}
 
+			EntityQueryInfo::LookupHash GetLookupHash() const {
+				return m_lookupCtx.hashLookup;
+			}
+
 			uint32_t GetCacheId() const {
 				return m_lookupCtx.cacheId;
 			}

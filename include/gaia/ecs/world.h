@@ -136,6 +136,24 @@ namespace gaia {
 			}
 
 		private:
+			EntityQueryInfo& GetQueryInfo(EntityQuery& query) {
+				EntityQueryInfo::LookupCtx ctx;
+				query.Commit(ctx);
+
+				auto& queryInfo = m_cachedQueries.Get(query.GetLookupHash().hash, query.GetCacheId());
+				return queryInfo;
+			}
+
+			EntityQueryInfo& GetOrCreateQueryInfo(EntityQuery& query) {
+				EntityQueryInfo::LookupCtx ctx;
+				query.Commit(ctx);
+
+				auto& queryInfo = m_cachedQueries.GetOrCreate(std::move(ctx));
+				query.Init(queryInfo.GetLookupHash(), queryInfo.GetCacheId());
+
+				return queryInfo;
+			}
+
 			/*!
 			Remove an entity from chunk.
 			\param pChunk Chunk we remove the entity from
@@ -1271,7 +1289,7 @@ namespace gaia {
 				for (auto* pArchetype: query)
 					func(*pArchetype);
 #else
-				auto& queryInfo = m_cachedQueries.Get(query);
+				auto& queryInfo = GetQueryInfo(query);
 				queryInfo.Match(m_archetypes);
 
 				for (auto* pArchetype: queryInfo)
@@ -1498,9 +1516,7 @@ namespace gaia {
 			GAIA_FORCEINLINE void ForEachChunk_External(World& world, EntityQuery& query, Func func) {
 				GAIA_PROF_SCOPE(ForEachChunk_E);
 
-				EntityQueryInfo::LookupCtx ctx;
-				query.Commit(ctx);
-				auto& queryInfo = m_cachedQueries.GetOrCreate(query, std::move(ctx));
+				auto& queryInfo = GetOrCreateQueryInfo(query);
 
 				RunQueryOnChunks_Internal(world, query, queryInfo, [&](Chunk& chunk) {
 					func(chunk);
@@ -1511,9 +1527,7 @@ namespace gaia {
 			GAIA_FORCEINLINE void ForEach_External(World& world, EntityQuery& query, Func func) {
 				GAIA_PROF_SCOPE(ForEach_E);
 
-				EntityQueryInfo::LookupCtx ctx;
-				query.Commit(ctx);
-				auto& queryInfo = m_cachedQueries.GetOrCreate(query, std::move(ctx));
+				auto& queryInfo = GetOrCreateQueryInfo(query);
 
 #if GAIA_DEBUG
 				// Make sure we only use components specified in the query
@@ -1535,9 +1549,7 @@ namespace gaia {
 				EntityQuery query;
 				ResolveQuery<Func>((World&)*this, query);
 
-				EntityQueryInfo::LookupCtx ctx;
-				query.Commit(ctx);
-				auto& queryInfo = m_cachedQueries.GetOrCreate(query, std::move(ctx));
+				auto& queryInfo = GetOrCreateQueryInfo(query);
 
 				using InputArgs = decltype(utils::func_args(&Func::operator()));
 				RunQueryOnChunks_Internal(world, query, queryInfo, [&](Chunk& chunk) {
@@ -1820,12 +1832,8 @@ namespace gaia {
 			};
 
 			GAIA_NODISCARD QueryResult FromQuery(EntityQuery& query) {
-				EntityQueryInfo::LookupCtx ctx;
-				query.Commit(ctx);
-
-				auto& queryInfo = m_cachedQueries.GetOrCreate(query, std::move(ctx));
+				auto& queryInfo = GetOrCreateQueryInfo(query);
 				queryInfo.Match(m_archetypes);
-
 				return QueryResult(*this, query, queryInfo);
 			}
 
