@@ -154,10 +154,10 @@ void BM_ECS(picobench::state& state) {
 	CreateECSEntities_Static<false>(w);
 	CreateECSEntities_Dynamic<false>(w);
 
-	auto queryPosCVel = ecs::EntityQuery().All<Position, const Velocity>();
-	auto queryPosVel = ecs::EntityQuery().All<Position, Velocity>();
-	auto queryVel = ecs::EntityQuery().All<Velocity>();
-	auto queryCHealth = ecs::EntityQuery().All<const Health>();
+	auto queryPosCVel = w.CreateQuery().All<Position, const Velocity>();
+	auto queryPosVel = w.CreateQuery().All<Position, Velocity>();
+	auto queryVel = w.CreateQuery().All<Velocity>();
+	auto queryCHealth = w.CreateQuery().All<const Health>();
 
 	// We want benchmark the hot-path. In real-world scenarios queries are almost never recalculated.
 	(void)queryPosCVel.HasItems();
@@ -214,10 +214,10 @@ void BM_ECS_WithSystems(picobench::state& state) {
 	CreateECSEntities_Static<false>(w);
 	CreateECSEntities_Dynamic<false>(w);
 
-	auto queryPosCVel = ecs::EntityQuery().All<Position, const Velocity>();
-	auto queryPosVel = ecs::EntityQuery().All<Position, Velocity>();
-	auto queryVel = ecs::EntityQuery().All<Velocity>();
-	auto queryCHealth = ecs::EntityQuery().All<const Health>();
+	auto queryPosCVel = w.CreateQuery().All<Position, const Velocity>();
+	auto queryPosVel = w.CreateQuery().All<Position, Velocity>();
+	auto queryVel = w.CreateQuery().All<Velocity>();
+	auto queryCHealth = w.CreateQuery().All<const Health>();
 
 	// We want benchmark the hot-path. In real-world scenarios queries are almost never recalculated.
 	(void)queryPosCVel.HasItems();
@@ -286,10 +286,10 @@ void BM_ECS_WithSystems_Chunk(picobench::state& state) {
 	CreateECSEntities_Static<false>(w);
 	CreateECSEntities_Dynamic<false>(w);
 
-	auto queryPosCVel = ecs::EntityQuery().All<Position, const Velocity>();
-	auto queryPosVel = ecs::EntityQuery().All<Position, Velocity>();
-	auto queryVel = ecs::EntityQuery().All<Velocity>();
-	auto queryCHealth = ecs::EntityQuery().All<const Health>();
+	auto queryPosCVel = w.CreateQuery().All<Position, const Velocity>();
+	auto queryPosVel = w.CreateQuery().All<Position, Velocity>();
+	auto queryVel = w.CreateQuery().All<Velocity>();
+	auto queryCHealth = w.CreateQuery().All<const Health>();
 
 	// We want benchmark the hot-path. In real-world scenarios queries are almost never recalculated.
 	(void)queryPosCVel.HasItems();
@@ -384,10 +384,10 @@ void BM_ECS_WithSystems_Chunk_SoA(picobench::state& state) {
 	CreateECSEntities_Static<true>(w);
 	CreateECSEntities_Dynamic<true>(w);
 
-	auto queryPosCVel = ecs::EntityQuery().All<PositionSoA, const VelocitySoA>();
-	auto queryPosVel = ecs::EntityQuery().All<PositionSoA, VelocitySoA>();
-	auto queryVel = ecs::EntityQuery().All<VelocitySoA>();
-	auto queryCHealth = ecs::EntityQuery().All<const Health>();
+	auto queryPosCVel = w.CreateQuery().All<PositionSoA, const VelocitySoA>();
+	auto queryPosVel = w.CreateQuery().All<PositionSoA, VelocitySoA>();
+	auto queryVel = w.CreateQuery().All<VelocitySoA>();
+	auto queryCHealth = w.CreateQuery().All<const Health>();
 
 	// We want benchmark the hot-path. In real-world scenarios queries are almost never recalculated.
 	(void)queryPosCVel.HasItems();
@@ -581,10 +581,10 @@ void BM_ECS_WithSystems_Chunk_SoA_SIMD(picobench::state& state) {
 	CreateECSEntities_Static<true>(w);
 	CreateECSEntities_Dynamic<true>(w);
 
-	auto queryPosCVel = ecs::EntityQuery().All<PositionSoA, const VelocitySoA>();
-	auto queryPosVel = ecs::EntityQuery().All<PositionSoA, VelocitySoA>();
-	auto queryVel = ecs::EntityQuery().All<VelocitySoA>();
-	auto queryCHealth = ecs::EntityQuery().All<const Health>();
+	auto queryPosCVel = w.CreateQuery().All<PositionSoA, const VelocitySoA>();
+	auto queryPosVel = w.CreateQuery().All<PositionSoA, VelocitySoA>();
+	auto queryVel = w.CreateQuery().All<VelocitySoA>();
+	auto queryCHealth = w.CreateQuery().All<const Health>();
 
 	// We want benchmark the hot-path. In real-world scenarios queries are almost never recalculated.
 	(void)queryPosCVel.HasItems();
