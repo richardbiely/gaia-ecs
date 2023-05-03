@@ -188,7 +188,7 @@ if (pChunkB->HasComponent<Position>())
 ```
 
 ## Data queries
-For querying data you can use an EntityQuery. It can help you find all entities, components or chunks matching the specified set of components and constraints and returns them in the form of an array. You can also use them to quickly check is entities satisfing the given set of rules exist or calculate how many of them there are.<br/> 
+For querying data you can use an EntityQuery. It can help you find all entities, components or chunks matching the specified set of components and constraints and iterate it or returns in the form of an array. You can also use them to quickly check if entities satisfing the given set of rules exist or calculate how many of them there are.<br/>
 ```cpp
 EntityQuery q = w.CreateQuery();
 q.All<Position>(); // consider only entities with Position
@@ -229,7 +229,7 @@ q.Any<Something, SomethingElse>(); // ... at least Something or SomethingElse...
 q.None<Player>();                  // ... and no Player component...
 ```
 
-All EntityQuery perations can be chained and it is also possible to invoke various filters multiple times with unique components:
+All EntityQuery operations can be chained and it is also possible to invoke various filters multiple times with unique components:
 ```cpp
 ecs::EntityQuery q = w.CreateQuery();
 q.All<Position>()                 // Take into account everything with Position...
@@ -276,8 +276,10 @@ q.SetConstraint(ecs::EntityQuery::Constraint::DisabledOnly);
 q.ToArray(entities);
 ```
 
+EntityQuery creates a cache internally. Therefore, the first usage is a little bit slower than the subsequent usage is going to be. You likely use the same query multiple times in your program, often without noticing. Because of that, caching becomes useful as it avoids wasting memory and performance when finding matches.
+
 ## Simple iteration
-You can perform operations on your data in multiple ways with ForEach being the simplest one.<br/>
+The simplest way to iterate over data is using ecs::World::ForEach.<br/>
 It provides the least room for optimization (that does not mean the generated code is slow by any means) but is very easy to read.
 ```cpp
 w.ForEach([&](Position& p, const Velocity& v) {
@@ -287,8 +289,8 @@ w.ForEach([&](Position& p, const Velocity& v) {
 });
 ```
 
-You can also be more specific by providing an EntityQuery.<br/>
-The example above creates an EntityQuery internally from the arguments provided to ForEach. However, this version can also be slower because it needs to do a lookup in the EntityQuery cache. Therefore, consider it only for non-critical parts of your code. Even though the code is longer, it's a good pratice to use explicit EntityQueries when possible.
+The example above creates an EntityQuery internally from the arguments provided to ForEach. However, it can also be slower than other iteration methods because it needs to perform component matching every time ForEach invokes. The more archetypes your code base has, the slower the matching gets. Therefore, consider it only for non-critical parts of your code.<br/>
+For better performance and more features, consider using explicit EntityQueries when possible.
 ```cpp
 ecs::EntityQuery q = w.CreateQuery();
 q.All<Position, const Velocity>(); // Take into account all chunks with Position and Velocity...

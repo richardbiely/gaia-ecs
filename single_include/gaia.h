@@ -10097,13 +10097,12 @@ namespace gaia {
 
 			/*!
 				Returns true or false depending on whether there are entities matching the query.
-				\param ignoreFilters If true any filters which might be set on the entity query is ignored
 				\warning Only use if you only care if there are any entities matching the query.
 								 The result is not cached and repeated calls to the function might be slow.
 								 If you already called ToArray, checking if it is empty is preferred.
 				\return True if there are any entites matchine the query. False otherwise.
 				*/
-			bool HasItems(bool ignoreFilters = false) {
+			bool HasItems() {
 				// Make sure the query was created by World.CreateQuery()
 				GAIA_ASSERT(m_entityQueryCache != nullptr);
 
@@ -10111,7 +10110,7 @@ namespace gaia {
 
 				auto& queryInfo = FetchQueryInfo();
 
-				const bool hasFilters = !ignoreFilters && queryInfo.HasFilters();
+				const bool hasFilters = queryInfo.HasFilters();
 
 				auto execWithFiltersON = [&](const auto& chunksList) {
 					for (auto* pChunk: chunksList) {
@@ -10179,13 +10178,12 @@ namespace gaia {
 
 			/*!
 			Returns the number of entities matching the query
-			\param ignoreFilters If true any filters which might be set on the entity query is ignored
 			\warning Only use if you only care about the number of entities matching the query.
 							 The result is not cached and repeated calls to the function might be slow.
 							 If you already called ToArray, use the size provided by the array.
 			\return The number of matching entities
 			*/
-			size_t CalculateItemCount(bool ignoreFilters = false) {
+			size_t CalculateItemCount() {
 				// Make sure the query was created by World.CreateQuery()
 				GAIA_ASSERT(m_entityQueryCache != nullptr);
 
@@ -10193,7 +10191,7 @@ namespace gaia {
 
 				auto& queryInfo = FetchQueryInfo();
 
-				const bool hasFilters = !ignoreFilters && queryInfo.HasFilters();
+				const bool hasFilters = queryInfo.HasFilters();
 
 				auto execWithFiltersON = [&](const auto& chunksList) {
 					for (auto* pChunk: chunksList) {
