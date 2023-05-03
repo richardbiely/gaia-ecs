@@ -26,12 +26,12 @@ namespace gaia {
 			containers::sarray<ComponentIdList, ComponentType::CT_Count> componentIds;
 			//! Lookup hashes of components within this archetype (copied from the owner archetype)
 			containers::sarray<ComponentOffsetList, ComponentType::CT_Count> componentOffsets;
-			//! Versions of individual components on chunk.
-			const uint32_t& worldVersion;
+			//! Version of the world
+			uint32_t& worldVersion;
 			//! Versions of individual components on chunk.
 			uint32_t versions[ComponentType::CT_Count][MAX_COMPONENTS_PER_ARCHETYPE]{};
 
-			ChunkHeader(const uint32_t& version): worldVersion(version) {
+			ChunkHeader(uint32_t& version): worldVersion(version) {
 				// Make sure the alignment is right
 				GAIA_ASSERT(uintptr_t(this) % 8 == 0);
 			}

@@ -15,7 +15,7 @@ namespace gaia {
 	namespace ecs {
 		class World;
 
-		const uint32_t& GetWorldVersionFromWorld(const World& world);
+		uint32_t& GetWorldVersionFromWorld(World& world);
 
 		class Archetype final {
 		public:
@@ -67,7 +67,7 @@ namespace gaia {
 			//! Archetype ID - used to address the archetype directly in the world's list or archetypes
 			uint32_t m_archetypeId = 0;
 			//! Reference to the parent world's version number
-			const uint32_t& m_worldVersion;
+			uint32_t& m_worldVersion;
 			struct {
 				//! The number of entities this archetype can take (e.g 5 = 5 entities with all their components)
 				uint32_t capacity : 16;
@@ -80,7 +80,7 @@ namespace gaia {
 			} m_properties{};
 
 			// Constructor is hidden. Create archetypes via Create
-			Archetype(const uint32_t& worldVersion): m_worldVersion(worldVersion){};
+			Archetype(uint32_t& worldVersion): m_worldVersion(worldVersion){};
 
 			Archetype(Archetype&& world) = delete;
 			Archetype(const Archetype& world) = delete;
@@ -251,7 +251,8 @@ namespace gaia {
 
 				// No free space found anywhere. Let's create a new chunk.
 				auto* pChunk = Chunk::Create(
-						m_archetypeId, (uint16_t)chunkCnt, m_worldVersion, m_properties.capacity, m_componentIds, m_componentOffsets);
+						m_archetypeId, (uint16_t)chunkCnt, m_properties.capacity, m_worldVersion, m_componentIds,
+						m_componentOffsets);
 
 				chunkArray.push_back(pChunk);
 				return pChunk;
@@ -369,12 +370,16 @@ namespace gaia {
 				return *m_pParentWorld;
 			}
 
-			GAIA_NODISCARD uint32_t GetWorldVersion() const {
-				return GetWorldVersionFromWorld(*m_pParentWorld);
-			}
-
 			GAIA_NODISCARD uint32_t GetCapacity() const {
 				return m_properties.capacity;
+			}
+
+			GAIA_NODISCARD const containers::darray<Chunk*>& GetChunks() const {
+				return m_chunks;
+			}
+
+			GAIA_NODISCARD const containers::darray<Chunk*>& GetChunksDisabled() const {
+				return m_chunksDisabled;
 			}
 
 			GAIA_NODISCARD ComponentMatcherHash GetMatcherHash(ComponentType componentType) const {

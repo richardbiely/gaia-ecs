@@ -190,16 +190,16 @@ if (pChunkB->HasComponent<Position>())
 ## Data queries
 For querying data you can use an EntityQuery. It can help you find all entities, components or chunks matching the specified set of components and constraints and returns them in the form of an array. You can also use them to quickly check is entities satisfing the given set of rules exist or calculate how many of them there are.<br/> 
 ```cpp
-EntityQuery q;
+EntityQuery q = w.CreateQuery();
 q.All<Position>(); // consider only entities with Position
 
 // Fill the entities array with entities with a Position component.
 containers::darray<ecs::Entity> entities;
-w.FromQuery(q).ToArray(entities);
+q.ToArray(entities);
 
 // Fill the positions array with position data.
 containers::darray<Position> positions;
-w.FromQuery(q).ToArray(positions);
+q.ToArray(positions);
 
 // Print the result
 for (size_t i = 0; i < entities.size(); ++i)
@@ -211,7 +211,7 @@ for (size_t i = 0; i < entities.size(); ++i)
 
 // Fill the chunk array with chunks matching the query.
 containers::darray<ecs::Chunk*> chunks;
-w.FromQuery(q).ToChunkArray(chunks);
+q.ToChunkArray(chunks);
 for (const auto* pChunk: chunks) {
   // ... do something
 }
@@ -223,7 +223,7 @@ printf("Number of results: %u", q.CalculateItemCount());
 
 More complex queries can be created by combining All, Any and None in any way you can imagine:
 ```cpp
-ecs::EntityQuery q;
+ecs::EntityQuery q = w.CreateQuery();
 q.All<Position, Velocity>();       // Take into account everything with Position and Velocity...
 q.Any<Something, SomethingElse>(); // ... at least Something or SomethingElse...
 q.None<Player>();                  // ... and no Player component...
@@ -231,7 +231,7 @@ q.None<Player>();                  // ... and no Player component...
 
 All EntityQuery perations can be chained and it is also possible to invoke various filters multiple times with unique components:
 ```cpp
-ecs::EntityQuery q;
+ecs::EntityQuery q = w.CreateQuery();
 q.All<Position>()                 // Take into account everything with Position...
  .All<Velocity>()                 // ... and at the same time everything with Velocity...
  .Any<Something, SomethingElse>() // ... at least Something or SomethingElse...
@@ -241,7 +241,7 @@ q.All<Position>()                 // Take into account everything with Position.
 Using WithChanged we can take it a step further and filter only data which actually changed. This becomes particulary useful when iterating as you will see later on.<br/>
 Note, if there are 100 Position components in the chunk and only one them changes, all or them are considered changed. This chunk-wide behavior is due to performance concerns as it is easier to reason about the entire chunk than each of its items separately.
 ```cpp
-ecs::EntityQuery q;
+ecs::EntityQuery q = w.CreateQuery();
 q.All<Position, Velocity>();       // Take into account everything with Position and Velocity...
 q.Any<Something, SomethingElse>(); // ... at least Something or SomethingElse...
 q.None<Player>();                  // ... and no Player component...
@@ -261,20 +261,19 @@ w.AddComponent<Position>(e2);
 // Disable the first entity
 w.EnableEntity(e1, false);
 
-ecs::EntityQuery q;
-q.All<Position>();
+ecs::EntityQuery q = w.CreateQuery().All<Position>();
 containers::darray<ecs::Entity> entities;
 
 // Fills the array with only e2 because e1 is disabled.
-w.FromQuery(q).ToArray(entities);
+q.ToArray(entities);
 
 // Fills the array with both e1 and e2.
 q.SetConstraint(ecs::EntityQuery::Constraint::AcceptAll);
-w.FromQuery(q).ToArray(entities);
+q.ToArray(entities);
 
 // Fills the array with only e1 because e1 is disabled.
 q.SetConstraint(ecs::EntityQuery::Constraint::DisabledOnly);
-w.FromQuery(q).ToArray(entities);
+q.ToArray(entities);
 ```
 
 ## Simple iteration
@@ -291,11 +290,11 @@ w.ForEach([&](Position& p, const Velocity& v) {
 You can also be more specific by providing an EntityQuery.<br/>
 The example above creates an EntityQuery internally from the arguments provided to ForEach. However, this version can also be slower because it needs to do a lookup in the EntityQuery cache. Therefore, consider it only for non-critical parts of your code. Even though the code is longer, it's a good pratice to use explicit EntityQueries when possible.
 ```cpp
-ecs::EntityQuery q;
+ecs::EntityQuery q = w.CreateQuery();
 q.All<Position, const Velocity>(); // Take into account all chunks with Position and Velocity...
 q.None<Player>();            // ... but no Player component.
 
-w.ForEach(q, [&](Position& p, const Velocity& v) {
+q.ForEach([&](Position& p, const Velocity& v) {
   // This operations runs for each entity with Position, Velocity and no Player
   p.x += v.x * dt;
   p.y += v.y * dt;
@@ -305,12 +304,12 @@ w.ForEach(q, [&](Position& p, const Velocity& v) {
 
 As mentioned earlier, using WithChanged we can make the iteration run only if particular components change. You can save quite a bit of performance using this technique.<br/>
 ```cpp
-ecs::EntityQuery q;
+ecs::EntityQuery q = w.CreateQuery();
 q.All<Position, const Velocity>(); // Take into account all chunks with Position and Velocity...
 q.None<Player>();            // ... no Player component...
 q.WithChanged<Velocity>();   // ... but only iterate when Velocity changes
 
-w.ForEach(q, [&](Position& p, const Velocity& v) {
+q.ForEach([&](Position& p, const Velocity& v) {
   p.x += v.x * dt;
   p.y += v.y * dt;
   p.z += v.z * dt;
@@ -322,7 +321,7 @@ Using constrains we can alter the iteration behavior:
 w.EnableEntity(e, false);
 
 q.SetConstraint(ecs::EntityQuery::Constraint::AcceptAll);
-w.ForEach(q, [](Position& p, const Velocity& v) {
+q.ForEach([](Position& p, const Velocity& v) {
   // Both enabled and disabled entities are included in the query.
   // ...
 });
@@ -334,10 +333,10 @@ A very important thing to remember is that iterating over components not present
 Iteration over chunks gives you more power as it exposes to you the underlying chunk in which your data is contained.<br/>
 That means you can perform more kinds of operations, and it also opens doors for new kinds of optimizations.
 ```cpp
-ecs::EntityQuery q;
+ecs::EntityQuery q = w.CreateQuery();
 q.All<Position, const Velocity>();
 
-w.ForEach(q, [](ecs::Chunk& ch) {
+q.ForEach([](ecs::Chunk& ch) {
   auto p = ch.ViewRW<Position>(); // Read-write access to Position
   auto v = ch.View<Velocity>(); // Read-only access to Velocity
 
@@ -352,7 +351,7 @@ w.ForEach(q, [](ecs::Chunk& ch) {
 
 I need to make a small but important note here. Analyzing the output of different compilers I quickly realized if you want your code vectorized for sure you need to be very clear and write the loop as a lambda or kernel if you will. It is quite surprising to see this but even with optimizations on and "fast-math"-like switches enabled some compilers simply will not vectorize the loop otherwise. Microsoft compilers are particularly sensitive in this regard. In the years to come maybe this gets better but for now, keep it in mind or use a good optimizing compiler such as Clang.
 ```cpp
-w.ForEach(q, [](ecs::Chunk& ch) {
+q.ForEach([](ecs::Chunk& ch) {
   auto vp = ch.ViewRW<Position>(); // Read-Write access to Position
   auto vv = ch.View<Velocity>(); // Read-Only access to Velocity
 
@@ -392,7 +391,8 @@ struct VelocitySoA {
   static constexpr auto Layout = utils::DataLayout::SoA;
 };
 ...
-w.ForEach(ecs::EntityQuery().All<PositionSoA, const VelocitySoA>, [](ecs::Chunk& ch) {
+ecs::EntityQuery q = w.EntityQuery().All<PositionSoA, const VelocitySoA>;
+q.ForEach(, [](ecs::Chunk& ch) {
   auto vp = ch.ViewRW<PositionSoA>(); // read-write access to PositionSoA
   auto vv = ch.View<VelocitySoA>(); // read-only access to VelocitySoA
 
@@ -435,7 +435,7 @@ Performing an unprotected structural change is undefined behavior and most likel
 However, using a CommandBuffer you can collect all requests first and commit them when it is safe.
 ```cpp
 ecs::CommandBuffer cb;
-w.ForEach(q, [&](Entity e, const Position& p) {
+q.ForEach([&](Entity e, const Position& p) {
   if (p.y < 0.0f)
     cb.DeleteEntity(e); // queue entity e for deletion if its position falls below zero
 });
