@@ -154,17 +154,6 @@ namespace gaia {
 			}
 
 			/*!
-			Checks if a component with \param componentId and type \param componentType is present in the archetype.
-			\param componentId Component id
-			\param componentType Component type
-			\return True if found. False otherwise.
-			*/
-			GAIA_NODISCARD bool HasComponent_Internal(ComponentType componentType, uint32_t componentId) const {
-				const auto& componentIds = m_header.componentIds[componentType];
-				return utils::has(componentIds, componentId);
-			}
-
-			/*!
 			Returns a pointer to component data with read-only access.
 			\param componentType Component type
 			\param componentId Component id
@@ -173,7 +162,7 @@ namespace gaia {
 			GAIA_NODISCARD GAIA_FORCEINLINE const uint8_t*
 			GetDataPtr(ComponentType componentType, uint32_t componentId) const {
 				// Searching for a component that's not there! Programmer mistake.
-				GAIA_ASSERT(HasComponent_Internal(componentType, componentId));
+				GAIA_ASSERT(HasComponent(componentType, componentId));
 
 				const auto& componentIds = m_header.componentIds[componentType];
 				const auto& offsets = m_header.componentOffsets[componentType];
@@ -195,7 +184,7 @@ namespace gaia {
 			template <bool UpdateWorldVersion>
 			GAIA_NODISCARD GAIA_FORCEINLINE uint8_t* GetDataPtrRW(ComponentType componentType, uint32_t componentId) {
 				// Searching for a component that's not there! Programmer mistake.
-				GAIA_ASSERT(HasComponent_Internal(componentType, componentId));
+				GAIA_ASSERT(HasComponent(componentType, componentId));
 				// Don't use this with empty components. It's impossible to write to them anyway.
 				GAIA_ASSERT(ComponentCache::Get().GetComponentDesc(componentId).properties.size != 0);
 
@@ -359,6 +348,21 @@ namespace gaia {
 				return utils::auto_view_policy_set<U>{{ViewRW_Internal<T, false>()}};
 			}
 
+			//----------------------------------------------------------------------
+			// Check component presence
+			//----------------------------------------------------------------------
+
+			/*!
+			Checks if a component with \param componentId and type \param componentType is present in the archetype.
+			\param componentId Component id
+			\param componentType Component type
+			\return True if found. False otherwise.
+			*/
+			GAIA_NODISCARD bool HasComponent(ComponentType componentType, uint32_t componentId) const {
+				const auto& componentIds = m_header.componentIds[componentType];
+				return utils::has(componentIds, componentId);
+			}
+
 			/*!
 			Checks if component \tparam T is present in the chunk.
 			\tparam T Component
@@ -369,11 +373,11 @@ namespace gaia {
 				if constexpr (IsGenericComponent<T>) {
 					using U = typename detail::ExtractComponentType_Generic<T>::Type;
 					const auto componentId = GetComponentIdUnsafe<U>();
-					return HasComponent_Internal(ComponentType::CT_Generic, componentId);
+					return HasComponent(ComponentType::CT_Generic, componentId);
 				} else {
 					using U = typename detail::ExtractComponentType_NonGeneric<T>::Type;
 					const auto componentId = GetComponentIdUnsafe<U>();
-					return HasComponent_Internal(ComponentType::CT_Chunk, componentId);
+					return HasComponent(ComponentType::CT_Chunk, componentId);
 				}
 			}
 
@@ -483,6 +487,17 @@ namespace gaia {
 				static_assert(
 						!IsGenericComponent<T>, "GetComponent not providing an index can only be used with chunk components");
 				return GetComponent_Internal<T>(0);
+			}
+
+			/*!
+			Returns the internal index of a component based on the provided \param componentId.
+			\param componentType Component type
+			\return Component index if the component was found. -1 otherwise.
+			*/
+			GAIA_NODISCARD uint32_t GetComponentIdx(ComponentType componentType, ComponentId componentId) const {
+				const auto idx = utils::get_index_unsafe(m_header.componentIds[componentType], componentId);
+				GAIA_ASSERT(idx != BadIndex);
+				return (uint32_t)idx;
 			}
 
 			//----------------------------------------------------------------------
