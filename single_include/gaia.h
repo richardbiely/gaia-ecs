@@ -8006,17 +8006,6 @@ namespace gaia {
 			}
 
 			/*!
-			Checks if a component with \param componentId and type \param componentType is present in the archetype.
-			\param componentId Component id
-			\param componentType Component type
-			\return True if found. False otherwise.
-			*/
-			GAIA_NODISCARD bool HasComponent_Internal(ComponentType componentType, uint32_t componentId) const {
-				const auto& componentIds = m_header.componentIds[componentType];
-				return utils::has(componentIds, componentId);
-			}
-
-			/*!
 			Returns a pointer to component data with read-only access.
 			\param componentType Component type
 			\param componentId Component id
@@ -8025,7 +8014,7 @@ namespace gaia {
 			GAIA_NODISCARD GAIA_FORCEINLINE const uint8_t*
 			GetDataPtr(ComponentType componentType, uint32_t componentId) const {
 				// Searching for a component that's not there! Programmer mistake.
-				GAIA_ASSERT(HasComponent_Internal(componentType, componentId));
+				GAIA_ASSERT(HasComponent(componentType, componentId));
 
 				const auto& componentIds = m_header.componentIds[componentType];
 				const auto& offsets = m_header.componentOffsets[componentType];
@@ -8047,7 +8036,7 @@ namespace gaia {
 			template <bool UpdateWorldVersion>
 			GAIA_NODISCARD GAIA_FORCEINLINE uint8_t* GetDataPtrRW(ComponentType componentType, uint32_t componentId) {
 				// Searching for a component that's not there! Programmer mistake.
-				GAIA_ASSERT(HasComponent_Internal(componentType, componentId));
+				GAIA_ASSERT(HasComponent(componentType, componentId));
 				// Don't use this with empty components. It's impossible to write to them anyway.
 				GAIA_ASSERT(ComponentCache::Get().GetComponentDesc(componentId).properties.size != 0);
 
@@ -8211,6 +8200,21 @@ namespace gaia {
 				return utils::auto_view_policy_set<U>{{ViewRW_Internal<T, false>()}};
 			}
 
+			//----------------------------------------------------------------------
+			// Check component presence
+			//----------------------------------------------------------------------
+
+			/*!
+			Checks if a component with \param componentId and type \param componentType is present in the archetype.
+			\param componentId Component id
+			\param componentType Component type
+			\return True if found. False otherwise.
+			*/
+			GAIA_NODISCARD bool HasComponent(ComponentType componentType, uint32_t componentId) const {
+				const auto& componentIds = m_header.componentIds[componentType];
+				return utils::has(componentIds, componentId);
+			}
+
 			/*!
 			Checks if component \tparam T is present in the chunk.
 			\tparam T Component
@@ -8221,11 +8225,11 @@ namespace gaia {
 				if constexpr (IsGenericComponent<T>) {
 					using U = typename detail::ExtractComponentType_Generic<T>::Type;
 					const auto componentId = GetComponentIdUnsafe<U>();
-					return HasComponent_Internal(ComponentType::CT_Generic, componentId);
+					return HasComponent(ComponentType::CT_Generic, componentId);
 				} else {
 					using U = typename detail::ExtractComponentType_NonGeneric<T>::Type;
 					const auto componentId = GetComponentIdUnsafe<U>();
-					return HasComponent_Internal(ComponentType::CT_Chunk, componentId);
+					return HasComponent(ComponentType::CT_Chunk, componentId);
 				}
 			}
 
@@ -8335,6 +8339,17 @@ namespace gaia {
 				static_assert(
 						!IsGenericComponent<T>, "GetComponent not providing an index can only be used with chunk components");
 				return GetComponent_Internal<T>(0);
+			}
+
+			/*!
+			Returns the internal index of a component based on the provided \param componentId.
+			\param componentType Component type
+			\return Component index if the component was found. -1 otherwise.
+			*/
+			GAIA_NODISCARD uint32_t GetComponentIdx(ComponentType componentType, ComponentId componentId) const {
+				const auto idx = utils::get_index_unsafe(m_header.componentIds[componentType], componentId);
+				GAIA_ASSERT(idx != BadIndex);
+				return (uint32_t)idx;
 			}
 
 			//----------------------------------------------------------------------
@@ -8788,6 +8803,32 @@ namespace gaia {
 			}
 #endif
 
+			/*!
+			Checks if a component with \param componentId and type \param componentType is present in the archetype.
+			\param componentId Component id
+			\param componentType Component type
+			\return True if found. False otherwise.
+			*/
+			GAIA_NODISCARD bool HasComponent_Internal(ComponentType componentType, uint32_t componentId) const {
+				const auto& componentIds = GetComponentIdList(componentType);
+				return utils::has(componentIds, componentId);
+			}
+
+			/*!
+			Checks if a component of type \tparam T is present in the archetype.
+			\return True if found. False otherwise.
+			*/
+			template <typename T>
+			GAIA_NODISCARD bool HasComponent_Internal() const {
+				const auto componentId = GetComponentId<T>();
+
+				if constexpr (IsGenericComponent<T>) {
+					return HasComponent_Internal(ComponentType::CT_Generic, componentId);
+				} else {
+					return HasComponent_Internal(ComponentType::CT_Chunk, componentId);
+				}
+			}
+
 		public:
 			/*!
 			Checks if the archetype id is valid.
@@ -8877,33 +8918,6 @@ namespace gaia {
 				const auto idx = utils::get_index_unsafe(m_componentIds[componentType], componentId);
 				GAIA_ASSERT(idx != BadIndex);
 				return (uint32_t)idx;
-			}
-
-		private:
-			/*!
-			Checks if a component with \param componentId and type \param componentType is present in the archetype.
-			\param componentId Component id
-			\param componentType Component type
-			\return True if found. False otherwise.
-			*/
-			GAIA_NODISCARD bool HasComponent_Internal(ComponentType componentType, uint32_t componentId) const {
-				const auto& componentIds = GetComponentIdList(componentType);
-				return utils::has(componentIds, componentId);
-			}
-
-			/*!
-			Checks if a component of type \tparam T is present in the archetype.
-			\return True if found. False otherwise.
-			*/
-			template <typename T>
-			GAIA_NODISCARD bool HasComponent_Internal() const {
-				const auto componentId = GetComponentId<T>();
-
-				if constexpr (IsGenericComponent<T>) {
-					return HasComponent_Internal(ComponentType::CT_Generic, componentId);
-				} else {
-					return HasComponent_Internal(ComponentType::CT_Chunk, componentId);
-				}
 			}
 		};
 
@@ -9809,6 +9823,187 @@ namespace gaia {
 					return true;
 			}
 
+			//--------------------------------------------------------------------------------
+
+			GAIA_NODISCARD bool CheckFilters(const Chunk& chunk, const EntityQueryInfo& queryInfo) const {
+				GAIA_ASSERT(chunk.HasEntities() && "CheckFilters called on an empty chunk");
+
+				const auto queryVersion = queryInfo.GetWorldVersion();
+
+				// See if any generic component has changed
+				{
+					const auto& filtered = queryInfo.GetFiltered(ComponentType::CT_Generic);
+					for (const auto componentId: filtered) {
+						const auto componentIdx = chunk.GetComponentIdx(ComponentType::CT_Generic, componentId);
+						if (chunk.DidChange(ComponentType::CT_Generic, queryVersion, componentIdx))
+							return true;
+					}
+				}
+
+				// See if any chunk component has changed
+				{
+					const auto& filtered = queryInfo.GetFiltered(ComponentType::CT_Chunk);
+					for (const auto componentId: filtered) {
+						const uint32_t componentIdx = chunk.GetComponentIdx(ComponentType::CT_Chunk, componentId);
+						if (chunk.DidChange(ComponentType::CT_Chunk, queryVersion, componentIdx))
+							return true;
+					}
+				}
+
+				// Skip unchanged chunks.
+				return false;
+			}
+
+			template <bool HasFilters>
+			GAIA_NODISCARD bool CanAcceptChunkForProcessing(const Chunk& chunk, const EntityQueryInfo& queryInfo) const {
+				if GAIA_UNLIKELY (!chunk.HasEntities())
+					return false;
+
+				if constexpr (HasFilters) {
+					if (!CheckFilters(chunk, queryInfo))
+						return false;
+				}
+
+				return true;
+			}
+
+			template <bool HasFilters>
+			void ChunkBatch_Prepare(CChunkSpan chunkSpan, const EntityQueryInfo& queryInfo, ChunkBatchedList& chunkBatch) {
+				GAIA_PROF_SCOPE(ChunkBatch_Prepare);
+
+				for (const auto* pChunk: chunkSpan) {
+					if (!CanAcceptChunkForProcessing<HasFilters>(*pChunk, queryInfo))
+						continue;
+
+					chunkBatch.push_back(const_cast<Chunk*>(pChunk));
+				}
+			}
+
+			//! Execute functors in batches
+			template <typename Func>
+			static void ChunkBatch_Perform(Func func, const ChunkBatchedList& chunks) {
+				GAIA_PROF_SCOPE(ChunkBatch_Perform);
+
+				// This is what the function is doing:
+				// for (auto *pChunk: chunks)
+				//	func(*pChunk);
+
+				// No chunks, nothing to do here
+				if (GAIA_UNLIKELY(chunks.empty()))
+					return;
+
+				// We only have one chunk to process
+				if GAIA_UNLIKELY (chunks.size() == 1) {
+					func(*chunks[0]);
+					return;
+				}
+
+				// We have many chunks to process.
+				// Chunks might be located at different memory locations. Not even in the same memory page.
+				// Therefore, to make it easier for the CPU we give it a hint that we want to prefetch data
+				// for the next chunk explictely so we do not end up stalling later.
+				// Note, this is a micro optimization and on average it bring no performance benefit. It only
+				// helps with edge cases.
+				// Let us be conservatine for now and go with T2. That means we will try to keep our data at
+				// least in L3 cache or higher.
+				gaia::prefetch(&chunks[1], PrefetchHint::PREFETCH_HINT_T2);
+				func(*chunks[0]);
+
+				size_t chunkIdx = 1;
+				for (; chunkIdx < chunks.size() - 1; ++chunkIdx) {
+					gaia::prefetch(&chunks[chunkIdx + 1], PrefetchHint::PREFETCH_HINT_T2);
+					func(*chunks[chunkIdx]);
+				}
+
+				func(*chunks[chunkIdx]);
+			}
+
+			template <bool HasFilters, typename Func>
+			void
+			ProcessQueryOnChunks(Func func, const containers::darray<Chunk*>& chunksList, const EntityQueryInfo& queryInfo) {
+				size_t chunkOffset = 0;
+
+				size_t itemsLeft = chunksList.size();
+				while (itemsLeft > 0) {
+					ChunkBatchedList chunkBatch;
+					const size_t batchSize = itemsLeft > ChunkBatchedList::extent ? ChunkBatchedList::extent : itemsLeft;
+					ChunkBatch_Prepare<HasFilters>(
+							CChunkSpan((const Chunk**)&chunksList[chunkOffset], batchSize), queryInfo, chunkBatch);
+					ChunkBatch_Perform(func, chunkBatch);
+
+					itemsLeft -= batchSize;
+					chunkOffset += batchSize;
+				}
+			}
+
+			template <typename Func>
+			void RunQueryOnChunks_Internal(EntityQueryInfo& queryInfo, Func func) {
+				// Update the world version
+				UpdateVersion(*m_worldVersion);
+
+				const bool hasFilters = queryInfo.HasFilters();
+				if (hasFilters) {
+					for (auto* pArchetype: queryInfo) {
+						pArchetype->SetStructuralChanges(true);
+
+						if (CheckConstraints<true>())
+							ProcessQueryOnChunks<true>(func, pArchetype->GetChunks(), queryInfo);
+						if (CheckConstraints<false>())
+							ProcessQueryOnChunks<true>(func, pArchetype->GetChunksDisabled(), queryInfo);
+
+						pArchetype->SetStructuralChanges(false);
+					}
+				} else {
+					for (auto* pArchetype: queryInfo) {
+						pArchetype->SetStructuralChanges(true);
+
+						if (CheckConstraints<true>())
+							ProcessQueryOnChunks<false>(func, pArchetype->GetChunks(), queryInfo);
+						if (CheckConstraints<false>())
+							ProcessQueryOnChunks<false>(func, pArchetype->GetChunksDisabled(), queryInfo);
+
+						pArchetype->SetStructuralChanges(false);
+					}
+				}
+
+				// Update the query version with the current world's version
+				queryInfo.SetWorldVersion(*m_worldVersion);
+			}
+
+			template <typename Func>
+			void ForEachChunk_Internal(Func func) {
+				using InputArgs = decltype(utils::func_args(&Func::operator()));
+
+				auto& queryInfo = FetchQueryInfo();
+
+#if GAIA_DEBUG
+				if (!std::is_invocable<Func, Chunk&>::value) {
+					// Make sure we only use components specified in the query
+					GAIA_ASSERT(UnpackArgsIntoQuery_HasAll(queryInfo, InputArgs{}));
+				}
+#endif
+
+				RunQueryOnChunks_Internal(queryInfo, [&](Chunk& chunk) {
+					func(chunk);
+				});
+			}
+
+			template <typename Func>
+			void ForEach_Internal(Func func) {
+				using InputArgs = decltype(utils::func_args(&Func::operator()));
+
+				auto& queryInfo = FetchQueryInfo();
+
+#if GAIA_DEBUG
+				// Make sure we only use components specified in the query
+				GAIA_ASSERT(UnpackArgsIntoQuery_HasAll(queryInfo, InputArgs{}));
+#endif
+
+				RunQueryOnChunks_Internal(queryInfo, [&](Chunk& chunk) {
+					chunk.ForEach(InputArgs{}, func);
+				});
+			}
+
 		public:
 			EntityQuery() = default;
 			EntityQuery(EntityQueryCache& queryCache, uint32_t& worldVersion, containers::darray<Archetype*>& archetypes):
@@ -9884,186 +10079,6 @@ namespace gaia {
 					return m_constraints == EntityQuery::Constraints::EnabledOnly;
 				else
 					return m_constraints == EntityQuery::Constraints::DisabledOnly;
-			}
-
-			GAIA_NODISCARD bool CheckFilters(const EntityQueryInfo& queryInfo, const Chunk& chunk) const {
-				GAIA_ASSERT(chunk.HasEntities() && "CheckFilters called on an empty chunk");
-
-				// See if any generic component has changed
-				{
-					const auto& filtered = queryInfo.GetFiltered(ComponentType::CT_Generic);
-					for (auto componentId: filtered) {
-						const auto& archetype = *(*m_archetypes)[chunk.GetArchetypeId()];
-						const auto componentIdx = archetype.GetComponentIdx(ComponentType::CT_Generic, componentId);
-						if (chunk.DidChange(ComponentType::CT_Generic, queryInfo.GetWorldVersion(), componentIdx))
-							return true;
-					}
-				}
-
-				// See if any chunk component has changed
-				{
-					const auto& filtered = queryInfo.GetFiltered(ComponentType::CT_Chunk);
-					for (auto componentId: filtered) {
-						const auto& archetype = *(*m_archetypes)[chunk.GetArchetypeId()];
-						const uint32_t componentIdx = archetype.GetComponentIdx(ComponentType::CT_Chunk, componentId);
-						if (chunk.DidChange(ComponentType::CT_Chunk, queryInfo.GetWorldVersion(), componentIdx))
-							return true;
-					}
-				}
-
-				// Skip unchanged chunks.
-				return false;
-			}
-
-			template <bool HasFilters>
-			GAIA_NODISCARD bool CanAcceptChunkForProcessing(const Chunk& chunk, const EntityQueryInfo& queryInfo) const {
-				if GAIA_UNLIKELY (!chunk.HasEntities())
-					return false;
-
-				if constexpr (HasFilters) {
-					if (!CheckFilters(queryInfo, chunk))
-						return false;
-				}
-
-				return true;
-			}
-
-			template <bool HasFilters>
-			void ChunkBatch_Prepare(CChunkSpan chunkSpan, const EntityQueryInfo& queryInfo, ChunkBatchedList& chunkBatch) {
-				GAIA_PROF_SCOPE(PrepareChunkBatch);
-
-				for (const auto* pChunk: chunkSpan) {
-					if (!CanAcceptChunkForProcessing<HasFilters>(*pChunk, queryInfo))
-						continue;
-
-					chunkBatch.push_back(const_cast<Chunk*>(pChunk));
-				}
-			}
-
-			//! Execute functors in batches
-			template <typename Func>
-			static void ChunkBatch_Perform(Func func, const ChunkBatchedList& chunks) {
-				GAIA_PROF_SCOPE(RunFuncOnChunkBatch);
-
-				// This is what the function is doing:
-				// for (auto *pChunk: chunks)
-				//	func(*pChunk);
-
-				// No chunks, nothing to do here
-				if (GAIA_UNLIKELY(chunks.empty()))
-					return;
-
-				// We only have one chunk to process
-				if GAIA_UNLIKELY (chunks.size() == 1) {
-					func(*chunks[0]);
-					return;
-				}
-
-				// We have many chunks to process.
-				// Chunks might be located at different memory locations. Not even in the same memory page.
-				// Therefore, to make it easier for the CPU we give it a hint that we want to prefetch data
-				// for the next chunk explictely so we do not end up stalling later.
-				// Note, this is a micro optimization and on average it bring no performance benefit. It only
-				// helps with edge cases.
-				// Let us be conservatine for now and go with T2. That means we will try to keep our data at
-				// least in L3 cache or higher.
-				gaia::prefetch(&chunks[1], PrefetchHint::PREFETCH_HINT_T2);
-				func(*chunks[0]);
-
-				size_t chunkIdx = 1;
-				for (; chunkIdx < chunks.size() - 1; ++chunkIdx) {
-					gaia::prefetch(&chunks[chunkIdx + 1], PrefetchHint::PREFETCH_HINT_T2);
-					func(*chunks[chunkIdx]);
-				}
-
-				func(*chunks[chunkIdx]);
-			}
-
-			template <bool HasFilters, typename Func>
-			void
-			ProcessQueryOnChunks(Func func, const containers::darray<Chunk*>& chunksList, const EntityQueryInfo& queryInfo) {
-				size_t chunkOffset = 0;
-
-				size_t itemsLeft = chunksList.size();
-				while (itemsLeft > 0) {
-					ChunkBatchedList chunkBatch;
-					const size_t batchSize = itemsLeft > ChunkBatchedList::extent ? ChunkBatchedList::extent : itemsLeft;
-					ChunkBatch_Prepare<HasFilters>(
-							CChunkSpan((const Chunk**)&chunksList[chunkOffset], batchSize), queryInfo, chunkBatch);
-					ChunkBatch_Perform(func, chunkBatch);
-
-					itemsLeft -= batchSize;
-					chunkOffset += batchSize;
-				}
-			}
-
-			template <typename Func>
-			void RunQueryOnChunks_Internal(EntityQueryInfo& queryInfo, Func func) {
-				// Update the world version
-				UpdateVersion(*m_worldVersion);
-
-				const bool hasFilters = queryInfo.HasFilters();
-				if (hasFilters) {
-					// Iterate over all archetypes
-					for (auto* pArchetype: queryInfo) {
-						pArchetype->SetStructuralChanges(true);
-
-						if (CheckConstraints<true>())
-							ProcessQueryOnChunks<true>(func, pArchetype->GetChunks(), queryInfo);
-						if (CheckConstraints<false>())
-							ProcessQueryOnChunks<true>(func, pArchetype->GetChunksDisabled(), queryInfo);
-
-						pArchetype->SetStructuralChanges(false);
-					}
-				} else {
-					// Iterate over all archetypes
-					for (auto* pArchetype: queryInfo) {
-						pArchetype->SetStructuralChanges(true);
-
-						if (CheckConstraints<true>())
-							ProcessQueryOnChunks<false>(func, pArchetype->GetChunks(), queryInfo);
-						if (CheckConstraints<false>())
-							ProcessQueryOnChunks<false>(func, pArchetype->GetChunksDisabled(), queryInfo);
-
-						pArchetype->SetStructuralChanges(false);
-					}
-				}
-
-				queryInfo.SetWorldVersion(*m_worldVersion);
-			}
-
-			template <typename Func>
-			void ForEachChunk_Internal(Func func) {
-				using InputArgs = decltype(utils::func_args(&Func::operator()));
-
-				auto& queryInfo = FetchQueryInfo();
-
-#if GAIA_DEBUG
-				if (!std::is_invocable<Func, Chunk&>::value) {
-					// Make sure we only use components specified in the query
-					GAIA_ASSERT(UnpackArgsIntoQuery_HasAll(queryInfo, InputArgs{}));
-				}
-#endif
-
-				RunQueryOnChunks_Internal(queryInfo, [&](Chunk& chunk) {
-					func(chunk);
-				});
-			}
-
-			template <typename Func>
-			void ForEach_Internal(Func func) {
-				using InputArgs = decltype(utils::func_args(&Func::operator()));
-
-				auto& queryInfo = FetchQueryInfo();
-
-#if GAIA_DEBUG
-				// Make sure we only use components specified in the query
-				GAIA_ASSERT(UnpackArgsIntoQuery_HasAll(queryInfo, InputArgs{}));
-#endif
-
-				RunQueryOnChunks_Internal(queryInfo, [&](Chunk& chunk) {
-					chunk.ForEach(InputArgs{}, func);
-				});
 			}
 
 			template <typename Func>

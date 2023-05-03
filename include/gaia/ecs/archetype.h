@@ -323,6 +323,32 @@ namespace gaia {
 			}
 #endif
 
+			/*!
+			Checks if a component with \param componentId and type \param componentType is present in the archetype.
+			\param componentId Component id
+			\param componentType Component type
+			\return True if found. False otherwise.
+			*/
+			GAIA_NODISCARD bool HasComponent_Internal(ComponentType componentType, uint32_t componentId) const {
+				const auto& componentIds = GetComponentIdList(componentType);
+				return utils::has(componentIds, componentId);
+			}
+
+			/*!
+			Checks if a component of type \tparam T is present in the archetype.
+			\return True if found. False otherwise.
+			*/
+			template <typename T>
+			GAIA_NODISCARD bool HasComponent_Internal() const {
+				const auto componentId = GetComponentId<T>();
+
+				if constexpr (IsGenericComponent<T>) {
+					return HasComponent_Internal(ComponentType::CT_Generic, componentId);
+				} else {
+					return HasComponent_Internal(ComponentType::CT_Chunk, componentId);
+				}
+			}
+
 		public:
 			/*!
 			Checks if the archetype id is valid.
@@ -412,33 +438,6 @@ namespace gaia {
 				const auto idx = utils::get_index_unsafe(m_componentIds[componentType], componentId);
 				GAIA_ASSERT(idx != BadIndex);
 				return (uint32_t)idx;
-			}
-
-		private:
-			/*!
-			Checks if a component with \param componentId and type \param componentType is present in the archetype.
-			\param componentId Component id
-			\param componentType Component type
-			\return True if found. False otherwise.
-			*/
-			GAIA_NODISCARD bool HasComponent_Internal(ComponentType componentType, uint32_t componentId) const {
-				const auto& componentIds = GetComponentIdList(componentType);
-				return utils::has(componentIds, componentId);
-			}
-
-			/*!
-			Checks if a component of type \tparam T is present in the archetype.
-			\return True if found. False otherwise.
-			*/
-			template <typename T>
-			GAIA_NODISCARD bool HasComponent_Internal() const {
-				const auto componentId = GetComponentId<T>();
-
-				if constexpr (IsGenericComponent<T>) {
-					return HasComponent_Internal(ComponentType::CT_Generic, componentId);
-				} else {
-					return HasComponent_Internal(ComponentType::CT_Chunk, componentId);
-				}
 			}
 		};
 
