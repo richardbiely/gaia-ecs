@@ -153,16 +153,12 @@ namespace gaia {
 			}
 
 		public:
-			static GAIA_NODISCARD EntityQueryInfo Create(query::LookupCtx&& ctx) {
+			static GAIA_NODISCARD EntityQueryInfo Create(uint32_t id, query::LookupCtx&& ctx) {
 				EntityQueryInfo info;
 				query::CalculateMatcherHashes(ctx);
 				info.m_lookupCtx = std::move(ctx);
+				info.m_lookupCtx.cacheId = id;
 				return info;
-			}
-
-			void Init(uint32_t id) {
-				GAIA_ASSERT(m_lookupCtx.cacheId == (uint32_t)-1);
-				m_lookupCtx.cacheId = id;
 			}
 
 			void SetWorldVersion(uint32_t version) {

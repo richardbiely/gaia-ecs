@@ -9598,16 +9598,12 @@ namespace gaia {
 			}
 
 		public:
-			static GAIA_NODISCARD EntityQueryInfo Create(query::LookupCtx&& ctx) {
+			static GAIA_NODISCARD EntityQueryInfo Create(uint32_t id, query::LookupCtx&& ctx) {
 				EntityQueryInfo info;
 				query::CalculateMatcherHashes(ctx);
 				info.m_lookupCtx = std::move(ctx);
+				info.m_lookupCtx.cacheId = id;
 				return info;
-			}
-
-			void Init(uint32_t id) {
-				GAIA_ASSERT(m_lookupCtx.cacheId == (uint32_t)-1);
-				m_lookupCtx.cacheId = id;
 			}
 
 			void SetWorldVersion(uint32_t version) {
@@ -9766,9 +9762,7 @@ namespace gaia {
 					// Query info does not exist so we need to create it and update the orignal query accordingly.
 					const auto hash = ctx.hashLookup;
 
-					auto info = EntityQueryInfo::Create(std::move(ctx));
-					info.Init(0);
-
+					auto info = EntityQueryInfo::Create(0, std::move(ctx));
 					m_cachedQueries[hash] = {std::move(info)};
 					return m_cachedQueries[hash].back();
 				}
@@ -9788,9 +9782,7 @@ namespace gaia {
 				}
 
 				// This query has not been added anywhere yet. Let's change that.
-				auto info = EntityQueryInfo::Create(std::move(ctx));
-				info.Init((uint32_t)queries.size());
-
+				auto info = EntityQueryInfo::Create((uint32_t)queries.size(), std::move(ctx));
 				queries.push_back(std::move(info));
 				return queries.back();
 			};
