@@ -172,6 +172,14 @@ namespace gaia {
 			//--------------------------------------------------------------------------------
 
 			EntityQueryInfo& FetchQueryInfo() {
+				// Lookup hash is present which means EntityQueryInfo was already found
+				if GAIA_LIKELY (m_hashLookup.hash != 0) {
+					auto& queryInfo = m_entityQueryCache->Get(m_hashLookup.hash, m_cacheId);
+					queryInfo.Match(*m_archetypes);
+					return queryInfo;
+				}
+
+				// No lookup hash is present which means EntityQueryInfo needes to fetched or created
 				query::LookupCtx ctx;
 				Commit(ctx);
 				auto& queryInfo = m_entityQueryCache->GetOrCreate(std::move(ctx));
@@ -217,12 +225,7 @@ namespace gaia {
 			//--------------------------------------------------------------------------------
 
 			void Commit(query::LookupCtx& ctx) {
-				// No need to commit anything if we already have the lookup hash
-				if (m_hashLookup.hash != 0) {
-					ctx.hashLookup = m_hashLookup;
-					ctx.cacheId = m_cacheId;
-					return;
-				}
+				GAIA_ASSERT(m_hashLookup.hash == 0);
 
 				// Read data from buffer and execute the command stored in it
 				m_cmdBuffer.Seek(0);
