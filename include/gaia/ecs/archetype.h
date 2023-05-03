@@ -66,7 +66,7 @@ namespace gaia {
 			ComponentMatcherHash m_matcherHash[ComponentType::CT_Count] = {0};
 			//! Archetype ID - used to address the archetype directly in the world's list or archetypes
 			uint32_t m_archetypeId = 0;
-			//! Reference to the parent world's version number
+			//! Stable reference to parent world's world version
 			uint32_t& m_worldVersion;
 			struct {
 				//! The number of entities this archetype can take (e.g 5 = 5 entities with all their components)

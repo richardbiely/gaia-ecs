@@ -7579,7 +7579,7 @@ namespace gaia {
 			containers::sarray<ComponentIdList, ComponentType::CT_Count> componentIds;
 			//! Lookup hashes of components within this archetype (copied from the owner archetype)
 			containers::sarray<ComponentOffsetList, ComponentType::CT_Count> componentOffsets;
-			//! Version of the world
+			//! Version of the world (stable pointer to parent world's world version)
 			uint32_t& worldVersion;
 			//! Versions of individual components on chunk.
 			uint32_t versions[ComponentType::CT_Count][MAX_COMPONENTS_PER_ARCHETYPE]{};
@@ -8531,7 +8531,7 @@ namespace gaia {
 			ComponentMatcherHash m_matcherHash[ComponentType::CT_Count] = {0};
 			//! Archetype ID - used to address the archetype directly in the world's list or archetypes
 			uint32_t m_archetypeId = 0;
-			//! Reference to the parent world's version number
+			//! Stable reference to parent world's world version
 			uint32_t& m_worldVersion;
 			struct {
 				//! The number of entities this archetype can take (e.g 5 = 5 entities with all their components)
@@ -9713,11 +9713,11 @@ namespace gaia {
 			//! Tell what kinds of chunks are going to be accepted by the query
 			EntityQuery::Constraints m_constraints = EntityQuery::Constraints::EnabledOnly;
 
-			//! Entity query cache
+			//! Entity query cache (stable pointer to parent world's query cache)
 			EntityQueryCache* m_entityQueryCache{};
-			//! World version
+			//! World version (stable pointer to parent world's world version)
 			uint32_t* m_worldVersion{};
-			//! List of achetypes
+			//! List of achetypes (stable pointer to parent world's archetype array)
 			containers::darray<Archetype*>* m_archetypes{};
 
 			//--------------------------------------------------------------------------------
