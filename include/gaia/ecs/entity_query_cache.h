@@ -5,7 +5,7 @@
 namespace gaia {
 	namespace ecs {
 		class EntityQueryCache {
-			containers::map<EntityQueryInfo::LookupHash, containers::darray<EntityQueryInfo>> m_cachedQueries;
+			containers::map<query::LookupHash, containers::darray<EntityQueryInfo>> m_cachedQueries;
 
 		public:
 			EntityQueryCache() = default;
@@ -45,7 +45,7 @@ namespace gaia {
 
 			//! Registers the provided entity query lookup context \param ctx. If it already exists it is returned.
 			//! \return Entity query info
-			EntityQueryInfo& GetOrCreate(EntityQueryInfo::LookupCtx&& ctx) {
+			EntityQueryInfo& GetOrCreate(query::LookupCtx&& ctx) {
 				GAIA_ASSERT(ctx.hashLookup.hash != 0);
 
 				// Check if the query info exists first
