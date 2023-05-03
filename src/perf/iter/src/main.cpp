@@ -39,19 +39,19 @@ template <size_t Version, typename T>
 struct Component<Version, T, 0> {}; // empty component
 
 namespace detail {
-	template <typename T, size_t TCount, size_t Iterations>
+	template <typename T, size_t ValuesCount, size_t ComponentCount>
 	constexpr void AddComponents(ecs::World& w, ecs::Entity e) {
-		utils::for_each<Iterations>([&](auto i) {
-			w.AddComponent<Component<i, T, TCount>>(e);
+		utils::for_each<ComponentCount>([&](auto i) {
+			w.AddComponent<Component<i, T, ValuesCount>>(e);
 		});
 	}
 } // namespace detail
 
-template <typename T, size_t TCount, size_t Iterations>
+template <typename T, size_t ValuesCount, size_t ComponentCount>
 constexpr void AddComponents(ecs::World& w, uint32_t n) {
 	for (size_t i = 0; i < n; ++i) {
 		[[maybe_unused]] auto e = w.CreateEntity();
-		detail::AddComponents<T, TCount, Iterations>(w, e);
+		detail::AddComponents<T, ValuesCount, ComponentCount>(w, e);
 	}
 }
 
@@ -73,334 +73,126 @@ void BM_CreateEntity_With_Component(picobench::state& state) {
 	}
 }
 
-constexpr size_t ForEachN = 1'000;
+constexpr size_t EntitiesForArchetype = 1'000;
 
-void BM_ForEach_1_Archetype(picobench::state& state) {
-	ecs::World w;
-	//-----------------------------------------
-	AddComponents<float, 3, 1>(w, ForEachN);
-	//-----------------------------------------
-
-	using c1 = Component<0, float, 3>;
-	auto query = w.CreateQuery().All<const c1>();
-
-	float f = 0.f;
-	for (auto _: state) {
-		(void)_;
-		query.ForEach([&](const c1& p) {
-			f += p.value[0];
-		});
-	}
-	picobench::DoNotOptimize(f);
+void Create_Archetypes_1(ecs::World& w) {
+	AddComponents<float, 3, 1>(w, EntitiesForArchetype);
 }
 
-void BM_ForEach_100_Archetypes(picobench::state& state) {
-	ecs::World w;
-	//-----------------------------------------
-	AddComponents<float, 0, 25>(w, ForEachN);
-	AddComponents<float, 1, 25>(w, ForEachN);
-	AddComponents<float, 2, 25>(w, ForEachN);
-	AddComponents<float, 3, 25>(w, ForEachN);
-	//-----------------------------------------
-
-	using c1 = Component<0, float, 3>;
-	auto query = w.CreateQuery().All<const c1>();
-
-	float f = 0.f;
-	for (auto _: state) {
-		(void)_;
-		query.ForEach([&](const c1& p) {
-			f += p.value[0];
-		});
-	}
-	picobench::DoNotOptimize(f);
+void Create_Archetypes_100(ecs::World& w) {
+	utils::for_each<4>([&](auto i) {
+		AddComponents<float, i, 25>(w, EntitiesForArchetype);
+	});
 }
 
-void BM_ForEach_1000_Archetypes(picobench::state& state) {
-	ecs::World w;
+void Create_Archetypes_1000(ecs::World& w) {
+	utils::for_each<4>([&](auto i) {
+		AddComponents<bool, i, 25>(w, EntitiesForArchetype);
+	});
 	//-----------------------------------------
-	AddComponents<bool, 0, 25>(w, ForEachN);
-	AddComponents<bool, 1, 25>(w, ForEachN);
-	AddComponents<bool, 2, 25>(w, ForEachN);
-	AddComponents<bool, 3, 25>(w, ForEachN);
+	utils::for_each<4>([&](auto i) {
+		AddComponents<int8_t, i, 25>(w, EntitiesForArchetype);
+	});
 	//-----------------------------------------
-	AddComponents<int8_t, 0, 25>(w, ForEachN);
-	AddComponents<int8_t, 1, 25>(w, ForEachN);
-	AddComponents<int8_t, 2, 25>(w, ForEachN);
-	AddComponents<int8_t, 3, 25>(w, ForEachN);
+	utils::for_each<4>([&](auto i) {
+		AddComponents<uint8_t, i, 25>(w, EntitiesForArchetype);
+	});
 	//-----------------------------------------
-	AddComponents<uint8_t, 0, 25>(w, ForEachN);
-	AddComponents<uint8_t, 1, 25>(w, ForEachN);
-	AddComponents<uint8_t, 2, 25>(w, ForEachN);
-	AddComponents<uint8_t, 3, 25>(w, ForEachN);
+	utils::for_each<4>([&](auto i) {
+		AddComponents<int16_t, i, 25>(w, EntitiesForArchetype);
+	});
 	//-----------------------------------------
-	AddComponents<int16_t, 0, 25>(w, ForEachN);
-	AddComponents<int16_t, 1, 25>(w, ForEachN);
-	AddComponents<int16_t, 2, 25>(w, ForEachN);
-	AddComponents<int16_t, 3, 25>(w, ForEachN);
+	utils::for_each<4>([&](auto i) {
+		AddComponents<uint16_t, i, 25>(w, EntitiesForArchetype);
+	});
 	//-----------------------------------------
-	AddComponents<uint16_t, 0, 25>(w, ForEachN);
-	AddComponents<uint16_t, 1, 25>(w, ForEachN);
-	AddComponents<uint16_t, 2, 25>(w, ForEachN);
-	AddComponents<uint16_t, 3, 25>(w, ForEachN);
+	utils::for_each<4>([&](auto i) {
+		AddComponents<int32_t, i, 25>(w, EntitiesForArchetype);
+	});
 	//-----------------------------------------
-	AddComponents<int32_t, 0, 25>(w, ForEachN);
-	AddComponents<int32_t, 1, 25>(w, ForEachN);
-	AddComponents<int32_t, 2, 25>(w, ForEachN);
-	AddComponents<int32_t, 3, 25>(w, ForEachN);
+	utils::for_each<4>([&](auto i) {
+		AddComponents<uint32_t, i, 25>(w, EntitiesForArchetype);
+	});
 	//-----------------------------------------
-	AddComponents<uint32_t, 0, 25>(w, ForEachN);
-	AddComponents<uint32_t, 1, 25>(w, ForEachN);
-	AddComponents<uint32_t, 2, 25>(w, ForEachN);
-	AddComponents<uint32_t, 3, 25>(w, ForEachN);
+	utils::for_each<4>([&](auto i) {
+		AddComponents<int64_t, i, 25>(w, EntitiesForArchetype);
+	});
 	//-----------------------------------------
-	AddComponents<int64_t, 0, 25>(w, ForEachN);
-	AddComponents<int64_t, 1, 25>(w, ForEachN);
-	AddComponents<int64_t, 2, 25>(w, ForEachN);
-	AddComponents<int64_t, 3, 25>(w, ForEachN);
+	utils::for_each<4>([&](auto i) {
+		AddComponents<uint64_t, i, 25>(w, EntitiesForArchetype);
+	});
 	//-----------------------------------------
-	AddComponents<uint64_t, 0, 25>(w, ForEachN);
-	AddComponents<uint64_t, 1, 25>(w, ForEachN);
-	AddComponents<uint64_t, 2, 25>(w, ForEachN);
-	AddComponents<uint64_t, 3, 25>(w, ForEachN);
-	//-----------------------------------------
-	AddComponents<float, 0, 25>(w, ForEachN);
-	AddComponents<float, 1, 25>(w, ForEachN);
-	AddComponents<float, 2, 25>(w, ForEachN);
-	AddComponents<float, 3, 25>(w, ForEachN);
-	//-----------------------------------------
-
-	using c1 = Component<0, float, 3>;
-	auto query = w.CreateQuery().All<const c1>();
-
-	float f = 0.f;
-	for (auto _: state) {
-		(void)_;
-		query.ForEach([&](const c1& p) {
-			f += p.value[0];
-		});
-	}
-	picobench::DoNotOptimize(f);
+	utils::for_each<4>([&](auto i) {
+		AddComponents<float, i, 25>(w, EntitiesForArchetype);
+	});
 }
 
-void BM_ForEach_Internal_1_Archetype(picobench::state& state) {
-	ecs::World w;
-	//-----------------------------------------
-	AddComponents<float, 3, 1>(w, ForEachN);
-	//-----------------------------------------
-
-	using c1 = Component<0, float, 3>;
-
-	float f = 0.f;
-	for (auto _: state) {
-		(void)_;
-		w.ForEach([&](const c1& p) {
-			f += p.value[0];
-		});
+#define DEFINE_FOREACH_INTERNALQUERY(ArchetypeCount)                                                                   \
+	void BM_ForEach_Internal_##ArchetypeCount(picobench::state& state) {                                                 \
+		ecs::World w;                                                                                                      \
+		Create_Archetypes_##ArchetypeCount(w);                                                                             \
+                                                                                                                       \
+		using c1 = Component<0, float, 3>;                                                                                 \
+                                                                                                                       \
+		float f = 0.f;                                                                                                     \
+		for (auto _: state) {                                                                                              \
+			(void)_;                                                                                                         \
+			w.ForEach([&](const c1& p) {                                                                                     \
+				f += p.value[0];                                                                                               \
+			});                                                                                                              \
+		}                                                                                                                  \
+		picobench::DoNotOptimize(f);                                                                                       \
 	}
-	picobench::DoNotOptimize(f);
-}
 
-void BM_ForEach_Internal_100_Archetypes(picobench::state& state) {
-	ecs::World w;
-	//-----------------------------------------
-	AddComponents<float, 0, 25>(w, ForEachN);
-	AddComponents<float, 1, 25>(w, ForEachN);
-	AddComponents<float, 2, 25>(w, ForEachN);
-	AddComponents<float, 3, 25>(w, ForEachN);
-	//-----------------------------------------
+DEFINE_FOREACH_INTERNALQUERY(1)
+DEFINE_FOREACH_INTERNALQUERY(100)
+DEFINE_FOREACH_INTERNALQUERY(1000)
 
-	using c1 = Component<0, float, 3>;
-
-	float f = 0.f;
-	for (auto _: state) {
-		(void)_;
-		w.ForEach([&](const c1& p) {
-			f += p.value[0];
-		});
+#define DEFINE_FOREACH_EXTERNALQUERY(ArchetypeCount)                                                                   \
+	void BM_ForEach_External_##ArchetypeCount(picobench::state& state) {                                                 \
+		ecs::World w;                                                                                                      \
+		Create_Archetypes_##ArchetypeCount(w);                                                                             \
+                                                                                                                       \
+		using c1 = Component<0, float, 3>;                                                                                 \
+		auto query = w.CreateQuery().All<const c1>();                                                                      \
+                                                                                                                       \
+		for (auto _: state) {                                                                                              \
+			(void)_;                                                                                                         \
+			float f = 0.f;                                                                                                   \
+			query.ForEach([&](const c1& p) {                                                                                 \
+				f += p.value[0];                                                                                               \
+			});                                                                                                              \
+			picobench::DoNotOptimize(f);                                                                                     \
+		}                                                                                                                  \
 	}
-	picobench::DoNotOptimize(f);
-}
 
-void BM_ForEach_Internal_1000_Archetypes(picobench::state& state) {
-	ecs::World w;
-	//-----------------------------------------
-	AddComponents<bool, 0, 25>(w, ForEachN);
-	AddComponents<bool, 1, 25>(w, ForEachN);
-	AddComponents<bool, 2, 25>(w, ForEachN);
-	AddComponents<bool, 3, 25>(w, ForEachN);
-	//-----------------------------------------
-	AddComponents<int8_t, 0, 25>(w, ForEachN);
-	AddComponents<int8_t, 1, 25>(w, ForEachN);
-	AddComponents<int8_t, 2, 25>(w, ForEachN);
-	AddComponents<int8_t, 3, 25>(w, ForEachN);
-	//-----------------------------------------
-	AddComponents<uint8_t, 0, 25>(w, ForEachN);
-	AddComponents<uint8_t, 1, 25>(w, ForEachN);
-	AddComponents<uint8_t, 2, 25>(w, ForEachN);
-	AddComponents<uint8_t, 3, 25>(w, ForEachN);
-	//-----------------------------------------
-	AddComponents<int16_t, 0, 25>(w, ForEachN);
-	AddComponents<int16_t, 1, 25>(w, ForEachN);
-	AddComponents<int16_t, 2, 25>(w, ForEachN);
-	AddComponents<int16_t, 3, 25>(w, ForEachN);
-	//-----------------------------------------
-	AddComponents<uint16_t, 0, 25>(w, ForEachN);
-	AddComponents<uint16_t, 1, 25>(w, ForEachN);
-	AddComponents<uint16_t, 2, 25>(w, ForEachN);
-	AddComponents<uint16_t, 3, 25>(w, ForEachN);
-	//-----------------------------------------
-	AddComponents<int32_t, 0, 25>(w, ForEachN);
-	AddComponents<int32_t, 1, 25>(w, ForEachN);
-	AddComponents<int32_t, 2, 25>(w, ForEachN);
-	AddComponents<int32_t, 3, 25>(w, ForEachN);
-	//-----------------------------------------
-	AddComponents<uint32_t, 0, 25>(w, ForEachN);
-	AddComponents<uint32_t, 1, 25>(w, ForEachN);
-	AddComponents<uint32_t, 2, 25>(w, ForEachN);
-	AddComponents<uint32_t, 3, 25>(w, ForEachN);
-	//-----------------------------------------
-	AddComponents<int64_t, 0, 25>(w, ForEachN);
-	AddComponents<int64_t, 1, 25>(w, ForEachN);
-	AddComponents<int64_t, 2, 25>(w, ForEachN);
-	AddComponents<int64_t, 3, 25>(w, ForEachN);
-	//-----------------------------------------
-	AddComponents<uint64_t, 0, 25>(w, ForEachN);
-	AddComponents<uint64_t, 1, 25>(w, ForEachN);
-	AddComponents<uint64_t, 2, 25>(w, ForEachN);
-	AddComponents<uint64_t, 3, 25>(w, ForEachN);
-	//-----------------------------------------
-	AddComponents<float, 0, 25>(w, ForEachN);
-	AddComponents<float, 1, 25>(w, ForEachN);
-	AddComponents<float, 2, 25>(w, ForEachN);
-	AddComponents<float, 3, 25>(w, ForEachN);
-	//-----------------------------------------
+DEFINE_FOREACH_EXTERNALQUERY(1)
+DEFINE_FOREACH_EXTERNALQUERY(100)
+DEFINE_FOREACH_EXTERNALQUERY(1000)
 
-	using c1 = Component<0, float, 3>;
-
-	float f = 0.f;
-	for (auto _: state) {
-		(void)_;
-		w.ForEach([&](const c1& p) {
-			f += p.value[0];
-		});
+#define DEFINE_FOREACHCHUNK_EXTERNALQUERY(ArchetypeCount)                                                              \
+	void BM_ForEachChunk_External_##ArchetypeCount(picobench::state& state) {                                            \
+		ecs::World w;                                                                                                      \
+		Create_Archetypes_##ArchetypeCount(w);                                                                             \
+                                                                                                                       \
+		using c1 = Component<0, float, 3>;                                                                                 \
+		auto query = w.CreateQuery().All<const c1>();                                                                      \
+                                                                                                                       \
+		for (auto _: state) {                                                                                              \
+			(void)_;                                                                                                         \
+			float f = 0.f;                                                                                                   \
+			query.ForEach([&](const ecs::Chunk& chunk) {                                                                     \
+				auto c1View = chunk.View<c1>();                                                                                \
+				for (size_t i = 0; i < chunk.GetItemCount(); ++i)                                                              \
+					f += c1View[i].value[0];                                                                                     \
+			});                                                                                                              \
+			picobench::DoNotOptimize(f);                                                                                     \
+		}                                                                                                                  \
 	}
-	picobench::DoNotOptimize(f);
-}
 
-void BM_ForEach_Chunk_1_Archetype(picobench::state& state) {
-	ecs::World w;
-	//-----------------------------------------
-	AddComponents<float, 3, 1>(w, ForEachN);
-	//-----------------------------------------
-
-	using c1 = Component<0, float, 3>;
-	auto query = w.CreateQuery().All<const c1>();
-
-	for (auto _: state) {
-		(void)_;
-		float f = 0.f;
-		query.ForEach([&](const ecs::Chunk& chunk) {
-			auto c1View = chunk.View<c1>();
-			for (size_t i = 0; i < chunk.GetItemCount(); ++i)
-				f += c1View[i].value[0];
-		});
-		picobench::DoNotOptimize(f);
-	}
-}
-
-void BM_ForEach_Chunk_100_Archetypes(picobench::state& state) {
-	ecs::World w;
-	//-----------------------------------------
-	AddComponents<float, 0, 25>(w, ForEachN);
-	AddComponents<float, 1, 25>(w, ForEachN);
-	AddComponents<float, 2, 25>(w, ForEachN);
-	AddComponents<float, 3, 25>(w, ForEachN);
-	//-----------------------------------------
-
-	using c1 = Component<0, float, 3>;
-	auto query = w.CreateQuery().All<const c1>();
-
-	for (auto _: state) {
-		(void)_;
-		float f = 0.f;
-		query.ForEach([&](const ecs::Chunk& chunk) {
-			auto c1View = chunk.View<c1>();
-			for (size_t i = 0; i < chunk.GetItemCount(); ++i)
-				f += c1View[i].value[0];
-		});
-		picobench::DoNotOptimize(f);
-	}
-}
-
-void BM_ForEach_Chunk_1000_Archetypes(picobench::state& state) {
-	ecs::World w;
-	//-----------------------------------------
-	AddComponents<bool, 0, 25>(w, ForEachN);
-	AddComponents<bool, 1, 25>(w, ForEachN);
-	AddComponents<bool, 2, 25>(w, ForEachN);
-	AddComponents<bool, 3, 25>(w, ForEachN);
-	//-----------------------------------------
-	AddComponents<int8_t, 0, 25>(w, ForEachN);
-	AddComponents<int8_t, 1, 25>(w, ForEachN);
-	AddComponents<int8_t, 2, 25>(w, ForEachN);
-	AddComponents<int8_t, 3, 25>(w, ForEachN);
-	//-----------------------------------------
-	AddComponents<uint8_t, 0, 25>(w, ForEachN);
-	AddComponents<uint8_t, 1, 25>(w, ForEachN);
-	AddComponents<uint8_t, 2, 25>(w, ForEachN);
-	AddComponents<uint8_t, 3, 25>(w, ForEachN);
-	//-----------------------------------------
-	AddComponents<int16_t, 0, 25>(w, ForEachN);
-	AddComponents<int16_t, 1, 25>(w, ForEachN);
-	AddComponents<int16_t, 2, 25>(w, ForEachN);
-	AddComponents<int16_t, 3, 25>(w, ForEachN);
-	//-----------------------------------------
-	AddComponents<uint16_t, 0, 25>(w, ForEachN);
-	AddComponents<uint16_t, 1, 25>(w, ForEachN);
-	AddComponents<uint16_t, 2, 25>(w, ForEachN);
-	AddComponents<uint16_t, 3, 25>(w, ForEachN);
-	//-----------------------------------------
-	AddComponents<int32_t, 0, 25>(w, ForEachN);
-	AddComponents<int32_t, 1, 25>(w, ForEachN);
-	AddComponents<int32_t, 2, 25>(w, ForEachN);
-	AddComponents<int32_t, 3, 25>(w, ForEachN);
-	//-----------------------------------------
-	AddComponents<uint32_t, 0, 25>(w, ForEachN);
-	AddComponents<uint32_t, 1, 25>(w, ForEachN);
-	AddComponents<uint32_t, 2, 25>(w, ForEachN);
-	AddComponents<uint32_t, 3, 25>(w, ForEachN);
-	//-----------------------------------------
-	AddComponents<int64_t, 0, 25>(w, ForEachN);
-	AddComponents<int64_t, 1, 25>(w, ForEachN);
-	AddComponents<int64_t, 2, 25>(w, ForEachN);
-	AddComponents<int64_t, 3, 25>(w, ForEachN);
-	//-----------------------------------------
-	AddComponents<uint64_t, 0, 25>(w, ForEachN);
-	AddComponents<uint64_t, 1, 25>(w, ForEachN);
-	AddComponents<uint64_t, 2, 25>(w, ForEachN);
-	AddComponents<uint64_t, 3, 25>(w, ForEachN);
-	//-----------------------------------------
-	AddComponents<float, 0, 25>(w, ForEachN);
-	AddComponents<float, 1, 25>(w, ForEachN);
-	AddComponents<float, 2, 25>(w, ForEachN);
-	AddComponents<float, 3, 25>(w, ForEachN);
-	//-----------------------------------------
-
-	using c1 = Component<0, float, 3>;
-	auto query = w.CreateQuery().All<const c1>();
-
-	for (auto _: state) {
-		(void)_;
-		float f = 0.f;
-		query.ForEach([&](const ecs::Chunk& chunk) {
-			auto c1View = chunk.View<c1>();
-			for (size_t i = 0; i < chunk.GetItemCount(); ++i)
-				f += c1View[i].value[0];
-		});
-		picobench::DoNotOptimize(f);
-	}
-}
+DEFINE_FOREACHCHUNK_EXTERNALQUERY(1)
+DEFINE_FOREACHCHUNK_EXTERNALQUERY(100)
+DEFINE_FOREACHCHUNK_EXTERNALQUERY(1000)
 
 #define PICO_SETTINGS() iterations({8192}).samples(3)
 
@@ -413,17 +205,17 @@ PICOBENCH(BM_CreateEntity_With_Component<8>).PICO_SETTINGS().label("8 components
 PICOBENCH(BM_CreateEntity_With_Component<16>).PICO_SETTINGS().label("16 components");
 PICOBENCH(BM_CreateEntity_With_Component<32>).PICO_SETTINGS().label("32 components");
 
+PICOBENCH_SUITE("ForEach - internal query");
+PICOBENCH(BM_ForEach_Internal_1).PICO_SETTINGS().label("1 archetype");
+PICOBENCH(BM_ForEach_Internal_100).PICO_SETTINGS().label("100 archetypes");
+PICOBENCH(BM_ForEach_Internal_1000).PICO_SETTINGS().label("1000 archetypes");
+
 PICOBENCH_SUITE("ForEach - external query");
-PICOBENCH(BM_ForEach_1_Archetype).PICO_SETTINGS().label("1 archetype");
-PICOBENCH(BM_ForEach_100_Archetypes).PICO_SETTINGS().label("100 archetypes");
-PICOBENCH(BM_ForEach_1000_Archetypes).PICO_SETTINGS().label("1000 archetypes");
+PICOBENCH(BM_ForEach_External_1).PICO_SETTINGS().label("1 archetype");
+PICOBENCH(BM_ForEach_External_100).PICO_SETTINGS().label("100 archetypes");
+PICOBENCH(BM_ForEach_External_1000).PICO_SETTINGS().label("1000 archetypes");
 
 PICOBENCH_SUITE("ForEach - external query, chunk");
-PICOBENCH(BM_ForEach_Chunk_1_Archetype).PICO_SETTINGS().label("1 archetype");
-PICOBENCH(BM_ForEach_Chunk_100_Archetypes).PICO_SETTINGS().label("100 archetypes");
-PICOBENCH(BM_ForEach_Chunk_1000_Archetypes).PICO_SETTINGS().label("1000 archetypes");
-
-PICOBENCH_SUITE("ForEach - internal query)");
-PICOBENCH(BM_ForEach_Internal_1_Archetype).PICO_SETTINGS().label("1 archetype");
-PICOBENCH(BM_ForEach_Internal_100_Archetypes).PICO_SETTINGS().label("100 archetypes");
-PICOBENCH(BM_ForEach_Internal_1000_Archetypes).PICO_SETTINGS().label("1000 archetypes");
+PICOBENCH(BM_ForEachChunk_External_1).PICO_SETTINGS().label("1 archetype");
+PICOBENCH(BM_ForEachChunk_External_100).PICO_SETTINGS().label("100 archetypes");
+PICOBENCH(BM_ForEachChunk_External_1000).PICO_SETTINGS().label("1000 archetypes");
