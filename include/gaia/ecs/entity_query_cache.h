@@ -54,9 +54,7 @@ namespace gaia {
 					// Query info does not exist so we need to create it and update the orignal query accordingly.
 					const auto hash = ctx.hashLookup;
 
-					auto info = EntityQueryInfo::Create(std::move(ctx));
-					info.Init(0);
-
+					auto info = EntityQueryInfo::Create(0, std::move(ctx));
 					m_cachedQueries[hash] = {std::move(info)};
 					return m_cachedQueries[hash].back();
 				}
@@ -76,9 +74,7 @@ namespace gaia {
 				}
 
 				// This query has not been added anywhere yet. Let's change that.
-				auto info = EntityQueryInfo::Create(std::move(ctx));
-				info.Init((uint32_t)queries.size());
-
+				auto info = EntityQueryInfo::Create((uint32_t)queries.size(), std::move(ctx));
 				queries.push_back(std::move(info));
 				return queries.back();
 			};
