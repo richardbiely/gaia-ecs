@@ -21,7 +21,6 @@ namespace gaia {
 				constexpr uint32_t DefaultComponentCacheSize = 2048;
 				m_infoByIndex.reserve(DefaultComponentCacheSize);
 				m_descByIndex.reserve(DefaultComponentCacheSize);
-				m_infoByHash.reserve(DefaultComponentCacheSize);
 			}
 
 		public:
