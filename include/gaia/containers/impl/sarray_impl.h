@@ -200,10 +200,12 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD constexpr reference operator[](size_type pos) noexcept {
+				GAIA_ASSERT(pos < size());
 				return (reference)m_data[pos];
 			}
 
 			GAIA_NODISCARD constexpr const_reference operator[](size_type pos) const noexcept {
+				GAIA_ASSERT(pos < size());
 				return (const_reference)m_data[pos];
 			}
 
