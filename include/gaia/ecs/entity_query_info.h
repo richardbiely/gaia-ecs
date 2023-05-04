@@ -174,6 +174,7 @@ namespace gaia {
 				EntityQueryInfo info;
 				query::CalculateMatcherHashes(ctx);
 				info.m_lookupCtx = std::move(ctx);
+				info.m_lookupCtx.queryId = id;
 				return info;
 			}
 
