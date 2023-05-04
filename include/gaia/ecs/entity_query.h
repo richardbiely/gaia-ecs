@@ -155,10 +155,8 @@ namespace gaia {
 					}};
 
 			DataBuffer m_cmdBuffer;
-			//! Lookup hash for this query
-			query::LookupHash m_hashLookup{};
 			//! Query cache id
-			uint32_t m_cacheId = (uint32_t)-1;
+			uint32_t m_queryId = (uint32_t)-1;
 			//! Tell what kinds of chunks are going to be accepted by the query
 			EntityQuery::Constraints m_constraints = EntityQuery::Constraints::EnabledOnly;
 
@@ -173,8 +171,8 @@ namespace gaia {
 
 			EntityQueryInfo& FetchQueryInfo() {
 				// Lookup hash is present which means EntityQueryInfo was already found
-				if GAIA_LIKELY (m_hashLookup.hash != 0) {
-					auto& queryInfo = m_entityQueryCache->Get(m_hashLookup.hash, m_cacheId);
+				if GAIA_LIKELY (IsQueryInitialized()) {
+					auto& queryInfo = m_entityQueryCache->Get(m_queryId);
 					queryInfo.Match(*m_archetypes);
 					return queryInfo;
 				}
@@ -182,8 +180,8 @@ namespace gaia {
 				// No lookup hash is present which means EntityQueryInfo needes to fetched or created
 				query::LookupCtx ctx;
 				Commit(ctx);
-				auto& queryInfo = m_entityQueryCache->GetOrCreate(std::move(ctx));
-				Init(queryInfo.GetLookupHash(), queryInfo.GetCacheId());
+				m_queryId = m_entityQueryCache->GetOrCreate(std::move(ctx));
+				auto& queryInfo = m_entityQueryCache->Get(m_queryId);
 				queryInfo.Match(*m_archetypes);
 				return queryInfo;
 			}
@@ -225,7 +223,7 @@ namespace gaia {
 			//--------------------------------------------------------------------------------
 
 			void Commit(query::LookupCtx& ctx) {
-				GAIA_ASSERT(m_hashLookup.hash == 0);
+				GAIA_ASSERT(!IsQueryInitialized());
 
 				// Read data from buffer and execute the command stored in it
 				m_cmdBuffer.Seek(0);
@@ -442,29 +440,27 @@ namespace gaia {
 				});
 			}
 
+			void InvalidateQuery() {
+				m_queryId = (int32_t)-1;
+			}
+
 		public:
 			EntityQuery() = default;
 			EntityQuery(EntityQueryCache& queryCache, uint32_t& worldVersion, containers::darray<Archetype*>& archetypes):
 					m_entityQueryCache(&queryCache), m_worldVersion(&worldVersion), m_archetypes(&archetypes) {}
 
-			void Init(query::LookupHash hash, uint32_t id) {
-				GAIA_ASSERT(m_cacheId == (uint32_t)-1 || m_hashLookup == hash && m_cacheId == id);
-				m_hashLookup = hash;
-				m_cacheId = id;
+			GAIA_NODISCARD uint32_t GetQueryId() const {
+				return m_queryId;
 			}
 
-			query::LookupHash GetLookupHash() const {
-				return m_hashLookup;
-			}
-
-			uint32_t GetCacheId() const {
-				return m_cacheId;
+			GAIA_NODISCARD bool IsQueryInitialized() const {
+				return m_queryId != (uint32_t)-1;
 			}
 
 			template <typename... T>
 			EntityQuery& All() {
-				// Invalidte the query
-				m_hashLookup = {0};
+				// Adding new rules invalides the query
+				InvalidateQuery();
 				// Add commands to the command buffer
 				(AddComponent_Internal<T>(query::ListType::LT_All), ...);
 				return *this;
@@ -472,8 +468,8 @@ namespace gaia {
 
 			template <typename... T>
 			EntityQuery& Any() {
-				// Invalidte the query
-				m_hashLookup = {0};
+				// Adding new rules invalides the query
+				InvalidateQuery();
 				// Add commands to the command buffer
 				(AddComponent_Internal<T>(query::ListType::LT_Any), ...);
 				return *this;
@@ -481,8 +477,8 @@ namespace gaia {
 
 			template <typename... T>
 			EntityQuery& None() {
-				// Invalidte the query
-				m_hashLookup = {0};
+				// Adding new rules invalides the query
+				InvalidateQuery();
 				// Add commands to the command buffer
 				(AddComponent_Internal<T>(query::ListType::LT_None), ...);
 				return *this;
@@ -490,8 +486,8 @@ namespace gaia {
 
 			template <typename... T>
 			EntityQuery& WithChanged() {
-				// Invalidte the query
-				m_hashLookup = {0};
+				// Adding new rules invalides the query
+				InvalidateQuery();
 				// Add commands to the command buffer
 				(WithChanged_Internal<T>(), ...);
 				return *this;

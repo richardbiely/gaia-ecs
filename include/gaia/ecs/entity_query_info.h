@@ -174,7 +174,6 @@ namespace gaia {
 				EntityQueryInfo info;
 				query::CalculateMatcherHashes(ctx);
 				info.m_lookupCtx = std::move(ctx);
-				info.m_lookupCtx.cacheId = id;
 				return info;
 			}
 
@@ -188,10 +187,6 @@ namespace gaia {
 
 			query::LookupHash GetLookupHash() const {
 				return m_lookupCtx.hashLookup;
-			}
-
-			uint32_t GetCacheId() const {
-				return m_lookupCtx.cacheId;
 			}
 
 			GAIA_NODISCARD bool operator==(const query::LookupCtx& other) const {

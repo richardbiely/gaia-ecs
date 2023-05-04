@@ -1,14 +1,21 @@
 #pragma once
 #include "../config/config_core_end.h"
+#include "../containers/darray.h"
+#include "entity_query_common.h"
 #include "entity_query_info.h"
 
 namespace gaia {
 	namespace ecs {
 		class EntityQueryCache {
-			containers::map<query::LookupHash, containers::darray<EntityQueryInfo>> m_queryCache;
+			using QueryCacheLookupArray = containers::darr<uint32_t>;
+			containers::map<query::LookupHash, QueryCacheLookupArray> m_queryCache;
+			containers::darray<EntityQueryInfo> m_queryArr;
 
 		public:
-			EntityQueryCache() = default;
+			EntityQueryCache() {
+				m_queryArr.reserve(256);
+			}
+
 			~EntityQueryCache() = default;
 
 			EntityQueryCache(EntityQueryCache&&) = delete;
@@ -16,67 +23,46 @@ namespace gaia {
 			EntityQueryCache& operator=(EntityQueryCache&&) = delete;
 			EntityQueryCache& operator=(const EntityQueryCache&) = delete;
 
-			//! Searches for an entity query info from the provided \param query.
-			//! \param query Query used to search for query info
-			//! \return Entity query info or nullptr if not found
-			EntityQueryInfo* Find(uint64_t lookupHash, uint32_t cacheId) const {
-				auto it = m_queryCache.find({lookupHash});
-				GAIA_ASSERT(it != m_queryCache.end());
-
-				const auto& queries = it->second;
-				for (auto& q: queries) {
-					if (q.GetCacheId() != cacheId)
-						continue;
-					return &q;
-				}
-
-				return nullptr;
-			};
-
 			//! Returns an already existing entity query info from the provided \param query.
 			//! \warning It is expected that the query has already been registered. Undefined behavior otherwise.
 			//! \param query Query used to search for query info
 			//! \return Entity query info
-			EntityQueryInfo& Get(uint64_t lookupHash, uint32_t cacheId) const {
-				auto* pInfo = Find(lookupHash, cacheId);
-				GAIA_ASSERT(pInfo != nullptr);
-				return *pInfo;
+			EntityQueryInfo& Get(uint32_t queryId) {
+				GAIA_ASSERT(queryId != (uint32_t)-1);
+
+				return m_queryArr[queryId];
 			};
 
 			//! Registers the provided entity query lookup context \param ctx. If it already exists it is returned.
-			//! \return Entity query info
-			EntityQueryInfo& GetOrCreate(query::LookupCtx&& ctx) {
+			//! \return Query id
+			uint32_t GetOrCreate(query::LookupCtx&& ctx) {
 				GAIA_ASSERT(ctx.hashLookup.hash != 0);
 
 				// Check if the query info exists first
-				auto it = m_queryCache.find(ctx.hashLookup);
-				if GAIA_UNLIKELY (it == m_queryCache.end()) {
-					// Query info does not exist so we need to create it and update the orignal query accordingly.
-					const auto hash = ctx.hashLookup;
+				auto ret = m_queryCache.try_emplace(ctx.hashLookup, QueryCacheLookupArray{});
+				if (!ret.second) {
+					const auto& queryIds = ret.first->second;
 
-					auto info = EntityQueryInfo::Create(0, std::move(ctx));
-					m_queryCache[hash] = {std::move(info)};
-					return m_queryCache[hash].back();
-				}
+					// Record with the query info lookup hash exists but we need to check if the query itself is a part of it.
+					if GAIA_LIKELY (ctx.queryId != (int32_t)-1) {
+						// Make sure the same hash gets us to the proper query
+						for (const auto queryId: queryIds) {
+							const auto& queryInfo = m_queryArr[queryId];
+							if (queryInfo != ctx)
+								continue;
 
-				auto& queries = it->second;
+							return queryId;
+						}
 
-				// Record with the query info lookup hash exists but we need to check if the query itself is a part of it.
-				if GAIA_LIKELY (ctx.cacheId != (int32_t)-1) {
-					// Make sure the same hash gets us to the proper query
-					for (auto& q: queries) {
-						if (q != ctx)
-							continue;
-						return q;
+						GAIA_ASSERT(false && "EntityQueryInfo not found despite having its lookupHash and cacheId set!");
+						return (uint32_t)-1;
 					}
-
-					GAIA_ASSERT(false && "EntityQueryInfo not found despite having its lookupHash and cacheId set!");
 				}
 
-				// This query has not been added anywhere yet. Let's change that.
-				auto info = EntityQueryInfo::Create((uint32_t)queries.size(), std::move(ctx));
-				queries.push_back(std::move(info));
-				return queries.back();
+				const auto queryId = (uint32_t)m_queryArr.size();
+				m_queryArr.push_back(EntityQueryInfo::Create(queryId, std::move(ctx)));
+				ret.first->second.push_back(queryId);
+				return queryId;
 			};
 		};
 	} // namespace ecs

@@ -29,8 +29,8 @@ namespace gaia {
 			struct LookupCtx {
 				//! Lookup hash for this query
 				LookupHash hashLookup{};
-				//! Cache id
-				uint32_t cacheId = (uint32_t)-1;
+				//! Querey id
+				uint32_t queryId = (uint32_t)-1;
 				//! List of querried components
 				ComponentListData list[ComponentType::CT_Count]{};
 				//! List of filtered components
@@ -42,7 +42,7 @@ namespace gaia {
 
 				GAIA_NODISCARD bool operator==(const LookupCtx& other) const {
 					// Fast path when cache ids are set
-					if (cacheId != (uint32_t)-1 && cacheId == other.cacheId)
+					if (queryId != (uint32_t)-1 && queryId == other.queryId)
 						return true;
 
 					// Lookup hash must match
