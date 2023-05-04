@@ -7,9 +7,8 @@
 
 namespace gaia {
 	namespace containers {
-		// Array with fixed size and capacity allocated on stack.
-		// Interface compatiblity with std::array where it matters.
-		// Can be used if STL containers are not an option for some reason.
+		//! Array of elements of type \tparam T with fixed size and capacity \tparam N allocated on stack.
+		//! Interface compatiblity with std::array where it matters.
 		template <typename T, size_t N>
 		class sarr {
 		public:
@@ -192,19 +191,19 @@ namespace gaia {
 				}
 			};
 
-			constexpr pointer data() noexcept {
+			GAIA_NODISCARD constexpr pointer data() noexcept {
 				return (pointer)m_data;
 			}
 
-			constexpr const_pointer data() const noexcept {
+			GAIA_NODISCARD constexpr const_pointer data() const noexcept {
 				return (const_pointer)m_data;
 			}
 
-			constexpr reference operator[](size_type pos) noexcept {
+			GAIA_NODISCARD constexpr reference operator[](size_type pos) noexcept {
 				return (reference)m_data[pos];
 			}
 
-			constexpr const_reference operator[](size_type pos) const noexcept {
+			GAIA_NODISCARD constexpr const_reference operator[](size_type pos) const noexcept {
 				return (const_reference)m_data[pos];
 			}
 
@@ -220,39 +219,39 @@ namespace gaia {
 				return N;
 			}
 
-			constexpr reference front() noexcept {
+			GAIA_NODISCARD constexpr reference front() noexcept {
 				return *begin();
 			}
 
-			constexpr const_reference front() const noexcept {
+			GAIA_NODISCARD constexpr const_reference front() const noexcept {
 				return *begin();
 			}
 
-			constexpr reference back() noexcept {
+			GAIA_NODISCARD constexpr reference back() noexcept {
 				return N != 0U ? *(end() - 1) : *end();
 			}
 
-			constexpr const_reference back() const noexcept {
+			GAIA_NODISCARD constexpr const_reference back() const noexcept {
 				return N != 0U ? *(end() - 1) : *end();
 			}
 
-			constexpr iterator begin() const noexcept {
+			GAIA_NODISCARD constexpr iterator begin() const noexcept {
 				return {(T*)m_data};
 			}
 
-			constexpr const_iterator cbegin() const noexcept {
+			GAIA_NODISCARD constexpr const_iterator cbegin() const noexcept {
 				return {(const T*)m_data};
 			}
 
-			constexpr iterator end() const noexcept {
+			GAIA_NODISCARD constexpr iterator end() const noexcept {
 				return {(T*)m_data + N};
 			}
 
-			constexpr const_iterator cend() const noexcept {
+			GAIA_NODISCARD constexpr const_iterator cend() const noexcept {
 				return {(const T*)m_data + N};
 			}
 
-			bool operator==(const sarr& other) const {
+			GAIA_NODISCARD bool operator==(const sarr& other) const {
 				for (size_type i = 0; i < N; ++i)
 					if (m_data[i] != other.m_data[i])
 						return false;
