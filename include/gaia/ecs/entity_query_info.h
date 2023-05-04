@@ -3,6 +3,7 @@
 #include "../containers/sarray_ext.h"
 #include "../utils/hashing_policy.h"
 #include "../utils/utility.h"
+#include "archetype.h"
 #include "component.h"
 #include "component_utils.h"
 #include "entity_query_common.h"
@@ -10,10 +11,6 @@
 namespace gaia {
 	namespace ecs {
 		struct Entity;
-		class Archetype;
-
-		const ComponentIdList& GetArchetypeComponentInfoList(const Archetype& archetype, ComponentType componentType);
-		ComponentMatcherHash GetArchetypeMatcherHash(const Archetype& archetype, ComponentType componentType);
 
 		class EntityQueryInfo {
 		public:
@@ -71,9 +68,20 @@ namespace gaia {
 			//! \return True if there is a match, false otherwise.
 			static GAIA_NODISCARD bool
 			CheckMatchOne(const ComponentIdList& componentIds, const query::ComponentIdArray& componentIdsQuery) {
-				for (const auto componentId: componentIdsQuery) {
-					if (utils::has(componentIds, componentId))
+				// Arrays are sorted so we can do linear intersection lookup
+				size_t i = 0;
+				size_t j = 0;
+				while (i < componentIds.size() && j < componentIdsQuery.size()) {
+					const auto componentId = componentIds[i];
+					const auto componentIdQuery = componentIdsQuery[j];
+
+					if (componentId == componentIdQuery)
 						return true;
+
+					if (SortComponentCond{}.operator()(componentId, componentIdQuery))
+						++i;
+					else
+						++j;
 				}
 
 				return false;
@@ -85,38 +93,47 @@ namespace gaia {
 			CheckMatchMany(const ComponentIdList& componentIds, const query::ComponentIdArray& componentIdsQuery) {
 				size_t matches = 0;
 
-				for (const auto componentIdQuery: componentIdsQuery) {
-					for (const auto componentId: componentIds) {
-						if (componentId == componentIdQuery) {
-							if (++matches == componentIdsQuery.size())
-								return true;
+				// Arrays are sorted so we can do linear intersection lookup
+				size_t i = 0;
+				size_t j = 0;
+				while (i < componentIds.size() && j < componentIdsQuery.size()) {
+					const auto componentId = componentIds[i];
+					const auto componentIdQuery = componentIdsQuery[j];
 
-							break;
-						}
+					if (componentId == componentIdQuery) {
+						if (++matches == componentIdsQuery.size())
+							return true;
 					}
+
+					if (SortComponentCond{}.operator()(componentId, componentIdQuery))
+						++i;
+					else
+						++j;
 				}
 
 				return false;
 			}
 
-			//! Tries to match \param componentIds with a given \param matcherHash.
-			//! \return MatchArchetypeQueryRet::Fail if there is no match, MatchArchetypeQueryRet::Ok for match or
+			//! Tries to match component with component type \param componentType from the archetype \param archetype with the
+			//! query. \return MatchArchetypeQueryRet::Fail if there is no match, MatchArchetypeQueryRet::Ok for match or
 			//! MatchArchetypeQueryRet::Skip is not relevant.
-			template <ComponentType TComponentType>
-			GAIA_NODISCARD MatchArchetypeQueryRet
-			Match(const ComponentIdList& componentIds, ComponentMatcherHash matcherHash) const {
-				const auto& queryList = GetData(TComponentType);
+			GAIA_NODISCARD MatchArchetypeQueryRet Match(const Archetype& archetype, ComponentType componentType) const {
+				const auto& matcherHash = archetype.GetMatcherHash(componentType);
+				const auto& queryList = GetData(componentType);
+
 				const auto withNoneTest = matcherHash.hash & queryList.hash[query::ListType::LT_None].hash;
 				const auto withAnyTest = matcherHash.hash & queryList.hash[query::ListType::LT_Any].hash;
 				const auto withAllTest = matcherHash.hash & queryList.hash[query::ListType::LT_All].hash;
 
 				// If withAllTest is empty but we wanted something
-				if (!withAllTest && queryList.hash[query::ListType::LT_All].hash != 0)
+				if (withAllTest == 0 && queryList.hash[query::ListType::LT_All].hash != 0)
 					return MatchArchetypeQueryRet::Fail;
 
 				// If withAnyTest is empty but we wanted something
-				if (!withAnyTest && queryList.hash[query::ListType::LT_Any].hash != 0)
+				if (withAnyTest == 0 && queryList.hash[query::ListType::LT_Any].hash != 0)
 					return MatchArchetypeQueryRet::Fail;
+
+				const auto& componentIds = archetype.GetComponentIdList(componentType);
 
 				// If there is any match with withNoneList we quit
 				if (withNoneTest != 0) {
@@ -197,16 +214,12 @@ namespace gaia {
 #endif
 
 					// Early exit if generic query doesn't match
-					const auto retGeneric = Match<ComponentType::CT_Generic>(
-							GetArchetypeComponentInfoList(archetype, ComponentType::CT_Generic),
-							GetArchetypeMatcherHash(archetype, ComponentType::CT_Generic));
+					const auto retGeneric = Match(archetype, ComponentType::CT_Generic);
 					if (retGeneric == MatchArchetypeQueryRet::Fail)
 						continue;
 
 					// Early exit if chunk query doesn't match
-					const auto retChunk = Match<ComponentType::CT_Chunk>(
-							GetArchetypeComponentInfoList(archetype, ComponentType::CT_Chunk),
-							GetArchetypeMatcherHash(archetype, ComponentType::CT_Chunk));
+					const auto retChunk = Match(archetype, ComponentType::CT_Chunk);
 					if (retChunk == MatchArchetypeQueryRet::Fail)
 						continue;
 

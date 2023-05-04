@@ -440,21 +440,6 @@ namespace gaia {
 				return (uint32_t)idx;
 			}
 		};
-
-		GAIA_NODISCARD inline ComponentMatcherHash
-		GetArchetypeMatcherHash(const Archetype& archetype, ComponentType componentType) {
-			return archetype.GetMatcherHash(componentType);
-		}
-
-		GAIA_NODISCARD inline const ComponentIdList&
-		GetArchetypeComponentInfoList(const Archetype& archetype, ComponentType componentType) {
-			return archetype.GetComponentIdList(componentType);
-		}
-
-		GAIA_NODISCARD inline const ComponentOffsetList&
-		GetArchetypeComponentOffsetList(const Archetype& archetype, ComponentType componentType) {
-			return archetype.GetComponentOffsetList(componentType);
-		}
 	} // namespace ecs
 } // namespace gaia
 

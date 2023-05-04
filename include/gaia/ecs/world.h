@@ -599,33 +599,38 @@ namespace gaia {
 				{
 					size_t i = 0;
 					size_t j = 0;
+
+					auto moveData = [&](const ComponentDesc& descOld, const ComponentDesc& descNew) {
+						// Let's move all type data from oldEntity to newEntity
+						const auto idxSrc = oldOffs[i++] + descOld.properties.size * oldIndex;
+						const auto idxDst = newOffs[j++] + descOld.properties.size * newIndex;
+
+						GAIA_ASSERT(idxSrc < Chunk::DATA_SIZE_NORESERVE);
+						GAIA_ASSERT(idxDst < Chunk::DATA_SIZE_NORESERVE);
+
+						auto* pSrc = (void*)&pOldChunk->m_data[idxSrc];
+						auto* pDst = (void*)&pNewChunk->m_data[idxDst];
+
+						if (descNew.properties.movable == 1) {
+							const auto& desc = cc.GetComponentDesc(descNew.componentId);
+							desc.move(pSrc, pDst);
+						} else if (descNew.properties.copyable == 1) {
+							const auto& desc = cc.GetComponentDesc(descNew.componentId);
+							desc.copy(pSrc, pDst);
+						} else
+							memmove(pDst, (const void*)pSrc, descOld.properties.size);
+					};
+
 					while (i < oldInfos.size() && j < newInfos.size()) {
 						const auto& descOld = cc.GetComponentDesc(oldInfos[i]);
 						const auto& descNew = cc.GetComponentDesc(newInfos[j]);
 
-						if (&descOld == &descNew) {
-							// Let's move all type data from oldEntity to newEntity
-							const auto idxSrc = oldOffs[i++] + descOld.properties.size * oldIndex;
-							const auto idxDst = newOffs[j++] + descOld.properties.size * newIndex;
-
-							GAIA_ASSERT(idxSrc < Chunk::DATA_SIZE_NORESERVE);
-							GAIA_ASSERT(idxDst < Chunk::DATA_SIZE_NORESERVE);
-
-							auto* pSrc = (void*)&pOldChunk->m_data[idxSrc];
-							auto* pDst = (void*)&pNewChunk->m_data[idxDst];
-
-							if (descNew.properties.movable == 1) {
-								const auto& desc = cc.GetComponentDesc(descNew.componentId);
-								desc.move(pSrc, pDst);
-							} else if (descNew.properties.copyable == 1) {
-								const auto& desc = cc.GetComponentDesc(descNew.componentId);
-								desc.copy(pSrc, pDst);
-							} else
-								memmove(pDst, (const void*)pSrc, descOld.properties.size);
-						} else if (descOld.componentId > descNew.componentId)
-							++j;
-						else
+						if (&descOld == &descNew)
+							moveData(descOld, descNew);
+						else if (SortComponentCond{}.operator()(descOld.componentId, descNew.componentId))
 							++i;
+						else
+							++j;
 					}
 				}
 
@@ -852,7 +857,7 @@ namespace gaia {
 			Returns the current version of the world.
 			\return World version number
 			*/
-			GAIA_NODISCARD  uint32_t& GetWorldVersion() {
+			GAIA_NODISCARD uint32_t& GetWorldVersion() {
 				return m_worldVersion;
 			}
 
