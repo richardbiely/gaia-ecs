@@ -10474,10 +10474,11 @@ namespace gaia {
 
 			//! Execute functors in batches
 			template <typename Func>
-			static void ChunkBatch_Perform(Func func, const ChunkBatchedList& chunks) {
+			static void ChunkBatch_Perform(Func func, ChunkBatchedList& chunks) {
 				// This is what the function is doing:
 				// for (auto *pChunk: chunks)
 				//	func(*pChunk);
+				// chunks.clear();
 
 				// No chunks, nothing to do here
 				if (GAIA_UNLIKELY(chunks.empty()))
@@ -10488,6 +10489,7 @@ namespace gaia {
 				// We only have one chunk to process
 				if GAIA_UNLIKELY (chunks.size() == 1) {
 					func(*chunks[0]);
+					chunks.clear();
 					return;
 				}
 
@@ -10509,20 +10511,20 @@ namespace gaia {
 				}
 
 				func(*chunks[chunkIdx]);
+				chunks.clear();
 			}
 
 			template <bool HasFilters, typename Func>
-			void
-			ProcessQueryOnChunks(Func func, const containers::darray<Chunk*>& chunksList, const EntityQueryInfo& queryInfo) {
+			void ProcessQueryOnChunks(
+					Func func, ChunkBatchedList& chunkBatch, const containers::darray<Chunk*>& chunksList,
+					const EntityQueryInfo& queryInfo) {
 				size_t chunkOffset = 0;
 
 				size_t itemsLeft = chunksList.size();
 				while (itemsLeft > 0) {
-					ChunkBatchedList chunkBatch;
 					const size_t batchSize = itemsLeft > ChunkBatchedList::extent ? ChunkBatchedList::extent : itemsLeft;
 					ChunkBatch_Prepare<HasFilters>(
 							CChunkSpan((const Chunk**)&chunksList[chunkOffset], batchSize), queryInfo, chunkBatch);
-					ChunkBatch_Perform(func, chunkBatch);
 
 					itemsLeft -= batchSize;
 					chunkOffset += batchSize;
@@ -10534,30 +10536,53 @@ namespace gaia {
 				// Update the world version
 				UpdateVersion(*m_worldVersion);
 
+				ChunkBatchedList chunkBatch;
+
 				const bool hasFilters = queryInfo.HasFilters();
 				if (hasFilters) {
 					for (auto* pArchetype: queryInfo) {
+						// Disable structural changes on archetypes we are going to evaluate
 						pArchetype->SetStructuralChanges(true);
 
-						if (CheckConstraints<true>())
-							ProcessQueryOnChunks<true>(func, pArchetype->GetChunks(), queryInfo);
-						if (CheckConstraints<false>())
-							ProcessQueryOnChunks<true>(func, pArchetype->GetChunksDisabled(), queryInfo);
+						// Evaluate ordinary chunks
+						if (CheckConstraints<true>()) {
+							ProcessQueryOnChunks<true>(func, chunkBatch, pArchetype->GetChunks(), queryInfo);
+							if (chunkBatch.size() == chunkBatch.max_size())
+								ChunkBatch_Perform(func, chunkBatch);
+						}
 
-						pArchetype->SetStructuralChanges(false);
+						// Evaluate disabled chunks
+						if (CheckConstraints<false>()) {
+							ProcessQueryOnChunks<true>(func, chunkBatch, pArchetype->GetChunksDisabled(), queryInfo);
+							if (chunkBatch.size() == chunkBatch.max_size())
+								ChunkBatch_Perform(func, chunkBatch);
+						}
 					}
 				} else {
 					for (auto* pArchetype: queryInfo) {
+						// Disable structural changes on archetypes we are going to evaluate
 						pArchetype->SetStructuralChanges(true);
 
-						if (CheckConstraints<true>())
-							ProcessQueryOnChunks<false>(func, pArchetype->GetChunks(), queryInfo);
-						if (CheckConstraints<false>())
-							ProcessQueryOnChunks<false>(func, pArchetype->GetChunksDisabled(), queryInfo);
+						// Evaluate ordinary chunks
+						if (CheckConstraints<true>()) {
+							ProcessQueryOnChunks<false>(func, chunkBatch, pArchetype->GetChunks(), queryInfo);
+							if (chunkBatch.size() == chunkBatch.max_size())
+								ChunkBatch_Perform(func, chunkBatch);
+						}
 
-						pArchetype->SetStructuralChanges(false);
+						// Evaluate disabled chunks
+						if (CheckConstraints<false>()) {
+							ProcessQueryOnChunks<false>(func, chunkBatch, pArchetype->GetChunksDisabled(), queryInfo);
+							if (chunkBatch.size() == chunkBatch.max_size())
+								ChunkBatch_Perform(func, chunkBatch);
+						}
 					}
 				}
+				ChunkBatch_Perform(func, chunkBatch);
+
+				// Enable back structural changes on archetypes we are going to evaluate
+				for (auto* pArchetype: queryInfo)
+					pArchetype->SetStructuralChanges(false);
 
 				// Update the query version with the current world's version
 				queryInfo.SetWorldVersion(*m_worldVersion);
