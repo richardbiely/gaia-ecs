@@ -59,7 +59,7 @@ namespace gaia {
 				using UOriginal = typename DeduceComponent<T>::TypeOriginal;
 				using UOriginalPR = std::remove_reference_t<std::remove_pointer_t<UOriginal>>;
 				constexpr bool isReadWrite =
-						std::is_same_v<U, UOriginal> || !std::is_const_v<UOriginalPR> && !std::is_empty_v<U>;
+						std::is_same_v<U, UOriginal> || (!std::is_const_v<UOriginalPR> && !std::is_empty_v<U>);
 
 				if constexpr (IsGenericComponent<T>)
 					return HasComponent_Internal<U>(listType, ComponentType::CT_Generic, isReadWrite);
