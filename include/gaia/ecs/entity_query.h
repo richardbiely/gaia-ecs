@@ -199,7 +199,7 @@ namespace gaia {
 				const auto componentId = GetComponentIdUnsafe<U>();
 				constexpr auto componentType = IsGenericComponent<T> ? ComponentType::CT_Generic : ComponentType::CT_Chunk;
 				constexpr bool isReadWrite =
-						std::is_same_v<U, UOriginal> || !std::is_const_v<UOriginalPR> && !std::is_empty_v<U>;
+						std::is_same_v<U, UOriginal> || (!std::is_const_v<UOriginalPR> && !std::is_empty_v<U>);
 
 				// Make sure the component is always registered
 				auto& cc = ComponentCache::Get();
