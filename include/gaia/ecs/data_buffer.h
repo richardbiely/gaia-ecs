@@ -2,14 +2,16 @@
 #include <type_traits>
 
 #include "../config/config.h"
-#include "../containers/darray.h"
+#include "../containers/darray_ext.h"
 #include "../utils/mem.h"
 
 namespace gaia {
 	namespace ecs {
 		class DataBuffer {
+			// Increase the capacity by multiples of CapacityIncreaseSize
+			static constexpr uint32_t CapacityIncreaseSize = 128U;
 			// TODO: Replace with some memory allocator
-			using DataContainer = containers::darray<uint8_t>;
+			using DataContainer = containers::darray_ext<uint8_t, CapacityIncreaseSize>;
 
 			//! Buffer holding raw data
 			DataContainer m_data;
@@ -22,9 +24,6 @@ namespace gaia {
 				if (nextSize <= (uint32_t)m_data.size())
 					return;
 
-				// Increase the capacity by multiples of CapacityIncreaseSize
-				constexpr uint32_t CapacityIncreaseSize = 128U;
-
 				// Make sure there is enough capacity to hold our data
 				const auto newSize = m_data.size() + size;
 				const auto newCapacity = (newSize / CapacityIncreaseSize) * CapacityIncreaseSize + CapacityIncreaseSize;
@@ -32,9 +31,7 @@ namespace gaia {
 			}
 
 		public:
-			DataBuffer() {
-				m_data.reserve(256);
-			}
+			DataBuffer() {}
 
 			void Reset() {
 				m_dataPos = 0;
