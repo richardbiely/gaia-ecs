@@ -5045,16 +5045,6 @@ namespace gaia {
 
 namespace gaia {
 	namespace ecs {
-		struct Entity;
-		class Chunk;
-		class World;
-		class EntityQuery;
-		class CommandBuffer;
-	} // namespace ecs
-} // namespace gaia
-
-namespace gaia {
-	namespace ecs {
 		struct ChunkHeader final {
 		public:
 			//! Archetype the chunk belongs to

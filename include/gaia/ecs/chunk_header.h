@@ -5,7 +5,6 @@
 #include "archetype_common.h"
 #include "common.h"
 #include "component.h"
-#include "fwd.h"
 
 namespace gaia {
 	namespace ecs {
