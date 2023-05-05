@@ -607,11 +607,6 @@ namespace gaia {
 				\param archetype Archetype to run diagnostics on
 				*/
 				static void DiagArchetype(const archetype::Archetype& archetype) {
-					static bool DiagArchetypes = GAIA_ECS_DIAG_ARCHETYPES;
-					if (!DiagArchetypes)
-						return;
-					DiagArchetypes = false;
-
 					DiagArchetype_PrintBasicInfo(archetype);
 #if GAIA_ARCHETYPE_GRAPH
 					DiagArchetype_PrintGraphInfo(archetype);
