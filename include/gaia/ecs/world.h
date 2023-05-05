@@ -94,15 +94,13 @@ namespace gaia {
 			\param entityChunkIndex Index of entity within its chunk
 			*/
 			void RemoveEntity(Chunk* pChunk, uint32_t entityChunkIndex) {
-				const auto& archetype = *m_archetypes[pChunk->GetArchetypeId()];
-
 				GAIA_ASSERT(
-						!archetype.IsStructuralChangesLocked() && "Entities can't be removed while chunk is being iterated "
-																											"(structural changes are forbidden during this time!)");
+						!pChunk->IsStructuralChangesLocked() && "Entities can't be removed while their chunk is being iterated "
+																										"(structural changes are forbidden during this time!)");
 
 				pChunk->RemoveEntity(
-						entityChunkIndex, m_entities, archetype.GetComponentIdArray(component::ComponentType::CT_Generic),
-						archetype.GetComponentOffsetArray(component::ComponentType::CT_Generic));
+						entityChunkIndex, m_entities, pChunk->GetComponentIdArray(component::ComponentType::CT_Generic),
+						pChunk->GetComponentOffsetArray(component::ComponentType::CT_Generic));
 
 				if (!pChunk->IsDying() && !pChunk->HasEntities()) {
 					// When the chunk is emptied we want it to be removed. We can't do it
@@ -522,9 +520,8 @@ namespace gaia {
 			void StoreEntity(Entity entity, Chunk* pChunk) {
 				GAIA_ASSERT(pChunk != nullptr);
 				GAIA_ASSERT(
-						!GetArchetype(entity).IsStructuralChangesLocked() &&
-						"Entities can't be added while chunk is being iterated "
-						"(structural changes are forbidden during this time!)");
+						!pChunk->IsStructuralChangesLocked() && "Entities can't be added while their chunk is being iterated "
+																										"(structural changes are forbidden during this time!)");
 
 				auto& entityContainer = m_entities[entity.id()];
 				entityContainer.pChunk = pChunk;
@@ -675,8 +672,9 @@ namespace gaia {
 					auto& archetype = *m_archetypes[pChunk->GetArchetypeId()];
 
 					GAIA_ASSERT(
-							!archetype.IsStructuralChangesLocked() && "New components can't be added while chunk is being iterated "
-																												"(structural changes are forbidden during this time!)");
+							!pChunk->IsStructuralChangesLocked() &&
+							"New components can't be added while their chunk is being iterated "
+							"(structural changes are forbidden during this time!)");
 #if GAIA_DEBUG
 					VerifyAddComponent(archetype, entity, componentType, infoToAdd);
 #endif
@@ -688,9 +686,6 @@ namespace gaia {
 				else {
 					auto& archetype = const_cast<archetype::Archetype&>(*m_pRootArchetype);
 
-					GAIA_ASSERT(
-							!archetype.IsStructuralChangesLocked() && "New components can't be added while chunk is being iterated "
-																												"(structural changes are forbidden during this time!)");
 #if GAIA_DEBUG
 					VerifyAddComponent(archetype, entity, componentType, infoToAdd);
 #endif
@@ -710,8 +705,8 @@ namespace gaia {
 				auto& archetype = *m_archetypes[pChunk->GetArchetypeId()];
 
 				GAIA_ASSERT(
-						!archetype.IsStructuralChangesLocked() && "Components can't be removed while chunk is being iterated "
-																											"(structural changes are forbidden during this time!)");
+						!pChunk->IsStructuralChangesLocked() && "Components can't be removed while their chunk is being iterated "
+																										"(structural changes are forbidden during this time!)");
 #if GAIA_DEBUG
 				VerifyRemoveComponent(archetype, entity, componentType, infoToRemove);
 #endif
@@ -923,8 +918,8 @@ namespace gaia {
 				auto& entityContainer = m_entities[entity.id()];
 
 				GAIA_ASSERT(
-						(!entityContainer.pChunk || !GetArchetype(entity).IsStructuralChangesLocked()) &&
-						"Entities can't be enabled/disabled while chunk is being iterated "
+						(!entityContainer.pChunk || !entityContainer.pChunk->IsStructuralChangesLocked()) &&
+						"Entities can't be enabled/disabled while their chunk is being iterated "
 						"(structural changes are forbidden during this time!)");
 
 				if (enable != (bool)entityContainer.disabled)

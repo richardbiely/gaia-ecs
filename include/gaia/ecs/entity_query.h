@@ -335,7 +335,9 @@ namespace gaia {
 
 				// We only have one chunk to process
 				if GAIA_UNLIKELY (chunks.size() == 1) {
+					chunks[0]->SetStructuralChanges(true);
 					func(*chunks[0]);
+					chunks[0]->SetStructuralChanges(false);
 					chunks.clear();
 					return;
 				}
@@ -349,15 +351,21 @@ namespace gaia {
 				// Let us be conservatine for now and go with T2. That means we will try to keep our data at
 				// least in L3 cache or higher.
 				gaia::prefetch(&chunks[1], PrefetchHint::PREFETCH_HINT_T2);
+				chunks[0]->SetStructuralChanges(true);
 				func(*chunks[0]);
+				chunks[0]->SetStructuralChanges(false);
 
 				size_t chunkIdx = 1;
 				for (; chunkIdx < chunks.size() - 1; ++chunkIdx) {
 					gaia::prefetch(&chunks[chunkIdx + 1], PrefetchHint::PREFETCH_HINT_T2);
+					chunks[chunkIdx]->SetStructuralChanges(true);
 					func(*chunks[chunkIdx]);
+					chunks[chunkIdx]->SetStructuralChanges(false);
 				}
 
+				chunks[chunkIdx]->SetStructuralChanges(true);
 				func(*chunks[chunkIdx]);
+				chunks[chunkIdx]->SetStructuralChanges(false);
 				chunks.clear();
 			}
 
@@ -388,9 +396,6 @@ namespace gaia {
 				const bool hasFilters = queryInfo.HasFilters();
 				if (hasFilters) {
 					for (auto* pArchetype: queryInfo) {
-						// Disable structural changes on archetypes we are going to evaluate
-						pArchetype->SetStructuralChanges(true);
-
 						// Evaluate ordinary chunks
 						if (CheckConstraints<true>()) {
 							ProcessQueryOnChunks<true>(func, chunkBatch, pArchetype->GetChunks(), queryInfo);
@@ -407,9 +412,6 @@ namespace gaia {
 					}
 				} else {
 					for (auto* pArchetype: queryInfo) {
-						// Disable structural changes on archetypes we are going to evaluate
-						pArchetype->SetStructuralChanges(true);
-
 						// Evaluate ordinary chunks
 						if (CheckConstraints<true>()) {
 							ProcessQueryOnChunks<false>(func, chunkBatch, pArchetype->GetChunks(), queryInfo);
@@ -426,10 +428,6 @@ namespace gaia {
 					}
 				}
 				ChunkBatch_Perform(func, chunkBatch);
-
-				// Enable back structural changes on archetypes we are going to evaluate
-				for (auto* pArchetype: queryInfo)
-					pArchetype->SetStructuralChanges(false);
 
 				// Update the query version with the current world's version
 				queryInfo.SetWorldVersion(*m_worldVersion);

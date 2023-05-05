@@ -294,10 +294,6 @@ inline void DoNotOptimize(T const& value) {
 #if !defined(GAIA_DISABLE_ASSERTS)
 	#define GAIA_DISABLE_ASSERTS 0
 #endif
-//! If enabled, diagnostics are enabled
-#if !defined(GAIA_ECS_DIAGS)
-	#define GAIA_ECS_DIAGS 1
-#endif
 
 //! If enabled, STL containers are going to be used by the framework.
 #if !defined(GAIA_USE_STL_CONTAINERS)
@@ -5036,9 +5032,11 @@ namespace gaia {
 			//! Chunk index in its archetype list
 			uint16_t index{};
 			//! Once removal is requested and it hits 0 the chunk is removed.
-			uint16_t lifespanCountdown : 15;
+			uint16_t lifespanCountdown : 11;
 			//! If true this chunk stores disabled entities
 			uint16_t disabled : 1;
+			//! Updated when chunks are being iterated. Used to inform of structural changes when they shouldn't happen.
+			uint16_t structuralChangesLocked : 4;
 			//! Description of components within this archetype (copied from the owner archetype)
 			containers::sarray<archetype::ComponentIdArray, component::ComponentType::CT_Count> componentIds;
 			//! Lookup hashes of components within this archetype (copied from the owner archetype)
@@ -5049,6 +5047,10 @@ namespace gaia {
 			uint32_t versions[component::ComponentType::CT_Count][archetype::MAX_COMPONENTS_PER_ARCHETYPE]{};
 
 			ChunkHeader(uint32_t& version): worldVersion(version) {
+				lifespanCountdown = 0;
+				disabled = 0;
+				structuralChangesLocked = 0;
+
 				// Make sure the alignment is right
 				GAIA_ASSERT(uintptr_t(this) % 8 == 0);
 			}
@@ -8489,6 +8491,20 @@ namespace gaia {
 				return IsDying();
 			}
 
+			void SetStructuralChanges(bool value) {
+				if (value) {
+					GAIA_ASSERT(m_header.structuralChangesLocked < 16);
+					++m_header.structuralChangesLocked;
+				} else {
+					GAIA_ASSERT(m_header.structuralChangesLocked > 0);
+					--m_header.structuralChangesLocked;
+				}
+			}
+
+			bool IsStructuralChangesLocked() const {
+				return m_header.structuralChangesLocked != 0;
+			}
+
 			//! Checks is this chunk is disabled
 			GAIA_NODISCARD bool IsDisabled() const {
 				return m_header.disabled;
@@ -8507,6 +8523,16 @@ namespace gaia {
 			//! Returns the number of entities in the chunk
 			GAIA_NODISCARD uint32_t GetItemCount() const {
 				return m_header.count;
+			}
+
+			GAIA_NODISCARD const archetype::ComponentIdArray&
+			GetComponentIdArray(component::ComponentType componentType) const {
+				return m_header.componentIds[componentType];
+			}
+
+			GAIA_NODISCARD const archetype::ComponentOffsetArray&
+			GetComponentOffsetArray(component::ComponentType componentType) const {
+				return m_header.componentOffsets[componentType];
 			}
 
 			//! Returns true if the provided version is newer than the one stored internally
@@ -8622,8 +8648,6 @@ namespace gaia {
 					uint32_t hasGenericComponentWithCustomDestruction : 1;
 					//! True if there's a component that requires custom destruction
 					uint32_t hasChunkComponentWithCustomDestruction : 1;
-					//! Updated when chunks are being iterated. Used to inform of structural changes when they shouldn't happen.
-					uint32_t structuralChangesLocked : 4;
 				} m_properties{};
 
 				// Constructor is hidden. Create archetypes via Create
@@ -8890,20 +8914,6 @@ namespace gaia {
 					auto* pChunk = FindOrCreateFreeChunk_Internal(m_chunksDisabled);
 					pChunk->SetDisabled(true);
 					return pChunk;
-				}
-
-				void SetStructuralChanges(bool value) {
-					if (value) {
-						GAIA_ASSERT(m_properties.structuralChangesLocked < 16);
-						++m_properties.structuralChangesLocked;
-					} else {
-						GAIA_ASSERT(m_properties.structuralChangesLocked > 0);
-						--m_properties.structuralChangesLocked;
-					}
-				}
-
-				bool IsStructuralChangesLocked() const {
-					return m_properties.structuralChangesLocked != 0;
 				}
 
 				GAIA_NODISCARD ArchetypeId GetArchetypeId() const {
@@ -10675,7 +10685,9 @@ namespace gaia {
 
 				// We only have one chunk to process
 				if GAIA_UNLIKELY (chunks.size() == 1) {
+					chunks[0]->SetStructuralChanges(true);
 					func(*chunks[0]);
+					chunks[0]->SetStructuralChanges(false);
 					chunks.clear();
 					return;
 				}
@@ -10689,15 +10701,21 @@ namespace gaia {
 				// Let us be conservatine for now and go with T2. That means we will try to keep our data at
 				// least in L3 cache or higher.
 				gaia::prefetch(&chunks[1], PrefetchHint::PREFETCH_HINT_T2);
+				chunks[0]->SetStructuralChanges(true);
 				func(*chunks[0]);
+				chunks[0]->SetStructuralChanges(false);
 
 				size_t chunkIdx = 1;
 				for (; chunkIdx < chunks.size() - 1; ++chunkIdx) {
 					gaia::prefetch(&chunks[chunkIdx + 1], PrefetchHint::PREFETCH_HINT_T2);
+					chunks[chunkIdx]->SetStructuralChanges(true);
 					func(*chunks[chunkIdx]);
+					chunks[chunkIdx]->SetStructuralChanges(false);
 				}
 
+				chunks[chunkIdx]->SetStructuralChanges(true);
 				func(*chunks[chunkIdx]);
+				chunks[chunkIdx]->SetStructuralChanges(false);
 				chunks.clear();
 			}
 
@@ -10728,9 +10746,6 @@ namespace gaia {
 				const bool hasFilters = queryInfo.HasFilters();
 				if (hasFilters) {
 					for (auto* pArchetype: queryInfo) {
-						// Disable structural changes on archetypes we are going to evaluate
-						pArchetype->SetStructuralChanges(true);
-
 						// Evaluate ordinary chunks
 						if (CheckConstraints<true>()) {
 							ProcessQueryOnChunks<true>(func, chunkBatch, pArchetype->GetChunks(), queryInfo);
@@ -10747,9 +10762,6 @@ namespace gaia {
 					}
 				} else {
 					for (auto* pArchetype: queryInfo) {
-						// Disable structural changes on archetypes we are going to evaluate
-						pArchetype->SetStructuralChanges(true);
-
 						// Evaluate ordinary chunks
 						if (CheckConstraints<true>()) {
 							ProcessQueryOnChunks<false>(func, chunkBatch, pArchetype->GetChunks(), queryInfo);
@@ -10766,10 +10778,6 @@ namespace gaia {
 					}
 				}
 				ChunkBatch_Perform(func, chunkBatch);
-
-				// Enable back structural changes on archetypes we are going to evaluate
-				for (auto* pArchetype: queryInfo)
-					pArchetype->SetStructuralChanges(false);
 
 				// Update the query version with the current world's version
 				queryInfo.SetWorldVersion(*m_worldVersion);
@@ -11201,15 +11209,13 @@ namespace gaia {
 			\param entityChunkIndex Index of entity within its chunk
 			*/
 			void RemoveEntity(Chunk* pChunk, uint32_t entityChunkIndex) {
-				const auto& archetype = *m_archetypes[pChunk->GetArchetypeId()];
-
 				GAIA_ASSERT(
-						!archetype.IsStructuralChangesLocked() && "Entities can't be removed while chunk is being iterated "
-																											"(structural changes are forbidden during this time!)");
+						!pChunk->IsStructuralChangesLocked() && "Entities can't be removed while their chunk is being iterated "
+																										"(structural changes are forbidden during this time!)");
 
 				pChunk->RemoveEntity(
-						entityChunkIndex, m_entities, archetype.GetComponentIdArray(component::ComponentType::CT_Generic),
-						archetype.GetComponentOffsetArray(component::ComponentType::CT_Generic));
+						entityChunkIndex, m_entities, pChunk->GetComponentIdArray(component::ComponentType::CT_Generic),
+						pChunk->GetComponentOffsetArray(component::ComponentType::CT_Generic));
 
 				if (!pChunk->IsDying() && !pChunk->HasEntities()) {
 					// When the chunk is emptied we want it to be removed. We can't do it
@@ -11629,9 +11635,8 @@ namespace gaia {
 			void StoreEntity(Entity entity, Chunk* pChunk) {
 				GAIA_ASSERT(pChunk != nullptr);
 				GAIA_ASSERT(
-						!GetArchetype(entity).IsStructuralChangesLocked() &&
-						"Entities can't be added while chunk is being iterated "
-						"(structural changes are forbidden during this time!)");
+						!pChunk->IsStructuralChangesLocked() && "Entities can't be added while their chunk is being iterated "
+																										"(structural changes are forbidden during this time!)");
 
 				auto& entityContainer = m_entities[entity.id()];
 				entityContainer.pChunk = pChunk;
@@ -11782,8 +11787,9 @@ namespace gaia {
 					auto& archetype = *m_archetypes[pChunk->GetArchetypeId()];
 
 					GAIA_ASSERT(
-							!archetype.IsStructuralChangesLocked() && "New components can't be added while chunk is being iterated "
-																												"(structural changes are forbidden during this time!)");
+							!pChunk->IsStructuralChangesLocked() &&
+							"New components can't be added while their chunk is being iterated "
+							"(structural changes are forbidden during this time!)");
 #if GAIA_DEBUG
 					VerifyAddComponent(archetype, entity, componentType, infoToAdd);
 #endif
@@ -11795,9 +11801,6 @@ namespace gaia {
 				else {
 					auto& archetype = const_cast<archetype::Archetype&>(*m_pRootArchetype);
 
-					GAIA_ASSERT(
-							!archetype.IsStructuralChangesLocked() && "New components can't be added while chunk is being iterated "
-																												"(structural changes are forbidden during this time!)");
 #if GAIA_DEBUG
 					VerifyAddComponent(archetype, entity, componentType, infoToAdd);
 #endif
@@ -11817,8 +11820,8 @@ namespace gaia {
 				auto& archetype = *m_archetypes[pChunk->GetArchetypeId()];
 
 				GAIA_ASSERT(
-						!archetype.IsStructuralChangesLocked() && "Components can't be removed while chunk is being iterated "
-																											"(structural changes are forbidden during this time!)");
+						!pChunk->IsStructuralChangesLocked() && "Components can't be removed while their chunk is being iterated "
+																										"(structural changes are forbidden during this time!)");
 #if GAIA_DEBUG
 				VerifyRemoveComponent(archetype, entity, componentType, infoToRemove);
 #endif
@@ -12030,8 +12033,8 @@ namespace gaia {
 				auto& entityContainer = m_entities[entity.id()];
 
 				GAIA_ASSERT(
-						(!entityContainer.pChunk || !GetArchetype(entity).IsStructuralChangesLocked()) &&
-						"Entities can't be enabled/disabled while chunk is being iterated "
+						(!entityContainer.pChunk || !entityContainer.pChunk->IsStructuralChangesLocked()) &&
+						"Entities can't be enabled/disabled while their chunk is being iterated "
 						"(structural changes are forbidden during this time!)");
 
 				if (enable != (bool)entityContainer.disabled)
