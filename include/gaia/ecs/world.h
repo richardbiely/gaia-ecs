@@ -1274,18 +1274,9 @@ namespace gaia {
 			Performs diagnostics on archetypes. Prints basic info about them and the chunks they contain.
 			*/
 			void DiagArchetypes() const {
-				static bool DiagArchetypes = GAIA_ECS_DIAG_ARCHETYPES;
-				if (!DiagArchetypes)
-					return;
-
-				// Print archetype info
 				GAIA_LOG_N("Archetypes:%u", (uint32_t)m_archetypes.size());
-				for (const auto* archetype: m_archetypes) {
+				for (const auto* archetype: m_archetypes)
 					archetype::Archetype::DiagArchetype(*archetype);
-					DiagArchetypes = true;
-				}
-
-				DiagArchetypes = false;
 			}
 
 			/*!
@@ -1293,11 +1284,6 @@ namespace gaia {
 			Prints basic info about them and reports and detected issues.
 			*/
 			static void DiagRegisteredTypes() {
-				static bool DiagRegisteredTypes = GAIA_ECS_DIAG_REGISTERED_TYPES;
-				if (!DiagRegisteredTypes)
-					return;
-				DiagRegisteredTypes = false;
-
 				ComponentCache::Get().Diag();
 			}
 
@@ -1306,11 +1292,6 @@ namespace gaia {
 			Also performs validation of internal structures which hold the entities.
 			*/
 			void DiagEntities() const {
-				static bool DiagDeletedEntities = GAIA_ECS_DIAG_DELETED_ENTITIES;
-				if (!DiagDeletedEntities)
-					return;
-				DiagDeletedEntities = false;
-
 				ValidateEntityList();
 
 				GAIA_LOG_N("Deleted entities: %u", m_freeEntities);

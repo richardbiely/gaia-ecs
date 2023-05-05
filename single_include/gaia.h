@@ -410,26 +410,6 @@ inline void DoNotOptimize(T const& value) {
 	#endif
 #endif
 
-#if defined(GAIA_ECS_DIAGS)
-	#undef GAIA_ECS_DIAG_ARCHETYPES
-	#undef GAIA_ECS_DIAG_REGISTERED_TYPES
-	#undef GAIA_ECS_DIAG_DELETED_ENTITIES
-
-	#define GAIA_ECS_DIAG_ARCHETYPES 1
-	#define GAIA_ECS_DIAG_REGISTERED_TYPES 1
-	#define GAIA_ECS_DIAG_DELETED_ENTITIES 1
-#else
-	#if !defined(GAIA_ECS_DIAG_ARCHETYPES)
-		#define GAIA_ECS_DIAG_ARCHETYPES 0
-	#endif
-	#if !defined(GAIA_ECS_DIAG_REGISTERED_TYPES)
-		#define GAIA_ECS_DIAG_REGISTERED_TYPES 0
-	#endif
-	#if !defined(GAIA_ECS_DIAG_DELETED_ENTITIES)
-		#define GAIA_ECS_DIAG_DELETED_ENTITIES 0
-	#endif
-#endif
-
 #if !defined(GAIA_ECS_CHUNK_ALLOCATOR_CLEAN_MEMORY_WITH_GARBAGE)
 	#define GAIA_ECS_CHUNK_ALLOCATOR_CLEAN_MEMORY_WITH_GARBAGE (GAIA_DEBUG || GAIA_FORCE_DEBUG)
 #endif
@@ -9184,11 +9164,6 @@ namespace gaia {
 				\param archetype Archetype to run diagnostics on
 				*/
 				static void DiagArchetype(const archetype::Archetype& archetype) {
-					static bool DiagArchetypes = GAIA_ECS_DIAG_ARCHETYPES;
-					if (!DiagArchetypes)
-						return;
-					DiagArchetypes = false;
-
 					DiagArchetype_PrintBasicInfo(archetype);
 #if GAIA_ARCHETYPE_GRAPH
 					DiagArchetype_PrintGraphInfo(archetype);
@@ -12406,18 +12381,9 @@ namespace gaia {
 			Performs diagnostics on archetypes. Prints basic info about them and the chunks they contain.
 			*/
 			void DiagArchetypes() const {
-				static bool DiagArchetypes = GAIA_ECS_DIAG_ARCHETYPES;
-				if (!DiagArchetypes)
-					return;
-
-				// Print archetype info
 				GAIA_LOG_N("Archetypes:%u", (uint32_t)m_archetypes.size());
-				for (const auto* archetype: m_archetypes) {
+				for (const auto* archetype: m_archetypes)
 					archetype::Archetype::DiagArchetype(*archetype);
-					DiagArchetypes = true;
-				}
-
-				DiagArchetypes = false;
 			}
 
 			/*!
@@ -12425,11 +12391,6 @@ namespace gaia {
 			Prints basic info about them and reports and detected issues.
 			*/
 			static void DiagRegisteredTypes() {
-				static bool DiagRegisteredTypes = GAIA_ECS_DIAG_REGISTERED_TYPES;
-				if (!DiagRegisteredTypes)
-					return;
-				DiagRegisteredTypes = false;
-
 				ComponentCache::Get().Diag();
 			}
 
@@ -12438,11 +12399,6 @@ namespace gaia {
 			Also performs validation of internal structures which hold the entities.
 			*/
 			void DiagEntities() const {
-				static bool DiagDeletedEntities = GAIA_ECS_DIAG_DELETED_ENTITIES;
-				if (!DiagDeletedEntities)
-					return;
-				DiagDeletedEntities = false;
-
 				ValidateEntityList();
 
 				GAIA_LOG_N("Deleted entities: %u", m_freeEntities);

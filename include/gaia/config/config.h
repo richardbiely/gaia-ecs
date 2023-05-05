@@ -15,10 +15,6 @@
 #if !defined(GAIA_DISABLE_ASSERTS)
 	#define GAIA_DISABLE_ASSERTS 0
 #endif
-//! If enabled, diagnostics are enabled
-#if !defined(GAIA_ECS_DIAGS)
-	#define GAIA_ECS_DIAGS 1
-#endif
 
 //! If enabled, STL containers are going to be used by the framework.
 #if !defined(GAIA_USE_STL_CONTAINERS)
