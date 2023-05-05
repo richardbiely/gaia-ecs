@@ -12,7 +12,6 @@
 #include "component_cache.h"
 #include "data_buffer.h"
 #include "entity.h"
-#include "fwd.h"
 #include "world.h"
 
 namespace gaia {
