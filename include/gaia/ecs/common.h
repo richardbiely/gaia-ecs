@@ -8,12 +8,6 @@ namespace gaia {
 		constexpr uint16_t MAX_CHUNK_LIFESPAN = 8U;
 		//! Number of ticks before empty archetypes are removed
 		// constexpr uint32_t MAX_ARCHETYPE_LIFESPAN = 8U; Keep commented until used to avoid compilation errors
-		//! Maximum number of components on archetype
-		constexpr uint32_t MAX_COMPONENTS_PER_ARCHETYPE = 32U;
-
-		GAIA_NODISCARD constexpr bool VerityArchetypeComponentCount(uint32_t count) {
-			return count <= MAX_COMPONENTS_PER_ARCHETYPE;
-		}
 
 		GAIA_NODISCARD inline bool DidVersionChange(uint32_t changeVersion, uint32_t requiredVersion) {
 			// When a system runs for the first time, everything is considered changed.

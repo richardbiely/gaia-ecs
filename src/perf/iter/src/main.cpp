@@ -147,14 +147,14 @@ void Create_Archetypes_5000(ecs::World& w) {
                                                                                                                        \
 		using c1 = Component<0, float, 3>;                                                                                 \
                                                                                                                        \
-		float f = 0.f;                                                                                                     \
 		for (auto _: state) {                                                                                              \
 			(void)_;                                                                                                         \
+			float f = 0.f;                                                                                                   \
 			w.ForEach([&](const c1& p) {                                                                                     \
 				f += p.value[0];                                                                                               \
 			});                                                                                                              \
+			picobench::DoNotOptimize(f);                                                                                     \
 		}                                                                                                                  \
-		picobench::DoNotOptimize(f);                                                                                       \
 	}
 
 DEFINE_FOREACH_INTERNALQUERY(1)
@@ -170,6 +170,9 @@ DEFINE_FOREACH_INTERNALQUERY(5000)
                                                                                                                        \
 		using c1 = Component<0, float, 3>;                                                                                 \
 		auto query = w.CreateQuery().All<const c1>();                                                                      \
+                                                                                                                       \
+		/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */              \
+		picobench::DoNotOptimize(query.HasItems());                                                                        \
                                                                                                                        \
 		for (auto _: state) {                                                                                              \
 			(void)_;                                                                                                         \
@@ -194,6 +197,9 @@ DEFINE_FOREACH_EXTERNALQUERY(5000)
                                                                                                                        \
 		using c1 = Component<0, float, 3>;                                                                                 \
 		auto query = w.CreateQuery().All<const c1>();                                                                      \
+                                                                                                                       \
+		/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */              \
+		picobench::DoNotOptimize(query.HasItems());                                                                        \
                                                                                                                        \
 		for (auto _: state) {                                                                                              \
 			(void)_;                                                                                                         \

@@ -10,11 +10,12 @@ namespace gaia {
 			//! Number of components that can be a part of EntityQuery
 			static constexpr uint32_t MAX_COMPONENTS_IN_QUERY = 8U;
 
+			using QueryId = uint32_t;
 			using LookupHash = utils::direct_hash_key<uint64_t>;
-			//! Array of component ids
-			using ComponentIdArray = containers::sarray_ext<ComponentId, MAX_COMPONENTS_IN_QUERY>;
-			//! Array of component ids reserved for filtering
-			using ChangeFilterArray = containers::sarray_ext<ComponentId, MAX_COMPONENTS_IN_QUERY>;
+			using ComponentIdArray = containers::sarray_ext<component::ComponentId, MAX_COMPONENTS_IN_QUERY>;
+			using ChangeFilterArray = containers::sarray_ext<component::ComponentId, MAX_COMPONENTS_IN_QUERY>;
+
+			static constexpr QueryId QueryIdBad = (QueryId)-1;
 
 			//! List type
 			enum ListType : uint8_t { LT_None, LT_Any, LT_All, LT_Count };
@@ -23,41 +24,45 @@ namespace gaia {
 				//! List of component ids
 				ComponentIdArray componentIds[ListType::LT_Count]{};
 				//! List of component matcher hashes
-				ComponentMatcherHash hash[ListType::LT_Count]{};
+				component::ComponentMatcherHash hash[ListType::LT_Count]{};
 			};
 
 			struct LookupCtx {
 				//! Lookup hash for this query
 				LookupHash hashLookup{};
-				//! Querey id
-				uint32_t queryId = (uint32_t)-1;
+				//! Query id
+				QueryId queryId = QueryIdBad;
 				//! List of querried components
-				ComponentListData list[ComponentType::CT_Count]{};
+				ComponentListData list[component::ComponentType::CT_Count]{};
 				//! List of filtered components
-				ChangeFilterArray listChangeFiltered[ComponentType::CT_Count]{};
+				ChangeFilterArray listChangeFiltered[component::ComponentType::CT_Count]{};
 				//! Read-write mask. Bit 0 stands for component 0 in component arrays.
 				//! A set bit means write access is requested.
-				uint8_t rw[ComponentType::CT_Count]{};
+				uint8_t rw[component::ComponentType::CT_Count]{};
 				static_assert(MAX_COMPONENTS_IN_QUERY == 8); // Make sure that MAX_COMPONENTS_IN_QUERY can fit into m_rw
 
 				GAIA_NODISCARD bool operator==(const LookupCtx& other) const {
 					// Fast path when cache ids are set
-					if (queryId != (uint32_t)-1 && queryId == other.queryId)
+					if (queryId != QueryIdBad && queryId == other.queryId)
 						return true;
 
 					// Lookup hash must match
 					if (hashLookup != other.hashLookup)
 						return false;
 
-					for (size_t j = 0; j < ComponentType::CT_Count; ++j) {
-						// Read-write access has to be the same
+					// Read-write access has to be the same
+					for (size_t j = 0; j < component::ComponentType::CT_Count; ++j) {
 						if (rw[j] != other.rw[j])
 							return false;
+					}
 
-						// Filter count needs to be the same
+					// Filter count needs to be the same
+					for (size_t j = 0; j < component::ComponentType::CT_Count; ++j) {
 						if (listChangeFiltered[j].size() != other.listChangeFiltered[j].size())
 							return false;
+					}
 
+					for (size_t j = 0; j < component::ComponentType::CT_Count; ++j) {
 						const auto& queryList = list[j];
 						const auto& otherList = other.list[j];
 
@@ -101,12 +106,12 @@ namespace gaia {
 			};
 
 			//! Sorts internal component arrays
-			inline void SortComponentArrays(query::LookupCtx& ctx) {
-				for (size_t i = 0; i < ComponentType::CT_Count; ++i) {
+			inline void SortComponentArrays(LookupCtx& ctx) {
+				for (size_t i = 0; i < component::ComponentType::CT_Count; ++i) {
 					auto& l = ctx.list[i];
 					for (auto& componentIds: l.componentIds) {
 						// Make sure the read-write mask remains correct after sorting
-						utils::sort(componentIds, SortComponentCond{}, [&](size_t left, size_t right) {
+						utils::sort(componentIds, component::SortComponentCond{}, [&](size_t left, size_t right) {
 							// Swap component ids
 							utils::swap(componentIds[left], componentIds[right]);
 
@@ -124,48 +129,48 @@ namespace gaia {
 				}
 			}
 
-			inline void CalculateMatcherHashes(query::LookupCtx& ctx) {
+			inline void CalculateMatcherHashes(LookupCtx& ctx) {
 				// Sort the arrays if necessary
 				SortComponentArrays(ctx);
 
 				// Calculate the matcher hash
 				for (auto& l: ctx.list) {
-					for (size_t i = 0; i < query::ListType::LT_Count; ++i)
-						l.hash[i] = CalculateMatcherHash(l.componentIds[i]);
+					for (size_t i = 0; i < ListType::LT_Count; ++i)
+						l.hash[i] = component::CalculateMatcherHash(l.componentIds[i]);
 				}
 			}
 
-			inline void CalculateLookupHash(query::LookupCtx& ctx) {
+			inline void CalculateLookupHash(LookupCtx& ctx) {
 				// Make sure we don't calculate the hash twice
 				GAIA_ASSERT(ctx.hashLookup.hash == 0);
 
-				query::LookupHash::Type hashLookup = 0;
+				LookupHash::Type hashLookup = 0;
 
 				// Filters
-				for (size_t i = 0; i < ComponentType::CT_Count; ++i) {
-					query::LookupHash::Type hash = 0;
+				for (size_t i = 0; i < component::ComponentType::CT_Count; ++i) {
+					LookupHash::Type hash = 0;
 
 					const auto& l = ctx.listChangeFiltered[i];
 					for (auto componentId: l)
-						hash = utils::hash_combine(hash, (query::LookupHash::Type)componentId);
-					hash = utils::hash_combine(hash, (query::LookupHash::Type)l.size());
+						hash = utils::hash_combine(hash, (LookupHash::Type)componentId);
+					hash = utils::hash_combine(hash, (LookupHash::Type)l.size());
 
 					hashLookup = utils::hash_combine(hashLookup, hash);
 				}
 
 				// Components
-				for (size_t i = 0; i < ComponentType::CT_Count; ++i) {
-					query::LookupHash::Type hash = 0;
+				for (size_t i = 0; i < component::ComponentType::CT_Count; ++i) {
+					LookupHash::Type hash = 0;
 
 					const auto& l = ctx.list[i];
 					for (const auto& componentIds: l.componentIds) {
 						for (const auto componentId: componentIds) {
-							hash = utils::hash_combine(hash, (query::LookupHash::Type)componentId);
+							hash = utils::hash_combine(hash, (LookupHash::Type)componentId);
 						}
-						hash = utils::hash_combine(hash, (query::LookupHash::Type)componentIds.size());
+						hash = utils::hash_combine(hash, (LookupHash::Type)componentIds.size());
 					}
 
-					hash = utils::hash_combine(hash, (query::LookupHash::Type)ctx.rw[i]);
+					hash = utils::hash_combine(hash, (LookupHash::Type)ctx.rw[i]);
 					hashLookup = utils::hash_combine(hashLookup, hash);
 				}
 

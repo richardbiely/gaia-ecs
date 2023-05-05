@@ -36,8 +36,8 @@ namespace gaia {
 			struct Command_AddComponent {
 				static constexpr CommandBufferCmd Id = CommandBufferCmd::ADD_COMPONENT;
 
-				ComponentId componentId;
-				ComponentType componentType;
+				component::ComponentId componentId;
+				component::ComponentType componentType;
 				query::ListType listType;
 				bool isReadWrite;
 
@@ -84,8 +84,8 @@ namespace gaia {
 			struct Command_Filter {
 				static constexpr CommandBufferCmd Id = CommandBufferCmd::ADD_FILTER;
 
-				ComponentId componentId;
-				ComponentType componentType;
+				component::ComponentId componentId;
+				component::ComponentType componentType;
 
 				void Save(DataBuffer& buffer) {
 					buffer.Save(componentId);
@@ -156,7 +156,7 @@ namespace gaia {
 
 			DataBuffer m_cmdBuffer;
 			//! Query cache id
-			uint32_t m_queryId = (uint32_t)-1;
+			query::QueryId m_queryId = query::QueryIdBad;
 			//! Tell what kinds of chunks are going to be accepted by the query
 			EntityQuery::Constraints m_constraints = EntityQuery::Constraints::EnabledOnly;
 
@@ -165,13 +165,13 @@ namespace gaia {
 			//! World version (stable pointer to parent world's world version)
 			uint32_t* m_worldVersion{};
 			//! List of achetypes (stable pointer to parent world's archetype array)
-			containers::darray<Archetype*>* m_archetypes{};
+			containers::darray<archetype::Archetype*>* m_archetypes{};
 
 			//--------------------------------------------------------------------------------
 
-			EntityQueryInfo& FetchQueryInfo() {
+			query::EntityQueryInfo& FetchQueryInfo() {
 				// Lookup hash is present which means EntityQueryInfo was already found
-				if GAIA_LIKELY (IsQueryInitialized()) {
+				if GAIA_LIKELY (m_queryId != query::QueryIdBad) {
 					auto& queryInfo = m_entityQueryCache->Get(m_queryId);
 					queryInfo.Match(*m_archetypes);
 					return queryInfo;
@@ -190,12 +190,13 @@ namespace gaia {
 
 			template <typename T>
 			void AddComponent_Internal(query::ListType listType) {
-				using U = typename DeduceComponent<T>::Type;
-				using UOriginal = typename DeduceComponent<T>::TypeOriginal;
+				using U = typename component::DeduceComponent<T>::Type;
+				using UOriginal = typename component::DeduceComponent<T>::TypeOriginal;
 				using UOriginalPR = std::remove_reference_t<std::remove_pointer_t<UOriginal>>;
 
-				const auto componentId = GetComponentIdUnsafe<U>();
-				constexpr auto componentType = IsGenericComponent<T> ? ComponentType::CT_Generic : ComponentType::CT_Chunk;
+				const auto componentId = component::GetComponentId<T>();
+				constexpr auto componentType = component::IsGenericComponent<T> ? component::ComponentType::CT_Generic
+																																				: component::ComponentType::CT_Chunk;
 				constexpr bool isReadWrite =
 						std::is_same_v<U, UOriginal> || (!std::is_const_v<UOriginalPR> && !std::is_empty_v<U>);
 
@@ -209,12 +210,13 @@ namespace gaia {
 
 			template <typename T>
 			void WithChanged_Internal() {
-				using U = typename DeduceComponent<T>::Type;
-				using UOriginal = typename DeduceComponent<T>::TypeOriginal;
+				using U = typename component::DeduceComponent<T>::Type;
+				using UOriginal = typename component::DeduceComponent<T>::TypeOriginal;
 				using UOriginalPR = std::remove_reference_t<std::remove_pointer_t<UOriginal>>;
 
-				const auto componentId = GetComponentIdUnsafe<U>();
-				constexpr auto componentType = IsGenericComponent<T> ? ComponentType::CT_Generic : ComponentType::CT_Chunk;
+				const auto componentId = component::GetComponentId<T>();
+				constexpr auto componentType = component::IsGenericComponent<T> ? component::ComponentType::CT_Generic
+																																				: component::ComponentType::CT_Chunk;
 
 				m_cmdBuffer.Save(Command_Filter::Id);
 				Command_Filter{componentId, componentType}.Save(m_cmdBuffer);
@@ -223,7 +225,7 @@ namespace gaia {
 			//--------------------------------------------------------------------------------
 
 			void Commit(query::LookupCtx& ctx) {
-				GAIA_ASSERT(!IsQueryInitialized());
+				GAIA_ASSERT(m_queryId == query::QueryIdBad);
 
 				// Read data from buffer and execute the command stored in it
 				m_cmdBuffer.Seek(0);
@@ -252,7 +254,7 @@ namespace gaia {
 			//! Unpacks the parameter list \param types into query \param query and performs HasAll for each of them
 			template <typename... T>
 			GAIA_NODISCARD bool UnpackArgsIntoQuery_HasAll(
-					const EntityQueryInfo& queryInfo, [[maybe_unused]] utils::func_type_list<T...> types) const {
+					const query::EntityQueryInfo& queryInfo, [[maybe_unused]] utils::func_type_list<T...> types) const {
 				if constexpr (sizeof...(T) > 0)
 					return queryInfo.HasAll<T...>();
 				else
@@ -261,27 +263,27 @@ namespace gaia {
 
 			//--------------------------------------------------------------------------------
 
-			GAIA_NODISCARD bool CheckFilters(const Chunk& chunk, const EntityQueryInfo& queryInfo) const {
+			GAIA_NODISCARD bool CheckFilters(const Chunk& chunk, const query::EntityQueryInfo& queryInfo) const {
 				GAIA_ASSERT(chunk.HasEntities() && "CheckFilters called on an empty chunk");
 
 				const auto queryVersion = queryInfo.GetWorldVersion();
 
 				// See if any generic component has changed
 				{
-					const auto& filtered = queryInfo.GetFiltered(ComponentType::CT_Generic);
+					const auto& filtered = queryInfo.GetFiltered(component::ComponentType::CT_Generic);
 					for (const auto componentId: filtered) {
-						const auto componentIdx = chunk.GetComponentIdx(ComponentType::CT_Generic, componentId);
-						if (chunk.DidChange(ComponentType::CT_Generic, queryVersion, componentIdx))
+						const auto componentIdx = chunk.GetComponentIdx(component::ComponentType::CT_Generic, componentId);
+						if (chunk.DidChange(component::ComponentType::CT_Generic, queryVersion, componentIdx))
 							return true;
 					}
 				}
 
 				// See if any chunk component has changed
 				{
-					const auto& filtered = queryInfo.GetFiltered(ComponentType::CT_Chunk);
+					const auto& filtered = queryInfo.GetFiltered(component::ComponentType::CT_Chunk);
 					for (const auto componentId: filtered) {
-						const uint32_t componentIdx = chunk.GetComponentIdx(ComponentType::CT_Chunk, componentId);
-						if (chunk.DidChange(ComponentType::CT_Chunk, queryVersion, componentIdx))
+						const uint32_t componentIdx = chunk.GetComponentIdx(component::ComponentType::CT_Chunk, componentId);
+						if (chunk.DidChange(component::ComponentType::CT_Chunk, queryVersion, componentIdx))
 							return true;
 					}
 				}
@@ -291,7 +293,8 @@ namespace gaia {
 			}
 
 			template <bool HasFilters>
-			GAIA_NODISCARD bool CanAcceptChunkForProcessing(const Chunk& chunk, const EntityQueryInfo& queryInfo) const {
+			GAIA_NODISCARD bool
+			CanAcceptChunkForProcessing(const Chunk& chunk, const query::EntityQueryInfo& queryInfo) const {
 				if GAIA_UNLIKELY (!chunk.HasEntities())
 					return false;
 
@@ -304,7 +307,8 @@ namespace gaia {
 			}
 
 			template <bool HasFilters>
-			void ChunkBatch_Prepare(CChunkSpan chunkSpan, const EntityQueryInfo& queryInfo, ChunkBatchedList& chunkBatch) {
+			void
+			ChunkBatch_Prepare(CChunkSpan chunkSpan, const query::EntityQueryInfo& queryInfo, ChunkBatchedList& chunkBatch) {
 				GAIA_PROF_SCOPE(ChunkBatch_Prepare);
 
 				for (const auto* pChunk: chunkSpan) {
@@ -360,7 +364,7 @@ namespace gaia {
 			template <bool HasFilters, typename Func>
 			void ProcessQueryOnChunks(
 					Func func, ChunkBatchedList& chunkBatch, const containers::darray<Chunk*>& chunksList,
-					const EntityQueryInfo& queryInfo) {
+					const query::EntityQueryInfo& queryInfo) {
 				size_t chunkOffset = 0;
 
 				size_t itemsLeft = chunksList.size();
@@ -375,7 +379,7 @@ namespace gaia {
 			}
 
 			template <typename Func>
-			void RunQueryOnChunks_Internal(EntityQueryInfo& queryInfo, Func func) {
+			void RunQueryOnChunks_Internal(query::EntityQueryInfo& queryInfo, Func func) {
 				// Update the world version
 				UpdateVersion(*m_worldVersion);
 
@@ -466,20 +470,18 @@ namespace gaia {
 			}
 
 			void InvalidateQuery() {
-				m_queryId = (int32_t)-1;
+				m_queryId = query::QueryIdBad;
 			}
 
 		public:
 			EntityQuery() = default;
-			EntityQuery(EntityQueryCache& queryCache, uint32_t& worldVersion, containers::darray<Archetype*>& archetypes):
-					m_entityQueryCache(&queryCache), m_worldVersion(&worldVersion), m_archetypes(&archetypes) {}
+			EntityQuery(
+					EntityQueryCache& queryCache, uint32_t& worldVersion, containers::darray<archetype::Archetype*>& archetypes):
+					m_entityQueryCache(&queryCache),
+					m_worldVersion(&worldVersion), m_archetypes(&archetypes) {}
 
 			GAIA_NODISCARD uint32_t GetQueryId() const {
 				return m_queryId;
-			}
-
-			GAIA_NODISCARD bool IsQueryInitialized() const {
-				return m_queryId != (uint32_t)-1;
 			}
 
 			template <typename... T>
