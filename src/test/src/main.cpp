@@ -49,9 +49,9 @@ struct Else {
 };
 
 TEST_CASE("ComponentTypes") {
-	REQUIRE(ecs::IsGenericComponent<uint32_t> == true);
-	REQUIRE(ecs::IsGenericComponent<Position> == true);
-	REQUIRE(ecs::IsGenericComponent<ecs::AsChunk<Position>> == false);
+	REQUIRE(ecs::component::IsGenericComponent<uint32_t> == true);
+	REQUIRE(ecs::component::IsGenericComponent<Position> == true);
+	REQUIRE(ecs::component::IsGenericComponent<ecs::AsChunk<Position>> == false);
 }
 
 TEST_CASE("Containers - sarray") {

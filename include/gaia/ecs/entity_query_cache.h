@@ -1,6 +1,7 @@
 #pragma once
 #include "../config/config_core_end.h"
 #include "../containers/darray.h"
+#include "../containers/map.h"
 #include "entity_query_common.h"
 #include "entity_query_info.h"
 
@@ -8,8 +9,9 @@ namespace gaia {
 	namespace ecs {
 		class EntityQueryCache {
 			using QueryCacheLookupArray = containers::darr<uint32_t>;
+
 			containers::map<query::LookupHash, QueryCacheLookupArray> m_queryCache;
-			containers::darray<EntityQueryInfo> m_queryArr;
+			containers::darray<query::EntityQueryInfo> m_queryArr;
 
 		public:
 			EntityQueryCache() {
@@ -23,12 +25,12 @@ namespace gaia {
 			EntityQueryCache& operator=(EntityQueryCache&&) = delete;
 			EntityQueryCache& operator=(const EntityQueryCache&) = delete;
 
-			//! Returns an already existing entity query info from the provided \param query.
+			//! Returns an already existing entity query info from the provided \param queryId.
 			//! \warning It is expected that the query has already been registered. Undefined behavior otherwise.
-			//! \param query Query used to search for query info
+			//! \param queryId Query used to search for query info
 			//! \return Entity query info
-			EntityQueryInfo& Get(uint32_t queryId) {
-				GAIA_ASSERT(queryId != (uint32_t)-1);
+			query::EntityQueryInfo& Get(query::QueryId queryId) {
+				GAIA_ASSERT(queryId != query::QueryIdBad);
 
 				return m_queryArr[queryId];
 			};
@@ -55,12 +57,12 @@ namespace gaia {
 						}
 
 						GAIA_ASSERT(false && "EntityQueryInfo not found despite having its lookupHash and cacheId set!");
-						return (uint32_t)-1;
+						return query::QueryIdBad;
 					}
 				}
 
-				const auto queryId = (uint32_t)m_queryArr.size();
-				m_queryArr.push_back(EntityQueryInfo::Create(queryId, std::move(ctx)));
+				const auto queryId = (query::QueryId)m_queryArr.size();
+				m_queryArr.push_back(query::EntityQueryInfo::Create(queryId, std::move(ctx)));
 				ret.first->second.push_back(queryId);
 				return queryId;
 			};

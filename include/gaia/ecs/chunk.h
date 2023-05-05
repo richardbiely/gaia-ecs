@@ -6,15 +6,15 @@
 
 #include "../config/config.h"
 #include "../containers/sarray_ext.h"
-#include "../ecs/component.h"
 #include "../utils/mem.h"
 #include "../utils/utility.h"
+#include "archetype_common.h"
 #include "chunk_allocator.h"
 #include "chunk_header.h"
 #include "common.h"
+#include "component.h"
 #include "component_cache.h"
 #include "entity.h"
-#include "fwd.h"
 
 namespace gaia {
 	namespace ecs {
@@ -29,9 +29,6 @@ namespace gaia {
 			static constexpr size_t DATA_SIZE_NORESERVE = ChunkMemorySize - sizeof(ChunkHeader);
 
 		private:
-			friend class World;
-			friend class CommandBuffer;
-
 			//! Chunk header
 			ChunkHeader m_header;
 			//! Chunk data (entites + components)
@@ -42,8 +39,9 @@ namespace gaia {
 
 			Chunk(
 					uint32_t archetypeId, uint16_t chunkIndex, uint16_t capacity, uint32_t& worldVersion,
-					const containers::sarray<ComponentIdList, ComponentType::CT_Count>& componentIds,
-					const containers::sarray<ComponentOffsetList, ComponentType::CT_Count>& componentOffsets):
+					const containers::sarray<archetype::ComponentIdArray, component::ComponentType::CT_Count>& componentIds,
+					const containers::sarray<archetype::ComponentOffsetArray, component::ComponentType::CT_Count>&
+							componentOffsets):
 					m_header(worldVersion) {
 				m_header.archetypeId = archetypeId;
 				m_header.index = chunkIndex;
@@ -55,6 +53,154 @@ namespace gaia {
 			GAIA_MSVC_WARNING_POP()
 
 			/*!
+			Returns a read-only span of the component data.
+			\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
+			\tparam T Component
+			\return Span of read-only component data.
+			*/
+			template <typename T>
+			GAIA_NODISCARD GAIA_FORCEINLINE auto View_Internal() const {
+				using U = typename component::DeduceComponent<T>::Type;
+				using UConst = typename std::add_const_t<U>;
+
+				if constexpr (std::is_same_v<U, Entity>) {
+					return std::span<const Entity>{(const Entity*)&m_data[0], GetItemCount()};
+				} else {
+					static_assert(!std::is_empty_v<U>, "Attempting to get value of an empty component");
+
+					const auto componentId = component::GetComponentId<T>();
+
+					if constexpr (component::IsGenericComponent<T>) {
+						const uint32_t count = GetItemCount();
+						return std::span<UConst>{(UConst*)GetDataPtr(component::ComponentType::CT_Generic, componentId), count};
+					} else
+						return std::span<UConst>{(UConst*)GetDataPtr(component::ComponentType::CT_Chunk, componentId), 1};
+				}
+			}
+
+			/*!
+			Returns a read-write span of the component data. Also updates the world version for the component.
+			\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
+			\tparam T Component
+			\tparam UpdateWorldVersion If true, the world version is updated as a result of the write access
+			\return Span of read-write component data.
+			*/
+			template <typename T, bool UpdateWorldVersion>
+			GAIA_NODISCARD GAIA_FORCEINLINE auto ViewRW_Internal() {
+				using U = typename component::DeduceComponent<T>::Type;
+#if GAIA_COMPILER_MSVC && _MSC_VER <= 1916
+				// Workaround for MSVC 2017 bug where it incorrectly evaluates the static assert
+				// even in context where it shouldn't.
+				// Unfortunatelly, even runtime assert can't be used...
+				// GAIA_ASSERT(!std::is_same_v<U, Entity>::value);
+#else
+				static_assert(!std::is_same_v<U, Entity>);
+#endif
+				static_assert(!std::is_empty_v<U>, "Attempting to set value of an empty component");
+
+				const auto componentId = component::GetComponentId<T>();
+
+				if constexpr (component::IsGenericComponent<T>) {
+					const uint32_t count = GetItemCount();
+					return std::span<U>{
+							(U*)GetDataPtrRW<UpdateWorldVersion>(component::ComponentType::CT_Generic, componentId), count};
+				} else
+					return std::span<U>{(U*)GetDataPtrRW<UpdateWorldVersion>(component::ComponentType::CT_Chunk, componentId), 1};
+			}
+
+			/*!
+			Returns the value stored in the component \tparam T on \param index in the chunk.
+			\warning It is expected the \param index is valid. Undefined behavior otherwise.
+			\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
+			\tparam T Component
+			\param index Index of entity in the chunk
+			\return Value stored in the component.
+			*/
+			template <typename T>
+			GAIA_NODISCARD auto GetComponent_Internal(uint32_t index) const {
+				using U = typename component::DeduceComponent<T>::Type;
+				using RetValue = decltype(View<T>()[0]);
+
+				GAIA_ASSERT(index < m_header.count);
+				if constexpr (sizeof(RetValue) > 8)
+					return (const U&)View<T>()[index];
+				else
+					return View<T>()[index];
+			}
+
+		public:
+			/*!
+			Allocates memory for a new chunk.
+			\param chunkIndex Index of this chunk within the parent archetype
+			\return Newly allocated chunk
+			*/
+			static Chunk* Create(
+					uint32_t archetypeId, uint16_t chunkIndex, uint16_t capacity, uint32_t& worldVersion,
+					const containers::sarray<archetype::ComponentIdArray, component::ComponentType::CT_Count>& componentIds,
+					const containers::sarray<archetype::ComponentOffsetArray, component::ComponentType::CT_Count>&
+							componentOffsets) {
+#if GAIA_ECS_CHUNK_ALLOCATOR
+				auto* pChunk = (Chunk*)ChunkAllocator::Get().Allocate();
+				new (pChunk) Chunk(archetypeId, chunkIndex, capacity, worldVersion, componentIds, componentOffsets);
+#else
+				auto pChunk = new Chunk(archetypeId, chunkIndex, capacity, worldVersion, componentIds, componentOffsets);
+#endif
+
+				return pChunk;
+			}
+
+			static void Release(Chunk* pChunk) {
+#if GAIA_ECS_CHUNK_ALLOCATOR
+				pChunk->~Chunk();
+				ChunkAllocator::Get().Release(pChunk);
+#else
+				delete pChunk;
+#endif
+			}
+
+			/*!
+			Returns a read-only entity or component view.
+			\warning If \tparam T is a component it is expected it is present. Undefined behavior otherwise.
+			\tparam T Component or Entity
+			\return Entity of component view with read-only access
+			*/
+			template <typename T>
+			GAIA_NODISCARD auto View() const {
+				using U = typename component::DeduceComponent<T>::Type;
+
+				return utils::auto_view_policy_get<std::add_const_t<U>>{{View_Internal<T>()}};
+			}
+
+			/*!
+			Returns a mutable entity or component view.
+			\warning If \tparam T is a component it is expected it is present. Undefined behavior otherwise.
+			\tparam T Component or Entity
+			\return Entity or component view with read-write access
+			*/
+			template <typename T>
+			GAIA_NODISCARD auto ViewRW() {
+				using U = typename component::DeduceComponent<T>::Type;
+				static_assert(!std::is_same_v<U, Entity>);
+
+				return utils::auto_view_policy_set<U>{{ViewRW_Internal<T, true>()}};
+			}
+
+			/*!
+			Returns a mutable component view.
+			Doesn't update the world version when the access is aquired.
+			\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
+			\tparam T Component
+			\return Component view with read-write access
+			*/
+			template <typename T>
+			GAIA_NODISCARD auto ViewRWSilent() {
+				using U = typename component::DeduceComponent<T>::Type;
+				static_assert(!std::is_same_v<U, Entity>);
+
+				return utils::auto_view_policy_set<U>{{ViewRW_Internal<T, false>()}};
+			}
+
+			/*!
 			Make the \param entity entity a part of the chunk at the version of the world
 			\return Index of the entity within the chunk.
 			*/
@@ -63,8 +209,8 @@ namespace gaia {
 				SetEntity(index, entity);
 
 				UpdateVersion(m_header.worldVersion);
-				m_header.UpdateWorldVersion(ComponentType::CT_Generic);
-				m_header.UpdateWorldVersion(ComponentType::CT_Chunk);
+				m_header.UpdateWorldVersion(component::ComponentType::CT_Generic);
+				m_header.UpdateWorldVersion(component::ComponentType::CT_Chunk);
 
 				return index;
 			}
@@ -73,8 +219,8 @@ namespace gaia {
 			Remove the entity at \param index from the \param entities array.
 			*/
 			void RemoveEntity(
-					uint32_t index, containers::darray<EntityContainer>& entities, const ComponentIdList& componentIds,
-					const ComponentOffsetList& offsets) {
+					uint32_t index, containers::darray<EntityContainer>& entities,
+					const archetype::ComponentIdArray& componentIds, const archetype::ComponentOffsetArray& offsets) {
 				// Ignore requests on empty chunks
 				if (m_header.count == 0)
 					return;
@@ -123,8 +269,8 @@ namespace gaia {
 				}
 
 				UpdateVersion(m_header.worldVersion);
-				m_header.UpdateWorldVersion(ComponentType::CT_Generic);
-				m_header.UpdateWorldVersion(ComponentType::CT_Chunk);
+				m_header.UpdateWorldVersion(component::ComponentType::CT_Generic);
+				m_header.UpdateWorldVersion(component::ComponentType::CT_Chunk);
 
 				--m_header.count;
 			}
@@ -154,13 +300,22 @@ namespace gaia {
 			}
 
 			/*!
+			Returns a pointer to chunk data.
+			\param offset Offset into chunk data
+			\return Pointer to chunk data.
+			*/
+			uint8_t& GetData(uint32_t offset) {
+				return m_data[offset];
+			}
+
+			/*!
 			Returns a pointer to component data with read-only access.
 			\param componentType Component type
 			\param componentId Component id
 			\return Const pointer to component data.
 			*/
 			GAIA_NODISCARD GAIA_FORCEINLINE const uint8_t*
-			GetDataPtr(ComponentType componentType, uint32_t componentId) const {
+			GetDataPtr(component::ComponentType componentType, component::ComponentId componentId) const {
 				// Searching for a component that's not there! Programmer mistake.
 				GAIA_ASSERT(HasComponent(componentType, componentId));
 
@@ -182,7 +337,8 @@ namespace gaia {
 			\return Pointer to component data.
 			*/
 			template <bool UpdateWorldVersion>
-			GAIA_NODISCARD GAIA_FORCEINLINE uint8_t* GetDataPtrRW(ComponentType componentType, uint32_t componentId) {
+			GAIA_NODISCARD GAIA_FORCEINLINE uint8_t*
+			GetDataPtrRW(component::ComponentType componentType, component::ComponentId componentId) {
 				// Searching for a component that's not there! Programmer mistake.
 				GAIA_ASSERT(HasComponent(componentType, componentId));
 				// Don't use this with empty components. It's impossible to write to them anyway.
@@ -202,152 +358,6 @@ namespace gaia {
 				return (uint8_t*)&m_data[offset];
 			}
 
-			/*!
-			Returns a read-only span of the component data.
-			\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
-			\tparam T Component
-			\return Span of read-only component data.
-			*/
-			template <typename T>
-			GAIA_NODISCARD GAIA_FORCEINLINE auto View_Internal() const {
-				using U = typename DeduceComponent<T>::Type;
-				using UConst = typename std::add_const_t<U>;
-
-				if constexpr (std::is_same_v<U, Entity>) {
-					return std::span<const Entity>{(const Entity*)&m_data[0], GetItemCount()};
-				} else {
-					static_assert(!std::is_empty_v<U>, "Attempting to get value of an empty component");
-
-					const auto componentId = GetComponentIdUnsafe<U>();
-
-					if constexpr (IsGenericComponent<T>) {
-						const uint32_t count = GetItemCount();
-						return std::span<UConst>{(UConst*)GetDataPtr(ComponentType::CT_Generic, componentId), count};
-					} else
-						return std::span<UConst>{(UConst*)GetDataPtr(ComponentType::CT_Chunk, componentId), 1};
-				}
-			}
-
-			/*!
-			Returns a read-write span of the component data. Also updates the world version for the component.
-			\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
-			\tparam T Component
-			\tparam UpdateWorldVersion If true, the world version is updated as a result of the write access
-			\return Span of read-write component data.
-			*/
-			template <typename T, bool UpdateWorldVersion>
-			GAIA_NODISCARD GAIA_FORCEINLINE auto ViewRW_Internal() {
-				using U = typename DeduceComponent<T>::Type;
-#if GAIA_COMPILER_MSVC && _MSC_VER <= 1916
-				// Workaround for MSVC 2017 bug where it incorrectly evaluates the static assert
-				// even in context where it shouldn't.
-				// Unfortunatelly, even runtime assert can't be used...
-				// GAIA_ASSERT(!std::is_same_v<U, Entity>::value);
-#else
-				static_assert(!std::is_same_v<U, Entity>);
-#endif
-				static_assert(!std::is_empty_v<U>, "Attempting to set value of an empty component");
-
-				const auto componentId = GetComponentIdUnsafe<U>();
-
-				if constexpr (IsGenericComponent<T>) {
-					const uint32_t count = GetItemCount();
-					return std::span<U>{(U*)GetDataPtrRW<UpdateWorldVersion>(ComponentType::CT_Generic, componentId), count};
-				} else
-					return std::span<U>{(U*)GetDataPtrRW<UpdateWorldVersion>(ComponentType::CT_Chunk, componentId), 1};
-			}
-
-			/*!
-			Returns the value stored in the component \tparam T on \param index in the chunk.
-			\warning It is expected the \param index is valid. Undefined behavior otherwise.
-			\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
-			\tparam T Component
-			\param index Index of entity in the chunk
-			\return Value stored in the component.
-			*/
-			template <typename T>
-			GAIA_NODISCARD auto GetComponent_Internal(uint32_t index) const {
-				using U = typename DeduceComponent<T>::Type;
-				using RetValue = decltype(View<T>()[0]);
-
-				GAIA_ASSERT(index < m_header.count);
-				if constexpr (sizeof(RetValue) > 8)
-					return (const U&)View<T>()[index];
-				else
-					return View<T>()[index];
-			}
-
-		public:
-			/*!
-			Allocates memory for a new chunk.
-			\param chunkIndex Index of this chunk within the parent archetype
-			\return Newly allocated chunk
-			*/
-			static Chunk* Create(
-					uint32_t archetypeId, uint16_t chunkIndex, uint16_t capacity, uint32_t& worldVersion,
-					const containers::sarray<ComponentIdList, ComponentType::CT_Count>& componentIds,
-					const containers::sarray<ComponentOffsetList, ComponentType::CT_Count>& componentOffsets) {
-#if GAIA_ECS_CHUNK_ALLOCATOR
-				auto* pChunk = (Chunk*)ChunkAllocator::Get().Allocate();
-				new (pChunk) Chunk(archetypeId, chunkIndex, capacity, worldVersion, componentIds, componentOffsets);
-#else
-				auto pChunk = new Chunk(archetypeId, chunkIndex, capacity, worldVersion, componentIds, componentOffsets);
-#endif
-
-				return pChunk;
-			}
-
-			static void Release(Chunk* pChunk) {
-#if GAIA_ECS_CHUNK_ALLOCATOR
-				pChunk->~Chunk();
-				ChunkAllocator::Get().Release(pChunk);
-#else
-				delete pChunk;
-#endif
-			}
-
-			/*!
-			Returns a read-only entity or component view.
-			\warning If \tparam T is a component it is expected it is present. Undefined behavior otherwise.
-			\tparam T Component or Entity
-			\return Entity of component view with read-only access
-			*/
-			template <typename T>
-			GAIA_NODISCARD auto View() const {
-				using U = typename DeduceComponent<T>::Type;
-
-				return utils::auto_view_policy_get<std::add_const_t<U>>{{View_Internal<T>()}};
-			}
-
-			/*!
-			Returns a mutable entity or component view.
-			\warning If \tparam T is a component it is expected it is present. Undefined behavior otherwise.
-			\tparam T Component or Entity
-			\return Entity or component view with read-write access
-			*/
-			template <typename T>
-			GAIA_NODISCARD auto ViewRW() {
-				using U = typename DeduceComponent<T>::Type;
-				static_assert(!std::is_same_v<U, Entity>);
-
-				return utils::auto_view_policy_set<U>{{ViewRW_Internal<T, true>()}};
-			}
-
-			/*!
-			Returns a mutable component view.
-			Doesn't update the world version when the access is aquired.
-			\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
-			\tparam T Component
-			\return Component view with read-write access
-			*/
-			template <typename T>
-			GAIA_NODISCARD auto ViewRWSilent() {
-				using U = typename DeduceComponent<T>::Type;
-				static_assert(!std::is_same_v<U, Entity>);
-
-				return utils::auto_view_policy_set<U>{{ViewRW_Internal<T, false>()}};
-			}
-
 			//----------------------------------------------------------------------
 			// Check component presence
 			//----------------------------------------------------------------------
@@ -358,7 +368,8 @@ namespace gaia {
 			\param componentType Component type
 			\return True if found. False otherwise.
 			*/
-			GAIA_NODISCARD bool HasComponent(ComponentType componentType, uint32_t componentId) const {
+			GAIA_NODISCARD bool
+			HasComponent(component::ComponentType componentType, component::ComponentId componentId) const {
 				const auto& componentIds = m_header.componentIds[componentType];
 				return utils::has(componentIds, componentId);
 			}
@@ -370,15 +381,12 @@ namespace gaia {
 			*/
 			template <typename T>
 			GAIA_NODISCARD bool HasComponent() const {
-				if constexpr (IsGenericComponent<T>) {
-					using U = typename detail::ExtractComponentType_Generic<T>::Type;
-					const auto componentId = GetComponentIdUnsafe<U>();
-					return HasComponent(ComponentType::CT_Generic, componentId);
-				} else {
-					using U = typename detail::ExtractComponentType_NonGeneric<T>::Type;
-					const auto componentId = GetComponentIdUnsafe<U>();
-					return HasComponent(ComponentType::CT_Chunk, componentId);
-				}
+				const auto componentId = component::GetComponentId<T>();
+
+				if constexpr (component::IsGenericComponent<T>)
+					return HasComponent(component::ComponentType::CT_Generic, componentId);
+				else
+					return HasComponent(component::ComponentType::CT_Chunk, componentId);
 			}
 
 			//----------------------------------------------------------------------
@@ -393,11 +401,12 @@ namespace gaia {
 			\param value Value to set for the component
 			*/
 			template <typename T>
-			void SetComponent(uint32_t index, typename DeduceComponent<T>::Type&& value) {
-				using U = typename DeduceComponent<T>::Type;
+			void SetComponent(uint32_t index, typename component::DeduceComponent<T>::Type&& value) {
+				using U = typename component::DeduceComponent<T>::Type;
 
 				static_assert(
-						IsGenericComponent<T>, "SetComponent providing an index can only be used with generic components");
+						component::IsGenericComponent<T>,
+						"SetComponent providing an index can only be used with generic components");
 
 				GAIA_ASSERT(index < m_header.capacity);
 				ViewRW<T>()[index] = std::forward<U>(value);
@@ -410,11 +419,12 @@ namespace gaia {
 			\param value Value to set for the component
 			*/
 			template <typename T>
-			void SetComponent(typename DeduceComponent<T>::Type&& value) {
-				using U = typename DeduceComponent<T>::Type;
+			void SetComponent(typename component::DeduceComponent<T>::Type&& value) {
+				using U = typename component::DeduceComponent<T>::Type;
 
 				static_assert(
-						!IsGenericComponent<T>, "SetComponent not providing an index can only be used with chunk components");
+						!component::IsGenericComponent<T>,
+						"SetComponent not providing an index can only be used with chunk components");
 
 				GAIA_ASSERT(0 < m_header.capacity);
 				ViewRW<T>()[0] = std::forward<U>(value);
@@ -429,11 +439,12 @@ namespace gaia {
 			\param value Value to set for the component
 			*/
 			template <typename T>
-			void SetComponentSilent(uint32_t index, typename DeduceComponent<T>::Type&& value) {
-				using U = typename DeduceComponent<T>::Type;
+			void SetComponentSilent(uint32_t index, typename component::DeduceComponent<T>::Type&& value) {
+				using U = typename component::DeduceComponent<T>::Type;
 
 				static_assert(
-						IsGenericComponent<T>, "SetComponentSilent providing an index can only be used with generic components");
+						component::IsGenericComponent<T>,
+						"SetComponentSilent providing an index can only be used with generic components");
 
 				GAIA_ASSERT(index < m_header.capacity);
 				ViewRWSilent<T>()[index] = std::forward<U>(value);
@@ -447,11 +458,12 @@ namespace gaia {
 			\param value Value to set for the component
 			*/
 			template <typename T>
-			void SetComponentSilent(typename DeduceComponent<T>::Type&& value) {
-				using U = typename DeduceComponent<T>::Type;
+			void SetComponentSilent(typename component::DeduceComponent<T>::Type&& value) {
+				using U = typename component::DeduceComponent<T>::Type;
 
 				static_assert(
-						!IsGenericComponent<T>, "SetComponentSilent not providing an index can only be used with chunk components");
+						!component::IsGenericComponent<T>,
+						"SetComponentSilent not providing an index can only be used with chunk components");
 
 				GAIA_ASSERT(0 < m_header.capacity);
 				ViewRWSilent<T>()[0] = std::forward<U>(value);
@@ -472,7 +484,8 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD auto GetComponent(uint32_t index) const {
 				static_assert(
-						IsGenericComponent<T>, "GetComponent providing an index can only be used with generic components");
+						component::IsGenericComponent<T>,
+						"GetComponent providing an index can only be used with generic components");
 				return GetComponent_Internal<T>(index);
 			}
 
@@ -485,7 +498,8 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD auto GetComponent() const {
 				static_assert(
-						!IsGenericComponent<T>, "GetComponent not providing an index can only be used with chunk components");
+						!component::IsGenericComponent<T>,
+						"GetComponent not providing an index can only be used with chunk components");
 				return GetComponent_Internal<T>(0);
 			}
 
@@ -494,7 +508,8 @@ namespace gaia {
 			\param componentType Component type
 			\return Component index if the component was found. -1 otherwise.
 			*/
-			GAIA_NODISCARD uint32_t GetComponentIdx(ComponentType componentType, ComponentId componentId) const {
+			GAIA_NODISCARD uint32_t
+			GetComponentIdx(component::ComponentType componentType, component::ComponentId componentId) const {
 				const auto idx = utils::get_index_unsafe(m_header.componentIds[componentType], componentId);
 				GAIA_ASSERT(idx != BadIndex);
 				return (uint32_t)idx;
@@ -506,9 +521,9 @@ namespace gaia {
 
 			template <typename T>
 			constexpr GAIA_NODISCARD GAIA_FORCEINLINE auto GetComponentView() {
-				using U = typename DeduceComponent<T>::Type;
-				using UOriginal = typename DeduceComponent<T>::TypeOriginal;
-				if constexpr (IsReadOnlyType<UOriginal>::value)
+				using U = typename component::DeduceComponent<T>::Type;
+				using UOriginal = typename component::DeduceComponent<T>::TypeOriginal;
+				if constexpr (component::IsReadOnlyType<UOriginal>::value)
 					return View_Internal<U>();
 				else
 					return ViewRW_Internal<U, true>();
@@ -565,7 +580,17 @@ namespace gaia {
 
 			//! Checks is this chunk is dying
 			GAIA_NODISCARD bool IsDying() const {
-				return m_header.lifespan > 0;
+				return m_header.lifespanCountdown > 0;
+			}
+
+			void PrepareToDie() {
+				m_header.lifespanCountdown = MAX_CHUNK_LIFESPAN;
+			}
+
+			bool ProgressDeath() {
+				GAIA_ASSERT(IsDying());
+				--m_header.lifespanCountdown;
+				return IsDying();
 			}
 
 			//! Checks is this chunk is disabled
@@ -589,8 +614,15 @@ namespace gaia {
 			}
 
 			//! Returns true if the provided version is newer than the one stored internally
-			GAIA_NODISCARD bool DidChange(ComponentType componentType, uint32_t version, uint32_t componentIdx) const {
+			GAIA_NODISCARD bool
+			DidChange(component::ComponentType componentType, uint32_t version, uint32_t componentIdx) const {
 				return DidVersionChange(m_header.versions[componentType][componentIdx], version);
+			}
+
+			void Diag(uint32_t index) const {
+				GAIA_LOG_N(
+						"  Chunk #%04u, entities:%u/%u, lifespanCountdown:%u", index, m_header.count, m_header.capacity,
+						m_header.lifespanCountdown);
 			}
 		};
 		static_assert(sizeof(Chunk) <= ChunkMemorySize, "Chunk size must match ChunkMemorySize!");

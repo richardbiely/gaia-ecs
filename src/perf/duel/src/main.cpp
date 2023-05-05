@@ -159,7 +159,7 @@ void BM_ECS(picobench::state& state) {
 	auto queryVel = w.CreateQuery().All<Velocity>();
 	auto queryCHealth = w.CreateQuery().All<const Health>();
 
-	// We want benchmark the hot-path. In real-world scenarios queries are almost never recalculated.
+	/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */
 	(void)queryPosCVel.HasItems();
 	(void)queryPosVel.HasItems();
 	(void)queryVel.HasItems();
@@ -219,7 +219,7 @@ void BM_ECS_WithSystems(picobench::state& state) {
 	auto queryVel = w.CreateQuery().All<Velocity>();
 	auto queryCHealth = w.CreateQuery().All<const Health>();
 
-	// We want benchmark the hot-path. In real-world scenarios queries are almost never recalculated.
+	/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */
 	(void)queryPosCVel.HasItems();
 	(void)queryPosCVel.HasItems();
 	(void)queryPosCVel.HasItems();
@@ -291,7 +291,7 @@ void BM_ECS_WithSystems_Chunk(picobench::state& state) {
 	auto queryVel = w.CreateQuery().All<Velocity>();
 	auto queryCHealth = w.CreateQuery().All<const Health>();
 
-	// We want benchmark the hot-path. In real-world scenarios queries are almost never recalculated.
+	/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */
 	(void)queryPosCVel.HasItems();
 	(void)queryPosVel.HasItems();
 	(void)queryVel.HasItems();
@@ -389,7 +389,7 @@ void BM_ECS_WithSystems_Chunk_SoA(picobench::state& state) {
 	auto queryVel = w.CreateQuery().All<VelocitySoA>();
 	auto queryCHealth = w.CreateQuery().All<const Health>();
 
-	// We want benchmark the hot-path. In real-world scenarios queries are almost never recalculated.
+	/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */
 	(void)queryPosCVel.HasItems();
 	(void)queryPosVel.HasItems();
 	(void)queryVel.HasItems();
@@ -586,7 +586,7 @@ void BM_ECS_WithSystems_Chunk_SoA_SIMD(picobench::state& state) {
 	auto queryVel = w.CreateQuery().All<VelocitySoA>();
 	auto queryCHealth = w.CreateQuery().All<const Health>();
 
-	// We want benchmark the hot-path. In real-world scenarios queries are almost never recalculated.
+	/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */
 	(void)queryPosCVel.HasItems();
 	(void)queryPosVel.HasItems();
 	(void)queryVel.HasItems();

@@ -64,7 +64,7 @@ namespace gaia {
 			void SetComponentFinal_Internal(T&& data) {
 				using U = std::decay_t<T>;
 
-				m_data.Save(GetComponentId<U>());
+				m_data.Save(component::GetComponentId<U>());
 				m_data.Save(std::forward<U>(data));
 			}
 
@@ -106,7 +106,7 @@ namespace gaia {
 			\return Entity that will be created. The id is not usable right away. It
 			will be filled with proper data after Commit()
 			*/
-			GAIA_NODISCARD TempEntity CreateEntity(Archetype& archetype) {
+			GAIA_NODISCARD TempEntity CreateEntity(archetype::Archetype& archetype) {
 				m_data.Save(CREATE_ENTITY_FROM_ARCHETYPE);
 				m_data.Save((uintptr_t)&archetype);
 
@@ -160,14 +160,14 @@ namespace gaia {
 			*/
 			template <typename T>
 			bool AddComponent(Entity entity) {
-				using U = typename DeduceComponent<T>::Type;
-				VerifyComponent<U>();
+				using U = typename component::DeduceComponent<T>::Type;
+				component::VerifyComponent<U>();
 
 				m_data.Save(ADD_COMPONENT);
-				if constexpr (IsGenericComponent<T>)
-					m_data.Save(ComponentType::CT_Generic);
+				if constexpr (component::IsGenericComponent<T>)
+					m_data.Save(component::ComponentType::CT_Generic);
 				else
-					m_data.Save(ComponentType::CT_Chunk);
+					m_data.Save(component::ComponentType::CT_Chunk);
 				AddComponent_Internal<Entity, U>(entity);
 				return true;
 			}
@@ -180,14 +180,14 @@ namespace gaia {
 			*/
 			template <typename T>
 			bool AddComponent(TempEntity entity) {
-				using U = typename DeduceComponent<T>::Type;
-				VerifyComponent<U>();
+				using U = typename component::DeduceComponent<T>::Type;
+				component::VerifyComponent<U>();
 
 				m_data.Save(ADD_COMPONENT_TO_TEMPENTITY);
-				if constexpr (IsGenericComponent<T>)
-					m_data.Save(ComponentType::CT_Generic);
+				if constexpr (component::IsGenericComponent<T>)
+					m_data.Save(component::ComponentType::CT_Generic);
 				else
-					m_data.Save(ComponentType::CT_Chunk);
+					m_data.Save(component::ComponentType::CT_Chunk);
 				AddComponent_Internal<TempEntity, U>(entity);
 				return true;
 			}
@@ -200,14 +200,14 @@ namespace gaia {
 			*/
 			template <typename T>
 			bool AddComponent(Entity entity, T&& data) {
-				using U = typename DeduceComponent<T>::Type;
-				VerifyComponent<U>();
+				using U = typename component::DeduceComponent<T>::Type;
+				component::VerifyComponent<U>();
 
 				m_data.Save(ADD_COMPONENT_DATA);
-				if constexpr (IsGenericComponent<T>)
-					m_data.Save(ComponentType::CT_Generic);
+				if constexpr (component::IsGenericComponent<T>)
+					m_data.Save(component::ComponentType::CT_Generic);
 				else
-					m_data.Save(ComponentType::CT_Chunk);
+					m_data.Save(component::ComponentType::CT_Chunk);
 				AddComponent_Internal<Entity, U>(entity);
 				SetComponentNoEntityNoSize_Internal(std::forward<U>(data));
 				return true;
@@ -221,14 +221,14 @@ namespace gaia {
 			*/
 			template <typename T>
 			bool AddComponent(TempEntity entity, T&& value) {
-				using U = typename DeduceComponent<T>::Type;
-				VerifyComponent<U>();
+				using U = typename component::DeduceComponent<T>::Type;
+				component::VerifyComponent<U>();
 
 				m_data.Save(ADD_COMPONENT_TO_TEMPENTITY_DATA);
-				if constexpr (IsGenericComponent<T>)
-					m_data.Save(ComponentType::CT_Generic);
+				if constexpr (component::IsGenericComponent<T>)
+					m_data.Save(component::ComponentType::CT_Generic);
 				else
-					m_data.Save(ComponentType::CT_Chunk);
+					m_data.Save(component::ComponentType::CT_Chunk);
 
 				AddComponent_Internal<TempEntity, U>(entity);
 				SetComponentNoEntityNoSize_Internal(std::forward<U>(value));
@@ -243,14 +243,14 @@ namespace gaia {
 			*/
 			template <typename T>
 			void SetComponent(Entity entity, T&& value) {
-				using U = typename DeduceComponent<T>::Type;
-				VerifyComponent<U>();
+				using U = typename component::DeduceComponent<T>::Type;
+				component::VerifyComponent<U>();
 
 				m_data.Save(SET_COMPONENT);
-				if constexpr (IsGenericComponent<T>)
-					m_data.Save(ComponentType::CT_Generic);
+				if constexpr (component::IsGenericComponent<T>)
+					m_data.Save(component::ComponentType::CT_Generic);
 				else
-					m_data.Save(ComponentType::CT_Chunk);
+					m_data.Save(component::ComponentType::CT_Chunk);
 
 				SetComponent_Internal(entity, std::forward<U>(value));
 			}
@@ -264,14 +264,14 @@ namespace gaia {
 			*/
 			template <typename T>
 			void SetComponent(TempEntity entity, T&& data) {
-				using U = typename DeduceComponent<T>::Type;
-				VerifyComponent<U>();
+				using U = typename component::DeduceComponent<T>::Type;
+				component::VerifyComponent<U>();
 
 				m_data.Save(SET_COMPONENT_FOR_TEMPENTITY);
-				if constexpr (IsGenericComponent<T>)
-					m_data.Save(ComponentType::CT_Generic);
+				if constexpr (component::IsGenericComponent<T>)
+					m_data.Save(component::ComponentType::CT_Generic);
 				else
-					m_data.Save(ComponentType::CT_Chunk);
+					m_data.Save(component::ComponentType::CT_Chunk);
 				SetComponent_Internal(entity, std::forward<U>(data));
 			}
 
@@ -280,14 +280,14 @@ namespace gaia {
 			*/
 			template <typename T>
 			void RemoveComponent(Entity entity) {
-				using U = typename DeduceComponent<T>::Type;
-				VerifyComponent<U>();
+				using U = typename component::DeduceComponent<T>::Type;
+				component::VerifyComponent<U>();
 
 				m_data.Save(REMOVE_COMPONENT);
-				if constexpr (IsGenericComponent<T>)
-					m_data.Save(ComponentType::CT_Generic);
+				if constexpr (component::IsGenericComponent<T>)
+					m_data.Save(component::ComponentType::CT_Generic);
 				else
-					m_data.Save(ComponentType::CT_Chunk);
+					m_data.Save(component::ComponentType::CT_Chunk);
 				RemoveComponent_Internal<U>(entity);
 			}
 
@@ -311,7 +311,7 @@ namespace gaia {
 						uintptr_t ptr{};
 						ctx.data.Load(ptr);
 
-						auto* pArchetype = (Archetype*)ptr;
+						auto* pArchetype = (archetype::Archetype*)ptr;
 						[[maybe_unused]] const auto res =
 								ctx.entityMap.try_emplace(ctx.entities++, ctx.world.CreateEntity(*pArchetype));
 						GAIA_ASSERT(res.second);
@@ -334,11 +334,11 @@ namespace gaia {
 					},
 					// ADD_COMPONENT
 					[](CommandBufferCtx& ctx) {
-						ComponentType componentType{};
+						component::ComponentType componentType{};
 						ctx.data.Load(componentType);
 						Entity entity{};
 						ctx.data.Load(entity);
-						ComponentId componentId{};
+						component::ComponentId componentId{};
 						ctx.data.Load(componentId);
 
 						const auto& newInfo = ComponentCache::Get().GetComponentInfo(componentId);
@@ -350,13 +350,13 @@ namespace gaia {
 					},
 					// ADD_COMPONENT_DATA
 					[](CommandBufferCtx& ctx) {
-						ComponentType componentType{};
+						component::ComponentType componentType{};
 						ctx.data.Load(componentType);
 						Entity entity{};
 						ctx.data.Load(entity);
-						ComponentId componentId{};
+						component::ComponentId componentId{};
 						ctx.data.Load(componentId);
-						ComponentId componentId2{};
+						component::ComponentId componentId2{};
 						ctx.data.Load(componentId);
 						// TODO: Don't include the component index here
 						(void)componentId2;
@@ -370,7 +370,7 @@ namespace gaia {
 						auto* pChunk = ctx.world.GetChunk(entity, indexInChunk);
 						GAIA_ASSERT(pChunk != nullptr);
 
-						if (componentType == ComponentType::CT_Chunk)
+						if (componentType == component::ComponentType::CT_Chunk)
 							indexInChunk = 0;
 
 						auto* pComponentDataStart = pChunk->GetDataPtrRW<false>(componentType, newInfo.componentId);
@@ -379,11 +379,11 @@ namespace gaia {
 					},
 					// ADD_COMPONENT_TO_TEMPENTITY
 					[](CommandBufferCtx& ctx) {
-						ComponentType componentType{};
+						component::ComponentType componentType{};
 						ctx.data.Load(componentType);
 						Entity e{};
 						ctx.data.Load(e);
-						ComponentId componentId{};
+						component::ComponentId componentId{};
 						ctx.data.Load(componentId);
 
 						// For delayed entities we have to peek into our map of temporaries and find a link there
@@ -403,13 +403,13 @@ namespace gaia {
 					},
 					// ADD_COMPONENT_TO_TEMPENTITY_DATA
 					[](CommandBufferCtx& ctx) {
-						ComponentType componentType{};
+						component::ComponentType componentType{};
 						ctx.data.Load(componentType);
 						Entity e{};
 						ctx.data.Load(e);
-						ComponentId componentId{};
+						component::ComponentId componentId{};
 						ctx.data.Load(componentId);
-						ComponentId componentId2{};
+						component::ComponentId componentId2{};
 						ctx.data.Load(componentId);
 						// TODO: Don't include the component index here
 						(void)componentId2;
@@ -431,7 +431,7 @@ namespace gaia {
 						auto* pChunk = ctx.world.GetChunk(entity, indexInChunk);
 						GAIA_ASSERT(pChunk != nullptr);
 
-						if (componentType == ComponentType::CT_Chunk)
+						if (componentType == component::ComponentType::CT_Chunk)
 							indexInChunk = 0;
 
 						auto* pComponentDataStart = pChunk->GetDataPtrRW<false>(componentType, newDesc.componentId);
@@ -440,16 +440,16 @@ namespace gaia {
 					},
 					// SET_COMPONENT
 					[](CommandBufferCtx& ctx) {
-						ComponentType componentType{};
+						component::ComponentType componentType{};
 						ctx.data.Load(componentType);
 						Entity entity{};
 						ctx.data.Load(entity);
-						ComponentId componentId{};
+						component::ComponentId componentId{};
 						ctx.data.Load(componentId);
 
 						const auto& entityContainer = ctx.world.m_entities[entity.id()];
 						auto* pChunk = entityContainer.pChunk;
-						const auto indexInChunk = componentType == ComponentType::CT_Chunk ? 0U : entityContainer.idx;
+						const auto indexInChunk = componentType == component::ComponentType::CT_Chunk ? 0U : entityContainer.idx;
 
 						// Components
 						{
@@ -462,11 +462,11 @@ namespace gaia {
 					},
 					// SET_COMPONENT_FOR_TEMPENTITY
 					[](CommandBufferCtx& ctx) {
-						ComponentType componentType{};
+						component::ComponentType componentType{};
 						ctx.data.Load(componentType);
 						Entity e{};
 						ctx.data.Load(e);
-						ComponentId componentId{};
+						component::ComponentId componentId{};
 						ctx.data.Load(componentId);
 
 						// For delayed entities we have to do a look in our map
@@ -479,7 +479,7 @@ namespace gaia {
 
 						const auto& entityContainer = ctx.world.m_entities[entity.id()];
 						auto* pChunk = entityContainer.pChunk;
-						const auto indexInChunk = componentType == ComponentType::CT_Chunk ? 0U : entityContainer.idx;
+						const auto indexInChunk = componentType == component::ComponentType::CT_Chunk ? 0U : entityContainer.idx;
 
 						// Components
 						{
@@ -492,11 +492,11 @@ namespace gaia {
 					},
 					// REMOVE_COMPONENT
 					[](CommandBufferCtx& ctx) {
-						ComponentType componentType{};
+						component::ComponentType componentType{};
 						ctx.data.Load(componentType);
 						Entity entity{};
 						ctx.data.Load(entity);
-						ComponentId componentId{};
+						component::ComponentId componentId{};
 						ctx.data.Load(componentId);
 
 						// Components
