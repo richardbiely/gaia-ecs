@@ -19,9 +19,11 @@ namespace gaia {
 			//! Chunk index in its archetype list
 			uint16_t index{};
 			//! Once removal is requested and it hits 0 the chunk is removed.
-			uint16_t lifespanCountdown : 15;
+			uint16_t lifespanCountdown : 11;
 			//! If true this chunk stores disabled entities
 			uint16_t disabled : 1;
+			//! Updated when chunks are being iterated. Used to inform of structural changes when they shouldn't happen.
+			uint16_t structuralChangesLocked : 4;
 			//! Description of components within this archetype (copied from the owner archetype)
 			containers::sarray<archetype::ComponentIdArray, component::ComponentType::CT_Count> componentIds;
 			//! Lookup hashes of components within this archetype (copied from the owner archetype)
@@ -32,6 +34,10 @@ namespace gaia {
 			uint32_t versions[component::ComponentType::CT_Count][archetype::MAX_COMPONENTS_PER_ARCHETYPE]{};
 
 			ChunkHeader(uint32_t& version): worldVersion(version) {
+				lifespanCountdown = 0;
+				disabled = 0;
+				structuralChangesLocked = 0;
+
 				// Make sure the alignment is right
 				GAIA_ASSERT(uintptr_t(this) % 8 == 0);
 			}

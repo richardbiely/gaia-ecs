@@ -65,8 +65,6 @@ namespace gaia {
 					uint32_t hasGenericComponentWithCustomDestruction : 1;
 					//! True if there's a component that requires custom destruction
 					uint32_t hasChunkComponentWithCustomDestruction : 1;
-					//! Updated when chunks are being iterated. Used to inform of structural changes when they shouldn't happen.
-					uint32_t structuralChangesLocked : 4;
 				} m_properties{};
 
 				// Constructor is hidden. Create archetypes via Create
@@ -333,20 +331,6 @@ namespace gaia {
 					auto* pChunk = FindOrCreateFreeChunk_Internal(m_chunksDisabled);
 					pChunk->SetDisabled(true);
 					return pChunk;
-				}
-
-				void SetStructuralChanges(bool value) {
-					if (value) {
-						GAIA_ASSERT(m_properties.structuralChangesLocked < 16);
-						++m_properties.structuralChangesLocked;
-					} else {
-						GAIA_ASSERT(m_properties.structuralChangesLocked > 0);
-						--m_properties.structuralChangesLocked;
-					}
-				}
-
-				bool IsStructuralChangesLocked() const {
-					return m_properties.structuralChangesLocked != 0;
 				}
 
 				GAIA_NODISCARD ArchetypeId GetArchetypeId() const {

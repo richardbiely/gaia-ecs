@@ -593,6 +593,20 @@ namespace gaia {
 				return IsDying();
 			}
 
+			void SetStructuralChanges(bool value) {
+				if (value) {
+					GAIA_ASSERT(m_header.structuralChangesLocked < 16);
+					++m_header.structuralChangesLocked;
+				} else {
+					GAIA_ASSERT(m_header.structuralChangesLocked > 0);
+					--m_header.structuralChangesLocked;
+				}
+			}
+
+			bool IsStructuralChangesLocked() const {
+				return m_header.structuralChangesLocked != 0;
+			}
+
 			//! Checks is this chunk is disabled
 			GAIA_NODISCARD bool IsDisabled() const {
 				return m_header.disabled;
@@ -611,6 +625,16 @@ namespace gaia {
 			//! Returns the number of entities in the chunk
 			GAIA_NODISCARD uint32_t GetItemCount() const {
 				return m_header.count;
+			}
+
+			GAIA_NODISCARD const archetype::ComponentIdArray&
+			GetComponentIdArray(component::ComponentType componentType) const {
+				return m_header.componentIds[componentType];
+			}
+
+			GAIA_NODISCARD const archetype::ComponentOffsetArray&
+			GetComponentOffsetArray(component::ComponentType componentType) const {
+				return m_header.componentOffsets[componentType];
 			}
 
 			//! Returns true if the provided version is newer than the one stored internally
