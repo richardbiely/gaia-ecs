@@ -10671,7 +10671,7 @@ namespace gaia {
 
 			//! Execute functors in batches
 			template <typename Func>
-			static void ChunkBatch_Perform(Func func, ChunkBatchedList& chunks) {
+			static void ChunkBatch_Perform([[maybe_unused]] Func func, ChunkBatchedList& chunks) {
 				// This is what the function is doing:
 				// for (auto *pChunk: chunks)
 				//	func(*pChunk);
@@ -10719,9 +10719,9 @@ namespace gaia {
 				chunks.clear();
 			}
 
-			template <bool HasFilters, typename Func>
+			template <bool HasFilters>
 			void ProcessQueryOnChunks(
-					Func func, ChunkBatchedList& chunkBatch, const containers::darray<Chunk*>& chunksList,
+					ChunkBatchedList& chunkBatch, const containers::darray<Chunk*>& chunksList,
 					const query::EntityQueryInfo& queryInfo) {
 				size_t chunkOffset = 0;
 
@@ -10748,14 +10748,14 @@ namespace gaia {
 					for (auto* pArchetype: queryInfo) {
 						// Evaluate ordinary chunks
 						if (CheckConstraints<true>()) {
-							ProcessQueryOnChunks<true>(func, chunkBatch, pArchetype->GetChunks(), queryInfo);
+							ProcessQueryOnChunks<true>(chunkBatch, pArchetype->GetChunks(), queryInfo);
 							if (chunkBatch.size() == chunkBatch.max_size())
 								ChunkBatch_Perform(func, chunkBatch);
 						}
 
 						// Evaluate disabled chunks
 						if (CheckConstraints<false>()) {
-							ProcessQueryOnChunks<true>(func, chunkBatch, pArchetype->GetChunksDisabled(), queryInfo);
+							ProcessQueryOnChunks<true>(chunkBatch, pArchetype->GetChunksDisabled(), queryInfo);
 							if (chunkBatch.size() == chunkBatch.max_size())
 								ChunkBatch_Perform(func, chunkBatch);
 						}
@@ -10764,14 +10764,14 @@ namespace gaia {
 					for (auto* pArchetype: queryInfo) {
 						// Evaluate ordinary chunks
 						if (CheckConstraints<true>()) {
-							ProcessQueryOnChunks<false>(func, chunkBatch, pArchetype->GetChunks(), queryInfo);
+							ProcessQueryOnChunks<false>(chunkBatch, pArchetype->GetChunks(), queryInfo);
 							if (chunkBatch.size() == chunkBatch.max_size())
 								ChunkBatch_Perform(func, chunkBatch);
 						}
 
 						// Evaluate disabled chunks
 						if (CheckConstraints<false>()) {
-							ProcessQueryOnChunks<false>(func, chunkBatch, pArchetype->GetChunksDisabled(), queryInfo);
+							ProcessQueryOnChunks<false>(chunkBatch, pArchetype->GetChunksDisabled(), queryInfo);
 							if (chunkBatch.size() == chunkBatch.max_size())
 								ChunkBatch_Perform(func, chunkBatch);
 						}
