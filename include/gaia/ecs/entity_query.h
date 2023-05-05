@@ -396,7 +396,6 @@ namespace gaia {
 				UpdateVersion(*m_worldVersion);
 
 				ChunkBatchedList chunkBatch;
-				bool hasProcessedAll{};
 
 				const bool hasFilters = queryInfo.HasFilters();
 				if (hasFilters) {
