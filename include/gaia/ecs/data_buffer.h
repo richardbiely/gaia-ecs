@@ -1,7 +1,8 @@
 #pragma once
+#include "../config/config.h"
+
 #include <type_traits>
 
-#include "../config/config.h"
 #include "../containers/darray_ext.h"
 #include "../utils/mem.h"
 

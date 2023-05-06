@@ -1,8 +1,8 @@
 #pragma once
+#include "../config/config.h"
 
 #include <cstdint>
 
-#include "../config/config.h"
 #include "../config/logging.h"
 #include "../config/profiler.h"
 #include "../containers/darray.h"

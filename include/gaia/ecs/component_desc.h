@@ -1,8 +1,9 @@
 #pragma once
+#include "../config/config_core.h"
+
 #include <cinttypes>
 #include <type_traits>
 
-#include "../config/config_core.h"
 #include "../utils/data_layout_policy.h"
 #include "../utils/span.h"
 #include "../utils/type_info.h"
@@ -12,12 +13,15 @@ namespace gaia {
 	namespace ecs {
 		namespace component {
 			struct ComponentDesc final {
+				using FuncCtor = void(void*, size_t);
 				using FuncDtor = void(void*, size_t);
 				using FuncCopy = void(void*, void*);
 				using FuncMove = void(void*, void*);
 
 				//! Component name
 				std::span<const char> name;
+				//! Destructor to call when the component is created
+				FuncDtor* ctor = nullptr;
 				//! Destructor to call when the component is destroyed
 				FuncDtor* dtor = nullptr;
 				//! Function to call when the component is copied
@@ -35,6 +39,8 @@ namespace gaia {
 					uint32_t size: MAX_COMPONENTS_SIZE_BITS;
 					//! Tells if the component is laid out in SoA style
 					uint32_t soa : 1;
+					//! Tells if the component has custom "constructor" handling
+					uint32_t has_custom_ctor : 1;
 					//! Tells if the component has custom "destructor" handling
 					uint32_t has_custom_dtor : 1;
 					//! Tells if the component has custom "copy" handling
@@ -52,6 +58,16 @@ namespace gaia {
 					info.componentId = GetComponentId<T>();
 
 					if constexpr (!std::is_empty_v<U> && !utils::is_soa_layout_v<U>) {
+						// Custom construction
+						if constexpr (!std::is_trivially_constructible_v<U>) {
+							info.ctor = [](void* ptr, size_t cnt) {
+								auto first = (U*)ptr;
+								auto last = (U*)ptr + cnt;
+								for (; first != last; ++first)
+									(void)new (first) U();
+							};
+						}
+
 						// Custom destruction
 						if constexpr (!std::is_trivially_destructible_v<U>) {
 							info.dtor = [](void* ptr, size_t cnt) {
@@ -102,6 +118,7 @@ namespace gaia {
 						if constexpr (utils::is_soa_layout_v<U>) {
 							info.properties.soa = 1;
 						} else {
+							info.properties.has_custom_ctor = !std::is_trivially_constructible_v<U>;
 							info.properties.has_custom_dtor = !std::is_trivially_destructible_v<U>;
 							info.properties.has_custom_copy =
 									!std::is_trivially_copyable_v<U> && (std::is_copy_assignable_v<U> || std::is_copy_constructible_v<U>);

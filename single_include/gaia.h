@@ -7514,12 +7514,15 @@ namespace gaia {
 	namespace ecs {
 		namespace component {
 			struct ComponentDesc final {
+				using FuncCtor = void(void*, size_t);
 				using FuncDtor = void(void*, size_t);
 				using FuncCopy = void(void*, void*);
 				using FuncMove = void(void*, void*);
 
 				//! Component name
 				std::span<const char> name;
+				//! Destructor to call when the component is created
+				FuncDtor* ctor = nullptr;
 				//! Destructor to call when the component is destroyed
 				FuncDtor* dtor = nullptr;
 				//! Function to call when the component is copied
@@ -7537,6 +7540,8 @@ namespace gaia {
 					uint32_t size: MAX_COMPONENTS_SIZE_BITS;
 					//! Tells if the component is laid out in SoA style
 					uint32_t soa : 1;
+					//! Tells if the component has custom "constructor" handling
+					uint32_t has_custom_ctor : 1;
 					//! Tells if the component has custom "destructor" handling
 					uint32_t has_custom_dtor : 1;
 					//! Tells if the component has custom "copy" handling
@@ -7554,6 +7559,16 @@ namespace gaia {
 					info.componentId = GetComponentId<T>();
 
 					if constexpr (!std::is_empty_v<U> && !utils::is_soa_layout_v<U>) {
+						// Custom construction
+						if constexpr (!std::is_trivially_constructible_v<U>) {
+							info.ctor = [](void* ptr, size_t cnt) {
+								auto first = (U*)ptr;
+								auto last = (U*)ptr + cnt;
+								for (; first != last; ++first)
+									(void)new (first) U();
+							};
+						}
+
 						// Custom destruction
 						if constexpr (!std::is_trivially_destructible_v<U>) {
 							info.dtor = [](void* ptr, size_t cnt) {
@@ -7604,6 +7619,7 @@ namespace gaia {
 						if constexpr (utils::is_soa_layout_v<U>) {
 							info.properties.soa = 1;
 						} else {
+							info.properties.has_custom_ctor = !std::is_trivially_constructible_v<U>;
 							info.properties.has_custom_dtor = !std::is_trivially_destructible_v<U>;
 							info.properties.has_custom_copy =
 									!std::is_trivially_copyable_v<U> && (std::is_copy_assignable_v<U> || std::is_copy_constructible_v<U>);
@@ -8095,6 +8111,24 @@ namespace gaia {
 				const auto index = m_header.count++;
 				SetEntity(index, entity);
 
+				const auto& componentIds = m_header.componentIds[component::ComponentType::CT_Generic];
+				const auto& componentOffsets = m_header.componentIds[component::ComponentType::CT_Generic];
+
+				for (size_t i = 0; i < componentIds.size(); i++) {
+					const auto& desc = ComponentCache::Get().GetComponentDesc(componentIds[i]);
+					if (desc.properties.size == 0U)
+						continue;
+
+					const auto offset = componentOffsets[i];
+					const auto idxSrc = offset + index * desc.properties.size;
+					GAIA_ASSERT(idxSrc < Chunk::DATA_SIZE_NORESERVE);
+
+					auto* pSrc = (void*)&m_data[idxSrc];
+
+					if (desc.properties.has_custom_ctor == 1)
+						desc.ctor(pSrc, 1);
+				}
+
 				UpdateVersion(m_header.worldVersion);
 				m_header.UpdateWorldVersion(component::ComponentType::CT_Generic);
 				m_header.UpdateWorldVersion(component::ComponentType::CT_Chunk);
@@ -8105,9 +8139,7 @@ namespace gaia {
 			/*!
 			Remove the entity at \param index from the \param entities array.
 			*/
-			void RemoveEntity(
-					uint32_t index, containers::darray<EntityContainer>& entities,
-					const archetype::ComponentIdArray& componentIds, const archetype::ComponentOffsetArray& offsets) {
+			void RemoveEntity(uint32_t index, containers::darray<EntityContainer>& entities) {
 				// Ignore requests on empty chunks
 				if (m_header.count == 0)
 					return;
@@ -8122,12 +8154,15 @@ namespace gaia {
 					const auto entity = GetEntity(m_header.count - 1);
 					SetEntity(index, entity);
 
+					const auto& componentIds = m_header.componentIds[component::ComponentType::CT_Generic];
+					const auto& componentOffsets = m_header.componentIds[component::ComponentType::CT_Generic];
+
 					for (size_t i = 0; i < componentIds.size(); i++) {
 						const auto& desc = ComponentCache::Get().GetComponentDesc(componentIds[i]);
 						if (desc.properties.size == 0U)
 							continue;
 
-						const auto offset = offsets[i];
+						const auto offset = componentOffsets[i];
 						const auto idxSrc = offset + index * desc.properties.size;
 						const auto idxDst = offset + (m_header.count - 1U) * desc.properties.size;
 
@@ -8170,7 +8205,8 @@ namespace gaia {
 			void SetEntity(uint32_t index, Entity entity) {
 				GAIA_ASSERT(index < m_header.count && "Entity index in chunk out of bounds!");
 
-				utils::unaligned_ref<Entity> mem((void*)&m_data[sizeof(Entity) * index]);
+				const auto offset = sizeof(Entity) * index;
+				utils::unaligned_ref<Entity> mem((void*)&m_data[offset]);
 				mem = entity;
 			}
 
@@ -8182,7 +8218,8 @@ namespace gaia {
 			GAIA_NODISCARD Entity GetEntity(uint32_t index) const {
 				GAIA_ASSERT(index < m_header.count && "Entity index in chunk out of bounds!");
 
-				utils::unaligned_ref<Entity> mem((void*)&m_data[sizeof(Entity) * index]);
+				const auto offset = sizeof(Entity) * index;
+				utils::unaligned_ref<Entity> mem((void*)&m_data[offset]);
 				return mem;
 			}
 
@@ -11218,9 +11255,7 @@ namespace gaia {
 						!pChunk->IsStructuralChangesLocked() && "Entities can't be removed while their chunk is being iterated "
 																										"(structural changes are forbidden during this time!)");
 
-				pChunk->RemoveEntity(
-						entityChunkIndex, m_entities, pChunk->GetComponentIdArray(component::ComponentType::CT_Generic),
-						pChunk->GetComponentOffsetArray(component::ComponentType::CT_Generic));
+				pChunk->RemoveEntity(entityChunkIndex, m_entities);
 
 				if (!pChunk->IsDying() && !pChunk->HasEntities()) {
 					// When the chunk is emptied we want it to be removed. We can't do it
@@ -12083,9 +12118,7 @@ namespace gaia {
 					}
 
 					// Remove the entity from the old chunk
-					pChunkFrom->RemoveEntity(
-							entityContainer.idx, m_entities, archetype.GetComponentIdArray(component::ComponentType::CT_Generic),
-							archetype.GetComponentOffsetArray(component::ComponentType::CT_Generic));
+					pChunkFrom->RemoveEntity(entityContainer.idx, m_entities);
 
 					// Update the entity container with new info
 					entityContainer.pChunk = pChunkTo;
