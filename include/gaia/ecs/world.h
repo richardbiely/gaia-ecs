@@ -653,7 +653,7 @@ namespace gaia {
 							continue;
 						++cnt;
 					}
-					GAIA_ASSERT(cnt == pChunk->GetItemCount());
+					GAIA_ASSERT(cnt == pChunk->GetEntityCount());
 				} else {
 					// Make sure no entites reference the chunk
 					for (const auto& e: m_entities) {
@@ -1198,7 +1198,7 @@ namespace gaia {
 			}
 
 			template <typename... T>
-			static void RegisterComponents_Internal(utils::func_type_list<T...> /*no_name*/) {
+			static void RegisterComponents_Internal([[maybe_unused]] utils::func_type_list<T...> types) {
 				static_assert(sizeof...(T) > 0, "Empty EntityQuery is not supported in this context");
 				auto& cc = ComponentCache::Get();
 				((void)cc.GetOrCreateComponentInfo<T>(), ...);

@@ -64,14 +64,14 @@ namespace gaia {
 				using UConst = typename std::add_const_t<U>;
 
 				if constexpr (std::is_same_v<U, Entity>) {
-					return std::span<const Entity>{(const Entity*)&m_data[0], GetItemCount()};
+					return std::span<const Entity>{(const Entity*)&m_data[0], GetEntityCount()};
 				} else {
 					static_assert(!std::is_empty_v<U>, "Attempting to get value of an empty component");
 
 					const auto componentId = component::GetComponentId<T>();
 
 					if constexpr (component::IsGenericComponent<T>) {
-						const uint32_t count = GetItemCount();
+						const uint32_t count = GetEntityCount();
 						return std::span<UConst>{(UConst*)GetDataPtr(component::ComponentType::CT_Generic, componentId), count};
 					} else
 						return std::span<UConst>{(UConst*)GetDataPtr(component::ComponentType::CT_Chunk, componentId), 1};
@@ -101,7 +101,7 @@ namespace gaia {
 				const auto componentId = component::GetComponentId<T>();
 
 				if constexpr (component::IsGenericComponent<T>) {
-					const uint32_t count = GetItemCount();
+					const uint32_t count = GetEntityCount();
 					return std::span<U>{
 							(U*)GetDataPtrRW<UpdateWorldVersion>(component::ComponentType::CT_Generic, componentId), count};
 				} else
@@ -531,7 +531,7 @@ namespace gaia {
 
 			template <typename... T, typename Func>
 			GAIA_FORCEINLINE void ForEach([[maybe_unused]] utils::func_type_list<T...> types, Func func) {
-				const size_t size = GetItemCount();
+				const size_t size = GetEntityCount();
 				GAIA_ASSERT(size > 0);
 
 				if constexpr (sizeof...(T) > 0) {
@@ -544,7 +544,7 @@ namespace gaia {
 
 					// Iterate over each entity in the chunk.
 					// Translates to:
-					//		for (size_t i = 0; i < chunk.GetItemCount(); ++i)
+					//		for (size_t i = 0; i < chunk.GetEntityCount(); ++i)
 					//			func(p[i], v[i]);
 
 					for (size_t i = 0; i < size; ++i)
@@ -623,7 +623,7 @@ namespace gaia {
 			}
 
 			//! Returns the number of entities in the chunk
-			GAIA_NODISCARD uint32_t GetItemCount() const {
+			GAIA_NODISCARD uint32_t GetEntityCount() const {
 				return m_header.count;
 			}
 

@@ -267,7 +267,7 @@ TEST_CASE("EntityQuery - QueryResult") {
 		q1.ToChunkArray(arr);
 		size_t itemCount = 0;
 		for (const auto* pChunk: arr)
-			itemCount += pChunk->GetItemCount();
+			itemCount += pChunk->GetEntityCount();
 		REQUIRE(itemCount == N);
 	}
 	{
@@ -351,7 +351,7 @@ TEST_CASE("EntityQuery - QueryResult complex") {
 		q1.ToChunkArray(arr);
 		size_t itemCount = 0;
 		for (const auto* pChunk: arr)
-			itemCount += pChunk->GetItemCount();
+			itemCount += pChunk->GetEntityCount();
 		REQUIRE(itemCount == N);
 	}
 	{
@@ -428,7 +428,7 @@ TEST_CASE("EntityQuery - QueryResult complex") {
 		q4.ToChunkArray(arr);
 		size_t itemCount = 0;
 		for (const auto* pChunk: arr)
-			itemCount += pChunk->GetItemCount();
+			itemCount += pChunk->GetEntityCount();
 		REQUIRE(itemCount == N);
 	}
 	{
@@ -479,7 +479,7 @@ TEST_CASE("EntityQuery - QueryResult complex") {
 		q5.ToChunkArray(arr);
 		size_t itemCount = 0;
 		for (const auto* pChunk: arr)
-			itemCount += pChunk->GetItemCount();
+			itemCount += pChunk->GetEntityCount();
 		REQUIRE(itemCount == N / 2);
 	}
 	{
@@ -1137,7 +1137,7 @@ TEST_CASE("Usage 2 - simple query, many components") {
 		q.ForEach([&](ecs::Chunk& chunk) {
 			++cnt;
 
-			REQUIRE(chunk.GetItemCount() == 1);
+			REQUIRE(chunk.GetEntityCount() == 1);
 
 			const bool ok1 = chunk.HasComponent<Position>() || chunk.HasComponent<Acceleration>();
 			REQUIRE(ok1);
@@ -1153,7 +1153,7 @@ TEST_CASE("Usage 2 - simple query, many components") {
 		q.ForEach([&](ecs::Chunk& chunk) {
 			++cnt;
 
-			REQUIRE(chunk.GetItemCount() == 1);
+			REQUIRE(chunk.GetEntityCount() == 1);
 		});
 		REQUIRE(cnt == 1);
 	}
@@ -1237,7 +1237,7 @@ TEST_CASE("Usage 2 - simple query, many chunk components") {
 		q.ForEach([&](ecs::Chunk& chunk) {
 			++cnt;
 
-			REQUIRE(chunk.GetItemCount() == 1);
+			REQUIRE(chunk.GetEntityCount() == 1);
 
 			const bool ok1 = chunk.HasComponent<ecs::AsChunk<Position>>() || chunk.HasComponent<ecs::AsChunk<Acceleration>>();
 			REQUIRE(ok1);
@@ -1254,7 +1254,7 @@ TEST_CASE("Usage 2 - simple query, many chunk components") {
 		q.ForEach([&](ecs::Chunk& chunk) {
 			++cnt;
 
-			REQUIRE(chunk.GetItemCount() == 1);
+			REQUIRE(chunk.GetEntityCount() == 1);
 		});
 		REQUIRE(cnt == 1);
 	}
@@ -1300,7 +1300,7 @@ TEST_CASE("SetComponent - generic") {
 			auto scaleView = chunk.ViewRW<Scale>();
 			auto elseView = chunk.ViewRW<Else>();
 
-			for (size_t i = 0; i < chunk.GetItemCount(); ++i) {
+			for (size_t i = 0; i < chunk.GetEntityCount(); ++i) {
 				rotationView[i] = {1, 2, 3, 4};
 				scaleView[i] = {11, 22, 33};
 				elseView[i] = {true};
@@ -1393,7 +1393,7 @@ TEST_CASE("SetComponent - generic & chunk") {
 
 			chunk.SetComponent<ecs::AsChunk<Position>>({111, 222, 333});
 
-			for (size_t i = 0; i < chunk.GetItemCount(); ++i) {
+			for (size_t i = 0; i < chunk.GetEntityCount(); ++i) {
 				rotationView[i] = {1, 2, 3, 4};
 				scaleView[i] = {11, 22, 33};
 				elseView[i] = {true};
@@ -1497,7 +1497,7 @@ TEST_CASE("Components - non trivial") {
 			auto str2View = chunk.ViewRW<StringComponent2>();
 			auto posView = chunk.ViewRW<PositionNonTrivial>();
 
-			for (size_t i = 0; i < chunk.GetItemCount(); ++i) {
+			for (size_t i = 0; i < chunk.GetEntityCount(); ++i) {
 				strView[i] = {"string_component"};
 				str2View[i].value = "another_text";
 				posView[i] = {111, 222, 333};
@@ -2017,7 +2017,7 @@ void TestDataLayoutSoA_ECS() {
 		auto tx = t.template set<0>();
 		auto ty = t.template set<1>();
 		auto tz = t.template set<2>();
-		for (uint32_t i = 0; i < ch.GetItemCount(); ++i, ++j) {
+		for (uint32_t i = 0; i < ch.GetEntityCount(); ++i, ++j) {
 			auto f = (float)j;
 			tx[i] = f;
 			ty[i] = f;

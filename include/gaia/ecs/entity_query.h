@@ -668,14 +668,14 @@ namespace gaia {
 				auto execWithFiltersON = [&](const auto& chunksList) {
 					for (auto* pChunk: chunksList) {
 						if (CanAcceptChunkForProcessing<true>(*pChunk, queryInfo))
-							itemCount += pChunk->GetItemCount();
+							itemCount += pChunk->GetEntityCount();
 					}
 				};
 
 				auto execWithFiltersOFF = [&](const auto& chunksList) {
 					for (auto* pChunk: chunksList) {
 						if (CanAcceptChunkForProcessing<false>(*pChunk, queryInfo))
-							itemCount += pChunk->GetItemCount();
+							itemCount += pChunk->GetEntityCount();
 					}
 				};
 
@@ -719,7 +719,7 @@ namespace gaia {
 
 				auto addChunk = [&](Chunk* pChunk) {
 					const auto componentView = pChunk->template View<ContainerItemType>();
-					for (size_t i = 0; i < pChunk->GetItemCount(); ++i)
+					for (size_t i = 0; i < pChunk->GetEntityCount(); ++i)
 						outArray.push_back(componentView[i]);
 				};
 

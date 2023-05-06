@@ -342,7 +342,7 @@ q.ForEach([](ecs::Chunk& ch) {
   auto v = ch.View<Velocity>(); // Read-only access to Velocity
 
   // Iterate over all entities in the chunk.
-  for (size_t i = 0; i < ch.GetItemCount(); ++i) {
+  for (size_t i = 0; i < ch.GetEntityCount(); ++i) {
     p[i].x += v[i].x * dt;
     p[i].y += v[i].y * dt;
     p[i].z += v[i].z * dt;
@@ -363,7 +363,7 @@ q.ForEach([](ecs::Chunk& ch) {
       p[i].y += v[i].y * dt;
       p[i].z += v[i].z * dt;
     }
-  }(vp.data(), vv.data(), ch.GetItemCount());
+  }(vp.data(), vv.data(), ch.GetEntityCount());
 });
 ```
 
@@ -418,7 +418,7 @@ q.ForEach(, [](ecs::Chunk& ch) {
       _mm_store_ps(p + i, respVec);
     }*/
   };
-  const auto size = ch.GetItemCount();
+  const auto size = ch.GetEntityCount();
   // Handle x coordinates
   exec(px.data(), vx.data(), size);
   // Handle y coordinates

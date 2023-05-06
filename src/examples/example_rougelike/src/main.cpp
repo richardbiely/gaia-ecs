@@ -542,7 +542,7 @@ public:
 			auto vel = chunk.View<Velocity>();
 			auto pos = chunk.View<Position>();
 
-			for (size_t i = 0; i < chunk.GetItemCount(); ++i) {
+			for (size_t i = 0; i < chunk.GetEntityCount(); ++i) {
 				// Skip stationary objects
 				const auto& v =
 						vel[i]; // This is <= 8 bytes so it would be okay even if we did a copy rather than const reference
