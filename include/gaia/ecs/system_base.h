@@ -1,8 +1,9 @@
 #pragma once
+#include "../config/config.h"
+
 #include <cinttypes>
 #include <cstring>
 
-#include "../config/config.h"
 #include "../config/profiler.h"
 #if GAIA_DEBUG
 	#include "../config/logging.h"

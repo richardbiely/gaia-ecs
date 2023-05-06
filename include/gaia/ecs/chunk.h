@@ -1,10 +1,11 @@
 #pragma once
+#include "../config/config.h"
+
 #include <cinttypes>
 #include <cstdint>
 #include <type_traits>
 #include <utility>
 
-#include "../config/config.h"
 #include "../containers/sarray_ext.h"
 #include "../utils/mem.h"
 #include "../utils/utility.h"
@@ -208,6 +209,24 @@ namespace gaia {
 				const auto index = m_header.count++;
 				SetEntity(index, entity);
 
+				const auto& componentIds = m_header.componentIds[component::ComponentType::CT_Generic];
+				const auto& componentOffsets = m_header.componentIds[component::ComponentType::CT_Generic];
+
+				for (size_t i = 0; i < componentIds.size(); i++) {
+					const auto& desc = ComponentCache::Get().GetComponentDesc(componentIds[i]);
+					if (desc.properties.size == 0U)
+						continue;
+
+					const auto offset = componentOffsets[i];
+					const auto idxSrc = offset + index * desc.properties.size;
+					GAIA_ASSERT(idxSrc < Chunk::DATA_SIZE_NORESERVE);
+
+					auto* pSrc = (void*)&m_data[idxSrc];
+
+					if (desc.properties.has_custom_ctor == 1)
+						desc.ctor(pSrc, 1);
+				}
+
 				UpdateVersion(m_header.worldVersion);
 				m_header.UpdateWorldVersion(component::ComponentType::CT_Generic);
 				m_header.UpdateWorldVersion(component::ComponentType::CT_Chunk);
@@ -218,9 +237,7 @@ namespace gaia {
 			/*!
 			Remove the entity at \param index from the \param entities array.
 			*/
-			void RemoveEntity(
-					uint32_t index, containers::darray<EntityContainer>& entities,
-					const archetype::ComponentIdArray& componentIds, const archetype::ComponentOffsetArray& offsets) {
+			void RemoveEntity(uint32_t index, containers::darray<EntityContainer>& entities) {
 				// Ignore requests on empty chunks
 				if (m_header.count == 0)
 					return;
@@ -235,12 +252,15 @@ namespace gaia {
 					const auto entity = GetEntity(m_header.count - 1);
 					SetEntity(index, entity);
 
+					const auto& componentIds = m_header.componentIds[component::ComponentType::CT_Generic];
+					const auto& componentOffsets = m_header.componentIds[component::ComponentType::CT_Generic];
+
 					for (size_t i = 0; i < componentIds.size(); i++) {
 						const auto& desc = ComponentCache::Get().GetComponentDesc(componentIds[i]);
 						if (desc.properties.size == 0U)
 							continue;
 
-						const auto offset = offsets[i];
+						const auto offset = componentOffsets[i];
 						const auto idxSrc = offset + index * desc.properties.size;
 						const auto idxDst = offset + (m_header.count - 1U) * desc.properties.size;
 
@@ -283,7 +303,8 @@ namespace gaia {
 			void SetEntity(uint32_t index, Entity entity) {
 				GAIA_ASSERT(index < m_header.count && "Entity index in chunk out of bounds!");
 
-				utils::unaligned_ref<Entity> mem((void*)&m_data[sizeof(Entity) * index]);
+				const auto offset = sizeof(Entity) * index;
+				utils::unaligned_ref<Entity> mem((void*)&m_data[offset]);
 				mem = entity;
 			}
 
@@ -295,7 +316,8 @@ namespace gaia {
 			GAIA_NODISCARD Entity GetEntity(uint32_t index) const {
 				GAIA_ASSERT(index < m_header.count && "Entity index in chunk out of bounds!");
 
-				utils::unaligned_ref<Entity> mem((void*)&m_data[sizeof(Entity) * index]);
+				const auto offset = sizeof(Entity) * index;
+				utils::unaligned_ref<Entity> mem((void*)&m_data[offset]);
 				return mem;
 			}
 

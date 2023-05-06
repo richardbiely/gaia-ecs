@@ -1,5 +1,6 @@
 #pragma once
 #include "../config/config_core_end.h"
+
 #include "../containers/darray.h"
 #include "../containers/map.h"
 #include "entity_query_common.h"

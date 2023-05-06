@@ -1,8 +1,9 @@
 #pragma once
+#include "../config/config.h"
+
 #include <cinttypes>
 #include <type_traits>
 
-#include "../config/config.h"
 #include "../config/profiler.h"
 #include "../containers/darray.h"
 #include "../containers/map.h"
@@ -101,9 +102,7 @@ namespace gaia {
 						!pChunk->IsStructuralChangesLocked() && "Entities can't be removed while their chunk is being iterated "
 																										"(structural changes are forbidden during this time!)");
 
-				pChunk->RemoveEntity(
-						entityChunkIndex, m_entities, pChunk->GetComponentIdArray(component::ComponentType::CT_Generic),
-						pChunk->GetComponentOffsetArray(component::ComponentType::CT_Generic));
+				pChunk->RemoveEntity(entityChunkIndex, m_entities);
 
 				if (!pChunk->IsDying() && !pChunk->HasEntities()) {
 					// When the chunk is emptied we want it to be removed. We can't do it
@@ -966,9 +965,7 @@ namespace gaia {
 					}
 
 					// Remove the entity from the old chunk
-					pChunkFrom->RemoveEntity(
-							entityContainer.idx, m_entities, archetype.GetComponentIdArray(component::ComponentType::CT_Generic),
-							archetype.GetComponentOffsetArray(component::ComponentType::CT_Generic));
+					pChunkFrom->RemoveEntity(entityContainer.idx, m_entities);
 
 					// Update the entity container with new info
 					entityContainer.pChunk = pChunkTo;

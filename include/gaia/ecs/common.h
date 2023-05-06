@@ -1,5 +1,6 @@
 #pragma once
 #include "../config/config_core.h"
+
 #include <cinttypes>
 
 namespace gaia {

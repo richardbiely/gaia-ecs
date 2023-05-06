@@ -1,8 +1,9 @@
 #pragma once
+#include "../config/config.h"
+
 #include <cinttypes>
 #include <type_traits>
 
-#include "../config/config.h"
 #include "../containers/map.h"
 #include "../containers/sarray_ext.h"
 #include "../utils/mem.h"
