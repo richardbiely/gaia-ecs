@@ -289,8 +289,7 @@ w.ForEach([&](Position& p, const Velocity& v) {
 });
 ```
 
-The example above creates an EntityQuery internally from the arguments provided to ForEach. However, it can also be slower than other iteration methods because it needs to perform component matching every time ForEach invokes. The more archetypes your code base has, the slower the matching gets. Therefore, consider it only for non-critical parts of your code.<br/>
-For better performance and more features, consider using explicit EntityQueries when possible.
+It creates an EntityQuery internally from the arguments provided to ForEach. For possibly better performance and more features, consider using explicit EntityQueries when possible.
 ```cpp
 ecs::EntityQuery q = w.CreateQuery();
 q.All<Position, const Velocity>(); // Take into account all chunks with Position and Velocity...
@@ -304,7 +303,7 @@ q.ForEach([&](Position& p, const Velocity& v) {
 });
 ```
 
-As mentioned earlier, using WithChanged we can make the iteration run only if particular components change. You can save quite a bit of performance using this technique.<br/>
+Using WithChanged we can make the iteration run only if particular components change. You can save quite a bit of performance using this technique.<br/>
 ```cpp
 ecs::EntityQuery q = w.CreateQuery();
 q.All<Position, const Velocity>(); // Take into account all chunks with Position and Velocity...
