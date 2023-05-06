@@ -33,11 +33,7 @@ namespace gaia {
 			//! Versions of individual components on chunk.
 			uint32_t versions[component::ComponentType::CT_Count][archetype::MAX_COMPONENTS_PER_ARCHETYPE]{};
 
-			ChunkHeader(uint32_t& version): worldVersion(version) {
-				lifespanCountdown = 0;
-				disabled = 0;
-				structuralChangesLocked = 0;
-
+			ChunkHeader(uint32_t& version): lifespanCountdown(0), disabled(0), structuralChangesLocked(0), worldVersion(version) {
 				// Make sure the alignment is right
 				GAIA_ASSERT(uintptr_t(this) % 8 == 0);
 			}

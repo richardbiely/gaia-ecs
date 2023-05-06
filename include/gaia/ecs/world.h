@@ -279,9 +279,9 @@ namespace gaia {
 #if GAIA_ARCHETYPE_GRAPH
 			static GAIA_FORCEINLINE void BuildGraphEdges(
 					component::ComponentType componentType, archetype::Archetype* left, archetype::Archetype* right,
-					const component::ComponentInfo& info) {
-				left->AddEdgeArchetypeRight(componentType, info, right->GetArchetypeId());
-				right->AddEdgeArchetypeLeft(componentType, info, left->GetArchetypeId());
+					component::ComponentId componentId) {
+				left->AddGraphEdgeRight(componentType, componentId, right->GetArchetypeId());
+				right->AddGraphEdgeLeft(componentType, componentId, left->GetArchetypeId());
 			}
 #endif
 
@@ -310,7 +310,7 @@ namespace gaia {
 							pArchetypeRight = CreateArchetype(component::ComponentIdSpan(&infoToAdd.componentId, 1), {});
 							pArchetypeRight->Init({genericHash}, {0}, lookupHash);
 							RegisterArchetype(pArchetypeRight);
-							BuildGraphEdges(componentType, pArchetypeLeft, pArchetypeRight, infoToAdd);
+							BuildGraphEdges(componentType, pArchetypeLeft, pArchetypeRight, infoToAdd.componentId);
 						}
 					} else {
 						const auto chunkHash = infoToAdd.lookupHash;
@@ -320,7 +320,7 @@ namespace gaia {
 							pArchetypeRight = CreateArchetype({}, component::ComponentIdSpan(&infoToAdd.componentId, 1));
 							pArchetypeRight->Init({0}, {chunkHash}, lookupHash);
 							RegisterArchetype(pArchetypeRight);
-							BuildGraphEdges(componentType, pArchetypeLeft, pArchetypeRight, infoToAdd);
+							BuildGraphEdges(componentType, pArchetypeLeft, pArchetypeRight, infoToAdd.componentId);
 						}
 					}
 
@@ -329,7 +329,7 @@ namespace gaia {
 
 				// Check if the component is found when following the "add" edges
 				{
-					const uint32_t archetypeId = pArchetypeLeft->FindAddEdgeArchetypeId(componentType, infoToAdd);
+					const uint32_t archetypeId = pArchetypeLeft->FindGraphEdgeRight(componentType, infoToAdd.componentId);
 					if (archetypeId != archetype::ArchetypeIdBad)
 						return m_archetypes[archetypeId];
 				}
@@ -373,7 +373,7 @@ namespace gaia {
 
 #if GAIA_ARCHETYPE_GRAPH
 					// Build the graph edges so that the next time we want to add this component we can do it the quick way
-					BuildGraphEdges(componentType, pArchetypeLeft, pArchetypeRight, infoToAdd);
+					BuildGraphEdges(componentType, pArchetypeLeft, pArchetypeRight, infoToAdd.componentId);
 #endif
 				}
 
@@ -394,7 +394,7 @@ namespace gaia {
 #if GAIA_ARCHETYPE_GRAPH
 				// Check if the component is found when following the "del" edges
 				{
-					const auto archetypeId = pArchetypeRight->FindDelEdgeArchetypeId(componentType, infoToRemove);
+					const auto archetypeId = pArchetypeRight->FindGraphEdgeLeft(componentType, infoToRemove.componentId);
 					if (archetypeId != archetype::ArchetypeIdBad)
 						return m_archetypes[archetypeId];
 				}
@@ -437,7 +437,7 @@ namespace gaia {
 
 #if GAIA_ARCHETYPE_GRAPH
 					// Build the graph edges so that the next time we want to remove this component we can do it the quick way
-					BuildGraphEdges(componentType, pArchetype, pArchetypeRight, infoToRemove);
+					BuildGraphEdges(componentType, pArchetype, pArchetypeRight, infoToRemove.componentId);
 #endif
 				}
 
