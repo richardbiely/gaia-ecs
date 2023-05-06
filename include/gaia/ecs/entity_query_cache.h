@@ -8,7 +8,7 @@
 namespace gaia {
 	namespace ecs {
 		class EntityQueryCache {
-			using QueryCacheLookupArray = containers::darr<uint32_t>;
+			using QueryCacheLookupArray = containers::darray<uint32_t>;
 
 			containers::map<query::LookupHash, QueryCacheLookupArray> m_queryCache;
 			containers::darray<query::EntityQueryInfo> m_queryArr;

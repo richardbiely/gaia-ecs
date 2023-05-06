@@ -386,8 +386,15 @@ namespace gaia {
 		}
 
 		//----------------------------------------------------------------------
-		// Sorting
+		// Comparison
 		//----------------------------------------------------------------------
+
+		template <typename T>
+		struct equal_to {
+			constexpr bool operator()(const T& lhs, const T& rhs) const {
+				return lhs == rhs;
+			}
+		};
 
 		template <typename T>
 		struct is_smaller {
@@ -402,6 +409,10 @@ namespace gaia {
 				return lhs > rhs;
 			}
 		};
+
+		//----------------------------------------------------------------------
+		// Sorting
+		//----------------------------------------------------------------------
 
 		namespace detail {
 			template <typename Array, typename TSortFunc>
