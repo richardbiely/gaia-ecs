@@ -5,6 +5,14 @@
 //------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
+// External code settings
+//------------------------------------------------------------------------------
+
+#ifndef TCB_SPAN_NO_CONTRACT_CHECKING
+	#define TCB_SPAN_NO_CONTRACT_CHECKING
+#endif
+
+//------------------------------------------------------------------------------
 // General settings
 //------------------------------------------------------------------------------
 
@@ -73,7 +81,7 @@
 
 namespace gaia {
 
-	enum PrefetchHint: int {
+	enum PrefetchHint : int {
 		//! Temporal data — prefetch data into all levels of the cache hierarchy
 		PREFETCH_HINT_T0 = 3,
 		//! Temporal data with respect to first level cache misses — prefetch data into L2 cache and higher
