@@ -10485,7 +10485,7 @@ namespace gaia {
 			containers::darray<archetype::Archetype*>* m_archetypes{};
 
 			//--------------------------------------------------------------------------------
-
+		public:
 			query::EntityQueryInfo& FetchQueryInfo() {
 				// Lookup hash is present which means EntityQueryInfo was already found
 				if GAIA_LIKELY (m_queryId != query::QueryIdBad) {
@@ -10503,6 +10503,7 @@ namespace gaia {
 				return queryInfo;
 			}
 
+		private:
 			//--------------------------------------------------------------------------------
 
 			template <typename T>
@@ -10580,7 +10581,7 @@ namespace gaia {
 
 			//--------------------------------------------------------------------------------
 
-			GAIA_NODISCARD static bool CheckFilters(const Chunk& chunk, const query::EntityQueryInfo& queryInfo)  {
+			GAIA_NODISCARD static bool CheckFilters(const Chunk& chunk, const query::EntityQueryInfo& queryInfo) {
 				GAIA_ASSERT(chunk.HasEntities() && "CheckFilters called on an empty chunk");
 
 				const auto queryVersion = queryInfo.GetWorldVersion();
@@ -10859,6 +10860,27 @@ namespace gaia {
 					ForEachChunk_Internal(func);
 				else
 					ForEach_Internal(func);
+			}
+
+			template <typename Func>
+			void ForEach(query::QueryId queryId, Func func) {
+				using InputArgs = decltype(utils::func_args(&Func::operator()));
+
+				// Make sure the query was created by World.CreateQuery()
+				GAIA_ASSERT(m_entityQueryCache != nullptr);
+
+				auto& queryInfo = m_entityQueryCache->Get(queryId);
+
+#if GAIA_DEBUG
+				if (!std::is_invocable<Func, Chunk&>::value) {
+					// Make sure we only use components specified in the query
+					GAIA_ASSERT(UnpackArgsIntoQuery_HasAll(queryInfo, InputArgs{}));
+				}
+#endif
+
+				RunQueryOnChunks_Internal(queryInfo, [&](Chunk& chunk) {
+					chunk.ForEach(InputArgs{}, func);
+				});
 			}
 
 			/*!
@@ -11141,6 +11163,8 @@ namespace gaia {
 
 			//! Cache of entity queries
 			EntityQueryCache m_queryCache;
+			//! Cache of query ids to speed up ForEach
+			containers::map<component::ComponentLookupHash, query::QueryId> m_uniqueFuncQueryPairs;
 			//! Map or archetypes mapping to the same hash - used for lookups
 			containers::map<archetype::LookupHash, archetype::ArchetypeList> m_archetypeMap;
 			//! List of archetypes - used for iteration
@@ -12282,6 +12306,12 @@ namespace gaia {
 				RegisterComponents_Internal(InputArgs{});
 			}
 
+			template <typename... T>
+			static constexpr component::ComponentLookupHash
+			CalculateQueryIdLookupHash([[maybe_unused]] utils::func_type_list<T...> types) {
+				return component::CalculateLookupHash<T...>();
+			}
+
 		public:
 			EntityQuery CreateQuery() {
 				return EntityQuery(m_queryCache, m_worldVersion, m_archetypes);
@@ -12290,9 +12320,9 @@ namespace gaia {
 			/*!
 			Iterates over all chunks satisfying conditions set by \param func and calls \param func for all of them.
 			EntityQuery instance is generated internally from the input arguments of \param func.
-			\warning Performance-wise it has less potential than iterating using ecs::Chunk or a comparable ForEach passing
-							in a query because it needs to do cached query lookups on each invocation. However, it is easier to use
-							and for non-critical code paths it is the most elegant way of iterating your data.
+			\warning Performance-wise it has less potential than iterating using ecs::Chunk or a comparable ForEach
+			passing in a query because it needs to do cached query lookups on each invocation. However, it is easier to
+			use and for non-critical code paths it is the most elegant way of iterating your data.
 			*/
 			template <typename Func>
 			void ForEach(Func func) {
@@ -12303,9 +12333,17 @@ namespace gaia {
 
 				RegisterComponents<Func>();
 
-				EntityQuery query = CreateQuery();
-				UnpackArgsIntoQuery(query, InputArgs{});
-				query.ForEach(func);
+				constexpr auto lookupHash = CalculateQueryIdLookupHash(InputArgs{});
+				if (m_uniqueFuncQueryPairs.count(lookupHash) == 0) {
+					EntityQuery query = CreateQuery();
+					UnpackArgsIntoQuery(query, InputArgs{});
+					(void)query.FetchQueryInfo();
+					m_uniqueFuncQueryPairs.try_emplace(lookupHash, query.GetQueryId());
+					CreateQuery().ForEach(query.GetQueryId(), func);
+				} else {
+					const auto queryId = m_uniqueFuncQueryPairs[lookupHash];
+					CreateQuery().ForEach(queryId, func);
+				}
 			}
 
 			/*!
@@ -12391,7 +12429,7 @@ namespace gaia {
 				DiagRegisteredTypes();
 				DiagEntities();
 			}
-		};
+		}; // namespace gaia
 
 	} // namespace ecs
 } // namespace gaia
