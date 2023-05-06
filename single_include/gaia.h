@@ -7928,14 +7928,14 @@ namespace gaia {
 				using UConst = typename std::add_const_t<U>;
 
 				if constexpr (std::is_same_v<U, Entity>) {
-					return std::span<const Entity>{(const Entity*)&m_data[0], GetItemCount()};
+					return std::span<const Entity>{(const Entity*)&m_data[0], GetEntityCount()};
 				} else {
 					static_assert(!std::is_empty_v<U>, "Attempting to get value of an empty component");
 
 					const auto componentId = component::GetComponentId<T>();
 
 					if constexpr (component::IsGenericComponent<T>) {
-						const uint32_t count = GetItemCount();
+						const uint32_t count = GetEntityCount();
 						return std::span<UConst>{(UConst*)GetDataPtr(component::ComponentType::CT_Generic, componentId), count};
 					} else
 						return std::span<UConst>{(UConst*)GetDataPtr(component::ComponentType::CT_Chunk, componentId), 1};
@@ -7965,7 +7965,7 @@ namespace gaia {
 				const auto componentId = component::GetComponentId<T>();
 
 				if constexpr (component::IsGenericComponent<T>) {
-					const uint32_t count = GetItemCount();
+					const uint32_t count = GetEntityCount();
 					return std::span<U>{
 							(U*)GetDataPtrRW<UpdateWorldVersion>(component::ComponentType::CT_Generic, componentId), count};
 				} else
@@ -8395,7 +8395,7 @@ namespace gaia {
 
 			template <typename... T, typename Func>
 			GAIA_FORCEINLINE void ForEach([[maybe_unused]] utils::func_type_list<T...> types, Func func) {
-				const size_t size = GetItemCount();
+				const size_t size = GetEntityCount();
 				GAIA_ASSERT(size > 0);
 
 				if constexpr (sizeof...(T) > 0) {
@@ -8408,7 +8408,7 @@ namespace gaia {
 
 					// Iterate over each entity in the chunk.
 					// Translates to:
-					//		for (size_t i = 0; i < chunk.GetItemCount(); ++i)
+					//		for (size_t i = 0; i < chunk.GetEntityCount(); ++i)
 					//			func(p[i], v[i]);
 
 					for (size_t i = 0; i < size; ++i)
@@ -8487,7 +8487,7 @@ namespace gaia {
 			}
 
 			//! Returns the number of entities in the chunk
-			GAIA_NODISCARD uint32_t GetItemCount() const {
+			GAIA_NODISCARD uint32_t GetEntityCount() const {
 				return m_header.count;
 			}
 
@@ -8627,7 +8627,8 @@ namespace gaia {
 					auto callDestructors = [&](component::ComponentType componentType) {
 						const auto& componentIds = m_componentIds[componentType];
 						const auto& offsets = m_componentOffsets[componentType];
-						const auto itemCount = componentType == component::ComponentType::CT_Generic ? pChunk->GetItemCount() : 1U;
+						const auto itemCount =
+								componentType == component::ComponentType::CT_Generic ? pChunk->GetEntityCount() : 1U;
 						for (size_t i = 0; i < componentIds.size(); ++i) {
 							const auto componentId = componentIds[i];
 							const auto& infoCreate = cc.GetComponentDesc(componentId);
@@ -8989,10 +8990,10 @@ namespace gaia {
 					uint32_t entityCount = 0;
 					uint32_t entityCountDisabled = 0;
 					for (const auto* chunk: archetype.m_chunks)
-						entityCount += chunk->GetItemCount();
+						entityCount += chunk->GetEntityCount();
 					for (const auto* chunk: archetype.m_chunksDisabled) {
-						entityCountDisabled += chunk->GetItemCount();
-						entityCount += chunk->GetItemCount();
+						entityCountDisabled += chunk->GetEntityCount();
+						entityCount += chunk->GetEntityCount();
 					}
 
 					// Calculate the number of components
@@ -10984,14 +10985,14 @@ namespace gaia {
 				auto execWithFiltersON = [&](const auto& chunksList) {
 					for (auto* pChunk: chunksList) {
 						if (CanAcceptChunkForProcessing<true>(*pChunk, queryInfo))
-							itemCount += pChunk->GetItemCount();
+							itemCount += pChunk->GetEntityCount();
 					}
 				};
 
 				auto execWithFiltersOFF = [&](const auto& chunksList) {
 					for (auto* pChunk: chunksList) {
 						if (CanAcceptChunkForProcessing<false>(*pChunk, queryInfo))
-							itemCount += pChunk->GetItemCount();
+							itemCount += pChunk->GetEntityCount();
 					}
 				};
 
@@ -11035,7 +11036,7 @@ namespace gaia {
 
 				auto addChunk = [&](Chunk* pChunk) {
 					const auto componentView = pChunk->template View<ContainerItemType>();
-					for (size_t i = 0; i < pChunk->GetItemCount(); ++i)
+					for (size_t i = 0; i < pChunk->GetEntityCount(); ++i)
 						outArray.push_back(componentView[i]);
 				};
 
@@ -11749,7 +11750,7 @@ namespace gaia {
 							continue;
 						++cnt;
 					}
-					GAIA_ASSERT(cnt == pChunk->GetItemCount());
+					GAIA_ASSERT(cnt == pChunk->GetEntityCount());
 				} else {
 					// Make sure no entites reference the chunk
 					for (const auto& e: m_entities) {
@@ -12294,7 +12295,7 @@ namespace gaia {
 			}
 
 			template <typename... T>
-			static void RegisterComponents_Internal(utils::func_type_list<T...> /*no_name*/) {
+			static void RegisterComponents_Internal([[maybe_unused]] utils::func_type_list<T...> types) {
 				static_assert(sizeof...(T) > 0, "Empty EntityQuery is not supported in this context");
 				auto& cc = ComponentCache::Get();
 				((void)cc.GetOrCreateComponentInfo<T>(), ...);

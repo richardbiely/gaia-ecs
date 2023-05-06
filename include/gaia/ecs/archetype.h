@@ -78,7 +78,8 @@ namespace gaia {
 					auto callDestructors = [&](component::ComponentType componentType) {
 						const auto& componentIds = m_componentIds[componentType];
 						const auto& offsets = m_componentOffsets[componentType];
-						const auto itemCount = componentType == component::ComponentType::CT_Generic ? pChunk->GetItemCount() : 1U;
+						const auto itemCount =
+								componentType == component::ComponentType::CT_Generic ? pChunk->GetEntityCount() : 1U;
 						for (size_t i = 0; i < componentIds.size(); ++i) {
 							const auto componentId = componentIds[i];
 							const auto& infoCreate = cc.GetComponentDesc(componentId);
@@ -440,10 +441,10 @@ namespace gaia {
 					uint32_t entityCount = 0;
 					uint32_t entityCountDisabled = 0;
 					for (const auto* chunk: archetype.m_chunks)
-						entityCount += chunk->GetItemCount();
+						entityCount += chunk->GetEntityCount();
 					for (const auto* chunk: archetype.m_chunksDisabled) {
-						entityCountDisabled += chunk->GetItemCount();
-						entityCount += chunk->GetItemCount();
+						entityCountDisabled += chunk->GetEntityCount();
+						entityCount += chunk->GetEntityCount();
 					}
 
 					// Calculate the number of components

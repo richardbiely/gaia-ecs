@@ -206,7 +206,7 @@ DEFINE_FOREACH_EXTERNALQUERY(5000)
 			float f = 0.f;                                                                                                   \
 			query.ForEach([&](const ecs::Chunk& chunk) {                                                                     \
 				auto c1View = chunk.View<c1>();                                                                                \
-				for (size_t i = 0; i < chunk.GetItemCount(); ++i)                                                              \
+				for (size_t i = 0; i < chunk.GetEntityCount(); ++i)                                                            \
 					f += c1View[i].value[0];                                                                                     \
 			});                                                                                                              \
 			picobench::DoNotOptimize(f);                                                                                     \
