@@ -5046,11 +5046,7 @@ namespace gaia {
 			//! Versions of individual components on chunk.
 			uint32_t versions[component::ComponentType::CT_Count][archetype::MAX_COMPONENTS_PER_ARCHETYPE]{};
 
-			ChunkHeader(uint32_t& version): worldVersion(version) {
-				lifespanCountdown = 0;
-				disabled = 0;
-				structuralChangesLocked = 0;
-
+			ChunkHeader(uint32_t& version): lifespanCountdown(0), disabled(0), structuralChangesLocked(0), worldVersion(version) {
 				// Make sure the alignment is right
 				GAIA_ASSERT(uintptr_t(this) % 8 == 0);
 			}
@@ -7660,7 +7656,6 @@ namespace gaia {
 		class ComponentCache {
 			containers::darray<const component::ComponentInfo*> m_infoByIndex;
 			containers::darray<component::ComponentDesc> m_descByIndex;
-			containers::map<component::ComponentLookupHash, const component::ComponentInfo*> m_infoByHash;
 
 			ComponentCache() {
 				// Reserve enough storage space for most use-cases
@@ -7695,10 +7690,6 @@ namespace gaia {
 					const auto* pInfo = component::ComponentInfo::Create<U>();
 					m_infoByIndex[componentId] = pInfo;
 					m_descByIndex[componentId] = component::ComponentDesc::Create<U>();
-					GAIA_SAFE_CONSTEXPR auto hash = utils::type_info::hash<U>();
-					[[maybe_unused]] const auto res = m_infoByHash.try_emplace({hash}, pInfo);
-					// This has to be the first time this has has been added!
-					GAIA_ASSERT(res.second);
 					return *pInfo;
 				};
 
@@ -7729,28 +7720,6 @@ namespace gaia {
 				return *m_infoByIndex[componentId];
 			}
 
-			//! Returns the component info for \tparam T.
-			//! \return Component info if it exists, nullptr otherwise.
-			template <typename T>
-			GAIA_NODISCARD const component::ComponentInfo* FindComponentInfo() const {
-				using U = typename component::DeduceComponent<T>::Type;
-
-				GAIA_SAFE_CONSTEXPR auto hash = utils::type_info::hash<U>();
-				const auto it = m_infoByHash.find({hash});
-				return it != m_infoByHash.end() ? it->second : (const component::ComponentInfo*)nullptr;
-			}
-
-			//! Returns the component info for \tparam T.
-			//! \warning It is expected the component already exists! Undefined behavior otherwise.
-			//! \return Component info
-			template <typename T>
-			GAIA_NODISCARD const component::ComponentInfo& GetComponentInfo() const {
-				using U = typename component::DeduceComponent<T>::Type;
-
-				GAIA_SAFE_CONSTEXPR auto hash = utils::type_info::hash<U>();
-				return GetComponentInfoFromHash({hash});
-			}
-
 			//! Returns the component info given the \param componentId.
 			//! \warning It is expected the component info with a given component id exists! Undefined behavior otherwise.
 			//! \return Component info
@@ -7769,15 +7738,13 @@ namespace gaia {
 				return m_descByIndex[componentId];
 			}
 
-			//! Returns the component info given the \param hash.
-			//! \warning It is expected the component info with a given component id exists! Undefined behavior otherwise.
+			//! Returns the component info for \tparam T.
+			//! \warning It is expected the component already exists! Undefined behavior otherwise.
 			//! \return Component info
-			GAIA_NODISCARD const component::ComponentInfo&
-			GetComponentInfoFromHash(component::ComponentLookupHash hash) const {
-				const auto it = m_infoByHash.find(hash);
-				GAIA_ASSERT(it != m_infoByHash.end());
-				GAIA_ASSERT(it->second != nullptr);
-				return *it->second;
+			template <typename T>
+			GAIA_NODISCARD const component::ComponentInfo& GetComponentInfo() const {
+				const auto componentId = component::GetComponentId<T>();
+				return GetComponentInfo(componentId);
 			}
 
 			void Diag() const {
@@ -7794,7 +7761,6 @@ namespace gaia {
 					delete pInfo;
 				m_infoByIndex.clear();
 				m_descByIndex.clear();
-				m_infoByHash.clear();
 			}
 		};
 	} // namespace ecs
@@ -8618,11 +8584,9 @@ namespace gaia {
 
 #if GAIA_ARCHETYPE_GRAPH
 				//! Map of edges in the archetype graph when adding components
-				containers::map<component::ComponentLookupHash, ArchetypeGraphEdge>
-						m_edgesAdd[component::ComponentType::CT_Count];
+				containers::map<component::ComponentId, ArchetypeGraphEdge> m_edgesAdd[component::ComponentType::CT_Count];
 				//! Map of edges in the archetype graph when removing components
-				containers::map<component::ComponentLookupHash, ArchetypeGraphEdge>
-						m_edgesDel[component::ComponentType::CT_Count];
+				containers::map<component::ComponentId, ArchetypeGraphEdge> m_edgesDel[component::ComponentType::CT_Count];
 #endif
 
 				//! Description of components within this archetype
@@ -8979,33 +8943,39 @@ namespace gaia {
 				}
 
 #if GAIA_ARCHETYPE_GRAPH
-				//! Create an edge in the graph leading from this archetype to \param archetypeId via component \param info.
-				void AddEdgeArchetypeRight(
-						component::ComponentType componentType, const component::ComponentInfo& info, ArchetypeId archetypeId) {
+				//! Creates an edge in the graph leading to the target archetype \param archetypeId via component \param
+				//! componentId of type \param componentType.
+				void AddGraphEdgeRight(
+						component::ComponentType componentType, component::ComponentId componentId, ArchetypeId archetypeId) {
 					[[maybe_unused]] const auto ret =
-							m_edgesAdd[componentType].try_emplace({info.lookupHash}, ArchetypeGraphEdge{archetypeId});
+							m_edgesAdd[componentType].try_emplace({componentId}, ArchetypeGraphEdge{archetypeId});
 					GAIA_ASSERT(ret.second);
 				}
 
-				//! Create an edge in the graph leading from this archetype to \param archetypeId via component \param info.
-				void AddEdgeArchetypeLeft(
-						component::ComponentType componentType, const component::ComponentInfo& info, ArchetypeId archetypeId) {
+				//! Creates an edge in the graph leading to the target archetype \param archetypeId via component \param
+				//! componentId of type \param componentType.
+				void AddGraphEdgeLeft(
+						component::ComponentType componentType, component::ComponentId componentId, ArchetypeId archetypeId) {
 					[[maybe_unused]] const auto ret =
-							m_edgesDel[componentType].try_emplace({info.lookupHash}, ArchetypeGraphEdge{archetypeId});
+							m_edgesDel[componentType].try_emplace({componentId}, ArchetypeGraphEdge{archetypeId});
 					GAIA_ASSERT(ret.second);
 				}
 
-				GAIA_NODISCARD uint32_t
-				FindAddEdgeArchetypeId(component::ComponentType componentType, const component::ComponentInfo& info) const {
+				//! Checks if the graph edge for component type \param componentType contains the component \param componentId.
+				//! \return Archetype id of the target archetype if the edge is found. ArchetypeIdBad otherwise.
+				GAIA_NODISCARD ArchetypeId
+				FindGraphEdgeRight(component::ComponentType componentType, const component::ComponentId componentId) const {
 					const auto& edges = m_edgesAdd[componentType];
-					const auto it = edges.find({info.lookupHash});
+					const auto it = edges.find({componentId});
 					return it != edges.end() ? it->second.archetypeId : ArchetypeIdBad;
 				}
 
-				GAIA_NODISCARD uint32_t
-				FindDelEdgeArchetypeId(component::ComponentType componentType, const component::ComponentInfo& info) const {
+				//! Checks if the graph edge for component type \param componentType contains the component \param componentId.
+				//! \return Archetype id of the target archetype if the edge is found. ArchetypeIdBad otherwise.
+				GAIA_NODISCARD ArchetypeId
+				FindGraphEdgeLeft(component::ComponentType componentType, const component::ComponentId componentId) const {
 					const auto& edges = m_edgesDel[componentType];
-					const auto it = edges.find({info.lookupHash});
+					const auto it = edges.find({componentId});
 					return it != edges.end() ? it->second.archetypeId : ArchetypeIdBad;
 				}
 #endif
@@ -9087,7 +9057,7 @@ namespace gaia {
 							if (!edgesG.empty()) {
 								GAIA_LOG_N("    Generic - count:%u", (uint32_t)edgesG.size());
 								for (const auto& edge: edgesG) {
-									const auto& info = cc.GetComponentInfoFromHash(edge.first);
+									const auto& info = cc.GetComponentInfo(edge.first);
 									const auto& infoCreate = cc.GetComponentDesc(info.componentId);
 									GAIA_LOG_N(
 											"      %.*s (--> Archetype ID:%u)", (uint32_t)infoCreate.name.size(), infoCreate.name.data(),
@@ -9098,7 +9068,7 @@ namespace gaia {
 							if (!edgesC.empty()) {
 								GAIA_LOG_N("    Chunk - count:%u", (uint32_t)edgesC.size());
 								for (const auto& edge: edgesC) {
-									const auto& info = cc.GetComponentInfoFromHash(edge.first);
+									const auto& info = cc.GetComponentInfo(edge.first);
 									const auto& infoCreate = cc.GetComponentDesc(info.componentId);
 									GAIA_LOG_N(
 											"      %.*s (--> Archetype ID:%u)", (uint32_t)infoCreate.name.size(), infoCreate.name.data(),
@@ -9119,7 +9089,7 @@ namespace gaia {
 							if (!edgesG.empty()) {
 								GAIA_LOG_N("    Generic - count:%u", (uint32_t)edgesG.size());
 								for (const auto& edge: edgesG) {
-									const auto& info = cc.GetComponentInfoFromHash(edge.first);
+									const auto& info = cc.GetComponentInfo(edge.first);
 									const auto& infoCreate = cc.GetComponentDesc(info.componentId);
 									GAIA_LOG_N(
 											"      %.*s (--> Archetype ID:%u)", (uint32_t)infoCreate.name.size(), infoCreate.name.data(),
@@ -9130,7 +9100,7 @@ namespace gaia {
 							if (!edgesC.empty()) {
 								GAIA_LOG_N("    Chunk - count:%u", (uint32_t)edgesC.size());
 								for (const auto& edge: edgesC) {
-									const auto& info = cc.GetComponentInfoFromHash(edge.first);
+									const auto& info = cc.GetComponentInfo(edge.first);
 									const auto& infoCreate = cc.GetComponentDesc(info.componentId);
 									GAIA_LOG_N(
 											"      %.*s (--> Archetype ID:%u)", (uint32_t)infoCreate.name.size(), infoCreate.name.data(),
@@ -10610,7 +10580,7 @@ namespace gaia {
 
 			//--------------------------------------------------------------------------------
 
-			GAIA_NODISCARD bool CheckFilters(const Chunk& chunk, const query::EntityQueryInfo& queryInfo) const {
+			GAIA_NODISCARD static bool CheckFilters(const Chunk& chunk, const query::EntityQueryInfo& queryInfo)  {
 				GAIA_ASSERT(chunk.HasEntities() && "CheckFilters called on an empty chunk");
 
 				const auto queryVersion = queryInfo.GetWorldVersion();
@@ -11384,9 +11354,9 @@ namespace gaia {
 #if GAIA_ARCHETYPE_GRAPH
 			static GAIA_FORCEINLINE void BuildGraphEdges(
 					component::ComponentType componentType, archetype::Archetype* left, archetype::Archetype* right,
-					const component::ComponentInfo& info) {
-				left->AddEdgeArchetypeRight(componentType, info, right->GetArchetypeId());
-				right->AddEdgeArchetypeLeft(componentType, info, left->GetArchetypeId());
+					component::ComponentId componentId) {
+				left->AddGraphEdgeRight(componentType, componentId, right->GetArchetypeId());
+				right->AddGraphEdgeLeft(componentType, componentId, left->GetArchetypeId());
 			}
 #endif
 
@@ -11415,7 +11385,7 @@ namespace gaia {
 							pArchetypeRight = CreateArchetype(component::ComponentIdSpan(&infoToAdd.componentId, 1), {});
 							pArchetypeRight->Init({genericHash}, {0}, lookupHash);
 							RegisterArchetype(pArchetypeRight);
-							BuildGraphEdges(componentType, pArchetypeLeft, pArchetypeRight, infoToAdd);
+							BuildGraphEdges(componentType, pArchetypeLeft, pArchetypeRight, infoToAdd.componentId);
 						}
 					} else {
 						const auto chunkHash = infoToAdd.lookupHash;
@@ -11425,7 +11395,7 @@ namespace gaia {
 							pArchetypeRight = CreateArchetype({}, component::ComponentIdSpan(&infoToAdd.componentId, 1));
 							pArchetypeRight->Init({0}, {chunkHash}, lookupHash);
 							RegisterArchetype(pArchetypeRight);
-							BuildGraphEdges(componentType, pArchetypeLeft, pArchetypeRight, infoToAdd);
+							BuildGraphEdges(componentType, pArchetypeLeft, pArchetypeRight, infoToAdd.componentId);
 						}
 					}
 
@@ -11434,7 +11404,7 @@ namespace gaia {
 
 				// Check if the component is found when following the "add" edges
 				{
-					const uint32_t archetypeId = pArchetypeLeft->FindAddEdgeArchetypeId(componentType, infoToAdd);
+					const uint32_t archetypeId = pArchetypeLeft->FindGraphEdgeRight(componentType, infoToAdd.componentId);
 					if (archetypeId != archetype::ArchetypeIdBad)
 						return m_archetypes[archetypeId];
 				}
@@ -11478,7 +11448,7 @@ namespace gaia {
 
 #if GAIA_ARCHETYPE_GRAPH
 					// Build the graph edges so that the next time we want to add this component we can do it the quick way
-					BuildGraphEdges(componentType, pArchetypeLeft, pArchetypeRight, infoToAdd);
+					BuildGraphEdges(componentType, pArchetypeLeft, pArchetypeRight, infoToAdd.componentId);
 #endif
 				}
 
@@ -11499,7 +11469,7 @@ namespace gaia {
 #if GAIA_ARCHETYPE_GRAPH
 				// Check if the component is found when following the "del" edges
 				{
-					const auto archetypeId = pArchetypeRight->FindDelEdgeArchetypeId(componentType, infoToRemove);
+					const auto archetypeId = pArchetypeRight->FindGraphEdgeLeft(componentType, infoToRemove.componentId);
 					if (archetypeId != archetype::ArchetypeIdBad)
 						return m_archetypes[archetypeId];
 				}
@@ -11542,7 +11512,7 @@ namespace gaia {
 
 #if GAIA_ARCHETYPE_GRAPH
 					// Build the graph edges so that the next time we want to remove this component we can do it the quick way
-					BuildGraphEdges(componentType, pArchetype, pArchetypeRight, infoToRemove);
+					BuildGraphEdges(componentType, pArchetype, pArchetypeRight, infoToRemove.componentId);
 #endif
 				}
 

@@ -264,7 +264,7 @@ namespace gaia {
 
 			//--------------------------------------------------------------------------------
 
-			GAIA_NODISCARD bool CheckFilters(const Chunk& chunk, const query::EntityQueryInfo& queryInfo) const {
+			GAIA_NODISCARD static bool CheckFilters(const Chunk& chunk, const query::EntityQueryInfo& queryInfo)  {
 				GAIA_ASSERT(chunk.HasEntities() && "CheckFilters called on an empty chunk");
 
 				const auto queryVersion = queryInfo.GetWorldVersion();
