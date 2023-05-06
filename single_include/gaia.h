@@ -881,7 +881,7 @@ namespace gaia {
 		}
 
 		void* mem_alloc_alig(size_t size, size_t alig) {
-			void* ptr = GAIA_MEM_ALLC_A(alig, size);
+			void* ptr = GAIA_MEM_ALLC_A(size, alig);
 			GAIA_PROF_ALLOC(ptr, size);
 			return ptr;
 		}
