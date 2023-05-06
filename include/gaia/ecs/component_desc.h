@@ -1,6 +1,5 @@
 #pragma once
 #include <cinttypes>
-#include <memory>
 #include <type_traits>
 
 #include "../config/config_core.h"
@@ -58,7 +57,8 @@ namespace gaia {
 							info.destructor = [](void* ptr, size_t cnt) {
 								auto first = (U*)ptr;
 								auto last = (U*)ptr + cnt;
-								std::destroy(first, last);
+								for (; first != last; ++first)
+									first->~U();
 							};
 						}
 

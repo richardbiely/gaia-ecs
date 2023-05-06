@@ -4,9 +4,6 @@
 #include <cstddef>
 #include <type_traits>
 #include <utility>
-#if !GAIA_DISABLE_ASSERTS
-	#include <memory>
-#endif
 
 #include "../../utils/iterator.h"
 #include "../../utils/mem.h"
@@ -226,7 +223,7 @@ namespace gaia {
 			constexpr sarr_ext(const sarr_ext& other) noexcept: sarr_ext(other.begin(), other.end()) {}
 
 			constexpr sarr_ext(sarr_ext&& other) noexcept: m_cnt(other.m_cnt) {
-				GAIA_ASSERT(std::addressof(other) != this);
+				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
 
 				utils::transfer_elements(m_data, other.m_data, other.size());
 
@@ -239,7 +236,7 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD constexpr sarr_ext& operator=(const sarr_ext& other) noexcept {
-				GAIA_ASSERT(std::addressof(other) != this);
+				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
 
 				resize(other.size());
 				utils::copy_elements(m_data, other.m_data, other.size());
@@ -248,7 +245,7 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD constexpr sarr_ext& operator=(sarr_ext&& other) noexcept {
-				GAIA_ASSERT(std::addressof(other) != this);
+				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
 
 				resize(other.m_cnt);
 				utils::transfer_elements(m_data, other.m_data, other.size());

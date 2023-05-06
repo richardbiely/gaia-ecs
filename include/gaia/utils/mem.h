@@ -170,6 +170,14 @@ namespace gaia {
 			}
 		};
 
+		template <typename T>
+		constexpr T* addressof(T& obj) noexcept {
+			return &obj;
+		}
+
+		template <class T>
+		const T* addressof(const T&&) = delete;
+
 		//! Copy \param size elements of type \tparam T from the address pointer to by \param src to \param dst
 		template <typename T>
 		void copy_elements(T* GAIA_RESTRICT dst, const T* GAIA_RESTRICT src, size_t size) {

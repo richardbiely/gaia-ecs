@@ -39,20 +39,25 @@
 #define ROBIN_HOOD_VERSION_PATCH 5 // for backwards-compatible bug fixes
 
 #include "../config/config_core.h"
-#include "../utils/hashing_policy.h"
-#include "../utils/iterator.h"
 #include "../utils/utility.h"
+
 #include <cstdlib>
 #include <cstring>
-#include <functional>
+#if GAIA_USE_STL_CONTAINERS
+	#include <functional>
+#endif
 #include <initializer_list>
 #include <new>
 #include <tuple>
 #include <type_traits>
 #include <utility>
 
+#include "../utils/hashing_policy.h"
+#include "../utils/iterator.h"
+#include "../utils/utility.h"
+
 // #define ROBIN_HOOD_STD_SMARTPOINTERS
-#ifdef ROBIN_HOOD_STD_SMARTPOINTERS
+#if defined(ROBIN_HOOD_STD_SMARTPOINTERS) || GAIA_USE_STL_CONTAINERS
 	#include <memory>
 #endif
 
@@ -659,6 +664,7 @@ namespace robin_hood {
 		return static_cast<size_t>(x);
 	}
 
+#if GAIA_USE_STL_CONTAINERS
 	// A thin wrapper around std::hash, performing an additional simple mixing step of the result.
 	template <typename T, typename Enable = void>
 	struct hash: public std::hash<T> {
@@ -670,6 +676,14 @@ namespace robin_hood {
 			return hash_int(static_cast<detail::SizeT>(result));
 		}
 	};
+#else
+	template <typename T, typename Enable = void>
+	struct hash {
+		size_t operator()(T const& obj) const noexcept {
+			return hash_bytes(&obj, sizeof(T));
+		}
+	};
+#endif
 
 	template <typename T>
 	struct hash<T*> {
@@ -2353,17 +2367,17 @@ namespace robin_hood {
 	// map
 
 	template <
-			typename Key, typename T, typename Hash = hash<Key>, typename KeyEqual = std::equal_to<Key>,
+			typename Key, typename T, typename Hash = hash<Key>, typename KeyEqual = GAIA_UTIL::equal_to<Key>,
 			size_t MaxLoadFactor100 = 80>
 	using unordered_flat_map = detail::Table<true, MaxLoadFactor100, Key, T, Hash, KeyEqual>;
 
 	template <
-			typename Key, typename T, typename Hash = hash<Key>, typename KeyEqual = std::equal_to<Key>,
+			typename Key, typename T, typename Hash = hash<Key>, typename KeyEqual = GAIA_UTIL::equal_to<Key>,
 			size_t MaxLoadFactor100 = 80>
 	using unordered_node_map = detail::Table<false, MaxLoadFactor100, Key, T, Hash, KeyEqual>;
 
 	template <
-			typename Key, typename T, typename Hash = hash<Key>, typename KeyEqual = std::equal_to<Key>,
+			typename Key, typename T, typename Hash = hash<Key>, typename KeyEqual = GAIA_UTIL::equal_to<Key>,
 			size_t MaxLoadFactor100 = 80>
 	using unordered_map = detail::Table<
 			sizeof(robin_hood::pair<Key, T>) <= sizeof(size_t) * 6 &&
@@ -2374,15 +2388,18 @@ namespace robin_hood {
 	// set
 
 	template <
-			typename Key, typename Hash = hash<Key>, typename KeyEqual = std::equal_to<Key>, size_t MaxLoadFactor100 = 80>
+			typename Key, typename Hash = hash<Key>, typename KeyEqual = GAIA_UTIL::equal_to<Key>,
+			size_t MaxLoadFactor100 = 80>
 	using unordered_flat_set = detail::Table<true, MaxLoadFactor100, Key, void, Hash, KeyEqual>;
 
 	template <
-			typename Key, typename Hash = hash<Key>, typename KeyEqual = std::equal_to<Key>, size_t MaxLoadFactor100 = 80>
+			typename Key, typename Hash = hash<Key>, typename KeyEqual = GAIA_UTIL::equal_to<Key>,
+			size_t MaxLoadFactor100 = 80>
 	using unordered_node_set = detail::Table<false, MaxLoadFactor100, Key, void, Hash, KeyEqual>;
 
 	template <
-			typename Key, typename Hash = hash<Key>, typename KeyEqual = std::equal_to<Key>, size_t MaxLoadFactor100 = 80>
+			typename Key, typename Hash = hash<Key>, typename KeyEqual = GAIA_UTIL::equal_to<Key>,
+			size_t MaxLoadFactor100 = 80>
 	using unordered_set = detail::Table<
 			sizeof(Key) <= sizeof(size_t) * 6 && std::is_nothrow_move_constructible<Key>::value &&
 					std::is_nothrow_move_assignable<Key>::value,

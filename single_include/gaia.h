@@ -727,9 +727,6 @@ namespace gaia {
 #include <initializer_list>
 #include <type_traits>
 #include <utility>
-#if !GAIA_DISABLE_ASSERTS
-	#include <memory>
-#endif
 
 #if GAIA_USE_STL_COMPATIBLE_CONTAINERS
 	#include <iterator>
@@ -1010,6 +1007,14 @@ namespace gaia {
 				return unaligned_pointer(m_p - d * sizeof(T));
 			}
 		};
+
+		template <typename T>
+		constexpr T* addressof(T& obj) noexcept {
+			return &obj;
+		}
+
+		template <class T>
+		const T* addressof(const T&&) = delete;
 
 		//! Copy \param size elements of type \tparam T from the address pointer to by \param src to \param dst
 		template <typename T>
@@ -1310,7 +1315,7 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD darr& operator=(const darr& other) {
-				GAIA_ASSERT(std::addressof(other) != this);
+				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
 
 				resize(other.size());
 				utils::copy_elements(m_pData, other.m_pData, other.size());
@@ -1319,7 +1324,7 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD darr& operator=(darr&& other) noexcept {
-				GAIA_ASSERT(std::addressof(other) != this);
+				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
 
 				m_cnt = other.m_cnt;
 				m_cap = other.m_cap;
@@ -1851,9 +1856,6 @@ namespace gaia {
 #include <cstddef>
 #include <type_traits>
 #include <utility>
-#if !GAIA_DISABLE_ASSERTS
-	#include <memory>
-#endif
 
 namespace gaia {
 	namespace containers {
@@ -2070,7 +2072,7 @@ namespace gaia {
 			constexpr sarr_ext(const sarr_ext& other) noexcept: sarr_ext(other.begin(), other.end()) {}
 
 			constexpr sarr_ext(sarr_ext&& other) noexcept: m_cnt(other.m_cnt) {
-				GAIA_ASSERT(std::addressof(other) != this);
+				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
 
 				utils::transfer_elements(m_data, other.m_data, other.size());
 
@@ -2083,7 +2085,7 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD constexpr sarr_ext& operator=(const sarr_ext& other) noexcept {
-				GAIA_ASSERT(std::addressof(other) != this);
+				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
 
 				resize(other.size());
 				utils::copy_elements(m_data, other.m_data, other.size());
@@ -2092,7 +2094,7 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD constexpr sarr_ext& operator=(sarr_ext&& other) noexcept {
-				GAIA_ASSERT(std::addressof(other) != this);
+				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
 
 				resize(other.m_cnt);
 				utils::transfer_elements(m_data, other.m_data, other.size());
@@ -4031,8 +4033,15 @@ namespace gaia {
 		}
 
 		//----------------------------------------------------------------------
-		// Sorting
+		// Comparison
 		//----------------------------------------------------------------------
+
+		template <typename T>
+		struct equal_to {
+			constexpr bool operator()(const T& lhs, const T& rhs) const {
+				return lhs == rhs;
+			}
+		};
 
 		template <typename T>
 		struct is_smaller {
@@ -4047,6 +4056,10 @@ namespace gaia {
 				return lhs > rhs;
 			}
 		};
+
+		//----------------------------------------------------------------------
+		// Sorting
+		//----------------------------------------------------------------------
 
 		namespace detail {
 			template <typename Array, typename TSortFunc>
@@ -5124,7 +5137,9 @@ namespace gaia {
 
 #include <cstdlib>
 #include <cstring>
-#include <functional>
+#if GAIA_USE_STL_CONTAINERS
+	#include <functional>
+#endif
 #include <initializer_list>
 #include <new>
 #include <tuple>
@@ -5132,7 +5147,7 @@ namespace gaia {
 #include <utility>
 
 // #define ROBIN_HOOD_STD_SMARTPOINTERS
-#ifdef ROBIN_HOOD_STD_SMARTPOINTERS
+#if defined(ROBIN_HOOD_STD_SMARTPOINTERS) || GAIA_USE_STL_CONTAINERS
 	#include <memory>
 #endif
 
@@ -5739,6 +5754,7 @@ namespace robin_hood {
 		return static_cast<size_t>(x);
 	}
 
+#if GAIA_USE_STL_CONTAINERS
 	// A thin wrapper around std::hash, performing an additional simple mixing step of the result.
 	template <typename T, typename Enable = void>
 	struct hash: public std::hash<T> {
@@ -5750,6 +5766,14 @@ namespace robin_hood {
 			return hash_int(static_cast<detail::SizeT>(result));
 		}
 	};
+#else
+	template <typename T, typename Enable = void>
+	struct hash {
+		size_t operator()(T const& obj) const noexcept {
+			return hash_bytes(&obj, sizeof(T));
+		}
+	};
+#endif
 
 	template <typename T>
 	struct hash<T*> {
@@ -7433,17 +7457,17 @@ namespace robin_hood {
 	// map
 
 	template <
-			typename Key, typename T, typename Hash = hash<Key>, typename KeyEqual = std::equal_to<Key>,
+			typename Key, typename T, typename Hash = hash<Key>, typename KeyEqual = GAIA_UTIL::equal_to<Key>,
 			size_t MaxLoadFactor100 = 80>
 	using unordered_flat_map = detail::Table<true, MaxLoadFactor100, Key, T, Hash, KeyEqual>;
 
 	template <
-			typename Key, typename T, typename Hash = hash<Key>, typename KeyEqual = std::equal_to<Key>,
+			typename Key, typename T, typename Hash = hash<Key>, typename KeyEqual = GAIA_UTIL::equal_to<Key>,
 			size_t MaxLoadFactor100 = 80>
 	using unordered_node_map = detail::Table<false, MaxLoadFactor100, Key, T, Hash, KeyEqual>;
 
 	template <
-			typename Key, typename T, typename Hash = hash<Key>, typename KeyEqual = std::equal_to<Key>,
+			typename Key, typename T, typename Hash = hash<Key>, typename KeyEqual = GAIA_UTIL::equal_to<Key>,
 			size_t MaxLoadFactor100 = 80>
 	using unordered_map = detail::Table<
 			sizeof(robin_hood::pair<Key, T>) <= sizeof(size_t) * 6 &&
@@ -7454,15 +7478,18 @@ namespace robin_hood {
 	// set
 
 	template <
-			typename Key, typename Hash = hash<Key>, typename KeyEqual = std::equal_to<Key>, size_t MaxLoadFactor100 = 80>
+			typename Key, typename Hash = hash<Key>, typename KeyEqual = GAIA_UTIL::equal_to<Key>,
+			size_t MaxLoadFactor100 = 80>
 	using unordered_flat_set = detail::Table<true, MaxLoadFactor100, Key, void, Hash, KeyEqual>;
 
 	template <
-			typename Key, typename Hash = hash<Key>, typename KeyEqual = std::equal_to<Key>, size_t MaxLoadFactor100 = 80>
+			typename Key, typename Hash = hash<Key>, typename KeyEqual = GAIA_UTIL::equal_to<Key>,
+			size_t MaxLoadFactor100 = 80>
 	using unordered_node_set = detail::Table<false, MaxLoadFactor100, Key, void, Hash, KeyEqual>;
 
 	template <
-			typename Key, typename Hash = hash<Key>, typename KeyEqual = std::equal_to<Key>, size_t MaxLoadFactor100 = 80>
+			typename Key, typename Hash = hash<Key>, typename KeyEqual = GAIA_UTIL::equal_to<Key>,
+			size_t MaxLoadFactor100 = 80>
 	using unordered_set = detail::Table<
 			sizeof(Key) <= sizeof(size_t) * 6 && std::is_nothrow_move_constructible<Key>::value &&
 					std::is_nothrow_move_assignable<Key>::value,
@@ -7486,7 +7513,6 @@ namespace gaia {
 #endif
 
 #include <cinttypes>
-#include <memory>
 #include <type_traits>
 
 namespace gaia {
@@ -7538,7 +7564,8 @@ namespace gaia {
 							info.destructor = [](void* ptr, size_t cnt) {
 								auto first = (U*)ptr;
 								auto last = (U*)ptr + cnt;
-								std::destroy(first, last);
+								for (; first != last; ++first)
+									first->~U();
 							};
 						}
 
@@ -9170,9 +9197,6 @@ REGISTER_HASH_TYPE(gaia::ecs::Archetype::ChunkComponentHash)
 #include <cstddef>
 #include <type_traits>
 #include <utility>
-#if !GAIA_DISABLE_ASSERTS
-	#include <memory>
-#endif
 
 namespace gaia {
 	namespace containers {
@@ -9425,7 +9449,7 @@ namespace gaia {
 			darr_ext(const darr_ext& other): darr_ext(other.begin(), other.end()) {}
 
 			darr_ext(darr_ext&& other) noexcept: m_cnt(other.m_cnt), m_cap(other.m_cap) {
-				GAIA_ASSERT(std::addressof(other) != this);
+				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
 
 				if (other.m_pData == other.m_pDataHeap) {
 					m_pData = m_pDataHeap;
@@ -9448,7 +9472,7 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD darr_ext& operator=(const darr_ext& other) {
-				GAIA_ASSERT(std::addressof(other) != this);
+				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
 
 				resize(other.size());
 				utils::copy_elements(m_pData, other.m_pData, other.size());
@@ -9457,7 +9481,7 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD darr_ext& operator=(darr_ext&& other) noexcept {
-				GAIA_ASSERT(std::addressof(other) != this);
+				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
 
 				m_cnt = other.m_cnt;
 				m_cap = other.m_cap;
@@ -10273,7 +10297,7 @@ namespace gaia {
 namespace gaia {
 	namespace ecs {
 		class EntityQueryCache {
-			using QueryCacheLookupArray = containers::darr<uint32_t>;
+			using QueryCacheLookupArray = containers::darray<uint32_t>;
 
 			containers::map<query::LookupHash, QueryCacheLookupArray> m_queryCache;
 			containers::darray<query::EntityQueryInfo> m_queryArr;
