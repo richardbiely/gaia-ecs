@@ -83,10 +83,10 @@ namespace gaia {
 						for (size_t i = 0; i < componentIds.size(); ++i) {
 							const auto componentId = componentIds[i];
 							const auto& infoCreate = cc.GetComponentDesc(componentId);
-							if (infoCreate.destructor == nullptr)
+							if (infoCreate.dtor == nullptr)
 								continue;
 							auto* pSrc = (void*)((uint8_t*)pChunk + offsets[i]);
-							infoCreate.destructor(pSrc, itemCount);
+							infoCreate.dtor(pSrc, itemCount);
 						}
 					};
 
@@ -193,7 +193,7 @@ namespace gaia {
 					for (const auto componentId: componentIdsGeneric) {
 						const auto& desc = cc.GetComponentDesc(componentId);
 						genericComponentListSize += desc.properties.size;
-						newArch->m_properties.hasGenericComponentWithCustomDestruction |= (desc.properties.destructible != 0);
+						newArch->m_properties.hasGenericComponentWithCustomDestruction |= (desc.properties.has_custom_dtor != 0);
 					}
 
 					// Size of chunk components
@@ -201,7 +201,7 @@ namespace gaia {
 					for (const auto componentId: componentIdsChunk) {
 						const auto& desc = cc.GetComponentDesc(componentId);
 						chunkComponentListSize += desc.properties.size;
-						newArch->m_properties.hasChunkComponentWithCustomDestruction |= (desc.properties.destructible != 0);
+						newArch->m_properties.hasChunkComponentWithCustomDestruction |= (desc.properties.has_custom_dtor != 0);
 					}
 
 					// TODO: Calculate the number of entities per chunks precisely so we can

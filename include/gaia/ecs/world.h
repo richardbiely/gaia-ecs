@@ -575,10 +575,10 @@ namespace gaia {
 						auto* pSrc = (void*)&pOldChunk->GetData(idxSrc);
 						auto* pDst = (void*)&pNewChunk->GetData(idxDst);
 
-						if (descNew.properties.movable == 1) {
+						if (descNew.properties.has_custom_move == 1) {
 							const auto& desc = cc.GetComponentDesc(descNew.componentId);
 							desc.move(pSrc, pDst);
-						} else if (descNew.properties.copyable == 1) {
+						} else if (descNew.properties.has_custom_copy == 1) {
 							const auto& desc = cc.GetComponentDesc(descNew.componentId);
 							desc.copy(pSrc, pDst);
 						} else
@@ -876,7 +876,7 @@ namespace gaia {
 					auto* pSrc = (void*)&pOldChunk->GetData(idxSrc);
 					auto* pDst = (void*)&pNewChunk->GetData(idxDst);
 
-					if (desc.properties.copyable == 1)
+					if (desc.properties.has_custom_copy == 1)
 						desc.copy(pSrc, pDst);
 					else
 						memmove(pDst, (const void*)pSrc, desc.properties.size);
@@ -958,7 +958,7 @@ namespace gaia {
 							auto* pSrc = (void*)&pChunkFrom->GetData(idxSrc);
 							auto* pDst = (void*)&pChunkTo->GetData(idxDst);
 
-							if (desc.properties.copyable == 1)
+							if (desc.properties.has_custom_copy == 1)
 								desc.copy(pSrc, pDst);
 							else
 								memmove(pDst, (const void*)pSrc, desc.properties.size);
@@ -1052,12 +1052,11 @@ namespace gaia {
 			\param value Value to set for the component
 			\return ComponentSetter object.
 			*/
-			template <typename T>
-			ComponentSetter AddComponent(Entity entity, typename component::DeduceComponent<T>::Type&& value) {
+			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+			ComponentSetter AddComponent(Entity entity, U&& value) {
 				component::VerifyComponent<T>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
-				using U = typename component::DeduceComponent<T>::Type;
 				const auto& info = ComponentCache::Get().GetOrCreateComponentInfo<U>();
 
 				if constexpr (component::IsGenericComponent<T>) {
