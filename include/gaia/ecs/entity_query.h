@@ -169,7 +169,7 @@ namespace gaia {
 			containers::darray<archetype::Archetype*>* m_archetypes{};
 
 			//--------------------------------------------------------------------------------
-
+		public:
 			query::EntityQueryInfo& FetchQueryInfo() {
 				// Lookup hash is present which means EntityQueryInfo was already found
 				if GAIA_LIKELY (m_queryId != query::QueryIdBad) {
@@ -187,6 +187,7 @@ namespace gaia {
 				return queryInfo;
 			}
 
+		private:
 			//--------------------------------------------------------------------------------
 
 			template <typename T>
@@ -264,7 +265,7 @@ namespace gaia {
 
 			//--------------------------------------------------------------------------------
 
-			GAIA_NODISCARD static bool CheckFilters(const Chunk& chunk, const query::EntityQueryInfo& queryInfo)  {
+			GAIA_NODISCARD static bool CheckFilters(const Chunk& chunk, const query::EntityQueryInfo& queryInfo) {
 				GAIA_ASSERT(chunk.HasEntities() && "CheckFilters called on an empty chunk");
 
 				const auto queryVersion = queryInfo.GetWorldVersion();
@@ -543,6 +544,27 @@ namespace gaia {
 					ForEachChunk_Internal(func);
 				else
 					ForEach_Internal(func);
+			}
+
+			template <typename Func>
+			void ForEach(query::QueryId queryId, Func func) {
+				using InputArgs = decltype(utils::func_args(&Func::operator()));
+
+				// Make sure the query was created by World.CreateQuery()
+				GAIA_ASSERT(m_entityQueryCache != nullptr);
+
+				auto& queryInfo = m_entityQueryCache->Get(queryId);
+
+#if GAIA_DEBUG
+				if (!std::is_invocable<Func, Chunk&>::value) {
+					// Make sure we only use components specified in the query
+					GAIA_ASSERT(UnpackArgsIntoQuery_HasAll(queryInfo, InputArgs{}));
+				}
+#endif
+
+				RunQueryOnChunks_Internal(queryInfo, [&](Chunk& chunk) {
+					chunk.ForEach(InputArgs{}, func);
+				});
 			}
 
 			/*!
