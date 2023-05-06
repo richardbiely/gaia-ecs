@@ -10096,10 +10096,10 @@ namespace gaia {
 						return HasComponent_Internal<U>(listType, component::ComponentType::CT_Chunk, isReadWrite);
 				}
 
-				//! Tries to match component ids in \param componentIdsQuery with those in \param componentIds.
-				//! \return True if there is a match, false otherwise.
-				static GAIA_NODISCARD bool CheckMatchOne(
-						const archetype::ComponentIdArray& componentIds, const query::ComponentIdArray& componentIdsQuery) {
+				template <typename Func>
+				static GAIA_NODISCARD bool CheckMatch_Internal(
+						const archetype::ComponentIdArray& componentIds, const query::ComponentIdArray& componentIdsQuery,
+						Func func) {
 					// Arrays are sorted so we can do linear intersection lookup
 					size_t i = 0;
 					size_t j = 0;
@@ -10107,7 +10107,7 @@ namespace gaia {
 						const auto componentId = componentIds[i];
 						const auto componentIdQuery = componentIdsQuery[j];
 
-						if (componentId == componentIdQuery)
+						if (func(componentId, componentIdQuery))
 							return true;
 
 						if (component::SortComponentCond{}.operator()(componentId, componentIdQuery))
@@ -10119,31 +10119,27 @@ namespace gaia {
 					return false;
 				}
 
+				//! Tries to match component ids in \param componentIdsQuery with those in \param componentIds.
+				//! \return True if there is a match, false otherwise.
+				static GAIA_NODISCARD bool CheckMatchOne(
+						const archetype::ComponentIdArray& componentIds, const query::ComponentIdArray& componentIdsQuery) {
+					return CheckMatch_Internal(
+							componentIds, componentIdsQuery,
+							[](component::ComponentId componentId, component::ComponentId componentIdQuery) {
+								return componentId == componentIdQuery;
+							});
+				}
+
 				//! Tries to match all component ids in \param componentIdsQuery with those in \param componentIds.
 				//! \return True if there is a match, false otherwise.
 				static GAIA_NODISCARD bool CheckMatchMany(
 						const archetype::ComponentIdArray& componentIds, const query::ComponentIdArray& componentIdsQuery) {
 					size_t matches = 0;
-
-					// Arrays are sorted so we can do linear intersection lookup
-					size_t i = 0;
-					size_t j = 0;
-					while (i < componentIds.size() && j < componentIdsQuery.size()) {
-						const auto componentId = componentIds[i];
-						const auto componentIdQuery = componentIdsQuery[j];
-
-						if (componentId == componentIdQuery) {
-							if (++matches == componentIdsQuery.size())
-								return true;
-						}
-
-						if (component::SortComponentCond{}.operator()(componentId, componentIdQuery))
-							++i;
-						else
-							++j;
-					}
-
-					return false;
+					return CheckMatch_Internal(
+							componentIds, componentIdsQuery,
+							[&](component::ComponentId componentId, component::ComponentId componentIdQuery) {
+								return (componentId == componentIdQuery) && (++matches == componentIdsQuery.size());
+							});
 				}
 
 				//! Tries to match component with component type \param componentType from the archetype \param archetype with
