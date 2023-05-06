@@ -251,15 +251,15 @@ namespace gaia {
 						auto* pSrc = (void*)&m_data[idxSrc];
 						auto* pDst = (void*)&m_data[idxDst];
 
-						if (desc.properties.movable == 1) {
+						if (desc.properties.has_custom_move == 1) {
 							desc.move(pSrc, pDst);
-						} else if (desc.properties.copyable == 1) {
+						} else if (desc.properties.has_custom_copy == 1) {
 							desc.copy(pSrc, pDst);
 						} else
 							memmove(pDst, (const void*)pSrc, desc.properties.size);
 
-						if (desc.properties.destructible == 1)
-							desc.destructor(pSrc, 1);
+						if (desc.properties.has_custom_dtor == 1)
+							desc.dtor(pSrc, 1);
 					}
 
 					// Entity has been replaced with the last one in chunk.

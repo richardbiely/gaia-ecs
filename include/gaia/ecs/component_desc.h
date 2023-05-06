@@ -12,14 +12,14 @@ namespace gaia {
 	namespace ecs {
 		namespace component {
 			struct ComponentDesc final {
-				using FuncDestructor = void(void*, size_t);
+				using FuncDtor = void(void*, size_t);
 				using FuncCopy = void(void*, void*);
 				using FuncMove = void(void*, void*);
 
 				//! Component name
 				std::span<const char> name;
 				//! Destructor to call when the component is destroyed
-				FuncDestructor* destructor = nullptr;
+				FuncDtor* dtor = nullptr;
 				//! Function to call when the component is copied
 				FuncMove* copy = nullptr;
 				//! Fucntion to call when the component is moved
@@ -35,12 +35,12 @@ namespace gaia {
 					uint32_t size: MAX_COMPONENTS_SIZE_BITS;
 					//! Tells if the component is laid out in SoA style
 					uint32_t soa : 1;
-					//! Tells if the component is destructible
-					uint32_t destructible : 1;
-					//! Tells if the component is copyable
-					uint32_t copyable : 1;
-					//! Tells if the component is movable
-					uint32_t movable : 1;
+					//! Tells if the component has custom "destructor" handling
+					uint32_t has_custom_dtor : 1;
+					//! Tells if the component has custom "copy" handling
+					uint32_t has_custom_copy : 1;
+					//! Tells if the component has custom "move" handling
+					uint32_t has_custom_move : 1;
 				} properties{};
 
 				template <typename T>
@@ -54,7 +54,7 @@ namespace gaia {
 					if constexpr (!std::is_empty_v<U> && !utils::is_soa_layout_v<U>) {
 						// Custom destruction
 						if constexpr (!std::is_trivially_destructible_v<U>) {
-							info.destructor = [](void* ptr, size_t cnt) {
+							info.dtor = [](void* ptr, size_t cnt) {
 								auto first = (U*)ptr;
 								auto last = (U*)ptr + cnt;
 								for (; first != last; ++first)
@@ -102,11 +102,12 @@ namespace gaia {
 						if constexpr (utils::is_soa_layout_v<U>) {
 							info.properties.soa = 1;
 						} else {
-							info.properties.destructible = !std::is_trivially_destructible_v<U>;
-							info.properties.copyable =
+							info.properties.has_custom_dtor = !std::is_trivially_destructible_v<U>;
+							info.properties.has_custom_copy =
 									!std::is_trivially_copyable_v<U> && (std::is_copy_assignable_v<U> || std::is_copy_constructible_v<U>);
-							info.properties.movable = (!std::is_trivially_move_assignable_v<U> && std::is_move_assignable_v<U>) ||
-																				(!std::is_trivially_move_constructible_v<U> && std::is_move_constructible_v<U>);
+							info.properties.has_custom_move =
+									(!std::is_trivially_move_assignable_v<U> && std::is_move_assignable_v<U>) ||
+									(!std::is_trivially_move_constructible_v<U> && std::is_move_constructible_v<U>);
 						}
 					}
 
