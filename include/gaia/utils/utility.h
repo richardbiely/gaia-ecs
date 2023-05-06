@@ -7,6 +7,8 @@
 #include <tuple>
 #include <type_traits>
 
+#include "../utils/iterator.h"
+
 namespace gaia {
 	constexpr size_t BadIndex = size_t(-1);
 
