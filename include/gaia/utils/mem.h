@@ -1,69 +1,52 @@
 #pragma once
 #include <cinttypes>
 #include <cstring>
+#include <stdlib.h>
 #include <type_traits>
 #include <utility>
 
 #include "../config/profiler.h"
 
-#if defined(__GLIBC__) || defined(__sun) || defined(__CYGWIN__)
-	#include <alloca.h>
-#elif defined(_WIN32)
-	#include <malloc.h>
+#if defined(_WIN32) && defined(_MSC_VER)
+	#define GAIA_MEM_ALLC(size) malloc(size)
+	#define GAIA_MEM_FREE(ptr) free(ptr)
+
+	// Clang with MSVC codegen needs some remapping
+	#if !defined(aligned_alloc)
+		#define GAIA_MEM_ALLC_A(size, alig) _aligned_malloc(size, alig)
+		#define GAIA_MEM_FREE_A(ptr) _aligned_free(ptr)
+	#else
+		#define GAIA_MEM_ALLC_A(size, alig) aligned_alloc(alig, size)
+		#define GAIA_MEM_FREE_A(ptr) aligned_free(ptr)
+	#endif
+#else
+	#define GAIA_MEM_ALLC(size) malloc(size)
+	#define GAIA_MEM_ALLC_A(size, alig) aligned_alloc(alig, size)
+	#define GAIA_MEM_FREE(ptr) free(ptr)
+	#define GAIA_MEM_FREE_A(ptr) free(ptr)
 #endif
 
 namespace gaia {
 	namespace utils {
-		void* alloc(size_t size) {
-			void* ptr = ::malloc(size);
+		void* mem_alloc(size_t size) {
+			void* ptr = GAIA_MEM_ALLC(size);
 			GAIA_PROF_ALLOC(ptr, size);
 			return ptr;
 		}
 
-		void* alloc_alig(size_t alig, size_t size) {
-#if defined(__GLIBC__) || defined(__sun) || defined(__CYGWIN__)
-			void* ptr = ::aligned_alloc(alig, size);
-#elif defined(_WIN32)
-	// Clang with MSVC codegen needs some remapping
-	#if !defined(aligned_alloc)
-			void* ptr = ::_aligned_malloc(size, alig);
-	#else
-			void* ptr = ::aligned_alloc(alig, size);
-	#endif
-#else
-			void* ptr = ::aligned_alloc(alig, size);
-#endif
-
+		void* mem_alloc_alig(size_t size, size_t alig) {
+			void* ptr = GAIA_MEM_ALLC_A(alig, size);
 			GAIA_PROF_ALLOC(ptr, size);
 			return ptr;
 		}
 
-		void free(void* ptr) {
-			::free(ptr);
+		void mem_free(void* ptr) {
+			GAIA_MEM_FREE(ptr);
 			GAIA_PROF_FREE(ptr);
 		}
 
-		void free_alig(void* ptr) {
-#if defined(__GLIBC__) || defined(__sun) || defined(__CYGWIN__)
-	#if !defined(aligned_free)
-			::free(ptr);
-	#else
-			::aligned_free(ptr);
-	#endif
-#elif defined(_WIN32)
-	#if !defined(aligned_free)
-			::_aligned_free(ptr);
-	#else
-			::aligned_free(ptr);
-	#endif
-#else
-	#if !defined(aligned_free)
-			::free(ptr);
-	#else
-			::aligned_free(ptr);
-	#endif
-#endif
-
+		void mem_free_alig(void* ptr) {
+			GAIA_MEM_FREE_A(ptr);
 			GAIA_PROF_FREE(ptr);
 		}
 

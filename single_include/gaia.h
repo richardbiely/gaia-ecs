@@ -849,67 +849,50 @@ namespace gaia {
 
 #include <cinttypes>
 #include <cstring>
+#include <stdlib.h>
 #include <type_traits>
 #include <utility>
 
-#if defined(__GLIBC__) || defined(__sun) || defined(__CYGWIN__)
-	#include <alloca.h>
-#elif defined(_WIN32)
-	#include <malloc.h>
+#if defined(_WIN32) && defined(_MSC_VER)
+	#define GAIA_MEM_ALLC(size) malloc(size)
+	#define GAIA_MEM_FREE(ptr) free(ptr)
+
+	// Clang with MSVC codegen needs some remapping
+	#if !defined(aligned_alloc)
+		#define GAIA_MEM_ALLC_A(size, alig) _aligned_malloc(size, alig)
+		#define GAIA_MEM_FREE_A(ptr) _aligned_free(ptr)
+	#else
+		#define GAIA_MEM_ALLC_A(size, alig) aligned_alloc(alig, size)
+		#define GAIA_MEM_FREE_A(ptr) aligned_free(ptr)
+	#endif
+#else
+	#define GAIA_MEM_ALLC(size) malloc(size)
+	#define GAIA_MEM_ALLC_A(size, alig) aligned_alloc(alig, size)
+	#define GAIA_MEM_FREE(ptr) free(ptr)
+	#define GAIA_MEM_FREE_A(ptr) free(ptr)
 #endif
 
 namespace gaia {
 	namespace utils {
-		void* alloc(size_t size) {
-			void* ptr = ::malloc(size);
+		void* mem_alloc(size_t size) {
+			void* ptr = GAIA_MEM_ALLC(size);
 			GAIA_PROF_ALLOC(ptr, size);
 			return ptr;
 		}
 
-		void* alloc_alig(size_t alig, size_t size) {
-#if defined(__GLIBC__) || defined(__sun) || defined(__CYGWIN__)
-			void* ptr = ::aligned_alloc(alig, size);
-#elif defined(_WIN32)
-	// Clang with MSVC codegen needs some remapping
-	#if !defined(aligned_alloc)
-			void* ptr = ::_aligned_malloc(size, alig);
-	#else
-			void* ptr = ::aligned_alloc(alig, size);
-	#endif
-#else
-			void* ptr = ::aligned_alloc(alig, size);
-#endif
-
+		void* mem_alloc_alig(size_t size, size_t alig) {
+			void* ptr = GAIA_MEM_ALLC_A(alig, size);
 			GAIA_PROF_ALLOC(ptr, size);
 			return ptr;
 		}
 
-		void free(void* ptr) {
-			::free(ptr);
+		void mem_free(void* ptr) {
+			GAIA_MEM_FREE(ptr);
 			GAIA_PROF_FREE(ptr);
 		}
 
-		void free_alig(void* ptr) {
-#if defined(__GLIBC__) || defined(__sun) || defined(__CYGWIN__)
-	#if !defined(aligned_free)
-			::free(ptr);
-	#else
-			::aligned_free(ptr);
-	#endif
-#elif defined(_WIN32)
-	#if !defined(aligned_free)
-			::_aligned_free(ptr);
-	#else
-			::aligned_free(ptr);
-	#endif
-#else
-	#if !defined(aligned_free)
-			::free(ptr);
-	#else
-			::aligned_free(ptr);
-	#endif
-#endif
-
+		void mem_free_alig(void* ptr) {
+			GAIA_MEM_FREE_A(ptr);
 			GAIA_PROF_FREE(ptr);
 		}
 
@@ -5024,12 +5007,12 @@ namespace gaia {
 
 		private:
 			static MemoryPage* AllocPage() {
-				auto* pPageData = utils::alloc_alig(16, MemoryPage::Size);
+				auto* pPageData = utils::mem_alloc_alig(MemoryPage::Size, 16);
 				return new MemoryPage(pPageData);
 			}
 
 			static void FreePage(MemoryPage* page) {
-				utils::free_alig(page->m_data);
+				utils::mem_free_alig(page->m_data);
 				delete page;
 			}
 		};
@@ -5428,7 +5411,7 @@ namespace robin_hood {
 				while (mListForFree) {
 					T* tmp = *mListForFree;
 					ROBIN_HOOD_LOG("std::free")
-					std::free(mListForFree);
+					gaia::utils::mem_free(mListForFree);
 					mListForFree = reinterpret_cast_no_cast_align_warning<T**>(tmp);
 				}
 				mHead = nullptr;
@@ -5457,14 +5440,14 @@ namespace robin_hood {
 			}
 
 			// Adds an already allocated block of memory to the allocator. This allocator is from now on
-			// responsible for freeing the data (with free()). If the provided data is not large enough to
+			// responsible for freeing the data (with mem_free()). If the provided data is not large enough to
 			// make use of, it is immediately freed. Otherwise it is reused and freed in the destructor.
 			void addOrFree(void* ptr, const size_t numBytes) noexcept {
 				// calculate number of available elements in ptr
 				if (numBytes < ALIGNMENT + ALIGNED_SIZE) {
 					// not enough data for at least one element. Free and return.
 					ROBIN_HOOD_LOG("std::free")
-					std::free(ptr);
+					gaia::utils::mem_free(ptr);
 				} else {
 					ROBIN_HOOD_LOG("add to buffer")
 					add(ptr, numBytes);
@@ -5529,8 +5512,9 @@ namespace robin_hood {
 				// alloc new memory: [prev |T, T, ... T]
 				size_t const bytes = ALIGNMENT + ALIGNED_SIZE * numElementsToAlloc;
 				ROBIN_HOOD_LOG(
-						"std::malloc " << bytes << " = " << ALIGNMENT << " + " << ALIGNED_SIZE << " * " << numElementsToAlloc)
-				add(assertNotNull<std::bad_alloc>(std::malloc(bytes)), bytes);
+						"gaia::utils::mem_alloc " << bytes << " = " << ALIGNMENT << " + " << ALIGNED_SIZE << " * "
+																			<< numElementsToAlloc)
+				add(assertNotNull<std::bad_alloc>(gaia::utils::mem_alloc(bytes)), bytes);
 				return mHead;
 			}
 
@@ -5560,7 +5544,7 @@ namespace robin_hood {
 			// we are not using the data, so just free it.
 			void addOrFree(void* ptr, size_t ROBIN_HOOD_UNUSED(numBytes) /*unused*/) noexcept {
 				ROBIN_HOOD_LOG("std::free")
-				std::free(ptr);
+				gaia::utils::mem_free(ptr);
 			}
 		};
 
@@ -6565,9 +6549,10 @@ namespace robin_hood {
 					auto const numElementsWithBuffer = calcNumElementsWithBuffer(o.mMask + 1);
 					auto const numBytesTotal = calcNumBytesTotal(numElementsWithBuffer);
 
-					ROBIN_HOOD_LOG("std::malloc " << numBytesTotal << " = calcNumBytesTotal(" << numElementsWithBuffer << ")")
+					ROBIN_HOOD_LOG(
+							"gaia::utils::mem_alloc " << numBytesTotal << " = calcNumBytesTotal(" << numElementsWithBuffer << ")")
 					mHashMultiplier = o.mHashMultiplier;
-					mKeyVals = static_cast<Node*>(detail::assertNotNull<std::bad_alloc>(std::malloc(numBytesTotal)));
+					mKeyVals = static_cast<Node*>(detail::assertNotNull<std::bad_alloc>(gaia::utils::mem_alloc(numBytesTotal)));
 					// no need for calloc because clonData does memcpy
 					mInfo = reinterpret_cast<uint8_t*>(mKeyVals + numElementsWithBuffer);
 					mNumElements = o.mNumElements;
@@ -6616,13 +6601,14 @@ namespace robin_hood {
 					if (0 != mMask) {
 						// only deallocate if we actually have data!
 						ROBIN_HOOD_LOG("std::free")
-						std::free(mKeyVals);
+						gaia::utils::mem_free(mKeyVals);
 					}
 
 					auto const numElementsWithBuffer = calcNumElementsWithBuffer(o.mMask + 1);
 					auto const numBytesTotal = calcNumBytesTotal(numElementsWithBuffer);
-					ROBIN_HOOD_LOG("std::malloc " << numBytesTotal << " = calcNumBytesTotal(" << numElementsWithBuffer << ")")
-					mKeyVals = static_cast<Node*>(detail::assertNotNull<std::bad_alloc>(std::malloc(numBytesTotal)));
+					ROBIN_HOOD_LOG(
+							"gaia::utils::mem_alloc " << numBytesTotal << " = calcNumBytesTotal(" << numElementsWithBuffer << ")")
+					mKeyVals = static_cast<Node*>(detail::assertNotNull<std::bad_alloc>(gaia::utils::mem_alloc(numBytesTotal)));
 
 					// no need for calloc here because cloneData performs a memcpy.
 					mInfo = reinterpret_cast<uint8_t*>(mKeyVals + numElementsWithBuffer);
@@ -7201,7 +7187,7 @@ namespace robin_hood {
 					if (oldKeyVals != reinterpret_cast_no_cast_align_warning<Node*>(&mMask)) {
 						// don't destroy old data: put it into the pool instead
 						if (forceFree) {
-							std::free(oldKeyVals);
+							gaia::utils::mem_free(oldKeyVals);
 						} else {
 							DataPool::addOrFree(oldKeyVals, calcNumBytesTotal(oldMaxElementsWithBuffer));
 						}
@@ -7288,7 +7274,8 @@ namespace robin_hood {
 				// malloc & zero mInfo. Faster than calloc everything.
 				auto const numBytesTotal = calcNumBytesTotal(numElementsWithBuffer);
 				ROBIN_HOOD_LOG("std::calloc " << numBytesTotal << " = calcNumBytesTotal(" << numElementsWithBuffer << ")")
-				mKeyVals = reinterpret_cast<Node*>(detail::assertNotNull<std::bad_alloc>(std::malloc(numBytesTotal)));
+				mKeyVals =
+						reinterpret_cast<Node*>(detail::assertNotNull<std::bad_alloc>(gaia::utils::mem_alloc(numBytesTotal)));
 				mInfo = reinterpret_cast<uint8_t*>(mKeyVals + numElementsWithBuffer);
 				std::memset(mInfo, 0, numBytesTotal - numElementsWithBuffer * sizeof(Node));
 
@@ -7434,7 +7421,7 @@ namespace robin_hood {
 				// [-Werror=free-nonheap-object]
 				if (mKeyVals != reinterpret_cast_no_cast_align_warning<Node*>(&mMask)) {
 					ROBIN_HOOD_LOG("std::free")
-					std::free(mKeyVals);
+					gaia::utils::mem_free(mKeyVals);
 				}
 			}
 

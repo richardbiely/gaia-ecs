@@ -329,12 +329,12 @@ namespace gaia {
 
 		private:
 			static MemoryPage* AllocPage() {
-				auto* pPageData = utils::alloc_alig(16, MemoryPage::Size);
+				auto* pPageData = utils::mem_alloc_alig(MemoryPage::Size, 16);
 				return new MemoryPage(pPageData);
 			}
 
 			static void FreePage(MemoryPage* page) {
-				utils::free_alig(page->m_data);
+				utils::mem_free_alig(page->m_data);
 				delete page;
 			}
 		};
