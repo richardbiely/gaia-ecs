@@ -8112,7 +8112,7 @@ namespace gaia {
 				SetEntity(index, entity);
 
 				const auto& componentIds = m_header.componentIds[component::ComponentType::CT_Generic];
-				const auto& componentOffsets = m_header.componentIds[component::ComponentType::CT_Generic];
+				const auto& componentOffsets = m_header.componentOffsets[component::ComponentType::CT_Generic];
 
 				for (size_t i = 0; i < componentIds.size(); i++) {
 					const auto& desc = ComponentCache::Get().GetComponentDesc(componentIds[i]);
@@ -8155,7 +8155,7 @@ namespace gaia {
 					SetEntity(index, entity);
 
 					const auto& componentIds = m_header.componentIds[component::ComponentType::CT_Generic];
-					const auto& componentOffsets = m_header.componentIds[component::ComponentType::CT_Generic];
+					const auto& componentOffsets = m_header.componentOffsets[component::ComponentType::CT_Generic];
 
 					for (size_t i = 0; i < componentIds.size(); i++) {
 						const auto& desc = ComponentCache::Get().GetComponentDesc(componentIds[i]);
@@ -8244,11 +8244,11 @@ namespace gaia {
 				GAIA_ASSERT(HasComponent(componentType, componentId));
 
 				const auto& componentIds = m_header.componentIds[componentType];
-				const auto& offsets = m_header.componentOffsets[componentType];
+				const auto& componentOffsets = m_header.componentOffsets[componentType];
 				const auto componentIdx = (uint32_t)utils::get_index_unsafe(componentIds, componentId);
-				const auto offset = offsets[componentIdx];
+				const auto componentOffset = componentOffsets[componentIdx];
 
-				return (const uint8_t*)&m_data[offset];
+				return (const uint8_t*)&m_data[componentOffset];
 			}
 
 			/*!
@@ -8269,9 +8269,9 @@ namespace gaia {
 				GAIA_ASSERT(ComponentCache::Get().GetComponentDesc(componentId).properties.size != 0);
 
 				const auto& componentIds = m_header.componentIds[componentType];
-				const auto& offsets = m_header.componentOffsets[componentType];
+				const auto& componentOffsets = m_header.componentOffsets[componentType];
 				const auto componentIdx = (uint32_t)utils::get_index_unsafe(componentIds, componentId);
-				const auto offset = offsets[componentIdx];
+				const auto componentOffset = componentOffsets[componentIdx];
 
 				if constexpr (UpdateWorldVersion) {
 					UpdateVersion(m_header.worldVersion);
@@ -8279,7 +8279,7 @@ namespace gaia {
 					m_header.UpdateWorldVersion(componentType, componentIdx);
 				}
 
-				return (uint8_t*)&m_data[offset];
+				return (uint8_t*)&m_data[componentOffset];
 			}
 
 			//----------------------------------------------------------------------
