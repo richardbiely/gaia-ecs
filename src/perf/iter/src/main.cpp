@@ -18,13 +18,11 @@ void BM_CreateEntity(picobench::state& state) {
 		(void)_;
 		ecs::World w;
 
-#if GAIA_ARCHETYPE_GRAPH
 		// Simulate the hot path. This happens when the component was
 		// added at least once and thus the graph edges are already created.
 		state.stop_timer();
 		AddEntities(w, 1);
 		state.start_timer();
-#endif
 
 		AddEntities(w, NEntities);
 	}
@@ -61,13 +59,11 @@ void BM_CreateEntity_With_Component(picobench::state& state) {
 		(void)s;
 		ecs::World w;
 
-#if GAIA_ARCHETYPE_GRAPH
 		// Simulate the hot path. This happens when the component was
 		// added at least once and thus the graph edges are already created.
 		state.stop_timer();
 		AddComponents<float, 0, Iterations>(w, 1);
 		state.start_timer();
-#endif
 
 		AddComponents<float, 0, Iterations>(w, NEntities);
 	}

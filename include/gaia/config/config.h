@@ -63,11 +63,6 @@
 	#define GAIA_USE_PREFETCH 1
 #endif
 
-//! If enabled, archetype graph is used to speed up component adding and removal.
-#ifndef GAIA_ARCHETYPE_GRAPH
-	#define GAIA_ARCHETYPE_GRAPH 1
-#endif
-
 //------------------------------------------------------------------------------
 
 #include "config_core_end.h"
