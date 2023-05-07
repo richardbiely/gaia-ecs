@@ -276,15 +276,6 @@ namespace gaia {
 			}
 #endif
 
-#if GAIA_ARCHETYPE_GRAPH
-			static GAIA_FORCEINLINE void BuildGraphEdges(
-					component::ComponentType componentType, archetype::Archetype* left, archetype::Archetype* right,
-					component::ComponentId componentId) {
-				left->AddGraphEdgeRight(componentType, componentId, right->GetArchetypeId());
-				right->AddGraphEdgeLeft(componentType, componentId, left->GetArchetypeId());
-			}
-#endif
-
 			/*!
 			Searches for an archetype which is formed by adding \param componentType to \param pArchetypeLeft.
 			If no such archetype is found a new one is created.
@@ -310,7 +301,7 @@ namespace gaia {
 							pArchetypeRight = CreateArchetype(component::ComponentIdSpan(&infoToAdd.componentId, 1), {});
 							pArchetypeRight->Init({genericHash}, {0}, lookupHash);
 							RegisterArchetype(pArchetypeRight);
-							BuildGraphEdges(componentType, pArchetypeLeft, pArchetypeRight, infoToAdd.componentId);
+							pArchetypeLeft->BuildGraphEdges(pArchetypeRight, componentType, infoToAdd.componentId);
 						}
 					} else {
 						const auto chunkHash = infoToAdd.lookupHash;
@@ -320,7 +311,7 @@ namespace gaia {
 							pArchetypeRight = CreateArchetype({}, component::ComponentIdSpan(&infoToAdd.componentId, 1));
 							pArchetypeRight->Init({0}, {chunkHash}, lookupHash);
 							RegisterArchetype(pArchetypeRight);
-							BuildGraphEdges(componentType, pArchetypeLeft, pArchetypeRight, infoToAdd.componentId);
+							pArchetypeRight->BuildGraphEdges(pArchetypeLeft, componentType, infoToAdd.componentId);
 						}
 					}
 
@@ -373,7 +364,7 @@ namespace gaia {
 
 #if GAIA_ARCHETYPE_GRAPH
 					// Build the graph edges so that the next time we want to add this component we can do it the quick way
-					BuildGraphEdges(componentType, pArchetypeLeft, pArchetypeRight, infoToAdd.componentId);
+					pArchetypeLeft->BuildGraphEdges(pArchetypeRight, componentType, infoToAdd.componentId);
 #endif
 				}
 
@@ -437,7 +428,7 @@ namespace gaia {
 
 #if GAIA_ARCHETYPE_GRAPH
 					// Build the graph edges so that the next time we want to remove this component we can do it the quick way
-					BuildGraphEdges(componentType, pArchetype, pArchetypeRight, infoToRemove.componentId);
+					pArchetype->BuildGraphEdges(pArchetypeRight, componentType, infoToRemove.componentId);
 #endif
 				}
 
