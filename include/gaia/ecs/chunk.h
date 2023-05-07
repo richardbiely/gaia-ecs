@@ -422,10 +422,8 @@ namespace gaia {
 			\param index Index of entity in the chunk
 			\param value Value to set for the component
 			*/
-			template <typename T>
-			void SetComponent(uint32_t index, typename component::DeduceComponent<T>::Type&& value) {
-				using U = typename component::DeduceComponent<T>::Type;
-
+			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+			void SetComponent(uint32_t index, U&& value) {
 				static_assert(
 						component::IsGenericComponent<T>,
 						"SetComponent providing an index can only be used with generic components");
@@ -440,10 +438,8 @@ namespace gaia {
 			\tparam T Component
 			\param value Value to set for the component
 			*/
-			template <typename T>
-			void SetComponent(typename component::DeduceComponent<T>::Type&& value) {
-				using U = typename component::DeduceComponent<T>::Type;
-
+			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+			void SetComponent(U&& value) {
 				static_assert(
 						!component::IsGenericComponent<T>,
 						"SetComponent not providing an index can only be used with chunk components");
@@ -460,10 +456,8 @@ namespace gaia {
 			\param index Index of entity in the chunk
 			\param value Value to set for the component
 			*/
-			template <typename T>
-			void SetComponentSilent(uint32_t index, typename component::DeduceComponent<T>::Type&& value) {
-				using U = typename component::DeduceComponent<T>::Type;
-
+			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+			void SetComponentSilent(uint32_t index, U&& value) {
 				static_assert(
 						component::IsGenericComponent<T>,
 						"SetComponentSilent providing an index can only be used with generic components");
@@ -479,10 +473,8 @@ namespace gaia {
 			\tparam T Component
 			\param value Value to set for the component
 			*/
-			template <typename T>
-			void SetComponentSilent(typename component::DeduceComponent<T>::Type&& value) {
-				using U = typename component::DeduceComponent<T>::Type;
-
+			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+			void SetComponentSilent(U&& value) {
 				static_assert(
 						!component::IsGenericComponent<T>,
 						"SetComponentSilent not providing an index can only be used with chunk components");

@@ -36,9 +36,8 @@ namespace gaia {
 			Chunk* m_pChunk;
 			uint32_t m_idx;
 
-			template <typename T>
-			ComponentSetter& SetComponent(typename component::DeduceComponent<T>::Type&& data) {
-				using U = typename component::DeduceComponent<T>::Type;
+			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+			ComponentSetter& SetComponent(U&& data) {
 				if constexpr (component::IsGenericComponent<T>)
 					m_pChunk->template SetComponent<T>(m_idx, std::forward<U>(data));
 				else
@@ -46,9 +45,8 @@ namespace gaia {
 				return *this;
 			}
 
-			template <typename T>
-			ComponentSetter& SetComponentSilent(typename component::DeduceComponent<T>::Type&& data) {
-				using U = typename component::DeduceComponent<T>::Type;
+			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+			ComponentSetter& SetComponentSilent(U&& data) {
 				if constexpr (component::IsGenericComponent<T>)
 					m_pChunk->template SetComponentSilent<T>(m_idx, std::forward<U>(data));
 				else
@@ -1100,14 +1098,13 @@ namespace gaia {
 			\param value Value to set for the component
 			\return ComponentSetter object.
 			*/
-			template <typename T>
-			ComponentSetter SetComponent(Entity entity, typename component::DeduceComponent<T>::Type&& value) {
+			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+			ComponentSetter SetComponent(Entity entity, U&& value) {
 				component::VerifyComponent<T>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
-				return ComponentSetter{entityContainer.pChunk, entityContainer.idx}.SetComponent<T>(
-						std::forward<typename component::DeduceComponent<T>::Type>(value));
+				return ComponentSetter{entityContainer.pChunk, entityContainer.idx}.SetComponent<T>(std::forward<U>(value));
 			}
 
 			/*!
@@ -1119,14 +1116,14 @@ namespace gaia {
 			\param value Value to set for the component
 			\return ComponentSetter object.
 			*/
-			template <typename T>
-			ComponentSetter SetComponentSilent(Entity entity, typename component::DeduceComponent<T>::Type&& value) {
+			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+			ComponentSetter SetComponentSilent(Entity entity, U&& value) {
 				component::VerifyComponent<T>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
 				return ComponentSetter{entityContainer.pChunk, entityContainer.idx}.SetComponentSilent<T>(
-						std::forward<typename component::DeduceComponent<T>::Type>(value));
+						std::forward<U>(value));
 			}
 
 			/*!

@@ -8324,10 +8324,8 @@ namespace gaia {
 			\param index Index of entity in the chunk
 			\param value Value to set for the component
 			*/
-			template <typename T>
-			void SetComponent(uint32_t index, typename component::DeduceComponent<T>::Type&& value) {
-				using U = typename component::DeduceComponent<T>::Type;
-
+			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+			void SetComponent(uint32_t index, U&& value) {
 				static_assert(
 						component::IsGenericComponent<T>,
 						"SetComponent providing an index can only be used with generic components");
@@ -8342,10 +8340,8 @@ namespace gaia {
 			\tparam T Component
 			\param value Value to set for the component
 			*/
-			template <typename T>
-			void SetComponent(typename component::DeduceComponent<T>::Type&& value) {
-				using U = typename component::DeduceComponent<T>::Type;
-
+			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+			void SetComponent(U&& value) {
 				static_assert(
 						!component::IsGenericComponent<T>,
 						"SetComponent not providing an index can only be used with chunk components");
@@ -8362,10 +8358,8 @@ namespace gaia {
 			\param index Index of entity in the chunk
 			\param value Value to set for the component
 			*/
-			template <typename T>
-			void SetComponentSilent(uint32_t index, typename component::DeduceComponent<T>::Type&& value) {
-				using U = typename component::DeduceComponent<T>::Type;
-
+			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+			void SetComponentSilent(uint32_t index, U&& value) {
 				static_assert(
 						component::IsGenericComponent<T>,
 						"SetComponentSilent providing an index can only be used with generic components");
@@ -8381,10 +8375,8 @@ namespace gaia {
 			\tparam T Component
 			\param value Value to set for the component
 			*/
-			template <typename T>
-			void SetComponentSilent(typename component::DeduceComponent<T>::Type&& value) {
-				using U = typename component::DeduceComponent<T>::Type;
-
+			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+			void SetComponentSilent(U&& value) {
 				static_assert(
 						!component::IsGenericComponent<T>,
 						"SetComponentSilent not providing an index can only be used with chunk components");
@@ -9585,7 +9577,7 @@ namespace gaia {
 				}
 
 				if (m_pDataHeap) {
-					T* old = m_data;
+					T* old = m_pDataHeap;
 					m_pDataHeap = new T[count];
 					utils::transfer_elements(m_pDataHeap, old, size());
 					delete[] old;
@@ -11189,9 +11181,8 @@ namespace gaia {
 			Chunk* m_pChunk;
 			uint32_t m_idx;
 
-			template <typename T>
-			ComponentSetter& SetComponent(typename component::DeduceComponent<T>::Type&& data) {
-				using U = typename component::DeduceComponent<T>::Type;
+			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+			ComponentSetter& SetComponent(U&& data) {
 				if constexpr (component::IsGenericComponent<T>)
 					m_pChunk->template SetComponent<T>(m_idx, std::forward<U>(data));
 				else
@@ -11199,9 +11190,8 @@ namespace gaia {
 				return *this;
 			}
 
-			template <typename T>
-			ComponentSetter& SetComponentSilent(typename component::DeduceComponent<T>::Type&& data) {
-				using U = typename component::DeduceComponent<T>::Type;
+			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+			ComponentSetter& SetComponentSilent(U&& data) {
 				if constexpr (component::IsGenericComponent<T>)
 					m_pChunk->template SetComponentSilent<T>(m_idx, std::forward<U>(data));
 				else
@@ -12253,14 +12243,13 @@ namespace gaia {
 			\param value Value to set for the component
 			\return ComponentSetter object.
 			*/
-			template <typename T>
-			ComponentSetter SetComponent(Entity entity, typename component::DeduceComponent<T>::Type&& value) {
+			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+			ComponentSetter SetComponent(Entity entity, U&& value) {
 				component::VerifyComponent<T>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
-				return ComponentSetter{entityContainer.pChunk, entityContainer.idx}.SetComponent<T>(
-						std::forward<typename component::DeduceComponent<T>::Type>(value));
+				return ComponentSetter{entityContainer.pChunk, entityContainer.idx}.SetComponent<T>(std::forward<U>(value));
 			}
 
 			/*!
@@ -12272,14 +12261,14 @@ namespace gaia {
 			\param value Value to set for the component
 			\return ComponentSetter object.
 			*/
-			template <typename T>
-			ComponentSetter SetComponentSilent(Entity entity, typename component::DeduceComponent<T>::Type&& value) {
+			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+			ComponentSetter SetComponentSilent(Entity entity, U&& value) {
 				component::VerifyComponent<T>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
 				return ComponentSetter{entityContainer.pChunk, entityContainer.idx}.SetComponentSilent<T>(
-						std::forward<typename component::DeduceComponent<T>::Type>(value));
+						std::forward<U>(value));
 			}
 
 			/*!
