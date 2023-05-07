@@ -56,13 +56,13 @@ cmake --build ${PATH_RELEASE} --config Release
 
 # Release mode - adress sanitizers
 cmake -E make_directory ${PATH_RELEASE_ADDR}
-cmake --no-warn-unused-cli -DCMAKE_BUILD_TYPE=Release ${BUILD_SETTINGS_COMMON_SANI} -DUSE_SANITIZER='Address;Undefined' -S .. -B ${PATH_RELEASE_ADDR}
-cmake --build ${PATH_RELEASE_ADDR} --config Release
+cmake --no-warn-unused-cli -DCMAKE_BUILD_TYPE=RelWithDebInfo ${BUILD_SETTINGS_COMMON_SANI} -DUSE_SANITIZER='Address;Undefined' -S .. -B ${PATH_RELEASE_ADDR}
+cmake --build ${PATH_RELEASE_ADDR} --config RelWithDebInfo
 
 # Release mode - memory sanitizers
 cmake -E make_directory ${PATH_RELEASE_MEM}
-cmake --no-warn-unused-cli -DCMAKE_BUILD_TYPE=Release ${BUILD_SETTINGS_COMMON_SANI} -DUSE_SANITIZER='Memory;MemoryWithOrigins' -S .. -B ${PATH_RELEASE_MEM}
-cmake --build ${PATH_RELEASE_MEM} --config Release
+cmake --no-warn-unused-cli -DCMAKE_BUILD_TYPE=RelWithDebInfo ${BUILD_SETTINGS_COMMON_SANI} -DUSE_SANITIZER='Memory;MemoryWithOrigins' -S .. -B ${PATH_RELEASE_MEM}
+cmake --build ${PATH_RELEASE_MEM} --config RelWithDebInfo
 
 ####################################################################
 # Run unit tests
