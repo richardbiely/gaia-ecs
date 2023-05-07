@@ -715,6 +715,8 @@ namespace tracy {
 	#endif
 #endif
 
+#include <cinttypes>
+
 #define USE_VECTOR GAIA_USE_STL_CONTAINERS
 
 #if USE_VECTOR == 1
@@ -4655,425 +4657,6 @@ namespace gaia {
 } // namespace gaia
 
 #include <cinttypes>
-#include <cstdint>
-#include <type_traits>
-#include <utility>
-
-#include <cstdint>
-
-#include <cinttypes>
-
-namespace gaia {
-	namespace ecs {
-		//! Number of ticks before empty chunks are removed
-		constexpr uint16_t MAX_CHUNK_LIFESPAN = 8U;
-		//! Number of ticks before empty archetypes are removed
-		// constexpr uint32_t MAX_ARCHETYPE_LIFESPAN = 8U; Keep commented until used to avoid compilation errors
-
-		GAIA_NODISCARD inline bool DidVersionChange(uint32_t changeVersion, uint32_t requiredVersion) {
-			// When a system runs for the first time, everything is considered changed.
-			if GAIA_UNLIKELY (requiredVersion == 0U)
-				return true;
-
-			// Supporting wrap-around for version numbers. ChangeVersion must be
-			// bigger than requiredVersion (never detect change of something the
-			// system itself changed).
-			return (int)(changeVersion - requiredVersion) > 0;
-		}
-
-		inline void UpdateVersion(uint32_t& version) {
-			++version;
-			// Handle wrap-around, 0 is reserved for systems that have never run.
-			if GAIA_UNLIKELY (version == 0U)
-				++version;
-		}
-	} // namespace ecs
-} // namespace gaia
-
-namespace gaia {
-	namespace ecs {
-		static constexpr uint32_t MemoryBlockSize = 16384;
-		// TODO: For component aligned to 64 bytes the offset of 16 is not enough for some reason, figure it out
-		static constexpr uint32_t MemoryBlockUsableOffset = 32;
-		static constexpr uint32_t ChunkMemorySize = MemoryBlockSize - MemoryBlockUsableOffset;
-
-		struct ChunkAllocatorStats final {
-			//! Total allocated memory
-			uint64_t AllocatedMemory;
-			//! Memory actively used
-			uint64_t UsedMemory;
-			//! Number of allocated pages
-			uint32_t NumPages;
-			//! Number of free pages
-			uint32_t NumFreePages;
-		};
-
-		/*!
-		Allocator for ECS Chunks. Memory is organized in pages of chunks.
-		*/
-		class ChunkAllocator {
-			struct MemoryBlock {
-				using MemoryBlockType = uint8_t;
-
-				//! Active block : Index of the block within the page.
-				//! Passive block: Index of the next free block in the implicit list.
-				MemoryBlockType idx;
-			};
-
-			struct MemoryPage {
-				static constexpr uint16_t NBlocks = 64;
-				static constexpr uint32_t Size = NBlocks * MemoryBlockSize;
-				static constexpr MemoryBlock::MemoryBlockType InvalidBlockId = (MemoryBlock::MemoryBlockType)-1;
-				static constexpr uint32_t MemoryLockTypeSizeInBits =
-						(uint32_t)utils::as_bits(sizeof(MemoryBlock::MemoryBlockType));
-				static_assert((uint32_t)NBlocks < (1 << MemoryLockTypeSizeInBits));
-				using iterator = containers::darray<MemoryPage*>::iterator;
-
-				//! Pointer to data managed by page
-				void* m_data;
-				//! Implicit list of blocks
-				MemoryBlock m_blocks[NBlocks]{};
-				//! Index in the list of pages
-				uint32_t m_pageIdx;
-				//! Number of blocks in the block array
-				MemoryBlock::MemoryBlockType m_blockCnt;
-				//! Number of used blocks out of NBlocks
-				MemoryBlock::MemoryBlockType m_usedBlocks;
-				//! Index of the next block to recycle
-				MemoryBlock::MemoryBlockType m_nextFreeBlock;
-				//! Number of blocks to recycle
-				MemoryBlock::MemoryBlockType m_freeBlocks;
-
-				MemoryPage(void* ptr):
-						m_data(ptr), m_pageIdx(0), m_blockCnt(0), m_usedBlocks(0), m_nextFreeBlock(0), m_freeBlocks(0) {}
-
-				GAIA_NODISCARD void* AllocChunk() {
-					auto GetChunkAddress = [&](size_t index) {
-						// Encode info about chunk's page in the memory block.
-						// The actual pointer returned is offset by UsableOffset bytes
-						uint8_t* pMemoryBlock = (uint8_t*)m_data + index * MemoryBlockSize;
-						*(uintptr_t*)pMemoryBlock = (uintptr_t)this;
-						return (void*)(pMemoryBlock + MemoryBlockUsableOffset);
-					};
-
-					if (m_freeBlocks == 0U) {
-						// We don't want to go out of range for new blocks
-						GAIA_ASSERT(!IsFull() && "Trying to allocate too many blocks!");
-
-						++m_usedBlocks;
-
-						const size_t index = m_blockCnt;
-						GAIA_ASSERT(index < NBlocks);
-						m_blocks[index].idx = (MemoryBlock::MemoryBlockType)index;
-						++m_blockCnt;
-
-						return GetChunkAddress(index);
-					}
-
-					GAIA_ASSERT(m_nextFreeBlock < m_blockCnt && "Block allocator recycle containers::list broken!");
-
-					++m_usedBlocks;
-					--m_freeBlocks;
-
-					const size_t index = m_nextFreeBlock;
-					m_nextFreeBlock = m_blocks[m_nextFreeBlock].idx;
-
-					return GetChunkAddress(index);
-				}
-
-				void FreeChunk(void* pChunk) {
-					GAIA_ASSERT(m_freeBlocks <= NBlocks);
-
-					// Offset the chunk memory so we get the real block address
-					const auto* pMemoryBlock = (uint8_t*)pChunk - MemoryBlockUsableOffset;
-
-					const auto blckAddr = (uintptr_t)pMemoryBlock;
-					const auto dataAddr = (uintptr_t)m_data;
-					GAIA_ASSERT(blckAddr >= dataAddr && blckAddr < dataAddr + MemoryPage::Size);
-					MemoryBlock block = {MemoryBlock::MemoryBlockType((blckAddr - dataAddr) / MemoryBlockSize)};
-
-					auto& blockContainer = m_blocks[block.idx];
-
-					// Update our implicit containers::list
-					if (m_freeBlocks == 0U) {
-						blockContainer.idx = InvalidBlockId;
-						m_nextFreeBlock = block.idx;
-					} else {
-						blockContainer.idx = m_nextFreeBlock;
-						m_nextFreeBlock = block.idx;
-					}
-
-					++m_freeBlocks;
-					--m_usedBlocks;
-				}
-
-				GAIA_NODISCARD uint32_t GetUsedBlocks() const {
-					return m_usedBlocks;
-				}
-				GAIA_NODISCARD bool IsFull() const {
-					return m_usedBlocks == NBlocks;
-				}
-				GAIA_NODISCARD bool IsEmpty() const {
-					return m_usedBlocks == 0;
-				}
-			};
-
-			//! List of available pages
-			//! Note, this currently only contains at most 1 item
-			containers::darray<MemoryPage*> m_pagesFree;
-			//! List of full pages
-			containers::darray<MemoryPage*> m_pagesFull;
-			//! Allocator statistics
-			ChunkAllocatorStats m_stats{};
-
-			ChunkAllocator() = default;
-
-		public:
-			static ChunkAllocator& Get() {
-				static ChunkAllocator allocator;
-				return allocator;
-			}
-
-			~ChunkAllocator() {
-				FreeAll();
-			}
-
-			ChunkAllocator(ChunkAllocator&& world) = delete;
-			ChunkAllocator(const ChunkAllocator& world) = delete;
-			ChunkAllocator& operator=(ChunkAllocator&&) = delete;
-			ChunkAllocator& operator=(const ChunkAllocator&) = delete;
-
-			/*!
-			Allocates memory
-			*/
-			void* Allocate() {
-				void* pChunk = nullptr;
-
-				if (m_pagesFree.empty()) {
-					// Initial allocation
-					auto* pPage = AllocPage();
-					m_pagesFree.push_back(pPage);
-					pPage->m_pageIdx = (uint32_t)m_pagesFree.size() - 1;
-					pChunk = pPage->AllocChunk();
-				} else {
-					auto* pPage = m_pagesFree[0];
-					GAIA_ASSERT(!pPage->IsFull());
-					// Allocate a new chunk
-					pChunk = pPage->AllocChunk();
-
-					// Handle full pages
-					if (pPage->IsFull()) {
-						// Remove the page from the open list and update the swapped page's pointer
-						utils::erase_fast(m_pagesFree, 0);
-						if (!m_pagesFree.empty())
-							m_pagesFree[0]->m_pageIdx = 0;
-
-						// Move our page to the full list
-						m_pagesFull.push_back(pPage);
-						pPage->m_pageIdx = (uint32_t)m_pagesFull.size() - 1;
-					}
-				}
-
-#if GAIA_ECS_CHUNK_ALLOCATOR_CLEAN_MEMORY_WITH_GARBAGE
-				// Fill allocated memory with garbage.
-				// This way we always know if we treat the memory correctly.
-				constexpr uint32_t AllocMemDefValue = 0x7fcdf00dU;
-				constexpr uint32_t AllocSpanSize = (uint32_t)((ChunkMemorySize + 3) / sizeof(uint32_t));
-				std::span<uint32_t, AllocSpanSize> s((uint32_t*)pChunk, AllocSpanSize);
-				for (auto& val: s)
-					val = AllocMemDefValue;
-#endif
-
-				return pChunk;
-			}
-
-			/*!
-			Releases memory allocated for pointer
-			*/
-			void Release(void* pChunk) {
-				// Decode the page from the address
-				uintptr_t pageAddr = *(uintptr_t*)((uint8_t*)pChunk - MemoryBlockUsableOffset);
-				auto* pPage = (MemoryPage*)pageAddr;
-
-#if GAIA_ECS_CHUNK_ALLOCATOR_CLEAN_MEMORY_WITH_GARBAGE
-				// Fill freed memory with garbage.
-				// This way we always know if we treat the memory correctly.
-				constexpr uint32_t FreedMemDefValue = 0xfeeefeeeU;
-				constexpr uint32_t FreedSpanSize = (uint32_t)((ChunkMemorySize + 3) / sizeof(uint32_t));
-				std::span<uint32_t, FreedSpanSize> s((uint32_t*)pChunk, FreedSpanSize);
-				for (auto& val: s)
-					val = FreedMemDefValue;
-#endif
-
-				const bool pageFull = pPage->IsFull();
-
-#if GAIA_DEBUG
-				if (pageFull) {
-					[[maybe_unused]] auto it = utils::find_if(m_pagesFull.begin(), m_pagesFull.end(), [&](auto page) {
-						return page == pPage;
-					});
-					GAIA_ASSERT(
-							it != m_pagesFull.end() && "ChunkAllocator delete couldn't find the memory page expected "
-																				 "in the full pages containers::list");
-				} else {
-					[[maybe_unused]] auto it = utils::find_if(m_pagesFree.begin(), m_pagesFree.end(), [&](auto page) {
-						return page == pPage;
-					});
-					GAIA_ASSERT(
-							it != m_pagesFree.end() && "ChunkAllocator delete couldn't find memory page expected in "
-																				 "the free pages containers::list");
-				}
-#endif
-
-				// Update lists
-				if (pageFull) {
-					// Our page is no longer full. Remove it from the list and update the swapped page's pointer
-					if (m_pagesFull.size() > 1)
-						m_pagesFull.back()->m_pageIdx = pPage->m_pageIdx;
-					utils::erase_fast(m_pagesFull, pPage->m_pageIdx);
-
-					// Move our page to the open list
-					pPage->m_pageIdx = (uint32_t)m_pagesFree.size();
-					m_pagesFree.push_back(pPage);
-				}
-
-				// Free the chunk
-				pPage->FreeChunk(pChunk);
-			}
-
-			/*!
-			Releases all allocated memory
-			*/
-			void FreeAll() {
-				// Release free pages
-				for (auto* page: m_pagesFree)
-					FreePage(page);
-				// Release full pages
-				for (auto* page: m_pagesFull)
-					FreePage(page);
-
-				m_pagesFree = {};
-				m_pagesFull = {};
-				m_stats = {};
-			}
-
-			/*!
-			Returns allocator statistics
-			*/
-			ChunkAllocatorStats GetStats() const {
-				ChunkAllocatorStats stats{};
-				stats.NumPages = (uint32_t)m_pagesFree.size() + (uint32_t)m_pagesFull.size();
-				stats.NumFreePages = (uint32_t)m_pagesFree.size();
-				stats.AllocatedMemory = stats.NumPages * (size_t)MemoryPage::Size;
-				stats.UsedMemory = m_pagesFull.size() * (size_t)MemoryPage::Size;
-				for (auto* page: m_pagesFree)
-					stats.UsedMemory += page->GetUsedBlocks() * (size_t)MemoryBlockSize;
-				return stats;
-			}
-
-			/*!
-			Flushes unused memory
-			*/
-			void Flush() {
-				for (size_t i = 0; i < m_pagesFree.size();) {
-					auto* pPage = m_pagesFree[i];
-
-					// Skip non-empty pages
-					if (!pPage->IsEmpty()) {
-						++i;
-						continue;
-					}
-
-					utils::erase_fast(m_pagesFree, i);
-					FreePage(pPage);
-					if (!m_pagesFree.empty())
-						m_pagesFree[i]->m_pageIdx = (uint32_t)i;
-				}
-			}
-
-			/*!
-			Performs diagnostics of the memory used.
-			*/
-			void Diag() const {
-				ChunkAllocatorStats memstats = GetStats();
-				GAIA_LOG_N("ChunkAllocator stats");
-				GAIA_LOG_N("  Allocated: %" PRIu64 " B", memstats.AllocatedMemory);
-				GAIA_LOG_N("  Used: %" PRIu64 " B", memstats.AllocatedMemory - memstats.UsedMemory);
-				GAIA_LOG_N("  Overhead: %" PRIu64 " B", memstats.UsedMemory);
-				GAIA_LOG_N("  Utilization: %.1f%%", 100.0 * ((double)memstats.UsedMemory / (double)memstats.AllocatedMemory));
-				GAIA_LOG_N("  Pages: %u", memstats.NumPages);
-				GAIA_LOG_N("  Free pages: %u", memstats.NumFreePages);
-			}
-
-		private:
-			static MemoryPage* AllocPage() {
-				auto* pPageData = utils::mem_alloc_alig(MemoryPage::Size, 16);
-				return new MemoryPage(pPageData);
-			}
-
-			static void FreePage(MemoryPage* page) {
-				utils::mem_free_alig(page->m_data);
-				delete page;
-			}
-		};
-
-	} // namespace ecs
-} // namespace gaia
-
-#include <cinttypes>
-#include <cstdint>
-
-namespace gaia {
-	namespace ecs {
-		struct ChunkHeader final {
-		public:
-			//! Archetype the chunk belongs to
-			uint32_t archetypeId;
-			//! Number of items in the chunk.
-			uint16_t count{};
-			//! Capacity (copied from the owner archetype).
-			uint16_t capacity{};
-			//! Chunk index in its archetype list
-			uint16_t index{};
-			//! Once removal is requested and it hits 0 the chunk is removed.
-			uint16_t lifespanCountdown : 11;
-			//! If true this chunk stores disabled entities
-			uint16_t disabled : 1;
-			//! Updated when chunks are being iterated. Used to inform of structural changes when they shouldn't happen.
-			uint16_t structuralChangesLocked : 4;
-			//! Description of components within this archetype (copied from the owner archetype)
-			containers::sarray<archetype::ComponentIdArray, component::ComponentType::CT_Count> componentIds;
-			//! Lookup hashes of components within this archetype (copied from the owner archetype)
-			containers::sarray<archetype::ComponentOffsetArray, component::ComponentType::CT_Count> componentOffsets;
-			//! Version of the world (stable pointer to parent world's world version)
-			uint32_t& worldVersion;
-			//! Versions of individual components on chunk.
-			uint32_t versions[component::ComponentType::CT_Count][archetype::MAX_COMPONENTS_PER_ARCHETYPE]{};
-
-			ChunkHeader(uint32_t& version): lifespanCountdown(0), disabled(0), structuralChangesLocked(0), worldVersion(version) {
-				// Make sure the alignment is right
-				GAIA_ASSERT(uintptr_t(this) % 8 == 0);
-			}
-
-			GAIA_FORCEINLINE void UpdateWorldVersion(component::ComponentType componentType, uint32_t componentIdx) {
-				// Make sure only proper input is provided
-				GAIA_ASSERT(componentIdx != UINT32_MAX && componentIdx < archetype::MAX_COMPONENTS_PER_ARCHETYPE);
-
-				// Update all components' version
-				versions[componentType][componentIdx] = worldVersion;
-			}
-
-			GAIA_FORCEINLINE void UpdateWorldVersion(component::ComponentType componentType) {
-				// Update all components' version
-				for (size_t i = 0; i < archetype::MAX_COMPONENTS_PER_ARCHETYPE; i++)
-					versions[componentType][i] = worldVersion;
-			}
-		};
-	} // namespace ecs
-} // namespace gaia
-
-#include <cinttypes>
-#include <type_traits>
 
 #define USE_HASHMAP GAIA_USE_STL_CONTAINERS
 
@@ -7510,6 +7093,9 @@ namespace gaia {
 #include <cinttypes>
 #include <type_traits>
 
+#include <cinttypes>
+#include <type_traits>
+
 namespace gaia {
 	namespace ecs {
 		namespace component {
@@ -7800,6 +7386,546 @@ namespace gaia {
 					delete pInfo;
 				m_infoByIndex.clear();
 				m_descByIndex.clear();
+			}
+		};
+	} // namespace ecs
+} // namespace gaia
+
+namespace gaia {
+	namespace ecs {
+		namespace archetype {
+			class ArchetypeGraph {
+				struct ArchetypeGraphEdge {
+					ArchetypeId archetypeId;
+				};
+
+				//! Map of edges in the archetype graph when adding components
+				containers::map<component::ComponentId, ArchetypeGraphEdge> m_edgesAdd[component::ComponentType::CT_Count];
+				//! Map of edges in the archetype graph when removing components
+				containers::map<component::ComponentId, ArchetypeGraphEdge> m_edgesDel[component::ComponentType::CT_Count];
+
+			public:
+				//! Creates an edge in the graph leading to the target archetype \param archetypeId via component \param
+				//! componentId of type \param componentType.
+				void AddGraphEdgeRight(
+						component::ComponentType componentType, component::ComponentId componentId, ArchetypeId archetypeId) {
+					[[maybe_unused]] const auto ret =
+							m_edgesAdd[componentType].try_emplace({componentId}, ArchetypeGraphEdge{archetypeId});
+					GAIA_ASSERT(ret.second);
+				}
+
+				//! Creates an edge in the graph leading to the target archetype \param archetypeId via component \param
+				//! componentId of type \param componentType.
+				void AddGraphEdgeLeft(
+						component::ComponentType componentType, component::ComponentId componentId, ArchetypeId archetypeId) {
+					[[maybe_unused]] const auto ret =
+							m_edgesDel[componentType].try_emplace({componentId}, ArchetypeGraphEdge{archetypeId});
+					GAIA_ASSERT(ret.second);
+				}
+
+				//! Checks if the graph edge for component type \param componentType contains the component \param componentId.
+				//! \return Archetype id of the target archetype if the edge is found. ArchetypeIdBad otherwise.
+				GAIA_NODISCARD ArchetypeId
+				FindGraphEdgeRight(component::ComponentType componentType, const component::ComponentId componentId) const {
+					const auto& edges = m_edgesAdd[componentType];
+					const auto it = edges.find({componentId});
+					return it != edges.end() ? it->second.archetypeId : ArchetypeIdBad;
+				}
+
+				//! Checks if the graph edge for component type \param componentType contains the component \param componentId.
+				//! \return Archetype id of the target archetype if the edge is found. ArchetypeIdBad otherwise.
+				GAIA_NODISCARD ArchetypeId
+				FindGraphEdgeLeft(component::ComponentType componentType, const component::ComponentId componentId) const {
+					const auto& edges = m_edgesDel[componentType];
+					const auto it = edges.find({componentId});
+					return it != edges.end() ? it->second.archetypeId : ArchetypeIdBad;
+				}
+
+				void Diag() const {
+					const auto& cc = ComponentCache::Get();
+
+					// Add edges (movement towards the leafs)
+					{
+						const auto& edgesG = m_edgesAdd[component::ComponentType::CT_Generic];
+						const auto& edgesC = m_edgesAdd[component::ComponentType::CT_Chunk];
+						const auto edgeCount = (uint32_t)(edgesG.size() + edgesC.size());
+						if (edgeCount > 0) {
+							GAIA_LOG_N("  Add edges - count:%u", edgeCount);
+
+							if (!edgesG.empty()) {
+								GAIA_LOG_N("    Generic - count:%u", (uint32_t)edgesG.size());
+								for (const auto& edge: edgesG) {
+									const auto& info = cc.GetComponentInfo(edge.first);
+									const auto& infoCreate = cc.GetComponentDesc(info.componentId);
+									GAIA_LOG_N(
+											"      %.*s (--> Archetype ID:%u)", (uint32_t)infoCreate.name.size(), infoCreate.name.data(),
+											edge.second.archetypeId);
+								}
+							}
+
+							if (!edgesC.empty()) {
+								GAIA_LOG_N("    Chunk - count:%u", (uint32_t)edgesC.size());
+								for (const auto& edge: edgesC) {
+									const auto& info = cc.GetComponentInfo(edge.first);
+									const auto& infoCreate = cc.GetComponentDesc(info.componentId);
+									GAIA_LOG_N(
+											"      %.*s (--> Archetype ID:%u)", (uint32_t)infoCreate.name.size(), infoCreate.name.data(),
+											edge.second.archetypeId);
+								}
+							}
+						}
+					}
+
+					// Delete edges (movement towards the root)
+					{
+						const auto& edgesG = m_edgesDel[component::ComponentType::CT_Generic];
+						const auto& edgesC = m_edgesDel[component::ComponentType::CT_Chunk];
+						const auto edgeCount = (uint32_t)(edgesG.size() + edgesC.size());
+						if (edgeCount > 0) {
+							GAIA_LOG_N("  Del edges - count:%u", edgeCount);
+
+							if (!edgesG.empty()) {
+								GAIA_LOG_N("    Generic - count:%u", (uint32_t)edgesG.size());
+								for (const auto& edge: edgesG) {
+									const auto& info = cc.GetComponentInfo(edge.first);
+									const auto& infoCreate = cc.GetComponentDesc(info.componentId);
+									GAIA_LOG_N(
+											"      %.*s (--> Archetype ID:%u)", (uint32_t)infoCreate.name.size(), infoCreate.name.data(),
+											edge.second.archetypeId);
+								}
+							}
+
+							if (!edgesC.empty()) {
+								GAIA_LOG_N("    Chunk - count:%u", (uint32_t)edgesC.size());
+								for (const auto& edge: edgesC) {
+									const auto& info = cc.GetComponentInfo(edge.first);
+									const auto& infoCreate = cc.GetComponentDesc(info.componentId);
+									GAIA_LOG_N(
+											"      %.*s (--> Archetype ID:%u)", (uint32_t)infoCreate.name.size(), infoCreate.name.data(),
+											edge.second.archetypeId);
+								}
+							}
+						}
+					}
+				}
+			};
+		} // namespace archetype
+	} // namespace ecs
+} // namespace gaia
+
+#include <cinttypes>
+#include <cstdint>
+#include <type_traits>
+#include <utility>
+
+#include <cstdint>
+
+#include <cinttypes>
+
+namespace gaia {
+	namespace ecs {
+		//! Number of ticks before empty chunks are removed
+		constexpr uint16_t MAX_CHUNK_LIFESPAN = 8U;
+		//! Number of ticks before empty archetypes are removed
+		// constexpr uint32_t MAX_ARCHETYPE_LIFESPAN = 8U; Keep commented until used to avoid compilation errors
+
+		GAIA_NODISCARD inline bool DidVersionChange(uint32_t changeVersion, uint32_t requiredVersion) {
+			// When a system runs for the first time, everything is considered changed.
+			if GAIA_UNLIKELY (requiredVersion == 0U)
+				return true;
+
+			// Supporting wrap-around for version numbers. ChangeVersion must be
+			// bigger than requiredVersion (never detect change of something the
+			// system itself changed).
+			return (int)(changeVersion - requiredVersion) > 0;
+		}
+
+		inline void UpdateVersion(uint32_t& version) {
+			++version;
+			// Handle wrap-around, 0 is reserved for systems that have never run.
+			if GAIA_UNLIKELY (version == 0U)
+				++version;
+		}
+	} // namespace ecs
+} // namespace gaia
+
+namespace gaia {
+	namespace ecs {
+		static constexpr uint32_t MemoryBlockSize = 16384;
+		// TODO: For component aligned to 64 bytes the offset of 16 is not enough for some reason, figure it out
+		static constexpr uint32_t MemoryBlockUsableOffset = 32;
+		static constexpr uint32_t ChunkMemorySize = MemoryBlockSize - MemoryBlockUsableOffset;
+
+		struct ChunkAllocatorStats final {
+			//! Total allocated memory
+			uint64_t AllocatedMemory;
+			//! Memory actively used
+			uint64_t UsedMemory;
+			//! Number of allocated pages
+			uint32_t NumPages;
+			//! Number of free pages
+			uint32_t NumFreePages;
+		};
+
+		/*!
+		Allocator for ECS Chunks. Memory is organized in pages of chunks.
+		*/
+		class ChunkAllocator {
+			struct MemoryBlock {
+				using MemoryBlockType = uint8_t;
+
+				//! Active block : Index of the block within the page.
+				//! Passive block: Index of the next free block in the implicit list.
+				MemoryBlockType idx;
+			};
+
+			struct MemoryPage {
+				static constexpr uint16_t NBlocks = 64;
+				static constexpr uint32_t Size = NBlocks * MemoryBlockSize;
+				static constexpr MemoryBlock::MemoryBlockType InvalidBlockId = (MemoryBlock::MemoryBlockType)-1;
+				static constexpr uint32_t MemoryLockTypeSizeInBits =
+						(uint32_t)utils::as_bits(sizeof(MemoryBlock::MemoryBlockType));
+				static_assert((uint32_t)NBlocks < (1 << MemoryLockTypeSizeInBits));
+				using iterator = containers::darray<MemoryPage*>::iterator;
+
+				//! Pointer to data managed by page
+				void* m_data;
+				//! Implicit list of blocks
+				MemoryBlock m_blocks[NBlocks]{};
+				//! Index in the list of pages
+				uint32_t m_pageIdx;
+				//! Number of blocks in the block array
+				MemoryBlock::MemoryBlockType m_blockCnt;
+				//! Number of used blocks out of NBlocks
+				MemoryBlock::MemoryBlockType m_usedBlocks;
+				//! Index of the next block to recycle
+				MemoryBlock::MemoryBlockType m_nextFreeBlock;
+				//! Number of blocks to recycle
+				MemoryBlock::MemoryBlockType m_freeBlocks;
+
+				MemoryPage(void* ptr):
+						m_data(ptr), m_pageIdx(0), m_blockCnt(0), m_usedBlocks(0), m_nextFreeBlock(0), m_freeBlocks(0) {}
+
+				GAIA_NODISCARD void* AllocChunk() {
+					auto GetChunkAddress = [&](size_t index) {
+						// Encode info about chunk's page in the memory block.
+						// The actual pointer returned is offset by UsableOffset bytes
+						uint8_t* pMemoryBlock = (uint8_t*)m_data + index * MemoryBlockSize;
+						*(uintptr_t*)pMemoryBlock = (uintptr_t)this;
+						return (void*)(pMemoryBlock + MemoryBlockUsableOffset);
+					};
+
+					if (m_freeBlocks == 0U) {
+						// We don't want to go out of range for new blocks
+						GAIA_ASSERT(!IsFull() && "Trying to allocate too many blocks!");
+
+						++m_usedBlocks;
+
+						const size_t index = m_blockCnt;
+						GAIA_ASSERT(index < NBlocks);
+						m_blocks[index].idx = (MemoryBlock::MemoryBlockType)index;
+						++m_blockCnt;
+
+						return GetChunkAddress(index);
+					}
+
+					GAIA_ASSERT(m_nextFreeBlock < m_blockCnt && "Block allocator recycle containers::list broken!");
+
+					++m_usedBlocks;
+					--m_freeBlocks;
+
+					const size_t index = m_nextFreeBlock;
+					m_nextFreeBlock = m_blocks[m_nextFreeBlock].idx;
+
+					return GetChunkAddress(index);
+				}
+
+				void FreeChunk(void* pChunk) {
+					GAIA_ASSERT(m_freeBlocks <= NBlocks);
+
+					// Offset the chunk memory so we get the real block address
+					const auto* pMemoryBlock = (uint8_t*)pChunk - MemoryBlockUsableOffset;
+
+					const auto blckAddr = (uintptr_t)pMemoryBlock;
+					const auto dataAddr = (uintptr_t)m_data;
+					GAIA_ASSERT(blckAddr >= dataAddr && blckAddr < dataAddr + MemoryPage::Size);
+					MemoryBlock block = {MemoryBlock::MemoryBlockType((blckAddr - dataAddr) / MemoryBlockSize)};
+
+					auto& blockContainer = m_blocks[block.idx];
+
+					// Update our implicit containers::list
+					if (m_freeBlocks == 0U) {
+						blockContainer.idx = InvalidBlockId;
+						m_nextFreeBlock = block.idx;
+					} else {
+						blockContainer.idx = m_nextFreeBlock;
+						m_nextFreeBlock = block.idx;
+					}
+
+					++m_freeBlocks;
+					--m_usedBlocks;
+				}
+
+				GAIA_NODISCARD uint32_t GetUsedBlocks() const {
+					return m_usedBlocks;
+				}
+				GAIA_NODISCARD bool IsFull() const {
+					return m_usedBlocks == NBlocks;
+				}
+				GAIA_NODISCARD bool IsEmpty() const {
+					return m_usedBlocks == 0;
+				}
+			};
+
+			//! List of available pages
+			//! Note, this currently only contains at most 1 item
+			containers::darray<MemoryPage*> m_pagesFree;
+			//! List of full pages
+			containers::darray<MemoryPage*> m_pagesFull;
+			//! Allocator statistics
+			ChunkAllocatorStats m_stats{};
+
+			ChunkAllocator() = default;
+
+		public:
+			static ChunkAllocator& Get() {
+				static ChunkAllocator allocator;
+				return allocator;
+			}
+
+			~ChunkAllocator() {
+				FreeAll();
+			}
+
+			ChunkAllocator(ChunkAllocator&& world) = delete;
+			ChunkAllocator(const ChunkAllocator& world) = delete;
+			ChunkAllocator& operator=(ChunkAllocator&&) = delete;
+			ChunkAllocator& operator=(const ChunkAllocator&) = delete;
+
+			/*!
+			Allocates memory
+			*/
+			void* Allocate() {
+				void* pChunk = nullptr;
+
+				if (m_pagesFree.empty()) {
+					// Initial allocation
+					auto* pPage = AllocPage();
+					m_pagesFree.push_back(pPage);
+					pPage->m_pageIdx = (uint32_t)m_pagesFree.size() - 1;
+					pChunk = pPage->AllocChunk();
+				} else {
+					auto* pPage = m_pagesFree[0];
+					GAIA_ASSERT(!pPage->IsFull());
+					// Allocate a new chunk
+					pChunk = pPage->AllocChunk();
+
+					// Handle full pages
+					if (pPage->IsFull()) {
+						// Remove the page from the open list and update the swapped page's pointer
+						utils::erase_fast(m_pagesFree, 0);
+						if (!m_pagesFree.empty())
+							m_pagesFree[0]->m_pageIdx = 0;
+
+						// Move our page to the full list
+						m_pagesFull.push_back(pPage);
+						pPage->m_pageIdx = (uint32_t)m_pagesFull.size() - 1;
+					}
+				}
+
+#if GAIA_ECS_CHUNK_ALLOCATOR_CLEAN_MEMORY_WITH_GARBAGE
+				// Fill allocated memory with garbage.
+				// This way we always know if we treat the memory correctly.
+				constexpr uint32_t AllocMemDefValue = 0x7fcdf00dU;
+				constexpr uint32_t AllocSpanSize = (uint32_t)((ChunkMemorySize + 3) / sizeof(uint32_t));
+				std::span<uint32_t, AllocSpanSize> s((uint32_t*)pChunk, AllocSpanSize);
+				for (auto& val: s)
+					val = AllocMemDefValue;
+#endif
+
+				return pChunk;
+			}
+
+			/*!
+			Releases memory allocated for pointer
+			*/
+			void Release(void* pChunk) {
+				// Decode the page from the address
+				uintptr_t pageAddr = *(uintptr_t*)((uint8_t*)pChunk - MemoryBlockUsableOffset);
+				auto* pPage = (MemoryPage*)pageAddr;
+
+#if GAIA_ECS_CHUNK_ALLOCATOR_CLEAN_MEMORY_WITH_GARBAGE
+				// Fill freed memory with garbage.
+				// This way we always know if we treat the memory correctly.
+				constexpr uint32_t FreedMemDefValue = 0xfeeefeeeU;
+				constexpr uint32_t FreedSpanSize = (uint32_t)((ChunkMemorySize + 3) / sizeof(uint32_t));
+				std::span<uint32_t, FreedSpanSize> s((uint32_t*)pChunk, FreedSpanSize);
+				for (auto& val: s)
+					val = FreedMemDefValue;
+#endif
+
+				const bool pageFull = pPage->IsFull();
+
+#if GAIA_DEBUG
+				if (pageFull) {
+					[[maybe_unused]] auto it = utils::find_if(m_pagesFull.begin(), m_pagesFull.end(), [&](auto page) {
+						return page == pPage;
+					});
+					GAIA_ASSERT(
+							it != m_pagesFull.end() && "ChunkAllocator delete couldn't find the memory page expected "
+																				 "in the full pages containers::list");
+				} else {
+					[[maybe_unused]] auto it = utils::find_if(m_pagesFree.begin(), m_pagesFree.end(), [&](auto page) {
+						return page == pPage;
+					});
+					GAIA_ASSERT(
+							it != m_pagesFree.end() && "ChunkAllocator delete couldn't find memory page expected in "
+																				 "the free pages containers::list");
+				}
+#endif
+
+				// Update lists
+				if (pageFull) {
+					// Our page is no longer full. Remove it from the list and update the swapped page's pointer
+					if (m_pagesFull.size() > 1)
+						m_pagesFull.back()->m_pageIdx = pPage->m_pageIdx;
+					utils::erase_fast(m_pagesFull, pPage->m_pageIdx);
+
+					// Move our page to the open list
+					pPage->m_pageIdx = (uint32_t)m_pagesFree.size();
+					m_pagesFree.push_back(pPage);
+				}
+
+				// Free the chunk
+				pPage->FreeChunk(pChunk);
+			}
+
+			/*!
+			Releases all allocated memory
+			*/
+			void FreeAll() {
+				// Release free pages
+				for (auto* page: m_pagesFree)
+					FreePage(page);
+				// Release full pages
+				for (auto* page: m_pagesFull)
+					FreePage(page);
+
+				m_pagesFree = {};
+				m_pagesFull = {};
+				m_stats = {};
+			}
+
+			/*!
+			Returns allocator statistics
+			*/
+			ChunkAllocatorStats GetStats() const {
+				ChunkAllocatorStats stats{};
+				stats.NumPages = (uint32_t)m_pagesFree.size() + (uint32_t)m_pagesFull.size();
+				stats.NumFreePages = (uint32_t)m_pagesFree.size();
+				stats.AllocatedMemory = stats.NumPages * (size_t)MemoryPage::Size;
+				stats.UsedMemory = m_pagesFull.size() * (size_t)MemoryPage::Size;
+				for (auto* page: m_pagesFree)
+					stats.UsedMemory += page->GetUsedBlocks() * (size_t)MemoryBlockSize;
+				return stats;
+			}
+
+			/*!
+			Flushes unused memory
+			*/
+			void Flush() {
+				for (size_t i = 0; i < m_pagesFree.size();) {
+					auto* pPage = m_pagesFree[i];
+
+					// Skip non-empty pages
+					if (!pPage->IsEmpty()) {
+						++i;
+						continue;
+					}
+
+					utils::erase_fast(m_pagesFree, i);
+					FreePage(pPage);
+					if (!m_pagesFree.empty())
+						m_pagesFree[i]->m_pageIdx = (uint32_t)i;
+				}
+			}
+
+			/*!
+			Performs diagnostics of the memory used.
+			*/
+			void Diag() const {
+				ChunkAllocatorStats memstats = GetStats();
+				GAIA_LOG_N("ChunkAllocator stats");
+				GAIA_LOG_N("  Allocated: %" PRIu64 " B", memstats.AllocatedMemory);
+				GAIA_LOG_N("  Used: %" PRIu64 " B", memstats.AllocatedMemory - memstats.UsedMemory);
+				GAIA_LOG_N("  Overhead: %" PRIu64 " B", memstats.UsedMemory);
+				GAIA_LOG_N("  Utilization: %.1f%%", 100.0 * ((double)memstats.UsedMemory / (double)memstats.AllocatedMemory));
+				GAIA_LOG_N("  Pages: %u", memstats.NumPages);
+				GAIA_LOG_N("  Free pages: %u", memstats.NumFreePages);
+			}
+
+		private:
+			static MemoryPage* AllocPage() {
+				auto* pPageData = utils::mem_alloc_alig(MemoryPage::Size, 16);
+				return new MemoryPage(pPageData);
+			}
+
+			static void FreePage(MemoryPage* page) {
+				utils::mem_free_alig(page->m_data);
+				delete page;
+			}
+		};
+
+	} // namespace ecs
+} // namespace gaia
+
+#include <cinttypes>
+#include <cstdint>
+
+namespace gaia {
+	namespace ecs {
+		struct ChunkHeader final {
+		public:
+			//! Archetype the chunk belongs to
+			uint32_t archetypeId;
+			//! Number of items in the chunk.
+			uint16_t count{};
+			//! Capacity (copied from the owner archetype).
+			uint16_t capacity{};
+			//! Chunk index in its archetype list
+			uint16_t index{};
+			//! Once removal is requested and it hits 0 the chunk is removed.
+			uint16_t lifespanCountdown : 11;
+			//! If true this chunk stores disabled entities
+			uint16_t disabled : 1;
+			//! Updated when chunks are being iterated. Used to inform of structural changes when they shouldn't happen.
+			uint16_t structuralChangesLocked : 4;
+			//! Description of components within this archetype (copied from the owner archetype)
+			containers::sarray<archetype::ComponentIdArray, component::ComponentType::CT_Count> componentIds;
+			//! Lookup hashes of components within this archetype (copied from the owner archetype)
+			containers::sarray<archetype::ComponentOffsetArray, component::ComponentType::CT_Count> componentOffsets;
+			//! Version of the world (stable pointer to parent world's world version)
+			uint32_t& worldVersion;
+			//! Versions of individual components on chunk.
+			uint32_t versions[component::ComponentType::CT_Count][archetype::MAX_COMPONENTS_PER_ARCHETYPE]{};
+
+			ChunkHeader(uint32_t& version): lifespanCountdown(0), disabled(0), structuralChangesLocked(0), worldVersion(version) {
+				// Make sure the alignment is right
+				GAIA_ASSERT(uintptr_t(this) % 8 == 0);
+			}
+
+			GAIA_FORCEINLINE void UpdateWorldVersion(component::ComponentType componentType, uint32_t componentIdx) {
+				// Make sure only proper input is provided
+				GAIA_ASSERT(componentIdx != UINT32_MAX && componentIdx < archetype::MAX_COMPONENTS_PER_ARCHETYPE);
+
+				// Update all components' version
+				versions[componentType][componentIdx] = worldVersion;
+			}
+
+			GAIA_FORCEINLINE void UpdateWorldVersion(component::ComponentType componentType) {
+				// Update all components' version
+				for (size_t i = 0; i < archetype::MAX_COMPONENTS_PER_ARCHETYPE; i++)
+					versions[componentType][i] = worldVersion;
 			}
 		};
 	} // namespace ecs
@@ -8623,22 +8749,13 @@ namespace gaia {
 				using ChunkComponentHash = utils::direct_hash_key<uint64_t>;
 
 			private:
-#if GAIA_ARCHETYPE_GRAPH
-				struct ArchetypeGraphEdge {
-					ArchetypeId archetypeId;
-				};
-#endif
-
 				//! List of active chunks allocated by this archetype
 				containers::darray<Chunk*> m_chunks;
 				//! List of disabled chunks allocated by this archetype
 				containers::darray<Chunk*> m_chunksDisabled;
 
 #if GAIA_ARCHETYPE_GRAPH
-				//! Map of edges in the archetype graph when adding components
-				containers::map<component::ComponentId, ArchetypeGraphEdge> m_edgesAdd[component::ComponentType::CT_Count];
-				//! Map of edges in the archetype graph when removing components
-				containers::map<component::ComponentId, ArchetypeGraphEdge> m_edgesDel[component::ComponentType::CT_Count];
+				ArchetypeGraph m_graph;
 #endif
 
 				//! Description of components within this archetype
@@ -8996,40 +9113,25 @@ namespace gaia {
 				}
 
 #if GAIA_ARCHETYPE_GRAPH
-				//! Creates an edge in the graph leading to the target archetype \param archetypeId via component \param
-				//! componentId of type \param componentType.
-				void AddGraphEdgeRight(
-						component::ComponentType componentType, component::ComponentId componentId, ArchetypeId archetypeId) {
-					[[maybe_unused]] const auto ret =
-							m_edgesAdd[componentType].try_emplace({componentId}, ArchetypeGraphEdge{archetypeId});
-					GAIA_ASSERT(ret.second);
-				}
-
-				//! Creates an edge in the graph leading to the target archetype \param archetypeId via component \param
-				//! componentId of type \param componentType.
-				void AddGraphEdgeLeft(
-						component::ComponentType componentType, component::ComponentId componentId, ArchetypeId archetypeId) {
-					[[maybe_unused]] const auto ret =
-							m_edgesDel[componentType].try_emplace({componentId}, ArchetypeGraphEdge{archetypeId});
-					GAIA_ASSERT(ret.second);
+				void BuildGraphEdges(
+						archetype::Archetype* pArchetypeTarget, component::ComponentType componentType,
+						component::ComponentId componentId) {
+					m_graph.AddGraphEdgeRight(componentType, componentId, pArchetypeTarget->GetArchetypeId());
+					pArchetypeTarget->m_graph.AddGraphEdgeLeft(componentType, componentId, GetArchetypeId());
 				}
 
 				//! Checks if the graph edge for component type \param componentType contains the component \param componentId.
 				//! \return Archetype id of the target archetype if the edge is found. ArchetypeIdBad otherwise.
 				GAIA_NODISCARD ArchetypeId
 				FindGraphEdgeRight(component::ComponentType componentType, const component::ComponentId componentId) const {
-					const auto& edges = m_edgesAdd[componentType];
-					const auto it = edges.find({componentId});
-					return it != edges.end() ? it->second.archetypeId : ArchetypeIdBad;
+					return m_graph.FindGraphEdgeRight(componentType, componentId);
 				}
 
 				//! Checks if the graph edge for component type \param componentType contains the component \param componentId.
 				//! \return Archetype id of the target archetype if the edge is found. ArchetypeIdBad otherwise.
 				GAIA_NODISCARD ArchetypeId
 				FindGraphEdgeLeft(component::ComponentType componentType, const component::ComponentId componentId) const {
-					const auto& edges = m_edgesDel[componentType];
-					const auto it = edges.find({componentId});
-					return it != edges.end() ? it->second.archetypeId : ArchetypeIdBad;
+					return m_graph.FindGraphEdgeLeft(componentType, componentId);
 				}
 #endif
 
@@ -9097,71 +9199,7 @@ namespace gaia {
 
 #if GAIA_ARCHETYPE_GRAPH
 				static void DiagArchetype_PrintGraphInfo(const archetype::Archetype& archetype) {
-					const auto& cc = ComponentCache::Get();
-
-					// Add edges (movement towards the leafs)
-					{
-						const auto& edgesG = archetype.m_edgesAdd[component::ComponentType::CT_Generic];
-						const auto& edgesC = archetype.m_edgesAdd[component::ComponentType::CT_Chunk];
-						const auto edgeCount = (uint32_t)(edgesG.size() + edgesC.size());
-						if (edgeCount > 0) {
-							GAIA_LOG_N("  Add edges - count:%u", edgeCount);
-
-							if (!edgesG.empty()) {
-								GAIA_LOG_N("    Generic - count:%u", (uint32_t)edgesG.size());
-								for (const auto& edge: edgesG) {
-									const auto& info = cc.GetComponentInfo(edge.first);
-									const auto& infoCreate = cc.GetComponentDesc(info.componentId);
-									GAIA_LOG_N(
-											"      %.*s (--> Archetype ID:%u)", (uint32_t)infoCreate.name.size(), infoCreate.name.data(),
-											edge.second.archetypeId);
-								}
-							}
-
-							if (!edgesC.empty()) {
-								GAIA_LOG_N("    Chunk - count:%u", (uint32_t)edgesC.size());
-								for (const auto& edge: edgesC) {
-									const auto& info = cc.GetComponentInfo(edge.first);
-									const auto& infoCreate = cc.GetComponentDesc(info.componentId);
-									GAIA_LOG_N(
-											"      %.*s (--> Archetype ID:%u)", (uint32_t)infoCreate.name.size(), infoCreate.name.data(),
-											edge.second.archetypeId);
-								}
-							}
-						}
-					}
-
-					// Delete edges (movement towards the root)
-					{
-						const auto& edgesG = archetype.m_edgesDel[component::ComponentType::CT_Generic];
-						const auto& edgesC = archetype.m_edgesDel[component::ComponentType::CT_Chunk];
-						const auto edgeCount = (uint32_t)(edgesG.size() + edgesC.size());
-						if (edgeCount > 0) {
-							GAIA_LOG_N("  Del edges - count:%u", edgeCount);
-
-							if (!edgesG.empty()) {
-								GAIA_LOG_N("    Generic - count:%u", (uint32_t)edgesG.size());
-								for (const auto& edge: edgesG) {
-									const auto& info = cc.GetComponentInfo(edge.first);
-									const auto& infoCreate = cc.GetComponentDesc(info.componentId);
-									GAIA_LOG_N(
-											"      %.*s (--> Archetype ID:%u)", (uint32_t)infoCreate.name.size(), infoCreate.name.data(),
-											edge.second.archetypeId);
-								}
-							}
-
-							if (!edgesC.empty()) {
-								GAIA_LOG_N("    Chunk - count:%u", (uint32_t)edgesC.size());
-								for (const auto& edge: edgesC) {
-									const auto& info = cc.GetComponentInfo(edge.first);
-									const auto& infoCreate = cc.GetComponentDesc(info.componentId);
-									GAIA_LOG_N(
-											"      %.*s (--> Archetype ID:%u)", (uint32_t)infoCreate.name.size(), infoCreate.name.data(),
-											edge.second.archetypeId);
-								}
-							}
-						}
-					}
+					archetype.m_graph.Diag();
 				}
 #endif
 
@@ -11421,15 +11459,6 @@ namespace gaia {
 			}
 #endif
 
-#if GAIA_ARCHETYPE_GRAPH
-			static GAIA_FORCEINLINE void BuildGraphEdges(
-					component::ComponentType componentType, archetype::Archetype* left, archetype::Archetype* right,
-					component::ComponentId componentId) {
-				left->AddGraphEdgeRight(componentType, componentId, right->GetArchetypeId());
-				right->AddGraphEdgeLeft(componentType, componentId, left->GetArchetypeId());
-			}
-#endif
-
 			/*!
 			Searches for an archetype which is formed by adding \param componentType to \param pArchetypeLeft.
 			If no such archetype is found a new one is created.
@@ -11455,7 +11484,7 @@ namespace gaia {
 							pArchetypeRight = CreateArchetype(component::ComponentIdSpan(&infoToAdd.componentId, 1), {});
 							pArchetypeRight->Init({genericHash}, {0}, lookupHash);
 							RegisterArchetype(pArchetypeRight);
-							BuildGraphEdges(componentType, pArchetypeLeft, pArchetypeRight, infoToAdd.componentId);
+							pArchetypeLeft->BuildGraphEdges(pArchetypeRight, componentType, infoToAdd.componentId);
 						}
 					} else {
 						const auto chunkHash = infoToAdd.lookupHash;
@@ -11465,7 +11494,7 @@ namespace gaia {
 							pArchetypeRight = CreateArchetype({}, component::ComponentIdSpan(&infoToAdd.componentId, 1));
 							pArchetypeRight->Init({0}, {chunkHash}, lookupHash);
 							RegisterArchetype(pArchetypeRight);
-							BuildGraphEdges(componentType, pArchetypeLeft, pArchetypeRight, infoToAdd.componentId);
+							pArchetypeRight->BuildGraphEdges(pArchetypeLeft, componentType, infoToAdd.componentId);
 						}
 					}
 
@@ -11518,7 +11547,7 @@ namespace gaia {
 
 #if GAIA_ARCHETYPE_GRAPH
 					// Build the graph edges so that the next time we want to add this component we can do it the quick way
-					BuildGraphEdges(componentType, pArchetypeLeft, pArchetypeRight, infoToAdd.componentId);
+					pArchetypeLeft->BuildGraphEdges(pArchetypeRight, componentType, infoToAdd.componentId);
 #endif
 				}
 
@@ -11582,7 +11611,7 @@ namespace gaia {
 
 #if GAIA_ARCHETYPE_GRAPH
 					// Build the graph edges so that the next time we want to remove this component we can do it the quick way
-					BuildGraphEdges(componentType, pArchetype, pArchetypeRight, infoToRemove.componentId);
+					pArchetype->BuildGraphEdges(pArchetypeRight, componentType, infoToRemove.componentId);
 #endif
 				}
 
