@@ -574,7 +574,7 @@ namespace gaia {
 								 If you already called ToArray, checking if it is empty is preferred.
 				\return True if there are any entites matchine the query. False otherwise.
 				*/
-			bool HasItems() {
+			bool HasEntities() {
 				// Make sure the query was created by World.CreateQuery()
 				GAIA_ASSERT(m_entityQueryCache != nullptr);
 
@@ -655,11 +655,11 @@ namespace gaia {
 							 If you already called ToArray, use the size provided by the array.
 			\return The number of matching entities
 			*/
-			size_t CalculateItemCount() {
+			size_t CalculateEntityCount() {
 				// Make sure the query was created by World.CreateQuery()
 				GAIA_ASSERT(m_entityQueryCache != nullptr);
 
-				size_t itemCount = 0;
+				size_t entityCount = 0;
 
 				auto& queryInfo = FetchQueryInfo();
 
@@ -668,14 +668,14 @@ namespace gaia {
 				auto execWithFiltersON = [&](const auto& chunksList) {
 					for (auto* pChunk: chunksList) {
 						if (CanAcceptChunkForProcessing<true>(*pChunk, queryInfo))
-							itemCount += pChunk->GetEntityCount();
+							entityCount += pChunk->GetEntityCount();
 					}
 				};
 
 				auto execWithFiltersOFF = [&](const auto& chunksList) {
 					for (auto* pChunk: chunksList) {
 						if (CanAcceptChunkForProcessing<false>(*pChunk, queryInfo))
-							itemCount += pChunk->GetEntityCount();
+							entityCount += pChunk->GetEntityCount();
 					}
 				};
 
@@ -695,7 +695,7 @@ namespace gaia {
 					}
 				}
 
-				return itemCount;
+				return entityCount;
 			}
 
 			/*!
@@ -710,8 +710,8 @@ namespace gaia {
 				// Make sure the query was created by World.CreateQuery()
 				GAIA_ASSERT(m_entityQueryCache != nullptr);
 
-				const size_t itemCount = CalculateItemCount();
-				outArray.reserve(itemCount);
+				const size_t entityCount = CalculateEntityCount();
+				outArray.reserve(entityCount);
 
 				auto& queryInfo = FetchQueryInfo();
 
@@ -765,8 +765,8 @@ namespace gaia {
 				// Make sure the query was created by World.CreateQuery()
 				GAIA_ASSERT(m_entityQueryCache != nullptr);
 
-				const size_t itemCount = CalculateItemCount();
-				outArray.reserve(itemCount);
+				const size_t entityCount = CalculateEntityCount();
+				outArray.reserve(entityCount);
 
 				auto& queryInfo = FetchQueryInfo();
 

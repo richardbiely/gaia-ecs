@@ -874,13 +874,13 @@ public:
 	}
 
 	void OnUpdate() override {
-		const bool hasPlayer = m_qp.HasItems();
+		const bool hasPlayer = m_qp.HasEntities();
 		if (!hasPlayer) {
 			printf("You are dead. Good job.\n");
 			g_world.terminate = true;
 		}
 
-		const bool hasEnemies = m_qe.HasItems();
+		const bool hasEnemies = m_qe.HasEntities();
 		if (m_hadEnemies && !hasEnemies) {
 			printf("All enemies are gone. They must have died of old age waiting for you to kill them.\n");
 			g_world.terminate = true;
