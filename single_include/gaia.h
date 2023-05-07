@@ -342,11 +342,6 @@ inline void DoNotOptimize(T const& value) {
 	#define GAIA_USE_PREFETCH 1
 #endif
 
-//! If enabled, archetype graph is used to speed up component adding and removal.
-#ifndef GAIA_ARCHETYPE_GRAPH
-	#define GAIA_ARCHETYPE_GRAPH 1
-#endif
-
 //------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
@@ -8754,9 +8749,7 @@ namespace gaia {
 				//! List of disabled chunks allocated by this archetype
 				containers::darray<Chunk*> m_chunksDisabled;
 
-#if GAIA_ARCHETYPE_GRAPH
 				ArchetypeGraph m_graph;
-#endif
 
 				//! Description of components within this archetype
 				containers::sarray<ComponentIdArray, component::ComponentType::CT_Count> m_componentIds;
@@ -9112,7 +9105,6 @@ namespace gaia {
 					return (uint32_t)idx;
 				}
 
-#if GAIA_ARCHETYPE_GRAPH
 				void BuildGraphEdges(
 						archetype::Archetype* pArchetypeTarget, component::ComponentType componentType,
 						component::ComponentId componentId) {
@@ -9133,7 +9125,6 @@ namespace gaia {
 				FindGraphEdgeLeft(component::ComponentType componentType, const component::ComponentId componentId) const {
 					return m_graph.FindGraphEdgeLeft(componentType, componentId);
 				}
-#endif
 
 				static void DiagArchetype_PrintBasicInfo(const archetype::Archetype& archetype) {
 					const auto& cc = ComponentCache::Get();
@@ -9197,11 +9188,9 @@ namespace gaia {
 					}
 				}
 
-#if GAIA_ARCHETYPE_GRAPH
 				static void DiagArchetype_PrintGraphInfo(const archetype::Archetype& archetype) {
 					archetype.m_graph.Diag();
 				}
-#endif
 
 				static void DiagArchetype_PrintChunkInfo(const archetype::Archetype& archetype) {
 					auto logChunks = [](const auto& chunks) {
@@ -9236,9 +9225,7 @@ namespace gaia {
 				*/
 				static void DiagArchetype(const archetype::Archetype& archetype) {
 					DiagArchetype_PrintBasicInfo(archetype);
-#if GAIA_ARCHETYPE_GRAPH
 					DiagArchetype_PrintGraphInfo(archetype);
-#endif
 					DiagArchetype_PrintChunkInfo(archetype);
 				}
 			};
@@ -11470,7 +11457,6 @@ namespace gaia {
 			GAIA_NODISCARD archetype::Archetype* FindOrCreateArchetype_AddComponent(
 					archetype::Archetype* pArchetypeLeft, component::ComponentType componentType,
 					const component::ComponentInfo& infoToAdd) {
-#if GAIA_ARCHETYPE_GRAPH
 				// We don't want to store edges for the root archetype because the more components there are the longer
 				// it would take to find anything. Therefore, for the root archetype we always make a lookup.
 				// However, compared to an oridnary lookup, this path is stripped as much as possible.
@@ -11507,7 +11493,6 @@ namespace gaia {
 					if (archetypeId != archetype::ArchetypeIdBad)
 						return m_archetypes[archetypeId];
 				}
-#endif
 
 				const uint32_t a = componentType;
 				const uint32_t b = (componentType + 1) & 1;
@@ -11544,11 +11529,7 @@ namespace gaia {
 					pArchetypeRight = CreateArchetype({infos[0]->data(), infos[0]->size()}, {infos[1]->data(), infos[1]->size()});
 					pArchetypeRight->Init(genericHash, chunkHash, lookupHash);
 					RegisterArchetype(pArchetypeRight);
-
-#if GAIA_ARCHETYPE_GRAPH
-					// Build the graph edges so that the next time we want to add this component we can do it the quick way
 					pArchetypeLeft->BuildGraphEdges(pArchetypeRight, componentType, infoToAdd.componentId);
-#endif
 				}
 
 				return pArchetypeRight;
@@ -11565,14 +11546,12 @@ namespace gaia {
 			GAIA_NODISCARD archetype::Archetype* FindOrCreateArchetype_RemoveComponent(
 					archetype::Archetype* pArchetypeRight, component::ComponentType componentType,
 					const component::ComponentInfo& infoToRemove) {
-#if GAIA_ARCHETYPE_GRAPH
 				// Check if the component is found when following the "del" edges
 				{
 					const auto archetypeId = pArchetypeRight->FindGraphEdgeLeft(componentType, infoToRemove.componentId);
 					if (archetypeId != archetype::ArchetypeIdBad)
 						return m_archetypes[archetypeId];
 				}
-#endif
 
 				const uint32_t a = componentType;
 				const uint32_t b = (componentType + 1) & 1;
@@ -11608,11 +11587,7 @@ namespace gaia {
 					pArchetype = CreateArchetype({infos[0]->data(), infos[0]->size()}, {infos[1]->data(), infos[1]->size()});
 					pArchetype->Init(genericHash, lookupHash, lookupHash);
 					RegisterArchetype(pArchetype);
-
-#if GAIA_ARCHETYPE_GRAPH
-					// Build the graph edges so that the next time we want to remove this component we can do it the quick way
 					pArchetype->BuildGraphEdges(pArchetypeRight, componentType, infoToRemove.componentId);
-#endif
 				}
 
 				return pArchetype;

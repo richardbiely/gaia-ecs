@@ -287,7 +287,6 @@ namespace gaia {
 			GAIA_NODISCARD archetype::Archetype* FindOrCreateArchetype_AddComponent(
 					archetype::Archetype* pArchetypeLeft, component::ComponentType componentType,
 					const component::ComponentInfo& infoToAdd) {
-#if GAIA_ARCHETYPE_GRAPH
 				// We don't want to store edges for the root archetype because the more components there are the longer
 				// it would take to find anything. Therefore, for the root archetype we always make a lookup.
 				// However, compared to an oridnary lookup, this path is stripped as much as possible.
@@ -324,7 +323,6 @@ namespace gaia {
 					if (archetypeId != archetype::ArchetypeIdBad)
 						return m_archetypes[archetypeId];
 				}
-#endif
 
 				const uint32_t a = componentType;
 				const uint32_t b = (componentType + 1) & 1;
@@ -361,11 +359,7 @@ namespace gaia {
 					pArchetypeRight = CreateArchetype({infos[0]->data(), infos[0]->size()}, {infos[1]->data(), infos[1]->size()});
 					pArchetypeRight->Init(genericHash, chunkHash, lookupHash);
 					RegisterArchetype(pArchetypeRight);
-
-#if GAIA_ARCHETYPE_GRAPH
-					// Build the graph edges so that the next time we want to add this component we can do it the quick way
 					pArchetypeLeft->BuildGraphEdges(pArchetypeRight, componentType, infoToAdd.componentId);
-#endif
 				}
 
 				return pArchetypeRight;
@@ -382,14 +376,12 @@ namespace gaia {
 			GAIA_NODISCARD archetype::Archetype* FindOrCreateArchetype_RemoveComponent(
 					archetype::Archetype* pArchetypeRight, component::ComponentType componentType,
 					const component::ComponentInfo& infoToRemove) {
-#if GAIA_ARCHETYPE_GRAPH
 				// Check if the component is found when following the "del" edges
 				{
 					const auto archetypeId = pArchetypeRight->FindGraphEdgeLeft(componentType, infoToRemove.componentId);
 					if (archetypeId != archetype::ArchetypeIdBad)
 						return m_archetypes[archetypeId];
 				}
-#endif
 
 				const uint32_t a = componentType;
 				const uint32_t b = (componentType + 1) & 1;
@@ -425,11 +417,7 @@ namespace gaia {
 					pArchetype = CreateArchetype({infos[0]->data(), infos[0]->size()}, {infos[1]->data(), infos[1]->size()});
 					pArchetype->Init(genericHash, lookupHash, lookupHash);
 					RegisterArchetype(pArchetype);
-
-#if GAIA_ARCHETYPE_GRAPH
-					// Build the graph edges so that the next time we want to remove this component we can do it the quick way
 					pArchetype->BuildGraphEdges(pArchetypeRight, componentType, infoToRemove.componentId);
-#endif
 				}
 
 				return pArchetype;

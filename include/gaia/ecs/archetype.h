@@ -32,9 +32,7 @@ namespace gaia {
 				//! List of disabled chunks allocated by this archetype
 				containers::darray<Chunk*> m_chunksDisabled;
 
-#if GAIA_ARCHETYPE_GRAPH
 				ArchetypeGraph m_graph;
-#endif
 
 				//! Description of components within this archetype
 				containers::sarray<ComponentIdArray, component::ComponentType::CT_Count> m_componentIds;
@@ -390,7 +388,6 @@ namespace gaia {
 					return (uint32_t)idx;
 				}
 
-#if GAIA_ARCHETYPE_GRAPH
 				void BuildGraphEdges(
 						archetype::Archetype* pArchetypeTarget, component::ComponentType componentType,
 						component::ComponentId componentId) {
@@ -411,7 +408,6 @@ namespace gaia {
 				FindGraphEdgeLeft(component::ComponentType componentType, const component::ComponentId componentId) const {
 					return m_graph.FindGraphEdgeLeft(componentType, componentId);
 				}
-#endif
 
 				static void DiagArchetype_PrintBasicInfo(const archetype::Archetype& archetype) {
 					const auto& cc = ComponentCache::Get();
@@ -475,11 +471,9 @@ namespace gaia {
 					}
 				}
 
-#if GAIA_ARCHETYPE_GRAPH
 				static void DiagArchetype_PrintGraphInfo(const archetype::Archetype& archetype) {
 					archetype.m_graph.Diag();
 				}
-#endif
 
 				static void DiagArchetype_PrintChunkInfo(const archetype::Archetype& archetype) {
 					auto logChunks = [](const auto& chunks) {
@@ -514,9 +508,7 @@ namespace gaia {
 				*/
 				static void DiagArchetype(const archetype::Archetype& archetype) {
 					DiagArchetype_PrintBasicInfo(archetype);
-#if GAIA_ARCHETYPE_GRAPH
 					DiagArchetype_PrintGraphInfo(archetype);
-#endif
 					DiagArchetype_PrintChunkInfo(archetype);
 				}
 			};
