@@ -11,6 +11,7 @@
 #include "component.h"
 #include "component_cache.h"
 #include "component_utils.h"
+#include "gaia/ecs/entity.h"
 
 namespace gaia {
 	namespace ecs {
@@ -78,7 +79,7 @@ namespace gaia {
 					auto callDestructors = [&](component::ComponentType componentType) {
 						const auto& componentIds = m_componentIds[componentType];
 						const auto& offsets = m_componentOffsets[componentType];
-						const auto itemCount =
+						const auto entityCount =
 								componentType == component::ComponentType::CT_Generic ? pChunk->GetEntityCount() : 1U;
 						for (size_t i = 0; i < componentIds.size(); ++i) {
 							const auto componentId = componentIds[i];
@@ -86,7 +87,7 @@ namespace gaia {
 							if (infoCreate.dtor == nullptr)
 								continue;
 							auto* pSrc = (void*)((uint8_t*)pChunk + offsets[i]);
-							infoCreate.dtor(pSrc, itemCount);
+							infoCreate.dtor(pSrc, entityCount);
 						}
 					};
 

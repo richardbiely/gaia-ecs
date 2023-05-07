@@ -160,10 +160,10 @@ void BM_ECS(picobench::state& state) {
 	auto queryCHealth = w.CreateQuery().All<const Health>();
 
 	/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */
-	(void)queryPosCVel.HasItems();
-	(void)queryPosVel.HasItems();
-	(void)queryVel.HasItems();
-	(void)queryCHealth.HasItems();
+	(void)queryPosCVel.HasEntities();
+	(void)queryPosVel.HasEntities();
+	(void)queryVel.HasEntities();
+	(void)queryCHealth.HasEntities();
 
 	srand(0);
 	for (auto _: state) {
@@ -220,10 +220,10 @@ void BM_ECS_WithSystems(picobench::state& state) {
 	auto queryCHealth = w.CreateQuery().All<const Health>();
 
 	/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */
-	(void)queryPosCVel.HasItems();
-	(void)queryPosCVel.HasItems();
-	(void)queryPosCVel.HasItems();
-	(void)queryPosCVel.HasItems();
+	(void)queryPosCVel.HasEntities();
+	(void)queryPosCVel.HasEntities();
+	(void)queryPosCVel.HasEntities();
+	(void)queryPosCVel.HasEntities();
 
 	class PositionSystem final: public TestSystem {
 	public:
@@ -292,10 +292,10 @@ void BM_ECS_WithSystems_Chunk(picobench::state& state) {
 	auto queryCHealth = w.CreateQuery().All<const Health>();
 
 	/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */
-	(void)queryPosCVel.HasItems();
-	(void)queryPosVel.HasItems();
-	(void)queryVel.HasItems();
-	(void)queryCHealth.HasItems();
+	(void)queryPosCVel.HasEntities();
+	(void)queryPosVel.HasEntities();
+	(void)queryVel.HasEntities();
+	(void)queryCHealth.HasEntities();
 
 	class PositionSystem final: public TestSystem {
 	public:
@@ -390,10 +390,10 @@ void BM_ECS_WithSystems_Chunk_SoA(picobench::state& state) {
 	auto queryCHealth = w.CreateQuery().All<const Health>();
 
 	/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */
-	(void)queryPosCVel.HasItems();
-	(void)queryPosVel.HasItems();
-	(void)queryVel.HasItems();
-	(void)queryCHealth.HasItems();
+	(void)queryPosCVel.HasEntities();
+	(void)queryPosVel.HasEntities();
+	(void)queryVel.HasEntities();
+	(void)queryCHealth.HasEntities();
 
 	class PositionSystem final: public TestSystem {
 	public:
@@ -587,10 +587,10 @@ void BM_ECS_WithSystems_Chunk_SoA_SIMD(picobench::state& state) {
 	auto queryCHealth = w.CreateQuery().All<const Health>();
 
 	/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */
-	(void)queryPosCVel.HasItems();
-	(void)queryPosVel.HasItems();
-	(void)queryVel.HasItems();
-	(void)queryCHealth.HasItems();
+	(void)queryPosCVel.HasEntities();
+	(void)queryPosVel.HasEntities();
+	(void)queryVel.HasEntities();
+	(void)queryCHealth.HasEntities();
 
 	class PositionSystem final: public TestSystem {
 	public:

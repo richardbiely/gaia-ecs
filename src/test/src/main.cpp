@@ -265,14 +265,14 @@ TEST_CASE("EntityQuery - QueryResult") {
 	{
 		gaia::containers::darray<gaia::ecs::Chunk*> arr;
 		q1.ToChunkArray(arr);
-		size_t itemCount = 0;
+		size_t entityCount = 0;
 		for (const auto* pChunk: arr)
-			itemCount += pChunk->GetEntityCount();
-		REQUIRE(itemCount == N);
+			entityCount += pChunk->GetEntityCount();
+		REQUIRE(entityCount == N);
 	}
 	{
-		const auto cnt = q1.CalculateItemCount();
-		const auto has = q1.HasItems();
+		const auto cnt = q1.CalculateEntityCount();
+		const auto has = q1.HasEntities();
 
 		size_t cnt2 = 0;
 		q1.ForEach([&]() {
@@ -284,8 +284,8 @@ TEST_CASE("EntityQuery - QueryResult") {
 	}
 
 	{
-		const auto cnt = q2.CalculateItemCount();
-		const auto has = q2.HasItems();
+		const auto cnt = q2.CalculateEntityCount();
+		const auto has = q2.HasEntities();
 
 		size_t cnt2 = 0;
 		q2.ForEach([&]() {
@@ -297,8 +297,8 @@ TEST_CASE("EntityQuery - QueryResult") {
 	}
 
 	{
-		const auto cnt = q3.CalculateItemCount();
-		const auto has = q3.HasItems();
+		const auto cnt = q3.CalculateEntityCount();
+		const auto has = q3.HasEntities();
 
 		size_t cnt3 = 0;
 		q3.ForEach([&]() {
@@ -349,14 +349,14 @@ TEST_CASE("EntityQuery - QueryResult complex") {
 	{
 		gaia::containers::darray<gaia::ecs::Chunk*> arr;
 		q1.ToChunkArray(arr);
-		size_t itemCount = 0;
+		size_t entityCount = 0;
 		for (const auto* pChunk: arr)
-			itemCount += pChunk->GetEntityCount();
-		REQUIRE(itemCount == N);
+			entityCount += pChunk->GetEntityCount();
+		REQUIRE(entityCount == N);
 	}
 	{
-		const auto cnt = q1.CalculateItemCount();
-		const auto has = q1.HasItems();
+		const auto cnt = q1.CalculateEntityCount();
+		const auto has = q1.HasEntities();
 
 		size_t cnt2 = 0;
 		q1.ForEach([&]() {
@@ -368,8 +368,8 @@ TEST_CASE("EntityQuery - QueryResult complex") {
 	}
 
 	{
-		const auto cnt = q2.CalculateItemCount();
-		const auto has = q2.HasItems();
+		const auto cnt = q2.CalculateEntityCount();
+		const auto has = q2.HasEntities();
 
 		size_t cnt2 = 0;
 		q2.ForEach([&]() {
@@ -381,8 +381,8 @@ TEST_CASE("EntityQuery - QueryResult complex") {
 	}
 
 	{
-		const auto cnt = q3.CalculateItemCount();
-		const auto has = q3.HasItems();
+		const auto cnt = q3.CalculateEntityCount();
+		const auto has = q3.HasEntities();
 
 		size_t cnt3 = 0;
 		q3.ForEach([&]() {
@@ -426,14 +426,14 @@ TEST_CASE("EntityQuery - QueryResult complex") {
 	{
 		gaia::containers::darray<gaia::ecs::Chunk*> arr;
 		q4.ToChunkArray(arr);
-		size_t itemCount = 0;
+		size_t entityCount = 0;
 		for (const auto* pChunk: arr)
-			itemCount += pChunk->GetEntityCount();
-		REQUIRE(itemCount == N);
+			entityCount += pChunk->GetEntityCount();
+		REQUIRE(entityCount == N);
 	}
 	{
-		const auto cnt = q4.CalculateItemCount();
-		const auto has = q4.HasItems();
+		const auto cnt = q4.CalculateEntityCount();
+		const auto has = q4.HasEntities();
 
 		size_t cnt4 = 0;
 		q4.ForEach([&]() {
@@ -477,14 +477,14 @@ TEST_CASE("EntityQuery - QueryResult complex") {
 	{
 		gaia::containers::darray<gaia::ecs::Chunk*> arr;
 		q5.ToChunkArray(arr);
-		size_t itemCount = 0;
+		size_t entityCount = 0;
 		for (const auto* pChunk: arr)
-			itemCount += pChunk->GetEntityCount();
-		REQUIRE(itemCount == N / 2);
+			entityCount += pChunk->GetEntityCount();
+		REQUIRE(entityCount == N / 2);
 	}
 	{
-		const auto cnt = q5.CalculateItemCount();
-		const auto has = q5.HasItems();
+		const auto cnt = q5.CalculateEntityCount();
+		const auto has = q5.HasEntities();
 
 		size_t cnt5 = 0;
 		q5.ForEach([&]() {
@@ -622,15 +622,15 @@ TEST_CASE("EnableEntity") {
 	w.EnableEntity(arr[1000], false);
 
 	ecs::EntityQuery q = w.CreateQuery().All<Position>();
-	size_t cnt = q.CalculateItemCount();
+	size_t cnt = q.CalculateEntityCount();
 	REQUIRE(cnt == N - 1);
 
 	q.SetConstraints(ecs::EntityQuery::Constraints::AcceptAll);
-	cnt = q.CalculateItemCount();
+	cnt = q.CalculateEntityCount();
 	REQUIRE(cnt == N);
 
 	q.SetConstraints(ecs::EntityQuery::Constraints::DisabledOnly);
-	cnt = q.CalculateItemCount();
+	cnt = q.CalculateEntityCount();
 	REQUIRE(cnt == 1);
 
 	w.EnableEntity(arr[1000], true);
@@ -641,15 +641,15 @@ TEST_CASE("EnableEntity") {
 	});
 	REQUIRE(cnt == N);
 
-	cnt = q.CalculateItemCount();
+	cnt = q.CalculateEntityCount();
 	REQUIRE(cnt == 0);
 
 	q.SetConstraints(ecs::EntityQuery::Constraints::EnabledOnly);
-	cnt = q.CalculateItemCount();
+	cnt = q.CalculateEntityCount();
 	REQUIRE(cnt == N);
 
 	q.SetConstraints(ecs::EntityQuery::Constraints::AcceptAll);
-	cnt = q.CalculateItemCount();
+	cnt = q.CalculateEntityCount();
 	REQUIRE(cnt == N);
 }
 

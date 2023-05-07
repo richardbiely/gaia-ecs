@@ -218,7 +218,7 @@ for (const auto* pChunk: chunks) {
 
 // Print the number of entities matching the query. For demonstration purposes only.
 // Because we already called ToArray we would normally use entities.size() or positions.size().
-printf("Number of results: %u", q.CalculateItemCount());
+printf("Number of results: %u", q.CalculateEntityCount());
 ```
 
 More complex queries can be created by combining All, Any and None in any way you can imagine:

@@ -172,7 +172,7 @@ DEFINE_FOREACH_INTERNALQUERY(5000)
 		auto query = w.CreateQuery().All<const c1>();                                                                      \
                                                                                                                        \
 		/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */              \
-		picobench::DoNotOptimize(query.HasItems());                                                                        \
+		picobench::DoNotOptimize(query.HasEntities());                                                                     \
                                                                                                                        \
 		for (auto _: state) {                                                                                              \
 			(void)_;                                                                                                         \
@@ -199,7 +199,7 @@ DEFINE_FOREACH_EXTERNALQUERY(5000)
 		auto query = w.CreateQuery().All<const c1>();                                                                      \
                                                                                                                        \
 		/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */              \
-		picobench::DoNotOptimize(query.HasItems());                                                                        \
+		picobench::DoNotOptimize(query.HasEntities());                                                                     \
                                                                                                                        \
 		for (auto _: state) {                                                                                              \
 			(void)_;                                                                                                         \
