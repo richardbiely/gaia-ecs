@@ -299,8 +299,8 @@ namespace gaia {
 						if (pArchetypeRight == nullptr) {
 							pArchetypeRight = CreateArchetype(component::ComponentIdSpan(&infoToAdd.componentId, 1), {});
 							pArchetypeRight->Init({genericHash}, {0}, lookupHash);
-							RegisterArchetype(pArchetypeRight);
 							pArchetypeLeft->BuildGraphEdges(pArchetypeRight, componentType, infoToAdd.componentId);
+							RegisterArchetype(pArchetypeRight);
 						}
 					} else {
 						const auto chunkHash = infoToAdd.lookupHash;
@@ -309,8 +309,8 @@ namespace gaia {
 						if (pArchetypeRight == nullptr) {
 							pArchetypeRight = CreateArchetype({}, component::ComponentIdSpan(&infoToAdd.componentId, 1));
 							pArchetypeRight->Init({0}, {chunkHash}, lookupHash);
-							RegisterArchetype(pArchetypeRight);
 							pArchetypeRight->BuildGraphEdges(pArchetypeLeft, componentType, infoToAdd.componentId);
+							RegisterArchetype(pArchetypeRight);
 						}
 					}
 
@@ -358,8 +358,8 @@ namespace gaia {
 				if (pArchetypeRight == nullptr) {
 					pArchetypeRight = CreateArchetype({infos[0]->data(), infos[0]->size()}, {infos[1]->data(), infos[1]->size()});
 					pArchetypeRight->Init(genericHash, chunkHash, lookupHash);
+					pArchetypeRight->BuildGraphEdges(pArchetypeLeft, componentType, infoToAdd.componentId);
 					RegisterArchetype(pArchetypeRight);
-					pArchetypeLeft->BuildGraphEdges(pArchetypeRight, componentType, infoToAdd.componentId);
 				}
 
 				return pArchetypeRight;
@@ -416,8 +416,8 @@ namespace gaia {
 				if (pArchetype == nullptr) {
 					pArchetype = CreateArchetype({infos[0]->data(), infos[0]->size()}, {infos[1]->data(), infos[1]->size()});
 					pArchetype->Init(genericHash, lookupHash, lookupHash);
-					RegisterArchetype(pArchetype);
 					pArchetype->BuildGraphEdges(pArchetypeRight, componentType, infoToRemove.componentId);
+					RegisterArchetype(pArchetype);
 				}
 
 				return pArchetype;

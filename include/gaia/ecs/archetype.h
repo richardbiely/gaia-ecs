@@ -391,6 +391,7 @@ namespace gaia {
 				void BuildGraphEdges(
 						archetype::Archetype* pArchetypeTarget, component::ComponentType componentType,
 						component::ComponentId componentId) {
+					GAIA_ASSERT(pArchetypeTarget != this);
 					m_graph.AddGraphEdgeRight(componentType, componentId, pArchetypeTarget->GetArchetypeId());
 					pArchetypeTarget->m_graph.AddGraphEdgeLeft(componentType, componentId, GetArchetypeId());
 				}
