@@ -362,7 +362,7 @@ namespace gaia {
 				}
 
 				if (m_pDataHeap) {
-					T* old = m_data;
+					T* old = m_pDataHeap;
 					m_pDataHeap = new T[count];
 					utils::transfer_elements(m_pDataHeap, old, size());
 					delete[] old;
