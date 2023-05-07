@@ -86,7 +86,7 @@ namespace gaia {
 							const auto& infoCreate = cc.GetComponentDesc(componentId);
 							if (infoCreate.dtor == nullptr)
 								continue;
-							auto* pSrc = (void*)((uint8_t*)pChunk + offsets[i]);
+							auto* pSrc = (void*)&pChunk->GetData(offsets[i]);
 							infoCreate.dtor(pSrc, entityCount);
 						}
 					};
