@@ -53,45 +53,10 @@ namespace gaia {
 				struct {
 					//! The number of entities this archetype can take (e.g 5 = 5 entities with all their components)
 					uint32_t capacity : 16;
-					//! True if there's a component that requires custom destruction
-					uint32_t hasGenericComponentWithCustomDestruction : 1;
-					//! True if there's a component that requires custom destruction
-					uint32_t hasChunkComponentWithCustomDestruction : 1;
 				} m_properties{};
 
 				// Constructor is hidden. Create archetypes via Create
 				Archetype(uint32_t& worldVersion): m_worldVersion(worldVersion){};
-
-				/*!
-				Releases all memory allocated by \param pChunk.
-				\param pChunk Chunk which we want to destroy
-				*/
-				void ReleaseChunk(Chunk* pChunk) const {
-					const auto& cc = ComponentCache::Get();
-
-					auto callDestructors = [&](component::ComponentType componentType) {
-						const auto& componentIds = m_componentIds[componentType];
-						const auto& offsets = m_componentOffsets[componentType];
-						const auto entityCount =
-								componentType == component::ComponentType::CT_Generic ? pChunk->GetEntityCount() : 1U;
-						for (size_t i = 0; i < componentIds.size(); ++i) {
-							const auto componentId = componentIds[i];
-							const auto& infoCreate = cc.GetComponentDesc(componentId);
-							if (infoCreate.dtor == nullptr)
-								continue;
-							auto* pSrc = (void*)&pChunk->GetData(offsets[i]);
-							infoCreate.dtor(pSrc, entityCount);
-						}
-					};
-
-					// Call destructors for components that need it
-					if (m_properties.hasGenericComponentWithCustomDestruction == 1)
-						callDestructors(component::ComponentType::CT_Generic);
-					if (m_properties.hasChunkComponentWithCustomDestruction == 1)
-						callDestructors(component::ComponentType::CT_Chunk);
-
-					Chunk::Release(pChunk);
-				}
 
 				GAIA_NODISCARD Chunk* FindOrCreateFreeChunk_Internal(containers::darray<Chunk*>& chunkArray) const {
 					const auto chunkCnt = chunkArray.size();
@@ -164,9 +129,9 @@ namespace gaia {
 				~Archetype() {
 					// Delete all archetype chunks
 					for (auto* pChunk: m_chunks)
-						ReleaseChunk(pChunk);
+						Chunk::Release(pChunk);
 					for (auto* pChunk: m_chunksDisabled)
-						ReleaseChunk(pChunk);
+						Chunk::Release(pChunk);
 				}
 
 				GAIA_NODISCARD static LookupHash
@@ -187,7 +152,6 @@ namespace gaia {
 					for (const auto componentId: componentIdsGeneric) {
 						const auto& desc = cc.GetComponentDesc(componentId);
 						genericComponentListSize += desc.properties.size;
-						newArch->m_properties.hasGenericComponentWithCustomDestruction |= (desc.properties.has_custom_dtor != 0);
 					}
 
 					// Size of chunk components
@@ -195,7 +159,6 @@ namespace gaia {
 					for (const auto componentId: componentIdsChunk) {
 						const auto& desc = cc.GetComponentDesc(componentId);
 						chunkComponentListSize += desc.properties.size;
-						newArch->m_properties.hasChunkComponentWithCustomDestruction |= (desc.properties.has_custom_dtor != 0);
 					}
 
 					// TODO: Calculate the number of entities per chunks precisely so we can
@@ -297,7 +260,7 @@ namespace gaia {
 					const bool isDisabled = pChunk->IsDisabled();
 					const auto chunkIndex = pChunk->GetChunkIndex();
 
-					ReleaseChunk(pChunk);
+					Chunk::Release(pChunk);
 
 					auto remove = [&](auto& chunkArray) {
 						if (chunkArray.size() > 1)
