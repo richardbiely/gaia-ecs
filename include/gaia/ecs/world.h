@@ -509,8 +509,7 @@ namespace gaia {
 			}
 
 			/*!
-			Moves an entity along with all its generic components from its current to another
-			chunk in a new archetype.
+			Moves an entity along with all its generic components from its current chunk to another one in a new archetype.
 			\param oldEntity Entity to move
 			\param newArchetype Target archetype
 			*/
@@ -540,10 +539,10 @@ namespace gaia {
 					size_t i = 0;
 					size_t j = 0;
 
-					auto moveData = [&](const component::ComponentDesc& descOld, const component::ComponentDesc& descNew) {
+					auto moveData = [&](const component::ComponentDesc& desc) {
 						// Let's move all type data from oldEntity to newEntity
-						const auto idxSrc = oldOffs[i++] + descOld.properties.size * oldIndex;
-						const auto idxDst = newOffs[j++] + descOld.properties.size * newIndex;
+						const auto idxSrc = oldOffs[i++] + desc.properties.size * oldIndex;
+						const auto idxDst = newOffs[j++] + desc.properties.size * newIndex;
 
 						GAIA_ASSERT(idxSrc < Chunk::DATA_SIZE_NORESERVE);
 						GAIA_ASSERT(idxDst < Chunk::DATA_SIZE_NORESERVE);
@@ -551,14 +550,12 @@ namespace gaia {
 						auto* pSrc = (void*)&pOldChunk->GetData(idxSrc);
 						auto* pDst = (void*)&pNewChunk->GetData(idxDst);
 
-						if (descNew.properties.has_custom_move == 1) {
-							const auto& desc = cc.GetComponentDesc(descNew.componentId);
-							desc.move(pSrc, pDst);
-						} else if (descNew.properties.has_custom_copy == 1) {
-							const auto& desc = cc.GetComponentDesc(descNew.componentId);
-							desc.copy(pSrc, pDst);
+						if (desc.properties.has_custom_move == 1) {
+							desc.ctor_move(pSrc, pDst);
+						} else if (desc.properties.has_custom_copy == 1) {
+							desc.ctor_copy(pSrc, pDst);
 						} else
-							memmove(pDst, (const void*)pSrc, descOld.properties.size);
+							memmove(pDst, (const void*)pSrc, desc.properties.size);
 					};
 
 					while (i < oldInfos.size() && j < newInfos.size()) {
@@ -566,7 +563,7 @@ namespace gaia {
 						const auto& descNew = cc.GetComponentDesc(newInfos[j]);
 
 						if (&descOld == &descNew)
-							moveData(descOld, descNew);
+							moveData(descOld);
 						else if (component::SortComponentCond{}.operator()(descOld.componentId, descNew.componentId))
 							++i;
 						else
@@ -660,6 +657,7 @@ namespace gaia {
 
 					auto* pTargetArchetype = FindOrCreateArchetype_AddComponent(&archetype, componentType, infoToAdd);
 					MoveEntity(entity, *pTargetArchetype);
+					pChunk = entityContainer.pChunk;
 				}
 				// Adding a component to an empty entity
 				else {
@@ -673,6 +671,12 @@ namespace gaia {
 					pChunk = pTargetArchetype->FindOrCreateFreeChunk();
 					StoreEntity(entity, pChunk);
 				}
+
+				// Call the constructor for the newly added component if necessary
+				if (componentType == component::ComponentType::CT_Generic)
+					pChunk->CallConstructor(componentType, infoToAdd.componentId, entityContainer.idx);
+				else if (componentType == component::ComponentType::CT_Chunk)
+					pChunk->CallConstructor(componentType, infoToAdd.componentId, 0);
 
 				return entityContainer;
 			}
@@ -726,11 +730,17 @@ namespace gaia {
 			GAIA_NODISCARD Entity CreateEntity(archetype::Archetype& archetype) {
 				const auto entity = CreateEntity();
 
-				auto* pChunk = m_entities[entity.id()].pChunk;
+				const auto& entityContainer = m_entities[entity.id()];
+
+				auto* pChunk = entityContainer.pChunk;
 				if (pChunk == nullptr)
 					pChunk = archetype.FindOrCreateFreeChunk();
 
 				StoreEntity(entity, pChunk);
+
+				// Call constructors for the generic components on the newly added entity if necessary
+				if (pChunk->HasAnyCustomGenericConstructor())
+					pChunk->CallConstructors(component::ComponentType::CT_Generic, entityContainer.idx, 1);
 
 				return entity;
 			}

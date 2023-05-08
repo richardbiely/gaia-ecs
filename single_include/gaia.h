@@ -7102,13 +7102,17 @@ namespace gaia {
 
 				//! Component name
 				std::span<const char> name;
-				//! Destructor to call when the component is created
-				FuncDtor* ctor = nullptr;
-				//! Destructor to call when the component is destroyed
+				//! Function to call when the component needs to be constructed
+				FuncCtor* ctor = nullptr;
+				//! Function to call when the component needs to be move constructed
+				FuncMove* ctor_move = nullptr;
+				//! Function to call when the component needs to be copy constructed
+				FuncCopy* ctor_copy = nullptr;
+				//! Function to call when the component needs to be destroyed
 				FuncDtor* dtor = nullptr;
-				//! Function to call when the component is copied
-				FuncMove* copy = nullptr;
-				//! Fucntion to call when the component is moved
+				//! Function to call when the component needs to be copied
+				FuncCopy* copy = nullptr;
+				//! Fucntion to call when the component needs to be moved
 				FuncMove* move = nullptr;
 				//! Unique component identifier
 				ComponentId componentId = ComponentIdBad;
@@ -7143,8 +7147,8 @@ namespace gaia {
 						// Custom construction
 						if constexpr (!std::is_trivially_constructible_v<U>) {
 							info.ctor = [](void* ptr, size_t cnt) {
-								auto first = (U*)ptr;
-								auto last = (U*)ptr + cnt;
+								auto* first = (U*)ptr;
+								auto* last = (U*)ptr + cnt;
 								for (; first != last; ++first)
 									(void)new (first) U();
 							};
@@ -7162,33 +7166,55 @@ namespace gaia {
 
 						// Copyability
 						if (!std::is_trivially_copyable_v<U>) {
-							if constexpr (std::is_copy_assignable_v<U>) {
+							if constexpr (std::is_copy_constructible_v<U>) {
 								info.copy = [](void* from, void* to) {
-									auto src = (U*)from;
-									auto dst = (U*)to;
+									auto* src = (U*)from;
+									auto* dst = (U*)to;
+									*dst = U(*src);
+								};
+								info.ctor_copy = [](void* from, void* to) {
+									auto* src = (U*)from;
+									auto* dst = (U*)to;
+									(void)new (dst) U(std::move(*src));
+								};
+							} else if constexpr (std::is_copy_assignable_v<U>) {
+								info.copy = [](void* from, void* to) {
+									auto* src = (U*)from;
+									auto* dst = (U*)to;
 									*dst = *src;
 								};
-							} else if constexpr (std::is_copy_constructible_v<U>) {
-								info.copy = [](void* from, void* to) {
-									auto src = (U*)from;
-									auto dst = (U*)to;
-									*dst = U(*src);
+								info.ctor_copy = [](void* from, void* to) {
+									auto* src = (U*)from;
+									auto* dst = (U*)to;
+									new (dst) U();
+									*dst = *src;
 								};
 							}
 						}
 
 						// Movability
-						if constexpr (!std::is_trivially_move_assignable_v<U> && std::is_move_assignable_v<U>) {
+						if constexpr (!std::is_trivially_move_constructible_v<U> && std::is_move_constructible_v<U>) {
 							info.move = [](void* from, void* to) {
-								auto src = (U*)from;
-								auto dst = (U*)to;
+								auto* src = (U*)from;
+								auto* dst = (U*)to;
+								*dst = U(std::move(*src));
+							};
+							info.ctor_move = [](void* from, void* to) {
+								auto* src = (U*)from;
+								auto* dst = (U*)to;
+								(void)new (dst) U(std::move(*src));
+							};
+						} else if constexpr (!std::is_trivially_move_assignable_v<U> && std::is_move_assignable_v<U>) {
+							info.move = [](void* from, void* to) {
+								auto* src = (U*)from;
+								auto* dst = (U*)to;
 								*dst = std::move(*src);
 							};
-						} else if constexpr (!std::is_trivially_move_constructible_v<U> && std::is_move_constructible_v<U>) {
-							info.move = [](void* from, void* to) {
-								auto src = (U*)from;
-								auto dst = (U*)to;
-								*dst = U(std::move(*src));
+							info.ctor_move = [](void* from, void* to) {
+								auto* src = (U*)from;
+								auto* dst = (U*)to;
+								new (dst) U();
+								*dst = std::move(*src);
 							};
 						}
 					}
@@ -7895,6 +7921,14 @@ namespace gaia {
 			uint16_t disabled : 1;
 			//! Updated when chunks are being iterated. Used to inform of structural changes when they shouldn't happen.
 			uint16_t structuralChangesLocked : 4;
+			//! True if there's a component that requires custom construction
+			uint32_t has_custom_generic_ctor : 1;
+			//! True if there's a component that requires custom construction
+			uint32_t has_custom_chunk_ctor : 1;
+			//! True if there's a component that requires custom destruction
+			uint32_t has_custom_generic_dtor : 1;
+			//! True if there's a component that requires custom destruction
+			uint32_t has_custom_chunk_dtor : 1;
 			//! Description of components within this archetype (copied from the owner archetype)
 			containers::sarray<archetype::ComponentIdArray, component::ComponentType::CT_Count> componentIds;
 			//! Lookup hashes of components within this archetype (copied from the owner archetype)
@@ -7904,7 +7938,9 @@ namespace gaia {
 			//! Versions of individual components on chunk.
 			uint32_t versions[component::ComponentType::CT_Count][archetype::MAX_COMPONENTS_PER_ARCHETYPE]{};
 
-			ChunkHeader(uint32_t& version): lifespanCountdown(0), disabled(0), structuralChangesLocked(0), worldVersion(version) {
+			ChunkHeader(uint32_t& version):
+					lifespanCountdown(0), disabled(0), structuralChangesLocked(0), worldVersion(version),
+					has_custom_generic_ctor(0), has_custom_chunk_ctor(0), has_custom_generic_dtor(0), has_custom_chunk_dtor(0) {
 				// Make sure the alignment is right
 				GAIA_ASSERT(uintptr_t(this) % 8 == 0);
 			}
@@ -8072,6 +8108,24 @@ namespace gaia {
 				m_header.capacity = capacity;
 				m_header.componentIds = componentIds;
 				m_header.componentOffsets = componentOffsets;
+
+				const auto& cc = ComponentCache::Get();
+
+				// Size of the entity + all of its generic components
+				const auto& componentIdsGeneric = componentIds[component::ComponentType::CT_Generic];
+				for (const auto componentId: componentIdsGeneric) {
+					const auto& desc = cc.GetComponentDesc(componentId);
+					m_header.has_custom_generic_ctor |= (desc.properties.has_custom_ctor != 0);
+					m_header.has_custom_generic_dtor |= (desc.properties.has_custom_dtor != 0);
+				}
+
+				// Size of chunk components
+				const auto& componentIdsChunk = componentIds[component::ComponentType::CT_Chunk];
+				for (const auto componentId: componentIdsChunk) {
+					const auto& desc = cc.GetComponentDesc(componentId);
+					m_header.has_custom_chunk_ctor |= (desc.properties.has_custom_ctor != 0);
+					m_header.has_custom_chunk_dtor |= (desc.properties.has_custom_dtor != 0);
+				}
 			}
 
 			GAIA_MSVC_WARNING_POP()
@@ -8173,7 +8227,19 @@ namespace gaia {
 				return pChunk;
 			}
 
+			/*!
+			Releases all memory allocated by \param pChunk.
+			\param pChunk Chunk which we want to destroy
+			*/
 			static void Release(Chunk* pChunk) {
+				GAIA_ASSERT(pChunk != nullptr);
+
+				// Call destructors for components that need it
+				if (pChunk->HasAnyCustomGenericDestructor())
+					pChunk->CallDestructors(component::ComponentType::CT_Generic, 0, pChunk->GetEntityCount());
+				if (pChunk->HasAnyCustomChunkDestructor())
+					pChunk->CallDestructors(component::ComponentType::CT_Chunk, 0, 1);
+
 #if GAIA_ECS_CHUNK_ALLOCATOR
 				pChunk->~Chunk();
 				ChunkAllocator::Get().Release(pChunk);
@@ -8232,24 +8298,6 @@ namespace gaia {
 				const auto index = m_header.count++;
 				SetEntity(index, entity);
 
-				const auto& componentIds = m_header.componentIds[component::ComponentType::CT_Generic];
-				const auto& componentOffsets = m_header.componentOffsets[component::ComponentType::CT_Generic];
-
-				for (size_t i = 0; i < componentIds.size(); i++) {
-					const auto& desc = ComponentCache::Get().GetComponentDesc(componentIds[i]);
-					if (desc.properties.size == 0U)
-						continue;
-
-					const auto offset = componentOffsets[i];
-					const auto idxSrc = offset + index * desc.properties.size;
-					GAIA_ASSERT(idxSrc < Chunk::DATA_SIZE_NORESERVE);
-
-					auto* pSrc = (void*)&m_data[idxSrc];
-
-					if (desc.properties.has_custom_ctor == 1)
-						desc.ctor(pSrc, 1);
-				}
-
 				UpdateVersion(m_header.worldVersion);
 				m_header.UpdateWorldVersion(component::ComponentType::CT_Generic);
 				m_header.UpdateWorldVersion(component::ComponentType::CT_Chunk);
@@ -8262,7 +8310,7 @@ namespace gaia {
 			*/
 			void RemoveEntity(uint32_t index, containers::darray<EntityContainer>& entities) {
 				// Ignore requests on empty chunks
-				if (m_header.count == 0)
+				if (!HasEntities())
 					return;
 
 				// We can't be removing from an index which is no longer there
@@ -8270,16 +8318,17 @@ namespace gaia {
 
 				// If there are at least two entities inside and it's not already the
 				// last one let's swap our entity with the last one in the chunk.
-				if (m_header.count > 1 && m_header.count != index + 1) {
+				if GAIA_LIKELY (m_header.count > 1 && m_header.count != index + 1) {
 					// Swap data at index with the last one
 					const auto entity = GetEntity(m_header.count - 1);
 					SetEntity(index, entity);
 
+					const auto& cc = ComponentCache::Get();
 					const auto& componentIds = m_header.componentIds[component::ComponentType::CT_Generic];
 					const auto& componentOffsets = m_header.componentOffsets[component::ComponentType::CT_Generic];
 
 					for (size_t i = 0; i < componentIds.size(); i++) {
-						const auto& desc = ComponentCache::Get().GetComponentDesc(componentIds[i]);
+						const auto& desc = cc.GetComponentDesc(componentIds[i]);
 						if (desc.properties.size == 0U)
 							continue;
 
@@ -8402,6 +8451,100 @@ namespace gaia {
 
 				return (uint8_t*)&m_data[componentOffset];
 			}
+
+			//----------------------------------------------------------------------
+			// Component handling
+			//----------------------------------------------------------------------
+
+			bool HasAnyCustomGenericConstructor() const {
+				return m_header.has_custom_generic_ctor;
+			}
+
+			bool HasAnyCustomChunkConstructor() const {
+				return m_header.has_custom_chunk_ctor;
+			}
+
+			bool HasAnyCustomGenericDestructor() const {
+				return m_header.has_custom_generic_dtor;
+			}
+
+			bool HasAnyCustomChunkDestructor() const {
+				return m_header.has_custom_chunk_dtor;
+			}
+
+			void CallConstructor(
+					component::ComponentType componentType, component::ComponentId componentId, uint32_t entityIndex) {
+				// Make sure only generic types are used with indices
+				GAIA_ASSERT(componentType == component::ComponentType::CT_Generic || entityIndex == 0);
+
+				const auto& cc = ComponentCache::Get();
+				const auto& desc = cc.GetComponentDesc(componentId);
+				if (desc.properties.has_custom_ctor == 0)
+					return;
+
+				const auto& componentOffsets = m_header.componentOffsets[componentType];
+				const auto& componentIds = m_header.componentIds[componentType];
+
+				const auto idx = utils::get_index_unsafe(componentIds, componentId);
+				const auto offset = componentOffsets[idx];
+				const auto idxSrc = offset + entityIndex * desc.properties.size;
+				GAIA_ASSERT(idxSrc < Chunk::DATA_SIZE_NORESERVE);
+
+				auto* pSrc = (void*)&m_data[idxSrc];
+				desc.ctor(pSrc, 1);
+			}
+
+			void CallConstructors(component::ComponentType componentType, uint32_t entityIndex, uint32_t entityCount) {
+				GAIA_ASSERT(
+						componentType == component::ComponentType::CT_Generic && HasAnyCustomGenericConstructor() ||
+						componentType == component::ComponentType::CT_Chunk && HasAnyCustomChunkConstructor());
+
+				// Make sure only generic types are used with indices
+				GAIA_ASSERT(componentType == component::ComponentType::CT_Generic || (entityIndex == 0 && entityCount == 1));
+
+				const auto& cc = ComponentCache::Get();
+				const auto& componentIds = m_header.componentIds[componentType];
+				const auto& componentOffsets = m_header.componentOffsets[componentType];
+
+				for (size_t i = 0; i < componentIds.size(); i++) {
+					const auto& desc = cc.GetComponentDesc(componentIds[i]);
+					if (desc.properties.has_custom_ctor == 0)
+						continue;
+
+					const auto offset = componentOffsets[i];
+					const auto idxSrc = offset + entityIndex * desc.properties.size;
+					GAIA_ASSERT(idxSrc < Chunk::DATA_SIZE_NORESERVE);
+
+					auto* pSrc = (void*)&m_data[idxSrc];
+					desc.ctor(pSrc, entityCount);
+				}
+			}
+
+			void CallDestructors(component::ComponentType componentType, uint32_t entityIndex, uint32_t entityCount) {
+				GAIA_ASSERT(
+						componentType == component::ComponentType::CT_Generic && HasAnyCustomGenericDestructor() ||
+						componentType == component::ComponentType::CT_Chunk && HasAnyCustomChunkDestructor());
+
+				// Make sure only generic types are used with indices
+				GAIA_ASSERT(componentType == component::ComponentType::CT_Generic || (entityIndex == 0 && entityCount == 1));
+
+				const auto& cc = ComponentCache::Get();
+				const auto& componentIds = m_header.componentIds[componentType];
+				const auto& componentOffsets = m_header.componentOffsets[componentType];
+
+				for (size_t i = 0; i < componentIds.size(); ++i) {
+					const auto& desc = cc.GetComponentDesc(componentIds[i]);
+					if (desc.properties.has_custom_dtor == 0)
+						continue;
+
+					const auto offset = componentOffsets[i];
+					const auto idxSrc = offset + entityIndex * desc.properties.size;
+					GAIA_ASSERT(idxSrc < Chunk::DATA_SIZE_NORESERVE);
+
+					auto* pSrc = (void*)&m_data[idxSrc];
+					desc.dtor(pSrc, entityCount);
+				}
+			};
 
 			//----------------------------------------------------------------------
 			// Check component presence
@@ -8770,45 +8913,10 @@ namespace gaia {
 				struct {
 					//! The number of entities this archetype can take (e.g 5 = 5 entities with all their components)
 					uint32_t capacity : 16;
-					//! True if there's a component that requires custom destruction
-					uint32_t hasGenericComponentWithCustomDestruction : 1;
-					//! True if there's a component that requires custom destruction
-					uint32_t hasChunkComponentWithCustomDestruction : 1;
 				} m_properties{};
 
 				// Constructor is hidden. Create archetypes via Create
 				Archetype(uint32_t& worldVersion): m_worldVersion(worldVersion){};
-
-				/*!
-				Releases all memory allocated by \param pChunk.
-				\param pChunk Chunk which we want to destroy
-				*/
-				void ReleaseChunk(Chunk* pChunk) const {
-					const auto& cc = ComponentCache::Get();
-
-					auto callDestructors = [&](component::ComponentType componentType) {
-						const auto& componentIds = m_componentIds[componentType];
-						const auto& offsets = m_componentOffsets[componentType];
-						const auto entityCount =
-								componentType == component::ComponentType::CT_Generic ? pChunk->GetEntityCount() : 1U;
-						for (size_t i = 0; i < componentIds.size(); ++i) {
-							const auto componentId = componentIds[i];
-							const auto& infoCreate = cc.GetComponentDesc(componentId);
-							if (infoCreate.dtor == nullptr)
-								continue;
-							auto* pSrc = (void*)&pChunk->GetData(offsets[i]);
-							infoCreate.dtor(pSrc, entityCount);
-						}
-					};
-
-					// Call destructors for components that need it
-					if (m_properties.hasGenericComponentWithCustomDestruction == 1)
-						callDestructors(component::ComponentType::CT_Generic);
-					if (m_properties.hasChunkComponentWithCustomDestruction == 1)
-						callDestructors(component::ComponentType::CT_Chunk);
-
-					Chunk::Release(pChunk);
-				}
 
 				GAIA_NODISCARD Chunk* FindOrCreateFreeChunk_Internal(containers::darray<Chunk*>& chunkArray) const {
 					const auto chunkCnt = chunkArray.size();
@@ -8881,9 +8989,9 @@ namespace gaia {
 				~Archetype() {
 					// Delete all archetype chunks
 					for (auto* pChunk: m_chunks)
-						ReleaseChunk(pChunk);
+						Chunk::Release(pChunk);
 					for (auto* pChunk: m_chunksDisabled)
-						ReleaseChunk(pChunk);
+						Chunk::Release(pChunk);
 				}
 
 				GAIA_NODISCARD static LookupHash
@@ -8904,7 +9012,6 @@ namespace gaia {
 					for (const auto componentId: componentIdsGeneric) {
 						const auto& desc = cc.GetComponentDesc(componentId);
 						genericComponentListSize += desc.properties.size;
-						newArch->m_properties.hasGenericComponentWithCustomDestruction |= (desc.properties.has_custom_dtor != 0);
 					}
 
 					// Size of chunk components
@@ -8912,7 +9019,6 @@ namespace gaia {
 					for (const auto componentId: componentIdsChunk) {
 						const auto& desc = cc.GetComponentDesc(componentId);
 						chunkComponentListSize += desc.properties.size;
-						newArch->m_properties.hasChunkComponentWithCustomDestruction |= (desc.properties.has_custom_dtor != 0);
 					}
 
 					// TODO: Calculate the number of entities per chunks precisely so we can
@@ -9014,7 +9120,7 @@ namespace gaia {
 					const bool isDisabled = pChunk->IsDisabled();
 					const auto chunkIndex = pChunk->GetChunkIndex();
 
-					ReleaseChunk(pChunk);
+					Chunk::Release(pChunk);
 
 					auto remove = [&](auto& chunkArray) {
 						if (chunkArray.size() > 1)
@@ -11680,8 +11786,7 @@ namespace gaia {
 			}
 
 			/*!
-			Moves an entity along with all its generic components from its current to another
-			chunk in a new archetype.
+			Moves an entity along with all its generic components from its current chunk to another one in a new archetype.
 			\param oldEntity Entity to move
 			\param newArchetype Target archetype
 			*/
@@ -11711,10 +11816,10 @@ namespace gaia {
 					size_t i = 0;
 					size_t j = 0;
 
-					auto moveData = [&](const component::ComponentDesc& descOld, const component::ComponentDesc& descNew) {
+					auto moveData = [&](const component::ComponentDesc& desc) {
 						// Let's move all type data from oldEntity to newEntity
-						const auto idxSrc = oldOffs[i++] + descOld.properties.size * oldIndex;
-						const auto idxDst = newOffs[j++] + descOld.properties.size * newIndex;
+						const auto idxSrc = oldOffs[i++] + desc.properties.size * oldIndex;
+						const auto idxDst = newOffs[j++] + desc.properties.size * newIndex;
 
 						GAIA_ASSERT(idxSrc < Chunk::DATA_SIZE_NORESERVE);
 						GAIA_ASSERT(idxDst < Chunk::DATA_SIZE_NORESERVE);
@@ -11722,14 +11827,12 @@ namespace gaia {
 						auto* pSrc = (void*)&pOldChunk->GetData(idxSrc);
 						auto* pDst = (void*)&pNewChunk->GetData(idxDst);
 
-						if (descNew.properties.has_custom_move == 1) {
-							const auto& desc = cc.GetComponentDesc(descNew.componentId);
-							desc.move(pSrc, pDst);
-						} else if (descNew.properties.has_custom_copy == 1) {
-							const auto& desc = cc.GetComponentDesc(descNew.componentId);
-							desc.copy(pSrc, pDst);
+						if (desc.properties.has_custom_move == 1) {
+							desc.ctor_move(pSrc, pDst);
+						} else if (desc.properties.has_custom_copy == 1) {
+							desc.ctor_copy(pSrc, pDst);
 						} else
-							memmove(pDst, (const void*)pSrc, descOld.properties.size);
+							memmove(pDst, (const void*)pSrc, desc.properties.size);
 					};
 
 					while (i < oldInfos.size() && j < newInfos.size()) {
@@ -11737,7 +11840,7 @@ namespace gaia {
 						const auto& descNew = cc.GetComponentDesc(newInfos[j]);
 
 						if (&descOld == &descNew)
-							moveData(descOld, descNew);
+							moveData(descOld);
 						else if (component::SortComponentCond{}.operator()(descOld.componentId, descNew.componentId))
 							++i;
 						else
@@ -11831,6 +11934,7 @@ namespace gaia {
 
 					auto* pTargetArchetype = FindOrCreateArchetype_AddComponent(&archetype, componentType, infoToAdd);
 					MoveEntity(entity, *pTargetArchetype);
+					pChunk = entityContainer.pChunk;
 				}
 				// Adding a component to an empty entity
 				else {
@@ -11844,6 +11948,12 @@ namespace gaia {
 					pChunk = pTargetArchetype->FindOrCreateFreeChunk();
 					StoreEntity(entity, pChunk);
 				}
+
+				// Call the constructor for the newly added component if necessary
+				if (componentType == component::ComponentType::CT_Generic)
+					pChunk->CallConstructor(componentType, infoToAdd.componentId, entityContainer.idx);
+				else if (componentType == component::ComponentType::CT_Chunk)
+					pChunk->CallConstructor(componentType, infoToAdd.componentId, 0);
 
 				return entityContainer;
 			}
@@ -11897,11 +12007,17 @@ namespace gaia {
 			GAIA_NODISCARD Entity CreateEntity(archetype::Archetype& archetype) {
 				const auto entity = CreateEntity();
 
-				auto* pChunk = m_entities[entity.id()].pChunk;
+				const auto& entityContainer = m_entities[entity.id()];
+
+				auto* pChunk = entityContainer.pChunk;
 				if (pChunk == nullptr)
 					pChunk = archetype.FindOrCreateFreeChunk();
 
 				StoreEntity(entity, pChunk);
+
+				// Call constructors for the generic components on the newly added entity if necessary
+				if (pChunk->HasAnyCustomGenericConstructor())
+					pChunk->CallConstructors(component::ComponentType::CT_Generic, entityContainer.idx, 1);
 
 				return entity;
 			}

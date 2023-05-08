@@ -20,13 +20,17 @@ namespace gaia {
 
 				//! Component name
 				std::span<const char> name;
-				//! Destructor to call when the component is created
-				FuncDtor* ctor = nullptr;
-				//! Destructor to call when the component is destroyed
+				//! Function to call when the component needs to be constructed
+				FuncCtor* ctor = nullptr;
+				//! Function to call when the component needs to be move constructed
+				FuncMove* ctor_move = nullptr;
+				//! Function to call when the component needs to be copy constructed
+				FuncCopy* ctor_copy = nullptr;
+				//! Function to call when the component needs to be destroyed
 				FuncDtor* dtor = nullptr;
-				//! Function to call when the component is copied
-				FuncMove* copy = nullptr;
-				//! Fucntion to call when the component is moved
+				//! Function to call when the component needs to be copied
+				FuncCopy* copy = nullptr;
+				//! Fucntion to call when the component needs to be moved
 				FuncMove* move = nullptr;
 				//! Unique component identifier
 				ComponentId componentId = ComponentIdBad;
@@ -61,8 +65,8 @@ namespace gaia {
 						// Custom construction
 						if constexpr (!std::is_trivially_constructible_v<U>) {
 							info.ctor = [](void* ptr, size_t cnt) {
-								auto first = (U*)ptr;
-								auto last = (U*)ptr + cnt;
+								auto* first = (U*)ptr;
+								auto* last = (U*)ptr + cnt;
 								for (; first != last; ++first)
 									(void)new (first) U();
 							};
@@ -80,33 +84,55 @@ namespace gaia {
 
 						// Copyability
 						if (!std::is_trivially_copyable_v<U>) {
-							if constexpr (std::is_copy_assignable_v<U>) {
+							if constexpr (std::is_copy_constructible_v<U>) {
 								info.copy = [](void* from, void* to) {
-									auto src = (U*)from;
-									auto dst = (U*)to;
+									auto* src = (U*)from;
+									auto* dst = (U*)to;
+									*dst = U(*src);
+								};
+								info.ctor_copy = [](void* from, void* to) {
+									auto* src = (U*)from;
+									auto* dst = (U*)to;
+									(void)new (dst) U(std::move(*src));
+								};
+							} else if constexpr (std::is_copy_assignable_v<U>) {
+								info.copy = [](void* from, void* to) {
+									auto* src = (U*)from;
+									auto* dst = (U*)to;
 									*dst = *src;
 								};
-							} else if constexpr (std::is_copy_constructible_v<U>) {
-								info.copy = [](void* from, void* to) {
-									auto src = (U*)from;
-									auto dst = (U*)to;
-									*dst = U(*src);
+								info.ctor_copy = [](void* from, void* to) {
+									auto* src = (U*)from;
+									auto* dst = (U*)to;
+									new (dst) U();
+									*dst = *src;
 								};
 							}
 						}
 
 						// Movability
-						if constexpr (!std::is_trivially_move_assignable_v<U> && std::is_move_assignable_v<U>) {
+						if constexpr (!std::is_trivially_move_constructible_v<U> && std::is_move_constructible_v<U>) {
 							info.move = [](void* from, void* to) {
-								auto src = (U*)from;
-								auto dst = (U*)to;
+								auto* src = (U*)from;
+								auto* dst = (U*)to;
+								*dst = U(std::move(*src));
+							};
+							info.ctor_move = [](void* from, void* to) {
+								auto* src = (U*)from;
+								auto* dst = (U*)to;
+								(void)new (dst) U(std::move(*src));
+							};
+						} else if constexpr (!std::is_trivially_move_assignable_v<U> && std::is_move_assignable_v<U>) {
+							info.move = [](void* from, void* to) {
+								auto* src = (U*)from;
+								auto* dst = (U*)to;
 								*dst = std::move(*src);
 							};
-						} else if constexpr (!std::is_trivially_move_constructible_v<U> && std::is_move_constructible_v<U>) {
-							info.move = [](void* from, void* to) {
-								auto src = (U*)from;
-								auto dst = (U*)to;
-								*dst = U(std::move(*src));
+							info.ctor_move = [](void* from, void* to) {
+								auto* src = (U*)from;
+								auto* dst = (U*)to;
+								new (dst) U();
+								*dst = std::move(*src);
 							};
 						}
 					}

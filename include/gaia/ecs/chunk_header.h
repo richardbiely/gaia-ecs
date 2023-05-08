@@ -24,6 +24,14 @@ namespace gaia {
 			uint16_t disabled : 1;
 			//! Updated when chunks are being iterated. Used to inform of structural changes when they shouldn't happen.
 			uint16_t structuralChangesLocked : 4;
+			//! True if there's a component that requires custom construction
+			uint32_t has_custom_generic_ctor : 1;
+			//! True if there's a component that requires custom construction
+			uint32_t has_custom_chunk_ctor : 1;
+			//! True if there's a component that requires custom destruction
+			uint32_t has_custom_generic_dtor : 1;
+			//! True if there's a component that requires custom destruction
+			uint32_t has_custom_chunk_dtor : 1;
 			//! Description of components within this archetype (copied from the owner archetype)
 			containers::sarray<archetype::ComponentIdArray, component::ComponentType::CT_Count> componentIds;
 			//! Lookup hashes of components within this archetype (copied from the owner archetype)
@@ -33,7 +41,9 @@ namespace gaia {
 			//! Versions of individual components on chunk.
 			uint32_t versions[component::ComponentType::CT_Count][archetype::MAX_COMPONENTS_PER_ARCHETYPE]{};
 
-			ChunkHeader(uint32_t& version): lifespanCountdown(0), disabled(0), structuralChangesLocked(0), worldVersion(version) {
+			ChunkHeader(uint32_t& version):
+					lifespanCountdown(0), disabled(0), structuralChangesLocked(0), worldVersion(version),
+					has_custom_generic_ctor(0), has_custom_chunk_ctor(0), has_custom_generic_dtor(0), has_custom_chunk_dtor(0) {
 				// Make sure the alignment is right
 				GAIA_ASSERT(uintptr_t(this) % 8 == 0);
 			}
