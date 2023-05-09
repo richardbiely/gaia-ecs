@@ -2,7 +2,9 @@
 #include "../config/config.h"
 
 #include <cinttypes>
+#include <type_traits>
 
+#include "gaia/ecs/component.h"
 #include "query_info.h"
 
 namespace gaia {
@@ -103,7 +105,19 @@ namespace gaia {
 			//! \return Entity of component view with read-only access
 			template <typename T>
 			GAIA_NODISCARD auto View() const {
-				GAIA_ASSERT(m_info.Has<T>());
+#if GAIA_DEBUG || GAIA_FORCE_DEBUG
+				if constexpr (component::IsGenericComponent<T>) {
+					using U = typename component::DeduceComponent<T>::Type;
+					using UConst = std::add_const_t<U>;
+					GAIA_ASSERT(m_info.Has<UConst>());
+				} else {
+					using U = typename component::DeduceComponent<T>::Type;
+					using UConst = std::add_const_t<U>;
+					using UChunk = AsChunk<UConst>;
+					GAIA_ASSERT(m_info.Has<UChunk>());
+				}
+#endif
+
 				return m_chunk.View<T>();
 			}
 

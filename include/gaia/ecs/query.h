@@ -434,8 +434,7 @@ namespace gaia {
 			template <typename Func>
 			void ForEachIter_Internal(query::QueryInfo& queryInfo, Func func) {
 				RunQueryOnChunks_Internal(queryInfo, [&](archetype::Chunk& chunk) {
-					Iterator iter(queryInfo, chunk);
-					func(iter);
+					func(Iterator(queryInfo, chunk));
 				});
 			}
 

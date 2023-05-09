@@ -10161,6 +10161,7 @@ namespace gaia {
 #include <type_traits>
 
 #include <cinttypes>
+#include <type_traits>
 
 namespace gaia {
 	namespace ecs {
@@ -10720,7 +10721,19 @@ namespace gaia {
 			//! \return Entity of component view with read-only access
 			template <typename T>
 			GAIA_NODISCARD auto View() const {
-				GAIA_ASSERT(m_info.Has<T>());
+#if GAIA_DEBUG || GAIA_FORCE_DEBUG
+				if constexpr (component::IsGenericComponent<T>) {
+					using U = typename component::DeduceComponent<T>::Type;
+					using UConst = std::add_const_t<U>;
+					GAIA_ASSERT(m_info.Has<UConst>());
+				} else {
+					using U = typename component::DeduceComponent<T>::Type;
+					using UConst = std::add_const_t<U>;
+					using UChunk = AsChunk<UConst>;
+					GAIA_ASSERT(m_info.Has<UChunk>());
+				}
+#endif
+
 				return m_chunk.View<T>();
 			}
 
@@ -11226,8 +11239,7 @@ namespace gaia {
 			template <typename Func>
 			void ForEachIter_Internal(query::QueryInfo& queryInfo, Func func) {
 				RunQueryOnChunks_Internal(queryInfo, [&](archetype::Chunk& chunk) {
-					Iterator iter(queryInfo, chunk);
-					func(iter);
+					func(Iterator(queryInfo, chunk));
 				});
 			}
 
@@ -11331,8 +11343,6 @@ namespace gaia {
 
 			template <typename Func>
 			void ForEach(query::QueryId queryId, Func func) {
-				using InputArgs = decltype(utils::func_args(&Func::operator()));
-
 				// Make sure the query was created by World.CreateQuery()
 				GAIA_ASSERT(m_entityQueryCache != nullptr);
 
