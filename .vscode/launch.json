@@ -70,5 +70,16 @@
       "environment": [],
       "externalConsole": false
     }
+    {
+      "name": "(lldb) perf - entity",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/src/perf/entity/gaia_perf_entity",
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [],
+      "externalConsole": false
+    }
   ]
 }

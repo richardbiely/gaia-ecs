@@ -6,28 +6,6 @@ using namespace gaia;
 
 constexpr size_t NEntities = 1'000;
 
-void AddEntities(ecs::World& w, uint32_t n) {
-	for (size_t i = 0; i < n; ++i) {
-		[[maybe_unused]] auto e = w.CreateEntity();
-		picobench::DoNotOptimize(e);
-	}
-}
-
-void BM_CreateEntity(picobench::state& state) {
-	for (auto _: state) {
-		(void)_;
-		ecs::World w;
-
-		// Simulate the hot path. This happens when the component was
-		// added at least once and thus the graph edges are already created.
-		state.stop_timer();
-		AddEntities(w, 1);
-		state.start_timer();
-
-		AddEntities(w, NEntities);
-	}
-}
-
 template <size_t Version, typename T, size_t TCount>
 struct Component {
 	T value[TCount];
@@ -50,22 +28,6 @@ constexpr void AddComponents(ecs::World& w, uint32_t n) {
 	for (size_t i = 0; i < n; ++i) {
 		[[maybe_unused]] auto e = w.CreateEntity();
 		detail::AddComponents<T, ValuesCount, ComponentCount>(w, e);
-	}
-}
-
-template <size_t Iterations>
-void BM_CreateEntity_With_Component(picobench::state& state) {
-	for (auto s: state) {
-		(void)s;
-		ecs::World w;
-
-		// Simulate the hot path. This happens when the component was
-		// added at least once and thus the graph edges are already created.
-		state.stop_timer();
-		AddComponents<float, 0, Iterations>(w, 1);
-		state.start_timer();
-
-		AddComponents<float, 0, Iterations>(w, NEntities);
 	}
 }
 
@@ -215,35 +177,25 @@ DEFINE_FOREACHCHUNK_EXTERNALQUERY(1000)
 DEFINE_FOREACHCHUNK_EXTERNALQUERY(2500)
 DEFINE_FOREACHCHUNK_EXTERNALQUERY(5000)
 
-#define PICO_SETTINGS_CREATEENTITY() iterations({2048}).samples(3)
-#define PICO_SETTINGS_FOREACH() iterations({8192}).samples(3)
-
-PICOBENCH_SUITE("Entity and component creation");
-PICOBENCH(BM_CreateEntity).PICO_SETTINGS_CREATEENTITY().label("0 components");
-PICOBENCH(BM_CreateEntity_With_Component<1>).PICO_SETTINGS_CREATEENTITY().label("1 component");
-PICOBENCH(BM_CreateEntity_With_Component<2>).PICO_SETTINGS_CREATEENTITY().label("2 components");
-PICOBENCH(BM_CreateEntity_With_Component<4>).PICO_SETTINGS_CREATEENTITY().label("4 components");
-PICOBENCH(BM_CreateEntity_With_Component<8>).PICO_SETTINGS_CREATEENTITY().label("8 components");
-PICOBENCH(BM_CreateEntity_With_Component<16>).PICO_SETTINGS_CREATEENTITY().label("16 components");
-PICOBENCH(BM_CreateEntity_With_Component<32>).PICO_SETTINGS_CREATEENTITY().label("32 components");
+#define PICO_SETTINGS() iterations({8192}).samples(3)
 
 PICOBENCH_SUITE("ForEach - internal query");
-PICOBENCH(BM_ForEach_Internal_1).PICO_SETTINGS_FOREACH().label("1 archetype");
-PICOBENCH(BM_ForEach_Internal_100).PICO_SETTINGS_FOREACH().label("100 archetypes");
-PICOBENCH(BM_ForEach_Internal_1000).PICO_SETTINGS_FOREACH().label("1000 archetypes");
-PICOBENCH(BM_ForEach_Internal_2500).PICO_SETTINGS_FOREACH().label("2500 archetypes");
-PICOBENCH(BM_ForEach_Internal_5000).PICO_SETTINGS_FOREACH().label("5000 archetypes");
+PICOBENCH(BM_ForEach_Internal_1).PICO_SETTINGS().label("1 archetype");
+PICOBENCH(BM_ForEach_Internal_100).PICO_SETTINGS().label("100 archetypes");
+PICOBENCH(BM_ForEach_Internal_1000).PICO_SETTINGS().label("1000 archetypes");
+PICOBENCH(BM_ForEach_Internal_2500).PICO_SETTINGS().label("2500 archetypes");
+PICOBENCH(BM_ForEach_Internal_5000).PICO_SETTINGS().label("5000 archetypes");
 
 PICOBENCH_SUITE("ForEach - external query");
-PICOBENCH(BM_ForEach_External_1).PICO_SETTINGS_FOREACH().label("1 archetype");
-PICOBENCH(BM_ForEach_External_100).PICO_SETTINGS_FOREACH().label("100 archetypes");
-PICOBENCH(BM_ForEach_External_1000).PICO_SETTINGS_FOREACH().label("1000 archetypes");
-PICOBENCH(BM_ForEach_External_2500).PICO_SETTINGS_FOREACH().label("2500 archetypes");
-PICOBENCH(BM_ForEach_External_5000).PICO_SETTINGS_FOREACH().label("5000 archetypes");
+PICOBENCH(BM_ForEach_External_1).PICO_SETTINGS().label("1 archetype");
+PICOBENCH(BM_ForEach_External_100).PICO_SETTINGS().label("100 archetypes");
+PICOBENCH(BM_ForEach_External_1000).PICO_SETTINGS().label("1000 archetypes");
+PICOBENCH(BM_ForEach_External_2500).PICO_SETTINGS().label("2500 archetypes");
+PICOBENCH(BM_ForEach_External_5000).PICO_SETTINGS().label("5000 archetypes");
 
 PICOBENCH_SUITE("ForEach - external query, chunk");
-PICOBENCH(BM_ForEachChunk_External_1).PICO_SETTINGS_FOREACH().label("1 archetype");
-PICOBENCH(BM_ForEachChunk_External_100).PICO_SETTINGS_FOREACH().label("100 archetypes");
-PICOBENCH(BM_ForEachChunk_External_1000).PICO_SETTINGS_FOREACH().label("1000 archetypes");
-PICOBENCH(BM_ForEachChunk_External_2500).PICO_SETTINGS_FOREACH().label("2500 archetypes");
-PICOBENCH(BM_ForEachChunk_External_5000).PICO_SETTINGS_FOREACH().label("5000 archetypes");
+PICOBENCH(BM_ForEachChunk_External_1).PICO_SETTINGS().label("1 archetype");
+PICOBENCH(BM_ForEachChunk_External_100).PICO_SETTINGS().label("100 archetypes");
+PICOBENCH(BM_ForEachChunk_External_1000).PICO_SETTINGS().label("1000 archetypes");
+PICOBENCH(BM_ForEachChunk_External_2500).PICO_SETTINGS().label("2500 archetypes");
+PICOBENCH(BM_ForEachChunk_External_5000).PICO_SETTINGS().label("5000 archetypes");
