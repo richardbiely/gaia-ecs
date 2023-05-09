@@ -7908,7 +7908,7 @@ namespace gaia {
 		struct ChunkHeader final {
 		public:
 			//! Archetype the chunk belongs to
-			uint32_t archetypeId;
+			uint32_t archetypeId{};
 			//! Number of items in the chunk.
 			uint16_t count{};
 			//! Capacity (copied from the owner archetype).
@@ -7935,8 +7935,13 @@ namespace gaia {
 			containers::sarray<archetype::ComponentOffsetArray, component::ComponentType::CT_Count> componentOffsets;
 			//! Version of the world (stable pointer to parent world's world version)
 			uint32_t& worldVersion;
-			//! Versions of individual components on chunk.
-			uint32_t versions[component::ComponentType::CT_Count][archetype::MAX_COMPONENTS_PER_ARCHETYPE]{};
+
+			struct Versions {
+				//! Versions of individual components on chunk.
+				uint32_t versions[archetype::MAX_COMPONENTS_PER_ARCHETYPE];
+			} versions[component::ComponentType::CT_Count]{};
+			// Make sure the mask can take all components
+			static_assert(archetype::MAX_COMPONENTS_PER_ARCHETYPE <= 32);
 
 			ChunkHeader(uint32_t& version):
 					lifespanCountdown(0), disabled(0), structuralChangesLocked(0), worldVersion(version),
@@ -7949,14 +7954,16 @@ namespace gaia {
 				// Make sure only proper input is provided
 				GAIA_ASSERT(componentIdx != UINT32_MAX && componentIdx < archetype::MAX_COMPONENTS_PER_ARCHETYPE);
 
-				// Update all components' version
-				versions[componentType][componentIdx] = worldVersion;
+				// Update the version of the component
+				auto& v = versions[componentType];
+				v.versions[componentIdx] = worldVersion;
 			}
 
 			GAIA_FORCEINLINE void UpdateWorldVersion(component::ComponentType componentType) {
-				// Update all components' version
+				// Update the version of all components
+				auto& v = versions[componentType];
 				for (size_t i = 0; i < archetype::MAX_COMPONENTS_PER_ARCHETYPE; i++)
-					versions[componentType][i] = worldVersion;
+					v.versions[i] = worldVersion;
 			}
 		};
 	} // namespace ecs
@@ -7965,6 +7972,16 @@ namespace gaia {
 namespace gaia {
 	namespace ecs {
 		namespace component {
+			//! Updates the provided component matcher hash based on the provided component id
+			//! \param matcherHash Initial matcher hash
+			//! \param componentId Component id
+			GAIA_NODISCARD inline void
+			CalculateMatcherHash(ComponentMatcherHash& matcherHash, component::ComponentId componentId) noexcept {
+				const auto& cc = ComponentCache::Get();
+				const auto componentHash = cc.GetComponentInfo(componentId).matcherHash.hash;
+				matcherHash.hash = utils::combine_or(matcherHash.hash, componentHash);
+			}
+
 			//! Calculates a component matcher hash from the provided component ids
 			//! \param componentIds Span of component ids
 			//! \return Component matcher hash
@@ -8990,7 +9007,7 @@ namespace gaia {
 			//! Returns true if the provided version is newer than the one stored internally
 			GAIA_NODISCARD bool
 			DidChange(component::ComponentType componentType, uint32_t version, uint32_t componentIdx) const {
-				return DidVersionChange(m_header.versions[componentType][componentIdx], version);
+				return DidVersionChange(m_header.versions[componentType].versions[componentIdx], version);
 			}
 
 			void Diag(uint32_t index) const {
@@ -10154,35 +10171,38 @@ namespace gaia {
 			//! Number of components that can be a part of EntityQuery
 			static constexpr uint32_t MAX_COMPONENTS_IN_QUERY = 8U;
 
-			using QueryId = uint32_t;
-			using LookupHash = utils::direct_hash_key<uint64_t>;
-			using ComponentIdArray = containers::sarray_ext<component::ComponentId, MAX_COMPONENTS_IN_QUERY>;
-			using ChangeFilterArray = containers::sarray_ext<component::ComponentId, MAX_COMPONENTS_IN_QUERY>;
-
-			static constexpr QueryId QueryIdBad = (QueryId)-1;
-
 			//! List type
 			enum ListType : uint8_t { LT_None, LT_Any, LT_All, LT_Count };
 
-			struct ComponentListData {
-				//! List of component ids
-				ComponentIdArray componentIds[ListType::LT_Count]{};
-				//! List of component matcher hashes
-				component::ComponentMatcherHash hash[ListType::LT_Count]{};
-			};
+			using QueryId = uint32_t;
+			using LookupHash = utils::direct_hash_key<uint64_t>;
+			using ComponentIdArray = containers::sarray_ext<component::ComponentId, MAX_COMPONENTS_IN_QUERY>;
+			using ListTypeArray = containers::sarray_ext<ListType, MAX_COMPONENTS_IN_QUERY>;
+			using ChangeFilterArray = containers::sarray_ext<component::ComponentId, MAX_COMPONENTS_IN_QUERY>;
+
+			static constexpr QueryId QueryIdBad = (QueryId)-1;
 
 			struct LookupCtx {
 				//! Lookup hash for this query
 				LookupHash hashLookup{};
 				//! Query id
 				QueryId queryId = QueryIdBad;
-				//! List of querried components
-				ComponentListData list[component::ComponentType::CT_Count]{};
-				//! List of filtered components
-				ChangeFilterArray listChangeFiltered[component::ComponentType::CT_Count]{};
-				//! Read-write mask. Bit 0 stands for component 0 in component arrays.
-				//! A set bit means write access is requested.
-				uint8_t rw[component::ComponentType::CT_Count]{};
+
+				struct Data {
+					//! List of querried components
+					ComponentIdArray componentIds;
+					//! Filtering rules for the components
+					ListTypeArray rules;
+					//! List of component matcher hashes
+					component::ComponentMatcherHash hash[ListType::LT_Count];
+					//! List of filtered components
+					ChangeFilterArray withChanged;
+					//! Read-write mask. Bit 0 stands for component 0 in component arrays.
+					//! A set bit means write access is requested.
+					uint8_t readWriteMask;
+					//! The number of components which are required for the query to match
+					uint8_t rulesAllCount;
+				} data[component::ComponentType::CT_Count]{};
 				static_assert(MAX_COMPONENTS_IN_QUERY == 8); // Make sure that MAX_COMPONENTS_IN_QUERY can fit into m_rw
 
 				GAIA_NODISCARD bool operator==(const LookupCtx& other) const {
@@ -10194,49 +10214,41 @@ namespace gaia {
 					if (hashLookup != other.hashLookup)
 						return false;
 
-					// Read-write access has to be the same
-					for (size_t j = 0; j < component::ComponentType::CT_Count; ++j) {
-						if (rw[j] != other.rw[j])
+					for (size_t i = 0; i < component::ComponentType::CT_Count; ++i) {
+						const auto& left = data[i];
+						const auto& right = other.data[i];
+
+						// Check array sizes first
+						if (left.componentIds.size() != right.componentIds.size())
 							return false;
-					}
-
-					// Filter count needs to be the same
-					for (size_t j = 0; j < component::ComponentType::CT_Count; ++j) {
-						if (listChangeFiltered[j].size() != other.listChangeFiltered[j].size())
+						if (left.rules.size() != right.rules.size())
 							return false;
-					}
-
-					for (size_t j = 0; j < component::ComponentType::CT_Count; ++j) {
-						const auto& queryList = list[j];
-						const auto& otherList = other.list[j];
-
-						// Component count needes to be the same
-						for (size_t i = 0; i < ListType::LT_Count; ++i) {
-							if (queryList.componentIds[i].size() != otherList.componentIds[i].size())
-								return false;
-						}
+						if (left.withChanged.size() != right.withChanged.size())
+							return false;
+						if (left.readWriteMask != right.readWriteMask)
+							return false;
 
 						// Matches hashes need to be the same
-						for (size_t i = 0; i < ListType::LT_Count; ++i) {
-							if (queryList.hash[i] != otherList.hash[i])
+						for (size_t j = 0; j < ListType::LT_Count; ++j) {
+							if (left.hash[j] != right.hash[j])
 								return false;
 						}
 
 						// Components need to be the same
-						for (size_t i = 0; i < ListType::LT_Count; ++i) {
-							const auto ret = std::memcmp(
-									(const void*)&queryList.componentIds[i], (const void*)&otherList.componentIds[i],
-									queryList.componentIds[i].size() * sizeof(queryList.componentIds[0]));
-							if (ret != 0)
+						for (size_t j = 0; j < left.componentIds.size(); ++j) {
+							if (left.componentIds[j] != right.componentIds[j])
+								return false;
+						}
+
+						// Rules need to be the same
+						for (size_t j = 0; j < left.rules.size(); ++j) {
+							if (left.rules[j] != right.rules[j])
 								return false;
 						}
 
 						// Filters need to be the same
-						{
-							const auto ret = std::memcmp(
-									(const void*)&listChangeFiltered[j], (const void*)&other.listChangeFiltered[j],
-									listChangeFiltered[j].size() * sizeof(listChangeFiltered[0]));
-							if (ret != 0)
+						for (size_t j = 0; j < left.withChanged.size(); ++j) {
+							if (left.withChanged[j] != right.withChanged[j])
 								return false;
 						}
 					}
@@ -10252,22 +10264,24 @@ namespace gaia {
 			//! Sorts internal component arrays
 			inline void SortComponentArrays(LookupCtx& ctx) {
 				for (size_t i = 0; i < component::ComponentType::CT_Count; ++i) {
-					auto& l = ctx.list[i];
-					for (auto& componentIds: l.componentIds) {
+					auto& data = ctx.data[i];
+					for (auto& componentIds: ctx.data[i].componentIds) {
 						// Make sure the read-write mask remains correct after sorting
-						utils::sort(componentIds, component::SortComponentCond{}, [&](size_t left, size_t right) {
-							// Swap component ids
-							utils::swap(componentIds[left], componentIds[right]);
+						utils::sort(data.componentIds, component::SortComponentCond{}, [&](size_t left, size_t right) {
+							utils::swap(data.componentIds[left], data.componentIds[right]);
+							utils::swap(data.rules[left], data.rules[right]);
 
-							// Swap the bits in the read-write mask
-							const uint32_t b0 = ctx.rw[i] & (1U << left);
-							const uint32_t b1 = ctx.rw[i] & (1U << right);
-							// XOR the two bits
-							const uint32_t bxor = (b0 ^ b1);
-							// Put the XOR bits back to their original positions
-							const uint32_t mask = (bxor << left) | (bxor << right);
-							// XOR mask with the original one effectivelly swapping the bits
-							ctx.rw[i] = ctx.rw[i] ^ (uint8_t)mask;
+							{
+								// Swap the bits in the read-write mask
+								const uint32_t b0 = data.readWriteMask & (1U << left);
+								const uint32_t b1 = data.readWriteMask & (1U << right);
+								// XOR the two bits
+								const uint32_t bxor = (b0 ^ b1);
+								// Put the XOR bits back to their original positions
+								const uint32_t mask = (bxor << left) | (bxor << right);
+								// XOR mask with the original one effectivelly swapping the bits
+								data.readWriteMask = data.readWriteMask ^ (uint8_t)mask;
+							}
 						});
 					}
 				}
@@ -10278,9 +10292,9 @@ namespace gaia {
 				SortComponentArrays(ctx);
 
 				// Calculate the matcher hash
-				for (auto& l: ctx.list) {
-					for (size_t i = 0; i < ListType::LT_Count; ++i)
-						l.hash[i] = component::CalculateMatcherHash(l.componentIds[i]);
+				for (auto& data: ctx.data) {
+					for (size_t i = 0; i < data.rules.size(); ++i)
+						component::CalculateMatcherHash(data.hash[data.rules[i]], data.componentIds[i]);
 				}
 			}
 
@@ -10290,32 +10304,45 @@ namespace gaia {
 
 				LookupHash::Type hashLookup = 0;
 
-				// Filters
 				for (size_t i = 0; i < component::ComponentType::CT_Count; ++i) {
-					LookupHash::Type hash = 0;
+					auto& data = ctx.data[i];
 
-					const auto& l = ctx.listChangeFiltered[i];
-					for (auto componentId: l)
-						hash = utils::hash_combine(hash, (LookupHash::Type)componentId);
-					hash = utils::hash_combine(hash, (LookupHash::Type)l.size());
+					// Components
+					{
+						LookupHash::Type hash = 0;
 
-					hashLookup = utils::hash_combine(hashLookup, hash);
-				}
-
-				// Components
-				for (size_t i = 0; i < component::ComponentType::CT_Count; ++i) {
-					LookupHash::Type hash = 0;
-
-					const auto& l = ctx.list[i];
-					for (const auto& componentIds: l.componentIds) {
-						for (const auto componentId: componentIds) {
+						const auto& componentIds = data.componentIds;
+						for (const auto componentId: componentIds)
 							hash = utils::hash_combine(hash, (LookupHash::Type)componentId);
-						}
 						hash = utils::hash_combine(hash, (LookupHash::Type)componentIds.size());
+
+						hash = utils::hash_combine(hash, (LookupHash::Type)data.readWriteMask);
+						hashLookup = utils::hash_combine(hashLookup, hash);
 					}
 
-					hash = utils::hash_combine(hash, (LookupHash::Type)ctx.rw[i]);
-					hashLookup = utils::hash_combine(hashLookup, hash);
+					// Rules
+					{
+						LookupHash::Type hash = 0;
+
+						const auto& rules = data.withChanged;
+						for (auto listType: rules)
+							hash = utils::hash_combine(hash, (LookupHash::Type)listType);
+						hash = utils::hash_combine(hash, (LookupHash::Type)rules.size());
+
+						hashLookup = utils::hash_combine(hashLookup, hash);
+					}
+
+					// Filters
+					{
+						LookupHash::Type hash = 0;
+
+						const auto& withChanged = data.withChanged;
+						for (auto componentId: withChanged)
+							hash = utils::hash_combine(hash, (LookupHash::Type)componentId);
+						hash = utils::hash_combine(hash, (LookupHash::Type)withChanged.size());
+
+						hashLookup = utils::hash_combine(hashLookup, hash);
+					}
 				}
 
 				ctx.hashLookup = {utils::calculate_hash64(hashLookup)};
@@ -10352,16 +10379,18 @@ namespace gaia {
 						// Skip Entity input args
 						return true;
 					} else {
-						const auto& componentIds = m_lookupCtx.list[componentType].componentIds[listType];
+						const auto& data = m_lookupCtx.data[componentType];
+						const auto& componentIds = data.componentIds;
 
 						// Component id has to be present
 						const auto componentId = component::GetComponentId<T>();
-						const auto idx = utils::get_index(componentIds, componentId);
-						if (idx == BadIndex)
+						GAIA_ASSERT(utils::has(componentIds, componentId));
+						const auto idx = utils::get_index_unsafe(componentIds, componentId);
+						if (data.rules[idx] != listType)
 							return false;
 
 						// Read-write mask must match
-						const uint8_t maskRW = (uint32_t)m_lookupCtx.rw[componentType] & (1U << (uint32_t)idx);
+						const uint8_t maskRW = (uint32_t)data.readWriteMask & (1U << (uint32_t)idx);
 						const uint8_t maskXX = (uint32_t)isReadWrite << idx;
 						return maskRW == maskXX;
 					}
@@ -10382,17 +10411,20 @@ namespace gaia {
 				}
 
 				template <typename Func>
-				static GAIA_NODISCARD bool CheckMatch_Internal(
-						const archetype::ComponentIdArray& componentIds, const query::ComponentIdArray& componentIdsQuery,
-						Func func) {
+				GAIA_NODISCARD bool CheckMatch_Internal(
+						component::ComponentType componentType, const archetype::ComponentIdArray& archetypeComponentIds,
+						ListType listType, Func func) const {
+					const auto& data = m_lookupCtx.data[componentType];
+
 					// Arrays are sorted so we can do linear intersection lookup
 					size_t i = 0;
 					size_t j = 0;
-					while (i < componentIds.size() && j < componentIdsQuery.size()) {
-						const auto componentId = componentIds[i];
-						const auto componentIdQuery = componentIdsQuery[j];
+					while (i < archetypeComponentIds.size() && j < data.componentIds.size()) {
 
-						if (func(componentId, componentIdQuery))
+						const auto componentId = archetypeComponentIds[i];
+						const auto componentIdQuery = data.componentIds[j];
+
+						if (data.rules[j] == listType && componentId == componentIdQuery && func(componentId, componentIdQuery))
 							return true;
 
 						if (component::SortComponentCond{}.operator()(componentId, componentIdQuery))
@@ -10406,24 +10438,26 @@ namespace gaia {
 
 				//! Tries to match component ids in \param componentIdsQuery with those in \param componentIds.
 				//! \return True if there is a match, false otherwise.
-				static GAIA_NODISCARD bool CheckMatchOne(
-						const archetype::ComponentIdArray& componentIds, const query::ComponentIdArray& componentIdsQuery) {
+				GAIA_NODISCARD bool CheckMatchOne(
+						component::ComponentType componentType, const archetype::ComponentIdArray& archetypeComponentIds,
+						ListType listType) const {
 					return CheckMatch_Internal(
-							componentIds, componentIdsQuery,
+							componentType, archetypeComponentIds, listType,
 							[](component::ComponentId componentId, component::ComponentId componentIdQuery) {
-								return componentId == componentIdQuery;
+								return true;
 							});
 				}
 
 				//! Tries to match all component ids in \param componentIdsQuery with those in \param componentIds.
 				//! \return True if there is a match, false otherwise.
-				static GAIA_NODISCARD bool CheckMatchMany(
-						const archetype::ComponentIdArray& componentIds, const query::ComponentIdArray& componentIdsQuery) {
+				GAIA_NODISCARD bool CheckMatchAll(
+						component::ComponentType componentType, const archetype::ComponentIdArray& archetypeComponentIds) const {
 					size_t matches = 0;
+					const auto& data = m_lookupCtx.data[componentType];
 					return CheckMatch_Internal(
-							componentIds, componentIdsQuery,
+							componentType, archetypeComponentIds, ListType::LT_All,
 							[&](component::ComponentId componentId, component::ComponentId componentIdQuery) {
-								return (componentId == componentIdQuery) && (++matches == componentIdsQuery.size());
+								return (++matches == data.rulesAllCount);
 							});
 				}
 
@@ -10433,31 +10467,31 @@ namespace gaia {
 				GAIA_NODISCARD MatchArchetypeQueryRet
 				Match(const archetype::Archetype& archetype, component::ComponentType componentType) const {
 					const auto& matcherHash = archetype.GetMatcherHash(componentType);
-					const auto& queryList = GetData(componentType);
+					const auto& data = GetData(componentType);
 
-					const auto withNoneTest = matcherHash.hash & queryList.hash[query::ListType::LT_None].hash;
-					const auto withAnyTest = matcherHash.hash & queryList.hash[query::ListType::LT_Any].hash;
-					const auto withAllTest = matcherHash.hash & queryList.hash[query::ListType::LT_All].hash;
-
-					// If withAllTest is empty but we wanted something
-					if (withAllTest == 0 && queryList.hash[query::ListType::LT_All].hash != 0)
-						return MatchArchetypeQueryRet::Fail;
+					const auto withNoneTest = matcherHash.hash & data.hash[query::ListType::LT_None].hash;
+					const auto withAnyTest = matcherHash.hash & data.hash[query::ListType::LT_Any].hash;
+					const auto withAllTest = matcherHash.hash & data.hash[query::ListType::LT_All].hash;
 
 					// If withAnyTest is empty but we wanted something
-					if (withAnyTest == 0 && queryList.hash[query::ListType::LT_Any].hash != 0)
+					if (withAnyTest == 0 && data.hash[query::ListType::LT_Any].hash != 0)
 						return MatchArchetypeQueryRet::Fail;
 
-					const auto& componentIds = archetype.GetComponentIdArray(componentType);
+					// If withAllTest is empty but we wanted something
+					if (withAllTest == 0 && data.hash[query::ListType::LT_All].hash != 0)
+						return MatchArchetypeQueryRet::Fail;
+
+					const auto& archetypeComponentIds = archetype.GetComponentIdArray(componentType);
 
 					// If there is any match with withNoneList we quit
 					if (withNoneTest != 0) {
-						if (CheckMatchOne(componentIds, queryList.componentIds[query::ListType::LT_None]))
+						if (CheckMatchOne(componentType, archetypeComponentIds, query::ListType::LT_None))
 							return MatchArchetypeQueryRet::Fail;
 					}
 
 					// If there is any match with withAnyTest
 					if (withAnyTest != 0) {
-						if (CheckMatchOne(componentIds, queryList.componentIds[query::ListType::LT_Any]))
+						if (CheckMatchOne(componentType, archetypeComponentIds, query::ListType::LT_Any))
 							goto checkWithAllMatches;
 
 						// At least one match necessary to continue
@@ -10467,14 +10501,12 @@ namespace gaia {
 				checkWithAllMatches:
 					// If withAllList is not empty there has to be an exact match
 					if (withAllTest != 0) {
-						// If the number of queried components is greater than the
-						// number of components in archetype there's no need to search
-						if (queryList.componentIds[query::ListType::LT_All].size() <= componentIds.size()) {
-							// m_list[ListType::LT_All] first because we usually request for less
-							// components than there are components in archetype
-							if (CheckMatchMany(componentIds, queryList.componentIds[query::ListType::LT_All]))
-								return MatchArchetypeQueryRet::Ok;
-						}
+						if (
+								// We can't search for more components than there are no the archetype itself
+								data.rulesAllCount <= archetypeComponentIds.size() &&
+								// Match everything with LT_ALL
+								CheckMatchAll(componentType, archetypeComponentIds))
+							return MatchArchetypeQueryRet::Ok;
 
 						// No match found. We're done
 						return MatchArchetypeQueryRet::Fail;
@@ -10536,17 +10568,21 @@ namespace gaia {
 					m_lastArchetypeIdx = (uint32_t)archetypes.size();
 				}
 
-				GAIA_NODISCARD const query::ComponentListData& GetData(component::ComponentType componentType) const {
-					return m_lookupCtx.list[componentType];
+				GAIA_NODISCARD const query::LookupCtx::Data& GetData(component::ComponentType componentType) const {
+					return m_lookupCtx.data[componentType];
+				}
+
+				GAIA_NODISCARD const query::ComponentIdArray& GetComponentIds(component::ComponentType componentType) const {
+					return m_lookupCtx.data[componentType].componentIds;
 				}
 
 				GAIA_NODISCARD const query::ChangeFilterArray& GetFiltered(component::ComponentType componentType) const {
-					return m_lookupCtx.listChangeFiltered[componentType];
+					return m_lookupCtx.data[componentType].withChanged;
 				}
 
 				GAIA_NODISCARD bool HasFilters() const {
-					return !m_lookupCtx.listChangeFiltered[component::ComponentType::CT_Generic].empty() ||
-								 !m_lookupCtx.listChangeFiltered[component::ComponentType::CT_Chunk].empty();
+					return !m_lookupCtx.data[component::ComponentType::CT_Generic].withChanged.empty() ||
+								 !m_lookupCtx.data[component::ComponentType::CT_Chunk].withChanged.empty();
 				}
 
 				template <typename... T>
@@ -10687,8 +10723,9 @@ namespace gaia {
 				}
 
 				void Exec(query::LookupCtx& ctx) {
-					auto& list = ctx.list[componentType];
-					auto& componentIds = list.componentIds[listType];
+					auto& data = ctx.data[componentType];
+					auto& componentIds = data.componentIds;
+					auto& rules = data.rules;
 
 					// Unique component ids only
 					GAIA_ASSERT(!utils::has(componentIds, componentId));
@@ -10708,8 +10745,12 @@ namespace gaia {
 					}
 #endif
 
-					ctx.rw[componentType] |= (uint8_t)isReadWrite << (uint8_t)componentIds.size();
+					data.readWriteMask |= (uint8_t)isReadWrite << (uint8_t)componentIds.size();
 					componentIds.push_back(componentId);
+					rules.push_back(listType);
+
+					if (listType == query::ListType::LT_All)
+						++data.rulesAllCount;
 				}
 			};
 
@@ -10729,15 +10770,17 @@ namespace gaia {
 				}
 
 				void Exec(query::LookupCtx& ctx) {
-					auto& list = ctx.list[componentType];
-					auto& arrFilter = ctx.listChangeFiltered[componentType];
+					auto& data = ctx.data[componentType];
+					auto& componentIds = data.componentIds;
+					auto& withChanged = data.withChanged;
+					const auto& rules = data.rules;
 
-					// Unique component ids only
-					GAIA_ASSERT(!utils::has(arrFilter, componentId));
+					GAIA_ASSERT(utils::has(componentIds, componentId));
+					GAIA_ASSERT(!utils::has(withChanged, componentId));
 
 #if GAIA_DEBUG
 					// There's a limit to the amount of components which we can store
-					if (arrFilter.size() >= query::MAX_COMPONENTS_IN_QUERY) {
+					if (withChanged.size() >= query::MAX_COMPONENTS_IN_QUERY) {
 						GAIA_ASSERT(false && "Trying to create an ECS filter query with too many components!");
 
 						const auto& cc = ComponentCache::Get();
@@ -10749,14 +10792,12 @@ namespace gaia {
 					}
 #endif
 
+					const auto componentIdx = utils::get_index_unsafe(componentIds, componentId);
+
 					// Component has to be present in anyList or allList.
 					// NoneList makes no sense because we skip those in query processing anyway.
-					if (utils::has(list.componentIds[query::ListType::LT_Any], componentId)) {
-						arrFilter.push_back(componentId);
-						return;
-					}
-					if (utils::has(list.componentIds[query::ListType::LT_All], componentId)) {
-						arrFilter.push_back(componentId);
+					if (rules[componentIdx] != query::ListType::LT_None) {
+						withChanged.push_back(componentId);
 						return;
 					}
 
@@ -11330,7 +11371,7 @@ namespace gaia {
 			}
 
 			/*!
-			Returns an array of components or entities matching the query
+			Appends all components or entities matching the query to the array
 			\tparam Container Container storing entities or components
 			\return Array with entities or components
 			*/
@@ -11342,6 +11383,9 @@ namespace gaia {
 				GAIA_ASSERT(m_entityQueryCache != nullptr);
 
 				const size_t entityCount = CalculateEntityCount();
+				if (!entityCount)
+					return;
+
 				outArray.reserve(entityCount);
 
 				auto& queryInfo = FetchQueryInfo();
@@ -11386,7 +11430,7 @@ namespace gaia {
 			}
 
 			/*!
-			Returns an array of chunks matching the query
+			Appends chunks matching the query to the array
 			\return Array of chunks
 			*/
 			template <typename Container>
@@ -11397,6 +11441,9 @@ namespace gaia {
 				GAIA_ASSERT(m_entityQueryCache != nullptr);
 
 				const size_t entityCount = CalculateEntityCount();
+				if (!entityCount)
+					return;
+
 				outArray.reserve(entityCount);
 
 				auto& queryInfo = FetchQueryInfo();

@@ -10,35 +10,38 @@ namespace gaia {
 			//! Number of components that can be a part of EntityQuery
 			static constexpr uint32_t MAX_COMPONENTS_IN_QUERY = 8U;
 
-			using QueryId = uint32_t;
-			using LookupHash = utils::direct_hash_key<uint64_t>;
-			using ComponentIdArray = containers::sarray_ext<component::ComponentId, MAX_COMPONENTS_IN_QUERY>;
-			using ChangeFilterArray = containers::sarray_ext<component::ComponentId, MAX_COMPONENTS_IN_QUERY>;
-
-			static constexpr QueryId QueryIdBad = (QueryId)-1;
-
 			//! List type
 			enum ListType : uint8_t { LT_None, LT_Any, LT_All, LT_Count };
 
-			struct ComponentListData {
-				//! List of component ids
-				ComponentIdArray componentIds[ListType::LT_Count]{};
-				//! List of component matcher hashes
-				component::ComponentMatcherHash hash[ListType::LT_Count]{};
-			};
+			using QueryId = uint32_t;
+			using LookupHash = utils::direct_hash_key<uint64_t>;
+			using ComponentIdArray = containers::sarray_ext<component::ComponentId, MAX_COMPONENTS_IN_QUERY>;
+			using ListTypeArray = containers::sarray_ext<ListType, MAX_COMPONENTS_IN_QUERY>;
+			using ChangeFilterArray = containers::sarray_ext<component::ComponentId, MAX_COMPONENTS_IN_QUERY>;
+
+			static constexpr QueryId QueryIdBad = (QueryId)-1;
 
 			struct LookupCtx {
 				//! Lookup hash for this query
 				LookupHash hashLookup{};
 				//! Query id
 				QueryId queryId = QueryIdBad;
-				//! List of querried components
-				ComponentListData list[component::ComponentType::CT_Count]{};
-				//! List of filtered components
-				ChangeFilterArray listChangeFiltered[component::ComponentType::CT_Count]{};
-				//! Read-write mask. Bit 0 stands for component 0 in component arrays.
-				//! A set bit means write access is requested.
-				uint8_t rw[component::ComponentType::CT_Count]{};
+
+				struct Data {
+					//! List of querried components
+					ComponentIdArray componentIds;
+					//! Filtering rules for the components
+					ListTypeArray rules;
+					//! List of component matcher hashes
+					component::ComponentMatcherHash hash[ListType::LT_Count];
+					//! List of filtered components
+					ChangeFilterArray withChanged;
+					//! Read-write mask. Bit 0 stands for component 0 in component arrays.
+					//! A set bit means write access is requested.
+					uint8_t readWriteMask;
+					//! The number of components which are required for the query to match
+					uint8_t rulesAllCount;
+				} data[component::ComponentType::CT_Count]{};
 				static_assert(MAX_COMPONENTS_IN_QUERY == 8); // Make sure that MAX_COMPONENTS_IN_QUERY can fit into m_rw
 
 				GAIA_NODISCARD bool operator==(const LookupCtx& other) const {
@@ -50,49 +53,41 @@ namespace gaia {
 					if (hashLookup != other.hashLookup)
 						return false;
 
-					// Read-write access has to be the same
-					for (size_t j = 0; j < component::ComponentType::CT_Count; ++j) {
-						if (rw[j] != other.rw[j])
+					for (size_t i = 0; i < component::ComponentType::CT_Count; ++i) {
+						const auto& left = data[i];
+						const auto& right = other.data[i];
+
+						// Check array sizes first
+						if (left.componentIds.size() != right.componentIds.size())
 							return false;
-					}
-
-					// Filter count needs to be the same
-					for (size_t j = 0; j < component::ComponentType::CT_Count; ++j) {
-						if (listChangeFiltered[j].size() != other.listChangeFiltered[j].size())
+						if (left.rules.size() != right.rules.size())
 							return false;
-					}
-
-					for (size_t j = 0; j < component::ComponentType::CT_Count; ++j) {
-						const auto& queryList = list[j];
-						const auto& otherList = other.list[j];
-
-						// Component count needes to be the same
-						for (size_t i = 0; i < ListType::LT_Count; ++i) {
-							if (queryList.componentIds[i].size() != otherList.componentIds[i].size())
-								return false;
-						}
+						if (left.withChanged.size() != right.withChanged.size())
+							return false;
+						if (left.readWriteMask != right.readWriteMask)
+							return false;
 
 						// Matches hashes need to be the same
-						for (size_t i = 0; i < ListType::LT_Count; ++i) {
-							if (queryList.hash[i] != otherList.hash[i])
+						for (size_t j = 0; j < ListType::LT_Count; ++j) {
+							if (left.hash[j] != right.hash[j])
 								return false;
 						}
 
 						// Components need to be the same
-						for (size_t i = 0; i < ListType::LT_Count; ++i) {
-							const auto ret = std::memcmp(
-									(const void*)&queryList.componentIds[i], (const void*)&otherList.componentIds[i],
-									queryList.componentIds[i].size() * sizeof(queryList.componentIds[0]));
-							if (ret != 0)
+						for (size_t j = 0; j < left.componentIds.size(); ++j) {
+							if (left.componentIds[j] != right.componentIds[j])
+								return false;
+						}
+
+						// Rules need to be the same
+						for (size_t j = 0; j < left.rules.size(); ++j) {
+							if (left.rules[j] != right.rules[j])
 								return false;
 						}
 
 						// Filters need to be the same
-						{
-							const auto ret = std::memcmp(
-									(const void*)&listChangeFiltered[j], (const void*)&other.listChangeFiltered[j],
-									listChangeFiltered[j].size() * sizeof(listChangeFiltered[0]));
-							if (ret != 0)
+						for (size_t j = 0; j < left.withChanged.size(); ++j) {
+							if (left.withChanged[j] != right.withChanged[j])
 								return false;
 						}
 					}
@@ -108,22 +103,24 @@ namespace gaia {
 			//! Sorts internal component arrays
 			inline void SortComponentArrays(LookupCtx& ctx) {
 				for (size_t i = 0; i < component::ComponentType::CT_Count; ++i) {
-					auto& l = ctx.list[i];
-					for (auto& componentIds: l.componentIds) {
+					auto& data = ctx.data[i];
+					for (auto& componentIds: ctx.data[i].componentIds) {
 						// Make sure the read-write mask remains correct after sorting
-						utils::sort(componentIds, component::SortComponentCond{}, [&](size_t left, size_t right) {
-							// Swap component ids
-							utils::swap(componentIds[left], componentIds[right]);
+						utils::sort(data.componentIds, component::SortComponentCond{}, [&](size_t left, size_t right) {
+							utils::swap(data.componentIds[left], data.componentIds[right]);
+							utils::swap(data.rules[left], data.rules[right]);
 
-							// Swap the bits in the read-write mask
-							const uint32_t b0 = ctx.rw[i] & (1U << left);
-							const uint32_t b1 = ctx.rw[i] & (1U << right);
-							// XOR the two bits
-							const uint32_t bxor = (b0 ^ b1);
-							// Put the XOR bits back to their original positions
-							const uint32_t mask = (bxor << left) | (bxor << right);
-							// XOR mask with the original one effectivelly swapping the bits
-							ctx.rw[i] = ctx.rw[i] ^ (uint8_t)mask;
+							{
+								// Swap the bits in the read-write mask
+								const uint32_t b0 = data.readWriteMask & (1U << left);
+								const uint32_t b1 = data.readWriteMask & (1U << right);
+								// XOR the two bits
+								const uint32_t bxor = (b0 ^ b1);
+								// Put the XOR bits back to their original positions
+								const uint32_t mask = (bxor << left) | (bxor << right);
+								// XOR mask with the original one effectivelly swapping the bits
+								data.readWriteMask = data.readWriteMask ^ (uint8_t)mask;
+							}
 						});
 					}
 				}
@@ -134,9 +131,9 @@ namespace gaia {
 				SortComponentArrays(ctx);
 
 				// Calculate the matcher hash
-				for (auto& l: ctx.list) {
-					for (size_t i = 0; i < ListType::LT_Count; ++i)
-						l.hash[i] = component::CalculateMatcherHash(l.componentIds[i]);
+				for (auto& data: ctx.data) {
+					for (size_t i = 0; i < data.rules.size(); ++i)
+						component::CalculateMatcherHash(data.hash[data.rules[i]], data.componentIds[i]);
 				}
 			}
 
@@ -146,32 +143,45 @@ namespace gaia {
 
 				LookupHash::Type hashLookup = 0;
 
-				// Filters
 				for (size_t i = 0; i < component::ComponentType::CT_Count; ++i) {
-					LookupHash::Type hash = 0;
+					auto& data = ctx.data[i];
 
-					const auto& l = ctx.listChangeFiltered[i];
-					for (auto componentId: l)
-						hash = utils::hash_combine(hash, (LookupHash::Type)componentId);
-					hash = utils::hash_combine(hash, (LookupHash::Type)l.size());
+					// Components
+					{
+						LookupHash::Type hash = 0;
 
-					hashLookup = utils::hash_combine(hashLookup, hash);
-				}
-
-				// Components
-				for (size_t i = 0; i < component::ComponentType::CT_Count; ++i) {
-					LookupHash::Type hash = 0;
-
-					const auto& l = ctx.list[i];
-					for (const auto& componentIds: l.componentIds) {
-						for (const auto componentId: componentIds) {
+						const auto& componentIds = data.componentIds;
+						for (const auto componentId: componentIds)
 							hash = utils::hash_combine(hash, (LookupHash::Type)componentId);
-						}
 						hash = utils::hash_combine(hash, (LookupHash::Type)componentIds.size());
+
+						hash = utils::hash_combine(hash, (LookupHash::Type)data.readWriteMask);
+						hashLookup = utils::hash_combine(hashLookup, hash);
 					}
 
-					hash = utils::hash_combine(hash, (LookupHash::Type)ctx.rw[i]);
-					hashLookup = utils::hash_combine(hashLookup, hash);
+					// Rules
+					{
+						LookupHash::Type hash = 0;
+
+						const auto& rules = data.withChanged;
+						for (auto listType: rules)
+							hash = utils::hash_combine(hash, (LookupHash::Type)listType);
+						hash = utils::hash_combine(hash, (LookupHash::Type)rules.size());
+
+						hashLookup = utils::hash_combine(hashLookup, hash);
+					}
+
+					// Filters
+					{
+						LookupHash::Type hash = 0;
+
+						const auto& withChanged = data.withChanged;
+						for (auto componentId: withChanged)
+							hash = utils::hash_combine(hash, (LookupHash::Type)componentId);
+						hash = utils::hash_combine(hash, (LookupHash::Type)withChanged.size());
+
+						hashLookup = utils::hash_combine(hashLookup, hash);
+					}
 				}
 
 				ctx.hashLookup = {utils::calculate_hash64(hashLookup)};
