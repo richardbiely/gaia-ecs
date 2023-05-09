@@ -10376,7 +10376,7 @@ namespace gaia {
 						const auto componentId = component::GetComponentId<T>();
 						GAIA_ASSERT(utils::has(componentIds, componentId));
 						const auto idx = utils::get_index_unsafe(componentIds, componentId);
-						if (data.rules[idx] != listType)
+						if (listType != query::ListType::LT_Count && data.rules[idx] != listType)
 							return false;
 
 						// Read-write mask must match
@@ -10575,6 +10575,11 @@ namespace gaia {
 				GAIA_NODISCARD bool HasFilters() const {
 					return !m_lookupCtx.data[component::ComponentType::CT_Generic].withChanged.empty() ||
 								 !m_lookupCtx.data[component::ComponentType::CT_Chunk].withChanged.empty();
+				}
+
+				template <typename... T>
+				bool Has() const {
+					return (HasComponent_Internal<T>(query::ListType::LT_Count) || ...);
 				}
 
 				template <typename... T>
@@ -11228,6 +11233,131 @@ namespace gaia {
 
 				RunQueryOnChunks_Internal(queryInfo, [&](Chunk& chunk) {
 					chunk.ForEach(InputArgs{}, func);
+				});
+			}
+
+			struct Iterator {
+			private:
+				query::EntityQueryInfo& m_info;
+				Chunk& m_chunk;
+				uint32_t m_pos;
+
+			public:
+				Iterator(query::EntityQueryInfo& info, Chunk& chunk): m_info(info), m_chunk(chunk), m_pos(0) {}
+				Iterator(query::EntityQueryInfo& info, Chunk& chunk, uint32_t pos): m_info(info), m_chunk(chunk), m_pos(pos) {}
+
+				uint32_t operator*() const {
+					return m_pos;
+				}
+				uint32_t operator->() const {
+					return m_pos;
+				}
+
+				GAIA_NODISCARD Iterator operator[](uint32_t offset) const {
+					return {m_info, m_chunk, m_pos + offset};
+				}
+
+				GAIA_NODISCARD Iterator& operator++() {
+					++m_pos;
+					return *this;
+				}
+				GAIA_NODISCARD Iterator operator++(int) {
+					Iterator temp(*this);
+					++*this;
+					return temp;
+				}
+				GAIA_NODISCARD Iterator& operator--() {
+					--m_pos;
+					return *this;
+				}
+				GAIA_NODISCARD Iterator operator--(int) {
+					Iterator temp(*this);
+					--*this;
+					return temp;
+				}
+
+				GAIA_NODISCARD Iterator operator+(uint32_t offset) const {
+					return {m_info, m_chunk, m_pos + offset};
+				}
+				GAIA_NODISCARD Iterator operator-(uint32_t offset) const {
+					return {m_info, m_chunk, m_pos - offset};
+				}
+				GAIA_NODISCARD uint32_t operator-(const Iterator& other) const {
+					return m_pos - other.m_pos;
+				}
+
+				GAIA_NODISCARD bool operator==(const Iterator& other) const {
+					return m_pos == other.m_pos;
+				}
+				GAIA_NODISCARD bool operator!=(const Iterator& other) const {
+					return m_pos != other.m_pos;
+				}
+				GAIA_NODISCARD bool operator>(const Iterator& other) const {
+					return m_pos > other.m_pos;
+				}
+				GAIA_NODISCARD bool operator>=(const Iterator& other) const {
+					return m_pos >= other.m_pos;
+				}
+				GAIA_NODISCARD bool operator<(const Iterator& other) const {
+					return m_pos < other.m_pos;
+				}
+				GAIA_NODISCARD bool operator<=(const Iterator& other) const {
+					return m_pos <= other.m_pos;
+				}
+
+				GAIA_NODISCARD Iterator begin() const {
+					return *this;
+				}
+
+				GAIA_NODISCARD Iterator end() const {
+					return {m_info, m_chunk, m_chunk.GetEntityCount()};
+				}
+
+				/*!
+				Returns a read-only entity or component view.
+				\warning If \tparam T is a component it is expected it is present. Undefined behavior otherwise.
+				\tparam T Component or Entity
+				\return Entity of component view with read-only access
+				*/
+				template <typename T>
+				GAIA_NODISCARD auto View() const {
+					GAIA_ASSERT(m_info.Has<decltype(m_chunk.View<T>()[0])>());
+					return m_chunk.View<T>();
+				}
+
+				/*!
+				Returns a mutable entity or component view.
+				\warning If \tparam T is a component it is expected it is present. Undefined behavior otherwise.
+				\tparam T Component or Entity
+				\return Entity or component view with read-write access
+				*/
+				template <typename T>
+				GAIA_NODISCARD auto ViewRW() {
+					GAIA_ASSERT(m_info.Has<decltype(m_chunk.ViewRW<T>()[0])>());
+					return m_chunk.ViewRW<T>();
+				}
+
+				/*!
+				Returns a mutable component view.
+				Doesn't update the world version when the access is aquired.
+				\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
+				\tparam T Component
+				\return Component view with read-write access
+				*/
+				template <typename T>
+				GAIA_NODISCARD auto ViewRWSilent() {
+					GAIA_ASSERT(m_info.Has<decltype(m_chunk.ViewRWSilent<T>()[0])>());
+					return m_chunk.ViewRWSilent<T>();
+				}
+			};
+
+			template <typename Func>
+			void ForEachIter(Func func) {
+				auto& queryInfo = FetchQueryInfo();
+
+				RunQueryOnChunks_Internal(queryInfo, [&](Chunk& chunk) {
+					Iterator iter(queryInfo, chunk);
+					func(iter);
 				});
 			}
 

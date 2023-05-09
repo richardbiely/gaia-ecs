@@ -46,7 +46,7 @@ namespace gaia {
 						const auto componentId = component::GetComponentId<T>();
 						GAIA_ASSERT(utils::has(componentIds, componentId));
 						const auto idx = utils::get_index_unsafe(componentIds, componentId);
-						if (data.rules[idx] != listType)
+						if (listType != query::ListType::LT_Count && data.rules[idx] != listType)
 							return false;
 
 						// Read-write mask must match
@@ -245,6 +245,11 @@ namespace gaia {
 				GAIA_NODISCARD bool HasFilters() const {
 					return !m_lookupCtx.data[component::ComponentType::CT_Generic].withChanged.empty() ||
 								 !m_lookupCtx.data[component::ComponentType::CT_Chunk].withChanged.empty();
+				}
+
+				template <typename... T>
+				bool Has() const {
+					return (HasComponent_Internal<T>(query::ListType::LT_Count) || ...);
 				}
 
 				template <typename... T>
