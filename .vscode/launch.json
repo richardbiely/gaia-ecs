@@ -30,7 +30,7 @@
       "name": "(lldb) example - roguelike",
       "type": "lldb",
       "request": "launch",
-      "program": "${workspaceFolder}/build/src/examples/example_rougelike/gaia_example_roguelike",
+      "program": "${workspaceFolder}/build/src/examples/example_roguelike/gaia_example_roguelike",
       "args": [],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
