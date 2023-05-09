@@ -9,14 +9,14 @@
 #include "archetype_common.h"
 #include "component.h"
 #include "component_utils.h"
-#include "entity_query_common.h"
+#include "query_common.h"
 
 namespace gaia {
 	namespace ecs {
 		struct Entity;
 
 		namespace query {
-			class EntityQueryInfo {
+			class QueryInfo {
 			public:
 				//! Query matching result
 				enum class MatchArchetypeQueryRet : uint8_t { Fail, Ok, Skip };
@@ -178,8 +178,8 @@ namespace gaia {
 				}
 
 			public:
-				static GAIA_NODISCARD EntityQueryInfo Create(QueryId id, query::LookupCtx&& ctx) {
-					EntityQueryInfo info;
+				static GAIA_NODISCARD QueryInfo Create(QueryId id, query::LookupCtx&& ctx) {
+					QueryInfo info;
 					query::CalculateMatcherHashes(ctx);
 					info.m_lookupCtx = std::move(ctx);
 					info.m_lookupCtx.queryId = id;

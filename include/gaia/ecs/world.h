@@ -23,9 +23,9 @@
 #include "component_cache.h"
 #include "component_utils.h"
 #include "entity.h"
-#include "entity_query.h"
-#include "entity_query_cache.h"
-#include "entity_query_common.h"
+#include "query.h"
+#include "query_cache.h"
+#include "query_common.h"
 
 namespace gaia {
 	namespace ecs {
@@ -64,8 +64,8 @@ namespace gaia {
 			friend void* AllocateChunkMemory(World& world);
 			friend void ReleaseChunkMemory(World& world, void* mem);
 
-			//! Cache of entity queries
-			EntityQueryCache m_queryCache;
+			//! Cache of queries
+			QueryCache m_queryCache;
 			//! Cache of query ids to speed up ForEach
 			containers::map<component::ComponentLookupHash, query::QueryId> m_uniqueFuncQueryPairs;
 			//! Map or archetypes mapping to the same hash - used for lookups
@@ -1070,14 +1070,14 @@ namespace gaia {
 			//--------------------------------------------------------------------------------
 
 			template <typename... T>
-			void UnpackArgsIntoQuery(EntityQuery& query, [[maybe_unused]] utils::func_type_list<T...> types) const {
+			void UnpackArgsIntoQuery(Query& query, [[maybe_unused]] utils::func_type_list<T...> types) const {
 				static_assert(sizeof...(T) > 0, "Inputs-less functors can not be unpacked to query");
 				query.All<T...>();
 			}
 
 			template <typename... T>
 			static void RegisterComponents_Internal([[maybe_unused]] utils::func_type_list<T...> types) {
-				static_assert(sizeof...(T) > 0, "Empty EntityQuery is not supported in this context");
+				static_assert(sizeof...(T) > 0, "Empty Query is not supported in this context");
 				auto& cc = ComponentCache::Get();
 				((void)cc.GetOrCreateComponentInfo<T>(), ...);
 			}
@@ -1095,13 +1095,13 @@ namespace gaia {
 			}
 
 		public:
-			EntityQuery CreateQuery() {
-				return EntityQuery(m_queryCache, m_worldVersion, m_archetypes);
+			Query CreateQuery() {
+				return Query(m_queryCache, m_worldVersion, m_archetypes);
 			}
 
 			/*!
 			Iterates over all chunks satisfying conditions set by \param func and calls \param func for all of them.
-			EntityQuery instance is generated internally from the input arguments of \param func.
+			Query instance is generated internally from the input arguments of \param func.
 			\warning Performance-wise it has less potential than iterating using ecs::Chunk or a comparable ForEach
 			passing in a query because it needs to do cached query lookups on each invocation. However, it is easier to
 			use and for non-critical code paths it is the most elegant way of iterating your data.
@@ -1114,7 +1114,7 @@ namespace gaia {
 
 				constexpr auto lookupHash = CalculateQueryIdLookupHash(InputArgs{});
 				if (m_uniqueFuncQueryPairs.count(lookupHash) == 0) {
-					EntityQuery query = CreateQuery();
+					Query query = CreateQuery();
 					UnpackArgsIntoQuery(query, InputArgs{});
 					(void)query.FetchQueryInfo();
 					m_uniqueFuncQueryPairs.try_emplace(lookupHash, query.GetQueryId());

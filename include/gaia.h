@@ -9,7 +9,7 @@
 #include "gaia/ecs/common.h"
 #include "gaia/ecs/component.h"
 #include "gaia/ecs/entity.h"
-#include "gaia/ecs/entity_query.h"
+#include "gaia/ecs/query.h"
 #include "gaia/ecs/system.h"
 #include "gaia/ecs/world.h"
 

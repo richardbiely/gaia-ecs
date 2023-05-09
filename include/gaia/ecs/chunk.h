@@ -684,7 +684,7 @@ namespace gaia {
 
 				/*!
 				Sets the value of the chunk component \tparam T on \param index in the chunk.
-				\warning World version is not updated so EntityQuery filters will not be able to catch this change.
+				\warning World version is not updated so Query filters will not be able to catch this change.
 				\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
 				\tparam T Component
 				\param index Index of entity in the chunk
@@ -702,7 +702,7 @@ namespace gaia {
 
 				/*!
 				Sets the value of the chunk component \tparam T in the chunk.
-				\warning World version is not updated so EntityQuery filters will not be able to catch this change.
+				\warning World version is not updated so Query filters will not be able to catch this change.
 				\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
 				\tparam T Component
 				\param value Value to set for the component
