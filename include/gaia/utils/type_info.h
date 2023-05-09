@@ -7,22 +7,14 @@
 namespace gaia {
 	namespace utils {
 
-		//! Provides statically generated unique identifier.
-		struct GAIA_API type_seq final {
-			GAIA_NODISCARD static uint32_t next() noexcept {
-				static uint32_t value{};
-				return value++;
-			}
-		};
-
 		//! Provides statically generated unique identifier for a given group of types.
 		template <typename...>
 		class type_group {
-			inline static uint32_t identifier{};
+			inline static uint32_t s_identifier{};
 
 		public:
 			template <typename... Type>
-			inline static const uint32_t id = identifier++;
+			inline static const uint32_t id = s_identifier++;
 		};
 
 		template <>
