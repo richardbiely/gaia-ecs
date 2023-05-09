@@ -352,11 +352,18 @@ namespace gaia {
 				}
 
 				void BuildGraphEdges(
-						archetype::Archetype* pArchetypeTarget, component::ComponentType componentType,
+						archetype::Archetype* pArchetypeRight, component::ComponentType componentType,
 						component::ComponentId componentId) {
-					GAIA_ASSERT(pArchetypeTarget != this);
-					m_graph.AddGraphEdgeRight(componentType, componentId, pArchetypeTarget->GetArchetypeId());
-					pArchetypeTarget->m_graph.AddGraphEdgeLeft(componentType, componentId, GetArchetypeId());
+					GAIA_ASSERT(pArchetypeRight != this);
+					m_graph.AddGraphEdgeRight(componentType, componentId, pArchetypeRight->GetArchetypeId());
+					pArchetypeRight->BuildGraphEdgesLeft(this, componentType, componentId);
+				}
+
+				void BuildGraphEdgesLeft(
+						archetype::Archetype* pArchetypeLeft, component::ComponentType componentType,
+						component::ComponentId componentId) {
+					GAIA_ASSERT(pArchetypeLeft != this);
+					m_graph.AddGraphEdgeLeft(componentType, componentId, pArchetypeLeft->GetArchetypeId());
 				}
 
 				//! Checks if the graph edge for component type \param componentType contains the component \param componentId.

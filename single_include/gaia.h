@@ -9338,11 +9338,18 @@ namespace gaia {
 				}
 
 				void BuildGraphEdges(
-						archetype::Archetype* pArchetypeTarget, component::ComponentType componentType,
+						archetype::Archetype* pArchetypeRight, component::ComponentType componentType,
 						component::ComponentId componentId) {
-					GAIA_ASSERT(pArchetypeTarget != this);
-					m_graph.AddGraphEdgeRight(componentType, componentId, pArchetypeTarget->GetArchetypeId());
-					pArchetypeTarget->m_graph.AddGraphEdgeLeft(componentType, componentId, GetArchetypeId());
+					GAIA_ASSERT(pArchetypeRight != this);
+					m_graph.AddGraphEdgeRight(componentType, componentId, pArchetypeRight->GetArchetypeId());
+					pArchetypeRight->BuildGraphEdgesLeft(this, componentType, componentId);
+				}
+
+				void BuildGraphEdgesLeft(
+						archetype::Archetype* pArchetypeLeft, component::ComponentType componentType,
+						component::ComponentId componentId) {
+					GAIA_ASSERT(pArchetypeLeft != this);
+					m_graph.AddGraphEdgeLeft(componentType, componentId, pArchetypeLeft->GetArchetypeId());
 				}
 
 				//! Checks if the graph edge for component type \param componentType contains the component \param componentId.
@@ -11692,9 +11699,10 @@ namespace gaia {
 					const component::ComponentInfo& infoToAdd) {
 				// We don't want to store edges for the root archetype because the more components there are the longer
 				// it would take to find anything. Therefore, for the root archetype we always make a lookup.
-				// However, compared to an oridnary lookup, this path is stripped as much as possible.
+				// Compared to an ordinary lookup this path is stripped as much as possible.
 				if (pArchetypeLeft == m_pRootArchetype) {
 					archetype::Archetype* pArchetypeRight = nullptr;
+
 					if (componentType == component::ComponentType::CT_Generic) {
 						const auto genericHash = infoToAdd.lookupHash;
 						const auto lookupHash = archetype::Archetype::CalculateLookupHash(genericHash, {0});
@@ -11702,7 +11710,7 @@ namespace gaia {
 						if (pArchetypeRight == nullptr) {
 							pArchetypeRight = CreateArchetype(component::ComponentIdSpan(&infoToAdd.componentId, 1), {});
 							pArchetypeRight->Init({genericHash}, {0}, lookupHash);
-							pArchetypeLeft->BuildGraphEdges(pArchetypeRight, componentType, infoToAdd.componentId);
+							pArchetypeLeft->BuildGraphEdgesLeft(pArchetypeRight, componentType, infoToAdd.componentId);
 							RegisterArchetype(pArchetypeRight);
 						}
 					} else {
@@ -11712,7 +11720,7 @@ namespace gaia {
 						if (pArchetypeRight == nullptr) {
 							pArchetypeRight = CreateArchetype({}, component::ComponentIdSpan(&infoToAdd.componentId, 1));
 							pArchetypeRight->Init({0}, {chunkHash}, lookupHash);
-							pArchetypeRight->BuildGraphEdges(pArchetypeLeft, componentType, infoToAdd.componentId);
+							pArchetypeLeft->BuildGraphEdgesLeft(pArchetypeRight, componentType, infoToAdd.componentId);
 							RegisterArchetype(pArchetypeRight);
 						}
 					}
@@ -11761,7 +11769,7 @@ namespace gaia {
 				if (pArchetypeRight == nullptr) {
 					pArchetypeRight = CreateArchetype({infos[0]->data(), infos[0]->size()}, {infos[1]->data(), infos[1]->size()});
 					pArchetypeRight->Init(genericHash, chunkHash, lookupHash);
-					pArchetypeRight->BuildGraphEdges(pArchetypeLeft, componentType, infoToAdd.componentId);
+					pArchetypeLeft->BuildGraphEdges(pArchetypeRight, componentType, infoToAdd.componentId);
 					RegisterArchetype(pArchetypeRight);
 				}
 
