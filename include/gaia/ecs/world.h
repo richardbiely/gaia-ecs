@@ -515,12 +515,9 @@ namespace gaia {
 			\param newArchetype Target archetype
 			*/
 			void MoveEntity(Entity oldEntity, archetype::Archetype& newArchetype) {
-				const auto& cc = ComponentCache::Get();
-
 				auto& entityContainer = m_entities[oldEntity.id()];
 				auto* pOldChunk = entityContainer.pChunk;
 				const auto oldIndex = entityContainer.idx;
-				const auto& oldArchetype = *m_archetypes[pOldChunk->GetArchetypeId()];
 
 				// Find a new chunk for the entity and move it inside.
 				// Old entity ID needs to remain valid or lookups would break.

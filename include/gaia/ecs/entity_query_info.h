@@ -80,17 +80,19 @@ namespace gaia {
 					size_t i = 0;
 					size_t j = 0;
 					while (i < archetypeComponentIds.size() && j < data.componentIds.size()) {
+						if (data.rules[j] == listType) {
+							const auto componentIdArchetype = archetypeComponentIds[i];
+							const auto componentIdQuery = data.componentIds[j];
 
-						const auto componentId = archetypeComponentIds[i];
-						const auto componentIdQuery = data.componentIds[j];
+							if (componentIdArchetype == componentIdQuery && func(componentIdArchetype, componentIdQuery))
+								return true;
 
-						if (data.rules[j] == listType && componentId == componentIdQuery && func(componentId, componentIdQuery))
-							return true;
-
-						if (component::SortComponentCond{}.operator()(componentId, componentIdQuery))
-							++i;
-						else
-							++j;
+							if (component::SortComponentCond{}.operator()(componentIdArchetype, componentIdQuery)) {
+								++i;
+								continue;
+							}
+						}
+						++j;
 					}
 
 					return false;
@@ -104,7 +106,7 @@ namespace gaia {
 					return CheckMatch_Internal(
 							componentType, archetypeComponentIds, listType,
 							[](component::ComponentId componentId, component::ComponentId componentIdQuery) {
-								return true;
+								return componentId == componentIdQuery;
 							});
 				}
 
@@ -117,7 +119,7 @@ namespace gaia {
 					return CheckMatch_Internal(
 							componentType, archetypeComponentIds, ListType::LT_All,
 							[&](component::ComponentId componentId, component::ComponentId componentIdQuery) {
-								return (++matches == data.rulesAllCount);
+								return componentId == componentIdQuery && (++matches == data.rulesAllCount);
 							});
 				}
 

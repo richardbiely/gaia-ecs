@@ -10265,25 +10265,23 @@ namespace gaia {
 			inline void SortComponentArrays(LookupCtx& ctx) {
 				for (size_t i = 0; i < component::ComponentType::CT_Count; ++i) {
 					auto& data = ctx.data[i];
-					for (auto& componentIds: ctx.data[i].componentIds) {
-						// Make sure the read-write mask remains correct after sorting
-						utils::sort(data.componentIds, component::SortComponentCond{}, [&](size_t left, size_t right) {
-							utils::swap(data.componentIds[left], data.componentIds[right]);
-							utils::swap(data.rules[left], data.rules[right]);
+					// Make sure the read-write mask remains correct after sorting
+					utils::sort(data.componentIds, component::SortComponentCond{}, [&](size_t left, size_t right) {
+						utils::swap(data.componentIds[left], data.componentIds[right]);
+						utils::swap(data.rules[left], data.rules[right]);
 
-							{
-								// Swap the bits in the read-write mask
-								const uint32_t b0 = data.readWriteMask & (1U << left);
-								const uint32_t b1 = data.readWriteMask & (1U << right);
-								// XOR the two bits
-								const uint32_t bxor = (b0 ^ b1);
-								// Put the XOR bits back to their original positions
-								const uint32_t mask = (bxor << left) | (bxor << right);
-								// XOR mask with the original one effectivelly swapping the bits
-								data.readWriteMask = data.readWriteMask ^ (uint8_t)mask;
-							}
-						});
-					}
+						{
+							// Swap the bits in the read-write mask
+							const uint32_t b0 = data.readWriteMask & (1U << left);
+							const uint32_t b1 = data.readWriteMask & (1U << right);
+							// XOR the two bits
+							const uint32_t bxor = (b0 ^ b1);
+							// Put the XOR bits back to their original positions
+							const uint32_t mask = (bxor << left) | (bxor << right);
+							// XOR mask with the original one effectivelly swapping the bits
+							data.readWriteMask = data.readWriteMask ^ (uint8_t)mask;
+						}
+					});
 				}
 			}
 
@@ -10420,17 +10418,19 @@ namespace gaia {
 					size_t i = 0;
 					size_t j = 0;
 					while (i < archetypeComponentIds.size() && j < data.componentIds.size()) {
+						if (data.rules[j] == listType) {
+							const auto componentIdArchetype = archetypeComponentIds[i];
+							const auto componentIdQuery = data.componentIds[j];
 
-						const auto componentId = archetypeComponentIds[i];
-						const auto componentIdQuery = data.componentIds[j];
+							if (componentIdArchetype == componentIdQuery && func(componentIdArchetype, componentIdQuery))
+								return true;
 
-						if (data.rules[j] == listType && componentId == componentIdQuery && func(componentId, componentIdQuery))
-							return true;
-
-						if (component::SortComponentCond{}.operator()(componentId, componentIdQuery))
-							++i;
-						else
-							++j;
+							if (component::SortComponentCond{}.operator()(componentIdArchetype, componentIdQuery)) {
+								++i;
+								continue;
+							}
+						}
+						++j;
 					}
 
 					return false;
@@ -10444,7 +10444,7 @@ namespace gaia {
 					return CheckMatch_Internal(
 							componentType, archetypeComponentIds, listType,
 							[](component::ComponentId componentId, component::ComponentId componentIdQuery) {
-								return true;
+								return componentId == componentIdQuery;
 							});
 				}
 
@@ -10457,7 +10457,7 @@ namespace gaia {
 					return CheckMatch_Internal(
 							componentType, archetypeComponentIds, ListType::LT_All,
 							[&](component::ComponentId componentId, component::ComponentId componentIdQuery) {
-								return (++matches == data.rulesAllCount);
+								return componentId == componentIdQuery && (++matches == data.rulesAllCount);
 							});
 				}
 
@@ -11972,12 +11972,9 @@ namespace gaia {
 			\param newArchetype Target archetype
 			*/
 			void MoveEntity(Entity oldEntity, archetype::Archetype& newArchetype) {
-				const auto& cc = ComponentCache::Get();
-
 				auto& entityContainer = m_entities[oldEntity.id()];
 				auto* pOldChunk = entityContainer.pChunk;
 				const auto oldIndex = entityContainer.idx;
-				const auto& oldArchetype = *m_archetypes[pOldChunk->GetArchetypeId()];
 
 				// Find a new chunk for the entity and move it inside.
 				// Old entity ID needs to remain valid or lookups would break.
