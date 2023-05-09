@@ -526,50 +526,7 @@ namespace gaia {
 				auto* pNewChunk = newArchetype.FindOrCreateFreeChunk();
 				const auto newIndex = pNewChunk->AddEntity(oldEntity);
 
-				// Find intersection of the two component lists.
-				// We ignore chunk components here because they should't be influenced
-				// by entities moving around.
-				const auto& oldInfos = oldArchetype.GetComponentIdArray(component::ComponentType::CT_Generic);
-				const auto& newInfos = newArchetype.GetComponentIdArray(component::ComponentType::CT_Generic);
-				const auto& oldOffs = oldArchetype.GetComponentOffsetArray(component::ComponentType::CT_Generic);
-				const auto& newOffs = newArchetype.GetComponentOffsetArray(component::ComponentType::CT_Generic);
-
-				// Arrays are sorted so we can do linear intersection lookup
-				{
-					size_t i = 0;
-					size_t j = 0;
-
-					auto moveData = [&](const component::ComponentDesc& desc) {
-						// Let's move all type data from oldEntity to newEntity
-						const auto idxSrc = oldOffs[i++] + desc.properties.size * oldIndex;
-						const auto idxDst = newOffs[j++] + desc.properties.size * newIndex;
-
-						GAIA_ASSERT(idxSrc < Chunk::DATA_SIZE_NORESERVE);
-						GAIA_ASSERT(idxDst < Chunk::DATA_SIZE_NORESERVE);
-
-						auto* pSrc = (void*)&pOldChunk->GetData(idxSrc);
-						auto* pDst = (void*)&pNewChunk->GetData(idxDst);
-
-						if (desc.properties.has_custom_move == 1) {
-							desc.ctor_move(pSrc, pDst);
-						} else if (desc.properties.has_custom_copy == 1) {
-							desc.ctor_copy(pSrc, pDst);
-						} else
-							memmove(pDst, (const void*)pSrc, desc.properties.size);
-					};
-
-					while (i < oldInfos.size() && j < newInfos.size()) {
-						const auto& descOld = cc.GetComponentDesc(oldInfos[i]);
-						const auto& descNew = cc.GetComponentDesc(newInfos[j]);
-
-						if (&descOld == &descNew)
-							moveData(descOld);
-						else if (component::SortComponentCond{}.operator()(descOld.componentId, descNew.componentId))
-							++i;
-						else
-							++j;
-					}
-				}
+				pNewChunk->MoveEntityFrom(oldEntity, newIndex, m_entities);
 
 				// Remove entity from the previous chunk
 				RemoveEntity(pOldChunk, oldIndex);
@@ -831,42 +788,9 @@ namespace gaia {
 					return CreateEntity();
 
 				auto& archetype = *m_archetypes[pChunk->GetArchetypeId()];
-
 				const auto newEntity = CreateEntity(archetype);
-				auto& newEntityContainer = m_entities[newEntity.id()];
-				auto* pNewChunk = newEntityContainer.pChunk;
 
-				// By adding a new entity m_entities array might have been reallocated.
-				// We need to get the new address.
-				auto& oldEntityContainer = m_entities[entity.id()];
-				auto* pOldChunk = oldEntityContainer.pChunk;
-
-				// Copy generic component data from reference entity to our new entity
-				const auto& componentIds = archetype.GetComponentIdArray(component::ComponentType::CT_Generic);
-				const auto& offsets = archetype.GetComponentOffsetArray(component::ComponentType::CT_Generic);
-
-				const auto& cc = ComponentCache::Get();
-
-				for (size_t i = 0; i < componentIds.size(); i++) {
-					const auto& desc = cc.GetComponentDesc(componentIds[i]);
-					if (desc.properties.size == 0U)
-						continue;
-
-					const auto offset = offsets[i];
-					const auto idxSrc = offset + desc.properties.size * (uint32_t)oldEntityContainer.idx;
-					const auto idxDst = offset + desc.properties.size * (uint32_t)newEntityContainer.idx;
-
-					GAIA_ASSERT(idxSrc < Chunk::DATA_SIZE_NORESERVE);
-					GAIA_ASSERT(idxDst < Chunk::DATA_SIZE_NORESERVE);
-
-					auto* pSrc = (void*)&pOldChunk->GetData(idxSrc);
-					auto* pDst = (void*)&pNewChunk->GetData(idxDst);
-
-					if (desc.properties.has_custom_copy == 1)
-						desc.copy(pSrc, pDst);
-					else
-						memmove(pDst, (const void*)pSrc, desc.properties.size);
-				}
+				Chunk::CopyEntity(entity, newEntity, m_entities);
 
 				return newEntity;
 			}
@@ -923,33 +847,7 @@ namespace gaia {
 					const auto idxNew = pChunkTo->AddEntity(entity);
 
 					// Copy generic component data from the reference entity to our new entity
-					{
-						const auto& componentIds = archetype.GetComponentIdArray(component::ComponentType::CT_Generic);
-						const auto& offsets = archetype.GetComponentOffsetArray(component::ComponentType::CT_Generic);
-
-						const auto& cc = ComponentCache::Get();
-
-						for (size_t i = 0; i < componentIds.size(); i++) {
-							const auto& desc = cc.GetComponentDesc(componentIds[i]);
-							if (desc.properties.size == 0U)
-								continue;
-
-							const auto offset = offsets[i];
-							const auto idxSrc = offset + desc.properties.size * (uint32_t)entityContainer.idx;
-							const auto idxDst = offset + desc.properties.size * idxNew;
-
-							GAIA_ASSERT(idxSrc < Chunk::DATA_SIZE_NORESERVE);
-							GAIA_ASSERT(idxDst < Chunk::DATA_SIZE_NORESERVE);
-
-							auto* pSrc = (void*)&pChunkFrom->GetData(idxSrc);
-							auto* pDst = (void*)&pChunkTo->GetData(idxDst);
-
-							if (desc.properties.has_custom_copy == 1)
-								desc.copy(pSrc, pDst);
-							else
-								memmove(pDst, (const void*)pSrc, desc.properties.size);
-						}
-					}
+					pChunkTo->CopyEntityFrom(entity, idxNew, m_entities);
 
 					// Remove the entity from the old chunk
 					pChunkFrom->RemoveEntity(entityContainer.idx, m_entities);
