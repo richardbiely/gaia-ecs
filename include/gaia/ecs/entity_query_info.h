@@ -46,7 +46,7 @@ namespace gaia {
 						const auto componentId = component::GetComponentId<T>();
 						GAIA_ASSERT(utils::has(componentIds, componentId));
 						const auto idx = utils::get_index_unsafe(componentIds, componentId);
-						if (listType != query::ListType::LT_Count && data.rules[idx] != listType)
+						if (listType != query::ListType::LT_Count && listType != data.rules[idx])
 							return false;
 
 						// Read-write mask must match

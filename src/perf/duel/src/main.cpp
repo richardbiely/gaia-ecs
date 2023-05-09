@@ -300,9 +300,9 @@ void BM_ECS_WithSystems_Chunk(picobench::state& state) {
 	class PositionSystem final: public TestSystem {
 	public:
 		void OnUpdate() override {
-			m_q->ForEach([](ecs::Chunk& ch) {
-				auto p = ch.ViewRW<Position>();
-				auto v = ch.View<Velocity>();
+			m_q->ForEach([](ecs::Iterator iter) {
+				auto p = iter.ViewRW<Position>();
+				auto v = iter.View<Velocity>();
 
 				[&](Position* GAIA_RESTRICT p, const Velocity* GAIA_RESTRICT v, const size_t size) {
 					for (size_t i = 0; i < size; ++i) {
@@ -310,7 +310,7 @@ void BM_ECS_WithSystems_Chunk(picobench::state& state) {
 						p[i].y += v[i].y * dt;
 						p[i].z += v[i].z * dt;
 					}
-				}(p.data(), v.data(), ch.GetEntityCount());
+				}(p.data(), v.data(), iter.size());
 			});
 		}
 	};
@@ -318,9 +318,9 @@ void BM_ECS_WithSystems_Chunk(picobench::state& state) {
 	class CollisionSystem final: public TestSystem {
 	public:
 		void OnUpdate() override {
-			m_q->ForEach([](ecs::Chunk& ch) {
-				auto p = ch.ViewRW<Position>();
-				auto v = ch.ViewRW<Velocity>();
+			m_q->ForEach([](ecs::Iterator iter) {
+				auto p = iter.ViewRW<Position>();
+				auto v = iter.ViewRW<Velocity>();
 
 				[&](Position* GAIA_RESTRICT p, Velocity* GAIA_RESTRICT v, const uint32_t size) {
 					for (size_t i = 0; i < size; ++i) {
@@ -329,20 +329,20 @@ void BM_ECS_WithSystems_Chunk(picobench::state& state) {
 							v[i].y = 0.0f;
 						}
 					}
-				}(p.data(), v.data(), ch.GetEntityCount());
+				}(p.data(), v.data(), iter.size());
 			});
 		}
 	};
 	class GravitySystem final: public TestSystem {
 	public:
 		void OnUpdate() override {
-			m_q->ForEach([](ecs::Chunk& ch) {
-				auto v = ch.ViewRW<Velocity>();
+			m_q->ForEach([](ecs::Iterator iter) {
+				auto v = iter.ViewRW<Velocity>();
 
 				[&](Velocity* GAIA_RESTRICT v, const size_t size) {
 					for (size_t i = 0; i < size; ++i)
 						v[i].y += 9.81f * dt;
-				}(v.data(), ch.GetEntityCount());
+				}(v.data(), iter.size());
 			});
 		}
 	};
@@ -350,15 +350,15 @@ void BM_ECS_WithSystems_Chunk(picobench::state& state) {
 	public:
 		void OnUpdate() override {
 			uint32_t aliveUnits = 0;
-			m_q->ForEach([&](const ecs::Chunk& ch) {
-				auto h = ch.View<Health>();
+			m_q->ForEach([&](ecs::Iterator iter) {
+				auto h = iter.View<Health>();
 
 				[&](const Health* GAIA_RESTRICT h, const size_t size) {
 					for (size_t i = 0; i < size; ++i) {
 						if (h[i].value > 0)
 							++aliveUnits;
 					}
-				}(h.data(), ch.GetEntityCount());
+				}(h.data(), iter.size());
 			});
 			(void)aliveUnits;
 		}
@@ -398,9 +398,9 @@ void BM_ECS_WithSystems_Chunk_SoA(picobench::state& state) {
 	class PositionSystem final: public TestSystem {
 	public:
 		void OnUpdate() override {
-			m_q->ForEach([](ecs::Chunk& ch) {
-				auto p = ch.ViewRW<PositionSoA>();
-				auto v = ch.View<VelocitySoA>();
+			m_q->ForEach([](ecs::Iterator iter) {
+				auto p = iter.ViewRW<PositionSoA>();
+				auto v = iter.View<VelocitySoA>();
 
 				auto ppx = p.set<0>();
 				auto ppy = p.set<1>();
@@ -415,11 +415,11 @@ void BM_ECS_WithSystems_Chunk_SoA(picobench::state& state) {
 				// as smart as Clang so they wouldn't be able to vectorize even though
 				// the oportunity is screaming.
 				////////////////////////////////////////////////////////////////////
-				// for (size_t i = 0; i < ch.GetEntityCount(); ++i)
+				// for (size_t i = 0; i < iter.size(); ++i)
 				// 	ppx[i] += vvx[i] * dt;
-				// for (size_t i = 0; i < ch.GetEntityCount(); ++i)
+				// for (size_t i = 0; i < iter.size(); ++i)
 				// 	ppy[i] += vvy[i] * dt;
-				// for (size_t i = 0; i < ch.GetEntityCount(); ++i)
+				// for (size_t i = 0; i < iter.size(); ++i)
 				// 	ppz[i] += vvz[i] * dt;
 				////////////////////////////////////////////////////////////////////
 
@@ -428,7 +428,7 @@ void BM_ECS_WithSystems_Chunk_SoA(picobench::state& state) {
 						p[i] += v[i] * dt;
 				};
 
-				const auto size = ch.GetEntityCount();
+				const auto size = iter.size();
 				exec(ppx.data(), vvx.data(), size);
 				exec(ppy.data(), vvy.data(), size);
 				exec(ppz.data(), vvz.data(), size);
@@ -438,9 +438,9 @@ void BM_ECS_WithSystems_Chunk_SoA(picobench::state& state) {
 	class CollisionSystem final: public TestSystem {
 	public:
 		void OnUpdate() override {
-			m_q->ForEach([](ecs::Chunk& ch) {
-				auto p = ch.ViewRW<PositionSoA>();
-				auto v = ch.ViewRW<VelocitySoA>();
+			m_q->ForEach([](ecs::Iterator iter) {
+				auto p = iter.ViewRW<PositionSoA>();
+				auto v = iter.ViewRW<VelocitySoA>();
 
 				auto ppy = p.set<1>();
 				auto vvy = v.set<1>();
@@ -450,7 +450,7 @@ void BM_ECS_WithSystems_Chunk_SoA(picobench::state& state) {
 				// as smart as Clang so they wouldn't be able to vectorize even though
 				// the oportunity is screaming.
 				////////////////////////////////////////////////////////////////////
-				// for (auto i = 0; i < ch.GetEntityCount(); ++i) {
+				// for (auto i = 0; i < iter.size(); ++i) {
 				// 	 if (ppy[i] < 0.0f) {
 				// 		 ppy[i] = 0.0f;
 				// 		 vvy[i] = 0.0f;
@@ -467,7 +467,7 @@ void BM_ECS_WithSystems_Chunk_SoA(picobench::state& state) {
 					}
 				};
 
-				const auto size = ch.GetEntityCount();
+				const auto size = iter.size();
 				exec(ppy.data(), vvy.data(), size);
 			});
 		}
@@ -475,8 +475,8 @@ void BM_ECS_WithSystems_Chunk_SoA(picobench::state& state) {
 	class GravitySystem final: public TestSystem {
 	public:
 		void OnUpdate() override {
-			m_q->ForEach([](ecs::Chunk& ch) {
-				auto v = ch.ViewRW<VelocitySoA>();
+			m_q->ForEach([](ecs::Iterator iter) {
+				auto v = iter.ViewRW<VelocitySoA>();
 				auto vvy = v.set<1>();
 
 				////////////////////////////////////////////////////////////////////
@@ -484,7 +484,7 @@ void BM_ECS_WithSystems_Chunk_SoA(picobench::state& state) {
 				// as smart as Clang so they wouldn't be able to vectorize even though
 				// the oportunity is screaming.
 				////////////////////////////////////////////////////////////////////
-				// for (auto i = 0; i < ch.GetEntityCount(); ++i)
+				// for (auto i = 0; i < iter.size(); ++i)
 				// 	vvy[i] = vvy[i] * dt * 9.81f;
 				////////////////////////////////////////////////////////////////////
 
@@ -493,7 +493,7 @@ void BM_ECS_WithSystems_Chunk_SoA(picobench::state& state) {
 						v[i] *= dt * 9.81f;
 				};
 
-				const auto size = ch.GetEntityCount();
+				const auto size = iter.size();
 				exec(vvy.data(), size);
 			});
 		}
@@ -502,15 +502,15 @@ void BM_ECS_WithSystems_Chunk_SoA(picobench::state& state) {
 	public:
 		void OnUpdate() override {
 			uint32_t aliveUnits = 0;
-			m_q->ForEach([&](const ecs::Chunk& ch) {
-				auto h = ch.View<Health>();
+			m_q->ForEach([&](ecs::Iterator iter) {
+				auto h = iter.View<Health>();
 
 				[&](const Health* GAIA_RESTRICT h, const size_t size) {
 					for (size_t i = 0; i < size; ++i) {
 						if (h[i].value > 0)
 							++aliveUnits;
 					}
-				}(h.data(), ch.GetEntityCount());
+				}(h.data(), iter.size());
 			});
 			(void)aliveUnits;
 		}
@@ -595,9 +595,9 @@ void BM_ECS_WithSystems_Chunk_SoA_SIMD(picobench::state& state) {
 	class PositionSystem final: public TestSystem {
 	public:
 		void OnUpdate() override {
-			m_q->ForEach([](ecs::Chunk& ch) {
-				auto p = ch.ViewRW<PositionSoA>();
-				auto v = ch.View<VelocitySoA>();
+			m_q->ForEach([](ecs::Iterator iter) {
+				auto p = iter.ViewRW<PositionSoA>();
+				auto v = iter.View<VelocitySoA>();
 
 				auto ppx = p.set<0>();
 				auto ppy = p.set<1>();
@@ -607,7 +607,7 @@ void BM_ECS_WithSystems_Chunk_SoA_SIMD(picobench::state& state) {
 				auto vvy = v.get<1>();
 				auto vvz = v.get<2>();
 
-				const auto size = ch.GetEntityCount();
+				const auto size = iter.size();
 				const auto dtVec = _mm_set_ps1(dt);
 
 				auto exec = [&](float* GAIA_RESTRICT p, const float* GAIA_RESTRICT v, const size_t offset) {
@@ -652,13 +652,13 @@ void BM_ECS_WithSystems_Chunk_SoA_SIMD(picobench::state& state) {
 	class CollisionSystem final: public TestSystem {
 	public:
 		void OnUpdate() override {
-			m_q->ForEach([](ecs::Chunk& ch) {
-				auto p = ch.ViewRW<PositionSoA>();
-				auto v = ch.ViewRW<VelocitySoA>();
+			m_q->ForEach([](ecs::Iterator iter) {
+				auto p = iter.ViewRW<PositionSoA>();
+				auto v = iter.ViewRW<VelocitySoA>();
 
 				auto ppy = p.set<1>();
 				auto vvy = v.set<1>();
-				const auto size = ch.GetEntityCount();
+				const auto size = iter.size();
 
 				auto exec = [&](float* GAIA_RESTRICT p, float* GAIA_RESTRICT v, const size_t offset) {
 					const auto vyVec = _mm_load_ps(v + offset);
@@ -694,11 +694,11 @@ void BM_ECS_WithSystems_Chunk_SoA_SIMD(picobench::state& state) {
 	class GravitySystem final: public TestSystem {
 	public:
 		void OnUpdate() override {
-			m_q->ForEach([](ecs::Chunk& ch) {
-				auto v = ch.ViewRW<VelocitySoA>();
+			m_q->ForEach([](ecs::Iterator iter) {
+				auto v = iter.ViewRW<VelocitySoA>();
 
 				auto vvy = v.set<1>();
-				const auto size = ch.GetEntityCount();
+				const auto size = iter.size();
 
 				const auto gg_dtVec = _mm_set_ps1(9.81f * dt);
 
@@ -728,15 +728,15 @@ void BM_ECS_WithSystems_Chunk_SoA_SIMD(picobench::state& state) {
 	public:
 		void OnUpdate() override {
 			uint32_t aliveUnits = 0;
-			m_q->ForEach([&](const ecs::Chunk& ch) {
-				auto h = ch.View<Health>();
+			m_q->ForEach([&](ecs::Iterator iter) {
+				auto h = iter.View<Health>();
 
 				[&](const Health* GAIA_RESTRICT h, const size_t size) {
 					for (size_t i = 0; i < size; ++i) {
 						if (h[i].value > 0)
 							++aliveUnits;
 					}
-				}(h.data(), ch.GetEntityCount());
+				}(h.data(), iter.size());
 			});
 			(void)aliveUnits;
 		}
@@ -1269,11 +1269,11 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 			// as smart as Clang so they wouldn't be able to vectorize even though
 			// the oportunity is screaming.
 			////////////////////////////////////////////////////////////////////
-			// for (auto i = 0; i < ch.GetEntityCount(); ++i)
+			// for (auto i = 0; i < iter.size(); ++i)
 			// 	ppx[i] += vvx[i] * dt;
-			// for (auto i = 0; i < ch.GetEntityCount(); ++i)
+			// for (auto i = 0; i < iter.size(); ++i)
 			// 	ppy[i] += vvy[i] * dt;
-			// for (auto i = 0; i < ch.GetEntityCount(); ++i)
+			// for (auto i = 0; i < iter.size(); ++i)
 			// 	ppz[i] += vvz[i] * dt;
 			////////////////////////////////////////////////////////////////////
 

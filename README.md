@@ -38,7 +38,7 @@ Being early in development, breaking changes to its API are possible. There are 
   * [Basic operations](#basic-operations)
   * [Data queries](#data-queries)
   * [Simple iteration](#simple-iteration)
-  * [Chunk iteration](#chunk-iteration)
+  * [Query iteration](#query-iteration)
   * [Data layouts](#data-layouts)
   * [Delayed execution](#delayed-execution)
   * [Chunk components](#chunk-components)
@@ -330,19 +330,18 @@ q.ForEach([](Position& p, const Velocity& v) {
 
 A very important thing to remember is that iterating over components not present in the query is not supported. This is done to prevent various logic errors which might sneak in otherwise.
 
-## Chunk iteration
-Iteration over chunks gives you more power as it exposes to you the underlying chunk in which your data is contained.<br/>
-That means you can perform more kinds of operations, and it also opens doors for new kinds of optimizations.
+## Query iteration
+Iteration using the iterator gives you more expresive power and also opens doors for new kinds of optimizations.
 ```cpp
 ecs::EntityQuery q = w.CreateQuery();
 q.All<Position, const Velocity>();
 
-q.ForEach([](ecs::Chunk& ch) {
-  auto p = ch.ViewRW<Position>(); // Read-write access to Position
-  auto v = ch.View<Velocity>(); // Read-only access to Velocity
+q.ForEach([](ecs::Iterator iter) {
+  auto p = iter.ViewRW<Position>(); // Read-write access to Position
+  auto v = iter.View<Velocity>(); // Read-only access to Velocity
 
   // Iterate over all entities in the chunk.
-  for (size_t i = 0; i < ch.GetEntityCount(); ++i) {
+  for (uint32_t i: iter) {
     p[i].x += v[i].x * dt;
     p[i].y += v[i].y * dt;
     p[i].z += v[i].z * dt;
@@ -352,9 +351,9 @@ q.ForEach([](ecs::Chunk& ch) {
 
 I need to make a small but important note here. Analyzing the output of different compilers I quickly realized if you want your code vectorized for sure you need to be very clear and write the loop as a lambda or kernel if you will. It is quite surprising to see this but even with optimizations on and "fast-math"-like switches enabled some compilers simply will not vectorize the loop otherwise. Microsoft compilers are particularly sensitive in this regard. In the years to come maybe this gets better but for now, keep it in mind or use a good optimizing compiler such as Clang.
 ```cpp
-q.ForEach([](ecs::Chunk& ch) {
-  auto vp = ch.ViewRW<Position>(); // Read-Write access to Position
-  auto vv = ch.View<Velocity>(); // Read-Only access to Velocity
+q.ForEach([](ecs::Iterator iter) {
+  auto vp = iter.ViewRW<Position>(); // Read-Write access to Position
+  auto vv = iter.View<Velocity>(); // Read-Only access to Velocity
 
   // Make our intentions very clear so even compilers which are weaker at optimization can vectorize the loop
   [&](Position* GAIA_RESTRICT p, const Velocity* GAIA_RESTRICT v, const size_t size) {
@@ -363,7 +362,7 @@ q.ForEach([](ecs::Chunk& ch) {
       p[i].y += v[i].y * dt;
       p[i].z += v[i].z * dt;
     }
-  }(vp.data(), vv.data(), ch.GetEntityCount());
+  }(vp.data(), vv.data(), iter.size());
 });
 ```
 
@@ -393,9 +392,9 @@ struct VelocitySoA {
 };
 ...
 ecs::EntityQuery q = w.EntityQuery().All<PositionSoA, const VelocitySoA>;
-q.ForEach(, [](ecs::Chunk& ch) {
-  auto vp = ch.ViewRW<PositionSoA>(); // read-write access to PositionSoA
-  auto vv = ch.View<VelocitySoA>(); // read-only access to VelocitySoA
+q.ForEach(, [](ecs::Iterator iter) {
+  auto vp = iter.ViewRW<PositionSoA>(); // read-write access to PositionSoA
+  auto vv = iter.View<VelocitySoA>(); // read-only access to VelocitySoA
 
   auto px = vp.set<0>(); // get access to a continuous block of "x" from PositionSoA
   auto py = vp.set<1>(); // get access to a continuous block of "y" from PositionSoA
@@ -418,7 +417,7 @@ q.ForEach(, [](ecs::Chunk& ch) {
       _mm_store_ps(p + i, respVec);
     }*/
   };
-  const auto size = ch.GetEntityCount();
+  const auto size = iter.size();
   // Handle x coordinates
   exec(px.data(), vx.data(), size);
   // Handle y coordinates

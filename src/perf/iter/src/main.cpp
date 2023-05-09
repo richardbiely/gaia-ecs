@@ -162,9 +162,9 @@ DEFINE_FOREACH_EXTERNALQUERY(5000)
 		for (auto _: state) {                                                                                              \
 			(void)_;                                                                                                         \
 			float f = 0.f;                                                                                                   \
-			query.ForEach([&](const ecs::Chunk& chunk) {                                                                     \
-				auto c1View = chunk.View<c1>();                                                                                \
-				for (size_t i = 0; i < chunk.GetEntityCount(); ++i)                                                            \
+			query.ForEach([&](ecs::Iterator iter) {                                                                          \
+				auto c1View = iter.View<c1>();                                                                                 \
+				for (uint32_t i: iter)                                                                                         \
 					f += c1View[i].value[0];                                                                                     \
 			});                                                                                                              \
 			picobench::DoNotOptimize(f);                                                                                     \

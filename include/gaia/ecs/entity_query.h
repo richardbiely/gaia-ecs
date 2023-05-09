@@ -19,13 +19,14 @@
 #include "entity_query_cache.h"
 #include "entity_query_common.h"
 #include "entity_query_info.h"
+#include "iterator.h"
 
 namespace gaia {
 	namespace ecs {
 		class EntityQuery final {
 			static constexpr uint32_t ChunkBatchSize = 16;
-			using CChunkSpan = std::span<const Chunk*>;
-			using ChunkBatchedList = containers::sarray_ext<Chunk*, ChunkBatchSize>;
+			using CChunkSpan = std::span<const archetype::Chunk*>;
+			using ChunkBatchedList = containers::sarray_ext<archetype::Chunk*, ChunkBatchSize>;
 			using CmdBufferCmdFunc = void (*)(DataBuffer& buffer, query::LookupCtx& ctx);
 
 		public:
@@ -272,7 +273,7 @@ namespace gaia {
 
 			//--------------------------------------------------------------------------------
 
-			GAIA_NODISCARD static bool CheckFilters(const Chunk& chunk, const query::EntityQueryInfo& queryInfo) {
+			GAIA_NODISCARD static bool CheckFilters(const archetype::Chunk& chunk, const query::EntityQueryInfo& queryInfo) {
 				GAIA_ASSERT(chunk.HasEntities() && "CheckFilters called on an empty chunk");
 
 				const auto queryVersion = queryInfo.GetWorldVersion();
@@ -303,7 +304,7 @@ namespace gaia {
 
 			template <bool HasFilters>
 			GAIA_NODISCARD bool
-			CanAcceptChunkForProcessing(const Chunk& chunk, const query::EntityQueryInfo& queryInfo) const {
+			CanAcceptChunkForProcessing(const archetype::Chunk& chunk, const query::EntityQueryInfo& queryInfo) const {
 				if GAIA_UNLIKELY (!chunk.HasEntities())
 					return false;
 
@@ -324,7 +325,7 @@ namespace gaia {
 					if (!CanAcceptChunkForProcessing<HasFilters>(*pChunk, queryInfo))
 						continue;
 
-					chunkBatch.push_back(const_cast<Chunk*>(pChunk));
+					chunkBatch.push_back(const_cast<archetype::Chunk*>(pChunk));
 				}
 			}
 
@@ -379,7 +380,7 @@ namespace gaia {
 
 			template <bool HasFilters, typename Func>
 			void ProcessQueryOnChunks(
-					Func func, ChunkBatchedList& chunkBatch, const containers::darray<Chunk*>& chunksList,
+					Func func, ChunkBatchedList& chunkBatch, const containers::darray<archetype::Chunk*>& chunksList,
 					const query::EntityQueryInfo& queryInfo) {
 				size_t chunkOffset = 0;
 
@@ -388,7 +389,7 @@ namespace gaia {
 					const size_t maxBatchSize = chunkBatch.max_size() - chunkBatch.size();
 					const size_t batchSize = itemsLeft > maxBatchSize ? maxBatchSize : itemsLeft;
 					ChunkBatch_Prepare<HasFilters>(
-							CChunkSpan((const Chunk**)&chunksList[chunkOffset], batchSize), queryInfo, chunkBatch);
+							CChunkSpan((const archetype::Chunk**)&chunksList[chunkOffset], batchSize), queryInfo, chunkBatch);
 
 					if GAIA_UNLIKELY (chunkBatch.size() == chunkBatch.max_size())
 						ChunkBatch_Perform(func, chunkBatch);
@@ -436,35 +437,23 @@ namespace gaia {
 			}
 
 			template <typename Func>
-			void ForEachChunk_Internal(Func func) {
-				using InputArgs = decltype(utils::func_args(&Func::operator()));
-
-				auto& queryInfo = FetchQueryInfo();
-
-#if GAIA_DEBUG
-				if (!std::is_invocable<Func, Chunk&>::value) {
-					// Make sure we only use components specified in the query
-					GAIA_ASSERT(UnpackArgsIntoQuery_HasAll(queryInfo, InputArgs{}));
-				}
-#endif
-
-				RunQueryOnChunks_Internal(queryInfo, [&](Chunk& chunk) {
-					func(chunk);
+			void ForEachIter_Internal(query::EntityQueryInfo& queryInfo, Func func) {
+				RunQueryOnChunks_Internal(queryInfo, [&](archetype::Chunk& chunk) {
+					Iterator iter(queryInfo, chunk);
+					func(iter);
 				});
 			}
 
 			template <typename Func>
-			void ForEach_Internal(Func func) {
+			void ForEach_Internal(query::EntityQueryInfo& queryInfo, Func func) {
 				using InputArgs = decltype(utils::func_args(&Func::operator()));
-
-				auto& queryInfo = FetchQueryInfo();
 
 #if GAIA_DEBUG
 				// Make sure we only use components specified in the query
 				GAIA_ASSERT(UnpackArgsIntoQuery_HasAll(queryInfo, InputArgs{}));
 #endif
 
-				RunQueryOnChunks_Internal(queryInfo, [&](Chunk& chunk) {
+				RunQueryOnChunks_Internal(queryInfo, [&](archetype::Chunk& chunk) {
 					chunk.ForEach(InputArgs{}, func);
 				});
 			}
@@ -547,10 +536,12 @@ namespace gaia {
 				// Make sure the query was created by World.CreateQuery()
 				GAIA_ASSERT(m_entityQueryCache != nullptr);
 
-				if constexpr (std::is_invocable<Func, Chunk&>::value)
-					ForEachChunk_Internal(func);
+				auto& queryInfo = FetchQueryInfo();
+
+				if constexpr (std::is_invocable<Func, Iterator>::value)
+					ForEachIter_Internal(queryInfo, func);
 				else
-					ForEach_Internal(func);
+					ForEach_Internal(queryInfo, func);
 			}
 
 			template <typename Func>
@@ -561,142 +552,7 @@ namespace gaia {
 				GAIA_ASSERT(m_entityQueryCache != nullptr);
 
 				auto& queryInfo = m_entityQueryCache->Get(queryId);
-
-#if GAIA_DEBUG
-				if (!std::is_invocable<Func, Chunk&>::value) {
-					// Make sure we only use components specified in the query
-					GAIA_ASSERT(UnpackArgsIntoQuery_HasAll(queryInfo, InputArgs{}));
-				}
-#endif
-
-				RunQueryOnChunks_Internal(queryInfo, [&](Chunk& chunk) {
-					chunk.ForEach(InputArgs{}, func);
-				});
-			}
-
-			struct Iterator {
-			private:
-				query::EntityQueryInfo& m_info;
-				Chunk& m_chunk;
-				uint32_t m_pos;
-
-			public:
-				Iterator(query::EntityQueryInfo& info, Chunk& chunk): m_info(info), m_chunk(chunk), m_pos(0) {}
-				Iterator(query::EntityQueryInfo& info, Chunk& chunk, uint32_t pos): m_info(info), m_chunk(chunk), m_pos(pos) {}
-
-				uint32_t operator*() const {
-					return m_pos;
-				}
-				uint32_t operator->() const {
-					return m_pos;
-				}
-
-				GAIA_NODISCARD Iterator operator[](uint32_t offset) const {
-					return {m_info, m_chunk, m_pos + offset};
-				}
-
-				GAIA_NODISCARD Iterator& operator++() {
-					++m_pos;
-					return *this;
-				}
-				GAIA_NODISCARD Iterator operator++(int) {
-					Iterator temp(*this);
-					++*this;
-					return temp;
-				}
-				GAIA_NODISCARD Iterator& operator--() {
-					--m_pos;
-					return *this;
-				}
-				GAIA_NODISCARD Iterator operator--(int) {
-					Iterator temp(*this);
-					--*this;
-					return temp;
-				}
-
-				GAIA_NODISCARD Iterator operator+(uint32_t offset) const {
-					return {m_info, m_chunk, m_pos + offset};
-				}
-				GAIA_NODISCARD Iterator operator-(uint32_t offset) const {
-					return {m_info, m_chunk, m_pos - offset};
-				}
-				GAIA_NODISCARD uint32_t operator-(const Iterator& other) const {
-					return m_pos - other.m_pos;
-				}
-
-				GAIA_NODISCARD bool operator==(const Iterator& other) const {
-					return m_pos == other.m_pos;
-				}
-				GAIA_NODISCARD bool operator!=(const Iterator& other) const {
-					return m_pos != other.m_pos;
-				}
-				GAIA_NODISCARD bool operator>(const Iterator& other) const {
-					return m_pos > other.m_pos;
-				}
-				GAIA_NODISCARD bool operator>=(const Iterator& other) const {
-					return m_pos >= other.m_pos;
-				}
-				GAIA_NODISCARD bool operator<(const Iterator& other) const {
-					return m_pos < other.m_pos;
-				}
-				GAIA_NODISCARD bool operator<=(const Iterator& other) const {
-					return m_pos <= other.m_pos;
-				}
-
-				GAIA_NODISCARD Iterator begin() const {
-					return *this;
-				}
-
-				GAIA_NODISCARD Iterator end() const {
-					return {m_info, m_chunk, m_chunk.GetEntityCount()};
-				}
-
-				/*!
-				Returns a read-only entity or component view.
-				\warning If \tparam T is a component it is expected it is present. Undefined behavior otherwise.
-				\tparam T Component or Entity
-				\return Entity of component view with read-only access
-				*/
-				template <typename T>
-				GAIA_NODISCARD auto View() const {
-					GAIA_ASSERT(m_info.Has<decltype(m_chunk.View<T>()[0])>());
-					return m_chunk.View<T>();
-				}
-
-				/*!
-				Returns a mutable entity or component view.
-				\warning If \tparam T is a component it is expected it is present. Undefined behavior otherwise.
-				\tparam T Component or Entity
-				\return Entity or component view with read-write access
-				*/
-				template <typename T>
-				GAIA_NODISCARD auto ViewRW() {
-					GAIA_ASSERT(m_info.Has<decltype(m_chunk.ViewRW<T>()[0])>());
-					return m_chunk.ViewRW<T>();
-				}
-
-				/*!
-				Returns a mutable component view.
-				Doesn't update the world version when the access is aquired.
-				\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
-				\tparam T Component
-				\return Component view with read-write access
-				*/
-				template <typename T>
-				GAIA_NODISCARD auto ViewRWSilent() {
-					GAIA_ASSERT(m_info.Has<decltype(m_chunk.ViewRWSilent<T>()[0])>());
-					return m_chunk.ViewRWSilent<T>();
-				}
-			};
-
-			template <typename Func>
-			void ForEachIter(Func func) {
-				auto& queryInfo = FetchQueryInfo();
-
-				RunQueryOnChunks_Internal(queryInfo, [&](Chunk& chunk) {
-					Iterator iter(queryInfo, chunk);
-					func(iter);
-				});
+				ForEach_Internal(queryInfo, func);
 			}
 
 			/*!
@@ -852,7 +708,7 @@ namespace gaia {
 
 				const bool hasFilters = queryInfo.HasFilters();
 
-				auto addChunk = [&](Chunk* pChunk) {
+				auto addChunk = [&](archetype::Chunk* pChunk) {
 					const auto componentView = pChunk->template View<ContainerItemType>();
 					for (size_t i = 0; i < pChunk->GetEntityCount(); ++i)
 						outArray.push_back(componentView[i]);
@@ -881,58 +737,6 @@ namespace gaia {
 					}
 				} else {
 					for (auto* pArchetype: *m_archetypes) {
-						if (CheckConstraints<true>())
-							execWithFiltersOFF(pArchetype->GetChunks());
-						if (CheckConstraints<false>())
-							execWithFiltersOFF(pArchetype->GetChunksDisabled());
-					}
-				}
-			}
-
-			/*!
-			Appends chunks matching the query to the array
-			\return Array of chunks
-			*/
-			template <typename Container>
-			void ToChunkArray(Container& outArray) {
-				static_assert(std::is_same_v<typename Container::value_type, Chunk*>);
-
-				// Make sure the query was created by World.CreateQuery()
-				GAIA_ASSERT(m_entityQueryCache != nullptr);
-
-				const size_t entityCount = CalculateEntityCount();
-				if (!entityCount)
-					return;
-
-				outArray.reserve(entityCount);
-
-				auto& queryInfo = FetchQueryInfo();
-
-				const bool hasFilters = queryInfo.HasFilters();
-
-				auto execWithFiltersON = [&](const auto& chunksList) {
-					for (auto* pChunk: chunksList) {
-						if (CanAcceptChunkForProcessing<true>(*pChunk, queryInfo))
-							outArray.push_back(pChunk);
-					}
-				};
-
-				auto execWithFiltersOFF = [&](const auto& chunksList) {
-					for (auto* pChunk: chunksList) {
-						if (CanAcceptChunkForProcessing<false>(*pChunk, queryInfo))
-							outArray.push_back(pChunk);
-					}
-				};
-
-				if (hasFilters) {
-					for (auto* pArchetype: queryInfo) {
-						if (CheckConstraints<true>())
-							execWithFiltersON(pArchetype->GetChunks());
-						if (CheckConstraints<false>())
-							execWithFiltersON(pArchetype->GetChunksDisabled());
-					}
-				} else {
-					for (auto* pArchetype: queryInfo) {
 						if (CheckConstraints<true>())
 							execWithFiltersOFF(pArchetype->GetChunks());
 						if (CheckConstraints<false>())
