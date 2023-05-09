@@ -19,7 +19,9 @@ namespace gaia {
 		class World;
 		class BaseSystemManager;
 
+#if GAIA_PROFILER_CPU
 		constexpr size_t MaxSystemNameLength = 64;
+#endif
 
 		class BaseSystem {
 			friend class BaseSystemManager;

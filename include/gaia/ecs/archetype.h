@@ -45,7 +45,7 @@ namespace gaia {
 				//! Hash of components within this archetype - used for lookups
 				component::ComponentLookupHash m_lookupHash = {0};
 				//! Hash of components within this archetype - used for matching
-				component::ComponentMatcherHash m_matcherHash[component::ComponentType::CT_Count] = {0};
+				component::ComponentMatcherHash m_matcherHash[component::ComponentType::CT_Count]{};
 				//! Archetype ID - used to address the archetype directly in the world's list or archetypes
 				ArchetypeId m_archetypeId = ArchetypeIdBad;
 				//! Stable reference to parent world's world version

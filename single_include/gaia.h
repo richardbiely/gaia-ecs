@@ -7936,8 +7936,8 @@ namespace gaia {
 			static_assert(archetype::MAX_COMPONENTS_PER_ARCHETYPE <= 32);
 
 			ChunkHeader(uint32_t& version):
-					lifespanCountdown(0), disabled(0), structuralChangesLocked(0), worldVersion(version),
-					has_custom_generic_ctor(0), has_custom_chunk_ctor(0), has_custom_generic_dtor(0), has_custom_chunk_dtor(0) {
+					lifespanCountdown(0), disabled(0), structuralChangesLocked(0), has_custom_generic_ctor(0),
+					has_custom_chunk_ctor(0), has_custom_generic_dtor(0), has_custom_chunk_dtor(0), worldVersion(version) {
 				// Make sure the alignment is right
 				GAIA_ASSERT(uintptr_t(this) % 8 == 0);
 			}
@@ -9043,7 +9043,7 @@ namespace gaia {
 				//! Hash of components within this archetype - used for lookups
 				component::ComponentLookupHash m_lookupHash = {0};
 				//! Hash of components within this archetype - used for matching
-				component::ComponentMatcherHash m_matcherHash[component::ComponentType::CT_Count] = {0};
+				component::ComponentMatcherHash m_matcherHash[component::ComponentType::CT_Count]{};
 				//! Archetype ID - used to address the archetype directly in the world's list or archetypes
 				ArchetypeId m_archetypeId = ArchetypeIdBad;
 				//! Stable reference to parent world's world version
@@ -11012,10 +11012,6 @@ namespace gaia {
 
 			template <typename T>
 			void WithChanged_Internal() {
-				using U = typename component::DeduceComponent<T>::Type;
-				using UOriginal = typename component::DeduceComponent<T>::TypeOriginal;
-				using UOriginalPR = std::remove_reference_t<std::remove_pointer_t<UOriginal>>;
-
 				const auto componentId = component::GetComponentId<T>();
 				constexpr auto componentType = component::IsGenericComponent<T> ? component::ComponentType::CT_Generic
 																																				: component::ComponentType::CT_Chunk;
@@ -13248,7 +13244,9 @@ namespace gaia {
 		class World;
 		class BaseSystemManager;
 
+#if GAIA_PROFILER_CPU
 		constexpr size_t MaxSystemNameLength = 64;
+#endif
 
 		class BaseSystem {
 			friend class BaseSystemManager;
