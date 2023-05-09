@@ -144,27 +144,7 @@ const auto& velRef = w.GetComponent<Velocity>(e);
 auto velCopy = w.GetComponent<Velocity>(e);
 ```
 
-Both read and write operations are also accessible via views. Following is an example which shows how one can use them. Note, this is essentially what SetComponent / GetComponent does internaly.
-```cpp
-uint32_t entityIndexInChunk;
-auto* pChunk = w.GetChunk(e, entityIndexInChunk);
-
-// Read-only view. We can only use this to read values form our chunk.
-auto velocity_view = pChunk->View<Velocity>();
-Velocity vel = velocity_view[entityIndexInChunk];
-
-// Read-write view. We can use this one to also modify contents of our chunk.
-// These views automatically update the world version and can be used to detect
-// changes in chunk which is usually desirable.
-auto velocity_view_rw = pChunk->ViewRW<Velocity>();
-velocity_view_rw[entityIndexInChunk] = Velocity{};
-
-// Read-write silent view. Esentially the same as ViewRW with the exception
-// that it does not modify the world version and changes made by it can not
-// be detected.
-auto velocity_view_rws = pChunk–>ViewRWSilent<Velocity>();
-velocity_view_rws[entityIndexInChunk] = Velocity{};
-```
+Both read and write operations are also accessible via views. Check the [query iteration](#query-iteration) section to see how.
 
 ### Checking if component is attached to entity
 ```cpp
@@ -188,7 +168,7 @@ if (pChunkB->HasComponent<Position>())
 ```
 
 ## Data queries
-For querying data you can use an Query. It can help you find all entities, components or chunks matching the specified set of components and constraints and iterate it or returns in the form of an array. You can also use them to quickly check if entities satisfing the given set of rules exist or calculate how many of them there are.<br/>
+For querying data you can use a Query. It can help you find all entities, components or chunks matching the specified set of components and constraints and iterate it or returns in the form of an array. You can also use them to quickly check if entities satisfing the given set of rules exist or calculate how many of them there are.<br/>
 ```cpp
 Query q = w.CreateQuery();
 q.All<Position>(); // consider only entities with Position
@@ -207,13 +187,6 @@ for (size_t i = 0; i < entities.size(); ++i)
   const auto& e = entities[i];
   const auto& p = positions[i];
   printf("Entity %u is located at [x,y,z]=[%f,%f,%f]\n", e.id(), p.x, p.y, p.z);
-}
-
-// Fill the chunk array with chunks matching the query.
-containers::darray<ecs::Chunk*> chunks;
-q.ToChunkArray(chunks);
-for (const auto* pChunk: chunks) {
-  // ... do something
 }
 
 // Print the number of entities matching the query. For demonstration purposes only.
@@ -289,7 +262,10 @@ w.ForEach([&](Position& p, const Velocity& v) {
 });
 ```
 
-It creates an Query internally from the arguments provided to ForEach. For possibly better performance and more features, consider using explicit EntityQueries when possible.
+It creates a Query internally from the arguments provided to ForEach.
+
+## Query iteration
+For possibly better performance and more features, consider using explicit Query when possible.
 ```cpp
 ecs::Query q = w.CreateQuery();
 q.All<Position, const Velocity>(); // Take into account all chunks with Position and Velocity...
@@ -328,10 +304,9 @@ q.ForEach([](Position& p, const Velocity& v) {
 });
 ```
 
-A very important thing to remember is that iterating over components not present in the query is not supported. This is done to prevent various logic errors which might sneak in otherwise.
+A very important thing to remember is that iterating over components not present in the query is not supported. This is done to prevent various logic errors which might sneak in otherwise.<br/>
 
-## Query iteration
-Iteration using the iterator gives you more expresive power and also opens doors for new kinds of optimizations.
+Iteration using the iterator gives you even more expresive power and also opens doors for new kinds of optimizations.
 ```cpp
 ecs::Query q = w.CreateQuery();
 q.All<Position, const Velocity>();
