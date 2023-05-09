@@ -7,6 +7,16 @@
 namespace gaia {
 	namespace ecs {
 		namespace component {
+			//! Updates the provided component matcher hash based on the provided component id
+			//! \param matcherHash Initial matcher hash
+			//! \param componentId Component id
+			GAIA_NODISCARD inline void
+			CalculateMatcherHash(ComponentMatcherHash& matcherHash, component::ComponentId componentId) noexcept {
+				const auto& cc = ComponentCache::Get();
+				const auto componentHash = cc.GetComponentInfo(componentId).matcherHash.hash;
+				matcherHash.hash = utils::combine_or(matcherHash.hash, componentHash);
+			}
+
 			//! Calculates a component matcher hash from the provided component ids
 			//! \param componentIds Span of component ids
 			//! \return Component matcher hash

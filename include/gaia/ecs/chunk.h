@@ -888,7 +888,7 @@ namespace gaia {
 			//! Returns true if the provided version is newer than the one stored internally
 			GAIA_NODISCARD bool
 			DidChange(component::ComponentType componentType, uint32_t version, uint32_t componentIdx) const {
-				return DidVersionChange(m_header.versions[componentType][componentIdx], version);
+				return DidVersionChange(m_header.versions[componentType].versions[componentIdx], version);
 			}
 
 			void Diag(uint32_t index) const {

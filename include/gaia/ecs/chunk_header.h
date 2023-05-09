@@ -11,7 +11,7 @@ namespace gaia {
 		struct ChunkHeader final {
 		public:
 			//! Archetype the chunk belongs to
-			uint32_t archetypeId;
+			uint32_t archetypeId{};
 			//! Number of items in the chunk.
 			uint16_t count{};
 			//! Capacity (copied from the owner archetype).
@@ -38,8 +38,13 @@ namespace gaia {
 			containers::sarray<archetype::ComponentOffsetArray, component::ComponentType::CT_Count> componentOffsets;
 			//! Version of the world (stable pointer to parent world's world version)
 			uint32_t& worldVersion;
-			//! Versions of individual components on chunk.
-			uint32_t versions[component::ComponentType::CT_Count][archetype::MAX_COMPONENTS_PER_ARCHETYPE]{};
+
+			struct Versions {
+				//! Versions of individual components on chunk.
+				uint32_t versions[archetype::MAX_COMPONENTS_PER_ARCHETYPE];
+			} versions[component::ComponentType::CT_Count]{};
+			// Make sure the mask can take all components
+			static_assert(archetype::MAX_COMPONENTS_PER_ARCHETYPE <= 32);
 
 			ChunkHeader(uint32_t& version):
 					lifespanCountdown(0), disabled(0), structuralChangesLocked(0), worldVersion(version),
@@ -52,14 +57,16 @@ namespace gaia {
 				// Make sure only proper input is provided
 				GAIA_ASSERT(componentIdx != UINT32_MAX && componentIdx < archetype::MAX_COMPONENTS_PER_ARCHETYPE);
 
-				// Update all components' version
-				versions[componentType][componentIdx] = worldVersion;
+				// Update the version of the component
+				auto& v = versions[componentType];
+				v.versions[componentIdx] = worldVersion;
 			}
 
 			GAIA_FORCEINLINE void UpdateWorldVersion(component::ComponentType componentType) {
-				// Update all components' version
+				// Update the version of all components
+				auto& v = versions[componentType];
 				for (size_t i = 0; i < archetype::MAX_COMPONENTS_PER_ARCHETYPE; i++)
-					versions[componentType][i] = worldVersion;
+					v.versions[i] = worldVersion;
 			}
 		};
 	} // namespace ecs

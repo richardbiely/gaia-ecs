@@ -56,8 +56,9 @@ namespace gaia {
 				}
 
 				void Exec(query::LookupCtx& ctx) {
-					auto& list = ctx.list[componentType];
-					auto& componentIds = list.componentIds[listType];
+					auto& data = ctx.data[componentType];
+					auto& componentIds = data.componentIds;
+					auto& rules = data.rules;
 
 					// Unique component ids only
 					GAIA_ASSERT(!utils::has(componentIds, componentId));
@@ -77,8 +78,12 @@ namespace gaia {
 					}
 #endif
 
-					ctx.rw[componentType] |= (uint8_t)isReadWrite << (uint8_t)componentIds.size();
+					data.readWriteMask |= (uint8_t)isReadWrite << (uint8_t)componentIds.size();
 					componentIds.push_back(componentId);
+					rules.push_back(listType);
+
+					if (listType == query::ListType::LT_All)
+						++data.rulesAllCount;
 				}
 			};
 
@@ -98,15 +103,17 @@ namespace gaia {
 				}
 
 				void Exec(query::LookupCtx& ctx) {
-					auto& list = ctx.list[componentType];
-					auto& arrFilter = ctx.listChangeFiltered[componentType];
+					auto& data = ctx.data[componentType];
+					auto& componentIds = data.componentIds;
+					auto& withChanged = data.withChanged;
+					const auto& rules = data.rules;
 
-					// Unique component ids only
-					GAIA_ASSERT(!utils::has(arrFilter, componentId));
+					GAIA_ASSERT(utils::has(componentIds, componentId));
+					GAIA_ASSERT(!utils::has(withChanged, componentId));
 
 #if GAIA_DEBUG
 					// There's a limit to the amount of components which we can store
-					if (arrFilter.size() >= query::MAX_COMPONENTS_IN_QUERY) {
+					if (withChanged.size() >= query::MAX_COMPONENTS_IN_QUERY) {
 						GAIA_ASSERT(false && "Trying to create an ECS filter query with too many components!");
 
 						const auto& cc = ComponentCache::Get();
@@ -118,14 +125,12 @@ namespace gaia {
 					}
 #endif
 
+					const auto componentIdx = utils::get_index_unsafe(componentIds, componentId);
+
 					// Component has to be present in anyList or allList.
 					// NoneList makes no sense because we skip those in query processing anyway.
-					if (utils::has(list.componentIds[query::ListType::LT_Any], componentId)) {
-						arrFilter.push_back(componentId);
-						return;
-					}
-					if (utils::has(list.componentIds[query::ListType::LT_All], componentId)) {
-						arrFilter.push_back(componentId);
+					if (rules[componentIdx] != query::ListType::LT_None) {
+						withChanged.push_back(componentId);
 						return;
 					}
 
@@ -699,7 +704,7 @@ namespace gaia {
 			}
 
 			/*!
-			Returns an array of components or entities matching the query
+			Appends all components or entities matching the query to the array
 			\tparam Container Container storing entities or components
 			\return Array with entities or components
 			*/
@@ -711,6 +716,9 @@ namespace gaia {
 				GAIA_ASSERT(m_entityQueryCache != nullptr);
 
 				const size_t entityCount = CalculateEntityCount();
+				if (!entityCount)
+					return;
+
 				outArray.reserve(entityCount);
 
 				auto& queryInfo = FetchQueryInfo();
@@ -755,7 +763,7 @@ namespace gaia {
 			}
 
 			/*!
-			Returns an array of chunks matching the query
+			Appends chunks matching the query to the array
 			\return Array of chunks
 			*/
 			template <typename Container>
@@ -766,6 +774,9 @@ namespace gaia {
 				GAIA_ASSERT(m_entityQueryCache != nullptr);
 
 				const size_t entityCount = CalculateEntityCount();
+				if (!entityCount)
+					return;
+
 				outArray.reserve(entityCount);
 
 				auto& queryInfo = FetchQueryInfo();
