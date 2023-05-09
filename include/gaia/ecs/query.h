@@ -21,7 +21,6 @@
 #include "query_common.h"
 #include "query_info.h"
 
-
 namespace gaia {
 	namespace ecs {
 		class Query final {
@@ -221,10 +220,6 @@ namespace gaia {
 
 			template <typename T>
 			void WithChanged_Internal() {
-				using U = typename component::DeduceComponent<T>::Type;
-				using UOriginal = typename component::DeduceComponent<T>::TypeOriginal;
-				using UOriginalPR = std::remove_reference_t<std::remove_pointer_t<UOriginal>>;
-
 				const auto componentId = component::GetComponentId<T>();
 				constexpr auto componentType = component::IsGenericComponent<T> ? component::ComponentType::CT_Generic
 																																				: component::ComponentType::CT_Chunk;
@@ -544,8 +539,6 @@ namespace gaia {
 
 			template <typename Func>
 			void ForEach(query::QueryId queryId, Func func) {
-				using InputArgs = decltype(utils::func_args(&Func::operator()));
-
 				// Make sure the query was created by World.CreateQuery()
 				GAIA_ASSERT(m_entityQueryCache != nullptr);
 

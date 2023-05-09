@@ -47,8 +47,8 @@ namespace gaia {
 			static_assert(archetype::MAX_COMPONENTS_PER_ARCHETYPE <= 32);
 
 			ChunkHeader(uint32_t& version):
-					lifespanCountdown(0), disabled(0), structuralChangesLocked(0), worldVersion(version),
-					has_custom_generic_ctor(0), has_custom_chunk_ctor(0), has_custom_generic_dtor(0), has_custom_chunk_dtor(0) {
+					lifespanCountdown(0), disabled(0), structuralChangesLocked(0), has_custom_generic_ctor(0),
+					has_custom_chunk_ctor(0), has_custom_generic_dtor(0), has_custom_chunk_dtor(0), worldVersion(version) {
 				// Make sure the alignment is right
 				GAIA_ASSERT(uintptr_t(this) % 8 == 0);
 			}
