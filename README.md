@@ -144,7 +144,7 @@ const auto& velRef = w.GetComponent<Velocity>(e);
 auto velCopy = w.GetComponent<Velocity>(e);
 ```
 
-Both read and write operations are also accessible via views. Check the [query iteration](#query-iteration) section to see how.
+Both read and write operations are also accessible via views. Check [simple iteration](#simple-iteration) and [query iteration](#query-iteration) sections to see how.
 
 ### Checking if component is attached to entity
 ```cpp
