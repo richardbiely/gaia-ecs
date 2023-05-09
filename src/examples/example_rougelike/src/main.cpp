@@ -537,12 +537,12 @@ public:
 			return val < 0 ? -1 : 1;
 		};
 
-		m_q.ForEach([&](ecs::Chunk& chunk) {
-			auto ent = chunk.View<ecs::Entity>();
-			auto vel = chunk.View<Velocity>();
-			auto pos = chunk.View<Position>();
+		m_q.ForEach([&](ecs::Iterator iter) {
+			auto ent = iter.View<ecs::Entity>();
+			auto vel = iter.View<Velocity>();
+			auto pos = iter.View<Position>();
 
-			for (size_t i = 0; i < chunk.GetEntityCount(); ++i) {
+			for (uint32_t i: iter) {
 				// Skip stationary objects
 				const auto& v =
 						vel[i]; // This is <= 8 bytes so it would be okay even if we did a copy rather than const reference
@@ -614,7 +614,7 @@ public:
 				// We make every collsion stop the moving object. This is only a question of design.
 				// We might as well keep the velocity and handle the collision aftermath in a different system.
 				// Or we could interoduce collision layers or many other things.
-				auto vel_mut = chunk.ViewRW<Velocity>();
+				auto vel_mut = iter.ViewRW<Velocity>();
 				if (v.x != 0)
 					vel_mut[i] = {naa, 0};
 				else

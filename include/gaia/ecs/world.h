@@ -33,7 +33,7 @@ namespace gaia {
 		//----------------------------------------------------------------------
 
 		struct ComponentSetter {
-			Chunk* m_pChunk;
+			archetype::Chunk* m_pChunk;
 			uint32_t m_idx;
 
 			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
@@ -84,7 +84,7 @@ namespace gaia {
 			uint32_t m_freeEntities = 0;
 
 			//! List of chunks to delete
-			containers::darray<Chunk*> m_chunksToRemove;
+			containers::darray<archetype::Chunk*> m_chunksToRemove;
 
 			//! With every structural change world version changes
 			uint32_t m_worldVersion = 0;
@@ -95,7 +95,7 @@ namespace gaia {
 			\param pChunk Chunk we remove the entity from
 			\param entityChunkIndex Index of entity within its chunk
 			*/
-			void RemoveEntity(Chunk* pChunk, uint32_t entityChunkIndex) {
+			void RemoveEntity(archetype::Chunk* pChunk, uint32_t entityChunkIndex) {
 				GAIA_ASSERT(
 						!pChunk->IsStructuralChangesLocked() && "Entities can't be removed while their chunk is being iterated "
 																										"(structural changes are forbidden during this time!)");
@@ -497,7 +497,7 @@ namespace gaia {
 			\param entity Entity to associate with a chunk
 			\param pChunk Chunk the entity is to become a part of
 			*/
-			void StoreEntity(Entity entity, Chunk* pChunk) {
+			void StoreEntity(Entity entity, archetype::Chunk* pChunk) {
 				GAIA_ASSERT(pChunk != nullptr);
 				GAIA_ASSERT(
 						!pChunk->IsStructuralChangesLocked() && "Entities can't be added while their chunk is being iterated "
@@ -566,7 +566,7 @@ namespace gaia {
 			}
 
 			//! Verifies than the chunk is valid
-			void ValidateChunk([[maybe_unused]] Chunk* pChunk) const {
+			void ValidateChunk([[maybe_unused]] archetype::Chunk* pChunk) const {
 #if GAIA_ECS_VALIDATE_CHUNKS
 				// Note: Normally we'd go [[maybe_unused]] instead of "(void)" but MSVC
 				// 2017 suffers an internal compiler error in that case...
@@ -788,7 +788,7 @@ namespace gaia {
 				auto& archetype = *m_archetypes[pChunk->GetArchetypeId()];
 				const auto newEntity = CreateEntity(archetype);
 
-				Chunk::CopyEntity(entity, newEntity, m_entities);
+				archetype::Chunk::CopyEntity(entity, newEntity, m_entities);
 
 				return newEntity;
 			}
@@ -878,7 +878,7 @@ namespace gaia {
 			Returns a chunk containing the given entity.
 			\return Chunk or nullptr if not found
 			*/
-			GAIA_NODISCARD Chunk* GetChunk(Entity entity) const {
+			GAIA_NODISCARD archetype::Chunk* GetChunk(Entity entity) const {
 				GAIA_ASSERT(entity.id() < m_entities.size());
 				const auto& entityContainer = m_entities[entity.id()];
 				return entityContainer.pChunk;
@@ -889,7 +889,7 @@ namespace gaia {
 			Index of the entity is stored in \param indexInChunk
 			\return Chunk or nullptr if not found
 			*/
-			GAIA_NODISCARD Chunk* GetChunk(Entity entity, uint32_t& indexInChunk) const {
+			GAIA_NODISCARD archetype::Chunk* GetChunk(Entity entity, uint32_t& indexInChunk) const {
 				GAIA_ASSERT(entity.id() < m_entities.size());
 				const auto& entityContainer = m_entities[entity.id()];
 				indexInChunk = entityContainer.idx;
@@ -1058,7 +1058,7 @@ namespace gaia {
 
 		private:
 			template <typename T>
-			constexpr GAIA_NODISCARD GAIA_FORCEINLINE auto GetComponentView(Chunk& chunk) const {
+			constexpr GAIA_NODISCARD GAIA_FORCEINLINE auto GetComponentView(archetype::Chunk& chunk) const {
 				using U = typename component::DeduceComponent<T>::Type;
 				using UOriginal = typename component::DeduceComponent<T>::TypeOriginal;
 				if constexpr (component::IsReadOnlyType<UOriginal>::value)
@@ -1108,9 +1108,6 @@ namespace gaia {
 			*/
 			template <typename Func>
 			void ForEach(Func func) {
-				static_assert(
-						!std::is_invocable<Func, Chunk&>::value, "Calling query-less ForEach is not supported for chunk iteration");
-
 				using InputArgs = decltype(utils::func_args(&Func::operator()));
 
 				RegisterComponents<Func>();

@@ -97,10 +97,13 @@ namespace gaia {
 
 		inline constexpr EntityNull_t EntityNull{};
 
-		class Chunk;
+		namespace archetype {
+			class Chunk;
+		}
+		
 		struct EntityContainer {
 			//! Chunk the entity currently resides in
-			Chunk* pChunk;
+			archetype::Chunk* pChunk;
 #if !GAIA_64
 			uint32_t pChunk_padding;
 #endif
