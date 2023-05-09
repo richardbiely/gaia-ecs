@@ -11730,7 +11730,7 @@ namespace gaia {
 
 				// Check if the component is found when following the "add" edges
 				{
-					const uint32_t archetypeId = pArchetypeLeft->FindGraphEdgeRight(componentType, infoToAdd.componentId);
+					const auto archetypeId = pArchetypeLeft->FindGraphEdgeRight(componentType, infoToAdd.componentId);
 					if (archetypeId != archetype::ArchetypeIdBad)
 						return m_archetypes[archetypeId];
 				}
