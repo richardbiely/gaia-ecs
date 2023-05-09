@@ -495,7 +495,7 @@ World g_world(g_ecs);
 //----------------------------------------------------------------------
 
 class UpdateMapSystem final: public ecs::System {
-	ecs::EntityQuery m_q;
+	ecs::Query m_q;
 
 public:
 	void OnCreated() override {
@@ -521,7 +521,7 @@ struct CollisionData {
 };
 
 class CollisionSystem final: public ecs::System {
-	ecs::EntityQuery m_q;
+	ecs::Query m_q;
 	containers::darray<CollisionData> m_colliding;
 
 public:
@@ -629,7 +629,7 @@ public:
 };
 
 class OrientationSystem final: public ecs::System {
-	ecs::EntityQuery m_q;
+	ecs::Query m_q;
 
 public:
 	void OnCreated() override {
@@ -652,7 +652,7 @@ public:
 };
 
 class MoveSystem final: public ecs::System {
-	ecs::EntityQuery m_q;
+	ecs::Query m_q;
 
 public:
 	void OnCreated() override {
@@ -778,7 +778,7 @@ public:
 };
 
 class HandleHealthSystem final: public ecs::System {
-	ecs::EntityQuery m_q;
+	ecs::Query m_q;
 
 public:
 	void OnCreated() override {
@@ -794,7 +794,7 @@ public:
 };
 
 class HandleDeathSystem final: public ecs::System {
-	ecs::EntityQuery m_q;
+	ecs::Query m_q;
 
 public:
 	void OnCreated() override {
@@ -813,7 +813,7 @@ public:
 };
 
 class WriteSpritesToMapSystem final: public ecs::System {
-	ecs::EntityQuery m_q;
+	ecs::Query m_q;
 
 public:
 	void OnCreated() override {
@@ -842,8 +842,8 @@ public:
 };
 
 class UISystem final: public ecs::System {
-	ecs::EntityQuery m_qp;
-	ecs::EntityQuery m_qe;
+	ecs::Query m_qp;
+	ecs::Query m_qe;
 
 public:
 	void OnCreated() override {
@@ -863,8 +863,8 @@ public:
 };
 
 class GameStateSystem: public ecs::System {
-	ecs::EntityQuery m_qp;
-	ecs::EntityQuery m_qe;
+	ecs::Query m_qp;
+	ecs::Query m_qe;
 	bool m_hadEnemies = true;
 
 public:
@@ -890,7 +890,7 @@ public:
 };
 
 class InputSystem final: public ecs::System {
-	ecs::EntityQuery m_q;
+	ecs::Query m_q;
 
 public:
 	void OnCreated() override {

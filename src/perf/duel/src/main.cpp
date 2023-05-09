@@ -201,10 +201,10 @@ void BM_ECS(picobench::state& state) {
 
 class TestSystem: public ecs::System {
 protected:
-	ecs::EntityQuery* m_q;
+	ecs::Query* m_q;
 
 public:
-	void Init(ecs::EntityQuery* q) {
+	void Init(ecs::Query* q) {
 		m_q = q;
 	}
 };

@@ -3,19 +3,19 @@
 
 #include <cinttypes>
 
-#include "entity_query_info.h"
+#include "query_info.h"
 
 namespace gaia {
 	namespace ecs {
 		struct Iterator {
 		private:
-			query::EntityQueryInfo& m_info;
+			query::QueryInfo& m_info;
 			archetype::Chunk& m_chunk;
 			uint32_t m_pos;
 
 		public:
-			Iterator(query::EntityQueryInfo& info, archetype::Chunk& chunk): m_info(info), m_chunk(chunk), m_pos(0) {}
-			Iterator(query::EntityQueryInfo& info, archetype::Chunk& chunk, uint32_t pos):
+			Iterator(query::QueryInfo& info, archetype::Chunk& chunk): m_info(info), m_chunk(chunk), m_pos(0) {}
+			Iterator(query::QueryInfo& info, archetype::Chunk& chunk, uint32_t pos):
 					m_info(info), m_chunk(chunk), m_pos(pos) {}
 
 			uint32_t operator*() const {

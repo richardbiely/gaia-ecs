@@ -209,26 +209,26 @@ TEST_CASE("Run-time sort - quick sort") {
 		REQUIRE(arr[i] == i);
 }
 
-// TEST_CASE("EntityQuery - equality") {
+// TEST_CASE("Query - equality") {
 //  {
-//  	ecs::EntityQuery qq1, qq2;
+//  	ecs::Query qq1, qq2;
 //  	qq1.All<Position, Rotation>();
 //  	qq2.All<Rotation, Position>();
 //  	REQUIRE(
-//  			qq1.GetData(ecs::ComponentType::CT_Generic).hash[ecs::EntityQuery::ListType::LT_All] ==
-//  			qq2.GetData(ecs::ComponentType::CT_Generic).hash[ecs::EntityQuery::ListType::LT_All]);
+//  			qq1.GetData(ecs::ComponentType::CT_Generic).hash[ecs::Query::ListType::LT_All] ==
+//  			qq2.GetData(ecs::ComponentType::CT_Generic).hash[ecs::Query::ListType::LT_All]);
 //  }
 //  {
-//  	ecs::EntityQuery qq1, qq2;
+//  	ecs::Query qq1, qq2;
 //  	qq1.All<Position, Rotation, Acceleration, Something>();
 //  	qq2.All<Rotation, Something, Position, Acceleration>();
 //  	REQUIRE(
-//  			qq1.GetData(ecs::ComponentType::CT_Generic).hash[ecs::EntityQuery::ListType::LT_All] ==
-//  			qq2.GetData(ecs::ComponentType::CT_Generic).hash[ecs::EntityQuery::ListType::LT_All]);
+//  			qq1.GetData(ecs::ComponentType::CT_Generic).hash[ecs::Query::ListType::LT_All] ==
+//  			qq2.GetData(ecs::ComponentType::CT_Generic).hash[ecs::Query::ListType::LT_All]);
 //  }
 //}
 
-TEST_CASE("EntityQuery - QueryResult") {
+TEST_CASE("Query - QueryResult") {
 	ecs::World w;
 
 	auto create = [&](uint32_t i) {
@@ -240,9 +240,9 @@ TEST_CASE("EntityQuery - QueryResult") {
 	for (uint32_t i = 0; i < N; i++)
 		create(i);
 
-	ecs::EntityQuery q1 = w.CreateQuery().All<Position>();
-	ecs::EntityQuery q2 = w.CreateQuery().All<Rotation>();
-	ecs::EntityQuery q3 = w.CreateQuery().All<Position, Rotation>();
+	ecs::Query q1 = w.CreateQuery().All<Position>();
+	ecs::Query q2 = w.CreateQuery().All<Rotation>();
+	ecs::Query q3 = w.CreateQuery().All<Position, Rotation>();
 
 	{
 		gaia::containers::darray<gaia::ecs::Entity> arr;
@@ -302,7 +302,7 @@ TEST_CASE("EntityQuery - QueryResult") {
 	}
 }
 
-TEST_CASE("EntityQuery - QueryResult complex") {
+TEST_CASE("Query - QueryResult complex") {
 	ecs::World w;
 
 	auto create = [&](uint32_t i) {
@@ -317,11 +317,11 @@ TEST_CASE("EntityQuery - QueryResult complex") {
 	for (uint32_t i = 0; i < N; i++)
 		create(i);
 
-	ecs::EntityQuery q1 = w.CreateQuery().All<Position>();
-	ecs::EntityQuery q2 = w.CreateQuery().All<Rotation>();
-	ecs::EntityQuery q3 = w.CreateQuery().All<Position, Rotation>();
-	ecs::EntityQuery q4 = w.CreateQuery().All<Position, Scale>();
-	ecs::EntityQuery q5 = w.CreateQuery().All<Position, Scale, Something>();
+	ecs::Query q1 = w.CreateQuery().All<Position>();
+	ecs::Query q2 = w.CreateQuery().All<Rotation>();
+	ecs::Query q3 = w.CreateQuery().All<Position, Rotation>();
+	ecs::Query q4 = w.CreateQuery().All<Position, Scale>();
+	ecs::Query q5 = w.CreateQuery().All<Position, Scale, Something>();
 
 	{
 		gaia::containers::darray<gaia::ecs::Entity> ents;
@@ -589,15 +589,15 @@ TEST_CASE("EnableEntity") {
 
 	w.EnableEntity(arr[1000], false);
 
-	ecs::EntityQuery q = w.CreateQuery().All<Position>();
+	ecs::Query q = w.CreateQuery().All<Position>();
 	size_t cnt = q.CalculateEntityCount();
 	REQUIRE(cnt == N - 1);
 
-	q.SetConstraints(ecs::EntityQuery::Constraints::AcceptAll);
+	q.SetConstraints(ecs::Query::Constraints::AcceptAll);
 	cnt = q.CalculateEntityCount();
 	REQUIRE(cnt == N);
 
-	q.SetConstraints(ecs::EntityQuery::Constraints::DisabledOnly);
+	q.SetConstraints(ecs::Query::Constraints::DisabledOnly);
 	cnt = q.CalculateEntityCount();
 	REQUIRE(cnt == 1);
 
@@ -612,11 +612,11 @@ TEST_CASE("EnableEntity") {
 	cnt = q.CalculateEntityCount();
 	REQUIRE(cnt == 0);
 
-	q.SetConstraints(ecs::EntityQuery::Constraints::EnabledOnly);
+	q.SetConstraints(ecs::Query::Constraints::EnabledOnly);
 	cnt = q.CalculateEntityCount();
 	REQUIRE(cnt == N);
 
-	q.SetConstraints(ecs::EntityQuery::Constraints::AcceptAll);
+	q.SetConstraints(ecs::Query::Constraints::AcceptAll);
 	cnt = q.CalculateEntityCount();
 	REQUIRE(cnt == N);
 }
@@ -667,7 +667,7 @@ TEST_CASE("AddComponent - generic") {
 // 	for (size_t i = 0; i < ents.size() - 1; ++i)
 // 		w.AddComponent<Position>(ents[i], {(float)i, (float)i, (float)i});
 
-// 	ecs::EntityQuery q;
+// 	ecs::Query q;
 // 	q.All<Position>();
 // 	w.AddComponent<Acceleration>(q, {1.f, 2.f, 3.f});
 
@@ -1085,7 +1085,7 @@ TEST_CASE("Usage 2 - simple query, many components") {
 		REQUIRE(cnt == 1);
 	}
 	{
-		ecs::EntityQuery q = w.CreateQuery().Any<Position, Acceleration>();
+		ecs::Query q = w.CreateQuery().Any<Position, Acceleration>();
 
 		uint32_t cnt = 0;
 		q.ForEach([&](ecs::Iterator iter) {
@@ -1099,7 +1099,7 @@ TEST_CASE("Usage 2 - simple query, many components") {
 		REQUIRE(cnt == 2);
 	}
 	{
-		ecs::EntityQuery q = w.CreateQuery().Any<Position, Acceleration>().All<Scale>();
+		ecs::Query q = w.CreateQuery().Any<Position, Acceleration>().All<Scale>();
 
 		uint32_t cnt = 0;
 		q.ForEach([&](ecs::Iterator iter) {
@@ -1115,7 +1115,7 @@ TEST_CASE("Usage 2 - simple query, many components") {
 		REQUIRE(cnt == 1);
 	}
 	{
-		ecs::EntityQuery q = w.CreateQuery().Any<Position, Acceleration>().None<Scale>();
+		ecs::Query q = w.CreateQuery().Any<Position, Acceleration>().None<Scale>();
 
 		uint32_t cnt = 0;
 		q.ForEach([&](ecs::Iterator iter) {
@@ -1184,7 +1184,7 @@ TEST_CASE("Usage 2 - simple query, many chunk components") {
 		REQUIRE(cnt == 2);
 	}
 	{
-		ecs::EntityQuery q = w.CreateQuery().Any<ecs::AsChunk<Position>, ecs::AsChunk<Acceleration>>();
+		ecs::Query q = w.CreateQuery().Any<ecs::AsChunk<Position>, ecs::AsChunk<Acceleration>>();
 
 		uint32_t cnt = 0;
 		q.ForEach([&](ecs::Iterator iter) {
@@ -1198,8 +1198,7 @@ TEST_CASE("Usage 2 - simple query, many chunk components") {
 		REQUIRE(cnt == 2);
 	}
 	{
-		ecs::EntityQuery q =
-				w.CreateQuery().Any<ecs::AsChunk<Position>, ecs::AsChunk<Acceleration>>().All<ecs::AsChunk<Scale>>();
+		ecs::Query q = w.CreateQuery().Any<ecs::AsChunk<Position>, ecs::AsChunk<Acceleration>>().All<ecs::AsChunk<Scale>>();
 
 		uint32_t cnt = 0;
 		q.ForEach([&](ecs::Iterator iter) {
@@ -1215,7 +1214,7 @@ TEST_CASE("Usage 2 - simple query, many chunk components") {
 		REQUIRE(cnt == 1);
 	}
 	{
-		ecs::EntityQuery q =
+		ecs::Query q =
 				w.CreateQuery().Any<ecs::AsChunk<Position>, ecs::AsChunk<Acceleration>>().None<ecs::AsChunk<Scale>>();
 
 		uint32_t cnt = 0;
@@ -1261,7 +1260,7 @@ TEST_CASE("SetComponent - generic") {
 
 	// Modify values
 	{
-		ecs::EntityQuery q = w.CreateQuery().All<Rotation, Scale, Else>();
+		ecs::Query q = w.CreateQuery().All<Rotation, Scale, Else>();
 
 		q.ForEach([&](ecs::Iterator iter) {
 			auto rotationView = iter.ViewRW<Rotation>();
@@ -1352,7 +1351,7 @@ TEST_CASE("SetComponent - generic & chunk") {
 
 	// Modify values
 	{
-		ecs::EntityQuery q = w.CreateQuery().All<Rotation, Scale, Else>();
+		ecs::Query q = w.CreateQuery().All<Rotation, Scale, Else>();
 
 		q.ForEach([&](ecs::Iterator iter) {
 			auto rotationView = iter.ViewRW<Rotation>();
@@ -1458,7 +1457,7 @@ TEST_CASE("Components - non trivial") {
 
 	// Modify values
 	{
-		ecs::EntityQuery q = w.CreateQuery().All<StringComponent, StringComponent2, PositionNonTrivial>();
+		ecs::Query q = w.CreateQuery().All<StringComponent, StringComponent2, PositionNonTrivial>();
 
 		q.ForEach([&](ecs::Iterator iter) {
 			auto strView = iter.ViewRW<StringComponent>();
@@ -1787,7 +1786,7 @@ TEST_CASE("CommandBuffer") {
 
 TEST_CASE("Query Filter - no systems") {
 	ecs::World w;
-	ecs::EntityQuery q = w.CreateQuery().All<const Position>().WithChanged<Position>();
+	ecs::Query q = w.CreateQuery().All<const Position>().WithChanged<Position>();
 
 	auto e = w.CreateEntity();
 	w.AddComponent<Position>(e);
@@ -1857,7 +1856,7 @@ TEST_CASE("Query Filter - systems") {
 		}
 	};
 	class WriterSystemSilent final: public ecs::System {
-		ecs::EntityQuery m_q;
+		ecs::Query m_q;
 
 	public:
 		void OnCreated() override {
@@ -1873,7 +1872,7 @@ TEST_CASE("Query Filter - systems") {
 	class ReaderSystem final: public ecs::System {
 		uint32_t m_expectedCnt = 0;
 
-		ecs::EntityQuery m_q;
+		ecs::Query m_q;
 
 	public:
 		void SetExpectedCount(uint32_t cnt) {
@@ -1978,7 +1977,7 @@ void TestDataLayoutSoA_ECS() {
 	for (uint32_t i = 0; i < N; i++)
 		create();
 
-	ecs::EntityQuery q = w.CreateQuery().All<T>();
+	ecs::Query q = w.CreateQuery().All<T>();
 	uint32_t j = 0;
 	q.ForEach([&](ecs::Iterator iter) {
 		auto t = iter.ViewRW<T>();

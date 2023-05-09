@@ -188,9 +188,9 @@ if (pChunkB->HasComponent<Position>())
 ```
 
 ## Data queries
-For querying data you can use an EntityQuery. It can help you find all entities, components or chunks matching the specified set of components and constraints and iterate it or returns in the form of an array. You can also use them to quickly check if entities satisfing the given set of rules exist or calculate how many of them there are.<br/>
+For querying data you can use an Query. It can help you find all entities, components or chunks matching the specified set of components and constraints and iterate it or returns in the form of an array. You can also use them to quickly check if entities satisfing the given set of rules exist or calculate how many of them there are.<br/>
 ```cpp
-EntityQuery q = w.CreateQuery();
+Query q = w.CreateQuery();
 q.All<Position>(); // consider only entities with Position
 
 // Fill the entities array with entities with a Position component.
@@ -223,15 +223,15 @@ printf("Number of results: %u", q.CalculateEntityCount());
 
 More complex queries can be created by combining All, Any and None in any way you can imagine:
 ```cpp
-ecs::EntityQuery q = w.CreateQuery();
+ecs::Query q = w.CreateQuery();
 q.All<Position, Velocity>();       // Take into account everything with Position and Velocity...
 q.Any<Something, SomethingElse>(); // ... at least Something or SomethingElse...
 q.None<Player>();                  // ... and no Player component...
 ```
 
-All EntityQuery operations can be chained and it is also possible to invoke various filters multiple times with unique components:
+All Query operations can be chained and it is also possible to invoke various filters multiple times with unique components:
 ```cpp
-ecs::EntityQuery q = w.CreateQuery();
+ecs::Query q = w.CreateQuery();
 q.All<Position>()                 // Take into account everything with Position...
  .All<Velocity>()                 // ... and at the same time everything with Velocity...
  .Any<Something, SomethingElse>() // ... at least Something or SomethingElse...
@@ -241,7 +241,7 @@ q.All<Position>()                 // Take into account everything with Position.
 Using WithChanged we can take it a step further and filter only data which actually changed. This becomes particulary useful when iterating as you will see later on.<br/>
 Note, if there are 100 Position components in the chunk and only one them changes, all or them are considered changed. This chunk-wide behavior is due to performance concerns as it is easier to reason about the entire chunk than each of its items separately.
 ```cpp
-ecs::EntityQuery q = w.CreateQuery();
+ecs::Query q = w.CreateQuery();
 q.All<Position, Velocity>();       // Take into account everything with Position and Velocity...
 q.Any<Something, SomethingElse>(); // ... at least Something or SomethingElse...
 q.None<Player>();                  // ... and no Player component...
@@ -261,22 +261,22 @@ w.AddComponent<Position>(e2);
 // Disable the first entity
 w.EnableEntity(e1, false);
 
-ecs::EntityQuery q = w.CreateQuery().All<Position>();
+ecs::Query q = w.CreateQuery().All<Position>();
 containers::darray<ecs::Entity> entities;
 
 // Fills the array with only e2 because e1 is disabled.
 q.ToArray(entities);
 
 // Fills the array with both e1 and e2.
-q.SetConstraint(ecs::EntityQuery::Constraint::AcceptAll);
+q.SetConstraint(ecs::Query::Constraint::AcceptAll);
 q.ToArray(entities);
 
 // Fills the array with only e1 because e1 is disabled.
-q.SetConstraint(ecs::EntityQuery::Constraint::DisabledOnly);
+q.SetConstraint(ecs::Query::Constraint::DisabledOnly);
 q.ToArray(entities);
 ```
 
-EntityQuery creates a cache internally. Therefore, the first usage is a little bit slower than the subsequent usage is going to be. You likely use the same query multiple times in your program, often without noticing. Because of that, caching becomes useful as it avoids wasting memory and performance when finding matches.
+Query creates a cache internally. Therefore, the first usage is a little bit slower than the subsequent usage is going to be. You likely use the same query multiple times in your program, often without noticing. Because of that, caching becomes useful as it avoids wasting memory and performance when finding matches.
 
 ## Simple iteration
 The simplest way to iterate over data is using ecs::World::ForEach.<br/>
@@ -289,9 +289,9 @@ w.ForEach([&](Position& p, const Velocity& v) {
 });
 ```
 
-It creates an EntityQuery internally from the arguments provided to ForEach. For possibly better performance and more features, consider using explicit EntityQueries when possible.
+It creates an Query internally from the arguments provided to ForEach. For possibly better performance and more features, consider using explicit EntityQueries when possible.
 ```cpp
-ecs::EntityQuery q = w.CreateQuery();
+ecs::Query q = w.CreateQuery();
 q.All<Position, const Velocity>(); // Take into account all chunks with Position and Velocity...
 q.None<Player>();            // ... but no Player component.
 
@@ -305,7 +305,7 @@ q.ForEach([&](Position& p, const Velocity& v) {
 
 Using WithChanged we can make the iteration run only if particular components change. You can save quite a bit of performance using this technique.<br/>
 ```cpp
-ecs::EntityQuery q = w.CreateQuery();
+ecs::Query q = w.CreateQuery();
 q.All<Position, const Velocity>(); // Take into account all chunks with Position and Velocity...
 q.None<Player>();            // ... no Player component...
 q.WithChanged<Velocity>();   // ... but only iterate when Velocity changes
@@ -321,7 +321,7 @@ Using constrains we can alter the iteration behavior:
 ```cpp
 w.EnableEntity(e, false);
 
-q.SetConstraint(ecs::EntityQuery::Constraint::AcceptAll);
+q.SetConstraint(ecs::Query::Constraint::AcceptAll);
 q.ForEach([](Position& p, const Velocity& v) {
   // Both enabled and disabled entities are included in the query.
   // ...
@@ -333,7 +333,7 @@ A very important thing to remember is that iterating over components not present
 ## Query iteration
 Iteration using the iterator gives you more expresive power and also opens doors for new kinds of optimizations.
 ```cpp
-ecs::EntityQuery q = w.CreateQuery();
+ecs::Query q = w.CreateQuery();
 q.All<Position, const Velocity>();
 
 q.ForEach([](ecs::Iterator iter) {
@@ -391,7 +391,7 @@ struct VelocitySoA {
   static constexpr auto Layout = utils::DataLayout::SoA;
 };
 ...
-ecs::EntityQuery q = w.EntityQuery().All<PositionSoA, const VelocitySoA>;
+ecs::Query q = w.Query().All<PositionSoA, const VelocitySoA>;
 q.ForEach(, [](ecs::Iterator iter) {
   auto vp = iter.ViewRW<PositionSoA>(); // read-write access to PositionSoA
   auto vv = iter.View<VelocitySoA>(); // read-only access to VelocitySoA

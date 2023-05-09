@@ -7,7 +7,7 @@
 namespace gaia {
 	namespace ecs {
 		namespace query {
-			//! Number of components that can be a part of EntityQuery
+			//! Number of components that can be a part of Query
 			static constexpr uint32_t MAX_COMPONENTS_IN_QUERY = 8U;
 
 			//! List type

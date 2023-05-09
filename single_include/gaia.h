@@ -8798,7 +8798,7 @@ namespace gaia {
 
 				/*!
 				Sets the value of the chunk component \tparam T on \param index in the chunk.
-				\warning World version is not updated so EntityQuery filters will not be able to catch this change.
+				\warning World version is not updated so Query filters will not be able to catch this change.
 				\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
 				\tparam T Component
 				\param index Index of entity in the chunk
@@ -8816,7 +8816,7 @@ namespace gaia {
 
 				/*!
 				Sets the value of the chunk component \tparam T in the chunk.
-				\warning World version is not updated so EntityQuery filters will not be able to catch this change.
+				\warning World version is not updated so Query filters will not be able to catch this change.
 				\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
 				\tparam T Component
 				\param value Value to set for the component
@@ -10160,10 +10160,12 @@ namespace gaia {
 #include <tuple>
 #include <type_traits>
 
+#include <cinttypes>
+
 namespace gaia {
 	namespace ecs {
 		namespace query {
-			//! Number of components that can be a part of EntityQuery
+			//! Number of components that can be a part of Query
 			static constexpr uint32_t MAX_COMPONENTS_IN_QUERY = 8U;
 
 			//! List type
@@ -10349,7 +10351,7 @@ namespace gaia {
 		struct Entity;
 
 		namespace query {
-			class EntityQueryInfo {
+			class QueryInfo {
 			public:
 				//! Query matching result
 				enum class MatchArchetypeQueryRet : uint8_t { Fail, Ok, Skip };
@@ -10511,8 +10513,8 @@ namespace gaia {
 				}
 
 			public:
-				static GAIA_NODISCARD EntityQueryInfo Create(QueryId id, query::LookupCtx&& ctx) {
-					EntityQueryInfo info;
+				static GAIA_NODISCARD QueryInfo Create(QueryId id, query::LookupCtx&& ctx) {
+					QueryInfo info;
 					query::CalculateMatcherHashes(ctx);
 					info.m_lookupCtx = std::move(ctx);
 					info.m_lookupCtx.queryId = id;
@@ -10622,82 +10624,15 @@ namespace gaia {
 
 namespace gaia {
 	namespace ecs {
-		class EntityQueryCache {
-			using QueryCacheLookupArray = containers::darray<uint32_t>;
-
-			containers::map<query::LookupHash, QueryCacheLookupArray> m_queryCache;
-			containers::darray<query::EntityQueryInfo> m_queryArr;
-
-		public:
-			EntityQueryCache() {
-				m_queryArr.reserve(256);
-			}
-
-			~EntityQueryCache() = default;
-
-			EntityQueryCache(EntityQueryCache&&) = delete;
-			EntityQueryCache(const EntityQueryCache&) = delete;
-			EntityQueryCache& operator=(EntityQueryCache&&) = delete;
-			EntityQueryCache& operator=(const EntityQueryCache&) = delete;
-
-			//! Returns an already existing entity query info from the provided \param queryId.
-			//! \warning It is expected that the query has already been registered. Undefined behavior otherwise.
-			//! \param queryId Query used to search for query info
-			//! \return Entity query info
-			query::EntityQueryInfo& Get(query::QueryId queryId) {
-				GAIA_ASSERT(queryId != query::QueryIdBad);
-
-				return m_queryArr[queryId];
-			};
-
-			//! Registers the provided entity query lookup context \param ctx. If it already exists it is returned.
-			//! \return Query id
-			uint32_t GetOrCreate(query::LookupCtx&& ctx) {
-				GAIA_ASSERT(ctx.hashLookup.hash != 0);
-
-				// Check if the query info exists first
-				auto ret = m_queryCache.try_emplace(ctx.hashLookup, QueryCacheLookupArray{});
-				if (!ret.second) {
-					const auto& queryIds = ret.first->second;
-
-					// Record with the query info lookup hash exists but we need to check if the query itself is a part of it.
-					if GAIA_LIKELY (ctx.queryId != (int32_t)-1) {
-						// Make sure the same hash gets us to the proper query
-						for (const auto queryId: queryIds) {
-							const auto& queryInfo = m_queryArr[queryId];
-							if (queryInfo != ctx)
-								continue;
-
-							return queryId;
-						}
-
-						GAIA_ASSERT(false && "EntityQueryInfo not found despite having its lookupHash and cacheId set!");
-						return query::QueryIdBad;
-					}
-				}
-
-				const auto queryId = (query::QueryId)m_queryArr.size();
-				m_queryArr.push_back(query::EntityQueryInfo::Create(queryId, std::move(ctx)));
-				ret.first->second.push_back(queryId);
-				return queryId;
-			};
-		};
-	} // namespace ecs
-} // namespace gaia
-
-#include <cinttypes>
-
-namespace gaia {
-	namespace ecs {
 		struct Iterator {
 		private:
-			query::EntityQueryInfo& m_info;
+			query::QueryInfo& m_info;
 			archetype::Chunk& m_chunk;
 			uint32_t m_pos;
 
 		public:
-			Iterator(query::EntityQueryInfo& info, archetype::Chunk& chunk): m_info(info), m_chunk(chunk), m_pos(0) {}
-			Iterator(query::EntityQueryInfo& info, archetype::Chunk& chunk, uint32_t pos):
+			Iterator(query::QueryInfo& info, archetype::Chunk& chunk): m_info(info), m_chunk(chunk), m_pos(0) {}
+			Iterator(query::QueryInfo& info, archetype::Chunk& chunk, uint32_t pos):
 					m_info(info), m_chunk(chunk), m_pos(pos) {}
 
 			uint32_t operator*() const {
@@ -10815,7 +10750,72 @@ namespace gaia {
 
 namespace gaia {
 	namespace ecs {
-		class EntityQuery final {
+		class QueryCache {
+			using QueryCacheLookupArray = containers::darray<uint32_t>;
+
+			containers::map<query::LookupHash, QueryCacheLookupArray> m_queryCache;
+			containers::darray<query::QueryInfo> m_queryArr;
+
+		public:
+			QueryCache() {
+				m_queryArr.reserve(256);
+			}
+
+			~QueryCache() = default;
+
+			QueryCache(QueryCache&&) = delete;
+			QueryCache(const QueryCache&) = delete;
+			QueryCache& operator=(QueryCache&&) = delete;
+			QueryCache& operator=(const QueryCache&) = delete;
+
+			//! Returns an already existing query info from the provided \param queryId.
+			//! \warning It is expected that the query has already been registered. Undefined behavior otherwise.
+			//! \param queryId Query used to search for query info
+			//! \return Query info
+			query::QueryInfo& Get(query::QueryId queryId) {
+				GAIA_ASSERT(queryId != query::QueryIdBad);
+
+				return m_queryArr[queryId];
+			};
+
+			//! Registers the provided query lookup context \param ctx. If it already exists it is returned.
+			//! \return Query id
+			uint32_t GetOrCreate(query::LookupCtx&& ctx) {
+				GAIA_ASSERT(ctx.hashLookup.hash != 0);
+
+				// Check if the query info exists first
+				auto ret = m_queryCache.try_emplace(ctx.hashLookup, QueryCacheLookupArray{});
+				if (!ret.second) {
+					const auto& queryIds = ret.first->second;
+
+					// Record with the query info lookup hash exists but we need to check if the query itself is a part of it.
+					if GAIA_LIKELY (ctx.queryId != (int32_t)-1) {
+						// Make sure the same hash gets us to the proper query
+						for (const auto queryId: queryIds) {
+							const auto& queryInfo = m_queryArr[queryId];
+							if (queryInfo != ctx)
+								continue;
+
+							return queryId;
+						}
+
+						GAIA_ASSERT(false && "QueryInfo not found despite having its lookupHash and cacheId set!");
+						return query::QueryIdBad;
+					}
+				}
+
+				const auto queryId = (query::QueryId)m_queryArr.size();
+				m_queryArr.push_back(query::QueryInfo::Create(queryId, std::move(ctx)));
+				ret.first->second.push_back(queryId);
+				return queryId;
+			};
+		};
+	} // namespace ecs
+} // namespace gaia
+
+namespace gaia {
+	namespace ecs {
+		class Query final {
 			static constexpr uint32_t ChunkBatchSize = 16;
 			using CChunkSpan = std::span<const archetype::Chunk*>;
 			using ChunkBatchedList = containers::sarray_ext<archetype::Chunk*, ChunkBatchSize>;
@@ -10959,10 +10959,10 @@ namespace gaia {
 			//! Query cache id
 			query::QueryId m_queryId = query::QueryIdBad;
 			//! Tell what kinds of chunks are going to be accepted by the query
-			EntityQuery::Constraints m_constraints = EntityQuery::Constraints::EnabledOnly;
+			Query::Constraints m_constraints = Query::Constraints::EnabledOnly;
 
-			//! Entity query cache (stable pointer to parent world's query cache)
-			EntityQueryCache* m_entityQueryCache{};
+			//! Query cache (stable pointer to parent world's query cache)
+			QueryCache* m_entityQueryCache{};
 			//! World version (stable pointer to parent world's world version)
 			uint32_t* m_worldVersion{};
 			//! List of achetypes (stable pointer to parent world's archetype array)
@@ -10970,15 +10970,15 @@ namespace gaia {
 
 			//--------------------------------------------------------------------------------
 		public:
-			query::EntityQueryInfo& FetchQueryInfo() {
-				// Lookup hash is present which means EntityQueryInfo was already found
+			query::QueryInfo& FetchQueryInfo() {
+				// Lookup hash is present which means QueryInfo was already found
 				if GAIA_LIKELY (m_queryId != query::QueryIdBad) {
 					auto& queryInfo = m_entityQueryCache->Get(m_queryId);
 					queryInfo.Match(*m_archetypes);
 					return queryInfo;
 				}
 
-				// No lookup hash is present which means EntityQueryInfo needes to fetched or created
+				// No lookup hash is present which means QueryInfo needes to fetched or created
 				query::LookupCtx ctx;
 				Commit(ctx);
 				m_queryId = m_entityQueryCache->GetOrCreate(std::move(ctx));
@@ -11048,7 +11048,7 @@ namespace gaia {
 
 			//! Unpacks the parameter list \param types into query \param query and performs All for each of them
 			template <typename... T>
-			void UnpackArgsIntoQuery_All(EntityQuery& query, [[maybe_unused]] utils::func_type_list<T...> types) const {
+			void UnpackArgsIntoQuery_All(Query& query, [[maybe_unused]] utils::func_type_list<T...> types) const {
 				static_assert(sizeof...(T) > 0, "Inputs-less functors can not be unpacked to query");
 				query.All<T...>();
 			}
@@ -11056,7 +11056,7 @@ namespace gaia {
 			//! Unpacks the parameter list \param types into query \param query and performs HasAll for each of them
 			template <typename... T>
 			GAIA_NODISCARD bool UnpackArgsIntoQuery_HasAll(
-					const query::EntityQueryInfo& queryInfo, [[maybe_unused]] utils::func_type_list<T...> types) const {
+					const query::QueryInfo& queryInfo, [[maybe_unused]] utils::func_type_list<T...> types) const {
 				if constexpr (sizeof...(T) > 0)
 					return queryInfo.HasAll<T...>();
 				else
@@ -11065,7 +11065,7 @@ namespace gaia {
 
 			//--------------------------------------------------------------------------------
 
-			GAIA_NODISCARD static bool CheckFilters(const archetype::Chunk& chunk, const query::EntityQueryInfo& queryInfo) {
+			GAIA_NODISCARD static bool CheckFilters(const archetype::Chunk& chunk, const query::QueryInfo& queryInfo) {
 				GAIA_ASSERT(chunk.HasEntities() && "CheckFilters called on an empty chunk");
 
 				const auto queryVersion = queryInfo.GetWorldVersion();
@@ -11096,7 +11096,7 @@ namespace gaia {
 
 			template <bool HasFilters>
 			GAIA_NODISCARD bool
-			CanAcceptChunkForProcessing(const archetype::Chunk& chunk, const query::EntityQueryInfo& queryInfo) const {
+			CanAcceptChunkForProcessing(const archetype::Chunk& chunk, const query::QueryInfo& queryInfo) const {
 				if GAIA_UNLIKELY (!chunk.HasEntities())
 					return false;
 
@@ -11109,8 +11109,7 @@ namespace gaia {
 			}
 
 			template <bool HasFilters>
-			void
-			ChunkBatch_Prepare(CChunkSpan chunkSpan, const query::EntityQueryInfo& queryInfo, ChunkBatchedList& chunkBatch) {
+			void ChunkBatch_Prepare(CChunkSpan chunkSpan, const query::QueryInfo& queryInfo, ChunkBatchedList& chunkBatch) {
 				GAIA_PROF_SCOPE(ChunkBatch_Prepare);
 
 				for (const auto* pChunk: chunkSpan) {
@@ -11173,7 +11172,7 @@ namespace gaia {
 			template <bool HasFilters, typename Func>
 			void ProcessQueryOnChunks(
 					Func func, ChunkBatchedList& chunkBatch, const containers::darray<archetype::Chunk*>& chunksList,
-					const query::EntityQueryInfo& queryInfo) {
+					const query::QueryInfo& queryInfo) {
 				size_t chunkOffset = 0;
 
 				size_t itemsLeft = chunksList.size();
@@ -11192,7 +11191,7 @@ namespace gaia {
 			}
 
 			template <typename Func>
-			void RunQueryOnChunks_Internal(query::EntityQueryInfo& queryInfo, Func func) {
+			void RunQueryOnChunks_Internal(query::QueryInfo& queryInfo, Func func) {
 				// Update the world version
 				UpdateVersion(*m_worldVersion);
 
@@ -11229,7 +11228,7 @@ namespace gaia {
 			}
 
 			template <typename Func>
-			void ForEachIter_Internal(query::EntityQueryInfo& queryInfo, Func func) {
+			void ForEachIter_Internal(query::QueryInfo& queryInfo, Func func) {
 				RunQueryOnChunks_Internal(queryInfo, [&](archetype::Chunk& chunk) {
 					Iterator iter(queryInfo, chunk);
 					func(iter);
@@ -11237,7 +11236,7 @@ namespace gaia {
 			}
 
 			template <typename Func>
-			void ForEach_Internal(query::EntityQueryInfo& queryInfo, Func func) {
+			void ForEach_Internal(query::QueryInfo& queryInfo, Func func) {
 				using InputArgs = decltype(utils::func_args(&Func::operator()));
 
 #if GAIA_DEBUG
@@ -11255,18 +11254,16 @@ namespace gaia {
 			}
 
 		public:
-			EntityQuery() = default;
-			EntityQuery(
-					EntityQueryCache& queryCache, uint32_t& worldVersion, containers::darray<archetype::Archetype*>& archetypes):
-					m_entityQueryCache(&queryCache),
-					m_worldVersion(&worldVersion), m_archetypes(&archetypes) {}
+			Query() = default;
+			Query(QueryCache& queryCache, uint32_t& worldVersion, containers::darray<archetype::Archetype*>& archetypes):
+					m_entityQueryCache(&queryCache), m_worldVersion(&worldVersion), m_archetypes(&archetypes) {}
 
 			GAIA_NODISCARD uint32_t GetQueryId() const {
 				return m_queryId;
 			}
 
 			template <typename... T>
-			EntityQuery& All() {
+			Query& All() {
 				// Adding new rules invalides the query
 				InvalidateQuery();
 				// Add commands to the command buffer
@@ -11275,7 +11272,7 @@ namespace gaia {
 			}
 
 			template <typename... T>
-			EntityQuery& Any() {
+			Query& Any() {
 				// Adding new rules invalides the query
 				InvalidateQuery();
 				// Add commands to the command buffer
@@ -11284,7 +11281,7 @@ namespace gaia {
 			}
 
 			template <typename... T>
-			EntityQuery& None() {
+			Query& None() {
 				// Adding new rules invalides the query
 				InvalidateQuery();
 				// Add commands to the command buffer
@@ -11293,7 +11290,7 @@ namespace gaia {
 			}
 
 			template <typename... T>
-			EntityQuery& WithChanged() {
+			Query& WithChanged() {
 				// Adding new rules invalides the query
 				InvalidateQuery();
 				// Add commands to the command buffer
@@ -11301,12 +11298,12 @@ namespace gaia {
 				return *this;
 			}
 
-			EntityQuery& SetConstraints(EntityQuery::Constraints value) {
+			Query& SetConstraints(Query::Constraints value) {
 				m_constraints = value;
 				return *this;
 			}
 
-			GAIA_NODISCARD EntityQuery::Constraints GetConstraints() const {
+			GAIA_NODISCARD Query::Constraints GetConstraints() const {
 				return m_constraints;
 			}
 
@@ -11314,13 +11311,13 @@ namespace gaia {
 			GAIA_NODISCARD bool CheckConstraints() const {
 				// By default we only evaluate EnabledOnly changes. AcceptAll is something that has to be asked for
 				// explicitely.
-				if GAIA_UNLIKELY (m_constraints == EntityQuery::Constraints::AcceptAll)
+				if GAIA_UNLIKELY (m_constraints == Query::Constraints::AcceptAll)
 					return true;
 
 				if constexpr (Enabled)
-					return m_constraints == EntityQuery::Constraints::EnabledOnly;
+					return m_constraints == Query::Constraints::EnabledOnly;
 				else
-					return m_constraints == EntityQuery::Constraints::DisabledOnly;
+					return m_constraints == Query::Constraints::DisabledOnly;
 			}
 
 			template <typename Func>
@@ -11577,8 +11574,8 @@ namespace gaia {
 			friend void* AllocateChunkMemory(World& world);
 			friend void ReleaseChunkMemory(World& world, void* mem);
 
-			//! Cache of entity queries
-			EntityQueryCache m_queryCache;
+			//! Cache of queries
+			QueryCache m_queryCache;
 			//! Cache of query ids to speed up ForEach
 			containers::map<component::ComponentLookupHash, query::QueryId> m_uniqueFuncQueryPairs;
 			//! Map or archetypes mapping to the same hash - used for lookups
@@ -12583,14 +12580,14 @@ namespace gaia {
 			//--------------------------------------------------------------------------------
 
 			template <typename... T>
-			void UnpackArgsIntoQuery(EntityQuery& query, [[maybe_unused]] utils::func_type_list<T...> types) const {
+			void UnpackArgsIntoQuery(Query& query, [[maybe_unused]] utils::func_type_list<T...> types) const {
 				static_assert(sizeof...(T) > 0, "Inputs-less functors can not be unpacked to query");
 				query.All<T...>();
 			}
 
 			template <typename... T>
 			static void RegisterComponents_Internal([[maybe_unused]] utils::func_type_list<T...> types) {
-				static_assert(sizeof...(T) > 0, "Empty EntityQuery is not supported in this context");
+				static_assert(sizeof...(T) > 0, "Empty Query is not supported in this context");
 				auto& cc = ComponentCache::Get();
 				((void)cc.GetOrCreateComponentInfo<T>(), ...);
 			}
@@ -12608,13 +12605,13 @@ namespace gaia {
 			}
 
 		public:
-			EntityQuery CreateQuery() {
-				return EntityQuery(m_queryCache, m_worldVersion, m_archetypes);
+			Query CreateQuery() {
+				return Query(m_queryCache, m_worldVersion, m_archetypes);
 			}
 
 			/*!
 			Iterates over all chunks satisfying conditions set by \param func and calls \param func for all of them.
-			EntityQuery instance is generated internally from the input arguments of \param func.
+			Query instance is generated internally from the input arguments of \param func.
 			\warning Performance-wise it has less potential than iterating using ecs::Chunk or a comparable ForEach
 			passing in a query because it needs to do cached query lookups on each invocation. However, it is easier to
 			use and for non-critical code paths it is the most elegant way of iterating your data.
@@ -12627,7 +12624,7 @@ namespace gaia {
 
 				constexpr auto lookupHash = CalculateQueryIdLookupHash(InputArgs{});
 				if (m_uniqueFuncQueryPairs.count(lookupHash) == 0) {
-					EntityQuery query = CreateQuery();
+					Query query = CreateQuery();
 					UnpackArgsIntoQuery(query, InputArgs{});
 					(void)query.FetchQueryInfo();
 					m_uniqueFuncQueryPairs.try_emplace(lookupHash, query.GetQueryId());
