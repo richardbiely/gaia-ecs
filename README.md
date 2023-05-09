@@ -367,7 +367,7 @@ struct VelocitySoA {
 };
 ...
 ecs::Query q = w.Query().All<PositionSoA, const VelocitySoA>;
-q.ForEach(, [](ecs::Iterator iter) {
+q.ForEach([](ecs::Iterator iter) {
   auto vp = iter.ViewRW<PositionSoA>(); // read-write access to PositionSoA
   auto vv = iter.View<VelocitySoA>(); // read-only access to VelocitySoA
 
