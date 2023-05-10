@@ -9,8 +9,9 @@
 namespace gaia {
 	namespace ecs {
 		namespace archetype {
+			constexpr uint32_t MAX_COMPONENTS_PER_ARCHETYPE_BITS = 5U;
 			//! Maximum number of components on archetype
-			constexpr uint32_t MAX_COMPONENTS_PER_ARCHETYPE = 32U;
+			constexpr uint32_t MAX_COMPONENTS_PER_ARCHETYPE = 1U << MAX_COMPONENTS_PER_ARCHETYPE_BITS;
 
 			class Archetype;
 
