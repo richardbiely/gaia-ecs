@@ -5,4 +5,4 @@
 // Smaller changes and features
 #define GAIA_VERSION_MINOR 6
 // Fixes and tweaks
-#define GAIA_VERSION_PATCH 0
+#define GAIA_VERSION_PATCH 1

@@ -3,6 +3,7 @@
 
 #include "../containers/darray.h"
 #include "../containers/sarray_ext.h"
+#include "../containers/set.h"
 #include "../utils/hashing_policy.h"
 #include "../utils/utility.h"
 #include "archetype.h"
@@ -16,6 +17,8 @@ namespace gaia {
 		struct Entity;
 
 		namespace query {
+			using ComponentToArchetypeMap = containers::map<component::ComponentId, archetype::ArchetypeList>;
+
 			class QueryInfo {
 			public:
 				//! Query matching result
@@ -206,28 +209,68 @@ namespace gaia {
 					return !operator==(other);
 				}
 
-				//! Tries to match the query against \param archetypes. For each matched archetype the archetype is cached.
-				//! This is necessary so we do not iterate all chunks over and over again when running queries.
-				void Match(const archetype::ArchetypeList& archetypes) {
-					for (size_t i = m_lastArchetypeIdx; i < archetypes.size(); i++) {
-						auto* pArchetype = archetypes[i];
+				//! Tries to match the query against archetypes in \param componentToArchetypeMap. For each matched archetype
+				//! the archetype is cached. This is necessary so we do not iterate all chunks over and over again when running
+				//! queries.
+				void Match(const ComponentToArchetypeMap& componentToArchetypeMap, uint32_t archetypeCount) {
+					static containers::set<archetype::Archetype*> s_tmpArchetypeMatches;
 
-						// Early exit if generic query doesn't match
-						const auto retGeneric = Match(*pArchetype, component::ComponentType::CT_Generic);
-						if (retGeneric == MatchArchetypeQueryRet::Fail)
-							continue;
+					// Skip if no new archetype appeared
+					if (m_lastArchetypeIdx == archetypeCount)
+						return;
+					m_lastArchetypeIdx = archetypeCount;
 
-						// Early exit if chunk query doesn't match
-						const auto retChunk = Match(*pArchetype, component::ComponentType::CT_Chunk);
-						if (retChunk == MatchArchetypeQueryRet::Fail)
-							continue;
+					// Match against generic types
+					{
+						auto& data = m_lookupCtx.data[component::ComponentType::CT_Generic];
+						for (size_t i = 0; i < data.componentIds.size(); ++i) {
+							const auto componentId = data.componentIds[i];
 
-						// If at least one query succeeded run our logic
-						if (retGeneric == MatchArchetypeQueryRet::Ok || retChunk == MatchArchetypeQueryRet::Ok)
-							m_archetypeCache.push_back(pArchetype);
+							const auto it = componentToArchetypeMap.find(componentId);
+							if (it == componentToArchetypeMap.end())
+								continue;
+
+							for (size_t j = data.lastMatchedArchetypeIndex[i]; j < it->second.size(); ++j) {
+								auto* pArchetype = it->second[j];
+								// Early exit if generic query doesn't match
+								const auto retGeneric = Match(*pArchetype, component::ComponentType::CT_Generic);
+								if (retGeneric == MatchArchetypeQueryRet::Fail)
+									continue;
+
+								(void)s_tmpArchetypeMatches.emplace(pArchetype);
+							}
+							data.lastMatchedArchetypeIndex[i] = (uint32_t)it->second.size();
+						}
 					}
 
-					m_lastArchetypeIdx = (uint32_t)archetypes.size();
+					// Match against chunk types
+					{
+						auto& data = m_lookupCtx.data[component::ComponentType::CT_Chunk];
+						for (size_t i = 0; i < data.componentIds.size(); ++i) {
+							const auto componentId = data.componentIds[i];
+
+							const auto it = componentToArchetypeMap.find(componentId);
+							if (it == componentToArchetypeMap.end())
+								continue;
+
+							for (size_t j = data.lastMatchedArchetypeIndex[i]; j < it->second.size(); ++j) {
+								auto* pArchetype = it->second[j];
+								// Early exit if generic query doesn't match
+								const auto retGeneric = Match(*pArchetype, component::ComponentType::CT_Chunk);
+								if (retGeneric == MatchArchetypeQueryRet::Fail) {
+									s_tmpArchetypeMatches.erase(pArchetype);
+									continue;
+								}
+
+								(void)s_tmpArchetypeMatches.emplace(pArchetype);
+							}
+							data.lastMatchedArchetypeIndex[i] = (uint32_t)it->second.size();
+						}
+					}
+
+					for (auto* pArchetype: s_tmpArchetypeMatches)
+						m_archetypeCache.push_back(pArchetype);
+					s_tmpArchetypeMatches.clear();
 				}
 
 				GAIA_NODISCARD const query::LookupCtx::Data& GetData(component::ComponentType componentType) const {

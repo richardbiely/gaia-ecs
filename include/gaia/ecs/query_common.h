@@ -1,4 +1,5 @@
 #pragma once
+#include "../containers/darray.h"
 #include "../containers/sarray_ext.h"
 #include "../utils/hashing_policy.h"
 #include "component.h"
@@ -34,6 +35,8 @@ namespace gaia {
 					ListTypeArray rules;
 					//! List of component matcher hashes
 					component::ComponentMatcherHash hash[ListType::LT_Count];
+					//! Array of indiices to the last checked archetype in the component-to-archetype map
+					containers::darray<uint32_t> lastMatchedArchetypeIndex;
 					//! List of filtered components
 					ChangeFilterArray withChanged;
 					//! Read-write mask. Bit 0 stands for component 0 in component arrays.

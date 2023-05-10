@@ -193,7 +193,7 @@ PICOBENCH(BM_ForEach_External_1000).PICO_SETTINGS().label("1000 archetypes");
 PICOBENCH(BM_ForEach_External_2500).PICO_SETTINGS().label("2500 archetypes");
 PICOBENCH(BM_ForEach_External_5000).PICO_SETTINGS().label("5000 archetypes");
 
-PICOBENCH_SUITE("ForEach - external query, chunk");
+PICOBENCH_SUITE("ForEach - external query, iterator");
 PICOBENCH(BM_ForEachChunk_External_1).PICO_SETTINGS().label("1 archetype");
 PICOBENCH(BM_ForEachChunk_External_100).PICO_SETTINGS().label("100 archetypes");
 PICOBENCH(BM_ForEachChunk_External_1000).PICO_SETTINGS().label("1000 archetypes");
