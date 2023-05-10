@@ -4632,7 +4632,9 @@ namespace gaia {
 			using LookupHash = utils::direct_hash_key<uint64_t>;
 			using ArchetypeList = containers::darray<Archetype*>;
 			using ComponentIdArray = containers::sarray_ext<component::ComponentId, MAX_COMPONENTS_PER_ARCHETYPE>;
-			using ComponentOffsetArray = containers::sarray_ext<component::ComponentId, MAX_COMPONENTS_PER_ARCHETYPE>;
+			// uint16_t can fit at most 65535 items therefore MemoryBlockSize can't be set to a value biggen than that
+			using ChunkComponentOffset = uint16_t;
+			using ComponentOffsetArray = containers::sarray_ext<ChunkComponentOffset, MAX_COMPONENTS_PER_ARCHETYPE>;
 
 			static constexpr ArchetypeId ArchetypeIdBad = (ArchetypeId)-1;
 
@@ -9184,7 +9186,8 @@ namespace gaia {
 
 							// Register the component info
 							newArch->m_componentIds[component::ComponentType::CT_Generic].push_back(componentId);
-							newArch->m_componentOffsets[component::ComponentType::CT_Generic].push_back((uint32_t)componentOffsets);
+							newArch->m_componentOffsets[component::ComponentType::CT_Generic].push_back(
+									(archetype::ChunkComponentOffset)componentOffsets);
 
 							// Make sure the following component list is properly aligned
 							componentOffsets += desc.properties.size * maxGenericItemsInArchetype;
@@ -9195,7 +9198,8 @@ namespace gaia {
 						} else {
 							// Register the component info
 							newArch->m_componentIds[component::ComponentType::CT_Generic].push_back(componentId);
-							newArch->m_componentOffsets[component::ComponentType::CT_Generic].push_back((uint32_t)componentOffsets);
+							newArch->m_componentOffsets[component::ComponentType::CT_Generic].push_back(
+									(archetype::ChunkComponentOffset)componentOffsets);
 						}
 					}
 
@@ -9213,7 +9217,8 @@ namespace gaia {
 
 							// Register the component info
 							newArch->m_componentIds[component::ComponentType::CT_Chunk].push_back(componentId);
-							newArch->m_componentOffsets[component::ComponentType::CT_Chunk].push_back((uint32_t)componentOffsets);
+							newArch->m_componentOffsets[component::ComponentType::CT_Chunk].push_back(
+									(archetype::ChunkComponentOffset)componentOffsets);
 
 							// Make sure the following component list is properly aligned
 							componentOffsets += desc.properties.size;
@@ -9224,7 +9229,8 @@ namespace gaia {
 						} else {
 							// Register the component info
 							newArch->m_componentIds[component::ComponentType::CT_Chunk].push_back(componentId);
-							newArch->m_componentOffsets[component::ComponentType::CT_Chunk].push_back((uint32_t)componentOffsets);
+							newArch->m_componentOffsets[component::ComponentType::CT_Chunk].push_back(
+									(archetype::ChunkComponentOffset)componentOffsets);
 						}
 					}
 

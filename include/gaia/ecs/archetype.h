@@ -186,7 +186,8 @@ namespace gaia {
 
 							// Register the component info
 							newArch->m_componentIds[component::ComponentType::CT_Generic].push_back(componentId);
-							newArch->m_componentOffsets[component::ComponentType::CT_Generic].push_back((uint32_t)componentOffsets);
+							newArch->m_componentOffsets[component::ComponentType::CT_Generic].push_back(
+									(archetype::ChunkComponentOffset)componentOffsets);
 
 							// Make sure the following component list is properly aligned
 							componentOffsets += desc.properties.size * maxGenericItemsInArchetype;
@@ -197,7 +198,8 @@ namespace gaia {
 						} else {
 							// Register the component info
 							newArch->m_componentIds[component::ComponentType::CT_Generic].push_back(componentId);
-							newArch->m_componentOffsets[component::ComponentType::CT_Generic].push_back((uint32_t)componentOffsets);
+							newArch->m_componentOffsets[component::ComponentType::CT_Generic].push_back(
+									(archetype::ChunkComponentOffset)componentOffsets);
 						}
 					}
 
@@ -215,7 +217,8 @@ namespace gaia {
 
 							// Register the component info
 							newArch->m_componentIds[component::ComponentType::CT_Chunk].push_back(componentId);
-							newArch->m_componentOffsets[component::ComponentType::CT_Chunk].push_back((uint32_t)componentOffsets);
+							newArch->m_componentOffsets[component::ComponentType::CT_Chunk].push_back(
+									(archetype::ChunkComponentOffset)componentOffsets);
 
 							// Make sure the following component list is properly aligned
 							componentOffsets += desc.properties.size;
@@ -226,7 +229,8 @@ namespace gaia {
 						} else {
 							// Register the component info
 							newArch->m_componentIds[component::ComponentType::CT_Chunk].push_back(componentId);
-							newArch->m_componentOffsets[component::ComponentType::CT_Chunk].push_back((uint32_t)componentOffsets);
+							newArch->m_componentOffsets[component::ComponentType::CT_Chunk].push_back(
+									(archetype::ChunkComponentOffset)componentOffsets);
 						}
 					}
 
