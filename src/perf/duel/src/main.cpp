@@ -281,7 +281,7 @@ void BM_ECS_WithSystems(picobench::state& state) {
 	}
 }
 
-void BM_ECS_WithSystems_Chunk(picobench::state& state) {
+void BM_ECS_WithSystems_Iter(picobench::state& state) {
 	ecs::World w;
 	CreateECSEntities_Static<false>(w);
 	CreateECSEntities_Dynamic<false>(w);
@@ -379,7 +379,7 @@ void BM_ECS_WithSystems_Chunk(picobench::state& state) {
 	}
 }
 
-void BM_ECS_WithSystems_Chunk_SoA(picobench::state& state) {
+void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 	ecs::World w;
 	CreateECSEntities_Static<true>(w);
 	CreateECSEntities_Dynamic<true>(w);
@@ -576,7 +576,7 @@ __m128 _mm_blendv_ps(__m128 a, __m128 b, __m128 mask) {
 }
 #endif
 
-void BM_ECS_WithSystems_Chunk_SoA_SIMD(picobench::state& state) {
+void BM_ECS_WithSystems_Iter_SoA_SIMD(picobench::state& state) {
 	ecs::World w;
 	CreateECSEntities_Static<true>(w);
 	CreateECSEntities_Dynamic<true>(w);
@@ -1642,7 +1642,7 @@ int main(int argc, char* argv[]) {
 				PICOBENCH_REG(BM_NonECS_DOD<80>).PICO_SETTINGS_1().label("DOD_Chunks_80");
 			} else {
 				// PICOBENCH_SUITE_REG("ECS");
-				PICOBENCH_REG(BM_ECS_WithSystems_Chunk).PICO_SETTINGS_1().label("Systems_Chunk");
+				PICOBENCH_REG(BM_ECS_WithSystems_Iter).PICO_SETTINGS_1().label("Systems_Iter");
 			}
 		} else {
 			//  Ordinary coding style.
@@ -1655,7 +1655,7 @@ int main(int argc, char* argv[]) {
 			PICOBENCH_REG(BM_NonECS_BetterMemoryLayout<true>).PICO_SETTINGS().label("OptimizedMemLayout2");
 
 			// Memory organized in DoD style.
-			// Performance target BM_ECS_WithSystems_Chunk.
+			// Performance target BM_ECS_WithSystems_Iter.
 			// "Groups" is there to simulate having items split into separate chunks similar to what ECS does.
 			PICOBENCH_SUITE_REG("NonECS_DOD");
 			PICOBENCH_REG(BM_NonECS_DOD<1>).PICO_SETTINGS().baseline().label("Default");
@@ -1667,7 +1667,7 @@ int main(int argc, char* argv[]) {
 			PICOBENCH_REG(BM_NonECS_DOD<320>).PICO_SETTINGS().label("Chunks_320");
 
 			// Best possible performance with no manual optimization.
-			// Performance target for BM_ECS_WithSystems_Chunk_SoA.
+			// Performance target for BM_ECS_WithSystems_Iter_SoA.
 			// "Groups" is there to simulate having items split into separate chunks similar to what ECS does.
 			PICOBENCH_SUITE_REG("NonECS_DOD_SoA");
 			PICOBENCH_REG(BM_NonECS_DOD_SoA<1>).PICO_SETTINGS().baseline().label("Default");
@@ -1679,7 +1679,7 @@ int main(int argc, char* argv[]) {
 			PICOBENCH_REG(BM_NonECS_DOD_SoA<320>).PICO_SETTINGS().label("Chunks_320");
 
 			// Best possible performance.
-			// Performance target for BM_ECS_WithSystems_Chunk_SoA_SIMD.
+			// Performance target for BM_ECS_WithSystems_Iter_SoA_SIMD.
 			// "Groups" is there to simulate having items split into separate chunks similar to what ECS does.
 			PICOBENCH_SUITE_REG("NonECS_DOD_SoA_SIMD");
 			PICOBENCH_REG(BM_NonECS_DOD_SoA_SIMD<1>).PICO_SETTINGS().baseline().label("Default");
@@ -1694,9 +1694,9 @@ int main(int argc, char* argv[]) {
 			PICOBENCH_SUITE_REG("ECS");
 			PICOBENCH_REG(BM_ECS).PICO_SETTINGS().baseline().label("Default");
 			PICOBENCH_REG(BM_ECS_WithSystems).PICO_SETTINGS().label("Systems");
-			PICOBENCH_REG(BM_ECS_WithSystems_Chunk).PICO_SETTINGS().label("Systems_Chunk");
-			PICOBENCH_REG(BM_ECS_WithSystems_Chunk_SoA).PICO_SETTINGS().label("Systems_Chunk_SoA");
-			PICOBENCH_REG(BM_ECS_WithSystems_Chunk_SoA_SIMD).PICO_SETTINGS().label("Systems_Chunk_SoA_SIMD");
+			PICOBENCH_REG(BM_ECS_WithSystems_Iter).PICO_SETTINGS().label("Systems_Iter");
+			PICOBENCH_REG(BM_ECS_WithSystems_Iter_SoA).PICO_SETTINGS().label("Systems_Iter_SoA");
+			PICOBENCH_REG(BM_ECS_WithSystems_Iter_SoA_SIMD).PICO_SETTINGS().label("Systems_Iter_SoA_SIMD");
 		}
 	}
 
