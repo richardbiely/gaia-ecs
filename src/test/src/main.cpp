@@ -264,15 +264,16 @@ TEST_CASE("Query - QueryResult") {
 	}
 	{
 		const auto cnt = q1.CalculateEntityCount();
+		REQUIRE(cnt > 0);
+
 		const auto has = q1.HasEntities();
+		REQUIRE(has == true);
 
 		size_t cnt2 = 0;
 		q1.ForEach([&]() {
 			++cnt2;
 		});
 		REQUIRE(cnt == cnt2);
-		REQUIRE(cnt > 0);
-		REQUIRE(has == true);
 	}
 
 	{
@@ -326,9 +327,11 @@ TEST_CASE("Query - QueryResult complex") {
 	{
 		gaia::containers::darray<gaia::ecs::Entity> ents;
 		q1.ToArray(ents);
+		REQUIRE(ents.size() == N);
+
 		gaia::containers::darray<Position> arr;
 		q1.ToArray(arr);
-		REQUIRE(ents.size() == arr.size());
+		REQUIRE(arr.size() == N);
 
 		for (size_t i = 0; i < arr.size(); ++i) {
 			const auto& pos = arr[i];
@@ -340,41 +343,44 @@ TEST_CASE("Query - QueryResult complex") {
 	}
 	{
 		const auto cnt = q1.CalculateEntityCount();
+		REQUIRE(cnt > 0);
+
 		const auto has = q1.HasEntities();
+		REQUIRE(has == true);
 
 		size_t cnt2 = 0;
 		q1.ForEach([&]() {
 			++cnt2;
 		});
-		REQUIRE(cnt == cnt2);
-		REQUIRE(cnt > 0);
-		REQUIRE(has == true);
+		REQUIRE(cnt2 == cnt);
 	}
 
 	{
 		const auto cnt = q2.CalculateEntityCount();
+		REQUIRE(cnt == 0);
+
 		const auto has = q2.HasEntities();
+		REQUIRE(has == false);
 
 		size_t cnt2 = 0;
 		q2.ForEach([&]() {
 			++cnt2;
 		});
-		REQUIRE(cnt == cnt2);
-		REQUIRE(cnt == 0);
-		REQUIRE(has == false);
+		REQUIRE(cnt2 == cnt);
 	}
 
 	{
 		const auto cnt = q3.CalculateEntityCount();
+		REQUIRE(cnt == 0);
+
 		const auto has = q3.HasEntities();
+		REQUIRE(has == false);
 
 		size_t cnt3 = 0;
 		q3.ForEach([&]() {
 			++cnt3;
 		});
-		REQUIRE(cnt == cnt3);
-		REQUIRE(cnt == 0);
-		REQUIRE(has == false);
+		REQUIRE(cnt3 == cnt);
 	}
 
 	{
@@ -409,15 +415,16 @@ TEST_CASE("Query - QueryResult complex") {
 	}
 	{
 		const auto cnt = q4.CalculateEntityCount();
+		REQUIRE(cnt > 0);
+
 		const auto has = q4.HasEntities();
+		REQUIRE(has == true);
 
 		size_t cnt4 = 0;
 		q4.ForEach([&]() {
 			++cnt4;
 		});
-		REQUIRE(cnt == cnt4);
-		REQUIRE(cnt > 0);
-		REQUIRE(has == true);
+		REQUIRE(cnt4 == cnt);
 	}
 
 	{
@@ -452,15 +459,16 @@ TEST_CASE("Query - QueryResult complex") {
 	}
 	{
 		const auto cnt = q5.CalculateEntityCount();
+		REQUIRE(cnt > 0);
+
 		const auto has = q5.HasEntities();
+		REQUIRE(has == true);
 
 		size_t cnt5 = 0;
 		q5.ForEach([&]() {
 			++cnt5;
 		});
-		REQUIRE(cnt == cnt5);
-		REQUIRE(cnt > 0);
-		REQUIRE(has == true);
+		REQUIRE(cnt5 == cnt);
 	}
 }
 

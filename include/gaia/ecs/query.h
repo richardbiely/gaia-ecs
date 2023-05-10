@@ -6,10 +6,12 @@
 
 #include "../config/profiler.h"
 #include "../containers/darray.h"
+#include "../containers/map.h"
 #include "../containers/sarray_ext.h"
 #include "../utils/hashing_policy.h"
 #include "../utils/utility.h"
 #include "archetype.h"
+#include "archetype_common.h"
 #include "chunk.h"
 #include "common.h"
 #include "component.h"
@@ -61,6 +63,7 @@ namespace gaia {
 				void Exec(query::LookupCtx& ctx) {
 					auto& data = ctx.data[componentType];
 					auto& componentIds = data.componentIds;
+					auto& lastMatchedArchetypeIndex = data.lastMatchedArchetypeIndex;
 					auto& rules = data.rules;
 
 					// Unique component ids only
@@ -83,6 +86,7 @@ namespace gaia {
 
 					data.readWriteMask |= (uint8_t)isReadWrite << (uint8_t)componentIds.size();
 					componentIds.push_back(componentId);
+					lastMatchedArchetypeIndex.push_back(0);
 					rules.push_back(listType);
 
 					if (listType == query::ListType::LT_All)
@@ -174,7 +178,9 @@ namespace gaia {
 			//! World version (stable pointer to parent world's world version)
 			uint32_t* m_worldVersion{};
 			//! List of achetypes (stable pointer to parent world's archetype array)
-			containers::darray<archetype::Archetype*>* m_archetypes{};
+			const archetype::ArchetypeList* m_archetypes{};
+			//! Map of component ids to archetypes (stable pointer to parent world's archetype component-to-archetype map)
+			const query::ComponentToArchetypeMap* m_componentToArchetypeMap{};
 
 			//--------------------------------------------------------------------------------
 		public:
@@ -182,7 +188,7 @@ namespace gaia {
 				// Lookup hash is present which means QueryInfo was already found
 				if GAIA_LIKELY (m_queryId != query::QueryIdBad) {
 					auto& queryInfo = m_entityQueryCache->Get(m_queryId);
-					queryInfo.Match(*m_archetypes);
+					queryInfo.Match(*m_componentToArchetypeMap, (uint32_t)m_archetypes->size());
 					return queryInfo;
 				}
 
@@ -191,7 +197,7 @@ namespace gaia {
 				Commit(ctx);
 				m_queryId = m_entityQueryCache->GetOrCreate(std::move(ctx));
 				auto& queryInfo = m_entityQueryCache->Get(m_queryId);
-				queryInfo.Match(*m_archetypes);
+				queryInfo.Match(*m_componentToArchetypeMap, (uint32_t)m_archetypes->size());
 				return queryInfo;
 			}
 
@@ -458,8 +464,12 @@ namespace gaia {
 
 		public:
 			Query() = default;
-			Query(QueryCache& queryCache, uint32_t& worldVersion, containers::darray<archetype::Archetype*>& archetypes):
-					m_entityQueryCache(&queryCache), m_worldVersion(&worldVersion), m_archetypes(&archetypes) {}
+			Query(
+					QueryCache& queryCache, uint32_t& worldVersion, const containers::darray<archetype::Archetype*>& archetypes,
+					const query::ComponentToArchetypeMap& componentToArchetypeMap):
+					m_entityQueryCache(&queryCache),
+					m_worldVersion(&worldVersion), m_archetypes(&archetypes),
+					m_componentToArchetypeMap(&componentToArchetypeMap) {}
 
 			GAIA_NODISCARD uint32_t GetQueryId() const {
 				return m_queryId;
@@ -719,14 +729,14 @@ namespace gaia {
 				};
 
 				if (hasFilters) {
-					for (auto* pArchetype: *m_archetypes) {
+					for (auto* pArchetype: queryInfo) {
 						if (CheckConstraints<true>())
 							execWithFiltersON(pArchetype->GetChunks());
 						if (CheckConstraints<false>())
 							execWithFiltersON(pArchetype->GetChunksDisabled());
 					}
 				} else {
-					for (auto* pArchetype: *m_archetypes) {
+					for (auto* pArchetype: queryInfo) {
 						if (CheckConstraints<true>())
 							execWithFiltersOFF(pArchetype->GetChunks());
 						if (CheckConstraints<false>())

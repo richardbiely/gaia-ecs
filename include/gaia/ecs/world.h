@@ -68,7 +68,10 @@ namespace gaia {
 			QueryCache m_queryCache;
 			//! Cache of query ids to speed up ForEach
 			containers::map<component::ComponentLookupHash, query::QueryId> m_uniqueFuncQueryPairs;
-			//! Map or archetypes mapping to the same hash - used for lookups
+			//! Map of componentId -> archetype matches.
+			query::ComponentToArchetypeMap m_componentToArchetypeMap;
+
+			//! Map of archetypes mapping to the same hash - used for lookups
 			containers::map<archetype::LookupHash, archetype::ArchetypeList> m_archetypeMap;
 			//! List of archetypes - used for iteration
 			archetype::ArchetypeList m_archetypes;
@@ -180,8 +183,23 @@ namespace gaia {
 			*/
 			GAIA_NODISCARD archetype::Archetype*
 			CreateArchetype(component::ComponentIdSpan componentIdsGeneric, component::ComponentIdSpan componentIdsChunk) {
-				return archetype::Archetype::Create(
+				auto* pArchetype = archetype::Archetype::Create(
 						(archetype::ArchetypeId)m_archetypes.size(), m_worldVersion, componentIdsGeneric, componentIdsChunk);
+
+				auto registerComponentToArchetypePair = [&](component::ComponentId componentId) {
+					const auto it = m_componentToArchetypeMap.find(componentId);
+					if (it == m_componentToArchetypeMap.end())
+						m_componentToArchetypeMap.try_emplace(componentId, archetype::ArchetypeList{pArchetype});
+					else
+						it->second.push_back(pArchetype);
+				};
+
+				for (const auto componentId: componentIdsGeneric)
+					registerComponentToArchetypePair(componentId);
+				for (const auto componentId: componentIdsChunk)
+					registerComponentToArchetypePair(componentId);
+
+				return pArchetype;
 			}
 
 			/*!
@@ -1096,7 +1114,7 @@ namespace gaia {
 
 		public:
 			Query CreateQuery() {
-				return Query(m_queryCache, m_worldVersion, m_archetypes);
+				return Query(m_queryCache, m_worldVersion, m_archetypes, m_componentToArchetypeMap);
 			}
 
 			/*!
@@ -1208,7 +1226,6 @@ namespace gaia {
 				DiagRegisteredTypes();
 				DiagEntities();
 			}
-		}; // namespace gaia
-
+		};
 	} // namespace ecs
 } // namespace gaia
