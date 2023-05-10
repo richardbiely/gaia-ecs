@@ -36,18 +36,16 @@ namespace gaia {
 			uint16_t componentsGeneric: archetype::MAX_COMPONENTS_PER_ARCHETYPE_BITS;
 			//! Number of chunk components on the archetype
 			uint16_t componentsChunks: archetype::MAX_COMPONENTS_PER_ARCHETYPE_BITS;
-			//! Byte at which the first entity is located
-			archetype::ChunkComponentOffset firstEntityOffset{};
-
-			struct Versions {
-				//! Versions of individual components on chunk.
-				uint32_t versions[archetype::MAX_COMPONENTS_PER_ARCHETYPE];
-			} versions[component::ComponentType::CT_Count]{};
-			// Make sure the mask can take all components
-			static_assert(archetype::MAX_COMPONENTS_PER_ARCHETYPE <= 32);
-
 			//! Version of the world (stable pointer to parent world's world version)
 			uint32_t& worldVersion;
+			//! Byte at which the first component id is located
+			archetype::ChunkComponentOffset firstByte_ComponentIds{};
+			//! Byte at which the first component offset is located
+			archetype::ChunkComponentOffset firstByte_ComponentOffsets{};
+			//! Byte at which the first entity is located
+			archetype::ChunkComponentOffset firstByte_EntityData{};
+			//! Byte at which the first component is located
+			archetype::ChunkComponentOffset firstByte_ComponentData{};
 
 			ChunkHeader(uint32_t& version):
 					lifespanCountdown(0), disabled(0), structuralChangesLocked(0), hasCustomGenericCtor(0), hasCustomChunkCtor(0),
@@ -55,22 +53,6 @@ namespace gaia {
 					worldVersion(version) {
 				// Make sure the alignment is right
 				GAIA_ASSERT(uintptr_t(this) % 8 == 0);
-			}
-
-			GAIA_FORCEINLINE void UpdateWorldVersion(component::ComponentType componentType, uint32_t componentIdx) {
-				// Make sure only proper input is provided
-				GAIA_ASSERT(componentIdx != UINT32_MAX && componentIdx < archetype::MAX_COMPONENTS_PER_ARCHETYPE);
-
-				// Update the version of the component
-				auto& v = versions[componentType];
-				v.versions[componentIdx] = worldVersion;
-			}
-
-			GAIA_FORCEINLINE void UpdateWorldVersion(component::ComponentType componentType) {
-				// Update the version of all components
-				auto& v = versions[componentType];
-				for (size_t i = 0; i < archetype::MAX_COMPONENTS_PER_ARCHETYPE; i++)
-					v.versions[i] = worldVersion;
 			}
 		};
 	} // namespace ecs

@@ -7928,18 +7928,16 @@ namespace gaia {
 			uint16_t componentsGeneric: archetype::MAX_COMPONENTS_PER_ARCHETYPE_BITS;
 			//! Number of chunk components on the archetype
 			uint16_t componentsChunks: archetype::MAX_COMPONENTS_PER_ARCHETYPE_BITS;
-			//! Byte at which the first entity is located
-			archetype::ChunkComponentOffset firstEntityOffset{};
-
-			struct Versions {
-				//! Versions of individual components on chunk.
-				uint32_t versions[archetype::MAX_COMPONENTS_PER_ARCHETYPE];
-			} versions[component::ComponentType::CT_Count]{};
-			// Make sure the mask can take all components
-			static_assert(archetype::MAX_COMPONENTS_PER_ARCHETYPE <= 32);
-
 			//! Version of the world (stable pointer to parent world's world version)
 			uint32_t& worldVersion;
+			//! Byte at which the first component id is located
+			archetype::ChunkComponentOffset firstByte_ComponentIds{};
+			//! Byte at which the first component offset is located
+			archetype::ChunkComponentOffset firstByte_ComponentOffsets{};
+			//! Byte at which the first entity is located
+			archetype::ChunkComponentOffset firstByte_EntityData{};
+			//! Byte at which the first component is located
+			archetype::ChunkComponentOffset firstByte_ComponentData{};
 
 			ChunkHeader(uint32_t& version):
 					lifespanCountdown(0), disabled(0), structuralChangesLocked(0), hasCustomGenericCtor(0), hasCustomChunkCtor(0),
@@ -7947,22 +7945,6 @@ namespace gaia {
 					worldVersion(version) {
 				// Make sure the alignment is right
 				GAIA_ASSERT(uintptr_t(this) % 8 == 0);
-			}
-
-			GAIA_FORCEINLINE void UpdateWorldVersion(component::ComponentType componentType, uint32_t componentIdx) {
-				// Make sure only proper input is provided
-				GAIA_ASSERT(componentIdx != UINT32_MAX && componentIdx < archetype::MAX_COMPONENTS_PER_ARCHETYPE);
-
-				// Update the version of the component
-				auto& v = versions[componentType];
-				v.versions[componentIdx] = worldVersion;
-			}
-
-			GAIA_FORCEINLINE void UpdateWorldVersion(component::ComponentType componentType) {
-				// Update the version of all components
-				auto& v = versions[componentType];
-				for (size_t i = 0; i < archetype::MAX_COMPONENTS_PER_ARCHETYPE; i++)
-					v.versions[i] = worldVersion;
 			}
 		};
 	} // namespace ecs
@@ -8191,8 +8173,11 @@ namespace gaia {
 					}
 
 					{
-						const uint32_t expectedFirstEntityDataOffset = CalculateFirstEntityDataOffset();
-						uint32_t offset = 0;
+						// Offset by versions
+						uint32_t offset = (uint32_t)(sizeof(uint32_t) * (componentIdsGeneric.size() + componentIdsChunk.size()));
+						m_header.firstByte_ComponentIds = (archetype::ChunkComponentOffset)offset;
+
+						const auto expectedFirstEntityDataOffset = CalculateFirstEntityDataOffset();
 
 						// Copy provided component id data to this chunk's data area
 						for (size_t i = 0; i < component::ComponentType::CT_Count; ++i) {
@@ -8203,6 +8188,8 @@ namespace gaia {
 							}
 						}
 
+						m_header.firstByte_ComponentOffsets = (archetype::ChunkComponentOffset)offset;
+
 						// Copy provided component offset data to this chunk's data area
 						for (size_t i = 0; i < component::ComponentType::CT_Count; ++i) {
 							for (const auto componentOffset: componentOffsets[i]) {
@@ -8212,21 +8199,20 @@ namespace gaia {
 							}
 						}
 
-						m_header.firstEntityOffset = (archetype::ChunkComponentOffset)offset;
-						GAIA_ASSERT(m_header.firstEntityOffset == expectedFirstEntityDataOffset);
+						m_header.firstByte_EntityData = (archetype::ChunkComponentOffset)offset;
+						GAIA_ASSERT(m_header.firstByte_EntityData == expectedFirstEntityDataOffset);
 					}
+
+					m_header.firstByte_ComponentData = m_header.firstByte_EntityData + sizeof(Entity) * m_header.capacity;
 				}
 
 				GAIA_MSVC_WARNING_POP()
 
-				uint32_t CalculateComponentOffsetsDataStartOffset() const {
+				archetype::ChunkComponentOffset CalculateFirstEntityDataOffset() const {
 					const auto components = (uint32_t)m_header.componentsGeneric + (uint32_t)m_header.componentsChunks;
-					return sizeof(component::ComponentId) * components;
-				}
-
-				uint32_t CalculateFirstEntityDataOffset() const {
-					const auto components = (uint32_t)m_header.componentsGeneric + (uint32_t)m_header.componentsChunks;
-					return components * (sizeof(component::ComponentId) + sizeof(archetype::ChunkComponentOffset));
+					const auto combinedSize =
+							sizeof(uint32_t) + sizeof(component::ComponentId) + sizeof(archetype::ChunkComponentOffset);
+					return archetype::ChunkComponentOffset(components * combinedSize);
 				}
 
 				/*!
@@ -8241,7 +8227,7 @@ namespace gaia {
 					using UConst = typename std::add_const_t<U>;
 
 					if constexpr (std::is_same_v<U, Entity>) {
-						return std::span<const Entity>{(const Entity*)&m_data[m_header.firstEntityOffset], GetEntityCount()};
+						return std::span<const Entity>{(const Entity*)&m_data[m_header.firstByte_EntityData], GetEntityCount()};
 					} else {
 						static_assert(!std::is_empty_v<U>, "Attempting to get value of an empty component");
 
@@ -8398,8 +8384,8 @@ namespace gaia {
 					SetEntity(index, entity);
 
 					UpdateVersion(m_header.worldVersion);
-					m_header.UpdateWorldVersion(component::ComponentType::CT_Generic);
-					m_header.UpdateWorldVersion(component::ComponentType::CT_Chunk);
+					UpdateWorldVersion(component::ComponentType::CT_Generic);
+					UpdateWorldVersion(component::ComponentType::CT_Chunk);
 
 					return index;
 				}
@@ -8586,8 +8572,8 @@ namespace gaia {
 					}
 
 					UpdateVersion(m_header.worldVersion);
-					m_header.UpdateWorldVersion(component::ComponentType::CT_Generic);
-					m_header.UpdateWorldVersion(component::ComponentType::CT_Chunk);
+					UpdateWorldVersion(component::ComponentType::CT_Generic);
+					UpdateWorldVersion(component::ComponentType::CT_Chunk);
 
 					--m_header.count;
 				}
@@ -8600,7 +8586,7 @@ namespace gaia {
 				void SetEntity(uint32_t index, Entity entity) {
 					GAIA_ASSERT(index < m_header.count && "Entity index in chunk out of bounds!");
 
-					const auto offset = sizeof(Entity) * index + m_header.firstEntityOffset;
+					const auto offset = sizeof(Entity) * index + m_header.firstByte_EntityData;
 					utils::unaligned_ref<Entity> mem((void*)&m_data[offset]);
 					mem = entity;
 				}
@@ -8613,7 +8599,7 @@ namespace gaia {
 				GAIA_NODISCARD Entity GetEntity(uint32_t index) const {
 					GAIA_ASSERT(index < m_header.count && "Entity index in chunk out of bounds!");
 
-					const auto offset = sizeof(Entity) * index + m_header.firstEntityOffset;
+					const auto offset = sizeof(Entity) * index + m_header.firstByte_EntityData;
 					utils::unaligned_ref<Entity> mem((void*)&m_data[offset]);
 					return mem;
 				}
@@ -8624,7 +8610,7 @@ namespace gaia {
 				\return Pointer to chunk data.
 				*/
 				uint8_t& GetData(uint32_t offset) {
-					GAIA_ASSERT(offset >= m_header.firstEntityOffset);
+					GAIA_ASSERT(offset >= m_header.firstByte_EntityData);
 					return m_data[offset];
 				}
 
@@ -8674,7 +8660,7 @@ namespace gaia {
 					if constexpr (UpdateWorldVersion) {
 						UpdateVersion(m_header.worldVersion);
 						// Update version number so we know RW access was used on chunk
-						m_header.UpdateWorldVersion(componentType, componentIdx);
+						this->UpdateWorldVersion(componentType, componentIdx);
 					}
 
 					return (uint8_t*)&m_data[componentOffset];
@@ -9036,36 +9022,64 @@ namespace gaia {
 					return m_header.count;
 				}
 
-				GAIA_NODISCARD std::span<const component::ComponentId>
-				GetComponentIdArray(component::ComponentType componentType) const {
+				GAIA_NODISCARD std::span<uint32_t> GetComponentVersionArray(component::ComponentType componentType) const {
 					// Offsets for generic components
 					if (componentType == component::ComponentType::CT_Generic)
-						return std::span<const component::ComponentId>((const component::ComponentId*)&m_data[0], m_header.componentsGeneric);
+						return {(uint32_t*)&m_data[0], m_header.componentsGeneric};
 
 					// Offsets for chunk components
-					return std::span<const component::ComponentId>(
-							(const component::ComponentId*)&m_data[0] + m_header.componentsGeneric, m_header.componentsChunks);
+					return {(uint32_t*)&m_data[0] + m_header.componentsGeneric, m_header.componentsChunks};
+				}
+
+				GAIA_NODISCARD std::span<const component::ComponentId>
+				GetComponentIdArray(component::ComponentType componentType) const {
+					using RetType = std::add_pointer_t<const component::ComponentId>;
+					const auto offset = m_header.firstByte_ComponentIds;
+
+					// Offsets for generic components
+					if (componentType == component::ComponentType::CT_Generic)
+						return {(RetType)&m_data[offset], m_header.componentsGeneric};
+
+					// Offsets for chunk components
+					return {(RetType)&m_data[offset] + m_header.componentsGeneric, m_header.componentsChunks};
 				}
 
 				GAIA_NODISCARD std::span<const ChunkComponentOffset>
 				GetComponentOffsetArray(component::ComponentType componentType) const {
-					const auto componentDataOffset = CalculateComponentOffsetsDataStartOffset();
+					using RetType = std::add_pointer_t<const ChunkComponentOffset>;
+					const auto offset = m_header.firstByte_ComponentOffsets;
 
 					// Offsets for generic components
 					if (componentType == component::ComponentType::CT_Generic)
-						return std::span<const ChunkComponentOffset>(
-								(const ChunkComponentOffset*)&m_data[componentDataOffset], m_header.componentsGeneric);
+						return {(RetType)&m_data[offset], m_header.componentsGeneric};
 
 					// Offsets for chunk components
-					return std::span<const ChunkComponentOffset>(
-							(const ChunkComponentOffset*)&m_data[componentDataOffset] + m_header.componentsGeneric,
-							m_header.componentsChunks);
+					return {(RetType)&m_data[offset] + m_header.componentsGeneric, m_header.componentsChunks};
 				}
 
 				//! Returns true if the provided version is newer than the one stored internally
 				GAIA_NODISCARD bool
 				DidChange(component::ComponentType componentType, uint32_t version, uint32_t componentIdx) const {
-					return DidVersionChange(m_header.versions[componentType].versions[componentIdx], version);
+					auto versions = GetComponentVersionArray(componentType);
+					return DidVersionChange(versions[componentIdx], version);
+				}
+
+				GAIA_FORCEINLINE void UpdateWorldVersion(component::ComponentType componentType, uint32_t componentIdx) {
+					// Make sure only proper input is provided
+					GAIA_ASSERT(componentIdx != UINT32_MAX && componentIdx < archetype::MAX_COMPONENTS_PER_ARCHETYPE);
+
+					auto versions = GetComponentVersionArray(componentType);
+
+					// Update the version of the component
+					versions[componentIdx] = m_header.worldVersion;
+				}
+
+				GAIA_FORCEINLINE void UpdateWorldVersion(component::ComponentType componentType) {
+					auto versions = GetComponentVersionArray(componentType);
+
+					// Update the version of all components
+					for (size_t i = 0; i < versions.size(); i++)
+						versions[i] = m_header.worldVersion;
 				}
 
 				void Diag(uint32_t index) const {
