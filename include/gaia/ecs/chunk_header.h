@@ -3,8 +3,6 @@
 #include <cstdint>
 
 #include "archetype_common.h"
-#include "common.h"
-#include "component.h"
 
 namespace gaia {
 	namespace ecs {
