@@ -25,19 +25,19 @@ namespace gaia {
 			//! Updated when chunks are being iterated. Used to inform of structural changes when they shouldn't happen.
 			uint16_t structuralChangesLocked : 4;
 			//! True if there's a component that requires custom construction
-			uint32_t has_custom_generic_ctor : 1;
+			uint16_t hasCustomGenericCtor : 1;
 			//! True if there's a component that requires custom construction
-			uint32_t has_custom_chunk_ctor : 1;
+			uint16_t hasCustomChunkCtor : 1;
 			//! True if there's a component that requires custom destruction
-			uint32_t has_custom_generic_dtor : 1;
+			uint16_t hasCustomGenericDtor : 1;
 			//! True if there's a component that requires custom destruction
-			uint32_t has_custom_chunk_dtor : 1;
-			//! Description of components within this archetype (copied from the owner archetype)
-			containers::sarray<archetype::ComponentIdArray, component::ComponentType::CT_Count> componentIds;
-			//! Lookup hashes of components within this archetype (copied from the owner archetype)
-			containers::sarray<archetype::ComponentOffsetArray, component::ComponentType::CT_Count> componentOffsets;
-			//! Version of the world (stable pointer to parent world's world version)
-			uint32_t& worldVersion;
+			uint16_t hasCustomChunkDtor : 1;
+			//! Number of generic components on the archetype
+			uint16_t componentsGeneric: archetype::MAX_COMPONENTS_PER_ARCHETYPE_BITS;
+			//! Number of chunk components on the archetype
+			uint16_t componentsChunks: archetype::MAX_COMPONENTS_PER_ARCHETYPE_BITS;
+			//! Byte at which the first entity is located
+			archetype::ChunkComponentOffset firstEntityOffset{};
 
 			struct Versions {
 				//! Versions of individual components on chunk.
@@ -46,9 +46,13 @@ namespace gaia {
 			// Make sure the mask can take all components
 			static_assert(archetype::MAX_COMPONENTS_PER_ARCHETYPE <= 32);
 
+			//! Version of the world (stable pointer to parent world's world version)
+			uint32_t& worldVersion;
+
 			ChunkHeader(uint32_t& version):
-					lifespanCountdown(0), disabled(0), structuralChangesLocked(0), has_custom_generic_ctor(0),
-					has_custom_chunk_ctor(0), has_custom_generic_dtor(0), has_custom_chunk_dtor(0), worldVersion(version) {
+					lifespanCountdown(0), disabled(0), structuralChangesLocked(0), hasCustomGenericCtor(0), hasCustomChunkCtor(0),
+					hasCustomGenericDtor(0), hasCustomChunkDtor(0), componentsGeneric(0), componentsChunks(0),
+					worldVersion(version) {
 				// Make sure the alignment is right
 				GAIA_ASSERT(uintptr_t(this) % 8 == 0);
 			}
