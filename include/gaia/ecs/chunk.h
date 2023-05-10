@@ -17,7 +17,6 @@
 #include "component_cache.h"
 #include "component_utils.h"
 #include "entity.h"
-#include "gaia/config/config_core_end.h"
 
 namespace gaia {
 	namespace ecs {
