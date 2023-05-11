@@ -17,7 +17,7 @@
 [license]: https://en.wikipedia.org/wiki/MIT_License
 [codacy]: https://app.codacy.com/gh/richardbiely/gaia-ecs/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade
 
-Gaia-ECS is a fast and easy to use entity component system framework. Some of its current features and highlights are:</br>
+Gaia-ECS is a fast and easy to use [entity component system](https://en.wikipedia.org/wiki/Entity_component_system) framework. Some of its current features and highlights are:
 * very simple and safe API designed in such a way to prevent you from using bad coding patterns
 * based on modern [C++17](https://en.cppreference.com/w/cpp/17) technologies
 * no external dependencies, not even on STL (can be easily enabled if needed)
@@ -43,6 +43,8 @@ Gaia-ECS is a fast and easy to use entity component system framework. Some of it
     * [Query](#query)
     * [Simple iteration](#simple-iteration)
     * [Query iteration](#query-iteration)
+    * [Iterator](#iterator)
+    * [Change detection](#change-detection)
   * [Chunk components](#chunk-components)
   * [Delayed execution](#delayed-execution)
   * [Data layouts](#data-layouts)
@@ -65,33 +67,40 @@ Gaia-ECS is a fast and easy to use entity component system framework. Some of it
 
 # Introduction
 
-Entity-Component-System (ECS) is a software architectural pattern based on organizing your code around data. Instead of looking at "items" in your program as objects you normally know from the real world (car, house, human) you look at them as pieces of data necessary for you to achieve some result.
+[Entity-Component-System (ECS)](https://en.wikipedia.org/wiki/Entity_component_system) is a software architectural pattern based on organizing your code around data which follows the principle of [composition over inheritance](https://en.wikipedia.org/wiki/Composition_over_inheritance).
+
+Instead of looking at "items" in your program as objects you normally know from the real world (car, house, human) you look at them as pieces of data necessary for you to achieve some result.
 
 This way of thinking is more natural for machines than people but when used correctly it allows you to write faster code (on most architectures). What is most important, however, is it allows you to write code that is easier to maintain, expand and reason about.
 
 For instance, when moving some object from point A to point B you do not care if it is a house or a car. You only care about its' position. If you want to move it at some specific speed you will consider also the object's velocity. Nothing else is necessary.
 
-Within ECS an entity is an index uniquely identifying components. A component is a piece of data (position, velocity, age). A system is where you implement your program's logic. It is a place that takes components as inputs and generates some output (basically transforms data into different data).
+Three building blocks of ECS are:
+* **Entity** - index that uniquely identifies a group of components
+* **Component** - piece of data (position, velocity, age)
+* **System** - place where your program's logic is implemented
 
-Many different approaches to how ECS should be implemented exist and each is strong in some areas and worse in others. Gaia-ECS is an archetype-based entity component system framework. Therefore, unique combinations of components are stored in things called archetypes.
+Gaia-ECS is an archetype-based entity component system. Therefore, unique combinations of components are grouped into archetypes. Each archetype consists of chunks - blocks of memory holding your entities and components. You can think of them as SQL tables where components are columns and entities are rows. In our case, each chunk is 16 KiB big. This size is chosen so that the entire chunk can fit into L1 cache on most CPUs.
+>**NOTE:**<br/>If needed you can alter the size of chunks by modifying the value of ***ecs::MemoryBlockSize***.
 
-Each archetype consists of blocks of memory called chunks. In our case, each chunk is 64 KiB big (not recommended but it can be changed via ecs::MemoryBlockSize). Chunks hold components and entities. You can think of them as SQL tables where components are columns and entities are rows.
+Chunk memory is preallocated in big blocks (pages) via the internal chunk allocator. Thanks to that all data is organized in a cache-friendly way which most computer architectures like and actual heap allocations which are slow are reduced to a minimum.
 
-All memory is preallocated in big blocks (pages) via the internal chunk allocator. Thanks to that all data is organized in a cache-friendly way which most computer architectures like and actual heap allocations which are slow are reduced to a minimum.
-
-One of the benefits of archetype-based architectures is fast iteration and good memory layout by default. They are also easy to parallelize. On the other hand, adding and removing components is slower than with other architectures (in our case this is mitigated by a graph built for archetypes). Knowing the strengths and weaknesses of your system helps you work around their issues so this is not necessarily a problem per se.
+The main benefits of archetype-based architecture is fast iteration and good memory layout by default. They are also easy to parallelize. On the other hand, adding and removing components can be somewhat slower because it involves moving data around. In our case this weakness is mitigated by a graph built for archetypes.
 
 # Usage
 ## Minimum requirements
+
 ```cpp
 #include <gaia.h>
 ```
+
 The entire framework is placed in a namespace called **gaia**.
 The ECS part of the library is found under **gaia::ecs** namespace.<br/>
 In code examples bellow we will assume we are inside the gaia namespace.
 
 ## Basic operations
 ### Create or delete entity
+
 ```cpp
 ecs::World w;
 auto e = w.CreateEntity();
@@ -100,7 +109,8 @@ w.DeleteEntity(e);
 ```
 
 ### Enable or disable entity
-Disabled entities are moved to chunks different from the rest. Because of that they do not take part in queries by default.<br/>
+Disabled entities are moved to chunks different from the rest. Because of that they do not take part in queries by default.
+
 Behavior of EnableEntity is similar to that of calling DeleteEntity/CreateEntity. However, the main benefit is that a disabled entity keeps its ID intact which means you can reference it freely.
 
 ```cpp
@@ -111,6 +121,7 @@ w.EnableEntity(e, true); // enable the entity again
 ```
 
 ### Add or remove component
+
 ```cpp
 struct Position {
   float x, y, z;
@@ -131,6 +142,7 @@ w.RemoveComponent<Velocity>(e);
 ```
 
 ### Set or get component value
+
 ```cpp
 // Change Velocity's value.
 w.SetComponent<Velocity>(e, {0, 0, 2});
@@ -139,6 +151,7 @@ w.SetComponentSilent<Velocity>(e, {4, 2, 0});
 ```
 
 In case there are more different components on your entity you would like to change the value of you can achive it via SetComponent chaining:
+
 ```cpp
 // Change Velocity's value on entity "e"
 w.SetComponent<Velocity>(e, {0, 0, 2}).
@@ -149,6 +162,7 @@ w.SetComponent<Velocity>(e, {0, 0, 2}).
 ```
 
 Components are returned by value for components with size up to 8 bytes (including). Bigger components are returned by const reference.
+
 ```cpp
 // Read Velocity's value. As shown above Velocity is 12 bytes in size. Therefore, it is returned by const reference.
 const auto& velRef = w.GetComponent<Velocity>(e);
@@ -159,32 +173,31 @@ auto velCopy = w.GetComponent<Velocity>(e);
 Both read and write operations are also accessible via views. Check [simple iteration](#simple-iteration) and [query iteration](#query-iteration) sections to see how.
 
 ### Component presence
+Whether or not a certain component is associated with an entity can be checked in two different ways. Either via an instance of a World object or by the means of Iterator which can be aquired when running queries.
+
 ```cpp
 // Check if entity e has Velocity (via world).
 const bool hasVelocity = w.HasComponent<Velocity>(e);
 ...
 
-// Check if entity e has Velocity (via chunk).
-const auto* pChunkA = w.GetChunk(e);
-const bool hasVelocity = pChunkA->HasComponent<Velocity>();
-...
-
-// Check if entity e has Position and modify its value if it does.
-uint32_t entityIndexInChunk;
-auto* pChunkB = w.GetChunk(e, entityIndexInChunk);
-if (pChunkB->HasComponent<Position>())
-{
-  auto pos = pChunkB->ViewRW<Position>();
-  pos[entityIndexInChunk].y = 1234; // position.y changed to 1234
-}
+// Check if entities hidden behind the iterator have Velocity (via iterator).
+ecs::Query q = w.CreateQuery().Any<Position, Velocity>(); 
+q.ForEach([&](ecs::Iterator iter){
+  const bool hasPosition = iter.HasComponent<Position>();
+  const bool hasVelocity = iter.HasComponent<Velocity>();
+  ...
+});
 ```
 
 ## Data processing
 ### Query
-For querying data you can use a Query. It can help you find all entities, components or chunks matching the specified set of components and constraints and iterate it or returns in the form of an array. You can also use them to quickly check if entities satisfing the given set of rules exist or calculate how many of them there are.<br/>
+For querying data you can use a Query. It can help you find all entities, components or chunks matching the specified set of components and constraints and iterate it or returns in the form of an array. You can also use them to quickly check if any entities satisfying your requirements exist or calculate how many of them there are.
+
+>**NOTE:**<br/>Every Query creates a cache internally. Therefore, the first usage is a little bit slower than the subsequent usage is going to be. You likely use the same query multiple times in your program, often without noticing. Because of that, caching becomes useful as it avoids wasting memory and performance when finding matches.
+
 ```cpp
 Query q = w.CreateQuery();
-q.All<Position>(); // consider only entities with Position
+q.All<Position>(); // Consider only entities with Position
 
 // Fill the entities array with entities with a Position component.
 containers::darray<ecs::Entity> entities;
@@ -194,47 +207,31 @@ q.ToArray(entities);
 containers::darray<Position> positions;
 q.ToArray(positions);
 
-// Print the result
-for (size_t i = 0; i < entities.size(); ++i)
-{
-  const auto& e = entities[i];
-  const auto& p = positions[i];
-  printf("Entity %u is located at [x,y,z]=[%f,%f,%f]\n", e.id(), p.x, p.y, p.z);
-}
-
-// Print the number of entities matching the query. For demonstration purposes only.
-// Because we already called ToArray we would normally use entities.size() or positions.size().
-printf("Number of results: %u", q.CalculateEntityCount());
+// Calculate the number of entities satisfying the query
+const auto numberOfMatches = q.CalculateEntityCount();
 ```
 
 More complex queries can be created by combining All, Any and None in any way you can imagine:
+
 ```cpp
 ecs::Query q = w.CreateQuery();
-q.All<Position, Velocity>();       // Take into account everything with Position and Velocity...
+q.All<Position, Velocity>(); // Take into account everything with Position and Velocity...
 q.Any<Something, SomethingElse>(); // ... at least Something or SomethingElse...
-q.None<Player>();                  // ... and no Player component...
+q.None<Player>(); // ... and no Player component...
 ```
 
 All Query operations can be chained and it is also possible to invoke various filters multiple times with unique components:
+
 ```cpp
 ecs::Query q = w.CreateQuery();
-q.All<Position>()                 // Take into account everything with Position...
- .All<Velocity>()                 // ... and at the same time everything with Velocity...
+q.All<Position>() // Take into account everything with Position...
+ .All<Velocity>() // ... and at the same time everything with Velocity...
  .Any<Something, SomethingElse>() // ... at least Something or SomethingElse...
- .None<Player>();                 // ... and no Player component...
+ .None<Player>(); // ... and no Player component...
 ```
 
-Using WithChanged we can take it a step further and filter only data which actually changed. This becomes particulary useful when iterating as you will see later on.<br/>
-Note, if there are 100 Position components in the chunk and only one them changes, all or them are considered changed. This chunk-wide behavior is due to performance concerns as it is easier to reason about the entire chunk than each of its items separately.
-```cpp
-ecs::Query q = w.CreateQuery();
-q.All<Position, Velocity>();       // Take into account everything with Position and Velocity...
-q.Any<Something, SomethingElse>(); // ... at least Something or SomethingElse...
-q.None<Player>();                  // ... and no Player component...
-q.WithChanged<Velocity>();         // ... but only such with their Velocity changed
-```
+Query behavior can also be modified by setting constraints. By default only enabled entities are taken into account. However, by changing constraints we can filter disabled entities exclusively or make the query consider both enabled and disabled entities at the same time:
 
-Query behavior can be modified by setting constraints. By default only enabled entities are taken into account. However, by changing constraints we can filter disabled entities exclusively or make the query consider both enabled and disabled entities at the same time:
 ```cpp
 ecs::Entity e1, e2;
 
@@ -262,11 +259,10 @@ q.SetConstraint(ecs::Query::Constraint::DisabledOnly);
 q.ToArray(entities);
 ```
 
-Query creates a cache internally. Therefore, the first usage is a little bit slower than the subsequent usage is going to be. You likely use the same query multiple times in your program, often without noticing. Because of that, caching becomes useful as it avoids wasting memory and performance when finding matches.
-
 ### Simple iteration
 The simplest way to iterate over data is using ecs::World::ForEach.<br/>
 It provides the least room for optimization (that does not mean the generated code is slow by any means) but is very easy to read.
+
 ```cpp
 w.ForEach([&](Position& p, const Velocity& v) {
   p.x += v.x * dt;
@@ -275,14 +271,15 @@ w.ForEach([&](Position& p, const Velocity& v) {
 });
 ```
 
-It creates a Query internally from the arguments provided to ForEach.
+>**NOTE:**<br/>This creates a Query internally from the arguments provided to ForEach.
 
 ### Query iteration
 For possibly better performance and more features, consider using explicit Query when possible.
+
 ```cpp
 ecs::Query q = w.CreateQuery();
 q.All<Position, const Velocity>(); // Take into account all entities with Position and Velocity...
-q.None<Player>();            // ... but no Player component.
+q.None<Player>(); // ... but no Player component.
 
 q.ForEach([&](Position& p, const Velocity& v) {
   // This operations runs for each entity with Position, Velocity and no Player component
@@ -292,35 +289,11 @@ q.ForEach([&](Position& p, const Velocity& v) {
 });
 ```
 
-Using WithChanged we can make the iteration run only if particular components change. You can save quite a bit of performance using this technique.<br/>
-```cpp
-ecs::Query q = w.CreateQuery();
-q.All<Position, const Velocity>(); // Take into account all entities with Position and Velocity...
-q.None<Player>();            // ... no Player component...
-q.WithChanged<Velocity>();   // ... but only iterate when Velocity changes
+>**NOTE:**<br/>Iterating over components not present in the query is not supported and results in asserts and undefined behavior. This is done to prevent various logic errors which might sneak in otherwise.
 
-q.ForEach([&](Position& p, const Velocity& v) {
-  // This operations runs for each entity with Position, Velocity and no Player component only ONLY where Velocity has changed
-  p.x += v.x * dt;
-  p.y += v.y * dt;
-  p.z += v.z * dt;
-});
-```
+### Iterator
+Iteration using the iterator gives you even more expresive power and also opens doors for new kinds of optimizations. Iterator are an abstraction above chunk which is responsible for holding entities and components.
 
-Using constrains we can alter the iteration behavior:
-```cpp
-w.EnableEntity(e, false);
-
-q.SetConstraint(ecs::Query::Constraint::AcceptAll);
-q.ForEach([](Position& p, const Velocity& v) {
-  // Both enabled and disabled entities are included in the query.
-  // ...
-});
-```
-
->**NOTE:**<br/>Iterating over components not present in the query is not supported and results in asserts and undefined behavior. This is done to prevent various logic errors which might sneak in otherwise.<br/>
-
-Iteration using the iterator gives you even more expresive power and also opens doors for new kinds of optimizations.
 ```cpp
 ecs::Query q = w.CreateQuery();
 q.All<Position, const Velocity>();
@@ -357,14 +330,33 @@ q.ForEach([](ecs::Iterator iter) {
 });
 ```
 
+### Change detection
+Using WithChanged we can make the iteration run only if particular components change. You can save quite a bit of performance using this technique.
+
+```cpp
+ecs::Query q = w.CreateQuery();
+q.All<Position, const Velocity>(); // Take into account all entities with Position and Velocity...
+q.None<Player>(); // ... no Player component...
+q.WithChanged<Velocity>(); // ... but only iterate when Velocity changes
+
+q.ForEach([&](Position& p, const Velocity& v) {
+  // This operations runs for each entity with Position, Velocity and no Player component but ONLY when Velocity has changed
+  p.x += v.x * dt;
+  p.y += v.y * dt;
+  p.z += v.z * dt;
+});
+```
+
+>**NOTE:**<br/>If there are 100 Position components in the chunk and only one them changes, the other 99 are considered changed as well. This chunk-wide behavior might seem counter-intuitive but it is in fact a performance optimization. The reason why this works is because it is easier to reason about a group of entities than checking each of them separately.
+
 ## Chunk components
-A chunk component is a special kind of data which exists at most once per chunk.<br/>
-In different words, you attach data to one chunk specifically.<br/>
-Chunk components survive entity removals and unlike generic component they do not transfer to a new chunk along with their entity.<br/>
-If you organize your data with care (which you should) this can save you some very precious memory or performance depending on your use case.<br/>
+A chunk component is a special kind of data which exists at most once per chunk. In different words, you attach data to one chunk specifically. It survives entity removals and unlike generic components they do not transfer to a new chunk along with their entity.
+
+If you organize your data with care (which you should) this can save you some very precious memory or performance depending on your use case.
 
 For instance, imagine you have a grid with fields of 100 meters squared.
 Now if you create your entities carefully they get organized in grid fields implicitly on data level already without you having to use any sort of spatial map container.
+
 ```cpp
 w.AddComponent<Position>(e1, {10,1});
 w.AddComponent<Position>(e2, {19,1});
@@ -372,11 +364,14 @@ w.AddComponent<ecs::AsChunk<GridPosition>>(e1, {1, 0}); // Both e1 and e2 share 
 ```
 
 ## Delayed execution
-Sometimes you need to delay executing a part of the code for later. This can be achieved via CommandBuffers.<br/>
-CommandBuffer is a container used to record commands in the order in which they were requested at a later point in time.<br/>
-Typically you use them when there is a need to perform a structural change (adding or removing an entity or component) while iterating chunks.<br/>
-Performing an unprotected structural change is undefined behavior and most likely crashes the program.
-However, using a CommandBuffer you can collect all requests first and commit them when it is safe.
+Sometimes you need to delay executing a part of the code for later. This can be achieved via CommandBuffers.
+
+CommandBuffer is a container used to record commands in the order in which they were requested at a later point in time.
+
+Typically you use them when there is a need to perform structural changes (adding or removing an entity or component) while iterating chunks.
+
+Performing an unprotected structural change is undefined behavior and most likely crashes the program. However, using a CommandBuffer you can collect all requests first and commit them when it is safe.
+
 ```cpp
 ecs::CommandBuffer cb;
 q.ForEach([&](Entity e, const Position& p) {
@@ -385,23 +380,30 @@ q.ForEach([&](Entity e, const Position& p) {
 });
 cb.Commit(&w); // after calling this all entities with y position bellow zero get deleted
 ```
+
 If you try to make an unprotected structural change with GAIA_DEBUG enabled (set by default when Debug configuration is used) the framework will assert letting you know you are using it the wrong way.
 
 ## Data layouts
 By default, all data inside components is treated as an array of structures (AoS) via an implicit
+
 ```cpp
 static constexpr auto Layout = utils::DataLayout::AoS
 ```
-This is the natural behavior of the language and what you would normally expect.<br/>
+
+This is the natural behavior of the language and what you would normally expect.
+
 If we imagine an ordinary array of 4 Position components defined above with this layout they are organized like this in memory: xyz xyz xyz xyz.
 
 However, in specific cases you might want to consider organizing your component's internal data as structure or arrays (SoA):
+
 ```cpp
 static constexpr auto Layout = utils::DataLayout::SoA
 ```
+
 Using the example above this will make Gaia-ECS treat Position components like this in memory: xxxx yyyy zzzz.
 
 If used correctly this can have vast performance implications. Not only do you organize your data in the most cache-friendly way this usually also means you can simplify your loops which in turn allows the compiler to optimize your code better.
+
 ```cpp
 struct PositionSoA {
   float x, y, z;
@@ -412,6 +414,7 @@ struct VelocitySoA {
   static constexpr auto Layout = utils::DataLayout::SoA;
 };
 ...
+
 ecs::Query q = w.Query().All<PositionSoA, const VelocitySoA>;
 q.ForEach([](ecs::Iterator iter) {
   // Position
