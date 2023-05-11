@@ -98,7 +98,7 @@ if(GAIA_BUILD_UNITTEST)
     FetchContent_Declare(
       Catch2
       GIT_REPOSITORY https://github.com/catchorg/Catch2.git
-      GIT_TAG v2.13.7
+      GIT_TAG v3.3.2
     )
 
     FetchContent_GetProperties(Catch2)
@@ -112,7 +112,7 @@ if(GAIA_BUILD_UNITTEST)
     # FetchContent_MakeAvailable(Catch2)
     list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/contrib)
   else()
-    find_package(Catch2 CONFIG REQUIRED 2.13.7)
+    find_package(Catch2 CONFIG REQUIRED v3.3.2)
   endif()
 endif()
 

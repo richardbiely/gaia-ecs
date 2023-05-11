@@ -7568,7 +7568,8 @@ namespace gaia {
 namespace gaia {
 	namespace ecs {
 		static constexpr uint32_t MemoryBlockSize = 16384;
-		static constexpr uint32_t MemoryBlockUsableOffset = 16;
+		// TODO: For component aligned to 64 bytes the offset of 16 is not enough for some reason, figure it out
+		static constexpr uint32_t MemoryBlockUsableOffset = 32;
 		static constexpr uint32_t ChunkMemorySize = MemoryBlockSize - MemoryBlockUsableOffset;
 
 		struct ChunkAllocatorStats final {
