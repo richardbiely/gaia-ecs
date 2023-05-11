@@ -466,9 +466,7 @@ More compilers might work but are not supported out-of-the-box. Support for [ICC
 ## Dependencies
 [CMake](https://cmake.org) 3.12 or later is required to prepare the build. Other tools are officially not supported at the moment.
 
-Unit testing is handled via [Catch2 v2.x](https://github.com/catchorg/Catch2/tree/v2.x). It can be controlled via -DGAIA_BUILD_UNITTEST=ON/OFF when configuring the project (OFF by default).
-
-You can either install Catch2 on your machine manually or use -DGAIA_FIND_CATCH2_PACKAGE=ON/OFF when generating your build files and have CMake download and prepare the dependency for you (ON by default).
+Unit testing is handled via [Catch2 v3.3.2](https://github.com/catchorg/Catch2/releases/tag/v3.3.2). It can be controlled via -DGAIA_BUILD_UNITTEST=ON/OFF when configuring the project (OFF by default).
 
 # Installation
 
