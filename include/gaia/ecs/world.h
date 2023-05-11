@@ -533,6 +533,8 @@ namespace gaia {
 			\param newArchetype Target archetype
 			*/
 			void MoveEntity(Entity oldEntity, archetype::Archetype& newArchetype) {
+				GAIA_PROF_SCOPE(MoveEntity);
+
 				auto& entityContainer = m_entities[oldEntity.id()];
 				auto* pOldChunk = entityContainer.pChunk;
 				const auto oldIndex = entityContainer.idx;
@@ -612,6 +614,8 @@ namespace gaia {
 
 			EntityContainer& AddComponent_Internal(
 					component::ComponentType componentType, Entity entity, const component::ComponentInfo& infoToAdd) {
+				GAIA_PROF_SCOPE(AddComponent);
+
 				auto& entityContainer = m_entities[entity.id()];
 
 				auto* pChunk = entityContainer.pChunk;
@@ -656,6 +660,8 @@ namespace gaia {
 
 			ComponentSetter RemoveComponent_Internal(
 					component::ComponentType componentType, Entity entity, const component::ComponentInfo& infoToRemove) {
+				GAIA_PROF_SCOPE(RemoveComponent);
+
 				auto& entityContainer = m_entities[entity.id()];
 				auto* pChunk = entityContainer.pChunk;
 				auto& archetype = *m_archetypes[pChunk->GetArchetypeId()];
