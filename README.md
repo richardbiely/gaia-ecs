@@ -414,37 +414,38 @@ struct VelocitySoA {
 ...
 ecs::Query q = w.Query().All<PositionSoA, const VelocitySoA>;
 q.ForEach([](ecs::Iterator iter) {
+  // Position
   auto vp = iter.ViewRW<PositionSoA>(); // read-write access to PositionSoA
-  auto vv = iter.View<VelocitySoA>(); // read-only access to VelocitySoA
+  auto px = vp.set<0>(); // continuous block of "x" from PositionSoA
+  auto py = vp.set<1>(); // continuous block of "y" from PositionSoA
+  auto pz = vp.set<2>(); // continuous block of "z" from PositionSoA
 
-  auto px = vp.set<0>(); // get access to a continuous block of "x" from PositionSoA
-  auto py = vp.set<1>(); // get access to a continuous block of "y" from PositionSoA
-  auto pz = vp.set<2>(); // get access to a continuous block of "z" from PositionSoA
-  auto vx = vv.get<0>();
-  auto vy = vv.get<1>();
-  auto vz = vv.get<2>();
+  // Velocity
+  auto vv = iter.View<VelocitySoA>(); // read-only access to VelocitySoA
+  auto vx = vv.get<0>(); // continuous block of "x" from VelocitySoA
+  auto vy = vv.get<1>(); // continuous block of "y" from VelocitySoA
+  auto vz = vv.get<2>(); // continuous block of "z" from VelocitySoA
 
   // The loop becomes very simple now.
-  auto exec = [&](float* GAIA_RESTRICT p, const float* GAIA_RESTRICT v, const size_t sz) {
-    for (size_t i = 0; i < sz; ++i)
+  auto exec = [&](float* GAIA_RESTRICT p, const float* GAIA_RESTRICT v, uint32_t size) {
+    for (uint32_t i = 0; i < size; ++i)
       p[i] += v[i] * dt;
     /*
-    You can even use intrinsics now without a worry.
-    Note, this is just a simple example not an optimal way to rewrite the loop above using intrinsics.
-    for (size_t i = 0; i < sz; i+=4) {
+    You can even use SIMD intrinsics now without a worry. The code bellow uses x86 SIMD intrinsics.
+    Note, this is just a simple example not an optimal way to rewrite the loop. Also, this could would normally get auto-vectorized on most compilers in release builds.
+    for (uint32_t i = 0; i < size; i+=4) {
       const auto pVec = _mm_load_ps(p + i);
       const auto vVec = _mm_load_ps(v + i);
       const auto respVec = _mm_fmadd_ps(vVec, dtVec, pVec);
       _mm_store_ps(p + i, respVec);
     }*/
   };
-  const auto size = iter.size();
   // Handle x coordinates
-  exec(px.data(), vx.data(), size);
+  exec(px.data(), vx.data(), iter.size());
   // Handle y coordinates
-  exec(py.data(), vy.data(), size);
+  exec(py.data(), vy.data(), iter.size());
   // Handle z coordinates
-  exec(pz.data(), vz.data(), size);
+  exec(pz.data(), vz.data(), iter.size());
 });
 ```
 
