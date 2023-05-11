@@ -7568,8 +7568,7 @@ namespace gaia {
 namespace gaia {
 	namespace ecs {
 		static constexpr uint32_t MemoryBlockSize = 16384;
-		// TODO: For component aligned to 64 bytes the offset of 16 is not enough for some reason, figure it out
-		static constexpr uint32_t MemoryBlockUsableOffset = 32;
+		static constexpr uint32_t MemoryBlockUsableOffset = 16;
 		static constexpr uint32_t ChunkMemorySize = MemoryBlockSize - MemoryBlockUsableOffset;
 
 		struct ChunkAllocatorStats final {
@@ -8394,6 +8393,8 @@ namespace gaia {
 				Copies entity \param oldEntity into \param newEntity.
 				*/
 				static void CopyEntity(Entity oldEntity, Entity newEntity, containers::darray<EntityContainer>& entities) {
+					GAIA_PROF_SCOPE(CopyEntity);
+
 					auto& oldEntityContainer = entities[oldEntity.id()];
 					auto* pOldChunk = oldEntityContainer.pChunk;
 
@@ -8431,6 +8432,8 @@ namespace gaia {
 				Copies entity \param entity into current chunk so that it is stored at index \param newEntityIdx.
 				*/
 				void CopyEntityFrom(Entity entity, uint32_t newEntityIdx, containers::darray<EntityContainer>& entities) {
+					GAIA_PROF_SCOPE(CopyEntityFrom);
+
 					auto& oldEntityContainer = entities[entity.id()];
 					auto* pOldChunk = oldEntityContainer.pChunk;
 
@@ -8465,6 +8468,8 @@ namespace gaia {
 				Moves entity \param entity into current chunk so that it is stored at index \param newEntityIdx.
 				*/
 				void MoveEntityFrom(Entity entity, uint32_t newEntityIdx, containers::darray<EntityContainer>& entities) {
+					GAIA_PROF_SCOPE(MoveEntityFrom);
+
 					auto& oldEntityContainer = entities[entity.id()];
 					auto* pOldChunk = oldEntityContainer.pChunk;
 
@@ -8523,6 +8528,8 @@ namespace gaia {
 					// Ignore requests on empty chunks
 					if (!HasEntities())
 						return;
+
+					GAIA_PROF_SCOPE(RemoveEntity);
 
 					// We can't be removing from an index which is no longer there
 					GAIA_ASSERT(index < m_header.count);
@@ -8688,6 +8695,8 @@ namespace gaia {
 
 				void CallConstructor(
 						component::ComponentType componentType, component::ComponentId componentId, uint32_t entityIndex) {
+					GAIA_PROF_SCOPE(CallConstructor);
+
 					// Make sure only generic types are used with indices
 					GAIA_ASSERT(componentType == component::ComponentType::CT_Generic || entityIndex == 0);
 
@@ -8709,6 +8718,8 @@ namespace gaia {
 				}
 
 				void CallConstructors(component::ComponentType componentType, uint32_t entityIndex, uint32_t entityCount) {
+					GAIA_PROF_SCOPE(CallConstructors);
+
 					GAIA_ASSERT(
 							componentType == component::ComponentType::CT_Generic && HasAnyCustomGenericConstructor() ||
 							componentType == component::ComponentType::CT_Chunk && HasAnyCustomChunkConstructor());
@@ -8735,6 +8746,8 @@ namespace gaia {
 				}
 
 				void CallDestructors(component::ComponentType componentType, uint32_t entityIndex, uint32_t entityCount) {
+					GAIA_PROF_SCOPE(CallDestructors);
+
 					GAIA_ASSERT(
 							componentType == component::ComponentType::CT_Generic && HasAnyCustomGenericDestructor() ||
 							componentType == component::ComponentType::CT_Chunk && HasAnyCustomChunkDestructor());
@@ -9066,7 +9079,7 @@ namespace gaia {
 
 				GAIA_FORCEINLINE void UpdateWorldVersion(component::ComponentType componentType, uint32_t componentIdx) {
 					// Make sure only proper input is provided
-					GAIA_ASSERT(componentIdx != UINT32_MAX && componentIdx < archetype::MAX_COMPONENTS_PER_ARCHETYPE);
+					GAIA_ASSERT(componentIdx >= 0 && componentIdx < archetype::MAX_COMPONENTS_PER_ARCHETYPE);
 
 					auto versions = GetComponentVersionArray(componentType);
 
@@ -12183,6 +12196,8 @@ namespace gaia {
 			\param newArchetype Target archetype
 			*/
 			void MoveEntity(Entity oldEntity, archetype::Archetype& newArchetype) {
+				GAIA_PROF_SCOPE(MoveEntity);
+
 				auto& entityContainer = m_entities[oldEntity.id()];
 				auto* pOldChunk = entityContainer.pChunk;
 				const auto oldIndex = entityContainer.idx;
@@ -12262,6 +12277,8 @@ namespace gaia {
 
 			EntityContainer& AddComponent_Internal(
 					component::ComponentType componentType, Entity entity, const component::ComponentInfo& infoToAdd) {
+				GAIA_PROF_SCOPE(AddComponent);
+
 				auto& entityContainer = m_entities[entity.id()];
 
 				auto* pChunk = entityContainer.pChunk;
@@ -12306,6 +12323,8 @@ namespace gaia {
 
 			ComponentSetter RemoveComponent_Internal(
 					component::ComponentType componentType, Entity entity, const component::ComponentInfo& infoToRemove) {
+				GAIA_PROF_SCOPE(RemoveComponent);
+
 				auto& entityContainer = m_entities[entity.id()];
 				auto* pChunk = entityContainer.pChunk;
 				auto& archetype = *m_archetypes[pChunk->GetArchetypeId()];

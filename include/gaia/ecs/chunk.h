@@ -291,6 +291,8 @@ namespace gaia {
 				Copies entity \param oldEntity into \param newEntity.
 				*/
 				static void CopyEntity(Entity oldEntity, Entity newEntity, containers::darray<EntityContainer>& entities) {
+					GAIA_PROF_SCOPE(CopyEntity);
+
 					auto& oldEntityContainer = entities[oldEntity.id()];
 					auto* pOldChunk = oldEntityContainer.pChunk;
 
@@ -328,6 +330,8 @@ namespace gaia {
 				Copies entity \param entity into current chunk so that it is stored at index \param newEntityIdx.
 				*/
 				void CopyEntityFrom(Entity entity, uint32_t newEntityIdx, containers::darray<EntityContainer>& entities) {
+					GAIA_PROF_SCOPE(CopyEntityFrom);
+
 					auto& oldEntityContainer = entities[entity.id()];
 					auto* pOldChunk = oldEntityContainer.pChunk;
 
@@ -362,6 +366,8 @@ namespace gaia {
 				Moves entity \param entity into current chunk so that it is stored at index \param newEntityIdx.
 				*/
 				void MoveEntityFrom(Entity entity, uint32_t newEntityIdx, containers::darray<EntityContainer>& entities) {
+					GAIA_PROF_SCOPE(MoveEntityFrom);
+
 					auto& oldEntityContainer = entities[entity.id()];
 					auto* pOldChunk = oldEntityContainer.pChunk;
 
@@ -420,6 +426,8 @@ namespace gaia {
 					// Ignore requests on empty chunks
 					if (!HasEntities())
 						return;
+
+					GAIA_PROF_SCOPE(RemoveEntity);
 
 					// We can't be removing from an index which is no longer there
 					GAIA_ASSERT(index < m_header.count);
@@ -585,6 +593,8 @@ namespace gaia {
 
 				void CallConstructor(
 						component::ComponentType componentType, component::ComponentId componentId, uint32_t entityIndex) {
+					GAIA_PROF_SCOPE(CallConstructor);
+
 					// Make sure only generic types are used with indices
 					GAIA_ASSERT(componentType == component::ComponentType::CT_Generic || entityIndex == 0);
 
@@ -606,6 +616,8 @@ namespace gaia {
 				}
 
 				void CallConstructors(component::ComponentType componentType, uint32_t entityIndex, uint32_t entityCount) {
+					GAIA_PROF_SCOPE(CallConstructors);
+
 					GAIA_ASSERT(
 							componentType == component::ComponentType::CT_Generic && HasAnyCustomGenericConstructor() ||
 							componentType == component::ComponentType::CT_Chunk && HasAnyCustomChunkConstructor());
@@ -632,6 +644,8 @@ namespace gaia {
 				}
 
 				void CallDestructors(component::ComponentType componentType, uint32_t entityIndex, uint32_t entityCount) {
+					GAIA_PROF_SCOPE(CallDestructors);
+
 					GAIA_ASSERT(
 							componentType == component::ComponentType::CT_Generic && HasAnyCustomGenericDestructor() ||
 							componentType == component::ComponentType::CT_Chunk && HasAnyCustomChunkDestructor());
@@ -963,7 +977,7 @@ namespace gaia {
 
 				GAIA_FORCEINLINE void UpdateWorldVersion(component::ComponentType componentType, uint32_t componentIdx) {
 					// Make sure only proper input is provided
-					GAIA_ASSERT(componentIdx != UINT32_MAX && componentIdx < archetype::MAX_COMPONENTS_PER_ARCHETYPE);
+					GAIA_ASSERT(componentIdx >= 0 && componentIdx < archetype::MAX_COMPONENTS_PER_ARCHETYPE);
 
 					auto versions = GetComponentVersionArray(componentType);
 
