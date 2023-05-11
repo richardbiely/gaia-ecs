@@ -51,9 +51,9 @@ Gaia-ECS is a fast and easy to use entity component system framework. Some of it
   * [Dependencies](#dependencies)
 * [Installation](#installation)
   * [CMake](#cmake)
-    * [Targets](#cmake-targets)
-    * [Settings](#cmake-settings)
-  * [Single-header](#single-header)
+    * [Project settings](#project-settings)
+    * [Sanitizers](#sanitizers)
+    * [Single-header](#single-header)
 * [Project structure](#project-structure)
   * [Examples](#examples)
   * [Benchmarks](#benchmarks)
@@ -500,6 +500,7 @@ cmake -G XCode ...
 cmake -G Ninja
 ```
 
+### Project settings
 Following is a list of parameters you can use to customize your build
 
 Parameter | Description      
@@ -521,7 +522,7 @@ Note, some options don't work together or might not be supported by all compiler
 cmake -DCMAKE_BUILD_TYPE=Release -DUSE_SANITIZER=address -S . -B "build"
 ```
 
-### Single-header library
+### Single-header
 Gaia-ECS is shipped also as a [single header file](https://github.com/richardbiely/gaia-ecs/blob/main/single_include/gaia.h) which you can simple drop into your project and start using. To generate the header we use a wonderful Python tool [Quom](https://github.com/Viatorus/quom).
 
 In order to generate the header use the following command inside your root directory.
