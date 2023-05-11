@@ -27,15 +27,15 @@ jobs:
         sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
         echo "deb https://apt.repos.intel.com/oneapi all main" | sudo tee /etc/apt/sources.list.d/oneAPI.list
         sudo add-apt-repository "deb https://apt.repos.intel.com/oneapi all main"
-        sudo apt-get update
-        sudo apt-get install intel-oneapi-compiler-dpcpp-cpp-and-cpp-classic
+        sudo apt update
+        sudo apt install -y software-properties-common intel-oneapi-compiler-dpcpp-cpp-and-cpp-classic
 
     - name: Configure CMake
       env:
         CXX: icc
       run: |
         source /opt/intel/oneapi/setvars.sh intel64
-        cmake -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DGAIA_FIND_CATCH2_PACKAGE=ON -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -DGAIA_GENERATE_CC=OFF -S . -B ${{github.workspace}}/build
+        cmake -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DGAIA_BUILD_UNITTEST=ON -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -DGAIA_GENERATE_CC=OFF -S . -B ${{github.workspace}}/build
 
     - name: Build
       env:
