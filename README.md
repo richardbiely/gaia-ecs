@@ -1,7 +1,7 @@
 <!--
 @cond TURN_OFF_DOXYGEN
 -->
-# gaia-ecs
+# Gaia-ECS
 [![Build Status][badge.actions]][actions]
 [![language][badge.language]][language]
 [![license][badge.license]][license]
@@ -17,18 +17,16 @@
 [license]: https://en.wikipedia.org/wiki/MIT_License
 [codacy]: https://app.codacy.com/gh/richardbiely/gaia-ecs/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade
 
-Gaia-ECS is an entity component system framework. Some of its current features and highlights are:</br>
-* easy-to-use and safe API designed in such a way it tries to prevent you from using bad coding patterns
-* based on modern C++ technologies
-* doesn't depend on STL containers by default (can be enabled via GAIA_USE_STL_CONTAINERS)
-* archetype/chunk-based storage for maximum iteration speed and easy code parallelization
-* ability to organize data as AoS or SoA on the component level with very little changes to your code
-* tested on all major compilers continuously
-* unit-tested for maximum stability
-* each important change is benchmarked and checked on disassembly level on multiple compilers to ensure maximum performance
-* exists also as a single-header library which means you can simply drop it into your project and start using it
-
-Being early in development, breaking changes to its API are possible. There are also many features to add. However, it is already stable and thoroughly tested. Therefore, using it should not be an issue.
+Gaia-ECS is a fast and easy to use entity component system framework. Some of its current features and highlights are:</br>
+* very simple and safe API designed in such a way to prevent you from using bad coding patterns
+* based on modern [C++17](https://en.cppreference.com/w/cpp/17) technologies
+* no external dependencies, not even on STL (can be easily enabled if needed)
+* compiles almost instantly
+* archetype / chunk-based storage for maximum iteration speed and easy code parallelization
+* ability to [organize data as AoS or SoA](#data-layouts) on the component level with very little changes to your code
+* compiled and tested on all major compilers [continuously](https://github.com/richardbiely/gaia-ecs/actions)
+* stability secured by running thousands of [unit tests](#testing)
+* exists also as a [single-header](#single-header) library so you can simply drop it into your project and start using it
 
 # Table of Contents
 
@@ -36,19 +34,31 @@ Being early in development, breaking changes to its API are possible. There are 
 * [Usage](#usage)
   * [Minimum requirements](#minimum-requirements)
   * [Basic operations](#basic-operations)
-  * [Data queries](#data-queries)
-  * [Simple iteration](#simple-iteration)
-  * [Query iteration](#query-iteration)
-  * [Data layouts](#data-layouts)
-  * [Delayed execution](#delayed-execution)
+    * [Create or delete entity](#create-or-delete-entity)
+    * [Enable or disable entity](#enable-or-disable-entity)
+    * [Add or remove component](#add-or-remove-component)
+    * [Set or get component value](#set-or-get-component-value)
+    * [Component presence](#component-presence)
+  * [Data processing](#data-processing)
+    * [Query](#query)
+    * [Simple iteration](#simple-iteration)
+    * [Query iteration](#query-iteration)
   * [Chunk components](#chunk-components)
+  * [Delayed execution](#delayed-execution)
+  * [Data layouts](#data-layouts)
 * [Requirements](#requirements)
   * [Compiler](#compiler)
   * [Dependencies](#dependencies)
 * [Installation](#installation)
-* [Examples](#examples)
-* [Benchmarks](#benchmarks)
-* [Profiling](#profiling)
+  * [CMake](#cmake)
+    * [Targets](#cmake-targets)
+    * [Settings](#cmake-settings)
+  * [Single-header](#single-header)
+* [Project structure](#project-structure)
+  * [Examples](#examples)
+  * [Benchmarks](#benchmarks)
+  * [Profiling](#profiling)
+  * [Testing](#testing)
 * [Future](#future)
 * [Contributions](#contributions)
 * [License](#license)
@@ -76,10 +86,12 @@ One of the benefits of archetype-based architectures is fast iteration and good 
 ```cpp
 #include <gaia.h>
 ```
-The entire framework is placed in a namespace called <b>gaia</b>.
+The entire framework is placed in a namespace called **gaia**.
+The ECS part of the library is found under **gaia::ecs** namespace.<br/>
+In code examples bellow we will assume we are inside the gaia namespace.
 
 ## Basic operations
-### Creating and deleting entities
+### Create or delete entity
 ```cpp
 ecs::World w;
 auto e = w.CreateEntity();
@@ -87,7 +99,7 @@ auto e = w.CreateEntity();
 w.DeleteEntity(e);
 ```
 
-### Enabling and disabling entities
+### Enable or disable entity
 Disabled entities are moved to chunks different from the rest. Because of that they do not take part in queries by default.<br/>
 Behavior of EnableEntity is similar to that of calling DeleteEntity/CreateEntity. However, the main benefit is that a disabled entity keeps its ID intact which means you can reference it freely.
 
@@ -98,7 +110,7 @@ w.EnableEntity(e, false); // disable the entity
 w.EnableEntity(e, true); // enable the entity again
 ```
 
-### Adding and removing components
+### Add or remove component
 ```cpp
 struct Position {
   float x, y, z;
@@ -118,7 +130,7 @@ w.AddComponent<Velocity>(e, {0, 0, 1});
 w.RemoveComponent<Velocity>(e);
 ```
 
-### Set and get component value
+### Set or get component value
 ```cpp
 // Change Velocity's value.
 w.SetComponent<Velocity>(e, {0, 0, 2});
@@ -146,7 +158,7 @@ auto velCopy = w.GetComponent<Velocity>(e);
 
 Both read and write operations are also accessible via views. Check [simple iteration](#simple-iteration) and [query iteration](#query-iteration) sections to see how.
 
-### Checking if component is attached to entity
+### Component presence
 ```cpp
 // Check if entity e has Velocity (via world).
 const bool hasVelocity = w.HasComponent<Velocity>(e);
@@ -167,7 +179,8 @@ if (pChunkB->HasComponent<Position>())
 }
 ```
 
-## Data queries
+## Data processing
+### Query
 For querying data you can use a Query. It can help you find all entities, components or chunks matching the specified set of components and constraints and iterate it or returns in the form of an array. You can also use them to quickly check if entities satisfing the given set of rules exist or calculate how many of them there are.<br/>
 ```cpp
 Query q = w.CreateQuery();
@@ -251,7 +264,7 @@ q.ToArray(entities);
 
 Query creates a cache internally. Therefore, the first usage is a little bit slower than the subsequent usage is going to be. You likely use the same query multiple times in your program, often without noticing. Because of that, caching becomes useful as it avoids wasting memory and performance when finding matches.
 
-## Simple iteration
+### Simple iteration
 The simplest way to iterate over data is using ecs::World::ForEach.<br/>
 It provides the least room for optimization (that does not mean the generated code is slow by any means) but is very easy to read.
 ```cpp
@@ -264,15 +277,15 @@ w.ForEach([&](Position& p, const Velocity& v) {
 
 It creates a Query internally from the arguments provided to ForEach.
 
-## Query iteration
+### Query iteration
 For possibly better performance and more features, consider using explicit Query when possible.
 ```cpp
 ecs::Query q = w.CreateQuery();
-q.All<Position, const Velocity>(); // Take into account all chunks with Position and Velocity...
+q.All<Position, const Velocity>(); // Take into account all entities with Position and Velocity...
 q.None<Player>();            // ... but no Player component.
 
 q.ForEach([&](Position& p, const Velocity& v) {
-  // This operations runs for each entity with Position, Velocity and no Player
+  // This operations runs for each entity with Position, Velocity and no Player component
   p.x += v.x * dt;
   p.y += v.y * dt;
   p.z += v.z * dt;
@@ -282,11 +295,12 @@ q.ForEach([&](Position& p, const Velocity& v) {
 Using WithChanged we can make the iteration run only if particular components change. You can save quite a bit of performance using this technique.<br/>
 ```cpp
 ecs::Query q = w.CreateQuery();
-q.All<Position, const Velocity>(); // Take into account all chunks with Position and Velocity...
+q.All<Position, const Velocity>(); // Take into account all entities with Position and Velocity...
 q.None<Player>();            // ... no Player component...
 q.WithChanged<Velocity>();   // ... but only iterate when Velocity changes
 
 q.ForEach([&](Position& p, const Velocity& v) {
+  // This operations runs for each entity with Position, Velocity and no Player component only ONLY where Velocity has changed
   p.x += v.x * dt;
   p.y += v.y * dt;
   p.z += v.z * dt;
@@ -304,7 +318,7 @@ q.ForEach([](Position& p, const Velocity& v) {
 });
 ```
 
-A very important thing to remember is that iterating over components not present in the query is not supported. This is done to prevent various logic errors which might sneak in otherwise.<br/>
+>**NOTE:**<br/>Iterating over components not present in the query is not supported and results in asserts and undefined behavior. This is done to prevent various logic errors which might sneak in otherwise.<br/>
 
 Iteration using the iterator gives you even more expresive power and also opens doors for new kinds of optimizations.
 ```cpp
@@ -324,15 +338,17 @@ q.ForEach([](ecs::Iterator iter) {
 });
 ```
 
-I need to make a small but important note here. Analyzing the output of different compilers I quickly realized if you want your code vectorized for sure you need to be very clear and write the loop as a lambda or kernel if you will. It is quite surprising to see this but even with optimizations on and "fast-math"-like switches enabled some compilers simply will not vectorize the loop otherwise. Microsoft compilers are particularly sensitive in this regard. In the years to come maybe this gets better but for now, keep it in mind or use a good optimizing compiler such as Clang.
+>**NOTE:**<br/>
+Analyzing the output of different compilers I quickly realized if you want your code vectorized for sure you need to be very clear and write the loop as a lambda or kernel if you will. It is quite surprising to see this but even with optimizations on and ***-fast_math***-like switches enabled some compilers simply will not vectorize the loop otherwise. Microsoft compilers are particularly sensitive in this regard. In the years to come maybe this gets better but for now, keep it in mind or use a good optimizing compiler such as Clang.
+
 ```cpp
 q.ForEach([](ecs::Iterator iter) {
-  auto vp = iter.ViewRW<Position>(); // Read-Write access to Position
-  auto vv = iter.View<Velocity>(); // Read-Only access to Velocity
+  auto vp = iter.ViewRW<Position>(); // Read-write access to Position
+  auto vv = iter.View<Velocity>(); // Read-only access to Velocity
 
   // Make our intentions very clear so even compilers which are weaker at optimization can vectorize the loop
-  [&](Position* GAIA_RESTRICT p, const Velocity* GAIA_RESTRICT v, const size_t size) {
-    for (size_t i = 0; i < size; ++i) {
+  [&](Position* p, const Velocity* v, uint32_t size) {
+    for (uint32_t i = 0; i < size; ++i) {
       p[i].x += v[i].x * dt;
       p[i].y += v[i].y * dt;
       p[i].z += v[i].z * dt;
@@ -340,6 +356,36 @@ q.ForEach([](ecs::Iterator iter) {
   }(vp.data(), vv.data(), iter.size());
 });
 ```
+
+## Chunk components
+A chunk component is a special kind of data which exists at most once per chunk.<br/>
+In different words, you attach data to one chunk specifically.<br/>
+Chunk components survive entity removals and unlike generic component they do not transfer to a new chunk along with their entity.<br/>
+If you organize your data with care (which you should) this can save you some very precious memory or performance depending on your use case.<br/>
+
+For instance, imagine you have a grid with fields of 100 meters squared.
+Now if you create your entities carefully they get organized in grid fields implicitly on data level already without you having to use any sort of spatial map container.
+```cpp
+w.AddComponent<Position>(e1, {10,1});
+w.AddComponent<Position>(e2, {19,1});
+w.AddComponent<ecs::AsChunk<GridPosition>>(e1, {1, 0}); // Both e1 and e2 share a common grid position of {1,0} now
+```
+
+## Delayed execution
+Sometimes you need to delay executing a part of the code for later. This can be achieved via CommandBuffers.<br/>
+CommandBuffer is a container used to record commands in the order in which they were requested at a later point in time.<br/>
+Typically you use them when there is a need to perform a structural change (adding or removing an entity or component) while iterating chunks.<br/>
+Performing an unprotected structural change is undefined behavior and most likely crashes the program.
+However, using a CommandBuffer you can collect all requests first and commit them when it is safe.
+```cpp
+ecs::CommandBuffer cb;
+q.ForEach([&](Entity e, const Position& p) {
+  if (p.y < 0.0f)
+    cb.DeleteEntity(e); // queue entity e for deletion if its position falls below zero
+});
+cb.Commit(&w); // after calling this all entities with y position bellow zero get deleted
+```
+If you try to make an unprotected structural change with GAIA_DEBUG enabled (set by default when Debug configuration is used) the framework will assert letting you know you are using it the wrong way.
 
 ## Data layouts
 By default, all data inside components is treated as an array of structures (AoS) via an implicit
@@ -402,55 +448,27 @@ q.ForEach([](ecs::Iterator iter) {
 });
 ```
 
-## Delayed execution
-Sometimes you need to delay executing a part of the code for later. This can be achieved via CommandBuffers.<br/>
-CommandBuffer is a container used to record commands in the order in which they were requested at a later point in time.<br/>
-Typically you use them when there is a need to perform a structural change (adding or removing an entity or component) while iterating chunks.<br/>
-Performing an unprotected structural change is undefined behavior and most likely crashes the program.
-However, using a CommandBuffer you can collect all requests first and commit them when it is safe.
-```cpp
-ecs::CommandBuffer cb;
-q.ForEach([&](Entity e, const Position& p) {
-  if (p.y < 0.0f)
-    cb.DeleteEntity(e); // queue entity e for deletion if its position falls below zero
-});
-cb.Commit(&w); // after calling this all entities with y position bellow zero get deleted
-```
-If you try to make an unprotected structural change with GAIA_DEBUG enabled (set by default when Debug configuration is used) the framework will assert letting you know you are using it the wrong way.
-
-## Chunk components
-A chunk component is a special kind of data which exists at most once per chunk.<br/>
-In different words, you attach data to one chunk specifically.<br/>
-Chunk components survive entity removals and unlike generic component they do not transfer to a new chunk along with their entity.<br/>
-If you organize your data with care (which you should) this can save you some very precious memory or performance depending on your use case.<br/>
-
-For instance, imagine you have a grid with fields of 100 meters squared.
-Now if you create your entities carefully they get organized in grid fields implicitly on data level already without you having to use any sort of spatial map container.
-```cpp
-w.AddComponent<Position>(e1, {10,1});
-w.AddComponent<Position>(e2, {19,1});
-w.AddComponent<ecs::AsChunk<GridPosition>>(e1, {1, 0}); // Both e1 and e2 share a common grid position of {1,0} now
-```
-
 # Requirements
 
 ## Compiler
-Gaia-ECS requires a compiler compatible with C++17.<br/>
-Currently, all major compilers are supported:<br/>
+Compiler compatible with a good support of C++17 is required.<br/>
+The project is [continuosly tested](https://github.com/richardbiely/gaia-ecs/actions/workflows/build.yml) and guaranteed to build warning-free on the following compilers:<br/>
 - [MSVC](https://visualstudio.microsoft.com/) 15 (Visual Studio 2017) or later<br/>
 - [Clang](https://clang.llvm.org/) 7 or later<br/>
 - [GCC](https://www.gnu.org/software/gcc/) 7 or later<br/>
 
-More compilers might work but the above are guaranteed and [continuosly tested](https://github.com/richardbiely/gaia-ecs/actions/workflows/build.yml).<br/>
-[ICC](https://www.intel.com/content/www/us/en/developer/tools/oneapi/dpc-compiler.html#gs.2nftun) support is also [worked on](https://github.com/richardbiely/gaia-ecs/actions/workflows/icc.yml).
+More compilers might work but are not supported out-of-the-box. Support for [ICC](https://www.intel.com/content/www/us/en/developer/tools/oneapi/dpc-compiler.html#gs.2nftun) is  [worked on](https://github.com/richardbiely/gaia-ecs/actions/workflows/icc.yml).
 
 ## Dependencies
 [CMake](https://cmake.org) 3.12 or later is required to prepare the build. Other tools are officially not supported at the moment.
 
-Unit testing is handled via [Catch2 v2.x](https://github.com/catchorg/Catch2/tree/v2.x). It can be controlled via -DGAIA_BUILD_UNITTEST=ON/OFF when configuring the project (OFF by default).<br/>
+Unit testing is handled via [Catch2 v2.x](https://github.com/catchorg/Catch2/tree/v2.x). It can be controlled via -DGAIA_BUILD_UNITTEST=ON/OFF when configuring the project (OFF by default).
+
 You can either install Catch2 on your machine manually or use -DGAIA_FIND_CATCH2_PACKAGE=ON/OFF when generating your build files and have CMake download and prepare the dependency for you (ON by default).
 
 # Installation
+
+## CMake
 
 Following shows the steps needed to build the library:
 
@@ -469,14 +487,40 @@ cmake -DCMAKE_BUILD_TYPE=Release -S . -B "build"
 cmake --build "build" --config Release
 ```
 
-You can also use sanitizers with the project via -DUSE_SANITIZER.
+To target a specific build system you can use the [***-G*** parameter](https://cmake.org/cmake/help/latest/manual/cmake-generators.7.html#manual:cmake-generators(7)):
+```bash
+# Microsoft Visual Studio 2022, 64-bit, x86 architecture 
+cmake -G "Visual Studio 17 2022" -A x64 ...
+# Microsoft Visual Studio 2022, 64-bit, ARM architecture 
+cmake -G "Visual Studio 17 2022" -A ARM64 ...
+# XCode
+cmake -G XCode ...
+# Ninja
+cmake -G Ninja
+```
+
+Following is a list of parameters you can use to customize your build
+
+Parameter | Description      
+-|-
+**GAIA_BUILD_UNITTEST** | Builds the [unit test project](#unit-testing)
+**GAIA_BUILD_BENCHMARK** | Builds the [benchmark project](#benchmarks)
+**GAIA_BUILD_EXAMPLES** | Builds [example projects](#examples)
+**GAIA_GENERATE_CC** | Generates ***compile_commands.json***
+**GAIA_MAKE_SINGLE_HEADER** | Generates a [single-header](#single-header-library) version of the framework
+**GAIA_PROFILER_CPU** | Enables CPU [profiling](#profiling) features
+**GAIA_PROFILER_MEM** | Enabled memory [profiling](#profiling) features
+**GAIA_PROFILER_BUILD** | Builds the [profiler](#profiling) ([Tracy](https://github.com/wolfpld/tracy) by default)
+**USE_SANITIZER** | Applies the specified set of [sanitizers](#sanitizers)
+
+### Sanitizers
+Possible options are listed in [cmake/sanitizers.cmake](https://github.com/richardbiely/gaia-ecs/blob/main/cmake/sanitizers.cmake).<br/>
+Note, some options don't work together or might not be supported by all compilers.
 ```bash
 cmake -DCMAKE_BUILD_TYPE=Release -DUSE_SANITIZER=address -S . -B "build"
 ```
-Possible options are listed in [cmake/sanitizers.cmake](https://github.com/richardbiely/gaia-ecs/blob/main/cmake/sanitizers.cmake).<br/>
-Note, some options don't work together or might not be supported by all compilers.
 
-## Single-header library
+### Single-header library
 Gaia-ECS is shipped also as a [single header file](https://github.com/richardbiely/gaia-ecs/blob/main/single_include/gaia.h) which you can simple drop into your project and start using. To generate the header we use a wonderful Python tool [Quom](https://github.com/Viatorus/quom).
 
 In order to generate the header use the following command inside your root directory.
@@ -486,26 +530,46 @@ quom ./include/gaia.h ./single_include/gaia.h -I ./include
 
 You can also used the attached make_single_header.sh or create your own script for your platfrom.
 
-# Examples
+Creation of the single-header can be automated via -GAIA_MAKE_SINGLE_HEADER.
+
+# Project structure
+
+## Examples
 The repository contains some code examples for guidance.<br/>
 Examples are built if GAIA_BUILD_EXAMPLES is enabled when configuring the project (OFF by default).
 
-* [External](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example_external) - a dummy example explaining how to use the framework in an external project
-* [Standalone](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example1) - the same as the previous one but showing how Gaia-ECS is used as a standalone project
-* [Basic](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example2) - simple example using some basic framework features
-* [Roguelike](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example_roguelike) - Roguelike game putting all parts of the framework to use and represents a complex example of how everything would be used in practice; it is work-in-progress and changes and evolves with the project
+Project name | Description      
+-|-
+[External](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example_external)|A dummy example showing how to use the framework in an external project.
+[Standalone](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example1)|A dummy example showing how to use the framework in a standalone project.
+[Basic](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example2)|Simple example using some basic features of the framework.
+[Roguelike](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example_roguelike)|Roguelike game putting all parts of the framework to use and represents a complex example of how everything would be used in practice. It is work-in-progress and changes and evolves with the project.
 
-# Benchmarks
-To be able to reason about the project's performance benchmarks and prevent regressions benchmarks were created.<br/>
+## Benchmarks
+To be able to reason about the project's performance benchmarks and prevent regressions benchmarks were created.
+
 Benchmarking relies on a modified [picobench](https://github.com/iboB/picobench). It can be controlled via -DGAIA_BUILD_BENCHMARK=ON/OFF when configuring the project (OFF by default).
 
-* [Duel](https://github.com/richardbiely/gaia-ecs/tree/main/src/perf/duel) - duel compares different coding approaches such as the basic model with uncontrolled OOP with data all-over-the heap, OOP where allocators are used to controlling memory fragmentation and different ways of data-oriented design and it puts them to test against our ECS framework itself; DOD performance is the target level we want to reach or at least be as close as possible to with this project because it does not get any faster than that 
-* [Iteration](https://github.com/richardbiely/gaia-ecs/tree/main/src/perf/iter) - this benchmark focuses on the performance of creating and removing entities and components of various sizes and also covers iteration performance with different numbers of entities and archetypes
+Project name | Description      
+-|-
+[Duel](https://github.com/richardbiely/gaia-ecs/tree/main/src/perf/duel)|Compares different coding approaches such as the basic model with uncontrolled OOP with data all-over-the heap, OOP where allocators are used to controlling memory fragmentation and different ways of data-oriented design and it puts them to test against our ECS framework itself. DOD performance is the target level we want to reach or at least be as close as possible to with this project because it does not get any faster than that.
+[Iteration](https://github.com/richardbiely/gaia-ecs/tree/main/src/perf/iter)|Covers iteration performance with different numbers of entities and archetypes.
+[Entity](https://github.com/richardbiely/gaia-ecs/tree/main/src/perf/entity)|Focuses on performance of creating and removing entities and components of various sizes.
 
-# Profiling
-It is possible to measure performance and memory usage of the gramework via any 3rd party tool. However, support for [Tracy](https://github.com/wolfpld/tracy) is added by default.<br/>
-The CPU part can be controlled via -DGAIA_PROF_CPU=ON/OFF (OFF by default) while -DGAIA_PROF_MEM=ON/OFF is responsible for profiling memory allocations (OFF by default). If you want to build the profiler server yourself you can use -DGAIA_PROF_CPU=ON (OFF by default).<br/>
-This is a low-level feature mostly targeted for maintainers. However, if paired with your own profiler code it can become a very helpful tool.
+## Profiling
+It is possible to measure performance and memory usage of the gramework via any 3rd party tool. However, support for [Tracy](https://github.com/wolfpld/tracy) is added by default.
+
+CPU part can be controlled via -DGAIA_PROF_CPU=ON/OFF (OFF by default).
+
+Memory part can be controlle via -DGAIA_PROF_MEM=ON/OFF (OFF by default).
+
+Building the profiler server can be controlled via -DGAIA_PROF_CPU=ON (OFF by default).
+>**NOTE:<br/>** This is a low-level feature mostly targeted for maintainers. However, if paired with your own profiler code it can become a very helpful tool.
+
+## Unit testing
+The project is thorougly unit-tested and includes  thousand of unit test covering essentially every feature of the framework. Benchmarking relies on a modified [picobench](https://github.com/iboB/picobench).
+
+It can be controlled via -DGAIA_BUILD_UNITTEST=ON/OFF (OFF by default).
 
 # Future
 Currently, many new features and improvements to the current system are planned.<br/>
@@ -520,14 +584,14 @@ Among the most prominent ones those are:
 Requests for features, PRs, suggestions, and feedback are highly appreciated.
 
 If you find you can help and want to contribute to the project feel free to contact
-me directly (you can find the mail on my [profile page](https://github.com/richardbiely)).<br/>
+me directly (you can find the mail on my [profile page](https://github.com/richardbiely)).
 
 # License
 
-Code and documentation Copyright (c) 2021-2022 Richard Biely.<br/>
+Code and documentation Copyright (c) 2021-2023 Richard Biely.
 
 Code released under
-[the MIT license](https://github.com/richardbiely/gaia-ecs/blob/master/LICENSE).<br/>
+[the MIT license](https://github.com/richardbiely/gaia-ecs/blob/master/LICENSE).
 <!--
 @endcond TURN_OFF_DOXYGEN
 -->
