@@ -75,8 +75,6 @@ namespace gaia {
 			containers::map<archetype::LookupHash, archetype::ArchetypeList> m_archetypeMap;
 			//! List of archetypes - used for iteration
 			archetype::ArchetypeList m_archetypes;
-			//! Root archetype
-			archetype::Archetype* m_pRootArchetype = nullptr;
 
 			//! Implicit list of entities. Used for look-ups only when searching for
 			//! entities in chunks + data validation
@@ -209,9 +207,9 @@ namespace gaia {
 			void RegisterArchetype(archetype::Archetype* pArchetype) {
 				// Make sure hashes were set already
 				GAIA_ASSERT(
-						pArchetype == m_pRootArchetype ||
+						pArchetype == m_archetypes[0] ||
 						(pArchetype->GetGenericHash().hash != 0 || pArchetype->GetChunkHash().hash != 0));
-				GAIA_ASSERT(pArchetype == m_pRootArchetype || pArchetype->GetLookupHash().hash != 0);
+				GAIA_ASSERT(pArchetype == m_archetypes[0] || pArchetype->GetLookupHash().hash != 0);
 
 				// Make sure the archetype is not registered yet
 				GAIA_ASSERT(!utils::has(m_archetypes, pArchetype));
@@ -308,7 +306,7 @@ namespace gaia {
 				// We don't want to store edges for the root archetype because the more components there are the longer
 				// it would take to find anything. Therefore, for the root archetype we always make a lookup.
 				// Compared to an ordinary lookup this path is stripped as much as possible.
-				if (pArchetypeLeft == m_pRootArchetype) {
+				if (pArchetypeLeft == m_archetypes[0]) {
 					archetype::Archetype* pArchetypeRight = nullptr;
 
 					if (componentType == component::ComponentType::CT_Generic) {
@@ -460,7 +458,7 @@ namespace gaia {
 
 				const auto& entityContainer = m_entities[entity.id()];
 				auto* pChunk = entityContainer.pChunk;
-				return pChunk == nullptr ? *m_pRootArchetype : *m_archetypes[pChunk->GetArchetypeId()];
+				return *m_archetypes[pChunk == nullptr ? archetype::ArchetypeId(0) : pChunk->GetArchetypeId()];
 			}
 
 			/*!
@@ -638,7 +636,7 @@ namespace gaia {
 				}
 				// Adding a component to an empty entity
 				else {
-					auto& archetype = const_cast<archetype::Archetype&>(*m_pRootArchetype);
+					auto& archetype = const_cast<archetype::Archetype&>(*m_archetypes[0]);
 
 #if GAIA_DEBUG
 					VerifyAddComponent(archetype, entity, componentType, infoToAdd);
@@ -681,9 +679,9 @@ namespace gaia {
 			}
 
 			void Init() {
-				m_pRootArchetype = CreateArchetype({}, {});
-				m_pRootArchetype->Init({0}, {0}, archetype::Archetype::CalculateLookupHash({0}, {0}));
-				RegisterArchetype(m_pRootArchetype);
+				auto* pRootArchetype = CreateArchetype({}, {});
+				pRootArchetype->Init({0}, {0}, archetype::Archetype::CalculateLookupHash({0}, {0}));
+				RegisterArchetype(pRootArchetype);
 			}
 
 			void Done() {

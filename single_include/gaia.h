@@ -7900,53 +7900,55 @@ namespace gaia {
 
 namespace gaia {
 	namespace ecs {
-		struct ChunkHeader final {
-		public:
-			//! Archetype the chunk belongs to
-			uint32_t archetypeId{};
-			//! Number of items in the chunk.
-			uint16_t count{};
-			//! Capacity (copied from the owner archetype).
-			uint16_t capacity{};
-			//! Chunk index in its archetype list
-			uint16_t index{};
-			//! Once removal is requested and it hits 0 the chunk is removed.
-			uint16_t lifespanCountdown : 11;
-			//! If true this chunk stores disabled entities
-			uint16_t disabled : 1;
-			//! Updated when chunks are being iterated. Used to inform of structural changes when they shouldn't happen.
-			uint16_t structuralChangesLocked : 4;
-			//! True if there's a component that requires custom construction
-			uint16_t hasCustomGenericCtor : 1;
-			//! True if there's a component that requires custom construction
-			uint16_t hasCustomChunkCtor : 1;
-			//! True if there's a component that requires custom destruction
-			uint16_t hasCustomGenericDtor : 1;
-			//! True if there's a component that requires custom destruction
-			uint16_t hasCustomChunkDtor : 1;
-			//! Number of generic components on the archetype
-			uint16_t componentsGeneric: archetype::MAX_COMPONENTS_PER_ARCHETYPE_BITS;
-			//! Number of chunk components on the archetype
-			uint16_t componentsChunks: archetype::MAX_COMPONENTS_PER_ARCHETYPE_BITS;
-			//! Version of the world (stable pointer to parent world's world version)
-			uint32_t& worldVersion;
-			//! Byte at which the first component id is located
-			archetype::ChunkComponentOffset firstByte_ComponentIds{};
-			//! Byte at which the first component offset is located
-			archetype::ChunkComponentOffset firstByte_ComponentOffsets{};
-			//! Byte at which the first entity is located
-			archetype::ChunkComponentOffset firstByte_EntityData{};
-			//! Byte at which the first component is located
-			archetype::ChunkComponentOffset firstByte_ComponentData{};
+		namespace archetype {
+			struct ChunkHeader final {
+			public:
+				//! Archetype the chunk belongs to
+				ArchetypeId archetypeId{};
+				//! Number of items in the chunk.
+				uint16_t count{};
+				//! Capacity (copied from the owner archetype).
+				uint16_t capacity{};
+				//! Chunk index in its archetype list
+				uint16_t index{};
+				//! Once removal is requested and it hits 0 the chunk is removed.
+				uint16_t lifespanCountdown : 11;
+				//! If true this chunk stores disabled entities
+				uint16_t disabled : 1;
+				//! Updated when chunks are being iterated. Used to inform of structural changes when they shouldn't happen.
+				uint16_t structuralChangesLocked : 4;
+				//! True if there's a component that requires custom construction
+				uint16_t hasCustomGenericCtor : 1;
+				//! True if there's a component that requires custom construction
+				uint16_t hasCustomChunkCtor : 1;
+				//! True if there's a component that requires custom destruction
+				uint16_t hasCustomGenericDtor : 1;
+				//! True if there's a component that requires custom destruction
+				uint16_t hasCustomChunkDtor : 1;
+				//! Number of generic components on the archetype
+				uint16_t componentsGeneric: MAX_COMPONENTS_PER_ARCHETYPE_BITS;
+				//! Number of chunk components on the archetype
+				uint16_t componentsChunks: MAX_COMPONENTS_PER_ARCHETYPE_BITS;
+				//! Version of the world (stable pointer to parent world's world version)
+				uint32_t& worldVersion;
+				//! Byte at which the first component id is located
+				ChunkComponentOffset firstByte_ComponentIds{};
+				//! Byte at which the first component offset is located
+				ChunkComponentOffset firstByte_ComponentOffsets{};
+				//! Byte at which the first entity is located
+				ChunkComponentOffset firstByte_EntityData{};
+				//! Byte at which the first component is located
+				ChunkComponentOffset firstByte_ComponentData{};
 
-			ChunkHeader(uint32_t& version):
-					lifespanCountdown(0), disabled(0), structuralChangesLocked(0), hasCustomGenericCtor(0), hasCustomChunkCtor(0),
-					hasCustomGenericDtor(0), hasCustomChunkDtor(0), componentsGeneric(0), componentsChunks(0),
-					worldVersion(version) {
-				// Make sure the alignment is right
-				GAIA_ASSERT(uintptr_t(this) % 8 == 0);
-			}
-		};
+				ChunkHeader(uint32_t& version):
+						lifespanCountdown(0), disabled(0), structuralChangesLocked(0), hasCustomGenericCtor(0),
+						hasCustomChunkCtor(0), hasCustomGenericDtor(0), hasCustomChunkDtor(0), componentsGeneric(0),
+						componentsChunks(0), worldVersion(version) {
+					// Make sure the alignment is right
+					GAIA_ASSERT(uintptr_t(this) % 8 == 0);
+				}
+			};
+		} // namespace archetype
 	} // namespace ecs
 } // namespace gaia
 
@@ -8967,7 +8969,7 @@ namespace gaia {
 
 				//----------------------------------------------------------------------
 
-				GAIA_NODISCARD uint32_t GetArchetypeId() const {
+				GAIA_NODISCARD ArchetypeId GetArchetypeId() const {
 					return m_header.archetypeId;
 				}
 
@@ -11739,8 +11741,6 @@ namespace gaia {
 			containers::map<archetype::LookupHash, archetype::ArchetypeList> m_archetypeMap;
 			//! List of archetypes - used for iteration
 			archetype::ArchetypeList m_archetypes;
-			//! Root archetype
-			archetype::Archetype* m_pRootArchetype = nullptr;
 
 			//! Implicit list of entities. Used for look-ups only when searching for
 			//! entities in chunks + data validation
@@ -11873,9 +11873,9 @@ namespace gaia {
 			void RegisterArchetype(archetype::Archetype* pArchetype) {
 				// Make sure hashes were set already
 				GAIA_ASSERT(
-						pArchetype == m_pRootArchetype ||
+						pArchetype == m_archetypes[0] ||
 						(pArchetype->GetGenericHash().hash != 0 || pArchetype->GetChunkHash().hash != 0));
-				GAIA_ASSERT(pArchetype == m_pRootArchetype || pArchetype->GetLookupHash().hash != 0);
+				GAIA_ASSERT(pArchetype == m_archetypes[0] || pArchetype->GetLookupHash().hash != 0);
 
 				// Make sure the archetype is not registered yet
 				GAIA_ASSERT(!utils::has(m_archetypes, pArchetype));
@@ -11972,7 +11972,7 @@ namespace gaia {
 				// We don't want to store edges for the root archetype because the more components there are the longer
 				// it would take to find anything. Therefore, for the root archetype we always make a lookup.
 				// Compared to an ordinary lookup this path is stripped as much as possible.
-				if (pArchetypeLeft == m_pRootArchetype) {
+				if (pArchetypeLeft == m_archetypes[0]) {
 					archetype::Archetype* pArchetypeRight = nullptr;
 
 					if (componentType == component::ComponentType::CT_Generic) {
@@ -12124,7 +12124,7 @@ namespace gaia {
 
 				const auto& entityContainer = m_entities[entity.id()];
 				auto* pChunk = entityContainer.pChunk;
-				return pChunk == nullptr ? *m_pRootArchetype : *m_archetypes[pChunk->GetArchetypeId()];
+				return *m_archetypes[pChunk == nullptr ? archetype::ArchetypeId(0) : pChunk->GetArchetypeId()];
 			}
 
 			/*!
@@ -12302,7 +12302,7 @@ namespace gaia {
 				}
 				// Adding a component to an empty entity
 				else {
-					auto& archetype = const_cast<archetype::Archetype&>(*m_pRootArchetype);
+					auto& archetype = const_cast<archetype::Archetype&>(*m_archetypes[0]);
 
 #if GAIA_DEBUG
 					VerifyAddComponent(archetype, entity, componentType, infoToAdd);
@@ -12345,9 +12345,9 @@ namespace gaia {
 			}
 
 			void Init() {
-				m_pRootArchetype = CreateArchetype({}, {});
-				m_pRootArchetype->Init({0}, {0}, archetype::Archetype::CalculateLookupHash({0}, {0}));
-				RegisterArchetype(m_pRootArchetype);
+				auto* pRootArchetype = CreateArchetype({}, {});
+				pRootArchetype->Init({0}, {0}, archetype::Archetype::CalculateLookupHash({0}, {0}));
+				RegisterArchetype(pRootArchetype);
 			}
 
 			void Done() {

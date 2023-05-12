@@ -864,7 +864,7 @@ namespace gaia {
 
 				//----------------------------------------------------------------------
 
-				GAIA_NODISCARD uint32_t GetArchetypeId() const {
+				GAIA_NODISCARD ArchetypeId GetArchetypeId() const {
 					return m_header.archetypeId;
 				}
 
