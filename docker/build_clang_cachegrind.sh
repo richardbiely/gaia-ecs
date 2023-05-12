@@ -48,8 +48,8 @@ VALGRIND_ARGS="--tool=cachegrind"
 chmod +x ${PATH_RELEASE}/${OUTPUT_BASE}
 
 # We need to adjust how cachegrind is called based on what CPU we have.
-VENDOR_ID=$(grep vendor_id /proc/cpuinfo | cut -d ':' -f 2 | tr -d ' ')
-if [[ "$VENDOR_ID" =~ "GenuineIntel|AuthenticAMD" ]]; then
+CURRENT_PLATFORM=$(uname -p)
+if [[ "$CURRENT_PLATFORM" = "i386|i686|x86_64" ]]; then
     # Most Intel a AMD CPUs should work just fine using a generic cachegrind call
     VALGRIND_ARGS_CUSTOM=""
 else
