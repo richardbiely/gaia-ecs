@@ -36,6 +36,7 @@ jobs:
 
     - name: Install compiler
       run: |
+        echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu focal main universe" | tee /etc/apt/sources.list
         sudo apt update
         sudo apt install -y software-properties-common ${{matrix.compiler.pkg}}
 
@@ -81,6 +82,7 @@ jobs:
 
     - name: Install compiler
       run: |
+        echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu focal main universe" | tee /etc/apt/sources.list
         sudo apt update
         sudo apt install -y software-properties-common ${{matrix.compiler.pkg}}
 
