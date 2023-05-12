@@ -388,8 +388,8 @@ namespace gaia {
 
 						auto moveData = [&](const component::ComponentDesc& desc) {
 							// Let's move all type data from oldEntity to newEntity
-							const auto idxSrc = oldOffs[i++] + desc.properties.size * (uint32_t)oldEntityContainer.idx;
-							const auto idxDst = newOffs[j++] + desc.properties.size * newEntityIdx;
+							const auto idxSrc = oldOffs[i] + desc.properties.size * (uint32_t)oldEntityContainer.idx;
+							const auto idxDst = newOffs[j] + desc.properties.size * newEntityIdx;
 
 							GAIA_ASSERT(idxSrc < Chunk::DATA_SIZE_NORESERVE);
 							GAIA_ASSERT(idxDst < Chunk::DATA_SIZE_NORESERVE);
