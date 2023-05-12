@@ -69,11 +69,11 @@ TEST_CASE("Containers - sarray") {
 	REQUIRE(cnt == 5);
 	REQUIRE(cnt == arr.size());
 
-	REQUIRE(utils::find(arr, 0) == arr.begin());
-	REQUIRE(utils::find(arr, 100) == arr.end());
+	REQUIRE(utils::find(arr, 0U) == arr.begin());
+	REQUIRE(utils::find(arr, 100U) == arr.end());
 
-	REQUIRE(utils::has(arr, 0));
-	REQUIRE(!utils::has(arr, 100));
+	REQUIRE(utils::has(arr, 0U));
+	REQUIRE(!utils::has(arr, 100U));
 }
 
 TEST_CASE("Containers - sarray_ext") {
@@ -97,11 +97,11 @@ TEST_CASE("Containers - sarray_ext") {
 	REQUIRE(cnt == 5);
 	REQUIRE(cnt == arr.size());
 
-	REQUIRE(utils::find(arr, 0) == arr.begin());
-	REQUIRE(utils::find(arr, 100) == arr.end());
+	REQUIRE(utils::find(arr, 0U) == arr.begin());
+	REQUIRE(utils::find(arr, 100U) == arr.end());
 
-	REQUIRE(utils::has(arr, 0));
-	REQUIRE(!utils::has(arr, 100));
+	REQUIRE(utils::has(arr, 0U));
+	REQUIRE(!utils::has(arr, 100U));
 }
 
 TEST_CASE("Containers - darray") {
@@ -129,11 +129,11 @@ TEST_CASE("Containers - darray") {
 	REQUIRE(cnt == 7);
 	REQUIRE(cnt == arr.size());
 
-	REQUIRE(utils::find(arr, 0) == arr.begin());
-	REQUIRE(utils::find(arr, 100) == arr.end());
+	REQUIRE(utils::find(arr, 0U) == arr.begin());
+	REQUIRE(utils::find(arr, 100U) == arr.end());
 
-	REQUIRE(utils::has(arr, 0));
-	REQUIRE(!utils::has(arr, 100));
+	REQUIRE(utils::has(arr, 0U));
+	REQUIRE(!utils::has(arr, 100U));
 }
 
 TEST_CASE("EntityNull") {
