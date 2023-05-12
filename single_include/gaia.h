@@ -11873,9 +11873,9 @@ namespace gaia {
 			void RegisterArchetype(archetype::Archetype* pArchetype) {
 				// Make sure hashes were set already
 				GAIA_ASSERT(
-						pArchetype == m_archetypes[0] ||
+						(m_archetypes.empty() || pArchetype == m_archetypes[0]) ||
 						(pArchetype->GetGenericHash().hash != 0 || pArchetype->GetChunkHash().hash != 0));
-				GAIA_ASSERT(pArchetype == m_archetypes[0] || pArchetype->GetLookupHash().hash != 0);
+				GAIA_ASSERT((m_archetypes.empty() || pArchetype == m_archetypes[0]) || pArchetype->GetLookupHash().hash != 0);
 
 				// Make sure the archetype is not registered yet
 				GAIA_ASSERT(!utils::has(m_archetypes, pArchetype));
