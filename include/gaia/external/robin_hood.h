@@ -117,18 +117,30 @@ namespace robin_hood {
 #endif
 
 // endianess
+// NOTE:
+// Endianess detection is hell as far as compile-time is concerned.
+// There is a bloat of macros and header files across differente compilers,
+// platforms and the level of C++ standard implementations.
 #ifdef _MSC_VER
-	#if defined(_M_ARM) || defined(_M_ARM64)
-		#define ROBIN_HOOD_PRIVATE_DEFINITION_LITTLE_ENDIAN() 0
-		#define ROBIN_HOOD_PRIVATE_DEFINITION_BIG_ENDIAN() 1
-	#else
-		#define ROBIN_HOOD_PRIVATE_DEFINITION_LITTLE_ENDIAN() 1
-		#define ROBIN_HOOD_PRIVATE_DEFINITION_BIG_ENDIAN() 0
-	#endif
+	// Whether it is ARM or x86 we consider both litte endian.
+	// It is very unlikely that any modern "big" CPU would use big endian these days
+	// as it is more efficient to be little endian on HW level.
+	#define ROBIN_HOOD_PRIVATE_DEFINITION_LITTLE_ENDIAN() true
+	#define ROBIN_HOOD_PRIVATE_DEFINITION_BIG_ENDIAN() false
 #else
 	#define ROBIN_HOOD_PRIVATE_DEFINITION_LITTLE_ENDIAN() (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
 	#define ROBIN_HOOD_PRIVATE_DEFINITION_BIG_ENDIAN() (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
 #endif
+//! Checks if endianess was detected correctly at compile-time. If false is returned
+//! see ROBIN_HOOD_PRIVATE_DEFINITION_LITTLE_ENDIAN and ROBIN_HOOD_PRIVATE_DEFINITION_BIG_ENDIAN
+//! and change then as necessary for your platform.
+inline bool CheckEndianess() {
+	const uint16_t testWord = 0x1234;
+	const bool isLittleEndian(*reinterpret_cast<const uint8_t*>(&testWord) == 0x34);
+	// If this return false ert is hit you'll have to change the endianess manually for your system.
+	// See ROBIN_HOOD_PRIVATE_DEFINITION_LITTLE_ENDIAN and ROBIN_HOOD_PRIVATE_DEFINITION_BIG_ENDIAN.
+	return isLittleEndian == ROBIN_HOOD_PRIVATE_DEFINITION_LITTLE_ENDIAN();
+}
 
 // inline
 #ifdef _MSC_VER
@@ -1378,6 +1390,7 @@ namespace robin_hood {
 
 			Table() noexcept(noexcept(Hash()) && noexcept(KeyEqual())): WHash(), WKeyEqual() {
 				ROBIN_HOOD_TRACE(this)
+				GAIA_ASSERT(CheckEndianess());
 			}
 
 			// Creates an empty hash map. Nothing is allocated yet, this happens at the first insert.
@@ -1390,7 +1403,8 @@ namespace robin_hood {
 					const KeyEqual& equal = KeyEqual{}) noexcept(noexcept(Hash(h)) && noexcept(KeyEqual(equal))):
 					WHash(h),
 					WKeyEqual(equal) {
-				ROBIN_HOOD_TRACE(this)
+				ROBIN_HOOD_TRACE(this);
+				GAIA_ASSERT(CheckEndianess());
 			}
 
 			template <typename Iter>
@@ -1399,7 +1413,8 @@ namespace robin_hood {
 					const KeyEqual& equal = KeyEqual{}):
 					WHash(h),
 					WKeyEqual(equal) {
-				ROBIN_HOOD_TRACE(this)
+				ROBIN_HOOD_TRACE(this);
+				GAIA_ASSERT(CheckEndianess());
 				insert(first, last);
 			}
 
@@ -1408,7 +1423,8 @@ namespace robin_hood {
 					const Hash& h = Hash{}, const KeyEqual& equal = KeyEqual{}):
 					WHash(h),
 					WKeyEqual(equal) {
-				ROBIN_HOOD_TRACE(this)
+				ROBIN_HOOD_TRACE(this);
+				GAIA_ASSERT(CheckEndianess());
 				insert(initlist.begin(), initlist.end());
 			}
 

@@ -277,28 +277,30 @@ TEST_CASE("Query - QueryResult") {
 
 	{
 		const auto cnt = q2.CalculateEntityCount();
+		REQUIRE(cnt == 0);
+
 		const auto has = q2.HasEntities();
+		REQUIRE(has == false);
 
 		size_t cnt2 = 0;
 		q2.ForEach([&]() {
 			++cnt2;
 		});
 		REQUIRE(cnt == cnt2);
-		REQUIRE(cnt == 0);
-		REQUIRE(has == false);
 	}
 
 	{
 		const auto cnt = q3.CalculateEntityCount();
+		REQUIRE(cnt == 0);
+
 		const auto has = q3.HasEntities();
+		REQUIRE(has == false);
 
 		size_t cnt3 = 0;
 		q3.ForEach([&]() {
 			++cnt3;
 		});
 		REQUIRE(cnt == cnt3);
-		REQUIRE(cnt == 0);
-		REQUIRE(has == false);
 	}
 }
 
