@@ -10386,10 +10386,10 @@ namespace gaia {
 
 						{
 							// Swap the bits in the read-write mask
-							const uint32_t b0 = data.readWriteMask & (1U << left);
-							const uint32_t b1 = data.readWriteMask & (1U << right);
+							const uint32_t b0 = (data.readWriteMask >> left) & 1U;
+							const uint32_t b1 = (data.readWriteMask >> right) & 1U;
 							// XOR the two bits
-							const uint32_t bxor = (b0 ^ b1);
+							const uint32_t bxor = b0 ^ b1;
 							// Put the XOR bits back to their original positions
 							const uint32_t mask = (bxor << left) | (bxor << right);
 							// XOR mask with the original one effectivelly swapping the bits
