@@ -39,8 +39,6 @@
 #define ROBIN_HOOD_VERSION_PATCH 5 // for backwards-compatible bug fixes
 
 #include "../config/config_core.h"
-#include "../utils/mem.h"
-#include "../utils/utility.h"
 
 #include <cstdlib>
 #include <cstring>
@@ -55,6 +53,7 @@
 
 #include "../utils/hashing_policy.h"
 #include "../utils/iterator.h"
+#include "../utils/mem.h"
 #include "../utils/utility.h"
 
 // #define ROBIN_HOOD_STD_SMARTPOINTERS
@@ -175,16 +174,16 @@ inline bool CheckEndianess() {
 
 		#pragma intrinsic(ROBIN_HOOD(CTZ))
 		#define ROBIN_HOOD_COUNT_TRAILING_ZEROES(x)                                                                        \
-			[](size_t mask) noexcept -> size_t {                                                                             \
+			[](size_t mask) noexcept -> uint32_t {                                                                           \
 				unsigned long index;                                                                                           \
-				return ROBIN_HOOD(CTZ)(&index, mask) ? index : ROBIN_HOOD(BITNESS);                                            \
+				return ROBIN_HOOD(CTZ)(&index, mask) ? static_cast<uint32_t>(index) : ROBIN_HOOD(BITNESS);                     \
 			}(x)
 
 		#pragma intrinsic(ROBIN_HOOD(CLZ))
 		#define ROBIN_HOOD_COUNT_LEADING_ZEROES(x)                                                                         \
-			[](size_t mask) noexcept -> size_t {                                                                             \
+			[](size_t mask) noexcept -> uint32_t {                                                                           \
 				unsigned long index;                                                                                           \
-				return ROBIN_HOOD(CLZ)(&index, mask) ? index : ROBIN_HOOD(BITNESS);                                            \
+				return ROBIN_HOOD(CLZ)(&index, mask) ? static_cast<uint32_t>(index) : ROBIN_HOOD(BITNESS);                     \
 			}(x)
 	#else
 		#if ROBIN_HOOD(BITNESS) == 32
