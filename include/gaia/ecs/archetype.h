@@ -56,7 +56,7 @@ namespace gaia {
 				} m_properties{};
 
 				// Constructor is hidden. Create archetypes via Create
-				Archetype(uint32_t& worldVersion): m_worldVersion(worldVersion){};
+				Archetype(uint32_t& worldVersion): m_worldVersion(worldVersion) {}
 
 				GAIA_NODISCARD Chunk* FindOrCreateFreeChunk_Internal(containers::darray<Chunk*>& chunkArray) const {
 					const auto chunkCnt = chunkArray.size();
@@ -161,78 +161,76 @@ namespace gaia {
 						chunkComponentListSize += desc.properties.size;
 					}
 
-					// TODO: Calculate the number of entities per chunks precisely so we can
-					// fit more of them into chunk on average. Currently, DATA_SIZE_RESERVED
-					// is substracted but that's not optimal...
+					// Calculate the number of entities per chunks precisely so we can
+					// fit as many of them into chunk as possible.
 
-					// Number of components we can fit into one chunk
-					auto maxGenericItemsInArchetype = (Chunk::DATA_SIZE - chunkComponentListSize) / genericComponentListSize;
+					// Theoretical maximum number of components we can fit into one chunk.
+					// This can be further reduced due alignment and padding.
+					const auto firstEntityDataOffset =
+							Chunk::CalculateFirstEntityDataOffset(componentIdsGeneric.size(), componentIdsChunk.size());
+					auto maxGenericItemsInArchetype =
+							(Chunk::DATA_SIZE - firstEntityDataOffset - chunkComponentListSize) / genericComponentListSize;
 
-					// Calculate component offsets now. Skip the header and entity IDs
-					auto componentOffsets = sizeof(Entity) * maxGenericItemsInArchetype;
-					auto alignedOffset = sizeof(ChunkHeader) + componentOffsets;
+				recalculate:
+					auto componentOffsets = firstEntityDataOffset + sizeof(Entity) * maxGenericItemsInArchetype;
 
-					// Add generic infos
-					for (const auto componentId: componentIdsGeneric) {
-						const auto& desc = cc.GetComponentDesc(componentId);
-						const auto alignment = desc.properties.alig;
-						if (alignment != 0) {
-							const size_t padding = utils::align(alignedOffset, alignment) - alignedOffset;
-							componentOffsets += padding;
-							alignedOffset += padding;
+					auto adjustMaxGenericItemsInAchetype = [&](component::ComponentIdSpan componentIds) {
+						for (const auto componentId: componentIds) {
+							const auto& desc = cc.GetComponentDesc(componentId);
+							const auto alignment = desc.properties.alig;
+							if (alignment == 0)
+								continue;
 
-							// Make sure we didn't exceed the chunk size
-							GAIA_ASSERT(componentOffsets <= Chunk::DATA_SIZE_NORESERVE);
+							const auto padding = utils::align(componentOffsets, alignment) - componentOffsets;
+							const auto componentDataSize = padding + desc.properties.size * maxGenericItemsInArchetype;
+							const auto nextOffset = componentOffsets + componentDataSize;
 
-							// Register the component info
-							newArch->m_componentIds[component::ComponentType::CT_Generic].push_back(componentId);
-							newArch->m_componentOffsets[component::ComponentType::CT_Generic].push_back(
-									(archetype::ChunkComponentOffset)componentOffsets);
+							if (nextOffset >= Chunk::DATA_SIZE) {
+								--maxGenericItemsInArchetype;
+								return false;
+							}
 
-							// Make sure the following component list is properly aligned
-							componentOffsets += desc.properties.size * maxGenericItemsInArchetype;
-							alignedOffset += desc.properties.size * maxGenericItemsInArchetype;
-
-							// Make sure we didn't exceed the chunk size
-							GAIA_ASSERT(componentOffsets <= Chunk::DATA_SIZE_NORESERVE);
-						} else {
-							// Register the component info
-							newArch->m_componentIds[component::ComponentType::CT_Generic].push_back(componentId);
-							newArch->m_componentOffsets[component::ComponentType::CT_Generic].push_back(
-									(archetype::ChunkComponentOffset)componentOffsets);
+							componentOffsets += componentDataSize;
 						}
-					}
 
-					// Add chunk infos
-					for (const auto componentId: componentIdsChunk) {
-						const auto& desc = cc.GetComponentDesc(componentId);
-						const auto alignment = desc.properties.alig;
-						if (alignment != 0) {
-							const size_t padding = utils::align(alignedOffset, alignment) - alignedOffset;
-							componentOffsets += padding;
-							alignedOffset += padding;
+						return true;
+					};
 
-							// Make sure we didn't exceed the chunk size
-							GAIA_ASSERT(componentOffsets <= Chunk::DATA_SIZE_NORESERVE);
+					// Adjust the maximum number of entities
+					if (!adjustMaxGenericItemsInAchetype(componentIdsGeneric))
+						goto recalculate;
+					if (!adjustMaxGenericItemsInAchetype(componentIdsChunk))
+						goto recalculate;
 
-							// Register the component info
-							newArch->m_componentIds[component::ComponentType::CT_Chunk].push_back(componentId);
-							newArch->m_componentOffsets[component::ComponentType::CT_Chunk].push_back(
-									(archetype::ChunkComponentOffset)componentOffsets);
+					// Update the offsets according to the recalculated maxGenericItemsInArchetype
+					componentOffsets = firstEntityDataOffset + sizeof(Entity) * maxGenericItemsInArchetype;
 
-							// Make sure the following component list is properly aligned
-							componentOffsets += desc.properties.size;
-							alignedOffset += desc.properties.size;
+					auto registerComponents = [&](component::ComponentIdSpan componentIds,
+																				component::ComponentType componentType) {
+						for (const auto componentId: componentIds) {
+							const auto& desc = cc.GetComponentDesc(componentId);
+							const auto alignment = desc.properties.alig;
+							if (alignment != 0) {
+								const size_t padding = utils::align(componentOffsets, alignment) - componentOffsets;
 
-							// Make sure we didn't exceed the chunk size
-							GAIA_ASSERT(componentOffsets <= Chunk::DATA_SIZE_NORESERVE);
-						} else {
-							// Register the component info
-							newArch->m_componentIds[component::ComponentType::CT_Chunk].push_back(componentId);
-							newArch->m_componentOffsets[component::ComponentType::CT_Chunk].push_back(
-									(archetype::ChunkComponentOffset)componentOffsets);
+								componentOffsets += padding;
+
+								// Register the component info
+								newArch->m_componentIds[componentType].push_back(componentId);
+								newArch->m_componentOffsets[componentType].push_back((archetype::ChunkComponentOffset)componentOffsets);
+
+								// Make sure the following component list is properly aligned
+								componentOffsets += desc.properties.size * maxGenericItemsInArchetype;
+							} else {
+								// Register the component info
+								newArch->m_componentIds[componentType].push_back(componentId);
+								newArch->m_componentOffsets[componentType].push_back((archetype::ChunkComponentOffset)componentOffsets);
+							}
 						}
-					}
+					};
+
+					registerComponents(componentIdsGeneric, component::ComponentType::CT_Generic);
+					registerComponents(componentIdsChunk, component::ComponentType::CT_Chunk);
 
 					newArch->m_properties.capacity = (uint32_t)maxGenericItemsInArchetype;
 					newArch->m_matcherHash[component::ComponentType::CT_Generic] =
