@@ -17,13 +17,13 @@
 [license]: https://en.wikipedia.org/wiki/MIT_License
 [codacy]: https://app.codacy.com/gh/richardbiely/gaia-ecs/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade
 
-Gaia-ECS is a fast and easy to use [entity component system](https://en.wikipedia.org/wiki/Entity_component_system) framework. Some of its current features and highlights are:
-* very simple and safe API designed in such a way to prevent you from using bad coding patterns
+Gaia-ECS is a fast and easy-to-use [entity component](https://en.wikipedia.org/wiki/Entity_component_system) system](https://en.wikipedia.org/wiki/Entity_component_system) framework. Some of its current features and highlights are:
+* very simple and safe API designed in such a way as to prevent you from using bad coding patterns
 * based on modern [C++17](https://en.cppreference.com/w/cpp/17) technologies
 * no external dependencies, not even on STL (can be easily enabled if needed)
 * compiles almost instantly
 * archetype / chunk-based storage for maximum iteration speed and easy code parallelization
-* ability to [organize data as AoS or SoA](#data-layouts) on the component level with very little changes to your code
+* ability to [organize data as AoS or SoA](#data-layouts) on the component level with very few changes to your code
 * compiled and tested on all major compilers [continuously](https://github.com/richardbiely/gaia-ecs/actions)
 * stability secured by running thousands of [unit tests](#testing)
 * exists also as a [single-header](#single-header) library so you can simply drop it into your project and start using it
@@ -73,19 +73,19 @@ Instead of looking at "items" in your program as objects you normally know from 
 
 This way of thinking is more natural for machines than people but when used correctly it allows you to write faster code (on most architectures). What is most important, however, is it allows you to write code that is easier to maintain, expand and reason about.
 
-For instance, when moving some object from point A to point B you do not care if it is a house or a car. You only care about its' position. If you want to move it at some specific speed you will consider also the object's velocity. Nothing else is necessary.
+For instance, when moving some object from point A to point B you do not care if it is a house or a car. You only care about its position. If you want to move it at some specific speed you will consider also the object's velocity. Nothing else is necessary.
 
 Three building blocks of ECS are:
-* **Entity** - index that uniquely identifies a group of components
-* **Component** - piece of data (position, velocity, age)
-* **System** - place where your program's logic is implemented
+**Entity** - an index that uniquely identifies a group of components
+**Component** - a piece of data (position, velocity, age)
+**System** - a place where your program's logic is implemented
 
 Gaia-ECS is an archetype-based entity component system. Therefore, unique combinations of components are grouped into archetypes. Each archetype consists of chunks - blocks of memory holding your entities and components. You can think of them as SQL tables where components are columns and entities are rows. In our case, each chunk is 16 KiB big. This size is chosen so that the entire chunk can fit into L1 cache on most CPUs.
 >**NOTE:**<br/>If needed you can alter the size of chunks by modifying the value of ***ecs::MemoryBlockSize***.
 
 Chunk memory is preallocated in big blocks (pages) via the internal chunk allocator. Thanks to that all data is organized in a cache-friendly way which most computer architectures like and actual heap allocations which are slow are reduced to a minimum.
 
-The main benefits of archetype-based architecture is fast iteration and good memory layout by default. They are also easy to parallelize. On the other hand, adding and removing components can be somewhat slower because it involves moving data around. In our case this weakness is mitigated by a graph built for archetypes.
+The main benefits of archetype-based architecture are fast iteration and good memory layout by default. They are also easy to parallelize. On the other hand, adding and removing components can be somewhat slower because it involves moving data around. In our case, this weakness is mitigated by a graph built for archetypes.
 
 # Usage
 ## Minimum requirements
@@ -96,7 +96,7 @@ The main benefits of archetype-based architecture is fast iteration and good mem
 
 The entire framework is placed in a namespace called **gaia**.
 The ECS part of the library is found under **gaia::ecs** namespace.<br/>
-In code examples bellow we will assume we are inside the gaia namespace.
+In the code examples below we will assume we are inside the gaia namespace.
 
 ## Basic operations
 ### Create or delete entity
@@ -109,9 +109,9 @@ w.DeleteEntity(e);
 ```
 
 ### Enable or disable entity
-Disabled entities are moved to chunks different from the rest. Because of that they do not take part in queries by default.
+Disabled entities are moved to chunks different from the rest. Because of that, they do not take part in queries by default.
 
-Behavior of EnableEntity is similar to that of calling DeleteEntity/CreateEntity. However, the main benefit is that a disabled entity keeps its ID intact which means you can reference it freely.
+The behavior of EnableEntity is similar to that of calling DeleteEntity/CreateEntity. However, the main benefit is that a disabled entity keeps its ID intact which means you can reference it freely.
 
 ```cpp
 ecs::World w;
@@ -150,7 +150,7 @@ w.SetComponent<Velocity>(e, {0, 0, 2});
 w.SetComponentSilent<Velocity>(e, {4, 2, 0});
 ```
 
-In case there are more different components on your entity you would like to change the value of you can achive it via SetComponent chaining:
+In case there are more different components on the entity you would like to change the value you can achieve it via SetComponent chaining:
 
 ```cpp
 // Change Velocity's value on entity "e"
@@ -161,7 +161,7 @@ w.SetComponent<Velocity>(e, {0, 0, 2}).
   SetComponent...;
 ```
 
-Components are returned by value for components with size up to 8 bytes (including). Bigger components are returned by const reference.
+Components are returned by value for components with sizes up to 8 bytes (including). Bigger components are returned by const reference.
 
 ```cpp
 // Read Velocity's value. As shown above Velocity is 12 bytes in size. Therefore, it is returned by const reference.
@@ -173,7 +173,7 @@ auto velCopy = w.GetComponent<Velocity>(e);
 Both read and write operations are also accessible via views. Check [simple iteration](#simple-iteration) and [query iteration](#query-iteration) sections to see how.
 
 ### Component presence
-Whether or not a certain component is associated with an entity can be checked in two different ways. Either via an instance of a World object or by the means of Iterator which can be aquired when running queries.
+Whether or not a certain component is associated with an entity can be checked in two different ways. Either via an instance of a World object or by the means of ***Iterator*** which can be acquired when running queries.
 
 ```cpp
 // Check if entity e has Velocity (via world).
@@ -230,7 +230,7 @@ q.All<Position>() // Take into account everything with Position...
  .None<Player>(); // ... and no Player component...
 ```
 
-Query behavior can also be modified by setting constraints. By default only enabled entities are taken into account. However, by changing constraints we can filter disabled entities exclusively or make the query consider both enabled and disabled entities at the same time:
+Query behavior can also be modified by setting constraints. By default, only enabled entities are taken into account. However, by changing constraints, we can filter disabled entities exclusively or make the query consider both enabled and disabled entities at the same time:
 
 ```cpp
 ecs::Entity e1, e2;
@@ -292,7 +292,7 @@ q.ForEach([&](Position& p, const Velocity& v) {
 >**NOTE:**<br/>Iterating over components not present in the query is not supported and results in asserts and undefined behavior. This is done to prevent various logic errors which might sneak in otherwise.
 
 ### Iterator
-Iteration using the iterator gives you even more expresive power and also opens doors for new kinds of optimizations. Iterator are an abstraction above chunk which is responsible for holding entities and components.
+Iteration using the iterator gives you even more expressive power and also opens doors for new kinds of optimizations. Iterator is an abstraction above archetype chunks responsible for holding entities and components.
 
 ```cpp
 ecs::Query q = w.CreateQuery();
@@ -350,12 +350,12 @@ q.ForEach([&](Position& p, const Velocity& v) {
 >**NOTE:**<br/>If there are 100 Position components in the chunk and only one them changes, the other 99 are considered changed as well. This chunk-wide behavior might seem counter-intuitive but it is in fact a performance optimization. The reason why this works is because it is easier to reason about a group of entities than checking each of them separately.
 
 ## Chunk components
-A chunk component is a special kind of data which exists at most once per chunk. In different words, you attach data to one chunk specifically. It survives entity removals and unlike generic components they do not transfer to a new chunk along with their entity.
+A chunk component is a special kind of data that exists at most once per chunk. In different words, you attach data to one chunk specifically. It survives entity removals and unlike generic components, they do not transfer to a new chunk along with their entity.
 
 If you organize your data with care (which you should) this can save you some very precious memory or performance depending on your use case.
 
 For instance, imagine you have a grid with fields of 100 meters squared.
-Now if you create your entities carefully they get organized in grid fields implicitly on data level already without you having to use any sort of spatial map container.
+Now if you create your entities carefully they get organized in grid fields implicitly on the data level already without you having to use any sort of spatial map container.
 
 ```cpp
 w.AddComponent<Position>(e1, {10,1});
@@ -384,7 +384,7 @@ cb.Commit(&w); // after calling this all entities with y position bellow zero ge
 If you try to make an unprotected structural change with GAIA_DEBUG enabled (set by default when Debug configuration is used) the framework will assert letting you know you are using it the wrong way.
 
 ## Data layouts
-By default, all data inside components is treated as an array of structures (AoS) via an implicit
+By default, all data inside components are treated as an array of structures (AoS) via an implicit
 
 ```cpp
 static constexpr auto Layout = utils::DataLayout::AoS
@@ -394,7 +394,7 @@ This is the natural behavior of the language and what you would normally expect.
 
 If we imagine an ordinary array of 4 Position components defined above with this layout they are organized like this in memory: xyz xyz xyz xyz.
 
-However, in specific cases you might want to consider organizing your component's internal data as structure or arrays (SoA):
+However, in specific cases, you might want to consider organizing your component's internal data as structure or arrays (SoA):
 
 ```cpp
 static constexpr auto Layout = utils::DataLayout::SoA
@@ -455,13 +455,13 @@ q.ForEach([](ecs::Iterator iter) {
 # Requirements
 
 ## Compiler
-Compiler compatible with a good support of C++17 is required.<br/>
-The project is [continuosly tested](https://github.com/richardbiely/gaia-ecs/actions/workflows/build.yml) and guaranteed to build warning-free on the following compilers:<br/>
+Compiler with a good support of C++17 is required.<br/>
+The project is [continuously tested](https://github.com/richardbiely/gaia-ecs/actions/workflows/build.yml) and guaranteed to build warning-free on the following compilers:<br/>
 - [MSVC](https://visualstudio.microsoft.com/) 15 (Visual Studio 2017) or later<br/>
 - [Clang](https://clang.llvm.org/) 7 or later<br/>
 - [GCC](https://www.gnu.org/software/gcc/) 7 or later<br/>
 
-More compilers might work but are not supported out-of-the-box. Support for [ICC](https://www.intel.com/content/www/us/en/developer/tools/oneapi/dpc-compiler.html#gs.2nftun) is  [worked on](https://github.com/richardbiely/gaia-ecs/actions/workflows/icc.yml).
+More compilers might work but are not supported out of the box. Support for [ICC](https://www.intel.com/content/www/us/en/developer/tools/oneapi/dpc-compiler.html#gs.2nftun) is [worked on](https://github.com/richardbiely/gaia-ecs/actions/workflows/icc.yml).
 
 ## Dependencies
 [CMake](https://cmake.org) 3.12 or later is required to prepare the build. Other tools are officially not supported at the moment.
@@ -471,8 +471,7 @@ Unit testing is handled via [Catch2 v3.3.2](https://github.com/catchorg/Catch2/r
 # Installation
 
 ## CMake
-
-Following shows the steps needed to build the library:
+The following shows the steps needed to build the library:
 
 ```bash
 # Check out the library
@@ -524,16 +523,16 @@ cmake -DCMAKE_BUILD_TYPE=Release -DUSE_SANITIZER=address -S . -B "build"
 ```
 
 ### Single-header
-Gaia-ECS is shipped also as a [single header file](https://github.com/richardbiely/gaia-ecs/blob/main/single_include/gaia.h) which you can simple drop into your project and start using. To generate the header we use a wonderful Python tool [Quom](https://github.com/Viatorus/quom).
+Gaia-ECS is shipped also as a [single header file](https://github.com/richardbiely/gaia-ecs/blob/main/single_include/gaia.h) which you can simply drop into your project and start using. To generate the header we use a wonderful Python tool [Quom](https://github.com/Viatorus/quom).
 
 In order to generate the header use the following command inside your root directory.
 ```bash
 quom ./include/gaia.h ./single_include/gaia.h -I ./include
 ```
 
-You can also used the attached make_single_header.sh or create your own script for your platfrom.
+You can also use the attached make_single_header.sh or create your script for your platform.
 
-Creation of the single-header can be automated via -GAIA_MAKE_SINGLE_HEADER.
+Creation of the single header can be automated via -GAIA_MAKE_SINGLE_HEADER.
 
 # Project structure
 
@@ -549,7 +548,7 @@ Project name | Description
 [Roguelike](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example_roguelike)|Roguelike game putting all parts of the framework to use and represents a complex example of how everything would be used in practice. It is work-in-progress and changes and evolves with the project.
 
 ## Benchmarks
-To be able to reason about the project's performance benchmarks and prevent regressions benchmarks were created.
+To be able to reason about the project's performance benchmarks and prevent regression benchmarks were created.
 
 Benchmarking relies on a modified [picobench](https://github.com/iboB/picobench). It can be controlled via -DGAIA_BUILD_BENCHMARK=ON/OFF when configuring the project (OFF by default).
 
@@ -560,24 +559,24 @@ Project name | Description
 [Entity](https://github.com/richardbiely/gaia-ecs/tree/main/src/perf/entity)|Focuses on performance of creating and removing entities and components of various sizes.
 
 ## Profiling
-It is possible to measure performance and memory usage of the gramework via any 3rd party tool. However, support for [Tracy](https://github.com/wolfpld/tracy) is added by default.
+It is possible to measure the performance and memory usage of the framework via any 3rd party tool. However, support for [Tracy](https://github.com/wolfpld/tracy) is added by default.
 
 CPU part can be controlled via -DGAIA_PROF_CPU=ON/OFF (OFF by default).
 
-Memory part can be controlle via -DGAIA_PROF_MEM=ON/OFF (OFF by default).
+Memory part can be controlled via -DGAIA_PROF_MEM=ON/OFF (OFF by default).
 
 Building the profiler server can be controlled via -DGAIA_PROF_CPU=ON (OFF by default).
 >**NOTE:<br/>** This is a low-level feature mostly targeted for maintainers. However, if paired with your own profiler code it can become a very helpful tool.
 
 ## Unit testing
-The project is thorougly unit-tested and includes  thousand of unit test covering essentially every feature of the framework. Benchmarking relies on a modified [picobench](https://github.com/iboB/picobench).
+The project is thoroughly unit-tested and includes thousand of unit tests covering essentially every feature of the framework. Benchmarking relies on a modified [picobench](https://github.com/iboB/picobench).
 
 It can be controlled via -DGAIA_BUILD_UNITTEST=ON/OFF (OFF by default).
 
 # Future
 Currently, many new features and improvements to the current system are planned.<br/>
-Among the most prominent ones those are:
-* scheduler - a system that would allow parallel execution of all systems by default, work stealing, and an easy setup of dependencies
+Among the most prominent ones are:
+* scheduler - a system that would allow parallel execution of all systems by default, work-stealing, and an easy setup of dependencies
 * scenes - a way to serialize the state of chunks or entire worlds
 * scripting - expose low-level structures of the framework so it can be implemented by various other languages including scripting ones
 * debugger - an editor that would give one an overview of worlds created by the framework (number of entities, chunk fragmentation, systems running, etc.)
