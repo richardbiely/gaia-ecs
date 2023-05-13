@@ -7138,14 +7138,6 @@ namespace gaia {
 					uint32_t size: MAX_COMPONENTS_SIZE_BITS;
 					//! Tells if the component is laid out in SoA style
 					uint32_t soa : 1;
-					//! Tells if the component has custom "constructor" handling
-					uint32_t has_custom_ctor : 1;
-					//! Tells if the component has custom "destructor" handling
-					uint32_t has_custom_dtor : 1;
-					//! Tells if the component has custom "copy" handling
-					uint32_t has_custom_copy : 1;
-					//! Tells if the component has custom "move" handling
-					uint32_t has_custom_move : 1;
 				} properties{};
 
 				template <typename T>
@@ -7156,96 +7148,88 @@ namespace gaia {
 					info.name = utils::type_info::name<U>();
 					info.componentId = GetComponentId<T>();
 
-					if constexpr (!std::is_empty_v<U> && !utils::is_soa_layout_v<U>) {
-						// Custom construction
-						if constexpr (!std::is_trivially_constructible_v<U>) {
-							info.ctor = [](void* ptr, size_t cnt) {
-								auto* first = (U*)ptr;
-								auto* last = (U*)ptr + cnt;
-								for (; first != last; ++first)
-									(void)new (first) U();
-							};
-						}
-
-						// Custom destruction
-						if constexpr (!std::is_trivially_destructible_v<U>) {
-							info.dtor = [](void* ptr, size_t cnt) {
-								auto first = (U*)ptr;
-								auto last = (U*)ptr + cnt;
-								for (; first != last; ++first)
-									first->~U();
-							};
-						}
-
-						// Copyability
-						if (!std::is_trivially_copyable_v<U>) {
-							if constexpr (std::is_copy_constructible_v<U>) {
-								info.copy = [](void* from, void* to) {
-									auto* src = (U*)from;
-									auto* dst = (U*)to;
-									*dst = U(*src);
-								};
-								info.ctor_copy = [](void* from, void* to) {
-									auto* src = (U*)from;
-									auto* dst = (U*)to;
-									(void)new (dst) U(std::move(*src));
-								};
-							} else if constexpr (std::is_copy_assignable_v<U>) {
-								info.copy = [](void* from, void* to) {
-									auto* src = (U*)from;
-									auto* dst = (U*)to;
-									*dst = *src;
-								};
-								info.ctor_copy = [](void* from, void* to) {
-									auto* src = (U*)from;
-									auto* dst = (U*)to;
-									new (dst) U();
-									*dst = *src;
-								};
-							}
-						}
-
-						// Movability
-						if constexpr (!std::is_trivially_move_constructible_v<U> && std::is_move_constructible_v<U>) {
-							info.move = [](void* from, void* to) {
-								auto* src = (U*)from;
-								auto* dst = (U*)to;
-								*dst = U(std::move(*src));
-							};
-							info.ctor_move = [](void* from, void* to) {
-								auto* src = (U*)from;
-								auto* dst = (U*)to;
-								(void)new (dst) U(std::move(*src));
-							};
-						} else if constexpr (!std::is_trivially_move_assignable_v<U> && std::is_move_assignable_v<U>) {
-							info.move = [](void* from, void* to) {
-								auto* src = (U*)from;
-								auto* dst = (U*)to;
-								*dst = std::move(*src);
-							};
-							info.ctor_move = [](void* from, void* to) {
-								auto* src = (U*)from;
-								auto* dst = (U*)to;
-								new (dst) U();
-								*dst = std::move(*src);
-							};
-						}
-					}
-
 					if constexpr (!std::is_empty_v<U>) {
 						info.properties.alig = utils::auto_view_policy<U>::Alignment;
 						info.properties.size = (uint32_t)sizeof(U);
 
 						if constexpr (utils::is_soa_layout_v<U>) {
-							info.properties.soa = 1;
+							info.properties.soa = true;
 						} else {
-							info.properties.has_custom_ctor = !std::is_trivially_constructible_v<U>;
-							info.properties.has_custom_dtor = !std::is_trivially_destructible_v<U>;
-							info.properties.has_custom_copy =
-									!std::is_trivially_copyable_v<U> && (std::is_copy_assignable_v<U> || std::is_copy_constructible_v<U>);
-							info.properties.has_custom_move =
-									(!std::is_trivially_move_assignable_v<U> && std::is_move_assignable_v<U>) ||
-									(!std::is_trivially_move_constructible_v<U> && std::is_move_constructible_v<U>);
+							info.properties.soa = false;
+
+							// Custom construction
+							if constexpr (!std::is_trivially_constructible_v<U>) {
+								info.ctor = [](void* ptr, size_t cnt) {
+									auto* first = (U*)ptr;
+									auto* last = (U*)ptr + cnt;
+									for (; first != last; ++first)
+										(void)new (first) U();
+								};
+							}
+
+							// Custom destruction
+							if constexpr (!std::is_trivially_destructible_v<U>) {
+								info.dtor = [](void* ptr, size_t cnt) {
+									auto first = (U*)ptr;
+									auto last = (U*)ptr + cnt;
+									for (; first != last; ++first)
+										first->~U();
+								};
+							}
+
+							// Copyability
+							if (!std::is_trivially_copyable_v<U>) {
+								if constexpr (std::is_copy_constructible_v<U>) {
+									info.copy = [](void* from, void* to) {
+										auto* src = (U*)from;
+										auto* dst = (U*)to;
+										*dst = U(*src);
+									};
+									info.ctor_copy = [](void* from, void* to) {
+										auto* src = (U*)from;
+										auto* dst = (U*)to;
+										(void)new (dst) U(std::move(*src));
+									};
+								} else if constexpr (std::is_copy_assignable_v<U>) {
+									info.copy = [](void* from, void* to) {
+										auto* src = (U*)from;
+										auto* dst = (U*)to;
+										*dst = *src;
+									};
+									info.ctor_copy = [](void* from, void* to) {
+										auto* src = (U*)from;
+										auto* dst = (U*)to;
+										new (dst) U();
+										*dst = *src;
+									};
+								}
+							}
+
+							// Movability
+							if constexpr (!std::is_trivially_move_constructible_v<U> && std::is_move_constructible_v<U>) {
+								info.move = [](void* from, void* to) {
+									auto* src = (U*)from;
+									auto* dst = (U*)to;
+									*dst = U(std::move(*src));
+								};
+								info.ctor_move = [](void* from, void* to) {
+									auto* src = (U*)from;
+									auto* dst = (U*)to;
+									(void)new (dst) U(std::move(*src));
+								};
+							} else if constexpr (!std::is_trivially_move_assignable_v<U> && std::is_move_assignable_v<U>) {
+								info.move = [](void* from, void* to) {
+									auto* src = (U*)from;
+									auto* dst = (U*)to;
+									*dst = std::move(*src);
+								};
+								info.ctor_move = [](void* from, void* to) {
+									auto* src = (U*)from;
+									auto* dst = (U*)to;
+									new (dst) U();
+									*dst = std::move(*src);
+								};
+							}
 						}
 					}
 
@@ -8182,16 +8166,16 @@ namespace gaia {
 					const auto& componentIdsGeneric = componentIds[component::ComponentType::CT_Generic];
 					for (const auto componentId: componentIdsGeneric) {
 						const auto& desc = cc.GetComponentDesc(componentId);
-						m_header.hasCustomGenericCtor |= (desc.properties.has_custom_ctor != 0);
-						m_header.hasCustomGenericDtor |= (desc.properties.has_custom_dtor != 0);
+						m_header.hasCustomGenericCtor |= (desc.ctor != nullptr);
+						m_header.hasCustomGenericDtor |= (desc.dtor != nullptr);
 					}
 
 					// Size of chunk components
 					const auto& componentIdsChunk = componentIds[component::ComponentType::CT_Chunk];
 					for (const auto componentId: componentIdsChunk) {
 						const auto& desc = cc.GetComponentDesc(componentId);
-						m_header.hasCustomChunkCtor |= (desc.properties.has_custom_ctor != 0);
-						m_header.hasCustomChunkDtor |= (desc.properties.has_custom_dtor != 0);
+						m_header.hasCustomChunkCtor |= (desc.ctor != nullptr);
+						m_header.hasCustomChunkDtor |= (desc.dtor != nullptr);
 					}
 
 					{
@@ -8444,7 +8428,7 @@ namespace gaia {
 						auto* pSrc = (void*)&pOldChunk->GetData(idxSrc);
 						auto* pDst = (void*)&pNewChunk->GetData(idxDst);
 
-						if (desc.properties.has_custom_copy == 1)
+						if (desc.copy != nullptr)
 							desc.copy(pSrc, pDst);
 						else
 							memmove(pDst, (const void*)pSrc, desc.properties.size);
@@ -8480,7 +8464,7 @@ namespace gaia {
 						auto* pSrc = (void*)&pOldChunk->GetData(idxSrc);
 						auto* pDst = (void*)&GetData(idxDst);
 
-						if (desc.properties.has_custom_copy == 1)
+						if (desc.copy != nullptr)
 							desc.copy(pSrc, pDst);
 						else
 							memmove(pDst, (const void*)pSrc, desc.properties.size);
@@ -8522,11 +8506,11 @@ namespace gaia {
 							auto* pSrc = (void*)&pOldChunk->GetData(idxSrc);
 							auto* pDst = (void*)&GetData(idxDst);
 
-							if (desc.properties.has_custom_move == 1) {
+							if (desc.ctor_move != nullptr)
 								desc.ctor_move(pSrc, pDst);
-							} else if (desc.properties.has_custom_copy == 1) {
+							else if (desc.ctor_copy != nullptr)
 								desc.ctor_copy(pSrc, pDst);
-							} else
+							else
 								memmove(pDst, (const void*)pSrc, desc.properties.size);
 						};
 
@@ -8584,14 +8568,14 @@ namespace gaia {
 							auto* pSrc = (void*)&m_data[idxSrc];
 							auto* pDst = (void*)&m_data[idxDst];
 
-							if (desc.properties.has_custom_move == 1) {
+							if (desc.move != nullptr)
 								desc.move(pSrc, pDst);
-							} else if (desc.properties.has_custom_copy == 1) {
+							else if (desc.copy != nullptr)
 								desc.copy(pSrc, pDst);
-							} else
+							else
 								memmove(pDst, (const void*)pSrc, desc.properties.size);
 
-							if (desc.properties.has_custom_dtor == 1)
+							if (desc.dtor != nullptr)
 								desc.dtor(pSrc, 1);
 						}
 
@@ -8725,7 +8709,7 @@ namespace gaia {
 
 					const auto& cc = ComponentCache::Get();
 					const auto& desc = cc.GetComponentDesc(componentId);
-					if (desc.properties.has_custom_ctor == 0)
+					if (desc.ctor == nullptr)
 						return;
 
 					const auto& componentIds = GetComponentIdArray(componentType);
@@ -8756,7 +8740,7 @@ namespace gaia {
 
 					for (size_t i = 0; i < componentIds.size(); i++) {
 						const auto& desc = cc.GetComponentDesc(componentIds[i]);
-						if (desc.properties.has_custom_ctor == 0)
+						if (desc.ctor == nullptr)
 							continue;
 
 						const auto offset = componentOffsets[i];
@@ -8784,7 +8768,7 @@ namespace gaia {
 
 					for (size_t i = 0; i < componentIds.size(); ++i) {
 						const auto& desc = cc.GetComponentDesc(componentIds[i]);
-						if (desc.properties.has_custom_dtor == 0)
+						if (desc.dtor != nullptr)
 							continue;
 
 						const auto offset = componentOffsets[i];
