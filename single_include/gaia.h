@@ -911,18 +911,19 @@ namespace gaia {
 			return ((num + (alignment - 1)) & ~(alignment - 1));
 		}
 
-		//! Convert form type \tparam From to type \tparam To without causing an undefined behavior
-		template <
-				typename To, typename From,
-				typename = std::enable_if_t<
-						(sizeof(To) == sizeof(From)) && std::is_trivially_copyable_v<To> && std::is_trivially_copyable_v<From>>>
-		To bit_cast(const From& from) {
+		//! Convert form type \tparam Src to type \tparam Dst without causing an undefined behavior
+		template <typename Dst, typename Src>
+		Dst bit_cast(const Src& src) {
+			static_assert(sizeof(Dst) == sizeof(Src));
+			static_assert(std::is_trivially_copyable_v<Src>);
+			static_assert(std::is_trivially_copyable_v<Dst>);
+
 			// int i = {};
 			// float f = *(*float)&i; // undefined behavior
 			// memcpy(&f, &i, sizeof(float)); // okay
-			To to;
-			memmove(&to, &from, sizeof(To));
-			return to;
+			Dst dst;
+			memmove((void*)&dst, (const void*)&src, sizeof(Dst));
+			return dst;
 		}
 
 		//! Pointer wrapper for reading memory in defined way (not causing undefined behavior)
@@ -936,7 +937,7 @@ namespace gaia {
 
 			T operator*() const {
 				T to;
-				memmove(&to, from, sizeof(T));
+				memmove((void*)&to, (const void*)from, sizeof(T));
 				return to;
 			}
 
@@ -960,13 +961,14 @@ namespace gaia {
 		public:
 			unaligned_ref(void* p): m_p(p) {}
 
-			void operator=(const T& rvalue) {
-				memmove(m_p, &rvalue, sizeof(T));
+			unaligned_ref& operator=(const T& value) {
+				memmove(m_p, (const void*)&value, sizeof(T));
+				return *this;
 			}
 
 			operator T() const {
 				T tmp;
-				memmove(&tmp, m_p, sizeof(T));
+				memmove((void*)&tmp, (const void*)m_p, sizeof(T));
 				return tmp;
 			}
 		};
@@ -3132,12 +3134,12 @@ namespace gaia {
 
 			template <size_t N, size_t Alignment, typename Tuple>
 			constexpr static size_t soa_byte_offset(const uintptr_t address, [[maybe_unused]] const size_t size) {
+				const auto addressAligned = utils::align<Alignment>(address) - address;
 				if constexpr (N == 0) {
-					return utils::align<Alignment>(address) - address;
+					return addressAligned;
 				} else {
-					const auto offset = utils::align<Alignment>(address) - address;
 					using tt = typename std::tuple_element<N - 1, Tuple>::type;
-					return sizeof(tt) * size + offset + soa_byte_offset<N - 1, Alignment, Tuple>(address, size);
+					return addressAligned + sizeof(tt) * size + soa_byte_offset<N - 1, Alignment, Tuple>(address, size);
 				}
 			}
 
@@ -7583,9 +7585,11 @@ namespace gaia {
 
 namespace gaia {
 	namespace ecs {
+		//! Size of one allocated block of memory
 		static constexpr uint32_t MemoryBlockSize = 16384;
-		// TODO: For component aligned to 64 bytes the offset of 16 is not enough for some reason, figure it out
-		static constexpr uint32_t MemoryBlockUsableOffset = 32;
+		//! Unusable area at the beggining of the allocated block designated for special pruposes
+		static constexpr uint32_t MemoryBlockUsableOffset = sizeof(size_t);
+		//! Effectively usable size of the allocated block of memory
 		static constexpr uint32_t ChunkMemorySize = MemoryBlockSize - MemoryBlockUsableOffset;
 
 		struct ChunkAllocatorStats final {
@@ -7639,11 +7643,11 @@ namespace gaia {
 						m_data(ptr), m_pageIdx(0), m_blockCnt(0), m_usedBlocks(0), m_nextFreeBlock(0), m_freeBlocks(0) {}
 
 				GAIA_NODISCARD void* AllocChunk() {
-					auto GetChunkAddress = [&](size_t index) {
+					auto StoreChunkAddress = [&](size_t index) {
 						// Encode info about chunk's page in the memory block.
 						// The actual pointer returned is offset by UsableOffset bytes
 						uint8_t* pMemoryBlock = (uint8_t*)m_data + index * MemoryBlockSize;
-						*(uintptr_t*)pMemoryBlock = (uintptr_t)this;
+						*utils::unaligned_pointer<uintptr_t>{pMemoryBlock} = (uintptr_t)this;
 						return (void*)(pMemoryBlock + MemoryBlockUsableOffset);
 					};
 
@@ -7658,7 +7662,7 @@ namespace gaia {
 						m_blocks[index].idx = (MemoryBlock::MemoryBlockType)index;
 						++m_blockCnt;
 
-						return GetChunkAddress(index);
+						return StoreChunkAddress(index);
 					}
 
 					GAIA_ASSERT(m_nextFreeBlock < m_blockCnt && "Block allocator recycle containers::list broken!");
@@ -7669,7 +7673,7 @@ namespace gaia {
 					const size_t index = m_nextFreeBlock;
 					m_nextFreeBlock = m_blocks[m_nextFreeBlock].idx;
 
-					return GetChunkAddress(index);
+					return StoreChunkAddress(index);
 				}
 
 				void FreeChunk(void* pChunk) {
@@ -7961,7 +7965,7 @@ namespace gaia {
 						hasCustomChunkCtor(0), hasCustomGenericDtor(0), hasCustomChunkDtor(0), componentsGeneric(0),
 						componentsChunks(0), worldVersion(version) {
 					// Make sure the alignment is right
-					GAIA_ASSERT(uintptr_t(this) % 8 == 0);
+					GAIA_ASSERT(uintptr_t(this) % (sizeof(size_t)) == 0);
 				}
 			};
 		} // namespace archetype
@@ -10960,7 +10964,7 @@ namespace gaia {
 					const auto& queryIds = ret.first->second;
 
 					// Record with the query info lookup hash exists but we need to check if the query itself is a part of it.
-					if GAIA_LIKELY (ctx.queryId != (int32_t)-1) {
+					if GAIA_LIKELY (ctx.queryId != query::QueryIdBad) {
 						// Make sure the same hash gets us to the proper query
 						for (const auto queryId: queryIds) {
 							const auto& queryInfo = m_queryArr[queryId];
@@ -11318,7 +11322,7 @@ namespace gaia {
 				// for the next chunk explictely so we do not end up stalling later.
 				// Note, this is a micro optimization and on average it bring no performance benefit. It only
 				// helps with edge cases.
-				// Let us be conservatine for now and go with T2. That means we will try to keep our data at
+				// Let us be conservative for now and go with T2. That means we will try to keep our data at
 				// least in L3 cache or higher.
 				gaia::prefetch(&chunks[1], PrefetchHint::PREFETCH_HINT_T2);
 				chunks[0]->SetStructuralChanges(true);

@@ -68,18 +68,19 @@ namespace gaia {
 			return ((num + (alignment - 1)) & ~(alignment - 1));
 		}
 
-		//! Convert form type \tparam From to type \tparam To without causing an undefined behavior
-		template <
-				typename To, typename From,
-				typename = std::enable_if_t<
-						(sizeof(To) == sizeof(From)) && std::is_trivially_copyable_v<To> && std::is_trivially_copyable_v<From>>>
-		To bit_cast(const From& from) {
+		//! Convert form type \tparam Src to type \tparam Dst without causing an undefined behavior
+		template <typename Dst, typename Src>
+		Dst bit_cast(const Src& src) {
+			static_assert(sizeof(Dst) == sizeof(Src));
+			static_assert(std::is_trivially_copyable_v<Src>);
+			static_assert(std::is_trivially_copyable_v<Dst>);
+
 			// int i = {};
 			// float f = *(*float)&i; // undefined behavior
 			// memcpy(&f, &i, sizeof(float)); // okay
-			To to;
-			memmove(&to, &from, sizeof(To));
-			return to;
+			Dst dst;
+			memmove((void*)&dst, (const void*)&src, sizeof(Dst));
+			return dst;
 		}
 
 		//! Pointer wrapper for reading memory in defined way (not causing undefined behavior)
@@ -93,7 +94,7 @@ namespace gaia {
 
 			T operator*() const {
 				T to;
-				memmove(&to, from, sizeof(T));
+				memmove((void*)&to, (const void*)from, sizeof(T));
 				return to;
 			}
 
@@ -117,13 +118,14 @@ namespace gaia {
 		public:
 			unaligned_ref(void* p): m_p(p) {}
 
-			void operator=(const T& rvalue) {
-				memmove(m_p, &rvalue, sizeof(T));
+			unaligned_ref& operator=(const T& value) {
+				memmove(m_p, (const void*)&value, sizeof(T));
+				return *this;
 			}
 
 			operator T() const {
 				T tmp;
-				memmove(&tmp, m_p, sizeof(T));
+				memmove((void*)&tmp, (const void*)m_p, sizeof(T));
 				return tmp;
 			}
 		};

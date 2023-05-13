@@ -51,7 +51,7 @@ namespace gaia {
 						hasCustomChunkCtor(0), hasCustomGenericDtor(0), hasCustomChunkDtor(0), componentsGeneric(0),
 						componentsChunks(0), worldVersion(version) {
 					// Make sure the alignment is right
-					GAIA_ASSERT(uintptr_t(this) % 8 == 0);
+					GAIA_ASSERT(uintptr_t(this) % (sizeof(size_t)) == 0);
 				}
 			};
 		} // namespace archetype
