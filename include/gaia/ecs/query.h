@@ -357,7 +357,7 @@ namespace gaia {
 				// for the next chunk explictely so we do not end up stalling later.
 				// Note, this is a micro optimization and on average it bring no performance benefit. It only
 				// helps with edge cases.
-				// Let us be conservatine for now and go with T2. That means we will try to keep our data at
+				// Let us be conservative for now and go with T2. That means we will try to keep our data at
 				// least in L3 cache or higher.
 				gaia::prefetch(&chunks[1], PrefetchHint::PREFETCH_HINT_T2);
 				chunks[0]->SetStructuralChanges(true);

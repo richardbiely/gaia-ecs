@@ -25,12 +25,12 @@ namespace gaia {
 
 			template <size_t N, size_t Alignment, typename Tuple>
 			constexpr static size_t soa_byte_offset(const uintptr_t address, [[maybe_unused]] const size_t size) {
+				const auto addressAligned = utils::align<Alignment>(address) - address;
 				if constexpr (N == 0) {
-					return utils::align<Alignment>(address) - address;
+					return addressAligned;
 				} else {
-					const auto offset = utils::align<Alignment>(address) - address;
 					using tt = typename std::tuple_element<N - 1, Tuple>::type;
-					return sizeof(tt) * size + offset + soa_byte_offset<N - 1, Alignment, Tuple>(address, size);
+					return addressAligned + sizeof(tt) * size + soa_byte_offset<N - 1, Alignment, Tuple>(address, size);
 				}
 			}
 

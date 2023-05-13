@@ -47,7 +47,7 @@ namespace gaia {
 					const auto& queryIds = ret.first->second;
 
 					// Record with the query info lookup hash exists but we need to check if the query itself is a part of it.
-					if GAIA_LIKELY (ctx.queryId != (int32_t)-1) {
+					if GAIA_LIKELY (ctx.queryId != query::QueryIdBad) {
 						// Make sure the same hash gets us to the proper query
 						for (const auto queryId: queryIds) {
 							const auto& queryInfo = m_queryArr[queryId];

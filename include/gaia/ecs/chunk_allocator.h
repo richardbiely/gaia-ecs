@@ -14,9 +14,11 @@
 
 namespace gaia {
 	namespace ecs {
+		//! Size of one allocated block of memory
 		static constexpr uint32_t MemoryBlockSize = 16384;
-		// TODO: For component aligned to 64 bytes the offset of 16 is not enough for some reason, figure it out
-		static constexpr uint32_t MemoryBlockUsableOffset = 32;
+		//! Unusable area at the beggining of the allocated block designated for special pruposes
+		static constexpr uint32_t MemoryBlockUsableOffset = sizeof(size_t);
+		//! Effectively usable size of the allocated block of memory
 		static constexpr uint32_t ChunkMemorySize = MemoryBlockSize - MemoryBlockUsableOffset;
 
 		struct ChunkAllocatorStats final {
@@ -70,11 +72,11 @@ namespace gaia {
 						m_data(ptr), m_pageIdx(0), m_blockCnt(0), m_usedBlocks(0), m_nextFreeBlock(0), m_freeBlocks(0) {}
 
 				GAIA_NODISCARD void* AllocChunk() {
-					auto GetChunkAddress = [&](size_t index) {
+					auto StoreChunkAddress = [&](size_t index) {
 						// Encode info about chunk's page in the memory block.
 						// The actual pointer returned is offset by UsableOffset bytes
 						uint8_t* pMemoryBlock = (uint8_t*)m_data + index * MemoryBlockSize;
-						*(uintptr_t*)pMemoryBlock = (uintptr_t)this;
+						*utils::unaligned_pointer<uintptr_t>{pMemoryBlock} = (uintptr_t)this;
 						return (void*)(pMemoryBlock + MemoryBlockUsableOffset);
 					};
 
@@ -89,7 +91,7 @@ namespace gaia {
 						m_blocks[index].idx = (MemoryBlock::MemoryBlockType)index;
 						++m_blockCnt;
 
-						return GetChunkAddress(index);
+						return StoreChunkAddress(index);
 					}
 
 					GAIA_ASSERT(m_nextFreeBlock < m_blockCnt && "Block allocator recycle containers::list broken!");
@@ -100,7 +102,7 @@ namespace gaia {
 					const size_t index = m_nextFreeBlock;
 					m_nextFreeBlock = m_blocks[m_nextFreeBlock].idx;
 
-					return GetChunkAddress(index);
+					return StoreChunkAddress(index);
 				}
 
 				void FreeChunk(void* pChunk) {

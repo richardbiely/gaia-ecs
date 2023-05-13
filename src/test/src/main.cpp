@@ -1926,51 +1926,110 @@ TEST_CASE("Query Filter - systems") {
 	sm.Update();
 }
 
-template <size_t N, typename T>
-void TestDataLayoutSoA() {
-	GAIA_ALIGNAS(N * 4) containers::sarray<T, N> data{};
-	const auto* arr = (const float*)data.data();
+template <typename T>
+void TestDataLayoutAoS() {
+	constexpr size_t N = 100;
+	containers::sarray<T, N> data{};
 
-	using soa = gaia::utils::soa_view_policy<T>;
+	using aos = gaia::utils::aos_view_policy<T>;
 	using view_deduced = gaia::utils::auto_view_policy<T>;
 
-	for (size_t i = 0; i < N; ++i) {
-		const auto f = (float)i;
-		soa::set({data}, i, {f, f, f});
-		REQUIRE(arr[i + N * 0] == f);
-		REQUIRE(arr[i + N * 1] == f);
-		REQUIRE(arr[i + N * 2] == f);
+	// Explicit view
+	{
+		for (size_t i = 0; i < N; ++i) {
+			const auto f = (float)(i + 1);
 
-		auto val = soa::get({data}, i);
-		REQUIRE(val.x == f);
-		REQUIRE(val.y == f);
-		REQUIRE(val.z == f);
+			aos::set({data}, i, {f, f, f});
+
+			auto val = aos::getc({data}, i);
+			REQUIRE(val.x == f);
+			REQUIRE(val.y == f);
+			REQUIRE(val.z == f);
+		}
+
+		// Make sure that all values are correct (e.g. that they were not overriden by one of the loop iteration)
+		for (size_t i = 0; i < N; ++i) {
+			const auto f = (float)(i + 1);
+
+			auto val = aos::getc({data}, i);
+			REQUIRE(val.x == f);
+			REQUIRE(val.y == f);
+			REQUIRE(val.z == f);
+		}
 	}
 
-	for (size_t i = 0; i < N; ++i) {
-		const auto f = (float)i;
-		view_deduced::set({data}, i, {f, f, f});
-		REQUIRE(arr[i + N * 0] == f);
-		REQUIRE(arr[i + N * 1] == f);
-		REQUIRE(arr[i + N * 2] == f);
+	// Deduced view
+	{
+		for (size_t i = 0; i < N; ++i) {
+			const auto f = (float)(i + 1);
 
-		auto val = view_deduced::get({data}, i);
-		REQUIRE(val.x == f);
-		REQUIRE(val.y == f);
-		REQUIRE(val.z == f);
+			view_deduced::set({data}, i, {f, f, f});
+
+			auto val = view_deduced::getc({data}, i);
+			REQUIRE(val.x == f);
+			REQUIRE(val.y == f);
+			REQUIRE(val.z == f);
+		}
+
+		// Make sure that all values are correct (e.g. that they were not overriden by one of the loop iteration)
+		for (size_t i = 0; i < N; ++i) {
+			const auto f = (float)(i + 1);
+
+			auto val = view_deduced::getc({data}, i);
+			REQUIRE(val.x == f);
+			REQUIRE(val.y == f);
+			REQUIRE(val.z == f);
+		}
+	}
+}
+
+TEST_CASE("DataLayout AoS") {
+	TestDataLayoutAoS<Position>();
+}
+
+template <typename T>
+void TestDataLayoutSoA() {
+	constexpr size_t N = 100;
+	constexpr size_t Alignment = utils::auto_view_policy<T>::Alignment;
+	GAIA_ALIGNAS(Alignment) containers::sarray<T, N> data;
+
+	using view_deduced = gaia::utils::auto_view_policy<T>;
+
+	// Deduced view
+	{
+		for (size_t i = 0; i < N; ++i) {
+			const auto f = (float)(i + 1);
+
+			view_deduced::set({data}, i, {f, f, f});
+
+			auto val = view_deduced::get({data}, i);
+			REQUIRE(val.x == f);
+			REQUIRE(val.y == f);
+			REQUIRE(val.z == f);
+		}
+
+		// Make sure that all values are correct (e.g. that they were not overriden by one of the loop iteration)
+		for (size_t i = 0; i < N; ++i) {
+			const auto f = (float)(i + 1);
+
+			auto val = view_deduced::get({data}, i);
+			REQUIRE(val.x == f);
+			REQUIRE(val.y == f);
+			REQUIRE(val.z == f);
+		}
 	}
 }
 
 TEST_CASE("DataLayout SoA") {
-	TestDataLayoutSoA<4, PositionSoA>();
+	TestDataLayoutSoA<PositionSoA>();
 }
 
 TEST_CASE("DataLayout SoA8") {
-	TestDataLayoutSoA<8, PositionSoA8>();
+	TestDataLayoutSoA<PositionSoA8>();
 }
 
 TEST_CASE("DataLayout SoA16") {
-	TestDataLayoutSoA<16, PositionSoA16>();
+	TestDataLayoutSoA<PositionSoA16>();
 }
 
 template <typename T>
@@ -2016,39 +2075,4 @@ TEST_CASE("DataLayout SoA8 - ECS") {
 
 TEST_CASE("DataLayout SoA16 - ECS") {
 	TestDataLayoutSoA_ECS<PositionSoA16>();
-}
-
-TEST_CASE("DataLayout AoS") {
-	constexpr size_t N = 4U;
-	containers::sarray<Position, N> data{};
-	const auto* arr = (const float*)data.data();
-
-	using aos = gaia::utils::aos_view_policy<Position>;
-	using view_deduced = gaia::utils::auto_view_policy<Position>;
-
-	for (size_t i = 0; i < N; ++i) {
-		const auto f = (float)i;
-		aos::set({data}, i, {f, f, f});
-		REQUIRE(arr[i * 3 + 0] == f);
-		REQUIRE(arr[i * 3 + 1] == f);
-		REQUIRE(arr[i * 3 + 2] == f);
-
-		auto val = aos::getc({data}, i);
-		REQUIRE(val.x == f);
-		REQUIRE(val.y == f);
-		REQUIRE(val.z == f);
-	}
-
-	for (size_t i = 0; i < N; ++i) {
-		const auto f = (float)i;
-		view_deduced::set({data}, i, {f, f, f});
-		REQUIRE(arr[i * 3 + 0] == f);
-		REQUIRE(arr[i * 3 + 1] == f);
-		REQUIRE(arr[i * 3 + 2] == f);
-
-		auto val = view_deduced::getc({data}, i);
-		REQUIRE(val.x == f);
-		REQUIRE(val.y == f);
-		REQUIRE(val.z == f);
-	}
 }
