@@ -25,7 +25,8 @@ Gaia-ECS is a fast and easy-to-use [entity component](https://en.wikipedia.org/w
 * archetype / chunk-based storage for maximum iteration speed and easy code parallelization
 * ability to [organize data as AoS or SoA](#data-layouts) on the component level with very few changes to your code
 * compiled and tested on all major compilers [continuously](https://github.com/richardbiely/gaia-ecs/actions)
-* stability secured by running thousands of [unit tests](#testing)
+* stability secured by running thousands of [unit tests]
+* thoroughly documented both public and internal code
 * exists also as a [single-header](#single-header) library so you can simply drop it into your project and start using it
 
 # Table of Contents
@@ -76,9 +77,9 @@ This way of thinking is more natural for machines than people but when used corr
 For instance, when moving some object from point A to point B you do not care if it is a house or a car. You only care about its position. If you want to move it at some specific speed you will consider also the object's velocity. Nothing else is necessary.
 
 Three building blocks of ECS are:
-**Entity** - an index that uniquely identifies a group of components
-**Component** - a piece of data (position, velocity, age)
-**System** - a place where your program's logic is implemented
+* **Entity** - an index that uniquely identifies a group of components
+* **Component** - a piece of data (position, velocity, age)
+* **System** - a place where your program's logic is implemented
 
 Gaia-ECS is an archetype-based entity component system. Therefore, unique combinations of components are grouped into archetypes. Each archetype consists of chunks - blocks of memory holding your entities and components. You can think of them as SQL tables where components are columns and entities are rows. In our case, each chunk is 16 KiB big. This size is chosen so that the entire chunk can fit into L1 cache on most CPUs.
 >**NOTE:**<br/>If needed you can alter the size of chunks by modifying the value of ***ecs::MemoryBlockSize***.
