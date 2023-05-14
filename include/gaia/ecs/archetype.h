@@ -247,7 +247,15 @@ namespace gaia {
 								continue;
 
 							const auto padding = utils::align(componentOffsets, alignment) - componentOffsets;
-							const auto componentDataSize = padding + desc.properties.size * size;
+
+							// For SoA types we shall assume there is a padding of the entire size of the array.
+							// Of course this is a bit wasteful but it's a bit of work to calculate how much area exactly we need.
+							// We might have:
+							// 	struct foo { float x; float y; bool a; float z; };
+							// Each of the variables of the foo struct might need separate padding when converted to SoA.
+							// TODO: Introduce a function that can calculate this.
+							const auto componentDataSize =
+									padding + ((uint32_t)desc.properties.soa * desc.properties.size) + desc.properties.size * size;
 							const auto nextOffset = componentOffsets + componentDataSize;
 
 							// If we're beyond what the chunk could take, subtract one entity

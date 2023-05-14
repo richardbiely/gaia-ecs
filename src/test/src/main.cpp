@@ -2066,13 +2066,13 @@ void TestDataLayoutSoA_ECS() {
 }
 
 TEST_CASE("DataLayout SoA - ECS") {
-	//TestDataLayoutSoA_ECS<PositionSoA>();
+	TestDataLayoutSoA_ECS<PositionSoA>();
 }
 
 TEST_CASE("DataLayout SoA8 - ECS") {
-	//TestDataLayoutSoA_ECS<PositionSoA8>();
+	TestDataLayoutSoA_ECS<PositionSoA8>();
 }
 
 TEST_CASE("DataLayout SoA16 - ECS") {
-	//TestDataLayoutSoA_ECS<PositionSoA16>();
+	TestDataLayoutSoA_ECS<PositionSoA16>();
 }
