@@ -284,7 +284,6 @@ namespace gaia {
 																				size_t size) {
 						auto& ids = newArch->m_componentIds[componentType];
 						auto& ofs = newArch->m_componentOffsets[componentType];
-						auto& dos = newArch->m_dataOffsets;
 
 						for (size_t i = 0; i < componentIds.size(); ++i) {
 							const auto componentId = componentIds[i];
