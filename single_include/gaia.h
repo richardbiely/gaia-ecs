@@ -7905,6 +7905,17 @@ namespace gaia {
 namespace gaia {
 	namespace ecs {
 		namespace archetype {
+			struct ChunkHeaderOffsets {
+				//! Byte at which the first component id is located
+				ChunkComponentOffset firstByte_Versions[component::ComponentType::CT_Count]{};
+				//! Byte at which the first component id is located
+				ChunkComponentOffset firstByte_ComponentIds[component::ComponentType::CT_Count]{};
+				//! Byte at which the first component offset is located
+				ChunkComponentOffset firstByte_ComponentOffsets[component::ComponentType::CT_Count]{};
+				//! Byte at which the first entity is located
+				ChunkComponentOffset firstByte_EntityData{};
+			};
+
 			struct ChunkHeader final {
 			public:
 				//! Archetype the chunk belongs to
@@ -7922,32 +7933,24 @@ namespace gaia {
 				//! Updated when chunks are being iterated. Used to inform of structural changes when they shouldn't happen.
 				uint16_t structuralChangesLocked : 4;
 				//! True if there's a component that requires custom construction
-				uint16_t hasCustomGenericCtor : 1;
+				uint16_t hasAnyCustomGenericCtor : 1;
 				//! True if there's a component that requires custom construction
-				uint16_t hasCustomChunkCtor : 1;
+				uint16_t hasAnyCustomChunkCtor : 1;
 				//! True if there's a component that requires custom destruction
-				uint16_t hasCustomGenericDtor : 1;
+				uint16_t hasAnyCustomGenericDtor : 1;
 				//! True if there's a component that requires custom destruction
-				uint16_t hasCustomChunkDtor : 1;
-				//! Number of generic components on the archetype
-				uint16_t componentsGeneric: MAX_COMPONENTS_PER_ARCHETYPE_BITS;
-				//! Number of chunk components on the archetype
-				uint16_t componentsChunks: MAX_COMPONENTS_PER_ARCHETYPE_BITS;
+				uint16_t hasAnyCustomChunkDtor : 1;
+				//! Number of components on the archetype
+				uint8_t componentCount[component::ComponentType::CT_Count]{};
+				//! Offsets to various parts of data inside chunk
+				ChunkHeaderOffsets offsets;
 				//! Version of the world (stable pointer to parent world's world version)
 				uint32_t& worldVersion;
-				//! Byte at which the first component id is located
-				ChunkComponentOffset firstByte_ComponentIds{};
-				//! Byte at which the first component offset is located
-				ChunkComponentOffset firstByte_ComponentOffsets{};
-				//! Byte at which the first entity is located
-				ChunkComponentOffset firstByte_EntityData{};
-				//! Byte at which the first component is located
-				ChunkComponentOffset firstByte_ComponentData{};
 
-				ChunkHeader(uint32_t& version):
-						lifespanCountdown(0), disabled(0), structuralChangesLocked(0), hasCustomGenericCtor(0),
-						hasCustomChunkCtor(0), hasCustomGenericDtor(0), hasCustomChunkDtor(0), componentsGeneric(0),
-						componentsChunks(0), worldVersion(version) {
+				ChunkHeader(const ChunkHeaderOffsets& offs, uint32_t& version):
+						lifespanCountdown(0), disabled(0), structuralChangesLocked(0), hasAnyCustomGenericCtor(0),
+						hasAnyCustomChunkCtor(0), hasAnyCustomGenericDtor(0), hasAnyCustomChunkDtor(0), offsets(offs),
+						worldVersion(version) {
 					// Make sure the alignment is right
 					GAIA_ASSERT(uintptr_t(this) % (sizeof(size_t)) == 0);
 				}
@@ -8135,27 +8138,18 @@ namespace gaia {
 				//! Size of one chunk's data part with components
 				static constexpr size_t DATA_SIZE = ChunkMemorySize - sizeof(ChunkHeader);
 
-				static archetype::ChunkComponentOffset CalculateFirstEntityDataOffset(size_t genericCount, size_t chunkCount) {
-					const auto components = genericCount + chunkCount;
-					const auto combinedSize =
-							sizeof(uint32_t) + sizeof(component::ComponentId) + sizeof(archetype::ChunkComponentOffset);
-					const auto offset = components * combinedSize;
-					const auto padding = utils::align(offset, alignof(Entity)) - offset;
-					return archetype::ChunkComponentOffset(offset + padding);
-				}
-
 			private:
 				//! Chunk header
 				ChunkHeader m_header;
-				//! Chunk data. Organized as:
-				//!			Generic component versions
-				//!			Chunk component versions
-				//!     Generic component ids
-				//!			Chunk Componenet ids
-				//!			Generic component offsets
-				//!			Chunk component offsets
-				//!			Entities
-				//!			Components
+				//! Chunk data layed out as:
+				//!			1) ComponentVersions[component::ComponentType::CT_Generic]
+				//!			2) ComponentVersions[component::ComponentType::CT_Chunk]
+				//!     3) ComponentIds[component::ComponentType::CT_Generic]
+				//!			4) ComponentIds[component::ComponentType::CT_Chunk]
+				//!			5) ComponentOffsets[component::ComponentType::CT_Generic]
+				//!			6) ComponentOffsets[component::ComponentType::CT_Chunk]
+				//!			7) Entities
+				//!			8) Components
 				uint8_t m_data[DATA_SIZE];
 
 				GAIA_MSVC_WARNING_PUSH()
@@ -8163,67 +8157,60 @@ namespace gaia {
 
 				Chunk(
 						uint32_t archetypeId, uint16_t chunkIndex, uint16_t capacity, uint32_t& worldVersion,
-						const containers::sarray<ComponentIdArray, component::ComponentType::CT_Count>& componentIds,
-						const containers::sarray<ComponentOffsetArray, component::ComponentType::CT_Count>& componentOffsets):
-						m_header(worldVersion) {
+						const ChunkHeaderOffsets& headerOffsets):
+						m_header(headerOffsets, worldVersion) {
 					m_header.archetypeId = archetypeId;
 					m_header.index = chunkIndex;
 					m_header.capacity = capacity;
-					m_header.componentsGeneric = componentIds[component::ComponentType::CT_Generic].size();
-					m_header.componentsChunks = componentIds[component::ComponentType::CT_Chunk].size();
+				}
+
+				GAIA_MSVC_WARNING_POP()
+
+				void Init(
+						const containers::sarray<ComponentIdArray, component::ComponentType::CT_Count>& componentIds,
+						const containers::sarray<ComponentOffsetArray, component::ComponentType::CT_Count>& componentOffsets) {
+					m_header.componentCount[component::ComponentType::CT_Generic] =
+							(uint8_t)componentIds[component::ComponentType::CT_Generic].size();
+					m_header.componentCount[component::ComponentType::CT_Chunk] =
+							(uint8_t)componentIds[component::ComponentType::CT_Chunk].size();
 
 					const auto& cc = ComponentCache::Get();
 
 					const auto& componentIdsGeneric = componentIds[component::ComponentType::CT_Generic];
 					for (const auto componentId: componentIdsGeneric) {
 						const auto& desc = cc.GetComponentDesc(componentId);
-						m_header.hasCustomGenericCtor |= (desc.ctor != nullptr);
-						m_header.hasCustomGenericDtor |= (desc.dtor != nullptr);
+						m_header.hasAnyCustomGenericCtor |= (desc.ctor != nullptr);
+						m_header.hasAnyCustomGenericDtor |= (desc.dtor != nullptr);
 					}
 					const auto& componentIdsChunk = componentIds[component::ComponentType::CT_Chunk];
 					for (const auto componentId: componentIdsChunk) {
 						const auto& desc = cc.GetComponentDesc(componentId);
-						m_header.hasCustomChunkCtor |= (desc.ctor != nullptr);
-						m_header.hasCustomChunkDtor |= (desc.dtor != nullptr);
+						m_header.hasAnyCustomChunkCtor |= (desc.ctor != nullptr);
+						m_header.hasAnyCustomChunkDtor |= (desc.dtor != nullptr);
 					}
 
+					// Copy provided component id data to this chunk's data area
 					{
-						// Offset by versions
-						auto offset = sizeof(uint32_t) * (componentIdsGeneric.size() + componentIdsChunk.size());
-						m_header.firstByte_ComponentIds = (archetype::ChunkComponentOffset)offset;
-
-						const auto expectedFirstEntityDataOffset =
-								CalculateFirstEntityDataOffset(m_header.componentsGeneric, m_header.componentsChunks);
-
-						// Copy provided component id data to this chunk's data area
 						for (size_t i = 0; i < component::ComponentType::CT_Count; ++i) {
+							size_t offset = m_header.offsets.firstByte_ComponentIds[i];
 							for (const auto componentId: componentIds[i]) {
-								utils::unaligned_ref<component::ComponentId> mem((void*)&m_data[offset]);
-								mem = componentId;
+								utils::unaligned_ref<component::ComponentId>{(void*)&m_data[offset]} = componentId;
 								offset += sizeof(component::ComponentId);
 							}
 						}
+					}
 
-						m_header.firstByte_ComponentOffsets = (archetype::ChunkComponentOffset)offset;
-
-						// Copy provided component offset data to this chunk's data area
+					// Copy provided component offset data to this chunk's data area
+					{
 						for (size_t i = 0; i < component::ComponentType::CT_Count; ++i) {
+							size_t offset = m_header.offsets.firstByte_ComponentOffsets[i];
 							for (const auto componentOffset: componentOffsets[i]) {
-								utils::unaligned_ref<archetype::ChunkComponentOffset> mem((void*)&m_data[offset]);
-								mem = componentOffset;
+								utils::unaligned_ref<archetype::ChunkComponentOffset>{(void*)&m_data[offset]} = componentOffset;
 								offset += sizeof(archetype::ChunkComponentOffset);
 							}
 						}
-
-						const auto entityOffsetPadding = utils::align(offset, alignof(Entity)) - offset;
-						m_header.firstByte_EntityData = (archetype::ChunkComponentOffset)(offset + entityOffsetPadding);
-						GAIA_ASSERT(m_header.firstByte_EntityData == expectedFirstEntityDataOffset);
 					}
-
-					m_header.firstByte_ComponentData = m_header.firstByte_EntityData + sizeof(Entity) * m_header.capacity;
 				}
-
-				GAIA_MSVC_WARNING_POP()
 
 				/*!
 				Returns a read-only span of the component data.
@@ -8237,7 +8224,8 @@ namespace gaia {
 					using UConst = typename std::add_const_t<U>;
 
 					if constexpr (std::is_same_v<U, Entity>) {
-						return std::span<const Entity>{(const Entity*)&m_data[m_header.firstByte_EntityData], GetEntityCount()};
+						return std::span<const Entity>{
+								(const Entity*)&m_data[m_header.offsets.firstByte_EntityData], GetEntityCount()};
 					} else {
 						static_assert(!std::is_empty_v<U>, "Attempting to get value of an empty component");
 
@@ -8316,14 +8304,17 @@ namespace gaia {
 				*/
 				static Chunk* Create(
 						uint32_t archetypeId, uint16_t chunkIndex, uint16_t capacity, uint32_t& worldVersion,
+						const ChunkHeaderOffsets& offsets,
 						const containers::sarray<ComponentIdArray, component::ComponentType::CT_Count>& componentIds,
 						const containers::sarray<ComponentOffsetArray, component::ComponentType::CT_Count>& componentOffsets) {
 #if GAIA_ECS_CHUNK_ALLOCATOR
 					auto* pChunk = (Chunk*)ChunkAllocator::Get().Allocate();
-					new (pChunk) Chunk(archetypeId, chunkIndex, capacity, worldVersion, componentIds, componentOffsets);
+					new (pChunk) Chunk(archetypeId, chunkIndex, capacity, worldVersion, offsets);
 #else
-					auto pChunk = new Chunk(archetypeId, chunkIndex, capacity, worldVersion, componentIds, componentOffsets);
+					auto pChunk = new Chunk(archetypeId, chunkIndex, capacity, worldVersion, offsets);
 #endif
+
+					pChunk->Init(componentIds, componentOffsets);
 
 					return pChunk;
 				}
@@ -8610,7 +8601,7 @@ namespace gaia {
 				void SetEntity(uint32_t index, Entity entity) {
 					GAIA_ASSERT(index < m_header.count && "Entity index in chunk out of bounds!");
 
-					const auto offset = sizeof(Entity) * index + m_header.firstByte_EntityData;
+					const auto offset = sizeof(Entity) * index + m_header.offsets.firstByte_EntityData;
 					utils::unaligned_ref<Entity> mem((void*)&m_data[offset]);
 					mem = entity;
 				}
@@ -8623,7 +8614,7 @@ namespace gaia {
 				GAIA_NODISCARD Entity GetEntity(uint32_t index) const {
 					GAIA_ASSERT(index < m_header.count && "Entity index in chunk out of bounds!");
 
-					const auto offset = sizeof(Entity) * index + m_header.firstByte_EntityData;
+					const auto offset = sizeof(Entity) * index + m_header.offsets.firstByte_EntityData;
 					utils::unaligned_ref<Entity> mem((void*)&m_data[offset]);
 					return mem;
 				}
@@ -8634,7 +8625,7 @@ namespace gaia {
 				\return Pointer to chunk data.
 				*/
 				uint8_t& GetData(uint32_t offset) {
-					GAIA_ASSERT(offset >= m_header.firstByte_EntityData);
+					GAIA_ASSERT(offset >= m_header.offsets.firstByte_EntityData);
 					return m_data[offset];
 				}
 
@@ -8695,19 +8686,19 @@ namespace gaia {
 				//----------------------------------------------------------------------
 
 				bool HasAnyCustomGenericConstructor() const {
-					return m_header.hasCustomGenericCtor;
+					return m_header.hasAnyCustomGenericCtor;
 				}
 
 				bool HasAnyCustomChunkConstructor() const {
-					return m_header.hasCustomChunkCtor;
+					return m_header.hasAnyCustomChunkCtor;
 				}
 
 				bool HasAnyCustomGenericDestructor() const {
-					return m_header.hasCustomGenericDtor;
+					return m_header.hasAnyCustomGenericDtor;
 				}
 
 				bool HasAnyCustomChunkDestructor() const {
-					return m_header.hasCustomChunkDtor;
+					return m_header.hasAnyCustomChunkDtor;
 				}
 
 				void CallConstructor(
@@ -9058,38 +9049,22 @@ namespace gaia {
 				}
 
 				GAIA_NODISCARD std::span<uint32_t> GetComponentVersionArray(component::ComponentType componentType) const {
-					// Offsets for generic components
-					if (componentType == component::ComponentType::CT_Generic)
-						return {(uint32_t*)&m_data[0], m_header.componentsGeneric};
-
-					// Offsets for chunk components
-					return {(uint32_t*)&m_data[0] + m_header.componentsGeneric, m_header.componentsChunks};
+					const auto offset = m_header.offsets.firstByte_Versions[componentType];
+					return {(uint32_t*)(&m_data[offset]), m_header.componentCount[componentType]};
 				}
 
 				GAIA_NODISCARD std::span<const component::ComponentId>
 				GetComponentIdArray(component::ComponentType componentType) const {
 					using RetType = std::add_pointer_t<const component::ComponentId>;
-					const auto offset = m_header.firstByte_ComponentIds;
-
-					// Offsets for generic components
-					if (componentType == component::ComponentType::CT_Generic)
-						return {(RetType)&m_data[offset], m_header.componentsGeneric};
-
-					// Offsets for chunk components
-					return {(RetType)&m_data[offset] + m_header.componentsGeneric, m_header.componentsChunks};
+					const auto offset = m_header.offsets.firstByte_ComponentIds[componentType];
+					return {(RetType)&m_data[offset], m_header.componentCount[componentType]};
 				}
 
 				GAIA_NODISCARD std::span<const ChunkComponentOffset>
 				GetComponentOffsetArray(component::ComponentType componentType) const {
 					using RetType = std::add_pointer_t<const ChunkComponentOffset>;
-					const auto offset = m_header.firstByte_ComponentOffsets;
-
-					// Offsets for generic components
-					if (componentType == component::ComponentType::CT_Generic)
-						return {(RetType)&m_data[offset], m_header.componentsGeneric};
-
-					// Offsets for chunk components
-					return {(RetType)&m_data[offset] + m_header.componentsGeneric, m_header.componentsChunks};
+					const auto offset = m_header.offsets.firstByte_ComponentOffsets[componentType];
+					return {(RetType)&m_data[offset], m_header.componentCount[componentType]};
 				}
 
 				//! Returns true if the provided version is newer than the one stored internally
@@ -9145,6 +9120,8 @@ namespace gaia {
 
 				ArchetypeGraph m_graph;
 
+				//! Offsets to various parts of data inside chunk
+				ChunkHeaderOffsets m_dataOffsets;
 				//! Description of components within this archetype
 				containers::sarray<ComponentIdArray, component::ComponentType::CT_Count> m_componentIds;
 				//! Lookup hashes of components within this archetype
@@ -9169,6 +9146,64 @@ namespace gaia {
 				// Constructor is hidden. Create archetypes via Create
 				Archetype(uint32_t& worldVersion): m_worldVersion(worldVersion) {}
 
+				void UpdateDataOffsets(uintptr_t memoryAddress) {
+					size_t offset = 0;
+
+					// Versions
+					{
+						const size_t padding = utils::align(memoryAddress, alignof(uint32_t)) - memoryAddress;
+						offset += padding;
+
+						if (!m_componentIds[component::ComponentType::CT_Generic].empty()) {
+							m_dataOffsets.firstByte_Versions[component::ComponentType::CT_Generic] = (ChunkComponentOffset)offset;
+							offset += sizeof(uint32_t) * m_componentIds[component::ComponentType::CT_Generic].size();
+						}
+						if (!m_componentIds[component::ComponentType::CT_Chunk].empty()) {
+							m_dataOffsets.firstByte_Versions[component::ComponentType::CT_Chunk] = (ChunkComponentOffset)offset;
+							offset += sizeof(uint32_t) * m_componentIds[component::ComponentType::CT_Chunk].size();
+						}
+					}
+
+					// Component ids
+					{
+						const size_t padding = utils::align(offset, alignof(component::ComponentId)) - offset;
+						offset += padding;
+
+						if (!m_componentIds[component::ComponentType::CT_Generic].empty()) {
+							m_dataOffsets.firstByte_ComponentIds[component::ComponentType::CT_Generic] = (ChunkComponentOffset)offset;
+							offset += sizeof(component::ComponentId) * m_componentIds[component::ComponentType::CT_Generic].size();
+						}
+						if (!m_componentIds[component::ComponentType::CT_Chunk].empty()) {
+							m_dataOffsets.firstByte_ComponentIds[component::ComponentType::CT_Chunk] = (ChunkComponentOffset)offset;
+							offset += sizeof(component::ComponentId) * m_componentIds[component::ComponentType::CT_Chunk].size();
+						}
+					}
+
+					// Component offsets
+					{
+						const size_t padding = utils::align(offset, alignof(ChunkComponentOffset)) - offset;
+						offset += padding;
+
+						if (!m_componentIds[component::ComponentType::CT_Generic].empty()) {
+							m_dataOffsets.firstByte_ComponentOffsets[component::ComponentType::CT_Generic] =
+									(ChunkComponentOffset)offset;
+							offset += sizeof(ChunkComponentOffset) * m_componentIds[component::ComponentType::CT_Generic].size();
+						}
+						if (!m_componentIds[component::ComponentType::CT_Chunk].empty()) {
+							m_dataOffsets.firstByte_ComponentOffsets[component::ComponentType::CT_Chunk] =
+									(ChunkComponentOffset)offset;
+							offset += sizeof(ChunkComponentOffset) * m_componentIds[component::ComponentType::CT_Chunk].size();
+						}
+					}
+
+					// First entity offset
+					{
+						const size_t padding = utils::align(offset, alignof(Entity)) - offset;
+						offset += padding;
+						m_dataOffsets.firstByte_EntityData = (ChunkComponentOffset)offset;
+					}
+				}
+
 				GAIA_NODISCARD Chunk* FindOrCreateFreeChunk_Internal(containers::darray<Chunk*>& chunkArray) const {
 					const auto chunkCnt = chunkArray.size();
 
@@ -9189,7 +9224,7 @@ namespace gaia {
 
 					// No free space found anywhere. Let's create a new chunk.
 					auto* pChunk = Chunk::Create(
-							m_archetypeId, (uint16_t)chunkCnt, m_properties.capacity, m_worldVersion, m_componentIds,
+							m_archetypeId, (uint16_t)chunkCnt, m_properties.capacity, m_worldVersion, m_dataOffsets, m_componentIds,
 							m_componentOffsets);
 
 					chunkArray.push_back(pChunk);
@@ -9255,37 +9290,42 @@ namespace gaia {
 						component::ComponentIdSpan componentIdsChunk) {
 					auto* newArch = new Archetype(worldVersion);
 					newArch->m_archetypeId = archetypeId;
+					newArch->m_componentIds[component::ComponentType::CT_Generic].resize(componentIdsGeneric.size());
+					newArch->m_componentIds[component::ComponentType::CT_Chunk].resize(componentIdsChunk.size());
+					newArch->m_componentOffsets[component::ComponentType::CT_Generic].resize(componentIdsGeneric.size());
+					newArch->m_componentOffsets[component::ComponentType::CT_Chunk].resize(componentIdsChunk.size());
+					newArch->UpdateDataOffsets(sizeof(ChunkHeader));
 
 					const auto& cc = ComponentCache::Get();
+					const auto& dataOffset = newArch->m_dataOffsets;
 
-					// Size of the entity + all of its generic components
-					size_t genericComponentListSize = sizeof(Entity);
+					// Calculate the number of entities per chunks precisely so we can
+					// fit as many of them into chunk as possible.
+
+					// Total size of generic components
+					size_t genericComponentListSize = 0;
 					for (const auto componentId: componentIdsGeneric) {
 						const auto& desc = cc.GetComponentDesc(componentId);
 						genericComponentListSize += desc.properties.size;
 					}
 
-					// Size of chunk components
+					// Total size of chunk components
 					size_t chunkComponentListSize = 0;
 					for (const auto componentId: componentIdsChunk) {
 						const auto& desc = cc.GetComponentDesc(componentId);
 						chunkComponentListSize += desc.properties.size;
 					}
 
-					// Calculate the number of entities per chunks precisely so we can
-					// fit as many of them into chunk as possible.
-
 					// Theoretical maximum number of components we can fit into one chunk.
 					// This can be further reduced due alignment and padding.
-					const auto firstEntityDataOffset =
-							Chunk::CalculateFirstEntityDataOffset(componentIdsGeneric.size(), componentIdsChunk.size());
 					auto maxGenericItemsInArchetype =
-							(Chunk::DATA_SIZE - firstEntityDataOffset - chunkComponentListSize) / genericComponentListSize;
+							(Chunk::DATA_SIZE - dataOffset.firstByte_EntityData - chunkComponentListSize - 1) /
+							(genericComponentListSize + sizeof(Entity));
 
 				recalculate:
-					auto componentOffsets = firstEntityDataOffset + sizeof(Entity) * maxGenericItemsInArchetype;
+					auto componentOffsets = dataOffset.firstByte_EntityData + sizeof(Entity) * maxGenericItemsInArchetype;
 
-					auto adjustMaxGenericItemsInAchetype = [&](component::ComponentIdSpan componentIds) {
+					auto adjustMaxGenericItemsInAchetype = [&](component::ComponentIdSpan componentIds, size_t size) {
 						for (const auto componentId: componentIds) {
 							const auto& desc = cc.GetComponentDesc(componentId);
 							const auto alignment = desc.properties.alig;
@@ -9293,9 +9333,10 @@ namespace gaia {
 								continue;
 
 							const auto padding = utils::align(componentOffsets, alignment) - componentOffsets;
-							const auto componentDataSize = padding + desc.properties.size * maxGenericItemsInArchetype;
+							const auto componentDataSize = padding + desc.properties.size * size;
 							const auto nextOffset = componentOffsets + componentDataSize;
 
+							// If we're beyond what the chunk could take, subtract one entity
 							if (nextOffset >= Chunk::DATA_SIZE) {
 								--maxGenericItemsInArchetype;
 								return false;
@@ -9307,41 +9348,47 @@ namespace gaia {
 						return true;
 					};
 
-					// Adjust the maximum number of entities
-					if (!adjustMaxGenericItemsInAchetype(componentIdsGeneric))
+					// Adjust the maximum number of entities. Recalculation happens at most once when the original guess
+					// for entity count is not right (most likely because of padding or usage of SoA components).
+					if (!adjustMaxGenericItemsInAchetype(componentIdsGeneric, maxGenericItemsInArchetype))
 						goto recalculate;
-					if (!adjustMaxGenericItemsInAchetype(componentIdsChunk))
+					if (!adjustMaxGenericItemsInAchetype(componentIdsChunk, 1))
 						goto recalculate;
 
 					// Update the offsets according to the recalculated maxGenericItemsInArchetype
-					componentOffsets = firstEntityDataOffset + sizeof(Entity) * maxGenericItemsInArchetype;
+					componentOffsets = dataOffset.firstByte_EntityData + sizeof(Entity) * maxGenericItemsInArchetype;
 
-					auto registerComponents = [&](component::ComponentIdSpan componentIds,
-																				component::ComponentType componentType) {
-						for (const auto componentId: componentIds) {
+					auto registerComponents = [&](component::ComponentIdSpan componentIds, component::ComponentType componentType,
+																				size_t size) {
+						auto& ids = newArch->m_componentIds[componentType];
+						auto& ofs = newArch->m_componentOffsets[componentType];
+						auto& dos = newArch->m_dataOffsets;
+
+						for (size_t i = 0; i < componentIds.size(); ++i) {
+							const auto componentId = componentIds[i];
 							const auto& desc = cc.GetComponentDesc(componentId);
 							const auto alignment = desc.properties.alig;
-							if (alignment != 0) {
-								const size_t padding = utils::align(componentOffsets, alignment) - componentOffsets;
+							if (alignment == 0) {
+								GAIA_ASSERT(desc.properties.size == 0);
 
+								// Register the component info
+								ids[i] = componentId;
+								ofs[i] = {};
+							} else {
+								const size_t padding = utils::align(componentOffsets, alignment) - componentOffsets;
 								componentOffsets += padding;
 
 								// Register the component info
-								newArch->m_componentIds[componentType].push_back(componentId);
-								newArch->m_componentOffsets[componentType].push_back((archetype::ChunkComponentOffset)componentOffsets);
+								ids[i] = componentId;
+								ofs[i] = (ChunkComponentOffset)componentOffsets;
 
 								// Make sure the following component list is properly aligned
-								componentOffsets += desc.properties.size * maxGenericItemsInArchetype;
-							} else {
-								// Register the component info
-								newArch->m_componentIds[componentType].push_back(componentId);
-								newArch->m_componentOffsets[componentType].push_back((archetype::ChunkComponentOffset)componentOffsets);
+								componentOffsets += desc.properties.size * size;
 							}
 						}
 					};
-
-					registerComponents(componentIdsGeneric, component::ComponentType::CT_Generic);
-					registerComponents(componentIdsChunk, component::ComponentType::CT_Chunk);
+					registerComponents(componentIdsGeneric, component::ComponentType::CT_Generic, maxGenericItemsInArchetype);
+					registerComponents(componentIdsChunk, component::ComponentType::CT_Chunk, 1);
 
 					newArch->m_properties.capacity = (uint32_t)maxGenericItemsInArchetype;
 					newArch->m_matcherHash[component::ComponentType::CT_Generic] =
@@ -9465,16 +9512,14 @@ namespace gaia {
 				}
 
 				void BuildGraphEdges(
-						archetype::Archetype* pArchetypeRight, component::ComponentType componentType,
-						component::ComponentId componentId) {
+						Archetype* pArchetypeRight, component::ComponentType componentType, component::ComponentId componentId) {
 					GAIA_ASSERT(pArchetypeRight != this);
 					m_graph.AddGraphEdgeRight(componentType, componentId, pArchetypeRight->GetArchetypeId());
 					pArchetypeRight->BuildGraphEdgesLeft(this, componentType, componentId);
 				}
 
 				void BuildGraphEdgesLeft(
-						archetype::Archetype* pArchetypeLeft, component::ComponentType componentType,
-						component::ComponentId componentId) {
+						Archetype* pArchetypeLeft, component::ComponentType componentType, component::ComponentId componentId) {
 					GAIA_ASSERT(pArchetypeLeft != this);
 					m_graph.AddGraphEdgeLeft(componentType, componentId, pArchetypeLeft->GetArchetypeId());
 				}
@@ -9493,7 +9538,7 @@ namespace gaia {
 					return m_graph.FindGraphEdgeLeft(componentType, componentId);
 				}
 
-				static void DiagArchetype_PrintBasicInfo(const archetype::Archetype& archetype) {
+				static void DiagArchetype_PrintBasicInfo(const Archetype& archetype) {
 					const auto& cc = ComponentCache::Get();
 					const auto& genericComponents = archetype.m_componentIds[component::ComponentType::CT_Generic];
 					const auto& chunkComponents = archetype.m_componentIds[component::ComponentType::CT_Chunk];
@@ -9555,11 +9600,11 @@ namespace gaia {
 					}
 				}
 
-				static void DiagArchetype_PrintGraphInfo(const archetype::Archetype& archetype) {
+				static void DiagArchetype_PrintGraphInfo(const Archetype& archetype) {
 					archetype.m_graph.Diag();
 				}
 
-				static void DiagArchetype_PrintChunkInfo(const archetype::Archetype& archetype) {
+				static void DiagArchetype_PrintChunkInfo(const Archetype& archetype) {
 					auto logChunks = [](const auto& chunks) {
 						for (size_t i = 0; i < chunks.size(); ++i) {
 							const auto* pChunk = chunks[i];
@@ -9590,7 +9635,7 @@ namespace gaia {
 				Performs diagnostics on a specific archetype. Prints basic info about it and the chunks it contains.
 				\param archetype Archetype to run diagnostics on
 				*/
-				static void DiagArchetype(const archetype::Archetype& archetype) {
+				static void DiagArchetype(const Archetype& archetype) {
 					DiagArchetype_PrintBasicInfo(archetype);
 					DiagArchetype_PrintGraphInfo(archetype);
 					DiagArchetype_PrintChunkInfo(archetype);
@@ -11871,7 +11916,7 @@ namespace gaia {
 					const auto it = m_componentToArchetypeMap.find(componentId);
 					if (it == m_componentToArchetypeMap.end())
 						m_componentToArchetypeMap.try_emplace(componentId, archetype::ArchetypeList{pArchetype});
-					else
+					else if (!utils::has(it->second, pArchetype))
 						it->second.push_back(pArchetype);
 				};
 
@@ -12094,12 +12139,9 @@ namespace gaia {
 				// Find the intersection
 				for (const auto componentId: pArchetypeRight->GetComponentIdArray((component::ComponentType)a)) {
 					if (componentId == infoToRemove.componentId)
-						goto nextIter;
+						continue;
 
 					infosNew.push_back(componentId);
-
-				nextIter:
-					continue;
 				}
 
 				// Return if there's no change

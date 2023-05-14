@@ -188,7 +188,7 @@ namespace gaia {
 					const auto it = m_componentToArchetypeMap.find(componentId);
 					if (it == m_componentToArchetypeMap.end())
 						m_componentToArchetypeMap.try_emplace(componentId, archetype::ArchetypeList{pArchetype});
-					else
+					else if (!utils::has(it->second, pArchetype))
 						it->second.push_back(pArchetype);
 				};
 
@@ -411,12 +411,9 @@ namespace gaia {
 				// Find the intersection
 				for (const auto componentId: pArchetypeRight->GetComponentIdArray((component::ComponentType)a)) {
 					if (componentId == infoToRemove.componentId)
-						goto nextIter;
+						continue;
 
 					infosNew.push_back(componentId);
-
-				nextIter:
-					continue;
 				}
 
 				// Return if there's no change
