@@ -2,6 +2,7 @@
 #include "../config/config_core.h"
 
 #include <cinttypes>
+#include <tuple>
 #include <type_traits>
 
 #include "../utils/data_layout_policy.h"
@@ -41,8 +42,8 @@ namespace gaia {
 					uint32_t alig: MAX_COMPONENTS_SIZE_BITS;
 					//! Component size
 					uint32_t size: MAX_COMPONENTS_SIZE_BITS;
-					//! Tells if the component is laid out in SoA style
-					uint32_t soa : 1;
+					//! SOA variables. If > 0 the component is laid out in SoA style
+					uint32_t soa: utils::StructToTupleMaxTypesBits;
 				} properties{};
 
 				template <typename T>
@@ -58,9 +59,10 @@ namespace gaia {
 						info.properties.size = (uint32_t)sizeof(U);
 
 						if constexpr (utils::is_soa_layout_v<U>) {
-							info.properties.soa = true;
+							using TTuple = decltype(utils::struct_to_tuple(T{}));
+							info.properties.soa = (uint32_t)std::tuple_size<TTuple>::value;
 						} else {
-							info.properties.soa = false;
+							info.properties.soa = 0U;
 
 							// Custom construction
 							if constexpr (!std::is_trivially_constructible_v<U>) {

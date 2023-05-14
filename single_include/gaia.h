@@ -3073,6 +3073,9 @@ namespace gaia {
 		template <typename T, typename... TArgs>
 		using is_braces_constructible_t = decltype(is_braces_constructible<T, TArgs...>(0));
 
+		static constexpr uint32_t StructToTupleMaxTypesBits = 3;
+		static constexpr uint32_t StructToTupleMaxTypes = 1 << 3;
+
 		//! Converts a struct to a tuple (struct must support initialization via:
 		//! Struct{x,y,...,z})
 		template <typename T>
@@ -3080,7 +3083,7 @@ namespace gaia {
 			using type = std::decay_t<T>;
 			// Don't support empty structs. They have no data.
 			// We also want to fail for structs with too many members because it smells with bad usage.
-			// Therefore, only 1 to 8 types are supported at the moment.
+			// Therefore, only 1 to 8 (StructToTupleMaxTypes) types are supported at the moment.
 			if constexpr (is_braces_constructible_t<
 												type, any_type, any_type, any_type, any_type, any_type, any_type, any_type, any_type>{}) {
 				auto&& [p1, p2, p3, p4, p5, p6, p7, p8] = object;
@@ -7102,6 +7105,7 @@ namespace gaia {
 #include <type_traits>
 
 #include <cinttypes>
+#include <tuple>
 #include <type_traits>
 
 namespace gaia {
@@ -7136,8 +7140,8 @@ namespace gaia {
 					uint32_t alig: MAX_COMPONENTS_SIZE_BITS;
 					//! Component size
 					uint32_t size: MAX_COMPONENTS_SIZE_BITS;
-					//! Tells if the component is laid out in SoA style
-					uint32_t soa : 1;
+					//! SOA variables. If > 0 the component is laid out in SoA style
+					uint32_t soa: utils::StructToTupleMaxTypesBits;
 				} properties{};
 
 				template <typename T>
@@ -7153,9 +7157,10 @@ namespace gaia {
 						info.properties.size = (uint32_t)sizeof(U);
 
 						if constexpr (utils::is_soa_layout_v<U>) {
-							info.properties.soa = true;
+							using TTuple = decltype(utils::struct_to_tuple(T{}));
+							info.properties.soa = (uint32_t)std::tuple_size<TTuple>::value;
 						} else {
-							info.properties.soa = false;
+							info.properties.soa = 0U;
 
 							// Custom construction
 							if constexpr (!std::is_trivially_constructible_v<U>) {
@@ -9333,7 +9338,15 @@ namespace gaia {
 								continue;
 
 							const auto padding = utils::align(componentOffsets, alignment) - componentOffsets;
-							const auto componentDataSize = padding + desc.properties.size * size;
+
+							// For SoA types we shall assume there is a padding of the entire size of the array.
+							// Of course this is a bit wasteful but it's a bit of work to calculate how much area exactly we need.
+							// We might have:
+							// 	struct foo { float x; float y; bool a; float z; };
+							// Each of the variables of the foo struct might need separate padding when converted to SoA.
+							// TODO: Introduce a function that can calculate this.
+							const auto componentDataSize =
+									padding + ((uint32_t)desc.properties.soa * desc.properties.size) + desc.properties.size * size;
 							const auto nextOffset = componentOffsets + componentDataSize;
 
 							// If we're beyond what the chunk could take, subtract one entity
