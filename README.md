@@ -17,7 +17,7 @@
 [license]: https://en.wikipedia.org/wiki/MIT_License
 [codacy]: https://app.codacy.com/gh/richardbiely/gaia-ecs/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade
 
-Gaia-ECS is a fast and easy-to-use [entity component](https://en.wikipedia.org/wiki/Entity_component_system) system](https://en.wikipedia.org/wiki/Entity_component_system) framework. Some of its current features and highlights are:
+Gaia-ECS is a fast and easy-to-use [ECS](#ecs) framework. Some of its current features and highlights are:
 * very simple and safe API designed in such a way as to prevent you from using bad coding patterns
 * based on modern [C++17](https://en.cppreference.com/w/cpp/17) technologies
 * no external dependencies, not even on STL (can be easily enabled if needed)
@@ -32,6 +32,8 @@ Gaia-ECS is a fast and easy-to-use [entity component](https://en.wikipedia.org/w
 # Table of Contents
 
 * [Introduction](#introduction)
+  * [ECS](#ecs)
+  * [Implementation](#implementation)
 * [Usage](#usage)
   * [Minimum requirements](#minimum-requirements)
   * [Basic operations](#basic-operations)
@@ -68,6 +70,7 @@ Gaia-ECS is a fast and easy-to-use [entity component](https://en.wikipedia.org/w
 
 # Introduction
 
+## ECS
 [Entity-Component-System (ECS)](https://en.wikipedia.org/wiki/Entity_component_system) is a software architectural pattern based on organizing your code around data which follows the principle of [composition over inheritance](https://en.wikipedia.org/wiki/Composition_over_inheritance).
 
 Instead of looking at "items" in your program as objects you normally know from the real world (car, house, human) you look at them as pieces of data necessary for you to achieve some result.
@@ -81,7 +84,11 @@ Three building blocks of ECS are:
 * **Component** - a piece of data (position, velocity, age)
 * **System** - a place where your program's logic is implemented
 
-Gaia-ECS is an archetype-based entity component system. Therefore, unique combinations of components are grouped into archetypes. Each archetype consists of chunks - blocks of memory holding your entities and components. You can think of them as SQL tables where components are columns and entities are rows. In our case, each chunk is 16 KiB big. This size is chosen so that the entire chunk can fit into L1 cache on most CPUs.
+Following the example given above, a vehicle could be anything with Position and Velocity components. If it is a car we could attach the Driving component to it. If it is an airplane we would attach the Flying component.<br/>
+The actual movement is handled by systems. Those which match against the Flying component will implement the logic for flying. Systems matching against the Driving component handle the land movement.
+
+## Implementation
+Gaia-ECS is an archetype-based entity component system. This means that unique combinations of components are grouped into archetypes. Each archetype consists of chunks - blocks of memory holding your entities and components. You can think of them as [database tables](https://en.wikipedia.org/wiki/Table_(database)) where components are columns and entities are rows. Each chunk is 16 KiB big. This size is chosen so that the entire chunk at its fullest can fit into L1 cache on most CPUs.
 >**NOTE:**<br/>If needed you can alter the size of chunks by modifying the value of ***ecs::MemoryBlockSize***.
 
 Chunk memory is preallocated in big blocks (pages) via the internal chunk allocator. Thanks to that all data is organized in a cache-friendly way which most computer architectures like and actual heap allocations which are slow are reduced to a minimum.
