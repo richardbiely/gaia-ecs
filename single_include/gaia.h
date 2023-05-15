@@ -748,6 +748,7 @@ namespace gaia {
 		struct reverse_iterator_tag: input_iterator_tag {};
 		struct bidirectional_iterator_tag: forward_iterator_tag {};
 		struct random_access_iterator_tag: bidirectional_iterator_tag {};
+		struct contiguous_iterator_tag: random_access_iterator_tag {};
 
 		namespace detail {
 
@@ -829,7 +830,7 @@ namespace gaia {
 
 		template <typename It>
 		constexpr iterator_diff_t<It> distance(It first, It last) {
-			if constexpr (detail::is_random_iter_v<It>)
+			if constexpr (std::is_pointer_v<It> || detail::is_random_iter_v<It>)
 				return last - first;
 			else {
 				iterator_diff_t<It> offset{};
@@ -2740,9 +2741,10 @@ namespace TCB_SPAN_NAMESPACE_NAME {
 		template <typename T, typename E>
 		struct is_container_element_type_compatible<
 				T, E,
-				typename std::enable_if_t<!std::is_same_v<
-						typename std::remove_cv<decltype(detail::data(std::declval<T>()))>::type, void>>>:
-				std::is_convertible<remove_pointer_t<decltype(detail::data(std::declval<T>()))> (*)[], E (*)[]> {};
+				typename std::enable_if<
+						!std::is_same<typename std::remove_cv<decltype(detail::data(std::declval<T>()))>::type, void>::value &&
+						std::is_convertible<remove_pointer_t<decltype(detail::data(std::declval<T>()))> (*)[], E (*)[]>::value>::
+						type>: std::true_type {};
 
 		template <typename, typename = size_t>
 		struct is_complete: std::false_type {};
@@ -2800,21 +2802,20 @@ namespace TCB_SPAN_NAMESPACE_NAME {
 		constexpr span(element_type (&arr)[N]) noexcept: storage_(arr, N) {}
 
 		template <
-				std::size_t N, std::size_t E = Extent,
+				typename T, std::size_t N, std::size_t E = Extent,
 				typename std::enable_if<
-						(E == dynamic_extent || N == E) && detail::is_container_element_type_compatible<
-																									 gaia::containers::sarray<value_type, N>&, ElementType>::value,
+						(E == dynamic_extent || N == E) &&
+								detail::is_container_element_type_compatible<gaia::containers::sarray<T, N>&, ElementType>::value,
 						int>::type = 0>
-		TCB_SPAN_ARRAY_CONSTEXPR span(gaia::containers::sarray<value_type, N>& arr) noexcept: storage_(arr.data(), N) {}
+		TCB_SPAN_ARRAY_CONSTEXPR span(gaia::containers::sarray<T, N>& arr) noexcept: storage_(arr.data(), N) {}
 
 		template <
-				std::size_t N, std::size_t E = Extent,
+				typename T, std::size_t N, std::size_t E = Extent,
 				typename std::enable_if<
-						(E == dynamic_extent || N == E) && detail::is_container_element_type_compatible<
-																									 const gaia::containers::sarray<value_type, N>&, ElementType>::value,
+						(E == dynamic_extent || N == E) &&
+								detail::is_container_element_type_compatible<const gaia::containers::sarray<T, N>&, ElementType>::value,
 						int>::type = 0>
-		TCB_SPAN_ARRAY_CONSTEXPR span(const gaia::containers::sarray<value_type, N>& arr) noexcept:
-				storage_(arr.data(), N) {}
+		TCB_SPAN_ARRAY_CONSTEXPR span(const gaia::containers::sarray<T, N>& arr) noexcept: storage_(arr.data(), N) {}
 
 		template <
 				typename Container, std::size_t E = Extent,
@@ -2837,7 +2838,7 @@ namespace TCB_SPAN_NAMESPACE_NAME {
 		template <
 				typename OtherElementType, std::size_t OtherExtent,
 				typename std::enable_if<
-						(Extent == OtherExtent || Extent == dynamic_extent) &&
+						(Extent == dynamic_extent || OtherExtent == dynamic_extent || Extent == OtherExtent) &&
 								std::is_convertible<OtherElementType (*)[], ElementType (*)[]>::value,
 						int>::type = 0>
 		constexpr span(const span<OtherElementType, OtherExtent>& other) noexcept: storage_(other.data(), other.size()) {}
@@ -2952,7 +2953,7 @@ namespace TCB_SPAN_NAMESPACE_NAME {
 	span(const gaia::containers::sarray<T, N>&) -> span<const T, N>;
 
 	template <typename Container>
-	span(Container&) -> span<typename Container::value_type>;
+	span(Container&) -> span<typename std::remove_reference<decltype(*detail::data(std::declval<Container&>()))>::type>;
 
 	template <typename Container>
 	span(const Container&) -> span<const typename Container::value_type>;
@@ -2980,7 +2981,8 @@ namespace TCB_SPAN_NAMESPACE_NAME {
 	}
 
 	template <typename Container>
-	constexpr span<typename Container::value_type> make_span(Container& cont) {
+	constexpr span<typename std::remove_reference<decltype(*detail::data(std::declval<Container&>()))>::type>
+	make_span(Container& cont) {
 		return {cont};
 	}
 
@@ -2995,7 +2997,8 @@ namespace TCB_SPAN_NAMESPACE_NAME {
 		return {reinterpret_cast<const byte*>(s.data()), s.size_bytes()};
 	}
 
-	template <class ElementType, size_t Extent, typename std::enable_if<!std::is_const_v<ElementType>, int>::type = 0>
+	template <
+			class ElementType, size_t Extent, typename std::enable_if<!std::is_const<ElementType>::value, int>::type = 0>
 	span<byte, ((Extent == dynamic_extent) ? dynamic_extent : sizeof(ElementType) * Extent)>
 	as_writable_bytes(span<ElementType, Extent> s) noexcept {
 		return {reinterpret_cast<byte*>(s.data()), s.size_bytes()};
@@ -3074,7 +3077,7 @@ namespace gaia {
 		using is_braces_constructible_t = decltype(is_braces_constructible<T, TArgs...>(0));
 
 		static constexpr uint32_t StructToTupleMaxTypesBits = 3;
-		static constexpr uint32_t StructToTupleMaxTypes = 1 << 3;
+		//static constexpr uint32_t StructToTupleMaxTypes = 1 << 3;
 
 		//! Converts a struct to a tuple (struct must support initialization via:
 		//! Struct{x,y,...,z})
@@ -3893,13 +3896,26 @@ namespace gaia {
 		//----------------------------------------------------------------------
 
 		template <typename InputIt, typename T>
-		constexpr InputIt find(InputIt first, InputIt last, T&& value) {
+		constexpr InputIt find(InputIt first, InputIt last, const T& value) {
 #if GAIA_USE_STL_COMPATIBLE_CONTAINERS
-			return std::find(first, last, std::forward<T>(value));
+			return std::find(first, last, value);
 #else
-			for (; first != last; ++first) {
-				if (*first == value) {
-					return first;
+			if constexpr (std::is_pointer_v<InputIt>) {
+				const auto size = distance(first, last);
+				for (size_t i = 0; i < size; ++i) {
+					if (first[i] == value)
+						return first;
+				}
+			} else if constexpr (std::is_same_v<typename InputIt::iterator_category, GAIA_UTIL::random_access_iterator_tag>) {
+				const auto size = distance(first, last);
+				for (size_t i = 0; i < size; ++i) {
+					if (*(first++) == value)
+						return first;
+				}
+			} else {
+				for (; first != last; ++first) {
+					if (*first == value)
+						return first;
 				}
 			}
 			return last;
@@ -3907,11 +3923,11 @@ namespace gaia {
 		}
 
 		template <typename C, typename V>
-		constexpr auto find(const C& arr, V&& item) {
+		constexpr auto find(const C& arr, const V& item) {
 			if constexpr (decltype(detail::has_find<C>(item))::value)
-				return arr.find(std::forward<V>(item));
+				return arr.find(item);
 			else
-				return find(arr.begin(), arr.end(), std::forward<V>(item));
+				return gaia::utils::find(arr.begin(), arr.end(), item);
 		}
 
 		template <typename InputIt, typename Func>
@@ -3933,7 +3949,7 @@ namespace gaia {
 			if constexpr (decltype(detail::has_find_if<C>(predicate))::value)
 				return arr.find_id(predicate);
 			else
-				return find_if(arr.begin(), arr.end(), predicate);
+				return gaia::utils::find_if(arr.begin(), arr.end(), predicate);
 		}
 
 		template <typename InputIt, typename Func>
@@ -3955,14 +3971,14 @@ namespace gaia {
 			if constexpr (decltype(detail::has_find_if_not<C>(predicate))::value)
 				return arr.find_if_not(predicate);
 			else
-				return find_if_not(arr.begin(), arr.end(), predicate);
+				return gaia::utils::find_if_not(arr.begin(), arr.end(), predicate);
 		}
 
 		//----------------------------------------------------------------------
 
 		template <typename C, typename V>
-		constexpr bool has(const C& arr, V&& item) {
-			const auto it = find(arr, std::forward<V>(item));
+		constexpr bool has(const C& arr, const V& item) {
+			const auto it = find(arr, item);
 			return it != arr.end();
 		}
 
@@ -8270,12 +8286,12 @@ namespace gaia {
 						const uint32_t count = GetEntityCount();
 						const uint32_t capac = GetEntityCapacity();
 						auto* pDataPtr = GetDataPtrRW<UpdateWorldVersion>(component::ComponentType::CT_Generic, componentId);
-						const auto maxOffset = (uintptr_t)pDataPtr - (uintptr_t)&m_data[0] + capac * sizeof(U);
+						[[maybe_unused]] const auto maxOffset = (uintptr_t)pDataPtr - (uintptr_t)&m_data[0] + capac * sizeof(U);
 						GAIA_ASSERT(maxOffset <= Chunk::DATA_SIZE);
 						return std::span<U>{(U*)pDataPtr, count};
 					} else {
 						auto* pDataPtr = GetDataPtrRW<UpdateWorldVersion>(component::ComponentType::CT_Chunk, componentId);
-						const auto maxOffset = (uintptr_t)pDataPtr - (uintptr_t)&m_data[0] + sizeof(U);
+						[[maybe_unused]] const auto maxOffset = (uintptr_t)pDataPtr - (uintptr_t)&m_data[0] + sizeof(U);
 						GAIA_ASSERT(maxOffset <= Chunk::DATA_SIZE);
 						return std::span<U>{(U*)pDataPtr, 1};
 					}
@@ -9375,7 +9391,6 @@ namespace gaia {
 																				size_t size) {
 						auto& ids = newArch->m_componentIds[componentType];
 						auto& ofs = newArch->m_componentOffsets[componentType];
-						auto& dos = newArch->m_dataOffsets;
 
 						for (size_t i = 0; i < componentIds.size(); ++i) {
 							const auto componentId = componentIds[i];

@@ -16,6 +16,7 @@ namespace gaia {
 		struct reverse_iterator_tag: input_iterator_tag {};
 		struct bidirectional_iterator_tag: forward_iterator_tag {};
 		struct random_access_iterator_tag: bidirectional_iterator_tag {};
+		struct contiguous_iterator_tag: random_access_iterator_tag {};
 
 		namespace detail {
 
@@ -97,7 +98,7 @@ namespace gaia {
 
 		template <typename It>
 		constexpr iterator_diff_t<It> distance(It first, It last) {
-			if constexpr (detail::is_random_iter_v<It>)
+			if constexpr (std::is_pointer_v<It> || detail::is_random_iter_v<It>)
 				return last - first;
 			else {
 				iterator_diff_t<It> offset{};
