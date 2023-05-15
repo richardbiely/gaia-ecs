@@ -1,4 +1,6 @@
 #pragma once
+#include "../config/config.h"
+
 #include <tuple>
 #include <type_traits>
 #include <utility>
@@ -130,12 +132,12 @@ namespace gaia {
 				return view_policy::getc_constref(m_data, idx);
 			}
 
-			GAIA_NODISCARD const ValueType* data() const {
+			GAIA_NODISCARD auto data() const {
 				return m_data.data();
 			}
 
-			GAIA_NODISCARD auto view() const {
-				return m_data;
+			GAIA_NODISCARD auto size() const {
+				return m_data.size();
 			}
 		};
 
@@ -157,12 +159,12 @@ namespace gaia {
 				return view_policy::getc_constref(m_data, idx);
 			}
 
-			GAIA_NODISCARD ValueType* data() const {
+			GAIA_NODISCARD auto data() const {
 				return m_data.data();
 			}
 
-			GAIA_NODISCARD auto view() const {
-				return m_data;
+			GAIA_NODISCARD auto size() const {
+				return m_data.size();
 			}
 		};
 
@@ -296,12 +298,12 @@ namespace gaia {
 						view_policy::template get<Ids>(m_data).data(), view_policy::template get<Ids>(m_data).size());
 			}
 
-			GAIA_NODISCARD const ValueType* data() const {
+			GAIA_NODISCARD auto data() const {
 				return m_data.data();
 			}
 
-			GAIA_NODISCARD auto view() const {
-				return m_data;
+			GAIA_NODISCARD auto size() const {
+				return m_data.size();
 			}
 		};
 
@@ -364,12 +366,12 @@ namespace gaia {
 						view_policy::template set<Ids>(m_data).data(), view_policy::template set<Ids>(m_data).size());
 			}
 
-			GAIA_NODISCARD ValueType* data() const {
+			GAIA_NODISCARD auto data() const {
 				return m_data.data();
 			}
 
-			GAIA_NODISCARD auto view() const {
-				return m_data;
+			GAIA_NODISCARD auto size() const {
+				return m_data.size();
 			}
 		};
 

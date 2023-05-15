@@ -1285,9 +1285,19 @@ namespace gaia {
 			darr(InputIt first, InputIt last) {
 				const auto count = (size_type)GAIA_UTIL::distance(first, last);
 				resize(count);
-				size_type i = 0;
-				for (auto it = first; it != last; ++it)
-					m_pData[i++] = *it;
+
+				if constexpr (std::is_pointer_v<InputIt>) {
+					for (size_t i = 0; i < count; ++i)
+						m_pData[i] = first[i];
+				} else if constexpr (std::is_same_v<
+																 typename InputIt::iterator_category, GAIA_UTIL::random_access_iterator_tag>) {
+					for (size_t i = 0; i < count; ++i)
+						m_pData[i] = *(first[i]);
+				} else {
+					size_type i = 0;
+					for (auto it = first; it != last; ++it)
+						m_pData[i++] = *it;
+				}
 			}
 
 			darr(std::initializer_list<T> il): darr(il.begin(), il.end()) {}
@@ -2053,9 +2063,18 @@ namespace gaia {
 				const auto count = (size_type)GAIA_UTIL::distance(first, last);
 				resize(count);
 
-				size_type i = 0;
-				for (auto it = first; it != last; ++it)
-					m_data[i++] = *it;
+				if constexpr (std::is_pointer_v<InputIt>) {
+					for (size_t i = 0; i < count; ++i)
+						m_data[i] = first[i];
+				} else if constexpr (std::is_same_v<
+																 typename InputIt::iterator_category, GAIA_UTIL::random_access_iterator_tag>) {
+					for (size_t i = 0; i < count; ++i)
+						m_data[i] = *(first[i]);
+				} else {
+					size_type i = 0;
+					for (auto it = first; it != last; ++it)
+						m_data[i++] = *it;
+				}
 			}
 
 			constexpr sarr_ext(std::initializer_list<T> il) noexcept: sarr_ext(il.begin(), il.end()) {}
@@ -3909,7 +3928,7 @@ namespace gaia {
 			} else if constexpr (std::is_same_v<typename InputIt::iterator_category, GAIA_UTIL::random_access_iterator_tag>) {
 				const auto size = distance(first, last);
 				for (size_t i = 0; i < size; ++i) {
-					if (*(first++) == value)
+					if (*(first[i]) == value)
 						return first;
 				}
 			} else {
@@ -9929,9 +9948,18 @@ namespace gaia {
 				const auto count = (size_type)GAIA_UTIL::distance(first, last);
 				resize(count);
 
-				size_type i = 0;
-				for (auto it = first; it != last; ++it)
-					m_pData[i++] = *it;
+				if constexpr (std::is_pointer_v<InputIt>) {
+					for (size_t i = 0; i < count; ++i)
+						m_pData[i] = first[i];
+				} else if constexpr (std::is_same_v<
+																 typename InputIt::iterator_category, GAIA_UTIL::random_access_iterator_tag>) {
+					for (size_t i = 0; i < count; ++i)
+						m_pData[i] = *(first[i]);
+				} else {
+					size_type i = 0;
+					for (auto it = first; it != last; ++it)
+						m_pData[i++] = *it;
+				}
 			}
 
 			darr_ext(std::initializer_list<T> il): darr_ext(il.begin(), il.end()) {}
