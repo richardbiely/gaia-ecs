@@ -214,11 +214,11 @@ namespace gaia {
 				resize(count);
 
 				if constexpr (std::is_pointer_v<InputIt>) {
-					for (size_t i = 0; i < count; ++i)
+					for (size_type i = 0; i < count; ++i)
 						m_data[i] = first[i];
 				} else if constexpr (std::is_same_v<
 																 typename InputIt::iterator_category, GAIA_UTIL::random_access_iterator_tag>) {
-					for (size_t i = 0; i < count; ++i)
+					for (size_type i = 0; i < count; ++i)
 						m_data[i] = *(first[i]);
 				} else {
 					size_type i = 0;

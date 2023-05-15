@@ -1287,11 +1287,11 @@ namespace gaia {
 				resize(count);
 
 				if constexpr (std::is_pointer_v<InputIt>) {
-					for (size_t i = 0; i < count; ++i)
+					for (size_type i = 0; i < count; ++i)
 						m_pData[i] = first[i];
 				} else if constexpr (std::is_same_v<
 																 typename InputIt::iterator_category, GAIA_UTIL::random_access_iterator_tag>) {
-					for (size_t i = 0; i < count; ++i)
+					for (size_type i = 0; i < count; ++i)
 						m_pData[i] = *(first[i]);
 				} else {
 					size_type i = 0;
@@ -2064,11 +2064,11 @@ namespace gaia {
 				resize(count);
 
 				if constexpr (std::is_pointer_v<InputIt>) {
-					for (size_t i = 0; i < count; ++i)
+					for (size_type i = 0; i < count; ++i)
 						m_data[i] = first[i];
 				} else if constexpr (std::is_same_v<
 																 typename InputIt::iterator_category, GAIA_UTIL::random_access_iterator_tag>) {
-					for (size_t i = 0; i < count; ++i)
+					for (size_type i = 0; i < count; ++i)
 						m_data[i] = *(first[i]);
 				} else {
 					size_type i = 0;
@@ -3264,12 +3264,12 @@ namespace gaia {
 				return view_policy::getc_constref(m_data, idx);
 			}
 
-			GAIA_NODISCARD const ValueType* data() const {
+			GAIA_NODISCARD auto data() const {
 				return m_data.data();
 			}
 
-			GAIA_NODISCARD auto view() const {
-				return m_data;
+			GAIA_NODISCARD auto size() const {
+				return m_data.size();
 			}
 		};
 
@@ -3291,12 +3291,12 @@ namespace gaia {
 				return view_policy::getc_constref(m_data, idx);
 			}
 
-			GAIA_NODISCARD ValueType* data() const {
+			GAIA_NODISCARD auto data() const {
 				return m_data.data();
 			}
 
-			GAIA_NODISCARD auto view() const {
-				return m_data;
+			GAIA_NODISCARD auto size() const {
+				return m_data.size();
 			}
 		};
 
@@ -3430,12 +3430,12 @@ namespace gaia {
 						view_policy::template get<Ids>(m_data).data(), view_policy::template get<Ids>(m_data).size());
 			}
 
-			GAIA_NODISCARD const ValueType* data() const {
+			GAIA_NODISCARD auto data() const {
 				return m_data.data();
 			}
 
-			GAIA_NODISCARD auto view() const {
-				return m_data;
+			GAIA_NODISCARD auto size() const {
+				return m_data.size();
 			}
 		};
 
@@ -3498,12 +3498,12 @@ namespace gaia {
 						view_policy::template set<Ids>(m_data).data(), view_policy::template set<Ids>(m_data).size());
 			}
 
-			GAIA_NODISCARD ValueType* data() const {
+			GAIA_NODISCARD auto data() const {
 				return m_data.data();
 			}
 
-			GAIA_NODISCARD auto view() const {
-				return m_data;
+			GAIA_NODISCARD auto size() const {
+				return m_data.size();
 			}
 		};
 
@@ -3920,13 +3920,13 @@ namespace gaia {
 			return std::find(first, last, value);
 #else
 			if constexpr (std::is_pointer_v<InputIt>) {
-				const auto size = distance(first, last);
+				const auto size = (size_t)distance(first, last);
 				for (size_t i = 0; i < size; ++i) {
 					if (first[i] == value)
 						return first;
 				}
 			} else if constexpr (std::is_same_v<typename InputIt::iterator_category, GAIA_UTIL::random_access_iterator_tag>) {
-				const auto size = distance(first, last);
+				const auto size = (size_t)distance(first, last);
 				for (size_t i = 0; i < size; ++i) {
 					if (*(first[i]) == value)
 						return first;
@@ -9949,11 +9949,11 @@ namespace gaia {
 				resize(count);
 
 				if constexpr (std::is_pointer_v<InputIt>) {
-					for (size_t i = 0; i < count; ++i)
+					for (size_type i = 0; i < count; ++i)
 						m_pData[i] = first[i];
 				} else if constexpr (std::is_same_v<
 																 typename InputIt::iterator_category, GAIA_UTIL::random_access_iterator_tag>) {
-					for (size_t i = 0; i < count; ++i)
+					for (size_type i = 0; i < count; ++i)
 						m_pData[i] = *(first[i]);
 				} else {
 					size_type i = 0;
