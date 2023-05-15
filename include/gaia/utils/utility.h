@@ -276,7 +276,7 @@ namespace gaia {
 			} else if constexpr (std::is_same_v<typename InputIt::iterator_category, GAIA_UTIL::random_access_iterator_tag>) {
 				const auto size = distance(first, last);
 				for (size_t i = 0; i < size; ++i) {
-					if (*(first++) == value)
+					if (*(first[i]) == value)
 						return first;
 				}
 			} else {
