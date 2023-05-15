@@ -304,13 +304,11 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 				auto p = iter.ViewRW<Position>();
 				auto v = iter.View<Velocity>();
 
-				[&](Position* GAIA_RESTRICT p, const Velocity* GAIA_RESTRICT v, const size_t size) {
-					for (size_t i = 0; i < size; ++i) {
-						p[i].x += v[i].x * dt;
-						p[i].y += v[i].y * dt;
-						p[i].z += v[i].z * dt;
-					}
-				}(p.data(), v.data(), iter.size());
+				for (size_t i: iter) {
+					p[i].x += v[i].x * dt;
+					p[i].y += v[i].y * dt;
+					p[i].z += v[i].z * dt;
+				}
 			});
 		}
 	};
@@ -322,14 +320,12 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 				auto p = iter.ViewRW<Position>();
 				auto v = iter.ViewRW<Velocity>();
 
-				[&](Position* GAIA_RESTRICT p, Velocity* GAIA_RESTRICT v, const uint32_t size) {
-					for (size_t i = 0; i < size; ++i) {
-						if (p[i].y < 0.0f) {
-							p[i].y = 0.0f;
-							v[i].y = 0.0f;
-						}
+				for (size_t i: iter) {
+					if (p[i].y < 0.0f) {
+						p[i].y = 0.0f;
+						v[i].y = 0.0f;
 					}
-				}(p.data(), v.data(), iter.size());
+				}
 			});
 		}
 	};
@@ -339,10 +335,8 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 			m_q->ForEach([](ecs::Iterator iter) {
 				auto v = iter.ViewRW<Velocity>();
 
-				[&](Velocity* GAIA_RESTRICT v, const size_t size) {
-					for (size_t i = 0; i < size; ++i)
-						v[i].y += 9.81f * dt;
-				}(v.data(), iter.size());
+				for (size_t i: iter)
+					v[i].y += 9.81f * dt;
 			});
 		}
 	};
@@ -353,12 +347,12 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 			m_q->ForEach([&](ecs::Iterator iter) {
 				auto h = iter.View<Health>();
 
-				[&](const Health* GAIA_RESTRICT h, const size_t size) {
-					for (size_t i = 0; i < size; ++i) {
-						if (h[i].value > 0)
-							++aliveUnits;
-					}
-				}(h.data(), iter.size());
+				uint32_t a = 0;
+				for (size_t i: iter) {
+					if (h[i].value > 0)
+						++a;
+				}
+				aliveUnits += a;
 			});
 			(void)aliveUnits;
 		}
@@ -410,28 +404,12 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 				auto vvy = v.get<1>();
 				auto vvz = v.get<2>();
 
-				////////////////////////////////////////////////////////////////////
-				// This is the code we'd like to run. However, not all compilers are
-				// as smart as Clang so they wouldn't be able to vectorize even though
-				// the oportunity is screaming.
-				////////////////////////////////////////////////////////////////////
-				// for (size_t i = 0; i < iter.size(); ++i)
-				// 	ppx[i] += vvx[i] * dt;
-				// for (size_t i = 0; i < iter.size(); ++i)
-				// 	ppy[i] += vvy[i] * dt;
-				// for (size_t i = 0; i < iter.size(); ++i)
-				// 	ppz[i] += vvz[i] * dt;
-				////////////////////////////////////////////////////////////////////
-
-				auto exec = [](float* GAIA_RESTRICT p, const float* GAIA_RESTRICT v, const size_t sz) {
-					for (size_t i = 0; i < sz; ++i)
-						p[i] += v[i] * dt;
-				};
-
-				const auto size = iter.size();
-				exec(ppx.data(), vvx.data(), size);
-				exec(ppy.data(), vvy.data(), size);
-				exec(ppz.data(), vvz.data(), size);
+				for (size_t i: iter)
+					ppx[i] += vvx[i] * dt;
+				for (size_t i: iter)
+					ppy[i] += vvy[i] * dt;
+				for (size_t i: iter)
+					ppz[i] += vvz[i] * dt;
 			});
 		}
 	};
@@ -445,30 +423,12 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 				auto ppy = p.set<1>();
 				auto vvy = v.set<1>();
 
-				////////////////////////////////////////////////////////////////////
-				// This is the code we'd like to run. However, not all compilers are
-				// as smart as Clang so they wouldn't be able to vectorize even though
-				// the oportunity is screaming.
-				////////////////////////////////////////////////////////////////////
-				// for (auto i = 0; i < iter.size(); ++i) {
-				// 	 if (ppy[i] < 0.0f) {
-				// 		 ppy[i] = 0.0f;
-				// 		 vvy[i] = 0.0f;
-				//   }
-				// }
-				////////////////////////////////////////////////////////////////////
-
-				auto exec = [](float* GAIA_RESTRICT p, float* GAIA_RESTRICT v, const size_t sz) {
-					for (size_t i = 0; i < sz; ++i) {
-						if (p[i] < 0.0f) {
-							p[i] = 0.0f;
-							v[i] = 0.0f;
-						}
+				for (size_t i: iter) {
+					if (ppy[i] < 0.0f) {
+						ppy[i] = 0.0f;
+						vvy[i] = 0.0f;
 					}
-				};
-
-				const auto size = iter.size();
-				exec(ppy.data(), vvy.data(), size);
+				}
 			});
 		}
 	};
@@ -479,22 +439,8 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 				auto v = iter.ViewRW<VelocitySoA>();
 				auto vvy = v.set<1>();
 
-				////////////////////////////////////////////////////////////////////
-				// This is the code we'd like to run. However, not all compilers are
-				// as smart as Clang so they wouldn't be able to vectorize even though
-				// the oportunity is screaming.
-				////////////////////////////////////////////////////////////////////
-				// for (auto i = 0; i < iter.size(); ++i)
-				// 	vvy[i] = vvy[i] * dt * 9.81f;
-				////////////////////////////////////////////////////////////////////
-
-				auto exec = [](float* GAIA_RESTRICT v, const size_t sz) {
-					for (size_t i = 0; i < sz; ++i)
-						v[i] *= dt * 9.81f;
-				};
-
-				const auto size = iter.size();
-				exec(vvy.data(), size);
+				for (size_t i: iter)
+					vvy[i] += dt * 9.81f;
 			});
 		}
 	};
@@ -505,12 +451,12 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 			m_q->ForEach([&](ecs::Iterator iter) {
 				auto h = iter.View<Health>();
 
-				[&](const Health* GAIA_RESTRICT h, const size_t size) {
-					for (size_t i = 0; i < size; ++i) {
-						if (h[i].value > 0)
-							++aliveUnits;
-					}
-				}(h.data(), iter.size());
+				uint32_t a = 0;
+				for (size_t i: iter) {
+					if (h[i].value > 0)
+						++a;
+				}
+				aliveUnits += a;
 			});
 			(void)aliveUnits;
 		}
@@ -700,15 +646,16 @@ void BM_ECS_WithSystems_Iter_SoA_SIMD(picobench::state& state) {
 				auto vvy = v.set<1>();
 				const auto size = iter.size();
 
-				const auto gg_dtVec = _mm_set_ps1(9.81f * dt);
+				const auto gg_gVec = _mm_set_ps1(9.81f);
+				const auto gg_dtVec = _mm_set_ps1(dt);
 
 				auto exec = [&](float* GAIA_RESTRICT v, const size_t offset) {
 					const auto vyVec = _mm_load_ps(v + offset);
-					const auto mulVec = _mm_mul_ps(vyVec, gg_dtVec);
+					const auto mulVec = _mm_fmadd_ps(gg_dtVec, gg_dtVec, vyVec);
 					_mm_store_ps(v + offset, mulVec);
 				};
 				auto exec2 = [](float* GAIA_RESTRICT v, const size_t offset) {
-					v[offset] *= dt * 9.81f;
+					v[offset] += dt * 9.81f;
 				};
 
 				size_t i = 0;
@@ -731,12 +678,12 @@ void BM_ECS_WithSystems_Iter_SoA_SIMD(picobench::state& state) {
 			m_q->ForEach([&](ecs::Iterator iter) {
 				auto h = iter.View<Health>();
 
-				[&](const Health* GAIA_RESTRICT h, const size_t size) {
-					for (size_t i = 0; i < size; ++i) {
-						if (h[i].value > 0)
-							++aliveUnits;
-					}
-				}(h.data(), iter.size());
+				uint32_t a = 0;
+				for (size_t i = 0; i < h.size(); ++i) {
+					if (h[i].value > 0)
+						++a;
+				}
+				aliveUnits += a;
 			});
 			(void)aliveUnits;
 		}
@@ -1136,40 +1083,32 @@ void BM_NonECS_DOD(picobench::state& state) {
 	struct UnitDynamic {
 		static void
 		updatePosition(containers::darray<Position>& p, const containers::darray<Velocity>& v, float deltaTime) {
-			[&](Position* GAIA_RESTRICT p, const Velocity* GAIA_RESTRICT v, const size_t size) {
-				for (size_t i = 0; i < size; i++) {
-					p[i].x += v[i].x * deltaTime;
-					p[i].y += v[i].y * deltaTime;
-					p[i].z += v[i].z * deltaTime;
-				}
-			}(p.data(), v.data(), v.size());
+			for (size_t i = 0; i < p.size(); i++) {
+				p[i].x += v[i].x * deltaTime;
+				p[i].y += v[i].y * deltaTime;
+				p[i].z += v[i].z * deltaTime;
+			}
 		}
 		static void handleGroundCollision(containers::darray<Position>& p, containers::darray<Velocity>& v) {
-			[&](Position* GAIA_RESTRICT p, Velocity* GAIA_RESTRICT v, const size_t size) {
-				for (size_t i = 0; i < size; i++) {
-					if (p[i].y < 0.0f) {
-						p[i].y = 0.0f;
-						v[i].y = 0.0f;
-					}
+			for (size_t i = 0; i < p.size(); i++) {
+				if (p[i].y < 0.0f) {
+					p[i].y = 0.0f;
+					v[i].y = 0.0f;
 				}
-			}(p.data(), v.data(), v.size());
+			}
 		}
 
 		static void applyGravity(containers::darray<Velocity>& v, float deltaTime) {
-			[&](Velocity* GAIA_RESTRICT v, const size_t size) {
-				for (size_t i = 0; i < size; i++)
-					v[i].y += 9.81f * deltaTime;
-			}(v.data(), v.size());
+			for (size_t i = 0; i < v.size(); i++)
+				v[i].y += 9.81f * deltaTime;
 		}
 
 		static uint32_t calculateAliveUnits(const containers::darray<Health>& h) {
 			uint32_t aliveUnits = 0;
-			[&](const Health* GAIA_RESTRICT h, const size_t size) {
-				for (size_t i = 0; i < size; i++) {
-					if (h[i].value > 0)
-						++aliveUnits;
-				}
-			}(h.data(), h.size());
+			for (size_t i = 0; i < h.size(); i++) {
+				if (h[i].value > 0)
+					++aliveUnits;
+			}
 			return aliveUnits;
 		}
 	};
@@ -1264,28 +1203,12 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 			auto vvy = vv.get<1>();
 			auto vvz = vv.get<2>();
 
-			////////////////////////////////////////////////////////////////////
-			// This is the code we'd like to run. However, not all compilers are
-			// as smart as Clang so they wouldn't be able to vectorize even though
-			// the oportunity is screaming.
-			////////////////////////////////////////////////////////////////////
-			// for (auto i = 0; i < iter.size(); ++i)
-			// 	ppx[i] += vvx[i] * dt;
-			// for (auto i = 0; i < iter.size(); ++i)
-			// 	ppy[i] += vvy[i] * dt;
-			// for (auto i = 0; i < iter.size(); ++i)
-			// 	ppz[i] += vvz[i] * dt;
-			////////////////////////////////////////////////////////////////////
-
-			auto exec = [](float* GAIA_RESTRICT p, const float* GAIA_RESTRICT v, size_t sz) {
-				for (size_t i = 0; i < sz; ++i)
-					p[i] += v[i] * dt;
-			};
-
-			const auto size = p.size();
-			exec(ppx.data(), vvx.data(), size);
-			exec(ppy.data(), vvy.data(), size);
-			exec(ppz.data(), vvz.data(), size);
+			for (size_t i = 0; i < ppx.size(); ++i)
+				ppx[i] += vvx[i] * dt;
+			for (size_t i = 0; i < ppy.size(); ++i)
+				ppy[i] += vvy[i] * dt;
+			for (size_t i = 0; i < ppz.size(); ++i)
+				ppz[i] += vvz[i] * dt;
 		}
 
 		static void handleGroundCollision(containers::darray<PositionSoA>& p, containers::darray<VelocitySoA>& v) {
@@ -1297,17 +1220,12 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 			auto ppy = pv.set<1>();
 			auto vvy = vv.set<1>();
 
-			auto exec = [](float* GAIA_RESTRICT p, float* GAIA_RESTRICT v, size_t sz) {
-				for (size_t i = 0; i < sz; ++i) {
-					if (p[i] < 0.0f) {
-						p[i] = 0.0f;
-						v[i] = 0.0f;
-					}
+			for (size_t i = 0; i < ppy.size(); ++i) {
+				if (ppy[i] < 0.0f) {
+					ppy[i] = 0.0f;
+					vvy[i] = 0.0f;
 				}
-			};
-
-			const auto size = p.size();
-			exec(ppy.data(), vvy.data(), size);
+			}
 		}
 
 		static void applyGravity(containers::darray<VelocitySoA>& v) {
@@ -1317,25 +1235,18 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 
 			auto vvy = vv.set<1>();
 
-			auto exec = [](float* GAIA_RESTRICT v, const size_t sz) {
-				for (size_t i = 0; i < sz; ++i)
-					v[i] *= 9.81f * dt;
-			};
-
-			const auto size = v.size();
-			exec(vvy.data(), size);
+			for (size_t i = 0; i < vvy.size(); ++i)
+				vvy[i] += 9.81f * dt;
 		}
 
 		static uint32_t calculateAliveUnits(const containers::darray<Health>& h) {
 			GAIA_PROF_SCOPE(calculateAliveUnits);
 
 			uint32_t aliveUnits = 0;
-			[&](const Health* GAIA_RESTRICT h, const size_t size) {
-				for (size_t i = 0; i < size; i++) {
-					if (h[i].value > 0)
-						++aliveUnits;
-				}
-			}(h.data(), h.size());
+			for (size_t i = 0; i < h.size(); i++) {
+				if (h[i].value > 0)
+					++aliveUnits;
+			}
 			return aliveUnits;
 		}
 	};
@@ -1506,15 +1417,16 @@ void BM_NonECS_DOD_SoA_SIMD(picobench::state& state) {
 			auto vvy = vv.set<1>();
 			const auto size = v.size();
 
-			const auto gg_dtVec = _mm_set_ps1(9.81f * dt);
+			const auto gg_gVec = _mm_set_ps1(9.81f);
+			const auto gg_dtVec = _mm_set_ps1(dt);
 
 			auto exec = [&](float* GAIA_RESTRICT v, const size_t offset) {
 				const auto vyVec = _mm_load_ps(v + offset);
-				const auto mulVec = _mm_mul_ps(vyVec, gg_dtVec);
+				const auto mulVec = _mm_fmadd_ps(gg_gVec, gg_dtVec, vyVec);
 				_mm_store_ps(v + offset, mulVec);
 			};
 			auto exec2 = [](float* GAIA_RESTRICT v, const size_t offset) {
-				v[offset] *= 9.81f * dt;
+				v[offset] += 9.81f * dt;
 			};
 
 			size_t i = 0;
@@ -1532,12 +1444,10 @@ void BM_NonECS_DOD_SoA_SIMD(picobench::state& state) {
 			GAIA_PROF_SCOPE(calculateAliveUnits);
 
 			uint32_t aliveUnits = 0;
-			[&](const Health* GAIA_RESTRICT h, const size_t size) {
-				for (size_t i = 0; i < size; i++) {
-					if (h[i].value > 0)
-						++aliveUnits;
-				}
-			}(h.data(), h.size());
+			for (size_t i = 0; i < h.size(); i++) {
+				if (h[i].value > 0)
+					++aliveUnits;
+			}
 			return aliveUnits;
 		}
 	};

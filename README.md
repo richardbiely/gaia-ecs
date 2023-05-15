@@ -319,25 +319,6 @@ q.ForEach([](ecs::Iterator iter) {
 });
 ```
 
->**NOTE:**<br/>
-Analyzing the output of different compilers I quickly realized if you want your code vectorized for sure you need to be very clear and write the loop as a lambda or kernel if you will. It is quite surprising to see this but even with optimizations on and ***-fast_math***-like switches enabled some compilers simply will not vectorize the loop otherwise. Microsoft compilers are particularly sensitive in this regard. In the years to come maybe this gets better but for now, keep it in mind or use a good optimizing compiler such as Clang.
-
-```cpp
-q.ForEach([](ecs::Iterator iter) {
-  auto vp = iter.ViewRW<Position>(); // Read-write access to Position
-  auto vv = iter.View<Velocity>(); // Read-only access to Velocity
-
-  // Make our intentions very clear so even compilers which are weaker at optimization can vectorize the loop
-  [&](Position* p, const Velocity* v, uint32_t size) {
-    for (uint32_t i = 0; i < size; ++i) {
-      p[i].x += v[i].x * dt;
-      p[i].y += v[i].y * dt;
-      p[i].z += v[i].z * dt;
-    }
-  }(vp.data(), vv.data(), iter.size());
-});
-```
-
 ### Change detection
 Using WithChanged we can make the iteration run only if particular components change. You can save quite a bit of performance using this technique.
 
