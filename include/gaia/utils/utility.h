@@ -263,13 +263,26 @@ namespace gaia {
 		//----------------------------------------------------------------------
 
 		template <typename InputIt, typename T>
-		constexpr InputIt find(InputIt first, InputIt last, T&& value) {
+		constexpr InputIt find(InputIt first, InputIt last, const T& value) {
 #if GAIA_USE_STL_COMPATIBLE_CONTAINERS
-			return std::find(first, last, std::forward<T>(value));
+			return std::find(first, last, value);
 #else
-			for (; first != last; ++first) {
-				if (*first == value) {
-					return first;
+			if constexpr (std::is_pointer_v<InputIt>) {
+				const auto size = distance(first, last);
+				for (size_t i = 0; i < size; ++i) {
+					if (first[i] == value)
+						return first;
+				}
+			} else if constexpr (std::is_same_v<typename InputIt::iterator_category, GAIA_UTIL::random_access_iterator_tag>) {
+				const auto size = distance(first, last);
+				for (size_t i = 0; i < size; ++i) {
+					if (*(first++) == value)
+						return first;
+				}
+			} else {
+				for (; first != last; ++first) {
+					if (*first == value)
+						return first;
 				}
 			}
 			return last;
@@ -277,11 +290,11 @@ namespace gaia {
 		}
 
 		template <typename C, typename V>
-		constexpr auto find(const C& arr, V&& item) {
+		constexpr auto find(const C& arr, const V& item) {
 			if constexpr (decltype(detail::has_find<C>(item))::value)
-				return arr.find(std::forward<V>(item));
+				return arr.find(item);
 			else
-				return find(arr.begin(), arr.end(), std::forward<V>(item));
+				return gaia::utils::find(arr.begin(), arr.end(), item);
 		}
 
 		template <typename InputIt, typename Func>
@@ -303,7 +316,7 @@ namespace gaia {
 			if constexpr (decltype(detail::has_find_if<C>(predicate))::value)
 				return arr.find_id(predicate);
 			else
-				return find_if(arr.begin(), arr.end(), predicate);
+				return gaia::utils::find_if(arr.begin(), arr.end(), predicate);
 		}
 
 		template <typename InputIt, typename Func>
@@ -325,14 +338,14 @@ namespace gaia {
 			if constexpr (decltype(detail::has_find_if_not<C>(predicate))::value)
 				return arr.find_if_not(predicate);
 			else
-				return find_if_not(arr.begin(), arr.end(), predicate);
+				return gaia::utils::find_if_not(arr.begin(), arr.end(), predicate);
 		}
 
 		//----------------------------------------------------------------------
 
 		template <typename C, typename V>
-		constexpr bool has(const C& arr, V&& item) {
-			const auto it = find(arr, std::forward<V>(item));
+		constexpr bool has(const C& arr, const V& item) {
+			const auto it = find(arr, item);
 			return it != arr.end();
 		}
 
