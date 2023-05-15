@@ -42,7 +42,7 @@ namespace gaia {
 		using is_braces_constructible_t = decltype(is_braces_constructible<T, TArgs...>(0));
 
 		static constexpr uint32_t StructToTupleMaxTypesBits = 3;
-		static constexpr uint32_t StructToTupleMaxTypes = 1 << 3;
+		//static constexpr uint32_t StructToTupleMaxTypes = 1 << 3;
 
 		//! Converts a struct to a tuple (struct must support initialization via:
 		//! Struct{x,y,...,z})

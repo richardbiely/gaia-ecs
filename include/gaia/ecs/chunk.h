@@ -153,12 +153,12 @@ namespace gaia {
 						const uint32_t count = GetEntityCount();
 						const uint32_t capac = GetEntityCapacity();
 						auto* pDataPtr = GetDataPtrRW<UpdateWorldVersion>(component::ComponentType::CT_Generic, componentId);
-						const auto maxOffset = (uintptr_t)pDataPtr - (uintptr_t)&m_data[0] + capac * sizeof(U);
+						[[maybe_unused]] const auto maxOffset = (uintptr_t)pDataPtr - (uintptr_t)&m_data[0] + capac * sizeof(U);
 						GAIA_ASSERT(maxOffset <= Chunk::DATA_SIZE);
 						return std::span<U>{(U*)pDataPtr, count};
 					} else {
 						auto* pDataPtr = GetDataPtrRW<UpdateWorldVersion>(component::ComponentType::CT_Chunk, componentId);
-						const auto maxOffset = (uintptr_t)pDataPtr - (uintptr_t)&m_data[0] + sizeof(U);
+						[[maybe_unused]] const auto maxOffset = (uintptr_t)pDataPtr - (uintptr_t)&m_data[0] + sizeof(U);
 						GAIA_ASSERT(maxOffset <= Chunk::DATA_SIZE);
 						return std::span<U>{(U*)pDataPtr, 1};
 					}
