@@ -244,9 +244,10 @@ namespace TCB_SPAN_NAMESPACE_NAME {
 		template <typename T, typename E>
 		struct is_container_element_type_compatible<
 				T, E,
-				typename std::enable_if_t<!std::is_same_v<
-						typename std::remove_cv<decltype(detail::data(std::declval<T>()))>::type, void>>>:
-				std::is_convertible<remove_pointer_t<decltype(detail::data(std::declval<T>()))> (*)[], E (*)[]> {};
+				typename std::enable_if<
+						!std::is_same<typename std::remove_cv<decltype(detail::data(std::declval<T>()))>::type, void>::value &&
+						std::is_convertible<remove_pointer_t<decltype(detail::data(std::declval<T>()))> (*)[], E (*)[]>::value>::
+						type>: std::true_type {};
 
 		template <typename, typename = size_t>
 		struct is_complete: std::false_type {};
@@ -304,21 +305,20 @@ namespace TCB_SPAN_NAMESPACE_NAME {
 		constexpr span(element_type (&arr)[N]) noexcept: storage_(arr, N) {}
 
 		template <
-				std::size_t N, std::size_t E = Extent,
+				typename T, std::size_t N, std::size_t E = Extent,
 				typename std::enable_if<
-						(E == dynamic_extent || N == E) && detail::is_container_element_type_compatible<
-																									 gaia::containers::sarray<value_type, N>&, ElementType>::value,
+						(E == dynamic_extent || N == E) &&
+								detail::is_container_element_type_compatible<gaia::containers::sarray<T, N>&, ElementType>::value,
 						int>::type = 0>
-		TCB_SPAN_ARRAY_CONSTEXPR span(gaia::containers::sarray<value_type, N>& arr) noexcept: storage_(arr.data(), N) {}
+		TCB_SPAN_ARRAY_CONSTEXPR span(gaia::containers::sarray<T, N>& arr) noexcept: storage_(arr.data(), N) {}
 
 		template <
-				std::size_t N, std::size_t E = Extent,
+				typename T, std::size_t N, std::size_t E = Extent,
 				typename std::enable_if<
-						(E == dynamic_extent || N == E) && detail::is_container_element_type_compatible<
-																									 const gaia::containers::sarray<value_type, N>&, ElementType>::value,
+						(E == dynamic_extent || N == E) &&
+								detail::is_container_element_type_compatible<const gaia::containers::sarray<T, N>&, ElementType>::value,
 						int>::type = 0>
-		TCB_SPAN_ARRAY_CONSTEXPR span(const gaia::containers::sarray<value_type, N>& arr) noexcept:
-				storage_(arr.data(), N) {}
+		TCB_SPAN_ARRAY_CONSTEXPR span(const gaia::containers::sarray<T, N>& arr) noexcept: storage_(arr.data(), N) {}
 
 		template <
 				typename Container, std::size_t E = Extent,
@@ -341,7 +341,7 @@ namespace TCB_SPAN_NAMESPACE_NAME {
 		template <
 				typename OtherElementType, std::size_t OtherExtent,
 				typename std::enable_if<
-						(Extent == OtherExtent || Extent == dynamic_extent) &&
+						(Extent == dynamic_extent || OtherExtent == dynamic_extent || Extent == OtherExtent) &&
 								std::is_convertible<OtherElementType (*)[], ElementType (*)[]>::value,
 						int>::type = 0>
 		constexpr span(const span<OtherElementType, OtherExtent>& other) noexcept: storage_(other.data(), other.size()) {}
@@ -456,7 +456,7 @@ namespace TCB_SPAN_NAMESPACE_NAME {
 	span(const gaia::containers::sarray<T, N>&) -> span<const T, N>;
 
 	template <typename Container>
-	span(Container&) -> span<typename Container::value_type>;
+	span(Container&) -> span<typename std::remove_reference<decltype(*detail::data(std::declval<Container&>()))>::type>;
 
 	template <typename Container>
 	span(const Container&) -> span<const typename Container::value_type>;
@@ -484,7 +484,8 @@ namespace TCB_SPAN_NAMESPACE_NAME {
 	}
 
 	template <typename Container>
-	constexpr span<typename Container::value_type> make_span(Container& cont) {
+	constexpr span<typename std::remove_reference<decltype(*detail::data(std::declval<Container&>()))>::type>
+	make_span(Container& cont) {
 		return {cont};
 	}
 
@@ -499,7 +500,8 @@ namespace TCB_SPAN_NAMESPACE_NAME {
 		return {reinterpret_cast<const byte*>(s.data()), s.size_bytes()};
 	}
 
-	template <class ElementType, size_t Extent, typename std::enable_if<!std::is_const_v<ElementType>, int>::type = 0>
+	template <
+			class ElementType, size_t Extent, typename std::enable_if<!std::is_const<ElementType>::value, int>::type = 0>
 	span<byte, ((Extent == dynamic_extent) ? dynamic_extent : sizeof(ElementType) * Extent)>
 	as_writable_bytes(span<ElementType, Extent> s) noexcept {
 		return {reinterpret_cast<byte*>(s.data()), s.size_bytes()};
