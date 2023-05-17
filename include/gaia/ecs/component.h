@@ -81,6 +81,17 @@ namespace gaia {
 				return utils::type_info::id<U>();
 			}
 
+			//! Returns the component id for \tparam T
+			//! \return Component id
+			template <typename T>
+			GAIA_NODISCARD inline constexpr ComponentType GetComponentType() {
+				using U = typename DeduceComponent<T>::Type;
+				if constexpr (IsGenericComponent<T>)
+					return ComponentType::CT_Generic;
+				else
+					return ComponentType::CT_Chunk;
+			}
+
 			template <typename T>
 			struct IsReadOnlyType:
 					std::bool_constant<

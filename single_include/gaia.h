@@ -4569,6 +4569,17 @@ namespace gaia {
 				return utils::type_info::id<U>();
 			}
 
+			//! Returns the component id for \tparam T
+			//! \return Component id
+			template <typename T>
+			GAIA_NODISCARD inline constexpr ComponentType GetComponentType() {
+				using U = typename DeduceComponent<T>::Type;
+				if constexpr (IsGenericComponent<T>)
+					return ComponentType::CT_Generic;
+				else
+					return ComponentType::CT_Chunk;
+			}
+
 			template <typename T>
 			struct IsReadOnlyType:
 					std::bool_constant<
@@ -8264,18 +8275,28 @@ namespace gaia {
 					using UConst = typename std::add_const_t<U>;
 
 					if constexpr (std::is_same_v<U, Entity>) {
-						return std::span<const Entity>{
-								(const Entity*)&m_data[m_header.offsets.firstByte_EntityData], GetEntityCount()};
+						return std::span<UConst>{(UConst*)&GetData(m_header.offsets.firstByte_EntityData), GetEntityCount()};
 					} else {
 						static_assert(!std::is_empty_v<U>, "Attempting to get value of an empty component");
 
 						const auto componentId = component::GetComponentId<T>();
 
 						if constexpr (component::IsGenericComponent<T>) {
-							const uint32_t count = GetEntityCount();
-							return std::span<UConst>{(UConst*)GetDataPtr(component::ComponentType::CT_Generic, componentId), count};
-						} else
-							return std::span<UConst>{(UConst*)GetDataPtr(component::ComponentType::CT_Chunk, componentId), 1};
+							const auto offset = FindDataOffset(component::ComponentType::CT_Generic, componentId);
+
+							[[maybe_unused]] const auto capacity = GetEntityCapacity();
+							[[maybe_unused]] const auto maxOffset = offset + capacity * sizeof(U);
+							GAIA_ASSERT(maxOffset <= Chunk::DATA_SIZE);
+
+							return std::span<UConst>{(UConst*)&GetData(offset), GetEntityCount()};
+						} else {
+							const auto offset = FindDataOffset(component::ComponentType::CT_Chunk, componentId);
+
+							[[maybe_unused]] const auto maxOffset = offset + sizeof(U);
+							GAIA_ASSERT(maxOffset <= Chunk::DATA_SIZE);
+
+							return std::span<UConst>{(UConst*)&GetData(offset), 1};
+						}
 					}
 				}
 
@@ -8300,19 +8321,29 @@ namespace gaia {
 					static_assert(!std::is_empty_v<U>, "Attempting to set value of an empty component");
 
 					const auto componentId = component::GetComponentId<T>();
+					uint32_t componentIdx = 0;
 
 					if constexpr (component::IsGenericComponent<T>) {
-						const uint32_t count = GetEntityCount();
-						const uint32_t capac = GetEntityCapacity();
-						auto* pDataPtr = GetDataPtrRW<UpdateWorldVersion>(component::ComponentType::CT_Generic, componentId);
-						[[maybe_unused]] const auto maxOffset = (uintptr_t)pDataPtr - (uintptr_t)&m_data[0] + capac * sizeof(U);
+						const auto offset = FindDataOffset(component::ComponentType::CT_Generic, componentId, componentIdx);
+
+						[[maybe_unused]] const auto capacity = GetEntityCapacity();
+						[[maybe_unused]] const auto maxOffset = offset + capacity * sizeof(U);
 						GAIA_ASSERT(maxOffset <= Chunk::DATA_SIZE);
-						return std::span<U>{(U*)pDataPtr, count};
+
+						// Update version number so we know RW access was used on chunk
+						this->UpdateWorldVersion(component::ComponentType::CT_Generic, componentIdx);
+
+						return std::span<U>{(U*)&GetData(offset), GetEntityCount()};
 					} else {
-						auto* pDataPtr = GetDataPtrRW<UpdateWorldVersion>(component::ComponentType::CT_Chunk, componentId);
-						[[maybe_unused]] const auto maxOffset = (uintptr_t)pDataPtr - (uintptr_t)&m_data[0] + sizeof(U);
+						const auto offset = FindDataOffset(component::ComponentType::CT_Chunk, componentId, componentIdx);
+
+						[[maybe_unused]] const auto maxOffset = offset + sizeof(U);
 						GAIA_ASSERT(maxOffset <= Chunk::DATA_SIZE);
-						return std::span<U>{(U*)pDataPtr, 1};
+
+						// Update version number so we know RW access was used on chunk
+						this->UpdateWorldVersion(component::ComponentType::CT_Chunk, componentIdx);
+
+						return std::span<U>{(U*)&GetData(offset), 1};
 					}
 				}
 
@@ -8665,42 +8696,28 @@ namespace gaia {
 				\return Pointer to chunk data.
 				*/
 				uint8_t& GetData(uint32_t offset) {
-					GAIA_ASSERT(offset >= m_header.offsets.firstByte_EntityData);
 					return m_data[offset];
 				}
 
 				/*!
-				Returns a pointer to component data with read-only access.
-				\param componentType Component type
-				\param componentId Component id
-				\return Const pointer to component data.
+				Returns a pointer to chunk data.
+				\param offset Offset into chunk data
+				\return Pointer to chunk data.
 				*/
-				GAIA_NODISCARD GAIA_FORCEINLINE const uint8_t*
-				GetDataPtr(component::ComponentType componentType, component::ComponentId componentId) const {
-					// Searching for a component that's not there! Programmer mistake.
-					GAIA_ASSERT(HasComponent(componentType, componentId));
-
-					const auto& componentIds = GetComponentIdArray(componentType);
-					const auto& componentOffsets = GetComponentOffsetArray(componentType);
-
-					const auto componentIdx = (uint32_t)utils::get_index_unsafe(componentIds, componentId);
-					const auto componentOffset = componentOffsets[componentIdx];
-
-					return (const uint8_t*)&m_data[componentOffset];
+				const uint8_t& GetData(uint32_t offset) const {
+					return m_data[offset];
 				}
 
 				/*!
-				Returns a pointer to component data within chunk with read-write access.
-				Also updates the world version for the component.
+				Returns an offset to chunk data at which the component is stored.
 				\warning It is expected the component with \param componentId is present. Undefined behavior otherwise.
-				\tparam UpdateWorldVersion If true, the world version is updated as a result of the write access
 				\param componentType Component type
 				\param componentId Component id
-				\return Pointer to component data.
+				\param componentIdx Index of the component in this chunk's component array
+				\return Offset from the start of chunk data area.
 				*/
-				template <bool UpdateWorldVersion>
-				GAIA_NODISCARD GAIA_FORCEINLINE uint8_t*
-				GetDataPtrRW(component::ComponentType componentType, component::ComponentId componentId) {
+				GAIA_NODISCARD GAIA_FORCEINLINE ChunkComponentOffset FindDataOffset(
+						component::ComponentType componentType, component::ComponentId componentId, uint32_t& componentIdx) const {
 					// Searching for a component that's not there! Programmer mistake.
 					GAIA_ASSERT(HasComponent(componentType, componentId));
 					// Don't use this with empty components. It's impossible to write to them anyway.
@@ -8709,16 +8726,23 @@ namespace gaia {
 					const auto& componentIds = GetComponentIdArray(componentType);
 					const auto& componentOffsets = GetComponentOffsetArray(componentType);
 
-					const auto componentIdx = (uint32_t)utils::get_index_unsafe(componentIds, componentId);
-					const auto componentOffset = componentOffsets[componentIdx];
+					componentIdx = (uint32_t)utils::get_index_unsafe(componentIds, componentId);
+					const auto offset = componentOffsets[componentIdx];
+					GAIA_ASSERT(offset >= m_header.offsets.firstByte_EntityData);
+					return offset;
+				}
 
-					if constexpr (UpdateWorldVersion) {
-						UpdateVersion(m_header.worldVersion);
-						// Update version number so we know RW access was used on chunk
-						this->UpdateWorldVersion(componentType, componentIdx);
-					}
-
-					return (uint8_t*)&m_data[componentOffset];
+				/*!
+				Returns an offset to chunk data at which the component is stored.
+				\warning It is expected the component with \param componentId is present. Undefined behavior otherwise.
+				\param componentType Component type
+				\param componentId Component id
+				\return Offset from the start of chunk data area.
+				*/
+				GAIA_NODISCARD GAIA_FORCEINLINE ChunkComponentOffset
+				FindDataOffset(component::ComponentType componentType, component::ComponentId componentId) const {
+					[[maybe_unused]] uint32_t componentIdx = 0;
+					return FindDataOffset(componentType, componentId, componentIdx);
 				}
 
 				//----------------------------------------------------------------------
@@ -8869,6 +8893,9 @@ namespace gaia {
 							component::IsGenericComponent<T>,
 							"SetComponent providing an index can only be used with generic components");
 
+					// Update the world version
+					UpdateVersion(m_header.worldVersion);
+
 					GAIA_ASSERT(index < m_header.capacity);
 					ViewRW<T>()[index] = std::forward<U>(value);
 				}
@@ -8884,6 +8911,9 @@ namespace gaia {
 					static_assert(
 							!component::IsGenericComponent<T>,
 							"SetComponent not providing an index can only be used with chunk components");
+
+					// Update the world version
+					UpdateVersion(m_header.worldVersion);
 
 					GAIA_ASSERT(0 < m_header.capacity);
 					ViewRW<T>()[0] = std::forward<U>(value);
@@ -9407,7 +9437,7 @@ namespace gaia {
 					componentOffsets = dataOffset.firstByte_EntityData + sizeof(Entity) * maxGenericItemsInArchetype;
 
 					auto registerComponents = [&](component::ComponentIdSpan componentIds, component::ComponentType componentType,
-																				size_t size) {
+																				size_t count) {
 						auto& ids = newArch->m_componentIds[componentType];
 						auto& ofs = newArch->m_componentOffsets[componentType];
 
@@ -9430,7 +9460,7 @@ namespace gaia {
 								ofs[i] = (ChunkComponentOffset)componentOffsets;
 
 								// Make sure the following component list is properly aligned
-								componentOffsets += desc.properties.size * size;
+								componentOffsets += desc.properties.size * count;
 							}
 						}
 					};
@@ -11046,8 +11076,6 @@ namespace gaia {
 			//! \param queryId Query used to search for query info
 			//! \return Query info
 			query::QueryInfo& Get(query::QueryId queryId) {
-				GAIA_ASSERT(queryId != query::QueryIdBad);
-
 				return m_queryArr[queryId];
 			};
 
@@ -13373,8 +13401,8 @@ namespace gaia {
 						if (componentType == component::ComponentType::CT_Chunk)
 							indexInChunk = 0;
 
-						auto* pComponentDataStart = pChunk->GetDataPtrRW<false>(componentType, newInfo.componentId);
-						auto* pComponentData = (void*)&pComponentDataStart[(size_t)indexInChunk * newDesc.properties.size];
+						const auto offset = pChunk->FindDataOffset(componentType, newInfo.componentId);
+						auto* pComponentData = (void*)&pChunk->GetData(offset + (uint32_t)indexInChunk * newDesc.properties.size);
 						ctx.data.Load(pComponentData, newDesc.properties.size);
 					},
 					// ADD_COMPONENT_TO_TEMPENTITY
@@ -13434,8 +13462,8 @@ namespace gaia {
 						if (componentType == component::ComponentType::CT_Chunk)
 							indexInChunk = 0;
 
-						auto* pComponentDataStart = pChunk->GetDataPtrRW<false>(componentType, newDesc.componentId);
-						auto* pComponentData = (void*)&pComponentDataStart[(size_t)indexInChunk * newDesc.properties.size];
+						const auto offset = pChunk->FindDataOffset(componentType, newDesc.componentId);
+						auto* pComponentData = (void*)&pChunk->GetData(offset + (uint32_t)indexInChunk * newDesc.properties.size);
 						ctx.data.Load(pComponentData, newDesc.properties.size);
 					},
 					// SET_COMPONENT
@@ -13455,8 +13483,8 @@ namespace gaia {
 						{
 							const auto& desc = ComponentCache::Get().GetComponentDesc(componentId);
 
-							auto* pComponentDataStart = pChunk->GetDataPtrRW<false>(componentType, componentId);
-							auto* pComponentData = (void*)&pComponentDataStart[(size_t)indexInChunk * desc.properties.size];
+							const auto offset = pChunk->FindDataOffset(componentType, componentId);
+							auto* pComponentData = (void*)&pChunk->GetData(offset + (uint32_t)indexInChunk * desc.properties.size);
 							ctx.data.Load(pComponentData, desc.properties.size);
 						}
 					},
@@ -13485,8 +13513,8 @@ namespace gaia {
 						{
 							const auto& desc = ComponentCache::Get().GetComponentDesc(componentId);
 
-							auto* pComponentDataStart = pChunk->GetDataPtrRW<false>(componentType, componentId);
-							auto* pComponentData = (void*)&pComponentDataStart[(size_t)indexInChunk * desc.properties.size];
+							const auto offset = pChunk->FindDataOffset(componentType, componentId);
+							auto* pComponentData = (void*)&pChunk->GetData(offset + (uint32_t)indexInChunk * desc.properties.size);
 							ctx.data.Load(pComponentData, desc.properties.size);
 						}
 					},
