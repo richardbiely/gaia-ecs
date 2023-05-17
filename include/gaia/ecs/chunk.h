@@ -167,8 +167,10 @@ namespace gaia {
 						[[maybe_unused]] const auto maxOffset = offset + capacity * sizeof(U);
 						GAIA_ASSERT(maxOffset <= Chunk::DATA_SIZE);
 
-						// Update version number so we know RW access was used on chunk
-						this->UpdateWorldVersion(component::ComponentType::CT_Generic, componentIdx);
+						if constexpr (UpdateWorldVersion) {
+							// Update version number so we know RW access was used on chunk
+							this->UpdateWorldVersion(component::ComponentType::CT_Generic, componentIdx);
+						}
 
 						return std::span<U>{(U*)&GetData(offset), GetEntityCount()};
 					} else {
@@ -177,8 +179,10 @@ namespace gaia {
 						[[maybe_unused]] const auto maxOffset = offset + sizeof(U);
 						GAIA_ASSERT(maxOffset <= Chunk::DATA_SIZE);
 
-						// Update version number so we know RW access was used on chunk
-						this->UpdateWorldVersion(component::ComponentType::CT_Chunk, componentIdx);
+						if constexpr (UpdateWorldVersion) {
+							// Update version number so we know RW access was used on chunk
+							this->UpdateWorldVersion(component::ComponentType::CT_Chunk, componentIdx);
+						}
 
 						return std::span<U>{(U*)&GetData(offset), 1};
 					}
