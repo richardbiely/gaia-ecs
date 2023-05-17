@@ -373,8 +373,8 @@ namespace gaia {
 						if (componentType == component::ComponentType::CT_Chunk)
 							indexInChunk = 0;
 
-						auto* pComponentDataStart = pChunk->GetDataPtrRW<false>(componentType, newInfo.componentId);
-						auto* pComponentData = (void*)&pComponentDataStart[(size_t)indexInChunk * newDesc.properties.size];
+						const auto offset = pChunk->FindDataOffset(componentType, newInfo.componentId);
+						auto* pComponentData = (void*)&pChunk->GetData(offset + (uint32_t)indexInChunk * newDesc.properties.size);
 						ctx.data.Load(pComponentData, newDesc.properties.size);
 					},
 					// ADD_COMPONENT_TO_TEMPENTITY
@@ -434,8 +434,8 @@ namespace gaia {
 						if (componentType == component::ComponentType::CT_Chunk)
 							indexInChunk = 0;
 
-						auto* pComponentDataStart = pChunk->GetDataPtrRW<false>(componentType, newDesc.componentId);
-						auto* pComponentData = (void*)&pComponentDataStart[(size_t)indexInChunk * newDesc.properties.size];
+						const auto offset = pChunk->FindDataOffset(componentType, newDesc.componentId);
+						auto* pComponentData = (void*)&pChunk->GetData(offset + (uint32_t)indexInChunk * newDesc.properties.size);
 						ctx.data.Load(pComponentData, newDesc.properties.size);
 					},
 					// SET_COMPONENT
@@ -455,8 +455,8 @@ namespace gaia {
 						{
 							const auto& desc = ComponentCache::Get().GetComponentDesc(componentId);
 
-							auto* pComponentDataStart = pChunk->GetDataPtrRW<false>(componentType, componentId);
-							auto* pComponentData = (void*)&pComponentDataStart[(size_t)indexInChunk * desc.properties.size];
+							const auto offset = pChunk->FindDataOffset(componentType, componentId);
+							auto* pComponentData = (void*)&pChunk->GetData(offset + (uint32_t)indexInChunk * desc.properties.size);
 							ctx.data.Load(pComponentData, desc.properties.size);
 						}
 					},
@@ -485,8 +485,8 @@ namespace gaia {
 						{
 							const auto& desc = ComponentCache::Get().GetComponentDesc(componentId);
 
-							auto* pComponentDataStart = pChunk->GetDataPtrRW<false>(componentType, componentId);
-							auto* pComponentData = (void*)&pComponentDataStart[(size_t)indexInChunk * desc.properties.size];
+							const auto offset = pChunk->FindDataOffset(componentType, componentId);
+							auto* pComponentData = (void*)&pChunk->GetData(offset + (uint32_t)indexInChunk * desc.properties.size);
 							ctx.data.Load(pComponentData, desc.properties.size);
 						}
 					},

@@ -281,7 +281,7 @@ namespace gaia {
 					componentOffsets = dataOffset.firstByte_EntityData + sizeof(Entity) * maxGenericItemsInArchetype;
 
 					auto registerComponents = [&](component::ComponentIdSpan componentIds, component::ComponentType componentType,
-																				size_t size) {
+																				size_t count) {
 						auto& ids = newArch->m_componentIds[componentType];
 						auto& ofs = newArch->m_componentOffsets[componentType];
 
@@ -304,7 +304,7 @@ namespace gaia {
 								ofs[i] = (ChunkComponentOffset)componentOffsets;
 
 								// Make sure the following component list is properly aligned
-								componentOffsets += desc.properties.size * size;
+								componentOffsets += desc.properties.size * count;
 							}
 						}
 					};

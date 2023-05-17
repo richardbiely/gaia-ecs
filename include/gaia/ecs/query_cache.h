@@ -31,8 +31,6 @@ namespace gaia {
 			//! \param queryId Query used to search for query info
 			//! \return Query info
 			query::QueryInfo& Get(query::QueryId queryId) {
-				GAIA_ASSERT(queryId != query::QueryIdBad);
-
 				return m_queryArr[queryId];
 			};
 
