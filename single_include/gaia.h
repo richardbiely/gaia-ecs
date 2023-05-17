@@ -3920,13 +3920,13 @@ namespace gaia {
 			return std::find(first, last, value);
 #else
 			if constexpr (std::is_pointer_v<InputIt>) {
-				const auto size = (size_t)distance(first, last);
+				const auto size = (size_t)GAIA_UTIL::distance(first, last);
 				for (size_t i = 0; i < size; ++i) {
 					if (first[i] == value)
-						return first;
+						return &first[i];
 				}
 			} else if constexpr (std::is_same_v<typename InputIt::iterator_category, GAIA_UTIL::random_access_iterator_tag>) {
-				const auto size = (size_t)distance(first, last);
+				const auto size = (size_t)GAIA_UTIL::distance(first, last);
 				for (size_t i = 0; i < size; ++i) {
 					if (*(first[i]) == value)
 						return first;
@@ -3954,9 +3954,22 @@ namespace gaia {
 #if GAIA_USE_STL_COMPATIBLE_CONTAINERS
 			return std::find_if(first, last, func);
 #else
-			for (; first != last; ++first) {
-				if (func(*first)) {
-					return first;
+			if constexpr (std::is_pointer_v<InputIt>) {
+				const auto size = (size_t)GAIA_UTIL::distance(first, last);
+				for (size_t i = 0; i < size; ++i) {
+					if (func(first[i]))
+						return &first[i];
+				}
+			} else if constexpr (std::is_same_v<typename InputIt::iterator_category, GAIA_UTIL::random_access_iterator_tag>) {
+				const auto size = (size_t)GAIA_UTIL::distance(first, last);
+				for (size_t i = 0; i < size; ++i) {
+					if (func(*first))
+						return first;
+				}
+			} else {
+				for (; first != last; ++first) {
+					if (func(*first))
+						return first;
 				}
 			}
 			return last;
@@ -3976,9 +3989,22 @@ namespace gaia {
 #if GAIA_USE_STL_COMPATIBLE_CONTAINERS
 			return std::find_if_not(first, last, func);
 #else
-			for (; first != last; ++first) {
-				if (!func(*first)) {
-					return first;
+			if constexpr (std::is_pointer_v<InputIt>) {
+				const auto size = (size_t)GAIA_UTIL::distance(first, last);
+				for (size_t i = 0; i < size; ++i) {
+					if (!func(first[i]))
+						return &first[i];
+				}
+			} else if constexpr (std::is_same_v<typename InputIt::iterator_category, GAIA_UTIL::random_access_iterator_tag>) {
+				const auto size = (size_t)GAIA_UTIL::distance(first, last);
+				for (size_t i = 0; i < size; ++i) {
+					if (!func(*first))
+						return first;
+				}
+			} else {
+				for (; first != last; ++first) {
+					if (!func(*first))
+						return first;
 				}
 			}
 			return last;
