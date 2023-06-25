@@ -96,5 +96,38 @@ namespace gaia {
 				m_dataPos += size;
 			}
 		};
+
+		class DataBuffer_SerializationWrapper {
+			ecs::DataBuffer& m_buffer;
+
+		public:
+			DataBuffer_SerializationWrapper(ecs::DataBuffer& buffer): m_buffer(buffer) {}
+
+			void reserve(uint32_t size) {
+				m_buffer.EnsureCapacity(size);
+			}
+
+			void seek(uint32_t pos) {
+				m_buffer.Seek(pos);
+			}
+
+			template <typename T>
+			void save(const T& arg) {
+				m_buffer.Save(arg);
+			}
+
+			void save(const void* pSrc, uint32_t size) {
+				m_buffer.Save(pSrc, size);
+			}
+
+			template <typename T>
+			void load(T& arg) {
+				m_buffer.Load(arg);
+			}
+
+			void load(void* pDst, uint32_t size) {
+				m_buffer.Load(pDst, size);
+			}
+		};
 	} // namespace ecs
 } // namespace gaia

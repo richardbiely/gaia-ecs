@@ -2105,29 +2105,6 @@ bool CompareSerializableTypes(const T& a, const T& b) {
 	return ret;
 }
 
-class SerializerTest {
-	ecs::DataBuffer m_buffer;
-
-public:
-	void reserve(uint32_t size) {
-		m_buffer.EnsureCapacity(size);
-	}
-
-	void seek(uint32_t pos) {
-		m_buffer.Seek(pos);
-	}
-
-	template <typename T>
-	void save(const T& arg) {
-		m_buffer.Save(arg);
-	}
-
-	template <typename T>
-	void load(T& arg) {
-		m_buffer.Load(arg);
-	}
-};
-
 struct FooNonTrivial {
 	int a;
 	FooNonTrivial(): a(0){};
@@ -2158,7 +2135,8 @@ TEST_CASE("Serialization - simple") {
 	{
 		Int3 in{1, 2, 3}, out{};
 
-		SerializerTest s;
+		ecs::DataBuffer db;
+		ecs::DataBuffer_SerializationWrapper s(db);
 		s.reserve(serialization::calculate_size(in));
 
 		serialization::save(s, in);
@@ -2171,7 +2149,8 @@ TEST_CASE("Serialization - simple") {
 	{
 		Position in{1, 2, 3}, out{};
 
-		SerializerTest s;
+		ecs::DataBuffer db;
+		ecs::DataBuffer_SerializationWrapper s(db);
 		s.reserve(serialization::calculate_size(in));
 
 		serialization::save(s, in);
@@ -2184,7 +2163,8 @@ TEST_CASE("Serialization - simple") {
 	{
 		SerializeStruct1 in{1, 2, true, 3.12345f}, out{};
 
-		SerializerTest s;
+		ecs::DataBuffer db;
+		ecs::DataBuffer_SerializationWrapper s(db);
 		s.reserve(serialization::calculate_size(in));
 
 		serialization::save(s, in);
@@ -2197,7 +2177,8 @@ TEST_CASE("Serialization - simple") {
 	{
 		SerializeStruct2 in{FooNonTrivial(111), 1, 2, true, 3.12345f}, out{};
 
-		SerializerTest s;
+		ecs::DataBuffer db;
+		ecs::DataBuffer_SerializationWrapper s(db);
 		s.reserve(serialization::calculate_size(in));
 
 		serialization::save(s, in);
