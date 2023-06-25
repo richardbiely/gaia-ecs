@@ -9,6 +9,7 @@
 #include "../containers/map.h"
 #include "../containers/sarray_ext.h"
 #include "../utils/hashing_policy.h"
+#include "../utils/serialization.h"
 #include "../utils/utility.h"
 #include "archetype.h"
 #include "archetype_common.h"
@@ -46,19 +47,6 @@ namespace gaia {
 				component::ComponentType componentType;
 				query::ListType listType;
 				bool isReadWrite;
-
-				void Save(DataBuffer& buffer) {
-					buffer.Save(componentId);
-					buffer.Save(componentType);
-					buffer.Save(listType);
-					buffer.Save(isReadWrite);
-				}
-				void Load(DataBuffer& buffer) {
-					buffer.Load(componentId);
-					buffer.Load(componentType);
-					buffer.Load(listType);
-					buffer.Load(isReadWrite);
-				}
 
 				void Exec(query::LookupCtx& ctx) {
 					auto& data = ctx.data[componentType];
@@ -99,15 +87,6 @@ namespace gaia {
 
 				component::ComponentId componentId;
 				component::ComponentType componentType;
-
-				void Save(DataBuffer& buffer) {
-					buffer.Save(componentId);
-					buffer.Save(componentType);
-				}
-				void Load(DataBuffer& buffer) {
-					buffer.Load(componentId);
-					buffer.Load(componentType);
-				}
 
 				void Exec(query::LookupCtx& ctx) {
 					auto& data = ctx.data[componentType];
@@ -157,13 +136,15 @@ namespace gaia {
 					// Add component
 					[](DataBuffer& buffer, query::LookupCtx& ctx) {
 						Command_AddComponent cmd;
-						cmd.Load(buffer);
+						DataBuffer_SerializationWrapper s(buffer);
+						serialization::load(s, cmd);
 						cmd.Exec(ctx);
 					},
 					// Add filter
 					[](DataBuffer& buffer, query::LookupCtx& ctx) {
 						Command_Filter cmd;
-						cmd.Load(buffer);
+						DataBuffer_SerializationWrapper s(buffer);
+						serialization::load(s, cmd);
 						cmd.Exec(ctx);
 					}};
 
@@ -220,8 +201,10 @@ namespace gaia {
 				auto& cc = ComponentCache::Get();
 				(void)cc.GetOrCreateComponentInfo<T>();
 
-				m_cmdBuffer.Save(Command_AddComponent::Id);
-				Command_AddComponent{componentId, componentType, listType, isReadWrite}.Save(m_cmdBuffer);
+				Command_AddComponent cmd{componentId, componentType, listType, isReadWrite};
+				DataBuffer_SerializationWrapper s(m_cmdBuffer);
+				serialization::save(s, Command_AddComponent::Id);
+				serialization::save(s, cmd);
 			}
 
 			template <typename T>
@@ -230,20 +213,23 @@ namespace gaia {
 				constexpr auto componentType = component::IsGenericComponent<T> ? component::ComponentType::CT_Generic
 																																				: component::ComponentType::CT_Chunk;
 
-				m_cmdBuffer.Save(Command_Filter::Id);
-				Command_Filter{componentId, componentType}.Save(m_cmdBuffer);
+				Command_Filter cmd{componentId, componentType};
+				DataBuffer_SerializationWrapper s(m_cmdBuffer);
+				serialization::save(s, Command_Filter::Id);
+				serialization::save(s, cmd);
 			}
 
 			//--------------------------------------------------------------------------------
 
 			void Commit(query::LookupCtx& ctx) {
 				GAIA_ASSERT(m_queryId == query::QueryIdBad);
+				DataBuffer_SerializationWrapper s(m_cmdBuffer);
 
 				// Read data from buffer and execute the command stored in it
 				m_cmdBuffer.Seek(0);
 				while (m_cmdBuffer.GetPos() < m_cmdBuffer.Size()) {
 					CommandBufferCmd id{};
-					m_cmdBuffer.Load(id);
+					serialization::load(s, id);
 					CommandBufferRead[id](m_cmdBuffer, ctx);
 				}
 
