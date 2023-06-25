@@ -3060,17 +3060,34 @@ namespace std {
 namespace gaia {
 	namespace utils {
 
+		namespace detail {
+			// Check if type T is constructible via T{Args...}
+			struct any_type {
+				template <typename T>
+				constexpr operator T(); // non explicit
+			};
+
+			template <typename T, typename... TArgs>
+			decltype(void(T{std::declval<TArgs>()...}), std::true_type{}) is_braces_constructible(int);
+
+			template <typename, typename...>
+			std::false_type is_braces_constructible(...);
+
+			template <typename T, typename... TArgs>
+			using is_braces_constructible_t = decltype(detail::is_braces_constructible<T, TArgs...>(0));
+		} // namespace detail
+
 		//----------------------------------------------------------------------
 		// Tuple to struct conversion
 		//----------------------------------------------------------------------
 
 		template <typename S, size_t... Is, typename Tuple>
-		S tuple_to_struct(std::index_sequence<Is...> /*no_name*/, Tuple&& tup) {
+		GAIA_NODISCARD S tuple_to_struct(std::index_sequence<Is...> /*no_name*/, Tuple&& tup) {
 			return {std::get<Is>(std::forward<Tuple>(tup))...};
 		}
 
 		template <typename S, typename Tuple>
-		S tuple_to_struct(Tuple&& tup) {
+		GAIA_NODISCARD S tuple_to_struct(Tuple&& tup) {
 			using T = std::remove_reference_t<Tuple>;
 
 			return tuple_to_struct<S>(std::make_index_sequence<std::tuple_size<T>{}>{}, std::forward<Tuple>(tup));
@@ -3080,61 +3097,134 @@ namespace gaia {
 		// Struct to tuple conversion
 		//----------------------------------------------------------------------
 
-		// Check if type T is constructible via T{Args...}
-		struct any_type {
-			template <typename T>
-			constexpr operator T(); // non explicit
-		};
-
-		template <typename T, typename... TArgs>
-		decltype(void(T{std::declval<TArgs>()...}), std::true_type{}) is_braces_constructible(int);
-
-		template <typename, typename...>
-		std::false_type is_braces_constructible(...);
-
-		template <typename T, typename... TArgs>
-		using is_braces_constructible_t = decltype(is_braces_constructible<T, TArgs...>(0));
-
+		//! The number of bits necessary to fit the maximum supported number of members in a struct
 		static constexpr uint32_t StructToTupleMaxTypesBits = 3;
-		//static constexpr uint32_t StructToTupleMaxTypes = 1 << 3;
+		// static constexpr uint32_t StructToTupleMaxTypes = 1 << 3;
 
 		//! Converts a struct to a tuple (struct must support initialization via:
 		//! Struct{x,y,...,z})
 		template <typename T>
 		auto struct_to_tuple(T&& object) noexcept {
-			using type = std::decay_t<T>;
-			// Don't support empty structs. They have no data.
-			// We also want to fail for structs with too many members because it smells with bad usage.
-			// Therefore, only 1 to 8 (StructToTupleMaxTypes) types are supported at the moment.
-			if constexpr (is_braces_constructible_t<
-												type, any_type, any_type, any_type, any_type, any_type, any_type, any_type, any_type>{}) {
+			using type = typename std::decay_t<typename std::remove_pointer_t<T>>;
+
+			if constexpr (detail::is_braces_constructible_t<
+												type, detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+												detail::any_type, detail::any_type, detail::any_type>{}) {
 				auto&& [p1, p2, p3, p4, p5, p6, p7, p8] = object;
 				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8);
-			} else if constexpr (is_braces_constructible_t<
-															 type, any_type, any_type, any_type, any_type, any_type, any_type, any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type>{}) {
 				auto&& [p1, p2, p3, p4, p5, p6, p7] = object;
 				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7);
-			} else if constexpr (is_braces_constructible_t<
-															 type, any_type, any_type, any_type, any_type, any_type, any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type>{}) {
 				auto&& [p1, p2, p3, p4, p5, p6] = object;
 				return std::make_tuple(p1, p2, p3, p4, p5, p6);
-			} else if constexpr (is_braces_constructible_t<type, any_type, any_type, any_type, any_type, any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type>{}) {
 				auto&& [p1, p2, p3, p4, p5] = object;
 				return std::make_tuple(p1, p2, p3, p4, p5);
-			} else if constexpr (is_braces_constructible_t<type, any_type, any_type, any_type, any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
 				auto&& [p1, p2, p3, p4] = object;
 				return std::make_tuple(p1, p2, p3, p4);
-			} else if constexpr (is_braces_constructible_t<type, any_type, any_type, any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type>{}) {
 				auto&& [p1, p2, p3] = object;
 				return std::make_tuple(p1, p2, p3);
-			} else if constexpr (is_braces_constructible_t<type, any_type, any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<type, detail::any_type, detail::any_type>{}) {
 				auto&& [p1, p2] = object;
 				return std::make_tuple(p1, p2);
-			} else if constexpr (is_braces_constructible_t<type, any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<type, detail::any_type>{}) {
 				auto&& [p1] = object;
 				return std::make_tuple(p1);
 			} else {
 				return std::make_tuple();
+			}
+		}
+
+		//----------------------------------------------------------------------
+		// Struct to tuple conversion
+		//----------------------------------------------------------------------
+
+		template <typename T>
+		auto struct_member_count(T&& object) {
+			using type = std::decay_t<T>;
+
+			if constexpr (detail::is_braces_constructible_t<
+												type, detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+												detail::any_type, detail::any_type, detail::any_type>{}) {
+				return 8;
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type>{}) {
+				return 7;
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type>{}) {
+				return 6;
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type>{}) {
+				return 5;
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
+				return 4;
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type>{}) {
+				return 3;
+			} else if constexpr (detail::is_braces_constructible_t<type, detail::any_type, detail::any_type>{}) {
+				return 2;
+			} else if constexpr (detail::is_braces_constructible_t<type, detail::any_type>{}) {
+				return 1;
+			} else {
+				return 0;
+			}
+		}
+
+		template <typename T, typename Func>
+		auto for_each_member(T&& object, Func&& visitor) {
+			using type = std::decay_t<T>;
+
+			if constexpr (detail::is_braces_constructible_t<
+												type, detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+												detail::any_type, detail::any_type, detail::any_type>{}) {
+				auto&& [p1, p2, p3, p4, p5, p6, p7, p8] = object;
+				return visitor(p1, p2, p3, p4, p5, p6, p7, p8);
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type>{}) {
+				auto&& [p1, p2, p3, p4, p5, p6, p7] = object;
+				return visitor(p1, p2, p3, p4, p5, p6, p7);
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type>{}) {
+				auto&& [p1, p2, p3, p4, p5, p6] = object;
+				return visitor(p1, p2, p3, p4, p5, p6);
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type>{}) {
+				auto&& [p1, p2, p3, p4, p5] = object;
+				return visitor(p1, p2, p3, p4, p5);
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
+				auto&& [p1, p2, p3, p4] = object;
+				return visitor(p1, p2, p3, p4);
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type>{}) {
+				auto&& [p1, p2, p3] = object;
+				return visitor(p1, p2, p3);
+			} else if constexpr (detail::is_braces_constructible_t<type, detail::any_type, detail::any_type>{}) {
+				auto&& [p1, p2] = object;
+				return visitor(p1, p2);
+			} else if constexpr (detail::is_braces_constructible_t<type, detail::any_type>{}) {
+				auto&& [p1] = object;
+				return visitor(p1);
+			} else {
+				return visitor();
 			}
 		}
 
@@ -3839,9 +3929,9 @@ namespace gaia {
 		//!
 		//! Example:
 		//! sarray<int, 10> arr = { ... };
-		//! for_each<arr.size()>([&arr][auto i]) {
+		//! for_each<arr.size()>([&arr](auto i) {
 		//!    std::cout << arr[i] << std::endl;
-		//! }
+		//! });
 		template <auto Iters, typename Func>
 		constexpr void for_each(Func func) {
 			detail::for_each_impl(func, std::make_index_sequence<Iters>());
@@ -3853,9 +3943,9 @@ namespace gaia {
 		//!
 		//! Example:
 		//! sarray<int, 10> arr;
-		//! for_each_ext<0, 10, 1>([&arr][auto i]) {
+		//! for_each_ext<0, 10, 1>([&arr](auto i) {
 		//!    std::cout << arr[i] << std::endl;
-		//! }
+		//! });
 		//! print(69, "likes", 420.0f);
 		template <auto FirstIdx, auto LastIdx, auto Inc, typename Func>
 		constexpr void for_each_ext(Func func) {
@@ -3870,9 +3960,9 @@ namespace gaia {
 		//! Example:
 		//! template<typename... Args>
 		//! void print(const Args&... args) {
-		//!  for_each_pack([][const auto& value]) {
+		//!  for_each_pack([](const auto& value) {
 		//!    std::cout << value << std::endl;
-		//!  }
+		//!  });
 		//! }
 		//! print(69, "likes", 420.0f);
 		template <typename Func, typename... Args>
@@ -3884,9 +3974,11 @@ namespace gaia {
 		//! tuple_size (sarray, std::pair etc).
 		//!
 		//! Example:
-		//! for_each_tuple(const auto& value) {
-		//!  std::cout << value << std::endl;
-		//!  }, std::make(69, "likes", 420.0f);
+		//! for_each_tuple(
+		//!		std::make_tuple(69, "likes", 420.0f),
+		//!		[](const auto& value) {
+		//! 		std::cout << value << std::endl;
+		//! 	});
 		template <typename Tuple, typename Func>
 		constexpr void for_each_tuple(Tuple&& tuple, Func func) {
 			detail::for_each_tuple_impl(
@@ -10325,18 +10417,6 @@ namespace gaia {
 			//! Current position in the buffer
 			uint32_t m_dataPos = 0;
 
-			//! Makes sure there is enough capacity in our data container to hold another \param size bytes of data
-			void EnsureCapacity(uint32_t size) {
-				const auto nextSize = m_dataPos + size;
-				if (nextSize <= (uint32_t)m_data.size())
-					return;
-
-				// Make sure there is enough capacity to hold our data
-				const auto newSize = m_data.size() + size;
-				const auto newCapacity = (newSize / CapacityIncreaseSize) * CapacityIncreaseSize + CapacityIncreaseSize;
-				m_data.reserve(newCapacity);
-			}
-
 		public:
 			DataBuffer() {}
 
@@ -10348,6 +10428,18 @@ namespace gaia {
 			//! Returns the number of bytes written in the buffer
 			GAIA_NODISCARD uint32_t Size() const {
 				return (uint32_t)m_data.size();
+			}
+
+			//! Makes sure there is enough capacity in our data container to hold another \param size bytes of data
+			void EnsureCapacity(uint32_t size) {
+				const auto nextSize = m_dataPos + size;
+				if (nextSize <= (uint32_t)m_data.size())
+					return;
+
+				// Make sure there is enough capacity to hold our data
+				const auto newSize = m_data.size() + size;
+				const auto newCapacity = (newSize / CapacityIncreaseSize) * CapacityIncreaseSize + CapacityIncreaseSize;
+				m_data.reserve(newCapacity);
 			}
 
 			//! Changes the current position in the buffer
@@ -13921,5 +14013,180 @@ namespace gaia {
 			}
 		};
 	} // namespace ecs
+} // namespace gaia
+
+#include <tuple>
+#include <type_traits>
+#include <utility>
+
+namespace gaia {
+	namespace serialization {
+		namespace detail {
+			enum class serialization_type_id : uint8_t {
+				// Integer types
+				s8 = 1,
+				u8 = 2,
+				s16 = 3,
+				u16 = 4,
+				s32 = 5,
+				u32 = 6,
+				s64 = 7,
+				u64 = 8,
+
+				// Boolean
+				b = 40,
+
+				// Character types
+				c8 = 41,
+				c16 = 42,
+				c32 = 43,
+				cw = 44,
+
+				// Floating point types
+				f8 = 81,
+				f16 = 82,
+				f32 = 83,
+				f64 = 84,
+				f128 = 85,
+
+				// Special
+				trivial_wrapper = 200,
+
+				Last = 255,
+			};
+
+			template <typename T>
+			struct is_trivially_serializable {
+			private:
+				static constexpr bool update() {
+					return std::is_enum_v<T> || std::is_fundamental_v<T> || std::is_trivially_copyable_v<T>;
+				}
+
+			public:
+				static inline constexpr bool value = update();
+			};
+
+			template <typename T>
+			GAIA_NODISCARD constexpr serialization_type_id get_integral_type() {
+				if constexpr (std::is_same_v<int8_t, T> || std::is_same_v<signed char, T>) {
+					return serialization_type_id::s8;
+				} else if constexpr (std::is_same_v<uint8_t, T> || std::is_same_v<unsigned char, T>) {
+					return serialization_type_id::u8;
+				} else if constexpr (std::is_same_v<int16_t, T>) {
+					return serialization_type_id::s16;
+				} else if constexpr (std::is_same_v<uint16_t, T>) {
+					return serialization_type_id::u16;
+				} else if constexpr (std::is_same_v<int32_t, T>) {
+					return serialization_type_id::s32;
+				} else if constexpr (std::is_same_v<uint32_t, T>) {
+					return serialization_type_id::u32;
+				} else if constexpr (std::is_same_v<int64_t, T>) {
+					return serialization_type_id::s64;
+				} else if constexpr (std::is_same_v<uint64_t, T>) {
+					return serialization_type_id::u64;
+				} else if constexpr (std::is_same_v<bool, T>) {
+					return serialization_type_id::b;
+				}
+
+				static_assert("Unsupported integral type");
+			}
+
+			template <typename T>
+			GAIA_NODISCARD constexpr serialization_type_id get_floating_point_type() {
+				// if constexpr (std::is_same_v<float8_t, T>) {
+				// 	return serialization_type_id::f8;
+				// } else if constexpr (std::is_same_v<float16_t, T>) {
+				// 	return serialization_type_id::f16;
+				// } else
+				if constexpr (std::is_same_v<float, T>) {
+					return serialization_type_id::f32;
+				} else if constexpr (std::is_same_v<double, T>) {
+					return serialization_type_id::f64;
+				} else if constexpr (std::is_same_v<long double, T>) {
+					return serialization_type_id::f128;
+				}
+
+				static_assert("Unsupported floating point type");
+			}
+
+			template <typename T>
+			GAIA_NODISCARD constexpr serialization_type_id get_type_id() {
+				if constexpr (std::is_enum_v<T>)
+					return get_integral_type<std::underlying_type_t<T>>();
+				else if constexpr (std::is_integral_v<T>)
+					return get_integral_type<T>();
+				else if constexpr (std::is_floating_point_v<T>)
+					return get_floating_point_type<T>();
+				else if constexpr (std::is_class_v<T>)
+					return serialization_type_id::trivial_wrapper;
+
+				static_assert("Unsupported serialization type");
+				return serialization_type_id::Last;
+			}
+
+			template <typename T>
+			GAIA_NODISCARD constexpr uint32_t calculate_size_one(const T& item) {
+				using type = typename std::decay_t<typename std::remove_pointer_t<T>>;
+
+				constexpr auto id = detail::get_type_id<type>();
+				static_assert(id != detail::serialization_type_id::Last);
+				uint32_t size_in_bytes{};
+
+				if constexpr (is_trivially_serializable<type>::value)
+					size_in_bytes = sizeof(type);
+				else if constexpr (std::is_class_v<type>) {
+					utils::for_each_member(item, [&](auto&&... items) {
+						size_in_bytes += (calculate_size_one(items) + ...);
+					});
+				} else
+					static_assert(!sizeof(type), "Type is not supported for serialization, yet");
+
+				return size_in_bytes;
+			}
+
+			template <bool Write, typename Serializer, typename T>
+			void serialize_data_one(Serializer& s, T&& arg) {
+				using type = typename std::decay_t<typename std::remove_pointer_t<T>>;
+
+				if constexpr (is_trivially_serializable<type>::value) {
+					if constexpr (Write)
+						s.save(std::forward<T>(arg));
+					else
+						s.load(std::forward<T>(arg));
+				} else if constexpr (std::is_class_v<type>) {
+					utils::for_each_member(std::forward<T>(arg), [&s](auto&&... items) {
+						// TODO: Handle contiguous blocks of trivially copiable types
+						(serialize_data_one<Write>(s, items), ...);
+					});
+				} else
+					static_assert(!sizeof(type), "Type is not supported for serialization, yet");
+			}
+		} // namespace detail
+
+		//! Calculates the number of bytes necessary to serialize data using the "save" function.
+		//! \warning Compile-time.
+		template <typename T>
+		GAIA_NODISCARD constexpr uint32_t calculate_size(const T& data) {
+			return detail::calculate_size_one(data);
+		}
+
+		//! Write \param data using \tparam Writer at compile-time.
+		//!
+		//! \warning Writer has to implement a save function as follows:
+		//! 					template <typename T> void save(const T& arg);
+		template <typename Writer, typename T>
+		void save(Writer& writer, const T& data) {
+			detail::serialize_data_one<true>(writer, data);
+		}
+
+		//! Read \param data using \tparam Reader at compile-time.
+		//!
+		//! \warning Reader has to implement a save function as follows:
+		//! 					template <typename T> void load(T& arg);
+		template <typename Reader, typename T>
+		void load(Reader& reader, T& data) {
+			detail::serialize_data_one<false>(reader, data);
+		}
+	} // namespace serialization
 } // namespace gaia
 
