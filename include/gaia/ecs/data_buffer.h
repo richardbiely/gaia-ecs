@@ -19,18 +19,6 @@ namespace gaia {
 			//! Current position in the buffer
 			uint32_t m_dataPos = 0;
 
-			//! Makes sure there is enough capacity in our data container to hold another \param size bytes of data
-			void EnsureCapacity(uint32_t size) {
-				const auto nextSize = m_dataPos + size;
-				if (nextSize <= (uint32_t)m_data.size())
-					return;
-
-				// Make sure there is enough capacity to hold our data
-				const auto newSize = m_data.size() + size;
-				const auto newCapacity = (newSize / CapacityIncreaseSize) * CapacityIncreaseSize + CapacityIncreaseSize;
-				m_data.reserve(newCapacity);
-			}
-
 		public:
 			DataBuffer() {}
 
@@ -42,6 +30,18 @@ namespace gaia {
 			//! Returns the number of bytes written in the buffer
 			GAIA_NODISCARD uint32_t Size() const {
 				return (uint32_t)m_data.size();
+			}
+
+			//! Makes sure there is enough capacity in our data container to hold another \param size bytes of data
+			void EnsureCapacity(uint32_t size) {
+				const auto nextSize = m_dataPos + size;
+				if (nextSize <= (uint32_t)m_data.size())
+					return;
+
+				// Make sure there is enough capacity to hold our data
+				const auto newSize = m_data.size() + size;
+				const auto newCapacity = (newSize / CapacityIncreaseSize) * CapacityIncreaseSize + CapacityIncreaseSize;
+				m_data.reserve(newCapacity);
 			}
 
 			//! Changes the current position in the buffer

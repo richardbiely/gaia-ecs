@@ -187,9 +187,9 @@ namespace gaia {
 		//!
 		//! Example:
 		//! sarray<int, 10> arr = { ... };
-		//! for_each<arr.size()>([&arr][auto i]) {
+		//! for_each<arr.size()>([&arr](auto i) {
 		//!    std::cout << arr[i] << std::endl;
-		//! }
+		//! });
 		template <auto Iters, typename Func>
 		constexpr void for_each(Func func) {
 			detail::for_each_impl(func, std::make_index_sequence<Iters>());
@@ -201,9 +201,9 @@ namespace gaia {
 		//!
 		//! Example:
 		//! sarray<int, 10> arr;
-		//! for_each_ext<0, 10, 1>([&arr][auto i]) {
+		//! for_each_ext<0, 10, 1>([&arr](auto i) {
 		//!    std::cout << arr[i] << std::endl;
-		//! }
+		//! });
 		//! print(69, "likes", 420.0f);
 		template <auto FirstIdx, auto LastIdx, auto Inc, typename Func>
 		constexpr void for_each_ext(Func func) {
@@ -218,9 +218,9 @@ namespace gaia {
 		//! Example:
 		//! template<typename... Args>
 		//! void print(const Args&... args) {
-		//!  for_each_pack([][const auto& value]) {
+		//!  for_each_pack([](const auto& value) {
 		//!    std::cout << value << std::endl;
-		//!  }
+		//!  });
 		//! }
 		//! print(69, "likes", 420.0f);
 		template <typename Func, typename... Args>
@@ -232,9 +232,11 @@ namespace gaia {
 		//! tuple_size (sarray, std::pair etc).
 		//!
 		//! Example:
-		//! for_each_tuple(const auto& value) {
-		//!  std::cout << value << std::endl;
-		//!  }, std::make(69, "likes", 420.0f);
+		//! for_each_tuple(
+		//!		std::make_tuple(69, "likes", 420.0f),
+		//!		[](const auto& value) {
+		//! 		std::cout << value << std::endl;
+		//! 	});
 		template <typename Tuple, typename Func>
 		constexpr void for_each_tuple(Tuple&& tuple, Func func) {
 			detail::for_each_tuple_impl(

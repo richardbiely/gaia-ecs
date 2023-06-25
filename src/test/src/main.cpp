@@ -2076,3 +2076,136 @@ TEST_CASE("DataLayout SoA8 - ECS") {
 TEST_CASE("DataLayout SoA16 - ECS") {
 	TestDataLayoutSoA_ECS<PositionSoA16>();
 }
+
+//------------------------------------------------------------------------------
+// Serialization
+//------------------------------------------------------------------------------
+
+template <typename T>
+bool CompareSerializableType(const T& a, const T& b) {
+	if constexpr (std::is_trivially_copyable_v<T>)
+		return !std::memcmp((const void*)&a, (const void*)&b, sizeof(b));
+	else
+		return a == b;
+}
+
+template <typename T>
+bool CompareSerializableTypes(const T& a, const T& b) {
+	// Convert inputs into tuples where each struct member is an element of the tuple
+	auto ta = utils::struct_to_tuple(a);
+	auto tb = utils::struct_to_tuple(b);
+
+	// Do element-wise comparison
+	bool ret = true;
+	utils::for_each<std::tuple_size<decltype(ta)>::value>([&](auto i) {
+		const auto& aa = std::get<i>(ta);
+		const auto& bb = std::get<i>(ta);
+		ret = ret && CompareSerializableType(aa, bb);
+	});
+	return ret;
+}
+
+class SerializerTest {
+	ecs::DataBuffer m_buffer;
+
+public:
+	void reserve(uint32_t size) {
+		m_buffer.EnsureCapacity(size);
+	}
+
+	void seek(uint32_t pos) {
+		m_buffer.Seek(pos);
+	}
+
+	template <typename T>
+	void save(const T& arg) {
+		m_buffer.Save(arg);
+	}
+
+	template <typename T>
+	void load(T& arg) {
+		m_buffer.Load(arg);
+	}
+};
+
+struct FooNonTrivial {
+	int a;
+	FooNonTrivial(): a(0){};
+	FooNonTrivial(int value): a(value){};
+	~FooNonTrivial(){};
+
+	bool operator==(const FooNonTrivial& other) const {
+		return a == other.a;
+	}
+};
+
+struct SerializeStruct1 {
+	int a1;
+	int a2;
+	bool b;
+	float c;
+};
+
+struct SerializeStruct2 {
+	FooNonTrivial d;
+	int a1;
+	int a2;
+	bool b;
+	float c;
+};
+
+TEST_CASE("Serialization - simple") {
+	{
+		Int3 in{1, 2, 3}, out{};
+
+		SerializerTest s;
+		s.reserve(serialization::calculate_size(in));
+
+		serialization::save(s, in);
+		s.seek(0);
+		serialization::load(s, out);
+
+		REQUIRE(CompareSerializableTypes(in, out));
+	}
+
+	{
+		Position in{1, 2, 3}, out{};
+
+		SerializerTest s;
+		s.reserve(serialization::calculate_size(in));
+
+		serialization::save(s, in);
+		s.seek(0);
+		serialization::load(s, out);
+
+		REQUIRE(CompareSerializableTypes(in, out));
+	}
+
+	{
+		SerializeStruct1 in{1, 2, true, 3.12345f}, out{};
+
+		SerializerTest s;
+		s.reserve(serialization::calculate_size(in));
+
+		serialization::save(s, in);
+		s.seek(0);
+		serialization::load(s, out);
+
+		REQUIRE(CompareSerializableTypes(in, out));
+	}
+
+	{
+		SerializeStruct2 in{FooNonTrivial(111), 1, 2, true, 3.12345f}, out{};
+
+		SerializerTest s;
+		s.reserve(serialization::calculate_size(in));
+
+		serialization::save(s, in);
+		s.seek(0);
+		serialization::load(s, out);
+
+		REQUIRE(CompareSerializableTypes(in, out));
+	}
+}
+
+//------------------------------------------------------------------------------

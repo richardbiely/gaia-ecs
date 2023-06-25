@@ -1,4 +1,7 @@
 #pragma once
+
+#include "../config/config_core.h"
+
 #include <tuple>
 #include <type_traits>
 #include <utility>
@@ -6,17 +9,34 @@
 namespace gaia {
 	namespace utils {
 
+		namespace detail {
+			// Check if type T is constructible via T{Args...}
+			struct any_type {
+				template <typename T>
+				constexpr operator T(); // non explicit
+			};
+
+			template <typename T, typename... TArgs>
+			decltype(void(T{std::declval<TArgs>()...}), std::true_type{}) is_braces_constructible(int);
+
+			template <typename, typename...>
+			std::false_type is_braces_constructible(...);
+
+			template <typename T, typename... TArgs>
+			using is_braces_constructible_t = decltype(detail::is_braces_constructible<T, TArgs...>(0));
+		} // namespace detail
+
 		//----------------------------------------------------------------------
 		// Tuple to struct conversion
 		//----------------------------------------------------------------------
 
 		template <typename S, size_t... Is, typename Tuple>
-		S tuple_to_struct(std::index_sequence<Is...> /*no_name*/, Tuple&& tup) {
+		GAIA_NODISCARD S tuple_to_struct(std::index_sequence<Is...> /*no_name*/, Tuple&& tup) {
 			return {std::get<Is>(std::forward<Tuple>(tup))...};
 		}
 
 		template <typename S, typename Tuple>
-		S tuple_to_struct(Tuple&& tup) {
+		GAIA_NODISCARD S tuple_to_struct(Tuple&& tup) {
 			using T = std::remove_reference_t<Tuple>;
 
 			return tuple_to_struct<S>(std::make_index_sequence<std::tuple_size<T>{}>{}, std::forward<Tuple>(tup));
@@ -26,61 +46,134 @@ namespace gaia {
 		// Struct to tuple conversion
 		//----------------------------------------------------------------------
 
-		// Check if type T is constructible via T{Args...}
-		struct any_type {
-			template <typename T>
-			constexpr operator T(); // non explicit
-		};
-
-		template <typename T, typename... TArgs>
-		decltype(void(T{std::declval<TArgs>()...}), std::true_type{}) is_braces_constructible(int);
-
-		template <typename, typename...>
-		std::false_type is_braces_constructible(...);
-
-		template <typename T, typename... TArgs>
-		using is_braces_constructible_t = decltype(is_braces_constructible<T, TArgs...>(0));
-
+		//! The number of bits necessary to fit the maximum supported number of members in a struct
 		static constexpr uint32_t StructToTupleMaxTypesBits = 3;
-		//static constexpr uint32_t StructToTupleMaxTypes = 1 << 3;
+		// static constexpr uint32_t StructToTupleMaxTypes = 1 << 3;
 
 		//! Converts a struct to a tuple (struct must support initialization via:
 		//! Struct{x,y,...,z})
 		template <typename T>
 		auto struct_to_tuple(T&& object) noexcept {
-			using type = std::decay_t<T>;
-			// Don't support empty structs. They have no data.
-			// We also want to fail for structs with too many members because it smells with bad usage.
-			// Therefore, only 1 to 8 (StructToTupleMaxTypes) types are supported at the moment.
-			if constexpr (is_braces_constructible_t<
-												type, any_type, any_type, any_type, any_type, any_type, any_type, any_type, any_type>{}) {
+			using type = typename std::decay_t<typename std::remove_pointer_t<T>>;
+
+			if constexpr (detail::is_braces_constructible_t<
+												type, detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+												detail::any_type, detail::any_type, detail::any_type>{}) {
 				auto&& [p1, p2, p3, p4, p5, p6, p7, p8] = object;
 				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8);
-			} else if constexpr (is_braces_constructible_t<
-															 type, any_type, any_type, any_type, any_type, any_type, any_type, any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type>{}) {
 				auto&& [p1, p2, p3, p4, p5, p6, p7] = object;
 				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7);
-			} else if constexpr (is_braces_constructible_t<
-															 type, any_type, any_type, any_type, any_type, any_type, any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type>{}) {
 				auto&& [p1, p2, p3, p4, p5, p6] = object;
 				return std::make_tuple(p1, p2, p3, p4, p5, p6);
-			} else if constexpr (is_braces_constructible_t<type, any_type, any_type, any_type, any_type, any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type>{}) {
 				auto&& [p1, p2, p3, p4, p5] = object;
 				return std::make_tuple(p1, p2, p3, p4, p5);
-			} else if constexpr (is_braces_constructible_t<type, any_type, any_type, any_type, any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
 				auto&& [p1, p2, p3, p4] = object;
 				return std::make_tuple(p1, p2, p3, p4);
-			} else if constexpr (is_braces_constructible_t<type, any_type, any_type, any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type>{}) {
 				auto&& [p1, p2, p3] = object;
 				return std::make_tuple(p1, p2, p3);
-			} else if constexpr (is_braces_constructible_t<type, any_type, any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<type, detail::any_type, detail::any_type>{}) {
 				auto&& [p1, p2] = object;
 				return std::make_tuple(p1, p2);
-			} else if constexpr (is_braces_constructible_t<type, any_type>{}) {
+			} else if constexpr (detail::is_braces_constructible_t<type, detail::any_type>{}) {
 				auto&& [p1] = object;
 				return std::make_tuple(p1);
 			} else {
 				return std::make_tuple();
+			}
+		}
+
+		//----------------------------------------------------------------------
+		// Struct to tuple conversion
+		//----------------------------------------------------------------------
+
+		template <typename T>
+		auto struct_member_count(T&& object) {
+			using type = std::decay_t<T>;
+
+			if constexpr (detail::is_braces_constructible_t<
+												type, detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+												detail::any_type, detail::any_type, detail::any_type>{}) {
+				return 8;
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type>{}) {
+				return 7;
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type>{}) {
+				return 6;
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type>{}) {
+				return 5;
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
+				return 4;
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type>{}) {
+				return 3;
+			} else if constexpr (detail::is_braces_constructible_t<type, detail::any_type, detail::any_type>{}) {
+				return 2;
+			} else if constexpr (detail::is_braces_constructible_t<type, detail::any_type>{}) {
+				return 1;
+			} else {
+				return 0;
+			}
+		}
+
+		template <typename T, typename Func>
+		auto for_each_member(T&& object, Func&& visitor) {
+			using type = std::decay_t<T>;
+
+			if constexpr (detail::is_braces_constructible_t<
+												type, detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+												detail::any_type, detail::any_type, detail::any_type>{}) {
+				auto&& [p1, p2, p3, p4, p5, p6, p7, p8] = object;
+				return visitor(p1, p2, p3, p4, p5, p6, p7, p8);
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type>{}) {
+				auto&& [p1, p2, p3, p4, p5, p6, p7] = object;
+				return visitor(p1, p2, p3, p4, p5, p6, p7);
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type>{}) {
+				auto&& [p1, p2, p3, p4, p5, p6] = object;
+				return visitor(p1, p2, p3, p4, p5, p6);
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type>{}) {
+				auto&& [p1, p2, p3, p4, p5] = object;
+				return visitor(p1, p2, p3, p4, p5);
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
+				auto&& [p1, p2, p3, p4] = object;
+				return visitor(p1, p2, p3, p4);
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type>{}) {
+				auto&& [p1, p2, p3] = object;
+				return visitor(p1, p2, p3);
+			} else if constexpr (detail::is_braces_constructible_t<type, detail::any_type, detail::any_type>{}) {
+				auto&& [p1, p2] = object;
+				return visitor(p1, p2);
+			} else if constexpr (detail::is_braces_constructible_t<type, detail::any_type>{}) {
+				auto&& [p1] = object;
+				return visitor(p1);
+			} else {
+				return visitor();
 			}
 		}
 

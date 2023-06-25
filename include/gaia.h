@@ -21,5 +21,7 @@
 #include "gaia/utils/data_layout_policy.h"
 #include "gaia/utils/hashing_policy.h"
 #include "gaia/utils/mem.h"
+#include "gaia/utils/serialization.h"
 #include "gaia/utils/type_info.h"
 #include "gaia/utils/utility.h"
+
