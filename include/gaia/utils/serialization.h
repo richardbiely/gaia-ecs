@@ -80,6 +80,8 @@ namespace gaia {
 					std::true_type {};
 
 			DEFINE_HAS_FUNCTION(resize);
+			DEFINE_HAS_FUNCTION(save);
+			DEFINE_HAS_FUNCTION(load);
 
 			template <typename T>
 			struct is_trivially_serializable {
@@ -205,6 +207,11 @@ namespace gaia {
 						// TODO: Handle contiguous blocks of trivially copiable types
 						(serialize_data_one<Write>(s, items), ...);
 					});
+					// TODO: Consider supporting custom save/load functions
+					// } else if constexpr (Write && decltype(has_save<type>(s, std::forward<T>(arg)))::value) {
+					// 	save(s, std::forward<T>(arg));
+					// } else if constexpr (!Write && decltype(has_load<type>(s, std::forward<T>(arg)))::value) {
+					// 	load(s, std::forward<T>(arg));
 				} else
 					static_assert(!sizeof(type), "Type is not supported for serialization, yet");
 			}
