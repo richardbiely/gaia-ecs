@@ -47,6 +47,24 @@ struct Else {
 	bool value;
 };
 
+struct PositionNonTrivial {
+	float x, y, z;
+	PositionNonTrivial(): x(1), y(2), z(3) {}
+	PositionNonTrivial(float xx, float yy, float zz): x(xx), y(yy), z(zz) {}
+};
+
+struct StringComponent {
+	std::string value;
+};
+static constexpr const char* StringComponent2DefaultValue = "test";
+struct StringComponent2 {
+	std::string value;
+	StringComponent2(): value(StringComponent2DefaultValue) {}
+	~StringComponent2() {
+		value = "empty";
+	}
+};
+
 TEST_CASE("ComponentTypes") {
 	REQUIRE(ecs::component::IsGenericComponent<uint32_t> == true);
 	REQUIRE(ecs::component::IsGenericComponent<Position> == true);
@@ -1409,24 +1427,6 @@ TEST_CASE("SetComponent - generic & chunk") {
 }
 
 TEST_CASE("Components - non trivial") {
-
-	struct PositionNonTrivial {
-		float x, y, z;
-		PositionNonTrivial(): x(1), y(2), z(3) {}
-		PositionNonTrivial(float xx, float yy, float zz): x(xx), y(yy), z(zz) {}
-	};
-	struct StringComponent {
-		std::string value;
-	};
-	static constexpr const char* DefaultValue = "test";
-	struct StringComponent2 {
-		std::string value;
-		StringComponent2(): value(DefaultValue) {}
-		~StringComponent2() {
-			value = "empty";
-		}
-	};
-
 	ecs::World w;
 
 	constexpr size_t N = 100;
@@ -1447,15 +1447,15 @@ TEST_CASE("Components - non trivial") {
 
 		{
 			auto s2 = w.GetComponent<StringComponent2>(ent);
-			REQUIRE(s2.value == DefaultValue);
+			REQUIRE(s2.value == StringComponent2DefaultValue);
 		}
 		{
 			const auto& s2 = w.GetComponent<StringComponent2>(ent);
-			REQUIRE(s2.value == DefaultValue);
+			REQUIRE(s2.value == StringComponent2DefaultValue);
 		}
 		{
 			const auto& s2 = w.GetComponent<StringComponent2>(ent);
-			REQUIRE(s2.value == DefaultValue);
+			REQUIRE(s2.value == StringComponent2DefaultValue);
 		}
 
 		const auto& p = w.GetComponent<PositionNonTrivial>(ent);
@@ -1613,6 +1613,27 @@ TEST_CASE("CommandBuffer") {
 		REQUIRE(p.x == 1);
 		REQUIRE(p.y == 2);
 		REQUIRE(p.z == 3);
+	}
+
+	// Delayed non-trivial component setting of an existing entity
+	{
+		ecs::World w;
+		ecs::CommandBuffer cb(w);
+
+		auto e = w.CreateEntity();
+
+		cb.AddComponent<StringComponent>(e);
+		cb.SetComponent<StringComponent>(e, {"teststring"});
+		cb.AddComponent<StringComponent2>(e);
+		REQUIRE(!w.HasComponent<StringComponent>(e));
+
+		cb.Commit();
+		REQUIRE(w.HasComponent<StringComponent>(e));
+
+		auto s1 = w.GetComponent<StringComponent>(e);
+		REQUIRE(s1.value == "teststring");
+		auto s2 = w.GetComponent<StringComponent2>(e);
+		REQUIRE(s2.value == StringComponent2DefaultValue);
 	}
 
 	// Delayed 2 components setting of an existing entity
@@ -2106,9 +2127,9 @@ bool CompareSerializableTypes(const T& a, const T& b) {
 }
 
 struct FooNonTrivial {
-	int a;
+	uint32_t a;
 	FooNonTrivial(): a(0){};
-	FooNonTrivial(int value): a(value){};
+	FooNonTrivial(uint32_t value): a(value){};
 	~FooNonTrivial(){};
 
 	bool operator==(const FooNonTrivial& other) const {
@@ -2176,6 +2197,88 @@ TEST_CASE("Serialization - simple") {
 
 	{
 		SerializeStruct2 in{FooNonTrivial(111), 1, 2, true, 3.12345f}, out{};
+
+		ecs::DataBuffer db;
+		ecs::DataBuffer_SerializationWrapper s(db);
+		s.reserve(serialization::calculate_size(in));
+
+		serialization::save(s, in);
+		s.seek(0);
+		serialization::load(s, out);
+
+		REQUIRE(CompareSerializableTypes(in, out));
+	}
+}
+
+struct SerializeStructSArray {
+	containers::sarray<uint32_t, 8> arr;
+	float f;
+};
+
+struct SerializeStructSArrayNonTrivial {
+	containers::sarray<FooNonTrivial, 8> arr;
+	float f;
+
+	bool operator==(const SerializeStructSArrayNonTrivial& other) const {
+		return arr == other.arr && f == other.f;
+	}
+};
+
+struct SerializeStructDArray {
+	containers::darray<uint32_t> arr;
+	float f;
+};
+
+struct SerializeStructDArrayNonTrivial {
+	containers::darray<uint32_t> arr;
+	float f;
+
+	bool operator==(const SerializeStructDArrayNonTrivial& other) const {
+		return arr == other.arr && f == other.f;
+	}
+};
+
+TEST_CASE("Serialization - arrays") {
+	{
+		SerializeStructSArray in{}, out{};
+		for (uint32_t i = 0; i < in.arr.size(); ++i)
+			in.arr[i] = i;
+		in.f = 3.12345f;
+
+		ecs::DataBuffer db;
+		ecs::DataBuffer_SerializationWrapper s(db);
+		s.reserve(serialization::calculate_size(in));
+
+		serialization::save(s, in);
+		s.seek(0);
+		serialization::load(s, out);
+
+		REQUIRE(CompareSerializableTypes(in, out));
+	}
+
+	{
+		SerializeStructSArrayNonTrivial in{}, out{};
+		for (uint32_t i = 0; i < in.arr.size(); ++i)
+			in.arr[i] = FooNonTrivial(i);
+		in.f = 3.12345f;
+
+		ecs::DataBuffer db;
+		ecs::DataBuffer_SerializationWrapper s(db);
+		s.reserve(serialization::calculate_size(in));
+
+		serialization::save(s, in);
+		s.seek(0);
+		serialization::load(s, out);
+
+		REQUIRE(CompareSerializableTypes(in, out));
+	}
+
+	{
+		SerializeStructDArray in{}, out{};
+		in.arr.resize(10);
+		for (uint32_t i = 0; i < in.arr.size(); ++i)
+			in.arr[i] = i;
+		in.f = 3.12345f;
 
 		ecs::DataBuffer db;
 		ecs::DataBuffer_SerializationWrapper s(db);

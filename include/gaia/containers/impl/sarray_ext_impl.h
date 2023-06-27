@@ -391,7 +391,7 @@ namespace gaia {
 					return false;
 				const size_type n = size();
 				for (size_type i = 0; i < n; ++i)
-					if (m_data[i] != other.m_data[i])
+					if (!(m_data[i] == other.m_data[i]))
 						return false;
 				return true;
 			}

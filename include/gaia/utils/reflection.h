@@ -47,8 +47,8 @@ namespace gaia {
 		//----------------------------------------------------------------------
 
 		//! The number of bits necessary to fit the maximum supported number of members in a struct
-		static constexpr uint32_t StructToTupleMaxTypesBits = 3;
-		// static constexpr uint32_t StructToTupleMaxTypes = 1 << 3;
+		static constexpr uint32_t StructToTupleMaxTypesBits = 4;
+		// static constexpr uint32_t StructToTupleMaxTypes = 1 << StructToTupleMaxTypesBits;
 
 		//! Converts a struct to a tuple (struct must support initialization via:
 		//! Struct{x,y,...,z})
@@ -58,7 +58,50 @@ namespace gaia {
 
 			if constexpr (detail::is_braces_constructible_t<
 												type, detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-												detail::any_type, detail::any_type, detail::any_type>{}) {
+												detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+												detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
+				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15] = object;
+				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15);
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type>{}) {
+				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14] = object;
+				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14);
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
+				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13] = object;
+				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13);
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type>{}) {
+				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12] = object;
+				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12);
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type>{}) {
+				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11] = object;
+				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11);
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type>{}) {
+				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10] = object;
+				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10);
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type>{}) {
+				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9] = object;
+				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8, p9);
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
 				auto&& [p1, p2, p3, p4, p5, p6, p7, p8] = object;
 				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8);
 			} else if constexpr (detail::is_braces_constructible_t<
@@ -105,7 +148,43 @@ namespace gaia {
 
 			if constexpr (detail::is_braces_constructible_t<
 												type, detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-												detail::any_type, detail::any_type, detail::any_type>{}) {
+												detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+												detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
+				return 15;
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type>{}) {
+				return 14;
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
+				return 13;
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type>{}) {
+				return 12;
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type>{}) {
+				return 11;
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type>{}) {
+				return 10;
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type>{}) {
+				return 9;
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
 				return 8;
 			} else if constexpr (detail::is_braces_constructible_t<
 															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
@@ -140,7 +219,50 @@ namespace gaia {
 
 			if constexpr (detail::is_braces_constructible_t<
 												type, detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-												detail::any_type, detail::any_type, detail::any_type>{}) {
+												detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+												detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
+				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15] = object;
+				return visitor(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15);
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type>{}) {
+				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14] = object;
+				return visitor(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14);
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
+				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13] = object;
+				return visitor(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13);
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type>{}) {
+				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12] = object;
+				return visitor(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12);
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type>{}) {
+				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11] = object;
+				return visitor(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11);
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type>{}) {
+				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10] = object;
+				return visitor(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10);
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type>{}) {
+				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9] = object;
+				return visitor(p1, p2, p3, p4, p5, p6, p7, p8, p9);
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
 				auto&& [p1, p2, p3, p4, p5, p6, p7, p8] = object;
 				return visitor(p1, p2, p3, p4, p5, p6, p7, p8);
 			} else if constexpr (detail::is_braces_constructible_t<
