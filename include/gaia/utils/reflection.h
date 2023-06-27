@@ -56,10 +56,13 @@ namespace gaia {
 		auto struct_to_tuple(T&& object) noexcept {
 			using type = typename std::decay_t<typename std::remove_pointer_t<T>>;
 
-			if constexpr (detail::is_braces_constructible_t<
-												type, detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-												detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-												detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
+			if constexpr (is_empty_v<type>) {
+				return std::make_tuple();
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type>{}) {
 				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15] = object;
 				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15);
 			} else if constexpr (detail::is_braces_constructible_t<
@@ -133,9 +136,9 @@ namespace gaia {
 			} else if constexpr (detail::is_braces_constructible_t<type, detail::any_type>{}) {
 				auto&& [p1] = object;
 				return std::make_tuple(p1);
-			} else {
-				return std::make_tuple();
 			}
+
+			static_assert(false, "Unsupported number of members");
 		}
 
 		//----------------------------------------------------------------------
@@ -146,10 +149,13 @@ namespace gaia {
 		auto struct_member_count(T&& object) {
 			using type = std::decay_t<T>;
 
-			if constexpr (detail::is_braces_constructible_t<
-												type, detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-												detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-												detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
+			if constexpr (is_empty_v<type>) {
+				return 0;
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type>{}) {
 				return 15;
 			} else if constexpr (detail::is_braces_constructible_t<
 															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
@@ -208,19 +214,22 @@ namespace gaia {
 				return 2;
 			} else if constexpr (detail::is_braces_constructible_t<type, detail::any_type>{}) {
 				return 1;
-			} else {
-				return 0;
 			}
+
+			static_assert(false, "Unsupported number of members");
 		}
 
 		template <typename T, typename Func>
 		auto for_each_member(T&& object, Func&& visitor) {
 			using type = std::decay_t<T>;
 
-			if constexpr (detail::is_braces_constructible_t<
-												type, detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-												detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-												detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
+			if constexpr (is_empty_v<type>) {
+				visitor();
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type>{}) {
 				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15] = object;
 				return visitor(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15);
 			} else if constexpr (detail::is_braces_constructible_t<
@@ -294,9 +303,9 @@ namespace gaia {
 			} else if constexpr (detail::is_braces_constructible_t<type, detail::any_type>{}) {
 				auto&& [p1] = object;
 				return visitor(p1);
-			} else {
-				return visitor();
 			}
+
+			static_assert(false, "Unsupported number of members");
 		}
 
 	} // namespace utils
