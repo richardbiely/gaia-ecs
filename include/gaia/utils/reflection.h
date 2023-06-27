@@ -56,7 +56,7 @@ namespace gaia {
 		auto struct_to_tuple(T&& object) noexcept {
 			using type = typename std::decay_t<typename std::remove_pointer_t<T>>;
 
-			if constexpr (is_empty_v<type>) {
+			if constexpr (std::is_empty_v<type>) {
 				return std::make_tuple();
 			} else if constexpr (detail::is_braces_constructible_t<
 															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
@@ -138,7 +138,7 @@ namespace gaia {
 				return std::make_tuple(p1);
 			}
 
-			static_assert(false, "Unsupported number of members");
+			static_assert("Unsupported number of members");
 		}
 
 		//----------------------------------------------------------------------
@@ -149,7 +149,7 @@ namespace gaia {
 		auto struct_member_count(T&& object) {
 			using type = std::decay_t<T>;
 
-			if constexpr (is_empty_v<type>) {
+			if constexpr (std::is_empty_v<type>) {
 				return 0;
 			} else if constexpr (detail::is_braces_constructible_t<
 															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
@@ -216,14 +216,14 @@ namespace gaia {
 				return 1;
 			}
 
-			static_assert(false, "Unsupported number of members");
+			static_assert("Unsupported number of members");
 		}
 
 		template <typename T, typename Func>
 		auto for_each_member(T&& object, Func&& visitor) {
 			using type = std::decay_t<T>;
 
-			if constexpr (is_empty_v<type>) {
+			if constexpr (std::is_empty_v<type>) {
 				visitor();
 			} else if constexpr (detail::is_braces_constructible_t<
 															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
@@ -305,7 +305,7 @@ namespace gaia {
 				return visitor(p1);
 			}
 
-			static_assert(false, "Unsupported number of members");
+			static_assert("Unsupported number of members");
 		}
 
 	} // namespace utils
