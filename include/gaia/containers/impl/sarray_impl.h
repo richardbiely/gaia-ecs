@@ -255,7 +255,7 @@ namespace gaia {
 
 			GAIA_NODISCARD bool operator==(const sarr& other) const {
 				for (size_type i = 0; i < N; ++i)
-					if (m_data[i] != other.m_data[i])
+					if (!(m_data[i] == other.m_data[i]))
 						return false;
 				return true;
 			}

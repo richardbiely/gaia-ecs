@@ -8,6 +8,7 @@
 
 #include "mem.h"
 #include "reflection.h"
+#include "utility.h"
 
 namespace gaia {
 	namespace serialization {
@@ -41,9 +42,44 @@ namespace gaia {
 
 				// Special
 				trivial_wrapper = 200,
+				data_and_size = 201,
 
 				Last = 255,
 			};
+
+			template <typename C>
+			constexpr auto size(const C& c) -> decltype(c.size()) {
+				return c.size();
+			}
+			template <typename T, std::size_t N>
+			constexpr std::size_t size(const T (&)[N]) noexcept {
+				return N;
+			}
+
+			template <typename C>
+			constexpr auto data(C& c) -> decltype(c.data()) {
+				return c.data();
+			}
+			template <typename C>
+			constexpr auto data(const C& c) -> decltype(c.data()) {
+				return c.data();
+			}
+			template <typename T, std::size_t N>
+			constexpr T* data(T (&array)[N]) noexcept {
+				return array;
+			}
+			template <typename E>
+			constexpr const E* data(std::initializer_list<E> il) noexcept {
+				return il.begin();
+			}
+
+			template <typename, typename = void>
+			struct has_data_and_size: std::false_type {};
+			template <typename T>
+			struct has_data_and_size<T, std::void_t<decltype(data(std::declval<T>())), decltype(size(std::declval<T>()))>>:
+					std::true_type {};
+
+			DEFINE_HAS_FUNCTION(resize);
 
 			template <typename T>
 			struct is_trivially_serializable {
@@ -107,6 +143,8 @@ namespace gaia {
 					return get_integral_type<T>();
 				else if constexpr (std::is_floating_point_v<T>)
 					return get_floating_point_type<T>();
+				else if constexpr (detail::has_data_and_size<T>::value)
+					return serialization_type_id::data_and_size;
 				else if constexpr (std::is_class_v<T>)
 					return serialization_type_id::trivial_wrapper;
 
@@ -124,7 +162,9 @@ namespace gaia {
 
 				if constexpr (is_trivially_serializable<type>::value)
 					size_in_bytes = sizeof(type);
-				else if constexpr (std::is_class_v<type>) {
+				else if constexpr (detail::has_data_and_size<type>::value) {
+					size_in_bytes += item.size();
+				} else if constexpr (std::is_class_v<type>) {
 					utils::for_each_member(item, [&](auto&&... items) {
 						size_in_bytes += (calculate_size_one(items) + ...);
 					});
@@ -143,6 +183,23 @@ namespace gaia {
 						s.save(std::forward<T>(arg));
 					else
 						s.load(std::forward<T>(arg));
+				} else if constexpr (detail::has_data_and_size<type>::value) {
+					if constexpr (Write) {
+						if constexpr (decltype(has_resize<type>(0))::value) {
+							const auto size = arg.size();
+							s.save(size);
+						}
+						for (const auto& e: arg)
+							serialize_data_one<Write>(s, e);
+					} else {
+						if constexpr (decltype(has_resize<type>(0))::value) {
+							auto size = arg.size();
+							s.load(size);
+							arg.resize(size);
+						}
+						for (auto& e: arg)
+							serialize_data_one<Write>(s, e);
+					}
 				} else if constexpr (std::is_class_v<type>) {
 					utils::for_each_member(std::forward<T>(arg), [&s](auto&&... items) {
 						// TODO: Handle contiguous blocks of trivially copiable types

@@ -13,6 +13,10 @@ namespace gaia {
 	constexpr size_t BadIndex = size_t(-1);
 
 	namespace utils {
+		//----------------------------------------------------------------------
+		// Bit-byte conversion
+		//----------------------------------------------------------------------
+
 		template <typename T>
 		constexpr T as_bits(T value) {
 			static_assert(std::is_integral_v<T>);
@@ -24,6 +28,10 @@ namespace gaia {
 			static_assert(std::is_integral_v<T>);
 			return value / 8;
 		}
+
+		//----------------------------------------------------------------------
+		// Element swapping
+		//----------------------------------------------------------------------
 
 		template <typename T>
 		constexpr void swap(T& left, T& right) {
@@ -60,8 +68,12 @@ namespace gaia {
 				sortFunc(lhs, rhs);
 		}
 
+		//----------------------------------------------------------------------
+		// Value filling
+		//----------------------------------------------------------------------
+
 		template <class ForwardIt, class T>
-		void fill(ForwardIt first, ForwardIt last, const T& value) {
+		constexpr void fill(ForwardIt first, ForwardIt last, const T& value) {
 #if GAIA_USE_STL_COMPATIBLE_CONTAINERS
 			std::fill(first, last, value);
 #else
@@ -71,13 +83,17 @@ namespace gaia {
 #endif
 		}
 
+		//----------------------------------------------------------------------
+		// Value range checking
+		//----------------------------------------------------------------------
+
 		template <class T>
-		const T& get_min(const T& a, const T& b) {
+		constexpr const T& get_min(const T& a, const T& b) {
 			return (b < a) ? b : a;
 		}
 
 		template <class T>
-		const T& get_max(const T& a, const T& b) {
+		constexpr const T& get_max(const T& a, const T& b) {
 			return (b > a) ? b : a;
 		}
 
@@ -129,6 +145,21 @@ namespace gaia {
 		template <typename Class, typename Ret, typename... Args>
 		func_type_list<Args...> func_args(Ret (Class::*)(Args...) const);
 
+#define DEFINE_HAS_FUNCTION(function_name)                                                                             \
+	template <typename T, typename... TArgs>                                                                             \
+	auto has_##function_name(TArgs&&... args)                                                                            \
+			->decltype(std::declval<T>().function_name(std::forward<TArgs>(args)...), std::true_type{}) {                    \
+		return std::true_type{};                                                                                           \
+	}                                                                                                                    \
+	template <typename T>                                                                                                \
+	auto has_##function_name(...)->std::false_type {                                                                     \
+		return std::false_type{};                                                                                          \
+	}
+
+		DEFINE_HAS_FUNCTION(find)
+		DEFINE_HAS_FUNCTION(find_if)
+		DEFINE_HAS_FUNCTION(find_if_not)
+
 		//----------------------------------------------------------------------
 		// Type helpers
 		//----------------------------------------------------------------------
@@ -152,22 +183,6 @@ namespace gaia {
 		//----------------------------------------------------------------------
 
 		namespace detail {
-#define DEFINE_HAS_FUNCTION(function_name)                                                                             \
-	template <typename T, typename... TArgs>                                                                             \
-	auto has_##function_name(TArgs&&... args)                                                                            \
-			->decltype(std::declval<T>().function_name(std::forward<TArgs>(args)...), std::true_type{}) {                    \
-		return std::true_type{};                                                                                           \
-	}                                                                                                                    \
-                                                                                                                       \
-	template <typename T>                                                                                                \
-	auto has_##function_name(...)->std::false_type {                                                                     \
-		return std::false_type{};                                                                                          \
-	}
-
-			DEFINE_HAS_FUNCTION(find)
-			DEFINE_HAS_FUNCTION(find_if)
-			DEFINE_HAS_FUNCTION(find_if_not)
-
 			template <typename Func, auto... Is>
 			constexpr void for_each_impl(Func func, std::index_sequence<Is...> /*no_name*/) {
 				(func(std::integral_constant<decltype(Is), Is>{}), ...);
@@ -293,7 +308,7 @@ namespace gaia {
 
 		template <typename C, typename V>
 		constexpr auto find(const C& arr, const V& item) {
-			if constexpr (decltype(detail::has_find<C>(item))::value)
+			if constexpr (decltype(has_find<C>(item))::value)
 				return arr.find(item);
 			else
 				return gaia::utils::find(arr.begin(), arr.end(), item);
@@ -328,7 +343,7 @@ namespace gaia {
 
 		template <typename UnaryPredicate, typename C>
 		constexpr auto find_if(const C& arr, UnaryPredicate predicate) {
-			if constexpr (decltype(detail::has_find_if<C>(predicate))::value)
+			if constexpr (decltype(has_find_if<C>(predicate))::value)
 				return arr.find_id(predicate);
 			else
 				return gaia::utils::find_if(arr.begin(), arr.end(), predicate);
@@ -363,7 +378,7 @@ namespace gaia {
 
 		template <typename UnaryPredicate, typename C>
 		constexpr auto find_if_not(const C& arr, UnaryPredicate predicate) {
-			if constexpr (decltype(detail::has_find_if_not<C>(predicate))::value)
+			if constexpr (decltype(has_find_if_not<C>(predicate))::value)
 				return arr.find_if_not(predicate);
 			else
 				return gaia::utils::find_if_not(arr.begin(), arr.end(), predicate);
