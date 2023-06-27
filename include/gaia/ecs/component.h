@@ -85,7 +85,6 @@ namespace gaia {
 			//! \return Component id
 			template <typename T>
 			GAIA_NODISCARD inline constexpr ComponentType GetComponentType() {
-				using U = typename DeduceComponent<T>::Type;
 				if constexpr (IsGenericComponent<T>)
 					return ComponentType::CT_Generic;
 				else
