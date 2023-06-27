@@ -28,24 +28,24 @@
 
 namespace gaia {
 	namespace utils {
-		void* mem_alloc(size_t size) {
+		inline void* mem_alloc(size_t size) {
 			void* ptr = GAIA_MEM_ALLC(size);
 			GAIA_PROF_ALLOC(ptr, size);
 			return ptr;
 		}
 
-		void* mem_alloc_alig(size_t size, size_t alig) {
+		inline void* mem_alloc_alig(size_t size, size_t alig) {
 			void* ptr = GAIA_MEM_ALLC_A(size, alig);
 			GAIA_PROF_ALLOC(ptr, size);
 			return ptr;
 		}
 
-		void mem_free(void* ptr) {
+		inline void mem_free(void* ptr) {
 			GAIA_MEM_FREE(ptr);
 			GAIA_PROF_FREE(ptr);
 		}
 
-		void mem_free_alig(void* ptr) {
+		inline void mem_free_alig(void* ptr) {
 			GAIA_MEM_FREE_A(ptr);
 			GAIA_PROF_FREE(ptr);
 		}
