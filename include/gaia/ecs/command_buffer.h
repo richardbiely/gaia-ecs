@@ -7,6 +7,7 @@
 #include "../containers/map.h"
 #include "../containers/sarray_ext.h"
 #include "../utils/mem.h"
+#include "../utils/serialization.h"
 #include "archetype.h"
 #include "common.h"
 #include "component.h"
@@ -30,6 +31,12 @@ namespace gaia {
 		Therefore, such operations have to be executed after the loop is done.
 		*/
 		class CommandBuffer final {
+			struct CommandBufferCtx: DataBuffer_SerializationWrapper {
+				ecs::World& world;
+				uint32_t entities;
+				containers::map<uint32_t, Entity> entityMap;
+			};
+
 			enum CommandBufferCmd : uint8_t {
 				CREATE_ENTITY,
 				CREATE_ENTITY_FROM_ARCHETYPE,
@@ -44,62 +51,184 @@ namespace gaia {
 				REMOVE_COMPONENT
 			};
 
+			struct CommandBufferCmd_t {
+				CommandBufferCmd id;
+			};
+
+			struct CREATE_ENTITY_t: CommandBufferCmd_t {};
+			struct CREATE_ENTITY_FROM_ARCHETYPE_t: CommandBufferCmd_t {
+				uint64_t archetypePtr;
+
+				void Commit(CommandBufferCtx& ctx) {
+					auto* pArchetype = (archetype::Archetype*)archetypePtr;
+					[[maybe_unused]] const auto res =
+							ctx.entityMap.try_emplace(ctx.entities++, ctx.world.CreateEntity(*pArchetype));
+					GAIA_ASSERT(res.second);
+				}
+			};
+			struct CREATE_ENTITY_FROM_ENTITY_t: CommandBufferCmd_t {
+				Entity entity;
+
+				void Commit(CommandBufferCtx& ctx) {
+					[[maybe_unused]] const auto res = ctx.entityMap.try_emplace(ctx.entities++, ctx.world.CreateEntity(entity));
+					GAIA_ASSERT(res.second);
+				}
+			};
+			struct DELETE_ENTITY_t: CommandBufferCmd_t {
+				Entity entity;
+
+				void Commit(CommandBufferCtx& ctx) {
+					ctx.world.DeleteEntity(entity);
+				}
+			};
+			struct ADD_COMPONENT_t: CommandBufferCmd_t {
+				Entity entity;
+				component::ComponentId componentId;
+				component::ComponentType componentType;
+
+				void Commit(CommandBufferCtx& ctx) {
+					const auto& newInfo = ComponentCache::Get().GetComponentInfo(componentId);
+					ctx.world.AddComponent_Internal(componentType, entity, newInfo);
+
+					[[maybe_unused]] uint32_t indexInChunk{};
+					[[maybe_unused]] auto* pChunk = ctx.world.GetChunk(entity, indexInChunk);
+					GAIA_ASSERT(pChunk != nullptr);
+				}
+			};
+			struct ADD_COMPONENT_DATA_t: CommandBufferCmd_t {
+				Entity entity;
+				component::ComponentId componentId;
+				component::ComponentType componentType;
+
+				void Commit(CommandBufferCtx& ctx) {
+					const auto& newInfo = ComponentCache::Get().GetComponentInfo(componentId);
+					ctx.world.AddComponent_Internal(componentType, entity, newInfo);
+
+					uint32_t indexInChunk{};
+					auto* pChunk = ctx.world.GetChunk(entity, indexInChunk);
+					GAIA_ASSERT(pChunk != nullptr);
+
+					if (componentType == component::ComponentType::CT_Chunk)
+						indexInChunk = 0;
+
+					const auto& newDesc = ComponentCache::Get().GetComponentDesc(componentId);
+					const auto offset = pChunk->FindDataOffset(componentType, newInfo.componentId);
+					auto* pComponentData = (void*)&pChunk->GetData(offset + (uint32_t)indexInChunk * newDesc.properties.size);
+
+					ctx.load(pComponentData, newDesc.properties.size);
+				}
+			};
+			struct ADD_COMPONENT_TO_TEMPENTITY_t: CommandBufferCmd_t {
+				TempEntity entity;
+				component::ComponentId componentId;
+				component::ComponentType componentType;
+
+				void Commit(CommandBufferCtx& ctx) {
+					// For delayed entities we have to do a look in our map
+					// of temporaries and find a link there
+					const auto it = ctx.entityMap.find(entity.id);
+					// Link has to exist!
+					GAIA_ASSERT(it != ctx.entityMap.end());
+
+					Entity entity = it->second;
+
+					const auto& newInfo = ComponentCache::Get().GetComponentInfo(componentId);
+					ctx.world.AddComponent_Internal(componentType, entity, newInfo);
+
+					uint32_t indexInChunk{};
+					auto* pChunk = ctx.world.GetChunk(entity, indexInChunk);
+					GAIA_ASSERT(pChunk != nullptr);
+				}
+			};
+			struct ADD_COMPONENT_TO_TEMPENTITY_DATA_t: CommandBufferCmd_t {
+				TempEntity entity;
+				component::ComponentId componentId;
+				component::ComponentType componentType;
+
+				void Commit(CommandBufferCtx& ctx) {
+					// For delayed entities we have to do a look in our map
+					// of temporaries and find a link there
+					const auto it = ctx.entityMap.find(entity.id);
+					// Link has to exist!
+					GAIA_ASSERT(it != ctx.entityMap.end());
+
+					Entity entity = it->second;
+
+					// Components
+					const auto& newInfo = ComponentCache::Get().GetComponentInfo(componentId);
+					ctx.world.AddComponent_Internal(componentType, entity, newInfo);
+
+					uint32_t indexInChunk{};
+					auto* pChunk = ctx.world.GetChunk(entity, indexInChunk);
+					GAIA_ASSERT(pChunk != nullptr);
+
+					if (componentType == component::ComponentType::CT_Chunk)
+						indexInChunk = 0;
+
+					const auto& newDesc = ComponentCache::Get().GetComponentDesc(componentId);
+					const auto offset = pChunk->FindDataOffset(componentType, newDesc.componentId);
+					auto* pComponentData = (void*)&pChunk->GetData(offset + (uint32_t)indexInChunk * newDesc.properties.size);
+					ctx.load(pComponentData, newDesc.properties.size);
+				}
+			};
+			struct SET_COMPONENT_t: CommandBufferCmd_t {
+				Entity entity;
+				component::ComponentId componentId;
+				component::ComponentType componentType;
+
+				void Commit(CommandBufferCtx& ctx) {
+					const auto& entityContainer = ctx.world.m_entities[entity.id()];
+					auto* pChunk = entityContainer.pChunk;
+					const auto indexInChunk = componentType == component::ComponentType::CT_Chunk ? 0U : entityContainer.idx;
+
+					// Components
+					const auto& desc = ComponentCache::Get().GetComponentDesc(componentId);
+					const auto offset = pChunk->FindDataOffset(componentType, componentId);
+					auto* pComponentData = (void*)&pChunk->GetData(offset + (uint32_t)indexInChunk * desc.properties.size);
+					ctx.load(pComponentData, desc.properties.size);
+				}
+			};
+			struct SET_COMPONENT_FOR_TEMPENTITY_t: CommandBufferCmd_t {
+				TempEntity entity;
+				component::ComponentId componentId;
+				component::ComponentType componentType;
+
+				void Commit(CommandBufferCtx& ctx) {
+					// For delayed entities we have to do a look in our map
+					// of temporaries and find a link there
+					const auto it = ctx.entityMap.find(entity.id);
+					// Link has to exist!
+					GAIA_ASSERT(it != ctx.entityMap.end());
+
+					Entity entity = it->second;
+
+					const auto& entityContainer = ctx.world.m_entities[entity.id()];
+					auto* pChunk = entityContainer.pChunk;
+					const auto indexInChunk = componentType == component::ComponentType::CT_Chunk ? 0U : entityContainer.idx;
+
+					// Components
+					const auto& desc = ComponentCache::Get().GetComponentDesc(componentId);
+					const auto offset = pChunk->FindDataOffset(componentType, componentId);
+					auto* pComponentData = (void*)&pChunk->GetData(offset + (uint32_t)indexInChunk * desc.properties.size);
+					ctx.load(pComponentData, desc.properties.size);
+				}
+			};
+			struct REMOVE_COMPONENT_t: CommandBufferCmd_t {
+				Entity entity;
+				component::ComponentId componentId;
+				component::ComponentType componentType;
+
+				void Commit(CommandBufferCtx& ctx) {
+					const auto& newInfo = ComponentCache::Get().GetComponentInfo(componentId);
+					ctx.world.RemoveComponent_Internal(componentType, entity, newInfo);
+				}
+			};
+
 			friend class World;
 
 			World& m_world;
 			DataBuffer m_data;
 			uint32_t m_entities;
-
-			template <typename TEntity, typename T>
-			void AddComponent_Internal(TEntity entity) {
-				// Entity
-				m_data.Save(entity);
-
-				// Components
-				const auto& infoToAdd = ComponentCache::Get().GetOrCreateComponentInfo<T>();
-				m_data.Save(infoToAdd.componentId);
-			}
-
-			template <typename T>
-			void SetComponentFinal_Internal(T&& data) {
-				using U = std::decay_t<T>;
-
-				m_data.Save(component::GetComponentId<U>());
-				m_data.Save(std::forward<U>(data));
-			}
-
-			template <typename T>
-			void SetComponentNoEntityNoSize_Internal(T&& data) {
-				this->SetComponentFinal_Internal<T>(std::forward<T>(data));
-			}
-
-			template <typename T>
-			void SetComponentNoEntity_Internal(T&& data) {
-				// Register components
-				(void)ComponentCache::Get().GetOrCreateComponentInfo<T>();
-
-				// Data
-				SetComponentNoEntityNoSize_Internal(std::forward<T>(data));
-			}
-
-			template <typename TEntity, typename T>
-			void SetComponent_Internal(TEntity entity, T&& data) {
-				// Entity
-				m_data.Save(entity);
-
-				// Components
-				SetComponentNoEntity_Internal(std::forward<T>(data));
-			}
-
-			template <typename T>
-			void RemoveComponent_Internal(Entity entity) {
-				// Entity
-				m_data.Save(entity);
-
-				// Components
-				const auto& typeToRemove = ComponentCache::Get().GetComponentInfo<T>();
-				m_data.Save(typeToRemove.componentId);
-			}
 
 			/*!
 			Requests a new entity to be created from archetype
@@ -107,8 +236,12 @@ namespace gaia {
 			will be filled with proper data after Commit()
 			*/
 			GAIA_NODISCARD TempEntity CreateEntity(archetype::Archetype& archetype) {
-				m_data.Save(CREATE_ENTITY_FROM_ARCHETYPE);
-				m_data.Save((uintptr_t)&archetype);
+				DataBuffer_SerializationWrapper s(m_data);
+				s.save(CREATE_ENTITY_FROM_ARCHETYPE);
+
+				CREATE_ENTITY_FROM_ARCHETYPE_t cmd;
+				cmd.archetypePtr = (uintptr_t)&archetype;
+				serialization::save(s, cmd);
 
 				return {m_entities++};
 			}
@@ -128,7 +261,9 @@ namespace gaia {
 			will be filled with proper data after Commit()
 			*/
 			GAIA_NODISCARD TempEntity CreateEntity() {
-				m_data.Save(CREATE_ENTITY);
+				DataBuffer_SerializationWrapper s(m_data);
+				s.save(CREATE_ENTITY);
+
 				return {m_entities++};
 			}
 
@@ -138,8 +273,12 @@ namespace gaia {
 			away. It will be filled with proper data after Commit()
 			*/
 			GAIA_NODISCARD TempEntity CreateEntity(Entity entityFrom) {
-				m_data.Save(CREATE_ENTITY_FROM_ENTITY);
-				m_data.Save(entityFrom);
+				DataBuffer_SerializationWrapper s(m_data);
+				s.save(CREATE_ENTITY_FROM_ENTITY);
+
+				CREATE_ENTITY_FROM_ENTITY_t cmd;
+				cmd.entity = entityFrom;
+				serialization::save(s, cmd);
 
 				return {m_entities++};
 			}
@@ -148,131 +287,125 @@ namespace gaia {
 			Requests an existing \param entity to be removed.
 			*/
 			void DeleteEntity(Entity entity) {
-				m_data.Save(DELETE_ENTITY);
-				m_data.Save(entity);
+				DataBuffer_SerializationWrapper s(m_data);
+				s.save(DELETE_ENTITY);
+
+				DELETE_ENTITY_t cmd;
+				cmd.entity = entity;
+				serialization::save(s, cmd);
 			}
 
 			/*!
 			Requests a component to be added to entity.
-
-			\return True if component could be added (e.g. maximum component count
-			on the archetype not exceeded). False otherwise.
 			*/
 			template <typename T>
-			bool AddComponent(Entity entity) {
+			void AddComponent(Entity entity) {
 				using U = typename component::DeduceComponent<T>::Type;
 				component::VerifyComponent<U>();
 
-				m_data.Save(ADD_COMPONENT);
-				if constexpr (component::IsGenericComponent<T>)
-					m_data.Save(component::ComponentType::CT_Generic);
-				else
-					m_data.Save(component::ComponentType::CT_Chunk);
-				AddComponent_Internal<Entity, U>(entity);
-				return true;
+				DataBuffer_SerializationWrapper s(m_data);
+				s.save(ADD_COMPONENT);
+
+				ADD_COMPONENT_t cmd;
+				cmd.entity = entity;
+				cmd.componentType = component::GetComponentType<T>();
+				cmd.componentId = component::GetComponentId<T>();
+				serialization::save(s, cmd);
 			}
 
 			/*!
 			Requests a component to be added to temporary entity.
-
-			\return True if component could be added (e.g. maximum component count
-			on the archetype not exceeded). False otherwise.
 			*/
 			template <typename T>
-			bool AddComponent(TempEntity entity) {
+			void AddComponent(TempEntity entity) {
 				using U = typename component::DeduceComponent<T>::Type;
 				component::VerifyComponent<U>();
 
-				m_data.Save(ADD_COMPONENT_TO_TEMPENTITY);
-				if constexpr (component::IsGenericComponent<T>)
-					m_data.Save(component::ComponentType::CT_Generic);
-				else
-					m_data.Save(component::ComponentType::CT_Chunk);
-				AddComponent_Internal<TempEntity, U>(entity);
-				return true;
+				DataBuffer_SerializationWrapper s(m_data);
+				s.save(ADD_COMPONENT_TO_TEMPENTITY);
+
+				ADD_COMPONENT_TO_TEMPENTITY_t cmd;
+				cmd.entity = entity;
+				cmd.componentType = component::GetComponentType<T>();
+				cmd.componentId = component::GetComponentId<T>();
+				serialization::save(s, cmd);
 			}
 
 			/*!
 			Requests a component to be added to entity.
-
-			\return True if component could be added (e.g. maximum component count
-			on the archetype not exceeded). False otherwise.
 			*/
 			template <typename T>
-			bool AddComponent(Entity entity, T&& data) {
+			void AddComponent(Entity entity, T&& value) {
 				using U = typename component::DeduceComponent<T>::Type;
 				component::VerifyComponent<U>();
 
-				m_data.Save(ADD_COMPONENT_DATA);
-				if constexpr (component::IsGenericComponent<T>)
-					m_data.Save(component::ComponentType::CT_Generic);
-				else
-					m_data.Save(component::ComponentType::CT_Chunk);
-				AddComponent_Internal<Entity, U>(entity);
-				SetComponentNoEntityNoSize_Internal(std::forward<U>(data));
-				return true;
+				DataBuffer_SerializationWrapper s(m_data);
+				s.save(ADD_COMPONENT_DATA);
+
+				ADD_COMPONENT_DATA_t cmd;
+				cmd.entity = entity;
+				cmd.componentType = component::GetComponentType<T>();
+				cmd.componentId = component::GetComponentId<T>();
+				serialization::save(s, cmd);
+				s.save(std::forward<U>(value));
 			}
 
 			/*!
 			Requests a component to be added to temporary entity.
-
-			\return True if component could be added (e.g. maximum component count
-			on the archetype not exceeded). False otherwise.
 			*/
 			template <typename T>
-			bool AddComponent(TempEntity entity, T&& value) {
+			void AddComponent(TempEntity entity, T&& value) {
 				using U = typename component::DeduceComponent<T>::Type;
 				component::VerifyComponent<U>();
 
-				m_data.Save(ADD_COMPONENT_TO_TEMPENTITY_DATA);
-				if constexpr (component::IsGenericComponent<T>)
-					m_data.Save(component::ComponentType::CT_Generic);
-				else
-					m_data.Save(component::ComponentType::CT_Chunk);
+				DataBuffer_SerializationWrapper s(m_data);
+				s.save(ADD_COMPONENT_TO_TEMPENTITY_DATA);
 
-				AddComponent_Internal<TempEntity, U>(entity);
-				SetComponentNoEntityNoSize_Internal(std::forward<U>(value));
-				return true;
+				ADD_COMPONENT_TO_TEMPENTITY_t cmd;
+				cmd.entity = entity;
+				cmd.componentType = component::GetComponentType<T>();
+				cmd.componentId = component::GetComponentId<T>();
+				serialization::save(s, cmd);
+				s.save(std::forward<U>(value));
 			}
 
 			/*!
 			Requests component data to be set to given values for a given entity.
-
-			\warning Just like World::SetComponent, this function expects the
-			given component infos to exist. Undefined behavior otherwise.
 			*/
 			template <typename T>
 			void SetComponent(Entity entity, T&& value) {
 				using U = typename component::DeduceComponent<T>::Type;
 				component::VerifyComponent<U>();
 
-				m_data.Save(SET_COMPONENT);
-				if constexpr (component::IsGenericComponent<T>)
-					m_data.Save(component::ComponentType::CT_Generic);
-				else
-					m_data.Save(component::ComponentType::CT_Chunk);
+				DataBuffer_SerializationWrapper s(m_data);
+				s.save(SET_COMPONENT);
 
-				SetComponent_Internal(entity, std::forward<U>(value));
+				SET_COMPONENT_t cmd;
+				cmd.entity = entity;
+				cmd.componentType = component::GetComponentType<T>();
+				cmd.componentId = component::GetComponentId<T>();
+				serialization::save(s, cmd);
+				s.save(std::forward<U>(value));
 			}
 
 			/*!
 			Requests component data to be set to given values for a given temp
 			entity.
-
-			\warning Just like World::SetComponent, this function expects the
-			given component infos to exist. Undefined behavior otherwise.
 			*/
 			template <typename T>
-			void SetComponent(TempEntity entity, T&& data) {
+			void SetComponent(TempEntity entity, T&& value) {
 				using U = typename component::DeduceComponent<T>::Type;
 				component::VerifyComponent<U>();
 
-				m_data.Save(SET_COMPONENT_FOR_TEMPENTITY);
-				if constexpr (component::IsGenericComponent<T>)
-					m_data.Save(component::ComponentType::CT_Generic);
-				else
-					m_data.Save(component::ComponentType::CT_Chunk);
-				SetComponent_Internal(entity, std::forward<U>(data));
+				DataBuffer_SerializationWrapper s(m_data);
+				s.save(SET_COMPONENT_FOR_TEMPENTITY);
+
+				SET_COMPONENT_FOR_TEMPENTITY_t cmd;
+				cmd.entity = entity;
+				cmd.componentType = component::GetComponentType<T>();
+				cmd.componentId = component::GetComponentId<T>();
+				serialization::save(s, cmd);
+				m_data.Save(std::forward<U>(value));
 			}
 
 			/*!
@@ -283,22 +416,17 @@ namespace gaia {
 				using U = typename component::DeduceComponent<T>::Type;
 				component::VerifyComponent<U>();
 
-				m_data.Save(REMOVE_COMPONENT);
-				if constexpr (component::IsGenericComponent<T>)
-					m_data.Save(component::ComponentType::CT_Generic);
-				else
-					m_data.Save(component::ComponentType::CT_Chunk);
-				RemoveComponent_Internal<U>(entity);
+				DataBuffer_SerializationWrapper s(m_data);
+				s.save(REMOVE_COMPONENT);
+
+				REMOVE_COMPONENT_t cmd;
+				cmd.entity = entity;
+				cmd.componentType = component::GetComponentType<T>();
+				cmd.componentId = component::GetComponentId<T>();
+				serialization::save(s, cmd);
 			}
 
 		private:
-			struct CommandBufferCtx {
-				ecs::World& world;
-				DataBuffer& data;
-				uint32_t entities;
-				containers::map<uint32_t, Entity> entityMap;
-			};
-
 			using CommandBufferReadFunc = void (*)(CommandBufferCtx& ctx);
 			static constexpr CommandBufferReadFunc CommandBufferRead[] = {
 					// CREATE_ENTITY
@@ -308,200 +436,63 @@ namespace gaia {
 					},
 					// CREATE_ENTITY_FROM_ARCHETYPE
 					[](CommandBufferCtx& ctx) {
-						uintptr_t ptr{};
-						ctx.data.Load(ptr);
-
-						auto* pArchetype = (archetype::Archetype*)ptr;
-						[[maybe_unused]] const auto res =
-								ctx.entityMap.try_emplace(ctx.entities++, ctx.world.CreateEntity(*pArchetype));
-						GAIA_ASSERT(res.second);
+						CREATE_ENTITY_FROM_ARCHETYPE_t cmd;
+						serialization::load(ctx, cmd);
+						cmd.Commit(ctx);
 					},
 					// CREATE_ENTITY_FROM_ENTITY
 					[](CommandBufferCtx& ctx) {
-						Entity entityFrom{};
-						ctx.data.Load(entityFrom);
-
-						[[maybe_unused]] const auto res =
-								ctx.entityMap.try_emplace(ctx.entities++, ctx.world.CreateEntity(entityFrom));
-						GAIA_ASSERT(res.second);
+						CREATE_ENTITY_FROM_ENTITY_t cmd;
+						serialization::load(ctx, cmd);
+						cmd.Commit(ctx);
 					},
 					// DELETE_ENTITY
 					[](CommandBufferCtx& ctx) {
-						Entity entity{};
-						ctx.data.Load(entity);
-
-						ctx.world.DeleteEntity(entity);
+						DELETE_ENTITY_t cmd;
+						serialization::load(ctx, cmd);
+						cmd.Commit(ctx);
 					},
 					// ADD_COMPONENT
 					[](CommandBufferCtx& ctx) {
-						component::ComponentType componentType{};
-						ctx.data.Load(componentType);
-						Entity entity{};
-						ctx.data.Load(entity);
-						component::ComponentId componentId{};
-						ctx.data.Load(componentId);
-
-						const auto& newInfo = ComponentCache::Get().GetComponentInfo(componentId);
-						ctx.world.AddComponent_Internal(componentType, entity, newInfo);
-
-						uint32_t indexInChunk{};
-						[[maybe_unused]] auto* pChunk = ctx.world.GetChunk(entity, indexInChunk);
-						GAIA_ASSERT(pChunk != nullptr);
+						ADD_COMPONENT_t cmd;
+						serialization::load(ctx, cmd);
+						cmd.Commit(ctx);
 					},
 					// ADD_COMPONENT_DATA
 					[](CommandBufferCtx& ctx) {
-						component::ComponentType componentType{};
-						ctx.data.Load(componentType);
-						Entity entity{};
-						ctx.data.Load(entity);
-						component::ComponentId componentId{};
-						ctx.data.Load(componentId);
-						component::ComponentId componentId2{};
-						ctx.data.Load(componentId);
-						// TODO: Don't include the component index here
-						(void)componentId2;
-
-						// Components
-						const auto& newInfo = ComponentCache::Get().GetComponentInfo(componentId);
-						const auto& newDesc = ComponentCache::Get().GetComponentDesc(componentId);
-						ctx.world.AddComponent_Internal(componentType, entity, newInfo);
-
-						uint32_t indexInChunk{};
-						auto* pChunk = ctx.world.GetChunk(entity, indexInChunk);
-						GAIA_ASSERT(pChunk != nullptr);
-
-						if (componentType == component::ComponentType::CT_Chunk)
-							indexInChunk = 0;
-
-						const auto offset = pChunk->FindDataOffset(componentType, newInfo.componentId);
-						auto* pComponentData = (void*)&pChunk->GetData(offset + (uint32_t)indexInChunk * newDesc.properties.size);
-						ctx.data.Load(pComponentData, newDesc.properties.size);
+						ADD_COMPONENT_DATA_t cmd;
+						serialization::load(ctx, cmd);
+						cmd.Commit(ctx);
 					},
 					// ADD_COMPONENT_TO_TEMPENTITY
 					[](CommandBufferCtx& ctx) {
-						component::ComponentType componentType{};
-						ctx.data.Load(componentType);
-						Entity e{};
-						ctx.data.Load(e);
-						component::ComponentId componentId{};
-						ctx.data.Load(componentId);
-
-						// For delayed entities we have to peek into our map of temporaries and find a link there
-						const auto it = ctx.entityMap.find(e.id());
-						// The link has to exist!
-						GAIA_ASSERT(it != ctx.entityMap.end());
-
-						Entity entity = it->second;
-
-						// Components
-						const auto& newInfo = ComponentCache::Get().GetComponentInfo(componentId);
-						ctx.world.AddComponent_Internal(componentType, entity, newInfo);
-
-						uint32_t indexInChunk{};
-						[[maybe_unused]] auto* pChunk = ctx.world.GetChunk(entity, indexInChunk);
-						GAIA_ASSERT(pChunk != nullptr);
+						ADD_COMPONENT_TO_TEMPENTITY_t cmd;
+						serialization::load(ctx, cmd);
+						cmd.Commit(ctx);
 					},
 					// ADD_COMPONENT_TO_TEMPENTITY_DATA
 					[](CommandBufferCtx& ctx) {
-						component::ComponentType componentType{};
-						ctx.data.Load(componentType);
-						Entity e{};
-						ctx.data.Load(e);
-						component::ComponentId componentId{};
-						ctx.data.Load(componentId);
-						component::ComponentId componentId2{};
-						ctx.data.Load(componentId);
-						// TODO: Don't include the component index here
-						(void)componentId2;
-
-						// For delayed entities we have to do a look in our map
-						// of temporaries and find a link there
-						const auto it = ctx.entityMap.find(e.id());
-						// Link has to exist!
-						GAIA_ASSERT(it != ctx.entityMap.end());
-
-						Entity entity = it->second;
-
-						// Components
-						const auto& newInfo = ComponentCache::Get().GetComponentInfo(componentId);
-						const auto& newDesc = ComponentCache::Get().GetComponentDesc(componentId);
-						ctx.world.AddComponent_Internal(componentType, entity, newInfo);
-
-						uint32_t indexInChunk{};
-						auto* pChunk = ctx.world.GetChunk(entity, indexInChunk);
-						GAIA_ASSERT(pChunk != nullptr);
-
-						if (componentType == component::ComponentType::CT_Chunk)
-							indexInChunk = 0;
-
-						const auto offset = pChunk->FindDataOffset(componentType, newDesc.componentId);
-						auto* pComponentData = (void*)&pChunk->GetData(offset + (uint32_t)indexInChunk * newDesc.properties.size);
-						ctx.data.Load(pComponentData, newDesc.properties.size);
+						ADD_COMPONENT_TO_TEMPENTITY_DATA_t cmd;
+						serialization::load(ctx, cmd);
+						cmd.Commit(ctx);
 					},
 					// SET_COMPONENT
 					[](CommandBufferCtx& ctx) {
-						component::ComponentType componentType{};
-						ctx.data.Load(componentType);
-						Entity entity{};
-						ctx.data.Load(entity);
-						component::ComponentId componentId{};
-						ctx.data.Load(componentId);
-
-						const auto& entityContainer = ctx.world.m_entities[entity.id()];
-						auto* pChunk = entityContainer.pChunk;
-						const auto indexInChunk = componentType == component::ComponentType::CT_Chunk ? 0U : entityContainer.idx;
-
-						// Components
-						{
-							const auto& desc = ComponentCache::Get().GetComponentDesc(componentId);
-
-							const auto offset = pChunk->FindDataOffset(componentType, componentId);
-							auto* pComponentData = (void*)&pChunk->GetData(offset + (uint32_t)indexInChunk * desc.properties.size);
-							ctx.data.Load(pComponentData, desc.properties.size);
-						}
+						SET_COMPONENT_t cmd;
+						serialization::load(ctx, cmd);
+						cmd.Commit(ctx);
 					},
 					// SET_COMPONENT_FOR_TEMPENTITY
 					[](CommandBufferCtx& ctx) {
-						component::ComponentType componentType{};
-						ctx.data.Load(componentType);
-						Entity e{};
-						ctx.data.Load(e);
-						component::ComponentId componentId{};
-						ctx.data.Load(componentId);
-
-						// For delayed entities we have to do a look in our map
-						// of temporaries and find a link there
-						const auto it = ctx.entityMap.find(e.id());
-						// Link has to exist!
-						GAIA_ASSERT(it != ctx.entityMap.end());
-
-						Entity entity = it->second;
-
-						const auto& entityContainer = ctx.world.m_entities[entity.id()];
-						auto* pChunk = entityContainer.pChunk;
-						const auto indexInChunk = componentType == component::ComponentType::CT_Chunk ? 0U : entityContainer.idx;
-
-						// Components
-						{
-							const auto& desc = ComponentCache::Get().GetComponentDesc(componentId);
-
-							const auto offset = pChunk->FindDataOffset(componentType, componentId);
-							auto* pComponentData = (void*)&pChunk->GetData(offset + (uint32_t)indexInChunk * desc.properties.size);
-							ctx.data.Load(pComponentData, desc.properties.size);
-						}
+						SET_COMPONENT_FOR_TEMPENTITY_t cmd;
+						serialization::load(ctx, cmd);
+						cmd.Commit(ctx);
 					},
 					// REMOVE_COMPONENT
 					[](CommandBufferCtx& ctx) {
-						component::ComponentType componentType{};
-						ctx.data.Load(componentType);
-						Entity entity{};
-						ctx.data.Load(entity);
-						component::ComponentId componentId{};
-						ctx.data.Load(componentId);
-
-						// Components
-						const auto& newInfo = ComponentCache::Get().GetComponentInfo(componentId);
-						ctx.world.RemoveComponent_Internal(componentType, entity, newInfo);
+						REMOVE_COMPONENT_t cmd;
+						serialization::load(ctx, cmd);
+						cmd.Commit(ctx);
 					}};
 
 		public:
@@ -509,13 +500,13 @@ namespace gaia {
 			Commits all queued changes.
 			*/
 			void Commit() {
-				CommandBufferCtx ctx{m_world, m_data, 0, {}};
+				CommandBufferCtx ctx{m_data, m_world, 0, {}};
 
 				// Extract data from the buffer
 				m_data.Seek(0);
 				while (m_data.GetPos() < m_data.Size()) {
 					CommandBufferCmd id{};
-					m_data.Load(id);
+					ctx.load(id);
 					CommandBufferRead[id](ctx);
 				}
 

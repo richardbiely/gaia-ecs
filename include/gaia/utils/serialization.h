@@ -80,6 +80,7 @@ namespace gaia {
 					std::true_type {};
 
 			DEFINE_HAS_FUNCTION(resize);
+			// DEFINE_HAS_FUNCTION(serialize);
 			DEFINE_HAS_FUNCTION(save);
 			DEFINE_HAS_FUNCTION(load);
 
@@ -180,6 +181,10 @@ namespace gaia {
 			void serialize_data_one(Serializer& s, T&& arg) {
 				using type = typename std::decay_t<typename std::remove_pointer_t<T>>;
 
+				// TODO: Consider supporting custom save/load functions
+				// if constexpr (decltype(has_serialize<type>(s, std::forward<T>(arg)))::value) {
+				// 	arg.serialize<Write>(s, std::forward<T>(arg));
+				// } else
 				if constexpr (is_trivially_serializable<type>::value) {
 					if constexpr (Write)
 						s.save(std::forward<T>(arg));
@@ -207,11 +212,6 @@ namespace gaia {
 						// TODO: Handle contiguous blocks of trivially copiable types
 						(serialize_data_one<Write>(s, items), ...);
 					});
-					// TODO: Consider supporting custom save/load functions
-					// } else if constexpr (Write && decltype(has_save<type>(s, std::forward<T>(arg)))::value) {
-					// 	save(s, std::forward<T>(arg));
-					// } else if constexpr (!Write && decltype(has_load<type>(s, std::forward<T>(arg)))::value) {
-					// 	load(s, std::forward<T>(arg));
 				} else
 					static_assert(!sizeof(type), "Type is not supported for serialization, yet");
 			}
