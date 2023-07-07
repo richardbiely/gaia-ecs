@@ -107,5 +107,7 @@
 		"clangd.arguments": [
 			"--compile-commands-dir=./ninja"
 		],
+		"cmake.useProjectStatusView": false,
+		"cmake.buildDirectory": "${workspaceFolder}/build/${buildType}",
 	}
 }
