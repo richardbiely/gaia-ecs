@@ -847,8 +847,8 @@ class UISystem final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_qp.All<const Health, Player>();
-		m_qe.All<const Health>().None<Player, Item>();
+		m_qp = GetWorld().CreateQuery().All<const Health, Player>();
+		m_qe = GetWorld().CreateQuery().All<const Health>().None<Player, Item>();
 	}
 
 	void OnUpdate() override {
@@ -869,8 +869,8 @@ class GameStateSystem: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_qp.All<const Health, Player>();
-		m_qe.All<const Health>().None<Player, Item>();
+		m_qp = GetWorld().CreateQuery().All<const Health, Player>();
+		m_qe = GetWorld().CreateQuery().All<const Health>().None<Player, Item>();
 	}
 
 	void OnUpdate() override {
