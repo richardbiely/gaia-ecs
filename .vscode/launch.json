@@ -3,12 +3,24 @@
   // Hover to view descriptions of existing attributes.
   // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
   "version": "0.2.0",
+  "inputs": [
+    {
+      "id": "buildType",
+      "description": "Build configuration to pick",
+      "type": "pickString",
+      "options": [
+        "Debug",
+        "RelWithDebugInfo"
+      ],
+      "default": "Debug"
+    }
+  ],
   "configurations": [
     {
       "name": "(lldb) example - example1",
       "type": "lldb",
       "request": "launch",
-      "program": "${workspaceFolder}/build/src/examples/example1/gaia_example1",
+      "program": "${workspaceFolder}/build/${input:buildType}/src/examples/example1/gaia_example1",
       "args": [],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
@@ -19,7 +31,7 @@
       "name": "(lldb) example - example2",
       "type": "lldb",
       "request": "launch",
-      "program": "${workspaceFolder}/build/src/examples/example2/gaia_example2",
+      "program": "${workspaceFolder}/build/${input:buildType}/src/examples/example2/gaia_example2",
       "args": [],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
@@ -30,7 +42,7 @@
       "name": "(lldb) example - roguelike",
       "type": "lldb",
       "request": "launch",
-      "program": "${workspaceFolder}/build/src/examples/example_roguelike/gaia_example_roguelike",
+      "program": "${workspaceFolder}/build/${input:buildType}/src/examples/example_roguelike/gaia_example_roguelike",
       "args": [],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
@@ -41,7 +53,7 @@
       "name": "(lldb) unit test",
       "type": "lldb",
       "request": "launch",
-      "program": "${workspaceFolder}/build/src/test/gaia_test",
+      "program": "${workspaceFolder}/build/${input:buildType}/src/test/gaia_test",
       "args": [],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
@@ -52,7 +64,7 @@
       "name": "(lldb) perf - duel",
       "type": "lldb",
       "request": "launch",
-      "program": "${workspaceFolder}/build/src/perf/duel/gaia_perf_duel",
+      "program": "${workspaceFolder}/build/${input:buildType}/src/perf/duel/gaia_perf_duel",
       "args": [],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
@@ -63,7 +75,7 @@
       "name": "(lldb) perf - iteration",
       "type": "lldb",
       "request": "launch",
-      "program": "${workspaceFolder}/build/src/perf/iter/gaia_perf_iter",
+      "program": "${workspaceFolder}/build/${input:buildType}/src/perf/iter/gaia_perf_iter",
       "args": [],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
@@ -74,7 +86,7 @@
       "name": "(lldb) perf - entity",
       "type": "lldb",
       "request": "launch",
-      "program": "${workspaceFolder}/build/src/perf/entity/gaia_perf_entity",
+      "program": "${workspaceFolder}/build/${input:buildType}/src/perf/entity/gaia_perf_entity",
       "args": [],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
