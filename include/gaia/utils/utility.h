@@ -486,7 +486,7 @@ namespace gaia {
 					}
 					swapped = false;
 					for (size_type i = size_type{0}; gap + i < static_cast<size_type>(array_.size()); ++i) {
-						if (func(array_[i], array_[i + gap])) {
+						if (!func(array_[i], array_[i + gap])) {
 							auto swap = array_[i];
 							array_[i] = array_[i + gap];
 							array_[i + gap] = swap;

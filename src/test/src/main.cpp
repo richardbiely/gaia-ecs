@@ -170,60 +170,83 @@ TEST_CASE("EntityNull") {
 	REQUIRE_FALSE(ecs::EntityNull == e);
 }
 
-TEST_CASE("Compile-time sort descending") {
-	containers::sarray<uint32_t, 5> arr = {4, 2, 1, 3, 0};
-	utils::sort_ct(arr, utils::is_greater<uint32_t>());
+template <bool IsRuntime, typename C>
+void sort_descending(C arr) {
 	for (size_t i = 0; i < arr.size(); ++i)
-		REQUIRE(arr[arr.size() - i - 1] == i);
+		arr[i] = i;
+	if constexpr (IsRuntime)
+		utils::sort(arr, utils::is_greater<uint32_t>());
+	else
+		utils::sort_ct(arr, utils::is_greater<uint32_t>());
+	for (size_t i = 1; i < arr.size(); ++i)
+		REQUIRE(arr[i - 1] > arr[i]);
+}
+
+template <bool IsRuntime, typename C>
+void sort_ascending(C arr) {
+	for (size_t i = 0; i < arr.size(); ++i)
+		arr[i] = i;
+	if constexpr (IsRuntime)
+		utils::sort(arr, utils::is_smaller<uint32_t>());
+	else
+		utils::sort_ct(arr, utils::is_smaller<uint32_t>());
+	for (size_t i = 1; i < arr.size(); ++i)
+		REQUIRE(arr[i - 1] < arr[i]);
+}
+
+TEST_CASE("Compile-time sort descending") {
+	sort_descending<false>(containers::sarray<uint32_t, 2>{});
+	sort_descending<false>(containers::sarray<uint32_t, 3>{});
+	sort_descending<false>(containers::sarray<uint32_t, 4>{});
+	sort_descending<false>(containers::sarray<uint32_t, 5>{});
+	sort_descending<false>(containers::sarray<uint32_t, 6>{});
+	sort_descending<false>(containers::sarray<uint32_t, 7>{});
+	sort_descending<false>(containers::sarray<uint32_t, 8>{});
+	sort_descending<false>(containers::sarray<uint32_t, 9>{});
+	sort_descending<false>(containers::sarray<uint32_t, 10>{});
+	sort_descending<false>(containers::sarray<uint32_t, 11>{});
+	sort_descending<false>(containers::sarray<uint32_t, 12>{});
+	sort_descending<false>(containers::sarray<uint32_t, 13>{});
+	sort_descending<false>(containers::sarray<uint32_t, 14>{});
+	sort_descending<false>(containers::sarray<uint32_t, 15>{});
+	sort_descending<false>(containers::sarray<uint32_t, 16>{});
+	sort_descending<false>(containers::sarray<uint32_t, 17>{});
+	sort_descending<false>(containers::sarray<uint32_t, 18>{});
 }
 
 TEST_CASE("Compile-time sort ascending") {
-	containers::sarray<uint32_t, 5> arr = {4, 2, 1, 3, 0};
-	utils::sort_ct(arr, utils::is_smaller<uint32_t>());
-	for (size_t i = 0; i < arr.size(); ++i)
-		REQUIRE(arr[i] == i);
+	sort_ascending<false>(containers::sarray<uint32_t, 2>{});
+	sort_ascending<false>(containers::sarray<uint32_t, 3>{});
+	sort_ascending<false>(containers::sarray<uint32_t, 4>{});
+	sort_ascending<false>(containers::sarray<uint32_t, 5>{});
+	sort_ascending<false>(containers::sarray<uint32_t, 6>{});
+	sort_ascending<false>(containers::sarray<uint32_t, 7>{});
+	sort_ascending<false>(containers::sarray<uint32_t, 8>{});
+	sort_ascending<false>(containers::sarray<uint32_t, 9>{});
+	sort_ascending<false>(containers::sarray<uint32_t, 10>{});
+	sort_ascending<false>(containers::sarray<uint32_t, 11>{});
+	sort_ascending<false>(containers::sarray<uint32_t, 12>{});
+	sort_ascending<false>(containers::sarray<uint32_t, 13>{});
+	sort_ascending<false>(containers::sarray<uint32_t, 14>{});
+	sort_ascending<false>(containers::sarray<uint32_t, 15>{});
+	sort_ascending<false>(containers::sarray<uint32_t, 16>{});
+	sort_ascending<false>(containers::sarray<uint32_t, 17>{});
+	sort_ascending<false>(containers::sarray<uint32_t, 18>{});
 }
 
 TEST_CASE("Run-time sort - sorting network") {
-	containers::sarray<uint32_t, 5> arr;
-	for (uint32_t i = 0; i < arr.size(); ++i)
-		arr[i] = i;
-
-	utils::sort(arr, utils::is_greater<uint32_t>());
-	for (size_t i = 0; i < arr.size(); ++i)
-		REQUIRE(arr[arr.size() - i - 1] == i);
-
-	utils::sort(arr, utils::is_smaller<uint32_t>());
-	for (size_t i = 0; i < arr.size(); ++i)
-		REQUIRE(arr[i] == i);
+	sort_descending<true>(containers::sarray<uint32_t, 5>{});
+	sort_ascending<true>(containers::sarray<uint32_t, 5>{});
 }
 
 TEST_CASE("Run-time sort - bubble sort") {
-	containers::sarray<uint32_t, 15> arr;
-	for (uint32_t i = 0; i < arr.size(); ++i)
-		arr[i] = i;
-
-	utils::sort(arr, utils::is_greater<uint32_t>());
-	for (size_t i = 0; i < arr.size(); ++i)
-		REQUIRE(arr[arr.size() - i - 1] == i);
-
-	utils::sort(arr, utils::is_smaller<uint32_t>());
-	for (size_t i = 0; i < arr.size(); ++i)
-		REQUIRE(arr[i] == i);
+	sort_descending<true>(containers::sarray<uint32_t, 15>{});
+	sort_ascending<true>(containers::sarray<uint32_t, 15>{});
 }
 
 TEST_CASE("Run-time sort - quick sort") {
-	containers::sarray<uint32_t, 45> arr;
-	for (uint32_t i = 0; i < arr.size(); ++i)
-		arr[i] = i;
-
-	utils::sort(arr, utils::is_greater<uint32_t>());
-	for (size_t i = 0; i < arr.size(); ++i)
-		REQUIRE(arr[arr.size() - i - 1] == i);
-
-	utils::sort(arr, utils::is_smaller<uint32_t>());
-	for (size_t i = 0; i < arr.size(); ++i)
-		REQUIRE(arr[i] == i);
+	sort_descending<true>(containers::sarray<uint32_t, 45>{});
+	sort_ascending<true>(containers::sarray<uint32_t, 45>{});
 }
 
 // TEST_CASE("Query - equality") {
