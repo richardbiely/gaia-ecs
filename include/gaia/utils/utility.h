@@ -294,7 +294,7 @@ namespace gaia {
 				const auto size = (size_t)GAIA_UTIL::distance(first, last);
 				for (size_t i = 0; i < size; ++i) {
 					if (*(first[i]) == value)
-						return first;
+						return first[i];
 				}
 			} else {
 				for (; first != last; ++first) {
@@ -329,7 +329,7 @@ namespace gaia {
 				const auto size = (size_t)GAIA_UTIL::distance(first, last);
 				for (size_t i = 0; i < size; ++i) {
 					if (func(*(first[i])))
-						return first;
+						return first[i];
 				}
 			} else {
 				for (; first != last; ++first) {
@@ -364,7 +364,7 @@ namespace gaia {
 				const auto size = (size_t)GAIA_UTIL::distance(first, last);
 				for (size_t i = 0; i < size; ++i) {
 					if (!func(*(first[i])))
-						return first;
+						return first[i];
 				}
 			} else {
 				for (; first != last; ++first) {

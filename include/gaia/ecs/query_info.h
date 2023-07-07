@@ -53,8 +53,8 @@ namespace gaia {
 							return false;
 
 						// Read-write mask must match
-						const uint8_t maskRW = (uint32_t)data.readWriteMask & (1U << (uint32_t)idx);
-						const uint8_t maskXX = (uint32_t)isReadWrite << idx;
+						const uint32_t maskRW = (uint32_t)data.readWriteMask & (1U << (uint32_t)idx);
+						const uint32_t maskXX = (uint32_t)isReadWrite << idx;
 						return maskRW == maskXX;
 					}
 				}
