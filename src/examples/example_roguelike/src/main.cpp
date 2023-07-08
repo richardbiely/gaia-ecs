@@ -526,7 +526,7 @@ class CollisionSystem final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q = GetWorld().CreateQuery().All<const Position, const Velocity, const RigidBody>();
+		m_q = GetWorld().CreateQuery().All<const Position, Velocity, const RigidBody>();
 	}
 
 	void OnUpdate() override {
@@ -539,7 +539,7 @@ public:
 
 		m_q.ForEach([&](ecs::Iterator iter) {
 			auto ent = iter.View<ecs::Entity>();
-			auto vel = iter.View<Velocity>();
+			auto vel = iter.ViewRW<Velocity>();
 			auto pos = iter.View<Position>();
 
 			for (uint32_t i: iter) {
@@ -614,11 +614,10 @@ public:
 				// We make every collsion stop the moving object. This is only a question of design.
 				// We might as well keep the velocity and handle the collision aftermath in a different system.
 				// Or we could interoduce collision layers or many other things.
-				auto vel_mut = iter.ViewRW<Velocity>();
 				if (v.x != 0)
-					vel_mut[i] = {naa, 0};
+					vel[i] = {naa, 0};
 				else
-					vel_mut[i] = {0, naa};
+					vel[i] = {0, naa};
 			}
 		});
 	}
