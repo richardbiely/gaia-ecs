@@ -759,14 +759,13 @@ namespace gaia {
 
 				// Clear archetypes
 				{
-					m_chunksToRemove = {};
-
 					// Delete all allocated chunks and their parent archetypes
 					for (auto* pArchetype: m_archetypes)
 						delete pArchetype;
 
 					m_archetypes = {};
 					m_archetypeMap = {};
+					m_chunksToRemove = {};
 				}
 			}
 
