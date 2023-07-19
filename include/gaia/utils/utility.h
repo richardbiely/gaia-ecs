@@ -432,13 +432,18 @@ namespace gaia {
 		// Erasure
 		//----------------------------------------------------------------------
 
+		//! Replaces the item at \param idx in the array \param arr with the last item of the array if possible and removes
+		//! its last item.
+		//! Use when shifting of the entire erray is not wanted.
+		//! \warning If the item order is important and the size of the array changes after calling this function you need
+		//! to sort the array.
 		template <typename C>
 		void erase_fast(C& arr, size_t idx) {
 			if (idx >= arr.size())
 				return;
 
 			if (idx + 1 != arr.size())
-				utils::swap(arr[idx], arr[arr.size() - 1]);
+				arr[idx] = arr[arr.size() - 1];
 
 			arr.pop_back();
 		}
