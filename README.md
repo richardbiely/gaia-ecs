@@ -424,7 +424,8 @@ q.ForEach([](ecs::Iterator iter) {
       p[i] += v[i] * dt;
     /*
     You can even use SIMD intrinsics now without a worry. The code bellow uses x86 SIMD intrinsics.
-    Note, this is just a simple example not an optimal way to rewrite the loop. Also, this could would normally get auto-vectorized on most compilers in release builds.
+    Note, this is just an example not an optimal way to rewrite the loop.
+    Also, most compilers will auto-vectorize this code in release builds anyway.
     for (uint32_t i = 0; i < size; i+=4) {
       const auto pVec = _mm_load_ps(p + i);
       const auto vVec = _mm_load_ps(v + i);
