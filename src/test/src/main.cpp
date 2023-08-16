@@ -37,6 +37,18 @@ struct Acceleration {
 struct Rotation {
 	float x, y, z, w;
 };
+struct RotationSoA {
+	float x, y, z, w;
+	static constexpr auto Layout = utils::DataLayout::SoA;
+};
+struct RotationSoA8 {
+	float x, y, z, w;
+	static constexpr auto Layout = utils::DataLayout::SoA8;
+};
+struct RotationSoA16 {
+	float x, y, z, w;
+	static constexpr auto Layout = utils::DataLayout::SoA16;
+};
 struct Scale {
 	float x, y, z;
 };
@@ -1974,9 +1986,16 @@ template <typename T>
 void TestDataLayoutAoS() {
 	constexpr size_t N = 100;
 	containers::sarray<T, N> data{};
+	containers::sarray<T, N> data2{};
 
 	using aos = gaia::utils::aos_view_policy<T>;
 	using view_deduced = gaia::utils::auto_view_policy<T>;
+
+	// Clear the array
+	for (size_t i = 0; i < N; ++i) {
+		data[i] = {};
+		data2[i] = {};
+	}
 
 	// Explicit view
 	{
@@ -2025,19 +2044,34 @@ void TestDataLayoutAoS() {
 			REQUIRE(val.z == f);
 		}
 	}
+
+	// Make sure we didn't write beyond the bounds
+	T dummy{};
+	for (size_t i = N; i < N; ++i) {
+		const auto& val = data2[i];
+		REQUIRE(!memcmp((const void*)&val, (const void*)&dummy, sizeof(T)));
+	}
 }
 
 TEST_CASE("DataLayout AoS") {
 	TestDataLayoutAoS<Position>();
+	TestDataLayoutAoS<Rotation>();
 }
 
 template <typename T>
 void TestDataLayoutSoA() {
 	constexpr size_t N = 100;
 	constexpr size_t Alignment = utils::auto_view_policy<T>::Alignment;
-	GAIA_ALIGNAS(Alignment) containers::sarray<T, N> data;
+	GAIA_ALIGNAS(Alignment) containers::sarray<T, N> data{};
+	GAIA_ALIGNAS(Alignment) containers::sarray<T, N> data2{};
 
 	using view_deduced = gaia::utils::auto_view_policy<T>;
+
+	// Clear the array
+	for (size_t i = 0; i < N; ++i) {
+		data[i] = {};
+		data2[i] = {};
+	}
 
 	// Deduced view
 	{
@@ -2046,7 +2080,7 @@ void TestDataLayoutSoA() {
 
 			view_deduced::set({data}, i, {f, f, f});
 
-			auto val = view_deduced::get({data}, i);
+			auto val = view_deduced::get({data}, i)gg;
 			REQUIRE(val.x == f);
 			REQUIRE(val.y == f);
 			REQUIRE(val.z == f);
@@ -2062,18 +2096,28 @@ void TestDataLayoutSoA() {
 			REQUIRE(val.z == f);
 		}
 	}
+
+	// Make sure we didn't write beyond the bounds
+	T dummy{};
+	for (size_t i = N; i < N; ++i) {
+		const auto& val = data2[i];
+		REQUIRE(!memcmp((const void*)&val, (const void*)&dummy, sizeof(T)));
+	}
 }
 
 TEST_CASE("DataLayout SoA") {
 	TestDataLayoutSoA<PositionSoA>();
+	TestDataLayoutSoA<RotationSoA>();
 }
 
 TEST_CASE("DataLayout SoA8") {
 	TestDataLayoutSoA<PositionSoA8>();
+	TestDataLayoutSoA<RotationSoA8>();
 }
 
 TEST_CASE("DataLayout SoA16") {
 	TestDataLayoutSoA<PositionSoA16>();
+	TestDataLayoutSoA<RotationSoA16>();
 }
 
 template <typename T>
@@ -2111,14 +2155,17 @@ void TestDataLayoutSoA_ECS() {
 
 TEST_CASE("DataLayout SoA - ECS") {
 	TestDataLayoutSoA_ECS<PositionSoA>();
+	TestDataLayoutSoA_ECS<RotationSoA>();
 }
 
 TEST_CASE("DataLayout SoA8 - ECS") {
 	TestDataLayoutSoA_ECS<PositionSoA8>();
+	TestDataLayoutSoA_ECS<RotationSoA8>();
 }
 
 TEST_CASE("DataLayout SoA16 - ECS") {
 	TestDataLayoutSoA_ECS<PositionSoA16>();
+	TestDataLayoutSoA_ECS<RotationSoA16>();
 }
 
 //------------------------------------------------------------------------------
