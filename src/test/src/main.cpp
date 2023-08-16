@@ -1661,9 +1661,11 @@ TEST_CASE("CommandBuffer") {
 		cb.SetComponent<StringComponent>(e, {"teststring"});
 		cb.AddComponent<StringComponent2>(e);
 		REQUIRE(!w.HasComponent<StringComponent>(e));
+		REQUIRE(!w.HasComponent<StringComponent2>(e));
 
 		cb.Commit();
 		REQUIRE(w.HasComponent<StringComponent>(e));
+		REQUIRE(w.HasComponent<StringComponent2>(e));
 
 		auto s1 = w.GetComponent<StringComponent>(e);
 		REQUIRE(s1.value == "teststring");
@@ -2080,7 +2082,7 @@ void TestDataLayoutSoA() {
 
 			view_deduced::set({data}, i, {f, f, f});
 
-			auto val = view_deduced::get({data}, i)gg;
+			auto val = view_deduced::get({data}, i);
 			REQUIRE(val.x == f);
 			REQUIRE(val.y == f);
 			REQUIRE(val.z == f);
