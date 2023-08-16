@@ -87,8 +87,8 @@ namespace gaia {
 				component::ComponentType componentType;
 
 				void Commit(CommandBufferCtx& ctx) {
-					const auto& newInfo = ComponentCache::Get().GetComponentInfo(componentId);
-					ctx.world.AddComponent_Internal(componentType, entity, newInfo);
+					const auto& info = ComponentCache::Get().GetComponentInfo(componentId);
+					ctx.world.AddComponent_Internal(componentType, entity, info);
 
 					[[maybe_unused]] uint32_t indexInChunk{};
 					[[maybe_unused]] auto* pChunk = ctx.world.GetChunk(entity, indexInChunk);
@@ -101,8 +101,8 @@ namespace gaia {
 				component::ComponentType componentType;
 
 				void Commit(CommandBufferCtx& ctx) {
-					const auto& newInfo = ComponentCache::Get().GetComponentInfo(componentId);
-					ctx.world.AddComponent_Internal(componentType, entity, newInfo);
+					const auto& info = ComponentCache::Get().GetComponentInfo(componentId);
+					ctx.world.AddComponent_Internal(componentType, entity, info);
 
 					uint32_t indexInChunk{};
 					auto* pChunk = ctx.world.GetChunk(entity, indexInChunk);
@@ -111,11 +111,11 @@ namespace gaia {
 					if (componentType == component::ComponentType::CT_Chunk)
 						indexInChunk = 0;
 
-					const auto& newDesc = ComponentCache::Get().GetComponentDesc(componentId);
-					const auto offset = pChunk->FindDataOffset(componentType, newInfo.componentId);
-					auto* pComponentData = (void*)&pChunk->GetData(offset + (uint32_t)indexInChunk * newDesc.properties.size);
+					const auto& desc = ComponentCache::Get().GetComponentDesc(componentId);
+					const auto offset = pChunk->FindDataOffset(componentType, info.componentId);
+					auto* pComponentData = (void*)&pChunk->GetData(offset + (uint32_t)indexInChunk * desc.properties.size);
 
-					ctx.load(pComponentData, newDesc.properties.size);
+					ctx.load(pComponentData, desc.properties.size);
 				}
 			};
 			struct ADD_COMPONENT_TO_TEMPENTITY_t: CommandBufferCmd_t {
@@ -132,8 +132,8 @@ namespace gaia {
 
 					Entity entity = it->second;
 
-					const auto& newInfo = ComponentCache::Get().GetComponentInfo(componentId);
-					ctx.world.AddComponent_Internal(componentType, entity, newInfo);
+					const auto& info = ComponentCache::Get().GetComponentInfo(componentId);
+					ctx.world.AddComponent_Internal(componentType, entity, info);
 
 					uint32_t indexInChunk{};
 					auto* pChunk = ctx.world.GetChunk(entity, indexInChunk);
@@ -155,8 +155,8 @@ namespace gaia {
 					Entity entity = it->second;
 
 					// Components
-					const auto& newInfo = ComponentCache::Get().GetComponentInfo(componentId);
-					ctx.world.AddComponent_Internal(componentType, entity, newInfo);
+					const auto& info = ComponentCache::Get().GetComponentInfo(componentId);
+					ctx.world.AddComponent_Internal(componentType, entity, info);
 
 					uint32_t indexInChunk{};
 					auto* pChunk = ctx.world.GetChunk(entity, indexInChunk);
@@ -165,10 +165,10 @@ namespace gaia {
 					if (componentType == component::ComponentType::CT_Chunk)
 						indexInChunk = 0;
 
-					const auto& newDesc = ComponentCache::Get().GetComponentDesc(componentId);
-					const auto offset = pChunk->FindDataOffset(componentType, newDesc.componentId);
-					auto* pComponentData = (void*)&pChunk->GetData(offset + (uint32_t)indexInChunk * newDesc.properties.size);
-					ctx.load(pComponentData, newDesc.properties.size);
+					const auto& desc = ComponentCache::Get().GetComponentDesc(componentId);
+					const auto offset = pChunk->FindDataOffset(componentType, desc.componentId);
+					auto* pComponentData = (void*)&pChunk->GetData(offset + (uint32_t)indexInChunk * desc.properties.size);
+					ctx.load(pComponentData, desc.properties.size);
 				}
 			};
 			struct SET_COMPONENT_t: CommandBufferCmd_t {
@@ -219,8 +219,8 @@ namespace gaia {
 				component::ComponentType componentType;
 
 				void Commit(CommandBufferCtx& ctx) {
-					const auto& newInfo = ComponentCache::Get().GetComponentInfo(componentId);
-					ctx.world.RemoveComponent_Internal(componentType, entity, newInfo);
+					const auto& info = ComponentCache::Get().GetComponentInfo(componentId);
+					ctx.world.RemoveComponent_Internal(componentType, entity, info);
 				}
 			};
 
@@ -300,6 +300,9 @@ namespace gaia {
 			*/
 			template <typename T>
 			void AddComponent(Entity entity) {
+				// Make sure the component is registered
+				const auto& info = ComponentCache::Get().GetOrCreateComponentInfo<T>();
+
 				using U = typename component::DeduceComponent<T>::Type;
 				component::VerifyComponent<U>();
 
@@ -309,7 +312,7 @@ namespace gaia {
 				ADD_COMPONENT_t cmd;
 				cmd.entity = entity;
 				cmd.componentType = component::GetComponentType<T>();
-				cmd.componentId = component::GetComponentId<T>();
+				cmd.componentId = info.componentId;
 				serialization::save(s, cmd);
 			}
 
@@ -318,6 +321,9 @@ namespace gaia {
 			*/
 			template <typename T>
 			void AddComponent(TempEntity entity) {
+				// Make sure the component is registered
+				const auto& info = ComponentCache::Get().GetOrCreateComponentInfo<T>();
+
 				using U = typename component::DeduceComponent<T>::Type;
 				component::VerifyComponent<U>();
 
@@ -336,6 +342,9 @@ namespace gaia {
 			*/
 			template <typename T>
 			void AddComponent(Entity entity, T&& value) {
+				// Make sure the component is registered
+				const auto& info = ComponentCache::Get().GetOrCreateComponentInfo<T>();
+
 				using U = typename component::DeduceComponent<T>::Type;
 				component::VerifyComponent<U>();
 
@@ -345,7 +354,7 @@ namespace gaia {
 				ADD_COMPONENT_DATA_t cmd;
 				cmd.entity = entity;
 				cmd.componentType = component::GetComponentType<T>();
-				cmd.componentId = component::GetComponentId<T>();
+				cmd.componentId = info.componentId;
 				serialization::save(s, cmd);
 				s.save(std::forward<U>(value));
 			}
@@ -355,6 +364,9 @@ namespace gaia {
 			*/
 			template <typename T>
 			void AddComponent(TempEntity entity, T&& value) {
+				// Make sure the component is registered
+				const auto& info = ComponentCache::Get().GetOrCreateComponentInfo<T>();
+
 				using U = typename component::DeduceComponent<T>::Type;
 				component::VerifyComponent<U>();
 
@@ -364,7 +376,7 @@ namespace gaia {
 				ADD_COMPONENT_TO_TEMPENTITY_t cmd;
 				cmd.entity = entity;
 				cmd.componentType = component::GetComponentType<T>();
-				cmd.componentId = component::GetComponentId<T>();
+				cmd.componentId = info.componentId;
 				serialization::save(s, cmd);
 				s.save(std::forward<U>(value));
 			}
@@ -374,6 +386,10 @@ namespace gaia {
 			*/
 			template <typename T>
 			void SetComponent(Entity entity, T&& value) {
+				// No need to check if the component is registered.
+				// If we want to set the value of a component we must have created it already.
+				// (void)ComponentCache::Get().GetOrCreateComponentInfo<T>();
+
 				using U = typename component::DeduceComponent<T>::Type;
 				component::VerifyComponent<U>();
 
@@ -394,6 +410,10 @@ namespace gaia {
 			*/
 			template <typename T>
 			void SetComponent(TempEntity entity, T&& value) {
+				// No need to check if the component is registered.
+				// If we want to set the value of a component we must have created it already.
+				// (void)ComponentCache::Get().GetOrCreateComponentInfo<T>();
+
 				using U = typename component::DeduceComponent<T>::Type;
 				component::VerifyComponent<U>();
 
@@ -413,6 +433,10 @@ namespace gaia {
 			*/
 			template <typename T>
 			void RemoveComponent(Entity entity) {
+				// No need to check if the component is registered.
+				// If we want to remove a component we must have created it already.
+				// (void)ComponentCache::Get().GetOrCreateComponentInfo<T>();
+
 				using U = typename component::DeduceComponent<T>::Type;
 				component::VerifyComponent<U>();
 
