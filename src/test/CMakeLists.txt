@@ -3,6 +3,10 @@ enable_testing()
 set(PROJ_NAME "gaia_test")
 add_executable(${PROJ_NAME} src/main.cpp)
 
+# System-specific threading library
+find_package(Threads REQUIRED)
+target_link_libraries(${PROJ_NAME} PRIVATE Threads::Threads)
+
 # Unit test framework
 target_link_libraries(${PROJ_NAME} PRIVATE Catch2::Catch2WithMain)
 
