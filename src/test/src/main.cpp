@@ -166,6 +166,91 @@ TEST_CASE("Containers - darray") {
 	REQUIRE(!utils::has(arr, 100U));
 }
 
+TEST_CASE("Containers - sringbuffer") {
+	{
+		containers::sringbuffer<uint32_t, 5> arr = {0, 1, 2, 3, 4};
+		uint32_t val{};
+
+		REQUIRE(!arr.empty());
+		REQUIRE(arr.front() == 0);
+
+		arr.pop_front(val);
+		REQUIRE(val == 0);
+		REQUIRE(!arr.empty());
+		REQUIRE(arr.front() == 1);
+
+		arr.pop_front(val);
+		REQUIRE(val == 1);
+		REQUIRE(!arr.empty());
+		REQUIRE(arr.front() == 2);
+
+		arr.pop_front(val);
+		REQUIRE(val == 2);
+		REQUIRE(!arr.empty());
+		REQUIRE(arr.front() == 3);
+
+		arr.pop_front(val);
+		REQUIRE(val == 3);
+		REQUIRE(!arr.empty());
+		REQUIRE(arr.front() == 4);
+
+		arr.pop_front(val);
+		REQUIRE(val == 4);
+		REQUIRE(arr.empty());
+	}
+
+	{
+		containers::sringbuffer<uint32_t, 5> arr;
+		uint32_t val{};
+
+		REQUIRE(arr.empty());
+
+		arr.push_back(0);
+		REQUIRE(!arr.empty());
+		REQUIRE(arr.front() == 0);
+
+		arr.push_back(1);
+		REQUIRE(!arr.empty());
+		REQUIRE(arr.front() == 0);
+
+		arr.push_back(2);
+		REQUIRE(!arr.empty());
+		REQUIRE(arr.front() == 0);
+
+		arr.push_back(3);
+		REQUIRE(!arr.empty());
+		REQUIRE(arr.front() == 0);
+
+		arr.push_back(4);
+		REQUIRE(!arr.empty());
+		REQUIRE(arr.front() == 0);
+
+		arr.pop_front(val);
+		REQUIRE(val == 0);
+		REQUIRE(!arr.empty());
+		REQUIRE(arr.front() == 1);
+
+		arr.pop_front(val);
+		REQUIRE(val == 1);
+		REQUIRE(!arr.empty());
+		REQUIRE(arr.front() == 2);
+
+		arr.pop_front(val);
+		REQUIRE(val == 2);
+		REQUIRE(!arr.empty());
+		REQUIRE(arr.front() == 3);
+
+		arr.pop_front(val);
+		REQUIRE(val == 3);
+		REQUIRE(!arr.empty());
+		REQUIRE(arr.front() == 4);
+
+		arr.pop_front(val);
+		REQUIRE(val == 4);
+		REQUIRE(arr.empty());
+	}
+}
+
 TEST_CASE("EntityNull") {
 	REQUIRE_FALSE(ecs::Entity{} == ecs::EntityNull);
 
@@ -2362,6 +2447,88 @@ TEST_CASE("Serialization - arrays") {
 
 		REQUIRE(CompareSerializableTypes(in, out));
 	}
+}
+
+//------------------------------------------------------------------------------
+// Mutlithreading
+//------------------------------------------------------------------------------
+
+TEST_CASE("Multithreading - Schedule") {
+	auto& tp = mt::ThreadPool::Get();
+
+	containers::sarray<uint32_t, 100000> arr;
+	for (uint32_t i = 0; i < arr.max_size(); ++i)
+		arr[i] = 1;
+
+	mt::Job j1;
+	uint32_t sum1 = 0;
+	j1.func = [&arr, &sum1]() {
+		for (uint32_t i = 0; i < 25000; ++i)
+			sum1 += arr[i];
+	};
+
+	mt::Job j2;
+	uint32_t sum2 = 0;
+	j2.func = [&arr, &sum2]() {
+		for (uint32_t i = 25000; i < 50000; ++i)
+			sum2 += arr[i];
+	};
+
+	mt::Job j3;
+	uint32_t sum3 = 0;
+	j3.func = [&arr, &sum3]() {
+		for (uint32_t i = 50000; i < 75000; ++i)
+			sum3 += arr[i];
+	};
+
+	mt::Job j4;
+	uint32_t sum4 = 0;
+	j4.func = [&arr, &sum4]() {
+		for (uint32_t i = 75000; i < 100000; ++i)
+			sum4 += arr[i];
+	};
+
+	REQUIRE(sum1 == 0);
+	REQUIRE(sum2 == 0);
+	REQUIRE(sum3 == 0);
+	REQUIRE(sum4 == 0);
+
+	tp.Schedule(j1);
+	tp.Schedule(j2);
+	tp.Schedule(j3);
+	tp.Schedule(j4);
+
+	tp.CompleteAll();
+
+	REQUIRE(sum1 == 25000);
+	REQUIRE(sum2 == 25000);
+	REQUIRE(sum3 == 25000);
+	REQUIRE(sum4 == 25000);
+}
+
+TEST_CASE("Multithreading - ScheduleParallel") {
+	auto& tp = mt::ThreadPool::Get();
+
+	containers::sarray<uint32_t, 100000> arr;
+	for (uint32_t i = 0; i < arr.max_size(); ++i)
+		arr[i] = 1;
+
+	mt::JobParallel j1;
+	std::atomic_uint32_t sum1 = 0;
+	j1.func = [&arr, &sum1](const mt::JobArgs& args) {
+		uint32_t sum = 0;
+		for (uint32_t i = args.idxStart; i < args.idxEnd; ++i)
+			sum += arr[i];
+		sum1 += sum;
+	};
+
+	REQUIRE(sum1 == 0);
+
+	tp.ScheduleParallel(j1, arr.max_size(), 25000);
+
+	tp.CompleteAll();
+
+	REQUIRE(sum1 == 100000);
 }
 
 //------------------------------------------------------------------------------
