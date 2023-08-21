@@ -10,7 +10,7 @@
       "type": "pickString",
       "options": [
         "Debug",
-        "RelWithDebugInfo"
+        "RelWithDebInfo"
       ],
       "default": "Debug"
     }
