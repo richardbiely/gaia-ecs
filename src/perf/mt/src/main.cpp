@@ -5,10 +5,10 @@
 
 using namespace gaia;
 
-static uint32_t BenchFunc(const uint32_t* pArr, uint32_t from, uint32_t to) {
+static uint32_t BenchFunc(std::span<uint32_t> arr) {
 	uint32_t sum = 0;
-	for (uint32_t i = from; i < to; ++i)
-		sum += pArr[i];
+	for (uint32_t i = 0; i < arr.size(); ++i)
+		sum += arr[i];
 	return sum;
 }
 
@@ -35,7 +35,7 @@ void BM_Schedule_Simple(picobench::state& state) {
 			job.func = [&arr, &sum, i, ItemsPerJob]() {
 				const auto idxStart = i * ItemsPerJob;
 				const auto idxEnd = (i + 1) * ItemsPerJob;
-				sum += BenchFunc(arr.data(), idxStart, idxEnd);
+				sum += BenchFunc(std::span(arr.data() + idxStart, idxEnd - idxStart));
 			};
 			tp.Schedule(job);
 		}
@@ -63,7 +63,7 @@ void BM_ScheduleParallel_Simple(picobench::state& state) {
 
 		mt::JobParallel job;
 		job.func = [&arr, &sum](const mt::JobArgs& args) {
-			sum += BenchFunc(arr.data(), args.idxStart, args.idxEnd);
+			sum += BenchFunc(std::span(arr.data() + args.idxStart, args.idxEnd - args.idxStart));
 		};
 
 		tp.ScheduleParallel(job, N, 0);
@@ -77,15 +77,13 @@ void BM_ScheduleParallel_Simple(picobench::state& state) {
 
 static constexpr uint32_t ItemsToProcess = 10'000'000;
 
-PICOBENCH_SUITE("Schedule - Simple");
-PICOBENCH(BM_Schedule_Simple).PICO_SETTINGS().user_data(ItemsToProcess | (1ll << 32)).label("1 thread");
-PICOBENCH(BM_Schedule_Simple).PICO_SETTINGS().user_data(ItemsToProcess | (2ll << 32)).label("2 threads");
-PICOBENCH(BM_Schedule_Simple).PICO_SETTINGS().user_data(ItemsToProcess | (4ll << 32)).label("4 threads");
-PICOBENCH(BM_Schedule_Simple).PICO_SETTINGS().user_data(ItemsToProcess | (8ll << 32)).label("8 threads");
+PICOBENCH_SUITE("Schedule/ScheduleParallel - Simple");
+PICOBENCH(BM_Schedule_Simple).PICO_SETTINGS().user_data(ItemsToProcess | (1ll << 32)).label("Schedule, 1T");
+PICOBENCH(BM_Schedule_Simple).PICO_SETTINGS().user_data(ItemsToProcess | (2ll << 32)).label("Schedule, 2T");
+PICOBENCH(BM_Schedule_Simple).PICO_SETTINGS().user_data(ItemsToProcess | (4ll << 32)).label("Schedule, 4T");
+PICOBENCH(BM_Schedule_Simple).PICO_SETTINGS().user_data(ItemsToProcess | (8ll << 32)).label("Schedule, 8T");
 PICOBENCH(BM_Schedule_Simple)
 		.PICO_SETTINGS()
 		.user_data(ItemsToProcess | ((uint64_t)mt::ThreadPool::Get().GetWorkersCount()) << 32)
-		.label("all workers");
-
-PICOBENCH_SUITE("ScheduleParallel - Simple");
-PICOBENCH(BM_ScheduleParallel_Simple).PICO_SETTINGS().user_data(ItemsToProcess);
+		.label("Schedule, all workers");
+PICOBENCH(BM_ScheduleParallel_Simple).PICO_SETTINGS().user_data(ItemsToProcess).label("ScheduleParallel");
