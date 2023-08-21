@@ -831,7 +831,7 @@ namespace picobench {
 					// check for same func
 					for (auto ib = irb + 1; ib != suite.benchmarks.end(); ++ib) {
 						auto& b = *ib;
-						if (rb->_proc == b->_proc) {
+						if (rb->_proc == b->_proc && rb->_user_data == b->_user_data) {
 							*_stdwarn << "Warning: " << rb->name() << " and " << b->name()
 												<< " are benchmarks of the same function.\n";
 						}
