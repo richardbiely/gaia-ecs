@@ -56,11 +56,8 @@ namespace gaia {
 
 			//! List of pending jobs
 			JobQueue m_jobs;
-			//! State of execution of the main thread.
-			//! So long it is greater than m_workersCounter it means workers are doing work.
-			std::uint32_t m_mainCounter;
-			//! State of execution of worker threads
-			std::atomic_uint32_t m_workersCounter;
+			//! How many jobs are currently being processed
+			std::atomic_uint32_t m_jobsPending;
 
 			std::mutex m_cvLock;
 			std::condition_variable m_cv;
@@ -69,7 +66,7 @@ namespace gaia {
 			bool m_stop;
 
 		private:
-			ThreadPool(): m_stop(false), m_mainCounter(0), m_workersCounter(0) {
+			ThreadPool(): m_stop(false), m_jobsPending(0) {
 				uint32_t workerCount = CalculateThreadCount(0);
 				if (workerCount > m_workers.max_size())
 					workerCount = m_workers.max_size();
@@ -103,7 +100,7 @@ namespace gaia {
 				while (!stop) {
 					if (m_jobs.Pop(job)) {
 						job.func();
-						++m_workersCounter;
+						--m_jobsPending;
 					} else {
 						std::unique_lock<std::mutex> lock(m_cvLock);
 						m_cv.wait(lock);
@@ -140,7 +137,7 @@ namespace gaia {
 				if GAIA_UNLIKELY (m_stop)
 					return;
 
-				++m_mainCounter;
+				++m_jobsPending;
 
 				// Try pushing a new job until it we succeed.
 				// The thread is put to sleep if pushing the jobs fails.
@@ -168,7 +165,7 @@ namespace gaia {
 					groupSize = (itemsToProcess + m_workers.size() - 1) / m_workers.size();
 
 				const auto jobs = (itemsToProcess + groupSize - 1) / groupSize;
-				m_mainCounter += jobs;
+				m_jobsPending += jobs;
 
 				for (uint32_t jobIndex = 0; jobIndex < jobs; ++jobIndex) {
 					// Create one job per group
@@ -203,7 +200,7 @@ namespace gaia {
 			//! Checks whether workers are busy doing work.
 			//!	\return True if any workers are busy doing work.
 			bool IsBusy() const {
-				return m_workersCounter.load() < m_mainCounter;
+				return m_jobsPending > 0;
 			}
 
 			//! Wakes up some worker thread and reschedules the current one.
