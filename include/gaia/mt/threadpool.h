@@ -16,7 +16,6 @@ namespace gaia {
 		};
 
 		struct JobArgs {
-			uint32_t jobIndex;
 			uint32_t idxStart;
 			uint32_t idxEnd;
 		};
@@ -78,7 +77,7 @@ namespace gaia {
 				m_workers.resize(workerCount);
 				for (uint32_t i = 0; i < workerCount; ++i) {
 					m_workers[i] = std::thread([this]() {
-						ThreadFunc(m_stop);
+						ThreadLoop(m_stop);
 					});
 				}
 			}
@@ -99,7 +98,7 @@ namespace gaia {
 				return threadsWanted;
 			}
 
-			void ThreadFunc(const bool& stop) {
+			void ThreadLoop(const bool& stop) {
 				Job job;
 				while (!stop) {
 					if (m_jobs.Pop(job)) {
@@ -116,6 +115,10 @@ namespace gaia {
 			static ThreadPool& Get() {
 				static ThreadPool threadPool;
 				return threadPool;
+			}
+
+			uint32_t GetWorkersCount() const {
+				return (uint32_t)m_workers.size();
 			}
 
 			~ThreadPool() {
@@ -151,14 +154,18 @@ namespace gaia {
 			//! Schedules a job to run on worker threads in parallel.
 			//! \warning Must be used form the main thread.
 			void ScheduleParallel(const JobParallel& job, uint32_t itemsToProcess, uint32_t groupSize) {
-				// Empty data set or no group size specified are considered wrong inputs
-				GAIA_ASSERT(itemsToProcess != 0 && groupSize != 0);
-				if (itemsToProcess == 0 || groupSize == 0)
+				// Empty data set are considered wrong inputs
+				GAIA_ASSERT(itemsToProcess != 0);
+				if (itemsToProcess == 0)
 					return;
 
 				// Don't add new jobs once stop was requested
 				if GAIA_UNLIKELY (m_stop)
 					return;
+
+				// No group size was given, make a guess based on the set size
+				if (groupSize == 0)
+					groupSize = (itemsToProcess + m_workers.size() - 1) / m_workers.size();
 
 				const auto jobs = (itemsToProcess + groupSize - 1) / groupSize;
 				m_mainCounter += jobs;
@@ -170,7 +177,6 @@ namespace gaia {
 						const uint32_t groupJobIdxEnd = std::min(groupJobIdxStart + groupSize, itemsToProcess);
 
 						JobArgs args;
-						args.jobIndex = jobIndex;
 						args.idxStart = groupJobIdxStart;
 						args.idxEnd = groupJobIdxEnd;
 						job.func(args);

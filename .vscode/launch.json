@@ -81,12 +81,23 @@
       "cwd": "${workspaceFolder}",
       "environment": [],
       "externalConsole": false
-    }
+    },
     {
       "name": "(lldb) perf - entity",
       "type": "lldb",
       "request": "launch",
       "program": "${workspaceFolder}/build/${input:buildType}/src/perf/entity/gaia_perf_entity",
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [],
+      "externalConsole": false
+    },
+    {
+      "name": "(lldb) perf - mt",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/${input:buildType}/src/perf/mt/gaia_perf_mt",
       "args": [],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",

@@ -1,6 +1,7 @@
 add_subdirectory(iter)
 add_subdirectory(duel)
 add_subdirectory(entity)
+add_subdirectory(mt)
 
 # Preprocessor
 add_definitions(-DGAIA_DEBUG=0)
