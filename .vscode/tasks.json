@@ -59,7 +59,7 @@
         "cwd": "${workspaceFolder}"
       },
       "linux": {
-        "command": "make_single.header.sh"
+        "command": "make_single_header.sh"
       },
       "osx": {
         "command": "bash",
