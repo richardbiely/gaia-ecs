@@ -1,4 +1,3 @@
-#include "gaia/containers/sarray.h"
 #include <gaia.h>
 
 #if GAIA_COMPILER_MSVC
@@ -2538,6 +2537,34 @@ TEST_CASE("Multithreading - ScheduleParallel") {
 	tp.CompleteAll();
 
 	REQUIRE(sum1 == N);
+}
+
+TEST_CASE("Multithreading - Complete") {
+	auto& tp = mt::ThreadPool::Get();
+
+	constexpr uint32_t Jobs = 15000;
+
+	containers::sarray<mt::JobHandle, Jobs> handles;
+	containers::sarray<uint32_t, Jobs> res;
+
+	auto innerLoop = [&] {
+		for (uint32_t i = 0; i < res.max_size(); ++i)
+			res[i] = (uint32_t)-1;
+
+		for (uint32_t i = 0; i < Jobs; i++) {
+			mt::Job job;
+			job.func = [&res, i]() {
+				res[i] = i;
+			};
+			handles[i] = tp.Schedule(job);
+		}
+
+		for (uint32_t i = 0; i < Jobs; i++) {
+			tp.Complete(handles[i]);
+			REQUIRE(res[i] == i);
+		}
+	};
+	innerLoop();
 }
 
 //------------------------------------------------------------------------------

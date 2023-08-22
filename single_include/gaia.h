@@ -14710,6 +14710,7 @@ namespace gaia {
 
 		struct JobInternal {
 			std::function<void()> func;
+			std::atomic_uint32_t leftToFinish;
 		};
 
 		struct JobManager {
@@ -14723,13 +14724,21 @@ namespace gaia {
 		public:
 			GAIA_NODISCARD JobHandle AllocateJob(const Job& job) {
 				const uint32_t idx = (m_jobsAllocated++) & MASK;
-				auto& jobBufferItem = m_jobs[idx];
-				jobBufferItem.func = job.func;
+				auto& jobDesc = m_jobs[idx];
+				jobDesc.func = job.func;
+				jobDesc.leftToFinish = 1;
 				return {idx};
 			}
 
 			void Run(JobHandle jobHandle) {
-				m_jobs[jobHandle.idx].func();
+				auto& job = m_jobs[jobHandle.idx];
+				job.func();
+				--job.leftToFinish;
+			}
+
+			GAIA_NODISCARD bool IsBusy(JobHandle jobHandle) const {
+				const auto& job = m_jobs[jobHandle.idx];
+				return job.leftToFinish > 0;
 			}
 		};
 
@@ -14905,10 +14914,11 @@ namespace gaia {
 
 			//! Schedules a job to run on a worker thread.
 			//! \warning Must be used form the main thread.
-			void Schedule(const Job& job) {
+			//! \return Job handle of the scheduled job.
+			JobHandle Schedule(const Job& job) {
 				// Don't add new jobs once stop was requested
 				if GAIA_UNLIKELY (m_stop)
-					return;
+					return JobHandle{};
 
 				++m_jobsPending;
 
@@ -14921,6 +14931,8 @@ namespace gaia {
 
 				// Wake one worker thread
 				m_cv.notify_one();
+
+				return jobHandle;
 			}
 
 			//! Schedules a job to run on worker threads in parallel.
@@ -14966,6 +14978,14 @@ namespace gaia {
 					// Wake some worker thread
 					m_cv.notify_one();
 				}
+			}
+
+			//! Wait for the job to finish.
+			//! \param jobHandle Job handle
+			//! \warning Must be used form the main thread.
+			void Complete(JobHandle jobHandle) {
+				while (m_jobManager.IsBusy(jobHandle))
+					Poll();
 			}
 
 			//! Wait for all jobs to finish.
