@@ -753,7 +753,7 @@ namespace gaia {
 				// Clear entities
 				{
 					m_entities = {};
-					m_nextFreeEntity = 0;
+					m_nextFreeEntity = Entity::IdMask;
 					m_freeEntities = 0;
 				}
 
