@@ -1,3 +1,4 @@
+#include "gaia/containers/sarray.h"
 #include <gaia.h>
 
 #if GAIA_COMPILER_MSVC
@@ -173,29 +174,34 @@ TEST_CASE("Containers - sringbuffer") {
 
 		REQUIRE(!arr.empty());
 		REQUIRE(arr.front() == 0);
+		REQUIRE(arr.back() == 4);
 
 		arr.pop_front(val);
 		REQUIRE(val == 0);
 		REQUIRE(!arr.empty());
 		REQUIRE(arr.front() == 1);
+		REQUIRE(arr.back() == 4);
 
 		arr.pop_front(val);
 		REQUIRE(val == 1);
 		REQUIRE(!arr.empty());
 		REQUIRE(arr.front() == 2);
+		REQUIRE(arr.back() == 4);
 
 		arr.pop_front(val);
 		REQUIRE(val == 2);
 		REQUIRE(!arr.empty());
 		REQUIRE(arr.front() == 3);
+		REQUIRE(arr.back() == 4);
 
-		arr.pop_front(val);
-		REQUIRE(val == 3);
-		REQUIRE(!arr.empty());
-		REQUIRE(arr.front() == 4);
-
-		arr.pop_front(val);
+		arr.pop_back(val);
 		REQUIRE(val == 4);
+		REQUIRE(!arr.empty());
+		REQUIRE(arr.front() == 3);
+		REQUIRE(arr.back() == 3);
+
+		arr.pop_back(val);
+		REQUIRE(val == 3);
 		REQUIRE(arr.empty());
 	}
 
@@ -204,50 +210,61 @@ TEST_CASE("Containers - sringbuffer") {
 		uint32_t val{};
 
 		REQUIRE(arr.empty());
+		{
+			arr.push_back(0);
+			REQUIRE(!arr.empty());
+			REQUIRE(arr.front() == 0);
+			REQUIRE(arr.back() == 0);
 
-		arr.push_back(0);
-		REQUIRE(!arr.empty());
-		REQUIRE(arr.front() == 0);
+			arr.push_back(1);
+			REQUIRE(!arr.empty());
+			REQUIRE(arr.front() == 0);
+			REQUIRE(arr.back() == 1);
 
-		arr.push_back(1);
-		REQUIRE(!arr.empty());
-		REQUIRE(arr.front() == 0);
+			arr.push_back(2);
+			REQUIRE(!arr.empty());
+			REQUIRE(arr.front() == 0);
+			REQUIRE(arr.back() == 2);
 
-		arr.push_back(2);
-		REQUIRE(!arr.empty());
-		REQUIRE(arr.front() == 0);
+			arr.push_back(3);
+			REQUIRE(!arr.empty());
+			REQUIRE(arr.front() == 0);
+			REQUIRE(arr.back() == 3);
 
-		arr.push_back(3);
-		REQUIRE(!arr.empty());
-		REQUIRE(arr.front() == 0);
+			arr.push_back(4);
+			REQUIRE(!arr.empty());
+			REQUIRE(arr.front() == 0);
+			REQUIRE(arr.back() == 4);
+		}
+		{
+			arr.pop_front(val);
+			REQUIRE(val == 0);
+			REQUIRE(!arr.empty());
+			REQUIRE(arr.front() == 1);
+			REQUIRE(arr.back() == 4);
 
-		arr.push_back(4);
-		REQUIRE(!arr.empty());
-		REQUIRE(arr.front() == 0);
+			arr.pop_front(val);
+			REQUIRE(val == 1);
+			REQUIRE(!arr.empty());
+			REQUIRE(arr.front() == 2);
+			REQUIRE(arr.back() == 4);
 
-		arr.pop_front(val);
-		REQUIRE(val == 0);
-		REQUIRE(!arr.empty());
-		REQUIRE(arr.front() == 1);
+			arr.pop_front(val);
+			REQUIRE(val == 2);
+			REQUIRE(!arr.empty());
+			REQUIRE(arr.front() == 3);
+			REQUIRE(arr.back() == 4);
 
-		arr.pop_front(val);
-		REQUIRE(val == 1);
-		REQUIRE(!arr.empty());
-		REQUIRE(arr.front() == 2);
+			arr.pop_back(val);
+			REQUIRE(val == 4);
+			REQUIRE(!arr.empty());
+			REQUIRE(arr.front() == 3);
+			REQUIRE(arr.back() == 3);
 
-		arr.pop_front(val);
-		REQUIRE(val == 2);
-		REQUIRE(!arr.empty());
-		REQUIRE(arr.front() == 3);
-
-		arr.pop_front(val);
-		REQUIRE(val == 3);
-		REQUIRE(!arr.empty());
-		REQUIRE(arr.front() == 4);
-
-		arr.pop_front(val);
-		REQUIRE(val == 4);
-		REQUIRE(arr.empty());
+			arr.pop_back(val);
+			REQUIRE(val == 3);
+			REQUIRE(arr.empty());
+		}
 	}
 }
 
@@ -2453,82 +2470,76 @@ TEST_CASE("Serialization - arrays") {
 // Mutlithreading
 //------------------------------------------------------------------------------
 
+static uint32_t JobSystemFunc(std::span<const uint32_t> arr) {
+	uint32_t sum = 0;
+	for (uint32_t i = 0; i < arr.size(); ++i)
+		sum += arr[i];
+	return sum;
+}
+
+template <typename Func>
+void Run_Schedule_Simple(const uint32_t* pArr, uint32_t* pRes, uint32_t Jobs, uint32_t ItemsPerJob, Func func) {
+	auto& tp = mt::ThreadPool::Get();
+
+	std::atomic_uint32_t sum = 0;
+
+	for (uint32_t i = 0; i < Jobs; i++) {
+		mt::Job job;
+		job.func = [&pArr, &pRes, i, ItemsPerJob, func]() {
+			const auto idxStart = i * ItemsPerJob;
+			const auto idxEnd = (i + 1) * ItemsPerJob;
+			pRes[i] += func({pArr + idxStart, idxEnd - idxStart});
+		};
+		tp.Schedule(job);
+	}
+	tp.CompleteAll();
+
+	for (uint32_t i = 0; i < Jobs; i++) {
+		REQUIRE(pRes[i] == ItemsPerJob);
+	}
+}
+
 TEST_CASE("Multithreading - Schedule") {
 	auto& tp = mt::ThreadPool::Get();
 
-	containers::sarray<uint32_t, 100000> arr;
+	constexpr uint32_t JobCount = 64;
+	constexpr uint32_t ItemsPerJob = 5000;
+	constexpr uint32_t N = JobCount * ItemsPerJob;
+
+	containers::sarray<uint32_t, JobCount> res;
+	for (uint32_t i = 0; i < res.max_size(); ++i)
+		res[i] = 0;
+
+	containers::sarray<uint32_t, N> arr;
 	for (uint32_t i = 0; i < arr.max_size(); ++i)
 		arr[i] = 1;
 
-	mt::Job j1;
-	uint32_t sum1 = 0;
-	j1.func = [&arr, &sum1]() {
-		for (uint32_t i = 0; i < 25000; ++i)
-			sum1 += arr[i];
-	};
-
-	mt::Job j2;
-	uint32_t sum2 = 0;
-	j2.func = [&arr, &sum2]() {
-		for (uint32_t i = 25000; i < 50000; ++i)
-			sum2 += arr[i];
-	};
-
-	mt::Job j3;
-	uint32_t sum3 = 0;
-	j3.func = [&arr, &sum3]() {
-		for (uint32_t i = 50000; i < 75000; ++i)
-			sum3 += arr[i];
-	};
-
-	mt::Job j4;
-	uint32_t sum4 = 0;
-	j4.func = [&arr, &sum4]() {
-		for (uint32_t i = 75000; i < 100000; ++i)
-			sum4 += arr[i];
-	};
-
-	REQUIRE(sum1 == 0);
-	REQUIRE(sum2 == 0);
-	REQUIRE(sum3 == 0);
-	REQUIRE(sum4 == 0);
-
-	tp.Schedule(j1);
-	tp.Schedule(j2);
-	tp.Schedule(j3);
-	tp.Schedule(j4);
-
-	tp.CompleteAll();
-
-	REQUIRE(sum1 == 25000);
-	REQUIRE(sum2 == 25000);
-	REQUIRE(sum3 == 25000);
-	REQUIRE(sum4 == 25000);
+	const auto* pArr = arr.data();
+	Run_Schedule_Simple(arr.data(), res.data(), JobCount, ItemsPerJob, JobSystemFunc);
 }
 
 TEST_CASE("Multithreading - ScheduleParallel") {
 	auto& tp = mt::ThreadPool::Get();
 
-	containers::sarray<uint32_t, 100000> arr;
+	constexpr uint32_t JobCount = 64;
+	constexpr uint32_t ItemsPerJob = 5000;
+	constexpr uint32_t N = JobCount * ItemsPerJob;
+
+	containers::sarray<uint32_t, N> arr;
 	for (uint32_t i = 0; i < arr.max_size(); ++i)
 		arr[i] = 1;
 
-	mt::JobParallel j1;
 	std::atomic_uint32_t sum1 = 0;
+	mt::JobParallel j1;
 	j1.func = [&arr, &sum1](const mt::JobArgs& args) {
-		uint32_t sum = 0;
-		for (uint32_t i = args.idxStart; i < args.idxEnd; ++i)
-			sum += arr[i];
-		sum1 += sum;
+		sum1 += JobSystemFunc({arr.data() + args.idxStart, args.idxEnd - args.idxStart});
 	};
 
-	REQUIRE(sum1 == 0);
-
-	tp.ScheduleParallel(j1, arr.max_size(), 25000);
+	tp.ScheduleParallel(j1, N, ItemsPerJob);
 
 	tp.CompleteAll();
 
-	REQUIRE(sum1 == 100000);
+	REQUIRE(sum1 == N);
 }
 
 //------------------------------------------------------------------------------

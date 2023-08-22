@@ -129,6 +129,20 @@ namespace gaia {
 				--m_size;
 			}
 
+			GAIA_NODISCARD void pop_back(T& out) {
+				GAIA_ASSERT(m_size < N);
+				const auto head = (m_tail + m_size - 1) % N;
+				out = m_data[head];
+				--m_size;
+			}
+
+			GAIA_NODISCARD void pop_back(T&& out) {
+				GAIA_ASSERT(m_size < N);
+				const auto head = (m_tail + m_size - 1) % N;
+				out = std::forward<T>(m_data[head]);
+				--m_size;
+			}
+
 			GAIA_NODISCARD constexpr size_type size() const noexcept {
 				return m_size;
 			}
@@ -149,6 +163,18 @@ namespace gaia {
 			GAIA_NODISCARD constexpr const_reference front() const noexcept {
 				GAIA_ASSERT(!empty());
 				return m_data[m_tail];
+			}
+
+			GAIA_NODISCARD constexpr reference back() noexcept {
+				GAIA_ASSERT(!empty());
+				const auto head = (m_tail + m_size - 1) % N;
+				return m_data[head];
+			}
+
+			GAIA_NODISCARD constexpr const_reference back() const noexcept {
+				GAIA_ASSERT(!empty());
+				const auto head = (m_tail + m_size - 1) % N;
+				return m_data[head];
 			}
 
 			GAIA_NODISCARD bool operator==(const sringbuffer& other) const {
