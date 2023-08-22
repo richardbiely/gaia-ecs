@@ -4167,7 +4167,7 @@ namespace gaia {
 				const auto size = (size_t)GAIA_UTIL::distance(first, last);
 				for (size_t i = 0; i < size; ++i) {
 					if (*(first[i]) == value)
-						return first;
+						return first[i];
 				}
 			} else {
 				for (; first != last; ++first) {
@@ -4202,7 +4202,7 @@ namespace gaia {
 				const auto size = (size_t)GAIA_UTIL::distance(first, last);
 				for (size_t i = 0; i < size; ++i) {
 					if (func(*(first[i])))
-						return first;
+						return first[i];
 				}
 			} else {
 				for (; first != last; ++first) {
@@ -4237,7 +4237,7 @@ namespace gaia {
 				const auto size = (size_t)GAIA_UTIL::distance(first, last);
 				for (size_t i = 0; i < size; ++i) {
 					if (!func(*(first[i])))
-						return first;
+						return first[i];
 				}
 			} else {
 				for (; first != last; ++first) {
@@ -4305,13 +4305,18 @@ namespace gaia {
 		// Erasure
 		//----------------------------------------------------------------------
 
+		//! Replaces the item at \param idx in the array \param arr with the last item of the array if possible and removes
+		//! its last item.
+		//! Use when shifting of the entire erray is not wanted.
+		//! \warning If the item order is important and the size of the array changes after calling this function you need
+		//! to sort the array.
 		template <typename C>
 		void erase_fast(C& arr, size_t idx) {
 			if (idx >= arr.size())
 				return;
 
 			if (idx + 1 != arr.size())
-				utils::swap(arr[idx], arr[arr.size() - 1]);
+				arr[idx] = arr[arr.size() - 1];
 
 			arr.pop_back();
 		}
@@ -4359,7 +4364,7 @@ namespace gaia {
 					}
 					swapped = false;
 					for (size_type i = size_type{0}; gap + i < static_cast<size_type>(array_.size()); ++i) {
-						if (func(array_[i], array_[i + gap])) {
+						if (!func(array_[i], array_[i + gap])) {
 							auto swap = array_[i];
 							array_[i] = array_[i + gap];
 							array_[i + gap] = swap;
@@ -7901,134 +7906,344 @@ namespace gaia {
 			uint32_t NumFreePages;
 		};
 
-		/*!
-		Allocator for ECS Chunks. Memory is organized in pages of chunks.
-		*/
-		class ChunkAllocator {
-			struct MemoryBlock {
-				using MemoryBlockType = uint8_t;
+		class ChunkAllocator;
 
-				//! Active block : Index of the block within the page.
-				//! Passive block: Index of the next free block in the implicit list.
-				MemoryBlockType idx;
-			};
+		namespace detail {
 
-			struct MemoryPage {
-				static constexpr uint16_t NBlocks = 64;
-				static constexpr uint32_t Size = NBlocks * MemoryBlockSize;
-				static constexpr MemoryBlock::MemoryBlockType InvalidBlockId = (MemoryBlock::MemoryBlockType)-1;
-				static constexpr uint32_t MemoryLockTypeSizeInBits =
-						(uint32_t)utils::as_bits(sizeof(MemoryBlock::MemoryBlockType));
-				static_assert((uint32_t)NBlocks < (1 << MemoryLockTypeSizeInBits));
-				using iterator = containers::darray<MemoryPage*>::iterator;
+			/*!
+			Allocator for ECS Chunks. Memory is organized in pages of chunks.
+			*/
+			class ChunkAllocatorImpl {
+				friend class gaia::ecs::ChunkAllocator;
 
-				//! Pointer to data managed by page
-				void* m_data;
-				//! Implicit list of blocks
-				MemoryBlock m_blocks[NBlocks]{};
-				//! Index in the list of pages
-				uint32_t m_pageIdx;
-				//! Number of blocks in the block array
-				MemoryBlock::MemoryBlockType m_blockCnt;
-				//! Number of used blocks out of NBlocks
-				MemoryBlock::MemoryBlockType m_usedBlocks;
-				//! Index of the next block to recycle
-				MemoryBlock::MemoryBlockType m_nextFreeBlock;
-				//! Number of blocks to recycle
-				MemoryBlock::MemoryBlockType m_freeBlocks;
+				struct MemoryBlock {
+					using MemoryBlockType = uint8_t;
 
-				MemoryPage(void* ptr):
-						m_data(ptr), m_pageIdx(0), m_blockCnt(0), m_usedBlocks(0), m_nextFreeBlock(0), m_freeBlocks(0) {}
+					//! Active block : Index of the block within the page.
+					//! Passive block: Index of the next free block in the implicit list.
+					MemoryBlockType idx;
+				};
 
-				GAIA_NODISCARD void* AllocChunk() {
-					auto StoreChunkAddress = [&](size_t index) {
-						// Encode info about chunk's page in the memory block.
-						// The actual pointer returned is offset by UsableOffset bytes
-						uint8_t* pMemoryBlock = (uint8_t*)m_data + index * MemoryBlockSize;
-						*utils::unaligned_pointer<uintptr_t>{pMemoryBlock} = (uintptr_t)this;
-						return (void*)(pMemoryBlock + MemoryBlockUsableOffset);
-					};
+				struct MemoryPage {
+					static constexpr uint16_t NBlocks = 64;
+					static constexpr uint32_t Size = NBlocks * MemoryBlockSize;
+					static constexpr MemoryBlock::MemoryBlockType InvalidBlockId = (MemoryBlock::MemoryBlockType)-1;
+					static constexpr uint32_t MemoryLockTypeSizeInBits =
+							(uint32_t)utils::as_bits(sizeof(MemoryBlock::MemoryBlockType));
+					static_assert((uint32_t)NBlocks < (1 << MemoryLockTypeSizeInBits));
+					using iterator = containers::darray<MemoryPage*>::iterator;
 
-					if (m_freeBlocks == 0U) {
-						// We don't want to go out of range for new blocks
-						GAIA_ASSERT(!IsFull() && "Trying to allocate too many blocks!");
+					//! Pointer to data managed by page
+					void* m_data;
+					//! Implicit list of blocks
+					MemoryBlock m_blocks[NBlocks]{};
+					//! Index in the list of pages
+					uint32_t m_pageIdx;
+					//! Number of blocks in the block array
+					MemoryBlock::MemoryBlockType m_blockCnt;
+					//! Number of used blocks out of NBlocks
+					MemoryBlock::MemoryBlockType m_usedBlocks;
+					//! Index of the next block to recycle
+					MemoryBlock::MemoryBlockType m_nextFreeBlock;
+					//! Number of blocks to recycle
+					MemoryBlock::MemoryBlockType m_freeBlocks;
+
+					MemoryPage(void* ptr):
+							m_data(ptr), m_pageIdx(0), m_blockCnt(0), m_usedBlocks(0), m_nextFreeBlock(0), m_freeBlocks(0) {}
+
+					GAIA_NODISCARD void* AllocChunk() {
+						auto StoreChunkAddress = [&](size_t index) {
+							// Encode info about chunk's page in the memory block.
+							// The actual pointer returned is offset by UsableOffset bytes
+							uint8_t* pMemoryBlock = (uint8_t*)m_data + index * MemoryBlockSize;
+							*utils::unaligned_pointer<uintptr_t>{pMemoryBlock} = (uintptr_t)this;
+							return (void*)(pMemoryBlock + MemoryBlockUsableOffset);
+						};
+
+						if (m_freeBlocks == 0U) {
+							// We don't want to go out of range for new blocks
+							GAIA_ASSERT(!IsFull() && "Trying to allocate too many blocks!");
+
+							++m_usedBlocks;
+
+							const size_t index = m_blockCnt;
+							GAIA_ASSERT(index < NBlocks);
+							m_blocks[index].idx = (MemoryBlock::MemoryBlockType)index;
+							++m_blockCnt;
+
+							return StoreChunkAddress(index);
+						}
+
+						GAIA_ASSERT(m_nextFreeBlock < m_blockCnt && "Block allocator recycle containers::list broken!");
 
 						++m_usedBlocks;
+						--m_freeBlocks;
 
-						const size_t index = m_blockCnt;
-						GAIA_ASSERT(index < NBlocks);
-						m_blocks[index].idx = (MemoryBlock::MemoryBlockType)index;
-						++m_blockCnt;
+						const size_t index = m_nextFreeBlock;
+						m_nextFreeBlock = m_blocks[m_nextFreeBlock].idx;
 
 						return StoreChunkAddress(index);
 					}
 
-					GAIA_ASSERT(m_nextFreeBlock < m_blockCnt && "Block allocator recycle containers::list broken!");
+					void FreeChunk(void* pChunk) {
+						GAIA_ASSERT(m_freeBlocks <= NBlocks);
 
-					++m_usedBlocks;
-					--m_freeBlocks;
+						// Offset the chunk memory so we get the real block address
+						const auto* pMemoryBlock = (uint8_t*)pChunk - MemoryBlockUsableOffset;
 
-					const size_t index = m_nextFreeBlock;
-					m_nextFreeBlock = m_blocks[m_nextFreeBlock].idx;
+						const auto blckAddr = (uintptr_t)pMemoryBlock;
+						const auto dataAddr = (uintptr_t)m_data;
+						GAIA_ASSERT(blckAddr >= dataAddr && blckAddr < dataAddr + MemoryPage::Size);
+						MemoryBlock block = {MemoryBlock::MemoryBlockType((blckAddr - dataAddr) / MemoryBlockSize)};
 
-					return StoreChunkAddress(index);
-				}
+						auto& blockContainer = m_blocks[block.idx];
 
-				void FreeChunk(void* pChunk) {
-					GAIA_ASSERT(m_freeBlocks <= NBlocks);
+						// Update our implicit containers::list
+						if (m_freeBlocks == 0U) {
+							blockContainer.idx = InvalidBlockId;
+							m_nextFreeBlock = block.idx;
+						} else {
+							blockContainer.idx = m_nextFreeBlock;
+							m_nextFreeBlock = block.idx;
+						}
 
-					// Offset the chunk memory so we get the real block address
-					const auto* pMemoryBlock = (uint8_t*)pChunk - MemoryBlockUsableOffset;
-
-					const auto blckAddr = (uintptr_t)pMemoryBlock;
-					const auto dataAddr = (uintptr_t)m_data;
-					GAIA_ASSERT(blckAddr >= dataAddr && blckAddr < dataAddr + MemoryPage::Size);
-					MemoryBlock block = {MemoryBlock::MemoryBlockType((blckAddr - dataAddr) / MemoryBlockSize)};
-
-					auto& blockContainer = m_blocks[block.idx];
-
-					// Update our implicit containers::list
-					if (m_freeBlocks == 0U) {
-						blockContainer.idx = InvalidBlockId;
-						m_nextFreeBlock = block.idx;
-					} else {
-						blockContainer.idx = m_nextFreeBlock;
-						m_nextFreeBlock = block.idx;
+						++m_freeBlocks;
+						--m_usedBlocks;
 					}
 
-					++m_freeBlocks;
-					--m_usedBlocks;
+					GAIA_NODISCARD uint32_t GetUsedBlocks() const {
+						return m_usedBlocks;
+					}
+					GAIA_NODISCARD bool IsFull() const {
+						return m_usedBlocks == NBlocks;
+					}
+					GAIA_NODISCARD bool IsEmpty() const {
+						return m_usedBlocks == 0;
+					}
+				};
+
+				//! List of available pages
+				//! Note, this currently only contains at most 1 item
+				containers::darray<MemoryPage*> m_pagesFree;
+				//! List of full pages
+				containers::darray<MemoryPage*> m_pagesFull;
+				//! Allocator statistics
+				ChunkAllocatorStats m_stats{};
+				//! When true, destruction has been requested
+				bool m_isDone = false;
+
+				ChunkAllocatorImpl() = default;
+
+			public:
+				~ChunkAllocatorImpl() = default;
+
+				ChunkAllocatorImpl(ChunkAllocatorImpl&& world) = delete;
+				ChunkAllocatorImpl(const ChunkAllocatorImpl& world) = delete;
+				ChunkAllocatorImpl& operator=(ChunkAllocatorImpl&&) = delete;
+				ChunkAllocatorImpl& operator=(const ChunkAllocatorImpl&) = delete;
+
+				/*!
+				Allocates memory
+				*/
+				void* Allocate() {
+					void* pChunk = nullptr;
+
+					if (m_pagesFree.empty()) {
+						// Initial allocation
+						auto* pPage = AllocPage();
+						pPage->m_pageIdx = 0;
+						pChunk = pPage->AllocChunk();
+						m_pagesFree.push_back(pPage);
+					} else {
+						auto* pPage = m_pagesFree[0];
+						GAIA_ASSERT(!pPage->IsFull());
+						// Allocate a new chunk of memory
+						pChunk = pPage->AllocChunk();
+
+						// Handle full pages
+						if (pPage->IsFull()) {
+							// Remove the page from the open list and update the swapped page's pointer
+							utils::erase_fast(m_pagesFree, 0);
+							if (!m_pagesFree.empty())
+								m_pagesFree[0]->m_pageIdx = 0;
+
+							// Move our page to the full list
+							pPage->m_pageIdx = (uint32_t)m_pagesFull.size();
+							m_pagesFull.push_back(pPage);
+						}
+					}
+
+#if GAIA_ECS_CHUNK_ALLOCATOR_CLEAN_MEMORY_WITH_GARBAGE
+					// Fill allocated memory with garbage.
+					// This way we always know if we treat the memory correctly.
+					constexpr uint32_t AllocMemDefValue = 0x7fcdf00dU;
+					constexpr uint32_t AllocSpanSize = (uint32_t)((ChunkMemorySize + 3) / sizeof(uint32_t));
+					std::span<uint32_t, AllocSpanSize> s((uint32_t*)pChunk, AllocSpanSize);
+					for (auto& val: s)
+						val = AllocMemDefValue;
+#endif
+
+					return pChunk;
 				}
 
-				GAIA_NODISCARD uint32_t GetUsedBlocks() const {
-					return m_usedBlocks;
+				/*!
+				Releases memory allocated for pointer
+				*/
+				void Release(void* pChunk) {
+					// Decode the page from the address
+					uintptr_t pageAddr = *(uintptr_t*)((uint8_t*)pChunk - MemoryBlockUsableOffset);
+					auto* pPage = (MemoryPage*)pageAddr;
+
+#if GAIA_ECS_CHUNK_ALLOCATOR_CLEAN_MEMORY_WITH_GARBAGE
+					// Fill freed memory with garbage.
+					// This way we always know if we treat the memory correctly.
+					constexpr uint32_t FreedMemDefValue = 0xfeeefeeeU;
+					constexpr uint32_t FreedSpanSize = (uint32_t)((ChunkMemorySize + 3) / sizeof(uint32_t));
+					std::span<uint32_t, FreedSpanSize> s((uint32_t*)pChunk, FreedSpanSize);
+					for (auto& val: s)
+						val = FreedMemDefValue;
+#endif
+
+					const bool pageFull = pPage->IsFull();
+
+#if GAIA_DEBUG
+					if (pageFull) {
+						[[maybe_unused]] auto it = utils::find_if(m_pagesFull.begin(), m_pagesFull.end(), [&](auto page) {
+							return page == pPage;
+						});
+						GAIA_ASSERT(
+								it != m_pagesFull.end() && "ChunkAllocator delete couldn't find the memory page expected "
+																					 "in the full pages containers::list");
+					} else {
+						[[maybe_unused]] auto it = utils::find_if(m_pagesFree.begin(), m_pagesFree.end(), [&](auto page) {
+							return page == pPage;
+						});
+						GAIA_ASSERT(
+								it != m_pagesFree.end() && "ChunkAllocator delete couldn't find memory page expected in "
+																					 "the free pages containers::list");
+					}
+#endif
+
+					// Update lists
+					if (pageFull) {
+						// Our page is no longer full. Remove it from the list and update the swapped page's pointer
+						m_pagesFull.back()->m_pageIdx = pPage->m_pageIdx;
+						utils::erase_fast(m_pagesFull, pPage->m_pageIdx);
+
+						// Move our page to the open list
+						pPage->m_pageIdx = (uint32_t)m_pagesFree.size();
+						m_pagesFree.push_back(pPage);
+					}
+
+					// Free the chunk
+					pPage->FreeChunk(pChunk);
+
+					if (m_isDone) {
+						// Remove the page right away
+						if (pPage->IsEmpty()) {
+							GAIA_ASSERT(!m_pagesFree.empty());
+							m_pagesFree.back()->m_pageIdx = pPage->m_pageIdx;
+							utils::erase_fast(m_pagesFree, pPage->m_pageIdx);
+						}
+
+						// When there is nothing left, delete the allocator
+						if (m_pagesFree.empty() && m_pagesFull.empty())
+							delete this;
+					}
 				}
-				GAIA_NODISCARD bool IsFull() const {
-					return m_usedBlocks == NBlocks;
+
+				/*!
+				Returns allocator statistics
+				*/
+				ChunkAllocatorStats GetStats() const {
+					ChunkAllocatorStats stats{};
+					stats.NumPages = (uint32_t)m_pagesFree.size() + (uint32_t)m_pagesFull.size();
+					stats.NumFreePages = (uint32_t)m_pagesFree.size();
+					stats.AllocatedMemory = stats.NumPages * (size_t)MemoryPage::Size;
+					stats.UsedMemory = m_pagesFull.size() * (size_t)MemoryPage::Size;
+					for (auto* page: m_pagesFree)
+						stats.UsedMemory += page->GetUsedBlocks() * (size_t)MemoryBlockSize;
+					return stats;
 				}
-				GAIA_NODISCARD bool IsEmpty() const {
-					return m_usedBlocks == 0;
+
+				/*!
+				Flushes unused memory
+				*/
+				void Flush() {
+					for (size_t i = 0; i < m_pagesFree.size();) {
+						auto* pPage = m_pagesFree[i];
+
+						// Skip non-empty pages
+						if (!pPage->IsEmpty()) {
+							++i;
+							continue;
+						}
+
+						utils::erase_fast(m_pagesFree, i);
+						FreePage(pPage);
+						if (!m_pagesFree.empty())
+							m_pagesFree[i]->m_pageIdx = (uint32_t)i;
+					}
+				}
+
+				/*!
+				Performs diagnostics of the memory used.
+				*/
+				void Diag() const {
+					ChunkAllocatorStats memstats = GetStats();
+					GAIA_LOG_N("ChunkAllocator stats");
+					GAIA_LOG_N("  Allocated: %" PRIu64 " B", memstats.AllocatedMemory);
+					GAIA_LOG_N("  Used: %" PRIu64 " B", memstats.AllocatedMemory - memstats.UsedMemory);
+					GAIA_LOG_N("  Overhead: %" PRIu64 " B", memstats.UsedMemory);
+					GAIA_LOG_N("  Utilization: %.1f%%", 100.0 * ((double)memstats.UsedMemory / (double)memstats.AllocatedMemory));
+					GAIA_LOG_N("  Pages: %u", memstats.NumPages);
+					GAIA_LOG_N("  Free pages: %u", memstats.NumFreePages);
+				}
+
+			private:
+				static MemoryPage* AllocPage() {
+					auto* pPageData = utils::mem_alloc_alig(MemoryPage::Size, 16);
+					return new MemoryPage(pPageData);
+				}
+
+				static void FreePage(MemoryPage* page) {
+					utils::mem_free_alig(page->m_data);
+					delete page;
+				}
+
+				void Done() {
+					m_isDone = true;
 				}
 			};
+		} // namespace detail
 
-			//! List of available pages
-			//! Note, this currently only contains at most 1 item
-			containers::darray<MemoryPage*> m_pagesFree;
-			//! List of full pages
-			containers::darray<MemoryPage*> m_pagesFull;
-			//! Allocator statistics
-			ChunkAllocatorStats m_stats{};
+		//! Manager of ECS memory for Chunks.
+		//! IMPORTANT:
+		//! Gaia-ECS is a header-only library which means we want to avoid using global
+		//! static variables because they would get copied to each translation units.
+		//! At the same time the goal is for user not to see any memory allocator used
+		//! by the library. Therefore, the only solution is a static variable with local
+		//! scope.
+		//!
+		//! Being a static variable with local scope which means the allocator is guaranteed
+		//! to be younger than its caller. Because static variables are released in the reverse
+		//! order in which they are created, if used with a static World it would mean we first
+		//! release the allocator memory and only then proceed with the world itself. As a result,
+		//! in its destructor the world would try to access memory which has already been released.
+		//!
+		//! Instead, we let this object alocate the real allocator on the heap and once
+		//! ChunkAllocator's destructor is called we tell the real one it should destroy
+		//! itself. This way there are no memory leaks or access-after-freed issues on app
+		//! exit reported.
+		class ChunkAllocator final {
+			detail::ChunkAllocatorImpl* m_allocator = new detail::ChunkAllocatorImpl();
 
 			ChunkAllocator() = default;
 
 		public:
-			static ChunkAllocator& Get() {
-				static ChunkAllocator allocator;
-				return allocator;
-			}
-
-			~ChunkAllocator() {
-				FreeAll();
+			static detail::ChunkAllocatorImpl& Get() {
+				static ChunkAllocator staticAllocator;
+				return *staticAllocator.m_allocator;
 			}
 
 			ChunkAllocator(ChunkAllocator&& world) = delete;
@@ -8036,177 +8251,8 @@ namespace gaia {
 			ChunkAllocator& operator=(ChunkAllocator&&) = delete;
 			ChunkAllocator& operator=(const ChunkAllocator&) = delete;
 
-			/*!
-			Allocates memory
-			*/
-			void* Allocate() {
-				void* pChunk = nullptr;
-
-				if (m_pagesFree.empty()) {
-					// Initial allocation
-					auto* pPage = AllocPage();
-					m_pagesFree.push_back(pPage);
-					pPage->m_pageIdx = (uint32_t)m_pagesFree.size() - 1;
-					pChunk = pPage->AllocChunk();
-				} else {
-					auto* pPage = m_pagesFree[0];
-					GAIA_ASSERT(!pPage->IsFull());
-					// Allocate a new chunk
-					pChunk = pPage->AllocChunk();
-
-					// Handle full pages
-					if (pPage->IsFull()) {
-						// Remove the page from the open list and update the swapped page's pointer
-						utils::erase_fast(m_pagesFree, 0);
-						if (!m_pagesFree.empty())
-							m_pagesFree[0]->m_pageIdx = 0;
-
-						// Move our page to the full list
-						m_pagesFull.push_back(pPage);
-						pPage->m_pageIdx = (uint32_t)m_pagesFull.size() - 1;
-					}
-				}
-
-#if GAIA_ECS_CHUNK_ALLOCATOR_CLEAN_MEMORY_WITH_GARBAGE
-				// Fill allocated memory with garbage.
-				// This way we always know if we treat the memory correctly.
-				constexpr uint32_t AllocMemDefValue = 0x7fcdf00dU;
-				constexpr uint32_t AllocSpanSize = (uint32_t)((ChunkMemorySize + 3) / sizeof(uint32_t));
-				std::span<uint32_t, AllocSpanSize> s((uint32_t*)pChunk, AllocSpanSize);
-				for (auto& val: s)
-					val = AllocMemDefValue;
-#endif
-
-				return pChunk;
-			}
-
-			/*!
-			Releases memory allocated for pointer
-			*/
-			void Release(void* pChunk) {
-				// Decode the page from the address
-				uintptr_t pageAddr = *(uintptr_t*)((uint8_t*)pChunk - MemoryBlockUsableOffset);
-				auto* pPage = (MemoryPage*)pageAddr;
-
-#if GAIA_ECS_CHUNK_ALLOCATOR_CLEAN_MEMORY_WITH_GARBAGE
-				// Fill freed memory with garbage.
-				// This way we always know if we treat the memory correctly.
-				constexpr uint32_t FreedMemDefValue = 0xfeeefeeeU;
-				constexpr uint32_t FreedSpanSize = (uint32_t)((ChunkMemorySize + 3) / sizeof(uint32_t));
-				std::span<uint32_t, FreedSpanSize> s((uint32_t*)pChunk, FreedSpanSize);
-				for (auto& val: s)
-					val = FreedMemDefValue;
-#endif
-
-				const bool pageFull = pPage->IsFull();
-
-#if GAIA_DEBUG
-				if (pageFull) {
-					[[maybe_unused]] auto it = utils::find_if(m_pagesFull.begin(), m_pagesFull.end(), [&](auto page) {
-						return page == pPage;
-					});
-					GAIA_ASSERT(
-							it != m_pagesFull.end() && "ChunkAllocator delete couldn't find the memory page expected "
-																				 "in the full pages containers::list");
-				} else {
-					[[maybe_unused]] auto it = utils::find_if(m_pagesFree.begin(), m_pagesFree.end(), [&](auto page) {
-						return page == pPage;
-					});
-					GAIA_ASSERT(
-							it != m_pagesFree.end() && "ChunkAllocator delete couldn't find memory page expected in "
-																				 "the free pages containers::list");
-				}
-#endif
-
-				// Update lists
-				if (pageFull) {
-					// Our page is no longer full. Remove it from the list and update the swapped page's pointer
-					if (m_pagesFull.size() > 1)
-						m_pagesFull.back()->m_pageIdx = pPage->m_pageIdx;
-					utils::erase_fast(m_pagesFull, pPage->m_pageIdx);
-
-					// Move our page to the open list
-					pPage->m_pageIdx = (uint32_t)m_pagesFree.size();
-					m_pagesFree.push_back(pPage);
-				}
-
-				// Free the chunk
-				pPage->FreeChunk(pChunk);
-			}
-
-			/*!
-			Releases all allocated memory
-			*/
-			void FreeAll() {
-				// Release free pages
-				for (auto* page: m_pagesFree)
-					FreePage(page);
-				// Release full pages
-				for (auto* page: m_pagesFull)
-					FreePage(page);
-
-				m_pagesFree = {};
-				m_pagesFull = {};
-				m_stats = {};
-			}
-
-			/*!
-			Returns allocator statistics
-			*/
-			ChunkAllocatorStats GetStats() const {
-				ChunkAllocatorStats stats{};
-				stats.NumPages = (uint32_t)m_pagesFree.size() + (uint32_t)m_pagesFull.size();
-				stats.NumFreePages = (uint32_t)m_pagesFree.size();
-				stats.AllocatedMemory = stats.NumPages * (size_t)MemoryPage::Size;
-				stats.UsedMemory = m_pagesFull.size() * (size_t)MemoryPage::Size;
-				for (auto* page: m_pagesFree)
-					stats.UsedMemory += page->GetUsedBlocks() * (size_t)MemoryBlockSize;
-				return stats;
-			}
-
-			/*!
-			Flushes unused memory
-			*/
-			void Flush() {
-				for (size_t i = 0; i < m_pagesFree.size();) {
-					auto* pPage = m_pagesFree[i];
-
-					// Skip non-empty pages
-					if (!pPage->IsEmpty()) {
-						++i;
-						continue;
-					}
-
-					utils::erase_fast(m_pagesFree, i);
-					FreePage(pPage);
-					if (!m_pagesFree.empty())
-						m_pagesFree[i]->m_pageIdx = (uint32_t)i;
-				}
-			}
-
-			/*!
-			Performs diagnostics of the memory used.
-			*/
-			void Diag() const {
-				ChunkAllocatorStats memstats = GetStats();
-				GAIA_LOG_N("ChunkAllocator stats");
-				GAIA_LOG_N("  Allocated: %" PRIu64 " B", memstats.AllocatedMemory);
-				GAIA_LOG_N("  Used: %" PRIu64 " B", memstats.AllocatedMemory - memstats.UsedMemory);
-				GAIA_LOG_N("  Overhead: %" PRIu64 " B", memstats.UsedMemory);
-				GAIA_LOG_N("  Utilization: %.1f%%", 100.0 * ((double)memstats.UsedMemory / (double)memstats.AllocatedMemory));
-				GAIA_LOG_N("  Pages: %u", memstats.NumPages);
-				GAIA_LOG_N("  Free pages: %u", memstats.NumFreePages);
-			}
-
-		private:
-			static MemoryPage* AllocPage() {
-				auto* pPageData = utils::mem_alloc_alig(MemoryPage::Size, 16);
-				return new MemoryPage(pPageData);
-			}
-
-			static void FreePage(MemoryPage* page) {
-				utils::mem_free_alig(page->m_data);
-				delete page;
+			~ChunkAllocator() {
+				Get().Done();
 			}
 		};
 
@@ -11174,8 +11220,8 @@ namespace gaia {
 							return false;
 
 						// Read-write mask must match
-						const uint8_t maskRW = (uint32_t)data.readWriteMask & (1U << (uint32_t)idx);
-						const uint8_t maskXX = (uint32_t)isReadWrite << idx;
+						const uint32_t maskRW = (uint32_t)data.readWriteMask & (1U << (uint32_t)idx);
+						const uint32_t maskXX = (uint32_t)isReadWrite << idx;
 						return maskRW == maskXX;
 					}
 				}
@@ -13088,20 +13134,19 @@ namespace gaia {
 				// Clear entities
 				{
 					m_entities = {};
-					m_nextFreeEntity = 0;
+					m_nextFreeEntity = Entity::IdMask;
 					m_freeEntities = 0;
 				}
 
 				// Clear archetypes
 				{
-					m_chunksToRemove = {};
-
 					// Delete all allocated chunks and their parent archetypes
 					for (auto* pArchetype: m_archetypes)
 						delete pArchetype;
 
 					m_archetypes = {};
 					m_archetypeMap = {};
+					m_chunksToRemove = {};
 				}
 			}
 
@@ -13637,8 +13682,8 @@ namespace gaia {
 				component::ComponentType componentType;
 
 				void Commit(CommandBufferCtx& ctx) {
-					const auto& newInfo = ComponentCache::Get().GetComponentInfo(componentId);
-					ctx.world.AddComponent_Internal(componentType, entity, newInfo);
+					const auto& info = ComponentCache::Get().GetComponentInfo(componentId);
+					ctx.world.AddComponent_Internal(componentType, entity, info);
 
 					[[maybe_unused]] uint32_t indexInChunk{};
 					[[maybe_unused]] auto* pChunk = ctx.world.GetChunk(entity, indexInChunk);
@@ -13651,8 +13696,8 @@ namespace gaia {
 				component::ComponentType componentType;
 
 				void Commit(CommandBufferCtx& ctx) {
-					const auto& newInfo = ComponentCache::Get().GetComponentInfo(componentId);
-					ctx.world.AddComponent_Internal(componentType, entity, newInfo);
+					const auto& info = ComponentCache::Get().GetComponentInfo(componentId);
+					ctx.world.AddComponent_Internal(componentType, entity, info);
 
 					uint32_t indexInChunk{};
 					auto* pChunk = ctx.world.GetChunk(entity, indexInChunk);
@@ -13661,11 +13706,11 @@ namespace gaia {
 					if (componentType == component::ComponentType::CT_Chunk)
 						indexInChunk = 0;
 
-					const auto& newDesc = ComponentCache::Get().GetComponentDesc(componentId);
-					const auto offset = pChunk->FindDataOffset(componentType, newInfo.componentId);
-					auto* pComponentData = (void*)&pChunk->GetData(offset + (uint32_t)indexInChunk * newDesc.properties.size);
+					const auto& desc = ComponentCache::Get().GetComponentDesc(componentId);
+					const auto offset = pChunk->FindDataOffset(componentType, info.componentId);
+					auto* pComponentData = (void*)&pChunk->GetData(offset + (uint32_t)indexInChunk * desc.properties.size);
 
-					ctx.load(pComponentData, newDesc.properties.size);
+					ctx.load(pComponentData, desc.properties.size);
 				}
 			};
 			struct ADD_COMPONENT_TO_TEMPENTITY_t: CommandBufferCmd_t {
@@ -13682,8 +13727,8 @@ namespace gaia {
 
 					Entity entity = it->second;
 
-					const auto& newInfo = ComponentCache::Get().GetComponentInfo(componentId);
-					ctx.world.AddComponent_Internal(componentType, entity, newInfo);
+					const auto& info = ComponentCache::Get().GetComponentInfo(componentId);
+					ctx.world.AddComponent_Internal(componentType, entity, info);
 
 					uint32_t indexInChunk{};
 					auto* pChunk = ctx.world.GetChunk(entity, indexInChunk);
@@ -13705,8 +13750,8 @@ namespace gaia {
 					Entity entity = it->second;
 
 					// Components
-					const auto& newInfo = ComponentCache::Get().GetComponentInfo(componentId);
-					ctx.world.AddComponent_Internal(componentType, entity, newInfo);
+					const auto& info = ComponentCache::Get().GetComponentInfo(componentId);
+					ctx.world.AddComponent_Internal(componentType, entity, info);
 
 					uint32_t indexInChunk{};
 					auto* pChunk = ctx.world.GetChunk(entity, indexInChunk);
@@ -13715,10 +13760,10 @@ namespace gaia {
 					if (componentType == component::ComponentType::CT_Chunk)
 						indexInChunk = 0;
 
-					const auto& newDesc = ComponentCache::Get().GetComponentDesc(componentId);
-					const auto offset = pChunk->FindDataOffset(componentType, newDesc.componentId);
-					auto* pComponentData = (void*)&pChunk->GetData(offset + (uint32_t)indexInChunk * newDesc.properties.size);
-					ctx.load(pComponentData, newDesc.properties.size);
+					const auto& desc = ComponentCache::Get().GetComponentDesc(componentId);
+					const auto offset = pChunk->FindDataOffset(componentType, desc.componentId);
+					auto* pComponentData = (void*)&pChunk->GetData(offset + (uint32_t)indexInChunk * desc.properties.size);
+					ctx.load(pComponentData, desc.properties.size);
 				}
 			};
 			struct SET_COMPONENT_t: CommandBufferCmd_t {
@@ -13769,8 +13814,8 @@ namespace gaia {
 				component::ComponentType componentType;
 
 				void Commit(CommandBufferCtx& ctx) {
-					const auto& newInfo = ComponentCache::Get().GetComponentInfo(componentId);
-					ctx.world.RemoveComponent_Internal(componentType, entity, newInfo);
+					const auto& info = ComponentCache::Get().GetComponentInfo(componentId);
+					ctx.world.RemoveComponent_Internal(componentType, entity, info);
 				}
 			};
 
@@ -13850,6 +13895,9 @@ namespace gaia {
 			*/
 			template <typename T>
 			void AddComponent(Entity entity) {
+				// Make sure the component is registered
+				const auto& info = ComponentCache::Get().GetOrCreateComponentInfo<T>();
+
 				using U = typename component::DeduceComponent<T>::Type;
 				component::VerifyComponent<U>();
 
@@ -13859,7 +13907,7 @@ namespace gaia {
 				ADD_COMPONENT_t cmd;
 				cmd.entity = entity;
 				cmd.componentType = component::GetComponentType<T>();
-				cmd.componentId = component::GetComponentId<T>();
+				cmd.componentId = info.componentId;
 				serialization::save(s, cmd);
 			}
 
@@ -13868,6 +13916,9 @@ namespace gaia {
 			*/
 			template <typename T>
 			void AddComponent(TempEntity entity) {
+				// Make sure the component is registered
+				const auto& info = ComponentCache::Get().GetOrCreateComponentInfo<T>();
+
 				using U = typename component::DeduceComponent<T>::Type;
 				component::VerifyComponent<U>();
 
@@ -13886,6 +13937,9 @@ namespace gaia {
 			*/
 			template <typename T>
 			void AddComponent(Entity entity, T&& value) {
+				// Make sure the component is registered
+				const auto& info = ComponentCache::Get().GetOrCreateComponentInfo<T>();
+
 				using U = typename component::DeduceComponent<T>::Type;
 				component::VerifyComponent<U>();
 
@@ -13895,7 +13949,7 @@ namespace gaia {
 				ADD_COMPONENT_DATA_t cmd;
 				cmd.entity = entity;
 				cmd.componentType = component::GetComponentType<T>();
-				cmd.componentId = component::GetComponentId<T>();
+				cmd.componentId = info.componentId;
 				serialization::save(s, cmd);
 				s.save(std::forward<U>(value));
 			}
@@ -13905,6 +13959,9 @@ namespace gaia {
 			*/
 			template <typename T>
 			void AddComponent(TempEntity entity, T&& value) {
+				// Make sure the component is registered
+				const auto& info = ComponentCache::Get().GetOrCreateComponentInfo<T>();
+
 				using U = typename component::DeduceComponent<T>::Type;
 				component::VerifyComponent<U>();
 
@@ -13914,7 +13971,7 @@ namespace gaia {
 				ADD_COMPONENT_TO_TEMPENTITY_t cmd;
 				cmd.entity = entity;
 				cmd.componentType = component::GetComponentType<T>();
-				cmd.componentId = component::GetComponentId<T>();
+				cmd.componentId = info.componentId;
 				serialization::save(s, cmd);
 				s.save(std::forward<U>(value));
 			}
@@ -13924,6 +13981,10 @@ namespace gaia {
 			*/
 			template <typename T>
 			void SetComponent(Entity entity, T&& value) {
+				// No need to check if the component is registered.
+				// If we want to set the value of a component we must have created it already.
+				// (void)ComponentCache::Get().GetOrCreateComponentInfo<T>();
+
 				using U = typename component::DeduceComponent<T>::Type;
 				component::VerifyComponent<U>();
 
@@ -13944,6 +14005,10 @@ namespace gaia {
 			*/
 			template <typename T>
 			void SetComponent(TempEntity entity, T&& value) {
+				// No need to check if the component is registered.
+				// If we want to set the value of a component we must have created it already.
+				// (void)ComponentCache::Get().GetOrCreateComponentInfo<T>();
+
 				using U = typename component::DeduceComponent<T>::Type;
 				component::VerifyComponent<U>();
 
@@ -13963,6 +14028,10 @@ namespace gaia {
 			*/
 			template <typename T>
 			void RemoveComponent(Entity entity) {
+				// No need to check if the component is registered.
+				// If we want to remove a component we must have created it already.
+				// (void)ComponentCache::Get().GetOrCreateComponentInfo<T>();
+
 				using U = typename component::DeduceComponent<T>::Type;
 				component::VerifyComponent<U>();
 
@@ -14406,3 +14475,521 @@ namespace gaia {
 	} // namespace ecs
 } // namespace gaia
 
+#include <cstddef>
+#include <type_traits>
+#include <utility>
+
+namespace gaia {
+	namespace containers {
+		//! Array of elements of type \tparam T with fixed size and capacity \tparam N allocated on stack.
+		//! Interface compatiblity with std::array where it matters.
+		template <typename T, uint32_t N>
+		class sringbuffer {
+		public:
+			static_assert(N > 1);
+
+			using iterator_category = GAIA_UTIL::random_access_iterator_tag;
+			using value_type = T;
+			using reference = T&;
+			using const_reference = const T&;
+			using pointer = T*;
+			using const_pointer = T*;
+			using difference_type = std::ptrdiff_t;
+			using size_type = decltype(N);
+
+			static constexpr size_type extent = N;
+
+			size_type m_tail{};
+			size_type m_size{};
+			T m_data[N];
+
+			sringbuffer() = default;
+
+			template <typename InputIt>
+			sringbuffer(InputIt first, InputIt last) {
+				const auto count = (size_type)GAIA_UTIL::distance(first, last);
+				GAIA_ASSERT(count <= max_size());
+				if (count < 1)
+					return;
+
+				m_size = count;
+				m_tail = 0;
+
+				if constexpr (std::is_pointer_v<InputIt>) {
+					for (size_type i = 0; i < count; ++i)
+						m_data[i] = first[i];
+				} else if constexpr (std::is_same_v<
+																 typename InputIt::iterator_category, GAIA_UTIL::random_access_iterator_tag>) {
+					for (size_type i = 0; i < count; ++i)
+						m_data[i] = *(first[i]);
+				} else {
+					size_type i = 0;
+					for (auto it = first; it != last; ++it)
+						m_data[i++] = *it;
+				}
+			}
+
+			sringbuffer(std::initializer_list<T> il): sringbuffer(il.begin(), il.end()) {}
+
+			sringbuffer(const sringbuffer& other): sringbuffer(other.begin(), other.end()) {}
+
+			sringbuffer(sringbuffer&& other) noexcept: m_tail(other.m_tail), m_size(other.m_size) {
+				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
+
+				utils::transfer_elements(m_data, other.m_data, other.size());
+
+				other.m_tail = size_type(0);
+				other.m_size = size_type(0);
+			}
+
+			GAIA_NODISCARD sringbuffer& operator=(std::initializer_list<T> il) {
+				*this = sringbuffer(il.begin(), il.end());
+				return *this;
+			}
+
+			GAIA_NODISCARD constexpr sringbuffer& operator=(const sringbuffer& other) noexcept {
+				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
+
+				utils::copy_elements(m_data, other.m_data, other.size());
+
+				m_tail = other.m_tail;
+				m_size = other.m_size;
+
+				return *this;
+			}
+
+			GAIA_NODISCARD constexpr sringbuffer& operator=(sringbuffer&& other) noexcept {
+				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
+
+				utils::transfer_elements(m_data, other.m_data, other.size());
+
+				m_tail = other.m_tail;
+				m_size = other.m_size;
+
+				other.m_tail = size_type(0);
+				other.m_size = size_type(0);
+
+				return *this;
+			}
+
+			~sringbuffer() = default;
+
+			GAIA_NODISCARD void push_back(const T& arg) {
+				GAIA_ASSERT(m_size < N);
+				const auto head = (m_tail + m_size) % N;
+				m_data[head] = arg;
+				++m_size;
+			}
+
+			GAIA_NODISCARD void push_back(T&& arg) {
+				GAIA_ASSERT(m_size < N);
+				const auto head = (m_tail + m_size) % N;
+				m_data[head] = std::forward<T>(arg);
+				++m_size;
+			}
+
+			GAIA_NODISCARD void pop_front(T& out) {
+				GAIA_ASSERT(!empty());
+				out = m_data[m_tail];
+				m_tail = (m_tail + 1) % N;
+				--m_size;
+			}
+
+			GAIA_NODISCARD void pop_front(T&& out) {
+				GAIA_ASSERT(!empty());
+				out = std::forward<T>(m_data[m_tail]);
+				m_tail = (m_tail + 1) % N;
+				--m_size;
+			}
+
+			GAIA_NODISCARD void pop_back(T& out) {
+				GAIA_ASSERT(m_size < N);
+				const auto head = (m_tail + m_size - 1) % N;
+				out = m_data[head];
+				--m_size;
+			}
+
+			GAIA_NODISCARD void pop_back(T&& out) {
+				GAIA_ASSERT(m_size < N);
+				const auto head = (m_tail + m_size - 1) % N;
+				out = std::forward<T>(m_data[head]);
+				--m_size;
+			}
+
+			GAIA_NODISCARD constexpr size_type size() const noexcept {
+				return m_size;
+			}
+
+			GAIA_NODISCARD constexpr bool empty() const noexcept {
+				return !m_size;
+			}
+
+			GAIA_NODISCARD constexpr size_type max_size() const noexcept {
+				return N;
+			}
+
+			GAIA_NODISCARD constexpr reference front() noexcept {
+				GAIA_ASSERT(!empty());
+				return m_data[m_tail];
+			}
+
+			GAIA_NODISCARD constexpr const_reference front() const noexcept {
+				GAIA_ASSERT(!empty());
+				return m_data[m_tail];
+			}
+
+			GAIA_NODISCARD constexpr reference back() noexcept {
+				GAIA_ASSERT(!empty());
+				const auto head = (m_tail + m_size - 1) % N;
+				return m_data[head];
+			}
+
+			GAIA_NODISCARD constexpr const_reference back() const noexcept {
+				GAIA_ASSERT(!empty());
+				const auto head = (m_tail + m_size - 1) % N;
+				return m_data[head];
+			}
+
+			GAIA_NODISCARD bool operator==(const sringbuffer& other) const {
+				for (size_type i = 0; i < N; ++i)
+					if (!(m_data[i] == other.m_data[i]))
+						return false;
+				return true;
+			}
+		};
+
+		namespace detail {
+			template <typename T, std::size_t N, std::size_t... I>
+			constexpr sringbuffer<std::remove_cv_t<T>, N>
+			to_sringbuffer_impl(T (&a)[N], std::index_sequence<I...> /*no_name*/) {
+				return {{a[I]...}};
+			}
+		} // namespace detail
+
+		template <typename T, std::size_t N>
+		constexpr sringbuffer<std::remove_cv_t<T>, N> to_sringbuffer(T (&a)[N]) {
+			return detail::to_sringbuffer_impl(a, std::make_index_sequence<N>{});
+		}
+
+		template <typename T, typename... U>
+		sringbuffer(T, U...) -> sringbuffer<T, 1 + sizeof...(U)>;
+
+	} // namespace containers
+
+} // namespace gaia
+
+#include <atomic>
+#include <condition_variable>
+#include <functional>
+#include <mutex>
+#include <thread>
+
+#define JOB_QUEUE_USE_LOCKS 1
+#if JOB_QUEUE_USE_LOCKS
+	
+#endif
+
+namespace gaia {
+	namespace mt {
+		struct Job {
+			std::function<void()> func;
+		};
+
+		struct JobArgs {
+			uint32_t idxStart;
+			uint32_t idxEnd;
+		};
+
+		struct JobParallel {
+			std::function<void(const JobArgs&)> func;
+		};
+
+		struct JobHandle {
+			uint32_t idx;
+		};
+
+		struct JobInternal {
+			std::function<void()> func;
+		};
+
+		struct JobManager {
+			static constexpr uint32_t N = 1 << 12;
+			static constexpr uint32_t MASK = N - 1;
+
+		private:
+			containers::sarray<JobInternal, N> m_jobs;
+			uint32_t m_jobsAllocated = 0;
+
+		public:
+			GAIA_NODISCARD JobHandle AllocateJob(const Job& job) {
+				const uint32_t idx = (m_jobsAllocated++) & MASK;
+				auto& jobBufferItem = m_jobs[idx];
+				jobBufferItem.func = job.func;
+				return {idx};
+			}
+
+			void Run(JobHandle jobHandle) {
+				m_jobs[jobHandle.idx].func();
+			}
+		};
+
+		class JobQueue {
+#if JOB_QUEUE_USE_LOCKS
+			std::mutex m_jobsLock;
+			containers::sringbuffer<JobHandle, JobManager::N> m_buffer;
+#else
+			containers::sarray<JobHandle, JobManager::N> m_buffer;
+			std::atomic_uint32_t m_bottom{};
+			std::atomic_uint32_t m_top{};
+#endif
+
+		public:
+			//! Tries adding a job to the queue. FIFO.
+			//! \return True if the job was added. False otherwise (e.g. maximum capacity has been reached).
+			GAIA_NODISCARD bool TryPush(JobHandle jobHandle) {
+#if JOB_QUEUE_USE_LOCKS
+				std::lock_guard<std::mutex> guard(m_jobsLock);
+				if (m_buffer.size() >= m_buffer.max_size())
+					return false;
+				m_buffer.push_back(jobHandle);
+#else
+				const uint32_t b = m_bottom.load(std::memory_order_relaxed);
+				uint32_t next_b = (b + 1) & JobManager::MASK;
+
+				// Return false if the queue is full
+				if (next_b == m_top.load(std::memory_order_acquire))
+					return false;
+
+				m_buffer[b] = jobHandle;
+				m_bottom.store(next_b, std::memory_order_release);
+#endif
+
+				return true;
+			}
+
+			//! Tries retriving a job to the queue. FIFO.
+			//! \return True if the job was retrived. False otherwise (e.g. there are no jobs).
+			GAIA_NODISCARD bool TryPop(JobHandle& jobHandle) {
+#if JOB_QUEUE_USE_LOCKS
+				std::lock_guard<std::mutex> guard(m_jobsLock);
+				if (m_buffer.empty())
+					return false;
+
+				m_buffer.pop_front(jobHandle);
+#else
+				const uint32_t t = m_top.load(std::memory_order_relaxed);
+
+				// Return false when empty
+				if (t == m_bottom.load(std::memory_order_acquire))
+					return false;
+
+				jobHandle = m_buffer[t];
+				m_top.store((t + 1) & JobManager::MASK, std::memory_order_release);
+#endif
+
+				return true;
+			}
+
+			//! Tries stealing a job from the queue. LIFO.
+			//! \return True if the job was stolen. False otherwise (e.g. there are no jobs).
+			GAIA_NODISCARD bool TrySteal(JobHandle& jobHandle) {
+#if JOB_QUEUE_USE_LOCKS
+				std::lock_guard<std::mutex> guard(m_jobsLock);
+				if (m_buffer.empty())
+					return false;
+
+				m_buffer.pop_back(jobHandle);
+#else
+				uint32_t t = m_top.load(std::memory_order_acquire);
+
+				// Return false when empty
+				if (t == m_bottom.load(std::memory_order_relaxed))
+					return false;
+
+				jobHandle = m_buffer[t];
+
+				// Update m_top using CAS
+				while (!m_top.compare_exchange_weak(
+						t, (t + 1) & JobManager::MASK, std::memory_order_release, std::memory_order_relaxed)) {
+					t = m_top.load(std::memory_order_relaxed);
+					if (t == m_bottom.load(std::memory_order_acquire))
+						return false;
+				}
+#endif
+				return true;
+			}
+		};
+
+		class ThreadPool final {
+			//! List of worker threads
+			containers::sarr_ext<std::thread, 64> m_workers;
+			//! Manager for internal jobs
+			JobManager m_jobManager;
+			//! List of pending user jobs
+			JobQueue m_jobQueue;
+
+			//! How many jobs are currently being processed
+			std::atomic_uint32_t m_jobsPending;
+
+			std::mutex m_cvLock;
+			std::condition_variable m_cv;
+
+			//! When true the pool is supposed to finish all work and terminate all threads
+			bool m_stop;
+
+		private:
+			ThreadPool(): m_stop(false), m_jobsPending(0) {
+				uint32_t workerCount = CalculateThreadCount(0);
+				if (workerCount > m_workers.max_size())
+					workerCount = m_workers.max_size();
+
+				m_workers.resize(workerCount);
+
+				for (uint32_t i = 0; i < workerCount; ++i) {
+					m_workers[i] = std::thread([this]() {
+						ThreadLoop();
+					});
+				}
+			}
+
+			ThreadPool(ThreadPool&&) = delete;
+			ThreadPool(const ThreadPool&) = delete;
+			ThreadPool& operator=(ThreadPool&&) = delete;
+			ThreadPool& operator=(const ThreadPool&) = delete;
+
+			GAIA_NODISCARD static uint32_t CalculateThreadCount(uint32_t threadsWanted) {
+				// Make sure a reasonable amount of threads is used
+				if (threadsWanted == 0) {
+					// Subtract one (the main thread)
+					threadsWanted = std::thread::hardware_concurrency() - 1;
+					if (threadsWanted <= 0)
+						threadsWanted = 1;
+				}
+				return threadsWanted;
+			}
+
+			void ThreadLoop() {
+				while (!m_stop) {
+					JobHandle jobHandle;
+					if (m_jobQueue.TryPop(jobHandle)) {
+						m_jobManager.Run(jobHandle);
+						--m_jobsPending;
+					} else {
+						std::unique_lock<std::mutex> lock(m_cvLock);
+						m_cv.wait(lock);
+					}
+				}
+			}
+
+		public:
+			static ThreadPool& Get() {
+				static ThreadPool threadPool;
+				return threadPool;
+			}
+
+			GAIA_NODISCARD uint32_t GetWorkersCount() const {
+				return (uint32_t)m_workers.size();
+			}
+
+			~ThreadPool() {
+				// Request stopping
+				m_stop = true;
+				// Complete all remaining work
+				CompleteAll();
+				// Wake up any threads that were put to sleep
+				m_cv.notify_all();
+				// Join threads with the main one
+				for (auto& w: m_workers)
+					w.join();
+			}
+
+			//! Schedules a job to run on a worker thread.
+			//! \warning Must be used form the main thread.
+			void Schedule(const Job& job) {
+				// Don't add new jobs once stop was requested
+				if GAIA_UNLIKELY (m_stop)
+					return;
+
+				++m_jobsPending;
+
+				JobHandle jobHandle = m_jobManager.AllocateJob(job);
+
+				// Try pushing a new job until it we succeed.
+				// The thread is put to sleep if pushing the jobs fails.
+				while (!m_jobQueue.TryPush(jobHandle))
+					Poll();
+
+				// Wake one worker thread
+				m_cv.notify_one();
+			}
+
+			//! Schedules a job to run on worker threads in parallel.
+			//! \warning Must be used form the main thread.
+			void ScheduleParallel(const JobParallel& job, uint32_t itemsToProcess, uint32_t groupSize) {
+				// Empty data set are considered wrong inputs
+				GAIA_ASSERT(itemsToProcess != 0);
+				if (itemsToProcess == 0)
+					return;
+
+				// Don't add new jobs once stop was requested
+				if GAIA_UNLIKELY (m_stop)
+					return;
+
+				const uint32_t workerCount = (uint32_t)m_workers.size();
+
+				// No group size was given, make a guess based on the set size
+				if (groupSize == 0)
+					groupSize = (itemsToProcess + workerCount - 1) / workerCount;
+
+				const auto jobs = (itemsToProcess + groupSize - 1) / groupSize;
+				m_jobsPending += jobs;
+
+				for (uint32_t jobIndex = 0; jobIndex < jobs; ++jobIndex) {
+					// Create one job per group
+					auto groupJobFunc = [job, itemsToProcess, groupSize, jobIndex]() {
+						const uint32_t groupJobIdxStart = jobIndex * groupSize;
+						const uint32_t groupJobIdxEnd = std::min(groupJobIdxStart + groupSize, itemsToProcess);
+
+						JobArgs args;
+						args.idxStart = groupJobIdxStart;
+						args.idxEnd = groupJobIdxEnd;
+						job.func(args);
+					};
+
+					JobHandle jobHandle = m_jobManager.AllocateJob({groupJobFunc});
+
+					// Try to pushing a new job until it we succeed.
+					// The thread is put to sleep if pushing the jobs fails.
+					while (!m_jobQueue.TryPush(jobHandle))
+						Poll();
+
+					// Wake some worker thread
+					m_cv.notify_one();
+				}
+			}
+
+			//! Wait for all jobs to finish.
+			//! \warning Must be used form the main thread.
+			void CompleteAll() {
+				while (IsBusy())
+					Poll();
+			}
+
+		private:
+			//! Checks whether workers are busy doing work.
+			//!	\return True if any workers are busy doing work.
+			GAIA_NODISCARD bool IsBusy() const {
+				return m_jobsPending > 0;
+			}
+
+			//! Wakes up some worker thread and reschedules the current one.
+			void Poll() {
+				// Wake some worker thread
+				m_cv.notify_one();
+
+				// Allow this thread to be rescheduled
+				std::this_thread::yield();
+			}
+		};
+	} // namespace mt
+} // namespace gaia
