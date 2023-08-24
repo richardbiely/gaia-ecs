@@ -126,7 +126,9 @@ namespace gaia {
 				const auto jobs = (itemsToProcess + groupSize - 1) / groupSize;
 				m_jobsPending += jobs;
 
+#if GAIA_ENABLE_JOB_DEPENDENCIES
 				JobHandle groupHandle = m_jobManager.AllocateJob({});
+#endif
 
 				for (uint32_t jobIndex = 0; jobIndex < jobs; ++jobIndex) {
 					// Create one job per group
@@ -145,11 +147,17 @@ namespace gaia {
 					JobHandle jobHandle = m_jobManager.AllocateJob({groupJobFunc});
 					Submit(jobHandle);
 
-					// groupHandle.AddDependency(jobHandle);
+#if GAIA_ENABLE_JOB_DEPENDENCIES
+					groupHandle.AddDependency(jobHandle);
+#endif
 				}
 
+#if GAIA_ENABLE_JOB_DEPENDENCIES
 				Submit(groupHandle);
 				return groupHandle;
+#else
+				return {};
+#endif
 			}
 
 			//! Wait for the job to finish.

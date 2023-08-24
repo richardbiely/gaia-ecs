@@ -18,12 +18,16 @@ static uint32_t BenchFunc_Complex(std::span<const uint32_t> arr) {
 		sum += arr[i];
 	for (uint32_t i = 0; i < arr.size(); ++i)
 		sum *= arr[i];
-	for (uint32_t i = 0; i < arr.size(); ++i)
-		sum %= arr[i];
+	for (uint32_t i = 0; i < arr.size(); ++i) {
+		if (arr[i] != 0)
+			sum %= arr[i];
+	}
 	for (uint32_t i = 0; i < arr.size(); ++i)
 		sum *= arr[i];
-	for (uint32_t i = 0; i < arr.size(); ++i)
-		sum /= arr[i];
+	for (uint32_t i = 0; i < arr.size(); ++i) {
+		if (arr[i] != 0)
+			sum /= arr[i];
+	}
 	return sum;
 }
 
