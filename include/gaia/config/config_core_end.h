@@ -48,6 +48,7 @@
 #elif !defined(GAIA_ASSERT)
 	#include <cassert>
 	#if GAIA_DEBUG
+		#define GAIA_ASSERT_ENABLED 1
 		#define GAIA_ASSERT(condition)                                                                                     \
 			{                                                                                                                \
 				const bool cond_ret = (condition);                                                                             \
@@ -56,10 +57,12 @@
 			}
 	#else
 		#if GAIA_FORCE_DEBUG
+			#define GAIA_ASSERT_ENABLED 1
 			#define GAIA_ASSERT(condition)                                                                                   \
 				if (!(condition))                                                                                              \
 				GAIA_LOG_E("Condition not met! Line:%d, File:%s\n", __LINE__, __FILE__)
 		#else
+			#define GAIA_ASSERT_ENABLED 0
 			#define GAIA_ASSERT(condition) assert(condition)
 		#endif
 	#endif
