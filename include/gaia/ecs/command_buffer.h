@@ -90,9 +90,11 @@ namespace gaia {
 					const auto& info = ComponentCache::Get().GetComponentInfo(componentId);
 					ctx.world.AddComponent_Internal(componentType, entity, info);
 
+#if GAIA_ASSERT_ENABLED
 					[[maybe_unused]] uint32_t indexInChunk{};
 					[[maybe_unused]] auto* pChunk = ctx.world.GetChunk(entity, indexInChunk);
 					GAIA_ASSERT(pChunk != nullptr);
+#endif
 				}
 			};
 			struct ADD_COMPONENT_DATA_t: CommandBufferCmd_t {
@@ -135,9 +137,11 @@ namespace gaia {
 					const auto& info = ComponentCache::Get().GetComponentInfo(componentId);
 					ctx.world.AddComponent_Internal(componentType, entity, info);
 
-					uint32_t indexInChunk{};
-					auto* pChunk = ctx.world.GetChunk(entity, indexInChunk);
+#if GAIA_ASSERT_ENABLED
+					[[maybe_unused]] uint32_t indexInChunk{};
+					[[maybe_unused]] auto* pChunk = ctx.world.GetChunk(entity, indexInChunk);
 					GAIA_ASSERT(pChunk != nullptr);
+#endif
 				}
 			};
 			struct ADD_COMPONENT_TO_TEMPENTITY_DATA_t: CommandBufferCmd_t {
@@ -331,7 +335,7 @@ namespace gaia {
 				s.save(ADD_COMPONENT_TO_TEMPENTITY);
 
 				ADD_COMPONENT_TO_TEMPENTITY_t cmd;
-				cmd.entity = entity;
+				cmd.tempEntity = entity;
 				cmd.componentType = component::GetComponentType<T>();
 				cmd.componentId = component::GetComponentId<T>();
 				serialization::save(s, cmd);
@@ -374,7 +378,7 @@ namespace gaia {
 				s.save(ADD_COMPONENT_TO_TEMPENTITY_DATA);
 
 				ADD_COMPONENT_TO_TEMPENTITY_t cmd;
-				cmd.entity = entity;
+				cmd.tempEntity = entity;
 				cmd.componentType = component::GetComponentType<T>();
 				cmd.componentId = info.componentId;
 				serialization::save(s, cmd);
@@ -421,7 +425,7 @@ namespace gaia {
 				s.save(SET_COMPONENT_FOR_TEMPENTITY);
 
 				SET_COMPONENT_FOR_TEMPENTITY_t cmd;
-				cmd.entity = entity;
+				cmd.tempEntity = entity;
 				cmd.componentType = component::GetComponentType<T>();
 				cmd.componentId = component::GetComponentId<T>();
 				serialization::save(s, cmd);
