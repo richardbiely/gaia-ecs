@@ -119,14 +119,14 @@ namespace gaia {
 				}
 			};
 			struct ADD_COMPONENT_TO_TEMPENTITY_t: CommandBufferCmd_t {
-				TempEntity entity;
+				TempEntity tempEntity;
 				component::ComponentId componentId;
 				component::ComponentType componentType;
 
 				void Commit(CommandBufferCtx& ctx) {
 					// For delayed entities we have to do a look in our map
 					// of temporaries and find a link there
-					const auto it = ctx.entityMap.find(entity.id);
+					const auto it = ctx.entityMap.find(tempEntity.id);
 					// Link has to exist!
 					GAIA_ASSERT(it != ctx.entityMap.end());
 
@@ -141,14 +141,14 @@ namespace gaia {
 				}
 			};
 			struct ADD_COMPONENT_TO_TEMPENTITY_DATA_t: CommandBufferCmd_t {
-				TempEntity entity;
+				TempEntity tempEntity;
 				component::ComponentId componentId;
 				component::ComponentType componentType;
 
 				void Commit(CommandBufferCtx& ctx) {
 					// For delayed entities we have to do a look in our map
 					// of temporaries and find a link there
-					const auto it = ctx.entityMap.find(entity.id);
+					const auto it = ctx.entityMap.find(tempEntity.id);
 					// Link has to exist!
 					GAIA_ASSERT(it != ctx.entityMap.end());
 
@@ -189,14 +189,14 @@ namespace gaia {
 				}
 			};
 			struct SET_COMPONENT_FOR_TEMPENTITY_t: CommandBufferCmd_t {
-				TempEntity entity;
+				TempEntity tempEntity;
 				component::ComponentId componentId;
 				component::ComponentType componentType;
 
 				void Commit(CommandBufferCtx& ctx) {
 					// For delayed entities we have to do a look in our map
 					// of temporaries and find a link there
-					const auto it = ctx.entityMap.find(entity.id);
+					const auto it = ctx.entityMap.find(tempEntity.id);
 					// Link has to exist!
 					GAIA_ASSERT(it != ctx.entityMap.end());
 
