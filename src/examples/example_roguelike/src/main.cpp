@@ -570,7 +570,7 @@ public:
 				for (; pp[ii] != pp_end; pp[ii] += dd[ii], naa += dd[ii]) {
 					// Stop on wall collisions
 					if (g_world.map[pp[1]][pp[0]] == TILE_WALL) {
-						m_colliding.push_back(CollisionData{e, ecs::EntityNull, {pp[0], pp[1]}, v});
+						m_colliding.emplace_back(e, ecs::EntityNull, Position{pp[0], pp[1]}, v);
 						goto onCollision;
 					}
 
@@ -598,7 +598,7 @@ public:
 							}
 						}
 
-						m_colliding.push_back(CollisionData{e, e2, {pp[0], pp[1]}, v});
+						m_colliding.emplace_back(e, e2, Position{pp[0], pp[1]}, v);
 						hadCollision = true;
 					}
 					if (hadCollision)

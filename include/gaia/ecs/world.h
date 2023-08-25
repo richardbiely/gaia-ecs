@@ -468,7 +468,7 @@ namespace gaia {
 					// We don't want to go out of range for new entities
 					GAIA_ASSERT(entityCnt < Entity::IdMask && "Trying to allocate too many entities!");
 
-					m_entities.push_back({});
+					m_entities.emplace_back();
 					return {(EntityId)entityCnt, 0};
 				}
 

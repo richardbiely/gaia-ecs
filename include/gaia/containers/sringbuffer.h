@@ -101,42 +101,50 @@ namespace gaia {
 
 			~sringbuffer() = default;
 
-			GAIA_NODISCARD void push_back(const T& arg) {
+			void push_back(const T& arg) {
 				GAIA_ASSERT(m_size < N);
 				const auto head = (m_tail + m_size) % N;
 				m_data[head] = arg;
 				++m_size;
 			}
 
-			GAIA_NODISCARD void push_back(T&& arg) {
+			void push_back(T&& arg) {
 				GAIA_ASSERT(m_size < N);
 				const auto head = (m_tail + m_size) % N;
 				m_data[head] = std::forward<T>(arg);
 				++m_size;
 			}
 
-			GAIA_NODISCARD void pop_front(T& out) {
+			template <typename... Args>
+			void emplace_back(Args&&... args) {
+				GAIA_ASSERT(m_size < N);
+				const auto head = (m_tail + m_size) % N;
+				m_data[head] = {std::forward<Args>(args)...};
+				++m_size;
+			}
+
+			void pop_front(T& out) {
 				GAIA_ASSERT(!empty());
 				out = m_data[m_tail];
 				m_tail = (m_tail + 1) % N;
 				--m_size;
 			}
 
-			GAIA_NODISCARD void pop_front(T&& out) {
+			void pop_front(T&& out) {
 				GAIA_ASSERT(!empty());
 				out = std::forward<T>(m_data[m_tail]);
 				m_tail = (m_tail + 1) % N;
 				--m_size;
 			}
 
-			GAIA_NODISCARD void pop_back(T& out) {
+			void pop_back(T& out) {
 				GAIA_ASSERT(m_size < N);
 				const auto head = (m_tail + m_size - 1) % N;
 				out = m_data[head];
 				--m_size;
 			}
 
-			GAIA_NODISCARD void pop_back(T&& out) {
+			void pop_back(T&& out) {
 				GAIA_ASSERT(m_size < N);
 				const auto head = (m_tail + m_size - 1) % N;
 				out = std::forward<T>(m_data[head]);

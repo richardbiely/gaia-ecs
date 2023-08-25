@@ -105,13 +105,13 @@ namespace gaia {
 
 				if (job.jobHandleNext == JobHandleInvalid) {
 					std::lock_guard<std::mutex> guard(m_depsLock);
-					m_deps.push_back(JobDependency{(uint32_t)m_deps.size(), jobHandle, dependsOn});
+					m_deps.emplace_back((uint32_t)m_deps.size(), jobHandle, dependsOn);
 				} else {
 					std::lock_guard<std::mutex> guard(m_depsLock);
 					auto& dep = m_deps[job.jobHandleNext.idx];
 					const uint32_t depNext = dep.idxNext;
 					dep.idxNext = (uint32_t)m_deps.size();
-					m_deps.push_back(JobDependency{depNext, jobHandle, dependsOn});
+					m_deps.emplace_back(depNext, jobHandle, dependsOn);
 				}
 			}
 
