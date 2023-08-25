@@ -293,9 +293,11 @@ namespace gaia {
 			}
 
 			template <typename... Args>
-			constexpr void emplace_back(Args&&... args) {
+			constexpr reference emplace_back(Args&&... args) {
 				GAIA_ASSERT(size() < N);
-				m_data[m_cnt++] = {std::forward<Args>(args)...};
+				reference ref = m_data[m_cnt++];
+				ref = {std::forward<Args>(args)...};
+				return ref;
 			}
 
 			constexpr void pop_back() noexcept {
