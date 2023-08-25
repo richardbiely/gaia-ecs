@@ -396,9 +396,12 @@ namespace gaia {
 			}
 
 			template <typename... Args>
-			void emplace_back(Args&&... args) {
+			reference emplace_back(Args&&... args) {
 				try_grow();
-				m_pData[m_cnt++] = {std::forward<Args>(args)...};
+
+				reference ref = m_pData[m_cnt++];
+				ref = {std::forward<Args>(args)...};
+				return ref;
 			}
 
 			void pop_back() noexcept {
