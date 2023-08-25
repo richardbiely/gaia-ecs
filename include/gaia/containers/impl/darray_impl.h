@@ -30,7 +30,7 @@ namespace gaia {
 			size_type m_cnt = size_type(0);
 			size_type m_cap = size_type(0);
 
-			void push_back_prepare() {
+			void try_grow() {
 				const auto cnt = size();
 				const auto cap = capacity();
 
@@ -349,13 +349,19 @@ namespace gaia {
 			}
 
 			void push_back(const T& arg) {
-				push_back_prepare();
+				try_grow();
 				m_pData[m_cnt++] = arg;
 			}
 
 			void push_back(T&& arg) {
-				push_back_prepare();
+				try_grow();
 				m_pData[m_cnt++] = std::forward<T>(arg);
+			}
+
+			template <typename... Args>
+			void emplace_back(Args&&... args) {
+				try_grow();
+				m_pData[m_cnt++] = {std::forward<Args>(args)...};
 			}
 
 			void pop_back() noexcept {

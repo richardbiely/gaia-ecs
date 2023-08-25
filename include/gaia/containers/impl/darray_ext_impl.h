@@ -40,7 +40,7 @@ namespace gaia {
 			//! Allocated capacity of m_dataDyn or the extend
 			size_type m_cap = extent;
 
-			void push_back_prepare() noexcept {
+			void try_grow() noexcept {
 				// Unless we are above stack allocated size don't do anything
 				const auto cnt = size();
 				if (cnt < extent)
@@ -386,13 +386,19 @@ namespace gaia {
 			}
 
 			void push_back(const T& arg) {
-				push_back_prepare();
+				try_grow();
 				m_pData[m_cnt++] = arg;
 			}
 
 			void push_back(T&& arg) {
-				push_back_prepare();
+				try_grow();
 				m_pData[m_cnt++] = std::forward<T>(arg);
+			}
+
+			template <typename... Args>
+			void emplace_back(Args&&... args) {
+				try_grow();
+				m_pData[m_cnt++] = {std::forward<Args>(args)...};
 			}
 
 			void pop_back() noexcept {

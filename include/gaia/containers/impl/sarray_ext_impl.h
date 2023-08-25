@@ -292,6 +292,12 @@ namespace gaia {
 				m_data[m_cnt++] = std::forward<T>(arg);
 			}
 
+			template <typename... Args>
+			constexpr void emplace_back(Args&&... args) {
+				GAIA_ASSERT(size() < N);
+				m_data[m_cnt++] = {std::forward<Args>(args)...};
+			}
+
 			constexpr void pop_back() noexcept {
 				GAIA_ASSERT(!empty());
 				--m_cnt;

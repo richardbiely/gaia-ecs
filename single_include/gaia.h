@@ -1080,7 +1080,7 @@ namespace gaia {
 			size_type m_cnt = size_type(0);
 			size_type m_cap = size_type(0);
 
-			void push_back_prepare() {
+			void try_grow() {
 				const auto cnt = size();
 				const auto cap = capacity();
 
@@ -1399,13 +1399,19 @@ namespace gaia {
 			}
 
 			void push_back(const T& arg) {
-				push_back_prepare();
+				try_grow();
 				m_pData[m_cnt++] = arg;
 			}
 
 			void push_back(T&& arg) {
-				push_back_prepare();
+				try_grow();
 				m_pData[m_cnt++] = std::forward<T>(arg);
+			}
+
+			template <typename... Args>
+			void emplace_back(Args&&... args) {
+				try_grow();
+				m_pData[m_cnt++] = {std::forward<Args>(args)...};
 			}
 
 			void pop_back() noexcept {
@@ -2143,6 +2149,12 @@ namespace gaia {
 			constexpr void push_back(T&& arg) noexcept {
 				GAIA_ASSERT(size() < N);
 				m_data[m_cnt++] = std::forward<T>(arg);
+			}
+
+			template <typename... Args>
+			constexpr void emplace_back(Args&&... args) {
+				GAIA_ASSERT(size() < N);
+				m_data[m_cnt++] = {std::forward<Args>(args)...};
 			}
 
 			constexpr void pop_back() noexcept {
@@ -10323,7 +10335,7 @@ namespace gaia {
 			//! Allocated capacity of m_dataDyn or the extend
 			size_type m_cap = extent;
 
-			void push_back_prepare() noexcept {
+			void try_grow() noexcept {
 				// Unless we are above stack allocated size don't do anything
 				const auto cnt = size();
 				if (cnt < extent)
@@ -10669,13 +10681,19 @@ namespace gaia {
 			}
 
 			void push_back(const T& arg) {
-				push_back_prepare();
+				try_grow();
 				m_pData[m_cnt++] = arg;
 			}
 
 			void push_back(T&& arg) {
-				push_back_prepare();
+				try_grow();
 				m_pData[m_cnt++] = std::forward<T>(arg);
+			}
+
+			template <typename... Args>
+			void emplace_back(Args&&... args) {
+				try_grow();
+				m_pData[m_cnt++] = {std::forward<Args>(args)...};
 			}
 
 			void pop_back() noexcept {
@@ -12852,7 +12870,7 @@ namespace gaia {
 					// We don't want to go out of range for new entities
 					GAIA_ASSERT(entityCnt < Entity::IdMask && "Trying to allocate too many entities!");
 
-					m_entities.push_back({});
+					m_entities.emplace_back();
 					return {(EntityId)entityCnt, 0};
 				}
 
@@ -14581,42 +14599,50 @@ namespace gaia {
 
 			~sringbuffer() = default;
 
-			GAIA_NODISCARD void push_back(const T& arg) {
+			void push_back(const T& arg) {
 				GAIA_ASSERT(m_size < N);
 				const auto head = (m_tail + m_size) % N;
 				m_data[head] = arg;
 				++m_size;
 			}
 
-			GAIA_NODISCARD void push_back(T&& arg) {
+			void push_back(T&& arg) {
 				GAIA_ASSERT(m_size < N);
 				const auto head = (m_tail + m_size) % N;
 				m_data[head] = std::forward<T>(arg);
 				++m_size;
 			}
 
-			GAIA_NODISCARD void pop_front(T& out) {
+			template <typename... Args>
+			void emplace_back(Args&&... args) {
+				GAIA_ASSERT(m_size < N);
+				const auto head = (m_tail + m_size) % N;
+				m_data[head] = {std::forward<Args>(args)...};
+				++m_size;
+			}
+
+			void pop_front(T& out) {
 				GAIA_ASSERT(!empty());
 				out = m_data[m_tail];
 				m_tail = (m_tail + 1) % N;
 				--m_size;
 			}
 
-			GAIA_NODISCARD void pop_front(T&& out) {
+			void pop_front(T&& out) {
 				GAIA_ASSERT(!empty());
 				out = std::forward<T>(m_data[m_tail]);
 				m_tail = (m_tail + 1) % N;
 				--m_size;
 			}
 
-			GAIA_NODISCARD void pop_back(T& out) {
+			void pop_back(T& out) {
 				GAIA_ASSERT(m_size < N);
 				const auto head = (m_tail + m_size - 1) % N;
 				out = m_data[head];
 				--m_size;
 			}
 
-			GAIA_NODISCARD void pop_back(T&& out) {
+			void pop_back(T&& out) {
 				GAIA_ASSERT(m_size < N);
 				const auto head = (m_tail + m_size - 1) % N;
 				out = std::forward<T>(m_data[head]);
@@ -14822,13 +14848,13 @@ namespace gaia {
 
 				if (job.jobHandleNext == JobHandleInvalid) {
 					std::lock_guard<std::mutex> guard(m_depsLock);
-					m_deps.push_back(JobDependency{(uint32_t)m_deps.size(), jobHandle, dependsOn});
+					m_deps.emplace_back((uint32_t)m_deps.size(), jobHandle, dependsOn);
 				} else {
 					std::lock_guard<std::mutex> guard(m_depsLock);
 					auto& dep = m_deps[job.jobHandleNext.idx];
 					const uint32_t depNext = dep.idxNext;
 					dep.idxNext = (uint32_t)m_deps.size();
-					m_deps.push_back(JobDependency{depNext, jobHandle, dependsOn});
+					m_deps.emplace_back(depNext, jobHandle, dependsOn);
 				}
 			}
 
