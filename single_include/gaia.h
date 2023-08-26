@@ -14849,7 +14849,7 @@ namespace gaia {
 #include <mutex>
 
 // Heavily WIP and unusable currently
-#define GAIA_ENABLE_JOB_DEPENDENCIES 0
+#define GAIA_ENABLE_JOB_DEPENDENCIES 1
 
 namespace gaia {
 	namespace mt {
@@ -15103,6 +15103,9 @@ namespace gaia {
 	namespace mt {
 		class JobQueue {
 			static constexpr uint32_t N = 1 << 12;
+#if !JOB_QUEUE_USE_LOCKS
+			static constexpr uint32_t MASK = N - 1;
+#endif
 
 #if JOB_QUEUE_USE_LOCKS
 			std::mutex m_bufferLock;
@@ -15130,7 +15133,7 @@ namespace gaia {
 				if (b >= m_buffer.size())
 					return false;
 
-				m_buffer[b & JobManager::MASK] = jobHandle;
+				m_buffer[b & MASK] = jobHandle;
 
 				// Make sure the handle is written before we update the bottom
 				std::atomic_thread_fence(std::memory_order_release);
@@ -15169,7 +15172,7 @@ namespace gaia {
 					return false;
 				}
 
-				jobHandle = m_buffer[b & JobManager::MASK];
+				jobHandle = m_buffer[b & MASK];
 
 				// The last item in the queue
 				if (t == b) {
@@ -15214,7 +15217,7 @@ namespace gaia {
 				if (t >= b)
 					return false;
 
-				jobHandle = m_buffer[t & JobManager::MASK];
+				jobHandle = m_buffer[t & MASK];
 
 				const uint32_t tNext = t + 1;
 				uint32_t tDesired = tNext;
@@ -15363,7 +15366,8 @@ namespace gaia {
 					groupSize = (itemsToProcess + workerCount - 1) / workerCount;
 
 				const auto jobs = (itemsToProcess + groupSize - 1) / groupSize;
-				m_jobsPending += jobs;
+				// Internal jobs + 1 for the groupHandle
+				m_jobsPending += (jobs + 1U);
 
 #if GAIA_ENABLE_JOB_DEPENDENCIES
 				JobHandle groupHandle = m_jobManager.AllocateJob({});

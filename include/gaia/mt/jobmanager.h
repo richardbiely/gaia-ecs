@@ -12,7 +12,7 @@
 #include "jobhandle.h"
 
 // Heavily WIP and unusable currently
-#define GAIA_ENABLE_JOB_DEPENDENCIES 0
+#define GAIA_ENABLE_JOB_DEPENDENCIES 1
 
 namespace gaia {
 	namespace mt {

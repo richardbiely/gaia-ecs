@@ -148,7 +148,8 @@ namespace gaia {
 					groupSize = (itemsToProcess + workerCount - 1) / workerCount;
 
 				const auto jobs = (itemsToProcess + groupSize - 1) / groupSize;
-				m_jobsPending += jobs;
+				// Internal jobs + 1 for the groupHandle
+				m_jobsPending += (jobs + 1U);
 
 #if GAIA_ENABLE_JOB_DEPENDENCIES
 				JobHandle groupHandle = m_jobManager.AllocateJob({});
