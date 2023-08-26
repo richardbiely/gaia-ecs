@@ -68,6 +68,36 @@
 #endif
 
 //------------------------------------------------------------------------------
+// Platform
+//------------------------------------------------------------------------------
+
+#define GAIA_PLATFORM_UNKNOWN 0
+#define GAIA_PLATFORM_WINDOWS 0
+#define GAIA_PLATFORM_LINUX 0
+#define GAIA_PLATFORM_APPLE 0
+#define GAIA_PLATFORM_FREEBSD 0
+
+#ifdef _WIN32
+	#undef GAIA_PLATFORM_WINDOWS
+	#define GAIA_PLATFORM_WINDOWS 1
+#elif __APPLE__
+	// MacOS, iOS, tvOS etc.
+	// We could tell the platforms apart using #include "TargetConditionals.h"
+	// but that is probably way more than we need to know.
+	#undef GAIA_PLATFORM_APPLE
+	#define GAIA_PLATFORM_APPLE 1
+#elif __linux__
+	#undef GAIA_PLATFORM_LINUX
+	#define GAIA_PLATFORM_LINUX 1
+#elif __FreeBSD__
+	#undef GAIA_PLATFORM_FREEBSD
+	#define GAIA_PLATFORM_FREEBSD 1
+#else
+	#undef GAIA_PLATFORM_UNKNOWN
+	#define GAIA_PLATFORM_UNKNOWN 1
+#endif
+
+//------------------------------------------------------------------------------
 // Architecture features
 //------------------------------------------------------------------------------
 #define GAIA_64 0
@@ -547,7 +577,7 @@ namespace gaia {
 #if GAIA_PROFILER_CPU || GAIA_PROFILER_MEM
 // Keep it small on Windows
 // TODO: What if user doesn't want this?
-// #if defined(_WIN32) && !defined(WIN32_LEAN_AND_MEAN)
+// #if GAIA_PLATFORM_WINDOWS && !defined(WIN32_LEAN_AND_MEAN)
 // 	#define WIN32_LEAN_AND_MEAN
 // #endif
 GAIA_MSVC_WARNING_PUSH()
@@ -854,7 +884,7 @@ namespace gaia {
 #include <type_traits>
 #include <utility>
 
-#if defined(_WIN32) && defined(_MSC_VER)
+#if GAIA_PLATFORM_WINDOWS && GAIA_COMPILER_MSVC
 	#define GAIA_MEM_ALLC(size) malloc(size)
 	#define GAIA_MEM_FREE(ptr) free(ptr)
 
@@ -14389,13 +14419,13 @@ namespace gaia {
 					constexpr auto ct_name = utils::type_info::name<T>();
 					const size_t len = ct_name.size() > MaxSystemNameLength - 1 ? MaxSystemNameLength - 1 : ct_name.size();
 
-	#if GAIA_COMPILER_MSVC || defined(_WIN32)
+	#if GAIA_COMPILER_MSVC || GAIA_PLATFORM_WINDOWS
 					strncpy_s(pSystem->m_name, ct_name.data(), len);
 	#else
 					strncpy(pSystem->m_name, ct_name.data(), len);
 	#endif
 				} else {
-	#if GAIA_COMPILER_MSVC || defined(_WIN32)
+	#if GAIA_COMPILER_MSVC || GAIA_PLATFORM_WINDOWS
 					strncpy_s(pSystem->m_name, name, (size_t)-1);
 	#else
 					strncpy(pSystem->m_name, name, MaxSystemNameLength - 1);
@@ -14720,6 +14750,16 @@ namespace gaia {
 	} // namespace containers
 
 } // namespace gaia
+
+#if GAIA_PLATFORM_WINDOWS
+	#include <windows.h>
+	#include <cstdio>
+#elif GAIA_PLATFORM_APPLE
+	#include <mach/mach_types.h>
+	#include <mach/thread_act.h>
+#elif GAIA_PLATFORM_LINUX || GAIA_PLATFORM_FREEBSD
+	#include <pthread.h>
+#endif
 
 #include <atomic>
 #include <condition_variable>
@@ -15265,9 +15305,18 @@ namespace gaia {
 				m_mainThreadId = std::this_thread::get_id();
 
 				for (uint32_t i = 0; i < workerCount; ++i) {
-					m_workers[i] = std::thread([this]() {
+					m_workers[i] = std::thread([this, i]() {
+						// Set the worker thread name.
+						// Needs to be called from inside the thread because some platforms
+						// can change the name only when run from the specific thread.
+						SetThreadName(i);
+
+						// Process jobs
 						ThreadLoop();
 					});
+
+					// Stick each thread to a specific CPU core
+					SetThreadAffinity(i);
 				}
 			}
 
@@ -15428,6 +15477,56 @@ namespace gaia {
 			}
 
 		private:
+			void SetThreadAffinity(uint32_t threadID) {
+				// TODO:
+				// Some cores might have multiple logic threads, there might be
+				// more socket and some cores might even be physically different
+				// form others (performance vs efficiency cores).
+				// Therefore, we either need some more advanced logic here or we
+				// should completly drop the idea of assigning affinity and simply
+				// let the OS schedule figure things out.
+#if GAIA_PLATFORM_WINDOWS
+				auto nativeHandle = (HANDLE)m_workers[threadID].native_handle();
+
+				auto mask = SetThreadAffinityMask(nativeHandle, 1ULL << threadID);
+				GAIA_ASSERT(mask > 0);
+				if (mask <= 0)
+					GAIA_LOG_W("Issue setting thread affinity for a worker thread!");
+#elif GAIA_PLATFORM_LINUX || GAIA_PLATFORM_FREEBSD || GAIA_PLATFORM_APPLE
+				auto nativeHandle = (pthread_t)m_workers[threadID].native_handle();
+
+				thread_port_t mach_thread = pthread_mach_thread_np(nativeHandle);
+				thread_affinity_policy_data_t policy_data = {(int)threadID};
+				auto ret = thread_policy_set(
+						mach_thread, THREAD_AFFINITY_POLICY, (thread_policy_t)&policy_data, THREAD_AFFINITY_POLICY_COUNT);
+				GAIA_ASSERT(ret != 0);
+				if (ret == 0)
+					GAIA_LOG_W("Issue setting thread affinity for a worker thread!");
+#endif
+			}
+
+			void SetThreadName(uint32_t threadID) {
+#if GAIA_PLATFORM_WINDOWS
+				auto nativeHandle = (HANDLE)m_workers[threadID].native_handle();
+
+				wchar_t threadName[10]{};
+				swprintf_s(threadName, L"worker_%u", threadID);
+				auto hr = SetThreadDescription(nativeHandle, threadName);
+				GAIA_ASSERT(SUCCEEDED(hr));
+				if (FAILED(hr))
+					GAIA_LOG_W("Issue setting worker thread name!");
+#elif GAIA_PLATFORM_LINUX || GAIA_PLATFORM_FREEBSD || GAIA_PLATFORM_APPLE
+				auto nativeHandle = (pthread_t)m_workers[threadID].native_handle();
+
+				char threadName[10]{};
+				snprintf(threadName, 10, "worker_%u", threadID);
+				auto ret = pthread_setname_np(threadName);
+				GAIA_ASSERT(ret == 0);
+				if (ret != 0)
+					GAIA_LOG_W("Issue setting worker thread name!");
+#endif
+			}
+
 			GAIA_NODISCARD bool VerifyMainThread() const {
 				return std::this_thread::get_id() == m_mainThreadId;
 			}

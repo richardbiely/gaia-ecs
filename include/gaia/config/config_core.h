@@ -68,6 +68,36 @@
 #endif
 
 //------------------------------------------------------------------------------
+// Platform
+//------------------------------------------------------------------------------
+
+#define GAIA_PLATFORM_UNKNOWN 0
+#define GAIA_PLATFORM_WINDOWS 0
+#define GAIA_PLATFORM_LINUX 0
+#define GAIA_PLATFORM_APPLE 0
+#define GAIA_PLATFORM_FREEBSD 0
+
+#ifdef _WIN32
+	#undef GAIA_PLATFORM_WINDOWS
+	#define GAIA_PLATFORM_WINDOWS 1
+#elif __APPLE__
+	// MacOS, iOS, tvOS etc.
+	// We could tell the platforms apart using #include "TargetConditionals.h"
+	// but that is probably way more than we need to know.
+	#undef GAIA_PLATFORM_APPLE
+	#define GAIA_PLATFORM_APPLE 1
+#elif __linux__
+	#undef GAIA_PLATFORM_LINUX
+	#define GAIA_PLATFORM_LINUX 1
+#elif __FreeBSD__
+	#undef GAIA_PLATFORM_FREEBSD
+	#define GAIA_PLATFORM_FREEBSD 1
+#else
+	#undef GAIA_PLATFORM_UNKNOWN
+	#define GAIA_PLATFORM_UNKNOWN 1
+#endif
+
+//------------------------------------------------------------------------------
 // Architecture features
 //------------------------------------------------------------------------------
 #define GAIA_64 0

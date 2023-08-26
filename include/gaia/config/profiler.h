@@ -4,7 +4,7 @@
 #if GAIA_PROFILER_CPU || GAIA_PROFILER_MEM
 // Keep it small on Windows
 // TODO: What if user doesn't want this?
-// #if defined(_WIN32) && !defined(WIN32_LEAN_AND_MEAN)
+// #if GAIA_PLATFORM_WINDOWS && !defined(WIN32_LEAN_AND_MEAN)
 // 	#define WIN32_LEAN_AND_MEAN
 // #endif
 GAIA_MSVC_WARNING_PUSH()

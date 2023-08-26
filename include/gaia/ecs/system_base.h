@@ -225,13 +225,13 @@ namespace gaia {
 					constexpr auto ct_name = utils::type_info::name<T>();
 					const size_t len = ct_name.size() > MaxSystemNameLength - 1 ? MaxSystemNameLength - 1 : ct_name.size();
 
-	#if GAIA_COMPILER_MSVC || defined(_WIN32)
+	#if GAIA_COMPILER_MSVC || GAIA_PLATFORM_WINDOWS
 					strncpy_s(pSystem->m_name, ct_name.data(), len);
 	#else
 					strncpy(pSystem->m_name, ct_name.data(), len);
 	#endif
 				} else {
-	#if GAIA_COMPILER_MSVC || defined(_WIN32)
+	#if GAIA_COMPILER_MSVC || GAIA_PLATFORM_WINDOWS
 					strncpy_s(pSystem->m_name, name, (size_t)-1);
 	#else
 					strncpy(pSystem->m_name, name, MaxSystemNameLength - 1);

@@ -1,4 +1,6 @@
 #pragma once
+#include "../config/config.h"
+
 #include <cinttypes>
 #include <cstring>
 #include <stdlib.h>
@@ -7,7 +9,7 @@
 
 #include "../config/profiler.h"
 
-#if defined(_WIN32) && defined(_MSC_VER)
+#if GAIA_PLATFORM_WINDOWS && GAIA_COMPILER_MSVC
 	#define GAIA_MEM_ALLC(size) malloc(size)
 	#define GAIA_MEM_FREE(ptr) free(ptr)
 
