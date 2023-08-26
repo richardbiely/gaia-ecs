@@ -264,7 +264,7 @@ namespace internal {
 template <class T>
 inline void DoNotOptimize(T const& value) {
 	internal::UseCharPointer(&reinterpret_cast<char const volatile&>(value));
-	_ReadWriteBarrier();
+	::_ReadWriteBarrier();
 }
 	#else
 template <class T>
