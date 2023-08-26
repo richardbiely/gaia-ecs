@@ -264,7 +264,7 @@ namespace internal {
 template <class T>
 inline void DoNotOptimize(T const& value) {
 	internal::UseCharPointer(&reinterpret_cast<char const volatile&>(value));
-	_ReadWriteBarrier();
+	::_ReadWriteBarrier();
 }
 	#else
 template <class T>
@@ -1409,9 +1409,12 @@ namespace gaia {
 			}
 
 			template <typename... Args>
-			void emplace_back(Args&&... args) {
+			reference emplace_back(Args&&... args) {
 				try_grow();
-				m_pData[m_cnt++] = {std::forward<Args>(args)...};
+
+				reference ref = m_pData[m_cnt++];
+				ref = {std::forward<Args>(args)...};
+				return ref;
 			}
 
 			void pop_back() noexcept {
@@ -2152,9 +2155,11 @@ namespace gaia {
 			}
 
 			template <typename... Args>
-			constexpr void emplace_back(Args&&... args) {
+			constexpr reference emplace_back(Args&&... args) {
 				GAIA_ASSERT(size() < N);
-				m_data[m_cnt++] = {std::forward<Args>(args)...};
+				reference ref = m_data[m_cnt++];
+				ref = {std::forward<Args>(args)...};
+				return ref;
 			}
 
 			constexpr void pop_back() noexcept {
@@ -10691,9 +10696,12 @@ namespace gaia {
 			}
 
 			template <typename... Args>
-			void emplace_back(Args&&... args) {
+			reference emplace_back(Args&&... args) {
 				try_grow();
-				m_pData[m_cnt++] = {std::forward<Args>(args)...};
+
+				reference ref = m_pData[m_cnt++];
+				ref = {std::forward<Args>(args)...};
+				return ref;
 			}
 
 			void pop_back() noexcept {
@@ -12866,7 +12874,7 @@ namespace gaia {
 			*/
 			GAIA_NODISCARD Entity AllocateEntity() {
 				if GAIA_UNLIKELY (!m_freeEntities) {
-					const auto entityCnt = m_entities.size();
+					const auto entityCnt = (uint32_t)m_entities.size();
 					// We don't want to go out of range for new entities
 					GAIA_ASSERT(entityCnt < Entity::IdMask && "Trying to allocate too many entities!");
 
@@ -14614,11 +14622,13 @@ namespace gaia {
 			}
 
 			template <typename... Args>
-			void emplace_back(Args&&... args) {
+			reference emplace_back(Args&&... args) {
 				GAIA_ASSERT(m_size < N);
 				const auto head = (m_tail + m_size) % N;
-				m_data[head] = {std::forward<Args>(args)...};
+				reference ref = m_data[head];
+				ref = {std::forward<Args>(args)...};
 				++m_size;
+				return ref;
 			}
 
 			void pop_front(T& out) {
@@ -14733,19 +14743,104 @@ namespace gaia {
 		struct JobParallel {
 			std::function<void(const JobArgs&)> func;
 		};
+	} // namespace mt
+} // namespace gaia
 
-		struct JobHandle {
-			uint32_t idx;
+#include <cinttypes>
+#include <type_traits>
 
-			GAIA_NODISCARD bool operator==(JobHandle other) const {
-				return idx == other.idx;
+namespace gaia {
+	namespace mt {
+		using JobInternalType = uint32_t;
+		using JobId = JobInternalType;
+		using JobGenId = JobInternalType;
+
+		struct JobHandle final {
+			static constexpr JobInternalType IdBits = 20;
+			static constexpr JobInternalType GenBits = 12;
+			static constexpr JobInternalType IdMask = (uint32_t)(uint64_t(1) << IdBits) - 1;
+			static constexpr JobInternalType GenMask = (uint32_t)(uint64_t(1) << GenBits) - 1;
+
+			using JobSizeType = std::conditional_t<(IdBits + GenBits > 32), uint64_t, uint32_t>;
+
+			static_assert(IdBits + GenBits <= 64, "Job IdBits and GenBits must fit inside 64 bits");
+			static_assert(IdBits <= 31, "Job IdBits must be at most 31 bits long");
+			static_assert(GenBits > 10, "Job GenBits is recommended to be at least 10 bits long");
+
+		private:
+			struct JobData {
+				//! Index in entity array
+				JobInternalType id: IdBits;
+				//! Generation index. Incremented every time an entity is deleted
+				JobInternalType gen: GenBits;
+			};
+
+			union {
+				JobData data;
+				JobSizeType val;
+			};
+
+		public:
+			JobHandle() = default;
+			JobHandle(JobId id, JobGenId gen) {
+				data.id = id;
+				data.gen = gen;
 			}
-			GAIA_NODISCARD bool operator!=(JobHandle other) const {
-				return idx != other.idx;
+			~JobHandle() = default;
+
+			JobHandle(JobHandle&&) = default;
+			JobHandle(const JobHandle&) = default;
+			JobHandle& operator=(JobHandle&&) = default;
+			JobHandle& operator=(const JobHandle&) = default;
+
+			GAIA_NODISCARD constexpr bool operator==(const JobHandle& other) const noexcept {
+				return val == other.val;
+			}
+			GAIA_NODISCARD constexpr bool operator!=(const JobHandle& other) const noexcept {
+				return val != other.val;
+			}
+
+			auto id() const {
+				return data.id;
+			}
+			auto gen() const {
+				return data.gen;
+			}
+			auto value() const {
+				return val;
 			}
 		};
 
-		static constexpr JobHandle JobHandleInvalid = JobHandle{(uint32_t)-1};
+		struct JobNull_t {
+			GAIA_NODISCARD operator JobHandle() const noexcept {
+				return JobHandle(JobHandle::IdMask, JobHandle::GenMask);
+			}
+
+			GAIA_NODISCARD constexpr bool operator==([[maybe_unused]] const JobNull_t& null) const noexcept {
+				return true;
+			}
+			GAIA_NODISCARD constexpr bool operator!=([[maybe_unused]] const JobNull_t& null) const noexcept {
+				return false;
+			}
+		};
+
+		GAIA_NODISCARD inline bool operator==(const JobNull_t& null, const JobHandle& entity) noexcept {
+			return static_cast<JobHandle>(null).id() == entity.id();
+		}
+
+		GAIA_NODISCARD inline bool operator!=(const JobNull_t& null, const JobHandle& entity) noexcept {
+			return static_cast<JobHandle>(null).id() != entity.id();
+		}
+
+		GAIA_NODISCARD inline bool operator==(const JobHandle& entity, const JobNull_t& null) noexcept {
+			return null == entity;
+		}
+
+		GAIA_NODISCARD inline bool operator!=(const JobHandle& entity, const JobNull_t& null) noexcept {
+			return null != entity;
+		}
+
+		inline constexpr JobNull_t JobNull{};
 	} // namespace mt
 } // namespace gaia
 
@@ -14758,115 +14853,241 @@ namespace gaia {
 
 namespace gaia {
 	namespace mt {
-		struct JobInternal {
+		enum class JobInternalState : uint32_t { Idle, Submitted, Done };
+
+		struct JobContainer {
+			uint32_t idx;
+			uint32_t gen;
+			uint32_t dependencyIdx;
+			JobInternalState state;
 			std::function<void()> func;
-#if GAIA_ENABLE_JOB_DEPENDENCIES
-			uint32_t dependencyCount;
-			JobHandle jobHandleNext;
-#endif
-			std::atomic_uint32_t leftToFinish;
 		};
 
-#if GAIA_ENABLE_JOB_DEPENDENCIES
 		struct JobDependency {
-			uint32_t idxNext;
-			JobHandle jobHandle;
+			uint32_t dependencyIdxNext;
 			JobHandle dependsOn;
 		};
-#endif
 
-		struct JobManager {
-			static constexpr uint32_t N = 1 << 12;
-			static constexpr uint32_t MASK = N - 1;
+		class JobManager {
+			std::mutex m_jobsLock;
+			//! Implicit list of jobs
+			containers::darray<JobContainer> m_jobs;
+			//! Index of the next entity to recycle
+			uint32_t m_nextFreeJob = (uint32_t)-1;
+			//! Number of entites to recycle
+			uint32_t m_freeJobs = 0;
 
-		private:
-			containers::sarray<JobInternal, N> m_jobs;
-			uint32_t m_jobsAllocated = 0;
-
-#if GAIA_ENABLE_JOB_DEPENDENCIES
 			std::mutex m_depsLock;
 			containers::darray<JobDependency> m_deps;
-#endif
 
 		public:
+			/*!
+			Allocates a new job container identified by a unique JobHandle.
+			\return JobHandle
+			*/
 			GAIA_NODISCARD JobHandle AllocateJob(const Job& job) {
-				const uint32_t idx = (m_jobsAllocated++) & MASK;
-				auto& jobDesc = m_jobs[idx];
+				std::scoped_lock<std::mutex> lock(m_jobsLock);
 
-				// Make sure there are no pending tasks associated with this job
-				GAIA_ASSERT(jobDesc.leftToFinish == 0);
+				if GAIA_UNLIKELY (!m_freeJobs) {
+					const auto jobCnt = (uint32_t)m_jobs.size();
+					// We don't want to go out of range for new jobs
+					GAIA_ASSERT(jobCnt < JobHandle::IdMask && "Trying to allocate too many jobs!");
 
-				jobDesc.func = job.func;
+					m_jobs.emplace_back(jobCnt, 0U, (uint32_t)-1, JobInternalState::Idle, job.func);
+					return {(JobId)jobCnt, 0U};
+				}
+
+				// Make sure the list is not broken
+				GAIA_ASSERT(m_nextFreeJob < (uint32_t)m_jobs.size() && "Jobs recycle list broken!");
+
+				--m_freeJobs;
+				const auto index = m_nextFreeJob;
+				auto& j = m_jobs[m_nextFreeJob];
+				m_nextFreeJob = j.idx;
 #if GAIA_ENABLE_JOB_DEPENDENCIES
-				jobDesc.jobHandleNext = JobHandleInvalid;
+				j.dependencyIdx = (uint32_t)-1;
 #endif
-				jobDesc.leftToFinish = 1;
-				return {idx};
+				j.state = JobInternalState::Idle;
+				j.func = job.func;
+				return {index, m_jobs[index].gen};
 			}
 
-#if GAIA_ENABLE_JOB_DEPENDENCIES
-			GAIA_NODISCARD JobHandle AllocateJob(const Job& job, JobHandle dependency) {
-				const uint32_t idx = (m_jobsAllocated++) & MASK;
-				auto& jobDesc = m_jobs[idx];
+			/*!
+			Deallocates a new entity.
+			\param jobHandle Job to delete
+			*/
+			void DeallocateJob(JobHandle jobHandle) {
+				std::scoped_lock<std::mutex> lock(m_jobsLock);
 
-				// Make sure there are no pending tasks associated with this job
-				GAIA_ASSERT(jobDesc.leftToFinish == 0);
+				auto& jobContainer = m_jobs[jobHandle.id()];
 
-				jobDesc.func = job.func;
-				jobDesc.jobHandleNext = dependency;
-				jobDesc.leftToFinish = 2;
-				return {idx};
+				// New generation
+				const auto gen = ++jobContainer.gen;
+
+				// Update our implicit list
+				if GAIA_UNLIKELY (!m_freeJobs) {
+					m_nextFreeJob = jobHandle.id();
+					jobContainer.idx = JobHandle::IdMask;
+					jobContainer.gen = gen;
+				} else {
+					jobContainer.idx = m_nextFreeJob;
+					jobContainer.gen = gen;
+					m_nextFreeJob = jobHandle.id();
+				}
+				++m_freeJobs;
 			}
-#endif
+
+			void DeallocateAllJobs() {
+				{
+					std::scoped_lock<std::mutex> lock(m_jobsLock);
+
+					GAIA_ASSERT(m_nextFreeJob == (uint32_t)-1);
+					GAIA_ASSERT(m_freeJobs == 0);
+					m_jobs.clear();
+					m_nextFreeJob = (uint32_t)-1;
+					m_freeJobs = 0;
+				}
+				{
+					std::scoped_lock<std::mutex> lock(m_depsLock);
+					m_deps.clear();
+				}
+			}
 
 			void Run(JobHandle jobHandle) {
-				auto& job = m_jobs[jobHandle.idx];
-				job.func();
-				--job.leftToFinish;
+				std::function<void()> func;
+
+				{
+					std::scoped_lock<std::mutex> lock(m_jobsLock);
+					auto& job = m_jobs[jobHandle.id()];
+					func = job.func;
+				}
+				if (func.operator bool())
+					func();
+				{
+					std::scoped_lock<std::mutex> lock(m_jobsLock);
+					auto& job = m_jobs[jobHandle.id()];
+					job.state = JobInternalState::Done;
+				}
 			}
 
 #if GAIA_ENABLE_JOB_DEPENDENCIES
 			GAIA_NODISCARD bool HandleDependencies(JobHandle jobHandle) {
+				uint32_t depsId{};
 
-				const auto& job = m_jobs[jobHandle.idx];
-				if (job.jobHandleNext == JobHandleInvalid)
-					return true;
+				{
+					std::scoped_lock<std::mutex> lock(m_jobsLock);
+					auto& job = m_jobs[jobHandle.id()];
+					if (job.dependencyIdx == (uint32_t)-1)
+						return true;
+					depsId = job.dependencyIdx;
+				}
 
-				std::lock_guard<std::mutex> guard(m_depsLock);
-				auto& dep = m_deps[job.jobHandleNext.idx];
-				(void)dep;
+				{
+					// Iterate over all dependencies.
+					// The first busy dependency breaks the loop. At this point we also update
+					// the initial dependency index because we know all previous dependencies
+					// have already finished and there's no need to check them.
+					do {
+						JobDependency dep;
+						{
+							std::scoped_lock<std::mutex> lock(m_depsLock);
+							dep = m_deps[depsId];
+						}
 
-				return false;
+						{
+							std::scoped_lock<std::mutex> lock(m_jobsLock);
+							if (IsBusy(dep.dependsOn)) {
+								m_jobs[jobHandle.id()].dependencyIdx = depsId;
+								return false;
+							}
+						}
+
+						depsId = dep.dependencyIdxNext;
+					} while (depsId != (uint32_t)-1);
+				}
+
+				// No need to update the index because once we return true we execute the job.
+				// --> job.dependencyIdx = JobHandleInvalid.idx;
+				return true;
 			}
 
+			//!
+			//! \warning Must be used form the main thread.
 			void AddDependency(JobHandle jobHandle, JobHandle dependsOn) {
+	#if GAIA_ASSERT_ENABLED
 				GAIA_ASSERT(jobHandle != dependsOn);
+				GAIA_ASSERT(m_jobs[jobHandle.id()].state < JobInternalState::Submitted);
+				GAIA_ASSERT(m_jobs[dependsOn.id()].state < JobInternalState::Submitted);
 				if (jobHandle == dependsOn)
 					return;
+				if (m_jobs[jobHandle.id()].state >= JobInternalState::Submitted)
+					return;
+				if (m_jobs[dependsOn.id()].state >= JobInternalState::Submitted)
+					return;
+	#endif
 
-				const auto& job = m_jobs[jobHandle.idx];
+				auto& job = m_jobs[jobHandle.id()];
 
-				if (job.jobHandleNext == JobHandleInvalid) {
-					std::lock_guard<std::mutex> guard(m_depsLock);
-					m_deps.emplace_back((uint32_t)m_deps.size(), jobHandle, dependsOn);
+				// First time adding a dependency.
+				if (job.dependencyIdx == (uint32_t)-1) {
+					std::scoped_lock<std::mutex> lock(m_depsLock);
+					job.dependencyIdx = (uint32_t)m_deps.size();
+					m_deps.emplace_back((uint32_t)-1, dependsOn);
 				} else {
-					std::lock_guard<std::mutex> guard(m_depsLock);
-					auto& dep = m_deps[job.jobHandleNext.idx];
-					const uint32_t depNext = dep.idxNext;
-					dep.idxNext = (uint32_t)m_deps.size();
-					m_deps.emplace_back(depNext, jobHandle, dependsOn);
+					std::scoped_lock<std::mutex> lock(m_depsLock);
+					auto& dep = m_deps[job.dependencyIdx];
+					dep.dependencyIdxNext = (uint32_t)m_deps.size();
+					m_deps.emplace_back((uint32_t)-1, dependsOn);
 				}
 			}
 
-			GAIA_NODISCARD bool HasDependencies(JobHandle jobHandle) const {
-				const auto& job = m_jobs[jobHandle.idx];
-				return job.dependencyCount > 0;
+			void AddDependencies(JobHandle jobHandle, std::span<const JobHandle> dependsOnSpan) {
+	#if GAIA_ASSERT_ENABLED
+				GAIA_ASSERT(m_jobs[jobHandle.id()].state < JobInternalState::Submitted);
+				if (m_jobs[jobHandle.id()].state >= JobInternalState::Submitted)
+					return;
+
+				for (auto h: dependsOnSpan) {
+					GAIA_ASSERT(jobHandle != h);
+					GAIA_ASSERT(m_jobs[h.id()].state < JobInternalState::Submitted);
+
+					if (jobHandle == h)
+						return;
+					if (m_jobs[h.id()].state >= JobInternalState::Submitted)
+						return;
+				}
+	#endif
+
+				auto& job = m_jobs[jobHandle.id()];
+
+				// First time adding a dependency.
+				if (job.dependencyIdx == (uint32_t)-1) {
+					std::scoped_lock<std::mutex> lock(m_depsLock);
+					job.dependencyIdx = (uint32_t)m_deps.size();
+					for (auto h: dependsOnSpan)
+						m_deps.emplace_back((uint32_t)m_deps.size(), h);
+					m_deps.back().dependencyIdxNext = (uint32_t)-1;
+				} else {
+					std::scoped_lock<std::mutex> lock(m_depsLock);
+					for (auto h: dependsOnSpan) {
+						auto& dep = m_deps[job.dependencyIdx];
+						const uint32_t depNext = dep.dependencyIdxNext;
+						dep.dependencyIdxNext = job.dependencyIdx;
+						m_deps.emplace_back(depNext, h);
+					}
+				}
 			}
 #endif
 
+			void Submit(JobHandle jobHandle) {
+				auto& job = m_jobs[jobHandle.id()];
+				GAIA_ASSERT(job.state <= JobInternalState::Submitted);
+				job.state = JobInternalState::Submitted;
+			}
+
 			GAIA_NODISCARD bool IsBusy(JobHandle jobHandle) const {
-				const auto& job = m_jobs[jobHandle.idx];
-				return job.leftToFinish > 0;
+				const auto& job = m_jobs[jobHandle.id()];
+				return job.state == JobInternalState::Submitted;
 			}
 		};
 	} // namespace mt
@@ -14881,11 +15102,13 @@ namespace gaia {
 namespace gaia {
 	namespace mt {
 		class JobQueue {
+			static constexpr uint32_t N = 1 << 12;
+
 #if JOB_QUEUE_USE_LOCKS
-			std::mutex m_jobsLock;
-			containers::sringbuffer<JobHandle, JobManager::N> m_buffer;
+			std::mutex m_bufferLock;
+			containers::sringbuffer<JobHandle, N> m_buffer;
 #else
-			containers::sarray<JobHandle, JobManager::N> m_buffer;
+			containers::sarray<JobHandle, N> m_buffer;
 			std::atomic_uint32_t m_bottom{};
 			std::atomic_uint32_t m_top{};
 #endif
@@ -14897,7 +15120,7 @@ namespace gaia {
 				GAIA_PROF_SCOPE(JobQueue::TryPush);
 
 #if JOB_QUEUE_USE_LOCKS
-				std::lock_guard<std::mutex> guard(m_jobsLock);
+				std::scoped_lock<std::mutex> lock(m_bufferLock);
 				if (m_buffer.size() >= m_buffer.max_size())
 					return false;
 				m_buffer.push_back(jobHandle);
@@ -14924,7 +15147,7 @@ namespace gaia {
 				GAIA_PROF_SCOPE(JobQueue::TryPop);
 
 #if JOB_QUEUE_USE_LOCKS
-				std::lock_guard<std::mutex> guard(m_jobsLock);
+				std::scoped_lock<std::mutex> lock(m_bufferLock);
 				if (m_buffer.empty())
 					return false;
 
@@ -14975,7 +15198,7 @@ namespace gaia {
 				GAIA_PROF_SCOPE(JobQueue::TrySteal);
 
 #if JOB_QUEUE_USE_LOCKS
-				std::lock_guard<std::mutex> guard(m_jobsLock);
+				std::scoped_lock<std::mutex> lock(m_bufferLock);
 				if (m_buffer.empty())
 					return false;
 
@@ -15010,6 +15233,8 @@ namespace gaia {
 	namespace mt {
 
 		class ThreadPool final {
+			std::thread::id m_mainThreadId;
+
 			//! List of worker threads
 			containers::sarr_ext<std::thread, 64> m_workers;
 			//! Manager for internal jobs
@@ -15034,6 +15259,8 @@ namespace gaia {
 
 				m_workers.resize(workerCount);
 
+				m_mainThreadId = std::this_thread::get_id();
+
 				for (uint32_t i = 0; i < workerCount; ++i) {
 					m_workers[i] = std::thread([this]() {
 						ThreadLoop();
@@ -15057,24 +15284,18 @@ namespace gaia {
 			}
 
 			~ThreadPool() {
-				// Request stopping
-				m_stop = true;
-				// Complete all remaining work
-				CompleteAll();
-				// Wake up any threads that were put to sleep
-				m_cv.notify_all();
-				// Join threads with the main one
-				for (auto& w: m_workers)
-					w.join();
+				Reset();
 			}
 
 			//! Schedules a job to run on a worker thread.
 			//! \warning Must be used form the main thread.
 			//! \return Job handle of the scheduled job.
 			JobHandle Schedule(const Job& job) {
+				GAIA_ASSERT(VerifyMainThread());
+
 				// Don't add new jobs once stop was requested
 				if GAIA_UNLIKELY (m_stop)
-					return JobHandleInvalid;
+					return JobNull;
 
 				++m_jobsPending;
 
@@ -15087,14 +15308,35 @@ namespace gaia {
 			//! Schedules a job to run on a worker thread.
 			//! \warning Must be used form the main thread.
 			//! \return Job handle of the scheduled job.
-			JobHandle Schedule(const Job& job, JobHandle dependency) {
+			JobHandle Schedule(const Job& job, JobHandle dependsOn) {
+				GAIA_ASSERT(VerifyMainThread());
+
 				// Don't add new jobs once stop was requested
 				if GAIA_UNLIKELY (m_stop)
-					return JobHandleInvalid;
+					return JobNull;
 
 				++m_jobsPending;
 
-				JobHandle jobHandle = m_jobManager.AllocateJob(job, dependency);
+				JobHandle jobHandle = m_jobManager.AllocateJob(job);
+				m_jobManager.AddDependency(jobHandle, dependsOn);
+				Submit(jobHandle);
+				return jobHandle;
+			}
+
+			//! Schedules a job to run on a worker thread.
+			//! \warning Must be used form the main thread.
+			//! \return Job handle of the scheduled job.
+			JobHandle Schedule(const Job& job, std::span<const JobHandle> dependsOnSpan) {
+				GAIA_ASSERT(VerifyMainThread());
+
+				// Don't add new jobs once stop was requested
+				if GAIA_UNLIKELY (m_stop)
+					return JobNull;
+
+				++m_jobsPending;
+
+				JobHandle jobHandle = m_jobManager.AllocateJob(job);
+				m_jobManager.AddDependencies(jobHandle, dependsOnSpan);
 				Submit(jobHandle);
 				return jobHandle;
 			}
@@ -15103,14 +15345,16 @@ namespace gaia {
 			//! Schedules a job to run on worker threads in parallel.
 			//! \warning Must be used form the main thread.
 			JobHandle ScheduleParallel(const JobParallel& job, uint32_t itemsToProcess, uint32_t groupSize) {
+				GAIA_ASSERT(VerifyMainThread());
+
 				// Empty data set are considered wrong inputs
 				GAIA_ASSERT(itemsToProcess != 0);
 				if (itemsToProcess == 0)
-					return JobHandleInvalid;
+					return JobNull;
 
 				// Don't add new jobs once stop was requested
 				if GAIA_UNLIKELY (m_stop)
-					return JobHandleInvalid;
+					return JobNull;
 
 				const uint32_t workerCount = (uint32_t)m_workers.size();
 
@@ -15140,18 +15384,17 @@ namespace gaia {
 					};
 
 					JobHandle jobHandle = m_jobManager.AllocateJob({groupJobFunc});
-					Submit(jobHandle);
-
 #if GAIA_ENABLE_JOB_DEPENDENCIES
-					groupHandle.AddDependency(jobHandle);
+					m_jobManager.AddDependency(groupHandle, jobHandle);
 #endif
+					Submit(jobHandle);
 				}
 
 #if GAIA_ENABLE_JOB_DEPENDENCIES
 				Submit(groupHandle);
 				return groupHandle;
 #else
-				return {};
+				return JobNull;
 #endif
 			}
 
@@ -15159,18 +15402,32 @@ namespace gaia {
 			//! \param jobHandle Job handle
 			//! \warning Must be used form the main thread.
 			void Complete(JobHandle jobHandle) {
+				GAIA_ASSERT(VerifyMainThread());
+
 				while (m_jobManager.IsBusy(jobHandle))
 					Poll();
+
+				GAIA_ASSERT(!m_jobManager.IsBusy(jobHandle));
+				m_jobManager.DeallocateJob(jobHandle);
 			}
 
 			//! Wait for all jobs to finish.
 			//! \warning Must be used form the main thread.
 			void CompleteAll() {
+				GAIA_ASSERT(VerifyMainThread());
+
 				while (IsBusy())
-					Poll();
+					PollAll();
+
+				GAIA_ASSERT(m_jobsPending == 0);
+				m_jobManager.DeallocateAllJobs();
 			}
 
 		private:
+			GAIA_NODISCARD bool VerifyMainThread() const {
+				return std::this_thread::get_id() == m_mainThreadId;
+			}
+
 			GAIA_NODISCARD static uint32_t CalculateThreadCount(uint32_t threadsWanted) {
 				// Make sure a reasonable amount of threads is used
 				if (threadsWanted == 0) {
@@ -15192,10 +15449,12 @@ namespace gaia {
 						continue;
 					}
 
+					GAIA_ASSERT(m_jobsPending > 0);
+
+#if GAIA_ENABLE_JOB_DEPENDENCIES
 					// Make sure we can execute the job.
 					// If it has dependencies which were not completed we need to reschedule
 					// and come back to it later.
-#if GAIA_ENABLE_JOB_DEPENDENCIES
 					if (!m_jobManager.HandleDependencies(jobHandle)) {
 						Submit(jobHandle);
 						continue;
@@ -15207,7 +15466,21 @@ namespace gaia {
 				}
 			}
 
+			void Reset() {
+				// Request stopping
+				m_stop = true;
+				// Complete all remaining work
+				CompleteAll();
+				// Wake up any threads that were put to sleep
+				m_cv.notify_all();
+				// Join threads with the main one
+				for (auto& w: m_workers)
+					w.join();
+			}
+
 			void Submit(JobHandle jobHandle) {
+				m_jobManager.Submit(jobHandle);
+
 				// Try pushing a new job until it we succeed.
 				// The thread is put to sleep if pushing the jobs fails.
 				while (!m_jobQueue.TryPush(jobHandle))
@@ -15227,6 +15500,15 @@ namespace gaia {
 			void Poll() {
 				// Wake some worker thread
 				m_cv.notify_one();
+
+				// Allow this thread to be rescheduled
+				std::this_thread::yield();
+			}
+
+			//! Wakes up all worker threads and reschedules the current one.
+			void PollAll() {
+				// Wake some worker thread
+				m_cv.notify_all();
 
 				// Allow this thread to be rescheduled
 				std::this_thread::yield();

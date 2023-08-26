@@ -15,11 +15,13 @@
 namespace gaia {
 	namespace mt {
 		class JobQueue {
+			static constexpr uint32_t N = 1 << 12;
+
 #if JOB_QUEUE_USE_LOCKS
-			std::mutex m_jobsLock;
-			containers::sringbuffer<JobHandle, JobManager::N> m_buffer;
+			std::mutex m_bufferLock;
+			containers::sringbuffer<JobHandle, N> m_buffer;
 #else
-			containers::sarray<JobHandle, JobManager::N> m_buffer;
+			containers::sarray<JobHandle, N> m_buffer;
 			std::atomic_uint32_t m_bottom{};
 			std::atomic_uint32_t m_top{};
 #endif
@@ -31,7 +33,7 @@ namespace gaia {
 				GAIA_PROF_SCOPE(JobQueue::TryPush);
 
 #if JOB_QUEUE_USE_LOCKS
-				std::lock_guard<std::mutex> guard(m_jobsLock);
+				std::scoped_lock<std::mutex> lock(m_bufferLock);
 				if (m_buffer.size() >= m_buffer.max_size())
 					return false;
 				m_buffer.push_back(jobHandle);
@@ -58,7 +60,7 @@ namespace gaia {
 				GAIA_PROF_SCOPE(JobQueue::TryPop);
 
 #if JOB_QUEUE_USE_LOCKS
-				std::lock_guard<std::mutex> guard(m_jobsLock);
+				std::scoped_lock<std::mutex> lock(m_bufferLock);
 				if (m_buffer.empty())
 					return false;
 
@@ -109,7 +111,7 @@ namespace gaia {
 				GAIA_PROF_SCOPE(JobQueue::TrySteal);
 
 #if JOB_QUEUE_USE_LOCKS
-				std::lock_guard<std::mutex> guard(m_jobsLock);
+				std::scoped_lock<std::mutex> lock(m_bufferLock);
 				if (m_buffer.empty())
 					return false;
 

@@ -108,7 +108,7 @@ void BM_Schedule_Complex(picobench::state& state) {
 }
 
 template <typename Func>
-void Run_ScheduleParallel_Simple(const uint32_t* pArr, uint32_t Items, Func func) {
+void Run_ScheduleParallel(const uint32_t* pArr, uint32_t Items, Func func) {
 	auto& tp = mt::ThreadPool::Get();
 
 	std::atomic_uint32_t sum = 0;
@@ -135,7 +135,7 @@ void BM_ScheduleParallel_Simple(picobench::state& state) {
 
 	for (auto _: state) {
 		(void)_;
-		Run_ScheduleParallel_Simple(arr.data(), N, BenchFunc_Simple);
+		Run_ScheduleParallel(arr.data(), N, BenchFunc_Simple);
 	}
 }
 
@@ -150,7 +150,7 @@ void BM_ScheduleParallel_Complex(picobench::state& state) {
 
 	for (auto _: state) {
 		(void)_;
-		Run_ScheduleParallel_Simple(arr.data(), N, BenchFunc_Complex);
+		Run_ScheduleParallel(arr.data(), N, BenchFunc_Complex);
 	}
 }
 
