@@ -3,8 +3,6 @@
 #include <functional>
 #include <inttypes.h>
 
-#include "../config/config_core.h"
-
 namespace gaia {
 	namespace mt {
 		struct Job {
@@ -19,18 +17,5 @@ namespace gaia {
 		struct JobParallel {
 			std::function<void(const JobArgs&)> func;
 		};
-
-		struct JobHandle {
-			uint32_t idx;
-
-			GAIA_NODISCARD bool operator==(JobHandle other) const {
-				return idx == other.idx;
-			}
-			GAIA_NODISCARD bool operator!=(JobHandle other) const {
-				return idx != other.idx;
-			}
-		};
-
-		static constexpr JobHandle JobHandleInvalid = JobHandle{(uint32_t)-1};
 	} // namespace mt
 } // namespace gaia

@@ -464,7 +464,7 @@ namespace gaia {
 			*/
 			GAIA_NODISCARD Entity AllocateEntity() {
 				if GAIA_UNLIKELY (!m_freeEntities) {
-					const auto entityCnt = m_entities.size();
+					const auto entityCnt = (uint32_t)m_entities.size();
 					// We don't want to go out of range for new entities
 					GAIA_ASSERT(entityCnt < Entity::IdMask && "Trying to allocate too many entities!");
 
