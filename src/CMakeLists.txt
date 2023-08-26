@@ -43,6 +43,8 @@ if(MSVC)
   else()
     enable_cxx_compiler_flag_if_supported("/arch:AVX2")
   endif()
+
+  enable_cxx_compiler_flag_if_supported("/permissive-")
 else()
   enable_cxx_compiler_flag_if_supported("-fno-exceptions")
 
