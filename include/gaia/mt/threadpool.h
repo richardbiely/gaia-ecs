@@ -1,11 +1,23 @@
 #pragma once
 
+#include "../config/config.h"
+
+#if GAIA_PLATFORM_WINDOWS
+	#include <windows.h>
+	#include <cstdio>
+#elif GAIA_PLATFORM_APPLE
+	#include <mach/mach_types.h>
+	#include <mach/thread_act.h>
+#elif GAIA_PLATFORM_LINUX || GAIA_PLATFORM_FREEBSD
+	#include <pthread.h>
+#endif
+
 #include <atomic>
 #include <condition_variable>
 #include <mutex>
 #include <thread>
 
-#include "../config/config_core_end.h"
+#include "../config/logging.h"
 #include "../containers/sarray_ext.h"
 #include "../utils/span.h"
 
@@ -47,9 +59,18 @@ namespace gaia {
 				m_mainThreadId = std::this_thread::get_id();
 
 				for (uint32_t i = 0; i < workerCount; ++i) {
-					m_workers[i] = std::thread([this]() {
+					m_workers[i] = std::thread([this, i]() {
+						// Set the worker thread name.
+						// Needs to be called from inside the thread because some platforms
+						// can change the name only when run from the specific thread.
+						SetThreadName(i);
+
+						// Process jobs
 						ThreadLoop();
 					});
+
+					// Stick each thread to a specific CPU core
+					SetThreadAffinity(i);
 				}
 			}
 
@@ -210,6 +231,56 @@ namespace gaia {
 			}
 
 		private:
+			void SetThreadAffinity(uint32_t threadID) {
+				// TODO:
+				// Some cores might have multiple logic threads, there might be
+				// more socket and some cores might even be physically different
+				// form others (performance vs efficiency cores).
+				// Therefore, we either need some more advanced logic here or we
+				// should completly drop the idea of assigning affinity and simply
+				// let the OS scheduler figure things out.
+#if GAIA_PLATFORM_WINDOWS
+				auto nativeHandle = (HANDLE)m_workers[threadID].native_handle();
+
+				auto mask = SetThreadAffinityMask(nativeHandle, 1ULL << threadID);
+				GAIA_ASSERT(mask > 0);
+				if (mask <= 0)
+					GAIA_LOG_W("Issue setting thread affinity for a worker thread!");
+#elif GAIA_PLATFORM_LINUX || GAIA_PLATFORM_FREEBSD || GAIA_PLATFORM_APPLE
+				auto nativeHandle = (pthread_t)m_workers[threadID].native_handle();
+
+				thread_port_t mach_thread = pthread_mach_thread_np(nativeHandle);
+				thread_affinity_policy_data_t policy_data = {(int)threadID};
+				auto ret = thread_policy_set(
+						mach_thread, THREAD_AFFINITY_POLICY, (thread_policy_t)&policy_data, THREAD_AFFINITY_POLICY_COUNT);
+				GAIA_ASSERT(ret != 0);
+				if (ret == 0)
+					GAIA_LOG_W("Issue setting thread affinity for a worker thread!");
+#endif
+			}
+
+			void SetThreadName(uint32_t threadID) {
+#if GAIA_PLATFORM_WINDOWS
+				auto nativeHandle = (HANDLE)m_workers[threadID].native_handle();
+
+				wchar_t threadName[10]{};
+				swprintf_s(threadName, L"worker_%u", threadID);
+				auto hr = SetThreadDescription(nativeHandle, threadName);
+				GAIA_ASSERT(SUCCEEDED(hr));
+				if (FAILED(hr))
+					GAIA_LOG_W("Issue setting worker thread name!");
+#elif GAIA_PLATFORM_LINUX || GAIA_PLATFORM_FREEBSD || GAIA_PLATFORM_APPLE
+				auto nativeHandle = (pthread_t)m_workers[threadID].native_handle();
+
+				char threadName[10]{};
+				snprintf(threadName, 10, "worker_%u", threadID);
+				auto ret = pthread_setname_np(threadName);
+				GAIA_ASSERT(ret == 0);
+				if (ret != 0)
+					GAIA_LOG_W("Issue setting worker thread name!");
+#endif
+			}
+
 			GAIA_NODISCARD bool VerifyMainThread() const {
 				return std::this_thread::get_id() == m_mainThreadId;
 			}
