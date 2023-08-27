@@ -93,65 +93,119 @@ namespace gaia {
 				Reset();
 			}
 
+			//! Makes \param jobHandle depend on \param dependsOn.
+			//! This means \param jobHandle will run only after \param dependsOn finishes.
+			//! \warning Must be used from the main thread.
+			//! \warning Needs to be called before any of the listed jobs are scheduled.
+			void AddDependency(JobHandle jobHandle, JobHandle dependsOn) {
+				m_jobManager.AddDependency(jobHandle, dependsOn);
+			}
+
+			//! Makes \param jobHandle depend on the jobs listed in \param dependsOnSpan.
+			//! This means \param jobHandle will run only after all \param dependsOnSpan jobs finish.
+			//! \warning Must be used from the main thread.
+			//! \warning Needs to be called before any of the listed jobs are scheduled.
+			void AddDependencies(JobHandle jobHandle, std::span<const JobHandle> dependsOnSpan) {
+				m_jobManager.AddDependencies(jobHandle, dependsOnSpan);
+			}
+
+			//! Creates a job system job from \param job.
+			//! \warning Must be used from the main thread.
+			//! \return Job handle of the scheduled job.
+			JobHandle CreateJob(const Job& job) {
+				GAIA_ASSERT(IsMainThread());
+
+				// Don't add new jobs once stop was requested
+				if GAIA_UNLIKELY (m_stop)
+					return JobNull;
+
+				++m_jobsPending;
+
+				return m_jobManager.AllocateJob(job);
+			}
+
+			//! Pushes \param jobHandle into the internal queue so worker threads
+			//! can pick it up and execute it.
+			//! If there are more jobs than the queue can handle it puts the calling
+			//! thread to sleep until workers consume enough jobs.
+			//! \warning Once submited, dependencies can't be modified for this job.
+			void Submit(JobHandle jobHandle) {
+				m_jobManager.Submit(jobHandle);
+
+				// Try pushing a new job until it we succeed.
+				// The thread is put to sleep if pushing the jobs fails.
+				while (!m_jobQueue.TryPush(jobHandle))
+					Poll();
+
+				// Wake some worker thread
+				m_cv.notify_one();
+			}
+
+		private:
+			//! Resubmits \param jobHandle into the internal queue so worker threads
+			//! can pick it up and execute it.
+			//! If there are more jobs than the queue can handle it puts the calling
+			//! thread to sleep until workers consume enough jobs.
+			//! \warning Internal usage only. Only worker theads can decide to resubmit.
+			void ReSubmit(JobHandle jobHandle) {
+				m_jobManager.ReSubmit(jobHandle);
+
+				// Try pushing a new job until it we succeed.
+				// The thread is put to sleep if pushing the jobs fails.
+				while (!m_jobQueue.TryPush(jobHandle))
+					Poll();
+
+				// Wake some worker thread
+				m_cv.notify_one();
+			}
+
+		public:
 			//! Schedules a job to run on a worker thread.
-			//! \warning Must be used form the main thread.
+			//! \param job Job descriptor
+			//! \warning Must be used from the main thread.
+			//! \warning Dependencies can't be modified for this job.
 			//! \return Job handle of the scheduled job.
 			JobHandle Schedule(const Job& job) {
-				GAIA_ASSERT(VerifyMainThread());
-
-				// Don't add new jobs once stop was requested
-				if GAIA_UNLIKELY (m_stop)
-					return JobNull;
-
-				++m_jobsPending;
-
-				JobHandle jobHandle = m_jobManager.AllocateJob(job);
+				JobHandle jobHandle = CreateJob(job);
 				Submit(jobHandle);
 				return jobHandle;
 			}
 
-#if GAIA_ENABLE_JOB_DEPENDENCIES
 			//! Schedules a job to run on a worker thread.
-			//! \warning Must be used form the main thread.
+			//! \param job Job descriptor
+			//! \param dependsOn Job we depend on
+			//! \warning Must be used from the main thread.
+			//! \warning Dependencies can't be modified for this job.
 			//! \return Job handle of the scheduled job.
 			JobHandle Schedule(const Job& job, JobHandle dependsOn) {
-				GAIA_ASSERT(VerifyMainThread());
-
-				// Don't add new jobs once stop was requested
-				if GAIA_UNLIKELY (m_stop)
-					return JobNull;
-
-				++m_jobsPending;
-
-				JobHandle jobHandle = m_jobManager.AllocateJob(job);
-				m_jobManager.AddDependency(jobHandle, dependsOn);
+				JobHandle jobHandle = CreateJob(job);
+				AddDependency(jobHandle, dependsOn);
 				Submit(jobHandle);
 				return jobHandle;
 			}
 
 			//! Schedules a job to run on a worker thread.
-			//! \warning Must be used form the main thread.
+			//! \param job Job descriptor
+			//! \param dependsOnSpan Jobs we depend on
+			//! \warning Must be used from the main thread.
+			//! \warning Dependencies can't be modified for this job.
 			//! \return Job handle of the scheduled job.
 			JobHandle Schedule(const Job& job, std::span<const JobHandle> dependsOnSpan) {
-				GAIA_ASSERT(VerifyMainThread());
-
-				// Don't add new jobs once stop was requested
-				if GAIA_UNLIKELY (m_stop)
-					return JobNull;
-
-				++m_jobsPending;
-
-				JobHandle jobHandle = m_jobManager.AllocateJob(job);
-				m_jobManager.AddDependencies(jobHandle, dependsOnSpan);
+				JobHandle jobHandle = CreateJob(job);
+				AddDependencies(jobHandle, dependsOnSpan);
 				Submit(jobHandle);
 				return jobHandle;
 			}
-#endif
 
 			//! Schedules a job to run on worker threads in parallel.
-			//! \warning Must be used form the main thread.
+			//! \param job Job descriptor
+			//! \param itemsToProcess Total number of work items
+			//! \param groupSize Group size per created job. If zero the job system decides the group size.
+			//! \warning Must be used from the main thread.
+			//! \warning Dependencies can't be modified for this job.
+			//! \return Job handle of the scheduled batch of jobs.
 			JobHandle ScheduleParallel(const JobParallel& job, uint32_t itemsToProcess, uint32_t groupSize) {
-				GAIA_ASSERT(VerifyMainThread());
+				GAIA_ASSERT(IsMainThread());
 
 				// Empty data set are considered wrong inputs
 				GAIA_ASSERT(itemsToProcess != 0);
@@ -172,9 +226,7 @@ namespace gaia {
 				// Internal jobs + 1 for the groupHandle
 				m_jobsPending += (jobs + 1U);
 
-#if GAIA_ENABLE_JOB_DEPENDENCIES
 				JobHandle groupHandle = m_jobManager.AllocateJob({});
-#endif
 
 				for (uint32_t jobIndex = 0; jobIndex < jobs; ++jobIndex) {
 					// Create one job per group
@@ -191,43 +243,37 @@ namespace gaia {
 					};
 
 					JobHandle jobHandle = m_jobManager.AllocateJob({groupJobFunc});
-#if GAIA_ENABLE_JOB_DEPENDENCIES
-					m_jobManager.AddDependency(groupHandle, jobHandle);
-#endif
+					AddDependency(groupHandle, jobHandle);
 					Submit(jobHandle);
 				}
 
-#if GAIA_ENABLE_JOB_DEPENDENCIES
 				Submit(groupHandle);
 				return groupHandle;
-#else
-				return JobNull;
-#endif
 			}
 
 			//! Wait for the job to finish.
 			//! \param jobHandle Job handle
-			//! \warning Must be used form the main thread.
+			//! \warning Must be used from the main thread.
 			void Complete(JobHandle jobHandle) {
-				GAIA_ASSERT(VerifyMainThread());
+				GAIA_ASSERT(IsMainThread());
 
 				while (m_jobManager.IsBusy(jobHandle))
 					Poll();
 
 				GAIA_ASSERT(!m_jobManager.IsBusy(jobHandle));
-				m_jobManager.DeallocateJob(jobHandle);
+				m_jobManager.Complete(jobHandle);
 			}
 
 			//! Wait for all jobs to finish.
-			//! \warning Must be used form the main thread.
+			//! \warning Must be used from the main thread.
 			void CompleteAll() {
-				GAIA_ASSERT(VerifyMainThread());
+				GAIA_ASSERT(IsMainThread());
 
 				while (IsBusy())
 					PollAll();
 
 				GAIA_ASSERT(m_jobsPending == 0);
-				m_jobManager.DeallocateAllJobs();
+				m_jobManager.Reset();
 			}
 
 		private:
@@ -281,7 +327,7 @@ namespace gaia {
 #endif
 			}
 
-			GAIA_NODISCARD bool VerifyMainThread() const {
+			GAIA_NODISCARD bool IsMainThread() const {
 				return std::this_thread::get_id() == m_mainThreadId;
 			}
 
@@ -308,15 +354,13 @@ namespace gaia {
 
 					GAIA_ASSERT(m_jobsPending > 0);
 
-#if GAIA_ENABLE_JOB_DEPENDENCIES
 					// Make sure we can execute the job.
 					// If it has dependencies which were not completed we need to reschedule
 					// and come back to it later.
 					if (!m_jobManager.HandleDependencies(jobHandle)) {
-						Submit(jobHandle);
+						ReSubmit(jobHandle);
 						continue;
 					}
-#endif
 
 					m_jobManager.Run(jobHandle);
 					--m_jobsPending;
@@ -333,18 +377,6 @@ namespace gaia {
 				// Join threads with the main one
 				for (auto& w: m_workers)
 					w.join();
-			}
-
-			void Submit(JobHandle jobHandle) {
-				m_jobManager.Submit(jobHandle);
-
-				// Try pushing a new job until it we succeed.
-				// The thread is put to sleep if pushing the jobs fails.
-				while (!m_jobQueue.TryPush(jobHandle))
-					Poll();
-
-				// Wake some worker thread
-				m_cv.notify_one();
 			}
 
 			//! Checks whether workers are busy doing work.
