@@ -481,10 +481,8 @@ namespace gaia {
 				return {index, m_entities[index].gen};
 			}
 
-			/*!
-			Deallocates a new entity.
-			\param entityToDelete Entity to delete
-			*/
+			//! Invalidates \param entityToDelete by resetting its index in the entity pool.
+			//! Everytime an entity is deallocated its generation is increased by one.
 			void DeallocateEntity(Entity entityToDelete) {
 				auto& entityContainer = m_entities[entityToDelete.id()];
 				entityContainer.pChunk = nullptr;

@@ -2565,4 +2565,44 @@ TEST_CASE("Multithreading - Complete") {
 	}
 }
 
+TEST_CASE("Multithreading - CompleteMany") {
+	auto& tp = mt::ThreadPool::Get();
+
+	constexpr uint32_t Jobs = 15000;
+	containers::sarray<uint32_t, Jobs> res;
+
+	for (uint32_t i = 0; i < res.max_size(); ++i)
+		res[i] = (uint32_t)-1;
+
+	for (uint32_t i = 0; i < Jobs; i++) {
+		mt::Job job0;
+		job0.func = [&res, i]() {
+			res[i] = i;
+		};
+		mt::Job job1;
+		job1.func = [&res, i]() {
+			res[i] *= i;
+		};
+		mt::Job job2;
+		job2.func = [&res, i]() {
+			res[i] /= i;
+		};
+		auto job0Handle = tp.CreateJob(job0);
+		auto job1Handle = tp.CreateJob(job1);
+		auto job2Handle = tp.CreateJob(job2);
+
+		tp.AddDependency(job1Handle, job0Handle);
+		tp.AddDependency(job2Handle, job1Handle);
+
+		tp.Submit(job2Handle);
+		tp.Submit(job1Handle);
+		tp.Submit(job0Handle);
+
+		tp.Complete(job2Handle);
+
+		const uint32_t result = res[i];
+		REQUIRE(result == i);
+	}
+}
+
 //------------------------------------------------------------------------------
