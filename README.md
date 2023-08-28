@@ -51,6 +51,7 @@ Gaia-ECS is a fast and easy-to-use [ECS](#ecs) framework. Some of its current fe
   * [Chunk components](#chunk-components)
   * [Delayed execution](#delayed-execution)
   * [Data layouts](#data-layouts)
+  * [Multithreading](#multithreading)
 * [Requirements](#requirements)
   * [Compiler](#compiler)
   * [Dependencies](#dependencies)
@@ -85,10 +86,10 @@ Three building blocks of ECS are:
 * **System** - a place where your program's logic is implemented
 
 Following the example given above, a vehicle could be anything with Position and Velocity components. If it is a car we could attach the Driving component to it. If it is an airplane we would attach the Flying component.<br/>
-The actual movement is handled by systems. Those which match against the Flying component will implement the logic for flying. Systems matching against the Driving component handle the land movement.
+The actual movement is handled by systems. Those that match against the Flying component will implement the logic for flying. Systems matching against the Driving component handle the land movement.
 
 ## Implementation
-Gaia-ECS is an archetype-based entity component system. This means that unique combinations of components are grouped into archetypes. Each archetype consists of chunks - blocks of memory holding your entities and components. You can think of them as [database tables](https://en.wikipedia.org/wiki/Table_(database)) where components are columns and entities are rows. Each chunk is 16 KiB big. This size is chosen so that the entire chunk at its fullest can fit into L1 cache on most CPUs.
+Gaia-ECS is an archetype-based entity component system. This means that unique combinations of components are grouped into archetypes. Each archetype consists of chunks - blocks of memory holding your entities and components. You can think of them as [database tables](https://en.wikipedia.org/wiki/Table_(database)) where components are columns and entities are rows. Each chunk is 16 KiB big. This size is chosen so that the entire chunk at its fullest can fit into the L1 cache on most CPUs.
 >**NOTE:**<br/>If needed you can alter the size of chunks by modifying the value of ***ecs::MemoryBlockSize***.
 
 Chunk memory is preallocated in big blocks (pages) via the internal chunk allocator. Thanks to that all data is organized in a cache-friendly way which most computer architectures like and actual heap allocations which are slow are reduced to a minimum.
@@ -104,7 +105,7 @@ The main benefits of archetype-based architecture are fast iteration and good me
 
 The entire framework is placed in a namespace called **gaia**.
 The ECS part of the library is found under **gaia::ecs** namespace.<br/>
-In the code examples below we will assume we are inside the gaia namespace.
+In the code examples below we will assume we are inside the namespace already.
 
 ## Basic operations
 ### Create or delete entity
@@ -199,7 +200,7 @@ q.ForEach([&](ecs::Iterator iter){
 
 ## Data processing
 ### Query
-For querying data you can use a Query. It can help you find all entities, components or chunks matching the specified set of components and constraints and iterate it or returns in the form of an array. You can also use them to quickly check if any entities satisfying your requirements exist or calculate how many of them there are.
+For querying data you can use a Query. It can help you find all entities, components or chunks matching the specified set of components and constraints and iterate or return them in the form of an array. You can also use them to quickly check if any entities satisfying your requirements exist or calculate how many of them there are.
 
 >**NOTE:**<br/>Every Query creates a cache internally. Therefore, the first usage is a little bit slower than the subsequent usage is going to be. You likely use the same query multiple times in your program, often without noticing. Because of that, caching becomes useful as it avoids wasting memory and performance when finding matches.
 
@@ -339,7 +340,7 @@ q.ForEach([&](Position& p, const Velocity& v) {
 >**NOTE:**<br/>If there are 100 Position components in the chunk and only one them changes, the other 99 are considered changed as well. This chunk-wide behavior might seem counter-intuitive but it is in fact a performance optimization. The reason why this works is because it is easier to reason about a group of entities than checking each of them separately.
 
 ## Chunk components
-A chunk component is a special kind of data that exists at most once per chunk. In different words, you attach data to one chunk specifically. It survives entity removals and unlike generic components, they do not transfer to a new chunk along with their entity.
+A chunk component is a special kind of data that exists at most once per chunk. In other words, you attach data to one chunk specifically. It survives entity removals and unlike generic components, they do not transfer to a new chunk along with their entity.
 
 If you organize your data with care (which you should) this can save you some very precious memory or performance depending on your use case.
 
@@ -389,7 +390,7 @@ However, in specific cases, you might want to consider organizing your component
 static constexpr auto Layout = utils::DataLayout::SoA
 ```
 
-Using the example above this will make Gaia-ECS treat Position components like this in memory: xxxx yyyy zzzz.
+Using the example above will make Gaia-ECS treat Position components like this in memory: xxxx yyyy zzzz.
 
 If used correctly this can have vast performance implications. Not only do you organize your data in the most cache-friendly way this usually also means you can simplify your loops which in turn allows the compiler to optimize your code better.
 
@@ -440,6 +441,132 @@ q.ForEach([](ecs::Iterator iter) {
   // Handle z coordinates
   exec(pz.data(), vz.data(), iter.size());
 });
+```
+## Multithreading
+To fully utilize your system's potential Gaia-ECS allows you to spread your tasks into multiple threads. This can be achieved in multiple ways.
+
+Tasks that can not be split into multiple parts or it does not make sense for them to be split can use ***Schedule***. It registers a job in the job system and immediately submits it so worker threads can pick it up:
+```cpp
+...
+mt::Job job0 {[]() {
+  InitializeScriptEngine();
+}};
+mt::Job job1 {[]() {
+  InitializeAudioEngine();
+}};
+
+// Schedule jobs for parallel execution
+mt::JobHandle jobHandle0 = tp.Schedule(job0);
+mt::JobHandle jobHandle1 = tp.Schedule(job1);
+
+// Wait for jobs to complete
+tp.Complete(jobHandle0);
+tp.Complete(jobHandle1);
+...
+```
+
+>**NOTE:<br/>**
+It is important to call ***Complete*** for each scheduled ***JobHandle*** because it also performs cleanup.
+
+Instead of waiting for each job separately, we can also wait for all jobs to be completed using ***CompleteAll***. This however introduces a hard sync point so it should be used with caution. Ideally, you would want to schedule many jobs and have zero sync points. In most, cases this will not ever happen and at least some sync points are going to be introduced. For instance, before any character can move in the game, all physics calculations will need to be finished.
+```cpp
+...
+// Wait for all jobs to complete
+tp.CompleteAll();
+...
+```
+
+When crunching larger data sets it is often beneficial to split the load among threads automatically. This is what ***ScheduleParallel*** is for. 
+
+```cpp
+static uint32_t SumNumbers(std::span<const uint32_t> arr) {
+	uint32_t sum = 0;
+	for (uint32_t i = 0; i < arr.size(); ++i)
+		sum += arr[i];
+	return sum;
+}
+
+...
+constexpr uint32_t N = 1'000'000;
+containers::darray<uint32_t> arr;
+__fill_arr_with_N_values__();
+
+std::atomic_uint32_t sum = 0;
+mt::JobParallel job {[&arr, &sum](const mt::JobArgs& args) {
+  sum += SumNumbers({arr.data() + args.idxStart, args.idxEnd - args.idxStart});
+  }};
+
+// Schedule multiple jobs to run in paralell. Make each job process up to 1234 items.
+mt::JobHandle jobHandle = tp.ScheduleParallel(job, N, 1234);
+// Alternatively, we can tell the job system to figure out the group size on its own by simply omitting the group size or using 0:
+// mt::JobHandle jobHandle = tp.ScheduleParallel(job, N);
+// mt::JobHandle jobHandle = tp.ScheduleParallel(job, N, 0);
+
+// Wait for jobs to complete
+tp.Complete(jobHandle);
+
+// Use the result
+GAIA_LOG("Sum: %u\n", sum);
+...
+```
+
+A similar result can be achieved via ***Schedule***. It is a bit more complicated because we need to handle workload splitting ourselves. The most compact (and least efficient) version would look something like this:
+
+```cpp
+...
+constexpr uint32_t ItemsPerJob = 1234;
+constexpr uint32_t Jobs = (N + ItemsPerJob - 1) / ItemsPerJob;
+std::atomic_uint32_t sum = 0;
+for (uint32_t i = 0; i < Jobs; i++) {
+  mt::Job job {[&arr, &sum, i, ItemsPerJob, func]() {
+    const auto idxStart = i * ItemsPerJob;
+    const auto idxEnd = std::min((i + 1) * ItemsPerJob, N);
+    sum += SumNumbers({arr.data() + idxStart, idxEnd - idxStart});
+  }};
+  tp.Schedule(job);
+}
+// Wait for all previous tasks to complete
+tp.CompleteAll();
+...
+```
+
+Sometimes we need to wait for the result of another operation before we can proceed. To achieve this we need to use low-level API and handle job registration and submitting jobs on our own.
+>**NOTE:<br/>** 
+This is because once submitted we can not modify the job anymore. If we could, dependencies would not necessary be adhered to. Let us say there is a job A depending on job B. If job A is submitted before creating the dependency, a worker thread could execute the job before the dependency is created. As a result, the dependency would not be respected and job A would be free to finish before job B.
+
+```cpp
+...
+mt::Job job0;
+job0.func = [&arr, i]() {
+  arr[i] = i;
+};
+mt::Job job1;
+job1.func = [&arr, i]() {
+  arr[i] *= i;
+};
+mt::Job job2;
+job2.func = [&arr, i]() {
+  arr[i] /= i;
+};
+
+// Register our jobs in the job system
+auto job0Handle = tp.CreateJob(job0);
+auto job1Handle = tp.CreateJob(job1);
+auto job2Handle = tp.CreateJob(job2);
+
+// Create dependencies
+tp.AddDependency(job1Handle, job0Handle);
+tp.AddDependency(job2Handle, job1Handle);
+
+// Submit jobs so worker threads can pick them up. The order in which jobs are submitted does not matter.
+tp.Submit(job2Handle);
+tp.Submit(job1Handle);
+tp.Submit(job0Handle);
+
+// Wait for the last job to complete.
+// Calling Complete for dependencies is not necessary because it will be done internally.
+tp.Complete(job2Handle);
+...
 ```
 
 # Requirements
@@ -507,7 +634,7 @@ Parameter | Description
 
 ### Sanitizers
 Possible options are listed in [cmake/sanitizers.cmake](https://github.com/richardbiely/gaia-ecs/blob/main/cmake/sanitizers.cmake).<br/>
-Note, some options don't work together or might not be supported by all compilers.
+Note, that some options don't work together or might not be supported by all compilers.
 ```bash
 cmake -DCMAKE_BUILD_TYPE=Release -DUSE_SANITIZER=address -S . -B "build"
 ```
@@ -515,7 +642,7 @@ cmake -DCMAKE_BUILD_TYPE=Release -DUSE_SANITIZER=address -S . -B "build"
 ### Single-header
 Gaia-ECS is shipped also as a [single header file](https://github.com/richardbiely/gaia-ecs/blob/main/single_include/gaia.h) which you can simply drop into your project and start using. To generate the header we use a wonderful Python tool [Quom](https://github.com/Viatorus/quom).
 
-In order to generate the header use the following command inside your root directory.
+To generate the header use the following command inside your root directory.
 ```bash
 quom ./include/gaia.h ./single_include/gaia.h -I ./include
 ```
@@ -538,7 +665,7 @@ Project name | Description
 [Roguelike](https://github.com/richardbiely/gaia-ecs/tree/main/src/examples/example_roguelike)|Roguelike game putting all parts of the framework to use and represents a complex example of how everything would be used in practice. It is work-in-progress and changes and evolves with the project.
 
 ## Benchmarks
-To be able to reason about the project's performance benchmarks and prevent regression benchmarks were created.
+To be able to reason about the project's performance and prevent regressions benchmarks were created.
 
 Benchmarking relies on a modified [picobench](https://github.com/iboB/picobench). It can be controlled via -DGAIA_BUILD_BENCHMARK=ON/OFF when configuring the project (OFF by default).
 
@@ -547,6 +674,7 @@ Project name | Description
 [Duel](https://github.com/richardbiely/gaia-ecs/tree/main/src/perf/duel)|Compares different coding approaches such as the basic model with uncontrolled OOP with data all-over-the heap, OOP where allocators are used to controlling memory fragmentation and different ways of data-oriented design and it puts them to test against our ECS framework itself. DOD performance is the target level we want to reach or at least be as close as possible to with this project because it does not get any faster than that.
 [Iteration](https://github.com/richardbiely/gaia-ecs/tree/main/src/perf/iter)|Covers iteration performance with different numbers of entities and archetypes.
 [Entity](https://github.com/richardbiely/gaia-ecs/tree/main/src/perf/entity)|Focuses on performance of creating and removing entities and components of various sizes.
+[Multithreading](https://github.com/richardbiely/gaia-ecs/tree/main/src/perf/mt)|Measures performance of the job system.
 
 ## Profiling
 It is possible to measure the performance and memory usage of the framework via any 3rd party tool. However, support for [Tracy](https://github.com/wolfpld/tracy) is added by default.
@@ -559,7 +687,7 @@ Building the profiler server can be controlled via -DGAIA_PROF_CPU=ON (OFF by de
 >**NOTE:<br/>** This is a low-level feature mostly targeted for maintainers. However, if paired with your own profiler code it can become a very helpful tool.
 
 ## Unit testing
-The project is thoroughly unit-tested and includes thousand of unit tests covering essentially every feature of the framework. Benchmarking relies on a modified [picobench](https://github.com/iboB/picobench).
+The project is thoroughly unit-tested and includes thousands of unit tests covering essentially every feature of the framework. Benchmarking relies on a modified [picobench](https://github.com/iboB/picobench).
 
 It can be controlled via -DGAIA_BUILD_UNITTEST=ON/OFF (OFF by default).
 
@@ -569,7 +697,7 @@ Among the most prominent ones are:
 * scheduler - a system that would allow parallel execution of all systems by default, work-stealing, and an easy setup of dependencies
 * scenes - a way to serialize the state of chunks or entire worlds
 * scripting - expose low-level structures of the framework so it can be implemented by various other languages including scripting ones
-* debugger - an editor that would give one an overview of worlds created by the framework (number of entities, chunk fragmentation, systems running, etc.)
+* debugger - an editor that would give one an overview of worlds created by the framework (number of entities, chunk fragmentation, systems running, etc)
 
 # Contributions
 
