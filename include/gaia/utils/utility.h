@@ -185,7 +185,10 @@ namespace gaia {
 		namespace detail {
 			template <typename Func, auto... Is>
 			constexpr void for_each_impl(Func func, std::index_sequence<Is...> /*no_name*/) {
-				(func(std::integral_constant<decltype(Is), Is>{}), ...);
+				if constexpr ((std::is_invocable_v<Func&&, std::integral_constant<decltype(Is), Is>> && ...))
+					(func(std::integral_constant<decltype(Is), Is>{}), ...);
+				else
+					(((void)Is, func()), ...);
 			}
 
 			template <typename Tuple, typename Func, auto... Is>
@@ -200,30 +203,45 @@ namespace gaia {
 
 		//! Compile-time for loop. Performs \tparam Iters iterations.
 		//!
-		//! Example:
+		//! Example 1 (index argument):
 		//! sarray<int, 10> arr = { ... };
 		//! for_each<arr.size()>([&arr](auto i) {
-		//!    std::cout << arr[i] << std::endl;
+		//!    GAIA_LOG_N("%d\n", i);
+		//! });
+		//!
+		//! Example 2 (no index argument):
+		//! uint32_t cnt = 0;
+		//! for_each<10>([&cnt]() {
+		//!    GAIA_LOG_N("Invocation number: %u\n", cnt++);
 		//! });
 		template <auto Iters, typename Func>
 		constexpr void for_each(Func func) {
 			detail::for_each_impl(func, std::make_index_sequence<Iters>());
 		}
 
-		//! Compile-time for loop over containers.
+		//! Compile-time for loop with adjustable range and iteration size.
 		//! Iteration starts at \tparam FirstIdx and end at \tparam LastIdx
 		//! (excluding) in increments of \tparam Inc.
 		//!
-		//! Example:
+		//! Example 1 (index argument):
 		//! sarray<int, 10> arr;
-		//! for_each_ext<0, 10, 1>([&arr](auto i) {
-		//!    std::cout << arr[i] << std::endl;
+		//! for_each_ext<0, 10, 2>([&arr](auto i) {
+		//!    GAIA_LOG_N("%d\n", i);
 		//! });
-		//! print(69, "likes", 420.0f);
+		//!
+		//! Example 2 (no argument):
+		//! uint32_t cnt = 0;
+		//! for_each_ext<0, 10, 2>([&cnt]() {
+		//!    GAIA_LOG_N("Invocation number: %u\n", cnt++);
+		//! });
 		template <auto FirstIdx, auto LastIdx, auto Inc, typename Func>
 		constexpr void for_each_ext(Func func) {
 			if constexpr (FirstIdx < LastIdx) {
-				func(std::integral_constant<decltype(FirstIdx), FirstIdx>());
+				if constexpr (std::is_invocable_v<Func&&, std::integral_constant<decltype(FirstIdx), FirstIdx>>)
+					func(std::integral_constant<decltype(FirstIdx), FirstIdx>());
+				else
+					func();
+
 				for_each_ext<FirstIdx + Inc, LastIdx, Inc>(func);
 			}
 		}

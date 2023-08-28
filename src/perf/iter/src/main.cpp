@@ -4,7 +4,7 @@
 
 using namespace gaia;
 
-constexpr size_t NEntities = 1'000;
+constexpr size_t EntitiesPerArchetype = 1'000;
 
 template <size_t Version, typename T, size_t TCount>
 struct Component {
@@ -31,58 +31,56 @@ constexpr void AddComponents(ecs::World& w, uint32_t n) {
 	}
 }
 
-constexpr size_t EntitiesForArchetype = 1'000;
-
 void Create_Archetypes_1(ecs::World& w) {
-	AddComponents<float, 3, 1>(w, EntitiesForArchetype);
+	AddComponents<float, 3, 1>(w, EntitiesPerArchetype);
 }
 
 void Create_Archetypes_100(ecs::World& w) {
 	utils::for_each<4>([&](auto i) {
-		AddComponents<float, i, 25>(w, EntitiesForArchetype);
+		AddComponents<float, i, 25>(w, EntitiesPerArchetype);
 	});
 }
 
 template <size_t N, size_t ComponentCount>
 void Create_Archetypes_N(ecs::World& w) {
 	utils::for_each<N>([&](auto i) {
-		AddComponents<bool, i, ComponentCount>(w, EntitiesForArchetype);
+		AddComponents<bool, i, ComponentCount>(w, EntitiesPerArchetype);
 	});
 	//-----------------------------------------
 	utils::for_each<N>([&](auto i) {
-		AddComponents<int8_t, i, ComponentCount>(w, EntitiesForArchetype);
+		AddComponents<int8_t, i, ComponentCount>(w, EntitiesPerArchetype);
 	});
 	//-----------------------------------------
 	utils::for_each<N>([&](auto i) {
-		AddComponents<uint8_t, i, ComponentCount>(w, EntitiesForArchetype);
+		AddComponents<uint8_t, i, ComponentCount>(w, EntitiesPerArchetype);
 	});
 	//-----------------------------------------
 	utils::for_each<N>([&](auto i) {
-		AddComponents<int16_t, i, ComponentCount>(w, EntitiesForArchetype);
+		AddComponents<int16_t, i, ComponentCount>(w, EntitiesPerArchetype);
 	});
 	//-----------------------------------------
 	utils::for_each<N>([&](auto i) {
-		AddComponents<uint16_t, i, ComponentCount>(w, EntitiesForArchetype);
+		AddComponents<uint16_t, i, ComponentCount>(w, EntitiesPerArchetype);
 	});
 	//-----------------------------------------
 	utils::for_each<N>([&](auto i) {
-		AddComponents<int32_t, i, ComponentCount>(w, EntitiesForArchetype);
+		AddComponents<int32_t, i, ComponentCount>(w, EntitiesPerArchetype);
 	});
 	//-----------------------------------------
 	utils::for_each<N>([&](auto i) {
-		AddComponents<uint32_t, i, ComponentCount>(w, EntitiesForArchetype);
+		AddComponents<uint32_t, i, ComponentCount>(w, EntitiesPerArchetype);
 	});
 	//-----------------------------------------
 	utils::for_each<N>([&](auto i) {
-		AddComponents<int64_t, i, ComponentCount>(w, EntitiesForArchetype);
+		AddComponents<int64_t, i, ComponentCount>(w, EntitiesPerArchetype);
 	});
 	//-----------------------------------------
 	utils::for_each<N>([&](auto i) {
-		AddComponents<uint64_t, i, ComponentCount>(w, EntitiesForArchetype);
+		AddComponents<uint64_t, i, ComponentCount>(w, EntitiesPerArchetype);
 	});
 	//-----------------------------------------
 	utils::for_each<N>([&](auto i) {
-		AddComponents<float, i, ComponentCount>(w, EntitiesForArchetype);
+		AddComponents<float, i, ComponentCount>(w, EntitiesPerArchetype);
 	});
 }
 

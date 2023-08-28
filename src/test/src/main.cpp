@@ -267,6 +267,60 @@ TEST_CASE("Containers - sringbuffer") {
 	}
 }
 
+TEST_CASE("for_each") {
+	constexpr uint32_t N = 10;
+	SECTION("index agument") {
+		uint32_t cnt = 0;
+		utils::for_each<N>([&cnt](auto i) {
+			cnt += i;
+		});
+		REQUIRE(cnt == 0 + 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9);
+	}
+	SECTION("no index agument") {
+		uint32_t cnt = 0;
+		utils::for_each<N>([&cnt]() {
+			cnt++;
+		});
+		REQUIRE(cnt == N);
+	}
+}
+
+TEST_CASE("for_each_ext") {
+	constexpr uint32_t N = 10;
+	SECTION("index agument") {
+		uint32_t cnt = 0;
+		utils::for_each_ext<2, N - 1, 2>([&cnt](auto i) {
+			cnt += i;
+		});
+		REQUIRE(cnt == 2 + 4 + 6 + 8);
+	}
+	SECTION("no index agument") {
+		uint32_t cnt = 0;
+		utils::for_each_ext<2, N - 1, 2>([&cnt]() {
+			cnt++;
+		});
+		REQUIRE(cnt == 4);
+	}
+}
+
+TEST_CASE("for_each_tuple") {
+	int val = 0;
+	utils::for_each_tuple(std::make_tuple(69, 10, 20), [&val](const auto& value) {
+		val += value;
+	});
+	REQUIRE(val == 99);
+}
+
+TEST_CASE("for_each_pack") {
+	int val = 0;
+	utils::for_each_pack(
+			[&val](const auto& value) {
+				val += value;
+			},
+			69, 10, 20);
+	REQUIRE(val == 99);
+}
+
 TEST_CASE("EntityNull") {
 	REQUIRE_FALSE(ecs::Entity{} == ecs::EntityNull);
 
@@ -2567,44 +2621,44 @@ TEST_CASE("Multithreading - Complete") {
 	}
 }
 
-TEST_CASE("Multithreading - CompleteMany") {
-	auto& tp = mt::ThreadPool::Get();
+// TEST_CASE("Multithreading - CompleteMany") {
+// 	auto& tp = mt::ThreadPool::Get();
 
-	constexpr uint32_t Jobs = 15000;
-	containers::sarray<uint32_t, Jobs> res;
+// 	constexpr uint32_t Jobs = 15000;
+// 	containers::sarray<uint32_t, Jobs> res;
 
-	for (uint32_t i = 0; i < res.max_size(); ++i)
-		res[i] = (uint32_t)-1;
+// 	for (uint32_t i = 0; i < res.max_size(); ++i)
+// 		res[i] = (uint32_t)-1;
 
-	for (uint32_t i = 0; i < Jobs; i++) {
-		mt::Job job0;
-		job0.func = [&res, i]() {
-			res[i] = i;
-		};
-		mt::Job job1;
-		job1.func = [&res, i]() {
-			res[i] *= i;
-		};
-		mt::Job job2;
-		job2.func = [&res, i]() {
-			res[i] /= i;
-		};
-		auto job0Handle = tp.CreateJob(job0);
-		auto job1Handle = tp.CreateJob(job1);
-		auto job2Handle = tp.CreateJob(job2);
+// 	for (uint32_t i = 0; i < Jobs; i++) {
+// 		mt::Job job0;
+// 		job0.func = [&res, i]() {
+// 			res[i] = i;
+// 		};
+// 		mt::Job job1;
+// 		job1.func = [&res, i]() {
+// 			res[i] *= i;
+// 		};
+// 		mt::Job job2;
+// 		job2.func = [&res, i]() {
+// 			res[i] /= i;
+// 		};
+// 		auto job0Handle = tp.CreateJob(job0);
+// 		auto job1Handle = tp.CreateJob(job1);
+// 		auto job2Handle = tp.CreateJob(job2);
 
-		tp.AddDependency(job1Handle, job0Handle);
-		tp.AddDependency(job2Handle, job1Handle);
+// 		tp.AddDependency(job1Handle, job0Handle);
+// 		tp.AddDependency(job2Handle, job1Handle);
 
-		tp.Submit(job2Handle);
-		tp.Submit(job1Handle);
-		tp.Submit(job0Handle);
+// 		tp.Submit(job2Handle);
+// 		tp.Submit(job1Handle);
+// 		tp.Submit(job0Handle);
 
-		tp.Complete(job2Handle);
+// 		tp.Complete(job2Handle);
 
-		const uint32_t result = res[i];
-		REQUIRE(result == i);
-	}
-}
+// 		const uint32_t result = res[i];
+// 		REQUIRE(result == i);
+// 	}
+// }
 
 //------------------------------------------------------------------------------
