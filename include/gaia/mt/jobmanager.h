@@ -6,6 +6,7 @@
 
 #include "../config/config_core.h"
 #include "../containers/darray.h"
+#include "../containers/implicitlist.h"
 #include "../containers/sarray.h"
 #include "../utils/span.h"
 #include "jobcommon.h"
@@ -27,18 +28,13 @@ namespace gaia {
 			Busy = Submitted | Running,
 		};
 
-		struct ImplicitListItem {
-			uint32_t idx;
-			uint32_t gen;
-		};
-
-		struct JobContainer: ImplicitListItem {
+		struct JobContainer: containers::ImplicitListItem {
 			uint32_t dependencyIdx;
 			JobInternalState state;
 			std::function<void()> func;
 		};
 
-		struct JobDependency: ImplicitListItem {
+		struct JobDependency: containers::ImplicitListItem {
 			uint32_t dependencyIdxNext;
 			JobHandle dependsOn;
 		};
@@ -48,19 +44,11 @@ namespace gaia {
 		class JobManager {
 			std::mutex m_jobsLock;
 			//! Implicit list of jobs
-			containers::darray<JobContainer> m_jobs;
-			//! Index of the next job to recycle
-			uint32_t m_nextFreeJob = (uint32_t)-1;
-			//! Number of entites to recycle
-			uint32_t m_freeJobs = 0;
+			containers::ImplicitList<JobContainer, JobHandle> m_jobs;
 
 			std::mutex m_depsLock;
 			//! List of job dependencies
-			containers::darray<JobDependency> m_deps;
-			//! Index of the next depenedency to recycle
-			uint32_t m_nextFreeDep = (uint32_t)-1;
-			//! Number of entites to recycle
-			uint32_t m_freeDeps = 0;
+			containers::ImplicitList<JobDependency, DepHandle> m_deps;
 
 		public:
 			//! Cleans up any job allocations and dependicies associated with \param jobHandle
@@ -86,28 +74,13 @@ namespace gaia {
 			//! \return JobHandle
 			//! \warning Must be used from the main thread.
 			GAIA_NODISCARD JobHandle AllocateJob(const Job& job) {
-				if GAIA_UNLIKELY (!m_freeJobs) {
-					std::scoped_lock<std::mutex> lock(m_jobsLock);
-
-					const auto jobCnt = (uint32_t)m_jobs.size();
-					// We don't want to go out of range for new jobs
-					GAIA_ASSERT(jobCnt < JobHandle::IdMask && "Trying to allocate too many jobs!");
-
-					m_jobs.emplace_back(jobCnt, 0U, (uint32_t)-1, JobInternalState::Idle, job.func);
-					return {(JobId)jobCnt, 0U};
-				}
-
-				// Make sure the list is not broken
-				GAIA_ASSERT(m_nextFreeJob < (uint32_t)m_jobs.size() && "Jobs recycle list broken!");
-
-				--m_freeJobs;
-				const auto index = m_nextFreeJob;
-				auto& j = m_jobs[m_nextFreeJob];
-				m_nextFreeJob = j.idx;
+				std::scoped_lock<std::mutex> lock(m_jobsLock);
+				auto handle = m_jobs.allocate();
+				auto& j = m_jobs[handle.id()];
 				j.dependencyIdx = (uint32_t)-1;
 				j.state = JobInternalState::Idle;
 				j.func = job.func;
-				return {index, m_jobs[index].gen};
+				return handle;
 			}
 
 			//! Invalidates \param jobHandle by resetting its index in the job pool.
@@ -116,72 +89,21 @@ namespace gaia {
 			void DeallocateJob(JobHandle jobHandle) {
 				// No need to lock. Called from the main thread only when the job has finished already.
 				// --> std::scoped_lock<std::mutex> lock(m_jobsLock);
-
-				auto& jobContainer = m_jobs[jobHandle.id()];
-
-				// Nothing to deallocate when the job is unused
-				if (jobContainer.idx == JobHandle::IdMask)
-					return;
-
-				// New generation
-				const auto gen = ++jobContainer.gen;
-
-				// Update our implicit list
-				if GAIA_UNLIKELY (m_freeJobs == 0) {
-					m_nextFreeJob = jobHandle.id();
-					jobContainer.idx = JobHandle::IdMask;
-					jobContainer.gen = gen;
-				} else {
-					jobContainer.idx = m_nextFreeJob;
-					jobContainer.gen = gen;
-					m_nextFreeJob = jobHandle.id();
-				}
-				++m_freeJobs;
+				m_jobs.release(jobHandle);
 			}
 
 			//! Allocates a new dependency identified by a unique DepHandle.
 			//! \return DepHandle
 			//! \warning Must be used from the main thread.
 			GAIA_NODISCARD DepHandle AllocateDependency() {
-				if GAIA_UNLIKELY (!m_freeDeps) {
-					const auto depCnt = (uint32_t)m_deps.size();
-					// We don't want to go out of range for new dependencies
-					GAIA_ASSERT(depCnt < JobHandle::IdMask && "Trying to allocate too many dependencies!");
-
-					m_deps.emplace_back(depCnt, 0U);
-					return {(JobId)depCnt, 0U};
-				}
-
-				// Make sure the list is not broken
-				GAIA_ASSERT(m_nextFreeDep < (uint32_t)m_deps.size() && "Dependency recycle list broken!");
-
-				--m_freeDeps;
-				const auto index = m_nextFreeDep;
-				auto& d = m_deps[m_nextFreeDep];
-				m_nextFreeDep = d.idx;
-				return {index, m_deps[index].gen};
+				return m_deps.allocate();
 			}
 
 			//! Invalidates \param depHandle by resetting its index in the dependency pool.
 			//! Everytime a dependency is deallocated its generation is increased by one.
 			//! \warning Must be used from the main thread.
 			void DeallocateDependency(DepHandle depHandle) {
-				auto& dep = m_deps[depHandle.id()];
-
-				// New generation
-				const auto gen = ++dep.gen;
-
-				// Update our implicit list
-				if GAIA_UNLIKELY (m_freeDeps == 0) {
-					m_nextFreeDep = depHandle.id();
-					dep.idx = DepHandle::IdMask;
-					dep.gen = gen;
-				} else {
-					dep.idx = m_nextFreeDep;
-					dep.gen = gen;
-					m_nextFreeDep = depHandle.id();
-				}
-				++m_freeDeps;
+				m_deps.release(depHandle);
 			}
 
 			//! Resets the job pool.
@@ -190,15 +112,11 @@ namespace gaia {
 					// No need to lock. Called from the main thread only when all jobs have finished already.
 					// --> std::scoped_lock<std::mutex> lock(m_jobsLock);
 					m_jobs.clear();
-					m_nextFreeJob = (uint32_t)-1;
-					m_freeJobs = 0;
 				}
 				{
 					// No need to lock. Called from the main thread only when all jobs must have ended already.
 					// --> std::scoped_lock<std::mutex> lock(m_depsLock);
 					m_deps.clear();
-					m_nextFreeDep = (uint32_t)-1;
-					m_freeDeps = 0;
 				}
 			}
 

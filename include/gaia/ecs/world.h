@@ -6,6 +6,7 @@
 
 #include "../config/profiler.h"
 #include "../containers/darray.h"
+#include "../containers/implicitlist.h"
 #include "../containers/map.h"
 #include "../containers/sarray.h"
 #include "../containers/sarray_ext.h"
@@ -78,11 +79,7 @@ namespace gaia {
 
 			//! Implicit list of entities. Used for look-ups only when searching for
 			//! entities in chunks + data validation
-			containers::darray<EntityContainer> m_entities;
-			//! Index of the next entity to recycle
-			uint32_t m_nextFreeEntity = Entity::IdMask;
-			//! Number of entites to recycle
-			uint32_t m_freeEntities = 0;
+			containers::ImplicitList<EntityContainer, Entity> m_entities;
 
 			//! List of chunks to delete
 			containers::darray<archetype::Chunk*> m_chunksToRemove;
@@ -458,49 +455,10 @@ namespace gaia {
 				return *m_archetypes[pChunk == nullptr ? archetype::ArchetypeId(0) : pChunk->GetArchetypeId()];
 			}
 
-			/*!
-			Allocates a new entity.
-			\return Entity
-			*/
-			GAIA_NODISCARD Entity AllocateEntity() {
-				if GAIA_UNLIKELY (!m_freeEntities) {
-					const auto entityCnt = (uint32_t)m_entities.size();
-					// We don't want to go out of range for new entities
-					GAIA_ASSERT(entityCnt < Entity::IdMask && "Trying to allocate too many entities!");
-
-					m_entities.emplace_back();
-					return {(EntityId)entityCnt, 0};
-				}
-
-				// Make sure the list is not broken
-				GAIA_ASSERT(m_nextFreeEntity < m_entities.size() && "ECS recycle list broken!");
-
-				--m_freeEntities;
-				const auto index = m_nextFreeEntity;
-				m_nextFreeEntity = m_entities[m_nextFreeEntity].idx;
-				return {index, m_entities[index].gen};
-			}
-
-			//! Invalidates \param entityToDelete by resetting its index in the entity pool.
-			//! Everytime an entity is deallocated its generation is increased by one.
-			void DeallocateEntity(Entity entityToDelete) {
-				auto& entityContainer = m_entities[entityToDelete.id()];
+			//! Invalidates \param entityToDelete
+			void ReleaseEntity(Entity entityToDelete) {
+				auto& entityContainer = m_entities.release(entityToDelete);
 				entityContainer.pChunk = nullptr;
-
-				// New generation
-				const auto gen = ++entityContainer.gen;
-
-				// Update our implicit list
-				if GAIA_UNLIKELY (!m_freeEntities) {
-					m_nextFreeEntity = entityToDelete.id();
-					entityContainer.idx = Entity::IdMask;
-					entityContainer.gen = gen;
-				} else {
-					entityContainer.idx = m_nextFreeEntity;
-					entityContainer.gen = gen;
-					m_nextFreeEntity = entityToDelete.id();
-				}
-				++m_freeEntities;
 			}
 
 			/*!
@@ -555,30 +513,11 @@ namespace gaia {
 			//! Verifies than the implicit linked list of entities is valid
 			void ValidateEntityList() const {
 #if GAIA_ECS_VALIDATE_ENTITY_LIST
-				bool hasThingsToRemove = m_freeEntities > 0;
-				if (!hasThingsToRemove)
-					return;
-
-				// If there's something to remove there has to be at least one
-				// entity left
-				GAIA_ASSERT(!m_entities.empty());
-
-				auto freeEntities = m_freeEntities;
-				auto nextFreeEntity = m_nextFreeEntity;
-				while (freeEntities > 0) {
-					GAIA_ASSERT(nextFreeEntity < m_entities.size() && "ECS recycle list broken!");
-
-					nextFreeEntity = m_entities[nextFreeEntity].idx;
-					--freeEntities;
-				}
-
-				// At this point the index of the last index in list should
-				// point to -1 because that's the tail of our implicit list.
-				GAIA_ASSERT(nextFreeEntity == Entity::IdMask);
+				m_entities.validate();
 #endif
 			}
 
-			//! Verifies than the chunk is valid
+			//! Verifies that the chunk is valid
 			void ValidateChunk([[maybe_unused]] archetype::Chunk* pChunk) const {
 #if GAIA_ECS_VALIDATE_CHUNKS
 				// Note: Normally we'd go [[maybe_unused]] instead of "(void)" but MSVC
@@ -749,11 +688,7 @@ namespace gaia {
 
 			void Cleanup() {
 				// Clear entities
-				{
-					m_entities = {};
-					m_nextFreeEntity = Entity::IdMask;
-					m_freeEntities = 0;
-				}
+				m_entities.clear();
 
 				// Clear archetypes
 				{
@@ -784,7 +719,7 @@ namespace gaia {
 			\return Entity
 			*/
 			GAIA_NODISCARD Entity CreateEntity() {
-				return AllocateEntity();
+				return m_entities.allocate();
 			}
 
 			/*!
@@ -814,7 +749,7 @@ namespace gaia {
 			\param entity Entity
 			*/
 			void DeleteEntity(Entity entity) {
-				if (m_entities.empty() || entity == EntityNull)
+				if (m_entities.item_count() == 0 || entity == EntityNull)
 					return;
 
 				GAIA_ASSERT(IsEntityValid(entity));
@@ -824,15 +759,11 @@ namespace gaia {
 				// Remove entity from chunk
 				if (auto* pChunk = entityContainer.pChunk) {
 					RemoveEntity(pChunk, entityContainer.idx);
-
-					// Return entity to pool
-					DeallocateEntity(entity);
-
+					ReleaseEntity(entity);
 					ValidateChunk(pChunk);
 					ValidateEntityList();
 				} else {
-					// Return entity to pool
-					DeallocateEntity(entity);
+					ReleaseEntity(entity);
 				}
 			}
 
@@ -876,8 +807,8 @@ namespace gaia {
 			Returns the number of active entities
 			\return Entity
 			*/
-			GAIA_NODISCARD uint32_t GetEntityCount() const {
-				return (uint32_t)m_entities.size() - m_freeEntities;
+			GAIA_FORCEINLINE GAIA_NODISCARD uint32_t GetEntityCount() const {
+				return m_entities.item_count();
 			}
 
 			/*!
@@ -1197,22 +1128,22 @@ namespace gaia {
 			void DiagEntities() const {
 				ValidateEntityList();
 
-				GAIA_LOG_N("Deleted entities: %u", m_freeEntities);
-				if (m_freeEntities != 0U) {
-					GAIA_LOG_N("  --> %u", m_nextFreeEntity);
+				GAIA_LOG_N("Deleted entities: %u", m_entities.get_free_items());
+				if (m_entities.get_free_items() != 0U) {
+					GAIA_LOG_N("  --> %u", m_entities.get_next_free_item());
 
 					uint32_t iters = 0;
-					auto fe = m_entities[m_nextFreeEntity].idx;
+					auto fe = m_entities[m_entities.get_next_free_item()].idx;
 					while (fe != Entity::IdMask) {
 						GAIA_LOG_N("  --> %u", m_entities[fe].idx);
 						fe = m_entities[fe].idx;
 						++iters;
-						if ((iters == 0U) || iters > m_freeEntities) {
-							GAIA_LOG_E("  Entities recycle list contains inconsistent "
-												 "data!");
+						if (iters > m_entities.get_free_items())
 							break;
-						}
 					}
+
+					if ((iters == 0U) || iters > m_entities.get_free_items())
+						GAIA_LOG_E("  Entities recycle list contains inconsistent data!");
 				}
 			}
 

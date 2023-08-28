@@ -8427,6 +8427,174 @@ namespace gaia {
 #include <type_traits>
 
 namespace gaia {
+	namespace containers {
+		struct ImplicitListItem {
+			//! For allocated entity: Index of entity within chunk.
+			//! For deleted entity: Index of the next entity in the implicit list.
+			uint32_t idx;
+			//! Generation ID
+			uint32_t gen;
+		};
+
+		template <typename TListItem, typename TItemHandle>
+		struct ImplicitList {
+			using internal_storage = darray<TListItem>;
+			using iterator = typename internal_storage::iterator;
+			using const_iterator = typename internal_storage::const_iterator;
+
+			using iterator_category = typename internal_storage::iterator_category;
+			using value_type = TListItem;
+			using reference = TListItem&;
+			using const_reference = const TListItem&;
+			using pointer = TListItem*;
+			using const_pointer = TListItem*;
+			using difference_type = std::ptrdiff_t;
+			using size_type = uint32_t;
+
+			static_assert(std::is_base_of<ImplicitListItem, TListItem>::value);
+			//! Implicit list items
+			darray<TListItem> m_items;
+			//! Index of the next item to recycle
+			size_type m_nextFreeItem = (size_type)-1;
+			//! Number of items to recycle
+			size_type m_freeItems = 0;
+
+			GAIA_NODISCARD pointer data() noexcept {
+				return (pointer)m_items.data();
+			}
+
+			GAIA_NODISCARD const_pointer data() const noexcept {
+				return (const_pointer)m_items.data();
+			}
+
+			GAIA_NODISCARD reference operator[](size_type index) {
+				return m_items[index];
+			}
+			GAIA_NODISCARD const_reference operator[](size_type index) const {
+				return m_items[index];
+			}
+
+			void clear() {
+				m_items.clear();
+				m_nextFreeItem = (size_type)-1;
+				m_freeItems = 0;
+			}
+
+			GAIA_NODISCARD size_type get_next_free_item() const noexcept {
+				return m_nextFreeItem;
+			}
+
+			GAIA_NODISCARD size_type get_free_items() const noexcept {
+				return m_freeItems;
+			}
+
+			GAIA_NODISCARD size_type item_count() const noexcept {
+				return size() - m_freeItems;
+			}
+
+			GAIA_NODISCARD size_type size() const noexcept {
+				return (size_type)m_items.size();
+			}
+
+			GAIA_NODISCARD size_type capacity() const noexcept {
+				return (size_type)m_items.capacity();
+			}
+
+			GAIA_NODISCARD bool empty() const noexcept {
+				return size() == 0;
+			}
+
+			GAIA_NODISCARD iterator begin() const noexcept {
+				return {(pointer)m_items.data()};
+			}
+
+			GAIA_NODISCARD const_iterator cbegin() const noexcept {
+				return {(const_pointer)m_items.data()};
+			}
+
+			GAIA_NODISCARD iterator end() const noexcept {
+				return {(pointer)m_items.data() + size()};
+			}
+
+			GAIA_NODISCARD const_iterator cend() const noexcept {
+				return {(const_pointer)m_items.data() + size()};
+			}
+
+			//! Allocates a new item in the list
+			//! \return Handle to the new item
+			GAIA_NODISCARD TItemHandle allocate() {
+				if GAIA_UNLIKELY (!m_freeItems) {
+					// We don't want to go out of range for new item
+					const auto itemCnt = (size_type)m_items.size();
+					GAIA_ASSERT(itemCnt < TItemHandle::IdMask && "Trying to allocate too many items!");
+
+					m_items.emplace_back(itemCnt, 0U);
+					return {itemCnt, 0U};
+				}
+
+				// Make sure the list is not broken
+				GAIA_ASSERT(m_nextFreeItem < (size_type)m_items.size() && "Item recycle list broken!");
+
+				--m_freeItems;
+				const auto index = m_nextFreeItem;
+				auto& j = m_items[m_nextFreeItem];
+				m_nextFreeItem = j.idx;
+				return {index, m_items[index].gen};
+			}
+
+			//! Invalidates \param handle.
+			//! Everytime an item is deallocated its generation is increased by one.
+			TListItem& release(TItemHandle handle) {
+				auto& item = m_items[handle.id()];
+
+				// New generation
+				const auto gen = ++item.gen;
+
+				// Update our implicit list
+				if GAIA_UNLIKELY (m_freeItems == 0) {
+					m_nextFreeItem = handle.id();
+					item.idx = TItemHandle::IdMask;
+					item.gen = gen;
+				} else {
+					item.idx = m_nextFreeItem;
+					item.gen = gen;
+					m_nextFreeItem = handle.id();
+				}
+				++m_freeItems;
+
+				return item;
+			}
+
+			//! Verifies that the implicit linked list is valid
+			void validate() const {
+				bool hasThingsToRemove = m_freeItems > 0;
+				if (!hasThingsToRemove)
+					return;
+
+				// If there's something to remove there has to be at least one entity left
+				GAIA_ASSERT(!m_items.empty());
+
+				auto freeEntities = m_freeItems;
+				auto nextFreeEntity = m_nextFreeItem;
+				while (freeEntities > 0) {
+					GAIA_ASSERT(nextFreeEntity < m_items.size() && "Item recycle list broken!");
+
+					nextFreeEntity = m_items[nextFreeEntity].idx;
+					--freeEntities;
+				}
+
+				// At this point the index of the last item in list should
+				// point to -1 because that's the tail of our implicit list.
+				GAIA_ASSERT(nextFreeEntity == TItemHandle::IdMask);
+			}
+		};
+	} // namespace containers
+} // namespace gaia
+
+#include <cinttypes>
+#include <type_traits>
+
+namespace gaia {
 	namespace ecs {
 		using EntityInternalType = uint32_t;
 		using EntityId = EntityInternalType;
@@ -8522,20 +8690,16 @@ namespace gaia {
 		namespace archetype {
 			class Chunk;
 		}
-		
-		struct EntityContainer {
+
+		struct EntityContainer: containers::ImplicitListItem {
 			//! Chunk the entity currently resides in
 			archetype::Chunk* pChunk;
 #if !GAIA_64
 			uint32_t pChunk_padding;
 #endif
-			//! For allocated entity: Index of entity within chunk.
-			//! For deleted entity: Index of the next entity in the implicit list.
-			uint32_t idx : 31;
 			//! Tells if the entity is disabled. Borrows one bit from idx because it's unlikely to cause issues there
+			// TODO: Get rid of this bit somehow so the EntityContainer can fit within 16 bytes again.
 			uint32_t disabled : 1;
-			//! Generation ID
-			EntityGenId gen;
 		};
 	} // namespace ecs
 } // namespace gaia
@@ -8834,7 +8998,7 @@ namespace gaia {
 				/*!
 				Copies entity \param oldEntity into \param newEntity.
 				*/
-				static void CopyEntity(Entity oldEntity, Entity newEntity, containers::darray<EntityContainer>& entities) {
+				static void CopyEntity(Entity oldEntity, Entity newEntity, std::span<EntityContainer> entities) {
 					GAIA_PROF_SCOPE(CopyEntity);
 
 					auto& oldEntityContainer = entities[oldEntity.id()];
@@ -8873,7 +9037,7 @@ namespace gaia {
 				/*!
 				Copies entity \param entity into current chunk so that it is stored at index \param newEntityIdx.
 				*/
-				void CopyEntityFrom(Entity entity, uint32_t newEntityIdx, containers::darray<EntityContainer>& entities) {
+				void CopyEntityFrom(Entity entity, uint32_t newEntityIdx, std::span<EntityContainer> entities) {
 					GAIA_PROF_SCOPE(CopyEntityFrom);
 
 					auto& oldEntityContainer = entities[entity.id()];
@@ -8909,7 +9073,7 @@ namespace gaia {
 				/*!
 				Moves entity \param entity into current chunk so that it is stored at index \param newEntityIdx.
 				*/
-				void MoveEntityFrom(Entity entity, uint32_t newEntityIdx, containers::darray<EntityContainer>& entities) {
+				void MoveEntityFrom(Entity entity, uint32_t newEntityIdx, std::span<EntityContainer> entities) {
 					GAIA_PROF_SCOPE(MoveEntityFrom);
 
 					auto& oldEntityContainer = entities[entity.id()];
@@ -8966,7 +9130,7 @@ namespace gaia {
 				/*!
 				Remove the entity at \param index from the \param entities array.
 				*/
-				void RemoveEntity(uint32_t index, containers::darray<EntityContainer>& entities) {
+				void RemoveEntity(uint32_t index, std::span<EntityContainer> entities) {
 					// Ignore requests on empty chunks
 					if (!HasEntities())
 						return;
@@ -9423,7 +9587,8 @@ namespace gaia {
 					m_header.disabled = value;
 				}
 
-				GAIA_NODISCARD bool GetDisabled() const {
+				//! Checks is this chunk is disabled
+				GAIA_NODISCARD bool IsDisabled() const {
 					return m_header.disabled;
 				}
 
@@ -9454,11 +9619,6 @@ namespace gaia {
 
 				bool IsStructuralChangesLocked() const {
 					return m_header.structuralChangesLocked != 0;
-				}
-
-				//! Checks is this chunk is disabled
-				GAIA_NODISCARD bool IsDisabled() const {
-					return m_header.disabled;
 				}
 
 				//! Checks is the full capacity of the has has been reached
@@ -12518,11 +12678,7 @@ namespace gaia {
 
 			//! Implicit list of entities. Used for look-ups only when searching for
 			//! entities in chunks + data validation
-			containers::darray<EntityContainer> m_entities;
-			//! Index of the next entity to recycle
-			uint32_t m_nextFreeEntity = Entity::IdMask;
-			//! Number of entites to recycle
-			uint32_t m_freeEntities = 0;
+			containers::ImplicitList<EntityContainer, Entity> m_entities;
 
 			//! List of chunks to delete
 			containers::darray<archetype::Chunk*> m_chunksToRemove;
@@ -12898,49 +13054,10 @@ namespace gaia {
 				return *m_archetypes[pChunk == nullptr ? archetype::ArchetypeId(0) : pChunk->GetArchetypeId()];
 			}
 
-			/*!
-			Allocates a new entity.
-			\return Entity
-			*/
-			GAIA_NODISCARD Entity AllocateEntity() {
-				if GAIA_UNLIKELY (!m_freeEntities) {
-					const auto entityCnt = (uint32_t)m_entities.size();
-					// We don't want to go out of range for new entities
-					GAIA_ASSERT(entityCnt < Entity::IdMask && "Trying to allocate too many entities!");
-
-					m_entities.emplace_back();
-					return {(EntityId)entityCnt, 0};
-				}
-
-				// Make sure the list is not broken
-				GAIA_ASSERT(m_nextFreeEntity < m_entities.size() && "ECS recycle list broken!");
-
-				--m_freeEntities;
-				const auto index = m_nextFreeEntity;
-				m_nextFreeEntity = m_entities[m_nextFreeEntity].idx;
-				return {index, m_entities[index].gen};
-			}
-
-			//! Invalidates \param entityToDelete by resetting its index in the entity pool.
-			//! Everytime an entity is deallocated its generation is increased by one.
-			void DeallocateEntity(Entity entityToDelete) {
-				auto& entityContainer = m_entities[entityToDelete.id()];
+			//! Invalidates \param entityToDelete
+			void ReleaseEntity(Entity entityToDelete) {
+				auto& entityContainer = m_entities.release(entityToDelete);
 				entityContainer.pChunk = nullptr;
-
-				// New generation
-				const auto gen = ++entityContainer.gen;
-
-				// Update our implicit list
-				if GAIA_UNLIKELY (!m_freeEntities) {
-					m_nextFreeEntity = entityToDelete.id();
-					entityContainer.idx = Entity::IdMask;
-					entityContainer.gen = gen;
-				} else {
-					entityContainer.idx = m_nextFreeEntity;
-					entityContainer.gen = gen;
-					m_nextFreeEntity = entityToDelete.id();
-				}
-				++m_freeEntities;
 			}
 
 			/*!
@@ -12995,30 +13112,11 @@ namespace gaia {
 			//! Verifies than the implicit linked list of entities is valid
 			void ValidateEntityList() const {
 #if GAIA_ECS_VALIDATE_ENTITY_LIST
-				bool hasThingsToRemove = m_freeEntities > 0;
-				if (!hasThingsToRemove)
-					return;
-
-				// If there's something to remove there has to be at least one
-				// entity left
-				GAIA_ASSERT(!m_entities.empty());
-
-				auto freeEntities = m_freeEntities;
-				auto nextFreeEntity = m_nextFreeEntity;
-				while (freeEntities > 0) {
-					GAIA_ASSERT(nextFreeEntity < m_entities.size() && "ECS recycle list broken!");
-
-					nextFreeEntity = m_entities[nextFreeEntity].idx;
-					--freeEntities;
-				}
-
-				// At this point the index of the last index in list should
-				// point to -1 because that's the tail of our implicit list.
-				GAIA_ASSERT(nextFreeEntity == Entity::IdMask);
+				m_entities.validate();
 #endif
 			}
 
-			//! Verifies than the chunk is valid
+			//! Verifies that the chunk is valid
 			void ValidateChunk([[maybe_unused]] archetype::Chunk* pChunk) const {
 #if GAIA_ECS_VALIDATE_CHUNKS
 				// Note: Normally we'd go [[maybe_unused]] instead of "(void)" but MSVC
@@ -13189,11 +13287,7 @@ namespace gaia {
 
 			void Cleanup() {
 				// Clear entities
-				{
-					m_entities = {};
-					m_nextFreeEntity = Entity::IdMask;
-					m_freeEntities = 0;
-				}
+				m_entities.clear();
 
 				// Clear archetypes
 				{
@@ -13224,7 +13318,7 @@ namespace gaia {
 			\return Entity
 			*/
 			GAIA_NODISCARD Entity CreateEntity() {
-				return AllocateEntity();
+				return m_entities.allocate();
 			}
 
 			/*!
@@ -13254,7 +13348,7 @@ namespace gaia {
 			\param entity Entity
 			*/
 			void DeleteEntity(Entity entity) {
-				if (m_entities.empty() || entity == EntityNull)
+				if (m_entities.item_count() == 0 || entity == EntityNull)
 					return;
 
 				GAIA_ASSERT(IsEntityValid(entity));
@@ -13264,15 +13358,11 @@ namespace gaia {
 				// Remove entity from chunk
 				if (auto* pChunk = entityContainer.pChunk) {
 					RemoveEntity(pChunk, entityContainer.idx);
-
-					// Return entity to pool
-					DeallocateEntity(entity);
-
+					ReleaseEntity(entity);
 					ValidateChunk(pChunk);
 					ValidateEntityList();
 				} else {
-					// Return entity to pool
-					DeallocateEntity(entity);
+					ReleaseEntity(entity);
 				}
 			}
 
@@ -13316,8 +13406,8 @@ namespace gaia {
 			Returns the number of active entities
 			\return Entity
 			*/
-			GAIA_NODISCARD uint32_t GetEntityCount() const {
-				return (uint32_t)m_entities.size() - m_freeEntities;
+			GAIA_FORCEINLINE GAIA_NODISCARD uint32_t GetEntityCount() const {
+				return m_entities.item_count();
 			}
 
 			/*!
@@ -13637,22 +13727,22 @@ namespace gaia {
 			void DiagEntities() const {
 				ValidateEntityList();
 
-				GAIA_LOG_N("Deleted entities: %u", m_freeEntities);
-				if (m_freeEntities != 0U) {
-					GAIA_LOG_N("  --> %u", m_nextFreeEntity);
+				GAIA_LOG_N("Deleted entities: %u", m_entities.get_free_items());
+				if (m_entities.get_free_items() != 0U) {
+					GAIA_LOG_N("  --> %u", m_entities.get_next_free_item());
 
 					uint32_t iters = 0;
-					auto fe = m_entities[m_nextFreeEntity].idx;
+					auto fe = m_entities[m_entities.get_next_free_item()].idx;
 					while (fe != Entity::IdMask) {
 						GAIA_LOG_N("  --> %u", m_entities[fe].idx);
 						fe = m_entities[fe].idx;
 						++iters;
-						if ((iters == 0U) || iters > m_freeEntities) {
-							GAIA_LOG_E("  Entities recycle list contains inconsistent "
-												 "data!");
+						if (iters > m_entities.get_free_items())
 							break;
-						}
 					}
+
+					if ((iters == 0U) || iters > m_entities.get_free_items())
+						GAIA_LOG_E("  Entities recycle list contains inconsistent data!");
 				}
 			}
 
@@ -14902,18 +14992,13 @@ namespace gaia {
 			Busy = Submitted | Running,
 		};
 
-		struct ImplicitListItem {
-			uint32_t idx;
-			uint32_t gen;
-		};
-
-		struct JobContainer: ImplicitListItem {
+		struct JobContainer: containers::ImplicitListItem {
 			uint32_t dependencyIdx;
 			JobInternalState state;
 			std::function<void()> func;
 		};
 
-		struct JobDependency: ImplicitListItem {
+		struct JobDependency: containers::ImplicitListItem {
 			uint32_t dependencyIdxNext;
 			JobHandle dependsOn;
 		};
@@ -14923,19 +15008,11 @@ namespace gaia {
 		class JobManager {
 			std::mutex m_jobsLock;
 			//! Implicit list of jobs
-			containers::darray<JobContainer> m_jobs;
-			//! Index of the next job to recycle
-			uint32_t m_nextFreeJob = (uint32_t)-1;
-			//! Number of entites to recycle
-			uint32_t m_freeJobs = 0;
+			containers::ImplicitList<JobContainer, JobHandle> m_jobs;
 
 			std::mutex m_depsLock;
 			//! List of job dependencies
-			containers::darray<JobDependency> m_deps;
-			//! Index of the next depenedency to recycle
-			uint32_t m_nextFreeDep = (uint32_t)-1;
-			//! Number of entites to recycle
-			uint32_t m_freeDeps = 0;
+			containers::ImplicitList<JobDependency, DepHandle> m_deps;
 
 		public:
 			//! Cleans up any job allocations and dependicies associated with \param jobHandle
@@ -14961,28 +15038,13 @@ namespace gaia {
 			//! \return JobHandle
 			//! \warning Must be used from the main thread.
 			GAIA_NODISCARD JobHandle AllocateJob(const Job& job) {
-				if GAIA_UNLIKELY (!m_freeJobs) {
-					std::scoped_lock<std::mutex> lock(m_jobsLock);
-
-					const auto jobCnt = (uint32_t)m_jobs.size();
-					// We don't want to go out of range for new jobs
-					GAIA_ASSERT(jobCnt < JobHandle::IdMask && "Trying to allocate too many jobs!");
-
-					m_jobs.emplace_back(jobCnt, 0U, (uint32_t)-1, JobInternalState::Idle, job.func);
-					return {(JobId)jobCnt, 0U};
-				}
-
-				// Make sure the list is not broken
-				GAIA_ASSERT(m_nextFreeJob < (uint32_t)m_jobs.size() && "Jobs recycle list broken!");
-
-				--m_freeJobs;
-				const auto index = m_nextFreeJob;
-				auto& j = m_jobs[m_nextFreeJob];
-				m_nextFreeJob = j.idx;
+				std::scoped_lock<std::mutex> lock(m_jobsLock);
+				auto handle = m_jobs.allocate();
+				auto& j = m_jobs[handle.id()];
 				j.dependencyIdx = (uint32_t)-1;
 				j.state = JobInternalState::Idle;
 				j.func = job.func;
-				return {index, m_jobs[index].gen};
+				return handle;
 			}
 
 			//! Invalidates \param jobHandle by resetting its index in the job pool.
@@ -14991,72 +15053,21 @@ namespace gaia {
 			void DeallocateJob(JobHandle jobHandle) {
 				// No need to lock. Called from the main thread only when the job has finished already.
 				// --> std::scoped_lock<std::mutex> lock(m_jobsLock);
-
-				auto& jobContainer = m_jobs[jobHandle.id()];
-
-				// Nothing to deallocate when the job is unused
-				if (jobContainer.idx == JobHandle::IdMask)
-					return;
-
-				// New generation
-				const auto gen = ++jobContainer.gen;
-
-				// Update our implicit list
-				if GAIA_UNLIKELY (m_freeJobs == 0) {
-					m_nextFreeJob = jobHandle.id();
-					jobContainer.idx = JobHandle::IdMask;
-					jobContainer.gen = gen;
-				} else {
-					jobContainer.idx = m_nextFreeJob;
-					jobContainer.gen = gen;
-					m_nextFreeJob = jobHandle.id();
-				}
-				++m_freeJobs;
+				m_jobs.release(jobHandle);
 			}
 
 			//! Allocates a new dependency identified by a unique DepHandle.
 			//! \return DepHandle
 			//! \warning Must be used from the main thread.
 			GAIA_NODISCARD DepHandle AllocateDependency() {
-				if GAIA_UNLIKELY (!m_freeDeps) {
-					const auto depCnt = (uint32_t)m_deps.size();
-					// We don't want to go out of range for new dependencies
-					GAIA_ASSERT(depCnt < JobHandle::IdMask && "Trying to allocate too many dependencies!");
-
-					m_deps.emplace_back(depCnt, 0U);
-					return {(JobId)depCnt, 0U};
-				}
-
-				// Make sure the list is not broken
-				GAIA_ASSERT(m_nextFreeDep < (uint32_t)m_deps.size() && "Dependency recycle list broken!");
-
-				--m_freeDeps;
-				const auto index = m_nextFreeDep;
-				auto& d = m_deps[m_nextFreeDep];
-				m_nextFreeDep = d.idx;
-				return {index, m_deps[index].gen};
+				return m_deps.allocate();
 			}
 
 			//! Invalidates \param depHandle by resetting its index in the dependency pool.
 			//! Everytime a dependency is deallocated its generation is increased by one.
 			//! \warning Must be used from the main thread.
 			void DeallocateDependency(DepHandle depHandle) {
-				auto& dep = m_deps[depHandle.id()];
-
-				// New generation
-				const auto gen = ++dep.gen;
-
-				// Update our implicit list
-				if GAIA_UNLIKELY (m_freeDeps == 0) {
-					m_nextFreeDep = depHandle.id();
-					dep.idx = DepHandle::IdMask;
-					dep.gen = gen;
-				} else {
-					dep.idx = m_nextFreeDep;
-					dep.gen = gen;
-					m_nextFreeDep = depHandle.id();
-				}
-				++m_freeDeps;
+				m_deps.release(depHandle);
 			}
 
 			//! Resets the job pool.
@@ -15065,15 +15076,11 @@ namespace gaia {
 					// No need to lock. Called from the main thread only when all jobs have finished already.
 					// --> std::scoped_lock<std::mutex> lock(m_jobsLock);
 					m_jobs.clear();
-					m_nextFreeJob = (uint32_t)-1;
-					m_freeJobs = 0;
 				}
 				{
 					// No need to lock. Called from the main thread only when all jobs must have ended already.
 					// --> std::scoped_lock<std::mutex> lock(m_depsLock);
 					m_deps.clear();
-					m_nextFreeDep = (uint32_t)-1;
-					m_freeDeps = 0;
 				}
 			}
 
