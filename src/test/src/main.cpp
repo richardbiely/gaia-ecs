@@ -678,6 +678,8 @@ TEST_CASE("CreateAndRemoveEntity - no components") {
 		REQUIRE(ok);
 		auto* ch = w.GetChunk(e);
 		REQUIRE(ch == nullptr);
+		const bool isEntityValid = w.IsEntityValid(e);
+		REQUIRE(!isEntityValid);
 	};
 
 	// 100,000 picked so we create enough entites that they overflow

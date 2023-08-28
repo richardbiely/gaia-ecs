@@ -312,7 +312,7 @@ namespace gaia {
 				/*!
 				Copies entity \param oldEntity into \param newEntity.
 				*/
-				static void CopyEntity(Entity oldEntity, Entity newEntity, containers::darray<EntityContainer>& entities) {
+				static void CopyEntity(Entity oldEntity, Entity newEntity, std::span<EntityContainer> entities) {
 					GAIA_PROF_SCOPE(CopyEntity);
 
 					auto& oldEntityContainer = entities[oldEntity.id()];
@@ -351,7 +351,7 @@ namespace gaia {
 				/*!
 				Copies entity \param entity into current chunk so that it is stored at index \param newEntityIdx.
 				*/
-				void CopyEntityFrom(Entity entity, uint32_t newEntityIdx, containers::darray<EntityContainer>& entities) {
+				void CopyEntityFrom(Entity entity, uint32_t newEntityIdx, std::span<EntityContainer> entities) {
 					GAIA_PROF_SCOPE(CopyEntityFrom);
 
 					auto& oldEntityContainer = entities[entity.id()];
@@ -387,7 +387,7 @@ namespace gaia {
 				/*!
 				Moves entity \param entity into current chunk so that it is stored at index \param newEntityIdx.
 				*/
-				void MoveEntityFrom(Entity entity, uint32_t newEntityIdx, containers::darray<EntityContainer>& entities) {
+				void MoveEntityFrom(Entity entity, uint32_t newEntityIdx, std::span<EntityContainer> entities) {
 					GAIA_PROF_SCOPE(MoveEntityFrom);
 
 					auto& oldEntityContainer = entities[entity.id()];
@@ -444,7 +444,7 @@ namespace gaia {
 				/*!
 				Remove the entity at \param index from the \param entities array.
 				*/
-				void RemoveEntity(uint32_t index, containers::darray<EntityContainer>& entities) {
+				void RemoveEntity(uint32_t index, std::span<EntityContainer> entities) {
 					// Ignore requests on empty chunks
 					if (!HasEntities())
 						return;
@@ -901,7 +901,8 @@ namespace gaia {
 					m_header.disabled = value;
 				}
 
-				GAIA_NODISCARD bool GetDisabled() const {
+				//! Checks is this chunk is disabled
+				GAIA_NODISCARD bool IsDisabled() const {
 					return m_header.disabled;
 				}
 
@@ -932,11 +933,6 @@ namespace gaia {
 
 				bool IsStructuralChangesLocked() const {
 					return m_header.structuralChangesLocked != 0;
-				}
-
-				//! Checks is this chunk is disabled
-				GAIA_NODISCARD bool IsDisabled() const {
-					return m_header.disabled;
 				}
 
 				//! Checks is the full capacity of the has has been reached

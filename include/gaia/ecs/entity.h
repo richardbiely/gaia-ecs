@@ -1,5 +1,6 @@
 #pragma once
 #include "../config/config.h"
+#include "../containers/implicitlist.h"
 
 #include <cinttypes>
 #include <type_traits>
@@ -100,20 +101,16 @@ namespace gaia {
 		namespace archetype {
 			class Chunk;
 		}
-		
-		struct EntityContainer {
+
+		struct EntityContainer: containers::ImplicitListItem {
 			//! Chunk the entity currently resides in
 			archetype::Chunk* pChunk;
 #if !GAIA_64
 			uint32_t pChunk_padding;
 #endif
-			//! For allocated entity: Index of entity within chunk.
-			//! For deleted entity: Index of the next entity in the implicit list.
-			uint32_t idx : 31;
 			//! Tells if the entity is disabled. Borrows one bit from idx because it's unlikely to cause issues there
+			// TODO: Get rid of this bit somehow so the EntityContainer can fit within 16 bytes again.
 			uint32_t disabled : 1;
-			//! Generation ID
-			EntityGenId gen;
 		};
 	} // namespace ecs
 } // namespace gaia
