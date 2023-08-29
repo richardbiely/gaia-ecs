@@ -267,6 +267,119 @@ TEST_CASE("Containers - sringbuffer") {
 	}
 }
 
+TEST_CASE("Containers - ImplicitList") {
+	struct EntityContainer: containers::ImplicitListItem {
+		int value;
+	};
+	SECTION("0 -> 1 -> 2") {
+		containers::ImplicitList<EntityContainer, ecs::Entity> il;
+		ecs::Entity handles[3];
+
+		handles[0] = il.allocate();
+		il[handles[0].id()].value = 100;
+		REQUIRE(handles[0].id() == 0);
+		REQUIRE(il[0].idx == 0);
+		REQUIRE(handles[0].gen() == il[0].gen);
+		REQUIRE(il[0].gen == 0);
+		handles[1] = il.allocate();
+		il[handles[1].id()].value = 200;
+		REQUIRE(handles[1].id() == 1);
+		REQUIRE(il[1].idx == 1);
+		REQUIRE(handles[1].gen() == il[1].gen);
+		REQUIRE(il[1].gen == 0);
+		handles[2] = il.allocate();
+		il[handles[2].id()].value = 300;
+		REQUIRE(handles[2].id() == 2);
+		REQUIRE(il[2].idx == 2);
+		REQUIRE(handles[2].gen() == il[2].gen);
+		REQUIRE(il[2].gen == 0);
+
+		il.release(handles[2]);
+		REQUIRE(il[2].idx == ecs::Entity::IdMask);
+		REQUIRE(il[2].gen == 1);
+		il.release(handles[1]);
+		REQUIRE(il[1].idx == 2);
+		REQUIRE(il[1].gen == 1);
+		il.release(handles[0]);
+		REQUIRE(il[0].idx == 1);
+		REQUIRE(il[0].gen == 1);
+
+		handles[0] = il.allocate();
+		REQUIRE(handles[0].id() == 0);
+		REQUIRE(il[0].value == 100);
+		REQUIRE(il[0].idx == 1);
+		REQUIRE(handles[0].gen() == il[0].gen);
+		REQUIRE(il[0].gen == 1);
+		handles[1] = il.allocate();
+		REQUIRE(handles[1].id() == 1);
+		REQUIRE(il[1].value == 200);
+		REQUIRE(il[1].idx == 2);
+		REQUIRE(handles[1].gen() == il[1].gen);
+		REQUIRE(il[1].gen == 1);
+		handles[2] = il.allocate();
+		REQUIRE(handles[2].id() == 2);
+		REQUIRE(il[2].value == 300);
+		REQUIRE(il[2].idx == ecs::Entity::IdMask);
+		REQUIRE(handles[2].gen() == il[2].gen);
+		REQUIRE(il[2].gen == 1);
+	}
+	SECTION("2 -> 1 -> 0") {
+		containers::ImplicitList<EntityContainer, ecs::Entity> il;
+		ecs::Entity handles[3];
+
+		handles[0] = il.allocate();
+		il[handles[0].id()].value = 100;
+		REQUIRE(handles[0].id() == 0);
+		REQUIRE(il[0].idx == 0);
+		REQUIRE(handles[0].gen() == il[0].gen);
+		REQUIRE(il[0].gen == 0);
+		handles[1] = il.allocate();
+		il[handles[1].id()].value = 200;
+		REQUIRE(handles[1].id() == 1);
+		REQUIRE(il[1].idx == 1);
+		REQUIRE(handles[1].gen() == il[1].gen);
+		REQUIRE(il[1].gen == 0);
+		handles[2] = il.allocate();
+		il[handles[2].id()].value = 300;
+		REQUIRE(handles[2].id() == 2);
+		REQUIRE(il[2].idx == 2);
+		REQUIRE(handles[2].gen() == il[2].gen);
+		REQUIRE(il[2].gen == 0);
+
+		il.release(handles[0]);
+		REQUIRE(il[0].idx == ecs::Entity::IdMask);
+		REQUIRE(il[0].gen == 1);
+		il.release(handles[1]);
+		REQUIRE(il[1].idx == 0);
+		REQUIRE(il[1].gen == 1);
+		il.release(handles[2]);
+		REQUIRE(il[2].idx == 1);
+		REQUIRE(il[2].gen == 1);
+
+		handles[0] = il.allocate();
+		REQUIRE(handles[0].id() == 2);
+		const auto idx0 = handles[0].id();
+		REQUIRE(il[idx0].value == 300);
+		REQUIRE(il[idx0].idx == 1);
+		REQUIRE(handles[0].gen() == il[idx0].gen);
+		REQUIRE(il[idx0].gen == 1);
+		handles[1] = il.allocate();
+		REQUIRE(handles[1].id() == 1);
+		const auto idx1 = handles[1].id();
+		REQUIRE(il[idx1].value == 200);
+		REQUIRE(il[idx1].idx == 0);
+		REQUIRE(handles[1].gen() == il[idx1].gen);
+		REQUIRE(il[idx1].gen == 1);
+		handles[2] = il.allocate();
+		REQUIRE(handles[2].id() == 0);
+		const auto idx2 = handles[2].id();
+		REQUIRE(il[idx2].value == 100);
+		REQUIRE(il[idx2].idx == ecs::Entity::IdMask);
+		REQUIRE(handles[2].gen() == il[idx2].gen);
+		REQUIRE(il[idx2].gen == 1);
+	}
+}
+
 TEST_CASE("for_each") {
 	constexpr uint32_t N = 10;
 	SECTION("index agument") {
@@ -2623,44 +2736,37 @@ TEST_CASE("Multithreading - Complete") {
 	}
 }
 
-// TEST_CASE("Multithreading - CompleteMany") {
-// 	auto& tp = mt::ThreadPool::Get();
+TEST_CASE("Multithreading - CompleteMany") {
+	auto& tp = mt::ThreadPool::Get();
 
-// 	constexpr uint32_t Jobs = 15000;
-// 	containers::sarray<uint32_t, Jobs> res;
+	constexpr uint32_t Iters = 15000;
+	uint32_t res = (uint32_t)-1;
 
-// 	for (uint32_t i = 0; i < res.max_size(); ++i)
-// 		res[i] = (uint32_t)-1;
+	for (uint32_t i = 0; i < Iters; i++) {
+		mt::Job job0{[&res, i]() {
+			res = (i + 1);
+		}};
+		mt::Job job1{[&res, i]() {
+			res *= (i + 1);
+		}};
+		mt::Job job2{[&res, i]() {
+			res /= (i + 1); // we add +1 everywhere to avoid division by zero at i==0
+		}};
+		auto job0Handle = tp.CreateJob(job0);
+		auto job1Handle = tp.CreateJob(job1);
+		auto job2Handle = tp.CreateJob(job2);
 
-// 	for (uint32_t i = 0; i < Jobs; i++) {
-// 		mt::Job job0;
-// 		job0.func = [&res, i]() {
-// 			res[i] = i;
-// 		};
-// 		mt::Job job1;
-// 		job1.func = [&res, i]() {
-// 			res[i] *= i;
-// 		};
-// 		mt::Job job2;
-// 		job2.func = [&res, i]() {
-// 			res[i] /= i;
-// 		};
-// 		auto job0Handle = tp.CreateJob(job0);
-// 		auto job1Handle = tp.CreateJob(job1);
-// 		auto job2Handle = tp.CreateJob(job2);
+		tp.AddDependency(job1Handle, job0Handle);
+		tp.AddDependency(job2Handle, job1Handle);
 
-// 		tp.AddDependency(job1Handle, job0Handle);
-// 		tp.AddDependency(job2Handle, job1Handle);
+		tp.Submit(job2Handle);
+		tp.Submit(job1Handle);
+		tp.Submit(job0Handle);
 
-// 		tp.Submit(job2Handle);
-// 		tp.Submit(job1Handle);
-// 		tp.Submit(job0Handle);
+		tp.Complete(job2Handle);
 
-// 		tp.Complete(job2Handle);
-
-// 		const uint32_t result = res[i];
-// 		REQUIRE(result == i);
-// 	}
-// }
+		REQUIRE(res == (i + 1));
+	}
+}
 
 //------------------------------------------------------------------------------

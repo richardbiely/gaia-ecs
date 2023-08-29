@@ -23,6 +23,8 @@ namespace gaia {
 			Running = 0x02,
 			//! Finished executing
 			Done = 0x04,
+			//! Job released. Not to be used anymore
+			Released = 0x08,
 
 			//! Scheduled or being executed
 			Busy = Submitted | Running,
@@ -56,10 +58,12 @@ namespace gaia {
 				// We need to release any dependencies related to this job
 				auto& job = m_jobs[jobHandle.id()];
 
+				if (job.state == JobInternalState::Released)
+					return;
+
 				uint32_t depIdx = job.dependencyIdx;
 				while (depIdx != (uint32_t)-1) {
 					auto& dep = m_deps[depIdx];
-					GAIA_ASSERT(dep.idx == depIdx);
 					const uint32_t depIdxNext = dep.dependencyIdxNext;
 					Complete(dep.dependsOn);
 					DeallocateDependency(DepHandle{depIdx, 0});
@@ -77,6 +81,7 @@ namespace gaia {
 				std::scoped_lock<std::mutex> lock(m_jobsLock);
 				auto handle = m_jobs.allocate();
 				auto& j = m_jobs[handle.id()];
+				GAIA_ASSERT(j.state == JobInternalState::Idle || j.state == JobInternalState::Released);
 				j.dependencyIdx = (uint32_t)-1;
 				j.state = JobInternalState::Idle;
 				j.func = job.func;
@@ -89,7 +94,8 @@ namespace gaia {
 			void DeallocateJob(JobHandle jobHandle) {
 				// No need to lock. Called from the main thread only when the job has finished already.
 				// --> std::scoped_lock<std::mutex> lock(m_jobsLock);
-				m_jobs.release(jobHandle);
+				auto& job = m_jobs.release(jobHandle);
+				job.state = JobInternalState::Released;
 			}
 
 			//! Allocates a new dependency identified by a unique DepHandle.

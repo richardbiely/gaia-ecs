@@ -8473,7 +8473,7 @@ namespace gaia {
 			//! Implicit list items
 			darray<TListItem> m_items;
 			//! Index of the next item to recycle
-			size_type m_nextFreeItem = (size_type)-1;
+			size_type m_nextFreeIdx = (size_type)-1;
 			//! Number of items to recycle
 			size_type m_freeItems = 0;
 
@@ -8494,12 +8494,12 @@ namespace gaia {
 
 			void clear() {
 				m_items.clear();
-				m_nextFreeItem = (size_type)-1;
+				m_nextFreeIdx = (size_type)-1;
 				m_freeItems = 0;
 			}
 
 			GAIA_NODISCARD size_type get_next_free_item() const noexcept {
-				return m_nextFreeItem;
+				return m_nextFreeIdx;
 			}
 
 			GAIA_NODISCARD size_type get_free_items() const noexcept {
@@ -8541,7 +8541,7 @@ namespace gaia {
 			//! Allocates a new item in the list
 			//! \return Handle to the new item
 			GAIA_NODISCARD TItemHandle allocate() {
-				if GAIA_UNLIKELY (!m_freeItems) {
+				if GAIA_UNLIKELY (m_freeItems == 0U) {
 					// We don't want to go out of range for new item
 					const auto itemCnt = (size_type)m_items.size();
 					GAIA_ASSERT(itemCnt < TItemHandle::IdMask && "Trying to allocate too many items!");
@@ -8551,12 +8551,12 @@ namespace gaia {
 				}
 
 				// Make sure the list is not broken
-				GAIA_ASSERT(m_nextFreeItem < (size_type)m_items.size() && "Item recycle list broken!");
+				GAIA_ASSERT(m_nextFreeIdx < (size_type)m_items.size() && "Item recycle list broken!");
 
 				--m_freeItems;
-				const auto index = m_nextFreeItem;
-				auto& j = m_items[m_nextFreeItem];
-				m_nextFreeItem = j.idx;
+				const auto index = m_nextFreeIdx;
+				auto& j = m_items[m_nextFreeIdx];
+				m_nextFreeIdx = j.idx;
 				return {index, m_items[index].gen};
 			}
 
@@ -8570,13 +8570,13 @@ namespace gaia {
 
 				// Update our implicit list
 				if GAIA_UNLIKELY (m_freeItems == 0) {
-					m_nextFreeItem = handle.id();
+					m_nextFreeIdx = handle.id();
 					item.idx = TItemHandle::IdMask;
 					item.gen = gen;
 				} else {
-					item.idx = m_nextFreeItem;
+					item.idx = m_nextFreeIdx;
 					item.gen = gen;
-					m_nextFreeItem = handle.id();
+					m_nextFreeIdx = handle.id();
 				}
 				++m_freeItems;
 
@@ -8593,7 +8593,7 @@ namespace gaia {
 				GAIA_ASSERT(!m_items.empty());
 
 				auto freeEntities = m_freeItems;
-				auto nextFreeEntity = m_nextFreeItem;
+				auto nextFreeEntity = m_nextFreeIdx;
 				while (freeEntities > 0) {
 					GAIA_ASSERT(nextFreeEntity < m_items.size() && "Item recycle list broken!");
 
@@ -15005,6 +15005,8 @@ namespace gaia {
 			Running = 0x02,
 			//! Finished executing
 			Done = 0x04,
+			//! Job released. Not to be used anymore
+			Released = 0x08,
 
 			//! Scheduled or being executed
 			Busy = Submitted | Running,
@@ -15038,10 +15040,12 @@ namespace gaia {
 				// We need to release any dependencies related to this job
 				auto& job = m_jobs[jobHandle.id()];
 
+				if (job.state == JobInternalState::Released)
+					return;
+
 				uint32_t depIdx = job.dependencyIdx;
 				while (depIdx != (uint32_t)-1) {
 					auto& dep = m_deps[depIdx];
-					GAIA_ASSERT(dep.idx == depIdx);
 					const uint32_t depIdxNext = dep.dependencyIdxNext;
 					Complete(dep.dependsOn);
 					DeallocateDependency(DepHandle{depIdx, 0});
@@ -15059,6 +15063,7 @@ namespace gaia {
 				std::scoped_lock<std::mutex> lock(m_jobsLock);
 				auto handle = m_jobs.allocate();
 				auto& j = m_jobs[handle.id()];
+				GAIA_ASSERT(j.state == JobInternalState::Idle || j.state == JobInternalState::Released);
 				j.dependencyIdx = (uint32_t)-1;
 				j.state = JobInternalState::Idle;
 				j.func = job.func;
@@ -15071,7 +15076,8 @@ namespace gaia {
 			void DeallocateJob(JobHandle jobHandle) {
 				// No need to lock. Called from the main thread only when the job has finished already.
 				// --> std::scoped_lock<std::mutex> lock(m_jobsLock);
-				m_jobs.release(jobHandle);
+				auto& job = m_jobs.release(jobHandle);
+				job.state = JobInternalState::Released;
 			}
 
 			//! Allocates a new dependency identified by a unique DepHandle.
