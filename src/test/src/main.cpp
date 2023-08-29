@@ -70,11 +70,17 @@ struct StringComponent {
 };
 static constexpr const char* StringComponent2DefaultValue = "test";
 struct StringComponent2 {
-	std::string value;
-	StringComponent2(): value(StringComponent2DefaultValue) {}
+	std::string value = StringComponent2DefaultValue;
+
+	StringComponent2() = default;
 	~StringComponent2() {
 		value = "empty";
 	}
+
+	StringComponent2(const StringComponent2&) = default;
+	StringComponent2(StringComponent2&&) = default;
+	StringComponent2& operator=(const StringComponent2&) = default;
+	StringComponent2& operator=(StringComponent2&&) = default;
 };
 
 TEST_CASE("ComponentTypes") {
@@ -2469,10 +2475,15 @@ bool CompareSerializableTypes(const T& a, const T& b) {
 }
 
 struct FooNonTrivial {
-	uint32_t a;
-	FooNonTrivial(): a(0){};
+	uint32_t a = 0;
+
 	FooNonTrivial(uint32_t value): a(value){};
-	~FooNonTrivial(){};
+	FooNonTrivial() = default;
+	~FooNonTrivial() = default;
+	FooNonTrivial(const FooNonTrivial&) = default;
+	FooNonTrivial(FooNonTrivial&&) = default;
+	FooNonTrivial& operator=(const FooNonTrivial&) = default;
+	FooNonTrivial& operator=(FooNonTrivial&&) = default;
 
 	bool operator==(const FooNonTrivial& other) const {
 		return a == other.a;
@@ -2739,6 +2750,8 @@ TEST_CASE("Multithreading - Complete") {
 TEST_CASE("Multithreading - CompleteMany") {
 	auto& tp = mt::ThreadPool::Get();
 
+	srand(0);
+
 	constexpr uint32_t Iters = 15000;
 	uint32_t res = (uint32_t)-1;
 
@@ -2752,18 +2765,22 @@ TEST_CASE("Multithreading - CompleteMany") {
 		mt::Job job2{[&res, i]() {
 			res /= (i + 1); // we add +1 everywhere to avoid division by zero at i==0
 		}};
-		auto job0Handle = tp.CreateJob(job0);
-		auto job1Handle = tp.CreateJob(job1);
-		auto job2Handle = tp.CreateJob(job2);
 
-		tp.AddDependency(job1Handle, job0Handle);
-		tp.AddDependency(job2Handle, job1Handle);
+		const mt::JobHandle jobHandle[] = {tp.CreateJob(job0), tp.CreateJob(job1), tp.CreateJob(job2)};
 
-		tp.Submit(job2Handle);
-		tp.Submit(job1Handle);
-		tp.Submit(job0Handle);
+		tp.AddDependency(jobHandle[1], jobHandle[0]);
+		tp.AddDependency(jobHandle[2], jobHandle[1]);
 
-		tp.Complete(job2Handle);
+		// 2, 0, 1 -> wrong sum
+		// Submit jobs in random order to make sure this doesn't work just by accident
+		const uint32_t startIdx0 = rand() % 3;
+		const uint32_t startIdx1 = (startIdx0 + 1) % 3;
+		const uint32_t startIdx2 = (startIdx0 + 2) % 3;
+		tp.Submit(jobHandle[startIdx0]);
+		tp.Submit(jobHandle[startIdx1]);
+		tp.Submit(jobHandle[startIdx2]);
+
+		tp.Complete(jobHandle[2]);
 
 		REQUIRE(res == (i + 1));
 	}
