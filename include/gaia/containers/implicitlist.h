@@ -36,7 +36,7 @@ namespace gaia {
 			//! Implicit list items
 			darray<TListItem> m_items;
 			//! Index of the next item to recycle
-			size_type m_nextFreeItem = (size_type)-1;
+			size_type m_nextFreeIdx = (size_type)-1;
 			//! Number of items to recycle
 			size_type m_freeItems = 0;
 
@@ -57,12 +57,12 @@ namespace gaia {
 
 			void clear() {
 				m_items.clear();
-				m_nextFreeItem = (size_type)-1;
+				m_nextFreeIdx = (size_type)-1;
 				m_freeItems = 0;
 			}
 
 			GAIA_NODISCARD size_type get_next_free_item() const noexcept {
-				return m_nextFreeItem;
+				return m_nextFreeIdx;
 			}
 
 			GAIA_NODISCARD size_type get_free_items() const noexcept {
@@ -104,7 +104,7 @@ namespace gaia {
 			//! Allocates a new item in the list
 			//! \return Handle to the new item
 			GAIA_NODISCARD TItemHandle allocate() {
-				if GAIA_UNLIKELY (!m_freeItems) {
+				if GAIA_UNLIKELY (m_freeItems == 0U) {
 					// We don't want to go out of range for new item
 					const auto itemCnt = (size_type)m_items.size();
 					GAIA_ASSERT(itemCnt < TItemHandle::IdMask && "Trying to allocate too many items!");
@@ -114,12 +114,12 @@ namespace gaia {
 				}
 
 				// Make sure the list is not broken
-				GAIA_ASSERT(m_nextFreeItem < (size_type)m_items.size() && "Item recycle list broken!");
+				GAIA_ASSERT(m_nextFreeIdx < (size_type)m_items.size() && "Item recycle list broken!");
 
 				--m_freeItems;
-				const auto index = m_nextFreeItem;
-				auto& j = m_items[m_nextFreeItem];
-				m_nextFreeItem = j.idx;
+				const auto index = m_nextFreeIdx;
+				auto& j = m_items[m_nextFreeIdx];
+				m_nextFreeIdx = j.idx;
 				return {index, m_items[index].gen};
 			}
 
@@ -133,13 +133,13 @@ namespace gaia {
 
 				// Update our implicit list
 				if GAIA_UNLIKELY (m_freeItems == 0) {
-					m_nextFreeItem = handle.id();
+					m_nextFreeIdx = handle.id();
 					item.idx = TItemHandle::IdMask;
 					item.gen = gen;
 				} else {
-					item.idx = m_nextFreeItem;
+					item.idx = m_nextFreeIdx;
 					item.gen = gen;
-					m_nextFreeItem = handle.id();
+					m_nextFreeIdx = handle.id();
 				}
 				++m_freeItems;
 
@@ -156,7 +156,7 @@ namespace gaia {
 				GAIA_ASSERT(!m_items.empty());
 
 				auto freeEntities = m_freeItems;
-				auto nextFreeEntity = m_nextFreeItem;
+				auto nextFreeEntity = m_nextFreeIdx;
 				while (freeEntities > 0) {
 					GAIA_ASSERT(nextFreeEntity < m_items.size() && "Item recycle list broken!");
 
