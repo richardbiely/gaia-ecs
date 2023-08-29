@@ -535,25 +535,6 @@ TEST_CASE("Run-time sort - quick sort") {
 	sort_ascending<true>(containers::sarray<uint32_t, 45>{});
 }
 
-// TEST_CASE("Query - equality") {
-//  {
-//  	ecs::Query qq1, qq2;
-//  	qq1.All<Position, Rotation>();
-//  	qq2.All<Rotation, Position>();
-//  	REQUIRE(
-//  			qq1.GetData(ecs::ComponentType::CT_Generic).hash[ecs::Query::ListType::LT_All] ==
-//  			qq2.GetData(ecs::ComponentType::CT_Generic).hash[ecs::Query::ListType::LT_All]);
-//  }
-//  {
-//  	ecs::Query qq1, qq2;
-//  	qq1.All<Position, Rotation, Acceleration, Something>();
-//  	qq2.All<Rotation, Something, Position, Acceleration>();
-//  	REQUIRE(
-//  			qq1.GetData(ecs::ComponentType::CT_Generic).hash[ecs::Query::ListType::LT_All] ==
-//  			qq2.GetData(ecs::ComponentType::CT_Generic).hash[ecs::Query::ListType::LT_All]);
-//  }
-//}
-
 TEST_CASE("Query - QueryResult") {
 	ecs::World w;
 
@@ -797,6 +778,56 @@ TEST_CASE("Query - QueryResult complex") {
 			++cnt5;
 		});
 		REQUIRE(cnt5 == cnt);
+	}
+}
+
+TEST_CASE("Query - equality") {
+
+	SECTION("2 components") {
+		ecs::World w;
+
+		auto create = [&](uint32_t i) {
+			auto e = w.CreateEntity();
+			w.AddComponent<Position>(e);
+			w.AddComponent<Rotation>(e);
+		};
+
+		const uint32_t N = 100;
+		for (uint32_t i = 0; i < N; i++)
+			create(i);
+
+		ecs::Query qq1 = w.CreateQuery().All<Position, Rotation>();
+		ecs::Query qq2 = w.CreateQuery().All<Rotation, Position>();
+		REQUIRE(qq1.CalculateEntityCount() == qq2.CalculateEntityCount());
+
+		gaia::containers::darray<gaia::ecs::Entity> ents1, ents2;
+		qq1.ToArray(ents1);
+		qq2.ToArray(ents2);
+		REQUIRE(ents1.size() == ents2.size());
+
+		uint32_t i = 0;
+		for (auto e: ents1) {
+			REQUIRE(e == ents2[i]);
+			++i;
+		}
+	}
+	SECTION("4 components") {
+		ecs::World w;
+
+		ecs::Query qq1 = w.CreateQuery().All<Position, Rotation, Acceleration, Something>();
+		ecs::Query qq2 = w.CreateQuery().All<Rotation, Something, Position, Acceleration>();
+		REQUIRE(qq1.CalculateEntityCount() == qq2.CalculateEntityCount());
+
+		gaia::containers::darray<gaia::ecs::Entity> ents1, ents2;
+		qq1.ToArray(ents1);
+		qq2.ToArray(ents2);
+		REQUIRE(ents1.size() == ents2.size());
+
+		uint32_t i = 0;
+		for (auto e: ents1) {
+			REQUIRE(e == ents2[i]);
+			++i;
+		}
 	}
 }
 
