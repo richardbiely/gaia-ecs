@@ -182,9 +182,8 @@ namespace gaia {
 				return queryInfo;
 			}
 
-		private:
 			//--------------------------------------------------------------------------------
-
+		private:
 			template <typename T>
 			void AddComponent_Internal(query::ListType listType) {
 				using U = typename component::DeduceComponent<T>::Type;

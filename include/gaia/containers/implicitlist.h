@@ -5,7 +5,6 @@
 #include <type_traits>
 
 #include "darray.h"
-#include "gaia/config/config_core.h"
 
 namespace gaia {
 	namespace containers {

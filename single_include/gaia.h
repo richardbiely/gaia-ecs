@@ -12093,9 +12093,8 @@ namespace gaia {
 				return queryInfo;
 			}
 
-		private:
 			//--------------------------------------------------------------------------------
-
+		private:
 			template <typename T>
 			void AddComponent_Internal(query::ListType listType) {
 				using U = typename component::DeduceComponent<T>::Type;
@@ -15129,34 +15128,24 @@ namespace gaia {
 			//! Evaluates job dependencies.
 			//! \return True if job dependencies are met. False otherwise
 			GAIA_NODISCARD bool HandleDependencies(JobHandle jobHandle) {
-				uint32_t depsId{};
+				std::scoped_lock<std::mutex> lockJobs(m_jobsLock);
+				auto& job = m_jobs[jobHandle.id()];
+				if (job.dependencyIdx == (uint32_t)-1)
+					return true;
 
+				uint32_t depsId = job.dependencyIdx;
 				{
-					std::scoped_lock<std::mutex> lock(m_jobsLock);
-					auto& job = m_jobs[jobHandle.id()];
-					if (job.dependencyIdx == (uint32_t)-1)
-						return true;
-					depsId = job.dependencyIdx;
-				}
+					std::scoped_lock<std::mutex> lockDeps(m_depsLock);
 
-				{
 					// Iterate over all dependencies.
 					// The first busy dependency breaks the loop. At this point we also update
 					// the initial dependency index because we know all previous dependencies
 					// have already finished and there's no need to check them.
 					do {
-						JobDependency dep;
-						{
-							std::scoped_lock<std::mutex> lock(m_depsLock);
-							dep = m_deps[depsId];
-						}
-
-						{
-							std::scoped_lock<std::mutex> lock(m_jobsLock);
-							if (IsBusy(dep.dependsOn)) {
-								m_jobs[jobHandle.id()].dependencyIdx = depsId;
-								return false;
-							}
+						JobDependency dep = m_deps[depsId];
+						if (!IsDone(dep.dependsOn)) {
+							m_jobs[jobHandle.id()].dependencyIdx = depsId;
+							return false;
 						}
 
 						depsId = dep.dependencyIdxNext;
@@ -15173,6 +15162,7 @@ namespace gaia {
 			//! \warning Must be used from the main thread.
 			//! \warning Needs to be called before any of the listed jobs are scheduled.
 			void AddDependency(JobHandle jobHandle, JobHandle dependsOn) {
+				std::scoped_lock<std::mutex> lockJobs(m_jobsLock);
 				auto& job = m_jobs[jobHandle.id()];
 
 #if GAIA_ASSERT_ENABLED
@@ -15181,7 +15171,6 @@ namespace gaia {
 				GAIA_ASSERT(!IsBusy(dependsOn));
 #endif
 
-				std::scoped_lock<std::mutex> lockJobs(m_jobsLock);
 				{
 					std::scoped_lock<std::mutex> lockDeps(m_depsLock);
 
@@ -15254,6 +15243,11 @@ namespace gaia {
 			GAIA_NODISCARD bool IsBusy(JobHandle jobHandle) const {
 				const auto& job = m_jobs[jobHandle.id()];
 				return ((uint32_t)job.state & (uint32_t)JobInternalState::Busy) != 0;
+			}
+
+			GAIA_NODISCARD bool IsDone(JobHandle jobHandle) const {
+				const auto& job = m_jobs[jobHandle.id()];
+				return ((uint32_t)job.state & (uint32_t)JobInternalState::Done) != 0;
 			}
 		};
 	} // namespace mt
