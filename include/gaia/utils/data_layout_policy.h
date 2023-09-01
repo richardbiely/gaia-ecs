@@ -93,23 +93,23 @@ namespace gaia {
 			constexpr static DataLayout Layout = data_layout_properties<DataLayout::AoS, ValueType>::Layout;
 			constexpr static size_t Alignment = data_layout_properties<DataLayout::AoS, ValueType>::Alignment;
 
-			GAIA_NODISCARD constexpr static ValueType getc(std::span<const ValueType> s, size_t idx) {
+			constexpr GAIA_NODISCARD static ValueType getc(std::span<const ValueType> s, size_t idx) {
 				return s[idx];
 			}
 
-			GAIA_NODISCARD constexpr static ValueType get(std::span<ValueType> s, size_t idx) {
+			constexpr GAIA_NODISCARD static ValueType get(std::span<ValueType> s, size_t idx) {
 				return s[idx];
 			}
 
-			GAIA_NODISCARD constexpr static const ValueType& getc_constref(std::span<const ValueType> s, size_t idx) {
+			constexpr GAIA_NODISCARD static const ValueType& getc_constref(std::span<const ValueType> s, size_t idx) {
 				return (const ValueType&)s[idx];
 			}
 
-			GAIA_NODISCARD constexpr static const ValueType& get_constref(std::span<ValueType> s, size_t idx) {
+			constexpr GAIA_NODISCARD static const ValueType& get_constref(std::span<ValueType> s, size_t idx) {
 				return (const ValueType&)s[idx];
 			}
 
-			GAIA_NODISCARD constexpr static ValueType& get_ref(std::span<ValueType> s, size_t idx) {
+			constexpr GAIA_NODISCARD static ValueType& get_ref(std::span<ValueType> s, size_t idx) {
 				return s[idx];
 			}
 
@@ -198,13 +198,13 @@ namespace gaia {
 			template <size_t Ids>
 			using const_value_type = typename std::add_const<value_type<Ids>>::type;
 
-			GAIA_NODISCARD constexpr static ValueType get(std::span<const ValueType> s, const size_t idx) {
+			constexpr GAIA_NODISCARD static ValueType get(std::span<const ValueType> s, const size_t idx) {
 				auto t = struct_to_tuple(ValueType{});
 				return get_internal(t, s, idx, std::make_integer_sequence<size_t, std::tuple_size<decltype(t)>::value>());
 			}
 
 			template <size_t Ids>
-			GAIA_NODISCARD constexpr static auto get(std::span<const ValueType> s, const size_t idx = 0) {
+			constexpr GAIA_NODISCARD static auto get(std::span<const ValueType> s, const size_t idx = 0) {
 				using Tuple = decltype(struct_to_tuple(ValueType{}));
 				using MemberType = typename std::tuple_element<Ids, Tuple>::type;
 				const auto* ret = (const uint8_t*)s.data() + idx * sizeof(MemberType) +
@@ -228,7 +228,7 @@ namespace gaia {
 
 		private:
 			template <typename Tuple, size_t... Ids>
-			GAIA_NODISCARD constexpr static ValueType get_internal(
+			constexpr GAIA_NODISCARD static ValueType get_internal(
 					Tuple& t, std::span<const ValueType> s, const size_t idx, std::integer_sequence<size_t, Ids...> /*no_name*/) {
 				(get_internal<Tuple, Ids, typename std::tuple_element<Ids, Tuple>::type>(
 						 t, (const uint8_t*)s.data(),
@@ -288,12 +288,12 @@ namespace gaia {
 			//! Raw data pointed to by the view policy
 			std::span<const ValueType> m_data;
 
-			GAIA_NODISCARD constexpr auto operator[](size_t idx) const {
+			constexpr GAIA_NODISCARD auto operator[](size_t idx) const {
 				return view_policy::get(m_data, idx);
 			}
 
 			template <size_t Ids>
-			GAIA_NODISCARD constexpr auto get() const {
+			constexpr GAIA_NODISCARD auto get() const {
 				return std::span<typename data_view_policy_idx_info<Ids>::const_value_type>(
 						view_policy::template get<Ids>(m_data).data(), view_policy::template get<Ids>(m_data).size());
 			}
@@ -345,15 +345,15 @@ namespace gaia {
 				}
 			};
 
-			GAIA_NODISCARD constexpr auto operator[](size_t idx) const {
+			constexpr GAIA_NODISCARD auto operator[](size_t idx) const {
 				return view_policy::get(m_data, idx);
 			}
-			GAIA_NODISCARD constexpr auto operator[](size_t idx) {
+			constexpr GAIA_NODISCARD auto operator[](size_t idx) {
 				return setter(m_data, idx);
 			}
 
 			template <size_t Ids>
-			GAIA_NODISCARD constexpr auto get() const {
+			constexpr GAIA_NODISCARD auto get() const {
 				using value_type = typename data_view_policy_idx_info<Ids>::const_value_type;
 				const std::span<const ValueType> data((const ValueType*)m_data.data(), m_data.size());
 				return std::span<value_type>(
@@ -361,7 +361,7 @@ namespace gaia {
 			}
 
 			template <size_t Ids>
-			GAIA_NODISCARD constexpr auto set() {
+			constexpr GAIA_NODISCARD auto set() {
 				return std::span<typename data_view_policy_idx_info<Ids>::value_type>(
 						view_policy::template set<Ids>(m_data).data(), view_policy::template set<Ids>(m_data).size());
 			}

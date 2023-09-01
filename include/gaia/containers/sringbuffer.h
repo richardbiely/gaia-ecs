@@ -74,7 +74,7 @@ namespace gaia {
 				return *this;
 			}
 
-			GAIA_NODISCARD constexpr sringbuffer& operator=(const sringbuffer& other) noexcept {
+			constexpr GAIA_NODISCARD sringbuffer& operator=(const sringbuffer& other) noexcept {
 				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
 
 				utils::copy_elements(m_data, other.m_data, other.size());
@@ -85,7 +85,7 @@ namespace gaia {
 				return *this;
 			}
 
-			GAIA_NODISCARD constexpr sringbuffer& operator=(sringbuffer&& other) noexcept {
+			constexpr GAIA_NODISCARD sringbuffer& operator=(sringbuffer&& other) noexcept {
 				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
 
 				utils::transfer_elements(m_data, other.m_data, other.size());
@@ -153,35 +153,35 @@ namespace gaia {
 				--m_size;
 			}
 
-			GAIA_NODISCARD constexpr size_type size() const noexcept {
+			constexpr GAIA_NODISCARD size_type size() const noexcept {
 				return m_size;
 			}
 
-			GAIA_NODISCARD constexpr bool empty() const noexcept {
+			constexpr GAIA_NODISCARD bool empty() const noexcept {
 				return !m_size;
 			}
 
-			GAIA_NODISCARD constexpr size_type max_size() const noexcept {
+			constexpr GAIA_NODISCARD size_type max_size() const noexcept {
 				return N;
 			}
 
-			GAIA_NODISCARD constexpr reference front() noexcept {
+			constexpr GAIA_NODISCARD reference front() noexcept {
 				GAIA_ASSERT(!empty());
 				return m_data[m_tail];
 			}
 
-			GAIA_NODISCARD constexpr const_reference front() const noexcept {
+			constexpr GAIA_NODISCARD const_reference front() const noexcept {
 				GAIA_ASSERT(!empty());
 				return m_data[m_tail];
 			}
 
-			GAIA_NODISCARD constexpr reference back() noexcept {
+			constexpr GAIA_NODISCARD reference back() noexcept {
 				GAIA_ASSERT(!empty());
 				const auto head = (m_tail + m_size - 1) % N;
 				return m_data[head];
 			}
 
-			GAIA_NODISCARD constexpr const_reference back() const noexcept {
+			constexpr GAIA_NODISCARD const_reference back() const noexcept {
 				GAIA_ASSERT(!empty());
 				const auto head = (m_tail + m_size - 1) % N;
 				return m_data[head];

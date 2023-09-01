@@ -26,7 +26,7 @@ namespace gaia {
 			}
 
 			template <typename T>
-			GAIA_NODISCARD constexpr T hash_combine2(T lhs, T rhs) {
+			constexpr GAIA_NODISCARD T hash_combine2(T lhs, T rhs) {
 				hash_combine2_out(lhs, rhs);
 				return lhs;
 			}
