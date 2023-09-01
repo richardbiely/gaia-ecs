@@ -291,17 +291,33 @@ namespace gaia {
 				auto mask = SetThreadAffinityMask(nativeHandle, 1ULL << threadID);
 				GAIA_ASSERT(mask > 0);
 				if (mask <= 0)
-					GAIA_LOG_W("Issue setting thread affinity for a worker thread!");
-#elif GAIA_PLATFORM_LINUX || GAIA_PLATFORM_FREEBSD || GAIA_PLATFORM_APPLE
+					GAIA_LOG_W("Issue setting thread affinity for worker thread %u!", threadID);
+#elif GAIA_PLATFORM_APPLE
 				auto nativeHandle = (pthread_t)m_workers[threadID].native_handle();
 
-				thread_port_t mach_thread = pthread_mach_thread_np(nativeHandle);
+				mach_port_t mach_thread = pthread_mach_thread_np(nativeHandle);
 				thread_affinity_policy_data_t policy_data = {(int)threadID};
 				auto ret = thread_policy_set(
 						mach_thread, THREAD_AFFINITY_POLICY, (thread_policy_t)&policy_data, THREAD_AFFINITY_POLICY_COUNT);
 				GAIA_ASSERT(ret != 0);
 				if (ret == 0)
-					GAIA_LOG_W("Issue setting thread affinity for a worker thread!");
+					GAIA_LOG_W("Issue setting thread affinity for worker thread %u!", threadID);
+#elif GAIA_PLATFORM_LINUX || GAIA_PLATFORM_FREEBSD
+				auto nativeHandle = (pthread_t)m_workers[threadID].native_handle();
+
+				cpu_set_t cpuset;
+				CPU_ZERO(&cpuset);
+				CPU_SET(threadID, &cpuset);
+
+				auto ret = pthread_setaffinity_np(nativeHandle, sizeof(cpuset), &cpuset);
+				GAIA_ASSERT(ret == 0);
+				if (ret != 0)
+					GAIA_LOG_W("Issue setting thread affinity for worker thread %u!", threadID);
+
+				ret = pthread_getaffinity_np(nativeHandle, sizeof(cpuset), &cpuset);
+				GAIA_ASSERT(ret == 0);
+				if (ret != 0)
+					GAIA_LOG_W("Thread affinity could not be set for worker thread %u!", threadID);
 #endif
 			}
 
@@ -315,7 +331,7 @@ namespace gaia {
 				GAIA_ASSERT(SUCCEEDED(hr));
 				if (FAILED(hr))
 					GAIA_LOG_W("Issue setting worker thread name!");
-#elif GAIA_PLATFORM_LINUX || GAIA_PLATFORM_FREEBSD || GAIA_PLATFORM_APPLE
+#elif GAIA_PLATFORM_APPLE
 				auto nativeHandle = (pthread_t)m_workers[threadID].native_handle();
 
 				char threadName[10]{};
@@ -323,7 +339,16 @@ namespace gaia {
 				auto ret = pthread_setname_np(threadName);
 				GAIA_ASSERT(ret == 0);
 				if (ret != 0)
-					GAIA_LOG_W("Issue setting worker thread name!");
+					GAIA_LOG_W("Issue setting name for worker thread %u!", threadID);
+#elif GAIA_PLATFORM_LINUX || GAIA_PLATFORM_FREEBSD
+				auto nativeHandle = (pthread_t)m_workers[threadID].native_handle();
+
+				char threadName[10]{};
+				snprintf(threadName, 10, "worker_%u", threadID);
+				auto ret = pthread_setname_np(nativeHandle, threadName);
+				GAIA_ASSERT(ret == 0);
+				if (ret != 0)
+					GAIA_LOG_W("Issue setting name for worker thread %u!", threadID);
 #endif
 			}
 
