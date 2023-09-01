@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cinttypes>
+
 //------------------------------------------------------------------------------
 // DO NOT MODIFY THIS FILE
 //------------------------------------------------------------------------------
@@ -139,6 +141,35 @@
 #define GAIA_CONCAT(x, y) GAIA_CONCAT_IMPL(x, y)
 
 //------------------------------------------------------------------------------
+// Endianess
+// Endianess detection is hell as far as compile-time is concerned.
+// There is a bloat of macros and header files across different compilers,
+// platforms and C++ standard implementations.
+//------------------------------------------------------------------------------
+
+#if GAIA_COMPILER_MSVC
+	// Whether it is ARM or x86 we consider both litte endian.
+	// It is very unlikely that any modern "big" CPU would use big endian these days
+	// as it is more efficient to be little endian on HW level.
+	#define GAIA_LITTLE_ENDIAN true
+	#define GAIA_BIG_ENDIAN false
+#else
+	#define GAIA_LITTLE_ENDIAN (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
+	#define GAIA_BIG_ENDIAN (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
+#endif
+
+//! Checks if endianess was detected correctly at compile-time.
+//! \return True if endianess defined in GAIA_LITTLE_ENDIAN/GAIA_END_ENDIAN is correct. False otherwise.
+//! \warning If false is returned, flip the values in GAIA_LITTLE_ENDIAN and GAIA_BIG_ENDIAN.
+namespace gaia {
+	inline bool CheckEndianess() {
+		const uint16_t testWord = 0x1234;
+		const bool isLittleEndian(*reinterpret_cast<const uint8_t*>(&testWord) == 0x34);
+		return isLittleEndian == GAIA_LITTLE_ENDIAN;
+	}
+} // namespace gaia
+
+//------------------------------------------------------------------------------
 
 #if (GAIA_COMPILER_MSVC && _MSC_VER >= 1400) || GAIA_COMPILER_GCC || GAIA_COMPILER_CLANG
 	#define GAIA_RESTRICT __restrict
@@ -184,12 +215,198 @@
 	#define GAIA_ALIGNAS(alignment) alignas(alignment)
 #endif
 
+#if GAIA_COMPILER_MSVC
+	#if _MSV_VER <= 1916
+		#include <intrin.h>
+	#endif
+	//! Returns the number of set bits in \param x
+	#define GAIA_POPCNT(x) __popcnt(x)
+	//! Returns the number of set bits in \param x
+	#define GAIA_POPCNT64(x) __popcnt64(x)
+
+	#pragma intrinsic(_BitScanForward)
+	//! Returns the number of leading zeros of \param x or 32 if \param x is 0.
+	//! \warning Little-endian format.
+	#define GAIA_CLZ(x)                                                                                                  \
+		([](uint32_t x) noexcept {                                                                                         \
+			unsigned long index;                                                                                             \
+			return _BitScanForward(&index, x) ? (uint32_t)(31U - index) : (uint32_t)32;                                              \
+		}(x))
+	#pragma intrinsic(_BitScanForward64)
+	//! Returns the number of leading zeros of \param x or 64 if \param x is 0.
+	//! \warning Little-endian format.
+	#define GAIA_CLZ64(x)                                                                                                \
+		([](uint64_t x) noexcept {                                                                                         \
+			unsigned long index;                                                                                             \
+			return _BitScanForward64(&index, x) ? (uint32_t)(63U - index): (uint32_t)64;                                            \
+		}(x))
+
+	#pragma intrinsic(_BitScanReverse)
+	//! Returns the number of trailing zeros of \param x or 32 if \param x is 0.
+	//! \warning Little-endian format.
+	#define GAIA_CTZ(x)                                                                                                  \
+		([](uint32_t x) noexcept {                                                                                         \
+			unsigned long index;                                                                                             \
+			return _BitScanReverse(&index, x) ? (uint32_t)(31U - index): (uint32_t)32;                                              \
+		}(x))
+	#pragma intrinsic(_BitScanReverse64)
+	//! Returns the number of trailing zeros of \param x or 64 if \param x is 0.
+	//! \warning Little-endian format.
+	#define GAIA_CTZ64(x)                                                                                                \
+		([](uint64_t x) noexcept {                                                                                         \
+			unsigned long index;                                                                                             \
+			return _BitScanReverse64(&index, x) ? (uint32_t)(63U - index): (uint32_t)64;                                            \
+		}(x))
+
+	#pragma intrinsic(_BitScanForward)
+	//! Returns 1 plus the index of the least significant set bit of \param x, or 0 if \param x is 0.
+	//! \warning Little-endian format.
+	#define GAIA_FFS(x)                                                                                                  \
+		([](uint32_t x) noexcept {                                                                                         \
+			unsigned long index;                                                                                             \
+			if (_BitScanForward(&index, x))                                                                                  \
+				return (uint32_t)(index + 1);                                                                                  \
+			return (uint32_t)0;                                                                                              \
+		}(x))
+	#pragma intrinsic(_BitScanForward64)
+	//! Returns 1 plus the index of the least significant set bit of \param x, or 0 if \param x is 0.
+	//! \warning Little-endian format.
+	#define GAIA_FFS64(x)                                                                                                \
+		([](uint64_t x) noexcept {                                                                                         \
+			unsigned long index;                                                                                             \
+			if (_BitScanForward64(&index, x))                                                                                \
+				return (uint32_t)(index + 1);                                                                                  \
+			return (uint32_t)0;                                                                                              \
+		}(x))
+#elif GAIA_COMPILER_CLANG || GAIA_COMPILER_GCC
+	//! Returns the number of set bits in \param x
+	#define GAIA_POPCNT(x) __builtin_popcount(x)
+	//! Returns the number of set bits in \param x
+	#define GAIA_POPCNT64(x) __builtin_popcountll(x)
+
+	//! Returns the number of leading zeros of \param x or 32 if \param x is 0.
+	//! \warning Little-endian format.
+	#define GAIA_CLZ(x) ((x) ? __builtin_ctz(x) : 32)
+	//! Returns the number of leading zeros of \param x or 64 if \param x is 0.
+	//! \warning Little-endian format.
+	#define GAIA_CLZ64(x) ((x) ? __builtin_ctzll(x) : 64)
+
+	//! Returns the number of trailing zeros of \param x or 32 if \param x is 0.
+	//! \warning Little-endian format.
+	#define GAIA_CTZ(x) ((x) ? __builtin_clz(x) : 32)
+	//! Returns the number of trailing zeros of \param x or 64 if \param x is 0.
+	//! \warning Little-endian format.
+	#define GAIA_CTZ64(x) ((x) ? __builtin_clzll(x) : 64)
+
+	//! Returns 1 plus the index of the least significant set bit of \param x, or 0 if \param x is 0.
+	//! \warning Little-endian format.
+	#define GAIA_FFS(x) __builtin_ffs(x)
+	//! Returns 1 plus the index of the least significant set bit of \param x, or 0 if \param x is 0.
+	//! \warning Little-endian format.
+	#define GAIA_FFS64(x) __builtin_ffsll(x)
+#else
+	//! Returns the number of set bits in \param x
+	#define GAIA_POPCNT(x)                                                                                               \
+		([](uint32_t value) noexcept -> uint32_t {                                                                         \
+			uint32_t bitsSet = 0;                                                                                            \
+			while (value != 0) {                                                                                             \
+				value &= (value - 1);                                                                                          \
+				++bitsSet;                                                                                                     \
+			}                                                                                                                \
+			return bitsSet;                                                                                                  \
+		}(x))
+	//! Returns the number of set bits in \param x
+	#define GAIA_POPCNT64(x)                                                                                             \
+		([](uint64_t value) noexcept -> uint32_t {                                                                         \
+			uint32_t bitsSet = 0;                                                                                            \
+			while (value != 0) {                                                                                             \
+				value &= (value - 1);                                                                                          \
+				++bitsSet;                                                                                                     \
+			}                                                                                                                \
+			return bitsSet;                                                                                                  \
+		}(x))
+
+	//! Returns the number of leading zeros of \param x or 32 if \param x is 0.
+	//! \warning Little-endian format.
+	#define GAIA_CLZ(x)                                                                                                  \
+		([](uint32_t value) noexcept -> uint32_t {                                                                         \
+			if (value == 0)                                                                                                  \
+				return 32;                                                                                                     \
+			uint32_t index = 0;                                                                                              \
+			while (((value >> index) & 1) == 0)                                                                              \
+				++index;                                                                                                       \
+			return index;                                                                                                    \
+		}(x))
+	//! Returns the number of leading zeros of \param x or 64 if \param x is 0.
+	//! \warning Little-endian format.
+	#define GAIA_CLZ64(x)                                                                                                \
+		([](uint64_t value) noexcept -> uint32_t {                                                                         \
+			if (value == 0)                                                                                                  \
+				return 64;                                                                                                     \
+			uint32_t index = 0;                                                                                              \
+			while (((value >> index) & 1) == 0)                                                                              \
+				++index;                                                                                                       \
+			return index;                                                                                                    \
+		}(x))
+
+	//! Returns the number of trailing zeros of \param x or 32 if \param x is 0.
+	//! \warning Little-endian format.
+	#define GAIA_CTZ(x)                                                                                                  \
+		([](uint32_t value) noexcept -> uint32_t {                                                                         \
+			if (value == 0)                                                                                                  \
+				return 32;                                                                                                     \
+			uint32_t index = 0;                                                                                              \
+			while (((value << index) & 0x80000000) == 0)                                                                     \
+				++index;                                                                                                       \
+			return index;                                                                                                    \
+		}(x))
+	//! Returns the number of trailing zeros of \param x or 64 if \param x is 0.
+	//! \warning Little-endian format.
+	#define GAIA_CTZ64(x)                                                                                                \
+		([](uint64_t value) noexcept -> uint32_t {                                                                         \
+			if (value == 0)                                                                                                  \
+				return 64;                                                                                                     \
+			uint32_t index = 0;                                                                                              \
+			while (((value << index) & 0x8000000000000000LL) == 0)                                                           \
+				++index;                                                                                                       \
+			return index;                                                                                                    \
+		}(x))
+
+	//! Returns 1 plus the index of the least significant set bit of \param x, or 0 if \param x is 0.
+	//! \warning Little-endian format.
+	#define GAIA_FFS(x)                                                                                                  \
+		([](uint32_t value) noexcept -> uint32_t {                                                                         \
+			if (value == 0)                                                                                                  \
+				return 0;                                                                                                      \
+			uint32_t index = 0;                                                                                              \
+			while (((value >> index) & 1) == 0)                                                                              \
+				++index;                                                                                                       \
+			return index + 1;                                                                                                \
+		}(x))
+	//! Returns 1 plus the index of the least significant set bit of \param x, or 0 if \param x is 0.
+	//! \warning Little-endian format.
+	#define GAIA_FFS64(x)                                                                                                \
+		([](uint64_t value) noexcept -> uint32_t {                                                                         \
+			if (value == 0)                                                                                                  \
+				return 0;                                                                                                      \
+			uint32_t index = 0;                                                                                              \
+			while (((value >> index) & 1) == 0)                                                                              \
+				++index;                                                                                                       \
+			return index + 1;                                                                                                \
+		}(x))
+#endif
+
 //------------------------------------------------------------------------------
 
 #if GAIA_COMPILER_MSVC || GAIA_COMPILER_ICC
 	#define GAIA_FORCEINLINE __forceinline
-#else
+	#define GAIA_NOINLINE __declspec(noinline)
+#elif GAIA_COMPILER_CLANG || GAIA_COMPILER_GCC
 	#define GAIA_FORCEINLINE inline __attribute__((always_inline))
+	#define GAIA_NOINLINE inline __attribute__((noinline))
+#else
+	#define GAIA_FORCEINLINE
+	#define GAIA_NOINLINE
 #endif
 
 //------------------------------------------------------------------------------

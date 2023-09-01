@@ -1,5 +1,7 @@
 
 
+#include <cinttypes>
+
 //------------------------------------------------------------------------------
 // DO NOT MODIFY THIS FILE
 //------------------------------------------------------------------------------
@@ -139,6 +141,35 @@
 #define GAIA_CONCAT(x, y) GAIA_CONCAT_IMPL(x, y)
 
 //------------------------------------------------------------------------------
+// Endianess
+// Endianess detection is hell as far as compile-time is concerned.
+// There is a bloat of macros and header files across different compilers,
+// platforms and C++ standard implementations.
+//------------------------------------------------------------------------------
+
+#if GAIA_COMPILER_MSVC
+	// Whether it is ARM or x86 we consider both litte endian.
+	// It is very unlikely that any modern "big" CPU would use big endian these days
+	// as it is more efficient to be little endian on HW level.
+	#define GAIA_LITTLE_ENDIAN true
+	#define GAIA_BIG_ENDIAN false
+#else
+	#define GAIA_LITTLE_ENDIAN (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
+	#define GAIA_BIG_ENDIAN (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
+#endif
+
+//! Checks if endianess was detected correctly at compile-time.
+//! \return True if endianess defined in GAIA_LITTLE_ENDIAN/GAIA_END_ENDIAN is correct. False otherwise.
+//! \warning If false is returned, flip the values in GAIA_LITTLE_ENDIAN and GAIA_BIG_ENDIAN.
+namespace gaia {
+	inline bool CheckEndianess() {
+		const uint16_t testWord = 0x1234;
+		const bool isLittleEndian(*reinterpret_cast<const uint8_t*>(&testWord) == 0x34);
+		return isLittleEndian == GAIA_LITTLE_ENDIAN;
+	}
+} // namespace gaia
+
+//------------------------------------------------------------------------------
 
 #if (GAIA_COMPILER_MSVC && _MSC_VER >= 1400) || GAIA_COMPILER_GCC || GAIA_COMPILER_CLANG
 	#define GAIA_RESTRICT __restrict
@@ -184,12 +215,198 @@
 	#define GAIA_ALIGNAS(alignment) alignas(alignment)
 #endif
 
+#if GAIA_COMPILER_MSVC
+	#if _MSV_VER <= 1916
+		#include <intrin.h>
+	#endif
+	//! Returns the number of set bits in \param x
+	#define GAIA_POPCNT(x) __popcnt(x)
+	//! Returns the number of set bits in \param x
+	#define GAIA_POPCNT64(x) __popcnt64(x)
+
+	#pragma intrinsic(_BitScanForward)
+	//! Returns the number of leading zeros of \param x or 32 if \param x is 0.
+	//! \warning Little-endian format.
+	#define GAIA_CLZ(x)                                                                                                  \
+		([](uint32_t x) noexcept {                                                                                         \
+			unsigned long index;                                                                                             \
+			return _BitScanForward(&index, x) ? (uint32_t)index : (uint32_t)32;                                              \
+		}(x))
+	#pragma intrinsic(_BitScanForward64)
+	//! Returns the number of leading zeros of \param x or 64 if \param x is 0.
+	//! \warning Little-endian format.
+	#define GAIA_CLZ64(x)                                                                                                \
+		([](uint64_t x) noexcept {                                                                                         \
+			unsigned long index;                                                                                             \
+			return _BitScanForward64(&index, x) ? (uint32_t)index : (uint32_t)64;                                            \
+		}(x))
+
+	#pragma intrinsic(_BitScanReverse)
+	//! Returns the number of trailing zeros of \param x or 32 if \param x is 0.
+	//! \warning Little-endian format.
+	#define GAIA_CTZ(x)                                                                                                  \
+		([](uint32_t x) noexcept {                                                                                         \
+			unsigned long index;                                                                                             \
+			return _BitScanReverse(&index, x) ? (uint32_t)index : (uint32_t)32;                                              \
+		}(x))
+	#pragma intrinsic(_BitScanReverse64)
+	//! Returns the number of trailing zeros of \param x or 64 if \param x is 0.
+	//! \warning Little-endian format.
+	#define GAIA_CTZ64(x)                                                                                                \
+		([](uint64_t x) noexcept {                                                                                         \
+			unsigned long index;                                                                                             \
+			return _BitScanReverse64(&index, x) ? (uint32_t)index : (uint32_t)64;                                            \
+		}(x))
+
+	#pragma intrinsic(_BitScanForward)
+	//! Returns 1 plus the index of the least significant set bit of \param x, or 0 if \param x is 0.
+	//! \warning Little-endian format.
+	#define GAIA_FFS(x)                                                                                                  \
+		([](uint32_t x) noexcept {                                                                                         \
+			unsigned long index;                                                                                             \
+			if (_BitScanForward(&index, x))                                                                                  \
+				return (uint32_t)(index + 1);                                                                                  \
+			return (uint32_t)0;                                                                                              \
+		}(x))
+	#pragma intrinsic(_BitScanForward64)
+	//! Returns 1 plus the index of the least significant set bit of \param x, or 0 if \param x is 0.
+	//! \warning Little-endian format.
+	#define GAIA_FFS64(x)                                                                                                \
+		([](uint64_t x) noexcept {                                                                                         \
+			unsigned long index;                                                                                             \
+			if (_BitScanForward64(&index, x))                                                                                \
+				return (uint32_t)(index + 1);                                                                                  \
+			return (uint32_t)0;                                                                                              \
+		}(x))
+#elif GAIA_COMPILER_CLANG || GAIA_COMPILER_GCC
+	//! Returns the number of set bits in \param x
+	#define GAIA_POPCNT(x) __builtin_popcount(x)
+	//! Returns the number of set bits in \param x
+	#define GAIA_POPCNT64(x) __builtin_popcountll(x)
+
+	//! Returns the number of leading zeros of \param x or 32 if \param x is 0.
+	//! \warning Little-endian format.
+	#define GAIA_CLZ(x) ((x) ? __builtin_ctz(x) : 32)
+	//! Returns the number of leading zeros of \param x or 64 if \param x is 0.
+	//! \warning Little-endian format.
+	#define GAIA_CLZ64(x) ((x) ? __builtin_ctzll(x) : 64)
+
+	//! Returns the number of trailing zeros of \param x or 32 if \param x is 0.
+	//! \warning Little-endian format.
+	#define GAIA_CTZ(x) ((x) ? __builtin_clz(x) : 32)
+	//! Returns the number of trailing zeros of \param x or 64 if \param x is 0.
+	//! \warning Little-endian format.
+	#define GAIA_CTZ64(x) ((x) ? __builtin_clzll(x) : 64)
+
+	//! Returns 1 plus the index of the least significant set bit of \param x, or 0 if \param x is 0.
+	//! \warning Little-endian format.
+	#define GAIA_FFS(x) __builtin_ffs(x)
+	//! Returns 1 plus the index of the least significant set bit of \param x, or 0 if \param x is 0.
+	//! \warning Little-endian format.
+	#define GAIA_FFS64(x) __builtin_ffsll(x)
+#else
+	//! Returns the number of set bits in \param x
+	#define GAIA_POPCNT(x)                                                                                               \
+		([](uint32_t value) noexcept -> uint32_t {                                                                         \
+			uint32_t bitsSet = 0;                                                                                            \
+			while (value != 0) {                                                                                             \
+				value &= (value - 1);                                                                                          \
+				++bitsSet;                                                                                                     \
+			}                                                                                                                \
+			return bitsSet;                                                                                                  \
+		}(x))
+	//! Returns the number of set bits in \param x
+	#define GAIA_POPCNT64(x)                                                                                             \
+		([](uint64_t value) noexcept -> uint32_t {                                                                         \
+			uint32_t bitsSet = 0;                                                                                            \
+			while (value != 0) {                                                                                             \
+				value &= (value - 1);                                                                                          \
+				++bitsSet;                                                                                                     \
+			}                                                                                                                \
+			return bitsSet;                                                                                                  \
+		}(x))
+
+	//! Returns the number of leading zeros of \param x or 32 if \param x is 0.
+	//! \warning Little-endian format.
+	#define GAIA_CLZ(x)                                                                                                  \
+		([](uint32_t value) noexcept -> uint32_t {                                                                         \
+			if (value == 0)                                                                                                  \
+				return 32;                                                                                                     \
+			uint32_t index = 0;                                                                                              \
+			while (((value >> index) & 1) == 0)                                                                              \
+				++index;                                                                                                       \
+			return index;                                                                                                    \
+		}(x))
+	//! Returns the number of leading zeros of \param x or 64 if \param x is 0.
+	//! \warning Little-endian format.
+	#define GAIA_CLZ64(x)                                                                                                \
+		([](uint64_t value) noexcept -> uint32_t {                                                                         \
+			if (value == 0)                                                                                                  \
+				return 64;                                                                                                     \
+			uint32_t index = 0;                                                                                              \
+			while (((value >> index) & 1) == 0)                                                                              \
+				++index;                                                                                                       \
+			return index;                                                                                                    \
+		}(x))
+
+	//! Returns the number of trailing zeros of \param x or 32 if \param x is 0.
+	//! \warning Little-endian format.
+	#define GAIA_CTZ(x)                                                                                                  \
+		([](uint32_t value) noexcept -> uint32_t {                                                                         \
+			if (value == 0)                                                                                                  \
+				return 32;                                                                                                     \
+			uint32_t index = 0;                                                                                              \
+			while (((value << index) & 0x80000000) == 0)                                                                     \
+				++index;                                                                                                       \
+			return index;                                                                                                    \
+		}(x))
+	//! Returns the number of trailing zeros of \param x or 64 if \param x is 0.
+	//! \warning Little-endian format.
+	#define GAIA_CTZ64(x)                                                                                                \
+		([](uint64_t value) noexcept -> uint32_t {                                                                         \
+			if (value == 0)                                                                                                  \
+				return 64;                                                                                                     \
+			uint32_t index = 0;                                                                                              \
+			while (((value << index) & 0x8000000000000000LL) == 0)                                                           \
+				++index;                                                                                                       \
+			return index;                                                                                                    \
+		}(x))
+
+	//! Returns 1 plus the index of the least significant set bit of \param x, or 0 if \param x is 0.
+	//! \warning Little-endian format.
+	#define GAIA_FFS(x)                                                                                                  \
+		([](uint32_t value) noexcept -> uint32_t {                                                                         \
+			if (value == 0)                                                                                                  \
+				return 0;                                                                                                      \
+			uint32_t index = 0;                                                                                              \
+			while (((value >> index) & 1) == 0)                                                                              \
+				++index;                                                                                                       \
+			return index + 1;                                                                                                \
+		}(x))
+	//! Returns 1 plus the index of the least significant set bit of \param x, or 0 if \param x is 0.
+	//! \warning Little-endian format.
+	#define GAIA_FFS64(x)                                                                                                \
+		([](uint64_t value) noexcept -> uint32_t {                                                                         \
+			if (value == 0)                                                                                                  \
+				return 0;                                                                                                      \
+			uint32_t index = 0;                                                                                              \
+			while (((value >> index) & 1) == 0)                                                                              \
+				++index;                                                                                                       \
+			return index + 1;                                                                                                \
+		}(x))
+#endif
+
 //------------------------------------------------------------------------------
 
 #if GAIA_COMPILER_MSVC || GAIA_COMPILER_ICC
 	#define GAIA_FORCEINLINE __forceinline
-#else
+	#define GAIA_NOINLINE __declspec(noinline)
+#elif GAIA_COMPILER_CLANG || GAIA_COMPILER_GCC
 	#define GAIA_FORCEINLINE inline __attribute__((always_inline))
+	#define GAIA_NOINLINE inline __attribute__((noinline))
+#else
+	#define GAIA_FORCEINLINE
+	#define GAIA_NOINLINE
 #endif
 
 //------------------------------------------------------------------------------
@@ -1198,22 +1415,22 @@ namespace gaia {
 					return m_ptr - other.m_ptr;
 				}
 
-				bool operator==(const iterator& other) const {
+				GAIA_NODISCARD bool operator==(const iterator& other) const {
 					return m_ptr == other.m_ptr;
 				}
-				bool operator!=(const iterator& other) const {
+				GAIA_NODISCARD bool operator!=(const iterator& other) const {
 					return m_ptr != other.m_ptr;
 				}
-				bool operator>(const iterator& other) const {
+				GAIA_NODISCARD bool operator>(const iterator& other) const {
 					return m_ptr > other.m_ptr;
 				}
-				bool operator>=(const iterator& other) const {
+				GAIA_NODISCARD bool operator>=(const iterator& other) const {
 					return m_ptr >= other.m_ptr;
 				}
-				bool operator<(const iterator& other) const {
+				GAIA_NODISCARD bool operator<(const iterator& other) const {
 					return m_ptr < other.m_ptr;
 				}
-				bool operator<=(const iterator& other) const {
+				GAIA_NODISCARD bool operator<=(const iterator& other) const {
 					return m_ptr <= other.m_ptr;
 				}
 			};
@@ -1282,22 +1499,22 @@ namespace gaia {
 					return m_ptr - other.m_ptr;
 				}
 
-				bool operator==(const const_iterator& other) const {
+				GAIA_NODISCARD bool operator==(const const_iterator& other) const {
 					return m_ptr == other.m_ptr;
 				}
-				bool operator!=(const const_iterator& other) const {
+				GAIA_NODISCARD bool operator!=(const const_iterator& other) const {
 					return m_ptr != other.m_ptr;
 				}
-				bool operator>(const const_iterator& other) const {
+				GAIA_NODISCARD bool operator>(const const_iterator& other) const {
 					return m_ptr > other.m_ptr;
 				}
-				bool operator>=(const const_iterator& other) const {
+				GAIA_NODISCARD bool operator>=(const const_iterator& other) const {
 					return m_ptr >= other.m_ptr;
 				}
-				bool operator<(const const_iterator& other) const {
+				GAIA_NODISCARD bool operator<(const const_iterator& other) const {
 					return m_ptr < other.m_ptr;
 				}
-				bool operator<=(const const_iterator& other) const {
+				GAIA_NODISCARD bool operator<=(const const_iterator& other) const {
 					return m_ptr <= other.m_ptr;
 				}
 			};
@@ -1679,22 +1896,22 @@ namespace gaia {
 					return m_ptr - other.m_ptr;
 				}
 
-				constexpr bool operator==(const iterator& other) const {
+				constexpr GAIA_NODISCARD bool operator==(const iterator& other) const {
 					return m_ptr == other.m_ptr;
 				}
-				constexpr bool operator!=(const iterator& other) const {
+				constexpr GAIA_NODISCARD bool operator!=(const iterator& other) const {
 					return m_ptr != other.m_ptr;
 				}
-				constexpr bool operator>(const iterator& other) const {
+				constexpr GAIA_NODISCARD bool operator>(const iterator& other) const {
 					return m_ptr > other.m_ptr;
 				}
-				constexpr bool operator>=(const iterator& other) const {
+				constexpr GAIA_NODISCARD bool operator>=(const iterator& other) const {
 					return m_ptr >= other.m_ptr;
 				}
-				constexpr bool operator<(const iterator& other) const {
+				constexpr GAIA_NODISCARD bool operator<(const iterator& other) const {
 					return m_ptr < other.m_ptr;
 				}
-				constexpr bool operator<=(const iterator& other) const {
+				constexpr GAIA_NODISCARD bool operator<=(const iterator& other) const {
 					return m_ptr <= other.m_ptr;
 				}
 			};
@@ -1782,65 +1999,65 @@ namespace gaia {
 				}
 			};
 
-			GAIA_NODISCARD constexpr pointer data() noexcept {
+			constexpr GAIA_NODISCARD pointer data() noexcept {
 				return (pointer)m_data;
 			}
 
-			GAIA_NODISCARD constexpr const_pointer data() const noexcept {
+			constexpr GAIA_NODISCARD const_pointer data() const noexcept {
 				return (const_pointer)m_data;
 			}
 
-			GAIA_NODISCARD constexpr reference operator[](size_type pos) noexcept {
+			constexpr GAIA_NODISCARD reference operator[](size_type pos) noexcept {
 				GAIA_ASSERT(pos < size());
 				return (reference)m_data[pos];
 			}
 
-			GAIA_NODISCARD constexpr const_reference operator[](size_type pos) const noexcept {
+			constexpr GAIA_NODISCARD const_reference operator[](size_type pos) const noexcept {
 				GAIA_ASSERT(pos < size());
 				return (const_reference)m_data[pos];
 			}
 
-			GAIA_NODISCARD constexpr size_type size() const noexcept {
+			constexpr GAIA_NODISCARD size_type size() const noexcept {
 				return N;
 			}
 
-			GAIA_NODISCARD constexpr bool empty() const noexcept {
+			constexpr GAIA_NODISCARD bool empty() const noexcept {
 				return begin() == end();
 			}
 
-			GAIA_NODISCARD constexpr size_type max_size() const noexcept {
+			constexpr GAIA_NODISCARD size_type max_size() const noexcept {
 				return N;
 			}
 
-			GAIA_NODISCARD constexpr reference front() noexcept {
+			constexpr GAIA_NODISCARD reference front() noexcept {
 				return *begin();
 			}
 
-			GAIA_NODISCARD constexpr const_reference front() const noexcept {
+			constexpr GAIA_NODISCARD const_reference front() const noexcept {
 				return *begin();
 			}
 
-			GAIA_NODISCARD constexpr reference back() noexcept {
+			constexpr GAIA_NODISCARD reference back() noexcept {
 				return N != 0U ? *(end() - 1) : *end();
 			}
 
-			GAIA_NODISCARD constexpr const_reference back() const noexcept {
+			constexpr GAIA_NODISCARD const_reference back() const noexcept {
 				return N != 0U ? *(end() - 1) : *end();
 			}
 
-			GAIA_NODISCARD constexpr iterator begin() const noexcept {
+			constexpr GAIA_NODISCARD iterator begin() const noexcept {
 				return {(T*)m_data};
 			}
 
-			GAIA_NODISCARD constexpr const_iterator cbegin() const noexcept {
+			constexpr GAIA_NODISCARD const_iterator cbegin() const noexcept {
 				return {(const T*)m_data};
 			}
 
-			GAIA_NODISCARD constexpr iterator end() const noexcept {
+			constexpr GAIA_NODISCARD iterator end() const noexcept {
 				return {(T*)m_data + N};
 			}
 
-			GAIA_NODISCARD constexpr const_iterator cend() const noexcept {
+			constexpr GAIA_NODISCARD const_iterator cend() const noexcept {
 				return {(const T*)m_data + N};
 			}
 
@@ -1985,22 +2202,22 @@ namespace gaia {
 					return m_ptr - other.m_ptr;
 				}
 
-				constexpr bool operator==(const iterator& other) const {
+				constexpr GAIA_NODISCARD bool operator==(const iterator& other) const {
 					return m_ptr == other.m_ptr;
 				}
-				constexpr bool operator!=(const iterator& other) const {
+				constexpr GAIA_NODISCARD bool operator!=(const iterator& other) const {
 					return m_ptr != other.m_ptr;
 				}
-				constexpr bool operator>(const iterator& other) const {
+				constexpr GAIA_NODISCARD bool operator>(const iterator& other) const {
 					return m_ptr > other.m_ptr;
 				}
-				constexpr bool operator>=(const iterator& other) const {
+				constexpr GAIA_NODISCARD bool operator>=(const iterator& other) const {
 					return m_ptr >= other.m_ptr;
 				}
-				constexpr bool operator<(const iterator& other) const {
+				constexpr GAIA_NODISCARD bool operator<(const iterator& other) const {
 					return m_ptr < other.m_ptr;
 				}
-				constexpr bool operator<=(const iterator& other) const {
+				constexpr GAIA_NODISCARD bool operator<=(const iterator& other) const {
 					return m_ptr <= other.m_ptr;
 				}
 			};
@@ -2067,22 +2284,22 @@ namespace gaia {
 					return m_ptr - other.m_ptr;
 				}
 
-				constexpr bool operator==(const const_iterator& other) const {
+				constexpr GAIA_NODISCARD bool operator==(const const_iterator& other) const {
 					return m_ptr == other.m_ptr;
 				}
-				constexpr bool operator!=(const const_iterator& other) const {
+				constexpr GAIA_NODISCARD bool operator!=(const const_iterator& other) const {
 					return m_ptr != other.m_ptr;
 				}
-				constexpr bool operator>(const const_iterator& other) const {
+				constexpr GAIA_NODISCARD bool operator>(const const_iterator& other) const {
 					return m_ptr > other.m_ptr;
 				}
-				constexpr bool operator>=(const const_iterator& other) const {
+				constexpr GAIA_NODISCARD bool operator>=(const const_iterator& other) const {
 					return m_ptr >= other.m_ptr;
 				}
-				constexpr bool operator<(const const_iterator& other) const {
+				constexpr GAIA_NODISCARD bool operator<(const const_iterator& other) const {
 					return m_ptr < other.m_ptr;
 				}
-				constexpr bool operator<=(const const_iterator& other) const {
+				constexpr GAIA_NODISCARD bool operator<=(const const_iterator& other) const {
 					return m_ptr <= other.m_ptr;
 				}
 			};
@@ -2136,7 +2353,7 @@ namespace gaia {
 				return *this;
 			}
 
-			GAIA_NODISCARD constexpr sarr_ext& operator=(const sarr_ext& other) noexcept {
+			constexpr GAIA_NODISCARD sarr_ext& operator=(const sarr_ext& other) noexcept {
 				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
 
 				resize(other.size());
@@ -2145,7 +2362,7 @@ namespace gaia {
 				return *this;
 			}
 
-			GAIA_NODISCARD constexpr sarr_ext& operator=(sarr_ext&& other) noexcept {
+			constexpr GAIA_NODISCARD sarr_ext& operator=(sarr_ext&& other) noexcept {
 				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
 
 				resize(other.m_cnt);
@@ -2156,20 +2373,20 @@ namespace gaia {
 				return *this;
 			}
 
-			GAIA_NODISCARD constexpr pointer data() noexcept {
+			constexpr GAIA_NODISCARD pointer data() noexcept {
 				return (pointer)m_data;
 			}
 
-			GAIA_NODISCARD constexpr const_pointer data() const noexcept {
+			constexpr GAIA_NODISCARD const_pointer data() const noexcept {
 				return (const_pointer)m_data;
 			}
 
-			GAIA_NODISCARD constexpr reference operator[](size_type pos) noexcept {
+			constexpr GAIA_NODISCARD reference operator[](size_type pos) noexcept {
 				GAIA_ASSERT(pos < size());
 				return (reference)m_data[pos];
 			}
 
-			GAIA_NODISCARD constexpr const_reference operator[](size_type pos) const noexcept {
+			constexpr GAIA_NODISCARD const_reference operator[](size_type pos) const noexcept {
 				GAIA_ASSERT(pos < size());
 				return (const_reference)m_data[pos];
 			}
@@ -2197,7 +2414,7 @@ namespace gaia {
 				--m_cnt;
 			}
 
-			GAIA_NODISCARD constexpr iterator erase(iterator pos) noexcept {
+			constexpr GAIA_NODISCARD iterator erase(iterator pos) noexcept {
 				GAIA_ASSERT(pos.m_ptr >= &m_data[0] && pos.m_ptr < &m_data[N - 1]);
 
 				const auto idxSrc = (size_type)GAIA_UTIL::distance(pos, begin());
@@ -2209,7 +2426,7 @@ namespace gaia {
 				return iterator((T*)m_data + idxSrc);
 			}
 
-			GAIA_NODISCARD constexpr const_iterator erase(const_iterator pos) noexcept {
+			constexpr GAIA_NODISCARD const_iterator erase(const_iterator pos) noexcept {
 				GAIA_ASSERT(pos.m_ptr >= &m_data[0] && pos.m_ptr < &m_data[N - 1]);
 
 				const auto idxSrc = (size_type)GAIA_UTIL::distance(pos, begin());
@@ -2221,7 +2438,7 @@ namespace gaia {
 				return iterator((const T*)m_data + idxSrc);
 			}
 
-			GAIA_NODISCARD constexpr iterator erase(iterator first, iterator last) noexcept {
+			constexpr GAIA_NODISCARD iterator erase(iterator first, iterator last) noexcept {
 				GAIA_ASSERT(first.m_cnt >= 0 && first.m_cnt < size());
 				GAIA_ASSERT(last.m_cnt >= 0 && last.m_cnt < size());
 				GAIA_ASSERT(last.m_cnt >= last.m_cnt);
@@ -2242,39 +2459,39 @@ namespace gaia {
 				m_cnt = size;
 			}
 
-			GAIA_NODISCARD constexpr size_type size() const noexcept {
+			constexpr GAIA_NODISCARD size_type size() const noexcept {
 				return m_cnt;
 			}
 
-			GAIA_NODISCARD constexpr bool empty() const noexcept {
+			constexpr GAIA_NODISCARD bool empty() const noexcept {
 				return size() == 0;
 			}
 
-			GAIA_NODISCARD constexpr size_type max_size() const noexcept {
+			constexpr GAIA_NODISCARD size_type max_size() const noexcept {
 				return N;
 			}
 
-			GAIA_NODISCARD constexpr reference front() noexcept {
+			constexpr GAIA_NODISCARD reference front() noexcept {
 				return *begin();
 			}
 
-			GAIA_NODISCARD constexpr const_reference front() const noexcept {
+			constexpr GAIA_NODISCARD const_reference front() const noexcept {
 				return *begin();
 			}
 
-			GAIA_NODISCARD constexpr reference back() noexcept {
+			constexpr GAIA_NODISCARD reference back() noexcept {
 				return N != 0U ? *(end() - 1) : *end();
 			}
 
-			GAIA_NODISCARD constexpr const_reference back() const noexcept {
+			constexpr GAIA_NODISCARD const_reference back() const noexcept {
 				return N != 0U ? *(end() - 1) : *end();
 			}
 
-			GAIA_NODISCARD constexpr iterator begin() const noexcept {
+			constexpr GAIA_NODISCARD iterator begin() const noexcept {
 				return {(T*)m_data};
 			}
 
-			GAIA_NODISCARD constexpr const_iterator cbegin() const noexcept {
+			constexpr GAIA_NODISCARD const_iterator cbegin() const noexcept {
 				return {(const T*)m_data};
 			}
 
@@ -2355,7 +2572,7 @@ namespace gaia {
 			}
 
 			template <typename T>
-			GAIA_NODISCARD constexpr T hash_combine2(T lhs, T rhs) {
+			constexpr GAIA_NODISCARD T hash_combine2(T lhs, T rhs) {
 				hash_combine2_out(lhs, rhs);
 				return lhs;
 			}
@@ -3496,23 +3713,23 @@ namespace gaia {
 			constexpr static DataLayout Layout = data_layout_properties<DataLayout::AoS, ValueType>::Layout;
 			constexpr static size_t Alignment = data_layout_properties<DataLayout::AoS, ValueType>::Alignment;
 
-			GAIA_NODISCARD constexpr static ValueType getc(std::span<const ValueType> s, size_t idx) {
+			constexpr GAIA_NODISCARD static ValueType getc(std::span<const ValueType> s, size_t idx) {
 				return s[idx];
 			}
 
-			GAIA_NODISCARD constexpr static ValueType get(std::span<ValueType> s, size_t idx) {
+			constexpr GAIA_NODISCARD static ValueType get(std::span<ValueType> s, size_t idx) {
 				return s[idx];
 			}
 
-			GAIA_NODISCARD constexpr static const ValueType& getc_constref(std::span<const ValueType> s, size_t idx) {
+			constexpr GAIA_NODISCARD static const ValueType& getc_constref(std::span<const ValueType> s, size_t idx) {
 				return (const ValueType&)s[idx];
 			}
 
-			GAIA_NODISCARD constexpr static const ValueType& get_constref(std::span<ValueType> s, size_t idx) {
+			constexpr GAIA_NODISCARD static const ValueType& get_constref(std::span<ValueType> s, size_t idx) {
 				return (const ValueType&)s[idx];
 			}
 
-			GAIA_NODISCARD constexpr static ValueType& get_ref(std::span<ValueType> s, size_t idx) {
+			constexpr GAIA_NODISCARD static ValueType& get_ref(std::span<ValueType> s, size_t idx) {
 				return s[idx];
 			}
 
@@ -3601,13 +3818,13 @@ namespace gaia {
 			template <size_t Ids>
 			using const_value_type = typename std::add_const<value_type<Ids>>::type;
 
-			GAIA_NODISCARD constexpr static ValueType get(std::span<const ValueType> s, const size_t idx) {
+			constexpr GAIA_NODISCARD static ValueType get(std::span<const ValueType> s, const size_t idx) {
 				auto t = struct_to_tuple(ValueType{});
 				return get_internal(t, s, idx, std::make_integer_sequence<size_t, std::tuple_size<decltype(t)>::value>());
 			}
 
 			template <size_t Ids>
-			GAIA_NODISCARD constexpr static auto get(std::span<const ValueType> s, const size_t idx = 0) {
+			constexpr GAIA_NODISCARD static auto get(std::span<const ValueType> s, const size_t idx = 0) {
 				using Tuple = decltype(struct_to_tuple(ValueType{}));
 				using MemberType = typename std::tuple_element<Ids, Tuple>::type;
 				const auto* ret = (const uint8_t*)s.data() + idx * sizeof(MemberType) +
@@ -3631,7 +3848,7 @@ namespace gaia {
 
 		private:
 			template <typename Tuple, size_t... Ids>
-			GAIA_NODISCARD constexpr static ValueType get_internal(
+			constexpr GAIA_NODISCARD static ValueType get_internal(
 					Tuple& t, std::span<const ValueType> s, const size_t idx, std::integer_sequence<size_t, Ids...> /*no_name*/) {
 				(get_internal<Tuple, Ids, typename std::tuple_element<Ids, Tuple>::type>(
 						 t, (const uint8_t*)s.data(),
@@ -3691,12 +3908,12 @@ namespace gaia {
 			//! Raw data pointed to by the view policy
 			std::span<const ValueType> m_data;
 
-			GAIA_NODISCARD constexpr auto operator[](size_t idx) const {
+			constexpr GAIA_NODISCARD auto operator[](size_t idx) const {
 				return view_policy::get(m_data, idx);
 			}
 
 			template <size_t Ids>
-			GAIA_NODISCARD constexpr auto get() const {
+			constexpr GAIA_NODISCARD auto get() const {
 				return std::span<typename data_view_policy_idx_info<Ids>::const_value_type>(
 						view_policy::template get<Ids>(m_data).data(), view_policy::template get<Ids>(m_data).size());
 			}
@@ -3748,15 +3965,15 @@ namespace gaia {
 				}
 			};
 
-			GAIA_NODISCARD constexpr auto operator[](size_t idx) const {
+			constexpr GAIA_NODISCARD auto operator[](size_t idx) const {
 				return view_policy::get(m_data, idx);
 			}
-			GAIA_NODISCARD constexpr auto operator[](size_t idx) {
+			constexpr GAIA_NODISCARD auto operator[](size_t idx) {
 				return setter(m_data, idx);
 			}
 
 			template <size_t Ids>
-			GAIA_NODISCARD constexpr auto get() const {
+			constexpr GAIA_NODISCARD auto get() const {
 				using value_type = typename data_view_policy_idx_info<Ids>::const_value_type;
 				const std::span<const ValueType> data((const ValueType*)m_data.data(), m_data.size());
 				return std::span<value_type>(
@@ -3764,7 +3981,7 @@ namespace gaia {
 			}
 
 			template <size_t Ids>
-			GAIA_NODISCARD constexpr auto set() {
+			constexpr GAIA_NODISCARD auto set() {
 				return std::span<typename data_view_policy_idx_info<Ids>::value_type>(
 						view_policy::template set<Ids>(m_data).data(), view_policy::template set<Ids>(m_data).size());
 			}
@@ -4953,7 +5170,7 @@ namespace gaia {
 			constexpr ComponentMatcherHash CalculateMatcherHash() noexcept;
 
 			template <typename T, typename... Rest>
-			GAIA_NODISCARD constexpr ComponentMatcherHash CalculateMatcherHash() noexcept {
+			constexpr GAIA_NODISCARD ComponentMatcherHash CalculateMatcherHash() noexcept {
 				if constexpr (sizeof...(Rest) == 0)
 					return {detail::CalculateMatcherHash<T>()};
 				else
@@ -4961,14 +5178,14 @@ namespace gaia {
 			}
 
 			template <>
-			GAIA_NODISCARD constexpr ComponentMatcherHash CalculateMatcherHash() noexcept {
+			constexpr GAIA_NODISCARD ComponentMatcherHash CalculateMatcherHash() noexcept {
 				return {0};
 			}
 
 			//-----------------------------------------------------------------------------------
 
 			template <typename Container>
-			GAIA_NODISCARD constexpr ComponentLookupHash CalculateLookupHash(Container arr) noexcept {
+			constexpr GAIA_NODISCARD ComponentLookupHash CalculateLookupHash(Container arr) noexcept {
 				constexpr auto arrSize = arr.size();
 				if constexpr (arrSize == 0) {
 					return {0};
@@ -4985,7 +5202,7 @@ namespace gaia {
 			constexpr ComponentLookupHash CalculateLookupHash() noexcept;
 
 			template <typename T, typename... Rest>
-			GAIA_NODISCARD constexpr ComponentLookupHash CalculateLookupHash() noexcept {
+			constexpr GAIA_NODISCARD ComponentLookupHash CalculateLookupHash() noexcept {
 				if constexpr (sizeof...(Rest) == 0)
 					return {utils::type_info::hash<T>()};
 				else
@@ -4993,7 +5210,7 @@ namespace gaia {
 			}
 
 			template <>
-			GAIA_NODISCARD constexpr ComponentLookupHash CalculateLookupHash() noexcept {
+			constexpr GAIA_NODISCARD ComponentLookupHash CalculateLookupHash() noexcept {
 				return {0};
 			}
 		} // namespace component
@@ -5156,39 +5373,6 @@ namespace robin_hood {
 	#error Unsupported bitness
 #endif
 
-// endianess
-// NOTE:
-// Endianess detection is hell as far as compile-time is concerned.
-// There is a bloat of macros and header files across differente compilers,
-// platforms and the level of C++ standard implementations.
-#ifdef _MSC_VER
-	// Whether it is ARM or x86 we consider both litte endian.
-	// It is very unlikely that any modern "big" CPU would use big endian these days
-	// as it is more efficient to be little endian on HW level.
-	#define ROBIN_HOOD_PRIVATE_DEFINITION_LITTLE_ENDIAN() true
-	#define ROBIN_HOOD_PRIVATE_DEFINITION_BIG_ENDIAN() false
-#else
-	#define ROBIN_HOOD_PRIVATE_DEFINITION_LITTLE_ENDIAN() (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
-	#define ROBIN_HOOD_PRIVATE_DEFINITION_BIG_ENDIAN() (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
-#endif
-//! Checks if endianess was detected correctly at compile-time. If false is returned
-//! see ROBIN_HOOD_PRIVATE_DEFINITION_LITTLE_ENDIAN and ROBIN_HOOD_PRIVATE_DEFINITION_BIG_ENDIAN
-//! and change then as necessary for your platform.
-inline bool CheckEndianess() {
-	const uint16_t testWord = 0x1234;
-	const bool isLittleEndian(*reinterpret_cast<const uint8_t*>(&testWord) == 0x34);
-	// If this return false ert is hit you'll have to change the endianess manually for your system.
-	// See ROBIN_HOOD_PRIVATE_DEFINITION_LITTLE_ENDIAN and ROBIN_HOOD_PRIVATE_DEFINITION_BIG_ENDIAN.
-	return isLittleEndian == ROBIN_HOOD_PRIVATE_DEFINITION_LITTLE_ENDIAN();
-}
-
-// inline
-#ifdef _MSC_VER
-	#define ROBIN_HOOD_PRIVATE_DEFINITION_NOINLINE() __declspec(noinline)
-#else
-	#define ROBIN_HOOD_PRIVATE_DEFINITION_NOINLINE() __attribute__((noinline))
-#endif
-
 // exceptions
 #if !defined(__cpp_exceptions) && !defined(__EXCEPTIONS) && !defined(_CPPUNWIND)
 	#define ROBIN_HOOD_PRIVATE_DEFINITION_HAS_EXCEPTIONS() 0
@@ -5201,42 +5385,12 @@ inline bool CheckEndianess() {
 
 // count leading/trailing bits
 #if !defined(ROBIN_HOOD_DISABLE_INTRINSICS)
-	#ifdef _MSC_VER
-		#if ROBIN_HOOD(BITNESS) == 32
-			#define ROBIN_HOOD_PRIVATE_DEFINITION_CTZ() _BitScanForward
-			#define ROBIN_HOOD_PRIVATE_DEFINITION_CLZ() _BitScanReverse
-		#else
-			#define ROBIN_HOOD_PRIVATE_DEFINITION_CTZ() _BitScanForward64
-			#define ROBIN_HOOD_PRIVATE_DEFINITION_CLZ() _BitScanReverse64
-		#endif
-		#if _MSV_VER <= 1916
-			#include <intrin.h>
-		#endif
-
-		#pragma intrinsic(ROBIN_HOOD(CTZ))
-		#define ROBIN_HOOD_COUNT_TRAILING_ZEROES(x)                                                                        \
-			[](size_t mask) noexcept -> uint32_t {                                                                           \
-				unsigned long index;                                                                                           \
-				return ROBIN_HOOD(CTZ)(&index, mask) ? static_cast<uint32_t>(index) : ROBIN_HOOD(BITNESS);                     \
-			}(x)
-
-		#pragma intrinsic(ROBIN_HOOD(CLZ))
-		#define ROBIN_HOOD_COUNT_LEADING_ZEROES(x)                                                                         \
-			[](size_t mask) noexcept -> uint32_t {                                                                           \
-				unsigned long index;                                                                                           \
-				return ROBIN_HOOD(CLZ)(&index, mask) ? static_cast<uint32_t>(index) : ROBIN_HOOD(BITNESS);                     \
-			}(x)
+	#if ROBIN_HOOD_PRIVATE_DEFINITION_BITNESS() == 32
+		#define ROBIN_HOOD_COUNT_TRAILING_ZEROES(x) GAIA_CLZ(x)
+		#define ROBIN_HOOD_COUNT_LEADING_ZEROES(x) GAIA_CTZ(x)
 	#else
-		#if ROBIN_HOOD(BITNESS) == 32
-			#define ROBIN_HOOD_PRIVATE_DEFINITION_CTZ() __builtin_ctzl
-			#define ROBIN_HOOD_PRIVATE_DEFINITION_CLZ() __builtin_clzl
-		#else
-			#define ROBIN_HOOD_PRIVATE_DEFINITION_CTZ() __builtin_ctzll
-			#define ROBIN_HOOD_PRIVATE_DEFINITION_CLZ() __builtin_clzll
-		#endif
-
-		#define ROBIN_HOOD_COUNT_TRAILING_ZEROES(x) ((x) ? ROBIN_HOOD(CTZ)(x) : ROBIN_HOOD(BITNESS))
-		#define ROBIN_HOOD_COUNT_LEADING_ZEROES(x) ((x) ? ROBIN_HOOD(CLZ)(x) : ROBIN_HOOD(BITNESS))
+		#define ROBIN_HOOD_COUNT_TRAILING_ZEROES(x) GAIA_CLZ64(x)
+		#define ROBIN_HOOD_COUNT_LEADING_ZEROES(x) GAIA_CTZ64(x)
 	#endif
 #endif
 
@@ -5312,14 +5466,16 @@ namespace robin_hood {
 		// make sure this is not inlined as it is slow and dramatically enlarges code, thus making other
 		// inlinings more difficult. Throws are also generally the slow path.
 		template <typename E, typename... Args>
-		[[noreturn]] ROBIN_HOOD(NOINLINE)
+		[[noreturn]] GAIA_NOINLINE
 #if ROBIN_HOOD(HAS_EXCEPTIONS)
-				void doThrow(Args&&... args) {
+				void
+				doThrow(Args&&... args) {
 			// NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
 			throw E(std::forward<Args>(args)...);
 		}
 #else
-				void doThrow(Args&&... ROBIN_HOOD_UNUSED(args) /*unused*/) {
+				void
+				doThrow(Args&&... ROBIN_HOOD_UNUSED(args) /*unused*/) {
 			abort();
 		}
 #endif
@@ -5478,7 +5634,7 @@ namespace robin_hood {
 
 			// Called when no memory is available (mHead == 0).
 			// Don't inline this slow path.
-			ROBIN_HOOD(NOINLINE) T* performAllocation() {
+			GAIA_NOINLINE T* performAllocation() {
 				size_t const numElementsToAlloc = calcNumElementsToAlloc();
 
 				// alloc new memory: [prev |T, T, ... T]
@@ -6255,7 +6411,7 @@ namespace robin_hood {
 						mKeyVals += 1;
 					}
 #else
-	#if ROBIN_HOOD(LITTLE_ENDIAN)
+	#if GAIA_LITTLE_ENDIAN
 					auto inc = ROBIN_HOOD_COUNT_TRAILING_ZEROES(n) / 8;
 	#else
 					auto inc = ROBIN_HOOD_COUNT_LEADING_ZEROES(n) / 8;
@@ -6430,7 +6586,7 @@ namespace robin_hood {
 
 			Table() noexcept(noexcept(Hash()) && noexcept(KeyEqual())): WHash(), WKeyEqual() {
 				ROBIN_HOOD_TRACE(this)
-				GAIA_ASSERT(CheckEndianess());
+				GAIA_ASSERT(gaia::CheckEndianess());
 			}
 
 			// Creates an empty hash map. Nothing is allocated yet, this happens at the first insert.
@@ -6444,7 +6600,7 @@ namespace robin_hood {
 					WHash(h),
 					WKeyEqual(equal) {
 				ROBIN_HOOD_TRACE(this);
-				GAIA_ASSERT(CheckEndianess());
+				GAIA_ASSERT(gaia::CheckEndianess());
 			}
 
 			template <typename Iter>
@@ -6454,7 +6610,7 @@ namespace robin_hood {
 					WHash(h),
 					WKeyEqual(equal) {
 				ROBIN_HOOD_TRACE(this);
-				GAIA_ASSERT(CheckEndianess());
+				GAIA_ASSERT(gaia::CheckEndianess());
 				insert(first, last);
 			}
 
@@ -6464,7 +6620,7 @@ namespace robin_hood {
 					WHash(h),
 					WKeyEqual(equal) {
 				ROBIN_HOOD_TRACE(this);
-				GAIA_ASSERT(CheckEndianess());
+				GAIA_ASSERT(gaia::CheckEndianess());
 				insert(initlist.begin(), initlist.end());
 			}
 
@@ -7171,7 +7327,7 @@ namespace robin_hood {
 				}
 			}
 
-			ROBIN_HOOD(NOINLINE) void throwOverflowError() const {
+			GAIA_NOINLINE void throwOverflowError() const {
 #if ROBIN_HOOD(HAS_EXCEPTIONS)
 				throw std::overflow_error("robin_hood::map overflow");
 #else
@@ -8656,10 +8812,10 @@ namespace gaia {
 			Entity& operator=(Entity&&) = default;
 			Entity& operator=(const Entity&) = default;
 
-			GAIA_NODISCARD constexpr bool operator==(const Entity& other) const noexcept {
+			constexpr GAIA_NODISCARD bool operator==(const Entity& other) const noexcept {
 				return val == other.val;
 			}
-			GAIA_NODISCARD constexpr bool operator!=(const Entity& other) const noexcept {
+			constexpr GAIA_NODISCARD bool operator!=(const Entity& other) const noexcept {
 				return val != other.val;
 			}
 
@@ -8679,10 +8835,10 @@ namespace gaia {
 				return Entity(Entity::IdMask, Entity::GenMask);
 			}
 
-			GAIA_NODISCARD constexpr bool operator==([[maybe_unused]] const EntityNull_t& null) const noexcept {
+			constexpr GAIA_NODISCARD bool operator==([[maybe_unused]] const EntityNull_t& null) const noexcept {
 				return true;
 			}
-			GAIA_NODISCARD constexpr bool operator!=([[maybe_unused]] const EntityNull_t& null) const noexcept {
+			constexpr GAIA_NODISCARD bool operator!=([[maybe_unused]] const EntityNull_t& null) const noexcept {
 				return false;
 			}
 		};
@@ -10360,7 +10516,7 @@ namespace gaia {
 			};
 
 			template <typename T>
-			GAIA_NODISCARD constexpr serialization_type_id get_integral_type() {
+			constexpr GAIA_NODISCARD serialization_type_id get_integral_type() {
 				if constexpr (std::is_same_v<int8_t, T> || std::is_same_v<signed char, T>) {
 					return serialization_type_id::s8;
 				} else if constexpr (std::is_same_v<uint8_t, T> || std::is_same_v<unsigned char, T>) {
@@ -10385,7 +10541,7 @@ namespace gaia {
 			}
 
 			template <typename T>
-			GAIA_NODISCARD constexpr serialization_type_id get_floating_point_type() {
+			constexpr GAIA_NODISCARD serialization_type_id get_floating_point_type() {
 				// if constexpr (std::is_same_v<float8_t, T>) {
 				// 	return serialization_type_id::f8;
 				// } else if constexpr (std::is_same_v<float16_t, T>) {
@@ -10403,7 +10559,7 @@ namespace gaia {
 			}
 
 			template <typename T>
-			GAIA_NODISCARD constexpr serialization_type_id get_type_id() {
+			constexpr GAIA_NODISCARD serialization_type_id get_type_id() {
 				if constexpr (std::is_enum_v<T>)
 					return get_integral_type<std::underlying_type_t<T>>();
 				else if constexpr (std::is_integral_v<T>)
@@ -10420,7 +10576,7 @@ namespace gaia {
 			}
 
 			template <typename T>
-			GAIA_NODISCARD constexpr uint32_t calculate_size_one(const T& item) {
+			constexpr GAIA_NODISCARD uint32_t calculate_size_one(const T& item) {
 				using type = typename std::decay_t<typename std::remove_pointer_t<T>>;
 
 				constexpr auto id = detail::get_type_id<type>();
@@ -10484,7 +10640,7 @@ namespace gaia {
 		//! Calculates the number of bytes necessary to serialize data using the "save" function.
 		//! \warning Compile-time.
 		template <typename T>
-		GAIA_NODISCARD constexpr uint32_t calculate_size(const T& data) {
+		constexpr GAIA_NODISCARD uint32_t calculate_size(const T& data) {
 			return detail::calculate_size_one(data);
 		}
 
@@ -10637,22 +10793,22 @@ namespace gaia {
 					return m_ptr - other.m_ptr;
 				}
 
-				bool operator==(const iterator& other) const {
+				GAIA_NODISCARD bool operator==(const iterator& other) const {
 					return m_ptr == other.m_ptr;
 				}
-				bool operator!=(const iterator& other) const {
+				GAIA_NODISCARD bool operator!=(const iterator& other) const {
 					return m_ptr != other.m_ptr;
 				}
-				bool operator>(const iterator& other) const {
+				GAIA_NODISCARD bool operator>(const iterator& other) const {
 					return m_ptr > other.m_ptr;
 				}
-				bool operator>=(const iterator& other) const {
+				GAIA_NODISCARD bool operator>=(const iterator& other) const {
 					return m_ptr >= other.m_ptr;
 				}
-				bool operator<(const iterator& other) const {
+				GAIA_NODISCARD bool operator<(const iterator& other) const {
 					return m_ptr < other.m_ptr;
 				}
-				bool operator<=(const iterator& other) const {
+				GAIA_NODISCARD bool operator<=(const iterator& other) const {
 					return m_ptr <= other.m_ptr;
 				}
 			};
@@ -10719,22 +10875,22 @@ namespace gaia {
 					return m_ptr - other.m_ptr;
 				}
 
-				bool operator==(const const_iterator& other) const {
+				GAIA_NODISCARD bool operator==(const const_iterator& other) const {
 					return m_ptr == other.m_ptr;
 				}
-				bool operator!=(const const_iterator& other) const {
+				GAIA_NODISCARD bool operator!=(const const_iterator& other) const {
 					return m_ptr != other.m_ptr;
 				}
-				bool operator>(const const_iterator& other) const {
+				GAIA_NODISCARD bool operator>(const const_iterator& other) const {
 					return m_ptr > other.m_ptr;
 				}
-				bool operator>=(const const_iterator& other) const {
+				GAIA_NODISCARD bool operator>=(const const_iterator& other) const {
 					return m_ptr >= other.m_ptr;
 				}
-				bool operator<(const const_iterator& other) const {
+				GAIA_NODISCARD bool operator<(const const_iterator& other) const {
 					return m_ptr < other.m_ptr;
 				}
-				bool operator<=(const const_iterator& other) const {
+				GAIA_NODISCARD bool operator<=(const const_iterator& other) const {
 					return m_ptr <= other.m_ptr;
 				}
 			};
@@ -11226,6 +11382,104 @@ namespace gaia {
 
 #include <tuple>
 #include <type_traits>
+
+#include <cinttypes>
+#include <type_traits>
+
+namespace gaia {
+	namespace mt {
+		using JobInternalType = uint32_t;
+		using JobId = JobInternalType;
+		using JobGenId = JobInternalType;
+
+		struct JobHandle final {
+			static constexpr JobInternalType IdBits = 20;
+			static constexpr JobInternalType GenBits = 12;
+			static constexpr JobInternalType IdMask = (uint32_t)(uint64_t(1) << IdBits) - 1;
+			static constexpr JobInternalType GenMask = (uint32_t)(uint64_t(1) << GenBits) - 1;
+
+			using JobSizeType = std::conditional_t<(IdBits + GenBits > 32), uint64_t, uint32_t>;
+
+			static_assert(IdBits + GenBits <= 64, "Job IdBits and GenBits must fit inside 64 bits");
+			static_assert(IdBits <= 31, "Job IdBits must be at most 31 bits long");
+			static_assert(GenBits > 10, "Job GenBits is recommended to be at least 10 bits long");
+
+		private:
+			struct JobData {
+				//! Index in entity array
+				JobInternalType id: IdBits;
+				//! Generation index. Incremented every time an entity is deleted
+				JobInternalType gen: GenBits;
+			};
+
+			union {
+				JobData data;
+				JobSizeType val;
+			};
+
+		public:
+			JobHandle() = default;
+			JobHandle(JobId id, JobGenId gen) {
+				data.id = id;
+				data.gen = gen;
+			}
+			~JobHandle() = default;
+
+			JobHandle(JobHandle&&) = default;
+			JobHandle(const JobHandle&) = default;
+			JobHandle& operator=(JobHandle&&) = default;
+			JobHandle& operator=(const JobHandle&) = default;
+
+			constexpr GAIA_NODISCARD bool operator==(const JobHandle& other) const noexcept {
+				return val == other.val;
+			}
+			constexpr GAIA_NODISCARD bool operator!=(const JobHandle& other) const noexcept {
+				return val != other.val;
+			}
+
+			auto id() const {
+				return data.id;
+			}
+			auto gen() const {
+				return data.gen;
+			}
+			auto value() const {
+				return val;
+			}
+		};
+
+		struct JobNull_t {
+			GAIA_NODISCARD operator JobHandle() const noexcept {
+				return JobHandle(JobHandle::IdMask, JobHandle::GenMask);
+			}
+
+			constexpr GAIA_NODISCARD bool operator==([[maybe_unused]] const JobNull_t& null) const noexcept {
+				return true;
+			}
+			constexpr GAIA_NODISCARD bool operator!=([[maybe_unused]] const JobNull_t& null) const noexcept {
+				return false;
+			}
+		};
+
+		GAIA_NODISCARD inline bool operator==(const JobNull_t& null, const JobHandle& entity) noexcept {
+			return static_cast<JobHandle>(null).id() == entity.id();
+		}
+
+		GAIA_NODISCARD inline bool operator!=(const JobNull_t& null, const JobHandle& entity) noexcept {
+			return static_cast<JobHandle>(null).id() != entity.id();
+		}
+
+		GAIA_NODISCARD inline bool operator==(const JobHandle& entity, const JobNull_t& null) noexcept {
+			return null == entity;
+		}
+
+		GAIA_NODISCARD inline bool operator!=(const JobHandle& entity, const JobNull_t& null) noexcept {
+			return null != entity;
+		}
+
+		inline constexpr JobNull_t JobNull{};
+	} // namespace mt
+} // namespace gaia
 
 #include <cinttypes>
 #include <type_traits>
@@ -11937,6 +12191,15 @@ namespace gaia {
 
 namespace gaia {
 	namespace ecs {
+		enum class ExecutionMode : uint8_t {
+			//! Run on the main thread
+			Run,
+			//! Run on a single worker thread
+			Single,
+			//! Run on as many worker threads as possible
+			Parallel
+		};
+
 		class Query final {
 			static constexpr uint32_t ChunkBatchSize = 16;
 			using CChunkSpan = std::span<const archetype::Chunk*>;
@@ -12073,6 +12336,8 @@ namespace gaia {
 			const archetype::ArchetypeList* m_archetypes{};
 			//! Map of component ids to archetypes (stable pointer to parent world's archetype component-to-archetype map)
 			const query::ComponentToArchetypeMap* m_componentToArchetypeMap{};
+			//! Execution mode
+			ExecutionMode m_executionMode = ExecutionMode::Run;
 
 			//--------------------------------------------------------------------------------
 		public:
@@ -12427,6 +12692,16 @@ namespace gaia {
 					return m_constraints == Query::Constraints::EnabledOnly;
 				else
 					return m_constraints == Query::Constraints::DisabledOnly;
+			}
+
+			Query& Schedule() {
+				m_executionMode = ExecutionMode::Single;
+				return *this;
+			}
+
+			Query& ScheduleParallel() {
+				m_executionMode = ExecutionMode::Parallel;
+				return *this;
 			}
 
 			template <typename Func>
@@ -14643,6 +14918,288 @@ namespace gaia {
 	} // namespace ecs
 } // namespace gaia
 
+#include <cinttypes>
+#include <type_traits>
+
+namespace gaia {
+	namespace containers {
+		template <uint32_t NBits>
+		class bitset {
+		private:
+			template <bool Use32Bit>
+			struct size_type_selector {
+				using type = std::conditional_t<Use32Bit, uint32_t, uint64_t>;
+			};
+
+			static constexpr uint32_t BitsPerItem = (NBits / 64) > 0 ? 64 : 32;
+			static constexpr uint32_t Items = (NBits + BitsPerItem - 1) / BitsPerItem;
+			using size_type = typename size_type_selector<BitsPerItem == 32>::type;
+			static constexpr bool HasTrailingBits = (NBits % BitsPerItem) != 0;
+			static constexpr size_type LastItemMask = ((size_type)1 << (NBits % BitsPerItem)) - 1;
+
+			size_type m_data[Items]{};
+
+		public:
+			class const_iterator {
+			public:
+				using iterator_category = GAIA_UTIL::random_access_iterator_tag;
+				using value_type = uint32_t;
+				using size_type = bitset<NBits>::size_type;
+
+			private:
+				const bitset<NBits>& m_bitset;
+				value_type m_pos;
+
+				void find_next_set_bit() {
+					// Don't iterate beyond the range
+					if GAIA_UNLIKELY (m_pos + 1 >= NBits) {
+						m_pos = NBits;
+						return;
+					}
+
+					// Keep moving forward
+					++m_pos;
+
+					size_type word = m_bitset.m_data[m_pos / bitset::BitsPerItem] >> (m_pos % bitset::BitsPerItem);
+					if (word != 0) {
+						if constexpr (bitset::BitsPerItem == 32)
+							m_pos += GAIA_FFS(word) - 1;
+						else
+							m_pos += GAIA_FFS64(word) - 1;
+					} else {
+						// No set bit in the current word, move to the next word
+						value_type wordIndex = m_pos / bitset::BitsPerItem + 1;
+						while (wordIndex < m_bitset.Items && m_bitset.m_data[wordIndex] == 0)
+							++wordIndex;
+
+						if (wordIndex < m_bitset.Items) {
+							word = m_bitset.m_data[wordIndex];
+							if constexpr (bitset::BitsPerItem == 32)
+								m_pos = wordIndex * 32 + GAIA_FFS(word) - 1;
+							else
+								m_pos = wordIndex * 64 + GAIA_FFS64(word) - 1;
+						}
+					}
+				}
+
+				void find_prev_set_bit() {
+					// Don't iterate beyond the range
+					GAIA_ASSERT(m_pos > 0);
+
+					value_type wordIndex = (m_pos - 1) / bitset::BitsPerItem;
+					size_type word = m_bitset.m_data[wordIndex];
+					if (word != 0) {
+						m_pos = ((m_pos - 1) / bitset::BitsPerItem) * bitset::BitsPerItem + (bitset::BitsPerItem - 1);
+						if constexpr (bitset::BitsPerItem == 32)
+							m_pos -= GAIA_CTZ(word);
+						else
+							m_pos -= GAIA_CTZ64(word);
+					} else {
+						// No set bit in the current word, move to the previous word
+						do {
+							--wordIndex;
+						} while (wordIndex > 0 && m_bitset.m_data[wordIndex] == 0);
+
+						word = m_bitset.m_data[wordIndex];
+						if constexpr (bitset::BitsPerItem == 32)
+							m_pos = wordIndex * 32 + 31 - GAIA_CTZ(word);
+						else {
+							m_pos = wordIndex * 64 + 63 - GAIA_CTZ64(word);
+						}
+					}
+				}
+
+			public:
+				const_iterator(const bitset<NBits>& bitset, value_type pos, bool fwd): m_bitset(bitset), m_pos(pos) {
+					if (fwd) {
+						--m_pos;
+						find_next_set_bit();
+					} else {
+						find_prev_set_bit();
+						++m_pos; // point 1 item past the end
+					}
+				}
+
+				GAIA_NODISCARD value_type operator*() const {
+					return m_pos;
+				}
+
+				const_iterator& operator++() {
+					find_next_set_bit();
+					return *this;
+				}
+				const_iterator operator++(int) {
+					const_iterator temp(*this);
+					++*this;
+					return temp;
+				}
+				const_iterator& operator--() {
+					find_prev_set_bit();
+					return *this;
+				}
+				const_iterator operator--(int) {
+					const_iterator temp(*this);
+					--*this;
+					return temp;
+				}
+
+				GAIA_NODISCARD bool operator==(const const_iterator& other) const {
+					return m_pos == other.m_pos;
+				}
+				GAIA_NODISCARD bool operator!=(const const_iterator& other) const {
+					return m_pos != other.m_pos;
+				}
+				GAIA_NODISCARD bool operator>(const const_iterator& other) const {
+					return m_pos > other.m_pos;
+				}
+				GAIA_NODISCARD bool operator>=(const const_iterator& other) const {
+					return m_pos >= other.m_pos;
+				}
+				GAIA_NODISCARD bool operator<(const const_iterator& other) const {
+					return m_pos < other.m_pos;
+				}
+				GAIA_NODISCARD bool operator<=(const const_iterator& other) const {
+					return m_pos <= other.m_pos;
+				}
+			};
+
+			const_iterator begin() const {
+				return const_iterator(*this, 0, true);
+			}
+
+			const_iterator end() const {
+				return const_iterator(*this, NBits, false);
+			}
+
+			const_iterator cbegin() const {
+				return const_iterator(*this, 0, true);
+			}
+
+			const_iterator cend() const {
+				return const_iterator(*this, NBits, false);
+			}
+
+			constexpr GAIA_NODISCARD bool operator[](uint32_t pos) const {
+				return test(pos);
+			}
+
+			constexpr GAIA_NODISCARD bool operator==(const bitset& other) const {
+				for (uint32_t i = 0; i < Items; ++i)
+					if (m_data[i] != other[i])
+						return false;
+				return true;
+			}
+
+			constexpr GAIA_NODISCARD bool operator!=(const bitset& other) const {
+				for (uint32_t i = 0; i < Items; ++i)
+					if (m_data[i] == other[i])
+						return false;
+				return true;
+			}
+
+			//! Sets all bits
+			constexpr void set() {
+				for (uint32_t i = 0; i < Items - 1; ++i)
+					m_data[i] = (size_type)-1;
+				if constexpr (HasTrailingBits)
+					m_data[Items - 1] = LastItemMask;
+				else
+					m_data[Items - 1] = (size_type)-1;
+			}
+
+			//! Sets the bit at the postion \param pos to value \param value
+			constexpr void set(uint32_t pos, bool value = true) {
+				GAIA_ASSERT(pos < NBits);
+				if (value)
+					m_data[pos / BitsPerItem] |= ((size_type)1 << (pos % BitsPerItem));
+				else
+					m_data[pos / BitsPerItem] &= ~((size_type)1 << (pos % BitsPerItem));
+			}
+
+			//! Flips all bits
+			constexpr void flip() {
+				for (uint32_t i = 0; i < Items - 1; ++i)
+					m_data[i] = ~m_data[i];
+				if constexpr (HasTrailingBits)
+					m_data[Items - 1] = (~m_data[Items - 1]) & LastItemMask;
+				else
+					m_data[Items - 1] = ~m_data[Items - 1];
+			}
+
+			//! Flips the bit at the postion \param pos
+			constexpr void flip(uint32_t pos) {
+				GAIA_ASSERT(pos < NBits);
+				m_data[pos / BitsPerItem] ^= ((size_type)1 << (pos % BitsPerItem));
+			}
+
+			//! Unsets all bits
+			constexpr void reset() {
+				for (uint32_t i = 0; i < Items; ++i)
+					m_data[i] = 0;
+			}
+
+			//! Unsets the bit at the postion \param pos
+			constexpr void reset(uint32_t pos) {
+				GAIA_ASSERT(pos < NBits);
+				m_data[pos / BitsPerItem] &= ~((size_type)1 << (pos % BitsPerItem));
+			}
+
+			//! Returns the value of the bit at the position \param pos
+			constexpr GAIA_NODISCARD bool test(uint32_t pos) const {
+				GAIA_ASSERT(pos < NBits);
+				return (m_data[pos / BitsPerItem] & ((size_type)1 << (pos % BitsPerItem))) != 0;
+			}
+
+			//! Checks if all bits are set
+			constexpr GAIA_NODISCARD bool all() const {
+				for (uint32_t i = 0; i < Items - 1; ++i)
+					if (m_data[i] != (size_type)-1)
+						return false;
+				if constexpr (HasTrailingBits)
+					return (m_data[Items - 1] & LastItemMask) == LastItemMask;
+				else
+					return m_data[Items - 1] == (size_type)-1;
+			}
+
+			//! Checks if any bit is set
+			constexpr GAIA_NODISCARD bool any() const {
+				for (uint32_t i = 0; i < Items; ++i)
+					if (m_data[i] != 0)
+						return true;
+				return false;
+			}
+
+			//! Checks if all bits are reset
+			constexpr GAIA_NODISCARD bool none() const {
+				for (uint32_t i = 0; i < Items; ++i)
+					if (m_data[i] != 0)
+						return false;
+				return true;
+			}
+
+			//! Returns the number of set bits
+			GAIA_NODISCARD uint32_t count() const {
+				uint32_t total = 0;
+
+				if constexpr (sizeof(size_type) == 4) {
+					for (uint32_t i = 0; i < Items; ++i)
+						total += GAIA_POPCNT(m_data[i]);
+				} else {
+					for (uint32_t i = 0; i < Items; ++i)
+						total += GAIA_POPCNT64(m_data[i]);
+				}
+
+				return total;
+			}
+
+			//! Returns the number of bits the bitset can hold
+			constexpr GAIA_NODISCARD uint32_t size() const {
+				return NBits;
+			}
+		};
+	} // namespace containers
+} // namespace gaia
+
 #include <cstddef>
 #include <type_traits>
 #include <utility>
@@ -14715,7 +15272,7 @@ namespace gaia {
 				return *this;
 			}
 
-			GAIA_NODISCARD constexpr sringbuffer& operator=(const sringbuffer& other) noexcept {
+			constexpr GAIA_NODISCARD sringbuffer& operator=(const sringbuffer& other) noexcept {
 				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
 
 				utils::copy_elements(m_data, other.m_data, other.size());
@@ -14726,7 +15283,7 @@ namespace gaia {
 				return *this;
 			}
 
-			GAIA_NODISCARD constexpr sringbuffer& operator=(sringbuffer&& other) noexcept {
+			constexpr GAIA_NODISCARD sringbuffer& operator=(sringbuffer&& other) noexcept {
 				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
 
 				utils::transfer_elements(m_data, other.m_data, other.size());
@@ -14794,35 +15351,35 @@ namespace gaia {
 				--m_size;
 			}
 
-			GAIA_NODISCARD constexpr size_type size() const noexcept {
+			constexpr GAIA_NODISCARD size_type size() const noexcept {
 				return m_size;
 			}
 
-			GAIA_NODISCARD constexpr bool empty() const noexcept {
+			constexpr GAIA_NODISCARD bool empty() const noexcept {
 				return !m_size;
 			}
 
-			GAIA_NODISCARD constexpr size_type max_size() const noexcept {
+			constexpr GAIA_NODISCARD size_type max_size() const noexcept {
 				return N;
 			}
 
-			GAIA_NODISCARD constexpr reference front() noexcept {
+			constexpr GAIA_NODISCARD reference front() noexcept {
 				GAIA_ASSERT(!empty());
 				return m_data[m_tail];
 			}
 
-			GAIA_NODISCARD constexpr const_reference front() const noexcept {
+			constexpr GAIA_NODISCARD const_reference front() const noexcept {
 				GAIA_ASSERT(!empty());
 				return m_data[m_tail];
 			}
 
-			GAIA_NODISCARD constexpr reference back() noexcept {
+			constexpr GAIA_NODISCARD reference back() noexcept {
 				GAIA_ASSERT(!empty());
 				const auto head = (m_tail + m_size - 1) % N;
 				return m_data[head];
 			}
 
-			GAIA_NODISCARD constexpr const_reference back() const noexcept {
+			constexpr GAIA_NODISCARD const_reference back() const noexcept {
 				GAIA_ASSERT(!empty());
 				const auto head = (m_tail + m_size - 1) % N;
 				return m_data[head];
@@ -14888,104 +15445,6 @@ namespace gaia {
 		struct JobParallel {
 			std::function<void(const JobArgs&)> func;
 		};
-	} // namespace mt
-} // namespace gaia
-
-#include <cinttypes>
-#include <type_traits>
-
-namespace gaia {
-	namespace mt {
-		using JobInternalType = uint32_t;
-		using JobId = JobInternalType;
-		using JobGenId = JobInternalType;
-
-		struct JobHandle final {
-			static constexpr JobInternalType IdBits = 20;
-			static constexpr JobInternalType GenBits = 12;
-			static constexpr JobInternalType IdMask = (uint32_t)(uint64_t(1) << IdBits) - 1;
-			static constexpr JobInternalType GenMask = (uint32_t)(uint64_t(1) << GenBits) - 1;
-
-			using JobSizeType = std::conditional_t<(IdBits + GenBits > 32), uint64_t, uint32_t>;
-
-			static_assert(IdBits + GenBits <= 64, "Job IdBits and GenBits must fit inside 64 bits");
-			static_assert(IdBits <= 31, "Job IdBits must be at most 31 bits long");
-			static_assert(GenBits > 10, "Job GenBits is recommended to be at least 10 bits long");
-
-		private:
-			struct JobData {
-				//! Index in entity array
-				JobInternalType id: IdBits;
-				//! Generation index. Incremented every time an entity is deleted
-				JobInternalType gen: GenBits;
-			};
-
-			union {
-				JobData data;
-				JobSizeType val;
-			};
-
-		public:
-			JobHandle() = default;
-			JobHandle(JobId id, JobGenId gen) {
-				data.id = id;
-				data.gen = gen;
-			}
-			~JobHandle() = default;
-
-			JobHandle(JobHandle&&) = default;
-			JobHandle(const JobHandle&) = default;
-			JobHandle& operator=(JobHandle&&) = default;
-			JobHandle& operator=(const JobHandle&) = default;
-
-			GAIA_NODISCARD constexpr bool operator==(const JobHandle& other) const noexcept {
-				return val == other.val;
-			}
-			GAIA_NODISCARD constexpr bool operator!=(const JobHandle& other) const noexcept {
-				return val != other.val;
-			}
-
-			auto id() const {
-				return data.id;
-			}
-			auto gen() const {
-				return data.gen;
-			}
-			auto value() const {
-				return val;
-			}
-		};
-
-		struct JobNull_t {
-			GAIA_NODISCARD operator JobHandle() const noexcept {
-				return JobHandle(JobHandle::IdMask, JobHandle::GenMask);
-			}
-
-			GAIA_NODISCARD constexpr bool operator==([[maybe_unused]] const JobNull_t& null) const noexcept {
-				return true;
-			}
-			GAIA_NODISCARD constexpr bool operator!=([[maybe_unused]] const JobNull_t& null) const noexcept {
-				return false;
-			}
-		};
-
-		GAIA_NODISCARD inline bool operator==(const JobNull_t& null, const JobHandle& entity) noexcept {
-			return static_cast<JobHandle>(null).id() == entity.id();
-		}
-
-		GAIA_NODISCARD inline bool operator!=(const JobNull_t& null, const JobHandle& entity) noexcept {
-			return static_cast<JobHandle>(null).id() != entity.id();
-		}
-
-		GAIA_NODISCARD inline bool operator==(const JobHandle& entity, const JobNull_t& null) noexcept {
-			return null == entity;
-		}
-
-		GAIA_NODISCARD inline bool operator!=(const JobHandle& entity, const JobNull_t& null) noexcept {
-			return null != entity;
-		}
-
-		inline constexpr JobNull_t JobNull{};
 	} // namespace mt
 } // namespace gaia
 

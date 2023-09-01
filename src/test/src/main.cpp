@@ -83,6 +83,69 @@ struct StringComponent2 {
 	StringComponent2& operator=(StringComponent2&&) = default;
 };
 
+TEST_CASE("Intrinsics") {
+	SECTION("POPCNT") {
+		const uint32_t zero32 = GAIA_POPCNT(0);
+		REQUIRE(zero32 == 0);
+		const uint64_t zero64 = GAIA_POPCNT64(0);
+		REQUIRE(zero64 == 0);
+
+		const uint32_t val32 = GAIA_POPCNT(0x0003002);
+		REQUIRE(val32 == 3);
+		const uint64_t val64_1 = GAIA_POPCNT64(0x0003002);
+		REQUIRE(val64_1 == 3);
+		const uint64_t val64_2 = GAIA_POPCNT64(0x00030020000000);
+		REQUIRE(val64_2 == 3);
+		const uint64_t val64_3 = GAIA_POPCNT64(0x00030020003002);
+		REQUIRE(val64_3 == 6);
+	}
+	SECTION("CLZ") {
+		const uint32_t zero32 = GAIA_CLZ(0);
+		REQUIRE(zero32 == 32);
+		const uint64_t zero64 = GAIA_CLZ64(0);
+		REQUIRE(zero64 == 64);
+
+		const uint32_t val32 = GAIA_CLZ(0x0003002);
+		REQUIRE(val32 == 1);
+		const uint64_t val64_1 = GAIA_CLZ64(0x0003002);
+		REQUIRE(val64_1 == 1);
+		const uint64_t val64_2 = GAIA_CLZ64(0x00030020000000);
+		REQUIRE(val64_2 == 29);
+		const uint64_t val64_3 = GAIA_CLZ64(0x00030020003002);
+		REQUIRE(val64_3 == 1);
+	}
+	SECTION("CTZ") {
+		const uint32_t zero32 = GAIA_CTZ(0);
+		REQUIRE(zero32 == 32);
+		const uint64_t zero64 = GAIA_CTZ64(0);
+		REQUIRE(zero64 == 64);
+
+		const uint32_t val32 = GAIA_CTZ(0x0003002);
+		REQUIRE(val32 == 18);
+		const uint64_t val64_1 = GAIA_CTZ64(0x0003002);
+		REQUIRE(val64_1 == 50);
+		const uint64_t val64_2 = GAIA_CTZ64(0x00030020000000);
+		REQUIRE(val64_2 == 22);
+		const uint64_t val64_3 = GAIA_CTZ64(0x00030020003002);
+		REQUIRE(val64_3 == 22);
+	}
+	SECTION("FFS") {
+		const uint32_t zero32 = GAIA_FFS(0);
+		REQUIRE(zero32 == 0);
+		const uint64_t zero64 = GAIA_FFS64(0);
+		REQUIRE(zero64 == 0);
+
+		const uint32_t val32 = GAIA_FFS(0x0003002);
+		REQUIRE(val32 == 2);
+		const uint64_t val64_1 = GAIA_FFS64(0x0003002);
+		REQUIRE(val64_1 == 2);
+		const uint64_t val64_2 = GAIA_FFS64(0x00030020000000);
+		REQUIRE(val64_2 == 30);
+		const uint64_t val64_3 = GAIA_FFS64(0x00030020003002);
+		REQUIRE(val64_3 == 2);
+	}
+}
+
 TEST_CASE("ComponentTypes") {
 	REQUIRE(ecs::component::IsGenericComponent<uint32_t> == true);
 	REQUIRE(ecs::component::IsGenericComponent<Position> == true);
@@ -383,6 +446,152 @@ TEST_CASE("Containers - ImplicitList") {
 		REQUIRE(il[idx2].idx == ecs::Entity::IdMask);
 		REQUIRE(handles[2].gen() == il[idx2].gen);
 		REQUIRE(il[idx2].gen == 1);
+	}
+}
+
+template <uint32_t NBits>
+void test_bitset() {
+	// Following tests expect at least 5 bits of space
+	static_assert(NBits >= 5);
+
+	SECTION("Bit operations") {
+		containers::bitset<NBits> bs;
+		REQUIRE(bs.count() == 0);
+		REQUIRE(bs.size() == NBits);
+		REQUIRE(bs.any() == false);
+		REQUIRE(bs.all() == false);
+		REQUIRE(bs.none() == true);
+
+		bs.set(0, true);
+		REQUIRE(bs.test(0) == true);
+		REQUIRE(bs.count() == 1);
+		REQUIRE(bs.any() == true);
+		REQUIRE(bs.all() == false);
+		REQUIRE(bs.none() == false);
+
+		bs.set(1, true);
+		REQUIRE(bs.test(1) == true);
+		REQUIRE(bs.count() == 2);
+		REQUIRE(bs.any() == true);
+		REQUIRE(bs.all() == false);
+		REQUIRE(bs.none() == false);
+
+		bs.set(1, false);
+		REQUIRE(bs.test(1) == false);
+		REQUIRE(bs.count() == 1);
+		REQUIRE(bs.any() == true);
+		REQUIRE(bs.all() == false);
+		REQUIRE(bs.none() == false);
+
+		bs.flip(1);
+		REQUIRE(bs.test(1) == true);
+		REQUIRE(bs.count() == 2);
+		REQUIRE(bs.any() == true);
+		REQUIRE(bs.all() == false);
+		REQUIRE(bs.none() == false);
+
+		bs.flip(1);
+		REQUIRE(bs.test(1) == false);
+		REQUIRE(bs.count() == 1);
+		REQUIRE(bs.any() == true);
+		REQUIRE(bs.all() == false);
+		REQUIRE(bs.none() == false);
+
+		bs.reset(0);
+		REQUIRE(bs.test(0) == false);
+		REQUIRE(bs.count() == 0);
+		REQUIRE(bs.any() == false);
+		REQUIRE(bs.all() == false);
+		REQUIRE(bs.none() == true);
+
+		bs.set();
+		REQUIRE(bs.count() == NBits);
+		REQUIRE(bs.any() == true);
+		REQUIRE(bs.all() == true);
+		REQUIRE(bs.none() == false);
+
+		bs.flip();
+		REQUIRE(bs.count() == 0);
+		REQUIRE(bs.any() == false);
+		REQUIRE(bs.all() == false);
+		REQUIRE(bs.none() == true);
+
+		bs.flip();
+		REQUIRE(bs.count() == NBits);
+		REQUIRE(bs.any() == true);
+		REQUIRE(bs.all() == true);
+		REQUIRE(bs.none() == false);
+
+		bs.reset();
+		REQUIRE(bs.count() == 0);
+		REQUIRE(bs.any() == false);
+		REQUIRE(bs.all() == false);
+		REQUIRE(bs.none() == true);
+	}
+	SECTION("Iteration") {
+		auto fwd_iterator_test = [](std::span<uint32_t> vals) {
+			containers::bitset<NBits> bs;
+			bs.set(vals[0]);
+			bs.set(vals[1]);
+			bs.set(vals[2]);
+			uint32_t i = 0;
+			for (auto val: bs) {
+				REQUIRE(vals[i] == val);
+				++i;
+			}
+			REQUIRE(i == (uint32_t)vals.size());
+		};
+		{
+			uint32_t vals[]{1, 2, 3};
+			fwd_iterator_test(vals);
+		}
+		{
+			uint32_t vals[]{0, 2, 3};
+			fwd_iterator_test(vals);
+		}
+		{
+			uint32_t vals[]{1, 3, NBits - 1};
+			fwd_iterator_test(vals);
+		}
+		{
+			uint32_t vals[]{1, NBits - 2, NBits - 1};
+			fwd_iterator_test(vals);
+		}
+		{
+			uint32_t vals[]{0, 1, NBits - 1};
+			fwd_iterator_test(vals);
+		}
+		{
+			uint32_t vals[]{0, 3, NBits - 1};
+			fwd_iterator_test(vals);
+		}
+	}
+}
+
+TEST_CASE("Containers - bitset") {
+	SECTION("5 bits") {
+		test_bitset<5>();
+	}
+	SECTION("11 bits") {
+		test_bitset<11>();
+	}
+	SECTION("32 bits") {
+		test_bitset<32>();
+	}
+	SECTION("33 bits") {
+		test_bitset<33>();
+	}
+	SECTION("64 bits") {
+		test_bitset<64>();
+	}
+	SECTION("90 bits") {
+		test_bitset<90>();
+	}
+	SECTION("128 bits") {
+		test_bitset<128>();
+	}
+	SECTION("150 bits") {
+		test_bitset<150>();
 	}
 }
 
