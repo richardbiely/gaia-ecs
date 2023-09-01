@@ -128,7 +128,7 @@ namespace gaia {
 			constexpr ComponentMatcherHash CalculateMatcherHash() noexcept;
 
 			template <typename T, typename... Rest>
-			GAIA_NODISCARD constexpr ComponentMatcherHash CalculateMatcherHash() noexcept {
+			constexpr GAIA_NODISCARD ComponentMatcherHash CalculateMatcherHash() noexcept {
 				if constexpr (sizeof...(Rest) == 0)
 					return {detail::CalculateMatcherHash<T>()};
 				else
@@ -136,14 +136,14 @@ namespace gaia {
 			}
 
 			template <>
-			GAIA_NODISCARD constexpr ComponentMatcherHash CalculateMatcherHash() noexcept {
+			constexpr GAIA_NODISCARD ComponentMatcherHash CalculateMatcherHash() noexcept {
 				return {0};
 			}
 
 			//-----------------------------------------------------------------------------------
 
 			template <typename Container>
-			GAIA_NODISCARD constexpr ComponentLookupHash CalculateLookupHash(Container arr) noexcept {
+			constexpr GAIA_NODISCARD ComponentLookupHash CalculateLookupHash(Container arr) noexcept {
 				constexpr auto arrSize = arr.size();
 				if constexpr (arrSize == 0) {
 					return {0};
@@ -160,7 +160,7 @@ namespace gaia {
 			constexpr ComponentLookupHash CalculateLookupHash() noexcept;
 
 			template <typename T, typename... Rest>
-			GAIA_NODISCARD constexpr ComponentLookupHash CalculateLookupHash() noexcept {
+			constexpr GAIA_NODISCARD ComponentLookupHash CalculateLookupHash() noexcept {
 				if constexpr (sizeof...(Rest) == 0)
 					return {utils::type_info::hash<T>()};
 				else
@@ -168,7 +168,7 @@ namespace gaia {
 			}
 
 			template <>
-			GAIA_NODISCARD constexpr ComponentLookupHash CalculateLookupHash() noexcept {
+			constexpr GAIA_NODISCARD ComponentLookupHash CalculateLookupHash() noexcept {
 				return {0};
 			}
 		} // namespace component

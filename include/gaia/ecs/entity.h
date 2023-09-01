@@ -49,10 +49,10 @@ namespace gaia {
 			Entity& operator=(Entity&&) = default;
 			Entity& operator=(const Entity&) = default;
 
-			GAIA_NODISCARD constexpr bool operator==(const Entity& other) const noexcept {
+			constexpr GAIA_NODISCARD bool operator==(const Entity& other) const noexcept {
 				return val == other.val;
 			}
-			GAIA_NODISCARD constexpr bool operator!=(const Entity& other) const noexcept {
+			constexpr GAIA_NODISCARD bool operator!=(const Entity& other) const noexcept {
 				return val != other.val;
 			}
 
@@ -72,10 +72,10 @@ namespace gaia {
 				return Entity(Entity::IdMask, Entity::GenMask);
 			}
 
-			GAIA_NODISCARD constexpr bool operator==([[maybe_unused]] const EntityNull_t& null) const noexcept {
+			constexpr GAIA_NODISCARD bool operator==([[maybe_unused]] const EntityNull_t& null) const noexcept {
 				return true;
 			}
-			GAIA_NODISCARD constexpr bool operator!=([[maybe_unused]] const EntityNull_t& null) const noexcept {
+			constexpr GAIA_NODISCARD bool operator!=([[maybe_unused]] const EntityNull_t& null) const noexcept {
 				return false;
 			}
 		};

@@ -118,22 +118,22 @@ namespace gaia {
 					return m_ptr - other.m_ptr;
 				}
 
-				bool operator==(const iterator& other) const {
+				GAIA_NODISCARD bool operator==(const iterator& other) const {
 					return m_ptr == other.m_ptr;
 				}
-				bool operator!=(const iterator& other) const {
+				GAIA_NODISCARD bool operator!=(const iterator& other) const {
 					return m_ptr != other.m_ptr;
 				}
-				bool operator>(const iterator& other) const {
+				GAIA_NODISCARD bool operator>(const iterator& other) const {
 					return m_ptr > other.m_ptr;
 				}
-				bool operator>=(const iterator& other) const {
+				GAIA_NODISCARD bool operator>=(const iterator& other) const {
 					return m_ptr >= other.m_ptr;
 				}
-				bool operator<(const iterator& other) const {
+				GAIA_NODISCARD bool operator<(const iterator& other) const {
 					return m_ptr < other.m_ptr;
 				}
-				bool operator<=(const iterator& other) const {
+				GAIA_NODISCARD bool operator<=(const iterator& other) const {
 					return m_ptr <= other.m_ptr;
 				}
 			};
@@ -202,22 +202,22 @@ namespace gaia {
 					return m_ptr - other.m_ptr;
 				}
 
-				bool operator==(const const_iterator& other) const {
+				GAIA_NODISCARD bool operator==(const const_iterator& other) const {
 					return m_ptr == other.m_ptr;
 				}
-				bool operator!=(const const_iterator& other) const {
+				GAIA_NODISCARD bool operator!=(const const_iterator& other) const {
 					return m_ptr != other.m_ptr;
 				}
-				bool operator>(const const_iterator& other) const {
+				GAIA_NODISCARD bool operator>(const const_iterator& other) const {
 					return m_ptr > other.m_ptr;
 				}
-				bool operator>=(const const_iterator& other) const {
+				GAIA_NODISCARD bool operator>=(const const_iterator& other) const {
 					return m_ptr >= other.m_ptr;
 				}
-				bool operator<(const const_iterator& other) const {
+				GAIA_NODISCARD bool operator<(const const_iterator& other) const {
 					return m_ptr < other.m_ptr;
 				}
-				bool operator<=(const const_iterator& other) const {
+				GAIA_NODISCARD bool operator<=(const const_iterator& other) const {
 					return m_ptr <= other.m_ptr;
 				}
 			};

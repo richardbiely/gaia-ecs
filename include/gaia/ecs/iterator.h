@@ -4,7 +4,7 @@
 #include <cinttypes>
 #include <type_traits>
 
-#include "gaia/ecs/component.h"
+#include "component.h"
 #include "query_info.h"
 
 namespace gaia {
