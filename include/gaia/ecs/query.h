@@ -1,5 +1,5 @@
 #pragma once
-#include "../config/config_core_end.h"
+#include "../config/config.h"
 
 #include <tuple>
 #include <type_traits>
@@ -8,6 +8,7 @@
 #include "../containers/darray.h"
 #include "../containers/map.h"
 #include "../containers/sarray_ext.h"
+#include "../mt/jobhandle.h"
 #include "../utils/hashing_policy.h"
 #include "../utils/serialization.h"
 #include "../utils/utility.h"
@@ -26,6 +27,15 @@
 
 namespace gaia {
 	namespace ecs {
+		enum class ExecutionMode : uint8_t {
+			//! Run on the main thread
+			Run,
+			//! Run on a single worker thread
+			Single,
+			//! Run on as many worker threads as possible
+			Parallel
+		};
+
 		class Query final {
 			static constexpr uint32_t ChunkBatchSize = 16;
 			using CChunkSpan = std::span<const archetype::Chunk*>;
@@ -162,6 +172,8 @@ namespace gaia {
 			const archetype::ArchetypeList* m_archetypes{};
 			//! Map of component ids to archetypes (stable pointer to parent world's archetype component-to-archetype map)
 			const query::ComponentToArchetypeMap* m_componentToArchetypeMap{};
+			//! Execution mode
+			ExecutionMode m_executionMode = ExecutionMode::Run;
 
 			//--------------------------------------------------------------------------------
 		public:
@@ -516,6 +528,16 @@ namespace gaia {
 					return m_constraints == Query::Constraints::EnabledOnly;
 				else
 					return m_constraints == Query::Constraints::DisabledOnly;
+			}
+
+			Query& Schedule() {
+				m_executionMode = ExecutionMode::Single;
+				return *this;
+			}
+
+			Query& ScheduleParallel() {
+				m_executionMode = ExecutionMode::Parallel;
+				return *this;
 			}
 
 			template <typename Func>

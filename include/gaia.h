@@ -13,6 +13,7 @@
 #include "gaia/ecs/system.h"
 #include "gaia/ecs/world.h"
 
+#include "gaia/containers/bitset.h"
 #include "gaia/containers/darray.h"
 #include "gaia/containers/map.h"
 #include "gaia/containers/sarray.h"

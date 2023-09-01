@@ -115,39 +115,6 @@ namespace robin_hood {
 	#error Unsupported bitness
 #endif
 
-// endianess
-// NOTE:
-// Endianess detection is hell as far as compile-time is concerned.
-// There is a bloat of macros and header files across differente compilers,
-// platforms and the level of C++ standard implementations.
-#ifdef _MSC_VER
-	// Whether it is ARM or x86 we consider both litte endian.
-	// It is very unlikely that any modern "big" CPU would use big endian these days
-	// as it is more efficient to be little endian on HW level.
-	#define ROBIN_HOOD_PRIVATE_DEFINITION_LITTLE_ENDIAN() true
-	#define ROBIN_HOOD_PRIVATE_DEFINITION_BIG_ENDIAN() false
-#else
-	#define ROBIN_HOOD_PRIVATE_DEFINITION_LITTLE_ENDIAN() (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
-	#define ROBIN_HOOD_PRIVATE_DEFINITION_BIG_ENDIAN() (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
-#endif
-//! Checks if endianess was detected correctly at compile-time. If false is returned
-//! see ROBIN_HOOD_PRIVATE_DEFINITION_LITTLE_ENDIAN and ROBIN_HOOD_PRIVATE_DEFINITION_BIG_ENDIAN
-//! and change then as necessary for your platform.
-inline bool CheckEndianess() {
-	const uint16_t testWord = 0x1234;
-	const bool isLittleEndian(*reinterpret_cast<const uint8_t*>(&testWord) == 0x34);
-	// If this return false ert is hit you'll have to change the endianess manually for your system.
-	// See ROBIN_HOOD_PRIVATE_DEFINITION_LITTLE_ENDIAN and ROBIN_HOOD_PRIVATE_DEFINITION_BIG_ENDIAN.
-	return isLittleEndian == ROBIN_HOOD_PRIVATE_DEFINITION_LITTLE_ENDIAN();
-}
-
-// inline
-#ifdef _MSC_VER
-	#define ROBIN_HOOD_PRIVATE_DEFINITION_NOINLINE() __declspec(noinline)
-#else
-	#define ROBIN_HOOD_PRIVATE_DEFINITION_NOINLINE() __attribute__((noinline))
-#endif
-
 // exceptions
 #if !defined(__cpp_exceptions) && !defined(__EXCEPTIONS) && !defined(_CPPUNWIND)
 	#define ROBIN_HOOD_PRIVATE_DEFINITION_HAS_EXCEPTIONS() 0
@@ -160,42 +127,12 @@ inline bool CheckEndianess() {
 
 // count leading/trailing bits
 #if !defined(ROBIN_HOOD_DISABLE_INTRINSICS)
-	#ifdef _MSC_VER
-		#if ROBIN_HOOD(BITNESS) == 32
-			#define ROBIN_HOOD_PRIVATE_DEFINITION_CTZ() _BitScanForward
-			#define ROBIN_HOOD_PRIVATE_DEFINITION_CLZ() _BitScanReverse
-		#else
-			#define ROBIN_HOOD_PRIVATE_DEFINITION_CTZ() _BitScanForward64
-			#define ROBIN_HOOD_PRIVATE_DEFINITION_CLZ() _BitScanReverse64
-		#endif
-		#if _MSV_VER <= 1916
-			#include <intrin.h>
-		#endif
-
-		#pragma intrinsic(ROBIN_HOOD(CTZ))
-		#define ROBIN_HOOD_COUNT_TRAILING_ZEROES(x)                                                                        \
-			[](size_t mask) noexcept -> uint32_t {                                                                           \
-				unsigned long index;                                                                                           \
-				return ROBIN_HOOD(CTZ)(&index, mask) ? static_cast<uint32_t>(index) : ROBIN_HOOD(BITNESS);                     \
-			}(x)
-
-		#pragma intrinsic(ROBIN_HOOD(CLZ))
-		#define ROBIN_HOOD_COUNT_LEADING_ZEROES(x)                                                                         \
-			[](size_t mask) noexcept -> uint32_t {                                                                           \
-				unsigned long index;                                                                                           \
-				return ROBIN_HOOD(CLZ)(&index, mask) ? static_cast<uint32_t>(index) : ROBIN_HOOD(BITNESS);                     \
-			}(x)
+	#if ROBIN_HOOD_PRIVATE_DEFINITION_BITNESS() == 32
+		#define ROBIN_HOOD_COUNT_TRAILING_ZEROES(x) GAIA_CLZ(x)
+		#define ROBIN_HOOD_COUNT_LEADING_ZEROES(x) GAIA_CTZ(x)
 	#else
-		#if ROBIN_HOOD(BITNESS) == 32
-			#define ROBIN_HOOD_PRIVATE_DEFINITION_CTZ() __builtin_ctzl
-			#define ROBIN_HOOD_PRIVATE_DEFINITION_CLZ() __builtin_clzl
-		#else
-			#define ROBIN_HOOD_PRIVATE_DEFINITION_CTZ() __builtin_ctzll
-			#define ROBIN_HOOD_PRIVATE_DEFINITION_CLZ() __builtin_clzll
-		#endif
-
-		#define ROBIN_HOOD_COUNT_TRAILING_ZEROES(x) ((x) ? ROBIN_HOOD(CTZ)(x) : ROBIN_HOOD(BITNESS))
-		#define ROBIN_HOOD_COUNT_LEADING_ZEROES(x) ((x) ? ROBIN_HOOD(CLZ)(x) : ROBIN_HOOD(BITNESS))
+		#define ROBIN_HOOD_COUNT_TRAILING_ZEROES(x) GAIA_CLZ64(x)
+		#define ROBIN_HOOD_COUNT_LEADING_ZEROES(x) GAIA_CTZ64(x)
 	#endif
 #endif
 
@@ -271,14 +208,16 @@ namespace robin_hood {
 		// make sure this is not inlined as it is slow and dramatically enlarges code, thus making other
 		// inlinings more difficult. Throws are also generally the slow path.
 		template <typename E, typename... Args>
-		[[noreturn]] ROBIN_HOOD(NOINLINE)
+		[[noreturn]] GAIA_NOINLINE
 #if ROBIN_HOOD(HAS_EXCEPTIONS)
-				void doThrow(Args&&... args) {
+				void
+				doThrow(Args&&... args) {
 			// NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
 			throw E(std::forward<Args>(args)...);
 		}
 #else
-				void doThrow(Args&&... ROBIN_HOOD_UNUSED(args) /*unused*/) {
+				void
+				doThrow(Args&&... ROBIN_HOOD_UNUSED(args) /*unused*/) {
 			abort();
 		}
 #endif
@@ -437,7 +376,7 @@ namespace robin_hood {
 
 			// Called when no memory is available (mHead == 0).
 			// Don't inline this slow path.
-			ROBIN_HOOD(NOINLINE) T* performAllocation() {
+			GAIA_NOINLINE T* performAllocation() {
 				size_t const numElementsToAlloc = calcNumElementsToAlloc();
 
 				// alloc new memory: [prev |T, T, ... T]
@@ -1214,7 +1153,7 @@ namespace robin_hood {
 						mKeyVals += 1;
 					}
 #else
-	#if ROBIN_HOOD(LITTLE_ENDIAN)
+	#if GAIA_LITTLE_ENDIAN
 					auto inc = ROBIN_HOOD_COUNT_TRAILING_ZEROES(n) / 8;
 	#else
 					auto inc = ROBIN_HOOD_COUNT_LEADING_ZEROES(n) / 8;
@@ -1389,7 +1328,7 @@ namespace robin_hood {
 
 			Table() noexcept(noexcept(Hash()) && noexcept(KeyEqual())): WHash(), WKeyEqual() {
 				ROBIN_HOOD_TRACE(this)
-				GAIA_ASSERT(CheckEndianess());
+				GAIA_ASSERT(gaia::CheckEndianess());
 			}
 
 			// Creates an empty hash map. Nothing is allocated yet, this happens at the first insert.
@@ -1403,7 +1342,7 @@ namespace robin_hood {
 					WHash(h),
 					WKeyEqual(equal) {
 				ROBIN_HOOD_TRACE(this);
-				GAIA_ASSERT(CheckEndianess());
+				GAIA_ASSERT(gaia::CheckEndianess());
 			}
 
 			template <typename Iter>
@@ -1413,7 +1352,7 @@ namespace robin_hood {
 					WHash(h),
 					WKeyEqual(equal) {
 				ROBIN_HOOD_TRACE(this);
-				GAIA_ASSERT(CheckEndianess());
+				GAIA_ASSERT(gaia::CheckEndianess());
 				insert(first, last);
 			}
 
@@ -1423,7 +1362,7 @@ namespace robin_hood {
 					WHash(h),
 					WKeyEqual(equal) {
 				ROBIN_HOOD_TRACE(this);
-				GAIA_ASSERT(CheckEndianess());
+				GAIA_ASSERT(gaia::CheckEndianess());
 				insert(initlist.begin(), initlist.end());
 			}
 
@@ -2130,7 +2069,7 @@ namespace robin_hood {
 				}
 			}
 
-			ROBIN_HOOD(NOINLINE) void throwOverflowError() const {
+			GAIA_NOINLINE void throwOverflowError() const {
 #if ROBIN_HOOD(HAS_EXCEPTIONS)
 				throw std::overflow_error("robin_hood::map overflow");
 #else
