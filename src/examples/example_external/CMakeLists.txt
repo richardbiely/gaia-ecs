@@ -11,8 +11,12 @@ message("gaia_DIR: ${gaia_DIR}")
 message("gaia_INCLUDE_DIR: ${gaia_INCLUDE_DIR}")
 include_directories(${gaia_INCLUDE_DIR})
 
-add_executable(${PROJECT_NAME} src/main.cpp)
-target_link_libraries(${PROJECT_NAME} gaia::gaia)
+add_executable(${PROJ_NAME} src/main.cpp)
+
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
+target_link_libraries(${PROJ_NAME} gaia::gaia)
+target_link_libraries(${PROJ_NAME} PRIVATE Threads::Threads)
 
 set(PROJ_TARGET "run")
 add_custom_target(${PROJ_TARGET}

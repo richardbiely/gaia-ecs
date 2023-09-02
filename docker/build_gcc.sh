@@ -18,8 +18,9 @@ mkdir ${PATH_BASE} -p
 # Compiler
 ####################################################################
 
-export CC=/usr/bin/gcc-7
-export CXX=/usr/bin/g++-7
+COMPILER_CC=/usr/bin/gcc-7
+COMPILER_CXX=/usr/bin/g++-7
+COMPILER_SETTINGS="-DCMAKE_CC_COMPILER=${COMPILER_CC} -DCMAKE_CXX_COMPILER=${COMPILER_CXX} --no-warn-unused-cli"
 
 ####################################################################
 # Build the project
@@ -34,18 +35,30 @@ PATH_RELEASE="./${PATH_BASE}/release"
 
 # Debug mode
 cmake -E make_directory ${PATH_DEBUG}
-cmake -DCMAKE_BUILD_TYPE=Debug ${BUILD_SETTINGS_COMMON} -S .. -B ${PATH_DEBUG}
+cmake ${COMPILER_SETTINGS} -DCMAKE_BUILD_TYPE=Debug ${BUILD_SETTINGS_COMMON} -S .. -B ${PATH_DEBUG}
 cmake --build ${PATH_DEBUG} --config Debug
+if [ $? -ne 0 ]; then
+    echo "${PATH_DEBUG} build failed"
+    exit 1
+fi
 
 # Debug mode + profiler
 cmake -E make_directory ${PATH_DEBUG_PROF}
-cmake -DCMAKE_BUILD_TYPE=Debug ${BUILD_SETTINGS_COMMON_PROF} -S .. -B ${PATH_DEBUG_PROF}
+cmake ${COMPILER_SETTINGS} -DCMAKE_BUILD_TYPE=Debug ${BUILD_SETTINGS_COMMON_PROF} -S .. -B ${PATH_DEBUG_PROF}
 cmake --build ${PATH_DEBUG_PROF} --config Debug
+if [ $? -ne 0 ]; then
+    echo "${PATH_DEBUG_PROF} build failed"
+    exit 1
+fi
 
 # Release mode
 cmake -E make_directory ${PATH_RELEASE}
-cmake -DCMAKE_BUILD_TYPE=Release ${BUILD_SETTINGS_COMMON} -S .. -B ${PATH_RELEASE}
+cmake ${COMPILER_SETTINGS} -DCMAKE_BUILD_TYPE=Release ${BUILD_SETTINGS_COMMON} -S .. -B ${PATH_RELEASE}
 cmake --build ${PATH_RELEASE} --config Release
+if [ $? -ne 0 ]; then
+    echo "${PATH_RELEASE} build failed"
+    exit 1
+fi
 
 ####################################################################
 # Run unit tests

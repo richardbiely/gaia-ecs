@@ -18,7 +18,3 @@ if(GAIA_PROFILER_CPU OR GAIA_PROFILER_MEM)
 
   link_libraries(PRIVATE TracyClient)
 endif()
-
-# System-specific threading library
-find_package(Threads REQUIRED)
-link_libraries(PRIVATE Threads::Threads)
