@@ -18,8 +18,9 @@ mkdir ${PATH_BASE} -p
 # Compiler
 ####################################################################
 
-export CC=/usr/bin/clang
-export CXX=/usr/bin/clang++
+COMPILER_CC="/usr/bin/clang"
+COMPILER_CXX="/usr/bin/clang++"
+COMPILER_SETTINGS="-DCMAKE_CC_COMPILER=${COMPILER_CC} -DCMAKE_CXX_COMPILER=${COMPILER_CXX} --no-warn-unused-cli"
 
 ####################################################################
 # Build the project
@@ -31,8 +32,12 @@ PATH_RELEASE="./${PATH_BASE}/release-cachegrind"
 
 # Release mode
 cmake -E make_directory ${PATH_RELEASE}
-cmake -DCMAKE_BUILD_TYPE=Release ${BUILD_SETTINGS_COMMON} -DGAIA_DEBUG=0 -S .. -B ${PATH_RELEASE}
+cmake ${COMPILER_SETTINGS} -DCMAKE_BUILD_TYPE=RelWithDebInfo ${BUILD_SETTINGS_COMMON} -DGAIA_DEBUG=0 -S .. -B ${PATH_RELEASE}
 cmake --build ${PATH_RELEASE} --config RelWithDebInfo
+if [ $? -ne 0 ]; then
+    echo "${PATH_DEBUG} build failed"
+    exit 1
+fi
 
 ####################################################################
 # Run cachegrind
@@ -73,6 +78,6 @@ else
 fi
 
 echo "Cachegrind - measuring DOD performance"
-valgrind ${VALGRIND_ARGS} ${VALGRIND_ARGS_CUSTOM} --cachegrind-out-file=cachegrind.out.dod ${PATH_RELEASE}/${OUTPUT_BASE} ${OUTPUT_ARGS_DOD}
+valgrind ${VALGRIND_ARGS} ${VALGRIND_ARGS_CUSTOM} --cachegrind-out-file=cachegrind.out.dod "${PATH_RELEASE}/${OUTPUT_BASE}" ${OUTPUT_ARGS_DOD}
 echo "Cachegrind - measuring ECS performance"
-valgrind ${VALGRIND_ARGS} ${VALGRIND_ARGS_CUSTOM} --cachegrind-out-file=cachegrind.out.ecs ${PATH_RELEASE}/${OUTPUT_BASE} ${OUTPUT_ARGS_ECS}
+valgrind ${VALGRIND_ARGS} ${VALGRIND_ARGS_CUSTOM} --cachegrind-out-file=cachegrind.out.ecs "${PATH_RELEASE}/${OUTPUT_BASE}" ${OUTPUT_ARGS_ECS}

@@ -18,8 +18,8 @@ mkdir ${PATH_BASE} -p
 # Compiler
 ####################################################################
 
-COMPILER_CC=/usr/bin/gcc-7
-COMPILER_CXX=/usr/bin/g++-7
+COMPILER_CC="/usr/bin/gcc-7"
+COMPILER_CXX="/usr/bin/g++-7"
 COMPILER_SETTINGS="-DCMAKE_CC_COMPILER=${COMPILER_CC} -DCMAKE_CXX_COMPILER=${COMPILER_CXX} --no-warn-unused-cli"
 
 ####################################################################

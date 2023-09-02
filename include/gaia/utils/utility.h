@@ -206,13 +206,13 @@ namespace gaia {
 		//! Example 1 (index argument):
 		//! sarray<int, 10> arr = { ... };
 		//! for_each<arr.size()>([&arr](auto i) {
-		//!    GAIA_LOG_N("%d\n", i);
+		//!    GAIA_LOG_N("%d", i);
 		//! });
 		//!
 		//! Example 2 (no index argument):
 		//! uint32_t cnt = 0;
 		//! for_each<10>([&cnt]() {
-		//!    GAIA_LOG_N("Invocation number: %u\n", cnt++);
+		//!    GAIA_LOG_N("Invocation number: %u", cnt++);
 		//! });
 		template <auto Iters, typename Func>
 		constexpr void for_each(Func func) {
@@ -226,13 +226,13 @@ namespace gaia {
 		//! Example 1 (index argument):
 		//! sarray<int, 10> arr;
 		//! for_each_ext<0, 10, 2>([&arr](auto i) {
-		//!    GAIA_LOG_N("%d\n", i);
+		//!    GAIA_LOG_N("%d", i);
 		//! });
 		//!
 		//! Example 2 (no argument):
 		//! uint32_t cnt = 0;
 		//! for_each_ext<0, 10, 2>([&cnt]() {
-		//!    GAIA_LOG_N("Invocation number: %u\n", cnt++);
+		//!    GAIA_LOG_N("Invocation number: %u", cnt++);
 		//! });
 		template <auto FirstIdx, auto LastIdx, auto Inc, typename Func>
 		constexpr void for_each_ext(Func func) {

@@ -18,8 +18,8 @@ mkdir ${PATH_BASE} -p
 # Compiler
 ####################################################################
 
-COMPILER_CC=/usr/bin/clang
-COMPILER_CXX=/usr/bin/clang++
+COMPILER_CC="/usr/bin/clang"
+COMPILER_CXX="/usr/bin/clang++"
 COMPILER_SETTINGS="-DCMAKE_CC_COMPILER=${COMPILER_CC} -DCMAKE_CXX_COMPILER=${COMPILER_CXX} --no-warn-unused-cli"
 
 ####################################################################
