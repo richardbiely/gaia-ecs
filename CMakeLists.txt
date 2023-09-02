@@ -28,12 +28,16 @@ message(STATUS "Compiler: ${CMAKE_CXX_COMPILER_ID}")
 message(STATUS "Processor: ${CMAKE_SYSTEM_PROCESSOR}")
 message(STATUS "*************************************************************")
 
-set(IsClangCompiler CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+set(IsClangCompiler FALSE)
+
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    set(IsClangCompiler TRUE)
+endif()
 
 include("${CMAKE_CURRENT_LIST_DIR}/cmake/sanitizers.cmake")
 
 # Configuration
-option(GAIA_USE_LIBCPP "Use libc++." IsClangCompiler) # ON for Clang by default
+option(GAIA_USE_LIBCPP "Use libc++." IsClangCompiler)
 option(GAIA_BUILD_UNITTEST "Build unit test." OFF)
 option(GAIA_BUILD_BENCHMARK "Build benchmark." OFF)
 option(GAIA_BUILD_EXAMPLES "Build examples." OFF)
