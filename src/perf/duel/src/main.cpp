@@ -193,7 +193,7 @@ void BM_ECS(picobench::state& state) {
 			if (h.value > 0)
 				++aliveUnits;
 		});
-		(void)aliveUnits;
+		DoNotOptimize(aliveUnits);
 
 		GAIA_PROF_FRAME();
 	}
@@ -262,7 +262,7 @@ void BM_ECS_WithSystems(picobench::state& state) {
 				if (h.value > 0)
 					++aliveUnits;
 			});
-			(void)aliveUnits;
+			DoNotOptimize(aliveUnits);
 		}
 	};
 
@@ -354,7 +354,7 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 				}
 				aliveUnits += a;
 			});
-			(void)aliveUnits;
+			DoNotOptimize(aliveUnits);
 		}
 	};
 
@@ -458,7 +458,7 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 				}
 				aliveUnits += a;
 			});
-			(void)aliveUnits;
+			DoNotOptimize(aliveUnits);
 		}
 	};
 
@@ -685,7 +685,7 @@ void BM_ECS_WithSystems_Iter_SoA_SIMD(picobench::state& state) {
 				}
 				aliveUnits += a;
 			});
-			(void)aliveUnits;
+			DoNotOptimize(aliveUnits);
 		}
 	};
 
@@ -908,7 +908,7 @@ void BM_NonECS(picobench::state& state) {
 					++aliveUnits;
 			}
 		}
-		(void)aliveUnits;
+		DoNotOptimize(aliveUnits);
 
 		GAIA_PROF_FRAME();
 	}
@@ -1072,7 +1072,7 @@ void BM_NonECS_BetterMemoryLayout(picobench::state& state) {
 			if (u.isAlive())
 				++aliveUnits;
 		}
-		(void)aliveUnits;
+		DoNotOptimize(aliveUnits);
 
 		GAIA_PROF_FRAME();
 	}
@@ -1180,7 +1180,7 @@ void BM_NonECS_DOD(picobench::state& state) {
 		uint32_t aliveUnits = 0;
 		for (auto& g: dynamic_groups)
 			aliveUnits += UnitDynamic::calculateAliveUnits(g.units_h);
-		(void)aliveUnits;
+		DoNotOptimize(aliveUnits);
 
 		GAIA_PROF_FRAME();
 	}
@@ -1306,7 +1306,7 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 		uint32_t aliveUnits = 0;
 		for (auto& g: dynamic_groups)
 			aliveUnits += UnitDynamic::calculateAliveUnits(g.units_h);
-		(void)aliveUnits;
+		DoNotOptimize(aliveUnits);
 
 		GAIA_PROF_FRAME();
 	}
@@ -1507,7 +1507,7 @@ void BM_NonECS_DOD_SoA_SIMD(picobench::state& state) {
 		uint32_t aliveUnits = 0;
 		for (auto& g: dynamic_groups)
 			aliveUnits += UnitDynamic::calculateAliveUnits(g.units_h);
-		(void)aliveUnits;
+		DoNotOptimize(aliveUnits);
 
 		GAIA_PROF_FRAME();
 	}
