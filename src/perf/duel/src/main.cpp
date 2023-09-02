@@ -1546,6 +1546,9 @@ int main(int argc, char* argv[]) {
 			}
 		}
 
+		GAIA_LOG_N("CacheGrind = %d", cachegrind);
+		GAIA_LOG_N("DOD mode   = %d", test_dod);
+
 		if (cachegrind) {
 			if (test_dod) {
 				// PICOBENCH_SUITE_REG("NonECS_DOD");
