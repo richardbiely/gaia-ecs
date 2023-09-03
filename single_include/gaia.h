@@ -11283,9 +11283,9 @@ namespace gaia {
 			//! Writes \param value to the buffer
 			template <typename T>
 			void Save(T&& value) {
-				EnsureCapacity(sizeof(value));
+				EnsureCapacity(sizeof(T));
 
-				m_data.resize(m_dataPos + sizeof(value));
+				m_data.resize(m_dataPos + sizeof(T));
 				utils::unaligned_ref<T> mem(&m_data[m_dataPos]);
 				mem = std::forward<T>(value);
 

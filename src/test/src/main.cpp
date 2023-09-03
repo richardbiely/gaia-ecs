@@ -2519,14 +2519,15 @@ void TestDataLayoutAoS() {
 			REQUIRE(val.z == f);
 		}
 
-		// Make sure that all values are correct (e.g. that they were not overriden by one of the loop iteration)
-		for (size_t i = 0; i < N; ++i) {
-			const auto f = (float)(i + 1);
+		SECTION("Make sure that all values are correct (e.g. that they were not overriden by one of the loop iteration)") {
+			for (size_t i = 0; i < N; ++i) {
+				const auto f = (float)(i + 1);
 
-			auto val = aos::getc({data}, i);
-			REQUIRE(val.x == f);
-			REQUIRE(val.y == f);
-			REQUIRE(val.z == f);
+				auto val = aos::getc({data}, i);
+				REQUIRE(val.x == f);
+				REQUIRE(val.y == f);
+				REQUIRE(val.z == f);
+			}
 		}
 	}
 
@@ -2541,16 +2542,16 @@ void TestDataLayoutAoS() {
 			REQUIRE(val.y == f);
 			REQUIRE(val.z == f);
 		}
-	}
 
-	SECTION("Make sure that all values are correct (e.g. that they were not overriden by one of the loop iteration)") {
-		for (size_t i = 0; i < N; ++i) {
-			const auto f = (float)(i + 1);
+		SECTION("Make sure that all values are correct (e.g. that they were not overriden by one of the loop iteration)") {
+			for (size_t i = 0; i < N; ++i) {
+				const auto f = (float)(i + 1);
 
-			auto val = view_deduced::getc({data}, i);
-			REQUIRE(val.x == f);
-			REQUIRE(val.y == f);
-			REQUIRE(val.z == f);
+				auto val = view_deduced::getc({data}, i);
+				REQUIRE(val.x == f);
+				REQUIRE(val.y == f);
+				REQUIRE(val.z == f);
+			}
 		}
 	}
 
@@ -2594,16 +2595,16 @@ void TestDataLayoutSoA() {
 			REQUIRE(val.y == f);
 			REQUIRE(val.z == f);
 		}
-	}
 
-	SECTION("Make sure that all values are correct (e.g. that they were not overriden by one of the loop iteration)") {
-		for (size_t i = 0; i < N; ++i) {
-			const auto f = (float)(i + 1);
+		SECTION("Make sure that all values are correct (e.g. that they were not overriden by one of the loop iteration)") {
+			for (size_t i = 0; i < N; ++i) {
+				const auto f = (float)(i + 1);
 
-			auto val = view_deduced::get({data}, i);
-			REQUIRE(val.x == f);
-			REQUIRE(val.y == f);
-			REQUIRE(val.z == f);
+				auto val = view_deduced::get({data}, i);
+				REQUIRE(val.x == f);
+				REQUIRE(val.y == f);
+				REQUIRE(val.z == f);
+			}
 		}
 	}
 
