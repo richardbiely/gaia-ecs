@@ -1270,9 +1270,9 @@ namespace gaia {
 			GAIA_MSVC_WARNING_POP()
 		}
 
-		//! Copy or move \param size elements of type \tparam T from the address pointer to by \param src to \param dst
+		//! Move or copy \param size elements of type \tparam T from the address pointer to by \param src to \param dst
 		template <typename T>
-		void transfer_elements(T* GAIA_RESTRICT dst, const T* GAIA_RESTRICT src, size_t size) {
+		void move_elements(T* GAIA_RESTRICT dst, const T* GAIA_RESTRICT src, size_t size) {
 			GAIA_MSVC_WARNING_PUSH()
 			GAIA_MSVC_WARNING_DISABLE(6385)
 
@@ -1346,7 +1346,7 @@ namespace gaia {
 				// This means we prefer more frequent allocations over memory fragmentation.
 				T* old = m_pData;
 				m_pData = new T[m_cap = (cap * 3) / 2 + 1];
-				utils::transfer_elements(m_pData, old, cnt);
+				utils::move_elements(m_pData, old, cnt);
 				delete[] old;
 			}
 
@@ -1617,7 +1617,7 @@ namespace gaia {
 				if (m_pData) {
 					T* old = m_pData;
 					m_pData = new T[count];
-					utils::transfer_elements(m_pData, old, size());
+					utils::move_elements(m_pData, old, size());
 					delete[] old;
 				} else {
 					m_pData = new T[count];
@@ -1635,7 +1635,7 @@ namespace gaia {
 				if (m_pData) {
 					T* old = m_pData;
 					m_pData = new T[count];
-					utils::transfer_elements(m_pData, old, size());
+					utils::move_elements(m_pData, old, size());
 					delete[] old;
 				} else {
 					m_pData = new T[count];
@@ -1714,7 +1714,7 @@ namespace gaia {
 					return;
 				T* old = m_pData;
 				m_pData = new T[m_cap = size()];
-				transfer_elements(m_pData, old, size());
+				move_elements(m_pData, old, size());
 				delete[] old;
 			}
 
@@ -2343,7 +2343,7 @@ namespace gaia {
 			constexpr sarr_ext(sarr_ext&& other) noexcept: m_cnt(other.m_cnt) {
 				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
 
-				utils::transfer_elements(m_data, other.m_data, other.size());
+				utils::move_elements(m_data, other.m_data, other.size());
 
 				other.m_cnt = size_type(0);
 			}
@@ -2366,7 +2366,7 @@ namespace gaia {
 				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
 
 				resize(other.m_cnt);
-				utils::transfer_elements(m_data, other.m_data, other.size());
+				utils::move_elements(m_data, other.m_data, other.size());
 
 				other.m_cnt = size_type(0);
 
@@ -10726,7 +10726,7 @@ namespace gaia {
 				// This means we prefer more frequent allocations over memory fragmentation.
 				T* old = m_pDataHeap;
 				m_pDataHeap = new T[m_cap = (cap * 3) / 2 + 1];
-				utils::transfer_elements(m_pDataHeap, old, cnt);
+				utils::move_elements(m_pDataHeap, old, cnt);
 				delete[] old;
 			}
 
@@ -10939,7 +10939,7 @@ namespace gaia {
 					m_pDataHeap = other.m_pDataHeap;
 				} else {
 					m_pData = m_data;
-					utils::transfer_elements(m_data, other.m_data, other.size());
+					utils::move_elements(m_data, other.m_data, other.size());
 					m_pDataHeap = nullptr;
 				}
 
@@ -10973,7 +10973,7 @@ namespace gaia {
 					m_pDataHeap = other.m_pDataHeap;
 				} else {
 					m_pData = m_data;
-					utils::transfer_elements(m_data, other.m_data, other.m_data.size());
+					utils::move_elements(m_data, other.m_data, other.m_data.size());
 					m_pDataHeap = nullptr;
 				}
 
@@ -11012,11 +11012,11 @@ namespace gaia {
 				if (m_pDataHeap) {
 					T* old = m_pDataHeap;
 					m_pDataHeap = new T[count];
-					utils::transfer_elements(m_pDataHeap, old, size());
+					utils::move_elements(m_pDataHeap, old, size());
 					delete[] old;
 				} else {
 					m_pDataHeap = new T[count];
-					utils::transfer_elements(m_pDataHeap, m_data, size());
+					utils::move_elements(m_pDataHeap, m_data, size());
 				}
 
 				m_cap = count;
@@ -11037,11 +11037,11 @@ namespace gaia {
 				if (m_pDataHeap) {
 					T* old = m_pDataHeap;
 					m_pDataHeap = new T[count];
-					utils::transfer_elements(m_pDataHeap, old, size());
+					utils::move_elements(m_pDataHeap, old, size());
 					delete[] old;
 				} else {
 					m_pDataHeap = new T[count];
-					utils::transfer_elements(m_pDataHeap, m_data, size());
+					utils::move_elements(m_pDataHeap, m_data, size());
 				}
 
 				m_cap = count;
@@ -11121,11 +11121,11 @@ namespace gaia {
 					T* old = m_pDataHeap;
 
 					if (size() < extent) {
-						utils::transfer_elements(m_data, old, size());
+						utils::move_elements(m_data, old, size());
 						m_pData = m_data;
 					} else {
 						m_pDataHeap = new T[m_cap = size()];
-						utils::transfer_elements(m_pDataHeap, old, size());
+						utils::move_elements(m_pDataHeap, old, size());
 						m_pData = m_pDataHeap;
 					}
 
@@ -11332,8 +11332,8 @@ namespace gaia {
 			}
 
 			template <typename T>
-			void save(const T& arg) {
-				m_buffer.Save(arg);
+			void save(T&& arg) {
+				m_buffer.Save(std::forward<T>(arg));
 			}
 
 			void save(const void* pSrc, uint32_t size) {
@@ -15261,7 +15261,7 @@ namespace gaia {
 			sringbuffer(sringbuffer&& other) noexcept: m_tail(other.m_tail), m_size(other.m_size) {
 				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
 
-				utils::transfer_elements(m_data, other.m_data, other.size());
+				utils::move_elements(m_data, other.m_data, other.size());
 
 				other.m_tail = size_type(0);
 				other.m_size = size_type(0);
@@ -15286,7 +15286,7 @@ namespace gaia {
 			constexpr GAIA_NODISCARD sringbuffer& operator=(sringbuffer&& other) noexcept {
 				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
 
-				utils::transfer_elements(m_data, other.m_data, other.size());
+				utils::move_elements(m_data, other.m_data, other.size());
 
 				m_tail = other.m_tail;
 				m_size = other.m_size;

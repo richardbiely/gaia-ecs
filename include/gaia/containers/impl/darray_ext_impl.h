@@ -62,7 +62,7 @@ namespace gaia {
 				// This means we prefer more frequent allocations over memory fragmentation.
 				T* old = m_pDataHeap;
 				m_pDataHeap = new T[m_cap = (cap * 3) / 2 + 1];
-				utils::transfer_elements(m_pDataHeap, old, cnt);
+				utils::move_elements(m_pDataHeap, old, cnt);
 				delete[] old;
 			}
 
@@ -275,7 +275,7 @@ namespace gaia {
 					m_pDataHeap = other.m_pDataHeap;
 				} else {
 					m_pData = m_data;
-					utils::transfer_elements(m_data, other.m_data, other.size());
+					utils::move_elements(m_data, other.m_data, other.size());
 					m_pDataHeap = nullptr;
 				}
 
@@ -309,7 +309,7 @@ namespace gaia {
 					m_pDataHeap = other.m_pDataHeap;
 				} else {
 					m_pData = m_data;
-					utils::transfer_elements(m_data, other.m_data, other.m_data.size());
+					utils::move_elements(m_data, other.m_data, other.m_data.size());
 					m_pDataHeap = nullptr;
 				}
 
@@ -348,11 +348,11 @@ namespace gaia {
 				if (m_pDataHeap) {
 					T* old = m_pDataHeap;
 					m_pDataHeap = new T[count];
-					utils::transfer_elements(m_pDataHeap, old, size());
+					utils::move_elements(m_pDataHeap, old, size());
 					delete[] old;
 				} else {
 					m_pDataHeap = new T[count];
-					utils::transfer_elements(m_pDataHeap, m_data, size());
+					utils::move_elements(m_pDataHeap, m_data, size());
 				}
 
 				m_cap = count;
@@ -373,11 +373,11 @@ namespace gaia {
 				if (m_pDataHeap) {
 					T* old = m_pDataHeap;
 					m_pDataHeap = new T[count];
-					utils::transfer_elements(m_pDataHeap, old, size());
+					utils::move_elements(m_pDataHeap, old, size());
 					delete[] old;
 				} else {
 					m_pDataHeap = new T[count];
-					utils::transfer_elements(m_pDataHeap, m_data, size());
+					utils::move_elements(m_pDataHeap, m_data, size());
 				}
 
 				m_cap = count;
@@ -457,11 +457,11 @@ namespace gaia {
 					T* old = m_pDataHeap;
 
 					if (size() < extent) {
-						utils::transfer_elements(m_data, old, size());
+						utils::move_elements(m_data, old, size());
 						m_pData = m_data;
 					} else {
 						m_pDataHeap = new T[m_cap = size()];
-						utils::transfer_elements(m_pDataHeap, old, size());
+						utils::move_elements(m_pDataHeap, old, size());
 						m_pData = m_pDataHeap;
 					}
 

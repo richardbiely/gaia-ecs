@@ -63,7 +63,7 @@ namespace gaia {
 			sringbuffer(sringbuffer&& other) noexcept: m_tail(other.m_tail), m_size(other.m_size) {
 				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
 
-				utils::transfer_elements(m_data, other.m_data, other.size());
+				utils::move_elements(m_data, other.m_data, other.size());
 
 				other.m_tail = size_type(0);
 				other.m_size = size_type(0);
@@ -88,7 +88,7 @@ namespace gaia {
 			constexpr GAIA_NODISCARD sringbuffer& operator=(sringbuffer&& other) noexcept {
 				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
 
-				utils::transfer_elements(m_data, other.m_data, other.size());
+				utils::move_elements(m_data, other.m_data, other.size());
 
 				m_tail = other.m_tail;
 				m_size = other.m_size;
