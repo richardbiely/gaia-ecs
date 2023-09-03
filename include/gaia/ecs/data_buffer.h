@@ -5,6 +5,7 @@
 
 #include "../containers/darray_ext.h"
 #include "../utils/mem.h"
+#include "component_cache.h"
 
 namespace gaia {
 	namespace ecs {
@@ -57,11 +58,32 @@ namespace gaia {
 			//! Writes \param value to the buffer
 			template <typename T>
 			void Save(T&& value) {
-				EnsureCapacity(sizeof(T));
+				EnsureCapacity(sizeof(value));
 
-				m_data.resize(m_dataPos + sizeof(T));
+				m_data.resize(m_dataPos + sizeof(value));
 				utils::unaligned_ref<T> mem(&m_data[m_dataPos]);
 				mem = std::forward<T>(value);
+
+				m_dataPos += sizeof(T);
+			}
+
+			//! Writes \param value to the buffer
+			template <typename T>
+			void SaveComponent(T&& value) {
+				constexpr bool isRValue = std::is_rvalue_reference_v<decltype(value)>;
+				EnsureCapacity(sizeof(isRValue) + sizeof(T));
+				Save(isRValue);
+				m_data.resize(m_dataPos + sizeof(T));
+
+				auto* pSrc = (void*)&value;
+				auto* pDst = (void*)&m_data[m_dataPos];
+
+				const auto componentId = component::GetComponentId<T>();
+				const auto& desc = ComponentCache::Get().GetComponentDesc(componentId);
+				if constexpr (isRValue)
+					desc.Move(pSrc, pDst);
+				else
+					desc.Copy(pSrc, pDst);
 
 				m_dataPos += sizeof(T);
 			}
@@ -75,6 +97,25 @@ namespace gaia {
 				memcpy((void*)&m_data[m_dataPos], pSrc, size);
 
 				m_dataPos += size;
+			}
+
+			//! Loads \param value from the buffer
+			void LoadComponent(void* pDst, component::ComponentId componentId) {
+				bool isRValue = false;
+				Load(isRValue);
+
+				const auto& desc = ComponentCache::Get().GetComponentDesc(componentId);
+				GAIA_ASSERT(m_dataPos + desc.properties.size <= m_data.size());
+
+				auto* pSrc = (void*)&m_data[m_dataPos];
+
+				if (isRValue) {
+					desc.Move(pSrc, pDst);
+					desc.Destroy(pSrc);
+				} else
+					desc.Copy(pSrc, pDst);
+
+				m_dataPos += desc.properties.size;
 			}
 
 			//! Loads \param value from the buffer
@@ -102,6 +143,10 @@ namespace gaia {
 
 		public:
 			DataBuffer_SerializationWrapper(ecs::DataBuffer& buffer): m_buffer(buffer) {}
+
+			ecs::DataBuffer& buffer() {
+				return m_buffer;
+			}
 
 			void reserve(uint32_t size) {
 				m_buffer.EnsureCapacity(size);

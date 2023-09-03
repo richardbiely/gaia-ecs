@@ -2070,8 +2070,7 @@ TEST_CASE("Components - non trivial") {
 }
 
 TEST_CASE("CommandBuffer") {
-	// Entity creation
-	{
+	SECTION("Entity creation") {
 		ecs::World w;
 		ecs::CommandBuffer cb(w);
 
@@ -2088,8 +2087,7 @@ TEST_CASE("CommandBuffer") {
 		}
 	}
 
-	// Entity creation from another entity
-	{
+	SECTION("Entity creation from another entity") {
 		ecs::World w;
 		ecs::CommandBuffer cb(w);
 
@@ -2108,8 +2106,7 @@ TEST_CASE("CommandBuffer") {
 		}
 	}
 
-	// Entity creation from another entity with a component
-	{
+	SECTION("Entity creation from another entity with a component") {
 		ecs::World w;
 		ecs::CommandBuffer cb(w);
 
@@ -2126,8 +2123,7 @@ TEST_CASE("CommandBuffer") {
 		REQUIRE(p.z == 3);
 	}
 
-	// Delayed component addition to an existing entity
-	{
+	SECTION("Delayed component addition to an existing entity") {
 		ecs::World w;
 		ecs::CommandBuffer cb(w);
 
@@ -2138,8 +2134,7 @@ TEST_CASE("CommandBuffer") {
 		REQUIRE(w.HasComponent<Position>(e));
 	}
 
-	// Delayed component addition to a to-be-created entity
-	{
+	SECTION("Delayed component addition to a to-be-created entity") {
 		ecs::World w;
 		ecs::CommandBuffer cb(w);
 
@@ -2152,8 +2147,7 @@ TEST_CASE("CommandBuffer") {
 		REQUIRE(w.HasComponent<Position>(e));
 	}
 
-	// Delayed component setting of an existing entity
-	{
+	SECTION("Delayed component setting of an existing entity") {
 		ecs::World w;
 		ecs::CommandBuffer cb(w);
 
@@ -2172,8 +2166,7 @@ TEST_CASE("CommandBuffer") {
 		REQUIRE(p.z == 3);
 	}
 
-	// Delayed non-trivial component setting of an existing entity
-	{
+	SECTION("Delayed non-trivial component setting of an existing entity") {
 		ecs::World w;
 		ecs::CommandBuffer cb(w);
 
@@ -2193,8 +2186,7 @@ TEST_CASE("CommandBuffer") {
 		REQUIRE(s2.value == StringComponent2DefaultValue);
 	}
 
-	// Delayed 2 components setting of an existing entity
-	{
+	SECTION("Delayed 2 components setting of an existing entity") {
 		ecs::World w;
 		ecs::CommandBuffer cb(w);
 
@@ -2222,8 +2214,7 @@ TEST_CASE("CommandBuffer") {
 		REQUIRE(a.z == 6);
 	}
 
-	// Delayed component setting of a to-be-created entity
-	{
+	SECTION("Delayed component setting of a to-be-created entity") {
 		ecs::World w;
 		ecs::CommandBuffer cb(w);
 
@@ -2243,8 +2234,7 @@ TEST_CASE("CommandBuffer") {
 		REQUIRE(p.z == 3);
 	}
 
-	// Delayed 2 components setting of a to-be-created entity
-	{
+	SECTION("Delayed 2 components setting of a to-be-created entity") {
 		ecs::World w;
 		ecs::CommandBuffer cb(w);
 
@@ -2272,8 +2262,7 @@ TEST_CASE("CommandBuffer") {
 		REQUIRE(a.z == 6);
 	}
 
-	// Delayed component add with setting of a to-be-created entity
-	{
+	SECTION("Delayed component add with setting of a to-be-created entity") {
 		ecs::World w;
 		ecs::CommandBuffer cb(w);
 
@@ -2292,8 +2281,7 @@ TEST_CASE("CommandBuffer") {
 		REQUIRE(p.z == 3);
 	}
 
-	// Delayed 2 components add with setting of a to-be-created entity
-	{
+	SECTION("Delayed 2 components add with setting of a to-be-created entity") {
 		ecs::World w;
 		ecs::CommandBuffer cb(w);
 
@@ -2319,8 +2307,7 @@ TEST_CASE("CommandBuffer") {
 		REQUIRE(a.z == 6);
 	}
 
-	// Delayed component removal from an existing entity
-	{
+	SECTION("Delayed component removal from an existing entity") {
 		ecs::World w;
 		ecs::CommandBuffer cb(w);
 
@@ -2340,8 +2327,7 @@ TEST_CASE("CommandBuffer") {
 		REQUIRE_FALSE(w.HasComponent<Position>(e));
 	}
 
-	// Delayed 2 component removal from an existing entity
-	{
+	SECTION("Delayed 2 component removal from an existing entity") {
 		ecs::World w;
 		ecs::CommandBuffer cb(w);
 
@@ -2519,8 +2505,7 @@ void TestDataLayoutAoS() {
 		data2[i] = {};
 	}
 
-	// Explicit view
-	{
+	SECTION("Explicit view") {
 		for (size_t i = 0; i < N; ++i) {
 			const auto f = (float)(i + 1);
 
@@ -2543,8 +2528,7 @@ void TestDataLayoutAoS() {
 		}
 	}
 
-	// Deduced view
-	{
+	SECTION("Deduced view") {
 		for (size_t i = 0; i < N; ++i) {
 			const auto f = (float)(i + 1);
 
@@ -2555,8 +2539,9 @@ void TestDataLayoutAoS() {
 			REQUIRE(val.y == f);
 			REQUIRE(val.z == f);
 		}
+	}
 
-		// Make sure that all values are correct (e.g. that they were not overriden by one of the loop iteration)
+	SECTION("Make sure that all values are correct (e.g. that they were not overriden by one of the loop iteration)") {
 		for (size_t i = 0; i < N; ++i) {
 			const auto f = (float)(i + 1);
 
@@ -2567,11 +2552,12 @@ void TestDataLayoutAoS() {
 		}
 	}
 
-	// Make sure we didn't write beyond the bounds
-	T dummy{};
-	for (size_t i = N; i < N; ++i) {
-		const auto& val = data2[i];
-		REQUIRE(!memcmp((const void*)&val, (const void*)&dummy, sizeof(T)));
+	SECTION("Make sure we didn't write beyond the bounds") {
+		T dummy{};
+		for (size_t i = N; i < N; ++i) {
+			const auto& val = data2[i];
+			REQUIRE(!memcmp((const void*)&val, (const void*)&dummy, sizeof(T)));
+		}
 	}
 }
 
@@ -2595,8 +2581,7 @@ void TestDataLayoutSoA() {
 		data2[i] = {};
 	}
 
-	// Deduced view
-	{
+	SECTION("Deduced view") {
 		for (size_t i = 0; i < N; ++i) {
 			const auto f = (float)(i + 1);
 
@@ -2607,8 +2592,9 @@ void TestDataLayoutSoA() {
 			REQUIRE(val.y == f);
 			REQUIRE(val.z == f);
 		}
+	}
 
-		// Make sure that all values are correct (e.g. that they were not overriden by one of the loop iteration)
+	SECTION("Make sure that all values are correct (e.g. that they were not overriden by one of the loop iteration)") {
 		for (size_t i = 0; i < N; ++i) {
 			const auto f = (float)(i + 1);
 
@@ -2619,11 +2605,12 @@ void TestDataLayoutSoA() {
 		}
 	}
 
-	// Make sure we didn't write beyond the bounds
-	T dummy{};
-	for (size_t i = N; i < N; ++i) {
-		const auto& val = data2[i];
-		REQUIRE(!memcmp((const void*)&val, (const void*)&dummy, sizeof(T)));
+	SECTION("Make sure we didn't write beyond the bounds") {
+		T dummy{};
+		for (size_t i = N; i < N; ++i) {
+			const auto& val = data2[i];
+			REQUIRE(!memcmp((const void*)&val, (const void*)&dummy, sizeof(T)));
+		}
 	}
 }
 
