@@ -7682,6 +7682,34 @@ namespace gaia {
 					uint32_t soa: utils::StructToTupleMaxTypesBits;
 				} properties{};
 
+				void CtorFrom(void* pSrc, void* pDst) const {
+					if (ctor_move != nullptr)
+						ctor_move(pSrc, pDst);
+					else if (ctor_copy != nullptr)
+						ctor_copy(pSrc, pDst);
+					else
+						memmove(pDst, (const void*)pSrc, properties.size);
+				}
+
+				void Move(void* pSrc, void* pDst) const {
+					if (move != nullptr)
+						move(pSrc, pDst);
+					else
+						Copy(pSrc, pDst);
+				}
+
+				void Copy(void* pSrc, void* pDst) const {
+					if (copy != nullptr)
+						copy(pSrc, pDst);
+					else
+						memmove(pDst, (const void*)pSrc, properties.size);
+				}
+
+				void Destroy(void* pSrc) const {
+					if (dtor != nullptr)
+						dtor(pSrc, 1);
+				}
+
 				template <typename T>
 				GAIA_NODISCARD static constexpr ComponentDesc Calculate() {
 					using U = typename DeduceComponent<T>::Type;
@@ -9200,11 +9228,7 @@ namespace gaia {
 
 						auto* pSrc = (void*)&pOldChunk->GetData(idxSrc);
 						auto* pDst = (void*)&pNewChunk->GetData(idxDst);
-
-						if (desc.copy != nullptr)
-							desc.copy(pSrc, pDst);
-						else
-							memmove(pDst, (const void*)pSrc, desc.properties.size);
+						desc.Copy(pSrc, pDst);
 					}
 				}
 
@@ -9236,11 +9260,7 @@ namespace gaia {
 
 						auto* pSrc = (void*)&pOldChunk->GetData(idxSrc);
 						auto* pDst = (void*)&GetData(idxDst);
-
-						if (desc.copy != nullptr)
-							desc.copy(pSrc, pDst);
-						else
-							memmove(pDst, (const void*)pSrc, desc.properties.size);
+						desc.Copy(pSrc, pDst);
 					}
 				}
 
@@ -9278,13 +9298,7 @@ namespace gaia {
 
 							auto* pSrc = (void*)&pOldChunk->GetData(idxSrc);
 							auto* pDst = (void*)&GetData(idxDst);
-
-							if (desc.ctor_move != nullptr)
-								desc.ctor_move(pSrc, pDst);
-							else if (desc.ctor_copy != nullptr)
-								desc.ctor_copy(pSrc, pDst);
-							else
-								memmove(pDst, (const void*)pSrc, desc.properties.size);
+							desc.CtorFrom(pSrc, pDst);
 						};
 
 						while (i < oldInfos.size() && j < newInfos.size()) {
@@ -9340,16 +9354,8 @@ namespace gaia {
 
 							auto* pSrc = (void*)&m_data[idxSrc];
 							auto* pDst = (void*)&m_data[idxDst];
-
-							if (desc.move != nullptr)
-								desc.move(pSrc, pDst);
-							else if (desc.copy != nullptr)
-								desc.copy(pSrc, pDst);
-							else
-								memmove(pDst, (const void*)pSrc, desc.properties.size);
-
-							if (desc.dtor != nullptr)
-								desc.dtor(pSrc, 1);
+							desc.Move(pSrc, pDst);
+							desc.Destroy(pSrc);
 						}
 
 						// Entity has been replaced with the last one in chunk.
@@ -11277,11 +11283,32 @@ namespace gaia {
 			//! Writes \param value to the buffer
 			template <typename T>
 			void Save(T&& value) {
-				EnsureCapacity(sizeof(T));
+				EnsureCapacity(sizeof(value));
 
-				m_data.resize(m_dataPos + sizeof(T));
+				m_data.resize(m_dataPos + sizeof(value));
 				utils::unaligned_ref<T> mem(&m_data[m_dataPos]);
 				mem = std::forward<T>(value);
+
+				m_dataPos += sizeof(T);
+			}
+
+			//! Writes \param value to the buffer
+			template <typename T>
+			void SaveComponent(T&& value) {
+				constexpr bool isRValue = std::is_rvalue_reference_v<decltype(value)>;
+				EnsureCapacity(sizeof(isRValue) + sizeof(T));
+				Save(isRValue);
+				m_data.resize(m_dataPos + sizeof(T));
+
+				auto* pSrc = (void*)&value;
+				auto* pDst = (void*)&m_data[m_dataPos];
+
+				const auto componentId = component::GetComponentId<T>();
+				const auto& desc = ComponentCache::Get().GetComponentDesc(componentId);
+				if constexpr (isRValue)
+					desc.Move(pSrc, pDst);
+				else
+					desc.Copy(pSrc, pDst);
 
 				m_dataPos += sizeof(T);
 			}
@@ -11295,6 +11322,25 @@ namespace gaia {
 				memcpy((void*)&m_data[m_dataPos], pSrc, size);
 
 				m_dataPos += size;
+			}
+
+			//! Loads \param value from the buffer
+			void LoadComponent(void* pDst, component::ComponentId componentId) {
+				bool isRValue = false;
+				Load(isRValue);
+
+				const auto& desc = ComponentCache::Get().GetComponentDesc(componentId);
+				GAIA_ASSERT(m_dataPos + desc.properties.size <= m_data.size());
+
+				auto* pSrc = (void*)&m_data[m_dataPos];
+
+				if (isRValue) {
+					desc.Move(pSrc, pDst);
+					desc.Destroy(pSrc);
+				} else
+					desc.Copy(pSrc, pDst);
+
+				m_dataPos += desc.properties.size;
 			}
 
 			//! Loads \param value from the buffer
@@ -11322,6 +11368,10 @@ namespace gaia {
 
 		public:
 			DataBuffer_SerializationWrapper(ecs::DataBuffer& buffer): m_buffer(buffer) {}
+
+			ecs::DataBuffer& buffer() {
+				return m_buffer;
+			}
 
 			void reserve(uint32_t size) {
 				m_buffer.EnsureCapacity(size);
@@ -14147,11 +14197,11 @@ namespace gaia {
 					if (componentType == component::ComponentType::CT_Chunk)
 						indexInChunk = 0;
 
+					// Component data
 					const auto& desc = ComponentCache::Get().GetComponentDesc(componentId);
 					const auto offset = pChunk->FindDataOffset(componentType, info.componentId);
 					auto* pComponentData = (void*)&pChunk->GetData(offset + (uint32_t)indexInChunk * desc.properties.size);
-
-					ctx.load(pComponentData, desc.properties.size);
+					ctx.buffer().LoadComponent(pComponentData, componentId);
 				}
 			};
 			struct ADD_COMPONENT_TO_TEMPENTITY_t: CommandBufferCmd_t {
@@ -14203,10 +14253,11 @@ namespace gaia {
 					if (componentType == component::ComponentType::CT_Chunk)
 						indexInChunk = 0;
 
+					// Component data
 					const auto& desc = ComponentCache::Get().GetComponentDesc(componentId);
 					const auto offset = pChunk->FindDataOffset(componentType, desc.componentId);
 					auto* pComponentData = (void*)&pChunk->GetData(offset + (uint32_t)indexInChunk * desc.properties.size);
-					ctx.load(pComponentData, desc.properties.size);
+					ctx.buffer().LoadComponent(pComponentData, componentId);
 				}
 			};
 			struct SET_COMPONENT_t: CommandBufferCmd_t {
@@ -14219,11 +14270,11 @@ namespace gaia {
 					auto* pChunk = entityContainer.pChunk;
 					const auto indexInChunk = componentType == component::ComponentType::CT_Chunk ? 0U : entityContainer.idx;
 
-					// Components
+					// Component data
 					const auto& desc = ComponentCache::Get().GetComponentDesc(componentId);
 					const auto offset = pChunk->FindDataOffset(componentType, componentId);
 					auto* pComponentData = (void*)&pChunk->GetData(offset + (uint32_t)indexInChunk * desc.properties.size);
-					ctx.load(pComponentData, desc.properties.size);
+					ctx.buffer().LoadComponent(pComponentData, componentId);
 				}
 			};
 			struct SET_COMPONENT_FOR_TEMPENTITY_t: CommandBufferCmd_t {
@@ -14244,11 +14295,11 @@ namespace gaia {
 					auto* pChunk = entityContainer.pChunk;
 					const auto indexInChunk = componentType == component::ComponentType::CT_Chunk ? 0U : entityContainer.idx;
 
-					// Components
+					// Component data
 					const auto& desc = ComponentCache::Get().GetComponentDesc(componentId);
 					const auto offset = pChunk->FindDataOffset(componentType, componentId);
 					auto* pComponentData = (void*)&pChunk->GetData(offset + (uint32_t)indexInChunk * desc.properties.size);
-					ctx.load(pComponentData, desc.properties.size);
+					ctx.buffer().LoadComponent(pComponentData, componentId);
 				}
 			};
 			struct REMOVE_COMPONENT_t: CommandBufferCmd_t {
@@ -14394,7 +14445,9 @@ namespace gaia {
 				cmd.componentType = component::GetComponentType<T>();
 				cmd.componentId = info.componentId;
 				serialization::save(s, cmd);
-				s.save(std::forward<U>(value));
+
+				const auto& desc = ComponentCache::Get().GetComponentDesc(cmd.componentId);
+				s.buffer().SaveComponent(std::forward<U>(value));
 			}
 
 			/*!
@@ -14416,7 +14469,9 @@ namespace gaia {
 				cmd.componentType = component::GetComponentType<T>();
 				cmd.componentId = info.componentId;
 				serialization::save(s, cmd);
-				s.save(std::forward<U>(value));
+
+				const auto& desc = ComponentCache::Get().GetComponentDesc(cmd.componentId);
+				s.buffer().SaveComponent(std::forward<U>(value));
 			}
 
 			/*!
@@ -14426,7 +14481,7 @@ namespace gaia {
 			void SetComponent(Entity entity, T&& value) {
 				// No need to check if the component is registered.
 				// If we want to set the value of a component we must have created it already.
-				// (void)ComponentCache::Get().GetOrCreateComponentInfo<T>();
+				// (void)ComponentCache::Get().GetComponentInfo<T>();
 
 				using U = typename component::DeduceComponent<T>::Type;
 				component::VerifyComponent<U>();
@@ -14439,7 +14494,9 @@ namespace gaia {
 				cmd.componentType = component::GetComponentType<T>();
 				cmd.componentId = component::GetComponentId<T>();
 				serialization::save(s, cmd);
-				s.save(std::forward<U>(value));
+
+				const auto& desc = ComponentCache::Get().GetComponentDesc(cmd.componentId);
+				s.buffer().SaveComponent(std::forward<U>(value));
 			}
 
 			/*!
@@ -14463,7 +14520,9 @@ namespace gaia {
 				cmd.componentType = component::GetComponentType<T>();
 				cmd.componentId = component::GetComponentId<T>();
 				serialization::save(s, cmd);
-				m_data.Save(std::forward<U>(value));
+
+				const auto& desc = ComponentCache::Get().GetComponentDesc(cmd.componentId);
+				s.buffer().SaveComponent(std::forward<U>(value));
 			}
 
 			/*!

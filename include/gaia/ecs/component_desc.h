@@ -46,6 +46,34 @@ namespace gaia {
 					uint32_t soa: utils::StructToTupleMaxTypesBits;
 				} properties{};
 
+				void CtorFrom(void* pSrc, void* pDst) const {
+					if (ctor_move != nullptr)
+						ctor_move(pSrc, pDst);
+					else if (ctor_copy != nullptr)
+						ctor_copy(pSrc, pDst);
+					else
+						memmove(pDst, (const void*)pSrc, properties.size);
+				}
+
+				void Move(void* pSrc, void* pDst) const {
+					if (move != nullptr)
+						move(pSrc, pDst);
+					else
+						Copy(pSrc, pDst);
+				}
+
+				void Copy(void* pSrc, void* pDst) const {
+					if (copy != nullptr)
+						copy(pSrc, pDst);
+					else
+						memmove(pDst, (const void*)pSrc, properties.size);
+				}
+
+				void Destroy(void* pSrc) const {
+					if (dtor != nullptr)
+						dtor(pSrc, 1);
+				}
+
 				template <typename T>
 				GAIA_NODISCARD static constexpr ComponentDesc Calculate() {
 					using U = typename DeduceComponent<T>::Type;

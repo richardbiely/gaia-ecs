@@ -340,11 +340,7 @@ namespace gaia {
 
 						auto* pSrc = (void*)&pOldChunk->GetData(idxSrc);
 						auto* pDst = (void*)&pNewChunk->GetData(idxDst);
-
-						if (desc.copy != nullptr)
-							desc.copy(pSrc, pDst);
-						else
-							memmove(pDst, (const void*)pSrc, desc.properties.size);
+						desc.Copy(pSrc, pDst);
 					}
 				}
 
@@ -376,11 +372,7 @@ namespace gaia {
 
 						auto* pSrc = (void*)&pOldChunk->GetData(idxSrc);
 						auto* pDst = (void*)&GetData(idxDst);
-
-						if (desc.copy != nullptr)
-							desc.copy(pSrc, pDst);
-						else
-							memmove(pDst, (const void*)pSrc, desc.properties.size);
+						desc.Copy(pSrc, pDst);
 					}
 				}
 
@@ -418,13 +410,7 @@ namespace gaia {
 
 							auto* pSrc = (void*)&pOldChunk->GetData(idxSrc);
 							auto* pDst = (void*)&GetData(idxDst);
-
-							if (desc.ctor_move != nullptr)
-								desc.ctor_move(pSrc, pDst);
-							else if (desc.ctor_copy != nullptr)
-								desc.ctor_copy(pSrc, pDst);
-							else
-								memmove(pDst, (const void*)pSrc, desc.properties.size);
+							desc.CtorFrom(pSrc, pDst);
 						};
 
 						while (i < oldInfos.size() && j < newInfos.size()) {
@@ -480,16 +466,8 @@ namespace gaia {
 
 							auto* pSrc = (void*)&m_data[idxSrc];
 							auto* pDst = (void*)&m_data[idxDst];
-
-							if (desc.move != nullptr)
-								desc.move(pSrc, pDst);
-							else if (desc.copy != nullptr)
-								desc.copy(pSrc, pDst);
-							else
-								memmove(pDst, (const void*)pSrc, desc.properties.size);
-
-							if (desc.dtor != nullptr)
-								desc.dtor(pSrc, 1);
+							desc.Move(pSrc, pDst);
+							desc.Destroy(pSrc);
 						}
 
 						// Entity has been replaced with the last one in chunk.
