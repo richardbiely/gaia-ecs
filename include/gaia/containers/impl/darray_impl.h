@@ -49,7 +49,7 @@ namespace gaia {
 				// This means we prefer more frequent allocations over memory fragmentation.
 				T* old = m_pData;
 				m_pData = new T[m_cap = (cap * 3) / 2 + 1];
-				utils::transfer_elements(m_pData, old, cnt);
+				utils::move_elements(m_pData, old, cnt);
 				delete[] old;
 			}
 
@@ -320,7 +320,7 @@ namespace gaia {
 				if (m_pData) {
 					T* old = m_pData;
 					m_pData = new T[count];
-					utils::transfer_elements(m_pData, old, size());
+					utils::move_elements(m_pData, old, size());
 					delete[] old;
 				} else {
 					m_pData = new T[count];
@@ -338,7 +338,7 @@ namespace gaia {
 				if (m_pData) {
 					T* old = m_pData;
 					m_pData = new T[count];
-					utils::transfer_elements(m_pData, old, size());
+					utils::move_elements(m_pData, old, size());
 					delete[] old;
 				} else {
 					m_pData = new T[count];
@@ -417,7 +417,7 @@ namespace gaia {
 					return;
 				T* old = m_pData;
 				m_pData = new T[m_cap = size()];
-				transfer_elements(m_pData, old, size());
+				move_elements(m_pData, old, size());
 				delete[] old;
 			}
 

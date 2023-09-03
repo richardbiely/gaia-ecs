@@ -178,9 +178,9 @@ namespace gaia {
 			GAIA_MSVC_WARNING_POP()
 		}
 
-		//! Copy or move \param size elements of type \tparam T from the address pointer to by \param src to \param dst
+		//! Move or copy \param size elements of type \tparam T from the address pointer to by \param src to \param dst
 		template <typename T>
-		void transfer_elements(T* GAIA_RESTRICT dst, const T* GAIA_RESTRICT src, size_t size) {
+		void move_elements(T* GAIA_RESTRICT dst, const T* GAIA_RESTRICT src, size_t size) {
 			GAIA_MSVC_WARNING_PUSH()
 			GAIA_MSVC_WARNING_DISABLE(6385)
 

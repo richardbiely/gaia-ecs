@@ -65,16 +65,26 @@ struct PositionNonTrivial {
 	PositionNonTrivial(float xx, float yy, float zz): x(xx), y(yy), z(zz) {}
 };
 
+static constexpr const char* StringComponentDefaultValue =
+		"StringComponentDefaultValue_ReasonablyLongSoThatItShouldCauseAHeapAllocationOnAllStdStringImplementations";
+static constexpr const char* StringComponentDefaultValue_2 =
+		"2_StringComponentDefaultValue_ReasonablyLongSoThatItShouldCauseAHeapAllocationOnAllStdStringImplementations";
+static constexpr const char* StringComponent2DefaultValue =
+		"StringComponent2DefaultValue_ReasonablyLongSoThatItShouldCauseAHeapAllocationOnAllStdStringImplementations";
+static constexpr const char* StringComponent2DefaultValue_2 =
+		"2_StringComponent2DefaultValue_ReasonablyLongSoThatItShouldCauseAHeapAllocationOnAllStdStringImplementations";
+static constexpr const char* StringComponentEmptyValue =
+		"StringComponentEmptyValue_ReasonablyLongSoThatItShouldCauseAHeapAllocationOnAllStdStringImplementations";
+
 struct StringComponent {
 	std::string value;
 };
-static constexpr const char* StringComponent2DefaultValue = "test";
 struct StringComponent2 {
 	std::string value = StringComponent2DefaultValue;
 
 	StringComponent2() = default;
 	~StringComponent2() {
-		value = "empty";
+		value = StringComponentEmptyValue;
 	}
 
 	StringComponent2(const StringComponent2&) = default;
@@ -2004,10 +2014,6 @@ TEST_CASE("Components - non trivial") {
 			const auto& s2 = w.GetComponent<StringComponent2>(ent);
 			REQUIRE(s2.value == StringComponent2DefaultValue);
 		}
-		{
-			const auto& s2 = w.GetComponent<StringComponent2>(ent);
-			REQUIRE(s2.value == StringComponent2DefaultValue);
-		}
 
 		const auto& p = w.GetComponent<PositionNonTrivial>(ent);
 		REQUIRE(p.x == 1);
@@ -2025,18 +2031,18 @@ TEST_CASE("Components - non trivial") {
 			auto posView = iter.ViewRW<PositionNonTrivial>();
 
 			for (uint32_t i: iter) {
-				strView[i] = {"string_component"};
-				str2View[i].value = "another_text";
+				strView[i] = {StringComponentDefaultValue};
+				str2View[i].value = StringComponent2DefaultValue_2;
 				posView[i] = {111, 222, 333};
 			}
 		});
 
 		for (const auto ent: arr) {
 			const auto& s1 = w.GetComponent<StringComponent>(ent);
-			REQUIRE(s1.value == "string_component");
+			REQUIRE(s1.value == StringComponentDefaultValue);
 
 			const auto& s2 = w.GetComponent<StringComponent2>(ent);
-			REQUIRE(s2.value == "another_text");
+			REQUIRE(s2.value == StringComponent2DefaultValue_2);
 
 			const auto& p = w.GetComponent<PositionNonTrivial>(ent);
 			REQUIRE(p.x == 111);
@@ -2051,10 +2057,10 @@ TEST_CASE("Components - non trivial") {
 		w.AddComponent<Position>(ent, {5, 6, 7});
 
 		const auto& s1 = w.GetComponent<StringComponent>(ent);
-		REQUIRE(s1.value == "string_component");
+		REQUIRE(s1.value == StringComponentDefaultValue);
 
 		const auto& s2 = w.GetComponent<StringComponent2>(ent);
-		REQUIRE(s2.value == "another_text");
+		REQUIRE(s2.value == StringComponent2DefaultValue_2);
 
 		const auto& p = w.GetComponent<PositionNonTrivial>(ent);
 		REQUIRE(p.x == 111);
@@ -2174,7 +2180,7 @@ TEST_CASE("CommandBuffer") {
 		auto e = w.CreateEntity();
 
 		cb.AddComponent<StringComponent>(e);
-		cb.SetComponent<StringComponent>(e, {"teststring"});
+		cb.SetComponent<StringComponent>(e, {StringComponentDefaultValue});
 		cb.AddComponent<StringComponent2>(e);
 		REQUIRE(!w.HasComponent<StringComponent>(e));
 
@@ -2182,7 +2188,7 @@ TEST_CASE("CommandBuffer") {
 		REQUIRE(w.HasComponent<StringComponent>(e));
 
 		auto s1 = w.GetComponent<StringComponent>(e);
-		REQUIRE(s1.value == "teststring");
+		REQUIRE(s1.value == StringComponentDefaultValue);
 		auto s2 = w.GetComponent<StringComponent2>(e);
 		REQUIRE(s2.value == StringComponent2DefaultValue);
 	}

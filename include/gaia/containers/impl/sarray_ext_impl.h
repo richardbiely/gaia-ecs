@@ -234,7 +234,7 @@ namespace gaia {
 			constexpr sarr_ext(sarr_ext&& other) noexcept: m_cnt(other.m_cnt) {
 				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
 
-				utils::transfer_elements(m_data, other.m_data, other.size());
+				utils::move_elements(m_data, other.m_data, other.size());
 
 				other.m_cnt = size_type(0);
 			}
@@ -257,7 +257,7 @@ namespace gaia {
 				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
 
 				resize(other.m_cnt);
-				utils::transfer_elements(m_data, other.m_data, other.size());
+				utils::move_elements(m_data, other.m_data, other.size());
 
 				other.m_cnt = size_type(0);
 

@@ -112,8 +112,8 @@ namespace gaia {
 			}
 
 			template <typename T>
-			void save(const T& arg) {
-				m_buffer.Save(arg);
+			void save(T&& arg) {
+				m_buffer.Save(std::forward<T>(arg));
 			}
 
 			void save(const void* pSrc, uint32_t size) {
