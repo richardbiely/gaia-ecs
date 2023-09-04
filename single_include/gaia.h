@@ -635,26 +635,26 @@ inline void DoNotOptimize(T const& value) {
 
 #if GAIA_DISABLE_ASSERTS
 	#undef GAIA_ASSERT
-	#define GAIA_ASSERT(condition) (void(0))
+	#define GAIA_ASSERT(cond) (void(0))
 #elif !defined(GAIA_ASSERT)
 	#include <cassert>
 	#if GAIA_DEBUG
 		#define GAIA_ASSERT_ENABLED 1
-		#define GAIA_ASSERT(condition)                                                                                     \
-			{                                                                                                                \
-				const bool cond_ret = (condition);                                                                             \
-				assert(cond_ret);                                                                                              \
-				DoNotOptimize(cond_ret);                                                                                       \
-			}
+		#define GAIA_ASSERT(cond)                                                                                          \
+			do {                                                                                                             \
+				assert(cond);                                                                                                  \
+			} while ((void)0, (false) && static_cast<const bool&>(!!(cond)))
 	#else
 		#if GAIA_FORCE_DEBUG
 			#define GAIA_ASSERT_ENABLED 1
-			#define GAIA_ASSERT(condition)                                                                                   \
-				if (!(condition))                                                                                              \
-				GAIA_LOG_E("Condition not met! Line:%d, File:%s\n", __LINE__, __FILE__)
+			#define GAIA_ASSERT(cond)                                                                                        \
+				do {                                                                                                           \
+					if (!(cond))                                                                                                 \
+						GAIA_LOG_E("%s:%d: Assertion '%s' failed.", __FILE__, __LINE__, #cond);                                    \
+				} while ((void)0, (false) && static_cast<const bool&>(!!(cond)))
 		#else
 			#define GAIA_ASSERT_ENABLED 0
-			#define GAIA_ASSERT(condition) assert(condition)
+			#define GAIA_ASSERT(cond) assert(cond)
 		#endif
 	#endif
 #endif
