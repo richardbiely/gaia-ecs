@@ -88,22 +88,22 @@ namespace gaia {
 					return m_ptr - other.m_ptr;
 				}
 
-				constexpr GAIA_NODISCARD bool operator==(const iterator& other) const {
+				GAIA_NODISCARD constexpr bool operator==(const iterator& other) const {
 					return m_ptr == other.m_ptr;
 				}
-				constexpr GAIA_NODISCARD bool operator!=(const iterator& other) const {
+				GAIA_NODISCARD constexpr bool operator!=(const iterator& other) const {
 					return m_ptr != other.m_ptr;
 				}
-				constexpr GAIA_NODISCARD bool operator>(const iterator& other) const {
+				GAIA_NODISCARD constexpr bool operator>(const iterator& other) const {
 					return m_ptr > other.m_ptr;
 				}
-				constexpr GAIA_NODISCARD bool operator>=(const iterator& other) const {
+				GAIA_NODISCARD constexpr bool operator>=(const iterator& other) const {
 					return m_ptr >= other.m_ptr;
 				}
-				constexpr GAIA_NODISCARD bool operator<(const iterator& other) const {
+				GAIA_NODISCARD constexpr bool operator<(const iterator& other) const {
 					return m_ptr < other.m_ptr;
 				}
-				constexpr GAIA_NODISCARD bool operator<=(const iterator& other) const {
+				GAIA_NODISCARD constexpr bool operator<=(const iterator& other) const {
 					return m_ptr <= other.m_ptr;
 				}
 			};
@@ -191,65 +191,65 @@ namespace gaia {
 				}
 			};
 
-			constexpr GAIA_NODISCARD pointer data() noexcept {
+			GAIA_NODISCARD constexpr pointer data() noexcept {
 				return (pointer)m_data;
 			}
 
-			constexpr GAIA_NODISCARD const_pointer data() const noexcept {
+			GAIA_NODISCARD constexpr const_pointer data() const noexcept {
 				return (const_pointer)m_data;
 			}
 
-			constexpr GAIA_NODISCARD reference operator[](size_type pos) noexcept {
+			GAIA_NODISCARD constexpr reference operator[](size_type pos) noexcept {
 				GAIA_ASSERT(pos < size());
 				return (reference)m_data[pos];
 			}
 
-			constexpr GAIA_NODISCARD const_reference operator[](size_type pos) const noexcept {
+			GAIA_NODISCARD constexpr const_reference operator[](size_type pos) const noexcept {
 				GAIA_ASSERT(pos < size());
 				return (const_reference)m_data[pos];
 			}
 
-			constexpr GAIA_NODISCARD size_type size() const noexcept {
+			GAIA_NODISCARD constexpr size_type size() const noexcept {
 				return N;
 			}
 
-			constexpr GAIA_NODISCARD bool empty() const noexcept {
+			GAIA_NODISCARD constexpr bool empty() const noexcept {
 				return begin() == end();
 			}
 
-			constexpr GAIA_NODISCARD size_type max_size() const noexcept {
+			GAIA_NODISCARD constexpr size_type max_size() const noexcept {
 				return N;
 			}
 
-			constexpr GAIA_NODISCARD reference front() noexcept {
+			GAIA_NODISCARD constexpr reference front() noexcept {
 				return *begin();
 			}
 
-			constexpr GAIA_NODISCARD const_reference front() const noexcept {
+			GAIA_NODISCARD constexpr const_reference front() const noexcept {
 				return *begin();
 			}
 
-			constexpr GAIA_NODISCARD reference back() noexcept {
+			GAIA_NODISCARD constexpr reference back() noexcept {
 				return N != 0U ? *(end() - 1) : *end();
 			}
 
-			constexpr GAIA_NODISCARD const_reference back() const noexcept {
+			GAIA_NODISCARD constexpr const_reference back() const noexcept {
 				return N != 0U ? *(end() - 1) : *end();
 			}
 
-			constexpr GAIA_NODISCARD iterator begin() const noexcept {
+			GAIA_NODISCARD constexpr iterator begin() const noexcept {
 				return {(T*)m_data};
 			}
 
-			constexpr GAIA_NODISCARD const_iterator cbegin() const noexcept {
+			GAIA_NODISCARD constexpr const_iterator cbegin() const noexcept {
 				return {(const T*)m_data};
 			}
 
-			constexpr GAIA_NODISCARD iterator end() const noexcept {
+			GAIA_NODISCARD constexpr iterator end() const noexcept {
 				return {(T*)m_data + N};
 			}
 
-			constexpr GAIA_NODISCARD const_iterator cend() const noexcept {
+			GAIA_NODISCARD constexpr const_iterator cend() const noexcept {
 				return {(const T*)m_data + N};
 			}
 

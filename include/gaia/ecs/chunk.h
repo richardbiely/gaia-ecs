@@ -825,7 +825,7 @@ namespace gaia {
 				//----------------------------------------------------------------------
 
 				template <typename T>
-				constexpr GAIA_NODISCARD GAIA_FORCEINLINE auto GetComponentView() {
+				GAIA_NODISCARD constexpr GAIA_FORCEINLINE auto GetComponentView() {
 					using U = typename component::DeduceComponent<T>::Type;
 					using UOriginal = typename component::DeduceComponent<T>::TypeOriginal;
 					if constexpr (component::IsReadOnlyType<UOriginal>::value)
@@ -959,7 +959,7 @@ namespace gaia {
 					return DidVersionChange(versions[componentIdx], version);
 				}
 
-				GAIA_FORCEINLINE void UpdateWorldVersion(component::ComponentType componentType, uint32_t componentIdx) {
+				GAIA_FORCEINLINE void UpdateWorldVersion(component::ComponentType componentType, uint32_t componentIdx) const {
 					// Make sure only proper input is provided
 					GAIA_ASSERT(componentIdx >= 0 && componentIdx < archetype::MAX_COMPONENTS_PER_ARCHETYPE);
 
@@ -969,7 +969,7 @@ namespace gaia {
 					versions[componentIdx] = m_header.worldVersion;
 				}
 
-				GAIA_FORCEINLINE void UpdateWorldVersion(component::ComponentType componentType) {
+				GAIA_FORCEINLINE void UpdateWorldVersion(component::ComponentType componentType) const {
 					auto versions = GetComponentVersionArray(componentType);
 
 					// Update the version of all components

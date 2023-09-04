@@ -49,7 +49,7 @@ namespace gaia {
 			bool m_stop;
 
 		private:
-			ThreadPool(): m_stop(false), m_jobsPending(0) {
+			ThreadPool(): m_jobsPending(0), m_stop(false) {
 				uint32_t workerCount = CalculateThreadCount(0);
 				if (workerCount > m_workers.max_size())
 					workerCount = (uint32_t)m_workers.max_size();
@@ -332,8 +332,6 @@ namespace gaia {
 				if (FAILED(hr))
 					GAIA_LOG_W("Issue setting worker thread name!");
 #elif GAIA_PLATFORM_APPLE
-				auto nativeHandle = (pthread_t)m_workers[threadID].native_handle();
-
 				char threadName[10]{};
 				snprintf(threadName, 10, "worker_%u", threadID);
 				auto ret = pthread_setname_np(threadName);

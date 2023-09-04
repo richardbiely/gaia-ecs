@@ -59,7 +59,7 @@ namespace gaia {
 			struct CREATE_ENTITY_FROM_ARCHETYPE_t: CommandBufferCmd_t {
 				uint64_t archetypePtr;
 
-				void Commit(CommandBufferCtx& ctx) {
+				void Commit(CommandBufferCtx& ctx) const {
 					auto* pArchetype = (archetype::Archetype*)archetypePtr;
 					[[maybe_unused]] const auto res =
 							ctx.entityMap.try_emplace(ctx.entities++, ctx.world.CreateEntity(*pArchetype));
@@ -69,7 +69,7 @@ namespace gaia {
 			struct CREATE_ENTITY_FROM_ENTITY_t: CommandBufferCmd_t {
 				Entity entity;
 
-				void Commit(CommandBufferCtx& ctx) {
+				void Commit(CommandBufferCtx& ctx) const {
 					[[maybe_unused]] const auto res = ctx.entityMap.try_emplace(ctx.entities++, ctx.world.CreateEntity(entity));
 					GAIA_ASSERT(res.second);
 				}
@@ -77,7 +77,7 @@ namespace gaia {
 			struct DELETE_ENTITY_t: CommandBufferCmd_t {
 				Entity entity;
 
-				void Commit(CommandBufferCtx& ctx) {
+				void Commit(CommandBufferCtx& ctx) const {
 					ctx.world.DeleteEntity(entity);
 				}
 			};
@@ -86,7 +86,7 @@ namespace gaia {
 				component::ComponentId componentId;
 				component::ComponentType componentType;
 
-				void Commit(CommandBufferCtx& ctx) {
+				void Commit(CommandBufferCtx& ctx) const {
 					const auto& info = ComponentCache::Get().GetComponentInfo(componentId);
 					ctx.world.AddComponent_Internal(componentType, entity, info);
 
@@ -102,7 +102,7 @@ namespace gaia {
 				component::ComponentId componentId;
 				component::ComponentType componentType;
 
-				void Commit(CommandBufferCtx& ctx) {
+				void Commit(CommandBufferCtx& ctx) const {
 					const auto& info = ComponentCache::Get().GetComponentInfo(componentId);
 					ctx.world.AddComponent_Internal(componentType, entity, info);
 
@@ -125,7 +125,7 @@ namespace gaia {
 				component::ComponentId componentId;
 				component::ComponentType componentType;
 
-				void Commit(CommandBufferCtx& ctx) {
+				void Commit(CommandBufferCtx& ctx) const {
 					// For delayed entities we have to do a look in our map
 					// of temporaries and find a link there
 					const auto it = ctx.entityMap.find(tempEntity.id);
@@ -149,7 +149,7 @@ namespace gaia {
 				component::ComponentId componentId;
 				component::ComponentType componentType;
 
-				void Commit(CommandBufferCtx& ctx) {
+				void Commit(CommandBufferCtx& ctx) const {
 					// For delayed entities we have to do a look in our map
 					// of temporaries and find a link there
 					const auto it = ctx.entityMap.find(tempEntity.id);
@@ -181,7 +181,7 @@ namespace gaia {
 				component::ComponentId componentId;
 				component::ComponentType componentType;
 
-				void Commit(CommandBufferCtx& ctx) {
+				void Commit(CommandBufferCtx& ctx) const {
 					const auto& entityContainer = ctx.world.m_entities[entity.id()];
 					auto* pChunk = entityContainer.pChunk;
 					const auto indexInChunk = componentType == component::ComponentType::CT_Chunk ? 0U : entityContainer.idx;
@@ -198,7 +198,7 @@ namespace gaia {
 				component::ComponentId componentId;
 				component::ComponentType componentType;
 
-				void Commit(CommandBufferCtx& ctx) {
+				void Commit(CommandBufferCtx& ctx) const {
 					// For delayed entities we have to do a look in our map
 					// of temporaries and find a link there
 					const auto it = ctx.entityMap.find(tempEntity.id);
@@ -223,7 +223,7 @@ namespace gaia {
 				component::ComponentId componentId;
 				component::ComponentType componentType;
 
-				void Commit(CommandBufferCtx& ctx) {
+				void Commit(CommandBufferCtx& ctx) const {
 					const auto& info = ComponentCache::Get().GetComponentInfo(componentId);
 					ctx.world.RemoveComponent_Internal(componentType, entity, info);
 				}
@@ -361,8 +361,6 @@ namespace gaia {
 				cmd.componentType = component::GetComponentType<T>();
 				cmd.componentId = info.componentId;
 				serialization::save(s, cmd);
-
-				const auto& desc = ComponentCache::Get().GetComponentDesc(cmd.componentId);
 				s.buffer().SaveComponent(std::forward<U>(value));
 			}
 
@@ -385,8 +383,6 @@ namespace gaia {
 				cmd.componentType = component::GetComponentType<T>();
 				cmd.componentId = info.componentId;
 				serialization::save(s, cmd);
-
-				const auto& desc = ComponentCache::Get().GetComponentDesc(cmd.componentId);
 				s.buffer().SaveComponent(std::forward<U>(value));
 			}
 
@@ -410,8 +406,6 @@ namespace gaia {
 				cmd.componentType = component::GetComponentType<T>();
 				cmd.componentId = component::GetComponentId<T>();
 				serialization::save(s, cmd);
-
-				const auto& desc = ComponentCache::Get().GetComponentDesc(cmd.componentId);
 				s.buffer().SaveComponent(std::forward<U>(value));
 			}
 
@@ -436,8 +430,6 @@ namespace gaia {
 				cmd.componentType = component::GetComponentType<T>();
 				cmd.componentId = component::GetComponentId<T>();
 				serialization::save(s, cmd);
-
-				const auto& desc = ComponentCache::Get().GetComponentDesc(cmd.componentId);
 				s.buffer().SaveComponent(std::forward<U>(value));
 			}
 

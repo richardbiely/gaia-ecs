@@ -114,18 +114,7 @@ namespace gaia {
 
 							// Copyability
 							if (!std::is_trivially_copyable_v<U>) {
-								if constexpr (std::is_copy_constructible_v<U>) {
-									info.copy = [](void* from, void* to) {
-										auto* src = (U*)from;
-										auto* dst = (U*)to;
-										*dst = U(*src);
-									};
-									info.ctor_copy = [](void* from, void* to) {
-										auto* src = (U*)from;
-										auto* dst = (U*)to;
-										(void)new (dst) U(std::move(*src));
-									};
-								} else if constexpr (std::is_copy_assignable_v<U>) {
+								if constexpr (std::is_copy_assignable_v<U>) {
 									info.copy = [](void* from, void* to) {
 										auto* src = (U*)from;
 										auto* dst = (U*)to;
@@ -137,22 +126,22 @@ namespace gaia {
 										new (dst) U();
 										*dst = *src;
 									};
+								} else if constexpr (std::is_copy_constructible_v<U>) {
+									info.copy = [](void* from, void* to) {
+										auto* src = (U*)from;
+										auto* dst = (U*)to;
+										*dst = U(*src);
+									};
+									info.ctor_copy = [](void* from, void* to) {
+										auto* src = (U*)from;
+										auto* dst = (U*)to;
+										(void)new (dst) U(std::move(*src));
+									};
 								}
 							}
 
 							// Movability
-							if constexpr (!std::is_trivially_move_constructible_v<U> && std::is_move_constructible_v<U>) {
-								info.move = [](void* from, void* to) {
-									auto* src = (U*)from;
-									auto* dst = (U*)to;
-									*dst = U(std::move(*src));
-								};
-								info.ctor_move = [](void* from, void* to) {
-									auto* src = (U*)from;
-									auto* dst = (U*)to;
-									(void)new (dst) U(std::move(*src));
-								};
-							} else if constexpr (!std::is_trivially_move_assignable_v<U> && std::is_move_assignable_v<U>) {
+							if constexpr (!std::is_trivially_move_assignable_v<U> && std::is_move_assignable_v<U>) {
 								info.move = [](void* from, void* to) {
 									auto* src = (U*)from;
 									auto* dst = (U*)to;
@@ -163,6 +152,17 @@ namespace gaia {
 									auto* dst = (U*)to;
 									new (dst) U();
 									*dst = std::move(*src);
+								};
+							} else if constexpr (!std::is_trivially_move_constructible_v<U> && std::is_move_constructible_v<U>) {
+								info.move = [](void* from, void* to) {
+									auto* src = (U*)from;
+									auto* dst = (U*)to;
+									*dst = U(std::move(*src));
+								};
+								info.ctor_move = [](void* from, void* to) {
+									auto* src = (U*)from;
+									auto* dst = (U*)to;
+									(void)new (dst) U(std::move(*src));
 								};
 							}
 						}

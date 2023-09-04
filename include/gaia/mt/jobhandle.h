@@ -48,10 +48,10 @@ namespace gaia {
 			JobHandle& operator=(JobHandle&&) = default;
 			JobHandle& operator=(const JobHandle&) = default;
 
-			constexpr GAIA_NODISCARD bool operator==(const JobHandle& other) const noexcept {
+			GAIA_NODISCARD constexpr bool operator==(const JobHandle& other) const noexcept {
 				return val == other.val;
 			}
-			constexpr GAIA_NODISCARD bool operator!=(const JobHandle& other) const noexcept {
+			GAIA_NODISCARD constexpr bool operator!=(const JobHandle& other) const noexcept {
 				return val != other.val;
 			}
 
@@ -71,10 +71,10 @@ namespace gaia {
 				return JobHandle(JobHandle::IdMask, JobHandle::GenMask);
 			}
 
-			constexpr GAIA_NODISCARD bool operator==([[maybe_unused]] const JobNull_t& null) const noexcept {
+			GAIA_NODISCARD constexpr bool operator==([[maybe_unused]] const JobNull_t& null) const noexcept {
 				return true;
 			}
-			constexpr GAIA_NODISCARD bool operator!=([[maybe_unused]] const JobNull_t& null) const noexcept {
+			GAIA_NODISCARD constexpr bool operator!=([[maybe_unused]] const JobNull_t& null) const noexcept {
 				return false;
 			}
 		};

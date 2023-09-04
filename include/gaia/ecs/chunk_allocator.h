@@ -153,8 +153,6 @@ namespace gaia {
 				containers::darray<MemoryPage*> m_pagesFree;
 				//! List of full pages
 				containers::darray<MemoryPage*> m_pagesFull;
-				//! Allocator statistics
-				ChunkAllocatorStats m_stats{};
 				//! When true, destruction has been requested
 				bool m_isDone = false;
 

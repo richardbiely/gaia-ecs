@@ -1896,22 +1896,22 @@ namespace gaia {
 					return m_ptr - other.m_ptr;
 				}
 
-				constexpr GAIA_NODISCARD bool operator==(const iterator& other) const {
+				GAIA_NODISCARD constexpr bool operator==(const iterator& other) const {
 					return m_ptr == other.m_ptr;
 				}
-				constexpr GAIA_NODISCARD bool operator!=(const iterator& other) const {
+				GAIA_NODISCARD constexpr bool operator!=(const iterator& other) const {
 					return m_ptr != other.m_ptr;
 				}
-				constexpr GAIA_NODISCARD bool operator>(const iterator& other) const {
+				GAIA_NODISCARD constexpr bool operator>(const iterator& other) const {
 					return m_ptr > other.m_ptr;
 				}
-				constexpr GAIA_NODISCARD bool operator>=(const iterator& other) const {
+				GAIA_NODISCARD constexpr bool operator>=(const iterator& other) const {
 					return m_ptr >= other.m_ptr;
 				}
-				constexpr GAIA_NODISCARD bool operator<(const iterator& other) const {
+				GAIA_NODISCARD constexpr bool operator<(const iterator& other) const {
 					return m_ptr < other.m_ptr;
 				}
-				constexpr GAIA_NODISCARD bool operator<=(const iterator& other) const {
+				GAIA_NODISCARD constexpr bool operator<=(const iterator& other) const {
 					return m_ptr <= other.m_ptr;
 				}
 			};
@@ -1999,65 +1999,65 @@ namespace gaia {
 				}
 			};
 
-			constexpr GAIA_NODISCARD pointer data() noexcept {
+			GAIA_NODISCARD constexpr pointer data() noexcept {
 				return (pointer)m_data;
 			}
 
-			constexpr GAIA_NODISCARD const_pointer data() const noexcept {
+			GAIA_NODISCARD constexpr const_pointer data() const noexcept {
 				return (const_pointer)m_data;
 			}
 
-			constexpr GAIA_NODISCARD reference operator[](size_type pos) noexcept {
+			GAIA_NODISCARD constexpr reference operator[](size_type pos) noexcept {
 				GAIA_ASSERT(pos < size());
 				return (reference)m_data[pos];
 			}
 
-			constexpr GAIA_NODISCARD const_reference operator[](size_type pos) const noexcept {
+			GAIA_NODISCARD constexpr const_reference operator[](size_type pos) const noexcept {
 				GAIA_ASSERT(pos < size());
 				return (const_reference)m_data[pos];
 			}
 
-			constexpr GAIA_NODISCARD size_type size() const noexcept {
+			GAIA_NODISCARD constexpr size_type size() const noexcept {
 				return N;
 			}
 
-			constexpr GAIA_NODISCARD bool empty() const noexcept {
+			GAIA_NODISCARD constexpr bool empty() const noexcept {
 				return begin() == end();
 			}
 
-			constexpr GAIA_NODISCARD size_type max_size() const noexcept {
+			GAIA_NODISCARD constexpr size_type max_size() const noexcept {
 				return N;
 			}
 
-			constexpr GAIA_NODISCARD reference front() noexcept {
+			GAIA_NODISCARD constexpr reference front() noexcept {
 				return *begin();
 			}
 
-			constexpr GAIA_NODISCARD const_reference front() const noexcept {
+			GAIA_NODISCARD constexpr const_reference front() const noexcept {
 				return *begin();
 			}
 
-			constexpr GAIA_NODISCARD reference back() noexcept {
+			GAIA_NODISCARD constexpr reference back() noexcept {
 				return N != 0U ? *(end() - 1) : *end();
 			}
 
-			constexpr GAIA_NODISCARD const_reference back() const noexcept {
+			GAIA_NODISCARD constexpr const_reference back() const noexcept {
 				return N != 0U ? *(end() - 1) : *end();
 			}
 
-			constexpr GAIA_NODISCARD iterator begin() const noexcept {
+			GAIA_NODISCARD constexpr iterator begin() const noexcept {
 				return {(T*)m_data};
 			}
 
-			constexpr GAIA_NODISCARD const_iterator cbegin() const noexcept {
+			GAIA_NODISCARD constexpr const_iterator cbegin() const noexcept {
 				return {(const T*)m_data};
 			}
 
-			constexpr GAIA_NODISCARD iterator end() const noexcept {
+			GAIA_NODISCARD constexpr iterator end() const noexcept {
 				return {(T*)m_data + N};
 			}
 
-			constexpr GAIA_NODISCARD const_iterator cend() const noexcept {
+			GAIA_NODISCARD constexpr const_iterator cend() const noexcept {
 				return {(const T*)m_data + N};
 			}
 
@@ -2202,22 +2202,22 @@ namespace gaia {
 					return m_ptr - other.m_ptr;
 				}
 
-				constexpr GAIA_NODISCARD bool operator==(const iterator& other) const {
+				GAIA_NODISCARD constexpr bool operator==(const iterator& other) const {
 					return m_ptr == other.m_ptr;
 				}
-				constexpr GAIA_NODISCARD bool operator!=(const iterator& other) const {
+				GAIA_NODISCARD constexpr bool operator!=(const iterator& other) const {
 					return m_ptr != other.m_ptr;
 				}
-				constexpr GAIA_NODISCARD bool operator>(const iterator& other) const {
+				GAIA_NODISCARD constexpr bool operator>(const iterator& other) const {
 					return m_ptr > other.m_ptr;
 				}
-				constexpr GAIA_NODISCARD bool operator>=(const iterator& other) const {
+				GAIA_NODISCARD constexpr bool operator>=(const iterator& other) const {
 					return m_ptr >= other.m_ptr;
 				}
-				constexpr GAIA_NODISCARD bool operator<(const iterator& other) const {
+				GAIA_NODISCARD constexpr bool operator<(const iterator& other) const {
 					return m_ptr < other.m_ptr;
 				}
-				constexpr GAIA_NODISCARD bool operator<=(const iterator& other) const {
+				GAIA_NODISCARD constexpr bool operator<=(const iterator& other) const {
 					return m_ptr <= other.m_ptr;
 				}
 			};
@@ -2284,27 +2284,28 @@ namespace gaia {
 					return m_ptr - other.m_ptr;
 				}
 
-				constexpr GAIA_NODISCARD bool operator==(const const_iterator& other) const {
+				GAIA_NODISCARD constexpr bool operator==(const const_iterator& other) const {
 					return m_ptr == other.m_ptr;
 				}
-				constexpr GAIA_NODISCARD bool operator!=(const const_iterator& other) const {
+				GAIA_NODISCARD constexpr bool operator!=(const const_iterator& other) const {
 					return m_ptr != other.m_ptr;
 				}
-				constexpr GAIA_NODISCARD bool operator>(const const_iterator& other) const {
+				GAIA_NODISCARD constexpr bool operator>(const const_iterator& other) const {
 					return m_ptr > other.m_ptr;
 				}
-				constexpr GAIA_NODISCARD bool operator>=(const const_iterator& other) const {
+				GAIA_NODISCARD constexpr bool operator>=(const const_iterator& other) const {
 					return m_ptr >= other.m_ptr;
 				}
-				constexpr GAIA_NODISCARD bool operator<(const const_iterator& other) const {
+				GAIA_NODISCARD constexpr bool operator<(const const_iterator& other) const {
 					return m_ptr < other.m_ptr;
 				}
-				constexpr GAIA_NODISCARD bool operator<=(const const_iterator& other) const {
+				GAIA_NODISCARD constexpr bool operator<=(const const_iterator& other) const {
 					return m_ptr <= other.m_ptr;
 				}
 			};
 
 			sarr_ext() noexcept = default;
+			~sarr_ext() = default;
 
 			constexpr sarr_ext(size_type count, const T& value) noexcept {
 				resize(count);
@@ -2353,7 +2354,7 @@ namespace gaia {
 				return *this;
 			}
 
-			constexpr GAIA_NODISCARD sarr_ext& operator=(const sarr_ext& other) noexcept {
+			GAIA_NODISCARD constexpr sarr_ext& operator=(const sarr_ext& other) noexcept {
 				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
 
 				resize(other.size());
@@ -2362,7 +2363,7 @@ namespace gaia {
 				return *this;
 			}
 
-			constexpr GAIA_NODISCARD sarr_ext& operator=(sarr_ext&& other) noexcept {
+			GAIA_NODISCARD constexpr sarr_ext& operator=(sarr_ext&& other) noexcept {
 				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
 
 				resize(other.m_cnt);
@@ -2373,20 +2374,20 @@ namespace gaia {
 				return *this;
 			}
 
-			constexpr GAIA_NODISCARD pointer data() noexcept {
+			GAIA_NODISCARD constexpr pointer data() noexcept {
 				return (pointer)m_data;
 			}
 
-			constexpr GAIA_NODISCARD const_pointer data() const noexcept {
+			GAIA_NODISCARD constexpr const_pointer data() const noexcept {
 				return (const_pointer)m_data;
 			}
 
-			constexpr GAIA_NODISCARD reference operator[](size_type pos) noexcept {
+			GAIA_NODISCARD constexpr reference operator[](size_type pos) noexcept {
 				GAIA_ASSERT(pos < size());
 				return (reference)m_data[pos];
 			}
 
-			constexpr GAIA_NODISCARD const_reference operator[](size_type pos) const noexcept {
+			GAIA_NODISCARD constexpr const_reference operator[](size_type pos) const noexcept {
 				GAIA_ASSERT(pos < size());
 				return (const_reference)m_data[pos];
 			}
@@ -2414,7 +2415,7 @@ namespace gaia {
 				--m_cnt;
 			}
 
-			constexpr GAIA_NODISCARD iterator erase(iterator pos) noexcept {
+			GAIA_NODISCARD constexpr iterator erase(iterator pos) noexcept {
 				GAIA_ASSERT(pos.m_ptr >= &m_data[0] && pos.m_ptr < &m_data[N - 1]);
 
 				const auto idxSrc = (size_type)GAIA_UTIL::distance(pos, begin());
@@ -2426,7 +2427,7 @@ namespace gaia {
 				return iterator((T*)m_data + idxSrc);
 			}
 
-			constexpr GAIA_NODISCARD const_iterator erase(const_iterator pos) noexcept {
+			GAIA_NODISCARD constexpr const_iterator erase(const_iterator pos) noexcept {
 				GAIA_ASSERT(pos.m_ptr >= &m_data[0] && pos.m_ptr < &m_data[N - 1]);
 
 				const auto idxSrc = (size_type)GAIA_UTIL::distance(pos, begin());
@@ -2438,7 +2439,7 @@ namespace gaia {
 				return iterator((const T*)m_data + idxSrc);
 			}
 
-			constexpr GAIA_NODISCARD iterator erase(iterator first, iterator last) noexcept {
+			GAIA_NODISCARD constexpr iterator erase(iterator first, iterator last) noexcept {
 				GAIA_ASSERT(first.m_cnt >= 0 && first.m_cnt < size());
 				GAIA_ASSERT(last.m_cnt >= 0 && last.m_cnt < size());
 				GAIA_ASSERT(last.m_cnt >= last.m_cnt);
@@ -2459,39 +2460,39 @@ namespace gaia {
 				m_cnt = size;
 			}
 
-			constexpr GAIA_NODISCARD size_type size() const noexcept {
+			GAIA_NODISCARD constexpr size_type size() const noexcept {
 				return m_cnt;
 			}
 
-			constexpr GAIA_NODISCARD bool empty() const noexcept {
+			GAIA_NODISCARD constexpr bool empty() const noexcept {
 				return size() == 0;
 			}
 
-			constexpr GAIA_NODISCARD size_type max_size() const noexcept {
+			GAIA_NODISCARD constexpr size_type max_size() const noexcept {
 				return N;
 			}
 
-			constexpr GAIA_NODISCARD reference front() noexcept {
+			GAIA_NODISCARD constexpr reference front() noexcept {
 				return *begin();
 			}
 
-			constexpr GAIA_NODISCARD const_reference front() const noexcept {
+			GAIA_NODISCARD constexpr const_reference front() const noexcept {
 				return *begin();
 			}
 
-			constexpr GAIA_NODISCARD reference back() noexcept {
+			GAIA_NODISCARD constexpr reference back() noexcept {
 				return N != 0U ? *(end() - 1) : *end();
 			}
 
-			constexpr GAIA_NODISCARD const_reference back() const noexcept {
+			GAIA_NODISCARD constexpr const_reference back() const noexcept {
 				return N != 0U ? *(end() - 1) : *end();
 			}
 
-			constexpr GAIA_NODISCARD iterator begin() const noexcept {
+			GAIA_NODISCARD constexpr iterator begin() const noexcept {
 				return {(T*)m_data};
 			}
 
-			constexpr GAIA_NODISCARD const_iterator cbegin() const noexcept {
+			GAIA_NODISCARD constexpr const_iterator cbegin() const noexcept {
 				return {(const T*)m_data};
 			}
 
@@ -2572,7 +2573,7 @@ namespace gaia {
 			}
 
 			template <typename T>
-			constexpr GAIA_NODISCARD T hash_combine2(T lhs, T rhs) {
+			GAIA_NODISCARD constexpr T hash_combine2(T lhs, T rhs) {
 				hash_combine2_out(lhs, rhs);
 				return lhs;
 			}
@@ -3464,7 +3465,7 @@ namespace gaia {
 		//----------------------------------------------------------------------
 
 		template <typename T>
-		auto struct_member_count(T&& object) {
+		auto struct_member_count() {
 			using type = std::decay_t<T>;
 
 			if constexpr (std::is_empty_v<type>) {
@@ -3713,23 +3714,23 @@ namespace gaia {
 			constexpr static DataLayout Layout = data_layout_properties<DataLayout::AoS, ValueType>::Layout;
 			constexpr static size_t Alignment = data_layout_properties<DataLayout::AoS, ValueType>::Alignment;
 
-			constexpr GAIA_NODISCARD static ValueType getc(std::span<const ValueType> s, size_t idx) {
+			GAIA_NODISCARD constexpr static ValueType getc(std::span<const ValueType> s, size_t idx) {
 				return s[idx];
 			}
 
-			constexpr GAIA_NODISCARD static ValueType get(std::span<ValueType> s, size_t idx) {
+			GAIA_NODISCARD constexpr static ValueType get(std::span<ValueType> s, size_t idx) {
 				return s[idx];
 			}
 
-			constexpr GAIA_NODISCARD static const ValueType& getc_constref(std::span<const ValueType> s, size_t idx) {
+			GAIA_NODISCARD constexpr static const ValueType& getc_constref(std::span<const ValueType> s, size_t idx) {
 				return (const ValueType&)s[idx];
 			}
 
-			constexpr GAIA_NODISCARD static const ValueType& get_constref(std::span<ValueType> s, size_t idx) {
+			GAIA_NODISCARD constexpr static const ValueType& get_constref(std::span<ValueType> s, size_t idx) {
 				return (const ValueType&)s[idx];
 			}
 
-			constexpr GAIA_NODISCARD static ValueType& get_ref(std::span<ValueType> s, size_t idx) {
+			GAIA_NODISCARD constexpr static ValueType& get_ref(std::span<ValueType> s, size_t idx) {
 				return s[idx];
 			}
 
@@ -3818,13 +3819,13 @@ namespace gaia {
 			template <size_t Ids>
 			using const_value_type = typename std::add_const<value_type<Ids>>::type;
 
-			constexpr GAIA_NODISCARD static ValueType get(std::span<const ValueType> s, const size_t idx) {
+			GAIA_NODISCARD constexpr static ValueType get(std::span<const ValueType> s, const size_t idx) {
 				auto t = struct_to_tuple(ValueType{});
 				return get_internal(t, s, idx, std::make_integer_sequence<size_t, std::tuple_size<decltype(t)>::value>());
 			}
 
 			template <size_t Ids>
-			constexpr GAIA_NODISCARD static auto get(std::span<const ValueType> s, const size_t idx = 0) {
+			GAIA_NODISCARD constexpr static auto get(std::span<const ValueType> s, const size_t idx = 0) {
 				using Tuple = decltype(struct_to_tuple(ValueType{}));
 				using MemberType = typename std::tuple_element<Ids, Tuple>::type;
 				const auto* ret = (const uint8_t*)s.data() + idx * sizeof(MemberType) +
@@ -3848,7 +3849,7 @@ namespace gaia {
 
 		private:
 			template <typename Tuple, size_t... Ids>
-			constexpr GAIA_NODISCARD static ValueType get_internal(
+			GAIA_NODISCARD constexpr static ValueType get_internal(
 					Tuple& t, std::span<const ValueType> s, const size_t idx, std::integer_sequence<size_t, Ids...> /*no_name*/) {
 				(get_internal<Tuple, Ids, typename std::tuple_element<Ids, Tuple>::type>(
 						 t, (const uint8_t*)s.data(),
@@ -3908,12 +3909,12 @@ namespace gaia {
 			//! Raw data pointed to by the view policy
 			std::span<const ValueType> m_data;
 
-			constexpr GAIA_NODISCARD auto operator[](size_t idx) const {
+			GAIA_NODISCARD constexpr auto operator[](size_t idx) const {
 				return view_policy::get(m_data, idx);
 			}
 
 			template <size_t Ids>
-			constexpr GAIA_NODISCARD auto get() const {
+			GAIA_NODISCARD constexpr auto get() const {
 				return std::span<typename data_view_policy_idx_info<Ids>::const_value_type>(
 						view_policy::template get<Ids>(m_data).data(), view_policy::template get<Ids>(m_data).size());
 			}
@@ -3965,15 +3966,15 @@ namespace gaia {
 				}
 			};
 
-			constexpr GAIA_NODISCARD auto operator[](size_t idx) const {
+			GAIA_NODISCARD constexpr auto operator[](size_t idx) const {
 				return view_policy::get(m_data, idx);
 			}
-			constexpr GAIA_NODISCARD auto operator[](size_t idx) {
+			GAIA_NODISCARD constexpr auto operator[](size_t idx) {
 				return setter(m_data, idx);
 			}
 
 			template <size_t Ids>
-			constexpr GAIA_NODISCARD auto get() const {
+			GAIA_NODISCARD constexpr auto get() const {
 				using value_type = typename data_view_policy_idx_info<Ids>::const_value_type;
 				const std::span<const ValueType> data((const ValueType*)m_data.data(), m_data.size());
 				return std::span<value_type>(
@@ -3981,7 +3982,7 @@ namespace gaia {
 			}
 
 			template <size_t Ids>
-			constexpr GAIA_NODISCARD auto set() {
+			GAIA_NODISCARD constexpr auto set() {
 				return std::span<typename data_view_policy_idx_info<Ids>::value_type>(
 						view_policy::template set<Ids>(m_data).data(), view_policy::template set<Ids>(m_data).size());
 			}
@@ -5170,7 +5171,7 @@ namespace gaia {
 			constexpr ComponentMatcherHash CalculateMatcherHash() noexcept;
 
 			template <typename T, typename... Rest>
-			constexpr GAIA_NODISCARD ComponentMatcherHash CalculateMatcherHash() noexcept {
+			GAIA_NODISCARD constexpr ComponentMatcherHash CalculateMatcherHash() noexcept {
 				if constexpr (sizeof...(Rest) == 0)
 					return {detail::CalculateMatcherHash<T>()};
 				else
@@ -5178,14 +5179,14 @@ namespace gaia {
 			}
 
 			template <>
-			constexpr GAIA_NODISCARD ComponentMatcherHash CalculateMatcherHash() noexcept {
+			GAIA_NODISCARD constexpr ComponentMatcherHash CalculateMatcherHash() noexcept {
 				return {0};
 			}
 
 			//-----------------------------------------------------------------------------------
 
 			template <typename Container>
-			constexpr GAIA_NODISCARD ComponentLookupHash CalculateLookupHash(Container arr) noexcept {
+			GAIA_NODISCARD constexpr ComponentLookupHash CalculateLookupHash(Container arr) noexcept {
 				constexpr auto arrSize = arr.size();
 				if constexpr (arrSize == 0) {
 					return {0};
@@ -5202,7 +5203,7 @@ namespace gaia {
 			constexpr ComponentLookupHash CalculateLookupHash() noexcept;
 
 			template <typename T, typename... Rest>
-			constexpr GAIA_NODISCARD ComponentLookupHash CalculateLookupHash() noexcept {
+			GAIA_NODISCARD constexpr ComponentLookupHash CalculateLookupHash() noexcept {
 				if constexpr (sizeof...(Rest) == 0)
 					return {utils::type_info::hash<T>()};
 				else
@@ -5210,7 +5211,7 @@ namespace gaia {
 			}
 
 			template <>
-			constexpr GAIA_NODISCARD ComponentLookupHash CalculateLookupHash() noexcept {
+			GAIA_NODISCARD constexpr ComponentLookupHash CalculateLookupHash() noexcept {
 				return {0};
 			}
 		} // namespace component
@@ -7104,7 +7105,7 @@ namespace robin_hood {
 				return const_iterator{reinterpret_cast_no_cast_align_warning<Node*>(mInfo), nullptr};
 			}
 
-			GAIA_NODISCARD iterator erase(const_iterator pos) {
+			iterator erase(const_iterator pos) {
 				ROBIN_HOOD_TRACE(this)
 				// its safe to perform const cast here
 				// NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
@@ -7112,7 +7113,7 @@ namespace robin_hood {
 			}
 
 			// Erases element at pos, returns iterator to the next element.
-			GAIA_NODISCARD iterator erase(iterator pos) {
+			iterator erase(iterator pos) {
 				ROBIN_HOOD_TRACE(this)
 				// we assume that pos always points to a valid entry, and not end().
 				auto const idx = static_cast<size_t>(pos.mKeyVals - mKeyVals);
@@ -7129,7 +7130,7 @@ namespace robin_hood {
 				return ++pos;
 			}
 
-			GAIA_NODISCARD size_t erase(const key_type& key) {
+			size_t erase(const key_type& key) {
 				ROBIN_HOOD_TRACE(this)
 				size_t idx{};
 				InfoType info{};
@@ -7750,18 +7751,7 @@ namespace gaia {
 
 							// Copyability
 							if (!std::is_trivially_copyable_v<U>) {
-								if constexpr (std::is_copy_constructible_v<U>) {
-									info.copy = [](void* from, void* to) {
-										auto* src = (U*)from;
-										auto* dst = (U*)to;
-										*dst = U(*src);
-									};
-									info.ctor_copy = [](void* from, void* to) {
-										auto* src = (U*)from;
-										auto* dst = (U*)to;
-										(void)new (dst) U(std::move(*src));
-									};
-								} else if constexpr (std::is_copy_assignable_v<U>) {
+								if constexpr (std::is_copy_assignable_v<U>) {
 									info.copy = [](void* from, void* to) {
 										auto* src = (U*)from;
 										auto* dst = (U*)to;
@@ -7773,22 +7763,22 @@ namespace gaia {
 										new (dst) U();
 										*dst = *src;
 									};
+								} else if constexpr (std::is_copy_constructible_v<U>) {
+									info.copy = [](void* from, void* to) {
+										auto* src = (U*)from;
+										auto* dst = (U*)to;
+										*dst = U(*src);
+									};
+									info.ctor_copy = [](void* from, void* to) {
+										auto* src = (U*)from;
+										auto* dst = (U*)to;
+										(void)new (dst) U(std::move(*src));
+									};
 								}
 							}
 
 							// Movability
-							if constexpr (!std::is_trivially_move_constructible_v<U> && std::is_move_constructible_v<U>) {
-								info.move = [](void* from, void* to) {
-									auto* src = (U*)from;
-									auto* dst = (U*)to;
-									*dst = U(std::move(*src));
-								};
-								info.ctor_move = [](void* from, void* to) {
-									auto* src = (U*)from;
-									auto* dst = (U*)to;
-									(void)new (dst) U(std::move(*src));
-								};
-							} else if constexpr (!std::is_trivially_move_assignable_v<U> && std::is_move_assignable_v<U>) {
+							if constexpr (!std::is_trivially_move_assignable_v<U> && std::is_move_assignable_v<U>) {
 								info.move = [](void* from, void* to) {
 									auto* src = (U*)from;
 									auto* dst = (U*)to;
@@ -7799,6 +7789,17 @@ namespace gaia {
 									auto* dst = (U*)to;
 									new (dst) U();
 									*dst = std::move(*src);
+								};
+							} else if constexpr (!std::is_trivially_move_constructible_v<U> && std::is_move_constructible_v<U>) {
+								info.move = [](void* from, void* to) {
+									auto* src = (U*)from;
+									auto* dst = (U*)to;
+									*dst = U(std::move(*src));
+								};
+								info.ctor_move = [](void* from, void* to) {
+									auto* src = (U*)from;
+									auto* dst = (U*)to;
+									(void)new (dst) U(std::move(*src));
 								};
 							}
 						}
@@ -8279,8 +8280,6 @@ namespace gaia {
 				containers::darray<MemoryPage*> m_pagesFree;
 				//! List of full pages
 				containers::darray<MemoryPage*> m_pagesFull;
-				//! Allocator statistics
-				ChunkAllocatorStats m_stats{};
 				//! When true, destruction has been requested
 				bool m_isDone = false;
 
@@ -8840,10 +8839,10 @@ namespace gaia {
 			Entity& operator=(Entity&&) = default;
 			Entity& operator=(const Entity&) = default;
 
-			constexpr GAIA_NODISCARD bool operator==(const Entity& other) const noexcept {
+			GAIA_NODISCARD constexpr bool operator==(const Entity& other) const noexcept {
 				return val == other.val;
 			}
-			constexpr GAIA_NODISCARD bool operator!=(const Entity& other) const noexcept {
+			GAIA_NODISCARD constexpr bool operator!=(const Entity& other) const noexcept {
 				return val != other.val;
 			}
 
@@ -8863,10 +8862,10 @@ namespace gaia {
 				return Entity(Entity::IdMask, Entity::GenMask);
 			}
 
-			constexpr GAIA_NODISCARD bool operator==([[maybe_unused]] const EntityNull_t& null) const noexcept {
+			GAIA_NODISCARD constexpr bool operator==([[maybe_unused]] const EntityNull_t& null) const noexcept {
 				return true;
 			}
-			constexpr GAIA_NODISCARD bool operator!=([[maybe_unused]] const EntityNull_t& null) const noexcept {
+			GAIA_NODISCARD constexpr bool operator!=([[maybe_unused]] const EntityNull_t& null) const noexcept {
 				return false;
 			}
 		};
@@ -9713,7 +9712,7 @@ namespace gaia {
 				//----------------------------------------------------------------------
 
 				template <typename T>
-				constexpr GAIA_NODISCARD GAIA_FORCEINLINE auto GetComponentView() {
+				GAIA_NODISCARD constexpr GAIA_FORCEINLINE auto GetComponentView() {
 					using U = typename component::DeduceComponent<T>::Type;
 					using UOriginal = typename component::DeduceComponent<T>::TypeOriginal;
 					if constexpr (component::IsReadOnlyType<UOriginal>::value)
@@ -9847,7 +9846,7 @@ namespace gaia {
 					return DidVersionChange(versions[componentIdx], version);
 				}
 
-				GAIA_FORCEINLINE void UpdateWorldVersion(component::ComponentType componentType, uint32_t componentIdx) {
+				GAIA_FORCEINLINE void UpdateWorldVersion(component::ComponentType componentType, uint32_t componentIdx) const {
 					// Make sure only proper input is provided
 					GAIA_ASSERT(componentIdx >= 0 && componentIdx < archetype::MAX_COMPONENTS_PER_ARCHETYPE);
 
@@ -9857,7 +9856,7 @@ namespace gaia {
 					versions[componentIdx] = m_header.worldVersion;
 				}
 
-				GAIA_FORCEINLINE void UpdateWorldVersion(component::ComponentType componentType) {
+				GAIA_FORCEINLINE void UpdateWorldVersion(component::ComponentType componentType) const {
 					auto versions = GetComponentVersionArray(componentType);
 
 					// Update the version of all components
@@ -10522,7 +10521,7 @@ namespace gaia {
 			};
 
 			template <typename T>
-			constexpr GAIA_NODISCARD serialization_type_id get_integral_type() {
+			GAIA_NODISCARD constexpr serialization_type_id get_integral_type() {
 				if constexpr (std::is_same_v<int8_t, T> || std::is_same_v<signed char, T>) {
 					return serialization_type_id::s8;
 				} else if constexpr (std::is_same_v<uint8_t, T> || std::is_same_v<unsigned char, T>) {
@@ -10547,7 +10546,7 @@ namespace gaia {
 			}
 
 			template <typename T>
-			constexpr GAIA_NODISCARD serialization_type_id get_floating_point_type() {
+			GAIA_NODISCARD constexpr serialization_type_id get_floating_point_type() {
 				// if constexpr (std::is_same_v<float8_t, T>) {
 				// 	return serialization_type_id::f8;
 				// } else if constexpr (std::is_same_v<float16_t, T>) {
@@ -10565,7 +10564,7 @@ namespace gaia {
 			}
 
 			template <typename T>
-			constexpr GAIA_NODISCARD serialization_type_id get_type_id() {
+			GAIA_NODISCARD constexpr serialization_type_id get_type_id() {
 				if constexpr (std::is_enum_v<T>)
 					return get_integral_type<std::underlying_type_t<T>>();
 				else if constexpr (std::is_integral_v<T>)
@@ -10582,7 +10581,7 @@ namespace gaia {
 			}
 
 			template <typename T>
-			constexpr GAIA_NODISCARD uint32_t calculate_size_one(const T& item) {
+			GAIA_NODISCARD constexpr uint32_t calculate_size_one(const T& item) {
 				using type = typename std::decay_t<typename std::remove_pointer_t<T>>;
 
 				constexpr auto id = detail::get_type_id<type>();
@@ -10646,7 +10645,7 @@ namespace gaia {
 		//! Calculates the number of bytes necessary to serialize data using the "save" function.
 		//! \warning Compile-time.
 		template <typename T>
-		constexpr GAIA_NODISCARD uint32_t calculate_size(const T& data) {
+		GAIA_NODISCARD constexpr uint32_t calculate_size(const T& data) {
 			return detail::calculate_size_one(data);
 		}
 
@@ -11480,10 +11479,10 @@ namespace gaia {
 			JobHandle& operator=(JobHandle&&) = default;
 			JobHandle& operator=(const JobHandle&) = default;
 
-			constexpr GAIA_NODISCARD bool operator==(const JobHandle& other) const noexcept {
+			GAIA_NODISCARD constexpr bool operator==(const JobHandle& other) const noexcept {
 				return val == other.val;
 			}
-			constexpr GAIA_NODISCARD bool operator!=(const JobHandle& other) const noexcept {
+			GAIA_NODISCARD constexpr bool operator!=(const JobHandle& other) const noexcept {
 				return val != other.val;
 			}
 
@@ -11503,10 +11502,10 @@ namespace gaia {
 				return JobHandle(JobHandle::IdMask, JobHandle::GenMask);
 			}
 
-			constexpr GAIA_NODISCARD bool operator==([[maybe_unused]] const JobNull_t& null) const noexcept {
+			GAIA_NODISCARD constexpr bool operator==([[maybe_unused]] const JobNull_t& null) const noexcept {
 				return true;
 			}
-			constexpr GAIA_NODISCARD bool operator!=([[maybe_unused]] const JobNull_t& null) const noexcept {
+			GAIA_NODISCARD constexpr bool operator!=([[maybe_unused]] const JobNull_t& null) const noexcept {
 				return false;
 			}
 		};
@@ -11889,7 +11888,7 @@ namespace gaia {
 				}
 
 			public:
-				static GAIA_NODISCARD QueryInfo Create(QueryId id, query::LookupCtx&& ctx) {
+				GAIA_NODISCARD static QueryInfo Create(QueryId id, query::LookupCtx&& ctx) {
 					QueryInfo info;
 					query::CalculateMatcherHashes(ctx);
 					info.m_lookupCtx = std::move(ctx);
@@ -12062,20 +12061,20 @@ namespace gaia {
 				return {m_info, m_chunk, m_pos + offset};
 			}
 
-			GAIA_NODISCARD Iterator& operator++() {
+			Iterator& operator++() {
 				++m_pos;
 				return *this;
 			}
-			GAIA_NODISCARD Iterator operator++(int) {
+			Iterator operator++(int) {
 				Iterator temp(*this);
 				++*this;
 				return temp;
 			}
-			GAIA_NODISCARD Iterator& operator--() {
+			Iterator& operator--() {
 				--m_pos;
 				return *this;
 			}
-			GAIA_NODISCARD Iterator operator--(int) {
+			Iterator operator--(int) {
 				Iterator temp(*this);
 				--*this;
 				return temp;
@@ -12272,7 +12271,7 @@ namespace gaia {
 				query::ListType listType;
 				bool isReadWrite;
 
-				void Exec(query::LookupCtx& ctx) {
+				void Exec(query::LookupCtx& ctx) const {
 					auto& data = ctx.data[componentType];
 					auto& componentIds = data.componentIds;
 					auto& lastMatchedArchetypeIndex = data.lastMatchedArchetypeIndex;
@@ -12312,7 +12311,7 @@ namespace gaia {
 				component::ComponentId componentId;
 				component::ComponentType componentType;
 
-				void Exec(query::LookupCtx& ctx) {
+				void Exec(query::LookupCtx& ctx) const {
 					auto& data = ctx.data[componentType];
 					auto& componentIds = data.componentIds;
 					auto& withChanged = data.withChanged;
@@ -13748,7 +13747,7 @@ namespace gaia {
 			Returns the number of active entities
 			\return Entity
 			*/
-			GAIA_FORCEINLINE GAIA_NODISCARD uint32_t GetEntityCount() const {
+			GAIA_NODISCARD GAIA_FORCEINLINE uint32_t GetEntityCount() const {
 				return m_entities.item_count();
 			}
 
@@ -13946,7 +13945,7 @@ namespace gaia {
 
 		private:
 			template <typename T>
-			constexpr GAIA_NODISCARD GAIA_FORCEINLINE auto GetComponentView(archetype::Chunk& chunk) const {
+			GAIA_NODISCARD constexpr GAIA_FORCEINLINE auto GetComponentView(archetype::Chunk& chunk) const {
 				using U = typename component::DeduceComponent<T>::Type;
 				using UOriginal = typename component::DeduceComponent<T>::TypeOriginal;
 				if constexpr (component::IsReadOnlyType<UOriginal>::value)
@@ -14143,7 +14142,7 @@ namespace gaia {
 			struct CREATE_ENTITY_FROM_ARCHETYPE_t: CommandBufferCmd_t {
 				uint64_t archetypePtr;
 
-				void Commit(CommandBufferCtx& ctx) {
+				void Commit(CommandBufferCtx& ctx) const {
 					auto* pArchetype = (archetype::Archetype*)archetypePtr;
 					[[maybe_unused]] const auto res =
 							ctx.entityMap.try_emplace(ctx.entities++, ctx.world.CreateEntity(*pArchetype));
@@ -14153,7 +14152,7 @@ namespace gaia {
 			struct CREATE_ENTITY_FROM_ENTITY_t: CommandBufferCmd_t {
 				Entity entity;
 
-				void Commit(CommandBufferCtx& ctx) {
+				void Commit(CommandBufferCtx& ctx) const {
 					[[maybe_unused]] const auto res = ctx.entityMap.try_emplace(ctx.entities++, ctx.world.CreateEntity(entity));
 					GAIA_ASSERT(res.second);
 				}
@@ -14161,7 +14160,7 @@ namespace gaia {
 			struct DELETE_ENTITY_t: CommandBufferCmd_t {
 				Entity entity;
 
-				void Commit(CommandBufferCtx& ctx) {
+				void Commit(CommandBufferCtx& ctx) const {
 					ctx.world.DeleteEntity(entity);
 				}
 			};
@@ -14170,7 +14169,7 @@ namespace gaia {
 				component::ComponentId componentId;
 				component::ComponentType componentType;
 
-				void Commit(CommandBufferCtx& ctx) {
+				void Commit(CommandBufferCtx& ctx) const {
 					const auto& info = ComponentCache::Get().GetComponentInfo(componentId);
 					ctx.world.AddComponent_Internal(componentType, entity, info);
 
@@ -14186,7 +14185,7 @@ namespace gaia {
 				component::ComponentId componentId;
 				component::ComponentType componentType;
 
-				void Commit(CommandBufferCtx& ctx) {
+				void Commit(CommandBufferCtx& ctx) const {
 					const auto& info = ComponentCache::Get().GetComponentInfo(componentId);
 					ctx.world.AddComponent_Internal(componentType, entity, info);
 
@@ -14209,7 +14208,7 @@ namespace gaia {
 				component::ComponentId componentId;
 				component::ComponentType componentType;
 
-				void Commit(CommandBufferCtx& ctx) {
+				void Commit(CommandBufferCtx& ctx) const {
 					// For delayed entities we have to do a look in our map
 					// of temporaries and find a link there
 					const auto it = ctx.entityMap.find(tempEntity.id);
@@ -14233,7 +14232,7 @@ namespace gaia {
 				component::ComponentId componentId;
 				component::ComponentType componentType;
 
-				void Commit(CommandBufferCtx& ctx) {
+				void Commit(CommandBufferCtx& ctx) const {
 					// For delayed entities we have to do a look in our map
 					// of temporaries and find a link there
 					const auto it = ctx.entityMap.find(tempEntity.id);
@@ -14265,7 +14264,7 @@ namespace gaia {
 				component::ComponentId componentId;
 				component::ComponentType componentType;
 
-				void Commit(CommandBufferCtx& ctx) {
+				void Commit(CommandBufferCtx& ctx) const {
 					const auto& entityContainer = ctx.world.m_entities[entity.id()];
 					auto* pChunk = entityContainer.pChunk;
 					const auto indexInChunk = componentType == component::ComponentType::CT_Chunk ? 0U : entityContainer.idx;
@@ -14282,7 +14281,7 @@ namespace gaia {
 				component::ComponentId componentId;
 				component::ComponentType componentType;
 
-				void Commit(CommandBufferCtx& ctx) {
+				void Commit(CommandBufferCtx& ctx) const {
 					// For delayed entities we have to do a look in our map
 					// of temporaries and find a link there
 					const auto it = ctx.entityMap.find(tempEntity.id);
@@ -14307,7 +14306,7 @@ namespace gaia {
 				component::ComponentId componentId;
 				component::ComponentType componentType;
 
-				void Commit(CommandBufferCtx& ctx) {
+				void Commit(CommandBufferCtx& ctx) const {
 					const auto& info = ComponentCache::Get().GetComponentInfo(componentId);
 					ctx.world.RemoveComponent_Internal(componentType, entity, info);
 				}
@@ -14445,8 +14444,6 @@ namespace gaia {
 				cmd.componentType = component::GetComponentType<T>();
 				cmd.componentId = info.componentId;
 				serialization::save(s, cmd);
-
-				const auto& desc = ComponentCache::Get().GetComponentDesc(cmd.componentId);
 				s.buffer().SaveComponent(std::forward<U>(value));
 			}
 
@@ -14469,8 +14466,6 @@ namespace gaia {
 				cmd.componentType = component::GetComponentType<T>();
 				cmd.componentId = info.componentId;
 				serialization::save(s, cmd);
-
-				const auto& desc = ComponentCache::Get().GetComponentDesc(cmd.componentId);
 				s.buffer().SaveComponent(std::forward<U>(value));
 			}
 
@@ -14494,8 +14489,6 @@ namespace gaia {
 				cmd.componentType = component::GetComponentType<T>();
 				cmd.componentId = component::GetComponentId<T>();
 				serialization::save(s, cmd);
-
-				const auto& desc = ComponentCache::Get().GetComponentDesc(cmd.componentId);
 				s.buffer().SaveComponent(std::forward<U>(value));
 			}
 
@@ -14520,8 +14513,6 @@ namespace gaia {
 				cmd.componentType = component::GetComponentType<T>();
 				cmd.componentId = component::GetComponentId<T>();
 				serialization::save(s, cmd);
-
-				const auto& desc = ComponentCache::Get().GetComponentDesc(cmd.componentId);
 				s.buffer().SaveComponent(std::forward<U>(value));
 			}
 
@@ -15138,18 +15129,18 @@ namespace gaia {
 				return const_iterator(*this, NBits, false);
 			}
 
-			constexpr GAIA_NODISCARD bool operator[](uint32_t pos) const {
+			GAIA_NODISCARD constexpr bool operator[](uint32_t pos) const {
 				return test(pos);
 			}
 
-			constexpr GAIA_NODISCARD bool operator==(const bitset& other) const {
+			GAIA_NODISCARD constexpr bool operator==(const bitset& other) const {
 				for (uint32_t i = 0; i < Items; ++i)
 					if (m_data[i] != other[i])
 						return false;
 				return true;
 			}
 
-			constexpr GAIA_NODISCARD bool operator!=(const bitset& other) const {
+			GAIA_NODISCARD constexpr bool operator!=(const bitset& other) const {
 				for (uint32_t i = 0; i < Items; ++i)
 					if (m_data[i] == other[i])
 						return false;
@@ -15204,13 +15195,13 @@ namespace gaia {
 			}
 
 			//! Returns the value of the bit at the position \param pos
-			constexpr GAIA_NODISCARD bool test(uint32_t pos) const {
+			GAIA_NODISCARD constexpr bool test(uint32_t pos) const {
 				GAIA_ASSERT(pos < NBits);
 				return (m_data[pos / BitsPerItem] & ((size_type)1 << (pos % BitsPerItem))) != 0;
 			}
 
 			//! Checks if all bits are set
-			constexpr GAIA_NODISCARD bool all() const {
+			GAIA_NODISCARD constexpr bool all() const {
 				for (uint32_t i = 0; i < Items - 1; ++i)
 					if (m_data[i] != (size_type)-1)
 						return false;
@@ -15221,7 +15212,7 @@ namespace gaia {
 			}
 
 			//! Checks if any bit is set
-			constexpr GAIA_NODISCARD bool any() const {
+			GAIA_NODISCARD constexpr bool any() const {
 				for (uint32_t i = 0; i < Items; ++i)
 					if (m_data[i] != 0)
 						return true;
@@ -15229,7 +15220,7 @@ namespace gaia {
 			}
 
 			//! Checks if all bits are reset
-			constexpr GAIA_NODISCARD bool none() const {
+			GAIA_NODISCARD constexpr bool none() const {
 				for (uint32_t i = 0; i < Items; ++i)
 					if (m_data[i] != 0)
 						return false;
@@ -15252,7 +15243,7 @@ namespace gaia {
 			}
 
 			//! Returns the number of bits the bitset can hold
-			constexpr GAIA_NODISCARD uint32_t size() const {
+			GAIA_NODISCARD constexpr uint32_t size() const {
 				return NBits;
 			}
 		};
@@ -15331,7 +15322,7 @@ namespace gaia {
 				return *this;
 			}
 
-			constexpr GAIA_NODISCARD sringbuffer& operator=(const sringbuffer& other) noexcept {
+			GAIA_NODISCARD constexpr sringbuffer& operator=(const sringbuffer& other) noexcept {
 				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
 
 				utils::copy_elements(m_data, other.m_data, other.size());
@@ -15342,7 +15333,7 @@ namespace gaia {
 				return *this;
 			}
 
-			constexpr GAIA_NODISCARD sringbuffer& operator=(sringbuffer&& other) noexcept {
+			GAIA_NODISCARD constexpr sringbuffer& operator=(sringbuffer&& other) noexcept {
 				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
 
 				utils::move_elements(m_data, other.m_data, other.size());
@@ -15410,35 +15401,35 @@ namespace gaia {
 				--m_size;
 			}
 
-			constexpr GAIA_NODISCARD size_type size() const noexcept {
+			GAIA_NODISCARD constexpr size_type size() const noexcept {
 				return m_size;
 			}
 
-			constexpr GAIA_NODISCARD bool empty() const noexcept {
+			GAIA_NODISCARD constexpr bool empty() const noexcept {
 				return !m_size;
 			}
 
-			constexpr GAIA_NODISCARD size_type max_size() const noexcept {
+			GAIA_NODISCARD constexpr size_type max_size() const noexcept {
 				return N;
 			}
 
-			constexpr GAIA_NODISCARD reference front() noexcept {
+			GAIA_NODISCARD constexpr reference front() noexcept {
 				GAIA_ASSERT(!empty());
 				return m_data[m_tail];
 			}
 
-			constexpr GAIA_NODISCARD const_reference front() const noexcept {
+			GAIA_NODISCARD constexpr const_reference front() const noexcept {
 				GAIA_ASSERT(!empty());
 				return m_data[m_tail];
 			}
 
-			constexpr GAIA_NODISCARD reference back() noexcept {
+			GAIA_NODISCARD constexpr reference back() noexcept {
 				GAIA_ASSERT(!empty());
 				const auto head = (m_tail + m_size - 1) % N;
 				return m_data[head];
 			}
 
-			constexpr GAIA_NODISCARD const_reference back() const noexcept {
+			GAIA_NODISCARD constexpr const_reference back() const noexcept {
 				GAIA_ASSERT(!empty());
 				const auto head = (m_tail + m_size - 1) % N;
 				return m_data[head];
@@ -15936,7 +15927,7 @@ namespace gaia {
 			bool m_stop;
 
 		private:
-			ThreadPool(): m_stop(false), m_jobsPending(0) {
+			ThreadPool(): m_jobsPending(0), m_stop(false) {
 				uint32_t workerCount = CalculateThreadCount(0);
 				if (workerCount > m_workers.max_size())
 					workerCount = (uint32_t)m_workers.max_size();
@@ -16219,8 +16210,6 @@ namespace gaia {
 				if (FAILED(hr))
 					GAIA_LOG_W("Issue setting worker thread name!");
 #elif GAIA_PLATFORM_APPLE
-				auto nativeHandle = (pthread_t)m_workers[threadID].native_handle();
-
 				char threadName[10]{};
 				snprintf(threadName, 10, "worker_%u", threadID);
 				auto ret = pthread_setname_np(threadName);
