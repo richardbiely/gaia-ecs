@@ -164,18 +164,18 @@ namespace gaia {
 				return const_iterator(*this, NBits, false);
 			}
 
-			constexpr GAIA_NODISCARD bool operator[](uint32_t pos) const {
+			GAIA_NODISCARD constexpr bool operator[](uint32_t pos) const {
 				return test(pos);
 			}
 
-			constexpr GAIA_NODISCARD bool operator==(const bitset& other) const {
+			GAIA_NODISCARD constexpr bool operator==(const bitset& other) const {
 				for (uint32_t i = 0; i < Items; ++i)
 					if (m_data[i] != other[i])
 						return false;
 				return true;
 			}
 
-			constexpr GAIA_NODISCARD bool operator!=(const bitset& other) const {
+			GAIA_NODISCARD constexpr bool operator!=(const bitset& other) const {
 				for (uint32_t i = 0; i < Items; ++i)
 					if (m_data[i] == other[i])
 						return false;
@@ -230,13 +230,13 @@ namespace gaia {
 			}
 
 			//! Returns the value of the bit at the position \param pos
-			constexpr GAIA_NODISCARD bool test(uint32_t pos) const {
+			GAIA_NODISCARD constexpr bool test(uint32_t pos) const {
 				GAIA_ASSERT(pos < NBits);
 				return (m_data[pos / BitsPerItem] & ((size_type)1 << (pos % BitsPerItem))) != 0;
 			}
 
 			//! Checks if all bits are set
-			constexpr GAIA_NODISCARD bool all() const {
+			GAIA_NODISCARD constexpr bool all() const {
 				for (uint32_t i = 0; i < Items - 1; ++i)
 					if (m_data[i] != (size_type)-1)
 						return false;
@@ -247,7 +247,7 @@ namespace gaia {
 			}
 
 			//! Checks if any bit is set
-			constexpr GAIA_NODISCARD bool any() const {
+			GAIA_NODISCARD constexpr bool any() const {
 				for (uint32_t i = 0; i < Items; ++i)
 					if (m_data[i] != 0)
 						return true;
@@ -255,7 +255,7 @@ namespace gaia {
 			}
 
 			//! Checks if all bits are reset
-			constexpr GAIA_NODISCARD bool none() const {
+			GAIA_NODISCARD constexpr bool none() const {
 				for (uint32_t i = 0; i < Items; ++i)
 					if (m_data[i] != 0)
 						return false;
@@ -278,7 +278,7 @@ namespace gaia {
 			}
 
 			//! Returns the number of bits the bitset can hold
-			constexpr GAIA_NODISCARD uint32_t size() const {
+			GAIA_NODISCARD constexpr uint32_t size() const {
 				return NBits;
 			}
 		};

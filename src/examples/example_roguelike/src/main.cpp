@@ -358,7 +358,7 @@ struct World {
 	//! quit the game when true
 	bool terminate = false;
 
-	World(ecs::World& world): w(world) {}
+	explicit World(ecs::World& world): w(world) {}
 
 	void Init() {
 		InitWorldMap();
@@ -586,7 +586,7 @@ public:
 						if (GetWorld().HasComponent<Velocity>(e2)) {
 							auto v2 = GetWorld().GetComponent<Velocity>(e2);
 							if (v2.x != 0 && v2.y != 0) {
-								int vv2[2] = {v2.x, v2.y};
+								const int vv2[2] = {v2.x, v2.y};
 
 								// No hit possible if moving on different axes
 								if (vv[ii] != vv2[jj])
@@ -682,7 +682,7 @@ public:
 			if (coll.e2 == ecs::EntityNull)
 				continue;
 
-			uint32_t idx1, idx2;
+			uint32_t idx1{}, idx2{};
 			auto* pChunk1 = GetWorld().GetChunk(coll.e1, idx1);
 			auto* pChunk2 = GetWorld().GetChunk(coll.e2, idx2);
 
@@ -724,7 +724,7 @@ public:
 		for (const auto& coll: colls) {
 			// Entity -> world content collision
 			if (coll.e2 == ecs::EntityNull) {
-				uint32_t idx1;
+				uint32_t idx1{};
 				auto* pChunk1 = GetWorld().GetChunk(coll.e1, idx1);
 				GAIA_ASSERT(pChunk1 != nullptr);
 
@@ -742,7 +742,7 @@ public:
 			}
 			// Entity -> entity collision
 			else {
-				uint32_t idx1, idx2;
+				uint32_t idx1{}, idx2{};
 				auto* pChunk1 = GetWorld().GetChunk(coll.e1, idx1);
 				auto* pChunk2 = GetWorld().GetChunk(coll.e2, idx2);
 				GAIA_ASSERT(pChunk1 != nullptr);

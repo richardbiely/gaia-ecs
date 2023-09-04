@@ -1846,7 +1846,7 @@ namespace robin_hood {
 				return const_iterator{reinterpret_cast_no_cast_align_warning<Node*>(mInfo), nullptr};
 			}
 
-			GAIA_NODISCARD iterator erase(const_iterator pos) {
+			iterator erase(const_iterator pos) {
 				ROBIN_HOOD_TRACE(this)
 				// its safe to perform const cast here
 				// NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
@@ -1854,7 +1854,7 @@ namespace robin_hood {
 			}
 
 			// Erases element at pos, returns iterator to the next element.
-			GAIA_NODISCARD iterator erase(iterator pos) {
+			iterator erase(iterator pos) {
 				ROBIN_HOOD_TRACE(this)
 				// we assume that pos always points to a valid entry, and not end().
 				auto const idx = static_cast<size_t>(pos.mKeyVals - mKeyVals);
@@ -1871,7 +1871,7 @@ namespace robin_hood {
 				return ++pos;
 			}
 
-			GAIA_NODISCARD size_t erase(const key_type& key) {
+			size_t erase(const key_type& key) {
 				ROBIN_HOOD_TRACE(this)
 				size_t idx{};
 				InfoType info{};

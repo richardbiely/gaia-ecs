@@ -58,7 +58,7 @@ namespace gaia {
 				query::ListType listType;
 				bool isReadWrite;
 
-				void Exec(query::LookupCtx& ctx) {
+				void Exec(query::LookupCtx& ctx) const {
 					auto& data = ctx.data[componentType];
 					auto& componentIds = data.componentIds;
 					auto& lastMatchedArchetypeIndex = data.lastMatchedArchetypeIndex;
@@ -98,7 +98,7 @@ namespace gaia {
 				component::ComponentId componentId;
 				component::ComponentType componentType;
 
-				void Exec(query::LookupCtx& ctx) {
+				void Exec(query::LookupCtx& ctx) const {
 					auto& data = ctx.data[componentType];
 					auto& componentIds = data.componentIds;
 					auto& withChanged = data.withChanged;

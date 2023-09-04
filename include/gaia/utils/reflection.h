@@ -146,7 +146,7 @@ namespace gaia {
 		//----------------------------------------------------------------------
 
 		template <typename T>
-		auto struct_member_count(T&& object) {
+		auto struct_member_count() {
 			using type = std::decay_t<T>;
 
 			if constexpr (std::is_empty_v<type>) {

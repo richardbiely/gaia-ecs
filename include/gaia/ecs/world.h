@@ -807,7 +807,7 @@ namespace gaia {
 			Returns the number of active entities
 			\return Entity
 			*/
-			GAIA_FORCEINLINE GAIA_NODISCARD uint32_t GetEntityCount() const {
+			GAIA_NODISCARD GAIA_FORCEINLINE uint32_t GetEntityCount() const {
 				return m_entities.item_count();
 			}
 
@@ -1005,7 +1005,7 @@ namespace gaia {
 
 		private:
 			template <typename T>
-			constexpr GAIA_NODISCARD GAIA_FORCEINLINE auto GetComponentView(archetype::Chunk& chunk) const {
+			GAIA_NODISCARD constexpr GAIA_FORCEINLINE auto GetComponentView(archetype::Chunk& chunk) const {
 				using U = typename component::DeduceComponent<T>::Type;
 				using UOriginal = typename component::DeduceComponent<T>::TypeOriginal;
 				if constexpr (component::IsReadOnlyType<UOriginal>::value)

@@ -31,20 +31,20 @@ namespace gaia {
 				return {m_info, m_chunk, m_pos + offset};
 			}
 
-			GAIA_NODISCARD Iterator& operator++() {
+			Iterator& operator++() {
 				++m_pos;
 				return *this;
 			}
-			GAIA_NODISCARD Iterator operator++(int) {
+			Iterator operator++(int) {
 				Iterator temp(*this);
 				++*this;
 				return temp;
 			}
-			GAIA_NODISCARD Iterator& operator--() {
+			Iterator& operator--() {
 				--m_pos;
 				return *this;
 			}
-			GAIA_NODISCARD Iterator operator--(int) {
+			Iterator operator--(int) {
 				Iterator temp(*this);
 				--*this;
 				return temp;

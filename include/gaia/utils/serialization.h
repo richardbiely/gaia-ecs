@@ -96,7 +96,7 @@ namespace gaia {
 			};
 
 			template <typename T>
-			constexpr GAIA_NODISCARD serialization_type_id get_integral_type() {
+			GAIA_NODISCARD constexpr serialization_type_id get_integral_type() {
 				if constexpr (std::is_same_v<int8_t, T> || std::is_same_v<signed char, T>) {
 					return serialization_type_id::s8;
 				} else if constexpr (std::is_same_v<uint8_t, T> || std::is_same_v<unsigned char, T>) {
@@ -121,7 +121,7 @@ namespace gaia {
 			}
 
 			template <typename T>
-			constexpr GAIA_NODISCARD serialization_type_id get_floating_point_type() {
+			GAIA_NODISCARD constexpr serialization_type_id get_floating_point_type() {
 				// if constexpr (std::is_same_v<float8_t, T>) {
 				// 	return serialization_type_id::f8;
 				// } else if constexpr (std::is_same_v<float16_t, T>) {
@@ -139,7 +139,7 @@ namespace gaia {
 			}
 
 			template <typename T>
-			constexpr GAIA_NODISCARD serialization_type_id get_type_id() {
+			GAIA_NODISCARD constexpr serialization_type_id get_type_id() {
 				if constexpr (std::is_enum_v<T>)
 					return get_integral_type<std::underlying_type_t<T>>();
 				else if constexpr (std::is_integral_v<T>)
@@ -156,7 +156,7 @@ namespace gaia {
 			}
 
 			template <typename T>
-			constexpr GAIA_NODISCARD uint32_t calculate_size_one(const T& item) {
+			GAIA_NODISCARD constexpr uint32_t calculate_size_one(const T& item) {
 				using type = typename std::decay_t<typename std::remove_pointer_t<T>>;
 
 				constexpr auto id = detail::get_type_id<type>();
@@ -220,7 +220,7 @@ namespace gaia {
 		//! Calculates the number of bytes necessary to serialize data using the "save" function.
 		//! \warning Compile-time.
 		template <typename T>
-		constexpr GAIA_NODISCARD uint32_t calculate_size(const T& data) {
+		GAIA_NODISCARD constexpr uint32_t calculate_size(const T& data) {
 			return detail::calculate_size_one(data);
 		}
 

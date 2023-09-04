@@ -2166,28 +2166,6 @@ TEST_CASE("CommandBuffer") {
 		REQUIRE(p.z == 3);
 	}
 
-	SECTION("Delayed non-trivial component setting of an existing entity") {
-		ecs::World w;
-		ecs::CommandBuffer cb(w);
-
-		auto e = w.CreateEntity();
-
-		cb.AddComponent<StringComponent>(e);
-		cb.SetComponent<StringComponent>(e, {StringComponentDefaultValue});
-		cb.AddComponent<StringComponent2>(e);
-		REQUIRE(!w.HasComponent<StringComponent>(e));
-		REQUIRE(!w.HasComponent<StringComponent2>(e));
-
-		cb.Commit();
-		REQUIRE(w.HasComponent<StringComponent>(e));
-		REQUIRE(w.HasComponent<StringComponent2>(e));
-
-		auto s1 = w.GetComponent<StringComponent>(e);
-		REQUIRE(s1.value == StringComponentDefaultValue);
-		auto s2 = w.GetComponent<StringComponent2>(e);
-		REQUIRE(s2.value == StringComponent2DefaultValue);
-	}
-
 	SECTION("Delayed 2 components setting of an existing entity") {
 		ecs::World w;
 		ecs::CommandBuffer cb(w);
@@ -2356,6 +2334,28 @@ TEST_CASE("CommandBuffer") {
 		cb.Commit();
 		REQUIRE_FALSE(w.HasComponent<Position>(e));
 		REQUIRE_FALSE(w.HasComponent<Acceleration>(e));
+	}
+
+	SECTION("Delayed non-trivial component setting of an existing entity") {
+		ecs::World w;
+		ecs::CommandBuffer cb(w);
+
+		auto e = w.CreateEntity();
+
+		cb.AddComponent<StringComponent>(e);
+		cb.SetComponent<StringComponent>(e, {StringComponentDefaultValue});
+		cb.AddComponent<StringComponent2>(e);
+		REQUIRE(!w.HasComponent<StringComponent>(e));
+		REQUIRE(!w.HasComponent<StringComponent2>(e));
+
+		cb.Commit();
+		REQUIRE(w.HasComponent<StringComponent>(e));
+		REQUIRE(w.HasComponent<StringComponent2>(e));
+
+		auto s1 = w.GetComponent<StringComponent>(e);
+		REQUIRE(s1.value == StringComponentDefaultValue);
+		auto s2 = w.GetComponent<StringComponent2>(e);
+		REQUIRE(s2.value == StringComponent2DefaultValue);
 	}
 }
 
@@ -2711,7 +2711,7 @@ bool CompareSerializableTypes(const T& a, const T& b) {
 struct FooNonTrivial {
 	uint32_t a = 0;
 
-	FooNonTrivial(uint32_t value): a(value){};
+	explicit FooNonTrivial(uint32_t value): a(value){};
 	FooNonTrivial() = default;
 	~FooNonTrivial() = default;
 	FooNonTrivial(const FooNonTrivial&) = default;
@@ -2913,8 +2913,6 @@ void Run_Schedule_Simple(const uint32_t* pArr, uint32_t* pRes, uint32_t Jobs, ui
 }
 
 TEST_CASE("Multithreading - Schedule") {
-	auto& tp = mt::ThreadPool::Get();
-
 	constexpr uint32_t JobCount = 64;
 	constexpr uint32_t ItemsPerJob = 5000;
 	constexpr uint32_t N = JobCount * ItemsPerJob;
@@ -2927,7 +2925,6 @@ TEST_CASE("Multithreading - Schedule") {
 	for (uint32_t i = 0; i < arr.max_size(); ++i)
 		arr[i] = 1;
 
-	const auto* pArr = arr.data();
 	Run_Schedule_Simple(arr.data(), res.data(), JobCount, ItemsPerJob, JobSystemFunc);
 }
 

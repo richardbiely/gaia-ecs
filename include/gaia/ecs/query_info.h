@@ -181,7 +181,7 @@ namespace gaia {
 				}
 
 			public:
-				static GAIA_NODISCARD QueryInfo Create(QueryId id, query::LookupCtx&& ctx) {
+				GAIA_NODISCARD static QueryInfo Create(QueryId id, query::LookupCtx&& ctx) {
 					QueryInfo info;
 					query::CalculateMatcherHashes(ctx);
 					info.m_lookupCtx = std::move(ctx);
