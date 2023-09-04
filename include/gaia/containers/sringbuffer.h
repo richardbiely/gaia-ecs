@@ -30,7 +30,7 @@ namespace gaia {
 			size_type m_size{};
 			T m_data[N];
 
-			sringbuffer() = default;
+			sringbuffer() noexcept = default;
 
 			template <typename InputIt>
 			sringbuffer(InputIt first, InputIt last) {
@@ -74,7 +74,7 @@ namespace gaia {
 				return *this;
 			}
 
-			GAIA_NODISCARD constexpr sringbuffer& operator=(const sringbuffer& other) noexcept {
+			GAIA_NODISCARD constexpr sringbuffer& operator=(const sringbuffer& other) {
 				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
 
 				utils::copy_elements(m_data, other.m_data, other.size());

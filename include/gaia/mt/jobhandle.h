@@ -36,16 +36,16 @@ namespace gaia {
 			};
 
 		public:
-			JobHandle() = default;
+			JobHandle() noexcept = default;
 			JobHandle(JobId id, JobGenId gen) {
 				data.id = id;
 				data.gen = gen;
 			}
 			~JobHandle() = default;
 
-			JobHandle(JobHandle&&) = default;
+			JobHandle(JobHandle&&) noexcept = default;
 			JobHandle(const JobHandle&) = default;
-			JobHandle& operator=(JobHandle&&) = default;
+			JobHandle& operator=(JobHandle&&) noexcept = default;
 			JobHandle& operator=(const JobHandle&) = default;
 
 			GAIA_NODISCARD constexpr bool operator==(const JobHandle& other) const noexcept {

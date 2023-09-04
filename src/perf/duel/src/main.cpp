@@ -651,7 +651,7 @@ void BM_ECS_WithSystems_Iter_SoA_SIMD(picobench::state& state) {
 
 				auto exec = [&](float* GAIA_RESTRICT v, const size_t offset) {
 					const auto vyVec = _mm_load_ps(v + offset);
-					const auto mulVec = _mm_fmadd_ps(gg_dtVec, gg_dtVec, vyVec);
+					const auto mulVec = _mm_fmadd_ps(gg_dtVec, gg_gVec, vyVec);
 					_mm_store_ps(v + offset, mulVec);
 				};
 				auto exec2 = [](float* GAIA_RESTRICT v, const size_t offset) {
@@ -713,8 +713,13 @@ namespace NonECS {
 		//! to the base class over its lifetime and is rarely used ever.
 		Dummy dummy;
 
-		IUnit() = default;
+		IUnit() noexcept = default;
 		virtual ~IUnit() = default;
+
+		IUnit(const IUnit&) = default;
+		IUnit(IUnit&&) noexcept = default;
+		IUnit& operator=(const IUnit&) = default;
+		IUnit& operator=(IUnit&&) noexcept = default;
 
 		virtual void updatePosition(float deltaTime) = 0;
 		virtual void handleGroundCollision(float deltaTime) = 0;
@@ -836,7 +841,7 @@ void BM_NonECS(picobench::state& state) {
 	containers::darray<IUnit*> units(N * 2);
 	{
 		for (size_t i = 0; i < N; i++) {
-			auto u = new UnitStatic();
+			auto* u = new UnitStatic();
 			u->p = {0, 100, 0};
 			u->r = {1, 2, 3, 4};
 			u->s = {1, 1, 1};
@@ -844,7 +849,7 @@ void BM_NonECS(picobench::state& state) {
 		}
 		uint32_t j = N;
 		for (size_t i = 0; i < N / 4; i++) {
-			auto u = new UnitDynamic1();
+			auto* u = new UnitDynamic1();
 			u->p = {0, 100, 0};
 			u->r = {1, 2, 3, 4};
 			u->s = {1, 1, 1};
@@ -853,7 +858,7 @@ void BM_NonECS(picobench::state& state) {
 		}
 		j += N / 4;
 		for (size_t i = 0; i < N / 4; i++) {
-			auto u = new UnitDynamic2();
+			auto* u = new UnitDynamic2();
 			u->p = {0, 100, 0};
 			u->r = {1, 2, 3, 4};
 			u->s = {1, 1, 1};
@@ -862,7 +867,7 @@ void BM_NonECS(picobench::state& state) {
 		}
 		j += N / 4;
 		for (size_t i = 0; i < N / 4; i++) {
-			auto u = new UnitDynamic3();
+			auto* u = new UnitDynamic3();
 			u->p = {0, 100, 0};
 			u->r = {1, 2, 3, 4};
 			u->s = {1, 1, 1};
@@ -871,7 +876,7 @@ void BM_NonECS(picobench::state& state) {
 		}
 		j += N / 4;
 		for (size_t i = 0; i < N / 4; i++) {
-			auto u = new UnitDynamic4();
+			auto* u = new UnitDynamic4();
 			u->p = {0, 100, 0};
 			u->r = {1, 2, 3, 4};
 			u->s = {1, 1, 1};
@@ -913,7 +918,7 @@ void BM_NonECS(picobench::state& state) {
 		GAIA_PROF_FRAME();
 	}
 
-	for (auto& u: units) {
+	for (const auto& u: units) {
 		delete u;
 	}
 }
