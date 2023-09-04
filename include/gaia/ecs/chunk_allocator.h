@@ -156,7 +156,7 @@ namespace gaia {
 				//! When true, destruction has been requested
 				bool m_isDone = false;
 
-				ChunkAllocatorImpl() = default;
+				ChunkAllocatorImpl() noexcept = default;
 
 			public:
 				~ChunkAllocatorImpl() = default;
@@ -362,7 +362,7 @@ namespace gaia {
 		class ChunkAllocator final {
 			detail::ChunkAllocatorImpl* m_allocator = new detail::ChunkAllocatorImpl();
 
-			ChunkAllocator() = default;
+			ChunkAllocator() noexcept = default;
 
 		public:
 			static detail::ChunkAllocatorImpl& Get() {

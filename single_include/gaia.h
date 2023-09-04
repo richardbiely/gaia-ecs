@@ -2337,9 +2337,9 @@ namespace gaia {
 				}
 			}
 
-			constexpr sarr_ext(std::initializer_list<T> il) noexcept: sarr_ext(il.begin(), il.end()) {}
+			constexpr sarr_ext(std::initializer_list<T> il): sarr_ext(il.begin(), il.end()) {}
 
-			constexpr sarr_ext(const sarr_ext& other) noexcept: sarr_ext(other.begin(), other.end()) {}
+			constexpr sarr_ext(const sarr_ext& other): sarr_ext(other.begin(), other.end()) {}
 
 			constexpr sarr_ext(sarr_ext&& other) noexcept: m_cnt(other.m_cnt) {
 				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
@@ -2354,7 +2354,7 @@ namespace gaia {
 				return *this;
 			}
 
-			GAIA_NODISCARD constexpr sarr_ext& operator=(const sarr_ext& other) noexcept {
+			GAIA_NODISCARD constexpr sarr_ext& operator=(const sarr_ext& other) {
 				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
 
 				resize(other.size());
@@ -8283,7 +8283,7 @@ namespace gaia {
 				//! When true, destruction has been requested
 				bool m_isDone = false;
 
-				ChunkAllocatorImpl() = default;
+				ChunkAllocatorImpl() noexcept = default;
 
 			public:
 				~ChunkAllocatorImpl() = default;
@@ -8489,7 +8489,7 @@ namespace gaia {
 		class ChunkAllocator final {
 			detail::ChunkAllocatorImpl* m_allocator = new detail::ChunkAllocatorImpl();
 
-			ChunkAllocator() = default;
+			ChunkAllocator() noexcept = default;
 
 		public:
 			static detail::ChunkAllocatorImpl& Get() {
@@ -8827,16 +8827,16 @@ namespace gaia {
 			};
 
 		public:
-			Entity() = default;
+			Entity() noexcept = default;
 			Entity(EntityId id, EntityGenId gen) {
 				data.id = id;
 				data.gen = gen;
 			}
 			~Entity() = default;
 
-			Entity(Entity&&) = default;
+			Entity(Entity&&) noexcept = default;
 			Entity(const Entity&) = default;
-			Entity& operator=(Entity&&) = default;
+			Entity& operator=(Entity&&) noexcept = default;
 			Entity& operator=(const Entity&) = default;
 
 			GAIA_NODISCARD constexpr bool operator==(const Entity& other) const noexcept {
@@ -11467,16 +11467,16 @@ namespace gaia {
 			};
 
 		public:
-			JobHandle() = default;
+			JobHandle() noexcept = default;
 			JobHandle(JobId id, JobGenId gen) {
 				data.id = id;
 				data.gen = gen;
 			}
 			~JobHandle() = default;
 
-			JobHandle(JobHandle&&) = default;
+			JobHandle(JobHandle&&) noexcept = default;
 			JobHandle(const JobHandle&) = default;
-			JobHandle& operator=(JobHandle&&) = default;
+			JobHandle& operator=(JobHandle&&) noexcept = default;
 			JobHandle& operator=(const JobHandle&) = default;
 
 			GAIA_NODISCARD constexpr bool operator==(const JobHandle& other) const noexcept {
@@ -12673,7 +12673,7 @@ namespace gaia {
 			}
 
 		public:
-			Query() = default;
+			Query() noexcept = default;
 			Query(
 					QueryCache& queryCache, uint32_t& worldVersion, const containers::darray<archetype::Archetype*>& archetypes,
 					const query::ComponentToArchetypeMap& componentToArchetypeMap):
@@ -14664,7 +14664,7 @@ namespace gaia {
 			bool m_destroy = false;
 
 		protected:
-			BaseSystem() = default;
+			BaseSystem() noexcept = default;
 			virtual ~BaseSystem() = default;
 
 			BaseSystem(BaseSystem&&) = delete;
@@ -15278,7 +15278,7 @@ namespace gaia {
 			size_type m_size{};
 			T m_data[N];
 
-			sringbuffer() = default;
+			sringbuffer() noexcept = default;
 
 			template <typename InputIt>
 			sringbuffer(InputIt first, InputIt last) {
@@ -15322,7 +15322,7 @@ namespace gaia {
 				return *this;
 			}
 
-			GAIA_NODISCARD constexpr sringbuffer& operator=(const sringbuffer& other) noexcept {
+			GAIA_NODISCARD constexpr sringbuffer& operator=(const sringbuffer& other) {
 				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
 
 				utils::copy_elements(m_data, other.m_data, other.size());

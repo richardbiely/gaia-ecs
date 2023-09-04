@@ -82,7 +82,7 @@ struct StringComponent {
 struct StringComponent2 {
 	std::string value = StringComponent2DefaultValue;
 
-	StringComponent2() = default;
+	StringComponent2() noexcept = default;
 	~StringComponent2() {
 		value = StringComponentEmptyValue;
 	}
@@ -2712,12 +2712,12 @@ struct FooNonTrivial {
 	uint32_t a = 0;
 
 	explicit FooNonTrivial(uint32_t value): a(value){};
-	FooNonTrivial() = default;
+	FooNonTrivial() noexcept = default;
 	~FooNonTrivial() = default;
 	FooNonTrivial(const FooNonTrivial&) = default;
-	FooNonTrivial(FooNonTrivial&&) = default;
+	FooNonTrivial(FooNonTrivial&&) noexcept = default;
 	FooNonTrivial& operator=(const FooNonTrivial&) = default;
-	FooNonTrivial& operator=(FooNonTrivial&&) = default;
+	FooNonTrivial& operator=(FooNonTrivial&&) noexcept = default;
 
 	bool operator==(const FooNonTrivial& other) const {
 		return a == other.a;

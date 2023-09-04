@@ -228,9 +228,9 @@ namespace gaia {
 				}
 			}
 
-			constexpr sarr_ext(std::initializer_list<T> il) noexcept: sarr_ext(il.begin(), il.end()) {}
+			constexpr sarr_ext(std::initializer_list<T> il): sarr_ext(il.begin(), il.end()) {}
 
-			constexpr sarr_ext(const sarr_ext& other) noexcept: sarr_ext(other.begin(), other.end()) {}
+			constexpr sarr_ext(const sarr_ext& other): sarr_ext(other.begin(), other.end()) {}
 
 			constexpr sarr_ext(sarr_ext&& other) noexcept: m_cnt(other.m_cnt) {
 				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
@@ -245,7 +245,7 @@ namespace gaia {
 				return *this;
 			}
 
-			GAIA_NODISCARD constexpr sarr_ext& operator=(const sarr_ext& other) noexcept {
+			GAIA_NODISCARD constexpr sarr_ext& operator=(const sarr_ext& other) {
 				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
 
 				resize(other.size());

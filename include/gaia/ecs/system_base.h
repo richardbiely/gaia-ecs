@@ -40,7 +40,7 @@ namespace gaia {
 			bool m_destroy = false;
 
 		protected:
-			BaseSystem() = default;
+			BaseSystem() noexcept = default;
 			virtual ~BaseSystem() = default;
 
 			BaseSystem(BaseSystem&&) = delete;

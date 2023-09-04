@@ -37,16 +37,16 @@ namespace gaia {
 			};
 
 		public:
-			Entity() = default;
+			Entity() noexcept = default;
 			Entity(EntityId id, EntityGenId gen) {
 				data.id = id;
 				data.gen = gen;
 			}
 			~Entity() = default;
 
-			Entity(Entity&&) = default;
+			Entity(Entity&&) noexcept = default;
 			Entity(const Entity&) = default;
-			Entity& operator=(Entity&&) = default;
+			Entity& operator=(Entity&&) noexcept = default;
 			Entity& operator=(const Entity&) = default;
 
 			GAIA_NODISCARD constexpr bool operator==(const Entity& other) const noexcept {
