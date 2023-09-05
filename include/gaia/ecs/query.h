@@ -460,7 +460,7 @@ namespace gaia {
 			}
 
 		public:
-			Query() noexcept = default;
+			Query() = default;
 			Query(
 					QueryCache& queryCache, uint32_t& worldVersion, const containers::darray<archetype::Archetype*>& archetypes,
 					const query::ComponentToArchetypeMap& componentToArchetypeMap):

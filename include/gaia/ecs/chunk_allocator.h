@@ -362,10 +362,10 @@ namespace gaia {
 		class ChunkAllocator final {
 			detail::ChunkAllocatorImpl* m_allocator = new detail::ChunkAllocatorImpl();
 
-			ChunkAllocator() noexcept = default;
+			ChunkAllocator() = default;
 
 		public:
-			static detail::ChunkAllocatorImpl& Get() {
+			static detail::ChunkAllocatorImpl& Get() noexcept {
 				static ChunkAllocator staticAllocator;
 				return *staticAllocator.m_allocator;
 			}

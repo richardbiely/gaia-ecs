@@ -105,7 +105,7 @@ namespace gaia {
 			//! \return Entity of component view with read-only access
 			template <typename T>
 			GAIA_NODISCARD auto View() const {
-#if GAIA_DEBUG || GAIA_FORCE_DEBUG
+#if GAIA_DEBUG
 				if constexpr (component::IsGenericComponent<T>) {
 					using U = typename component::DeduceComponent<T>::Type;
 					using UConst = std::add_const_t<U>;
