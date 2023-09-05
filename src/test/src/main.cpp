@@ -82,15 +82,15 @@ struct StringComponent {
 struct StringComponent2 {
 	std::string value = StringComponent2DefaultValue;
 
-	StringComponent2() noexcept = default;
+	StringComponent2() = default;
 	~StringComponent2() {
 		value = StringComponentEmptyValue;
 	}
 
 	StringComponent2(const StringComponent2&) = default;
-	StringComponent2(StringComponent2&&) = default;
+	StringComponent2(StringComponent2&&) noexcept = default;
 	StringComponent2& operator=(const StringComponent2&) = default;
-	StringComponent2& operator=(StringComponent2&&) = default;
+	StringComponent2& operator=(StringComponent2&&) noexcept = default;
 };
 
 TEST_CASE("Intrinsics") {

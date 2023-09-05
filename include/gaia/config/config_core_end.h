@@ -30,12 +30,18 @@
 // Debug features
 //------------------------------------------------------------------------------
 
+#if !defined(NDEBUG) || defined(_DEBUG)
+	#define GAIA_DEBUG_BUILD 1
+#else
+	#define GAIA_DEBUG_BUILD 0
+#endif
+
 //! If enabled, additional debug and verification code is used which
 //! slows things down but enables better security and diagnostics.
 //! Suitable for debug builds first and foremost. Therefore, it is
 //! enabled by default for debud builds.
 #if !defined(GAIA_DEBUG)
-	#if !defined(NDEBUG) || defined(_DEBUG) || GAIA_FORCE_DEBUG
+	#if GAIA_DEBUG_BUILD || GAIA_FORCE_DEBUG
 		#define GAIA_DEBUG 1
 	#else
 		#define GAIA_DEBUG 0
@@ -47,35 +53,36 @@
 	#define GAIA_ASSERT(cond) (void(0))
 #elif !defined(GAIA_ASSERT)
 	#include <cassert>
-	#if GAIA_DEBUG
+	// For Debug builds use system's native assertion capabilities
+	#if GAIA_DEBUG_BUILD
 		#define GAIA_ASSERT_ENABLED 1
 		#define GAIA_ASSERT(cond)                                                                                          \
-			do {                                                                                                             \
-				assert(cond);                                                                                                  \
-			} while ((void)0, (false) && static_cast<const bool&>(!!(cond)))
+			(GAIA_LIKELY(cond) ? void(0) : [] {                                                                              \
+				assert(!#cond);                                                                                                \
+			}())
 	#else
-		#if GAIA_FORCE_DEBUG
+		// For non-Debug builds simulate asserts
+		#if GAIA_DEBUG
 			#define GAIA_ASSERT_ENABLED 1
 			#define GAIA_ASSERT(cond)                                                                                        \
-				do {                                                                                                           \
-					if (!(cond))                                                                                                 \
-						GAIA_LOG_E("%s:%d: Assertion failed: '%s'.", __FILE__, __LINE__, #cond);                                   \
-				} while ((void)0, (false) && static_cast<const bool&>(!!(cond)))
+				(GAIA_LIKELY(cond) ? void(0) : [] {                                                                            \
+					GAIA_LOG_E("%s:%d: Assertion failed: '%s'.", __FILE__, __LINE__, #cond);                                     \
+				}())
 		#else
 			#define GAIA_ASSERT_ENABLED 0
-			#define GAIA_ASSERT(cond) assert(cond)
+			#define GAIA_ASSERT(cond) (void(0))
 		#endif
 	#endif
 #endif
 
 #if !defined(GAIA_ECS_CHUNK_ALLOCATOR_CLEAN_MEMORY_WITH_GARBAGE)
-	#define GAIA_ECS_CHUNK_ALLOCATOR_CLEAN_MEMORY_WITH_GARBAGE (GAIA_DEBUG || GAIA_FORCE_DEBUG)
+	#define GAIA_ECS_CHUNK_ALLOCATOR_CLEAN_MEMORY_WITH_GARBAGE (GAIA_DEBUG)
 #endif
 #if !defined(GAIA_ECS_VALIDATE_CHUNKS)
-	#define GAIA_ECS_VALIDATE_CHUNKS (GAIA_DEBUG || GAIA_FORCE_DEBUG)
+	#define GAIA_ECS_VALIDATE_CHUNKS (GAIA_DEBUG)
 #endif
 #if !defined(GAIA_ECS_VALIDATE_ENTITY_LIST)
-	#define GAIA_ECS_VALIDATE_ENTITY_LIST (GAIA_DEBUG || GAIA_FORCE_DEBUG)
+	#define GAIA_ECS_VALIDATE_ENTITY_LIST (GAIA_DEBUG)
 #endif
 
 //------------------------------------------------------------------------------
