@@ -63,6 +63,21 @@
 	#define GAIA_USE_PREFETCH 1
 #endif
 
+//! When searching for empty chunk we have two options:
+//! 1) pick any non-empty one first
+//!    - fragments memory, progresivelly slower peformance over time possible
+//!    - fast removals because entity swaps happen within the same chunk
+//!    - TODO: needs defragmentation/flattening at some point
+//! 2) always take from the last chunk
+//!    - avoids memory fragmentation altogether
+//!    - makes entity removal and component movement slower because we always swap with the last chunk
+//!
+//! We stick with (1) as a default because in general it is better to take a small performance hit
+//! for defragmeneting every once in a while than having consistently slower performance all the time.
+#ifndef GAIA_AVOID_CHUNK_FRAGMENTATION
+	#define GAIA_AVOID_CHUNK_FRAGMENTATION 0
+#endif
+
 //------------------------------------------------------------------------------
 
 #include "config_core_end.h"

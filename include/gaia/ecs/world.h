@@ -89,25 +89,25 @@ namespace gaia {
 
 		private:
 			/*!
-			Remove an entity from chunk.
-			\param pChunk Chunk we remove the entity from
-			\param entityChunkIndex Index of entity within its chunk
+			Remove the last entity from chunk.
+			\param pChunk Chunk we want to remove
+			\param entityChunkIndex Index of entity within its chunk we are removing
 			*/
-			void RemoveEntity(archetype::Chunk* pChunk, uint32_t entityChunkIndex) {
+			void RemoveLastEntity_Internal(archetype::Chunk* pChunk, uint32_t entityChunkIndex) {
 				GAIA_ASSERT(
 						!pChunk->IsStructuralChangesLocked() && "Entities can't be removed while their chunk is being iterated "
 																										"(structural changes are forbidden during this time!)");
 
-				pChunk->RemoveEntity(entityChunkIndex, m_entities);
+				pChunk->RemoveLastEntity(entityChunkIndex);
 
 				if (!pChunk->IsDying() && !pChunk->HasEntities()) {
 					// When the chunk is emptied we want it to be removed. We can't do it
 					// right away and need to wait for world's GC to be called.
 					//
 					// However, we need to prevent the following:
-					//    1) chunk is emptied + add to some removal list
+					//    1) chunk is emptied, add it to some removal list
 					//    2) chunk is reclaimed
-					//    3) chunk is emptied again + add to some removal list again
+					//    3) chunk is emptied, add it to some removal list again
 					//
 					// Therefore, we have a flag telling us the chunk is already waiting to
 					// be removed. The chunk might be reclaimed before GC happens but it
@@ -117,6 +117,62 @@ namespace gaia {
 
 					m_chunksToRemove.push_back(pChunk);
 				}
+			}
+
+			/*!
+			Remove an entity from chunk.
+			\param pChunk Chunk we remove the entity from
+			\param entityChunkIndex Index of entity within its chunk
+			*/
+			void RemoveEntity(archetype::Chunk* pChunk, uint32_t entityChunkIndex, bool releaseEntity) {
+				GAIA_ASSERT(
+						!pChunk->IsStructuralChangesLocked() && "Entities can't be removed while their chunk is being iterated "
+																										"(structural changes are forbidden during this time!)");
+
+				if (!pChunk->HasEntities())
+					return;
+
+				GAIA_PROF_SCOPE(RemoveEntity);
+
+#if GAIA_AVOID_CHUNK_FRAGMENTATION
+				auto entity = pChunk->GetEntity(entityChunkIndex);
+				auto& archetype = *m_archetypes[pChunk->GetArchetypeId()];
+
+				// Swap the last entity in the last chunk with the entity spot we just created by moving
+				// the entity to somewhere else.
+				const bool isDisabled = pChunk->IsDisabled();
+				auto* pLastChunk = isDisabled ? archetype.FindFirstNonEmptyChunkDisabled() : archetype.FindFirstNonEmptyChunk();
+				if (pLastChunk == pChunk) {
+					pChunk->SwapEntitiesInsideChunkAndDeleteOld(entityChunkIndex, m_entities);
+					RemoveLastEntity_Internal(pChunk, entityChunkIndex);
+				} else if (pLastChunk != nullptr && pLastChunk->HasEntities()) {
+					const uint32_t lastEntityIdx = pLastChunk->GetEntityCount() - 1;
+					auto lastEntity = pLastChunk->GetEntity(lastEntityIdx);
+					pChunk->SetEntity(entityChunkIndex, lastEntity);
+					pChunk->MoveEntityData(lastEntity, entityChunkIndex, m_entities);
+					RemoveLastEntity_Internal(pLastChunk, lastEntityIdx);
+
+					auto& lastEntityContainer = m_entities[lastEntity.id()];
+					lastEntityContainer.pChunk = pChunk;
+					lastEntityContainer.idx = entityChunkIndex;
+					lastEntityContainer.gen = lastEntity.gen();
+				}
+
+				if (releaseEntity)
+					ReleaseEntity(entity);
+
+				archetype.VerifyChunksFramentation();
+#else
+				if (releaseEntity) {
+					auto entity = pChunk->GetEntity(entityChunkIndex);
+					pChunk->SwapEntitiesInsideChunkAndDeleteOld(entityChunkIndex, m_entities);
+					RemoveLastEntity_Internal(pChunk, entityChunkIndex);
+					ReleaseEntity(entity);
+				} else {
+					pChunk->SwapEntitiesInsideChunkAndDeleteOld(entityChunkIndex, m_entities);
+					RemoveLastEntity_Internal(pChunk, entityChunkIndex);
+				}
+#endif
 			}
 
 			/*!
@@ -479,28 +535,30 @@ namespace gaia {
 			}
 
 			/*!
-			Moves an entity along with all its generic components from its current chunk to another one in a new archetype.
+			Moves an entity along with all its generic components from its current chunk to another one.
 			\param oldEntity Entity to move
-			\param newArchetype Target archetype
+			\param targetChunk Target chunk
 			*/
-			void MoveEntity(Entity oldEntity, archetype::Archetype& newArchetype) {
+			void MoveEntity(Entity oldEntity, archetype::Chunk& targetChunk) {
 				GAIA_PROF_SCOPE(MoveEntity);
+
+				auto* pNewChunk = &targetChunk;
 
 				auto& entityContainer = m_entities[oldEntity.id()];
 				auto* pOldChunk = entityContainer.pChunk;
 				const auto oldIndex = entityContainer.idx;
-
-				// Find a new chunk for the entity and move it inside.
-				// Old entity ID needs to remain valid or lookups would break.
-				auto* pNewChunk = newArchetype.FindOrCreateFreeChunk();
 				const auto newIndex = pNewChunk->AddEntity(oldEntity);
 
-				pNewChunk->MoveEntityFrom(oldEntity, newIndex, m_entities);
+				// Move data from the old chunk to the new one
+				if (pOldChunk->GetArchetypeId() == pNewChunk->GetArchetypeId())
+					pNewChunk->MoveEntityData(oldEntity, newIndex, m_entities);
+				else
+					pNewChunk->MoveForeignEntityData(oldEntity, newIndex, m_entities);
 
-				// Remove entity from the previous chunk
-				RemoveEntity(pOldChunk, oldIndex);
+				// Remove the entity record from the old chunk
+				RemoveEntity(pOldChunk, oldIndex, false);
 
-				// Update entity's chunk and index so look-ups can find it
+				// Make the entity point to the new chunk
 				entityContainer.pChunk = pNewChunk;
 				entityContainer.idx = newIndex;
 				entityContainer.gen = oldEntity.gen();
@@ -508,6 +566,16 @@ namespace gaia {
 				ValidateChunk(pOldChunk);
 				ValidateChunk(pNewChunk);
 				ValidateEntityList();
+			}
+
+			/*!
+			Moves an entity along with all its generic components from its current chunk to another one in a new archetype.
+			\param oldEntity Entity to move
+			\param newArchetype Target archetype
+			*/
+			void MoveEntity(Entity oldEntity, archetype::Archetype& newArchetype) {
+				auto* pNewChunk = newArchetype.FindOrCreateFreeChunk();
+				return MoveEntity(oldEntity, *pNewChunk);
 			}
 
 			//! Verifies than the implicit linked list of entities is valid
@@ -739,7 +807,7 @@ namespace gaia {
 				auto& archetype = *m_archetypes[pChunk->GetArchetypeId()];
 				const auto newEntity = CreateEntity(archetype);
 
-				archetype::Chunk::CopyEntity(entity, newEntity, m_entities);
+				archetype::Chunk::CopyEntityData(entity, newEntity, m_entities);
 
 				return newEntity;
 			}
@@ -758,8 +826,7 @@ namespace gaia {
 
 				// Remove entity from chunk
 				if (auto* pChunk = entityContainer.pChunk) {
-					RemoveEntity(pChunk, entityContainer.idx);
-					ReleaseEntity(entity);
+					RemoveEntity(pChunk, entityContainer.idx, true);
 					ValidateChunk(pChunk);
 					ValidateEntityList();
 				} else {
@@ -784,22 +851,30 @@ namespace gaia {
 					return;
 				entityContainer.disabled = !enable;
 
+				const uint32_t idxOld = entityContainer.idx;
+
 				if (auto* pChunkFrom = entityContainer.pChunk) {
 					auto& archetype = *m_archetypes[pChunkFrom->GetArchetypeId()];
 
-					// Create a spot in the new chunk
-					auto* pChunkTo = enable ? archetype.FindOrCreateFreeChunk() : archetype.FindOrCreateFreeChunkDisabled();
-					const auto idxNew = pChunkTo->AddEntity(entity);
+					{
+						// Create a spot in the new chunk
+						auto* pChunkTo = enable ? archetype.FindOrCreateFreeChunk() : archetype.FindOrCreateFreeChunkDisabled();
+						const auto idxNew = pChunkTo->AddEntity(entity);
 
-					// Copy generic component data from the reference entity to our new entity
-					pChunkTo->CopyEntityFrom(entity, idxNew, m_entities);
+						// Copy generic component data from the reference entity to our new entity
+						pChunkTo->MoveEntityData(entity, idxNew, m_entities);
 
-					// Remove the entity from the old chunk
-					pChunkFrom->RemoveEntity(entityContainer.idx, m_entities);
+						// Remove the entity from the old chunk
+						RemoveEntity(pChunkFrom, idxOld, false);
 
-					// Update the entity container with new info
-					entityContainer.pChunk = pChunkTo;
-					entityContainer.idx = idxNew;
+						// Update the entity container with new info
+						entityContainer.pChunk = pChunkTo;
+						entityContainer.idx = idxNew;
+					}
+
+#if GAIA_AVOID_CHUNK_FRAGMENTATION
+					archetype.VerifyChunksFramentation();
+#endif
 				}
 			}
 
