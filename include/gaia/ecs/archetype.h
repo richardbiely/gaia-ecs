@@ -1,4 +1,5 @@
 #pragma once
+#include "../config/config.h"
 
 #include <cinttypes>
 
@@ -118,22 +119,97 @@ namespace gaia {
 					}
 				}
 
+#if GAIA_AVOID_CHUNK_FRAGMENTATION
+				static void VerifyChunksFragmentation_Internal(std::span<Chunk*> chunkArray) {
+					if (chunkArray.size() <= 1)
+						return;
+
+					uint32_t i = 1;
+
+					if (chunkArray[0]->IsFull()) {
+						// Make sure all chunks before the first non-full one are full
+						for (; i < chunkArray.size(); ++i) {
+							auto* pChunk = chunkArray[i];
+							if (pChunk->IsFull())
+								GAIA_ASSERT(chunkArray[i - 1]->IsFull());
+							else
+								break;
+						}
+					}
+
+					// Make sure all chunks after the full non-full are empty
+					++i;
+					for (; i < chunkArray.size(); ++i) {
+						GAIA_ASSERT(!chunkArray[i]->HasEntities());
+					}
+				}
+
+				//! Returns the first non-full chunk or nullptr if there is no such chunk.
+				GAIA_NODISCARD static Chunk* FindFirstNonFullChunk_Internal(std::span<Chunk*> chunkArray) {
+					if GAIA_UNLIKELY (chunkArray.empty())
+						return nullptr;
+
+					Chunk* pFirstNonFullChunk = nullptr;
+					uint32_t i = (uint32_t)chunkArray.size() - 1;
+					do {
+						auto* pChunk = chunkArray[i];
+						if (pChunk->IsFull())
+							break;
+
+						pFirstNonFullChunk = pChunk;
+					} while (i-- > 0);
+
+					return pFirstNonFullChunk;
+				}
+
+				//! Returns the first non-empty chunk or nullptr if there are no chunks.
+				GAIA_NODISCARD static Chunk* FindFirstNonEmptyChunk_Internal(std::span<Chunk*> chunkArray) {
+					if GAIA_UNLIKELY (chunkArray.empty())
+						return nullptr;
+					if (chunkArray.size() == 1)
+						return chunkArray[0];
+
+					Chunk* pFirstNonEmptyChunk = nullptr;
+					uint32_t i = (uint32_t)chunkArray.size() - 1;
+					do {
+						auto* pChunk = chunkArray[i];
+						if (pChunk->IsFull()) {
+							if (pFirstNonEmptyChunk == nullptr)
+								return pChunk;
+							break;
+						}
+
+						if (pChunk->HasEntities())
+							pFirstNonEmptyChunk = pChunk;
+					} while (i-- > 0);
+
+					return pFirstNonEmptyChunk;
+				}
+#endif
+
 				GAIA_NODISCARD Chunk* FindOrCreateFreeChunk_Internal(containers::darray<Chunk*>& chunkArray) const {
 					const auto chunkCnt = chunkArray.size();
 
 					if (chunkCnt > 0) {
-						// Look for chunks with free space back-to-front.
-						// We do it this way because we always try to keep fully utilized and
-						// thus only the one in the back should be free.
-						auto i = chunkCnt - 1;
-						do {
-							auto* pChunk = chunkArray[i];
+#if GAIA_AVOID_CHUNK_FRAGMENTATION
+						// In order to avoid memory fragmentation we always take from the back.
+						// This means all previous chunks are always going to be fully utilized
+						// and it is safe for as to peek at the last one to make descisions.
+						auto* pChunk = FindFirstNonFullChunk_Internal(chunkArray);
+						if (pChunk != nullptr)
+							return pChunk;
+#else
+						// Find first non-empty chunk
+						for (auto* pChunk: chunkArray) {
 							GAIA_ASSERT(pChunk != nullptr);
-							if (!pChunk->IsFull())
-								return pChunk;
-						} while (i-- > 0);
+							if (pChunk->IsFull())
+								continue;
+							return pChunk;
+						}
+#endif
 					}
 
+					// Make sure not too many chunks are allocated
 					GAIA_ASSERT(chunkCnt < UINT16_MAX);
 
 					// No free space found anywhere. Let's create a new chunk.
@@ -356,14 +432,37 @@ namespace gaia {
 						remove(m_chunks);
 				}
 
+#if GAIA_AVOID_CHUNK_FRAGMENTATION
+				void VerifyChunksFramentation() const {
+					VerifyChunksFragmentation_Internal(m_chunks);
+					VerifyChunksFragmentation_Internal(m_chunksDisabled);
+				}
+
+				//! Returns the first non-empty chunk or nullptr if none is found.
+				GAIA_NODISCARD Chunk* FindFirstNonEmptyChunk() const {
+					auto* pChunk = FindFirstNonEmptyChunk_Internal(m_chunks);
+					GAIA_ASSERT(pChunk == nullptr || !pChunk->IsDisabled());
+					return pChunk;
+				}
+
+				//! Returns the first non-empty disabled chunk or nullptr if none is found.
+				GAIA_NODISCARD Chunk* FindFirstNonEmptyChunkDisabled() const {
+					auto* pChunk = FindFirstNonEmptyChunk_Internal(m_chunksDisabled);
+					GAIA_ASSERT(pChunk == nullptr || pChunk->IsDisabled());
+					return pChunk;
+				}
+#endif
+
 				//! Tries to locate a chunk that has some space left for a new entity.
-				//! If not found a new chunk is created
+				//! If not found a new chunk is created.
 				GAIA_NODISCARD Chunk* FindOrCreateFreeChunk() {
-					return FindOrCreateFreeChunk_Internal(m_chunks);
+					auto* pChunk = FindOrCreateFreeChunk_Internal(m_chunks);
+					GAIA_ASSERT(!pChunk->IsDisabled());
+					return pChunk;
 				}
 
 				//! Tries to locate a chunk for disabled entities that has some space left for a new one.
-				//! If not found a new chunk is created
+				//! If not found a new chunk is created.
 				GAIA_NODISCARD Chunk* FindOrCreateFreeChunkDisabled() {
 					auto* pChunk = FindOrCreateFreeChunk_Internal(m_chunksDisabled);
 					pChunk->SetDisabled(true);

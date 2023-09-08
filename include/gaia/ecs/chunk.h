@@ -295,7 +295,7 @@ namespace gaia {
 				}
 
 				/*!
-				Make the \param entity entity a part of the chunk at the version of the world
+				Make \param entity a part of the chunk at the version of the world
 				\return Index of the entity within the chunk.
 				*/
 				GAIA_NODISCARD uint32_t AddEntity(Entity entity) {
@@ -310,10 +310,10 @@ namespace gaia {
 				}
 
 				/*!
-				Copies entity \param oldEntity into \param newEntity.
+				Copies all data associated with \param oldEntity into \param newEntity.
 				*/
-				static void CopyEntity(Entity oldEntity, Entity newEntity, std::span<EntityContainer> entities) {
-					GAIA_PROF_SCOPE(CopyEntity);
+				static void CopyEntityData(Entity oldEntity, Entity newEntity, std::span<EntityContainer> entities) {
+					GAIA_PROF_SCOPE(CopyEntityData);
 
 					auto& oldEntityContainer = entities[oldEntity.id()];
 					auto* pOldChunk = oldEntityContainer.pChunk;
@@ -321,17 +321,19 @@ namespace gaia {
 					auto& newEntityContainer = entities[newEntity.id()];
 					auto* pNewChunk = newEntityContainer.pChunk;
 
+					GAIA_ASSERT(pOldChunk->GetArchetypeId() == pNewChunk->GetArchetypeId());
+
 					const auto& cc = ComponentCache::Get();
-					const auto& componentIds = pOldChunk->GetComponentIdArray(component::ComponentType::CT_Generic);
-					const auto& componentOffsets = pOldChunk->GetComponentOffsetArray(component::ComponentType::CT_Generic);
+					const auto& oldInfos = pOldChunk->GetComponentIdArray(component::ComponentType::CT_Generic);
+					const auto& oldOffs = pOldChunk->GetComponentOffsetArray(component::ComponentType::CT_Generic);
 
 					// Copy generic component data from reference entity to our new entity
-					for (size_t i = 0; i < componentIds.size(); i++) {
-						const auto& desc = cc.GetComponentDesc(componentIds[i]);
+					for (size_t i = 0; i < oldInfos.size(); i++) {
+						const auto& desc = cc.GetComponentDesc(oldInfos[i]);
 						if (desc.properties.size == 0U)
 							continue;
 
-						const auto offset = componentOffsets[i];
+						const auto offset = oldOffs[i];
 						const auto idxSrc = offset + desc.properties.size * (uint32_t)oldEntityContainer.idx;
 						const auto idxDst = offset + desc.properties.size * (uint32_t)newEntityContainer.idx;
 
@@ -345,25 +347,27 @@ namespace gaia {
 				}
 
 				/*!
-				Copies entity \param entity into current chunk so that it is stored at index \param newEntityIdx.
+				Moves all data associated with \param entity into the chunk so that it is stored at \param newEntityIdx.
 				*/
-				void CopyEntityFrom(Entity entity, uint32_t newEntityIdx, std::span<EntityContainer> entities) {
+				void MoveEntityData(Entity entity, uint32_t newEntityIdx, std::span<EntityContainer> entities) {
 					GAIA_PROF_SCOPE(CopyEntityFrom);
 
 					auto& oldEntityContainer = entities[entity.id()];
 					auto* pOldChunk = oldEntityContainer.pChunk;
 
+					GAIA_ASSERT(pOldChunk->GetArchetypeId() == GetArchetypeId());
+
 					const auto& cc = ComponentCache::Get();
-					const auto& componentIds = pOldChunk->GetComponentIdArray(component::ComponentType::CT_Generic);
-					const auto& componentOffsets = pOldChunk->GetComponentOffsetArray(component::ComponentType::CT_Generic);
+					const auto& oldInfos = pOldChunk->GetComponentIdArray(component::ComponentType::CT_Generic);
+					const auto& oldOffs = pOldChunk->GetComponentOffsetArray(component::ComponentType::CT_Generic);
 
 					// Copy generic component data from reference entity to our new entity
-					for (size_t i = 0; i < componentIds.size(); i++) {
-						const auto& desc = cc.GetComponentDesc(componentIds[i]);
+					for (size_t i = 0; i < oldInfos.size(); i++) {
+						const auto& desc = cc.GetComponentDesc(oldInfos[i]);
 						if (desc.properties.size == 0U)
 							continue;
 
-						const auto offset = componentOffsets[i];
+						const auto offset = oldOffs[i];
 						const auto idxSrc = offset + desc.properties.size * (uint32_t)oldEntityContainer.idx;
 						const auto idxDst = offset + desc.properties.size * newEntityIdx;
 
@@ -372,15 +376,17 @@ namespace gaia {
 
 						auto* pSrc = (void*)&pOldChunk->GetData(idxSrc);
 						auto* pDst = (void*)&GetData(idxDst);
-						desc.Copy(pSrc, pDst);
+						desc.CtorFrom(pSrc, pDst);
 					}
+
+					// Update the entity container
 				}
 
 				/*!
-				Moves entity \param entity into current chunk so that it is stored at index \param newEntityIdx.
+				Moves all data associated with \param entity into the chunk so that it is stored at index \param newEntityIdx.
 				*/
-				void MoveEntityFrom(Entity entity, uint32_t newEntityIdx, std::span<EntityContainer> entities) {
-					GAIA_PROF_SCOPE(MoveEntityFrom);
+				void MoveForeignEntityData(Entity entity, uint32_t newEntityIdx, std::span<EntityContainer> entities) {
+					GAIA_PROF_SCOPE(MoveForeignEntityData);
 
 					auto& oldEntityContainer = entities[entity.id()];
 					auto* pOldChunk = oldEntityContainer.pChunk;
@@ -401,9 +407,12 @@ namespace gaia {
 						size_t j = 0;
 
 						auto moveData = [&](const component::ComponentDesc& desc) {
+							if (desc.properties.size == 0U)
+								return;
+
 							// Let's move all type data from oldEntity to newEntity
-							const auto idxSrc = oldOffs[i++] + desc.properties.size * (uint32_t)oldEntityContainer.idx;
-							const auto idxDst = newOffs[j++] + desc.properties.size * newEntityIdx;
+							const auto idxSrc = oldOffs[i] + desc.properties.size * (uint32_t)oldEntityContainer.idx;
+							const auto idxDst = newOffs[j] + desc.properties.size * newEntityIdx;
 
 							GAIA_ASSERT(idxSrc < Chunk::DATA_SIZE);
 							GAIA_ASSERT(idxDst < Chunk::DATA_SIZE);
@@ -417,9 +426,11 @@ namespace gaia {
 							const auto& descOld = cc.GetComponentDesc(oldInfos[i]);
 							const auto& descNew = cc.GetComponentDesc(newInfos[j]);
 
-							if (&descOld == &descNew)
+							if (&descOld == &descNew) {
 								moveData(descOld);
-							else if (component::SortComponentCond{}.operator()(descOld.componentId, descNew.componentId))
+								++i;
+								++j;
+							} else if (component::SortComponentCond{}.operator()(descOld.componentId, descNew.componentId))
 								++i;
 							else
 								++j;
@@ -430,19 +441,25 @@ namespace gaia {
 				/*!
 				Remove the entity at \param index from the \param entities array.
 				*/
-				void RemoveEntity(uint32_t index, std::span<EntityContainer> entities) {
-					// Ignore requests on empty chunks
-					if (!HasEntities())
-						return;
-
-					GAIA_PROF_SCOPE(RemoveEntity);
-
+				void RemoveLastEntity([[maybe_unused]] uint32_t index) {
+					// Should never be called over an empty chunk
+					GAIA_ASSERT(HasEntities());
 					// We can't be removing from an index which is no longer there
-					GAIA_ASSERT(index < m_header.count);
+					GAIA_ASSERT(index == m_header.count);
 
+					UpdateVersion(m_header.worldVersion);
+					UpdateWorldVersion(component::ComponentType::CT_Generic);
+					UpdateWorldVersion(component::ComponentType::CT_Chunk);
+
+					--m_header.count;
+				}
+
+				void SwapEntitiesInsideChunkAndDeleteOld(uint32_t index, std::span<EntityContainer> entities) {
 					// If there are at least two entities inside and it's not already the
 					// last one let's swap our entity with the last one in the chunk.
 					if GAIA_LIKELY (m_header.count > 1 && m_header.count != index + 1) {
+						GAIA_PROF_SCOPE(SwapEntitiesInsideChunkAndDeleteOld);
+
 						// Swap data at index with the last one
 						const auto entity = GetEntity(m_header.count - 1);
 						SetEntity(index, entity);
@@ -472,15 +489,10 @@ namespace gaia {
 
 						// Entity has been replaced with the last one in chunk.
 						// Update its index so look ups can find it.
-						entities[entity.id()].idx = index;
-						entities[entity.id()].gen = entity.gen();
+						auto& entityContainer = entities[entity.id()];
+						entityContainer.idx = index;
+						entityContainer.gen = entity.gen();
 					}
-
-					UpdateVersion(m_header.worldVersion);
-					UpdateWorldVersion(component::ComponentType::CT_Generic);
-					UpdateWorldVersion(component::ComponentType::CT_Chunk);
-
-					--m_header.count;
 				}
 
 				/*!
@@ -669,7 +681,7 @@ namespace gaia {
 				//----------------------------------------------------------------------
 
 				/*!
-				Checks if a component with \param componentId and type \param componentType is present in the archetype.
+				Checks if a component with \param componentId and type \param componentType is present in the chunk.
 				\param componentId Component id
 				\param componentType Component type
 				\return True if found. False otherwise.

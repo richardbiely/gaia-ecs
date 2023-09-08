@@ -465,12 +465,28 @@ namespace gaia {
 				return {(const T*)m_pData};
 			}
 
+			GAIA_NODISCARD iterator rbegin() const noexcept {
+				return {(T*)&back()};
+			}
+
+			GAIA_NODISCARD const_iterator crbegin() const noexcept {
+				return {(T*)&back()};
+			}
+
 			GAIA_NODISCARD iterator end() const noexcept {
 				return {(T*)m_pData + size()};
 			}
 
 			GAIA_NODISCARD const_iterator cend() const noexcept {
 				return {(const T*)m_pData + size()};
+			}
+
+			GAIA_NODISCARD iterator rend() const noexcept {
+				return {(T*)m_pData - 1};
+			}
+
+			GAIA_NODISCARD const_iterator crend() const noexcept {
+				return {(const T*)m_pData - 1};
 			}
 
 			GAIA_NODISCARD bool operator==(const darr& other) const {
