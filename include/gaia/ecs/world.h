@@ -124,6 +124,7 @@ namespace gaia {
 					pChunk->SetEntity(entityChunkIndex, lastEntity);
 					pChunk->MoveEntityData(lastEntity, entityChunkIndex, m_entities);
 					pLastChunk->RemoveLastEntity(m_chunksToRemove);
+					pLastChunk->UpdateVersions();
 
 					auto& lastEntityContainer = m_entities[lastEntity.id()];
 					lastEntityContainer.pChunk = pChunk;
@@ -131,6 +132,7 @@ namespace gaia {
 					lastEntityContainer.gen = lastEntity.gen();
 				}
 
+				pChunk->UpdateVersions();
 				if (releaseEntity)
 					ReleaseEntity(entity);
 
@@ -145,6 +147,8 @@ namespace gaia {
 					pChunk->SwapEntitiesInsideChunkAndDeleteOld(entityChunkIndex, m_entities);
 					pChunk->RemoveLastEntity(m_chunksToRemove);
 				}
+
+				pChunk->UpdateVersions();
 #endif
 			}
 

@@ -593,7 +593,6 @@ inline void DoNotOptimize(T const& value) {
 //! 1) pick any non-empty one first
 //!    - fragments memory, progresivelly slower peformance over time possible
 //!    - fast removals because entity swaps happen within the same chunk
-//!    - TODO: needs defragmentation/flattening at some point
 //! 2) always take from the last chunk
 //!    - avoids memory fragmentation altogether
 //!    - makes entity removal and component movement slower because we always swap with the last chunk
@@ -9139,11 +9138,6 @@ namespace gaia {
 				void RemoveLastEntity_Internal() {
 					// Should never be called over an empty chunk
 					GAIA_ASSERT(HasEntities());
-
-					UpdateVersion(m_header.worldVersion);
-					UpdateWorldVersion(component::ComponentType::CT_Generic);
-					UpdateWorldVersion(component::ComponentType::CT_Chunk);
-
 					--m_header.count;
 				}
 
@@ -9219,6 +9213,13 @@ namespace gaia {
 
 						chunksToRemove.push_back(this);
 					}
+				}
+
+				//! Updates the version numbers for this chunk.
+				void UpdateVersions() {
+					UpdateVersion(m_header.worldVersion);
+					UpdateWorldVersion(component::ComponentType::CT_Generic);
+					UpdateWorldVersion(component::ComponentType::CT_Chunk);
 				}
 
 				/*!
@@ -10426,8 +10427,13 @@ namespace gaia {
 					uint32_t firstFreeIdxInDstChunk = pDstChunk->GetEntityCount();
 
 					// Find the first semi-empty chunk in the back
+					bool updateDstChunkVersions = false;
 					while (front < back && m_chunks[--back]->IsSemiFull()) {
+						updateDstChunkVersions = true;
+
 						auto* pSrcChunk = m_chunks[back];
+						pSrcChunk->UpdateVersions();
+
 						const uint32_t entitiesInChunk = pSrcChunk->GetEntityCount();
 						const uint32_t entitiesToMove = entitiesInChunk > maxEntities ? maxEntities : entitiesInChunk;
 						for (uint32_t i = 0; i < entitiesToMove; ++i) {
@@ -10444,6 +10450,8 @@ namespace gaia {
 
 							// The destination chunk is full, we need to move to the next one
 							if (firstFreeIdxInDstChunk == m_properties.capacity) {
+								pDstChunk->UpdateVersions();
+								updateDstChunkVersions = false;
 								++front;
 
 								// We reached the source chunk which means this archetype has been deframented
@@ -10453,8 +10461,12 @@ namespace gaia {
 								}
 							}
 						}
+
 						maxEntities -= entitiesToMove;
 					}
+
+					if (updateDstChunkVersions)
+						pDstChunk->UpdateVersions();
 				}
 #endif
 
@@ -13310,6 +13322,7 @@ namespace gaia {
 					pChunk->SetEntity(entityChunkIndex, lastEntity);
 					pChunk->MoveEntityData(lastEntity, entityChunkIndex, m_entities);
 					pLastChunk->RemoveLastEntity(m_chunksToRemove);
+					pLastChunk->UpdateVersions();
 
 					auto& lastEntityContainer = m_entities[lastEntity.id()];
 					lastEntityContainer.pChunk = pChunk;
@@ -13317,6 +13330,7 @@ namespace gaia {
 					lastEntityContainer.gen = lastEntity.gen();
 				}
 
+				pChunk->UpdateVersions();
 				if (releaseEntity)
 					ReleaseEntity(entity);
 
@@ -13331,6 +13345,8 @@ namespace gaia {
 					pChunk->SwapEntitiesInsideChunkAndDeleteOld(entityChunkIndex, m_entities);
 					pChunk->RemoveLastEntity(m_chunksToRemove);
 				}
+
+				pChunk->UpdateVersions();
 #endif
 			}
 
