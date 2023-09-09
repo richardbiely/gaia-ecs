@@ -214,11 +214,6 @@ namespace gaia {
 				void RemoveLastEntity_Internal() {
 					// Should never be called over an empty chunk
 					GAIA_ASSERT(HasEntities());
-
-					UpdateVersion(m_header.worldVersion);
-					UpdateWorldVersion(component::ComponentType::CT_Generic);
-					UpdateWorldVersion(component::ComponentType::CT_Chunk);
-
 					--m_header.count;
 				}
 
@@ -294,6 +289,13 @@ namespace gaia {
 
 						chunksToRemove.push_back(this);
 					}
+				}
+
+				//! Updates the version numbers for this chunk.
+				void UpdateVersions() {
+					UpdateVersion(m_header.worldVersion);
+					UpdateWorldVersion(component::ComponentType::CT_Generic);
+					UpdateWorldVersion(component::ComponentType::CT_Chunk);
 				}
 
 				/*!

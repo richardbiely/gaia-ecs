@@ -485,8 +485,13 @@ namespace gaia {
 					uint32_t firstFreeIdxInDstChunk = pDstChunk->GetEntityCount();
 
 					// Find the first semi-empty chunk in the back
+					bool updateDstChunkVersions = false;
 					while (front < back && m_chunks[--back]->IsSemiFull()) {
+						updateDstChunkVersions = true;
+
 						auto* pSrcChunk = m_chunks[back];
+						pSrcChunk->UpdateVersions();
+
 						const uint32_t entitiesInChunk = pSrcChunk->GetEntityCount();
 						const uint32_t entitiesToMove = entitiesInChunk > maxEntities ? maxEntities : entitiesInChunk;
 						for (uint32_t i = 0; i < entitiesToMove; ++i) {
@@ -503,6 +508,8 @@ namespace gaia {
 
 							// The destination chunk is full, we need to move to the next one
 							if (firstFreeIdxInDstChunk == m_properties.capacity) {
+								pDstChunk->UpdateVersions();
+								updateDstChunkVersions = false;
 								++front;
 
 								// We reached the source chunk which means this archetype has been deframented
@@ -512,8 +519,12 @@ namespace gaia {
 								}
 							}
 						}
+
 						maxEntities -= entitiesToMove;
 					}
+
+					if (updateDstChunkVersions)
+						pDstChunk->UpdateVersions();
 				}
 #endif
 
