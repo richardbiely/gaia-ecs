@@ -208,6 +208,20 @@ namespace gaia {
 						return View<T>()[index];
 				}
 
+				/*!
+				Removes the entity at from the chunk and updates the world versions
+				*/
+				void RemoveLastEntity_Internal() {
+					// Should never be called over an empty chunk
+					GAIA_ASSERT(HasEntities());
+
+					UpdateVersion(m_header.worldVersion);
+					UpdateWorldVersion(component::ComponentType::CT_Generic);
+					UpdateWorldVersion(component::ComponentType::CT_Chunk);
+
+					--m_header.count;
+				}
+
 			public:
 				/*!
 				Allocates memory for a new chunk.
@@ -250,6 +264,36 @@ namespace gaia {
 #else
 					delete pChunk;
 #endif
+				}
+
+				/*!
+				Remove the last entity from chunk.
+				\param chunksToRemove Container of chunks ready for removal
+				*/
+				void RemoveLastEntity(containers::darray<archetype::Chunk*>& chunksToRemove) {
+					GAIA_ASSERT(
+							!IsStructuralChangesLocked() && "Entities can't be removed while their chunk is being iterated "
+																							"(structural changes are forbidden during this time!)");
+
+					RemoveLastEntity_Internal();
+
+					if (!IsDying() && !HasEntities()) {
+						// When the chunk is emptied we want it to be removed. We can't do it
+						// right away and need to wait for world's GC to be called.
+						//
+						// However, we need to prevent the following:
+						//    1) chunk is emptied, add it to some removal list
+						//    2) chunk is reclaimed
+						//    3) chunk is emptied, add it to some removal list again
+						//
+						// Therefore, we have a flag telling us the chunk is already waiting to
+						// be removed. The chunk might be reclaimed before GC happens but it
+						// simply ignores such requests. This way GC always has at most one
+						// record for removal for any given chunk.
+						PrepareToDie();
+
+						chunksToRemove.push_back(this);
+					}
 				}
 
 				/*!
@@ -436,22 +480,6 @@ namespace gaia {
 								++j;
 						}
 					}
-				}
-
-				/*!
-				Remove the entity at \param index from the \param entities array.
-				*/
-				void RemoveLastEntity([[maybe_unused]] uint32_t index) {
-					// Should never be called over an empty chunk
-					GAIA_ASSERT(HasEntities());
-					// We can't be removing from an index which is no longer there
-					GAIA_ASSERT(index == m_header.count);
-
-					UpdateVersion(m_header.worldVersion);
-					UpdateWorldVersion(component::ComponentType::CT_Generic);
-					UpdateWorldVersion(component::ComponentType::CT_Chunk);
-
-					--m_header.count;
 				}
 
 				void SwapEntitiesInsideChunkAndDeleteOld(uint32_t index, std::span<EntityContainer> entities) {
@@ -928,6 +956,12 @@ namespace gaia {
 				//! Checks is the full capacity of the has has been reached
 				GAIA_NODISCARD bool IsFull() const {
 					return m_header.count >= m_header.capacity;
+				}
+
+				//! Checks is the chunk is semi-full.
+				GAIA_NODISCARD bool IsSemiFull() const {
+					constexpr float Threshold = 0.7f;
+					return ((float)m_header.count / (float)m_header.capacity) < Threshold;
 				}
 
 				//! Checks is there are any entities in the chunk

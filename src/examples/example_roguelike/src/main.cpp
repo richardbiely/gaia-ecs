@@ -961,6 +961,7 @@ int main() {
 		g_smPreSimulation.Update();
 		g_smSimulation.Update();
 		g_smPostSimulation.Update();
+		g_ecs.Update();
 	}
 
 	return 0;
