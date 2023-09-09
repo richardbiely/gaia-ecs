@@ -199,12 +199,13 @@ namespace gaia {
 						if (pChunk != nullptr)
 							return pChunk;
 #else
-						// Find first non-empty chunk
+						// Find first semi-empty chunk.
+						// Picking the first non-full would only support fragmentation.
+						// TODO: Implement a semi-full chunk mask so we can search for these easily.
 						for (auto* pChunk: chunkArray) {
 							GAIA_ASSERT(pChunk != nullptr);
-							if (pChunk->IsFull())
-								continue;
-							return pChunk;
+							if (pChunk->IsSemiFull())
+								return pChunk;
 						}
 #endif
 					}
@@ -450,6 +451,69 @@ namespace gaia {
 					auto* pChunk = FindFirstNonEmptyChunk_Internal(m_chunksDisabled);
 					GAIA_ASSERT(pChunk == nullptr || pChunk->IsDisabled());
 					return pChunk;
+				}
+#else
+				//! Defragments the chunk.
+				//! \param maxEntites Maximum number of entities moved per call
+				//! \param chunksToRemove Container of chunks ready for removal
+				//! \param entities Container with entities
+				void Defragment(
+						uint32_t& maxEntities, containers::darray<Chunk*>& chunksToRemove, std::span<EntityContainer> entities) {
+					// Assuming the following chunk layout:
+					//   Chunk_1: 10/10
+					//   Chunk_2:  1/10
+					//   Chunk_3:  7/10
+					//   Chunk_4: 10/10
+					//   Chunk_5:  9/10
+					// After full defragmentation we end up with:
+					//   Chunk_1: 10/10
+					//   Chunk_2: 10/10 (7 entities from Chunk_3 + 2 entities from Chunk_5)
+					//   Chunk_3:  0/10 (empty, ready for removal)
+					//   Chunk_4: 10/10
+					//   Chunk_5:  7/10
+					// TODO:
+					// Implement mask of semi-full chunks so we can pick one easily when searching
+					// for a chunk to fill with a new entity and when defragmenting.
+
+					uint32_t front = 0;
+					uint32_t back = (uint32_t)m_chunks.size();
+
+					// Find the first semi-empty chunk in the front
+					while (front < m_chunks.size() && !m_chunks[front++]->IsSemiFull())
+						;
+					auto* pDstChunk = m_chunks[front];
+					uint32_t firstFreeIdxInDstChunk = pDstChunk->GetEntityCount();
+
+					// Find the first semi-empty chunk in the back
+					while (front < back && m_chunks[--back]->IsSemiFull()) {
+						auto* pSrcChunk = m_chunks[back];
+						const uint32_t entitiesInChunk = pSrcChunk->GetEntityCount();
+						const uint32_t entitiesToMove = entitiesInChunk > maxEntities ? maxEntities : entitiesInChunk;
+						for (uint32_t i = 0; i < entitiesToMove; ++i) {
+							const auto lastEntityIdx = entitiesInChunk - i - 1;
+							auto entity = pSrcChunk->GetEntity(lastEntityIdx);
+							pDstChunk->SetEntity(firstFreeIdxInDstChunk, entity);
+							pDstChunk->MoveEntityData(entity, firstFreeIdxInDstChunk++, entities);
+							pSrcChunk->RemoveLastEntity(chunksToRemove);
+
+							auto& lastEntityContainer = entities[entity.id()];
+							lastEntityContainer.pChunk = pDstChunk;
+							lastEntityContainer.idx = firstFreeIdxInDstChunk;
+							lastEntityContainer.gen = entity.gen();
+
+							// The destination chunk is full, we need to move to the next one
+							if (firstFreeIdxInDstChunk == m_properties.capacity) {
+								++front;
+
+								// We reached the source chunk which means this archetype has been deframented
+								if (front >= back) {
+									maxEntities -= i + 1;
+									return;
+								}
+							}
+						}
+						maxEntities -= entitiesToMove;
+					}
 				}
 #endif
 

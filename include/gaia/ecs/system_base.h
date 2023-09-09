@@ -205,8 +205,6 @@ namespace gaia {
 				}
 
 				OnAfterUpdate();
-
-				GAIA_PROF_FRAME();
 			}
 
 			template <typename T>

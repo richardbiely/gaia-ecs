@@ -83,42 +83,15 @@ namespace gaia {
 
 			//! List of chunks to delete
 			containers::darray<archetype::Chunk*> m_chunksToRemove;
+#if !GAIA_AVOID_CHUNK_FRAGMENTATION
+			//! ID of the last defragmented archetype
+			uint32_t m_defragLastArchetypeID;
+#endif
 
 			//! With every structural change world version changes
 			uint32_t m_worldVersion = 0;
 
 		private:
-			/*!
-			Remove the last entity from chunk.
-			\param pChunk Chunk we want to remove
-			\param entityChunkIndex Index of entity within its chunk we are removing
-			*/
-			void RemoveLastEntity_Internal(archetype::Chunk* pChunk, uint32_t entityChunkIndex) {
-				GAIA_ASSERT(
-						!pChunk->IsStructuralChangesLocked() && "Entities can't be removed while their chunk is being iterated "
-																										"(structural changes are forbidden during this time!)");
-
-				pChunk->RemoveLastEntity(entityChunkIndex);
-
-				if (!pChunk->IsDying() && !pChunk->HasEntities()) {
-					// When the chunk is emptied we want it to be removed. We can't do it
-					// right away and need to wait for world's GC to be called.
-					//
-					// However, we need to prevent the following:
-					//    1) chunk is emptied, add it to some removal list
-					//    2) chunk is reclaimed
-					//    3) chunk is emptied, add it to some removal list again
-					//
-					// Therefore, we have a flag telling us the chunk is already waiting to
-					// be removed. The chunk might be reclaimed before GC happens but it
-					// simply ignores such requests. This way GC always has at most one
-					// record for removal for any given chunk.
-					pChunk->PrepareToDie();
-
-					m_chunksToRemove.push_back(pChunk);
-				}
-			}
-
 			/*!
 			Remove an entity from chunk.
 			\param pChunk Chunk we remove the entity from
@@ -144,13 +117,13 @@ namespace gaia {
 				auto* pLastChunk = isDisabled ? archetype.FindFirstNonEmptyChunkDisabled() : archetype.FindFirstNonEmptyChunk();
 				if (pLastChunk == pChunk) {
 					pChunk->SwapEntitiesInsideChunkAndDeleteOld(entityChunkIndex, m_entities);
-					RemoveLastEntity_Internal(pChunk, entityChunkIndex);
+					pChunk->RemoveLastEntity(m_chunksToRemove);
 				} else if (pLastChunk != nullptr && pLastChunk->HasEntities()) {
 					const uint32_t lastEntityIdx = pLastChunk->GetEntityCount() - 1;
 					auto lastEntity = pLastChunk->GetEntity(lastEntityIdx);
 					pChunk->SetEntity(entityChunkIndex, lastEntity);
 					pChunk->MoveEntityData(lastEntity, entityChunkIndex, m_entities);
-					RemoveLastEntity_Internal(pLastChunk, lastEntityIdx);
+					pLastChunk->RemoveLastEntity(m_chunksToRemove);
 
 					auto& lastEntityContainer = m_entities[lastEntity.id()];
 					lastEntityContainer.pChunk = pChunk;
@@ -166,14 +139,30 @@ namespace gaia {
 				if (releaseEntity) {
 					auto entity = pChunk->GetEntity(entityChunkIndex);
 					pChunk->SwapEntitiesInsideChunkAndDeleteOld(entityChunkIndex, m_entities);
-					RemoveLastEntity_Internal(pChunk, entityChunkIndex);
+					pChunk->RemoveLastEntity(m_chunksToRemove);
 					ReleaseEntity(entity);
 				} else {
 					pChunk->SwapEntitiesInsideChunkAndDeleteOld(entityChunkIndex, m_entities);
-					RemoveLastEntity_Internal(pChunk, entityChunkIndex);
+					pChunk->RemoveLastEntity(m_chunksToRemove);
 				}
 #endif
 			}
+
+#if !GAIA_AVOID_CHUNK_FRAGMENTATION
+			//! Defragments chunks.
+			//! \param maxEntites Maximum number of entities moved per call
+			void DefragmentChunks(uint32_t maxEntities) {
+				const auto maxIters = (uint32_t)m_archetypes.size();
+				for (uint32_t i = 0; i < maxIters; ++i) {
+					m_defragLastArchetypeID = (m_defragLastArchetypeID + i) % maxIters;
+
+					auto* pArchetype = m_archetypes[m_defragLastArchetypeID];
+					pArchetype->Defragment(maxEntities, m_chunksToRemove, m_entities);
+					if (maxEntities == 0)
+						return;
+				}
+			}
+#endif
 
 			/*!
 			Searches for archetype with a given set of components
@@ -724,6 +713,43 @@ namespace gaia {
 				return entity;
 			}
 
+			/*!
+			Garbage collection. Checks all chunks and archetypes which are empty and have not been
+			used for a while and tries to delete them and release memory allocated by them.
+			*/
+			void GC() {
+				// Handle chunks
+				for (size_t i = 0; i < m_chunksToRemove.size();) {
+					auto* pChunk = m_chunksToRemove[i];
+
+					// Skip reclaimed chunks
+					if (pChunk->HasEntities()) {
+						pChunk->PrepareToDie();
+						utils::erase_fast(m_chunksToRemove, i);
+						continue;
+					}
+
+					if (pChunk->ProgressDeath()) {
+						++i;
+						continue;
+					}
+				}
+
+				// Remove all dead chunks
+				for (auto* pChunk: m_chunksToRemove) {
+					auto& archetype = *m_archetypes[pChunk->GetArchetypeId()];
+					archetype.RemoveChunk(pChunk);
+				}
+				m_chunksToRemove.clear();
+
+#if !GAIA_AVOID_CHUNK_FRAGMENTATION
+				// Defragment chunks only now. If we did this at the begging of the function
+				// we would needlessly iterate chunks which have no way of being collected because
+				// it would be their first frame dying.
+				DefragmentChunks(100);
+#endif
+			}
+
 		public:
 			World() {
 				Init();
@@ -1148,33 +1174,14 @@ namespace gaia {
 			}
 
 			/*!
-			Garbage collection. Checks all chunks and archetypes which are empty and have not been
-			used for a while and tries to delete them and release memory allocated by them.
+			Performs various internal operations related to the end of the frame such as
+			memory cleanup and other various managment operations which keep the system healthy.
 			*/
-			void GC() {
-				// Handle chunks
-				for (size_t i = 0; i < m_chunksToRemove.size();) {
-					auto* pChunk = m_chunksToRemove[i];
+			void Update() {
+				GC();
 
-					// Skip reclaimed chunks
-					if (pChunk->HasEntities()) {
-						pChunk->PrepareToDie();
-						utils::erase_fast(m_chunksToRemove, i);
-						continue;
-					}
-
-					if (pChunk->ProgressDeath()) {
-						++i;
-						continue;
-					}
-				}
-
-				// Remove all dead chunks
-				for (auto* pChunk: m_chunksToRemove) {
-					auto& archetype = *m_archetypes[pChunk->GetArchetypeId()];
-					archetype.RemoveChunk(pChunk);
-				}
-				m_chunksToRemove.clear();
+				// Signal the end of the frame
+				GAIA_PROF_FRAME();
 			}
 
 			//--------------------------------------------------------------------------------

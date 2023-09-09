@@ -34,7 +34,6 @@ namespace gaia {
 
 			void OnAfterUpdate() final {
 				m_afterUpdateCmdBuffer.Commit();
-				m_world.GC();
 			}
 		};
 	} // namespace ecs
