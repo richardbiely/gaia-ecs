@@ -220,9 +220,9 @@ namespace gaia {
 		#include <intrin.h>
 	#endif
 	//! Returns the number of set bits in \param x
-	#define GAIA_POPCNT(x) __popcnt(x)
+	#define GAIA_POPCNT(x) ((uint32_t)__popcnt(x))
 	//! Returns the number of set bits in \param x
-	#define GAIA_POPCNT64(x) __popcnt64(x)
+	#define GAIA_POPCNT64(x) ((uint32_t)__popcnt64(x))
 
 	#pragma intrinsic(_BitScanForward)
 	//! Returns the number of leading zeros of \param x or 32 if \param x is 0.
@@ -280,30 +280,30 @@ namespace gaia {
 		}(x))
 #elif GAIA_COMPILER_CLANG || GAIA_COMPILER_GCC
 	//! Returns the number of set bits in \param x
-	#define GAIA_POPCNT(x) __builtin_popcount(x)
+	#define GAIA_POPCNT(x) ((uint32_t)__builtin_popcount(x))
 	//! Returns the number of set bits in \param x
-	#define GAIA_POPCNT64(x) __builtin_popcountll(x)
+	#define GAIA_POPCNT64(x) ((uint32_t)__builtin_popcountll(x))
 
 	//! Returns the number of leading zeros of \param x or 32 if \param x is 0.
 	//! \warning Little-endian format.
-	#define GAIA_CLZ(x) ((x) ? __builtin_ctz(x) : 32)
+	#define GAIA_CLZ(x) ((x) ? (uint32_t)__builtin_ctz(x) : (uint32_t)32)
 	//! Returns the number of leading zeros of \param x or 64 if \param x is 0.
 	//! \warning Little-endian format.
-	#define GAIA_CLZ64(x) ((x) ? __builtin_ctzll(x) : 64)
+	#define GAIA_CLZ64(x) ((x) ? (uint32_t)__builtin_ctzll(x) : (uint32_t)64)
 
 	//! Returns the number of trailing zeros of \param x or 32 if \param x is 0.
 	//! \warning Little-endian format.
-	#define GAIA_CTZ(x) ((x) ? __builtin_clz(x) : 32)
+	#define GAIA_CTZ(x) ((x) ? (uint32_t)__builtin_clz(x) : (uint32_t)32)
 	//! Returns the number of trailing zeros of \param x or 64 if \param x is 0.
 	//! \warning Little-endian format.
-	#define GAIA_CTZ64(x) ((x) ? __builtin_clzll(x) : 64)
+	#define GAIA_CTZ64(x) ((x) ? (uint32_t)__builtin_clzll(x) : (uint32_t)64)
 
 	//! Returns 1 plus the index of the least significant set bit of \param x, or 0 if \param x is 0.
 	//! \warning Little-endian format.
-	#define GAIA_FFS(x) __builtin_ffs(x)
+	#define GAIA_FFS(x) ((uint32_t)__builtin_ffs(x))
 	//! Returns 1 plus the index of the least significant set bit of \param x, or 0 if \param x is 0.
 	//! \warning Little-endian format.
-	#define GAIA_FFS64(x) __builtin_ffsll(x)
+	#define GAIA_FFS64(x) ((uint32_t)__builtin_ffsll(x))
 #else
 	//! Returns the number of set bits in \param x
 	#define GAIA_POPCNT(x)                                                                                               \

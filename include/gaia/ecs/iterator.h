@@ -4,6 +4,7 @@
 #include <cinttypes>
 #include <type_traits>
 
+#include "chunk_header.h"
 #include "component.h"
 #include "query_info.h"
 
@@ -23,60 +24,28 @@ namespace gaia {
 			uint32_t operator*() const {
 				return m_pos;
 			}
+
 			uint32_t operator->() const {
 				return m_pos;
-			}
-
-			GAIA_NODISCARD Iterator operator[](uint32_t offset) const {
-				return {m_info, m_chunk, m_pos + offset};
 			}
 
 			Iterator& operator++() {
 				++m_pos;
 				return *this;
 			}
-			Iterator operator++(int) {
+
+			GAIA_NODISCARD Iterator operator++(int) {
 				Iterator temp(*this);
 				++*this;
 				return temp;
-			}
-			Iterator& operator--() {
-				--m_pos;
-				return *this;
-			}
-			Iterator operator--(int) {
-				Iterator temp(*this);
-				--*this;
-				return temp;
-			}
-
-			GAIA_NODISCARD Iterator operator+(uint32_t offset) const {
-				return {m_info, m_chunk, m_pos + offset};
-			}
-			GAIA_NODISCARD Iterator operator-(uint32_t offset) const {
-				return {m_info, m_chunk, m_pos - offset};
-			}
-			GAIA_NODISCARD uint32_t operator-(const Iterator& other) const {
-				return m_pos - other.m_pos;
 			}
 
 			GAIA_NODISCARD bool operator==(const Iterator& other) const {
 				return m_pos == other.m_pos;
 			}
+
 			GAIA_NODISCARD bool operator!=(const Iterator& other) const {
 				return m_pos != other.m_pos;
-			}
-			GAIA_NODISCARD bool operator>(const Iterator& other) const {
-				return m_pos > other.m_pos;
-			}
-			GAIA_NODISCARD bool operator>=(const Iterator& other) const {
-				return m_pos >= other.m_pos;
-			}
-			GAIA_NODISCARD bool operator<(const Iterator& other) const {
-				return m_pos < other.m_pos;
-			}
-			GAIA_NODISCARD bool operator<=(const Iterator& other) const {
-				return m_pos <= other.m_pos;
 			}
 
 			GAIA_NODISCARD Iterator begin() const {

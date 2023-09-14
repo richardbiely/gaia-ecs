@@ -22,6 +22,7 @@
 #include "common.h"
 #include "component.h"
 #include "component_cache.h"
+#include "component_setter.h"
 #include "component_utils.h"
 #include "entity.h"
 #include "query.h"
@@ -30,34 +31,6 @@
 
 namespace gaia {
 	namespace ecs {
-
-		//----------------------------------------------------------------------
-
-		struct ComponentSetter {
-			archetype::Chunk* m_pChunk;
-			uint32_t m_idx;
-
-			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
-			ComponentSetter& SetComponent(U&& data) {
-				if constexpr (component::IsGenericComponent<T>)
-					m_pChunk->template SetComponent<T>(m_idx, std::forward<U>(data));
-				else
-					m_pChunk->template SetComponent<T>(std::forward<U>(data));
-				return *this;
-			}
-
-			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
-			ComponentSetter& SetComponentSilent(U&& data) {
-				if constexpr (component::IsGenericComponent<T>)
-					m_pChunk->template SetComponentSilent<T>(m_idx, std::forward<U>(data));
-				else
-					m_pChunk->template SetComponentSilent<T>(std::forward<U>(data));
-				return *this;
-			}
-		};
-
-		//----------------------------------------------------------------------
-
 		class GAIA_API World final {
 			friend class ECSSystem;
 			friend class ECSSystemManager;
@@ -92,11 +65,9 @@ namespace gaia {
 			uint32_t m_worldVersion = 0;
 
 		private:
-			/*!
-			Remove an entity from chunk.
-			\param pChunk Chunk we remove the entity from
-			\param entityChunkIndex Index of entity within its chunk
-			*/
+			//! Remove an entity from chunk.
+			//! \param pChunk Chunk we remove the entity from
+			//! \param entityChunkIndex Index of entity within its chunk
 			void RemoveEntity(archetype::Chunk* pChunk, uint32_t entityChunkIndex, bool releaseEntity) {
 				GAIA_ASSERT(
 						!pChunk->IsStructuralChangesLocked() && "Entities can't be removed while their chunk is being iterated "
@@ -113,7 +84,7 @@ namespace gaia {
 
 				// Swap the last entity in the last chunk with the entity spot we just created by moving
 				// the entity to somewhere else.
-				const bool isDisabled = pChunk->IsDisabled();
+				const bool isDisabled = pChunk->HasDisabledEntities();
 				auto* pLastChunk = isDisabled ? archetype.FindFirstNonEmptyChunkDisabled() : archetype.FindFirstNonEmptyChunk();
 				if (pLastChunk == pChunk) {
 					pChunk->SwapEntitiesInsideChunkAndDeleteOld(entityChunkIndex, m_entities);
@@ -168,13 +139,11 @@ namespace gaia {
 			}
 #endif
 
-			/*!
-			Searches for archetype with a given set of components
-			\param lookupHash Archetype lookup hash
-			\param componentIdsGeneric Span of generic component ids
-			\param componentIdsChunk Span of chunk component ids
-			\return Pointer to archetype or nullptr
-			*/
+			//! Searches for archetype with a given set of components
+			//! \param lookupHash Archetype lookup hash
+			//! \param componentIdsGeneric Span of generic component ids
+			//! \param componentIdsChunk Span of chunk component ids
+			//! \return Pointer to archetype or nullptr.
 			GAIA_NODISCARD archetype::Archetype* FindArchetype(
 					archetype::LookupHash lookupHash, component::ComponentIdSpan componentIdsGeneric,
 					component::ComponentIdSpan componentIdsChunk) {
@@ -219,12 +188,10 @@ namespace gaia {
 				return nullptr;
 			}
 
-			/*!
-			Creates a new archetype from a given set of components
-			\param componentIdsGeneric Span of generic component infos
-			\param componentIdsChunk Span of chunk component infos
-			\return Pointer to the new archetype
-			*/
+			//! Creates a new archetype from a given set of components
+			//! \param componentIdsGeneric Span of generic component infos
+			//! \param componentIdsChunk Span of chunk component infos
+			//! \return Pointer to the new archetype.
 			GAIA_NODISCARD archetype::Archetype*
 			CreateArchetype(component::ComponentIdSpan componentIdsGeneric, component::ComponentIdSpan componentIdsChunk) {
 				auto* pArchetype = archetype::Archetype::Create(
@@ -246,10 +213,8 @@ namespace gaia {
 				return pArchetype;
 			}
 
-			/*!
-			Registers the archetype in the world.
-			\param pArchetype Archetype to register
-			*/
+			//! Registers the archetype in the world.
+			//! \param pArchetype Archetype to register.
 			void RegisterArchetype(archetype::Archetype* pArchetype) {
 				// Make sure hashes were set already
 				GAIA_ASSERT(
@@ -338,14 +303,12 @@ namespace gaia {
 			}
 #endif
 
-			/*!
-			Searches for an archetype which is formed by adding \param componentType to \param pArchetypeLeft.
-			If no such archetype is found a new one is created.
-			\param pArchetypeLeft Archetype we originate from.
-			\param componentType Component infos.
-			\param infoToAdd Component we want to add.
-			\return Pointer to archetype
-			*/
+			//! Searches for an archetype which is formed by adding \param componentType to \param pArchetypeLeft.
+			//! If no such archetype is found a new one is created.
+			//! \param pArchetypeLeft Archetype we originate from.
+			//! \param componentType Component infos.
+			//! \param infoToAdd Component we want to add.
+			//! \return Pointer to archetype.
 			GAIA_NODISCARD archetype::Archetype* FindOrCreateArchetype_AddComponent(
 					archetype::Archetype* pArchetypeLeft, component::ComponentType componentType,
 					const component::ComponentInfo& infoToAdd) {
@@ -428,14 +391,12 @@ namespace gaia {
 				return pArchetypeRight;
 			}
 
-			/*!
-			Searches for an archetype which is formed by removing \param componentType from \param pArchetypeRight.
-			If no such archetype is found a new one is created.
-			\param pArchetypeRight Archetype we originate from.
-			\param componentType Component infos.
-			\param infoToRemove Component we want to remove.
-			\return Pointer to archetype
-			*/
+			//! Searches for an archetype which is formed by removing \param componentType from \param pArchetypeRight.
+			//! If no such archetype is found a new one is created.
+			//! \param pArchetypeRight Archetype we originate from.
+			//! \param componentType Component infos.
+			//! \param infoToRemove Component we want to remove.
+			//! \return Pointer to archetype.
 			GAIA_NODISCARD archetype::Archetype* FindOrCreateArchetype_RemoveComponent(
 					archetype::Archetype* pArchetypeRight, component::ComponentType componentType,
 					const component::ComponentInfo& infoToRemove) {
@@ -483,19 +444,15 @@ namespace gaia {
 				return pArchetype;
 			}
 
-			/*!
-			Returns an array of archetypes registered in the world
-			\return Array or archetypes
-			*/
+			//! Returns an array of archetypes registered in the world
+			//! \return Array or archetypes.
 			const auto& GetArchetypes() const {
 				return m_archetypes;
 			}
 
-			/*!
-			Returns the archetype the entity belongs to.
-			\param entity Entity
-			\return Reference to the archetype
-			*/
+			//! Returns the archetype the entity belongs to.
+			//! \param entity Entity
+			//! \return Reference to the archetype.
 			GAIA_NODISCARD archetype::Archetype& GetArchetype(Entity entity) const {
 				GAIA_ASSERT(IsEntityValid(entity));
 
@@ -510,11 +467,9 @@ namespace gaia {
 				entityContainer.pChunk = nullptr;
 			}
 
-			/*!
-			Associates an entity with a chunk.
-			\param entity Entity to associate with a chunk
-			\param pChunk Chunk the entity is to become a part of
-			*/
+			//! Associates an entity with a chunk.
+			//! \param entity Entity to associate with a chunk
+			//! \param pChunk Chunk the entity is to become a part of
 			void StoreEntity(Entity entity, archetype::Chunk* pChunk) {
 				GAIA_ASSERT(pChunk != nullptr);
 				GAIA_ASSERT(
@@ -695,10 +650,8 @@ namespace gaia {
 #endif
 			}
 
-			/*!
-			Creates a new entity from archetype
-			\return Entity
-			*/
+			//! Creates a new entity from archetype
+			//! \return Entity
 			GAIA_NODISCARD Entity CreateEntity(archetype::Archetype& archetype) {
 				const auto entity = CreateEntity();
 
@@ -717,10 +670,8 @@ namespace gaia {
 				return entity;
 			}
 
-			/*!
-			Garbage collection. Checks all chunks and archetypes which are empty and have not been
-			used for a while and tries to delete them and release memory allocated by them.
-			*/
+			//! Garbage collection. Checks all chunks and archetypes which are empty and have not been
+			//! used for a while and tries to delete them and release memory allocated by them.
 			void GC() {
 				// Handle chunks
 				for (size_t i = 0; i < m_chunksToRemove.size();) {
@@ -802,29 +753,23 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			/*!
-			Returns the current version of the world.
-			\return World version number
-			*/
+			//! Returns the current version of the world.
+			//! \return World version number.
 			GAIA_NODISCARD uint32_t& GetWorldVersion() {
 				return m_worldVersion;
 			}
 
 			//----------------------------------------------------------------------
 
-			/*!
-			Creates a new empty entity
-			\return Entity
-			*/
+			//! Creates a new empty entity
+			//! \return Entity
 			GAIA_NODISCARD Entity CreateEntity() {
 				return m_entities.allocate();
 			}
 
-			/*!
-			Creates a new entity by cloning an already existing one.
-			\param entity Entity
-			\return Entity
-			*/
+			//! Creates a new entity by cloning an already existing one.
+			//! \param entity Entity
+			//! \return Entity
 			GAIA_NODISCARD Entity CreateEntity(Entity entity) {
 				auto& entityContainer = m_entities[entity.id()];
 
@@ -842,10 +787,8 @@ namespace gaia {
 				return newEntity;
 			}
 
-			/*!
-			Removes an entity along with all data associated with it.
-			\param entity Entity
-			*/
+			//! Removes an entity along with all data associated with it.
+			//! \param entity Entity
 			void DeleteEntity(Entity entity) {
 				if (m_entities.item_count() == 0 || entity == EntityNull)
 					return;
@@ -864,11 +807,9 @@ namespace gaia {
 				}
 			}
 
-			/*!
-			Enables or disables an entire entity.
-			\param entity Entity
-			\param enable Enable or disable the entity
-			*/
+			//! Enables or disables an entire entity.
+			//! \param entity Entity
+			//! \param enable Enable or disable the entity
 			void EnableEntity(Entity entity, bool enable) {
 				auto& entityContainer = m_entities[entity.id()];
 
@@ -877,70 +818,37 @@ namespace gaia {
 						"Entities can't be enabled/disabled while their chunk is being iterated "
 						"(structural changes are forbidden during this time!)");
 
-				if (enable != (bool)entityContainer.disabled)
-					return;
-				entityContainer.disabled = !enable;
-
-				const uint32_t idxOld = entityContainer.idx;
-
-				if (auto* pChunkFrom = entityContainer.pChunk) {
-					auto& archetype = *m_archetypes[pChunkFrom->GetArchetypeId()];
-
-					{
-						// Create a spot in the new chunk
-						auto* pChunkTo = enable ? archetype.FindOrCreateFreeChunk() : archetype.FindOrCreateFreeChunkDisabled();
-						const auto idxNew = pChunkTo->AddEntity(entity);
-
-						// Copy generic component data from the reference entity to our new entity
-						pChunkTo->MoveEntityData(entity, idxNew, m_entities);
-
-						// Remove the entity from the old chunk
-						RemoveEntity(pChunkFrom, idxOld, false);
-
-						// Update the entity container with new info
-						entityContainer.pChunk = pChunkTo;
-						entityContainer.idx = idxNew;
-					}
-
-#if GAIA_AVOID_CHUNK_FRAGMENTATION
-					archetype.VerifyChunksFramentation();
-#endif
+				if (auto* pChunk = entityContainer.pChunk) {
+					auto& archetype = *m_archetypes[pChunk->GetArchetypeId()];
+					archetype.EnableEntity(pChunk, entityContainer.idx, enable);
 				}
 			}
 
-			/*!
-			Returns the number of active entities
-			\return Entity
-			*/
+			//! Returns the number of active entities
+			//! \return Entity
 			GAIA_NODISCARD GAIA_FORCEINLINE uint32_t GetEntityCount() const {
 				return m_entities.item_count();
 			}
 
-			/*!
-			Returns an entity at a given position
-			\return Entity
-			*/
+			//! Returns an entity at a given position
+			//! \return Entity
 			GAIA_NODISCARD Entity GetEntity(uint32_t idx) const {
 				GAIA_ASSERT(idx < m_entities.size());
 				const auto& entityContainer = m_entities[idx];
 				return {idx, entityContainer.gen};
 			}
 
-			/*!
-			Returns a chunk containing the given entity.
-			\return Chunk or nullptr if not found
-			*/
+			//! Returns a chunk containing the given entity.
+			//! \return Chunk or nullptr if not found.
 			GAIA_NODISCARD archetype::Chunk* GetChunk(Entity entity) const {
 				GAIA_ASSERT(entity.id() < m_entities.size());
 				const auto& entityContainer = m_entities[entity.id()];
 				return entityContainer.pChunk;
 			}
 
-			/*!
-			Returns a chunk containing the given entity.
-			Index of the entity is stored in \param indexInChunk
-			\return Chunk or nullptr if not found
-			*/
+			//! Returns a chunk containing the given entity.
+			//! Index of the entity is stored in \param indexInChunk
+			//! \return Chunk or nullptr if not found
 			GAIA_NODISCARD archetype::Chunk* GetChunk(Entity entity, uint32_t& indexInChunk) const {
 				GAIA_ASSERT(entity.id() < m_entities.size());
 				const auto& entityContainer = m_entities[entity.id()];
@@ -950,14 +858,12 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			/*!
-			Attaches a new component \tparam T to \param entity.
-			\warning It is expected the component is not present on \param entity yet. Undefined behavior otherwise.
-			\warning It is expected \param entity is valid. Undefined behavior otherwise.
-			\tparam T Component
-			\param entity Entity
-			\return ComponentSetter object.
-			*/
+			//! Attaches a new component \tparam T to \param entity.
+			//! \tparam T Component
+			//! \param entity Entity
+			//! \return ComponentSetter
+			//! \warning It is expected the component is not present on \param entity yet. Undefined behavior otherwise.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename T>
 			ComponentSetter AddComponent(Entity entity) {
 				component::VerifyComponent<T>();
@@ -975,15 +881,13 @@ namespace gaia {
 				}
 			}
 
-			/*!
-			Attaches a new component \tparam T to \param entity. Also sets its value.
-			\warning It is expected the component is not present on \param entity yet. Undefined behavior otherwise.
-			\warning It is expected \param entity is valid. Undefined behavior otherwise.
-			\tparam T Component
-			\param entity Entity
-			\param value Value to set for the component
-			\return ComponentSetter object.
-			*/
+			//! Attaches a new component \tparam T to \param entity. Also sets its value.
+			//! \tparam T Component
+			//! \param entity Entity
+			//! \param value Value to set for the component
+			//! \return ComponentSetter object.
+			//! \warning It is expected the component is not present on \param entity yet. Undefined behavior otherwise.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
 			ComponentSetter AddComponent(Entity entity, U&& value) {
 				component::VerifyComponent<T>();
@@ -1004,14 +908,12 @@ namespace gaia {
 				}
 			}
 
-			/*!
-			Removes a component \tparam T from \param entity.
-			\warning It is expected the component is present on \param entity. Undefined behavior otherwise.
-			\warning It is expected \param entity is valid. Undefined behavior otherwise.
-			\tparam T Component
-			\param entity Entity
-			\return ComponentSetter object.
-			*/
+			//! Removes a component \tparam T from \param entity.
+			//! \tparam T Component
+			//! \param entity Entity
+			//! \return ComponentSetter
+			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename T>
 			ComponentSetter RemoveComponent(Entity entity) {
 				component::VerifyComponent<T>();
@@ -1026,15 +928,13 @@ namespace gaia {
 					return RemoveComponent_Internal(component::ComponentType::CT_Chunk, entity, info);
 			}
 
-			/*!
-			Sets the value of the component \tparam T on \param entity.
-			\warning It is expected the component is present on \param entity. Undefined behavior otherwise.
-			\warning It is expected \param entity is valid. Undefined behavior otherwise.
-			\tparam T Component
-			\param entity Entity
-			\param value Value to set for the component
-			\return ComponentSetter object.
-			*/
+			//! Sets the value of the component \tparam T on \param entity.
+			//! \tparam T Component
+			//! \param entity Entity
+			//! \param value Value to set for the component
+			//! \return ComponentSetter
+			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
 			ComponentSetter SetComponent(Entity entity, U&& value) {
 				component::VerifyComponent<T>();
@@ -1044,15 +944,13 @@ namespace gaia {
 				return ComponentSetter{entityContainer.pChunk, entityContainer.idx}.SetComponent<T>(std::forward<U>(value));
 			}
 
-			/*!
-			Sets the value of the component \tparam T on \param entity.
-			\warning It is expected the component is present on \param entity. Undefined behavior otherwise.
-			\warning It is expected \param entity is valid. Undefined behavior otherwise.
-			\tparam T Component
-			\param entity Entity
-			\param value Value to set for the component
-			\return ComponentSetter object.
-			*/
+			//! Sets the value of the component \tparam T on \param entity.
+			//! \tparam T Component
+			//! \param entity Entity
+			//! \param value Value to set for the component
+			//! \return ComponentSetter
+			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
 			ComponentSetter SetComponentSilent(Entity entity, U&& value) {
 				component::VerifyComponent<T>();
@@ -1063,14 +961,12 @@ namespace gaia {
 						std::forward<U>(value));
 			}
 
-			/*!
-			Returns the value stored in the component \tparam T on \param entity.
-			\warning It is expected the component is present on \param entity. Undefined behavior otherwise.
-			\warning It is expected \param entity is valid. Undefined behavior otherwise.
-			\tparam T Component
-			\param entity Entity
-			\return Value stored in the component.
-			*/
+			//! Returns the value stored in the component \tparam T on \param entity.
+			//! \tparam T Component
+			//! \param entity Entity
+			//! \return Value stored in the component.
+			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename T>
 			GAIA_NODISCARD auto GetComponent(Entity entity) const {
 				component::VerifyComponent<T>();
@@ -1087,13 +983,11 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			/*!
-			Tells if \param entity contains the component \tparam T.
-			\warning It is expected \param entity is valid. Undefined behavior otherwise.
-			\tparam T Component
-			\param entity Entity
-			\return True if the component is present on entity.
-			*/
+			//! Tells if \param entity contains the component \tparam T.
+			//! \tparam T Component
+			//! \param entity Entity
+			//! \return True if the component is present on entity.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename T>
 			GAIA_NODISCARD bool HasComponent(Entity entity) const {
 				component::VerifyComponent<T>();
@@ -1151,13 +1045,11 @@ namespace gaia {
 				return Query(m_queryCache, m_worldVersion, m_archetypes, m_componentToArchetypeMap);
 			}
 
-			/*!
-			Iterates over all chunks satisfying conditions set by \param func and calls \param func for all of them.
-			Query instance is generated internally from the input arguments of \param func.
-			\warning Performance-wise it has less potential than iterating using ecs::Chunk or a comparable ForEach
-			passing in a query because it needs to do cached query lookups on each invocation. However, it is easier to
-			use and for non-critical code paths it is the most elegant way of iterating your data.
-			*/
+			//! Iterates over all chunks satisfying conditions set by \param func and calls \param func for all of them.
+			//! Query instance is generated internally from the input arguments of \param func.
+			//! \warning Performance-wise it has less potential than iterating using ecs::Chunk or a comparable ForEach
+			//!          passing in a query because it needs to do cached query lookups on each invocation. However, it is
+			//!          easier to use and for non-critical code paths it is the most elegant way of iterating your data.
 			template <typename Func>
 			void ForEach(Func func) {
 				using InputArgs = decltype(utils::func_args(&Func::operator()));
@@ -1177,10 +1069,8 @@ namespace gaia {
 				}
 			}
 
-			/*!
-			Performs various internal operations related to the end of the frame such as
-			memory cleanup and other various managment operations which keep the system healthy.
-			*/
+			//! Performs various internal operations related to the end of the frame such as
+			//! memory cleanup and other various managment operations which keep the system healthy.
 			void Update() {
 				GC();
 
@@ -1190,27 +1080,21 @@ namespace gaia {
 
 			//--------------------------------------------------------------------------------
 
-			/*!
-			Performs diagnostics on archetypes. Prints basic info about them and the chunks they contain.
-			*/
+			//! Performs diagnostics on archetypes. Prints basic info about them and the chunks they contain.
 			void DiagArchetypes() const {
 				GAIA_LOG_N("Archetypes:%u", (uint32_t)m_archetypes.size());
 				for (const auto* archetype: m_archetypes)
 					archetype::Archetype::DiagArchetype(*archetype);
 			}
 
-			/*!
-			Performs diagnostics on registered components.
-			Prints basic info about them and reports and detected issues.
-			*/
+			//! Performs diagnostics on registered components.
+			//! Prints basic info about them and reports and detected issues.
 			static void DiagRegisteredTypes() {
 				ComponentCache::Get().Diag();
 			}
 
-			/*!
-			Performs diagnostics on entites of the world.
-			Also performs validation of internal structures which hold the entities.
-			*/
+			//! Performs diagnostics on entites of the world.
+			//! Also performs validation of internal structures which hold the entities.
 			void DiagEntities() const {
 				ValidateEntityList();
 

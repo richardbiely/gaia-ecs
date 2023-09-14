@@ -38,7 +38,6 @@ Gaia-ECS is a fast and easy-to-use [ECS](#ecs) framework. Some of its current fe
   * [Minimum requirements](#minimum-requirements)
   * [Basic operations](#basic-operations)
     * [Create or delete entity](#create-or-delete-entity)
-    * [Enable or disable entity](#enable-or-disable-entity)
     * [Add or remove component](#add-or-remove-component)
     * [Set or get component value](#set-or-get-component-value)
     * [Component presence](#component-presence)
@@ -47,6 +46,7 @@ Gaia-ECS is a fast and easy-to-use [ECS](#ecs) framework. Some of its current fe
     * [Simple iteration](#simple-iteration)
     * [Query iteration](#query-iteration)
     * [Iterator](#iterator)
+    * [Constraints](#constraints)
     * [Change detection](#change-detection)
   * [Chunk components](#chunk-components)
   * [Delayed execution](#delayed-execution)
@@ -115,18 +115,6 @@ ecs::World w;
 auto e = w.CreateEntity();
 ... // do something with the created entity
 w.DeleteEntity(e);
-```
-
-### Enable or disable entity
-Disabled entities are moved to chunks different from the rest. Because of that, they do not take part in queries by default.
-
-The behavior of EnableEntity is similar to that of calling DeleteEntity/CreateEntity. However, the main benefit is that a disabled entity keeps its ID intact which means you can reference it freely.
-
-```cpp
-ecs::World w;
-auto e = w.CreateEntity();
-w.EnableEntity(e, false); // disable the entity
-w.EnableEntity(e, true); // enable the entity again
 ```
 
 ### Add or remove component
@@ -239,35 +227,6 @@ q.All<Position>() // Take into account everything with Position...
  .None<Player>(); // ... and no Player component...
 ```
 
-Query behavior can also be modified by setting constraints. By default, only enabled entities are taken into account. However, by changing constraints, we can filter disabled entities exclusively or make the query consider both enabled and disabled entities at the same time:
-
-```cpp
-ecs::Entity e1, e2;
-
-// Create 2 entities with Position component
-w.CreateEntity(e1);
-w.CreateEntity(e2);
-w.AddComponent<Position>(e1);
-w.AddComponent<Position>(e2);
-
-// Disable the first entity
-w.EnableEntity(e1, false);
-
-ecs::Query q = w.CreateQuery().All<Position>();
-containers::darray<ecs::Entity> entities;
-
-// Fills the array with only e2 because e1 is disabled.
-q.ToArray(entities);
-
-// Fills the array with both e1 and e2.
-q.SetConstraint(ecs::Query::Constraint::AcceptAll);
-q.ToArray(entities);
-
-// Fills the array with only e1 because e1 is disabled.
-q.SetConstraint(ecs::Query::Constraint::DisabledOnly);
-q.ToArray(entities);
-```
-
 ### Simple iteration
 The simplest way to iterate over data is using ecs::World::ForEach.<br/>
 It provides the least room for optimization (that does not mean the generated code is slow by any means) but is very easy to read.
@@ -318,6 +277,64 @@ q.ForEach([](ecs::Iterator iter) {
     p[i].z += v[i].z * dt;
   }
 });
+```
+
+### Constraints
+
+Query behavior can also be modified by setting constraints. By default, only enabled entities are taken into account. However, by changing constraints, we can filter disabled entities exclusively or make the query consider both enabled and disabled entities at the same time.
+
+Changing the enabled state of an entity is a special operation that marks the entity as invisible to queries by default. Archetype of the entity is not changed and therefore the operation is very fast (basically, just setting a flag).
+
+```cpp
+ecs::Entity e1, e2;
+
+// Create 2 entities with Position component
+w.CreateEntity(e1);
+w.CreateEntity(e2);
+w.AddComponent<Position>(e1);
+w.AddComponent<Position>(e2);
+
+// Disable the first entity
+w.EnableEntity(e1, false);
+
+ecs::Query q = w.CreateQuery().All<Position>();
+containers::darray<ecs::Entity> entities;
+
+// Fills the array with only e2 because e1 is disabled.
+q.ToArray(entities);
+
+// Fills the array with both e1 and e2.
+q.ToArray(entities, ecs::Query::Constraint::AcceptAll);
+
+// Fills the array with only e1 because e1 is disabled.
+q.ToArray(entities, ecs::Query::Constraint::DisabledOnly);
+
+q.ForEach([](ecs::Iterator iter) {
+  // Iterates over all entities
+});
+q.ForEach([](ecs::IteratorDisabled iter) {
+  // Iterates only over disabled entities
+});
+q.ForEach([](ecs::IteratorEnabled iter) {
+  // Iterates only over enabled entities
+});
+```
+
+Of course, if you do not wish to fragment entities inside the chunk you can simply create a tag component and assign it to your entity. This will move the entity to a new archetype so it is a lot slower. However, because disabled entities are now clearly separated calling some query operations might be slightly faster (no need to check if the entity is disabled or not internally).
+
+```cpp
+struct Disabled {};
+
+...
+
+e.AddComponent<Disabled>(); // disabled entity
+
+ecs::Query q = w.CreateQuery().All<Position, Disabled>; 
+q.ForEach([&](ecs::Iterator iter){
+  // Processes all disabled entities
+});
+
+e.RemoveComponent<Disabled>(); // enable entity
 ```
 
 ### Change detection

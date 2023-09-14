@@ -538,17 +538,39 @@ void test_bitset() {
 		REQUIRE(bs.all() == false);
 		REQUIRE(bs.none() == true);
 	}
+	SECTION("Ranges") {
+		containers::bitset<11> bs;
+		bs.set(1);
+		bs.set(10);
+		bs.flip(2, 9);
+		for (uint32_t i = 2; i <= 10; ++i)
+			REQUIRE(bs.test(i) == true);
+		bs.flip(2, 9);
+		for (uint32_t i = 2; i < 10; ++i)
+			REQUIRE(bs.test(i) == false);
+		REQUIRE(bs.test(1));
+		REQUIRE(bs.test(10));
+	}
 	SECTION("Iteration") {
+		{
+			containers::bitset<NBits> bs;
+			uint32_t i = 0;
+			for (auto val: bs)
+				++i;
+			REQUIRE(i == 0);
+		}
 		auto fwd_iterator_test = [](std::span<uint32_t> vals) {
 			containers::bitset<NBits> bs;
-			bs.set(vals[0]);
-			bs.set(vals[1]);
-			bs.set(vals[2]);
+			for (uint32_t bit: vals)
+				bs.set(bit);
+			const uint32_t c = bs.count();
+
 			uint32_t i = 0;
 			for (auto val: bs) {
 				REQUIRE(vals[i] == val);
 				++i;
 			}
+			REQUIRE(i == c);
 			REQUIRE(i == (uint32_t)vals.size());
 		};
 		{
@@ -602,6 +624,180 @@ TEST_CASE("Containers - bitset") {
 	}
 	SECTION("150 bits") {
 		test_bitset<150>();
+	}
+	SECTION("512 bits") {
+		test_bitset<512>();
+	}
+}
+
+template <uint32_t NBits>
+void test_dbitset() {
+	// Following tests expect at least 5 bits of space
+	static_assert(NBits >= 5);
+
+	SECTION("Bit operations") {
+		containers::dbitset bs;
+		REQUIRE(bs.count() == 0);
+		REQUIRE(bs.size() == 0);
+		REQUIRE(bs.any() == false);
+		REQUIRE(bs.all() == false);
+		REQUIRE(bs.none() == true);
+
+		bs.set(0, true);
+		REQUIRE(bs.test(0) == true);
+		REQUIRE(bs.count() == 1);
+		REQUIRE(bs.any() == true);
+		REQUIRE(bs.all() == true);
+		REQUIRE(bs.none() == false);
+
+		bs.set(1, true);
+		REQUIRE(bs.test(1) == true);
+		REQUIRE(bs.count() == 2);
+		REQUIRE(bs.any() == true);
+		REQUIRE(bs.all() == true);
+		REQUIRE(bs.none() == false);
+
+		bs.set(1, false);
+		REQUIRE(bs.test(1) == false);
+		REQUIRE(bs.count() == 1);
+		REQUIRE(bs.any() == true);
+		REQUIRE(bs.all() == false);
+		REQUIRE(bs.none() == false);
+
+		bs.flip(1);
+		REQUIRE(bs.test(1) == true);
+		REQUIRE(bs.count() == 2);
+		REQUIRE(bs.any() == true);
+		REQUIRE(bs.all() == true);
+		REQUIRE(bs.none() == false);
+
+		bs.flip(1);
+		REQUIRE(bs.test(1) == false);
+		REQUIRE(bs.count() == 1);
+		REQUIRE(bs.any() == true);
+		REQUIRE(bs.all() == false);
+		REQUIRE(bs.none() == false);
+
+		bs.reset(0);
+		REQUIRE(bs.test(0) == false);
+		REQUIRE(bs.count() == 0);
+		REQUIRE(bs.any() == false);
+		REQUIRE(bs.all() == false);
+		REQUIRE(bs.none() == true);
+
+		bs.set();
+		REQUIRE(bs.count() == bs.size());
+		REQUIRE(bs.any() == true);
+		REQUIRE(bs.all() == true);
+		REQUIRE(bs.none() == false);
+
+		bs.flip();
+		REQUIRE(bs.count() == 0);
+		REQUIRE(bs.any() == false);
+		REQUIRE(bs.all() == false);
+		REQUIRE(bs.none() == true);
+
+		bs.flip();
+		REQUIRE(bs.count() == bs.size());
+		REQUIRE(bs.any() == true);
+		REQUIRE(bs.all() == true);
+		REQUIRE(bs.none() == false);
+
+		bs.reset();
+		REQUIRE(bs.count() == 0);
+		REQUIRE(bs.any() == false);
+		REQUIRE(bs.all() == false);
+		REQUIRE(bs.none() == true);
+	}
+	SECTION("Ranges") {
+		containers::dbitset bs;
+		bs.set(1);
+		bs.set(10);
+		bs.flip(2, 9);
+		for (uint32_t i = 2; i <= 10; ++i)
+			REQUIRE(bs.test(i) == true);
+		bs.flip(2, 9);
+		for (uint32_t i = 2; i < 10; ++i)
+			REQUIRE(bs.test(i) == false);
+		REQUIRE(bs.test(1));
+		REQUIRE(bs.test(10));
+	}
+	SECTION("Iteration") {
+		{
+			containers::dbitset bs;
+			uint32_t i = 0;
+			for (auto val: bs)
+				++i;
+			REQUIRE(i == 0);
+		}
+		auto fwd_iterator_test = [](std::span<uint32_t> vals) {
+			containers::dbitset bs;
+			for (uint32_t bit: vals)
+				bs.set(bit);
+			const uint32_t c = bs.count();
+
+			uint32_t i = 0;
+			for (auto val: bs) {
+				REQUIRE(vals[i] == val);
+				++i;
+			}
+			REQUIRE(i == c);
+			REQUIRE(i == (uint32_t)vals.size());
+		};
+		{
+			uint32_t vals[]{1, 2, 3};
+			fwd_iterator_test(vals);
+		}
+		{
+			uint32_t vals[]{0, 2, 3};
+			fwd_iterator_test(vals);
+		}
+		{
+			uint32_t vals[]{1, 3, NBits - 1};
+			fwd_iterator_test(vals);
+		}
+		{
+			uint32_t vals[]{1, NBits - 2, NBits - 1};
+			fwd_iterator_test(vals);
+		}
+		{
+			uint32_t vals[]{0, 1, NBits - 1};
+			fwd_iterator_test(vals);
+		}
+		{
+			uint32_t vals[]{0, 3, NBits - 1};
+			fwd_iterator_test(vals);
+		}
+	}
+}
+
+TEST_CASE("Containers - dbitset") {
+	SECTION("5 bits") {
+		test_dbitset<5>();
+	}
+	SECTION("11 bits") {
+		test_dbitset<11>();
+	}
+	SECTION("32 bits") {
+		test_dbitset<32>();
+	}
+	SECTION("33 bits") {
+		test_dbitset<33>();
+	}
+	SECTION("64 bits") {
+		test_dbitset<64>();
+	}
+	SECTION("90 bits") {
+		test_dbitset<90>();
+	}
+	SECTION("128 bits") {
+		test_dbitset<128>();
+	}
+	SECTION("150 bits") {
+		test_dbitset<150>();
+	}
+	SECTION("512 bits") {
+		test_dbitset<512>();
 	}
 }
 
@@ -1175,38 +1371,63 @@ TEST_CASE("EnableEntity") {
 	for (uint32_t i = 0; i < N; i++)
 		arr.push_back(create(i));
 
-	w.EnableEntity(arr[1000], false);
-
 	ecs::Query q = w.CreateQuery().All<Position>();
-	size_t cnt = q.CalculateEntityCount();
-	REQUIRE(cnt == N - 1);
 
-	q.SetConstraints(ecs::Query::Constraints::AcceptAll);
-	cnt = q.CalculateEntityCount();
-	REQUIRE(cnt == N);
+	auto checkQuery = [&q](uint32_t expectedCountAll, uint32_t expectedCountEnabled, uint32_t expectedCountDisabled) {
+		{
+			uint32_t cnt = 0;
+			q.ForEach([&]([[maybe_unused]] ecs::Iterator iter) {
+				const uint32_t cExpected = iter.size();
+				uint32_t c = 0;
+				for (uint32_t i: iter)
+					++c;
+				REQUIRE(c == cExpected);
+				cnt += c;
+			});
+			REQUIRE(cnt == expectedCountAll);
 
-	q.SetConstraints(ecs::Query::Constraints::DisabledOnly);
-	cnt = q.CalculateEntityCount();
-	REQUIRE(cnt == 1);
+			cnt = q.CalculateEntityCount(ecs::Query::Constraints::AcceptAll);
+			REQUIRE(cnt == expectedCountAll);
+		}
+		{
+			uint32_t cnt = 0;
+			q.ForEach([&]([[maybe_unused]] ecs::IteratorEnabled iter) {
+				const uint32_t cExpected = iter.size();
+				uint32_t c = 0;
+				for (uint32_t i: iter)
+					++c;
+				REQUIRE(c == cExpected);
+				cnt += c;
+			});
+			REQUIRE(cnt == expectedCountEnabled);
+
+			cnt = q.CalculateEntityCount();
+			REQUIRE(cnt == expectedCountEnabled);
+		}
+		{
+			uint32_t cnt = 0;
+			q.ForEach([&]([[maybe_unused]] ecs::IteratorDisabled iter) {
+				const uint32_t cExpected = iter.size();
+				uint32_t c = 0;
+				for (uint32_t i: iter)
+					++c;
+				REQUIRE(c == cExpected);
+				cnt += c;
+			});
+			REQUIRE(cnt == expectedCountDisabled);
+
+			cnt = q.CalculateEntityCount(ecs::Query::Constraints::DisabledOnly);
+			REQUIRE(cnt == expectedCountDisabled);
+		}
+	};
+
+	checkQuery(N, N, 0);
+
+	w.EnableEntity(arr[1000], false);
+	checkQuery(N, N - 1, 1);
 
 	w.EnableEntity(arr[1000], true);
-
-	cnt = 0;
-	w.ForEach([&]([[maybe_unused]] const Position& p) {
-		++cnt;
-	});
-	REQUIRE(cnt == N);
-
-	cnt = q.CalculateEntityCount();
-	REQUIRE(cnt == 0);
-
-	q.SetConstraints(ecs::Query::Constraints::EnabledOnly);
-	cnt = q.CalculateEntityCount();
-	REQUIRE(cnt == N);
-
-	q.SetConstraints(ecs::Query::Constraints::AcceptAll);
-	cnt = q.CalculateEntityCount();
-	REQUIRE(cnt == N);
+	checkQuery(N, N, 0);
 }
 
 TEST_CASE("AddComponent - generic") {

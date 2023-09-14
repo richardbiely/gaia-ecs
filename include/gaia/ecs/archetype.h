@@ -4,6 +4,7 @@
 #include <cinttypes>
 
 #include "../containers/darray.h"
+#include "../containers/dbitset.h"
 #include "../containers/sarray.h"
 #include "../containers/sarray_ext.h"
 #include "../utils/hashing_policy.h"
@@ -28,11 +29,11 @@ namespace gaia {
 				using ChunkComponentHash = utils::direct_hash_key<uint64_t>;
 
 			private:
-				//! List of active chunks allocated by this archetype
+				//! List of chunks allocated by this archetype
 				containers::darray<Chunk*> m_chunks;
-				//! List of disabled chunks allocated by this archetype
-				containers::darray<Chunk*> m_chunksDisabled;
-
+				//! Mask of chunk with disabled entities
+				containers::dbitset m_disabledMask;
+				//! Graph of archetypes linked with this one
 				ArchetypeGraph m_graph;
 
 				//! Offsets to various parts of data inside chunk
@@ -42,13 +43,15 @@ namespace gaia {
 				//! Lookup hashes of components within this archetype
 				containers::sarray<ComponentOffsetArray, component::ComponentType::CT_Count> m_componentOffsets;
 
+				//! Hash of generic components
 				GenericComponentHash m_genericHash = {0};
+				//! Hash of chunk components
 				ChunkComponentHash m_chunkHash = {0};
-
 				//! Hash of components within this archetype - used for lookups
 				component::ComponentLookupHash m_lookupHash = {0};
 				//! Hash of components within this archetype - used for matching
 				component::ComponentMatcherHash m_matcherHash[component::ComponentType::CT_Count]{};
+
 				//! Archetype ID - used to address the archetype directly in the world's list or archetypes
 				ArchetypeId m_archetypeId = ArchetypeIdBad;
 				//! Stable reference to parent world's world version
@@ -201,12 +204,17 @@ namespace gaia {
 #else
 						// Find first semi-empty chunk.
 						// Picking the first non-full would only support fragmentation.
-						// TODO: Implement a semi-full chunk mask so we can search for these easily.
+						Chunk* pEmptyChunk = nullptr;
 						for (auto* pChunk: chunkArray) {
 							GAIA_ASSERT(pChunk != nullptr);
-							if (pChunk->IsSemiFull())
+							const auto entityCnt = pChunk->GetEntityCount();
+							if GAIA_UNLIKELY (entityCnt == 0)
+								pEmptyChunk = pChunk;
+							else if (entityCnt + 1 < pChunk->GetEntityCapacity())
 								return pChunk;
 						}
+						if (pEmptyChunk != nullptr)
+							return pEmptyChunk;
 #endif
 					}
 
@@ -266,8 +274,6 @@ namespace gaia {
 				~Archetype() {
 					// Delete all archetype chunks
 					for (auto* pChunk: m_chunks)
-						Chunk::Release(pChunk);
-					for (auto* pChunk: m_chunksDisabled)
 						Chunk::Release(pChunk);
 				}
 
@@ -354,11 +360,15 @@ namespace gaia {
 					if (!adjustMaxGenericItemsInAchetype(componentIdsChunk, 1))
 						goto recalculate;
 
+					// TODO: Make it possible for chunks to be not restricted by ChunkHeader::DisabledEntityMask::BitCount
+					if (maxGenericItemsInArchetype > ChunkHeader::DisabledEntityMask::BitCount)
+						maxGenericItemsInArchetype = ChunkHeader::DisabledEntityMask::BitCount;
+
 					// Update the offsets according to the recalculated maxGenericItemsInArchetype
 					componentOffsets = dataOffset.firstByte_EntityData + sizeof(Entity) * maxGenericItemsInArchetype;
 
 					auto registerComponents = [&](component::ComponentIdSpan componentIds, component::ComponentType componentType,
-																				size_t count) {
+																				const size_t count) {
 						auto& ids = newArch->m_componentIds[componentType];
 						auto& ofs = newArch->m_componentOffsets[componentType];
 
@@ -411,11 +421,21 @@ namespace gaia {
 				}
 
 				/*!
+				Enables or disables the entity on a given index in the chunk.
+				\param pChunk Chunk the entity belongs to
+				\param index Index of the entity
+				\param enableEntity Enables the entity
+				*/
+				void EnableEntity(Chunk* pChunk, uint32_t entityIdx, bool enableEntity) {
+					pChunk->EnableEntity(entityIdx, enableEntity);
+					m_disabledMask.set(pChunk->GetChunkIndex(), pChunk->HasDisabledEntities());
+				}
+
+				/*!
 				Removes a chunk from the list of chunks managed by their achetype.
 				\param pChunk Chunk to remove from the list of managed archetypes
 				*/
 				void RemoveChunk(Chunk* pChunk) {
-					const bool isDisabled = pChunk->IsDisabled();
 					const auto chunkIndex = pChunk->GetChunkIndex();
 
 					Chunk::Release(pChunk);
@@ -427,29 +447,18 @@ namespace gaia {
 						utils::erase_fast(chunkArray, chunkIndex);
 					};
 
-					if (isDisabled)
-						remove(m_chunksDisabled);
-					else
-						remove(m_chunks);
+					remove(m_chunks);
 				}
 
 #if GAIA_AVOID_CHUNK_FRAGMENTATION
 				void VerifyChunksFramentation() const {
 					VerifyChunksFragmentation_Internal(m_chunks);
-					VerifyChunksFragmentation_Internal(m_chunksDisabled);
 				}
 
 				//! Returns the first non-empty chunk or nullptr if none is found.
 				GAIA_NODISCARD Chunk* FindFirstNonEmptyChunk() const {
 					auto* pChunk = FindFirstNonEmptyChunk_Internal(m_chunks);
-					GAIA_ASSERT(pChunk == nullptr || !pChunk->IsDisabled());
-					return pChunk;
-				}
-
-				//! Returns the first non-empty disabled chunk or nullptr if none is found.
-				GAIA_NODISCARD Chunk* FindFirstNonEmptyChunkDisabled() const {
-					auto* pChunk = FindFirstNonEmptyChunk_Internal(m_chunksDisabled);
-					GAIA_ASSERT(pChunk == nullptr || pChunk->IsDisabled());
+					GAIA_ASSERT(pChunk == nullptr || !pChunk->HasDisabledEntities());
 					return pChunk;
 				}
 #else
@@ -532,15 +541,7 @@ namespace gaia {
 				//! If not found a new chunk is created.
 				GAIA_NODISCARD Chunk* FindOrCreateFreeChunk() {
 					auto* pChunk = FindOrCreateFreeChunk_Internal(m_chunks);
-					GAIA_ASSERT(!pChunk->IsDisabled());
-					return pChunk;
-				}
-
-				//! Tries to locate a chunk for disabled entities that has some space left for a new one.
-				//! If not found a new chunk is created.
-				GAIA_NODISCARD Chunk* FindOrCreateFreeChunkDisabled() {
-					auto* pChunk = FindOrCreateFreeChunk_Internal(m_chunksDisabled);
-					pChunk->SetDisabled(true);
+					GAIA_ASSERT(!pChunk->HasDisabledEntities());
 					return pChunk;
 				}
 
@@ -554,10 +555,6 @@ namespace gaia {
 
 				GAIA_NODISCARD const containers::darray<Chunk*>& GetChunks() const {
 					return m_chunks;
-				}
-
-				GAIA_NODISCARD const containers::darray<Chunk*>& GetChunksDisabled() const {
-					return m_chunksDisabled;
 				}
 
 				GAIA_NODISCARD GenericComponentHash GetGenericHash() const {
@@ -641,11 +638,9 @@ namespace gaia {
 					// Caclulate the number of entites in archetype
 					uint32_t entityCount = 0;
 					uint32_t entityCountDisabled = 0;
-					for (const auto* chunk: archetype.m_chunks)
+					for (const auto* chunk: archetype.m_chunks) {
 						entityCount += chunk->GetEntityCount();
-					for (const auto* chunk: archetype.m_chunksDisabled) {
-						entityCountDisabled += chunk->GetEntityCount();
-						entityCount += chunk->GetEntityCount();
+						entityCountDisabled += chunk->GetDisabledEntityMask().count();
 					}
 
 					// Calculate the number of components
@@ -707,23 +702,11 @@ namespace gaia {
 						}
 					};
 
-					// Enabled chunks
-					{
-						const auto& chunks = archetype.m_chunks;
-						if (!chunks.empty())
-							GAIA_LOG_N("  Enabled chunks");
+					const auto& chunks = archetype.m_chunks;
+					if (!chunks.empty())
+						GAIA_LOG_N("  Chunks");
 
-						logChunks(chunks);
-					}
-
-					// Disabled chunks
-					{
-						const auto& chunks = archetype.m_chunksDisabled;
-						if (!chunks.empty())
-							GAIA_LOG_N("  Disabled chunks");
-
-						logChunks(chunks);
-					}
+					logChunks(chunks);
 				}
 
 				/*!
