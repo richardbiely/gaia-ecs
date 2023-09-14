@@ -219,52 +219,69 @@ namespace gaia {
 	#if _MSV_VER <= 1916
 		#include <intrin.h>
 	#endif
+// MSVC doesn't implement __popcnt for ARM so we need to do it ourselves
+	#if GAIA_ARCH_ARM
+		#include <arm_neon.h>
 	//! Returns the number of set bits in \param x
-	#define GAIA_POPCNT(x) ((uint32_t)__popcnt(x))
+		#define GAIA_POPCNT(x)                                                                                             \
+			([](uint32_t value) noexcept {                                                                                       \
+				const __n64 tmp = neon_cnt(__uint64ToN64_v(value));                                                                \
+				return (uint32_t)neon_addv8(tmp).n8_i8[0];                                                                     \
+			}(x))
 	//! Returns the number of set bits in \param x
-	#define GAIA_POPCNT64(x) ((uint32_t)__popcnt64(x))
+		#define GAIA_POPCNT64(x)                                                                                           \
+			([](uint64_t value) noexcept {                                                                                       \
+				const __n64 tmp = neon_cnt(__uint64ToN64_v(value));                                                                \
+				return (uint32_t)neon_addv8(tmp).n8_i8[0];                                                                     \
+			}(x))
+	#else
+	//! Returns the number of set bits in \param x
+		#define GAIA_POPCNT(x) ((uint32_t)__popcnt(x))
+	//! Returns the number of set bits in \param x
+		#define GAIA_POPCNT64(x) ((uint32_t)__popcnt64(x))
+	#endif
 
 	#pragma intrinsic(_BitScanForward)
 	//! Returns the number of leading zeros of \param x or 32 if \param x is 0.
 	//! \warning Little-endian format.
 	#define GAIA_CLZ(x)                                                                                                  \
-		([](uint32_t x) noexcept {                                                                                         \
+		([](uint32_t value) noexcept {                                                                                         \
 			unsigned long index;                                                                                             \
-			return _BitScanForward(&index, x) ? (uint32_t)(31U - index) : (uint32_t)32;                                              \
+			return _BitScanForward(&index, value) ? (uint32_t)(31U - index) : (uint32_t)32;                                      \
 		}(x))
 	#pragma intrinsic(_BitScanForward64)
 	//! Returns the number of leading zeros of \param x or 64 if \param x is 0.
 	//! \warning Little-endian format.
 	#define GAIA_CLZ64(x)                                                                                                \
-		([](uint64_t x) noexcept {                                                                                         \
+		([](uint64_t value) noexcept {                                                                                         \
 			unsigned long index;                                                                                             \
-			return _BitScanForward64(&index, x) ? (uint32_t)(63U - index): (uint32_t)64;                                            \
+			return _BitScanForward64(&index, value) ? (uint32_t)(63U - index) : (uint32_t)64;                                    \
 		}(x))
 
 	#pragma intrinsic(_BitScanReverse)
 	//! Returns the number of trailing zeros of \param x or 32 if \param x is 0.
 	//! \warning Little-endian format.
 	#define GAIA_CTZ(x)                                                                                                  \
-		([](uint32_t x) noexcept {                                                                                         \
+		([](uint32_t value) noexcept {                                                                                         \
 			unsigned long index;                                                                                             \
-			return _BitScanReverse(&index, x) ? (uint32_t)(31U - index): (uint32_t)32;                                              \
+			return _BitScanReverse(&index, value) ? (uint32_t)(31U - index) : (uint32_t)32;                                      \
 		}(x))
 	#pragma intrinsic(_BitScanReverse64)
 	//! Returns the number of trailing zeros of \param x or 64 if \param x is 0.
 	//! \warning Little-endian format.
 	#define GAIA_CTZ64(x)                                                                                                \
-		([](uint64_t x) noexcept {                                                                                         \
+		([](uint64_t value) noexcept {                                                                                         \
 			unsigned long index;                                                                                             \
-			return _BitScanReverse64(&index, x) ? (uint32_t)(63U - index): (uint32_t)64;                                            \
+			return _BitScanReverse64(&index, value) ? (uint32_t)(63U - index) : (uint32_t)64;                                    \
 		}(x))
 
 	#pragma intrinsic(_BitScanForward)
 	//! Returns 1 plus the index of the least significant set bit of \param x, or 0 if \param x is 0.
 	//! \warning Little-endian format.
 	#define GAIA_FFS(x)                                                                                                  \
-		([](uint32_t x) noexcept {                                                                                         \
+		([](uint32_t value) noexcept {                                                                                         \
 			unsigned long index;                                                                                             \
-			if (_BitScanForward(&index, x))                                                                                  \
+			if (_BitScanForward(&index, value))                                                                                  \
 				return (uint32_t)(index + 1);                                                                                  \
 			return (uint32_t)0;                                                                                              \
 		}(x))
@@ -272,9 +289,9 @@ namespace gaia {
 	//! Returns 1 plus the index of the least significant set bit of \param x, or 0 if \param x is 0.
 	//! \warning Little-endian format.
 	#define GAIA_FFS64(x)                                                                                                \
-		([](uint64_t x) noexcept {                                                                                         \
+		([](uint64_t value) noexcept {                                                                                         \
 			unsigned long index;                                                                                             \
-			if (_BitScanForward64(&index, x))                                                                                \
+			if (_BitScanForward64(&index, value))                                                                                \
 				return (uint32_t)(index + 1);                                                                                  \
 			return (uint32_t)0;                                                                                              \
 		}(x))
