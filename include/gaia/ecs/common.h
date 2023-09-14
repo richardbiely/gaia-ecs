@@ -5,11 +5,6 @@
 
 namespace gaia {
 	namespace ecs {
-		//! Number of ticks before empty chunks are removed
-		constexpr uint16_t MAX_CHUNK_LIFESPAN = 8U;
-		//! Number of ticks before empty archetypes are removed
-		// constexpr uint32_t MAX_ARCHETYPE_LIFESPAN = 8U; Keep commented until used to avoid compilation errors
-
 		GAIA_NODISCARD inline bool DidVersionChange(uint32_t changeVersion, uint32_t requiredVersion) {
 			// When a system runs for the first time, everything is considered changed.
 			if GAIA_UNLIKELY (requiredVersion == 0U)

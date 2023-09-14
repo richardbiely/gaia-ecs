@@ -215,6 +215,7 @@ namespace gaia {
 					// Should never be called over an empty chunk
 					GAIA_ASSERT(HasEntities());
 					--m_header.count;
+					m_header.disabledEntityMask.set(m_header.count, false);
 				}
 
 			public:
@@ -549,6 +550,21 @@ namespace gaia {
 					const auto offset = sizeof(Entity) * index + m_header.offsets.firstByte_EntityData;
 					utils::unaligned_ref<Entity> mem((void*)&m_data[offset]);
 					return mem;
+				}
+
+				/*!
+				Enables or disables the entity on a given index in the chunk.
+				\param index Index of the entity
+				\param enableEntity Enables the entity
+				*/
+				void EnableEntity(uint32_t index, bool enableEntity) {
+					if (enableEntity) {
+						m_header.disabledEntityMask.set(index, false);
+						SetDisabled(m_header.disabledEntityMask.any());
+					} else {
+						m_header.disabledEntityMask.set(index, true);
+						SetDisabled(true);
+					}
 				}
 
 				/*!
@@ -918,12 +934,12 @@ namespace gaia {
 				}
 
 				void SetDisabled(bool value) {
-					m_header.disabled = value;
+					m_header.hasDisabledEntities = value;
 				}
 
 				//! Checks is this chunk is disabled
-				GAIA_NODISCARD bool IsDisabled() const {
-					return m_header.disabled;
+				GAIA_NODISCARD bool HasDisabledEntities() const {
+					return m_header.hasDisabledEntities != 0;
 				}
 
 				//! Checks is this chunk is dying
@@ -932,7 +948,7 @@ namespace gaia {
 				}
 
 				void PrepareToDie() {
-					m_header.lifespanCountdown = MAX_CHUNK_LIFESPAN;
+					m_header.lifespanCountdown = ChunkHeader::MAX_CHUNK_LIFESPAN;
 				}
 
 				bool ProgressDeath() {
@@ -979,6 +995,16 @@ namespace gaia {
 				//! Returns the number of entities in the chunk
 				GAIA_NODISCARD uint32_t GetEntityCapacity() const {
 					return m_header.capacity;
+				}
+
+				//! Returns the mask of disabled entities
+				GAIA_NODISCARD ChunkHeader::DisabledEntityMask& GetDisabledEntityMask() {
+					return m_header.disabledEntityMask;
+				}
+
+				//! Returns the mask of disabled entities
+				GAIA_NODISCARD const ChunkHeader::DisabledEntityMask& GetDisabledEntityMask() const {
+					return m_header.disabledEntityMask;
 				}
 
 				GAIA_NODISCARD std::span<uint32_t> GetComponentVersionArray(component::ComponentType componentType) const {

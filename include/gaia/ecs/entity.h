@@ -108,9 +108,6 @@ namespace gaia {
 #if !GAIA_64
 			uint32_t pChunk_padding;
 #endif
-			//! Tells if the entity is disabled. Borrows one bit from idx because it's unlikely to cause issues there
-			// TODO: Get rid of this bit somehow so the EntityContainer can fit within 16 bytes again.
-			uint32_t disabled : 1;
 		};
 	} // namespace ecs
 } // namespace gaia

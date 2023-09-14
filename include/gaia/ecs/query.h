@@ -21,6 +21,8 @@
 #include "component_utils.h"
 #include "data_buffer.h"
 #include "iterator.h"
+#include "iterator_disabled.h"
+#include "iterator_enabled.h"
 #include "query_cache.h"
 #include "query_common.h"
 #include "query_info.h"
@@ -161,8 +163,6 @@ namespace gaia {
 			DataBuffer m_cmdBuffer;
 			//! Query cache id
 			query::QueryId m_queryId = query::QueryIdBad;
-			//! Tell what kinds of chunks are going to be accepted by the query
-			Query::Constraints m_constraints = Query::Constraints::EnabledOnly;
 
 			//! Query cache (stable pointer to parent world's query cache)
 			QueryCache* m_entityQueryCache{};
@@ -315,18 +315,6 @@ namespace gaia {
 				return true;
 			}
 
-			template <bool HasFilters>
-			void ChunkBatch_Prepare(CChunkSpan chunkSpan, const query::QueryInfo& queryInfo, ChunkBatchedList& chunkBatch) {
-				GAIA_PROF_SCOPE(ChunkBatch_Prepare);
-
-				for (const auto* pChunk: chunkSpan) {
-					if (!CanAcceptChunkForProcessing<HasFilters>(*pChunk, queryInfo))
-						continue;
-
-					chunkBatch.push_back(const_cast<archetype::Chunk*>(pChunk));
-				}
-			}
-
 			//! Execute functors in batches
 			template <typename Func>
 			static void ChunkBatch_Perform(Func func, ChunkBatchedList& chunks) {
@@ -377,17 +365,66 @@ namespace gaia {
 			}
 
 			template <bool HasFilters, typename Func>
-			void ProcessQueryOnChunks(
-					Func func, ChunkBatchedList& chunkBatch, const containers::darray<archetype::Chunk*>& chunksList,
+			void ProcessQueryOnChunks_NoConstraints(
+					Func func, ChunkBatchedList& chunkBatch, const containers::darray<archetype::Chunk*>& chunks,
 					const query::QueryInfo& queryInfo) {
 				size_t chunkOffset = 0;
-
-				size_t itemsLeft = chunksList.size();
+				size_t itemsLeft = chunks.size();
 				while (itemsLeft > 0) {
 					const size_t maxBatchSize = chunkBatch.max_size() - chunkBatch.size();
 					const size_t batchSize = itemsLeft > maxBatchSize ? maxBatchSize : itemsLeft;
-					ChunkBatch_Prepare<HasFilters>(
-							CChunkSpan((const archetype::Chunk**)&chunksList[chunkOffset], batchSize), queryInfo, chunkBatch);
+
+					CChunkSpan chunkSpan((const archetype::Chunk**)&chunks[chunkOffset], batchSize);
+					for (const auto* pChunk: chunkSpan) {
+						if (!pChunk->HasEntities())
+							continue;
+						if constexpr (HasFilters) {
+							if (!CheckFilters(*pChunk, queryInfo))
+								continue;
+						}
+
+						chunkBatch.push_back(const_cast<archetype::Chunk*>(pChunk));
+					}
+
+					if GAIA_UNLIKELY (chunkBatch.size() == chunkBatch.max_size())
+						ChunkBatch_Perform(func, chunkBatch);
+
+					itemsLeft -= batchSize;
+					chunkOffset += batchSize;
+				}
+			}
+
+			template <bool HasFilters, typename Func>
+			void ProcessQueryOnChunks(
+					Func func, ChunkBatchedList& chunkBatch, const containers::darray<archetype::Chunk*>& chunks,
+					const query::QueryInfo& queryInfo, bool enabledOnly) {
+				size_t chunkOffset = 0;
+				size_t itemsLeft = chunks.size();
+				while (itemsLeft > 0) {
+					const size_t maxBatchSize = chunkBatch.max_size() - chunkBatch.size();
+					const size_t batchSize = itemsLeft > maxBatchSize ? maxBatchSize : itemsLeft;
+
+					CChunkSpan chunkSpan((const archetype::Chunk**)&chunks[chunkOffset], batchSize);
+					for (const auto* pChunk: chunkSpan) {
+						if (!pChunk->HasEntities())
+							continue;
+						if (enabledOnly == pChunk->HasDisabledEntities()) {
+							const auto maskCnt = pChunk->GetDisabledEntityMask().count();
+
+							// We want enabled entities but there are only disables ones on the chunk
+							if (enabledOnly && maskCnt == pChunk->GetEntityCount())
+								continue;
+							// We want disabled entities but there are only enabled ones on the chunk
+							if (!enabledOnly && maskCnt == 0)
+								continue;
+						}
+						if constexpr (HasFilters) {
+							if (!CheckFilters(*pChunk, queryInfo))
+								continue;
+						}
+
+						chunkBatch.push_back(const_cast<archetype::Chunk*>(pChunk));
+					}
 
 					if GAIA_UNLIKELY (chunkBatch.size() == chunkBatch.max_size())
 						ChunkBatch_Perform(func, chunkBatch);
@@ -398,7 +435,7 @@ namespace gaia {
 			}
 
 			template <typename Func>
-			void RunQueryOnChunks_Internal(query::QueryInfo& queryInfo, Func func) {
+			void ForEach_RunQueryOnChunks(query::QueryInfo& queryInfo, Query::Constraints constraints, Func func) {
 				// Update the world version
 				UpdateVersion(*m_worldVersion);
 
@@ -406,24 +443,23 @@ namespace gaia {
 
 				const bool hasFilters = queryInfo.HasFilters();
 				if (hasFilters) {
-					for (auto* pArchetype: queryInfo) {
-						// Evaluate ordinary chunks
-						if (CheckConstraints<true>())
-							ProcessQueryOnChunks<true>(func, chunkBatch, pArchetype->GetChunks(), queryInfo);
-
-						// Evaluate disabled chunks
-						if (CheckConstraints<false>())
-							ProcessQueryOnChunks<true>(func, chunkBatch, pArchetype->GetChunksDisabled(), queryInfo);
+					// Evaluation defaults to EnabledOnly changes. AcceptAll is something that has to be asked for explicitely
+					if GAIA_UNLIKELY (constraints == Query::Constraints::AcceptAll) {
+						for (auto* pArchetype: queryInfo)
+							ProcessQueryOnChunks_NoConstraints<true>(func, chunkBatch, pArchetype->GetChunks(), queryInfo);
+					} else {
+						const bool enabledOnly = constraints == Query::Constraints::EnabledOnly;
+						for (auto* pArchetype: queryInfo)
+							ProcessQueryOnChunks<true>(func, chunkBatch, pArchetype->GetChunks(), queryInfo, enabledOnly);
 					}
 				} else {
-					for (auto* pArchetype: queryInfo) {
-						// Evaluate ordinary chunks
-						if (CheckConstraints<true>())
-							ProcessQueryOnChunks<false>(func, chunkBatch, pArchetype->GetChunks(), queryInfo);
-
-						// Evaluate disabled chunks
-						if (CheckConstraints<false>())
-							ProcessQueryOnChunks<false>(func, chunkBatch, pArchetype->GetChunksDisabled(), queryInfo);
+					if GAIA_UNLIKELY (constraints == Query::Constraints::AcceptAll) {
+						for (auto* pArchetype: queryInfo)
+							ProcessQueryOnChunks_NoConstraints<false>(func, chunkBatch, pArchetype->GetChunks(), queryInfo);
+					} else {
+						const bool enabledOnly = constraints == Query::Constraints::EnabledOnly;
+						for (auto* pArchetype: queryInfo)
+							ProcessQueryOnChunks<false>(func, chunkBatch, pArchetype->GetChunks(), queryInfo, enabledOnly);
 					}
 				}
 
@@ -435,13 +471,6 @@ namespace gaia {
 			}
 
 			template <typename Func>
-			void ForEachIter_Internal(query::QueryInfo& queryInfo, Func func) {
-				RunQueryOnChunks_Internal(queryInfo, [&](archetype::Chunk& chunk) {
-					func(Iterator(queryInfo, chunk));
-				});
-			}
-
-			template <typename Func>
 			void ForEach_Internal(query::QueryInfo& queryInfo, Func func) {
 				using InputArgs = decltype(utils::func_args(&Func::operator()));
 
@@ -450,7 +479,7 @@ namespace gaia {
 				GAIA_ASSERT(UnpackArgsIntoQuery_HasAll(queryInfo, InputArgs{}));
 #endif
 
-				RunQueryOnChunks_Internal(queryInfo, [&](archetype::Chunk& chunk) {
+				ForEach_RunQueryOnChunks(queryInfo, Query::Constraints::EnabledOnly, [&](archetype::Chunk& chunk) {
 					chunk.ForEach(InputArgs{}, func);
 				});
 			}
@@ -508,26 +537,21 @@ namespace gaia {
 				return *this;
 			}
 
-			Query& SetConstraints(Query::Constraints value) {
-				m_constraints = value;
-				return *this;
+			GAIA_NODISCARD bool
+			CheckConstraintsEnabledDisabledOnly(ecs::Query::Constraints constraints, bool filterEnabledOnly) const {
+				const bool arr[2] = {// EnabledOnly
+														 true,
+														 // DisabledOnly
+														 false};
+				return filterEnabledOnly == arr[(int)constraints];
 			}
 
-			GAIA_NODISCARD Query::Constraints GetConstraints() const {
-				return m_constraints;
-			}
-
-			template <bool Enabled>
-			GAIA_NODISCARD bool CheckConstraints() const {
-				// By default we only evaluate EnabledOnly changes. AcceptAll is something that has to be asked for
-				// explicitely.
-				if GAIA_UNLIKELY (m_constraints == Query::Constraints::AcceptAll)
-					return true;
-
-				if constexpr (Enabled)
-					return m_constraints == Query::Constraints::EnabledOnly;
-				else
-					return m_constraints == Query::Constraints::DisabledOnly;
+			GAIA_NODISCARD bool CheckConstraints(ecs::Query::Constraints constraints, bool filterEnabledOnly) const {
+				const bool arr[2] = {// EnabledOnly
+														 true,
+														 // DisabledOnly
+														 false};
+				return constraints == Query::Constraints::AcceptAll || filterEnabledOnly == arr[(int)constraints];
 			}
 
 			Query& Schedule() {
@@ -548,7 +572,17 @@ namespace gaia {
 				auto& queryInfo = FetchQueryInfo();
 
 				if constexpr (std::is_invocable<Func, Iterator>::value)
-					ForEachIter_Internal(queryInfo, func);
+					ForEach_RunQueryOnChunks(queryInfo, Query::Constraints::AcceptAll, [&](archetype::Chunk& chunk) {
+						func(Iterator(queryInfo, chunk));
+					});
+				else if constexpr (std::is_invocable<Func, IteratorEnabled>::value)
+					ForEach_RunQueryOnChunks(queryInfo, Query::Constraints::EnabledOnly, [&](archetype::Chunk& chunk) {
+						func(IteratorEnabled(queryInfo, chunk));
+					});
+				else if constexpr (std::is_invocable<Func, IteratorDisabled>::value)
+					ForEach_RunQueryOnChunks(queryInfo, Query::Constraints::DisabledOnly, [&](archetype::Chunk& chunk) {
+						func(IteratorDisabled(queryInfo, chunk));
+					});
 				else
 					ForEach_Internal(queryInfo, func);
 			}
@@ -569,78 +603,75 @@ namespace gaia {
 								 If you already called ToArray, checking if it is empty is preferred.
 				\return True if there are any entites matchine the query. False otherwise.
 				*/
-			bool HasEntities() {
+			bool HasEntities(ecs::Query::Constraints constraints = ecs::Query::Constraints::EnabledOnly) {
 				// Make sure the query was created by World.CreateQuery()
 				GAIA_ASSERT(m_entityQueryCache != nullptr);
 
-				bool hasItems = false;
-
 				auto& queryInfo = FetchQueryInfo();
-
 				const bool hasFilters = queryInfo.HasFilters();
 
-				auto execWithFiltersON = [&](const auto& chunksList) {
-					for (auto* pChunk: chunksList) {
-						if (!CanAcceptChunkForProcessing<true>(*pChunk, queryInfo))
-							continue;
-						hasItems = true;
-						break;
-					}
-				};
+				if (hasFilters) {
+					auto execWithFiltersON = [&](const auto& chunks) {
+						return GAIA_UTIL::has_if(chunks, [&](archetype::Chunk* pChunk) {
+							if (!pChunk->HasEntities())
+								return false;
+							return CheckFilters(*pChunk, queryInfo);
+						});
+					};
 
-				auto execWithFiltersOFF = [&](const auto& chunksList) {
-					for (auto* pChunk: chunksList) {
-						if (!CanAcceptChunkForProcessing<false>(*pChunk, queryInfo))
-							continue;
-						hasItems = true;
-						break;
-					}
-				};
+					auto execWithFiltersON_EnabledDisabled = [&](const auto& chunks, bool enabledOnly) {
+						return GAIA_UTIL::has_if(chunks, [&](archetype::Chunk* pChunk) {
+							const auto hasEntities = enabledOnly
+																					 ? pChunk->GetEntityCount() - pChunk->GetDisabledEntityMask().count() > 0
+																					 : pChunk->GetDisabledEntityMask().count() > 0;
+							if (!hasEntities)
+								return false;
 
-				if (hasItems) {
-					if (hasFilters) {
+							return CheckFilters(*pChunk, queryInfo);
+						});
+					};
+
+					if (constraints == Query::Constraints::AcceptAll) {
 						for (auto* pArchetype: queryInfo) {
-							if (CheckConstraints<true>()) {
-								execWithFiltersON(pArchetype->GetChunks());
-								break;
-							}
-							if (CheckConstraints<false>()) {
-								execWithFiltersON(pArchetype->GetChunksDisabled());
-								break;
-							}
+							if (execWithFiltersON(pArchetype->GetChunks()))
+								return true;
 						}
 					} else {
 						for (auto* pArchetype: queryInfo) {
-							if (CheckConstraints<true>()) {
-								execWithFiltersOFF(pArchetype->GetChunks());
-								break;
-							}
-							if (CheckConstraints<false>()) {
-								execWithFiltersOFF(pArchetype->GetChunksDisabled());
-								break;
-							}
+							if (execWithFiltersON_EnabledDisabled(
+											pArchetype->GetChunks(), constraints == Query::Constraints::EnabledOnly))
+								return true;
 						}
 					}
-
 				} else {
-					if (hasFilters) {
+					auto execWithFiltersOFF = [&](const auto& chunks) {
+						return GAIA_UTIL::has_if(chunks, [&](archetype::Chunk* pChunk) {
+							return pChunk->HasEntities();
+						});
+					};
+
+					auto execWithFiltersOFF_EnabledDisabled = [&](const auto& chunks, bool enabledOnly) {
+						return GAIA_UTIL::has_if(chunks, [&](archetype::Chunk* pChunk) {
+							return enabledOnly ? pChunk->GetEntityCount() - pChunk->GetDisabledEntityMask().count() > 0
+																 : pChunk->GetDisabledEntityMask().count() > 0;
+						});
+					};
+
+					if (constraints == Query::Constraints::AcceptAll) {
 						for (auto* pArchetype: queryInfo) {
-							if (CheckConstraints<true>())
-								execWithFiltersON(pArchetype->GetChunks());
-							if (CheckConstraints<false>())
-								execWithFiltersON(pArchetype->GetChunksDisabled());
+							if (execWithFiltersOFF(pArchetype->GetChunks()))
+								return true;
 						}
 					} else {
 						for (auto* pArchetype: queryInfo) {
-							if (CheckConstraints<true>())
-								execWithFiltersOFF(pArchetype->GetChunks());
-							if (CheckConstraints<false>())
-								execWithFiltersOFF(pArchetype->GetChunksDisabled());
+							if (execWithFiltersOFF_EnabledDisabled(
+											pArchetype->GetChunks(), constraints == Query::Constraints::EnabledOnly))
+								return true;
 						}
 					}
 				}
 
-				return hasItems;
+				return false;
 			}
 
 			/*!
@@ -650,43 +681,81 @@ namespace gaia {
 							 If you already called ToArray, use the size provided by the array.
 			\return The number of matching entities
 			*/
-			size_t CalculateEntityCount() {
+			size_t CalculateEntityCount(ecs::Query::Constraints constraints = ecs::Query::Constraints::EnabledOnly) {
 				// Make sure the query was created by World.CreateQuery()
 				GAIA_ASSERT(m_entityQueryCache != nullptr);
 
+				auto& queryInfo = FetchQueryInfo();
+				const bool hasFilters = queryInfo.HasFilters();
 				size_t entityCount = 0;
 
-				auto& queryInfo = FetchQueryInfo();
-
-				const bool hasFilters = queryInfo.HasFilters();
-
-				auto execWithFiltersON = [&](const auto& chunksList) {
-					for (auto* pChunk: chunksList) {
-						if (CanAcceptChunkForProcessing<true>(*pChunk, queryInfo))
-							entityCount += pChunk->GetEntityCount();
-					}
-				};
-
-				auto execWithFiltersOFF = [&](const auto& chunksList) {
-					for (auto* pChunk: chunksList) {
-						if (CanAcceptChunkForProcessing<false>(*pChunk, queryInfo))
-							entityCount += pChunk->GetEntityCount();
-					}
-				};
-
 				if (hasFilters) {
-					for (auto* pArchetype: queryInfo) {
-						if (CheckConstraints<true>())
-							execWithFiltersON(pArchetype->GetChunks());
-						if (CheckConstraints<false>())
-							execWithFiltersON(pArchetype->GetChunksDisabled());
+					auto execWithFiltersON = [&](const auto& chunks) {
+						size_t cnt = 0;
+						for (auto* pChunk: chunks) {
+							if (!pChunk->HasEntities())
+								continue;
+							if (!CheckFilters(*pChunk, queryInfo))
+								continue;
+							cnt += pChunk->GetEntityCount();
+						};
+						return cnt;
+					};
+
+					auto execWithFiltersON_EnabledDisabled = [&](const auto& chunks, bool enabledOnly) {
+						size_t cnt = 0;
+						for (auto* pChunk: chunks) {
+							if (!pChunk->HasEntities())
+								continue;
+							if (!CheckFilters(*pChunk, queryInfo))
+								continue;
+							if (enabledOnly)
+								cnt += pChunk->GetEntityCount() - pChunk->GetDisabledEntityMask().count();
+							else
+								cnt += pChunk->GetDisabledEntityMask().count();
+						};
+						return cnt;
+					};
+
+					if (constraints == Query::Constraints::AcceptAll) {
+						for (auto* pArchetype: queryInfo)
+							entityCount += execWithFiltersON(pArchetype->GetChunks());
+					} else {
+						for (auto* pArchetype: queryInfo)
+							entityCount += execWithFiltersON_EnabledDisabled(
+									pArchetype->GetChunks(), constraints == Query::Constraints::EnabledOnly);
 					}
 				} else {
-					for (auto* pArchetype: queryInfo) {
-						if (CheckConstraints<true>())
-							execWithFiltersOFF(pArchetype->GetChunks());
-						if (CheckConstraints<false>())
-							execWithFiltersOFF(pArchetype->GetChunksDisabled());
+					auto execWithFiltersOFF = [&](const auto& chunks) {
+						size_t cnt = 0;
+						for (auto* pChunk: chunks) {
+							if (!pChunk->HasEntities())
+								continue;
+							cnt += pChunk->GetEntityCount();
+						};
+						return cnt;
+					};
+
+					auto execWithFiltersOFF_EnabledDisabled = [&](const auto& chunks, bool enabledOnly) {
+						size_t cnt = 0;
+						for (auto* pChunk: chunks) {
+							if (!pChunk->HasEntities())
+								continue;
+							if (enabledOnly)
+								cnt += pChunk->GetEntityCount() - pChunk->GetDisabledEntityMask().count();
+							else
+								cnt += pChunk->GetDisabledEntityMask().count();
+						};
+						return cnt;
+					};
+
+					if (constraints == Query::Constraints::AcceptAll) {
+						for (auto* pArchetype: queryInfo)
+							entityCount += execWithFiltersOFF(pArchetype->GetChunks());
+					} else {
+						for (auto* pArchetype: queryInfo)
+							entityCount += execWithFiltersOFF_EnabledDisabled(
+									pArchetype->GetChunks(), constraints == Query::Constraints::EnabledOnly);
 					}
 				}
 
@@ -695,24 +764,23 @@ namespace gaia {
 
 			/*!
 			Appends all components or entities matching the query to the array
-			\tparam Container Container storing entities or components
+			\tparam outArray Container storing entities or components
+			\param constraints Query constraints
 			\return Array with entities or components
 			*/
 			template <typename Container>
-			void ToArray(Container& outArray) {
+			void ToArray(Container& outArray, ecs::Query::Constraints constraints = ecs::Query::Constraints::EnabledOnly) {
 				using ContainerItemType = typename Container::value_type;
 
 				// Make sure the query was created by World.CreateQuery()
 				GAIA_ASSERT(m_entityQueryCache != nullptr);
 
-				const size_t entityCount = CalculateEntityCount();
-				if (!entityCount)
+				const auto entityCount = CalculateEntityCount();
+				if (entityCount == 0)
 					return;
 
 				outArray.reserve(entityCount);
-
 				auto& queryInfo = FetchQueryInfo();
-
 				const bool hasFilters = queryInfo.HasFilters();
 
 				auto addChunk = [&](archetype::Chunk* pChunk) {
@@ -721,33 +789,63 @@ namespace gaia {
 						outArray.push_back(componentView[i]);
 				};
 
-				auto execWithFiltersON = [&](const auto& chunksList) {
-					for (auto* pChunk: chunksList) {
-						if (CanAcceptChunkForProcessing<true>(*pChunk, queryInfo))
-							addChunk(pChunk);
-					}
-				};
-
-				auto execWithFiltersOFF = [&](const auto& chunksList) {
-					for (auto* pChunk: chunksList) {
-						if (CanAcceptChunkForProcessing<false>(*pChunk, queryInfo))
-							addChunk(pChunk);
-					}
-				};
-
 				if (hasFilters) {
-					for (auto* pArchetype: queryInfo) {
-						if (CheckConstraints<true>())
+					auto execWithFiltersON = [&](const auto& chunks) {
+						for (auto* pChunk: chunks) {
+							if (!pChunk->HasEntities())
+								continue;
+							if (!CheckFilters(*pChunk, queryInfo))
+								continue;
+							addChunk(pChunk);
+						};
+					};
+
+					auto execWithFiltersON_EnabledDisabled = [&](const auto& chunks, bool enabledOnly) {
+						for (auto* pChunk: chunks) {
+							if (!pChunk->HasEntities())
+								continue;
+							if (CheckConstraintsEnabledDisabledOnly(constraints, enabledOnly) == pChunk->HasDisabledEntities())
+								continue;
+							if (!CheckFilters(*pChunk, queryInfo))
+								continue;
+							addChunk(pChunk);
+						};
+					};
+
+					if (constraints == Query::Constraints::AcceptAll) {
+						for (auto* pArchetype: queryInfo)
 							execWithFiltersON(pArchetype->GetChunks());
-						if (CheckConstraints<false>())
-							execWithFiltersON(pArchetype->GetChunksDisabled());
+					} else {
+						for (auto* pArchetype: queryInfo)
+							execWithFiltersON_EnabledDisabled(
+									pArchetype->GetChunks(), constraints == Query::Constraints::EnabledOnly);
 					}
 				} else {
-					for (auto* pArchetype: queryInfo) {
-						if (CheckConstraints<true>())
+					auto execWithFiltersOFF = [&](const auto& chunks) {
+						for (auto* pChunk: chunks) {
+							if (!pChunk->HasEntities())
+								continue;
+							addChunk(pChunk);
+						};
+					};
+
+					auto execWithFiltersOFF_EnabledDisabled = [&](const auto& chunks, bool enabledOnly) {
+						for (auto* pChunk: chunks) {
+							if (!pChunk->HasEntities())
+								continue;
+							if (CheckConstraintsEnabledDisabledOnly(constraints, enabledOnly) == pChunk->HasDisabledEntities())
+								continue;
+							addChunk(pChunk);
+						};
+					};
+
+					if (constraints == Query::Constraints::AcceptAll) {
+						for (auto* pArchetype: queryInfo)
 							execWithFiltersOFF(pArchetype->GetChunks());
-						if (CheckConstraints<false>())
-							execWithFiltersOFF(pArchetype->GetChunksDisabled());
+					} else {
+						for (auto* pArchetype: queryInfo)
+							execWithFiltersOFF_EnabledDisabled(
+									pArchetype->GetChunks(), constraints == Query::Constraints::EnabledOnly);
 					}
 				}
 			}

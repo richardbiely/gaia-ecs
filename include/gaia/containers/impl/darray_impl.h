@@ -47,10 +47,10 @@ namespace gaia {
 				// Increase the size of an existing array.
 				// We increase the capacity in multiples of 1.5 which is about the golden ratio (1.618).
 				// This means we prefer more frequent allocations over memory fragmentation.
-				T* old = m_pData;
+				pointer pDataOld = m_pData;
 				m_pData = new T[m_cap = (cap * 3) / 2 + 1];
-				utils::move_elements(m_pData, old, cnt);
-				delete[] old;
+				utils::move_elements(m_pData, pDataOld, cnt);
+				delete[] pDataOld;
 			}
 
 		public:
@@ -317,13 +317,11 @@ namespace gaia {
 				if (count <= m_cap)
 					return;
 
-				if (m_pData) {
-					T* old = m_pData;
-					m_pData = new T[count];
-					utils::move_elements(m_pData, old, size());
-					delete[] old;
-				} else {
-					m_pData = new T[count];
+				pointer pDataOld = m_pData;
+				m_pData = new T[count];
+				if (pDataOld != nullptr) {
+					utils::move_elements(m_pData, pDataOld, size());
+					delete[] pDataOld;
 				}
 
 				m_cap = count;
@@ -335,13 +333,11 @@ namespace gaia {
 					return;
 				}
 
-				if (m_pData) {
-					T* old = m_pData;
-					m_pData = new T[count];
-					utils::move_elements(m_pData, old, size());
-					delete[] old;
-				} else {
-					m_pData = new T[count];
+				pointer pDataOld = m_pData;
+				m_pData = new T[count];
+				if (pDataOld != nullptr) {
+					utils::move_elements(m_pData, pDataOld, size());
+					delete[] pDataOld;
 				}
 
 				m_cap = count;

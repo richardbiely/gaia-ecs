@@ -220,9 +220,9 @@ namespace gaia {
 		#include <intrin.h>
 	#endif
 	//! Returns the number of set bits in \param x
-	#define GAIA_POPCNT(x) __popcnt(x)
+	#define GAIA_POPCNT(x) ((uint32_t)__popcnt(x))
 	//! Returns the number of set bits in \param x
-	#define GAIA_POPCNT64(x) __popcnt64(x)
+	#define GAIA_POPCNT64(x) ((uint32_t)__popcnt64(x))
 
 	#pragma intrinsic(_BitScanForward)
 	//! Returns the number of leading zeros of \param x or 32 if \param x is 0.
@@ -280,30 +280,30 @@ namespace gaia {
 		}(x))
 #elif GAIA_COMPILER_CLANG || GAIA_COMPILER_GCC
 	//! Returns the number of set bits in \param x
-	#define GAIA_POPCNT(x) __builtin_popcount(x)
+	#define GAIA_POPCNT(x) ((uint32_t)__builtin_popcount(x))
 	//! Returns the number of set bits in \param x
-	#define GAIA_POPCNT64(x) __builtin_popcountll(x)
+	#define GAIA_POPCNT64(x) ((uint32_t)__builtin_popcountll(x))
 
 	//! Returns the number of leading zeros of \param x or 32 if \param x is 0.
 	//! \warning Little-endian format.
-	#define GAIA_CLZ(x) ((x) ? __builtin_ctz(x) : 32)
+	#define GAIA_CLZ(x) ((x) ? (uint32_t)__builtin_ctz(x) : (uint32_t)32)
 	//! Returns the number of leading zeros of \param x or 64 if \param x is 0.
 	//! \warning Little-endian format.
-	#define GAIA_CLZ64(x) ((x) ? __builtin_ctzll(x) : 64)
+	#define GAIA_CLZ64(x) ((x) ? (uint32_t)__builtin_ctzll(x) : (uint32_t)64)
 
 	//! Returns the number of trailing zeros of \param x or 32 if \param x is 0.
 	//! \warning Little-endian format.
-	#define GAIA_CTZ(x) ((x) ? __builtin_clz(x) : 32)
+	#define GAIA_CTZ(x) ((x) ? (uint32_t)__builtin_clz(x) : (uint32_t)32)
 	//! Returns the number of trailing zeros of \param x or 64 if \param x is 0.
 	//! \warning Little-endian format.
-	#define GAIA_CTZ64(x) ((x) ? __builtin_clzll(x) : 64)
+	#define GAIA_CTZ64(x) ((x) ? (uint32_t)__builtin_clzll(x) : (uint32_t)64)
 
 	//! Returns 1 plus the index of the least significant set bit of \param x, or 0 if \param x is 0.
 	//! \warning Little-endian format.
-	#define GAIA_FFS(x) __builtin_ffs(x)
+	#define GAIA_FFS(x) ((uint32_t)__builtin_ffs(x))
 	//! Returns 1 plus the index of the least significant set bit of \param x, or 0 if \param x is 0.
 	//! \warning Little-endian format.
-	#define GAIA_FFS64(x) __builtin_ffsll(x)
+	#define GAIA_FFS64(x) ((uint32_t)__builtin_ffsll(x))
 #else
 	//! Returns the number of set bits in \param x
 	#define GAIA_POPCNT(x)                                                                                               \
@@ -981,26 +981,58 @@ namespace tracy {
 	#endif
 #endif
 
-#include <cinttypes>
+#include <tuple>
+#include <type_traits>
+#include <utility>
 
-#define USE_VECTOR GAIA_USE_STL_CONTAINERS
+#define USE_SPAN GAIA_USE_STL_CONTAINERS
 
-#if USE_VECTOR == 1
+#if USE_SPAN && __cpp_lib_span
+	#include <span>
+#else
+	
+/*
+This is an implementation of C++20's std::span
+http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/n4820.pdf
+*/
 
-	#include <vector>
+//          Copyright Tristan Brindle 2018.
+// Distributed under the Boost Software License, Version 1.0.
+//    (See accompanying file ../../LICENSE_1_0.txt or copy at
+//          https://www.boost.org/LICENSE_1_0.txt)
 
+#ifndef TCB_SPAN_HPP_INCLUDED
+#define TCB_SPAN_HPP_INCLUDED
+
+#include <cstddef>
+#include <cstdint>
+#include <type_traits>
+
+#ifndef TCB_SPAN_NO_EXCEPTIONS
+	// Attempt to discover whether we're being compiled with exception support
+	#if !(defined(__cpp_exceptions) || defined(__EXCEPTIONS) || defined(_CPPUNWIND))
+		#define TCB_SPAN_NO_EXCEPTIONS
+	#endif
+#endif
+
+#ifndef TCB_SPAN_NO_EXCEPTIONS
+	#include <cstdio>
+	#include <stdexcept>
+#endif
+
+#define USE_ARRAY GAIA_USE_STL_CONTAINERS
+
+#if USE_ARRAY == 1
+	#include <array>
 namespace gaia {
 	namespace containers {
-		template <typename T>
-		using darray = std::vector<T>;
+		template <typename T, size_t N>
+		using sarray = std::array<T, N>;
 	} // namespace containers
 } // namespace gaia
 #elif USE_VECTOR == 0
-
 	
-
 #include <cstddef>
-#include <initializer_list>
 #include <type_traits>
 #include <utility>
 
@@ -1115,740 +1147,6 @@ namespace gaia {
 	} // namespace utils
 } // namespace gaia
 #endif
-
-#include <cinttypes>
-#include <cstring>
-#include <stdlib.h>
-#include <type_traits>
-#include <utility>
-
-#if GAIA_PLATFORM_WINDOWS && GAIA_COMPILER_MSVC
-	#define GAIA_MEM_ALLC(size) malloc(size)
-	#define GAIA_MEM_FREE(ptr) free(ptr)
-
-	// Clang with MSVC codegen needs some remapping
-	#if !defined(aligned_alloc)
-		#define GAIA_MEM_ALLC_A(size, alig) _aligned_malloc(size, alig)
-		#define GAIA_MEM_FREE_A(ptr) _aligned_free(ptr)
-	#else
-		#define GAIA_MEM_ALLC_A(size, alig) aligned_alloc(alig, size)
-		#define GAIA_MEM_FREE_A(ptr) aligned_free(ptr)
-	#endif
-#else
-	#define GAIA_MEM_ALLC(size) malloc(size)
-	#define GAIA_MEM_ALLC_A(size, alig) aligned_alloc(alig, size)
-	#define GAIA_MEM_FREE(ptr) free(ptr)
-	#define GAIA_MEM_FREE_A(ptr) free(ptr)
-#endif
-
-namespace gaia {
-	namespace utils {
-		inline void* mem_alloc(size_t size) {
-			void* ptr = GAIA_MEM_ALLC(size);
-			GAIA_PROF_ALLOC(ptr, size);
-			return ptr;
-		}
-
-		inline void* mem_alloc_alig(size_t size, size_t alig) {
-			void* ptr = GAIA_MEM_ALLC_A(size, alig);
-			GAIA_PROF_ALLOC(ptr, size);
-			return ptr;
-		}
-
-		inline void mem_free(void* ptr) {
-			GAIA_MEM_FREE(ptr);
-			GAIA_PROF_FREE(ptr);
-		}
-
-		inline void mem_free_alig(void* ptr) {
-			GAIA_MEM_FREE_A(ptr);
-			GAIA_PROF_FREE(ptr);
-		}
-
-		//! Align a number to the requested byte alignment
-		//! \param num Number to align
-		//! \param alignment Requested alignment
-		//! \return Aligned number
-		template <typename T, typename V>
-		constexpr T align(T num, V alignment) {
-			return alignment == 0 ? num : ((num + (alignment - 1)) / alignment) * alignment;
-		}
-
-		//! Align a number to the requested byte alignment
-		//! \tparam alignment Requested alignment in bytes
-		//! \param num Number to align
-		//! return Aligned number
-		template <size_t alignment, typename T>
-		constexpr T align(T num) {
-			return ((num + (alignment - 1)) & ~(alignment - 1));
-		}
-
-		//! Convert form type \tparam Src to type \tparam Dst without causing an undefined behavior
-		template <typename Dst, typename Src>
-		Dst bit_cast(const Src& src) {
-			static_assert(sizeof(Dst) == sizeof(Src));
-			static_assert(std::is_trivially_copyable_v<Src>);
-			static_assert(std::is_trivially_copyable_v<Dst>);
-
-			// int i = {};
-			// float f = *(*float)&i; // undefined behavior
-			// memcpy(&f, &i, sizeof(float)); // okay
-			Dst dst;
-			memmove((void*)&dst, (const void*)&src, sizeof(Dst));
-			return dst;
-		}
-
-		//! Pointer wrapper for reading memory in defined way (not causing undefined behavior)
-		template <typename T>
-		class const_unaligned_pointer {
-			const uint8_t* from;
-
-		public:
-			const_unaligned_pointer(): from(nullptr) {}
-			const_unaligned_pointer(const void* p): from((const uint8_t*)p) {}
-
-			T operator*() const {
-				T to;
-				memmove((void*)&to, (const void*)from, sizeof(T));
-				return to;
-			}
-
-			T operator[](ptrdiff_t d) const {
-				return *(*this + d);
-			}
-
-			const_unaligned_pointer operator+(ptrdiff_t d) const {
-				return const_unaligned_pointer(from + d * sizeof(T));
-			}
-			const_unaligned_pointer operator-(ptrdiff_t d) const {
-				return const_unaligned_pointer(from - d * sizeof(T));
-			}
-		};
-
-		//! Pointer wrapper for writing memory in defined way (not causing undefined behavior)
-		template <typename T>
-		class unaligned_ref {
-			void* m_p;
-
-		public:
-			unaligned_ref(void* p): m_p(p) {}
-
-			unaligned_ref& operator=(const T& value) {
-				memmove(m_p, (const void*)&value, sizeof(T));
-				return *this;
-			}
-
-			operator T() const {
-				T tmp;
-				memmove((void*)&tmp, (const void*)m_p, sizeof(T));
-				return tmp;
-			}
-		};
-
-		//! Pointer wrapper for writing memory in defined way (not causing undefined behavior)
-		template <typename T>
-		class unaligned_pointer {
-			uint8_t* m_p;
-
-		public:
-			unaligned_pointer(): m_p(nullptr) {}
-			unaligned_pointer(void* p): m_p((uint8_t*)p) {}
-
-			unaligned_ref<T> operator*() const {
-				return unaligned_ref<T>(m_p);
-			}
-
-			unaligned_ref<T> operator[](ptrdiff_t d) const {
-				return *(*this + d);
-			}
-
-			unaligned_pointer operator+(ptrdiff_t d) const {
-				return unaligned_pointer(m_p + d * sizeof(T));
-			}
-			unaligned_pointer operator-(ptrdiff_t d) const {
-				return unaligned_pointer(m_p - d * sizeof(T));
-			}
-		};
-
-		template <typename T>
-		constexpr T* addressof(T& obj) noexcept {
-			return &obj;
-		}
-
-		template <class T>
-		const T* addressof(const T&&) = delete;
-
-		//! Copy \param size elements of type \tparam T from the address pointer to by \param src to \param dst
-		template <typename T>
-		void copy_elements(T* GAIA_RESTRICT dst, const T* GAIA_RESTRICT src, size_t size) {
-			GAIA_MSVC_WARNING_PUSH()
-			GAIA_MSVC_WARNING_DISABLE(6385)
-
-			static_assert(std::is_copy_assignable_v<T>);
-			for (size_t i = 0; i < size; ++i)
-				dst[i] = src[i];
-
-			GAIA_MSVC_WARNING_POP()
-		}
-
-		//! Move or copy \param size elements of type \tparam T from the address pointer to by \param src to \param dst
-		template <typename T>
-		void move_elements(T* GAIA_RESTRICT dst, const T* GAIA_RESTRICT src, size_t size) {
-			GAIA_MSVC_WARNING_PUSH()
-			GAIA_MSVC_WARNING_DISABLE(6385)
-
-			if constexpr (std::is_move_assignable_v<T>) {
-				for (size_t i = 0; i < size; ++i)
-					dst[i] = std::move(src[i]);
-			} else {
-				for (size_t i = 0; i < size; ++i)
-					dst[i] = src[i];
-			}
-
-			GAIA_MSVC_WARNING_POP()
-		}
-
-		//! Shift \param size elements at address pointed to by \param dst to the left by one
-		template <typename T>
-		void shift_elements_left(T* GAIA_RESTRICT dst, size_t size) {
-			GAIA_MSVC_WARNING_PUSH()
-			GAIA_MSVC_WARNING_DISABLE(6385)
-
-			if constexpr (std::is_move_assignable_v<T>) {
-				for (size_t i = 0; i < size; ++i)
-					dst[i] = std::move(dst[i + 1]);
-			} else {
-				for (size_t i = 0; i < size; ++i)
-					dst[i] = dst[i + 1];
-			}
-
-			GAIA_MSVC_WARNING_POP()
-		}
-	} // namespace utils
-} // namespace gaia
-
-namespace gaia {
-	namespace containers {
-		//! Array with variable size of elements of type \tparam T allocated on heap.
-		//! Interface compatiblity with std::vector where it matters.
-		template <typename T>
-		class darr {
-		public:
-			using iterator_category = GAIA_UTIL::random_access_iterator_tag;
-			using value_type = T;
-			using reference = T&;
-			using const_reference = const T&;
-			using pointer = T*;
-			using const_pointer = T*;
-			using difference_type = std::ptrdiff_t;
-			using size_type = size_t;
-
-		private:
-			pointer m_pData = nullptr;
-			size_type m_cnt = size_type(0);
-			size_type m_cap = size_type(0);
-
-			void try_grow() {
-				const auto cnt = size();
-				const auto cap = capacity();
-
-				// Unless we reached the capacity don't do anything
-				if GAIA_LIKELY (cap != 0 && cap != cnt)
-					return;
-
-				// If no data is allocated go with at least 4 elements
-				if GAIA_UNLIKELY (m_pData == nullptr) {
-					m_pData = new T[m_cap = 4];
-					return;
-				}
-
-				// Increase the size of an existing array.
-				// We increase the capacity in multiples of 1.5 which is about the golden ratio (1.618).
-				// This means we prefer more frequent allocations over memory fragmentation.
-				T* old = m_pData;
-				m_pData = new T[m_cap = (cap * 3) / 2 + 1];
-				utils::move_elements(m_pData, old, cnt);
-				delete[] old;
-			}
-
-		public:
-			class iterator {
-				friend class darr;
-
-			public:
-				using iterator_category = GAIA_UTIL::random_access_iterator_tag;
-				using value_type = T;
-				using difference_type = std::ptrdiff_t;
-				using pointer = T*;
-				using reference = T&;
-				using size_type = darr::size_type;
-
-			private:
-				pointer m_ptr;
-
-			public:
-				iterator(T* ptr): m_ptr(ptr) {}
-
-				T& operator*() const {
-					return *m_ptr;
-				}
-				T* operator->() const {
-					return m_ptr;
-				}
-				iterator operator[](size_type offset) const {
-					return {m_ptr + offset};
-				}
-
-				iterator& operator+=(size_type diff) {
-					m_ptr += diff;
-					return *this;
-				}
-				iterator& operator-=(size_type diff) {
-					m_ptr -= diff;
-					return *this;
-				}
-				iterator& operator++() {
-					++m_ptr;
-					return *this;
-				}
-				iterator operator++(int) {
-					iterator temp(*this);
-					++*this;
-					return temp;
-				}
-				iterator& operator--() {
-					--m_ptr;
-					return *this;
-				}
-				iterator operator--(int) {
-					iterator temp(*this);
-					--*this;
-					return temp;
-				}
-
-				iterator operator+(size_type offset) const {
-					return {m_ptr + offset};
-				}
-				iterator operator-(size_type offset) const {
-					return {m_ptr - offset};
-				}
-				difference_type operator-(const iterator& other) const {
-					return m_ptr - other.m_ptr;
-				}
-
-				GAIA_NODISCARD bool operator==(const iterator& other) const {
-					return m_ptr == other.m_ptr;
-				}
-				GAIA_NODISCARD bool operator!=(const iterator& other) const {
-					return m_ptr != other.m_ptr;
-				}
-				GAIA_NODISCARD bool operator>(const iterator& other) const {
-					return m_ptr > other.m_ptr;
-				}
-				GAIA_NODISCARD bool operator>=(const iterator& other) const {
-					return m_ptr >= other.m_ptr;
-				}
-				GAIA_NODISCARD bool operator<(const iterator& other) const {
-					return m_ptr < other.m_ptr;
-				}
-				GAIA_NODISCARD bool operator<=(const iterator& other) const {
-					return m_ptr <= other.m_ptr;
-				}
-			};
-
-			class const_iterator {
-				friend class darr;
-
-			public:
-				using iterator_category = GAIA_UTIL::random_access_iterator_tag;
-				using value_type = const T;
-				using difference_type = std::ptrdiff_t;
-				using pointer = const T*;
-				using reference = const T&;
-				using size_type = darr::size_type;
-
-			private:
-				pointer m_ptr;
-
-			public:
-				const_iterator(pointer ptr): m_ptr(ptr) {}
-
-				reference operator*() const {
-					return *m_ptr;
-				}
-				pointer operator->() const {
-					return m_ptr;
-				}
-				const_iterator operator[](size_type offset) const {
-					return {m_ptr + offset};
-				}
-
-				const_iterator& operator+=(size_type diff) {
-					m_ptr += diff;
-					return *this;
-				}
-				const_iterator& operator-=(size_type diff) {
-					m_ptr -= diff;
-					return *this;
-				}
-				const_iterator& operator++() {
-					++m_ptr;
-					return *this;
-				}
-				const_iterator operator++(int) {
-					const_iterator temp(*this);
-					++*this;
-					return temp;
-				}
-				const_iterator& operator--() {
-					--m_ptr;
-					return *this;
-				}
-				const_iterator operator--(int) {
-					const_iterator temp(*this);
-					--*this;
-					return temp;
-				}
-
-				const_iterator operator+(size_type offset) const {
-					return {m_ptr + offset};
-				}
-				const_iterator operator-(size_type offset) const {
-					return {m_ptr - offset};
-				}
-				difference_type operator-(const const_iterator& other) const {
-					return m_ptr - other.m_ptr;
-				}
-
-				GAIA_NODISCARD bool operator==(const const_iterator& other) const {
-					return m_ptr == other.m_ptr;
-				}
-				GAIA_NODISCARD bool operator!=(const const_iterator& other) const {
-					return m_ptr != other.m_ptr;
-				}
-				GAIA_NODISCARD bool operator>(const const_iterator& other) const {
-					return m_ptr > other.m_ptr;
-				}
-				GAIA_NODISCARD bool operator>=(const const_iterator& other) const {
-					return m_ptr >= other.m_ptr;
-				}
-				GAIA_NODISCARD bool operator<(const const_iterator& other) const {
-					return m_ptr < other.m_ptr;
-				}
-				GAIA_NODISCARD bool operator<=(const const_iterator& other) const {
-					return m_ptr <= other.m_ptr;
-				}
-			};
-
-			darr() noexcept = default;
-
-			darr(size_type count, const T& value) {
-				resize(count);
-				for (auto it: *this)
-					*it = value;
-			}
-
-			darr(size_type count) {
-				resize(count);
-			}
-
-			template <typename InputIt>
-			darr(InputIt first, InputIt last) {
-				const auto count = (size_type)GAIA_UTIL::distance(first, last);
-				resize(count);
-
-				if constexpr (std::is_pointer_v<InputIt>) {
-					for (size_type i = 0; i < count; ++i)
-						m_pData[i] = first[i];
-				} else if constexpr (std::is_same_v<
-																 typename InputIt::iterator_category, GAIA_UTIL::random_access_iterator_tag>) {
-					for (size_type i = 0; i < count; ++i)
-						m_pData[i] = *(first[i]);
-				} else {
-					size_type i = 0;
-					for (auto it = first; it != last; ++it)
-						m_pData[i++] = *it;
-				}
-			}
-
-			darr(std::initializer_list<T> il): darr(il.begin(), il.end()) {}
-
-			darr(const darr& other): darr(other.begin(), other.end()) {}
-
-			darr(darr&& other) noexcept: m_pData(other.m_pData), m_cnt(other.m_cnt), m_cap(other.m_cap) {
-				other.m_cnt = size_type(0);
-				other.m_cap = size_type(0);
-				other.m_pData = nullptr;
-			}
-
-			GAIA_NODISCARD darr& operator=(std::initializer_list<T> il) {
-				*this = darr(il.begin(), il.end());
-				return *this;
-			}
-
-			GAIA_NODISCARD darr& operator=(const darr& other) {
-				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
-
-				resize(other.size());
-				utils::copy_elements(m_pData, other.m_pData, other.size());
-
-				return *this;
-			}
-
-			GAIA_NODISCARD darr& operator=(darr&& other) noexcept {
-				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
-
-				m_cnt = other.m_cnt;
-				m_cap = other.m_cap;
-				m_pData = other.m_pData;
-
-				other.m_cnt = size_type(0);
-				other.m_cap = size_type(0);
-				other.m_pData = nullptr;
-
-				return *this;
-			}
-
-			~darr() {
-				delete[] m_pData;
-			}
-
-			GAIA_NODISCARD pointer data() noexcept {
-				return (pointer)m_pData;
-			}
-
-			GAIA_NODISCARD const_pointer data() const noexcept {
-				return (const_pointer)m_pData;
-			}
-
-			GAIA_NODISCARD reference operator[](size_type pos) noexcept {
-				GAIA_ASSERT(pos < size());
-				return (reference)m_pData[pos];
-			}
-
-			GAIA_NODISCARD const_reference operator[](size_type pos) const noexcept {
-				GAIA_ASSERT(pos < size());
-				return (const_reference)m_pData[pos];
-			}
-
-			void reserve(size_type count) {
-				if (count <= m_cap)
-					return;
-
-				if (m_pData) {
-					T* old = m_pData;
-					m_pData = new T[count];
-					utils::move_elements(m_pData, old, size());
-					delete[] old;
-				} else {
-					m_pData = new T[count];
-				}
-
-				m_cap = count;
-			}
-
-			void resize(size_type count) {
-				if (count <= m_cap) {
-					m_cnt = count;
-					return;
-				}
-
-				if (m_pData) {
-					T* old = m_pData;
-					m_pData = new T[count];
-					utils::move_elements(m_pData, old, size());
-					delete[] old;
-				} else {
-					m_pData = new T[count];
-				}
-
-				m_cap = count;
-				m_cnt = count;
-			}
-
-			void push_back(const T& arg) {
-				try_grow();
-				m_pData[m_cnt++] = arg;
-			}
-
-			void push_back(T&& arg) {
-				try_grow();
-				m_pData[m_cnt++] = std::forward<T>(arg);
-			}
-
-			template <typename... Args>
-			reference emplace_back(Args&&... args) {
-				try_grow();
-
-				reference ref = m_pData[m_cnt++];
-				ref = {std::forward<Args>(args)...};
-				return ref;
-			}
-
-			void pop_back() noexcept {
-				GAIA_ASSERT(!empty());
-				--m_cnt;
-			}
-
-			GAIA_NODISCARD iterator erase(iterator pos) noexcept {
-				GAIA_ASSERT(pos.m_ptr >= &m_pData[0] && pos.m_ptr < &m_pData[m_cap - 1]);
-
-				const auto idxSrc = (size_type)GAIA_UTIL::distance(pos, begin());
-				const auto idxDst = size() - 1;
-
-				utils::shift_elements_left(&m_pData[idxSrc], idxDst - idxSrc);
-				--m_cnt;
-
-				return iterator((T*)m_pData + idxSrc);
-			}
-
-			GAIA_NODISCARD const_iterator erase(const_iterator pos) noexcept {
-				GAIA_ASSERT(pos.m_ptr >= &m_pData[0] && pos.m_ptr < &m_pData[m_cap - 1]);
-
-				const auto idxSrc = (size_type)GAIA_UTIL::distance(pos, begin());
-				const auto idxDst = size() - 1;
-
-				utils::shift_elements_left(&m_pData[idxSrc], idxDst - idxSrc);
-				--m_cnt;
-
-				return iterator((const T*)m_pData + idxSrc);
-			}
-
-			GAIA_NODISCARD iterator erase(iterator first, iterator last) noexcept {
-				GAIA_ASSERT(first.m_cnt >= 0 && first.m_cnt < size());
-				GAIA_ASSERT(last.m_cnt >= 0 && last.m_cnt < size());
-				GAIA_ASSERT(last.m_cnt >= last.m_cnt);
-
-				const auto size = last.m_cnt - first.m_cnt;
-				utils::shift_elements_left(&m_pData[first.cnt], size);
-				m_cnt -= size;
-
-				return {(T*)m_pData + size_type(last.m_cnt)};
-			}
-
-			void clear() noexcept {
-				resize(0);
-			}
-
-			void shirk_to_fit() {
-				if (capacity() == size())
-					return;
-				T* old = m_pData;
-				m_pData = new T[m_cap = size()];
-				move_elements(m_pData, old, size());
-				delete[] old;
-			}
-
-			GAIA_NODISCARD size_type size() const noexcept {
-				return m_cnt;
-			}
-
-			GAIA_NODISCARD size_type capacity() const noexcept {
-				return m_cap;
-			}
-
-			GAIA_NODISCARD bool empty() const noexcept {
-				return size() == 0;
-			}
-
-			GAIA_NODISCARD size_type max_size() const noexcept {
-				return static_cast<size_type>(-1);
-			}
-
-			GAIA_NODISCARD reference front() noexcept {
-				GAIA_ASSERT(!empty());
-				return *begin();
-			}
-
-			GAIA_NODISCARD const_reference front() const noexcept {
-				GAIA_ASSERT(!empty());
-				return *begin();
-			}
-
-			GAIA_NODISCARD reference back() noexcept {
-				GAIA_ASSERT(!empty());
-				return m_pData[m_cnt - 1];
-			}
-
-			GAIA_NODISCARD const_reference back() const noexcept {
-				GAIA_ASSERT(!empty());
-				return m_pData[m_cnt - 1];
-			}
-
-			GAIA_NODISCARD iterator begin() const noexcept {
-				return {(T*)m_pData};
-			}
-
-			GAIA_NODISCARD const_iterator cbegin() const noexcept {
-				return {(const T*)m_pData};
-			}
-
-			GAIA_NODISCARD iterator rbegin() const noexcept {
-				return {(T*)&back()};
-			}
-
-			GAIA_NODISCARD const_iterator crbegin() const noexcept {
-				return {(T*)&back()};
-			}
-
-			GAIA_NODISCARD iterator end() const noexcept {
-				return {(T*)m_pData + size()};
-			}
-
-			GAIA_NODISCARD const_iterator cend() const noexcept {
-				return {(const T*)m_pData + size()};
-			}
-
-			GAIA_NODISCARD iterator rend() const noexcept {
-				return {(T*)m_pData - 1};
-			}
-
-			GAIA_NODISCARD const_iterator crend() const noexcept {
-				return {(const T*)m_pData - 1};
-			}
-
-			GAIA_NODISCARD bool operator==(const darr& other) const {
-				if (m_cnt != other.m_cnt)
-					return false;
-				const size_type n = size();
-				for (size_type i = 0; i < n; ++i)
-					if (!(m_pData[i] == other.m_pData[i]))
-						return false;
-				return true;
-			}
-		};
-	} // namespace containers
-
-} // namespace gaia
-
-namespace gaia {
-	namespace containers {
-		template <typename T>
-		using darray = containers::darr<T>;
-	} // namespace containers
-} // namespace gaia
-#else
-
-	// You can add your custom container here
-	#error Unsupported value used for USE_VECTOR
-
-#endif
-
-#define USE_ARRAY GAIA_USE_STL_CONTAINERS
-
-#if USE_ARRAY == 1
-	#include <array>
-namespace gaia {
-	namespace containers {
-		template <typename T, size_t N>
-		using sarray = std::array<T, N>;
-	} // namespace containers
-} // namespace gaia
-#elif USE_VECTOR == 0
-	
-#include <cstddef>
-#include <type_traits>
-#include <utility>
 
 namespace gaia {
 	namespace containers {
@@ -2146,709 +1444,6 @@ namespace gaia {
 	// You can add your custom container here
 	#error Unsupported value used for USE_ARRAY
 
-#endif
-
-// TODO: There is no quickly achievable std alternative so go with gaia container
-
-#include <cstddef>
-#include <type_traits>
-#include <utility>
-
-namespace gaia {
-	namespace containers {
-		//! Array of elements of type \tparam T with fixed capacity \tparam N and variable size allocated on stack.
-		//! Interface compatiblity with std::array where it matters.
-		template <typename T, size_t N>
-		class sarr_ext {
-		public:
-			using iterator_category = GAIA_UTIL::random_access_iterator_tag;
-			using value_type = T;
-			using reference = T&;
-			using const_reference = const T&;
-			using pointer = T*;
-			using const_pointer = T*;
-			using difference_type = std::ptrdiff_t;
-			using size_type = decltype(N);
-
-			static constexpr size_type extent = N;
-
-		private:
-			T m_data[N != 0U ? N : 1]; // support zero-size arrays
-			size_type m_cnt = size_type(0);
-
-		public:
-			class iterator {
-			public:
-				using iterator_category = GAIA_UTIL::random_access_iterator_tag;
-				using value_type = T;
-				using difference_type = std::ptrdiff_t;
-				using pointer = T*;
-				using reference = T&;
-				using size_type = decltype(N);
-
-			private:
-				pointer m_ptr;
-
-			public:
-				constexpr iterator(T* ptr): m_ptr(ptr) {}
-
-				constexpr T& operator*() const {
-					return *m_ptr;
-				}
-				constexpr T* operator->() const {
-					return m_ptr;
-				}
-				constexpr iterator operator[](size_type offset) const {
-					return {m_ptr + offset};
-				}
-
-				constexpr iterator& operator+=(size_type diff) {
-					m_ptr += diff;
-					return *this;
-				}
-				constexpr iterator& operator-=(size_type diff) {
-					m_ptr -= diff;
-					return *this;
-				}
-				constexpr iterator& operator++() {
-					++m_ptr;
-					return *this;
-				}
-				constexpr iterator operator++(int) {
-					iterator temp(*this);
-					++*this;
-					return temp;
-				}
-				constexpr iterator& operator--() {
-					--m_ptr;
-					return *this;
-				}
-				constexpr iterator operator--(int) {
-					iterator temp(*this);
-					--*this;
-					return temp;
-				}
-
-				constexpr iterator operator+(size_type offset) const {
-					return {m_ptr + offset};
-				}
-				constexpr iterator operator-(size_type offset) const {
-					return {m_ptr - offset};
-				}
-				constexpr difference_type operator-(const iterator& other) const {
-					return m_ptr - other.m_ptr;
-				}
-
-				GAIA_NODISCARD constexpr bool operator==(const iterator& other) const {
-					return m_ptr == other.m_ptr;
-				}
-				GAIA_NODISCARD constexpr bool operator!=(const iterator& other) const {
-					return m_ptr != other.m_ptr;
-				}
-				GAIA_NODISCARD constexpr bool operator>(const iterator& other) const {
-					return m_ptr > other.m_ptr;
-				}
-				GAIA_NODISCARD constexpr bool operator>=(const iterator& other) const {
-					return m_ptr >= other.m_ptr;
-				}
-				GAIA_NODISCARD constexpr bool operator<(const iterator& other) const {
-					return m_ptr < other.m_ptr;
-				}
-				GAIA_NODISCARD constexpr bool operator<=(const iterator& other) const {
-					return m_ptr <= other.m_ptr;
-				}
-			};
-
-			class const_iterator {
-			public:
-				using iterator_category = GAIA_UTIL::random_access_iterator_tag;
-				using value_type = const T;
-				using difference_type = std::ptrdiff_t;
-				using pointer = const T*;
-				using reference = const T&;
-				using size_type = decltype(N);
-
-			private:
-				pointer m_ptr;
-
-			public:
-				constexpr const_iterator(pointer ptr): m_ptr(ptr) {}
-
-				constexpr reference operator*() const {
-					return *m_ptr;
-				}
-				constexpr pointer operator->() const {
-					return m_ptr;
-				}
-				constexpr const_iterator operator[](size_type offset) const {
-					return {m_ptr + offset};
-				}
-
-				constexpr const_iterator& operator+=(size_type diff) {
-					m_ptr += diff;
-					return *this;
-				}
-				constexpr const_iterator& operator-=(size_type diff) {
-					m_ptr -= diff;
-					return *this;
-				}
-				constexpr const_iterator& operator++() {
-					++m_ptr;
-					return *this;
-				}
-				constexpr const_iterator operator++(int) {
-					const_iterator temp(*this);
-					++*this;
-					return temp;
-				}
-				constexpr const_iterator& operator--() {
-					--m_ptr;
-					return *this;
-				}
-				constexpr const_iterator operator--(int) {
-					const_iterator temp(*this);
-					--*this;
-					return temp;
-				}
-
-				constexpr const_iterator operator+(size_type offset) const {
-					return {m_ptr + offset};
-				}
-				constexpr const_iterator operator-(size_type offset) const {
-					return {m_ptr - offset};
-				}
-				constexpr difference_type operator-(const const_iterator& other) const {
-					return m_ptr - other.m_ptr;
-				}
-
-				GAIA_NODISCARD constexpr bool operator==(const const_iterator& other) const {
-					return m_ptr == other.m_ptr;
-				}
-				GAIA_NODISCARD constexpr bool operator!=(const const_iterator& other) const {
-					return m_ptr != other.m_ptr;
-				}
-				GAIA_NODISCARD constexpr bool operator>(const const_iterator& other) const {
-					return m_ptr > other.m_ptr;
-				}
-				GAIA_NODISCARD constexpr bool operator>=(const const_iterator& other) const {
-					return m_ptr >= other.m_ptr;
-				}
-				GAIA_NODISCARD constexpr bool operator<(const const_iterator& other) const {
-					return m_ptr < other.m_ptr;
-				}
-				GAIA_NODISCARD constexpr bool operator<=(const const_iterator& other) const {
-					return m_ptr <= other.m_ptr;
-				}
-			};
-
-			sarr_ext() noexcept = default;
-			~sarr_ext() = default;
-
-			constexpr sarr_ext(size_type count, const T& value) noexcept {
-				resize(count);
-
-				for (auto it: *this)
-					*it = value;
-			}
-
-			constexpr sarr_ext(size_type count) noexcept {
-				resize(count);
-			}
-
-			template <typename InputIt>
-			constexpr sarr_ext(InputIt first, InputIt last) noexcept {
-				const auto count = (size_type)GAIA_UTIL::distance(first, last);
-				resize(count);
-
-				if constexpr (std::is_pointer_v<InputIt>) {
-					for (size_type i = 0; i < count; ++i)
-						m_data[i] = first[i];
-				} else if constexpr (std::is_same_v<
-																 typename InputIt::iterator_category, GAIA_UTIL::random_access_iterator_tag>) {
-					for (size_type i = 0; i < count; ++i)
-						m_data[i] = *(first[i]);
-				} else {
-					size_type i = 0;
-					for (auto it = first; it != last; ++it)
-						m_data[i++] = *it;
-				}
-			}
-
-			constexpr sarr_ext(std::initializer_list<T> il): sarr_ext(il.begin(), il.end()) {}
-
-			constexpr sarr_ext(const sarr_ext& other): sarr_ext(other.begin(), other.end()) {}
-
-			constexpr sarr_ext(sarr_ext&& other) noexcept: m_cnt(other.m_cnt) {
-				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
-
-				utils::move_elements(m_data, other.m_data, other.size());
-
-				other.m_cnt = size_type(0);
-			}
-
-			GAIA_NODISCARD sarr_ext& operator=(std::initializer_list<T> il) {
-				*this = sarr_ext(il.begin(), il.end());
-				return *this;
-			}
-
-			GAIA_NODISCARD constexpr sarr_ext& operator=(const sarr_ext& other) {
-				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
-
-				resize(other.size());
-				utils::copy_elements(m_data, other.m_data, other.size());
-
-				return *this;
-			}
-
-			GAIA_NODISCARD constexpr sarr_ext& operator=(sarr_ext&& other) noexcept {
-				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
-
-				resize(other.m_cnt);
-				utils::move_elements(m_data, other.m_data, other.size());
-
-				other.m_cnt = size_type(0);
-
-				return *this;
-			}
-
-			GAIA_NODISCARD constexpr pointer data() noexcept {
-				return (pointer)m_data;
-			}
-
-			GAIA_NODISCARD constexpr const_pointer data() const noexcept {
-				return (const_pointer)m_data;
-			}
-
-			GAIA_NODISCARD constexpr reference operator[](size_type pos) noexcept {
-				GAIA_ASSERT(pos < size());
-				return (reference)m_data[pos];
-			}
-
-			GAIA_NODISCARD constexpr const_reference operator[](size_type pos) const noexcept {
-				GAIA_ASSERT(pos < size());
-				return (const_reference)m_data[pos];
-			}
-
-			constexpr void push_back(const T& arg) noexcept {
-				GAIA_ASSERT(size() < N);
-				m_data[m_cnt++] = arg;
-			}
-
-			constexpr void push_back(T&& arg) noexcept {
-				GAIA_ASSERT(size() < N);
-				m_data[m_cnt++] = std::forward<T>(arg);
-			}
-
-			template <typename... Args>
-			constexpr reference emplace_back(Args&&... args) {
-				GAIA_ASSERT(size() < N);
-				reference ref = m_data[m_cnt++];
-				ref = {std::forward<Args>(args)...};
-				return ref;
-			}
-
-			constexpr void pop_back() noexcept {
-				GAIA_ASSERT(!empty());
-				--m_cnt;
-			}
-
-			GAIA_NODISCARD constexpr iterator erase(iterator pos) noexcept {
-				GAIA_ASSERT(pos.m_ptr >= &m_data[0] && pos.m_ptr < &m_data[N - 1]);
-
-				const auto idxSrc = (size_type)GAIA_UTIL::distance(pos, begin());
-				const auto idxDst = size() - 1;
-
-				utils::shift_elements_left(&m_data[idxSrc], idxDst - idxSrc);
-				--m_cnt;
-
-				return iterator((T*)m_data + idxSrc);
-			}
-
-			GAIA_NODISCARD constexpr const_iterator erase(const_iterator pos) noexcept {
-				GAIA_ASSERT(pos.m_ptr >= &m_data[0] && pos.m_ptr < &m_data[N - 1]);
-
-				const auto idxSrc = (size_type)GAIA_UTIL::distance(pos, begin());
-				const auto idxDst = size() - 1;
-
-				utils::shift_elements_left(&m_data[idxSrc], idxDst - idxSrc);
-				--m_cnt;
-
-				return iterator((const T*)m_data + idxSrc);
-			}
-
-			GAIA_NODISCARD constexpr iterator erase(iterator first, iterator last) noexcept {
-				GAIA_ASSERT(first.m_cnt >= 0 && first.m_cnt < size());
-				GAIA_ASSERT(last.m_cnt >= 0 && last.m_cnt < size());
-				GAIA_ASSERT(last.m_cnt >= last.m_cnt);
-
-				const auto size = last.m_cnt - first.m_cnt;
-				utils::shift_elements_left(&m_data[first.cnt], size);
-				m_cnt -= size;
-
-				return {(T*)m_data + size_type(last.m_cnt)};
-			}
-
-			constexpr void clear() noexcept {
-				resize(0);
-			}
-
-			constexpr void resize(size_type size) noexcept {
-				GAIA_ASSERT(size < N);
-				m_cnt = size;
-			}
-
-			GAIA_NODISCARD constexpr size_type size() const noexcept {
-				return m_cnt;
-			}
-
-			GAIA_NODISCARD constexpr bool empty() const noexcept {
-				return size() == 0;
-			}
-
-			GAIA_NODISCARD constexpr size_type max_size() const noexcept {
-				return N;
-			}
-
-			GAIA_NODISCARD constexpr reference front() noexcept {
-				return *begin();
-			}
-
-			GAIA_NODISCARD constexpr const_reference front() const noexcept {
-				return *begin();
-			}
-
-			GAIA_NODISCARD constexpr reference back() noexcept {
-				return N != 0U ? *(end() - 1) : *end();
-			}
-
-			GAIA_NODISCARD constexpr const_reference back() const noexcept {
-				return N != 0U ? *(end() - 1) : *end();
-			}
-
-			GAIA_NODISCARD constexpr iterator begin() const noexcept {
-				return {(T*)m_data};
-			}
-
-			GAIA_NODISCARD constexpr const_iterator cbegin() const noexcept {
-				return {(const T*)m_data};
-			}
-
-			GAIA_NODISCARD iterator end() const noexcept {
-				return {(T*)m_data + size()};
-			}
-
-			GAIA_NODISCARD const_iterator cend() const noexcept {
-				return {(const T*)m_data + size()};
-			}
-
-			GAIA_NODISCARD bool operator==(const sarr_ext& other) const {
-				if (m_cnt != other.m_cnt)
-					return false;
-				const size_type n = size();
-				for (size_type i = 0; i < n; ++i)
-					if (!(m_data[i] == other.m_data[i]))
-						return false;
-				return true;
-			}
-		};
-
-		namespace detail {
-			template <typename T, std::size_t N, std::size_t... I>
-			constexpr sarr_ext<std::remove_cv_t<T>, N> to_sarray_impl(T (&a)[N], std::index_sequence<I...> /*no_name*/) {
-				return {{a[I]...}};
-			}
-		} // namespace detail
-
-		template <typename T, std::size_t N>
-		constexpr sarr_ext<std::remove_cv_t<T>, N> to_sarray(T (&a)[N]) {
-			return detail::to_sarray_impl(a, std::make_index_sequence<N>{});
-		}
-
-	} // namespace containers
-
-} // namespace gaia
-
-namespace std {
-	template <typename T, size_t N>
-	struct tuple_size<gaia::containers::sarr_ext<T, N>>: std::integral_constant<std::size_t, N> {};
-
-	template <size_t I, typename T, size_t N>
-	struct tuple_element<I, gaia::containers::sarr_ext<T, N>> {
-		using type = T;
-	};
-} // namespace std
-
-namespace gaia {
-	namespace containers {
-		template <typename T, auto N>
-		using sarray_ext = containers::sarr_ext<T, N>;
-	} // namespace containers
-} // namespace gaia
-
-#include <cstdint>
-#include <type_traits>
-#if GAIA_USE_STL_CONTAINERS
-	#include <functional>
-#endif
-
-namespace gaia {
-	namespace utils {
-
-		namespace detail {
-			template <typename, typename = void>
-			struct is_direct_hash_key: std::false_type {};
-			template <typename T>
-			struct is_direct_hash_key<T, typename std::enable_if_t<T::IsDirectHashKey>>: std::true_type {};
-
-			//-----------------------------------------------------------------------------------
-
-			constexpr void hash_combine2_out(uint32_t& lhs, uint32_t rhs) {
-				lhs ^= rhs + 0x9e3779b9 + (lhs << 6) + (lhs >> 2);
-			}
-			constexpr void hash_combine2_out(uint64_t& lhs, uint64_t rhs) {
-				lhs ^= rhs + 0x9e3779B97f4a7c15ULL + (lhs << 6) + (lhs >> 2);
-			}
-
-			template <typename T>
-			GAIA_NODISCARD constexpr T hash_combine2(T lhs, T rhs) {
-				hash_combine2_out(lhs, rhs);
-				return lhs;
-			}
-		} // namespace detail
-
-		template <typename T>
-		inline constexpr bool is_direct_hash_key_v = detail::is_direct_hash_key<T>::value;
-
-		template <typename T>
-		struct direct_hash_key {
-			using Type = T;
-
-			static_assert(std::is_integral_v<T>);
-			static constexpr bool IsDirectHashKey = true;
-
-			T hash;
-			bool operator==(direct_hash_key other) const {
-				return hash == other.hash;
-			}
-			bool operator!=(direct_hash_key other) const {
-				return hash != other.hash;
-			}
-		};
-
-		//! Combines values via OR.
-		template <typename... T>
-		constexpr auto combine_or([[maybe_unused]] T... t) {
-			return (... | t);
-		}
-
-		//! Combines hashes into another complex one
-		template <typename T, typename... Rest>
-		constexpr T hash_combine(T first, T next, Rest... rest) {
-			auto h = detail::hash_combine2(first, next);
-			(detail::hash_combine2_out(h, rest), ...);
-			return h;
-		}
-
-#if GAIA_ECS_HASH == GAIA_ECS_HASH_FNV1A
-
-		namespace detail {
-			namespace fnv1a {
-				constexpr uint64_t val_64_const = 0xcbf29ce484222325;
-				constexpr uint64_t prime_64_const = 0x100000001b3;
-			} // namespace fnv1a
-		} // namespace detail
-
-		constexpr uint64_t calculate_hash64(const char* const str) noexcept {
-			uint64_t hash = detail::fnv1a::val_64_const;
-
-			size_t i = 0;
-			while (str[i] != '\0') {
-				hash = (hash ^ uint64_t(str[i])) * detail::fnv1a::prime_64_const;
-				++i;
-			}
-
-			return hash;
-		}
-
-		constexpr uint64_t calculate_hash64(const char* const str, const size_t length) noexcept {
-			uint64_t hash = detail::fnv1a::val_64_const;
-
-			for (size_t i = 0; i < length; i++)
-				hash = (hash ^ uint64_t(str[i])) * detail::fnv1a::prime_64_const;
-
-			return hash;
-		}
-
-#elif GAIA_ECS_HASH == GAIA_ECS_HASH_MURMUR2A
-
-		// Thank you https://gist.github.com/oteguro/10538695
-
-		GAIA_MSVC_WARNING_PUSH()
-		GAIA_MSVC_WARNING_DISABLE(4592)
-
-		namespace detail {
-			namespace murmur2a {
-				constexpr uint64_t seed_64_const = 0xe17a1465ULL;
-				constexpr uint64_t m = 0xc6a4a7935bd1e995ULL;
-				constexpr uint64_t r = 47;
-
-				constexpr uint64_t Load8(const char* data) {
-					return (uint64_t(data[7]) << 56) | (uint64_t(data[6]) << 48) | (uint64_t(data[5]) << 40) |
-								 (uint64_t(data[4]) << 32) | (uint64_t(data[3]) << 24) | (uint64_t(data[2]) << 16) |
-								 (uint64_t(data[1]) << 8) | (uint64_t(data[0]) << 0);
-				}
-
-				constexpr uint64_t StaticHashValueLast64(uint64_t h) {
-					return (((h * m) ^ ((h * m) >> r)) * m) ^ ((((h * m) ^ ((h * m) >> r)) * m) >> r);
-				}
-
-				constexpr uint64_t StaticHashValueLast64_(uint64_t h) {
-					return (((h) ^ ((h) >> r)) * m) ^ ((((h) ^ ((h) >> r)) * m) >> r);
-				}
-
-				constexpr uint64_t StaticHashValue64Tail1(uint64_t h, const char* data) {
-					return StaticHashValueLast64((h ^ uint64_t(data[0])));
-				}
-
-				constexpr uint64_t StaticHashValue64Tail2(uint64_t h, const char* data) {
-					return StaticHashValue64Tail1((h ^ uint64_t(data[1]) << 8), data);
-				}
-
-				constexpr uint64_t StaticHashValue64Tail3(uint64_t h, const char* data) {
-					return StaticHashValue64Tail2((h ^ uint64_t(data[2]) << 16), data);
-				}
-
-				constexpr uint64_t StaticHashValue64Tail4(uint64_t h, const char* data) {
-					return StaticHashValue64Tail3((h ^ uint64_t(data[3]) << 24), data);
-				}
-
-				constexpr uint64_t StaticHashValue64Tail5(uint64_t h, const char* data) {
-					return StaticHashValue64Tail4((h ^ uint64_t(data[4]) << 32), data);
-				}
-
-				constexpr uint64_t StaticHashValue64Tail6(uint64_t h, const char* data) {
-					return StaticHashValue64Tail5((h ^ uint64_t(data[5]) << 40), data);
-				}
-
-				constexpr uint64_t StaticHashValue64Tail7(uint64_t h, const char* data) {
-					return StaticHashValue64Tail6((h ^ uint64_t(data[6]) << 48), data);
-				}
-
-				constexpr uint64_t StaticHashValueRest64(uint64_t h, size_t len, const char* data) {
-					return ((len & 7) == 7)		? StaticHashValue64Tail7(h, data)
-								 : ((len & 7) == 6) ? StaticHashValue64Tail6(h, data)
-								 : ((len & 7) == 5) ? StaticHashValue64Tail5(h, data)
-								 : ((len & 7) == 4) ? StaticHashValue64Tail4(h, data)
-								 : ((len & 7) == 3) ? StaticHashValue64Tail3(h, data)
-								 : ((len & 7) == 2) ? StaticHashValue64Tail2(h, data)
-								 : ((len & 7) == 1) ? StaticHashValue64Tail1(h, data)
-																		: StaticHashValueLast64_(h);
-				}
-
-				constexpr uint64_t StaticHashValueLoop64(size_t i, uint64_t h, size_t len, const char* data) {
-					return (
-							i == 0 ? StaticHashValueRest64(h, len, data)
-										 : StaticHashValueLoop64(
-													 i - 1, (h ^ (((Load8(data) * m) ^ ((Load8(data) * m) >> r)) * m)) * m, len, data + 8));
-				}
-
-				constexpr uint64_t hash_murmur2a_64_ct(const char* key, size_t len, uint64_t seed) {
-					return StaticHashValueLoop64(len / 8, seed ^ (uint64_t(len) * m), (len), key);
-				}
-			} // namespace murmur2a
-		} // namespace detail
-
-		constexpr uint64_t calculate_hash64(uint64_t value) {
-			value ^= value >> 33U;
-			value *= 0xff51afd7ed558ccdULL;
-			value ^= value >> 33U;
-
-			value *= 0xc4ceb9fe1a85ec53ULL;
-			value ^= value >> 33U;
-			return static_cast<size_t>(value);
-		}
-
-		constexpr uint64_t calculate_hash64(const char* str) {
-			size_t size = 0;
-			while (str[size] != '\0')
-				++size;
-
-			return detail::murmur2a::hash_murmur2a_64_ct(str, size, detail::murmur2a::seed_64_const);
-		}
-
-		constexpr uint64_t calculate_hash64(const char* str, size_t length) {
-			return detail::murmur2a::hash_murmur2a_64_ct(str, length, detail::murmur2a::seed_64_const);
-		}
-
-		GAIA_MSVC_WARNING_POP()
-
-#else
-	#error "Unknown hashing type defined"
-#endif
-
-	} // namespace utils
-} // namespace gaia
-
-#if GAIA_USE_STL_CONTAINERS
-
-	#define REGISTER_HASH_TYPE_IMPL(type)                                                                                \
-		template <>                                                                                                        \
-		struct std::hash<type> {                                                                                           \
-			size_t operator()(type obj) const noexcept { return obj.hash; }                                                  \
-		};
-
-REGISTER_HASH_TYPE_IMPL(gaia::utils::direct_hash_key<uint64_t>)
-REGISTER_HASH_TYPE_IMPL(gaia::utils::direct_hash_key<uint32_t>)
-
-	// Keeping this empty for now. Instead we register the types using the above.
-	// The thing is any version of direct_hash_key<T> is going to be treated the same
-	// way and because we are a header-only library there would be duplicates.
-	#define REGISTER_HASH_TYPE(type)
-#else
-	#define REGISTER_HASH_TYPE(type)
-#endif
-
-#include <cinttypes>
-
-#include <cinttypes>
-
-#include <tuple>
-#include <type_traits>
-#include <utility>
-
-#define USE_SPAN GAIA_USE_STL_CONTAINERS
-
-#if USE_SPAN && __cpp_lib_span
-	#include <span>
-#else
-	
-/*
-This is an implementation of C++20's std::span
-http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/n4820.pdf
-*/
-
-//          Copyright Tristan Brindle 2018.
-// Distributed under the Boost Software License, Version 1.0.
-//    (See accompanying file ../../LICENSE_1_0.txt or copy at
-//          https://www.boost.org/LICENSE_1_0.txt)
-
-#ifndef TCB_SPAN_HPP_INCLUDED
-#define TCB_SPAN_HPP_INCLUDED
-
-#include <cstddef>
-#include <cstdint>
-#include <type_traits>
-
-#ifndef TCB_SPAN_NO_EXCEPTIONS
-	// Attempt to discover whether we're being compiled with exception support
-	#if !(defined(__cpp_exceptions) || defined(__EXCEPTIONS) || defined(_CPPUNWIND))
-		#define TCB_SPAN_NO_EXCEPTIONS
-	#endif
-#endif
-
-#ifndef TCB_SPAN_NO_EXCEPTIONS
-	#include <cstdio>
-	#include <stdexcept>
 #endif
 
 // Various feature test macros
@@ -3357,6 +1952,217 @@ namespace std {
 	using tcb::span;
 }
 #endif
+
+#include <cinttypes>
+#include <cstring>
+#include <stdlib.h>
+#include <type_traits>
+#include <utility>
+
+#if GAIA_PLATFORM_WINDOWS && GAIA_COMPILER_MSVC
+	#define GAIA_MEM_ALLC(size) malloc(size)
+	#define GAIA_MEM_FREE(ptr) free(ptr)
+
+	// Clang with MSVC codegen needs some remapping
+	#if !defined(aligned_alloc)
+		#define GAIA_MEM_ALLC_A(size, alig) _aligned_malloc(size, alig)
+		#define GAIA_MEM_FREE_A(ptr) _aligned_free(ptr)
+	#else
+		#define GAIA_MEM_ALLC_A(size, alig) aligned_alloc(alig, size)
+		#define GAIA_MEM_FREE_A(ptr) aligned_free(ptr)
+	#endif
+#else
+	#define GAIA_MEM_ALLC(size) malloc(size)
+	#define GAIA_MEM_ALLC_A(size, alig) aligned_alloc(alig, size)
+	#define GAIA_MEM_FREE(ptr) free(ptr)
+	#define GAIA_MEM_FREE_A(ptr) free(ptr)
+#endif
+
+namespace gaia {
+	namespace utils {
+		inline void* mem_alloc(size_t size) {
+			void* ptr = GAIA_MEM_ALLC(size);
+			GAIA_PROF_ALLOC(ptr, size);
+			return ptr;
+		}
+
+		inline void* mem_alloc_alig(size_t size, size_t alig) {
+			void* ptr = GAIA_MEM_ALLC_A(size, alig);
+			GAIA_PROF_ALLOC(ptr, size);
+			return ptr;
+		}
+
+		inline void mem_free(void* ptr) {
+			GAIA_MEM_FREE(ptr);
+			GAIA_PROF_FREE(ptr);
+		}
+
+		inline void mem_free_alig(void* ptr) {
+			GAIA_MEM_FREE_A(ptr);
+			GAIA_PROF_FREE(ptr);
+		}
+
+		//! Align a number to the requested byte alignment
+		//! \param num Number to align
+		//! \param alignment Requested alignment
+		//! \return Aligned number
+		template <typename T, typename V>
+		constexpr T align(T num, V alignment) {
+			return alignment == 0 ? num : ((num + (alignment - 1)) / alignment) * alignment;
+		}
+
+		//! Align a number to the requested byte alignment
+		//! \tparam alignment Requested alignment in bytes
+		//! \param num Number to align
+		//! return Aligned number
+		template <size_t alignment, typename T>
+		constexpr T align(T num) {
+			return ((num + (alignment - 1)) & ~(alignment - 1));
+		}
+
+		//! Convert form type \tparam Src to type \tparam Dst without causing an undefined behavior
+		template <typename Dst, typename Src>
+		Dst bit_cast(const Src& src) {
+			static_assert(sizeof(Dst) == sizeof(Src));
+			static_assert(std::is_trivially_copyable_v<Src>);
+			static_assert(std::is_trivially_copyable_v<Dst>);
+
+			// int i = {};
+			// float f = *(*float)&i; // undefined behavior
+			// memcpy(&f, &i, sizeof(float)); // okay
+			Dst dst;
+			memmove((void*)&dst, (const void*)&src, sizeof(Dst));
+			return dst;
+		}
+
+		//! Pointer wrapper for reading memory in defined way (not causing undefined behavior)
+		template <typename T>
+		class const_unaligned_pointer {
+			const uint8_t* from;
+
+		public:
+			const_unaligned_pointer(): from(nullptr) {}
+			const_unaligned_pointer(const void* p): from((const uint8_t*)p) {}
+
+			T operator*() const {
+				T to;
+				memmove((void*)&to, (const void*)from, sizeof(T));
+				return to;
+			}
+
+			T operator[](ptrdiff_t d) const {
+				return *(*this + d);
+			}
+
+			const_unaligned_pointer operator+(ptrdiff_t d) const {
+				return const_unaligned_pointer(from + d * sizeof(T));
+			}
+			const_unaligned_pointer operator-(ptrdiff_t d) const {
+				return const_unaligned_pointer(from - d * sizeof(T));
+			}
+		};
+
+		//! Pointer wrapper for writing memory in defined way (not causing undefined behavior)
+		template <typename T>
+		class unaligned_ref {
+			void* m_p;
+
+		public:
+			unaligned_ref(void* p): m_p(p) {}
+
+			unaligned_ref& operator=(const T& value) {
+				memmove(m_p, (const void*)&value, sizeof(T));
+				return *this;
+			}
+
+			operator T() const {
+				T tmp;
+				memmove((void*)&tmp, (const void*)m_p, sizeof(T));
+				return tmp;
+			}
+		};
+
+		//! Pointer wrapper for writing memory in defined way (not causing undefined behavior)
+		template <typename T>
+		class unaligned_pointer {
+			uint8_t* m_p;
+
+		public:
+			unaligned_pointer(): m_p(nullptr) {}
+			unaligned_pointer(void* p): m_p((uint8_t*)p) {}
+
+			unaligned_ref<T> operator*() const {
+				return unaligned_ref<T>(m_p);
+			}
+
+			unaligned_ref<T> operator[](ptrdiff_t d) const {
+				return *(*this + d);
+			}
+
+			unaligned_pointer operator+(ptrdiff_t d) const {
+				return unaligned_pointer(m_p + d * sizeof(T));
+			}
+			unaligned_pointer operator-(ptrdiff_t d) const {
+				return unaligned_pointer(m_p - d * sizeof(T));
+			}
+		};
+
+		template <typename T>
+		constexpr T* addressof(T& obj) noexcept {
+			return &obj;
+		}
+
+		template <class T>
+		const T* addressof(const T&&) = delete;
+
+		//! Copy \param size elements of type \tparam T from the address pointer to by \param src to \param dst
+		template <typename T>
+		void copy_elements(T* GAIA_RESTRICT dst, const T* GAIA_RESTRICT src, size_t size) {
+			GAIA_MSVC_WARNING_PUSH()
+			GAIA_MSVC_WARNING_DISABLE(6385)
+
+			static_assert(std::is_copy_assignable_v<T>);
+			for (size_t i = 0; i < size; ++i)
+				dst[i] = src[i];
+
+			GAIA_MSVC_WARNING_POP()
+		}
+
+		//! Move or copy \param size elements of type \tparam T from the address pointer to by \param src to \param dst
+		template <typename T>
+		void move_elements(T* GAIA_RESTRICT dst, const T* GAIA_RESTRICT src, size_t size) {
+			GAIA_MSVC_WARNING_PUSH()
+			GAIA_MSVC_WARNING_DISABLE(6385)
+
+			if constexpr (std::is_move_assignable_v<T>) {
+				for (size_t i = 0; i < size; ++i)
+					dst[i] = std::move(src[i]);
+			} else {
+				for (size_t i = 0; i < size; ++i)
+					dst[i] = src[i];
+			}
+
+			GAIA_MSVC_WARNING_POP()
+		}
+
+		//! Shift \param size elements at address pointed to by \param dst to the left by one
+		template <typename T>
+		void shift_elements_left(T* GAIA_RESTRICT dst, size_t size) {
+			GAIA_MSVC_WARNING_PUSH()
+			GAIA_MSVC_WARNING_DISABLE(6385)
+
+			if constexpr (std::is_move_assignable_v<T>) {
+				for (size_t i = 0; i < size; ++i)
+					dst[i] = std::move(dst[i + 1]);
+			} else {
+				for (size_t i = 0; i < size; ++i)
+					dst[i] = dst[i + 1];
+			}
+
+			GAIA_MSVC_WARNING_POP()
+		}
+	} // namespace utils
+} // namespace gaia
 
 #include <tuple>
 #include <type_traits>
@@ -4081,105 +2887,232 @@ namespace gaia {
 	} // namespace utils
 } // namespace gaia
 
+#include <cstdint>
+#include <type_traits>
+#if GAIA_USE_STL_CONTAINERS
+	#include <functional>
+#endif
+
 namespace gaia {
 	namespace utils {
 
-		//! Provides statically generated unique identifier for a given group of types.
-		template <typename...>
-		class type_group {
-			inline static uint32_t s_identifier{};
+		namespace detail {
+			template <typename, typename = void>
+			struct is_direct_hash_key: std::false_type {};
+			template <typename T>
+			struct is_direct_hash_key<T, typename std::enable_if_t<T::IsDirectHashKey>>: std::true_type {};
 
-		public:
-			template <typename... Type>
-			inline static const uint32_t id = s_identifier++;
+			//-----------------------------------------------------------------------------------
+
+			constexpr void hash_combine2_out(uint32_t& lhs, uint32_t rhs) {
+				lhs ^= rhs + 0x9e3779b9 + (lhs << 6) + (lhs >> 2);
+			}
+			constexpr void hash_combine2_out(uint64_t& lhs, uint64_t rhs) {
+				lhs ^= rhs + 0x9e3779B97f4a7c15ULL + (lhs << 6) + (lhs >> 2);
+			}
+
+			template <typename T>
+			GAIA_NODISCARD constexpr T hash_combine2(T lhs, T rhs) {
+				hash_combine2_out(lhs, rhs);
+				return lhs;
+			}
+		} // namespace detail
+
+		template <typename T>
+		inline constexpr bool is_direct_hash_key_v = detail::is_direct_hash_key<T>::value;
+
+		template <typename T>
+		struct direct_hash_key {
+			using Type = T;
+
+			static_assert(std::is_integral_v<T>);
+			static constexpr bool IsDirectHashKey = true;
+
+			T hash;
+			bool operator==(direct_hash_key other) const {
+				return hash == other.hash;
+			}
+			bool operator!=(direct_hash_key other) const {
+				return hash != other.hash;
+			}
 		};
 
-		template <>
-		class type_group<void>;
+		//! Combines values via OR.
+		template <typename... T>
+		constexpr auto combine_or([[maybe_unused]] T... t) {
+			return (... | t);
+		}
 
-		//----------------------------------------------------------------------
-		// Type meta data
-		//----------------------------------------------------------------------
+		//! Combines hashes into another complex one
+		template <typename T, typename... Rest>
+		constexpr T hash_combine(T first, T next, Rest... rest) {
+			auto h = detail::hash_combine2(first, next);
+			(detail::hash_combine2_out(h, rest), ...);
+			return h;
+		}
 
-		struct type_info final {
-		private:
-			constexpr static size_t GetMin(size_t a, size_t b) {
-				return b < a ? b : a;
+#if GAIA_ECS_HASH == GAIA_ECS_HASH_FNV1A
+
+		namespace detail {
+			namespace fnv1a {
+				constexpr uint64_t val_64_const = 0xcbf29ce484222325;
+				constexpr uint64_t prime_64_const = 0x100000001b3;
+			} // namespace fnv1a
+		} // namespace detail
+
+		constexpr uint64_t calculate_hash64(const char* const str) noexcept {
+			uint64_t hash = detail::fnv1a::val_64_const;
+
+			size_t i = 0;
+			while (str[i] != '\0') {
+				hash = (hash ^ uint64_t(str[i])) * detail::fnv1a::prime_64_const;
+				++i;
 			}
 
-			constexpr static size_t FindFirstOf(const char* data, size_t len, char toFind, size_t startPos = 0) {
-				for (size_t i = startPos; i < len; ++i) {
-					if (data[i] == toFind)
-						return i;
+			return hash;
+		}
+
+		constexpr uint64_t calculate_hash64(const char* const str, const size_t length) noexcept {
+			uint64_t hash = detail::fnv1a::val_64_const;
+
+			for (size_t i = 0; i < length; i++)
+				hash = (hash ^ uint64_t(str[i])) * detail::fnv1a::prime_64_const;
+
+			return hash;
+		}
+
+#elif GAIA_ECS_HASH == GAIA_ECS_HASH_MURMUR2A
+
+		// Thank you https://gist.github.com/oteguro/10538695
+
+		GAIA_MSVC_WARNING_PUSH()
+		GAIA_MSVC_WARNING_DISABLE(4592)
+
+		namespace detail {
+			namespace murmur2a {
+				constexpr uint64_t seed_64_const = 0xe17a1465ULL;
+				constexpr uint64_t m = 0xc6a4a7935bd1e995ULL;
+				constexpr uint64_t r = 47;
+
+				constexpr uint64_t Load8(const char* data) {
+					return (uint64_t(data[7]) << 56) | (uint64_t(data[6]) << 48) | (uint64_t(data[5]) << 40) |
+								 (uint64_t(data[4]) << 32) | (uint64_t(data[3]) << 24) | (uint64_t(data[2]) << 16) |
+								 (uint64_t(data[1]) << 8) | (uint64_t(data[0]) << 0);
 				}
-				return size_t(-1);
-			}
 
-			constexpr static size_t FindLastOf(const char* data, size_t len, char c, size_t startPos = size_t(-1)) {
-				for (int64_t i = (int64_t)GetMin(len - 1, startPos); i >= 0; --i) {
-					if (data[i] == c)
-						return i;
+				constexpr uint64_t StaticHashValueLast64(uint64_t h) {
+					return (((h * m) ^ ((h * m) >> r)) * m) ^ ((((h * m) ^ ((h * m) >> r)) * m) >> r);
 				}
-				return size_t(-1);
-			}
 
-		public:
-			template <typename T>
-			static uint32_t id() noexcept {
-				return type_group<type_info>::id<T>;
-			}
+				constexpr uint64_t StaticHashValueLast64_(uint64_t h) {
+					return (((h) ^ ((h) >> r)) * m) ^ ((((h) ^ ((h) >> r)) * m) >> r);
+				}
 
-			template <typename T>
-			GAIA_NODISCARD static constexpr const char* full_name() noexcept {
-				return GAIA_PRETTY_FUNCTION;
-			}
+				constexpr uint64_t StaticHashValue64Tail1(uint64_t h, const char* data) {
+					return StaticHashValueLast64((h ^ uint64_t(data[0])));
+				}
 
-			template <typename T>
-			GAIA_NODISCARD static constexpr auto name() noexcept {
-				// MSVC:
-				//		const char* __cdecl ecs::ComponentInfo::name<struct ecs::EnfEntity>(void)
-				//   -> ecs::EnfEntity
-				// Clang/GCC:
-				//		const ecs::ComponentInfo::name() [T = ecs::EnfEntity]
-				//   -> ecs::EnfEntity
+				constexpr uint64_t StaticHashValue64Tail2(uint64_t h, const char* data) {
+					return StaticHashValue64Tail1((h ^ uint64_t(data[1]) << 8), data);
+				}
 
-				// Note:
-				//		We don't want to use std::string_view here because it would only make it harder on compile-times.
-				//		In fact, even if we did, we need to be afraid of compiler issues.
-				// 		Clang 8 and older wouldn't compile because their string_view::find_last_of doesn't work
-				//		in constexpr context. Tested with and without LIBCPP
-				//		https://stackoverflow.com/questions/56484834/constexpr-stdstring-viewfind-last-of-doesnt-work-on-clang-8-with-libstdc
-				//		As a workaround FindFirstOf and FindLastOf were implemented
+				constexpr uint64_t StaticHashValue64Tail3(uint64_t h, const char* data) {
+					return StaticHashValue64Tail2((h ^ uint64_t(data[2]) << 16), data);
+				}
 
-				size_t strLen = 0;
-				while (GAIA_PRETTY_FUNCTION[strLen] != '\0')
-					++strLen;
+				constexpr uint64_t StaticHashValue64Tail4(uint64_t h, const char* data) {
+					return StaticHashValue64Tail3((h ^ uint64_t(data[3]) << 24), data);
+				}
 
-				std::span<const char> name{GAIA_PRETTY_FUNCTION, strLen};
-				const auto prefixPos = FindFirstOf(name.data(), name.size(), GAIA_PRETTY_FUNCTION_PREFIX);
-				const auto start = FindFirstOf(name.data(), name.size(), ' ', prefixPos + 1);
-				const auto end = FindLastOf(name.data(), name.size(), GAIA_PRETTY_FUNCTION_SUFFIX);
-				return name.subspan(start + 1, end - start - 1);
-			}
+				constexpr uint64_t StaticHashValue64Tail5(uint64_t h, const char* data) {
+					return StaticHashValue64Tail4((h ^ uint64_t(data[4]) << 32), data);
+				}
 
-			template <typename T>
-			GAIA_NODISCARD static constexpr auto hash() noexcept {
-#if GAIA_COMPILER_MSVC && _MSV_VER <= 1916
-				GAIA_MSVC_WARNING_PUSH()
-				GAIA_MSVC_WARNING_DISABLE(4307)
+				constexpr uint64_t StaticHashValue64Tail6(uint64_t h, const char* data) {
+					return StaticHashValue64Tail5((h ^ uint64_t(data[5]) << 40), data);
+				}
+
+				constexpr uint64_t StaticHashValue64Tail7(uint64_t h, const char* data) {
+					return StaticHashValue64Tail6((h ^ uint64_t(data[6]) << 48), data);
+				}
+
+				constexpr uint64_t StaticHashValueRest64(uint64_t h, size_t len, const char* data) {
+					return ((len & 7) == 7)		? StaticHashValue64Tail7(h, data)
+								 : ((len & 7) == 6) ? StaticHashValue64Tail6(h, data)
+								 : ((len & 7) == 5) ? StaticHashValue64Tail5(h, data)
+								 : ((len & 7) == 4) ? StaticHashValue64Tail4(h, data)
+								 : ((len & 7) == 3) ? StaticHashValue64Tail3(h, data)
+								 : ((len & 7) == 2) ? StaticHashValue64Tail2(h, data)
+								 : ((len & 7) == 1) ? StaticHashValue64Tail1(h, data)
+																		: StaticHashValueLast64_(h);
+				}
+
+				constexpr uint64_t StaticHashValueLoop64(size_t i, uint64_t h, size_t len, const char* data) {
+					return (
+							i == 0 ? StaticHashValueRest64(h, len, data)
+										 : StaticHashValueLoop64(
+													 i - 1, (h ^ (((Load8(data) * m) ^ ((Load8(data) * m) >> r)) * m)) * m, len, data + 8));
+				}
+
+				constexpr uint64_t hash_murmur2a_64_ct(const char* key, size_t len, uint64_t seed) {
+					return StaticHashValueLoop64(len / 8, seed ^ (uint64_t(len) * m), (len), key);
+				}
+			} // namespace murmur2a
+		} // namespace detail
+
+		constexpr uint64_t calculate_hash64(uint64_t value) {
+			value ^= value >> 33U;
+			value *= 0xff51afd7ed558ccdULL;
+			value ^= value >> 33U;
+
+			value *= 0xc4ceb9fe1a85ec53ULL;
+			value ^= value >> 33U;
+			return static_cast<size_t>(value);
+		}
+
+		constexpr uint64_t calculate_hash64(const char* str) {
+			size_t size = 0;
+			while (str[size] != '\0')
+				++size;
+
+			return detail::murmur2a::hash_murmur2a_64_ct(str, size, detail::murmur2a::seed_64_const);
+		}
+
+		constexpr uint64_t calculate_hash64(const char* str, size_t length) {
+			return detail::murmur2a::hash_murmur2a_64_ct(str, length, detail::murmur2a::seed_64_const);
+		}
+
+		GAIA_MSVC_WARNING_POP()
+
+#else
+	#error "Unknown hashing type defined"
 #endif
-
-				auto n = name<T>();
-				return calculate_hash64(n.data(), n.size());
-
-#if GAIA_COMPILER_MSVC && _MSV_VER <= 1916
-				GAIA_MSVC_WARNING_PUSH()
-#endif
-			}
-		};
 
 	} // namespace utils
 } // namespace gaia
+
+#if GAIA_USE_STL_CONTAINERS
+
+	#define REGISTER_HASH_TYPE_IMPL(type)                                                                                \
+		template <>                                                                                                        \
+		struct std::hash<type> {                                                                                           \
+			size_t operator()(type obj) const noexcept { return obj.hash; }                                                  \
+		};
+
+REGISTER_HASH_TYPE_IMPL(gaia::utils::direct_hash_key<uint64_t>)
+REGISTER_HASH_TYPE_IMPL(gaia::utils::direct_hash_key<uint32_t>)
+
+	// Keeping this empty for now. Instead we register the types using the above.
+	// The thing is any version of direct_hash_key<T> is going to be treated the same
+	// way and because we are a header-only library there would be duplicates.
+	#define REGISTER_HASH_TYPE(type)
+#else
+	#define REGISTER_HASH_TYPE(type)
+#endif
+
+#include <tuple>
+#include <type_traits>
+#include <utility>
 
 #if GAIA_USE_STL_COMPATIBLE_CONTAINERS
 	#include <algorithm>
@@ -5087,208 +4020,1686 @@ namespace gaia {
 } // namespace gaia
 
 namespace gaia {
-	namespace ecs {
-		namespace component {
+	namespace serialization {
+		namespace detail {
+			enum class serialization_type_id : uint8_t {
+				// Integer types
+				s8 = 1,
+				u8 = 2,
+				s16 = 3,
+				u16 = 4,
+				s32 = 5,
+				u32 = 6,
+				s64 = 7,
+				u64 = 8,
 
-			enum ComponentType : uint8_t {
-				// General purpose component
-				CT_Generic = 0,
-				// Chunk component
-				CT_Chunk,
-				// Number of component types
-				CT_Count
+				// Boolean
+				b = 40,
+
+				// Character types
+				c8 = 41,
+				c16 = 42,
+				c32 = 43,
+				cw = 44,
+
+				// Floating point types
+				f8 = 81,
+				f16 = 82,
+				f32 = 83,
+				f64 = 84,
+				f128 = 85,
+
+				// Special
+				trivial_wrapper = 200,
+				data_and_size = 201,
+
+				Last = 255,
 			};
 
-			inline const char* const ComponentTypeString[component::ComponentType::CT_Count] = {"Generic", "Chunk"};
-
-			using ComponentId = uint32_t;
-			using ComponentLookupHash = utils::direct_hash_key<uint64_t>;
-			using ComponentMatcherHash = utils::direct_hash_key<uint64_t>;
-			using ComponentIdSpan = std::span<const ComponentId>;
-
-			static constexpr ComponentId ComponentIdBad = (ComponentId)-1;
-			static constexpr uint32_t MAX_COMPONENTS_SIZE_BITS = 8;
-			static constexpr uint32_t MAX_COMPONENTS_SIZE_IN_BYTES = (1 << MAX_COMPONENTS_SIZE_BITS) - 1;
-
-			//----------------------------------------------------------------------
-			// Component type deduction
-			//----------------------------------------------------------------------
-
-			namespace detail {
-				template <typename T>
-				struct ExtractComponentType_Generic {
-					using Type = typename std::decay_t<typename std::remove_pointer_t<T>>;
-					using TypeOriginal = T;
-				};
-				template <typename T>
-				struct ExtractComponentType_NonGeneric {
-					using Type = typename T::TType;
-					using TypeOriginal = typename T::TTypeOriginal;
-				};
-
-				template <typename T, typename = void>
-				struct IsGenericComponent_Internal: std::true_type {};
-				template <typename T>
-				struct IsGenericComponent_Internal<T, decltype((void)T::TComponentType, void())>: std::false_type {};
-
-				template <typename T>
-				struct IsComponentSizeValid_Internal: std::bool_constant<sizeof(T) < MAX_COMPONENTS_SIZE_IN_BYTES> {};
-
-				template <typename T>
-				struct IsComponentTypeValid_Internal:
-						std::bool_constant<
-								// SoA types need to be trivial. No restrictions otherwise.
-								(!utils::is_soa_layout_v<T> || std::is_trivially_copyable_v<T>)> {};
-			} // namespace detail
-
-			template <typename T>
-			inline constexpr bool IsGenericComponent = detail::IsGenericComponent_Internal<T>::value;
-			template <typename T>
-			inline constexpr bool IsComponentSizeValid = detail::IsComponentSizeValid_Internal<T>::value;
-			template <typename T>
-			inline constexpr bool IsComponentTypeValid = detail::IsComponentTypeValid_Internal<T>::value;
-
-			template <typename T>
-			using DeduceComponent = std::conditional_t<
-					IsGenericComponent<T>, typename detail::ExtractComponentType_Generic<T>,
-					typename detail::ExtractComponentType_NonGeneric<T>>;
-
-			//! Returns the component id for \tparam T
-			//! \return Component id
-			template <typename T>
-			GAIA_NODISCARD inline ComponentId GetComponentId() {
-				using U = typename DeduceComponent<T>::Type;
-				return utils::type_info::id<U>();
+			template <typename C>
+			constexpr auto size(const C& c) -> decltype(c.size()) {
+				return c.size();
+			}
+			template <typename T, std::size_t N>
+			constexpr std::size_t size(const T (&)[N]) noexcept {
+				return N;
 			}
 
-			//! Returns the component id for \tparam T
-			//! \return Component id
-			template <typename T>
-			GAIA_NODISCARD inline constexpr ComponentType GetComponentType() {
-				if constexpr (IsGenericComponent<T>)
-					return ComponentType::CT_Generic;
-				else
-					return ComponentType::CT_Chunk;
+			template <typename C>
+			constexpr auto data(C& c) -> decltype(c.data()) {
+				return c.data();
+			}
+			template <typename C>
+			constexpr auto data(const C& c) -> decltype(c.data()) {
+				return c.data();
+			}
+			template <typename T, std::size_t N>
+			constexpr T* data(T (&array)[N]) noexcept {
+				return array;
+			}
+			template <typename E>
+			constexpr const E* data(std::initializer_list<E> il) noexcept {
+				return il.begin();
 			}
 
+			template <typename, typename = void>
+			struct has_data_and_size: std::false_type {};
 			template <typename T>
-			struct IsReadOnlyType:
-					std::bool_constant<
-							std::is_const_v<std::remove_reference_t<std::remove_pointer_t<T>>> ||
-							(!std::is_pointer<T>::value && !std::is_reference<T>::value)> {};
+			struct has_data_and_size<T, std::void_t<decltype(data(std::declval<T>())), decltype(size(std::declval<T>()))>>:
+					std::true_type {};
 
-			//----------------------------------------------------------------------
-			// Component verification
-			//----------------------------------------------------------------------
+			DEFINE_HAS_FUNCTION(resize);
+			// DEFINE_HAS_FUNCTION(serialize);
+			DEFINE_HAS_FUNCTION(save);
+			DEFINE_HAS_FUNCTION(load);
 
 			template <typename T>
-			constexpr void VerifyComponent() {
-				using U = typename DeduceComponent<T>::Type;
-				// Make sure we only use this for "raw" types
-				static_assert(!std::is_const_v<U>);
-				static_assert(!std::is_pointer_v<U>);
-				static_assert(!std::is_reference_v<U>);
-				static_assert(!std::is_volatile_v<U>);
-				static_assert(IsComponentSizeValid<U>, "MAX_COMPONENTS_SIZE_IN_BYTES in bytes is exceeded");
-				static_assert(IsComponentTypeValid<U>, "Component type restrictions not met");
-			}
-
-			//----------------------------------------------------------------------
-			// Component hash operations
-			//----------------------------------------------------------------------
-
-			namespace detail {
-				template <typename T>
-				constexpr uint64_t CalculateMatcherHash() noexcept {
-					return (uint64_t(1) << (utils::type_info::hash<T>() % uint64_t(63)));
+			struct is_trivially_serializable {
+			private:
+				static constexpr bool update() {
+					return std::is_enum_v<T> || std::is_fundamental_v<T> || std::is_trivially_copyable_v<T>;
 				}
-			} // namespace detail
 
-			template <typename = void, typename...>
-			constexpr ComponentMatcherHash CalculateMatcherHash() noexcept;
+			public:
+				static inline constexpr bool value = update();
+			};
 
-			template <typename T, typename... Rest>
-			GAIA_NODISCARD constexpr ComponentMatcherHash CalculateMatcherHash() noexcept {
-				if constexpr (sizeof...(Rest) == 0)
-					return {detail::CalculateMatcherHash<T>()};
-				else
-					return {utils::combine_or(detail::CalculateMatcherHash<T>(), detail::CalculateMatcherHash<Rest>()...)};
+			template <typename T>
+			GAIA_NODISCARD constexpr serialization_type_id get_integral_type() {
+				if constexpr (std::is_same_v<int8_t, T> || std::is_same_v<signed char, T>) {
+					return serialization_type_id::s8;
+				} else if constexpr (std::is_same_v<uint8_t, T> || std::is_same_v<unsigned char, T>) {
+					return serialization_type_id::u8;
+				} else if constexpr (std::is_same_v<int16_t, T>) {
+					return serialization_type_id::s16;
+				} else if constexpr (std::is_same_v<uint16_t, T>) {
+					return serialization_type_id::u16;
+				} else if constexpr (std::is_same_v<int32_t, T>) {
+					return serialization_type_id::s32;
+				} else if constexpr (std::is_same_v<uint32_t, T>) {
+					return serialization_type_id::u32;
+				} else if constexpr (std::is_same_v<int64_t, T>) {
+					return serialization_type_id::s64;
+				} else if constexpr (std::is_same_v<uint64_t, T>) {
+					return serialization_type_id::u64;
+				} else if constexpr (std::is_same_v<bool, T>) {
+					return serialization_type_id::b;
+				}
+
+				static_assert("Unsupported integral type");
 			}
 
-			template <>
-			GAIA_NODISCARD constexpr ComponentMatcherHash CalculateMatcherHash() noexcept {
-				return {0};
+			template <typename T>
+			GAIA_NODISCARD constexpr serialization_type_id get_floating_point_type() {
+				// if constexpr (std::is_same_v<float8_t, T>) {
+				// 	return serialization_type_id::f8;
+				// } else if constexpr (std::is_same_v<float16_t, T>) {
+				// 	return serialization_type_id::f16;
+				// } else
+				if constexpr (std::is_same_v<float, T>) {
+					return serialization_type_id::f32;
+				} else if constexpr (std::is_same_v<double, T>) {
+					return serialization_type_id::f64;
+				} else if constexpr (std::is_same_v<long double, T>) {
+					return serialization_type_id::f128;
+				}
+
+				static_assert("Unsupported floating point type");
 			}
 
-			//-----------------------------------------------------------------------------------
+			template <typename T>
+			GAIA_NODISCARD constexpr serialization_type_id get_type_id() {
+				if constexpr (std::is_enum_v<T>)
+					return get_integral_type<std::underlying_type_t<T>>();
+				else if constexpr (std::is_integral_v<T>)
+					return get_integral_type<T>();
+				else if constexpr (std::is_floating_point_v<T>)
+					return get_floating_point_type<T>();
+				else if constexpr (detail::has_data_and_size<T>::value)
+					return serialization_type_id::data_and_size;
+				else if constexpr (std::is_class_v<T>)
+					return serialization_type_id::trivial_wrapper;
 
-			template <typename Container>
-			GAIA_NODISCARD constexpr ComponentLookupHash CalculateLookupHash(Container arr) noexcept {
-				constexpr auto arrSize = arr.size();
-				if constexpr (arrSize == 0) {
-					return {0};
-				} else {
-					ComponentLookupHash::Type hash = arr[0];
-					utils::for_each<arrSize - 1>([&hash, &arr](auto i) {
-						hash = utils::hash_combine(hash, arr[i + 1]);
+				static_assert("Unsupported serialization type");
+				return serialization_type_id::Last;
+			}
+
+			template <typename T>
+			GAIA_NODISCARD constexpr uint32_t calculate_size_one(const T& item) {
+				using type = typename std::decay_t<typename std::remove_pointer_t<T>>;
+
+				constexpr auto id = detail::get_type_id<type>();
+				static_assert(id != detail::serialization_type_id::Last);
+				uint32_t size_in_bytes{};
+
+				if constexpr (is_trivially_serializable<type>::value)
+					size_in_bytes = sizeof(type);
+				else if constexpr (detail::has_data_and_size<type>::value) {
+					size_in_bytes += item.size();
+				} else if constexpr (std::is_class_v<type>) {
+					utils::for_each_member(item, [&](auto&&... items) {
+						size_in_bytes += (calculate_size_one(items) + ...);
 					});
-					return {hash};
-				}
+				} else
+					static_assert(!sizeof(type), "Type is not supported for serialization, yet");
+
+				return size_in_bytes;
 			}
 
-			template <typename = void, typename...>
-			constexpr ComponentLookupHash CalculateLookupHash() noexcept;
+			template <bool Write, typename Serializer, typename T>
+			void serialize_data_one(Serializer& s, T&& arg) {
+				using type = typename std::decay_t<typename std::remove_pointer_t<T>>;
 
-			template <typename T, typename... Rest>
-			GAIA_NODISCARD constexpr ComponentLookupHash CalculateLookupHash() noexcept {
-				if constexpr (sizeof...(Rest) == 0)
-					return {utils::type_info::hash<T>()};
-				else
-					return {utils::hash_combine(utils::type_info::hash<T>(), utils::type_info::hash<Rest>()...)};
+				// TODO: Consider supporting custom save/load functions
+				// if constexpr (decltype(has_serialize<type>(s, std::forward<T>(arg)))::value) {
+				// 	arg.serialize<Write>(s, std::forward<T>(arg));
+				// } else
+				if constexpr (is_trivially_serializable<type>::value) {
+					if constexpr (Write)
+						s.save(std::forward<T>(arg));
+					else
+						s.load(std::forward<T>(arg));
+				} else if constexpr (detail::has_data_and_size<type>::value) {
+					if constexpr (Write) {
+						if constexpr (decltype(has_resize<type>(0))::value) {
+							const auto size = arg.size();
+							s.save(size);
+						}
+						for (const auto& e: arg)
+							serialize_data_one<Write>(s, e);
+					} else {
+						if constexpr (decltype(has_resize<type>(0))::value) {
+							auto size = arg.size();
+							s.load(size);
+							arg.resize(size);
+						}
+						for (auto& e: arg)
+							serialize_data_one<Write>(s, e);
+					}
+				} else if constexpr (std::is_class_v<type>) {
+					utils::for_each_member(std::forward<T>(arg), [&s](auto&&... items) {
+						// TODO: Handle contiguous blocks of trivially copiable types
+						(serialize_data_one<Write>(s, items), ...);
+					});
+				} else
+					static_assert(!sizeof(type), "Type is not supported for serialization, yet");
 			}
+		} // namespace detail
 
-			template <>
-			GAIA_NODISCARD constexpr ComponentLookupHash CalculateLookupHash() noexcept {
-				return {0};
-			}
-		} // namespace component
-
+		//! Calculates the number of bytes necessary to serialize data using the "save" function.
+		//! \warning Compile-time.
 		template <typename T>
-		struct AsChunk {
-			using TType = typename std::decay_t<typename std::remove_pointer_t<T>>;
-			using TTypeOriginal = T;
-			static constexpr component::ComponentType TComponentType = component::ComponentType::CT_Chunk;
-		};
-	} // namespace ecs
+		GAIA_NODISCARD constexpr uint32_t calculate_size(const T& data) {
+			return detail::calculate_size_one(data);
+		}
+
+		//! Write \param data using \tparam Writer at compile-time.
+		//!
+		//! \warning Writer has to implement a save function as follows:
+		//! 					template <typename T> void save(const T& arg);
+		template <typename Writer, typename T>
+		void save(Writer& writer, const T& data) {
+			detail::serialize_data_one<true>(writer, data);
+		}
+
+		//! Read \param data using \tparam Reader at compile-time.
+		//!
+		//! \warning Reader has to implement a save function as follows:
+		//! 					template <typename T> void load(T& arg);
+		template <typename Reader, typename T>
+		void load(Reader& reader, T& data) {
+			detail::serialize_data_one<false>(reader, data);
+		}
+	} // namespace serialization
 } // namespace gaia
 
 namespace gaia {
-	namespace ecs {
-		namespace archetype {
-			constexpr uint32_t MAX_COMPONENTS_PER_ARCHETYPE_BITS = 5U;
-			//! Maximum number of components on archetype
-			constexpr uint32_t MAX_COMPONENTS_PER_ARCHETYPE = 1U << MAX_COMPONENTS_PER_ARCHETYPE_BITS;
+	namespace utils {
 
-			class Archetype;
+		//! Provides statically generated unique identifier for a given group of types.
+		template <typename...>
+		class type_group {
+			inline static uint32_t s_identifier{};
 
-			using ArchetypeId = uint32_t;
-			using LookupHash = utils::direct_hash_key<uint64_t>;
-			using ArchetypeList = containers::darray<Archetype*>;
-			using ComponentIdArray = containers::sarray_ext<component::ComponentId, MAX_COMPONENTS_PER_ARCHETYPE>;
-			// uint16_t can fit at most 65535 items therefore MemoryBlockSize can't be set to a value biggen than that
-			using ChunkComponentOffset = uint16_t;
-			using ComponentOffsetArray = containers::sarray_ext<ChunkComponentOffset, MAX_COMPONENTS_PER_ARCHETYPE>;
+		public:
+			template <typename... Type>
+			inline static const uint32_t id = s_identifier++;
+		};
 
-			static constexpr ArchetypeId ArchetypeIdBad = (ArchetypeId)-1;
+		template <>
+		class type_group<void>;
 
-			GAIA_NODISCARD inline constexpr bool VerifyArchetypeComponentCount(uint32_t count) {
-				return count <= MAX_COMPONENTS_PER_ARCHETYPE;
+		//----------------------------------------------------------------------
+		// Type meta data
+		//----------------------------------------------------------------------
+
+		struct type_info final {
+		private:
+			constexpr static size_t GetMin(size_t a, size_t b) {
+				return b < a ? b : a;
 			}
-		} // namespace archetype
-	} // namespace ecs
+
+			constexpr static size_t FindFirstOf(const char* data, size_t len, char toFind, size_t startPos = 0) {
+				for (size_t i = startPos; i < len; ++i) {
+					if (data[i] == toFind)
+						return i;
+				}
+				return size_t(-1);
+			}
+
+			constexpr static size_t FindLastOf(const char* data, size_t len, char c, size_t startPos = size_t(-1)) {
+				for (int64_t i = (int64_t)GetMin(len - 1, startPos); i >= 0; --i) {
+					if (data[i] == c)
+						return i;
+				}
+				return size_t(-1);
+			}
+
+		public:
+			template <typename T>
+			static uint32_t id() noexcept {
+				return type_group<type_info>::id<T>;
+			}
+
+			template <typename T>
+			GAIA_NODISCARD static constexpr const char* full_name() noexcept {
+				return GAIA_PRETTY_FUNCTION;
+			}
+
+			template <typename T>
+			GAIA_NODISCARD static constexpr auto name() noexcept {
+				// MSVC:
+				//		const char* __cdecl ecs::ComponentInfo::name<struct ecs::EnfEntity>(void)
+				//   -> ecs::EnfEntity
+				// Clang/GCC:
+				//		const ecs::ComponentInfo::name() [T = ecs::EnfEntity]
+				//   -> ecs::EnfEntity
+
+				// Note:
+				//		We don't want to use std::string_view here because it would only make it harder on compile-times.
+				//		In fact, even if we did, we need to be afraid of compiler issues.
+				// 		Clang 8 and older wouldn't compile because their string_view::find_last_of doesn't work
+				//		in constexpr context. Tested with and without LIBCPP
+				//		https://stackoverflow.com/questions/56484834/constexpr-stdstring-viewfind-last-of-doesnt-work-on-clang-8-with-libstdc
+				//		As a workaround FindFirstOf and FindLastOf were implemented
+
+				size_t strLen = 0;
+				while (GAIA_PRETTY_FUNCTION[strLen] != '\0')
+					++strLen;
+
+				std::span<const char> name{GAIA_PRETTY_FUNCTION, strLen};
+				const auto prefixPos = FindFirstOf(name.data(), name.size(), GAIA_PRETTY_FUNCTION_PREFIX);
+				const auto start = FindFirstOf(name.data(), name.size(), ' ', prefixPos + 1);
+				const auto end = FindLastOf(name.data(), name.size(), GAIA_PRETTY_FUNCTION_SUFFIX);
+				return name.subspan(start + 1, end - start - 1);
+			}
+
+			template <typename T>
+			GAIA_NODISCARD static constexpr auto hash() noexcept {
+#if GAIA_COMPILER_MSVC && _MSV_VER <= 1916
+				GAIA_MSVC_WARNING_PUSH()
+				GAIA_MSVC_WARNING_DISABLE(4307)
+#endif
+
+				auto n = name<T>();
+				return calculate_hash64(n.data(), n.size());
+
+#if GAIA_COMPILER_MSVC && _MSV_VER <= 1916
+				GAIA_MSVC_WARNING_PUSH()
+#endif
+			}
+		};
+
+	} // namespace utils
 } // namespace gaia
 
 #include <cinttypes>
+#include <type_traits>
+
+namespace gaia {
+	namespace containers {
+		template <uint32_t NBits>
+		class bitset {
+		public:
+			static constexpr uint32_t BitCount = NBits;
+			static_assert(NBits > 0);
+
+		private:
+			template <bool Use32Bit>
+			struct size_type_selector {
+				using type = std::conditional_t<Use32Bit, uint32_t, uint64_t>;
+			};
+
+			static constexpr uint32_t BitsPerItem = (NBits / 64) > 0 ? 64 : 32;
+			static constexpr uint32_t Items = (NBits + BitsPerItem - 1) / BitsPerItem;
+			using size_type = typename size_type_selector<BitsPerItem == 32>::type;
+			static constexpr bool HasTrailingBits = (NBits % BitsPerItem) != 0;
+			static constexpr size_type LastItemMask = ((size_type)1 << (NBits % BitsPerItem)) - 1;
+
+			size_type m_data[Items]{};
+
+		public:
+			class const_iterator {
+			public:
+				using iterator_category = GAIA_UTIL::random_access_iterator_tag;
+				using value_type = uint32_t;
+				using size_type = bitset<NBits>::size_type;
+
+			private:
+				const bitset<NBits>& m_bitset;
+				value_type m_pos;
+
+				uint32_t find_next_set_bit(uint32_t pos) const {
+					value_type wordIndex = pos / bitset::BitsPerItem;
+					GAIA_ASSERT(wordIndex < Items);
+					size_type word = 0;
+
+					const size_type posInWord = pos % bitset::BitsPerItem;
+					if (posInWord < bitset::BitsPerItem - 1) {
+						const size_type mask = (size_type(1) << (posInWord + 1)) - 1;
+						const size_type maskInv = ~mask;
+						word = m_bitset.m_data[wordIndex] & maskInv;
+					}
+
+					// No set bit in the current word, move to the next one
+					while (word == 0) {
+						if (wordIndex >= bitset::Items - 1)
+							return pos;
+
+						word = m_bitset.m_data[++wordIndex];
+					}
+
+					// Process the word
+					uint32_t fwd = 0;
+
+					GAIA_MSVC_WARNING_PUSH()
+					GAIA_MSVC_WARNING_DISABLE(4244)
+					if constexpr (bitset::BitsPerItem == 32)
+						fwd = GAIA_FFS(word) - 1;
+					else
+						fwd = GAIA_FFS64(word) - 1;
+					GAIA_MSVC_WARNING_POP()
+
+					return wordIndex * bitset::BitsPerItem + fwd;
+				}
+
+				uint32_t find_prev_set_bit(uint32_t pos) const {
+					value_type wordIndex = pos / bitset::BitsPerItem;
+					GAIA_ASSERT(wordIndex < Items);
+					size_type word = m_bitset.m_data[wordIndex];
+
+					// No set bit in the current word, move to the previous word
+					while (word == 0) {
+						if (wordIndex == 0)
+							return pos;
+						word = m_bitset.m_data[--wordIndex];
+					}
+
+					// Process the word
+					uint32_t ctz = 0;
+
+					GAIA_MSVC_WARNING_PUSH()
+					GAIA_MSVC_WARNING_DISABLE(4244)
+					if constexpr (bitset::BitsPerItem == 32)
+						ctz = GAIA_CTZ(word);
+					else
+						ctz = GAIA_CTZ64(word);
+					GAIA_MSVC_WARNING_POP()
+
+					return bitset::BitsPerItem * (wordIndex + 1) - ctz - 1;
+				}
+
+			public:
+				const_iterator(const bitset<NBits>& bitset, value_type pos, bool fwd): m_bitset(bitset), m_pos(pos) {
+					if (fwd) {
+						// Find the first set bit)
+						if (pos != 0 || !bitset.test(0)) {
+							pos = find_next_set_bit(m_pos);
+							// Point beyond the last item if no set bit was found
+							if (pos == m_pos)
+								pos = bitset.size();
+						}
+						m_pos = pos;
+					} else {
+						const auto bitsetSize = bitset.size();
+						const auto lastBit = bitsetSize - 1;
+
+						// Stay inside bounds
+						if (pos >= bitsetSize)
+							pos = bitsetSize - 1;
+
+						// Find the last set bit
+						if (pos != lastBit || !bitset.test(lastBit)) {
+							const uint32_t newPos = find_prev_set_bit(pos);
+							// Point one beyond the last found bit
+							pos = (newPos == pos) ? bitsetSize : newPos + 1;
+						}
+						// Point one beyond the last found bit
+						else
+							++pos;
+
+						m_pos = pos;
+					}
+				}
+
+				GAIA_NODISCARD value_type operator*() const {
+					return m_pos;
+				}
+
+				const_iterator& operator++() {
+					uint32_t newPos = find_next_set_bit(m_pos);
+					// Point one past the last item if no new bit was found
+					if (newPos == m_pos)
+						++newPos;
+					m_pos = newPos;
+					return *this;
+				}
+
+				GAIA_NODISCARD const_iterator operator++(int) {
+					const_iterator temp(*this);
+					++*this;
+					return temp;
+				}
+
+				GAIA_NODISCARD bool operator==(const const_iterator& other) const {
+					return m_pos == other.m_pos;
+				}
+
+				GAIA_NODISCARD bool operator!=(const const_iterator& other) const {
+					return m_pos != other.m_pos;
+				}
+			};
+
+			const_iterator begin() const {
+				return const_iterator(*this, 0, true);
+			}
+
+			const_iterator end() const {
+				return const_iterator(*this, NBits, false);
+			}
+
+			const_iterator cbegin() const {
+				return const_iterator(*this, 0, true);
+			}
+
+			const_iterator cend() const {
+				return const_iterator(*this, NBits, false);
+			}
+
+			GAIA_NODISCARD constexpr bool operator[](uint32_t pos) const {
+				return test(pos);
+			}
+
+			GAIA_NODISCARD constexpr bool operator==(const bitset& other) const {
+				for (uint32_t i = 0; i < Items; ++i)
+					if (m_data[i] != other.m_data[i])
+						return false;
+				return true;
+			}
+
+			GAIA_NODISCARD constexpr bool operator!=(const bitset& other) const {
+				for (uint32_t i = 0; i < Items; ++i)
+					if (m_data[i] == other.m_data[i])
+						return false;
+				return true;
+			}
+
+			//! Sets all bits
+			constexpr void set() {
+				if constexpr (HasTrailingBits) {
+					for (uint32_t i = 0; i < Items - 1; ++i)
+						m_data[i] = (size_type)-1;
+					m_data[Items - 1] = LastItemMask;
+				} else {
+					for (uint32_t i = 0; i < Items; ++i)
+						m_data[i] = (size_type)-1;
+				}
+			}
+
+			//! Sets the bit at the postion \param pos to value \param value
+			constexpr void set(uint32_t pos, bool value = true) {
+				GAIA_ASSERT(pos < NBits);
+				if (value)
+					m_data[pos / BitsPerItem] |= ((size_type)1 << (pos % BitsPerItem));
+				else
+					m_data[pos / BitsPerItem] &= ~((size_type)1 << (pos % BitsPerItem));
+			}
+
+			//! Flips all bits
+			constexpr bitset& flip() {
+				if constexpr (HasTrailingBits) {
+					for (uint32_t i = 0; i < Items - 1; ++i)
+						m_data[i] = ~m_data[i];
+					m_data[Items - 1] = (~m_data[Items - 1]) & LastItemMask;
+				} else {
+					for (uint32_t i = 0; i < Items; ++i)
+						m_data[i] = ~m_data[i];
+				}
+				return *this;
+			}
+
+			//! Flips the bit at the postion \param pos
+			constexpr void flip(uint32_t pos) {
+				GAIA_ASSERT(pos < NBits);
+				m_data[pos / BitsPerItem] ^= ((size_type)1 << (pos % BitsPerItem));
+			}
+
+			//! Flips all bits from \param bitFrom to \param bitTo (including)
+			constexpr bitset& flip(uint32_t bitFrom, uint32_t bitTo) {
+				GAIA_ASSERT(bitFrom <= bitTo);
+				GAIA_ASSERT(bitFrom < size());
+
+				if GAIA_UNLIKELY (size() == 0)
+					return *this;
+
+				for (uint32_t i = bitFrom; i <= bitTo; i++) {
+					uint32_t wordIdx = i / BitsPerItem;
+					uint32_t bitOffset = i % BitsPerItem;
+					m_data[wordIdx] ^= ((size_type)1 << bitOffset);
+				}
+
+				return *this;
+			}
+
+			//! Unsets all bits
+			constexpr void reset() {
+				for (uint32_t i = 0; i < Items; ++i)
+					m_data[i] = 0;
+			}
+
+			//! Unsets the bit at the postion \param pos
+			constexpr void reset(uint32_t pos) {
+				GAIA_ASSERT(pos < NBits);
+				m_data[pos / BitsPerItem] &= ~((size_type)1 << (pos % BitsPerItem));
+			}
+
+			//! Returns the value of the bit at the position \param pos
+			GAIA_NODISCARD constexpr bool test(uint32_t pos) const {
+				GAIA_ASSERT(pos < NBits);
+				return (m_data[pos / BitsPerItem] & ((size_type)1 << (pos % BitsPerItem))) != 0;
+			}
+
+			//! Checks if all bits are set
+			GAIA_NODISCARD constexpr bool all() const {
+				if constexpr (HasTrailingBits) {
+					for (uint32_t i = 0; i < Items - 1; ++i)
+						if (m_data[i] != (size_type)-1)
+							return false;
+					return (m_data[Items - 1] & LastItemMask) == LastItemMask;
+				} else {
+					for (uint32_t i = 0; i < Items; ++i)
+						if (m_data[i] != (size_type)-1)
+							return false;
+					return true;
+				}
+			}
+
+			//! Checks if any bit is set
+			GAIA_NODISCARD constexpr bool any() const {
+				for (uint32_t i = 0; i < Items; ++i)
+					if (m_data[i] != 0)
+						return true;
+				return false;
+			}
+
+			//! Checks if all bits are reset
+			GAIA_NODISCARD constexpr bool none() const {
+				for (uint32_t i = 0; i < Items; ++i)
+					if (m_data[i] != 0)
+						return false;
+				return true;
+			}
+
+			//! Returns the number of set bits
+			GAIA_NODISCARD uint32_t count() const {
+				uint32_t total = 0;
+
+				GAIA_MSVC_WARNING_PUSH()
+				GAIA_MSVC_WARNING_DISABLE(4244)
+				if constexpr (sizeof(size_type) == 4) {
+					for (uint32_t i = 0; i < Items; ++i)
+						total += GAIA_POPCNT(m_data[i]);
+				} else {
+					for (uint32_t i = 0; i < Items; ++i)
+						total += GAIA_POPCNT64(m_data[i]);
+				}
+				GAIA_MSVC_WARNING_POP()
+
+				return total;
+			}
+
+			//! Returns the number of bits the bitset can hold
+			GAIA_NODISCARD constexpr uint32_t size() const {
+				return NBits;
+			}
+		};
+	} // namespace containers
+} // namespace gaia
+
+#define USE_VECTOR GAIA_USE_STL_CONTAINERS
+
+#if USE_VECTOR == 1
+
+	#include <vector>
+
+namespace gaia {
+	namespace containers {
+		template <typename T>
+		using darray = std::vector<T>;
+	} // namespace containers
+} // namespace gaia
+#elif USE_VECTOR == 0
+
+	
+
+#include <cstddef>
+#include <initializer_list>
+#include <type_traits>
+#include <utility>
+
+namespace gaia {
+	namespace containers {
+		//! Array with variable size of elements of type \tparam T allocated on heap.
+		//! Interface compatiblity with std::vector where it matters.
+		template <typename T>
+		class darr {
+		public:
+			using iterator_category = GAIA_UTIL::random_access_iterator_tag;
+			using value_type = T;
+			using reference = T&;
+			using const_reference = const T&;
+			using pointer = T*;
+			using const_pointer = T*;
+			using difference_type = std::ptrdiff_t;
+			using size_type = size_t;
+
+		private:
+			pointer m_pData = nullptr;
+			size_type m_cnt = size_type(0);
+			size_type m_cap = size_type(0);
+
+			void try_grow() {
+				const auto cnt = size();
+				const auto cap = capacity();
+
+				// Unless we reached the capacity don't do anything
+				if GAIA_LIKELY (cap != 0 && cap != cnt)
+					return;
+
+				// If no data is allocated go with at least 4 elements
+				if GAIA_UNLIKELY (m_pData == nullptr) {
+					m_pData = new T[m_cap = 4];
+					return;
+				}
+
+				// Increase the size of an existing array.
+				// We increase the capacity in multiples of 1.5 which is about the golden ratio (1.618).
+				// This means we prefer more frequent allocations over memory fragmentation.
+				pointer pDataOld = m_pData;
+				m_pData = new T[m_cap = (cap * 3) / 2 + 1];
+				utils::move_elements(m_pData, pDataOld, cnt);
+				delete[] pDataOld;
+			}
+
+		public:
+			class iterator {
+				friend class darr;
+
+			public:
+				using iterator_category = GAIA_UTIL::random_access_iterator_tag;
+				using value_type = T;
+				using difference_type = std::ptrdiff_t;
+				using pointer = T*;
+				using reference = T&;
+				using size_type = darr::size_type;
+
+			private:
+				pointer m_ptr;
+
+			public:
+				iterator(T* ptr): m_ptr(ptr) {}
+
+				T& operator*() const {
+					return *m_ptr;
+				}
+				T* operator->() const {
+					return m_ptr;
+				}
+				iterator operator[](size_type offset) const {
+					return {m_ptr + offset};
+				}
+
+				iterator& operator+=(size_type diff) {
+					m_ptr += diff;
+					return *this;
+				}
+				iterator& operator-=(size_type diff) {
+					m_ptr -= diff;
+					return *this;
+				}
+				iterator& operator++() {
+					++m_ptr;
+					return *this;
+				}
+				iterator operator++(int) {
+					iterator temp(*this);
+					++*this;
+					return temp;
+				}
+				iterator& operator--() {
+					--m_ptr;
+					return *this;
+				}
+				iterator operator--(int) {
+					iterator temp(*this);
+					--*this;
+					return temp;
+				}
+
+				iterator operator+(size_type offset) const {
+					return {m_ptr + offset};
+				}
+				iterator operator-(size_type offset) const {
+					return {m_ptr - offset};
+				}
+				difference_type operator-(const iterator& other) const {
+					return m_ptr - other.m_ptr;
+				}
+
+				GAIA_NODISCARD bool operator==(const iterator& other) const {
+					return m_ptr == other.m_ptr;
+				}
+				GAIA_NODISCARD bool operator!=(const iterator& other) const {
+					return m_ptr != other.m_ptr;
+				}
+				GAIA_NODISCARD bool operator>(const iterator& other) const {
+					return m_ptr > other.m_ptr;
+				}
+				GAIA_NODISCARD bool operator>=(const iterator& other) const {
+					return m_ptr >= other.m_ptr;
+				}
+				GAIA_NODISCARD bool operator<(const iterator& other) const {
+					return m_ptr < other.m_ptr;
+				}
+				GAIA_NODISCARD bool operator<=(const iterator& other) const {
+					return m_ptr <= other.m_ptr;
+				}
+			};
+
+			class const_iterator {
+				friend class darr;
+
+			public:
+				using iterator_category = GAIA_UTIL::random_access_iterator_tag;
+				using value_type = const T;
+				using difference_type = std::ptrdiff_t;
+				using pointer = const T*;
+				using reference = const T&;
+				using size_type = darr::size_type;
+
+			private:
+				pointer m_ptr;
+
+			public:
+				const_iterator(pointer ptr): m_ptr(ptr) {}
+
+				reference operator*() const {
+					return *m_ptr;
+				}
+				pointer operator->() const {
+					return m_ptr;
+				}
+				const_iterator operator[](size_type offset) const {
+					return {m_ptr + offset};
+				}
+
+				const_iterator& operator+=(size_type diff) {
+					m_ptr += diff;
+					return *this;
+				}
+				const_iterator& operator-=(size_type diff) {
+					m_ptr -= diff;
+					return *this;
+				}
+				const_iterator& operator++() {
+					++m_ptr;
+					return *this;
+				}
+				const_iterator operator++(int) {
+					const_iterator temp(*this);
+					++*this;
+					return temp;
+				}
+				const_iterator& operator--() {
+					--m_ptr;
+					return *this;
+				}
+				const_iterator operator--(int) {
+					const_iterator temp(*this);
+					--*this;
+					return temp;
+				}
+
+				const_iterator operator+(size_type offset) const {
+					return {m_ptr + offset};
+				}
+				const_iterator operator-(size_type offset) const {
+					return {m_ptr - offset};
+				}
+				difference_type operator-(const const_iterator& other) const {
+					return m_ptr - other.m_ptr;
+				}
+
+				GAIA_NODISCARD bool operator==(const const_iterator& other) const {
+					return m_ptr == other.m_ptr;
+				}
+				GAIA_NODISCARD bool operator!=(const const_iterator& other) const {
+					return m_ptr != other.m_ptr;
+				}
+				GAIA_NODISCARD bool operator>(const const_iterator& other) const {
+					return m_ptr > other.m_ptr;
+				}
+				GAIA_NODISCARD bool operator>=(const const_iterator& other) const {
+					return m_ptr >= other.m_ptr;
+				}
+				GAIA_NODISCARD bool operator<(const const_iterator& other) const {
+					return m_ptr < other.m_ptr;
+				}
+				GAIA_NODISCARD bool operator<=(const const_iterator& other) const {
+					return m_ptr <= other.m_ptr;
+				}
+			};
+
+			darr() noexcept = default;
+
+			darr(size_type count, const T& value) {
+				resize(count);
+				for (auto it: *this)
+					*it = value;
+			}
+
+			darr(size_type count) {
+				resize(count);
+			}
+
+			template <typename InputIt>
+			darr(InputIt first, InputIt last) {
+				const auto count = (size_type)GAIA_UTIL::distance(first, last);
+				resize(count);
+
+				if constexpr (std::is_pointer_v<InputIt>) {
+					for (size_type i = 0; i < count; ++i)
+						m_pData[i] = first[i];
+				} else if constexpr (std::is_same_v<
+																 typename InputIt::iterator_category, GAIA_UTIL::random_access_iterator_tag>) {
+					for (size_type i = 0; i < count; ++i)
+						m_pData[i] = *(first[i]);
+				} else {
+					size_type i = 0;
+					for (auto it = first; it != last; ++it)
+						m_pData[i++] = *it;
+				}
+			}
+
+			darr(std::initializer_list<T> il): darr(il.begin(), il.end()) {}
+
+			darr(const darr& other): darr(other.begin(), other.end()) {}
+
+			darr(darr&& other) noexcept: m_pData(other.m_pData), m_cnt(other.m_cnt), m_cap(other.m_cap) {
+				other.m_cnt = size_type(0);
+				other.m_cap = size_type(0);
+				other.m_pData = nullptr;
+			}
+
+			GAIA_NODISCARD darr& operator=(std::initializer_list<T> il) {
+				*this = darr(il.begin(), il.end());
+				return *this;
+			}
+
+			GAIA_NODISCARD darr& operator=(const darr& other) {
+				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
+
+				resize(other.size());
+				utils::copy_elements(m_pData, other.m_pData, other.size());
+
+				return *this;
+			}
+
+			GAIA_NODISCARD darr& operator=(darr&& other) noexcept {
+				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
+
+				m_cnt = other.m_cnt;
+				m_cap = other.m_cap;
+				m_pData = other.m_pData;
+
+				other.m_cnt = size_type(0);
+				other.m_cap = size_type(0);
+				other.m_pData = nullptr;
+
+				return *this;
+			}
+
+			~darr() {
+				delete[] m_pData;
+			}
+
+			GAIA_NODISCARD pointer data() noexcept {
+				return (pointer)m_pData;
+			}
+
+			GAIA_NODISCARD const_pointer data() const noexcept {
+				return (const_pointer)m_pData;
+			}
+
+			GAIA_NODISCARD reference operator[](size_type pos) noexcept {
+				GAIA_ASSERT(pos < size());
+				return (reference)m_pData[pos];
+			}
+
+			GAIA_NODISCARD const_reference operator[](size_type pos) const noexcept {
+				GAIA_ASSERT(pos < size());
+				return (const_reference)m_pData[pos];
+			}
+
+			void reserve(size_type count) {
+				if (count <= m_cap)
+					return;
+
+				pointer pDataOld = m_pData;
+				m_pData = new T[count];
+				if (pDataOld != nullptr) {
+					utils::move_elements(m_pData, pDataOld, size());
+					delete[] pDataOld;
+				}
+
+				m_cap = count;
+			}
+
+			void resize(size_type count) {
+				if (count <= m_cap) {
+					m_cnt = count;
+					return;
+				}
+
+				pointer pDataOld = m_pData;
+				m_pData = new T[count];
+				if (pDataOld != nullptr) {
+					utils::move_elements(m_pData, pDataOld, size());
+					delete[] pDataOld;
+				}
+
+				m_cap = count;
+				m_cnt = count;
+			}
+
+			void push_back(const T& arg) {
+				try_grow();
+				m_pData[m_cnt++] = arg;
+			}
+
+			void push_back(T&& arg) {
+				try_grow();
+				m_pData[m_cnt++] = std::forward<T>(arg);
+			}
+
+			template <typename... Args>
+			reference emplace_back(Args&&... args) {
+				try_grow();
+
+				reference ref = m_pData[m_cnt++];
+				ref = {std::forward<Args>(args)...};
+				return ref;
+			}
+
+			void pop_back() noexcept {
+				GAIA_ASSERT(!empty());
+				--m_cnt;
+			}
+
+			GAIA_NODISCARD iterator erase(iterator pos) noexcept {
+				GAIA_ASSERT(pos.m_ptr >= &m_pData[0] && pos.m_ptr < &m_pData[m_cap - 1]);
+
+				const auto idxSrc = (size_type)GAIA_UTIL::distance(pos, begin());
+				const auto idxDst = size() - 1;
+
+				utils::shift_elements_left(&m_pData[idxSrc], idxDst - idxSrc);
+				--m_cnt;
+
+				return iterator((T*)m_pData + idxSrc);
+			}
+
+			GAIA_NODISCARD const_iterator erase(const_iterator pos) noexcept {
+				GAIA_ASSERT(pos.m_ptr >= &m_pData[0] && pos.m_ptr < &m_pData[m_cap - 1]);
+
+				const auto idxSrc = (size_type)GAIA_UTIL::distance(pos, begin());
+				const auto idxDst = size() - 1;
+
+				utils::shift_elements_left(&m_pData[idxSrc], idxDst - idxSrc);
+				--m_cnt;
+
+				return iterator((const T*)m_pData + idxSrc);
+			}
+
+			GAIA_NODISCARD iterator erase(iterator first, iterator last) noexcept {
+				GAIA_ASSERT(first.m_cnt >= 0 && first.m_cnt < size());
+				GAIA_ASSERT(last.m_cnt >= 0 && last.m_cnt < size());
+				GAIA_ASSERT(last.m_cnt >= last.m_cnt);
+
+				const auto size = last.m_cnt - first.m_cnt;
+				utils::shift_elements_left(&m_pData[first.cnt], size);
+				m_cnt -= size;
+
+				return {(T*)m_pData + size_type(last.m_cnt)};
+			}
+
+			void clear() noexcept {
+				resize(0);
+			}
+
+			void shirk_to_fit() {
+				if (capacity() == size())
+					return;
+				T* old = m_pData;
+				m_pData = new T[m_cap = size()];
+				move_elements(m_pData, old, size());
+				delete[] old;
+			}
+
+			GAIA_NODISCARD size_type size() const noexcept {
+				return m_cnt;
+			}
+
+			GAIA_NODISCARD size_type capacity() const noexcept {
+				return m_cap;
+			}
+
+			GAIA_NODISCARD bool empty() const noexcept {
+				return size() == 0;
+			}
+
+			GAIA_NODISCARD size_type max_size() const noexcept {
+				return static_cast<size_type>(-1);
+			}
+
+			GAIA_NODISCARD reference front() noexcept {
+				GAIA_ASSERT(!empty());
+				return *begin();
+			}
+
+			GAIA_NODISCARD const_reference front() const noexcept {
+				GAIA_ASSERT(!empty());
+				return *begin();
+			}
+
+			GAIA_NODISCARD reference back() noexcept {
+				GAIA_ASSERT(!empty());
+				return m_pData[m_cnt - 1];
+			}
+
+			GAIA_NODISCARD const_reference back() const noexcept {
+				GAIA_ASSERT(!empty());
+				return m_pData[m_cnt - 1];
+			}
+
+			GAIA_NODISCARD iterator begin() const noexcept {
+				return {(T*)m_pData};
+			}
+
+			GAIA_NODISCARD const_iterator cbegin() const noexcept {
+				return {(const T*)m_pData};
+			}
+
+			GAIA_NODISCARD iterator rbegin() const noexcept {
+				return {(T*)&back()};
+			}
+
+			GAIA_NODISCARD const_iterator crbegin() const noexcept {
+				return {(T*)&back()};
+			}
+
+			GAIA_NODISCARD iterator end() const noexcept {
+				return {(T*)m_pData + size()};
+			}
+
+			GAIA_NODISCARD const_iterator cend() const noexcept {
+				return {(const T*)m_pData + size()};
+			}
+
+			GAIA_NODISCARD iterator rend() const noexcept {
+				return {(T*)m_pData - 1};
+			}
+
+			GAIA_NODISCARD const_iterator crend() const noexcept {
+				return {(const T*)m_pData - 1};
+			}
+
+			GAIA_NODISCARD bool operator==(const darr& other) const {
+				if (m_cnt != other.m_cnt)
+					return false;
+				const size_type n = size();
+				for (size_type i = 0; i < n; ++i)
+					if (!(m_pData[i] == other.m_pData[i]))
+						return false;
+				return true;
+			}
+		};
+	} // namespace containers
+
+} // namespace gaia
+
+namespace gaia {
+	namespace containers {
+		template <typename T>
+		using darray = containers::darr<T>;
+	} // namespace containers
+} // namespace gaia
+#else
+
+	// You can add your custom container here
+	#error Unsupported value used for USE_VECTOR
+
+#endif
+
+#include <cinttypes>
+#include <type_traits>
+
+namespace gaia {
+	namespace containers {
+		class dbitset {
+		private:
+			struct size_type_selector {
+				static constexpr bool Use32Bit = sizeof(size_t) == 4;
+				using type = std::conditional_t<Use32Bit, uint32_t, uint64_t>;
+			};
+
+			using difference_type = std::ptrdiff_t;
+			using size_type = typename size_type_selector::type;
+			using value_type = size_type;
+			using reference = size_type&;
+			using const_reference = const size_type&;
+			using pointer = size_type*;
+			using const_pointer = size_type*;
+
+			static constexpr uint32_t BitsPerItem = sizeof(size_type_selector::type) * 8;
+
+			pointer m_pData = nullptr;
+			uint32_t m_cnt = uint32_t(0);
+			uint32_t m_cap = uint32_t(0);
+
+			uint32_t Items() const {
+				return (m_cnt + BitsPerItem - 1) / BitsPerItem;
+			}
+
+			bool HasTrailingBits() const {
+				return (m_cnt % BitsPerItem) != 0;
+			}
+
+			size_type LastItemMask() const {
+				return ((size_type)1 << (m_cnt % BitsPerItem)) - 1;
+			}
+
+			void try_grow(uint32_t bitsWanted) {
+				uint32_t itemsOld = Items();
+				if GAIA_UNLIKELY (bitsWanted > size())
+					m_cnt = bitsWanted;
+				if GAIA_LIKELY (m_cnt <= capacity())
+					return;
+
+				// Increase the size of an existing array.
+				// We are pessimistic with our allocations and only allocate as much as we need.
+				// If we know the expected size ahead of the time a manual call to reserve is necessary.
+				const uint32_t itemsNew = (m_cnt + BitsPerItem - 1) / BitsPerItem;
+				m_cap = itemsNew * BitsPerItem;
+
+				pointer pDataOld = m_pData;
+				m_pData = new size_type[itemsNew];
+				if (pDataOld == nullptr) {
+					// Make sure the new data is set to zeros
+					for (uint32_t i = itemsOld; i < itemsNew; ++i)
+						m_pData[i] = 0;
+				} else {
+					// Copy the old data over and set the old data to zeros
+					utils::move_elements(m_pData, pDataOld, itemsNew - itemsOld);
+					for (uint32_t i = itemsOld; i < itemsNew; ++i)
+						m_pData[i] = 0;
+
+					// Release the old data
+					delete[] pDataOld;
+				}
+			}
+
+		public:
+			class const_iterator {
+			public:
+				using iterator_category = GAIA_UTIL::random_access_iterator_tag;
+				using value_type = uint32_t;
+				using size_type = dbitset::size_type;
+
+			private:
+				const dbitset& m_bitset;
+				value_type m_pos;
+
+				uint32_t find_next_set_bit(uint32_t pos) const {
+					value_type wordIndex = pos / dbitset::BitsPerItem;
+					GAIA_ASSERT(wordIndex < m_bitset.Items());
+					size_type word = 0;
+
+					const size_type posInWord = pos % dbitset::BitsPerItem;
+					if (posInWord < dbitset::BitsPerItem - 1) {
+						const size_type mask = (size_type(1) << (posInWord + 1)) - 1;
+						const size_type maskInv = ~mask;
+						word = m_bitset.m_pData[wordIndex] & maskInv;
+					}
+
+					// No set bit in the current word, move to the next one
+					while (word == 0) {
+						if (wordIndex >= m_bitset.Items() - 1)
+							return pos;
+
+						word = m_bitset.m_pData[++wordIndex];
+					}
+
+					// Process the word
+					uint32_t fwd = 0;
+
+					GAIA_MSVC_WARNING_PUSH()
+					GAIA_MSVC_WARNING_DISABLE(4244)
+					if constexpr (dbitset::BitsPerItem == 32)
+						fwd = GAIA_FFS(word) - 1;
+					else
+						fwd = GAIA_FFS64(word) - 1;
+					GAIA_MSVC_WARNING_POP()
+
+					return wordIndex * dbitset::BitsPerItem + fwd;
+				}
+
+				uint32_t find_prev_set_bit(uint32_t pos) const {
+					value_type wordIndex = pos / dbitset::BitsPerItem;
+					GAIA_ASSERT(wordIndex < m_bitset.Items());
+					size_type word = m_bitset.m_pData[wordIndex];
+
+					// No set bit in the current word, move to the previous word
+					while (word == 0) {
+						if (wordIndex == 0)
+							return pos;
+						word = m_bitset.m_pData[--wordIndex];
+					}
+
+					// Process the word
+					uint32_t ctz = 0;
+
+					GAIA_MSVC_WARNING_PUSH()
+					GAIA_MSVC_WARNING_DISABLE(4244)
+					if constexpr (dbitset::BitsPerItem == 32)
+						ctz = GAIA_CTZ(word);
+					else
+						ctz = GAIA_CTZ64(word);
+					GAIA_MSVC_WARNING_POP()
+
+					return dbitset::BitsPerItem * (wordIndex + 1) - ctz - 1;
+				}
+
+			public:
+				const_iterator(const dbitset& bitset, value_type pos, bool fwd): m_bitset(bitset), m_pos(pos) {
+					const auto bitsetSize = bitset.size();
+					if (bitsetSize == 0) {
+						// Point beyond the last item if no set bit was found
+						m_pos = bitsetSize;
+						return;
+					}
+
+					// Stay inside bounds
+					const auto lastBit = bitsetSize - 1;
+					if (pos >= bitsetSize)
+						pos = lastBit;
+
+					if (fwd) {
+						// Find the first set bit)
+						if (pos != 0 || !bitset.test(0)) {
+							pos = find_next_set_bit(m_pos);
+							// Point beyond the last item if no set bit was found
+							if (pos == m_pos)
+								pos = bitsetSize;
+						}
+					} else {
+						// Find the last set bit
+						if (pos != lastBit || !bitset.test(lastBit)) {
+							const uint32_t newPos = find_prev_set_bit(pos);
+							// Point one beyond the last found bit
+							pos = (newPos == pos) ? bitsetSize : newPos + 1;
+						}
+						// Point one beyond the last found bit
+						else
+							++pos;
+					}
+
+					m_pos = pos;
+				}
+
+				GAIA_NODISCARD value_type operator*() const {
+					return m_pos;
+				}
+
+				const_iterator& operator++() {
+					uint32_t newPos = find_next_set_bit(m_pos);
+					// Point one past the last item if no new bit was found
+					if (newPos == m_pos)
+						++newPos;
+					m_pos = newPos;
+					return *this;
+				}
+
+				GAIA_NODISCARD const_iterator operator++(int) {
+					const_iterator temp(*this);
+					++*this;
+					return temp;
+				}
+
+				GAIA_NODISCARD bool operator==(const const_iterator& other) const {
+					return m_pos == other.m_pos;
+				}
+
+				GAIA_NODISCARD bool operator!=(const const_iterator& other) const {
+					return m_pos != other.m_pos;
+				}
+			};
+
+			dbitset() {
+				// Allocate at least 128 bits
+				reserve(128);
+			}
+
+			dbitset(uint32_t reserveBits) {
+				reserve(reserveBits);
+			}
+
+			~dbitset() {
+				delete[] m_pData;
+			}
+
+			dbitset(const dbitset& other) {
+				*this = other;
+			}
+			dbitset& operator=(const dbitset& other) {
+				GAIA_ASSERT(this != &other);
+				resize(other.m_cnt);
+				utils::copy_elements(m_pData, other.m_pData, other.Items());
+				return *this;
+			}
+
+			dbitset(dbitset&& other) noexcept {
+				*this = std::move(other);
+			}
+			dbitset& operator=(dbitset&& other) noexcept {
+				GAIA_ASSERT(this != &other);
+
+				m_pData = other.m_pData;
+				m_cnt = other.m_cnt;
+				m_cap = other.m_cap;
+
+				other.m_pData = nullptr;
+				other.m_cnt = 0;
+				other.m_cap = 0;
+				return *this;
+			}
+
+			void reserve(uint32_t bitsWanted) {
+				// Make sure at least one bit is requested
+				GAIA_ASSERT(bitsWanted > 0);
+				if (bitsWanted < 1)
+					bitsWanted = 1;
+
+				// Nothing to do if the capacity is already bigger than requested
+				if (bitsWanted <= capacity())
+					return;
+
+				const uint32_t itemsNew = (bitsWanted + BitsPerItem - 1) / BitsPerItem;
+				auto* pDataOld = m_pData;
+				m_pData = new size_type[itemsNew];
+				if (pDataOld == nullptr) {
+					// Make sure the new data is set to zeros
+					for (uint32_t i = 0; i < itemsNew; ++i)
+						m_pData[i] = 0;
+				} else {
+					const uint32_t itemsOld = Items();
+					// Copy the old data over and set the old data to zeros
+					utils::move_elements(m_pData, pDataOld, size());
+					for (uint32_t i = itemsOld; i < itemsNew; ++i)
+						m_pData[i] = 0;
+
+					// Release old data
+					delete[] pDataOld;
+				}
+
+				m_cap = itemsNew * BitsPerItem;
+			}
+
+			void resize(uint32_t bitsWanted) {
+				// Make sure at least one bit is requested
+				GAIA_ASSERT(bitsWanted > 0);
+				if (bitsWanted < 1)
+					bitsWanted = 1;
+
+				const uint32_t itemsOld = Items();
+
+				// Nothing to do if the capacity is already bigger than requested
+				if (bitsWanted <= capacity()) {
+					m_cnt = bitsWanted;
+					return;
+				}
+
+				const uint32_t itemsNew = (bitsWanted + BitsPerItem - 1) / BitsPerItem;
+				auto* pDataOld = m_pData;
+				m_pData = new size_type[itemsNew];
+				if (pDataOld == nullptr) {
+					// Make sure the new data is set to zeros
+					for (uint32_t i = 0; i < itemsNew; ++i)
+						m_pData[i] = 0;
+				} else {
+					// Copy the old data over and set the old data to zeros
+					utils::move_elements(m_pData, pDataOld, size());
+					for (uint32_t i = itemsOld; i < itemsNew; ++i)
+						m_pData[i] = 0;
+
+					// Release old data
+					delete[] pDataOld;
+				}
+
+				m_cnt = bitsWanted;
+				m_cap = itemsNew * BitsPerItem;
+			}
+
+			const_iterator begin() const {
+				return const_iterator(*this, 0, true);
+			}
+
+			const_iterator end() const {
+				return const_iterator(*this, size(), false);
+			}
+
+			const_iterator cbegin() const {
+				return const_iterator(*this, 0, true);
+			}
+
+			const_iterator cend() const {
+				return const_iterator(*this, size(), false);
+			}
+
+			GAIA_NODISCARD bool operator[](uint32_t pos) const {
+				return test(pos);
+			}
+
+			GAIA_NODISCARD bool operator==(const dbitset& other) const {
+				const uint32_t items = Items();
+				for (uint32_t i = 0; i < items; ++i)
+					if (m_pData[i] != other.m_pData[i])
+						return false;
+				return true;
+			}
+
+			GAIA_NODISCARD bool operator!=(const dbitset& other) const {
+				const uint32_t items = Items();
+				for (uint32_t i = 0; i < items; ++i)
+					if (m_pData[i] == other.m_pData[i])
+						return false;
+				return true;
+			}
+
+			//! Sets all bits
+			void set() {
+				if GAIA_UNLIKELY (size() == 0)
+					return;
+
+				const auto items = Items();
+				const auto lastItemMask = LastItemMask();
+
+				if (lastItemMask != 0) {
+					uint32_t i = 0;
+					for (; i < items - 1; ++i)
+						m_pData[i] = (size_type)-1;
+					m_pData[i] = lastItemMask;
+				} else {
+					for (uint32_t i = 0; i < items; ++i)
+						m_pData[i] = (size_type)-1;
+				}
+			}
+
+			//! Sets the bit at the postion \param pos to value \param value
+			void set(uint32_t pos, bool value = true) {
+				try_grow(pos + 1);
+
+				if (value)
+					m_pData[pos / BitsPerItem] |= ((size_type)1 << (pos % BitsPerItem));
+				else
+					m_pData[pos / BitsPerItem] &= ~((size_type)1 << (pos % BitsPerItem));
+			}
+
+			//! Flips all bits
+			void flip() {
+				if GAIA_UNLIKELY (size() == 0)
+					return;
+
+				const auto items = Items();
+				const auto lastItemMask = LastItemMask();
+
+				if (lastItemMask != 0) {
+					uint32_t i = 0;
+					for (; i < items - 1; ++i)
+						m_pData[i] = ~m_pData[i];
+					m_pData[i] = (~m_pData[i]) & lastItemMask;
+				} else {
+					for (uint32_t i = 0; i <= items; ++i)
+						m_pData[i] = ~m_pData[i];
+				}
+			}
+
+			//! Flips the bit at the postion \param pos
+			void flip(uint32_t pos) {
+				GAIA_ASSERT(pos < size());
+				m_pData[pos / BitsPerItem] ^= ((size_type)1 << (pos % BitsPerItem));
+			}
+
+			//! Flips all bits from \param bitFrom to \param bitTo (including)
+			dbitset& flip(uint32_t bitFrom, uint32_t bitTo) {
+				GAIA_ASSERT(bitFrom <= bitTo);
+				GAIA_ASSERT(bitFrom < size());
+
+				if GAIA_UNLIKELY (size() == 0)
+					return *this;
+
+				for (uint32_t i = bitFrom; i <= bitTo; i++) {
+					uint32_t wordIdx = i / BitsPerItem;
+					uint32_t bitOffset = i % BitsPerItem;
+					m_pData[wordIdx] ^= ((size_type)1 << bitOffset);
+				}
+
+				return *this;
+			}
+
+			//! Unsets all bits
+			void reset() {
+				const auto items = Items();
+				for (uint32_t i = 0; i < items; ++i)
+					m_pData[i] = 0;
+			}
+
+			//! Unsets the bit at the postion \param pos
+			void reset(uint32_t pos) {
+				GAIA_ASSERT(pos < size());
+				m_pData[pos / BitsPerItem] &= ~((size_type)1 << (pos % BitsPerItem));
+			}
+
+			//! Returns the value of the bit at the position \param pos
+			GAIA_NODISCARD bool test(uint32_t pos) const {
+				GAIA_ASSERT(pos < size());
+				return (m_pData[pos / BitsPerItem] & ((size_type)1 << (pos % BitsPerItem))) != 0;
+			}
+
+			//! Checks if all bits are set
+			GAIA_NODISCARD bool all() const {
+				const auto items = Items() - 1;
+				const auto lastItemMask = LastItemMask();
+
+				for (uint32_t i = 0; i < items; ++i)
+					if (m_pData[i] != (size_type)-1)
+						return false;
+
+				if (HasTrailingBits())
+					return (m_pData[items] & lastItemMask) == lastItemMask;
+				else
+					return m_pData[items] == (size_type)-1;
+			}
+
+			//! Checks if any bit is set
+			GAIA_NODISCARD bool any() const {
+				const auto items = Items();
+				for (uint32_t i = 0; i < items; ++i)
+					if (m_pData[i] != 0)
+						return true;
+				return false;
+			}
+
+			//! Checks if all bits are reset
+			GAIA_NODISCARD bool none() const {
+				const auto items = Items();
+				for (uint32_t i = 0; i < items; ++i)
+					if (m_pData[i] != 0)
+						return false;
+				return true;
+			}
+
+			//! Returns the number of set bits
+			GAIA_NODISCARD uint32_t count() const {
+				uint32_t total = 0;
+
+				const auto items = Items();
+
+				GAIA_MSVC_WARNING_PUSH()
+				GAIA_MSVC_WARNING_DISABLE(4244)
+				if constexpr (sizeof(size_type) == 4) {
+					for (uint32_t i = 0; i < items; ++i)
+						total += GAIA_POPCNT(m_pData[i]);
+				} else {
+					for (uint32_t i = 0; i < items; ++i)
+						total += GAIA_POPCNT64(m_pData[i]);
+				}
+				GAIA_MSVC_WARNING_POP()
+
+				return total;
+			}
+
+			//! Returns the number of bits the dbitset holds
+			GAIA_NODISCARD constexpr uint32_t size() const {
+				return m_cnt;
+			}
+
+			//! Returns the number of bits the dbitset can hold
+			GAIA_NODISCARD constexpr uint32_t capacity() const {
+				return m_cap;
+			}
+		};
+	} // namespace containers
+} // namespace gaia
 
 #define USE_HASHMAP GAIA_USE_STL_CONTAINERS
 
@@ -7677,6 +8088,1976 @@ namespace gaia {
 
 #endif
 
+// TODO: There is no quickly achievable std alternative so go with gaia container
+
+#include <cstddef>
+#include <type_traits>
+#include <utility>
+
+namespace gaia {
+	namespace containers {
+		//! Array of elements of type \tparam T with fixed capacity \tparam N and variable size allocated on stack.
+		//! Interface compatiblity with std::array where it matters.
+		template <typename T, size_t N>
+		class sarr_ext {
+		public:
+			using iterator_category = GAIA_UTIL::random_access_iterator_tag;
+			using value_type = T;
+			using reference = T&;
+			using const_reference = const T&;
+			using pointer = T*;
+			using const_pointer = T*;
+			using difference_type = std::ptrdiff_t;
+			using size_type = decltype(N);
+
+			static constexpr size_type extent = N;
+
+		private:
+			T m_data[N != 0U ? N : 1]; // support zero-size arrays
+			size_type m_cnt = size_type(0);
+
+		public:
+			class iterator {
+			public:
+				using iterator_category = GAIA_UTIL::random_access_iterator_tag;
+				using value_type = T;
+				using difference_type = std::ptrdiff_t;
+				using pointer = T*;
+				using reference = T&;
+				using size_type = decltype(N);
+
+			private:
+				pointer m_ptr;
+
+			public:
+				constexpr iterator(T* ptr): m_ptr(ptr) {}
+
+				constexpr T& operator*() const {
+					return *m_ptr;
+				}
+				constexpr T* operator->() const {
+					return m_ptr;
+				}
+				constexpr iterator operator[](size_type offset) const {
+					return {m_ptr + offset};
+				}
+
+				constexpr iterator& operator+=(size_type diff) {
+					m_ptr += diff;
+					return *this;
+				}
+				constexpr iterator& operator-=(size_type diff) {
+					m_ptr -= diff;
+					return *this;
+				}
+				constexpr iterator& operator++() {
+					++m_ptr;
+					return *this;
+				}
+				constexpr iterator operator++(int) {
+					iterator temp(*this);
+					++*this;
+					return temp;
+				}
+				constexpr iterator& operator--() {
+					--m_ptr;
+					return *this;
+				}
+				constexpr iterator operator--(int) {
+					iterator temp(*this);
+					--*this;
+					return temp;
+				}
+
+				constexpr iterator operator+(size_type offset) const {
+					return {m_ptr + offset};
+				}
+				constexpr iterator operator-(size_type offset) const {
+					return {m_ptr - offset};
+				}
+				constexpr difference_type operator-(const iterator& other) const {
+					return m_ptr - other.m_ptr;
+				}
+
+				GAIA_NODISCARD constexpr bool operator==(const iterator& other) const {
+					return m_ptr == other.m_ptr;
+				}
+				GAIA_NODISCARD constexpr bool operator!=(const iterator& other) const {
+					return m_ptr != other.m_ptr;
+				}
+				GAIA_NODISCARD constexpr bool operator>(const iterator& other) const {
+					return m_ptr > other.m_ptr;
+				}
+				GAIA_NODISCARD constexpr bool operator>=(const iterator& other) const {
+					return m_ptr >= other.m_ptr;
+				}
+				GAIA_NODISCARD constexpr bool operator<(const iterator& other) const {
+					return m_ptr < other.m_ptr;
+				}
+				GAIA_NODISCARD constexpr bool operator<=(const iterator& other) const {
+					return m_ptr <= other.m_ptr;
+				}
+			};
+
+			class const_iterator {
+			public:
+				using iterator_category = GAIA_UTIL::random_access_iterator_tag;
+				using value_type = const T;
+				using difference_type = std::ptrdiff_t;
+				using pointer = const T*;
+				using reference = const T&;
+				using size_type = decltype(N);
+
+			private:
+				pointer m_ptr;
+
+			public:
+				constexpr const_iterator(pointer ptr): m_ptr(ptr) {}
+
+				constexpr reference operator*() const {
+					return *m_ptr;
+				}
+				constexpr pointer operator->() const {
+					return m_ptr;
+				}
+				constexpr const_iterator operator[](size_type offset) const {
+					return {m_ptr + offset};
+				}
+
+				constexpr const_iterator& operator+=(size_type diff) {
+					m_ptr += diff;
+					return *this;
+				}
+				constexpr const_iterator& operator-=(size_type diff) {
+					m_ptr -= diff;
+					return *this;
+				}
+				constexpr const_iterator& operator++() {
+					++m_ptr;
+					return *this;
+				}
+				constexpr const_iterator operator++(int) {
+					const_iterator temp(*this);
+					++*this;
+					return temp;
+				}
+				constexpr const_iterator& operator--() {
+					--m_ptr;
+					return *this;
+				}
+				constexpr const_iterator operator--(int) {
+					const_iterator temp(*this);
+					--*this;
+					return temp;
+				}
+
+				constexpr const_iterator operator+(size_type offset) const {
+					return {m_ptr + offset};
+				}
+				constexpr const_iterator operator-(size_type offset) const {
+					return {m_ptr - offset};
+				}
+				constexpr difference_type operator-(const const_iterator& other) const {
+					return m_ptr - other.m_ptr;
+				}
+
+				GAIA_NODISCARD constexpr bool operator==(const const_iterator& other) const {
+					return m_ptr == other.m_ptr;
+				}
+				GAIA_NODISCARD constexpr bool operator!=(const const_iterator& other) const {
+					return m_ptr != other.m_ptr;
+				}
+				GAIA_NODISCARD constexpr bool operator>(const const_iterator& other) const {
+					return m_ptr > other.m_ptr;
+				}
+				GAIA_NODISCARD constexpr bool operator>=(const const_iterator& other) const {
+					return m_ptr >= other.m_ptr;
+				}
+				GAIA_NODISCARD constexpr bool operator<(const const_iterator& other) const {
+					return m_ptr < other.m_ptr;
+				}
+				GAIA_NODISCARD constexpr bool operator<=(const const_iterator& other) const {
+					return m_ptr <= other.m_ptr;
+				}
+			};
+
+			sarr_ext() noexcept = default;
+			~sarr_ext() = default;
+
+			constexpr sarr_ext(size_type count, const T& value) noexcept {
+				resize(count);
+
+				for (auto it: *this)
+					*it = value;
+			}
+
+			constexpr sarr_ext(size_type count) noexcept {
+				resize(count);
+			}
+
+			template <typename InputIt>
+			constexpr sarr_ext(InputIt first, InputIt last) noexcept {
+				const auto count = (size_type)GAIA_UTIL::distance(first, last);
+				resize(count);
+
+				if constexpr (std::is_pointer_v<InputIt>) {
+					for (size_type i = 0; i < count; ++i)
+						m_data[i] = first[i];
+				} else if constexpr (std::is_same_v<
+																 typename InputIt::iterator_category, GAIA_UTIL::random_access_iterator_tag>) {
+					for (size_type i = 0; i < count; ++i)
+						m_data[i] = *(first[i]);
+				} else {
+					size_type i = 0;
+					for (auto it = first; it != last; ++it)
+						m_data[i++] = *it;
+				}
+			}
+
+			constexpr sarr_ext(std::initializer_list<T> il): sarr_ext(il.begin(), il.end()) {}
+
+			constexpr sarr_ext(const sarr_ext& other): sarr_ext(other.begin(), other.end()) {}
+
+			constexpr sarr_ext(sarr_ext&& other) noexcept: m_cnt(other.m_cnt) {
+				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
+
+				utils::move_elements(m_data, other.m_data, other.size());
+
+				other.m_cnt = size_type(0);
+			}
+
+			GAIA_NODISCARD sarr_ext& operator=(std::initializer_list<T> il) {
+				*this = sarr_ext(il.begin(), il.end());
+				return *this;
+			}
+
+			GAIA_NODISCARD constexpr sarr_ext& operator=(const sarr_ext& other) {
+				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
+
+				resize(other.size());
+				utils::copy_elements(m_data, other.m_data, other.size());
+
+				return *this;
+			}
+
+			GAIA_NODISCARD constexpr sarr_ext& operator=(sarr_ext&& other) noexcept {
+				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
+
+				resize(other.m_cnt);
+				utils::move_elements(m_data, other.m_data, other.size());
+
+				other.m_cnt = size_type(0);
+
+				return *this;
+			}
+
+			GAIA_NODISCARD constexpr pointer data() noexcept {
+				return (pointer)m_data;
+			}
+
+			GAIA_NODISCARD constexpr const_pointer data() const noexcept {
+				return (const_pointer)m_data;
+			}
+
+			GAIA_NODISCARD constexpr reference operator[](size_type pos) noexcept {
+				GAIA_ASSERT(pos < size());
+				return (reference)m_data[pos];
+			}
+
+			GAIA_NODISCARD constexpr const_reference operator[](size_type pos) const noexcept {
+				GAIA_ASSERT(pos < size());
+				return (const_reference)m_data[pos];
+			}
+
+			constexpr void push_back(const T& arg) noexcept {
+				GAIA_ASSERT(size() < N);
+				m_data[m_cnt++] = arg;
+			}
+
+			constexpr void push_back(T&& arg) noexcept {
+				GAIA_ASSERT(size() < N);
+				m_data[m_cnt++] = std::forward<T>(arg);
+			}
+
+			template <typename... Args>
+			constexpr reference emplace_back(Args&&... args) {
+				GAIA_ASSERT(size() < N);
+				reference ref = m_data[m_cnt++];
+				ref = {std::forward<Args>(args)...};
+				return ref;
+			}
+
+			constexpr void pop_back() noexcept {
+				GAIA_ASSERT(!empty());
+				--m_cnt;
+			}
+
+			GAIA_NODISCARD constexpr iterator erase(iterator pos) noexcept {
+				GAIA_ASSERT(pos.m_ptr >= &m_data[0] && pos.m_ptr < &m_data[N - 1]);
+
+				const auto idxSrc = (size_type)GAIA_UTIL::distance(pos, begin());
+				const auto idxDst = size() - 1;
+
+				utils::shift_elements_left(&m_data[idxSrc], idxDst - idxSrc);
+				--m_cnt;
+
+				return iterator((T*)m_data + idxSrc);
+			}
+
+			GAIA_NODISCARD constexpr const_iterator erase(const_iterator pos) noexcept {
+				GAIA_ASSERT(pos.m_ptr >= &m_data[0] && pos.m_ptr < &m_data[N - 1]);
+
+				const auto idxSrc = (size_type)GAIA_UTIL::distance(pos, begin());
+				const auto idxDst = size() - 1;
+
+				utils::shift_elements_left(&m_data[idxSrc], idxDst - idxSrc);
+				--m_cnt;
+
+				return iterator((const T*)m_data + idxSrc);
+			}
+
+			GAIA_NODISCARD constexpr iterator erase(iterator first, iterator last) noexcept {
+				GAIA_ASSERT(first.m_cnt >= 0 && first.m_cnt < size());
+				GAIA_ASSERT(last.m_cnt >= 0 && last.m_cnt < size());
+				GAIA_ASSERT(last.m_cnt >= last.m_cnt);
+
+				const auto size = last.m_cnt - first.m_cnt;
+				utils::shift_elements_left(&m_data[first.cnt], size);
+				m_cnt -= size;
+
+				return {(T*)m_data + size_type(last.m_cnt)};
+			}
+
+			constexpr void clear() noexcept {
+				resize(0);
+			}
+
+			constexpr void resize(size_type size) noexcept {
+				GAIA_ASSERT(size < N);
+				m_cnt = size;
+			}
+
+			GAIA_NODISCARD constexpr size_type size() const noexcept {
+				return m_cnt;
+			}
+
+			GAIA_NODISCARD constexpr bool empty() const noexcept {
+				return size() == 0;
+			}
+
+			GAIA_NODISCARD constexpr size_type max_size() const noexcept {
+				return N;
+			}
+
+			GAIA_NODISCARD constexpr reference front() noexcept {
+				return *begin();
+			}
+
+			GAIA_NODISCARD constexpr const_reference front() const noexcept {
+				return *begin();
+			}
+
+			GAIA_NODISCARD constexpr reference back() noexcept {
+				return N != 0U ? *(end() - 1) : *end();
+			}
+
+			GAIA_NODISCARD constexpr const_reference back() const noexcept {
+				return N != 0U ? *(end() - 1) : *end();
+			}
+
+			GAIA_NODISCARD constexpr iterator begin() const noexcept {
+				return {(T*)m_data};
+			}
+
+			GAIA_NODISCARD constexpr const_iterator cbegin() const noexcept {
+				return {(const T*)m_data};
+			}
+
+			GAIA_NODISCARD iterator end() const noexcept {
+				return {(T*)m_data + size()};
+			}
+
+			GAIA_NODISCARD const_iterator cend() const noexcept {
+				return {(const T*)m_data + size()};
+			}
+
+			GAIA_NODISCARD bool operator==(const sarr_ext& other) const {
+				if (m_cnt != other.m_cnt)
+					return false;
+				const size_type n = size();
+				for (size_type i = 0; i < n; ++i)
+					if (!(m_data[i] == other.m_data[i]))
+						return false;
+				return true;
+			}
+		};
+
+		namespace detail {
+			template <typename T, std::size_t N, std::size_t... I>
+			constexpr sarr_ext<std::remove_cv_t<T>, N> to_sarray_impl(T (&a)[N], std::index_sequence<I...> /*no_name*/) {
+				return {{a[I]...}};
+			}
+		} // namespace detail
+
+		template <typename T, std::size_t N>
+		constexpr sarr_ext<std::remove_cv_t<T>, N> to_sarray(T (&a)[N]) {
+			return detail::to_sarray_impl(a, std::make_index_sequence<N>{});
+		}
+
+	} // namespace containers
+
+} // namespace gaia
+
+namespace std {
+	template <typename T, size_t N>
+	struct tuple_size<gaia::containers::sarr_ext<T, N>>: std::integral_constant<std::size_t, N> {};
+
+	template <size_t I, typename T, size_t N>
+	struct tuple_element<I, gaia::containers::sarr_ext<T, N>> {
+		using type = T;
+	};
+} // namespace std
+
+namespace gaia {
+	namespace containers {
+		template <typename T, auto N>
+		using sarray_ext = containers::sarr_ext<T, N>;
+	} // namespace containers
+} // namespace gaia
+
+#include <cstddef>
+#include <type_traits>
+#include <utility>
+
+namespace gaia {
+	namespace containers {
+		//! Array of elements of type \tparam T with fixed size and capacity \tparam N allocated on stack.
+		//! Interface compatiblity with std::array where it matters.
+		template <typename T, uint32_t N>
+		class sringbuffer {
+		public:
+			static_assert(N > 1);
+
+			using iterator_category = GAIA_UTIL::random_access_iterator_tag;
+			using value_type = T;
+			using reference = T&;
+			using const_reference = const T&;
+			using pointer = T*;
+			using const_pointer = T*;
+			using difference_type = std::ptrdiff_t;
+			using size_type = decltype(N);
+
+			static constexpr size_type extent = N;
+
+			size_type m_tail{};
+			size_type m_size{};
+			T m_data[N];
+
+			sringbuffer() noexcept = default;
+
+			template <typename InputIt>
+			sringbuffer(InputIt first, InputIt last) {
+				const auto count = (size_type)GAIA_UTIL::distance(first, last);
+				GAIA_ASSERT(count <= max_size());
+				if (count < 1)
+					return;
+
+				m_size = count;
+				m_tail = 0;
+
+				if constexpr (std::is_pointer_v<InputIt>) {
+					for (size_type i = 0; i < count; ++i)
+						m_data[i] = first[i];
+				} else if constexpr (std::is_same_v<
+																 typename InputIt::iterator_category, GAIA_UTIL::random_access_iterator_tag>) {
+					for (size_type i = 0; i < count; ++i)
+						m_data[i] = *(first[i]);
+				} else {
+					size_type i = 0;
+					for (auto it = first; it != last; ++it)
+						m_data[i++] = *it;
+				}
+			}
+
+			sringbuffer(std::initializer_list<T> il): sringbuffer(il.begin(), il.end()) {}
+
+			sringbuffer(const sringbuffer& other): sringbuffer(other.begin(), other.end()) {}
+
+			sringbuffer(sringbuffer&& other) noexcept: m_tail(other.m_tail), m_size(other.m_size) {
+				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
+
+				utils::move_elements(m_data, other.m_data, other.size());
+
+				other.m_tail = size_type(0);
+				other.m_size = size_type(0);
+			}
+
+			GAIA_NODISCARD sringbuffer& operator=(std::initializer_list<T> il) {
+				*this = sringbuffer(il.begin(), il.end());
+				return *this;
+			}
+
+			GAIA_NODISCARD constexpr sringbuffer& operator=(const sringbuffer& other) {
+				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
+
+				utils::copy_elements(m_data, other.m_data, other.size());
+
+				m_tail = other.m_tail;
+				m_size = other.m_size;
+
+				return *this;
+			}
+
+			GAIA_NODISCARD constexpr sringbuffer& operator=(sringbuffer&& other) noexcept {
+				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
+
+				utils::move_elements(m_data, other.m_data, other.size());
+
+				m_tail = other.m_tail;
+				m_size = other.m_size;
+
+				other.m_tail = size_type(0);
+				other.m_size = size_type(0);
+
+				return *this;
+			}
+
+			~sringbuffer() = default;
+
+			void push_back(const T& arg) {
+				GAIA_ASSERT(m_size < N);
+				const auto head = (m_tail + m_size) % N;
+				m_data[head] = arg;
+				++m_size;
+			}
+
+			void push_back(T&& arg) {
+				GAIA_ASSERT(m_size < N);
+				const auto head = (m_tail + m_size) % N;
+				m_data[head] = std::forward<T>(arg);
+				++m_size;
+			}
+
+			template <typename... Args>
+			reference emplace_back(Args&&... args) {
+				GAIA_ASSERT(m_size < N);
+				const auto head = (m_tail + m_size) % N;
+				reference ref = m_data[head];
+				ref = {std::forward<Args>(args)...};
+				++m_size;
+				return ref;
+			}
+
+			void pop_front(T& out) {
+				GAIA_ASSERT(!empty());
+				out = m_data[m_tail];
+				m_tail = (m_tail + 1) % N;
+				--m_size;
+			}
+
+			void pop_front(T&& out) {
+				GAIA_ASSERT(!empty());
+				out = std::forward<T>(m_data[m_tail]);
+				m_tail = (m_tail + 1) % N;
+				--m_size;
+			}
+
+			void pop_back(T& out) {
+				GAIA_ASSERT(m_size < N);
+				const auto head = (m_tail + m_size - 1) % N;
+				out = m_data[head];
+				--m_size;
+			}
+
+			void pop_back(T&& out) {
+				GAIA_ASSERT(m_size < N);
+				const auto head = (m_tail + m_size - 1) % N;
+				out = std::forward<T>(m_data[head]);
+				--m_size;
+			}
+
+			GAIA_NODISCARD constexpr size_type size() const noexcept {
+				return m_size;
+			}
+
+			GAIA_NODISCARD constexpr bool empty() const noexcept {
+				return !m_size;
+			}
+
+			GAIA_NODISCARD constexpr size_type max_size() const noexcept {
+				return N;
+			}
+
+			GAIA_NODISCARD constexpr reference front() noexcept {
+				GAIA_ASSERT(!empty());
+				return m_data[m_tail];
+			}
+
+			GAIA_NODISCARD constexpr const_reference front() const noexcept {
+				GAIA_ASSERT(!empty());
+				return m_data[m_tail];
+			}
+
+			GAIA_NODISCARD constexpr reference back() noexcept {
+				GAIA_ASSERT(!empty());
+				const auto head = (m_tail + m_size - 1) % N;
+				return m_data[head];
+			}
+
+			GAIA_NODISCARD constexpr const_reference back() const noexcept {
+				GAIA_ASSERT(!empty());
+				const auto head = (m_tail + m_size - 1) % N;
+				return m_data[head];
+			}
+
+			GAIA_NODISCARD bool operator==(const sringbuffer& other) const {
+				for (size_type i = 0; i < N; ++i)
+					if (!(m_data[i] == other.m_data[i]))
+						return false;
+				return true;
+			}
+		};
+
+		namespace detail {
+			template <typename T, std::size_t N, std::size_t... I>
+			constexpr sringbuffer<std::remove_cv_t<T>, N>
+			to_sringbuffer_impl(T (&a)[N], std::index_sequence<I...> /*no_name*/) {
+				return {{a[I]...}};
+			}
+		} // namespace detail
+
+		template <typename T, std::size_t N>
+		constexpr sringbuffer<std::remove_cv_t<T>, N> to_sringbuffer(T (&a)[N]) {
+			return detail::to_sringbuffer_impl(a, std::make_index_sequence<N>{});
+		}
+
+		template <typename T, typename... U>
+		sringbuffer(T, U...) -> sringbuffer<T, 1 + sizeof...(U)>;
+
+	} // namespace containers
+
+} // namespace gaia
+
+#if GAIA_PLATFORM_WINDOWS
+	#include <windows.h>
+	#include <cstdio>
+#elif GAIA_PLATFORM_APPLE
+	#include <mach/mach_types.h>
+	#include <mach/thread_act.h>
+#elif GAIA_PLATFORM_LINUX || GAIA_PLATFORM_FREEBSD
+	#include <pthread.h>
+#endif
+
+#include <atomic>
+#include <condition_variable>
+#include <mutex>
+#include <thread>
+
+#include <functional>
+#include <inttypes.h>
+
+namespace gaia {
+	namespace mt {
+		struct Job {
+			std::function<void()> func;
+		};
+
+		struct JobArgs {
+			uint32_t idxStart;
+			uint32_t idxEnd;
+		};
+
+		struct JobParallel {
+			std::function<void(const JobArgs&)> func;
+		};
+	} // namespace mt
+} // namespace gaia
+
+#include <cinttypes>
+#include <type_traits>
+
+namespace gaia {
+	namespace mt {
+		using JobInternalType = uint32_t;
+		using JobId = JobInternalType;
+		using JobGenId = JobInternalType;
+
+		struct JobHandle final {
+			static constexpr JobInternalType IdBits = 20;
+			static constexpr JobInternalType GenBits = 12;
+			static constexpr JobInternalType IdMask = (uint32_t)(uint64_t(1) << IdBits) - 1;
+			static constexpr JobInternalType GenMask = (uint32_t)(uint64_t(1) << GenBits) - 1;
+
+			using JobSizeType = std::conditional_t<(IdBits + GenBits > 32), uint64_t, uint32_t>;
+
+			static_assert(IdBits + GenBits <= 64, "Job IdBits and GenBits must fit inside 64 bits");
+			static_assert(IdBits <= 31, "Job IdBits must be at most 31 bits long");
+			static_assert(GenBits > 10, "Job GenBits is recommended to be at least 10 bits long");
+
+		private:
+			struct JobData {
+				//! Index in entity array
+				JobInternalType id: IdBits;
+				//! Generation index. Incremented every time an entity is deleted
+				JobInternalType gen: GenBits;
+			};
+
+			union {
+				JobData data;
+				JobSizeType val;
+			};
+
+		public:
+			JobHandle() noexcept = default;
+			JobHandle(JobId id, JobGenId gen) {
+				data.id = id;
+				data.gen = gen;
+			}
+			~JobHandle() = default;
+
+			JobHandle(JobHandle&&) noexcept = default;
+			JobHandle(const JobHandle&) = default;
+			JobHandle& operator=(JobHandle&&) noexcept = default;
+			JobHandle& operator=(const JobHandle&) = default;
+
+			GAIA_NODISCARD constexpr bool operator==(const JobHandle& other) const noexcept {
+				return val == other.val;
+			}
+			GAIA_NODISCARD constexpr bool operator!=(const JobHandle& other) const noexcept {
+				return val != other.val;
+			}
+
+			auto id() const {
+				return data.id;
+			}
+			auto gen() const {
+				return data.gen;
+			}
+			auto value() const {
+				return val;
+			}
+		};
+
+		struct JobNull_t {
+			GAIA_NODISCARD operator JobHandle() const noexcept {
+				return JobHandle(JobHandle::IdMask, JobHandle::GenMask);
+			}
+
+			GAIA_NODISCARD constexpr bool operator==([[maybe_unused]] const JobNull_t& null) const noexcept {
+				return true;
+			}
+			GAIA_NODISCARD constexpr bool operator!=([[maybe_unused]] const JobNull_t& null) const noexcept {
+				return false;
+			}
+		};
+
+		GAIA_NODISCARD inline bool operator==(const JobNull_t& null, const JobHandle& entity) noexcept {
+			return static_cast<JobHandle>(null).id() == entity.id();
+		}
+
+		GAIA_NODISCARD inline bool operator!=(const JobNull_t& null, const JobHandle& entity) noexcept {
+			return static_cast<JobHandle>(null).id() != entity.id();
+		}
+
+		GAIA_NODISCARD inline bool operator==(const JobHandle& entity, const JobNull_t& null) noexcept {
+			return null == entity;
+		}
+
+		GAIA_NODISCARD inline bool operator!=(const JobHandle& entity, const JobNull_t& null) noexcept {
+			return null != entity;
+		}
+
+		inline constexpr JobNull_t JobNull{};
+	} // namespace mt
+} // namespace gaia
+
+#include <functional>
+#include <inttypes.h>
+#include <mutex>
+
+#include <cinttypes>
+#include <type_traits>
+
+namespace gaia {
+	namespace containers {
+		struct ImplicitListItem {
+			//! For allocated entity: Index of entity within chunk.
+			//! For deleted entity: Index of the next entity in the implicit list.
+			uint32_t idx;
+			//! Generation ID
+			uint32_t gen;
+		};
+
+		template <typename TListItem, typename TItemHandle>
+		struct ImplicitList {
+			using internal_storage = darray<TListItem>;
+			using iterator = typename internal_storage::iterator;
+			using const_iterator = typename internal_storage::const_iterator;
+
+			using iterator_category = typename internal_storage::iterator_category;
+			using value_type = TListItem;
+			using reference = TListItem&;
+			using const_reference = const TListItem&;
+			using pointer = TListItem*;
+			using const_pointer = TListItem*;
+			using difference_type = std::ptrdiff_t;
+			using size_type = uint32_t;
+
+			static_assert(std::is_base_of<ImplicitListItem, TListItem>::value);
+			//! Implicit list items
+			darray<TListItem> m_items;
+			//! Index of the next item to recycle
+			size_type m_nextFreeIdx = (size_type)-1;
+			//! Number of items to recycle
+			size_type m_freeItems = 0;
+
+			GAIA_NODISCARD pointer data() noexcept {
+				return (pointer)m_items.data();
+			}
+
+			GAIA_NODISCARD const_pointer data() const noexcept {
+				return (const_pointer)m_items.data();
+			}
+
+			GAIA_NODISCARD reference operator[](size_type index) {
+				return m_items[index];
+			}
+			GAIA_NODISCARD const_reference operator[](size_type index) const {
+				return m_items[index];
+			}
+
+			void clear() {
+				m_items.clear();
+				m_nextFreeIdx = (size_type)-1;
+				m_freeItems = 0;
+			}
+
+			GAIA_NODISCARD size_type get_next_free_item() const noexcept {
+				return m_nextFreeIdx;
+			}
+
+			GAIA_NODISCARD size_type get_free_items() const noexcept {
+				return m_freeItems;
+			}
+
+			GAIA_NODISCARD size_type item_count() const noexcept {
+				return size() - m_freeItems;
+			}
+
+			GAIA_NODISCARD size_type size() const noexcept {
+				return (size_type)m_items.size();
+			}
+
+			GAIA_NODISCARD size_type capacity() const noexcept {
+				return (size_type)m_items.capacity();
+			}
+
+			GAIA_NODISCARD bool empty() const noexcept {
+				return size() == 0;
+			}
+
+			GAIA_NODISCARD iterator begin() const noexcept {
+				return {(pointer)m_items.data()};
+			}
+
+			GAIA_NODISCARD const_iterator cbegin() const noexcept {
+				return {(const_pointer)m_items.data()};
+			}
+
+			GAIA_NODISCARD iterator end() const noexcept {
+				return {(pointer)m_items.data() + size()};
+			}
+
+			GAIA_NODISCARD const_iterator cend() const noexcept {
+				return {(const_pointer)m_items.data() + size()};
+			}
+
+			//! Allocates a new item in the list
+			//! \return Handle to the new item
+			GAIA_NODISCARD TItemHandle allocate() {
+				if GAIA_UNLIKELY (m_freeItems == 0U) {
+					// We don't want to go out of range for new item
+					const auto itemCnt = (size_type)m_items.size();
+					GAIA_ASSERT(itemCnt < TItemHandle::IdMask && "Trying to allocate too many items!");
+
+					m_items.emplace_back(itemCnt, 0U);
+					return {itemCnt, 0U};
+				}
+
+				// Make sure the list is not broken
+				GAIA_ASSERT(m_nextFreeIdx < (size_type)m_items.size() && "Item recycle list broken!");
+
+				--m_freeItems;
+				const auto index = m_nextFreeIdx;
+				auto& j = m_items[m_nextFreeIdx];
+				m_nextFreeIdx = j.idx;
+				return {index, m_items[index].gen};
+			}
+
+			//! Invalidates \param handle.
+			//! Everytime an item is deallocated its generation is increased by one.
+			TListItem& release(TItemHandle handle) {
+				auto& item = m_items[handle.id()];
+
+				// New generation
+				const auto gen = ++item.gen;
+
+				// Update our implicit list
+				if GAIA_UNLIKELY (m_freeItems == 0) {
+					m_nextFreeIdx = handle.id();
+					item.idx = TItemHandle::IdMask;
+					item.gen = gen;
+				} else {
+					item.idx = m_nextFreeIdx;
+					item.gen = gen;
+					m_nextFreeIdx = handle.id();
+				}
+				++m_freeItems;
+
+				return item;
+			}
+
+			//! Verifies that the implicit linked list is valid
+			void validate() const {
+				bool hasThingsToRemove = m_freeItems > 0;
+				if (!hasThingsToRemove)
+					return;
+
+				// If there's something to remove there has to be at least one entity left
+				GAIA_ASSERT(!m_items.empty());
+
+				auto freeEntities = m_freeItems;
+				auto nextFreeEntity = m_nextFreeIdx;
+				while (freeEntities > 0) {
+					GAIA_ASSERT(nextFreeEntity < m_items.size() && "Item recycle list broken!");
+
+					nextFreeEntity = m_items[nextFreeEntity].idx;
+					--freeEntities;
+				}
+
+				// At this point the index of the last item in list should
+				// point to -1 because that's the tail of our implicit list.
+				GAIA_ASSERT(nextFreeEntity == TItemHandle::IdMask);
+			}
+		};
+	} // namespace containers
+} // namespace gaia
+
+namespace gaia {
+	namespace mt {
+		enum class JobInternalState : uint32_t {
+			//! No scheduled
+			Idle = 0,
+			//! Scheduled
+			Submitted = 0x01,
+			//! Being executed
+			Running = 0x02,
+			//! Finished executing
+			Done = 0x04,
+			//! Job released. Not to be used anymore
+			Released = 0x08,
+
+			//! Scheduled or being executed
+			Busy = Submitted | Running,
+		};
+
+		struct JobContainer: containers::ImplicitListItem {
+			uint32_t dependencyIdx;
+			JobInternalState state;
+			std::function<void()> func;
+		};
+
+		struct JobDependency: containers::ImplicitListItem {
+			uint32_t dependencyIdxNext;
+			JobHandle dependsOn;
+		};
+
+		using DepHandle = JobHandle;
+
+		class JobManager {
+			std::mutex m_jobsLock;
+			//! Implicit list of jobs
+			containers::ImplicitList<JobContainer, JobHandle> m_jobs;
+
+			std::mutex m_depsLock;
+			//! List of job dependencies
+			containers::ImplicitList<JobDependency, DepHandle> m_deps;
+
+		public:
+			//! Cleans up any job allocations and dependicies associated with \param jobHandle
+			void Complete(JobHandle jobHandle) {
+				// We need to release any dependencies related to this job
+				auto& job = m_jobs[jobHandle.id()];
+
+				if (job.state == JobInternalState::Released)
+					return;
+
+				uint32_t depIdx = job.dependencyIdx;
+				while (depIdx != (uint32_t)-1) {
+					auto& dep = m_deps[depIdx];
+					const uint32_t depIdxNext = dep.dependencyIdxNext;
+					Complete(dep.dependsOn);
+					DeallocateDependency(DepHandle{depIdx, 0});
+					depIdx = depIdxNext;
+				}
+
+				// Deallocate the job itself
+				DeallocateJob(jobHandle);
+			}
+
+			//! Allocates a new job container identified by a unique JobHandle.
+			//! \return JobHandle
+			//! \warning Must be used from the main thread.
+			GAIA_NODISCARD JobHandle AllocateJob(const Job& job) {
+				std::scoped_lock<std::mutex> lock(m_jobsLock);
+				auto handle = m_jobs.allocate();
+				auto& j = m_jobs[handle.id()];
+				GAIA_ASSERT(j.state == JobInternalState::Idle || j.state == JobInternalState::Released);
+				j.dependencyIdx = (uint32_t)-1;
+				j.state = JobInternalState::Idle;
+				j.func = job.func;
+				return handle;
+			}
+
+			//! Invalidates \param jobHandle by resetting its index in the job pool.
+			//! Everytime a job is deallocated its generation is increased by one.
+			//! \warning Must be used from the main thread.
+			void DeallocateJob(JobHandle jobHandle) {
+				// No need to lock. Called from the main thread only when the job has finished already.
+				// --> std::scoped_lock<std::mutex> lock(m_jobsLock);
+				auto& job = m_jobs.release(jobHandle);
+				job.state = JobInternalState::Released;
+			}
+
+			//! Allocates a new dependency identified by a unique DepHandle.
+			//! \return DepHandle
+			//! \warning Must be used from the main thread.
+			GAIA_NODISCARD DepHandle AllocateDependency() {
+				return m_deps.allocate();
+			}
+
+			//! Invalidates \param depHandle by resetting its index in the dependency pool.
+			//! Everytime a dependency is deallocated its generation is increased by one.
+			//! \warning Must be used from the main thread.
+			void DeallocateDependency(DepHandle depHandle) {
+				m_deps.release(depHandle);
+			}
+
+			//! Resets the job pool.
+			void Reset() {
+				{
+					// No need to lock. Called from the main thread only when all jobs have finished already.
+					// --> std::scoped_lock<std::mutex> lock(m_jobsLock);
+					m_jobs.clear();
+				}
+				{
+					// No need to lock. Called from the main thread only when all jobs must have ended already.
+					// --> std::scoped_lock<std::mutex> lock(m_depsLock);
+					m_deps.clear();
+				}
+			}
+
+			void Run(JobHandle jobHandle) {
+				std::function<void()> func;
+
+				{
+					std::scoped_lock<std::mutex> lock(m_jobsLock);
+					auto& job = m_jobs[jobHandle.id()];
+					job.state = JobInternalState::Running;
+					func = job.func;
+				}
+				if (func.operator bool())
+					func();
+				{
+					std::scoped_lock<std::mutex> lock(m_jobsLock);
+					auto& job = m_jobs[jobHandle.id()];
+					job.state = JobInternalState::Done;
+				}
+			}
+
+			//! Evaluates job dependencies.
+			//! \return True if job dependencies are met. False otherwise
+			GAIA_NODISCARD bool HandleDependencies(JobHandle jobHandle) {
+				GAIA_PROF_SCOPE(JobManager::HandleDeps);
+				std::scoped_lock<std::mutex> lockJobs(m_jobsLock);
+				auto& job = m_jobs[jobHandle.id()];
+				if (job.dependencyIdx == (uint32_t)-1)
+					return true;
+
+				uint32_t depsId = job.dependencyIdx;
+				{
+					std::scoped_lock<std::mutex> lockDeps(m_depsLock);
+
+					// Iterate over all dependencies.
+					// The first busy dependency breaks the loop. At this point we also update
+					// the initial dependency index because we know all previous dependencies
+					// have already finished and there's no need to check them.
+					do {
+						JobDependency dep = m_deps[depsId];
+						if (!IsDone(dep.dependsOn)) {
+							m_jobs[jobHandle.id()].dependencyIdx = depsId;
+							return false;
+						}
+
+						depsId = dep.dependencyIdxNext;
+					} while (depsId != (uint32_t)-1);
+				}
+
+				// No need to update the index because once we return true we execute the job.
+				// --> job.dependencyIdx = JobHandleInvalid.idx;
+				return true;
+			}
+
+			//! Makes \param jobHandle depend on \param dependsOn.
+			//! This means \param jobHandle will run only after \param dependsOn finishes.
+			//! \warning Must be used from the main thread.
+			//! \warning Needs to be called before any of the listed jobs are scheduled.
+			void AddDependency(JobHandle jobHandle, JobHandle dependsOn) {
+				std::scoped_lock<std::mutex> lockJobs(m_jobsLock);
+				auto& job = m_jobs[jobHandle.id()];
+
+#if GAIA_ASSERT_ENABLED
+				GAIA_ASSERT(jobHandle != dependsOn);
+				GAIA_ASSERT(!IsBusy(jobHandle));
+				GAIA_ASSERT(!IsBusy(dependsOn));
+#endif
+
+				{
+					GAIA_PROF_SCOPE(JobManager::AddDep);
+					std::scoped_lock<std::mutex> lockDeps(m_depsLock);
+
+					auto depHandle = AllocateDependency();
+					auto& dep = m_deps[depHandle.id()];
+					dep.dependsOn = dependsOn;
+
+					if (job.dependencyIdx == (uint32_t)-1)
+						// First time adding a dependency to this job. Point it to the first allocated handle
+						dep.dependencyIdxNext = (uint32_t)-1;
+					else
+						// We have existing dependencies. Point the last known one to the first allocated handle
+						dep.dependencyIdxNext = job.dependencyIdx;
+
+					job.dependencyIdx = depHandle.id();
+				}
+			}
+
+			//! Makes \param jobHandle depend on the jobs listed in \param dependsOnSpan.
+			//! This means \param jobHandle will run only after all \param dependsOnSpan jobs finish.
+			//! \warning Must be used from the main thread.
+			//! \warning Needs to be called before any of the listed jobs are scheduled.
+			void AddDependencies(JobHandle jobHandle, std::span<const JobHandle> dependsOnSpan) {
+				if (dependsOnSpan.empty())
+					return;
+
+				auto& job = m_jobs[jobHandle.id()];
+
+#if GAIA_ASSERT_ENABLED
+				GAIA_ASSERT(!IsBusy(jobHandle));
+				for (auto dependsOn: dependsOnSpan) {
+					GAIA_ASSERT(jobHandle != dependsOn);
+					GAIA_ASSERT(!IsBusy(dependsOn));
+				}
+#endif
+
+				GAIA_PROF_SCOPE(JobManager::AddDeps);
+				std::scoped_lock<std::mutex> lockJobs(m_jobsLock);
+				{
+					std::scoped_lock<std::mutex> lockDeps(m_depsLock);
+
+					for (uint32_t i = 0; i < dependsOnSpan.size(); ++i) {
+						auto depHandle = AllocateDependency();
+						auto& dep = m_deps[depHandle.id()];
+						dep.dependsOn = dependsOnSpan[i];
+
+						if (job.dependencyIdx == (uint32_t)-1)
+							// First time adding a dependency to this job. Point it to the first allocated handle
+							dep.dependencyIdxNext = (uint32_t)-1;
+						else
+							// We have existing dependencies. Point the last known one to the first allocated handle
+							dep.dependencyIdxNext = job.dependencyIdx;
+
+						job.dependencyIdx = depHandle.id();
+					}
+				}
+			}
+
+			void Submit(JobHandle jobHandle) {
+				auto& job = m_jobs[jobHandle.id()];
+				GAIA_ASSERT(job.state < JobInternalState::Submitted);
+				job.state = JobInternalState::Submitted;
+			}
+
+			void ReSubmit(JobHandle jobHandle) {
+				auto& job = m_jobs[jobHandle.id()];
+				GAIA_ASSERT(job.state <= JobInternalState::Submitted);
+				job.state = JobInternalState::Submitted;
+			}
+
+			GAIA_NODISCARD bool IsBusy(JobHandle jobHandle) const {
+				const auto& job = m_jobs[jobHandle.id()];
+				return ((uint32_t)job.state & (uint32_t)JobInternalState::Busy) != 0;
+			}
+
+			GAIA_NODISCARD bool IsDone(JobHandle jobHandle) const {
+				const auto& job = m_jobs[jobHandle.id()];
+				return ((uint32_t)job.state & (uint32_t)JobInternalState::Done) != 0;
+			}
+		};
+	} // namespace mt
+} // namespace gaia
+
+#define JOB_QUEUE_USE_LOCKS 1
+#if JOB_QUEUE_USE_LOCKS
+	
+	#include <mutex>
+#endif
+
+namespace gaia {
+	namespace mt {
+		class JobQueue {
+			static constexpr uint32_t N = 1 << 12;
+#if !JOB_QUEUE_USE_LOCKS
+			static constexpr uint32_t MASK = N - 1;
+#endif
+
+#if JOB_QUEUE_USE_LOCKS
+			std::mutex m_bufferLock;
+			containers::sringbuffer<JobHandle, N> m_buffer;
+#else
+			containers::sarray<JobHandle, N> m_buffer;
+			std::atomic_uint32_t m_bottom{};
+			std::atomic_uint32_t m_top{};
+#endif
+
+		public:
+			//! Tries adding a job to the queue. FIFO.
+			//! \return True if the job was added. False otherwise (e.g. maximum capacity has been reached).
+			GAIA_NODISCARD bool TryPush(JobHandle jobHandle) {
+				GAIA_PROF_SCOPE(JobQueue::TryPush);
+
+#if JOB_QUEUE_USE_LOCKS
+				std::scoped_lock<std::mutex> lock(m_bufferLock);
+				if (m_buffer.size() >= m_buffer.max_size())
+					return false;
+				m_buffer.push_back(jobHandle);
+#else
+				const uint32_t b = m_bottom.load(std::memory_order_acquire);
+
+				if (b >= m_buffer.size())
+					return false;
+
+				m_buffer[b & MASK] = jobHandle;
+
+				// Make sure the handle is written before we update the bottom
+				std::atomic_thread_fence(std::memory_order_release);
+
+				m_bottom.store(b + 1, std::memory_order_release);
+#endif
+
+				return true;
+			}
+
+			//! Tries retriving a job to the queue. FIFO.
+			//! \return True if the job was retrived. False otherwise (e.g. there are no jobs).
+			GAIA_NODISCARD bool TryPop(JobHandle& jobHandle) {
+				GAIA_PROF_SCOPE(JobQueue::TryPop);
+
+#if JOB_QUEUE_USE_LOCKS
+				std::scoped_lock<std::mutex> lock(m_bufferLock);
+				if (m_buffer.empty())
+					return false;
+
+				m_buffer.pop_front(jobHandle);
+#else
+				uint32_t b = m_bottom.load(std::memory_order_acquire);
+				if (b > 0) {
+					b = b - 1;
+					m_bottom.store(b, std::memory_order_release);
+				}
+
+				std::atomic_thread_fence(std::memory_order_release);
+
+				uint32_t t = m_top.load(std::memory_order_acquire);
+
+				// Queue already empty
+				if (t > b) {
+					m_bottom.store(t, std::memory_order_release);
+					return false;
+				}
+
+				jobHandle = m_buffer[b & MASK];
+
+				// The last item in the queue
+				if (t == b) {
+					if (t == 0) {
+						return false; // Queue is empty, nothing to pop
+					}
+					// Should multiple thread fight for the last item the atomic
+					// CAS ensures this last item is extracted only once.
+
+					uint32_t expectedTop = t;
+					const uint32_t nextTop = t + 1;
+					const uint32_t desiredTop = nextTop;
+
+					bool ret = m_top.compare_exchange_strong(expectedTop, desiredTop, std::memory_order_acq_rel);
+					m_bottom.store(nextTop, std::memory_order_release);
+					return ret;
+				}
+#endif
+
+				return true;
+			}
+
+			//! Tries stealing a job from the queue. LIFO.
+			//! \return True if the job was stolen. False otherwise (e.g. there are no jobs).
+			GAIA_NODISCARD bool TrySteal(JobHandle& jobHandle) {
+				GAIA_PROF_SCOPE(JobQueue::TrySteal);
+
+#if JOB_QUEUE_USE_LOCKS
+				std::scoped_lock<std::mutex> lock(m_bufferLock);
+				if (m_buffer.empty())
+					return false;
+
+				m_buffer.pop_back(jobHandle);
+#else
+				uint32_t t = m_top.load(std::memory_order_acquire);
+
+				std::atomic_thread_fence(std::memory_order_release);
+
+				uint32_t b = m_bottom.load(std::memory_order_acquire);
+
+				// Return false when empty
+				if (t >= b)
+					return false;
+
+				jobHandle = m_buffer[t & MASK];
+
+				const uint32_t tNext = t + 1;
+				uint32_t tDesired = tNext;
+				// We fail if concurrent pop()/steal() operation changed the current top
+				if (!m_top.compare_exchange_weak(t, tDesired, std::memory_order_acq_rel))
+					return false;
+#endif
+
+				return true;
+			}
+		};
+	} // namespace mt
+} // namespace gaia
+
+namespace gaia {
+	namespace mt {
+
+		class ThreadPool final {
+			std::thread::id m_mainThreadId;
+
+			//! List of worker threads
+			containers::sarr_ext<std::thread, 64> m_workers;
+			//! Manager for internal jobs
+			JobManager m_jobManager;
+			//! List of pending user jobs
+			JobQueue m_jobQueue;
+
+			//! How many jobs are currently being processed
+			std::atomic_uint32_t m_jobsPending;
+
+			std::mutex m_cvLock;
+			std::condition_variable m_cv;
+
+			//! When true the pool is supposed to finish all work and terminate all threads
+			bool m_stop;
+
+		private:
+			ThreadPool(): m_jobsPending(0), m_stop(false) {
+				uint32_t workerCount = CalculateThreadCount(0);
+				if (workerCount > m_workers.max_size())
+					workerCount = (uint32_t)m_workers.max_size();
+
+				m_workers.resize(workerCount);
+
+				m_mainThreadId = std::this_thread::get_id();
+
+				for (uint32_t i = 0; i < workerCount; ++i) {
+					m_workers[i] = std::thread([this, i]() {
+						// Set the worker thread name.
+						// Needs to be called from inside the thread because some platforms
+						// can change the name only when run from the specific thread.
+						SetThreadName(i);
+
+						// Process jobs
+						ThreadLoop();
+					});
+
+					// Stick each thread to a specific CPU core
+					SetThreadAffinity(i);
+				}
+			}
+
+			ThreadPool(ThreadPool&&) = delete;
+			ThreadPool(const ThreadPool&) = delete;
+			ThreadPool& operator=(ThreadPool&&) = delete;
+			ThreadPool& operator=(const ThreadPool&) = delete;
+
+		public:
+			static ThreadPool& Get() {
+				static ThreadPool threadPool;
+				return threadPool;
+			}
+
+			GAIA_NODISCARD uint32_t GetWorkersCount() const {
+				return (uint32_t)m_workers.size();
+			}
+
+			~ThreadPool() {
+				Reset();
+			}
+
+			//! Makes \param jobHandle depend on \param dependsOn.
+			//! This means \param jobHandle will run only after \param dependsOn finishes.
+			//! \warning Must be used from the main thread.
+			//! \warning Needs to be called before any of the listed jobs are scheduled.
+			void AddDependency(JobHandle jobHandle, JobHandle dependsOn) {
+				m_jobManager.AddDependency(jobHandle, dependsOn);
+			}
+
+			//! Makes \param jobHandle depend on the jobs listed in \param dependsOnSpan.
+			//! This means \param jobHandle will run only after all \param dependsOnSpan jobs finish.
+			//! \warning Must be used from the main thread.
+			//! \warning Needs to be called before any of the listed jobs are scheduled.
+			void AddDependencies(JobHandle jobHandle, std::span<const JobHandle> dependsOnSpan) {
+				m_jobManager.AddDependencies(jobHandle, dependsOnSpan);
+			}
+
+			//! Creates a job system job from \param job.
+			//! \warning Must be used from the main thread.
+			//! \return Job handle of the scheduled job.
+			JobHandle CreateJob(const Job& job) {
+				GAIA_ASSERT(IsMainThread());
+
+				// Don't add new jobs once stop was requested
+				if GAIA_UNLIKELY (m_stop)
+					return JobNull;
+
+				++m_jobsPending;
+
+				return m_jobManager.AllocateJob(job);
+			}
+
+			//! Pushes \param jobHandle into the internal queue so worker threads
+			//! can pick it up and execute it.
+			//! If there are more jobs than the queue can handle it puts the calling
+			//! thread to sleep until workers consume enough jobs.
+			//! \warning Once submited, dependencies can't be modified for this job.
+			void Submit(JobHandle jobHandle) {
+				m_jobManager.Submit(jobHandle);
+
+				// Try pushing a new job until it we succeed.
+				// The thread is put to sleep if pushing the jobs fails.
+				while (!m_jobQueue.TryPush(jobHandle))
+					Poll();
+
+				// Wake some worker thread
+				m_cv.notify_one();
+			}
+
+		private:
+			//! Resubmits \param jobHandle into the internal queue so worker threads
+			//! can pick it up and execute it.
+			//! If there are more jobs than the queue can handle it puts the calling
+			//! thread to sleep until workers consume enough jobs.
+			//! \warning Internal usage only. Only worker theads can decide to resubmit.
+			void ReSubmit(JobHandle jobHandle) {
+				m_jobManager.ReSubmit(jobHandle);
+
+				// Try pushing a new job until it we succeed.
+				// The thread is put to sleep if pushing the jobs fails.
+				while (!m_jobQueue.TryPush(jobHandle))
+					Poll();
+
+				// Wake some worker thread
+				m_cv.notify_one();
+			}
+
+		public:
+			//! Schedules a job to run on a worker thread.
+			//! \param job Job descriptor
+			//! \warning Must be used from the main thread.
+			//! \warning Dependencies can't be modified for this job.
+			//! \return Job handle of the scheduled job.
+			JobHandle Schedule(const Job& job) {
+				JobHandle jobHandle = CreateJob(job);
+				Submit(jobHandle);
+				return jobHandle;
+			}
+
+			//! Schedules a job to run on a worker thread.
+			//! \param job Job descriptor
+			//! \param dependsOn Job we depend on
+			//! \warning Must be used from the main thread.
+			//! \warning Dependencies can't be modified for this job.
+			//! \return Job handle of the scheduled job.
+			JobHandle Schedule(const Job& job, JobHandle dependsOn) {
+				JobHandle jobHandle = CreateJob(job);
+				AddDependency(jobHandle, dependsOn);
+				Submit(jobHandle);
+				return jobHandle;
+			}
+
+			//! Schedules a job to run on a worker thread.
+			//! \param job Job descriptor
+			//! \param dependsOnSpan Jobs we depend on
+			//! \warning Must be used from the main thread.
+			//! \warning Dependencies can't be modified for this job.
+			//! \return Job handle of the scheduled job.
+			JobHandle Schedule(const Job& job, std::span<const JobHandle> dependsOnSpan) {
+				JobHandle jobHandle = CreateJob(job);
+				AddDependencies(jobHandle, dependsOnSpan);
+				Submit(jobHandle);
+				return jobHandle;
+			}
+
+			//! Schedules a job to run on worker threads in parallel.
+			//! \param job Job descriptor
+			//! \param itemsToProcess Total number of work items
+			//! \param groupSize Group size per created job. If zero the job system decides the group size.
+			//! \warning Must be used from the main thread.
+			//! \warning Dependencies can't be modified for this job.
+			//! \return Job handle of the scheduled batch of jobs.
+			JobHandle ScheduleParallel(const JobParallel& job, uint32_t itemsToProcess, uint32_t groupSize) {
+				GAIA_ASSERT(IsMainThread());
+
+				// Empty data set are considered wrong inputs
+				GAIA_ASSERT(itemsToProcess != 0);
+				if (itemsToProcess == 0)
+					return JobNull;
+
+				// Don't add new jobs once stop was requested
+				if GAIA_UNLIKELY (m_stop)
+					return JobNull;
+
+				const uint32_t workerCount = (uint32_t)m_workers.size();
+
+				// No group size was given, make a guess based on the set size
+				if (groupSize == 0)
+					groupSize = (itemsToProcess + workerCount - 1) / workerCount;
+
+				const auto jobs = (itemsToProcess + groupSize - 1) / groupSize;
+				// Internal jobs + 1 for the groupHandle
+				m_jobsPending += (jobs + 1U);
+
+				JobHandle groupHandle = m_jobManager.AllocateJob({});
+
+				for (uint32_t jobIndex = 0; jobIndex < jobs; ++jobIndex) {
+					// Create one job per group
+					auto groupJobFunc = [job, itemsToProcess, groupSize, jobIndex]() {
+						const uint32_t groupJobIdxStart = jobIndex * groupSize;
+						const uint32_t groupJobIdxStartPlusGroupSize = groupJobIdxStart + groupSize;
+						const uint32_t groupJobIdxEnd =
+								groupJobIdxStartPlusGroupSize < itemsToProcess ? groupJobIdxStartPlusGroupSize : itemsToProcess;
+
+						JobArgs args;
+						args.idxStart = groupJobIdxStart;
+						args.idxEnd = groupJobIdxEnd;
+						job.func(args);
+					};
+
+					JobHandle jobHandle = m_jobManager.AllocateJob({groupJobFunc});
+					AddDependency(groupHandle, jobHandle);
+					Submit(jobHandle);
+				}
+
+				Submit(groupHandle);
+				return groupHandle;
+			}
+
+			//! Wait for the job to finish.
+			//! \param jobHandle Job handle
+			//! \warning Must be used from the main thread.
+			void Complete(JobHandle jobHandle) {
+				GAIA_ASSERT(IsMainThread());
+
+				while (m_jobManager.IsBusy(jobHandle))
+					Poll();
+
+				GAIA_ASSERT(!m_jobManager.IsBusy(jobHandle));
+				m_jobManager.Complete(jobHandle);
+			}
+
+			//! Wait for all jobs to finish.
+			//! \warning Must be used from the main thread.
+			void CompleteAll() {
+				GAIA_ASSERT(IsMainThread());
+
+				while (IsBusy())
+					PollAll();
+
+				GAIA_ASSERT(m_jobsPending == 0);
+				m_jobManager.Reset();
+			}
+
+		private:
+			void SetThreadAffinity(uint32_t threadID) {
+				// TODO:
+				// Some cores might have multiple logic threads, there might be
+				// more socket and some cores might even be physically different
+				// form others (performance vs efficiency cores).
+				// Therefore, we either need some more advanced logic here or we
+				// should completly drop the idea of assigning affinity and simply
+				// let the OS scheduler figure things out.
+#if GAIA_PLATFORM_WINDOWS
+				auto nativeHandle = (HANDLE)m_workers[threadID].native_handle();
+
+				auto mask = SetThreadAffinityMask(nativeHandle, 1ULL << threadID);
+				GAIA_ASSERT(mask > 0);
+				if (mask <= 0)
+					GAIA_LOG_W("Issue setting thread affinity for worker thread %u!", threadID);
+#elif GAIA_PLATFORM_APPLE
+				auto nativeHandle = (pthread_t)m_workers[threadID].native_handle();
+
+				mach_port_t mach_thread = pthread_mach_thread_np(nativeHandle);
+				thread_affinity_policy_data_t policy_data = {(int)threadID};
+				auto ret = thread_policy_set(
+						mach_thread, THREAD_AFFINITY_POLICY, (thread_policy_t)&policy_data, THREAD_AFFINITY_POLICY_COUNT);
+				GAIA_ASSERT(ret != 0);
+				if (ret == 0)
+					GAIA_LOG_W("Issue setting thread affinity for worker thread %u!", threadID);
+#elif GAIA_PLATFORM_LINUX || GAIA_PLATFORM_FREEBSD
+				auto nativeHandle = (pthread_t)m_workers[threadID].native_handle();
+
+				cpu_set_t cpuset;
+				CPU_ZERO(&cpuset);
+				CPU_SET(threadID, &cpuset);
+
+				auto ret = pthread_setaffinity_np(nativeHandle, sizeof(cpuset), &cpuset);
+				GAIA_ASSERT(ret == 0);
+				if (ret != 0)
+					GAIA_LOG_W("Issue setting thread affinity for worker thread %u!", threadID);
+
+				ret = pthread_getaffinity_np(nativeHandle, sizeof(cpuset), &cpuset);
+				GAIA_ASSERT(ret == 0);
+				if (ret != 0)
+					GAIA_LOG_W("Thread affinity could not be set for worker thread %u!", threadID);
+#endif
+			}
+
+			void SetThreadName(uint32_t threadID) {
+#if GAIA_PLATFORM_WINDOWS
+				auto nativeHandle = (HANDLE)m_workers[threadID].native_handle();
+
+				wchar_t threadName[10]{};
+				swprintf_s(threadName, L"worker_%u", threadID);
+				auto hr = SetThreadDescription(nativeHandle, threadName);
+				GAIA_ASSERT(SUCCEEDED(hr));
+				if (FAILED(hr))
+					GAIA_LOG_W("Issue setting worker thread name!");
+#elif GAIA_PLATFORM_APPLE
+				char threadName[10]{};
+				snprintf(threadName, 10, "worker_%u", threadID);
+				auto ret = pthread_setname_np(threadName);
+				GAIA_ASSERT(ret == 0);
+				if (ret != 0)
+					GAIA_LOG_W("Issue setting name for worker thread %u!", threadID);
+#elif GAIA_PLATFORM_LINUX || GAIA_PLATFORM_FREEBSD
+				auto nativeHandle = (pthread_t)m_workers[threadID].native_handle();
+
+				char threadName[10]{};
+				snprintf(threadName, 10, "worker_%u", threadID);
+				auto ret = pthread_setname_np(nativeHandle, threadName);
+				GAIA_ASSERT(ret == 0);
+				if (ret != 0)
+					GAIA_LOG_W("Issue setting name for worker thread %u!", threadID);
+#endif
+			}
+
+			GAIA_NODISCARD bool IsMainThread() const {
+				return std::this_thread::get_id() == m_mainThreadId;
+			}
+
+			GAIA_NODISCARD static uint32_t CalculateThreadCount(uint32_t threadsWanted) {
+				// Make sure a reasonable amount of threads is used
+				if (threadsWanted == 0) {
+					// Subtract one (the main thread)
+					threadsWanted = std::thread::hardware_concurrency() - 1;
+					if (threadsWanted <= 0)
+						threadsWanted = 1;
+				}
+				return threadsWanted;
+			}
+
+			void ThreadLoop() {
+				while (!m_stop) {
+					JobHandle jobHandle;
+
+					if (!m_jobQueue.TryPop(jobHandle)) {
+						std::unique_lock<std::mutex> lock(m_cvLock);
+						m_cv.wait(lock);
+						continue;
+					}
+
+					GAIA_ASSERT(m_jobsPending > 0);
+
+					// Make sure we can execute the job.
+					// If it has dependencies which were not completed we need to reschedule
+					// and come back to it later.
+					if (!m_jobManager.HandleDependencies(jobHandle)) {
+						ReSubmit(jobHandle);
+						continue;
+					}
+
+					m_jobManager.Run(jobHandle);
+					--m_jobsPending;
+				}
+			}
+
+			void Reset() {
+				// Request stopping
+				m_stop = true;
+				// Complete all remaining work
+				CompleteAll();
+				// Wake up any threads that were put to sleep
+				m_cv.notify_all();
+				// Join threads with the main one
+				for (auto& w: m_workers)
+					w.join();
+			}
+
+			//! Checks whether workers are busy doing work.
+			//!	\return True if any workers are busy doing work.
+			GAIA_NODISCARD bool IsBusy() const {
+				return m_jobsPending > 0;
+			}
+
+			//! Wakes up some worker thread and reschedules the current one.
+			void Poll() {
+				// Wake some worker thread
+				m_cv.notify_one();
+
+				// Allow this thread to be rescheduled
+				std::this_thread::yield();
+			}
+
+			//! Wakes up all worker threads and reschedules the current one.
+			void PollAll() {
+				// Wake some worker thread
+				m_cv.notify_all();
+
+				// Allow this thread to be rescheduled
+				std::this_thread::yield();
+			}
+		};
+	} // namespace mt
+} // namespace gaia
+
+#include <cinttypes>
+
+#include <cinttypes>
+
+#include <cinttypes>
+
+namespace gaia {
+	namespace ecs {
+		namespace component {
+
+			enum ComponentType : uint8_t {
+				// General purpose component
+				CT_Generic = 0,
+				// Chunk component
+				CT_Chunk,
+				// Number of component types
+				CT_Count
+			};
+
+			inline const char* const ComponentTypeString[component::ComponentType::CT_Count] = {"Generic", "Chunk"};
+
+			using ComponentId = uint32_t;
+			using ComponentLookupHash = utils::direct_hash_key<uint64_t>;
+			using ComponentMatcherHash = utils::direct_hash_key<uint64_t>;
+			using ComponentIdSpan = std::span<const ComponentId>;
+
+			static constexpr ComponentId ComponentIdBad = (ComponentId)-1;
+			static constexpr uint32_t MAX_COMPONENTS_SIZE_BITS = 8;
+			static constexpr uint32_t MAX_COMPONENTS_SIZE_IN_BYTES = (1 << MAX_COMPONENTS_SIZE_BITS) - 1;
+
+			//----------------------------------------------------------------------
+			// Component type deduction
+			//----------------------------------------------------------------------
+
+			namespace detail {
+				template <typename T>
+				struct ExtractComponentType_Generic {
+					using Type = typename std::decay_t<typename std::remove_pointer_t<T>>;
+					using TypeOriginal = T;
+				};
+				template <typename T>
+				struct ExtractComponentType_NonGeneric {
+					using Type = typename T::TType;
+					using TypeOriginal = typename T::TTypeOriginal;
+				};
+
+				template <typename T, typename = void>
+				struct IsGenericComponent_Internal: std::true_type {};
+				template <typename T>
+				struct IsGenericComponent_Internal<T, decltype((void)T::TComponentType, void())>: std::false_type {};
+
+				template <typename T>
+				struct IsComponentSizeValid_Internal: std::bool_constant<sizeof(T) < MAX_COMPONENTS_SIZE_IN_BYTES> {};
+
+				template <typename T>
+				struct IsComponentTypeValid_Internal:
+						std::bool_constant<
+								// SoA types need to be trivial. No restrictions otherwise.
+								(!utils::is_soa_layout_v<T> || std::is_trivially_copyable_v<T>)> {};
+			} // namespace detail
+
+			template <typename T>
+			inline constexpr bool IsGenericComponent = detail::IsGenericComponent_Internal<T>::value;
+			template <typename T>
+			inline constexpr bool IsComponentSizeValid = detail::IsComponentSizeValid_Internal<T>::value;
+			template <typename T>
+			inline constexpr bool IsComponentTypeValid = detail::IsComponentTypeValid_Internal<T>::value;
+
+			template <typename T>
+			using DeduceComponent = std::conditional_t<
+					IsGenericComponent<T>, typename detail::ExtractComponentType_Generic<T>,
+					typename detail::ExtractComponentType_NonGeneric<T>>;
+
+			//! Returns the component id for \tparam T
+			//! \return Component id
+			template <typename T>
+			GAIA_NODISCARD inline ComponentId GetComponentId() {
+				using U = typename DeduceComponent<T>::Type;
+				return utils::type_info::id<U>();
+			}
+
+			//! Returns the component id for \tparam T
+			//! \return Component id
+			template <typename T>
+			GAIA_NODISCARD inline constexpr ComponentType GetComponentType() {
+				if constexpr (IsGenericComponent<T>)
+					return ComponentType::CT_Generic;
+				else
+					return ComponentType::CT_Chunk;
+			}
+
+			template <typename T>
+			struct IsReadOnlyType:
+					std::bool_constant<
+							std::is_const_v<std::remove_reference_t<std::remove_pointer_t<T>>> ||
+							(!std::is_pointer<T>::value && !std::is_reference<T>::value)> {};
+
+			//----------------------------------------------------------------------
+			// Component verification
+			//----------------------------------------------------------------------
+
+			template <typename T>
+			constexpr void VerifyComponent() {
+				using U = typename DeduceComponent<T>::Type;
+				// Make sure we only use this for "raw" types
+				static_assert(!std::is_const_v<U>);
+				static_assert(!std::is_pointer_v<U>);
+				static_assert(!std::is_reference_v<U>);
+				static_assert(!std::is_volatile_v<U>);
+				static_assert(IsComponentSizeValid<U>, "MAX_COMPONENTS_SIZE_IN_BYTES in bytes is exceeded");
+				static_assert(IsComponentTypeValid<U>, "Component type restrictions not met");
+			}
+
+			//----------------------------------------------------------------------
+			// Component hash operations
+			//----------------------------------------------------------------------
+
+			namespace detail {
+				template <typename T>
+				constexpr uint64_t CalculateMatcherHash() noexcept {
+					return (uint64_t(1) << (utils::type_info::hash<T>() % uint64_t(63)));
+				}
+			} // namespace detail
+
+			template <typename = void, typename...>
+			constexpr ComponentMatcherHash CalculateMatcherHash() noexcept;
+
+			template <typename T, typename... Rest>
+			GAIA_NODISCARD constexpr ComponentMatcherHash CalculateMatcherHash() noexcept {
+				if constexpr (sizeof...(Rest) == 0)
+					return {detail::CalculateMatcherHash<T>()};
+				else
+					return {utils::combine_or(detail::CalculateMatcherHash<T>(), detail::CalculateMatcherHash<Rest>()...)};
+			}
+
+			template <>
+			GAIA_NODISCARD constexpr ComponentMatcherHash CalculateMatcherHash() noexcept {
+				return {0};
+			}
+
+			//-----------------------------------------------------------------------------------
+
+			template <typename Container>
+			GAIA_NODISCARD constexpr ComponentLookupHash CalculateLookupHash(Container arr) noexcept {
+				constexpr auto arrSize = arr.size();
+				if constexpr (arrSize == 0) {
+					return {0};
+				} else {
+					ComponentLookupHash::Type hash = arr[0];
+					utils::for_each<arrSize - 1>([&hash, &arr](auto i) {
+						hash = utils::hash_combine(hash, arr[i + 1]);
+					});
+					return {hash};
+				}
+			}
+
+			template <typename = void, typename...>
+			constexpr ComponentLookupHash CalculateLookupHash() noexcept;
+
+			template <typename T, typename... Rest>
+			GAIA_NODISCARD constexpr ComponentLookupHash CalculateLookupHash() noexcept {
+				if constexpr (sizeof...(Rest) == 0)
+					return {utils::type_info::hash<T>()};
+				else
+					return {utils::hash_combine(utils::type_info::hash<T>(), utils::type_info::hash<Rest>()...)};
+			}
+
+			template <>
+			GAIA_NODISCARD constexpr ComponentLookupHash CalculateLookupHash() noexcept {
+				return {0};
+			}
+		} // namespace component
+
+		template <typename T>
+		struct AsChunk {
+			using TType = typename std::decay_t<typename std::remove_pointer_t<T>>;
+			using TTypeOriginal = T;
+			static constexpr component::ComponentType TComponentType = component::ComponentType::CT_Chunk;
+		};
+	} // namespace ecs
+} // namespace gaia
+
+namespace gaia {
+	namespace ecs {
+		namespace archetype {
+			constexpr uint32_t MAX_COMPONENTS_PER_ARCHETYPE_BITS = 5U;
+			//! Maximum number of components on archetype
+			constexpr uint32_t MAX_COMPONENTS_PER_ARCHETYPE = 1U << MAX_COMPONENTS_PER_ARCHETYPE_BITS;
+
+			class Archetype;
+
+			using ArchetypeId = uint32_t;
+			using LookupHash = utils::direct_hash_key<uint64_t>;
+			using ArchetypeList = containers::darray<Archetype*>;
+			using ComponentIdArray = containers::sarray_ext<component::ComponentId, MAX_COMPONENTS_PER_ARCHETYPE>;
+			// uint16_t can fit at most 65535 items therefore MemoryBlockSize can't be set to a value biggen than that
+			using ChunkComponentOffset = uint16_t;
+			using ComponentOffsetArray = containers::sarray_ext<ChunkComponentOffset, MAX_COMPONENTS_PER_ARCHETYPE>;
+
+			static constexpr ArchetypeId ArchetypeIdBad = (ArchetypeId)-1;
+
+			GAIA_NODISCARD inline constexpr bool VerifyArchetypeComponentCount(uint32_t count) {
+				return count <= MAX_COMPONENTS_PER_ARCHETYPE;
+			}
+		} // namespace archetype
+	} // namespace ecs
+} // namespace gaia
+
+#include <cinttypes>
+
 #include <cinttypes>
 #include <type_traits>
 
@@ -8151,11 +10532,6 @@ namespace gaia {
 
 namespace gaia {
 	namespace ecs {
-		//! Number of ticks before empty chunks are removed
-		constexpr uint16_t MAX_CHUNK_LIFESPAN = 8U;
-		//! Number of ticks before empty archetypes are removed
-		// constexpr uint32_t MAX_ARCHETYPE_LIFESPAN = 8U; Keep commented until used to avoid compilation errors
-
 		GAIA_NODISCARD inline bool DidVersionChange(uint32_t changeVersion, uint32_t requiredVersion) {
 			// When a system runs for the first time, everything is considered changed.
 			if GAIA_UNLIKELY (requiredVersion == 0U)
@@ -8566,18 +10942,23 @@ namespace gaia {
 
 			struct ChunkHeader final {
 			public:
+				static constexpr uint16_t CHUNK_LIFESPAN_BITS = 4;
+				//! Number of ticks before empty chunks are removed
+				static constexpr uint16_t MAX_CHUNK_LIFESPAN = (1 << CHUNK_LIFESPAN_BITS) - 1;
+				using DisabledEntityMask = containers::bitset<512>;
+
 				//! Archetype the chunk belongs to
 				ArchetypeId archetypeId{};
-				//! Number of items in the chunk.
+				//! Number of items enabled in the chunk.
 				uint16_t count{};
 				//! Capacity (copied from the owner archetype).
 				uint16_t capacity{};
 				//! Chunk index in its archetype list
 				uint16_t index{};
 				//! Once removal is requested and it hits 0 the chunk is removed.
-				uint16_t lifespanCountdown : 11;
+				uint16_t lifespanCountdown: CHUNK_LIFESPAN_BITS;
 				//! If true this chunk stores disabled entities
-				uint16_t disabled : 1;
+				uint16_t hasDisabledEntities : 1;
 				//! Updated when chunks are being iterated. Used to inform of structural changes when they shouldn't happen.
 				uint16_t structuralChangesLocked : 4;
 				//! True if there's a component that requires custom construction
@@ -8588,15 +10969,17 @@ namespace gaia {
 				uint16_t hasAnyCustomGenericDtor : 1;
 				//! True if there's a component that requires custom destruction
 				uint16_t hasAnyCustomChunkDtor : 1;
+				//! Version of the world (stable pointer to parent world's world version)
+				uint32_t& worldVersion;
 				//! Number of components on the archetype
 				uint8_t componentCount[component::ComponentType::CT_Count]{};
 				//! Offsets to various parts of data inside chunk
 				ChunkHeaderOffsets offsets;
-				//! Version of the world (stable pointer to parent world's world version)
-				uint32_t& worldVersion;
+				//! Mask of disabled entities
+				DisabledEntityMask disabledEntityMask;
 
 				ChunkHeader(const ChunkHeaderOffsets& offs, uint32_t& version):
-						lifespanCountdown(0), disabled(0), structuralChangesLocked(0), hasAnyCustomGenericCtor(0),
+						lifespanCountdown(0), hasDisabledEntities(0), structuralChangesLocked(0), hasAnyCustomGenericCtor(0),
 						hasAnyCustomChunkCtor(0), hasAnyCustomGenericDtor(0), hasAnyCustomChunkDtor(0), offsets(offs),
 						worldVersion(version) {
 					// Make sure the alignment is right
@@ -8659,174 +11042,6 @@ namespace gaia {
 			}
 		} // namespace component
 	} // namespace ecs
-} // namespace gaia
-
-#include <cinttypes>
-#include <type_traits>
-
-namespace gaia {
-	namespace containers {
-		struct ImplicitListItem {
-			//! For allocated entity: Index of entity within chunk.
-			//! For deleted entity: Index of the next entity in the implicit list.
-			uint32_t idx;
-			//! Generation ID
-			uint32_t gen;
-		};
-
-		template <typename TListItem, typename TItemHandle>
-		struct ImplicitList {
-			using internal_storage = darray<TListItem>;
-			using iterator = typename internal_storage::iterator;
-			using const_iterator = typename internal_storage::const_iterator;
-
-			using iterator_category = typename internal_storage::iterator_category;
-			using value_type = TListItem;
-			using reference = TListItem&;
-			using const_reference = const TListItem&;
-			using pointer = TListItem*;
-			using const_pointer = TListItem*;
-			using difference_type = std::ptrdiff_t;
-			using size_type = uint32_t;
-
-			static_assert(std::is_base_of<ImplicitListItem, TListItem>::value);
-			//! Implicit list items
-			darray<TListItem> m_items;
-			//! Index of the next item to recycle
-			size_type m_nextFreeIdx = (size_type)-1;
-			//! Number of items to recycle
-			size_type m_freeItems = 0;
-
-			GAIA_NODISCARD pointer data() noexcept {
-				return (pointer)m_items.data();
-			}
-
-			GAIA_NODISCARD const_pointer data() const noexcept {
-				return (const_pointer)m_items.data();
-			}
-
-			GAIA_NODISCARD reference operator[](size_type index) {
-				return m_items[index];
-			}
-			GAIA_NODISCARD const_reference operator[](size_type index) const {
-				return m_items[index];
-			}
-
-			void clear() {
-				m_items.clear();
-				m_nextFreeIdx = (size_type)-1;
-				m_freeItems = 0;
-			}
-
-			GAIA_NODISCARD size_type get_next_free_item() const noexcept {
-				return m_nextFreeIdx;
-			}
-
-			GAIA_NODISCARD size_type get_free_items() const noexcept {
-				return m_freeItems;
-			}
-
-			GAIA_NODISCARD size_type item_count() const noexcept {
-				return size() - m_freeItems;
-			}
-
-			GAIA_NODISCARD size_type size() const noexcept {
-				return (size_type)m_items.size();
-			}
-
-			GAIA_NODISCARD size_type capacity() const noexcept {
-				return (size_type)m_items.capacity();
-			}
-
-			GAIA_NODISCARD bool empty() const noexcept {
-				return size() == 0;
-			}
-
-			GAIA_NODISCARD iterator begin() const noexcept {
-				return {(pointer)m_items.data()};
-			}
-
-			GAIA_NODISCARD const_iterator cbegin() const noexcept {
-				return {(const_pointer)m_items.data()};
-			}
-
-			GAIA_NODISCARD iterator end() const noexcept {
-				return {(pointer)m_items.data() + size()};
-			}
-
-			GAIA_NODISCARD const_iterator cend() const noexcept {
-				return {(const_pointer)m_items.data() + size()};
-			}
-
-			//! Allocates a new item in the list
-			//! \return Handle to the new item
-			GAIA_NODISCARD TItemHandle allocate() {
-				if GAIA_UNLIKELY (m_freeItems == 0U) {
-					// We don't want to go out of range for new item
-					const auto itemCnt = (size_type)m_items.size();
-					GAIA_ASSERT(itemCnt < TItemHandle::IdMask && "Trying to allocate too many items!");
-
-					m_items.emplace_back(itemCnt, 0U);
-					return {itemCnt, 0U};
-				}
-
-				// Make sure the list is not broken
-				GAIA_ASSERT(m_nextFreeIdx < (size_type)m_items.size() && "Item recycle list broken!");
-
-				--m_freeItems;
-				const auto index = m_nextFreeIdx;
-				auto& j = m_items[m_nextFreeIdx];
-				m_nextFreeIdx = j.idx;
-				return {index, m_items[index].gen};
-			}
-
-			//! Invalidates \param handle.
-			//! Everytime an item is deallocated its generation is increased by one.
-			TListItem& release(TItemHandle handle) {
-				auto& item = m_items[handle.id()];
-
-				// New generation
-				const auto gen = ++item.gen;
-
-				// Update our implicit list
-				if GAIA_UNLIKELY (m_freeItems == 0) {
-					m_nextFreeIdx = handle.id();
-					item.idx = TItemHandle::IdMask;
-					item.gen = gen;
-				} else {
-					item.idx = m_nextFreeIdx;
-					item.gen = gen;
-					m_nextFreeIdx = handle.id();
-				}
-				++m_freeItems;
-
-				return item;
-			}
-
-			//! Verifies that the implicit linked list is valid
-			void validate() const {
-				bool hasThingsToRemove = m_freeItems > 0;
-				if (!hasThingsToRemove)
-					return;
-
-				// If there's something to remove there has to be at least one entity left
-				GAIA_ASSERT(!m_items.empty());
-
-				auto freeEntities = m_freeItems;
-				auto nextFreeEntity = m_nextFreeIdx;
-				while (freeEntities > 0) {
-					GAIA_ASSERT(nextFreeEntity < m_items.size() && "Item recycle list broken!");
-
-					nextFreeEntity = m_items[nextFreeEntity].idx;
-					--freeEntities;
-				}
-
-				// At this point the index of the last item in list should
-				// point to -1 because that's the tail of our implicit list.
-				GAIA_ASSERT(nextFreeEntity == TItemHandle::IdMask);
-			}
-		};
-	} // namespace containers
 } // namespace gaia
 
 #include <cinttypes>
@@ -8935,9 +11150,6 @@ namespace gaia {
 #if !GAIA_64
 			uint32_t pChunk_padding;
 #endif
-			//! Tells if the entity is disabled. Borrows one bit from idx because it's unlikely to cause issues there
-			// TODO: Get rid of this bit somehow so the EntityContainer can fit within 16 bytes again.
-			uint32_t disabled : 1;
 		};
 	} // namespace ecs
 } // namespace gaia
@@ -9139,6 +11351,7 @@ namespace gaia {
 					// Should never be called over an empty chunk
 					GAIA_ASSERT(HasEntities());
 					--m_header.count;
+					m_header.disabledEntityMask.set(m_header.count, false);
 				}
 
 			public:
@@ -9473,6 +11686,21 @@ namespace gaia {
 					const auto offset = sizeof(Entity) * index + m_header.offsets.firstByte_EntityData;
 					utils::unaligned_ref<Entity> mem((void*)&m_data[offset]);
 					return mem;
+				}
+
+				/*!
+				Enables or disables the entity on a given index in the chunk.
+				\param index Index of the entity
+				\param enableEntity Enables the entity
+				*/
+				void EnableEntity(uint32_t index, bool enableEntity) {
+					if (enableEntity) {
+						m_header.disabledEntityMask.set(index, false);
+						SetDisabled(m_header.disabledEntityMask.any());
+					} else {
+						m_header.disabledEntityMask.set(index, true);
+						SetDisabled(true);
+					}
 				}
 
 				/*!
@@ -9842,12 +12070,12 @@ namespace gaia {
 				}
 
 				void SetDisabled(bool value) {
-					m_header.disabled = value;
+					m_header.hasDisabledEntities = value;
 				}
 
 				//! Checks is this chunk is disabled
-				GAIA_NODISCARD bool IsDisabled() const {
-					return m_header.disabled;
+				GAIA_NODISCARD bool HasDisabledEntities() const {
+					return m_header.hasDisabledEntities != 0;
 				}
 
 				//! Checks is this chunk is dying
@@ -9856,7 +12084,7 @@ namespace gaia {
 				}
 
 				void PrepareToDie() {
-					m_header.lifespanCountdown = MAX_CHUNK_LIFESPAN;
+					m_header.lifespanCountdown = ChunkHeader::MAX_CHUNK_LIFESPAN;
 				}
 
 				bool ProgressDeath() {
@@ -9903,6 +12131,16 @@ namespace gaia {
 				//! Returns the number of entities in the chunk
 				GAIA_NODISCARD uint32_t GetEntityCapacity() const {
 					return m_header.capacity;
+				}
+
+				//! Returns the mask of disabled entities
+				GAIA_NODISCARD ChunkHeader::DisabledEntityMask& GetDisabledEntityMask() {
+					return m_header.disabledEntityMask;
+				}
+
+				//! Returns the mask of disabled entities
+				GAIA_NODISCARD const ChunkHeader::DisabledEntityMask& GetDisabledEntityMask() const {
+					return m_header.disabledEntityMask;
 				}
 
 				GAIA_NODISCARD std::span<uint32_t> GetComponentVersionArray(component::ComponentType componentType) const {
@@ -9970,11 +12208,11 @@ namespace gaia {
 				using ChunkComponentHash = utils::direct_hash_key<uint64_t>;
 
 			private:
-				//! List of active chunks allocated by this archetype
+				//! List of chunks allocated by this archetype
 				containers::darray<Chunk*> m_chunks;
-				//! List of disabled chunks allocated by this archetype
-				containers::darray<Chunk*> m_chunksDisabled;
-
+				//! Mask of chunk with disabled entities
+				containers::dbitset m_disabledMask;
+				//! Graph of archetypes linked with this one
 				ArchetypeGraph m_graph;
 
 				//! Offsets to various parts of data inside chunk
@@ -9984,13 +12222,15 @@ namespace gaia {
 				//! Lookup hashes of components within this archetype
 				containers::sarray<ComponentOffsetArray, component::ComponentType::CT_Count> m_componentOffsets;
 
+				//! Hash of generic components
 				GenericComponentHash m_genericHash = {0};
+				//! Hash of chunk components
 				ChunkComponentHash m_chunkHash = {0};
-
 				//! Hash of components within this archetype - used for lookups
 				component::ComponentLookupHash m_lookupHash = {0};
 				//! Hash of components within this archetype - used for matching
 				component::ComponentMatcherHash m_matcherHash[component::ComponentType::CT_Count]{};
+
 				//! Archetype ID - used to address the archetype directly in the world's list or archetypes
 				ArchetypeId m_archetypeId = ArchetypeIdBad;
 				//! Stable reference to parent world's world version
@@ -10143,12 +12383,17 @@ namespace gaia {
 #else
 						// Find first semi-empty chunk.
 						// Picking the first non-full would only support fragmentation.
-						// TODO: Implement a semi-full chunk mask so we can search for these easily.
+						Chunk* pEmptyChunk = nullptr;
 						for (auto* pChunk: chunkArray) {
 							GAIA_ASSERT(pChunk != nullptr);
-							if (pChunk->IsSemiFull())
+							const auto entityCnt = pChunk->GetEntityCount();
+							if GAIA_UNLIKELY (entityCnt == 0)
+								pEmptyChunk = pChunk;
+							else if (entityCnt + 1 < pChunk->GetEntityCapacity())
 								return pChunk;
 						}
+						if (pEmptyChunk != nullptr)
+							return pEmptyChunk;
 #endif
 					}
 
@@ -10208,8 +12453,6 @@ namespace gaia {
 				~Archetype() {
 					// Delete all archetype chunks
 					for (auto* pChunk: m_chunks)
-						Chunk::Release(pChunk);
-					for (auto* pChunk: m_chunksDisabled)
 						Chunk::Release(pChunk);
 				}
 
@@ -10296,11 +12539,15 @@ namespace gaia {
 					if (!adjustMaxGenericItemsInAchetype(componentIdsChunk, 1))
 						goto recalculate;
 
+					// TODO: Make it possible for chunks to be not restricted by ChunkHeader::DisabledEntityMask::BitCount
+					if (maxGenericItemsInArchetype > ChunkHeader::DisabledEntityMask::BitCount)
+						maxGenericItemsInArchetype = ChunkHeader::DisabledEntityMask::BitCount;
+
 					// Update the offsets according to the recalculated maxGenericItemsInArchetype
 					componentOffsets = dataOffset.firstByte_EntityData + sizeof(Entity) * maxGenericItemsInArchetype;
 
 					auto registerComponents = [&](component::ComponentIdSpan componentIds, component::ComponentType componentType,
-																				size_t count) {
+																				const size_t count) {
 						auto& ids = newArch->m_componentIds[componentType];
 						auto& ofs = newArch->m_componentOffsets[componentType];
 
@@ -10353,11 +12600,21 @@ namespace gaia {
 				}
 
 				/*!
+				Enables or disables the entity on a given index in the chunk.
+				\param pChunk Chunk the entity belongs to
+				\param index Index of the entity
+				\param enableEntity Enables the entity
+				*/
+				void EnableEntity(Chunk* pChunk, uint32_t entityIdx, bool enableEntity) {
+					pChunk->EnableEntity(entityIdx, enableEntity);
+					m_disabledMask.set(pChunk->GetChunkIndex(), pChunk->HasDisabledEntities());
+				}
+
+				/*!
 				Removes a chunk from the list of chunks managed by their achetype.
 				\param pChunk Chunk to remove from the list of managed archetypes
 				*/
 				void RemoveChunk(Chunk* pChunk) {
-					const bool isDisabled = pChunk->IsDisabled();
 					const auto chunkIndex = pChunk->GetChunkIndex();
 
 					Chunk::Release(pChunk);
@@ -10369,29 +12626,18 @@ namespace gaia {
 						utils::erase_fast(chunkArray, chunkIndex);
 					};
 
-					if (isDisabled)
-						remove(m_chunksDisabled);
-					else
-						remove(m_chunks);
+					remove(m_chunks);
 				}
 
 #if GAIA_AVOID_CHUNK_FRAGMENTATION
 				void VerifyChunksFramentation() const {
 					VerifyChunksFragmentation_Internal(m_chunks);
-					VerifyChunksFragmentation_Internal(m_chunksDisabled);
 				}
 
 				//! Returns the first non-empty chunk or nullptr if none is found.
 				GAIA_NODISCARD Chunk* FindFirstNonEmptyChunk() const {
 					auto* pChunk = FindFirstNonEmptyChunk_Internal(m_chunks);
-					GAIA_ASSERT(pChunk == nullptr || !pChunk->IsDisabled());
-					return pChunk;
-				}
-
-				//! Returns the first non-empty disabled chunk or nullptr if none is found.
-				GAIA_NODISCARD Chunk* FindFirstNonEmptyChunkDisabled() const {
-					auto* pChunk = FindFirstNonEmptyChunk_Internal(m_chunksDisabled);
-					GAIA_ASSERT(pChunk == nullptr || pChunk->IsDisabled());
+					GAIA_ASSERT(pChunk == nullptr || !pChunk->HasDisabledEntities());
 					return pChunk;
 				}
 #else
@@ -10474,15 +12720,7 @@ namespace gaia {
 				//! If not found a new chunk is created.
 				GAIA_NODISCARD Chunk* FindOrCreateFreeChunk() {
 					auto* pChunk = FindOrCreateFreeChunk_Internal(m_chunks);
-					GAIA_ASSERT(!pChunk->IsDisabled());
-					return pChunk;
-				}
-
-				//! Tries to locate a chunk for disabled entities that has some space left for a new one.
-				//! If not found a new chunk is created.
-				GAIA_NODISCARD Chunk* FindOrCreateFreeChunkDisabled() {
-					auto* pChunk = FindOrCreateFreeChunk_Internal(m_chunksDisabled);
-					pChunk->SetDisabled(true);
+					GAIA_ASSERT(!pChunk->HasDisabledEntities());
 					return pChunk;
 				}
 
@@ -10496,10 +12734,6 @@ namespace gaia {
 
 				GAIA_NODISCARD const containers::darray<Chunk*>& GetChunks() const {
 					return m_chunks;
-				}
-
-				GAIA_NODISCARD const containers::darray<Chunk*>& GetChunksDisabled() const {
-					return m_chunksDisabled;
 				}
 
 				GAIA_NODISCARD GenericComponentHash GetGenericHash() const {
@@ -10583,11 +12817,9 @@ namespace gaia {
 					// Caclulate the number of entites in archetype
 					uint32_t entityCount = 0;
 					uint32_t entityCountDisabled = 0;
-					for (const auto* chunk: archetype.m_chunks)
+					for (const auto* chunk: archetype.m_chunks) {
 						entityCount += chunk->GetEntityCount();
-					for (const auto* chunk: archetype.m_chunksDisabled) {
-						entityCountDisabled += chunk->GetEntityCount();
-						entityCount += chunk->GetEntityCount();
+						entityCountDisabled += chunk->GetDisabledEntityMask().count();
 					}
 
 					// Calculate the number of components
@@ -10649,23 +12881,11 @@ namespace gaia {
 						}
 					};
 
-					// Enabled chunks
-					{
-						const auto& chunks = archetype.m_chunks;
-						if (!chunks.empty())
-							GAIA_LOG_N("  Enabled chunks");
+					const auto& chunks = archetype.m_chunks;
+					if (!chunks.empty())
+						GAIA_LOG_N("  Chunks");
 
-						logChunks(chunks);
-					}
-
-					// Disabled chunks
-					{
-						const auto& chunks = archetype.m_chunksDisabled;
-						if (!chunks.empty())
-							GAIA_LOG_N("  Disabled chunks");
-
-						logChunks(chunks);
-					}
+					logChunks(chunks);
 				}
 
 				/*!
@@ -10688,244 +12908,6 @@ REGISTER_HASH_TYPE(gaia::ecs::Archetype::ChunkComponentHash)
 
 #include <cinttypes>
 #include <type_traits>
-
-#include <tuple>
-#include <type_traits>
-#include <utility>
-
-namespace gaia {
-	namespace serialization {
-		namespace detail {
-			enum class serialization_type_id : uint8_t {
-				// Integer types
-				s8 = 1,
-				u8 = 2,
-				s16 = 3,
-				u16 = 4,
-				s32 = 5,
-				u32 = 6,
-				s64 = 7,
-				u64 = 8,
-
-				// Boolean
-				b = 40,
-
-				// Character types
-				c8 = 41,
-				c16 = 42,
-				c32 = 43,
-				cw = 44,
-
-				// Floating point types
-				f8 = 81,
-				f16 = 82,
-				f32 = 83,
-				f64 = 84,
-				f128 = 85,
-
-				// Special
-				trivial_wrapper = 200,
-				data_and_size = 201,
-
-				Last = 255,
-			};
-
-			template <typename C>
-			constexpr auto size(const C& c) -> decltype(c.size()) {
-				return c.size();
-			}
-			template <typename T, std::size_t N>
-			constexpr std::size_t size(const T (&)[N]) noexcept {
-				return N;
-			}
-
-			template <typename C>
-			constexpr auto data(C& c) -> decltype(c.data()) {
-				return c.data();
-			}
-			template <typename C>
-			constexpr auto data(const C& c) -> decltype(c.data()) {
-				return c.data();
-			}
-			template <typename T, std::size_t N>
-			constexpr T* data(T (&array)[N]) noexcept {
-				return array;
-			}
-			template <typename E>
-			constexpr const E* data(std::initializer_list<E> il) noexcept {
-				return il.begin();
-			}
-
-			template <typename, typename = void>
-			struct has_data_and_size: std::false_type {};
-			template <typename T>
-			struct has_data_and_size<T, std::void_t<decltype(data(std::declval<T>())), decltype(size(std::declval<T>()))>>:
-					std::true_type {};
-
-			DEFINE_HAS_FUNCTION(resize);
-			// DEFINE_HAS_FUNCTION(serialize);
-			DEFINE_HAS_FUNCTION(save);
-			DEFINE_HAS_FUNCTION(load);
-
-			template <typename T>
-			struct is_trivially_serializable {
-			private:
-				static constexpr bool update() {
-					return std::is_enum_v<T> || std::is_fundamental_v<T> || std::is_trivially_copyable_v<T>;
-				}
-
-			public:
-				static inline constexpr bool value = update();
-			};
-
-			template <typename T>
-			GAIA_NODISCARD constexpr serialization_type_id get_integral_type() {
-				if constexpr (std::is_same_v<int8_t, T> || std::is_same_v<signed char, T>) {
-					return serialization_type_id::s8;
-				} else if constexpr (std::is_same_v<uint8_t, T> || std::is_same_v<unsigned char, T>) {
-					return serialization_type_id::u8;
-				} else if constexpr (std::is_same_v<int16_t, T>) {
-					return serialization_type_id::s16;
-				} else if constexpr (std::is_same_v<uint16_t, T>) {
-					return serialization_type_id::u16;
-				} else if constexpr (std::is_same_v<int32_t, T>) {
-					return serialization_type_id::s32;
-				} else if constexpr (std::is_same_v<uint32_t, T>) {
-					return serialization_type_id::u32;
-				} else if constexpr (std::is_same_v<int64_t, T>) {
-					return serialization_type_id::s64;
-				} else if constexpr (std::is_same_v<uint64_t, T>) {
-					return serialization_type_id::u64;
-				} else if constexpr (std::is_same_v<bool, T>) {
-					return serialization_type_id::b;
-				}
-
-				static_assert("Unsupported integral type");
-			}
-
-			template <typename T>
-			GAIA_NODISCARD constexpr serialization_type_id get_floating_point_type() {
-				// if constexpr (std::is_same_v<float8_t, T>) {
-				// 	return serialization_type_id::f8;
-				// } else if constexpr (std::is_same_v<float16_t, T>) {
-				// 	return serialization_type_id::f16;
-				// } else
-				if constexpr (std::is_same_v<float, T>) {
-					return serialization_type_id::f32;
-				} else if constexpr (std::is_same_v<double, T>) {
-					return serialization_type_id::f64;
-				} else if constexpr (std::is_same_v<long double, T>) {
-					return serialization_type_id::f128;
-				}
-
-				static_assert("Unsupported floating point type");
-			}
-
-			template <typename T>
-			GAIA_NODISCARD constexpr serialization_type_id get_type_id() {
-				if constexpr (std::is_enum_v<T>)
-					return get_integral_type<std::underlying_type_t<T>>();
-				else if constexpr (std::is_integral_v<T>)
-					return get_integral_type<T>();
-				else if constexpr (std::is_floating_point_v<T>)
-					return get_floating_point_type<T>();
-				else if constexpr (detail::has_data_and_size<T>::value)
-					return serialization_type_id::data_and_size;
-				else if constexpr (std::is_class_v<T>)
-					return serialization_type_id::trivial_wrapper;
-
-				static_assert("Unsupported serialization type");
-				return serialization_type_id::Last;
-			}
-
-			template <typename T>
-			GAIA_NODISCARD constexpr uint32_t calculate_size_one(const T& item) {
-				using type = typename std::decay_t<typename std::remove_pointer_t<T>>;
-
-				constexpr auto id = detail::get_type_id<type>();
-				static_assert(id != detail::serialization_type_id::Last);
-				uint32_t size_in_bytes{};
-
-				if constexpr (is_trivially_serializable<type>::value)
-					size_in_bytes = sizeof(type);
-				else if constexpr (detail::has_data_and_size<type>::value) {
-					size_in_bytes += item.size();
-				} else if constexpr (std::is_class_v<type>) {
-					utils::for_each_member(item, [&](auto&&... items) {
-						size_in_bytes += (calculate_size_one(items) + ...);
-					});
-				} else
-					static_assert(!sizeof(type), "Type is not supported for serialization, yet");
-
-				return size_in_bytes;
-			}
-
-			template <bool Write, typename Serializer, typename T>
-			void serialize_data_one(Serializer& s, T&& arg) {
-				using type = typename std::decay_t<typename std::remove_pointer_t<T>>;
-
-				// TODO: Consider supporting custom save/load functions
-				// if constexpr (decltype(has_serialize<type>(s, std::forward<T>(arg)))::value) {
-				// 	arg.serialize<Write>(s, std::forward<T>(arg));
-				// } else
-				if constexpr (is_trivially_serializable<type>::value) {
-					if constexpr (Write)
-						s.save(std::forward<T>(arg));
-					else
-						s.load(std::forward<T>(arg));
-				} else if constexpr (detail::has_data_and_size<type>::value) {
-					if constexpr (Write) {
-						if constexpr (decltype(has_resize<type>(0))::value) {
-							const auto size = arg.size();
-							s.save(size);
-						}
-						for (const auto& e: arg)
-							serialize_data_one<Write>(s, e);
-					} else {
-						if constexpr (decltype(has_resize<type>(0))::value) {
-							auto size = arg.size();
-							s.load(size);
-							arg.resize(size);
-						}
-						for (auto& e: arg)
-							serialize_data_one<Write>(s, e);
-					}
-				} else if constexpr (std::is_class_v<type>) {
-					utils::for_each_member(std::forward<T>(arg), [&s](auto&&... items) {
-						// TODO: Handle contiguous blocks of trivially copiable types
-						(serialize_data_one<Write>(s, items), ...);
-					});
-				} else
-					static_assert(!sizeof(type), "Type is not supported for serialization, yet");
-			}
-		} // namespace detail
-
-		//! Calculates the number of bytes necessary to serialize data using the "save" function.
-		//! \warning Compile-time.
-		template <typename T>
-		GAIA_NODISCARD constexpr uint32_t calculate_size(const T& data) {
-			return detail::calculate_size_one(data);
-		}
-
-		//! Write \param data using \tparam Writer at compile-time.
-		//!
-		//! \warning Writer has to implement a save function as follows:
-		//! 					template <typename T> void save(const T& arg);
-		template <typename Writer, typename T>
-		void save(Writer& writer, const T& data) {
-			detail::serialize_data_one<true>(writer, data);
-		}
-
-		//! Read \param data using \tparam Reader at compile-time.
-		//!
-		//! \warning Reader has to implement a save function as follows:
-		//! 					template <typename T> void load(T& arg);
-		template <typename Reader, typename T>
-		void load(Reader& reader, T& data) {
-			detail::serialize_data_one<false>(reader, data);
-		}
-	} // namespace serialization
-} // namespace gaia
 
 #include <type_traits>
 
@@ -11687,106 +13669,51 @@ namespace gaia {
 
 #endif
 
-#include <tuple>
-#include <type_traits>
-
-#include <cinttypes>
-#include <type_traits>
+#include <cstdint>
 
 namespace gaia {
-	namespace mt {
-		using JobInternalType = uint32_t;
-		using JobId = JobInternalType;
-		using JobGenId = JobInternalType;
+	namespace ecs {
+		struct ComponentSetter {
+			archetype::Chunk* m_pChunk;
+			uint32_t m_idx;
 
-		struct JobHandle final {
-			static constexpr JobInternalType IdBits = 20;
-			static constexpr JobInternalType GenBits = 12;
-			static constexpr JobInternalType IdMask = (uint32_t)(uint64_t(1) << IdBits) - 1;
-			static constexpr JobInternalType GenMask = (uint32_t)(uint64_t(1) << GenBits) - 1;
-
-			using JobSizeType = std::conditional_t<(IdBits + GenBits > 32), uint64_t, uint32_t>;
-
-			static_assert(IdBits + GenBits <= 64, "Job IdBits and GenBits must fit inside 64 bits");
-			static_assert(IdBits <= 31, "Job IdBits must be at most 31 bits long");
-			static_assert(GenBits > 10, "Job GenBits is recommended to be at least 10 bits long");
-
-		private:
-			struct JobData {
-				//! Index in entity array
-				JobInternalType id: IdBits;
-				//! Generation index. Incremented every time an entity is deleted
-				JobInternalType gen: GenBits;
-			};
-
-			union {
-				JobData data;
-				JobSizeType val;
-			};
-
-		public:
-			JobHandle() noexcept = default;
-			JobHandle(JobId id, JobGenId gen) {
-				data.id = id;
-				data.gen = gen;
-			}
-			~JobHandle() = default;
-
-			JobHandle(JobHandle&&) noexcept = default;
-			JobHandle(const JobHandle&) = default;
-			JobHandle& operator=(JobHandle&&) noexcept = default;
-			JobHandle& operator=(const JobHandle&) = default;
-
-			GAIA_NODISCARD constexpr bool operator==(const JobHandle& other) const noexcept {
-				return val == other.val;
-			}
-			GAIA_NODISCARD constexpr bool operator!=(const JobHandle& other) const noexcept {
-				return val != other.val;
+			//! Sets the value of the component \tparam T on \param entity.
+			//! \tparam T Component
+			//! \param entity Entity
+			//! \param value Value to set for the component
+			//! \return ComponentSetter
+			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+			ComponentSetter& SetComponent(U&& data) {
+				if constexpr (component::IsGenericComponent<T>)
+					m_pChunk->template SetComponent<T>(m_idx, std::forward<U>(data));
+				else
+					m_pChunk->template SetComponent<T>(std::forward<U>(data));
+				return *this;
 			}
 
-			auto id() const {
-				return data.id;
-			}
-			auto gen() const {
-				return data.gen;
-			}
-			auto value() const {
-				return val;
+			//! Sets the value of the component \tparam T on \param entity.
+			//! \tparam T Component
+			//! \param entity Entity
+			//! \param value Value to set for the component
+			//! \return ComponentSetter
+			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+			ComponentSetter& SetComponentSilent(U&& data) {
+				if constexpr (component::IsGenericComponent<T>)
+					m_pChunk->template SetComponentSilent<T>(m_idx, std::forward<U>(data));
+				else
+					m_pChunk->template SetComponentSilent<T>(std::forward<U>(data));
+				return *this;
 			}
 		};
-
-		struct JobNull_t {
-			GAIA_NODISCARD operator JobHandle() const noexcept {
-				return JobHandle(JobHandle::IdMask, JobHandle::GenMask);
-			}
-
-			GAIA_NODISCARD constexpr bool operator==([[maybe_unused]] const JobNull_t& null) const noexcept {
-				return true;
-			}
-			GAIA_NODISCARD constexpr bool operator!=([[maybe_unused]] const JobNull_t& null) const noexcept {
-				return false;
-			}
-		};
-
-		GAIA_NODISCARD inline bool operator==(const JobNull_t& null, const JobHandle& entity) noexcept {
-			return static_cast<JobHandle>(null).id() == entity.id();
-		}
-
-		GAIA_NODISCARD inline bool operator!=(const JobNull_t& null, const JobHandle& entity) noexcept {
-			return static_cast<JobHandle>(null).id() != entity.id();
-		}
-
-		GAIA_NODISCARD inline bool operator==(const JobHandle& entity, const JobNull_t& null) noexcept {
-			return null == entity;
-		}
-
-		GAIA_NODISCARD inline bool operator!=(const JobHandle& entity, const JobNull_t& null) noexcept {
-			return null != entity;
-		}
-
-		inline constexpr JobNull_t JobNull{};
-	} // namespace mt
+	} // namespace ecs
 } // namespace gaia
+
+#include <tuple>
+#include <type_traits>
 
 #include <cinttypes>
 #include <type_traits>
@@ -12311,60 +14238,28 @@ namespace gaia {
 			uint32_t operator*() const {
 				return m_pos;
 			}
+
 			uint32_t operator->() const {
 				return m_pos;
-			}
-
-			GAIA_NODISCARD Iterator operator[](uint32_t offset) const {
-				return {m_info, m_chunk, m_pos + offset};
 			}
 
 			Iterator& operator++() {
 				++m_pos;
 				return *this;
 			}
-			Iterator operator++(int) {
+
+			GAIA_NODISCARD Iterator operator++(int) {
 				Iterator temp(*this);
 				++*this;
 				return temp;
-			}
-			Iterator& operator--() {
-				--m_pos;
-				return *this;
-			}
-			Iterator operator--(int) {
-				Iterator temp(*this);
-				--*this;
-				return temp;
-			}
-
-			GAIA_NODISCARD Iterator operator+(uint32_t offset) const {
-				return {m_info, m_chunk, m_pos + offset};
-			}
-			GAIA_NODISCARD Iterator operator-(uint32_t offset) const {
-				return {m_info, m_chunk, m_pos - offset};
-			}
-			GAIA_NODISCARD uint32_t operator-(const Iterator& other) const {
-				return m_pos - other.m_pos;
 			}
 
 			GAIA_NODISCARD bool operator==(const Iterator& other) const {
 				return m_pos == other.m_pos;
 			}
+
 			GAIA_NODISCARD bool operator!=(const Iterator& other) const {
 				return m_pos != other.m_pos;
-			}
-			GAIA_NODISCARD bool operator>(const Iterator& other) const {
-				return m_pos > other.m_pos;
-			}
-			GAIA_NODISCARD bool operator>=(const Iterator& other) const {
-				return m_pos >= other.m_pos;
-			}
-			GAIA_NODISCARD bool operator<(const Iterator& other) const {
-				return m_pos < other.m_pos;
-			}
-			GAIA_NODISCARD bool operator<=(const Iterator& other) const {
-				return m_pos <= other.m_pos;
 			}
 
 			GAIA_NODISCARD Iterator begin() const {
@@ -12428,6 +14323,176 @@ namespace gaia {
 			GAIA_NODISCARD auto ViewRWSilent() {
 				GAIA_ASSERT(m_info.Has<T>());
 				return m_chunk.ViewRWSilent<T>();
+			}
+		};
+	} // namespace ecs
+} // namespace gaia
+
+#include <cinttypes>
+#include <type_traits>
+
+namespace gaia {
+	namespace ecs {
+		struct IteratorDisabled {
+		private:
+			using Mask = archetype::ChunkHeader::DisabledEntityMask;
+			using Iter = Mask::const_iterator;
+
+			query::QueryInfo& m_info;
+			archetype::Chunk& m_chunk;
+			Mask m_mask;
+			Iter m_iter;
+
+			IteratorDisabled(query::QueryInfo& info, archetype::Chunk& chunk, uint32_t pos):
+					m_info(info), m_chunk(chunk), m_mask(chunk.GetDisabledEntityMask()), m_iter(m_mask, pos, false) {}
+
+		public:
+			IteratorDisabled(query::QueryInfo& info, archetype::Chunk& chunk):
+					m_info(info), m_chunk(chunk), m_mask(chunk.GetDisabledEntityMask()), m_iter(m_mask, 0, true) {}
+			
+			uint32_t operator*() const {
+				return *m_iter;
+			}
+
+			uint32_t operator->() const {
+				return *m_iter;
+			}
+
+			IteratorDisabled& operator++() {
+				++m_iter;
+				return *this;
+			}
+
+			GAIA_NODISCARD IteratorDisabled operator++(int) {
+				IteratorDisabled temp(*this);
+				++*this;
+				return temp;
+			}
+
+			GAIA_NODISCARD bool operator==(const IteratorDisabled& other) const {
+				return m_iter == other.m_iter;
+			}
+
+			GAIA_NODISCARD bool operator!=(const IteratorDisabled& other) const {
+				return m_iter != other.m_iter;
+			}
+
+			GAIA_NODISCARD IteratorDisabled begin() const {
+				return *this;
+			}
+
+			GAIA_NODISCARD IteratorDisabled end() const {
+				return {m_info, m_chunk, m_chunk.GetEntityCount()};
+			}
+
+			GAIA_NODISCARD uint32_t size() const {
+				return m_mask.count();
+			}
+
+			//! Checks if component \tparam T is present in the chunk.
+			//! \tparam T Component
+			//! \return True if the component is present. False otherwise.
+			template <typename T>
+			GAIA_NODISCARD bool HasComponent() const {
+				return m_chunk.HasComponent<T>();
+			}
+
+			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+			ComponentSetter& SetComponent(U&& data) {
+				ComponentSetter setter{&m_chunk, *m_iter};
+				return setter.SetComponent<T, U>(std::forward<U>(data));
+			}
+
+			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+			ComponentSetter& SetComponentSilent(U&& data) {
+				ComponentSetter setter{&m_chunk, *m_iter};
+				return setter.SetComponentSilent<T, U>(std::forward<U>(data));
+			}
+		};
+	} // namespace ecs
+} // namespace gaia
+
+#include <cinttypes>
+#include <type_traits>
+
+namespace gaia {
+	namespace ecs {
+		struct IteratorEnabled {
+		private:
+			using Mask = archetype::ChunkHeader::DisabledEntityMask;
+			using Iter = Mask::const_iterator;
+
+			query::QueryInfo& m_info;
+			archetype::Chunk& m_chunk;
+			Mask m_mask;
+			Iter m_iter;
+
+			IteratorEnabled(query::QueryInfo& info, archetype::Chunk& chunk, uint32_t pos):
+					m_info(info), m_chunk(chunk), m_mask(chunk.GetDisabledEntityMask()),
+					m_iter(m_mask.flip(0, chunk.HasEntities() ? chunk.GetEntityCount() - 1 : 0), pos, false) {}
+
+		public:
+			IteratorEnabled(query::QueryInfo& info, archetype::Chunk& chunk):
+					m_info(info), m_chunk(chunk), m_mask(chunk.GetDisabledEntityMask()),
+					m_iter(m_mask.flip(0, chunk.HasEntities() ? chunk.GetEntityCount() - 1 : 0), 0, true) {}
+
+			uint32_t operator*() const {
+				return *m_iter;
+			}
+
+			uint32_t operator->() const {
+				return *m_iter;
+			}
+
+			IteratorEnabled& operator++() {
+				++m_iter;
+				return *this;
+			}
+
+			GAIA_NODISCARD IteratorEnabled operator++(int) {
+				IteratorEnabled temp(*this);
+				++*this;
+				return temp;
+			}
+
+			GAIA_NODISCARD bool operator==(const IteratorEnabled& other) const {
+				return m_iter == other.m_iter;
+			}
+
+			GAIA_NODISCARD bool operator!=(const IteratorEnabled& other) const {
+				return m_iter != other.m_iter;
+			}
+
+			GAIA_NODISCARD IteratorEnabled begin() const {
+				return *this;
+			}
+
+			GAIA_NODISCARD IteratorEnabled end() const {
+				return {m_info, m_chunk, m_chunk.GetEntityCount()};
+			}
+
+			GAIA_NODISCARD uint32_t size() const {
+				return m_mask.count();
+			}
+
+			//! Checks if component \tparam T is present in the chunk.
+			//! \tparam T Component
+			//! \return True if the component is present. False otherwise.
+			template <typename T>
+			GAIA_NODISCARD bool HasComponent() const {
+				return m_chunk.HasComponent<T>();
+			}
+
+			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+			ComponentSetter& SetComponent(U&& data) {
+				ComponentSetter setter{&m_chunk, *m_iter};
+				return setter.SetComponent<T, U>(std::forward<U>(data));
+			}
+
+			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+			ComponentSetter& SetComponentSilent(U&& data) {
+				ComponentSetter setter{&m_chunk, *m_iter};
+				return setter.SetComponentSilent<T, U>(std::forward<U>(data));
 			}
 		};
 	} // namespace ecs
@@ -12632,8 +14697,6 @@ namespace gaia {
 			DataBuffer m_cmdBuffer;
 			//! Query cache id
 			query::QueryId m_queryId = query::QueryIdBad;
-			//! Tell what kinds of chunks are going to be accepted by the query
-			Query::Constraints m_constraints = Query::Constraints::EnabledOnly;
 
 			//! Query cache (stable pointer to parent world's query cache)
 			QueryCache* m_entityQueryCache{};
@@ -12786,18 +14849,6 @@ namespace gaia {
 				return true;
 			}
 
-			template <bool HasFilters>
-			void ChunkBatch_Prepare(CChunkSpan chunkSpan, const query::QueryInfo& queryInfo, ChunkBatchedList& chunkBatch) {
-				GAIA_PROF_SCOPE(ChunkBatch_Prepare);
-
-				for (const auto* pChunk: chunkSpan) {
-					if (!CanAcceptChunkForProcessing<HasFilters>(*pChunk, queryInfo))
-						continue;
-
-					chunkBatch.push_back(const_cast<archetype::Chunk*>(pChunk));
-				}
-			}
-
 			//! Execute functors in batches
 			template <typename Func>
 			static void ChunkBatch_Perform(Func func, ChunkBatchedList& chunks) {
@@ -12848,17 +14899,66 @@ namespace gaia {
 			}
 
 			template <bool HasFilters, typename Func>
-			void ProcessQueryOnChunks(
-					Func func, ChunkBatchedList& chunkBatch, const containers::darray<archetype::Chunk*>& chunksList,
+			void ProcessQueryOnChunks_NoConstraints(
+					Func func, ChunkBatchedList& chunkBatch, const containers::darray<archetype::Chunk*>& chunks,
 					const query::QueryInfo& queryInfo) {
 				size_t chunkOffset = 0;
-
-				size_t itemsLeft = chunksList.size();
+				size_t itemsLeft = chunks.size();
 				while (itemsLeft > 0) {
 					const size_t maxBatchSize = chunkBatch.max_size() - chunkBatch.size();
 					const size_t batchSize = itemsLeft > maxBatchSize ? maxBatchSize : itemsLeft;
-					ChunkBatch_Prepare<HasFilters>(
-							CChunkSpan((const archetype::Chunk**)&chunksList[chunkOffset], batchSize), queryInfo, chunkBatch);
+
+					CChunkSpan chunkSpan((const archetype::Chunk**)&chunks[chunkOffset], batchSize);
+					for (const auto* pChunk: chunkSpan) {
+						if (!pChunk->HasEntities())
+							continue;
+						if constexpr (HasFilters) {
+							if (!CheckFilters(*pChunk, queryInfo))
+								continue;
+						}
+
+						chunkBatch.push_back(const_cast<archetype::Chunk*>(pChunk));
+					}
+
+					if GAIA_UNLIKELY (chunkBatch.size() == chunkBatch.max_size())
+						ChunkBatch_Perform(func, chunkBatch);
+
+					itemsLeft -= batchSize;
+					chunkOffset += batchSize;
+				}
+			}
+
+			template <bool HasFilters, typename Func>
+			void ProcessQueryOnChunks(
+					Func func, ChunkBatchedList& chunkBatch, const containers::darray<archetype::Chunk*>& chunks,
+					const query::QueryInfo& queryInfo, bool enabledOnly) {
+				size_t chunkOffset = 0;
+				size_t itemsLeft = chunks.size();
+				while (itemsLeft > 0) {
+					const size_t maxBatchSize = chunkBatch.max_size() - chunkBatch.size();
+					const size_t batchSize = itemsLeft > maxBatchSize ? maxBatchSize : itemsLeft;
+
+					CChunkSpan chunkSpan((const archetype::Chunk**)&chunks[chunkOffset], batchSize);
+					for (const auto* pChunk: chunkSpan) {
+						if (!pChunk->HasEntities())
+							continue;
+						if (enabledOnly == pChunk->HasDisabledEntities()) {
+							const auto maskCnt = pChunk->GetDisabledEntityMask().count();
+
+							// We want enabled entities but there are only disables ones on the chunk
+							if (enabledOnly && maskCnt == pChunk->GetEntityCount())
+								continue;
+							// We want disabled entities but there are only enabled ones on the chunk
+							if (!enabledOnly && maskCnt == 0)
+								continue;
+						}
+						if constexpr (HasFilters) {
+							if (!CheckFilters(*pChunk, queryInfo))
+								continue;
+						}
+
+						chunkBatch.push_back(const_cast<archetype::Chunk*>(pChunk));
+					}
 
 					if GAIA_UNLIKELY (chunkBatch.size() == chunkBatch.max_size())
 						ChunkBatch_Perform(func, chunkBatch);
@@ -12869,7 +14969,7 @@ namespace gaia {
 			}
 
 			template <typename Func>
-			void RunQueryOnChunks_Internal(query::QueryInfo& queryInfo, Func func) {
+			void ForEach_RunQueryOnChunks(query::QueryInfo& queryInfo, Query::Constraints constraints, Func func) {
 				// Update the world version
 				UpdateVersion(*m_worldVersion);
 
@@ -12877,24 +14977,23 @@ namespace gaia {
 
 				const bool hasFilters = queryInfo.HasFilters();
 				if (hasFilters) {
-					for (auto* pArchetype: queryInfo) {
-						// Evaluate ordinary chunks
-						if (CheckConstraints<true>())
-							ProcessQueryOnChunks<true>(func, chunkBatch, pArchetype->GetChunks(), queryInfo);
-
-						// Evaluate disabled chunks
-						if (CheckConstraints<false>())
-							ProcessQueryOnChunks<true>(func, chunkBatch, pArchetype->GetChunksDisabled(), queryInfo);
+					// Evaluation defaults to EnabledOnly changes. AcceptAll is something that has to be asked for explicitely
+					if GAIA_UNLIKELY (constraints == Query::Constraints::AcceptAll) {
+						for (auto* pArchetype: queryInfo)
+							ProcessQueryOnChunks_NoConstraints<true>(func, chunkBatch, pArchetype->GetChunks(), queryInfo);
+					} else {
+						const bool enabledOnly = constraints == Query::Constraints::EnabledOnly;
+						for (auto* pArchetype: queryInfo)
+							ProcessQueryOnChunks<true>(func, chunkBatch, pArchetype->GetChunks(), queryInfo, enabledOnly);
 					}
 				} else {
-					for (auto* pArchetype: queryInfo) {
-						// Evaluate ordinary chunks
-						if (CheckConstraints<true>())
-							ProcessQueryOnChunks<false>(func, chunkBatch, pArchetype->GetChunks(), queryInfo);
-
-						// Evaluate disabled chunks
-						if (CheckConstraints<false>())
-							ProcessQueryOnChunks<false>(func, chunkBatch, pArchetype->GetChunksDisabled(), queryInfo);
+					if GAIA_UNLIKELY (constraints == Query::Constraints::AcceptAll) {
+						for (auto* pArchetype: queryInfo)
+							ProcessQueryOnChunks_NoConstraints<false>(func, chunkBatch, pArchetype->GetChunks(), queryInfo);
+					} else {
+						const bool enabledOnly = constraints == Query::Constraints::EnabledOnly;
+						for (auto* pArchetype: queryInfo)
+							ProcessQueryOnChunks<false>(func, chunkBatch, pArchetype->GetChunks(), queryInfo, enabledOnly);
 					}
 				}
 
@@ -12906,13 +15005,6 @@ namespace gaia {
 			}
 
 			template <typename Func>
-			void ForEachIter_Internal(query::QueryInfo& queryInfo, Func func) {
-				RunQueryOnChunks_Internal(queryInfo, [&](archetype::Chunk& chunk) {
-					func(Iterator(queryInfo, chunk));
-				});
-			}
-
-			template <typename Func>
 			void ForEach_Internal(query::QueryInfo& queryInfo, Func func) {
 				using InputArgs = decltype(utils::func_args(&Func::operator()));
 
@@ -12921,7 +15013,7 @@ namespace gaia {
 				GAIA_ASSERT(UnpackArgsIntoQuery_HasAll(queryInfo, InputArgs{}));
 #endif
 
-				RunQueryOnChunks_Internal(queryInfo, [&](archetype::Chunk& chunk) {
+				ForEach_RunQueryOnChunks(queryInfo, Query::Constraints::EnabledOnly, [&](archetype::Chunk& chunk) {
 					chunk.ForEach(InputArgs{}, func);
 				});
 			}
@@ -12979,26 +15071,21 @@ namespace gaia {
 				return *this;
 			}
 
-			Query& SetConstraints(Query::Constraints value) {
-				m_constraints = value;
-				return *this;
+			GAIA_NODISCARD bool
+			CheckConstraintsEnabledDisabledOnly(ecs::Query::Constraints constraints, bool filterEnabledOnly) const {
+				const bool arr[2] = {// EnabledOnly
+														 true,
+														 // DisabledOnly
+														 false};
+				return filterEnabledOnly == arr[(int)constraints];
 			}
 
-			GAIA_NODISCARD Query::Constraints GetConstraints() const {
-				return m_constraints;
-			}
-
-			template <bool Enabled>
-			GAIA_NODISCARD bool CheckConstraints() const {
-				// By default we only evaluate EnabledOnly changes. AcceptAll is something that has to be asked for
-				// explicitely.
-				if GAIA_UNLIKELY (m_constraints == Query::Constraints::AcceptAll)
-					return true;
-
-				if constexpr (Enabled)
-					return m_constraints == Query::Constraints::EnabledOnly;
-				else
-					return m_constraints == Query::Constraints::DisabledOnly;
+			GAIA_NODISCARD bool CheckConstraints(ecs::Query::Constraints constraints, bool filterEnabledOnly) const {
+				const bool arr[2] = {// EnabledOnly
+														 true,
+														 // DisabledOnly
+														 false};
+				return constraints == Query::Constraints::AcceptAll || filterEnabledOnly == arr[(int)constraints];
 			}
 
 			Query& Schedule() {
@@ -13019,7 +15106,17 @@ namespace gaia {
 				auto& queryInfo = FetchQueryInfo();
 
 				if constexpr (std::is_invocable<Func, Iterator>::value)
-					ForEachIter_Internal(queryInfo, func);
+					ForEach_RunQueryOnChunks(queryInfo, Query::Constraints::AcceptAll, [&](archetype::Chunk& chunk) {
+						func(Iterator(queryInfo, chunk));
+					});
+				else if constexpr (std::is_invocable<Func, IteratorEnabled>::value)
+					ForEach_RunQueryOnChunks(queryInfo, Query::Constraints::EnabledOnly, [&](archetype::Chunk& chunk) {
+						func(IteratorEnabled(queryInfo, chunk));
+					});
+				else if constexpr (std::is_invocable<Func, IteratorDisabled>::value)
+					ForEach_RunQueryOnChunks(queryInfo, Query::Constraints::DisabledOnly, [&](archetype::Chunk& chunk) {
+						func(IteratorDisabled(queryInfo, chunk));
+					});
 				else
 					ForEach_Internal(queryInfo, func);
 			}
@@ -13040,78 +15137,75 @@ namespace gaia {
 								 If you already called ToArray, checking if it is empty is preferred.
 				\return True if there are any entites matchine the query. False otherwise.
 				*/
-			bool HasEntities() {
+			bool HasEntities(ecs::Query::Constraints constraints = ecs::Query::Constraints::EnabledOnly) {
 				// Make sure the query was created by World.CreateQuery()
 				GAIA_ASSERT(m_entityQueryCache != nullptr);
 
-				bool hasItems = false;
-
 				auto& queryInfo = FetchQueryInfo();
-
 				const bool hasFilters = queryInfo.HasFilters();
 
-				auto execWithFiltersON = [&](const auto& chunksList) {
-					for (auto* pChunk: chunksList) {
-						if (!CanAcceptChunkForProcessing<true>(*pChunk, queryInfo))
-							continue;
-						hasItems = true;
-						break;
-					}
-				};
+				if (hasFilters) {
+					auto execWithFiltersON = [&](const auto& chunks) {
+						return GAIA_UTIL::has_if(chunks, [&](archetype::Chunk* pChunk) {
+							if (!pChunk->HasEntities())
+								return false;
+							return CheckFilters(*pChunk, queryInfo);
+						});
+					};
 
-				auto execWithFiltersOFF = [&](const auto& chunksList) {
-					for (auto* pChunk: chunksList) {
-						if (!CanAcceptChunkForProcessing<false>(*pChunk, queryInfo))
-							continue;
-						hasItems = true;
-						break;
-					}
-				};
+					auto execWithFiltersON_EnabledDisabled = [&](const auto& chunks, bool enabledOnly) {
+						return GAIA_UTIL::has_if(chunks, [&](archetype::Chunk* pChunk) {
+							const auto hasEntities = enabledOnly
+																					 ? pChunk->GetEntityCount() - pChunk->GetDisabledEntityMask().count() > 0
+																					 : pChunk->GetDisabledEntityMask().count() > 0;
+							if (!hasEntities)
+								return false;
 
-				if (hasItems) {
-					if (hasFilters) {
+							return CheckFilters(*pChunk, queryInfo);
+						});
+					};
+
+					if (constraints == Query::Constraints::AcceptAll) {
 						for (auto* pArchetype: queryInfo) {
-							if (CheckConstraints<true>()) {
-								execWithFiltersON(pArchetype->GetChunks());
-								break;
-							}
-							if (CheckConstraints<false>()) {
-								execWithFiltersON(pArchetype->GetChunksDisabled());
-								break;
-							}
+							if (execWithFiltersON(pArchetype->GetChunks()))
+								return true;
 						}
 					} else {
 						for (auto* pArchetype: queryInfo) {
-							if (CheckConstraints<true>()) {
-								execWithFiltersOFF(pArchetype->GetChunks());
-								break;
-							}
-							if (CheckConstraints<false>()) {
-								execWithFiltersOFF(pArchetype->GetChunksDisabled());
-								break;
-							}
+							if (execWithFiltersON_EnabledDisabled(
+											pArchetype->GetChunks(), constraints == Query::Constraints::EnabledOnly))
+								return true;
 						}
 					}
-
 				} else {
-					if (hasFilters) {
+					auto execWithFiltersOFF = [&](const auto& chunks) {
+						return GAIA_UTIL::has_if(chunks, [&](archetype::Chunk* pChunk) {
+							return pChunk->HasEntities();
+						});
+					};
+
+					auto execWithFiltersOFF_EnabledDisabled = [&](const auto& chunks, bool enabledOnly) {
+						return GAIA_UTIL::has_if(chunks, [&](archetype::Chunk* pChunk) {
+							return enabledOnly ? pChunk->GetEntityCount() - pChunk->GetDisabledEntityMask().count() > 0
+																 : pChunk->GetDisabledEntityMask().count() > 0;
+						});
+					};
+
+					if (constraints == Query::Constraints::AcceptAll) {
 						for (auto* pArchetype: queryInfo) {
-							if (CheckConstraints<true>())
-								execWithFiltersON(pArchetype->GetChunks());
-							if (CheckConstraints<false>())
-								execWithFiltersON(pArchetype->GetChunksDisabled());
+							if (execWithFiltersOFF(pArchetype->GetChunks()))
+								return true;
 						}
 					} else {
 						for (auto* pArchetype: queryInfo) {
-							if (CheckConstraints<true>())
-								execWithFiltersOFF(pArchetype->GetChunks());
-							if (CheckConstraints<false>())
-								execWithFiltersOFF(pArchetype->GetChunksDisabled());
+							if (execWithFiltersOFF_EnabledDisabled(
+											pArchetype->GetChunks(), constraints == Query::Constraints::EnabledOnly))
+								return true;
 						}
 					}
 				}
 
-				return hasItems;
+				return false;
 			}
 
 			/*!
@@ -13121,43 +15215,81 @@ namespace gaia {
 							 If you already called ToArray, use the size provided by the array.
 			\return The number of matching entities
 			*/
-			size_t CalculateEntityCount() {
+			size_t CalculateEntityCount(ecs::Query::Constraints constraints = ecs::Query::Constraints::EnabledOnly) {
 				// Make sure the query was created by World.CreateQuery()
 				GAIA_ASSERT(m_entityQueryCache != nullptr);
 
+				auto& queryInfo = FetchQueryInfo();
+				const bool hasFilters = queryInfo.HasFilters();
 				size_t entityCount = 0;
 
-				auto& queryInfo = FetchQueryInfo();
-
-				const bool hasFilters = queryInfo.HasFilters();
-
-				auto execWithFiltersON = [&](const auto& chunksList) {
-					for (auto* pChunk: chunksList) {
-						if (CanAcceptChunkForProcessing<true>(*pChunk, queryInfo))
-							entityCount += pChunk->GetEntityCount();
-					}
-				};
-
-				auto execWithFiltersOFF = [&](const auto& chunksList) {
-					for (auto* pChunk: chunksList) {
-						if (CanAcceptChunkForProcessing<false>(*pChunk, queryInfo))
-							entityCount += pChunk->GetEntityCount();
-					}
-				};
-
 				if (hasFilters) {
-					for (auto* pArchetype: queryInfo) {
-						if (CheckConstraints<true>())
-							execWithFiltersON(pArchetype->GetChunks());
-						if (CheckConstraints<false>())
-							execWithFiltersON(pArchetype->GetChunksDisabled());
+					auto execWithFiltersON = [&](const auto& chunks) {
+						size_t cnt = 0;
+						for (auto* pChunk: chunks) {
+							if (!pChunk->HasEntities())
+								continue;
+							if (!CheckFilters(*pChunk, queryInfo))
+								continue;
+							cnt += pChunk->GetEntityCount();
+						};
+						return cnt;
+					};
+
+					auto execWithFiltersON_EnabledDisabled = [&](const auto& chunks, bool enabledOnly) {
+						size_t cnt = 0;
+						for (auto* pChunk: chunks) {
+							if (!pChunk->HasEntities())
+								continue;
+							if (!CheckFilters(*pChunk, queryInfo))
+								continue;
+							if (enabledOnly)
+								cnt += pChunk->GetEntityCount() - pChunk->GetDisabledEntityMask().count();
+							else
+								cnt += pChunk->GetDisabledEntityMask().count();
+						};
+						return cnt;
+					};
+
+					if (constraints == Query::Constraints::AcceptAll) {
+						for (auto* pArchetype: queryInfo)
+							entityCount += execWithFiltersON(pArchetype->GetChunks());
+					} else {
+						for (auto* pArchetype: queryInfo)
+							entityCount += execWithFiltersON_EnabledDisabled(
+									pArchetype->GetChunks(), constraints == Query::Constraints::EnabledOnly);
 					}
 				} else {
-					for (auto* pArchetype: queryInfo) {
-						if (CheckConstraints<true>())
-							execWithFiltersOFF(pArchetype->GetChunks());
-						if (CheckConstraints<false>())
-							execWithFiltersOFF(pArchetype->GetChunksDisabled());
+					auto execWithFiltersOFF = [&](const auto& chunks) {
+						size_t cnt = 0;
+						for (auto* pChunk: chunks) {
+							if (!pChunk->HasEntities())
+								continue;
+							cnt += pChunk->GetEntityCount();
+						};
+						return cnt;
+					};
+
+					auto execWithFiltersOFF_EnabledDisabled = [&](const auto& chunks, bool enabledOnly) {
+						size_t cnt = 0;
+						for (auto* pChunk: chunks) {
+							if (!pChunk->HasEntities())
+								continue;
+							if (enabledOnly)
+								cnt += pChunk->GetEntityCount() - pChunk->GetDisabledEntityMask().count();
+							else
+								cnt += pChunk->GetDisabledEntityMask().count();
+						};
+						return cnt;
+					};
+
+					if (constraints == Query::Constraints::AcceptAll) {
+						for (auto* pArchetype: queryInfo)
+							entityCount += execWithFiltersOFF(pArchetype->GetChunks());
+					} else {
+						for (auto* pArchetype: queryInfo)
+							entityCount += execWithFiltersOFF_EnabledDisabled(
+									pArchetype->GetChunks(), constraints == Query::Constraints::EnabledOnly);
 					}
 				}
 
@@ -13166,24 +15298,23 @@ namespace gaia {
 
 			/*!
 			Appends all components or entities matching the query to the array
-			\tparam Container Container storing entities or components
+			\tparam outArray Container storing entities or components
+			\param constraints Query constraints
 			\return Array with entities or components
 			*/
 			template <typename Container>
-			void ToArray(Container& outArray) {
+			void ToArray(Container& outArray, ecs::Query::Constraints constraints = ecs::Query::Constraints::EnabledOnly) {
 				using ContainerItemType = typename Container::value_type;
 
 				// Make sure the query was created by World.CreateQuery()
 				GAIA_ASSERT(m_entityQueryCache != nullptr);
 
-				const size_t entityCount = CalculateEntityCount();
-				if (!entityCount)
+				const auto entityCount = CalculateEntityCount();
+				if (entityCount == 0)
 					return;
 
 				outArray.reserve(entityCount);
-
 				auto& queryInfo = FetchQueryInfo();
-
 				const bool hasFilters = queryInfo.HasFilters();
 
 				auto addChunk = [&](archetype::Chunk* pChunk) {
@@ -13192,33 +15323,63 @@ namespace gaia {
 						outArray.push_back(componentView[i]);
 				};
 
-				auto execWithFiltersON = [&](const auto& chunksList) {
-					for (auto* pChunk: chunksList) {
-						if (CanAcceptChunkForProcessing<true>(*pChunk, queryInfo))
-							addChunk(pChunk);
-					}
-				};
-
-				auto execWithFiltersOFF = [&](const auto& chunksList) {
-					for (auto* pChunk: chunksList) {
-						if (CanAcceptChunkForProcessing<false>(*pChunk, queryInfo))
-							addChunk(pChunk);
-					}
-				};
-
 				if (hasFilters) {
-					for (auto* pArchetype: queryInfo) {
-						if (CheckConstraints<true>())
+					auto execWithFiltersON = [&](const auto& chunks) {
+						for (auto* pChunk: chunks) {
+							if (!pChunk->HasEntities())
+								continue;
+							if (!CheckFilters(*pChunk, queryInfo))
+								continue;
+							addChunk(pChunk);
+						};
+					};
+
+					auto execWithFiltersON_EnabledDisabled = [&](const auto& chunks, bool enabledOnly) {
+						for (auto* pChunk: chunks) {
+							if (!pChunk->HasEntities())
+								continue;
+							if (CheckConstraintsEnabledDisabledOnly(constraints, enabledOnly) == pChunk->HasDisabledEntities())
+								continue;
+							if (!CheckFilters(*pChunk, queryInfo))
+								continue;
+							addChunk(pChunk);
+						};
+					};
+
+					if (constraints == Query::Constraints::AcceptAll) {
+						for (auto* pArchetype: queryInfo)
 							execWithFiltersON(pArchetype->GetChunks());
-						if (CheckConstraints<false>())
-							execWithFiltersON(pArchetype->GetChunksDisabled());
+					} else {
+						for (auto* pArchetype: queryInfo)
+							execWithFiltersON_EnabledDisabled(
+									pArchetype->GetChunks(), constraints == Query::Constraints::EnabledOnly);
 					}
 				} else {
-					for (auto* pArchetype: queryInfo) {
-						if (CheckConstraints<true>())
+					auto execWithFiltersOFF = [&](const auto& chunks) {
+						for (auto* pChunk: chunks) {
+							if (!pChunk->HasEntities())
+								continue;
+							addChunk(pChunk);
+						};
+					};
+
+					auto execWithFiltersOFF_EnabledDisabled = [&](const auto& chunks, bool enabledOnly) {
+						for (auto* pChunk: chunks) {
+							if (!pChunk->HasEntities())
+								continue;
+							if (CheckConstraintsEnabledDisabledOnly(constraints, enabledOnly) == pChunk->HasDisabledEntities())
+								continue;
+							addChunk(pChunk);
+						};
+					};
+
+					if (constraints == Query::Constraints::AcceptAll) {
+						for (auto* pArchetype: queryInfo)
 							execWithFiltersOFF(pArchetype->GetChunks());
-						if (CheckConstraints<false>())
-							execWithFiltersOFF(pArchetype->GetChunksDisabled());
+					} else {
+						for (auto* pArchetype: queryInfo)
+							execWithFiltersOFF_EnabledDisabled(
+									pArchetype->GetChunks(), constraints == Query::Constraints::EnabledOnly);
 					}
 				}
 			}
@@ -13228,34 +15389,6 @@ namespace gaia {
 
 namespace gaia {
 	namespace ecs {
-
-		//----------------------------------------------------------------------
-
-		struct ComponentSetter {
-			archetype::Chunk* m_pChunk;
-			uint32_t m_idx;
-
-			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
-			ComponentSetter& SetComponent(U&& data) {
-				if constexpr (component::IsGenericComponent<T>)
-					m_pChunk->template SetComponent<T>(m_idx, std::forward<U>(data));
-				else
-					m_pChunk->template SetComponent<T>(std::forward<U>(data));
-				return *this;
-			}
-
-			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
-			ComponentSetter& SetComponentSilent(U&& data) {
-				if constexpr (component::IsGenericComponent<T>)
-					m_pChunk->template SetComponentSilent<T>(m_idx, std::forward<U>(data));
-				else
-					m_pChunk->template SetComponentSilent<T>(std::forward<U>(data));
-				return *this;
-			}
-		};
-
-		//----------------------------------------------------------------------
-
 		class GAIA_API World final {
 			friend class ECSSystem;
 			friend class ECSSystemManager;
@@ -13290,11 +15423,9 @@ namespace gaia {
 			uint32_t m_worldVersion = 0;
 
 		private:
-			/*!
-			Remove an entity from chunk.
-			\param pChunk Chunk we remove the entity from
-			\param entityChunkIndex Index of entity within its chunk
-			*/
+			//! Remove an entity from chunk.
+			//! \param pChunk Chunk we remove the entity from
+			//! \param entityChunkIndex Index of entity within its chunk
 			void RemoveEntity(archetype::Chunk* pChunk, uint32_t entityChunkIndex, bool releaseEntity) {
 				GAIA_ASSERT(
 						!pChunk->IsStructuralChangesLocked() && "Entities can't be removed while their chunk is being iterated "
@@ -13311,7 +15442,7 @@ namespace gaia {
 
 				// Swap the last entity in the last chunk with the entity spot we just created by moving
 				// the entity to somewhere else.
-				const bool isDisabled = pChunk->IsDisabled();
+				const bool isDisabled = pChunk->HasDisabledEntities();
 				auto* pLastChunk = isDisabled ? archetype.FindFirstNonEmptyChunkDisabled() : archetype.FindFirstNonEmptyChunk();
 				if (pLastChunk == pChunk) {
 					pChunk->SwapEntitiesInsideChunkAndDeleteOld(entityChunkIndex, m_entities);
@@ -13366,13 +15497,11 @@ namespace gaia {
 			}
 #endif
 
-			/*!
-			Searches for archetype with a given set of components
-			\param lookupHash Archetype lookup hash
-			\param componentIdsGeneric Span of generic component ids
-			\param componentIdsChunk Span of chunk component ids
-			\return Pointer to archetype or nullptr
-			*/
+			//! Searches for archetype with a given set of components
+			//! \param lookupHash Archetype lookup hash
+			//! \param componentIdsGeneric Span of generic component ids
+			//! \param componentIdsChunk Span of chunk component ids
+			//! \return Pointer to archetype or nullptr.
 			GAIA_NODISCARD archetype::Archetype* FindArchetype(
 					archetype::LookupHash lookupHash, component::ComponentIdSpan componentIdsGeneric,
 					component::ComponentIdSpan componentIdsChunk) {
@@ -13417,12 +15546,10 @@ namespace gaia {
 				return nullptr;
 			}
 
-			/*!
-			Creates a new archetype from a given set of components
-			\param componentIdsGeneric Span of generic component infos
-			\param componentIdsChunk Span of chunk component infos
-			\return Pointer to the new archetype
-			*/
+			//! Creates a new archetype from a given set of components
+			//! \param componentIdsGeneric Span of generic component infos
+			//! \param componentIdsChunk Span of chunk component infos
+			//! \return Pointer to the new archetype.
 			GAIA_NODISCARD archetype::Archetype*
 			CreateArchetype(component::ComponentIdSpan componentIdsGeneric, component::ComponentIdSpan componentIdsChunk) {
 				auto* pArchetype = archetype::Archetype::Create(
@@ -13444,10 +15571,8 @@ namespace gaia {
 				return pArchetype;
 			}
 
-			/*!
-			Registers the archetype in the world.
-			\param pArchetype Archetype to register
-			*/
+			//! Registers the archetype in the world.
+			//! \param pArchetype Archetype to register.
 			void RegisterArchetype(archetype::Archetype* pArchetype) {
 				// Make sure hashes were set already
 				GAIA_ASSERT(
@@ -13536,14 +15661,12 @@ namespace gaia {
 			}
 #endif
 
-			/*!
-			Searches for an archetype which is formed by adding \param componentType to \param pArchetypeLeft.
-			If no such archetype is found a new one is created.
-			\param pArchetypeLeft Archetype we originate from.
-			\param componentType Component infos.
-			\param infoToAdd Component we want to add.
-			\return Pointer to archetype
-			*/
+			//! Searches for an archetype which is formed by adding \param componentType to \param pArchetypeLeft.
+			//! If no such archetype is found a new one is created.
+			//! \param pArchetypeLeft Archetype we originate from.
+			//! \param componentType Component infos.
+			//! \param infoToAdd Component we want to add.
+			//! \return Pointer to archetype.
 			GAIA_NODISCARD archetype::Archetype* FindOrCreateArchetype_AddComponent(
 					archetype::Archetype* pArchetypeLeft, component::ComponentType componentType,
 					const component::ComponentInfo& infoToAdd) {
@@ -13626,14 +15749,12 @@ namespace gaia {
 				return pArchetypeRight;
 			}
 
-			/*!
-			Searches for an archetype which is formed by removing \param componentType from \param pArchetypeRight.
-			If no such archetype is found a new one is created.
-			\param pArchetypeRight Archetype we originate from.
-			\param componentType Component infos.
-			\param infoToRemove Component we want to remove.
-			\return Pointer to archetype
-			*/
+			//! Searches for an archetype which is formed by removing \param componentType from \param pArchetypeRight.
+			//! If no such archetype is found a new one is created.
+			//! \param pArchetypeRight Archetype we originate from.
+			//! \param componentType Component infos.
+			//! \param infoToRemove Component we want to remove.
+			//! \return Pointer to archetype.
 			GAIA_NODISCARD archetype::Archetype* FindOrCreateArchetype_RemoveComponent(
 					archetype::Archetype* pArchetypeRight, component::ComponentType componentType,
 					const component::ComponentInfo& infoToRemove) {
@@ -13681,19 +15802,15 @@ namespace gaia {
 				return pArchetype;
 			}
 
-			/*!
-			Returns an array of archetypes registered in the world
-			\return Array or archetypes
-			*/
+			//! Returns an array of archetypes registered in the world
+			//! \return Array or archetypes.
 			const auto& GetArchetypes() const {
 				return m_archetypes;
 			}
 
-			/*!
-			Returns the archetype the entity belongs to.
-			\param entity Entity
-			\return Reference to the archetype
-			*/
+			//! Returns the archetype the entity belongs to.
+			//! \param entity Entity
+			//! \return Reference to the archetype.
 			GAIA_NODISCARD archetype::Archetype& GetArchetype(Entity entity) const {
 				GAIA_ASSERT(IsEntityValid(entity));
 
@@ -13708,11 +15825,9 @@ namespace gaia {
 				entityContainer.pChunk = nullptr;
 			}
 
-			/*!
-			Associates an entity with a chunk.
-			\param entity Entity to associate with a chunk
-			\param pChunk Chunk the entity is to become a part of
-			*/
+			//! Associates an entity with a chunk.
+			//! \param entity Entity to associate with a chunk
+			//! \param pChunk Chunk the entity is to become a part of
 			void StoreEntity(Entity entity, archetype::Chunk* pChunk) {
 				GAIA_ASSERT(pChunk != nullptr);
 				GAIA_ASSERT(
@@ -13893,10 +16008,8 @@ namespace gaia {
 #endif
 			}
 
-			/*!
-			Creates a new entity from archetype
-			\return Entity
-			*/
+			//! Creates a new entity from archetype
+			//! \return Entity
 			GAIA_NODISCARD Entity CreateEntity(archetype::Archetype& archetype) {
 				const auto entity = CreateEntity();
 
@@ -13915,10 +16028,8 @@ namespace gaia {
 				return entity;
 			}
 
-			/*!
-			Garbage collection. Checks all chunks and archetypes which are empty and have not been
-			used for a while and tries to delete them and release memory allocated by them.
-			*/
+			//! Garbage collection. Checks all chunks and archetypes which are empty and have not been
+			//! used for a while and tries to delete them and release memory allocated by them.
 			void GC() {
 				// Handle chunks
 				for (size_t i = 0; i < m_chunksToRemove.size();) {
@@ -14000,29 +16111,23 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			/*!
-			Returns the current version of the world.
-			\return World version number
-			*/
+			//! Returns the current version of the world.
+			//! \return World version number.
 			GAIA_NODISCARD uint32_t& GetWorldVersion() {
 				return m_worldVersion;
 			}
 
 			//----------------------------------------------------------------------
 
-			/*!
-			Creates a new empty entity
-			\return Entity
-			*/
+			//! Creates a new empty entity
+			//! \return Entity
 			GAIA_NODISCARD Entity CreateEntity() {
 				return m_entities.allocate();
 			}
 
-			/*!
-			Creates a new entity by cloning an already existing one.
-			\param entity Entity
-			\return Entity
-			*/
+			//! Creates a new entity by cloning an already existing one.
+			//! \param entity Entity
+			//! \return Entity
 			GAIA_NODISCARD Entity CreateEntity(Entity entity) {
 				auto& entityContainer = m_entities[entity.id()];
 
@@ -14040,10 +16145,8 @@ namespace gaia {
 				return newEntity;
 			}
 
-			/*!
-			Removes an entity along with all data associated with it.
-			\param entity Entity
-			*/
+			//! Removes an entity along with all data associated with it.
+			//! \param entity Entity
 			void DeleteEntity(Entity entity) {
 				if (m_entities.item_count() == 0 || entity == EntityNull)
 					return;
@@ -14062,11 +16165,9 @@ namespace gaia {
 				}
 			}
 
-			/*!
-			Enables or disables an entire entity.
-			\param entity Entity
-			\param enable Enable or disable the entity
-			*/
+			//! Enables or disables an entire entity.
+			//! \param entity Entity
+			//! \param enable Enable or disable the entity
 			void EnableEntity(Entity entity, bool enable) {
 				auto& entityContainer = m_entities[entity.id()];
 
@@ -14075,70 +16176,37 @@ namespace gaia {
 						"Entities can't be enabled/disabled while their chunk is being iterated "
 						"(structural changes are forbidden during this time!)");
 
-				if (enable != (bool)entityContainer.disabled)
-					return;
-				entityContainer.disabled = !enable;
-
-				const uint32_t idxOld = entityContainer.idx;
-
-				if (auto* pChunkFrom = entityContainer.pChunk) {
-					auto& archetype = *m_archetypes[pChunkFrom->GetArchetypeId()];
-
-					{
-						// Create a spot in the new chunk
-						auto* pChunkTo = enable ? archetype.FindOrCreateFreeChunk() : archetype.FindOrCreateFreeChunkDisabled();
-						const auto idxNew = pChunkTo->AddEntity(entity);
-
-						// Copy generic component data from the reference entity to our new entity
-						pChunkTo->MoveEntityData(entity, idxNew, m_entities);
-
-						// Remove the entity from the old chunk
-						RemoveEntity(pChunkFrom, idxOld, false);
-
-						// Update the entity container with new info
-						entityContainer.pChunk = pChunkTo;
-						entityContainer.idx = idxNew;
-					}
-
-#if GAIA_AVOID_CHUNK_FRAGMENTATION
-					archetype.VerifyChunksFramentation();
-#endif
+				if (auto* pChunk = entityContainer.pChunk) {
+					auto& archetype = *m_archetypes[pChunk->GetArchetypeId()];
+					archetype.EnableEntity(pChunk, entityContainer.idx, enable);
 				}
 			}
 
-			/*!
-			Returns the number of active entities
-			\return Entity
-			*/
+			//! Returns the number of active entities
+			//! \return Entity
 			GAIA_NODISCARD GAIA_FORCEINLINE uint32_t GetEntityCount() const {
 				return m_entities.item_count();
 			}
 
-			/*!
-			Returns an entity at a given position
-			\return Entity
-			*/
+			//! Returns an entity at a given position
+			//! \return Entity
 			GAIA_NODISCARD Entity GetEntity(uint32_t idx) const {
 				GAIA_ASSERT(idx < m_entities.size());
 				const auto& entityContainer = m_entities[idx];
 				return {idx, entityContainer.gen};
 			}
 
-			/*!
-			Returns a chunk containing the given entity.
-			\return Chunk or nullptr if not found
-			*/
+			//! Returns a chunk containing the given entity.
+			//! \return Chunk or nullptr if not found.
 			GAIA_NODISCARD archetype::Chunk* GetChunk(Entity entity) const {
 				GAIA_ASSERT(entity.id() < m_entities.size());
 				const auto& entityContainer = m_entities[entity.id()];
 				return entityContainer.pChunk;
 			}
 
-			/*!
-			Returns a chunk containing the given entity.
-			Index of the entity is stored in \param indexInChunk
-			\return Chunk or nullptr if not found
-			*/
+			//! Returns a chunk containing the given entity.
+			//! Index of the entity is stored in \param indexInChunk
+			//! \return Chunk or nullptr if not found
 			GAIA_NODISCARD archetype::Chunk* GetChunk(Entity entity, uint32_t& indexInChunk) const {
 				GAIA_ASSERT(entity.id() < m_entities.size());
 				const auto& entityContainer = m_entities[entity.id()];
@@ -14148,14 +16216,12 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			/*!
-			Attaches a new component \tparam T to \param entity.
-			\warning It is expected the component is not present on \param entity yet. Undefined behavior otherwise.
-			\warning It is expected \param entity is valid. Undefined behavior otherwise.
-			\tparam T Component
-			\param entity Entity
-			\return ComponentSetter object.
-			*/
+			//! Attaches a new component \tparam T to \param entity.
+			//! \tparam T Component
+			//! \param entity Entity
+			//! \return ComponentSetter
+			//! \warning It is expected the component is not present on \param entity yet. Undefined behavior otherwise.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename T>
 			ComponentSetter AddComponent(Entity entity) {
 				component::VerifyComponent<T>();
@@ -14173,15 +16239,13 @@ namespace gaia {
 				}
 			}
 
-			/*!
-			Attaches a new component \tparam T to \param entity. Also sets its value.
-			\warning It is expected the component is not present on \param entity yet. Undefined behavior otherwise.
-			\warning It is expected \param entity is valid. Undefined behavior otherwise.
-			\tparam T Component
-			\param entity Entity
-			\param value Value to set for the component
-			\return ComponentSetter object.
-			*/
+			//! Attaches a new component \tparam T to \param entity. Also sets its value.
+			//! \tparam T Component
+			//! \param entity Entity
+			//! \param value Value to set for the component
+			//! \return ComponentSetter object.
+			//! \warning It is expected the component is not present on \param entity yet. Undefined behavior otherwise.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
 			ComponentSetter AddComponent(Entity entity, U&& value) {
 				component::VerifyComponent<T>();
@@ -14202,14 +16266,12 @@ namespace gaia {
 				}
 			}
 
-			/*!
-			Removes a component \tparam T from \param entity.
-			\warning It is expected the component is present on \param entity. Undefined behavior otherwise.
-			\warning It is expected \param entity is valid. Undefined behavior otherwise.
-			\tparam T Component
-			\param entity Entity
-			\return ComponentSetter object.
-			*/
+			//! Removes a component \tparam T from \param entity.
+			//! \tparam T Component
+			//! \param entity Entity
+			//! \return ComponentSetter
+			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename T>
 			ComponentSetter RemoveComponent(Entity entity) {
 				component::VerifyComponent<T>();
@@ -14224,15 +16286,13 @@ namespace gaia {
 					return RemoveComponent_Internal(component::ComponentType::CT_Chunk, entity, info);
 			}
 
-			/*!
-			Sets the value of the component \tparam T on \param entity.
-			\warning It is expected the component is present on \param entity. Undefined behavior otherwise.
-			\warning It is expected \param entity is valid. Undefined behavior otherwise.
-			\tparam T Component
-			\param entity Entity
-			\param value Value to set for the component
-			\return ComponentSetter object.
-			*/
+			//! Sets the value of the component \tparam T on \param entity.
+			//! \tparam T Component
+			//! \param entity Entity
+			//! \param value Value to set for the component
+			//! \return ComponentSetter
+			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
 			ComponentSetter SetComponent(Entity entity, U&& value) {
 				component::VerifyComponent<T>();
@@ -14242,15 +16302,13 @@ namespace gaia {
 				return ComponentSetter{entityContainer.pChunk, entityContainer.idx}.SetComponent<T>(std::forward<U>(value));
 			}
 
-			/*!
-			Sets the value of the component \tparam T on \param entity.
-			\warning It is expected the component is present on \param entity. Undefined behavior otherwise.
-			\warning It is expected \param entity is valid. Undefined behavior otherwise.
-			\tparam T Component
-			\param entity Entity
-			\param value Value to set for the component
-			\return ComponentSetter object.
-			*/
+			//! Sets the value of the component \tparam T on \param entity.
+			//! \tparam T Component
+			//! \param entity Entity
+			//! \param value Value to set for the component
+			//! \return ComponentSetter
+			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
 			ComponentSetter SetComponentSilent(Entity entity, U&& value) {
 				component::VerifyComponent<T>();
@@ -14261,14 +16319,12 @@ namespace gaia {
 						std::forward<U>(value));
 			}
 
-			/*!
-			Returns the value stored in the component \tparam T on \param entity.
-			\warning It is expected the component is present on \param entity. Undefined behavior otherwise.
-			\warning It is expected \param entity is valid. Undefined behavior otherwise.
-			\tparam T Component
-			\param entity Entity
-			\return Value stored in the component.
-			*/
+			//! Returns the value stored in the component \tparam T on \param entity.
+			//! \tparam T Component
+			//! \param entity Entity
+			//! \return Value stored in the component.
+			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename T>
 			GAIA_NODISCARD auto GetComponent(Entity entity) const {
 				component::VerifyComponent<T>();
@@ -14285,13 +16341,11 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			/*!
-			Tells if \param entity contains the component \tparam T.
-			\warning It is expected \param entity is valid. Undefined behavior otherwise.
-			\tparam T Component
-			\param entity Entity
-			\return True if the component is present on entity.
-			*/
+			//! Tells if \param entity contains the component \tparam T.
+			//! \tparam T Component
+			//! \param entity Entity
+			//! \return True if the component is present on entity.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename T>
 			GAIA_NODISCARD bool HasComponent(Entity entity) const {
 				component::VerifyComponent<T>();
@@ -14349,13 +16403,11 @@ namespace gaia {
 				return Query(m_queryCache, m_worldVersion, m_archetypes, m_componentToArchetypeMap);
 			}
 
-			/*!
-			Iterates over all chunks satisfying conditions set by \param func and calls \param func for all of them.
-			Query instance is generated internally from the input arguments of \param func.
-			\warning Performance-wise it has less potential than iterating using ecs::Chunk or a comparable ForEach
-			passing in a query because it needs to do cached query lookups on each invocation. However, it is easier to
-			use and for non-critical code paths it is the most elegant way of iterating your data.
-			*/
+			//! Iterates over all chunks satisfying conditions set by \param func and calls \param func for all of them.
+			//! Query instance is generated internally from the input arguments of \param func.
+			//! \warning Performance-wise it has less potential than iterating using ecs::Chunk or a comparable ForEach
+			//!          passing in a query because it needs to do cached query lookups on each invocation. However, it is
+			//!          easier to use and for non-critical code paths it is the most elegant way of iterating your data.
 			template <typename Func>
 			void ForEach(Func func) {
 				using InputArgs = decltype(utils::func_args(&Func::operator()));
@@ -14375,10 +16427,8 @@ namespace gaia {
 				}
 			}
 
-			/*!
-			Performs various internal operations related to the end of the frame such as
-			memory cleanup and other various managment operations which keep the system healthy.
-			*/
+			//! Performs various internal operations related to the end of the frame such as
+			//! memory cleanup and other various managment operations which keep the system healthy.
 			void Update() {
 				GC();
 
@@ -14388,27 +16438,21 @@ namespace gaia {
 
 			//--------------------------------------------------------------------------------
 
-			/*!
-			Performs diagnostics on archetypes. Prints basic info about them and the chunks they contain.
-			*/
+			//! Performs diagnostics on archetypes. Prints basic info about them and the chunks they contain.
 			void DiagArchetypes() const {
 				GAIA_LOG_N("Archetypes:%u", (uint32_t)m_archetypes.size());
 				for (const auto* archetype: m_archetypes)
 					archetype::Archetype::DiagArchetype(*archetype);
 			}
 
-			/*!
-			Performs diagnostics on registered components.
-			Prints basic info about them and reports and detected issues.
-			*/
+			//! Performs diagnostics on registered components.
+			//! Prints basic info about them and reports and detected issues.
 			static void DiagRegisteredTypes() {
 				ComponentCache::Get().Diag();
 			}
 
-			/*!
-			Performs diagnostics on entites of the world.
-			Also performs validation of internal structures which hold the entities.
-			*/
+			//! Performs diagnostics on entites of the world.
+			//! Also performs validation of internal structures which hold the entities.
 			void DiagEntities() const {
 				ValidateEntityList();
 
@@ -15309,1341 +17353,3 @@ namespace gaia {
 	} // namespace ecs
 } // namespace gaia
 
-#include <cinttypes>
-#include <type_traits>
-
-namespace gaia {
-	namespace containers {
-		template <uint32_t NBits>
-		class bitset {
-		private:
-			template <bool Use32Bit>
-			struct size_type_selector {
-				using type = std::conditional_t<Use32Bit, uint32_t, uint64_t>;
-			};
-
-			static constexpr uint32_t BitsPerItem = (NBits / 64) > 0 ? 64 : 32;
-			static constexpr uint32_t Items = (NBits + BitsPerItem - 1) / BitsPerItem;
-			using size_type = typename size_type_selector<BitsPerItem == 32>::type;
-			static constexpr bool HasTrailingBits = (NBits % BitsPerItem) != 0;
-			static constexpr size_type LastItemMask = ((size_type)1 << (NBits % BitsPerItem)) - 1;
-
-			size_type m_data[Items]{};
-
-		public:
-			class const_iterator {
-			public:
-				using iterator_category = GAIA_UTIL::random_access_iterator_tag;
-				using value_type = uint32_t;
-				using size_type = bitset<NBits>::size_type;
-
-			private:
-				const bitset<NBits>& m_bitset;
-				value_type m_pos;
-
-				void find_next_set_bit() {
-					// Don't iterate beyond the range
-					if GAIA_UNLIKELY (m_pos + 1 >= NBits) {
-						m_pos = NBits;
-						return;
-					}
-
-					// Keep moving forward
-					++m_pos;
-
-					size_type word = m_bitset.m_data[m_pos / bitset::BitsPerItem] >> (m_pos % bitset::BitsPerItem);
-					if (word != 0) {
-						if constexpr (bitset::BitsPerItem == 32)
-							m_pos += GAIA_FFS(word) - 1;
-						else
-							m_pos += GAIA_FFS64(word) - 1;
-					} else {
-						// No set bit in the current word, move to the next word
-						value_type wordIndex = m_pos / bitset::BitsPerItem + 1;
-						while (wordIndex < m_bitset.Items && m_bitset.m_data[wordIndex] == 0)
-							++wordIndex;
-
-						if (wordIndex < m_bitset.Items) {
-							word = m_bitset.m_data[wordIndex];
-							if constexpr (bitset::BitsPerItem == 32)
-								m_pos = wordIndex * 32 + GAIA_FFS(word) - 1;
-							else
-								m_pos = wordIndex * 64 + GAIA_FFS64(word) - 1;
-						}
-					}
-				}
-
-				void find_prev_set_bit() {
-					// Don't iterate beyond the range
-					GAIA_ASSERT(m_pos > 0);
-
-					value_type wordIndex = (m_pos - 1) / bitset::BitsPerItem;
-					size_type word = m_bitset.m_data[wordIndex];
-					if (word != 0) {
-						m_pos = ((m_pos - 1) / bitset::BitsPerItem) * bitset::BitsPerItem + (bitset::BitsPerItem - 1);
-						if constexpr (bitset::BitsPerItem == 32)
-							m_pos -= GAIA_CTZ(word);
-						else
-							m_pos -= GAIA_CTZ64(word);
-					} else {
-						// No set bit in the current word, move to the previous word
-						do {
-							--wordIndex;
-						} while (wordIndex > 0 && m_bitset.m_data[wordIndex] == 0);
-
-						word = m_bitset.m_data[wordIndex];
-						if constexpr (bitset::BitsPerItem == 32)
-							m_pos = wordIndex * 32 + 31 - GAIA_CTZ(word);
-						else {
-							m_pos = wordIndex * 64 + 63 - GAIA_CTZ64(word);
-						}
-					}
-				}
-
-			public:
-				const_iterator(const bitset<NBits>& bitset, value_type pos, bool fwd): m_bitset(bitset), m_pos(pos) {
-					if (fwd) {
-						--m_pos;
-						find_next_set_bit();
-					} else {
-						find_prev_set_bit();
-						++m_pos; // point 1 item past the end
-					}
-				}
-
-				GAIA_NODISCARD value_type operator*() const {
-					return m_pos;
-				}
-
-				const_iterator& operator++() {
-					find_next_set_bit();
-					return *this;
-				}
-				const_iterator operator++(int) {
-					const_iterator temp(*this);
-					++*this;
-					return temp;
-				}
-				const_iterator& operator--() {
-					find_prev_set_bit();
-					return *this;
-				}
-				const_iterator operator--(int) {
-					const_iterator temp(*this);
-					--*this;
-					return temp;
-				}
-
-				GAIA_NODISCARD bool operator==(const const_iterator& other) const {
-					return m_pos == other.m_pos;
-				}
-				GAIA_NODISCARD bool operator!=(const const_iterator& other) const {
-					return m_pos != other.m_pos;
-				}
-				GAIA_NODISCARD bool operator>(const const_iterator& other) const {
-					return m_pos > other.m_pos;
-				}
-				GAIA_NODISCARD bool operator>=(const const_iterator& other) const {
-					return m_pos >= other.m_pos;
-				}
-				GAIA_NODISCARD bool operator<(const const_iterator& other) const {
-					return m_pos < other.m_pos;
-				}
-				GAIA_NODISCARD bool operator<=(const const_iterator& other) const {
-					return m_pos <= other.m_pos;
-				}
-			};
-
-			const_iterator begin() const {
-				return const_iterator(*this, 0, true);
-			}
-
-			const_iterator end() const {
-				return const_iterator(*this, NBits, false);
-			}
-
-			const_iterator cbegin() const {
-				return const_iterator(*this, 0, true);
-			}
-
-			const_iterator cend() const {
-				return const_iterator(*this, NBits, false);
-			}
-
-			GAIA_NODISCARD constexpr bool operator[](uint32_t pos) const {
-				return test(pos);
-			}
-
-			GAIA_NODISCARD constexpr bool operator==(const bitset& other) const {
-				for (uint32_t i = 0; i < Items; ++i)
-					if (m_data[i] != other[i])
-						return false;
-				return true;
-			}
-
-			GAIA_NODISCARD constexpr bool operator!=(const bitset& other) const {
-				for (uint32_t i = 0; i < Items; ++i)
-					if (m_data[i] == other[i])
-						return false;
-				return true;
-			}
-
-			//! Sets all bits
-			constexpr void set() {
-				for (uint32_t i = 0; i < Items - 1; ++i)
-					m_data[i] = (size_type)-1;
-				if constexpr (HasTrailingBits)
-					m_data[Items - 1] = LastItemMask;
-				else
-					m_data[Items - 1] = (size_type)-1;
-			}
-
-			//! Sets the bit at the postion \param pos to value \param value
-			constexpr void set(uint32_t pos, bool value = true) {
-				GAIA_ASSERT(pos < NBits);
-				if (value)
-					m_data[pos / BitsPerItem] |= ((size_type)1 << (pos % BitsPerItem));
-				else
-					m_data[pos / BitsPerItem] &= ~((size_type)1 << (pos % BitsPerItem));
-			}
-
-			//! Flips all bits
-			constexpr void flip() {
-				for (uint32_t i = 0; i < Items - 1; ++i)
-					m_data[i] = ~m_data[i];
-				if constexpr (HasTrailingBits)
-					m_data[Items - 1] = (~m_data[Items - 1]) & LastItemMask;
-				else
-					m_data[Items - 1] = ~m_data[Items - 1];
-			}
-
-			//! Flips the bit at the postion \param pos
-			constexpr void flip(uint32_t pos) {
-				GAIA_ASSERT(pos < NBits);
-				m_data[pos / BitsPerItem] ^= ((size_type)1 << (pos % BitsPerItem));
-			}
-
-			//! Unsets all bits
-			constexpr void reset() {
-				for (uint32_t i = 0; i < Items; ++i)
-					m_data[i] = 0;
-			}
-
-			//! Unsets the bit at the postion \param pos
-			constexpr void reset(uint32_t pos) {
-				GAIA_ASSERT(pos < NBits);
-				m_data[pos / BitsPerItem] &= ~((size_type)1 << (pos % BitsPerItem));
-			}
-
-			//! Returns the value of the bit at the position \param pos
-			GAIA_NODISCARD constexpr bool test(uint32_t pos) const {
-				GAIA_ASSERT(pos < NBits);
-				return (m_data[pos / BitsPerItem] & ((size_type)1 << (pos % BitsPerItem))) != 0;
-			}
-
-			//! Checks if all bits are set
-			GAIA_NODISCARD constexpr bool all() const {
-				for (uint32_t i = 0; i < Items - 1; ++i)
-					if (m_data[i] != (size_type)-1)
-						return false;
-				if constexpr (HasTrailingBits)
-					return (m_data[Items - 1] & LastItemMask) == LastItemMask;
-				else
-					return m_data[Items - 1] == (size_type)-1;
-			}
-
-			//! Checks if any bit is set
-			GAIA_NODISCARD constexpr bool any() const {
-				for (uint32_t i = 0; i < Items; ++i)
-					if (m_data[i] != 0)
-						return true;
-				return false;
-			}
-
-			//! Checks if all bits are reset
-			GAIA_NODISCARD constexpr bool none() const {
-				for (uint32_t i = 0; i < Items; ++i)
-					if (m_data[i] != 0)
-						return false;
-				return true;
-			}
-
-			//! Returns the number of set bits
-			GAIA_NODISCARD uint32_t count() const {
-				uint32_t total = 0;
-
-				if constexpr (sizeof(size_type) == 4) {
-					for (uint32_t i = 0; i < Items; ++i)
-						total += GAIA_POPCNT(m_data[i]);
-				} else {
-					for (uint32_t i = 0; i < Items; ++i)
-						total += GAIA_POPCNT64(m_data[i]);
-				}
-
-				return total;
-			}
-
-			//! Returns the number of bits the bitset can hold
-			GAIA_NODISCARD constexpr uint32_t size() const {
-				return NBits;
-			}
-		};
-	} // namespace containers
-} // namespace gaia
-
-#include <cstddef>
-#include <type_traits>
-#include <utility>
-
-namespace gaia {
-	namespace containers {
-		//! Array of elements of type \tparam T with fixed size and capacity \tparam N allocated on stack.
-		//! Interface compatiblity with std::array where it matters.
-		template <typename T, uint32_t N>
-		class sringbuffer {
-		public:
-			static_assert(N > 1);
-
-			using iterator_category = GAIA_UTIL::random_access_iterator_tag;
-			using value_type = T;
-			using reference = T&;
-			using const_reference = const T&;
-			using pointer = T*;
-			using const_pointer = T*;
-			using difference_type = std::ptrdiff_t;
-			using size_type = decltype(N);
-
-			static constexpr size_type extent = N;
-
-			size_type m_tail{};
-			size_type m_size{};
-			T m_data[N];
-
-			sringbuffer() noexcept = default;
-
-			template <typename InputIt>
-			sringbuffer(InputIt first, InputIt last) {
-				const auto count = (size_type)GAIA_UTIL::distance(first, last);
-				GAIA_ASSERT(count <= max_size());
-				if (count < 1)
-					return;
-
-				m_size = count;
-				m_tail = 0;
-
-				if constexpr (std::is_pointer_v<InputIt>) {
-					for (size_type i = 0; i < count; ++i)
-						m_data[i] = first[i];
-				} else if constexpr (std::is_same_v<
-																 typename InputIt::iterator_category, GAIA_UTIL::random_access_iterator_tag>) {
-					for (size_type i = 0; i < count; ++i)
-						m_data[i] = *(first[i]);
-				} else {
-					size_type i = 0;
-					for (auto it = first; it != last; ++it)
-						m_data[i++] = *it;
-				}
-			}
-
-			sringbuffer(std::initializer_list<T> il): sringbuffer(il.begin(), il.end()) {}
-
-			sringbuffer(const sringbuffer& other): sringbuffer(other.begin(), other.end()) {}
-
-			sringbuffer(sringbuffer&& other) noexcept: m_tail(other.m_tail), m_size(other.m_size) {
-				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
-
-				utils::move_elements(m_data, other.m_data, other.size());
-
-				other.m_tail = size_type(0);
-				other.m_size = size_type(0);
-			}
-
-			GAIA_NODISCARD sringbuffer& operator=(std::initializer_list<T> il) {
-				*this = sringbuffer(il.begin(), il.end());
-				return *this;
-			}
-
-			GAIA_NODISCARD constexpr sringbuffer& operator=(const sringbuffer& other) {
-				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
-
-				utils::copy_elements(m_data, other.m_data, other.size());
-
-				m_tail = other.m_tail;
-				m_size = other.m_size;
-
-				return *this;
-			}
-
-			GAIA_NODISCARD constexpr sringbuffer& operator=(sringbuffer&& other) noexcept {
-				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
-
-				utils::move_elements(m_data, other.m_data, other.size());
-
-				m_tail = other.m_tail;
-				m_size = other.m_size;
-
-				other.m_tail = size_type(0);
-				other.m_size = size_type(0);
-
-				return *this;
-			}
-
-			~sringbuffer() = default;
-
-			void push_back(const T& arg) {
-				GAIA_ASSERT(m_size < N);
-				const auto head = (m_tail + m_size) % N;
-				m_data[head] = arg;
-				++m_size;
-			}
-
-			void push_back(T&& arg) {
-				GAIA_ASSERT(m_size < N);
-				const auto head = (m_tail + m_size) % N;
-				m_data[head] = std::forward<T>(arg);
-				++m_size;
-			}
-
-			template <typename... Args>
-			reference emplace_back(Args&&... args) {
-				GAIA_ASSERT(m_size < N);
-				const auto head = (m_tail + m_size) % N;
-				reference ref = m_data[head];
-				ref = {std::forward<Args>(args)...};
-				++m_size;
-				return ref;
-			}
-
-			void pop_front(T& out) {
-				GAIA_ASSERT(!empty());
-				out = m_data[m_tail];
-				m_tail = (m_tail + 1) % N;
-				--m_size;
-			}
-
-			void pop_front(T&& out) {
-				GAIA_ASSERT(!empty());
-				out = std::forward<T>(m_data[m_tail]);
-				m_tail = (m_tail + 1) % N;
-				--m_size;
-			}
-
-			void pop_back(T& out) {
-				GAIA_ASSERT(m_size < N);
-				const auto head = (m_tail + m_size - 1) % N;
-				out = m_data[head];
-				--m_size;
-			}
-
-			void pop_back(T&& out) {
-				GAIA_ASSERT(m_size < N);
-				const auto head = (m_tail + m_size - 1) % N;
-				out = std::forward<T>(m_data[head]);
-				--m_size;
-			}
-
-			GAIA_NODISCARD constexpr size_type size() const noexcept {
-				return m_size;
-			}
-
-			GAIA_NODISCARD constexpr bool empty() const noexcept {
-				return !m_size;
-			}
-
-			GAIA_NODISCARD constexpr size_type max_size() const noexcept {
-				return N;
-			}
-
-			GAIA_NODISCARD constexpr reference front() noexcept {
-				GAIA_ASSERT(!empty());
-				return m_data[m_tail];
-			}
-
-			GAIA_NODISCARD constexpr const_reference front() const noexcept {
-				GAIA_ASSERT(!empty());
-				return m_data[m_tail];
-			}
-
-			GAIA_NODISCARD constexpr reference back() noexcept {
-				GAIA_ASSERT(!empty());
-				const auto head = (m_tail + m_size - 1) % N;
-				return m_data[head];
-			}
-
-			GAIA_NODISCARD constexpr const_reference back() const noexcept {
-				GAIA_ASSERT(!empty());
-				const auto head = (m_tail + m_size - 1) % N;
-				return m_data[head];
-			}
-
-			GAIA_NODISCARD bool operator==(const sringbuffer& other) const {
-				for (size_type i = 0; i < N; ++i)
-					if (!(m_data[i] == other.m_data[i]))
-						return false;
-				return true;
-			}
-		};
-
-		namespace detail {
-			template <typename T, std::size_t N, std::size_t... I>
-			constexpr sringbuffer<std::remove_cv_t<T>, N>
-			to_sringbuffer_impl(T (&a)[N], std::index_sequence<I...> /*no_name*/) {
-				return {{a[I]...}};
-			}
-		} // namespace detail
-
-		template <typename T, std::size_t N>
-		constexpr sringbuffer<std::remove_cv_t<T>, N> to_sringbuffer(T (&a)[N]) {
-			return detail::to_sringbuffer_impl(a, std::make_index_sequence<N>{});
-		}
-
-		template <typename T, typename... U>
-		sringbuffer(T, U...) -> sringbuffer<T, 1 + sizeof...(U)>;
-
-	} // namespace containers
-
-} // namespace gaia
-
-#if GAIA_PLATFORM_WINDOWS
-	#include <windows.h>
-	#include <cstdio>
-#elif GAIA_PLATFORM_APPLE
-	#include <mach/mach_types.h>
-	#include <mach/thread_act.h>
-#elif GAIA_PLATFORM_LINUX || GAIA_PLATFORM_FREEBSD
-	#include <pthread.h>
-#endif
-
-#include <atomic>
-#include <condition_variable>
-#include <mutex>
-#include <thread>
-
-#include <functional>
-#include <inttypes.h>
-
-namespace gaia {
-	namespace mt {
-		struct Job {
-			std::function<void()> func;
-		};
-
-		struct JobArgs {
-			uint32_t idxStart;
-			uint32_t idxEnd;
-		};
-
-		struct JobParallel {
-			std::function<void(const JobArgs&)> func;
-		};
-	} // namespace mt
-} // namespace gaia
-
-#include <functional>
-#include <inttypes.h>
-#include <mutex>
-
-namespace gaia {
-	namespace mt {
-		enum class JobInternalState : uint32_t {
-			//! No scheduled
-			Idle = 0,
-			//! Scheduled
-			Submitted = 0x01,
-			//! Being executed
-			Running = 0x02,
-			//! Finished executing
-			Done = 0x04,
-			//! Job released. Not to be used anymore
-			Released = 0x08,
-
-			//! Scheduled or being executed
-			Busy = Submitted | Running,
-		};
-
-		struct JobContainer: containers::ImplicitListItem {
-			uint32_t dependencyIdx;
-			JobInternalState state;
-			std::function<void()> func;
-		};
-
-		struct JobDependency: containers::ImplicitListItem {
-			uint32_t dependencyIdxNext;
-			JobHandle dependsOn;
-		};
-
-		using DepHandle = JobHandle;
-
-		class JobManager {
-			std::mutex m_jobsLock;
-			//! Implicit list of jobs
-			containers::ImplicitList<JobContainer, JobHandle> m_jobs;
-
-			std::mutex m_depsLock;
-			//! List of job dependencies
-			containers::ImplicitList<JobDependency, DepHandle> m_deps;
-
-		public:
-			//! Cleans up any job allocations and dependicies associated with \param jobHandle
-			void Complete(JobHandle jobHandle) {
-				// We need to release any dependencies related to this job
-				auto& job = m_jobs[jobHandle.id()];
-
-				if (job.state == JobInternalState::Released)
-					return;
-
-				uint32_t depIdx = job.dependencyIdx;
-				while (depIdx != (uint32_t)-1) {
-					auto& dep = m_deps[depIdx];
-					const uint32_t depIdxNext = dep.dependencyIdxNext;
-					Complete(dep.dependsOn);
-					DeallocateDependency(DepHandle{depIdx, 0});
-					depIdx = depIdxNext;
-				}
-
-				// Deallocate the job itself
-				DeallocateJob(jobHandle);
-			}
-
-			//! Allocates a new job container identified by a unique JobHandle.
-			//! \return JobHandle
-			//! \warning Must be used from the main thread.
-			GAIA_NODISCARD JobHandle AllocateJob(const Job& job) {
-				std::scoped_lock<std::mutex> lock(m_jobsLock);
-				auto handle = m_jobs.allocate();
-				auto& j = m_jobs[handle.id()];
-				GAIA_ASSERT(j.state == JobInternalState::Idle || j.state == JobInternalState::Released);
-				j.dependencyIdx = (uint32_t)-1;
-				j.state = JobInternalState::Idle;
-				j.func = job.func;
-				return handle;
-			}
-
-			//! Invalidates \param jobHandle by resetting its index in the job pool.
-			//! Everytime a job is deallocated its generation is increased by one.
-			//! \warning Must be used from the main thread.
-			void DeallocateJob(JobHandle jobHandle) {
-				// No need to lock. Called from the main thread only when the job has finished already.
-				// --> std::scoped_lock<std::mutex> lock(m_jobsLock);
-				auto& job = m_jobs.release(jobHandle);
-				job.state = JobInternalState::Released;
-			}
-
-			//! Allocates a new dependency identified by a unique DepHandle.
-			//! \return DepHandle
-			//! \warning Must be used from the main thread.
-			GAIA_NODISCARD DepHandle AllocateDependency() {
-				return m_deps.allocate();
-			}
-
-			//! Invalidates \param depHandle by resetting its index in the dependency pool.
-			//! Everytime a dependency is deallocated its generation is increased by one.
-			//! \warning Must be used from the main thread.
-			void DeallocateDependency(DepHandle depHandle) {
-				m_deps.release(depHandle);
-			}
-
-			//! Resets the job pool.
-			void Reset() {
-				{
-					// No need to lock. Called from the main thread only when all jobs have finished already.
-					// --> std::scoped_lock<std::mutex> lock(m_jobsLock);
-					m_jobs.clear();
-				}
-				{
-					// No need to lock. Called from the main thread only when all jobs must have ended already.
-					// --> std::scoped_lock<std::mutex> lock(m_depsLock);
-					m_deps.clear();
-				}
-			}
-
-			void Run(JobHandle jobHandle) {
-				std::function<void()> func;
-
-				{
-					std::scoped_lock<std::mutex> lock(m_jobsLock);
-					auto& job = m_jobs[jobHandle.id()];
-					job.state = JobInternalState::Running;
-					func = job.func;
-				}
-				if (func.operator bool())
-					func();
-				{
-					std::scoped_lock<std::mutex> lock(m_jobsLock);
-					auto& job = m_jobs[jobHandle.id()];
-					job.state = JobInternalState::Done;
-				}
-			}
-
-			//! Evaluates job dependencies.
-			//! \return True if job dependencies are met. False otherwise
-			GAIA_NODISCARD bool HandleDependencies(JobHandle jobHandle) {
-				GAIA_PROF_SCOPE(JobManager::HandleDeps);
-				std::scoped_lock<std::mutex> lockJobs(m_jobsLock);
-				auto& job = m_jobs[jobHandle.id()];
-				if (job.dependencyIdx == (uint32_t)-1)
-					return true;
-
-				uint32_t depsId = job.dependencyIdx;
-				{
-					std::scoped_lock<std::mutex> lockDeps(m_depsLock);
-
-					// Iterate over all dependencies.
-					// The first busy dependency breaks the loop. At this point we also update
-					// the initial dependency index because we know all previous dependencies
-					// have already finished and there's no need to check them.
-					do {
-						JobDependency dep = m_deps[depsId];
-						if (!IsDone(dep.dependsOn)) {
-							m_jobs[jobHandle.id()].dependencyIdx = depsId;
-							return false;
-						}
-
-						depsId = dep.dependencyIdxNext;
-					} while (depsId != (uint32_t)-1);
-				}
-
-				// No need to update the index because once we return true we execute the job.
-				// --> job.dependencyIdx = JobHandleInvalid.idx;
-				return true;
-			}
-
-			//! Makes \param jobHandle depend on \param dependsOn.
-			//! This means \param jobHandle will run only after \param dependsOn finishes.
-			//! \warning Must be used from the main thread.
-			//! \warning Needs to be called before any of the listed jobs are scheduled.
-			void AddDependency(JobHandle jobHandle, JobHandle dependsOn) {
-				std::scoped_lock<std::mutex> lockJobs(m_jobsLock);
-				auto& job = m_jobs[jobHandle.id()];
-
-#if GAIA_ASSERT_ENABLED
-				GAIA_ASSERT(jobHandle != dependsOn);
-				GAIA_ASSERT(!IsBusy(jobHandle));
-				GAIA_ASSERT(!IsBusy(dependsOn));
-#endif
-
-				{
-					GAIA_PROF_SCOPE(JobManager::AddDep);
-					std::scoped_lock<std::mutex> lockDeps(m_depsLock);
-
-					auto depHandle = AllocateDependency();
-					auto& dep = m_deps[depHandle.id()];
-					dep.dependsOn = dependsOn;
-
-					if (job.dependencyIdx == (uint32_t)-1)
-						// First time adding a dependency to this job. Point it to the first allocated handle
-						dep.dependencyIdxNext = (uint32_t)-1;
-					else
-						// We have existing dependencies. Point the last known one to the first allocated handle
-						dep.dependencyIdxNext = job.dependencyIdx;
-
-					job.dependencyIdx = depHandle.id();
-				}
-			}
-
-			//! Makes \param jobHandle depend on the jobs listed in \param dependsOnSpan.
-			//! This means \param jobHandle will run only after all \param dependsOnSpan jobs finish.
-			//! \warning Must be used from the main thread.
-			//! \warning Needs to be called before any of the listed jobs are scheduled.
-			void AddDependencies(JobHandle jobHandle, std::span<const JobHandle> dependsOnSpan) {
-				if (dependsOnSpan.empty())
-					return;
-
-				auto& job = m_jobs[jobHandle.id()];
-
-#if GAIA_ASSERT_ENABLED
-				GAIA_ASSERT(!IsBusy(jobHandle));
-				for (auto dependsOn: dependsOnSpan) {
-					GAIA_ASSERT(jobHandle != dependsOn);
-					GAIA_ASSERT(!IsBusy(dependsOn));
-				}
-#endif
-
-				GAIA_PROF_SCOPE(JobManager::AddDeps);
-				std::scoped_lock<std::mutex> lockJobs(m_jobsLock);
-				{
-					std::scoped_lock<std::mutex> lockDeps(m_depsLock);
-
-					for (uint32_t i = 0; i < dependsOnSpan.size(); ++i) {
-						auto depHandle = AllocateDependency();
-						auto& dep = m_deps[depHandle.id()];
-						dep.dependsOn = dependsOnSpan[i];
-
-						if (job.dependencyIdx == (uint32_t)-1)
-							// First time adding a dependency to this job. Point it to the first allocated handle
-							dep.dependencyIdxNext = (uint32_t)-1;
-						else
-							// We have existing dependencies. Point the last known one to the first allocated handle
-							dep.dependencyIdxNext = job.dependencyIdx;
-
-						job.dependencyIdx = depHandle.id();
-					}
-				}
-			}
-
-			void Submit(JobHandle jobHandle) {
-				auto& job = m_jobs[jobHandle.id()];
-				GAIA_ASSERT(job.state < JobInternalState::Submitted);
-				job.state = JobInternalState::Submitted;
-			}
-
-			void ReSubmit(JobHandle jobHandle) {
-				auto& job = m_jobs[jobHandle.id()];
-				GAIA_ASSERT(job.state <= JobInternalState::Submitted);
-				job.state = JobInternalState::Submitted;
-			}
-
-			GAIA_NODISCARD bool IsBusy(JobHandle jobHandle) const {
-				const auto& job = m_jobs[jobHandle.id()];
-				return ((uint32_t)job.state & (uint32_t)JobInternalState::Busy) != 0;
-			}
-
-			GAIA_NODISCARD bool IsDone(JobHandle jobHandle) const {
-				const auto& job = m_jobs[jobHandle.id()];
-				return ((uint32_t)job.state & (uint32_t)JobInternalState::Done) != 0;
-			}
-		};
-	} // namespace mt
-} // namespace gaia
-
-#define JOB_QUEUE_USE_LOCKS 1
-#if JOB_QUEUE_USE_LOCKS
-	
-	#include <mutex>
-#endif
-
-namespace gaia {
-	namespace mt {
-		class JobQueue {
-			static constexpr uint32_t N = 1 << 12;
-#if !JOB_QUEUE_USE_LOCKS
-			static constexpr uint32_t MASK = N - 1;
-#endif
-
-#if JOB_QUEUE_USE_LOCKS
-			std::mutex m_bufferLock;
-			containers::sringbuffer<JobHandle, N> m_buffer;
-#else
-			containers::sarray<JobHandle, N> m_buffer;
-			std::atomic_uint32_t m_bottom{};
-			std::atomic_uint32_t m_top{};
-#endif
-
-		public:
-			//! Tries adding a job to the queue. FIFO.
-			//! \return True if the job was added. False otherwise (e.g. maximum capacity has been reached).
-			GAIA_NODISCARD bool TryPush(JobHandle jobHandle) {
-				GAIA_PROF_SCOPE(JobQueue::TryPush);
-
-#if JOB_QUEUE_USE_LOCKS
-				std::scoped_lock<std::mutex> lock(m_bufferLock);
-				if (m_buffer.size() >= m_buffer.max_size())
-					return false;
-				m_buffer.push_back(jobHandle);
-#else
-				const uint32_t b = m_bottom.load(std::memory_order_acquire);
-
-				if (b >= m_buffer.size())
-					return false;
-
-				m_buffer[b & MASK] = jobHandle;
-
-				// Make sure the handle is written before we update the bottom
-				std::atomic_thread_fence(std::memory_order_release);
-
-				m_bottom.store(b + 1, std::memory_order_release);
-#endif
-
-				return true;
-			}
-
-			//! Tries retriving a job to the queue. FIFO.
-			//! \return True if the job was retrived. False otherwise (e.g. there are no jobs).
-			GAIA_NODISCARD bool TryPop(JobHandle& jobHandle) {
-				GAIA_PROF_SCOPE(JobQueue::TryPop);
-
-#if JOB_QUEUE_USE_LOCKS
-				std::scoped_lock<std::mutex> lock(m_bufferLock);
-				if (m_buffer.empty())
-					return false;
-
-				m_buffer.pop_front(jobHandle);
-#else
-				uint32_t b = m_bottom.load(std::memory_order_acquire);
-				if (b > 0) {
-					b = b - 1;
-					m_bottom.store(b, std::memory_order_release);
-				}
-
-				std::atomic_thread_fence(std::memory_order_release);
-
-				uint32_t t = m_top.load(std::memory_order_acquire);
-
-				// Queue already empty
-				if (t > b) {
-					m_bottom.store(t, std::memory_order_release);
-					return false;
-				}
-
-				jobHandle = m_buffer[b & MASK];
-
-				// The last item in the queue
-				if (t == b) {
-					if (t == 0) {
-						return false; // Queue is empty, nothing to pop
-					}
-					// Should multiple thread fight for the last item the atomic
-					// CAS ensures this last item is extracted only once.
-
-					uint32_t expectedTop = t;
-					const uint32_t nextTop = t + 1;
-					const uint32_t desiredTop = nextTop;
-
-					bool ret = m_top.compare_exchange_strong(expectedTop, desiredTop, std::memory_order_acq_rel);
-					m_bottom.store(nextTop, std::memory_order_release);
-					return ret;
-				}
-#endif
-
-				return true;
-			}
-
-			//! Tries stealing a job from the queue. LIFO.
-			//! \return True if the job was stolen. False otherwise (e.g. there are no jobs).
-			GAIA_NODISCARD bool TrySteal(JobHandle& jobHandle) {
-				GAIA_PROF_SCOPE(JobQueue::TrySteal);
-
-#if JOB_QUEUE_USE_LOCKS
-				std::scoped_lock<std::mutex> lock(m_bufferLock);
-				if (m_buffer.empty())
-					return false;
-
-				m_buffer.pop_back(jobHandle);
-#else
-				uint32_t t = m_top.load(std::memory_order_acquire);
-
-				std::atomic_thread_fence(std::memory_order_release);
-
-				uint32_t b = m_bottom.load(std::memory_order_acquire);
-
-				// Return false when empty
-				if (t >= b)
-					return false;
-
-				jobHandle = m_buffer[t & MASK];
-
-				const uint32_t tNext = t + 1;
-				uint32_t tDesired = tNext;
-				// We fail if concurrent pop()/steal() operation changed the current top
-				if (!m_top.compare_exchange_weak(t, tDesired, std::memory_order_acq_rel))
-					return false;
-#endif
-
-				return true;
-			}
-		};
-	} // namespace mt
-} // namespace gaia
-
-namespace gaia {
-	namespace mt {
-
-		class ThreadPool final {
-			std::thread::id m_mainThreadId;
-
-			//! List of worker threads
-			containers::sarr_ext<std::thread, 64> m_workers;
-			//! Manager for internal jobs
-			JobManager m_jobManager;
-			//! List of pending user jobs
-			JobQueue m_jobQueue;
-
-			//! How many jobs are currently being processed
-			std::atomic_uint32_t m_jobsPending;
-
-			std::mutex m_cvLock;
-			std::condition_variable m_cv;
-
-			//! When true the pool is supposed to finish all work and terminate all threads
-			bool m_stop;
-
-		private:
-			ThreadPool(): m_jobsPending(0), m_stop(false) {
-				uint32_t workerCount = CalculateThreadCount(0);
-				if (workerCount > m_workers.max_size())
-					workerCount = (uint32_t)m_workers.max_size();
-
-				m_workers.resize(workerCount);
-
-				m_mainThreadId = std::this_thread::get_id();
-
-				for (uint32_t i = 0; i < workerCount; ++i) {
-					m_workers[i] = std::thread([this, i]() {
-						// Set the worker thread name.
-						// Needs to be called from inside the thread because some platforms
-						// can change the name only when run from the specific thread.
-						SetThreadName(i);
-
-						// Process jobs
-						ThreadLoop();
-					});
-
-					// Stick each thread to a specific CPU core
-					SetThreadAffinity(i);
-				}
-			}
-
-			ThreadPool(ThreadPool&&) = delete;
-			ThreadPool(const ThreadPool&) = delete;
-			ThreadPool& operator=(ThreadPool&&) = delete;
-			ThreadPool& operator=(const ThreadPool&) = delete;
-
-		public:
-			static ThreadPool& Get() {
-				static ThreadPool threadPool;
-				return threadPool;
-			}
-
-			GAIA_NODISCARD uint32_t GetWorkersCount() const {
-				return (uint32_t)m_workers.size();
-			}
-
-			~ThreadPool() {
-				Reset();
-			}
-
-			//! Makes \param jobHandle depend on \param dependsOn.
-			//! This means \param jobHandle will run only after \param dependsOn finishes.
-			//! \warning Must be used from the main thread.
-			//! \warning Needs to be called before any of the listed jobs are scheduled.
-			void AddDependency(JobHandle jobHandle, JobHandle dependsOn) {
-				m_jobManager.AddDependency(jobHandle, dependsOn);
-			}
-
-			//! Makes \param jobHandle depend on the jobs listed in \param dependsOnSpan.
-			//! This means \param jobHandle will run only after all \param dependsOnSpan jobs finish.
-			//! \warning Must be used from the main thread.
-			//! \warning Needs to be called before any of the listed jobs are scheduled.
-			void AddDependencies(JobHandle jobHandle, std::span<const JobHandle> dependsOnSpan) {
-				m_jobManager.AddDependencies(jobHandle, dependsOnSpan);
-			}
-
-			//! Creates a job system job from \param job.
-			//! \warning Must be used from the main thread.
-			//! \return Job handle of the scheduled job.
-			JobHandle CreateJob(const Job& job) {
-				GAIA_ASSERT(IsMainThread());
-
-				// Don't add new jobs once stop was requested
-				if GAIA_UNLIKELY (m_stop)
-					return JobNull;
-
-				++m_jobsPending;
-
-				return m_jobManager.AllocateJob(job);
-			}
-
-			//! Pushes \param jobHandle into the internal queue so worker threads
-			//! can pick it up and execute it.
-			//! If there are more jobs than the queue can handle it puts the calling
-			//! thread to sleep until workers consume enough jobs.
-			//! \warning Once submited, dependencies can't be modified for this job.
-			void Submit(JobHandle jobHandle) {
-				m_jobManager.Submit(jobHandle);
-
-				// Try pushing a new job until it we succeed.
-				// The thread is put to sleep if pushing the jobs fails.
-				while (!m_jobQueue.TryPush(jobHandle))
-					Poll();
-
-				// Wake some worker thread
-				m_cv.notify_one();
-			}
-
-		private:
-			//! Resubmits \param jobHandle into the internal queue so worker threads
-			//! can pick it up and execute it.
-			//! If there are more jobs than the queue can handle it puts the calling
-			//! thread to sleep until workers consume enough jobs.
-			//! \warning Internal usage only. Only worker theads can decide to resubmit.
-			void ReSubmit(JobHandle jobHandle) {
-				m_jobManager.ReSubmit(jobHandle);
-
-				// Try pushing a new job until it we succeed.
-				// The thread is put to sleep if pushing the jobs fails.
-				while (!m_jobQueue.TryPush(jobHandle))
-					Poll();
-
-				// Wake some worker thread
-				m_cv.notify_one();
-			}
-
-		public:
-			//! Schedules a job to run on a worker thread.
-			//! \param job Job descriptor
-			//! \warning Must be used from the main thread.
-			//! \warning Dependencies can't be modified for this job.
-			//! \return Job handle of the scheduled job.
-			JobHandle Schedule(const Job& job) {
-				JobHandle jobHandle = CreateJob(job);
-				Submit(jobHandle);
-				return jobHandle;
-			}
-
-			//! Schedules a job to run on a worker thread.
-			//! \param job Job descriptor
-			//! \param dependsOn Job we depend on
-			//! \warning Must be used from the main thread.
-			//! \warning Dependencies can't be modified for this job.
-			//! \return Job handle of the scheduled job.
-			JobHandle Schedule(const Job& job, JobHandle dependsOn) {
-				JobHandle jobHandle = CreateJob(job);
-				AddDependency(jobHandle, dependsOn);
-				Submit(jobHandle);
-				return jobHandle;
-			}
-
-			//! Schedules a job to run on a worker thread.
-			//! \param job Job descriptor
-			//! \param dependsOnSpan Jobs we depend on
-			//! \warning Must be used from the main thread.
-			//! \warning Dependencies can't be modified for this job.
-			//! \return Job handle of the scheduled job.
-			JobHandle Schedule(const Job& job, std::span<const JobHandle> dependsOnSpan) {
-				JobHandle jobHandle = CreateJob(job);
-				AddDependencies(jobHandle, dependsOnSpan);
-				Submit(jobHandle);
-				return jobHandle;
-			}
-
-			//! Schedules a job to run on worker threads in parallel.
-			//! \param job Job descriptor
-			//! \param itemsToProcess Total number of work items
-			//! \param groupSize Group size per created job. If zero the job system decides the group size.
-			//! \warning Must be used from the main thread.
-			//! \warning Dependencies can't be modified for this job.
-			//! \return Job handle of the scheduled batch of jobs.
-			JobHandle ScheduleParallel(const JobParallel& job, uint32_t itemsToProcess, uint32_t groupSize) {
-				GAIA_ASSERT(IsMainThread());
-
-				// Empty data set are considered wrong inputs
-				GAIA_ASSERT(itemsToProcess != 0);
-				if (itemsToProcess == 0)
-					return JobNull;
-
-				// Don't add new jobs once stop was requested
-				if GAIA_UNLIKELY (m_stop)
-					return JobNull;
-
-				const uint32_t workerCount = (uint32_t)m_workers.size();
-
-				// No group size was given, make a guess based on the set size
-				if (groupSize == 0)
-					groupSize = (itemsToProcess + workerCount - 1) / workerCount;
-
-				const auto jobs = (itemsToProcess + groupSize - 1) / groupSize;
-				// Internal jobs + 1 for the groupHandle
-				m_jobsPending += (jobs + 1U);
-
-				JobHandle groupHandle = m_jobManager.AllocateJob({});
-
-				for (uint32_t jobIndex = 0; jobIndex < jobs; ++jobIndex) {
-					// Create one job per group
-					auto groupJobFunc = [job, itemsToProcess, groupSize, jobIndex]() {
-						const uint32_t groupJobIdxStart = jobIndex * groupSize;
-						const uint32_t groupJobIdxStartPlusGroupSize = groupJobIdxStart + groupSize;
-						const uint32_t groupJobIdxEnd =
-								groupJobIdxStartPlusGroupSize < itemsToProcess ? groupJobIdxStartPlusGroupSize : itemsToProcess;
-
-						JobArgs args;
-						args.idxStart = groupJobIdxStart;
-						args.idxEnd = groupJobIdxEnd;
-						job.func(args);
-					};
-
-					JobHandle jobHandle = m_jobManager.AllocateJob({groupJobFunc});
-					AddDependency(groupHandle, jobHandle);
-					Submit(jobHandle);
-				}
-
-				Submit(groupHandle);
-				return groupHandle;
-			}
-
-			//! Wait for the job to finish.
-			//! \param jobHandle Job handle
-			//! \warning Must be used from the main thread.
-			void Complete(JobHandle jobHandle) {
-				GAIA_ASSERT(IsMainThread());
-
-				while (m_jobManager.IsBusy(jobHandle))
-					Poll();
-
-				GAIA_ASSERT(!m_jobManager.IsBusy(jobHandle));
-				m_jobManager.Complete(jobHandle);
-			}
-
-			//! Wait for all jobs to finish.
-			//! \warning Must be used from the main thread.
-			void CompleteAll() {
-				GAIA_ASSERT(IsMainThread());
-
-				while (IsBusy())
-					PollAll();
-
-				GAIA_ASSERT(m_jobsPending == 0);
-				m_jobManager.Reset();
-			}
-
-		private:
-			void SetThreadAffinity(uint32_t threadID) {
-				// TODO:
-				// Some cores might have multiple logic threads, there might be
-				// more socket and some cores might even be physically different
-				// form others (performance vs efficiency cores).
-				// Therefore, we either need some more advanced logic here or we
-				// should completly drop the idea of assigning affinity and simply
-				// let the OS scheduler figure things out.
-#if GAIA_PLATFORM_WINDOWS
-				auto nativeHandle = (HANDLE)m_workers[threadID].native_handle();
-
-				auto mask = SetThreadAffinityMask(nativeHandle, 1ULL << threadID);
-				GAIA_ASSERT(mask > 0);
-				if (mask <= 0)
-					GAIA_LOG_W("Issue setting thread affinity for worker thread %u!", threadID);
-#elif GAIA_PLATFORM_APPLE
-				auto nativeHandle = (pthread_t)m_workers[threadID].native_handle();
-
-				mach_port_t mach_thread = pthread_mach_thread_np(nativeHandle);
-				thread_affinity_policy_data_t policy_data = {(int)threadID};
-				auto ret = thread_policy_set(
-						mach_thread, THREAD_AFFINITY_POLICY, (thread_policy_t)&policy_data, THREAD_AFFINITY_POLICY_COUNT);
-				GAIA_ASSERT(ret != 0);
-				if (ret == 0)
-					GAIA_LOG_W("Issue setting thread affinity for worker thread %u!", threadID);
-#elif GAIA_PLATFORM_LINUX || GAIA_PLATFORM_FREEBSD
-				auto nativeHandle = (pthread_t)m_workers[threadID].native_handle();
-
-				cpu_set_t cpuset;
-				CPU_ZERO(&cpuset);
-				CPU_SET(threadID, &cpuset);
-
-				auto ret = pthread_setaffinity_np(nativeHandle, sizeof(cpuset), &cpuset);
-				GAIA_ASSERT(ret == 0);
-				if (ret != 0)
-					GAIA_LOG_W("Issue setting thread affinity for worker thread %u!", threadID);
-
-				ret = pthread_getaffinity_np(nativeHandle, sizeof(cpuset), &cpuset);
-				GAIA_ASSERT(ret == 0);
-				if (ret != 0)
-					GAIA_LOG_W("Thread affinity could not be set for worker thread %u!", threadID);
-#endif
-			}
-
-			void SetThreadName(uint32_t threadID) {
-#if GAIA_PLATFORM_WINDOWS
-				auto nativeHandle = (HANDLE)m_workers[threadID].native_handle();
-
-				wchar_t threadName[10]{};
-				swprintf_s(threadName, L"worker_%u", threadID);
-				auto hr = SetThreadDescription(nativeHandle, threadName);
-				GAIA_ASSERT(SUCCEEDED(hr));
-				if (FAILED(hr))
-					GAIA_LOG_W("Issue setting worker thread name!");
-#elif GAIA_PLATFORM_APPLE
-				char threadName[10]{};
-				snprintf(threadName, 10, "worker_%u", threadID);
-				auto ret = pthread_setname_np(threadName);
-				GAIA_ASSERT(ret == 0);
-				if (ret != 0)
-					GAIA_LOG_W("Issue setting name for worker thread %u!", threadID);
-#elif GAIA_PLATFORM_LINUX || GAIA_PLATFORM_FREEBSD
-				auto nativeHandle = (pthread_t)m_workers[threadID].native_handle();
-
-				char threadName[10]{};
-				snprintf(threadName, 10, "worker_%u", threadID);
-				auto ret = pthread_setname_np(nativeHandle, threadName);
-				GAIA_ASSERT(ret == 0);
-				if (ret != 0)
-					GAIA_LOG_W("Issue setting name for worker thread %u!", threadID);
-#endif
-			}
-
-			GAIA_NODISCARD bool IsMainThread() const {
-				return std::this_thread::get_id() == m_mainThreadId;
-			}
-
-			GAIA_NODISCARD static uint32_t CalculateThreadCount(uint32_t threadsWanted) {
-				// Make sure a reasonable amount of threads is used
-				if (threadsWanted == 0) {
-					// Subtract one (the main thread)
-					threadsWanted = std::thread::hardware_concurrency() - 1;
-					if (threadsWanted <= 0)
-						threadsWanted = 1;
-				}
-				return threadsWanted;
-			}
-
-			void ThreadLoop() {
-				while (!m_stop) {
-					JobHandle jobHandle;
-
-					if (!m_jobQueue.TryPop(jobHandle)) {
-						std::unique_lock<std::mutex> lock(m_cvLock);
-						m_cv.wait(lock);
-						continue;
-					}
-
-					GAIA_ASSERT(m_jobsPending > 0);
-
-					// Make sure we can execute the job.
-					// If it has dependencies which were not completed we need to reschedule
-					// and come back to it later.
-					if (!m_jobManager.HandleDependencies(jobHandle)) {
-						ReSubmit(jobHandle);
-						continue;
-					}
-
-					m_jobManager.Run(jobHandle);
-					--m_jobsPending;
-				}
-			}
-
-			void Reset() {
-				// Request stopping
-				m_stop = true;
-				// Complete all remaining work
-				CompleteAll();
-				// Wake up any threads that were put to sleep
-				m_cv.notify_all();
-				// Join threads with the main one
-				for (auto& w: m_workers)
-					w.join();
-			}
-
-			//! Checks whether workers are busy doing work.
-			//!	\return True if any workers are busy doing work.
-			GAIA_NODISCARD bool IsBusy() const {
-				return m_jobsPending > 0;
-			}
-
-			//! Wakes up some worker thread and reschedules the current one.
-			void Poll() {
-				// Wake some worker thread
-				m_cv.notify_one();
-
-				// Allow this thread to be rescheduled
-				std::this_thread::yield();
-			}
-
-			//! Wakes up all worker threads and reschedules the current one.
-			void PollAll() {
-				// Wake some worker thread
-				m_cv.notify_all();
-
-				// Allow this thread to be rescheduled
-				std::this_thread::yield();
-			}
-		};
-	} // namespace mt
-} // namespace gaia
