@@ -347,7 +347,7 @@ namespace gaia {
 			}
 
 			constexpr void resize(size_type size) noexcept {
-				GAIA_ASSERT(size < N);
+				GAIA_ASSERT(size <= N);
 				m_cnt = size;
 			}
 

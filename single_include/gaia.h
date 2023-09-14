@@ -5040,7 +5040,7 @@ namespace gaia {
 
 				pointer pDataOld = m_pData;
 				m_pData = new T[count];
-				if (pDataOld != nullptr) {
+				if GAIA_LIKELY (pDataOld != nullptr) {
 					utils::move_elements(m_pData, pDataOld, size());
 					delete[] pDataOld;
 				}
@@ -5438,7 +5438,8 @@ namespace gaia {
 				*this = other;
 			}
 			dbitset& operator=(const dbitset& other) {
-				GAIA_ASSERT(this != &other);
+				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
+
 				resize(other.m_cnt);
 				utils::copy_elements(m_pData, other.m_pData, other.Items());
 				return *this;
@@ -5448,7 +5449,7 @@ namespace gaia {
 				*this = std::move(other);
 			}
 			dbitset& operator=(dbitset&& other) noexcept {
-				GAIA_ASSERT(this != &other);
+				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
 
 				m_pData = other.m_pData;
 				m_cnt = other.m_cnt;
@@ -8450,7 +8451,7 @@ namespace gaia {
 			}
 
 			constexpr void resize(size_type size) noexcept {
-				GAIA_ASSERT(size < N);
+				GAIA_ASSERT(size <= N);
 				m_cnt = size;
 			}
 
@@ -13286,25 +13287,18 @@ namespace gaia {
 			}
 
 			void resize(size_type count) {
-				if (count <= extent) {
+				if (count <= extent || count <= m_cap) {
 					m_cnt = count;
 					return;
 				}
 
-				if (count <= m_cap) {
-					m_cnt = count;
-					return;
-				}
-
-				if (m_pDataHeap) {
-					T* old = m_pDataHeap;
-					m_pDataHeap = new T[count];
-					utils::move_elements(m_pDataHeap, old, size());
-					delete[] old;
-				} else {
-					m_pDataHeap = new T[count];
+				pointer pOldData = m_pDataHeap;
+				m_pDataHeap = new T[count];
+				if (pOldData != nullptr) {
+					utils::move_elements(m_pDataHeap, pOldData, size());
+					delete[] pOldData;
+				} else
 					utils::move_elements(m_pDataHeap, m_data, size());
-				}
 
 				m_cap = count;
 				m_cnt = count;
