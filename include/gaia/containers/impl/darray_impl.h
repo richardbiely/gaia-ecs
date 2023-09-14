@@ -335,7 +335,7 @@ namespace gaia {
 
 				pointer pDataOld = m_pData;
 				m_pData = new T[count];
-				if (pDataOld != nullptr) {
+				if GAIA_LIKELY (pDataOld != nullptr) {
 					utils::move_elements(m_pData, pDataOld, size());
 					delete[] pDataOld;
 				}

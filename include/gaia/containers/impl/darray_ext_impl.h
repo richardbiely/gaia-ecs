@@ -360,25 +360,18 @@ namespace gaia {
 			}
 
 			void resize(size_type count) {
-				if (count <= extent) {
+				if (count <= extent || count <= m_cap) {
 					m_cnt = count;
 					return;
 				}
 
-				if (count <= m_cap) {
-					m_cnt = count;
-					return;
-				}
-
-				if (m_pDataHeap) {
-					T* old = m_pDataHeap;
-					m_pDataHeap = new T[count];
-					utils::move_elements(m_pDataHeap, old, size());
-					delete[] old;
-				} else {
-					m_pDataHeap = new T[count];
+				pointer pOldData = m_pDataHeap;
+				m_pDataHeap = new T[count];
+				if (pOldData != nullptr) {
+					utils::move_elements(m_pDataHeap, pOldData, size());
+					delete[] pOldData;
+				} else
 					utils::move_elements(m_pDataHeap, m_data, size());
-				}
 
 				m_cap = count;
 				m_cnt = count;

@@ -225,7 +225,8 @@ namespace gaia {
 				*this = other;
 			}
 			dbitset& operator=(const dbitset& other) {
-				GAIA_ASSERT(this != &other);
+				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
+
 				resize(other.m_cnt);
 				utils::copy_elements(m_pData, other.m_pData, other.Items());
 				return *this;
@@ -235,7 +236,7 @@ namespace gaia {
 				*this = std::move(other);
 			}
 			dbitset& operator=(dbitset&& other) noexcept {
-				GAIA_ASSERT(this != &other);
+				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
 
 				m_pData = other.m_pData;
 				m_cnt = other.m_cnt;
