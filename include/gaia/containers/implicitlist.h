@@ -4,7 +4,7 @@
 #include <cinttypes>
 #include <type_traits>
 
-#include "darray.h"
+#include "impl/darray_impl.h"
 
 namespace gaia {
 	namespace containers {
@@ -18,11 +18,11 @@ namespace gaia {
 
 		template <typename TListItem, typename TItemHandle>
 		struct ImplicitList {
-			using internal_storage = darray<TListItem>;
+			using internal_storage = containers::darr<TListItem>;
 			using iterator = typename internal_storage::iterator;
 			using const_iterator = typename internal_storage::const_iterator;
 
-			using iterator_category = typename internal_storage::iterator_category;
+			using iterator_category = typename internal_storage::iterator::iterator_category;
 			using value_type = TListItem;
 			using reference = TListItem&;
 			using const_reference = const TListItem&;
@@ -33,7 +33,7 @@ namespace gaia {
 
 			static_assert(std::is_base_of<ImplicitListItem, TListItem>::value);
 			//! Implicit list items
-			darray<TListItem> m_items;
+			darr<TListItem> m_items;
 			//! Index of the next item to recycle
 			size_type m_nextFreeIdx = (size_type)-1;
 			//! Number of items to recycle
@@ -108,7 +108,7 @@ namespace gaia {
 					const auto itemCnt = (size_type)m_items.size();
 					GAIA_ASSERT(itemCnt < TItemHandle::IdMask && "Trying to allocate too many items!");
 
-					m_items.emplace_back(itemCnt, 0U);
+					m_items.push_back({itemCnt, 0U});
 					return {itemCnt, 0U};
 				}
 

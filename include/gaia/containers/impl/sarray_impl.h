@@ -12,7 +12,6 @@ namespace gaia {
 		template <typename T, size_t N>
 		class sarr {
 		public:
-			using iterator_category = GAIA_UTIL::random_access_iterator_tag;
 			using value_type = T;
 			using reference = T&;
 			using const_reference = const T&;

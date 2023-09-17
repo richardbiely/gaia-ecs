@@ -393,13 +393,14 @@ namespace gaia {
 				try_grow();
 
 				reference ref = m_pData[m_cnt++];
-				ref = {std::forward<Args>(args)...};
+				::new (&ref) T(std::forward<Args>(args)...);
 				return ref;
 			}
 
 			void pop_back() noexcept {
 				GAIA_ASSERT(!empty());
-				--m_cnt;
+				reference ref = m_pData[--m_cnt];
+				ref.~T();
 			}
 
 			GAIA_NODISCARD iterator erase(iterator pos) noexcept {

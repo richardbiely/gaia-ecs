@@ -115,16 +115,6 @@ namespace gaia {
 				++m_size;
 			}
 
-			template <typename... Args>
-			reference emplace_back(Args&&... args) {
-				GAIA_ASSERT(m_size < N);
-				const auto head = (m_tail + m_size) % N;
-				reference ref = m_data[head];
-				ref = {std::forward<Args>(args)...};
-				++m_size;
-				return ref;
-			}
-
 			void pop_front(T& out) {
 				GAIA_ASSERT(!empty());
 				out = m_data[m_tail];
