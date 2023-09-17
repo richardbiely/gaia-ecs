@@ -425,8 +425,6 @@ namespace gaia {
 						auto* pDst = (void*)&GetData(idxDst);
 						desc.CtorFrom(pSrc, pDst);
 					}
-
-					// Update the entity container
 				}
 
 				/*!
@@ -532,7 +530,7 @@ namespace gaia {
 				\param entity Entity to store in the chunk
 				*/
 				void SetEntity(uint32_t index, Entity entity) {
-					GAIA_ASSERT(index < m_header.count && "Entity index in chunk out of bounds!");
+					GAIA_ASSERT(index < m_header.count && "Entity chunk index out of bounds!");
 
 					const auto offset = sizeof(Entity) * index + m_header.offsets.firstByte_EntityData;
 					utils::unaligned_ref<Entity> mem((void*)&m_data[offset]);
@@ -545,7 +543,7 @@ namespace gaia {
 				\return Entity on a given index within the chunk.
 				*/
 				GAIA_NODISCARD Entity GetEntity(uint32_t index) const {
-					GAIA_ASSERT(index < m_header.count && "Entity index in chunk out of bounds!");
+					GAIA_ASSERT(index < m_header.count && "Entity chunk index out of bounds!");
 
 					const auto offset = sizeof(Entity) * index + m_header.offsets.firstByte_EntityData;
 					utils::unaligned_ref<Entity> mem((void*)&m_data[offset]);
@@ -555,9 +553,11 @@ namespace gaia {
 				/*!
 				Enables or disables the entity on a given index in the chunk.
 				\param index Index of the entity
-				\param enableEntity Enables the entity
+				\param enableEntity Enables or disabled the entity
 				*/
 				void EnableEntity(uint32_t index, bool enableEntity) {
+					GAIA_ASSERT(index < m_header.count && "Entity chunk index out of bounds!");
+
 					if (enableEntity) {
 						m_header.disabledEntityMask.set(index, false);
 						SetDisabled(m_header.disabledEntityMask.any());

@@ -8899,8 +8899,8 @@ namespace gaia {
 namespace gaia {
 	namespace containers {
 		struct ImplicitListItem {
-			//! For allocated entity: Index of entity within chunk.
-			//! For deleted entity: Index of the next entity in the implicit list.
+			//! Allocated items: Index in the list.
+			//! Deleted items: Index of the next deleted item in the list.
 			uint32_t idx;
 			//! Generation ID
 			uint32_t gen;
@@ -11077,9 +11077,9 @@ namespace gaia {
 			static constexpr EntityInternalType IdMask = (uint32_t)(uint64_t(1) << IdBits) - 1;
 			static constexpr EntityInternalType GenMask = (uint32_t)(uint64_t(1) << GenBits) - 1;
 
-			using EntitySizeType = std::conditional_t<(IdBits + GenBits > 32), uint64_t, uint32_t>;
-
-			static_assert(IdBits + GenBits <= 64, "Entity IdBits and GenBits must fit inside 64 bits");
+			static constexpr uint32_t EntityBitsTotal = IdBits + GenBits;
+			using EntitySizeType = std::conditional_t<(EntityBitsTotal > 32), uint64_t, uint32_t>;
+			static_assert(EntityBitsTotal <= 64, "EntityBitsTotal must fit inside 64 bits");
 			static_assert(IdBits <= 31, "Entity IdBits must be at most 31 bits long");
 			static_assert(GenBits > 10, "Entity GenBits is recommended to be at least 10 bits long");
 
@@ -11579,8 +11579,6 @@ namespace gaia {
 						auto* pDst = (void*)&GetData(idxDst);
 						desc.CtorFrom(pSrc, pDst);
 					}
-
-					// Update the entity container
 				}
 
 				/*!
@@ -11686,7 +11684,7 @@ namespace gaia {
 				\param entity Entity to store in the chunk
 				*/
 				void SetEntity(uint32_t index, Entity entity) {
-					GAIA_ASSERT(index < m_header.count && "Entity index in chunk out of bounds!");
+					GAIA_ASSERT(index < m_header.count && "Entity chunk index out of bounds!");
 
 					const auto offset = sizeof(Entity) * index + m_header.offsets.firstByte_EntityData;
 					utils::unaligned_ref<Entity> mem((void*)&m_data[offset]);
@@ -11699,7 +11697,7 @@ namespace gaia {
 				\return Entity on a given index within the chunk.
 				*/
 				GAIA_NODISCARD Entity GetEntity(uint32_t index) const {
-					GAIA_ASSERT(index < m_header.count && "Entity index in chunk out of bounds!");
+					GAIA_ASSERT(index < m_header.count && "Entity chunk index out of bounds!");
 
 					const auto offset = sizeof(Entity) * index + m_header.offsets.firstByte_EntityData;
 					utils::unaligned_ref<Entity> mem((void*)&m_data[offset]);
@@ -11709,9 +11707,11 @@ namespace gaia {
 				/*!
 				Enables or disables the entity on a given index in the chunk.
 				\param index Index of the entity
-				\param enableEntity Enables the entity
+				\param enableEntity Enables or disabled the entity
 				*/
 				void EnableEntity(uint32_t index, bool enableEntity) {
+					GAIA_ASSERT(index < m_header.count && "Entity chunk index out of bounds!");
+
 					if (enableEntity) {
 						m_header.disabledEntityMask.set(index, false);
 						SetDisabled(m_header.disabledEntityMask.any());
@@ -15437,34 +15437,51 @@ namespace gaia {
 			//! Remove an entity from chunk.
 			//! \param pChunk Chunk we remove the entity from
 			//! \param entityChunkIndex Index of entity within its chunk
-			void RemoveEntity(archetype::Chunk* pChunk, uint32_t entityChunkIndex, bool releaseEntity) {
+			//! \tparam IsEntityReleaseWanted True if entity is to be released as well. False otherwise.
+			template <bool IsEntityReleaseWanted>
+			void RemoveEntity(archetype::Chunk* pChunk, uint32_t entityChunkIndex) {
 				GAIA_ASSERT(
 						!pChunk->IsStructuralChangesLocked() && "Entities can't be removed while their chunk is being iterated "
 																										"(structural changes are forbidden during this time!)");
 
-				if (!pChunk->HasEntities())
+				const auto chunkEntityCount = pChunk->GetEntityCount();
+				if GAIA_UNLIKELY (chunkEntityCount == 0)
 					return;
 
 				GAIA_PROF_SCOPE(RemoveEntity);
 
-#if GAIA_AVOID_CHUNK_FRAGMENTATION
 				auto entity = pChunk->GetEntity(entityChunkIndex);
 				auto& archetype = *m_archetypes[pChunk->GetArchetypeId()];
 
+#if GAIA_AVOID_CHUNK_FRAGMENTATION
 				// Swap the last entity in the last chunk with the entity spot we just created by moving
 				// the entity to somewhere else.
-				const bool isDisabled = pChunk->HasDisabledEntities();
-				auto* pLastChunk = isDisabled ? archetype.FindFirstNonEmptyChunkDisabled() : archetype.FindFirstNonEmptyChunk();
-				if (pLastChunk == pChunk) {
+				auto* pOldChunk = archetype.FindFirstNonEmptyChunk();
+				if (pOldChunk == pChunk) {
+					const uint32_t lastEntityIdx = pChunk->GetEntityCount() - 1;
+					const bool wasDisabled = pChunk->GetDisabledEntityMask().test(lastEntityIdx);
+
+					// Transfer data form the last entity to the new one
 					pChunk->SwapEntitiesInsideChunkAndDeleteOld(entityChunkIndex, m_entities);
 					pChunk->RemoveLastEntity(m_chunksToRemove);
-				} else if (pLastChunk != nullptr && pLastChunk->HasEntities()) {
-					const uint32_t lastEntityIdx = pLastChunk->GetEntityCount() - 1;
-					auto lastEntity = pLastChunk->GetEntity(lastEntityIdx);
+
+					// Transfer the disabled state
+					if GAIA_LIKELY (pChunk->HasEntities())
+						archetype.EnableEntity(pChunk, entityChunkIndex, !wasDisabled);
+				} else if (pOldChunk != nullptr && pOldChunk->HasEntities()) {
+					const uint32_t lastEntityIdx = pOldChunk->GetEntityCount() - 1;
+					const bool wasDisabled = pOldChunk->GetDisabledEntityMask().test(lastEntityIdx);
+
+					// Transfer data form the old chunk to the new one
+					auto lastEntity = pOldChunk->GetEntity(lastEntityIdx);
 					pChunk->SetEntity(entityChunkIndex, lastEntity);
 					pChunk->MoveEntityData(lastEntity, entityChunkIndex, m_entities);
-					pLastChunk->RemoveLastEntity(m_chunksToRemove);
-					pLastChunk->UpdateVersions();
+					pOldChunk->RemoveLastEntity(m_chunksToRemove);
+					pOldChunk->UpdateVersions();
+
+					// Transfer the disabled state
+					if GAIA_LIKELY (pChunk->HasEntities())
+						archetype.EnableEntity(pChunk, entityChunkIndex, !wasDisabled);
 
 					auto& lastEntityContainer = m_entities[lastEntity.id()];
 					lastEntityContainer.pChunk = pChunk;
@@ -15473,18 +15490,31 @@ namespace gaia {
 				}
 
 				pChunk->UpdateVersions();
-				if (releaseEntity)
+				if constexpr (IsEntityReleaseWanted)
 					ReleaseEntity(entity);
 
 				archetype.VerifyChunksFramentation();
 #else
-				if (releaseEntity) {
+				const uint32_t lastEntityIdx = chunkEntityCount - 1;
+				const bool wasDisabled = pChunk->GetDisabledEntityMask().test(lastEntityIdx);
+
+				if constexpr (IsEntityReleaseWanted) {
 					auto entity = pChunk->GetEntity(entityChunkIndex);
 					pChunk->SwapEntitiesInsideChunkAndDeleteOld(entityChunkIndex, m_entities);
+
+					// Transfer the disabled state is possible
+					if GAIA_LIKELY (chunkEntityCount > 0)
+						archetype.EnableEntity(pChunk, entityChunkIndex, !wasDisabled);
+
 					pChunk->RemoveLastEntity(m_chunksToRemove);
 					ReleaseEntity(entity);
 				} else {
 					pChunk->SwapEntitiesInsideChunkAndDeleteOld(entityChunkIndex, m_entities);
+
+					// Transfer the disabled state is possible
+					if GAIA_LIKELY (chunkEntityCount > 0)
+						archetype.EnableEntity(pChunk, entityChunkIndex, !wasDisabled);
+
 					pChunk->RemoveLastEntity(m_chunksToRemove);
 				}
 
@@ -15863,23 +15893,33 @@ namespace gaia {
 
 				auto& entityContainer = m_entities[oldEntity.id()];
 				auto* pOldChunk = entityContainer.pChunk;
+
 				const auto oldIndex = entityContainer.idx;
 				const auto newIndex = pNewChunk->AddEntity(oldEntity);
 
-				// Move data from the old chunk to the new one
-				if (pOldChunk->GetArchetypeId() == pNewChunk->GetArchetypeId())
-					pNewChunk->MoveEntityData(oldEntity, newIndex, m_entities);
-				else
-					pNewChunk->MoveForeignEntityData(oldEntity, newIndex, m_entities);
+				// Transfer the disabled state
+				const bool wasDisabled = pOldChunk->GetDisabledEntityMask().test(oldIndex);
+				auto& newArchetype = *m_archetypes[pNewChunk->GetArchetypeId()];
+				newArchetype.EnableEntity(pNewChunk, newIndex, !wasDisabled);
+
+				// No data movement necessary when dealing with the root archetype
+				if GAIA_LIKELY (pNewChunk->GetArchetypeId() + pOldChunk->GetArchetypeId() != 0) {
+					// Move data from the old chunk to the new one
+					if (pOldChunk->GetArchetypeId() == pNewChunk->GetArchetypeId())
+						pNewChunk->MoveEntityData(oldEntity, newIndex, m_entities);
+					else
+						pNewChunk->MoveForeignEntityData(oldEntity, newIndex, m_entities);
+				}
 
 				// Remove the entity record from the old chunk
-				RemoveEntity(pOldChunk, oldIndex, false);
+				RemoveEntity<false>(pOldChunk, oldIndex);
 
 				// Make the entity point to the new chunk
 				entityContainer.pChunk = pNewChunk;
 				entityContainer.idx = newIndex;
 				entityContainer.gen = oldEntity.gen();
 
+				// End-state validation
 				ValidateChunk(pOldChunk);
 				ValidateChunk(pNewChunk);
 				ValidateEntityList();
@@ -15937,14 +15977,15 @@ namespace gaia {
 
 				auto* pChunk = entityContainer.pChunk;
 
+				GAIA_ASSERT(pChunk != nullptr);
+				GAIA_ASSERT(
+						!pChunk->IsStructuralChangesLocked() && "New components can't be added while their chunk is being iterated "
+																										"(structural changes are forbidden during this time!)");
+
 				// Adding a component to an entity which already is a part of some chunk
-				if (pChunk != nullptr) {
+				{
 					auto& archetype = *m_archetypes[pChunk->GetArchetypeId()];
 
-					GAIA_ASSERT(
-							!pChunk->IsStructuralChangesLocked() &&
-							"New components can't be added while their chunk is being iterated "
-							"(structural changes are forbidden during this time!)");
 #if GAIA_DEBUG
 					VerifyAddComponent(archetype, entity, componentType, infoToAdd);
 #endif
@@ -15952,18 +15993,6 @@ namespace gaia {
 					auto* pTargetArchetype = FindOrCreateArchetype_AddComponent(&archetype, componentType, infoToAdd);
 					MoveEntity(entity, *pTargetArchetype);
 					pChunk = entityContainer.pChunk;
-				}
-				// Adding a component to an empty entity
-				else {
-					auto& archetype = const_cast<archetype::Archetype&>(*m_archetypes[0]);
-
-#if GAIA_DEBUG
-					VerifyAddComponent(archetype, entity, componentType, infoToAdd);
-#endif
-
-					auto* pTargetArchetype = FindOrCreateArchetype_AddComponent(&archetype, componentType, infoToAdd);
-					pChunk = pTargetArchetype->FindOrCreateFreeChunk();
-					StoreEntity(entity, pChunk);
 				}
 
 				// Call the constructor for the newly added component if necessary
@@ -15981,11 +16010,14 @@ namespace gaia {
 
 				auto& entityContainer = m_entities[entity.id()];
 				auto* pChunk = entityContainer.pChunk;
-				auto& archetype = *m_archetypes[pChunk->GetArchetypeId()];
 
+				GAIA_ASSERT(pChunk != nullptr);
 				GAIA_ASSERT(
 						!pChunk->IsStructuralChangesLocked() && "Components can't be removed while their chunk is being iterated "
 																										"(structural changes are forbidden during this time!)");
+
+				auto& archetype = *m_archetypes[pChunk->GetArchetypeId()];
+
 #if GAIA_DEBUG
 				VerifyRemoveComponent(archetype, entity, componentType, infoToRemove);
 #endif
@@ -16022,13 +16054,10 @@ namespace gaia {
 			//! Creates a new entity from archetype
 			//! \return Entity
 			GAIA_NODISCARD Entity CreateEntity(archetype::Archetype& archetype) {
-				const auto entity = CreateEntity();
+				const auto entity = m_entities.allocate();
 
 				const auto& entityContainer = m_entities[entity.id()];
-
-				auto* pChunk = entityContainer.pChunk;
-				if (pChunk == nullptr)
-					pChunk = archetype.FindOrCreateFreeChunk();
+				auto* pChunk = archetype.FindOrCreateFreeChunk();
 
 				StoreEntity(entity, pChunk);
 
@@ -16088,22 +16117,38 @@ namespace gaia {
 			World& operator=(World&&) = delete;
 			World& operator=(const World&) = delete;
 
+			//! Checks if \param entity is valid.
+			//! \return True is the entity is valid. False otherwise.
 			GAIA_NODISCARD bool IsEntityValid(Entity entity) const {
 				// Entity ID has to fit inside the entity array
 				if (entity.id() >= m_entities.size())
 					return false;
 
 				const auto& entityContainer = m_entities[entity.id()];
+
 				// Generation ID has to match the one in the array
 				if (entityContainer.gen != entity.gen())
 					return false;
-				// If chunk information is present the entity at the pointed index has to match our entity
-				if ((entityContainer.pChunk != nullptr) && entityContainer.pChunk->GetEntity(entityContainer.idx) != entity)
-					return false;
 
-				return true;
+				// The entity in the chunk must match the index in the entity container
+				auto* pChunk = entityContainer.pChunk;
+				return pChunk != nullptr && pChunk->GetEntity(entityContainer.idx) == entity;
 			}
 
+			//! Checks if \param entity is currently used by the world.
+			//! \return True is the entity is used. False otherwise.
+			GAIA_NODISCARD bool IsEntityUsed(Entity entity) const {
+				// Entity ID has to fit inside the entity array
+				if (entity.id() >= m_entities.size())
+					return false;
+
+				// Index of the entity must fit inside the chunk
+				const auto& entityContainer = m_entities[entity.id()];
+				auto* pChunk = entityContainer.pChunk;
+				return pChunk != nullptr && entityContainer.idx < pChunk->GetEntityCount();
+			}
+
+			//! Clears the world so that all its entities and components are released
 			void Cleanup() {
 				// Clear entities
 				m_entities.clear();
@@ -16131,22 +16176,22 @@ namespace gaia {
 			//----------------------------------------------------------------------
 
 			//! Creates a new empty entity
-			//! \return Entity
+			//! \return New entity
 			GAIA_NODISCARD Entity CreateEntity() {
-				return m_entities.allocate();
+				const auto entity = m_entities.allocate();
+				auto* pChunk = m_archetypes[0]->FindOrCreateFreeChunk();
+				StoreEntity(entity, pChunk);
+				return entity;
 			}
 
 			//! Creates a new entity by cloning an already existing one.
-			//! \param entity Entity
-			//! \return Entity
+			//! \param entity Entity to clone
+			//! \return New entity
 			GAIA_NODISCARD Entity CreateEntity(Entity entity) {
 				auto& entityContainer = m_entities[entity.id()];
 
 				auto* pChunk = entityContainer.pChunk;
-
-				// If the reference entity doesn't have any chunk assigned create a chunkless one
-				if GAIA_UNLIKELY (pChunk == nullptr)
-					return CreateEntity();
+				GAIA_ASSERT(pChunk != nullptr);
 
 				auto& archetype = *m_archetypes[pChunk->GetArchetypeId()];
 				const auto newEntity = CreateEntity(archetype);
@@ -16157,18 +16202,18 @@ namespace gaia {
 			}
 
 			//! Removes an entity along with all data associated with it.
-			//! \param entity Entity
+			//! \param entity Entity to delete
 			void DeleteEntity(Entity entity) {
 				if (m_entities.item_count() == 0 || entity == EntityNull)
 					return;
 
 				GAIA_ASSERT(IsEntityValid(entity));
 
-				auto& entityContainer = m_entities[entity.id()];
+				const auto& entityContainer = m_entities[entity.id()];
 
 				// Remove entity from chunk
 				if (auto* pChunk = entityContainer.pChunk) {
-					RemoveEntity(pChunk, entityContainer.idx, true);
+					RemoveEntity<true>(pChunk, entityContainer.idx);
 					ValidateChunk(pChunk);
 					ValidateEntityList();
 				} else {
@@ -16193,13 +16238,27 @@ namespace gaia {
 				}
 			}
 
+			//! Checks if an entity is valid.
+			//! \param entity Entity
+			//! \return True it the entity is valid. False otherwise.
+			bool IsEnabled(Entity entity) const {
+				GAIA_ASSERT(IsEntityValid(entity));
+
+				const auto& entityContainer = m_entities[entity.id()];
+				const auto* pChunk = entityContainer.pChunk;
+
+				GAIA_ASSERT(pChunk != nullptr);
+
+				return !pChunk->GetDisabledEntityMask().test(entityContainer.idx);
+			}
+
 			//! Returns the number of active entities
 			//! \return Entity
 			GAIA_NODISCARD GAIA_FORCEINLINE uint32_t GetEntityCount() const {
 				return m_entities.item_count();
 			}
 
-			//! Returns an entity at a given position
+			//! Returns an entity at the index \param idx
 			//! \return Entity
 			GAIA_NODISCARD Entity GetEntity(uint32_t idx) const {
 				GAIA_ASSERT(idx < m_entities.size());
@@ -16207,7 +16266,7 @@ namespace gaia {
 				return {idx, entityContainer.gen};
 			}
 
-			//! Returns a chunk containing the given entity.
+			//! Returns a chunk containing the \param entity.
 			//! \return Chunk or nullptr if not found.
 			GAIA_NODISCARD archetype::Chunk* GetChunk(Entity entity) const {
 				GAIA_ASSERT(entity.id() < m_entities.size());
@@ -16215,7 +16274,7 @@ namespace gaia {
 				return entityContainer.pChunk;
 			}
 
-			//! Returns a chunk containing the given entity.
+			//! Returns a chunk containing the \param entity.
 			//! Index of the entity is stored in \param indexInChunk
 			//! \return Chunk or nullptr if not found
 			GAIA_NODISCARD archetype::Chunk* GetChunk(Entity entity, uint32_t& indexInChunk) const {

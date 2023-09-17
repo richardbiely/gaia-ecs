@@ -9,8 +9,8 @@
 namespace gaia {
 	namespace containers {
 		struct ImplicitListItem {
-			//! For allocated entity: Index of entity within chunk.
-			//! For deleted entity: Index of the next entity in the implicit list.
+			//! Allocated items: Index in the list.
+			//! Deleted items: Index of the next deleted item in the list.
 			uint32_t idx;
 			//! Generation ID
 			uint32_t gen;
