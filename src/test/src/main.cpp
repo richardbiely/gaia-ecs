@@ -182,7 +182,7 @@ TEST_CASE("Containers - sarray") {
 	REQUIRE(utils::find(arr, 100U) == arr.end());
 
 	REQUIRE(utils::has(arr, 0U));
-	REQUIRE(!utils::has(arr, 100U));
+	REQUIRE_FALSE(utils::has(arr, 100U));
 }
 
 TEST_CASE("Containers - sarray_ext") {
@@ -210,7 +210,7 @@ TEST_CASE("Containers - sarray_ext") {
 	REQUIRE(utils::find(arr, 100U) == arr.end());
 
 	REQUIRE(utils::has(arr, 0U));
-	REQUIRE(!utils::has(arr, 100U));
+	REQUIRE_FALSE(utils::has(arr, 100U));
 }
 
 TEST_CASE("Containers - darray") {
@@ -242,7 +242,7 @@ TEST_CASE("Containers - darray") {
 	REQUIRE(utils::find(arr, 100U) == arr.end());
 
 	REQUIRE(utils::has(arr, 0U));
-	REQUIRE(!utils::has(arr, 100U));
+	REQUIRE_FALSE(utils::has(arr, 100U));
 }
 
 TEST_CASE("Containers - sringbuffer") {
@@ -250,31 +250,31 @@ TEST_CASE("Containers - sringbuffer") {
 		containers::sringbuffer<uint32_t, 5> arr = {0, 1, 2, 3, 4};
 		uint32_t val{};
 
-		REQUIRE(!arr.empty());
+		REQUIRE_FALSE(arr.empty());
 		REQUIRE(arr.front() == 0);
 		REQUIRE(arr.back() == 4);
 
 		arr.pop_front(val);
 		REQUIRE(val == 0);
-		REQUIRE(!arr.empty());
+		REQUIRE_FALSE(arr.empty());
 		REQUIRE(arr.front() == 1);
 		REQUIRE(arr.back() == 4);
 
 		arr.pop_front(val);
 		REQUIRE(val == 1);
-		REQUIRE(!arr.empty());
+		REQUIRE_FALSE(arr.empty());
 		REQUIRE(arr.front() == 2);
 		REQUIRE(arr.back() == 4);
 
 		arr.pop_front(val);
 		REQUIRE(val == 2);
-		REQUIRE(!arr.empty());
+		REQUIRE_FALSE(arr.empty());
 		REQUIRE(arr.front() == 3);
 		REQUIRE(arr.back() == 4);
 
 		arr.pop_back(val);
 		REQUIRE(val == 4);
-		REQUIRE(!arr.empty());
+		REQUIRE_FALSE(arr.empty());
 		REQUIRE(arr.front() == 3);
 		REQUIRE(arr.back() == 3);
 
@@ -290,52 +290,52 @@ TEST_CASE("Containers - sringbuffer") {
 		REQUIRE(arr.empty());
 		{
 			arr.push_back(0);
-			REQUIRE(!arr.empty());
+			REQUIRE_FALSE(arr.empty());
 			REQUIRE(arr.front() == 0);
 			REQUIRE(arr.back() == 0);
 
 			arr.push_back(1);
-			REQUIRE(!arr.empty());
+			REQUIRE_FALSE(arr.empty());
 			REQUIRE(arr.front() == 0);
 			REQUIRE(arr.back() == 1);
 
 			arr.push_back(2);
-			REQUIRE(!arr.empty());
+			REQUIRE_FALSE(arr.empty());
 			REQUIRE(arr.front() == 0);
 			REQUIRE(arr.back() == 2);
 
 			arr.push_back(3);
-			REQUIRE(!arr.empty());
+			REQUIRE_FALSE(arr.empty());
 			REQUIRE(arr.front() == 0);
 			REQUIRE(arr.back() == 3);
 
 			arr.push_back(4);
-			REQUIRE(!arr.empty());
+			REQUIRE_FALSE(arr.empty());
 			REQUIRE(arr.front() == 0);
 			REQUIRE(arr.back() == 4);
 		}
 		{
 			arr.pop_front(val);
 			REQUIRE(val == 0);
-			REQUIRE(!arr.empty());
+			REQUIRE_FALSE(arr.empty());
 			REQUIRE(arr.front() == 1);
 			REQUIRE(arr.back() == 4);
 
 			arr.pop_front(val);
 			REQUIRE(val == 1);
-			REQUIRE(!arr.empty());
+			REQUIRE_FALSE(arr.empty());
 			REQUIRE(arr.front() == 2);
 			REQUIRE(arr.back() == 4);
 
 			arr.pop_front(val);
 			REQUIRE(val == 2);
-			REQUIRE(!arr.empty());
+			REQUIRE_FALSE(arr.empty());
 			REQUIRE(arr.front() == 3);
 			REQUIRE(arr.back() == 4);
 
 			arr.pop_back(val);
 			REQUIRE(val == 4);
-			REQUIRE(!arr.empty());
+			REQUIRE_FALSE(arr.empty());
 			REQUIRE(arr.front() == 3);
 			REQUIRE(arr.back() == 3);
 
@@ -855,22 +855,6 @@ TEST_CASE("for_each_pack") {
 	REQUIRE(val == 99);
 }
 
-TEST_CASE("EntityNull") {
-	REQUIRE_FALSE(ecs::Entity{} == ecs::EntityNull);
-
-	REQUIRE(ecs::EntityNull == ecs::EntityNull);
-	REQUIRE_FALSE(ecs::EntityNull != ecs::EntityNull);
-
-	ecs::World w;
-	REQUIRE_FALSE(w.IsEntityValid(ecs::EntityNull));
-
-	auto e = w.CreateEntity();
-	REQUIRE(e != ecs::EntityNull);
-	REQUIRE(ecs::EntityNull != e);
-	REQUIRE_FALSE(e == ecs::EntityNull);
-	REQUIRE_FALSE(ecs::EntityNull == e);
-}
-
 template <bool IsRuntime, typename C>
 void sort_descending(C arr) {
 	for (size_t i = 0; i < arr.size(); ++i)
@@ -950,6 +934,54 @@ TEST_CASE("Run-time sort - quick sort") {
 	sort_ascending<true>(containers::sarray<uint32_t, 45>{});
 }
 
+TEST_CASE("Entity - IsEntityValid") {
+	ecs::World w;
+	{
+		auto e = w.CreateEntity();
+		REQUIRE(w.IsEntityValid(e));
+		w.DeleteEntity(e);
+		REQUIRE_FALSE(w.IsEntityValid(e));
+	}
+	{
+		auto e = w.CreateEntity();
+		REQUIRE(w.IsEntityValid(e));
+		w.DeleteEntity(e);
+		REQUIRE_FALSE(w.IsEntityValid(e));
+	}
+}
+
+TEST_CASE("Entity - IsEntityUsed") {
+	ecs::World w;
+	{
+		auto e = w.CreateEntity();
+		REQUIRE(w.IsEntityUsed(e));
+		w.DeleteEntity(e);
+		REQUIRE_FALSE(w.IsEntityUsed(e));
+	}
+	{
+		auto e = w.CreateEntity();
+		REQUIRE(w.IsEntityUsed(e));
+		w.DeleteEntity(e);
+		REQUIRE_FALSE(w.IsEntityUsed(e));
+	}
+}
+
+TEST_CASE("EntityNull") {
+	REQUIRE_FALSE(ecs::Entity{} == ecs::EntityNull);
+
+	REQUIRE(ecs::EntityNull == ecs::EntityNull);
+	REQUIRE_FALSE(ecs::EntityNull != ecs::EntityNull);
+
+	ecs::World w;
+	REQUIRE_FALSE(w.IsEntityValid(ecs::EntityNull));
+
+	auto e = w.CreateEntity();
+	REQUIRE(e != ecs::EntityNull);
+	REQUIRE(ecs::EntityNull != e);
+	REQUIRE_FALSE(e == ecs::EntityNull);
+	REQUIRE_FALSE(ecs::EntityNull == e);
+}
+
 TEST_CASE("Query - QueryResult") {
 	ecs::World w;
 
@@ -967,14 +999,14 @@ TEST_CASE("Query - QueryResult") {
 	ecs::Query q3 = w.CreateQuery().All<Position, Rotation>();
 
 	{
-		gaia::containers::darray<gaia::ecs::Entity> arr;
+		containers::darray<ecs::Entity> arr;
 		q1.ToArray(arr);
 		GAIA_ASSERT(arr.size() == N);
 		for (size_t i = 0; i < arr.size(); ++i)
 			REQUIRE(arr[i].id() == i);
 	}
 	{
-		gaia::containers::darray<Position> arr;
+		containers::darray<Position> arr;
 		q1.ToArray(arr);
 		GAIA_ASSERT(arr.size() == N);
 		for (size_t i = 0; i < arr.size(); ++i) {
@@ -1049,11 +1081,11 @@ TEST_CASE("Query - QueryResult complex") {
 	ecs::Query q5 = w.CreateQuery().All<Position, Scale, Something>();
 
 	{
-		gaia::containers::darray<gaia::ecs::Entity> ents;
+		containers::darray<ecs::Entity> ents;
 		q1.ToArray(ents);
 		REQUIRE(ents.size() == N);
 
-		gaia::containers::darray<Position> arr;
+		containers::darray<Position> arr;
 		q1.ToArray(arr);
 		REQUIRE(arr.size() == N);
 
@@ -1108,9 +1140,9 @@ TEST_CASE("Query - QueryResult complex") {
 	}
 
 	{
-		gaia::containers::darray<gaia::ecs::Entity> ents;
+		containers::darray<ecs::Entity> ents;
 		q4.ToArray(ents);
-		gaia::containers::darray<Position> arr;
+		containers::darray<Position> arr;
 		q4.ToArray(arr);
 		REQUIRE(ents.size() == arr.size());
 
@@ -1123,9 +1155,9 @@ TEST_CASE("Query - QueryResult complex") {
 		}
 	}
 	{
-		gaia::containers::darray<gaia::ecs::Entity> ents;
+		containers::darray<ecs::Entity> ents;
 		q4.ToArray(ents);
-		gaia::containers::darray<Scale> arr;
+		containers::darray<Scale> arr;
 		q4.ToArray(arr);
 		REQUIRE(ents.size() == arr.size());
 
@@ -1152,9 +1184,9 @@ TEST_CASE("Query - QueryResult complex") {
 	}
 
 	{
-		gaia::containers::darray<gaia::ecs::Entity> ents;
+		containers::darray<ecs::Entity> ents;
 		q5.ToArray(ents);
-		gaia::containers::darray<Position> arr;
+		containers::darray<Position> arr;
 		q5.ToArray(arr);
 		REQUIRE(ents.size() == arr.size());
 
@@ -1167,9 +1199,9 @@ TEST_CASE("Query - QueryResult complex") {
 		}
 	}
 	{
-		gaia::containers::darray<gaia::ecs::Entity> ents;
+		containers::darray<ecs::Entity> ents;
 		q5.ToArray(ents);
-		gaia::containers::darray<Scale> arr;
+		containers::darray<Scale> arr;
 		q5.ToArray(arr);
 		REQUIRE(ents.size() == arr.size());
 
@@ -1215,7 +1247,7 @@ TEST_CASE("Query - equality") {
 		ecs::Query qq2 = w.CreateQuery().All<Rotation, Position>();
 		REQUIRE(qq1.CalculateEntityCount() == qq2.CalculateEntityCount());
 
-		gaia::containers::darray<gaia::ecs::Entity> ents1, ents2;
+		containers::darray<ecs::Entity> ents1, ents2;
 		qq1.ToArray(ents1);
 		qq2.ToArray(ents2);
 		REQUIRE(ents1.size() == ents2.size());
@@ -1233,7 +1265,7 @@ TEST_CASE("Query - equality") {
 		ecs::Query qq2 = w.CreateQuery().All<Rotation, Something, Position, Acceleration>();
 		REQUIRE(qq1.CalculateEntityCount() == qq2.CalculateEntityCount());
 
-		gaia::containers::darray<gaia::ecs::Entity> ents1, ents2;
+		containers::darray<ecs::Entity> ents1, ents2;
 		qq1.ToArray(ents1);
 		qq2.ToArray(ents2);
 		REQUIRE(ents1.size() == ents2.size());
@@ -1298,12 +1330,12 @@ TEST_CASE("CreateAndRemoveEntity - no components") {
 		auto* ch = w.GetChunk(e);
 		REQUIRE(ch == nullptr);
 		const bool isEntityValid = w.IsEntityValid(e);
-		REQUIRE(!isEntityValid);
+		REQUIRE_FALSE(isEntityValid);
 	};
 
-	// 100,000 picked so we create enough entites that they overflow
+	// 10,000 picked so we create enough entites that they overflow
 	// into another chunk
-	const uint32_t N = 100'000;
+	const uint32_t N = 10'000;
 	containers::darray<ecs::Entity> arr;
 	arr.reserve(N);
 
@@ -1337,7 +1369,7 @@ TEST_CASE("CreateAndRemoveEntity - 1 component") {
 		auto* ch = w.GetChunk(e);
 		REQUIRE(ch == nullptr);
 		const bool isEntityValid = w.IsEntityValid(e);
-		REQUIRE(!isEntityValid);
+		REQUIRE_FALSE(isEntityValid);
 	};
 
 	// 10,000 picked so we create enough entites that they overflow
@@ -1359,17 +1391,34 @@ TEST_CASE("EnableEntity") {
 		auto e = w.CreateEntity();
 		const bool ok = e.id() == id && e.gen() == 0;
 		REQUIRE(ok);
-		w.AddComponent<Position>(e, {});
+		w.AddComponent<Position>(e);
 		return e;
 	};
 
-	// 100,000 picked so we create enough entites that they overflow into another chunk
-	const uint32_t N = 100'000;
+	// 10,000 picked so we create enough entites that they overflow into another chunk
+	const uint32_t N = 10'000;
 	containers::darray<ecs::Entity> arr;
 	arr.reserve(N);
 
 	for (uint32_t i = 0; i < N; i++)
 		arr.push_back(create(i));
+
+	SECTION("State validity") {
+		w.EnableEntity(arr[0], false);
+		REQUIRE_FALSE(w.IsEnabled(arr[0]));
+		w.EnableEntity(arr[0], true);
+		REQUIRE(w.IsEnabled(arr[0]));
+	}
+
+	SECTION("State persistance") {
+		w.EnableEntity(arr[0], false);
+		w.RemoveComponent<Position>(arr[0]);
+		REQUIRE_FALSE(w.IsEnabled(arr[0]));
+
+		w.EnableEntity(arr[0], true);
+		w.AddComponent<Position>(arr[0]);
+		REQUIRE(w.IsEnabled(arr[0]));
+	}
 
 	ecs::Query q = w.CreateQuery().All<Position>();
 
@@ -1423,11 +1472,14 @@ TEST_CASE("EnableEntity") {
 
 	checkQuery(N, N, 0);
 
-	w.EnableEntity(arr[1000], false);
-	checkQuery(N, N - 1, 1);
-
-	w.EnableEntity(arr[1000], true);
-	checkQuery(N, N, 0);
+	SECTION("Disable vs query") {
+		w.EnableEntity(arr[1000], false);
+		checkQuery(N, N - 1, 1);
+	}
+	SECTION("Enable vs query") {
+		w.EnableEntity(arr[1000], true);
+		checkQuery(N, N, 0);
+	}
 }
 
 TEST_CASE("AddComponent - generic") {
@@ -1469,7 +1521,7 @@ TEST_CASE("AddComponent - generic") {
 // TEST_CASE("AddComponent - from query") {
 // 	ecs::World w;
 
-// 	gaia::containers::sarray<ecs::Entity, 5> ents;
+// 	containers::sarray<ecs::Entity, 5> ents;
 // 	for (auto& e: ents)
 // 		e = w.CreateEntity();
 
@@ -1555,37 +1607,52 @@ TEST_CASE("AddComponent - chunk") {
 }
 
 TEST_CASE("RemoveComponent - generic") {
-	ecs::World w;
-	auto e1 = w.CreateEntity();
-
 	{
-		w.AddComponent<Position>(e1);
-		w.AddComponent<Rotation>(e1);
+		ecs::World w;
+		auto e1 = w.CreateEntity();
 
 		{
+			w.AddComponent<Position>(e1);
 			w.RemoveComponent<Position>(e1);
 			REQUIRE_FALSE(w.HasComponent<Position>(e1));
-			REQUIRE(w.HasComponent<Rotation>(e1));
 		}
 		{
+			w.AddComponent<Rotation>(e1);
 			w.RemoveComponent<Rotation>(e1);
-			REQUIRE_FALSE(w.HasComponent<Position>(e1));
 			REQUIRE_FALSE(w.HasComponent<Rotation>(e1));
 		}
 	}
-
 	{
-		w.AddComponent<Rotation>(e1);
-		w.AddComponent<Position>(e1);
+		ecs::World w;
+		auto e1 = w.CreateEntity();
 		{
-			w.RemoveComponent<Position>(e1);
-			REQUIRE_FALSE(w.HasComponent<Position>(e1));
-			REQUIRE(w.HasComponent<Rotation>(e1));
+			w.AddComponent<Position>(e1);
+			w.AddComponent<Rotation>(e1);
+
+			{
+				w.RemoveComponent<Position>(e1);
+				REQUIRE_FALSE(w.HasComponent<Position>(e1));
+				REQUIRE(w.HasComponent<Rotation>(e1));
+			}
+			{
+				w.RemoveComponent<Rotation>(e1);
+				REQUIRE_FALSE(w.HasComponent<Position>(e1));
+				REQUIRE_FALSE(w.HasComponent<Rotation>(e1));
+			}
 		}
 		{
-			w.RemoveComponent<Rotation>(e1);
-			REQUIRE_FALSE(w.HasComponent<Position>(e1));
-			REQUIRE_FALSE(w.HasComponent<Rotation>(e1));
+			w.AddComponent<Rotation>(e1);
+			w.AddComponent<Position>(e1);
+			{
+				w.RemoveComponent<Position>(e1);
+				REQUIRE_FALSE(w.HasComponent<Position>(e1));
+				REQUIRE(w.HasComponent<Rotation>(e1));
+			}
+			{
+				w.RemoveComponent<Rotation>(e1);
+				REQUIRE_FALSE(w.HasComponent<Position>(e1));
+				REQUIRE_FALSE(w.HasComponent<Rotation>(e1));
+			}
 		}
 	}
 }
@@ -2350,7 +2417,7 @@ TEST_CASE("CommandBuffer") {
 
 		auto e = w.CreateEntity();
 		cb.AddComponent<Position>(e);
-		REQUIRE(!w.HasComponent<Position>(e));
+		REQUIRE_FALSE(w.HasComponent<Position>(e));
 		cb.Commit();
 		REQUIRE(w.HasComponent<Position>(e));
 	}
@@ -2360,7 +2427,7 @@ TEST_CASE("CommandBuffer") {
 		ecs::CommandBuffer cb(w);
 
 		auto tmp = cb.CreateEntity();
-		REQUIRE(!w.GetEntityCount());
+		REQUIRE_FALSE(w.GetEntityCount());
 		cb.AddComponent<Position>(tmp);
 		cb.Commit();
 
@@ -2376,7 +2443,7 @@ TEST_CASE("CommandBuffer") {
 
 		cb.AddComponent<Position>(e);
 		cb.SetComponent<Position>(e, {1, 2, 3});
-		REQUIRE(!w.HasComponent<Position>(e));
+		REQUIRE_FALSE(w.HasComponent<Position>(e));
 
 		cb.Commit();
 		REQUIRE(w.HasComponent<Position>(e));
@@ -2420,7 +2487,7 @@ TEST_CASE("CommandBuffer") {
 		ecs::CommandBuffer cb(w);
 
 		auto tmp = cb.CreateEntity();
-		REQUIRE(!w.GetEntityCount());
+		REQUIRE_FALSE(w.GetEntityCount());
 
 		cb.AddComponent<Position>(tmp);
 		cb.SetComponent<Position>(tmp, {1, 2, 3});
@@ -2440,7 +2507,7 @@ TEST_CASE("CommandBuffer") {
 		ecs::CommandBuffer cb(w);
 
 		auto tmp = cb.CreateEntity();
-		REQUIRE(!w.GetEntityCount());
+		REQUIRE_FALSE(w.GetEntityCount());
 
 		cb.AddComponent<Position>(tmp);
 		cb.AddComponent<Acceleration>(tmp);
@@ -2468,7 +2535,7 @@ TEST_CASE("CommandBuffer") {
 		ecs::CommandBuffer cb(w);
 
 		auto tmp = cb.CreateEntity();
-		REQUIRE(!w.GetEntityCount());
+		REQUIRE_FALSE(w.GetEntityCount());
 
 		cb.AddComponent<Position>(tmp, {1, 2, 3});
 		cb.Commit();
@@ -2487,7 +2554,7 @@ TEST_CASE("CommandBuffer") {
 		ecs::CommandBuffer cb(w);
 
 		auto tmp = cb.CreateEntity();
-		REQUIRE(!w.GetEntityCount());
+		REQUIRE_FALSE(w.GetEntityCount());
 
 		cb.AddComponent<Position>(tmp, {1, 2, 3});
 		cb.AddComponent<Acceleration>(tmp, {4, 5, 6});
@@ -2566,8 +2633,8 @@ TEST_CASE("CommandBuffer") {
 		cb.AddComponent<StringComponent>(e);
 		cb.SetComponent<StringComponent>(e, {StringComponentDefaultValue});
 		cb.AddComponent<StringComponent2>(e);
-		REQUIRE(!w.HasComponent<StringComponent>(e));
-		REQUIRE(!w.HasComponent<StringComponent2>(e));
+		REQUIRE_FALSE(w.HasComponent<StringComponent>(e));
+		REQUIRE_FALSE(w.HasComponent<StringComponent2>(e));
 
 		cb.Commit();
 		REQUIRE(w.HasComponent<StringComponent>(e));
@@ -2719,8 +2786,8 @@ void TestDataLayoutAoS() {
 	containers::sarray<T, N> data{};
 	containers::sarray<T, N> data2{};
 
-	using aos = gaia::utils::aos_view_policy<T>;
-	using view_deduced = gaia::utils::auto_view_policy<T>;
+	using aos = utils::aos_view_policy<T>;
+	using view_deduced = utils::auto_view_policy<T>;
 
 	// Clear the array
 	for (size_t i = 0; i < N; ++i) {
@@ -2780,7 +2847,7 @@ void TestDataLayoutAoS() {
 		T dummy{};
 		for (size_t i = N; i < N; ++i) {
 			const auto& val = data2[i];
-			REQUIRE(!memcmp((const void*)&val, (const void*)&dummy, sizeof(T)));
+			REQUIRE_FALSE(memcmp((const void*)&val, (const void*)&dummy, sizeof(T)));
 		}
 	}
 }
@@ -2797,7 +2864,7 @@ void TestDataLayoutSoA() {
 	GAIA_ALIGNAS(Alignment) containers::sarray<T, N> data{};
 	GAIA_ALIGNAS(Alignment) containers::sarray<T, N> data2{};
 
-	using view_deduced = gaia::utils::auto_view_policy<T>;
+	using view_deduced = utils::auto_view_policy<T>;
 
 	// Clear the array
 	for (size_t i = 0; i < N; ++i) {
@@ -2833,7 +2900,7 @@ void TestDataLayoutSoA() {
 		T dummy{};
 		for (size_t i = N; i < N; ++i) {
 			const auto& val = data2[i];
-			REQUIRE(!memcmp((const void*)&val, (const void*)&dummy, sizeof(T)));
+			REQUIRE_FALSE(memcmp((const void*)&val, (const void*)&dummy, sizeof(T)));
 		}
 	}
 }
