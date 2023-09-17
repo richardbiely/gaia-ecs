@@ -15499,7 +15499,6 @@ namespace gaia {
 				const bool wasDisabled = pChunk->GetDisabledEntityMask().test(lastEntityIdx);
 
 				if constexpr (IsEntityReleaseWanted) {
-					auto entity = pChunk->GetEntity(entityChunkIndex);
 					pChunk->SwapEntitiesInsideChunkAndDeleteOld(entityChunkIndex, m_entities);
 
 					// Transfer the disabled state is possible
