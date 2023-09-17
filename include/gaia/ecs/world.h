@@ -22,6 +22,7 @@
 #include "common.h"
 #include "component.h"
 #include "component_cache.h"
+#include "component_getter.h"
 #include "component_setter.h"
 #include "component_utils.h"
 #include "entity.h"
@@ -854,6 +855,7 @@ namespace gaia {
 			//! Enables or disables an entire entity.
 			//! \param entity Entity
 			//! \param enable Enable or disable the entity
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			void EnableEntity(Entity entity, bool enable) {
 				auto& entityContainer = m_entities[entity.id()];
 
@@ -871,6 +873,7 @@ namespace gaia {
 			//! Checks if an entity is valid.
 			//! \param entity Entity
 			//! \return True it the entity is valid. False otherwise.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			bool IsEnabled(Entity entity) const {
 				GAIA_ASSERT(IsEntityValid(entity));
 
@@ -986,6 +989,8 @@ namespace gaia {
 					return RemoveComponent_Internal(component::ComponentType::CT_Chunk, entity, info);
 			}
 
+			//----------------------------------------------------------------------
+
 			//! Sets the value of the component \tparam T on \param entity.
 			//! \tparam T Component
 			//! \param entity Entity
@@ -995,14 +1000,13 @@ namespace gaia {
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
 			ComponentSetter SetComponent(Entity entity, U&& value) {
-				component::VerifyComponent<T>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
 				return ComponentSetter{entityContainer.pChunk, entityContainer.idx}.SetComponent<T>(std::forward<U>(value));
 			}
 
-			//! Sets the value of the component \tparam T on \param entity.
+			//! Sets the value of the component \tparam T on \param entity without trigger a world version update.
 			//! \tparam T Component
 			//! \param entity Entity
 			//! \param value Value to set for the component
@@ -1011,13 +1015,14 @@ namespace gaia {
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
 			ComponentSetter SetComponentSilent(Entity entity, U&& value) {
-				component::VerifyComponent<T>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
 				return ComponentSetter{entityContainer.pChunk, entityContainer.idx}.SetComponentSilent<T>(
 						std::forward<U>(value));
 			}
+
+			//----------------------------------------------------------------------
 
 			//! Returns the value stored in the component \tparam T on \param entity.
 			//! \tparam T Component
@@ -1027,19 +1032,11 @@ namespace gaia {
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename T>
 			GAIA_NODISCARD auto GetComponent(Entity entity) const {
-				component::VerifyComponent<T>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
-				const auto* pChunk = entityContainer.pChunk;
-
-				if constexpr (component::IsGenericComponent<T>)
-					return pChunk->GetComponent<T>(entityContainer.idx);
-				else
-					return pChunk->GetComponent<T>();
+				return ComponentGetter{entityContainer.pChunk, entityContainer.idx}.GetComponent<T>();
 			}
-
-			//----------------------------------------------------------------------
 
 			//! Tells if \param entity contains the component \tparam T.
 			//! \tparam T Component
@@ -1048,14 +1045,10 @@ namespace gaia {
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename T>
 			GAIA_NODISCARD bool HasComponent(Entity entity) const {
-				component::VerifyComponent<T>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
-				if (const auto* pChunk = entityContainer.pChunk)
-					return pChunk->HasComponent<T>();
-
-				return false;
+				return ComponentGetter{entityContainer.pChunk, entityContainer.idx}.HasComponent<T>();
 			}
 
 			//----------------------------------------------------------------------

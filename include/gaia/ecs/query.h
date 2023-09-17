@@ -537,8 +537,8 @@ namespace gaia {
 				return *this;
 			}
 
-			GAIA_NODISCARD bool
-			CheckConstraintsEnabledDisabledOnly(ecs::Query::Constraints constraints, bool filterEnabledOnly) const {
+			GAIA_NODISCARD static bool
+			CheckConstraintsEnabledDisabledOnly(ecs::Query::Constraints constraints, bool filterEnabledOnly) {
 				const bool arr[2] = {// EnabledOnly
 														 true,
 														 // DisabledOnly
@@ -546,7 +546,7 @@ namespace gaia {
 				return filterEnabledOnly == arr[(int)constraints];
 			}
 
-			GAIA_NODISCARD bool CheckConstraints(ecs::Query::Constraints constraints, bool filterEnabledOnly) const {
+			GAIA_NODISCARD static bool CheckConstraints(ecs::Query::Constraints constraints, bool filterEnabledOnly) {
 				const bool arr[2] = {// EnabledOnly
 														 true,
 														 // DisabledOnly
