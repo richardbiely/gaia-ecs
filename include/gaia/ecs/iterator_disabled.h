@@ -27,7 +27,7 @@ namespace gaia {
 		public:
 			IteratorDisabled(query::QueryInfo& info, archetype::Chunk& chunk):
 					m_info(info), m_chunk(chunk), m_mask(chunk.GetDisabledEntityMask()), m_iter(m_mask, 0, true) {}
-			
+
 			uint32_t operator*() const {
 				return *m_iter;
 			}
@@ -75,12 +75,20 @@ namespace gaia {
 				return m_chunk.HasComponent<T>();
 			}
 
+			//! Sets the value of the component \tparam T on \param entity.
+			//! \tparam T Component
+			//! \param value Value to set for the component
+			//! \return ComponentSetter
 			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
 			ComponentSetter& SetComponent(U&& data) {
 				ComponentSetter setter{&m_chunk, *m_iter};
 				return setter.SetComponent<T, U>(std::forward<U>(data));
 			}
 
+			//! Sets the value of the component \tparam T on \param entity without trigger a world version update.
+			//! \tparam T Component
+			//! \param value Value to set for the component
+			//! \return ComponentSetter
 			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
 			ComponentSetter& SetComponentSilent(U&& data) {
 				ComponentSetter setter{&m_chunk, *m_iter};

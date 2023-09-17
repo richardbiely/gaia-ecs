@@ -3772,6 +3772,39 @@ namespace gaia {
 				swap_if(arr[3], arr[5], func);
 
 				swap_if(arr[3], arr[4], func);
+			} else if constexpr (NItems == 9) {
+				swap_if(arr[0], arr[1], func);
+				swap_if(arr[3], arr[4], func);
+				swap_if(arr[6], arr[7], func);
+
+				swap_if(arr[1], arr[2], func);
+				swap_if(arr[4], arr[5], func);
+				swap_if(arr[7], arr[8], func);
+
+				swap_if(arr[0], arr[1], func);
+				swap_if(arr[3], arr[4], func);
+				swap_if(arr[6], arr[7], func);
+
+				swap_if(arr[0], arr[3], func);
+				swap_if(arr[3], arr[6], func);
+				swap_if(arr[0], arr[3], func);
+
+				swap_if(arr[1], arr[4], func);
+				swap_if(arr[4], arr[7], func);
+				swap_if(arr[1], arr[4], func);
+
+				swap_if(arr[5], arr[8], func);
+				swap_if(arr[2], arr[5], func);
+				swap_if(arr[5], arr[8], func);
+
+				swap_if(arr[2], arr[4], func);
+				swap_if(arr[4], arr[6], func);
+				swap_if(arr[2], arr[4], func);
+
+				swap_if(arr[1], arr[3], func);
+				swap_if(arr[2], arr[3], func);
+				swap_if(arr[5], arr[7], func);
+				swap_if(arr[5], arr[6], func);
 			} else {
 #if GAIA_USE_STL_COMPATIBLE_CONTAINERS
 				//! TODO: replace with std::sort for c++20
@@ -13684,19 +13717,52 @@ namespace gaia {
 
 namespace gaia {
 	namespace ecs {
+		struct ComponentGetter {
+			const archetype::Chunk* m_pChunk;
+			uint32_t m_idx;
+
+			//! Returns the value stored in the component \tparam T on \param entity.
+			//! \tparam T Component
+			//! \return Value stored in the component.
+			template <typename T>
+			GAIA_NODISCARD auto GetComponent() const {
+				component::VerifyComponent<T>();
+
+				if constexpr (component::IsGenericComponent<T>)
+					return m_pChunk->template GetComponent<T>(m_idx);
+				else
+					return m_pChunk->template GetComponent<T>();
+			}
+
+			//! Tells if \param entity contains the component \tparam T.
+			//! \tparam T Component
+			//! \return True if the component is present on entity.
+			template <typename T>
+			GAIA_NODISCARD bool HasComponent() const {
+				component::VerifyComponent<T>();
+
+				return m_pChunk->template HasComponent<T>();
+			}
+		};
+	} // namespace ecs
+} // namespace gaia
+
+#include <cstdint>
+
+namespace gaia {
+	namespace ecs {
 		struct ComponentSetter {
 			archetype::Chunk* m_pChunk;
 			uint32_t m_idx;
 
 			//! Sets the value of the component \tparam T on \param entity.
 			//! \tparam T Component
-			//! \param entity Entity
 			//! \param value Value to set for the component
 			//! \return ComponentSetter
-			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
 			ComponentSetter& SetComponent(U&& data) {
+				component::VerifyComponent<T>();
+
 				if constexpr (component::IsGenericComponent<T>)
 					m_pChunk->template SetComponent<T>(m_idx, std::forward<U>(data));
 				else
@@ -13704,15 +13770,14 @@ namespace gaia {
 				return *this;
 			}
 
-			//! Sets the value of the component \tparam T on \param entity.
+			//! Sets the value of the component \tparam T on \param entity without trigger a world version update.
 			//! \tparam T Component
-			//! \param entity Entity
 			//! \param value Value to set for the component
 			//! \return ComponentSetter
-			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
 			ComponentSetter& SetComponentSilent(U&& data) {
+				component::VerifyComponent<T>();
+
 				if constexpr (component::IsGenericComponent<T>)
 					m_pChunk->template SetComponentSilent<T>(m_idx, std::forward<U>(data));
 				else
@@ -14285,6 +14350,12 @@ namespace gaia {
 				return m_chunk.GetEntityCount();
 			}
 
+			//! Checks if the entity at the current iterator index is enabled.
+			//! \return True it the entity is enabled. False otherwise.
+			bool IsEntityEnabled() const {
+				return !m_chunk.GetDisabledEntityMask().test(m_pos);
+			}
+
 			//! Checks if component \tparam T is present in the chunk.
 			//! \tparam T Component
 			//! \return True if the component is present. False otherwise.
@@ -14360,7 +14431,7 @@ namespace gaia {
 		public:
 			IteratorDisabled(query::QueryInfo& info, archetype::Chunk& chunk):
 					m_info(info), m_chunk(chunk), m_mask(chunk.GetDisabledEntityMask()), m_iter(m_mask, 0, true) {}
-			
+
 			uint32_t operator*() const {
 				return *m_iter;
 			}
@@ -14408,12 +14479,20 @@ namespace gaia {
 				return m_chunk.HasComponent<T>();
 			}
 
+			//! Sets the value of the component \tparam T on \param entity.
+			//! \tparam T Component
+			//! \param value Value to set for the component
+			//! \return ComponentSetter
 			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
 			ComponentSetter& SetComponent(U&& data) {
 				ComponentSetter setter{&m_chunk, *m_iter};
 				return setter.SetComponent<T, U>(std::forward<U>(data));
 			}
 
+			//! Sets the value of the component \tparam T on \param entity without trigger a world version update.
+			//! \tparam T Component
+			//! \param value Value to set for the component
+			//! \return ComponentSetter
 			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
 			ComponentSetter& SetComponentSilent(U&& data) {
 				ComponentSetter setter{&m_chunk, *m_iter};
@@ -14491,19 +14570,33 @@ namespace gaia {
 			//! \return True if the component is present. False otherwise.
 			template <typename T>
 			GAIA_NODISCARD bool HasComponent() const {
-				return m_chunk.HasComponent<T>();
+				return ComponentGetter{&m_chunk, *m_iter}.HasComponent<T>();
 			}
 
+			//! Returns the value stored in the component \tparam T on \param entity.
+			//! \tparam T Component
+			//! \return Value stored in the component.
+			template <typename T>
+			GAIA_NODISCARD auto GetComponent() const {
+				return ComponentGetter{&m_chunk, *m_iter}.GetComponent<T>();
+			}
+
+			//! Sets the value of the component \tparam T on \param entity.
+			//! \tparam T Component
+			//! \param value Value to set for the component
+			//! \return ComponentSetter
 			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
 			ComponentSetter& SetComponent(U&& data) {
-				ComponentSetter setter{&m_chunk, *m_iter};
-				return setter.SetComponent<T, U>(std::forward<U>(data));
+				return ComponentSetter{&m_chunk, *m_iter}.SetComponent<T, U>(std::forward<U>(data));
 			}
 
+			//! Sets the value of the component \tparam T on \param entity without trigger a world version update.
+			//! \tparam T Component
+			//! \param value Value to set for the component
+			//! \return ComponentSetter
 			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
 			ComponentSetter& SetComponentSilent(U&& data) {
-				ComponentSetter setter{&m_chunk, *m_iter};
-				return setter.SetComponentSilent<T, U>(std::forward<U>(data));
+				return ComponentSetter{&m_chunk, *m_iter}.SetComponentSilent<T, U>(std::forward<U>(data));
 			}
 		};
 	} // namespace ecs
@@ -15082,8 +15175,8 @@ namespace gaia {
 				return *this;
 			}
 
-			GAIA_NODISCARD bool
-			CheckConstraintsEnabledDisabledOnly(ecs::Query::Constraints constraints, bool filterEnabledOnly) const {
+			GAIA_NODISCARD static bool
+			CheckConstraintsEnabledDisabledOnly(ecs::Query::Constraints constraints, bool filterEnabledOnly) {
 				const bool arr[2] = {// EnabledOnly
 														 true,
 														 // DisabledOnly
@@ -15091,7 +15184,7 @@ namespace gaia {
 				return filterEnabledOnly == arr[(int)constraints];
 			}
 
-			GAIA_NODISCARD bool CheckConstraints(ecs::Query::Constraints constraints, bool filterEnabledOnly) const {
+			GAIA_NODISCARD static bool CheckConstraints(ecs::Query::Constraints constraints, bool filterEnabledOnly) {
 				const bool arr[2] = {// EnabledOnly
 														 true,
 														 // DisabledOnly
@@ -16223,6 +16316,7 @@ namespace gaia {
 			//! Enables or disables an entire entity.
 			//! \param entity Entity
 			//! \param enable Enable or disable the entity
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			void EnableEntity(Entity entity, bool enable) {
 				auto& entityContainer = m_entities[entity.id()];
 
@@ -16240,6 +16334,7 @@ namespace gaia {
 			//! Checks if an entity is valid.
 			//! \param entity Entity
 			//! \return True it the entity is valid. False otherwise.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			bool IsEnabled(Entity entity) const {
 				GAIA_ASSERT(IsEntityValid(entity));
 
@@ -16355,6 +16450,8 @@ namespace gaia {
 					return RemoveComponent_Internal(component::ComponentType::CT_Chunk, entity, info);
 			}
 
+			//----------------------------------------------------------------------
+
 			//! Sets the value of the component \tparam T on \param entity.
 			//! \tparam T Component
 			//! \param entity Entity
@@ -16364,14 +16461,13 @@ namespace gaia {
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
 			ComponentSetter SetComponent(Entity entity, U&& value) {
-				component::VerifyComponent<T>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
 				return ComponentSetter{entityContainer.pChunk, entityContainer.idx}.SetComponent<T>(std::forward<U>(value));
 			}
 
-			//! Sets the value of the component \tparam T on \param entity.
+			//! Sets the value of the component \tparam T on \param entity without trigger a world version update.
 			//! \tparam T Component
 			//! \param entity Entity
 			//! \param value Value to set for the component
@@ -16380,13 +16476,14 @@ namespace gaia {
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
 			ComponentSetter SetComponentSilent(Entity entity, U&& value) {
-				component::VerifyComponent<T>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
 				return ComponentSetter{entityContainer.pChunk, entityContainer.idx}.SetComponentSilent<T>(
 						std::forward<U>(value));
 			}
+
+			//----------------------------------------------------------------------
 
 			//! Returns the value stored in the component \tparam T on \param entity.
 			//! \tparam T Component
@@ -16396,19 +16493,11 @@ namespace gaia {
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename T>
 			GAIA_NODISCARD auto GetComponent(Entity entity) const {
-				component::VerifyComponent<T>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
-				const auto* pChunk = entityContainer.pChunk;
-
-				if constexpr (component::IsGenericComponent<T>)
-					return pChunk->GetComponent<T>(entityContainer.idx);
-				else
-					return pChunk->GetComponent<T>();
+				return ComponentGetter{entityContainer.pChunk, entityContainer.idx}.GetComponent<T>();
 			}
-
-			//----------------------------------------------------------------------
 
 			//! Tells if \param entity contains the component \tparam T.
 			//! \tparam T Component
@@ -16417,14 +16506,10 @@ namespace gaia {
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename T>
 			GAIA_NODISCARD bool HasComponent(Entity entity) const {
-				component::VerifyComponent<T>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
-				if (const auto* pChunk = entityContainer.pChunk)
-					return pChunk->HasComponent<T>();
-
-				return false;
+				return ComponentGetter{entityContainer.pChunk, entityContainer.idx}.HasComponent<T>();
 			}
 
 			//----------------------------------------------------------------------

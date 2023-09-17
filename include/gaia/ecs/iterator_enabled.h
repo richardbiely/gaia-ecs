@@ -6,6 +6,7 @@
 
 #include "chunk_header.h"
 #include "component.h"
+#include "component_getter.h"
 #include "component_setter.h"
 #include "query_info.h"
 
@@ -74,19 +75,33 @@ namespace gaia {
 			//! \return True if the component is present. False otherwise.
 			template <typename T>
 			GAIA_NODISCARD bool HasComponent() const {
-				return m_chunk.HasComponent<T>();
+				return ComponentGetter{&m_chunk, *m_iter}.HasComponent<T>();
 			}
 
+			//! Returns the value stored in the component \tparam T on \param entity.
+			//! \tparam T Component
+			//! \return Value stored in the component.
+			template <typename T>
+			GAIA_NODISCARD auto GetComponent() const {
+				return ComponentGetter{&m_chunk, *m_iter}.GetComponent<T>();
+			}
+
+			//! Sets the value of the component \tparam T on \param entity.
+			//! \tparam T Component
+			//! \param value Value to set for the component
+			//! \return ComponentSetter
 			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
 			ComponentSetter& SetComponent(U&& data) {
-				ComponentSetter setter{&m_chunk, *m_iter};
-				return setter.SetComponent<T, U>(std::forward<U>(data));
+				return ComponentSetter{&m_chunk, *m_iter}.SetComponent<T, U>(std::forward<U>(data));
 			}
 
+			//! Sets the value of the component \tparam T on \param entity without trigger a world version update.
+			//! \tparam T Component
+			//! \param value Value to set for the component
+			//! \return ComponentSetter
 			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
 			ComponentSetter& SetComponentSilent(U&& data) {
-				ComponentSetter setter{&m_chunk, *m_iter};
-				return setter.SetComponentSilent<T, U>(std::forward<U>(data));
+				return ComponentSetter{&m_chunk, *m_iter}.SetComponentSilent<T, U>(std::forward<U>(data));
 			}
 		};
 	} // namespace ecs

@@ -60,6 +60,12 @@ namespace gaia {
 				return m_chunk.GetEntityCount();
 			}
 
+			//! Checks if the entity at the current iterator index is enabled.
+			//! \return True it the entity is enabled. False otherwise.
+			bool IsEntityEnabled() const {
+				return !m_chunk.GetDisabledEntityMask().test(m_pos);
+			}
+
 			//! Checks if component \tparam T is present in the chunk.
 			//! \tparam T Component
 			//! \return True if the component is present. False otherwise.

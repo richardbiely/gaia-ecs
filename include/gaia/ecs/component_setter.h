@@ -12,13 +12,12 @@ namespace gaia {
 
 			//! Sets the value of the component \tparam T on \param entity.
 			//! \tparam T Component
-			//! \param entity Entity
 			//! \param value Value to set for the component
 			//! \return ComponentSetter
-			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
 			ComponentSetter& SetComponent(U&& data) {
+				component::VerifyComponent<T>();
+
 				if constexpr (component::IsGenericComponent<T>)
 					m_pChunk->template SetComponent<T>(m_idx, std::forward<U>(data));
 				else
@@ -26,15 +25,14 @@ namespace gaia {
 				return *this;
 			}
 
-			//! Sets the value of the component \tparam T on \param entity.
+			//! Sets the value of the component \tparam T on \param entity without trigger a world version update.
 			//! \tparam T Component
-			//! \param entity Entity
 			//! \param value Value to set for the component
 			//! \return ComponentSetter
-			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
-			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
 			ComponentSetter& SetComponentSilent(U&& data) {
+				component::VerifyComponent<T>();
+
 				if constexpr (component::IsGenericComponent<T>)
 					m_pChunk->template SetComponentSilent<T>(m_idx, std::forward<U>(data));
 				else

@@ -297,10 +297,15 @@ w.AddComponent<Position>(e2);
 // Disable the first entity
 w.EnableEntity(e1, false);
 
+// Check if e1 is enabled
+const bool is_e1_enabled = w.IsEntityEnabled(e1);
+if (is_e1_enabled) { ... }
+
+// Prepare out query
 ecs::Query q = w.CreateQuery().All<Position>();
-containers::darray<ecs::Entity> entities;
 
 // Fills the array with only e2 because e1 is disabled.
+containers::darray<ecs::Entity> entities;
 q.ToArray(entities);
 
 // Fills the array with both e1 and e2.
@@ -311,16 +316,28 @@ q.ToArray(entities, ecs::Query::Constraint::DisabledOnly);
 
 q.ForEach([](ecs::Iterator iter) {
   // Iterates over all entities
+  ...
+  if (iter.IsEnabled()) {
+    // Do something special when the entity is enabled
+  }
 });
 q.ForEach([](ecs::IteratorDisabled iter) {
   // Iterates only over disabled entities
+  ...
+  iter.SetComponent<Position>({}); // reset the position of each disabled entity
 });
 q.ForEach([](ecs::IteratorEnabled iter) {
   // Iterates only over enabled entities
+  ...
+  auto& pos = iter.GetComponent<Position>();
+  ++pos.x; // update the position of each enabled entity
 });
 ```
 
-Of course, if you do not wish to fragment entities inside the chunk you can simply create a tag component and assign it to your entity. This will move the entity to a new archetype so it is a lot slower. However, because disabled entities are now clearly separated calling some query operations might be slightly faster (no need to check if the entity is disabled or not internally).
+>**NOTE:<br/>**
+***IteratorEnabled*** and ***IteratorDisabled*** don't give you access to ***Views***. This is because both enabled and disabled entities are stored in the same chunk. Views would allow you access component beyond the scope of constraints. If you want Views, you need to use ***Iterator*** and handle all edge-cases yourself.
+
+If you do not wish to fragment entities inside the chunk you can simply create a tag component and assign it to your entity. This will move the entity to a new archetype so it is a lot slower. However, because disabled entities are now clearly separated calling some query operations might be slightly faster (no need to check if the entity is disabled or not internally).
 
 ```cpp
 struct Disabled {};
