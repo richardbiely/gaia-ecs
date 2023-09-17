@@ -213,8 +213,8 @@ TEST_CASE("Containers - sarray_ext") {
 	REQUIRE_FALSE(utils::has(arr, 100U));
 }
 
-TEST_CASE("Containers - darray") {
-	containers::darray<uint32_t> arr;
+TEST_CASE("Containers - darr") {
+	containers::darr<uint32_t> arr;
 	arr.push_back(0);
 	REQUIRE(arr[0] == 0);
 	arr.push_back(1);
@@ -999,14 +999,14 @@ TEST_CASE("Query - QueryResult") {
 	ecs::Query q3 = w.CreateQuery().All<Position, Rotation>();
 
 	{
-		containers::darray<ecs::Entity> arr;
+		containers::darr<ecs::Entity> arr;
 		q1.ToArray(arr);
 		GAIA_ASSERT(arr.size() == N);
 		for (size_t i = 0; i < arr.size(); ++i)
 			REQUIRE(arr[i].id() == i);
 	}
 	{
-		containers::darray<Position> arr;
+		containers::darr<Position> arr;
 		q1.ToArray(arr);
 		GAIA_ASSERT(arr.size() == N);
 		for (size_t i = 0; i < arr.size(); ++i) {
@@ -1081,11 +1081,11 @@ TEST_CASE("Query - QueryResult complex") {
 	ecs::Query q5 = w.CreateQuery().All<Position, Scale, Something>();
 
 	{
-		containers::darray<ecs::Entity> ents;
+		containers::darr<ecs::Entity> ents;
 		q1.ToArray(ents);
 		REQUIRE(ents.size() == N);
 
-		containers::darray<Position> arr;
+		containers::darr<Position> arr;
 		q1.ToArray(arr);
 		REQUIRE(arr.size() == N);
 
@@ -1140,9 +1140,9 @@ TEST_CASE("Query - QueryResult complex") {
 	}
 
 	{
-		containers::darray<ecs::Entity> ents;
+		containers::darr<ecs::Entity> ents;
 		q4.ToArray(ents);
-		containers::darray<Position> arr;
+		containers::darr<Position> arr;
 		q4.ToArray(arr);
 		REQUIRE(ents.size() == arr.size());
 
@@ -1155,9 +1155,9 @@ TEST_CASE("Query - QueryResult complex") {
 		}
 	}
 	{
-		containers::darray<ecs::Entity> ents;
+		containers::darr<ecs::Entity> ents;
 		q4.ToArray(ents);
-		containers::darray<Scale> arr;
+		containers::darr<Scale> arr;
 		q4.ToArray(arr);
 		REQUIRE(ents.size() == arr.size());
 
@@ -1184,9 +1184,9 @@ TEST_CASE("Query - QueryResult complex") {
 	}
 
 	{
-		containers::darray<ecs::Entity> ents;
+		containers::darr<ecs::Entity> ents;
 		q5.ToArray(ents);
-		containers::darray<Position> arr;
+		containers::darr<Position> arr;
 		q5.ToArray(arr);
 		REQUIRE(ents.size() == arr.size());
 
@@ -1199,9 +1199,9 @@ TEST_CASE("Query - QueryResult complex") {
 		}
 	}
 	{
-		containers::darray<ecs::Entity> ents;
+		containers::darr<ecs::Entity> ents;
 		q5.ToArray(ents);
-		containers::darray<Scale> arr;
+		containers::darr<Scale> arr;
 		q5.ToArray(arr);
 		REQUIRE(ents.size() == arr.size());
 
@@ -1247,7 +1247,7 @@ TEST_CASE("Query - equality") {
 		ecs::Query qq2 = w.CreateQuery().All<Rotation, Position>();
 		REQUIRE(qq1.CalculateEntityCount() == qq2.CalculateEntityCount());
 
-		containers::darray<ecs::Entity> ents1, ents2;
+		containers::darr<ecs::Entity> ents1, ents2;
 		qq1.ToArray(ents1);
 		qq2.ToArray(ents2);
 		REQUIRE(ents1.size() == ents2.size());
@@ -1265,7 +1265,7 @@ TEST_CASE("Query - equality") {
 		ecs::Query qq2 = w.CreateQuery().All<Rotation, Something, Position, Acceleration>();
 		REQUIRE(qq1.CalculateEntityCount() == qq2.CalculateEntityCount());
 
-		containers::darray<ecs::Entity> ents1, ents2;
+		containers::darr<ecs::Entity> ents1, ents2;
 		qq1.ToArray(ents1);
 		qq2.ToArray(ents2);
 		REQUIRE(ents1.size() == ents2.size());
@@ -1336,7 +1336,7 @@ TEST_CASE("CreateAndRemoveEntity - no components") {
 	// 10,000 picked so we create enough entites that they overflow
 	// into another chunk
 	const uint32_t N = 10'000;
-	containers::darray<ecs::Entity> arr;
+	containers::darr<ecs::Entity> arr;
 	arr.reserve(N);
 
 	// Create entities
@@ -1375,7 +1375,7 @@ TEST_CASE("CreateAndRemoveEntity - 1 component") {
 	// 10,000 picked so we create enough entites that they overflow
 	// into another chunk
 	const uint32_t N = 10'000;
-	containers::darray<ecs::Entity> arr;
+	containers::darr<ecs::Entity> arr;
 	arr.reserve(N);
 
 	for (uint32_t i = 0; i < N; i++)
@@ -1397,7 +1397,7 @@ TEST_CASE("EnableEntity") {
 
 	// 10,000 picked so we create enough entites that they overflow into another chunk
 	const uint32_t N = 10'000;
-	containers::darray<ecs::Entity> arr;
+	containers::darr<ecs::Entity> arr;
 	arr.reserve(N);
 
 	for (uint32_t i = 0; i < N; i++)
@@ -2107,7 +2107,7 @@ TEST_CASE("SetComponent - generic") {
 	ecs::World w;
 
 	constexpr size_t N = 100;
-	containers::darray<ecs::Entity> arr;
+	containers::darr<ecs::Entity> arr;
 	arr.reserve(N);
 
 	for (size_t i = 0; i < N; ++i) {
@@ -2192,7 +2192,7 @@ TEST_CASE("SetComponent - generic & chunk") {
 	ecs::World w;
 
 	constexpr size_t N = 100;
-	containers::darray<ecs::Entity> arr;
+	containers::darr<ecs::Entity> arr;
 	arr.reserve(N);
 
 	for (size_t i = 0; i < N; ++i) {
@@ -2279,7 +2279,7 @@ TEST_CASE("Components - non trivial") {
 	ecs::World w;
 
 	constexpr size_t N = 100;
-	containers::darray<ecs::Entity> arr;
+	containers::darr<ecs::Entity> arr;
 	arr.reserve(N);
 
 	for (size_t i = 0; i < N; ++i) {
@@ -3100,12 +3100,12 @@ struct SerializeStructSArrayNonTrivial {
 };
 
 struct SerializeStructDArray {
-	containers::darray<uint32_t> arr;
+	containers::darr<uint32_t> arr;
 	float f;
 };
 
 struct SerializeStructDArrayNonTrivial {
-	containers::darray<uint32_t> arr;
+	containers::darr<uint32_t> arr;
 	float f;
 
 	bool operator==(const SerializeStructDArrayNonTrivial& other) const {

@@ -1149,9 +1149,9 @@ namespace gaia {
 			void DiagEntities() const {
 				ValidateEntityList();
 
-				GAIA_LOG_N("Deleted entities: %u", m_entities.get_free_items());
+				GAIA_LOG_N("Deleted entities: %u", (uint32_t)m_entities.get_free_items());
 				if (m_entities.get_free_items() != 0U) {
-					GAIA_LOG_N("  --> %u", m_entities.get_next_free_item());
+					GAIA_LOG_N("  --> %u", (uint32_t)m_entities.get_next_free_item());
 
 					uint32_t iters = 0;
 					auto fe = m_entities[m_entities.get_next_free_item()].idx;

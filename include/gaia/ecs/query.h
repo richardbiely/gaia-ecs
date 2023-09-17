@@ -612,7 +612,7 @@ namespace gaia {
 
 				if (hasFilters) {
 					auto execWithFiltersON = [&](const auto& chunks) {
-						return GAIA_UTIL::has_if(chunks, [&](archetype::Chunk* pChunk) {
+						return utils::has_if(chunks, [&](archetype::Chunk* pChunk) {
 							if (!pChunk->HasEntities())
 								return false;
 							return CheckFilters(*pChunk, queryInfo);
@@ -620,7 +620,7 @@ namespace gaia {
 					};
 
 					auto execWithFiltersON_EnabledDisabled = [&](const auto& chunks, bool enabledOnly) {
-						return GAIA_UTIL::has_if(chunks, [&](archetype::Chunk* pChunk) {
+						return utils::has_if(chunks, [&](archetype::Chunk* pChunk) {
 							const auto hasEntities = enabledOnly
 																					 ? pChunk->GetEntityCount() - pChunk->GetDisabledEntityMask().count() > 0
 																					 : pChunk->GetDisabledEntityMask().count() > 0;
@@ -645,13 +645,13 @@ namespace gaia {
 					}
 				} else {
 					auto execWithFiltersOFF = [&](const auto& chunks) {
-						return GAIA_UTIL::has_if(chunks, [&](archetype::Chunk* pChunk) {
+						return utils::has_if(chunks, [&](archetype::Chunk* pChunk) {
 							return pChunk->HasEntities();
 						});
 					};
 
 					auto execWithFiltersOFF_EnabledDisabled = [&](const auto& chunks, bool enabledOnly) {
-						return GAIA_UTIL::has_if(chunks, [&](archetype::Chunk* pChunk) {
+						return utils::has_if(chunks, [&](archetype::Chunk* pChunk) {
 							return enabledOnly ? pChunk->GetEntityCount() - pChunk->GetDisabledEntityMask().count() > 0
 																 : pChunk->GetDisabledEntityMask().count() > 0;
 						});

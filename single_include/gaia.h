@@ -541,9 +541,9 @@ inline void DoNotOptimize(T const& value) {
 // Breaking changes and big features
 #define GAIA_VERSION_MAJOR 0
 // Smaller changes and features
-#define GAIA_VERSION_MINOR 6
+#define GAIA_VERSION_MINOR 7
 // Fixes and tweaks
-#define GAIA_VERSION_PATCH 2
+#define GAIA_VERSION_PATCH 0
 
 //------------------------------------------------------------------------------
 // General settings.
@@ -1172,7 +1172,6 @@ namespace gaia {
 		template <typename T, size_t N>
 		class sarr {
 		public:
-			using iterator_category = GAIA_UTIL::random_access_iterator_tag;
 			using value_type = T;
 			using reference = T&;
 			using const_reference = const T&;
@@ -4754,7 +4753,6 @@ namespace gaia {
 		template <typename T>
 		class darr {
 		public:
-			using iterator_category = GAIA_UTIL::random_access_iterator_tag;
 			using value_type = T;
 			using reference = T&;
 			using const_reference = const T&;
@@ -5097,13 +5095,14 @@ namespace gaia {
 				try_grow();
 
 				reference ref = m_pData[m_cnt++];
-				ref = {std::forward<Args>(args)...};
+				::new (&ref) T(std::forward<Args>(args)...);
 				return ref;
 			}
 
 			void pop_back() noexcept {
 				GAIA_ASSERT(!empty());
-				--m_cnt;
+				reference ref = m_pData[--m_cnt];
+				ref.~T();
 			}
 
 			GAIA_NODISCARD iterator erase(iterator pos) noexcept {
@@ -8434,13 +8433,14 @@ namespace gaia {
 			constexpr reference emplace_back(Args&&... args) {
 				GAIA_ASSERT(size() < N);
 				reference ref = m_data[m_cnt++];
-				ref = {std::forward<Args>(args)...};
+				::new (&ref) T(std::forward<Args>(args)...);
 				return ref;
 			}
 
 			constexpr void pop_back() noexcept {
 				GAIA_ASSERT(!empty());
-				--m_cnt;
+				reference ref = m_data[--m_cnt];
+				ref.~T();
 			}
 
 			GAIA_NODISCARD constexpr iterator erase(iterator pos) noexcept {
@@ -8689,16 +8689,6 @@ namespace gaia {
 				++m_size;
 			}
 
-			template <typename... Args>
-			reference emplace_back(Args&&... args) {
-				GAIA_ASSERT(m_size < N);
-				const auto head = (m_tail + m_size) % N;
-				reference ref = m_data[head];
-				ref = {std::forward<Args>(args)...};
-				++m_size;
-				return ref;
-			}
-
 			void pop_front(T& out) {
 				GAIA_ASSERT(!empty());
 				out = m_data[m_tail];
@@ -8941,11 +8931,11 @@ namespace gaia {
 
 		template <typename TListItem, typename TItemHandle>
 		struct ImplicitList {
-			using internal_storage = darray<TListItem>;
+			using internal_storage = containers::darr<TListItem>;
 			using iterator = typename internal_storage::iterator;
 			using const_iterator = typename internal_storage::const_iterator;
 
-			using iterator_category = typename internal_storage::iterator_category;
+			using iterator_category = typename internal_storage::iterator::iterator_category;
 			using value_type = TListItem;
 			using reference = TListItem&;
 			using const_reference = const TListItem&;
@@ -8956,7 +8946,7 @@ namespace gaia {
 
 			static_assert(std::is_base_of<ImplicitListItem, TListItem>::value);
 			//! Implicit list items
-			darray<TListItem> m_items;
+			darr<TListItem> m_items;
 			//! Index of the next item to recycle
 			size_type m_nextFreeIdx = (size_type)-1;
 			//! Number of items to recycle
@@ -9031,7 +9021,7 @@ namespace gaia {
 					const auto itemCnt = (size_type)m_items.size();
 					GAIA_ASSERT(itemCnt < TItemHandle::IdMask && "Trying to allocate too many items!");
 
-					m_items.emplace_back(itemCnt, 0U);
+					m_items.push_back({itemCnt, 0U});
 					return {itemCnt, 0U};
 				}
 
@@ -13353,13 +13343,14 @@ namespace gaia {
 				try_grow();
 
 				reference ref = m_pData[m_cnt++];
-				ref = {std::forward<Args>(args)...};
+				::new (&ref) T(std::forward<Args>(args)...);
 				return ref;
 			}
 
 			void pop_back() noexcept {
 				GAIA_ASSERT(!empty());
-				--m_cnt;
+				reference ref = m_pData[--m_cnt];
+				ref.~T();
 			}
 
 			GAIA_NODISCARD iterator erase(iterator pos) noexcept {
@@ -15250,7 +15241,7 @@ namespace gaia {
 
 				if (hasFilters) {
 					auto execWithFiltersON = [&](const auto& chunks) {
-						return GAIA_UTIL::has_if(chunks, [&](archetype::Chunk* pChunk) {
+						return utils::has_if(chunks, [&](archetype::Chunk* pChunk) {
 							if (!pChunk->HasEntities())
 								return false;
 							return CheckFilters(*pChunk, queryInfo);
@@ -15258,7 +15249,7 @@ namespace gaia {
 					};
 
 					auto execWithFiltersON_EnabledDisabled = [&](const auto& chunks, bool enabledOnly) {
-						return GAIA_UTIL::has_if(chunks, [&](archetype::Chunk* pChunk) {
+						return utils::has_if(chunks, [&](archetype::Chunk* pChunk) {
 							const auto hasEntities = enabledOnly
 																					 ? pChunk->GetEntityCount() - pChunk->GetDisabledEntityMask().count() > 0
 																					 : pChunk->GetDisabledEntityMask().count() > 0;
@@ -15283,13 +15274,13 @@ namespace gaia {
 					}
 				} else {
 					auto execWithFiltersOFF = [&](const auto& chunks) {
-						return GAIA_UTIL::has_if(chunks, [&](archetype::Chunk* pChunk) {
+						return utils::has_if(chunks, [&](archetype::Chunk* pChunk) {
 							return pChunk->HasEntities();
 						});
 					};
 
 					auto execWithFiltersOFF_EnabledDisabled = [&](const auto& chunks, bool enabledOnly) {
-						return GAIA_UTIL::has_if(chunks, [&](archetype::Chunk* pChunk) {
+						return utils::has_if(chunks, [&](archetype::Chunk* pChunk) {
 							return enabledOnly ? pChunk->GetEntityCount() - pChunk->GetDisabledEntityMask().count() > 0
 																 : pChunk->GetDisabledEntityMask().count() > 0;
 						});
@@ -16610,9 +16601,9 @@ namespace gaia {
 			void DiagEntities() const {
 				ValidateEntityList();
 
-				GAIA_LOG_N("Deleted entities: %u", m_entities.get_free_items());
+				GAIA_LOG_N("Deleted entities: %u", (uint32_t)m_entities.get_free_items());
 				if (m_entities.get_free_items() != 0U) {
-					GAIA_LOG_N("  --> %u", m_entities.get_next_free_item());
+					GAIA_LOG_N("  --> %u", (uint32_t)m_entities.get_next_free_item());
 
 					uint32_t iters = 0;
 					auto fe = m_entities[m_entities.get_next_free_item()].idx;
