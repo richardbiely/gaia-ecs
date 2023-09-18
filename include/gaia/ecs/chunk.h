@@ -513,7 +513,7 @@ namespace gaia {
 							auto* pSrc = (void*)&m_data[idxSrc];
 							auto* pDst = (void*)&m_data[idxDst];
 							desc.Move(pSrc, pDst);
-							desc.Destroy(pSrc);
+							desc.Dtor(pSrc);
 						}
 
 						// Entity has been replaced with the last one in chunk.

@@ -69,7 +69,7 @@ namespace gaia {
 						memmove(pDst, (const void*)pSrc, properties.size);
 				}
 
-				void Destroy(void* pSrc) const {
+				void Dtor(void* pSrc) const {
 					if (dtor != nullptr)
 						dtor(pSrc, 1);
 				}
