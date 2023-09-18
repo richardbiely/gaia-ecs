@@ -84,7 +84,8 @@ namespace gaia {
 			//! Returns the component info given the \param componentId.
 			//! \warning It is expected the component info with a given component id exists! Undefined behavior otherwise.
 			//! \return Component info
-			GAIA_NODISCARD const component::ComponentInfo& GetComponentInfo(component::ComponentId componentId) const {
+			GAIA_NODISCARD const component::ComponentInfo&
+			GetComponentInfo(component::ComponentId componentId) const noexcept {
 				GAIA_ASSERT(componentId < m_infoByIndex.size());
 				const auto* pInfo = m_infoByIndex[componentId];
 				GAIA_ASSERT(pInfo != nullptr);
@@ -94,7 +95,8 @@ namespace gaia {
 			//! Returns the component creation info given the \param componentId.
 			//! \warning It is expected the component info with a given component id exists! Undefined behavior otherwise.
 			//! \return Component info
-			GAIA_NODISCARD const component::ComponentDesc& GetComponentDesc(component::ComponentId componentId) const {
+			GAIA_NODISCARD const component::ComponentDesc&
+			GetComponentDesc(component::ComponentId componentId) const noexcept {
 				GAIA_ASSERT(componentId < m_descByIndex.size());
 				return m_descByIndex[componentId];
 			}
@@ -103,7 +105,7 @@ namespace gaia {
 			//! \warning It is expected the component already exists! Undefined behavior otherwise.
 			//! \return Component info
 			template <typename T>
-			GAIA_NODISCARD const component::ComponentInfo& GetComponentInfo() const {
+			GAIA_NODISCARD const component::ComponentInfo& GetComponentInfo() const noexcept {
 				const auto componentId = component::GetComponentId<T>();
 				return GetComponentInfo(componentId);
 			}

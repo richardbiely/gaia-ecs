@@ -622,7 +622,7 @@ namespace gaia {
 					auto execWithFiltersON_EnabledDisabled = [&](const auto& chunks, bool enabledOnly) {
 						return utils::has_if(chunks, [&](archetype::Chunk* pChunk) {
 							const auto hasEntities = enabledOnly
-																					 ? pChunk->GetEntityCount() - pChunk->GetDisabledEntityMask().count() > 0
+																					 ? pChunk->GetEntityCount() != pChunk->GetDisabledEntityMask().count()
 																					 : pChunk->GetDisabledEntityMask().count() > 0;
 							if (!hasEntities)
 								return false;
@@ -652,7 +652,7 @@ namespace gaia {
 
 					auto execWithFiltersOFF_EnabledDisabled = [&](const auto& chunks, bool enabledOnly) {
 						return utils::has_if(chunks, [&](archetype::Chunk* pChunk) {
-							return enabledOnly ? pChunk->GetEntityCount() - pChunk->GetDisabledEntityMask().count() > 0
+							return enabledOnly ? pChunk->GetEntityCount() != pChunk->GetDisabledEntityMask().count()
 																 : pChunk->GetDisabledEntityMask().count() > 0;
 						});
 					};

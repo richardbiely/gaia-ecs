@@ -334,7 +334,7 @@ namespace gaia {
 			GAIA_NODISCARD constexpr iterator erase(iterator first, iterator last) noexcept {
 				GAIA_ASSERT(first.m_cnt >= 0 && first.m_cnt < size());
 				GAIA_ASSERT(last.m_cnt >= 0 && last.m_cnt < size());
-				GAIA_ASSERT(last.m_cnt >= last.m_cnt);
+				GAIA_ASSERT(last.m_cnt >= first.m_cnt);
 
 				const auto size = last.m_cnt - first.m_cnt;
 				utils::shift_elements_left(&m_data[first.cnt], size);

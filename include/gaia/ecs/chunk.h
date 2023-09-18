@@ -141,10 +141,10 @@ namespace gaia {
 				Returns a read-write span of the component data. Also updates the world version for the component.
 				\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
 				\tparam T Component
-				\tparam UpdateWorldVersion If true, the world version is updated as a result of the write access
+				\tparam WorldVersionUpdateWanted If true, the world version is updated as a result of the write access
 				\return Span of read-write component data.
 				*/
-				template <typename T, bool UpdateWorldVersion>
+				template <typename T, bool WorldVersionUpdateWanted>
 				GAIA_NODISCARD GAIA_FORCEINLINE auto ViewRW_Internal() {
 					using U = typename component::DeduceComponent<T>::Type;
 #if GAIA_COMPILER_MSVC && _MSC_VER <= 1916
@@ -167,7 +167,7 @@ namespace gaia {
 						[[maybe_unused]] const auto maxOffset = offset + capacity * sizeof(U);
 						GAIA_ASSERT(maxOffset <= Chunk::DATA_SIZE);
 
-						if constexpr (UpdateWorldVersion) {
+						if constexpr (WorldVersionUpdateWanted) {
 							// Update version number so we know RW access was used on chunk
 							this->UpdateWorldVersion(component::ComponentType::CT_Generic, componentIdx);
 						}
@@ -179,7 +179,7 @@ namespace gaia {
 						[[maybe_unused]] const auto maxOffset = offset + sizeof(U);
 						GAIA_ASSERT(maxOffset <= Chunk::DATA_SIZE);
 
-						if constexpr (UpdateWorldVersion) {
+						if constexpr (WorldVersionUpdateWanted) {
 							// Update version number so we know RW access was used on chunk
 							this->UpdateWorldVersion(component::ComponentType::CT_Chunk, componentIdx);
 						}

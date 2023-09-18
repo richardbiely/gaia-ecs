@@ -108,7 +108,7 @@ namespace gaia {
 					const auto itemCnt = (size_type)m_items.size();
 					GAIA_ASSERT(itemCnt < TItemHandle::IdMask && "Trying to allocate too many items!");
 
-					m_items.push_back({itemCnt, 0U});
+					m_items.push_back({{itemCnt, 0U}});
 					return {itemCnt, 0U};
 				}
 
