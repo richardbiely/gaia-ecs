@@ -10166,7 +10166,7 @@ namespace gaia {
 						memmove(pDst, (const void*)pSrc, properties.size);
 				}
 
-				void Destroy(void* pSrc) const {
+				void Dtor(void* pSrc) const {
 					if (dtor != nullptr)
 						dtor(pSrc, 1);
 				}
@@ -11693,7 +11693,7 @@ namespace gaia {
 							auto* pSrc = (void*)&m_data[idxSrc];
 							auto* pDst = (void*)&m_data[idxDst];
 							desc.Move(pSrc, pDst);
-							desc.Destroy(pSrc);
+							desc.Dtor(pSrc);
 						}
 
 						// Entity has been replaced with the last one in chunk.
@@ -13572,20 +13572,23 @@ namespace gaia {
 			//! Writes \param value to the buffer
 			template <typename T>
 			void SaveComponent(T&& value) {
+				const auto componentId = component::GetComponentId<T>();
+				const auto& desc = ComponentCache::Get().GetComponentDesc(componentId);
+				const bool isManualDestroyNeeded = desc.ctor_copy != nullptr || desc.ctor_move != nullptr;
 				constexpr bool isRValue = std::is_rvalue_reference_v<decltype(value)>;
-				EnsureCapacity(sizeof(isRValue) + sizeof(T));
-				Save(isRValue);
+
+				EnsureCapacity(sizeof(isManualDestroyNeeded) + sizeof(T));
+				Save(isManualDestroyNeeded);
 				m_data.resize(m_dataPos + sizeof(T));
 
 				auto* pSrc = (void*)&value;
 				auto* pDst = (void*)&m_data[m_dataPos];
-
-				const auto componentId = component::GetComponentId<T>();
-				const auto& desc = ComponentCache::Get().GetComponentDesc(componentId);
-				if constexpr (isRValue)
-					desc.Move(pSrc, pDst);
+				if (isRValue && desc.ctor_move != nullptr)
+					desc.ctor_move(pSrc, pDst);
+				else if (desc.ctor_copy != nullptr)
+					desc.ctor_copy(pSrc, pDst);
 				else
-					desc.Copy(pSrc, pDst);
+					memmove(pDst, (const void*)pSrc, sizeof(T));
 
 				m_dataPos += sizeof(T);
 			}
@@ -13603,19 +13606,16 @@ namespace gaia {
 
 			//! Loads \param value from the buffer
 			void LoadComponent(void* pDst, component::ComponentId componentId) {
-				bool isRValue = false;
-				Load(isRValue);
+				bool isManualDestroyNeeded = false;
+				Load(isManualDestroyNeeded);
 
 				const auto& desc = ComponentCache::Get().GetComponentDesc(componentId);
 				GAIA_ASSERT(m_dataPos + desc.properties.size <= m_data.size());
 
 				auto* pSrc = (void*)&m_data[m_dataPos];
-
-				if (isRValue) {
-					desc.Move(pSrc, pDst);
-					desc.Destroy(pSrc);
-				} else
-					desc.Copy(pSrc, pDst);
+				desc.Move(pSrc, pDst);
+				if (isManualDestroyNeeded)
+					desc.Dtor(pSrc);
 
 				m_dataPos += desc.properties.size;
 			}
