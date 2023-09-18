@@ -4194,6 +4194,7 @@ namespace gaia {
 				}
 
 				static_assert("Unsupported floating point type");
+				return serialization_type_id::Last;
 			}
 
 			template <typename T>
@@ -5132,7 +5133,7 @@ namespace gaia {
 			GAIA_NODISCARD iterator erase(iterator first, iterator last) noexcept {
 				GAIA_ASSERT(first.m_cnt >= 0 && first.m_cnt < size());
 				GAIA_ASSERT(last.m_cnt >= 0 && last.m_cnt < size());
-				GAIA_ASSERT(last.m_cnt >= last.m_cnt);
+				GAIA_ASSERT(last.m_cnt >= first.m_cnt);
 
 				const auto size = last.m_cnt - first.m_cnt;
 				utils::shift_elements_left(&m_pData[first.cnt], size);
@@ -5141,7 +5142,7 @@ namespace gaia {
 				return {(T*)m_pData + size_type(last.m_cnt)};
 			}
 
-			void clear() noexcept {
+			void clear() {
 				resize(0);
 			}
 
@@ -8470,7 +8471,7 @@ namespace gaia {
 			GAIA_NODISCARD constexpr iterator erase(iterator first, iterator last) noexcept {
 				GAIA_ASSERT(first.m_cnt >= 0 && first.m_cnt < size());
 				GAIA_ASSERT(last.m_cnt >= 0 && last.m_cnt < size());
-				GAIA_ASSERT(last.m_cnt >= last.m_cnt);
+				GAIA_ASSERT(last.m_cnt >= first.m_cnt);
 
 				const auto size = last.m_cnt - first.m_cnt;
 				utils::shift_elements_left(&m_data[first.cnt], size);
@@ -9021,7 +9022,7 @@ namespace gaia {
 					const auto itemCnt = (size_type)m_items.size();
 					GAIA_ASSERT(itemCnt < TItemHandle::IdMask && "Trying to allocate too many items!");
 
-					m_items.push_back({itemCnt, 0U});
+					m_items.push_back({{itemCnt, 0U}});
 					return {itemCnt, 0U};
 				}
 
@@ -10397,7 +10398,8 @@ namespace gaia {
 			//! Returns the component info given the \param componentId.
 			//! \warning It is expected the component info with a given component id exists! Undefined behavior otherwise.
 			//! \return Component info
-			GAIA_NODISCARD const component::ComponentInfo& GetComponentInfo(component::ComponentId componentId) const {
+			GAIA_NODISCARD const component::ComponentInfo&
+			GetComponentInfo(component::ComponentId componentId) const noexcept {
 				GAIA_ASSERT(componentId < m_infoByIndex.size());
 				const auto* pInfo = m_infoByIndex[componentId];
 				GAIA_ASSERT(pInfo != nullptr);
@@ -10407,7 +10409,8 @@ namespace gaia {
 			//! Returns the component creation info given the \param componentId.
 			//! \warning It is expected the component info with a given component id exists! Undefined behavior otherwise.
 			//! \return Component info
-			GAIA_NODISCARD const component::ComponentDesc& GetComponentDesc(component::ComponentId componentId) const {
+			GAIA_NODISCARD const component::ComponentDesc&
+			GetComponentDesc(component::ComponentId componentId) const noexcept {
 				GAIA_ASSERT(componentId < m_descByIndex.size());
 				return m_descByIndex[componentId];
 			}
@@ -10416,7 +10419,7 @@ namespace gaia {
 			//! \warning It is expected the component already exists! Undefined behavior otherwise.
 			//! \return Component info
 			template <typename T>
-			GAIA_NODISCARD const component::ComponentInfo& GetComponentInfo() const {
+			GAIA_NODISCARD const component::ComponentInfo& GetComponentInfo() const noexcept {
 				const auto componentId = component::GetComponentId<T>();
 				return GetComponentInfo(componentId);
 			}
@@ -11021,8 +11024,8 @@ namespace gaia {
 
 				ChunkHeader(const ChunkHeaderOffsets& offs, uint32_t& version):
 						lifespanCountdown(0), hasDisabledEntities(0), structuralChangesLocked(0), hasAnyCustomGenericCtor(0),
-						hasAnyCustomChunkCtor(0), hasAnyCustomGenericDtor(0), hasAnyCustomChunkDtor(0), offsets(offs),
-						worldVersion(version) {
+						hasAnyCustomChunkCtor(0), hasAnyCustomGenericDtor(0), hasAnyCustomChunkDtor(0),
+						worldVersion(version), offsets(offs) {
 					// Make sure the alignment is right
 					GAIA_ASSERT(uintptr_t(this) % (sizeof(size_t)) == 0);
 				}
@@ -11318,10 +11321,10 @@ namespace gaia {
 				Returns a read-write span of the component data. Also updates the world version for the component.
 				\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
 				\tparam T Component
-				\tparam UpdateWorldVersion If true, the world version is updated as a result of the write access
+				\tparam WorldVersionUpdateWanted If true, the world version is updated as a result of the write access
 				\return Span of read-write component data.
 				*/
-				template <typename T, bool UpdateWorldVersion>
+				template <typename T, bool WorldVersionUpdateWanted>
 				GAIA_NODISCARD GAIA_FORCEINLINE auto ViewRW_Internal() {
 					using U = typename component::DeduceComponent<T>::Type;
 #if GAIA_COMPILER_MSVC && _MSC_VER <= 1916
@@ -11344,7 +11347,7 @@ namespace gaia {
 						[[maybe_unused]] const auto maxOffset = offset + capacity * sizeof(U);
 						GAIA_ASSERT(maxOffset <= Chunk::DATA_SIZE);
 
-						if constexpr (UpdateWorldVersion) {
+						if constexpr (WorldVersionUpdateWanted) {
 							// Update version number so we know RW access was used on chunk
 							this->UpdateWorldVersion(component::ComponentType::CT_Generic, componentIdx);
 						}
@@ -11356,7 +11359,7 @@ namespace gaia {
 						[[maybe_unused]] const auto maxOffset = offset + sizeof(U);
 						GAIA_ASSERT(maxOffset <= Chunk::DATA_SIZE);
 
-						if constexpr (UpdateWorldVersion) {
+						if constexpr (WorldVersionUpdateWanted) {
 							// Update version number so we know RW access was used on chunk
 							this->UpdateWorldVersion(component::ComponentType::CT_Chunk, componentIdx);
 						}
@@ -13380,7 +13383,7 @@ namespace gaia {
 			GAIA_NODISCARD iterator erase(iterator first, iterator last) noexcept {
 				GAIA_ASSERT(first.m_cnt >= 0 && first.m_cnt < size());
 				GAIA_ASSERT(last.m_cnt >= 0 && last.m_cnt < size());
-				GAIA_ASSERT(last.m_cnt >= last.m_cnt);
+				GAIA_ASSERT(last.m_cnt >= first.m_cnt);
 
 				const auto size = last.m_cnt - first.m_cnt;
 				utils::shift_elements_left(&m_pData[first.cnt], size);
@@ -15251,7 +15254,7 @@ namespace gaia {
 					auto execWithFiltersON_EnabledDisabled = [&](const auto& chunks, bool enabledOnly) {
 						return utils::has_if(chunks, [&](archetype::Chunk* pChunk) {
 							const auto hasEntities = enabledOnly
-																					 ? pChunk->GetEntityCount() - pChunk->GetDisabledEntityMask().count() > 0
+																					 ? pChunk->GetEntityCount() != pChunk->GetDisabledEntityMask().count()
 																					 : pChunk->GetDisabledEntityMask().count() > 0;
 							if (!hasEntities)
 								return false;
@@ -15281,7 +15284,7 @@ namespace gaia {
 
 					auto execWithFiltersOFF_EnabledDisabled = [&](const auto& chunks, bool enabledOnly) {
 						return utils::has_if(chunks, [&](archetype::Chunk* pChunk) {
-							return enabledOnly ? pChunk->GetEntityCount() - pChunk->GetDisabledEntityMask().count() > 0
+							return enabledOnly ? pChunk->GetEntityCount() != pChunk->GetDisabledEntityMask().count()
 																 : pChunk->GetDisabledEntityMask().count() > 0;
 						});
 					};
@@ -15511,7 +15514,7 @@ namespace gaia {
 			containers::darray<archetype::Chunk*> m_chunksToRemove;
 #if !GAIA_AVOID_CHUNK_FRAGMENTATION
 			//! ID of the last defragmented archetype
-			uint32_t m_defragLastArchetypeID;
+			uint32_t m_defragLastArchetypeID = 0;
 #endif
 
 			//! With every structural change world version changes
@@ -15542,7 +15545,7 @@ namespace gaia {
 				// the entity to somewhere else.
 				auto* pOldChunk = archetype.FindFirstNonEmptyChunk();
 				if (pOldChunk == pChunk) {
-					const uint32_t lastEntityIdx = pChunk->GetEntityCount() - 1;
+					const uint32_t lastEntityIdx = chunkEntityCount - 1;
 					const bool wasDisabled = pChunk->GetDisabledEntityMask().test(lastEntityIdx);
 
 					// Transfer data form the last entity to the new one
@@ -15550,7 +15553,7 @@ namespace gaia {
 					pChunk->RemoveLastEntity(m_chunksToRemove);
 
 					// Transfer the disabled state
-					if GAIA_LIKELY (pChunk->HasEntities())
+					if GAIA_LIKELY (chunkEntityCount > 1)
 						archetype.EnableEntity(pChunk, entityChunkIndex, !wasDisabled);
 				} else if (pOldChunk != nullptr && pOldChunk->HasEntities()) {
 					const uint32_t lastEntityIdx = pOldChunk->GetEntityCount() - 1;
@@ -15564,8 +15567,7 @@ namespace gaia {
 					pOldChunk->UpdateVersions();
 
 					// Transfer the disabled state
-					if GAIA_LIKELY (pChunk->HasEntities())
-						archetype.EnableEntity(pChunk, entityChunkIndex, !wasDisabled);
+					archetype.EnableEntity(pChunk, entityChunkIndex, !wasDisabled);
 
 					auto& lastEntityContainer = m_entities[lastEntity.id()];
 					lastEntityContainer.pChunk = pChunk;
@@ -15586,7 +15588,7 @@ namespace gaia {
 					pChunk->SwapEntitiesInsideChunkAndDeleteOld(entityChunkIndex, m_entities);
 
 					// Transfer the disabled state is possible
-					if GAIA_LIKELY (chunkEntityCount > 0)
+					if GAIA_LIKELY (chunkEntityCount > 1)
 						archetype.EnableEntity(pChunk, entityChunkIndex, !wasDisabled);
 
 					pChunk->RemoveLastEntity(m_chunksToRemove);
@@ -15595,7 +15597,7 @@ namespace gaia {
 					pChunk->SwapEntitiesInsideChunkAndDeleteOld(entityChunkIndex, m_entities);
 
 					// Transfer the disabled state is possible
-					if GAIA_LIKELY (chunkEntityCount > 0)
+					if GAIA_LIKELY (chunkEntityCount > 1)
 						archetype.EnableEntity(pChunk, entityChunkIndex, !wasDisabled);
 
 					pChunk->RemoveLastEntity(m_chunksToRemove);

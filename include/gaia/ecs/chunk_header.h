@@ -62,8 +62,8 @@ namespace gaia {
 
 				ChunkHeader(const ChunkHeaderOffsets& offs, uint32_t& version):
 						lifespanCountdown(0), hasDisabledEntities(0), structuralChangesLocked(0), hasAnyCustomGenericCtor(0),
-						hasAnyCustomChunkCtor(0), hasAnyCustomGenericDtor(0), hasAnyCustomChunkDtor(0), offsets(offs),
-						worldVersion(version) {
+						hasAnyCustomChunkCtor(0), hasAnyCustomGenericDtor(0), hasAnyCustomChunkDtor(0),
+						worldVersion(version), offsets(offs) {
 					// Make sure the alignment is right
 					GAIA_ASSERT(uintptr_t(this) % (sizeof(size_t)) == 0);
 				}

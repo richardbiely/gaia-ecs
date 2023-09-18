@@ -59,7 +59,7 @@ namespace gaia {
 			containers::darray<archetype::Chunk*> m_chunksToRemove;
 #if !GAIA_AVOID_CHUNK_FRAGMENTATION
 			//! ID of the last defragmented archetype
-			uint32_t m_defragLastArchetypeID;
+			uint32_t m_defragLastArchetypeID = 0;
 #endif
 
 			//! With every structural change world version changes
@@ -90,7 +90,7 @@ namespace gaia {
 				// the entity to somewhere else.
 				auto* pOldChunk = archetype.FindFirstNonEmptyChunk();
 				if (pOldChunk == pChunk) {
-					const uint32_t lastEntityIdx = pChunk->GetEntityCount() - 1;
+					const uint32_t lastEntityIdx = chunkEntityCount - 1;
 					const bool wasDisabled = pChunk->GetDisabledEntityMask().test(lastEntityIdx);
 
 					// Transfer data form the last entity to the new one
@@ -98,7 +98,7 @@ namespace gaia {
 					pChunk->RemoveLastEntity(m_chunksToRemove);
 
 					// Transfer the disabled state
-					if GAIA_LIKELY (pChunk->HasEntities())
+					if GAIA_LIKELY (chunkEntityCount > 1)
 						archetype.EnableEntity(pChunk, entityChunkIndex, !wasDisabled);
 				} else if (pOldChunk != nullptr && pOldChunk->HasEntities()) {
 					const uint32_t lastEntityIdx = pOldChunk->GetEntityCount() - 1;
@@ -112,8 +112,7 @@ namespace gaia {
 					pOldChunk->UpdateVersions();
 
 					// Transfer the disabled state
-					if GAIA_LIKELY (pChunk->HasEntities())
-						archetype.EnableEntity(pChunk, entityChunkIndex, !wasDisabled);
+					archetype.EnableEntity(pChunk, entityChunkIndex, !wasDisabled);
 
 					auto& lastEntityContainer = m_entities[lastEntity.id()];
 					lastEntityContainer.pChunk = pChunk;
@@ -134,7 +133,7 @@ namespace gaia {
 					pChunk->SwapEntitiesInsideChunkAndDeleteOld(entityChunkIndex, m_entities);
 
 					// Transfer the disabled state is possible
-					if GAIA_LIKELY (chunkEntityCount > 0)
+					if GAIA_LIKELY (chunkEntityCount > 1)
 						archetype.EnableEntity(pChunk, entityChunkIndex, !wasDisabled);
 
 					pChunk->RemoveLastEntity(m_chunksToRemove);
@@ -143,7 +142,7 @@ namespace gaia {
 					pChunk->SwapEntitiesInsideChunkAndDeleteOld(entityChunkIndex, m_entities);
 
 					// Transfer the disabled state is possible
-					if GAIA_LIKELY (chunkEntityCount > 0)
+					if GAIA_LIKELY (chunkEntityCount > 1)
 						archetype.EnableEntity(pChunk, entityChunkIndex, !wasDisabled);
 
 					pChunk->RemoveLastEntity(m_chunksToRemove);

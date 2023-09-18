@@ -136,6 +136,7 @@ namespace gaia {
 				}
 
 				static_assert("Unsupported floating point type");
+				return serialization_type_id::Last;
 			}
 
 			template <typename T>
