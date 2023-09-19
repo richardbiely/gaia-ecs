@@ -247,7 +247,7 @@ namespace gaia {
 	#define GAIA_CLZ(x)                                                                                                  \
 		([](uint32_t value) noexcept {                                                                                     \
 			unsigned long index;                                                                                             \
-			return _BitScanForward(&index, value) ? (uint32_t)index : (uint32_t)32;                                  \
+			return _BitScanForward(&index, value) ? (uint32_t)index : (uint32_t)32;                                          \
 		}(x))
 	#pragma intrinsic(_BitScanForward64)
 	//! Returns the number of leading zeros of \param x or 64 if \param x is 0.
@@ -255,7 +255,7 @@ namespace gaia {
 	#define GAIA_CLZ64(x)                                                                                                \
 		([](uint64_t value) noexcept {                                                                                     \
 			unsigned long index;                                                                                             \
-			return _BitScanForward64(&index, value) ? (uint32_t)index : (uint32_t)64;                                \
+			return _BitScanForward64(&index, value) ? (uint32_t)index : (uint32_t)64;                                        \
 		}(x))
 
 	#pragma intrinsic(_BitScanReverse)
@@ -424,6 +424,18 @@ namespace gaia {
 #else
 	#define GAIA_FORCEINLINE
 	#define GAIA_NOINLINE
+#endif
+
+#if GAIA_COMPILER_MSVC
+	#if _MSC_VER >= 1927 // MSVC 16.7
+		#define GAIA_LAMBDAINLINE [[msvc::forceinline]]
+	#else
+		#define GAIA_LAMBDAINLINE
+	#endif
+#elif GAIA_COMPILER_CLANG || GAIA_COMPILER_GCC
+	#define GAIA_LAMBDAINLINE __attribute__((always_inline))
+#else
+	#define GAIA_LAMBDAINLINE
 #endif
 
 //------------------------------------------------------------------------------
@@ -10357,11 +10369,11 @@ namespace gaia {
 			//! Registers the component info for \tparam T. If it already exists it is returned.
 			//! \return Component info
 			template <typename T>
-			GAIA_NODISCARD const component::ComponentInfo& GetOrCreateComponentInfo() {
+			GAIA_NODISCARD GAIA_FORCEINLINE const component::ComponentInfo& GetOrCreateComponentInfo() {
 				using U = typename component::DeduceComponent<T>::Type;
 				const auto componentId = component::GetComponentId<T>();
 
-				auto createInfo = [&]() -> const component::ComponentInfo& {
+				auto createInfo = [&]() GAIA_LAMBDAINLINE -> const component::ComponentInfo& {
 					const auto* pInfo = component::ComponentInfo::Create<U>();
 					m_infoByIndex[componentId] = pInfo;
 					m_descByIndex[componentId] = component::ComponentDesc::Create<U>();
@@ -10398,7 +10410,7 @@ namespace gaia {
 			//! Returns the component info given the \param componentId.
 			//! \warning It is expected the component info with a given component id exists! Undefined behavior otherwise.
 			//! \return Component info
-			GAIA_NODISCARD const component::ComponentInfo&
+			GAIA_NODISCARD GAIA_FORCEINLINE const component::ComponentInfo&
 			GetComponentInfo(component::ComponentId componentId) const noexcept {
 				GAIA_ASSERT(componentId < m_infoByIndex.size());
 				const auto* pInfo = m_infoByIndex[componentId];
