@@ -16,10 +16,12 @@ namespace gaia {
 				ComponentId componentId;
 
 				GAIA_NODISCARD bool operator==(const ComponentInfo& other) const {
-					return lookupHash == other.lookupHash && componentId == other.componentId;
+					GAIA_ASSERT(lookupHash == other.lookupHash);
+					return componentId == other.componentId;
 				}
 				GAIA_NODISCARD bool operator!=(const ComponentInfo& other) const {
-					return lookupHash != other.lookupHash || componentId != other.componentId;
+					GAIA_ASSERT(lookupHash != other.lookupHash);
+					return componentId != other.componentId;
 				}
 				GAIA_NODISCARD bool operator<(const ComponentInfo& other) const {
 					return componentId < other.componentId;

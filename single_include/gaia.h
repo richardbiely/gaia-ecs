@@ -10307,10 +10307,12 @@ namespace gaia {
 				ComponentId componentId;
 
 				GAIA_NODISCARD bool operator==(const ComponentInfo& other) const {
-					return lookupHash == other.lookupHash && componentId == other.componentId;
+					GAIA_ASSERT(lookupHash == other.lookupHash);
+					return componentId == other.componentId;
 				}
 				GAIA_NODISCARD bool operator!=(const ComponentInfo& other) const {
-					return lookupHash != other.lookupHash || componentId != other.componentId;
+					GAIA_ASSERT(lookupHash != other.lookupHash);
+					return componentId != other.componentId;
 				}
 				GAIA_NODISCARD bool operator<(const ComponentInfo& other) const {
 					return componentId < other.componentId;
@@ -11093,7 +11095,7 @@ namespace gaia {
 
 			//! Sorts component ids
 			template <typename Container>
-			inline void SortComponents(Container& c) {
+			inline void SortComponents(Container& c) noexcept {
 				utils::sort(c, SortComponentCond{});
 			}
 		} // namespace component
@@ -14945,20 +14947,6 @@ namespace gaia {
 				return false;
 			}
 
-			template <bool HasFilters>
-			GAIA_NODISCARD bool
-			CanAcceptChunkForProcessing(const archetype::Chunk& chunk, const query::QueryInfo& queryInfo) const {
-				if GAIA_UNLIKELY (!chunk.HasEntities())
-					return false;
-
-				if constexpr (HasFilters) {
-					if (!CheckFilters(chunk, queryInfo))
-						return false;
-				}
-
-				return true;
-			}
-
 			//! Execute functors in batches
 			template <typename Func>
 			static void ChunkBatch_Perform(Func func, ChunkBatchedList& chunks) {
@@ -15147,7 +15135,7 @@ namespace gaia {
 
 			template <typename... T>
 			Query& All() {
-				// Adding new rules invalides the query
+				// Adding new rules invalidates the query
 				InvalidateQuery();
 				// Add commands to the command buffer
 				(AddComponent_Internal<T>(query::ListType::LT_All), ...);
@@ -15156,7 +15144,7 @@ namespace gaia {
 
 			template <typename... T>
 			Query& Any() {
-				// Adding new rules invalides the query
+				// Adding new rules invalidates the query
 				InvalidateQuery();
 				// Add commands to the command buffer
 				(AddComponent_Internal<T>(query::ListType::LT_Any), ...);
@@ -15165,7 +15153,7 @@ namespace gaia {
 
 			template <typename... T>
 			Query& None() {
-				// Adding new rules invalides the query
+				// Adding new rules invalidates the query
 				InvalidateQuery();
 				// Add commands to the command buffer
 				(AddComponent_Internal<T>(query::ListType::LT_None), ...);
@@ -15174,7 +15162,7 @@ namespace gaia {
 
 			template <typename... T>
 			Query& WithChanged() {
-				// Adding new rules invalides the query
+				// Adding new rules invalidates the query
 				InvalidateQuery();
 				// Add commands to the command buffer
 				(WithChanged_Internal<T>(), ...);
@@ -15265,9 +15253,8 @@ namespace gaia {
 
 					auto execWithFiltersON_EnabledDisabled = [&](const auto& chunks, bool enabledOnly) {
 						return utils::has_if(chunks, [&](archetype::Chunk* pChunk) {
-							const auto hasEntities = enabledOnly
-																					 ? pChunk->GetEntityCount() != pChunk->GetDisabledEntityMask().count()
-																					 : pChunk->GetDisabledEntityMask().count() > 0;
+							const auto hasEntities = enabledOnly ? pChunk->GetEntityCount() != pChunk->GetDisabledEntityMask().count()
+																									 : pChunk->GetDisabledEntityMask().count() > 0;
 							if (!hasEntities)
 								return false;
 
