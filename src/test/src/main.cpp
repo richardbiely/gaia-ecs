@@ -982,6 +982,137 @@ TEST_CASE("EntityNull") {
 	REQUIRE_FALSE(ecs::EntityNull == e);
 }
 
+TEST_CASE("CreateEntity - no components") {
+	ecs::World w;
+
+	auto create = [&](uint32_t id) {
+		auto e = w.CreateEntity();
+		const bool ok = e.id() == id && e.gen() == 0;
+		REQUIRE(ok);
+		return e;
+	};
+
+	const uint32_t N = 10'000;
+	for (uint32_t i = 0; i < N; i++)
+		create(i);
+}
+
+TEST_CASE("CreateEntity - 1 component") {
+	ecs::World w;
+
+	auto create = [&](uint32_t id) {
+		auto e = w.CreateEntity();
+		w.AddComponent<Int3>(e, {id, id, id});
+		const bool ok = e.id() == id && e.gen() == 0;
+		REQUIRE(ok);
+		auto pos = w.GetComponent<Int3>(e);
+		REQUIRE(pos.x == id);
+		REQUIRE(pos.y == id);
+		REQUIRE(pos.z == id);
+		return e;
+	};
+
+	const uint32_t N = 10'000;
+	for (uint32_t i = 0; i < N; i++)
+		create(i);
+}
+
+TEST_CASE("CreateAndRemoveEntity - no components") {
+	ecs::World w;
+
+	auto create = [&](uint32_t id) {
+		auto e = w.CreateEntity();
+		const bool ok = e.id() == id && e.gen() == 0;
+		REQUIRE(ok);
+		return e;
+	};
+	auto remove = [&](ecs::Entity e) {
+		w.DeleteEntity(e);
+		auto de = w.GetEntity(e.id());
+		const bool ok = de.gen() == e.gen() + 1;
+		REQUIRE(ok);
+		auto* ch = w.GetChunk(e);
+		REQUIRE(ch == nullptr);
+		const bool isEntityValid = w.IsEntityValid(e);
+		REQUIRE_FALSE(isEntityValid);
+	};
+
+	// 10,000 picked so we create enough entites that they overflow
+	// into another chunk
+	const uint32_t N = 10'000;
+	containers::darr<ecs::Entity> arr;
+	arr.reserve(N);
+
+	// Create entities
+	for (uint32_t i = 0; i < N; i++)
+		arr.push_back(create(i));
+	// Remove entities
+	for (size_t i = 0; i < N; i++)
+		remove(arr[i]);
+}
+
+TEST_CASE("CreateAndRemoveEntity - 1 component") {
+	ecs::World w;
+
+	auto create = [&](uint32_t id) {
+		auto e = w.CreateEntity();
+		w.AddComponent<Int3>(e, {id, id, id});
+		const bool ok = e.id() == id && e.gen() == 0;
+		REQUIRE(ok);
+		auto pos = w.GetComponent<Int3>(e);
+		REQUIRE(pos.x == id);
+		REQUIRE(pos.y == id);
+		REQUIRE(pos.z == id);
+		return e;
+	};
+	auto remove = [&](ecs::Entity e) {
+		w.DeleteEntity(e);
+		auto de = w.GetEntity(e.id());
+		const bool ok = de.gen() == e.gen() + 1;
+		REQUIRE(ok);
+		auto* ch = w.GetChunk(e);
+		REQUIRE(ch == nullptr);
+		const bool isEntityValid = w.IsEntityValid(e);
+		REQUIRE_FALSE(isEntityValid);
+	};
+
+	// 10,000 picked so we create enough entites that they overflow
+	// into another chunk
+	const uint32_t N = 10'000;
+	containers::darr<ecs::Entity> arr;
+	arr.reserve(N);
+
+	for (uint32_t i = 0; i < N; i++)
+		arr.push_back(create(i));
+	for (uint32_t i = 0; i < N; i++)
+		remove(arr[i]);
+}
+
+namespace dummy {
+	struct Position {
+		float x;
+		float y;
+		float z;
+	};
+} // namespace dummy
+
+TEST_CASE("AddComponent - namespaces") {
+	ecs::World w;
+	auto e = w.CreateEntity();
+	w.AddComponent<Position>(e, {1, 1, 1});
+	w.AddComponent<dummy::Position>(e, {2, 2, 2});
+	REQUIRE(w.HasComponent<Position>(e));
+	REQUIRE(w.HasComponent<dummy::Position>(e));
+	auto p1 = w.GetComponent<Position>(e);
+	auto p2 = w.GetComponent<dummy::Position>(e);
+	REQUIRE(p1.x == 1.f);
+	REQUIRE(p1.y == 1.f);
+	REQUIRE(p1.z == 1.f);
+	REQUIRE(p2.x == 2.f);
+	REQUIRE(p2.y == 2.f);
+	REQUIRE(p2.z == 2.f);
+}
+
 TEST_CASE("Query - QueryResult") {
 	ecs::World w;
 
@@ -1276,112 +1407,6 @@ TEST_CASE("Query - equality") {
 			++i;
 		}
 	}
-}
-
-TEST_CASE("CreateEntity - no components") {
-	ecs::World w;
-
-	auto create = [&](uint32_t id) {
-		auto e = w.CreateEntity();
-		const bool ok = e.id() == id && e.gen() == 0;
-		REQUIRE(ok);
-		return e;
-	};
-
-	const uint32_t N = 10'000;
-	for (uint32_t i = 0; i < N; i++)
-		create(i);
-}
-
-TEST_CASE("CreateEntity - 1 component") {
-	ecs::World w;
-
-	auto create = [&](uint32_t id) {
-		auto e = w.CreateEntity();
-		w.AddComponent<Int3>(e, {id, id, id});
-		const bool ok = e.id() == id && e.gen() == 0;
-		REQUIRE(ok);
-		auto pos = w.GetComponent<Int3>(e);
-		REQUIRE(pos.x == id);
-		REQUIRE(pos.y == id);
-		REQUIRE(pos.z == id);
-		return e;
-	};
-
-	const uint32_t N = 10'000;
-	for (uint32_t i = 0; i < N; i++)
-		create(i);
-}
-
-TEST_CASE("CreateAndRemoveEntity - no components") {
-	ecs::World w;
-
-	auto create = [&](uint32_t id) {
-		auto e = w.CreateEntity();
-		const bool ok = e.id() == id && e.gen() == 0;
-		REQUIRE(ok);
-		return e;
-	};
-	auto remove = [&](ecs::Entity e) {
-		w.DeleteEntity(e);
-		auto de = w.GetEntity(e.id());
-		const bool ok = de.gen() == e.gen() + 1;
-		REQUIRE(ok);
-		auto* ch = w.GetChunk(e);
-		REQUIRE(ch == nullptr);
-		const bool isEntityValid = w.IsEntityValid(e);
-		REQUIRE_FALSE(isEntityValid);
-	};
-
-	// 10,000 picked so we create enough entites that they overflow
-	// into another chunk
-	const uint32_t N = 10'000;
-	containers::darr<ecs::Entity> arr;
-	arr.reserve(N);
-
-	// Create entities
-	for (uint32_t i = 0; i < N; i++)
-		arr.push_back(create(i));
-	// Remove entities
-	for (size_t i = 0; i < N; i++)
-		remove(arr[i]);
-}
-
-TEST_CASE("CreateAndRemoveEntity - 1 component") {
-	ecs::World w;
-
-	auto create = [&](uint32_t id) {
-		auto e = w.CreateEntity();
-		w.AddComponent<Int3>(e, {id, id, id});
-		const bool ok = e.id() == id && e.gen() == 0;
-		REQUIRE(ok);
-		auto pos = w.GetComponent<Int3>(e);
-		REQUIRE(pos.x == id);
-		REQUIRE(pos.y == id);
-		REQUIRE(pos.z == id);
-		return e;
-	};
-	auto remove = [&](ecs::Entity e) {
-		w.DeleteEntity(e);
-		auto de = w.GetEntity(e.id());
-		const bool ok = de.gen() == e.gen() + 1;
-		REQUIRE(ok);
-		auto* ch = w.GetChunk(e);
-		REQUIRE(ch == nullptr);
-		const bool isEntityValid = w.IsEntityValid(e);
-		REQUIRE_FALSE(isEntityValid);
-	};
-
-	// 10,000 picked so we create enough entites that they overflow
-	// into another chunk
-	const uint32_t N = 10'000;
-	containers::darr<ecs::Entity> arr;
-	arr.reserve(N);
-
-	for (uint32_t i = 0; i < N; i++)
-		arr.push_back(create(i));
-	for (uint32_t i = 0; i < N; i++)
-		remove(arr[i]);
 }
 
 TEST_CASE("EnableEntity") {

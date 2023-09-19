@@ -51,7 +51,7 @@ namespace gaia {
 
 			//! Sorts component ids
 			template <typename Container>
-			inline void SortComponents(Container& c) {
+			inline void SortComponents(Container& c) noexcept {
 				utils::sort(c, SortComponentCond{});
 			}
 		} // namespace component
