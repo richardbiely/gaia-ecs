@@ -11,6 +11,7 @@
 #include "component.h"
 #include "component_desc.h"
 #include "component_info.h"
+#include "gaia/config/config_core.h"
 
 namespace gaia {
 	namespace ecs {
@@ -43,11 +44,11 @@ namespace gaia {
 			//! Registers the component info for \tparam T. If it already exists it is returned.
 			//! \return Component info
 			template <typename T>
-			GAIA_NODISCARD const component::ComponentInfo& GetOrCreateComponentInfo() {
+			GAIA_NODISCARD GAIA_FORCEINLINE const component::ComponentInfo& GetOrCreateComponentInfo() {
 				using U = typename component::DeduceComponent<T>::Type;
 				const auto componentId = component::GetComponentId<T>();
 
-				auto createInfo = [&]() -> const component::ComponentInfo& {
+				auto createInfo = [&]() GAIA_LAMBDAINLINE -> const component::ComponentInfo& {
 					const auto* pInfo = component::ComponentInfo::Create<U>();
 					m_infoByIndex[componentId] = pInfo;
 					m_descByIndex[componentId] = component::ComponentDesc::Create<U>();
@@ -84,7 +85,7 @@ namespace gaia {
 			//! Returns the component info given the \param componentId.
 			//! \warning It is expected the component info with a given component id exists! Undefined behavior otherwise.
 			//! \return Component info
-			GAIA_NODISCARD const component::ComponentInfo&
+			GAIA_NODISCARD GAIA_FORCEINLINE const component::ComponentInfo&
 			GetComponentInfo(component::ComponentId componentId) const noexcept {
 				GAIA_ASSERT(componentId < m_infoByIndex.size());
 				const auto* pInfo = m_infoByIndex[componentId];
