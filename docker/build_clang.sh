@@ -30,7 +30,10 @@ COMPILER_SETTINGS="-DCMAKE_CC_COMPILER=${COMPILER_CC} -DCMAKE_CXX_COMPILER=${COM
 BUILD_SETTINGS_COMMON_BASE="-DGAIA_BUILD_BENCHMARK=ON -DGAIA_BUILD_EXAMPLES=ON -DGAIA_GENERATE_CC=OFF -DGAIA_MAKE_SINGLE_HEADER=OFF -DGAIA_PROFILER_BUILD=OFF"
 BUILD_SETTINGS_COMMON="${BUILD_SETTINGS_COMMON_BASE} -DGAIA_BUILD_UNITTEST=ON -DGAIA_PROFILER_CPU=OFF -DGAIA_PROFILER_MEM=OFF"
 BUILD_SETTINGS_COMMON_PROF="${BUILD_SETTINGS_COMMON_BASE} -DGAIA_PROFILER_CPU=ON -DGAIA_PROFILER_MEM=ON"
-# For sanitizer builds we have to turn off unit tests because Catch2 generates unitialized memory alerts
+# For sanitizer builds we have to turn off unit tests because Catch2 generates unitialized memory alerts.
+# These are false alerts happening due to us not linking against the standard library that is not build with
+# memory sanitizers. 
+# TODO: Build custom libc++ with msan enabled
 BUILD_SETTINGS_COMMON_SANI="${BUILD_SETTINGS_COMMON_BASE} -DGAIA_BUILD_UNITTEST=OFF -DGAIA_PROFILER_CPU=OFF -DGAIA_PROFILER_MEM=OFF -DGAIA_ECS_CHUNK_ALLOCATOR=OFF"
 
 # Paths

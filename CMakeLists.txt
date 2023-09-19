@@ -28,16 +28,21 @@ message(STATUS "Compiler: ${CMAKE_CXX_COMPILER_ID}")
 message(STATUS "Processor: ${CMAKE_SYSTEM_PROCESSOR}")
 message(STATUS "*************************************************************")
 
+include("${CMAKE_CURRENT_LIST_DIR}/cmake/sanitizers.cmake")
+
 set(IsClangCompiler FALSE)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     set(IsClangCompiler TRUE)
 endif()
 
-include("${CMAKE_CURRENT_LIST_DIR}/cmake/sanitizers.cmake")
-
 # Configuration
-option(GAIA_USE_LIBCPP "Use libc++." IsClangCompiler)
+option(GAIA_USE_LIBCPP "Use libc++." OFF)
+
+if(IsClangCompiler)
+    set(GAIA_USE_LIBCPP ON)
+endif()
+
 option(GAIA_BUILD_UNITTEST "Build unit test." OFF)
 option(GAIA_BUILD_BENCHMARK "Build benchmark." OFF)
 option(GAIA_BUILD_EXAMPLES "Build examples." OFF)
@@ -67,12 +72,12 @@ if(NOT WIN32 AND GAIA_USE_LIBCPP)
     set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -stdlib=libc++")
 
     check_cxx_source_compiles("
-        #include<type_traits>
-        int main() { return std::is_same_v<int, char>; }
-    " GAIA_HAS_LIBCPP)
+#include<type_traits>
+int main() { return std::is_same_v<int, char>; }
+" GAIA_HAS_LIBCPP)
 
     if(NOT GAIA_HAS_LIBCPP)
-        message(WARNING "GAIA_USE_LIBCPP is set however libc++ is not available. The flag will be ignored.")
+        message(WARNING "GAIA_USE_LIBCPP is ON but libc++ is not available. The flag will be ignored.")
     endif()
 
     cmake_pop_check_state()
