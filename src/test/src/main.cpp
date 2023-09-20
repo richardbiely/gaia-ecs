@@ -3238,8 +3238,9 @@ TEST_CASE("Multithreading - Schedule") {
 	for (uint32_t i = 0; i < res.max_size(); ++i)
 		res[i] = 0;
 
-	containers::sarray<uint32_t, N> arr;
-	for (uint32_t i = 0; i < arr.max_size(); ++i)
+	containers::darray<uint32_t> arr;
+	arr.resize(N);
+	for (uint32_t i = 0; i < arr.size(); ++i)
 		arr[i] = 1;
 
 	Run_Schedule_Simple(arr.data(), res.data(), JobCount, ItemsPerJob, JobSystemFunc);
@@ -3252,8 +3253,9 @@ TEST_CASE("Multithreading - ScheduleParallel") {
 	constexpr uint32_t ItemsPerJob = 5000;
 	constexpr uint32_t N = JobCount * ItemsPerJob;
 
-	containers::sarray<uint32_t, N> arr;
-	for (uint32_t i = 0; i < arr.max_size(); ++i)
+	containers::darray<uint32_t> arr;
+	arr.resize(N);
+	for (uint32_t i = 0; i < arr.size(); ++i)
 		arr[i] = 1;
 
 	std::atomic_uint32_t sum1 = 0;
@@ -3275,10 +3277,13 @@ TEST_CASE("Multithreading - Complete") {
 
 	constexpr uint32_t Jobs = 15000;
 
-	containers::sarray<mt::JobHandle, Jobs> handles;
-	containers::sarray<uint32_t, Jobs> res;
+	containers::darray<mt::JobHandle> handles;
+	containers::darray<uint32_t> res;
 
-	for (uint32_t i = 0; i < res.max_size(); ++i)
+	handles.resize(Jobs);
+	res.resize(Jobs);
+
+	for (uint32_t i = 0; i < res.size(); ++i)
 		res[i] = (uint32_t)-1;
 
 	for (uint32_t i = 0; i < Jobs; i++) {
