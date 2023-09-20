@@ -537,12 +537,12 @@ public:
 			return val < 0 ? -1 : 1;
 		};
 
-		m_q.ForEach([&](ecs::Iterator iter) {
+		m_q.ForEach([&](ecs::IteratorByIndex iter) {
 			auto ent = iter.View<ecs::Entity>();
 			auto vel = iter.ViewRW<Velocity>();
 			auto pos = iter.View<Position>();
 
-			for (uint32_t i: iter) {
+			for (const auto i: iter) {
 				// Skip stationary objects
 				const auto& v =
 						vel[i]; // This is <= 8 bytes so it would be okay even if we did a copy rather than const reference
@@ -957,6 +957,8 @@ int main() {
 	g_smPostSimulation.CreateSystem<GameStateSystem>();
 
 	g_world.Init();
+	g_ecs.Diag();
+
 	while (!g_world.terminate) {
 		g_smPreSimulation.Update();
 		g_smSimulation.Update();

@@ -165,9 +165,9 @@ namespace gaia {
 				uint32_t size_in_bytes{};
 
 				if constexpr (is_trivially_serializable<type>::value)
-					size_in_bytes = sizeof(type);
+					size_in_bytes = (uint32_t)sizeof(type);
 				else if constexpr (detail::has_data_and_size<type>::value) {
-					size_in_bytes += item.size();
+					size_in_bytes += (uint32_t)item.size();
 				} else if constexpr (std::is_class_v<type>) {
 					utils::for_each_member(item, [&](auto&&... items) {
 						size_in_bytes += (calculate_size_one(items) + ...);

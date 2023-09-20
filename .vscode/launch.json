@@ -22,10 +22,7 @@
       "request": "launch",
       "program": "${workspaceFolder}/build/${input:buildType}/src/examples/example1/gaia_example1",
       "args": [],
-      "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
-      "environment": [],
-      "externalConsole": false,
     },
     {
       "name": "(lldb) example - example2",
@@ -33,10 +30,15 @@
       "request": "launch",
       "program": "${workspaceFolder}/build/${input:buildType}/src/examples/example2/gaia_example2",
       "args": [],
-      "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
-      "environment": [],
-      "externalConsole": false
+    },
+    {
+      "name": "(lldb) dummy",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/${input:buildType}/src/dummy/gaia_dummy",
+      "args": [],
+      "cwd": "${workspaceFolder}",
     },
     {
       "name": "(lldb) example - roguelike",
@@ -44,10 +46,7 @@
       "request": "launch",
       "program": "${workspaceFolder}/build/${input:buildType}/src/examples/example_roguelike/gaia_example_roguelike",
       "args": [],
-      "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
-      "environment": [],
-      "externalConsole": false
     },
     {
       "name": "(lldb) unit test",
@@ -55,10 +54,7 @@
       "request": "launch",
       "program": "${workspaceFolder}/build/${input:buildType}/src/test/gaia_test",
       "args": [],
-      "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
-      "environment": [],
-      "externalConsole": false
     },
     {
       "name": "(lldb) perf - duel",
@@ -66,10 +62,7 @@
       "request": "launch",
       "program": "${workspaceFolder}/build/${input:buildType}/src/perf/duel/gaia_perf_duel",
       "args": [],
-      "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
-      "environment": [],
-      "externalConsole": false
     },
     {
       "name": "(lldb) perf - iteration",
@@ -77,10 +70,7 @@
       "request": "launch",
       "program": "${workspaceFolder}/build/${input:buildType}/src/perf/iter/gaia_perf_iter",
       "args": [],
-      "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
-      "environment": [],
-      "externalConsole": false
     },
     {
       "name": "(lldb) perf - entity",
@@ -88,10 +78,7 @@
       "request": "launch",
       "program": "${workspaceFolder}/build/${input:buildType}/src/perf/entity/gaia_perf_entity",
       "args": [],
-      "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
-      "environment": [],
-      "externalConsole": false
     },
     {
       "name": "(lldb) perf - mt",
@@ -99,10 +86,7 @@
       "request": "launch",
       "program": "${workspaceFolder}/build/${input:buildType}/src/perf/mt/gaia_perf_mt",
       "args": [],
-      "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
-      "environment": [],
-      "externalConsole": false
     }
   ]
 }

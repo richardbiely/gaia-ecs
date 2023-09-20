@@ -21,6 +21,7 @@
 
 #include "gaia/ecs/archetype.h"
 #include "gaia/ecs/chunk.h"
+#include "gaia/ecs/chunk_accessor.h"
 #include "gaia/ecs/chunk_allocator.h"
 #include "gaia/ecs/command_buffer.h"
 #include "gaia/ecs/common.h"

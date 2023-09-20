@@ -300,11 +300,11 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 	class PositionSystem final: public TestSystem {
 	public:
 		void OnUpdate() override {
-			m_q->ForEach([](ecs::Iterator iter) {
+			m_q->ForEach([](ecs::IteratorByIndex iter) {
 				auto p = iter.ViewRW<Position>();
 				auto v = iter.View<Velocity>();
 
-				for (size_t i: iter) {
+				for (const auto i: iter) {
 					p[i].x += v[i].x * dt;
 					p[i].y += v[i].y * dt;
 					p[i].z += v[i].z * dt;
@@ -316,11 +316,11 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 	class CollisionSystem final: public TestSystem {
 	public:
 		void OnUpdate() override {
-			m_q->ForEach([](ecs::Iterator iter) {
+			m_q->ForEach([](ecs::IteratorByIndex iter) {
 				auto p = iter.ViewRW<Position>();
 				auto v = iter.ViewRW<Velocity>();
 
-				for (size_t i: iter) {
+				for (const auto i: iter) {
 					if (p[i].y < 0.0f) {
 						p[i].y = 0.0f;
 						v[i].y = 0.0f;
@@ -332,10 +332,10 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 	class GravitySystem final: public TestSystem {
 	public:
 		void OnUpdate() override {
-			m_q->ForEach([](ecs::Iterator iter) {
+			m_q->ForEach([](ecs::IteratorByIndex iter) {
 				auto v = iter.ViewRW<Velocity>();
 
-				for (size_t i: iter)
+				for (const auto i: iter)
 					v[i].y += 9.81f * dt;
 			});
 		}
@@ -344,11 +344,11 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 	public:
 		void OnUpdate() override {
 			uint32_t aliveUnits = 0;
-			m_q->ForEach([&](ecs::Iterator iter) {
+			m_q->ForEach([&](ecs::IteratorByIndex iter) {
 				auto h = iter.View<Health>();
 
 				uint32_t a = 0;
-				for (size_t i: iter) {
+				for (const auto i: iter) {
 					if (h[i].value > 0)
 						++a;
 				}
@@ -392,7 +392,7 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 	class PositionSystem final: public TestSystem {
 	public:
 		void OnUpdate() override {
-			m_q->ForEach([](ecs::Iterator iter) {
+			m_q->ForEach([](ecs::IteratorByIndex iter) {
 				auto p = iter.ViewRW<PositionSoA>();
 				auto v = iter.View<VelocitySoA>();
 
@@ -404,11 +404,11 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 				auto vvy = v.get<1>();
 				auto vvz = v.get<2>();
 
-				for (size_t i: iter)
+				for (const auto i: iter)
 					ppx[i] += vvx[i] * dt;
-				for (size_t i: iter)
+				for (const auto i: iter)
 					ppy[i] += vvy[i] * dt;
-				for (size_t i: iter)
+				for (const auto i: iter)
 					ppz[i] += vvz[i] * dt;
 			});
 		}
@@ -416,14 +416,14 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 	class CollisionSystem final: public TestSystem {
 	public:
 		void OnUpdate() override {
-			m_q->ForEach([](ecs::Iterator iter) {
+			m_q->ForEach([](ecs::IteratorByIndex iter) {
 				auto p = iter.ViewRW<PositionSoA>();
 				auto v = iter.ViewRW<VelocitySoA>();
 
 				auto ppy = p.set<1>();
 				auto vvy = v.set<1>();
 
-				for (size_t i: iter) {
+				for (const auto i: iter) {
 					if (ppy[i] < 0.0f) {
 						ppy[i] = 0.0f;
 						vvy[i] = 0.0f;
@@ -435,11 +435,11 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 	class GravitySystem final: public TestSystem {
 	public:
 		void OnUpdate() override {
-			m_q->ForEach([](ecs::Iterator iter) {
+			m_q->ForEach([](ecs::IteratorByIndex iter) {
 				auto v = iter.ViewRW<VelocitySoA>();
 				auto vvy = v.set<1>();
 
-				for (size_t i: iter)
+				for (const auto i: iter)
 					vvy[i] += dt * 9.81f;
 			});
 		}
@@ -448,11 +448,11 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 	public:
 		void OnUpdate() override {
 			uint32_t aliveUnits = 0;
-			m_q->ForEach([&](ecs::Iterator iter) {
+			m_q->ForEach([&](ecs::IteratorByIndex iter) {
 				auto h = iter.View<Health>();
 
 				uint32_t a = 0;
-				for (size_t i: iter) {
+				for (const auto i: iter) {
 					if (h[i].value > 0)
 						++a;
 				}
@@ -541,7 +541,7 @@ void BM_ECS_WithSystems_Iter_SoA_SIMD(picobench::state& state) {
 	class PositionSystem final: public TestSystem {
 	public:
 		void OnUpdate() override {
-			m_q->ForEach([](ecs::Iterator iter) {
+			m_q->ForEach([](ecs::IteratorByIndex iter) {
 				auto p = iter.ViewRW<PositionSoA>();
 				auto v = iter.View<VelocitySoA>();
 
@@ -598,7 +598,7 @@ void BM_ECS_WithSystems_Iter_SoA_SIMD(picobench::state& state) {
 	class CollisionSystem final: public TestSystem {
 	public:
 		void OnUpdate() override {
-			m_q->ForEach([](ecs::Iterator iter) {
+			m_q->ForEach([](ecs::IteratorByIndex iter) {
 				auto p = iter.ViewRW<PositionSoA>();
 				auto v = iter.ViewRW<VelocitySoA>();
 
@@ -640,7 +640,7 @@ void BM_ECS_WithSystems_Iter_SoA_SIMD(picobench::state& state) {
 	class GravitySystem final: public TestSystem {
 	public:
 		void OnUpdate() override {
-			m_q->ForEach([](ecs::Iterator iter) {
+			m_q->ForEach([](ecs::IteratorByIndex iter) {
 				auto v = iter.ViewRW<VelocitySoA>();
 
 				auto vvy = v.set<1>();
@@ -675,7 +675,7 @@ void BM_ECS_WithSystems_Iter_SoA_SIMD(picobench::state& state) {
 	public:
 		void OnUpdate() override {
 			uint32_t aliveUnits = 0;
-			m_q->ForEach([&](ecs::Iterator iter) {
+			m_q->ForEach([&](ecs::IteratorByIndex iter) {
 				auto h = iter.View<Health>();
 
 				uint32_t a = 0;

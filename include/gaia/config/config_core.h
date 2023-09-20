@@ -427,7 +427,7 @@ namespace gaia {
 #endif
 
 #if GAIA_COMPILER_MSVC
-	#if _MSC_VER >= 1927 // MSVC 16.7
+	#if _MSC_VER >= 1927 && _MSVC_LANG > 202002L // MSVC 16.7 or newer && /std:c++latest
 		#define GAIA_LAMBDAINLINE [[msvc::forceinline]]
 	#else
 		#define GAIA_LAMBDAINLINE
