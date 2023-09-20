@@ -146,8 +146,37 @@ DEFINE_FOREACH_EXTERNALQUERY(1000)
 DEFINE_FOREACH_EXTERNALQUERY(2500)
 DEFINE_FOREACH_EXTERNALQUERY(5000)
 
-#define DEFINE_FOREACHCHUNK_EXTERNALQUERY(ArchetypeCount)                                                              \
-	void BM_ForEachChunk_External_##ArchetypeCount(picobench::state& state) {                                            \
+#define DEFINE_FOREACHCHUNK_EXTERNALQUERY_ITER(ArchetypeCount)                                                         \
+	void BM_ForEachChunk_External_Iter_##ArchetypeCount(picobench::state& state) {                                       \
+		ecs::World w;                                                                                                      \
+		Create_Archetypes_##ArchetypeCount(w);                                                                             \
+                                                                                                                       \
+		using c1 = Component<0, float, 3>;                                                                                 \
+		auto query = w.CreateQuery().All<const c1>();                                                                      \
+                                                                                                                       \
+		/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */              \
+		picobench::DoNotOptimize(query.HasEntities());                                                                     \
+                                                                                                                       \
+		for (auto _: state) {                                                                                              \
+			(void)_;                                                                                                         \
+			float f = 0.f;                                                                                                   \
+			query.ForEach([&](ecs::Iterator iter) {                                                                          \
+				auto c1View = iter.View<c1>();                                                                                 \
+				for (const auto i: iter.Indices())                                                                             \
+					f += c1View[i].value[0];                                                                                     \
+			});                                                                                                              \
+			picobench::DoNotOptimize(f);                                                                                     \
+		}                                                                                                                  \
+	}
+
+DEFINE_FOREACHCHUNK_EXTERNALQUERY_ITER(1)
+DEFINE_FOREACHCHUNK_EXTERNALQUERY_ITER(100)
+DEFINE_FOREACHCHUNK_EXTERNALQUERY_ITER(1000)
+DEFINE_FOREACHCHUNK_EXTERNALQUERY_ITER(2500)
+DEFINE_FOREACHCHUNK_EXTERNALQUERY_ITER(5000)
+
+#define DEFINE_FOREACHCHUNK_EXTERNALQUERY_ITERBYINDEX(ArchetypeCount)                                                  \
+	void BM_ForEachChunk_External_IterByIndex_##ArchetypeCount(picobench::state& state) {                                \
 		ecs::World w;                                                                                                      \
 		Create_Archetypes_##ArchetypeCount(w);                                                                             \
                                                                                                                        \
@@ -169,11 +198,56 @@ DEFINE_FOREACH_EXTERNALQUERY(5000)
 		}                                                                                                                  \
 	}
 
-DEFINE_FOREACHCHUNK_EXTERNALQUERY(1)
-DEFINE_FOREACHCHUNK_EXTERNALQUERY(100)
-DEFINE_FOREACHCHUNK_EXTERNALQUERY(1000)
-DEFINE_FOREACHCHUNK_EXTERNALQUERY(2500)
-DEFINE_FOREACHCHUNK_EXTERNALQUERY(5000)
+DEFINE_FOREACHCHUNK_EXTERNALQUERY_ITERBYINDEX(5000);
+
+#define DEFINE_FOREACHCHUNK_EXTERNALQUERY_INDEX(ArchetypeCount)                                                        \
+	void BM_ForEachChunk_External_Index_##ArchetypeCount(picobench::state& state) {                                      \
+		ecs::World w;                                                                                                      \
+		Create_Archetypes_##ArchetypeCount(w);                                                                             \
+                                                                                                                       \
+		using c1 = Component<0, float, 3>;                                                                                 \
+		auto query = w.CreateQuery().All<const c1>();                                                                      \
+                                                                                                                       \
+		/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */              \
+		picobench::DoNotOptimize(query.HasEntities());                                                                     \
+                                                                                                                       \
+		for (auto _: state) {                                                                                              \
+			(void)_;                                                                                                         \
+			float f = 0.f;                                                                                                   \
+			query.ForEach([&](ecs::IteratorByIndex iter) {                                                                   \
+				auto c1View = iter.View<c1>();                                                                                 \
+				for (const auto i: iter)                                                                                       \
+					f += c1View[i].value[0];                                                                                     \
+			});                                                                                                              \
+			picobench::DoNotOptimize(f);                                                                                     \
+		}                                                                                                                  \
+	}
+
+DEFINE_FOREACHCHUNK_EXTERNALQUERY_INDEX(5000);
+
+#define DEFINE_FOREACHCHUNK_EXTERNALQUERY_ENABLED(ArchetypeCount)                                                      \
+	void BM_ForEachChunk_External_Enabled_##ArchetypeCount(picobench::state& state) {                                    \
+		ecs::World w;                                                                                                      \
+		Create_Archetypes_##ArchetypeCount(w);                                                                             \
+                                                                                                                       \
+		using c1 = Component<0, float, 3>;                                                                                 \
+		auto query = w.CreateQuery().All<const c1>();                                                                      \
+                                                                                                                       \
+		/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */              \
+		picobench::DoNotOptimize(query.HasEntities());                                                                     \
+                                                                                                                       \
+		for (auto _: state) {                                                                                              \
+			(void)_;                                                                                                         \
+			float f = 0.f;                                                                                                   \
+			query.ForEach([&](ecs::IteratorEnabled iter) {                                                                   \
+				for (auto curr: iter)                                                                                          \
+					f += curr.GetComponent<c1>().value[0];                                                                       \
+			});                                                                                                              \
+			picobench::DoNotOptimize(f);                                                                                     \
+		}                                                                                                                  \
+	}
+
+DEFINE_FOREACHCHUNK_EXTERNALQUERY_ENABLED(5000);
 
 #define PICO_SETTINGS() iterations({8192}).samples(3)
 
@@ -192,8 +266,11 @@ PICOBENCH(BM_ForEach_External_2500).PICO_SETTINGS().label("2500 archetypes");
 PICOBENCH(BM_ForEach_External_5000).PICO_SETTINGS().label("5000 archetypes");
 
 PICOBENCH_SUITE("ForEach - external query, iterator");
-PICOBENCH(BM_ForEachChunk_External_1).PICO_SETTINGS().label("1 archetype");
-PICOBENCH(BM_ForEachChunk_External_100).PICO_SETTINGS().label("100 archetypes");
-PICOBENCH(BM_ForEachChunk_External_1000).PICO_SETTINGS().label("1000 archetypes");
-PICOBENCH(BM_ForEachChunk_External_2500).PICO_SETTINGS().label("2500 archetypes");
-PICOBENCH(BM_ForEachChunk_External_5000).PICO_SETTINGS().label("5000 archetypes");
+PICOBENCH(BM_ForEachChunk_External_Iter_1).PICO_SETTINGS().label("1 archetype");
+PICOBENCH(BM_ForEachChunk_External_Iter_100).PICO_SETTINGS().label("100 archetypes");
+PICOBENCH(BM_ForEachChunk_External_Iter_1000).PICO_SETTINGS().label("1000 archetypes");
+PICOBENCH(BM_ForEachChunk_External_Iter_2500).PICO_SETTINGS().label("2500 archetypes");
+PICOBENCH(BM_ForEachChunk_External_Iter_5000).PICO_SETTINGS().label("5000 archetypes (Iter)");
+PICOBENCH(BM_ForEachChunk_External_IterByIndex_5000).PICO_SETTINGS().label("5000 archetypes (IBI)");
+PICOBENCH(BM_ForEachChunk_External_Index_5000).PICO_SETTINGS().label("5000 archetypes (Index)");
+PICOBENCH(BM_ForEachChunk_External_Enabled_5000).PICO_SETTINGS().label("5000 archetypes (Enbled)");
