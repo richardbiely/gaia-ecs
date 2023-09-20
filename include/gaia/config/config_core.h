@@ -264,7 +264,7 @@ namespace gaia {
 	#define GAIA_CTZ(x)                                                                                                  \
 		([](uint32_t value) noexcept {                                                                                     \
 			unsigned long index;                                                                                             \
-			return _BitScanReverse(&index, value) ? (uint32_t)index : (uint32_t)32;                                          \
+			return _BitScanReverse(&index, value) ? 31U - (uint32_t)index : (uint32_t)32;                                    \
 		}(x))
 	#pragma intrinsic(_BitScanReverse64)
 	//! Returns the number of trailing zeros of \param x or 64 if \param x is 0.
@@ -272,7 +272,7 @@ namespace gaia {
 	#define GAIA_CTZ64(x)                                                                                                \
 		([](uint64_t value) noexcept {                                                                                     \
 			unsigned long index;                                                                                             \
-			return _BitScanReverse64(&index, value) ? (uint32_t)index : (uint32_t)64;                                        \
+			return _BitScanReverse64(&index, value) ? 63U - (uint32_t)index : (uint32_t)64;                                  \
 		}(x))
 
 	#pragma intrinsic(_BitScanForward)
@@ -427,7 +427,7 @@ namespace gaia {
 #endif
 
 #if GAIA_COMPILER_MSVC
-	#if _MSC_VER >= 1927 && _MSVC_LANG > 202002L // MSVC 16.7 or newer && /std:c++latest
+	#if _MSC_VER >= 1927 && _MSVC_LANG > 202002L // MSVC 16.7 or newer &&�/std:c++latest
 		#define GAIA_LAMBDAINLINE [[msvc::forceinline]]
 	#else
 		#define GAIA_LAMBDAINLINE
