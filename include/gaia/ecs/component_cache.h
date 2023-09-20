@@ -11,6 +11,7 @@
 #include "component.h"
 #include "component_desc.h"
 #include "component_info.h"
+#include "gaia/config/config_core.h"
 
 namespace gaia {
 	namespace ecs {

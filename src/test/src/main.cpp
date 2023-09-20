@@ -555,7 +555,7 @@ void test_bitset() {
 		{
 			containers::bitset<NBits> bs;
 			uint32_t i = 0;
-			for (auto val: bs)
+			for ([[maybe_unused]] auto val: bs)
 				++i;
 			REQUIRE(i == 0);
 		}
@@ -726,7 +726,7 @@ void test_dbitset() {
 		{
 			containers::dbitset bs;
 			uint32_t i = 0;
-			for (auto val: bs)
+			for ([[maybe_unused]] auto val: bs)
 				++i;
 			REQUIRE(i == 0);
 		}
@@ -804,14 +804,14 @@ TEST_CASE("Containers - dbitset") {
 TEST_CASE("for_each") {
 	constexpr uint32_t N = 10;
 	SECTION("index agument") {
-		uint32_t cnt = 0;
+		size_t cnt = 0;
 		utils::for_each<N>([&cnt](auto i) {
 			cnt += i;
 		});
 		REQUIRE(cnt == 0 + 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9);
 	}
 	SECTION("no index agument") {
-		uint32_t cnt = 0;
+		size_t cnt = 0;
 		utils::for_each<N>([&cnt]() {
 			cnt++;
 		});
@@ -822,14 +822,14 @@ TEST_CASE("for_each") {
 TEST_CASE("for_each_ext") {
 	constexpr uint32_t N = 10;
 	SECTION("index agument") {
-		uint32_t cnt = 0;
+		size_t cnt = 0;
 		utils::for_each_ext<2, N - 1, 2>([&cnt](auto i) {
 			cnt += i;
 		});
 		REQUIRE(cnt == 2 + 4 + 6 + 8);
 	}
 	SECTION("no index agument") {
-		uint32_t cnt = 0;
+		size_t cnt = 0;
 		utils::for_each_ext<2, N - 1, 2>([&cnt]() {
 			cnt++;
 		});
@@ -838,7 +838,7 @@ TEST_CASE("for_each_ext") {
 }
 
 TEST_CASE("for_each_tuple") {
-	int val = 0;
+	size_t val = 0;
 	utils::for_each_tuple(std::make_tuple(69, 10, 20), [&val](const auto& value) {
 		val += value;
 	});
@@ -846,7 +846,7 @@ TEST_CASE("for_each_tuple") {
 }
 
 TEST_CASE("for_each_pack") {
-	int val = 0;
+	size_t val = 0;
 	utils::for_each_pack(
 			[&val](const auto& value) {
 				val += value;
@@ -857,24 +857,28 @@ TEST_CASE("for_each_pack") {
 
 template <bool IsRuntime, typename C>
 void sort_descending(C arr) {
-	for (size_t i = 0; i < arr.size(); ++i)
+	using TValue = typename C::value_type;
+
+	for (TValue i = 0; i < (TValue)arr.size(); ++i)
 		arr[i] = i;
 	if constexpr (IsRuntime)
-		utils::sort(arr, utils::is_greater<uint32_t>());
+		utils::sort(arr, utils::is_greater<TValue>());
 	else
-		utils::sort_ct(arr, utils::is_greater<uint32_t>());
+		utils::sort_ct(arr, utils::is_greater<TValue>());
 	for (size_t i = 1; i < arr.size(); ++i)
 		REQUIRE(arr[i - 1] > arr[i]);
 }
 
 template <bool IsRuntime, typename C>
 void sort_ascending(C arr) {
-	for (size_t i = 0; i < arr.size(); ++i)
+	using TValue = typename C::value_type;
+
+	for (TValue i = 0; i < (TValue)arr.size(); ++i)
 		arr[i] = i;
 	if constexpr (IsRuntime)
-		utils::sort(arr, utils::is_smaller<uint32_t>());
+		utils::sort(arr, utils::is_smaller<TValue>());
 	else
-		utils::sort_ct(arr, utils::is_smaller<uint32_t>());
+		utils::sort_ct(arr, utils::is_smaller<TValue>());
 	for (size_t i = 1; i < arr.size(); ++i)
 		REQUIRE(arr[i - 1] < arr[i]);
 }
@@ -1364,7 +1368,7 @@ TEST_CASE("Query - equality") {
 	SECTION("2 components") {
 		ecs::World w;
 
-		auto create = [&](uint32_t i) {
+		auto create = [&]() {
 			auto e = w.CreateEntity();
 			w.AddComponent<Position>(e);
 			w.AddComponent<Rotation>(e);
@@ -1372,7 +1376,7 @@ TEST_CASE("Query - equality") {
 
 		const uint32_t N = 100;
 		for (uint32_t i = 0; i < N; i++)
-			create(i);
+			create();
 
 		ecs::Query qq1 = w.CreateQuery().All<Position, Rotation>();
 		ecs::Query qq2 = w.CreateQuery().All<Rotation, Position>();
@@ -1453,7 +1457,7 @@ TEST_CASE("EnableEntity") {
 			q.ForEach([&]([[maybe_unused]] ecs::Iterator iter) {
 				const uint32_t cExpected = iter.size();
 				uint32_t c = 0;
-				for (uint32_t i: iter)
+				for (auto curr: iter)
 					++c;
 				REQUIRE(c == cExpected);
 				cnt += c;
@@ -1468,7 +1472,7 @@ TEST_CASE("EnableEntity") {
 			q.ForEach([&]([[maybe_unused]] ecs::IteratorEnabled iter) {
 				const uint32_t cExpected = iter.size();
 				uint32_t c = 0;
-				for (uint32_t i: iter)
+				for (auto it: iter)
 					++c;
 				REQUIRE(c == cExpected);
 				cnt += c;
@@ -1483,7 +1487,7 @@ TEST_CASE("EnableEntity") {
 			q.ForEach([&]([[maybe_unused]] ecs::IteratorDisabled iter) {
 				const uint32_t cExpected = iter.size();
 				uint32_t c = 0;
-				for (uint32_t i: iter)
+				for (auto it: iter)
 					++c;
 				REQUIRE(c == cExpected);
 				cnt += c;
@@ -1886,7 +1890,7 @@ TEST_CASE("Usage 1 - simple query, 1 chunk component") {
 	}
 	{
 		uint32_t cnt = 0;
-		q.ForEach([&]([[maybe_unused]] ecs::Iterator iter) {
+		q.ForEach([&]([[maybe_unused]] ecs::IteratorByIndex iter) {
 			++cnt;
 		});
 		REQUIRE(cnt == 1);
@@ -1898,7 +1902,7 @@ TEST_CASE("Usage 1 - simple query, 1 chunk component") {
 
 	{
 		uint32_t cnt = 0;
-		q.ForEach([&]([[maybe_unused]] ecs::Iterator iter) {
+		q.ForEach([&]([[maybe_unused]] ecs::IteratorByIndex iter) {
 			++cnt;
 		});
 		REQUIRE(cnt == 1);
@@ -1908,7 +1912,7 @@ TEST_CASE("Usage 1 - simple query, 1 chunk component") {
 
 	{
 		uint32_t cnt = 0;
-		q.ForEach([&]([[maybe_unused]] ecs::Iterator iter) {
+		q.ForEach([&]([[maybe_unused]] ecs::IteratorByIndex iter) {
 			++cnt;
 		});
 		REQUIRE(cnt == 1);
@@ -1920,7 +1924,7 @@ TEST_CASE("Usage 1 - simple query, 1 chunk component") {
 
 	{
 		uint32_t cnt = 0;
-		q.ForEach([&]([[maybe_unused]] ecs::Iterator iter) {
+		q.ForEach([&]([[maybe_unused]] ecs::IteratorByIndex iter) {
 			++cnt;
 		});
 		REQUIRE(cnt == 0);
@@ -1989,7 +1993,7 @@ TEST_CASE("Usage 2 - simple query, many components") {
 		ecs::Query q = w.CreateQuery().Any<Position, Acceleration>();
 
 		uint32_t cnt = 0;
-		q.ForEach([&](ecs::Iterator iter) {
+		q.ForEach([&](ecs::IteratorByIndex iter) {
 			++cnt;
 
 			const bool ok1 = iter.HasComponent<Position>() || iter.HasComponent<Acceleration>();
@@ -2003,7 +2007,7 @@ TEST_CASE("Usage 2 - simple query, many components") {
 		ecs::Query q = w.CreateQuery().Any<Position, Acceleration>().All<Scale>();
 
 		uint32_t cnt = 0;
-		q.ForEach([&](ecs::Iterator iter) {
+		q.ForEach([&](ecs::IteratorByIndex iter) {
 			++cnt;
 
 			REQUIRE(iter.size() == 1);
@@ -2019,7 +2023,7 @@ TEST_CASE("Usage 2 - simple query, many components") {
 		ecs::Query q = w.CreateQuery().Any<Position, Acceleration>().None<Scale>();
 
 		uint32_t cnt = 0;
-		q.ForEach([&](ecs::Iterator iter) {
+		q.ForEach([&](ecs::IteratorByIndex iter) {
 			++cnt;
 
 			REQUIRE(iter.size() == 1);
@@ -2047,7 +2051,7 @@ TEST_CASE("Usage 2 - simple query, many chunk components") {
 	{
 		uint32_t cnt = 0;
 		auto q = w.CreateQuery().All<ecs::AsChunk<Position>>();
-		q.ForEach([&]([[maybe_unused]] ecs::Iterator iter) {
+		q.ForEach([&]([[maybe_unused]] ecs::IteratorByIndex iter) {
 			++cnt;
 		});
 		REQUIRE(cnt == 2);
@@ -2055,7 +2059,7 @@ TEST_CASE("Usage 2 - simple query, many chunk components") {
 	{
 		uint32_t cnt = 0;
 		auto q = w.CreateQuery().All<ecs::AsChunk<Acceleration>>();
-		q.ForEach([&]([[maybe_unused]] ecs::Iterator iter) {
+		q.ForEach([&]([[maybe_unused]] ecs::IteratorByIndex iter) {
 			++cnt;
 		});
 		REQUIRE(cnt == 2);
@@ -2063,7 +2067,7 @@ TEST_CASE("Usage 2 - simple query, many chunk components") {
 	{
 		uint32_t cnt = 0;
 		auto q = w.CreateQuery().All<ecs::AsChunk<Rotation>>();
-		q.ForEach([&]([[maybe_unused]] ecs::Iterator iter) {
+		q.ForEach([&]([[maybe_unused]] ecs::IteratorByIndex iter) {
 			++cnt;
 		});
 		REQUIRE(cnt == 1);
@@ -2071,7 +2075,7 @@ TEST_CASE("Usage 2 - simple query, many chunk components") {
 	{
 		uint32_t cnt = 0;
 		auto q = w.CreateQuery().All<ecs::AsChunk<Else>>();
-		q.ForEach([&]([[maybe_unused]] ecs::Iterator iter) {
+		q.ForEach([&]([[maybe_unused]] ecs::IteratorByIndex iter) {
 			++cnt;
 		});
 		REQUIRE(cnt == 2);
@@ -2079,7 +2083,7 @@ TEST_CASE("Usage 2 - simple query, many chunk components") {
 	{
 		uint32_t cnt = 0;
 		auto q = w.CreateQuery().All<ecs::AsChunk<Scale>>();
-		q.ForEach([&]([[maybe_unused]] ecs::Iterator iter) {
+		q.ForEach([&]([[maybe_unused]] ecs::IteratorByIndex iter) {
 			++cnt;
 		});
 		REQUIRE(cnt == 2);
@@ -2088,7 +2092,7 @@ TEST_CASE("Usage 2 - simple query, many chunk components") {
 		ecs::Query q = w.CreateQuery().Any<ecs::AsChunk<Position>, ecs::AsChunk<Acceleration>>();
 
 		uint32_t cnt = 0;
-		q.ForEach([&](ecs::Iterator iter) {
+		q.ForEach([&](ecs::IteratorByIndex iter) {
 			++cnt;
 
 			const bool ok1 = iter.HasComponent<ecs::AsChunk<Position>>() || iter.HasComponent<ecs::AsChunk<Acceleration>>();
@@ -2102,7 +2106,7 @@ TEST_CASE("Usage 2 - simple query, many chunk components") {
 		ecs::Query q = w.CreateQuery().Any<ecs::AsChunk<Position>, ecs::AsChunk<Acceleration>>().All<ecs::AsChunk<Scale>>();
 
 		uint32_t cnt = 0;
-		q.ForEach([&](ecs::Iterator iter) {
+		q.ForEach([&](ecs::IteratorByIndex iter) {
 			++cnt;
 
 			REQUIRE(iter.size() == 1);
@@ -2119,7 +2123,7 @@ TEST_CASE("Usage 2 - simple query, many chunk components") {
 				w.CreateQuery().Any<ecs::AsChunk<Position>, ecs::AsChunk<Acceleration>>().None<ecs::AsChunk<Scale>>();
 
 		uint32_t cnt = 0;
-		q.ForEach([&](ecs::Iterator iter) {
+		q.ForEach([&](ecs::IteratorByIndex iter) {
 			++cnt;
 
 			REQUIRE(iter.size() == 1);
@@ -2163,12 +2167,12 @@ TEST_CASE("SetComponent - generic") {
 	{
 		ecs::Query q = w.CreateQuery().All<Rotation, Scale, Else>();
 
-		q.ForEach([&](ecs::Iterator iter) {
+		q.ForEach([&](ecs::IteratorByIndex iter) {
 			auto rotationView = iter.ViewRW<Rotation>();
 			auto scaleView = iter.ViewRW<Scale>();
 			auto elseView = iter.ViewRW<Else>();
 
-			for (uint32_t i: iter) {
+			for (const auto i: iter) {
 				rotationView[i] = {1, 2, 3, 4};
 				scaleView[i] = {11, 22, 33};
 				elseView[i] = {true};
@@ -2254,12 +2258,12 @@ TEST_CASE("SetComponent - generic & chunk") {
 	{
 		ecs::Query q = w.CreateQuery().All<Rotation, Scale, Else>();
 
-		q.ForEach([&](ecs::Iterator iter) {
+		q.ForEach([&](ecs::IteratorByIndex iter) {
 			auto rotationView = iter.ViewRW<Rotation>();
 			auto scaleView = iter.ViewRW<Scale>();
 			auto elseView = iter.ViewRW<Else>();
 
-			for (uint32_t i: iter) {
+			for (const auto i: iter) {
 				rotationView[i] = {1, 2, 3, 4};
 				scaleView[i] = {11, 22, 33};
 				elseView[i] = {true};
@@ -2338,12 +2342,12 @@ TEST_CASE("Components - non trivial") {
 	{
 		ecs::Query q = w.CreateQuery().All<StringComponent, StringComponent2, PositionNonTrivial>();
 
-		q.ForEach([&](ecs::Iterator iter) {
+		q.ForEach([&](ecs::IteratorByIndex iter) {
 			auto strView = iter.ViewRW<StringComponent>();
 			auto str2View = iter.ViewRW<StringComponent2>();
 			auto posView = iter.ViewRW<PositionNonTrivial>();
 
-			for (uint32_t i: iter) {
+			for (const auto i: iter) {
 				strView[i] = {StringComponentDefaultValue};
 				str2View[i].value = StringComponent2DefaultValue_2;
 				posView[i] = {111, 222, 333};
@@ -2751,7 +2755,7 @@ TEST_CASE("Query Filter - systems") {
 			m_q = GetWorld().CreateQuery().All<Position>();
 		}
 		void OnUpdate() override {
-			m_q.ForEach([&](ecs::Iterator iter) {
+			m_q.ForEach([&](ecs::IteratorByIndex iter) {
 				auto posRWView = iter.ViewRWSilent<Position>();
 				(void)posRWView;
 			});
@@ -2960,7 +2964,7 @@ void TestDataLayoutSoA_ECS() {
 
 	ecs::Query q = w.CreateQuery().All<T>();
 	uint32_t j = 0;
-	q.ForEach([&](ecs::Iterator iter) {
+	q.ForEach([&](ecs::IteratorByIndex iter) {
 		auto t = iter.ViewRW<T>();
 		auto tx = t.template set<0>();
 		auto ty = t.template set<1>();

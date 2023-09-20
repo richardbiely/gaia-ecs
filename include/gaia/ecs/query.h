@@ -542,15 +542,19 @@ namespace gaia {
 
 				if constexpr (std::is_invocable<Func, Iterator>::value)
 					ForEach_RunQueryOnChunks(queryInfo, Constraints::AcceptAll, [&](archetype::Chunk& chunk) {
-						func(Iterator(queryInfo, chunk));
+						func(Iterator(chunk));
+					});
+				else if constexpr (std::is_invocable<Func, IteratorByIndex>::value)
+					ForEach_RunQueryOnChunks(queryInfo, Constraints::AcceptAll, [&](archetype::Chunk& chunk) {
+						func(IteratorByIndex(chunk));
 					});
 				else if constexpr (std::is_invocable<Func, IteratorEnabled>::value)
 					ForEach_RunQueryOnChunks(queryInfo, Constraints::EnabledOnly, [&](archetype::Chunk& chunk) {
-						func(IteratorEnabled(queryInfo, chunk));
+						func(IteratorEnabled(chunk));
 					});
 				else if constexpr (std::is_invocable<Func, IteratorDisabled>::value)
 					ForEach_RunQueryOnChunks(queryInfo, Constraints::DisabledOnly, [&](archetype::Chunk& chunk) {
-						func(IteratorDisabled(queryInfo, chunk));
+						func(IteratorDisabled(chunk));
 					});
 				else
 					ForEach_Internal(queryInfo, func);
@@ -567,7 +571,7 @@ namespace gaia {
 			}
 
 			template <bool UseFilters, Constraints c, typename ChunksContainer>
-			bool HasEntities_Helper(query::QueryInfo& queryInfo, const ChunksContainer& chunks) {
+			GAIA_NODISCARD bool HasEntities_Helper(query::QueryInfo& queryInfo, const ChunksContainer& chunks) {
 				return utils::has_if(chunks, [&](archetype::Chunk* pChunk) {
 					if constexpr (UseFilters) {
 						if constexpr (c == Constraints::AcceptAll)
@@ -575,25 +579,22 @@ namespace gaia {
 						else if constexpr (c == Constraints::EnabledOnly)
 							return pChunk->GetDisabledEntityMask().count() != pChunk->GetEntityCount() &&
 										 CheckFilters(*pChunk, queryInfo);
-						else if constexpr (c == Constraints::DisabledOnly)
+						else //if constexpr (c == Constraints::DisabledOnly)
 							return pChunk->GetDisabledEntityMask().count() > 0 && CheckFilters(*pChunk, queryInfo);
 					} else {
-						if constexpr (c == Constraints::AcceptAll) {
+						if constexpr (c == Constraints::AcceptAll)
 							return pChunk->HasEntities();
-						} else if constexpr (c == Constraints::EnabledOnly) {
+						else if constexpr (c == Constraints::EnabledOnly)
 							return pChunk->GetDisabledEntityMask().count() != pChunk->GetEntityCount();
-						} else if constexpr (c == Constraints::DisabledOnly) {
+						else //if constexpr (c == Constraints::DisabledOnly)
 							return pChunk->GetDisabledEntityMask().count() > 0;
-						}
 					}
-
-					return false;
 				});
 			}
 
 			template <bool UseFilters, Constraints c, typename ChunksContainer>
-			size_t CalculateEntityCount_Helper(query::QueryInfo& queryInfo, const ChunksContainer& chunks) {
-				size_t cnt = 0;
+			GAIA_NODISCARD uint32_t CalculateEntityCount_Helper(query::QueryInfo& queryInfo, const ChunksContainer& chunks) {
+				uint32_t cnt = 0;
 
 				for (auto* pChunk: chunks) {
 					if (!pChunk->HasEntities())
@@ -708,12 +709,12 @@ namespace gaia {
 							 If you already called ToArray, use the size provided by the array.
 			\return The number of matching entities
 			*/
-			size_t CalculateEntityCount(Constraints constraints = Constraints::EnabledOnly) {
+			uint32_t CalculateEntityCount(Constraints constraints = Constraints::EnabledOnly) {
 				// Make sure the query was created by World.CreateQuery()
 				GAIA_ASSERT(m_entityQueryCache != nullptr);
 
 				auto& queryInfo = FetchQueryInfo();
-				size_t entityCount = 0;
+				uint32_t entityCount = 0;
 
 				const bool hasFilters = queryInfo.HasFilters();
 				if (hasFilters) {

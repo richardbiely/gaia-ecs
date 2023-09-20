@@ -427,7 +427,7 @@ namespace gaia {
 #endif
 
 #if GAIA_COMPILER_MSVC
-	#if _MSC_VER >= 1927 // MSVC 16.7
+	#if _MSC_VER >= 1927 && _MSVC_LANG > 202002L // MSVC 16.7 or newer && /std:c++latest
 		#define GAIA_LAMBDAINLINE [[msvc::forceinline]]
 	#else
 		#define GAIA_LAMBDAINLINE
@@ -4235,9 +4235,9 @@ namespace gaia {
 				uint32_t size_in_bytes{};
 
 				if constexpr (is_trivially_serializable<type>::value)
-					size_in_bytes = sizeof(type);
+					size_in_bytes = (uint32_t)sizeof(type);
 				else if constexpr (detail::has_data_and_size<type>::value) {
-					size_in_bytes += item.size();
+					size_in_bytes += (uint32_t)item.size();
 				} else if constexpr (std::is_class_v<type>) {
 					utils::for_each_member(item, [&](auto&&... items) {
 						size_in_bytes += (calculate_size_one(items) + ...);
@@ -11959,6 +11959,42 @@ namespace gaia {
 				\param value Value to set for the component
 				*/
 				template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+				U& SetComponent(uint32_t index) {
+					static_assert(
+							component::IsGenericComponent<T>,
+							"SetComponent providing an index can only be used with generic components");
+
+					// Update the world version
+					UpdateVersion(m_header.worldVersion);
+
+					GAIA_ASSERT(index < m_header.capacity);
+					return ViewRW<T>()[index];
+				}
+
+				/*!
+				Sets the value of the chunk component \tparam T on \param index in the chunk.
+				\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
+				\tparam T Component
+				\param index Index of entity in the chunk
+				\param value Value to set for the component
+				*/
+				template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+				U& SetComponent() {
+					// Update the world version
+					UpdateVersion(m_header.worldVersion);
+
+					GAIA_ASSERT(0 < m_header.capacity);
+					return ViewRW<T>()[0];
+				}
+
+				/*!
+				Sets the value of the chunk component \tparam T on \param index in the chunk.
+				\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
+				\tparam T Component
+				\param index Index of entity in the chunk
+				\param value Value to set for the component
+				*/
+				template <typename T, typename U = typename component::DeduceComponent<T>::Type>
 				void SetComponent(uint32_t index, U&& value) {
 					static_assert(
 							component::IsGenericComponent<T>,
@@ -12720,6 +12756,10 @@ namespace gaia {
 					// TODO:
 					// Implement mask of semi-full chunks so we can pick one easily when searching
 					// for a chunk to fill with a new entity and when defragmenting.
+					// NOTE:
+					// Even though entity movement might be present during defragmentation, we do
+					// not update the world version here because no real structural changes happen.
+					// All entites and components remain intact, they just move to a different place.
 
 					uint32_t front = 0;
 					uint32_t back = (uint32_t)m_chunks.size();
@@ -12731,12 +12771,8 @@ namespace gaia {
 					uint32_t firstFreeIdxInDstChunk = pDstChunk->GetEntityCount();
 
 					// Find the first semi-empty chunk in the back
-					bool updateDstChunkVersions = false;
 					while (front < back && m_chunks[--back]->IsSemiFull()) {
-						updateDstChunkVersions = true;
-
 						auto* pSrcChunk = m_chunks[back];
-						pSrcChunk->UpdateVersions();
 
 						const uint32_t entitiesInChunk = pSrcChunk->GetEntityCount();
 						const uint32_t entitiesToMove = entitiesInChunk > maxEntities ? maxEntities : entitiesInChunk;
@@ -12754,8 +12790,6 @@ namespace gaia {
 
 							// The destination chunk is full, we need to move to the next one
 							if (firstFreeIdxInDstChunk == m_properties.capacity) {
-								pDstChunk->UpdateVersions();
-								updateDstChunkVersions = false;
 								++front;
 
 								// We reached the source chunk which means this archetype has been deframented
@@ -12768,9 +12802,6 @@ namespace gaia {
 
 						maxEntities -= entitiesToMove;
 					}
-
-					if (updateDstChunkVersions)
-						pDstChunk->UpdateVersions();
 				}
 #endif
 
@@ -12963,6 +12994,341 @@ namespace gaia {
 REGISTER_HASH_TYPE(gaia::ecs::Archetype::LookupHash)
 REGISTER_HASH_TYPE(gaia::ecs::Archetype::GenericComponentHash)
 REGISTER_HASH_TYPE(gaia::ecs::Archetype::ChunkComponentHash)
+
+#include <cinttypes>
+#include <type_traits>
+
+#include <cstdint>
+
+namespace gaia {
+	namespace ecs {
+		struct ComponentGetter {
+			const archetype::Chunk* m_pChunk;
+			uint32_t m_idx;
+
+			//! Returns the value stored in the component \tparam T on \param entity.
+			//! \tparam T Component
+			//! \return Value stored in the component.
+			template <typename T>
+			GAIA_NODISCARD auto GetComponent() const {
+				component::VerifyComponent<T>();
+
+				if constexpr (component::IsGenericComponent<T>)
+					return m_pChunk->template GetComponent<T>(m_idx);
+				else
+					return m_pChunk->template GetComponent<T>();
+			}
+
+			//! Tells if \param entity contains the component \tparam T.
+			//! \tparam T Component
+			//! \return True if the component is present on entity.
+			template <typename T>
+			GAIA_NODISCARD bool HasComponent() const {
+				component::VerifyComponent<T>();
+
+				return m_pChunk->template HasComponent<T>();
+			}
+		};
+	} // namespace ecs
+} // namespace gaia
+
+#include <cstdint>
+
+namespace gaia {
+	namespace ecs {
+		struct ComponentSetter {
+			archetype::Chunk* m_pChunk;
+			uint32_t m_idx;
+
+			//! Sets the value of the component \tparam T on \param entity.
+			//! \tparam T Component
+			//! \param value Value to set for the component
+			//! \return ComponentSetter
+			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+			U& SetComponent() {
+				component::VerifyComponent<T>();
+
+				if constexpr (component::IsGenericComponent<T>)
+					return m_pChunk->template SetComponent<T>(m_idx);
+				else
+					return m_pChunk->template SetComponent<T>();
+			}
+
+			//! Sets the value of the component \tparam T on \param entity.
+			//! \tparam T Component
+			//! \param value Value to set for the component
+			//! \return ComponentSetter
+			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+			ComponentSetter& SetComponent(U&& data) {
+				component::VerifyComponent<T>();
+
+				if constexpr (component::IsGenericComponent<T>)
+					m_pChunk->template SetComponent<T>(m_idx, std::forward<U>(data));
+				else
+					m_pChunk->template SetComponent<T>(std::forward<U>(data));
+				return *this;
+			}
+
+			//! Sets the value of the component \tparam T on \param entity without trigger a world version update.
+			//! \tparam T Component
+			//! \param value Value to set for the component
+			//! \return ComponentSetter
+			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+			ComponentSetter& SetComponentSilent(U&& data) {
+				component::VerifyComponent<T>();
+
+				if constexpr (component::IsGenericComponent<T>)
+					m_pChunk->template SetComponentSilent<T>(m_idx, std::forward<U>(data));
+				else
+					m_pChunk->template SetComponentSilent<T>(std::forward<U>(data));
+				return *this;
+			}
+		};
+	} // namespace ecs
+} // namespace gaia
+
+namespace gaia {
+	namespace ecs {
+		namespace detail {
+			using ChunkAccessorMask = archetype::ChunkHeader::DisabledEntityMask;
+			using ChunkAccessorIter = ChunkAccessorMask::const_iterator;
+
+			struct ChunkAccessorIndexIter {
+			public:
+				using value_type = uint32_t;
+
+			private:
+				value_type m_pos;
+
+			public:
+				ChunkAccessorIndexIter(value_type pos): m_pos(pos) {}
+
+				GAIA_NODISCARD value_type operator*() const {
+					return m_pos;
+				}
+
+				ChunkAccessorIndexIter& operator++() {
+					++m_pos;
+					return *this;
+				}
+
+				GAIA_NODISCARD ChunkAccessorIndexIter operator++(int) {
+					ChunkAccessorIndexIter temp(*this);
+					++*this;
+					return temp;
+				}
+
+				GAIA_NODISCARD bool operator==(const ChunkAccessorIndexIter& other) const {
+					return m_pos == other.m_pos;
+				}
+
+				GAIA_NODISCARD bool operator!=(const ChunkAccessorIndexIter& other) const {
+					return m_pos != other.m_pos;
+				}
+			};
+		} // namespace detail
+
+		class ChunkAccessor {
+		protected:
+			archetype::Chunk& m_chunk;
+			uint32_t m_pos;
+
+		public:
+			ChunkAccessor(archetype::Chunk& chunk, uint32_t pos): m_chunk(chunk), m_pos(pos) {}
+
+			GAIA_NODISCARD uint32_t index() const {
+				return m_pos;
+			}
+
+			//! Checks if component \tparam T is present in the chunk.
+			//! \tparam T Component
+			//! \return True if the component is present. False otherwise.
+			template <typename T>
+			GAIA_NODISCARD bool HasComponent() const {
+				return m_chunk.HasComponent<T>();
+			}
+
+			//! Returns the value stored in the component \tparam T on \param entity.
+			//! \tparam T Component
+			//! \return Value stored in the component.
+			template <typename T>
+			GAIA_NODISCARD auto GetComponent() const {
+				return ComponentGetter{&m_chunk, index()}.GetComponent<T>();
+			}
+
+			//! Sets the value of the component \tparam T on \param entity.
+			//! \tparam T Component
+			//! \param value Value to set for the component
+			//! \return ComponentSetter
+			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+			GAIA_NODISCARD U& SetComponent() {
+				return ComponentSetter{&m_chunk, index()}.SetComponent<T, U>();
+			}
+
+			//! Sets the value of the component \tparam T on \param entity.
+			//! \tparam T Component
+			//! \param value Value to set for the component
+			//! \return ComponentSetter
+			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+			ComponentSetter& SetComponent(U&& data) {
+				return ComponentSetter{&m_chunk, index()}.SetComponent<T, U>(std::forward<U>(data));
+			}
+
+			//! Sets the value of the component \tparam T on \param entity without trigger a world version update.
+			//! \tparam T Component
+			//! \param value Value to set for the component
+			//! \return ComponentSetter
+			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+			ComponentSetter& SetComponentSilent(U&& data) {
+				return ComponentSetter{&m_chunk, index()}.SetComponentSilent<T, U>(std::forward<U>(data));
+			}
+		};
+
+		class ChunkAccessorExt: public ChunkAccessor {
+		public:
+			ChunkAccessorExt(archetype::Chunk& chunk, uint32_t pos): ChunkAccessor(chunk, pos) {}
+
+			//! Checks if component \tparam T is present in the chunk.
+			//! \tparam T Component
+			//! \return True if the component is present. False otherwise.
+			template <typename T>
+			GAIA_NODISCARD bool HasComponent() const {
+				return m_chunk.HasComponent<T>();
+			}
+
+			//! Checks if the entity at the current iterator index is enabled.
+			//! \return True it the entity is enabled. False otherwise.
+			GAIA_NODISCARD bool IsEntityEnabled(uint32_t entityIdx) const {
+				return !m_chunk.GetDisabledEntityMask().test(entityIdx);
+			}
+
+			//! Checks if the entity at the current iterator index is enabled.
+			//! \return True it the entity is enabled. False otherwise.
+			GAIA_NODISCARD bool IsEntityEnabled() const {
+				return IsEntityEnabled(m_pos);
+			}
+
+			//! Returns a read-only entity or component view.
+			//! \warning If \tparam T is a component it is expected it is present. Undefined behavior otherwise.
+			//! \tparam T Component or Entity
+			//! \return Entity of component view with read-only access
+			template <typename T>
+			GAIA_NODISCARD auto View() const {
+				return m_chunk.View<T>();
+			}
+
+			//! Returns a mutable entity or component view.
+			//! \warning If \tparam T is a component it is expected it is present. Undefined behavior otherwise.
+			//! \tparam T Component or Entity
+			//! \return Entity or component view with read-write access
+			template <typename T>
+			GAIA_NODISCARD auto ViewRW() {
+				return m_chunk.ViewRW<T>();
+			}
+
+			//! Returns a mutable component view.
+			//! Doesn't update the world version when the access is aquired.
+			//! \warning It is expected the component \tparam T is present. Undefined behavior otherwise.
+			//! \tparam T Component
+			//! \return Component view with read-write access
+			template <typename T>
+			GAIA_NODISCARD auto ViewRWSilent() {
+				return m_chunk.ViewRWSilent<T>();
+			}
+		};
+
+		struct ChunkAccessorIt: public detail::ChunkAccessorIter {
+			using Mask = detail::ChunkAccessorMask;
+			using Iter = detail::ChunkAccessorIter;
+
+		private:
+			archetype::Chunk& m_chunk;
+
+			ChunkAccessorIt(archetype::Chunk& chunk, const Mask& mask, uint32_t pos, bool fwd):
+					Iter(mask, pos, fwd), m_chunk(chunk) {}
+
+		public:
+			GAIA_NODISCARD ChunkAccessor operator*() const {
+				return ChunkAccessor(m_chunk, index());
+			}
+
+			GAIA_NODISCARD ChunkAccessor operator->() const {
+				return ChunkAccessor(m_chunk, index());
+			}
+
+			GAIA_NODISCARD static ChunkAccessorIt CreateBegin(archetype::Chunk& chunk, const Mask& mask) {
+				return ChunkAccessorIt(chunk, mask, 0, true);
+			}
+
+			GAIA_NODISCARD static ChunkAccessorIt CreateEnd(archetype::Chunk& chunk, const Mask& mask) {
+				return ChunkAccessorIt(chunk, mask, chunk.GetEntityCount(), false);
+			}
+
+			GAIA_NODISCARD uint32_t index() const {
+				return *((Iter&)*this);
+			}
+		};
+
+		struct ChunkAccessorExtIt: public detail::ChunkAccessorIndexIter {
+			using Iter = detail::ChunkAccessorIndexIter;
+
+		private:
+			archetype::Chunk& m_chunk;
+
+			ChunkAccessorExtIt(archetype::Chunk& chunk, uint32_t pos): Iter(pos), m_chunk(chunk) {}
+
+		public:
+			GAIA_NODISCARD ChunkAccessorExt operator*() const {
+				return ChunkAccessorExt(m_chunk, index());
+			}
+
+			GAIA_NODISCARD ChunkAccessorExt operator->() const {
+				return ChunkAccessorExt(m_chunk, index());
+			}
+
+			GAIA_NODISCARD static ChunkAccessorExtIt CreateBegin(archetype::Chunk& chunk) {
+				return ChunkAccessorExtIt(chunk, 0);
+			}
+
+			GAIA_NODISCARD static ChunkAccessorExtIt CreateEnd(archetype::Chunk& chunk) {
+				return ChunkAccessorExtIt(chunk, chunk.GetEntityCount());
+			}
+
+			GAIA_NODISCARD uint32_t index() const {
+				return *((Iter&)*this);
+			}
+		};
+
+		struct ChunkAccessorExtByIndexIt: public detail::ChunkAccessorIndexIter {
+			using Iter = detail::ChunkAccessorIndexIter;
+
+		private:
+			archetype::Chunk& m_chunk;
+
+			ChunkAccessorExtByIndexIt(archetype::Chunk& chunk, uint32_t pos): Iter(pos), m_chunk(chunk) {}
+
+			GAIA_NODISCARD uint32_t index() const {
+				return *((Iter&)*this);
+			}
+
+		public:
+			uint32_t operator*() const {
+				return index();
+			}
+			uint32_t operator->() const {
+				return index();
+			}
+
+			static ChunkAccessorExtByIndexIt CreateBegin(archetype::Chunk& chunk) {
+				return ChunkAccessorExtByIndexIt(chunk, 0);
+			}
+
+			static ChunkAccessorExtByIndexIt CreateEnd(archetype::Chunk& chunk) {
+				return ChunkAccessorExtByIndexIt(chunk, chunk.GetEntityCount());
+			}
+		};
+	} // namespace ecs
+} // namespace gaia
 
 #include <cinttypes>
 #include <type_traits>
@@ -13721,86 +14087,121 @@ namespace gaia {
 
 #endif
 
-#include <cstdint>
-
-namespace gaia {
-	namespace ecs {
-		struct ComponentGetter {
-			const archetype::Chunk* m_pChunk;
-			uint32_t m_idx;
-
-			//! Returns the value stored in the component \tparam T on \param entity.
-			//! \tparam T Component
-			//! \return Value stored in the component.
-			template <typename T>
-			GAIA_NODISCARD auto GetComponent() const {
-				component::VerifyComponent<T>();
-
-				if constexpr (component::IsGenericComponent<T>)
-					return m_pChunk->template GetComponent<T>(m_idx);
-				else
-					return m_pChunk->template GetComponent<T>();
-			}
-
-			//! Tells if \param entity contains the component \tparam T.
-			//! \tparam T Component
-			//! \return True if the component is present on entity.
-			template <typename T>
-			GAIA_NODISCARD bool HasComponent() const {
-				component::VerifyComponent<T>();
-
-				return m_pChunk->template HasComponent<T>();
-			}
-		};
-	} // namespace ecs
-} // namespace gaia
-
-#include <cstdint>
-
-namespace gaia {
-	namespace ecs {
-		struct ComponentSetter {
-			archetype::Chunk* m_pChunk;
-			uint32_t m_idx;
-
-			//! Sets the value of the component \tparam T on \param entity.
-			//! \tparam T Component
-			//! \param value Value to set for the component
-			//! \return ComponentSetter
-			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
-			ComponentSetter& SetComponent(U&& data) {
-				component::VerifyComponent<T>();
-
-				if constexpr (component::IsGenericComponent<T>)
-					m_pChunk->template SetComponent<T>(m_idx, std::forward<U>(data));
-				else
-					m_pChunk->template SetComponent<T>(std::forward<U>(data));
-				return *this;
-			}
-
-			//! Sets the value of the component \tparam T on \param entity without trigger a world version update.
-			//! \tparam T Component
-			//! \param value Value to set for the component
-			//! \return ComponentSetter
-			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
-			ComponentSetter& SetComponentSilent(U&& data) {
-				component::VerifyComponent<T>();
-
-				if constexpr (component::IsGenericComponent<T>)
-					m_pChunk->template SetComponentSilent<T>(m_idx, std::forward<U>(data));
-				else
-					m_pChunk->template SetComponentSilent<T>(std::forward<U>(data));
-				return *this;
-			}
-		};
-	} // namespace ecs
-} // namespace gaia
-
 #include <tuple>
 #include <type_traits>
 
 #include <cinttypes>
 #include <type_traits>
+
+namespace gaia {
+	namespace ecs {
+		struct IteratorByIndex: public ChunkAccessorExt {
+		public:
+			IteratorByIndex(archetype::Chunk& chunk): ChunkAccessorExt(chunk, 0) {}
+			IteratorByIndex(archetype::Chunk& chunk, uint32_t pos): ChunkAccessorExt(chunk, pos) {}
+
+			GAIA_NODISCARD ChunkAccessorExtByIndexIt begin() const {
+				return ChunkAccessorExtByIndexIt::CreateBegin(m_chunk);
+			}
+
+			GAIA_NODISCARD ChunkAccessorExtByIndexIt end() const {
+				return ChunkAccessorExtByIndexIt::CreateEnd(m_chunk);
+			}
+
+			GAIA_NODISCARD uint32_t size() const {
+				return m_chunk.GetEntityCount();
+			}
+		};
+
+		struct Iterator: public ChunkAccessorExt {
+		public:
+			Iterator(archetype::Chunk& chunk): ChunkAccessorExt(chunk, 0) {}
+			Iterator(archetype::Chunk& chunk, uint32_t pos): ChunkAccessorExt(chunk, pos) {}
+
+			GAIA_NODISCARD IteratorByIndex Indices() const {
+				return IteratorByIndex(m_chunk);
+			}
+
+			GAIA_NODISCARD ChunkAccessorExtIt begin() const {
+				return ChunkAccessorExtIt::CreateBegin(m_chunk);
+			}
+
+			GAIA_NODISCARD ChunkAccessorExtIt end() const {
+				return ChunkAccessorExtIt::CreateEnd(m_chunk);
+			}
+
+			GAIA_NODISCARD uint32_t size() const {
+				return m_chunk.GetEntityCount();
+			}
+		};
+	} // namespace ecs
+} // namespace gaia
+
+#include <cinttypes>
+#include <type_traits>
+
+namespace gaia {
+	namespace ecs {
+		struct IteratorDisabled {
+		private:
+			using Mask = ChunkAccessorIt::Mask;
+			using Iter = ChunkAccessorIt::Iter;
+
+			archetype::Chunk& m_chunk;
+			Mask m_mask;
+
+		public:
+			IteratorDisabled(archetype::Chunk& chunk): m_chunk(chunk), m_mask(chunk.GetDisabledEntityMask()) {}
+
+			GAIA_NODISCARD ChunkAccessorIt begin() const {
+				return ChunkAccessorIt::CreateBegin(m_chunk, m_mask);
+			}
+
+			GAIA_NODISCARD ChunkAccessorIt end() const {
+				return ChunkAccessorIt::CreateEnd(m_chunk, m_mask);
+			}
+
+			GAIA_NODISCARD uint32_t size() const {
+				return m_mask.count();
+			}
+		};
+	} // namespace ecs
+} // namespace gaia
+
+#include <cinttypes>
+#include <type_traits>
+
+namespace gaia {
+	namespace ecs {
+		struct IteratorEnabled {
+		private:
+			using Mask = ChunkAccessorIt::Mask;
+			using Iter = ChunkAccessorIt::Iter;
+
+			archetype::Chunk& m_chunk;
+			Mask m_mask;
+
+			static Mask FlipMask(archetype::Chunk& chunk) {
+				return Mask(chunk.GetDisabledEntityMask()).flip(0, chunk.HasEntities() ? chunk.GetEntityCount() - 1 : 0);
+			}
+
+		public:
+			IteratorEnabled(archetype::Chunk& chunk): m_chunk(chunk), m_mask(FlipMask(chunk)) {}
+
+			GAIA_NODISCARD ChunkAccessorIt begin() const {
+				return ChunkAccessorIt::CreateBegin(m_chunk, m_mask);
+			}
+
+			GAIA_NODISCARD ChunkAccessorIt end() const {
+				return ChunkAccessorIt::CreateEnd(m_chunk, m_mask);
+			}
+
+			GAIA_NODISCARD uint32_t size() const {
+				return m_mask.count();
+			}
+		};
+	} // namespace ecs
+} // namespace gaia
 
 namespace gaia {
 	namespace ecs {
@@ -14303,310 +14704,6 @@ namespace gaia {
 				}
 			};
 		} // namespace query
-	} // namespace ecs
-} // namespace gaia
-
-namespace gaia {
-	namespace ecs {
-		struct Iterator {
-		private:
-			query::QueryInfo& m_info;
-			archetype::Chunk& m_chunk;
-			uint32_t m_pos;
-
-		public:
-			Iterator(query::QueryInfo& info, archetype::Chunk& chunk): m_info(info), m_chunk(chunk), m_pos(0) {}
-			Iterator(query::QueryInfo& info, archetype::Chunk& chunk, uint32_t pos):
-					m_info(info), m_chunk(chunk), m_pos(pos) {}
-
-			uint32_t operator*() const {
-				return m_pos;
-			}
-
-			uint32_t operator->() const {
-				return m_pos;
-			}
-
-			Iterator& operator++() {
-				++m_pos;
-				return *this;
-			}
-
-			GAIA_NODISCARD Iterator operator++(int) {
-				Iterator temp(*this);
-				++*this;
-				return temp;
-			}
-
-			GAIA_NODISCARD bool operator==(const Iterator& other) const {
-				return m_pos == other.m_pos;
-			}
-
-			GAIA_NODISCARD bool operator!=(const Iterator& other) const {
-				return m_pos != other.m_pos;
-			}
-
-			GAIA_NODISCARD Iterator begin() const {
-				return *this;
-			}
-
-			GAIA_NODISCARD Iterator end() const {
-				return {m_info, m_chunk, m_chunk.GetEntityCount()};
-			}
-
-			GAIA_NODISCARD uint32_t size() const {
-				return m_chunk.GetEntityCount();
-			}
-
-			//! Checks if the entity at the current iterator index is enabled.
-			//! \return True it the entity is enabled. False otherwise.
-			bool IsEntityEnabled() const {
-				return !m_chunk.GetDisabledEntityMask().test(m_pos);
-			}
-
-			//! Checks if component \tparam T is present in the chunk.
-			//! \tparam T Component
-			//! \return True if the component is present. False otherwise.
-			template <typename T>
-			GAIA_NODISCARD bool HasComponent() const {
-				return m_chunk.HasComponent<T>();
-			}
-
-			//! Returns a read-only entity or component view.
-			//! \warning If \tparam T is a component it is expected it is present. Undefined behavior otherwise.
-			//! \tparam T Component or Entity
-			//! \return Entity of component view with read-only access
-			template <typename T>
-			GAIA_NODISCARD auto View() const {
-#if GAIA_DEBUG
-				if constexpr (component::IsGenericComponent<T>) {
-					using U = typename component::DeduceComponent<T>::Type;
-					using UConst = std::add_const_t<U>;
-					GAIA_ASSERT(m_info.Has<UConst>());
-				} else {
-					using U = typename component::DeduceComponent<T>::Type;
-					using UConst = std::add_const_t<U>;
-					using UChunk = AsChunk<UConst>;
-					GAIA_ASSERT(m_info.Has<UChunk>());
-				}
-#endif
-
-				return m_chunk.View<T>();
-			}
-
-			//! Returns a mutable entity or component view.
-			//! \warning If \tparam T is a component it is expected it is present. Undefined behavior otherwise.
-			//! \tparam T Component or Entity
-			//! \return Entity or component view with read-write access
-			template <typename T>
-			GAIA_NODISCARD auto ViewRW() {
-				GAIA_ASSERT(m_info.Has<T>());
-				return m_chunk.ViewRW<T>();
-			}
-
-			//! Returns a mutable component view.
-			//! Doesn't update the world version when the access is aquired.
-			//! \warning It is expected the component \tparam T is present. Undefined behavior otherwise.
-			//! \tparam T Component
-			//! \return Component view with read-write access
-			template <typename T>
-			GAIA_NODISCARD auto ViewRWSilent() {
-				GAIA_ASSERT(m_info.Has<T>());
-				return m_chunk.ViewRWSilent<T>();
-			}
-		};
-	} // namespace ecs
-} // namespace gaia
-
-#include <cinttypes>
-#include <type_traits>
-
-namespace gaia {
-	namespace ecs {
-		struct IteratorDisabled {
-		private:
-			using Mask = archetype::ChunkHeader::DisabledEntityMask;
-			using Iter = Mask::const_iterator;
-
-			query::QueryInfo& m_info;
-			archetype::Chunk& m_chunk;
-			Mask m_mask;
-			Iter m_iter;
-
-			IteratorDisabled(query::QueryInfo& info, archetype::Chunk& chunk, uint32_t pos):
-					m_info(info), m_chunk(chunk), m_mask(chunk.GetDisabledEntityMask()), m_iter(m_mask, pos, false) {}
-
-		public:
-			IteratorDisabled(query::QueryInfo& info, archetype::Chunk& chunk):
-					m_info(info), m_chunk(chunk), m_mask(chunk.GetDisabledEntityMask()), m_iter(m_mask, 0, true) {}
-
-			uint32_t operator*() const {
-				return *m_iter;
-			}
-
-			uint32_t operator->() const {
-				return *m_iter;
-			}
-
-			IteratorDisabled& operator++() {
-				++m_iter;
-				return *this;
-			}
-
-			GAIA_NODISCARD IteratorDisabled operator++(int) {
-				IteratorDisabled temp(*this);
-				++*this;
-				return temp;
-			}
-
-			GAIA_NODISCARD bool operator==(const IteratorDisabled& other) const {
-				return m_iter == other.m_iter;
-			}
-
-			GAIA_NODISCARD bool operator!=(const IteratorDisabled& other) const {
-				return m_iter != other.m_iter;
-			}
-
-			GAIA_NODISCARD IteratorDisabled begin() const {
-				return *this;
-			}
-
-			GAIA_NODISCARD IteratorDisabled end() const {
-				return {m_info, m_chunk, m_chunk.GetEntityCount()};
-			}
-
-			GAIA_NODISCARD uint32_t size() const {
-				return m_mask.count();
-			}
-
-			//! Checks if component \tparam T is present in the chunk.
-			//! \tparam T Component
-			//! \return True if the component is present. False otherwise.
-			template <typename T>
-			GAIA_NODISCARD bool HasComponent() const {
-				return m_chunk.HasComponent<T>();
-			}
-
-			//! Sets the value of the component \tparam T on \param entity.
-			//! \tparam T Component
-			//! \param value Value to set for the component
-			//! \return ComponentSetter
-			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
-			ComponentSetter& SetComponent(U&& data) {
-				ComponentSetter setter{&m_chunk, *m_iter};
-				return setter.SetComponent<T, U>(std::forward<U>(data));
-			}
-
-			//! Sets the value of the component \tparam T on \param entity without trigger a world version update.
-			//! \tparam T Component
-			//! \param value Value to set for the component
-			//! \return ComponentSetter
-			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
-			ComponentSetter& SetComponentSilent(U&& data) {
-				ComponentSetter setter{&m_chunk, *m_iter};
-				return setter.SetComponentSilent<T, U>(std::forward<U>(data));
-			}
-		};
-	} // namespace ecs
-} // namespace gaia
-
-#include <cinttypes>
-#include <type_traits>
-
-namespace gaia {
-	namespace ecs {
-		struct IteratorEnabled {
-		private:
-			using Mask = archetype::ChunkHeader::DisabledEntityMask;
-			using Iter = Mask::const_iterator;
-
-			query::QueryInfo& m_info;
-			archetype::Chunk& m_chunk;
-			Mask m_mask;
-			Iter m_iter;
-
-			IteratorEnabled(query::QueryInfo& info, archetype::Chunk& chunk, uint32_t pos):
-					m_info(info), m_chunk(chunk), m_mask(chunk.GetDisabledEntityMask()),
-					m_iter(m_mask.flip(0, chunk.HasEntities() ? chunk.GetEntityCount() - 1 : 0), pos, false) {}
-
-		public:
-			IteratorEnabled(query::QueryInfo& info, archetype::Chunk& chunk):
-					m_info(info), m_chunk(chunk), m_mask(chunk.GetDisabledEntityMask()),
-					m_iter(m_mask.flip(0, chunk.HasEntities() ? chunk.GetEntityCount() - 1 : 0), 0, true) {}
-
-			uint32_t operator*() const {
-				return *m_iter;
-			}
-
-			uint32_t operator->() const {
-				return *m_iter;
-			}
-
-			IteratorEnabled& operator++() {
-				++m_iter;
-				return *this;
-			}
-
-			GAIA_NODISCARD IteratorEnabled operator++(int) {
-				IteratorEnabled temp(*this);
-				++*this;
-				return temp;
-			}
-
-			GAIA_NODISCARD bool operator==(const IteratorEnabled& other) const {
-				return m_iter == other.m_iter;
-			}
-
-			GAIA_NODISCARD bool operator!=(const IteratorEnabled& other) const {
-				return m_iter != other.m_iter;
-			}
-
-			GAIA_NODISCARD IteratorEnabled begin() const {
-				return *this;
-			}
-
-			GAIA_NODISCARD IteratorEnabled end() const {
-				return {m_info, m_chunk, m_chunk.GetEntityCount()};
-			}
-
-			GAIA_NODISCARD uint32_t size() const {
-				return m_mask.count();
-			}
-
-			//! Checks if component \tparam T is present in the chunk.
-			//! \tparam T Component
-			//! \return True if the component is present. False otherwise.
-			template <typename T>
-			GAIA_NODISCARD bool HasComponent() const {
-				return ComponentGetter{&m_chunk, *m_iter}.HasComponent<T>();
-			}
-
-			//! Returns the value stored in the component \tparam T on \param entity.
-			//! \tparam T Component
-			//! \return Value stored in the component.
-			template <typename T>
-			GAIA_NODISCARD auto GetComponent() const {
-				return ComponentGetter{&m_chunk, *m_iter}.GetComponent<T>();
-			}
-
-			//! Sets the value of the component \tparam T on \param entity.
-			//! \tparam T Component
-			//! \param value Value to set for the component
-			//! \return ComponentSetter
-			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
-			ComponentSetter& SetComponent(U&& data) {
-				return ComponentSetter{&m_chunk, *m_iter}.SetComponent<T, U>(std::forward<U>(data));
-			}
-
-			//! Sets the value of the component \tparam T on \param entity without trigger a world version update.
-			//! \tparam T Component
-			//! \param value Value to set for the component
-			//! \return ComponentSetter
-			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
-			ComponentSetter& SetComponentSilent(U&& data) {
-				return ComponentSetter{&m_chunk, *m_iter}.SetComponentSilent<T, U>(std::forward<U>(data));
-			}
-		};
 	} // namespace ecs
 } // namespace gaia
 
@@ -15188,15 +15285,19 @@ namespace gaia {
 
 				if constexpr (std::is_invocable<Func, Iterator>::value)
 					ForEach_RunQueryOnChunks(queryInfo, Constraints::AcceptAll, [&](archetype::Chunk& chunk) {
-						func(Iterator(queryInfo, chunk));
+						func(Iterator(chunk));
+					});
+				else if constexpr (std::is_invocable<Func, IteratorByIndex>::value)
+					ForEach_RunQueryOnChunks(queryInfo, Constraints::AcceptAll, [&](archetype::Chunk& chunk) {
+						func(IteratorByIndex(chunk));
 					});
 				else if constexpr (std::is_invocable<Func, IteratorEnabled>::value)
 					ForEach_RunQueryOnChunks(queryInfo, Constraints::EnabledOnly, [&](archetype::Chunk& chunk) {
-						func(IteratorEnabled(queryInfo, chunk));
+						func(IteratorEnabled(chunk));
 					});
 				else if constexpr (std::is_invocable<Func, IteratorDisabled>::value)
 					ForEach_RunQueryOnChunks(queryInfo, Constraints::DisabledOnly, [&](archetype::Chunk& chunk) {
-						func(IteratorDisabled(queryInfo, chunk));
+						func(IteratorDisabled(chunk));
 					});
 				else
 					ForEach_Internal(queryInfo, func);
@@ -15213,7 +15314,7 @@ namespace gaia {
 			}
 
 			template <bool UseFilters, Constraints c, typename ChunksContainer>
-			bool HasEntities_Helper(query::QueryInfo& queryInfo, const ChunksContainer& chunks) {
+			GAIA_NODISCARD bool HasEntities_Helper(query::QueryInfo& queryInfo, const ChunksContainer& chunks) {
 				return utils::has_if(chunks, [&](archetype::Chunk* pChunk) {
 					if constexpr (UseFilters) {
 						if constexpr (c == Constraints::AcceptAll)
@@ -15221,25 +15322,22 @@ namespace gaia {
 						else if constexpr (c == Constraints::EnabledOnly)
 							return pChunk->GetDisabledEntityMask().count() != pChunk->GetEntityCount() &&
 										 CheckFilters(*pChunk, queryInfo);
-						else if constexpr (c == Constraints::DisabledOnly)
+						else //if constexpr (c == Constraints::DisabledOnly)
 							return pChunk->GetDisabledEntityMask().count() > 0 && CheckFilters(*pChunk, queryInfo);
 					} else {
-						if constexpr (c == Constraints::AcceptAll) {
+						if constexpr (c == Constraints::AcceptAll)
 							return pChunk->HasEntities();
-						} else if constexpr (c == Constraints::EnabledOnly) {
+						else if constexpr (c == Constraints::EnabledOnly)
 							return pChunk->GetDisabledEntityMask().count() != pChunk->GetEntityCount();
-						} else if constexpr (c == Constraints::DisabledOnly) {
+						else //if constexpr (c == Constraints::DisabledOnly)
 							return pChunk->GetDisabledEntityMask().count() > 0;
-						}
 					}
-
-					return false;
 				});
 			}
 
 			template <bool UseFilters, Constraints c, typename ChunksContainer>
-			size_t CalculateEntityCount_Helper(query::QueryInfo& queryInfo, const ChunksContainer& chunks) {
-				size_t cnt = 0;
+			GAIA_NODISCARD uint32_t CalculateEntityCount_Helper(query::QueryInfo& queryInfo, const ChunksContainer& chunks) {
+				uint32_t cnt = 0;
 
 				for (auto* pChunk: chunks) {
 					if (!pChunk->HasEntities())
@@ -15354,12 +15452,12 @@ namespace gaia {
 							 If you already called ToArray, use the size provided by the array.
 			\return The number of matching entities
 			*/
-			size_t CalculateEntityCount(Constraints constraints = Constraints::EnabledOnly) {
+			uint32_t CalculateEntityCount(Constraints constraints = Constraints::EnabledOnly) {
 				// Make sure the query was created by World.CreateQuery()
 				GAIA_ASSERT(m_entityQueryCache != nullptr);
 
 				auto& queryInfo = FetchQueryInfo();
-				size_t entityCount = 0;
+				uint32_t entityCount = 0;
 
 				const bool hasFilters = queryInfo.HasFilters();
 				if (hasFilters) {
@@ -16931,7 +17029,7 @@ namespace gaia {
 				ADD_COMPONENT_TO_TEMPENTITY_t cmd;
 				cmd.tempEntity = entity;
 				cmd.componentType = component::GetComponentType<T>();
-				cmd.componentId = component::GetComponentId<T>();
+				cmd.componentId = info.componentId;
 				serialization::save(s, cmd);
 			}
 

@@ -338,7 +338,7 @@ namespace gaia {
 				ADD_COMPONENT_TO_TEMPENTITY_t cmd;
 				cmd.tempEntity = entity;
 				cmd.componentType = component::GetComponentType<T>();
-				cmd.componentId = component::GetComponentId<T>();
+				cmd.componentId = info.componentId;
 				serialization::save(s, cmd);
 			}
 

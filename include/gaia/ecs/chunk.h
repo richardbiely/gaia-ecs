@@ -765,6 +765,42 @@ namespace gaia {
 				\param value Value to set for the component
 				*/
 				template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+				U& SetComponent(uint32_t index) {
+					static_assert(
+							component::IsGenericComponent<T>,
+							"SetComponent providing an index can only be used with generic components");
+
+					// Update the world version
+					UpdateVersion(m_header.worldVersion);
+
+					GAIA_ASSERT(index < m_header.capacity);
+					return ViewRW<T>()[index];
+				}
+
+				/*!
+				Sets the value of the chunk component \tparam T on \param index in the chunk.
+				\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
+				\tparam T Component
+				\param index Index of entity in the chunk
+				\param value Value to set for the component
+				*/
+				template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+				U& SetComponent() {
+					// Update the world version
+					UpdateVersion(m_header.worldVersion);
+
+					GAIA_ASSERT(0 < m_header.capacity);
+					return ViewRW<T>()[0];
+				}
+
+				/*!
+				Sets the value of the chunk component \tparam T on \param index in the chunk.
+				\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
+				\tparam T Component
+				\param index Index of entity in the chunk
+				\param value Value to set for the component
+				*/
+				template <typename T, typename U = typename component::DeduceComponent<T>::Type>
 				void SetComponent(uint32_t index, U&& value) {
 					static_assert(
 							component::IsGenericComponent<T>,

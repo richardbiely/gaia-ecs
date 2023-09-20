@@ -179,7 +179,7 @@ const bool hasVelocity = w.HasComponent<Velocity>(e);
 
 // Check if entities hidden behind the iterator have Velocity (via iterator).
 ecs::Query q = w.CreateQuery().Any<Position, Velocity>(); 
-q.ForEach([&](ecs::Iterator iter){
+q.ForEach([&](ecs::Iterator iter) {
   const bool hasPosition = iter.HasComponent<Position>();
   const bool hasVelocity = iter.HasComponent<Velocity>();
   ...
@@ -267,14 +267,36 @@ ecs::Query q = w.CreateQuery();
 q.All<Position, const Velocity>();
 
 q.ForEach([](ecs::Iterator iter) {
+  // Iterate over all enabled entities and update their add 1.f to their x-axis position
+  for (auto curr: iter)
+  {
+    if (!curr.IsEntityEnabled())
+      continue;
+    auto &pos = curr.SetComponent<Position>();
+    pos.x += 1.f;
+  }
+
+  // Iterate over all entities in the chunk and update their position based on their velocity
   auto p = iter.ViewRW<Position>(); // Read-write access to Position
   auto v = iter.View<Velocity>(); // Read-only access to Velocity
-
-  // Iterate over all entities in the chunk.
-  for (uint32_t i: iter) {
+  for (uint32_t i: iter.Indices()) {
     p[i].x += v[i].x * dt;
     p[i].y += v[i].y * dt;
     p[i].z += v[i].z * dt;
+  }
+});
+```
+
+Alternatively, if you are only interested in entity indices, you can use ***ecs::IteratorByIndex***. Note, you no longer need to call iter.Indices(). Iterating over indices is the most flexible way of accessing data.
+
+```cpp
+q.ForEach([](ecs::IteratorByIndex iter) {
+  // Iterate over all entities in the chunk and update their position based on their velocity
+  auto p = iter.ViewRW<Position>(); // Read-write access to Position
+  auto v = iter.View<Velocity>(); // Read-only access to Velocity
+  for (uint32_t i: iter) {
+    p[i].x += v[i].x * dt;
+    // ...
   }
 });
 ```
@@ -316,26 +338,37 @@ q.ToArray(entities, ecs::Query::Constraint::DisabledOnly);
 
 q.ForEach([](ecs::Iterator iter) {
   // Iterates over all entities
-  ...
-  if (iter.IsEnabled()) {
-    // Do something special when the entity is enabled
+  for (auto curr: iter) {
+    if (curr.IsEnabled()) {
+      // Do something special when the entity is enabled
+    }
   }
 });
 q.ForEach([](ecs::IteratorDisabled iter) {
   // Iterates only over disabled entities
-  ...
-  iter.SetComponent<Position>({}); // reset the position of each disabled entity
+  for (auto curr: iter) {
+    curr.SetComponent<Position>({}); // reset the position of each disabled entity
+  }
 });
 q.ForEach([](ecs::IteratorEnabled iter) {
   // Iterates only over enabled entities
+  for (auto curr: iter) {
+    auto& pos = curr.SetComponent<Position>();
+    ++pos.x; // update the position of each enabled entity
+  }
   ...
-  auto& pos = iter.GetComponent<Position>();
-  ++pos.x; // update the position of each enabled entity
+  // SoA components can't be changed directly because their memory
+  // is split into multiple parts. We need to read & write separately.
+  for (auto curr: iter) {
+    auto pos = curr.GetComponent<PositionSoA>();
+    ++pos.x; // update the position of each enabled entity
+    curr.SetComponent<PositionSoA>(pos);
+  }
 });
 ```
 
 >**NOTE:<br/>**
-***IteratorEnabled*** and ***IteratorDisabled*** don't give you access to ***Views***. This is because both enabled and disabled entities are stored in the same chunk. Views would allow you access component beyond the scope of constraints. If you want Views, you need to use ***Iterator*** and handle all edge-cases yourself.
+***IteratorEnabled*** and ***IteratorDisabled*** don't give you access to ***Views*** nor give you access to indices. This is because both enabled and disabled entities are stored in the same chunk. Views would allow you access to data beyond the scope of constraints. If you need more flexibility, that is what ***Iterator*** is for.
 
 If you do not wish to fragment entities inside the chunk you can simply create a tag component and assign it to your entity. This will move the entity to a new archetype so it is a lot slower. However, because disabled entities are now clearly separated calling some query operations might be slightly faster (no need to check if the entity is disabled or not internally).
 

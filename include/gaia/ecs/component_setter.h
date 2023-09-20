@@ -15,6 +15,20 @@ namespace gaia {
 			//! \param value Value to set for the component
 			//! \return ComponentSetter
 			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+			U& SetComponent() {
+				component::VerifyComponent<T>();
+
+				if constexpr (component::IsGenericComponent<T>)
+					return m_pChunk->template SetComponent<T>(m_idx);
+				else
+					return m_pChunk->template SetComponent<T>();
+			}
+
+			//! Sets the value of the component \tparam T on \param entity.
+			//! \tparam T Component
+			//! \param value Value to set for the component
+			//! \return ComponentSetter
+			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
 			ComponentSetter& SetComponent(U&& data) {
 				component::VerifyComponent<T>();
 
