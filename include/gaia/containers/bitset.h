@@ -44,33 +44,29 @@ namespace gaia {
 					GAIA_ASSERT(wordIndex < Items);
 					size_type word = 0;
 
-					const size_type posInWord = pos % bitset::BitsPerItem;
-					if (posInWord < bitset::BitsPerItem - 1) {
-						const size_type mask = (size_type(1) << (posInWord + 1)) - 1;
-						const size_type maskInv = ~mask;
-						word = m_bitset.m_data[wordIndex] & maskInv;
+					const size_type posInWord = pos % bitset::BitsPerItem + 1;
+					if GAIA_LIKELY (posInWord < bitset::BitsPerItem) {
+						const size_type mask = (size_type(1) << posInWord) - 1;
+						word = m_bitset.m_data[wordIndex] & (~mask);
 					}
-
-					// No set bit in the current word, move to the next one
-					while (word == 0) {
-						if (wordIndex >= bitset::Items - 1)
-							return pos;
-
-						word = m_bitset.m_data[++wordIndex];
-					}
-
-					// Process the word
-					uint32_t fwd = 0;
 
 					GAIA_MSVC_WARNING_PUSH()
 					GAIA_MSVC_WARNING_DISABLE(4244)
-					if constexpr (bitset::BitsPerItem == 32)
-						fwd = GAIA_FFS(word) - 1;
-					else
-						fwd = GAIA_FFS64(word) - 1;
-					GAIA_MSVC_WARNING_POP()
+					while (true) {
+						if (word != 0) {
+							if constexpr (bitset::BitsPerItem == 32)
+								return wordIndex * bitset::BitsPerItem + GAIA_FFS(word) - 1;
+							else
+								return wordIndex * bitset::BitsPerItem + GAIA_FFS64(word) - 1;
+						}
 
-					return wordIndex * bitset::BitsPerItem + fwd;
+						// No set bit in the current word, move to the next one
+						if (++wordIndex >= bitset::Items)
+							return pos;
+
+						word = m_bitset.m_data[wordIndex];
+					}
+					GAIA_MSVC_WARNING_POP()
 				}
 
 				uint32_t find_prev_set_bit(uint32_t pos) const {
@@ -133,6 +129,14 @@ namespace gaia {
 				}
 
 				GAIA_NODISCARD value_type operator*() const {
+					return m_pos;
+				}
+
+				GAIA_NODISCARD value_type operator->() const {
+					return m_pos;
+				}
+
+				GAIA_NODISCARD value_type index() const {
 					return m_pos;
 				}
 
