@@ -76,11 +76,11 @@ if(NOT WIN32 AND GAIA_USE_LIBCPP)
 int main() { return std::is_same_v<int, char>; }
 " GAIA_HAS_LIBCPP)
 
+    cmake_pop_check_state()
+
     if(NOT GAIA_HAS_LIBCPP)
         message(WARNING "GAIA_USE_LIBCPP is ON but libc++ is not available. The flag will be ignored.")
     endif()
-
-    cmake_pop_check_state()
 endif()
 
 # Gaia target
