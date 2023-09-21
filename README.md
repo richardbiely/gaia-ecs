@@ -267,36 +267,21 @@ ecs::Query q = w.CreateQuery();
 q.All<Position, const Velocity>();
 
 q.ForEach([](ecs::Iterator iter) {
+  auto p = iter.ViewRW<Position>(); // Read-write access to Position
+  auto v = iter.View<Velocity>(); // Read-only access to Velocity
+
   // Iterate over all enabled entities and update their add 1.f to their x-axis position
-  for (auto curr: iter)
-  {
-    if (!curr.IsEntityEnabled())
+  for (auto i: iter) {
+    if (!iter.IsEntityEnabled(i))
       continue;
-    auto &pos = curr.SetComponent<Position>();
-    pos.x += 1.f;
+    p[i].x += 1.f;
   }
 
   // Iterate over all entities in the chunk and update their position based on their velocity
-  auto p = iter.ViewRW<Position>(); // Read-write access to Position
-  auto v = iter.View<Velocity>(); // Read-only access to Velocity
-  for (uint32_t i: iter.Indices()) {
+  for (auto i: iter) {
     p[i].x += v[i].x * dt;
     p[i].y += v[i].y * dt;
     p[i].z += v[i].z * dt;
-  }
-});
-```
-
-Alternatively, if you are only interested in entity indices, you can use ***ecs::IteratorByIndex***. Note, you no longer need to call iter.Indices(). Iterating over indices is the most flexible way of accessing data.
-
-```cpp
-q.ForEach([](ecs::IteratorByIndex iter) {
-  // Iterate over all entities in the chunk and update their position based on their velocity
-  auto p = iter.ViewRW<Position>(); // Read-write access to Position
-  auto v = iter.View<Velocity>(); // Read-only access to Velocity
-  for (uint32_t i: iter) {
-    p[i].x += v[i].x * dt;
-    // ...
   }
 });
 ```
@@ -338,8 +323,8 @@ q.ToArray(entities, ecs::Query::Constraint::DisabledOnly);
 
 q.ForEach([](ecs::Iterator iter) {
   // Iterates over all entities
-  for (auto curr: iter) {
-    if (curr.IsEnabled()) {
+  for (auto i: iter) {
+    if (iter.IsEntityEnabled(i)) {
       // Do something special when the entity is enabled
     }
   }

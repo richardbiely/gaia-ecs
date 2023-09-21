@@ -19,7 +19,7 @@ public:
 
 	void OnUpdate() override {
 		m_q.ForEach([](Position& p, const Velocity& v) {
-			const float dt = 0.01;
+			const float dt = 0.01f;
 			p.x += v.x * dt;
 			p.y += v.y * dt;
 			p.z += v.z * dt;
@@ -36,17 +36,42 @@ public:
 	}
 
 	void OnUpdate() override {
-		m_q.ForEach([](ecs::IteratorByIndex iter) {
+		m_q.ForEach([](ecs::Iterator iter) {
 			auto p = iter.ViewRW<Position>();
 			auto v = iter.View<Velocity>();
-			const float dt = 0.01;
+			const float dt = 0.01f;
 			for (auto i: iter) {
 				p[i].x += v[i].x * dt;
 				p[i].y += v[i].y * dt;
 				p[i].z += v[i].z * dt;
 			}
 
-			if (iter.IsEntityEnabled())
+			if (iter.IsEntityEnabled(0))
+				p[0].x += 1.f;
+		});
+	}
+};
+
+class PositionSystem_All2 final: public ecs::System {
+	ecs::Query m_q;
+
+public:
+	void OnCreated() override {
+		m_q = GetWorld().CreateQuery().All<Position, const Velocity>();
+	}
+
+	void OnUpdate() override {
+		m_q.ForEach([](ecs::Iterator iter) {
+			auto p = iter.ViewRW<Position>();
+			auto v = iter.View<Velocity>();
+			const float dt = 0.01f;
+			for (uint32_t i = 0; i < iter.size(); ++i) {
+				p[i].x += v[i].x * dt;
+				p[i].y += v[i].y * dt;
+				p[i].z += v[i].z * dt;
+			}
+
+			if (iter.IsEntityEnabled(0))
 				p[0].x += 1.f;
 		});
 	}
@@ -62,27 +87,13 @@ public:
 
 	void OnUpdate() override {
 		m_q.ForEach([](ecs::IteratorEnabled iter) {
-			const float dt = 0.01;
-
-			// Get + Set (copy-based modification).
-			// Must be used with SoA components.
-			for (auto it: iter) {
-				auto p = it.GetComponent<Position>();
-				const auto& v = it.GetComponent<Velocity>();
-				p.x += v.x * dt;
-				p.y += v.y * dt;
-				p.z += v.z * dt;
-				it.SetComponent<Position>(p);
-			}
-
-			// Mutable set (reference-based modification).
-			// Preferable, but can't be used with SoA components.
-			for (auto it: iter) {
-				auto& p = it.SetComponent<Position>();
-				const auto& v = it.GetComponent<Velocity>();
-				p.x += v.x * dt;
-				p.y += v.y * dt;
-				p.z += v.z * dt;
+			auto p = iter.ViewRW<Position>();
+			auto v = iter.View<Velocity>();
+			const float dt = 0.01f;
+			for (auto i: iter) {
+				p[i].x += v[i].x * dt;
+				p[i].y += v[i].y * dt;
+				p[i].z += v[i].z * dt;
 			}
 		});
 	}
@@ -108,6 +119,7 @@ int main() {
 	ecs::SystemManager sm(w);
 	sm.CreateSystem<PositionSystem>();
 	sm.CreateSystem<PositionSystem_All>();
+	sm.CreateSystem<PositionSystem_All2>();
 	sm.CreateSystem<PositionSystem_EnabledOnly>();
 	for (uint32_t i = 0; i < 1000; ++i) {
 		sm.Update();
