@@ -544,10 +544,6 @@ namespace gaia {
 					ForEach_RunQueryOnChunks(queryInfo, Constraints::AcceptAll, [&](archetype::Chunk& chunk) {
 						func(Iterator(chunk));
 					});
-				else if constexpr (std::is_invocable<Func, IteratorByIndex>::value)
-					ForEach_RunQueryOnChunks(queryInfo, Constraints::AcceptAll, [&](archetype::Chunk& chunk) {
-						func(IteratorByIndex(chunk));
-					});
 				else if constexpr (std::is_invocable<Func, IteratorEnabled>::value)
 					ForEach_RunQueryOnChunks(queryInfo, Constraints::EnabledOnly, [&](archetype::Chunk& chunk) {
 						func(IteratorEnabled(chunk));

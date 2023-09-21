@@ -537,7 +537,7 @@ public:
 			return val < 0 ? -1 : 1;
 		};
 
-		m_q.ForEach([&](ecs::IteratorByIndex iter) {
+		m_q.ForEach([&](ecs::Iterator iter) {
 			auto ent = iter.View<ecs::Entity>();
 			auto vel = iter.ViewRW<Velocity>();
 			auto pos = iter.View<Position>();

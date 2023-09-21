@@ -7,27 +7,22 @@
 #include "../containers/bitset.h"
 #include "chunk.h"
 #include "chunk_accessor.h"
-#include "chunk_header.h"
 
 namespace gaia {
 	namespace ecs {
-		struct IteratorDisabled {
+		struct IteratorDisabled: public ChunkAccessorWithMask {
 		private:
-			using Mask = ChunkAccessorIt::Mask;
-			using Iter = ChunkAccessorIt::Iter;
-
-			archetype::Chunk& m_chunk;
-			Mask m_mask;
+			using Iter = ChunkAccessorWithMaskIt;
 
 		public:
-			IteratorDisabled(archetype::Chunk& chunk): m_chunk(chunk), m_mask(chunk.GetDisabledEntityMask()) {}
+			IteratorDisabled(archetype::Chunk& chunk): ChunkAccessorWithMask(chunk, chunk.GetDisabledEntityMask()) {}
 
-			GAIA_NODISCARD ChunkAccessorIt begin() const {
-				return ChunkAccessorIt::CreateBegin(m_chunk, m_mask);
+			GAIA_NODISCARD Iter begin() const {
+				return Iter(m_mask, 0, true);
 			}
 
-			GAIA_NODISCARD ChunkAccessorIt end() const {
-				return ChunkAccessorIt::CreateEnd(m_chunk, m_mask);
+			GAIA_NODISCARD Iter end() const {
+				return Iter(m_mask, m_chunk.GetEntityCount(), false);
 			}
 
 			GAIA_NODISCARD uint32_t size() const {
