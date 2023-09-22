@@ -210,7 +210,7 @@ namespace gaia {
 							const auto entityCnt = pChunk->GetEntityCount();
 							if GAIA_UNLIKELY (entityCnt == 0)
 								pEmptyChunk = pChunk;
-							else if (entityCnt + 1 < pChunk->GetEntityCapacity())
+							else if (entityCnt < pChunk->GetEntityCapacity())
 								return pChunk;
 						}
 						if (pEmptyChunk != nullptr)
