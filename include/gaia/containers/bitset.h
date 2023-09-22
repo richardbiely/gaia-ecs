@@ -235,21 +235,42 @@ namespace gaia {
 			//! Flips the bit at the postion \param pos
 			constexpr void flip(uint32_t pos) {
 				GAIA_ASSERT(pos < NBits);
-				m_data[pos / BitsPerItem] ^= ((size_type)1 << (pos % BitsPerItem));
+				const auto wordIdx = pos / BitsPerItem;
+				const auto bitIdx = pos % BitsPerItem;
+				m_data[wordIdx] ^= ((size_type)1 << bitIdx);
 			}
 
 			//! Flips all bits from \param bitFrom to \param bitTo (including)
 			constexpr bitset& flip(uint32_t bitFrom, uint32_t bitTo) {
 				GAIA_ASSERT(bitFrom <= bitTo);
-				GAIA_ASSERT(bitFrom < size());
+				GAIA_ASSERT(bitTo < size());
 
-				if GAIA_UNLIKELY (size() == 0)
-					return *this;
+				// The followign can't happen because we always have at least 1 bit
+				// if GAIA_UNLIKELY (size() == 0)
+				// 	return *this;
 
-				for (uint32_t i = bitFrom; i <= bitTo; i++) {
-					uint32_t wordIdx = i / BitsPerItem;
-					uint32_t bitOffset = i % BitsPerItem;
-					m_data[wordIdx] ^= ((size_type)1 << bitOffset);
+				const uint32_t wordIdxFrom = bitFrom / BitsPerItem;
+				const uint32_t wordIdxTo = bitTo / BitsPerItem;
+
+				auto getMask = [](uint32_t from, uint32_t to) -> size_type {
+					const auto diff = to - from;
+					// Set all bits when asking for the full range
+					if (diff == BitsPerItem - 1)
+						return (size_type)-1;
+
+					return ((size_type(1) << (diff + 1)) - 1) << from;
+				};
+
+				if (wordIdxFrom == wordIdxTo) {
+					m_data[wordIdxTo] ^= getMask(bitFrom % BitsPerItem, bitTo % BitsPerItem);
+				} else {
+					// First word
+					m_data[wordIdxFrom] ^= getMask(bitFrom % BitsPerItem, BitsPerItem - 1);
+					// Middle
+					for (uint32_t i = wordIdxFrom + 1; i <= wordIdxTo - 1; i++)
+						m_data[i] = ~m_data[i];
+					// Last word
+					m_data[wordIdxTo] ^= getMask(0, bitTo % BitsPerItem);
 				}
 
 				return *this;
