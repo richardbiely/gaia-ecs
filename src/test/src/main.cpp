@@ -538,19 +538,6 @@ void test_bitset() {
 		REQUIRE(bs.all() == false);
 		REQUIRE(bs.none() == true);
 	}
-	SECTION("Ranges") {
-		containers::bitset<11> bs;
-		bs.set(1);
-		bs.set(10);
-		bs.flip(2, 9);
-		for (uint32_t i = 2; i <= 10; ++i)
-			REQUIRE(bs.test(i) == true);
-		bs.flip(2, 9);
-		for (uint32_t i = 2; i < 10; ++i)
-			REQUIRE(bs.test(i) == false);
-		REQUIRE(bs.test(1));
-		REQUIRE(bs.test(10));
-	}
 	SECTION("Iteration") {
 		{
 			containers::bitset<NBits> bs;
@@ -627,6 +614,111 @@ TEST_CASE("Containers - bitset") {
 	}
 	SECTION("512 bits") {
 		test_bitset<512>();
+	}
+	SECTION("Ranges 11 bits") {
+		containers::bitset<11> bs;
+		bs.set(1);
+		bs.set(10);
+		bs.flip(2, 9);
+		for (uint32_t i = 1; i <= 10; ++i)
+			REQUIRE(bs.test(i) == true);
+		bs.flip(2, 9);
+		for (uint32_t i = 2; i < 10; ++i)
+			REQUIRE(bs.test(i) == false);
+		REQUIRE(bs.test(1));
+		REQUIRE(bs.test(10));
+
+		bs.reset();
+		bs.flip(0, 0);
+		REQUIRE(bs.test(0));
+		REQUIRE(bs.count() == 1);
+		REQUIRE(bs.any() == true);
+		REQUIRE(bs.all() == false);
+
+		bs.reset();
+		bs.flip(10, 10);
+		REQUIRE(bs.test(10));
+		REQUIRE(bs.count() == 1);
+		REQUIRE(bs.any() == true);
+		REQUIRE(bs.all() == false);
+
+		bs.reset();
+		bs.flip(0, 10);
+		REQUIRE(bs.count() == 11);
+		REQUIRE(bs.all() == true);
+		bs.flip(0, 10);
+		REQUIRE(bs.count() == 0);
+		REQUIRE(bs.none() == true);
+	}
+	SECTION("Ranges 64 bits") {
+		containers::bitset<64> bs;
+		bs.set(1);
+		bs.set(10);
+		bs.flip(2, 9);
+		for (uint32_t i = 1; i <= 10; ++i)
+			REQUIRE(bs.test(i) == true);
+		bs.flip(2, 9);
+		for (uint32_t i = 2; i < 10; ++i)
+			REQUIRE(bs.test(i) == false);
+		REQUIRE(bs.test(1));
+		REQUIRE(bs.test(10));
+
+		bs.reset();
+		bs.flip(0, 0);
+		REQUIRE(bs.test(0));
+		REQUIRE(bs.count() == 1);
+		REQUIRE(bs.any() == true);
+		REQUIRE(bs.all() == false);
+
+		bs.reset();
+		bs.flip(63, 63);
+		REQUIRE(bs.test(63));
+		REQUIRE(bs.count() == 1);
+		REQUIRE(bs.any() == true);
+		REQUIRE(bs.all() == false);
+
+		bs.reset();
+		bs.flip(0, 63);
+		REQUIRE(bs.count() == 64);
+		REQUIRE(bs.all() == true);
+		bs.flip(0, 63);
+		REQUIRE(bs.count() == 0);
+		REQUIRE(bs.none() == true);
+	}
+	SECTION("Ranges 101 bits") {
+		containers::bitset<101> bs;
+		bs.set(1);
+		bs.set(100);
+		bs.flip(2, 99);
+		for (uint32_t i = 1; i <= 100; ++i)
+			REQUIRE(bs.test(i) == true);
+		bs.flip(2, 99);
+		for (uint32_t i = 2; i < 100; ++i)
+			REQUIRE(bs.test(i) == false);
+		REQUIRE(bs.test(1));
+		REQUIRE(bs.test(100));
+
+		bs.reset();
+		bs.flip(0, 0);
+		REQUIRE(bs.test(0));
+		REQUIRE(bs.count() == 1);
+		REQUIRE(bs.any() == true);
+		REQUIRE(bs.all() == false);
+
+		bs.reset();
+		bs.flip(100, 100);
+		REQUIRE(bs.test(100));
+		REQUIRE(bs.count() == 1);
+		REQUIRE(bs.any() == true);
+		REQUIRE(bs.all() == false);
+
+		bs.reset();
+		bs.flip(0, 100);
+		REQUIRE(bs.count() == 101);
+		REQUIRE(bs.all() == true);
+		bs.flip(0, 100);
+		REQUIRE(bs.count() == 0);
+		REQUIRE(bs.none() == true);
 	}
 }
 
@@ -709,19 +801,6 @@ void test_dbitset() {
 		REQUIRE(bs.all() == false);
 		REQUIRE(bs.none() == true);
 	}
-	SECTION("Ranges") {
-		containers::dbitset bs;
-		bs.set(1);
-		bs.set(10);
-		bs.flip(2, 9);
-		for (uint32_t i = 2; i <= 10; ++i)
-			REQUIRE(bs.test(i) == true);
-		bs.flip(2, 9);
-		for (uint32_t i = 2; i < 10; ++i)
-			REQUIRE(bs.test(i) == false);
-		REQUIRE(bs.test(1));
-		REQUIRE(bs.test(10));
-	}
 	SECTION("Iteration") {
 		{
 			containers::dbitset bs;
@@ -798,6 +877,111 @@ TEST_CASE("Containers - dbitset") {
 	}
 	SECTION("512 bits") {
 		test_dbitset<512>();
+	}
+	SECTION("Ranges 11 bits") {
+		containers::dbitset bs;
+		bs.set(1);
+		bs.set(10);
+		bs.flip(2, 9);
+		for (uint32_t i = 1; i <= 10; ++i)
+			REQUIRE(bs.test(i) == true);
+		bs.flip(2, 9);
+		for (uint32_t i = 2; i < 10; ++i)
+			REQUIRE(bs.test(i) == false);
+		REQUIRE(bs.test(1));
+		REQUIRE(bs.test(10));
+
+		bs.reset();
+		bs.flip(0, 0);
+		REQUIRE(bs.test(0));
+		REQUIRE(bs.count() == 1);
+		REQUIRE(bs.any() == true);
+		REQUIRE(bs.all() == false);
+
+		bs.reset();
+		bs.flip(10, 10);
+		REQUIRE(bs.test(10));
+		REQUIRE(bs.count() == 1);
+		REQUIRE(bs.any() == true);
+		REQUIRE(bs.all() == false);
+
+		bs.reset();
+		bs.flip(0, 10);
+		REQUIRE(bs.count() == 11);
+		REQUIRE(bs.all() == true);
+		bs.flip(0, 10);
+		REQUIRE(bs.count() == 0);
+		REQUIRE(bs.none() == true);
+	}
+	SECTION("Ranges 64 bits") {
+		containers::dbitset bs;
+		bs.set(1);
+		bs.set(10);
+		bs.flip(2, 9);
+		for (uint32_t i = 1; i <= 10; ++i)
+			REQUIRE(bs.test(i) == true);
+		bs.flip(2, 9);
+		for (uint32_t i = 2; i < 10; ++i)
+			REQUIRE(bs.test(i) == false);
+		REQUIRE(bs.test(1));
+		REQUIRE(bs.test(10));
+
+		bs.reset();
+		bs.flip(0, 0);
+		REQUIRE(bs.test(0));
+		REQUIRE(bs.count() == 1);
+		REQUIRE(bs.any() == true);
+		REQUIRE(bs.all() == false);
+
+		bs.reset();
+		bs.flip(63, 63);
+		REQUIRE(bs.test(63));
+		REQUIRE(bs.count() == 1);
+		REQUIRE(bs.any() == true);
+		REQUIRE(bs.all() == false);
+
+		bs.reset();
+		bs.flip(0, 63);
+		REQUIRE(bs.count() == 64);
+		REQUIRE(bs.all() == true);
+		bs.flip(0, 63);
+		REQUIRE(bs.count() == 0);
+		REQUIRE(bs.none() == true);
+	}
+	SECTION("Ranges 101 bits") {
+		containers::dbitset bs;
+		bs.set(1);
+		bs.set(100);
+		bs.flip(2, 99);
+		for (uint32_t i = 1; i <= 100; ++i)
+			REQUIRE(bs.test(i) == true);
+		bs.flip(2, 99);
+		for (uint32_t i = 2; i < 100; ++i)
+			REQUIRE(bs.test(i) == false);
+		REQUIRE(bs.test(1));
+		REQUIRE(bs.test(100));
+
+		bs.reset();
+		bs.flip(0, 0);
+		REQUIRE(bs.test(0));
+		REQUIRE(bs.count() == 1);
+		REQUIRE(bs.any() == true);
+		REQUIRE(bs.all() == false);
+
+		bs.reset();
+		bs.flip(100, 100);
+		REQUIRE(bs.test(100));
+		REQUIRE(bs.count() == 1);
+		REQUIRE(bs.any() == true);
+		REQUIRE(bs.all() == false);
+
+		bs.reset();
+		bs.flip(0, 100);
+		REQUIRE(bs.count() == 101);
+		REQUIRE(bs.all() == true);
+		bs.flip(0, 100);
+		REQUIRE(bs.count() == 0);
+		REQUIRE(bs.none() == true);
 	}
 }
 
