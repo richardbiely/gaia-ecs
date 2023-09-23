@@ -12,6 +12,7 @@ namespace gaia {
 	namespace ecs {
 		struct IteratorDisabled: public ChunkAccessorWithMask {
 		private:
+			using Mask = ChunkAccessorWithMask::Mask;
 			using Iter = ChunkAccessorWithMaskIt;
 
 		public:

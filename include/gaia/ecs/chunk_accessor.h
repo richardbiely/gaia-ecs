@@ -16,6 +16,7 @@ namespace gaia {
 		namespace detail {
 			using ChunkAccessorMask = archetype::ChunkHeader::DisabledEntityMask;
 			using ChunkAccessorIter = ChunkAccessorMask::const_iterator;
+			using ChunkAccessorIterInverse = ChunkAccessorMask::const_iterator_inverse;
 
 			class ChunkAccessorCommon {
 			protected:
@@ -126,5 +127,6 @@ namespace gaia {
 		};
 
 		using ChunkAccessorWithMaskIt = detail::ChunkAccessorIter;
+		using ChunkAccessorWithMaskItInverse = detail::ChunkAccessorIterInverse;
 	} // namespace ecs
 } // namespace gaia
