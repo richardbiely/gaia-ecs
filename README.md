@@ -322,32 +322,26 @@ q.ToArray(entities, ecs::Query::Constraint::AcceptAll);
 q.ToArray(entities, ecs::Query::Constraint::DisabledOnly);
 
 q.ForEach([](ecs::Iterator iter) {
+  auto p = iter.ViewRW<Position>(); // Read-Write access to Position
   // Iterates over all entities
   for (auto i: iter) {
     if (iter.IsEntityEnabled(i)) {
-      // Do something special when the entity is enabled
+      p[i] = {}; // reset the position of each enabled entity
     }
   }
 });
 q.ForEach([](ecs::IteratorDisabled iter) {
+  auto p = iter.ViewRW<Position>(); // Read-Write access to Position
   // Iterates only over disabled entities
-  for (auto curr: iter) {
-    curr.SetComponent<Position>({}); // reset the position of each disabled entity
+  for (auto i: iter) {
+    p[i] = {}; // reset the position of each disabled entity
   }
 });
 q.ForEach([](ecs::IteratorEnabled iter) {
+  auto p = iter.ViewRW<Position>(); // Read-Write access to Position
   // Iterates only over enabled entities
-  for (auto curr: iter) {
-    auto& pos = curr.SetComponent<Position>();
-    ++pos.x; // update the position of each enabled entity
-  }
-  ...
-  // SoA components can't be changed directly because their memory
-  // is split into multiple parts. We need to read & write separately.
-  for (auto curr: iter) {
-    auto pos = curr.GetComponent<PositionSoA>();
-    ++pos.x; // update the position of each enabled entity
-    curr.SetComponent<PositionSoA>(pos);
+  for (auto i: iter) {
+    p[i] = {}; // reset the position of each enabled entity
   }
 });
 ```
