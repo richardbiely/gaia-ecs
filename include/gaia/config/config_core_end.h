@@ -57,17 +57,27 @@
 	#if GAIA_DEBUG_BUILD
 		#define GAIA_ASSERT_ENABLED 1
 		#define GAIA_ASSERT(cond)                                                                                          \
-			(GAIA_LIKELY(cond) ? void(0) : [] {                                                                              \
-				assert(!#cond);                                                                                                \
-			}())
+			{                                                                                                                \
+				if GAIA_LIKELY (cond)                                                                                          \
+					(void(0));                                                                                                   \
+				else                                                                                                           \
+					[] {                                                                                                         \
+						assert(!#cond);                                                                                            \
+					}();                                                                                                         \
+			}
 	#else
 		// For non-Debug builds simulate asserts
 		#if GAIA_DEBUG
 			#define GAIA_ASSERT_ENABLED 1
 			#define GAIA_ASSERT(cond)                                                                                        \
-				(GAIA_LIKELY(cond) ? void(0) : [] {                                                                            \
-					GAIA_LOG_E("%s:%d: Assertion failed: '%s'.", __FILE__, __LINE__, #cond);                                     \
-				}())
+				{                                                                                                              \
+					if GAIA_LIKELY (cond)                                                                                        \
+						(void(0));                                                                                                 \
+					else                                                                                                         \
+						[] {                                                                                                       \
+							GAIA_LOG_E("%s:%d: Assertion failed: '%s'.", __FILE__, __LINE__, #cond);                                 \
+						}();                                                                                                       \
+				}
 		#else
 			#define GAIA_ASSERT_ENABLED 0
 			#define GAIA_ASSERT(cond) (void(0))

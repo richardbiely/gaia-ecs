@@ -1,5 +1,8 @@
 #pragma once
 
+#if __has_include(<version.h>)
+	#include <version.h>
+#endif
 #include <cinttypes>
 
 //------------------------------------------------------------------------------
@@ -220,7 +223,7 @@ namespace gaia {
 		#include <intrin.h>
 	#endif
 // MSVC doesn't implement __popcnt for ARM so we need to do it ourselves
-	#if GAIA_ARCH_ARM
+	#if GAIA_ARCH == GAIA_ARCH_ARM
 		#include <arm_neon.h>
 	//! Returns the number of set bits in \param x
 		#define GAIA_POPCNT(x)                                                                                             \
@@ -481,9 +484,9 @@ namespace gaia {
 	#define DO_PRAGMA(x) DO_PRAGMA_(x)
 	#define GAIA_CLANG_WARNING_PUSH() _Pragma("clang diagnostic push")
 	#define GAIA_CLANG_WARNING_POP() _Pragma("clang diagnostic pop")
-	#define GAIA_CLANG_WARNING_DISABLE(warningId) _Pragma(GAIA_STRINGIZE(clang diagnostic ignored #warningId))
-	#define GAIA_CLANG_WARNING_ERROR(warningId) _Pragma(GAIA_STRINGIZE(clang diagnostic error #warningId))
-	#define GAIA_CLANG_WARNING_ALLOW(warningId) _Pragma(GAIA_STRINGIZE(clang diagnostic warning #warningId))
+	#define GAIA_CLANG_WARNING_DISABLE(warningId) DO_PRAGMA(clang diagnostic ignored warningId)
+	#define GAIA_CLANG_WARNING_ERROR(warningId) DO_PRAGMA(clang diagnostic error warningId)
+	#define GAIA_CLANG_WARNING_ALLOW(warningId) DO_PRAGMA(clang diagnostic warning warningId)
 #else
 	#define GAIA_CLANG_WARNING_PUSH()
 	#define GAIA_CLANG_WARNING_POP()
@@ -497,8 +500,8 @@ namespace gaia {
 	#define DO_PRAGMA(x) DO_PRAGMA_(x)
 	#define GAIA_GCC_WARNING_PUSH() _Pragma("GCC diagnostic push")
 	#define GAIA_GCC_WARNING_POP() _Pragma("GCC diagnostic pop")
-	#define GAIA_GCC_WARNING_ERROR(warningId) _Pragma(GAIA_STRINGIZE(GCC diagnostic error warningId))
-	#define GAIA_GCC_WARNING_DISABLE(warningId) DO_PRAGMA(GCC diagnostic ignored #warningId)
+	#define GAIA_GCC_WARNING_ERROR(warningId) DO_PRAGMA(GCC diagnostic error warningId)
+	#define GAIA_GCC_WARNING_DISABLE(warningId) DO_PRAGMA(GCC diagnostic ignored warningId)
 #else
 	#define GAIA_GCC_WARNING_PUSH()
 	#define GAIA_GCC_WARNING_POP()

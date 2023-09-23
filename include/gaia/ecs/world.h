@@ -130,7 +130,7 @@ namespace gaia {
 				const bool wasDisabled = pChunk->GetDisabledEntityMask().test(lastEntityIdx);
 
 				if constexpr (IsEntityReleaseWanted) {
-					pChunk->SwapEntitiesInsideChunkAndDeleteOld(entityChunkIndex, m_entities);
+					pChunk->SwapEntitiesInsideChunkAndDeleteOld(entityChunkIndex, {m_entities.data(), m_entities.size()});
 
 					// Transfer the disabled state is possible
 					if GAIA_LIKELY (chunkEntityCount > 1)
@@ -139,7 +139,7 @@ namespace gaia {
 					pChunk->RemoveLastEntity(m_chunksToRemove);
 					ReleaseEntity(entity);
 				} else {
-					pChunk->SwapEntitiesInsideChunkAndDeleteOld(entityChunkIndex, m_entities);
+					pChunk->SwapEntitiesInsideChunkAndDeleteOld(entityChunkIndex, {m_entities.data(), m_entities.size()});
 
 					// Transfer the disabled state is possible
 					if GAIA_LIKELY (chunkEntityCount > 1)
@@ -161,7 +161,7 @@ namespace gaia {
 					m_defragLastArchetypeID = (m_defragLastArchetypeID + i) % maxIters;
 
 					auto* pArchetype = m_archetypes[m_defragLastArchetypeID];
-					pArchetype->Defragment(maxEntities, m_chunksToRemove, m_entities);
+					pArchetype->Defragment(maxEntities, m_chunksToRemove, {m_entities.data(), m_entities.size()});
 					if (maxEntities == 0)
 						return;
 				}
@@ -404,8 +404,9 @@ namespace gaia {
 
 				// Once sorted we can calculate the hashes
 				const archetype::Archetype::GenericComponentHash genericHash = {
-						component::CalculateLookupHash({*infos[0]}).hash};
-				const archetype::Archetype::ChunkComponentHash chunkHash = {component::CalculateLookupHash({*infos[1]}).hash};
+						component::CalculateLookupHash({infos[0]->data(), infos[0]->size()}).hash};
+				const archetype::Archetype::ChunkComponentHash chunkHash = {
+						component::CalculateLookupHash({infos[1]->data(), infos[1]->size()}).hash};
 				const auto lookupHash = archetype::Archetype::CalculateLookupHash(genericHash, chunkHash);
 
 				auto* pArchetypeRight =
@@ -458,11 +459,13 @@ namespace gaia {
 
 				// Calculate the hashes
 				const archetype::Archetype::GenericComponentHash genericHash = {
-						component::CalculateLookupHash({*infos[0]}).hash};
-				const archetype::Archetype::ChunkComponentHash chunkHash = {component::CalculateLookupHash({*infos[1]}).hash};
+						component::CalculateLookupHash({infos[0]->data(), infos[0]->size()}).hash};
+				const archetype::Archetype::ChunkComponentHash chunkHash = {
+						component::CalculateLookupHash({infos[1]->data(), infos[1]->size()}).hash};
 				const auto lookupHash = archetype::Archetype::CalculateLookupHash(genericHash, chunkHash);
 
-				auto* pArchetype = FindArchetype(lookupHash, {*infos[0]}, {*infos[1]});
+				auto* pArchetype =
+						FindArchetype(lookupHash, {infos[0]->data(), infos[0]->size()}, {infos[1]->data(), infos[1]->size()});
 				if (pArchetype == nullptr) {
 					pArchetype = CreateArchetype({infos[0]->data(), infos[0]->size()}, {infos[1]->data(), infos[1]->size()});
 					pArchetype->Init(genericHash, lookupHash, lookupHash);
@@ -536,9 +539,9 @@ namespace gaia {
 				if GAIA_LIKELY (pNewChunk->GetArchetypeId() + pOldChunk->GetArchetypeId() != 0) {
 					// Move data from the old chunk to the new one
 					if (pOldChunk->GetArchetypeId() == pNewChunk->GetArchetypeId())
-						pNewChunk->MoveEntityData(oldEntity, newIndex, m_entities);
+						pNewChunk->MoveEntityData(oldEntity, newIndex, {m_entities.data(), m_entities.size()});
 					else
-						pNewChunk->MoveForeignEntityData(oldEntity, newIndex, m_entities);
+						pNewChunk->MoveForeignEntityData(oldEntity, newIndex, {m_entities.data(), m_entities.size()});
 				}
 
 				// Remove the entity record from the old chunk
@@ -826,7 +829,7 @@ namespace gaia {
 				auto& archetype = *m_archetypes[pChunk->GetArchetypeId()];
 				const auto newEntity = CreateEntity(archetype);
 
-				archetype::Chunk::CopyEntityData(entity, newEntity, m_entities);
+				archetype::Chunk::CopyEntityData(entity, newEntity, {m_entities.data(), m_entities.size()});
 
 				return newEntity;
 			}

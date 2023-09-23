@@ -680,10 +680,14 @@ namespace gaia {
 			} else {
 #if GAIA_USE_STL_COMPATIBLE_CONTAINERS
 				//! TODO: replace with std::sort for c++20
+	#if __cplusplus >= 202002L
+				std::sort(arr.begin(), arr.end());
+	#else
 				GAIA_MSVC_WARNING_PUSH()
 				GAIA_MSVC_WARNING_DISABLE(4244)
 				detail::comb_sort_impl(arr, func);
 				GAIA_MSVC_WARNING_POP()
+	#endif
 #else
 				detail::comb_sort_impl(arr, func);
 #endif

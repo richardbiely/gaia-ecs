@@ -4,6 +4,7 @@
 #include <cinttypes>
 #include <type_traits>
 
+#include "gaia/config/config_core.h"
 #include "impl/darray_impl.h"
 
 namespace gaia {
@@ -33,7 +34,7 @@ namespace gaia {
 
 			static_assert(std::is_base_of<ImplicitListItem, TListItem>::value);
 			//! Implicit list items
-			darr<TListItem> m_items;
+			internal_storage m_items;
 			//! Index of the next item to recycle
 			size_type m_nextFreeIdx = (size_type)-1;
 			//! Number of items to recycle
@@ -108,8 +109,14 @@ namespace gaia {
 					const auto itemCnt = (size_type)m_items.size();
 					GAIA_ASSERT(itemCnt < TItemHandle::IdMask && "Trying to allocate too many items!");
 
+					GAIA_GCC_WARNING_PUSH()
+					GAIA_CLANG_WARNING_PUSH()
+					GAIA_GCC_WARNING_DISABLE("-Wmissing-field-initializers");
+					GAIA_CLANG_WARNING_DISABLE("-Wmissing-field-initializers");
 					m_items.push_back({{itemCnt, 0U}});
 					return {itemCnt, 0U};
+					GAIA_GCC_WARNING_POP()
+					GAIA_CLANG_WARNING_POP()
 				}
 
 				// Make sure the list is not broken

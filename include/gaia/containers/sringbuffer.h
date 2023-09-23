@@ -69,12 +69,12 @@ namespace gaia {
 				other.m_size = size_type(0);
 			}
 
-			GAIA_NODISCARD sringbuffer& operator=(std::initializer_list<T> il) {
+			sringbuffer& operator=(std::initializer_list<T> il) {
 				*this = sringbuffer(il.begin(), il.end());
 				return *this;
 			}
 
-			GAIA_NODISCARD constexpr sringbuffer& operator=(const sringbuffer& other) {
+			constexpr sringbuffer& operator=(const sringbuffer& other) {
 				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
 
 				utils::copy_elements(m_data, other.m_data, other.size());
@@ -85,7 +85,7 @@ namespace gaia {
 				return *this;
 			}
 
-			GAIA_NODISCARD constexpr sringbuffer& operator=(sringbuffer&& other) noexcept {
+			constexpr sringbuffer& operator=(sringbuffer&& other) noexcept {
 				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
 
 				utils::move_elements(m_data, other.m_data, other.size());
