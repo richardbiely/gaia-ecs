@@ -4418,8 +4418,182 @@ namespace gaia {
 #include <cinttypes>
 #include <type_traits>
 
+#include <cinttypes>
+#include <type_traits>
+
 namespace gaia {
 	namespace containers {
+		template <typename TBitset, bool IsInverse>
+		class bitset_const_iterator {
+		public:
+			using value_type = uint32_t;
+			using size_type = typename TBitset::size_type;
+
+		private:
+			const TBitset& m_bitset;
+			value_type m_pos;
+
+			size_type item(uint32_t wordIdx) const {
+				if constexpr (IsInverse)
+					return ~m_bitset.data(wordIdx);
+				else
+					return m_bitset.data(wordIdx);
+			}
+
+			uint32_t find_next_set_bit(uint32_t pos) const {
+				value_type wordIndex = pos / TBitset::BitsPerItem;
+				const auto item_count = m_bitset.items();
+				GAIA_ASSERT(wordIndex < item_count);
+				size_type word = 0;
+
+				const size_type posInWord = pos % TBitset::BitsPerItem + 1;
+				if GAIA_LIKELY (posInWord < TBitset::BitsPerItem) {
+					const size_type mask = (size_type(1) << posInWord) - 1;
+					word = item(wordIndex) & (~mask);
+				}
+
+				GAIA_MSVC_WARNING_PUSH()
+				GAIA_MSVC_WARNING_DISABLE(4244)
+				while (true) {
+					if (word != 0) {
+						if constexpr (TBitset::BitsPerItem == 32)
+							return wordIndex * TBitset::BitsPerItem + GAIA_FFS(word) - 1;
+						else
+							return wordIndex * TBitset::BitsPerItem + GAIA_FFS64(word) - 1;
+					}
+
+					// No set bit in the current word, move to the next one
+					if (++wordIndex >= item_count)
+						return pos;
+
+					word = item(wordIndex);
+				}
+				GAIA_MSVC_WARNING_POP()
+			}
+
+			uint32_t find_prev_set_bit(uint32_t pos) const {
+				value_type wordIndex = pos / TBitset::BitsPerItem;
+				GAIA_ASSERT(wordIndex < m_bitset.items());
+
+				const size_type posInWord = pos % TBitset::BitsPerItem;
+				const size_type mask = (size_type(1) << posInWord) - 1;
+				size_type word = item(wordIndex) & mask;
+
+				GAIA_MSVC_WARNING_PUSH()
+				GAIA_MSVC_WARNING_DISABLE(4244)
+				while (true) {
+					if (word != 0) {
+						if constexpr (TBitset::BitsPerItem == 32)
+							return TBitset::BitsPerItem * (wordIndex + 1) - GAIA_CTZ(word) - 1;
+						else
+							return TBitset::BitsPerItem * (wordIndex + 1) - GAIA_CTZ64(word) - 1;
+					}
+
+					// No set bit in the current word, move to the previous one
+					if (wordIndex == 0)
+						return pos;
+
+					word = item(--wordIndex);
+				}
+				GAIA_MSVC_WARNING_POP()
+			}
+
+		public:
+			bitset_const_iterator(const TBitset& bitset, value_type pos, bool fwd): m_bitset(bitset), m_pos(pos) {
+				if (fwd) {
+					if constexpr (IsInverse) {
+						// Find the first set bit
+						if (pos != 0 || bitset.test(0)) {
+							pos = find_next_set_bit(m_pos);
+							// Point beyond the last item if no set bit was found
+							if (pos == m_pos)
+								pos = bitset.size();
+						}
+					} else {
+						// Find the first set bit
+						if (pos != 0 || !bitset.test(0)) {
+							pos = find_next_set_bit(m_pos);
+							// Point beyond the last item if no set bit was found
+							if (pos == m_pos)
+								pos = bitset.size();
+						}
+					}
+					m_pos = pos;
+				} else {
+					const auto bitsetSize = bitset.size();
+					const auto lastBit = bitsetSize - 1;
+
+					// Stay inside bounds
+					if (pos >= bitsetSize)
+						pos = bitsetSize - 1;
+
+					if constexpr (IsInverse) {
+						// Find the last set bit
+						if (pos != lastBit || bitset.test(pos)) {
+							const uint32_t newPos = find_prev_set_bit(pos);
+							// Point one beyond the last found bit
+							pos = (newPos == pos) ? bitsetSize : newPos + 1;
+						}
+						// Point one beyond the last found bit
+						else
+							++pos;
+					} else {
+						// Find the last set bit
+						if (pos != lastBit || !bitset.test(pos)) {
+							const uint32_t newPos = find_prev_set_bit(pos);
+							// Point one beyond the last found bit
+							pos = (newPos == pos) ? bitsetSize : newPos + 1;
+						}
+						// Point one beyond the last found bit
+						else
+							++pos;
+					}
+
+					m_pos = pos;
+				}
+			}
+
+			GAIA_NODISCARD value_type operator*() const {
+				return m_pos;
+			}
+
+			GAIA_NODISCARD value_type operator->() const {
+				return m_pos;
+			}
+
+			GAIA_NODISCARD value_type index() const {
+				return m_pos;
+			}
+
+			bitset_const_iterator& operator++() {
+				uint32_t newPos = find_next_set_bit(m_pos);
+				// Point one past the last item if no new bit was found
+				if (newPos == m_pos)
+					++newPos;
+				m_pos = newPos;
+				return *this;
+			}
+
+			GAIA_NODISCARD bitset_const_iterator operator++(int) {
+				bitset_const_iterator temp(*this);
+				++*this;
+				return temp;
+			}
+
+			GAIA_NODISCARD bool operator==(const bitset_const_iterator& other) const {
+				return m_pos == other.m_pos;
+			}
+
+			GAIA_NODISCARD bool operator!=(const bitset_const_iterator& other) const {
+				return m_pos != other.m_pos;
+			}
+		};
+	} // namespace containers
+} // namespace gaia
+
+namespace gaia {
+	namespace containers {
+
 		template <uint32_t NBits>
 		class bitset {
 		public:
@@ -4440,141 +4614,21 @@ namespace gaia {
 
 			size_type m_data[Items]{};
 
+			//! Returns the number of words used by the bitset internally
+			GAIA_NODISCARD constexpr uint32_t items() const {
+				return Items;
+			}
+
+			//! Returns the word stored at the index \param wordIdx
+			size_type data(uint32_t wordIdx) const {
+				return m_data[wordIdx];
+			}
+
 		public:
-			class const_iterator {
-			public:
-				using iterator_category = GAIA_UTIL::random_access_iterator_tag;
-				using value_type = uint32_t;
-				using size_type = bitset<NBits>::size_type;
-
-			private:
-				const bitset<NBits>& m_bitset;
-				value_type m_pos;
-
-				uint32_t find_next_set_bit(uint32_t pos) const {
-					value_type wordIndex = pos / bitset::BitsPerItem;
-					GAIA_ASSERT(wordIndex < Items);
-					size_type word = 0;
-
-					const size_type posInWord = pos % bitset::BitsPerItem + 1;
-					if GAIA_LIKELY (posInWord < bitset::BitsPerItem) {
-						const size_type mask = (size_type(1) << posInWord) - 1;
-						word = m_bitset.m_data[wordIndex] & (~mask);
-					}
-
-					GAIA_MSVC_WARNING_PUSH()
-					GAIA_MSVC_WARNING_DISABLE(4244)
-					while (true) {
-						if (word != 0) {
-							if constexpr (bitset::BitsPerItem == 32)
-								return wordIndex * bitset::BitsPerItem + GAIA_FFS(word) - 1;
-							else
-								return wordIndex * bitset::BitsPerItem + GAIA_FFS64(word) - 1;
-						}
-
-						// No set bit in the current word, move to the next one
-						if (++wordIndex >= bitset::Items)
-							return pos;
-
-						word = m_bitset.m_data[wordIndex];
-					}
-					GAIA_MSVC_WARNING_POP()
-				}
-
-				uint32_t find_prev_set_bit(uint32_t pos) const {
-					value_type wordIndex = pos / bitset::BitsPerItem;
-					GAIA_ASSERT(wordIndex < Items);
-					size_type word = m_bitset.m_data[wordIndex];
-
-					// No set bit in the current word, move to the previous word
-					while (word == 0) {
-						if (wordIndex == 0)
-							return pos;
-						word = m_bitset.m_data[--wordIndex];
-					}
-
-					// Process the word
-					uint32_t ctz = 0;
-
-					GAIA_MSVC_WARNING_PUSH()
-					GAIA_MSVC_WARNING_DISABLE(4244)
-					if constexpr (bitset::BitsPerItem == 32)
-						ctz = GAIA_CTZ(word);
-					else
-						ctz = GAIA_CTZ64(word);
-					GAIA_MSVC_WARNING_POP()
-
-					return bitset::BitsPerItem * (wordIndex + 1) - ctz - 1;
-				}
-
-			public:
-				const_iterator(const bitset<NBits>& bitset, value_type pos, bool fwd): m_bitset(bitset), m_pos(pos) {
-					if (fwd) {
-						// Find the first set bit)
-						if (pos != 0 || !bitset.test(0)) {
-							pos = find_next_set_bit(m_pos);
-							// Point beyond the last item if no set bit was found
-							if (pos == m_pos)
-								pos = bitset.size();
-						}
-						m_pos = pos;
-					} else {
-						const auto bitsetSize = bitset.size();
-						const auto lastBit = bitsetSize - 1;
-
-						// Stay inside bounds
-						if (pos >= bitsetSize)
-							pos = bitsetSize - 1;
-
-						// Find the last set bit
-						if (pos != lastBit || !bitset.test(lastBit)) {
-							const uint32_t newPos = find_prev_set_bit(pos);
-							// Point one beyond the last found bit
-							pos = (newPos == pos) ? bitsetSize : newPos + 1;
-						}
-						// Point one beyond the last found bit
-						else
-							++pos;
-
-						m_pos = pos;
-					}
-				}
-
-				GAIA_NODISCARD value_type operator*() const {
-					return m_pos;
-				}
-
-				GAIA_NODISCARD value_type operator->() const {
-					return m_pos;
-				}
-
-				GAIA_NODISCARD value_type index() const {
-					return m_pos;
-				}
-
-				const_iterator& operator++() {
-					uint32_t newPos = find_next_set_bit(m_pos);
-					// Point one past the last item if no new bit was found
-					if (newPos == m_pos)
-						++newPos;
-					m_pos = newPos;
-					return *this;
-				}
-
-				GAIA_NODISCARD const_iterator operator++(int) {
-					const_iterator temp(*this);
-					++*this;
-					return temp;
-				}
-
-				GAIA_NODISCARD bool operator==(const const_iterator& other) const {
-					return m_pos == other.m_pos;
-				}
-
-				GAIA_NODISCARD bool operator!=(const const_iterator& other) const {
-					return m_pos != other.m_pos;
-				}
-			};
+			using const_iterator = bitset_const_iterator<bitset<NBits>, false>;
+			friend const_iterator;
+			using const_iterator_inverse = bitset_const_iterator<bitset<NBits>, true>;
+			friend const_iterator_inverse;
 
 			const_iterator begin() const {
 				return const_iterator(*this, 0, true);
@@ -4584,12 +4638,12 @@ namespace gaia {
 				return const_iterator(*this, NBits, false);
 			}
 
-			const_iterator cbegin() const {
-				return const_iterator(*this, 0, true);
+			const_iterator_inverse begin_inverse() const {
+				return const_iterator_inverse(*this, 0, true);
 			}
 
-			const_iterator cend() const {
-				return const_iterator(*this, NBits, false);
+			const_iterator_inverse end_inverse() const {
+				return const_iterator_inverse(*this, NBits, false);
 			}
 
 			GAIA_NODISCARD constexpr bool operator[](uint32_t pos) const {
@@ -5313,20 +5367,20 @@ namespace gaia {
 			uint32_t m_cnt = uint32_t(0);
 			uint32_t m_cap = uint32_t(0);
 
-			uint32_t Items() const {
+			uint32_t items() const {
 				return (m_cnt + BitsPerItem - 1) / BitsPerItem;
 			}
 
-			bool HasTrailingBits() const {
+			bool has_trailing_bits() const {
 				return (m_cnt % BitsPerItem) != 0;
 			}
 
-			size_type LastItemMask() const {
+			size_type last_item_mask() const {
 				return ((size_type)1 << (m_cnt % BitsPerItem)) - 1;
 			}
 
 			void try_grow(uint32_t bitsWanted) {
-				uint32_t itemsOld = Items();
+				uint32_t itemsOld = items();
 				if GAIA_UNLIKELY (bitsWanted > size())
 					m_cnt = bitsWanted;
 				if GAIA_LIKELY (m_cnt <= capacity())
@@ -5355,145 +5409,23 @@ namespace gaia {
 				}
 			}
 
+			//! Returns the word stored at the index \param wordIdx
+			size_type data(uint32_t wordIdx) const {
+				return m_pData[wordIdx];
+			}
+
 		public:
-			class const_iterator {
-			public:
-				using iterator_category = GAIA_UTIL::random_access_iterator_tag;
-				using value_type = uint32_t;
-				using size_type = dbitset::size_type;
+			using const_iterator = bitset_const_iterator<dbitset, false>;
+			friend const_iterator;
+			using const_iterator_inverse = bitset_const_iterator<dbitset, true>;
+			friend const_iterator_inverse;
 
-			private:
-				const dbitset& m_bitset;
-				value_type m_pos;
-
-				uint32_t find_next_set_bit(uint32_t pos) const {
-					value_type wordIndex = pos / dbitset::BitsPerItem;
-					const auto items = m_bitset.Items();
-					GAIA_ASSERT(wordIndex < items);
-					size_type word = 0;
-
-					const size_type posInWord = pos % dbitset::BitsPerItem + 1;
-					if GAIA_LIKELY (posInWord < dbitset::BitsPerItem) {
-						const size_type mask = (size_type(1) << posInWord) - 1;
-						word = m_bitset.m_pData[wordIndex] & (~mask);
-					}
-
-					GAIA_MSVC_WARNING_PUSH()
-					GAIA_MSVC_WARNING_DISABLE(4244)
-					while (true) {
-						if (word != 0) {
-							if constexpr (dbitset::BitsPerItem == 32)
-								return wordIndex * dbitset::BitsPerItem + GAIA_FFS(word) - 1;
-							else
-								return wordIndex * dbitset::BitsPerItem + GAIA_FFS64(word) - 1;
-						}
-
-						// No set bit in the current word, move to the next one
-						if (++wordIndex >= items)
-							return pos;
-
-						word = m_bitset.m_pData[wordIndex];
-					}
-					GAIA_MSVC_WARNING_POP()
-				}
-
-				uint32_t find_prev_set_bit(uint32_t pos) const {
-					value_type wordIndex = pos / dbitset::BitsPerItem;
-					GAIA_ASSERT(wordIndex < m_bitset.Items());
-					size_type word = m_bitset.m_pData[wordIndex];
-
-					// No set bit in the current word, move to the previous word
-					while (word == 0) {
-						if (wordIndex == 0)
-							return pos;
-						word = m_bitset.m_pData[--wordIndex];
-					}
-
-					// Process the word
-					uint32_t ctz = 0;
-
-					GAIA_MSVC_WARNING_PUSH()
-					GAIA_MSVC_WARNING_DISABLE(4244)
-					if constexpr (dbitset::BitsPerItem == 32)
-						ctz = GAIA_CTZ(word);
-					else
-						ctz = GAIA_CTZ64(word);
-					GAIA_MSVC_WARNING_POP()
-
-					return dbitset::BitsPerItem * (wordIndex + 1) - ctz - 1;
-				}
-
-			public:
-				const_iterator(const dbitset& bitset, value_type pos, bool fwd): m_bitset(bitset), m_pos(pos) {
-					const auto bitsetSize = bitset.size();
-					if (bitsetSize == 0) {
-						// Point beyond the last item if no set bit was found
-						m_pos = bitsetSize;
-						return;
-					}
-
-					// Stay inside bounds
-					const auto lastBit = bitsetSize - 1;
-					if (pos >= bitsetSize)
-						pos = lastBit;
-
-					if (fwd) {
-						// Find the first set bit)
-						if (pos != 0 || !bitset.test(0)) {
-							pos = find_next_set_bit(m_pos);
-							// Point beyond the last item if no set bit was found
-							if (pos == m_pos)
-								pos = bitsetSize;
-						}
-					} else {
-						// Find the last set bit
-						if (pos != lastBit || !bitset.test(lastBit)) {
-							const uint32_t newPos = find_prev_set_bit(pos);
-							// Point one beyond the last found bit
-							pos = (newPos == pos) ? bitsetSize : newPos + 1;
-						}
-						// Point one beyond the last found bit
-						else
-							++pos;
-					}
-
-					m_pos = pos;
-				}
-
-				GAIA_NODISCARD value_type operator*() const {
-					return m_pos;
-				}
-
-				const_iterator& operator++() {
-					uint32_t newPos = find_next_set_bit(m_pos);
-					// Point one past the last item if no new bit was found
-					if (newPos == m_pos)
-						++newPos;
-					m_pos = newPos;
-					return *this;
-				}
-
-				GAIA_NODISCARD const_iterator operator++(int) {
-					const_iterator temp(*this);
-					++*this;
-					return temp;
-				}
-
-				GAIA_NODISCARD bool operator==(const const_iterator& other) const {
-					return m_pos == other.m_pos;
-				}
-
-				GAIA_NODISCARD bool operator!=(const const_iterator& other) const {
-					return m_pos != other.m_pos;
-				}
-			};
-
-			dbitset() {
+			dbitset(): m_cnt(1) {
 				// Allocate at least 128 bits
 				reserve(128);
 			}
 
-			dbitset(uint32_t reserveBits) {
+			dbitset(uint32_t reserveBits): m_cnt(1) {
 				reserve(reserveBits);
 			}
 
@@ -5504,17 +5436,19 @@ namespace gaia {
 			dbitset(const dbitset& other) {
 				*this = other;
 			}
+
 			dbitset& operator=(const dbitset& other) {
 				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
 
 				resize(other.m_cnt);
-				utils::copy_elements(m_pData, other.m_pData, other.Items());
+				utils::copy_elements(m_pData, other.m_pData, other.items());
 				return *this;
 			}
 
 			dbitset(dbitset&& other) noexcept {
 				*this = std::move(other);
 			}
+
 			dbitset& operator=(dbitset&& other) noexcept {
 				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
 
@@ -5546,7 +5480,7 @@ namespace gaia {
 					for (uint32_t i = 0; i < itemsNew; ++i)
 						m_pData[i] = 0;
 				} else {
-					const uint32_t itemsOld = Items();
+					const uint32_t itemsOld = items();
 					// Copy the old data over and set the old data to zeros
 					utils::move_elements(m_pData, pDataOld, size());
 					for (uint32_t i = itemsOld; i < itemsNew; ++i)
@@ -5565,7 +5499,7 @@ namespace gaia {
 				if (bitsWanted < 1)
 					bitsWanted = 1;
 
-				const uint32_t itemsOld = Items();
+				const uint32_t itemsOld = items();
 
 				// Nothing to do if the capacity is already bigger than requested
 				if (bitsWanted <= capacity()) {
@@ -5602,12 +5536,12 @@ namespace gaia {
 				return const_iterator(*this, size(), false);
 			}
 
-			const_iterator cbegin() const {
-				return const_iterator(*this, 0, true);
+			const_iterator_inverse begin_inverse() const {
+				return const_iterator_inverse(*this, 0, true);
 			}
 
-			const_iterator cend() const {
-				return const_iterator(*this, size(), false);
+			const_iterator_inverse end_inverse() const {
+				return const_iterator_inverse(*this, size(), false);
 			}
 
 			GAIA_NODISCARD bool operator[](uint32_t pos) const {
@@ -5615,16 +5549,16 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD bool operator==(const dbitset& other) const {
-				const uint32_t items = Items();
-				for (uint32_t i = 0; i < items; ++i)
+				const uint32_t item_count = items();
+				for (uint32_t i = 0; i < item_count; ++i)
 					if (m_pData[i] != other.m_pData[i])
 						return false;
 				return true;
 			}
 
 			GAIA_NODISCARD bool operator!=(const dbitset& other) const {
-				const uint32_t items = Items();
-				for (uint32_t i = 0; i < items; ++i)
+				const uint32_t item_count = items();
+				for (uint32_t i = 0; i < item_count; ++i)
 					if (m_pData[i] == other.m_pData[i])
 						return false;
 				return true;
@@ -5635,16 +5569,16 @@ namespace gaia {
 				if GAIA_UNLIKELY (size() == 0)
 					return;
 
-				const auto items = Items();
-				const auto lastItemMask = LastItemMask();
+				const auto item_count = items();
+				const auto lastItemMask = last_item_mask();
 
 				if (lastItemMask != 0) {
 					uint32_t i = 0;
-					for (; i < items - 1; ++i)
+					for (; i < item_count - 1; ++i)
 						m_pData[i] = (size_type)-1;
 					m_pData[i] = lastItemMask;
 				} else {
-					for (uint32_t i = 0; i < items; ++i)
+					for (uint32_t i = 0; i < item_count; ++i)
 						m_pData[i] = (size_type)-1;
 				}
 			}
@@ -5664,16 +5598,16 @@ namespace gaia {
 				if GAIA_UNLIKELY (size() == 0)
 					return;
 
-				const auto items = Items();
-				const auto lastItemMask = LastItemMask();
+				const auto item_count = items();
+				const auto lastItemMask = last_item_mask();
 
 				if (lastItemMask != 0) {
 					uint32_t i = 0;
-					for (; i < items - 1; ++i)
+					for (; i < item_count - 1; ++i)
 						m_pData[i] = ~m_pData[i];
 					m_pData[i] = (~m_pData[i]) & lastItemMask;
 				} else {
-					for (uint32_t i = 0; i <= items; ++i)
+					for (uint32_t i = 0; i <= item_count; ++i)
 						m_pData[i] = ~m_pData[i];
 				}
 			}
@@ -5721,8 +5655,8 @@ namespace gaia {
 
 			//! Unsets all bits
 			void reset() {
-				const auto items = Items();
-				for (uint32_t i = 0; i < items; ++i)
+				const auto item_count = items();
+				for (uint32_t i = 0; i < item_count; ++i)
 					m_pData[i] = 0;
 			}
 
@@ -5740,23 +5674,23 @@ namespace gaia {
 
 			//! Checks if all bits are set
 			GAIA_NODISCARD bool all() const {
-				const auto items = Items() - 1;
-				const auto lastItemMask = LastItemMask();
+				const auto item_count = items() - 1;
+				const auto lastItemMask = last_item_mask();
 
-				for (uint32_t i = 0; i < items; ++i)
+				for (uint32_t i = 0; i < item_count; ++i)
 					if (m_pData[i] != (size_type)-1)
 						return false;
 
-				if (HasTrailingBits())
-					return (m_pData[items] & lastItemMask) == lastItemMask;
-				
-				return m_pData[items] == (size_type)-1;
+				if (has_trailing_bits())
+					return (m_pData[item_count] & lastItemMask) == lastItemMask;
+
+				return m_pData[item_count] == (size_type)-1;
 			}
 
 			//! Checks if any bit is set
 			GAIA_NODISCARD bool any() const {
-				const auto items = Items();
-				for (uint32_t i = 0; i < items; ++i)
+				const auto item_count = items();
+				for (uint32_t i = 0; i < item_count; ++i)
 					if (m_pData[i] != 0)
 						return true;
 				return false;
@@ -5764,8 +5698,8 @@ namespace gaia {
 
 			//! Checks if all bits are reset
 			GAIA_NODISCARD bool none() const {
-				const auto items = Items();
-				for (uint32_t i = 0; i < items; ++i)
+				const auto item_count = items();
+				for (uint32_t i = 0; i < item_count; ++i)
 					if (m_pData[i] != 0)
 						return false;
 				return true;
@@ -5775,15 +5709,15 @@ namespace gaia {
 			GAIA_NODISCARD uint32_t count() const {
 				uint32_t total = 0;
 
-				const auto items = Items();
+				const auto item_count = items();
 
 				GAIA_MSVC_WARNING_PUSH()
 				GAIA_MSVC_WARNING_DISABLE(4244)
 				if constexpr (sizeof(size_type) == 4) {
-					for (uint32_t i = 0; i < items; ++i)
+					for (uint32_t i = 0; i < item_count; ++i)
 						total += GAIA_POPCNT(m_pData[i]);
 				} else {
-					for (uint32_t i = 0; i < items; ++i)
+					for (uint32_t i = 0; i < item_count; ++i)
 						total += GAIA_POPCNT64(m_pData[i]);
 				}
 				GAIA_MSVC_WARNING_POP()
@@ -12523,7 +12457,7 @@ namespace gaia {
 							const auto entityCnt = pChunk->GetEntityCount();
 							if GAIA_UNLIKELY (entityCnt == 0)
 								pEmptyChunk = pChunk;
-							else if (entityCnt + 1 < pChunk->GetEntityCapacity())
+							else if (entityCnt < pChunk->GetEntityCapacity())
 								return pChunk;
 						}
 						if (pEmptyChunk != nullptr)
@@ -13132,6 +13066,7 @@ namespace gaia {
 		namespace detail {
 			using ChunkAccessorMask = archetype::ChunkHeader::DisabledEntityMask;
 			using ChunkAccessorIter = ChunkAccessorMask::const_iterator;
+			using ChunkAccessorIterInverse = ChunkAccessorMask::const_iterator_inverse;
 
 			class ChunkAccessorCommon {
 			protected:
@@ -13242,6 +13177,7 @@ namespace gaia {
 		};
 
 		using ChunkAccessorWithMaskIt = detail::ChunkAccessorIter;
+		using ChunkAccessorWithMaskItInverse = detail::ChunkAccessorIterInverse;
 	} // namespace ecs
 } // namespace gaia
 
@@ -14036,6 +13972,7 @@ namespace gaia {
 	namespace ecs {
 		struct IteratorDisabled: public ChunkAccessorWithMask {
 		private:
+			using Mask = ChunkAccessorWithMask::Mask;
 			using Iter = ChunkAccessorWithMaskIt;
 
 		public:
@@ -14064,14 +14001,14 @@ namespace gaia {
 		struct IteratorEnabled: public ChunkAccessorWithMask {
 		private:
 			using Mask = ChunkAccessorWithMask::Mask;
-			using Iter = ChunkAccessorWithMaskIt;
-
-			static Mask FlipMask(archetype::Chunk& chunk) {
-				return Mask(chunk.GetDisabledEntityMask()).flip(0, chunk.HasEntities() ? chunk.GetEntityCount() - 1 : 0);
-			}
+			using Iter = ChunkAccessorWithMaskItInverse;
+			uint32_t m_size;
 
 		public:
-			IteratorEnabled(archetype::Chunk& chunk): ChunkAccessorWithMask(chunk, FlipMask(chunk)) {}
+			IteratorEnabled(archetype::Chunk& chunk): ChunkAccessorWithMask(chunk, chunk.GetDisabledEntityMask()) {
+				const auto bits = (Mask::BitCount - m_mask.count());
+				m_size = bits > m_chunk.GetEntityCount() ? m_chunk.GetEntityCount() : bits;
+			}
 
 			GAIA_NODISCARD Iter begin() const {
 				return Iter(m_mask, 0, true);
@@ -14082,7 +14019,7 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD uint32_t size() const {
-				return m_mask.count();
+				return m_size;
 			}
 		};
 	} // namespace ecs

@@ -730,7 +730,7 @@ void test_dbitset() {
 	SECTION("Bit operations") {
 		containers::dbitset bs;
 		REQUIRE(bs.count() == 0);
-		REQUIRE(bs.size() == 0);
+		REQUIRE(bs.size() == 1);
 		REQUIRE(bs.any() == false);
 		REQUIRE(bs.all() == false);
 		REQUIRE(bs.none() == true);
@@ -880,6 +880,8 @@ TEST_CASE("Containers - dbitset") {
 	}
 	SECTION("Ranges 11 bits") {
 		containers::dbitset bs;
+		bs.resize(11);
+
 		bs.set(1);
 		bs.set(10);
 		bs.flip(2, 9);
@@ -915,6 +917,8 @@ TEST_CASE("Containers - dbitset") {
 	}
 	SECTION("Ranges 64 bits") {
 		containers::dbitset bs;
+		bs.resize(64);
+
 		bs.set(1);
 		bs.set(10);
 		bs.flip(2, 9);
@@ -950,6 +954,8 @@ TEST_CASE("Containers - dbitset") {
 	}
 	SECTION("Ranges 101 bits") {
 		containers::dbitset bs;
+		bs.resize(101);
+
 		bs.set(1);
 		bs.set(100);
 		bs.flip(2, 99);
