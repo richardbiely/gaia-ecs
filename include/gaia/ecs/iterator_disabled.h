@@ -26,6 +26,7 @@ namespace gaia {
 				return Iter(m_mask, m_chunk.GetEntityCount(), false);
 			}
 
+			//! Calculates the number of entities accessible via the iterator
 			GAIA_NODISCARD uint32_t size() const {
 				return m_mask.count();
 			}

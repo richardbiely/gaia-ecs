@@ -6,7 +6,6 @@
 
 #include "../containers/bitset.h"
 #include "chunk.h"
-#include "chunk_header.h"
 #include "component.h"
 #include "component_getter.h"
 #include "component_setter.h"
@@ -120,10 +119,10 @@ namespace gaia {
 			using Mask = detail::ChunkAccessorMask;
 
 		protected:
-			Mask m_mask;
+			const Mask& m_mask;
 
 		public:
-			ChunkAccessorWithMask(archetype::Chunk& chunk, Mask mask): ChunkAccessorCommon(chunk), m_mask(mask) {}
+			ChunkAccessorWithMask(archetype::Chunk& chunk, const Mask& mask): ChunkAccessorCommon(chunk), m_mask(mask) {}
 		};
 
 		using ChunkAccessorWithMaskIt = detail::ChunkAccessorIter;

@@ -10,17 +10,20 @@
 namespace gaia {
 	namespace ecs {
 		struct Iterator: public ChunkAccessor {
+			using Iter = ChunkAccessorIt;
+
 		public:
 			Iterator(archetype::Chunk& chunk): ChunkAccessor(chunk, 0) {}
 
-			GAIA_NODISCARD ChunkAccessorIt begin() const {
-				return ChunkAccessorIt(0);
+			GAIA_NODISCARD Iter begin() const {
+				return Iter(0);
 			}
 
-			GAIA_NODISCARD ChunkAccessorIt end() const {
-				return ChunkAccessorIt(m_chunk.GetEntityCount());
+			GAIA_NODISCARD Iter end() const {
+				return Iter(m_chunk.GetEntityCount());
 			}
 
+			//! Calculates the number of entities accessible via the iterator
 			GAIA_NODISCARD uint32_t size() const {
 				return m_chunk.GetEntityCount();
 			}
