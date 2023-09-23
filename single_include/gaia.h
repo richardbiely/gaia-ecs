@@ -555,7 +555,7 @@ inline void DoNotOptimize(T const& value) {
 // Smaller changes and features
 #define GAIA_VERSION_MINOR 7
 // Fixes and tweaks
-#define GAIA_VERSION_PATCH 0
+#define GAIA_VERSION_PATCH 1
 
 //------------------------------------------------------------------------------
 // General settings.
@@ -15142,14 +15142,14 @@ namespace gaia {
 						else if constexpr (c == Constraints::EnabledOnly)
 							return pChunk->GetDisabledEntityMask().count() != pChunk->GetEntityCount() &&
 										 CheckFilters(*pChunk, queryInfo);
-						else //if constexpr (c == Constraints::DisabledOnly)
+						else // if constexpr (c == Constraints::DisabledOnly)
 							return pChunk->GetDisabledEntityMask().count() > 0 && CheckFilters(*pChunk, queryInfo);
 					} else {
 						if constexpr (c == Constraints::AcceptAll)
 							return pChunk->HasEntities();
 						else if constexpr (c == Constraints::EnabledOnly)
 							return pChunk->GetDisabledEntityMask().count() != pChunk->GetEntityCount();
-						else //if constexpr (c == Constraints::DisabledOnly)
+						else // if constexpr (c == Constraints::DisabledOnly)
 							return pChunk->GetDisabledEntityMask().count() > 0;
 					}
 				});
