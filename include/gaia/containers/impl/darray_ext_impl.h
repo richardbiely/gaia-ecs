@@ -285,12 +285,12 @@ namespace gaia {
 				other.m_pData = m_data;
 			}
 
-			GAIA_NODISCARD darr_ext& operator=(std::initializer_list<T> il) {
+			darr_ext& operator=(std::initializer_list<T> il) {
 				*this = darr_ext(il.begin(), il.end());
 				return *this;
 			}
 
-			GAIA_NODISCARD darr_ext& operator=(const darr_ext& other) {
+			darr_ext& operator=(const darr_ext& other) {
 				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
 
 				resize(other.size());
@@ -299,7 +299,7 @@ namespace gaia {
 				return *this;
 			}
 
-			GAIA_NODISCARD darr_ext& operator=(darr_ext&& other) noexcept {
+			darr_ext& operator=(darr_ext&& other) noexcept {
 				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
 
 				m_cnt = other.m_cnt;
@@ -403,7 +403,7 @@ namespace gaia {
 				ref.~T();
 			}
 
-			GAIA_NODISCARD iterator erase(iterator pos) noexcept {
+			iterator erase(iterator pos) noexcept {
 				GAIA_ASSERT(pos.m_ptr >= &m_pData[0] && pos.m_ptr < &m_pData[m_cap - 1]);
 
 				const auto idxSrc = (size_type)GAIA_UTIL::distance(pos, begin());
@@ -415,7 +415,7 @@ namespace gaia {
 				return iterator((T*)m_pData + idxSrc);
 			}
 
-			GAIA_NODISCARD const_iterator erase(const_iterator pos) noexcept {
+			const_iterator erase(const_iterator pos) noexcept {
 				GAIA_ASSERT(pos.m_ptr >= &m_pData[0] && pos.m_ptr < &m_pData[m_cap - 1]);
 
 				const auto idxSrc = (size_type)GAIA_UTIL::distance(pos, begin());
@@ -427,7 +427,7 @@ namespace gaia {
 				return iterator((const T*)m_pData + idxSrc);
 			}
 
-			GAIA_NODISCARD iterator erase(iterator first, iterator last) noexcept {
+			iterator erase(iterator first, iterator last) noexcept {
 				GAIA_ASSERT(first.m_cnt >= 0 && first.m_cnt < size());
 				GAIA_ASSERT(last.m_cnt >= 0 && last.m_cnt < size());
 				GAIA_ASSERT(last.m_cnt >= first.m_cnt);

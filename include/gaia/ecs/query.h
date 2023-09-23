@@ -762,8 +762,6 @@ namespace gaia {
 			*/
 			template <typename Container>
 			void ToArray(Container& outArray, Constraints constraints = Constraints::EnabledOnly) {
-				using ContainerItemType = typename Container::value_type;
-
 				// Make sure the query was created by World.CreateQuery()
 				GAIA_ASSERT(m_entityQueryCache != nullptr);
 

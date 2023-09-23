@@ -1,4 +1,7 @@
 #pragma once
+
+#include <type_traits>
+
 #include "../containers/darray.h"
 #include "../containers/sarray_ext.h"
 #include "../utils/hashing_policy.h"

@@ -1,5 +1,8 @@
 
 
+#if __has_include(<version.h>)
+	#include <version.h>
+#endif
 #include <cinttypes>
 
 //------------------------------------------------------------------------------
@@ -220,7 +223,7 @@ namespace gaia {
 		#include <intrin.h>
 	#endif
 // MSVC doesn't implement __popcnt for ARM so we need to do it ourselves
-	#if GAIA_ARCH_ARM
+	#if GAIA_ARCH == GAIA_ARCH_ARM
 		#include <arm_neon.h>
 	//! Returns the number of set bits in \param x
 		#define GAIA_POPCNT(x)                                                                                             \
@@ -481,9 +484,9 @@ namespace gaia {
 	#define DO_PRAGMA(x) DO_PRAGMA_(x)
 	#define GAIA_CLANG_WARNING_PUSH() _Pragma("clang diagnostic push")
 	#define GAIA_CLANG_WARNING_POP() _Pragma("clang diagnostic pop")
-	#define GAIA_CLANG_WARNING_DISABLE(warningId) _Pragma(GAIA_STRINGIZE(clang diagnostic ignored #warningId))
-	#define GAIA_CLANG_WARNING_ERROR(warningId) _Pragma(GAIA_STRINGIZE(clang diagnostic error #warningId))
-	#define GAIA_CLANG_WARNING_ALLOW(warningId) _Pragma(GAIA_STRINGIZE(clang diagnostic warning #warningId))
+	#define GAIA_CLANG_WARNING_DISABLE(warningId) DO_PRAGMA(clang diagnostic ignored warningId)
+	#define GAIA_CLANG_WARNING_ERROR(warningId) DO_PRAGMA(clang diagnostic error warningId)
+	#define GAIA_CLANG_WARNING_ALLOW(warningId) DO_PRAGMA(clang diagnostic warning warningId)
 #else
 	#define GAIA_CLANG_WARNING_PUSH()
 	#define GAIA_CLANG_WARNING_POP()
@@ -497,8 +500,8 @@ namespace gaia {
 	#define DO_PRAGMA(x) DO_PRAGMA_(x)
 	#define GAIA_GCC_WARNING_PUSH() _Pragma("GCC diagnostic push")
 	#define GAIA_GCC_WARNING_POP() _Pragma("GCC diagnostic pop")
-	#define GAIA_GCC_WARNING_ERROR(warningId) _Pragma(GAIA_STRINGIZE(GCC diagnostic error warningId))
-	#define GAIA_GCC_WARNING_DISABLE(warningId) DO_PRAGMA(GCC diagnostic ignored #warningId)
+	#define GAIA_GCC_WARNING_ERROR(warningId) DO_PRAGMA(GCC diagnostic error warningId)
+	#define GAIA_GCC_WARNING_DISABLE(warningId) DO_PRAGMA(GCC diagnostic ignored warningId)
 #else
 	#define GAIA_GCC_WARNING_PUSH()
 	#define GAIA_GCC_WARNING_POP()
@@ -691,17 +694,27 @@ inline void DoNotOptimize(T const& value) {
 	#if GAIA_DEBUG_BUILD
 		#define GAIA_ASSERT_ENABLED 1
 		#define GAIA_ASSERT(cond)                                                                                          \
-			(GAIA_LIKELY(cond) ? void(0) : [] {                                                                              \
-				assert(!#cond);                                                                                                \
-			}())
+			{                                                                                                                \
+				if GAIA_LIKELY (cond)                                                                                          \
+					(void(0));                                                                                                   \
+				else                                                                                                           \
+					[] {                                                                                                         \
+						assert(!#cond);                                                                                            \
+					}();                                                                                                         \
+			}
 	#else
 		// For non-Debug builds simulate asserts
 		#if GAIA_DEBUG
 			#define GAIA_ASSERT_ENABLED 1
 			#define GAIA_ASSERT(cond)                                                                                        \
-				(GAIA_LIKELY(cond) ? void(0) : [] {                                                                            \
-					GAIA_LOG_E("%s:%d: Assertion failed: '%s'.", __FILE__, __LINE__, #cond);                                     \
-				}())
+				{                                                                                                              \
+					if GAIA_LIKELY (cond)                                                                                        \
+						(void(0));                                                                                                 \
+					else                                                                                                         \
+						[] {                                                                                                       \
+							GAIA_LOG_E("%s:%d: Assertion failed: '%s'.", __FILE__, __LINE__, #cond);                                 \
+						}();                                                                                                       \
+				}
 		#else
 			#define GAIA_ASSERT_ENABLED 0
 			#define GAIA_ASSERT(cond) (void(0))
@@ -1016,7 +1029,7 @@ namespace tracy {
 
 #define USE_SPAN GAIA_USE_STL_CONTAINERS
 
-#if USE_SPAN && __cpp_lib_span
+#if USE_SPAN && __has_include(<span>)
 	#include <span>
 #else
 	
@@ -3819,10 +3832,14 @@ namespace gaia {
 			} else {
 #if GAIA_USE_STL_COMPATIBLE_CONTAINERS
 				//! TODO: replace with std::sort for c++20
+	#if __cplusplus >= 202002L
+				std::sort(arr.begin(), arr.end());
+	#else
 				GAIA_MSVC_WARNING_PUSH()
 				GAIA_MSVC_WARNING_DISABLE(4244)
 				detail::comb_sort_impl(arr, func);
 				GAIA_MSVC_WARNING_POP()
+	#endif
 #else
 				detail::comb_sort_impl(arr, func);
 #endif
@@ -5091,12 +5108,12 @@ namespace gaia {
 				other.m_pData = nullptr;
 			}
 
-			GAIA_NODISCARD darr& operator=(std::initializer_list<T> il) {
+			darr& operator=(std::initializer_list<T> il) {
 				*this = darr(il.begin(), il.end());
 				return *this;
 			}
 
-			GAIA_NODISCARD darr& operator=(const darr& other) {
+			darr& operator=(const darr& other) {
 				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
 
 				resize(other.size());
@@ -5105,7 +5122,7 @@ namespace gaia {
 				return *this;
 			}
 
-			GAIA_NODISCARD darr& operator=(darr&& other) noexcept {
+			darr& operator=(darr&& other) noexcept {
 				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
 
 				m_cnt = other.m_cnt;
@@ -5197,7 +5214,7 @@ namespace gaia {
 				ref.~T();
 			}
 
-			GAIA_NODISCARD iterator erase(iterator pos) noexcept {
+			iterator erase(iterator pos) noexcept {
 				GAIA_ASSERT(pos.m_ptr >= &m_pData[0] && pos.m_ptr < &m_pData[m_cap - 1]);
 
 				const auto idxSrc = (size_type)GAIA_UTIL::distance(pos, begin());
@@ -5209,7 +5226,7 @@ namespace gaia {
 				return iterator((T*)m_pData + idxSrc);
 			}
 
-			GAIA_NODISCARD const_iterator erase(const_iterator pos) noexcept {
+			const_iterator erase(const_iterator pos) noexcept {
 				GAIA_ASSERT(pos.m_ptr >= &m_pData[0] && pos.m_ptr < &m_pData[m_cap - 1]);
 
 				const auto idxSrc = (size_type)GAIA_UTIL::distance(pos, begin());
@@ -5221,7 +5238,7 @@ namespace gaia {
 				return iterator((const T*)m_pData + idxSrc);
 			}
 
-			GAIA_NODISCARD iterator erase(iterator first, iterator last) noexcept {
+			iterator erase(iterator first, iterator last) noexcept {
 				GAIA_ASSERT(first.m_cnt >= 0 && first.m_cnt < size());
 				GAIA_ASSERT(last.m_cnt >= 0 && last.m_cnt < size());
 				GAIA_ASSERT(last.m_cnt >= first.m_cnt);
@@ -8363,12 +8380,12 @@ namespace gaia {
 				other.m_cnt = size_type(0);
 			}
 
-			GAIA_NODISCARD sarr_ext& operator=(std::initializer_list<T> il) {
+			sarr_ext& operator=(std::initializer_list<T> il) {
 				*this = sarr_ext(il.begin(), il.end());
 				return *this;
 			}
 
-			GAIA_NODISCARD constexpr sarr_ext& operator=(const sarr_ext& other) {
+			constexpr sarr_ext& operator=(const sarr_ext& other) {
 				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
 
 				resize(other.size());
@@ -8377,7 +8394,7 @@ namespace gaia {
 				return *this;
 			}
 
-			GAIA_NODISCARD constexpr sarr_ext& operator=(sarr_ext&& other) noexcept {
+			constexpr sarr_ext& operator=(sarr_ext&& other) noexcept {
 				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
 
 				resize(other.m_cnt);
@@ -8430,7 +8447,7 @@ namespace gaia {
 				ref.~T();
 			}
 
-			GAIA_NODISCARD constexpr iterator erase(iterator pos) noexcept {
+			constexpr iterator erase(iterator pos) noexcept {
 				GAIA_ASSERT(pos.m_ptr >= &m_data[0] && pos.m_ptr < &m_data[N - 1]);
 
 				const auto idxSrc = (size_type)GAIA_UTIL::distance(pos, begin());
@@ -8442,7 +8459,7 @@ namespace gaia {
 				return iterator((T*)m_data + idxSrc);
 			}
 
-			GAIA_NODISCARD constexpr const_iterator erase(const_iterator pos) noexcept {
+			constexpr const_iterator erase(const_iterator pos) noexcept {
 				GAIA_ASSERT(pos.m_ptr >= &m_data[0] && pos.m_ptr < &m_data[N - 1]);
 
 				const auto idxSrc = (size_type)GAIA_UTIL::distance(pos, begin());
@@ -8454,7 +8471,7 @@ namespace gaia {
 				return iterator((const T*)m_data + idxSrc);
 			}
 
-			GAIA_NODISCARD constexpr iterator erase(iterator first, iterator last) noexcept {
+			constexpr iterator erase(iterator first, iterator last) noexcept {
 				GAIA_ASSERT(first.m_cnt >= 0 && first.m_cnt < size());
 				GAIA_ASSERT(last.m_cnt >= 0 && last.m_cnt < size());
 				GAIA_ASSERT(last.m_cnt >= first.m_cnt);
@@ -8630,12 +8647,12 @@ namespace gaia {
 				other.m_size = size_type(0);
 			}
 
-			GAIA_NODISCARD sringbuffer& operator=(std::initializer_list<T> il) {
+			sringbuffer& operator=(std::initializer_list<T> il) {
 				*this = sringbuffer(il.begin(), il.end());
 				return *this;
 			}
 
-			GAIA_NODISCARD constexpr sringbuffer& operator=(const sringbuffer& other) {
+			constexpr sringbuffer& operator=(const sringbuffer& other) {
 				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
 
 				utils::copy_elements(m_data, other.m_data, other.size());
@@ -8646,7 +8663,7 @@ namespace gaia {
 				return *this;
 			}
 
-			GAIA_NODISCARD constexpr sringbuffer& operator=(sringbuffer&& other) noexcept {
+			constexpr sringbuffer& operator=(sringbuffer&& other) noexcept {
 				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
 
 				utils::move_elements(m_data, other.m_data, other.size());
@@ -8933,11 +8950,81 @@ namespace gaia {
 
 			static_assert(std::is_base_of<ImplicitListItem, TListItem>::value);
 			//! Implicit list items
-			darr<TListItem> m_items;
+			internal_storage m_items;
 			//! Index of the next item to recycle
 			size_type m_nextFreeIdx = (size_type)-1;
 			//! Number of items to recycle
 			size_type m_freeItems = 0;
+
+			ImplicitList() noexcept = default;
+			~ImplicitList() = default;
+
+			ImplicitList(size_type count, const_reference value) {
+				m_items.resize(count);
+				for (auto it: *this)
+					*it = value;
+			}
+
+			ImplicitList(size_type count) {
+				m_items.resize(count);
+			}
+
+			template <typename InputIt>
+			ImplicitList(InputIt first, InputIt last) {
+				const auto count = (size_type)GAIA_UTIL::distance(first, last);
+				m_items.resize(count);
+
+				if constexpr (std::is_pointer_v<InputIt>) {
+					for (size_type i = 0; i < count; ++i)
+						m_items[i] = first[i];
+				} else if constexpr (std::is_same_v<
+																 typename InputIt::iterator_category, GAIA_UTIL::random_access_iterator_tag>) {
+					for (size_type i = 0; i < count; ++i)
+						m_items[i] = *(first[i]);
+				} else {
+					size_type i = 0;
+					for (auto it = first; it != last; ++it)
+						m_items[i++] = *it;
+				}
+			}
+
+			ImplicitList(std::initializer_list<value_type> il): ImplicitList(il.begin(), il.end()) {}
+
+			ImplicitList(const ImplicitList& other): ImplicitList(other.begin(), other.end()) {}
+
+			ImplicitList(ImplicitList&& other) noexcept:
+					m_items(std::move(other.m_items)), m_nextFreeIdx(other.m_nextFreeIdx), m_freeItems(other.m_freeItems) {
+				other.m_nextFreeIdx = (size_type)-1;
+				other.m_freeItems = 0;
+			}
+
+			ImplicitList& operator=(std::initializer_list<value_type> il) {
+				*this = darr(il.begin(), il.end());
+				return *this;
+			}
+
+			ImplicitList& operator=(const ImplicitList& other) {
+				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
+
+				m_items = other.m_items;
+				m_nextFreeIdx = other.m_nextFreeIdx;
+				m_freeItems = other.m_freeItems;
+
+				return *this;
+			}
+
+			ImplicitList& operator=(ImplicitList&& other) noexcept {
+				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
+
+				m_items = std::move(other.m_items);
+				m_nextFreeIdx = other.m_nextFreeIdx;
+				m_freeItems = other.m_freeItems;
+
+				other.m_nextFreeIdx = (size_type)-1;
+				other.m_freeItems = 0;
+
+				return *this;
+			}
 
 			GAIA_NODISCARD pointer data() noexcept {
 				return (pointer)m_items.data();
@@ -9008,8 +9095,14 @@ namespace gaia {
 					const auto itemCnt = (size_type)m_items.size();
 					GAIA_ASSERT(itemCnt < TItemHandle::IdMask && "Trying to allocate too many items!");
 
+					GAIA_GCC_WARNING_PUSH()
+					GAIA_CLANG_WARNING_PUSH()
+					GAIA_GCC_WARNING_DISABLE("-Wmissing-field-initializers");
+					GAIA_CLANG_WARNING_DISABLE("-Wmissing-field-initializers");
 					m_items.push_back({{itemCnt, 0U}});
 					return {itemCnt, 0U};
+					GAIA_GCC_WARNING_POP()
+					GAIA_CLANG_WARNING_POP()
 				}
 
 				// Make sure the list is not broken
@@ -11028,8 +11121,7 @@ namespace gaia {
 			//! Updates the provided component matcher hash based on the provided component id
 			//! \param matcherHash Initial matcher hash
 			//! \param componentId Component id
-			GAIA_NODISCARD inline void
-			CalculateMatcherHash(ComponentMatcherHash& matcherHash, component::ComponentId componentId) noexcept {
+			inline void CalculateMatcherHash(ComponentMatcherHash& matcherHash, component::ComponentId componentId) noexcept {
 				const auto& cc = ComponentCache::Get();
 				const auto componentHash = cc.GetComponentInfo(componentId).matcherHash.hash;
 				matcherHash.hash = utils::combine_or(matcherHash.hash, componentHash);
@@ -13469,12 +13561,12 @@ namespace gaia {
 				other.m_pData = m_data;
 			}
 
-			GAIA_NODISCARD darr_ext& operator=(std::initializer_list<T> il) {
+			darr_ext& operator=(std::initializer_list<T> il) {
 				*this = darr_ext(il.begin(), il.end());
 				return *this;
 			}
 
-			GAIA_NODISCARD darr_ext& operator=(const darr_ext& other) {
+			darr_ext& operator=(const darr_ext& other) {
 				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
 
 				resize(other.size());
@@ -13483,7 +13575,7 @@ namespace gaia {
 				return *this;
 			}
 
-			GAIA_NODISCARD darr_ext& operator=(darr_ext&& other) noexcept {
+			darr_ext& operator=(darr_ext&& other) noexcept {
 				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
 
 				m_cnt = other.m_cnt;
@@ -13587,7 +13679,7 @@ namespace gaia {
 				ref.~T();
 			}
 
-			GAIA_NODISCARD iterator erase(iterator pos) noexcept {
+			iterator erase(iterator pos) noexcept {
 				GAIA_ASSERT(pos.m_ptr >= &m_pData[0] && pos.m_ptr < &m_pData[m_cap - 1]);
 
 				const auto idxSrc = (size_type)GAIA_UTIL::distance(pos, begin());
@@ -13599,7 +13691,7 @@ namespace gaia {
 				return iterator((T*)m_pData + idxSrc);
 			}
 
-			GAIA_NODISCARD const_iterator erase(const_iterator pos) noexcept {
+			const_iterator erase(const_iterator pos) noexcept {
 				GAIA_ASSERT(pos.m_ptr >= &m_pData[0] && pos.m_ptr < &m_pData[m_cap - 1]);
 
 				const auto idxSrc = (size_type)GAIA_UTIL::distance(pos, begin());
@@ -13611,7 +13703,7 @@ namespace gaia {
 				return iterator((const T*)m_pData + idxSrc);
 			}
 
-			GAIA_NODISCARD iterator erase(iterator first, iterator last) noexcept {
+			iterator erase(iterator first, iterator last) noexcept {
 				GAIA_ASSERT(first.m_cnt >= 0 && first.m_cnt < size());
 				GAIA_ASSERT(last.m_cnt >= 0 && last.m_cnt < size());
 				GAIA_ASSERT(last.m_cnt >= first.m_cnt);
@@ -14026,6 +14118,8 @@ namespace gaia {
 		};
 	} // namespace ecs
 } // namespace gaia
+
+#include <type_traits>
 
 namespace gaia {
 	namespace ecs {
@@ -15329,8 +15423,6 @@ namespace gaia {
 			*/
 			template <typename Container>
 			void ToArray(Container& outArray, Constraints constraints = Constraints::EnabledOnly) {
-				using ContainerItemType = typename Container::value_type;
-
 				// Make sure the query was created by World.CreateQuery()
 				GAIA_ASSERT(m_entityQueryCache != nullptr);
 
@@ -15478,7 +15570,7 @@ namespace gaia {
 				const bool wasDisabled = pChunk->GetDisabledEntityMask().test(lastEntityIdx);
 
 				if constexpr (IsEntityReleaseWanted) {
-					pChunk->SwapEntitiesInsideChunkAndDeleteOld(entityChunkIndex, m_entities);
+					pChunk->SwapEntitiesInsideChunkAndDeleteOld(entityChunkIndex, {m_entities.data(), m_entities.size()});
 
 					// Transfer the disabled state is possible
 					if GAIA_LIKELY (chunkEntityCount > 1)
@@ -15487,7 +15579,7 @@ namespace gaia {
 					pChunk->RemoveLastEntity(m_chunksToRemove);
 					ReleaseEntity(entity);
 				} else {
-					pChunk->SwapEntitiesInsideChunkAndDeleteOld(entityChunkIndex, m_entities);
+					pChunk->SwapEntitiesInsideChunkAndDeleteOld(entityChunkIndex, {m_entities.data(), m_entities.size()});
 
 					// Transfer the disabled state is possible
 					if GAIA_LIKELY (chunkEntityCount > 1)
@@ -15509,7 +15601,7 @@ namespace gaia {
 					m_defragLastArchetypeID = (m_defragLastArchetypeID + i) % maxIters;
 
 					auto* pArchetype = m_archetypes[m_defragLastArchetypeID];
-					pArchetype->Defragment(maxEntities, m_chunksToRemove, m_entities);
+					pArchetype->Defragment(maxEntities, m_chunksToRemove, {m_entities.data(), m_entities.size()});
 					if (maxEntities == 0)
 						return;
 				}
@@ -15752,8 +15844,9 @@ namespace gaia {
 
 				// Once sorted we can calculate the hashes
 				const archetype::Archetype::GenericComponentHash genericHash = {
-						component::CalculateLookupHash({*infos[0]}).hash};
-				const archetype::Archetype::ChunkComponentHash chunkHash = {component::CalculateLookupHash({*infos[1]}).hash};
+						component::CalculateLookupHash({infos[0]->data(), infos[0]->size()}).hash};
+				const archetype::Archetype::ChunkComponentHash chunkHash = {
+						component::CalculateLookupHash({infos[1]->data(), infos[1]->size()}).hash};
 				const auto lookupHash = archetype::Archetype::CalculateLookupHash(genericHash, chunkHash);
 
 				auto* pArchetypeRight =
@@ -15806,11 +15899,13 @@ namespace gaia {
 
 				// Calculate the hashes
 				const archetype::Archetype::GenericComponentHash genericHash = {
-						component::CalculateLookupHash({*infos[0]}).hash};
-				const archetype::Archetype::ChunkComponentHash chunkHash = {component::CalculateLookupHash({*infos[1]}).hash};
+						component::CalculateLookupHash({infos[0]->data(), infos[0]->size()}).hash};
+				const archetype::Archetype::ChunkComponentHash chunkHash = {
+						component::CalculateLookupHash({infos[1]->data(), infos[1]->size()}).hash};
 				const auto lookupHash = archetype::Archetype::CalculateLookupHash(genericHash, chunkHash);
 
-				auto* pArchetype = FindArchetype(lookupHash, {*infos[0]}, {*infos[1]});
+				auto* pArchetype =
+						FindArchetype(lookupHash, {infos[0]->data(), infos[0]->size()}, {infos[1]->data(), infos[1]->size()});
 				if (pArchetype == nullptr) {
 					pArchetype = CreateArchetype({infos[0]->data(), infos[0]->size()}, {infos[1]->data(), infos[1]->size()});
 					pArchetype->Init(genericHash, lookupHash, lookupHash);
@@ -15884,9 +15979,9 @@ namespace gaia {
 				if GAIA_LIKELY (pNewChunk->GetArchetypeId() + pOldChunk->GetArchetypeId() != 0) {
 					// Move data from the old chunk to the new one
 					if (pOldChunk->GetArchetypeId() == pNewChunk->GetArchetypeId())
-						pNewChunk->MoveEntityData(oldEntity, newIndex, m_entities);
+						pNewChunk->MoveEntityData(oldEntity, newIndex, {m_entities.data(), m_entities.size()});
 					else
-						pNewChunk->MoveForeignEntityData(oldEntity, newIndex, m_entities);
+						pNewChunk->MoveForeignEntityData(oldEntity, newIndex, {m_entities.data(), m_entities.size()});
 				}
 
 				// Remove the entity record from the old chunk
@@ -16174,7 +16269,7 @@ namespace gaia {
 				auto& archetype = *m_archetypes[pChunk->GetArchetypeId()];
 				const auto newEntity = CreateEntity(archetype);
 
-				archetype::Chunk::CopyEntityData(entity, newEntity, m_entities);
+				archetype::Chunk::CopyEntityData(entity, newEntity, {m_entities.data(), m_entities.size()});
 
 				return newEntity;
 			}
