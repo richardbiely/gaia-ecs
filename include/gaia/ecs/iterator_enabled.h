@@ -14,13 +14,9 @@ namespace gaia {
 		private:
 			using Mask = ChunkAccessorWithMask::Mask;
 			using Iter = ChunkAccessorWithMaskItInverse;
-			uint32_t m_size;
 
 		public:
-			IteratorEnabled(archetype::Chunk& chunk): ChunkAccessorWithMask(chunk, chunk.GetDisabledEntityMask()) {
-				const auto bits = (Mask::BitCount - m_mask.count());
-				m_size = bits > m_chunk.GetEntityCount() ? m_chunk.GetEntityCount() : bits;
-			}
+			IteratorEnabled(archetype::Chunk& chunk): ChunkAccessorWithMask(chunk, chunk.GetDisabledEntityMask()) {}
 
 			GAIA_NODISCARD Iter begin() const {
 				return Iter(m_mask, 0, true);
@@ -30,8 +26,10 @@ namespace gaia {
 				return Iter(m_mask, m_chunk.GetEntityCount(), false);
 			}
 
+			//! Calculates the number of entities accessible via the iterator
 			GAIA_NODISCARD uint32_t size() const {
-				return m_size;
+				const auto bits = (Mask::BitCount - m_mask.count());
+				return bits > m_chunk.GetEntityCount() ? m_chunk.GetEntityCount() : bits;
 			}
 		};
 	} // namespace ecs

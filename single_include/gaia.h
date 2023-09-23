@@ -13170,10 +13170,10 @@ namespace gaia {
 			using Mask = detail::ChunkAccessorMask;
 
 		protected:
-			Mask m_mask;
+			const Mask& m_mask;
 
 		public:
-			ChunkAccessorWithMask(archetype::Chunk& chunk, Mask mask): ChunkAccessorCommon(chunk), m_mask(mask) {}
+			ChunkAccessorWithMask(archetype::Chunk& chunk, const Mask& mask): ChunkAccessorCommon(chunk), m_mask(mask) {}
 		};
 
 		using ChunkAccessorWithMaskIt = detail::ChunkAccessorIter;
@@ -13947,17 +13947,20 @@ namespace gaia {
 namespace gaia {
 	namespace ecs {
 		struct Iterator: public ChunkAccessor {
+			using Iter = ChunkAccessorIt;
+
 		public:
 			Iterator(archetype::Chunk& chunk): ChunkAccessor(chunk, 0) {}
 
-			GAIA_NODISCARD ChunkAccessorIt begin() const {
-				return ChunkAccessorIt(0);
+			GAIA_NODISCARD Iter begin() const {
+				return Iter(0);
 			}
 
-			GAIA_NODISCARD ChunkAccessorIt end() const {
-				return ChunkAccessorIt(m_chunk.GetEntityCount());
+			GAIA_NODISCARD Iter end() const {
+				return Iter(m_chunk.GetEntityCount());
 			}
 
+			//! Calculates the number of entities accessible via the iterator
 			GAIA_NODISCARD uint32_t size() const {
 				return m_chunk.GetEntityCount();
 			}
@@ -13986,6 +13989,7 @@ namespace gaia {
 				return Iter(m_mask, m_chunk.GetEntityCount(), false);
 			}
 
+			//! Calculates the number of entities accessible via the iterator
 			GAIA_NODISCARD uint32_t size() const {
 				return m_mask.count();
 			}
@@ -14002,13 +14006,9 @@ namespace gaia {
 		private:
 			using Mask = ChunkAccessorWithMask::Mask;
 			using Iter = ChunkAccessorWithMaskItInverse;
-			uint32_t m_size;
 
 		public:
-			IteratorEnabled(archetype::Chunk& chunk): ChunkAccessorWithMask(chunk, chunk.GetDisabledEntityMask()) {
-				const auto bits = (Mask::BitCount - m_mask.count());
-				m_size = bits > m_chunk.GetEntityCount() ? m_chunk.GetEntityCount() : bits;
-			}
+			IteratorEnabled(archetype::Chunk& chunk): ChunkAccessorWithMask(chunk, chunk.GetDisabledEntityMask()) {}
 
 			GAIA_NODISCARD Iter begin() const {
 				return Iter(m_mask, 0, true);
@@ -14018,8 +14018,10 @@ namespace gaia {
 				return Iter(m_mask, m_chunk.GetEntityCount(), false);
 			}
 
+			//! Calculates the number of entities accessible via the iterator
 			GAIA_NODISCARD uint32_t size() const {
-				return m_size;
+				const auto bits = (Mask::BitCount - m_mask.count());
+				return bits > m_chunk.GetEntityCount() ? m_chunk.GetEntityCount() : bits;
 			}
 		};
 	} // namespace ecs
