@@ -17,6 +17,16 @@ namespace gaia {
 			//! List type
 			enum ListType : uint8_t { LT_None, LT_Any, LT_All, LT_Count };
 
+			//! Exection mode
+			enum class ExecutionMode : uint8_t {
+				//! Run on the main thread
+				Run,
+				//! Run on a single worker thread
+				Single,
+				//! Run on as many worker threads as possible
+				Parallel
+			};
+
 			using QueryId = uint32_t;
 			using LookupHash = utils::direct_hash_key<uint64_t>;
 			using ComponentIdArray = containers::sarray_ext<component::ComponentId, MAX_COMPONENTS_IN_QUERY>;

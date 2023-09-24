@@ -273,6 +273,10 @@ namespace gaia {
 					s_tmpArchetypeMatches.clear();
 				}
 
+				GAIA_NODISCARD QueryId GetId() const {
+					return m_lookupCtx.queryId;
+				}
+
 				GAIA_NODISCARD const query::LookupCtx::Data& GetData(component::ComponentType componentType) const {
 					return m_lookupCtx.data[componentType];
 				}
