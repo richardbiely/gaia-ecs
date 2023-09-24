@@ -1094,8 +1094,12 @@ namespace gaia {
 			}
 
 		public:
-			Query CreateQuery() {
-				return Query(m_queryCache, m_worldVersion, m_archetypes, m_componentToArchetypeMap);
+			template <bool UseCache = true>
+			auto CreateQuery() {
+				if constexpr (UseCache)
+					return Query(m_queryCache, m_worldVersion, m_archetypes, m_componentToArchetypeMap);
+				else
+					return QueryUncached(m_worldVersion, m_archetypes, m_componentToArchetypeMap);
 			}
 
 			//! Iterates over all chunks satisfying conditions set by \param func and calls \param func for all of them.

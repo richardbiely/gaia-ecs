@@ -170,7 +170,7 @@ auto velCopy = w.GetComponent<Velocity>(e);
 Both read and write operations are also accessible via views. Check [simple iteration](#simple-iteration) and [query iteration](#query-iteration) sections to see how.
 
 ### Component presence
-Whether or not a certain component is associated with an entity can be checked in two different ways. Either via an instance of a World object or by the means of ***Iterator*** which can be acquired when running queries.
+Whether or not a certain component is associated with an entity can be checked in two different ways. Either via an instance of a World object or by the means of ***Iterator*** which can be acquired when running [queries](#query).
 
 ```cpp
 // Check if entity e has Velocity (via world).
@@ -225,6 +225,16 @@ q.All<Position>() // Take into account everything with Position...
  .All<Velocity>() // ... and at the same time everything with Velocity...
  .Any<Something, SomethingElse>() // ... at least Something or SomethingElse...
  .None<Player>(); // ... and no Player component...
+```
+
+All queries are cached by default. This makes sense for queries which happen very often. They are fast to process but might take more time to prepare initially. If caching is not needed you should use uncached queries and save some resources. You would normally do this for one-time initializations or rarely used operations.
+
+```cpp
+// Create an uncache query taking into account all entities with either Positon or Velocity components
+ecs::QueryUncached q = w.CreateQuery<false>().Any<Position, Velocity>(); 
+q.ForEach([&](ecs::Iterator iter) {
+  ...
+});
 ```
 
 ### Simple iteration
@@ -527,8 +537,7 @@ When crunching larger data sets it is often beneficial to split the load among t
 ```cpp
 static uint32_t SumNumbers(std::span<const uint32_t> arr) {
 	uint32_t sum = 0;
-	for (uint32_t i = 0; i < arr.size(); ++i)
-		sum += arr[i];
+	for (uint32_t val: arr) sum += val;
 	return sum;
 }
 

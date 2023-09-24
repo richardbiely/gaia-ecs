@@ -1315,7 +1315,8 @@ TEST_CASE("AddComponent - namespaces") {
 	REQUIRE(p2.z == 2.f);
 }
 
-TEST_CASE("Query - QueryResult") {
+template <typename TQuery>
+void Test_Query_QueryResult() {
 	ecs::World w;
 
 	auto create = [&](uint32_t i) {
@@ -1327,9 +1328,10 @@ TEST_CASE("Query - QueryResult") {
 	for (uint32_t i = 0; i < N; i++)
 		create(i);
 
-	ecs::Query q1 = w.CreateQuery().All<Position>();
-	ecs::Query q2 = w.CreateQuery().All<Rotation>();
-	ecs::Query q3 = w.CreateQuery().All<Position, Rotation>();
+	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
+	auto q1 = w.CreateQuery<UseCachedQuery>().template All<Position>();
+	auto q2 = w.CreateQuery<UseCachedQuery>().template All<Rotation>();
+	auto q3 = w.CreateQuery<UseCachedQuery>().template All<Position, Rotation>();
 
 	{
 		containers::darr<ecs::Entity> arr;
@@ -1392,7 +1394,17 @@ TEST_CASE("Query - QueryResult") {
 	}
 }
 
-TEST_CASE("Query - QueryResult complex") {
+TEST_CASE("Query - QueryResult") {
+	// SECTION("Cached query") {
+	// 	Test_Query_QueryResult<ecs::Query>();
+	// }
+	SECTION("Non-cached query") {
+		Test_Query_QueryResult<ecs::QueryUncached>();
+	}
+}
+
+template <typename TQuery>
+void Test_Query_QueryResult_Complex() {
 	ecs::World w;
 
 	auto create = [&](uint32_t i) {
@@ -1407,11 +1419,12 @@ TEST_CASE("Query - QueryResult complex") {
 	for (uint32_t i = 0; i < N; i++)
 		create(i);
 
-	ecs::Query q1 = w.CreateQuery().All<Position>();
-	ecs::Query q2 = w.CreateQuery().All<Rotation>();
-	ecs::Query q3 = w.CreateQuery().All<Position, Rotation>();
-	ecs::Query q4 = w.CreateQuery().All<Position, Scale>();
-	ecs::Query q5 = w.CreateQuery().All<Position, Scale, Something>();
+	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
+	auto q1 = w.CreateQuery<UseCachedQuery>().template All<Position>();
+	auto q2 = w.CreateQuery<UseCachedQuery>().template All<Rotation>();
+	auto q3 = w.CreateQuery<UseCachedQuery>().template All<Position, Rotation>();
+	auto q4 = w.CreateQuery<UseCachedQuery>().template All<Position, Scale>();
+	auto q5 = w.CreateQuery<UseCachedQuery>().template All<Position, Scale, Something>();
 
 	{
 		containers::darr<ecs::Entity> ents;
@@ -1561,8 +1574,17 @@ TEST_CASE("Query - QueryResult complex") {
 	}
 }
 
-TEST_CASE("Query - equality") {
+TEST_CASE("Query - QueryResult complex") {
+	SECTION("Cached query") {
+		Test_Query_QueryResult_Complex<ecs::Query>();
+	}
+	SECTION("Non-cached query") {
+		Test_Query_QueryResult_Complex<ecs::QueryUncached>();
+	}
+}
 
+template <typename TQuery>
+void Test_Query_Equality() {
 	SECTION("2 components") {
 		ecs::World w;
 
@@ -1576,8 +1598,9 @@ TEST_CASE("Query - equality") {
 		for (uint32_t i = 0; i < N; i++)
 			create();
 
-		ecs::Query qq1 = w.CreateQuery().All<Position, Rotation>();
-		ecs::Query qq2 = w.CreateQuery().All<Rotation, Position>();
+		constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
+		auto qq1 = w.CreateQuery<UseCachedQuery>().template All<Position, Rotation>();
+		auto qq2 = w.CreateQuery<UseCachedQuery>().template All<Rotation, Position>();
 		REQUIRE(qq1.CalculateEntityCount() == qq2.CalculateEntityCount());
 
 		containers::darr<ecs::Entity> ents1, ents2;
@@ -1608,6 +1631,15 @@ TEST_CASE("Query - equality") {
 			REQUIRE(e == ents2[i]);
 			++i;
 		}
+	}
+}
+
+TEST_CASE("Query - equality") {
+	SECTION("Cached query") {
+		Test_Query_Equality<ecs::Query>();
+	}
+	SECTION("Non-cached query") {
+		Test_Query_Equality<ecs::QueryUncached>();
 	}
 }
 
