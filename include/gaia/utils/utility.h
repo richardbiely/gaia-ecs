@@ -6,6 +6,7 @@
 #endif
 #include <tuple>
 #include <type_traits>
+#include <utility>
 
 #include "../utils/iterator.h"
 
@@ -146,15 +147,17 @@ namespace gaia {
 		func_type_list<Args...> func_args(Ret (Class::*)(Args...) const);
 
 #define DEFINE_HAS_FUNCTION(function_name)                                                                             \
-	template <typename T, typename... TArgs>                                                                             \
-	auto has_##function_name(TArgs&&... args)                                                                            \
-			->decltype(std::declval<T>().function_name(std::forward<TArgs>(args)...), std::true_type{}) {                    \
-		return std::true_type{};                                                                                           \
-	}                                                                                                                    \
-	template <typename T>                                                                                                \
-	auto has_##function_name(...)->std::false_type {                                                                     \
-		return std::false_type{};                                                                                          \
-	}
+	template <typename T, typename... Args>                                                                              \
+	constexpr auto has_##function_name##_check(int)                                                                      \
+			->decltype(std::declval<T>().function_name(std::declval<Args>()...), std::true_type{});                          \
+                                                                                                                       \
+	template <typename T, typename... Args>                                                                              \
+	constexpr std::false_type has_##function_name##_check(...);                                                          \
+                                                                                                                       \
+	template <typename T, typename... Args>                                                                              \
+	struct has_##function_name {                                                                                         \
+		static constexpr bool value = decltype(has_##function_name##_check<T, Args...>(0))::value;                         \
+	};
 
 		DEFINE_HAS_FUNCTION(find)
 		DEFINE_HAS_FUNCTION(find_if)
@@ -326,7 +329,7 @@ namespace gaia {
 
 		template <typename C, typename V>
 		constexpr auto find(const C& arr, const V& item) {
-			if constexpr (decltype(has_find<C>(item))::value)
+			if constexpr (has_find<C>::value)
 				return arr.find(item);
 			else
 				return gaia::utils::find(arr.begin(), arr.end(), item);
@@ -361,7 +364,7 @@ namespace gaia {
 
 		template <typename UnaryPredicate, typename C>
 		constexpr auto find_if(const C& arr, UnaryPredicate predicate) {
-			if constexpr (decltype(has_find_if<C>(predicate))::value)
+			if constexpr (has_find_if<C, UnaryPredicate>::value)
 				return arr.find_id(predicate);
 			else
 				return gaia::utils::find_if(arr.begin(), arr.end(), predicate);
@@ -396,7 +399,7 @@ namespace gaia {
 
 		template <typename UnaryPredicate, typename C>
 		constexpr auto find_if_not(const C& arr, UnaryPredicate predicate) {
-			if constexpr (decltype(has_find_if_not<C>(predicate))::value)
+			if constexpr (has_find_if_not<C, UnaryPredicate>::value)
 				return arr.find_if_not(predicate);
 			else
 				return gaia::utils::find_if_not(arr.begin(), arr.end(), predicate);

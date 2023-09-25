@@ -3286,13 +3286,110 @@ struct SerializeStruct2 {
 	float c;
 };
 
+struct CustomStruct {
+	char* ptr;
+	uint32_t size;
+};
+
+namespace gaia::serialization {
+	template <>
+	uint32_t size_bytes(const CustomStruct& data) {
+		return data.size + sizeof(data.size);
+	}
+	template <typename Serializer>
+	void save(Serializer& s, const CustomStruct& data) {
+		s.save(data.size);
+		s.save(data.ptr, data.size);
+	}
+
+	template <typename Serializer>
+	void load(Serializer& s, CustomStruct& data) {
+		s.load(data.size);
+		data.ptr = new char[data.size];
+		s.load(data.ptr, data.size);
+	}
+} // namespace gaia::serialization
+
+struct CustomStructInternal {
+	char* ptr;
+	uint32_t size;
+
+	bool operator==(const CustomStructInternal& other) const {
+		return ptr == other.ptr && size == other.size;
+	}
+
+	constexpr uint32_t size_bytes() const noexcept {
+		return size + sizeof(size);
+	}
+
+	template <typename Serializer>
+	void save(Serializer& s) const {
+		s.save(size);
+		s.save(ptr, size);
+	}
+
+	template <typename Serializer>
+	void load(Serializer& s) {
+		s.load(size);
+		ptr = new char[size];
+		s.load(ptr, size);
+	}
+};
+
+TEST_CASE("Serialization - custom") {
+	SECTION("external") {
+		CustomStruct in, out;
+		in.ptr = new char[5];
+		in.ptr[0] = 'g';
+		in.ptr[1] = 'a';
+		in.ptr[2] = 'i';
+		in.ptr[3] = 'a';
+		in.ptr[4] = '\0';
+		in.size = 5;
+
+		ecs::DataBuffer db;
+		ecs::DataBuffer_SerializationWrapper s(db);
+		s.reserve(serialization::size_bytes(in));
+
+		serialization::save(s, in);
+		s.seek(0);
+		serialization::load(s, out);
+
+		REQUIRE(CompareSerializableTypes(in, out));
+		delete in.ptr;
+		delete out.ptr;
+	}
+	SECTION("internal") {
+		CustomStructInternal in, out;
+		in.ptr = new char[5];
+		in.ptr[0] = 'g';
+		in.ptr[1] = 'a';
+		in.ptr[2] = 'i';
+		in.ptr[3] = 'a';
+		in.ptr[4] = '\0';
+		in.size = 5;
+
+		ecs::DataBuffer db;
+		ecs::DataBuffer_SerializationWrapper s(db);
+		s.reserve(serialization::size_bytes(in));
+
+		serialization::save(s, in);
+		s.seek(0);
+		serialization::load(s, out);
+
+		REQUIRE(CompareSerializableTypes(in, out));
+		delete in.ptr;
+		delete out.ptr;
+	}
+}
+
 TEST_CASE("Serialization - simple") {
 	{
 		Int3 in{1, 2, 3}, out{};
 
 		ecs::DataBuffer db;
 		ecs::DataBuffer_SerializationWrapper s(db);
-		s.reserve(serialization::calculate_size(in));
+		s.reserve(serialization::size_bytes(in));
 
 		serialization::save(s, in);
 		s.seek(0);
@@ -3306,7 +3403,7 @@ TEST_CASE("Serialization - simple") {
 
 		ecs::DataBuffer db;
 		ecs::DataBuffer_SerializationWrapper s(db);
-		s.reserve(serialization::calculate_size(in));
+		s.reserve(serialization::size_bytes(in));
 
 		serialization::save(s, in);
 		s.seek(0);
@@ -3320,7 +3417,7 @@ TEST_CASE("Serialization - simple") {
 
 		ecs::DataBuffer db;
 		ecs::DataBuffer_SerializationWrapper s(db);
-		s.reserve(serialization::calculate_size(in));
+		s.reserve(serialization::size_bytes(in));
 
 		serialization::save(s, in);
 		s.seek(0);
@@ -3334,7 +3431,7 @@ TEST_CASE("Serialization - simple") {
 
 		ecs::DataBuffer db;
 		ecs::DataBuffer_SerializationWrapper s(db);
-		s.reserve(serialization::calculate_size(in));
+		s.reserve(serialization::size_bytes(in));
 
 		serialization::save(s, in);
 		s.seek(0);
@@ -3372,6 +3469,15 @@ struct SerializeStructDArrayNonTrivial {
 	}
 };
 
+struct SerializeCustomStructInternalDArray {
+	containers::darr<CustomStructInternal> arr;
+	float f;
+
+	bool operator==(const SerializeCustomStructInternalDArray& other) const {
+		return arr == other.arr && f == other.f;
+	}
+};
+
 TEST_CASE("Serialization - arrays") {
 	{
 		SerializeStructSArray in{}, out{};
@@ -3381,7 +3487,7 @@ TEST_CASE("Serialization - arrays") {
 
 		ecs::DataBuffer db;
 		ecs::DataBuffer_SerializationWrapper s(db);
-		s.reserve(serialization::calculate_size(in));
+		s.reserve(serialization::size_bytes(in));
 
 		serialization::save(s, in);
 		s.seek(0);
@@ -3398,7 +3504,7 @@ TEST_CASE("Serialization - arrays") {
 
 		ecs::DataBuffer db;
 		ecs::DataBuffer_SerializationWrapper s(db);
-		s.reserve(serialization::calculate_size(in));
+		s.reserve(serialization::size_bytes(in));
 
 		serialization::save(s, in);
 		s.seek(0);
@@ -3416,13 +3522,43 @@ TEST_CASE("Serialization - arrays") {
 
 		ecs::DataBuffer db;
 		ecs::DataBuffer_SerializationWrapper s(db);
-		s.reserve(serialization::calculate_size(in));
+		s.reserve(serialization::size_bytes(in));
 
 		serialization::save(s, in);
 		s.seek(0);
 		serialization::load(s, out);
 
 		REQUIRE(CompareSerializableTypes(in, out));
+	}
+
+	{
+		SerializeCustomStructInternalDArray in{}, out{};
+		in.arr.resize(10);
+		for (auto& a: in.arr) {
+			a.ptr = new char[5];
+			a.ptr[0] = 'g';
+			a.ptr[1] = 'a';
+			a.ptr[2] = 'i';
+			a.ptr[3] = 'a';
+			a.ptr[4] = '\0';
+			a.size = 5;
+		}
+		in.f = 3.12345f;
+
+		ecs::DataBuffer db;
+		ecs::DataBuffer_SerializationWrapper s(db);
+		s.reserve(serialization::size_bytes(in));
+
+		serialization::save(s, in);
+		s.seek(0);
+		serialization::load(s, out);
+
+		REQUIRE(CompareSerializableTypes(in, out));
+
+		for (auto& a: in.arr)
+			delete a.ptr;
+		for (auto& a: out.arr)
+			delete a.ptr;
 	}
 }
 
