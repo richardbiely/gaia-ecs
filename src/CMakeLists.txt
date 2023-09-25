@@ -41,7 +41,13 @@ if(MSVC)
     enable_cxx_compiler_flag_if_supported("-msse4.1")
     enable_cxx_compiler_flag_if_supported("-mfma")
   else()
-    enable_cxx_compiler_flag_if_supported("/arch:AVX2")
+    string(TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" lower_processor)
+
+    if("${lower_processor}" MATCHES "arm" OR "${lower_processor}" MATCHES "aarch")
+    # enable_cxx_compiler_flag_if_supported("/arch:armv8.8")
+    else()
+      enable_cxx_compiler_flag_if_supported("/arch:AVX2")
+    endif()
   endif()
 
   enable_cxx_compiler_flag_if_supported("/permissive-")
@@ -69,24 +75,26 @@ else()
   # instruction sets
   enable_cxx_compiler_flag_if_supported("-ftree-vectorize")
 
-  if(${CMAKE_SYSTEM_PROCESSOR} MATCHES ~"arm|aarch")
+  string(TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" lower_processor)
+
+  if("${lower_processor}" MATCHES "arm" OR "${lower_processor}" MATCHES "aarch")
     enable_cxx_compiler_flag_if_supported("-msse4.1")
     enable_cxx_compiler_flag_if_supported("-mfma")
   endif()
 endif()
 
 if(MSVC)
-  # TODO: Enable this once it lands
-  # https://gitlab.kitware.com/cmake/cmake/-/merge_requests/4634
-  # set(CMAKE_CXX_EXCEPTIONS OFF)
-  # set(CMAKE_CXX_RTTI OFF)
-
   # Turn off RTTI
   string(REGEX REPLACE "/GR" "/GR-" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
   # Turn off exceptions (including in STL)
   string(REGEX REPLACE "/EHsc" "/EHs-c-" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
   add_definitions(-D_HAS_EXCEPTIONS=0)
+
+  # TODO: Enable this once it lands
+  # https://gitlab.kitware.com/cmake/cmake/-/merge_requests/4634
+  # set(CMAKE_CXX_EXCEPTIONS OFF)
+  # set(CMAKE_CXX_RTTI OFF)
 endif()
 
 # Enable Catch if necessary
