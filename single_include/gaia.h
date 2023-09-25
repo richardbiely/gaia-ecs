@@ -13109,12 +13109,12 @@ namespace gaia {
 			using ChunkAccessorIter = ChunkAccessorMask::const_iterator;
 			using ChunkAccessorIterInverse = ChunkAccessorMask::const_iterator_inverse;
 
-			class ChunkAccessorCommon {
+			class ChunkAccessor {
 			protected:
 				archetype::Chunk& m_chunk;
 
 			public:
-				ChunkAccessorCommon(archetype::Chunk& chunk): m_chunk(chunk) {}
+				ChunkAccessor(archetype::Chunk& chunk): m_chunk(chunk) {}
 
 				//! Checks if component \tparam T is present in the chunk.
 				//! \tparam T Component
@@ -13160,14 +13160,6 @@ namespace gaia {
 			};
 		} // namespace detail
 
-		class ChunkAccessor: public detail::ChunkAccessorCommon {
-		protected:
-			uint32_t m_pos;
-
-		public:
-			ChunkAccessor(archetype::Chunk& chunk, uint32_t pos): ChunkAccessorCommon(chunk), m_pos(pos) {}
-		};
-
 		struct ChunkAccessorIt {
 		public:
 			using value_type = uint32_t;
@@ -13205,20 +13197,6 @@ namespace gaia {
 				return m_pos != other.m_pos;
 			}
 		};
-
-		class ChunkAccessorWithMask: public detail::ChunkAccessorCommon {
-		public:
-			using Mask = detail::ChunkAccessorMask;
-
-		protected:
-			const Mask& m_mask;
-
-		public:
-			ChunkAccessorWithMask(archetype::Chunk& chunk, const Mask& mask): ChunkAccessorCommon(chunk), m_mask(mask) {}
-		};
-
-		using ChunkAccessorWithMaskIt = detail::ChunkAccessorIter;
-		using ChunkAccessorWithMaskItInverse = detail::ChunkAccessorIterInverse;
 	} // namespace ecs
 } // namespace gaia
 
@@ -13987,11 +13965,11 @@ namespace gaia {
 
 namespace gaia {
 	namespace ecs {
-		struct Iterator: public ChunkAccessor {
+		struct Iterator: public detail::ChunkAccessor {
 			using Iter = ChunkAccessorIt;
 
 		public:
-			Iterator(archetype::Chunk& chunk): ChunkAccessor(chunk, 0) {}
+			Iterator(archetype::Chunk& chunk): detail::ChunkAccessor(chunk) {}
 
 			GAIA_NODISCARD Iter begin() const {
 				return Iter(0);
@@ -14014,25 +13992,33 @@ namespace gaia {
 
 namespace gaia {
 	namespace ecs {
-		struct IteratorDisabled: public ChunkAccessorWithMask {
+		struct IteratorDisabled: public detail::ChunkAccessor {
 		private:
-			using Mask = ChunkAccessorWithMask::Mask;
-			using Iter = ChunkAccessorWithMaskIt;
+			using Mask = detail::ChunkAccessorMask;
+
+			containers::sarr_ext<uint16_t, Mask::BitCount> m_indices;
 
 		public:
-			IteratorDisabled(archetype::Chunk& chunk): ChunkAccessorWithMask(chunk, chunk.GetDisabledEntityMask()) {}
-
-			GAIA_NODISCARD Iter begin() const {
-				return Iter(m_mask, 0, true);
+			IteratorDisabled(archetype::Chunk& chunk): detail::ChunkAccessor(chunk) {
+				// Build indices we use for iteration
+				const auto& mask = chunk.GetDisabledEntityMask();
+				const auto it0 = detail::ChunkAccessorIter(mask, 0, true);
+				const auto it1 = detail::ChunkAccessorIter(mask, m_chunk.GetEntityCount(), false);
+				for (auto it = it0; it != it1; ++it)
+					m_indices.push_back((uint16_t)*it);
 			}
 
-			GAIA_NODISCARD Iter end() const {
-				return Iter(m_mask, m_chunk.GetEntityCount(), false);
+			GAIA_NODISCARD auto begin() const {
+				return m_indices.begin();
 			}
 
-			//! Calculates the number of entities accessible via the iterator
+			GAIA_NODISCARD auto end() const {
+				return m_indices.end();
+			}
+
+			//! Returns the number of entities accessible via the iterator
 			GAIA_NODISCARD uint32_t size() const {
-				return m_mask.count();
+				return (uint32_t)m_indices.size();
 			}
 		};
 	} // namespace ecs
@@ -14043,26 +14029,33 @@ namespace gaia {
 
 namespace gaia {
 	namespace ecs {
-		struct IteratorEnabled: public ChunkAccessorWithMask {
+		struct IteratorEnabled: public detail::ChunkAccessor {
 		private:
-			using Mask = ChunkAccessorWithMask::Mask;
-			using Iter = ChunkAccessorWithMaskItInverse;
+			using Mask = detail::ChunkAccessorMask;
+
+			containers::sarr_ext<uint16_t, Mask::BitCount> m_indices;
 
 		public:
-			IteratorEnabled(archetype::Chunk& chunk): ChunkAccessorWithMask(chunk, chunk.GetDisabledEntityMask()) {}
-
-			GAIA_NODISCARD Iter begin() const {
-				return Iter(m_mask, 0, true);
+			IteratorEnabled(archetype::Chunk& chunk): detail::ChunkAccessor(chunk) {
+				// Build indices we use for iteration
+				const auto& mask = chunk.GetDisabledEntityMask();
+				const auto it0 = detail::ChunkAccessorIterInverse(mask, 0, true);
+				const auto it1 = detail::ChunkAccessorIterInverse(mask, m_chunk.GetEntityCount(), false);
+				for (auto it = it0; it != it1; ++it)
+					m_indices.push_back((uint16_t)*it);
 			}
 
-			GAIA_NODISCARD Iter end() const {
-				return Iter(m_mask, m_chunk.GetEntityCount(), false);
+			GAIA_NODISCARD auto begin() const {
+				return m_indices.begin();
 			}
 
-			//! Calculates the number of entities accessible via the iterator
+			GAIA_NODISCARD auto end() const {
+				return m_indices.end();
+			}
+
+			//! Returns the number of entities accessible via the iterator
 			GAIA_NODISCARD uint32_t size() const {
-				const auto bits = (Mask::BitCount - m_mask.count());
-				return bits > m_chunk.GetEntityCount() ? m_chunk.GetEntityCount() : bits;
+				return (uint32_t)m_indices.size();
 			}
 		};
 	} // namespace ecs

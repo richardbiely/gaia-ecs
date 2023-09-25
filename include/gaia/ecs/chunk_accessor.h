@@ -17,12 +17,12 @@ namespace gaia {
 			using ChunkAccessorIter = ChunkAccessorMask::const_iterator;
 			using ChunkAccessorIterInverse = ChunkAccessorMask::const_iterator_inverse;
 
-			class ChunkAccessorCommon {
+			class ChunkAccessor {
 			protected:
 				archetype::Chunk& m_chunk;
 
 			public:
-				ChunkAccessorCommon(archetype::Chunk& chunk): m_chunk(chunk) {}
+				ChunkAccessor(archetype::Chunk& chunk): m_chunk(chunk) {}
 
 				//! Checks if component \tparam T is present in the chunk.
 				//! \tparam T Component
@@ -68,14 +68,6 @@ namespace gaia {
 			};
 		} // namespace detail
 
-		class ChunkAccessor: public detail::ChunkAccessorCommon {
-		protected:
-			uint32_t m_pos;
-
-		public:
-			ChunkAccessor(archetype::Chunk& chunk, uint32_t pos): ChunkAccessorCommon(chunk), m_pos(pos) {}
-		};
-
 		struct ChunkAccessorIt {
 		public:
 			using value_type = uint32_t;
@@ -113,19 +105,5 @@ namespace gaia {
 				return m_pos != other.m_pos;
 			}
 		};
-
-		class ChunkAccessorWithMask: public detail::ChunkAccessorCommon {
-		public:
-			using Mask = detail::ChunkAccessorMask;
-
-		protected:
-			const Mask& m_mask;
-
-		public:
-			ChunkAccessorWithMask(archetype::Chunk& chunk, const Mask& mask): ChunkAccessorCommon(chunk), m_mask(mask) {}
-		};
-
-		using ChunkAccessorWithMaskIt = detail::ChunkAccessorIter;
-		using ChunkAccessorWithMaskItInverse = detail::ChunkAccessorIterInverse;
 	} // namespace ecs
 } // namespace gaia

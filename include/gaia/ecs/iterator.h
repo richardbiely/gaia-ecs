@@ -9,11 +9,11 @@
 
 namespace gaia {
 	namespace ecs {
-		struct Iterator: public ChunkAccessor {
+		struct Iterator: public detail::ChunkAccessor {
 			using Iter = ChunkAccessorIt;
 
 		public:
-			Iterator(archetype::Chunk& chunk): ChunkAccessor(chunk, 0) {}
+			Iterator(archetype::Chunk& chunk): detail::ChunkAccessor(chunk) {}
 
 			GAIA_NODISCARD Iter begin() const {
 				return Iter(0);
