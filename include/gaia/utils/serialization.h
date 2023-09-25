@@ -48,23 +48,23 @@ namespace gaia {
 			};
 
 			template <typename C>
-			constexpr auto size(const C& c) -> decltype(c.size()) {
+			constexpr auto size(const C& c) noexcept -> decltype(c.size()) {
 				return c.size();
 			}
-			template <typename T, std::size_t N>
+			template <typename T, auto N>
 			constexpr std::size_t size(const T (&)[N]) noexcept {
 				return N;
 			}
 
 			template <typename C>
-			constexpr auto data(C& c) -> decltype(c.data()) {
+			constexpr auto data(C& c) noexcept -> decltype(c.data()) {
 				return c.data();
 			}
 			template <typename C>
-			constexpr auto data(const C& c) -> decltype(c.data()) {
+			constexpr auto data(const C& c) noexcept -> decltype(c.data()) {
 				return c.data();
 			}
-			template <typename T, std::size_t N>
+			template <typename T, auto N>
 			constexpr T* data(T (&array)[N]) noexcept {
 				return array;
 			}
@@ -80,7 +80,7 @@ namespace gaia {
 					std::true_type {};
 
 			DEFINE_HAS_FUNCTION(resize);
-			// DEFINE_HAS_FUNCTION(serialize);
+			DEFINE_HAS_FUNCTION(size_bytes);
 			DEFINE_HAS_FUNCTION(save);
 			DEFINE_HAS_FUNCTION(load);
 
@@ -157,20 +157,29 @@ namespace gaia {
 			}
 
 			template <typename T>
-			GAIA_NODISCARD constexpr uint32_t calculate_size_one(const T& item) {
+			GAIA_NODISCARD constexpr uint32_t size_bytes_one(const T& item) noexcept {
 				using type = typename std::decay_t<typename std::remove_pointer_t<T>>;
 
 				constexpr auto id = detail::get_type_id<type>();
 				static_assert(id != detail::serialization_type_id::Last);
 				uint32_t size_in_bytes{};
 
-				if constexpr (is_trivially_serializable<type>::value)
+				// Custom size_bytes() has precedence
+				if constexpr (has_size_bytes<type>::value) {
+					size_in_bytes = (uint32_t)item.size_bytes();
+				}
+				// Trivially serializable types
+				else if constexpr (is_trivially_serializable<type>::value) {
 					size_in_bytes = (uint32_t)sizeof(type);
+				}
+				// Types which have data() and size() member functions
 				else if constexpr (detail::has_data_and_size<type>::value) {
-					size_in_bytes += (uint32_t)item.size();
-				} else if constexpr (std::is_class_v<type>) {
+					size_in_bytes = (uint32_t)item.size();
+				}
+				// Classes
+				else if constexpr (std::is_class_v<type>) {
 					utils::for_each_member(item, [&](auto&&... items) {
-						size_in_bytes += (calculate_size_one(items) + ...);
+						size_in_bytes += (size_bytes_one(items) + ...);
 					});
 				} else
 					static_assert(!sizeof(type), "Type is not supported for serialization, yet");
@@ -182,25 +191,30 @@ namespace gaia {
 			void serialize_data_one(Serializer& s, T&& arg) {
 				using type = typename std::decay_t<typename std::remove_pointer_t<T>>;
 
-				// TODO: Consider supporting custom save/load functions
-				// if constexpr (decltype(has_serialize<type>(s, std::forward<T>(arg)))::value) {
-				// 	arg.serialize<Write>(s, std::forward<T>(arg));
-				// } else
-				if constexpr (is_trivially_serializable<type>::value) {
+				// Custom save() & load() have precedence
+				if constexpr (Write && has_save<type, Serializer&>::value) {
+					arg.save(s);
+				} else if constexpr (!Write && has_load<type, Serializer&>::value) {
+					arg.load(s);
+				}
+				// Trivially serializable types
+				else if constexpr (is_trivially_serializable<type>::value) {
 					if constexpr (Write)
 						s.save(std::forward<T>(arg));
 					else
 						s.load(std::forward<T>(arg));
-				} else if constexpr (detail::has_data_and_size<type>::value) {
+				}
+				// Types which have data() and size() member functions
+				else if constexpr (detail::has_data_and_size<type>::value) {
 					if constexpr (Write) {
-						if constexpr (decltype(has_resize<type>(0))::value) {
+						if constexpr (has_resize<type>::value) {
 							const auto size = arg.size();
 							s.save(size);
 						}
 						for (const auto& e: arg)
 							serialize_data_one<Write>(s, e);
 					} else {
-						if constexpr (decltype(has_resize<type>(0))::value) {
+						if constexpr (has_resize<type>::value) {
 							auto size = arg.size();
 							s.load(size);
 							arg.resize(size);
@@ -208,7 +222,9 @@ namespace gaia {
 						for (auto& e: arg)
 							serialize_data_one<Write>(s, e);
 					}
-				} else if constexpr (std::is_class_v<type>) {
+				}
+				// Classes
+				else if constexpr (std::is_class_v<type>) {
 					utils::for_each_member(std::forward<T>(arg), [&s](auto&&... items) {
 						// TODO: Handle contiguous blocks of trivially copiable types
 						(serialize_data_one<Write>(s, items), ...);
@@ -221,8 +237,8 @@ namespace gaia {
 		//! Calculates the number of bytes necessary to serialize data using the "save" function.
 		//! \warning Compile-time.
 		template <typename T>
-		GAIA_NODISCARD constexpr uint32_t calculate_size(const T& data) {
-			return detail::calculate_size_one(data);
+		GAIA_NODISCARD uint32_t size_bytes(const T& data) {
+			return detail::size_bytes_one(data);
 		}
 
 		//! Write \param data using \tparam Writer at compile-time.
