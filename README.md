@@ -51,6 +51,7 @@ Gaia-ECS is a fast and easy-to-use [ECS](#ecs) framework. Some of its current fe
   * [Chunk components](#chunk-components)
   * [Delayed execution](#delayed-execution)
   * [Data layouts](#data-layouts)
+  * [Serialization](#serialization)
   * [Multithreading](#multithreading)
 * [Requirements](#requirements)
   * [Compiler](#compiler)
@@ -498,12 +499,135 @@ q.ForEach([](ecs::Iterator iter) {
   exec(pz.data(), vz.data(), iter.size());
 });
 ```
+
+## Serialization
+Serialization of arbitrary data is available via following functions:
+- ***serialization::size_bytes*** - calculates how many bytes the data needs to serialize
+- ***serialization::save*** - writes data to serialization buffer
+- ***serialization::load*** - loads data from serialization buffer
+
+Any data structure can be serialized at compile-time into to provided serialization buffer. Native types, compound types, arrays and anything with data() + size() functions are supported out-of-the-box. If resize() is available it will be utilized as well.
+
+Example:
+```cpp
+...
+struct Position {
+  float x, y, z;
+};
+struct Quaternion {
+  float x, y, z, w;
+};
+struct Transform {
+  Position p;
+  Quaternion r;
+};
+struct Transform {
+  containers::darray<Transform> transforms;
+  int some_int_data;
+};
+
+Transform in, out;
+for (uint32_t i=0; i<10; ++i)
+  t.transforms.push_back({});
+t.some_int_data = 42069;
+
+ecs::DataBuffer db;
+ecs::DataBuffer_SerializationWrapper s(db);
+// Calculate how many bytes is it necessary to serialize "in"
+s.reserve(serialization::size_bytes(in));
+// Save "in" to our buffer
+serialization::save(s, in);
+// Load the contents of buffer to "out" 
+s.seek(0);
+serialization::load(s, out);
+...
+```
+
+Customization is possible for data types which require special attention. We can guide the serializer by either external or internal means.
+
+External specialization comes handy in cases where we can not or do not want to modify the source type:
+
+```cpp
+struct CustomStruct {
+	char* ptr;
+	uint32_t size;
+};
+
+namespace gaia::serialization {
+	template <>
+	uint32_t size_bytes(const CustomStruct& data) {
+		return data.size + sizeof(data.size);
+	}
+
+	template <typename Serializer>
+	void save(Serializer& s, const CustomStruct& data) {
+    // Save the size integer
+		s.save(data.size);
+    // Save data.size raw bytes staring at data.ptr
+		s.save(data.ptr, data.size);
+	}
+
+	template <typename Serializer>
+	void load(Serializer& s, CustomStruct& data) {
+    // Load the size integer
+		s.load(data.size);
+    // Load data.size raw bytes to location pointed at by data.ptr
+		data.ptr = new char[data.size];
+		s.load(data.ptr, data.size);
+	}
+}
+...
+CustomStruct in, out;
+in.ptr = new char[5];
+in.ptr[0] = 'g';
+in.ptr[1] = 'a';
+in.ptr[2] = 'i';
+in.ptr[3] = 'a';
+in.ptr[4] = '\0';
+in.size = 5;
+
+ecs::DataBuffer db;
+ecs::DataBuffer_SerializationWrapper s(db);
+s.reserve(serialization::size_bytes(in));
+serialization::save(s, in);
+s.seek(0);
+serialization::load(s, out);
+```
+
+Internal specialization is handled by providing the following 3 member functions:
+
+```cpp
+struct CustomStruct {
+	char* ptr;
+	uint32_t size;
+
+	constexpr uint32_t size_bytes() const noexcept {
+		return size + sizeof(size);
+	}
+
+	template <typename Serializer>
+	void save(Serializer& s) const {
+		s.save(size);
+		s.save(ptr, size);
+	}
+
+	template <typename Serializer>
+	void load(Serializer& s) {
+		s.load(size);
+		ptr = new char[size];
+		s.load(ptr, size);
+	}
+};
+...
+```
+
+ It doesn't matter which kind of specialization you use. However, note that if both are used the external one has priority.
+
 ## Multithreading
 To fully utilize your system's potential Gaia-ECS allows you to spread your tasks into multiple threads. This can be achieved in multiple ways.
 
 Tasks that can not be split into multiple parts or it does not make sense for them to be split can use ***Schedule***. It registers a job in the job system and immediately submits it so worker threads can pick it up:
 ```cpp
-...
 mt::Job job0 {[]() {
   InitializeScriptEngine();
 }};
