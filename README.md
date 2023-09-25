@@ -554,27 +554,27 @@ struct CustomStruct {
 };
 
 namespace gaia::serialization {
-	template <>
-	uint32_t size_bytes(const CustomStruct& data) {
-		return data.size + sizeof(data.size);
-	}
-
-	template <typename Serializer>
-	void save(Serializer& s, const CustomStruct& data) {
+  template <>
+  uint32_t size_bytes(const CustomStruct& data) {
+    return data.size + sizeof(data.size);
+  }
+  
+  template <typename Serializer>
+  void save(Serializer& s, const CustomStruct& data) {
     // Save the size integer
-		s.save(data.size);
+    s.save(data.size);
     // Save data.size raw bytes staring at data.ptr
-		s.save(data.ptr, data.size);
-	}
-
-	template <typename Serializer>
-	void load(Serializer& s, CustomStruct& data) {
+    s.save(data.ptr, data.size);
+  }
+  
+  template <typename Serializer>
+  void load(Serializer& s, CustomStruct& data) {
     // Load the size integer
-		s.load(data.size);
+    s.load(data.size);
     // Load data.size raw bytes to location pointed at by data.ptr
-		data.ptr = new char[data.size];
-		s.load(data.ptr, data.size);
-	}
+    data.ptr = new char[data.size];
+    s.load(data.ptr, data.size);
+  }
 }
 ...
 CustomStruct in, out;
@@ -598,25 +598,25 @@ Internal specialization is handled by providing the following 3 member functions
 
 ```cpp
 struct CustomStruct {
-	char* ptr;
-	uint32_t size;
-
-	constexpr uint32_t size_bytes() const noexcept {
-		return size + sizeof(size);
-	}
-
-	template <typename Serializer>
-	void save(Serializer& s) const {
-		s.save(size);
-		s.save(ptr, size);
-	}
-
-	template <typename Serializer>
-	void load(Serializer& s) {
-		s.load(size);
-		ptr = new char[size];
-		s.load(ptr, size);
-	}
+  char* ptr;
+  uint32_t size;
+  
+  constexpr uint32_t size_bytes() const noexcept {
+    return size + sizeof(size);
+  }
+  
+  template <typename Serializer>
+  void save(Serializer& s) const {
+    s.save(size);
+    s.save(ptr, size);
+  }
+  
+  template <typename Serializer>
+  void load(Serializer& s) {
+    s.load(size);
+    ptr = new char[size];
+    s.load(ptr, size);
+  }
 };
 ...
 ```
