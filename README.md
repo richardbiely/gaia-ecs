@@ -510,7 +510,6 @@ Any data structure can be serialized at compile-time into to provided serializat
 
 Example:
 ```cpp
-...
 struct Position {
   float x, y, z;
 };
@@ -526,6 +525,7 @@ struct Transform {
   int some_int_data;
 };
 
+...
 Transform in, out;
 for (uint32_t i=0; i<10; ++i)
   t.transforms.push_back({});
@@ -540,7 +540,6 @@ serialization::save(s, in);
 // Load the contents of buffer to "out" 
 s.seek(0);
 serialization::load(s, out);
-...
 ```
 
 Customization is possible for data types which require special attention. We can guide the serializer by either external or internal means.
@@ -549,8 +548,8 @@ External specialization comes handy in cases where we can not or do not want to 
 
 ```cpp
 struct CustomStruct {
-	char* ptr;
-	uint32_t size;
+  char* ptr;
+  uint32_t size;
 };
 
 namespace gaia::serialization {
@@ -576,6 +575,7 @@ namespace gaia::serialization {
     s.load(data.ptr, data.size);
   }
 }
+
 ...
 CustomStruct in, out;
 in.ptr = new char[5];
@@ -594,7 +594,7 @@ s.seek(0);
 serialization::load(s, out);
 ```
 
-Internal specialization is handled by providing the following 3 member functions:
+You will usually use internal specialization when you have the access to your data container and at the same time do not want to expose its internal structure. Or if you simply like intrusive coding style better. In order to use it the following 3 member functions need to be provided:
 
 ```cpp
 struct CustomStruct {
@@ -618,7 +618,6 @@ struct CustomStruct {
     s.load(ptr, size);
   }
 };
-...
 ```
 
  It doesn't matter which kind of specialization you use. However, note that if both are used the external one has priority.
@@ -642,7 +641,6 @@ mt::JobHandle jobHandle1 = tp.Schedule(job1);
 // Wait for jobs to complete
 tp.Complete(jobHandle0);
 tp.Complete(jobHandle1);
-...
 ```
 
 >**NOTE:<br/>**
@@ -650,10 +648,8 @@ It is important to call ***Complete*** for each scheduled ***JobHandle*** becaus
 
 Instead of waiting for each job separately, we can also wait for all jobs to be completed using ***CompleteAll***. This however introduces a hard sync point so it should be used with caution. Ideally, you would want to schedule many jobs and have zero sync points. In most, cases this will not ever happen and at least some sync points are going to be introduced. For instance, before any character can move in the game, all physics calculations will need to be finished.
 ```cpp
-...
 // Wait for all jobs to complete
 tp.CompleteAll();
-...
 ```
 
 When crunching larger data sets it is often beneficial to split the load among threads automatically. This is what ***ScheduleParallel*** is for. 
@@ -686,7 +682,6 @@ tp.Complete(jobHandle);
 
 // Use the result
 GAIA_LOG("Sum: %u\n", sum);
-...
 ```
 
 A similar result can be achieved via ***Schedule***. It is a bit more complicated because we need to handle workload splitting ourselves. The most compact (and least efficient) version would look something like this:
@@ -706,7 +701,6 @@ for (uint32_t i = 0; i < Jobs; i++) {
 }
 // Wait for all previous tasks to complete
 tp.CompleteAll();
-...
 ```
 
 Sometimes we need to wait for the result of another operation before we can proceed. To achieve this we need to use low-level API and handle job registration and submitting jobs on our own.
@@ -714,7 +708,6 @@ Sometimes we need to wait for the result of another operation before we can proc
 This is because once submitted we can not modify the job anymore. If we could, dependencies would not necessary be adhered to. Let us say there is a job A depending on job B. If job A is submitted before creating the dependency, a worker thread could execute the job before the dependency is created. As a result, the dependency would not be respected and job A would be free to finish before job B.
 
 ```cpp
-...
 mt::Job job0;
 job0.func = [&arr, i]() {
   arr[i] = i;
@@ -745,7 +738,6 @@ tp.Submit(job0Handle);
 // Wait for the last job to complete.
 // Calling Complete for dependencies is not necessary because it will be done internally.
 tp.Complete(job2Handle);
-...
 ```
 
 # Requirements
