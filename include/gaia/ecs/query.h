@@ -30,6 +30,19 @@
 namespace gaia {
 	namespace ecs {
 		namespace detail {
+			template <bool Cached>
+			struct QueryImplStorage {
+				//! QueryImpl cache id
+				query::QueryId m_queryId = query::QueryIdBad;
+				//! QueryImpl cache (stable pointer to parent world's query cache)
+				QueryCache* m_entityQueryCache{};
+			};
+
+			template <>
+			struct QueryImplStorage<false> {
+				query::QueryInfo m_queryInfo;
+			};
+
 			template <bool UseCaching = true>
 			class QueryImpl final {
 				static constexpr uint32_t ChunkBatchSize = 16;
@@ -153,21 +166,8 @@ namespace gaia {
 							cmd.Exec(ctx);
 						}};
 
-				template <bool Cached>
-				struct Storage {
-					//! QueryImpl cache id
-					query::QueryId m_queryId = query::QueryIdBad;
-					//! QueryImpl cache (stable pointer to parent world's query cache)
-					QueryCache* m_entityQueryCache{};
-				};
-
-				template <>
-				struct Storage<false> {
-					query::QueryInfo m_queryInfo;
-				};
-
 				//! Storage for data based on whether Caching is used or not
-				Storage<UseCaching> m_storage;
+				QueryImplStorage<UseCaching> m_storage;
 				//! Buffer with commands used to fetch the QueryInfo
 				DataBuffer m_cmdBuffer;
 				//! World version (stable pointer to parent world's world version)
