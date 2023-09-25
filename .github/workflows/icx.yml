@@ -1,4 +1,4 @@
-name: icc
+name: icx
 
 on:
   push:
@@ -7,12 +7,11 @@ on:
     branches: [ main ]
 
 env:
-  # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
   BUILD_TYPE_REL: Release
   BUILD_TYPE_DBG: Debug
 
 jobs:
-  icc:
+  icx:
     timeout-minutes: 10
     strategy:
       matrix:
@@ -23,23 +22,19 @@ jobs:
     - uses: actions/checkout@v2
     - name: Install compiler
       run: |
-        wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-        sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-        echo "deb https://apt.repos.intel.com/oneapi all main" | sudo tee /etc/apt/sources.list.d/oneAPI.list
-        sudo add-apt-repository "deb https://apt.repos.intel.com/oneapi all main"
-        sudo apt update
-        sudo apt install -y software-properties-common intel-oneapi-compiler-dpcpp-cpp-and-cpp-classic
+        wget https://registrationcenter-download.intel.com/akdlm/irc_nas/18673/l_BaseKit_p_2022.2.0.262_offline.sh
+        sudo sh ./l_BaseKit_p_2022.2.0.262_offline.sh
 
     - name: Configure CMake
       env:
-        CXX: icc
+        CXX: icx
       run: |
         source /opt/intel/oneapi/setvars.sh intel64
         cmake -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DGAIA_BUILD_UNITTEST=ON -DGAIA_BUILD_EXAMPLES=ON -DGAIA_BUILD_BENCHMARK=OFF -DGAIA_GENERATE_CC=OFF -S . -B ${{github.workspace}}/build
 
     - name: Build
       env:
-        CXX: icc
+        CXX: icx
       run: |
         source /opt/intel/oneapi/setvars.sh intel64
         cmake --build ${{github.workspace}}/build --config ${{matrix.build_type}}
