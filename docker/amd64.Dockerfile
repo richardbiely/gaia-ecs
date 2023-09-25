@@ -23,11 +23,8 @@ RUN apt update && apt install -y --no-install-recommends \
     gpg-agent
 
 # Intel compiler is only compatible with x86 architecture
-RUN wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-RUN APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=1 apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-RUN rm GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-RUN echo "deb https://apt.repos.intel.com/oneapi all main" | tee /etc/apt/sources.list.d/oneAPI.list
-RUN add-apt-repository "deb https://apt.repos.intel.com/oneapi all main"
-RUN intel-oneapi-compiler-dpcpp-cpp-and-cpp-classic
+RUN wget https://registrationcenter-download.intel.com/akdlm/irc_nas/18673/l_BaseKit_p_2022.2.0.262_offline.sh && \
+    chmod +x ./l_BaseKit_p_2022.2.0.262_offline.s && \
+    ./l_BaseKit_p_2022.2.0.262_offline.sh
 
 RUN rm -rf /var/lib/apt/lists/*
