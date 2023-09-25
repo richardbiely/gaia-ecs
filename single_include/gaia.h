@@ -2598,27 +2598,28 @@ namespace gaia {
 			constexpr static DataLayout Layout = data_layout_properties<DataLayout::AoS, ValueType>::Layout;
 			constexpr static size_t Alignment = data_layout_properties<DataLayout::AoS, ValueType>::Alignment;
 
-			GAIA_NODISCARD constexpr static ValueType getc(std::span<const ValueType> s, size_t idx) {
+			GAIA_NODISCARD constexpr static ValueType getc(std::span<const ValueType> s, size_t idx) noexcept {
 				return s[idx];
 			}
 
-			GAIA_NODISCARD constexpr static ValueType get(std::span<ValueType> s, size_t idx) {
+			GAIA_NODISCARD constexpr static ValueType get(std::span<ValueType> s, size_t idx) noexcept {
 				return s[idx];
 			}
 
-			GAIA_NODISCARD constexpr static const ValueType& getc_constref(std::span<const ValueType> s, size_t idx) {
+			GAIA_NODISCARD constexpr static const ValueType&
+			getc_constref(std::span<const ValueType> s, size_t idx) noexcept {
 				return (const ValueType&)s[idx];
 			}
 
-			GAIA_NODISCARD constexpr static const ValueType& get_constref(std::span<ValueType> s, size_t idx) {
+			GAIA_NODISCARD constexpr static const ValueType& get_constref(std::span<ValueType> s, size_t idx) noexcept {
 				return (const ValueType&)s[idx];
 			}
 
-			GAIA_NODISCARD constexpr static ValueType& get_ref(std::span<ValueType> s, size_t idx) {
+			GAIA_NODISCARD constexpr static ValueType& get_ref(std::span<ValueType> s, size_t idx) noexcept {
 				return s[idx];
 			}
 
-			constexpr static void set(std::span<ValueType> s, size_t idx, ValueType&& val) {
+			constexpr static void set(std::span<ValueType> s, size_t idx, ValueType&& val) noexcept {
 				s[idx] = std::forward<ValueType>(val);
 			}
 		};
@@ -2633,15 +2634,15 @@ namespace gaia {
 			//! Raw data pointed to by the view policy
 			std::span<const ValueType> m_data;
 
-			GAIA_NODISCARD const ValueType& operator[](size_t idx) const {
+			GAIA_NODISCARD const ValueType& operator[](size_t idx) const noexcept {
 				return view_policy::getc_constref(m_data, idx);
 			}
 
-			GAIA_NODISCARD auto data() const {
+			GAIA_NODISCARD auto data() const noexcept {
 				return m_data.data();
 			}
 
-			GAIA_NODISCARD auto size() const {
+			GAIA_NODISCARD auto size() const noexcept {
 				return m_data.size();
 			}
 		};
@@ -2656,19 +2657,19 @@ namespace gaia {
 			//! Raw data pointed to by the view policy
 			std::span<ValueType> m_data;
 
-			GAIA_NODISCARD ValueType& operator[](size_t idx) {
+			GAIA_NODISCARD ValueType& operator[](size_t idx) noexcept {
 				return view_policy::get_ref(m_data, idx);
 			}
 
-			GAIA_NODISCARD const ValueType& operator[](size_t idx) const {
+			GAIA_NODISCARD const ValueType& operator[](size_t idx) const noexcept {
 				return view_policy::getc_constref(m_data, idx);
 			}
 
-			GAIA_NODISCARD auto data() const {
+			GAIA_NODISCARD auto data() const noexcept {
 				return m_data.data();
 			}
 
-			GAIA_NODISCARD auto size() const {
+			GAIA_NODISCARD auto size() const noexcept {
 				return m_data.size();
 			}
 		};
@@ -2703,13 +2704,13 @@ namespace gaia {
 			template <size_t Ids>
 			using const_value_type = typename std::add_const<value_type<Ids>>::type;
 
-			GAIA_NODISCARD constexpr static ValueType get(std::span<const ValueType> s, const size_t idx) {
+			GAIA_NODISCARD constexpr static ValueType get(std::span<const ValueType> s, const size_t idx) noexcept {
 				auto t = struct_to_tuple(ValueType{});
 				return get_internal(t, s, idx, std::make_integer_sequence<size_t, std::tuple_size<decltype(t)>::value>());
 			}
 
 			template <size_t Ids>
-			GAIA_NODISCARD constexpr static auto get(std::span<const ValueType> s, const size_t idx = 0) {
+			GAIA_NODISCARD constexpr static auto get(std::span<const ValueType> s, const size_t idx = 0) noexcept {
 				using Tuple = decltype(struct_to_tuple(ValueType{}));
 				using MemberType = typename std::tuple_element<Ids, Tuple>::type;
 				const auto* ret = (const uint8_t*)s.data() + idx * sizeof(MemberType) +
@@ -2717,13 +2718,13 @@ namespace gaia {
 				return std::span{(const MemberType*)ret, s.size() - idx};
 			}
 
-			constexpr static void set(std::span<ValueType> s, const size_t idx, ValueType&& val) {
+			constexpr static void set(std::span<ValueType> s, const size_t idx, ValueType&& val) noexcept {
 				auto t = struct_to_tuple(std::forward<ValueType>(val));
 				set_internal(t, s, idx, std::make_integer_sequence<size_t, std::tuple_size<decltype(t)>::value>());
 			}
 
 			template <size_t Ids>
-			constexpr static auto set(std::span<ValueType> s, const size_t idx = 0) {
+			constexpr static auto set(std::span<ValueType> s, const size_t idx = 0) noexcept {
 				using Tuple = decltype(struct_to_tuple(ValueType{}));
 				using MemberType = typename std::tuple_element<Ids, Tuple>::type;
 				auto* ret = (uint8_t*)s.data() + idx * sizeof(MemberType) +
@@ -2734,7 +2735,8 @@ namespace gaia {
 		private:
 			template <typename Tuple, size_t... Ids>
 			GAIA_NODISCARD constexpr static ValueType get_internal(
-					Tuple& t, std::span<const ValueType> s, const size_t idx, std::integer_sequence<size_t, Ids...> /*no_name*/) {
+					Tuple& t, std::span<const ValueType> s, const size_t idx,
+					std::integer_sequence<size_t, Ids...> /*no_name*/) noexcept {
 				(get_internal<Tuple, Ids, typename std::tuple_element<Ids, Tuple>::type>(
 						 t, (const uint8_t*)s.data(),
 						 idx * sizeof(typename std::tuple_element<Ids, Tuple>::type) +
@@ -2744,14 +2746,14 @@ namespace gaia {
 			}
 
 			template <typename Tuple, size_t Ids, typename TMemberType>
-			constexpr static void get_internal(Tuple& t, const uint8_t* data, const size_t idx) {
+			constexpr static void get_internal(Tuple& t, const uint8_t* data, const size_t idx) noexcept {
 				unaligned_ref<TMemberType> reader((void*)&data[idx]);
 				std::get<Ids>(t) = reader;
 			}
 
 			template <typename Tuple, typename TValue, size_t... Ids>
-			constexpr static void
-			set_internal(Tuple& t, std::span<TValue> s, const size_t idx, std::integer_sequence<size_t, Ids...> /*no_name*/) {
+			constexpr static void set_internal(
+					Tuple& t, std::span<TValue> s, const size_t idx, std::integer_sequence<size_t, Ids...> /*no_name*/) noexcept {
 				(set_internal(
 						 (uint8_t*)s.data(),
 						 idx * sizeof(typename std::tuple_element<Ids, Tuple>::type) +
@@ -2761,7 +2763,7 @@ namespace gaia {
 			}
 
 			template <typename MemberType>
-			constexpr static void set_internal(uint8_t* data, const size_t idx, MemberType val) {
+			constexpr static void set_internal(uint8_t* data, const size_t idx, MemberType val) noexcept {
 				unaligned_ref<MemberType> writer((void*)&data[idx]);
 				writer = val;
 			}
@@ -2793,21 +2795,21 @@ namespace gaia {
 			//! Raw data pointed to by the view policy
 			std::span<const ValueType> m_data;
 
-			GAIA_NODISCARD constexpr auto operator[](size_t idx) const {
+			GAIA_NODISCARD constexpr auto operator[](size_t idx) const noexcept {
 				return view_policy::get(m_data, idx);
 			}
 
 			template <size_t Ids>
-			GAIA_NODISCARD constexpr auto get() const {
+			GAIA_NODISCARD constexpr auto get() const noexcept {
 				return std::span<typename data_view_policy_idx_info<Ids>::const_value_type>(
 						view_policy::template get<Ids>(m_data).data(), view_policy::template get<Ids>(m_data).size());
 			}
 
-			GAIA_NODISCARD auto data() const {
+			GAIA_NODISCARD auto data() const noexcept {
 				return m_data.data();
 			}
 
-			GAIA_NODISCARD auto size() const {
+			GAIA_NODISCARD auto size() const noexcept {
 				return m_data.size();
 			}
 		};
@@ -2845,20 +2847,20 @@ namespace gaia {
 				const size_t m_idx;
 
 				constexpr setter(const std::span<ValueType>& data, const size_t idx): m_data(data), m_idx(idx) {}
-				constexpr void operator=(ValueType&& val) {
+				constexpr void operator=(ValueType&& val) noexcept {
 					view_policy::set(m_data, m_idx, std::forward<ValueType>(val));
 				}
 			};
 
-			GAIA_NODISCARD constexpr auto operator[](size_t idx) const {
+			GAIA_NODISCARD constexpr auto operator[](size_t idx) const noexcept {
 				return view_policy::get(m_data, idx);
 			}
-			GAIA_NODISCARD constexpr auto operator[](size_t idx) {
+			GAIA_NODISCARD constexpr auto operator[](size_t idx) noexcept {
 				return setter(m_data, idx);
 			}
 
 			template <size_t Ids>
-			GAIA_NODISCARD constexpr auto get() const {
+			GAIA_NODISCARD constexpr auto get() const noexcept {
 				using value_type = typename data_view_policy_idx_info<Ids>::const_value_type;
 				const std::span<const ValueType> data((const ValueType*)m_data.data(), m_data.size());
 				return std::span<value_type>(
@@ -2866,16 +2868,16 @@ namespace gaia {
 			}
 
 			template <size_t Ids>
-			GAIA_NODISCARD constexpr auto set() {
+			GAIA_NODISCARD constexpr auto set() noexcept {
 				return std::span<typename data_view_policy_idx_info<Ids>::value_type>(
 						view_policy::template set<Ids>(m_data).data(), view_policy::template set<Ids>(m_data).size());
 			}
 
-			GAIA_NODISCARD auto data() const {
+			GAIA_NODISCARD auto data() const noexcept {
 				return m_data.data();
 			}
 
-			GAIA_NODISCARD auto size() const {
+			GAIA_NODISCARD auto size() const noexcept {
 				return m_data.size();
 			}
 		};
