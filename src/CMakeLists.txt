@@ -41,11 +41,7 @@ if(MSVC)
     enable_cxx_compiler_flag_if_supported("-msse4.1")
     enable_cxx_compiler_flag_if_supported("-mfma")
   else()
-    string(TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" lower_processor)
-
-    if("${lower_processor}" MATCHES "arm" OR "${lower_processor}" MATCHES "aarch")
-    # enable_cxx_compiler_flag_if_supported("/arch:armv8.8")
-    else()
+    if(NOT IsARM)
       enable_cxx_compiler_flag_if_supported("/arch:AVX2")
     endif()
   endif()
@@ -75,9 +71,7 @@ else()
   # instruction sets
   enable_cxx_compiler_flag_if_supported("-ftree-vectorize")
 
-  string(TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" lower_processor)
-
-  if("${lower_processor}" MATCHES "arm" OR "${lower_processor}" MATCHES "aarch")
+  if(NOT IsARM)
     enable_cxx_compiler_flag_if_supported("-msse4.1")
     enable_cxx_compiler_flag_if_supported("-mfma")
   endif()

@@ -30,6 +30,16 @@ message(STATUS "*************************************************************")
 
 include("${CMAKE_CURRENT_LIST_DIR}/cmake/sanitizers.cmake")
 
+# CPU
+string(TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" lower_processor)
+
+if("${lower_processor}" MATCHES "arm" OR "${lower_processor}" MATCHES "aarch")
+    set(IsARM true)
+else()
+    set(IsARM false)
+endif()
+
+# Compiler
 set(IsClangCompiler FALSE)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
