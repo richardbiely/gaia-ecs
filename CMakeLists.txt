@@ -33,10 +33,10 @@ include("${CMAKE_CURRENT_LIST_DIR}/cmake/sanitizers.cmake")
 # CPU
 string(TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" lower_processor)
 
+set(IsARM false)
+
 if("${lower_processor}" MATCHES "arm" OR "${lower_processor}" MATCHES "aarch")
     set(IsARM true)
-else()
-    set(IsARM false)
 endif()
 
 # Compiler
@@ -74,21 +74,25 @@ else()
 endif()
 
 if(NOT WIN32 AND GAIA_USE_LIBCPP)
-    include(CheckCXXSourceCompiles)
-    include(CMakePushCheckState)
+    # Check for libc++ library presence
+    find_library(LIBCXX_LIBRARY c++)
 
-    cmake_push_check_state()
+    if(LIBCXX_LIBRARY)
+        include(CheckCXXSourceCompiles)
+        include(CMakePushCheckState)
 
-    set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -stdlib=libc++")
+        cmake_push_check_state()
+        set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -stdlib=libc++")
 
-    check_cxx_source_compiles("
-#include<type_traits>
-int main() { return std::is_same_v<int, char>; }
-" GAIA_HAS_LIBCPP)
+        check_cxx_source_compiles("
+    #include <type_traits>
+    int main() { return std::is_same_v<int, char>; }
+" GAIA_USE_LIBCPP)
 
-    cmake_pop_check_state()
+        cmake_pop_check_state()
+    endif()
 
-    if(NOT GAIA_HAS_LIBCPP)
+    if(NOT GAIA_USE_LIBCPP)
         message(WARNING "GAIA_USE_LIBCPP is ON but libc++ is not available. The flag will be ignored.")
     endif()
 endif()
