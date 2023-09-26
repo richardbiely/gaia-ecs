@@ -10115,7 +10115,7 @@ namespace gaia {
 			using LookupHash = utils::direct_hash_key<uint64_t>;
 			using ArchetypeList = containers::darray<Archetype*>;
 			using ComponentIdArray = containers::sarray_ext<component::ComponentId, MAX_COMPONENTS_PER_ARCHETYPE>;
-			// uint16_t can fit at most 65535 items therefore MemoryBlockSize can't be set to a value biggen than that
+			using ChunkVersionOffset = uint8_t;
 			using ChunkComponentOffset = uint16_t;
 			using ComponentOffsetArray = containers::sarray_ext<ChunkComponentOffset, MAX_COMPONENTS_PER_ARCHETYPE>;
 
@@ -11006,8 +11006,8 @@ namespace gaia {
 	namespace ecs {
 		namespace archetype {
 			struct ChunkHeaderOffsets {
-				//! Byte at which the first component id is located
-				ChunkComponentOffset firstByte_Versions[component::ComponentType::CT_Count]{};
+				//! Byte at which the first version number is located
+				ChunkVersionOffset firstByte_Versions[component::ComponentType::CT_Count]{};
 				//! Byte at which the first component id is located
 				ChunkComponentOffset firstByte_ComponentIds[component::ComponentType::CT_Count]{};
 				//! Byte at which the first component offset is located
@@ -11019,45 +11019,48 @@ namespace gaia {
 			struct ChunkHeader final {
 			public:
 				static constexpr uint16_t CHUNK_LIFESPAN_BITS = 4;
+				static constexpr uint16_t MAX_CHUNK_ENTITES_BITS = 9;
 				//! Number of ticks before empty chunks are removed
 				static constexpr uint16_t MAX_CHUNK_LIFESPAN = (1 << CHUNK_LIFESPAN_BITS) - 1;
-				using DisabledEntityMask = containers::bitset<512>;
+				//! Maxiumum number of entities per chunk
+				static constexpr uint16_t MAX_CHUNK_ENTITES = (1 << MAX_CHUNK_ENTITES_BITS) - 1;
+				using DisabledEntityMask = containers::bitset<MAX_CHUNK_ENTITES>;
 
 				//! Archetype the chunk belongs to
 				ArchetypeId archetypeId{};
 				//! Number of items enabled in the chunk.
-				uint16_t count{};
+				uint32_t count: MAX_CHUNK_ENTITES_BITS;
 				//! Capacity (copied from the owner archetype).
-				uint16_t capacity{};
+				uint32_t capacity: MAX_CHUNK_ENTITES_BITS;
 				//! Chunk index in its archetype list
-				uint16_t index{};
+				uint32_t index: MAX_CHUNK_ENTITES_BITS;
 				//! Once removal is requested and it hits 0 the chunk is removed.
-				uint16_t lifespanCountdown: CHUNK_LIFESPAN_BITS;
+				uint32_t lifespanCountdown: CHUNK_LIFESPAN_BITS;
 				//! If true this chunk stores disabled entities
-				uint16_t hasDisabledEntities : 1;
-				//! Updated when chunks are being iterated. Used to inform of structural changes when they shouldn't happen.
-				uint16_t structuralChangesLocked : 4;
-				//! True if there's a component that requires custom construction
-				uint16_t hasAnyCustomGenericCtor : 1;
-				//! True if there's a component that requires custom construction
-				uint16_t hasAnyCustomChunkCtor : 1;
-				//! True if there's a component that requires custom destruction
-				uint16_t hasAnyCustomGenericDtor : 1;
-				//! True if there's a component that requires custom destruction
-				uint16_t hasAnyCustomChunkDtor : 1;
-				//! Version of the world (stable pointer to parent world's world version)
-				uint32_t& worldVersion;
-				//! Number of components on the archetype
-				uint8_t componentCount[component::ComponentType::CT_Count]{};
+				uint32_t hasDisabledEntities : 1;
 				//! Offsets to various parts of data inside chunk
 				ChunkHeaderOffsets offsets;
+				//! Number of components on the archetype
+				uint8_t componentCount[component::ComponentType::CT_Count]{};
+				//! Updated when chunks are being iterated. Used to inform of structural changes when they shouldn't happen.
+				uint8_t structuralChangesLocked : 4;
+				//! True if there's a component that requires custom construction
+				uint8_t hasAnyCustomGenericCtor : 1;
+				//! True if there's a component that requires custom construction
+				uint8_t hasAnyCustomChunkCtor : 1;
+				//! True if there's a component that requires custom destruction
+				uint8_t hasAnyCustomGenericDtor : 1;
+				//! True if there's a component that requires custom destruction
+				uint8_t hasAnyCustomChunkDtor : 1;
+				//! Version of the world (stable pointer to parent world's world version)
+				uint32_t& worldVersion;
 				//! Mask of disabled entities
 				DisabledEntityMask disabledEntityMask;
 
 				ChunkHeader(const ChunkHeaderOffsets& offs, uint32_t& version):
 						lifespanCountdown(0), hasDisabledEntities(0), structuralChangesLocked(0), hasAnyCustomGenericCtor(0),
-						hasAnyCustomChunkCtor(0), hasAnyCustomGenericDtor(0), hasAnyCustomChunkDtor(0),
-						worldVersion(version), offsets(offs) {
+						hasAnyCustomChunkCtor(0), hasAnyCustomGenericDtor(0), hasAnyCustomChunkDtor(0), worldVersion(version),
+						offsets(offs) {
 					// Make sure the alignment is right
 					GAIA_ASSERT(uintptr_t(this) % (sizeof(size_t)) == 0);
 				}
@@ -12319,18 +12322,27 @@ namespace gaia {
 				using ChunkComponentHash = utils::direct_hash_key<uint64_t>;
 
 			private:
+				//! Archetype ID - used to address the archetype directly in the world's list or archetypes
+				ArchetypeId m_archetypeId = ArchetypeIdBad;
+				struct {
+					//! The number of entities this archetype can take (e.g 5 = 5 entities with all their components)
+					uint32_t capacity : 16;
+				} m_properties{};
+				//! Stable reference to parent world's world version
+				uint32_t& m_worldVersion;
+
 				//! List of chunks allocated by this archetype
 				containers::darray<Chunk*> m_chunks;
-				//! Mask of chunk with disabled entities
-				containers::dbitset m_disabledMask;
+				//! Mask of chunks with disabled entities
+				// containers::dbitset m_disabledMask;
 				//! Graph of archetypes linked with this one
 				ArchetypeGraph m_graph;
 
 				//! Offsets to various parts of data inside chunk
 				ChunkHeaderOffsets m_dataOffsets;
-				//! Description of components within this archetype
+				//! List of component indices
 				containers::sarray<ComponentIdArray, component::ComponentType::CT_Count> m_componentIds;
-				//! Lookup hashes of components within this archetype
+				//! List of components offset indices
 				containers::sarray<ComponentOffsetArray, component::ComponentType::CT_Count> m_componentOffsets;
 
 				//! Hash of generic components
@@ -12342,15 +12354,6 @@ namespace gaia {
 				//! Hash of components within this archetype - used for matching
 				component::ComponentMatcherHash m_matcherHash[component::ComponentType::CT_Count]{};
 
-				//! Archetype ID - used to address the archetype directly in the world's list or archetypes
-				ArchetypeId m_archetypeId = ArchetypeIdBad;
-				//! Stable reference to parent world's world version
-				uint32_t& m_worldVersion;
-				struct {
-					//! The number of entities this archetype can take (e.g 5 = 5 entities with all their components)
-					uint32_t capacity : 16;
-				} m_properties{};
-
 				// Constructor is hidden. Create archetypes via Create
 				Archetype(uint32_t& worldVersion): m_worldVersion(worldVersion) {}
 
@@ -12358,16 +12361,20 @@ namespace gaia {
 					size_t offset = 0;
 
 					// Versions
+					// We expect versions to fit to the first 256 bytes.
+					// With 64 components per archetype (32 generic + 32 chunk) this gives us some headroom.
 					{
 						const size_t padding = utils::align(memoryAddress, alignof(uint32_t)) - memoryAddress;
 						offset += padding;
 
 						if (!m_componentIds[component::ComponentType::CT_Generic].empty()) {
-							m_dataOffsets.firstByte_Versions[component::ComponentType::CT_Generic] = (ChunkComponentOffset)offset;
+							GAIA_ASSERT(offset < 256);
+							m_dataOffsets.firstByte_Versions[component::ComponentType::CT_Generic] = (uint8_t)offset;
 							offset += sizeof(uint32_t) * m_componentIds[component::ComponentType::CT_Generic].size();
 						}
 						if (!m_componentIds[component::ComponentType::CT_Chunk].empty()) {
-							m_dataOffsets.firstByte_Versions[component::ComponentType::CT_Chunk] = (ChunkComponentOffset)offset;
+							GAIA_ASSERT(offset < 256);
+							m_dataOffsets.firstByte_Versions[component::ComponentType::CT_Chunk] = (uint8_t)offset;
 							offset += sizeof(uint32_t) * m_componentIds[component::ComponentType::CT_Chunk].size();
 						}
 					}
@@ -12718,7 +12725,7 @@ namespace gaia {
 				*/
 				void EnableEntity(Chunk* pChunk, uint32_t entityIdx, bool enableEntity) {
 					pChunk->EnableEntity(entityIdx, enableEntity);
-					m_disabledMask.set(pChunk->GetChunkIndex(), pChunk->HasDisabledEntities());
+					// m_disabledMask.set(pChunk->GetChunkIndex(), pChunk->HasDisabledEntities());
 				}
 
 				/*!

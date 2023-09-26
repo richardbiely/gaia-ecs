@@ -29,18 +29,27 @@ namespace gaia {
 				using ChunkComponentHash = utils::direct_hash_key<uint64_t>;
 
 			private:
+				//! Archetype ID - used to address the archetype directly in the world's list or archetypes
+				ArchetypeId m_archetypeId = ArchetypeIdBad;
+				struct {
+					//! The number of entities this archetype can take (e.g 5 = 5 entities with all their components)
+					uint32_t capacity : 16;
+				} m_properties{};
+				//! Stable reference to parent world's world version
+				uint32_t& m_worldVersion;
+
 				//! List of chunks allocated by this archetype
 				containers::darray<Chunk*> m_chunks;
-				//! Mask of chunk with disabled entities
-				containers::dbitset m_disabledMask;
+				//! Mask of chunks with disabled entities
+				// containers::dbitset m_disabledMask;
 				//! Graph of archetypes linked with this one
 				ArchetypeGraph m_graph;
 
 				//! Offsets to various parts of data inside chunk
 				ChunkHeaderOffsets m_dataOffsets;
-				//! Description of components within this archetype
+				//! List of component indices
 				containers::sarray<ComponentIdArray, component::ComponentType::CT_Count> m_componentIds;
-				//! Lookup hashes of components within this archetype
+				//! List of components offset indices
 				containers::sarray<ComponentOffsetArray, component::ComponentType::CT_Count> m_componentOffsets;
 
 				//! Hash of generic components
@@ -52,15 +61,6 @@ namespace gaia {
 				//! Hash of components within this archetype - used for matching
 				component::ComponentMatcherHash m_matcherHash[component::ComponentType::CT_Count]{};
 
-				//! Archetype ID - used to address the archetype directly in the world's list or archetypes
-				ArchetypeId m_archetypeId = ArchetypeIdBad;
-				//! Stable reference to parent world's world version
-				uint32_t& m_worldVersion;
-				struct {
-					//! The number of entities this archetype can take (e.g 5 = 5 entities with all their components)
-					uint32_t capacity : 16;
-				} m_properties{};
-
 				// Constructor is hidden. Create archetypes via Create
 				Archetype(uint32_t& worldVersion): m_worldVersion(worldVersion) {}
 
@@ -68,16 +68,20 @@ namespace gaia {
 					size_t offset = 0;
 
 					// Versions
+					// We expect versions to fit to the first 256 bytes.
+					// With 64 components per archetype (32 generic + 32 chunk) this gives us some headroom.
 					{
 						const size_t padding = utils::align(memoryAddress, alignof(uint32_t)) - memoryAddress;
 						offset += padding;
 
 						if (!m_componentIds[component::ComponentType::CT_Generic].empty()) {
-							m_dataOffsets.firstByte_Versions[component::ComponentType::CT_Generic] = (ChunkComponentOffset)offset;
+							GAIA_ASSERT(offset < 256);
+							m_dataOffsets.firstByte_Versions[component::ComponentType::CT_Generic] = (uint8_t)offset;
 							offset += sizeof(uint32_t) * m_componentIds[component::ComponentType::CT_Generic].size();
 						}
 						if (!m_componentIds[component::ComponentType::CT_Chunk].empty()) {
-							m_dataOffsets.firstByte_Versions[component::ComponentType::CT_Chunk] = (ChunkComponentOffset)offset;
+							GAIA_ASSERT(offset < 256);
+							m_dataOffsets.firstByte_Versions[component::ComponentType::CT_Chunk] = (uint8_t)offset;
 							offset += sizeof(uint32_t) * m_componentIds[component::ComponentType::CT_Chunk].size();
 						}
 					}
@@ -428,7 +432,7 @@ namespace gaia {
 				*/
 				void EnableEntity(Chunk* pChunk, uint32_t entityIdx, bool enableEntity) {
 					pChunk->EnableEntity(entityIdx, enableEntity);
-					m_disabledMask.set(pChunk->GetChunkIndex(), pChunk->HasDisabledEntities());
+					// m_disabledMask.set(pChunk->GetChunkIndex(), pChunk->HasDisabledEntities());
 				}
 
 				/*!
