@@ -19,7 +19,7 @@ namespace gaia {
 			using LookupHash = utils::direct_hash_key<uint64_t>;
 			using ArchetypeList = containers::darray<Archetype*>;
 			using ComponentIdArray = containers::sarray_ext<component::ComponentId, MAX_COMPONENTS_PER_ARCHETYPE>;
-			// uint16_t can fit at most 65535 items therefore MemoryBlockSize can't be set to a value biggen than that
+			using ChunkVersionOffset = uint8_t;
 			using ChunkComponentOffset = uint16_t;
 			using ComponentOffsetArray = containers::sarray_ext<ChunkComponentOffset, MAX_COMPONENTS_PER_ARCHETYPE>;
 
