@@ -46,11 +46,7 @@ namespace gaia {
 				Chunk(
 						uint32_t archetypeId, uint16_t chunkIndex, uint16_t capacity, uint32_t& worldVersion,
 						const ChunkHeaderOffsets& headerOffsets):
-						m_header(headerOffsets, worldVersion) {
-					m_header.archetypeId = archetypeId;
-					m_header.index = chunkIndex;
-					m_header.capacity = capacity;
-				}
+						m_header(archetypeId, chunkIndex, capacity, headerOffsets, worldVersion) {}
 
 				GAIA_MSVC_WARNING_POP()
 

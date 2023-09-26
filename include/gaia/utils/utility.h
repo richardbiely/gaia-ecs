@@ -31,6 +31,20 @@ namespace gaia {
 		}
 
 		//----------------------------------------------------------------------
+		// Memory size helpers
+		//----------------------------------------------------------------------
+
+		template <typename T>
+		constexpr uint32_t count_bits(T number) {
+			uint32_t bits_needed = 0;
+			while (number > 0) {
+				number >>= 1;
+				bits_needed++;
+			}
+			return bits_needed;
+		}
+
+		//----------------------------------------------------------------------
 		// Element swapping
 		//----------------------------------------------------------------------
 
@@ -149,7 +163,7 @@ namespace gaia {
 #define DEFINE_HAS_FUNCTION(function_name)                                                                             \
 	template <typename T, typename... Args>                                                                              \
 	constexpr auto has_##function_name##_check(int)                                                                      \
-			->decltype(std::declval<T>().function_name(std::declval<Args>()...), std::true_type{});                          \
+			-> decltype(std::declval<T>().function_name(std::declval<Args>()...), std::true_type{});                         \
                                                                                                                        \
 	template <typename T, typename... Args>                                                                              \
 	constexpr std::false_type has_##function_name##_check(...);                                                          \

@@ -3185,6 +3185,20 @@ namespace gaia {
 		}
 
 		//----------------------------------------------------------------------
+		// Memory size helpers
+		//----------------------------------------------------------------------
+
+		template <typename T>
+		constexpr uint32_t count_bits(T number) {
+			uint32_t bits_needed = 0;
+			while (number > 0) {
+				number >>= 1;
+				bits_needed++;
+			}
+			return bits_needed;
+		}
+
+		//----------------------------------------------------------------------
 		// Element swapping
 		//----------------------------------------------------------------------
 
@@ -3303,7 +3317,7 @@ namespace gaia {
 #define DEFINE_HAS_FUNCTION(function_name)                                                                             \
 	template <typename T, typename... Args>                                                                              \
 	constexpr auto has_##function_name##_check(int)                                                                      \
-			->decltype(std::declval<T>().function_name(std::declval<Args>()...), std::true_type{});                          \
+			-> decltype(std::declval<T>().function_name(std::declval<Args>()...), std::true_type{});                         \
                                                                                                                        \
 	template <typename T, typename... Args>                                                                              \
 	constexpr std::false_type has_##function_name##_check(...);                                                          \
@@ -11019,48 +11033,53 @@ namespace gaia {
 			struct ChunkHeader final {
 			public:
 				static constexpr uint16_t CHUNK_LIFESPAN_BITS = 4;
-				static constexpr uint16_t MAX_CHUNK_ENTITES_BITS = 9;
 				//! Number of ticks before empty chunks are removed
 				static constexpr uint16_t MAX_CHUNK_LIFESPAN = (1 << CHUNK_LIFESPAN_BITS) - 1;
+
 				//! Maxiumum number of entities per chunk
-				static constexpr uint16_t MAX_CHUNK_ENTITES = (1 << MAX_CHUNK_ENTITES_BITS) - 1;
+				static constexpr uint16_t MAX_CHUNK_ENTITES = 512;
+				static constexpr uint16_t MAX_CHUNK_ENTITES_BITS = (uint16_t)utils::count_bits(MAX_CHUNK_ENTITES);
 				using DisabledEntityMask = containers::bitset<MAX_CHUNK_ENTITES>;
 
 				//! Archetype the chunk belongs to
-				ArchetypeId archetypeId{};
+				ArchetypeId archetypeId;
+
 				//! Number of items enabled in the chunk.
 				uint32_t count: MAX_CHUNK_ENTITES_BITS;
 				//! Capacity (copied from the owner archetype).
 				uint32_t capacity: MAX_CHUNK_ENTITES_BITS;
-				//! Chunk index in its archetype list
-				uint32_t index: MAX_CHUNK_ENTITES_BITS;
 				//! Once removal is requested and it hits 0 the chunk is removed.
 				uint32_t lifespanCountdown: CHUNK_LIFESPAN_BITS;
 				//! If true this chunk stores disabled entities
 				uint32_t hasDisabledEntities : 1;
+				//! Updated when chunks are being iterated. Used to inform of structural changes when they shouldn't happen.
+				uint32_t structuralChangesLocked : 3;
+				//! True if there's a component that requires custom construction
+				uint32_t hasAnyCustomGenericCtor : 1;
+				//! True if there's a component that requires custom construction
+				uint32_t hasAnyCustomChunkCtor : 1;
+				//! True if there's a component that requires custom destruction
+				uint32_t hasAnyCustomGenericDtor : 1;
+				//! True if there's a component that requires custom destruction
+				uint32_t hasAnyCustomChunkDtor : 1;
+
 				//! Offsets to various parts of data inside chunk
 				ChunkHeaderOffsets offsets;
+				//! Chunk index in its archetype list
+				uint16_t index;
+
 				//! Number of components on the archetype
 				uint8_t componentCount[component::ComponentType::CT_Count]{};
-				//! Updated when chunks are being iterated. Used to inform of structural changes when they shouldn't happen.
-				uint8_t structuralChangesLocked : 4;
-				//! True if there's a component that requires custom construction
-				uint8_t hasAnyCustomGenericCtor : 1;
-				//! True if there's a component that requires custom construction
-				uint8_t hasAnyCustomChunkCtor : 1;
-				//! True if there's a component that requires custom destruction
-				uint8_t hasAnyCustomGenericDtor : 1;
-				//! True if there's a component that requires custom destruction
-				uint8_t hasAnyCustomChunkDtor : 1;
 				//! Version of the world (stable pointer to parent world's world version)
 				uint32_t& worldVersion;
 				//! Mask of disabled entities
 				DisabledEntityMask disabledEntityMask;
 
-				ChunkHeader(const ChunkHeaderOffsets& offs, uint32_t& version):
-						lifespanCountdown(0), hasDisabledEntities(0), structuralChangesLocked(0), hasAnyCustomGenericCtor(0),
-						hasAnyCustomChunkCtor(0), hasAnyCustomGenericDtor(0), hasAnyCustomChunkDtor(0), worldVersion(version),
-						offsets(offs) {
+				ChunkHeader(uint32_t aid, uint16_t chunkIndex, uint16_t cap, const ChunkHeaderOffsets& offs, uint32_t& version):
+						archetypeId(aid), count(0), capacity(cap), lifespanCountdown(0), hasDisabledEntities(0),
+						structuralChangesLocked(0), hasAnyCustomGenericCtor(0), hasAnyCustomChunkCtor(0),
+						hasAnyCustomGenericDtor(0), hasAnyCustomChunkDtor(0), offsets(offs), index(chunkIndex),
+						worldVersion(version) {
 					// Make sure the alignment is right
 					GAIA_ASSERT(uintptr_t(this) % (sizeof(size_t)) == 0);
 				}
@@ -11260,11 +11279,7 @@ namespace gaia {
 				Chunk(
 						uint32_t archetypeId, uint16_t chunkIndex, uint16_t capacity, uint32_t& worldVersion,
 						const ChunkHeaderOffsets& headerOffsets):
-						m_header(headerOffsets, worldVersion) {
-					m_header.archetypeId = archetypeId;
-					m_header.index = chunkIndex;
-					m_header.capacity = capacity;
-				}
+						m_header(archetypeId, chunkIndex, capacity, headerOffsets, worldVersion) {}
 
 				GAIA_MSVC_WARNING_POP()
 
@@ -12326,7 +12341,7 @@ namespace gaia {
 				ArchetypeId m_archetypeId = ArchetypeIdBad;
 				struct {
 					//! The number of entities this archetype can take (e.g 5 = 5 entities with all their components)
-					uint32_t capacity : 16;
+					uint32_t capacity: ChunkHeader::MAX_CHUNK_ENTITES_BITS;
 				} m_properties{};
 				//! Stable reference to parent world's world version
 				uint32_t& m_worldVersion;
@@ -12584,122 +12599,134 @@ namespace gaia {
 						component::ComponentIdSpan componentIdsChunk) {
 					auto* newArch = new Archetype(worldVersion);
 					newArch->m_archetypeId = archetypeId;
-					newArch->m_componentIds[component::ComponentType::CT_Generic].resize(componentIdsGeneric.size());
-					newArch->m_componentIds[component::ComponentType::CT_Chunk].resize(componentIdsChunk.size());
-					newArch->m_componentOffsets[component::ComponentType::CT_Generic].resize(componentIdsGeneric.size());
-					newArch->m_componentOffsets[component::ComponentType::CT_Chunk].resize(componentIdsChunk.size());
-					newArch->UpdateDataOffsets(sizeof(ChunkHeader));
 
-					const auto& cc = ComponentCache::Get();
-					const auto& dataOffset = newArch->m_dataOffsets;
+					// Root archetype does not have components
+					if GAIA_UNLIKELY (componentIdsGeneric.empty() && componentIdsChunk.empty()) {
+						// TODO: Consider handling root archetypes differently.
+						//       Their chunks should be be able to handle more than MAX_CHUNK_ENTITES because they only
+						//       store entities and no components. This would make better use of caches, memory, and
+						//       improve performance when bulk-allocating entities.
+						newArch->m_dataOffsets.firstByte_EntityData = 0;
+						newArch->m_properties.capacity = ChunkHeader::MAX_CHUNK_ENTITES;
+					} else {
+						newArch->m_componentIds[component::ComponentType::CT_Generic].resize(componentIdsGeneric.size());
+						newArch->m_componentIds[component::ComponentType::CT_Chunk].resize(componentIdsChunk.size());
+						newArch->m_componentOffsets[component::ComponentType::CT_Generic].resize(componentIdsGeneric.size());
+						newArch->m_componentOffsets[component::ComponentType::CT_Chunk].resize(componentIdsChunk.size());
+						newArch->UpdateDataOffsets(sizeof(ChunkHeader));
 
-					// Calculate the number of entities per chunks precisely so we can
-					// fit as many of them into chunk as possible.
+						const auto& cc = ComponentCache::Get();
+						const auto& dataOffset = newArch->m_dataOffsets;
 
-					// Total size of generic components
-					size_t genericComponentListSize = 0;
-					for (const auto componentId: componentIdsGeneric) {
-						const auto& desc = cc.GetComponentDesc(componentId);
-						genericComponentListSize += desc.properties.size;
-					}
+						// Calculate the number of entities per chunks precisely so we can
+						// fit as many of them into chunk as possible.
 
-					// Total size of chunk components
-					size_t chunkComponentListSize = 0;
-					for (const auto componentId: componentIdsChunk) {
-						const auto& desc = cc.GetComponentDesc(componentId);
-						chunkComponentListSize += desc.properties.size;
-					}
-
-					// Theoretical maximum number of components we can fit into one chunk.
-					// This can be further reduced due alignment and padding.
-					auto maxGenericItemsInArchetype =
-							(Chunk::DATA_SIZE - dataOffset.firstByte_EntityData - chunkComponentListSize - 1) /
-							(genericComponentListSize + sizeof(Entity));
-
-				recalculate:
-					auto componentOffsets = dataOffset.firstByte_EntityData + sizeof(Entity) * maxGenericItemsInArchetype;
-
-					auto adjustMaxGenericItemsInAchetype = [&](component::ComponentIdSpan componentIds, size_t size) {
-						for (const auto componentId: componentIds) {
+						// Total size of generic components
+						size_t genericComponentListSize = 0;
+						for (const auto componentId: componentIdsGeneric) {
 							const auto& desc = cc.GetComponentDesc(componentId);
-							const auto alignment = desc.properties.alig;
-							if (alignment == 0)
-								continue;
-
-							const auto padding = utils::align(componentOffsets, alignment) - componentOffsets;
-
-							// For SoA types we shall assume there is a padding of the entire size of the array.
-							// Of course this is a bit wasteful but it's a bit of work to calculate how much area exactly we need.
-							// We might have:
-							// 	struct foo { float x; float y; bool a; float z; };
-							// Each of the variables of the foo struct might need separate padding when converted to SoA.
-							// TODO: Introduce a function that can calculate this.
-							const auto componentDataSize =
-									padding + ((uint32_t)desc.properties.soa * desc.properties.size) + desc.properties.size * size;
-							const auto nextOffset = componentOffsets + componentDataSize;
-
-							// If we're beyond what the chunk could take, subtract one entity
-							if (nextOffset >= Chunk::DATA_SIZE) {
-								--maxGenericItemsInArchetype;
-								return false;
-							}
-
-							componentOffsets += componentDataSize;
+							genericComponentListSize += desc.properties.size;
 						}
 
-						return true;
-					};
-
-					// Adjust the maximum number of entities. Recalculation happens at most once when the original guess
-					// for entity count is not right (most likely because of padding or usage of SoA components).
-					if (!adjustMaxGenericItemsInAchetype(componentIdsGeneric, maxGenericItemsInArchetype))
-						goto recalculate;
-					if (!adjustMaxGenericItemsInAchetype(componentIdsChunk, 1))
-						goto recalculate;
-
-					// TODO: Make it possible for chunks to be not restricted by ChunkHeader::DisabledEntityMask::BitCount
-					if (maxGenericItemsInArchetype > ChunkHeader::DisabledEntityMask::BitCount)
-						maxGenericItemsInArchetype = ChunkHeader::DisabledEntityMask::BitCount;
-
-					// Update the offsets according to the recalculated maxGenericItemsInArchetype
-					componentOffsets = dataOffset.firstByte_EntityData + sizeof(Entity) * maxGenericItemsInArchetype;
-
-					auto registerComponents = [&](component::ComponentIdSpan componentIds, component::ComponentType componentType,
-																				const size_t count) {
-						auto& ids = newArch->m_componentIds[componentType];
-						auto& ofs = newArch->m_componentOffsets[componentType];
-
-						for (size_t i = 0; i < componentIds.size(); ++i) {
-							const auto componentId = componentIds[i];
+						// Total size of chunk components
+						size_t chunkComponentListSize = 0;
+						for (const auto componentId: componentIdsChunk) {
 							const auto& desc = cc.GetComponentDesc(componentId);
-							const auto alignment = desc.properties.alig;
-							if (alignment == 0) {
-								GAIA_ASSERT(desc.properties.size == 0);
-
-								// Register the component info
-								ids[i] = componentId;
-								ofs[i] = {};
-							} else {
-								const size_t padding = utils::align(componentOffsets, alignment) - componentOffsets;
-								componentOffsets += padding;
-
-								// Register the component info
-								ids[i] = componentId;
-								ofs[i] = (ChunkComponentOffset)componentOffsets;
-
-								// Make sure the following component list is properly aligned
-								componentOffsets += desc.properties.size * count;
-							}
+							chunkComponentListSize += desc.properties.size;
 						}
-					};
-					registerComponents(componentIdsGeneric, component::ComponentType::CT_Generic, maxGenericItemsInArchetype);
-					registerComponents(componentIdsChunk, component::ComponentType::CT_Chunk, 1);
 
-					newArch->m_properties.capacity = (uint32_t)maxGenericItemsInArchetype;
-					newArch->m_matcherHash[component::ComponentType::CT_Generic] =
-							component::CalculateMatcherHash(componentIdsGeneric);
-					newArch->m_matcherHash[component::ComponentType::CT_Chunk] =
-							component::CalculateMatcherHash(componentIdsChunk);
+						// Theoretical maximum number of components we can fit into one chunk.
+						// This can be further reduced due alignment and padding.
+						auto maxGenericItemsInArchetype =
+								(Chunk::DATA_SIZE - dataOffset.firstByte_EntityData - chunkComponentListSize - 1) /
+								(genericComponentListSize + sizeof(Entity));
+
+					recalculate:
+						auto componentOffsets = dataOffset.firstByte_EntityData + sizeof(Entity) * maxGenericItemsInArchetype;
+
+						auto adjustMaxGenericItemsInAchetype = [&](component::ComponentIdSpan componentIds, size_t size) {
+							for (const auto componentId: componentIds) {
+								const auto& desc = cc.GetComponentDesc(componentId);
+								const auto alignment = desc.properties.alig;
+								if (alignment == 0)
+									continue;
+
+								const auto padding = utils::align(componentOffsets, alignment) - componentOffsets;
+
+								// For SoA types we shall assume there is a padding of the entire size of the array.
+								// Of course this is a bit wasteful but it's a bit of work to calculate how much area exactly we need.
+								// We might have:
+								// 	struct foo { float x; float y; bool a; float z; };
+								// Each of the variables of the foo struct might need separate padding when converted to SoA.
+								// TODO: Introduce a function that can calculate this.
+								const auto componentDataSize =
+										padding + ((uint32_t)desc.properties.soa * desc.properties.size) + desc.properties.size * size;
+								const auto nextOffset = componentOffsets + componentDataSize;
+
+								// If we're beyond what the chunk could take, subtract one entity
+								if (nextOffset >= Chunk::DATA_SIZE) {
+									--maxGenericItemsInArchetype;
+									return false;
+								}
+
+								componentOffsets += componentDataSize;
+							}
+
+							return true;
+						};
+
+						// Adjust the maximum number of entities. Recalculation happens at most once when the original guess
+						// for entity count is not right (most likely because of padding or usage of SoA components).
+						if (!adjustMaxGenericItemsInAchetype(componentIdsGeneric, maxGenericItemsInArchetype))
+							goto recalculate;
+						if (!adjustMaxGenericItemsInAchetype(componentIdsChunk, 1))
+							goto recalculate;
+
+						// TODO: Make it possible for chunks to be not restricted by ChunkHeader::DisabledEntityMask::BitCount.
+						// TODO: Consider having chunks of different sizes as this would minimize the memory footprint.
+						if (maxGenericItemsInArchetype > ChunkHeader::MAX_CHUNK_ENTITES)
+							maxGenericItemsInArchetype = ChunkHeader::MAX_CHUNK_ENTITES;
+
+						// Update the offsets according to the recalculated maxGenericItemsInArchetype
+						componentOffsets = dataOffset.firstByte_EntityData + sizeof(Entity) * maxGenericItemsInArchetype;
+
+						auto registerComponents = [&](component::ComponentIdSpan componentIds,
+																					component::ComponentType componentType, const size_t count) {
+							auto& ids = newArch->m_componentIds[componentType];
+							auto& ofs = newArch->m_componentOffsets[componentType];
+
+							for (size_t i = 0; i < componentIds.size(); ++i) {
+								const auto componentId = componentIds[i];
+								const auto& desc = cc.GetComponentDesc(componentId);
+								const auto alignment = desc.properties.alig;
+								if (alignment == 0) {
+									GAIA_ASSERT(desc.properties.size == 0);
+
+									// Register the component info
+									ids[i] = componentId;
+									ofs[i] = {};
+								} else {
+									const size_t padding = utils::align(componentOffsets, alignment) - componentOffsets;
+									componentOffsets += padding;
+
+									// Register the component info
+									ids[i] = componentId;
+									ofs[i] = (ChunkComponentOffset)componentOffsets;
+
+									// Make sure the following component list is properly aligned
+									componentOffsets += desc.properties.size * count;
+								}
+							}
+						};
+						registerComponents(componentIdsGeneric, component::ComponentType::CT_Generic, maxGenericItemsInArchetype);
+						registerComponents(componentIdsChunk, component::ComponentType::CT_Chunk, 1);
+
+						newArch->m_properties.capacity = (uint32_t)maxGenericItemsInArchetype;
+						newArch->m_matcherHash[component::ComponentType::CT_Generic] =
+								component::CalculateMatcherHash(componentIdsGeneric);
+						newArch->m_matcherHash[component::ComponentType::CT_Chunk] =
+								component::CalculateMatcherHash(componentIdsChunk);
+					}
 
 					return newArch;
 				}
