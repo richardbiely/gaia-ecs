@@ -722,9 +722,6 @@ inline void DoNotOptimize(T const& value) {
 	#endif
 #endif
 
-#if !defined(GAIA_ECS_CHUNK_ALLOCATOR_CLEAN_MEMORY_WITH_GARBAGE)
-	#define GAIA_ECS_CHUNK_ALLOCATOR_CLEAN_MEMORY_WITH_GARBAGE (GAIA_DEBUG)
-#endif
 #if !defined(GAIA_ECS_VALIDATE_CHUNKS)
 	#define GAIA_ECS_VALIDATE_CHUNKS (GAIA_DEBUG)
 #endif
@@ -10672,40 +10669,85 @@ namespace gaia {
 			class ChunkAllocatorImpl {
 				friend class gaia::ecs::ChunkAllocator;
 
-				struct MemoryBlock {
-					using MemoryBlockType = uint8_t;
-
-					//! Active block : Index of the block within the page.
-					//! Passive block: Index of the next free block in the implicit list.
-					MemoryBlockType idx;
-				};
-
 				struct MemoryPage {
-					static constexpr uint16_t NBlocks = 64;
+					static constexpr uint16_t NBlocks_Bits = 6;
+					static constexpr uint16_t NBlocks = 1 << NBlocks_Bits;
+					static constexpr uint32_t BlockArrayBytes =
+							((uint32_t)NBlocks_Bits * (uint32_t)NBlocks) / (sizeof(uint8_t) * 8);
+					using BlockArray = containers::sarray<uint8_t, BlockArrayBytes>;
 					static constexpr uint32_t Size = NBlocks * MemoryBlockSize;
-					static constexpr MemoryBlock::MemoryBlockType InvalidBlockId = (MemoryBlock::MemoryBlockType)-1;
-					static constexpr uint32_t MemoryLockTypeSizeInBits =
-							(uint32_t)utils::as_bits(sizeof(MemoryBlock::MemoryBlockType));
-					static_assert((uint32_t)NBlocks < (1 << MemoryLockTypeSizeInBits));
-					using iterator = containers::darray<MemoryPage*>::iterator;
+					static constexpr uint32_t InvalidBlockId = NBlocks - 1;
 
 					//! Pointer to data managed by page
 					void* m_data;
 					//! Implicit list of blocks
-					MemoryBlock m_blocks[NBlocks]{};
+					BlockArray m_blocks{};
 					//! Index in the list of pages
 					uint32_t m_pageIdx;
 					//! Number of blocks in the block array
-					MemoryBlock::MemoryBlockType m_blockCnt;
+					uint32_t m_blockCnt: NBlocks_Bits;
 					//! Number of used blocks out of NBlocks
-					MemoryBlock::MemoryBlockType m_usedBlocks;
+					uint32_t m_usedBlocks: NBlocks_Bits;
 					//! Index of the next block to recycle
-					MemoryBlock::MemoryBlockType m_nextFreeBlock;
+					uint32_t m_nextFreeBlock: NBlocks_Bits;
 					//! Number of blocks to recycle
-					MemoryBlock::MemoryBlockType m_freeBlocks;
+					uint32_t m_freeBlocks: NBlocks_Bits;
 
 					MemoryPage(void* ptr):
-							m_data(ptr), m_pageIdx(0), m_blockCnt(0), m_usedBlocks(0), m_nextFreeBlock(0), m_freeBlocks(0) {}
+							m_data(ptr), m_pageIdx(0), m_blockCnt(0), m_usedBlocks(0), m_nextFreeBlock(0), m_freeBlocks(0) {
+						// One cacheline long
+						static_assert(sizeof(MemoryPage) == 64);
+					}
+
+					void WriteBlockIdx(uint32_t bitPosition, uint32_t value) {
+						// TODO: This could be turned into a generic bitstream container
+						GAIA_ASSERT(bitPosition < (NBlocks - 1) * NBlocks_Bits);
+						GAIA_ASSERT(value < NBlocks);
+
+						// Calculate the first byte index and bit offset within the array
+						const uint32_t byteIndex1 = bitPosition / 8;
+						const uint32_t bitOffset1 = bitPosition % 8;
+						// Calculate the second byte index and bit offset within the array
+						const uint32_t byteIndex2 = (bitPosition + NBlocks_Bits) / 8;
+						const uint32_t bitOffset2 = (bitPosition + NBlocks_Bits) % 8;
+
+						// Clear the existing bits at the first byte position
+						m_blocks[byteIndex1] &= ~(0xFF << bitOffset1);
+						// Write the lower 6 bits to the first byte
+						m_blocks[byteIndex1] |= (value & 0x3F) << bitOffset1;
+
+						// Check if value spreads over multiple bytes
+						if (byteIndex1 != byteIndex2) {
+							// Clear the existing bits at the second byte position
+							m_blocks[byteIndex2] &= ~(0xFF >> (8 - bitOffset2));
+							// Write the upper bits to the second byte
+							m_blocks[byteIndex2] |= (value >> (NBlocks_Bits - bitOffset1)) & (0xFF >> (8 - bitOffset2));
+						}
+					}
+
+					uint8_t ReadBlockIdx(uint32_t bitPosition) const {
+						// TODO: This could be turned into a generic bitstream container
+						GAIA_ASSERT(bitPosition < (NBlocks - 1) * NBlocks_Bits);
+
+						// Calculate the first byte index and bit offset within the array
+						uint32_t byteIndex1 = bitPosition / 8;
+						uint32_t bitOffset1 = bitPosition % 8;
+						// Calculate the second byte index and bit offset within the array
+						uint32_t byteIndex2 = (bitPosition + NBlocks_Bits) / 8;
+						uint32_t bitOffset2 = (bitPosition + NBlocks_Bits) % 8;
+
+						uint8_t value;
+						if (byteIndex1 == byteIndex2) {
+							// The value is entirely within one byte
+							value = (m_blocks[byteIndex1] >> bitOffset1) & 0x3F;
+						} else {
+							// The value spans two bytes
+							uint8_t lowerPart = (m_blocks[byteIndex1] >> bitOffset1);
+							uint8_t upperPart = (m_blocks[byteIndex2] & (0xFF >> (8 - bitOffset2))) << (NBlocks_Bits - bitOffset1);
+							value = lowerPart | upperPart;
+						}
+						return value;
+					}
 
 					GAIA_NODISCARD void* AllocChunk() {
 						auto StoreChunkAddress = [&](size_t index) {
@@ -10721,13 +10763,10 @@ namespace gaia {
 							GAIA_ASSERT(!IsFull() && "Trying to allocate too many blocks!");
 
 							++m_usedBlocks;
-
-							const size_t index = m_blockCnt;
-							GAIA_ASSERT(index < NBlocks);
-							m_blocks[index].idx = (MemoryBlock::MemoryBlockType)index;
+							WriteBlockIdx(m_blockCnt, m_blockCnt);
 							++m_blockCnt;
 
-							return StoreChunkAddress(index);
+							return StoreChunkAddress(m_blockCnt);
 						}
 
 						GAIA_ASSERT(m_nextFreeBlock < m_blockCnt && "Block allocator recycle containers::list broken!");
@@ -10736,7 +10775,7 @@ namespace gaia {
 						--m_freeBlocks;
 
 						const size_t index = m_nextFreeBlock;
-						m_nextFreeBlock = m_blocks[m_nextFreeBlock].idx;
+						m_nextFreeBlock = ReadBlockIdx(m_nextFreeBlock);
 
 						return StoreChunkAddress(index);
 					}
@@ -10750,17 +10789,15 @@ namespace gaia {
 						const auto blckAddr = (uintptr_t)pMemoryBlock;
 						const auto dataAddr = (uintptr_t)m_data;
 						GAIA_ASSERT(blckAddr >= dataAddr && blckAddr < dataAddr + MemoryPage::Size);
-						MemoryBlock block = {MemoryBlock::MemoryBlockType((blckAddr - dataAddr) / MemoryBlockSize)};
-
-						auto& blockContainer = m_blocks[block.idx];
+						const auto blockIdx = (blckAddr - dataAddr) / MemoryBlockSize;
 
 						// Update our implicit containers::list
 						if (m_freeBlocks == 0U) {
-							blockContainer.idx = InvalidBlockId;
-							m_nextFreeBlock = block.idx;
+							WriteBlockIdx(blockIdx, InvalidBlockId);
+							m_nextFreeBlock = blockIdx;
 						} else {
-							blockContainer.idx = m_nextFreeBlock;
-							m_nextFreeBlock = block.idx;
+							WriteBlockIdx(blockIdx, m_nextFreeBlock);
+							m_nextFreeBlock = blockIdx;
 						}
 
 						++m_freeBlocks;
@@ -10827,16 +10864,6 @@ namespace gaia {
 						}
 					}
 
-#if GAIA_ECS_CHUNK_ALLOCATOR_CLEAN_MEMORY_WITH_GARBAGE
-					// Fill allocated memory with garbage.
-					// This way we always know if we treat the memory correctly.
-					constexpr uint32_t AllocMemDefValue = 0x7fcdf00dU;
-					constexpr uint32_t AllocSpanSize = (uint32_t)((ChunkMemorySize + 3) / sizeof(uint32_t));
-					std::span<uint32_t, AllocSpanSize> s((uint32_t*)pChunk, AllocSpanSize);
-					for (auto& val: s)
-						val = AllocMemDefValue;
-#endif
-
 					return pChunk;
 				}
 
@@ -10847,16 +10874,6 @@ namespace gaia {
 					// Decode the page from the address
 					uintptr_t pageAddr = *(uintptr_t*)((uint8_t*)pChunk - MemoryBlockUsableOffset);
 					auto* pPage = (MemoryPage*)pageAddr;
-
-#if GAIA_ECS_CHUNK_ALLOCATOR_CLEAN_MEMORY_WITH_GARBAGE
-					// Fill freed memory with garbage.
-					// This way we always know if we treat the memory correctly.
-					constexpr uint32_t FreedMemDefValue = 0xfeeefeeeU;
-					constexpr uint32_t FreedSpanSize = (uint32_t)((ChunkMemorySize + 3) / sizeof(uint32_t));
-					std::span<uint32_t, FreedSpanSize> s((uint32_t*)pChunk, FreedSpanSize);
-					for (auto& val: s)
-						val = FreedMemDefValue;
-#endif
 
 					const bool pageFull = pPage->IsFull();
 
