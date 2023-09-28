@@ -34,7 +34,10 @@ namespace gaia {
 				struct {
 					//! The number of entities this archetype can take (e.g 5 = 5 entities with all their components)
 					uint32_t capacity: ChunkHeader::MAX_CHUNK_ENTITES_BITS;
+					//! How many bytes of the chunk are occupied when the chunk is fully utilized
+					uint32_t chunkBytes : 16;
 				} m_properties{};
+				static_assert(sizeof(m_properties) <= sizeof(uint32_t));
 				//! Stable reference to parent world's world version
 				uint32_t& m_worldVersion;
 
@@ -227,8 +230,8 @@ namespace gaia {
 
 					// No free space found anywhere. Let's create a new chunk.
 					auto* pChunk = Chunk::Create(
-							m_archetypeId, (uint16_t)chunkCnt, m_properties.capacity, m_worldVersion, m_dataOffsets, m_componentIds,
-							m_componentOffsets);
+							m_archetypeId, (uint16_t)chunkCnt, m_properties.capacity, m_properties.chunkBytes, m_worldVersion,
+							m_dataOffsets, m_componentIds, m_componentOffsets);
 
 					chunkArray.push_back(pChunk);
 					return pChunk;
@@ -300,6 +303,7 @@ namespace gaia {
 						//       improve performance when bulk-allocating entities.
 						newArch->m_dataOffsets.firstByte_EntityData = 0;
 						newArch->m_properties.capacity = ChunkHeader::MAX_CHUNK_ENTITES;
+						newArch->m_properties.chunkBytes = sizeof(Entity) * ChunkHeader::MAX_CHUNK_ENTITES;
 					} else {
 						newArch->m_componentIds[component::ComponentType::CT_Generic].resize(componentIdsGeneric.size());
 						newArch->m_componentIds[component::ComponentType::CT_Chunk].resize(componentIdsChunk.size());
@@ -330,7 +334,7 @@ namespace gaia {
 						// Theoretical maximum number of components we can fit into one chunk.
 						// This can be further reduced due alignment and padding.
 						auto maxGenericItemsInArchetype =
-								(Chunk::DATA_SIZE - dataOffset.firstByte_EntityData - chunkComponentListSize - 1) /
+								(MaxMemoryBlockSize - dataOffset.firstByte_EntityData - chunkComponentListSize - 1) /
 								(genericComponentListSize + sizeof(Entity));
 
 					recalculate:
@@ -356,7 +360,7 @@ namespace gaia {
 								const auto nextOffset = componentOffsets + componentDataSize;
 
 								// If we're beyond what the chunk could take, subtract one entity
-								if (nextOffset >= Chunk::DATA_SIZE) {
+								if (nextOffset >= MaxMemoryBlockSize) {
 									--maxGenericItemsInArchetype;
 									return false;
 								}
@@ -414,6 +418,8 @@ namespace gaia {
 						registerComponents(componentIdsChunk, component::ComponentType::CT_Chunk, 1);
 
 						newArch->m_properties.capacity = (uint32_t)maxGenericItemsInArchetype;
+						newArch->m_properties.chunkBytes = (uint16_t)componentOffsets;
+
 						newArch->m_matcherHash[component::ComponentType::CT_Generic] =
 								component::CalculateMatcherHash(componentIdsGeneric);
 						newArch->m_matcherHash[component::ComponentType::CT_Chunk] =
@@ -670,13 +676,13 @@ namespace gaia {
 							"Archetype ID:%u, "
 							"lookupHash:%016" PRIx64 ", "
 							"mask:%016" PRIx64 "/%016" PRIx64 ", "
-							"chunks:%u, data size:%3u B (%u/%u), "
-							"entities:%u/%u (disabled:%u)",
+							"chunks:%u (%uK), data:%u/%u/%u B, "
+							"entities:%u/%u/%u",
 							archetype.m_archetypeId, archetype.m_lookupHash.hash,
 							archetype.m_matcherHash[component::ComponentType::CT_Generic].hash,
 							archetype.m_matcherHash[component::ComponentType::CT_Chunk].hash, (uint32_t)archetype.m_chunks.size(),
-							genericComponentsSize + chunkComponentsSize, genericComponentsSize, chunkComponentsSize, entityCount,
-							archetype.m_properties.capacity, entityCountDisabled);
+							archetype.m_properties.chunkBytes <= 8192 ? 8 : 16, genericComponentsSize, chunkComponentsSize,
+							archetype.m_properties.chunkBytes, entityCount, entityCountDisabled, archetype.m_properties.capacity);
 
 					auto logComponentInfo = [](const component::ComponentInfo& info, const component::ComponentDesc& desc) {
 						GAIA_LOG_N(

@@ -59,7 +59,9 @@ namespace gaia {
 				//! Offsets to various parts of data inside chunk
 				ChunkHeaderOffsets offsets;
 				//! Chunk index in its archetype list
-				uint16_t index;
+				uint16_t index : 15;
+				//! Chunk size
+				uint16_t sizeType : 1;
 
 				//! Number of components on the archetype
 				uint8_t componentCount[component::ComponentType::CT_Count]{};
@@ -68,11 +70,13 @@ namespace gaia {
 				//! Mask of disabled entities
 				DisabledEntityMask disabledEntityMask;
 
-				ChunkHeader(uint32_t aid, uint16_t chunkIndex, uint16_t cap, const ChunkHeaderOffsets& offs, uint32_t& version):
-						archetypeId(aid), count(0), capacity(cap), lifespanCountdown(0), hasDisabledEntities(0),
-						structuralChangesLocked(0), hasAnyCustomGenericCtor(0), hasAnyCustomChunkCtor(0),
-						hasAnyCustomGenericDtor(0), hasAnyCustomChunkDtor(0), offsets(offs), index(chunkIndex),
-						worldVersion(version) {
+				ChunkHeader(
+						uint32_t aid, uint16_t chunkIndex, uint16_t cap, uint16_t st, const ChunkHeaderOffsets& offs,
+						uint32_t& version):
+						archetypeId(aid),
+						count(0), capacity(cap), lifespanCountdown(0), hasDisabledEntities(0), structuralChangesLocked(0),
+						hasAnyCustomGenericCtor(0), hasAnyCustomChunkCtor(0), hasAnyCustomGenericDtor(0), hasAnyCustomChunkDtor(0),
+						offsets(offs), index(chunkIndex), sizeType(st), worldVersion(version) {
 					// Make sure the alignment is right
 					GAIA_ASSERT(uintptr_t(this) % (sizeof(size_t)) == 0);
 				}

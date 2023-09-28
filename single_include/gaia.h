@@ -10642,13 +10642,11 @@ namespace gaia {
 namespace gaia {
 	namespace ecs {
 		//! Size of one allocated block of memory
-		static constexpr uint32_t MemoryBlockSize = 16384;
+		static constexpr uint32_t MaxMemoryBlockSize = 16384;
 		//! Unusable area at the beggining of the allocated block designated for special pruposes
 		static constexpr uint32_t MemoryBlockUsableOffset = sizeof(size_t);
-		//! Effectively usable size of the allocated block of memory
-		static constexpr uint32_t ChunkMemorySize = MemoryBlockSize - MemoryBlockUsableOffset;
 
-		struct ChunkAllocatorStats final {
+		struct ChunkAllocatorPageStats final {
 			//! Total allocated memory
 			uint64_t AllocatedMemory;
 			//! Memory actively used
@@ -10657,6 +10655,10 @@ namespace gaia {
 			uint32_t NumPages;
 			//! Number of free pages
 			uint32_t NumFreePages;
+		};
+
+		struct ChunkAllocatorStats final {
+			ChunkAllocatorPageStats stats[2];
 		};
 
 		class ChunkAllocator;
@@ -10670,18 +10672,19 @@ namespace gaia {
 				friend class gaia::ecs::ChunkAllocator;
 
 				struct MemoryPage {
-					static constexpr uint16_t NBlocks_Bits = 6;
-					static constexpr uint16_t NBlocks = 1 << NBlocks_Bits;
+					static constexpr uint16_t NBlocks = 62;
+					static constexpr uint16_t NBlocks_Bits = (uint16_t)utils::count_bits(NBlocks);
+					static constexpr uint32_t InvalidBlockId = NBlocks + 1;
 					static constexpr uint32_t BlockArrayBytes =
 							((uint32_t)NBlocks_Bits * (uint32_t)NBlocks) / (sizeof(uint8_t) * 8);
 					using BlockArray = containers::sarray<uint8_t, BlockArrayBytes>;
-					static constexpr uint32_t Size = NBlocks * MemoryBlockSize;
-					static constexpr uint32_t InvalidBlockId = NBlocks - 1;
 
 					//! Pointer to data managed by page
 					void* m_data;
 					//! Implicit list of blocks
-					BlockArray m_blocks{};
+					BlockArray m_blocks;
+					//! Chunk block size
+					uint8_t m_sizeType;
 					//! Index in the list of pages
 					uint32_t m_pageIdx;
 					//! Number of blocks in the block array
@@ -10693,16 +10696,17 @@ namespace gaia {
 					//! Number of blocks to recycle
 					uint32_t m_freeBlocks: NBlocks_Bits;
 
-					MemoryPage(void* ptr):
-							m_data(ptr), m_pageIdx(0), m_blockCnt(0), m_usedBlocks(0), m_nextFreeBlock(0), m_freeBlocks(0) {
-						// One cacheline long
-						static_assert(sizeof(MemoryPage) == 64);
+					MemoryPage(void* ptr, uint8_t sizeType):
+							m_data(ptr), m_sizeType(sizeType), m_pageIdx(0), m_blockCnt(0), m_usedBlocks(0), m_nextFreeBlock(0),
+							m_freeBlocks(0) {
+						// One cacheline long on x86. The point is for this to be as small as possible
+						static_assert(sizeof(MemoryPage) <= 64);
 					}
 
 					void WriteBlockIdx(uint32_t bitPosition, uint32_t value) {
 						// TODO: This could be turned into a generic bitstream container
-						GAIA_ASSERT(bitPosition < (NBlocks - 1) * NBlocks_Bits);
-						GAIA_ASSERT(value < NBlocks);
+						GAIA_ASSERT(bitPosition < NBlocks * NBlocks_Bits);
+						GAIA_ASSERT(value <= InvalidBlockId);
 
 						// Calculate the first byte index and bit offset within the array
 						const uint32_t byteIndex1 = bitPosition / 8;
@@ -10727,14 +10731,14 @@ namespace gaia {
 
 					uint8_t ReadBlockIdx(uint32_t bitPosition) const {
 						// TODO: This could be turned into a generic bitstream container
-						GAIA_ASSERT(bitPosition < (NBlocks - 1) * NBlocks_Bits);
+						GAIA_ASSERT(bitPosition < NBlocks * NBlocks_Bits);
 
 						// Calculate the first byte index and bit offset within the array
-						uint32_t byteIndex1 = bitPosition / 8;
-						uint32_t bitOffset1 = bitPosition % 8;
+						const uint32_t byteIndex1 = bitPosition / 8;
+						const uint32_t bitOffset1 = bitPosition % 8;
 						// Calculate the second byte index and bit offset within the array
-						uint32_t byteIndex2 = (bitPosition + NBlocks_Bits) / 8;
-						uint32_t bitOffset2 = (bitPosition + NBlocks_Bits) % 8;
+						const uint32_t byteIndex2 = (bitPosition + NBlocks_Bits) / 8;
+						const uint32_t bitOffset2 = (bitPosition + NBlocks_Bits) % 8;
 
 						uint8_t value;
 						if (byteIndex1 == byteIndex2) {
@@ -10753,7 +10757,7 @@ namespace gaia {
 						auto StoreChunkAddress = [&](size_t index) {
 							// Encode info about chunk's page in the memory block.
 							// The actual pointer returned is offset by UsableOffset bytes
-							uint8_t* pMemoryBlock = (uint8_t*)m_data + index * MemoryBlockSize;
+							uint8_t* pMemoryBlock = (uint8_t*)m_data + index * GetMemoryBlockSize(m_sizeType);
 							*utils::unaligned_pointer<uintptr_t>{pMemoryBlock} = (uintptr_t)this;
 							return (void*)(pMemoryBlock + MemoryBlockUsableOffset);
 						};
@@ -10762,11 +10766,12 @@ namespace gaia {
 							// We don't want to go out of range for new blocks
 							GAIA_ASSERT(!IsFull() && "Trying to allocate too many blocks!");
 
+							const auto index = m_blockCnt;
 							++m_usedBlocks;
-							WriteBlockIdx(m_blockCnt, m_blockCnt);
 							++m_blockCnt;
+							WriteBlockIdx(index, index);
 
-							return StoreChunkAddress(m_blockCnt);
+							return StoreChunkAddress(index);
 						}
 
 						GAIA_ASSERT(m_nextFreeBlock < m_blockCnt && "Block allocator recycle containers::list broken!");
@@ -10774,7 +10779,7 @@ namespace gaia {
 						++m_usedBlocks;
 						--m_freeBlocks;
 
-						const size_t index = m_nextFreeBlock;
+						const auto index = m_nextFreeBlock;
 						m_nextFreeBlock = ReadBlockIdx(m_nextFreeBlock);
 
 						return StoreChunkAddress(index);
@@ -10785,11 +10790,9 @@ namespace gaia {
 
 						// Offset the chunk memory so we get the real block address
 						const auto* pMemoryBlock = (uint8_t*)pChunk - MemoryBlockUsableOffset;
-
 						const auto blckAddr = (uintptr_t)pMemoryBlock;
 						const auto dataAddr = (uintptr_t)m_data;
-						GAIA_ASSERT(blckAddr >= dataAddr && blckAddr < dataAddr + MemoryPage::Size);
-						const auto blockIdx = (blckAddr - dataAddr) / MemoryBlockSize;
+						const auto blockIdx = (uint32_t)((blckAddr - dataAddr) / GetMemoryBlockSize(m_sizeType));
 
 						// Update our implicit containers::list
 						if (m_freeBlocks == 0U) {
@@ -10807,19 +10810,27 @@ namespace gaia {
 					GAIA_NODISCARD uint32_t GetUsedBlocks() const {
 						return m_usedBlocks;
 					}
+
 					GAIA_NODISCARD bool IsFull() const {
 						return m_usedBlocks == NBlocks;
 					}
+
 					GAIA_NODISCARD bool IsEmpty() const {
 						return m_usedBlocks == 0;
 					}
 				};
 
-				//! List of available pages
-				//! Note, this currently only contains at most 1 item
-				containers::darray<MemoryPage*> m_pagesFree;
-				//! List of full pages
-				containers::darray<MemoryPage*> m_pagesFull;
+				struct MemoryPageContainer {
+					//! List of available pages
+					//! Note, this currently only contains at most 1 item
+					containers::darray<MemoryPage*> pagesFree;
+					//! List of full pages
+					containers::darray<MemoryPage*> pagesFull;
+				};
+
+				//! Container for pages storing various-sized chunks
+				MemoryPageContainer m_pages[2];
+
 				//! When true, destruction has been requested
 				bool m_isDone = false;
 
@@ -10833,20 +10844,31 @@ namespace gaia {
 				ChunkAllocatorImpl& operator=(ChunkAllocatorImpl&&) = delete;
 				ChunkAllocatorImpl& operator=(const ChunkAllocatorImpl&) = delete;
 
+				static uint32_t GetMemoryBlockSize(uint32_t sizeType) {
+					return sizeType != 0 ? MaxMemoryBlockSize : MaxMemoryBlockSize / 2;
+				}
+
+				static uint8_t GetMemoryBlockSizeType(uint32_t sizeBytes) {
+					return (uint8_t)(sizeBytes > MaxMemoryBlockSize / 2);
+				}
+
 				/*!
 				Allocates memory
 				*/
-				void* Allocate() {
+				void* Allocate(uint32_t bytesWanted) {
+					GAIA_ASSERT(bytesWanted <= MaxMemoryBlockSize);
+
 					void* pChunk = nullptr;
 
-					if (m_pagesFree.empty()) {
+					const auto sizeType = GetMemoryBlockSizeType(bytesWanted);
+					auto& container = m_pages[sizeType];
+					if (container.pagesFree.empty()) {
 						// Initial allocation
-						auto* pPage = AllocPage();
-						pPage->m_pageIdx = 0;
+						auto* pPage = AllocPage(sizeType);
 						pChunk = pPage->AllocChunk();
-						m_pagesFree.push_back(pPage);
+						container.pagesFree.push_back(pPage);
 					} else {
-						auto* pPage = m_pagesFree[0];
+						auto* pPage = container.pagesFree[0];
 						GAIA_ASSERT(!pPage->IsFull());
 						// Allocate a new chunk of memory
 						pChunk = pPage->AllocChunk();
@@ -10854,13 +10876,13 @@ namespace gaia {
 						// Handle full pages
 						if (pPage->IsFull()) {
 							// Remove the page from the open list and update the swapped page's pointer
-							utils::erase_fast(m_pagesFree, 0);
-							if (!m_pagesFree.empty())
-								m_pagesFree[0]->m_pageIdx = 0;
+							utils::erase_fast(container.pagesFree, 0);
+							if (!container.pagesFree.empty())
+								container.pagesFree[0]->m_pageIdx = 0;
 
 							// Move our page to the full list
-							pPage->m_pageIdx = (uint32_t)m_pagesFull.size();
-							m_pagesFull.push_back(pPage);
+							pPage->m_pageIdx = (uint32_t)container.pagesFull.size();
+							container.pagesFull.push_back(pPage);
 						}
 					}
 
@@ -10872,68 +10894,70 @@ namespace gaia {
 				*/
 				void Release(void* pChunk) {
 					// Decode the page from the address
-					uintptr_t pageAddr = *(uintptr_t*)((uint8_t*)pChunk - MemoryBlockUsableOffset);
+					const auto pageAddr = *(uintptr_t*)((uint8_t*)pChunk - MemoryBlockUsableOffset);
 					auto* pPage = (MemoryPage*)pageAddr;
 
-					const bool pageFull = pPage->IsFull();
+					auto releaseChunk = [&](MemoryPageContainer& container) {
+						const bool pageFull = pPage->IsFull();
 
 #if GAIA_DEBUG
-					if (pageFull) {
-						[[maybe_unused]] auto it = utils::find_if(m_pagesFull.begin(), m_pagesFull.end(), [&](auto page) {
-							return page == pPage;
-						});
-						GAIA_ASSERT(
-								it != m_pagesFull.end() && "ChunkAllocator delete couldn't find the memory page expected "
-																					 "in the full pages containers::list");
-					} else {
-						[[maybe_unused]] auto it = utils::find_if(m_pagesFree.begin(), m_pagesFree.end(), [&](auto page) {
-							return page == pPage;
-						});
-						GAIA_ASSERT(
-								it != m_pagesFree.end() && "ChunkAllocator delete couldn't find memory page expected in "
-																					 "the free pages containers::list");
-					}
+						if (pageFull) {
+							[[maybe_unused]] auto it =
+									utils::find_if(container.pagesFull.begin(), container.pagesFull.end(), [&](auto page) {
+										return page == pPage;
+									});
+							GAIA_ASSERT(
+									it != container.pagesFull.end() && "ChunkAllocator delete couldn't find the memory page expected "
+																										 "in the full pages containers::list");
+						} else {
+							[[maybe_unused]] auto it =
+									utils::find_if(container.pagesFree.begin(), container.pagesFree.end(), [&](auto page) {
+										return page == pPage;
+									});
+							GAIA_ASSERT(
+									it != container.pagesFree.end() && "ChunkAllocator delete couldn't find memory page expected in "
+																										 "the free pages containers::list");
+						}
 #endif
 
-					// Update lists
-					if (pageFull) {
-						// Our page is no longer full. Remove it from the list and update the swapped page's pointer
-						m_pagesFull.back()->m_pageIdx = pPage->m_pageIdx;
-						utils::erase_fast(m_pagesFull, pPage->m_pageIdx);
+						// Update lists
+						if (pageFull) {
+							// Our page is no longer full. Remove it from the list and update the swapped page's pointer
+							container.pagesFull.back()->m_pageIdx = pPage->m_pageIdx;
+							utils::erase_fast(container.pagesFull, pPage->m_pageIdx);
 
-						// Move our page to the open list
-						pPage->m_pageIdx = (uint32_t)m_pagesFree.size();
-						m_pagesFree.push_back(pPage);
-					}
-
-					// Free the chunk
-					pPage->FreeChunk(pChunk);
-
-					if (m_isDone) {
-						// Remove the page right away
-						if (pPage->IsEmpty()) {
-							GAIA_ASSERT(!m_pagesFree.empty());
-							m_pagesFree.back()->m_pageIdx = pPage->m_pageIdx;
-							utils::erase_fast(m_pagesFree, pPage->m_pageIdx);
+							// Move our page to the open list
+							pPage->m_pageIdx = (uint32_t)container.pagesFree.size();
+							container.pagesFree.push_back(pPage);
 						}
 
-						// When there is nothing left, delete the allocator
-						if (m_pagesFree.empty() && m_pagesFull.empty())
-							delete this;
-					}
+						// Free the chunk
+						pPage->FreeChunk(pChunk);
+
+						if (m_isDone) {
+							// Remove the page right away
+							if (pPage->IsEmpty()) {
+								GAIA_ASSERT(!container.pagesFree.empty());
+								container.pagesFree.back()->m_pageIdx = pPage->m_pageIdx;
+								utils::erase_fast(container.pagesFree, pPage->m_pageIdx);
+							}
+
+							// When there is nothing left, delete the allocator
+							if (container.pagesFree.empty() && container.pagesFull.empty())
+								delete this;
+						}
+					};
+
+					releaseChunk(m_pages[pPage->m_sizeType]);
 				}
 
 				/*!
 				Returns allocator statistics
 				*/
 				ChunkAllocatorStats GetStats() const {
-					ChunkAllocatorStats stats{};
-					stats.NumPages = (uint32_t)m_pagesFree.size() + (uint32_t)m_pagesFull.size();
-					stats.NumFreePages = (uint32_t)m_pagesFree.size();
-					stats.AllocatedMemory = stats.NumPages * (size_t)MemoryPage::Size;
-					stats.UsedMemory = m_pagesFull.size() * (size_t)MemoryPage::Size;
-					for (auto* page: m_pagesFree)
-						stats.UsedMemory += page->GetUsedBlocks() * (size_t)MemoryBlockSize;
+					ChunkAllocatorStats stats;
+					stats.stats[0] = GetPageStats(0);
+					stats.stats[1] = GetPageStats(1);
 					return stats;
 				}
 
@@ -10941,40 +10965,51 @@ namespace gaia {
 				Flushes unused memory
 				*/
 				void Flush() {
-					for (size_t i = 0; i < m_pagesFree.size();) {
-						auto* pPage = m_pagesFree[i];
+					auto flushPages = [](MemoryPageContainer& container) {
+						for (size_t i = 0; i < container.pagesFree.size();) {
+							auto* pPage = container.pagesFree[i];
 
-						// Skip non-empty pages
-						if (!pPage->IsEmpty()) {
-							++i;
-							continue;
+							// Skip non-empty pages
+							if (!pPage->IsEmpty()) {
+								++i;
+								continue;
+							}
+
+							utils::erase_fast(container.pagesFree, i);
+							FreePage(pPage);
+							if (!container.pagesFree.empty())
+								container.pagesFree[i]->m_pageIdx = (uint32_t)i;
 						}
+					};
 
-						utils::erase_fast(m_pagesFree, i);
-						FreePage(pPage);
-						if (!m_pagesFree.empty())
-							m_pagesFree[i]->m_pageIdx = (uint32_t)i;
-					}
+					for (auto& c: m_pages)
+						flushPages(c);
 				}
 
 				/*!
 				Performs diagnostics of the memory used.
 				*/
 				void Diag() const {
-					ChunkAllocatorStats memstats = GetStats();
-					GAIA_LOG_N("ChunkAllocator stats");
-					GAIA_LOG_N("  Allocated: %" PRIu64 " B", memstats.AllocatedMemory);
-					GAIA_LOG_N("  Used: %" PRIu64 " B", memstats.AllocatedMemory - memstats.UsedMemory);
-					GAIA_LOG_N("  Overhead: %" PRIu64 " B", memstats.UsedMemory);
-					GAIA_LOG_N("  Utilization: %.1f%%", 100.0 * ((double)memstats.UsedMemory / (double)memstats.AllocatedMemory));
-					GAIA_LOG_N("  Pages: %u", memstats.NumPages);
-					GAIA_LOG_N("  Free pages: %u", memstats.NumFreePages);
+					auto diagPage = [](const ChunkAllocatorPageStats& memstats) {
+						GAIA_LOG_N("ChunkAllocator stats");
+						GAIA_LOG_N("  Allocated: %" PRIu64 " B", memstats.AllocatedMemory);
+						GAIA_LOG_N("  Used: %" PRIu64 " B", memstats.AllocatedMemory - memstats.UsedMemory);
+						GAIA_LOG_N("  Overhead: %" PRIu64 " B", memstats.UsedMemory);
+						GAIA_LOG_N(
+								"  Utilization: %.1f%%", 100.0 * ((double)memstats.UsedMemory / (double)memstats.AllocatedMemory));
+						GAIA_LOG_N("  Pages: %u", memstats.NumPages);
+						GAIA_LOG_N("  Free pages: %u", memstats.NumFreePages);
+					};
+
+					diagPage(GetPageStats(0));
+					diagPage(GetPageStats(1));
 				}
 
 			private:
-				static MemoryPage* AllocPage() {
-					auto* pPageData = utils::mem_alloc_alig(MemoryPage::Size, 16);
-					return new MemoryPage(pPageData);
+				static MemoryPage* AllocPage(uint8_t sizeType) {
+					const auto size = GetMemoryBlockSize(sizeType) * MemoryPage::NBlocks;
+					auto* pPageData = utils::mem_alloc_alig(size, 16);
+					return new MemoryPage(pPageData, sizeType);
 				}
 
 				static void FreePage(MemoryPage* page) {
@@ -10985,6 +11020,18 @@ namespace gaia {
 				void Done() {
 					m_isDone = true;
 				}
+
+				ChunkAllocatorPageStats GetPageStats(uint32_t sizeType) const {
+					ChunkAllocatorPageStats stats{};
+					const MemoryPageContainer& container = m_pages[sizeType];
+					stats.NumPages = (uint32_t)container.pagesFree.size() + (uint32_t)container.pagesFull.size();
+					stats.NumFreePages = (uint32_t)container.pagesFree.size();
+					stats.AllocatedMemory = stats.NumPages * (size_t)GetMemoryBlockSize(sizeType) * MemoryPage::NBlocks;
+					stats.UsedMemory = container.pagesFull.size() * (size_t)GetMemoryBlockSize(sizeType) * MemoryPage::NBlocks;
+					for (auto* page: container.pagesFree)
+						stats.UsedMemory += page->GetUsedBlocks() * (size_t)MaxMemoryBlockSize;
+					return stats;
+				};
 			};
 		} // namespace detail
 
@@ -11083,7 +11130,9 @@ namespace gaia {
 				//! Offsets to various parts of data inside chunk
 				ChunkHeaderOffsets offsets;
 				//! Chunk index in its archetype list
-				uint16_t index;
+				uint16_t index : 15;
+				//! Chunk size
+				uint16_t sizeType : 1;
 
 				//! Number of components on the archetype
 				uint8_t componentCount[component::ComponentType::CT_Count]{};
@@ -11092,11 +11141,13 @@ namespace gaia {
 				//! Mask of disabled entities
 				DisabledEntityMask disabledEntityMask;
 
-				ChunkHeader(uint32_t aid, uint16_t chunkIndex, uint16_t cap, const ChunkHeaderOffsets& offs, uint32_t& version):
-						archetypeId(aid), count(0), capacity(cap), lifespanCountdown(0), hasDisabledEntities(0),
-						structuralChangesLocked(0), hasAnyCustomGenericCtor(0), hasAnyCustomChunkCtor(0),
-						hasAnyCustomGenericDtor(0), hasAnyCustomChunkDtor(0), offsets(offs), index(chunkIndex),
-						worldVersion(version) {
+				ChunkHeader(
+						uint32_t aid, uint16_t chunkIndex, uint16_t cap, uint16_t st, const ChunkHeaderOffsets& offs,
+						uint32_t& version):
+						archetypeId(aid),
+						count(0), capacity(cap), lifespanCountdown(0), hasDisabledEntities(0), structuralChangesLocked(0),
+						hasAnyCustomGenericCtor(0), hasAnyCustomChunkCtor(0), hasAnyCustomGenericDtor(0), hasAnyCustomChunkDtor(0),
+						offsets(offs), index(chunkIndex), sizeType(st), worldVersion(version) {
 					// Make sure the alignment is right
 					GAIA_ASSERT(uintptr_t(this) % (sizeof(size_t)) == 0);
 				}
@@ -11272,14 +11323,11 @@ namespace gaia {
 	namespace ecs {
 		namespace archetype {
 			class Chunk final {
-			public:
-				//! Size of one chunk's data part with components
-				static constexpr size_t DATA_SIZE = ChunkMemorySize - sizeof(ChunkHeader);
-
 			private:
 				//! Chunk header
 				ChunkHeader m_header;
-				//! Chunk data layed out as:
+				//! Pointer to where the chunk data starts.
+				//! Data layed out as following:
 				//!			1) ComponentVersions[component::ComponentType::CT_Generic]
 				//!			2) ComponentVersions[component::ComponentType::CT_Chunk]
 				//!     3) ComponentIds[component::ComponentType::CT_Generic]
@@ -11288,15 +11336,16 @@ namespace gaia {
 				//!			6) ComponentOffsets[component::ComponentType::CT_Chunk]
 				//!			7) Entities
 				//!			8) Components
-				uint8_t m_data[DATA_SIZE];
+				//! Note, root archetypes store only entites, therefore it is fully occupied with entities.
+				uint8_t m_data[1];
 
 				GAIA_MSVC_WARNING_PUSH()
 				GAIA_MSVC_WARNING_DISABLE(26495)
 
 				Chunk(
-						uint32_t archetypeId, uint16_t chunkIndex, uint16_t capacity, uint32_t& worldVersion,
+						uint32_t archetypeId, uint16_t chunkIndex, uint16_t capacity, uint16_t st, uint32_t& worldVersion,
 						const ChunkHeaderOffsets& headerOffsets):
-						m_header(archetypeId, chunkIndex, capacity, headerOffsets, worldVersion) {}
+						m_header(archetypeId, chunkIndex, capacity, st, headerOffsets, worldVersion) {}
 
 				GAIA_MSVC_WARNING_POP()
 
@@ -11369,14 +11418,14 @@ namespace gaia {
 
 							[[maybe_unused]] const auto capacity = GetEntityCapacity();
 							[[maybe_unused]] const auto maxOffset = offset + capacity * sizeof(U);
-							GAIA_ASSERT(maxOffset <= Chunk::DATA_SIZE);
+							GAIA_ASSERT(maxOffset <= GetByteSize());
 
 							return std::span<UConst>{(UConst*)&GetData(offset), GetEntityCount()};
 						} else {
 							const auto offset = FindDataOffset(component::ComponentType::CT_Chunk, componentId);
 
 							[[maybe_unused]] const auto maxOffset = offset + sizeof(U);
-							GAIA_ASSERT(maxOffset <= Chunk::DATA_SIZE);
+							GAIA_ASSERT(maxOffset <= GetByteSize());
 
 							return std::span<UConst>{(UConst*)&GetData(offset), 1};
 						}
@@ -11411,7 +11460,7 @@ namespace gaia {
 
 						[[maybe_unused]] const auto capacity = GetEntityCapacity();
 						[[maybe_unused]] const auto maxOffset = offset + capacity * sizeof(U);
-						GAIA_ASSERT(maxOffset <= Chunk::DATA_SIZE);
+						GAIA_ASSERT(maxOffset <= GetByteSize());
 
 						if constexpr (WorldVersionUpdateWanted) {
 							// Update version number so we know RW access was used on chunk
@@ -11423,7 +11472,7 @@ namespace gaia {
 						const auto offset = FindDataOffset(component::ComponentType::CT_Chunk, componentId, componentIdx);
 
 						[[maybe_unused]] const auto maxOffset = offset + sizeof(U);
-						GAIA_ASSERT(maxOffset <= Chunk::DATA_SIZE);
+						GAIA_ASSERT(maxOffset <= GetByteSize());
 
 						if constexpr (WorldVersionUpdateWanted) {
 							// Update version number so we know RW access was used on chunk
@@ -11471,13 +11520,14 @@ namespace gaia {
 				\return Newly allocated chunk
 				*/
 				static Chunk* Create(
-						uint32_t archetypeId, uint16_t chunkIndex, uint16_t capacity, uint32_t& worldVersion,
+						uint32_t archetypeId, uint16_t chunkIndex, uint16_t capacity, uint16_t maxBytes, uint32_t& worldVersion,
 						const ChunkHeaderOffsets& offsets,
 						const containers::sarray<ComponentIdArray, component::ComponentType::CT_Count>& componentIds,
 						const containers::sarray<ComponentOffsetArray, component::ComponentType::CT_Count>& componentOffsets) {
 #if GAIA_ECS_CHUNK_ALLOCATOR
-					auto* pChunk = (Chunk*)ChunkAllocator::Get().Allocate();
-					new (pChunk) Chunk(archetypeId, chunkIndex, capacity, worldVersion, offsets);
+					auto* pChunk = (Chunk*)ChunkAllocator::Get().Allocate(maxBytes);
+					const auto sizeType = detail::ChunkAllocatorImpl::GetMemoryBlockSizeType(maxBytes);
+					new (pChunk) Chunk(archetypeId, chunkIndex, capacity, sizeType, worldVersion, offsets);
 #else
 					auto pChunk = new Chunk(archetypeId, chunkIndex, capacity, worldVersion, offsets);
 #endif
@@ -11630,8 +11680,8 @@ namespace gaia {
 						const auto idxSrc = offset + desc.properties.size * (uint32_t)oldEntityContainer.idx;
 						const auto idxDst = offset + desc.properties.size * (uint32_t)newEntityContainer.idx;
 
-						GAIA_ASSERT(idxSrc < Chunk::DATA_SIZE);
-						GAIA_ASSERT(idxDst < Chunk::DATA_SIZE);
+						GAIA_ASSERT(idxSrc < pOldChunk->GetByteSize());
+						GAIA_ASSERT(idxDst < pNewChunk->GetByteSize());
 
 						auto* pSrc = (void*)&pOldChunk->GetData(idxSrc);
 						auto* pDst = (void*)&pNewChunk->GetData(idxDst);
@@ -11664,8 +11714,8 @@ namespace gaia {
 						const auto idxSrc = offset + desc.properties.size * (uint32_t)oldEntityContainer.idx;
 						const auto idxDst = offset + desc.properties.size * newEntityIdx;
 
-						GAIA_ASSERT(idxSrc < Chunk::DATA_SIZE);
-						GAIA_ASSERT(idxDst < Chunk::DATA_SIZE);
+						GAIA_ASSERT(idxSrc < pOldChunk->GetByteSize());
+						GAIA_ASSERT(idxDst < GetByteSize());
 
 						auto* pSrc = (void*)&pOldChunk->GetData(idxSrc);
 						auto* pDst = (void*)&GetData(idxDst);
@@ -11705,8 +11755,8 @@ namespace gaia {
 							const auto idxSrc = oldOffs[i] + desc.properties.size * (uint32_t)oldEntityContainer.idx;
 							const auto idxDst = newOffs[j] + desc.properties.size * newEntityIdx;
 
-							GAIA_ASSERT(idxSrc < Chunk::DATA_SIZE);
-							GAIA_ASSERT(idxDst < Chunk::DATA_SIZE);
+							GAIA_ASSERT(idxSrc < pOldChunk->GetByteSize());
+							GAIA_ASSERT(idxDst < GetByteSize());
 
 							auto* pSrc = (void*)&pOldChunk->GetData(idxSrc);
 							auto* pDst = (void*)&GetData(idxDst);
@@ -11752,8 +11802,8 @@ namespace gaia {
 							const auto idxSrc = offset + index * desc.properties.size;
 							const auto idxDst = offset + (m_header.count - 1U) * desc.properties.size;
 
-							GAIA_ASSERT(idxSrc < Chunk::DATA_SIZE);
-							GAIA_ASSERT(idxDst < Chunk::DATA_SIZE);
+							GAIA_ASSERT(idxSrc < GetByteSize());
+							GAIA_ASSERT(idxDst < GetByteSize());
 							GAIA_ASSERT(idxSrc != idxDst);
 
 							auto* pSrc = (void*)&m_data[idxSrc];
@@ -11906,7 +11956,7 @@ namespace gaia {
 					const auto idx = utils::get_index_unsafe(componentIds, componentId);
 					const auto offset = componentOffsets[idx];
 					const auto idxSrc = offset + entityIndex * desc.properties.size;
-					GAIA_ASSERT(idxSrc < Chunk::DATA_SIZE);
+					GAIA_ASSERT(idxSrc < GetByteSize());
 
 					auto* pSrc = (void*)&m_data[idxSrc];
 					desc.ctor(pSrc, 1);
@@ -11933,7 +11983,7 @@ namespace gaia {
 
 						const auto offset = componentOffsets[i];
 						const auto idxSrc = offset + entityIndex * desc.properties.size;
-						GAIA_ASSERT(idxSrc < Chunk::DATA_SIZE);
+						GAIA_ASSERT(idxSrc < GetByteSize());
 
 						auto* pSrc = (void*)&m_data[idxSrc];
 						desc.ctor(pSrc, entityCount);
@@ -11961,7 +12011,7 @@ namespace gaia {
 
 						const auto offset = componentOffsets[i];
 						const auto idxSrc = offset + entityIndex * desc.properties.size;
-						GAIA_ASSERT(idxSrc < Chunk::DATA_SIZE);
+						GAIA_ASSERT(idxSrc < GetByteSize());
 
 						auto* pSrc = (void*)&m_data[idxSrc];
 						desc.dtor(pSrc, entityCount);
@@ -12279,6 +12329,10 @@ namespace gaia {
 					return m_header.capacity;
 				}
 
+				GAIA_NODISCARD uint32_t GetByteSize() const {
+					return detail::ChunkAllocatorImpl::GetMemoryBlockSize(m_header.sizeType);
+				}
+
 				//! Returns the mask of disabled entities
 				GAIA_NODISCARD ChunkHeader::DisabledEntityMask& GetDisabledEntityMask() {
 					return m_header.disabledEntityMask;
@@ -12339,7 +12393,6 @@ namespace gaia {
 							m_header.lifespanCountdown);
 				}
 			};
-			static_assert(sizeof(Chunk) <= ChunkMemorySize, "Chunk size must match ChunkMemorySize!");
 		} // namespace archetype
 	} // namespace ecs
 } // namespace gaia
@@ -12359,7 +12412,10 @@ namespace gaia {
 				struct {
 					//! The number of entities this archetype can take (e.g 5 = 5 entities with all their components)
 					uint32_t capacity: ChunkHeader::MAX_CHUNK_ENTITES_BITS;
+					//! How many bytes of the chunk are occupied when the chunk is fully utilized
+					uint32_t chunkBytes : 16;
 				} m_properties{};
+				static_assert(sizeof(m_properties) <= sizeof(uint32_t));
 				//! Stable reference to parent world's world version
 				uint32_t& m_worldVersion;
 
@@ -12552,8 +12608,8 @@ namespace gaia {
 
 					// No free space found anywhere. Let's create a new chunk.
 					auto* pChunk = Chunk::Create(
-							m_archetypeId, (uint16_t)chunkCnt, m_properties.capacity, m_worldVersion, m_dataOffsets, m_componentIds,
-							m_componentOffsets);
+							m_archetypeId, (uint16_t)chunkCnt, m_properties.capacity, m_properties.chunkBytes, m_worldVersion,
+							m_dataOffsets, m_componentIds, m_componentOffsets);
 
 					chunkArray.push_back(pChunk);
 					return pChunk;
@@ -12625,6 +12681,7 @@ namespace gaia {
 						//       improve performance when bulk-allocating entities.
 						newArch->m_dataOffsets.firstByte_EntityData = 0;
 						newArch->m_properties.capacity = ChunkHeader::MAX_CHUNK_ENTITES;
+						newArch->m_properties.chunkBytes = sizeof(Entity) * ChunkHeader::MAX_CHUNK_ENTITES;
 					} else {
 						newArch->m_componentIds[component::ComponentType::CT_Generic].resize(componentIdsGeneric.size());
 						newArch->m_componentIds[component::ComponentType::CT_Chunk].resize(componentIdsChunk.size());
@@ -12655,7 +12712,7 @@ namespace gaia {
 						// Theoretical maximum number of components we can fit into one chunk.
 						// This can be further reduced due alignment and padding.
 						auto maxGenericItemsInArchetype =
-								(Chunk::DATA_SIZE - dataOffset.firstByte_EntityData - chunkComponentListSize - 1) /
+								(MaxMemoryBlockSize - dataOffset.firstByte_EntityData - chunkComponentListSize - 1) /
 								(genericComponentListSize + sizeof(Entity));
 
 					recalculate:
@@ -12681,7 +12738,7 @@ namespace gaia {
 								const auto nextOffset = componentOffsets + componentDataSize;
 
 								// If we're beyond what the chunk could take, subtract one entity
-								if (nextOffset >= Chunk::DATA_SIZE) {
+								if (nextOffset >= MaxMemoryBlockSize) {
 									--maxGenericItemsInArchetype;
 									return false;
 								}
@@ -12739,6 +12796,8 @@ namespace gaia {
 						registerComponents(componentIdsChunk, component::ComponentType::CT_Chunk, 1);
 
 						newArch->m_properties.capacity = (uint32_t)maxGenericItemsInArchetype;
+						newArch->m_properties.chunkBytes = (uint16_t)componentOffsets;
+
 						newArch->m_matcherHash[component::ComponentType::CT_Generic] =
 								component::CalculateMatcherHash(componentIdsGeneric);
 						newArch->m_matcherHash[component::ComponentType::CT_Chunk] =
@@ -12995,13 +13054,13 @@ namespace gaia {
 							"Archetype ID:%u, "
 							"lookupHash:%016" PRIx64 ", "
 							"mask:%016" PRIx64 "/%016" PRIx64 ", "
-							"chunks:%u, data size:%3u B (%u/%u), "
-							"entities:%u/%u (disabled:%u)",
+							"chunks:%u (%uK), data:%u/%u/%u B, "
+							"entities:%u/%u/%u",
 							archetype.m_archetypeId, archetype.m_lookupHash.hash,
 							archetype.m_matcherHash[component::ComponentType::CT_Generic].hash,
 							archetype.m_matcherHash[component::ComponentType::CT_Chunk].hash, (uint32_t)archetype.m_chunks.size(),
-							genericComponentsSize + chunkComponentsSize, genericComponentsSize, chunkComponentsSize, entityCount,
-							archetype.m_properties.capacity, entityCountDisabled);
+							archetype.m_properties.chunkBytes <= 8192 ? 8 : 16, genericComponentsSize, chunkComponentsSize,
+							archetype.m_properties.chunkBytes, entityCount, entityCountDisabled, archetype.m_properties.capacity);
 
 					auto logComponentInfo = [](const component::ComponentInfo& info, const component::ComponentDesc& desc) {
 						GAIA_LOG_N(
@@ -16154,11 +16213,13 @@ namespace gaia {
 
 #if GAIA_DEBUG && GAIA_ECS_CHUNK_ALLOCATOR
 				// Make sure there are no leaks
-				ChunkAllocatorStats memstats = ChunkAllocator::Get().GetStats();
-				if (memstats.AllocatedMemory != 0) {
-					GAIA_ASSERT(false && "ECS leaking memory");
-					GAIA_LOG_W("ECS leaking memory!");
-					ChunkAllocator::Get().Diag();
+				ChunkAllocatorStats memStats = ChunkAllocator::Get().GetStats();
+				for (const auto& s: memStats.stats) {
+					if (s.AllocatedMemory != 0) {
+						GAIA_ASSERT(false && "ECS leaking memory");
+						GAIA_LOG_W("ECS leaking memory!");
+						ChunkAllocator::Get().Diag();
+					}
 				}
 #endif
 			}

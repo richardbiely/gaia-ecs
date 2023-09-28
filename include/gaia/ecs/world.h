@@ -675,11 +675,13 @@ namespace gaia {
 
 #if GAIA_DEBUG && GAIA_ECS_CHUNK_ALLOCATOR
 				// Make sure there are no leaks
-				ChunkAllocatorStats memstats = ChunkAllocator::Get().GetStats();
-				if (memstats.AllocatedMemory != 0) {
-					GAIA_ASSERT(false && "ECS leaking memory");
-					GAIA_LOG_W("ECS leaking memory!");
-					ChunkAllocator::Get().Diag();
+				ChunkAllocatorStats memStats = ChunkAllocator::Get().GetStats();
+				for (const auto& s: memStats.stats) {
+					if (s.AllocatedMemory != 0) {
+						GAIA_ASSERT(false && "ECS leaking memory");
+						GAIA_LOG_W("ECS leaking memory!");
+						ChunkAllocator::Get().Diag();
+					}
 				}
 #endif
 			}
