@@ -22,14 +22,11 @@ namespace gaia {
 	namespace ecs {
 		namespace archetype {
 			class Chunk final {
-			public:
-				//! Size of one chunk's data part with components
-				static constexpr size_t DATA_SIZE = ChunkMemorySize - sizeof(ChunkHeader);
-
 			private:
 				//! Chunk header
 				ChunkHeader m_header;
-				//! Chunk data layed out as:
+				//! Pointer to where the chunk data starts.
+				//! Data layed out as following:
 				//!			1) ComponentVersions[component::ComponentType::CT_Generic]
 				//!			2) ComponentVersions[component::ComponentType::CT_Chunk]
 				//!     3) ComponentIds[component::ComponentType::CT_Generic]
@@ -38,15 +35,16 @@ namespace gaia {
 				//!			6) ComponentOffsets[component::ComponentType::CT_Chunk]
 				//!			7) Entities
 				//!			8) Components
-				uint8_t m_data[DATA_SIZE];
+				//! Note, root archetypes store only entites, therefore it is fully occupied with entities.
+				uint8_t m_data[1];
 
 				GAIA_MSVC_WARNING_PUSH()
 				GAIA_MSVC_WARNING_DISABLE(26495)
 
 				Chunk(
-						uint32_t archetypeId, uint16_t chunkIndex, uint16_t capacity, uint32_t& worldVersion,
+						uint32_t archetypeId, uint16_t chunkIndex, uint16_t capacity, uint16_t st, uint32_t& worldVersion,
 						const ChunkHeaderOffsets& headerOffsets):
-						m_header(archetypeId, chunkIndex, capacity, headerOffsets, worldVersion) {}
+						m_header(archetypeId, chunkIndex, capacity, st, headerOffsets, worldVersion) {}
 
 				GAIA_MSVC_WARNING_POP()
 
@@ -119,14 +117,14 @@ namespace gaia {
 
 							[[maybe_unused]] const auto capacity = GetEntityCapacity();
 							[[maybe_unused]] const auto maxOffset = offset + capacity * sizeof(U);
-							GAIA_ASSERT(maxOffset <= Chunk::DATA_SIZE);
+							GAIA_ASSERT(maxOffset <= GetByteSize());
 
 							return std::span<UConst>{(UConst*)&GetData(offset), GetEntityCount()};
 						} else {
 							const auto offset = FindDataOffset(component::ComponentType::CT_Chunk, componentId);
 
 							[[maybe_unused]] const auto maxOffset = offset + sizeof(U);
-							GAIA_ASSERT(maxOffset <= Chunk::DATA_SIZE);
+							GAIA_ASSERT(maxOffset <= GetByteSize());
 
 							return std::span<UConst>{(UConst*)&GetData(offset), 1};
 						}
@@ -161,7 +159,7 @@ namespace gaia {
 
 						[[maybe_unused]] const auto capacity = GetEntityCapacity();
 						[[maybe_unused]] const auto maxOffset = offset + capacity * sizeof(U);
-						GAIA_ASSERT(maxOffset <= Chunk::DATA_SIZE);
+						GAIA_ASSERT(maxOffset <= GetByteSize());
 
 						if constexpr (WorldVersionUpdateWanted) {
 							// Update version number so we know RW access was used on chunk
@@ -173,7 +171,7 @@ namespace gaia {
 						const auto offset = FindDataOffset(component::ComponentType::CT_Chunk, componentId, componentIdx);
 
 						[[maybe_unused]] const auto maxOffset = offset + sizeof(U);
-						GAIA_ASSERT(maxOffset <= Chunk::DATA_SIZE);
+						GAIA_ASSERT(maxOffset <= GetByteSize());
 
 						if constexpr (WorldVersionUpdateWanted) {
 							// Update version number so we know RW access was used on chunk
@@ -221,13 +219,14 @@ namespace gaia {
 				\return Newly allocated chunk
 				*/
 				static Chunk* Create(
-						uint32_t archetypeId, uint16_t chunkIndex, uint16_t capacity, uint32_t& worldVersion,
+						uint32_t archetypeId, uint16_t chunkIndex, uint16_t capacity, uint16_t maxBytes, uint32_t& worldVersion,
 						const ChunkHeaderOffsets& offsets,
 						const containers::sarray<ComponentIdArray, component::ComponentType::CT_Count>& componentIds,
 						const containers::sarray<ComponentOffsetArray, component::ComponentType::CT_Count>& componentOffsets) {
 #if GAIA_ECS_CHUNK_ALLOCATOR
-					auto* pChunk = (Chunk*)ChunkAllocator::Get().Allocate();
-					new (pChunk) Chunk(archetypeId, chunkIndex, capacity, worldVersion, offsets);
+					auto* pChunk = (Chunk*)ChunkAllocator::Get().Allocate(maxBytes);
+					const auto sizeType = detail::ChunkAllocatorImpl::GetMemoryBlockSizeType(maxBytes);
+					new (pChunk) Chunk(archetypeId, chunkIndex, capacity, sizeType, worldVersion, offsets);
 #else
 					auto pChunk = new Chunk(archetypeId, chunkIndex, capacity, worldVersion, offsets);
 #endif
@@ -380,8 +379,8 @@ namespace gaia {
 						const auto idxSrc = offset + desc.properties.size * (uint32_t)oldEntityContainer.idx;
 						const auto idxDst = offset + desc.properties.size * (uint32_t)newEntityContainer.idx;
 
-						GAIA_ASSERT(idxSrc < Chunk::DATA_SIZE);
-						GAIA_ASSERT(idxDst < Chunk::DATA_SIZE);
+						GAIA_ASSERT(idxSrc < pOldChunk->GetByteSize());
+						GAIA_ASSERT(idxDst < pNewChunk->GetByteSize());
 
 						auto* pSrc = (void*)&pOldChunk->GetData(idxSrc);
 						auto* pDst = (void*)&pNewChunk->GetData(idxDst);
@@ -414,8 +413,8 @@ namespace gaia {
 						const auto idxSrc = offset + desc.properties.size * (uint32_t)oldEntityContainer.idx;
 						const auto idxDst = offset + desc.properties.size * newEntityIdx;
 
-						GAIA_ASSERT(idxSrc < Chunk::DATA_SIZE);
-						GAIA_ASSERT(idxDst < Chunk::DATA_SIZE);
+						GAIA_ASSERT(idxSrc < pOldChunk->GetByteSize());
+						GAIA_ASSERT(idxDst < GetByteSize());
 
 						auto* pSrc = (void*)&pOldChunk->GetData(idxSrc);
 						auto* pDst = (void*)&GetData(idxDst);
@@ -455,8 +454,8 @@ namespace gaia {
 							const auto idxSrc = oldOffs[i] + desc.properties.size * (uint32_t)oldEntityContainer.idx;
 							const auto idxDst = newOffs[j] + desc.properties.size * newEntityIdx;
 
-							GAIA_ASSERT(idxSrc < Chunk::DATA_SIZE);
-							GAIA_ASSERT(idxDst < Chunk::DATA_SIZE);
+							GAIA_ASSERT(idxSrc < pOldChunk->GetByteSize());
+							GAIA_ASSERT(idxDst < GetByteSize());
 
 							auto* pSrc = (void*)&pOldChunk->GetData(idxSrc);
 							auto* pDst = (void*)&GetData(idxDst);
@@ -502,8 +501,8 @@ namespace gaia {
 							const auto idxSrc = offset + index * desc.properties.size;
 							const auto idxDst = offset + (m_header.count - 1U) * desc.properties.size;
 
-							GAIA_ASSERT(idxSrc < Chunk::DATA_SIZE);
-							GAIA_ASSERT(idxDst < Chunk::DATA_SIZE);
+							GAIA_ASSERT(idxSrc < GetByteSize());
+							GAIA_ASSERT(idxDst < GetByteSize());
 							GAIA_ASSERT(idxSrc != idxDst);
 
 							auto* pSrc = (void*)&m_data[idxSrc];
@@ -656,7 +655,7 @@ namespace gaia {
 					const auto idx = utils::get_index_unsafe(componentIds, componentId);
 					const auto offset = componentOffsets[idx];
 					const auto idxSrc = offset + entityIndex * desc.properties.size;
-					GAIA_ASSERT(idxSrc < Chunk::DATA_SIZE);
+					GAIA_ASSERT(idxSrc < GetByteSize());
 
 					auto* pSrc = (void*)&m_data[idxSrc];
 					desc.ctor(pSrc, 1);
@@ -683,7 +682,7 @@ namespace gaia {
 
 						const auto offset = componentOffsets[i];
 						const auto idxSrc = offset + entityIndex * desc.properties.size;
-						GAIA_ASSERT(idxSrc < Chunk::DATA_SIZE);
+						GAIA_ASSERT(idxSrc < GetByteSize());
 
 						auto* pSrc = (void*)&m_data[idxSrc];
 						desc.ctor(pSrc, entityCount);
@@ -711,7 +710,7 @@ namespace gaia {
 
 						const auto offset = componentOffsets[i];
 						const auto idxSrc = offset + entityIndex * desc.properties.size;
-						GAIA_ASSERT(idxSrc < Chunk::DATA_SIZE);
+						GAIA_ASSERT(idxSrc < GetByteSize());
 
 						auto* pSrc = (void*)&m_data[idxSrc];
 						desc.dtor(pSrc, entityCount);
@@ -1029,6 +1028,10 @@ namespace gaia {
 					return m_header.capacity;
 				}
 
+				GAIA_NODISCARD uint32_t GetByteSize() const {
+					return detail::ChunkAllocatorImpl::GetMemoryBlockSize(m_header.sizeType);
+				}
+
 				//! Returns the mask of disabled entities
 				GAIA_NODISCARD ChunkHeader::DisabledEntityMask& GetDisabledEntityMask() {
 					return m_header.disabledEntityMask;
@@ -1089,7 +1092,6 @@ namespace gaia {
 							m_header.lifespanCountdown);
 				}
 			};
-			static_assert(sizeof(Chunk) <= ChunkMemorySize, "Chunk size must match ChunkMemorySize!");
 		} // namespace archetype
 	} // namespace ecs
 } // namespace gaia
