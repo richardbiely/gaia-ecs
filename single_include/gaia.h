@@ -9109,18 +9109,18 @@ namespace gaia {
 				// If there's something to remove there has to be at least one entity left
 				GAIA_ASSERT(!m_items.empty());
 
-				auto freeEntities = m_freeItems;
-				auto nextFreeEntity = m_nextFreeIdx;
-				while (freeEntities > 0) {
-					GAIA_ASSERT(nextFreeEntity < m_items.size() && "Item recycle list broken!");
+				auto freeItems = m_freeItems;
+				auto nextFreeItem = m_nextFreeIdx;
+				while (freeItems > 0) {
+					GAIA_ASSERT(nextFreeItem < m_items.size() && "Item recycle list broken!");
 
-					nextFreeEntity = m_items[nextFreeEntity].idx;
-					--freeEntities;
+					nextFreeItem = m_items[nextFreeItem].idx;
+					--freeItems;
 				}
 
 				// At this point the index of the last item in list should
 				// point to -1 because that's the tail of our implicit list.
-				GAIA_ASSERT(nextFreeEntity == TItemHandle::IdMask);
+				GAIA_ASSERT(nextFreeItem == TItemHandle::IdMask);
 			}
 		};
 	} // namespace containers

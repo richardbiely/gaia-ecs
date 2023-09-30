@@ -58,12 +58,15 @@
 		#define GAIA_ASSERT_ENABLED 1
 		#define GAIA_ASSERT(cond)                                                                                          \
 			{                                                                                                                \
+				GAIA_MSVC_WARNING_PUSH()                                                                                       \
+				GAIA_MSVC_WARNING_DISABLE(4127)                                                                                \
 				if GAIA_LIKELY (cond)                                                                                          \
 					(void(0));                                                                                                   \
 				else                                                                                                           \
 					[] {                                                                                                         \
 						assert(!#cond);                                                                                            \
 					}();                                                                                                         \
+				GAIA_MSVC_WARNING_POP()                                                                                        \
 			}
 	#else
 		// For non-Debug builds simulate asserts
@@ -71,12 +74,15 @@
 			#define GAIA_ASSERT_ENABLED 1
 			#define GAIA_ASSERT(cond)                                                                                        \
 				{                                                                                                              \
+					GAIA_MSVC_WARNING_PUSH()                                                                                     \
+					GAIA_MSVC_WARNING_DISABLE(4127)                                                                              \
 					if GAIA_LIKELY (cond)                                                                                        \
 						(void(0));                                                                                                 \
 					else                                                                                                         \
 						[] {                                                                                                       \
 							GAIA_LOG_E("%s:%d: Assertion failed: '%s'.", __FILE__, __LINE__, #cond);                                 \
 						}();                                                                                                       \
+					GAIA_MSVC_WARNING_POP()                                                                                      \
 				}
 		#else
 			#define GAIA_ASSERT_ENABLED 0
