@@ -44,7 +44,17 @@ namespace gaia {
 				Chunk(
 						uint32_t archetypeId, uint16_t chunkIndex, uint16_t capacity, uint16_t st, uint32_t& worldVersion,
 						const ChunkHeaderOffsets& headerOffsets):
-						m_header(archetypeId, chunkIndex, capacity, st, headerOffsets, worldVersion) {}
+						m_header(archetypeId, chunkIndex, capacity, st, headerOffsets, worldVersion) {
+					// Chunk data area consist of memory offsets + component data. Normally. we would initialize it.
+					// However, the memory offsets part are all trivial types and components are initialized via their
+					// constructors so we do not really need to do anything.
+					// const uint32_t sizeBytes = ...;
+					// auto* curr = (uint8_t*)&m_data[0] + 1;
+					// for (uint32_t i = 0; i < sizeBytes; ++i, (void)++curr) {
+					// 	const auto* addr = utils::addressof(*curr);
+					// 	(void)new (const_cast<void*>(static_cast<const volatile void*>(addr))) uint8_t;
+					// }
+				}
 
 				GAIA_MSVC_WARNING_POP()
 
@@ -213,22 +223,41 @@ namespace gaia {
 				}
 
 			public:
+				Chunk(const Chunk& chunk) = delete;
+				Chunk(Chunk&& chunk) = delete;
+				Chunk& operator=(const Chunk& chunk) = delete;
+				Chunk& operator=(Chunk&& chunk) = delete;
+
+				static uint16_t GetTotalChunkSize(uint16_t dataSize) {
+					uint16_t header = (uint16_t)sizeof(ChunkHeader) + (uint16_t)MemoryBlockUsableOffset;
+					return header + dataSize;
+				}
+
+				static uint16_t GetChunkDataSize(uint16_t totalSize) {
+					uint16_t header = (uint16_t)sizeof(ChunkHeader) + (uint16_t)MemoryBlockUsableOffset;
+					return totalSize - header;
+				}
+
 				/*!
 				Allocates memory for a new chunk.
 				\param chunkIndex Index of this chunk within the parent archetype
 				\return Newly allocated chunk
 				*/
 				static Chunk* Create(
-						uint32_t archetypeId, uint16_t chunkIndex, uint16_t capacity, uint16_t maxBytes, uint32_t& worldVersion,
+						uint32_t archetypeId, uint16_t chunkIndex, uint16_t capacity, uint16_t dataBytes, uint32_t& worldVersion,
 						const ChunkHeaderOffsets& offsets,
 						const containers::sarray<ComponentIdArray, component::ComponentType::CT_Count>& componentIds,
 						const containers::sarray<ComponentOffsetArray, component::ComponentType::CT_Count>& componentOffsets) {
+					const auto totalBytes = GetTotalChunkSize(dataBytes);
+					const auto sizeType = detail::ChunkAllocatorImpl::GetMemoryBlockSizeType(totalBytes);
 #if GAIA_ECS_CHUNK_ALLOCATOR
-					auto* pChunk = (Chunk*)ChunkAllocator::Get().Allocate(maxBytes);
-					const auto sizeType = detail::ChunkAllocatorImpl::GetMemoryBlockSizeType(maxBytes);
+					auto* pChunk = (Chunk*)ChunkAllocator::Get().Allocate(totalBytes);
 					new (pChunk) Chunk(archetypeId, chunkIndex, capacity, sizeType, worldVersion, offsets);
 #else
-					auto pChunk = new Chunk(archetypeId, chunkIndex, capacity, worldVersion, offsets);
+					GAIA_ASSERT(totalBytes <= MaxMemoryBlockSize);
+					const auto allocSize = detail::ChunkAllocatorImpl::GetMemoryBlockSize(sizeType);
+					auto* pChunkMem = new uint8_t[allocSize];
+					auto* pChunk = new (pChunkMem) Chunk(archetypeId, chunkIndex, capacity, sizeType, worldVersion, offsets);
 #endif
 
 					pChunk->Init(componentIds, componentOffsets);
@@ -253,7 +282,9 @@ namespace gaia {
 					pChunk->~Chunk();
 					ChunkAllocator::Get().Release(pChunk);
 #else
-					delete pChunk;
+					pChunk->~Chunk();
+					auto* pChunkMem = (uint8_t*)pChunk;
+					delete pChunkMem;
 #endif
 				}
 
