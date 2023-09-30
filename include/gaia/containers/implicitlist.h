@@ -4,7 +4,6 @@
 #include <cinttypes>
 #include <type_traits>
 
-#include "gaia/config/config_core.h"
 #include "impl/darray_impl.h"
 
 namespace gaia {

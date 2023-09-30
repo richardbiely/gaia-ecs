@@ -1,4 +1,3 @@
-#include "gaia/mt/threadpool.h"
 #define PICOBENCH_IMPLEMENT_WITH_MAIN
 #include "gaia/external/picobench.hpp"
 #include <gaia.h>
