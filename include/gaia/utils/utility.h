@@ -513,6 +513,7 @@ namespace gaia {
 		//----------------------------------------------------------------------
 
 		namespace detail {
+#if !(GAIA_USE_STL_COMPATIBLE_CONTAINERS && __cplusplus >= 202002L)
 			template <typename Array, typename TSortFunc>
 			constexpr void comb_sort_impl(Array& array_, TSortFunc func) noexcept {
 				constexpr double Factor = 1.247330950103979;
@@ -535,6 +536,7 @@ namespace gaia {
 					}
 				}
 			}
+#endif
 
 			template <typename Container, typename TSortFunc>
 			int quick_sort_partition(Container& arr, TSortFunc func, int low, int high) {
@@ -695,18 +697,13 @@ namespace gaia {
 				swap_if(arr[5], arr[7], func);
 				swap_if(arr[5], arr[6], func);
 			} else {
-#if GAIA_USE_STL_COMPATIBLE_CONTAINERS
-				//! TODO: replace with std::sort for c++20
-	#if __cplusplus >= 202002L
+#if GAIA_USE_STL_COMPATIBLE_CONTAINERS && __cplusplus >= 202002L
 				std::sort(arr.begin(), arr.end());
-	#else
+#else
 				GAIA_MSVC_WARNING_PUSH()
 				GAIA_MSVC_WARNING_DISABLE(4244)
 				detail::comb_sort_impl(arr, func);
 				GAIA_MSVC_WARNING_POP()
-	#endif
-#else
-				detail::comb_sort_impl(arr, func);
 #endif
 			}
 		}
