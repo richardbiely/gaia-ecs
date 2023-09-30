@@ -12740,13 +12740,14 @@ namespace gaia {
 							chunkComponentListSize += desc.properties.size;
 						}
 
+						const size_t maxDataOffset = Chunk::GetChunkDataSize(MaxMemoryBlockSize);
+
 						// Theoretical maximum number of components we can fit into one chunk.
 						// This can be further reduced due alignment and padding.
 						auto maxGenericItemsInArchetype =
-								(MaxMemoryBlockSize - dataOffset.firstByte_EntityData - chunkComponentListSize - 1) /
+								(maxDataOffset - dataOffset.firstByte_EntityData - chunkComponentListSize - 1) /
 								(genericComponentListSize + sizeof(Entity));
 
-						const size_t maxDataOffset = Chunk::GetChunkDataSize(MaxMemoryBlockSize);
 					recalculate:
 						auto componentOffsets = dataOffset.firstByte_EntityData + sizeof(Entity) * maxGenericItemsInArchetype;
 
