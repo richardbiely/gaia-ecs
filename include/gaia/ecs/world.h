@@ -6,7 +6,7 @@
 
 #include "../config/profiler.h"
 #include "../containers/darray.h"
-#include "../containers/implicitlist.h"
+#include "../containers/ilist.h"
 #include "../containers/map.h"
 #include "../containers/sarray.h"
 #include "../containers/sarray_ext.h"
@@ -53,7 +53,7 @@ namespace gaia {
 
 			//! Implicit list of entities. Used for look-ups only when searching for
 			//! entities in chunks + data validation
-			containers::ImplicitList<EntityContainer, Entity> m_entities;
+			containers::ilist<EntityContainer, Entity> m_entities;
 
 			//! List of chunks to delete
 			containers::darray<archetype::Chunk*> m_chunksToRemove;
@@ -862,6 +862,7 @@ namespace gaia {
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			void EnableEntity(Entity entity, bool enable) {
 				auto& entityContainer = m_entities[entity.id()];
+				entityContainer.dis = enable;
 
 				GAIA_ASSERT(
 						(!entityContainer.pChunk || !entityContainer.pChunk->IsStructuralChangesLocked()) &&
@@ -882,11 +883,7 @@ namespace gaia {
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
-				const auto* pChunk = entityContainer.pChunk;
-
-				GAIA_ASSERT(pChunk != nullptr);
-
-				return !pChunk->GetDisabledEntityMask().test(entityContainer.idx);
+				return !entityContainer.dis;
 			}
 
 			//! Returns the number of active entities

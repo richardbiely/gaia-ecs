@@ -8,17 +8,27 @@
 
 namespace gaia {
 	namespace containers {
-		struct ImplicitListItem {
+		struct ilist_item_base {};
+		struct ilist_item: public ilist_item_base {
 			//! Allocated items: Index in the list.
 			//! Deleted items: Index of the next deleted item in the list.
 			uint32_t idx;
 			//! Generation ID
 			uint32_t gen;
+
+			ilist_item() = default;
+			ilist_item(uint32_t index, uint32_t generation): idx(index), gen(generation) {}
 		};
 
+		//! Implicit list. Rather than with pointers, items \tparam TListItem are linked
+		//! together through an internal indexing mechanism. To the outside world they are
+		//! presented as \tparam TItemHandle.
+		//! \tparam TListItem needs to have idx and gen variables and expose a constructor
+		//! that initializes them.
 		template <typename TListItem, typename TItemHandle>
-		struct ImplicitList {
+		struct ilist {
 			using internal_storage = containers::darr<TListItem>;
+			// TODO: replace this iterator with a real list iterator
 			using iterator = typename internal_storage::iterator;
 			using const_iterator = typename internal_storage::const_iterator;
 
@@ -31,7 +41,7 @@ namespace gaia {
 			using difference_type = std::ptrdiff_t;
 			using size_type = uint32_t;
 
-			static_assert(std::is_base_of<ImplicitListItem, TListItem>::value);
+			static_assert(std::is_base_of<ilist_item_base, TListItem>::value);
 			//! Implicit list items
 			internal_storage m_items;
 			//! Index of the next item to recycle
@@ -112,7 +122,7 @@ namespace gaia {
 					GAIA_CLANG_WARNING_PUSH()
 					GAIA_GCC_WARNING_DISABLE("-Wmissing-field-initializers");
 					GAIA_CLANG_WARNING_DISABLE("-Wmissing-field-initializers");
-					m_items.push_back({{itemCnt, 0U}});
+					m_items.push_back(TListItem(itemCnt, 0U));
 					return {itemCnt, 0U};
 					GAIA_GCC_WARNING_POP()
 					GAIA_CLANG_WARNING_POP()
