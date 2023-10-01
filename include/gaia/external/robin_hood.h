@@ -42,9 +42,6 @@
 
 #include <cstdlib>
 #include <cstring>
-#if GAIA_USE_STL_CONTAINERS
-	#include <functional>
-#endif
 #include <initializer_list>
 #include <new>
 #include <tuple>
@@ -57,7 +54,7 @@
 #include "../utils/utility.h"
 
 // #define ROBIN_HOOD_STD_SMARTPOINTERS
-#if defined(ROBIN_HOOD_STD_SMARTPOINTERS) || GAIA_USE_STL_CONTAINERS
+#if defined(ROBIN_HOOD_STD_SMARTPOINTERS)
 	#include <memory>
 #endif
 
@@ -267,7 +264,7 @@ namespace robin_hood {
 
 			BulkPoolAllocator&
 			// NOLINTNEXTLINE(bugprone-unhandled-self-assignment,cert-oop54-cpp)
-			operator=(const BulkPoolAllocator& ROBIN_HOOD_UNUSED(o) /*unused*/) noexcept {
+			operator=(const BulkPoolAllocator & ROBIN_HOOD_UNUSED(o) /*unused*/) noexcept {
 				// does not do anything
 				return *this;
 			}
@@ -616,26 +613,12 @@ namespace robin_hood {
 		return static_cast<size_t>(x);
 	}
 
-#if GAIA_USE_STL_CONTAINERS
-	// A thin wrapper around std::hash, performing an additional simple mixing step of the result.
-	template <typename T, typename Enable = void>
-	struct hash: public std::hash<T> {
-		size_t operator()(T const& obj) const
-				noexcept(noexcept(std::declval<std::hash<T>>().operator()(std::declval<T const&>()))) {
-			// call base hash
-			auto result = std::hash<T>::operator()(obj);
-			// return mixed of that, to be save against identity has
-			return hash_int(static_cast<detail::SizeT>(result));
-		}
-	};
-#else
 	template <typename T, typename Enable = void>
 	struct hash {
 		size_t operator()(T const& obj) const noexcept {
 			return hash_bytes(&obj, sizeof(T));
 		}
 	};
-#endif
 
 	template <typename T>
 	struct hash<T*> {
@@ -678,7 +661,9 @@ namespace robin_hood {
 #define ROBIN_HOOD_HASH_INT(T)                                                                                         \
 	template <>                                                                                                          \
 	struct hash<T> {                                                                                                     \
-		size_t operator()(T const& obj) const noexcept { return hash_int(static_cast<uint64_t>(obj)); }                    \
+		size_t operator()(T const& obj) const noexcept {                                                                   \
+			return hash_int(static_cast<uint64_t>(obj));                                                                     \
+		}                                                                                                                  \
 	}
 
 #if defined(__GNUC__) && !defined(__clang__)

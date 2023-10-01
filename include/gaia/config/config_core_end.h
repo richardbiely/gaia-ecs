@@ -16,15 +16,7 @@
 // General settings
 //------------------------------------------------------------------------------
 
-#if GAIA_USE_STL_CONTAINERS && !GAIA_USE_STL_COMPATIBLE_CONTAINERS
-	#undef GAIA_USE_STL_COMPATIBLE_CONTAINERS
-	#define GAIA_USE_STL_COMPATIBLE_CONTAINERS 1
-#endif
-#if GAIA_USE_STL_CONTAINERS || GAIA_USE_STL_COMPATIBLE_CONTAINERS
-	#define GAIA_UTIL std
-#else
-	#define GAIA_UTIL gaia::utils
-#endif
+#define GAIA_UTIL gaia::utils
 
 //------------------------------------------------------------------------------
 // Debug features

@@ -1,9 +1,6 @@
 #pragma once
 #include "../config/config.h"
 
-#if GAIA_USE_STL_COMPATIBLE_CONTAINERS
-	#include <algorithm>
-#endif
 #include <tuple>
 #include <type_traits>
 #include <utility>
@@ -50,13 +47,9 @@ namespace gaia {
 
 		template <typename T>
 		constexpr void swap(T& left, T& right) {
-#if GAIA_USE_STL_COMPATIBLE_CONTAINERS
-			return std::swap(left, right);
-#else
 			T tmp = std::move(left);
 			left = std::move(right);
 			right = std::move(tmp);
-#endif
 		}
 
 		template <typename T, typename TCmpFunc>
@@ -89,13 +82,9 @@ namespace gaia {
 
 		template <class ForwardIt, class T>
 		constexpr void fill(ForwardIt first, ForwardIt last, const T& value) {
-#if GAIA_USE_STL_COMPATIBLE_CONTAINERS
-			std::fill(first, last, value);
-#else
 			for (; first != last; ++first) {
 				*first = value;
 			}
-#endif
 		}
 
 		//----------------------------------------------------------------------
@@ -160,7 +149,7 @@ namespace gaia {
 		template <typename Class, typename Ret, typename... Args>
 		func_type_list<Args...> func_args(Ret (Class::*)(Args...) const);
 
-#define DEFINE_HAS_FUNCTION(function_name)                                                                             \
+#define GAIA_DEFINE_HAS_FUNCTION(function_name)                                                                        \
 	template <typename T, typename... Args>                                                                              \
 	constexpr auto has_##function_name##_check(int)                                                                      \
 			-> decltype(std::declval<T>().function_name(std::declval<Args>()...), std::true_type{});                         \
@@ -173,9 +162,9 @@ namespace gaia {
 		static constexpr bool value = decltype(has_##function_name##_check<T, Args...>(0))::value;                         \
 	};
 
-		DEFINE_HAS_FUNCTION(find)
-		DEFINE_HAS_FUNCTION(find_if)
-		DEFINE_HAS_FUNCTION(find_if_not)
+		GAIA_DEFINE_HAS_FUNCTION(find)
+		GAIA_DEFINE_HAS_FUNCTION(find_if)
+		GAIA_DEFINE_HAS_FUNCTION(find_if_not)
 
 		//----------------------------------------------------------------------
 		// Type helpers
@@ -296,13 +285,9 @@ namespace gaia {
 
 		template <typename InputIt, typename Func>
 		constexpr Func for_each(InputIt first, InputIt last, Func func) {
-#if GAIA_USE_STL_COMPATIBLE_CONTAINERS
-			return std::for_each(first, last, func);
-#else
 			for (; first != last; ++first)
 				func(*first);
 			return func;
-#endif
 		}
 
 		template <typename C, typename Func>
@@ -316,18 +301,15 @@ namespace gaia {
 
 		template <typename InputIt, typename T>
 		constexpr InputIt find(InputIt first, InputIt last, const T& value) {
-#if GAIA_USE_STL_COMPATIBLE_CONTAINERS
-			return std::find(first, last, value);
-#else
 			if constexpr (std::is_pointer_v<InputIt>) {
-				const auto size = (size_t)GAIA_UTIL::distance(first, last);
-				for (size_t i = 0; i < size; ++i) {
+				auto size = GAIA_UTIL::distance(first, last);
+				for (decltype(size) i = 0; i < size; ++i) {
 					if (first[i] == value)
 						return &first[i];
 				}
 			} else if constexpr (std::is_same_v<typename InputIt::iterator_category, GAIA_UTIL::random_access_iterator_tag>) {
-				const auto size = (size_t)GAIA_UTIL::distance(first, last);
-				for (size_t i = 0; i < size; ++i) {
+				auto size = GAIA_UTIL::distance(first, last);
+				for (decltype(size) i = 0; i < size; ++i) {
 					if (*(first[i]) == value)
 						return first[i];
 				}
@@ -338,7 +320,6 @@ namespace gaia {
 				}
 			}
 			return last;
-#endif
 		}
 
 		template <typename C, typename V>
@@ -351,18 +332,15 @@ namespace gaia {
 
 		template <typename InputIt, typename Func>
 		constexpr InputIt find_if(InputIt first, InputIt last, Func func) {
-#if GAIA_USE_STL_COMPATIBLE_CONTAINERS
-			return std::find_if(first, last, func);
-#else
 			if constexpr (std::is_pointer_v<InputIt>) {
-				const auto size = (size_t)GAIA_UTIL::distance(first, last);
-				for (size_t i = 0; i < size; ++i) {
+				auto size = GAIA_UTIL::distance(first, last);
+				for (decltype(size) i = 0; i < size; ++i) {
 					if (func(first[i]))
 						return &first[i];
 				}
 			} else if constexpr (std::is_same_v<typename InputIt::iterator_category, GAIA_UTIL::random_access_iterator_tag>) {
-				const auto size = (size_t)GAIA_UTIL::distance(first, last);
-				for (size_t i = 0; i < size; ++i) {
+				auto size = GAIA_UTIL::distance(first, last);
+				for (decltype(size) i = 0; i < size; ++i) {
 					if (func(*(first[i])))
 						return first[i];
 				}
@@ -373,7 +351,6 @@ namespace gaia {
 				}
 			}
 			return last;
-#endif
 		}
 
 		template <typename UnaryPredicate, typename C>
@@ -386,18 +363,15 @@ namespace gaia {
 
 		template <typename InputIt, typename Func>
 		constexpr InputIt find_if_not(InputIt first, InputIt last, Func func) {
-#if GAIA_USE_STL_COMPATIBLE_CONTAINERS
-			return std::find_if_not(first, last, func);
-#else
 			if constexpr (std::is_pointer_v<InputIt>) {
-				const auto size = (size_t)GAIA_UTIL::distance(first, last);
-				for (size_t i = 0; i < size; ++i) {
+				auto size = GAIA_UTIL::distance(first, last);
+				for (decltype(size) i = 0; i < size; ++i) {
 					if (!func(first[i]))
 						return &first[i];
 				}
 			} else if constexpr (std::is_same_v<typename InputIt::iterator_category, GAIA_UTIL::random_access_iterator_tag>) {
-				const auto size = (size_t)GAIA_UTIL::distance(first, last);
-				for (size_t i = 0; i < size; ++i) {
+				auto size = GAIA_UTIL::distance(first, last);
+				for (decltype(size) i = 0; i < size; ++i) {
 					if (!func(*(first[i])))
 						return first[i];
 				}
@@ -408,7 +382,6 @@ namespace gaia {
 				}
 			}
 			return last;
-#endif
 		}
 
 		template <typename UnaryPredicate, typename C>
@@ -513,7 +486,6 @@ namespace gaia {
 		//----------------------------------------------------------------------
 
 		namespace detail {
-#if !(GAIA_USE_STL_COMPATIBLE_CONTAINERS && GAIA_CPP_VERSION(202002L))
 			template <typename Array, typename TSortFunc>
 			constexpr void comb_sort_impl(Array& array_, TSortFunc func) noexcept {
 				constexpr double Factor = 1.247330950103979;
@@ -536,7 +508,6 @@ namespace gaia {
 					}
 				}
 			}
-#endif
 
 			template <typename Container, typename TSortFunc>
 			int quick_sort_partition(Container& arr, TSortFunc func, int low, int high) {
@@ -697,14 +668,10 @@ namespace gaia {
 				swap_if(arr[5], arr[7], func);
 				swap_if(arr[5], arr[6], func);
 			} else {
-#if GAIA_USE_STL_COMPATIBLE_CONTAINERS && GAIA_CPP_VERSION(202002L)
-				std::sort(arr.begin(), arr.end());
-#else
 				GAIA_MSVC_WARNING_PUSH()
 				GAIA_MSVC_WARNING_DISABLE(4244)
 				detail::comb_sort_impl(arr, func);
 				GAIA_MSVC_WARNING_POP()
-#endif
 			}
 		}
 
@@ -821,16 +788,8 @@ namespace gaia {
 						swap_if(arr[j], arr[j + 1], func);
 				}
 			} else {
-#if GAIA_USE_STL_COMPATIBLE_CONTAINERS
-				GAIA_MSVC_WARNING_PUSH()
-				GAIA_MSVC_WARNING_DISABLE(4244)
-				std::sort(arr.begin(), arr.end(), func);
-				GAIA_MSVC_WARNING_POP()
-#else
 				const int n = (int)arr.size();
 				detail::quick_sort(arr, func, 0, n - 1);
-
-#endif
 			}
 		}
 

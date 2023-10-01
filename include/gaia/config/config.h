@@ -16,15 +16,6 @@
 	#define GAIA_DISABLE_ASSERTS 0
 #endif
 
-//! If enabled, STL containers are going to be used by the framework.
-#if !defined(GAIA_USE_STL_CONTAINERS)
-	#define GAIA_USE_STL_CONTAINERS 0
-#endif
-//! If enabled, internal containers stay compatible with STL by sticking to STL iterators.
-#if !defined(GAIA_USE_STL_COMPATIBLE_CONTAINERS)
-	#define GAIA_USE_STL_COMPATIBLE_CONTAINERS (GAIA_USE_STL_CONTAINERS || 0)
-#endif
-
 //! Number of bits used for the entity identifier.
 //! You should only touch this if you need more than 2^20 entities which should be fairly
 //! difficult to achieve.
