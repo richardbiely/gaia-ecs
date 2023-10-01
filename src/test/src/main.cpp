@@ -3061,9 +3061,9 @@ void TestDataLayoutAoS() {
 		for (size_t i = 0; i < N; ++i) {
 			const auto f = (float)(i + 1);
 
-			aos::set({data}, i, {f, f, f});
+			aos::set({data.data(), data.size()}, i, {f, f, f});
 
-			auto val = aos::getc({data}, i);
+			auto val = aos::getc({data.data(), data.size()}, i);
 			REQUIRE(val.x == f);
 			REQUIRE(val.y == f);
 			REQUIRE(val.z == f);
@@ -3073,7 +3073,7 @@ void TestDataLayoutAoS() {
 			for (size_t i = 0; i < N; ++i) {
 				const auto f = (float)(i + 1);
 
-				auto val = aos::getc({data}, i);
+				auto val = aos::getc({data.data(), data.size()}, i);
 				REQUIRE(val.x == f);
 				REQUIRE(val.y == f);
 				REQUIRE(val.z == f);
@@ -3085,9 +3085,9 @@ void TestDataLayoutAoS() {
 		for (size_t i = 0; i < N; ++i) {
 			const auto f = (float)(i + 1);
 
-			view_deduced::set({data}, i, {f, f, f});
+			view_deduced::set({data.data(), data.size()}, i, {f, f, f});
 
-			auto val = view_deduced::getc({data}, i);
+			auto val = view_deduced::getc({data.data(), data.size()}, i);
 			REQUIRE(val.x == f);
 			REQUIRE(val.y == f);
 			REQUIRE(val.z == f);
@@ -3097,7 +3097,7 @@ void TestDataLayoutAoS() {
 			for (size_t i = 0; i < N; ++i) {
 				const auto f = (float)(i + 1);
 
-				auto val = view_deduced::getc({data}, i);
+				auto val = view_deduced::getc({data.data(), data.size()}, i);
 				REQUIRE(val.x == f);
 				REQUIRE(val.y == f);
 				REQUIRE(val.z == f);
@@ -3138,9 +3138,9 @@ void TestDataLayoutSoA() {
 		for (size_t i = 0; i < N; ++i) {
 			const auto f = (float)(i + 1);
 
-			view_deduced::set({data}, i, {f, f, f});
+			view_deduced::set({data.data(), data.size()}, i, {f, f, f});
 
-			auto val = view_deduced::get({data}, i);
+			auto val = view_deduced::get({data.data(), data.size()}, i);
 			REQUIRE(val.x == f);
 			REQUIRE(val.y == f);
 			REQUIRE(val.z == f);
@@ -3150,7 +3150,7 @@ void TestDataLayoutSoA() {
 			for (size_t i = 0; i < N; ++i) {
 				const auto f = (float)(i + 1);
 
-				auto val = view_deduced::get({data}, i);
+				auto val = view_deduced::get({data.data(), data.size()}, i);
 				REQUIRE(val.x == f);
 				REQUIRE(val.y == f);
 				REQUIRE(val.z == f);

@@ -9,10 +9,23 @@
 // DO NOT MODIFY THIS FILE
 //------------------------------------------------------------------------------
 
-#if __cplusplus >= 201703L || (defined(_MSVC_LANG) && _MSVC_LANG >= 201703L)
+//------------------------------------------------------------------------------
+// Features
+//------------------------------------------------------------------------------
+#if defined(_MSVC_LANG)
+	#define GAIA_CPP_VERSION(version) (__cplusplus >= (version) || _MSVC_LANG >= (version))
 #else
-	// We use some C++17+ features such as folding expressions, compile-time ifs
-	// and similar which makes it impossible to use Gaia-ECS with old compilers.
+	#define GAIA_CPP_VERSION(version) (__cplusplus >= (version))
+#endif
+
+//------------------------------------------------------------------------------
+// Features
+//------------------------------------------------------------------------------
+
+#if GAIA_CPP_VERSION(201703L)
+#else
+// We use some C++17+ features such as folding expressions, compile-time ifs
+// and similar which makes it impossible to use Gaia-ECS with old compilers.
 	#error "To build Gaia-ECS a compiler capable of at least C++17 is necesary"
 #endif
 
@@ -86,9 +99,9 @@
 	#undef GAIA_PLATFORM_WINDOWS
 	#define GAIA_PLATFORM_WINDOWS 1
 #elif __APPLE__
-	// MacOS, iOS, tvOS etc.
-	// We could tell the platforms apart using #include "TargetConditionals.h"
-	// but that is probably way more than we need to know.
+// MacOS, iOS, tvOS etc.
+// We could tell the platforms apart using #include "TargetConditionals.h"
+// but that is probably way more than we need to know.
 	#undef GAIA_PLATFORM_APPLE
 	#define GAIA_PLATFORM_APPLE 1
 #elif __linux__
@@ -180,7 +193,7 @@ namespace gaia {
 	#define GAIA_RESTRICT
 #endif
 
-#if __cplusplus >= 202002L
+#if GAIA_CPP_VERSION(202002L)
 	#if __has_cpp_attribute(nodiscard)
 		#define GAIA_NODISCARD [[nodiscard]]
 	#endif
@@ -222,7 +235,7 @@ namespace gaia {
 	#if _MSV_VER <= 1916
 		#include <intrin.h>
 	#endif
-// MSVC doesn't implement __popcnt for ARM so we need to do it ourselves
+	// MSVC doesn't implement __popcnt for ARM so we need to do it ourselves
 	#if GAIA_ARCH == GAIA_ARCH_ARM
 		#include <arm_neon.h>
 	//! Returns the number of set bits in \param x
@@ -304,25 +317,25 @@ namespace gaia {
 	//! Returns the number of set bits in \param x
 	#define GAIA_POPCNT64(x) ((uint32_t)__builtin_popcountll(x))
 
-	//! Returns the number of leading zeros of \param x or 32 if \param x is 0.
-	//! \warning Little-endian format.
+//! Returns the number of leading zeros of \param x or 32 if \param x is 0.
+//! \warning Little-endian format.
 	#define GAIA_CLZ(x) ((x) ? (uint32_t)__builtin_ctz(x) : (uint32_t)32)
 	//! Returns the number of leading zeros of \param x or 64 if \param x is 0.
-	//! \warning Little-endian format.
+//! \warning Little-endian format.
 	#define GAIA_CLZ64(x) ((x) ? (uint32_t)__builtin_ctzll(x) : (uint32_t)64)
 
-	//! Returns the number of trailing zeros of \param x or 32 if \param x is 0.
-	//! \warning Little-endian format.
+//! Returns the number of trailing zeros of \param x or 32 if \param x is 0.
+//! \warning Little-endian format.
 	#define GAIA_CTZ(x) ((x) ? (uint32_t)__builtin_clz(x) : (uint32_t)32)
 	//! Returns the number of trailing zeros of \param x or 64 if \param x is 0.
-	//! \warning Little-endian format.
+//! \warning Little-endian format.
 	#define GAIA_CTZ64(x) ((x) ? (uint32_t)__builtin_clzll(x) : (uint32_t)64)
 
-	//! Returns 1 plus the index of the least significant set bit of \param x, or 0 if \param x is 0.
-	//! \warning Little-endian format.
+//! Returns 1 plus the index of the least significant set bit of \param x, or 0 if \param x is 0.
+//! \warning Little-endian format.
 	#define GAIA_FFS(x) ((uint32_t)__builtin_ffs(x))
 	//! Returns 1 plus the index of the least significant set bit of \param x, or 0 if \param x is 0.
-	//! \warning Little-endian format.
+//! \warning Little-endian format.
 	#define GAIA_FFS64(x) ((uint32_t)__builtin_ffsll(x))
 #else
 	//! Returns the number of set bits in \param x
@@ -346,8 +359,8 @@ namespace gaia {
 			return bitsSet;                                                                                                  \
 		}(x))
 
-	//! Returns the number of leading zeros of \param x or 32 if \param x is 0.
-	//! \warning Little-endian format.
+//! Returns the number of leading zeros of \param x or 32 if \param x is 0.
+//! \warning Little-endian format.
 	#define GAIA_CLZ(x)                                                                                                  \
 		([](uint32_t value) noexcept -> uint32_t {                                                                         \
 			if (value == 0)                                                                                                  \
@@ -358,7 +371,7 @@ namespace gaia {
 			return index;                                                                                                    \
 		}(x))
 	//! Returns the number of leading zeros of \param x or 64 if \param x is 0.
-	//! \warning Little-endian format.
+//! \warning Little-endian format.
 	#define GAIA_CLZ64(x)                                                                                                \
 		([](uint64_t value) noexcept -> uint32_t {                                                                         \
 			if (value == 0)                                                                                                  \
@@ -369,8 +382,8 @@ namespace gaia {
 			return index;                                                                                                    \
 		}(x))
 
-	//! Returns the number of trailing zeros of \param x or 32 if \param x is 0.
-	//! \warning Little-endian format.
+//! Returns the number of trailing zeros of \param x or 32 if \param x is 0.
+//! \warning Little-endian format.
 	#define GAIA_CTZ(x)                                                                                                  \
 		([](uint32_t value) noexcept -> uint32_t {                                                                         \
 			if (value == 0)                                                                                                  \
@@ -381,7 +394,7 @@ namespace gaia {
 			return index;                                                                                                    \
 		}(x))
 	//! Returns the number of trailing zeros of \param x or 64 if \param x is 0.
-	//! \warning Little-endian format.
+//! \warning Little-endian format.
 	#define GAIA_CTZ64(x)                                                                                                \
 		([](uint64_t value) noexcept -> uint32_t {                                                                         \
 			if (value == 0)                                                                                                  \
@@ -392,8 +405,8 @@ namespace gaia {
 			return index;                                                                                                    \
 		}(x))
 
-	//! Returns 1 plus the index of the least significant set bit of \param x, or 0 if \param x is 0.
-	//! \warning Little-endian format.
+//! Returns 1 plus the index of the least significant set bit of \param x, or 0 if \param x is 0.
+//! \warning Little-endian format.
 	#define GAIA_FFS(x)                                                                                                  \
 		([](uint32_t value) noexcept -> uint32_t {                                                                         \
 			if (value == 0)                                                                                                  \
@@ -404,7 +417,7 @@ namespace gaia {
 			return index + 1;                                                                                                \
 		}(x))
 	//! Returns 1 plus the index of the least significant set bit of \param x, or 0 if \param x is 0.
-	//! \warning Little-endian format.
+//! \warning Little-endian format.
 	#define GAIA_FFS64(x)                                                                                                \
 		([](uint64_t value) noexcept -> uint32_t {                                                                         \
 			if (value == 0)                                                                                                  \

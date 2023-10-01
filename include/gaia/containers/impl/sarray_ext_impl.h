@@ -38,7 +38,7 @@ namespace gaia {
 				using difference_type = std::ptrdiff_t;
 				using pointer = T*;
 				using reference = T&;
-				using size_type = decltype(N);
+				using size_type = sarr_ext::size_type;
 
 			private:
 				pointer m_ptr;
@@ -120,7 +120,7 @@ namespace gaia {
 				using difference_type = std::ptrdiff_t;
 				using pointer = const T*;
 				using reference = const T&;
-				using size_type = decltype(N);
+				using size_type = sarr_ext::size_type;
 
 			private:
 				pointer m_ptr;

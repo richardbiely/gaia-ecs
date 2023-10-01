@@ -9,10 +9,23 @@
 // DO NOT MODIFY THIS FILE
 //------------------------------------------------------------------------------
 
-#if __cplusplus >= 201703L || (defined(_MSVC_LANG) && _MSVC_LANG >= 201703L)
+//------------------------------------------------------------------------------
+// Features
+//------------------------------------------------------------------------------
+#if defined(_MSVC_LANG)
+	#define GAIA_CPP_VERSION(version) (__cplusplus >= (version) || _MSVC_LANG >= (version))
 #else
-	// We use some C++17+ features such as folding expressions, compile-time ifs
-	// and similar which makes it impossible to use Gaia-ECS with old compilers.
+	#define GAIA_CPP_VERSION(version) (__cplusplus >= (version))
+#endif
+
+//------------------------------------------------------------------------------
+// Features
+//------------------------------------------------------------------------------
+
+#if GAIA_CPP_VERSION(201703L)
+#else
+// We use some C++17+ features such as folding expressions, compile-time ifs
+// and similar which makes it impossible to use Gaia-ECS with old compilers.
 	#error "To build Gaia-ECS a compiler capable of at least C++17 is necesary"
 #endif
 
@@ -86,9 +99,9 @@
 	#undef GAIA_PLATFORM_WINDOWS
 	#define GAIA_PLATFORM_WINDOWS 1
 #elif __APPLE__
-	// MacOS, iOS, tvOS etc.
-	// We could tell the platforms apart using #include "TargetConditionals.h"
-	// but that is probably way more than we need to know.
+// MacOS, iOS, tvOS etc.
+// We could tell the platforms apart using #include "TargetConditionals.h"
+// but that is probably way more than we need to know.
 	#undef GAIA_PLATFORM_APPLE
 	#define GAIA_PLATFORM_APPLE 1
 #elif __linux__
@@ -180,7 +193,7 @@ namespace gaia {
 	#define GAIA_RESTRICT
 #endif
 
-#if __cplusplus >= 202002L
+#if GAIA_CPP_VERSION(202002L)
 	#if __has_cpp_attribute(nodiscard)
 		#define GAIA_NODISCARD [[nodiscard]]
 	#endif
@@ -222,7 +235,7 @@ namespace gaia {
 	#if _MSV_VER <= 1916
 		#include <intrin.h>
 	#endif
-// MSVC doesn't implement __popcnt for ARM so we need to do it ourselves
+	// MSVC doesn't implement __popcnt for ARM so we need to do it ourselves
 	#if GAIA_ARCH == GAIA_ARCH_ARM
 		#include <arm_neon.h>
 	//! Returns the number of set bits in \param x
@@ -304,25 +317,25 @@ namespace gaia {
 	//! Returns the number of set bits in \param x
 	#define GAIA_POPCNT64(x) ((uint32_t)__builtin_popcountll(x))
 
-	//! Returns the number of leading zeros of \param x or 32 if \param x is 0.
-	//! \warning Little-endian format.
+//! Returns the number of leading zeros of \param x or 32 if \param x is 0.
+//! \warning Little-endian format.
 	#define GAIA_CLZ(x) ((x) ? (uint32_t)__builtin_ctz(x) : (uint32_t)32)
 	//! Returns the number of leading zeros of \param x or 64 if \param x is 0.
-	//! \warning Little-endian format.
+//! \warning Little-endian format.
 	#define GAIA_CLZ64(x) ((x) ? (uint32_t)__builtin_ctzll(x) : (uint32_t)64)
 
-	//! Returns the number of trailing zeros of \param x or 32 if \param x is 0.
-	//! \warning Little-endian format.
+//! Returns the number of trailing zeros of \param x or 32 if \param x is 0.
+//! \warning Little-endian format.
 	#define GAIA_CTZ(x) ((x) ? (uint32_t)__builtin_clz(x) : (uint32_t)32)
 	//! Returns the number of trailing zeros of \param x or 64 if \param x is 0.
-	//! \warning Little-endian format.
+//! \warning Little-endian format.
 	#define GAIA_CTZ64(x) ((x) ? (uint32_t)__builtin_clzll(x) : (uint32_t)64)
 
-	//! Returns 1 plus the index of the least significant set bit of \param x, or 0 if \param x is 0.
-	//! \warning Little-endian format.
+//! Returns 1 plus the index of the least significant set bit of \param x, or 0 if \param x is 0.
+//! \warning Little-endian format.
 	#define GAIA_FFS(x) ((uint32_t)__builtin_ffs(x))
 	//! Returns 1 plus the index of the least significant set bit of \param x, or 0 if \param x is 0.
-	//! \warning Little-endian format.
+//! \warning Little-endian format.
 	#define GAIA_FFS64(x) ((uint32_t)__builtin_ffsll(x))
 #else
 	//! Returns the number of set bits in \param x
@@ -346,8 +359,8 @@ namespace gaia {
 			return bitsSet;                                                                                                  \
 		}(x))
 
-	//! Returns the number of leading zeros of \param x or 32 if \param x is 0.
-	//! \warning Little-endian format.
+//! Returns the number of leading zeros of \param x or 32 if \param x is 0.
+//! \warning Little-endian format.
 	#define GAIA_CLZ(x)                                                                                                  \
 		([](uint32_t value) noexcept -> uint32_t {                                                                         \
 			if (value == 0)                                                                                                  \
@@ -358,7 +371,7 @@ namespace gaia {
 			return index;                                                                                                    \
 		}(x))
 	//! Returns the number of leading zeros of \param x or 64 if \param x is 0.
-	//! \warning Little-endian format.
+//! \warning Little-endian format.
 	#define GAIA_CLZ64(x)                                                                                                \
 		([](uint64_t value) noexcept -> uint32_t {                                                                         \
 			if (value == 0)                                                                                                  \
@@ -369,8 +382,8 @@ namespace gaia {
 			return index;                                                                                                    \
 		}(x))
 
-	//! Returns the number of trailing zeros of \param x or 32 if \param x is 0.
-	//! \warning Little-endian format.
+//! Returns the number of trailing zeros of \param x or 32 if \param x is 0.
+//! \warning Little-endian format.
 	#define GAIA_CTZ(x)                                                                                                  \
 		([](uint32_t value) noexcept -> uint32_t {                                                                         \
 			if (value == 0)                                                                                                  \
@@ -381,7 +394,7 @@ namespace gaia {
 			return index;                                                                                                    \
 		}(x))
 	//! Returns the number of trailing zeros of \param x or 64 if \param x is 0.
-	//! \warning Little-endian format.
+//! \warning Little-endian format.
 	#define GAIA_CTZ64(x)                                                                                                \
 		([](uint64_t value) noexcept -> uint32_t {                                                                         \
 			if (value == 0)                                                                                                  \
@@ -392,8 +405,8 @@ namespace gaia {
 			return index;                                                                                                    \
 		}(x))
 
-	//! Returns 1 plus the index of the least significant set bit of \param x, or 0 if \param x is 0.
-	//! \warning Little-endian format.
+//! Returns 1 plus the index of the least significant set bit of \param x, or 0 if \param x is 0.
+//! \warning Little-endian format.
 	#define GAIA_FFS(x)                                                                                                  \
 		([](uint32_t value) noexcept -> uint32_t {                                                                         \
 			if (value == 0)                                                                                                  \
@@ -404,7 +417,7 @@ namespace gaia {
 			return index + 1;                                                                                                \
 		}(x))
 	//! Returns 1 plus the index of the least significant set bit of \param x, or 0 if \param x is 0.
-	//! \warning Little-endian format.
+//! \warning Little-endian format.
 	#define GAIA_FFS64(x)                                                                                                \
 		([](uint64_t value) noexcept -> uint32_t {                                                                         \
 			if (value == 0)                                                                                                  \
@@ -1030,9 +1043,9 @@ namespace tracy {
 #include <type_traits>
 #include <utility>
 
-#define USE_SPAN GAIA_USE_STL_CONTAINERS
+#define GAIA_USE_STD_SPAN (GAIA_USE_STL_CONTAINERS && GAIA_CPP_VERSION(202002L) && __has_include(<span>))
 
-#if USE_SPAN && __has_include(<span>)
+#if GAIA_USE_STD_SPAN
 	#include <span>
 #else
 	
@@ -1219,8 +1232,7 @@ namespace gaia {
 				using difference_type = std::ptrdiff_t;
 				using pointer = T*;
 				using reference = T&;
-
-				using size_type = decltype(N);
+				using size_type = sarr::size_type;
 
 			private:
 				pointer m_ptr;
@@ -1302,8 +1314,7 @@ namespace gaia {
 				using difference_type = std::ptrdiff_t;
 				using pointer = const T*;
 				using reference = const T&;
-
-				using size_type = decltype(N);
+				using size_type = sarr::size_type;
 
 			private:
 				pointer m_ptr;
@@ -1496,11 +1507,11 @@ namespace gaia {
 	#define TCB_SPAN_NAMESPACE_NAME tcb
 #endif
 
-#if __cplusplus >= 201703L || (defined(_MSVC_LANG) && _MSVC_LANG >= 201703L)
+#if GAIA_CPP_VERSION(201703L)
 	#define TCB_SPAN_HAVE_CPP17
 #endif
 
-#if __cplusplus >= 201402L || (defined(_MSVC_LANG) && _MSVC_LANG >= 201402L)
+#if GAIA_CPP_VERSION(201402L)
 	#define TCB_SPAN_HAVE_CPP14
 #endif
 
@@ -1764,21 +1775,21 @@ namespace TCB_SPAN_NAMESPACE_NAME {
 						int>::type = 0>
 		constexpr span(element_type (&arr)[N]) noexcept: storage_(arr, N) {}
 
-		template <
-				typename T, std::size_t N, std::size_t E = Extent,
-				typename std::enable_if<
-						(E == dynamic_extent || N == E) &&
-								detail::is_container_element_type_compatible<gaia::containers::sarray<T, N>&, ElementType>::value,
-						int>::type = 0>
-		TCB_SPAN_ARRAY_CONSTEXPR span(gaia::containers::sarray<T, N>& arr) noexcept: storage_(arr.data(), N) {}
+		// template <
+		// 		typename T, std::size_t N, std::size_t E = Extent,
+		// 		typename std::enable_if<
+		// 				(E == dynamic_extent || N == E) &&
+		// 						detail::is_container_element_type_compatible<gaia::containers::sarray<T, N>&, ElementType>::value,
+		// 				int>::type = 0>
+		// TCB_SPAN_ARRAY_CONSTEXPR span(gaia::containers::sarray<T, N>& arr) noexcept: storage_(arr.data(), N) {}
 
-		template <
-				typename T, std::size_t N, std::size_t E = Extent,
-				typename std::enable_if<
-						(E == dynamic_extent || N == E) &&
-								detail::is_container_element_type_compatible<const gaia::containers::sarray<T, N>&, ElementType>::value,
-						int>::type = 0>
-		TCB_SPAN_ARRAY_CONSTEXPR span(const gaia::containers::sarray<T, N>& arr) noexcept: storage_(arr.data(), N) {}
+		// template <
+		// 		typename T, std::size_t N, std::size_t E = Extent,
+		// 		typename std::enable_if<
+		// 				(E == dynamic_extent || N == E) &&
+		// 						detail::is_container_element_type_compatible<const gaia::containers::sarray<T, N>&,
+		// ElementType>::value, 				int>::type = 0> TCB_SPAN_ARRAY_CONSTEXPR span(const gaia::containers::sarray<T, N>& arr)
+		// noexcept: storage_(arr.data(), N) {}
 
 		template <
 				typename Container, std::size_t E = Extent,
@@ -3670,7 +3681,7 @@ namespace gaia {
 		//----------------------------------------------------------------------
 
 		namespace detail {
-#if !(GAIA_USE_STL_COMPATIBLE_CONTAINERS && __cplusplus >= 202002L)
+#if !(GAIA_USE_STL_COMPATIBLE_CONTAINERS && GAIA_CPP_VERSION(202002L))
 			template <typename Array, typename TSortFunc>
 			constexpr void comb_sort_impl(Array& array_, TSortFunc func) noexcept {
 				constexpr double Factor = 1.247330950103979;
@@ -3854,7 +3865,7 @@ namespace gaia {
 				swap_if(arr[5], arr[7], func);
 				swap_if(arr[5], arr[6], func);
 			} else {
-#if GAIA_USE_STL_COMPATIBLE_CONTAINERS && __cplusplus >= 202002L
+#if GAIA_USE_STL_COMPATIBLE_CONTAINERS && GAIA_CPP_VERSION(202002L)
 				std::sort(arr.begin(), arr.end());
 #else
 				GAIA_MSVC_WARNING_PUSH()
@@ -8213,7 +8224,7 @@ namespace gaia {
 				using difference_type = std::ptrdiff_t;
 				using pointer = T*;
 				using reference = T&;
-				using size_type = decltype(N);
+				using size_type = sarr_ext::size_type;
 
 			private:
 				pointer m_ptr;
@@ -8295,7 +8306,7 @@ namespace gaia {
 				using difference_type = std::ptrdiff_t;
 				using pointer = const T*;
 				using reference = const T&;
-				using size_type = decltype(N);
+				using size_type = sarr_ext::size_type;
 
 			private:
 				pointer m_ptr;
@@ -12879,7 +12890,7 @@ namespace gaia {
 				*/
 				void EnableEntity(Chunk* pChunk, uint32_t entityIdx, bool enableEntity) {
 					pChunk->EnableEntity(entityIdx, enableEntity);
-					// m_disabledMask.set(pChunk->GetChunkIndex(), pChunk->HasDisabledEntities());
+					// m_disabledMask.set(pChunk->GetChunkIndex(), enableEntity ? true : pChunk->HasDisabledEntities());
 				}
 
 				/*!
@@ -13441,7 +13452,7 @@ namespace gaia {
 				using difference_type = std::ptrdiff_t;
 				using pointer = T*;
 				using reference = T&;
-				using size_type = decltype(N);
+				using size_type = darr_ext::size_type;
 
 			private:
 				pointer m_ptr;
@@ -13523,7 +13534,7 @@ namespace gaia {
 				using difference_type = std::ptrdiff_t;
 				using pointer = const T*;
 				using reference = const T&;
-				using size_type = decltype(N);
+				using size_type = darr_ext::size_type;
 
 			private:
 				pointer m_ptr;
