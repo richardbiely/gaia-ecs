@@ -442,7 +442,7 @@ namespace gaia {
 				*/
 				void EnableEntity(Chunk* pChunk, uint32_t entityIdx, bool enableEntity) {
 					pChunk->EnableEntity(entityIdx, enableEntity);
-					// m_disabledMask.set(pChunk->GetChunkIndex(), pChunk->HasDisabledEntities());
+					// m_disabledMask.set(pChunk->GetChunkIndex(), enableEntity ? true : pChunk->HasDisabledEntities());
 				}
 
 				/*!
