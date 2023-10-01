@@ -354,12 +354,15 @@ TEST_CASE("Containers - sringbuffer") {
 	}
 }
 
-TEST_CASE("Containers - ImplicitList") {
-	struct EntityContainer: containers::ImplicitListItem {
+TEST_CASE("Containers - ilist") {
+	struct EntityContainer: containers::ilist_item {
 		int value;
+
+		EntityContainer() = default;
+		EntityContainer(uint32_t index, uint32_t generation): containers::ilist_item(index, generation) {}
 	};
 	SECTION("0 -> 1 -> 2") {
-		containers::ImplicitList<EntityContainer, ecs::Entity> il;
+		containers::ilist<EntityContainer, ecs::Entity> il;
 		ecs::Entity handles[3];
 
 		handles[0] = il.allocate();
@@ -411,7 +414,7 @@ TEST_CASE("Containers - ImplicitList") {
 		REQUIRE(il[2].gen == 1);
 	}
 	SECTION("2 -> 1 -> 0") {
-		containers::ImplicitList<EntityContainer, ecs::Entity> il;
+		containers::ilist<EntityContainer, ecs::Entity> il;
 		ecs::Entity handles[3];
 
 		handles[0] = il.allocate();

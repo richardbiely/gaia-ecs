@@ -8960,17 +8960,27 @@ namespace gaia {
 
 namespace gaia {
 	namespace containers {
-		struct ImplicitListItem {
+		struct ilist_item_base {};
+		struct ilist_item: public ilist_item_base {
 			//! Allocated items: Index in the list.
 			//! Deleted items: Index of the next deleted item in the list.
 			uint32_t idx;
 			//! Generation ID
 			uint32_t gen;
+
+			ilist_item() = default;
+			ilist_item(uint32_t index, uint32_t generation): idx(index), gen(generation) {}
 		};
 
+		//! Implicit list. Rather than with pointers, items \tparam TListItem are linked
+		//! together through an internal indexing mechanism. To the outside world they are
+		//! presented as \tparam TItemHandle.
+		//! \tparam TListItem needs to have idx and gen variables and expose a constructor
+		//! that initializes them.
 		template <typename TListItem, typename TItemHandle>
-		struct ImplicitList {
+		struct ilist {
 			using internal_storage = containers::darr<TListItem>;
+			// TODO: replace this iterator with a real list iterator
 			using iterator = typename internal_storage::iterator;
 			using const_iterator = typename internal_storage::const_iterator;
 
@@ -8983,7 +8993,7 @@ namespace gaia {
 			using difference_type = std::ptrdiff_t;
 			using size_type = uint32_t;
 
-			static_assert(std::is_base_of<ImplicitListItem, TListItem>::value);
+			static_assert(std::is_base_of<ilist_item_base, TListItem>::value);
 			//! Implicit list items
 			internal_storage m_items;
 			//! Index of the next item to recycle
@@ -9064,7 +9074,7 @@ namespace gaia {
 					GAIA_CLANG_WARNING_PUSH()
 					GAIA_GCC_WARNING_DISABLE("-Wmissing-field-initializers");
 					GAIA_CLANG_WARNING_DISABLE("-Wmissing-field-initializers");
-					m_items.push_back({{itemCnt, 0U}});
+					m_items.push_back(TListItem(itemCnt, 0U));
 					return {itemCnt, 0U};
 					GAIA_GCC_WARNING_POP()
 					GAIA_CLANG_WARNING_POP()
@@ -9147,15 +9157,21 @@ namespace gaia {
 			Busy = Submitted | Running,
 		};
 
-		struct JobContainer: containers::ImplicitListItem {
+		struct JobContainer: containers::ilist_item {
 			uint32_t dependencyIdx;
 			JobInternalState state;
 			std::function<void()> func;
+
+			JobContainer() = default;
+			JobContainer(uint32_t index, uint32_t generation): containers::ilist_item(index, generation) {}
 		};
 
-		struct JobDependency: containers::ImplicitListItem {
+		struct JobDependency: containers::ilist_item {
 			uint32_t dependencyIdxNext;
 			JobHandle dependsOn;
+
+			JobDependency() = default;
+			JobDependency(uint32_t index, uint32_t generation): containers::ilist_item(index, generation) {}
 		};
 
 		using DepHandle = JobHandle;
@@ -9163,11 +9179,11 @@ namespace gaia {
 		class JobManager {
 			std::mutex m_jobsLock;
 			//! Implicit list of jobs
-			containers::ImplicitList<JobContainer, JobHandle> m_jobs;
+			containers::ilist<JobContainer, JobHandle> m_jobs;
 
 			std::mutex m_depsLock;
 			//! List of job dependencies
-			containers::ImplicitList<JobDependency, DepHandle> m_deps;
+			containers::ilist<JobDependency, DepHandle> m_deps;
 
 		public:
 			//! Cleans up any job allocations and dependicies associated with \param jobHandle
@@ -11312,12 +11328,22 @@ namespace gaia {
 			class Chunk;
 		}
 
-		struct EntityContainer: containers::ImplicitListItem {
+		struct EntityContainer: containers::ilist_item_base {
+			//! Allocated items: Index in the list.
+			//! Deleted items: Index of the next deleted item in the list.
+			uint32_t idx;
+			//! Generation ID
+			uint32_t gen : 31;
+			//! Disabled
+			uint32_t dis : 1;
 			//! Chunk the entity currently resides in
 			archetype::Chunk* pChunk;
 #if !GAIA_64
 			uint32_t pChunk_padding;
 #endif
+
+			EntityContainer() = default;
+			EntityContainer(uint32_t index, uint32_t generation): idx(index), gen(generation), dis(0), pChunk(nullptr) {}
 		};
 	} // namespace ecs
 } // namespace gaia
@@ -15627,7 +15653,7 @@ namespace gaia {
 
 			//! Implicit list of entities. Used for look-ups only when searching for
 			//! entities in chunks + data validation
-			containers::ImplicitList<EntityContainer, Entity> m_entities;
+			containers::ilist<EntityContainer, Entity> m_entities;
 
 			//! List of chunks to delete
 			containers::darray<archetype::Chunk*> m_chunksToRemove;
@@ -16436,6 +16462,7 @@ namespace gaia {
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			void EnableEntity(Entity entity, bool enable) {
 				auto& entityContainer = m_entities[entity.id()];
+				entityContainer.dis = enable;
 
 				GAIA_ASSERT(
 						(!entityContainer.pChunk || !entityContainer.pChunk->IsStructuralChangesLocked()) &&
@@ -16456,11 +16483,7 @@ namespace gaia {
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
-				const auto* pChunk = entityContainer.pChunk;
-
-				GAIA_ASSERT(pChunk != nullptr);
-
-				return !pChunk->GetDisabledEntityMask().test(entityContainer.idx);
+				return !entityContainer.dis;
 			}
 
 			//! Returns the number of active entities

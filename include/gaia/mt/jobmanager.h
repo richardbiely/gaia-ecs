@@ -6,7 +6,7 @@
 
 #include "../config/config_core.h"
 #include "../containers/darray.h"
-#include "../containers/implicitlist.h"
+#include "../containers/ilist.h"
 #include "../containers/sarray.h"
 #include "../utils/span.h"
 #include "jobcommon.h"
@@ -30,15 +30,21 @@ namespace gaia {
 			Busy = Submitted | Running,
 		};
 
-		struct JobContainer: containers::ImplicitListItem {
+		struct JobContainer: containers::ilist_item {
 			uint32_t dependencyIdx;
 			JobInternalState state;
 			std::function<void()> func;
+
+			JobContainer() = default;
+			JobContainer(uint32_t index, uint32_t generation): containers::ilist_item(index, generation) {}
 		};
 
-		struct JobDependency: containers::ImplicitListItem {
+		struct JobDependency: containers::ilist_item {
 			uint32_t dependencyIdxNext;
 			JobHandle dependsOn;
+
+			JobDependency() = default;
+			JobDependency(uint32_t index, uint32_t generation): containers::ilist_item(index, generation) {}
 		};
 
 		using DepHandle = JobHandle;
@@ -46,11 +52,11 @@ namespace gaia {
 		class JobManager {
 			std::mutex m_jobsLock;
 			//! Implicit list of jobs
-			containers::ImplicitList<JobContainer, JobHandle> m_jobs;
+			containers::ilist<JobContainer, JobHandle> m_jobs;
 
 			std::mutex m_depsLock;
 			//! List of job dependencies
-			containers::ImplicitList<JobDependency, DepHandle> m_deps;
+			containers::ilist<JobDependency, DepHandle> m_deps;
 
 		public:
 			//! Cleans up any job allocations and dependicies associated with \param jobHandle

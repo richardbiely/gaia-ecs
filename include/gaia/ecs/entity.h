@@ -1,6 +1,6 @@
 #pragma once
 #include "../config/config.h"
-#include "../containers/implicitlist.h"
+#include "../containers/ilist.h"
 
 #include <cinttypes>
 #include <type_traits>
@@ -102,12 +102,22 @@ namespace gaia {
 			class Chunk;
 		}
 
-		struct EntityContainer: containers::ImplicitListItem {
+		struct EntityContainer: containers::ilist_item_base {
+			//! Allocated items: Index in the list.
+			//! Deleted items: Index of the next deleted item in the list.
+			uint32_t idx;
+			//! Generation ID
+			uint32_t gen : 31;
+			//! Disabled
+			uint32_t dis : 1;
 			//! Chunk the entity currently resides in
 			archetype::Chunk* pChunk;
 #if !GAIA_64
 			uint32_t pChunk_padding;
 #endif
+
+			EntityContainer() = default;
+			EntityContainer(uint32_t index, uint32_t generation): idx(index), gen(generation), dis(0), pChunk(nullptr) {}
 		};
 	} // namespace ecs
 } // namespace gaia
