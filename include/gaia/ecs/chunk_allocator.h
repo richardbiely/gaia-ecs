@@ -1,6 +1,7 @@
 #pragma once
 #include "../config/config.h"
 
+#include <cinttypes>
 #include <cstdint>
 
 #include "../config/logging.h"
@@ -18,7 +19,7 @@ namespace gaia {
 		//! Size of one allocated block of memory
 		static constexpr uint32_t MaxMemoryBlockSize = 16384;
 		//! Unusable area at the beggining of the allocated block designated for special pruposes
-		static constexpr uint32_t MemoryBlockUsableOffset = sizeof(size_t);
+		static constexpr uint32_t MemoryBlockUsableOffset = sizeof(uintptr_t);
 
 		struct ChunkAllocatorPageStats final {
 			//! Total allocated memory
@@ -128,7 +129,7 @@ namespace gaia {
 					}
 
 					GAIA_NODISCARD void* AllocChunk() {
-						auto StoreChunkAddress = [&](size_t index) {
+						auto StoreChunkAddress = [&](uint32_t index) {
 							// Encode info about chunk's page in the memory block.
 							// The actual pointer returned is offset by UsableOffset bytes
 							uint8_t* pMemoryBlock = (uint8_t*)m_data + index * GetMemoryBlockSize(m_sizeType);
@@ -340,7 +341,7 @@ namespace gaia {
 				*/
 				void Flush() {
 					auto flushPages = [](MemoryPageContainer& container) {
-						for (size_t i = 0; i < container.pagesFree.size();) {
+						for (uint32_t i = 0; i < container.pagesFree.size();) {
 							auto* pPage = container.pagesFree[i];
 
 							// Skip non-empty pages

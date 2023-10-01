@@ -80,8 +80,8 @@ namespace gaia {
 					const auto& data = m_lookupCtx.data[componentType];
 
 					// Arrays are sorted so we can do linear intersection lookup
-					size_t i = 0;
-					size_t j = 0;
+					uint32_t i = 0;
+					uint32_t j = 0;
 					while (i < archetypeComponentIds.size() && j < data.componentIds.size()) {
 						if (data.rules[j] == listType) {
 							const auto componentIdArchetype = archetypeComponentIds[i];
@@ -117,7 +117,7 @@ namespace gaia {
 				//! \return True if there is a match, false otherwise.
 				GAIA_NODISCARD bool CheckMatchAll(
 						component::ComponentType componentType, const archetype::ComponentIdArray& archetypeComponentIds) const {
-					size_t matches = 0;
+					uint32_t matches = 0;
 					const auto& data = m_lookupCtx.data[componentType];
 					return CheckMatch_Internal(
 							componentType, archetypeComponentIds, ListType::LT_All,
@@ -223,14 +223,14 @@ namespace gaia {
 					// Match against generic types
 					{
 						auto& data = m_lookupCtx.data[component::ComponentType::CT_Generic];
-						for (size_t i = 0; i < data.componentIds.size(); ++i) {
+						for (uint32_t i = 0; i < data.componentIds.size(); ++i) {
 							const auto componentId = data.componentIds[i];
 
 							const auto it = componentToArchetypeMap.find(componentId);
 							if (it == componentToArchetypeMap.end())
 								continue;
 
-							for (size_t j = data.lastMatchedArchetypeIndex[i]; j < it->second.size(); ++j) {
+							for (uint32_t j = data.lastMatchedArchetypeIndex[i]; j < it->second.size(); ++j) {
 								auto* pArchetype = it->second[j];
 								// Early exit if generic query doesn't match
 								const auto retGeneric = Match(*pArchetype, component::ComponentType::CT_Generic);
@@ -246,14 +246,14 @@ namespace gaia {
 					// Match against chunk types
 					{
 						auto& data = m_lookupCtx.data[component::ComponentType::CT_Chunk];
-						for (size_t i = 0; i < data.componentIds.size(); ++i) {
+						for (uint32_t i = 0; i < data.componentIds.size(); ++i) {
 							const auto componentId = data.componentIds[i];
 
 							const auto it = componentToArchetypeMap.find(componentId);
 							if (it == componentToArchetypeMap.end())
 								continue;
 
-							for (size_t j = data.lastMatchedArchetypeIndex[i]; j < it->second.size(); ++j) {
+							for (uint32_t j = data.lastMatchedArchetypeIndex[i]; j < it->second.size(); ++j) {
 								auto* pArchetype = it->second[j];
 								// Early exit if generic query doesn't match
 								const auto retGeneric = Match(*pArchetype, component::ComponentType::CT_Chunk);

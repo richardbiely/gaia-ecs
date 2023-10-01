@@ -83,8 +83,8 @@ namespace gaia {
 
 					// Copy provided component id data to this chunk's data area
 					{
-						for (size_t i = 0; i < component::ComponentType::CT_Count; ++i) {
-							size_t offset = m_header.offsets.firstByte_ComponentIds[i];
+						for (uint32_t i = 0; i < component::ComponentType::CT_Count; ++i) {
+							auto offset = m_header.offsets.firstByte_ComponentIds[i];
 							for (const auto componentId: componentIds[i]) {
 								utils::unaligned_ref<component::ComponentId>{(void*)&m_data[offset]} = componentId;
 								offset += sizeof(component::ComponentId);
@@ -94,8 +94,8 @@ namespace gaia {
 
 					// Copy provided component offset data to this chunk's data area
 					{
-						for (size_t i = 0; i < component::ComponentType::CT_Count; ++i) {
-							size_t offset = m_header.offsets.firstByte_ComponentOffsets[i];
+						for (uint32_t i = 0; i < component::ComponentType::CT_Count; ++i) {
+							auto offset = m_header.offsets.firstByte_ComponentOffsets[i];
 							for (const auto componentOffset: componentOffsets[i]) {
 								utils::unaligned_ref<archetype::ChunkComponentOffset>{(void*)&m_data[offset]} = componentOffset;
 								offset += sizeof(archetype::ChunkComponentOffset);
@@ -402,7 +402,7 @@ namespace gaia {
 					const auto oldOffs = pOldChunk->GetComponentOffsetSpan(component::ComponentType::CT_Generic);
 
 					// Copy generic component data from reference entity to our new entity
-					for (size_t i = 0; i < oldInfos.size(); i++) {
+					for (uint32_t i = 0; i < oldInfos.size(); i++) {
 						const auto& desc = cc.GetComponentDesc(oldInfos[i]);
 						if (desc.properties.size == 0U)
 							continue;
@@ -436,7 +436,7 @@ namespace gaia {
 					const auto oldOffs = pOldChunk->GetComponentOffsetSpan(component::ComponentType::CT_Generic);
 
 					// Copy generic component data from reference entity to our new entity
-					for (size_t i = 0; i < oldInfos.size(); i++) {
+					for (uint32_t i = 0; i < oldInfos.size(); i++) {
 						const auto& desc = cc.GetComponentDesc(oldInfos[i]);
 						if (desc.properties.size == 0U)
 							continue;
@@ -475,8 +475,8 @@ namespace gaia {
 
 					// Arrays are sorted so we can do linear intersection lookup
 					{
-						size_t i = 0;
-						size_t j = 0;
+						uint32_t i = 0;
+						uint32_t j = 0;
 
 						auto moveData = [&](const component::ComponentDesc& desc) {
 							if (desc.properties.size == 0U)
@@ -524,7 +524,7 @@ namespace gaia {
 						const auto componentIds = GetComponentIdSpan(component::ComponentType::CT_Generic);
 						const auto componentOffsets = GetComponentOffsetSpan(component::ComponentType::CT_Generic);
 
-						for (size_t i = 0; i < componentIds.size(); i++) {
+						for (uint32_t i = 0; i < componentIds.size(); i++) {
 							const auto& desc = cc.GetComponentDesc(componentIds[i]);
 							if (desc.properties.size == 0U)
 								continue;
@@ -707,7 +707,7 @@ namespace gaia {
 					const auto componentIds = GetComponentIdSpan(componentType);
 					const auto componentOffsets = GetComponentOffsetSpan(componentType);
 
-					for (size_t i = 0; i < componentIds.size(); i++) {
+					for (uint32_t i = 0; i < componentIds.size(); i++) {
 						const auto& desc = cc.GetComponentDesc(componentIds[i]);
 						if (desc.ctor == nullptr)
 							continue;
@@ -735,7 +735,7 @@ namespace gaia {
 					const auto componentIds = GetComponentIdSpan(componentType);
 					const auto componentOffsets = GetComponentOffsetSpan(componentType);
 
-					for (size_t i = 0; i < componentIds.size(); ++i) {
+					for (uint32_t i = 0; i < componentIds.size(); ++i) {
 						const auto& desc = cc.GetComponentDesc(componentIds[i]);
 						if (desc.dtor == nullptr)
 							continue;
@@ -957,7 +957,7 @@ namespace gaia {
 
 				template <typename... T, typename Func>
 				GAIA_FORCEINLINE void ForEach([[maybe_unused]] utils::func_type_list<T...> types, Func func) {
-					const size_t size = GetEntityCount();
+					const uint32_t size = GetEntityCount();
 					GAIA_ASSERT(size > 0);
 
 					if constexpr (sizeof...(T) > 0) {
@@ -973,11 +973,11 @@ namespace gaia {
 						//		for (uint32_t i: iter)
 						//			func(p[i], v[i]);
 
-						for (size_t i = 0; i < size; ++i)
+						for (uint32_t i = 0; i < size; ++i)
 							func(std::get<decltype(GetComponentView<T>())>(dataPointerTuple)[i]...);
 					} else {
 						// No functor parameters. Do an empty loop.
-						for (size_t i = 0; i < size; ++i)
+						for (uint32_t i = 0; i < size; ++i)
 							func();
 					}
 				}
@@ -1112,8 +1112,8 @@ namespace gaia {
 				//! Update version of all components of a given \param componentType
 				GAIA_FORCEINLINE void UpdateWorldVersion(component::ComponentType componentType) const {
 					const auto versions = GetComponentVersionSpan(componentType);
-					for (size_t i = 0; i < versions.size(); i++)
-						versions[i] = m_header.worldVersion;
+					for (auto& v: versions)
+						v = m_header.worldVersion;
 				}
 
 				void Diag(uint32_t index) const {

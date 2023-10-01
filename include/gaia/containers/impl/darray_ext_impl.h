@@ -23,7 +23,7 @@ namespace gaia {
 			using const_reference = const T&;
 			using pointer = T*;
 			using const_pointer = T*;
-			using difference_type = std::ptrdiff_t;
+			using difference_type = decltype(N);
 			using size_type = decltype(N);
 
 			static constexpr size_type extent = N;
@@ -71,7 +71,7 @@ namespace gaia {
 			public:
 				using iterator_category = GAIA_UTIL::random_access_iterator_tag;
 				using value_type = T;
-				using difference_type = std::ptrdiff_t;
+				using difference_type = darr_ext::size_type;
 				using pointer = T*;
 				using reference = T&;
 				using size_type = darr_ext::size_type;
@@ -126,7 +126,7 @@ namespace gaia {
 					return {m_ptr - offset};
 				}
 				difference_type operator-(const iterator& other) const {
-					return m_ptr - other.m_ptr;
+					return (difference_type)(m_ptr - other.m_ptr);
 				}
 
 				GAIA_NODISCARD bool operator==(const iterator& other) const {
@@ -153,7 +153,7 @@ namespace gaia {
 			public:
 				using iterator_category = GAIA_UTIL::random_access_iterator_tag;
 				using value_type = const T;
-				using difference_type = std::ptrdiff_t;
+				using difference_type = darr_ext::size_type;
 				using pointer = const T*;
 				using reference = const T&;
 				using size_type = darr_ext::size_type;
@@ -208,7 +208,7 @@ namespace gaia {
 					return {m_ptr - offset};
 				}
 				difference_type operator-(const const_iterator& other) const {
-					return m_ptr - other.m_ptr;
+					return (difference_type)(m_ptr - other.m_ptr);
 				}
 
 				GAIA_NODISCARD bool operator==(const const_iterator& other) const {
@@ -524,13 +524,13 @@ namespace gaia {
 		};
 
 		namespace detail {
-			template <typename T, std::size_t N, std::size_t... I>
+			template <typename T, uint32_t N, uint32_t... I>
 			darr_ext<std::remove_cv_t<T>, N> to_sarray_impl(T (&a)[N], std::index_sequence<I...> /*no_name*/) {
 				return {{a[I]...}};
 			}
 		} // namespace detail
 
-		template <typename T, std::size_t N>
+		template <typename T, uint32_t N>
 		darr_ext<std::remove_cv_t<T>, N> to_sarray(T (&a)[N]) {
 			return detail::to_sarray_impl(a, std::make_index_sequence<N>{});
 		}
@@ -540,10 +540,10 @@ namespace gaia {
 } // namespace gaia
 
 namespace std {
-	template <typename T, size_t N>
-	struct tuple_size<gaia::containers::darr_ext<T, N>>: std::integral_constant<std::size_t, N> {};
+	template <typename T, uint32_t N>
+	struct tuple_size<gaia::containers::darr_ext<T, N>>: std::integral_constant<uint32_t, N> {};
 
-	template <size_t I, typename T, size_t N>
+	template <uint32_t I, typename T, uint32_t N>
 	struct tuple_element<I, gaia::containers::darr_ext<T, N>> {
 		using type = T;
 	};

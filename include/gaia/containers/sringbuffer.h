@@ -21,7 +21,7 @@ namespace gaia {
 			using const_reference = const T&;
 			using pointer = T*;
 			using const_pointer = T*;
-			using difference_type = std::ptrdiff_t;
+			using difference_type = decltype(N);
 			using size_type = decltype(N);
 
 			static constexpr size_type extent = N;
@@ -186,14 +186,14 @@ namespace gaia {
 		};
 
 		namespace detail {
-			template <typename T, std::size_t N, std::size_t... I>
+			template <typename T, uint32_t N, uint32_t... I>
 			constexpr sringbuffer<std::remove_cv_t<T>, N>
 			to_sringbuffer_impl(T (&a)[N], std::index_sequence<I...> /*no_name*/) {
 				return {{a[I]...}};
 			}
 		} // namespace detail
 
-		template <typename T, std::size_t N>
+		template <typename T, uint32_t N>
 		constexpr sringbuffer<std::remove_cv_t<T>, N> to_sringbuffer(T (&a)[N]) {
 			return detail::to_sringbuffer_impl(a, std::make_index_sequence<N>{});
 		}

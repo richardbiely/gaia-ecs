@@ -21,8 +21,8 @@ namespace gaia {
 			using const_reference = const T&;
 			using pointer = T*;
 			using const_pointer = T*;
-			using difference_type = std::ptrdiff_t;
-			using size_type = size_t;
+			using difference_type = uint32_t;
+			using size_type = uint32_t;
 
 		private:
 			pointer m_pData = nullptr;
@@ -59,7 +59,7 @@ namespace gaia {
 			public:
 				using iterator_category = GAIA_UTIL::random_access_iterator_tag;
 				using value_type = T;
-				using difference_type = std::ptrdiff_t;
+				using difference_type = darr::size_type;
 				using pointer = T*;
 				using reference = T&;
 				using size_type = darr::size_type;
@@ -114,7 +114,7 @@ namespace gaia {
 					return {m_ptr - offset};
 				}
 				difference_type operator-(const iterator& other) const {
-					return m_ptr - other.m_ptr;
+					return (difference_type)(m_ptr - other.m_ptr);
 				}
 
 				GAIA_NODISCARD bool operator==(const iterator& other) const {
@@ -143,7 +143,7 @@ namespace gaia {
 			public:
 				using iterator_category = GAIA_UTIL::random_access_iterator_tag;
 				using value_type = const T;
-				using difference_type = std::ptrdiff_t;
+				using difference_type = darr::size_type;
 				using pointer = const T*;
 				using reference = const T&;
 				using size_type = darr::size_type;
@@ -198,7 +198,7 @@ namespace gaia {
 					return {m_ptr - offset};
 				}
 				difference_type operator-(const const_iterator& other) const {
-					return m_ptr - other.m_ptr;
+					return (difference_type)(m_ptr - other.m_ptr);
 				}
 
 				GAIA_NODISCARD bool operator==(const const_iterator& other) const {

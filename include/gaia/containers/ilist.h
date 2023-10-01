@@ -38,7 +38,7 @@ namespace gaia {
 			using const_reference = const TListItem&;
 			using pointer = TListItem*;
 			using const_pointer = TListItem*;
-			using difference_type = std::ptrdiff_t;
+			using difference_type = uint32_t;
 			using size_type = uint32_t;
 
 			static_assert(std::is_base_of<ilist_item_base, TListItem>::value);

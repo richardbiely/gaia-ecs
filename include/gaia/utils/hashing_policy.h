@@ -74,7 +74,7 @@ namespace gaia {
 		constexpr uint64_t calculate_hash64(const char* const str) noexcept {
 			uint64_t hash = detail::fnv1a::val_64_const;
 
-			size_t i = 0;
+			uint64_t i = 0;
 			while (str[i] != '\0') {
 				hash = (hash ^ uint64_t(str[i])) * detail::fnv1a::prime_64_const;
 				++i;
@@ -83,10 +83,10 @@ namespace gaia {
 			return hash;
 		}
 
-		constexpr uint64_t calculate_hash64(const char* const str, const size_t length) noexcept {
+		constexpr uint64_t calculate_hash64(const char* const str, const uint64_t length) noexcept {
 			uint64_t hash = detail::fnv1a::val_64_const;
 
-			for (size_t i = 0; i < length; i++)
+			for (uint64_t i = 0; i < length; i++)
 				hash = (hash ^ uint64_t(str[i])) * detail::fnv1a::prime_64_const;
 
 			return hash;
@@ -147,7 +147,7 @@ namespace gaia {
 					return StaticHashValue64Tail6((h ^ uint64_t(data[6]) << 48), data);
 				}
 
-				constexpr uint64_t StaticHashValueRest64(uint64_t h, size_t len, const char* data) {
+				constexpr uint64_t StaticHashValueRest64(uint64_t h, uint64_t len, const char* data) {
 					return ((len & 7) == 7)		? StaticHashValue64Tail7(h, data)
 								 : ((len & 7) == 6) ? StaticHashValue64Tail6(h, data)
 								 : ((len & 7) == 5) ? StaticHashValue64Tail5(h, data)
@@ -158,15 +158,15 @@ namespace gaia {
 																		: StaticHashValueLast64_(h);
 				}
 
-				constexpr uint64_t StaticHashValueLoop64(size_t i, uint64_t h, size_t len, const char* data) {
+				constexpr uint64_t StaticHashValueLoop64(uint64_t i, uint64_t h, uint64_t len, const char* data) {
 					return (
 							i == 0 ? StaticHashValueRest64(h, len, data)
 										 : StaticHashValueLoop64(
 													 i - 1, (h ^ (((Load8(data) * m) ^ ((Load8(data) * m) >> r)) * m)) * m, len, data + 8));
 				}
 
-				constexpr uint64_t hash_murmur2a_64_ct(const char* key, size_t len, uint64_t seed) {
-					return StaticHashValueLoop64(len / 8, seed ^ (uint64_t(len) * m), (len), key);
+				constexpr uint64_t hash_murmur2a_64_ct(const char* key, uint64_t len, uint64_t seed) {
+					return StaticHashValueLoop64(len / 8, seed ^ (len * m), (len), key);
 				}
 			} // namespace murmur2a
 		} // namespace detail
@@ -178,18 +178,18 @@ namespace gaia {
 
 			value *= 0xc4ceb9fe1a85ec53ULL;
 			value ^= value >> 33U;
-			return static_cast<size_t>(value);
+			return value;
 		}
 
 		constexpr uint64_t calculate_hash64(const char* str) {
-			size_t size = 0;
+			uint64_t size = 0;
 			while (str[size] != '\0')
 				++size;
 
 			return detail::murmur2a::hash_murmur2a_64_ct(str, size, detail::murmur2a::seed_64_const);
 		}
 
-		constexpr uint64_t calculate_hash64(const char* str, size_t length) {
+		constexpr uint64_t calculate_hash64(const char* str, uint64_t length) {
 			return detail::murmur2a::hash_murmur2a_64_ct(str, length, detail::murmur2a::seed_64_const);
 		}
 

@@ -5,7 +5,7 @@
 
 namespace gaia {
 	namespace containers {
-		template <typename T, auto N>
+		template <typename T, uint32_t N>
 		using darray_ext = containers::darr_ext<T, N>;
 	} // namespace containers
 } // namespace gaia

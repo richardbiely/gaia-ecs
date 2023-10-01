@@ -68,7 +68,7 @@ namespace gaia {
 					m_descByIndex.resize(newSize);
 
 					// Make sure that unused memory is initialized to nullptr
-					for (size_t i = oldSize; i < newSize; ++i)
+					for (uint32_t i = oldSize; i < newSize; ++i)
 						m_infoByIndex[i] = nullptr;
 
 					return createInfo();
