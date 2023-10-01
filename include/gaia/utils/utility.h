@@ -8,7 +8,7 @@
 #include "../utils/iterator.h"
 
 namespace gaia {
-	constexpr size_t BadIndex = size_t(-1);
+	constexpr uint32_t BadIndex = uint32_t(-1);
 
 	namespace utils {
 		//----------------------------------------------------------------------
@@ -65,13 +65,15 @@ namespace gaia {
 		}
 
 		template <typename C, typename TCmpFunc, typename TSortFunc>
-		constexpr void try_swap_if(C& c, size_t lhs, size_t rhs, TCmpFunc cmpFunc, TSortFunc sortFunc) noexcept {
+		constexpr void try_swap_if(
+				C& c, typename C::size_type lhs, typename C::size_type rhs, TCmpFunc cmpFunc, TSortFunc sortFunc) noexcept {
 			if (!cmpFunc(c[lhs], c[rhs]))
 				sortFunc(lhs, rhs);
 		}
 
 		template <typename C, typename TCmpFunc, typename TSortFunc>
-		constexpr void try_swap_if_not(C& c, size_t lhs, size_t rhs, TCmpFunc cmpFunc, TSortFunc sortFunc) noexcept {
+		constexpr void try_swap_if_not(
+				C& c, typename C::size_type lhs, typename C::size_type rhs, TCmpFunc cmpFunc, TSortFunc sortFunc) noexcept {
 			if (cmpFunc(c[lhs], c[rhs]))
 				sortFunc(lhs, rhs);
 		}
@@ -446,7 +448,7 @@ namespace gaia {
 		//! \warning If the item order is important and the size of the array changes after calling this function you need
 		//! to sort the array.
 		template <typename C>
-		void erase_fast(C& arr, size_t idx) {
+		void erase_fast(C& arr, typename C::size_type idx) {
 			if (idx >= arr.size())
 				return;
 
@@ -782,13 +784,13 @@ namespace gaia {
 
 				swap_if(arr[3], arr[4], func);
 			} else if (arr.size() <= 32) {
-				const size_t n = arr.size();
-				for (size_t i = 0; i < n - 1; i++) {
-					for (size_t j = 0; j < n - i - 1; j++)
+				auto n = arr.size();
+				for (decltype(n) i = 0; i < n - 1; i++) {
+					for (decltype(n) j = 0; j < n - i - 1; j++)
 						swap_if(arr[j], arr[j + 1], func);
 				}
 			} else {
-				const int n = (int)arr.size();
+				const auto n = (int)arr.size();
 				detail::quick_sort(arr, func, 0, n - 1);
 			}
 		}
@@ -905,9 +907,9 @@ namespace gaia {
 
 				try_swap_if(arr, 3, 4, func, sortFunc);
 			} else if (arr.size() <= 32) {
-				const size_t n = arr.size();
-				for (size_t i = 0; i < n - 1; i++)
-					for (size_t j = 0; j < n - i - 1; j++)
+				auto n = arr.size();
+				for (decltype(n) i = 0; i < n - 1; i++)
+					for (decltype(n) j = 0; j < n - i - 1; j++)
 						try_swap_if(arr, j, j + 1, func, sortFunc);
 			} else {
 				GAIA_ASSERT(false && "sort currently supports at most 32 items in the array");

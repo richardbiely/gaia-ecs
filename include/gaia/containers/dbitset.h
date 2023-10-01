@@ -16,7 +16,7 @@ namespace gaia {
 				using type = std::conditional_t<Use32Bit, uint32_t, uint64_t>;
 			};
 
-			using difference_type = std::ptrdiff_t;
+			using difference_type = typename size_type_selector::type;
 			using size_type = typename size_type_selector::type;
 			using value_type = size_type;
 			using reference = size_type&;

@@ -357,7 +357,7 @@ namespace gaia {
 					func(*chunks[0]);
 					chunks[0]->SetStructuralChanges(false);
 
-					size_t chunkIdx = 1;
+					uint32_t chunkIdx = 1;
 					for (; chunkIdx < chunks.size() - 1; ++chunkIdx) {
 						gaia::prefetch(&chunks[chunkIdx + 1], PrefetchHint::PREFETCH_HINT_T2);
 						chunks[chunkIdx]->SetStructuralChanges(true);
@@ -376,11 +376,11 @@ namespace gaia {
 				void ProcessQueryOnChunks_NoConstraints(
 						Func func, ChunkBatchedList& chunkBatch, const containers::darray<archetype::Chunk*>& chunks,
 						const query::QueryInfo& queryInfo) {
-					size_t chunkOffset = 0;
-					size_t itemsLeft = chunks.size();
+					uint32_t chunkOffset = 0;
+					uint32_t itemsLeft = chunks.size();
 					while (itemsLeft > 0) {
-						const size_t maxBatchSize = chunkBatch.max_size() - chunkBatch.size();
-						const size_t batchSize = itemsLeft > maxBatchSize ? maxBatchSize : itemsLeft;
+						const auto maxBatchSize = chunkBatch.max_size() - chunkBatch.size();
+						const auto batchSize = itemsLeft > maxBatchSize ? maxBatchSize : itemsLeft;
 
 						CChunkSpan chunkSpan((const archetype::Chunk**)&chunks[chunkOffset], batchSize);
 						for (const auto* pChunk: chunkSpan) {
@@ -406,11 +406,11 @@ namespace gaia {
 				void ProcessQueryOnChunks(
 						Func func, ChunkBatchedList& chunkBatch, const containers::darray<archetype::Chunk*>& chunks,
 						const query::QueryInfo& queryInfo, bool enabledOnly) {
-					size_t chunkOffset = 0;
-					size_t itemsLeft = chunks.size();
+					uint32_t chunkOffset = 0;
+					uint32_t itemsLeft = chunks.size();
 					while (itemsLeft > 0) {
-						const size_t maxBatchSize = chunkBatch.max_size() - chunkBatch.size();
-						const size_t batchSize = itemsLeft > maxBatchSize ? maxBatchSize : itemsLeft;
+						const auto maxBatchSize = chunkBatch.max_size() - chunkBatch.size();
+						const auto batchSize = itemsLeft > maxBatchSize ? maxBatchSize : itemsLeft;
 
 						CChunkSpan chunkSpan((const archetype::Chunk**)&chunks[chunkOffset], batchSize);
 						for (const auto* pChunk: chunkSpan) {
@@ -670,7 +670,7 @@ namespace gaia {
 						}
 
 						const auto componentView = pChunk->template View<ContainerItemType>();
-						for (size_t i = 0; i < pChunk->GetEntityCount(); ++i)
+						for (uint32_t i = 0; i < pChunk->GetEntityCount(); ++i)
 							outArray.push_back(componentView[i]);
 					}
 				}

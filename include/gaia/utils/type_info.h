@@ -26,11 +26,11 @@ namespace gaia {
 
 		struct type_info final {
 		private:
-			constexpr static size_t GetMin(size_t a, size_t b) {
+			constexpr static size_t min(size_t a, size_t b) {
 				return b < a ? b : a;
 			}
 
-			constexpr static size_t FindFirstOf(const char* data, size_t len, char toFind, size_t startPos = 0) {
+			constexpr static size_t find_first_of(const char* data, size_t len, char toFind, size_t startPos = 0) {
 				for (size_t i = startPos; i < len; ++i) {
 					if (data[i] == toFind)
 						return i;
@@ -38,8 +38,8 @@ namespace gaia {
 				return size_t(-1);
 			}
 
-			constexpr static size_t FindLastOf(const char* data, size_t len, char c, size_t startPos = size_t(-1)) {
-				for (int64_t i = (int64_t)GetMin(len - 1, startPos); i >= 0; --i) {
+			constexpr static size_t find_last_of(const char* data, size_t len, char c, size_t startPos = size_t(-1)) {
+				for (int64_t i = (int64_t)min(len - 1, startPos); i >= 0; --i) {
 					if (data[i] == c)
 						return i;
 				}
@@ -72,16 +72,16 @@ namespace gaia {
 				// 		Clang 8 and older wouldn't compile because their string_view::find_last_of doesn't work
 				//		in constexpr context. Tested with and without LIBCPP
 				//		https://stackoverflow.com/questions/56484834/constexpr-stdstring-viewfind-last-of-doesnt-work-on-clang-8-with-libstdc
-				//		As a workaround FindFirstOf and FindLastOf were implemented
+				//		As a workaround find_first_of and find_last_of were implemented
 
 				size_t strLen = 0;
 				while (GAIA_PRETTY_FUNCTION[strLen] != '\0')
 					++strLen;
 
 				std::span<const char> name{GAIA_PRETTY_FUNCTION, strLen};
-				const auto prefixPos = FindFirstOf(name.data(), name.size(), GAIA_PRETTY_FUNCTION_PREFIX);
-				const auto start = FindFirstOf(name.data(), name.size(), ' ', prefixPos + 1);
-				const auto end = FindLastOf(name.data(), name.size(), GAIA_PRETTY_FUNCTION_SUFFIX);
+				const auto prefixPos = find_first_of(name.data(), name.size(), GAIA_PRETTY_FUNCTION_PREFIX);
+				const auto start = find_first_of(name.data(), name.size(), ' ', prefixPos + 1);
+				const auto end = find_last_of(name.data(), name.size(), GAIA_PRETTY_FUNCTION_SUFFIX);
 				return name.subspan(start + 1, end - start - 1);
 			}
 

@@ -68,13 +68,13 @@ namespace gaia {
 				Archetype(uint32_t& worldVersion): m_worldVersion(worldVersion) {}
 
 				void UpdateDataOffsets(uintptr_t memoryAddress) {
-					size_t offset = 0;
+					uint32_t offset = 0;
 
 					// Versions
 					// We expect versions to fit in the first 256 bytes.
 					// With 64 components per archetype (32 generic + 32 chunk) this gives us some headroom.
 					{
-						const size_t padding = utils::align(memoryAddress, alignof(uint32_t)) - memoryAddress;
+						const auto padding = utils::padding<alignof(uint32_t)>(memoryAddress);
 						offset += padding;
 
 						if (!m_componentIds[component::ComponentType::CT_Generic].empty()) {
@@ -91,7 +91,7 @@ namespace gaia {
 
 					// Component ids
 					{
-						const size_t padding = utils::align(offset, alignof(component::ComponentId)) - offset;
+						const auto padding = utils::padding<alignof(component::ComponentId)>(offset);
 						offset += padding;
 
 						if (!m_componentIds[component::ComponentType::CT_Generic].empty()) {
@@ -106,7 +106,7 @@ namespace gaia {
 
 					// Component offsets
 					{
-						const size_t padding = utils::align(offset, alignof(ChunkComponentOffset)) - offset;
+						const auto padding = utils::padding<alignof(ChunkComponentOffset)>(offset);
 						offset += padding;
 
 						if (!m_componentIds[component::ComponentType::CT_Generic].empty()) {
@@ -123,7 +123,7 @@ namespace gaia {
 
 					// First entity offset
 					{
-						const size_t padding = utils::align(offset, alignof(Entity)) - offset;
+						const auto padding = utils::padding<alignof(Entity)>(offset);
 						offset += padding;
 						m_dataOffsets.firstByte_EntityData = (ChunkComponentOffset)offset;
 					}
@@ -295,10 +295,11 @@ namespace gaia {
 					auto* newArch = new Archetype(worldVersion);
 					newArch->m_archetypeId = archetypeId;
 
-					newArch->m_componentIds[component::ComponentType::CT_Generic].resize(componentIdsGeneric.size());
-					newArch->m_componentIds[component::ComponentType::CT_Chunk].resize(componentIdsChunk.size());
-					newArch->m_componentOffsets[component::ComponentType::CT_Generic].resize(componentIdsGeneric.size());
-					newArch->m_componentOffsets[component::ComponentType::CT_Chunk].resize(componentIdsChunk.size());
+					newArch->m_componentIds[component::ComponentType::CT_Generic].resize((uint32_t)componentIdsGeneric.size());
+					newArch->m_componentIds[component::ComponentType::CT_Chunk].resize((uint32_t)componentIdsChunk.size());
+					newArch->m_componentOffsets[component::ComponentType::CT_Generic].resize(
+							(uint32_t)componentIdsGeneric.size());
+					newArch->m_componentOffsets[component::ComponentType::CT_Chunk].resize((uint32_t)componentIdsChunk.size());
 					newArch->UpdateDataOffsets(sizeof(ChunkHeader) + MemoryBlockUsableOffset);
 
 					const auto& cc = ComponentCache::Get();
@@ -308,31 +309,32 @@ namespace gaia {
 					// fit as many of them into chunk as possible.
 
 					// Total size of generic components
-					size_t genericComponentListSize = 0;
+					uint32_t genericComponentListSize = 0;
 					for (const auto componentId: componentIdsGeneric) {
 						const auto& desc = cc.GetComponentDesc(componentId);
 						genericComponentListSize += desc.properties.size;
 					}
 
 					// Total size of chunk components
-					size_t chunkComponentListSize = 0;
+					uint32_t chunkComponentListSize = 0;
 					for (const auto componentId: componentIdsChunk) {
 						const auto& desc = cc.GetComponentDesc(componentId);
 						chunkComponentListSize += desc.properties.size;
 					}
 
-					const size_t maxDataOffset = Chunk::GetChunkDataSize(MaxMemoryBlockSize);
+					const uint32_t maxDataOffset = Chunk::GetChunkDataSize(MaxMemoryBlockSize);
 
 					// Theoretical maximum number of components we can fit into one chunk.
 					// This can be further reduced due alignment and padding.
 					auto maxGenericItemsInArchetype =
 							(maxDataOffset - dataOffset.firstByte_EntityData - chunkComponentListSize - 1) /
-							(genericComponentListSize + sizeof(Entity));
+							(genericComponentListSize + (uint32_t)sizeof(Entity));
 
 				recalculate:
-					auto componentOffsets = dataOffset.firstByte_EntityData + sizeof(Entity) * maxGenericItemsInArchetype;
+					auto componentOffsets =
+							dataOffset.firstByte_EntityData + (uint32_t)sizeof(Entity) * maxGenericItemsInArchetype;
 
-					auto adjustMaxGenericItemsInAchetype = [&](component::ComponentIdSpan componentIds, size_t size) {
+					auto adjustMaxGenericItemsInAchetype = [&](component::ComponentIdSpan componentIds, uint32_t size) {
 						for (const auto componentId: componentIds) {
 							const auto& desc = cc.GetComponentDesc(componentId);
 							const auto alignment = desc.properties.alig;
@@ -376,14 +378,14 @@ namespace gaia {
 						maxGenericItemsInArchetype = ChunkHeader::MAX_CHUNK_ENTITES;
 
 					// Update the offsets according to the recalculated maxGenericItemsInArchetype
-					componentOffsets = dataOffset.firstByte_EntityData + sizeof(Entity) * maxGenericItemsInArchetype;
+					componentOffsets = dataOffset.firstByte_EntityData + (uint32_t)sizeof(Entity) * maxGenericItemsInArchetype;
 
 					auto registerComponents = [&](component::ComponentIdSpan componentIds, component::ComponentType componentType,
-																				const size_t count) {
+																				const uint32_t count) {
 						auto& ids = newArch->m_componentIds[componentType];
 						auto& ofs = newArch->m_componentOffsets[componentType];
 
-						for (size_t i = 0; i < componentIds.size(); ++i) {
+						for (uint32_t i = 0; i < componentIds.size(); ++i) {
 							const auto componentId = componentIds[i];
 							const auto& desc = cc.GetComponentDesc(componentId);
 							const auto alignment = desc.properties.alig;
@@ -394,7 +396,7 @@ namespace gaia {
 								ids[i] = componentId;
 								ofs[i] = {};
 							} else {
-								const size_t padding = utils::align(componentOffsets, alignment) - componentOffsets;
+								const auto padding = utils::align(componentOffsets, alignment) - componentOffsets;
 								componentOffsets += padding;
 
 								// Register the component info
@@ -706,7 +708,7 @@ namespace gaia {
 
 				static void DiagArchetype_PrintChunkInfo(const Archetype& archetype) {
 					auto logChunks = [](const auto& chunks) {
-						for (size_t i = 0; i < chunks.size(); ++i) {
+						for (uint32_t i = 0; i < chunks.size(); ++i) {
 							const auto* pChunk = chunks[i];
 							pChunk->Diag((uint32_t)i);
 						}

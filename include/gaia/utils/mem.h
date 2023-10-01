@@ -70,6 +70,24 @@ namespace gaia {
 			return ((num + (alignment - 1)) & ~(alignment - 1));
 		}
 
+		//! Returns the padding
+		//! \param num Number to align
+		//! \param alignment Requested alignment
+		//! \return Padding in bytes
+		template <typename T, typename V>
+		constexpr uint32_t padding(T num, V alignment) {
+			return (uint32_t)(align(num, alignment) - num);
+		}
+
+		//! Returns the padding
+		//! \tparam alignment Requested alignment in bytes
+		//! \param num Number to align
+		//! return Aligned number
+		template <size_t alignment, typename T>
+		constexpr uint32_t padding(T num) {
+			return (uint32_t)(align<alignment>(num));
+		}
+
 		//! Convert form type \tparam Src to type \tparam Dst without causing an undefined behavior
 		template <typename Dst, typename Src>
 		Dst bit_cast(const Src& src) {

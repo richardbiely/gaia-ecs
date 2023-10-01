@@ -1174,7 +1174,7 @@ namespace gaia {
 	namespace containers {
 		//! Array of elements of type \tparam T with fixed size and capacity \tparam N allocated on stack.
 		//! Interface compatiblity with std::array where it matters.
-		template <typename T, size_t N>
+		template <typename T, uint32_t N>
 		class sarr {
 		public:
 			using value_type = T;
@@ -1182,7 +1182,7 @@ namespace gaia {
 			using const_reference = const T&;
 			using pointer = T*;
 			using const_pointer = T*;
-			using difference_type = std::ptrdiff_t;
+			using difference_type = decltype(N);
 			using size_type = decltype(N);
 
 			static constexpr size_type extent = N;
@@ -1193,7 +1193,7 @@ namespace gaia {
 			public:
 				using iterator_category = GAIA_UTIL::random_access_iterator_tag;
 				using value_type = T;
-				using difference_type = std::ptrdiff_t;
+				using difference_type = sarr::size_type;
 				using pointer = T*;
 				using reference = T&;
 				using size_type = sarr::size_type;
@@ -1248,7 +1248,7 @@ namespace gaia {
 					return {m_ptr - offset};
 				}
 				constexpr difference_type operator-(const iterator& other) const {
-					return m_ptr - other.m_ptr;
+					return (difference_type)(m_ptr - other.m_ptr);
 				}
 
 				GAIA_NODISCARD constexpr bool operator==(const iterator& other) const {
@@ -1275,7 +1275,7 @@ namespace gaia {
 			public:
 				using iterator_category = GAIA_UTIL::random_access_iterator_tag;
 				using value_type = const T;
-				using difference_type = std::ptrdiff_t;
+				using difference_type = sarr::size_type;
 				using pointer = const T*;
 				using reference = const T&;
 				using size_type = sarr::size_type;
@@ -1330,7 +1330,7 @@ namespace gaia {
 					return {m_ptr - offset};
 				}
 				constexpr difference_type operator-(const const_iterator& other) const {
-					return m_ptr - other.m_ptr;
+					return (difference_type)(m_ptr - other.m_ptr);
 				}
 
 				constexpr bool operator==(const const_iterator& other) const {
@@ -1424,29 +1424,29 @@ namespace gaia {
 		};
 
 		namespace detail {
-			template <typename T, std::size_t N, std::size_t... I>
+			template <typename T, uint32_t N, uint32_t... I>
 			constexpr sarr<std::remove_cv_t<T>, N> to_array_impl(T (&a)[N], std::index_sequence<I...> /*no_name*/) {
 				return {{a[I]...}};
 			}
 		} // namespace detail
 
-		template <typename T, std::size_t N>
+		template <typename T, uint32_t N>
 		constexpr sarr<std::remove_cv_t<T>, N> to_array(T (&a)[N]) {
 			return detail::to_array_impl(a, std::make_index_sequence<N>{});
 		}
 
 		template <typename T, typename... U>
-		sarr(T, U...) -> sarr<T, 1 + sizeof...(U)>;
+		sarr(T, U...) -> sarr<T, 1 + (uint32_t)sizeof...(U)>;
 
 	} // namespace containers
 
 } // namespace gaia
 
 namespace std {
-	template <typename T, size_t N>
-	struct tuple_size<gaia::containers::sarr<T, N>>: std::integral_constant<std::size_t, N> {};
+	template <typename T, uint32_t N>
+	struct tuple_size<gaia::containers::sarr<T, N>>: std::integral_constant<uint32_t, N> {};
 
-	template <size_t I, typename T, size_t N>
+	template <uint32_t I, typename T, uint32_t N>
 	struct tuple_element<I, gaia::containers::sarr<T, N>> {
 		using type = T;
 	};
@@ -1454,7 +1454,7 @@ namespace std {
 
 namespace gaia {
 	namespace containers {
-		template <typename T, size_t N>
+		template <typename T, uint32_t N>
 		using sarray = containers::sarr<T, N>;
 	} // namespace containers
 } // namespace gaia
@@ -2031,6 +2031,24 @@ namespace gaia {
 		template <size_t alignment, typename T>
 		constexpr T align(T num) {
 			return ((num + (alignment - 1)) & ~(alignment - 1));
+		}
+
+		//! Returns the padding
+		//! \param num Number to align
+		//! \param alignment Requested alignment
+		//! \return Padding in bytes
+		template <typename T, typename V>
+		constexpr uint32_t padding(T num, V alignment) {
+			return (uint32_t)(align(num, alignment) - num);
+		}
+
+		//! Returns the padding
+		//! \tparam alignment Requested alignment in bytes
+		//! \param num Number to align
+		//! return Aligned number
+		template <size_t alignment, typename T>
+		constexpr uint32_t padding(T num) {
+			return (uint32_t)(align<alignment>(num));
 		}
 
 		//! Convert form type \tparam Src to type \tparam Dst without causing an undefined behavior
@@ -2975,7 +2993,7 @@ namespace gaia {
 		constexpr uint64_t calculate_hash64(const char* const str) noexcept {
 			uint64_t hash = detail::fnv1a::val_64_const;
 
-			size_t i = 0;
+			uint64_t i = 0;
 			while (str[i] != '\0') {
 				hash = (hash ^ uint64_t(str[i])) * detail::fnv1a::prime_64_const;
 				++i;
@@ -2984,10 +3002,10 @@ namespace gaia {
 			return hash;
 		}
 
-		constexpr uint64_t calculate_hash64(const char* const str, const size_t length) noexcept {
+		constexpr uint64_t calculate_hash64(const char* const str, const uint64_t length) noexcept {
 			uint64_t hash = detail::fnv1a::val_64_const;
 
-			for (size_t i = 0; i < length; i++)
+			for (uint64_t i = 0; i < length; i++)
 				hash = (hash ^ uint64_t(str[i])) * detail::fnv1a::prime_64_const;
 
 			return hash;
@@ -3048,7 +3066,7 @@ namespace gaia {
 					return StaticHashValue64Tail6((h ^ uint64_t(data[6]) << 48), data);
 				}
 
-				constexpr uint64_t StaticHashValueRest64(uint64_t h, size_t len, const char* data) {
+				constexpr uint64_t StaticHashValueRest64(uint64_t h, uint64_t len, const char* data) {
 					return ((len & 7) == 7)		? StaticHashValue64Tail7(h, data)
 								 : ((len & 7) == 6) ? StaticHashValue64Tail6(h, data)
 								 : ((len & 7) == 5) ? StaticHashValue64Tail5(h, data)
@@ -3059,15 +3077,15 @@ namespace gaia {
 																		: StaticHashValueLast64_(h);
 				}
 
-				constexpr uint64_t StaticHashValueLoop64(size_t i, uint64_t h, size_t len, const char* data) {
+				constexpr uint64_t StaticHashValueLoop64(uint64_t i, uint64_t h, uint64_t len, const char* data) {
 					return (
 							i == 0 ? StaticHashValueRest64(h, len, data)
 										 : StaticHashValueLoop64(
 													 i - 1, (h ^ (((Load8(data) * m) ^ ((Load8(data) * m) >> r)) * m)) * m, len, data + 8));
 				}
 
-				constexpr uint64_t hash_murmur2a_64_ct(const char* key, size_t len, uint64_t seed) {
-					return StaticHashValueLoop64(len / 8, seed ^ (uint64_t(len) * m), (len), key);
+				constexpr uint64_t hash_murmur2a_64_ct(const char* key, uint64_t len, uint64_t seed) {
+					return StaticHashValueLoop64(len / 8, seed ^ (len * m), (len), key);
 				}
 			} // namespace murmur2a
 		} // namespace detail
@@ -3079,18 +3097,18 @@ namespace gaia {
 
 			value *= 0xc4ceb9fe1a85ec53ULL;
 			value ^= value >> 33U;
-			return static_cast<size_t>(value);
+			return value;
 		}
 
 		constexpr uint64_t calculate_hash64(const char* str) {
-			size_t size = 0;
+			uint64_t size = 0;
 			while (str[size] != '\0')
 				++size;
 
 			return detail::murmur2a::hash_murmur2a_64_ct(str, size, detail::murmur2a::seed_64_const);
 		}
 
-		constexpr uint64_t calculate_hash64(const char* str, size_t length) {
+		constexpr uint64_t calculate_hash64(const char* str, uint64_t length) {
 			return detail::murmur2a::hash_murmur2a_64_ct(str, length, detail::murmur2a::seed_64_const);
 		}
 
@@ -3114,7 +3132,7 @@ namespace gaia {
 #include <utility>
 
 namespace gaia {
-	constexpr size_t BadIndex = size_t(-1);
+	constexpr uint32_t BadIndex = uint32_t(-1);
 
 	namespace utils {
 		//----------------------------------------------------------------------
@@ -3171,13 +3189,15 @@ namespace gaia {
 		}
 
 		template <typename C, typename TCmpFunc, typename TSortFunc>
-		constexpr void try_swap_if(C& c, size_t lhs, size_t rhs, TCmpFunc cmpFunc, TSortFunc sortFunc) noexcept {
+		constexpr void try_swap_if(
+				C& c, typename C::size_type lhs, typename C::size_type rhs, TCmpFunc cmpFunc, TSortFunc sortFunc) noexcept {
 			if (!cmpFunc(c[lhs], c[rhs]))
 				sortFunc(lhs, rhs);
 		}
 
 		template <typename C, typename TCmpFunc, typename TSortFunc>
-		constexpr void try_swap_if_not(C& c, size_t lhs, size_t rhs, TCmpFunc cmpFunc, TSortFunc sortFunc) noexcept {
+		constexpr void try_swap_if_not(
+				C& c, typename C::size_type lhs, typename C::size_type rhs, TCmpFunc cmpFunc, TSortFunc sortFunc) noexcept {
 			if (cmpFunc(c[lhs], c[rhs]))
 				sortFunc(lhs, rhs);
 		}
@@ -3552,7 +3572,7 @@ namespace gaia {
 		//! \warning If the item order is important and the size of the array changes after calling this function you need
 		//! to sort the array.
 		template <typename C>
-		void erase_fast(C& arr, size_t idx) {
+		void erase_fast(C& arr, typename C::size_type idx) {
 			if (idx >= arr.size())
 				return;
 
@@ -3888,13 +3908,13 @@ namespace gaia {
 
 				swap_if(arr[3], arr[4], func);
 			} else if (arr.size() <= 32) {
-				const size_t n = arr.size();
-				for (size_t i = 0; i < n - 1; i++) {
-					for (size_t j = 0; j < n - i - 1; j++)
+				auto n = arr.size();
+				for (decltype(n) i = 0; i < n - 1; i++) {
+					for (decltype(n) j = 0; j < n - i - 1; j++)
 						swap_if(arr[j], arr[j + 1], func);
 				}
 			} else {
-				const int n = (int)arr.size();
+				const auto n = (int)arr.size();
 				detail::quick_sort(arr, func, 0, n - 1);
 			}
 		}
@@ -4011,9 +4031,9 @@ namespace gaia {
 
 				try_swap_if(arr, 3, 4, func, sortFunc);
 			} else if (arr.size() <= 32) {
-				const size_t n = arr.size();
-				for (size_t i = 0; i < n - 1; i++)
-					for (size_t j = 0; j < n - i - 1; j++)
+				auto n = arr.size();
+				for (decltype(n) i = 0; i < n - 1; i++)
+					for (decltype(n) j = 0; j < n - i - 1; j++)
 						try_swap_if(arr, j, j + 1, func, sortFunc);
 			} else {
 				GAIA_ASSERT(false && "sort currently supports at most 32 items in the array");
@@ -4297,11 +4317,11 @@ namespace gaia {
 
 		struct type_info final {
 		private:
-			constexpr static size_t GetMin(size_t a, size_t b) {
+			constexpr static size_t min(size_t a, size_t b) {
 				return b < a ? b : a;
 			}
 
-			constexpr static size_t FindFirstOf(const char* data, size_t len, char toFind, size_t startPos = 0) {
+			constexpr static size_t find_first_of(const char* data, size_t len, char toFind, size_t startPos = 0) {
 				for (size_t i = startPos; i < len; ++i) {
 					if (data[i] == toFind)
 						return i;
@@ -4309,8 +4329,8 @@ namespace gaia {
 				return size_t(-1);
 			}
 
-			constexpr static size_t FindLastOf(const char* data, size_t len, char c, size_t startPos = size_t(-1)) {
-				for (int64_t i = (int64_t)GetMin(len - 1, startPos); i >= 0; --i) {
+			constexpr static size_t find_last_of(const char* data, size_t len, char c, size_t startPos = size_t(-1)) {
+				for (int64_t i = (int64_t)min(len - 1, startPos); i >= 0; --i) {
 					if (data[i] == c)
 						return i;
 				}
@@ -4343,16 +4363,16 @@ namespace gaia {
 				// 		Clang 8 and older wouldn't compile because their string_view::find_last_of doesn't work
 				//		in constexpr context. Tested with and without LIBCPP
 				//		https://stackoverflow.com/questions/56484834/constexpr-stdstring-viewfind-last-of-doesnt-work-on-clang-8-with-libstdc
-				//		As a workaround FindFirstOf and FindLastOf were implemented
+				//		As a workaround find_first_of and find_last_of were implemented
 
 				size_t strLen = 0;
 				while (GAIA_PRETTY_FUNCTION[strLen] != '\0')
 					++strLen;
 
 				std::span<const char> name{GAIA_PRETTY_FUNCTION, strLen};
-				const auto prefixPos = FindFirstOf(name.data(), name.size(), GAIA_PRETTY_FUNCTION_PREFIX);
-				const auto start = FindFirstOf(name.data(), name.size(), ' ', prefixPos + 1);
-				const auto end = FindLastOf(name.data(), name.size(), GAIA_PRETTY_FUNCTION_SUFFIX);
+				const auto prefixPos = find_first_of(name.data(), name.size(), GAIA_PRETTY_FUNCTION_PREFIX);
+				const auto start = find_first_of(name.data(), name.size(), ' ', prefixPos + 1);
+				const auto end = find_last_of(name.data(), name.size(), GAIA_PRETTY_FUNCTION_SUFFIX);
 				return name.subspan(start + 1, end - start - 1);
 			}
 
@@ -4794,8 +4814,8 @@ namespace gaia {
 			using const_reference = const T&;
 			using pointer = T*;
 			using const_pointer = T*;
-			using difference_type = std::ptrdiff_t;
-			using size_type = size_t;
+			using difference_type = uint32_t;
+			using size_type = uint32_t;
 
 		private:
 			pointer m_pData = nullptr;
@@ -4832,7 +4852,7 @@ namespace gaia {
 			public:
 				using iterator_category = GAIA_UTIL::random_access_iterator_tag;
 				using value_type = T;
-				using difference_type = std::ptrdiff_t;
+				using difference_type = darr::size_type;
 				using pointer = T*;
 				using reference = T&;
 				using size_type = darr::size_type;
@@ -4887,7 +4907,7 @@ namespace gaia {
 					return {m_ptr - offset};
 				}
 				difference_type operator-(const iterator& other) const {
-					return m_ptr - other.m_ptr;
+					return (difference_type)(m_ptr - other.m_ptr);
 				}
 
 				GAIA_NODISCARD bool operator==(const iterator& other) const {
@@ -4916,7 +4936,7 @@ namespace gaia {
 			public:
 				using iterator_category = GAIA_UTIL::random_access_iterator_tag;
 				using value_type = const T;
-				using difference_type = std::ptrdiff_t;
+				using difference_type = darr::size_type;
 				using pointer = const T*;
 				using reference = const T&;
 				using size_type = darr::size_type;
@@ -4971,7 +4991,7 @@ namespace gaia {
 					return {m_ptr - offset};
 				}
 				difference_type operator-(const const_iterator& other) const {
-					return m_ptr - other.m_ptr;
+					return (difference_type)(m_ptr - other.m_ptr);
 				}
 
 				GAIA_NODISCARD bool operator==(const const_iterator& other) const {
@@ -5300,7 +5320,7 @@ namespace gaia {
 			using const_reference = const T&;
 			using pointer = T*;
 			using const_pointer = T*;
-			using difference_type = std::ptrdiff_t;
+			using difference_type = decltype(N);
 			using size_type = decltype(N);
 
 			static constexpr size_type extent = N;
@@ -5348,7 +5368,7 @@ namespace gaia {
 			public:
 				using iterator_category = GAIA_UTIL::random_access_iterator_tag;
 				using value_type = T;
-				using difference_type = std::ptrdiff_t;
+				using difference_type = darr_ext::size_type;
 				using pointer = T*;
 				using reference = T&;
 				using size_type = darr_ext::size_type;
@@ -5403,7 +5423,7 @@ namespace gaia {
 					return {m_ptr - offset};
 				}
 				difference_type operator-(const iterator& other) const {
-					return m_ptr - other.m_ptr;
+					return (difference_type)(m_ptr - other.m_ptr);
 				}
 
 				GAIA_NODISCARD bool operator==(const iterator& other) const {
@@ -5430,7 +5450,7 @@ namespace gaia {
 			public:
 				using iterator_category = GAIA_UTIL::random_access_iterator_tag;
 				using value_type = const T;
-				using difference_type = std::ptrdiff_t;
+				using difference_type = darr_ext::size_type;
 				using pointer = const T*;
 				using reference = const T&;
 				using size_type = darr_ext::size_type;
@@ -5485,7 +5505,7 @@ namespace gaia {
 					return {m_ptr - offset};
 				}
 				difference_type operator-(const const_iterator& other) const {
-					return m_ptr - other.m_ptr;
+					return (difference_type)(m_ptr - other.m_ptr);
 				}
 
 				GAIA_NODISCARD bool operator==(const const_iterator& other) const {
@@ -5801,13 +5821,13 @@ namespace gaia {
 		};
 
 		namespace detail {
-			template <typename T, std::size_t N, std::size_t... I>
+			template <typename T, uint32_t N, uint32_t... I>
 			darr_ext<std::remove_cv_t<T>, N> to_sarray_impl(T (&a)[N], std::index_sequence<I...> /*no_name*/) {
 				return {{a[I]...}};
 			}
 		} // namespace detail
 
-		template <typename T, std::size_t N>
+		template <typename T, uint32_t N>
 		darr_ext<std::remove_cv_t<T>, N> to_sarray(T (&a)[N]) {
 			return detail::to_sarray_impl(a, std::make_index_sequence<N>{});
 		}
@@ -5817,10 +5837,10 @@ namespace gaia {
 } // namespace gaia
 
 namespace std {
-	template <typename T, size_t N>
-	struct tuple_size<gaia::containers::darr_ext<T, N>>: std::integral_constant<std::size_t, N> {};
+	template <typename T, uint32_t N>
+	struct tuple_size<gaia::containers::darr_ext<T, N>>: std::integral_constant<uint32_t, N> {};
 
-	template <size_t I, typename T, size_t N>
+	template <uint32_t I, typename T, uint32_t N>
 	struct tuple_element<I, gaia::containers::darr_ext<T, N>> {
 		using type = T;
 	};
@@ -5828,7 +5848,7 @@ namespace std {
 
 namespace gaia {
 	namespace containers {
-		template <typename T, auto N>
+		template <typename T, uint32_t N>
 		using darray_ext = containers::darr_ext<T, N>;
 	} // namespace containers
 } // namespace gaia
@@ -5845,7 +5865,7 @@ namespace gaia {
 				using type = std::conditional_t<Use32Bit, uint32_t, uint64_t>;
 			};
 
-			using difference_type = std::ptrdiff_t;
+			using difference_type = typename size_type_selector::type;
 			using size_type = typename size_type_selector::type;
 			using value_type = size_type;
 			using reference = size_type&;
@@ -6265,7 +6285,7 @@ namespace gaia {
 			using const_reference = const TListItem&;
 			using pointer = TListItem*;
 			using const_pointer = TListItem*;
-			using difference_type = std::ptrdiff_t;
+			using difference_type = uint32_t;
 			using size_type = uint32_t;
 
 			static_assert(std::is_base_of<ilist_item_base, TListItem>::value);
@@ -8779,7 +8799,7 @@ namespace gaia {
 	namespace containers {
 		//! Array of elements of type \tparam T with fixed capacity \tparam N and variable size allocated on stack.
 		//! Interface compatiblity with std::array where it matters.
-		template <typename T, size_t N>
+		template <typename T, uint32_t N>
 		class sarr_ext {
 		public:
 			using iterator_category = GAIA_UTIL::random_access_iterator_tag;
@@ -8788,7 +8808,7 @@ namespace gaia {
 			using const_reference = const T&;
 			using pointer = T*;
 			using const_pointer = T*;
-			using difference_type = std::ptrdiff_t;
+			using difference_type = decltype(N);
 			using size_type = decltype(N);
 
 			static constexpr size_type extent = N;
@@ -8802,7 +8822,7 @@ namespace gaia {
 			public:
 				using iterator_category = GAIA_UTIL::random_access_iterator_tag;
 				using value_type = T;
-				using difference_type = std::ptrdiff_t;
+				using difference_type = sarr_ext::size_type;
 				using pointer = T*;
 				using reference = T&;
 				using size_type = sarr_ext::size_type;
@@ -8857,7 +8877,7 @@ namespace gaia {
 					return {m_ptr - offset};
 				}
 				constexpr difference_type operator-(const iterator& other) const {
-					return m_ptr - other.m_ptr;
+					return (difference_type)(m_ptr - other.m_ptr);
 				}
 
 				GAIA_NODISCARD constexpr bool operator==(const iterator& other) const {
@@ -8884,7 +8904,7 @@ namespace gaia {
 			public:
 				using iterator_category = GAIA_UTIL::random_access_iterator_tag;
 				using value_type = const T;
-				using difference_type = std::ptrdiff_t;
+				using difference_type = sarr_ext::size_type;
 				using pointer = const T*;
 				using reference = const T&;
 				using size_type = sarr_ext::size_type;
@@ -8939,7 +8959,7 @@ namespace gaia {
 					return {m_ptr - offset};
 				}
 				constexpr difference_type operator-(const const_iterator& other) const {
-					return m_ptr - other.m_ptr;
+					return (difference_type)(m_ptr - other.m_ptr);
 				}
 
 				GAIA_NODISCARD constexpr bool operator==(const const_iterator& other) const {
@@ -9175,13 +9195,13 @@ namespace gaia {
 		};
 
 		namespace detail {
-			template <typename T, std::size_t N, std::size_t... I>
+			template <typename T, uint32_t N, uint32_t... I>
 			constexpr sarr_ext<std::remove_cv_t<T>, N> to_sarray_impl(T (&a)[N], std::index_sequence<I...> /*no_name*/) {
 				return {{a[I]...}};
 			}
 		} // namespace detail
 
-		template <typename T, std::size_t N>
+		template <typename T, uint32_t N>
 		constexpr sarr_ext<std::remove_cv_t<T>, N> to_sarray(T (&a)[N]) {
 			return detail::to_sarray_impl(a, std::make_index_sequence<N>{});
 		}
@@ -9191,10 +9211,10 @@ namespace gaia {
 } // namespace gaia
 
 namespace std {
-	template <typename T, size_t N>
-	struct tuple_size<gaia::containers::sarr_ext<T, N>>: std::integral_constant<std::size_t, N> {};
+	template <typename T, uint32_t N>
+	struct tuple_size<gaia::containers::sarr_ext<T, N>>: std::integral_constant<uint32_t, N> {};
 
-	template <size_t I, typename T, size_t N>
+	template <uint32_t I, typename T, uint32_t N>
 	struct tuple_element<I, gaia::containers::sarr_ext<T, N>> {
 		using type = T;
 	};
@@ -9202,7 +9222,7 @@ namespace std {
 
 namespace gaia {
 	namespace containers {
-		template <typename T, auto N>
+		template <typename T, uint32_t N>
 		using sarray_ext = containers::sarr_ext<T, N>;
 	} // namespace containers
 } // namespace gaia
@@ -9233,7 +9253,7 @@ namespace gaia {
 			using const_reference = const T&;
 			using pointer = T*;
 			using const_pointer = T*;
-			using difference_type = std::ptrdiff_t;
+			using difference_type = decltype(N);
 			using size_type = decltype(N);
 
 			static constexpr size_type extent = N;
@@ -9398,14 +9418,14 @@ namespace gaia {
 		};
 
 		namespace detail {
-			template <typename T, std::size_t N, std::size_t... I>
+			template <typename T, uint32_t N, uint32_t... I>
 			constexpr sringbuffer<std::remove_cv_t<T>, N>
 			to_sringbuffer_impl(T (&a)[N], std::index_sequence<I...> /*no_name*/) {
 				return {{a[I]...}};
 			}
 		} // namespace detail
 
-		template <typename T, std::size_t N>
+		template <typename T, uint32_t N>
 		constexpr sringbuffer<std::remove_cv_t<T>, N> to_sringbuffer(T (&a)[N]) {
 			return detail::to_sringbuffer_impl(a, std::make_index_sequence<N>{});
 		}
@@ -10586,8 +10606,8 @@ namespace gaia {
 	namespace ecs {
 		namespace component {
 			struct ComponentDesc final {
-				using FuncCtor = void(void*, size_t);
-				using FuncDtor = void(void*, size_t);
+				using FuncCtor = void(void*, uint32_t);
+				using FuncDtor = void(void*, uint32_t);
 				using FuncCopy = void(void*, void*);
 				using FuncMove = void(void*, void*);
 
@@ -10666,7 +10686,7 @@ namespace gaia {
 
 							// Custom construction
 							if constexpr (!std::is_trivially_constructible_v<U>) {
-								info.ctor = [](void* ptr, size_t cnt) {
+								info.ctor = [](void* ptr, uint32_t cnt) {
 									auto* first = (U*)ptr;
 									auto* last = (U*)ptr + cnt;
 									for (; first != last; ++first)
@@ -10676,7 +10696,7 @@ namespace gaia {
 
 							// Custom destruction
 							if constexpr (!std::is_trivially_destructible_v<U>) {
-								info.dtor = [](void* ptr, size_t cnt) {
+								info.dtor = [](void* ptr, uint32_t cnt) {
 									auto first = (U*)ptr;
 									auto last = (U*)ptr + cnt;
 									for (; first != last; ++first)
@@ -10859,7 +10879,7 @@ namespace gaia {
 					m_descByIndex.resize(newSize);
 
 					// Make sure that unused memory is initialized to nullptr
-					for (size_t i = oldSize; i < newSize; ++i)
+					for (uint32_t i = oldSize; i < newSize; ++i)
 						m_infoByIndex[i] = nullptr;
 
 					return createInfo();
@@ -11047,6 +11067,7 @@ namespace gaia {
 #include <type_traits>
 #include <utility>
 
+#include <cinttypes>
 #include <cstdint>
 
 #include <cinttypes>
@@ -11078,7 +11099,7 @@ namespace gaia {
 		//! Size of one allocated block of memory
 		static constexpr uint32_t MaxMemoryBlockSize = 16384;
 		//! Unusable area at the beggining of the allocated block designated for special pruposes
-		static constexpr uint32_t MemoryBlockUsableOffset = sizeof(size_t);
+		static constexpr uint32_t MemoryBlockUsableOffset = sizeof(uintptr_t);
 
 		struct ChunkAllocatorPageStats final {
 			//! Total allocated memory
@@ -11188,7 +11209,7 @@ namespace gaia {
 					}
 
 					GAIA_NODISCARD void* AllocChunk() {
-						auto StoreChunkAddress = [&](size_t index) {
+						auto StoreChunkAddress = [&](uint32_t index) {
 							// Encode info about chunk's page in the memory block.
 							// The actual pointer returned is offset by UsableOffset bytes
 							uint8_t* pMemoryBlock = (uint8_t*)m_data + index * GetMemoryBlockSize(m_sizeType);
@@ -11400,7 +11421,7 @@ namespace gaia {
 				*/
 				void Flush() {
 					auto flushPages = [](MemoryPageContainer& container) {
-						for (size_t i = 0; i < container.pagesFree.size();) {
+						for (uint32_t i = 0; i < container.pagesFree.size();) {
 							auto* pPage = container.pagesFree[i];
 
 							// Skip non-empty pages
@@ -11612,7 +11633,7 @@ namespace gaia {
 
 				const auto& cc = ComponentCache::Get();
 				ComponentMatcherHash::Type hash = cc.GetComponentInfo(componentIds[0]).matcherHash.hash;
-				for (size_t i = 1; i < infosSize; ++i)
+				for (uint32_t i = 1; i < infosSize; ++i)
 					hash = utils::combine_or(hash, cc.GetComponentInfo(componentIds[i]).matcherHash.hash);
 				return {hash};
 			}
@@ -11627,7 +11648,7 @@ namespace gaia {
 
 				const auto& cc = ComponentCache::Get();
 				ComponentLookupHash::Type hash = cc.GetComponentInfo(componentIds[0]).lookupHash.hash;
-				for (size_t i = 1; i < infosSize; ++i)
+				for (uint32_t i = 1; i < infosSize; ++i)
 					hash = utils::hash_combine(hash, cc.GetComponentInfo(componentIds[i]).lookupHash.hash);
 				return {hash};
 			}
@@ -11828,8 +11849,8 @@ namespace gaia {
 
 					// Copy provided component id data to this chunk's data area
 					{
-						for (size_t i = 0; i < component::ComponentType::CT_Count; ++i) {
-							size_t offset = m_header.offsets.firstByte_ComponentIds[i];
+						for (uint32_t i = 0; i < component::ComponentType::CT_Count; ++i) {
+							auto offset = m_header.offsets.firstByte_ComponentIds[i];
 							for (const auto componentId: componentIds[i]) {
 								utils::unaligned_ref<component::ComponentId>{(void*)&m_data[offset]} = componentId;
 								offset += sizeof(component::ComponentId);
@@ -11839,8 +11860,8 @@ namespace gaia {
 
 					// Copy provided component offset data to this chunk's data area
 					{
-						for (size_t i = 0; i < component::ComponentType::CT_Count; ++i) {
-							size_t offset = m_header.offsets.firstByte_ComponentOffsets[i];
+						for (uint32_t i = 0; i < component::ComponentType::CT_Count; ++i) {
+							auto offset = m_header.offsets.firstByte_ComponentOffsets[i];
 							for (const auto componentOffset: componentOffsets[i]) {
 								utils::unaligned_ref<archetype::ChunkComponentOffset>{(void*)&m_data[offset]} = componentOffset;
 								offset += sizeof(archetype::ChunkComponentOffset);
@@ -12147,7 +12168,7 @@ namespace gaia {
 					const auto oldOffs = pOldChunk->GetComponentOffsetSpan(component::ComponentType::CT_Generic);
 
 					// Copy generic component data from reference entity to our new entity
-					for (size_t i = 0; i < oldInfos.size(); i++) {
+					for (uint32_t i = 0; i < oldInfos.size(); i++) {
 						const auto& desc = cc.GetComponentDesc(oldInfos[i]);
 						if (desc.properties.size == 0U)
 							continue;
@@ -12181,7 +12202,7 @@ namespace gaia {
 					const auto oldOffs = pOldChunk->GetComponentOffsetSpan(component::ComponentType::CT_Generic);
 
 					// Copy generic component data from reference entity to our new entity
-					for (size_t i = 0; i < oldInfos.size(); i++) {
+					for (uint32_t i = 0; i < oldInfos.size(); i++) {
 						const auto& desc = cc.GetComponentDesc(oldInfos[i]);
 						if (desc.properties.size == 0U)
 							continue;
@@ -12220,8 +12241,8 @@ namespace gaia {
 
 					// Arrays are sorted so we can do linear intersection lookup
 					{
-						size_t i = 0;
-						size_t j = 0;
+						uint32_t i = 0;
+						uint32_t j = 0;
 
 						auto moveData = [&](const component::ComponentDesc& desc) {
 							if (desc.properties.size == 0U)
@@ -12269,7 +12290,7 @@ namespace gaia {
 						const auto componentIds = GetComponentIdSpan(component::ComponentType::CT_Generic);
 						const auto componentOffsets = GetComponentOffsetSpan(component::ComponentType::CT_Generic);
 
-						for (size_t i = 0; i < componentIds.size(); i++) {
+						for (uint32_t i = 0; i < componentIds.size(); i++) {
 							const auto& desc = cc.GetComponentDesc(componentIds[i]);
 							if (desc.properties.size == 0U)
 								continue;
@@ -12452,7 +12473,7 @@ namespace gaia {
 					const auto componentIds = GetComponentIdSpan(componentType);
 					const auto componentOffsets = GetComponentOffsetSpan(componentType);
 
-					for (size_t i = 0; i < componentIds.size(); i++) {
+					for (uint32_t i = 0; i < componentIds.size(); i++) {
 						const auto& desc = cc.GetComponentDesc(componentIds[i]);
 						if (desc.ctor == nullptr)
 							continue;
@@ -12480,7 +12501,7 @@ namespace gaia {
 					const auto componentIds = GetComponentIdSpan(componentType);
 					const auto componentOffsets = GetComponentOffsetSpan(componentType);
 
-					for (size_t i = 0; i < componentIds.size(); ++i) {
+					for (uint32_t i = 0; i < componentIds.size(); ++i) {
 						const auto& desc = cc.GetComponentDesc(componentIds[i]);
 						if (desc.dtor == nullptr)
 							continue;
@@ -12702,7 +12723,7 @@ namespace gaia {
 
 				template <typename... T, typename Func>
 				GAIA_FORCEINLINE void ForEach([[maybe_unused]] utils::func_type_list<T...> types, Func func) {
-					const size_t size = GetEntityCount();
+					const uint32_t size = GetEntityCount();
 					GAIA_ASSERT(size > 0);
 
 					if constexpr (sizeof...(T) > 0) {
@@ -12718,11 +12739,11 @@ namespace gaia {
 						//		for (uint32_t i: iter)
 						//			func(p[i], v[i]);
 
-						for (size_t i = 0; i < size; ++i)
+						for (uint32_t i = 0; i < size; ++i)
 							func(std::get<decltype(GetComponentView<T>())>(dataPointerTuple)[i]...);
 					} else {
 						// No functor parameters. Do an empty loop.
-						for (size_t i = 0; i < size; ++i)
+						for (uint32_t i = 0; i < size; ++i)
 							func();
 					}
 				}
@@ -12857,8 +12878,8 @@ namespace gaia {
 				//! Update version of all components of a given \param componentType
 				GAIA_FORCEINLINE void UpdateWorldVersion(component::ComponentType componentType) const {
 					const auto versions = GetComponentVersionSpan(componentType);
-					for (size_t i = 0; i < versions.size(); i++)
-						versions[i] = m_header.worldVersion;
+					for (auto& v: versions)
+						v = m_header.worldVersion;
 				}
 
 				void Diag(uint32_t index) const {
@@ -12920,13 +12941,13 @@ namespace gaia {
 				Archetype(uint32_t& worldVersion): m_worldVersion(worldVersion) {}
 
 				void UpdateDataOffsets(uintptr_t memoryAddress) {
-					size_t offset = 0;
+					uint32_t offset = 0;
 
 					// Versions
 					// We expect versions to fit in the first 256 bytes.
 					// With 64 components per archetype (32 generic + 32 chunk) this gives us some headroom.
 					{
-						const size_t padding = utils::align(memoryAddress, alignof(uint32_t)) - memoryAddress;
+						const auto padding = utils::padding<alignof(uint32_t)>(memoryAddress);
 						offset += padding;
 
 						if (!m_componentIds[component::ComponentType::CT_Generic].empty()) {
@@ -12943,7 +12964,7 @@ namespace gaia {
 
 					// Component ids
 					{
-						const size_t padding = utils::align(offset, alignof(component::ComponentId)) - offset;
+						const auto padding = utils::padding<alignof(component::ComponentId)>(offset);
 						offset += padding;
 
 						if (!m_componentIds[component::ComponentType::CT_Generic].empty()) {
@@ -12958,7 +12979,7 @@ namespace gaia {
 
 					// Component offsets
 					{
-						const size_t padding = utils::align(offset, alignof(ChunkComponentOffset)) - offset;
+						const auto padding = utils::padding<alignof(ChunkComponentOffset)>(offset);
 						offset += padding;
 
 						if (!m_componentIds[component::ComponentType::CT_Generic].empty()) {
@@ -12975,7 +12996,7 @@ namespace gaia {
 
 					// First entity offset
 					{
-						const size_t padding = utils::align(offset, alignof(Entity)) - offset;
+						const auto padding = utils::padding<alignof(Entity)>(offset);
 						offset += padding;
 						m_dataOffsets.firstByte_EntityData = (ChunkComponentOffset)offset;
 					}
@@ -13147,10 +13168,11 @@ namespace gaia {
 					auto* newArch = new Archetype(worldVersion);
 					newArch->m_archetypeId = archetypeId;
 
-					newArch->m_componentIds[component::ComponentType::CT_Generic].resize(componentIdsGeneric.size());
-					newArch->m_componentIds[component::ComponentType::CT_Chunk].resize(componentIdsChunk.size());
-					newArch->m_componentOffsets[component::ComponentType::CT_Generic].resize(componentIdsGeneric.size());
-					newArch->m_componentOffsets[component::ComponentType::CT_Chunk].resize(componentIdsChunk.size());
+					newArch->m_componentIds[component::ComponentType::CT_Generic].resize((uint32_t)componentIdsGeneric.size());
+					newArch->m_componentIds[component::ComponentType::CT_Chunk].resize((uint32_t)componentIdsChunk.size());
+					newArch->m_componentOffsets[component::ComponentType::CT_Generic].resize(
+							(uint32_t)componentIdsGeneric.size());
+					newArch->m_componentOffsets[component::ComponentType::CT_Chunk].resize((uint32_t)componentIdsChunk.size());
 					newArch->UpdateDataOffsets(sizeof(ChunkHeader) + MemoryBlockUsableOffset);
 
 					const auto& cc = ComponentCache::Get();
@@ -13160,31 +13182,32 @@ namespace gaia {
 					// fit as many of them into chunk as possible.
 
 					// Total size of generic components
-					size_t genericComponentListSize = 0;
+					uint32_t genericComponentListSize = 0;
 					for (const auto componentId: componentIdsGeneric) {
 						const auto& desc = cc.GetComponentDesc(componentId);
 						genericComponentListSize += desc.properties.size;
 					}
 
 					// Total size of chunk components
-					size_t chunkComponentListSize = 0;
+					uint32_t chunkComponentListSize = 0;
 					for (const auto componentId: componentIdsChunk) {
 						const auto& desc = cc.GetComponentDesc(componentId);
 						chunkComponentListSize += desc.properties.size;
 					}
 
-					const size_t maxDataOffset = Chunk::GetChunkDataSize(MaxMemoryBlockSize);
+					const uint32_t maxDataOffset = Chunk::GetChunkDataSize(MaxMemoryBlockSize);
 
 					// Theoretical maximum number of components we can fit into one chunk.
 					// This can be further reduced due alignment and padding.
 					auto maxGenericItemsInArchetype =
 							(maxDataOffset - dataOffset.firstByte_EntityData - chunkComponentListSize - 1) /
-							(genericComponentListSize + sizeof(Entity));
+							(genericComponentListSize + (uint32_t)sizeof(Entity));
 
 				recalculate:
-					auto componentOffsets = dataOffset.firstByte_EntityData + sizeof(Entity) * maxGenericItemsInArchetype;
+					auto componentOffsets =
+							dataOffset.firstByte_EntityData + (uint32_t)sizeof(Entity) * maxGenericItemsInArchetype;
 
-					auto adjustMaxGenericItemsInAchetype = [&](component::ComponentIdSpan componentIds, size_t size) {
+					auto adjustMaxGenericItemsInAchetype = [&](component::ComponentIdSpan componentIds, uint32_t size) {
 						for (const auto componentId: componentIds) {
 							const auto& desc = cc.GetComponentDesc(componentId);
 							const auto alignment = desc.properties.alig;
@@ -13228,14 +13251,14 @@ namespace gaia {
 						maxGenericItemsInArchetype = ChunkHeader::MAX_CHUNK_ENTITES;
 
 					// Update the offsets according to the recalculated maxGenericItemsInArchetype
-					componentOffsets = dataOffset.firstByte_EntityData + sizeof(Entity) * maxGenericItemsInArchetype;
+					componentOffsets = dataOffset.firstByte_EntityData + (uint32_t)sizeof(Entity) * maxGenericItemsInArchetype;
 
 					auto registerComponents = [&](component::ComponentIdSpan componentIds, component::ComponentType componentType,
-																				const size_t count) {
+																				const uint32_t count) {
 						auto& ids = newArch->m_componentIds[componentType];
 						auto& ofs = newArch->m_componentOffsets[componentType];
 
-						for (size_t i = 0; i < componentIds.size(); ++i) {
+						for (uint32_t i = 0; i < componentIds.size(); ++i) {
 							const auto componentId = componentIds[i];
 							const auto& desc = cc.GetComponentDesc(componentId);
 							const auto alignment = desc.properties.alig;
@@ -13246,7 +13269,7 @@ namespace gaia {
 								ids[i] = componentId;
 								ofs[i] = {};
 							} else {
-								const size_t padding = utils::align(componentOffsets, alignment) - componentOffsets;
+								const auto padding = utils::align(componentOffsets, alignment) - componentOffsets;
 								componentOffsets += padding;
 
 								// Register the component info
@@ -13558,7 +13581,7 @@ namespace gaia {
 
 				static void DiagArchetype_PrintChunkInfo(const Archetype& archetype) {
 					auto logChunks = [](const auto& chunks) {
-						for (size_t i = 0; i < chunks.size(); ++i) {
+						for (uint32_t i = 0; i < chunks.size(); ++i) {
 							const auto* pChunk = chunks[i];
 							pChunk->Diag((uint32_t)i);
 						}
@@ -14124,7 +14147,7 @@ namespace gaia {
 					if (hashLookup != other.hashLookup)
 						return false;
 
-					for (size_t i = 0; i < component::ComponentType::CT_Count; ++i) {
+					for (uint32_t i = 0; i < component::ComponentType::CT_Count; ++i) {
 						const auto& left = data[i];
 						const auto& right = other.data[i];
 
@@ -14139,25 +14162,25 @@ namespace gaia {
 							return false;
 
 						// Matches hashes need to be the same
-						for (size_t j = 0; j < ListType::LT_Count; ++j) {
+						for (uint32_t j = 0; j < ListType::LT_Count; ++j) {
 							if (left.hash[j] != right.hash[j])
 								return false;
 						}
 
 						// Components need to be the same
-						for (size_t j = 0; j < left.componentIds.size(); ++j) {
+						for (uint32_t j = 0; j < left.componentIds.size(); ++j) {
 							if (left.componentIds[j] != right.componentIds[j])
 								return false;
 						}
 
 						// Rules need to be the same
-						for (size_t j = 0; j < left.rules.size(); ++j) {
+						for (uint32_t j = 0; j < left.rules.size(); ++j) {
 							if (left.rules[j] != right.rules[j])
 								return false;
 						}
 
 						// Filters need to be the same
-						for (size_t j = 0; j < left.withChanged.size(); ++j) {
+						for (uint32_t j = 0; j < left.withChanged.size(); ++j) {
 							if (left.withChanged[j] != right.withChanged[j])
 								return false;
 						}
@@ -14173,10 +14196,10 @@ namespace gaia {
 
 			//! Sorts internal component arrays
 			inline void SortComponentArrays(LookupCtx& ctx) {
-				for (size_t i = 0; i < component::ComponentType::CT_Count; ++i) {
+				for (uint32_t i = 0; i < component::ComponentType::CT_Count; ++i) {
 					auto& data = ctx.data[i];
 					// Make sure the read-write mask remains correct after sorting
-					utils::sort(data.componentIds, component::SortComponentCond{}, [&](size_t left, size_t right) {
+					utils::sort(data.componentIds, component::SortComponentCond{}, [&](uint32_t left, uint32_t right) {
 						utils::swap(data.componentIds[left], data.componentIds[right]);
 						utils::swap(data.rules[left], data.rules[right]);
 
@@ -14201,7 +14224,7 @@ namespace gaia {
 
 				// Calculate the matcher hash
 				for (auto& data: ctx.data) {
-					for (size_t i = 0; i < data.rules.size(); ++i)
+					for (uint32_t i = 0; i < data.rules.size(); ++i)
 						component::CalculateMatcherHash(data.hash[data.rules[i]], data.componentIds[i]);
 				}
 			}
@@ -14212,7 +14235,7 @@ namespace gaia {
 
 				LookupHash::Type hashLookup = 0;
 
-				for (size_t i = 0; i < component::ComponentType::CT_Count; ++i) {
+				for (uint32_t i = 0; i < component::ComponentType::CT_Count; ++i) {
 					auto& data = ctx.data[i];
 
 					// Components
@@ -14327,8 +14350,8 @@ namespace gaia {
 					const auto& data = m_lookupCtx.data[componentType];
 
 					// Arrays are sorted so we can do linear intersection lookup
-					size_t i = 0;
-					size_t j = 0;
+					uint32_t i = 0;
+					uint32_t j = 0;
 					while (i < archetypeComponentIds.size() && j < data.componentIds.size()) {
 						if (data.rules[j] == listType) {
 							const auto componentIdArchetype = archetypeComponentIds[i];
@@ -14364,7 +14387,7 @@ namespace gaia {
 				//! \return True if there is a match, false otherwise.
 				GAIA_NODISCARD bool CheckMatchAll(
 						component::ComponentType componentType, const archetype::ComponentIdArray& archetypeComponentIds) const {
-					size_t matches = 0;
+					uint32_t matches = 0;
 					const auto& data = m_lookupCtx.data[componentType];
 					return CheckMatch_Internal(
 							componentType, archetypeComponentIds, ListType::LT_All,
@@ -14470,14 +14493,14 @@ namespace gaia {
 					// Match against generic types
 					{
 						auto& data = m_lookupCtx.data[component::ComponentType::CT_Generic];
-						for (size_t i = 0; i < data.componentIds.size(); ++i) {
+						for (uint32_t i = 0; i < data.componentIds.size(); ++i) {
 							const auto componentId = data.componentIds[i];
 
 							const auto it = componentToArchetypeMap.find(componentId);
 							if (it == componentToArchetypeMap.end())
 								continue;
 
-							for (size_t j = data.lastMatchedArchetypeIndex[i]; j < it->second.size(); ++j) {
+							for (uint32_t j = data.lastMatchedArchetypeIndex[i]; j < it->second.size(); ++j) {
 								auto* pArchetype = it->second[j];
 								// Early exit if generic query doesn't match
 								const auto retGeneric = Match(*pArchetype, component::ComponentType::CT_Generic);
@@ -14493,14 +14516,14 @@ namespace gaia {
 					// Match against chunk types
 					{
 						auto& data = m_lookupCtx.data[component::ComponentType::CT_Chunk];
-						for (size_t i = 0; i < data.componentIds.size(); ++i) {
+						for (uint32_t i = 0; i < data.componentIds.size(); ++i) {
 							const auto componentId = data.componentIds[i];
 
 							const auto it = componentToArchetypeMap.find(componentId);
 							if (it == componentToArchetypeMap.end())
 								continue;
 
-							for (size_t j = data.lastMatchedArchetypeIndex[i]; j < it->second.size(); ++j) {
+							for (uint32_t j = data.lastMatchedArchetypeIndex[i]; j < it->second.size(); ++j) {
 								auto* pArchetype = it->second[j];
 								// Early exit if generic query doesn't match
 								const auto retGeneric = Match(*pArchetype, component::ComponentType::CT_Chunk);
@@ -14974,7 +14997,7 @@ namespace gaia {
 					func(*chunks[0]);
 					chunks[0]->SetStructuralChanges(false);
 
-					size_t chunkIdx = 1;
+					uint32_t chunkIdx = 1;
 					for (; chunkIdx < chunks.size() - 1; ++chunkIdx) {
 						gaia::prefetch(&chunks[chunkIdx + 1], PrefetchHint::PREFETCH_HINT_T2);
 						chunks[chunkIdx]->SetStructuralChanges(true);
@@ -14993,11 +15016,11 @@ namespace gaia {
 				void ProcessQueryOnChunks_NoConstraints(
 						Func func, ChunkBatchedList& chunkBatch, const containers::darray<archetype::Chunk*>& chunks,
 						const query::QueryInfo& queryInfo) {
-					size_t chunkOffset = 0;
-					size_t itemsLeft = chunks.size();
+					uint32_t chunkOffset = 0;
+					uint32_t itemsLeft = chunks.size();
 					while (itemsLeft > 0) {
-						const size_t maxBatchSize = chunkBatch.max_size() - chunkBatch.size();
-						const size_t batchSize = itemsLeft > maxBatchSize ? maxBatchSize : itemsLeft;
+						const auto maxBatchSize = chunkBatch.max_size() - chunkBatch.size();
+						const auto batchSize = itemsLeft > maxBatchSize ? maxBatchSize : itemsLeft;
 
 						CChunkSpan chunkSpan((const archetype::Chunk**)&chunks[chunkOffset], batchSize);
 						for (const auto* pChunk: chunkSpan) {
@@ -15023,11 +15046,11 @@ namespace gaia {
 				void ProcessQueryOnChunks(
 						Func func, ChunkBatchedList& chunkBatch, const containers::darray<archetype::Chunk*>& chunks,
 						const query::QueryInfo& queryInfo, bool enabledOnly) {
-					size_t chunkOffset = 0;
-					size_t itemsLeft = chunks.size();
+					uint32_t chunkOffset = 0;
+					uint32_t itemsLeft = chunks.size();
 					while (itemsLeft > 0) {
-						const size_t maxBatchSize = chunkBatch.max_size() - chunkBatch.size();
-						const size_t batchSize = itemsLeft > maxBatchSize ? maxBatchSize : itemsLeft;
+						const auto maxBatchSize = chunkBatch.max_size() - chunkBatch.size();
+						const auto batchSize = itemsLeft > maxBatchSize ? maxBatchSize : itemsLeft;
 
 						CChunkSpan chunkSpan((const archetype::Chunk**)&chunks[chunkOffset], batchSize);
 						for (const auto* pChunk: chunkSpan) {
@@ -15287,7 +15310,7 @@ namespace gaia {
 						}
 
 						const auto componentView = pChunk->template View<ContainerItemType>();
-						for (size_t i = 0; i < pChunk->GetEntityCount(); ++i)
+						for (uint32_t i = 0; i < pChunk->GetEntityCount(); ++i)
 							outArray.push_back(componentView[i]);
 					}
 				}
@@ -15706,8 +15729,8 @@ namespace gaia {
 					GAIA_LOG_W(
 							"Trying to add a component to entity [%u.%u] but there's no space left!", entity.id(), entity.gen());
 					GAIA_LOG_W("Already present:");
-					const size_t oldInfosCount = componentIds.size();
-					for (size_t i = 0; i < oldInfosCount; i++) {
+					const uint32_t oldInfosCount = componentIds.size();
+					for (uint32_t i = 0; i < oldInfosCount; i++) {
 						const auto& info = cc.GetComponentDesc(componentIds[i]);
 						GAIA_LOG_W("> [%u] %.*s", (uint32_t)i, (uint32_t)info.name.size(), info.name.data());
 					}
@@ -15719,7 +15742,7 @@ namespace gaia {
 				}
 
 				// Don't add the same component twice
-				for (size_t i = 0; i < componentIds.size(); ++i) {
+				for (uint32_t i = 0; i < componentIds.size(); ++i) {
 					const auto& info = cc.GetComponentDesc(componentIds[i]);
 					if (info.componentId == infoToAdd.componentId) {
 						GAIA_ASSERT(false && "Trying to add a duplicate component");
@@ -15744,7 +15767,7 @@ namespace gaia {
 
 					const auto& cc = ComponentCache::Get();
 
-					for (size_t k = 0; k < componentIds.size(); k++) {
+					for (uint32_t k = 0; k < componentIds.size(); k++) {
 						const auto& info = cc.GetComponentDesc(componentIds[k]);
 						GAIA_LOG_W("> [%u] %.*s", (uint32_t)k, (uint32_t)info.name.size(), info.name.data());
 					}
@@ -15816,10 +15839,10 @@ namespace gaia {
 				// Prepare a joint array of component infos of old + the newly added component
 				{
 					const auto& componentIds = pArchetypeLeft->GetComponentIdArray((component::ComponentType)a);
-					const size_t componentInfosSize = componentIds.size();
+					const auto componentInfosSize = componentIds.size();
 					infosNew.resize(componentInfosSize + 1);
 
-					for (size_t j = 0; j < componentInfosSize; ++j)
+					for (uint32_t j = 0; j < componentInfosSize; ++j)
 						infosNew[j] = componentIds[j];
 					infosNew[componentInfosSize] = infoToAdd.componentId;
 				}
@@ -16012,7 +16035,7 @@ namespace gaia {
 
 				if (pChunk->HasEntities()) {
 					// Make sure a proper amount of entities reference the chunk
-					size_t cnt = 0;
+					uint32_t cnt = 0;
 					for (const auto& e: m_entities) {
 						if (e.pChunk != pChunk)
 							continue;
@@ -16134,7 +16157,7 @@ namespace gaia {
 			//! used for a while and tries to delete them and release memory allocated by them.
 			void GC() {
 				// Handle chunks
-				for (size_t i = 0; i < m_chunksToRemove.size();) {
+				for (uint32_t i = 0; i < m_chunksToRemove.size();) {
 					auto* pChunk = m_chunksToRemove[i];
 
 					// Skip reclaimed chunks
@@ -17157,7 +17180,7 @@ namespace gaia {
 		class BaseSystemManager;
 
 #if GAIA_PROFILER_CPU
-		constexpr size_t MaxSystemNameLength = 64;
+		constexpr uint32_t MaxSystemNameLength = 64;
 #endif
 
 		class BaseSystem {
@@ -17415,9 +17438,9 @@ namespace gaia {
 
 		private:
 			void SortSystems() {
-				for (size_t l = 0; l < m_systems.size() - 1; l++) {
+				for (uint32_t l = 0; l < m_systems.size() - 1; l++) {
 					auto min = l;
-					for (size_t p = l + 1; p < m_systems.size(); p++) {
+					for (uint32_t p = l + 1; p < m_systems.size(); p++) {
 						const auto* sl = m_systems[l];
 						const auto* pl = m_systems[p];
 						if (sl->DependsOn(pl))

@@ -9,7 +9,7 @@ namespace gaia {
 	namespace containers {
 		//! Array of elements of type \tparam T with fixed size and capacity \tparam N allocated on stack.
 		//! Interface compatiblity with std::array where it matters.
-		template <typename T, size_t N>
+		template <typename T, uint32_t N>
 		class sarr {
 		public:
 			using value_type = T;
@@ -17,7 +17,7 @@ namespace gaia {
 			using const_reference = const T&;
 			using pointer = T*;
 			using const_pointer = T*;
-			using difference_type = std::ptrdiff_t;
+			using difference_type = decltype(N);
 			using size_type = decltype(N);
 
 			static constexpr size_type extent = N;
@@ -28,7 +28,7 @@ namespace gaia {
 			public:
 				using iterator_category = GAIA_UTIL::random_access_iterator_tag;
 				using value_type = T;
-				using difference_type = std::ptrdiff_t;
+				using difference_type = sarr::size_type;
 				using pointer = T*;
 				using reference = T&;
 				using size_type = sarr::size_type;
@@ -83,7 +83,7 @@ namespace gaia {
 					return {m_ptr - offset};
 				}
 				constexpr difference_type operator-(const iterator& other) const {
-					return m_ptr - other.m_ptr;
+					return (difference_type)(m_ptr - other.m_ptr);
 				}
 
 				GAIA_NODISCARD constexpr bool operator==(const iterator& other) const {
@@ -110,7 +110,7 @@ namespace gaia {
 			public:
 				using iterator_category = GAIA_UTIL::random_access_iterator_tag;
 				using value_type = const T;
-				using difference_type = std::ptrdiff_t;
+				using difference_type = sarr::size_type;
 				using pointer = const T*;
 				using reference = const T&;
 				using size_type = sarr::size_type;
@@ -165,7 +165,7 @@ namespace gaia {
 					return {m_ptr - offset};
 				}
 				constexpr difference_type operator-(const const_iterator& other) const {
-					return m_ptr - other.m_ptr;
+					return (difference_type)(m_ptr - other.m_ptr);
 				}
 
 				constexpr bool operator==(const const_iterator& other) const {
@@ -259,29 +259,29 @@ namespace gaia {
 		};
 
 		namespace detail {
-			template <typename T, std::size_t N, std::size_t... I>
+			template <typename T, uint32_t N, uint32_t... I>
 			constexpr sarr<std::remove_cv_t<T>, N> to_array_impl(T (&a)[N], std::index_sequence<I...> /*no_name*/) {
 				return {{a[I]...}};
 			}
 		} // namespace detail
 
-		template <typename T, std::size_t N>
+		template <typename T, uint32_t N>
 		constexpr sarr<std::remove_cv_t<T>, N> to_array(T (&a)[N]) {
 			return detail::to_array_impl(a, std::make_index_sequence<N>{});
 		}
 
 		template <typename T, typename... U>
-		sarr(T, U...) -> sarr<T, 1 + sizeof...(U)>;
+		sarr(T, U...) -> sarr<T, 1 + (uint32_t)sizeof...(U)>;
 
 	} // namespace containers
 
 } // namespace gaia
 
 namespace std {
-	template <typename T, size_t N>
-	struct tuple_size<gaia::containers::sarr<T, N>>: std::integral_constant<std::size_t, N> {};
+	template <typename T, uint32_t N>
+	struct tuple_size<gaia::containers::sarr<T, N>>: std::integral_constant<uint32_t, N> {};
 
-	template <size_t I, typename T, size_t N>
+	template <uint32_t I, typename T, uint32_t N>
 	struct tuple_element<I, gaia::containers::sarr<T, N>> {
 		using type = T;
 	};

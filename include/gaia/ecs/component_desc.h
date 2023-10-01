@@ -14,8 +14,8 @@ namespace gaia {
 	namespace ecs {
 		namespace component {
 			struct ComponentDesc final {
-				using FuncCtor = void(void*, size_t);
-				using FuncDtor = void(void*, size_t);
+				using FuncCtor = void(void*, uint32_t);
+				using FuncDtor = void(void*, uint32_t);
 				using FuncCopy = void(void*, void*);
 				using FuncMove = void(void*, void*);
 
@@ -94,7 +94,7 @@ namespace gaia {
 
 							// Custom construction
 							if constexpr (!std::is_trivially_constructible_v<U>) {
-								info.ctor = [](void* ptr, size_t cnt) {
+								info.ctor = [](void* ptr, uint32_t cnt) {
 									auto* first = (U*)ptr;
 									auto* last = (U*)ptr + cnt;
 									for (; first != last; ++first)
@@ -104,7 +104,7 @@ namespace gaia {
 
 							// Custom destruction
 							if constexpr (!std::is_trivially_destructible_v<U>) {
-								info.dtor = [](void* ptr, size_t cnt) {
+								info.dtor = [](void* ptr, uint32_t cnt) {
 									auto first = (U*)ptr;
 									auto last = (U*)ptr + cnt;
 									for (; first != last; ++first)

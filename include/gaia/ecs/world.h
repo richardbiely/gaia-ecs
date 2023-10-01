@@ -280,8 +280,8 @@ namespace gaia {
 					GAIA_LOG_W(
 							"Trying to add a component to entity [%u.%u] but there's no space left!", entity.id(), entity.gen());
 					GAIA_LOG_W("Already present:");
-					const size_t oldInfosCount = componentIds.size();
-					for (size_t i = 0; i < oldInfosCount; i++) {
+					const uint32_t oldInfosCount = componentIds.size();
+					for (uint32_t i = 0; i < oldInfosCount; i++) {
 						const auto& info = cc.GetComponentDesc(componentIds[i]);
 						GAIA_LOG_W("> [%u] %.*s", (uint32_t)i, (uint32_t)info.name.size(), info.name.data());
 					}
@@ -293,7 +293,7 @@ namespace gaia {
 				}
 
 				// Don't add the same component twice
-				for (size_t i = 0; i < componentIds.size(); ++i) {
+				for (uint32_t i = 0; i < componentIds.size(); ++i) {
 					const auto& info = cc.GetComponentDesc(componentIds[i]);
 					if (info.componentId == infoToAdd.componentId) {
 						GAIA_ASSERT(false && "Trying to add a duplicate component");
@@ -318,7 +318,7 @@ namespace gaia {
 
 					const auto& cc = ComponentCache::Get();
 
-					for (size_t k = 0; k < componentIds.size(); k++) {
+					for (uint32_t k = 0; k < componentIds.size(); k++) {
 						const auto& info = cc.GetComponentDesc(componentIds[k]);
 						GAIA_LOG_W("> [%u] %.*s", (uint32_t)k, (uint32_t)info.name.size(), info.name.data());
 					}
@@ -390,10 +390,10 @@ namespace gaia {
 				// Prepare a joint array of component infos of old + the newly added component
 				{
 					const auto& componentIds = pArchetypeLeft->GetComponentIdArray((component::ComponentType)a);
-					const size_t componentInfosSize = componentIds.size();
+					const auto componentInfosSize = componentIds.size();
 					infosNew.resize(componentInfosSize + 1);
 
-					for (size_t j = 0; j < componentInfosSize; ++j)
+					for (uint32_t j = 0; j < componentInfosSize; ++j)
 						infosNew[j] = componentIds[j];
 					infosNew[componentInfosSize] = infoToAdd.componentId;
 				}
@@ -586,7 +586,7 @@ namespace gaia {
 
 				if (pChunk->HasEntities()) {
 					// Make sure a proper amount of entities reference the chunk
-					size_t cnt = 0;
+					uint32_t cnt = 0;
 					for (const auto& e: m_entities) {
 						if (e.pChunk != pChunk)
 							continue;
@@ -708,7 +708,7 @@ namespace gaia {
 			//! used for a while and tries to delete them and release memory allocated by them.
 			void GC() {
 				// Handle chunks
-				for (size_t i = 0; i < m_chunksToRemove.size();) {
+				for (uint32_t i = 0; i < m_chunksToRemove.size();) {
 					auto* pChunk = m_chunksToRemove[i];
 
 					// Skip reclaimed chunks
