@@ -278,7 +278,7 @@ namespace robin_hood {
 				while (mListForFree) {
 					T* tmp = *mListForFree;
 					ROBIN_HOOD_LOG("std::free")
-					gaia::utils::mem_free(mListForFree);
+					GAIA_UTIL::mem_free(mListForFree);
 					mListForFree = reinterpret_cast_no_cast_align_warning<T**>(tmp);
 				}
 				mHead = nullptr;
@@ -314,7 +314,7 @@ namespace robin_hood {
 				if (numBytes < ALIGNMENT + ALIGNED_SIZE) {
 					// not enough data for at least one element. Free and return.
 					ROBIN_HOOD_LOG("std::free")
-					gaia::utils::mem_free(ptr);
+					GAIA_UTIL::mem_free(ptr);
 				} else {
 					ROBIN_HOOD_LOG("add to buffer")
 					add(ptr, numBytes);
@@ -379,15 +379,14 @@ namespace robin_hood {
 				// alloc new memory: [prev |T, T, ... T]
 				size_t const bytes = ALIGNMENT + ALIGNED_SIZE * numElementsToAlloc;
 				ROBIN_HOOD_LOG(
-						"gaia::utils::mem_alloc " << bytes << " = " << ALIGNMENT << " + " << ALIGNED_SIZE << " * "
-																			<< numElementsToAlloc)
-				add(assertNotNull<std::bad_alloc>(gaia::utils::mem_alloc(bytes)), bytes);
+						"GAIA_UTIL::mem_alloc " << bytes << " = " << ALIGNMENT << " + " << ALIGNED_SIZE << " * "
+																		<< numElementsToAlloc)
+				add(assertNotNull<std::bad_alloc>(GAIA_UTIL::mem_alloc(bytes)), bytes);
 				return mHead;
 			}
 
 			// enforce byte alignment of the T's
-			static constexpr size_t ALIGNMENT =
-					gaia::utils::get_max(std::alignment_of<T>::value, std::alignment_of<T*>::value);
+			static constexpr size_t ALIGNMENT = GAIA_UTIL::get_max(std::alignment_of<T>::value, std::alignment_of<T*>::value);
 
 			static constexpr size_t ALIGNED_SIZE = ((sizeof(T) - 1) / ALIGNMENT + 1) * ALIGNMENT;
 
@@ -411,7 +410,7 @@ namespace robin_hood {
 			// we are not using the data, so just free it.
 			void addOrFree(void* ptr, size_t ROBIN_HOOD_UNUSED(numBytes) /*unused*/) noexcept {
 				ROBIN_HOOD_LOG("std::free")
-				gaia::utils::mem_free(ptr);
+				GAIA_UTIL::mem_free(ptr);
 			}
 		};
 
@@ -652,7 +651,7 @@ namespace robin_hood {
 	};
 
 	template <typename T>
-	struct hash<T, typename std::enable_if<gaia::utils::is_direct_hash_key_v<T>>::type> {
+	struct hash<T, typename std::enable_if<GAIA_UTIL::is_direct_hash_key_v<T>>::type> {
 		size_t operator()(const T& obj) const noexcept {
 			return obj.hash;
 		}
@@ -1164,7 +1163,7 @@ namespace robin_hood {
 
 				// direct_hash_key is expected to be a proper hash. No additional hash tricks are required
 				using HashKeyRaw = std::decay_t<HashKey>;
-				if constexpr (!gaia::utils::is_direct_hash_key_v<HashKeyRaw>) {
+				if constexpr (!GAIA_UTIL::is_direct_hash_key_v<HashKeyRaw>) {
 					// In addition to whatever hash is used, add another mul & shift so we get better hashing.
 					// This serves as a bad hash prevention, if the given data is
 					// badly mixed.
@@ -1409,9 +1408,9 @@ namespace robin_hood {
 					auto const numBytesTotal = calcNumBytesTotal(numElementsWithBuffer);
 
 					ROBIN_HOOD_LOG(
-							"gaia::utils::mem_alloc " << numBytesTotal << " = calcNumBytesTotal(" << numElementsWithBuffer << ")")
+							"GAIA_UTIL::mem_alloc " << numBytesTotal << " = calcNumBytesTotal(" << numElementsWithBuffer << ")")
 					mHashMultiplier = o.mHashMultiplier;
-					mKeyVals = static_cast<Node*>(detail::assertNotNull<std::bad_alloc>(gaia::utils::mem_alloc(numBytesTotal)));
+					mKeyVals = static_cast<Node*>(detail::assertNotNull<std::bad_alloc>(GAIA_UTIL::mem_alloc(numBytesTotal)));
 					// no need for calloc because clonData does memcpy
 					mInfo = reinterpret_cast<uint8_t*>(mKeyVals + numElementsWithBuffer);
 					mNumElements = o.mNumElements;
@@ -1460,14 +1459,14 @@ namespace robin_hood {
 					if (0 != mMask) {
 						// only deallocate if we actually have data!
 						ROBIN_HOOD_LOG("std::free")
-						gaia::utils::mem_free(mKeyVals);
+						GAIA_UTIL::mem_free(mKeyVals);
 					}
 
 					auto const numElementsWithBuffer = calcNumElementsWithBuffer(o.mMask + 1);
 					auto const numBytesTotal = calcNumBytesTotal(numElementsWithBuffer);
 					ROBIN_HOOD_LOG(
-							"gaia::utils::mem_alloc " << numBytesTotal << " = calcNumBytesTotal(" << numElementsWithBuffer << ")")
-					mKeyVals = static_cast<Node*>(detail::assertNotNull<std::bad_alloc>(gaia::utils::mem_alloc(numBytesTotal)));
+							"GAIA_UTIL::mem_alloc " << numBytesTotal << " = calcNumBytesTotal(" << numElementsWithBuffer << ")")
+					mKeyVals = static_cast<Node*>(detail::assertNotNull<std::bad_alloc>(GAIA_UTIL::mem_alloc(numBytesTotal)));
 
 					// no need for calloc here because cloneData performs a memcpy.
 					mInfo = reinterpret_cast<uint8_t*>(mKeyVals + numElementsWithBuffer);
@@ -1508,7 +1507,7 @@ namespace robin_hood {
 				auto const numElementsWithBuffer = calcNumElementsWithBuffer(mMask + 1);
 				// clear everything, then set the sentinel again
 				uint8_t const z = 0;
-				gaia::utils::fill(mInfo, mInfo + calcNumBytesInfo(numElementsWithBuffer), z);
+				GAIA_UTIL::fill(mInfo, mInfo + calcNumBytesInfo(numElementsWithBuffer), z);
 				mInfo[numElementsWithBuffer] = 1;
 
 				mInfoInc = InitialInfoInc;
@@ -1959,7 +1958,7 @@ namespace robin_hood {
 
 			GAIA_NODISCARD size_t calcNumElementsWithBuffer(size_t numElements) const noexcept {
 				auto maxNumElementsAllowed = calcMaxNumElementsAllowed(numElements);
-				return numElements + gaia::utils::get_min(maxNumElementsAllowed, (static_cast<size_t>(0xFF)));
+				return numElements + GAIA_UTIL::get_min(maxNumElementsAllowed, (static_cast<size_t>(0xFF)));
 			}
 
 			// calculation only allowed for 2^n values
@@ -1998,7 +1997,7 @@ namespace robin_hood {
 
 			void reserve(size_t c, bool forceRehash) {
 				ROBIN_HOOD_TRACE(this)
-				auto const minElementsAllowed = gaia::utils::get_max(c, mNumElements);
+				auto const minElementsAllowed = GAIA_UTIL::get_max(c, mNumElements);
 				auto newSize = InitialNumElements;
 				while (calcMaxNumElementsAllowed(newSize) < minElementsAllowed && newSize != 0) {
 					newSize *= 2;
@@ -2046,7 +2045,7 @@ namespace robin_hood {
 					if (oldKeyVals != reinterpret_cast_no_cast_align_warning<Node*>(&mMask)) {
 						// don't destroy old data: put it into the pool instead
 						if (forceFree) {
-							gaia::utils::mem_free(oldKeyVals);
+							GAIA_UTIL::mem_free(oldKeyVals);
 						} else {
 							DataPool::addOrFree(oldKeyVals, calcNumBytesTotal(oldMaxElementsWithBuffer));
 						}
@@ -2133,8 +2132,7 @@ namespace robin_hood {
 				// malloc & zero mInfo. Faster than calloc everything.
 				auto const numBytesTotal = calcNumBytesTotal(numElementsWithBuffer);
 				ROBIN_HOOD_LOG("std::calloc " << numBytesTotal << " = calcNumBytesTotal(" << numElementsWithBuffer << ")")
-				mKeyVals =
-						reinterpret_cast<Node*>(detail::assertNotNull<std::bad_alloc>(gaia::utils::mem_alloc(numBytesTotal)));
+				mKeyVals = reinterpret_cast<Node*>(detail::assertNotNull<std::bad_alloc>(GAIA_UTIL::mem_alloc(numBytesTotal)));
 				mInfo = reinterpret_cast<uint8_t*>(mKeyVals + numElementsWithBuffer);
 				std::memset(mInfo, 0, numBytesTotal - numElementsWithBuffer * sizeof(Node));
 
@@ -2280,7 +2278,7 @@ namespace robin_hood {
 				// [-Werror=free-nonheap-object]
 				if (mKeyVals != reinterpret_cast_no_cast_align_warning<Node*>(&mMask)) {
 					ROBIN_HOOD_LOG("std::free")
-					gaia::utils::mem_free(mKeyVals);
+					GAIA_UTIL::mem_free(mKeyVals);
 				}
 			}
 

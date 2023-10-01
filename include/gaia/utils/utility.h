@@ -304,13 +304,13 @@ namespace gaia {
 		template <typename InputIt, typename T>
 		constexpr InputIt find(InputIt first, InputIt last, const T& value) {
 			if constexpr (std::is_pointer_v<InputIt>) {
-				auto size = GAIA_UTIL::distance(first, last);
+				auto size = distance(first, last);
 				for (decltype(size) i = 0; i < size; ++i) {
 					if (first[i] == value)
 						return &first[i];
 				}
-			} else if constexpr (std::is_same_v<typename InputIt::iterator_category, GAIA_UTIL::random_access_iterator_tag>) {
-				auto size = GAIA_UTIL::distance(first, last);
+			} else if constexpr (std::is_same_v<typename InputIt::iterator_category, random_access_iterator_tag>) {
+				auto size = distance(first, last);
 				for (decltype(size) i = 0; i < size; ++i) {
 					if (*(first[i]) == value)
 						return first[i];
@@ -329,19 +329,19 @@ namespace gaia {
 			if constexpr (has_find<C>::value)
 				return arr.find(item);
 			else
-				return gaia::utils::find(arr.begin(), arr.end(), item);
+				return find(arr.begin(), arr.end(), item);
 		}
 
 		template <typename InputIt, typename Func>
 		constexpr InputIt find_if(InputIt first, InputIt last, Func func) {
 			if constexpr (std::is_pointer_v<InputIt>) {
-				auto size = GAIA_UTIL::distance(first, last);
+				auto size = distance(first, last);
 				for (decltype(size) i = 0; i < size; ++i) {
 					if (func(first[i]))
 						return &first[i];
 				}
-			} else if constexpr (std::is_same_v<typename InputIt::iterator_category, GAIA_UTIL::random_access_iterator_tag>) {
-				auto size = GAIA_UTIL::distance(first, last);
+			} else if constexpr (std::is_same_v<typename InputIt::iterator_category, random_access_iterator_tag>) {
+				auto size = distance(first, last);
 				for (decltype(size) i = 0; i < size; ++i) {
 					if (func(*(first[i])))
 						return first[i];
@@ -360,19 +360,19 @@ namespace gaia {
 			if constexpr (has_find_if<C, UnaryPredicate>::value)
 				return arr.find_id(predicate);
 			else
-				return gaia::utils::find_if(arr.begin(), arr.end(), predicate);
+				return find_if(arr.begin(), arr.end(), predicate);
 		}
 
 		template <typename InputIt, typename Func>
 		constexpr InputIt find_if_not(InputIt first, InputIt last, Func func) {
 			if constexpr (std::is_pointer_v<InputIt>) {
-				auto size = GAIA_UTIL::distance(first, last);
+				auto size = distance(first, last);
 				for (decltype(size) i = 0; i < size; ++i) {
 					if (!func(first[i]))
 						return &first[i];
 				}
-			} else if constexpr (std::is_same_v<typename InputIt::iterator_category, GAIA_UTIL::random_access_iterator_tag>) {
-				auto size = GAIA_UTIL::distance(first, last);
+			} else if constexpr (std::is_same_v<typename InputIt::iterator_category, random_access_iterator_tag>) {
+				auto size = distance(first, last);
 				for (decltype(size) i = 0; i < size; ++i) {
 					if (!func(*(first[i])))
 						return first[i];
@@ -391,7 +391,7 @@ namespace gaia {
 			if constexpr (has_find_if_not<C, UnaryPredicate>::value)
 				return arr.find_if_not(predicate);
 			else
-				return gaia::utils::find_if_not(arr.begin(), arr.end(), predicate);
+				return find_if_not(arr.begin(), arr.end(), predicate);
 		}
 
 		//----------------------------------------------------------------------
@@ -416,12 +416,12 @@ namespace gaia {
 			if (it == arr.end())
 				return BadIndex;
 
-			return (decltype(BadIndex))GAIA_UTIL::distance(arr.begin(), it);
+			return (decltype(BadIndex))distance(arr.begin(), it);
 		}
 
 		template <typename C>
 		constexpr auto get_index_unsafe(const C& arr, typename C::const_reference item) {
-			return (decltype(BadIndex))GAIA_UTIL::distance(arr.begin(), find(arr, item));
+			return (decltype(BadIndex))distance(arr.begin(), find(arr, item));
 		}
 
 		template <typename UnaryPredicate, typename C>
@@ -430,12 +430,12 @@ namespace gaia {
 			if (it == arr.end())
 				return BadIndex;
 
-			return (decltype(BadIndex))GAIA_UTIL::distance(arr.begin(), it);
+			return (decltype(BadIndex))distance(arr.begin(), it);
 		}
 
 		template <typename UnaryPredicate, typename C>
 		constexpr auto get_index_if_unsafe(const C& arr, UnaryPredicate predicate) {
-			return (decltype(BadIndex))GAIA_UTIL::distance(arr.begin(), find_if(arr, predicate));
+			return (decltype(BadIndex))distance(arr.begin(), find_if(arr, predicate));
 		}
 
 		//----------------------------------------------------------------------

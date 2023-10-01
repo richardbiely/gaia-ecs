@@ -20,7 +20,7 @@
 Gaia-ECS is a fast and easy-to-use [ECS](#ecs) framework. Some of its current features and highlights are:
 * very simple and safe API designed in such a way as to prevent you from using bad coding patterns
 * based on modern [C++17](https://en.cppreference.com/w/cpp/17) technologies
-* no external dependencies, not even on STL (can be easily enabled if needed)
+* no external dependencies
 * archetype / chunk-based storage for maximum iteration speed and easy code parallelization
 * ability to [organize data as AoS or SoA](#data-layouts) on the component level with very few changes to your code
 * compiled warning-free and tested on all major compilers [continuously](https://github.com/richardbiely/gaia-ecs/actions)
