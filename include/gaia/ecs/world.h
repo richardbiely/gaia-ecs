@@ -82,7 +82,7 @@ namespace gaia {
 
 				GAIA_PROF_SCOPE(RemoveEntity);
 
-				auto entity = pChunk->GetEntity(entityChunkIndex);
+				const auto entity = pChunk->GetEntity(entityChunkIndex);
 				auto& archetype = *m_archetypes[pChunk->GetArchetypeId()];
 
 #if GAIA_AVOID_CHUNK_FRAGMENTATION
@@ -91,7 +91,7 @@ namespace gaia {
 				auto* pOldChunk = archetype.FindFirstNonEmptyChunk();
 				if (pOldChunk == pChunk) {
 					const uint32_t lastEntityIdx = chunkEntityCount - 1;
-					const bool wasDisabled = pChunk->GetDisabledEntityMask().test(lastEntityIdx);
+					const bool wasDisabled = m_entities[entity.id()].dis;
 
 					// Transfer data form the last entity to the new one
 					pChunk->SwapEntitiesInsideChunkAndDeleteOld(entityChunkIndex, m_entities);
@@ -102,7 +102,7 @@ namespace gaia {
 						archetype.EnableEntity(pChunk, entityChunkIndex, !wasDisabled);
 				} else if (pOldChunk != nullptr && pOldChunk->HasEntities()) {
 					const uint32_t lastEntityIdx = pOldChunk->GetEntityCount() - 1;
-					const bool wasDisabled = pOldChunk->GetDisabledEntityMask().test(lastEntityIdx);
+					const bool wasDisabled = m_entities[entity.id()].dis;
 
 					// Transfer data form the old chunk to the new one
 					auto lastEntity = pOldChunk->GetEntity(lastEntityIdx);
@@ -512,6 +512,7 @@ namespace gaia {
 				entityContainer.pChunk = pChunk;
 				entityContainer.idx = pChunk->AddEntity(entity);
 				entityContainer.gen = entity.gen();
+				entityContainer.dis = 0;
 			}
 
 			/*!
@@ -862,7 +863,7 @@ namespace gaia {
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			void EnableEntity(Entity entity, bool enable) {
 				auto& entityContainer = m_entities[entity.id()];
-				entityContainer.dis = enable;
+				entityContainer.dis = !enable;
 
 				GAIA_ASSERT(
 						(!entityContainer.pChunk || !entityContainer.pChunk->IsStructuralChangesLocked()) &&

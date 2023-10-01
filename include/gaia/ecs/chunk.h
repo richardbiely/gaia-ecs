@@ -227,6 +227,7 @@ namespace gaia {
 				Chunk(Chunk&& chunk) = delete;
 				Chunk& operator=(const Chunk& chunk) = delete;
 				Chunk& operator=(Chunk&& chunk) = delete;
+				~Chunk() = default;
 
 				static uint16_t GetTotalChunkSize(uint16_t dataSize) {
 					uint16_t header = (uint16_t)sizeof(ChunkHeader) + (uint16_t)MemoryBlockUsableOffset;

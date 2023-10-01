@@ -36,7 +36,7 @@ namespace gaia {
 			std::function<void()> func;
 
 			JobContainer() = default;
-			JobContainer(uint32_t index, uint32_t generation): containers::ilist_item(index, generation) {}
+			JobContainer(uint32_t index, uint32_t generation): containers::ilist_item(index, generation), state(JobInternalState::Idle) {}
 		};
 
 		struct JobDependency: containers::ilist_item {
