@@ -1,11 +1,8 @@
 #pragma once
 #include "../config/config.h"
 
-#if GAIA_USE_STL_COMPATIBLE_CONTAINERS
-	#include <iterator>
-#else
-	#include <cstddef>
-	#include <type_traits>
+#include <cstddef>
+#include <type_traits>
 
 namespace gaia {
 	namespace utils {
@@ -111,4 +108,3 @@ namespace gaia {
 		}
 	} // namespace utils
 } // namespace gaia
-#endif

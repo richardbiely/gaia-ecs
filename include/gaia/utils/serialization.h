@@ -79,10 +79,10 @@ namespace gaia {
 			struct has_data_and_size<T, std::void_t<decltype(data(std::declval<T>())), decltype(size(std::declval<T>()))>>:
 					std::true_type {};
 
-			DEFINE_HAS_FUNCTION(resize);
-			DEFINE_HAS_FUNCTION(size_bytes);
-			DEFINE_HAS_FUNCTION(save);
-			DEFINE_HAS_FUNCTION(load);
+			GAIA_DEFINE_HAS_FUNCTION(resize);
+			GAIA_DEFINE_HAS_FUNCTION(size_bytes);
+			GAIA_DEFINE_HAS_FUNCTION(save);
+			GAIA_DEFINE_HAS_FUNCTION(load);
 
 			template <typename T>
 			struct is_trivially_serializable {

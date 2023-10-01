@@ -12,15 +12,12 @@
 //------------------------------------------------------------------------------
 // Features
 //------------------------------------------------------------------------------
+
 #if defined(_MSVC_LANG)
 	#define GAIA_CPP_VERSION(version) (__cplusplus >= (version) || _MSVC_LANG >= (version))
 #else
 	#define GAIA_CPP_VERSION(version) (__cplusplus >= (version))
 #endif
-
-//------------------------------------------------------------------------------
-// Features
-//------------------------------------------------------------------------------
 
 #if GAIA_CPP_VERSION(201703L)
 #else
@@ -30,6 +27,8 @@
 #endif
 
 #define GAIA_SAFE_CONSTEXPR constexpr
+
+#define GAIA_USE_STD_SPAN (GAIA_CPP_VERSION(202002L) && __has_include(<span>))
 
 //------------------------------------------------------------------------------
 // Features

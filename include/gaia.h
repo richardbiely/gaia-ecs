@@ -4,17 +4,23 @@
 
 #include "gaia/utils/data_layout_policy.h"
 #include "gaia/utils/hashing_policy.h"
+#include "gaia/utils/iterator.h"
 #include "gaia/utils/mem.h"
+#include "gaia/utils/reflection.h"
 #include "gaia/utils/serialization.h"
+#include "gaia/utils/span.h"
 #include "gaia/utils/type_info.h"
 #include "gaia/utils/utility.h"
 
 #include "gaia/containers/bitset.h"
 #include "gaia/containers/darray.h"
+#include "gaia/containers/darray_ext.h"
 #include "gaia/containers/dbitset.h"
+#include "gaia/containers/ilist.h"
 #include "gaia/containers/map.h"
 #include "gaia/containers/sarray.h"
 #include "gaia/containers/sarray_ext.h"
+#include "gaia/containers/set.h"
 #include "gaia/containers/sringbuffer.h"
 
 #include "gaia/mt/threadpool.h"

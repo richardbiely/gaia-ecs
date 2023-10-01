@@ -3,9 +3,6 @@
 
 #include <cstdint>
 #include <type_traits>
-#if GAIA_USE_STL_CONTAINERS
-	#include <functional>
-#endif
 
 namespace gaia {
 	namespace utils {
@@ -205,21 +202,4 @@ namespace gaia {
 	} // namespace utils
 } // namespace gaia
 
-#if GAIA_USE_STL_CONTAINERS
-
-	#define REGISTER_HASH_TYPE_IMPL(type)                                                                                \
-		template <>                                                                                                        \
-		struct std::hash<type> {                                                                                           \
-			size_t operator()(type obj) const noexcept { return obj.hash; }                                                  \
-		};
-
-REGISTER_HASH_TYPE_IMPL(gaia::utils::direct_hash_key<uint64_t>)
-REGISTER_HASH_TYPE_IMPL(gaia::utils::direct_hash_key<uint32_t>)
-
-	// Keeping this empty for now. Instead we register the types using the above.
-	// The thing is any version of direct_hash_key<T> is going to be treated the same
-	// way and because we are a header-only library there would be duplicates.
-	#define REGISTER_HASH_TYPE(type)
-#else
-	#define REGISTER_HASH_TYPE(type)
-#endif
+#define REGISTER_HASH_TYPE(type)
