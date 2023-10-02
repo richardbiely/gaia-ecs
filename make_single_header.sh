@@ -7,7 +7,7 @@ PATH_TO_QUOM_DIR="${@:1}"
 HAS_QUOM=$(which quom)
 if [ -z "$HAS_QUOM" ]; then
   echo "Installing quim to ${PATH_TO_QUOM_DIR}"
-  pip install ${PATH_TO_QUOM_DIR}
+  pip install "${PATH_TO_QUOM_DIR}"
 fi
 
 # This turns Gaia-ECS into a single header library by generating "gaia.h"
