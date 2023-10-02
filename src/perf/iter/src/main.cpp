@@ -17,11 +17,9 @@ struct Component<Version, T, 0> {}; // empty component
 namespace detail {
 	template <typename T, size_t ValuesCount, size_t ComponentCount>
 	constexpr void AddComponents(ecs::World& w, ecs::Entity e) {
-		(void)w;
-		(void)e;
-		// utils::for_each<ComponentCount>([&](auto i) {
-		// 	w.AddComponent<Component<i, T, ValuesCount>>(e);
-		// });
+		utils::for_each<ComponentCount>([&](auto i) {
+			w.AddComponent<Component<i, T, ValuesCount>>(e);
+		});
 	}
 } // namespace detail
 
