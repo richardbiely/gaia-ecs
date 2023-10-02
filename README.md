@@ -23,7 +23,7 @@ Gaia-ECS is a fast and easy-to-use [ECS](#ecs) framework. Some of its current fe
 * no external dependencies
 * archetype / chunk-based storage for maximum iteration speed and easy code parallelization
 * ability to [organize data as AoS or SoA](#data-layouts) on the component level with very few changes to your code
-* compiled warning-free and tested on all major compilers [continuously](https://github.com/richardbiely/gaia-ecs/actions)
+* compiles warning-free on [all major compilers](https://github.com/richardbiely/gaia-ecs/actions)
 * compiles almost instantly
 * stability secured by running thousands of [unit tests]
 * thoroughly documented both public and internal code
