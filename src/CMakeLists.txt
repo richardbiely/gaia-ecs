@@ -91,42 +91,95 @@ if(MSVC)
   # set(CMAKE_CXX_RTTI OFF)
 endif()
 
+set(IS_FETCH_AVAILABLE OFF)
+
+if(GAIA_BUILD_UNITTEST OR GAIA_PROFILER_CPU OR GAIA_PROFILER_MEM OR GAIA_MAKE_SINGLE_HEADER)
+  find_package(Git REQUIRED)
+  Include(FetchContent OPTIONAL RESULT_VARIABLE FetchContent_FOUND)
+
+  if(NOT FetchContent_FOUND)
+    message(WARNING "FetchContent might be necessary but it is not available")
+  else()
+    set(IS_FETCH_AVAILABLE ON)
+  endif()
+endif()
+
+if(GAIA_MAKE_SINGLE_HEADER)
+  if(IS_FETCH_AVAILABLE)
+    find_package(quom CONFIG QUIET 4.0.1)
+
+    if(NOT quom_FOUND)
+      FetchContent_Declare(
+        quom
+        GIT_REPOSITORY https://github.com/Viatorus/quom.git
+        GIT_TAG 4.0.1
+      )
+
+      FetchContent_MakeAvailable(quom)
+    endif()
+  else()
+    find_package(quom CONFIG REQUIRED 4.0.1)
+  endif()
+
+  if(NOT UNIX)
+    message(WARNING "Merging files into a single header is only supported on Unix systems")
+  else()
+    add_custom_target(generate_single_header ALL)
+    add_custom_command(
+      TARGET generate_single_header POST_BUILD
+      COMMAND ./make_single_header.sh ${quom_SOURCE_DIR}
+      WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+      COMMENT "Merging files into a single header"
+    )
+  endif()
+endif()
+
+if(GAIA_GENERATE_CC)
+  add_custom_target(generate_compile_commands ALL)
+  add_custom_command(
+    TARGET generate_compile_commands POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -G "Ninja" -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -S ${CMAKE_SOURCE_DIR} -B ${CMAKE_SOURCE_DIR}/ninja
+    COMMENT "Generating compile_commands.json"
+  )
+endif()
+
 if(GAIA_BUILD_UNITTEST)
   if(IS_FETCH_AVAILABLE)
-    FetchContent_Declare(
-      Catch2
-      GIT_REPOSITORY https://github.com/catchorg/Catch2.git
-      GIT_TAG v3.4.0
-    )
+    find_package(Catch2 CONFIG QUIET 3.4.0)
 
-    set(CATCH_CONFIG_FAST_COMPILE ON)
+    if(NOT Catch2_FOUND)
+      FetchContent_Declare(
+        Catch2
+        GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+        GIT_TAG v3.4.0
+      )
 
-    FetchContent_GetProperties(Catch2)
+      set(CATCH_CONFIG_FAST_COMPILE ON CACHE BOOL "CATCH_CONFIG_FAST_COMPILE override")
 
-    if(NOT catch2_POPULATED)
-      FetchContent_Populate(Catch2)
-      add_subdirectory(${catch2_SOURCE_DIR} ${catch2_BINARY_DIR})
+      FetchContent_MakeAvailable(Catch2)
+      list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/contrib)
     endif()
-
-    FetchContent_MakeAvailable(Catch2)
   else()
-    find_package(Catch2 CONFIG REQUIRED v3.4.0)
+    find_package(Catch2 CONFIG REQUIRED 3.4.0)
   endif()
 endif()
 
 if(GAIA_PROFILER_CPU OR GAIA_PROFILER_MEM)
   if(IS_FETCH_AVAILABLE)
-    FetchContent_Declare(tracy
-      GIT_REPOSITORY https://github.com/wolfpld/tracy.git
-      GIT_TAG v0.9.1
-      GIT_SHALLOW TRUE
-      GIT_PROGRESS TRUE
-    )
+    find_package(tracy CONFIG QUIET 0.9.1)
 
-    set(TRACY_ENABLE ON CACHE BOOL "TRACY_ENABLE override")
-    set(TRACY_ON_DEMAND ON CACHE BOOL "TRACY_ON_DEMAND override")
+    if(NOT tracy_FOUND)
+      FetchContent_Declare(tracy
+        GIT_REPOSITORY https://github.com/wolfpld/tracy.git
+        GIT_TAG v0.9.1
+        GIT_SHALLOW TRUE
+      )
 
-    FetchContent_MakeAvailable(tracy)
+      set(TRACY_ENABLE ON CACHE BOOL "TRACY_ENABLE override")
+      set(TRACY_ON_DEMAND ON CACHE BOOL "TRACY_ON_DEMAND override")
+
+      FetchContent_MakeAvailable(tracy)
+    endif()
   else()
     find_package(tracy CONFIG REQUIRED 0.9.1)
   endif()
