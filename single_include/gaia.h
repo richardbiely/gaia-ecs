@@ -1446,7 +1446,7 @@ namespace std {
 	template <typename T, uint32_t N>
 	struct tuple_size<gaia::containers::sarr<T, N>>: std::integral_constant<uint32_t, N> {};
 
-	template <uint32_t I, typename T, uint32_t N>
+	template <size_t I, typename T, uint32_t N>
 	struct tuple_element<I, gaia::containers::sarr<T, N>> {
 		using type = T;
 	};
@@ -5840,7 +5840,7 @@ namespace std {
 	template <typename T, uint32_t N>
 	struct tuple_size<gaia::containers::darr_ext<T, N>>: std::integral_constant<uint32_t, N> {};
 
-	template <uint32_t I, typename T, uint32_t N>
+	template <size_t I, typename T, uint32_t N>
 	struct tuple_element<I, gaia::containers::darr_ext<T, N>> {
 		using type = T;
 	};
@@ -9212,7 +9212,7 @@ namespace std {
 	template <typename T, uint32_t N>
 	struct tuple_size<gaia::containers::sarr_ext<T, N>>: std::integral_constant<uint32_t, N> {};
 
-	template <uint32_t I, typename T, uint32_t N>
+	template <size_t I, typename T, uint32_t N>
 	struct tuple_element<I, gaia::containers::sarr_ext<T, N>> {
 		using type = T;
 	};
