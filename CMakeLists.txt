@@ -1,7 +1,5 @@
 ﻿# Build
-cmake_minimum_required(VERSION 3.12)
-
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+cmake_minimum_required(VERSION 3.14)
 
 # Prevent building in-tree
 if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
@@ -73,6 +71,7 @@ else()
     set(GAIA_BUILD_SRC OFF)
 endif()
 
+# libc++
 if(NOT WIN32 AND GAIA_USE_LIBCPP)
     # Check for libc++ library presence
     find_library(LIBCXX_LIBRARY c++)
@@ -161,14 +160,34 @@ if(GAIA_GENERATE_CC)
     )
 endif()
 
+set(IS_FETCH_AVAILABLE OFF)
+
+if(GAIA_BUILD_UNITTEST OR GAIA_PROFILER_CPU OR GAIA_PROFILER_MEM OR GAIA_MAKE_SINGLE_HEADER)
+    find_package(Git REQUIRED)
+    Include(FetchContent OPTIONAL)
+    set(IS_FETCH_AVAILABLE FETCHCONTENT_FOUND)
+endif()
+
 if(GAIA_MAKE_SINGLE_HEADER)
+    if(IS_FETCH_AVAILABLE)
+        FetchContent_Declare(
+            quom
+            GIT_REPOSITORY https://github.com/Viatorus/quom.git
+            GIT_TAG 4.0.1
+        )
+
+        FetchContent_MakeAvailable(quom)
+    else()
+        find_package(quom CONFIG REQUIRED 4.0.1)
+    endif()
+
     if(NOT UNIX)
         message(WARNING "Merging files into a single header is only supported on Unix systems")
     else()
         add_custom_target(generate_single_header ALL)
         add_custom_command(
             TARGET generate_single_header POST_BUILD
-            COMMAND ./make_single_header.sh
+            COMMAND ./make_single_header.sh ${quom_SOURCE_DIR}
             WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
             COMMENT "Merging files into a single header"
         )

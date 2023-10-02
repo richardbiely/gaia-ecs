@@ -91,21 +91,15 @@ if(MSVC)
   # set(CMAKE_CXX_RTTI OFF)
 endif()
 
-# Enable Catch if necessary
-set(IS_FETCH_AVAILABLE OFF)
-
-if(GAIA_BUILD_UNITTEST OR GAIA_PROFILER_CPU OR GAIA_PROFILER_MEM)
-  Include(FetchContent OPTIONAL)
-  set(IS_FETCH_AVAILABLE FETCHCONTENT_FOUND)
-endif()
-
 if(GAIA_BUILD_UNITTEST)
   if(IS_FETCH_AVAILABLE)
     FetchContent_Declare(
       Catch2
       GIT_REPOSITORY https://github.com/catchorg/Catch2.git
-      GIT_TAG v3.3.2
+      GIT_TAG v3.4.0
     )
+
+    set(CATCH_CONFIG_FAST_COMPILE ON)
 
     FetchContent_GetProperties(Catch2)
 
@@ -114,11 +108,9 @@ if(GAIA_BUILD_UNITTEST)
       add_subdirectory(${catch2_SOURCE_DIR} ${catch2_BINARY_DIR})
     endif()
 
-    # Shortcut for the above commands but only available since 3.14
-    # FetchContent_MakeAvailable(Catch2)
-    list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/contrib)
+    FetchContent_MakeAvailable(Catch2)
   else()
-    find_package(Catch2 CONFIG REQUIRED v3.3.2)
+    find_package(Catch2 CONFIG REQUIRED v3.4.0)
   endif()
 endif()
 
@@ -133,6 +125,7 @@ if(GAIA_PROFILER_CPU OR GAIA_PROFILER_MEM)
 
     set(TRACY_ENABLE ON CACHE BOOL "TRACY_ENABLE override")
     set(TRACY_ON_DEMAND ON CACHE BOOL "TRACY_ON_DEMAND override")
+
     FetchContent_MakeAvailable(tracy)
   else()
     find_package(tracy CONFIG REQUIRED 0.9.1)
@@ -150,7 +143,7 @@ if(GAIA_PROFILER_CPU OR GAIA_PROFILER_MEM)
 
     if(DEFINED tracy_profiler_build_dir)
       add_custom_target(build_tracy_profiler_gui ALL
-        COMMAND make release
+        COMMAND make -j4 release
         WORKING_DIRECTORY ${tracy_profiler_build_dir}
       )
     endif()

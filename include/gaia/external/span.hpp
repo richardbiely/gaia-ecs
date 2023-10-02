@@ -9,11 +9,13 @@ http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/n4820.pdf
 //    (See accompanying file ../../LICENSE_1_0.txt or copy at
 //          https://www.boost.org/LICENSE_1_0.txt)
 
-#ifndef TCB_SPAN_HPP_INCLUDED
-#define TCB_SPAN_HPP_INCLUDED
+#pragma once
+
+#include "../config/config_core.h"
 
 #include <cstddef>
 #include <cstdint>
+#include <initializer_list>
 #include <type_traits>
 
 #ifndef TCB_SPAN_NO_EXCEPTIONS
@@ -28,13 +30,19 @@ http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/n4820.pdf
 	#include <stdexcept>
 #endif
 
-#include "../config/config_core.h"
-#include "../containers/sarray.h"
+namespace gaia {
+	namespace containers {
+		template <typename T, uint32_t N>
+		class sarr;
+		template <typename T, uint32_t N>
+		using sarray = containers::sarr<T, N>;
+	} // namespace containers
+} // namespace gaia
 
 // Various feature test macros
 
 #ifndef TCB_SPAN_NAMESPACE_NAME
-	#define TCB_SPAN_NAMESPACE_NAME tcb
+	#define TCB_SPAN_NAMESPACE_NAME gaia::utils
 #endif
 
 #if GAIA_CPP_VERSION(201703L)
@@ -318,8 +326,8 @@ namespace TCB_SPAN_NAMESPACE_NAME {
 		// 		typename std::enable_if<
 		// 				(E == dynamic_extent || N == E) &&
 		// 						detail::is_container_element_type_compatible<const gaia::containers::sarray<T, N>&,
-		// ElementType>::value, 				int>::type = 0> TCB_SPAN_ARRAY_CONSTEXPR span(const gaia::containers::sarray<T, N>& arr)
-		// noexcept: storage_(arr.data(), N) {}
+		// ElementType>::value, 				int>::type = 0> TCB_SPAN_ARRAY_CONSTEXPR span(const gaia::containers::sarray<T, N>&
+		// arr) noexcept: storage_(arr.data(), N) {}
 
 		template <
 				typename Container, std::size_t E = Extent,
@@ -530,5 +538,3 @@ namespace std {
 	};
 
 } // end namespace std
-
-#endif // TCB_SPAN_HPP_INCLUDED

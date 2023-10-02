@@ -1,4 +1,4 @@
-#include <../single_include/gaia.h>
+#include <gaia.h>
 
 #if GAIA_COMPILER_MSVC
 	#if _MSC_VER <= 1916
