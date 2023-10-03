@@ -14,11 +14,11 @@ namespace gaia {
 			//! \tparam T Component
 			//! \param value Value to set for the component
 			//! \return ComponentSetter
-			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+			template <typename T, typename U = typename component::component_type_t<T>::Type>
 			U& SetComponent() {
 				component::VerifyComponent<T>();
 
-				if constexpr (component::IsGenericComponent<T>)
+				if constexpr (component::component_type_v<T> == component::ComponentType::CT_Generic)
 					return m_pChunk->template SetComponent<T>(m_idx);
 				else
 					return m_pChunk->template SetComponent<T>();
@@ -28,11 +28,11 @@ namespace gaia {
 			//! \tparam T Component
 			//! \param value Value to set for the component
 			//! \return ComponentSetter
-			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+			template <typename T, typename U = typename component::component_type_t<T>::Type>
 			ComponentSetter& SetComponent(U&& data) {
 				component::VerifyComponent<T>();
 
-				if constexpr (component::IsGenericComponent<T>)
+				if constexpr (component::component_type_v<T> == component::ComponentType::CT_Generic)
 					m_pChunk->template SetComponent<T>(m_idx, std::forward<U>(data));
 				else
 					m_pChunk->template SetComponent<T>(std::forward<U>(data));
@@ -43,11 +43,11 @@ namespace gaia {
 			//! \tparam T Component
 			//! \param value Value to set for the component
 			//! \return ComponentSetter
-			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+			template <typename T, typename U = typename component::component_type_t<T>::Type>
 			ComponentSetter& SetComponentSilent(U&& data) {
 				component::VerifyComponent<T>();
 
-				if constexpr (component::IsGenericComponent<T>)
+				if constexpr (component::component_type_v<T> == component::ComponentType::CT_Generic)
 					m_pChunk->template SetComponentSilent<T>(m_idx, std::forward<U>(data));
 				else
 					m_pChunk->template SetComponentSilent<T>(std::forward<U>(data));

@@ -76,7 +76,7 @@ namespace gaia {
 
 				template <typename T>
 				GAIA_NODISCARD static constexpr ComponentDesc Calculate() {
-					using U = typename DeduceComponent<T>::Type;
+					using U = typename component_type_t<T>::Type;
 
 					ComponentDesc info{};
 					info.name = utils::type_info::name<U>();

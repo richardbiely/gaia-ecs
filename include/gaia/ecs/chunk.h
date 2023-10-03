@@ -112,7 +112,7 @@ namespace gaia {
 				*/
 				template <typename T>
 				GAIA_NODISCARD GAIA_FORCEINLINE auto View_Internal() const {
-					using U = typename component::DeduceComponent<T>::Type;
+					using U = typename component::component_type_t<T>::Type;
 					using UConst = typename std::add_const_t<U>;
 
 					if constexpr (std::is_same_v<U, Entity>) {
@@ -122,7 +122,7 @@ namespace gaia {
 
 						const auto componentId = component::GetComponentId<T>();
 
-						if constexpr (component::IsGenericComponent<T>) {
+						if constexpr (component::component_type_v<T> == component::ComponentType::CT_Generic) {
 							const auto offset = FindDataOffset(component::ComponentType::CT_Generic, componentId);
 
 							[[maybe_unused]] const auto capacity = GetEntityCapacity();
@@ -150,7 +150,7 @@ namespace gaia {
 				*/
 				template <typename T, bool WorldVersionUpdateWanted>
 				GAIA_NODISCARD GAIA_FORCEINLINE auto ViewRW_Internal() {
-					using U = typename component::DeduceComponent<T>::Type;
+					using U = typename component::component_type_t<T>::Type;
 #if GAIA_COMPILER_MSVC && _MSC_VER <= 1916
 					// Workaround for MSVC 2017 bug where it incorrectly evaluates the static assert
 					// even in context where it shouldn't.
@@ -164,7 +164,7 @@ namespace gaia {
 					const auto componentId = component::GetComponentId<T>();
 					uint32_t componentIdx = 0;
 
-					if constexpr (component::IsGenericComponent<T>) {
+					if constexpr (component::component_type_v<T> == component::ComponentType::CT_Generic) {
 						const auto offset = FindDataOffset(component::ComponentType::CT_Generic, componentId, componentIdx);
 
 						[[maybe_unused]] const auto capacity = GetEntityCapacity();
@@ -202,7 +202,7 @@ namespace gaia {
 				*/
 				template <typename T>
 				GAIA_NODISCARD auto GetComponent_Internal(uint32_t index) const {
-					using U = typename component::DeduceComponent<T>::Type;
+					using U = typename component::component_type_t<T>::Type;
 					using RetValue = decltype(View<T>()[0]);
 
 					GAIA_ASSERT(index < m_header.count);
@@ -334,7 +334,7 @@ namespace gaia {
 				*/
 				template <typename T>
 				GAIA_NODISCARD auto View() const {
-					using U = typename component::DeduceComponent<T>::Type;
+					using U = typename component::component_type_t<T>::Type;
 
 					return utils::auto_view_policy_get<std::add_const_t<U>>{{View_Internal<T>()}};
 				}
@@ -347,7 +347,7 @@ namespace gaia {
 				*/
 				template <typename T>
 				GAIA_NODISCARD auto ViewRW() {
-					using U = typename component::DeduceComponent<T>::Type;
+					using U = typename component::component_type_t<T>::Type;
 					static_assert(!std::is_same_v<U, Entity>);
 
 					return utils::auto_view_policy_set<U>{{ViewRW_Internal<T, true>()}};
@@ -362,7 +362,7 @@ namespace gaia {
 				*/
 				template <typename T>
 				GAIA_NODISCARD auto ViewRWSilent() {
-					using U = typename component::DeduceComponent<T>::Type;
+					using U = typename component::component_type_t<T>::Type;
 					static_assert(!std::is_same_v<U, Entity>);
 
 					return utils::auto_view_policy_set<U>{{ViewRW_Internal<T, false>()}};
@@ -774,10 +774,8 @@ namespace gaia {
 				GAIA_NODISCARD bool HasComponent() const {
 					const auto componentId = component::GetComponentId<T>();
 
-					if constexpr (component::IsGenericComponent<T>)
-						return HasComponent(component::ComponentType::CT_Generic, componentId);
-					else
-						return HasComponent(component::ComponentType::CT_Chunk, componentId);
+					constexpr auto componentType = component::component_type_v<T>;
+					return HasComponent(componentType, componentId);
 				}
 
 				//----------------------------------------------------------------------
@@ -791,10 +789,10 @@ namespace gaia {
 				\param index Index of entity in the chunk
 				\param value Value to set for the component
 				*/
-				template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+				template <typename T, typename U = typename component::component_type_t<T>::Type>
 				U& SetComponent(uint32_t index) {
 					static_assert(
-							component::IsGenericComponent<T>,
+							component::component_type_v<T> == component::ComponentType::CT_Generic,
 							"SetComponent providing an index can only be used with generic components");
 
 					// Update the world version
@@ -811,7 +809,7 @@ namespace gaia {
 				\param index Index of entity in the chunk
 				\param value Value to set for the component
 				*/
-				template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+				template <typename T, typename U = typename component::component_type_t<T>::Type>
 				U& SetComponent() {
 					// Update the world version
 					UpdateVersion(m_header.worldVersion);
@@ -827,10 +825,10 @@ namespace gaia {
 				\param index Index of entity in the chunk
 				\param value Value to set for the component
 				*/
-				template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+				template <typename T, typename U = typename component::component_type_t<T>::Type>
 				void SetComponent(uint32_t index, U&& value) {
 					static_assert(
-							component::IsGenericComponent<T>,
+							component::component_type_v<T> == component::ComponentType::CT_Generic,
 							"SetComponent providing an index can only be used with generic components");
 
 					// Update the world version
@@ -846,11 +844,11 @@ namespace gaia {
 				\tparam T Component
 				\param value Value to set for the component
 				*/
-				template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+				template <typename T, typename U = typename component::component_type_t<T>::Type>
 				void SetComponent(U&& value) {
 					static_assert(
-							!component::IsGenericComponent<T>,
-							"SetComponent not providing an index can only be used with chunk components");
+							component::component_type_v<T> != component::ComponentType::CT_Generic,
+							"SetComponent not providing an index can only be used with non-generic components");
 
 					// Update the world version
 					UpdateVersion(m_header.worldVersion);
@@ -867,10 +865,10 @@ namespace gaia {
 				\param index Index of entity in the chunk
 				\param value Value to set for the component
 				*/
-				template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+				template <typename T, typename U = typename component::component_type_t<T>::Type>
 				void SetComponentSilent(uint32_t index, U&& value) {
 					static_assert(
-							component::IsGenericComponent<T>,
+							component::component_type_v<T> == component::ComponentType::CT_Generic,
 							"SetComponentSilent providing an index can only be used with generic components");
 
 					GAIA_ASSERT(index < m_header.capacity);
@@ -884,11 +882,11 @@ namespace gaia {
 				\tparam T Component
 				\param value Value to set for the component
 				*/
-				template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+				template <typename T, typename U = typename component::component_type_t<T>::Type>
 				void SetComponentSilent(U&& value) {
 					static_assert(
-							!component::IsGenericComponent<T>,
-							"SetComponentSilent not providing an index can only be used with chunk components");
+							component::component_type_v<T> != component::ComponentType::CT_Generic,
+							"SetComponentSilent not providing an index can only be used with non-generic components");
 
 					GAIA_ASSERT(0 < m_header.capacity);
 					ViewRWSilent<T>()[0] = std::forward<U>(value);
@@ -909,8 +907,9 @@ namespace gaia {
 				template <typename T>
 				GAIA_NODISCARD auto GetComponent(uint32_t index) const {
 					static_assert(
-							component::IsGenericComponent<T>,
+							component::component_type_v<T> == component::ComponentType::CT_Generic,
 							"GetComponent providing an index can only be used with generic components");
+
 					return GetComponent_Internal<T>(index);
 				}
 
@@ -923,8 +922,9 @@ namespace gaia {
 				template <typename T>
 				GAIA_NODISCARD auto GetComponent() const {
 					static_assert(
-							!component::IsGenericComponent<T>,
-							"GetComponent not providing an index can only be used with chunk components");
+							component::component_type_v<T> != component::ComponentType::CT_Generic,
+							"GetComponent not providing an index can only be used with non-generic components");
+
 					return GetComponent_Internal<T>(0);
 				}
 
@@ -947,8 +947,8 @@ namespace gaia {
 
 				template <typename T>
 				GAIA_NODISCARD constexpr GAIA_FORCEINLINE auto GetComponentView() {
-					using U = typename component::DeduceComponent<T>::Type;
-					using UOriginal = typename component::DeduceComponent<T>::TypeOriginal;
+					using U = typename component::component_type_t<T>::Type;
+					using UOriginal = typename component::component_type_t<T>::TypeOriginal;
 					if constexpr (component::IsReadOnlyType<UOriginal>::value)
 						return View_Internal<U>();
 					else

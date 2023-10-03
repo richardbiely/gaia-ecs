@@ -12778,64 +12778,56 @@ namespace gaia {
 				struct ExtractComponentType_NoComponentType {
 					using Type = typename std::decay_t<typename std::remove_pointer_t<T>>;
 					using TypeOriginal = T;
+					static constexpr component::ComponentType TComponentType = component::ComponentType::CT_Generic;
 				};
 				template <typename T>
 				struct ExtractComponentType_WithComponentType {
 					using Type = typename T::TType;
 					using TypeOriginal = typename T::TTypeOriginal;
+					static constexpr component::ComponentType TComponentType = T::TComponentType;
 				};
 
 				template <typename, typename = void>
-				struct IsGenericComponent_Internal: std::true_type {};
+				struct is_generic_component: std::true_type {};
 				template <typename T>
-				struct IsGenericComponent_Internal<T, std::void_t<decltype(T::TComponentType)>>:
+				struct is_generic_component<T, std::void_t<decltype(T::TComponentType)>>:
 						std::bool_constant<T::TComponentType == ComponentType::CT_Generic> {};
 
 				template <typename T>
-				struct IsComponentSizeValid_Internal: std::bool_constant<sizeof(T) < MAX_COMPONENTS_SIZE_IN_BYTES> {};
+				struct is_component_size_valid: std::bool_constant<sizeof(T) < MAX_COMPONENTS_SIZE_IN_BYTES> {};
 
 				template <typename T>
-				struct IsComponentTypeValid_Internal:
+				struct is_component_type_valid:
 						std::bool_constant<
 								// SoA types need to be trivial. No restrictions otherwise.
 								(!utils::is_soa_layout_v<T> || std::is_trivially_copyable_v<T>)> {};
 
 				template <typename T, typename = void>
-				struct DeduceComponent_Internal {
+				struct component_type {
 					using type = typename detail::ExtractComponentType_NoComponentType<T>;
 				};
 				template <typename T>
-				struct DeduceComponent_Internal<T, std::void_t<decltype(T::TComponentType)>> {
+				struct component_type<T, std::void_t<decltype(T::TComponentType)>> {
 					using type = typename detail::ExtractComponentType_WithComponentType<T>;
 				};
 			} // namespace detail
 
 			template <typename T>
-			inline constexpr bool IsGenericComponent = detail::IsGenericComponent_Internal<T>::value;
+			inline constexpr bool is_component_size_valid_v = detail::is_component_size_valid<T>::value;
 			template <typename T>
-			inline constexpr bool IsComponentSizeValid = detail::IsComponentSizeValid_Internal<T>::value;
-			template <typename T>
-			inline constexpr bool IsComponentTypeValid = detail::IsComponentTypeValid_Internal<T>::value;
+			inline constexpr bool is_component_type_valid_v = detail::is_component_type_valid<T>::value;
 
 			template <typename T>
-			using DeduceComponent = typename detail::DeduceComponent_Internal<T>::type;
+			using component_type_t = typename detail::component_type<T>::type;
+			template <typename T>
+			inline constexpr ComponentType component_type_v = component_type_t<T>::TComponentType;
 
 			//! Returns the component id for \tparam T
 			//! \return Component id
 			template <typename T>
 			GAIA_NODISCARD inline ComponentId GetComponentId() {
-				using U = typename DeduceComponent<T>::Type;
+				using U = typename component_type_t<T>::Type;
 				return utils::type_info::id<U>();
-			}
-
-			//! Returns the component id for \tparam T
-			//! \return Component id
-			template <typename T>
-			GAIA_NODISCARD inline constexpr ComponentType GetComponentType() {
-				if constexpr (IsGenericComponent<T>)
-					return ComponentType::CT_Generic;
-				else
-					return ComponentType::CT_Chunk;
 			}
 
 			template <typename T>
@@ -12850,14 +12842,14 @@ namespace gaia {
 
 			template <typename T>
 			constexpr void VerifyComponent() {
-				using U = typename DeduceComponent<T>::Type;
+				using U = typename component_type_t<T>::Type;
 				// Make sure we only use this for "raw" types
 				static_assert(!std::is_const_v<U>);
 				static_assert(!std::is_pointer_v<U>);
 				static_assert(!std::is_reference_v<U>);
 				static_assert(!std::is_volatile_v<U>);
-				static_assert(IsComponentSizeValid<U>, "MAX_COMPONENTS_SIZE_IN_BYTES in bytes is exceeded");
-				static_assert(IsComponentTypeValid<U>, "Component type restrictions not met");
+				static_assert(is_component_size_valid_v<U>, "MAX_COMPONENTS_SIZE_IN_BYTES in bytes is exceeded");
+				static_assert(is_component_type_valid_v<U>, "Component type restrictions not met");
 			}
 
 			//----------------------------------------------------------------------
@@ -13030,11 +13022,11 @@ namespace gaia {
 
 				template <typename T>
 				GAIA_NODISCARD static constexpr ComponentDesc Calculate() {
-					using U = typename DeduceComponent<T>::Type;
+					using U = typename component_type_t<T>::Type;
 
 					ComponentDesc info{};
 					info.name = utils::type_info::name<U>();
-					info.componentId = GetComponentId<T>();
+					info.componentId = component::GetComponentId<T>();
 
 					if constexpr (!std::is_empty_v<U>) {
 						info.properties.alig = utils::auto_view_policy<U>::Alignment;
@@ -13165,7 +13157,7 @@ namespace gaia {
 
 				template <typename T>
 				GAIA_NODISCARD static constexpr ComponentInfo Calculate() {
-					using U = typename DeduceComponent<T>::Type;
+					using U = typename component_type_t<T>::Type;
 
 					ComponentInfo info{};
 					info.lookupHash = {utils::type_info::hash<U>()};
@@ -13217,7 +13209,7 @@ namespace gaia {
 			//! \return Component info
 			template <typename T>
 			GAIA_NODISCARD GAIA_FORCEINLINE const component::ComponentInfo& GetOrCreateComponentInfo() {
-				using U = typename component::DeduceComponent<T>::Type;
+				using U = typename component::component_type_t<T>::Type;
 				const auto componentId = component::GetComponentId<T>();
 
 				auto createInfo = [&]() GAIA_LAMBDAINLINE -> const component::ComponentInfo& {
@@ -14240,7 +14232,7 @@ namespace gaia {
 				*/
 				template <typename T>
 				GAIA_NODISCARD GAIA_FORCEINLINE auto View_Internal() const {
-					using U = typename component::DeduceComponent<T>::Type;
+					using U = typename component::component_type_t<T>::Type;
 					using UConst = typename std::add_const_t<U>;
 
 					if constexpr (std::is_same_v<U, Entity>) {
@@ -14250,7 +14242,7 @@ namespace gaia {
 
 						const auto componentId = component::GetComponentId<T>();
 
-						if constexpr (component::IsGenericComponent<T>) {
+						if constexpr (component::component_type_v<T> == component::ComponentType::CT_Generic) {
 							const auto offset = FindDataOffset(component::ComponentType::CT_Generic, componentId);
 
 							[[maybe_unused]] const auto capacity = GetEntityCapacity();
@@ -14278,7 +14270,7 @@ namespace gaia {
 				*/
 				template <typename T, bool WorldVersionUpdateWanted>
 				GAIA_NODISCARD GAIA_FORCEINLINE auto ViewRW_Internal() {
-					using U = typename component::DeduceComponent<T>::Type;
+					using U = typename component::component_type_t<T>::Type;
 #if GAIA_COMPILER_MSVC && _MSC_VER <= 1916
 					// Workaround for MSVC 2017 bug where it incorrectly evaluates the static assert
 					// even in context where it shouldn't.
@@ -14292,7 +14284,7 @@ namespace gaia {
 					const auto componentId = component::GetComponentId<T>();
 					uint32_t componentIdx = 0;
 
-					if constexpr (component::IsGenericComponent<T>) {
+					if constexpr (component::component_type_v<T> == component::ComponentType::CT_Generic) {
 						const auto offset = FindDataOffset(component::ComponentType::CT_Generic, componentId, componentIdx);
 
 						[[maybe_unused]] const auto capacity = GetEntityCapacity();
@@ -14330,7 +14322,7 @@ namespace gaia {
 				*/
 				template <typename T>
 				GAIA_NODISCARD auto GetComponent_Internal(uint32_t index) const {
-					using U = typename component::DeduceComponent<T>::Type;
+					using U = typename component::component_type_t<T>::Type;
 					using RetValue = decltype(View<T>()[0]);
 
 					GAIA_ASSERT(index < m_header.count);
@@ -14462,7 +14454,7 @@ namespace gaia {
 				*/
 				template <typename T>
 				GAIA_NODISCARD auto View() const {
-					using U = typename component::DeduceComponent<T>::Type;
+					using U = typename component::component_type_t<T>::Type;
 
 					return utils::auto_view_policy_get<std::add_const_t<U>>{{View_Internal<T>()}};
 				}
@@ -14475,7 +14467,7 @@ namespace gaia {
 				*/
 				template <typename T>
 				GAIA_NODISCARD auto ViewRW() {
-					using U = typename component::DeduceComponent<T>::Type;
+					using U = typename component::component_type_t<T>::Type;
 					static_assert(!std::is_same_v<U, Entity>);
 
 					return utils::auto_view_policy_set<U>{{ViewRW_Internal<T, true>()}};
@@ -14490,7 +14482,7 @@ namespace gaia {
 				*/
 				template <typename T>
 				GAIA_NODISCARD auto ViewRWSilent() {
-					using U = typename component::DeduceComponent<T>::Type;
+					using U = typename component::component_type_t<T>::Type;
 					static_assert(!std::is_same_v<U, Entity>);
 
 					return utils::auto_view_policy_set<U>{{ViewRW_Internal<T, false>()}};
@@ -14902,10 +14894,8 @@ namespace gaia {
 				GAIA_NODISCARD bool HasComponent() const {
 					const auto componentId = component::GetComponentId<T>();
 
-					if constexpr (component::IsGenericComponent<T>)
-						return HasComponent(component::ComponentType::CT_Generic, componentId);
-					else
-						return HasComponent(component::ComponentType::CT_Chunk, componentId);
+					constexpr auto componentType = component::component_type_v<T>;
+					return HasComponent(componentType, componentId);
 				}
 
 				//----------------------------------------------------------------------
@@ -14919,10 +14909,10 @@ namespace gaia {
 				\param index Index of entity in the chunk
 				\param value Value to set for the component
 				*/
-				template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+				template <typename T, typename U = typename component::component_type_t<T>::Type>
 				U& SetComponent(uint32_t index) {
 					static_assert(
-							component::IsGenericComponent<T>,
+							component::component_type_v<T> == component::ComponentType::CT_Generic,
 							"SetComponent providing an index can only be used with generic components");
 
 					// Update the world version
@@ -14939,7 +14929,7 @@ namespace gaia {
 				\param index Index of entity in the chunk
 				\param value Value to set for the component
 				*/
-				template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+				template <typename T, typename U = typename component::component_type_t<T>::Type>
 				U& SetComponent() {
 					// Update the world version
 					UpdateVersion(m_header.worldVersion);
@@ -14955,10 +14945,10 @@ namespace gaia {
 				\param index Index of entity in the chunk
 				\param value Value to set for the component
 				*/
-				template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+				template <typename T, typename U = typename component::component_type_t<T>::Type>
 				void SetComponent(uint32_t index, U&& value) {
 					static_assert(
-							component::IsGenericComponent<T>,
+							component::component_type_v<T> == component::ComponentType::CT_Generic,
 							"SetComponent providing an index can only be used with generic components");
 
 					// Update the world version
@@ -14974,11 +14964,11 @@ namespace gaia {
 				\tparam T Component
 				\param value Value to set for the component
 				*/
-				template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+				template <typename T, typename U = typename component::component_type_t<T>::Type>
 				void SetComponent(U&& value) {
 					static_assert(
-							!component::IsGenericComponent<T>,
-							"SetComponent not providing an index can only be used with chunk components");
+							component::component_type_v<T> != component::ComponentType::CT_Generic,
+							"SetComponent not providing an index can only be used with non-generic components");
 
 					// Update the world version
 					UpdateVersion(m_header.worldVersion);
@@ -14995,10 +14985,10 @@ namespace gaia {
 				\param index Index of entity in the chunk
 				\param value Value to set for the component
 				*/
-				template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+				template <typename T, typename U = typename component::component_type_t<T>::Type>
 				void SetComponentSilent(uint32_t index, U&& value) {
 					static_assert(
-							component::IsGenericComponent<T>,
+							component::component_type_v<T> == component::ComponentType::CT_Generic,
 							"SetComponentSilent providing an index can only be used with generic components");
 
 					GAIA_ASSERT(index < m_header.capacity);
@@ -15012,11 +15002,11 @@ namespace gaia {
 				\tparam T Component
 				\param value Value to set for the component
 				*/
-				template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+				template <typename T, typename U = typename component::component_type_t<T>::Type>
 				void SetComponentSilent(U&& value) {
 					static_assert(
-							!component::IsGenericComponent<T>,
-							"SetComponentSilent not providing an index can only be used with chunk components");
+							component::component_type_v<T> != component::ComponentType::CT_Generic,
+							"SetComponentSilent not providing an index can only be used with non-generic components");
 
 					GAIA_ASSERT(0 < m_header.capacity);
 					ViewRWSilent<T>()[0] = std::forward<U>(value);
@@ -15037,8 +15027,9 @@ namespace gaia {
 				template <typename T>
 				GAIA_NODISCARD auto GetComponent(uint32_t index) const {
 					static_assert(
-							component::IsGenericComponent<T>,
+							component::component_type_v<T> == component::ComponentType::CT_Generic,
 							"GetComponent providing an index can only be used with generic components");
+
 					return GetComponent_Internal<T>(index);
 				}
 
@@ -15051,8 +15042,9 @@ namespace gaia {
 				template <typename T>
 				GAIA_NODISCARD auto GetComponent() const {
 					static_assert(
-							!component::IsGenericComponent<T>,
-							"GetComponent not providing an index can only be used with chunk components");
+							component::component_type_v<T> != component::ComponentType::CT_Generic,
+							"GetComponent not providing an index can only be used with non-generic components");
+
 					return GetComponent_Internal<T>(0);
 				}
 
@@ -15075,8 +15067,8 @@ namespace gaia {
 
 				template <typename T>
 				GAIA_NODISCARD constexpr GAIA_FORCEINLINE auto GetComponentView() {
-					using U = typename component::DeduceComponent<T>::Type;
-					using UOriginal = typename component::DeduceComponent<T>::TypeOriginal;
+					using U = typename component::component_type_t<T>::Type;
+					using UOriginal = typename component::component_type_t<T>::TypeOriginal;
 					if constexpr (component::IsReadOnlyType<UOriginal>::value)
 						return View_Internal<U>();
 					else
@@ -15492,11 +15484,8 @@ namespace gaia {
 				GAIA_NODISCARD bool HasComponent_Internal() const {
 					const auto componentId = component::GetComponentId<T>();
 
-					if constexpr (component::IsGenericComponent<T>) {
-						return HasComponent_Internal(component::ComponentType::CT_Generic, componentId);
-					} else {
-						return HasComponent_Internal(component::ComponentType::CT_Chunk, componentId);
-					}
+					constexpr auto componentType = component::component_type_v<T>;
+					return HasComponent_Internal(componentType, componentId);
 				}
 
 			public:
@@ -15992,7 +15981,7 @@ namespace gaia {
 			GAIA_NODISCARD auto GetComponent() const {
 				component::VerifyComponent<T>();
 
-				if constexpr (component::IsGenericComponent<T>)
+				if constexpr (component::component_type_v<T> == component::ComponentType::CT_Generic)
 					return m_pChunk->template GetComponent<T>(m_idx);
 				else
 					return m_pChunk->template GetComponent<T>();
@@ -16023,11 +16012,11 @@ namespace gaia {
 			//! \tparam T Component
 			//! \param value Value to set for the component
 			//! \return ComponentSetter
-			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+			template <typename T, typename U = typename component::component_type_t<T>::Type>
 			U& SetComponent() {
 				component::VerifyComponent<T>();
 
-				if constexpr (component::IsGenericComponent<T>)
+				if constexpr (component::component_type_v<T> == component::ComponentType::CT_Generic)
 					return m_pChunk->template SetComponent<T>(m_idx);
 				else
 					return m_pChunk->template SetComponent<T>();
@@ -16037,11 +16026,11 @@ namespace gaia {
 			//! \tparam T Component
 			//! \param value Value to set for the component
 			//! \return ComponentSetter
-			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+			template <typename T, typename U = typename component::component_type_t<T>::Type>
 			ComponentSetter& SetComponent(U&& data) {
 				component::VerifyComponent<T>();
 
-				if constexpr (component::IsGenericComponent<T>)
+				if constexpr (component::component_type_v<T> == component::ComponentType::CT_Generic)
 					m_pChunk->template SetComponent<T>(m_idx, std::forward<U>(data));
 				else
 					m_pChunk->template SetComponent<T>(std::forward<U>(data));
@@ -16052,11 +16041,11 @@ namespace gaia {
 			//! \tparam T Component
 			//! \param value Value to set for the component
 			//! \return ComponentSetter
-			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+			template <typename T, typename U = typename component::component_type_t<T>::Type>
 			ComponentSetter& SetComponentSilent(U&& data) {
 				component::VerifyComponent<T>();
 
-				if constexpr (component::IsGenericComponent<T>)
+				if constexpr (component::component_type_v<T> == component::ComponentType::CT_Generic)
 					m_pChunk->template SetComponentSilent<T>(m_idx, std::forward<U>(data));
 				else
 					m_pChunk->template SetComponentSilent<T>(std::forward<U>(data));
@@ -16693,16 +16682,14 @@ namespace gaia {
 
 				template <typename T>
 				bool HasComponent_Internal(query::ListType listType) const {
-					using U = typename component::DeduceComponent<T>::Type;
-					using UOriginal = typename component::DeduceComponent<T>::TypeOriginal;
+					using U = typename component::component_type_t<T>::Type;
+					using UOriginal = typename component::component_type_t<T>::TypeOriginal;
 					using UOriginalPR = std::remove_reference_t<std::remove_pointer_t<UOriginal>>;
 					constexpr bool isReadWrite =
 							std::is_same_v<U, UOriginal> || (!std::is_const_v<UOriginalPR> && !std::is_empty_v<U>);
 
-					if constexpr (component::IsGenericComponent<T>)
-						return HasComponent_Internal<U>(listType, component::ComponentType::CT_Generic, isReadWrite);
-					else
-						return HasComponent_Internal<U>(listType, component::ComponentType::CT_Chunk, isReadWrite);
+					constexpr auto componentType = component::component_type_v<T>;
+					return HasComponent_Internal<U>(listType, componentType, isReadWrite);
 				}
 
 				template <typename Func>
@@ -17217,13 +17204,12 @@ namespace gaia {
 			private:
 				template <typename T>
 				void AddComponent_Internal(query::ListType listType) {
-					using U = typename component::DeduceComponent<T>::Type;
-					using UOriginal = typename component::DeduceComponent<T>::TypeOriginal;
+					using U = typename component::component_type_t<T>::Type;
+					using UOriginal = typename component::component_type_t<T>::TypeOriginal;
 					using UOriginalPR = std::remove_reference_t<std::remove_pointer_t<UOriginal>>;
 
 					const auto componentId = component::GetComponentId<T>();
-					constexpr auto componentType = component::IsGenericComponent<T> ? component::ComponentType::CT_Generic
-																																					: component::ComponentType::CT_Chunk;
+					constexpr auto componentType = component::component_type_v<T>;
 					constexpr bool isReadWrite =
 							std::is_same_v<U, UOriginal> || (!std::is_const_v<UOriginalPR> && !std::is_empty_v<U>);
 
@@ -17240,8 +17226,7 @@ namespace gaia {
 				template <typename T>
 				void WithChanged_Internal() {
 					const auto componentId = component::GetComponentId<T>();
-					constexpr auto componentType = component::IsGenericComponent<T> ? component::ComponentType::CT_Generic
-																																					: component::ComponentType::CT_Chunk;
+					constexpr auto componentType = component::component_type_v<T>;
 
 					Command_Filter cmd{componentId, componentType};
 					DataBuffer_SerializationWrapper s(m_cmdBuffer);
@@ -18743,16 +18728,12 @@ namespace gaia {
 				component::VerifyComponent<T>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
-				using U = typename component::DeduceComponent<T>::Type;
+				using U = typename component::component_type_t<T>::Type;
 				const auto& info = ComponentCache::Get().GetOrCreateComponentInfo<U>();
 
-				if constexpr (component::IsGenericComponent<T>) {
-					auto& entityContainer = AddComponent_Internal(component::ComponentType::CT_Generic, entity, info);
-					return ComponentSetter{entityContainer.pChunk, entityContainer.idx};
-				} else {
-					auto& entityContainer = AddComponent_Internal(component::ComponentType::CT_Chunk, entity, info);
-					return ComponentSetter{entityContainer.pChunk, entityContainer.idx};
-				}
+				constexpr auto componentType = component::component_type_v<T>;
+				auto& entityContainer = AddComponent_Internal(componentType, entity, info);
+				return ComponentSetter{entityContainer.pChunk, entityContainer.idx};
 			}
 
 			//! Attaches a new component \tparam T to \param entity. Also sets its value.
@@ -18762,14 +18743,14 @@ namespace gaia {
 			//! \return ComponentSetter object.
 			//! \warning It is expected the component is not present on \param entity yet. Undefined behavior otherwise.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+			template <typename T, typename U = typename component::component_type_t<T>::Type>
 			ComponentSetter AddComponent(Entity entity, U&& value) {
 				component::VerifyComponent<T>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				const auto& info = ComponentCache::Get().GetOrCreateComponentInfo<U>();
 
-				if constexpr (component::IsGenericComponent<T>) {
+				if constexpr (component::component_type_v<T> == component::ComponentType::CT_Generic) {
 					auto& entityContainer = AddComponent_Internal(component::ComponentType::CT_Generic, entity, info);
 					auto* pChunk = entityContainer.pChunk;
 					pChunk->template SetComponent<T>(entityContainer.idx, std::forward<U>(value));
@@ -18793,13 +18774,11 @@ namespace gaia {
 				component::VerifyComponent<T>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
-				using U = typename component::DeduceComponent<T>::Type;
+				using U = typename component::component_type_t<T>::Type;
 				const auto& info = ComponentCache::Get().GetOrCreateComponentInfo<U>();
 
-				if constexpr (component::IsGenericComponent<T>)
-					return RemoveComponent_Internal(component::ComponentType::CT_Generic, entity, info);
-				else
-					return RemoveComponent_Internal(component::ComponentType::CT_Chunk, entity, info);
+				constexpr auto componentType = component::component_type_v<T>;
+				return RemoveComponent_Internal(componentType, entity, info);
 			}
 
 			//----------------------------------------------------------------------
@@ -18811,7 +18790,7 @@ namespace gaia {
 			//! \return ComponentSetter
 			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+			template <typename T, typename U = typename component::component_type_t<T>::Type>
 			ComponentSetter SetComponent(Entity entity, U&& value) {
 				GAIA_ASSERT(IsEntityValid(entity));
 
@@ -18826,7 +18805,7 @@ namespace gaia {
 			//! \return ComponentSetter
 			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+			template <typename T, typename U = typename component::component_type_t<T>::Type>
 			ComponentSetter SetComponentSilent(Entity entity, U&& value) {
 				GAIA_ASSERT(IsEntityValid(entity));
 
@@ -18869,8 +18848,8 @@ namespace gaia {
 		private:
 			template <typename T>
 			GAIA_NODISCARD constexpr GAIA_FORCEINLINE auto GetComponentView(archetype::Chunk& chunk) const {
-				using U = typename component::DeduceComponent<T>::Type;
-				using UOriginal = typename component::DeduceComponent<T>::TypeOriginal;
+				using U = typename component::component_type_t<T>::Type;
+				using UOriginal = typename component::component_type_t<T>::TypeOriginal;
 				if constexpr (component::IsReadOnlyType<UOriginal>::value)
 					return chunk.View_Internal<U>();
 				else
@@ -19289,7 +19268,7 @@ namespace gaia {
 				// Make sure the component is registered
 				const auto& info = ComponentCache::Get().GetOrCreateComponentInfo<T>();
 
-				using U = typename component::DeduceComponent<T>::Type;
+				using U = typename component::component_type_t<T>::Type;
 				component::VerifyComponent<U>();
 
 				DataBuffer_SerializationWrapper s(m_data);
@@ -19297,7 +19276,7 @@ namespace gaia {
 
 				ADD_COMPONENT_t cmd;
 				cmd.entity = entity;
-				cmd.componentType = component::GetComponentType<T>();
+				cmd.componentType = component::component_type_v<T>;
 				cmd.componentId = info.componentId;
 				serialization::save(s, cmd);
 			}
@@ -19310,7 +19289,7 @@ namespace gaia {
 				// Make sure the component is registered
 				const auto& info = ComponentCache::Get().GetOrCreateComponentInfo<T>();
 
-				using U = typename component::DeduceComponent<T>::Type;
+				using U = typename component::component_type_t<T>::Type;
 				component::VerifyComponent<U>();
 
 				DataBuffer_SerializationWrapper s(m_data);
@@ -19318,7 +19297,7 @@ namespace gaia {
 
 				ADD_COMPONENT_TO_TEMPENTITY_t cmd;
 				cmd.tempEntity = entity;
-				cmd.componentType = component::GetComponentType<T>();
+				cmd.componentType = component::component_type_v<T>;
 				cmd.componentId = info.componentId;
 				serialization::save(s, cmd);
 			}
@@ -19331,7 +19310,7 @@ namespace gaia {
 				// Make sure the component is registered
 				const auto& info = ComponentCache::Get().GetOrCreateComponentInfo<T>();
 
-				using U = typename component::DeduceComponent<T>::Type;
+				using U = typename component::component_type_t<T>::Type;
 				component::VerifyComponent<U>();
 
 				DataBuffer_SerializationWrapper s(m_data);
@@ -19339,7 +19318,7 @@ namespace gaia {
 
 				ADD_COMPONENT_DATA_t cmd;
 				cmd.entity = entity;
-				cmd.componentType = component::GetComponentType<T>();
+				cmd.componentType = component::component_type_v<T>;
 				cmd.componentId = info.componentId;
 				serialization::save(s, cmd);
 				s.buffer().SaveComponent(std::forward<U>(value));
@@ -19353,7 +19332,7 @@ namespace gaia {
 				// Make sure the component is registered
 				const auto& info = ComponentCache::Get().GetOrCreateComponentInfo<T>();
 
-				using U = typename component::DeduceComponent<T>::Type;
+				using U = typename component::component_type_t<T>::Type;
 				component::VerifyComponent<U>();
 
 				DataBuffer_SerializationWrapper s(m_data);
@@ -19361,7 +19340,7 @@ namespace gaia {
 
 				ADD_COMPONENT_TO_TEMPENTITY_t cmd;
 				cmd.tempEntity = entity;
-				cmd.componentType = component::GetComponentType<T>();
+				cmd.componentType = component::component_type_v<T>;
 				cmd.componentId = info.componentId;
 				serialization::save(s, cmd);
 				s.buffer().SaveComponent(std::forward<U>(value));
@@ -19376,7 +19355,7 @@ namespace gaia {
 				// If we want to set the value of a component we must have created it already.
 				// (void)ComponentCache::Get().GetComponentInfo<T>();
 
-				using U = typename component::DeduceComponent<T>::Type;
+				using U = typename component::component_type_t<T>::Type;
 				component::VerifyComponent<U>();
 
 				DataBuffer_SerializationWrapper s(m_data);
@@ -19384,7 +19363,7 @@ namespace gaia {
 
 				SET_COMPONENT_t cmd;
 				cmd.entity = entity;
-				cmd.componentType = component::GetComponentType<T>();
+				cmd.componentType = component::component_type_v<T>;
 				cmd.componentId = component::GetComponentId<T>();
 				serialization::save(s, cmd);
 				s.buffer().SaveComponent(std::forward<U>(value));
@@ -19400,7 +19379,7 @@ namespace gaia {
 				// If we want to set the value of a component we must have created it already.
 				// (void)ComponentCache::Get().GetOrCreateComponentInfo<T>();
 
-				using U = typename component::DeduceComponent<T>::Type;
+				using U = typename component::component_type_t<T>::Type;
 				component::VerifyComponent<U>();
 
 				DataBuffer_SerializationWrapper s(m_data);
@@ -19408,7 +19387,7 @@ namespace gaia {
 
 				SET_COMPONENT_FOR_TEMPENTITY_t cmd;
 				cmd.tempEntity = entity;
-				cmd.componentType = component::GetComponentType<T>();
+				cmd.componentType = component::component_type_v<T>;
 				cmd.componentId = component::GetComponentId<T>();
 				serialization::save(s, cmd);
 				s.buffer().SaveComponent(std::forward<U>(value));
@@ -19423,7 +19402,7 @@ namespace gaia {
 				// If we want to remove a component we must have created it already.
 				// (void)ComponentCache::Get().GetOrCreateComponentInfo<T>();
 
-				using U = typename component::DeduceComponent<T>::Type;
+				using U = typename component::component_type_t<T>::Type;
 				component::VerifyComponent<U>();
 
 				DataBuffer_SerializationWrapper s(m_data);
@@ -19431,7 +19410,7 @@ namespace gaia {
 
 				REMOVE_COMPONENT_t cmd;
 				cmd.entity = entity;
-				cmd.componentType = component::GetComponentType<T>();
+				cmd.componentType = component::component_type_v<T>;
 				cmd.componentId = component::GetComponentId<T>();
 				serialization::save(s, cmd);
 			}

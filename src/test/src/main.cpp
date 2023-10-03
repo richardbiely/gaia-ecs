@@ -157,9 +157,9 @@ TEST_CASE("Intrinsics") {
 }
 
 TEST_CASE("ComponentTypes") {
-	REQUIRE(ecs::component::IsGenericComponent<uint32_t> == true);
-	REQUIRE(ecs::component::IsGenericComponent<Position> == true);
-	REQUIRE(ecs::component::IsGenericComponent<ecs::AsChunk<Position>> == false);
+	REQUIRE(ecs::component::component_type_v<uint32_t> == ecs::component::ComponentType::CT_Generic);
+	REQUIRE(ecs::component::component_type_v<Position> == ecs::component::ComponentType::CT_Generic);
+	REQUIRE(ecs::component::component_type_v<ecs::AsChunk<Position>> == ecs::component::ComponentType::CT_Chunk);
 }
 
 TEST_CASE("Containers - sarray") {
