@@ -59,71 +59,71 @@ namespace gaia {
 				}
 
 				void Diag() const {
-					const auto& cc = ComponentCache::Get();
+					// const auto& cc = ComponentCache::Get();
 
-					// Add edges (movement towards the leafs)
-					{
-						const auto& edgesG = m_edgesAdd[component::ComponentType::CT_Generic];
-						const auto& edgesC = m_edgesAdd[component::ComponentType::CT_Chunk];
-						const auto edgeCount = (uint32_t)(edgesG.size() + edgesC.size());
-						if (edgeCount > 0) {
-							GAIA_LOG_N("  Add edges - count:%u", edgeCount);
+					// // Add edges (movement towards the leafs)
+					// {
+					// 	const auto& edgesG = m_edgesAdd[component::ComponentType::CT_Generic];
+					// 	const auto& edgesC = m_edgesAdd[component::ComponentType::CT_Chunk];
+					// 	const auto edgeCount = (uint32_t)(edgesG.size() + edgesC.size());
+					// 	if (edgeCount > 0) {
+					// 		GAIA_LOG_N("  Add edges - count:%u", edgeCount);
 
-							if (!edgesG.empty()) {
-								GAIA_LOG_N("    Generic - count:%u", (uint32_t)edgesG.size());
-								for (const auto& edge: edgesG) {
-									const auto& info = cc.GetComponentInfo(edge.first);
-									const auto& infoCreate = cc.GetComponentDesc(info.componentId);
-									GAIA_LOG_N(
-											"      %.*s (--> Archetype ID:%u)", (uint32_t)infoCreate.name.size(), infoCreate.name.data(),
-											edge.second.archetypeId);
-								}
-							}
+					// 		if (!edgesG.empty()) {
+					// 			GAIA_LOG_N("    Generic - count:%u", (uint32_t)edgesG.size());
+					// 			for (const auto& edge: edgesG) {
+					// 				const auto& info = cc.GetComponentInfo(edge.first);
+					// 				const auto& infoCreate = cc.GetComponentDesc(info.componentId);
+					// 				GAIA_LOG_N(
+					// 						"      %.*s (--> Archetype ID:%u)", (uint32_t)infoCreate.name.size(), infoCreate.name.data(),
+					// 						edge.second.archetypeId);
+					// 			}
+					// 		}
 
-							if (!edgesC.empty()) {
-								GAIA_LOG_N("    Chunk - count:%u", (uint32_t)edgesC.size());
-								for (const auto& edge: edgesC) {
-									const auto& info = cc.GetComponentInfo(edge.first);
-									const auto& infoCreate = cc.GetComponentDesc(info.componentId);
-									GAIA_LOG_N(
-											"      %.*s (--> Archetype ID:%u)", (uint32_t)infoCreate.name.size(), infoCreate.name.data(),
-											edge.second.archetypeId);
-								}
-							}
-						}
-					}
+					// 		if (!edgesC.empty()) {
+					// 			GAIA_LOG_N("    Chunk - count:%u", (uint32_t)edgesC.size());
+					// 			for (const auto& edge: edgesC) {
+					// 				const auto& info = cc.GetComponentInfo(edge.first);
+					// 				const auto& infoCreate = cc.GetComponentDesc(info.componentId);
+					// 				GAIA_LOG_N(
+					// 						"      %.*s (--> Archetype ID:%u)", (uint32_t)infoCreate.name.size(), infoCreate.name.data(),
+					// 						edge.second.archetypeId);
+					// 			}
+					// 		}
+					// 	}
+					// }
 
-					// Delete edges (movement towards the root)
-					{
-						const auto& edgesG = m_edgesDel[component::ComponentType::CT_Generic];
-						const auto& edgesC = m_edgesDel[component::ComponentType::CT_Chunk];
-						const auto edgeCount = (uint32_t)(edgesG.size() + edgesC.size());
-						if (edgeCount > 0) {
-							GAIA_LOG_N("  Del edges - count:%u", edgeCount);
+					// // Delete edges (movement towards the root)
+					// {
+					// 	const auto& edgesG = m_edgesDel[component::ComponentType::CT_Generic];
+					// 	const auto& edgesC = m_edgesDel[component::ComponentType::CT_Chunk];
+					// 	const auto edgeCount = (uint32_t)(edgesG.size() + edgesC.size());
+					// 	if (edgeCount > 0) {
+					// 		GAIA_LOG_N("  Del edges - count:%u", edgeCount);
 
-							if (!edgesG.empty()) {
-								GAIA_LOG_N("    Generic - count:%u", (uint32_t)edgesG.size());
-								for (const auto& edge: edgesG) {
-									const auto& info = cc.GetComponentInfo(edge.first);
-									const auto& infoCreate = cc.GetComponentDesc(info.componentId);
-									GAIA_LOG_N(
-											"      %.*s (--> Archetype ID:%u)", (uint32_t)infoCreate.name.size(), infoCreate.name.data(),
-											edge.second.archetypeId);
-								}
-							}
+					// 		if (!edgesG.empty()) {
+					// 			GAIA_LOG_N("    Generic - count:%u", (uint32_t)edgesG.size());
+					// 			for (const auto& edge: edgesG) {
+					// 				const auto& info = cc.GetComponentInfo(edge.first);
+					// 				const auto& infoCreate = cc.GetComponentDesc(info.componentId);
+					// 				GAIA_LOG_N(
+					// 						"      %.*s (--> Archetype ID:%u)", (uint32_t)infoCreate.name.size(), infoCreate.name.data(),
+					// 						edge.second.archetypeId);
+					// 			}
+					// 		}
 
-							if (!edgesC.empty()) {
-								GAIA_LOG_N("    Chunk - count:%u", (uint32_t)edgesC.size());
-								for (const auto& edge: edgesC) {
-									const auto& info = cc.GetComponentInfo(edge.first);
-									const auto& infoCreate = cc.GetComponentDesc(info.componentId);
-									GAIA_LOG_N(
-											"      %.*s (--> Archetype ID:%u)", (uint32_t)infoCreate.name.size(), infoCreate.name.data(),
-											edge.second.archetypeId);
-								}
-							}
-						}
-					}
+					// 		if (!edgesC.empty()) {
+					// 			GAIA_LOG_N("    Chunk - count:%u", (uint32_t)edgesC.size());
+					// 			for (const auto& edge: edgesC) {
+					// 				const auto& info = cc.GetComponentInfo(edge.first);
+					// 				const auto& infoCreate = cc.GetComponentDesc(info.componentId);
+					// 				GAIA_LOG_N(
+					// 						"      %.*s (--> Archetype ID:%u)", (uint32_t)infoCreate.name.size(), infoCreate.name.data(),
+					// 						edge.second.archetypeId);
+					// 			}
+					// 		}
+					// 	}
+					// }
 				}
 			};
 		} // namespace archetype

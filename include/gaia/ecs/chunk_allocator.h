@@ -219,7 +219,7 @@ namespace gaia {
 				ChunkAllocatorImpl& operator=(ChunkAllocatorImpl&&) = delete;
 				ChunkAllocatorImpl& operator=(const ChunkAllocatorImpl&) = delete;
 
-				static uint32_t GetMemoryBlockSize(uint32_t sizeType) {
+				static uint16_t GetMemoryBlockSize(uint32_t sizeType) {
 					return sizeType != 0 ? MaxMemoryBlockSize : MaxMemoryBlockSize / 2;
 				}
 

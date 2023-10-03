@@ -957,7 +957,6 @@ int main() {
 	g_smPostSimulation.CreateSystem<GameStateSystem>();
 
 	g_world.Init();
-	g_ecs.Diag();
 
 	while (!g_world.terminate) {
 		g_smPreSimulation.Update();
