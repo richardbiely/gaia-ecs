@@ -35,21 +35,27 @@ namespace gaia {
 			//----------------------------------------------------------------------
 
 			namespace detail {
+				template <typename, typename = void>
+				struct has_component_type: std::false_type {};
 				template <typename T>
-				struct ExtractComponentType_Generic {
+				struct has_component_type<T, std::void_t<decltype(T::TComponentType)>>: std::true_type {};
+
+				template <typename T>
+				struct ExtractComponentType_NoComponentType {
 					using Type = typename std::decay_t<typename std::remove_pointer_t<T>>;
 					using TypeOriginal = T;
 				};
 				template <typename T>
-				struct ExtractComponentType_NonGeneric {
+				struct ExtractComponentType_WithComponentType {
 					using Type = typename T::TType;
 					using TypeOriginal = typename T::TTypeOriginal;
 				};
 
-				template <typename T, typename = void>
+				template <typename, typename = void>
 				struct IsGenericComponent_Internal: std::true_type {};
 				template <typename T>
-				struct IsGenericComponent_Internal<T, decltype((void)T::TComponentType, void())>: std::false_type {};
+				struct IsGenericComponent_Internal<T, std::void_t<decltype(T::TComponentType)>>:
+						std::bool_constant<T::TComponentType == ComponentType::CT_Generic> {};
 
 				template <typename T>
 				struct IsComponentSizeValid_Internal: std::bool_constant<sizeof(T) < MAX_COMPONENTS_SIZE_IN_BYTES> {};
@@ -59,6 +65,15 @@ namespace gaia {
 						std::bool_constant<
 								// SoA types need to be trivial. No restrictions otherwise.
 								(!utils::is_soa_layout_v<T> || std::is_trivially_copyable_v<T>)> {};
+
+				template <typename T, typename = void>
+				struct DeduceComponent_Internal {
+					using type = typename detail::ExtractComponentType_NoComponentType<T>;
+				};
+				template <typename T>
+				struct DeduceComponent_Internal<T, std::void_t<decltype(T::TComponentType)>> {
+					using type = typename detail::ExtractComponentType_WithComponentType<T>;
+				};
 			} // namespace detail
 
 			template <typename T>
@@ -69,9 +84,7 @@ namespace gaia {
 			inline constexpr bool IsComponentTypeValid = detail::IsComponentTypeValid_Internal<T>::value;
 
 			template <typename T>
-			using DeduceComponent = std::conditional_t<
-					IsGenericComponent<T>, typename detail::ExtractComponentType_Generic<T>,
-					typename detail::ExtractComponentType_NonGeneric<T>>;
+			using DeduceComponent = typename detail::DeduceComponent_Internal<T>::type;
 
 			//! Returns the component id for \tparam T
 			//! \return Component id

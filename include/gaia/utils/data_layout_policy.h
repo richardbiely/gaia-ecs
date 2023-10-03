@@ -397,7 +397,7 @@ namespace gaia {
 		//----------------------------------------------------------------------
 
 		namespace detail {
-			template <typename T, typename = void>
+			template <typename, typename = void>
 			struct auto_view_policy_internal {
 				static constexpr DataLayout data_layout_type = DataLayout::AoS;
 			};
@@ -409,7 +409,7 @@ namespace gaia {
 			template <typename, typename = void>
 			struct is_soa_layout: std::false_type {};
 			template <typename T>
-			struct is_soa_layout<T, typename std::enable_if_t<T::Layout != DataLayout::AoS>>: std::true_type {};
+			struct is_soa_layout<T, std::void_t<decltype(T::Layout)>>: std::bool_constant<(T::Layout != DataLayout::AoS)> {};
 		} // namespace detail
 
 		template <typename T>
