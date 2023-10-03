@@ -949,10 +949,10 @@ namespace gaia {
 				GAIA_NODISCARD constexpr GAIA_FORCEINLINE auto GetComponentView() {
 					using U = typename component::component_type_t<T>::Type;
 					using UOriginal = typename component::component_type_t<T>::TypeOriginal;
-					if constexpr (component::IsReadOnlyType<UOriginal>::value)
-						return View_Internal<U>();
-					else
+					if constexpr (component::is_component_mut_v<UOriginal>)
 						return ViewRW_Internal<U, true>();
+					else
+						return View_Internal<U>();
 				}
 
 				template <typename... T, typename Func>

@@ -12810,6 +12810,12 @@ namespace gaia {
 				struct component_type<T, std::void_t<decltype(T::TComponentType)>> {
 					using type = typename detail::ExtractComponentType_WithComponentType<T>;
 				};
+
+				template <typename T>
+				struct is_component_mut:
+						std::bool_constant<
+								!std::is_const_v<std::remove_reference_t<std::remove_pointer_t<T>>> &&
+								(std::is_pointer<T>::value || std::is_reference<T>::value)> {};
 			} // namespace detail
 
 			template <typename T>
@@ -12831,10 +12837,7 @@ namespace gaia {
 			}
 
 			template <typename T>
-			struct IsReadOnlyType:
-					std::bool_constant<
-							std::is_const_v<std::remove_reference_t<std::remove_pointer_t<T>>> ||
-							(!std::is_pointer<T>::value && !std::is_reference<T>::value)> {};
+			inline constexpr bool is_component_mut_v = detail::is_component_mut<T>::value;
 
 			//----------------------------------------------------------------------
 			// Component verification
@@ -13026,7 +13029,7 @@ namespace gaia {
 
 					ComponentDesc info{};
 					info.name = utils::type_info::name<U>();
-					info.componentId = component::GetComponentId<T>();
+					info.componentId = GetComponentId<T>();
 
 					if constexpr (!std::is_empty_v<U>) {
 						info.properties.alig = utils::auto_view_policy<U>::Alignment;
@@ -15069,10 +15072,10 @@ namespace gaia {
 				GAIA_NODISCARD constexpr GAIA_FORCEINLINE auto GetComponentView() {
 					using U = typename component::component_type_t<T>::Type;
 					using UOriginal = typename component::component_type_t<T>::TypeOriginal;
-					if constexpr (component::IsReadOnlyType<UOriginal>::value)
-						return View_Internal<U>();
-					else
+					if constexpr (component::is_component_mut_v<UOriginal>)
 						return ViewRW_Internal<U, true>();
+					else
+						return View_Internal<U>();
 				}
 
 				template <typename... T, typename Func>
@@ -17237,11 +17240,13 @@ namespace gaia {
 				//--------------------------------------------------------------------------------
 
 				void Commit(query::LookupCtx& ctx) {
+#if GAIA_ASSERT_ENABLED
 					if constexpr (UseCaching) {
 						GAIA_ASSERT(m_storage.m_queryId == query::QueryIdBad);
 					} else {
 						GAIA_ASSERT(m_storage.m_queryInfo.GetId() == query::QueryIdBad);
 					}
+#endif
 
 					DataBuffer_SerializationWrapper s(m_cmdBuffer);
 
@@ -18850,10 +18855,10 @@ namespace gaia {
 			GAIA_NODISCARD constexpr GAIA_FORCEINLINE auto GetComponentView(archetype::Chunk& chunk) const {
 				using U = typename component::component_type_t<T>::Type;
 				using UOriginal = typename component::component_type_t<T>::TypeOriginal;
-				if constexpr (component::IsReadOnlyType<UOriginal>::value)
-					return chunk.View_Internal<U>();
-				else
+				if constexpr (component::is_component_mut_v<UOriginal>)
 					return chunk.ViewRW_Internal<U, true>();
+				else
+					return chunk.View_Internal<U>();
 			}
 
 			//--------------------------------------------------------------------------------

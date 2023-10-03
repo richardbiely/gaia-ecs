@@ -76,6 +76,12 @@ namespace gaia {
 				struct component_type<T, std::void_t<decltype(T::TComponentType)>> {
 					using type = typename detail::ExtractComponentType_WithComponentType<T>;
 				};
+
+				template <typename T>
+				struct is_component_mut:
+						std::bool_constant<
+								!std::is_const_v<std::remove_reference_t<std::remove_pointer_t<T>>> &&
+								(std::is_pointer<T>::value || std::is_reference<T>::value)> {};
 			} // namespace detail
 
 			template <typename T>
@@ -97,10 +103,7 @@ namespace gaia {
 			}
 
 			template <typename T>
-			struct IsReadOnlyType:
-					std::bool_constant<
-							std::is_const_v<std::remove_reference_t<std::remove_pointer_t<T>>> ||
-							(!std::is_pointer<T>::value && !std::is_reference<T>::value)> {};
+			inline constexpr bool is_component_mut_v = detail::is_component_mut<T>::value;
 
 			//----------------------------------------------------------------------
 			// Component verification

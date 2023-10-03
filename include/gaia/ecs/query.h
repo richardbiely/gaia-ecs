@@ -248,11 +248,13 @@ namespace gaia {
 				//--------------------------------------------------------------------------------
 
 				void Commit(query::LookupCtx& ctx) {
+#if GAIA_ASSERT_ENABLED
 					if constexpr (UseCaching) {
 						GAIA_ASSERT(m_storage.m_queryId == query::QueryIdBad);
 					} else {
 						GAIA_ASSERT(m_storage.m_queryInfo.GetId() == query::QueryIdBad);
 					}
+#endif
 
 					DataBuffer_SerializationWrapper s(m_cmdBuffer);
 
