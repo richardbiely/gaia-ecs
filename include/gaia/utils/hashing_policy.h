@@ -11,7 +11,7 @@ namespace gaia {
 			template <typename, typename = void>
 			struct is_direct_hash_key: std::false_type {};
 			template <typename T>
-			struct is_direct_hash_key<T, typename std::enable_if_t<T::IsDirectHashKey>>: std::true_type {};
+			struct is_direct_hash_key<T, std::void_t<decltype(T::IsDirectHashKey)>>: std::true_type {};
 
 			//-----------------------------------------------------------------------------------
 
