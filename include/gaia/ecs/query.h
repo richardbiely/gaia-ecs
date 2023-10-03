@@ -500,7 +500,7 @@ namespace gaia {
 			public:
 				QueryImpl() = default;
 
-				template <bool FuncEnabled = UseCaching, typename std::enable_if<FuncEnabled>::type* = nullptr>
+				template <bool FuncEnabled = UseCaching>
 				QueryImpl(
 						QueryCache& queryCache, uint32_t& worldVersion, const containers::darray<archetype::Archetype*>& archetypes,
 						const query::ComponentToArchetypeMap& componentToArchetypeMap):
@@ -509,15 +509,15 @@ namespace gaia {
 					m_storage.m_entityQueryCache = &queryCache;
 				}
 
-				template <bool FuncEnabled = !UseCaching, typename std::enable_if<FuncEnabled>::type* = nullptr>
+				template <bool FuncEnabled = !UseCaching>
 				QueryImpl(
 						uint32_t& worldVersion, const containers::darray<archetype::Archetype*>& archetypes,
 						const query::ComponentToArchetypeMap& componentToArchetypeMap):
 						m_worldVersion(&worldVersion),
 						m_archetypes(&archetypes), m_componentToArchetypeMap(&componentToArchetypeMap) {}
 
-				template <bool FuncEnabled = UseCaching, typename std::enable_if<FuncEnabled>::type* = nullptr>
 				GAIA_NODISCARD uint32_t GetQueryId() const {
+					static_assert(UseCaching, "GetQueryId() can be used only with cached queries");
 					return m_storage.m_queryId;
 				}
 
