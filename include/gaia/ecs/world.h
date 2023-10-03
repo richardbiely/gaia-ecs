@@ -1054,10 +1054,10 @@ namespace gaia {
 			GAIA_NODISCARD constexpr GAIA_FORCEINLINE auto GetComponentView(archetype::Chunk& chunk) const {
 				using U = typename component::component_type_t<T>::Type;
 				using UOriginal = typename component::component_type_t<T>::TypeOriginal;
-				if constexpr (component::IsReadOnlyType<UOriginal>::value)
-					return chunk.View_Internal<U>();
-				else
+				if constexpr (component::is_component_mut_v<UOriginal>)
 					return chunk.ViewRW_Internal<U, true>();
+				else
+					return chunk.View_Internal<U>();
 			}
 
 			//--------------------------------------------------------------------------------
