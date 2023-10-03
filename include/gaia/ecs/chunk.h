@@ -620,7 +620,7 @@ namespace gaia {
 				\param componentIdx Index of the component in this chunk's component array
 				\return Offset from the start of chunk data area.
 				*/
-				GAIA_NODISCARD GAIA_FORCEINLINE ChunkComponentOffset FindDataOffset(
+				GAIA_NODISCARD ChunkComponentOffset FindDataOffset(
 						component::ComponentType componentType, component::ComponentId componentId, uint32_t& componentIdx) const {
 					// Searching for a component that's not there! Programmer mistake.
 					GAIA_ASSERT(HasComponent(componentType, componentId));
