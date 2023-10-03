@@ -14,6 +14,7 @@ Checks:
     -bugprone-lambda-function-name,
   clang-analyzer-*,
   cppcoreguidelines-*,
+    -cppcoreguidelines-macro-usage,
     -cppcoreguidelines-owning-memory,
     -cppcoreguidelines-no-malloc,
     -cppcoreguidelines-avoid-*,
