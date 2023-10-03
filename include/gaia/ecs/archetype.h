@@ -257,11 +257,8 @@ namespace gaia {
 				GAIA_NODISCARD bool HasComponent_Internal() const {
 					const auto componentId = component::GetComponentId<T>();
 
-					if constexpr (component::IsGenericComponent<T>) {
-						return HasComponent_Internal(component::ComponentType::CT_Generic, componentId);
-					} else {
-						return HasComponent_Internal(component::ComponentType::CT_Chunk, componentId);
-					}
+					constexpr auto componentType = component::component_type_v<T>;
+					return HasComponent_Internal(componentType, componentId);
 				}
 
 			public:

@@ -215,13 +215,12 @@ namespace gaia {
 			private:
 				template <typename T>
 				void AddComponent_Internal(query::ListType listType) {
-					using U = typename component::DeduceComponent<T>::Type;
-					using UOriginal = typename component::DeduceComponent<T>::TypeOriginal;
+					using U = typename component::component_type_t<T>::Type;
+					using UOriginal = typename component::component_type_t<T>::TypeOriginal;
 					using UOriginalPR = std::remove_reference_t<std::remove_pointer_t<UOriginal>>;
 
 					const auto componentId = component::GetComponentId<T>();
-					constexpr auto componentType = component::IsGenericComponent<T> ? component::ComponentType::CT_Generic
-																																					: component::ComponentType::CT_Chunk;
+					constexpr auto componentType = component::component_type_v<T>;
 					constexpr bool isReadWrite =
 							std::is_same_v<U, UOriginal> || (!std::is_const_v<UOriginalPR> && !std::is_empty_v<U>);
 
@@ -238,8 +237,7 @@ namespace gaia {
 				template <typename T>
 				void WithChanged_Internal() {
 					const auto componentId = component::GetComponentId<T>();
-					constexpr auto componentType = component::IsGenericComponent<T> ? component::ComponentType::CT_Generic
-																																					: component::ComponentType::CT_Chunk;
+					constexpr auto componentType = component::component_type_v<T>;
 
 					Command_Filter cmd{componentId, componentType};
 					DataBuffer_SerializationWrapper s(m_cmdBuffer);

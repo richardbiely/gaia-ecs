@@ -932,16 +932,12 @@ namespace gaia {
 				component::VerifyComponent<T>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
-				using U = typename component::DeduceComponent<T>::Type;
+				using U = typename component::component_type_t<T>::Type;
 				const auto& info = ComponentCache::Get().GetOrCreateComponentInfo<U>();
 
-				if constexpr (component::IsGenericComponent<T>) {
-					auto& entityContainer = AddComponent_Internal(component::ComponentType::CT_Generic, entity, info);
-					return ComponentSetter{entityContainer.pChunk, entityContainer.idx};
-				} else {
-					auto& entityContainer = AddComponent_Internal(component::ComponentType::CT_Chunk, entity, info);
-					return ComponentSetter{entityContainer.pChunk, entityContainer.idx};
-				}
+				constexpr auto componentType = component::component_type_v<T>;
+				auto& entityContainer = AddComponent_Internal(componentType, entity, info);
+				return ComponentSetter{entityContainer.pChunk, entityContainer.idx};
 			}
 
 			//! Attaches a new component \tparam T to \param entity. Also sets its value.
@@ -951,14 +947,14 @@ namespace gaia {
 			//! \return ComponentSetter object.
 			//! \warning It is expected the component is not present on \param entity yet. Undefined behavior otherwise.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+			template <typename T, typename U = typename component::component_type_t<T>::Type>
 			ComponentSetter AddComponent(Entity entity, U&& value) {
 				component::VerifyComponent<T>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
 				const auto& info = ComponentCache::Get().GetOrCreateComponentInfo<U>();
 
-				if constexpr (component::IsGenericComponent<T>) {
+				if constexpr (component::component_type_v<T> == component::ComponentType::CT_Generic) {
 					auto& entityContainer = AddComponent_Internal(component::ComponentType::CT_Generic, entity, info);
 					auto* pChunk = entityContainer.pChunk;
 					pChunk->template SetComponent<T>(entityContainer.idx, std::forward<U>(value));
@@ -982,13 +978,11 @@ namespace gaia {
 				component::VerifyComponent<T>();
 				GAIA_ASSERT(IsEntityValid(entity));
 
-				using U = typename component::DeduceComponent<T>::Type;
+				using U = typename component::component_type_t<T>::Type;
 				const auto& info = ComponentCache::Get().GetOrCreateComponentInfo<U>();
 
-				if constexpr (component::IsGenericComponent<T>)
-					return RemoveComponent_Internal(component::ComponentType::CT_Generic, entity, info);
-				else
-					return RemoveComponent_Internal(component::ComponentType::CT_Chunk, entity, info);
+				constexpr auto componentType = component::component_type_v<T>;
+				return RemoveComponent_Internal(componentType, entity, info);
 			}
 
 			//----------------------------------------------------------------------
@@ -1000,7 +994,7 @@ namespace gaia {
 			//! \return ComponentSetter
 			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+			template <typename T, typename U = typename component::component_type_t<T>::Type>
 			ComponentSetter SetComponent(Entity entity, U&& value) {
 				GAIA_ASSERT(IsEntityValid(entity));
 
@@ -1015,7 +1009,7 @@ namespace gaia {
 			//! \return ComponentSetter
 			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			template <typename T, typename U = typename component::DeduceComponent<T>::Type>
+			template <typename T, typename U = typename component::component_type_t<T>::Type>
 			ComponentSetter SetComponentSilent(Entity entity, U&& value) {
 				GAIA_ASSERT(IsEntityValid(entity));
 
@@ -1058,8 +1052,8 @@ namespace gaia {
 		private:
 			template <typename T>
 			GAIA_NODISCARD constexpr GAIA_FORCEINLINE auto GetComponentView(archetype::Chunk& chunk) const {
-				using U = typename component::DeduceComponent<T>::Type;
-				using UOriginal = typename component::DeduceComponent<T>::TypeOriginal;
+				using U = typename component::component_type_t<T>::Type;
+				using UOriginal = typename component::component_type_t<T>::TypeOriginal;
 				if constexpr (component::IsReadOnlyType<UOriginal>::value)
 					return chunk.View_Internal<U>();
 				else

@@ -308,7 +308,7 @@ namespace gaia {
 				// Make sure the component is registered
 				const auto& info = ComponentCache::Get().GetOrCreateComponentInfo<T>();
 
-				using U = typename component::DeduceComponent<T>::Type;
+				using U = typename component::component_type_t<T>::Type;
 				component::VerifyComponent<U>();
 
 				DataBuffer_SerializationWrapper s(m_data);
@@ -316,7 +316,7 @@ namespace gaia {
 
 				ADD_COMPONENT_t cmd;
 				cmd.entity = entity;
-				cmd.componentType = component::GetComponentType<T>();
+				cmd.componentType = component::component_type_v<T>;
 				cmd.componentId = info.componentId;
 				serialization::save(s, cmd);
 			}
@@ -329,7 +329,7 @@ namespace gaia {
 				// Make sure the component is registered
 				const auto& info = ComponentCache::Get().GetOrCreateComponentInfo<T>();
 
-				using U = typename component::DeduceComponent<T>::Type;
+				using U = typename component::component_type_t<T>::Type;
 				component::VerifyComponent<U>();
 
 				DataBuffer_SerializationWrapper s(m_data);
@@ -337,7 +337,7 @@ namespace gaia {
 
 				ADD_COMPONENT_TO_TEMPENTITY_t cmd;
 				cmd.tempEntity = entity;
-				cmd.componentType = component::GetComponentType<T>();
+				cmd.componentType = component::component_type_v<T>;
 				cmd.componentId = info.componentId;
 				serialization::save(s, cmd);
 			}
@@ -350,7 +350,7 @@ namespace gaia {
 				// Make sure the component is registered
 				const auto& info = ComponentCache::Get().GetOrCreateComponentInfo<T>();
 
-				using U = typename component::DeduceComponent<T>::Type;
+				using U = typename component::component_type_t<T>::Type;
 				component::VerifyComponent<U>();
 
 				DataBuffer_SerializationWrapper s(m_data);
@@ -358,7 +358,7 @@ namespace gaia {
 
 				ADD_COMPONENT_DATA_t cmd;
 				cmd.entity = entity;
-				cmd.componentType = component::GetComponentType<T>();
+				cmd.componentType = component::component_type_v<T>;
 				cmd.componentId = info.componentId;
 				serialization::save(s, cmd);
 				s.buffer().SaveComponent(std::forward<U>(value));
@@ -372,7 +372,7 @@ namespace gaia {
 				// Make sure the component is registered
 				const auto& info = ComponentCache::Get().GetOrCreateComponentInfo<T>();
 
-				using U = typename component::DeduceComponent<T>::Type;
+				using U = typename component::component_type_t<T>::Type;
 				component::VerifyComponent<U>();
 
 				DataBuffer_SerializationWrapper s(m_data);
@@ -380,7 +380,7 @@ namespace gaia {
 
 				ADD_COMPONENT_TO_TEMPENTITY_t cmd;
 				cmd.tempEntity = entity;
-				cmd.componentType = component::GetComponentType<T>();
+				cmd.componentType = component::component_type_v<T>;
 				cmd.componentId = info.componentId;
 				serialization::save(s, cmd);
 				s.buffer().SaveComponent(std::forward<U>(value));
@@ -395,7 +395,7 @@ namespace gaia {
 				// If we want to set the value of a component we must have created it already.
 				// (void)ComponentCache::Get().GetComponentInfo<T>();
 
-				using U = typename component::DeduceComponent<T>::Type;
+				using U = typename component::component_type_t<T>::Type;
 				component::VerifyComponent<U>();
 
 				DataBuffer_SerializationWrapper s(m_data);
@@ -403,7 +403,7 @@ namespace gaia {
 
 				SET_COMPONENT_t cmd;
 				cmd.entity = entity;
-				cmd.componentType = component::GetComponentType<T>();
+				cmd.componentType = component::component_type_v<T>;
 				cmd.componentId = component::GetComponentId<T>();
 				serialization::save(s, cmd);
 				s.buffer().SaveComponent(std::forward<U>(value));
@@ -419,7 +419,7 @@ namespace gaia {
 				// If we want to set the value of a component we must have created it already.
 				// (void)ComponentCache::Get().GetOrCreateComponentInfo<T>();
 
-				using U = typename component::DeduceComponent<T>::Type;
+				using U = typename component::component_type_t<T>::Type;
 				component::VerifyComponent<U>();
 
 				DataBuffer_SerializationWrapper s(m_data);
@@ -427,7 +427,7 @@ namespace gaia {
 
 				SET_COMPONENT_FOR_TEMPENTITY_t cmd;
 				cmd.tempEntity = entity;
-				cmd.componentType = component::GetComponentType<T>();
+				cmd.componentType = component::component_type_v<T>;
 				cmd.componentId = component::GetComponentId<T>();
 				serialization::save(s, cmd);
 				s.buffer().SaveComponent(std::forward<U>(value));
@@ -442,7 +442,7 @@ namespace gaia {
 				// If we want to remove a component we must have created it already.
 				// (void)ComponentCache::Get().GetOrCreateComponentInfo<T>();
 
-				using U = typename component::DeduceComponent<T>::Type;
+				using U = typename component::component_type_t<T>::Type;
 				component::VerifyComponent<U>();
 
 				DataBuffer_SerializationWrapper s(m_data);
@@ -450,7 +450,7 @@ namespace gaia {
 
 				REMOVE_COMPONENT_t cmd;
 				cmd.entity = entity;
-				cmd.componentType = component::GetComponentType<T>();
+				cmd.componentType = component::component_type_v<T>;
 				cmd.componentId = component::GetComponentId<T>();
 				serialization::save(s, cmd);
 			}

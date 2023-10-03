@@ -61,16 +61,14 @@ namespace gaia {
 
 				template <typename T>
 				bool HasComponent_Internal(query::ListType listType) const {
-					using U = typename component::DeduceComponent<T>::Type;
-					using UOriginal = typename component::DeduceComponent<T>::TypeOriginal;
+					using U = typename component::component_type_t<T>::Type;
+					using UOriginal = typename component::component_type_t<T>::TypeOriginal;
 					using UOriginalPR = std::remove_reference_t<std::remove_pointer_t<UOriginal>>;
 					constexpr bool isReadWrite =
 							std::is_same_v<U, UOriginal> || (!std::is_const_v<UOriginalPR> && !std::is_empty_v<U>);
 
-					if constexpr (component::IsGenericComponent<T>)
-						return HasComponent_Internal<U>(listType, component::ComponentType::CT_Generic, isReadWrite);
-					else
-						return HasComponent_Internal<U>(listType, component::ComponentType::CT_Chunk, isReadWrite);
+					constexpr auto componentType = component::component_type_v<T>;
+					return HasComponent_Internal<U>(listType, componentType, isReadWrite);
 				}
 
 				template <typename Func>

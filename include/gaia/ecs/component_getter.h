@@ -17,7 +17,7 @@ namespace gaia {
 			GAIA_NODISCARD auto GetComponent() const {
 				component::VerifyComponent<T>();
 
-				if constexpr (component::IsGenericComponent<T>)
+				if constexpr (component::component_type_v<T> == component::ComponentType::CT_Generic)
 					return m_pChunk->template GetComponent<T>(m_idx);
 				else
 					return m_pChunk->template GetComponent<T>();
