@@ -1,8 +1,8 @@
 #pragma once
 #include "../config/config.h"
 
-#include "../utils/span.h"
 #include "hashing_policy.h"
+#include "span.h"
 
 namespace gaia {
 	namespace utils {
@@ -26,10 +26,6 @@ namespace gaia {
 
 		struct type_info final {
 		private:
-			constexpr static size_t min(size_t a, size_t b) {
-				return b < a ? b : a;
-			}
-
 			constexpr static size_t find_first_of(const char* data, size_t len, char toFind, size_t startPos = 0) {
 				for (size_t i = startPos; i < len; ++i) {
 					if (data[i] == toFind)
@@ -39,7 +35,8 @@ namespace gaia {
 			}
 
 			constexpr static size_t find_last_of(const char* data, size_t len, char c, size_t startPos = size_t(-1)) {
-				for (int64_t i = (int64_t)min(len - 1, startPos); i >= 0; --i) {
+				const auto minValue = startPos <= len - 1 ? startPos : len - 1;
+				for (int64_t i = (int64_t)minValue; i >= 0; --i) {
 					if (data[i] == c)
 						return i;
 				}

@@ -1042,6 +1042,7 @@ http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/n4820.pdf
 #include <cstddef>
 #include <cstdint>
 #include <initializer_list>
+#include <tuple>
 #include <type_traits>
 
 #ifndef TCB_SPAN_NO_EXCEPTIONS
@@ -2833,7 +2834,6 @@ namespace gaia {
 	} // namespace utils
 } // namespace gaia
 
-#include <tuple>
 #include <type_traits>
 #include <utility>
 
@@ -4027,10 +4027,6 @@ namespace gaia {
 
 		struct type_info final {
 		private:
-			constexpr static size_t min(size_t a, size_t b) {
-				return b < a ? b : a;
-			}
-
 			constexpr static size_t find_first_of(const char* data, size_t len, char toFind, size_t startPos = 0) {
 				for (size_t i = startPos; i < len; ++i) {
 					if (data[i] == toFind)
@@ -4040,7 +4036,8 @@ namespace gaia {
 			}
 
 			constexpr static size_t find_last_of(const char* data, size_t len, char c, size_t startPos = size_t(-1)) {
-				for (int64_t i = (int64_t)min(len - 1, startPos); i >= 0; --i) {
+				const auto minValue = startPos <= len - 1 ? startPos : len - 1;
+				for (int64_t i = (int64_t)minValue; i >= 0; --i) {
 					if (data[i] == c)
 						return i;
 				}
@@ -5014,6 +5011,7 @@ namespace gaia {
 #include <cstddef>
 #include <type_traits>
 #include <utility>
+#include <tuple>
 
 namespace gaia {
 	namespace containers {
@@ -8501,6 +8499,7 @@ namespace gaia {
 } // namespace gaia
 
 #include <cstddef>
+#include <tuple>
 #include <type_traits>
 #include <utility>
 
@@ -8796,6 +8795,7 @@ namespace gaia {
 // TODO: There is no quickly achievable std alternative so go with gaia container
 
 #include <cstddef>
+#include <tuple>
 #include <type_traits>
 #include <utility>
 
@@ -13421,6 +13421,7 @@ namespace gaia {
 
 #include <cinttypes>
 #include <cstdint>
+#include <tuple>
 #include <type_traits>
 #include <utility>
 
@@ -16467,7 +16468,6 @@ namespace gaia {
 #include <cinttypes>
 #include <type_traits>
 
-#include <tuple>
 #include <type_traits>
 
 #include <cinttypes>
