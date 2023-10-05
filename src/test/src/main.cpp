@@ -170,7 +170,7 @@ TEST_CASE("Containers - sarray") {
 	REQUIRE(arr[3] == 3);
 	REQUIRE(arr[4] == 4);
 
-	size_t cnt = 0;
+	uint32_t cnt = 0;
 	for (auto val: arr) {
 		REQUIRE(val == cnt);
 		++cnt;
@@ -198,7 +198,7 @@ TEST_CASE("Containers - sarray_ext") {
 	arr.push_back(4);
 	REQUIRE(arr[4] == 4);
 
-	size_t cnt = 0;
+	uint32_t cnt = 0;
 	for (auto val: arr) {
 		REQUIRE(val == cnt);
 		++cnt;
@@ -230,7 +230,7 @@ TEST_CASE("Containers - darr") {
 	arr.push_back(6);
 	REQUIRE(arr[6] == 6);
 
-	size_t cnt = 0;
+	uint32_t cnt = 0;
 	for (auto val: arr) {
 		REQUIRE(val == cnt);
 		++cnt;
@@ -997,14 +997,14 @@ TEST_CASE("Containers - dbitset") {
 TEST_CASE("for_each") {
 	constexpr uint32_t N = 10;
 	SECTION("index agument") {
-		size_t cnt = 0;
+		uint32_t cnt = 0;
 		utils::for_each<N>([&cnt](auto i) {
 			cnt += i;
 		});
 		REQUIRE(cnt == 0 + 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9);
 	}
 	SECTION("no index agument") {
-		size_t cnt = 0;
+		uint32_t cnt = 0;
 		utils::for_each<N>([&cnt]() {
 			cnt++;
 		});
@@ -1015,14 +1015,14 @@ TEST_CASE("for_each") {
 TEST_CASE("for_each_ext") {
 	constexpr uint32_t N = 10;
 	SECTION("index agument") {
-		size_t cnt = 0;
+		uint32_t cnt = 0;
 		utils::for_each_ext<2, N - 1, 2>([&cnt](auto i) {
 			cnt += i;
 		});
 		REQUIRE(cnt == 2 + 4 + 6 + 8);
 	}
 	SECTION("no index agument") {
-		size_t cnt = 0;
+		uint32_t cnt = 0;
 		utils::for_each_ext<2, N - 1, 2>([&cnt]() {
 			cnt++;
 		});
@@ -1031,7 +1031,7 @@ TEST_CASE("for_each_ext") {
 }
 
 TEST_CASE("for_each_tuple") {
-	size_t val = 0;
+	uint32_t val = 0;
 	utils::for_each_tuple(std::make_tuple(69, 10, 20), [&val](const auto& value) {
 		val += value;
 	});
@@ -1039,7 +1039,7 @@ TEST_CASE("for_each_tuple") {
 }
 
 TEST_CASE("for_each_pack") {
-	size_t val = 0;
+	uint32_t val = 0;
 	utils::for_each_pack(
 			[&val](const auto& value) {
 				val += value;
@@ -1058,7 +1058,7 @@ void sort_descending(C arr) {
 		utils::sort(arr, utils::is_greater<TValue>());
 	else
 		utils::sort_ct(arr, utils::is_greater<TValue>());
-	for (size_t i = 1; i < arr.size(); ++i)
+	for (uint32_t i = 1; i < arr.size(); ++i)
 		REQUIRE(arr[i - 1] > arr[i]);
 }
 
@@ -1072,7 +1072,7 @@ void sort_ascending(C arr) {
 		utils::sort(arr, utils::is_smaller<TValue>());
 	else
 		utils::sort_ct(arr, utils::is_smaller<TValue>());
-	for (size_t i = 1; i < arr.size(); ++i)
+	for (uint32_t i = 1; i < arr.size(); ++i)
 		REQUIRE(arr[i - 1] < arr[i]);
 }
 
@@ -1244,7 +1244,7 @@ TEST_CASE("CreateAndRemoveEntity - no components") {
 	for (uint32_t i = 0; i < N; i++)
 		arr.push_back(create(i));
 	// Remove entities
-	for (size_t i = 0; i < N; i++)
+	for (uint32_t i = 0; i < N; i++)
 		remove(arr[i]);
 }
 
@@ -1332,14 +1332,14 @@ void Test_Query_QueryResult() {
 		containers::darr<ecs::Entity> arr;
 		q1.ToArray(arr);
 		GAIA_ASSERT(arr.size() == N);
-		for (size_t i = 0; i < arr.size(); ++i)
+		for (uint32_t i = 0; i < arr.size(); ++i)
 			REQUIRE(arr[i].id() == i);
 	}
 	{
 		containers::darr<Position> arr;
 		q1.ToArray(arr);
 		GAIA_ASSERT(arr.size() == N);
-		for (size_t i = 0; i < arr.size(); ++i) {
+		for (uint32_t i = 0; i < arr.size(); ++i) {
 			const auto& pos = arr[i];
 			REQUIRE(pos.x == (float)i);
 			REQUIRE(pos.y == (float)i);
@@ -1353,7 +1353,7 @@ void Test_Query_QueryResult() {
 		const auto has = q1.HasEntities();
 		REQUIRE(has == true);
 
-		size_t cnt2 = 0;
+		uint32_t cnt2 = 0;
 		q1.ForEach([&]() {
 			++cnt2;
 		});
@@ -1367,7 +1367,7 @@ void Test_Query_QueryResult() {
 		const auto has = q2.HasEntities();
 		REQUIRE(has == false);
 
-		size_t cnt2 = 0;
+		uint32_t cnt2 = 0;
 		q2.ForEach([&]() {
 			++cnt2;
 		});
@@ -1381,7 +1381,7 @@ void Test_Query_QueryResult() {
 		const auto has = q3.HasEntities();
 		REQUIRE(has == false);
 
-		size_t cnt3 = 0;
+		uint32_t cnt3 = 0;
 		q3.ForEach([&]() {
 			++cnt3;
 		});
@@ -1430,7 +1430,7 @@ void Test_Query_QueryResult_Complex() {
 		q1.ToArray(arr);
 		REQUIRE(arr.size() == N);
 
-		for (size_t i = 0; i < arr.size(); ++i) {
+		for (uint32_t i = 0; i < arr.size(); ++i) {
 			const auto& pos = arr[i];
 			const auto val = ents[i].id();
 			REQUIRE(pos.x == (float)val);
@@ -1445,7 +1445,7 @@ void Test_Query_QueryResult_Complex() {
 		const auto has = q1.HasEntities();
 		REQUIRE(has == true);
 
-		size_t cnt2 = 0;
+		uint32_t cnt2 = 0;
 		q1.ForEach([&]() {
 			++cnt2;
 		});
@@ -1459,7 +1459,7 @@ void Test_Query_QueryResult_Complex() {
 		const auto has = q2.HasEntities();
 		REQUIRE(has == false);
 
-		size_t cnt2 = 0;
+		uint32_t cnt2 = 0;
 		q2.ForEach([&]() {
 			++cnt2;
 		});
@@ -1473,7 +1473,7 @@ void Test_Query_QueryResult_Complex() {
 		const auto has = q3.HasEntities();
 		REQUIRE(has == false);
 
-		size_t cnt3 = 0;
+		uint32_t cnt3 = 0;
 		q3.ForEach([&]() {
 			++cnt3;
 		});
@@ -1487,7 +1487,7 @@ void Test_Query_QueryResult_Complex() {
 		q4.ToArray(arr);
 		REQUIRE(ents.size() == arr.size());
 
-		for (size_t i = 0; i < arr.size(); ++i) {
+		for (uint32_t i = 0; i < arr.size(); ++i) {
 			const auto& pos = arr[i];
 			const auto val = ents[i].id();
 			REQUIRE(pos.x == (float)val);
@@ -1502,7 +1502,7 @@ void Test_Query_QueryResult_Complex() {
 		q4.ToArray(arr);
 		REQUIRE(ents.size() == arr.size());
 
-		for (size_t i = 0; i < arr.size(); ++i) {
+		for (uint32_t i = 0; i < arr.size(); ++i) {
 			const auto& s = arr[i];
 			const auto val = ents[i].id() * 2;
 			REQUIRE(s.x == (float)val);
@@ -1517,7 +1517,7 @@ void Test_Query_QueryResult_Complex() {
 		const auto has = q4.HasEntities();
 		REQUIRE(has == true);
 
-		size_t cnt4 = 0;
+		uint32_t cnt4 = 0;
 		q4.ForEach([&]() {
 			++cnt4;
 		});
@@ -1531,7 +1531,7 @@ void Test_Query_QueryResult_Complex() {
 		q5.ToArray(arr);
 		REQUIRE(ents.size() == arr.size());
 
-		for (size_t i = 0; i < arr.size(); ++i) {
+		for (uint32_t i = 0; i < arr.size(); ++i) {
 			const auto& pos = arr[i];
 			const auto val = ents[i].id();
 			REQUIRE(pos.x == (float)val);
@@ -1546,7 +1546,7 @@ void Test_Query_QueryResult_Complex() {
 		q5.ToArray(arr);
 		REQUIRE(ents.size() == arr.size());
 
-		for (size_t i = 0; i < arr.size(); ++i) {
+		for (uint32_t i = 0; i < arr.size(); ++i) {
 			const auto& s = arr[i];
 			const auto val = ents[i].id() * 2;
 			REQUIRE(s.x == (float)val);
@@ -1561,7 +1561,7 @@ void Test_Query_QueryResult_Complex() {
 		const auto has = q5.HasEntities();
 		REQUIRE(has == true);
 
-		size_t cnt5 = 0;
+		uint32_t cnt5 = 0;
 		q5.ForEach([&]() {
 			++cnt5;
 		});
@@ -1779,14 +1779,14 @@ TEST_CASE("AddComponent - generic") {
 // 	for (auto& e: ents)
 // 		e = w.CreateEntity();
 
-// 	for (size_t i = 0; i < ents.size() - 1; ++i)
+// 	for (uint32_t i = 0; i < ents.size() - 1; ++i)
 // 		w.AddComponent<Position>(ents[i], {(float)i, (float)i, (float)i});
 
 // 	ecs::Query q;
 // 	q.All<Position>();
 // 	w.AddComponent<Acceleration>(q, {1.f, 2.f, 3.f});
 
-// 	for (size_t i = 0; i < ents.size() - 1; ++i) {
+// 	for (uint32_t i = 0; i < ents.size() - 1; ++i) {
 // 		REQUIRE(w.HasComponent<Position>(ents[i]));
 // 		REQUIRE(w.HasComponent<Acceleration>(ents[i]));
 
@@ -2360,11 +2360,11 @@ TEST_CASE("Usage 2 - simple query, many chunk components") {
 TEST_CASE("SetComponent - generic") {
 	ecs::World w;
 
-	constexpr size_t N = 100;
+	constexpr uint32_t N = 100;
 	containers::darr<ecs::Entity> arr;
 	arr.reserve(N);
 
-	for (size_t i = 0; i < N; ++i) {
+	for (uint32_t i = 0; i < N; ++i) {
 		arr.push_back(w.CreateEntity());
 		w.AddComponent<Rotation>(arr.back(), {});
 		w.AddComponent<Scale>(arr.back(), {});
@@ -2445,11 +2445,11 @@ TEST_CASE("SetComponent - generic") {
 TEST_CASE("SetComponent - generic & chunk") {
 	ecs::World w;
 
-	constexpr size_t N = 100;
+	constexpr uint32_t N = 100;
 	containers::darr<ecs::Entity> arr;
 	arr.reserve(N);
 
-	for (size_t i = 0; i < N; ++i) {
+	for (uint32_t i = 0; i < N; ++i) {
 		arr.push_back(w.CreateEntity());
 		w.AddComponent<Rotation>(arr.back(), {});
 		w.AddComponent<Scale>(arr.back(), {});
@@ -2532,11 +2532,11 @@ TEST_CASE("SetComponent - generic & chunk") {
 TEST_CASE("Components - non trivial") {
 	ecs::World w;
 
-	constexpr size_t N = 100;
+	constexpr uint32_t N = 100;
 	containers::darr<ecs::Entity> arr;
 	arr.reserve(N);
 
-	for (size_t i = 0; i < N; ++i) {
+	for (uint32_t i = 0; i < N; ++i) {
 		arr.push_back(w.CreateEntity());
 		w.AddComponent<StringComponent>(arr.back(), {});
 		w.AddComponent<StringComponent2>(arr.back(), {});
@@ -3036,7 +3036,7 @@ TEST_CASE("Query Filter - systems") {
 
 template <typename T>
 void TestDataLayoutAoS() {
-	constexpr size_t N = 100;
+	constexpr uint32_t N = 100;
 	containers::sarray<T, N> data{};
 	containers::sarray<T, N> data2{};
 
@@ -3044,13 +3044,13 @@ void TestDataLayoutAoS() {
 	using view_deduced = utils::auto_view_policy<T>;
 
 	// Clear the array
-	for (size_t i = 0; i < N; ++i) {
+	for (uint32_t i = 0; i < N; ++i) {
 		data[i] = {};
 		data2[i] = {};
 	}
 
 	SECTION("Explicit view") {
-		for (size_t i = 0; i < N; ++i) {
+		for (uint32_t i = 0; i < N; ++i) {
 			const auto f = (float)(i + 1);
 
 			aos::set({data.data(), data.size()}, i, {f, f, f});
@@ -3062,7 +3062,7 @@ void TestDataLayoutAoS() {
 		}
 
 		SECTION("Make sure that all values are correct (e.g. that they were not overriden by one of the loop iteration)") {
-			for (size_t i = 0; i < N; ++i) {
+			for (uint32_t i = 0; i < N; ++i) {
 				const auto f = (float)(i + 1);
 
 				auto val = aos::getc({data.data(), data.size()}, i);
@@ -3074,7 +3074,7 @@ void TestDataLayoutAoS() {
 	}
 
 	SECTION("Deduced view") {
-		for (size_t i = 0; i < N; ++i) {
+		for (uint32_t i = 0; i < N; ++i) {
 			const auto f = (float)(i + 1);
 
 			view_deduced::set({data.data(), data.size()}, i, {f, f, f});
@@ -3086,7 +3086,7 @@ void TestDataLayoutAoS() {
 		}
 
 		SECTION("Make sure that all values are correct (e.g. that they were not overriden by one of the loop iteration)") {
-			for (size_t i = 0; i < N; ++i) {
+			for (uint32_t i = 0; i < N; ++i) {
 				const auto f = (float)(i + 1);
 
 				auto val = view_deduced::getc({data.data(), data.size()}, i);
@@ -3099,7 +3099,7 @@ void TestDataLayoutAoS() {
 
 	SECTION("Make sure we didn't write beyond the bounds") {
 		T dummy{};
-		for (size_t i = N; i < N; ++i) {
+		for (uint32_t i = N; i < N; ++i) {
 			const auto& val = data2[i];
 			REQUIRE_FALSE(memcmp((const void*)&val, (const void*)&dummy, sizeof(T)));
 		}
@@ -3113,21 +3113,21 @@ TEST_CASE("DataLayout AoS") {
 
 template <typename T>
 void TestDataLayoutSoA() {
-	constexpr size_t N = 100;
-	constexpr size_t Alignment = utils::auto_view_policy<T>::Alignment;
+	constexpr uint32_t N = 100;
+	constexpr uint32_t Alignment = utils::auto_view_policy<T>::Alignment;
 	GAIA_ALIGNAS(Alignment) containers::sarray<T, N> data{};
 	GAIA_ALIGNAS(Alignment) containers::sarray<T, N> data2{};
 
 	using view_deduced = utils::auto_view_policy<T>;
 
 	// Clear the array
-	for (size_t i = 0; i < N; ++i) {
+	for (uint32_t i = 0; i < N; ++i) {
 		data[i] = {};
 		data2[i] = {};
 	}
 
 	SECTION("Deduced view") {
-		for (size_t i = 0; i < N; ++i) {
+		for (uint32_t i = 0; i < N; ++i) {
 			const auto f = (float)(i + 1);
 
 			view_deduced::set({data.data(), data.size()}, i, {f, f, f});
@@ -3139,7 +3139,7 @@ void TestDataLayoutSoA() {
 		}
 
 		SECTION("Make sure that all values are correct (e.g. that they were not overriden by one of the loop iteration)") {
-			for (size_t i = 0; i < N; ++i) {
+			for (uint32_t i = 0; i < N; ++i) {
 				const auto f = (float)(i + 1);
 
 				auto val = view_deduced::get({data.data(), data.size()}, i);
@@ -3152,7 +3152,7 @@ void TestDataLayoutSoA() {
 
 	SECTION("Make sure we didn't write beyond the bounds") {
 		T dummy{};
-		for (size_t i = N; i < N; ++i) {
+		for (uint32_t i = N; i < N; ++i) {
 			const auto& val = data2[i];
 			REQUIRE_FALSE(memcmp((const void*)&val, (const void*)&dummy, sizeof(T)));
 		}

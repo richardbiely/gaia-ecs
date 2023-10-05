@@ -3025,8 +3025,8 @@ namespace gaia {
 		//----------------------------------------------------------------------
 
 		namespace detail {
-			template <typename Func, auto... Is>
-			constexpr void for_each_impl(Func func, std::index_sequence<Is...> /*no_name*/) {
+			template <auto Iters, typename Func, auto... Is>
+			constexpr void for_each_impl(Func func, std::integer_sequence<decltype(Iters), Is...> /*no_name*/) {
 				if constexpr ((std::is_invocable_v<Func&&, std::integral_constant<decltype(Is), Is>> && ...))
 					(func(std::integral_constant<decltype(Is), Is>{}), ...);
 				else
@@ -3058,7 +3058,7 @@ namespace gaia {
 		//! });
 		template <auto Iters, typename Func>
 		constexpr void for_each(Func func) {
-			detail::for_each_impl(func, std::make_index_sequence<Iters>());
+			detail::for_each_impl<Iters, Func>(func, std::make_integer_sequence<decltype(Iters), Iters>());
 		}
 
 		//! Compile-time for loop with adjustable range and iteration size.

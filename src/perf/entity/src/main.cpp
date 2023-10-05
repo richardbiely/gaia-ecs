@@ -4,10 +4,10 @@
 
 using namespace gaia;
 
-constexpr size_t NEntities = 1'000;
+constexpr uint32_t NEntities = 1'000;
 
 void AddEntities(ecs::World& w, uint32_t n) {
-	for (size_t i = 0; i < n; ++i) {
+	for (uint32_t i = 0; i < n; ++i) {
 		[[maybe_unused]] auto e = w.CreateEntity();
 		picobench::DoNotOptimize(e);
 	}
@@ -28,16 +28,16 @@ void BM_CreateEntity(picobench::state& state) {
 	}
 }
 
-template <size_t Version, typename T, size_t TCount>
+template <uint32_t Version, typename T, uint32_t TCount>
 struct Component {
 	T value[TCount];
 };
 
-template <size_t Version, typename T>
+template <uint32_t Version, typename T>
 struct Component<Version, T, 0> {}; // empty component
 
 namespace detail {
-	template <typename T, size_t ValuesCount, size_t ComponentCount>
+	template <typename T, uint32_t ValuesCount, uint32_t ComponentCount>
 	constexpr void AddComponents(ecs::World& w, ecs::Entity e) {
 		utils::for_each<ComponentCount>([&](auto i) {
 			w.AddComponent<Component<i, T, ValuesCount>>(e);
@@ -45,15 +45,15 @@ namespace detail {
 	}
 } // namespace detail
 
-template <typename T, size_t ValuesCount, size_t ComponentCount>
+template <typename T, uint32_t ValuesCount, uint32_t ComponentCount>
 constexpr void AddComponents(ecs::World& w, uint32_t n) {
-	for (size_t i = 0; i < n; ++i) {
+	for (uint32_t i = 0; i < n; ++i) {
 		[[maybe_unused]] auto e = w.CreateEntity();
 		detail::AddComponents<T, ValuesCount, ComponentCount>(w, e);
 	}
 }
 
-template <size_t Iterations>
+template <uint32_t Iterations>
 void BM_CreateEntity_With_Component(picobench::state& state) {
 	for (auto s: state) {
 		(void)s;
