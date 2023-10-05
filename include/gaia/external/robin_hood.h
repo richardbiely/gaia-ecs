@@ -202,6 +202,12 @@ namespace robin_hood {
 			return reinterpret_cast<T>(ptr);
 		}
 
+		template <typename, typename = void>
+		struct has_hash: public std::false_type {};
+
+		template <typename T>
+		struct has_hash<T, std::void_t<decltype(T::hash)>>: public std::true_type {};
+
 		// make sure this is not inlined as it is slow and dramatically enlarges code, thus making other
 		// inlinings more difficult. Throws are also generally the slow path.
 		template <typename E, typename... Args>
@@ -653,7 +659,10 @@ namespace robin_hood {
 	template <typename T>
 	struct hash<T, typename std::enable_if<GAIA_UTIL::is_direct_hash_key_v<T>>::type> {
 		size_t operator()(const T& obj) const noexcept {
-			return obj.hash;
+			if constexpr (detail::has_hash<T>::value)
+				return obj.hash;
+			else
+				return obj.hash();
 		}
 	};
 
@@ -691,17 +700,11 @@ namespace robin_hood {
 	#pragma GCC diagnostic pop
 #endif
 	namespace detail {
-
-		template <typename T>
-		struct void_type {
-			using type = void;
-		};
-
-		template <typename T, typename = void>
+		template <typename, typename = void>
 		struct has_is_transparent: public std::false_type {};
 
 		template <typename T>
-		struct has_is_transparent<T, typename void_type<typename T::is_transparent>::type>: public std::true_type {};
+		struct has_is_transparent<T, std::void_t<decltype(T::is_transparent)>>: public std::true_type {};
 
 		// using wrapper classes for hash and key_equal prevents the diamond problem when the same type
 		// is used. see https://stackoverflow.com/a/28771920/48181

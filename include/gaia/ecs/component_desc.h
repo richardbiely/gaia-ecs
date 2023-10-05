@@ -180,6 +180,3 @@ namespace gaia {
 		} // namespace component
 	} // namespace ecs
 } // namespace gaia
-
-REGISTER_HASH_TYPE(gaia::ecs::component::ComponentLookupHash)
-REGISTER_HASH_TYPE(gaia::ecs::component::ComponentMatcherHash)

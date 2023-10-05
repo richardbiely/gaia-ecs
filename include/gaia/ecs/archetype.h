@@ -22,15 +22,64 @@
 namespace gaia {
 	namespace ecs {
 		namespace archetype {
-			class Archetype final {
+			class Archetype;
+
+			class ArchetypeBase {
+			protected:
+				//! Archetype ID - used to address the archetype directly in the world's list or archetypes
+				ArchetypeId m_archetypeId = ArchetypeIdBad;
+
+			public:
+				GAIA_NODISCARD ArchetypeId GetArchetypeId() const {
+					return m_archetypeId;
+				}
+			};
+
+			class ArchetypeLookupChecker: public ArchetypeBase {
+				friend class Archetype;
+
+				//! List of component indices
+				component::ComponentIdSpan m_componentIds[component::ComponentType::CT_Count];
+
+			public:
+				ArchetypeLookupChecker(
+						component::ComponentIdSpan componentIdsGeneric, component::ComponentIdSpan componentIdsChunk) {
+					m_componentIds[component::ComponentType::CT_Generic] = componentIdsGeneric;
+					m_componentIds[component::ComponentType::CT_Chunk] = componentIdsChunk;
+				}
+
+				bool CompareComponentIds(const ArchetypeLookupChecker& other) const {
+					// Size has to match
+					if (m_componentIds[component::ComponentType::CT_Generic].size() !=
+							other.m_componentIds[component::ComponentType::CT_Generic].size())
+						return false;
+					if (m_componentIds[component::ComponentType::CT_Chunk].size() !=
+							other.m_componentIds[component::ComponentType::CT_Chunk].size())
+						return false;
+
+					// Elements have to match
+					for (size_t i = 0; i < m_componentIds[component::ComponentType::CT_Generic].size(); ++i) {
+						if (m_componentIds[component::ComponentType::CT_Generic][i] !=
+								other.m_componentIds[component::ComponentType::CT_Generic][i])
+							return false;
+					}
+					for (size_t i = 0; i < m_componentIds[component::ComponentType::CT_Chunk].size(); ++i) {
+						if (m_componentIds[component::ComponentType::CT_Chunk][i] !=
+								other.m_componentIds[component::ComponentType::CT_Chunk][i])
+							return false;
+					}
+
+					return true;
+				}
+			};
+
+			class Archetype final: public ArchetypeBase {
 			public:
 				using LookupHash = utils::direct_hash_key<uint64_t>;
 				using GenericComponentHash = utils::direct_hash_key<uint64_t>;
 				using ChunkComponentHash = utils::direct_hash_key<uint64_t>;
 
 			private:
-				//! Archetype ID - used to address the archetype directly in the world's list or archetypes
-				ArchetypeId m_archetypeId = ArchetypeIdBad;
 				struct {
 					//! The number of entities this archetype can take (e.g 5 = 5 entities with all their components)
 					uint32_t capacity: ChunkHeader::MAX_CHUNK_ENTITES_BITS;
@@ -60,7 +109,7 @@ namespace gaia {
 				//! Hash of chunk components
 				ChunkComponentHash m_chunkHash = {0};
 				//! Hash of components within this archetype - used for lookups
-				component::ComponentLookupHash m_lookupHash = {0};
+				LookupHash m_lookupHash = {0};
 				//! Hash of components within this archetype - used for matching
 				component::ComponentMatcherHash m_matcherHash[component::ComponentType::CT_Count]{};
 
@@ -319,6 +368,30 @@ namespace gaia {
 						Chunk::Release(pChunk);
 				}
 
+				bool CompareComponentIds(const ArchetypeLookupChecker& other) const {
+					// Size has to match
+					if (m_componentIds[component::ComponentType::CT_Generic].size() !=
+							other.m_componentIds[component::ComponentType::CT_Generic].size())
+						return false;
+					if (m_componentIds[component::ComponentType::CT_Chunk].size() !=
+							other.m_componentIds[component::ComponentType::CT_Chunk].size())
+						return false;
+
+					// Elements have to match
+					for (uint32_t i = 0; i < m_componentIds[component::ComponentType::CT_Generic].size(); ++i) {
+						if (m_componentIds[component::ComponentType::CT_Generic][i] !=
+								other.m_componentIds[component::ComponentType::CT_Generic][i])
+							return false;
+					}
+					for (uint32_t i = 0; i < m_componentIds[component::ComponentType::CT_Chunk].size(); ++i) {
+						if (m_componentIds[component::ComponentType::CT_Chunk][i] !=
+								other.m_componentIds[component::ComponentType::CT_Chunk][i])
+							return false;
+					}
+
+					return true;
+				}
+
 				GAIA_NODISCARD static LookupHash
 				CalculateLookupHash(GenericComponentHash genericHash, ChunkComponentHash chunkHash) noexcept {
 					return {utils::hash_combine(genericHash.hash, chunkHash.hash)};
@@ -451,13 +524,12 @@ namespace gaia {
 				}
 
 				/*!
-				Initializes the archetype with hash values for each kind of component types.
+				Sets hashes for each component type and lookup.
 				\param hashGeneric Generic components hash
 				\param hashChunk Chunk components hash
 				\param hashLookup Hash used for archetype lookup purposes
 				*/
-				void Init(
-						GenericComponentHash hashGeneric, ChunkComponentHash hashChunk, component::ComponentLookupHash hashLookup) {
+				void SetHashes(GenericComponentHash hashGeneric, ChunkComponentHash hashChunk, LookupHash hashLookup) {
 					m_genericHash = hashGeneric;
 					m_chunkHash = hashChunk;
 					m_lookupHash = hashLookup;
@@ -587,10 +659,6 @@ namespace gaia {
 					return pChunk;
 				}
 
-				GAIA_NODISCARD ArchetypeId GetArchetypeId() const {
-					return m_archetypeId;
-				}
-
 				GAIA_NODISCARD uint32_t GetCapacity() const {
 					return m_properties.capacity;
 				}
@@ -607,7 +675,7 @@ namespace gaia {
 					return m_chunkHash;
 				}
 
-				GAIA_NODISCARD component::ComponentLookupHash GetLookupHash() const {
+				GAIA_NODISCARD LookupHash GetLookupHash() const {
 					return m_lookupHash;
 				}
 
@@ -762,10 +830,41 @@ namespace gaia {
 					DiagArchetype_PrintChunkInfo(archetype);
 				}
 			};
+
+			class ArchetypeLookupKey final {
+				Archetype::LookupHash m_hash;
+				ArchetypeBase* m_pArchetypeBase;
+
+			public:
+				static constexpr bool IsDirectHashKey = true;
+
+				ArchetypeLookupKey(): m_hash({0}), m_pArchetypeBase(nullptr) {}
+				ArchetypeLookupKey(Archetype::LookupHash hash, ArchetypeBase* pArchetypeBase):
+						m_hash(hash), m_pArchetypeBase(pArchetypeBase) {}
+
+				size_t hash() const {
+					return (size_t)m_hash.hash;
+				}
+
+				bool operator==(const ArchetypeLookupKey& other) const {
+					// Hash doesn't match we don't have a match.
+					// Hash collisions are expected to be very unlikely so optimize for this case.
+					if GAIA_LIKELY (m_hash != other.m_hash)
+						return false;
+
+					const auto id = m_pArchetypeBase->GetArchetypeId();
+					if (id == ArchetypeIdBad) {
+						const auto* pArchetype = (const Archetype*)other.m_pArchetypeBase;
+						const auto* pArchetypeLookupChecker = (const ArchetypeLookupChecker*)m_pArchetypeBase;
+						return pArchetype->CompareComponentIds(*pArchetypeLookupChecker);
+					}
+
+					// Real ArchetypeID is given. Compare the pointers.
+					// Normally we'd compare archetype IDs but because we do not allow archetype copies and all archetypes are
+					// unique it's guaranteed that if pointers are the same we have a match.
+					return m_pArchetypeBase == other.m_pArchetypeBase;
+				}
+			};
 		} // namespace archetype
 	} // namespace ecs
 } // namespace gaia
-
-REGISTER_HASH_TYPE(gaia::ecs::Archetype::LookupHash)
-REGISTER_HASH_TYPE(gaia::ecs::Archetype::GenericComponentHash)
-REGISTER_HASH_TYPE(gaia::ecs::Archetype::ChunkComponentHash)

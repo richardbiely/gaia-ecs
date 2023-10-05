@@ -2725,8 +2725,6 @@ namespace gaia {
 	} // namespace utils
 } // namespace gaia
 
-#define REGISTER_HASH_TYPE(type)
-
 #include <cstddef>
 #include <type_traits>
 
@@ -6343,6 +6341,12 @@ namespace robin_hood {
 			return reinterpret_cast<T>(ptr);
 		}
 
+		template <typename, typename = void>
+		struct has_hash: public std::false_type {};
+
+		template <typename T>
+		struct has_hash<T, std::void_t<decltype(T::hash)>>: public std::true_type {};
+
 		// make sure this is not inlined as it is slow and dramatically enlarges code, thus making other
 		// inlinings more difficult. Throws are also generally the slow path.
 		template <typename E, typename... Args>
@@ -6794,7 +6798,10 @@ namespace robin_hood {
 	template <typename T>
 	struct hash<T, typename std::enable_if<GAIA_UTIL::is_direct_hash_key_v<T>>::type> {
 		size_t operator()(const T& obj) const noexcept {
-			return obj.hash;
+			if constexpr (detail::has_hash<T>::value)
+				return obj.hash;
+			else
+				return obj.hash();
 		}
 	};
 
@@ -6832,17 +6839,11 @@ namespace robin_hood {
 	#pragma GCC diagnostic pop
 #endif
 	namespace detail {
-
-		template <typename T>
-		struct void_type {
-			using type = void;
-		};
-
-		template <typename T, typename = void>
+		template <typename, typename = void>
 		struct has_is_transparent: public std::false_type {};
 
 		template <typename T>
-		struct has_is_transparent<T, typename void_type<typename T::is_transparent>::type>: public std::true_type {};
+		struct has_is_transparent<T, std::void_t<decltype(T::is_transparent)>>: public std::true_type {};
 
 		// using wrapper classes for hash and key_equal prevents the diamond problem when the same type
 		// is used. see https://stackoverflow.com/a/28771920/48181
@@ -9427,6 +9428,12 @@ namespace robin_hood {
 			return reinterpret_cast<T>(ptr);
 		}
 
+		template <typename, typename = void>
+		struct has_hash: public std::false_type {};
+
+		template <typename T>
+		struct has_hash<T, std::void_t<decltype(T::hash)>>: public std::true_type {};
+
 		// make sure this is not inlined as it is slow and dramatically enlarges code, thus making other
 		// inlinings more difficult. Throws are also generally the slow path.
 		template <typename E, typename... Args>
@@ -9878,7 +9885,10 @@ namespace robin_hood {
 	template <typename T>
 	struct hash<T, typename std::enable_if<GAIA_UTIL::is_direct_hash_key_v<T>>::type> {
 		size_t operator()(const T& obj) const noexcept {
-			return obj.hash;
+			if constexpr (detail::has_hash<T>::value)
+				return obj.hash;
+			else
+				return obj.hash();
 		}
 	};
 
@@ -9916,17 +9926,11 @@ namespace robin_hood {
 	#pragma GCC diagnostic pop
 #endif
 	namespace detail {
-
-		template <typename T>
-		struct void_type {
-			using type = void;
-		};
-
-		template <typename T, typename = void>
+		template <typename, typename = void>
 		struct has_is_transparent: public std::false_type {};
 
 		template <typename T>
-		struct has_is_transparent<T, typename void_type<typename T::is_transparent>::type>: public std::true_type {};
+		struct has_is_transparent<T, std::void_t<decltype(T::is_transparent)>>: public std::true_type {};
 
 		// using wrapper classes for hash and key_equal prevents the diamond problem when the same type
 		// is used. see https://stackoverflow.com/a/28771920/48181
@@ -12934,7 +12938,6 @@ namespace gaia {
 			class Archetype;
 
 			using ArchetypeId = uint32_t;
-			using LookupHash = utils::direct_hash_key<uint64_t>;
 			using ArchetypeList = containers::darray<Archetype*>;
 			using ComponentIdArray = containers::sarray_ext<component::ComponentId, MAX_COMPONENTS_PER_ARCHETYPE>;
 			using ChunkVersionOffset = uint8_t;
@@ -13129,9 +13132,6 @@ namespace gaia {
 		} // namespace component
 	} // namespace ecs
 } // namespace gaia
-
-REGISTER_HASH_TYPE(gaia::ecs::component::ComponentLookupHash)
-REGISTER_HASH_TYPE(gaia::ecs::component::ComponentMatcherHash)
 
 #include <type_traits>
 
@@ -15252,15 +15252,64 @@ namespace gaia {
 namespace gaia {
 	namespace ecs {
 		namespace archetype {
-			class Archetype final {
+			class Archetype;
+
+			class ArchetypeBase {
+			protected:
+				//! Archetype ID - used to address the archetype directly in the world's list or archetypes
+				ArchetypeId m_archetypeId = ArchetypeIdBad;
+
+			public:
+				GAIA_NODISCARD ArchetypeId GetArchetypeId() const {
+					return m_archetypeId;
+				}
+			};
+
+			class ArchetypeLookupChecker: public ArchetypeBase {
+				friend class Archetype;
+
+				//! List of component indices
+				component::ComponentIdSpan m_componentIds[component::ComponentType::CT_Count];
+
+			public:
+				ArchetypeLookupChecker(
+						component::ComponentIdSpan componentIdsGeneric, component::ComponentIdSpan componentIdsChunk) {
+					m_componentIds[component::ComponentType::CT_Generic] = componentIdsGeneric;
+					m_componentIds[component::ComponentType::CT_Chunk] = componentIdsChunk;
+				}
+
+				bool CompareComponentIds(const ArchetypeLookupChecker& other) const {
+					// Size has to match
+					if (m_componentIds[component::ComponentType::CT_Generic].size() !=
+							other.m_componentIds[component::ComponentType::CT_Generic].size())
+						return false;
+					if (m_componentIds[component::ComponentType::CT_Chunk].size() !=
+							other.m_componentIds[component::ComponentType::CT_Chunk].size())
+						return false;
+
+					// Elements have to match
+					for (size_t i = 0; i < m_componentIds[component::ComponentType::CT_Generic].size(); ++i) {
+						if (m_componentIds[component::ComponentType::CT_Generic][i] !=
+								other.m_componentIds[component::ComponentType::CT_Generic][i])
+							return false;
+					}
+					for (size_t i = 0; i < m_componentIds[component::ComponentType::CT_Chunk].size(); ++i) {
+						if (m_componentIds[component::ComponentType::CT_Chunk][i] !=
+								other.m_componentIds[component::ComponentType::CT_Chunk][i])
+							return false;
+					}
+
+					return true;
+				}
+			};
+
+			class Archetype final: public ArchetypeBase {
 			public:
 				using LookupHash = utils::direct_hash_key<uint64_t>;
 				using GenericComponentHash = utils::direct_hash_key<uint64_t>;
 				using ChunkComponentHash = utils::direct_hash_key<uint64_t>;
 
 			private:
-				//! Archetype ID - used to address the archetype directly in the world's list or archetypes
-				ArchetypeId m_archetypeId = ArchetypeIdBad;
 				struct {
 					//! The number of entities this archetype can take (e.g 5 = 5 entities with all their components)
 					uint32_t capacity: ChunkHeader::MAX_CHUNK_ENTITES_BITS;
@@ -15290,7 +15339,7 @@ namespace gaia {
 				//! Hash of chunk components
 				ChunkComponentHash m_chunkHash = {0};
 				//! Hash of components within this archetype - used for lookups
-				component::ComponentLookupHash m_lookupHash = {0};
+				LookupHash m_lookupHash = {0};
 				//! Hash of components within this archetype - used for matching
 				component::ComponentMatcherHash m_matcherHash[component::ComponentType::CT_Count]{};
 
@@ -15549,6 +15598,30 @@ namespace gaia {
 						Chunk::Release(pChunk);
 				}
 
+				bool CompareComponentIds(const ArchetypeLookupChecker& other) const {
+					// Size has to match
+					if (m_componentIds[component::ComponentType::CT_Generic].size() !=
+							other.m_componentIds[component::ComponentType::CT_Generic].size())
+						return false;
+					if (m_componentIds[component::ComponentType::CT_Chunk].size() !=
+							other.m_componentIds[component::ComponentType::CT_Chunk].size())
+						return false;
+
+					// Elements have to match
+					for (uint32_t i = 0; i < m_componentIds[component::ComponentType::CT_Generic].size(); ++i) {
+						if (m_componentIds[component::ComponentType::CT_Generic][i] !=
+								other.m_componentIds[component::ComponentType::CT_Generic][i])
+							return false;
+					}
+					for (uint32_t i = 0; i < m_componentIds[component::ComponentType::CT_Chunk].size(); ++i) {
+						if (m_componentIds[component::ComponentType::CT_Chunk][i] !=
+								other.m_componentIds[component::ComponentType::CT_Chunk][i])
+							return false;
+					}
+
+					return true;
+				}
+
 				GAIA_NODISCARD static LookupHash
 				CalculateLookupHash(GenericComponentHash genericHash, ChunkComponentHash chunkHash) noexcept {
 					return {utils::hash_combine(genericHash.hash, chunkHash.hash)};
@@ -15681,13 +15754,12 @@ namespace gaia {
 				}
 
 				/*!
-				Initializes the archetype with hash values for each kind of component types.
+				Sets hashes for each component type and lookup.
 				\param hashGeneric Generic components hash
 				\param hashChunk Chunk components hash
 				\param hashLookup Hash used for archetype lookup purposes
 				*/
-				void Init(
-						GenericComponentHash hashGeneric, ChunkComponentHash hashChunk, component::ComponentLookupHash hashLookup) {
+				void SetHashes(GenericComponentHash hashGeneric, ChunkComponentHash hashChunk, LookupHash hashLookup) {
 					m_genericHash = hashGeneric;
 					m_chunkHash = hashChunk;
 					m_lookupHash = hashLookup;
@@ -15817,10 +15889,6 @@ namespace gaia {
 					return pChunk;
 				}
 
-				GAIA_NODISCARD ArchetypeId GetArchetypeId() const {
-					return m_archetypeId;
-				}
-
 				GAIA_NODISCARD uint32_t GetCapacity() const {
 					return m_properties.capacity;
 				}
@@ -15837,7 +15905,7 @@ namespace gaia {
 					return m_chunkHash;
 				}
 
-				GAIA_NODISCARD component::ComponentLookupHash GetLookupHash() const {
+				GAIA_NODISCARD LookupHash GetLookupHash() const {
 					return m_lookupHash;
 				}
 
@@ -15992,13 +16060,44 @@ namespace gaia {
 					DiagArchetype_PrintChunkInfo(archetype);
 				}
 			};
+
+			class ArchetypeLookupKey final {
+				Archetype::LookupHash m_hash;
+				ArchetypeBase* m_pArchetypeBase;
+
+			public:
+				static constexpr bool IsDirectHashKey = true;
+
+				ArchetypeLookupKey(): m_hash({0}), m_pArchetypeBase(nullptr) {}
+				ArchetypeLookupKey(Archetype::LookupHash hash, ArchetypeBase* pArchetypeBase):
+						m_hash(hash), m_pArchetypeBase(pArchetypeBase) {}
+
+				size_t hash() const {
+					return (size_t)m_hash.hash;
+				}
+
+				bool operator==(const ArchetypeLookupKey& other) const {
+					// Hash doesn't match we don't have a match.
+					// Hash collisions are expected to be very unlikely so optimize for this case.
+					if GAIA_LIKELY (m_hash != other.m_hash)
+						return false;
+
+					const auto id = m_pArchetypeBase->GetArchetypeId();
+					if (id == ArchetypeIdBad) {
+						const auto* pArchetype = (const Archetype*)other.m_pArchetypeBase;
+						const auto* pArchetypeLookupChecker = (const ArchetypeLookupChecker*)m_pArchetypeBase;
+						return pArchetype->CompareComponentIds(*pArchetypeLookupChecker);
+					}
+
+					// Real ArchetypeID is given. Compare the pointers.
+					// Normally we'd compare archetype IDs but because we do not allow archetype copies and all archetypes are
+					// unique it's guaranteed that if pointers are the same we have a match.
+					return m_pArchetypeBase == other.m_pArchetypeBase;
+				}
+			};
 		} // namespace archetype
 	} // namespace ecs
 } // namespace gaia
-
-REGISTER_HASH_TYPE(gaia::ecs::Archetype::LookupHash)
-REGISTER_HASH_TYPE(gaia::ecs::Archetype::GenericComponentHash)
-REGISTER_HASH_TYPE(gaia::ecs::Archetype::ChunkComponentHash)
 
 #include <cinttypes>
 #include <type_traits>
@@ -17882,7 +17981,7 @@ namespace gaia {
 			query::ComponentToArchetypeMap m_componentToArchetypeMap;
 
 			//! Map of archetypes mapping to the same hash - used for lookups
-			containers::map<archetype::LookupHash, archetype::ArchetypeList> m_archetypeMap;
+			containers::map<archetype::ArchetypeLookupKey, archetype::Archetype*> m_archetypeMap;
 			//! List of archetypes - used for iteration
 			archetype::ArchetypeList m_archetypes;
 
@@ -17964,24 +18063,16 @@ namespace gaia {
 				const uint32_t lastEntityIdx = chunkEntityCount - 1;
 				const bool wasDisabled = pChunk->GetDisabledEntityMask().test(lastEntityIdx);
 
-				if constexpr (IsEntityReleaseWanted) {
-					pChunk->SwapEntitiesInsideChunkAndDeleteOld(entityChunkIndex, {m_entities.data(), m_entities.size()});
+				pChunk->SwapEntitiesInsideChunkAndDeleteOld(entityChunkIndex, {m_entities.data(), m_entities.size()});
 
-					// Transfer the disabled state is possible
-					if GAIA_LIKELY (chunkEntityCount > 1)
-						archetype.EnableEntity(pChunk, entityChunkIndex, !wasDisabled);
+				// Transfer the disabled state is possible
+				if GAIA_LIKELY (chunkEntityCount > 1)
+					archetype.EnableEntity(pChunk, entityChunkIndex, !wasDisabled);
 
-					pChunk->RemoveLastEntity(m_chunksToRemove);
+				pChunk->RemoveLastEntity(m_chunksToRemove);
+
+				if constexpr (IsEntityReleaseWanted)
 					ReleaseEntity(entity);
-				} else {
-					pChunk->SwapEntitiesInsideChunkAndDeleteOld(entityChunkIndex, {m_entities.data(), m_entities.size()});
-
-					// Transfer the disabled state is possible
-					if GAIA_LIKELY (chunkEntityCount > 1)
-						archetype.EnableEntity(pChunk, entityChunkIndex, !wasDisabled);
-
-					pChunk->RemoveLastEntity(m_chunksToRemove);
-				}
 
 				pChunk->UpdateVersions();
 #endif
@@ -18009,47 +18100,18 @@ namespace gaia {
 			//! \param componentIdsChunk Span of chunk component ids
 			//! \return Pointer to archetype or nullptr.
 			GAIA_NODISCARD archetype::Archetype* FindArchetype(
-					archetype::LookupHash lookupHash, component::ComponentIdSpan componentIdsGeneric,
+					archetype::Archetype::LookupHash lookupHash, component::ComponentIdSpan componentIdsGeneric,
 					component::ComponentIdSpan componentIdsChunk) {
+				auto tmpArchetype = archetype::ArchetypeLookupChecker(componentIdsGeneric, componentIdsChunk);
+				archetype::ArchetypeLookupKey key(lookupHash, &tmpArchetype);
+
 				// Search for the archetype in the map
-				const auto it = m_archetypeMap.find(lookupHash);
+				const auto it = m_archetypeMap.find(key);
 				if (it == m_archetypeMap.end())
 					return nullptr;
 
-				const auto& archetypeArray = it->second;
-				GAIA_ASSERT(!archetypeArray.empty());
-
-				// More than one archetype can have the same lookup key. However, this should be extermely
-				// rare (basically it should never happen). For this reason, only search for the exact match
-				// if we happen to have more archetypes under the same hash.
-				if GAIA_LIKELY (archetypeArray.size() == 1)
-					return archetypeArray[0];
-
-				auto checkComponentIds = [&](const archetype::ComponentIdArray& componentIdsArchetype,
-																		 component::ComponentIdSpan componentIds) {
-					for (uint32_t j = 0; j < componentIds.size(); j++) {
-						// Different components. We need to search further
-						if (componentIdsArchetype[j] != componentIds[j])
-							return false;
-					}
-					return true;
-				};
-
-				// Iterate over the list of archetypes and find the exact match
-				for (auto* pArchetype: archetypeArray) {
-					const auto& genericComponentList = pArchetype->GetComponentIdArray(component::ComponentType::CT_Generic);
-					if (genericComponentList.size() != componentIdsGeneric.size())
-						continue;
-					const auto& chunkComponentList = pArchetype->GetComponentIdArray(component::ComponentType::CT_Chunk);
-					if (chunkComponentList.size() != componentIdsChunk.size())
-						continue;
-
-					if (checkComponentIds(genericComponentList, componentIdsGeneric) &&
-							checkComponentIds(chunkComponentList, componentIdsChunk))
-						return pArchetype;
-				}
-
-				return nullptr;
+				auto* pArchetype = it->second;
+				return pArchetype;
 			}
 
 			//! Creates a new archetype from a given set of components
@@ -18091,15 +18153,7 @@ namespace gaia {
 
 				// Register the archetype
 				m_archetypes.push_back(pArchetype);
-
-				auto it = m_archetypeMap.find(pArchetype->GetLookupHash());
-				if (it == m_archetypeMap.end()) {
-					m_archetypeMap[pArchetype->GetLookupHash()] = {pArchetype};
-				} else {
-					auto& archetypes = it->second;
-					GAIA_ASSERT(!utils::has(archetypes, pArchetype));
-					archetypes.push_back(pArchetype);
-				}
+				m_archetypeMap.emplace(archetype::ArchetypeLookupKey(pArchetype->GetLookupHash(), pArchetype), pArchetype);
 			}
 
 #if GAIA_DEBUG
@@ -18188,7 +18242,7 @@ namespace gaia {
 						pArchetypeRight = FindArchetype(lookupHash, component::ComponentIdSpan(&infoToAdd.componentId, 1), {});
 						if (pArchetypeRight == nullptr) {
 							pArchetypeRight = CreateArchetype(component::ComponentIdSpan(&infoToAdd.componentId, 1), {});
-							pArchetypeRight->Init({genericHash}, {0}, lookupHash);
+							pArchetypeRight->SetHashes({genericHash}, {0}, lookupHash);
 							pArchetypeRight->BuildGraphEdgesLeft(pArchetypeLeft, componentType, infoToAdd.componentId);
 							RegisterArchetype(pArchetypeRight);
 						}
@@ -18198,7 +18252,7 @@ namespace gaia {
 						pArchetypeRight = FindArchetype(lookupHash, {}, component::ComponentIdSpan(&infoToAdd.componentId, 1));
 						if (pArchetypeRight == nullptr) {
 							pArchetypeRight = CreateArchetype({}, component::ComponentIdSpan(&infoToAdd.componentId, 1));
-							pArchetypeRight->Init({0}, {chunkHash}, lookupHash);
+							pArchetypeRight->SetHashes({0}, {chunkHash}, lookupHash);
 							pArchetypeRight->BuildGraphEdgesLeft(pArchetypeLeft, componentType, infoToAdd.componentId);
 							RegisterArchetype(pArchetypeRight);
 						}
@@ -18248,7 +18302,7 @@ namespace gaia {
 						FindArchetype(lookupHash, {infos[0]->data(), infos[0]->size()}, {infos[1]->data(), infos[1]->size()});
 				if (pArchetypeRight == nullptr) {
 					pArchetypeRight = CreateArchetype({infos[0]->data(), infos[0]->size()}, {infos[1]->data(), infos[1]->size()});
-					pArchetypeRight->Init(genericHash, chunkHash, lookupHash);
+					pArchetypeRight->SetHashes(genericHash, chunkHash, lookupHash);
 					pArchetypeLeft->BuildGraphEdges(pArchetypeRight, componentType, infoToAdd.componentId);
 					RegisterArchetype(pArchetypeRight);
 				}
@@ -18303,7 +18357,7 @@ namespace gaia {
 						FindArchetype(lookupHash, {infos[0]->data(), infos[0]->size()}, {infos[1]->data(), infos[1]->size()});
 				if (pArchetype == nullptr) {
 					pArchetype = CreateArchetype({infos[0]->data(), infos[0]->size()}, {infos[1]->data(), infos[1]->size()});
-					pArchetype->Init(genericHash, lookupHash, lookupHash);
+					pArchetype->SetHashes(genericHash, lookupHash, lookupHash);
 					pArchetype->BuildGraphEdges(pArchetypeRight, componentType, infoToRemove.componentId);
 					RegisterArchetype(pArchetype);
 				}
@@ -18500,7 +18554,7 @@ namespace gaia {
 
 			void Init() {
 				auto* pRootArchetype = CreateArchetype({}, {});
-				pRootArchetype->Init({0}, {0}, archetype::Archetype::CalculateLookupHash({0}, {0}));
+				pRootArchetype->SetHashes({0}, {0}, archetype::Archetype::CalculateLookupHash({0}, {0}));
 				RegisterArchetype(pRootArchetype);
 			}
 
