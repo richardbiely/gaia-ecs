@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <type_traits>
 #include <utility>
+#include <tuple>
 
 #include "../../utils/iterator.h"
 #include "../../utils/mem.h"

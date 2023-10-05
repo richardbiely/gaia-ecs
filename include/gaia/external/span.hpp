@@ -16,6 +16,7 @@ http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/n4820.pdf
 #include <cstddef>
 #include <cstdint>
 #include <initializer_list>
+#include <tuple>
 #include <type_traits>
 
 #ifndef TCB_SPAN_NO_EXCEPTIONS
