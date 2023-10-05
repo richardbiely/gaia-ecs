@@ -201,5 +201,3 @@ namespace gaia {
 
 	} // namespace utils
 } // namespace gaia
-
-#define REGISTER_HASH_TYPE(type)

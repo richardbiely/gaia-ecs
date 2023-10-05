@@ -16,7 +16,6 @@ namespace gaia {
 			class Archetype;
 
 			using ArchetypeId = uint32_t;
-			using LookupHash = utils::direct_hash_key<uint64_t>;
 			using ArchetypeList = containers::darray<Archetype*>;
 			using ComponentIdArray = containers::sarray_ext<component::ComponentId, MAX_COMPONENTS_PER_ARCHETYPE>;
 			using ChunkVersionOffset = uint8_t;

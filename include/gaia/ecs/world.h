@@ -47,7 +47,7 @@ namespace gaia {
 			query::ComponentToArchetypeMap m_componentToArchetypeMap;
 
 			//! Map of archetypes mapping to the same hash - used for lookups
-			containers::map<archetype::LookupHash, archetype::ArchetypeList> m_archetypeMap;
+			containers::map<archetype::ArchetypeLookupKey, archetype::Archetype*> m_archetypeMap;
 			//! List of archetypes - used for iteration
 			archetype::ArchetypeList m_archetypes;
 
@@ -129,24 +129,16 @@ namespace gaia {
 				const uint32_t lastEntityIdx = chunkEntityCount - 1;
 				const bool wasDisabled = pChunk->GetDisabledEntityMask().test(lastEntityIdx);
 
-				if constexpr (IsEntityReleaseWanted) {
-					pChunk->SwapEntitiesInsideChunkAndDeleteOld(entityChunkIndex, {m_entities.data(), m_entities.size()});
+				pChunk->SwapEntitiesInsideChunkAndDeleteOld(entityChunkIndex, {m_entities.data(), m_entities.size()});
 
-					// Transfer the disabled state is possible
-					if GAIA_LIKELY (chunkEntityCount > 1)
-						archetype.EnableEntity(pChunk, entityChunkIndex, !wasDisabled);
+				// Transfer the disabled state is possible
+				if GAIA_LIKELY (chunkEntityCount > 1)
+					archetype.EnableEntity(pChunk, entityChunkIndex, !wasDisabled);
 
-					pChunk->RemoveLastEntity(m_chunksToRemove);
+				pChunk->RemoveLastEntity(m_chunksToRemove);
+
+				if constexpr (IsEntityReleaseWanted)
 					ReleaseEntity(entity);
-				} else {
-					pChunk->SwapEntitiesInsideChunkAndDeleteOld(entityChunkIndex, {m_entities.data(), m_entities.size()});
-
-					// Transfer the disabled state is possible
-					if GAIA_LIKELY (chunkEntityCount > 1)
-						archetype.EnableEntity(pChunk, entityChunkIndex, !wasDisabled);
-
-					pChunk->RemoveLastEntity(m_chunksToRemove);
-				}
 
 				pChunk->UpdateVersions();
 #endif
@@ -174,47 +166,18 @@ namespace gaia {
 			//! \param componentIdsChunk Span of chunk component ids
 			//! \return Pointer to archetype or nullptr.
 			GAIA_NODISCARD archetype::Archetype* FindArchetype(
-					archetype::LookupHash lookupHash, component::ComponentIdSpan componentIdsGeneric,
+					archetype::Archetype::LookupHash lookupHash, component::ComponentIdSpan componentIdsGeneric,
 					component::ComponentIdSpan componentIdsChunk) {
+				auto tmpArchetype = archetype::ArchetypeLookupChecker(componentIdsGeneric, componentIdsChunk);
+				archetype::ArchetypeLookupKey key(lookupHash, &tmpArchetype);
+
 				// Search for the archetype in the map
-				const auto it = m_archetypeMap.find(lookupHash);
+				const auto it = m_archetypeMap.find(key);
 				if (it == m_archetypeMap.end())
 					return nullptr;
 
-				const auto& archetypeArray = it->second;
-				GAIA_ASSERT(!archetypeArray.empty());
-
-				// More than one archetype can have the same lookup key. However, this should be extermely
-				// rare (basically it should never happen). For this reason, only search for the exact match
-				// if we happen to have more archetypes under the same hash.
-				if GAIA_LIKELY (archetypeArray.size() == 1)
-					return archetypeArray[0];
-
-				auto checkComponentIds = [&](const archetype::ComponentIdArray& componentIdsArchetype,
-																		 component::ComponentIdSpan componentIds) {
-					for (uint32_t j = 0; j < componentIds.size(); j++) {
-						// Different components. We need to search further
-						if (componentIdsArchetype[j] != componentIds[j])
-							return false;
-					}
-					return true;
-				};
-
-				// Iterate over the list of archetypes and find the exact match
-				for (auto* pArchetype: archetypeArray) {
-					const auto& genericComponentList = pArchetype->GetComponentIdArray(component::ComponentType::CT_Generic);
-					if (genericComponentList.size() != componentIdsGeneric.size())
-						continue;
-					const auto& chunkComponentList = pArchetype->GetComponentIdArray(component::ComponentType::CT_Chunk);
-					if (chunkComponentList.size() != componentIdsChunk.size())
-						continue;
-
-					if (checkComponentIds(genericComponentList, componentIdsGeneric) &&
-							checkComponentIds(chunkComponentList, componentIdsChunk))
-						return pArchetype;
-				}
-
-				return nullptr;
+				auto* pArchetype = it->second;
+				return pArchetype;
 			}
 
 			//! Creates a new archetype from a given set of components
@@ -256,15 +219,7 @@ namespace gaia {
 
 				// Register the archetype
 				m_archetypes.push_back(pArchetype);
-
-				auto it = m_archetypeMap.find(pArchetype->GetLookupHash());
-				if (it == m_archetypeMap.end()) {
-					m_archetypeMap[pArchetype->GetLookupHash()] = {pArchetype};
-				} else {
-					auto& archetypes = it->second;
-					GAIA_ASSERT(!utils::has(archetypes, pArchetype));
-					archetypes.push_back(pArchetype);
-				}
+				m_archetypeMap.emplace(archetype::ArchetypeLookupKey(pArchetype->GetLookupHash(), pArchetype), pArchetype);
 			}
 
 #if GAIA_DEBUG
@@ -353,7 +308,7 @@ namespace gaia {
 						pArchetypeRight = FindArchetype(lookupHash, component::ComponentIdSpan(&infoToAdd.componentId, 1), {});
 						if (pArchetypeRight == nullptr) {
 							pArchetypeRight = CreateArchetype(component::ComponentIdSpan(&infoToAdd.componentId, 1), {});
-							pArchetypeRight->Init({genericHash}, {0}, lookupHash);
+							pArchetypeRight->SetHashes({genericHash}, {0}, lookupHash);
 							pArchetypeRight->BuildGraphEdgesLeft(pArchetypeLeft, componentType, infoToAdd.componentId);
 							RegisterArchetype(pArchetypeRight);
 						}
@@ -363,7 +318,7 @@ namespace gaia {
 						pArchetypeRight = FindArchetype(lookupHash, {}, component::ComponentIdSpan(&infoToAdd.componentId, 1));
 						if (pArchetypeRight == nullptr) {
 							pArchetypeRight = CreateArchetype({}, component::ComponentIdSpan(&infoToAdd.componentId, 1));
-							pArchetypeRight->Init({0}, {chunkHash}, lookupHash);
+							pArchetypeRight->SetHashes({0}, {chunkHash}, lookupHash);
 							pArchetypeRight->BuildGraphEdgesLeft(pArchetypeLeft, componentType, infoToAdd.componentId);
 							RegisterArchetype(pArchetypeRight);
 						}
@@ -413,7 +368,7 @@ namespace gaia {
 						FindArchetype(lookupHash, {infos[0]->data(), infos[0]->size()}, {infos[1]->data(), infos[1]->size()});
 				if (pArchetypeRight == nullptr) {
 					pArchetypeRight = CreateArchetype({infos[0]->data(), infos[0]->size()}, {infos[1]->data(), infos[1]->size()});
-					pArchetypeRight->Init(genericHash, chunkHash, lookupHash);
+					pArchetypeRight->SetHashes(genericHash, chunkHash, lookupHash);
 					pArchetypeLeft->BuildGraphEdges(pArchetypeRight, componentType, infoToAdd.componentId);
 					RegisterArchetype(pArchetypeRight);
 				}
@@ -468,7 +423,7 @@ namespace gaia {
 						FindArchetype(lookupHash, {infos[0]->data(), infos[0]->size()}, {infos[1]->data(), infos[1]->size()});
 				if (pArchetype == nullptr) {
 					pArchetype = CreateArchetype({infos[0]->data(), infos[0]->size()}, {infos[1]->data(), infos[1]->size()});
-					pArchetype->Init(genericHash, lookupHash, lookupHash);
+					pArchetype->SetHashes(genericHash, lookupHash, lookupHash);
 					pArchetype->BuildGraphEdges(pArchetypeRight, componentType, infoToRemove.componentId);
 					RegisterArchetype(pArchetype);
 				}
@@ -665,7 +620,7 @@ namespace gaia {
 
 			void Init() {
 				auto* pRootArchetype = CreateArchetype({}, {});
-				pRootArchetype->Init({0}, {0}, archetype::Archetype::CalculateLookupHash({0}, {0}));
+				pRootArchetype->SetHashes({0}, {0}, archetype::Archetype::CalculateLookupHash({0}, {0}));
 				RegisterArchetype(pRootArchetype);
 			}
 
