@@ -106,7 +106,7 @@ void CreateEntities(ecs::World& w) {
 		w.AddComponent<Velocity>(e, {1, 0, 0});
 
 		constexpr uint32_t N = 1000;
-		for (size_t i = 0; i < N; i++) {
+		for (uint32_t i = 0; i < N; i++) {
 			[[maybe_unused]] auto newentity = w.CreateEntity(e);
 		}
 	}

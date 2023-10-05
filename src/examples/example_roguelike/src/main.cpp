@@ -439,7 +439,7 @@ struct World {
 
 	void CreateEnemies() {
 		containers::sarray<ecs::Entity, 3> enemies;
-		for (size_t i = 0; i < enemies.size(); ++i) {
+		for (uint32_t i = 0; i < enemies.size(); ++i) {
 			auto& e = enemies[i];
 			e = w.CreateEntity();
 			w.AddComponent<Position>(e, {});

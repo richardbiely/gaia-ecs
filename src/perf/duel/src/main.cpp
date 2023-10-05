@@ -1,6 +1,6 @@
 #define PICOBENCH_IMPLEMENT
-#include "gaia.h"
 #include "gaia/external/picobench.hpp"
+#include <gaia.h>
 #include <string_view>
 
 #if GAIA_ARCH != GAIA_ARCH_ARM
@@ -47,7 +47,7 @@ struct Dummy {
 	int value[24];
 };
 
-constexpr size_t N = 32'000; // kept a multiple of 32 to keep it simple even for SIMD code
+constexpr uint32_t N = 32'000; // kept a multiple of 32 to keep it simple even for SIMD code
 constexpr float MinDelta = 0.01f;
 constexpr float MaxDelta = 0.033f;
 
@@ -69,7 +69,7 @@ void CreateECSEntities_Static(ecs::World& w) {
 			w.AddComponent<Position>(e, {0, 100, 0});
 		w.AddComponent<Rotation>(e, {1, 2, 3, 4});
 		w.AddComponent<Scale>(e, {1, 1, 1});
-		for (size_t i = 0; i < N; i++) {
+		for (uint32_t i = 0; i < N; i++) {
 			[[maybe_unused]] auto newentity = w.CreateEntity(e);
 		}
 	}
@@ -89,7 +89,7 @@ void CreateECSEntities_Dynamic(ecs::World& w) {
 			w.AddComponent<VelocitySoA>(e, {0, 0, 1});
 		else
 			w.AddComponent<Velocity>(e, {0, 0, 1});
-		for (size_t i = 0; i < N / 4; i++) {
+		for (uint32_t i = 0; i < N / 4; i++) {
 			[[maybe_unused]] auto newentity = w.CreateEntity(e);
 		}
 	}
@@ -106,7 +106,7 @@ void CreateECSEntities_Dynamic(ecs::World& w) {
 		else
 			w.AddComponent<Velocity>(e, {0, 0, 1});
 		w.AddComponent<Direction>(e, {0, 0, 1});
-		for (size_t i = 0; i < N / 4; i++) {
+		for (uint32_t i = 0; i < N / 4; i++) {
 			[[maybe_unused]] auto newentity = w.CreateEntity(e);
 		}
 	}
@@ -124,7 +124,7 @@ void CreateECSEntities_Dynamic(ecs::World& w) {
 			w.AddComponent<Velocity>(e, {0, 0, 1});
 		w.AddComponent<Direction>(e, {0, 0, 1});
 		w.AddComponent<Health>(e, {100, 100});
-		for (size_t i = 0; i < N / 4; i++) {
+		for (uint32_t i = 0; i < N / 4; i++) {
 			[[maybe_unused]] auto newentity = w.CreateEntity(e);
 		}
 	}
@@ -143,7 +143,7 @@ void CreateECSEntities_Dynamic(ecs::World& w) {
 		w.AddComponent<Direction>(e, {0, 0, 1});
 		w.AddComponent<Health>(e, {100, 100});
 		w.AddComponent<IsEnemy>(e, {false});
-		for (size_t i = 0; i < N / 4; i++) {
+		for (uint32_t i = 0; i < N / 4; i++) {
 			[[maybe_unused]] auto newentity = w.CreateEntity(e);
 		}
 	}
@@ -556,17 +556,17 @@ void BM_ECS_WithSystems_Iter_SoA_SIMD(picobench::state& state) {
 				const auto size = iter.size();
 				const auto dtVec = _mm_set_ps1(dt);
 
-				auto exec = [&](float* GAIA_RESTRICT p, const float* GAIA_RESTRICT v, const size_t offset) {
+				auto exec = [&](float* GAIA_RESTRICT p, const float* GAIA_RESTRICT v, const uint32_t offset) {
 					const auto pVec = _mm_load_ps(p + offset);
 					const auto vVec = _mm_load_ps(v + offset);
 					const auto respVec = _mm_fmadd_ps(vVec, dtVec, pVec);
 					_mm_store_ps(p + offset, respVec);
 				};
-				auto exec2 = [](float* GAIA_RESTRICT p, const float* GAIA_RESTRICT v, const size_t offset) {
+				auto exec2 = [](float* GAIA_RESTRICT p, const float* GAIA_RESTRICT v, const uint32_t offset) {
 					p[offset] += v[offset] * dt;
 				};
 
-				size_t i = 0;
+				uint32_t i = 0;
 				// Optimize via "double-read" trick to hide latencies.
 				// Item count is always a multiple of 4 for chunks with SoA components.
 				for (; i < size; i += 8) {
@@ -606,7 +606,7 @@ void BM_ECS_WithSystems_Iter_SoA_SIMD(picobench::state& state) {
 				auto vvy = v.set<1>();
 				const auto size = iter.size();
 
-				auto exec = [&](float* GAIA_RESTRICT p, float* GAIA_RESTRICT v, const size_t offset) {
+				auto exec = [&](float* GAIA_RESTRICT p, float* GAIA_RESTRICT v, const uint32_t offset) {
 					const auto vyVec = _mm_load_ps(v + offset);
 					const auto pyVec = _mm_load_ps(p + offset);
 
@@ -617,14 +617,14 @@ void BM_ECS_WithSystems_Iter_SoA_SIMD(picobench::state& state) {
 					_mm_store_ps(v + offset, res_vyVec);
 					_mm_store_ps(p + offset, res_pyVec);
 				};
-				auto exec2 = [](float* GAIA_RESTRICT p, float* GAIA_RESTRICT v, const size_t offset) {
+				auto exec2 = [](float* GAIA_RESTRICT p, float* GAIA_RESTRICT v, const uint32_t offset) {
 					if (p[offset] < 0.0f) {
 						p[offset] = 0.0f;
 						v[offset] = 0.0f;
 					}
 				};
 
-				size_t i = 0;
+				uint32_t i = 0;
 				// Optimize via "double-read" trick to hide latencies.
 				// Item count is always a multiple of 4 for chunks with SoA components.
 				for (; i < size; i += 8) {
@@ -649,16 +649,16 @@ void BM_ECS_WithSystems_Iter_SoA_SIMD(picobench::state& state) {
 				const auto gg_gVec = _mm_set_ps1(9.81f);
 				const auto gg_dtVec = _mm_set_ps1(dt);
 
-				auto exec = [&](float* GAIA_RESTRICT v, const size_t offset) {
+				auto exec = [&](float* GAIA_RESTRICT v, const uint32_t offset) {
 					const auto vyVec = _mm_load_ps(v + offset);
 					const auto mulVec = _mm_fmadd_ps(gg_dtVec, gg_gVec, vyVec);
 					_mm_store_ps(v + offset, mulVec);
 				};
-				auto exec2 = [](float* GAIA_RESTRICT v, const size_t offset) {
+				auto exec2 = [](float* GAIA_RESTRICT v, const uint32_t offset) {
 					v[offset] += dt * 9.81f;
 				};
 
-				size_t i = 0;
+				uint32_t i = 0;
 				// Optimize via "double-read" trick to hide latencies.
 				// Item count is always a multiple of 4 for chunks with SoA components.
 				for (; i < size; i += 8) {
@@ -679,7 +679,7 @@ void BM_ECS_WithSystems_Iter_SoA_SIMD(picobench::state& state) {
 				auto h = iter.View<Health>();
 
 				uint32_t a = 0;
-				for (size_t i = 0; i < h.size(); ++i) {
+				for (uint32_t i = 0; i < h.size(); ++i) {
 					if (h[i].value > 0)
 						++a;
 				}
@@ -840,7 +840,7 @@ void BM_NonECS(picobench::state& state) {
 	// We allocate via new to simulate the usual kind of behavior in games
 	containers::darray<IUnit*> units(N * 2);
 	{
-		for (size_t i = 0; i < N; i++) {
+		for (uint32_t i = 0; i < N; i++) {
 			auto* u = new UnitStatic();
 			u->p = {0, 100, 0};
 			u->r = {1, 2, 3, 4};
@@ -848,7 +848,7 @@ void BM_NonECS(picobench::state& state) {
 			units[i] = u;
 		}
 		uint32_t j = N;
-		for (size_t i = 0; i < N / 4; i++) {
+		for (uint32_t i = 0; i < N / 4; i++) {
 			auto* u = new UnitDynamic1();
 			u->p = {0, 100, 0};
 			u->r = {1, 2, 3, 4};
@@ -857,7 +857,7 @@ void BM_NonECS(picobench::state& state) {
 			units[j + i] = u;
 		}
 		j += N / 4;
-		for (size_t i = 0; i < N / 4; i++) {
+		for (uint32_t i = 0; i < N / 4; i++) {
 			auto* u = new UnitDynamic2();
 			u->p = {0, 100, 0};
 			u->r = {1, 2, 3, 4};
@@ -866,7 +866,7 @@ void BM_NonECS(picobench::state& state) {
 			units[j + i] = u;
 		}
 		j += N / 4;
-		for (size_t i = 0; i < N / 4; i++) {
+		for (uint32_t i = 0; i < N / 4; i++) {
 			auto* u = new UnitDynamic3();
 			u->p = {0, 100, 0};
 			u->r = {1, 2, 3, 4};
@@ -875,7 +875,7 @@ void BM_NonECS(picobench::state& state) {
 			units[j + i] = u;
 		}
 		j += N / 4;
-		for (size_t i = 0; i < N / 4; i++) {
+		for (uint32_t i = 0; i < N / 4; i++) {
 			auto* u = new UnitDynamic4();
 			u->p = {0, 100, 0};
 			u->r = {1, 2, 3, 4};
@@ -988,7 +988,7 @@ void BM_NonECS_BetterMemoryLayout(picobench::state& state) {
 
 	// Create entities.
 	containers::darray<UnitStatic> units_static(N);
-	for (size_t i = 0; i < N; i++) {
+	for (uint32_t i = 0; i < N; i++) {
 		UnitStatic u;
 		u.p = {0, 100, 0};
 		u.r = {1, 2, 3, 4};
@@ -1001,7 +1001,7 @@ void BM_NonECS_BetterMemoryLayout(picobench::state& state) {
 	containers::darray<UnitDynamic3> units_dynamic3(N / 4);
 	containers::darray<UnitDynamic4> units_dynamic4(N / 4);
 
-	for (size_t i = 0; i < N / 4; i++) {
+	for (uint32_t i = 0; i < N / 4; i++) {
 		UnitDynamic1 u;
 		u.p = {0, 100, 0};
 		u.r = {1, 2, 3, 4};
@@ -1009,7 +1009,7 @@ void BM_NonECS_BetterMemoryLayout(picobench::state& state) {
 		u.v = {0, 0, 1};
 		units_dynamic1[i] = std::move(u);
 	}
-	for (size_t i = 0; i < N / 4; i++) {
+	for (uint32_t i = 0; i < N / 4; i++) {
 		UnitDynamic2 u;
 		u.p = {0, 100, 0};
 		u.r = {1, 2, 3, 4};
@@ -1018,7 +1018,7 @@ void BM_NonECS_BetterMemoryLayout(picobench::state& state) {
 		u.d = {0, 0, 1};
 		units_dynamic2[i] = std::move(u);
 	}
-	for (size_t i = 0; i < N / 4; i++) {
+	for (uint32_t i = 0; i < N / 4; i++) {
 		UnitDynamic3 u;
 		u.p = {0, 100, 0};
 		u.r = {1, 2, 3, 4};
@@ -1028,7 +1028,7 @@ void BM_NonECS_BetterMemoryLayout(picobench::state& state) {
 		u.h = {100, 100};
 		units_dynamic3[i] = std::move(u);
 	}
-	for (size_t i = 0; i < N / 4; i++) {
+	for (uint32_t i = 0; i < N / 4; i++) {
 		UnitDynamic4 u;
 		u.p = {0, 100, 0};
 		u.r = {1, 2, 3, 4};
@@ -1088,7 +1088,7 @@ void BM_NonECS_DOD(picobench::state& state) {
 	struct UnitDynamic {
 		static void
 		updatePosition(containers::darray<Position>& p, const containers::darray<Velocity>& v, float deltaTime) {
-			for (size_t i = 0; i < p.size(); i++) {
+			for (uint32_t i = 0; i < p.size(); i++) {
 				p[i].x += v[i].x * deltaTime;
 				p[i].y += v[i].y * deltaTime;
 				p[i].z += v[i].z * deltaTime;
@@ -1099,7 +1099,7 @@ void BM_NonECS_DOD(picobench::state& state) {
 			DoNotOptimize(p[0].z);
 		}
 		static void handleGroundCollision(containers::darray<Position>& p, containers::darray<Velocity>& v) {
-			for (size_t i = 0; i < p.size(); i++) {
+			for (uint32_t i = 0; i < p.size(); i++) {
 				if (p[i].y < 0.0f) {
 					p[i].y = 0.0f;
 					v[i].y = 0.0f;
@@ -1111,7 +1111,7 @@ void BM_NonECS_DOD(picobench::state& state) {
 		}
 
 		static void applyGravity(containers::darray<Velocity>& v, float deltaTime) {
-			for (size_t i = 0; i < v.size(); i++)
+			for (uint32_t i = 0; i < v.size(); i++)
 				v[i].y += 9.81f * deltaTime;
 
 			DoNotOptimize(v[0].y);
@@ -1119,7 +1119,7 @@ void BM_NonECS_DOD(picobench::state& state) {
 
 		static uint32_t calculateAliveUnits(const containers::darray<Health>& h) {
 			uint32_t aliveUnits = 0;
-			for (size_t i = 0; i < h.size(); i++) {
+			for (uint32_t i = 0; i < h.size(); i++) {
 				if (h[i].value > 0)
 					++aliveUnits;
 			}
@@ -1127,7 +1127,7 @@ void BM_NonECS_DOD(picobench::state& state) {
 		}
 	};
 
-	constexpr size_t NGroup = N / Groups;
+	constexpr uint32_t NGroup = N / Groups;
 
 	// Create static entities.
 	struct static_units_group {
@@ -1136,7 +1136,7 @@ void BM_NonECS_DOD(picobench::state& state) {
 		containers::darray<Scale> units_s{NGroup};
 	} static_groups[Groups];
 	for (auto& g: static_groups) {
-		for (size_t i = 0; i < NGroup; i++) {
+		for (uint32_t i = 0; i < NGroup; i++) {
 			g.units_p[i] = {0, 100, 0};
 			g.units_r[i] = {1, 2, 3, 4};
 			g.units_s[i] = {1, 1, 1};
@@ -1154,7 +1154,7 @@ void BM_NonECS_DOD(picobench::state& state) {
 		containers::darray<IsEnemy> units_e{NGroup};
 	} dynamic_groups[Groups];
 	for (auto& g: dynamic_groups) {
-		for (size_t i = 0; i < NGroup; i++) {
+		for (uint32_t i = 0; i < NGroup; i++) {
 			g.units_p[i] = {0, 100, 0};
 			g.units_r[i] = {1, 2, 3, 4};
 			g.units_s[i] = {1, 1, 1};
@@ -1200,7 +1200,7 @@ void BM_NonECS_DOD(picobench::state& state) {
 	}
 }
 
-template <size_t Groups>
+template <uint32_t Groups>
 void BM_NonECS_DOD_SoA(picobench::state& state) {
 	struct UnitDynamic {
 		static void updatePosition(containers::darray<PositionSoA>& p, const containers::darray<VelocitySoA>& v) {
@@ -1217,11 +1217,11 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 			auto vvy = vv.get<1>();
 			auto vvz = vv.get<2>();
 
-			for (size_t i = 0; i < ppx.size(); ++i)
+			for (uint32_t i = 0; i < ppx.size(); ++i)
 				ppx[i] += vvx[i] * dt;
-			for (size_t i = 0; i < ppy.size(); ++i)
+			for (uint32_t i = 0; i < ppy.size(); ++i)
 				ppy[i] += vvy[i] * dt;
-			for (size_t i = 0; i < ppz.size(); ++i)
+			for (uint32_t i = 0; i < ppz.size(); ++i)
 				ppz[i] += vvz[i] * dt;
 
 			DoNotOptimize(ppx[0]);
@@ -1238,7 +1238,7 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 			auto ppy = pv.set<1>();
 			auto vvy = vv.set<1>();
 
-			for (size_t i = 0; i < ppy.size(); ++i) {
+			for (uint32_t i = 0; i < ppy.size(); ++i) {
 				if (ppy[i] < 0.0f) {
 					ppy[i] = 0.0f;
 					vvy[i] = 0.0f;
@@ -1256,7 +1256,7 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 
 			auto vvy = vv.set<1>();
 
-			for (size_t i = 0; i < vvy.size(); ++i)
+			for (uint32_t i = 0; i < vvy.size(); ++i)
 				vvy[i] += 9.81f * dt;
 
 			DoNotOptimize(vvy[0]);
@@ -1266,7 +1266,7 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 			GAIA_PROF_SCOPE(calculateAliveUnits);
 
 			uint32_t aliveUnits = 0;
-			for (size_t i = 0; i < h.size(); i++) {
+			for (uint32_t i = 0; i < h.size(); i++) {
 				if (h[i].value > 0)
 					++aliveUnits;
 			}
@@ -1274,7 +1274,7 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 		}
 	};
 
-	constexpr size_t NGroup = N / Groups;
+	constexpr uint32_t NGroup = N / Groups;
 
 	// Create static entities.
 	struct static_units_group {
@@ -1283,7 +1283,7 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 		containers::darray<Scale> units_s{NGroup};
 	} static_groups[Groups];
 	for (auto& g: static_groups) {
-		for (size_t i = 0; i < NGroup; i++) {
+		for (uint32_t i = 0; i < NGroup; i++) {
 			g.units_p[i] = {0, 100, 0};
 			g.units_r[i] = {1, 2, 3, 4};
 			g.units_s[i] = {1, 1, 1};
@@ -1301,7 +1301,7 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 		containers::darray<IsEnemy> units_e{NGroup};
 	} dynamic_groups[Groups];
 	for (auto& g: dynamic_groups) {
-		for (size_t i = 0; i < NGroup; i++) {
+		for (uint32_t i = 0; i < NGroup; i++) {
 			g.units_p[i] = {0, 100, 0};
 			g.units_r[i] = {1, 2, 3, 4};
 			g.units_s[i] = {1, 1, 1};
@@ -1356,17 +1356,17 @@ void BM_NonECS_DOD_SoA_SIMD(picobench::state& state) {
 			const auto size = p.size();
 			const auto dtVec = _mm_set_ps1(dt);
 
-			auto exec = [&](float* GAIA_RESTRICT p, const float* GAIA_RESTRICT v, const size_t offset) {
+			auto exec = [&](float* GAIA_RESTRICT p, const float* GAIA_RESTRICT v, const uint32_t offset) {
 				const auto pVec = _mm_load_ps(p + offset);
 				const auto vVec = _mm_load_ps(v + offset);
 				const auto respVec = _mm_fmadd_ps(vVec, dtVec, pVec);
 				_mm_store_ps(p + offset, respVec);
 			};
-			auto exec2 = [](float* GAIA_RESTRICT p, const float* GAIA_RESTRICT v, size_t offset) {
+			auto exec2 = [](float* GAIA_RESTRICT p, const float* GAIA_RESTRICT v, uint32_t offset) {
 				p[offset] += v[offset] * dt;
 			};
 
-			size_t i = 0;
+			uint32_t i = 0;
 			// Optimize via "double-read" trick to hide latencies.
 			// Item count is always a multiple of 4 for chunks with SoA components.
 			for (; i < size; i += 8) {
@@ -1407,7 +1407,7 @@ void BM_NonECS_DOD_SoA_SIMD(picobench::state& state) {
 			auto vvy = vv.set<1>();
 			const auto size = p.size();
 
-			auto exec = [](float* GAIA_RESTRICT p, float* GAIA_RESTRICT v, const size_t offset) {
+			auto exec = [](float* GAIA_RESTRICT p, float* GAIA_RESTRICT v, const uint32_t offset) {
 				const auto vyVec = _mm_load_ps(v + offset);
 				const auto pyVec = _mm_load_ps(p + offset);
 
@@ -1418,14 +1418,14 @@ void BM_NonECS_DOD_SoA_SIMD(picobench::state& state) {
 				_mm_store_ps(v + offset, res_vyVec);
 				_mm_store_ps(p + offset, res_pyVec);
 			};
-			auto exec2 = [](float* GAIA_RESTRICT p, float* GAIA_RESTRICT v, size_t offset) {
+			auto exec2 = [](float* GAIA_RESTRICT p, float* GAIA_RESTRICT v, uint32_t offset) {
 				if (p[offset] < 0.0f) {
 					p[offset] = 0.0f;
 					v[offset] = 0.0f;
 				}
 			};
 
-			size_t i = 0;
+			uint32_t i = 0;
 			// Optimize via "double-read" trick to hide latencies.
 			// Item count is always a multiple of 4 for chunks with SoA components.
 			for (; i < size; i += 8) {
@@ -1450,16 +1450,16 @@ void BM_NonECS_DOD_SoA_SIMD(picobench::state& state) {
 			const auto gg_gVec = _mm_set_ps1(9.81f);
 			const auto gg_dtVec = _mm_set_ps1(dt);
 
-			auto exec = [&](float* GAIA_RESTRICT v, const size_t offset) {
+			auto exec = [&](float* GAIA_RESTRICT v, const uint32_t offset) {
 				const auto vyVec = _mm_load_ps(v + offset);
 				const auto mulVec = _mm_fmadd_ps(gg_gVec, gg_dtVec, vyVec);
 				_mm_store_ps(v + offset, mulVec);
 			};
-			auto exec2 = [](float* GAIA_RESTRICT v, const size_t offset) {
+			auto exec2 = [](float* GAIA_RESTRICT v, const uint32_t offset) {
 				v[offset] += 9.81f * dt;
 			};
 
-			size_t i = 0;
+			uint32_t i = 0;
 			// Optimize via "double-read" trick to hide latencies.
 			// Item count is always a multiple of 4 for chunks with SoA components.
 			for (; i < size; i += 8) {
@@ -1476,7 +1476,7 @@ void BM_NonECS_DOD_SoA_SIMD(picobench::state& state) {
 			GAIA_PROF_SCOPE(calculateAliveUnits);
 
 			uint32_t aliveUnits = 0;
-			for (size_t i = 0; i < h.size(); i++) {
+			for (uint32_t i = 0; i < h.size(); i++) {
 				if (h[i].value > 0)
 					++aliveUnits;
 			}
@@ -1484,7 +1484,7 @@ void BM_NonECS_DOD_SoA_SIMD(picobench::state& state) {
 		}
 	};
 
-	constexpr size_t NGroup = N / Groups;
+	constexpr uint32_t NGroup = N / Groups;
 
 	// Create static entities.
 	struct static_units_group {
@@ -1493,7 +1493,7 @@ void BM_NonECS_DOD_SoA_SIMD(picobench::state& state) {
 		containers::darray<Scale> units_s{NGroup};
 	} static_groups[Groups];
 	for (auto& g: static_groups) {
-		for (size_t i = 0; i < NGroup; i++) {
+		for (uint32_t i = 0; i < NGroup; i++) {
 			g.units_p[i] = {0, 100, 0};
 			g.units_r[i] = {1, 2, 3, 4};
 			g.units_s[i] = {1, 1, 1};
@@ -1511,7 +1511,7 @@ void BM_NonECS_DOD_SoA_SIMD(picobench::state& state) {
 		containers::darray<IsEnemy> units_e{NGroup};
 	} dynamic_groups[Groups];
 	for (auto& g: dynamic_groups) {
-		for (size_t i = 0; i < NGroup; i++) {
+		for (uint32_t i = 0; i < NGroup; i++) {
 			g.units_p[i] = {0, 100, 0};
 			g.units_r[i] = {1, 2, 3, 4};
 			g.units_s[i] = {1, 1, 1};

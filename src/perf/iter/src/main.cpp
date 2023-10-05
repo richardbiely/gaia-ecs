@@ -4,28 +4,33 @@
 
 using namespace gaia;
 
-constexpr size_t EntitiesPerArchetype = 1'000;
+constexpr uint32_t EntitiesPerArchetype = 1'000;
 
-template <size_t Version, typename T, size_t TCount>
+template <uint32_t Version, typename T, uint32_t TCount>
 struct Component {
 	T value[TCount];
 };
 
-template <size_t Version, typename T>
+template <uint32_t Version, typename T>
 struct Component<Version, T, 0> {}; // empty component
 
 namespace detail {
-	template <typename T, size_t ValuesCount, size_t ComponentCount>
+	template <typename T, uint32_t ValuesCount, uint32_t ComponentCount>
 	constexpr void AddComponents(ecs::World& w, ecs::Entity e) {
+#if 1
+		(void)w;
+		(void)e;
+#else
 		utils::for_each<ComponentCount>([&](auto i) {
 			w.AddComponent<Component<i, T, ValuesCount>>(e);
 		});
+#endif
 	}
 } // namespace detail
 
-template <typename T, size_t ValuesCount, size_t ComponentCount>
+template <typename T, uint32_t ValuesCount, uint32_t ComponentCount>
 constexpr void AddComponents(ecs::World& w, uint32_t n) {
-	for (size_t i = 0; i < n; ++i) {
+	for (uint32_t i = 0; i < n; ++i) {
 		[[maybe_unused]] auto e = w.CreateEntity();
 		detail::AddComponents<T, ValuesCount, ComponentCount>(w, e);
 	}
@@ -41,7 +46,7 @@ void Create_Archetypes_100(ecs::World& w) {
 	});
 }
 
-template <size_t N, size_t ComponentCount>
+template <uint32_t N, uint32_t ComponentCount>
 void Create_Archetypes_N(ecs::World& w) {
 	utils::for_each<N>([&](auto i) {
 		AddComponents<bool, i, ComponentCount>(w, EntitiesPerArchetype);

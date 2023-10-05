@@ -20,7 +20,7 @@ void MoveSystem(ecs::World& w, float dt) {
 int main() {
 	ecs::World w;
 
-	constexpr size_t N = 10'000;
+	constexpr uint32_t N = 10'000;
 
 	// Create entities with position and acceleration
 	auto e = w.CreateEntity();
