@@ -321,19 +321,8 @@ namespace gaia {
 						if (alignment == 0)
 							continue;
 
-						const auto padding = utils::padding(dataOffset, alignment);
-
-						// For SoA types we shall assume there is a padding of the entire size of the array.
-						// Of course this is a bit wasteful but it's a bit of work to calculate how much area exactly we need.
-						// We might have:
-						// 	struct foo { float x; float y; bool a; float z; };
-						// Each of the variables of the foo struct might need separate padding when converted to SoA.
-						// TODO: Introduce a function that can calculate this.
-						const auto componentDataSize =
-								padding + ((uint32_t)desc.properties.soa * 3 * desc.properties.size) + desc.properties.size * size;
-						const auto nextOffset = dataOffset + componentDataSize;
-
 						// If we're beyond what the chunk could take, subtract one entity
+						const auto nextOffset = desc.CalculateNewMemoryOffset(dataOffset, size);
 						if (nextOffset >= maxDataOffset) {
 							const auto subtractItems = (nextOffset - maxDataOffset + desc.properties.size) / desc.properties.size;
 							GAIA_ASSERT(subtractItems > 0);
@@ -342,7 +331,7 @@ namespace gaia {
 							return false;
 						}
 
-						dataOffset += componentDataSize;
+						dataOffset = nextOffset;
 					}
 
 					return true;

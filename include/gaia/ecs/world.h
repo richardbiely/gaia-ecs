@@ -1002,21 +1002,7 @@ namespace gaia {
 				return ComponentGetter{entityContainer.pChunk, entityContainer.idx}.HasComponent<T>();
 			}
 
-			//----------------------------------------------------------------------
-
 		private:
-			template <typename T>
-			GAIA_NODISCARD constexpr GAIA_FORCEINLINE auto GetComponentView(archetype::Chunk& chunk) const {
-				using U = typename component::component_type_t<T>::Type;
-				using UOriginal = typename component::component_type_t<T>::TypeOriginal;
-				if constexpr (component::is_component_mut_v<UOriginal>)
-					return chunk.ViewRW_Internal<U, true>();
-				else
-					return chunk.View_Internal<U>();
-			}
-
-			//--------------------------------------------------------------------------------
-
 			template <typename... T>
 			void UnpackArgsIntoQuery(Query& query, [[maybe_unused]] utils::func_type_list<T...> types) const {
 				static_assert(sizeof...(T) > 0, "Inputs-less functors can not be unpacked to query");

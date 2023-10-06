@@ -1206,8 +1206,8 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 		static void updatePosition(containers::darray<PositionSoA>& p, const containers::darray<VelocitySoA>& v) {
 			GAIA_PROF_SCOPE(updatePosition);
 
-			GAIA_UTIL::auto_view_policy_set<PositionSoA> pv{{std::span(p.data(), p.size())}};
-			GAIA_UTIL::auto_view_policy_get<VelocitySoA> vv{{std::span(v.data(), v.size())}};
+			GAIA_UTIL::auto_view_policy_set<PositionSoA> pv{std::span(p.data(), p.size())};
+			GAIA_UTIL::auto_view_policy_get<VelocitySoA> vv{std::span(v.data(), v.size())};
 
 			auto ppx = pv.set<0>();
 			auto ppy = pv.set<1>();

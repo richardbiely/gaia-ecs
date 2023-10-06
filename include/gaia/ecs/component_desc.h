@@ -8,7 +8,9 @@
 #include "../utils/data_layout_policy.h"
 #include "../utils/span.h"
 #include "../utils/type_info.h"
+#include "../utils/utility.h"
 #include "component.h"
+#include "gaia/utils/reflection.h"
 
 namespace gaia {
 	namespace ecs {
@@ -36,15 +38,20 @@ namespace gaia {
 				//! Unique component identifier
 				ComponentId componentId = ComponentIdBad;
 
+				static constexpr uint32_t MaxAlignment_Bits = 10;
+				static constexpr uint32_t MaxAlignment = (1U << MaxAlignment_Bits) - 1;
+
 				//! Various component properties
 				struct {
 					//! Component alignment
-					uint32_t alig: MAX_COMPONENTS_SIZE_BITS;
+					uint32_t alig: MaxAlignment_Bits;
 					//! Component size
 					uint32_t size: MAX_COMPONENTS_SIZE_BITS;
 					//! SOA variables. If > 0 the component is laid out in SoA style
-					uint32_t soa: utils::StructToTupleMaxTypesBits;
+					uint32_t soa: utils::StructToTupleMaxTypes_Bits;
 				} properties{};
+
+				uint8_t soaSizes[utils::StructToTupleMaxTypes];
 
 				void CtorFrom(void* pSrc, void* pDst) const {
 					if (ctor_move != nullptr)
@@ -74,6 +81,16 @@ namespace gaia {
 						dtor(pSrc, 1);
 				}
 
+				GAIA_NODISCARD uint32_t CalculateNewMemoryOffset(uint32_t addr, size_t N) const noexcept {
+					if (properties.soa == 0) {
+						addr = (uint32_t)utils::detail::get_aligned_byte_offset(addr, properties.alig, properties.size, N);
+					} else {
+						for (uint32_t i = 0; i < (uint32_t)properties.soa; ++i)
+							addr = (uint32_t)utils::detail::get_aligned_byte_offset(addr, properties.alig, soaSizes[i], N);
+					}
+					return addr;
+				}
+
 				template <typename T>
 				GAIA_NODISCARD static constexpr ComponentDesc Calculate() {
 					using U = typename component_type_t<T>::Type;
@@ -83,12 +100,21 @@ namespace gaia {
 					info.componentId = GetComponentId<T>();
 
 					if constexpr (!std::is_empty_v<U>) {
-						info.properties.alig = utils::auto_view_policy<U>::Alignment;
 						info.properties.size = (uint32_t)sizeof(U);
 
+						static_assert(MaxAlignment_Bits, "Maximum supported alignemnt for a component is MaxAlignment");
+						info.properties.alig = (uint32_t)utils::auto_view_policy<U>::Alignment;
+
 						if constexpr (utils::is_soa_layout_v<U>) {
-							using TTuple = decltype(utils::struct_to_tuple(T{}));
-							info.properties.soa = (uint32_t)std::tuple_size<TTuple>::value;
+							uint32_t i = 0;
+							using TTuple = decltype(utils::struct_to_tuple(U{}));
+							utils::for_each_tuple(TTuple{}, [&](auto&& item) {
+								static_assert(sizeof(item) <= 255, "Each member of a SoA component can be at most 255 B long!");
+								info.soaSizes[i] = (uint8_t)sizeof(item);
+								++i;
+							});
+							info.properties.soa = i;
+							GAIA_ASSERT(i <= utils::StructToTupleMaxTypes);
 						} else {
 							info.properties.soa = 0U;
 

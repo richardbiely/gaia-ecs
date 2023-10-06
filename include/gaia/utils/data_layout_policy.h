@@ -6,16 +6,19 @@
 #include <utility>
 
 #include "../utils/span.h"
+#include "../utils/utility.h"
 #include "mem.h"
 #include "reflection.h"
 
 namespace gaia {
 	namespace utils {
-		enum class DataLayout {
+		enum class DataLayout : uint32_t {
 			AoS, //< Array Of Structures
 			SoA, //< Structure Of Arrays, 4 packed items, good for SSE and similar
 			SoA8, //< Structure Of Arrays, 8 packed items, good for AVX and similar
-			SoA16 //< Structure Of Arrays, 16 packed items, good for AVX512 and similar
+			SoA16, //< Structure Of Arrays, 16 packed items, good for AVX512 and similar
+
+			Count = 4
 		};
 
 		// Helper templates
@@ -25,17 +28,20 @@ namespace gaia {
 			// Byte offset of a member of SoA-organized data
 			//----------------------------------------------------------------------
 
-			template <size_t N, size_t Alignment, typename Tuple>
-			constexpr static size_t soa_byte_offset(const uintptr_t address, [[maybe_unused]] const size_t size) {
-				const auto addressAligned = utils::align<Alignment>(address) - address;
-				if constexpr (N == 0) {
-					return addressAligned;
-				} else {
-					using tt = typename std::tuple_element<N - 1, Tuple>::type;
-					return addressAligned + sizeof(tt) * size + soa_byte_offset<N - 1, Alignment, Tuple>(address, size);
-				}
+			inline constexpr size_t
+			get_aligned_byte_offset(uintptr_t address, const size_t alig, const size_t itemSize, const size_t items) {
+				const auto padding = utils::padding(address, alig);
+				address += padding + itemSize * items;
+				return address;
 			}
 
+			template <typename T, size_t Alignment>
+			constexpr size_t get_aligned_byte_offset(uintptr_t address, const size_t size) {
+				const auto padding = utils::padding<Alignment>(address);
+				const auto sitem = sizeof(T);
+				address += padding + sitem * size;
+				return address;
+			}
 		} // namespace detail
 
 		template <DataLayout TDataLayout, typename TItem>
@@ -93,6 +99,11 @@ namespace gaia {
 			constexpr static DataLayout Layout = data_layout_properties<DataLayout::AoS, ValueType>::Layout;
 			constexpr static size_t Alignment = data_layout_properties<DataLayout::AoS, ValueType>::Alignment;
 
+			GAIA_NODISCARD static constexpr uint32_t get_min_byte_size(uintptr_t addr, size_t items) noexcept {
+				const auto offset = detail::get_aligned_byte_offset<ValueType, Alignment>(addr, items);
+				return (uint32_t)(offset - addr);
+			}
+
 			GAIA_NODISCARD constexpr static ValueType getc(std::span<const ValueType> s, size_t idx) noexcept {
 				return s[idx];
 			}
@@ -127,10 +138,14 @@ namespace gaia {
 			using view_policy = data_view_policy_aos<ValueType>;
 
 			//! Raw data pointed to by the view policy
-			std::span<const ValueType> m_data;
+			std::span<const uint8_t> m_data;
+
+			data_view_policy_aos_get(std::span<const uint8_t> data): m_data(data) {}
+			data_view_policy_aos_get(std::span<ValueType> data): m_data({(const uint8_t*)data.data(), data.size()}) {}
+			data_view_policy_aos_get(std::span<const ValueType> data): m_data({(const uint8_t*)data.data(), data.size()}) {}
 
 			GAIA_NODISCARD const ValueType& operator[](size_t idx) const noexcept {
-				return view_policy::getc_constref(m_data, idx);
+				return view_policy::getc_constref({(const ValueType*)m_data.data(), m_data.size()}, idx);
 			}
 
 			GAIA_NODISCARD auto data() const noexcept {
@@ -150,14 +165,17 @@ namespace gaia {
 			using view_policy = data_view_policy_aos<ValueType>;
 
 			//! Raw data pointed to by the view policy
-			std::span<ValueType> m_data;
+			std::span<uint8_t> m_data;
+
+			data_view_policy_aos_set(std::span<uint8_t> data): m_data(data) {}
+			data_view_policy_aos_set(std::span<ValueType> data): m_data({(uint8_t*)data.data(), data.size()}) {}
 
 			GAIA_NODISCARD ValueType& operator[](size_t idx) noexcept {
-				return view_policy::get_ref(m_data, idx);
+				return view_policy::get_ref({(ValueType*)m_data.data(), m_data.size()}, idx);
 			}
 
 			GAIA_NODISCARD const ValueType& operator[](size_t idx) const noexcept {
-				return view_policy::getc_constref(m_data, idx);
+				return view_policy::getc_constref({(const ValueType*)m_data.data(), m_data.size()}, idx);
 			}
 
 			GAIA_NODISCARD auto data() const noexcept {
@@ -191,76 +209,95 @@ namespace gaia {
 		 */
 		template <DataLayout TDataLayout, typename ValueType>
 		struct data_view_policy_soa {
+			using TTuple = decltype(struct_to_tuple(ValueType{}));
+
 			constexpr static DataLayout Layout = data_layout_properties<TDataLayout, ValueType>::Layout;
 			constexpr static size_t Alignment = data_layout_properties<TDataLayout, ValueType>::Alignment;
+			constexpr static size_t TTupleItems = std::tuple_size<TTuple>::value;
+			static_assert(Alignment > 0, "SoA data can't be zero-aligned");
+			static_assert(sizeof(ValueType) > 0, "SoA data can't be zero-size");
 
 			template <size_t Ids>
-			using value_type = typename std::tuple_element<Ids, decltype(struct_to_tuple(ValueType{}))>::type;
+			using value_type = typename std::tuple_element<Ids, TTuple>::type;
 			template <size_t Ids>
 			using const_value_type = typename std::add_const<value_type<Ids>>::type;
 
-			GAIA_NODISCARD constexpr static ValueType get(std::span<const ValueType> s, const size_t idx) noexcept {
+			GAIA_NODISCARD constexpr static uint32_t get_min_byte_size(uintptr_t addr, size_t items) noexcept {
+				const auto offset = get_aligned_byte_offset<TTupleItems>(addr, items);
+				return (uint32_t)(offset - addr);
+			}
+
+			GAIA_NODISCARD constexpr static ValueType get(std::span<const uint8_t> s, const size_t idx) noexcept {
 				auto t = struct_to_tuple(ValueType{});
-				return get_internal(t, s, idx, std::make_integer_sequence<size_t, std::tuple_size<decltype(t)>::value>());
+				return get_internal(t, s, idx, std::make_index_sequence<TTupleItems>());
 			}
 
 			template <size_t Ids>
-			GAIA_NODISCARD constexpr static auto get(std::span<const ValueType> s, const size_t idx = 0) noexcept {
-				using Tuple = decltype(struct_to_tuple(ValueType{}));
-				using MemberType = typename std::tuple_element<Ids, Tuple>::type;
-				const auto* ret = (const uint8_t*)s.data() + idx * sizeof(MemberType) +
-													detail::soa_byte_offset<Ids, Alignment, Tuple>((uintptr_t)s.data(), s.size());
-				return std::span{(const MemberType*)ret, s.size() - idx};
+			constexpr static auto get(std::span<const uint8_t> s, const size_t idx = 0) noexcept {
+				const auto offset = get_aligned_byte_offset<Ids>((uintptr_t)s.data(), s.size());
+				const auto* ret = (const uint8_t*)(offset + idx * sizeof(value_type<Ids>));
+				return std::span{(const value_type<Ids>*)ret, s.size() - idx};
 			}
 
-			constexpr static void set(std::span<ValueType> s, const size_t idx, ValueType&& val) noexcept {
+			constexpr static void set(std::span<uint8_t> s, const size_t idx, ValueType&& val) noexcept {
 				auto t = struct_to_tuple(std::forward<ValueType>(val));
-				set_internal(t, s, idx, std::make_integer_sequence<size_t, std::tuple_size<decltype(t)>::value>());
+				set_internal(t, s, idx, std::make_index_sequence<TTupleItems>());
 			}
 
 			template <size_t Ids>
-			constexpr static auto set(std::span<ValueType> s, const size_t idx = 0) noexcept {
-				using Tuple = decltype(struct_to_tuple(ValueType{}));
-				using MemberType = typename std::tuple_element<Ids, Tuple>::type;
-				auto* ret = (uint8_t*)s.data() + idx * sizeof(MemberType) +
-										detail::soa_byte_offset<Ids, Alignment, Tuple>((uintptr_t)s.data(), s.size());
-				return std::span{(MemberType*)ret, s.size() - idx};
+			constexpr static auto set(std::span<uint8_t> s, const size_t idx = 0) noexcept {
+				const auto offset = get_aligned_byte_offset<Ids>((uintptr_t)s.data(), s.size());
+				const auto* ret = (uint8_t*)(offset + idx * sizeof(value_type<Ids>));
+				return std::span{(value_type<Ids>*)ret, s.size() - idx};
 			}
 
 		private:
-			template <typename Tuple, size_t... Ids>
+			template <size_t... Ids>
+			constexpr static size_t
+			get_aligned_byte_offset(uintptr_t address, const size_t size, std::index_sequence<Ids...> /*no_name*/) {
+				((address = detail::get_aligned_byte_offset<value_type<Ids>, Alignment>(address, size)), ...);
+				return address;
+			}
+
+			template <uint32_t N>
+			constexpr static size_t get_aligned_byte_offset(uintptr_t address, const size_t size) {
+				return get_aligned_byte_offset(address, size, std::make_index_sequence<N>());
+			}
+
+			template <typename TMemberType>
+			constexpr static TMemberType& get_ref(const uint8_t* data, const size_t idx) noexcept {
+				// Write the value directly to the memory address.
+				// Usage of unaligned_ref is not necessary because the memory is aligned.
+				return *(TMemberType*)&data[idx];
+			}
+
+			template <size_t... Ids>
 			GAIA_NODISCARD constexpr static ValueType get_internal(
-					Tuple& t, std::span<const ValueType> s, const size_t idx,
-					std::integer_sequence<size_t, Ids...> /*no_name*/) noexcept {
-				(get_internal<Tuple, Ids, typename std::tuple_element<Ids, Tuple>::type>(
-						 t, (const uint8_t*)s.data(),
-						 idx * sizeof(typename std::tuple_element<Ids, Tuple>::type) +
-								 detail::soa_byte_offset<Ids, Alignment, Tuple>((uintptr_t)s.data(), s.size())),
+					TTuple& t, std::span<const uint8_t> s, const size_t idx, std::index_sequence<Ids...> /*no_name*/) noexcept {
+				auto offset = (uintptr_t)s.data();
+				((
+						 // Make sure the address is aligned properly
+						 offset = utils::align<Alignment>(offset),
+						 // Put the value at the address into our tuple. Data is aligned so we can read directly.
+						 std::get<Ids>(t) = get_ref<value_type<Ids>>((const uint8_t*)offset, idx * sizeof(value_type<Ids>)),
+						 // Skip towards the next element
+						 offset = detail::get_aligned_byte_offset<value_type<Ids>, Alignment>(offset, s.size())),
 				 ...);
-				return tuple_to_struct<ValueType, Tuple>(std::forward<Tuple>(t));
+				return tuple_to_struct<ValueType, TTuple>(std::forward<TTuple>(t));
 			}
 
-			template <typename Tuple, size_t Ids, typename TMemberType>
-			constexpr static void get_internal(Tuple& t, const uint8_t* data, const size_t idx) noexcept {
-				unaligned_ref<TMemberType> reader((void*)&data[idx]);
-				std::get<Ids>(t) = reader;
-			}
-
-			template <typename Tuple, typename TValue, size_t... Ids>
+			template <size_t... Ids>
 			constexpr static void set_internal(
-					Tuple& t, std::span<TValue> s, const size_t idx, std::integer_sequence<size_t, Ids...> /*no_name*/) noexcept {
-				(set_internal(
-						 (uint8_t*)s.data(),
-						 idx * sizeof(typename std::tuple_element<Ids, Tuple>::type) +
-								 detail::soa_byte_offset<Ids, Alignment, Tuple>((uintptr_t)s.data(), s.size()),
-						 std::get<Ids>(t)),
+					TTuple& t, std::span<uint8_t> s, const size_t idx, std::index_sequence<Ids...> /*no_name*/) noexcept {
+				auto offset = (uintptr_t)s.data();
+				((
+						 // Make sure the address is aligned properly
+						 offset = utils::align<Alignment>(offset),
+						 // Set the tuple value. Data is aligned so we can write directly.
+						 get_ref<value_type<Ids>>((uint8_t*)offset, idx * sizeof(value_type<Ids>)) = std::get<Ids>(t),
+						 // Skip towards the next element
+						 offset = detail::get_aligned_byte_offset<value_type<Ids>, Alignment>(offset, s.size())),
 				 ...);
-			}
-
-			template <typename MemberType>
-			constexpr static void set_internal(uint8_t* data, const size_t idx, MemberType val) noexcept {
-				unaligned_ref<MemberType> writer((void*)&data[idx]);
-				writer = val;
 			}
 		};
 
@@ -288,7 +325,12 @@ namespace gaia {
 			};
 
 			//! Raw data pointed to by the view policy
-			std::span<const ValueType> m_data;
+			std::span<const uint8_t> m_data;
+
+			data_view_policy_soa_get(std::span<uint8_t> data): m_data({(const uint8_t*)data.data(), data.size()}) {}
+			data_view_policy_soa_get(std::span<const uint8_t> data): m_data({(const uint8_t*)data.data(), data.size()}) {}
+			data_view_policy_soa_get(std::span<ValueType> data): m_data({(const uint8_t*)data.data(), data.size()}) {}
+			data_view_policy_soa_get(std::span<const ValueType> data): m_data({(const uint8_t*)data.data(), data.size()}) {}
 
 			GAIA_NODISCARD constexpr auto operator[](size_t idx) const noexcept {
 				return view_policy::get(m_data, idx);
@@ -296,8 +338,8 @@ namespace gaia {
 
 			template <size_t Ids>
 			GAIA_NODISCARD constexpr auto get() const noexcept {
-				return std::span<typename data_view_policy_idx_info<Ids>::const_value_type>(
-						view_policy::template get<Ids>(m_data).data(), view_policy::template get<Ids>(m_data).size());
+				auto s = view_policy::template get<Ids>(m_data);
+				return std::span(s.data(), s.size());
 			}
 
 			GAIA_NODISCARD auto data() const noexcept {
@@ -335,13 +377,16 @@ namespace gaia {
 			};
 
 			//! Raw data pointed to by the view policy
-			std::span<ValueType> m_data;
+			std::span<uint8_t> m_data;
+
+			data_view_policy_soa_set(std::span<uint8_t> data): m_data(data) {}
+			data_view_policy_soa_set(std::span<ValueType> data): m_data({(uint8_t*)data.data(), data.size()}) {}
 
 			struct setter {
-				const std::span<ValueType>& m_data;
+				const std::span<uint8_t>& m_data;
 				const size_t m_idx;
 
-				constexpr setter(const std::span<ValueType>& data, const size_t idx): m_data(data), m_idx(idx) {}
+				constexpr setter(const std::span<uint8_t>& data, const size_t idx): m_data(data), m_idx(idx) {}
 				constexpr void operator=(ValueType&& val) noexcept {
 					view_policy::set(m_data, m_idx, std::forward<ValueType>(val));
 				}
@@ -356,16 +401,14 @@ namespace gaia {
 
 			template <size_t Ids>
 			GAIA_NODISCARD constexpr auto get() const noexcept {
-				using value_type = typename data_view_policy_idx_info<Ids>::const_value_type;
-				const std::span<const ValueType> data((const ValueType*)m_data.data(), m_data.size());
-				return std::span<value_type>(
-						view_policy::template get<Ids>(data).data(), view_policy::template get<Ids>(data).size());
+				auto s = view_policy::template get<Ids>(m_data);
+				return std::span(s.data(), s.size());
 			}
 
 			template <size_t Ids>
 			GAIA_NODISCARD constexpr auto set() noexcept {
-				return std::span<typename data_view_policy_idx_info<Ids>::value_type>(
-						view_policy::template set<Ids>(m_data).data(), view_policy::template set<Ids>(m_data).size());
+				auto s = view_policy::template set<Ids>(m_data);
+				return std::span(s.data(), s.size());
 			}
 
 			GAIA_NODISCARD auto data() const noexcept {
