@@ -85,7 +85,7 @@ namespace gaia {
 		//! return Aligned number
 		template <size_t alignment, typename T>
 		constexpr uint32_t padding(T num) {
-			return (uint32_t)(align<alignment>(num));
+			return (uint32_t)(align<alignment>(num) - num);
 		}
 
 		//! Convert form type \tparam Src to type \tparam Dst without causing an undefined behavior

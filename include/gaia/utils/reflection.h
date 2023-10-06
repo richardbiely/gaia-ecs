@@ -47,8 +47,8 @@ namespace gaia {
 		//----------------------------------------------------------------------
 
 		//! The number of bits necessary to fit the maximum supported number of members in a struct
-		static constexpr uint32_t StructToTupleMaxTypesBits = 4;
-		// static constexpr uint32_t StructToTupleMaxTypes = 1 << StructToTupleMaxTypesBits;
+		static constexpr uint32_t StructToTupleMaxTypes_Bits = 4;
+		static constexpr uint32_t StructToTupleMaxTypes = (1 << StructToTupleMaxTypes_Bits) - 1;
 
 		//! Converts a struct to a tuple (struct must support initialization via:
 		//! Struct{x,y,...,z})

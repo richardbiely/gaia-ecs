@@ -1571,1160 +1571,9 @@ namespace std {
 }
 #endif
 
-#include <cinttypes>
-#include <cstring>
-#include <stdlib.h>
-#include <type_traits>
-#include <utility>
-
-#if GAIA_PLATFORM_WINDOWS && GAIA_COMPILER_MSVC
-	#define GAIA_MEM_ALLC(size) malloc(size)
-	#define GAIA_MEM_FREE(ptr) free(ptr)
-
-	// Clang with MSVC codegen needs some remapping
-	#if !defined(aligned_alloc)
-		#define GAIA_MEM_ALLC_A(size, alig) _aligned_malloc(size, alig)
-		#define GAIA_MEM_FREE_A(ptr) _aligned_free(ptr)
-	#else
-		#define GAIA_MEM_ALLC_A(size, alig) aligned_alloc(alig, size)
-		#define GAIA_MEM_FREE_A(ptr) aligned_free(ptr)
-	#endif
-#else
-	#define GAIA_MEM_ALLC(size) malloc(size)
-	#define GAIA_MEM_ALLC_A(size, alig) aligned_alloc(alig, size)
-	#define GAIA_MEM_FREE(ptr) free(ptr)
-	#define GAIA_MEM_FREE_A(ptr) free(ptr)
-#endif
-
-namespace gaia {
-	namespace utils {
-		inline void* mem_alloc(size_t size) {
-			void* ptr = GAIA_MEM_ALLC(size);
-			GAIA_PROF_ALLOC(ptr, size);
-			return ptr;
-		}
-
-		inline void* mem_alloc_alig(size_t size, size_t alig) {
-			void* ptr = GAIA_MEM_ALLC_A(size, alig);
-			GAIA_PROF_ALLOC(ptr, size);
-			return ptr;
-		}
-
-		inline void mem_free(void* ptr) {
-			GAIA_MEM_FREE(ptr);
-			GAIA_PROF_FREE(ptr);
-		}
-
-		inline void mem_free_alig(void* ptr) {
-			GAIA_MEM_FREE_A(ptr);
-			GAIA_PROF_FREE(ptr);
-		}
-
-		//! Align a number to the requested byte alignment
-		//! \param num Number to align
-		//! \param alignment Requested alignment
-		//! \return Aligned number
-		template <typename T, typename V>
-		constexpr T align(T num, V alignment) {
-			return alignment == 0 ? num : ((num + (alignment - 1)) / alignment) * alignment;
-		}
-
-		//! Align a number to the requested byte alignment
-		//! \tparam alignment Requested alignment in bytes
-		//! \param num Number to align
-		//! return Aligned number
-		template <size_t alignment, typename T>
-		constexpr T align(T num) {
-			return ((num + (alignment - 1)) & ~(alignment - 1));
-		}
-
-		//! Returns the padding
-		//! \param num Number to align
-		//! \param alignment Requested alignment
-		//! \return Padding in bytes
-		template <typename T, typename V>
-		constexpr uint32_t padding(T num, V alignment) {
-			return (uint32_t)(align(num, alignment) - num);
-		}
-
-		//! Returns the padding
-		//! \tparam alignment Requested alignment in bytes
-		//! \param num Number to align
-		//! return Aligned number
-		template <size_t alignment, typename T>
-		constexpr uint32_t padding(T num) {
-			return (uint32_t)(align<alignment>(num));
-		}
-
-		//! Convert form type \tparam Src to type \tparam Dst without causing an undefined behavior
-		template <typename Dst, typename Src>
-		Dst bit_cast(const Src& src) {
-			static_assert(sizeof(Dst) == sizeof(Src));
-			static_assert(std::is_trivially_copyable_v<Src>);
-			static_assert(std::is_trivially_copyable_v<Dst>);
-
-			// int i = {};
-			// float f = *(*float)&i; // undefined behavior
-			// memcpy(&f, &i, sizeof(float)); // okay
-			Dst dst;
-			memmove((void*)&dst, (const void*)&src, sizeof(Dst));
-			return dst;
-		}
-
-		//! Pointer wrapper for reading memory in defined way (not causing undefined behavior)
-		template <typename T>
-		class const_unaligned_pointer {
-			const uint8_t* from;
-
-		public:
-			const_unaligned_pointer(): from(nullptr) {}
-			const_unaligned_pointer(const void* p): from((const uint8_t*)p) {}
-
-			T operator*() const {
-				T to;
-				memmove((void*)&to, (const void*)from, sizeof(T));
-				return to;
-			}
-
-			T operator[](ptrdiff_t d) const {
-				return *(*this + d);
-			}
-
-			const_unaligned_pointer operator+(ptrdiff_t d) const {
-				return const_unaligned_pointer(from + d * sizeof(T));
-			}
-			const_unaligned_pointer operator-(ptrdiff_t d) const {
-				return const_unaligned_pointer(from - d * sizeof(T));
-			}
-		};
-
-		//! Pointer wrapper for writing memory in defined way (not causing undefined behavior)
-		template <typename T>
-		class unaligned_ref {
-			void* m_p;
-
-		public:
-			unaligned_ref(void* p): m_p(p) {}
-
-			unaligned_ref& operator=(const T& value) {
-				memmove(m_p, (const void*)&value, sizeof(T));
-				return *this;
-			}
-
-			operator T() const {
-				T tmp;
-				memmove((void*)&tmp, (const void*)m_p, sizeof(T));
-				return tmp;
-			}
-		};
-
-		//! Pointer wrapper for writing memory in defined way (not causing undefined behavior)
-		template <typename T>
-		class unaligned_pointer {
-			uint8_t* m_p;
-
-		public:
-			unaligned_pointer(): m_p(nullptr) {}
-			unaligned_pointer(void* p): m_p((uint8_t*)p) {}
-
-			unaligned_ref<T> operator*() const {
-				return unaligned_ref<T>(m_p);
-			}
-
-			unaligned_ref<T> operator[](ptrdiff_t d) const {
-				return *(*this + d);
-			}
-
-			unaligned_pointer operator+(ptrdiff_t d) const {
-				return unaligned_pointer(m_p + d * sizeof(T));
-			}
-			unaligned_pointer operator-(ptrdiff_t d) const {
-				return unaligned_pointer(m_p - d * sizeof(T));
-			}
-		};
-
-		template <typename T>
-		constexpr T* addressof(T& obj) noexcept {
-			return &obj;
-		}
-
-		template <class T>
-		const T* addressof(const T&&) = delete;
-
-		//! Copy \param size elements of type \tparam T from the address pointer to by \param src to \param dst
-		template <typename T>
-		void copy_elements(T* GAIA_RESTRICT dst, const T* GAIA_RESTRICT src, size_t size) {
-			GAIA_MSVC_WARNING_PUSH()
-			GAIA_MSVC_WARNING_DISABLE(6385)
-
-			static_assert(std::is_copy_assignable_v<T>);
-			for (size_t i = 0; i < size; ++i)
-				dst[i] = src[i];
-
-			GAIA_MSVC_WARNING_POP()
-		}
-
-		//! Move or copy \param size elements of type \tparam T from the address pointer to by \param src to \param dst
-		template <typename T>
-		void move_elements(T* GAIA_RESTRICT dst, const T* GAIA_RESTRICT src, size_t size) {
-			GAIA_MSVC_WARNING_PUSH()
-			GAIA_MSVC_WARNING_DISABLE(6385)
-
-			if constexpr (std::is_move_assignable_v<T>) {
-				for (size_t i = 0; i < size; ++i)
-					dst[i] = std::move(src[i]);
-			} else {
-				for (size_t i = 0; i < size; ++i)
-					dst[i] = src[i];
-			}
-
-			GAIA_MSVC_WARNING_POP()
-		}
-
-		//! Shift \param size elements at address pointed to by \param dst to the left by one
-		template <typename T>
-		void shift_elements_left(T* GAIA_RESTRICT dst, size_t size) {
-			GAIA_MSVC_WARNING_PUSH()
-			GAIA_MSVC_WARNING_DISABLE(6385)
-
-			if constexpr (std::is_move_assignable_v<T>) {
-				for (size_t i = 0; i < size; ++i)
-					dst[i] = std::move(dst[i + 1]);
-			} else {
-				for (size_t i = 0; i < size; ++i)
-					dst[i] = dst[i + 1];
-			}
-
-			GAIA_MSVC_WARNING_POP()
-		}
-	} // namespace utils
-} // namespace gaia
-
 #include <tuple>
 #include <type_traits>
 #include <utility>
-
-namespace gaia {
-	namespace utils {
-
-		namespace detail {
-			// Check if type T is constructible via T{Args...}
-			struct any_type {
-				template <typename T>
-				constexpr operator T(); // non explicit
-			};
-
-			template <typename T, typename... TArgs>
-			decltype(void(T{std::declval<TArgs>()...}), std::true_type{}) is_braces_constructible(int);
-
-			template <typename, typename...>
-			std::false_type is_braces_constructible(...);
-
-			template <typename T, typename... TArgs>
-			using is_braces_constructible_t = decltype(detail::is_braces_constructible<T, TArgs...>(0));
-		} // namespace detail
-
-		//----------------------------------------------------------------------
-		// Tuple to struct conversion
-		//----------------------------------------------------------------------
-
-		template <typename S, size_t... Is, typename Tuple>
-		GAIA_NODISCARD S tuple_to_struct(std::index_sequence<Is...> /*no_name*/, Tuple&& tup) {
-			return {std::get<Is>(std::forward<Tuple>(tup))...};
-		}
-
-		template <typename S, typename Tuple>
-		GAIA_NODISCARD S tuple_to_struct(Tuple&& tup) {
-			using T = std::remove_reference_t<Tuple>;
-
-			return tuple_to_struct<S>(std::make_index_sequence<std::tuple_size<T>{}>{}, std::forward<Tuple>(tup));
-		}
-
-		//----------------------------------------------------------------------
-		// Struct to tuple conversion
-		//----------------------------------------------------------------------
-
-		//! The number of bits necessary to fit the maximum supported number of members in a struct
-		static constexpr uint32_t StructToTupleMaxTypesBits = 4;
-		// static constexpr uint32_t StructToTupleMaxTypes = 1 << StructToTupleMaxTypesBits;
-
-		//! Converts a struct to a tuple (struct must support initialization via:
-		//! Struct{x,y,...,z})
-		template <typename T>
-		auto struct_to_tuple(T&& object) noexcept {
-			using type = typename std::decay_t<typename std::remove_pointer_t<T>>;
-
-			if constexpr (std::is_empty_v<type>) {
-				return std::make_tuple();
-			} else if constexpr (detail::is_braces_constructible_t<
-															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type>{}) {
-				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15] = object;
-				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15);
-			} else if constexpr (detail::is_braces_constructible_t<
-															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type>{}) {
-				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14] = object;
-				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14);
-			} else if constexpr (detail::is_braces_constructible_t<
-															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
-				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13] = object;
-				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13);
-			} else if constexpr (detail::is_braces_constructible_t<
-															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type, detail::any_type, detail::any_type>{}) {
-				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12] = object;
-				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12);
-			} else if constexpr (detail::is_braces_constructible_t<
-															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type, detail::any_type>{}) {
-				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11] = object;
-				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11);
-			} else if constexpr (detail::is_braces_constructible_t<
-															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type>{}) {
-				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10] = object;
-				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10);
-			} else if constexpr (detail::is_braces_constructible_t<
-															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type>{}) {
-				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9] = object;
-				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8, p9);
-			} else if constexpr (detail::is_braces_constructible_t<
-															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
-				auto&& [p1, p2, p3, p4, p5, p6, p7, p8] = object;
-				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8);
-			} else if constexpr (detail::is_braces_constructible_t<
-															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type, detail::any_type, detail::any_type>{}) {
-				auto&& [p1, p2, p3, p4, p5, p6, p7] = object;
-				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7);
-			} else if constexpr (detail::is_braces_constructible_t<
-															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type, detail::any_type>{}) {
-				auto&& [p1, p2, p3, p4, p5, p6] = object;
-				return std::make_tuple(p1, p2, p3, p4, p5, p6);
-			} else if constexpr (detail::is_braces_constructible_t<
-															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type>{}) {
-				auto&& [p1, p2, p3, p4, p5] = object;
-				return std::make_tuple(p1, p2, p3, p4, p5);
-			} else if constexpr (detail::is_braces_constructible_t<
-															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
-				auto&& [p1, p2, p3, p4] = object;
-				return std::make_tuple(p1, p2, p3, p4);
-			} else if constexpr (detail::is_braces_constructible_t<
-															 type, detail::any_type, detail::any_type, detail::any_type>{}) {
-				auto&& [p1, p2, p3] = object;
-				return std::make_tuple(p1, p2, p3);
-			} else if constexpr (detail::is_braces_constructible_t<type, detail::any_type, detail::any_type>{}) {
-				auto&& [p1, p2] = object;
-				return std::make_tuple(p1, p2);
-			} else if constexpr (detail::is_braces_constructible_t<type, detail::any_type>{}) {
-				auto&& [p1] = object;
-				return std::make_tuple(p1);
-			}
-
-			static_assert("Unsupported number of members");
-		}
-
-		//----------------------------------------------------------------------
-		// Struct to tuple conversion
-		//----------------------------------------------------------------------
-
-		template <typename T>
-		auto struct_member_count() {
-			using type = std::decay_t<T>;
-
-			if constexpr (std::is_empty_v<type>) {
-				return 0;
-			} else if constexpr (detail::is_braces_constructible_t<
-															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type>{}) {
-				return 15;
-			} else if constexpr (detail::is_braces_constructible_t<
-															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type>{}) {
-				return 14;
-			} else if constexpr (detail::is_braces_constructible_t<
-															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
-				return 13;
-			} else if constexpr (detail::is_braces_constructible_t<
-															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type, detail::any_type, detail::any_type>{}) {
-				return 12;
-			} else if constexpr (detail::is_braces_constructible_t<
-															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type, detail::any_type>{}) {
-				return 11;
-			} else if constexpr (detail::is_braces_constructible_t<
-															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type>{}) {
-				return 10;
-			} else if constexpr (detail::is_braces_constructible_t<
-															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type>{}) {
-				return 9;
-			} else if constexpr (detail::is_braces_constructible_t<
-															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
-				return 8;
-			} else if constexpr (detail::is_braces_constructible_t<
-															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type, detail::any_type, detail::any_type>{}) {
-				return 7;
-			} else if constexpr (detail::is_braces_constructible_t<
-															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type, detail::any_type>{}) {
-				return 6;
-			} else if constexpr (detail::is_braces_constructible_t<
-															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type>{}) {
-				return 5;
-			} else if constexpr (detail::is_braces_constructible_t<
-															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
-				return 4;
-			} else if constexpr (detail::is_braces_constructible_t<
-															 type, detail::any_type, detail::any_type, detail::any_type>{}) {
-				return 3;
-			} else if constexpr (detail::is_braces_constructible_t<type, detail::any_type, detail::any_type>{}) {
-				return 2;
-			} else if constexpr (detail::is_braces_constructible_t<type, detail::any_type>{}) {
-				return 1;
-			}
-
-			static_assert("Unsupported number of members");
-		}
-
-		template <typename T, typename Func>
-		auto for_each_member(T&& object, Func&& visitor) {
-			using type = std::decay_t<T>;
-
-			if constexpr (std::is_empty_v<type>) {
-				visitor();
-			} else if constexpr (detail::is_braces_constructible_t<
-															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type>{}) {
-				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15] = object;
-				return visitor(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15);
-			} else if constexpr (detail::is_braces_constructible_t<
-															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type>{}) {
-				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14] = object;
-				return visitor(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14);
-			} else if constexpr (detail::is_braces_constructible_t<
-															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
-				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13] = object;
-				return visitor(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13);
-			} else if constexpr (detail::is_braces_constructible_t<
-															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type, detail::any_type, detail::any_type>{}) {
-				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12] = object;
-				return visitor(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12);
-			} else if constexpr (detail::is_braces_constructible_t<
-															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type, detail::any_type>{}) {
-				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11] = object;
-				return visitor(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11);
-			} else if constexpr (detail::is_braces_constructible_t<
-															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type>{}) {
-				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10] = object;
-				return visitor(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10);
-			} else if constexpr (detail::is_braces_constructible_t<
-															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type>{}) {
-				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9] = object;
-				return visitor(p1, p2, p3, p4, p5, p6, p7, p8, p9);
-			} else if constexpr (detail::is_braces_constructible_t<
-															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
-				auto&& [p1, p2, p3, p4, p5, p6, p7, p8] = object;
-				return visitor(p1, p2, p3, p4, p5, p6, p7, p8);
-			} else if constexpr (detail::is_braces_constructible_t<
-															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type, detail::any_type, detail::any_type>{}) {
-				auto&& [p1, p2, p3, p4, p5, p6, p7] = object;
-				return visitor(p1, p2, p3, p4, p5, p6, p7);
-			} else if constexpr (detail::is_braces_constructible_t<
-															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type, detail::any_type>{}) {
-				auto&& [p1, p2, p3, p4, p5, p6] = object;
-				return visitor(p1, p2, p3, p4, p5, p6);
-			} else if constexpr (detail::is_braces_constructible_t<
-															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
-															 detail::any_type>{}) {
-				auto&& [p1, p2, p3, p4, p5] = object;
-				return visitor(p1, p2, p3, p4, p5);
-			} else if constexpr (detail::is_braces_constructible_t<
-															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
-				auto&& [p1, p2, p3, p4] = object;
-				return visitor(p1, p2, p3, p4);
-			} else if constexpr (detail::is_braces_constructible_t<
-															 type, detail::any_type, detail::any_type, detail::any_type>{}) {
-				auto&& [p1, p2, p3] = object;
-				return visitor(p1, p2, p3);
-			} else if constexpr (detail::is_braces_constructible_t<type, detail::any_type, detail::any_type>{}) {
-				auto&& [p1, p2] = object;
-				return visitor(p1, p2);
-			} else if constexpr (detail::is_braces_constructible_t<type, detail::any_type>{}) {
-				auto&& [p1] = object;
-				return visitor(p1);
-			}
-
-			static_assert("Unsupported number of members");
-		}
-
-	} // namespace utils
-} // namespace gaia
-
-namespace gaia {
-	namespace utils {
-		enum class DataLayout {
-			AoS, //< Array Of Structures
-			SoA, //< Structure Of Arrays, 4 packed items, good for SSE and similar
-			SoA8, //< Structure Of Arrays, 8 packed items, good for AVX and similar
-			SoA16 //< Structure Of Arrays, 16 packed items, good for AVX512 and similar
-		};
-
-		// Helper templates
-		namespace detail {
-
-			//----------------------------------------------------------------------
-			// Byte offset of a member of SoA-organized data
-			//----------------------------------------------------------------------
-
-			template <size_t N, size_t Alignment, typename Tuple>
-			constexpr static size_t soa_byte_offset(const uintptr_t address, [[maybe_unused]] const size_t size) {
-				const auto addressAligned = utils::align<Alignment>(address) - address;
-				if constexpr (N == 0) {
-					return addressAligned;
-				} else {
-					using tt = typename std::tuple_element<N - 1, Tuple>::type;
-					return addressAligned + sizeof(tt) * size + soa_byte_offset<N - 1, Alignment, Tuple>(address, size);
-				}
-			}
-
-		} // namespace detail
-
-		template <DataLayout TDataLayout, typename TItem>
-		struct data_layout_properties;
-		template <typename TItem>
-		struct data_layout_properties<DataLayout::AoS, TItem> {
-			constexpr static DataLayout Layout = DataLayout::AoS;
-			constexpr static size_t PackSize = 1;
-			constexpr static size_t Alignment = alignof(TItem);
-		};
-		template <typename TItem>
-		struct data_layout_properties<DataLayout::SoA, TItem> {
-			constexpr static DataLayout Layout = DataLayout::SoA;
-			constexpr static size_t PackSize = 4;
-			constexpr static size_t Alignment = PackSize * 4;
-		};
-		template <typename TItem>
-		struct data_layout_properties<DataLayout::SoA8, TItem> {
-			constexpr static DataLayout Layout = DataLayout::SoA8;
-			constexpr static size_t PackSize = 8;
-			constexpr static size_t Alignment = PackSize * 4;
-		};
-		template <typename TItem>
-		struct data_layout_properties<DataLayout::SoA16, TItem> {
-			constexpr static DataLayout Layout = DataLayout::SoA16;
-			constexpr static size_t PackSize = 16;
-			constexpr static size_t Alignment = PackSize * 4;
-		};
-
-		template <DataLayout TDataLayout, typename TItem>
-		struct data_view_policy;
-
-		template <DataLayout TDataLayout, typename TItem>
-		struct data_view_policy_get;
-		template <DataLayout TDataLayout, typename TItem>
-		struct data_view_policy_set;
-
-		template <DataLayout TDataLayout, typename TItem, size_t Ids>
-		struct data_view_policy_get_idx;
-		template <DataLayout TDataLayout, typename TItem, size_t Ids>
-		struct data_view_policy_set_idx;
-
-		/*!
-		 * data_view_policy for accessing and storing data in the AoS way
-		 *	Good for random access and when acessing data together.
-		 *
-		 * struct Foo { int x; int y; int z; };
-		 * using fooViewPolicy = data_view_policy<DataLayout::AoS, Foo>;
-		 *
-		 * Memory is going be be organized as:
-		 *		xyz xyz xyz xyz
-		 */
-		template <typename ValueType>
-		struct data_view_policy_aos {
-			constexpr static DataLayout Layout = data_layout_properties<DataLayout::AoS, ValueType>::Layout;
-			constexpr static size_t Alignment = data_layout_properties<DataLayout::AoS, ValueType>::Alignment;
-
-			GAIA_NODISCARD constexpr static ValueType getc(std::span<const ValueType> s, size_t idx) noexcept {
-				return s[idx];
-			}
-
-			GAIA_NODISCARD constexpr static ValueType get(std::span<ValueType> s, size_t idx) noexcept {
-				return s[idx];
-			}
-
-			GAIA_NODISCARD constexpr static const ValueType&
-			getc_constref(std::span<const ValueType> s, size_t idx) noexcept {
-				return (const ValueType&)s[idx];
-			}
-
-			GAIA_NODISCARD constexpr static const ValueType& get_constref(std::span<ValueType> s, size_t idx) noexcept {
-				return (const ValueType&)s[idx];
-			}
-
-			GAIA_NODISCARD constexpr static ValueType& get_ref(std::span<ValueType> s, size_t idx) noexcept {
-				return s[idx];
-			}
-
-			constexpr static void set(std::span<ValueType> s, size_t idx, ValueType&& val) noexcept {
-				s[idx] = std::forward<ValueType>(val);
-			}
-		};
-
-		template <typename ValueType>
-		struct data_view_policy<DataLayout::AoS, ValueType>: data_view_policy_aos<ValueType> {};
-
-		template <typename ValueType>
-		struct data_view_policy_aos_get {
-			using view_policy = data_view_policy_aos<ValueType>;
-
-			//! Raw data pointed to by the view policy
-			std::span<const ValueType> m_data;
-
-			GAIA_NODISCARD const ValueType& operator[](size_t idx) const noexcept {
-				return view_policy::getc_constref(m_data, idx);
-			}
-
-			GAIA_NODISCARD auto data() const noexcept {
-				return m_data.data();
-			}
-
-			GAIA_NODISCARD auto size() const noexcept {
-				return m_data.size();
-			}
-		};
-
-		template <typename ValueType>
-		struct data_view_policy_get<DataLayout::AoS, ValueType>: data_view_policy_aos_get<ValueType> {};
-
-		template <typename ValueType>
-		struct data_view_policy_aos_set {
-			using view_policy = data_view_policy_aos<ValueType>;
-
-			//! Raw data pointed to by the view policy
-			std::span<ValueType> m_data;
-
-			GAIA_NODISCARD ValueType& operator[](size_t idx) noexcept {
-				return view_policy::get_ref(m_data, idx);
-			}
-
-			GAIA_NODISCARD const ValueType& operator[](size_t idx) const noexcept {
-				return view_policy::getc_constref(m_data, idx);
-			}
-
-			GAIA_NODISCARD auto data() const noexcept {
-				return m_data.data();
-			}
-
-			GAIA_NODISCARD auto size() const noexcept {
-				return m_data.size();
-			}
-		};
-
-		template <typename ValueType>
-		struct data_view_policy_set<DataLayout::AoS, ValueType>: data_view_policy_aos_set<ValueType> {};
-
-		template <typename ValueType>
-		using aos_view_policy = data_view_policy_aos<ValueType>;
-		template <typename ValueType>
-		using aos_view_policy_get = data_view_policy_aos_get<ValueType>;
-		template <typename ValueType>
-		using aos_view_policy_set = data_view_policy_aos_set<ValueType>;
-
-		/*!
-		 * data_view_policy for accessing and storing data in the SoA way
-		 *	Good for SIMD processing.
-		 *
-		 * struct Foo { int x; int y; int z; };
-		 * using fooViewPolicy = data_view_policy<DataLayout::SoA, Foo>;
-		 *
-		 * Memory is going be be organized as:
-		 *		xxxx yyyy zzzz
-		 */
-		template <DataLayout TDataLayout, typename ValueType>
-		struct data_view_policy_soa {
-			constexpr static DataLayout Layout = data_layout_properties<TDataLayout, ValueType>::Layout;
-			constexpr static size_t Alignment = data_layout_properties<TDataLayout, ValueType>::Alignment;
-
-			template <size_t Ids>
-			using value_type = typename std::tuple_element<Ids, decltype(struct_to_tuple(ValueType{}))>::type;
-			template <size_t Ids>
-			using const_value_type = typename std::add_const<value_type<Ids>>::type;
-
-			GAIA_NODISCARD constexpr static ValueType get(std::span<const ValueType> s, const size_t idx) noexcept {
-				auto t = struct_to_tuple(ValueType{});
-				return get_internal(t, s, idx, std::make_integer_sequence<size_t, std::tuple_size<decltype(t)>::value>());
-			}
-
-			template <size_t Ids>
-			GAIA_NODISCARD constexpr static auto get(std::span<const ValueType> s, const size_t idx = 0) noexcept {
-				using Tuple = decltype(struct_to_tuple(ValueType{}));
-				using MemberType = typename std::tuple_element<Ids, Tuple>::type;
-				const auto* ret = (const uint8_t*)s.data() + idx * sizeof(MemberType) +
-													detail::soa_byte_offset<Ids, Alignment, Tuple>((uintptr_t)s.data(), s.size());
-				return std::span{(const MemberType*)ret, s.size() - idx};
-			}
-
-			constexpr static void set(std::span<ValueType> s, const size_t idx, ValueType&& val) noexcept {
-				auto t = struct_to_tuple(std::forward<ValueType>(val));
-				set_internal(t, s, idx, std::make_integer_sequence<size_t, std::tuple_size<decltype(t)>::value>());
-			}
-
-			template <size_t Ids>
-			constexpr static auto set(std::span<ValueType> s, const size_t idx = 0) noexcept {
-				using Tuple = decltype(struct_to_tuple(ValueType{}));
-				using MemberType = typename std::tuple_element<Ids, Tuple>::type;
-				auto* ret = (uint8_t*)s.data() + idx * sizeof(MemberType) +
-										detail::soa_byte_offset<Ids, Alignment, Tuple>((uintptr_t)s.data(), s.size());
-				return std::span{(MemberType*)ret, s.size() - idx};
-			}
-
-		private:
-			template <typename Tuple, size_t... Ids>
-			GAIA_NODISCARD constexpr static ValueType get_internal(
-					Tuple& t, std::span<const ValueType> s, const size_t idx,
-					std::integer_sequence<size_t, Ids...> /*no_name*/) noexcept {
-				(get_internal<Tuple, Ids, typename std::tuple_element<Ids, Tuple>::type>(
-						 t, (const uint8_t*)s.data(),
-						 idx * sizeof(typename std::tuple_element<Ids, Tuple>::type) +
-								 detail::soa_byte_offset<Ids, Alignment, Tuple>((uintptr_t)s.data(), s.size())),
-				 ...);
-				return tuple_to_struct<ValueType, Tuple>(std::forward<Tuple>(t));
-			}
-
-			template <typename Tuple, size_t Ids, typename TMemberType>
-			constexpr static void get_internal(Tuple& t, const uint8_t* data, const size_t idx) noexcept {
-				unaligned_ref<TMemberType> reader((void*)&data[idx]);
-				std::get<Ids>(t) = reader;
-			}
-
-			template <typename Tuple, typename TValue, size_t... Ids>
-			constexpr static void set_internal(
-					Tuple& t, std::span<TValue> s, const size_t idx, std::integer_sequence<size_t, Ids...> /*no_name*/) noexcept {
-				(set_internal(
-						 (uint8_t*)s.data(),
-						 idx * sizeof(typename std::tuple_element<Ids, Tuple>::type) +
-								 detail::soa_byte_offset<Ids, Alignment, Tuple>((uintptr_t)s.data(), s.size()),
-						 std::get<Ids>(t)),
-				 ...);
-			}
-
-			template <typename MemberType>
-			constexpr static void set_internal(uint8_t* data, const size_t idx, MemberType val) noexcept {
-				unaligned_ref<MemberType> writer((void*)&data[idx]);
-				writer = val;
-			}
-		};
-
-		template <typename ValueType>
-		struct data_view_policy<DataLayout::SoA, ValueType>: data_view_policy_soa<DataLayout::SoA, ValueType> {};
-		template <typename ValueType>
-		struct data_view_policy<DataLayout::SoA8, ValueType>: data_view_policy_soa<DataLayout::SoA8, ValueType> {};
-		template <typename ValueType>
-		struct data_view_policy<DataLayout::SoA16, ValueType>: data_view_policy_soa<DataLayout::SoA16, ValueType> {};
-
-		template <typename ValueType>
-		using soa_view_policy = data_view_policy<DataLayout::SoA, ValueType>;
-		template <typename ValueType>
-		using soa8_view_policy = data_view_policy<DataLayout::SoA8, ValueType>;
-		template <typename ValueType>
-		using soa16_view_policy = data_view_policy<DataLayout::SoA16, ValueType>;
-
-		template <DataLayout TDataLayout, typename ValueType>
-		struct data_view_policy_soa_get {
-			using view_policy = data_view_policy_soa<TDataLayout, ValueType>;
-
-			template <size_t Ids>
-			struct data_view_policy_idx_info {
-				using const_value_type = typename view_policy::template const_value_type<Ids>;
-			};
-
-			//! Raw data pointed to by the view policy
-			std::span<const ValueType> m_data;
-
-			GAIA_NODISCARD constexpr auto operator[](size_t idx) const noexcept {
-				return view_policy::get(m_data, idx);
-			}
-
-			template <size_t Ids>
-			GAIA_NODISCARD constexpr auto get() const noexcept {
-				return std::span<typename data_view_policy_idx_info<Ids>::const_value_type>(
-						view_policy::template get<Ids>(m_data).data(), view_policy::template get<Ids>(m_data).size());
-			}
-
-			GAIA_NODISCARD auto data() const noexcept {
-				return m_data.data();
-			}
-
-			GAIA_NODISCARD auto size() const noexcept {
-				return m_data.size();
-			}
-		};
-
-		template <typename ValueType>
-		struct data_view_policy_get<DataLayout::SoA, ValueType>: data_view_policy_soa_get<DataLayout::SoA, ValueType> {};
-		template <typename ValueType>
-		struct data_view_policy_get<DataLayout::SoA8, ValueType>: data_view_policy_soa_get<DataLayout::SoA8, ValueType> {};
-		template <typename ValueType>
-		struct data_view_policy_get<DataLayout::SoA16, ValueType>:
-				data_view_policy_soa_get<DataLayout::SoA16, ValueType> {};
-
-		template <typename ValueType>
-		using soa_view_policy_get = data_view_policy_get<DataLayout::SoA, ValueType>;
-		template <typename ValueType>
-		using soa8_view_policy_get = data_view_policy_get<DataLayout::SoA8, ValueType>;
-		template <typename ValueType>
-		using soa16_view_policy_get = data_view_policy_get<DataLayout::SoA16, ValueType>;
-
-		template <DataLayout TDataLayout, typename ValueType>
-		struct data_view_policy_soa_set {
-			using view_policy = data_view_policy_soa<TDataLayout, ValueType>;
-
-			template <size_t Ids>
-			struct data_view_policy_idx_info {
-				using value_type = typename view_policy::template value_type<Ids>;
-				using const_value_type = typename view_policy::template const_value_type<Ids>;
-			};
-
-			//! Raw data pointed to by the view policy
-			std::span<ValueType> m_data;
-
-			struct setter {
-				const std::span<ValueType>& m_data;
-				const size_t m_idx;
-
-				constexpr setter(const std::span<ValueType>& data, const size_t idx): m_data(data), m_idx(idx) {}
-				constexpr void operator=(ValueType&& val) noexcept {
-					view_policy::set(m_data, m_idx, std::forward<ValueType>(val));
-				}
-			};
-
-			GAIA_NODISCARD constexpr auto operator[](size_t idx) const noexcept {
-				return view_policy::get(m_data, idx);
-			}
-			GAIA_NODISCARD constexpr auto operator[](size_t idx) noexcept {
-				return setter(m_data, idx);
-			}
-
-			template <size_t Ids>
-			GAIA_NODISCARD constexpr auto get() const noexcept {
-				using value_type = typename data_view_policy_idx_info<Ids>::const_value_type;
-				const std::span<const ValueType> data((const ValueType*)m_data.data(), m_data.size());
-				return std::span<value_type>(
-						view_policy::template get<Ids>(data).data(), view_policy::template get<Ids>(data).size());
-			}
-
-			template <size_t Ids>
-			GAIA_NODISCARD constexpr auto set() noexcept {
-				return std::span<typename data_view_policy_idx_info<Ids>::value_type>(
-						view_policy::template set<Ids>(m_data).data(), view_policy::template set<Ids>(m_data).size());
-			}
-
-			GAIA_NODISCARD auto data() const noexcept {
-				return m_data.data();
-			}
-
-			GAIA_NODISCARD auto size() const noexcept {
-				return m_data.size();
-			}
-		};
-
-		template <typename ValueType>
-		struct data_view_policy_set<DataLayout::SoA, ValueType>: data_view_policy_soa_set<DataLayout::SoA, ValueType> {};
-		template <typename ValueType>
-		struct data_view_policy_set<DataLayout::SoA8, ValueType>: data_view_policy_soa_set<DataLayout::SoA8, ValueType> {};
-		template <typename ValueType>
-		struct data_view_policy_set<DataLayout::SoA16, ValueType>:
-				data_view_policy_soa_set<DataLayout::SoA16, ValueType> {};
-
-		template <typename ValueType>
-		using soa_view_policy_set = data_view_policy_set<DataLayout::SoA, ValueType>;
-		template <typename ValueType>
-		using soa8_view_policy_set = data_view_policy_set<DataLayout::SoA8, ValueType>;
-		template <typename ValueType>
-		using soa16_view_policy_set = data_view_policy_set<DataLayout::SoA16, ValueType>;
-
-		//----------------------------------------------------------------------
-		// Helpers
-		//----------------------------------------------------------------------
-
-		namespace detail {
-			template <typename, typename = void>
-			struct auto_view_policy_internal {
-				static constexpr DataLayout data_layout_type = DataLayout::AoS;
-			};
-			template <typename T>
-			struct auto_view_policy_internal<T, std::void_t<decltype(T::Layout)>> {
-				static constexpr DataLayout data_layout_type = T::Layout;
-			};
-
-			template <typename, typename = void>
-			struct is_soa_layout: std::false_type {};
-			template <typename T>
-			struct is_soa_layout<T, std::void_t<decltype(T::Layout)>>: std::bool_constant<(T::Layout != DataLayout::AoS)> {};
-		} // namespace detail
-
-		template <typename T>
-		using auto_view_policy = data_view_policy<detail::auto_view_policy_internal<T>::data_layout_type, T>;
-		template <typename T>
-		using auto_view_policy_get = data_view_policy_get<detail::auto_view_policy_internal<T>::data_layout_type, T>;
-		template <typename T>
-		using auto_view_policy_set = data_view_policy_set<detail::auto_view_policy_internal<T>::data_layout_type, T>;
-
-		template <typename T>
-		inline constexpr bool is_soa_layout_v = detail::is_soa_layout<T>::value;
-
-	} // namespace utils
-} // namespace gaia
-
-#include <cstdint>
-#include <type_traits>
-
-namespace gaia {
-	namespace utils {
-
-		namespace detail {
-			template <typename, typename = void>
-			struct is_direct_hash_key: std::false_type {};
-			template <typename T>
-			struct is_direct_hash_key<T, std::void_t<decltype(T::IsDirectHashKey)>>: std::true_type {};
-
-			//-----------------------------------------------------------------------------------
-
-			constexpr void hash_combine2_out(uint32_t& lhs, uint32_t rhs) {
-				lhs ^= rhs + 0x9e3779b9 + (lhs << 6) + (lhs >> 2);
-			}
-			constexpr void hash_combine2_out(uint64_t& lhs, uint64_t rhs) {
-				lhs ^= rhs + 0x9e3779B97f4a7c15ULL + (lhs << 6) + (lhs >> 2);
-			}
-
-			template <typename T>
-			GAIA_NODISCARD constexpr T hash_combine2(T lhs, T rhs) {
-				hash_combine2_out(lhs, rhs);
-				return lhs;
-			}
-		} // namespace detail
-
-		template <typename T>
-		inline constexpr bool is_direct_hash_key_v = detail::is_direct_hash_key<T>::value;
-
-		template <typename T>
-		struct direct_hash_key {
-			using Type = T;
-
-			static_assert(std::is_integral_v<T>);
-			static constexpr bool IsDirectHashKey = true;
-
-			T hash;
-			bool operator==(direct_hash_key other) const {
-				return hash == other.hash;
-			}
-			bool operator!=(direct_hash_key other) const {
-				return hash != other.hash;
-			}
-		};
-
-		//! Combines values via OR.
-		template <typename... T>
-		constexpr auto combine_or([[maybe_unused]] T... t) {
-			return (... | t);
-		}
-
-		//! Combines hashes into another complex one
-		template <typename T, typename... Rest>
-		constexpr T hash_combine(T first, T next, Rest... rest) {
-			auto h = detail::hash_combine2(first, next);
-			(detail::hash_combine2_out(h, rest), ...);
-			return h;
-		}
-
-#if GAIA_ECS_HASH == GAIA_ECS_HASH_FNV1A
-
-		namespace detail {
-			namespace fnv1a {
-				constexpr uint64_t val_64_const = 0xcbf29ce484222325;
-				constexpr uint64_t prime_64_const = 0x100000001b3;
-			} // namespace fnv1a
-		} // namespace detail
-
-		constexpr uint64_t calculate_hash64(const char* const str) noexcept {
-			uint64_t hash = detail::fnv1a::val_64_const;
-
-			uint64_t i = 0;
-			while (str[i] != '\0') {
-				hash = (hash ^ uint64_t(str[i])) * detail::fnv1a::prime_64_const;
-				++i;
-			}
-
-			return hash;
-		}
-
-		constexpr uint64_t calculate_hash64(const char* const str, const uint64_t length) noexcept {
-			uint64_t hash = detail::fnv1a::val_64_const;
-
-			for (uint64_t i = 0; i < length; i++)
-				hash = (hash ^ uint64_t(str[i])) * detail::fnv1a::prime_64_const;
-
-			return hash;
-		}
-
-#elif GAIA_ECS_HASH == GAIA_ECS_HASH_MURMUR2A
-
-		// Thank you https://gist.github.com/oteguro/10538695
-
-		GAIA_MSVC_WARNING_PUSH()
-		GAIA_MSVC_WARNING_DISABLE(4592)
-
-		namespace detail {
-			namespace murmur2a {
-				constexpr uint64_t seed_64_const = 0xe17a1465ULL;
-				constexpr uint64_t m = 0xc6a4a7935bd1e995ULL;
-				constexpr uint64_t r = 47;
-
-				constexpr uint64_t Load8(const char* data) {
-					return (uint64_t(data[7]) << 56) | (uint64_t(data[6]) << 48) | (uint64_t(data[5]) << 40) |
-								 (uint64_t(data[4]) << 32) | (uint64_t(data[3]) << 24) | (uint64_t(data[2]) << 16) |
-								 (uint64_t(data[1]) << 8) | (uint64_t(data[0]) << 0);
-				}
-
-				constexpr uint64_t StaticHashValueLast64(uint64_t h) {
-					return (((h * m) ^ ((h * m) >> r)) * m) ^ ((((h * m) ^ ((h * m) >> r)) * m) >> r);
-				}
-
-				constexpr uint64_t StaticHashValueLast64_(uint64_t h) {
-					return (((h) ^ ((h) >> r)) * m) ^ ((((h) ^ ((h) >> r)) * m) >> r);
-				}
-
-				constexpr uint64_t StaticHashValue64Tail1(uint64_t h, const char* data) {
-					return StaticHashValueLast64((h ^ uint64_t(data[0])));
-				}
-
-				constexpr uint64_t StaticHashValue64Tail2(uint64_t h, const char* data) {
-					return StaticHashValue64Tail1((h ^ uint64_t(data[1]) << 8), data);
-				}
-
-				constexpr uint64_t StaticHashValue64Tail3(uint64_t h, const char* data) {
-					return StaticHashValue64Tail2((h ^ uint64_t(data[2]) << 16), data);
-				}
-
-				constexpr uint64_t StaticHashValue64Tail4(uint64_t h, const char* data) {
-					return StaticHashValue64Tail3((h ^ uint64_t(data[3]) << 24), data);
-				}
-
-				constexpr uint64_t StaticHashValue64Tail5(uint64_t h, const char* data) {
-					return StaticHashValue64Tail4((h ^ uint64_t(data[4]) << 32), data);
-				}
-
-				constexpr uint64_t StaticHashValue64Tail6(uint64_t h, const char* data) {
-					return StaticHashValue64Tail5((h ^ uint64_t(data[5]) << 40), data);
-				}
-
-				constexpr uint64_t StaticHashValue64Tail7(uint64_t h, const char* data) {
-					return StaticHashValue64Tail6((h ^ uint64_t(data[6]) << 48), data);
-				}
-
-				constexpr uint64_t StaticHashValueRest64(uint64_t h, uint64_t len, const char* data) {
-					return ((len & 7) == 7)		? StaticHashValue64Tail7(h, data)
-								 : ((len & 7) == 6) ? StaticHashValue64Tail6(h, data)
-								 : ((len & 7) == 5) ? StaticHashValue64Tail5(h, data)
-								 : ((len & 7) == 4) ? StaticHashValue64Tail4(h, data)
-								 : ((len & 7) == 3) ? StaticHashValue64Tail3(h, data)
-								 : ((len & 7) == 2) ? StaticHashValue64Tail2(h, data)
-								 : ((len & 7) == 1) ? StaticHashValue64Tail1(h, data)
-																		: StaticHashValueLast64_(h);
-				}
-
-				constexpr uint64_t StaticHashValueLoop64(uint64_t i, uint64_t h, uint64_t len, const char* data) {
-					return (
-							i == 0 ? StaticHashValueRest64(h, len, data)
-										 : StaticHashValueLoop64(
-													 i - 1, (h ^ (((Load8(data) * m) ^ ((Load8(data) * m) >> r)) * m)) * m, len, data + 8));
-				}
-
-				constexpr uint64_t hash_murmur2a_64_ct(const char* key, uint64_t len, uint64_t seed) {
-					return StaticHashValueLoop64(len / 8, seed ^ (len * m), (len), key);
-				}
-			} // namespace murmur2a
-		} // namespace detail
-
-		constexpr uint64_t calculate_hash64(uint64_t value) {
-			value ^= value >> 33U;
-			value *= 0xff51afd7ed558ccdULL;
-			value ^= value >> 33U;
-
-			value *= 0xc4ceb9fe1a85ec53ULL;
-			value ^= value >> 33U;
-			return value;
-		}
-
-		constexpr uint64_t calculate_hash64(const char* str) {
-			uint64_t size = 0;
-			while (str[size] != '\0')
-				++size;
-
-			return detail::murmur2a::hash_murmur2a_64_ct(str, size, detail::murmur2a::seed_64_const);
-		}
-
-		constexpr uint64_t calculate_hash64(const char* str, uint64_t length) {
-			return detail::murmur2a::hash_murmur2a_64_ct(str, length, detail::murmur2a::seed_64_const);
-		}
-
-		GAIA_MSVC_WARNING_POP()
-
-#else
-	#error "Unknown hashing type defined"
-#endif
-
-	} // namespace utils
-} // namespace gaia
 
 #include <cstddef>
 #include <type_traits>
@@ -2833,13 +1682,6 @@ namespace gaia {
 		}
 	} // namespace utils
 } // namespace gaia
-
-#include <type_traits>
-#include <utility>
-
-#include <tuple>
-#include <type_traits>
-#include <utility>
 
 namespace gaia {
 	constexpr uint32_t BadIndex = uint32_t(-1);
@@ -3025,17 +1867,25 @@ namespace gaia {
 		//----------------------------------------------------------------------
 
 		namespace detail {
-			template <auto Iters, typename Func, auto... Is>
+			template <auto FirstIdx, auto Iters, typename Func, auto... Is>
 			constexpr void for_each_impl(Func func, std::integer_sequence<decltype(Iters), Is...> /*no_name*/) {
 				if constexpr ((std::is_invocable_v<Func&&, std::integral_constant<decltype(Is), Is>> && ...))
-					(func(std::integral_constant<decltype(Is), Is>{}), ...);
+					(func(std::integral_constant<decltype(Is), FirstIdx + Is>{}), ...);
 				else
 					(((void)Is, func()), ...);
 			}
 
-			template <typename Tuple, typename Func, auto... Is>
+			template <auto FirstIdx, typename Tuple, typename Func, auto... Is>
+			void for_each_tuple_impl(Func func, std::index_sequence<Is...> /*no_name*/) {
+				if constexpr ((std::is_invocable_v<Func&&, std::integral_constant<decltype(Is), FirstIdx + Is>> && ...))
+					(func(std::integral_constant<decltype(Is), FirstIdx + Is>{}), ...);
+				else
+					(func(std::tuple_element_t<FirstIdx + Is, Tuple>{}), ...);
+			}
+
+			template <auto FirstIdx, typename Tuple, typename Func, auto... Is>
 			void for_each_tuple_impl(Tuple&& tuple, Func func, std::index_sequence<Is...> /*no_name*/) {
-				(func(std::get<Is>(tuple)), ...);
+				(func(std::get<FirstIdx + Is>(tuple)), ...);
 			}
 		} // namespace detail
 
@@ -3058,12 +1908,35 @@ namespace gaia {
 		//! });
 		template <auto Iters, typename Func>
 		constexpr void for_each(Func func) {
-			detail::for_each_impl<Iters, Func>(func, std::make_integer_sequence<decltype(Iters), Iters>());
+			using TIters = decltype(Iters);
+			constexpr TIters First = 0;
+			detail::for_each_impl<First, Iters, Func>(func, std::make_integer_sequence<TIters, Iters>());
+		}
+
+		//! Compile-time for loop with adjustable range.
+		//! Iteration starts at \tparam FirstIdx and ends at \tparam LastIdx (excluding).
+		//!
+		//! Example 1 (index argument):
+		//! sarray<int, 10> arr;
+		//! for_each_ext<0, 10>([&arr](auto i) {
+		//!    GAIA_LOG_N("%d", i);
+		//! });
+		//!
+		//! Example 2 (no argument):
+		//! uint32_t cnt = 0;
+		//! for_each_ext<0, 10>([&cnt]() {
+		//!    GAIA_LOG_N("Invocation number: %u", cnt++);
+		//! });
+		template <auto FirstIdx, auto LastIdx, typename Func>
+		constexpr void for_each_ext(Func func) {
+			static_assert(LastIdx >= FirstIdx);
+			const auto Iters = LastIdx - FirstIdx;
+			detail::for_each_impl<FirstIdx, Iters, Func>(func, std::make_integer_sequence<decltype(Iters), Iters>());
 		}
 
 		//! Compile-time for loop with adjustable range and iteration size.
-		//! Iteration starts at \tparam FirstIdx and end at \tparam LastIdx
-		//! (excluding) in increments of \tparam Inc.
+		//! Iteration starts at \tparam FirstIdx and ends at \tparam LastIdx
+		//! (excluding) at increments of \tparam Inc.
 		//!
 		//! Example 1 (index argument):
 		//! sarray<int, 10> arr;
@@ -3114,9 +1987,42 @@ namespace gaia {
 		//! 	});
 		template <typename Tuple, typename Func>
 		constexpr void for_each_tuple(Tuple&& tuple, Func func) {
-			detail::for_each_tuple_impl(
-					std::forward<Tuple>(tuple), func,
-					std::make_index_sequence<std::tuple_size<std::remove_reference_t<Tuple>>::value>{});
+			constexpr auto TSize = std::tuple_size<std::remove_reference_t<Tuple>>::value;
+			detail::for_each_tuple_impl<(size_t)0>(std::forward<Tuple>(tuple), func, std::make_index_sequence<TSize>{});
+		}
+
+		template <typename Tuple, typename Func>
+		constexpr void for_each_tuple(Func func) {
+			constexpr auto TSize = std::tuple_size<std::remove_reference_t<Tuple>>::value;
+			detail::for_each_tuple_impl<(size_t)0, Tuple>(func, std::make_index_sequence<TSize>{});
+		}
+
+		//! Compile-time for loop over tuples and other objects implementing
+		//! tuple_size (sarray, std::pair etc).
+		//! Iteration starts at \tparam FirstIdx and ends at \tparam LastIdx (excluding).
+		//!
+		//! Example:
+		//! for_each_tuple(
+		//!		std::make_tuple(69, "likes", 420.0f),
+		//!		[](const auto& value) {
+		//! 		std::cout << value << std::endl;
+		//! 	});
+		template <auto FirstIdx, auto LastIdx, typename Tuple, typename Func>
+		constexpr void for_each_tuple_ext(Tuple&& tuple, Func func) {
+			constexpr auto TSize = std::tuple_size<std::remove_reference_t<Tuple>>::value;
+			static_assert(LastIdx >= FirstIdx);
+			static_assert(LastIdx <= TSize);
+			constexpr auto Iters = LastIdx - FirstIdx;
+			detail::for_each_tuple_impl<FirstIdx>(std::forward<Tuple>(tuple), func, std::make_index_sequence<Iters>{});
+		}
+
+		template <auto FirstIdx, auto LastIdx, typename Tuple, typename Func>
+		constexpr void for_each_tuple_ext(Func func) {
+			constexpr auto TSize = std::tuple_size<std::remove_reference_t<Tuple>>::value;
+			static_assert(LastIdx >= FirstIdx);
+			static_assert(LastIdx <= TSize);
+			constexpr auto Iters = LastIdx - FirstIdx;
+			detail::for_each_tuple_impl<FirstIdx, Tuple>(func, std::make_index_sequence<Iters>{});
 		}
 
 		template <typename InputIt, typename Func>
@@ -3753,6 +2659,1206 @@ namespace gaia {
 		}
 	} // namespace utils
 } // namespace gaia
+
+#include <cinttypes>
+#include <cstring>
+#include <stdlib.h>
+#include <type_traits>
+#include <utility>
+
+#if GAIA_PLATFORM_WINDOWS && GAIA_COMPILER_MSVC
+	#define GAIA_MEM_ALLC(size) malloc(size)
+	#define GAIA_MEM_FREE(ptr) free(ptr)
+
+	// Clang with MSVC codegen needs some remapping
+	#if !defined(aligned_alloc)
+		#define GAIA_MEM_ALLC_A(size, alig) _aligned_malloc(size, alig)
+		#define GAIA_MEM_FREE_A(ptr) _aligned_free(ptr)
+	#else
+		#define GAIA_MEM_ALLC_A(size, alig) aligned_alloc(alig, size)
+		#define GAIA_MEM_FREE_A(ptr) aligned_free(ptr)
+	#endif
+#else
+	#define GAIA_MEM_ALLC(size) malloc(size)
+	#define GAIA_MEM_ALLC_A(size, alig) aligned_alloc(alig, size)
+	#define GAIA_MEM_FREE(ptr) free(ptr)
+	#define GAIA_MEM_FREE_A(ptr) free(ptr)
+#endif
+
+namespace gaia {
+	namespace utils {
+		inline void* mem_alloc(size_t size) {
+			void* ptr = GAIA_MEM_ALLC(size);
+			GAIA_PROF_ALLOC(ptr, size);
+			return ptr;
+		}
+
+		inline void* mem_alloc_alig(size_t size, size_t alig) {
+			void* ptr = GAIA_MEM_ALLC_A(size, alig);
+			GAIA_PROF_ALLOC(ptr, size);
+			return ptr;
+		}
+
+		inline void mem_free(void* ptr) {
+			GAIA_MEM_FREE(ptr);
+			GAIA_PROF_FREE(ptr);
+		}
+
+		inline void mem_free_alig(void* ptr) {
+			GAIA_MEM_FREE_A(ptr);
+			GAIA_PROF_FREE(ptr);
+		}
+
+		//! Align a number to the requested byte alignment
+		//! \param num Number to align
+		//! \param alignment Requested alignment
+		//! \return Aligned number
+		template <typename T, typename V>
+		constexpr T align(T num, V alignment) {
+			return alignment == 0 ? num : ((num + (alignment - 1)) / alignment) * alignment;
+		}
+
+		//! Align a number to the requested byte alignment
+		//! \tparam alignment Requested alignment in bytes
+		//! \param num Number to align
+		//! return Aligned number
+		template <size_t alignment, typename T>
+		constexpr T align(T num) {
+			return ((num + (alignment - 1)) & ~(alignment - 1));
+		}
+
+		//! Returns the padding
+		//! \param num Number to align
+		//! \param alignment Requested alignment
+		//! \return Padding in bytes
+		template <typename T, typename V>
+		constexpr uint32_t padding(T num, V alignment) {
+			return (uint32_t)(align(num, alignment) - num);
+		}
+
+		//! Returns the padding
+		//! \tparam alignment Requested alignment in bytes
+		//! \param num Number to align
+		//! return Aligned number
+		template <size_t alignment, typename T>
+		constexpr uint32_t padding(T num) {
+			return (uint32_t)(align<alignment>(num) - num);
+		}
+
+		//! Convert form type \tparam Src to type \tparam Dst without causing an undefined behavior
+		template <typename Dst, typename Src>
+		Dst bit_cast(const Src& src) {
+			static_assert(sizeof(Dst) == sizeof(Src));
+			static_assert(std::is_trivially_copyable_v<Src>);
+			static_assert(std::is_trivially_copyable_v<Dst>);
+
+			// int i = {};
+			// float f = *(*float)&i; // undefined behavior
+			// memcpy(&f, &i, sizeof(float)); // okay
+			Dst dst;
+			memmove((void*)&dst, (const void*)&src, sizeof(Dst));
+			return dst;
+		}
+
+		//! Pointer wrapper for reading memory in defined way (not causing undefined behavior)
+		template <typename T>
+		class const_unaligned_pointer {
+			const uint8_t* from;
+
+		public:
+			const_unaligned_pointer(): from(nullptr) {}
+			const_unaligned_pointer(const void* p): from((const uint8_t*)p) {}
+
+			T operator*() const {
+				T to;
+				memmove((void*)&to, (const void*)from, sizeof(T));
+				return to;
+			}
+
+			T operator[](ptrdiff_t d) const {
+				return *(*this + d);
+			}
+
+			const_unaligned_pointer operator+(ptrdiff_t d) const {
+				return const_unaligned_pointer(from + d * sizeof(T));
+			}
+			const_unaligned_pointer operator-(ptrdiff_t d) const {
+				return const_unaligned_pointer(from - d * sizeof(T));
+			}
+		};
+
+		//! Pointer wrapper for writing memory in defined way (not causing undefined behavior)
+		template <typename T>
+		class unaligned_ref {
+			void* m_p;
+
+		public:
+			unaligned_ref(void* p): m_p(p) {}
+
+			unaligned_ref& operator=(const T& value) {
+				memmove(m_p, (const void*)&value, sizeof(T));
+				return *this;
+			}
+
+			operator T() const {
+				T tmp;
+				memmove((void*)&tmp, (const void*)m_p, sizeof(T));
+				return tmp;
+			}
+		};
+
+		//! Pointer wrapper for writing memory in defined way (not causing undefined behavior)
+		template <typename T>
+		class unaligned_pointer {
+			uint8_t* m_p;
+
+		public:
+			unaligned_pointer(): m_p(nullptr) {}
+			unaligned_pointer(void* p): m_p((uint8_t*)p) {}
+
+			unaligned_ref<T> operator*() const {
+				return unaligned_ref<T>(m_p);
+			}
+
+			unaligned_ref<T> operator[](ptrdiff_t d) const {
+				return *(*this + d);
+			}
+
+			unaligned_pointer operator+(ptrdiff_t d) const {
+				return unaligned_pointer(m_p + d * sizeof(T));
+			}
+			unaligned_pointer operator-(ptrdiff_t d) const {
+				return unaligned_pointer(m_p - d * sizeof(T));
+			}
+		};
+
+		template <typename T>
+		constexpr T* addressof(T& obj) noexcept {
+			return &obj;
+		}
+
+		template <class T>
+		const T* addressof(const T&&) = delete;
+
+		//! Copy \param size elements of type \tparam T from the address pointer to by \param src to \param dst
+		template <typename T>
+		void copy_elements(T* GAIA_RESTRICT dst, const T* GAIA_RESTRICT src, size_t size) {
+			GAIA_MSVC_WARNING_PUSH()
+			GAIA_MSVC_WARNING_DISABLE(6385)
+
+			static_assert(std::is_copy_assignable_v<T>);
+			for (size_t i = 0; i < size; ++i)
+				dst[i] = src[i];
+
+			GAIA_MSVC_WARNING_POP()
+		}
+
+		//! Move or copy \param size elements of type \tparam T from the address pointer to by \param src to \param dst
+		template <typename T>
+		void move_elements(T* GAIA_RESTRICT dst, const T* GAIA_RESTRICT src, size_t size) {
+			GAIA_MSVC_WARNING_PUSH()
+			GAIA_MSVC_WARNING_DISABLE(6385)
+
+			if constexpr (std::is_move_assignable_v<T>) {
+				for (size_t i = 0; i < size; ++i)
+					dst[i] = std::move(src[i]);
+			} else {
+				for (size_t i = 0; i < size; ++i)
+					dst[i] = src[i];
+			}
+
+			GAIA_MSVC_WARNING_POP()
+		}
+
+		//! Shift \param size elements at address pointed to by \param dst to the left by one
+		template <typename T>
+		void shift_elements_left(T* GAIA_RESTRICT dst, size_t size) {
+			GAIA_MSVC_WARNING_PUSH()
+			GAIA_MSVC_WARNING_DISABLE(6385)
+
+			if constexpr (std::is_move_assignable_v<T>) {
+				for (size_t i = 0; i < size; ++i)
+					dst[i] = std::move(dst[i + 1]);
+			} else {
+				for (size_t i = 0; i < size; ++i)
+					dst[i] = dst[i + 1];
+			}
+
+			GAIA_MSVC_WARNING_POP()
+		}
+	} // namespace utils
+} // namespace gaia
+
+#include <tuple>
+#include <type_traits>
+#include <utility>
+
+namespace gaia {
+	namespace utils {
+
+		namespace detail {
+			// Check if type T is constructible via T{Args...}
+			struct any_type {
+				template <typename T>
+				constexpr operator T(); // non explicit
+			};
+
+			template <typename T, typename... TArgs>
+			decltype(void(T{std::declval<TArgs>()...}), std::true_type{}) is_braces_constructible(int);
+
+			template <typename, typename...>
+			std::false_type is_braces_constructible(...);
+
+			template <typename T, typename... TArgs>
+			using is_braces_constructible_t = decltype(detail::is_braces_constructible<T, TArgs...>(0));
+		} // namespace detail
+
+		//----------------------------------------------------------------------
+		// Tuple to struct conversion
+		//----------------------------------------------------------------------
+
+		template <typename S, size_t... Is, typename Tuple>
+		GAIA_NODISCARD S tuple_to_struct(std::index_sequence<Is...> /*no_name*/, Tuple&& tup) {
+			return {std::get<Is>(std::forward<Tuple>(tup))...};
+		}
+
+		template <typename S, typename Tuple>
+		GAIA_NODISCARD S tuple_to_struct(Tuple&& tup) {
+			using T = std::remove_reference_t<Tuple>;
+
+			return tuple_to_struct<S>(std::make_index_sequence<std::tuple_size<T>{}>{}, std::forward<Tuple>(tup));
+		}
+
+		//----------------------------------------------------------------------
+		// Struct to tuple conversion
+		//----------------------------------------------------------------------
+
+		//! The number of bits necessary to fit the maximum supported number of members in a struct
+		static constexpr uint32_t StructToTupleMaxTypes_Bits = 4;
+		static constexpr uint32_t StructToTupleMaxTypes = (1 << StructToTupleMaxTypes_Bits) - 1;
+
+		//! Converts a struct to a tuple (struct must support initialization via:
+		//! Struct{x,y,...,z})
+		template <typename T>
+		auto struct_to_tuple(T&& object) noexcept {
+			using type = typename std::decay_t<typename std::remove_pointer_t<T>>;
+
+			if constexpr (std::is_empty_v<type>) {
+				return std::make_tuple();
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type>{}) {
+				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15] = object;
+				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15);
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type>{}) {
+				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14] = object;
+				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14);
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
+				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13] = object;
+				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13);
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type>{}) {
+				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12] = object;
+				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12);
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type>{}) {
+				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11] = object;
+				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11);
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type>{}) {
+				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10] = object;
+				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10);
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type>{}) {
+				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9] = object;
+				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8, p9);
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
+				auto&& [p1, p2, p3, p4, p5, p6, p7, p8] = object;
+				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7, p8);
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type>{}) {
+				auto&& [p1, p2, p3, p4, p5, p6, p7] = object;
+				return std::make_tuple(p1, p2, p3, p4, p5, p6, p7);
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type>{}) {
+				auto&& [p1, p2, p3, p4, p5, p6] = object;
+				return std::make_tuple(p1, p2, p3, p4, p5, p6);
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type>{}) {
+				auto&& [p1, p2, p3, p4, p5] = object;
+				return std::make_tuple(p1, p2, p3, p4, p5);
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
+				auto&& [p1, p2, p3, p4] = object;
+				return std::make_tuple(p1, p2, p3, p4);
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type>{}) {
+				auto&& [p1, p2, p3] = object;
+				return std::make_tuple(p1, p2, p3);
+			} else if constexpr (detail::is_braces_constructible_t<type, detail::any_type, detail::any_type>{}) {
+				auto&& [p1, p2] = object;
+				return std::make_tuple(p1, p2);
+			} else if constexpr (detail::is_braces_constructible_t<type, detail::any_type>{}) {
+				auto&& [p1] = object;
+				return std::make_tuple(p1);
+			}
+
+			static_assert("Unsupported number of members");
+		}
+
+		//----------------------------------------------------------------------
+		// Struct to tuple conversion
+		//----------------------------------------------------------------------
+
+		template <typename T>
+		auto struct_member_count() {
+			using type = std::decay_t<T>;
+
+			if constexpr (std::is_empty_v<type>) {
+				return 0;
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type>{}) {
+				return 15;
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type>{}) {
+				return 14;
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
+				return 13;
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type>{}) {
+				return 12;
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type>{}) {
+				return 11;
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type>{}) {
+				return 10;
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type>{}) {
+				return 9;
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
+				return 8;
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type>{}) {
+				return 7;
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type>{}) {
+				return 6;
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type>{}) {
+				return 5;
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
+				return 4;
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type>{}) {
+				return 3;
+			} else if constexpr (detail::is_braces_constructible_t<type, detail::any_type, detail::any_type>{}) {
+				return 2;
+			} else if constexpr (detail::is_braces_constructible_t<type, detail::any_type>{}) {
+				return 1;
+			}
+
+			static_assert("Unsupported number of members");
+		}
+
+		template <typename T, typename Func>
+		auto for_each_member(T&& object, Func&& visitor) {
+			using type = std::decay_t<T>;
+
+			if constexpr (std::is_empty_v<type>) {
+				visitor();
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type>{}) {
+				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15] = object;
+				return visitor(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15);
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type>{}) {
+				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14] = object;
+				return visitor(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14);
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
+				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13] = object;
+				return visitor(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13);
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type>{}) {
+				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12] = object;
+				return visitor(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12);
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type>{}) {
+				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11] = object;
+				return visitor(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11);
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type>{}) {
+				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10] = object;
+				return visitor(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10);
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type>{}) {
+				auto&& [p1, p2, p3, p4, p5, p6, p7, p8, p9] = object;
+				return visitor(p1, p2, p3, p4, p5, p6, p7, p8, p9);
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
+				auto&& [p1, p2, p3, p4, p5, p6, p7, p8] = object;
+				return visitor(p1, p2, p3, p4, p5, p6, p7, p8);
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type, detail::any_type>{}) {
+				auto&& [p1, p2, p3, p4, p5, p6, p7] = object;
+				return visitor(p1, p2, p3, p4, p5, p6, p7);
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type, detail::any_type>{}) {
+				auto&& [p1, p2, p3, p4, p5, p6] = object;
+				return visitor(p1, p2, p3, p4, p5, p6);
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type,
+															 detail::any_type>{}) {
+				auto&& [p1, p2, p3, p4, p5] = object;
+				return visitor(p1, p2, p3, p4, p5);
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type, detail::any_type>{}) {
+				auto&& [p1, p2, p3, p4] = object;
+				return visitor(p1, p2, p3, p4);
+			} else if constexpr (detail::is_braces_constructible_t<
+															 type, detail::any_type, detail::any_type, detail::any_type>{}) {
+				auto&& [p1, p2, p3] = object;
+				return visitor(p1, p2, p3);
+			} else if constexpr (detail::is_braces_constructible_t<type, detail::any_type, detail::any_type>{}) {
+				auto&& [p1, p2] = object;
+				return visitor(p1, p2);
+			} else if constexpr (detail::is_braces_constructible_t<type, detail::any_type>{}) {
+				auto&& [p1] = object;
+				return visitor(p1);
+			}
+
+			static_assert("Unsupported number of members");
+		}
+
+	} // namespace utils
+} // namespace gaia
+
+namespace gaia {
+	namespace utils {
+		enum class DataLayout : uint32_t {
+			AoS, //< Array Of Structures
+			SoA, //< Structure Of Arrays, 4 packed items, good for SSE and similar
+			SoA8, //< Structure Of Arrays, 8 packed items, good for AVX and similar
+			SoA16, //< Structure Of Arrays, 16 packed items, good for AVX512 and similar
+
+			Count = 4
+		};
+
+		// Helper templates
+		namespace detail {
+
+			//----------------------------------------------------------------------
+			// Byte offset of a member of SoA-organized data
+			//----------------------------------------------------------------------
+
+			inline constexpr size_t
+			get_aligned_byte_offset(uintptr_t address, const size_t alig, const size_t itemSize, const size_t items) {
+				const auto padding = utils::padding(address, alig);
+				address += padding + itemSize * items;
+				return address;
+			}
+
+			template <typename T, size_t Alignment>
+			constexpr size_t get_aligned_byte_offset(uintptr_t address, const size_t size) {
+				const auto padding = utils::padding<Alignment>(address);
+				const auto sitem = sizeof(T);
+				address += padding + sitem * size;
+				return address;
+			}
+		} // namespace detail
+
+		template <DataLayout TDataLayout, typename TItem>
+		struct data_layout_properties;
+		template <typename TItem>
+		struct data_layout_properties<DataLayout::AoS, TItem> {
+			constexpr static DataLayout Layout = DataLayout::AoS;
+			constexpr static size_t PackSize = 1;
+			constexpr static size_t Alignment = alignof(TItem);
+		};
+		template <typename TItem>
+		struct data_layout_properties<DataLayout::SoA, TItem> {
+			constexpr static DataLayout Layout = DataLayout::SoA;
+			constexpr static size_t PackSize = 4;
+			constexpr static size_t Alignment = PackSize * 4;
+		};
+		template <typename TItem>
+		struct data_layout_properties<DataLayout::SoA8, TItem> {
+			constexpr static DataLayout Layout = DataLayout::SoA8;
+			constexpr static size_t PackSize = 8;
+			constexpr static size_t Alignment = PackSize * 4;
+		};
+		template <typename TItem>
+		struct data_layout_properties<DataLayout::SoA16, TItem> {
+			constexpr static DataLayout Layout = DataLayout::SoA16;
+			constexpr static size_t PackSize = 16;
+			constexpr static size_t Alignment = PackSize * 4;
+		};
+
+		template <DataLayout TDataLayout, typename TItem>
+		struct data_view_policy;
+
+		template <DataLayout TDataLayout, typename TItem>
+		struct data_view_policy_get;
+		template <DataLayout TDataLayout, typename TItem>
+		struct data_view_policy_set;
+
+		template <DataLayout TDataLayout, typename TItem, size_t Ids>
+		struct data_view_policy_get_idx;
+		template <DataLayout TDataLayout, typename TItem, size_t Ids>
+		struct data_view_policy_set_idx;
+
+		/*!
+		 * data_view_policy for accessing and storing data in the AoS way
+		 *	Good for random access and when acessing data together.
+		 *
+		 * struct Foo { int x; int y; int z; };
+		 * using fooViewPolicy = data_view_policy<DataLayout::AoS, Foo>;
+		 *
+		 * Memory is going be be organized as:
+		 *		xyz xyz xyz xyz
+		 */
+		template <typename ValueType>
+		struct data_view_policy_aos {
+			constexpr static DataLayout Layout = data_layout_properties<DataLayout::AoS, ValueType>::Layout;
+			constexpr static size_t Alignment = data_layout_properties<DataLayout::AoS, ValueType>::Alignment;
+
+			GAIA_NODISCARD static constexpr uint32_t get_min_byte_size(uintptr_t addr, size_t items) noexcept {
+				const auto offset = detail::get_aligned_byte_offset<ValueType, Alignment>(addr, items);
+				return (uint32_t)(offset - addr);
+			}
+
+			GAIA_NODISCARD constexpr static ValueType getc(std::span<const ValueType> s, size_t idx) noexcept {
+				return s[idx];
+			}
+
+			GAIA_NODISCARD constexpr static ValueType get(std::span<ValueType> s, size_t idx) noexcept {
+				return s[idx];
+			}
+
+			GAIA_NODISCARD constexpr static const ValueType&
+			getc_constref(std::span<const ValueType> s, size_t idx) noexcept {
+				return (const ValueType&)s[idx];
+			}
+
+			GAIA_NODISCARD constexpr static const ValueType& get_constref(std::span<ValueType> s, size_t idx) noexcept {
+				return (const ValueType&)s[idx];
+			}
+
+			GAIA_NODISCARD constexpr static ValueType& get_ref(std::span<ValueType> s, size_t idx) noexcept {
+				return s[idx];
+			}
+
+			constexpr static void set(std::span<ValueType> s, size_t idx, ValueType&& val) noexcept {
+				s[idx] = std::forward<ValueType>(val);
+			}
+		};
+
+		template <typename ValueType>
+		struct data_view_policy<DataLayout::AoS, ValueType>: data_view_policy_aos<ValueType> {};
+
+		template <typename ValueType>
+		struct data_view_policy_aos_get {
+			using view_policy = data_view_policy_aos<ValueType>;
+
+			//! Raw data pointed to by the view policy
+			std::span<const uint8_t> m_data;
+
+			data_view_policy_aos_get(std::span<const uint8_t> data): m_data(data) {}
+			data_view_policy_aos_get(std::span<ValueType> data): m_data({(const uint8_t*)data.data(), data.size()}) {}
+			data_view_policy_aos_get(std::span<const ValueType> data): m_data({(const uint8_t*)data.data(), data.size()}) {}
+
+			GAIA_NODISCARD const ValueType& operator[](size_t idx) const noexcept {
+				return view_policy::getc_constref({(const ValueType*)m_data.data(), m_data.size()}, idx);
+			}
+
+			GAIA_NODISCARD auto data() const noexcept {
+				return m_data.data();
+			}
+
+			GAIA_NODISCARD auto size() const noexcept {
+				return m_data.size();
+			}
+		};
+
+		template <typename ValueType>
+		struct data_view_policy_get<DataLayout::AoS, ValueType>: data_view_policy_aos_get<ValueType> {};
+
+		template <typename ValueType>
+		struct data_view_policy_aos_set {
+			using view_policy = data_view_policy_aos<ValueType>;
+
+			//! Raw data pointed to by the view policy
+			std::span<uint8_t> m_data;
+
+			data_view_policy_aos_set(std::span<uint8_t> data): m_data(data) {}
+			data_view_policy_aos_set(std::span<ValueType> data): m_data({(uint8_t*)data.data(), data.size()}) {}
+
+			GAIA_NODISCARD ValueType& operator[](size_t idx) noexcept {
+				return view_policy::get_ref({(ValueType*)m_data.data(), m_data.size()}, idx);
+			}
+
+			GAIA_NODISCARD const ValueType& operator[](size_t idx) const noexcept {
+				return view_policy::getc_constref({(const ValueType*)m_data.data(), m_data.size()}, idx);
+			}
+
+			GAIA_NODISCARD auto data() const noexcept {
+				return m_data.data();
+			}
+
+			GAIA_NODISCARD auto size() const noexcept {
+				return m_data.size();
+			}
+		};
+
+		template <typename ValueType>
+		struct data_view_policy_set<DataLayout::AoS, ValueType>: data_view_policy_aos_set<ValueType> {};
+
+		template <typename ValueType>
+		using aos_view_policy = data_view_policy_aos<ValueType>;
+		template <typename ValueType>
+		using aos_view_policy_get = data_view_policy_aos_get<ValueType>;
+		template <typename ValueType>
+		using aos_view_policy_set = data_view_policy_aos_set<ValueType>;
+
+		/*!
+		 * data_view_policy for accessing and storing data in the SoA way
+		 *	Good for SIMD processing.
+		 *
+		 * struct Foo { int x; int y; int z; };
+		 * using fooViewPolicy = data_view_policy<DataLayout::SoA, Foo>;
+		 *
+		 * Memory is going be be organized as:
+		 *		xxxx yyyy zzzz
+		 */
+		template <DataLayout TDataLayout, typename ValueType>
+		struct data_view_policy_soa {
+			using TTuple = decltype(struct_to_tuple(ValueType{}));
+
+			constexpr static DataLayout Layout = data_layout_properties<TDataLayout, ValueType>::Layout;
+			constexpr static size_t Alignment = data_layout_properties<TDataLayout, ValueType>::Alignment;
+			constexpr static size_t TTupleItems = std::tuple_size<TTuple>::value;
+			static_assert(Alignment > 0, "SoA data can't be zero-aligned");
+			static_assert(sizeof(ValueType) > 0, "SoA data can't be zero-size");
+
+			template <size_t Ids>
+			using value_type = typename std::tuple_element<Ids, TTuple>::type;
+			template <size_t Ids>
+			using const_value_type = typename std::add_const<value_type<Ids>>::type;
+
+			GAIA_NODISCARD constexpr static uint32_t get_min_byte_size(uintptr_t addr, size_t items) noexcept {
+				const auto offset = get_aligned_byte_offset<TTupleItems>(addr, items);
+				return (uint32_t)(offset - addr);
+			}
+
+			GAIA_NODISCARD constexpr static ValueType get(std::span<const uint8_t> s, const size_t idx) noexcept {
+				auto t = struct_to_tuple(ValueType{});
+				return get_internal(t, s, idx, std::make_index_sequence<TTupleItems>());
+			}
+
+			template <size_t Ids>
+			constexpr static auto get(std::span<const uint8_t> s, const size_t idx = 0) noexcept {
+				const auto offset = get_aligned_byte_offset<Ids>((uintptr_t)s.data(), s.size());
+				const auto* ret = (const uint8_t*)(offset + idx * sizeof(value_type<Ids>));
+				return std::span{(const value_type<Ids>*)ret, s.size() - idx};
+			}
+
+			constexpr static void set(std::span<uint8_t> s, const size_t idx, ValueType&& val) noexcept {
+				auto t = struct_to_tuple(std::forward<ValueType>(val));
+				set_internal(t, s, idx, std::make_index_sequence<TTupleItems>());
+			}
+
+			template <size_t Ids>
+			constexpr static auto set(std::span<uint8_t> s, const size_t idx = 0) noexcept {
+				const auto offset = get_aligned_byte_offset<Ids>((uintptr_t)s.data(), s.size());
+				const auto* ret = (uint8_t*)(offset + idx * sizeof(value_type<Ids>));
+				return std::span{(value_type<Ids>*)ret, s.size() - idx};
+			}
+
+		private:
+			template <size_t... Ids>
+			constexpr static size_t
+			get_aligned_byte_offset(uintptr_t address, const size_t size, std::index_sequence<Ids...> /*no_name*/) {
+				((address = detail::get_aligned_byte_offset<value_type<Ids>, Alignment>(address, size)), ...);
+				return address;
+			}
+
+			template <uint32_t N>
+			constexpr static size_t get_aligned_byte_offset(uintptr_t address, const size_t size) {
+				return get_aligned_byte_offset(address, size, std::make_index_sequence<N>());
+			}
+
+			template <typename TMemberType>
+			constexpr static TMemberType& get_ref(const uint8_t* data, const size_t idx) noexcept {
+				// Write the value directly to the memory address.
+				// Usage of unaligned_ref is not necessary because the memory is aligned.
+				return *(TMemberType*)&data[idx];
+			}
+
+			template <size_t... Ids>
+			GAIA_NODISCARD constexpr static ValueType get_internal(
+					TTuple& t, std::span<const uint8_t> s, const size_t idx, std::index_sequence<Ids...> /*no_name*/) noexcept {
+				auto offset = (uintptr_t)s.data();
+				((
+						 // Make sure the address is aligned properly
+						 offset = utils::align<Alignment>(offset),
+						 // Put the value at the address into our tuple. Data is aligned so we can read directly.
+						 std::get<Ids>(t) = get_ref<value_type<Ids>>((const uint8_t*)offset, idx * sizeof(value_type<Ids>)),
+						 // Skip towards the next element
+						 offset = detail::get_aligned_byte_offset<value_type<Ids>, Alignment>(offset, s.size())),
+				 ...);
+				return tuple_to_struct<ValueType, TTuple>(std::forward<TTuple>(t));
+			}
+
+			template <size_t... Ids>
+			constexpr static void set_internal(
+					TTuple& t, std::span<uint8_t> s, const size_t idx, std::index_sequence<Ids...> /*no_name*/) noexcept {
+				auto offset = (uintptr_t)s.data();
+				((
+						 // Make sure the address is aligned properly
+						 offset = utils::align<Alignment>(offset),
+						 // Set the tuple value. Data is aligned so we can write directly.
+						 get_ref<value_type<Ids>>((uint8_t*)offset, idx * sizeof(value_type<Ids>)) = std::get<Ids>(t),
+						 // Skip towards the next element
+						 offset = detail::get_aligned_byte_offset<value_type<Ids>, Alignment>(offset, s.size())),
+				 ...);
+			}
+		};
+
+		template <typename ValueType>
+		struct data_view_policy<DataLayout::SoA, ValueType>: data_view_policy_soa<DataLayout::SoA, ValueType> {};
+		template <typename ValueType>
+		struct data_view_policy<DataLayout::SoA8, ValueType>: data_view_policy_soa<DataLayout::SoA8, ValueType> {};
+		template <typename ValueType>
+		struct data_view_policy<DataLayout::SoA16, ValueType>: data_view_policy_soa<DataLayout::SoA16, ValueType> {};
+
+		template <typename ValueType>
+		using soa_view_policy = data_view_policy<DataLayout::SoA, ValueType>;
+		template <typename ValueType>
+		using soa8_view_policy = data_view_policy<DataLayout::SoA8, ValueType>;
+		template <typename ValueType>
+		using soa16_view_policy = data_view_policy<DataLayout::SoA16, ValueType>;
+
+		template <DataLayout TDataLayout, typename ValueType>
+		struct data_view_policy_soa_get {
+			using view_policy = data_view_policy_soa<TDataLayout, ValueType>;
+
+			template <size_t Ids>
+			struct data_view_policy_idx_info {
+				using const_value_type = typename view_policy::template const_value_type<Ids>;
+			};
+
+			//! Raw data pointed to by the view policy
+			std::span<const uint8_t> m_data;
+
+			data_view_policy_soa_get(std::span<uint8_t> data): m_data({(const uint8_t*)data.data(), data.size()}) {}
+			data_view_policy_soa_get(std::span<const uint8_t> data): m_data({(const uint8_t*)data.data(), data.size()}) {}
+			data_view_policy_soa_get(std::span<ValueType> data): m_data({(const uint8_t*)data.data(), data.size()}) {}
+			data_view_policy_soa_get(std::span<const ValueType> data): m_data({(const uint8_t*)data.data(), data.size()}) {}
+
+			GAIA_NODISCARD constexpr auto operator[](size_t idx) const noexcept {
+				return view_policy::get(m_data, idx);
+			}
+
+			template <size_t Ids>
+			GAIA_NODISCARD constexpr auto get() const noexcept {
+				auto s = view_policy::template get<Ids>(m_data);
+				return std::span(s.data(), s.size());
+			}
+
+			GAIA_NODISCARD auto data() const noexcept {
+				return m_data.data();
+			}
+
+			GAIA_NODISCARD auto size() const noexcept {
+				return m_data.size();
+			}
+		};
+
+		template <typename ValueType>
+		struct data_view_policy_get<DataLayout::SoA, ValueType>: data_view_policy_soa_get<DataLayout::SoA, ValueType> {};
+		template <typename ValueType>
+		struct data_view_policy_get<DataLayout::SoA8, ValueType>: data_view_policy_soa_get<DataLayout::SoA8, ValueType> {};
+		template <typename ValueType>
+		struct data_view_policy_get<DataLayout::SoA16, ValueType>:
+				data_view_policy_soa_get<DataLayout::SoA16, ValueType> {};
+
+		template <typename ValueType>
+		using soa_view_policy_get = data_view_policy_get<DataLayout::SoA, ValueType>;
+		template <typename ValueType>
+		using soa8_view_policy_get = data_view_policy_get<DataLayout::SoA8, ValueType>;
+		template <typename ValueType>
+		using soa16_view_policy_get = data_view_policy_get<DataLayout::SoA16, ValueType>;
+
+		template <DataLayout TDataLayout, typename ValueType>
+		struct data_view_policy_soa_set {
+			using view_policy = data_view_policy_soa<TDataLayout, ValueType>;
+
+			template <size_t Ids>
+			struct data_view_policy_idx_info {
+				using value_type = typename view_policy::template value_type<Ids>;
+				using const_value_type = typename view_policy::template const_value_type<Ids>;
+			};
+
+			//! Raw data pointed to by the view policy
+			std::span<uint8_t> m_data;
+
+			data_view_policy_soa_set(std::span<uint8_t> data): m_data(data) {}
+			data_view_policy_soa_set(std::span<ValueType> data): m_data({(uint8_t*)data.data(), data.size()}) {}
+
+			struct setter {
+				const std::span<uint8_t>& m_data;
+				const size_t m_idx;
+
+				constexpr setter(const std::span<uint8_t>& data, const size_t idx): m_data(data), m_idx(idx) {}
+				constexpr void operator=(ValueType&& val) noexcept {
+					view_policy::set(m_data, m_idx, std::forward<ValueType>(val));
+				}
+			};
+
+			GAIA_NODISCARD constexpr auto operator[](size_t idx) const noexcept {
+				return view_policy::get(m_data, idx);
+			}
+			GAIA_NODISCARD constexpr auto operator[](size_t idx) noexcept {
+				return setter(m_data, idx);
+			}
+
+			template <size_t Ids>
+			GAIA_NODISCARD constexpr auto get() const noexcept {
+				auto s = view_policy::template get<Ids>(m_data);
+				return std::span(s.data(), s.size());
+			}
+
+			template <size_t Ids>
+			GAIA_NODISCARD constexpr auto set() noexcept {
+				auto s = view_policy::template set<Ids>(m_data);
+				return std::span(s.data(), s.size());
+			}
+
+			GAIA_NODISCARD auto data() const noexcept {
+				return m_data.data();
+			}
+
+			GAIA_NODISCARD auto size() const noexcept {
+				return m_data.size();
+			}
+		};
+
+		template <typename ValueType>
+		struct data_view_policy_set<DataLayout::SoA, ValueType>: data_view_policy_soa_set<DataLayout::SoA, ValueType> {};
+		template <typename ValueType>
+		struct data_view_policy_set<DataLayout::SoA8, ValueType>: data_view_policy_soa_set<DataLayout::SoA8, ValueType> {};
+		template <typename ValueType>
+		struct data_view_policy_set<DataLayout::SoA16, ValueType>:
+				data_view_policy_soa_set<DataLayout::SoA16, ValueType> {};
+
+		template <typename ValueType>
+		using soa_view_policy_set = data_view_policy_set<DataLayout::SoA, ValueType>;
+		template <typename ValueType>
+		using soa8_view_policy_set = data_view_policy_set<DataLayout::SoA8, ValueType>;
+		template <typename ValueType>
+		using soa16_view_policy_set = data_view_policy_set<DataLayout::SoA16, ValueType>;
+
+		//----------------------------------------------------------------------
+		// Helpers
+		//----------------------------------------------------------------------
+
+		namespace detail {
+			template <typename, typename = void>
+			struct auto_view_policy_internal {
+				static constexpr DataLayout data_layout_type = DataLayout::AoS;
+			};
+			template <typename T>
+			struct auto_view_policy_internal<T, std::void_t<decltype(T::Layout)>> {
+				static constexpr DataLayout data_layout_type = T::Layout;
+			};
+
+			template <typename, typename = void>
+			struct is_soa_layout: std::false_type {};
+			template <typename T>
+			struct is_soa_layout<T, std::void_t<decltype(T::Layout)>>: std::bool_constant<(T::Layout != DataLayout::AoS)> {};
+		} // namespace detail
+
+		template <typename T>
+		using auto_view_policy = data_view_policy<detail::auto_view_policy_internal<T>::data_layout_type, T>;
+		template <typename T>
+		using auto_view_policy_get = data_view_policy_get<detail::auto_view_policy_internal<T>::data_layout_type, T>;
+		template <typename T>
+		using auto_view_policy_set = data_view_policy_set<detail::auto_view_policy_internal<T>::data_layout_type, T>;
+
+		template <typename T>
+		inline constexpr bool is_soa_layout_v = detail::is_soa_layout<T>::value;
+
+	} // namespace utils
+} // namespace gaia
+
+#include <cstdint>
+#include <type_traits>
+
+namespace gaia {
+	namespace utils {
+
+		namespace detail {
+			template <typename, typename = void>
+			struct is_direct_hash_key: std::false_type {};
+			template <typename T>
+			struct is_direct_hash_key<T, std::void_t<decltype(T::IsDirectHashKey)>>: std::true_type {};
+
+			//-----------------------------------------------------------------------------------
+
+			constexpr void hash_combine2_out(uint32_t& lhs, uint32_t rhs) {
+				lhs ^= rhs + 0x9e3779b9 + (lhs << 6) + (lhs >> 2);
+			}
+			constexpr void hash_combine2_out(uint64_t& lhs, uint64_t rhs) {
+				lhs ^= rhs + 0x9e3779B97f4a7c15ULL + (lhs << 6) + (lhs >> 2);
+			}
+
+			template <typename T>
+			GAIA_NODISCARD constexpr T hash_combine2(T lhs, T rhs) {
+				hash_combine2_out(lhs, rhs);
+				return lhs;
+			}
+		} // namespace detail
+
+		template <typename T>
+		inline constexpr bool is_direct_hash_key_v = detail::is_direct_hash_key<T>::value;
+
+		template <typename T>
+		struct direct_hash_key {
+			using Type = T;
+
+			static_assert(std::is_integral_v<T>);
+			static constexpr bool IsDirectHashKey = true;
+
+			T hash;
+			bool operator==(direct_hash_key other) const {
+				return hash == other.hash;
+			}
+			bool operator!=(direct_hash_key other) const {
+				return hash != other.hash;
+			}
+		};
+
+		//! Combines values via OR.
+		template <typename... T>
+		constexpr auto combine_or([[maybe_unused]] T... t) {
+			return (... | t);
+		}
+
+		//! Combines hashes into another complex one
+		template <typename T, typename... Rest>
+		constexpr T hash_combine(T first, T next, Rest... rest) {
+			auto h = detail::hash_combine2(first, next);
+			(detail::hash_combine2_out(h, rest), ...);
+			return h;
+		}
+
+#if GAIA_ECS_HASH == GAIA_ECS_HASH_FNV1A
+
+		namespace detail {
+			namespace fnv1a {
+				constexpr uint64_t val_64_const = 0xcbf29ce484222325;
+				constexpr uint64_t prime_64_const = 0x100000001b3;
+			} // namespace fnv1a
+		} // namespace detail
+
+		constexpr uint64_t calculate_hash64(const char* const str) noexcept {
+			uint64_t hash = detail::fnv1a::val_64_const;
+
+			uint64_t i = 0;
+			while (str[i] != '\0') {
+				hash = (hash ^ uint64_t(str[i])) * detail::fnv1a::prime_64_const;
+				++i;
+			}
+
+			return hash;
+		}
+
+		constexpr uint64_t calculate_hash64(const char* const str, const uint64_t length) noexcept {
+			uint64_t hash = detail::fnv1a::val_64_const;
+
+			for (uint64_t i = 0; i < length; i++)
+				hash = (hash ^ uint64_t(str[i])) * detail::fnv1a::prime_64_const;
+
+			return hash;
+		}
+
+#elif GAIA_ECS_HASH == GAIA_ECS_HASH_MURMUR2A
+
+		// Thank you https://gist.github.com/oteguro/10538695
+
+		GAIA_MSVC_WARNING_PUSH()
+		GAIA_MSVC_WARNING_DISABLE(4592)
+
+		namespace detail {
+			namespace murmur2a {
+				constexpr uint64_t seed_64_const = 0xe17a1465ULL;
+				constexpr uint64_t m = 0xc6a4a7935bd1e995ULL;
+				constexpr uint64_t r = 47;
+
+				constexpr uint64_t Load8(const char* data) {
+					return (uint64_t(data[7]) << 56) | (uint64_t(data[6]) << 48) | (uint64_t(data[5]) << 40) |
+								 (uint64_t(data[4]) << 32) | (uint64_t(data[3]) << 24) | (uint64_t(data[2]) << 16) |
+								 (uint64_t(data[1]) << 8) | (uint64_t(data[0]) << 0);
+				}
+
+				constexpr uint64_t StaticHashValueLast64(uint64_t h) {
+					return (((h * m) ^ ((h * m) >> r)) * m) ^ ((((h * m) ^ ((h * m) >> r)) * m) >> r);
+				}
+
+				constexpr uint64_t StaticHashValueLast64_(uint64_t h) {
+					return (((h) ^ ((h) >> r)) * m) ^ ((((h) ^ ((h) >> r)) * m) >> r);
+				}
+
+				constexpr uint64_t StaticHashValue64Tail1(uint64_t h, const char* data) {
+					return StaticHashValueLast64((h ^ uint64_t(data[0])));
+				}
+
+				constexpr uint64_t StaticHashValue64Tail2(uint64_t h, const char* data) {
+					return StaticHashValue64Tail1((h ^ uint64_t(data[1]) << 8), data);
+				}
+
+				constexpr uint64_t StaticHashValue64Tail3(uint64_t h, const char* data) {
+					return StaticHashValue64Tail2((h ^ uint64_t(data[2]) << 16), data);
+				}
+
+				constexpr uint64_t StaticHashValue64Tail4(uint64_t h, const char* data) {
+					return StaticHashValue64Tail3((h ^ uint64_t(data[3]) << 24), data);
+				}
+
+				constexpr uint64_t StaticHashValue64Tail5(uint64_t h, const char* data) {
+					return StaticHashValue64Tail4((h ^ uint64_t(data[4]) << 32), data);
+				}
+
+				constexpr uint64_t StaticHashValue64Tail6(uint64_t h, const char* data) {
+					return StaticHashValue64Tail5((h ^ uint64_t(data[5]) << 40), data);
+				}
+
+				constexpr uint64_t StaticHashValue64Tail7(uint64_t h, const char* data) {
+					return StaticHashValue64Tail6((h ^ uint64_t(data[6]) << 48), data);
+				}
+
+				constexpr uint64_t StaticHashValueRest64(uint64_t h, uint64_t len, const char* data) {
+					return ((len & 7) == 7)		? StaticHashValue64Tail7(h, data)
+								 : ((len & 7) == 6) ? StaticHashValue64Tail6(h, data)
+								 : ((len & 7) == 5) ? StaticHashValue64Tail5(h, data)
+								 : ((len & 7) == 4) ? StaticHashValue64Tail4(h, data)
+								 : ((len & 7) == 3) ? StaticHashValue64Tail3(h, data)
+								 : ((len & 7) == 2) ? StaticHashValue64Tail2(h, data)
+								 : ((len & 7) == 1) ? StaticHashValue64Tail1(h, data)
+																		: StaticHashValueLast64_(h);
+				}
+
+				constexpr uint64_t StaticHashValueLoop64(uint64_t i, uint64_t h, uint64_t len, const char* data) {
+					return (
+							i == 0 ? StaticHashValueRest64(h, len, data)
+										 : StaticHashValueLoop64(
+													 i - 1, (h ^ (((Load8(data) * m) ^ ((Load8(data) * m) >> r)) * m)) * m, len, data + 8));
+				}
+
+				constexpr uint64_t hash_murmur2a_64_ct(const char* key, uint64_t len, uint64_t seed) {
+					return StaticHashValueLoop64(len / 8, seed ^ (len * m), (len), key);
+				}
+			} // namespace murmur2a
+		} // namespace detail
+
+		constexpr uint64_t calculate_hash64(uint64_t value) {
+			value ^= value >> 33U;
+			value *= 0xff51afd7ed558ccdULL;
+			value ^= value >> 33U;
+
+			value *= 0xc4ceb9fe1a85ec53ULL;
+			value ^= value >> 33U;
+			return value;
+		}
+
+		constexpr uint64_t calculate_hash64(const char* str) {
+			uint64_t size = 0;
+			while (str[size] != '\0')
+				++size;
+
+			return detail::murmur2a::hash_murmur2a_64_ct(str, size, detail::murmur2a::seed_64_const);
+		}
+
+		constexpr uint64_t calculate_hash64(const char* str, uint64_t length) {
+			return detail::murmur2a::hash_murmur2a_64_ct(str, length, detail::murmur2a::seed_64_const);
+		}
+
+		GAIA_MSVC_WARNING_POP()
+
+#else
+	#error "Unknown hashing type defined"
+#endif
+
+	} // namespace utils
+} // namespace gaia
+
+#include <type_traits>
+#include <utility>
 
 namespace gaia {
 	namespace serialization {
@@ -12988,15 +13094,20 @@ namespace gaia {
 				//! Unique component identifier
 				ComponentId componentId = ComponentIdBad;
 
+				static constexpr uint32_t MaxAlignment_Bits = 10;
+				static constexpr uint32_t MaxAlignment = (1U << MaxAlignment_Bits) - 1;
+
 				//! Various component properties
 				struct {
 					//! Component alignment
-					uint32_t alig: MAX_COMPONENTS_SIZE_BITS;
+					uint32_t alig: MaxAlignment_Bits;
 					//! Component size
 					uint32_t size: MAX_COMPONENTS_SIZE_BITS;
 					//! SOA variables. If > 0 the component is laid out in SoA style
-					uint32_t soa: utils::StructToTupleMaxTypesBits;
+					uint32_t soa: utils::StructToTupleMaxTypes_Bits;
 				} properties{};
+
+				uint8_t soaSizes[utils::StructToTupleMaxTypes];
 
 				void CtorFrom(void* pSrc, void* pDst) const {
 					if (ctor_move != nullptr)
@@ -13026,6 +13137,16 @@ namespace gaia {
 						dtor(pSrc, 1);
 				}
 
+				GAIA_NODISCARD uint32_t CalculateNewMemoryOffset(uint32_t addr, size_t N) const noexcept {
+					if (properties.soa == 0) {
+						addr = (uint32_t)utils::detail::get_aligned_byte_offset(addr, properties.alig, properties.size, N);
+					} else {
+						for (uint32_t i = 0; i < (uint32_t)properties.soa; ++i)
+							addr = (uint32_t)utils::detail::get_aligned_byte_offset(addr, properties.alig, soaSizes[i], N);
+					}
+					return addr;
+				}
+
 				template <typename T>
 				GAIA_NODISCARD static constexpr ComponentDesc Calculate() {
 					using U = typename component_type_t<T>::Type;
@@ -13035,12 +13156,21 @@ namespace gaia {
 					info.componentId = GetComponentId<T>();
 
 					if constexpr (!std::is_empty_v<U>) {
-						info.properties.alig = utils::auto_view_policy<U>::Alignment;
 						info.properties.size = (uint32_t)sizeof(U);
 
+						static_assert(MaxAlignment_Bits, "Maximum supported alignemnt for a component is MaxAlignment");
+						info.properties.alig = (uint32_t)utils::auto_view_policy<U>::Alignment;
+
 						if constexpr (utils::is_soa_layout_v<U>) {
-							using TTuple = decltype(utils::struct_to_tuple(T{}));
-							info.properties.soa = (uint32_t)std::tuple_size<TTuple>::value;
+							uint32_t i = 0;
+							using TTuple = decltype(utils::struct_to_tuple(U{}));
+							utils::for_each_tuple(TTuple{}, [&](auto&& item) {
+								static_assert(sizeof(item) <= 255, "Each member of a SoA component can be at most 255 B long!");
+								info.soaSizes[i] = (uint8_t)sizeof(item);
+								++i;
+							});
+							info.properties.soa = i;
+							GAIA_ASSERT(i <= utils::StructToTupleMaxTypes);
 						} else {
 							info.properties.soa = 0U;
 
@@ -14237,10 +14367,9 @@ namespace gaia {
 				template <typename T>
 				GAIA_NODISCARD GAIA_FORCEINLINE auto View_Internal() const {
 					using U = typename component::component_type_t<T>::Type;
-					using UConst = typename std::add_const_t<U>;
 
 					if constexpr (std::is_same_v<U, Entity>) {
-						return std::span<UConst>{(UConst*)&GetData(m_header.offsets.firstByte_EntityData), GetEntityCount()};
+						return std::span<const uint8_t>{&GetData(m_header.offsets.firstByte_EntityData), GetEntityCount()};
 					} else {
 						static_assert(!std::is_empty_v<U>, "Attempting to get value of an empty component");
 
@@ -14253,14 +14382,14 @@ namespace gaia {
 							[[maybe_unused]] const auto maxOffset = offset + capacity * sizeof(U);
 							GAIA_ASSERT(maxOffset <= GetByteSize());
 
-							return std::span<UConst>{(UConst*)&GetData(offset), GetEntityCount()};
+							return std::span<const uint8_t>{&GetData(offset), GetEntityCount()};
 						} else {
 							const auto offset = FindDataOffset(component::ComponentType::CT_Chunk, componentId);
 
 							[[maybe_unused]] const auto maxOffset = offset + sizeof(U);
 							GAIA_ASSERT(maxOffset <= GetByteSize());
 
-							return std::span<UConst>{(UConst*)&GetData(offset), 1};
+							return std::span<const uint8_t>{&GetData(offset), 1};
 						}
 					}
 				}
@@ -14300,7 +14429,7 @@ namespace gaia {
 							this->UpdateWorldVersion(component::ComponentType::CT_Generic, componentIdx);
 						}
 
-						return std::span<U>{(U*)&GetData(offset), GetEntityCount()};
+						return std::span<uint8_t>{&GetData(offset), GetEntityCount()};
 					} else {
 						const auto offset = FindDataOffset(component::ComponentType::CT_Chunk, componentId, componentIdx);
 
@@ -14312,7 +14441,7 @@ namespace gaia {
 							this->UpdateWorldVersion(component::ComponentType::CT_Chunk, componentIdx);
 						}
 
-						return std::span<U>{(U*)&GetData(offset), 1};
+						return std::span<uint8_t>{&GetData(offset), 1};
 					}
 				}
 
@@ -14322,7 +14451,7 @@ namespace gaia {
 				\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
 				\tparam T Component
 				\param index Index of entity in the chunk
-				\return Value stored in the component.
+				\return Value stored in the component if smaller than 8 bytes. Const reference to the value otherwise.
 				*/
 				template <typename T>
 				GAIA_NODISCARD auto GetComponent_Internal(uint32_t index) const {
@@ -14460,7 +14589,7 @@ namespace gaia {
 				GAIA_NODISCARD auto View() const {
 					using U = typename component::component_type_t<T>::Type;
 
-					return utils::auto_view_policy_get<std::add_const_t<U>>{{View_Internal<T>()}};
+					return utils::auto_view_policy_get<U>{View_Internal<T>()};
 				}
 
 				/*!
@@ -14474,7 +14603,7 @@ namespace gaia {
 					using U = typename component::component_type_t<T>::Type;
 					static_assert(!std::is_same_v<U, Entity>);
 
-					return utils::auto_view_policy_set<U>{{ViewRW_Internal<T, true>()}};
+					return utils::auto_view_policy_set<U>{ViewRW_Internal<T, true>()};
 				}
 
 				/*!
@@ -14489,7 +14618,7 @@ namespace gaia {
 					using U = typename component::component_type_t<T>::Type;
 					static_assert(!std::is_same_v<U, Entity>);
 
-					return utils::auto_view_policy_set<U>{{ViewRW_Internal<T, false>()}};
+					return utils::auto_view_policy_set<U>{ViewRW_Internal<T, false>()};
 				}
 
 				/*!
@@ -15073,10 +15202,13 @@ namespace gaia {
 				GAIA_NODISCARD constexpr GAIA_FORCEINLINE auto GetComponentView() {
 					using U = typename component::component_type_t<T>::Type;
 					using UOriginal = typename component::component_type_t<T>::TypeOriginal;
-					if constexpr (component::is_component_mut_v<UOriginal>)
-						return ViewRW_Internal<U, true>();
-					else
-						return View_Internal<U>();
+					if constexpr (component::is_component_mut_v<UOriginal>) {
+						auto s = ViewRW_Internal<U, true>();
+						return std::span{(U*)s.data(), s.size()};
+					} else {
+						auto s = View_Internal<U>();
+						return std::span{(const U*)s.data(), s.size()};
+					}
 				}
 
 				template <typename... T, typename Func>
@@ -15552,19 +15684,8 @@ namespace gaia {
 						if (alignment == 0)
 							continue;
 
-						const auto padding = utils::padding(dataOffset, alignment);
-
-						// For SoA types we shall assume there is a padding of the entire size of the array.
-						// Of course this is a bit wasteful but it's a bit of work to calculate how much area exactly we need.
-						// We might have:
-						// 	struct foo { float x; float y; bool a; float z; };
-						// Each of the variables of the foo struct might need separate padding when converted to SoA.
-						// TODO: Introduce a function that can calculate this.
-						const auto componentDataSize =
-								padding + ((uint32_t)desc.properties.soa * 3 * desc.properties.size) + desc.properties.size * size;
-						const auto nextOffset = dataOffset + componentDataSize;
-
 						// If we're beyond what the chunk could take, subtract one entity
+						const auto nextOffset = desc.CalculateNewMemoryOffset(dataOffset, size);
 						if (nextOffset >= maxDataOffset) {
 							const auto subtractItems = (nextOffset - maxDataOffset + desc.properties.size) / desc.properties.size;
 							GAIA_ASSERT(subtractItems > 0);
@@ -15573,7 +15694,7 @@ namespace gaia {
 							return false;
 						}
 
-						dataOffset += componentDataSize;
+						dataOffset = nextOffset;
 					}
 
 					return true;
@@ -18936,21 +19057,7 @@ namespace gaia {
 				return ComponentGetter{entityContainer.pChunk, entityContainer.idx}.HasComponent<T>();
 			}
 
-			//----------------------------------------------------------------------
-
 		private:
-			template <typename T>
-			GAIA_NODISCARD constexpr GAIA_FORCEINLINE auto GetComponentView(archetype::Chunk& chunk) const {
-				using U = typename component::component_type_t<T>::Type;
-				using UOriginal = typename component::component_type_t<T>::TypeOriginal;
-				if constexpr (component::is_component_mut_v<UOriginal>)
-					return chunk.ViewRW_Internal<U, true>();
-				else
-					return chunk.View_Internal<U>();
-			}
-
-			//--------------------------------------------------------------------------------
-
 			template <typename... T>
 			void UnpackArgsIntoQuery(Query& query, [[maybe_unused]] utils::func_type_list<T...> types) const {
 				static_assert(sizeof...(T) > 0, "Inputs-less functors can not be unpacked to query");

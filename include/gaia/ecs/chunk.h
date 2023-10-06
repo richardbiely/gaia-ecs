@@ -114,10 +114,9 @@ namespace gaia {
 				template <typename T>
 				GAIA_NODISCARD GAIA_FORCEINLINE auto View_Internal() const {
 					using U = typename component::component_type_t<T>::Type;
-					using UConst = typename std::add_const_t<U>;
 
 					if constexpr (std::is_same_v<U, Entity>) {
-						return std::span<UConst>{(UConst*)&GetData(m_header.offsets.firstByte_EntityData), GetEntityCount()};
+						return std::span<const uint8_t>{&GetData(m_header.offsets.firstByte_EntityData), GetEntityCount()};
 					} else {
 						static_assert(!std::is_empty_v<U>, "Attempting to get value of an empty component");
 
@@ -130,14 +129,14 @@ namespace gaia {
 							[[maybe_unused]] const auto maxOffset = offset + capacity * sizeof(U);
 							GAIA_ASSERT(maxOffset <= GetByteSize());
 
-							return std::span<UConst>{(UConst*)&GetData(offset), GetEntityCount()};
+							return std::span<const uint8_t>{&GetData(offset), GetEntityCount()};
 						} else {
 							const auto offset = FindDataOffset(component::ComponentType::CT_Chunk, componentId);
 
 							[[maybe_unused]] const auto maxOffset = offset + sizeof(U);
 							GAIA_ASSERT(maxOffset <= GetByteSize());
 
-							return std::span<UConst>{(UConst*)&GetData(offset), 1};
+							return std::span<const uint8_t>{&GetData(offset), 1};
 						}
 					}
 				}
@@ -177,7 +176,7 @@ namespace gaia {
 							this->UpdateWorldVersion(component::ComponentType::CT_Generic, componentIdx);
 						}
 
-						return std::span<U>{(U*)&GetData(offset), GetEntityCount()};
+						return std::span<uint8_t>{&GetData(offset), GetEntityCount()};
 					} else {
 						const auto offset = FindDataOffset(component::ComponentType::CT_Chunk, componentId, componentIdx);
 
@@ -189,7 +188,7 @@ namespace gaia {
 							this->UpdateWorldVersion(component::ComponentType::CT_Chunk, componentIdx);
 						}
 
-						return std::span<U>{(U*)&GetData(offset), 1};
+						return std::span<uint8_t>{&GetData(offset), 1};
 					}
 				}
 
@@ -199,7 +198,7 @@ namespace gaia {
 				\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
 				\tparam T Component
 				\param index Index of entity in the chunk
-				\return Value stored in the component.
+				\return Value stored in the component if smaller than 8 bytes. Const reference to the value otherwise.
 				*/
 				template <typename T>
 				GAIA_NODISCARD auto GetComponent_Internal(uint32_t index) const {
@@ -337,7 +336,7 @@ namespace gaia {
 				GAIA_NODISCARD auto View() const {
 					using U = typename component::component_type_t<T>::Type;
 
-					return utils::auto_view_policy_get<std::add_const_t<U>>{{View_Internal<T>()}};
+					return utils::auto_view_policy_get<U>{View_Internal<T>()};
 				}
 
 				/*!
@@ -351,7 +350,7 @@ namespace gaia {
 					using U = typename component::component_type_t<T>::Type;
 					static_assert(!std::is_same_v<U, Entity>);
 
-					return utils::auto_view_policy_set<U>{{ViewRW_Internal<T, true>()}};
+					return utils::auto_view_policy_set<U>{ViewRW_Internal<T, true>()};
 				}
 
 				/*!
@@ -366,7 +365,7 @@ namespace gaia {
 					using U = typename component::component_type_t<T>::Type;
 					static_assert(!std::is_same_v<U, Entity>);
 
-					return utils::auto_view_policy_set<U>{{ViewRW_Internal<T, false>()}};
+					return utils::auto_view_policy_set<U>{ViewRW_Internal<T, false>()};
 				}
 
 				/*!
@@ -950,10 +949,13 @@ namespace gaia {
 				GAIA_NODISCARD constexpr GAIA_FORCEINLINE auto GetComponentView() {
 					using U = typename component::component_type_t<T>::Type;
 					using UOriginal = typename component::component_type_t<T>::TypeOriginal;
-					if constexpr (component::is_component_mut_v<UOriginal>)
-						return ViewRW_Internal<U, true>();
-					else
-						return View_Internal<U>();
+					if constexpr (component::is_component_mut_v<UOriginal>) {
+						auto s = ViewRW_Internal<U, true>();
+						return std::span{(U*)s.data(), s.size()};
+					} else {
+						auto s = View_Internal<U>();
+						return std::span{(const U*)s.data(), s.size()};
+					}
 				}
 
 				template <typename... T, typename Func>
