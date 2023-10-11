@@ -3,8 +3,9 @@
 #include <type_traits>
 #include <utility>
 
+#include "../utils/data_layout_policy.h"
 #include "../utils/iterator.h"
-#include "../utils/mem.h"
+#include "../utils/mem_utils.h"
 
 namespace gaia {
 	namespace containers {
@@ -14,8 +15,9 @@ namespace gaia {
 		class sringbuffer {
 		public:
 			static_assert(N > 1);
+			static_assert(!utils::is_soa_layout_v<T>);
 
-			using iterator_category = GAIA_UTIL::random_access_iterator_tag;
+			using iterator_category = utils::random_access_iterator_tag;
 			using value_type = T;
 			using reference = T&;
 			using const_reference = const T&;
@@ -34,7 +36,7 @@ namespace gaia {
 
 			template <typename InputIt>
 			sringbuffer(InputIt first, InputIt last) {
-				const auto count = (size_type)GAIA_UTIL::distance(first, last);
+				const auto count = (size_type)utils::distance(first, last);
 				GAIA_ASSERT(count <= max_size());
 				if (count < 1)
 					return;
@@ -45,8 +47,7 @@ namespace gaia {
 				if constexpr (std::is_pointer_v<InputIt>) {
 					for (size_type i = 0; i < count; ++i)
 						m_data[i] = first[i];
-				} else if constexpr (std::is_same_v<
-																 typename InputIt::iterator_category, GAIA_UTIL::random_access_iterator_tag>) {
+				} else if constexpr (std::is_same_v<typename InputIt::iterator_category, utils::random_access_iterator_tag>) {
 					for (size_type i = 0; i < count; ++i)
 						m_data[i] = *(first[i]);
 				} else {
@@ -61,9 +62,9 @@ namespace gaia {
 			sringbuffer(const sringbuffer& other): sringbuffer(other.begin(), other.end()) {}
 
 			sringbuffer(sringbuffer&& other) noexcept: m_tail(other.m_tail), m_size(other.m_size) {
-				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
+				GAIA_ASSERT(utils::addressof(other) != this);
 
-				utils::move_elements(m_data, other.m_data, other.size());
+				utils::move_elements<T>(m_data, other.m_data, 0, other.size(), extent, other.extent);
 
 				other.m_tail = size_type(0);
 				other.m_size = size_type(0);
@@ -75,9 +76,9 @@ namespace gaia {
 			}
 
 			constexpr sringbuffer& operator=(const sringbuffer& other) {
-				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
+				GAIA_ASSERT(utils::addressof(other) != this);
 
-				utils::copy_elements(m_data, other.m_data, other.size());
+				utils::copy_elements<T>((uint8_t*)&m_data[0], other.m_data, 0, other.size(), extent, other.extent);
 
 				m_tail = other.m_tail;
 				m_size = other.m_size;
@@ -86,9 +87,9 @@ namespace gaia {
 			}
 
 			constexpr sringbuffer& operator=(sringbuffer&& other) noexcept {
-				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
+				GAIA_ASSERT(utils::addressof(other) != this);
 
-				utils::move_elements(m_data, other.m_data, other.size());
+				utils::move_elements<T>(m_data, other.m_data, 0, other.size(), extent, other.extent);
 
 				m_tail = other.m_tail;
 				m_size = other.m_size;

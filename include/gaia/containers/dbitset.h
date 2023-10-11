@@ -4,7 +4,7 @@
 #include <cinttypes>
 #include <type_traits>
 
-#include "../utils/mem.h"
+#include "../utils/mem_utils.h"
 #include "bitset_iterator.h"
 
 namespace gaia {
@@ -52,6 +52,7 @@ namespace gaia {
 				// Increase the size of an existing array.
 				// We are pessimistic with our allocations and only allocate as much as we need.
 				// If we know the expected size ahead of the time a manual call to reserve is necessary.
+				const auto capOld = m_cap;
 				const uint32_t itemsNew = (m_cnt + BitsPerItem - 1) / BitsPerItem;
 				m_cap = itemsNew * BitsPerItem;
 
@@ -63,7 +64,7 @@ namespace gaia {
 						m_pData[i] = 0;
 				} else {
 					// Copy the old data over and set the old data to zeros
-					utils::move_elements(m_pData, pDataOld, itemsNew - itemsOld);
+					utils::copy_elements<size_type>((uint8_t*)m_pData, (const uint8_t*)pDataOld, 0, itemsOld, m_cap, capOld);
 					for (uint32_t i = itemsOld; i < itemsNew; ++i)
 						m_pData[i] = 0;
 
@@ -104,7 +105,7 @@ namespace gaia {
 				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
 
 				resize(other.m_cnt);
-				utils::copy_elements(m_pData, other.m_pData, other.items());
+				utils::copy_elements<size_type>((uint8_t*)m_pData, (const uint8_t*)other.m_pData, 0, other.items(), 0, 0);
 				return *this;
 			}
 
@@ -145,7 +146,7 @@ namespace gaia {
 				} else {
 					const uint32_t itemsOld = items();
 					// Copy the old data over and set the old data to zeros
-					utils::move_elements(m_pData, pDataOld, size());
+					utils::copy_elements<size_type>((uint8_t*)m_pData, (const uint8_t*)pDataOld, 0, size(), 0, 0);
 					for (uint32_t i = itemsOld; i < itemsNew; ++i)
 						m_pData[i] = 0;
 
@@ -179,7 +180,7 @@ namespace gaia {
 						m_pData[i] = 0;
 				} else {
 					// Copy the old data over and set the old data to zeros
-					utils::move_elements(m_pData, pDataOld, size());
+					utils::copy_elements<size_type>((uint8_t*)m_pData, (const uint8_t*)pDataOld, 0, size(), 0, 0);
 					for (uint32_t i = itemsOld; i < itemsNew; ++i)
 						m_pData[i] = 0;
 

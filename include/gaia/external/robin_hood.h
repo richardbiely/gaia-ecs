@@ -50,7 +50,7 @@
 
 #include "../utils/hashing_policy.h"
 #include "../utils/iterator.h"
-#include "../utils/mem.h"
+#include "../utils/mem_alloc.h"
 #include "../utils/utility.h"
 
 // #define ROBIN_HOOD_STD_SMARTPOINTERS

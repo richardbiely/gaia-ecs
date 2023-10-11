@@ -4,7 +4,6 @@
 #include <type_traits>
 
 #include "../containers/darray_ext.h"
-#include "../utils/mem.h"
 #include "component_cache.h"
 
 namespace gaia {

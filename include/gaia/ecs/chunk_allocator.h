@@ -9,7 +9,7 @@
 #include "../containers/darray.h"
 #include "../containers/sarray.h"
 #include "../containers/sarray_ext.h"
-#include "../utils/mem.h"
+#include "../utils/mem_alloc.h"
 #include "../utils/span.h"
 #include "../utils/utility.h"
 #include "common.h"
@@ -121,8 +121,8 @@ namespace gaia {
 							value = (m_blocks[byteIndex1] >> bitOffset1) & 0x3F;
 						} else {
 							// The value spans two bytes
-							uint8_t lowerPart = (m_blocks[byteIndex1] >> bitOffset1);
-							uint8_t upperPart = (m_blocks[byteIndex2] & (0xFF >> (8 - bitOffset2))) << (NBlocks_Bits - bitOffset1);
+							const uint8_t lowerPart = (m_blocks[byteIndex1] >> bitOffset1);
+							const uint8_t upperPart = (m_blocks[byteIndex2] & (0xFF >> (8 - bitOffset2))) << (NBlocks_Bits - bitOffset1);
 							value = lowerPart | upperPart;
 						}
 						return value;

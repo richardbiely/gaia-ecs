@@ -8,7 +8,6 @@
 #include <utility>
 
 #include "../containers/sarray_ext.h"
-#include "../utils/mem.h"
 #include "../utils/utility.h"
 #include "archetype_common.h"
 #include "chunk_allocator.h"
@@ -116,7 +115,8 @@ namespace gaia {
 					using U = typename component::component_type_t<T>::Type;
 
 					if constexpr (std::is_same_v<U, Entity>) {
-						return std::span<const uint8_t>{&GetData(m_header.offsets.firstByte_EntityData), GetEntityCount()};
+						return std::span<const uint8_t>{
+								(const uint8_t*)&GetData(m_header.offsets.firstByte_EntityData), GetEntityCount()};
 					} else {
 						static_assert(!std::is_empty_v<U>, "Attempting to get value of an empty component");
 
@@ -129,14 +129,14 @@ namespace gaia {
 							[[maybe_unused]] const auto maxOffset = offset + capacity * sizeof(U);
 							GAIA_ASSERT(maxOffset <= GetByteSize());
 
-							return std::span<const uint8_t>{&GetData(offset), GetEntityCount()};
+							return std::span<const uint8_t>{(const uint8_t*)&GetData(offset), GetEntityCount()};
 						} else {
 							const auto offset = FindDataOffset(component::ComponentType::CT_Chunk, componentId);
 
 							[[maybe_unused]] const auto maxOffset = offset + sizeof(U);
 							GAIA_ASSERT(maxOffset <= GetByteSize());
 
-							return std::span<const uint8_t>{&GetData(offset), 1};
+							return std::span<const uint8_t>{(const uint8_t*)&GetData(offset), 1};
 						}
 					}
 				}
@@ -176,7 +176,7 @@ namespace gaia {
 							this->UpdateWorldVersion(component::ComponentType::CT_Generic, componentIdx);
 						}
 
-						return std::span<uint8_t>{&GetData(offset), GetEntityCount()};
+						return std::span<uint8_t>{(uint8_t*)&GetData(offset), GetEntityCount()};
 					} else {
 						const auto offset = FindDataOffset(component::ComponentType::CT_Chunk, componentId, componentIdx);
 
@@ -188,7 +188,7 @@ namespace gaia {
 							this->UpdateWorldVersion(component::ComponentType::CT_Chunk, componentIdx);
 						}
 
-						return std::span<uint8_t>{&GetData(offset), 1};
+						return std::span<uint8_t>{(uint8_t*)&GetData(offset), 1};
 					}
 				}
 
