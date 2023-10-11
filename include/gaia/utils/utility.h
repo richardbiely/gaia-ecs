@@ -42,6 +42,26 @@ namespace gaia {
 		}
 
 		//----------------------------------------------------------------------
+		// Element construction / destruction
+		//----------------------------------------------------------------------
+
+		template <typename T>
+		void call_ctor(T* pData, size_t cnt) {
+			if constexpr (!std::is_trivially_constructible_v<T>) {
+				for (size_t i = 0; i < cnt; ++i)
+					(void)::new (pData + i) T();
+			}
+		}
+
+		template <typename T>
+		void call_dtor(T* pData, size_t cnt) {
+			if constexpr (!std::is_trivially_constructible_v<T>) {
+				for (size_t i = 0; i < cnt; ++i)
+					pData[i].~T();
+			}
+		}
+
+		//----------------------------------------------------------------------
 		// Element swapping
 		//----------------------------------------------------------------------
 

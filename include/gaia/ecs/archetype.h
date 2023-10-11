@@ -8,7 +8,6 @@
 #include "../containers/sarray.h"
 #include "../containers/sarray_ext.h"
 #include "../utils/hashing_policy.h"
-#include "../utils/mem.h"
 #include "archetype_common.h"
 #include "archetype_graph.h"
 #include "chunk.h"

@@ -30,10 +30,12 @@ namespace gaia {
 	namespace mt {
 
 		class ThreadPool final {
-			std::thread::id m_mainThreadId;
+			static constexpr uint32_t MaxWorkers = 32;
 
+			//! ID of the main thread
+			std::thread::id m_mainThreadId;
 			//! List of worker threads
-			containers::sarr_ext<std::thread, 64> m_workers;
+			containers::sarr_ext<std::thread, MaxWorkers> m_workers;
 			//! Manager for internal jobs
 			JobManager m_jobManager;
 			//! List of pending user jobs
@@ -50,15 +52,15 @@ namespace gaia {
 
 		private:
 			ThreadPool(): m_jobsPending(0), m_stop(false) {
-				uint32_t workerCount = CalculateThreadCount(0);
-				if (workerCount > m_workers.max_size())
-					workerCount = (uint32_t)m_workers.max_size();
+				uint32_t workersCnt = CalculateThreadCount(0);
+				if (workersCnt > MaxWorkers)
+					workersCnt = MaxWorkers;
 
-				m_workers.resize(workerCount);
+				m_workers.resize(workersCnt);
 
 				m_mainThreadId = std::this_thread::get_id();
 
-				for (uint32_t i = 0; i < workerCount; ++i) {
+				for (uint32_t i = 0; i < workersCnt; ++i) {
 					m_workers[i] = std::thread([this, i]() {
 						// Set the worker thread name.
 						// Needs to be called from inside the thread because some platforms
@@ -86,7 +88,7 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD uint32_t GetWorkersCount() const {
-				return (uint32_t)m_workers.size();
+				return m_workers.size();
 			}
 
 			~ThreadPool() {
@@ -216,7 +218,7 @@ namespace gaia {
 				if GAIA_UNLIKELY (m_stop)
 					return JobNull;
 
-				const uint32_t workerCount = (uint32_t)m_workers.size();
+				const uint32_t workerCount = m_workers.size();
 
 				// No group size was given, make a guess based on the set size
 				if (groupSize == 0)
@@ -293,7 +295,7 @@ namespace gaia {
 				if (mask <= 0)
 					GAIA_LOG_W("Issue setting thread affinity for worker thread %u!", threadID);
 #elif GAIA_PLATFORM_APPLE
-				auto nativeHandle = (pthread_t)m_workers[threadID].native_handle();
+				pthread_t nativeHandle = (pthread_t)m_workers[threadID].native_handle();
 
 				mach_port_t mach_thread = pthread_mach_thread_np(nativeHandle);
 				thread_affinity_policy_data_t policy_data = {(int)threadID};
@@ -303,7 +305,7 @@ namespace gaia {
 				if (ret == 0)
 					GAIA_LOG_W("Issue setting thread affinity for worker thread %u!", threadID);
 #elif GAIA_PLATFORM_LINUX || GAIA_PLATFORM_FREEBSD
-				auto nativeHandle = (pthread_t)m_workers[threadID].native_handle();
+				pthread_t nativeHandle = (pthread_t)m_workers[threadID].native_handle();
 
 				cpu_set_t cpuset;
 				CPU_ZERO(&cpuset);
@@ -398,8 +400,10 @@ namespace gaia {
 				// Wake up any threads that were put to sleep
 				m_cv.notify_all();
 				// Join threads with the main one
-				for (auto& w: m_workers)
-					w.join();
+				for (auto& w: m_workers) {
+					if (w.joinable())
+						w.join();
+				}
 			}
 
 			//! Checks whether workers are busy doing work.

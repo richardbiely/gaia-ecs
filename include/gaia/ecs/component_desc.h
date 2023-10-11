@@ -10,6 +10,7 @@
 #include "../utils/type_info.h"
 #include "../utils/utility.h"
 #include "component.h"
+#include "gaia/utils/mem_utils.h"
 #include "gaia/utils/reflection.h"
 
 namespace gaia {
@@ -121,20 +122,14 @@ namespace gaia {
 							// Custom construction
 							if constexpr (!std::is_trivially_constructible_v<U>) {
 								info.ctor = [](void* ptr, uint32_t cnt) {
-									auto* first = (U*)ptr;
-									auto* last = (U*)ptr + cnt;
-									for (; first != last; ++first)
-										(void)new (first) U();
+									utils::call_ctor((U*)ptr, cnt);
 								};
 							}
 
 							// Custom destruction
 							if constexpr (!std::is_trivially_destructible_v<U>) {
 								info.dtor = [](void* ptr, uint32_t cnt) {
-									auto first = (U*)ptr;
-									auto last = (U*)ptr + cnt;
-									for (; first != last; ++first)
-										first->~U();
+									utils::call_dtor((U*)ptr, cnt);
 								};
 							}
 

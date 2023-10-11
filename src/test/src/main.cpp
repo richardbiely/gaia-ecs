@@ -1140,71 +1140,26 @@ TEST_CASE("Run-time sort - quick sort") {
 template <typename T>
 void TestDataLayoutAoS() {
 	constexpr uint32_t N = 100;
-	containers::sarray<T, N> data{};
-	containers::sarray<T, N> data2{};
+	containers::sarray<T, N> data;
 
-	using aos = utils::aos_view_policy<T>;
-	using view_deduced = utils::auto_view_policy<T>;
-
-	// Clear the array
 	for (uint32_t i = 0; i < N; ++i) {
-		data[i] = {};
-		data2[i] = {};
+		const auto f = (float)(i + 1);
+		data[i] = {f, f, f};
+
+		auto val = data[i];
+		REQUIRE(val.x == f);
+		REQUIRE(val.y == f);
+		REQUIRE(val.z == f);
 	}
 
-	SECTION("Explicit view") {
+	SECTION("Make sure that all values are correct (e.g. that they were not overriden by one of the loop iteration)") {
 		for (uint32_t i = 0; i < N; ++i) {
 			const auto f = (float)(i + 1);
 
-			aos::set({data.data(), data.size()}, i, {f, f, f});
-
-			auto val = aos::getc({data.data(), data.size()}, i);
+			auto val = data[i];
 			REQUIRE(val.x == f);
 			REQUIRE(val.y == f);
 			REQUIRE(val.z == f);
-		}
-
-		SECTION("Make sure that all values are correct (e.g. that they were not overriden by one of the loop iteration)") {
-			for (uint32_t i = 0; i < N; ++i) {
-				const auto f = (float)(i + 1);
-
-				auto val = aos::getc({data.data(), data.size()}, i);
-				REQUIRE(val.x == f);
-				REQUIRE(val.y == f);
-				REQUIRE(val.z == f);
-			}
-		}
-	}
-
-	SECTION("Deduced view") {
-		for (uint32_t i = 0; i < N; ++i) {
-			const auto f = (float)(i + 1);
-
-			view_deduced::set({data.data(), data.size()}, i, {f, f, f});
-
-			auto val = view_deduced::getc({data.data(), data.size()}, i);
-			REQUIRE(val.x == f);
-			REQUIRE(val.y == f);
-			REQUIRE(val.z == f);
-		}
-
-		SECTION("Make sure that all values are correct (e.g. that they were not overriden by one of the loop iteration)") {
-			for (uint32_t i = 0; i < N; ++i) {
-				const auto f = (float)(i + 1);
-
-				auto val = view_deduced::getc({data.data(), data.size()}, i);
-				REQUIRE(val.x == f);
-				REQUIRE(val.y == f);
-				REQUIRE(val.z == f);
-			}
-		}
-	}
-
-	SECTION("Make sure we didn't write beyond the bounds") {
-		T dummy{};
-		for (uint32_t i = N; i < N; ++i) {
-			const auto& val = data2[i];
-			REQUIRE_FALSE(memcmp((const void*)&val, (const void*)&dummy, sizeof(T)));
 		}
 	}
 }
@@ -1216,71 +1171,56 @@ TEST_CASE("DataLayout AoS") {
 
 template <typename T>
 void TestDataLayoutSoA() {
-	using ViewPolicy = utils::auto_view_policy<T>;
-	using ViewSpan = std::span<T>;
-
 	constexpr uint32_t N = 100;
-	constexpr uint32_t Alignment = ViewPolicy::Alignment;
-	constexpr uint32_t BytesNecessary = ViewPolicy::get_min_byte_size(0, N);
-	GAIA_ALIGNAS(Alignment) containers::sarray<uint8_t, BytesNecessary> data{};
+	containers::sarray<T, N> data{};
 
-	SECTION("Deduced view") {
+	for (uint32_t i = 0; i < N; ++i) {
+		const float f[] = {(float)(i + 1), (float)(i + 2), (float)(i + 3)};
+		data[i] = {f[0], f[1], f[2]};
+
+		T val = data[i];
+		REQUIRE(val.x == f[0]);
+		REQUIRE(val.y == f[1]);
+		REQUIRE(val.z == f[2]);
+	}
+
+	SECTION("Make sure that all values are correct (e.g. that they were not overriden by one of the loop iteration)") {
 		for (uint32_t i = 0; i < N; ++i) {
 			const float f[] = {(float)(i + 1), (float)(i + 2), (float)(i + 3)};
-			ViewPolicy::set({data.data(), N}, i, {f[0], f[1], f[2]});
 
-			auto val = ViewPolicy::get({data.data(), N}, i);
+			T val = data[i];
 			REQUIRE(val.x == f[0]);
 			REQUIRE(val.y == f[1]);
 			REQUIRE(val.z == f[2]);
-		}
-
-		SECTION("Make sure that all values are correct (e.g. that they were not overriden by one of the loop iteration)") {
-			for (uint32_t i = 0; i < N; ++i) {
-				const float f[] = {(float)(i + 1), (float)(i + 2), (float)(i + 3)};
-
-				auto val = ViewPolicy::get({data.data(), N}, i);
-				REQUIRE(val.x == f[0]);
-				REQUIRE(val.y == f[1]);
-				REQUIRE(val.z == f[2]);
-			}
 		}
 	}
 }
 
 template <>
 void TestDataLayoutSoA<DummySoA>() {
-	using T = DummySoA;
-	using ViewPolicy = utils::auto_view_policy<T>;
-	using ViewSpan = std::span<T>;
-
 	constexpr uint32_t N = 100;
-	constexpr uint32_t Alignment = ViewPolicy::Alignment;
-	constexpr uint32_t BytesNecessary = ViewPolicy::get_min_byte_size(0, N);
-	GAIA_ALIGNAS(Alignment) containers::sarray<uint8_t, BytesNecessary> data{};
+	containers::sarray<DummySoA, N> data{};
 
-	SECTION("Deduced view") {
+	for (uint32_t i = 0; i < N; ++i) {
+		float f[] = {(float)(i + 1), (float)(i + 2), (float)(i + 3)};
+		data[i] = {f[0], f[1], true, f[2]};
+
+		DummySoA val = data[i];
+		REQUIRE(val.x == f[0]);
+		REQUIRE(val.y == f[1]);
+		REQUIRE(val.b == true);
+		REQUIRE(val.w == f[2]);
+	}
+
+	SECTION("Make sure that all values are correct (e.g. that they were not overriden by one of the loop iteration)") {
 		for (uint32_t i = 0; i < N; ++i) {
 			const float f[] = {(float)(i + 1), (float)(i + 2), (float)(i + 3)};
-			ViewPolicy::set({data.data(), N}, i, {f[0], f[1], true, f[2]});
 
-			auto val = ViewPolicy::get({data.data(), N}, i);
+			DummySoA val = data[i];
 			REQUIRE(val.x == f[0]);
 			REQUIRE(val.y == f[1]);
 			REQUIRE(val.b == true);
 			REQUIRE(val.w == f[2]);
-		}
-
-		SECTION("Make sure that all values are correct (e.g. that they were not overriden by one of the loop iteration)") {
-			for (uint32_t i = 0; i < N; ++i) {
-				const float f[] = {(float)(i + 1), (float)(i + 2), (float)(i + 3)};
-
-				auto val = ViewPolicy::get({data.data(), N}, i);
-				REQUIRE(val.x == f[0]);
-				REQUIRE(val.y == f[1]);
-				REQUIRE(val.b == true);
-				REQUIRE(val.w == f[2]);
-			}
 		}
 	}
 }

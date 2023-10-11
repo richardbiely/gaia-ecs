@@ -316,16 +316,8 @@ namespace gaia {
 					return m_archetypeCache.begin();
 				}
 
-				GAIA_NODISCARD archetype::ArchetypeList::const_iterator begin() const {
-					return m_archetypeCache.cbegin();
-				}
-
 				GAIA_NODISCARD archetype::ArchetypeList::iterator end() {
 					return m_archetypeCache.end();
-				}
-
-				GAIA_NODISCARD archetype::ArchetypeList::const_iterator end() const {
-					return m_archetypeCache.cend();
 				}
 			};
 		} // namespace query

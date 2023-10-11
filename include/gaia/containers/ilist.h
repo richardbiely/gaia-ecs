@@ -30,7 +30,6 @@ namespace gaia {
 			using internal_storage = containers::darr<TListItem>;
 			// TODO: replace this iterator with a real list iterator
 			using iterator = typename internal_storage::iterator;
-			using const_iterator = typename internal_storage::const_iterator;
 
 			using iterator_category = typename internal_storage::iterator::iterator_category;
 			using value_type = TListItem;
@@ -98,16 +97,8 @@ namespace gaia {
 				return {(pointer)m_items.data()};
 			}
 
-			GAIA_NODISCARD const_iterator cbegin() const noexcept {
-				return {(const_pointer)m_items.data()};
-			}
-
 			GAIA_NODISCARD iterator end() const noexcept {
 				return {(pointer)m_items.data() + size()};
-			}
-
-			GAIA_NODISCARD const_iterator cend() const noexcept {
-				return {(const_pointer)m_items.data() + size()};
 			}
 
 			//! Allocates a new item in the list

@@ -37,6 +37,8 @@ namespace gaia {
 		}
 
 		inline void* mem_alloc_alig(size_t size, size_t alig) {
+			// Make sure size is a multiple of the alignment
+			size = size + size % alig;
 			void* ptr = GAIA_MEM_ALLC_A(size, alig);
 			GAIA_PROF_ALLOC(ptr, size);
 			return ptr;
@@ -182,52 +184,5 @@ namespace gaia {
 
 		template <class T>
 		const T* addressof(const T&&) = delete;
-
-		//! Copy \param size elements of type \tparam T from the address pointer to by \param src to \param dst
-		template <typename T>
-		void copy_elements(T* GAIA_RESTRICT dst, const T* GAIA_RESTRICT src, size_t size) {
-			GAIA_MSVC_WARNING_PUSH()
-			GAIA_MSVC_WARNING_DISABLE(6385)
-
-			static_assert(std::is_copy_assignable_v<T>);
-			for (size_t i = 0; i < size; ++i)
-				dst[i] = src[i];
-
-			GAIA_MSVC_WARNING_POP()
-		}
-
-		//! Move or copy \param size elements of type \tparam T from the address pointer to by \param src to \param dst
-		template <typename T>
-		void move_elements(T* GAIA_RESTRICT dst, const T* GAIA_RESTRICT src, size_t size) {
-			GAIA_MSVC_WARNING_PUSH()
-			GAIA_MSVC_WARNING_DISABLE(6385)
-
-			if constexpr (std::is_move_assignable_v<T>) {
-				for (size_t i = 0; i < size; ++i)
-					dst[i] = std::move(src[i]);
-			} else {
-				for (size_t i = 0; i < size; ++i)
-					dst[i] = src[i];
-			}
-
-			GAIA_MSVC_WARNING_POP()
-		}
-
-		//! Shift \param size elements at address pointed to by \param dst to the left by one
-		template <typename T>
-		void shift_elements_left(T* GAIA_RESTRICT dst, size_t size) {
-			GAIA_MSVC_WARNING_PUSH()
-			GAIA_MSVC_WARNING_DISABLE(6385)
-
-			if constexpr (std::is_move_assignable_v<T>) {
-				for (size_t i = 0; i < size; ++i)
-					dst[i] = std::move(dst[i + 1]);
-			} else {
-				for (size_t i = 0; i < size; ++i)
-					dst[i] = dst[i + 1];
-			}
-
-			GAIA_MSVC_WARNING_POP()
-		}
 	} // namespace utils
 } // namespace gaia

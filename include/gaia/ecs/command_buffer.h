@@ -6,7 +6,6 @@
 
 #include "../containers/map.h"
 #include "../containers/sarray_ext.h"
-#include "../utils/mem.h"
 #include "../utils/serialization.h"
 #include "archetype.h"
 #include "common.h"
