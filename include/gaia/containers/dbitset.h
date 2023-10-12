@@ -64,7 +64,7 @@ namespace gaia {
 						m_pData[i] = 0;
 				} else {
 					// Copy the old data over and set the old data to zeros
-					utils::copy_elements<size_type>((uint8_t*)m_pData, (const uint8_t*)pDataOld, 0, itemsOld, m_cap, capOld);
+					utils::copy_elements<size_type>((uint8_t*)m_pData, (const uint8_t*)pDataOld, 0, itemsOld, 0, 0);
 					for (uint32_t i = itemsOld; i < itemsNew; ++i)
 						m_pData[i] = 0;
 
@@ -146,7 +146,7 @@ namespace gaia {
 				} else {
 					const uint32_t itemsOld = items();
 					// Copy the old data over and set the old data to zeros
-					utils::copy_elements<size_type>((uint8_t*)m_pData, (const uint8_t*)pDataOld, 0, size(), 0, 0);
+					utils::copy_elements<size_type>((uint8_t*)m_pData, (const uint8_t*)pDataOld, 0, itemsOld, 0, 0);
 					for (uint32_t i = itemsOld; i < itemsNew; ++i)
 						m_pData[i] = 0;
 
@@ -180,7 +180,7 @@ namespace gaia {
 						m_pData[i] = 0;
 				} else {
 					// Copy the old data over and set the old data to zeros
-					utils::copy_elements<size_type>((uint8_t*)m_pData, (const uint8_t*)pDataOld, 0, size(), 0, 0);
+					utils::copy_elements<size_type>((uint8_t*)m_pData, (const uint8_t*)pDataOld, 0, itemsOld, 0, 0);
 					for (uint32_t i = itemsOld; i < itemsNew; ++i)
 						m_pData[i] = 0;
 
