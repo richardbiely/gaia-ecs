@@ -155,7 +155,7 @@ struct test_0 {
 	}
 
 	void diag() {
-		for (auto it: arr)
+		for (auto* it: arr)
 			printf("%p\n", it);
 	}
 } g_test_0;
@@ -179,9 +179,9 @@ struct test_00 {
 		auto valC = arr[0];
 		(void)valC;
 
-		const int8_t lowerPart = (arr[0] >> 1);
-		const int8_t upperPart = (arr[1] & (0xFF >> (8 - 0))) << 1;
-		int8_t value = lowerPart | upperPart;
+		const uint8_t lowerPart = (arr[0] >> 1);
+		const uint8_t upperPart = (arr[1] & (0xFF >> (8 - 0))) << 1;
+		uint8_t value = lowerPart | upperPart;
 		(void)value;
 	}
 
@@ -212,9 +212,9 @@ struct test_000 {
 		auto valC = arr[0];
 		(void)valC;
 
-		const int8_t lowerPart = (arr[0] >> 1);
-		const int8_t upperPart = (arr[1] & (0xFF >> (8 - 0))) << 1;
-		int8_t value = lowerPart | upperPart;
+		const uint8_t lowerPart = (arr[0] >> 1);
+		const uint8_t upperPart = (arr[1] & (0xFF >> (8 - 0))) << 1;
+		uint8_t value = lowerPart | upperPart;
 		(void)value;
 	}
 
@@ -324,7 +324,7 @@ int main() {
 
 	printf("aos\n");
 	{
-		using vp = utils::aos_view_policy<int*>;
+		using vp = utils::data_view_policy_aos<int*>;
 		utils::raw_data_holder<int*, 10> arr;
 		(void)arr;
 		auto aa = arr[0];
@@ -353,7 +353,7 @@ int main() {
 		(void)valC;
 		arr[0] = &dummy;
 
-		for (auto it: arr)
+		for (auto* it: arr)
 			printf("%p\n", it);
 	}
 
@@ -374,7 +374,7 @@ int main() {
 		(void)valC;
 		arr[0] = &dummy;
 
-		for (auto it: arr)
+		for (auto* it: arr)
 			printf("%p\n", it);
 	}
 
@@ -395,7 +395,7 @@ int main() {
 		(void)valC;
 		arr[0] = nullptr;
 
-		for (auto it: arr)
+		for (const auto* it: arr)
 			printf("%p\n", it);
 	}
 

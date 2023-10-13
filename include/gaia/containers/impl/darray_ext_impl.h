@@ -175,7 +175,7 @@ namespace gaia {
 				iterator_soa(uint8_t* ptr, uint32_t cnt, uint32_t idx): m_ptr(ptr), m_cnt(cnt), m_idx(idx) {}
 
 				T operator*() const {
-					return utils::soa_view_policy<T>::get({m_ptr, m_cnt}, m_idx);
+					return utils::data_view_policy<T::Layout, T>::get({m_ptr, m_cnt}, m_idx);
 				}
 
 				iterator_soa operator[](size_type offset) const {
@@ -308,7 +308,8 @@ namespace gaia {
 				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
 
 				resize(other.size());
-				utils::copy_elements<T>((uint8_t*)m_pData, (const uint8_t*)other.m_pData, 0, other.size(), capacity(), other.capacity());
+				utils::copy_elements<T>(
+						(uint8_t*)m_pData, (const uint8_t*)other.m_pData, 0, other.size(), capacity(), other.capacity());
 
 				return *this;
 			}
@@ -596,6 +597,18 @@ namespace gaia {
 					if (!(m_pData[i] == other.m_pData[i]))
 						return false;
 				return true;
+			}
+
+			template <size_t Item>
+			auto soa_view_mut() noexcept {
+				return utils::data_view_policy<T::Layout, T>::template get<Item>(
+						std::span<uint8_t>{(uint8_t*)m_pData, capacity()});
+			}
+
+			template <size_t Item>
+			auto soa_view() const noexcept {
+				return utils::data_view_policy<T::Layout, T>::template get<Item>(
+						std::span<const uint8_t>{(const uint8_t*)m_pData, capacity()});
 			}
 		};
 

@@ -1172,7 +1172,7 @@ TEST_CASE("DataLayout AoS") {
 template <typename T>
 void TestDataLayoutSoA() {
 	constexpr uint32_t N = 100;
-	containers::sarray<T, N> data{};
+	containers::sarray<T, N> data;
 
 	for (uint32_t i = 0; i < N; ++i) {
 		const float f[] = {(float)(i + 1), (float)(i + 2), (float)(i + 3)};
@@ -1182,17 +1182,25 @@ void TestDataLayoutSoA() {
 		REQUIRE(val.x == f[0]);
 		REQUIRE(val.y == f[1]);
 		REQUIRE(val.z == f[2]);
+
+		const float ff[] = {data.template soa_view<0>()[i], data.template soa_view<1>()[i], data.template soa_view<2>()[i]};
+		REQUIRE(ff[0] == f[0]);
+		REQUIRE(ff[1] == f[1]);
+		REQUIRE(ff[2] == f[2]);
 	}
 
-	SECTION("Make sure that all values are correct (e.g. that they were not overriden by one of the loop iteration)") {
-		for (uint32_t i = 0; i < N; ++i) {
-			const float f[] = {(float)(i + 1), (float)(i + 2), (float)(i + 3)};
+	// Make sure that all values are correct (e.g. that they were not overriden by one of the loop iteration)
+	for (uint32_t i = 0; i < N; ++i) {
+		const float f[] = {(float)(i + 1), (float)(i + 2), (float)(i + 3)};
+		T val = data[i];
+		REQUIRE(val.x == f[0]);
+		REQUIRE(val.y == f[1]);
+		REQUIRE(val.z == f[2]);
 
-			T val = data[i];
-			REQUIRE(val.x == f[0]);
-			REQUIRE(val.y == f[1]);
-			REQUIRE(val.z == f[2]);
-		}
+		const float ff[] = {data.template soa_view<0>()[i], data.template soa_view<1>()[i], data.template soa_view<2>()[i]};
+		REQUIRE(ff[0] == f[0]);
+		REQUIRE(ff[1] == f[1]);
+		REQUIRE(ff[2] == f[2]);
 	}
 }
 
@@ -1210,18 +1218,31 @@ void TestDataLayoutSoA<DummySoA>() {
 		REQUIRE(val.y == f[1]);
 		REQUIRE(val.b == true);
 		REQUIRE(val.w == f[2]);
+
+		const float ff[] = {data.template soa_view<0>()[i], data.template soa_view<1>()[i], data.template soa_view<3>()[i]};
+		const bool b = data.template soa_view<2>()[i];
+		REQUIRE(ff[0] == f[0]);
+		REQUIRE(ff[1] == f[1]);
+		REQUIRE(b == true);
+		REQUIRE(ff[2] == f[2]);
 	}
 
-	SECTION("Make sure that all values are correct (e.g. that they were not overriden by one of the loop iteration)") {
-		for (uint32_t i = 0; i < N; ++i) {
-			const float f[] = {(float)(i + 1), (float)(i + 2), (float)(i + 3)};
+	// Make sure that all values are correct (e.g. that they were not overriden by one of the loop iteration)
+	for (uint32_t i = 0; i < N; ++i) {
+		const float f[] = {(float)(i + 1), (float)(i + 2), (float)(i + 3)};
 
-			DummySoA val = data[i];
-			REQUIRE(val.x == f[0]);
-			REQUIRE(val.y == f[1]);
-			REQUIRE(val.b == true);
-			REQUIRE(val.w == f[2]);
-		}
+		DummySoA val = data[i];
+		REQUIRE(val.x == f[0]);
+		REQUIRE(val.y == f[1]);
+		REQUIRE(val.b == true);
+		REQUIRE(val.w == f[2]);
+
+		const float ff[] = {data.template soa_view<0>()[i], data.template soa_view<1>()[i], data.template soa_view<3>()[i]};
+		const bool b = data.template soa_view<2>()[i];
+		REQUIRE(ff[0] == f[0]);
+		REQUIRE(ff[1] == f[1]);
+		REQUIRE(b == true);
+		REQUIRE(ff[2] == f[2]);
 	}
 }
 

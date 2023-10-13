@@ -237,13 +237,6 @@ namespace gaia {
 		template <typename ValueType>
 		struct data_view_policy_set<DataLayout::AoS, ValueType>: data_view_policy_aos_set<ValueType> {};
 
-		template <typename ValueType>
-		using aos_view_policy = data_view_policy_aos<ValueType>;
-		template <typename ValueType>
-		using aos_view_policy_get = data_view_policy_aos_get<ValueType>;
-		template <typename ValueType>
-		using aos_view_policy_set = data_view_policy_aos_set<ValueType>;
-
 		/*!
 		 * data_view_policy for accessing and storing data in the SoA way
 		 *	Good for SIMD processing.
@@ -268,10 +261,10 @@ namespace gaia {
 			static_assert(Alignment > 0, "SoA data can't be zero-aligned");
 			static_assert(sizeof(ValueType) > 0, "SoA data can't be zero-size");
 
-			template <size_t Ids>
-			using value_type = typename std::tuple_element<Ids, TTuple>::type;
-			template <size_t Ids>
-			using const_value_type = typename std::add_const<value_type<Ids>>::type;
+			template <size_t Item>
+			using value_type = typename std::tuple_element<Item, TTuple>::type;
+			template <size_t Item>
+			using const_value_type = typename std::add_const<value_type<Item>>::type;
 
 			GAIA_NODISCARD constexpr static uint32_t get_min_byte_size(uintptr_t addr, size_t cnt) noexcept {
 				const auto offset = get_aligned_byte_offset<TTupleItems>(addr, cnt);
@@ -294,11 +287,11 @@ namespace gaia {
 				return get_internal(t, s, idx, std::make_index_sequence<TTupleItems>());
 			}
 
-			template <size_t Ids>
+			template <size_t Item>
 			constexpr static auto get(std::span<const uint8_t> s, size_t idx = 0) noexcept {
-				const auto offset = get_aligned_byte_offset<Ids>((uintptr_t)s.data(), s.size());
-				const auto* ret = (const uint8_t*)(offset + idx * sizeof(value_type<Ids>));
-				return std::span{(const value_type<Ids>*)ret, s.size() - idx};
+				const auto offset = get_aligned_byte_offset<Item>((uintptr_t)s.data(), s.size());
+				const auto& ref = get_ref<const value_type<Item>>((const uint8_t*)offset, idx);
+				return std::span{&ref, s.size() - idx};
 			}
 
 			class accessor {
@@ -329,44 +322,46 @@ namespace gaia {
 				return accessor(s, idx);
 			}
 
-			template <size_t Ids>
+			template <size_t Item>
 			constexpr static auto set(std::span<uint8_t> s, size_t idx = 0) noexcept {
-				const auto offset = get_aligned_byte_offset<Ids>((uintptr_t)s.data(), s.size());
-				const auto* ret = (uint8_t*)(offset + idx * sizeof(value_type<Ids>));
-				return std::span{(value_type<Ids>*)ret, s.size() - idx};
+				const auto offset = get_aligned_byte_offset<Item>((uintptr_t)s.data(), s.size());
+				auto& ref = get_ref<value_type<Item>>((const uint8_t*)offset, idx);
+				return std::span{&ref, s.size() - idx};
 			}
 
 		private:
 			template <size_t... Ids>
 			constexpr static size_t
-			get_aligned_byte_offset(uintptr_t address, size_t cnt, std::index_sequence<Ids...> /*no_name*/) {
-				((address = detail::get_aligned_byte_offset<value_type<Ids>, Alignment>(address, cnt)), ...);
+			get_aligned_byte_offset_seq(uintptr_t address, size_t cnt, std::index_sequence<Ids...> /*no_name*/) {
+				// Align the address for the first type
+				address = utils::align<Alignment>(address);
+				// Offset and align the rest
+				((address = utils::align<Alignment>(address + sizeof(value_type<Ids>) * cnt)), ...);
 				return address;
 			}
 
 			template <uint32_t N>
 			constexpr static size_t get_aligned_byte_offset(uintptr_t address, size_t cnt) {
-				return get_aligned_byte_offset(address, cnt, std::make_index_sequence<N>());
+				return get_aligned_byte_offset_seq(address, cnt, std::make_index_sequence<N>());
 			}
 
 			template <typename TMemberType>
 			constexpr static TMemberType& get_ref(const uint8_t* data, size_t idx) noexcept {
 				// Write the value directly to the memory address.
 				// Usage of unaligned_ref is not necessary because the memory is aligned.
-				return *(TMemberType*)&data[idx];
+				auto* pCastData = (TMemberType*)data;
+				return pCastData[idx];
 			}
 
 			template <size_t... Ids>
 			GAIA_NODISCARD constexpr static ValueType get_internal(
 					TTuple& t, std::span<const uint8_t> s, size_t idx, std::index_sequence<Ids...> /*no_name*/) noexcept {
-				auto offset = (uintptr_t)s.data();
+				auto address = utils::align<Alignment>((uintptr_t)s.data());
 				((
-						 // Make sure the address is aligned properly
-						 offset = utils::align<Alignment>(offset),
 						 // Put the value at the address into our tuple. Data is aligned so we can read directly.
-						 std::get<Ids>(t) = get_ref<value_type<Ids>>((const uint8_t*)offset, idx * sizeof(value_type<Ids>)),
-						 // Skip towards the next element
-						 offset = detail::get_aligned_byte_offset<value_type<Ids>, Alignment>(offset, s.size())),
+						 std::get<Ids>(t) = get_ref<value_type<Ids>>((const uint8_t*)address, idx),
+						 // Skip towards the next element and make sure the address is aligned properly
+						 address = utils::align<Alignment>(address + sizeof(value_type<Ids>) * s.size())),
 				 ...);
 				return tuple_to_struct<ValueType, TTuple>(std::forward<TTuple>(t));
 			}
@@ -374,14 +369,12 @@ namespace gaia {
 			template <size_t... Ids>
 			constexpr static void
 			set_internal(TTuple& t, std::span<uint8_t> s, size_t idx, std::index_sequence<Ids...> /*no_name*/) noexcept {
-				auto offset = (uintptr_t)s.data();
+				auto address = utils::align<Alignment>((uintptr_t)s.data());
 				((
-						 // Make sure the address is aligned properly
-						 offset = utils::align<Alignment>(offset),
 						 // Set the tuple value. Data is aligned so we can write directly.
-						 get_ref<value_type<Ids>>((uint8_t*)offset, idx * sizeof(value_type<Ids>)) = std::get<Ids>(t),
-						 // Skip towards the next element
-						 offset = detail::get_aligned_byte_offset<value_type<Ids>, Alignment>(offset, s.size())),
+						 get_ref<value_type<Ids>>((uint8_t*)address, idx) = std::get<Ids>(t),
+						 // Skip towards the next element and make sure the address is aligned properly
+						 address = utils::align<Alignment>(address + sizeof(value_type<Ids>) * s.size())),
 				 ...);
 			}
 		};
@@ -393,22 +386,15 @@ namespace gaia {
 		template <typename ValueType>
 		struct data_view_policy<DataLayout::SoA16, ValueType>: data_view_policy_soa<DataLayout::SoA16, ValueType> {};
 
-		template <typename ValueType>
-		using soa_view_policy = data_view_policy<DataLayout::SoA, ValueType>;
-		template <typename ValueType>
-		using soa8_view_policy = data_view_policy<DataLayout::SoA8, ValueType>;
-		template <typename ValueType>
-		using soa16_view_policy = data_view_policy<DataLayout::SoA16, ValueType>;
-
 		template <DataLayout TDataLayout, typename ValueType>
 		struct data_view_policy_soa_get {
 			static_assert(std::is_copy_assignable_v<ValueType>);
 
 			using view_policy = data_view_policy_soa<TDataLayout, ValueType>;
 
-			template <size_t Ids>
+			template <size_t Item>
 			struct data_view_policy_idx_info {
-				using const_value_type = typename view_policy::template const_value_type<Ids>;
+				using const_value_type = typename view_policy::template const_value_type<Item>;
 			};
 
 			//! Raw data pointed to by the view policy
@@ -425,9 +411,9 @@ namespace gaia {
 				return view_policy::get(m_data, idx);
 			}
 
-			template <size_t Ids>
+			template <size_t Item>
 			GAIA_NODISCARD constexpr auto get() const noexcept {
-				auto s = view_policy::template get<Ids>(m_data);
+				auto s = view_policy::template get<Item>(m_data);
 				return std::span(s.data(), s.size());
 			}
 
@@ -448,23 +434,16 @@ namespace gaia {
 		struct data_view_policy_get<DataLayout::SoA16, ValueType>:
 				data_view_policy_soa_get<DataLayout::SoA16, ValueType> {};
 
-		template <typename ValueType>
-		using soa_view_policy_get = data_view_policy_get<DataLayout::SoA, ValueType>;
-		template <typename ValueType>
-		using soa8_view_policy_get = data_view_policy_get<DataLayout::SoA8, ValueType>;
-		template <typename ValueType>
-		using soa16_view_policy_get = data_view_policy_get<DataLayout::SoA16, ValueType>;
-
 		template <DataLayout TDataLayout, typename ValueType>
 		struct data_view_policy_soa_set {
 			static_assert(std::is_copy_assignable_v<ValueType>);
 
 			using view_policy = data_view_policy_soa<TDataLayout, ValueType>;
 
-			template <size_t Ids>
+			template <size_t Item>
 			struct data_view_policy_idx_info {
-				using value_type = typename view_policy::template value_type<Ids>;
-				using const_value_type = typename view_policy::template const_value_type<Ids>;
+				using value_type = typename view_policy::template value_type<Item>;
+				using const_value_type = typename view_policy::template const_value_type<Item>;
 			};
 
 			//! Raw data pointed to by the view policy
@@ -496,15 +475,15 @@ namespace gaia {
 				return accessor{m_data, idx};
 			}
 
-			template <size_t Ids>
+			template <size_t Item>
 			GAIA_NODISCARD constexpr auto get() const noexcept {
-				auto s = view_policy::template get<Ids>(m_data);
+				auto s = view_policy::template get<Item>(m_data);
 				return std::span(s.data(), s.size());
 			}
 
-			template <size_t Ids>
+			template <size_t Item>
 			GAIA_NODISCARD constexpr auto set() noexcept {
-				auto s = view_policy::template set<Ids>(m_data);
+				auto s = view_policy::template set<Item>(m_data);
 				return std::span(s.data(), s.size());
 			}
 
@@ -524,13 +503,6 @@ namespace gaia {
 		template <typename ValueType>
 		struct data_view_policy_set<DataLayout::SoA16, ValueType>:
 				data_view_policy_soa_set<DataLayout::SoA16, ValueType> {};
-
-		template <typename ValueType>
-		using soa_view_policy_set = data_view_policy_set<DataLayout::SoA, ValueType>;
-		template <typename ValueType>
-		using soa8_view_policy_set = data_view_policy_set<DataLayout::SoA8, ValueType>;
-		template <typename ValueType>
-		using soa16_view_policy_set = data_view_policy_set<DataLayout::SoA16, ValueType>;
 
 		//----------------------------------------------------------------------
 		// Helpers
