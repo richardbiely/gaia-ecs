@@ -180,7 +180,7 @@ namespace gaia {
 	inline bool CheckEndianess() {
 		const uint16_t testWord = 0x1234;
 		const bool isLittleEndian(*reinterpret_cast<const uint8_t*>(&testWord) == 0x34);
-		return isLittleEndian == GAIA_LITTLE_ENDIAN;
+		return isLittleEndian && GAIA_LITTLE_ENDIAN;
 	}
 } // namespace gaia
 

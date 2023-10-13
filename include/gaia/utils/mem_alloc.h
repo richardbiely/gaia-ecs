@@ -8,7 +8,6 @@
 #include <utility>
 
 #include "../config/profiler.h"
-#include "gaia/config/config_core_end.h"
 
 #if GAIA_PLATFORM_WINDOWS && GAIA_COMPILER_MSVC
 	#define GAIA_MEM_ALLC(size) malloc(size)
@@ -126,14 +125,14 @@ namespace gaia {
 				return to;
 			}
 
-			T operator[](ptrdiff_t d) const {
+			T operator[](std::ptrdiff_t d) const {
 				return *(*this + d);
 			}
 
-			const_unaligned_pointer operator+(ptrdiff_t d) const {
+			const_unaligned_pointer operator+(std::ptrdiff_t d) const {
 				return const_unaligned_pointer(from + d * sizeof(T));
 			}
-			const_unaligned_pointer operator-(ptrdiff_t d) const {
+			const_unaligned_pointer operator-(std::ptrdiff_t d) const {
 				return const_unaligned_pointer(from - d * sizeof(T));
 			}
 		};
@@ -171,14 +170,14 @@ namespace gaia {
 				return unaligned_ref<T>(m_p);
 			}
 
-			unaligned_ref<T> operator[](ptrdiff_t d) const {
+			unaligned_ref<T> operator[](std::ptrdiff_t d) const {
 				return *(*this + d);
 			}
 
-			unaligned_pointer operator+(ptrdiff_t d) const {
+			unaligned_pointer operator+(std::ptrdiff_t d) const {
 				return unaligned_pointer(m_p + d * sizeof(T));
 			}
-			unaligned_pointer operator-(ptrdiff_t d) const {
+			unaligned_pointer operator-(std::ptrdiff_t d) const {
 				return unaligned_pointer(m_p - d * sizeof(T));
 			}
 		};

@@ -36,7 +36,7 @@ namespace gaia {
 			struct iterator_traits_pointer_base {
 				using iterator_category = random_access_iterator_tag;
 				using value_type = std::remove_cv_t<T>;
-				using difference_type = ptrdiff_t;
+				using difference_type = std::ptrdiff_t;
 				using pointer = T*;
 				using reference = T&;
 			};
