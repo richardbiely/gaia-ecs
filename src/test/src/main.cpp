@@ -1,3 +1,4 @@
+#include "gaia/utils/mem_alloc.h"
 #include <gaia.h>
 
 #if GAIA_COMPILER_MSVC
@@ -166,6 +167,24 @@ TEST_CASE("ComponentTypes") {
 	REQUIRE(ecs::component::component_type_v<uint32_t> == ecs::component::ComponentType::CT_Generic);
 	REQUIRE(ecs::component::component_type_v<Position> == ecs::component::ComponentType::CT_Generic);
 	REQUIRE(ecs::component::component_type_v<ecs::AsChunk<Position>> == ecs::component::ComponentType::CT_Chunk);
+}
+
+TEST_CASE("Memory allocation") {
+	SECTION("mem_alloc") {
+		void* pMem = utils::mem_alloc(311);
+		REQUIRE(pMem != nullptr);
+		utils::mem_free(pMem);
+	}
+	SECTION("mem_alloc_alig A") {
+		void* pMem = utils::mem_alloc_alig(1, 16);
+		REQUIRE(pMem != nullptr);
+		utils::mem_free_alig(pMem);
+	}
+	SECTION("mem_alloc_alig B") {
+		void* pMem = utils::mem_alloc_alig(311, 16);
+		REQUIRE(pMem != nullptr);
+		utils::mem_free_alig(pMem);
+	}
 }
 
 TEST_CASE("Containers - sarray") {

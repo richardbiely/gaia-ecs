@@ -2708,14 +2708,19 @@ namespace gaia {
 namespace gaia {
 	namespace utils {
 		inline void* mem_alloc(size_t size) {
+			GAIA_ASSERT(size > 0);
+
 			void* ptr = GAIA_MEM_ALLC(size);
 			GAIA_PROF_ALLOC(ptr, size);
 			return ptr;
 		}
 
 		inline void* mem_alloc_alig(size_t size, size_t alig) {
+			GAIA_ASSERT(size > 0);
+			GAIA_ASSERT(alig > 0);
+
 			// Make sure size is a multiple of the alignment
-			size = size + size % alig;
+			size = (size + alig - 1) & ~(alig - 1);
 			void* ptr = GAIA_MEM_ALLC_A(size, alig);
 			GAIA_PROF_ALLOC(ptr, size);
 			return ptr;
