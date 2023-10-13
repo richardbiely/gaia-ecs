@@ -52,7 +52,6 @@ namespace gaia {
 				// Increase the size of an existing array.
 				// We are pessimistic with our allocations and only allocate as much as we need.
 				// If we know the expected size ahead of the time a manual call to reserve is necessary.
-				const auto capOld = m_cap;
 				const uint32_t itemsNew = (m_cnt + BitsPerItem - 1) / BitsPerItem;
 				m_cap = itemsNew * BitsPerItem;
 

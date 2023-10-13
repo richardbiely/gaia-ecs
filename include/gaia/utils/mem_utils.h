@@ -33,8 +33,8 @@ namespace gaia {
 				GAIA_MSVC_WARNING_DISABLE(6385)
 
 				for (uint32_t i = idxSrc; i < idxDst; ++i)
-					(soa_view_policy_set<T>({std::span<uint8_t>{dst, sizeDst}}))[i] =
-							(soa_view_policy_get<T>({std::span<const uint8_t>{(const uint8_t*)src, sizeSrc}}))[i];
+					(data_view_policy_set<T::Layout, T>({std::span<uint8_t>{dst, sizeDst}}))[i] =
+							(data_view_policy_set<T::Layout, T>({std::span<const uint8_t>{(const uint8_t*)src, sizeSrc}}))[i];
 
 				GAIA_MSVC_WARNING_POP()
 			}
@@ -78,8 +78,8 @@ namespace gaia {
 				GAIA_MSVC_WARNING_DISABLE(6385)
 
 				for (uint32_t i = idxSrc; i < idxDst; ++i)
-					(soa_view_policy_set<T>({std::span<uint8_t>{dst, size}}))[i] =
-							(soa_view_policy_get<T>({std::span<const uint8_t>{(const uint8_t*)dst, size}}))[i + 1];
+					(data_view_policy_set<T::Layout, T>({std::span<uint8_t>{dst, size}}))[i] =
+							(data_view_policy_get<T::Layout, T>({std::span<const uint8_t>{(const uint8_t*)dst, size}}))[i + 1];
 
 				GAIA_MSVC_WARNING_POP()
 			}
