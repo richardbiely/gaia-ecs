@@ -332,6 +332,7 @@ int main() {
 		auto* bb = &arr[0];
 		(void)bb;
 		int* a = reinterpret_cast<int*>(arr[0]);
+		(void)a;
 
 		vp::set({(int**)&arr[0], 10}, 0, (int*)bb);
 	}
