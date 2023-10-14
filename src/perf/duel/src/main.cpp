@@ -1,3 +1,4 @@
+#include "gaia/config/config_core.h"
 #define PICOBENCH_IMPLEMENT
 #include "gaia/external/picobench.hpp"
 #include <gaia.h>
@@ -489,9 +490,16 @@ namespace NonECS {
 		IUnit& operator=(IUnit&&) noexcept = default;
 
 		virtual void updatePosition(float deltaTime) = 0;
+		virtual void updatePosition_verify() {}
+
 		virtual void handleGroundCollision(float deltaTime) = 0;
+		virtual void handleGroundCollision_verify() {}
+
 		virtual void applyGravity(float deltaTime) = 0;
+		virtual void applyGravity_verify() {}
+
 		virtual bool isAlive() const = 0;
+		virtual void isAlive_verify() {}
 	};
 
 	struct UnitStatic: public IUnit {
@@ -511,14 +519,25 @@ namespace NonECS {
 			p.y += v.y * deltaTime;
 			p.z += v.z * deltaTime;
 		}
+		void updatePosition_verify() override {
+			DoNotOptimize(p.x);
+		}
+
 		void handleGroundCollision([[maybe_unused]] float deltaTime) override {
 			if (p.y < 0.0f) {
 				p.y = 0.0f;
 				v.y = 0.0f;
 			}
 		}
+		void handleGroundCollision_verify() override {
+			DoNotOptimize(v.y);
+		}
+
 		void applyGravity(float deltaTime) override {
 			v.y += 9.81f * deltaTime;
+		}
+		void applyGravity_verify() override {
+			DoNotOptimize(v.y);
 		}
 
 		bool isAlive() const override {
@@ -535,15 +554,27 @@ namespace NonECS {
 			p.y += v.y * deltaTime;
 			p.z += v.z * deltaTime;
 		}
+		void updatePosition_verify() override {
+			DoNotOptimize(p.x);
+		}
+
 		void handleGroundCollision([[maybe_unused]] float deltaTime) override {
 			if (p.y < 0.0f) {
 				p.y = 0.0f;
 				v.y = 0.0f;
 			}
 		}
+		void handleGroundCollision_verify() override {
+			DoNotOptimize(v.y);
+		}
+
 		void applyGravity(float deltaTime) override {
 			v.y += 9.81f * deltaTime;
 		}
+		void applyGravity_verify() override {
+			DoNotOptimize(v.y);
+		}
+
 		bool isAlive() const override {
 			return true;
 		}
@@ -559,17 +590,32 @@ namespace NonECS {
 			p.y += v.y * deltaTime;
 			p.z += v.z * deltaTime;
 		}
+		void updatePosition_verify() override {
+			DoNotOptimize(p.x);
+		}
+
 		void handleGroundCollision([[maybe_unused]] float deltaTime) override {
 			if (p.y < 0.0f) {
 				p.y = 0.0f;
 				v.y = 0.0f;
 			}
 		}
+		void handleGroundCollision_verify() override {
+			DoNotOptimize(v.x);
+		}
+
 		void applyGravity(float deltaTime) override {
 			v.y += 9.81f * deltaTime;
 		}
+		void applyGravity_verify() override {
+			DoNotOptimize(v.y);
+		}
+
 		bool isAlive() const override {
 			return h.value > 0;
+		}
+		void isAlive_verify() override {
+			DoNotOptimize(h.value);
 		}
 	};
 
@@ -584,17 +630,32 @@ namespace NonECS {
 			p.y += v.y * deltaTime;
 			p.z += v.z * deltaTime;
 		}
+		void updatePosition_verify() override {
+			DoNotOptimize(p.x);
+		}
+
 		void handleGroundCollision([[maybe_unused]] float deltaTime) override {
 			if (p.y < 0.0f) {
 				p.y = 0.0f;
 				v.y = 0.0f;
 			}
 		}
+		void handleGroundCollision_verify() override {
+			DoNotOptimize(v.x);
+		}
+
 		void applyGravity(float deltaTime) override {
 			v.y += 9.81f * deltaTime;
 		}
+		void applyGravity_verify() override {
+			DoNotOptimize(v.y);
+		}
+
 		bool isAlive() const override {
 			return h.value > 0;
+		}
+		void isAlive_verify() override {
+			DoNotOptimize(h.value);
 		}
 	};
 } // namespace NonECS
@@ -663,10 +724,13 @@ void BM_NonECS(picobench::state& state) {
 		if constexpr (AlternativeExecOrder) {
 			for (auto& u: units)
 				u->updatePosition(dt);
+			units[0]->updatePosition_verify();
 			for (auto& u: units)
 				u->handleGroundCollision(dt);
+			units[0]->handleGroundCollision_verify();
 			for (auto& u: units)
 				u->applyGravity(dt);
+			units[0]->applyGravity_verify();
 			for (auto& u: units) {
 				if (u->isAlive())
 					++aliveUnits;
@@ -679,6 +743,9 @@ void BM_NonECS(picobench::state& state) {
 				if (u->isAlive())
 					++aliveUnits;
 			}
+			units[0]->updatePosition_verify();
+			units[0]->handleGroundCollision_verify();
+			units[0]->applyGravity_verify();
 		}
 		DoNotOptimize(aliveUnits);
 
@@ -702,11 +769,18 @@ namespace NonECS_BetterMemoryLayout {
 
 	struct UnitStatic: UnitData {
 		void updatePosition([[maybe_unused]] float deltaTime) {}
+		void updatePosition_verify() {}
+
 		void handleGroundCollision([[maybe_unused]] float deltaTime) {}
+		void handleGroundCollision_verify() {}
+
 		void applyGravity([[maybe_unused]] float deltaTime) {}
+		void applyGravity_verify() {}
+
 		bool isAlive() const {
 			return true;
 		}
+		void isAlive_verify() {}
 	};
 
 	struct UnitDynamic1: UnitData {
@@ -717,18 +791,31 @@ namespace NonECS_BetterMemoryLayout {
 			p.y += v.y * deltaTime;
 			p.z += v.z * deltaTime;
 		}
+		void updatePosition_verify() {
+			DoNotOptimize(p.x);
+		}
+
 		void handleGroundCollision([[maybe_unused]] float deltaTime) {
 			if (p.y < 0.0f) {
 				p.y = 0.0f;
 				v.y = 0.0f;
 			}
 		}
+		void handleGroundCollision_verify() {
+			DoNotOptimize(v.y);
+		}
+
 		void applyGravity(float deltaTime) {
 			v.y += 9.81f * deltaTime;
 		}
+		void applyGravity_verify() {
+			DoNotOptimize(v.y);
+		}
+
 		bool isAlive() const {
 			return true;
 		}
+		void isAlive_verify() {}
 	};
 
 	struct UnitDynamic2: public UnitDynamic1 {
@@ -739,8 +826,12 @@ namespace NonECS_BetterMemoryLayout {
 		Health h;
 
 		using UnitDynamic2::isAlive;
+		using UnitDynamic2 ::isAlive_verify;
 		bool isAlive() const {
 			return h.value > 0;
+		}
+		void isAlive_verify() {
+			DoNotOptimize(h.value);
 		}
 	};
 
@@ -811,16 +902,24 @@ void BM_NonECS_BetterMemoryLayout(picobench::state& state) {
 		if constexpr (AlternativeExecOrder) {
 			for (auto& u: arr)
 				u.updatePosition(dt);
+			arr[0].updatePosition_verify();
+
 			for (auto& u: arr)
 				u.handleGroundCollision(dt);
+			arr[0].handleGroundCollision_verify();
+
 			for (auto& u: arr)
 				u.applyGravity(dt);
+			arr[0].applyGravity_verify();
 		} else {
 			for (auto& u: arr) {
 				u.updatePosition(dt);
 				u.handleGroundCollision(dt);
 				u.applyGravity(dt);
 			}
+			arr[0].updatePosition_verify();
+			arr[0].handleGroundCollision_verify();
+			arr[0].applyGravity_verify();
 		}
 	};
 
@@ -1102,8 +1201,8 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 	}
 }
 
-#define PICO_SETTINGS() iterations({8192}).samples(3)
-#define PICO_SETTINGS_1() iterations({8192}).samples(1)
+#define PICO_SETTINGS() iterations({1024}).samples(3)
+#define PICO_SETTINGS_1() iterations({1024}).samples(1)
 #define PICOBENCH_SUITE_REG(name) r.current_suite_name() = name;
 #define PICOBENCH_REG(func) (void)r.add_benchmark(#func, func)
 

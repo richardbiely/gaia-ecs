@@ -69,7 +69,7 @@ void BM_CreateEntity_With_Component(picobench::state& state) {
 	}
 }
 
-#define PICO_SETTINGS() iterations({2048}).samples(3)
+#define PICO_SETTINGS() iterations({1024}).samples(3)
 
 PICOBENCH_SUITE("Entity and component creation");
 PICOBENCH(BM_CreateEntity).PICO_SETTINGS().label("0 components");
