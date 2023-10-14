@@ -87,16 +87,14 @@ namespace gaia {
 
 		template <typename T>
 		void construct_elements(T* pData, size_t cnt) {
-			if constexpr (utils::is_soa_layout_v<T>)
-				return;
-			utils::call_ctor(pData, cnt);
+			if constexpr (!utils::is_soa_layout_v<T>)
+				utils::call_ctor(pData, cnt);
 		}
 
 		template <typename T>
 		void destruct_elements(T* pData, size_t cnt) {
-			if constexpr (utils::is_soa_layout_v<T>)
-				return;
-			utils::call_ctor(pData, cnt);
+			if constexpr (!utils::is_soa_layout_v<T>)
+				utils::call_ctor(pData, cnt);
 		}
 
 		//! Copy \param size elements of type \tparam T from the address pointer to by \param src to \param dst
