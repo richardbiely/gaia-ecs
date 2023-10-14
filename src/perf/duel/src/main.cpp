@@ -188,7 +188,7 @@ void BM_ECS(picobench::state& state) {
 			if (h.value > 0)
 				++aliveUnits;
 		});
-		DoNotOptimize(aliveUnits);
+		gaia::dont_optimize(aliveUnits);
 
 		GAIA_PROF_FRAME();
 	}
@@ -257,7 +257,7 @@ void BM_ECS_WithSystems(picobench::state& state) {
 				if (h.value > 0)
 					++aliveUnits;
 			});
-			DoNotOptimize(aliveUnits);
+			gaia::dont_optimize(aliveUnits);
 		}
 	};
 
@@ -349,7 +349,7 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 				}
 				aliveUnits += a;
 			});
-			DoNotOptimize(aliveUnits);
+			gaia::dont_optimize(aliveUnits);
 		}
 	};
 
@@ -453,7 +453,7 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 				}
 				aliveUnits += a;
 			});
-			DoNotOptimize(aliveUnits);
+			gaia::dont_optimize(aliveUnits);
 		}
 	};
 
@@ -520,7 +520,7 @@ namespace NonECS {
 			p.z += v.z * deltaTime;
 		}
 		void updatePosition_verify() override {
-			DoNotOptimize(p.x);
+			gaia::dont_optimize(p.x);
 		}
 
 		void handleGroundCollision([[maybe_unused]] float deltaTime) override {
@@ -530,14 +530,14 @@ namespace NonECS {
 			}
 		}
 		void handleGroundCollision_verify() override {
-			DoNotOptimize(v.y);
+			gaia::dont_optimize(v.y);
 		}
 
 		void applyGravity(float deltaTime) override {
 			v.y += 9.81f * deltaTime;
 		}
 		void applyGravity_verify() override {
-			DoNotOptimize(v.y);
+			gaia::dont_optimize(v.y);
 		}
 
 		bool isAlive() const override {
@@ -555,7 +555,7 @@ namespace NonECS {
 			p.z += v.z * deltaTime;
 		}
 		void updatePosition_verify() override {
-			DoNotOptimize(p.x);
+			gaia::dont_optimize(p.x);
 		}
 
 		void handleGroundCollision([[maybe_unused]] float deltaTime) override {
@@ -565,14 +565,14 @@ namespace NonECS {
 			}
 		}
 		void handleGroundCollision_verify() override {
-			DoNotOptimize(v.y);
+			gaia::dont_optimize(v.y);
 		}
 
 		void applyGravity(float deltaTime) override {
 			v.y += 9.81f * deltaTime;
 		}
 		void applyGravity_verify() override {
-			DoNotOptimize(v.y);
+			gaia::dont_optimize(v.y);
 		}
 
 		bool isAlive() const override {
@@ -591,7 +591,7 @@ namespace NonECS {
 			p.z += v.z * deltaTime;
 		}
 		void updatePosition_verify() override {
-			DoNotOptimize(p.x);
+			gaia::dont_optimize(p.x);
 		}
 
 		void handleGroundCollision([[maybe_unused]] float deltaTime) override {
@@ -601,21 +601,21 @@ namespace NonECS {
 			}
 		}
 		void handleGroundCollision_verify() override {
-			DoNotOptimize(v.x);
+			gaia::dont_optimize(v.x);
 		}
 
 		void applyGravity(float deltaTime) override {
 			v.y += 9.81f * deltaTime;
 		}
 		void applyGravity_verify() override {
-			DoNotOptimize(v.y);
+			gaia::dont_optimize(v.y);
 		}
 
 		bool isAlive() const override {
 			return h.value > 0;
 		}
 		void isAlive_verify() override {
-			DoNotOptimize(h.value);
+			gaia::dont_optimize(h.value);
 		}
 	};
 
@@ -631,7 +631,7 @@ namespace NonECS {
 			p.z += v.z * deltaTime;
 		}
 		void updatePosition_verify() override {
-			DoNotOptimize(p.x);
+			gaia::dont_optimize(p.x);
 		}
 
 		void handleGroundCollision([[maybe_unused]] float deltaTime) override {
@@ -641,21 +641,21 @@ namespace NonECS {
 			}
 		}
 		void handleGroundCollision_verify() override {
-			DoNotOptimize(v.x);
+			gaia::dont_optimize(v.x);
 		}
 
 		void applyGravity(float deltaTime) override {
 			v.y += 9.81f * deltaTime;
 		}
 		void applyGravity_verify() override {
-			DoNotOptimize(v.y);
+			gaia::dont_optimize(v.y);
 		}
 
 		bool isAlive() const override {
 			return h.value > 0;
 		}
 		void isAlive_verify() override {
-			DoNotOptimize(h.value);
+			gaia::dont_optimize(h.value);
 		}
 	};
 } // namespace NonECS
@@ -747,7 +747,7 @@ void BM_NonECS(picobench::state& state) {
 			units[0]->handleGroundCollision_verify();
 			units[0]->applyGravity_verify();
 		}
-		DoNotOptimize(aliveUnits);
+		gaia::dont_optimize(aliveUnits);
 
 		GAIA_PROF_FRAME();
 	}
@@ -792,7 +792,7 @@ namespace NonECS_BetterMemoryLayout {
 			p.z += v.z * deltaTime;
 		}
 		void updatePosition_verify() {
-			DoNotOptimize(p.x);
+			gaia::dont_optimize(p.x);
 		}
 
 		void handleGroundCollision([[maybe_unused]] float deltaTime) {
@@ -802,14 +802,14 @@ namespace NonECS_BetterMemoryLayout {
 			}
 		}
 		void handleGroundCollision_verify() {
-			DoNotOptimize(v.y);
+			gaia::dont_optimize(v.y);
 		}
 
 		void applyGravity(float deltaTime) {
 			v.y += 9.81f * deltaTime;
 		}
 		void applyGravity_verify() {
-			DoNotOptimize(v.y);
+			gaia::dont_optimize(v.y);
 		}
 
 		bool isAlive() const {
@@ -831,7 +831,7 @@ namespace NonECS_BetterMemoryLayout {
 			return h.value > 0;
 		}
 		void isAlive_verify() {
-			DoNotOptimize(h.value);
+			gaia::dont_optimize(h.value);
 		}
 	};
 
@@ -943,7 +943,7 @@ void BM_NonECS_BetterMemoryLayout(picobench::state& state) {
 			if (u.isAlive())
 				++aliveUnits;
 		}
-		DoNotOptimize(aliveUnits);
+		gaia::dont_optimize(aliveUnits);
 
 		GAIA_PROF_FRAME();
 	}
@@ -960,9 +960,9 @@ void BM_NonECS_DOD(picobench::state& state) {
 				p[i].z += v[i].z * deltaTime;
 			}
 
-			DoNotOptimize(p[0].x);
-			DoNotOptimize(p[0].y);
-			DoNotOptimize(p[0].z);
+			gaia::dont_optimize(p[0].x);
+			gaia::dont_optimize(p[0].y);
+			gaia::dont_optimize(p[0].z);
 		}
 		static void handleGroundCollision(containers::darray<Position>& p, containers::darray<Velocity>& v) {
 			for (uint32_t i = 0; i < p.size(); i++) {
@@ -972,15 +972,15 @@ void BM_NonECS_DOD(picobench::state& state) {
 				}
 			}
 
-			DoNotOptimize(p[0].y);
-			DoNotOptimize(v[0].y);
+			gaia::dont_optimize(p[0].y);
+			gaia::dont_optimize(v[0].y);
 		}
 
 		static void applyGravity(containers::darray<Velocity>& v, float deltaTime) {
 			for (uint32_t i = 0; i < v.size(); i++)
 				v[i].y += 9.81f * deltaTime;
 
-			DoNotOptimize(v[0].y);
+			gaia::dont_optimize(v[0].y);
 		}
 
 		static uint32_t calculateAliveUnits(const containers::darray<Health>& h) {
@@ -1060,7 +1060,7 @@ void BM_NonECS_DOD(picobench::state& state) {
 		uint32_t aliveUnits = 0;
 		for (auto& g: dynamic_groups)
 			aliveUnits += UnitDynamic::calculateAliveUnits(g.units_h);
-		DoNotOptimize(aliveUnits);
+		gaia::dont_optimize(aliveUnits);
 
 		GAIA_PROF_FRAME();
 	}
@@ -1090,9 +1090,9 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 			for (uint32_t i = 0; i < ppz.size(); ++i)
 				ppz[i] += vvz[i] * dt;
 
-			DoNotOptimize(ppx[0]);
-			DoNotOptimize(ppy[0]);
-			DoNotOptimize(ppz[0]);
+			gaia::dont_optimize(ppx[0]);
+			gaia::dont_optimize(ppy[0]);
+			gaia::dont_optimize(ppz[0]);
 		}
 
 		static void handleGroundCollision(containers::darray<PositionSoA>& p, containers::darray<VelocitySoA>& v) {
@@ -1111,8 +1111,8 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 				}
 			}
 
-			DoNotOptimize(ppy[0]);
-			DoNotOptimize(vvy[0]);
+			gaia::dont_optimize(ppy[0]);
+			gaia::dont_optimize(vvy[0]);
 		}
 
 		static void applyGravity(containers::darray<VelocitySoA>& v) {
@@ -1125,7 +1125,7 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 			for (uint32_t i = 0; i < vvy.size(); ++i)
 				vvy[i] += 9.81f * dt;
 
-			DoNotOptimize(vvy[0]);
+			gaia::dont_optimize(vvy[0]);
 		}
 
 		static uint32_t calculateAliveUnits(const containers::darray<Health>& h) {
@@ -1195,7 +1195,7 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 		uint32_t aliveUnits = 0;
 		for (auto& g: dynamic_groups)
 			aliveUnits += UnitDynamic::calculateAliveUnits(g.units_h);
-		DoNotOptimize(aliveUnits);
+		gaia::dont_optimize(aliveUnits);
 
 		GAIA_PROF_FRAME();
 	}

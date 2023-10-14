@@ -114,7 +114,7 @@ void Create_Archetypes_5000(ecs::World& w) {
 			w.ForEach([&](const c1& p) {                                                                                     \
 				f += p.value[0];                                                                                               \
 			});                                                                                                              \
-			picobench::DoNotOptimize(f);                                                                                     \
+			gaia::dont_optimize(f);                                                                                          \
 		}                                                                                                                  \
 	}
 
@@ -133,7 +133,7 @@ DEFINE_FOREACH_INTERNALQUERY(5000)
 		auto query = w.CreateQuery().All<const c1>();                                                                      \
                                                                                                                        \
 		/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */              \
-		picobench::DoNotOptimize(query.HasEntities());                                                                     \
+		gaia::dont_optimize(query.HasEntities());                                                                          \
                                                                                                                        \
 		for (auto _: state) {                                                                                              \
 			(void)_;                                                                                                         \
@@ -141,7 +141,7 @@ DEFINE_FOREACH_INTERNALQUERY(5000)
 			query.ForEach([&](const c1& p) {                                                                                 \
 				f += p.value[0];                                                                                               \
 			});                                                                                                              \
-			picobench::DoNotOptimize(f);                                                                                     \
+			gaia::dont_optimize(f);                                                                                          \
 		}                                                                                                                  \
 	}
 
@@ -160,7 +160,7 @@ DEFINE_FOREACH_EXTERNALQUERY(5000)
 		auto query = w.CreateQuery().All<const c1>();                                                                      \
                                                                                                                        \
 		/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */              \
-		picobench::DoNotOptimize(query.HasEntities());                                                                     \
+		gaia::dont_optimize(query.HasEntities());                                                                          \
                                                                                                                        \
 		for (auto _: state) {                                                                                              \
 			(void)_;                                                                                                         \
@@ -170,7 +170,7 @@ DEFINE_FOREACH_EXTERNALQUERY(5000)
 				for (const auto i: iter)                                                                                       \
 					f += c1View[i].value[0];                                                                                     \
 			});                                                                                                              \
-			picobench::DoNotOptimize(f);                                                                                     \
+			gaia::dont_optimize(f);                                                                                          \
 		}                                                                                                                  \
 	}
 
@@ -189,7 +189,7 @@ DEFINE_FOREACHCHUNK_EXTERNALQUERY_ITER(5000)
 		auto query = w.CreateQuery().All<const c1>();                                                                      \
                                                                                                                        \
 		/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */              \
-		picobench::DoNotOptimize(query.HasEntities());                                                                     \
+		gaia::dont_optimize(query.HasEntities());                                                                          \
                                                                                                                        \
 		for (auto _: state) {                                                                                              \
 			(void)_;                                                                                                         \
@@ -199,7 +199,7 @@ DEFINE_FOREACHCHUNK_EXTERNALQUERY_ITER(5000)
 				for (uint32_t i = 0; i < iter.size(); ++i)                                                                     \
 					f += c1View[i].value[0];                                                                                     \
 			});                                                                                                              \
-			picobench::DoNotOptimize(f);                                                                                     \
+			gaia::dont_optimize(f);                                                                                          \
 		}                                                                                                                  \
 	}
 
@@ -214,7 +214,7 @@ DEFINE_FOREACHCHUNK_EXTERNALQUERY_INDEX(5000);
 		auto query = w.CreateQuery().All<const c1>();                                                                      \
                                                                                                                        \
 		/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */              \
-		picobench::DoNotOptimize(query.HasEntities());                                                                     \
+		gaia::dont_optimize(query.HasEntities());                                                                          \
                                                                                                                        \
 		for (auto _: state) {                                                                                              \
 			(void)_;                                                                                                         \
@@ -224,7 +224,7 @@ DEFINE_FOREACHCHUNK_EXTERNALQUERY_INDEX(5000);
 				for (auto i: iter)                                                                                             \
 					f += c1View[i].value[0];                                                                                     \
 			});                                                                                                              \
-			picobench::DoNotOptimize(f);                                                                                     \
+			gaia::dont_optimize(f);                                                                                          \
 		}                                                                                                                  \
 	}
 

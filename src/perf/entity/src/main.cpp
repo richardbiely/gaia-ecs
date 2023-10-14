@@ -9,7 +9,7 @@ constexpr uint32_t NEntities = 1'000;
 void AddEntities(ecs::World& w, uint32_t n) {
 	for (uint32_t i = 0; i < n; ++i) {
 		[[maybe_unused]] auto e = w.CreateEntity();
-		picobench::DoNotOptimize(e);
+		gaia::dont_optimize(e);
 	}
 }
 
