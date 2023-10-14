@@ -141,14 +141,14 @@ struct test_0 {
 
 	void getters() const {
 		const auto& valR = arr[0];
-		::DoNotOptimize(valR);
+		::gaia::dont_optimize(valR);
 		auto* valC = arr[0];
 		(void)valC;
 	}
 
 	void setters() {
 		const auto& valR = arr[0];
-		::DoNotOptimize(valR);
+		::gaia::dont_optimize(valR);
 		auto* valC = arr[0];
 		(void)valC;
 		arr[0] = nullptr;
@@ -175,7 +175,7 @@ struct test_00 {
 
 	void getters() const {
 		const auto& valR = arr[0];
-		::DoNotOptimize(valR);
+		::gaia::dont_optimize(valR);
 		auto valC = arr[0];
 		(void)valC;
 
@@ -187,7 +187,7 @@ struct test_00 {
 
 	void setters() {
 		const auto& valR = arr[0];
-		::DoNotOptimize(valR);
+		::gaia::dont_optimize(valR);
 		auto valC = arr[0];
 		(void)valC;
 		arr[0] = 0;
@@ -208,7 +208,7 @@ struct test_000 {
 
 	void getters() const {
 		const auto& valR = arr[0];
-		::DoNotOptimize(valR);
+		::gaia::dont_optimize(valR);
 		auto valC = arr[0];
 		(void)valC;
 
@@ -220,7 +220,7 @@ struct test_000 {
 
 	void setters() {
 		const auto& valR = arr[0];
-		::DoNotOptimize(valR);
+		::gaia::dont_optimize(valR);
 		auto valC = arr[0];
 		(void)valC;
 		arr[0] = 0;
@@ -247,14 +247,14 @@ struct test_1 {
 
 	void getters() const {
 		const auto& valR = arr[0];
-		::DoNotOptimize(valR);
+		::gaia::dont_optimize(valR);
 		auto valC = arr[0];
 		(void)valC.x;
 	}
 
 	void setters() {
 		const auto& valR = arr[0];
-		::DoNotOptimize(valR);
+		::gaia::dont_optimize(valR);
 		auto valC = arr[0];
 		(void)valC.x;
 		arr[0] = {6, 6, 6};
@@ -281,14 +281,14 @@ struct test_2 {
 
 	void getters() const {
 		const auto& valR = arr[0];
-		::DoNotOptimize(valR);
+		::gaia::dont_optimize(valR);
 		auto valC = arr[0];
 		(void)valC;
 	}
 
 	void setters() {
 		const auto& valR = arr[0];
-		::DoNotOptimize(valR);
+		::gaia::dont_optimize(valR);
 		PositionSoA valC = arr[0];
 		(void)valC.x;
 		arr[0] = {6, 6, 6};
@@ -349,7 +349,7 @@ int main() {
 		arr.push_back(nullptr);
 
 		const auto& valR = arr[0];
-		::DoNotOptimize(valR);
+		::gaia::dont_optimize(valR);
 		auto* valC = arr[0];
 		(void)valC;
 		arr[0] = &dummy;
@@ -370,7 +370,7 @@ int main() {
 		arr.push_back(nullptr);
 
 		const auto& valR = arr[0];
-		::DoNotOptimize(valR);
+		::gaia::dont_optimize(valR);
 		auto* valC = arr[0];
 		(void)valC;
 		arr[0] = &dummy;
@@ -391,7 +391,7 @@ int main() {
 		arr.push_back(nullptr);
 
 		const auto& valR = arr[0];
-		::DoNotOptimize(valR);
+		::gaia::dont_optimize(valR);
 		const auto* valC = arr[0];
 		(void)valC;
 		arr[0] = nullptr;

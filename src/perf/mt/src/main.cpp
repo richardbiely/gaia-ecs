@@ -69,7 +69,7 @@ void Run_Schedule_Simple(const uint32_t* pArr, uint32_t Jobs, uint32_t ItemsPerJ
 	}
 	tp.CompleteAll();
 
-	picobench::DoNotOptimize(sum);
+	gaia::dont_optimize(sum);
 }
 
 void BM_Schedule_Simple(picobench::state& state) {
@@ -120,7 +120,7 @@ void Run_ScheduleParallel(const uint32_t* pArr, uint32_t Items, Func func) {
 	tp.ScheduleParallel(job, Items, 0);
 	tp.CompleteAll();
 
-	picobench::DoNotOptimize(sum);
+	gaia::dont_optimize(sum);
 }
 
 void BM_ScheduleParallel_Simple(picobench::state& state) {
