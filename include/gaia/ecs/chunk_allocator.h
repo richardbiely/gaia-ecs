@@ -9,6 +9,7 @@
 #include "../containers/darray.h"
 #include "../containers/sarray.h"
 #include "../containers/sarray_ext.h"
+#include "../utils/dyn_singleton.h"
 #include "../utils/mem_alloc.h"
 #include "../utils/span.h"
 #include "../utils/utility.h"
@@ -36,7 +37,10 @@ namespace gaia {
 			ChunkAllocatorPageStats stats[2];
 		};
 
-		class ChunkAllocator;
+		namespace detail {
+			class ChunkAllocatorImpl;
+		}
+		using ChunkAllocator = utils::dyn_singleton<detail::ChunkAllocatorImpl>;
 
 		namespace detail {
 
@@ -44,7 +48,7 @@ namespace gaia {
 			Allocator for ECS Chunks. Memory is organized in pages of chunks.
 			*/
 			class ChunkAllocatorImpl {
-				friend class gaia::ecs::ChunkAllocator;
+				friend gaia::ecs::ChunkAllocator;
 
 				struct MemoryPage {
 					static constexpr uint16_t NBlocks = 62;
@@ -122,7 +126,8 @@ namespace gaia {
 						} else {
 							// The value spans two bytes
 							const uint8_t lowerPart = (m_blocks[byteIndex1] >> bitOffset1);
-							const uint8_t upperPart = (m_blocks[byteIndex2] & (0xFF >> (8 - bitOffset2))) << (NBlocks_Bits - bitOffset1);
+							const uint8_t upperPart = (m_blocks[byteIndex2] & (0xFF >> (8 - bitOffset2)))
+																				<< (NBlocks_Bits - bitOffset1);
 							value = lowerPart | upperPart;
 						}
 						return value;
@@ -409,45 +414,6 @@ namespace gaia {
 				};
 			};
 		} // namespace detail
-
-		//! Manager of ECS memory for Chunks.
-		//! IMPORTANT:
-		//! Gaia-ECS is a header-only library which means we want to avoid using global
-		//! static variables because they would get copied to each translation units.
-		//! At the same time the goal is for user not to see any memory allocator used
-		//! by the library. Therefore, the only solution is a static variable with local
-		//! scope.
-		//!
-		//! Being a static variable with local scope which means the allocator is guaranteed
-		//! to be younger than its caller. Because static variables are released in the reverse
-		//! order in which they are created, if used with a static World it would mean we first
-		//! release the allocator memory and only then proceed with the world itself. As a result,
-		//! in its destructor the world would try to access memory which has already been released.
-		//!
-		//! Instead, we let this object alocate the real allocator on the heap and once
-		//! ChunkAllocator's destructor is called we tell the real one it should destroy
-		//! itself. This way there are no memory leaks or access-after-freed issues on app
-		//! exit reported.
-		class ChunkAllocator final {
-			detail::ChunkAllocatorImpl* m_allocator = new detail::ChunkAllocatorImpl();
-
-			ChunkAllocator() = default;
-
-		public:
-			static detail::ChunkAllocatorImpl& Get() noexcept {
-				static ChunkAllocator staticAllocator;
-				return *staticAllocator.m_allocator;
-			}
-
-			ChunkAllocator(ChunkAllocator&& world) = delete;
-			ChunkAllocator(const ChunkAllocator& world) = delete;
-			ChunkAllocator& operator=(ChunkAllocator&&) = delete;
-			ChunkAllocator& operator=(const ChunkAllocator&) = delete;
-
-			~ChunkAllocator() {
-				Get().Done();
-			}
-		};
 
 	} // namespace ecs
 } // namespace gaia

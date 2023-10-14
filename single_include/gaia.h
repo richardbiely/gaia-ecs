@@ -14080,6 +14080,47 @@ namespace gaia {
 #include <cinttypes>
 #include <cstdint>
 
+namespace gaia {
+	namespace utils {
+		//! Gaia-ECS is a header-only library which means we want to avoid using global
+		//! static variables because they would get copied to each translation units.
+		//! At the same time the goal is for users to not see any memory allocation used
+		//! by the library. Therefore, the only solution is a static variable with local
+		//! scope.
+		//!
+		//! Being a static variable with local scope which means the singleton is guaranteed
+		//! to be younger than its caller. Because static variables are released in the reverse
+		//! order in which they are created, if used with a static World it would mean we first
+		//! release the singleton and only then proceed with the world itself. As a result, in
+		//! its destructor the world could access memory that has already been released.
+		//!
+		//! Instead, we let the singleton allocate the object on the heap and once singleton's
+		//! destructor is called we tell the internal object it should destroy itself. This way
+		//! there are no memory leaks or access-after-freed issues on app exit reported.
+		template <typename T>
+		class dyn_singleton final {
+			T* m_obj = new T();
+
+			dyn_singleton() = default;
+
+		public:
+			static T& get() noexcept {
+				static dyn_singleton<T> singleton;
+				return *singleton.m_obj;
+			}
+
+			dyn_singleton(dyn_singleton&& world) = delete;
+			dyn_singleton(const dyn_singleton& world) = delete;
+			dyn_singleton& operator=(dyn_singleton&&) = delete;
+			dyn_singleton& operator=(const dyn_singleton&) = delete;
+
+			~dyn_singleton() {
+				get().Done();
+			}
+		};
+	} // namespace utils
+} // namespace gaia
+
 #include <cinttypes>
 
 namespace gaia {
@@ -14126,7 +14167,10 @@ namespace gaia {
 			ChunkAllocatorPageStats stats[2];
 		};
 
-		class ChunkAllocator;
+		namespace detail {
+			class ChunkAllocatorImpl;
+		}
+		using ChunkAllocator = utils::dyn_singleton<detail::ChunkAllocatorImpl>;
 
 		namespace detail {
 
@@ -14134,7 +14178,7 @@ namespace gaia {
 			Allocator for ECS Chunks. Memory is organized in pages of chunks.
 			*/
 			class ChunkAllocatorImpl {
-				friend class gaia::ecs::ChunkAllocator;
+				friend gaia::ecs::ChunkAllocator;
 
 				struct MemoryPage {
 					static constexpr uint16_t NBlocks = 62;
@@ -14212,7 +14256,8 @@ namespace gaia {
 						} else {
 							// The value spans two bytes
 							const uint8_t lowerPart = (m_blocks[byteIndex1] >> bitOffset1);
-							const uint8_t upperPart = (m_blocks[byteIndex2] & (0xFF >> (8 - bitOffset2))) << (NBlocks_Bits - bitOffset1);
+							const uint8_t upperPart = (m_blocks[byteIndex2] & (0xFF >> (8 - bitOffset2)))
+																				<< (NBlocks_Bits - bitOffset1);
 							value = lowerPart | upperPart;
 						}
 						return value;
@@ -14499,45 +14544,6 @@ namespace gaia {
 				};
 			};
 		} // namespace detail
-
-		//! Manager of ECS memory for Chunks.
-		//! IMPORTANT:
-		//! Gaia-ECS is a header-only library which means we want to avoid using global
-		//! static variables because they would get copied to each translation units.
-		//! At the same time the goal is for user not to see any memory allocator used
-		//! by the library. Therefore, the only solution is a static variable with local
-		//! scope.
-		//!
-		//! Being a static variable with local scope which means the allocator is guaranteed
-		//! to be younger than its caller. Because static variables are released in the reverse
-		//! order in which they are created, if used with a static World it would mean we first
-		//! release the allocator memory and only then proceed with the world itself. As a result,
-		//! in its destructor the world would try to access memory which has already been released.
-		//!
-		//! Instead, we let this object alocate the real allocator on the heap and once
-		//! ChunkAllocator's destructor is called we tell the real one it should destroy
-		//! itself. This way there are no memory leaks or access-after-freed issues on app
-		//! exit reported.
-		class ChunkAllocator final {
-			detail::ChunkAllocatorImpl* m_allocator = new detail::ChunkAllocatorImpl();
-
-			ChunkAllocator() = default;
-
-		public:
-			static detail::ChunkAllocatorImpl& Get() noexcept {
-				static ChunkAllocator staticAllocator;
-				return *staticAllocator.m_allocator;
-			}
-
-			ChunkAllocator(ChunkAllocator&& world) = delete;
-			ChunkAllocator(const ChunkAllocator& world) = delete;
-			ChunkAllocator& operator=(ChunkAllocator&&) = delete;
-			ChunkAllocator& operator=(const ChunkAllocator&) = delete;
-
-			~ChunkAllocator() {
-				Get().Done();
-			}
-		};
 
 	} // namespace ecs
 } // namespace gaia
@@ -15028,7 +15034,7 @@ namespace gaia {
 					const auto totalBytes = GetTotalChunkSize(dataBytes);
 					const auto sizeType = detail::ChunkAllocatorImpl::GetMemoryBlockSizeType(totalBytes);
 #if GAIA_ECS_CHUNK_ALLOCATOR
-					auto* pChunk = (Chunk*)ChunkAllocator::Get().Allocate(totalBytes);
+					auto* pChunk = (Chunk*)ChunkAllocator::get().Allocate(totalBytes);
 					new (pChunk) Chunk(archetypeId, chunkIndex, capacity, sizeType, worldVersion, offsets);
 #else
 					GAIA_ASSERT(totalBytes <= MaxMemoryBlockSize);
@@ -15057,7 +15063,7 @@ namespace gaia {
 
 #if GAIA_ECS_CHUNK_ALLOCATOR
 					pChunk->~Chunk();
-					ChunkAllocator::Get().Release(pChunk);
+					ChunkAllocator::get().Release(pChunk);
 #else
 					pChunk->~Chunk();
 					auto* pChunkMem = (uint8_t*)pChunk;
@@ -19197,16 +19203,16 @@ namespace gaia {
 			void Done() {
 				Cleanup();
 
-				ChunkAllocator::Get().Flush();
+				ChunkAllocator::get().Flush();
 
 #if GAIA_DEBUG && GAIA_ECS_CHUNK_ALLOCATOR
 				// Make sure there are no leaks
-				ChunkAllocatorStats memStats = ChunkAllocator::Get().GetStats();
+				ChunkAllocatorStats memStats = ChunkAllocator::get().GetStats();
 				for (const auto& s: memStats.stats) {
 					if (s.AllocatedMemory != 0) {
 						GAIA_ASSERT(false && "ECS leaking memory");
 						GAIA_LOG_W("ECS leaking memory!");
-						ChunkAllocator::Get().Diag();
+						ChunkAllocator::get().Diag();
 					}
 				}
 #endif

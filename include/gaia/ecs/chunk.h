@@ -252,7 +252,7 @@ namespace gaia {
 					const auto totalBytes = GetTotalChunkSize(dataBytes);
 					const auto sizeType = detail::ChunkAllocatorImpl::GetMemoryBlockSizeType(totalBytes);
 #if GAIA_ECS_CHUNK_ALLOCATOR
-					auto* pChunk = (Chunk*)ChunkAllocator::Get().Allocate(totalBytes);
+					auto* pChunk = (Chunk*)ChunkAllocator::get().Allocate(totalBytes);
 					new (pChunk) Chunk(archetypeId, chunkIndex, capacity, sizeType, worldVersion, offsets);
 #else
 					GAIA_ASSERT(totalBytes <= MaxMemoryBlockSize);
@@ -281,7 +281,7 @@ namespace gaia {
 
 #if GAIA_ECS_CHUNK_ALLOCATOR
 					pChunk->~Chunk();
-					ChunkAllocator::Get().Release(pChunk);
+					ChunkAllocator::get().Release(pChunk);
 #else
 					pChunk->~Chunk();
 					auto* pChunkMem = (uint8_t*)pChunk;
