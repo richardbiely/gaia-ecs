@@ -83,15 +83,18 @@ namespace gaia {
 						static_assert(sizeof(MemoryPage) <= 64);
 					}
 
-					void WriteBlockIdx(uint32_t bitPosition, uint32_t value) {
+					void WriteBlockIdx(uint32_t blockIdx, uint32_t value) {
+						const uint32_t bitPosition = blockIdx * NBlocks_Bits;
+
 						GAIA_ASSERT(bitPosition < NBlocks * NBlocks_Bits);
 						GAIA_ASSERT(value <= InvalidBlockId);
 
 						BitView{{(uint8_t*)m_blocks.data(), BlockArrayBytes}}.set(bitPosition, (uint8_t)value);
 					}
 
-					uint8_t ReadBlockIdx(uint32_t bitPosition) const {
-						// TODO: This could be turned into a generic bitstream container
+					uint8_t ReadBlockIdx(uint32_t blockIdx) const {
+						const uint32_t bitPosition = blockIdx * NBlocks_Bits;
+
 						GAIA_ASSERT(bitPosition < NBlocks * NBlocks_Bits);
 
 						return BitView{{(uint8_t*)m_blocks.data(), BlockArrayBytes}}.get(bitPosition);
