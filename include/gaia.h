@@ -2,6 +2,7 @@
 #include "gaia/config/logging.h"
 #include "gaia/config/profiler.h"
 
+#include "gaia/utils/bit_utils.h"
 #include "gaia/utils/data_layout_policy.h"
 #include "gaia/utils/hashing_policy.h"
 #include "gaia/utils/iterator.h"

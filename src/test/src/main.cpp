@@ -210,6 +210,31 @@ TEST_CASE("Containers - sarray") {
 	REQUIRE_FALSE(utils::has(arr, 100U));
 }
 
+TEST_CASE("bit_view") {
+	constexpr uint32_t BlockBits = 6;
+	using view = utils::bit_view<BlockBits>;
+	// Number of BlockBits-sized elements
+	constexpr uint32_t NBlocks = view::MaxValue + 1;
+	// Number of bytes necessary to host "Blocks" number of BlockBits-sized elements
+	constexpr uint32_t N = (BlockBits * NBlocks + 7) / 8;
+
+	uint8_t arr[N]{};
+	view bv{arr};
+
+	for (uint32_t i = 0; i < NBlocks; ++i) {
+		bv.set(i * BlockBits, (uint8_t)i);
+
+		const uint8_t val = bv.get(i * BlockBits);
+		REQUIRE(val == i);
+	}
+
+	// Make sure nothing was overriden
+	for (uint32_t i = 0; i < NBlocks; ++i) {
+		const uint8_t val = bv.get(i * BlockBits);
+		REQUIRE(val == i);
+	}
+}
+
 TEST_CASE("Containers - sarray_ext") {
 	containers::sarray_ext<uint32_t, 5> arr;
 	arr.push_back(0);

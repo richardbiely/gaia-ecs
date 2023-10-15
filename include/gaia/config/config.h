@@ -50,7 +50,7 @@
 
 //! If enabled, explicit memory prefetching is used when querying chunks, possibly improving performance in
 //! edge-cases
-#ifndef GAIA_USE_PREFETCH
+#ifndef GAIA_USE_PREFETCH 
 	#define GAIA_USE_PREFETCH 1
 #endif
 
