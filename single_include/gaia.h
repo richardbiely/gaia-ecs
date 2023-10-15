@@ -527,7 +527,7 @@ namespace gaia {
 #endif
 
 namespace gaia {
-// The gaia::dont_optimize(...) function can be used to prevent a value or
+// The dont_optimize(...) function can be used to prevent a value or
 // expression from being optimized away by the compiler. This function is
 // intended to add little to no overhead.
 // See: https://youtu.be/nXaxk27zwlk?t=2441
@@ -622,7 +622,7 @@ namespace gaia {
 
 //! If enabled, explicit memory prefetching is used when querying chunks, possibly improving performance in
 //! edge-cases
-#ifndef GAIA_USE_PREFETCH
+#ifndef GAIA_USE_PREFETCH 
 	#define GAIA_USE_PREFETCH 1
 #endif
 
@@ -1022,10 +1022,6 @@ namespace tracy {
 		#define GAIA_PROF_FREE2(ptr, name)
 	#endif
 #endif
-
-#include <tuple>
-#include <type_traits>
-#include <utility>
 
 #if GAIA_USE_STD_SPAN
 	#include <span>
@@ -2681,6 +2677,60 @@ namespace gaia {
 		}
 	} // namespace utils
 } // namespace gaia
+
+namespace gaia {
+	namespace utils {
+		template <uint32_t BlockBits>
+		struct bit_view {
+			static constexpr uint32_t MaxValue = (1 << BlockBits) - 1;
+
+			std::span<uint8_t> m_data;
+
+			void set(uint32_t bitPosition, uint8_t value) noexcept {
+				GAIA_ASSERT(bitPosition < (m_data.size() * 8));
+				GAIA_ASSERT(value <= MaxValue);
+
+				const uint32_t idxByte = bitPosition / 8;
+				const uint32_t idxBit = bitPosition % 8;
+
+				const uint8_t mask = ~(MaxValue << idxBit);
+				m_data[idxByte] = (m_data[idxByte] & mask) | (value << idxBit);
+
+				const bool overlaps = idxBit + BlockBits > 8;
+				if (overlaps) {
+					// Value spans over two bytes
+					const uint8_t shift2 = 8 - idxBit;
+					const uint8_t mask2 = ~(MaxValue >> shift2);
+					m_data[idxByte + 1] = (m_data[idxByte + 1] & mask2) | (value >> shift2);
+				}
+			}
+
+			uint8_t get(uint32_t bitPosition) const noexcept {
+				GAIA_ASSERT(bitPosition < (m_data.size() * 8));
+
+				const uint32_t idxByte = bitPosition / 8;
+				const uint32_t idxBit = bitPosition % 8;
+
+				const uint8_t byte1 = (m_data[idxByte] >> idxBit) & MaxValue;
+
+				const bool overlaps = idxBit + BlockBits > 8;
+				if (overlaps) {
+					// Value spans over two bytes
+					const uint8_t shift2 = 8 - idxBit;
+					const uint8_t mask2 = MaxValue >> shift2;
+					const uint8_t byte2 = (m_data[idxByte + 1] & mask2) << shift2;
+					return byte1 | byte2;
+				}
+
+				return byte1;
+			}
+		};
+	} // namespace utils
+} // namespace gaia
+
+#include <tuple>
+#include <type_traits>
+#include <utility>
 
 #include <cinttypes>
 #include <cstring>
@@ -14186,9 +14236,9 @@ namespace gaia {
 					static constexpr uint16_t NBlocks = 62;
 					static constexpr uint16_t NBlocks_Bits = (uint16_t)utils::count_bits(NBlocks);
 					static constexpr uint32_t InvalidBlockId = NBlocks + 1;
-					static constexpr uint32_t BlockArrayBytes =
-							((uint32_t)NBlocks_Bits * (uint32_t)NBlocks) / (sizeof(uint8_t) * 8);
+					static constexpr uint32_t BlockArrayBytes = ((uint32_t)NBlocks_Bits * (uint32_t)NBlocks + 7) / 8;
 					using BlockArray = containers::sarray<uint8_t, BlockArrayBytes>;
+					using BitView = utils::bit_view<NBlocks_Bits>;
 
 					//! Pointer to data managed by page
 					void* m_data;
@@ -14215,54 +14265,17 @@ namespace gaia {
 					}
 
 					void WriteBlockIdx(uint32_t bitPosition, uint32_t value) {
-						// TODO: This could be turned into a generic bitstream container
 						GAIA_ASSERT(bitPosition < NBlocks * NBlocks_Bits);
 						GAIA_ASSERT(value <= InvalidBlockId);
 
-						// Calculate the first byte index and bit offset within the array
-						const uint32_t byteIndex1 = bitPosition / 8;
-						const uint32_t bitOffset1 = bitPosition % 8;
-						// Calculate the second byte index and bit offset within the array
-						const uint32_t byteIndex2 = (bitPosition + NBlocks_Bits) / 8;
-						const uint32_t bitOffset2 = (bitPosition + NBlocks_Bits) % 8;
-
-						// Clear the existing bits at the first byte position
-						m_blocks[byteIndex1] &= ~(0xFF << bitOffset1);
-						// Write the lower 6 bits to the first byte
-						m_blocks[byteIndex1] |= (value & 0x3F) << bitOffset1;
-
-						// Check if value spreads over multiple bytes
-						if (byteIndex1 != byteIndex2) {
-							// Clear the existing bits at the second byte position
-							m_blocks[byteIndex2] &= ~(0xFF >> (8 - bitOffset2));
-							// Write the upper bits to the second byte
-							m_blocks[byteIndex2] |= (value >> (NBlocks_Bits - bitOffset1)) & (0xFF >> (8 - bitOffset2));
-						}
+						BitView{{(uint8_t*)m_blocks.data(), BlockArrayBytes}}.set(bitPosition, (uint8_t)value);
 					}
 
 					uint8_t ReadBlockIdx(uint32_t bitPosition) const {
 						// TODO: This could be turned into a generic bitstream container
 						GAIA_ASSERT(bitPosition < NBlocks * NBlocks_Bits);
 
-						// Calculate the first byte index and bit offset within the array
-						const uint32_t byteIndex1 = bitPosition / 8;
-						const uint32_t bitOffset1 = bitPosition % 8;
-						// Calculate the second byte index and bit offset within the array
-						const uint32_t byteIndex2 = (bitPosition + NBlocks_Bits) / 8;
-						const uint32_t bitOffset2 = (bitPosition + NBlocks_Bits) % 8;
-
-						uint8_t value;
-						if (byteIndex1 == byteIndex2) {
-							// The value is entirely within one byte
-							value = (m_blocks[byteIndex1] >> bitOffset1) & 0x3F;
-						} else {
-							// The value spans two bytes
-							const uint8_t lowerPart = (m_blocks[byteIndex1] >> bitOffset1);
-							const uint8_t upperPart = (m_blocks[byteIndex2] & (0xFF >> (8 - bitOffset2)))
-																				<< (NBlocks_Bits - bitOffset1);
-							value = lowerPart | upperPart;
-						}
-						return value;
+						return BitView{{(uint8_t*)m_blocks.data(), BlockArrayBytes}}.get(bitPosition);
 					}
 
 					GAIA_NODISCARD void* AllocChunk() {
