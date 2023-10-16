@@ -6459,7 +6459,7 @@ namespace gaia {
 		//! that initializes them.
 		template <typename TListItem, typename TItemHandle>
 		struct ilist {
-			using internal_storage = containers::darr<TListItem>;
+			using internal_storage = containers::darray<TListItem>;
 			// TODO: replace this iterator with a real list iterator
 			using iterator = typename internal_storage::iterator;
 
