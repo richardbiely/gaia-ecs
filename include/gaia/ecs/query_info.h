@@ -71,18 +71,20 @@ namespace gaia {
 					return HasComponent_Internal<U>(listType, componentType, isReadWrite);
 				}
 
+				//! Tries to match query component ids with those in \param componentIds given the rule \param func.
+				//! \return True if there is a match, false otherwise.
 				template <typename Func>
 				GAIA_NODISCARD bool CheckMatch_Internal(
-						component::ComponentType componentType, const archetype::ComponentIdArray& archetypeComponentIds,
-						ListType listType, Func func) const {
+						component::ComponentType componentType, const archetype::ComponentIdArray& componentIds, ListType listType,
+						Func func) const {
 					const auto& data = m_lookupCtx.data[componentType];
 
 					// Arrays are sorted so we can do linear intersection lookup
 					uint32_t i = 0;
 					uint32_t j = 0;
-					while (i < archetypeComponentIds.size() && j < data.componentIds.size()) {
+					while (i < componentIds.size() && j < data.componentIds.size()) {
 						if (data.rules[j] == listType) {
-							const auto componentIdArchetype = archetypeComponentIds[i];
+							const auto componentIdArchetype = componentIds[i];
 							const auto componentIdQuery = data.componentIds[j];
 
 							if (componentIdArchetype == componentIdQuery && func(componentIdArchetype, componentIdQuery))
@@ -99,26 +101,26 @@ namespace gaia {
 					return false;
 				}
 
-				//! Tries to match component ids in \param componentIdsQuery with those in \param componentIds.
-				//! \return True if there is a match, false otherwise.
-				GAIA_NODISCARD bool CheckMatchOne(
-						component::ComponentType componentType, const archetype::ComponentIdArray& archetypeComponentIds,
+				//! Tries to match all query component ids with those in \param componentIds.
+				//! \return True on the first match, false otherwise.
+				GAIA_NODISCARD bool MatchOne(
+						component::ComponentType componentType, const archetype::ComponentIdArray& componentIds,
 						ListType listType) const {
 					return CheckMatch_Internal(
-							componentType, archetypeComponentIds, listType,
+							componentType, componentIds, listType,
 							[](component::ComponentId componentId, component::ComponentId componentIdQuery) {
 								return componentId == componentIdQuery;
 							});
 				}
 
-				//! Tries to match all component ids in \param componentIdsQuery with those in \param componentIds.
-				//! \return True if there is a match, false otherwise.
-				GAIA_NODISCARD bool CheckMatchAll(
-						component::ComponentType componentType, const archetype::ComponentIdArray& archetypeComponentIds) const {
+				//! Tries to match all query component ids with those in \param componentIds.
+				//! \return True if all ids match, false otherwise.
+				GAIA_NODISCARD bool
+				MatchAll(component::ComponentType componentType, const archetype::ComponentIdArray& componentIds) const {
 					uint32_t matches = 0;
 					const auto& data = m_lookupCtx.data[componentType];
 					return CheckMatch_Internal(
-							componentType, archetypeComponentIds, ListType::LT_All,
+							componentType, componentIds, ListType::LT_All,
 							[&](component::ComponentId componentId, component::ComponentId componentIdQuery) {
 								return componentId == componentIdQuery && (++matches == data.rulesAllCount);
 							});
@@ -130,6 +132,7 @@ namespace gaia {
 				GAIA_NODISCARD MatchArchetypeQueryRet
 				Match(const archetype::Archetype& archetype, component::ComponentType componentType) const {
 					const auto& matcherHash = archetype.GetMatcherHash(componentType);
+					const auto& componentIds = archetype.GetComponentIdArray(componentType);
 					const auto& data = GetData(componentType);
 
 					const auto withNoneTest = matcherHash.hash & data.hash[query::ListType::LT_None].hash;
@@ -144,17 +147,15 @@ namespace gaia {
 					if (withAllTest == 0 && data.hash[query::ListType::LT_All].hash != 0)
 						return MatchArchetypeQueryRet::Fail;
 
-					const auto& archetypeComponentIds = archetype.GetComponentIdArray(componentType);
-
 					// If there is any match with withNoneList we quit
 					if (withNoneTest != 0) {
-						if (CheckMatchOne(componentType, archetypeComponentIds, query::ListType::LT_None))
+						if (MatchOne(componentType, componentIds, query::ListType::LT_None))
 							return MatchArchetypeQueryRet::Fail;
 					}
 
 					// If there is any match with withAnyTest
 					if (withAnyTest != 0) {
-						if (CheckMatchOne(componentType, archetypeComponentIds, query::ListType::LT_Any))
+						if (MatchOne(componentType, componentIds, query::ListType::LT_Any))
 							goto checkWithAllMatches;
 
 						// At least one match necessary to continue
@@ -165,10 +166,10 @@ namespace gaia {
 					// If withAllList is not empty there has to be an exact match
 					if (withAllTest != 0) {
 						if (
-								// We can't search for more components than there are no the archetype itself
-								data.rulesAllCount <= archetypeComponentIds.size() &&
+								// We skip archetypes with less components than the query requires
+								data.rulesAllCount <= componentIds.size() &&
 								// Match everything with LT_ALL
-								CheckMatchAll(componentType, archetypeComponentIds))
+								MatchAll(componentType, componentIds))
 							return MatchArchetypeQueryRet::Ok;
 
 						// No match found. We're done
