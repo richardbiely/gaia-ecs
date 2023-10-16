@@ -5,7 +5,7 @@
 #include <type_traits>
 #include <utility>
 
-#include "../utils/iterator.h"
+#include "iterator.h"
 
 namespace gaia {
 	constexpr uint32_t BadIndex = uint32_t(-1);

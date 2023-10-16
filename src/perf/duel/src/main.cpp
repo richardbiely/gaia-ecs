@@ -1,4 +1,3 @@
-#include "gaia/config/config_core.h"
 #define PICOBENCH_IMPLEMENT
 #include "gaia/external/picobench.hpp"
 #include <gaia.h>

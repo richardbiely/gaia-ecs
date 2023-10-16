@@ -8,11 +8,13 @@
 #include "gaia/utils/iterator.h"
 #include "gaia/utils/mem_alloc.h"
 #include "gaia/utils/mem_utils.h"
-#include "gaia/utils/reflection.h"
-#include "gaia/utils/serialization.h"
 #include "gaia/utils/span.h"
 #include "gaia/utils/type_info.h"
 #include "gaia/utils/utility.h"
+
+#include "gaia/meta/reflection.h"
+
+#include "gaia/ser/serialization.h"
 
 #include "gaia/containers/bitset.h"
 #include "gaia/containers/darray.h"

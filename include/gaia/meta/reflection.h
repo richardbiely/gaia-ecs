@@ -7,7 +7,7 @@
 #include <utility>
 
 namespace gaia {
-	namespace utils {
+	namespace meta {
 
 		namespace detail {
 			// Check if type T is constructible via T{Args...}
@@ -308,5 +308,5 @@ namespace gaia {
 			static_assert("Unsupported number of members");
 		}
 
-	} // namespace utils
+	} // namespace meta
 } // namespace gaia

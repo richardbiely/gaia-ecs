@@ -1,4 +1,3 @@
-#include "gaia/utils/mem_alloc.h"
 #include <gaia.h>
 
 #if GAIA_COMPILER_MSVC
@@ -3272,8 +3271,8 @@ bool CompareSerializableType(const T& a, const T& b) {
 template <typename T>
 bool CompareSerializableTypes(const T& a, const T& b) {
 	// Convert inputs into tuples where each struct member is an element of the tuple
-	auto ta = utils::struct_to_tuple(a);
-	auto tb = utils::struct_to_tuple(b);
+	auto ta = meta::struct_to_tuple(a);
+	auto tb = meta::struct_to_tuple(b);
 
 	// Do element-wise comparison
 	bool ret = true;
@@ -3321,7 +3320,7 @@ struct CustomStruct {
 	uint32_t size;
 };
 
-namespace gaia::serialization {
+namespace gaia::ser {
 	template <>
 	uint32_t size_bytes(const CustomStruct& data) {
 		return data.size + sizeof(data.size);
@@ -3338,7 +3337,7 @@ namespace gaia::serialization {
 		data.ptr = new char[data.size];
 		s.load(data.ptr, data.size);
 	}
-} // namespace gaia::serialization
+} // namespace gaia::ser
 
 struct CustomStructInternal {
 	char* ptr;
@@ -3379,11 +3378,11 @@ TEST_CASE("Serialization - custom") {
 
 		ecs::DataBuffer db;
 		ecs::DataBuffer_SerializationWrapper s(db);
-		s.reserve(serialization::size_bytes(in));
+		s.reserve(ser::size_bytes(in));
 
-		serialization::save(s, in);
+		ser::save(s, in);
 		s.seek(0);
-		serialization::load(s, out);
+		ser::load(s, out);
 
 		REQUIRE(CompareSerializableTypes(in, out));
 		delete in.ptr;
@@ -3401,11 +3400,11 @@ TEST_CASE("Serialization - custom") {
 
 		ecs::DataBuffer db;
 		ecs::DataBuffer_SerializationWrapper s(db);
-		s.reserve(serialization::size_bytes(in));
+		s.reserve(ser::size_bytes(in));
 
-		serialization::save(s, in);
+		ser::save(s, in);
 		s.seek(0);
-		serialization::load(s, out);
+		ser::load(s, out);
 
 		REQUIRE(CompareSerializableTypes(in, out));
 		delete in.ptr;
@@ -3419,11 +3418,11 @@ TEST_CASE("Serialization - simple") {
 
 		ecs::DataBuffer db;
 		ecs::DataBuffer_SerializationWrapper s(db);
-		s.reserve(serialization::size_bytes(in));
+		s.reserve(ser::size_bytes(in));
 
-		serialization::save(s, in);
+		ser::save(s, in);
 		s.seek(0);
-		serialization::load(s, out);
+		ser::load(s, out);
 
 		REQUIRE(CompareSerializableTypes(in, out));
 	}
@@ -3433,11 +3432,11 @@ TEST_CASE("Serialization - simple") {
 
 		ecs::DataBuffer db;
 		ecs::DataBuffer_SerializationWrapper s(db);
-		s.reserve(serialization::size_bytes(in));
+		s.reserve(ser::size_bytes(in));
 
-		serialization::save(s, in);
+		ser::save(s, in);
 		s.seek(0);
-		serialization::load(s, out);
+		ser::load(s, out);
 
 		REQUIRE(CompareSerializableTypes(in, out));
 	}
@@ -3447,11 +3446,11 @@ TEST_CASE("Serialization - simple") {
 
 		ecs::DataBuffer db;
 		ecs::DataBuffer_SerializationWrapper s(db);
-		s.reserve(serialization::size_bytes(in));
+		s.reserve(ser::size_bytes(in));
 
-		serialization::save(s, in);
+		ser::save(s, in);
 		s.seek(0);
-		serialization::load(s, out);
+		ser::load(s, out);
 
 		REQUIRE(CompareSerializableTypes(in, out));
 	}
@@ -3461,11 +3460,11 @@ TEST_CASE("Serialization - simple") {
 
 		ecs::DataBuffer db;
 		ecs::DataBuffer_SerializationWrapper s(db);
-		s.reserve(serialization::size_bytes(in));
+		s.reserve(ser::size_bytes(in));
 
-		serialization::save(s, in);
+		ser::save(s, in);
 		s.seek(0);
-		serialization::load(s, out);
+		ser::load(s, out);
 
 		REQUIRE(CompareSerializableTypes(in, out));
 	}
@@ -3517,11 +3516,11 @@ TEST_CASE("Serialization - arrays") {
 
 		ecs::DataBuffer db;
 		ecs::DataBuffer_SerializationWrapper s(db);
-		s.reserve(serialization::size_bytes(in));
+		s.reserve(ser::size_bytes(in));
 
-		serialization::save(s, in);
+		ser::save(s, in);
 		s.seek(0);
-		serialization::load(s, out);
+		ser::load(s, out);
 
 		REQUIRE(CompareSerializableTypes(in, out));
 	}
@@ -3534,11 +3533,11 @@ TEST_CASE("Serialization - arrays") {
 
 		ecs::DataBuffer db;
 		ecs::DataBuffer_SerializationWrapper s(db);
-		s.reserve(serialization::size_bytes(in));
+		s.reserve(ser::size_bytes(in));
 
-		serialization::save(s, in);
+		ser::save(s, in);
 		s.seek(0);
-		serialization::load(s, out);
+		ser::load(s, out);
 
 		REQUIRE(CompareSerializableTypes(in, out));
 	}
@@ -3552,11 +3551,11 @@ TEST_CASE("Serialization - arrays") {
 
 		ecs::DataBuffer db;
 		ecs::DataBuffer_SerializationWrapper s(db);
-		s.reserve(serialization::size_bytes(in));
+		s.reserve(ser::size_bytes(in));
 
-		serialization::save(s, in);
+		ser::save(s, in);
 		s.seek(0);
-		serialization::load(s, out);
+		ser::load(s, out);
 
 		REQUIRE(CompareSerializableTypes(in, out));
 	}
@@ -3577,11 +3576,11 @@ TEST_CASE("Serialization - arrays") {
 
 		ecs::DataBuffer db;
 		ecs::DataBuffer_SerializationWrapper s(db);
-		s.reserve(serialization::size_bytes(in));
+		s.reserve(ser::size_bytes(in));
 
-		serialization::save(s, in);
+		ser::save(s, in);
 		s.seek(0);
-		serialization::load(s, out);
+		ser::load(s, out);
 
 		REQUIRE(CompareSerializableTypes(in, out));
 

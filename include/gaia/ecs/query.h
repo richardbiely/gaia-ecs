@@ -8,8 +8,8 @@
 #include "../containers/map.h"
 #include "../containers/sarray_ext.h"
 #include "../mt/jobhandle.h"
+#include "../ser/serialization.h"
 #include "../utils/hashing_policy.h"
-#include "../utils/serialization.h"
 #include "../utils/utility.h"
 #include "archetype.h"
 #include "archetype_common.h"
@@ -154,14 +154,14 @@ namespace gaia {
 						[](DataBuffer& buffer, query::LookupCtx& ctx) {
 							Command_AddComponent cmd;
 							DataBuffer_SerializationWrapper s(buffer);
-							serialization::load(s, cmd);
+							ser::load(s, cmd);
 							cmd.Exec(ctx);
 						},
 						// Add filter
 						[](DataBuffer& buffer, query::LookupCtx& ctx) {
 							Command_Filter cmd;
 							DataBuffer_SerializationWrapper s(buffer);
-							serialization::load(s, cmd);
+							ser::load(s, cmd);
 							cmd.Exec(ctx);
 						}};
 
@@ -229,8 +229,8 @@ namespace gaia {
 
 					Command_AddComponent cmd{componentId, componentType, listType, isReadWrite};
 					DataBuffer_SerializationWrapper s(m_cmdBuffer);
-					serialization::save(s, Command_AddComponent::Id);
-					serialization::save(s, cmd);
+					ser::save(s, Command_AddComponent::Id);
+					ser::save(s, cmd);
 				}
 
 				template <typename T>
@@ -240,8 +240,8 @@ namespace gaia {
 
 					Command_Filter cmd{componentId, componentType};
 					DataBuffer_SerializationWrapper s(m_cmdBuffer);
-					serialization::save(s, Command_Filter::Id);
-					serialization::save(s, cmd);
+					ser::save(s, Command_Filter::Id);
+					ser::save(s, cmd);
 				}
 
 				//--------------------------------------------------------------------------------
@@ -261,7 +261,7 @@ namespace gaia {
 					m_cmdBuffer.Seek(0);
 					while (m_cmdBuffer.GetPos() < m_cmdBuffer.Size()) {
 						CommandBufferCmd id{};
-						serialization::load(s, id);
+						ser::load(s, id);
 						CommandBufferRead[id](m_cmdBuffer, ctx);
 					}
 

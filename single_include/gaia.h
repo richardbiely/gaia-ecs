@@ -2732,201 +2732,12 @@ namespace gaia {
 #include <type_traits>
 #include <utility>
 
-#include <cinttypes>
-#include <cstring>
-#include <stdlib.h>
-#include <type_traits>
-#include <utility>
-
-#if GAIA_PLATFORM_WINDOWS && GAIA_COMPILER_MSVC
-	#define GAIA_MEM_ALLC(size) malloc(size)
-	#define GAIA_MEM_FREE(ptr) free(ptr)
-
-	// Clang with MSVC codegen needs some remapping
-	#if !defined(aligned_alloc)
-		#define GAIA_MEM_ALLC_A(size, alig) _aligned_malloc(size, alig)
-		#define GAIA_MEM_FREE_A(ptr) _aligned_free(ptr)
-	#else
-		#define GAIA_MEM_ALLC_A(size, alig) aligned_alloc(alig, size)
-		#define GAIA_MEM_FREE_A(ptr) aligned_free(ptr)
-	#endif
-#else
-	#define GAIA_MEM_ALLC(size) malloc(size)
-	#define GAIA_MEM_ALLC_A(size, alig) aligned_alloc(alig, size)
-	#define GAIA_MEM_FREE(ptr) free(ptr)
-	#define GAIA_MEM_FREE_A(ptr) free(ptr)
-#endif
-
-namespace gaia {
-	namespace utils {
-		inline void* mem_alloc(size_t size) {
-			GAIA_ASSERT(size > 0);
-
-			void* ptr = GAIA_MEM_ALLC(size);
-			GAIA_PROF_ALLOC(ptr, size);
-			return ptr;
-		}
-
-		inline void* mem_alloc_alig(size_t size, size_t alig) {
-			GAIA_ASSERT(size > 0);
-			GAIA_ASSERT(alig > 0);
-
-			// Make sure size is a multiple of the alignment
-			size = (size + alig - 1) & ~(alig - 1);
-			void* ptr = GAIA_MEM_ALLC_A(size, alig);
-			GAIA_PROF_ALLOC(ptr, size);
-			return ptr;
-		}
-
-		inline void mem_free(void* ptr) {
-			GAIA_MEM_FREE(ptr);
-			GAIA_PROF_FREE(ptr);
-		}
-
-		inline void mem_free_alig(void* ptr) {
-			GAIA_MEM_FREE_A(ptr);
-			GAIA_PROF_FREE(ptr);
-		}
-
-		//! Align a number to the requested byte alignment
-		//! \param num Number to align
-		//! \param alignment Requested alignment
-		//! \return Aligned number
-		template <typename T, typename V>
-		constexpr T align(T num, V alignment) {
-			return alignment == 0 ? num : ((num + (alignment - 1)) / alignment) * alignment;
-		}
-
-		//! Align a number to the requested byte alignment
-		//! \tparam alignment Requested alignment in bytes
-		//! \param num Number to align
-		//! return Aligned number
-		template <size_t alignment, typename T>
-		constexpr T align(T num) {
-			return ((num + (alignment - 1)) & ~(alignment - 1));
-		}
-
-		//! Returns the padding
-		//! \param num Number to align
-		//! \param alignment Requested alignment
-		//! \return Padding in bytes
-		template <typename T, typename V>
-		constexpr uint32_t padding(T num, V alignment) {
-			return (uint32_t)(align(num, alignment) - num);
-		}
-
-		//! Returns the padding
-		//! \tparam alignment Requested alignment in bytes
-		//! \param num Number to align
-		//! return Aligned number
-		template <size_t alignment, typename T>
-		constexpr uint32_t padding(T num) {
-			return (uint32_t)(align<alignment>(num) - num);
-		}
-
-		//! Convert form type \tparam Src to type \tparam Dst without causing an undefined behavior
-		template <typename Dst, typename Src>
-		Dst bit_cast(const Src& src) {
-			static_assert(sizeof(Dst) == sizeof(Src));
-			static_assert(std::is_trivially_copyable_v<Src>);
-			static_assert(std::is_trivially_copyable_v<Dst>);
-
-			// int i = {};
-			// float f = *(*float)&i; // undefined behavior
-			// memcpy(&f, &i, sizeof(float)); // okay
-			Dst dst;
-			memmove((void*)&dst, (const void*)&src, sizeof(Dst));
-			return dst;
-		}
-
-		//! Pointer wrapper for reading memory in defined way (not causing undefined behavior)
-		template <typename T>
-		class const_unaligned_pointer {
-			const uint8_t* from;
-
-		public:
-			const_unaligned_pointer(): from(nullptr) {}
-			const_unaligned_pointer(const void* p): from((const uint8_t*)p) {}
-
-			T operator*() const {
-				T to;
-				memmove((void*)&to, (const void*)from, sizeof(T));
-				return to;
-			}
-
-			T operator[](std::ptrdiff_t d) const {
-				return *(*this + d);
-			}
-
-			const_unaligned_pointer operator+(std::ptrdiff_t d) const {
-				return const_unaligned_pointer(from + d * sizeof(T));
-			}
-			const_unaligned_pointer operator-(std::ptrdiff_t d) const {
-				return const_unaligned_pointer(from - d * sizeof(T));
-			}
-		};
-
-		//! Pointer wrapper for writing memory in defined way (not causing undefined behavior)
-		template <typename T>
-		class unaligned_ref {
-			void* m_p;
-
-		public:
-			unaligned_ref(void* p): m_p(p) {}
-
-			unaligned_ref& operator=(const T& value) {
-				memmove(m_p, (const void*)&value, sizeof(T));
-				return *this;
-			}
-
-			operator T() const {
-				T tmp;
-				memmove((void*)&tmp, (const void*)m_p, sizeof(T));
-				return tmp;
-			}
-		};
-
-		//! Pointer wrapper for writing memory in defined way (not causing undefined behavior)
-		template <typename T>
-		class unaligned_pointer {
-			uint8_t* m_p;
-
-		public:
-			unaligned_pointer(): m_p(nullptr) {}
-			unaligned_pointer(void* p): m_p((uint8_t*)p) {}
-
-			unaligned_ref<T> operator*() const {
-				return unaligned_ref<T>(m_p);
-			}
-
-			unaligned_ref<T> operator[](std::ptrdiff_t d) const {
-				return *(*this + d);
-			}
-
-			unaligned_pointer operator+(std::ptrdiff_t d) const {
-				return unaligned_pointer(m_p + d * sizeof(T));
-			}
-			unaligned_pointer operator-(std::ptrdiff_t d) const {
-				return unaligned_pointer(m_p - d * sizeof(T));
-			}
-		};
-
-		template <typename T>
-		constexpr T* addressof(T& obj) noexcept {
-			return &obj;
-		}
-
-		template <class T>
-		const T* addressof(const T&&) = delete;
-	} // namespace utils
-} // namespace gaia
-
 #include <tuple>
 #include <type_traits>
 #include <utility>
 
 namespace gaia {
-	namespace utils {
+	namespace meta {
 
 		namespace detail {
 			// Check if type T is constructible via T{Args...}
@@ -3227,6 +3038,195 @@ namespace gaia {
 			static_assert("Unsupported number of members");
 		}
 
+	} // namespace meta
+} // namespace gaia
+
+#include <cinttypes>
+#include <cstring>
+#include <stdlib.h>
+#include <type_traits>
+#include <utility>
+
+#if GAIA_PLATFORM_WINDOWS && GAIA_COMPILER_MSVC
+	#define GAIA_MEM_ALLC(size) malloc(size)
+	#define GAIA_MEM_FREE(ptr) free(ptr)
+
+	// Clang with MSVC codegen needs some remapping
+	#if !defined(aligned_alloc)
+		#define GAIA_MEM_ALLC_A(size, alig) _aligned_malloc(size, alig)
+		#define GAIA_MEM_FREE_A(ptr) _aligned_free(ptr)
+	#else
+		#define GAIA_MEM_ALLC_A(size, alig) aligned_alloc(alig, size)
+		#define GAIA_MEM_FREE_A(ptr) aligned_free(ptr)
+	#endif
+#else
+	#define GAIA_MEM_ALLC(size) malloc(size)
+	#define GAIA_MEM_ALLC_A(size, alig) aligned_alloc(alig, size)
+	#define GAIA_MEM_FREE(ptr) free(ptr)
+	#define GAIA_MEM_FREE_A(ptr) free(ptr)
+#endif
+
+namespace gaia {
+	namespace utils {
+		inline void* mem_alloc(size_t size) {
+			GAIA_ASSERT(size > 0);
+
+			void* ptr = GAIA_MEM_ALLC(size);
+			GAIA_PROF_ALLOC(ptr, size);
+			return ptr;
+		}
+
+		inline void* mem_alloc_alig(size_t size, size_t alig) {
+			GAIA_ASSERT(size > 0);
+			GAIA_ASSERT(alig > 0);
+
+			// Make sure size is a multiple of the alignment
+			size = (size + alig - 1) & ~(alig - 1);
+			void* ptr = GAIA_MEM_ALLC_A(size, alig);
+			GAIA_PROF_ALLOC(ptr, size);
+			return ptr;
+		}
+
+		inline void mem_free(void* ptr) {
+			GAIA_MEM_FREE(ptr);
+			GAIA_PROF_FREE(ptr);
+		}
+
+		inline void mem_free_alig(void* ptr) {
+			GAIA_MEM_FREE_A(ptr);
+			GAIA_PROF_FREE(ptr);
+		}
+
+		//! Align a number to the requested byte alignment
+		//! \param num Number to align
+		//! \param alignment Requested alignment
+		//! \return Aligned number
+		template <typename T, typename V>
+		constexpr T align(T num, V alignment) {
+			return alignment == 0 ? num : ((num + (alignment - 1)) / alignment) * alignment;
+		}
+
+		//! Align a number to the requested byte alignment
+		//! \tparam alignment Requested alignment in bytes
+		//! \param num Number to align
+		//! return Aligned number
+		template <size_t alignment, typename T>
+		constexpr T align(T num) {
+			return ((num + (alignment - 1)) & ~(alignment - 1));
+		}
+
+		//! Returns the padding
+		//! \param num Number to align
+		//! \param alignment Requested alignment
+		//! \return Padding in bytes
+		template <typename T, typename V>
+		constexpr uint32_t padding(T num, V alignment) {
+			return (uint32_t)(align(num, alignment) - num);
+		}
+
+		//! Returns the padding
+		//! \tparam alignment Requested alignment in bytes
+		//! \param num Number to align
+		//! return Aligned number
+		template <size_t alignment, typename T>
+		constexpr uint32_t padding(T num) {
+			return (uint32_t)(align<alignment>(num) - num);
+		}
+
+		//! Convert form type \tparam Src to type \tparam Dst without causing an undefined behavior
+		template <typename Dst, typename Src>
+		Dst bit_cast(const Src& src) {
+			static_assert(sizeof(Dst) == sizeof(Src));
+			static_assert(std::is_trivially_copyable_v<Src>);
+			static_assert(std::is_trivially_copyable_v<Dst>);
+
+			// int i = {};
+			// float f = *(*float)&i; // undefined behavior
+			// memcpy(&f, &i, sizeof(float)); // okay
+			Dst dst;
+			memmove((void*)&dst, (const void*)&src, sizeof(Dst));
+			return dst;
+		}
+
+		//! Pointer wrapper for reading memory in defined way (not causing undefined behavior)
+		template <typename T>
+		class const_unaligned_pointer {
+			const uint8_t* from;
+
+		public:
+			const_unaligned_pointer(): from(nullptr) {}
+			const_unaligned_pointer(const void* p): from((const uint8_t*)p) {}
+
+			T operator*() const {
+				T to;
+				memmove((void*)&to, (const void*)from, sizeof(T));
+				return to;
+			}
+
+			T operator[](std::ptrdiff_t d) const {
+				return *(*this + d);
+			}
+
+			const_unaligned_pointer operator+(std::ptrdiff_t d) const {
+				return const_unaligned_pointer(from + d * sizeof(T));
+			}
+			const_unaligned_pointer operator-(std::ptrdiff_t d) const {
+				return const_unaligned_pointer(from - d * sizeof(T));
+			}
+		};
+
+		//! Pointer wrapper for writing memory in defined way (not causing undefined behavior)
+		template <typename T>
+		class unaligned_ref {
+			void* m_p;
+
+		public:
+			unaligned_ref(void* p): m_p(p) {}
+
+			unaligned_ref& operator=(const T& value) {
+				memmove(m_p, (const void*)&value, sizeof(T));
+				return *this;
+			}
+
+			operator T() const {
+				T tmp;
+				memmove((void*)&tmp, (const void*)m_p, sizeof(T));
+				return tmp;
+			}
+		};
+
+		//! Pointer wrapper for writing memory in defined way (not causing undefined behavior)
+		template <typename T>
+		class unaligned_pointer {
+			uint8_t* m_p;
+
+		public:
+			unaligned_pointer(): m_p(nullptr) {}
+			unaligned_pointer(void* p): m_p((uint8_t*)p) {}
+
+			unaligned_ref<T> operator*() const {
+				return unaligned_ref<T>(m_p);
+			}
+
+			unaligned_ref<T> operator[](std::ptrdiff_t d) const {
+				return *(*this + d);
+			}
+
+			unaligned_pointer operator+(std::ptrdiff_t d) const {
+				return unaligned_pointer(m_p + d * sizeof(T));
+			}
+			unaligned_pointer operator-(std::ptrdiff_t d) const {
+				return unaligned_pointer(m_p - d * sizeof(T));
+			}
+		};
+
+		template <typename T>
+		constexpr T* addressof(T& obj) noexcept {
+			return &obj;
+		}
+
+		template <class T>
+		const T* addressof(const T&&) = delete;
 	} // namespace utils
 } // namespace gaia
 
@@ -3471,7 +3471,7 @@ namespace gaia {
 		struct data_view_policy_soa {
 			static_assert(std::is_copy_assignable_v<ValueType>);
 
-			using TTuple = decltype(struct_to_tuple(ValueType{}));
+			using TTuple = decltype(meta::struct_to_tuple(ValueType{}));
 			using TargetCastType = uint8_t*;
 
 			constexpr static DataLayout Layout = data_layout_properties<TDataLayout, ValueType>::Layout;
@@ -3503,7 +3503,7 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD constexpr static ValueType get(std::span<const uint8_t> s, size_t idx) noexcept {
-				auto t = struct_to_tuple(ValueType{});
+				auto t = meta::struct_to_tuple(ValueType{});
 				return get_internal(t, s, idx, std::make_index_sequence<TTupleItems>());
 			}
 
@@ -3522,17 +3522,17 @@ namespace gaia {
 				accessor(std::span<uint8_t> data, size_t idx): m_data(data), m_idx(idx) {}
 
 				constexpr void operator=(const ValueType& val) noexcept {
-					auto t = struct_to_tuple(val);
+					auto t = meta::struct_to_tuple(val);
 					set_internal(t, m_data, m_idx, std::make_index_sequence<TTupleItems>());
 				}
 
 				constexpr void operator=(ValueType&& val) noexcept {
-					auto t = struct_to_tuple(std::forward<ValueType>(val));
+					auto t = meta::struct_to_tuple(std::forward<ValueType>(val));
 					set_internal(t, m_data, m_idx, std::make_index_sequence<TTupleItems>());
 				}
 
 				GAIA_NODISCARD constexpr operator ValueType() const noexcept {
-					auto t = struct_to_tuple(ValueType{});
+					auto t = meta::struct_to_tuple(ValueType{});
 					return get_internal(
 							t, {(const uint8_t*)m_data.data(), m_data.size()}, m_idx, std::make_index_sequence<TTupleItems>());
 				}
@@ -3583,7 +3583,7 @@ namespace gaia {
 						 // Skip towards the next element and make sure the address is aligned properly
 						 address = utils::align<Alignment>(address + sizeof(value_type<Ids>) * s.size())),
 				 ...);
-				return tuple_to_struct<ValueType, TTuple>(std::forward<TTuple>(t));
+				return meta::tuple_to_struct<ValueType, TTuple>(std::forward<TTuple>(t));
 			}
 
 			template <size_t... Ids>
@@ -4088,11 +4088,108 @@ namespace gaia {
 	} // namespace utils
 } // namespace gaia
 
+namespace gaia {
+	namespace utils {
+
+		//! Provides statically generated unique identifier for a given group of types.
+		template <typename...>
+		class type_group {
+			inline static uint32_t s_identifier{};
+
+		public:
+			template <typename... Type>
+			inline static const uint32_t id = s_identifier++;
+		};
+
+		template <>
+		class type_group<void>;
+
+		//----------------------------------------------------------------------
+		// Type meta data
+		//----------------------------------------------------------------------
+
+		struct type_info final {
+		private:
+			constexpr static size_t find_first_of(const char* data, size_t len, char toFind, size_t startPos = 0) {
+				for (size_t i = startPos; i < len; ++i) {
+					if (data[i] == toFind)
+						return i;
+				}
+				return size_t(-1);
+			}
+
+			constexpr static size_t find_last_of(const char* data, size_t len, char c, size_t startPos = size_t(-1)) {
+				const auto minValue = startPos <= len - 1 ? startPos : len - 1;
+				for (int64_t i = (int64_t)minValue; i >= 0; --i) {
+					if (data[i] == c)
+						return i;
+				}
+				return size_t(-1);
+			}
+
+		public:
+			template <typename T>
+			static uint32_t id() noexcept {
+				return type_group<type_info>::id<T>;
+			}
+
+			template <typename T>
+			GAIA_NODISCARD static constexpr const char* full_name() noexcept {
+				return GAIA_PRETTY_FUNCTION;
+			}
+
+			template <typename T>
+			GAIA_NODISCARD static constexpr auto name() noexcept {
+				// MSVC:
+				//		const char* __cdecl ecs::ComponentInfo::name<struct ecs::EnfEntity>(void)
+				//   -> ecs::EnfEntity
+				// Clang/GCC:
+				//		const ecs::ComponentInfo::name() [T = ecs::EnfEntity]
+				//   -> ecs::EnfEntity
+
+				// Note:
+				//		We don't want to use std::string_view here because it would only make it harder on compile-times.
+				//		In fact, even if we did, we need to be afraid of compiler issues.
+				// 		Clang 8 and older wouldn't compile because their string_view::find_last_of doesn't work
+				//		in constexpr context. Tested with and without LIBCPP
+				//		https://stackoverflow.com/questions/56484834/constexpr-stdstring-viewfind-last-of-doesnt-work-on-clang-8-with-libstdc
+				//		As a workaround find_first_of and find_last_of were implemented
+
+				size_t strLen = 0;
+				while (GAIA_PRETTY_FUNCTION[strLen] != '\0')
+					++strLen;
+
+				std::span<const char> name{GAIA_PRETTY_FUNCTION, strLen};
+				const auto prefixPos = find_first_of(name.data(), name.size(), GAIA_PRETTY_FUNCTION_PREFIX);
+				const auto start = find_first_of(name.data(), name.size(), ' ', prefixPos + 1);
+				const auto end = find_last_of(name.data(), name.size(), GAIA_PRETTY_FUNCTION_SUFFIX);
+				return name.subspan(start + 1, end - start - 1);
+			}
+
+			template <typename T>
+			GAIA_NODISCARD static constexpr auto hash() noexcept {
+#if GAIA_COMPILER_MSVC && _MSV_VER <= 1916
+				GAIA_MSVC_WARNING_PUSH()
+				GAIA_MSVC_WARNING_DISABLE(4307)
+#endif
+
+				auto n = name<T>();
+				return calculate_hash64(n.data(), n.size());
+
+#if GAIA_COMPILER_MSVC && _MSV_VER <= 1916
+				GAIA_MSVC_WARNING_PUSH()
+#endif
+			}
+		};
+
+	} // namespace utils
+} // namespace gaia
+
 #include <type_traits>
 #include <utility>
 
 namespace gaia {
-	namespace serialization {
+	namespace ser {
 		namespace detail {
 			enum class serialization_type_id : uint8_t {
 				// Integer types
@@ -4259,7 +4356,7 @@ namespace gaia {
 				}
 				// Classes
 				else if constexpr (std::is_class_v<type>) {
-					utils::for_each_member(item, [&](auto&&... items) {
+					meta::for_each_member(item, [&](auto&&... items) {
 						size_in_bytes += (size_bytes_one(items) + ...);
 					});
 				} else
@@ -4306,7 +4403,7 @@ namespace gaia {
 				}
 				// Classes
 				else if constexpr (std::is_class_v<type>) {
-					utils::for_each_member(std::forward<T>(arg), [&s](auto&&... items) {
+					meta::for_each_member(std::forward<T>(arg), [&s](auto&&... items) {
 						// TODO: Handle contiguous blocks of trivially copiable types
 						(serialize_data_one<Write>(s, items), ...);
 					});
@@ -4339,104 +4436,7 @@ namespace gaia {
 		void load(Reader& reader, T& data) {
 			detail::serialize_data_one<false>(reader, data);
 		}
-	} // namespace serialization
-} // namespace gaia
-
-namespace gaia {
-	namespace utils {
-
-		//! Provides statically generated unique identifier for a given group of types.
-		template <typename...>
-		class type_group {
-			inline static uint32_t s_identifier{};
-
-		public:
-			template <typename... Type>
-			inline static const uint32_t id = s_identifier++;
-		};
-
-		template <>
-		class type_group<void>;
-
-		//----------------------------------------------------------------------
-		// Type meta data
-		//----------------------------------------------------------------------
-
-		struct type_info final {
-		private:
-			constexpr static size_t find_first_of(const char* data, size_t len, char toFind, size_t startPos = 0) {
-				for (size_t i = startPos; i < len; ++i) {
-					if (data[i] == toFind)
-						return i;
-				}
-				return size_t(-1);
-			}
-
-			constexpr static size_t find_last_of(const char* data, size_t len, char c, size_t startPos = size_t(-1)) {
-				const auto minValue = startPos <= len - 1 ? startPos : len - 1;
-				for (int64_t i = (int64_t)minValue; i >= 0; --i) {
-					if (data[i] == c)
-						return i;
-				}
-				return size_t(-1);
-			}
-
-		public:
-			template <typename T>
-			static uint32_t id() noexcept {
-				return type_group<type_info>::id<T>;
-			}
-
-			template <typename T>
-			GAIA_NODISCARD static constexpr const char* full_name() noexcept {
-				return GAIA_PRETTY_FUNCTION;
-			}
-
-			template <typename T>
-			GAIA_NODISCARD static constexpr auto name() noexcept {
-				// MSVC:
-				//		const char* __cdecl ecs::ComponentInfo::name<struct ecs::EnfEntity>(void)
-				//   -> ecs::EnfEntity
-				// Clang/GCC:
-				//		const ecs::ComponentInfo::name() [T = ecs::EnfEntity]
-				//   -> ecs::EnfEntity
-
-				// Note:
-				//		We don't want to use std::string_view here because it would only make it harder on compile-times.
-				//		In fact, even if we did, we need to be afraid of compiler issues.
-				// 		Clang 8 and older wouldn't compile because their string_view::find_last_of doesn't work
-				//		in constexpr context. Tested with and without LIBCPP
-				//		https://stackoverflow.com/questions/56484834/constexpr-stdstring-viewfind-last-of-doesnt-work-on-clang-8-with-libstdc
-				//		As a workaround find_first_of and find_last_of were implemented
-
-				size_t strLen = 0;
-				while (GAIA_PRETTY_FUNCTION[strLen] != '\0')
-					++strLen;
-
-				std::span<const char> name{GAIA_PRETTY_FUNCTION, strLen};
-				const auto prefixPos = find_first_of(name.data(), name.size(), GAIA_PRETTY_FUNCTION_PREFIX);
-				const auto start = find_first_of(name.data(), name.size(), ' ', prefixPos + 1);
-				const auto end = find_last_of(name.data(), name.size(), GAIA_PRETTY_FUNCTION_SUFFIX);
-				return name.subspan(start + 1, end - start - 1);
-			}
-
-			template <typename T>
-			GAIA_NODISCARD static constexpr auto hash() noexcept {
-#if GAIA_COMPILER_MSVC && _MSV_VER <= 1916
-				GAIA_MSVC_WARNING_PUSH()
-				GAIA_MSVC_WARNING_DISABLE(4307)
-#endif
-
-				auto n = name<T>();
-				return calculate_hash64(n.data(), n.size());
-
-#if GAIA_COMPILER_MSVC && _MSV_VER <= 1916
-				GAIA_MSVC_WARNING_PUSH()
-#endif
-			}
-		};
-
-	} // namespace utils
+	} // namespace ser
 } // namespace gaia
 
 #include <cinttypes>
@@ -13684,10 +13684,10 @@ namespace gaia {
 					//! Component size
 					uint32_t size: MAX_COMPONENTS_SIZE_BITS;
 					//! SOA variables. If > 0 the component is laid out in SoA style
-					uint32_t soa: utils::StructToTupleMaxTypes_Bits;
+					uint32_t soa: meta::StructToTupleMaxTypes_Bits;
 				} properties{};
 
-				uint8_t soaSizes[utils::StructToTupleMaxTypes];
+				uint8_t soaSizes[meta::StructToTupleMaxTypes];
 
 				void CtorFrom(void* pSrc, void* pDst) const {
 					if (ctor_move != nullptr)
@@ -13743,14 +13743,14 @@ namespace gaia {
 
 						if constexpr (utils::is_soa_layout_v<U>) {
 							uint32_t i = 0;
-							using TTuple = decltype(utils::struct_to_tuple(U{}));
+							using TTuple = decltype(meta::struct_to_tuple(U{}));
 							utils::for_each_tuple(TTuple{}, [&](auto&& item) {
 								static_assert(sizeof(item) <= 255, "Each member of a SoA component can be at most 255 B long!");
 								info.soaSizes[i] = (uint8_t)sizeof(item);
 								++i;
 							});
 							info.properties.soa = i;
-							GAIA_ASSERT(i <= utils::StructToTupleMaxTypes);
+							GAIA_ASSERT(i <= meta::StructToTupleMaxTypes);
 						} else {
 							info.properties.soa = 0U;
 
@@ -17941,14 +17941,14 @@ namespace gaia {
 						[](DataBuffer& buffer, query::LookupCtx& ctx) {
 							Command_AddComponent cmd;
 							DataBuffer_SerializationWrapper s(buffer);
-							serialization::load(s, cmd);
+							ser::load(s, cmd);
 							cmd.Exec(ctx);
 						},
 						// Add filter
 						[](DataBuffer& buffer, query::LookupCtx& ctx) {
 							Command_Filter cmd;
 							DataBuffer_SerializationWrapper s(buffer);
-							serialization::load(s, cmd);
+							ser::load(s, cmd);
 							cmd.Exec(ctx);
 						}};
 
@@ -18016,8 +18016,8 @@ namespace gaia {
 
 					Command_AddComponent cmd{componentId, componentType, listType, isReadWrite};
 					DataBuffer_SerializationWrapper s(m_cmdBuffer);
-					serialization::save(s, Command_AddComponent::Id);
-					serialization::save(s, cmd);
+					ser::save(s, Command_AddComponent::Id);
+					ser::save(s, cmd);
 				}
 
 				template <typename T>
@@ -18027,8 +18027,8 @@ namespace gaia {
 
 					Command_Filter cmd{componentId, componentType};
 					DataBuffer_SerializationWrapper s(m_cmdBuffer);
-					serialization::save(s, Command_Filter::Id);
-					serialization::save(s, cmd);
+					ser::save(s, Command_Filter::Id);
+					ser::save(s, cmd);
 				}
 
 				//--------------------------------------------------------------------------------
@@ -18048,7 +18048,7 @@ namespace gaia {
 					m_cmdBuffer.Seek(0);
 					while (m_cmdBuffer.GetPos() < m_cmdBuffer.Size()) {
 						CommandBufferCmd id{};
-						serialization::load(s, id);
+						ser::load(s, id);
 						CommandBufferRead[id](m_cmdBuffer, ctx);
 					}
 
@@ -19946,7 +19946,7 @@ namespace gaia {
 
 				CREATE_ENTITY_FROM_ARCHETYPE_t cmd;
 				cmd.archetypePtr = (uintptr_t)&archetype;
-				serialization::save(s, cmd);
+				ser::save(s, cmd);
 
 				return {m_entities++};
 			}
@@ -19983,7 +19983,7 @@ namespace gaia {
 
 				CREATE_ENTITY_FROM_ENTITY_t cmd;
 				cmd.entity = entityFrom;
-				serialization::save(s, cmd);
+				ser::save(s, cmd);
 
 				return {m_entities++};
 			}
@@ -19997,7 +19997,7 @@ namespace gaia {
 
 				DELETE_ENTITY_t cmd;
 				cmd.entity = entity;
-				serialization::save(s, cmd);
+				ser::save(s, cmd);
 			}
 
 			/*!
@@ -20018,7 +20018,7 @@ namespace gaia {
 				cmd.entity = entity;
 				cmd.componentType = component::component_type_v<T>;
 				cmd.componentId = info.componentId;
-				serialization::save(s, cmd);
+				ser::save(s, cmd);
 			}
 
 			/*!
@@ -20039,7 +20039,7 @@ namespace gaia {
 				cmd.tempEntity = entity;
 				cmd.componentType = component::component_type_v<T>;
 				cmd.componentId = info.componentId;
-				serialization::save(s, cmd);
+				ser::save(s, cmd);
 			}
 
 			/*!
@@ -20060,7 +20060,7 @@ namespace gaia {
 				cmd.entity = entity;
 				cmd.componentType = component::component_type_v<T>;
 				cmd.componentId = info.componentId;
-				serialization::save(s, cmd);
+				ser::save(s, cmd);
 				s.buffer().SaveComponent(std::forward<U>(value));
 			}
 
@@ -20082,7 +20082,7 @@ namespace gaia {
 				cmd.tempEntity = entity;
 				cmd.componentType = component::component_type_v<T>;
 				cmd.componentId = info.componentId;
-				serialization::save(s, cmd);
+				ser::save(s, cmd);
 				s.buffer().SaveComponent(std::forward<U>(value));
 			}
 
@@ -20105,7 +20105,7 @@ namespace gaia {
 				cmd.entity = entity;
 				cmd.componentType = component::component_type_v<T>;
 				cmd.componentId = component::GetComponentId<T>();
-				serialization::save(s, cmd);
+				ser::save(s, cmd);
 				s.buffer().SaveComponent(std::forward<U>(value));
 			}
 
@@ -20129,7 +20129,7 @@ namespace gaia {
 				cmd.tempEntity = entity;
 				cmd.componentType = component::component_type_v<T>;
 				cmd.componentId = component::GetComponentId<T>();
-				serialization::save(s, cmd);
+				ser::save(s, cmd);
 				s.buffer().SaveComponent(std::forward<U>(value));
 			}
 
@@ -20152,7 +20152,7 @@ namespace gaia {
 				cmd.entity = entity;
 				cmd.componentType = component::component_type_v<T>;
 				cmd.componentId = component::GetComponentId<T>();
-				serialization::save(s, cmd);
+				ser::save(s, cmd);
 			}
 
 		private:
@@ -20166,61 +20166,61 @@ namespace gaia {
 					// CREATE_ENTITY_FROM_ARCHETYPE
 					[](CommandBufferCtx& ctx) {
 						CREATE_ENTITY_FROM_ARCHETYPE_t cmd;
-						serialization::load(ctx, cmd);
+						ser::load(ctx, cmd);
 						cmd.Commit(ctx);
 					},
 					// CREATE_ENTITY_FROM_ENTITY
 					[](CommandBufferCtx& ctx) {
 						CREATE_ENTITY_FROM_ENTITY_t cmd;
-						serialization::load(ctx, cmd);
+						ser::load(ctx, cmd);
 						cmd.Commit(ctx);
 					},
 					// DELETE_ENTITY
 					[](CommandBufferCtx& ctx) {
 						DELETE_ENTITY_t cmd;
-						serialization::load(ctx, cmd);
+						ser::load(ctx, cmd);
 						cmd.Commit(ctx);
 					},
 					// ADD_COMPONENT
 					[](CommandBufferCtx& ctx) {
 						ADD_COMPONENT_t cmd;
-						serialization::load(ctx, cmd);
+						ser::load(ctx, cmd);
 						cmd.Commit(ctx);
 					},
 					// ADD_COMPONENT_DATA
 					[](CommandBufferCtx& ctx) {
 						ADD_COMPONENT_DATA_t cmd;
-						serialization::load(ctx, cmd);
+						ser::load(ctx, cmd);
 						cmd.Commit(ctx);
 					},
 					// ADD_COMPONENT_TO_TEMPENTITY
 					[](CommandBufferCtx& ctx) {
 						ADD_COMPONENT_TO_TEMPENTITY_t cmd;
-						serialization::load(ctx, cmd);
+						ser::load(ctx, cmd);
 						cmd.Commit(ctx);
 					},
 					// ADD_COMPONENT_TO_TEMPENTITY_DATA
 					[](CommandBufferCtx& ctx) {
 						ADD_COMPONENT_TO_TEMPENTITY_DATA_t cmd;
-						serialization::load(ctx, cmd);
+						ser::load(ctx, cmd);
 						cmd.Commit(ctx);
 					},
 					// SET_COMPONENT
 					[](CommandBufferCtx& ctx) {
 						SET_COMPONENT_t cmd;
-						serialization::load(ctx, cmd);
+						ser::load(ctx, cmd);
 						cmd.Commit(ctx);
 					},
 					// SET_COMPONENT_FOR_TEMPENTITY
 					[](CommandBufferCtx& ctx) {
 						SET_COMPONENT_FOR_TEMPENTITY_t cmd;
-						serialization::load(ctx, cmd);
+						ser::load(ctx, cmd);
 						cmd.Commit(ctx);
 					},
 					// REMOVE_COMPONENT
 					[](CommandBufferCtx& ctx) {
 						REMOVE_COMPONENT_t cmd;
-						serialization::load(ctx, cmd);
+						ser::load(ctx, cmd);
 						cmd.Commit(ctx);
 					}};
 

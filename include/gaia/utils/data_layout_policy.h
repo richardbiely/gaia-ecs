@@ -5,10 +5,10 @@
 #include <type_traits>
 #include <utility>
 
+#include "../meta/reflection.h"
 #include "../utils/span.h"
 #include "../utils/utility.h"
 #include "mem_alloc.h"
-#include "reflection.h"
 
 namespace gaia {
 	namespace utils {
@@ -251,7 +251,7 @@ namespace gaia {
 		struct data_view_policy_soa {
 			static_assert(std::is_copy_assignable_v<ValueType>);
 
-			using TTuple = decltype(struct_to_tuple(ValueType{}));
+			using TTuple = decltype(meta::struct_to_tuple(ValueType{}));
 			using TargetCastType = uint8_t*;
 
 			constexpr static DataLayout Layout = data_layout_properties<TDataLayout, ValueType>::Layout;
@@ -283,7 +283,7 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD constexpr static ValueType get(std::span<const uint8_t> s, size_t idx) noexcept {
-				auto t = struct_to_tuple(ValueType{});
+				auto t = meta::struct_to_tuple(ValueType{});
 				return get_internal(t, s, idx, std::make_index_sequence<TTupleItems>());
 			}
 
@@ -302,17 +302,17 @@ namespace gaia {
 				accessor(std::span<uint8_t> data, size_t idx): m_data(data), m_idx(idx) {}
 
 				constexpr void operator=(const ValueType& val) noexcept {
-					auto t = struct_to_tuple(val);
+					auto t = meta::struct_to_tuple(val);
 					set_internal(t, m_data, m_idx, std::make_index_sequence<TTupleItems>());
 				}
 
 				constexpr void operator=(ValueType&& val) noexcept {
-					auto t = struct_to_tuple(std::forward<ValueType>(val));
+					auto t = meta::struct_to_tuple(std::forward<ValueType>(val));
 					set_internal(t, m_data, m_idx, std::make_index_sequence<TTupleItems>());
 				}
 
 				GAIA_NODISCARD constexpr operator ValueType() const noexcept {
-					auto t = struct_to_tuple(ValueType{});
+					auto t = meta::struct_to_tuple(ValueType{});
 					return get_internal(
 							t, {(const uint8_t*)m_data.data(), m_data.size()}, m_idx, std::make_index_sequence<TTupleItems>());
 				}
@@ -363,7 +363,7 @@ namespace gaia {
 						 // Skip towards the next element and make sure the address is aligned properly
 						 address = utils::align<Alignment>(address + sizeof(value_type<Ids>) * s.size())),
 				 ...);
-				return tuple_to_struct<ValueType, TTuple>(std::forward<TTuple>(t));
+				return meta::tuple_to_struct<ValueType, TTuple>(std::forward<TTuple>(t));
 			}
 
 			template <size_t... Ids>
