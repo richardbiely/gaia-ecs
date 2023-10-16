@@ -501,9 +501,9 @@ q.ForEach([](ecs::Iterator iter) {
 
 ## Serialization
 Serialization of arbitrary data is available via following functions:
-- ***serialization::size_bytes*** - calculates how many bytes the data needs to serialize
-- ***serialization::save*** - writes data to serialization buffer
-- ***serialization::load*** - loads data from serialization buffer
+- ***ser::size_bytes*** - calculates how many bytes the data needs to serialize
+- ***ser::save*** - writes data to serialization buffer
+- ***ser::load*** - loads data from serialization buffer
 
 Any data structure can be serialized at compile-time into to provided serialization buffer. Native types, compound types, arrays and anything with data() + size() functions are supported out-of-the-box. If resize() is available it will be utilized as well.
 
@@ -533,12 +533,12 @@ t.some_int_data = 42069;
 ecs::DataBuffer db;
 ecs::DataBuffer_SerializationWrapper s(db);
 // Calculate how many bytes is it necessary to serialize "in"
-s.reserve(serialization::size_bytes(in));
+s.reserve(ser::size_bytes(in));
 // Save "in" to our buffer
-serialization::save(s, in);
+ser::save(s, in);
 // Load the contents of buffer to "out" 
 s.seek(0);
-serialization::load(s, out);
+ser::load(s, out);
 ```
 
 Customization is possible for data types which require special attention. We can guide the serializer by either external or internal means.
@@ -551,7 +551,7 @@ struct CustomStruct {
   uint32_t size;
 };
 
-namespace gaia::serialization {
+namespace gaia::ser {
   template <>
   uint32_t size_bytes(const CustomStruct& data) {
     return data.size + sizeof(data.size);
@@ -587,10 +587,10 @@ in.size = 5;
 
 ecs::DataBuffer db;
 ecs::DataBuffer_SerializationWrapper s(db);
-s.reserve(serialization::size_bytes(in));
-serialization::save(s, in);
+s.reserve(ser::size_bytes(in));
+ser::save(s, in);
 s.seek(0);
-serialization::load(s, out);
+ser::load(s, out);
 ```
 
 You will usually use internal specialization when you have the access to your data container and at the same time do not want to expose its internal structure. Or if you simply like intrusive coding style better. In order to use it the following 3 member functions need to be provided:

@@ -7,7 +7,7 @@
 #include "../../utils/data_layout_policy.h"
 #include "../../utils/iterator.h"
 #include "../../utils/mem_utils.h"
-#include "gaia/utils/utility.h"
+#include "../../utils/utility.h"
 
 namespace gaia {
 	namespace containers {

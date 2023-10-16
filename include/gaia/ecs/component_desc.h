@@ -5,13 +5,13 @@
 #include <tuple>
 #include <type_traits>
 
+#include "../meta/reflection.h"
 #include "../utils/data_layout_policy.h"
+#include "../utils/mem_utils.h"
 #include "../utils/span.h"
 #include "../utils/type_info.h"
 #include "../utils/utility.h"
 #include "component.h"
-#include "gaia/utils/mem_utils.h"
-#include "gaia/utils/reflection.h"
 
 namespace gaia {
 	namespace ecs {
@@ -49,10 +49,10 @@ namespace gaia {
 					//! Component size
 					uint32_t size: MAX_COMPONENTS_SIZE_BITS;
 					//! SOA variables. If > 0 the component is laid out in SoA style
-					uint32_t soa: utils::StructToTupleMaxTypes_Bits;
+					uint32_t soa: meta::StructToTupleMaxTypes_Bits;
 				} properties{};
 
-				uint8_t soaSizes[utils::StructToTupleMaxTypes];
+				uint8_t soaSizes[meta::StructToTupleMaxTypes];
 
 				void CtorFrom(void* pSrc, void* pDst) const {
 					if (ctor_move != nullptr)
@@ -108,14 +108,14 @@ namespace gaia {
 
 						if constexpr (utils::is_soa_layout_v<U>) {
 							uint32_t i = 0;
-							using TTuple = decltype(utils::struct_to_tuple(U{}));
+							using TTuple = decltype(meta::struct_to_tuple(U{}));
 							utils::for_each_tuple(TTuple{}, [&](auto&& item) {
 								static_assert(sizeof(item) <= 255, "Each member of a SoA component can be at most 255 B long!");
 								info.soaSizes[i] = (uint8_t)sizeof(item);
 								++i;
 							});
 							info.properties.soa = i;
-							GAIA_ASSERT(i <= utils::StructToTupleMaxTypes);
+							GAIA_ASSERT(i <= meta::StructToTupleMaxTypes);
 						} else {
 							info.properties.soa = 0U;
 

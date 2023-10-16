@@ -6,7 +6,7 @@
 
 #include "../containers/map.h"
 #include "../containers/sarray_ext.h"
-#include "../utils/serialization.h"
+#include "../ser/serialization.h"
 #include "archetype.h"
 #include "common.h"
 #include "component.h"
@@ -245,7 +245,7 @@ namespace gaia {
 
 				CREATE_ENTITY_FROM_ARCHETYPE_t cmd;
 				cmd.archetypePtr = (uintptr_t)&archetype;
-				serialization::save(s, cmd);
+				ser::save(s, cmd);
 
 				return {m_entities++};
 			}
@@ -282,7 +282,7 @@ namespace gaia {
 
 				CREATE_ENTITY_FROM_ENTITY_t cmd;
 				cmd.entity = entityFrom;
-				serialization::save(s, cmd);
+				ser::save(s, cmd);
 
 				return {m_entities++};
 			}
@@ -296,7 +296,7 @@ namespace gaia {
 
 				DELETE_ENTITY_t cmd;
 				cmd.entity = entity;
-				serialization::save(s, cmd);
+				ser::save(s, cmd);
 			}
 
 			/*!
@@ -317,7 +317,7 @@ namespace gaia {
 				cmd.entity = entity;
 				cmd.componentType = component::component_type_v<T>;
 				cmd.componentId = info.componentId;
-				serialization::save(s, cmd);
+				ser::save(s, cmd);
 			}
 
 			/*!
@@ -338,7 +338,7 @@ namespace gaia {
 				cmd.tempEntity = entity;
 				cmd.componentType = component::component_type_v<T>;
 				cmd.componentId = info.componentId;
-				serialization::save(s, cmd);
+				ser::save(s, cmd);
 			}
 
 			/*!
@@ -359,7 +359,7 @@ namespace gaia {
 				cmd.entity = entity;
 				cmd.componentType = component::component_type_v<T>;
 				cmd.componentId = info.componentId;
-				serialization::save(s, cmd);
+				ser::save(s, cmd);
 				s.buffer().SaveComponent(std::forward<U>(value));
 			}
 
@@ -381,7 +381,7 @@ namespace gaia {
 				cmd.tempEntity = entity;
 				cmd.componentType = component::component_type_v<T>;
 				cmd.componentId = info.componentId;
-				serialization::save(s, cmd);
+				ser::save(s, cmd);
 				s.buffer().SaveComponent(std::forward<U>(value));
 			}
 
@@ -404,7 +404,7 @@ namespace gaia {
 				cmd.entity = entity;
 				cmd.componentType = component::component_type_v<T>;
 				cmd.componentId = component::GetComponentId<T>();
-				serialization::save(s, cmd);
+				ser::save(s, cmd);
 				s.buffer().SaveComponent(std::forward<U>(value));
 			}
 
@@ -428,7 +428,7 @@ namespace gaia {
 				cmd.tempEntity = entity;
 				cmd.componentType = component::component_type_v<T>;
 				cmd.componentId = component::GetComponentId<T>();
-				serialization::save(s, cmd);
+				ser::save(s, cmd);
 				s.buffer().SaveComponent(std::forward<U>(value));
 			}
 
@@ -451,7 +451,7 @@ namespace gaia {
 				cmd.entity = entity;
 				cmd.componentType = component::component_type_v<T>;
 				cmd.componentId = component::GetComponentId<T>();
-				serialization::save(s, cmd);
+				ser::save(s, cmd);
 			}
 
 		private:
@@ -465,61 +465,61 @@ namespace gaia {
 					// CREATE_ENTITY_FROM_ARCHETYPE
 					[](CommandBufferCtx& ctx) {
 						CREATE_ENTITY_FROM_ARCHETYPE_t cmd;
-						serialization::load(ctx, cmd);
+						ser::load(ctx, cmd);
 						cmd.Commit(ctx);
 					},
 					// CREATE_ENTITY_FROM_ENTITY
 					[](CommandBufferCtx& ctx) {
 						CREATE_ENTITY_FROM_ENTITY_t cmd;
-						serialization::load(ctx, cmd);
+						ser::load(ctx, cmd);
 						cmd.Commit(ctx);
 					},
 					// DELETE_ENTITY
 					[](CommandBufferCtx& ctx) {
 						DELETE_ENTITY_t cmd;
-						serialization::load(ctx, cmd);
+						ser::load(ctx, cmd);
 						cmd.Commit(ctx);
 					},
 					// ADD_COMPONENT
 					[](CommandBufferCtx& ctx) {
 						ADD_COMPONENT_t cmd;
-						serialization::load(ctx, cmd);
+						ser::load(ctx, cmd);
 						cmd.Commit(ctx);
 					},
 					// ADD_COMPONENT_DATA
 					[](CommandBufferCtx& ctx) {
 						ADD_COMPONENT_DATA_t cmd;
-						serialization::load(ctx, cmd);
+						ser::load(ctx, cmd);
 						cmd.Commit(ctx);
 					},
 					// ADD_COMPONENT_TO_TEMPENTITY
 					[](CommandBufferCtx& ctx) {
 						ADD_COMPONENT_TO_TEMPENTITY_t cmd;
-						serialization::load(ctx, cmd);
+						ser::load(ctx, cmd);
 						cmd.Commit(ctx);
 					},
 					// ADD_COMPONENT_TO_TEMPENTITY_DATA
 					[](CommandBufferCtx& ctx) {
 						ADD_COMPONENT_TO_TEMPENTITY_DATA_t cmd;
-						serialization::load(ctx, cmd);
+						ser::load(ctx, cmd);
 						cmd.Commit(ctx);
 					},
 					// SET_COMPONENT
 					[](CommandBufferCtx& ctx) {
 						SET_COMPONENT_t cmd;
-						serialization::load(ctx, cmd);
+						ser::load(ctx, cmd);
 						cmd.Commit(ctx);
 					},
 					// SET_COMPONENT_FOR_TEMPENTITY
 					[](CommandBufferCtx& ctx) {
 						SET_COMPONENT_FOR_TEMPENTITY_t cmd;
-						serialization::load(ctx, cmd);
+						ser::load(ctx, cmd);
 						cmd.Commit(ctx);
 					},
 					// REMOVE_COMPONENT
 					[](CommandBufferCtx& ctx) {
 						REMOVE_COMPONENT_t cmd;
-						serialization::load(ctx, cmd);
+						ser::load(ctx, cmd);
 						cmd.Commit(ctx);
 					}};
 
