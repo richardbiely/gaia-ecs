@@ -14,23 +14,23 @@ namespace gaia {
 			//! \tparam T Component
 			//! \return Value stored in the component.
 			template <typename T>
-			GAIA_NODISCARD auto GetComponent() const {
+			GAIA_NODISCARD auto Get() const {
 				component::VerifyComponent<T>();
 
 				if constexpr (component::component_type_v<T> == component::ComponentType::CT_Generic)
-					return m_pChunk->template GetComponent<T>(m_idx);
+					return m_pChunk->template Get<T>(m_idx);
 				else
-					return m_pChunk->template GetComponent<T>();
+					return m_pChunk->template Get<T>();
 			}
 
 			//! Tells if \param entity contains the component \tparam T.
 			//! \tparam T Component
 			//! \return True if the component is present on entity.
 			template <typename T>
-			GAIA_NODISCARD bool HasComponent() const {
+			GAIA_NODISCARD bool Has() const {
 				component::VerifyComponent<T>();
 
-				return m_pChunk->template HasComponent<T>();
+				return m_pChunk->template Has<T>();
 			}
 		};
 	} // namespace ecs

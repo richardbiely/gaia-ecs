@@ -56,15 +56,15 @@ float CalculateDelta(picobench::state& state) {
 template <bool SoA>
 void CreateECSEntities_Static(ecs::World& w) {
 	{
-		auto e = w.CreateEntity();
+		auto e = w.Add();
 		if constexpr (SoA)
-			w.AddComponent<PositionSoA>(e, {0, 100, 0});
+			w.Add<PositionSoA>(e, {0, 100, 0});
 		else
-			w.AddComponent<Position>(e, {0, 100, 0});
-		w.AddComponent<Rotation>(e, {1, 2, 3, 4});
-		w.AddComponent<Scale>(e, {1, 1, 1});
+			w.Add<Position>(e, {0, 100, 0});
+		w.Add<Rotation>(e, {1, 2, 3, 4});
+		w.Add<Scale>(e, {1, 1, 1});
 		for (uint32_t i = 0; i < N; i++) {
-			[[maybe_unused]] auto newentity = w.CreateEntity(e);
+			[[maybe_unused]] auto newentity = w.Add(e);
 		}
 	}
 }
@@ -72,73 +72,73 @@ void CreateECSEntities_Static(ecs::World& w) {
 template <bool SoA>
 void CreateECSEntities_Dynamic(ecs::World& w) {
 	{
-		auto e = w.CreateEntity();
+		auto e = w.Add();
 		if constexpr (SoA)
-			w.AddComponent<PositionSoA>(e, {0, 100, 0});
+			w.Add<PositionSoA>(e, {0, 100, 0});
 		else
-			w.AddComponent<Position>(e, {0, 100, 0});
-		w.AddComponent<Rotation>(e, {1, 2, 3, 4});
-		w.AddComponent<Scale>(e, {1, 1, 1});
+			w.Add<Position>(e, {0, 100, 0});
+		w.Add<Rotation>(e, {1, 2, 3, 4});
+		w.Add<Scale>(e, {1, 1, 1});
 		if constexpr (SoA)
-			w.AddComponent<VelocitySoA>(e, {0, 0, 1});
+			w.Add<VelocitySoA>(e, {0, 0, 1});
 		else
-			w.AddComponent<Velocity>(e, {0, 0, 1});
+			w.Add<Velocity>(e, {0, 0, 1});
 		for (uint32_t i = 0; i < N / 4; i++) {
-			[[maybe_unused]] auto newentity = w.CreateEntity(e);
+			[[maybe_unused]] auto newentity = w.Add(e);
 		}
 	}
 	{
-		auto e = w.CreateEntity();
+		auto e = w.Add();
 		if constexpr (SoA)
-			w.AddComponent<PositionSoA>(e, {0, 100, 0});
+			w.Add<PositionSoA>(e, {0, 100, 0});
 		else
-			w.AddComponent<Position>(e, {0, 100, 0});
-		w.AddComponent<Rotation>(e, {1, 2, 3, 4});
-		w.AddComponent<Scale>(e, {1, 1, 1});
+			w.Add<Position>(e, {0, 100, 0});
+		w.Add<Rotation>(e, {1, 2, 3, 4});
+		w.Add<Scale>(e, {1, 1, 1});
 		if constexpr (SoA)
-			w.AddComponent<VelocitySoA>(e, {0, 0, 1});
+			w.Add<VelocitySoA>(e, {0, 0, 1});
 		else
-			w.AddComponent<Velocity>(e, {0, 0, 1});
-		w.AddComponent<Direction>(e, {0, 0, 1});
+			w.Add<Velocity>(e, {0, 0, 1});
+		w.Add<Direction>(e, {0, 0, 1});
 		for (uint32_t i = 0; i < N / 4; i++) {
-			[[maybe_unused]] auto newentity = w.CreateEntity(e);
+			[[maybe_unused]] auto newentity = w.Add(e);
 		}
 	}
 	{
-		auto e = w.CreateEntity();
+		auto e = w.Add();
 		if constexpr (SoA)
-			w.AddComponent<PositionSoA>(e, {0, 100, 0});
+			w.Add<PositionSoA>(e, {0, 100, 0});
 		else
-			w.AddComponent<Position>(e, {0, 100, 0});
-		w.AddComponent<Rotation>(e, {1, 2, 3, 4});
-		w.AddComponent<Scale>(e, {1, 1, 1});
+			w.Add<Position>(e, {0, 100, 0});
+		w.Add<Rotation>(e, {1, 2, 3, 4});
+		w.Add<Scale>(e, {1, 1, 1});
 		if constexpr (SoA)
-			w.AddComponent<VelocitySoA>(e, {0, 0, 1});
+			w.Add<VelocitySoA>(e, {0, 0, 1});
 		else
-			w.AddComponent<Velocity>(e, {0, 0, 1});
-		w.AddComponent<Direction>(e, {0, 0, 1});
-		w.AddComponent<Health>(e, {100, 100});
+			w.Add<Velocity>(e, {0, 0, 1});
+		w.Add<Direction>(e, {0, 0, 1});
+		w.Add<Health>(e, {100, 100});
 		for (uint32_t i = 0; i < N / 4; i++) {
-			[[maybe_unused]] auto newentity = w.CreateEntity(e);
+			[[maybe_unused]] auto newentity = w.Add(e);
 		}
 	}
 	{
-		auto e = w.CreateEntity();
+		auto e = w.Add();
 		if constexpr (SoA)
-			w.AddComponent<PositionSoA>(e, {0, 100, 0});
+			w.Add<PositionSoA>(e, {0, 100, 0});
 		else
-			w.AddComponent<Position>(e, {0, 100, 0});
-		w.AddComponent<Rotation>(e, {1, 2, 3, 4});
-		w.AddComponent<Scale>(e, {1, 1, 1});
+			w.Add<Position>(e, {0, 100, 0});
+		w.Add<Rotation>(e, {1, 2, 3, 4});
+		w.Add<Scale>(e, {1, 1, 1});
 		if constexpr (SoA)
-			w.AddComponent<VelocitySoA>(e, {0, 0, 1});
+			w.Add<VelocitySoA>(e, {0, 0, 1});
 		else
-			w.AddComponent<Velocity>(e, {0, 0, 1});
-		w.AddComponent<Direction>(e, {0, 0, 1});
-		w.AddComponent<Health>(e, {100, 100});
-		w.AddComponent<IsEnemy>(e, {false});
+			w.Add<Velocity>(e, {0, 0, 1});
+		w.Add<Direction>(e, {0, 0, 1});
+		w.Add<Health>(e, {100, 100});
+		w.Add<IsEnemy>(e, {false});
 		for (uint32_t i = 0; i < N / 4; i++) {
-			[[maybe_unused]] auto newentity = w.CreateEntity(e);
+			[[maybe_unused]] auto newentity = w.Add(e);
 		}
 	}
 }

@@ -1305,35 +1305,35 @@ TEST_CASE("DataLayout SoA16") {
 	TestDataLayoutSoA<RotationSoA16>();
 }
 
-TEST_CASE("Entity - IsEntityValid") {
+TEST_CASE("Entity - IsValid") {
 	ecs::World w;
 	{
-		auto e = w.CreateEntity();
-		REQUIRE(w.IsEntityValid(e));
-		w.DeleteEntity(e);
-		REQUIRE_FALSE(w.IsEntityValid(e));
+		auto e = w.Add();
+		REQUIRE(w.IsValid(e));
+		w.Del(e);
+		REQUIRE_FALSE(w.IsValid(e));
 	}
 	{
-		auto e = w.CreateEntity();
-		REQUIRE(w.IsEntityValid(e));
-		w.DeleteEntity(e);
-		REQUIRE_FALSE(w.IsEntityValid(e));
+		auto e = w.Add();
+		REQUIRE(w.IsValid(e));
+		w.Del(e);
+		REQUIRE_FALSE(w.IsValid(e));
 	}
 }
 
-TEST_CASE("Entity - IsEntityUsed") {
+TEST_CASE("Entity - Has") {
 	ecs::World w;
 	{
-		auto e = w.CreateEntity();
-		REQUIRE(w.IsEntityUsed(e));
-		w.DeleteEntity(e);
-		REQUIRE_FALSE(w.IsEntityUsed(e));
+		auto e = w.Add();
+		REQUIRE(w.Has(e));
+		w.Del(e);
+		REQUIRE_FALSE(w.Has(e));
 	}
 	{
-		auto e = w.CreateEntity();
-		REQUIRE(w.IsEntityUsed(e));
-		w.DeleteEntity(e);
-		REQUIRE_FALSE(w.IsEntityUsed(e));
+		auto e = w.Add();
+		REQUIRE(w.Has(e));
+		w.Del(e);
+		REQUIRE_FALSE(w.Has(e));
 	}
 }
 
@@ -1344,20 +1344,20 @@ TEST_CASE("EntityNull") {
 	REQUIRE_FALSE(ecs::EntityNull != ecs::EntityNull);
 
 	ecs::World w;
-	REQUIRE_FALSE(w.IsEntityValid(ecs::EntityNull));
+	REQUIRE_FALSE(w.IsValid(ecs::EntityNull));
 
-	auto e = w.CreateEntity();
+	auto e = w.Add();
 	REQUIRE(e != ecs::EntityNull);
 	REQUIRE(ecs::EntityNull != e);
 	REQUIRE_FALSE(e == ecs::EntityNull);
 	REQUIRE_FALSE(ecs::EntityNull == e);
 }
 
-TEST_CASE("CreateEntity - no components") {
+TEST_CASE("Add - no components") {
 	ecs::World w;
 
 	auto create = [&](uint32_t id) {
-		auto e = w.CreateEntity();
+		auto e = w.Add();
 		const bool ok = e.id() == id && e.gen() == 0;
 		REQUIRE(ok);
 		return e;
@@ -1368,15 +1368,15 @@ TEST_CASE("CreateEntity - no components") {
 		create(i);
 }
 
-TEST_CASE("CreateEntity - 1 component") {
+TEST_CASE("Add - 1 component") {
 	ecs::World w;
 
 	auto create = [&](uint32_t id) {
-		auto e = w.CreateEntity();
-		w.AddComponent<Int3>(e, {id, id, id});
+		auto e = w.Add();
+		w.Add<Int3>(e, {id, id, id});
 		const bool ok = e.id() == id && e.gen() == 0;
 		REQUIRE(ok);
-		auto pos = w.GetComponent<Int3>(e);
+		auto pos = w.Get<Int3>(e);
 		REQUIRE(pos.x == id);
 		REQUIRE(pos.y == id);
 		REQUIRE(pos.z == id);
@@ -1392,19 +1392,19 @@ TEST_CASE("CreateAndRemoveEntity - no components") {
 	ecs::World w;
 
 	auto create = [&](uint32_t id) {
-		auto e = w.CreateEntity();
+		auto e = w.Add();
 		const bool ok = e.id() == id && e.gen() == 0;
 		REQUIRE(ok);
 		return e;
 	};
 	auto remove = [&](ecs::Entity e) {
-		w.DeleteEntity(e);
-		auto de = w.GetEntity(e.id());
+		w.Del(e);
+		auto de = w.Get(e.id());
 		const bool ok = de.gen() == e.gen() + 1;
 		REQUIRE(ok);
 		auto* ch = w.GetChunk(e);
 		REQUIRE(ch == nullptr);
-		const bool isEntityValid = w.IsEntityValid(e);
+		const bool isEntityValid = w.IsValid(e);
 		REQUIRE_FALSE(isEntityValid);
 	};
 
@@ -1426,24 +1426,24 @@ TEST_CASE("CreateAndRemoveEntity - 1 component") {
 	ecs::World w;
 
 	auto create = [&](uint32_t id) {
-		auto e = w.CreateEntity();
-		w.AddComponent<Int3>(e, {id, id, id});
+		auto e = w.Add();
+		w.Add<Int3>(e, {id, id, id});
 		const bool ok = e.id() == id && e.gen() == 0;
 		REQUIRE(ok);
-		auto pos = w.GetComponent<Int3>(e);
+		auto pos = w.Get<Int3>(e);
 		REQUIRE(pos.x == id);
 		REQUIRE(pos.y == id);
 		REQUIRE(pos.z == id);
 		return e;
 	};
 	auto remove = [&](ecs::Entity e) {
-		w.DeleteEntity(e);
-		auto de = w.GetEntity(e.id());
+		w.Del(e);
+		auto de = w.Get(e.id());
 		const bool ok = de.gen() == e.gen() + 1;
 		REQUIRE(ok);
 		auto* ch = w.GetChunk(e);
 		REQUIRE(ch == nullptr);
-		const bool isEntityValid = w.IsEntityValid(e);
+		const bool isEntityValid = w.IsValid(e);
 		REQUIRE_FALSE(isEntityValid);
 	};
 
@@ -1467,15 +1467,15 @@ namespace dummy {
 	};
 } // namespace dummy
 
-TEST_CASE("AddComponent - namespaces") {
+TEST_CASE("Add - namespaces") {
 	ecs::World w;
-	auto e = w.CreateEntity();
-	w.AddComponent<Position>(e, {1, 1, 1});
-	w.AddComponent<dummy::Position>(e, {2, 2, 2});
-	REQUIRE(w.HasComponent<Position>(e));
-	REQUIRE(w.HasComponent<dummy::Position>(e));
-	auto p1 = w.GetComponent<Position>(e);
-	auto p2 = w.GetComponent<dummy::Position>(e);
+	auto e = w.Add();
+	w.Add<Position>(e, {1, 1, 1});
+	w.Add<dummy::Position>(e, {2, 2, 2});
+	REQUIRE(w.Has<Position>(e));
+	REQUIRE(w.Has<dummy::Position>(e));
+	auto p1 = w.Get<Position>(e);
+	auto p2 = w.Get<dummy::Position>(e);
 	REQUIRE(p1.x == 1.f);
 	REQUIRE(p1.y == 1.f);
 	REQUIRE(p1.z == 1.f);
@@ -1489,8 +1489,8 @@ void Test_Query_QueryResult() {
 	ecs::World w;
 
 	auto create = [&](uint32_t i) {
-		auto e = w.CreateEntity();
-		w.AddComponent<Position>(e, {(float)i, (float)i, (float)i});
+		auto e = w.Add();
+		w.Add<Position>(e, {(float)i, (float)i, (float)i});
 	};
 
 	const uint32_t N = 10'000;
@@ -1577,11 +1577,11 @@ void Test_Query_QueryResult_Complex() {
 	ecs::World w;
 
 	auto create = [&](uint32_t i) {
-		auto e = w.CreateEntity();
-		w.AddComponent<Position>(e, {(float)i, (float)i, (float)i});
-		w.AddComponent<Scale>(e, {(float)i * 2, (float)i * 2, (float)i * 2});
+		auto e = w.Add();
+		w.Add<Position>(e, {(float)i, (float)i, (float)i});
+		w.Add<Scale>(e, {(float)i * 2, (float)i * 2, (float)i * 2});
 		if (i % 2 == 0)
-			w.AddComponent<Something>(e, {true});
+			w.Add<Something>(e, {true});
 	};
 
 	const uint32_t N = 10'000;
@@ -1758,9 +1758,9 @@ void Test_Query_Equality() {
 		ecs::World w;
 
 		auto create = [&]() {
-			auto e = w.CreateEntity();
-			w.AddComponent<Position>(e);
-			w.AddComponent<Rotation>(e);
+			auto e = w.Add();
+			w.Add<Position>(e);
+			w.Add<Rotation>(e);
 		};
 
 		const uint32_t N = 100;
@@ -1812,14 +1812,14 @@ TEST_CASE("Query - equality") {
 	}
 }
 
-TEST_CASE("EnableEntity") {
+TEST_CASE("Enable") {
 	ecs::World w;
 
 	auto create = [&](uint32_t id) {
-		auto e = w.CreateEntity();
+		auto e = w.Add();
 		const bool ok = e.id() == id && e.gen() == 0;
 		REQUIRE(ok);
-		w.AddComponent<Position>(e);
+		w.Add<Position>(e);
 		return e;
 	};
 
@@ -1832,19 +1832,19 @@ TEST_CASE("EnableEntity") {
 		arr.push_back(create(i));
 
 	SECTION("State validity") {
-		w.EnableEntity(arr[0], false);
+		w.Enable(arr[0], false);
 		REQUIRE_FALSE(w.IsEnabled(arr[0]));
-		w.EnableEntity(arr[0], true);
+		w.Enable(arr[0], true);
 		REQUIRE(w.IsEnabled(arr[0]));
 	}
 
 	SECTION("State persistance") {
-		w.EnableEntity(arr[0], false);
-		w.RemoveComponent<Position>(arr[0]);
+		w.Enable(arr[0], false);
+		w.Del<Position>(arr[0]);
 		REQUIRE_FALSE(w.IsEnabled(arr[0]));
 
-		w.EnableEntity(arr[0], true);
-		w.AddComponent<Position>(arr[0]);
+		w.Enable(arr[0], true);
+		w.Add<Position>(arr[0]);
 		REQUIRE(w.IsEnabled(arr[0]));
 	}
 
@@ -1901,124 +1901,124 @@ TEST_CASE("EnableEntity") {
 	checkQuery(N, N, 0);
 
 	SECTION("Disable vs query") {
-		w.EnableEntity(arr[1000], false);
+		w.Enable(arr[1000], false);
 		checkQuery(N, N - 1, 1);
 	}
 	SECTION("Enable vs query") {
-		w.EnableEntity(arr[1000], true);
+		w.Enable(arr[1000], true);
 		checkQuery(N, N, 0);
 	}
 }
 
-TEST_CASE("AddComponent - generic") {
+TEST_CASE("Add - generic") {
 	ecs::World w;
 
 	{
-		auto e = w.CreateEntity();
-		w.AddComponent<Position>(e);
-		w.AddComponent<Acceleration>(e);
+		auto e = w.Add();
+		w.Add<Position>(e);
+		w.Add<Acceleration>(e);
 
-		REQUIRE(w.HasComponent<Position>(e));
-		REQUIRE(w.HasComponent<Acceleration>(e));
-		REQUIRE_FALSE(w.HasComponent<ecs::AsChunk<Position>>(e));
-		REQUIRE_FALSE(w.HasComponent<ecs::AsChunk<Acceleration>>(e));
+		REQUIRE(w.Has<Position>(e));
+		REQUIRE(w.Has<Acceleration>(e));
+		REQUIRE_FALSE(w.Has<ecs::AsChunk<Position>>(e));
+		REQUIRE_FALSE(w.Has<ecs::AsChunk<Acceleration>>(e));
 	}
 
 	{
-		auto e = w.CreateEntity();
-		w.AddComponent<Position>(e, {1, 2, 3});
-		w.AddComponent<Acceleration>(e, {4, 5, 6});
+		auto e = w.Add();
+		w.Add<Position>(e, {1, 2, 3});
+		w.Add<Acceleration>(e, {4, 5, 6});
 
-		REQUIRE(w.HasComponent<Position>(e));
-		REQUIRE(w.HasComponent<Acceleration>(e));
-		REQUIRE_FALSE(w.HasComponent<ecs::AsChunk<Position>>(e));
-		REQUIRE_FALSE(w.HasComponent<ecs::AsChunk<Acceleration>>(e));
+		REQUIRE(w.Has<Position>(e));
+		REQUIRE(w.Has<Acceleration>(e));
+		REQUIRE_FALSE(w.Has<ecs::AsChunk<Position>>(e));
+		REQUIRE_FALSE(w.Has<ecs::AsChunk<Acceleration>>(e));
 
-		auto p = w.GetComponent<Position>(e);
+		auto p = w.Get<Position>(e);
 		REQUIRE(p.x == 1);
 		REQUIRE(p.y == 2);
 		REQUIRE(p.z == 3);
 
-		auto a = w.GetComponent<Acceleration>(e);
+		auto a = w.Get<Acceleration>(e);
 		REQUIRE(a.x == 4);
 		REQUIRE(a.y == 5);
 		REQUIRE(a.z == 6);
 	}
 }
 
-// TEST_CASE("AddComponent - from query") {
+// TEST_CASE("Add - from query") {
 // 	ecs::World w;
 
 // 	containers::sarray<ecs::Entity, 5> ents;
 // 	for (auto& e: ents)
-// 		e = w.CreateEntity();
+// 		e = w.Add();
 
 // 	for (uint32_t i = 0; i < ents.size() - 1; ++i)
-// 		w.AddComponent<Position>(ents[i], {(float)i, (float)i, (float)i});
+// 		w.Add<Position>(ents[i], {(float)i, (float)i, (float)i});
 
 // 	ecs::Query q;
 // 	q.All<Position>();
-// 	w.AddComponent<Acceleration>(q, {1.f, 2.f, 3.f});
+// 	w.Add<Acceleration>(q, {1.f, 2.f, 3.f});
 
 // 	for (uint32_t i = 0; i < ents.size() - 1; ++i) {
-// 		REQUIRE(w.HasComponent<Position>(ents[i]));
-// 		REQUIRE(w.HasComponent<Acceleration>(ents[i]));
+// 		REQUIRE(w.Has<Position>(ents[i]));
+// 		REQUIRE(w.Has<Acceleration>(ents[i]));
 
 // 		Position p;
-// 		w.GetComponent<Position>(ents[i], p);
+// 		w.Get<Position>(ents[i], p);
 // 		REQUIRE(p.x == (float)i);
 // 		REQUIRE(p.y == (float)i);
 // 		REQUIRE(p.z == (float)i);
 
 // 		Acceleration a;
-// 		w.GetComponent<Acceleration>(ents[i], a);
+// 		w.Get<Acceleration>(ents[i], a);
 // 		REQUIRE(a.x == 1.f);
 // 		REQUIRE(a.y == 2.f);
 // 		REQUIRE(a.z == 3.f);
 // 	}
 
 // 	{
-// 		REQUIRE_FALSE(w.HasComponent<Position>(ents[4]));
-// 		REQUIRE_FALSE(w.HasComponent<Acceleration>(ents[4]));
+// 		REQUIRE_FALSE(w.Has<Position>(ents[4]));
+// 		REQUIRE_FALSE(w.Has<Acceleration>(ents[4]));
 // 	}
 // }
 
-TEST_CASE("AddComponent - chunk") {
+TEST_CASE("Add - chunk") {
 	{
 		ecs::World w;
-		auto e = w.CreateEntity();
-		w.AddComponent<ecs::AsChunk<Position>>(e);
-		w.AddComponent<ecs::AsChunk<Acceleration>>(e);
+		auto e = w.Add();
+		w.Add<ecs::AsChunk<Position>>(e);
+		w.Add<ecs::AsChunk<Acceleration>>(e);
 
-		REQUIRE_FALSE(w.HasComponent<Position>(e));
-		REQUIRE_FALSE(w.HasComponent<Acceleration>(e));
-		REQUIRE(w.HasComponent<ecs::AsChunk<Position>>(e));
-		REQUIRE(w.HasComponent<ecs::AsChunk<Acceleration>>(e));
+		REQUIRE_FALSE(w.Has<Position>(e));
+		REQUIRE_FALSE(w.Has<Acceleration>(e));
+		REQUIRE(w.Has<ecs::AsChunk<Position>>(e));
+		REQUIRE(w.Has<ecs::AsChunk<Acceleration>>(e));
 	}
 
 	{
 		ecs::World w;
-		auto e = w.CreateEntity();
+		auto e = w.Add();
 
 		// Add Position chunk component
-		w.AddComponent<ecs::AsChunk<Position>>(e, {1, 2, 3});
-		REQUIRE(w.HasComponent<ecs::AsChunk<Position>>(e));
-		REQUIRE_FALSE(w.HasComponent<Position>(e));
+		w.Add<ecs::AsChunk<Position>>(e, {1, 2, 3});
+		REQUIRE(w.Has<ecs::AsChunk<Position>>(e));
+		REQUIRE_FALSE(w.Has<Position>(e));
 		{
-			auto p = w.GetComponent<ecs::AsChunk<Position>>(e);
+			auto p = w.Get<ecs::AsChunk<Position>>(e);
 			REQUIRE(p.x == 1);
 			REQUIRE(p.y == 2);
 			REQUIRE(p.z == 3);
 		}
 		// Add Acceleration chunk component.
 		// This moves "e" to a new archetype.
-		w.AddComponent<ecs::AsChunk<Acceleration>>(e, {4, 5, 6});
-		REQUIRE(w.HasComponent<ecs::AsChunk<Position>>(e));
-		REQUIRE(w.HasComponent<ecs::AsChunk<Acceleration>>(e));
-		REQUIRE_FALSE(w.HasComponent<Position>(e));
-		REQUIRE_FALSE(w.HasComponent<Acceleration>(e));
+		w.Add<ecs::AsChunk<Acceleration>>(e, {4, 5, 6});
+		REQUIRE(w.Has<ecs::AsChunk<Position>>(e));
+		REQUIRE(w.Has<ecs::AsChunk<Acceleration>>(e));
+		REQUIRE_FALSE(w.Has<Position>(e));
+		REQUIRE_FALSE(w.Has<Acceleration>(e));
 		{
-			auto a = w.GetComponent<ecs::AsChunk<Acceleration>>(e);
+			auto a = w.Get<ecs::AsChunk<Acceleration>>(e);
 			REQUIRE(a.x == 4);
 			REQUIRE(a.y == 5);
 			REQUIRE(a.z == 6);
@@ -2026,7 +2026,7 @@ TEST_CASE("AddComponent - chunk") {
 		{
 			// Because "e" was moved to a new archetype nobody ever set the value.
 			// Therefore, it is garbage and won't match the original chunk.
-			auto p = w.GetComponent<ecs::AsChunk<Position>>(e);
+			auto p = w.Get<ecs::AsChunk<Position>>(e);
 			REQUIRE_FALSE(p.x == 1);
 			REQUIRE_FALSE(p.y == 2);
 			REQUIRE_FALSE(p.z == 3);
@@ -2034,121 +2034,121 @@ TEST_CASE("AddComponent - chunk") {
 	}
 }
 
-TEST_CASE("RemoveComponent - generic") {
+TEST_CASE("Del - generic") {
 	{
 		ecs::World w;
-		auto e1 = w.CreateEntity();
+		auto e1 = w.Add();
 
 		{
-			w.AddComponent<Position>(e1);
-			w.RemoveComponent<Position>(e1);
-			REQUIRE_FALSE(w.HasComponent<Position>(e1));
+			w.Add<Position>(e1);
+			w.Del<Position>(e1);
+			REQUIRE_FALSE(w.Has<Position>(e1));
 		}
 		{
-			w.AddComponent<Rotation>(e1);
-			w.RemoveComponent<Rotation>(e1);
-			REQUIRE_FALSE(w.HasComponent<Rotation>(e1));
+			w.Add<Rotation>(e1);
+			w.Del<Rotation>(e1);
+			REQUIRE_FALSE(w.Has<Rotation>(e1));
 		}
 	}
 	{
 		ecs::World w;
-		auto e1 = w.CreateEntity();
+		auto e1 = w.Add();
 		{
-			w.AddComponent<Position>(e1);
-			w.AddComponent<Rotation>(e1);
+			w.Add<Position>(e1);
+			w.Add<Rotation>(e1);
 
 			{
-				w.RemoveComponent<Position>(e1);
-				REQUIRE_FALSE(w.HasComponent<Position>(e1));
-				REQUIRE(w.HasComponent<Rotation>(e1));
+				w.Del<Position>(e1);
+				REQUIRE_FALSE(w.Has<Position>(e1));
+				REQUIRE(w.Has<Rotation>(e1));
 			}
 			{
-				w.RemoveComponent<Rotation>(e1);
-				REQUIRE_FALSE(w.HasComponent<Position>(e1));
-				REQUIRE_FALSE(w.HasComponent<Rotation>(e1));
+				w.Del<Rotation>(e1);
+				REQUIRE_FALSE(w.Has<Position>(e1));
+				REQUIRE_FALSE(w.Has<Rotation>(e1));
 			}
 		}
 		{
-			w.AddComponent<Rotation>(e1);
-			w.AddComponent<Position>(e1);
+			w.Add<Rotation>(e1);
+			w.Add<Position>(e1);
 			{
-				w.RemoveComponent<Position>(e1);
-				REQUIRE_FALSE(w.HasComponent<Position>(e1));
-				REQUIRE(w.HasComponent<Rotation>(e1));
+				w.Del<Position>(e1);
+				REQUIRE_FALSE(w.Has<Position>(e1));
+				REQUIRE(w.Has<Rotation>(e1));
 			}
 			{
-				w.RemoveComponent<Rotation>(e1);
-				REQUIRE_FALSE(w.HasComponent<Position>(e1));
-				REQUIRE_FALSE(w.HasComponent<Rotation>(e1));
+				w.Del<Rotation>(e1);
+				REQUIRE_FALSE(w.Has<Position>(e1));
+				REQUIRE_FALSE(w.Has<Rotation>(e1));
 			}
 		}
 	}
 }
 
-TEST_CASE("RemoveComponent - chunk") {
+TEST_CASE("Del - chunk") {
 	ecs::World w;
-	auto e1 = w.CreateEntity();
+	auto e1 = w.Add();
 
 	{
-		w.AddComponent<ecs::AsChunk<Position>>(e1);
-		w.AddComponent<ecs::AsChunk<Acceleration>>(e1);
+		w.Add<ecs::AsChunk<Position>>(e1);
+		w.Add<ecs::AsChunk<Acceleration>>(e1);
 		{
-			w.RemoveComponent<ecs::AsChunk<Position>>(e1);
-			REQUIRE_FALSE(w.HasComponent<ecs::AsChunk<Position>>(e1));
-			REQUIRE(w.HasComponent<ecs::AsChunk<Acceleration>>(e1));
+			w.Del<ecs::AsChunk<Position>>(e1);
+			REQUIRE_FALSE(w.Has<ecs::AsChunk<Position>>(e1));
+			REQUIRE(w.Has<ecs::AsChunk<Acceleration>>(e1));
 		}
 		{
-			w.RemoveComponent<ecs::AsChunk<Acceleration>>(e1);
-			REQUIRE_FALSE(w.HasComponent<ecs::AsChunk<Position>>(e1));
-			REQUIRE_FALSE(w.HasComponent<ecs::AsChunk<Acceleration>>(e1));
+			w.Del<ecs::AsChunk<Acceleration>>(e1);
+			REQUIRE_FALSE(w.Has<ecs::AsChunk<Position>>(e1));
+			REQUIRE_FALSE(w.Has<ecs::AsChunk<Acceleration>>(e1));
 		}
 	}
 
 	{
-		w.AddComponent<ecs::AsChunk<Acceleration>>(e1);
-		w.AddComponent<ecs::AsChunk<Position>>(e1);
+		w.Add<ecs::AsChunk<Acceleration>>(e1);
+		w.Add<ecs::AsChunk<Position>>(e1);
 		{
-			w.RemoveComponent<ecs::AsChunk<Position>>(e1);
-			REQUIRE_FALSE(w.HasComponent<ecs::AsChunk<Position>>(e1));
-			REQUIRE(w.HasComponent<ecs::AsChunk<Acceleration>>(e1));
+			w.Del<ecs::AsChunk<Position>>(e1);
+			REQUIRE_FALSE(w.Has<ecs::AsChunk<Position>>(e1));
+			REQUIRE(w.Has<ecs::AsChunk<Acceleration>>(e1));
 		}
 		{
-			w.RemoveComponent<ecs::AsChunk<Acceleration>>(e1);
-			REQUIRE_FALSE(w.HasComponent<ecs::AsChunk<Position>>(e1));
-			REQUIRE_FALSE(w.HasComponent<ecs::AsChunk<Acceleration>>(e1));
+			w.Del<ecs::AsChunk<Acceleration>>(e1);
+			REQUIRE_FALSE(w.Has<ecs::AsChunk<Position>>(e1));
+			REQUIRE_FALSE(w.Has<ecs::AsChunk<Acceleration>>(e1));
 		}
 	}
 }
 
-TEST_CASE("RemoveComponent - generic, chunk") {
+TEST_CASE("Del - generic, chunk") {
 	ecs::World w;
-	auto e1 = w.CreateEntity();
+	auto e1 = w.Add();
 
 	{
-		w.AddComponent<Position>(e1);
-		w.AddComponent<Acceleration>(e1);
-		w.AddComponent<ecs::AsChunk<Position>>(e1);
-		w.AddComponent<ecs::AsChunk<Acceleration>>(e1);
+		w.Add<Position>(e1);
+		w.Add<Acceleration>(e1);
+		w.Add<ecs::AsChunk<Position>>(e1);
+		w.Add<ecs::AsChunk<Acceleration>>(e1);
 		{
-			w.RemoveComponent<Position>(e1);
-			REQUIRE_FALSE(w.HasComponent<Position>(e1));
-			REQUIRE(w.HasComponent<Acceleration>(e1));
-			REQUIRE(w.HasComponent<ecs::AsChunk<Position>>(e1));
-			REQUIRE(w.HasComponent<ecs::AsChunk<Acceleration>>(e1));
+			w.Del<Position>(e1);
+			REQUIRE_FALSE(w.Has<Position>(e1));
+			REQUIRE(w.Has<Acceleration>(e1));
+			REQUIRE(w.Has<ecs::AsChunk<Position>>(e1));
+			REQUIRE(w.Has<ecs::AsChunk<Acceleration>>(e1));
 		}
 		{
-			w.RemoveComponent<Acceleration>(e1);
-			REQUIRE_FALSE(w.HasComponent<Position>(e1));
-			REQUIRE_FALSE(w.HasComponent<Acceleration>(e1));
-			REQUIRE(w.HasComponent<ecs::AsChunk<Position>>(e1));
-			REQUIRE(w.HasComponent<ecs::AsChunk<Acceleration>>(e1));
+			w.Del<Acceleration>(e1);
+			REQUIRE_FALSE(w.Has<Position>(e1));
+			REQUIRE_FALSE(w.Has<Acceleration>(e1));
+			REQUIRE(w.Has<ecs::AsChunk<Position>>(e1));
+			REQUIRE(w.Has<ecs::AsChunk<Acceleration>>(e1));
 		}
 		{
-			w.RemoveComponent<ecs::AsChunk<Acceleration>>(e1);
-			REQUIRE_FALSE(w.HasComponent<Position>(e1));
-			REQUIRE_FALSE(w.HasComponent<Acceleration>(e1));
-			REQUIRE(w.HasComponent<ecs::AsChunk<Position>>(e1));
-			REQUIRE_FALSE(w.HasComponent<ecs::AsChunk<Acceleration>>(e1));
+			w.Del<ecs::AsChunk<Acceleration>>(e1);
+			REQUIRE_FALSE(w.Has<Position>(e1));
+			REQUIRE_FALSE(w.Has<Acceleration>(e1));
+			REQUIRE(w.Has<ecs::AsChunk<Position>>(e1));
+			REQUIRE_FALSE(w.Has<ecs::AsChunk<Acceleration>>(e1));
 		}
 	}
 }
@@ -2156,7 +2156,7 @@ TEST_CASE("RemoveComponent - generic, chunk") {
 TEST_CASE("Usage 1 - simple query, 0 component") {
 	ecs::World w;
 
-	auto e = w.CreateEntity();
+	auto e = w.Add();
 
 	{
 		uint32_t cnt = 0;
@@ -2173,9 +2173,9 @@ TEST_CASE("Usage 1 - simple query, 0 component") {
 		REQUIRE(cnt == 0);
 	}
 
-	auto e1 = w.CreateEntity(e);
-	auto e2 = w.CreateEntity(e);
-	auto e3 = w.CreateEntity(e);
+	auto e1 = w.Add(e);
+	auto e2 = w.Add(e);
+	auto e3 = w.Add(e);
 
 	{
 		uint32_t cnt = 0;
@@ -2185,7 +2185,7 @@ TEST_CASE("Usage 1 - simple query, 0 component") {
 		REQUIRE(cnt == 0);
 	}
 
-	w.DeleteEntity(e1);
+	w.Del(e1);
 
 	{
 		uint32_t cnt = 0;
@@ -2195,9 +2195,9 @@ TEST_CASE("Usage 1 - simple query, 0 component") {
 		REQUIRE(cnt == 0);
 	}
 
-	w.DeleteEntity(e2);
-	w.DeleteEntity(e3);
-	w.DeleteEntity(e);
+	w.Del(e2);
+	w.Del(e3);
+	w.Del(e);
 
 	{
 		uint32_t cnt = 0;
@@ -2211,8 +2211,8 @@ TEST_CASE("Usage 1 - simple query, 0 component") {
 TEST_CASE("Usage 1 - simple query, 1 component") {
 	ecs::World w;
 
-	auto e = w.CreateEntity();
-	w.AddComponent<Position>(e);
+	auto e = w.Add();
+	w.Add<Position>(e);
 
 	{
 		uint32_t cnt = 0;
@@ -2229,9 +2229,9 @@ TEST_CASE("Usage 1 - simple query, 1 component") {
 		REQUIRE(cnt == 1);
 	}
 
-	auto e1 = w.CreateEntity(e);
-	auto e2 = w.CreateEntity(e);
-	auto e3 = w.CreateEntity(e);
+	auto e1 = w.Add(e);
+	auto e2 = w.Add(e);
+	auto e3 = w.Add(e);
 
 	{
 		uint32_t cnt = 0;
@@ -2241,7 +2241,7 @@ TEST_CASE("Usage 1 - simple query, 1 component") {
 		REQUIRE(cnt == 4);
 	}
 
-	w.DeleteEntity(e1);
+	w.Del(e1);
 
 	{
 		uint32_t cnt = 0;
@@ -2251,9 +2251,9 @@ TEST_CASE("Usage 1 - simple query, 1 component") {
 		REQUIRE(cnt == 3);
 	}
 
-	w.DeleteEntity(e2);
-	w.DeleteEntity(e3);
-	w.DeleteEntity(e);
+	w.Del(e2);
+	w.Del(e3);
+	w.Del(e);
 
 	{
 		uint32_t cnt = 0;
@@ -2267,8 +2267,8 @@ TEST_CASE("Usage 1 - simple query, 1 component") {
 TEST_CASE("Usage 1 - simple query, 1 chunk component") {
 	ecs::World w;
 
-	auto e = w.CreateEntity();
-	w.AddComponent<ecs::AsChunk<Position>>(e);
+	auto e = w.Add();
+	w.Add<ecs::AsChunk<Position>>(e);
 
 	auto q = w.CreateQuery().All<ecs::AsChunk<Position>>();
 	auto qq = w.CreateQuery().All<Position>();
@@ -2295,9 +2295,9 @@ TEST_CASE("Usage 1 - simple query, 1 chunk component") {
 		REQUIRE(cnt == 1);
 	}
 
-	auto e1 = w.CreateEntity(e);
-	auto e2 = w.CreateEntity(e);
-	auto e3 = w.CreateEntity(e);
+	auto e1 = w.Add(e);
+	auto e2 = w.Add(e);
+	auto e3 = w.Add(e);
 
 	{
 		uint32_t cnt = 0;
@@ -2307,7 +2307,7 @@ TEST_CASE("Usage 1 - simple query, 1 chunk component") {
 		REQUIRE(cnt == 1);
 	}
 
-	w.DeleteEntity(e1);
+	w.Del(e1);
 
 	{
 		uint32_t cnt = 0;
@@ -2317,9 +2317,9 @@ TEST_CASE("Usage 1 - simple query, 1 chunk component") {
 		REQUIRE(cnt == 1);
 	}
 
-	w.DeleteEntity(e2);
-	w.DeleteEntity(e3);
-	w.DeleteEntity(e);
+	w.Del(e2);
+	w.Del(e3);
+	w.Del(e);
 
 	{
 		uint32_t cnt = 0;
@@ -2333,18 +2333,18 @@ TEST_CASE("Usage 1 - simple query, 1 chunk component") {
 TEST_CASE("Usage 2 - simple query, many components") {
 	ecs::World w;
 
-	auto e1 = w.CreateEntity();
-	w.AddComponent<Position>(e1, {});
-	w.AddComponent<Acceleration>(e1, {});
-	w.AddComponent<Else>(e1, {});
-	auto e2 = w.CreateEntity();
-	w.AddComponent<Rotation>(e2, {});
-	w.AddComponent<Scale>(e2, {});
-	w.AddComponent<Else>(e2, {});
-	auto e3 = w.CreateEntity();
-	w.AddComponent<Position>(e3, {});
-	w.AddComponent<Acceleration>(e3, {});
-	w.AddComponent<Scale>(e3, {});
+	auto e1 = w.Add();
+	w.Add<Position>(e1, {});
+	w.Add<Acceleration>(e1, {});
+	w.Add<Else>(e1, {});
+	auto e2 = w.Add();
+	w.Add<Rotation>(e2, {});
+	w.Add<Scale>(e2, {});
+	w.Add<Else>(e2, {});
+	auto e3 = w.Add();
+	w.Add<Position>(e3, {});
+	w.Add<Acceleration>(e3, {});
+	w.Add<Scale>(e3, {});
 
 	{
 		uint32_t cnt = 0;
@@ -2395,9 +2395,9 @@ TEST_CASE("Usage 2 - simple query, many components") {
 		q.ForEach([&](ecs::Iterator iter) {
 			++cnt;
 
-			const bool ok1 = iter.HasComponent<Position>() || iter.HasComponent<Acceleration>();
+			const bool ok1 = iter.Has<Position>() || iter.Has<Acceleration>();
 			REQUIRE(ok1);
-			const bool ok2 = iter.HasComponent<Acceleration>() || iter.HasComponent<Position>();
+			const bool ok2 = iter.Has<Acceleration>() || iter.Has<Position>();
 			REQUIRE(ok2);
 		});
 		REQUIRE(cnt == 2);
@@ -2411,9 +2411,9 @@ TEST_CASE("Usage 2 - simple query, many components") {
 
 			REQUIRE(iter.size() == 1);
 
-			const bool ok1 = iter.HasComponent<Position>() || iter.HasComponent<Acceleration>();
+			const bool ok1 = iter.Has<Position>() || iter.Has<Acceleration>();
 			REQUIRE(ok1);
-			const bool ok2 = iter.HasComponent<Acceleration>() || iter.HasComponent<Position>();
+			const bool ok2 = iter.Has<Acceleration>() || iter.Has<Position>();
 			REQUIRE(ok2);
 		});
 		REQUIRE(cnt == 1);
@@ -2434,18 +2434,18 @@ TEST_CASE("Usage 2 - simple query, many components") {
 TEST_CASE("Usage 2 - simple query, many chunk components") {
 	ecs::World w;
 
-	auto e1 = w.CreateEntity();
-	w.AddComponent<ecs::AsChunk<Position>>(e1, {});
-	w.AddComponent<ecs::AsChunk<Acceleration>>(e1, {});
-	w.AddComponent<ecs::AsChunk<Else>>(e1, {});
-	auto e2 = w.CreateEntity();
-	w.AddComponent<ecs::AsChunk<Rotation>>(e2, {});
-	w.AddComponent<ecs::AsChunk<Scale>>(e2, {});
-	w.AddComponent<ecs::AsChunk<Else>>(e2, {});
-	auto e3 = w.CreateEntity();
-	w.AddComponent<ecs::AsChunk<Position>>(e3, {});
-	w.AddComponent<ecs::AsChunk<Acceleration>>(e3, {});
-	w.AddComponent<ecs::AsChunk<Scale>>(e3, {});
+	auto e1 = w.Add();
+	w.Add<ecs::AsChunk<Position>>(e1, {});
+	w.Add<ecs::AsChunk<Acceleration>>(e1, {});
+	w.Add<ecs::AsChunk<Else>>(e1, {});
+	auto e2 = w.Add();
+	w.Add<ecs::AsChunk<Rotation>>(e2, {});
+	w.Add<ecs::AsChunk<Scale>>(e2, {});
+	w.Add<ecs::AsChunk<Else>>(e2, {});
+	auto e3 = w.Add();
+	w.Add<ecs::AsChunk<Position>>(e3, {});
+	w.Add<ecs::AsChunk<Acceleration>>(e3, {});
+	w.Add<ecs::AsChunk<Scale>>(e3, {});
 
 	{
 		uint32_t cnt = 0;
@@ -2494,9 +2494,9 @@ TEST_CASE("Usage 2 - simple query, many chunk components") {
 		q.ForEach([&](ecs::Iterator iter) {
 			++cnt;
 
-			const bool ok1 = iter.HasComponent<ecs::AsChunk<Position>>() || iter.HasComponent<ecs::AsChunk<Acceleration>>();
+			const bool ok1 = iter.Has<ecs::AsChunk<Position>>() || iter.Has<ecs::AsChunk<Acceleration>>();
 			REQUIRE(ok1);
-			const bool ok2 = iter.HasComponent<ecs::AsChunk<Acceleration>>() || iter.HasComponent<ecs::AsChunk<Position>>();
+			const bool ok2 = iter.Has<ecs::AsChunk<Acceleration>>() || iter.Has<ecs::AsChunk<Position>>();
 			REQUIRE(ok2);
 		});
 		REQUIRE(cnt == 2);
@@ -2510,9 +2510,9 @@ TEST_CASE("Usage 2 - simple query, many chunk components") {
 
 			REQUIRE(iter.size() == 1);
 
-			const bool ok1 = iter.HasComponent<ecs::AsChunk<Position>>() || iter.HasComponent<ecs::AsChunk<Acceleration>>();
+			const bool ok1 = iter.Has<ecs::AsChunk<Position>>() || iter.Has<ecs::AsChunk<Acceleration>>();
 			REQUIRE(ok1);
-			const bool ok2 = iter.HasComponent<ecs::AsChunk<Acceleration>>() || iter.HasComponent<ecs::AsChunk<Position>>();
+			const bool ok2 = iter.Has<ecs::AsChunk<Acceleration>>() || iter.Has<ecs::AsChunk<Position>>();
 			REQUIRE(ok2);
 		});
 		REQUIRE(cnt == 1);
@@ -2531,7 +2531,7 @@ TEST_CASE("Usage 2 - simple query, many chunk components") {
 	}
 }
 
-TEST_CASE("SetComponent - generic") {
+TEST_CASE("Set - generic") {
 	ecs::World w;
 
 	constexpr uint32_t N = 100;
@@ -2539,26 +2539,26 @@ TEST_CASE("SetComponent - generic") {
 	arr.reserve(N);
 
 	for (uint32_t i = 0; i < N; ++i) {
-		arr.push_back(w.CreateEntity());
-		w.AddComponent<Rotation>(arr.back(), {});
-		w.AddComponent<Scale>(arr.back(), {});
-		w.AddComponent<Else>(arr.back(), {});
+		arr.push_back(w.Add());
+		w.Add<Rotation>(arr.back(), {});
+		w.Add<Scale>(arr.back(), {});
+		w.Add<Else>(arr.back(), {});
 	}
 
 	// Default values
 	for (const auto ent: arr) {
-		auto r = w.GetComponent<Rotation>(ent);
+		auto r = w.Get<Rotation>(ent);
 		REQUIRE(r.x == 0);
 		REQUIRE(r.y == 0);
 		REQUIRE(r.z == 0);
 		REQUIRE(r.w == 0);
 
-		auto s = w.GetComponent<Scale>(ent);
+		auto s = w.Get<Scale>(ent);
 		REQUIRE(s.x == 0);
 		REQUIRE(s.y == 0);
 		REQUIRE(s.z == 0);
 
-		auto e = w.GetComponent<Else>(ent);
+		auto e = w.Get<Else>(ent);
 		REQUIRE(e.value == false);
 	}
 
@@ -2579,44 +2579,44 @@ TEST_CASE("SetComponent - generic") {
 		});
 
 		for (const auto ent: arr) {
-			auto r = w.GetComponent<Rotation>(ent);
+			auto r = w.Get<Rotation>(ent);
 			REQUIRE(r.x == 1);
 			REQUIRE(r.y == 2);
 			REQUIRE(r.z == 3);
 			REQUIRE(r.w == 4);
 
-			auto s = w.GetComponent<Scale>(ent);
+			auto s = w.Get<Scale>(ent);
 			REQUIRE(s.x == 11);
 			REQUIRE(s.y == 22);
 			REQUIRE(s.z == 33);
 
-			auto e = w.GetComponent<Else>(ent);
+			auto e = w.Get<Else>(ent);
 			REQUIRE(e.value == true);
 		}
 	}
 
 	// Add one more component and check if the values are still fine after creating a new archetype
 	{
-		auto ent = w.CreateEntity(arr[0]);
-		w.AddComponent<Position>(ent, {5, 6, 7});
+		auto ent = w.Add(arr[0]);
+		w.Add<Position>(ent, {5, 6, 7});
 
-		auto r = w.GetComponent<Rotation>(ent);
+		auto r = w.Get<Rotation>(ent);
 		REQUIRE(r.x == 1);
 		REQUIRE(r.y == 2);
 		REQUIRE(r.z == 3);
 		REQUIRE(r.w == 4);
 
-		auto s = w.GetComponent<Scale>(ent);
+		auto s = w.Get<Scale>(ent);
 		REQUIRE(s.x == 11);
 		REQUIRE(s.y == 22);
 		REQUIRE(s.z == 33);
 
-		auto e = w.GetComponent<Else>(ent);
+		auto e = w.Get<Else>(ent);
 		REQUIRE(e.value == true);
 	}
 }
 
-TEST_CASE("SetComponent - generic & chunk") {
+TEST_CASE("Set - generic & chunk") {
 	ecs::World w;
 
 	constexpr uint32_t N = 100;
@@ -2624,30 +2624,30 @@ TEST_CASE("SetComponent - generic & chunk") {
 	arr.reserve(N);
 
 	for (uint32_t i = 0; i < N; ++i) {
-		arr.push_back(w.CreateEntity());
-		w.AddComponent<Rotation>(arr.back(), {});
-		w.AddComponent<Scale>(arr.back(), {});
-		w.AddComponent<Else>(arr.back(), {});
-		w.AddComponent<ecs::AsChunk<Position>>(arr.back(), {});
+		arr.push_back(w.Add());
+		w.Add<Rotation>(arr.back(), {});
+		w.Add<Scale>(arr.back(), {});
+		w.Add<Else>(arr.back(), {});
+		w.Add<ecs::AsChunk<Position>>(arr.back(), {});
 	}
 
 	// Default values
 	for (const auto ent: arr) {
-		auto r = w.GetComponent<Rotation>(ent);
+		auto r = w.Get<Rotation>(ent);
 		REQUIRE(r.x == 0);
 		REQUIRE(r.y == 0);
 		REQUIRE(r.z == 0);
 		REQUIRE(r.w == 0);
 
-		auto s = w.GetComponent<Scale>(ent);
+		auto s = w.Get<Scale>(ent);
 		REQUIRE(s.x == 0);
 		REQUIRE(s.y == 0);
 		REQUIRE(s.z == 0);
 
-		auto e = w.GetComponent<Else>(ent);
+		auto e = w.Get<Else>(ent);
 		REQUIRE(e.value == false);
 
-		auto p = w.GetComponent<ecs::AsChunk<Position>>(ent);
+		auto p = w.Get<ecs::AsChunk<Position>>(ent);
 		REQUIRE(p.x == 0);
 		REQUIRE(p.y == 0);
 		REQUIRE(p.z == 0);
@@ -2669,33 +2669,33 @@ TEST_CASE("SetComponent - generic & chunk") {
 			}
 		});
 
-		w.SetComponent<ecs::AsChunk<Position>>(arr[0], {111, 222, 333});
+		w.Set<ecs::AsChunk<Position>>(arr[0], {111, 222, 333});
 
 		{
-			Position p = w.GetComponent<ecs::AsChunk<Position>>(arr[0]);
+			Position p = w.Get<ecs::AsChunk<Position>>(arr[0]);
 			REQUIRE(p.x == 111);
 			REQUIRE(p.y == 222);
 			REQUIRE(p.z == 333);
 		}
 		{
 			for (const auto ent: arr) {
-				auto r = w.GetComponent<Rotation>(ent);
+				auto r = w.Get<Rotation>(ent);
 				REQUIRE(r.x == 1);
 				REQUIRE(r.y == 2);
 				REQUIRE(r.z == 3);
 				REQUIRE(r.w == 4);
 
-				auto s = w.GetComponent<Scale>(ent);
+				auto s = w.Get<Scale>(ent);
 				REQUIRE(s.x == 11);
 				REQUIRE(s.y == 22);
 				REQUIRE(s.z == 33);
 
-				auto e = w.GetComponent<Else>(ent);
+				auto e = w.Get<Else>(ent);
 				REQUIRE(e.value == true);
 			}
 		}
 		{
-			auto p = w.GetComponent<ecs::AsChunk<Position>>(arr[0]);
+			auto p = w.Get<ecs::AsChunk<Position>>(arr[0]);
 			REQUIRE(p.x == 111);
 			REQUIRE(p.y == 222);
 			REQUIRE(p.z == 333);
@@ -2711,27 +2711,27 @@ TEST_CASE("Components - non trivial") {
 	arr.reserve(N);
 
 	for (uint32_t i = 0; i < N; ++i) {
-		arr.push_back(w.CreateEntity());
-		w.AddComponent<StringComponent>(arr.back(), {});
-		w.AddComponent<StringComponent2>(arr.back(), {});
-		w.AddComponent<PositionNonTrivial>(arr.back(), {});
+		arr.push_back(w.Add());
+		w.Add<StringComponent>(arr.back(), {});
+		w.Add<StringComponent2>(arr.back(), {});
+		w.Add<PositionNonTrivial>(arr.back(), {});
 	}
 
 	// Default values
 	for (const auto ent: arr) {
-		const auto& s1 = w.GetComponent<StringComponent>(ent);
+		const auto& s1 = w.Get<StringComponent>(ent);
 		REQUIRE(s1.value.empty());
 
 		{
-			auto s2 = w.GetComponent<StringComponent2>(ent);
+			auto s2 = w.Get<StringComponent2>(ent);
 			REQUIRE(s2.value == StringComponent2DefaultValue);
 		}
 		{
-			const auto& s2 = w.GetComponent<StringComponent2>(ent);
+			const auto& s2 = w.Get<StringComponent2>(ent);
 			REQUIRE(s2.value == StringComponent2DefaultValue);
 		}
 
-		const auto& p = w.GetComponent<PositionNonTrivial>(ent);
+		const auto& p = w.Get<PositionNonTrivial>(ent);
 		REQUIRE(p.x == 1);
 		REQUIRE(p.y == 2);
 		REQUIRE(p.z == 3);
@@ -2754,13 +2754,13 @@ TEST_CASE("Components - non trivial") {
 		});
 
 		for (const auto ent: arr) {
-			const auto& s1 = w.GetComponent<StringComponent>(ent);
+			const auto& s1 = w.Get<StringComponent>(ent);
 			REQUIRE(s1.value == StringComponentDefaultValue);
 
-			const auto& s2 = w.GetComponent<StringComponent2>(ent);
+			const auto& s2 = w.Get<StringComponent2>(ent);
 			REQUIRE(s2.value == StringComponent2DefaultValue_2);
 
-			const auto& p = w.GetComponent<PositionNonTrivial>(ent);
+			const auto& p = w.Get<PositionNonTrivial>(ent);
 			REQUIRE(p.x == 111);
 			REQUIRE(p.y == 222);
 			REQUIRE(p.z == 333);
@@ -2769,16 +2769,16 @@ TEST_CASE("Components - non trivial") {
 
 	// Add one more component and check if the values are still fine after creating a new archetype
 	{
-		auto ent = w.CreateEntity(arr[0]);
-		w.AddComponent<Position>(ent, {5, 6, 7});
+		auto ent = w.Add(arr[0]);
+		w.Add<Position>(ent, {5, 6, 7});
 
-		const auto& s1 = w.GetComponent<StringComponent>(ent);
+		const auto& s1 = w.Get<StringComponent>(ent);
 		REQUIRE(s1.value == StringComponentDefaultValue);
 
-		const auto& s2 = w.GetComponent<StringComponent2>(ent);
+		const auto& s2 = w.Get<StringComponent2>(ent);
 		REQUIRE(s2.value == StringComponent2DefaultValue_2);
 
-		const auto& p = w.GetComponent<PositionNonTrivial>(ent);
+		const auto& p = w.Get<PositionNonTrivial>(ent);
 		REQUIRE(p.x == 111);
 		REQUIRE(p.y == 222);
 		REQUIRE(p.z == 333);
@@ -2792,13 +2792,13 @@ TEST_CASE("CommandBuffer") {
 
 		const uint32_t N = 100;
 		for (uint32_t i = 0; i < N; i++) {
-			[[maybe_unused]] auto tmp = cb.CreateEntity();
+			[[maybe_unused]] auto tmp = cb.Add();
 		}
 
 		cb.Commit();
 
 		for (uint32_t i = 0; i < N; i++) {
-			auto e = w.GetEntity(i);
+			auto e = w.Get(i);
 			REQUIRE(e.id() == i);
 		}
 	}
@@ -2807,17 +2807,17 @@ TEST_CASE("CommandBuffer") {
 		ecs::World w;
 		ecs::CommandBuffer cb(w);
 
-		auto mainEntity = w.CreateEntity();
+		auto mainEntity = w.Add();
 
 		const uint32_t N = 100;
 		for (uint32_t i = 0; i < N; i++) {
-			[[maybe_unused]] auto tmp = cb.CreateEntity(mainEntity);
+			[[maybe_unused]] auto tmp = cb.Add(mainEntity);
 		}
 
 		cb.Commit();
 
 		for (uint32_t i = 0; i < N; i++) {
-			auto e = w.GetEntity(i + 1);
+			auto e = w.Get(i + 1);
 			REQUIRE(e.id() == i + 1);
 		}
 	}
@@ -2826,14 +2826,14 @@ TEST_CASE("CommandBuffer") {
 		ecs::World w;
 		ecs::CommandBuffer cb(w);
 
-		auto mainEntity = w.CreateEntity();
-		w.AddComponent<Position>(mainEntity, {1, 2, 3});
+		auto mainEntity = w.Add();
+		w.Add<Position>(mainEntity, {1, 2, 3});
 
-		[[maybe_unused]] auto tmp = cb.CreateEntity(mainEntity);
+		[[maybe_unused]] auto tmp = cb.Add(mainEntity);
 		cb.Commit();
-		auto e = w.GetEntity(1);
-		REQUIRE(w.HasComponent<Position>(e));
-		auto p = w.GetComponent<Position>(e);
+		auto e = w.Get(1);
+		REQUIRE(w.Has<Position>(e));
+		auto p = w.Get<Position>(e);
 		REQUIRE(p.x == 1);
 		REQUIRE(p.y == 2);
 		REQUIRE(p.z == 3);
@@ -2843,40 +2843,40 @@ TEST_CASE("CommandBuffer") {
 		ecs::World w;
 		ecs::CommandBuffer cb(w);
 
-		auto e = w.CreateEntity();
-		cb.AddComponent<Position>(e);
-		REQUIRE_FALSE(w.HasComponent<Position>(e));
+		auto e = w.Add();
+		cb.Add<Position>(e);
+		REQUIRE_FALSE(w.Has<Position>(e));
 		cb.Commit();
-		REQUIRE(w.HasComponent<Position>(e));
+		REQUIRE(w.Has<Position>(e));
 	}
 
 	SECTION("Delayed component addition to a to-be-created entity") {
 		ecs::World w;
 		ecs::CommandBuffer cb(w);
 
-		auto tmp = cb.CreateEntity();
+		auto tmp = cb.Add();
 		REQUIRE_FALSE(w.GetEntityCount());
-		cb.AddComponent<Position>(tmp);
+		cb.Add<Position>(tmp);
 		cb.Commit();
 
-		auto e = w.GetEntity(0);
-		REQUIRE(w.HasComponent<Position>(e));
+		auto e = w.Get(0);
+		REQUIRE(w.Has<Position>(e));
 	}
 
 	SECTION("Delayed component setting of an existing entity") {
 		ecs::World w;
 		ecs::CommandBuffer cb(w);
 
-		auto e = w.CreateEntity();
+		auto e = w.Add();
 
-		cb.AddComponent<Position>(e);
-		cb.SetComponent<Position>(e, {1, 2, 3});
-		REQUIRE_FALSE(w.HasComponent<Position>(e));
+		cb.Add<Position>(e);
+		cb.Set<Position>(e, {1, 2, 3});
+		REQUIRE_FALSE(w.Has<Position>(e));
 
 		cb.Commit();
-		REQUIRE(w.HasComponent<Position>(e));
+		REQUIRE(w.Has<Position>(e));
 
-		auto p = w.GetComponent<Position>(e);
+		auto p = w.Get<Position>(e);
 		REQUIRE(p.x == 1);
 		REQUIRE(p.y == 2);
 		REQUIRE(p.z == 3);
@@ -2886,25 +2886,25 @@ TEST_CASE("CommandBuffer") {
 		ecs::World w;
 		ecs::CommandBuffer cb(w);
 
-		auto e = w.CreateEntity();
+		auto e = w.Add();
 
-		cb.AddComponent<Position>(e);
-		cb.SetComponent<Position>(e, {1, 2, 3});
-		cb.AddComponent<Acceleration>(e);
-		cb.SetComponent<Acceleration>(e, {4, 5, 6});
-		REQUIRE_FALSE(w.HasComponent<Position>(e));
-		REQUIRE_FALSE(w.HasComponent<Acceleration>(e));
+		cb.Add<Position>(e);
+		cb.Set<Position>(e, {1, 2, 3});
+		cb.Add<Acceleration>(e);
+		cb.Set<Acceleration>(e, {4, 5, 6});
+		REQUIRE_FALSE(w.Has<Position>(e));
+		REQUIRE_FALSE(w.Has<Acceleration>(e));
 
 		cb.Commit();
-		REQUIRE(w.HasComponent<Position>(e));
-		REQUIRE(w.HasComponent<Acceleration>(e));
+		REQUIRE(w.Has<Position>(e));
+		REQUIRE(w.Has<Acceleration>(e));
 
-		auto p = w.GetComponent<Position>(e);
+		auto p = w.Get<Position>(e);
 		REQUIRE(p.x == 1);
 		REQUIRE(p.y == 2);
 		REQUIRE(p.z == 3);
 
-		auto a = w.GetComponent<Acceleration>(e);
+		auto a = w.Get<Acceleration>(e);
 		REQUIRE(a.x == 4);
 		REQUIRE(a.y == 5);
 		REQUIRE(a.z == 6);
@@ -2914,17 +2914,17 @@ TEST_CASE("CommandBuffer") {
 		ecs::World w;
 		ecs::CommandBuffer cb(w);
 
-		auto tmp = cb.CreateEntity();
+		auto tmp = cb.Add();
 		REQUIRE_FALSE(w.GetEntityCount());
 
-		cb.AddComponent<Position>(tmp);
-		cb.SetComponent<Position>(tmp, {1, 2, 3});
+		cb.Add<Position>(tmp);
+		cb.Set<Position>(tmp, {1, 2, 3});
 		cb.Commit();
 
-		auto e = w.GetEntity(0);
-		REQUIRE(w.HasComponent<Position>(e));
+		auto e = w.Get(0);
+		REQUIRE(w.Has<Position>(e));
 
-		auto p = w.GetComponent<Position>(e);
+		auto p = w.Get<Position>(e);
 		REQUIRE(p.x == 1);
 		REQUIRE(p.y == 2);
 		REQUIRE(p.z == 3);
@@ -2934,25 +2934,25 @@ TEST_CASE("CommandBuffer") {
 		ecs::World w;
 		ecs::CommandBuffer cb(w);
 
-		auto tmp = cb.CreateEntity();
+		auto tmp = cb.Add();
 		REQUIRE_FALSE(w.GetEntityCount());
 
-		cb.AddComponent<Position>(tmp);
-		cb.AddComponent<Acceleration>(tmp);
-		cb.SetComponent<Position>(tmp, {1, 2, 3});
-		cb.SetComponent<Acceleration>(tmp, {4, 5, 6});
+		cb.Add<Position>(tmp);
+		cb.Add<Acceleration>(tmp);
+		cb.Set<Position>(tmp, {1, 2, 3});
+		cb.Set<Acceleration>(tmp, {4, 5, 6});
 		cb.Commit();
 
-		auto e = w.GetEntity(0);
-		REQUIRE(w.HasComponent<Position>(e));
-		REQUIRE(w.HasComponent<Acceleration>(e));
+		auto e = w.Get(0);
+		REQUIRE(w.Has<Position>(e));
+		REQUIRE(w.Has<Acceleration>(e));
 
-		auto p = w.GetComponent<Position>(e);
+		auto p = w.Get<Position>(e);
 		REQUIRE(p.x == 1);
 		REQUIRE(p.y == 2);
 		REQUIRE(p.z == 3);
 
-		auto a = w.GetComponent<Acceleration>(e);
+		auto a = w.Get<Acceleration>(e);
 		REQUIRE(a.x == 4);
 		REQUIRE(a.y == 5);
 		REQUIRE(a.z == 6);
@@ -2962,16 +2962,16 @@ TEST_CASE("CommandBuffer") {
 		ecs::World w;
 		ecs::CommandBuffer cb(w);
 
-		auto tmp = cb.CreateEntity();
+		auto tmp = cb.Add();
 		REQUIRE_FALSE(w.GetEntityCount());
 
-		cb.AddComponent<Position>(tmp, {1, 2, 3});
+		cb.Add<Position>(tmp, {1, 2, 3});
 		cb.Commit();
 
-		auto e = w.GetEntity(0);
-		REQUIRE(w.HasComponent<Position>(e));
+		auto e = w.Get(0);
+		REQUIRE(w.Has<Position>(e));
 
-		auto p = w.GetComponent<Position>(e);
+		auto p = w.Get<Position>(e);
 		REQUIRE(p.x == 1);
 		REQUIRE(p.y == 2);
 		REQUIRE(p.z == 3);
@@ -2981,23 +2981,23 @@ TEST_CASE("CommandBuffer") {
 		ecs::World w;
 		ecs::CommandBuffer cb(w);
 
-		auto tmp = cb.CreateEntity();
+		auto tmp = cb.Add();
 		REQUIRE_FALSE(w.GetEntityCount());
 
-		cb.AddComponent<Position>(tmp, {1, 2, 3});
-		cb.AddComponent<Acceleration>(tmp, {4, 5, 6});
+		cb.Add<Position>(tmp, {1, 2, 3});
+		cb.Add<Acceleration>(tmp, {4, 5, 6});
 		cb.Commit();
 
-		auto e = w.GetEntity(0);
-		REQUIRE(w.HasComponent<Position>(e));
-		REQUIRE(w.HasComponent<Acceleration>(e));
+		auto e = w.Get(0);
+		REQUIRE(w.Has<Position>(e));
+		REQUIRE(w.Has<Acceleration>(e));
 
-		auto p = w.GetComponent<Position>(e);
+		auto p = w.Get<Position>(e);
 		REQUIRE(p.x == 1);
 		REQUIRE(p.y == 2);
 		REQUIRE(p.z == 3);
 
-		auto a = w.GetComponent<Acceleration>(e);
+		auto a = w.Get<Acceleration>(e);
 		REQUIRE(a.x == 4);
 		REQUIRE(a.y == 5);
 		REQUIRE(a.z == 6);
@@ -3007,70 +3007,70 @@ TEST_CASE("CommandBuffer") {
 		ecs::World w;
 		ecs::CommandBuffer cb(w);
 
-		auto e = w.CreateEntity();
-		w.AddComponent<Position>(e, {1, 2, 3});
+		auto e = w.Add();
+		w.Add<Position>(e, {1, 2, 3});
 
-		cb.RemoveComponent<Position>(e);
-		REQUIRE(w.HasComponent<Position>(e));
+		cb.Del<Position>(e);
+		REQUIRE(w.Has<Position>(e));
 		{
-			auto p = w.GetComponent<Position>(e);
+			auto p = w.Get<Position>(e);
 			REQUIRE(p.x == 1);
 			REQUIRE(p.y == 2);
 			REQUIRE(p.z == 3);
 		}
 
 		cb.Commit();
-		REQUIRE_FALSE(w.HasComponent<Position>(e));
+		REQUIRE_FALSE(w.Has<Position>(e));
 	}
 
 	SECTION("Delayed 2 component removal from an existing entity") {
 		ecs::World w;
 		ecs::CommandBuffer cb(w);
 
-		auto e = w.CreateEntity();
-		w.AddComponent<Position>(e, {1, 2, 3});
-		w.AddComponent<Acceleration>(e, {4, 5, 6});
+		auto e = w.Add();
+		w.Add<Position>(e, {1, 2, 3});
+		w.Add<Acceleration>(e, {4, 5, 6});
 
-		cb.RemoveComponent<Position>(e);
-		cb.RemoveComponent<Acceleration>(e);
-		REQUIRE(w.HasComponent<Position>(e));
-		REQUIRE(w.HasComponent<Acceleration>(e));
+		cb.Del<Position>(e);
+		cb.Del<Acceleration>(e);
+		REQUIRE(w.Has<Position>(e));
+		REQUIRE(w.Has<Acceleration>(e));
 		{
-			auto p = w.GetComponent<Position>(e);
+			auto p = w.Get<Position>(e);
 			REQUIRE(p.x == 1);
 			REQUIRE(p.y == 2);
 			REQUIRE(p.z == 3);
 
-			auto a = w.GetComponent<Acceleration>(e);
+			auto a = w.Get<Acceleration>(e);
 			REQUIRE(a.x == 4);
 			REQUIRE(a.y == 5);
 			REQUIRE(a.z == 6);
 		}
 
 		cb.Commit();
-		REQUIRE_FALSE(w.HasComponent<Position>(e));
-		REQUIRE_FALSE(w.HasComponent<Acceleration>(e));
+		REQUIRE_FALSE(w.Has<Position>(e));
+		REQUIRE_FALSE(w.Has<Acceleration>(e));
 	}
 
 	SECTION("Delayed non-trivial component setting of an existing entity") {
 		ecs::World w;
 		ecs::CommandBuffer cb(w);
 
-		auto e = w.CreateEntity();
+		auto e = w.Add();
 
-		cb.AddComponent<StringComponent>(e);
-		cb.SetComponent<StringComponent>(e, {StringComponentDefaultValue});
-		cb.AddComponent<StringComponent2>(e);
-		REQUIRE_FALSE(w.HasComponent<StringComponent>(e));
-		REQUIRE_FALSE(w.HasComponent<StringComponent2>(e));
+		cb.Add<StringComponent>(e);
+		cb.Set<StringComponent>(e, {StringComponentDefaultValue});
+		cb.Add<StringComponent2>(e);
+		REQUIRE_FALSE(w.Has<StringComponent>(e));
+		REQUIRE_FALSE(w.Has<StringComponent2>(e));
 
 		cb.Commit();
-		REQUIRE(w.HasComponent<StringComponent>(e));
-		REQUIRE(w.HasComponent<StringComponent2>(e));
+		REQUIRE(w.Has<StringComponent>(e));
+		REQUIRE(w.Has<StringComponent2>(e));
 
-		auto s1 = w.GetComponent<StringComponent>(e);
+		auto s1 = w.Get<StringComponent>(e);
 		REQUIRE(s1.value == StringComponentDefaultValue);
-		auto s2 = w.GetComponent<StringComponent2>(e);
+		auto s2 = w.Get<StringComponent2>(e);
 		REQUIRE(s2.value == StringComponent2DefaultValue);
 	}
 }
@@ -3079,8 +3079,8 @@ TEST_CASE("Query Filter - no systems") {
 	ecs::World w;
 	ecs::Query q = w.CreateQuery().All<const Position>().WithChanged<Position>();
 
-	auto e = w.CreateEntity();
-	w.AddComponent<Position>(e);
+	auto e = w.Add();
+	w.Add<Position>(e);
 
 	// System-less filters
 	{
@@ -3097,7 +3097,7 @@ TEST_CASE("Query Filter - no systems") {
 		});
 		REQUIRE(cnt == 0); // no change of position so this shouldn't run
 	}
-	{ w.SetComponent<Position>(e, {}); }
+	{ w.Set<Position>(e, {}); }
 	{
 		uint32_t cnt = 0;
 		q.ForEach([&]([[maybe_unused]] const Position& a) {
@@ -3112,7 +3112,7 @@ TEST_CASE("Query Filter - no systems") {
 		});
 		REQUIRE(cnt == 0);
 	}
-	{ w.SetComponentSilent<Position>(e, {}); }
+	{ w.SetSilent<Position>(e, {}); }
 	{
 		uint32_t cnt = 0;
 		q.ForEach([&]([[maybe_unused]] const Position& a) {
@@ -3137,8 +3137,8 @@ TEST_CASE("Query Filter - no systems") {
 TEST_CASE("Query Filter - systems") {
 	ecs::World w;
 
-	auto e = w.CreateEntity();
-	w.AddComponent<Position>(e);
+	auto e = w.Add();
+	w.Add<Position>(e);
 
 	class WriterSystem final: public ecs::System {
 	public:
@@ -3213,8 +3213,8 @@ void TestDataLayoutSoA_ECS() {
 	ecs::World w;
 
 	auto create = [&]() {
-		auto e = w.CreateEntity();
-		w.AddComponent<T>(e, {});
+		auto e = w.Add();
+		w.Add<T>(e, {});
 	};
 
 	const uint32_t N = 10'000;

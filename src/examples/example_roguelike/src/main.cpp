@@ -202,7 +202,7 @@ public:
 			SetEdgeCost(index, cost);
 		}
 
-		uint32_t GetId() const {
+		uint32_t GetComponentId() const {
 			return id;
 		}
 		bool HasNeighbor(uint32_t index) const {
@@ -235,8 +235,8 @@ public:
 
 	// Define a function to estimate the cost from a node to the end node (using Euclidean distance)
 	float HeuristicCostEstimate(const Node& current, const Node& goal) const {
-		const uint32_t cid = current.GetId();
-		const uint32_t gid = goal.GetId();
+		const uint32_t cid = current.GetComponentId();
+		const uint32_t gid = goal.GetComponentId();
 		const uint32_t dx = NodeIdToX(cid) - NodeIdToX(gid);
 		const uint32_t dy = NodeIdToY(cid) - NodeIdToY(gid);
 		const uint32_t dxx = dx * dx;
@@ -426,66 +426,66 @@ struct World {
 	}
 
 	void CreatePlayer() {
-		auto player = w.CreateEntity();
-		w.AddComponent<Position>(player, {5, 10});
-		w.AddComponent<Velocity>(player, {0, 0});
-		w.AddComponent<RigidBody>(player);
-		w.AddComponent<Orientation>(player, {1, 0});
-		w.AddComponent<Sprite>(player, {TILE_PLAYER});
-		w.AddComponent<Health>(player, {100, 100});
-		w.AddComponent<BattleStats>(player, {9, 5});
-		w.AddComponent<Player>(player);
+		auto player = w.Add();
+		w.Add<Position>(player, {5, 10});
+		w.Add<Velocity>(player, {0, 0});
+		w.Add<RigidBody>(player);
+		w.Add<Orientation>(player, {1, 0});
+		w.Add<Sprite>(player, {TILE_PLAYER});
+		w.Add<Health>(player, {100, 100});
+		w.Add<BattleStats>(player, {9, 5});
+		w.Add<Player>(player);
 	}
 
 	void CreateEnemies() {
 		containers::sarray<ecs::Entity, 3> enemies;
 		for (uint32_t i = 0; i < enemies.size(); ++i) {
 			auto& e = enemies[i];
-			e = w.CreateEntity();
-			w.AddComponent<Position>(e, {});
-			w.AddComponent<Velocity>(e, {0, 0});
-			w.AddComponent<RigidBody>(e);
+			e = w.Add();
+			w.Add<Position>(e, {});
+			w.Add<Velocity>(e, {0, 0});
+			w.Add<RigidBody>(e);
 			const bool isOrc = i % 2;
 			if (isOrc) {
-				w.AddComponent<Sprite>(e, {TILE_ENEMY_ORC});
-				w.AddComponent<Health>(e, {60, 60});
-				w.AddComponent<BattleStats>(e, {12, 7});
+				w.Add<Sprite>(e, {TILE_ENEMY_ORC});
+				w.Add<Health>(e, {60, 60});
+				w.Add<BattleStats>(e, {12, 7});
 			} else {
-				w.AddComponent<Sprite>(e, {TILE_ENEMY_GOBLIN});
-				w.AddComponent<Health>(e, {40, 40});
-				w.AddComponent<BattleStats>(e, {10, 5});
+				w.Add<Sprite>(e, {TILE_ENEMY_GOBLIN});
+				w.Add<Health>(e, {40, 40});
+				w.Add<BattleStats>(e, {10, 5});
 			}
 		}
-		w.SetComponent<Position>(enemies[0], {8, 8});
-		w.SetComponent<Position>(enemies[1], {10, 10});
-		w.SetComponent<Position>(enemies[2], {12, 12});
+		w.Set<Position>(enemies[0], {8, 8});
+		w.Set<Position>(enemies[1], {10, 10});
+		w.Set<Position>(enemies[2], {12, 12});
 	}
 
 	void CreateItems() {
-		auto potion = w.CreateEntity();
-		w.AddComponent<Position>(potion, {5, 5});
-		w.AddComponent<Sprite>(potion, {TILE_POTION});
-		w.AddComponent<RigidBody>(potion);
-		w.AddComponent<Item>(potion, {ItemType::Potion});
-		w.AddComponent<BattleStats>(potion, {10, 0});
+		auto potion = w.Add();
+		w.Add<Position>(potion, {5, 5});
+		w.Add<Sprite>(potion, {TILE_POTION});
+		w.Add<RigidBody>(potion);
+		w.Add<Item>(potion, {ItemType::Potion});
+		w.Add<BattleStats>(potion, {10, 0});
 
-		auto poison = w.CreateEntity();
-		w.AddComponent<Position>(poison, {15, 10});
-		w.AddComponent<Sprite>(poison, {TILE_POISON});
-		w.AddComponent<RigidBody>(poison);
-		w.AddComponent<Item>(poison, {ItemType::Poison});
-		w.AddComponent<BattleStats>(poison, {-10, 0});
+		auto poison = w.Add();
+		w.Add<Position>(poison, {15, 10});
+		w.Add<Sprite>(poison, {TILE_POISON});
+		w.Add<RigidBody>(poison);
+		w.Add<Item>(poison, {ItemType::Poison});
+		w.Add<BattleStats>(poison, {-10, 0});
 	}
 
 	void CreateArrow(Position p, Velocity v) {
-		auto e = w.CreateEntity();
-		w.AddComponent<Position>(e, std::move(p));
-		w.AddComponent<Velocity>(e, std::move(v));
-		w.AddComponent<RigidBody>(e);
-		w.AddComponent<Sprite>(e, {TILE_ARROW});
-		w.AddComponent<Item>(e, {ItemType::Arrow});
-		w.AddComponent<BattleStats>(e, {10, 0});
-		w.AddComponent<Health>(e, {1, 1});
+		auto e = w.Add();
+		w.Add<Position>(e, std::move(p));
+		w.Add<Velocity>(e, std::move(v));
+		w.Add<RigidBody>(e);
+		w.Add<Sprite>(e, {TILE_ARROW});
+		w.Add<Item>(e, {ItemType::Arrow});
+		w.Add<BattleStats>(e, {10, 0});
+		w.Add<Health>(e, {1, 1});
 	}
 };
 World g_world(g_ecs);
@@ -583,8 +583,8 @@ public:
 					bool hadCollision = false;
 					for (auto e2: it->second) {
 						// If the content has non-zero velocity we need to determine if we'd hit it
-						if (GetWorld().HasComponent<Velocity>(e2)) {
-							auto v2 = GetWorld().GetComponent<Velocity>(e2);
+						if (GetWorld().Has<Velocity>(e2)) {
+							auto v2 = GetWorld().Get<Velocity>(e2);
 							if (v2.x != 0 && v2.y != 0) {
 								const int vv2[2] = {v2.x, v2.y};
 
@@ -687,9 +687,9 @@ public:
 			auto* pChunk2 = GetWorld().GetChunk(coll.e2, idx2);
 
 			// Skip non-damagable things
-			if (!pChunk2->HasComponent<Health>())
+			if (!pChunk2->Has<Health>())
 				continue;
-			if (!pChunk1->HasComponent<BattleStats>() || !pChunk2->HasComponent<BattleStats>())
+			if (!pChunk1->Has<BattleStats>() || !pChunk2->Has<BattleStats>())
 				continue;
 
 			// Verify if damage can be applied (e.g. power > armor)
@@ -729,10 +729,10 @@ public:
 				GAIA_ASSERT(pChunk1 != nullptr);
 
 				// An arrow colliding with something. Bring its health to 0 (destroyed).
-				// We could have simpy called GetWorld().DeleteEntity(coll.e1) but doing it
+				// We could have simpy called GetWorld().Del(coll.e1) but doing it
 				// this way allows our more control. Who knows what kinds of effect and
 				// post-processing we might have in mind for the arrow later in the frame.
-				if (pChunk1->HasComponent<Item>() && pChunk1->HasComponent<Health>()) {
+				if (pChunk1->Has<Item>() && pChunk1->Has<Health>()) {
 					auto item1 = pChunk1->View<Item>();
 					if (item1[idx1].type == ItemType::Arrow) {
 						auto health1 = pChunk1->ViewRW<Health>();
@@ -751,7 +751,7 @@ public:
 				// TODO: Add ability to get a list of components based on query
 
 				// E.g. a player colliding with an item
-				if (pChunk1->HasComponent<Health>() && pChunk2->HasComponent<Item>() && pChunk2->HasComponent<BattleStats>()) {
+				if (pChunk1->Has<Health>() && pChunk2->Has<Item>() && pChunk2->Has<BattleStats>()) {
 					auto health1 = pChunk1->ViewRW<Health>();
 					auto stats2 = pChunk2->View<BattleStats>();
 
@@ -760,7 +760,7 @@ public:
 				}
 
 				// An arrow colliding with something. Bring its health to 0 (destroyed).
-				if (pChunk1->HasComponent<Item>() && pChunk1->HasComponent<Health>()) {
+				if (pChunk1->Has<Item>() && pChunk1->Has<Health>()) {
 					auto item1 = pChunk1->View<Item>();
 					if (item1[idx1].type == ItemType::Arrow) {
 						auto health1 = pChunk1->ViewRW<Health>();
@@ -806,7 +806,7 @@ public:
 				return;
 
 			g_world.map[p.y][p.x] = TILE_FREE;
-			g_smSimulation.AfterUpdateCmdBufer().DeleteEntity(e);
+			g_smSimulation.AfterUpdateCmdBufer().Del(e);
 		});
 	}
 };

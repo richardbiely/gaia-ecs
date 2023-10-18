@@ -112,9 +112,9 @@ In the code examples below we will assume we are inside the namespace already.
 
 ```cpp
 ecs::World w;
-auto e = w.CreateEntity();
+auto e = w.Add();
 ... // do something with the created entity
-w.DeleteEntity(e);
+w.Del(e);
 ```
 
 ### Add or remove component
@@ -130,41 +130,41 @@ struct Velocity {
 ecs::World w;
 
 // Create an entity with Position and Velocity.
-auto e = w.CreateEntity();
-w.AddComponent<Position>(e, {0, 100, 0});
-w.AddComponent<Velocity>(e, {0, 0, 1});
+auto e = w.Add();
+w.Add<Position>(e, {0, 100, 0});
+w.Add<Velocity>(e, {0, 0, 1});
 
 // Remove Velocity from the entity.
-w.RemoveComponent<Velocity>(e);
+w.Del<Velocity>(e);
 ```
 
 ### Set or get component value
 
 ```cpp
 // Change Velocity's value.
-w.SetComponent<Velocity>(e, {0, 0, 2});
+w.Set<Velocity>(e, {0, 0, 2});
 // Same as above but the world version is not updated so nobody gets notified of this change.
-w.SetComponentSilent<Velocity>(e, {4, 2, 0});
+w.SetSilent<Velocity>(e, {4, 2, 0});
 ```
 
-In case there are more different components on the entity you would like to change the value you can achieve it via SetComponent chaining:
+In case there are more different components on the entity you would like to change the value you can achieve it via Set chaining:
 
 ```cpp
 // Change Velocity's value on entity "e"
-w.SetComponent<Velocity>(e, {0, 0, 2}).
+w.Set<Velocity>(e, {0, 0, 2}).
 // Change Position's value on entity "e"
-  SetComponent<Position>({0, 100, 0}).
+  Set<Position>({0, 100, 0}).
 // Change...
-  SetComponent...;
+  Set...;
 ```
 
 Components are returned by value for components with sizes up to 8 bytes (including). Bigger components are returned by const reference.
 
 ```cpp
 // Read Velocity's value. As shown above Velocity is 12 bytes in size. Therefore, it is returned by const reference.
-const auto& velRef = w.GetComponent<Velocity>(e);
+const auto& velRef = w.Get<Velocity>(e);
 // However, it is easy to store a copy.
-auto velCopy = w.GetComponent<Velocity>(e);
+auto velCopy = w.Get<Velocity>(e);
 ```
 
 Both read and write operations are also accessible via views. Check [simple iteration](#simple-iteration) and [query iteration](#query-iteration) sections to see how.
@@ -174,14 +174,14 @@ Whether or not a certain component is associated with an entity can be checked i
 
 ```cpp
 // Check if entity e has Velocity (via world).
-const bool hasVelocity = w.HasComponent<Velocity>(e);
+const bool hasVelocity = w.Has<Velocity>(e);
 ...
 
 // Check if entities hidden behind the iterator have Velocity (via iterator).
 ecs::Query q = w.CreateQuery().Any<Position, Velocity>(); 
 q.ForEach([&](ecs::Iterator iter) {
-  const bool hasPosition = iter.HasComponent<Position>();
-  const bool hasVelocity = iter.HasComponent<Velocity>();
+  const bool hasPosition = iter.Has<Position>();
+  const bool hasVelocity = iter.Has<Velocity>();
   ...
 });
 ```
@@ -282,7 +282,7 @@ q.ForEach([](ecs::Iterator iter) {
 
   // Iterate over all enabled entities and update their add 1.f to their x-axis position
   for (auto i: iter) {
-    if (!iter.IsEntityEnabled(i))
+    if (!iter.IsEnabled(i))
       continue;
     p[i].x += 1.f;
   }
@@ -306,16 +306,16 @@ Changing the enabled state of an entity is a special operation that marks the en
 ecs::Entity e1, e2;
 
 // Create 2 entities with Position component
-w.CreateEntity(e1);
-w.CreateEntity(e2);
-w.AddComponent<Position>(e1);
-w.AddComponent<Position>(e2);
+w.Add(e1);
+w.Add(e2);
+w.Add<Position>(e1);
+w.Add<Position>(e2);
 
 // Disable the first entity
-w.EnableEntity(e1, false);
+w.Enable(e1, false);
 
 // Check if e1 is enabled
-const bool is_e1_enabled = w.IsEntityEnabled(e1);
+const bool is_e1_enabled = w.IsEnabled(e1);
 if (is_e1_enabled) { ... }
 
 // Prepare out query
@@ -335,7 +335,7 @@ q.ForEach([](ecs::Iterator iter) {
   auto p = iter.ViewRW<Position>(); // Read-Write access to Position
   // Iterates over all entities
   for (auto i: iter) {
-    if (iter.IsEntityEnabled(i)) {
+    if (iter.IsEnabled(i)) {
       p[i] = {}; // reset the position of each enabled entity
     }
   }
@@ -366,14 +366,14 @@ struct Disabled {};
 
 ...
 
-e.AddComponent<Disabled>(); // disabled entity
+e.Add<Disabled>(); // disable entity
 
 ecs::Query q = w.CreateQuery().All<Position, Disabled>; 
 q.ForEach([&](ecs::Iterator iter){
   // Processes all disabled entities
 });
 
-e.RemoveComponent<Disabled>(); // enable entity
+e.Del<Disabled>(); // enable entity
 ```
 
 ### Change detection
@@ -404,9 +404,9 @@ For instance, imagine you have a grid with fields of 100 meters squared.
 Now if you create your entities carefully they get organized in grid fields implicitly on the data level already without you having to use any sort of spatial map container.
 
 ```cpp
-w.AddComponent<Position>(e1, {10,1});
-w.AddComponent<Position>(e2, {19,1});
-w.AddComponent<ecs::AsChunk<GridPosition>>(e1, {1, 0}); // Both e1 and e2 share a common grid position of {1,0} now
+w.Add<Position>(e1, {10,1});
+w.Add<Position>(e2, {19,1});
+w.Add<ecs::AsChunk<GridPosition>>(e1, {1, 0}); // Both e1 and e2 share a common grid position of {1,0} now
 ```
 
 ## Delayed execution
@@ -422,7 +422,7 @@ Performing an unprotected structural change is undefined behavior and most likel
 ecs::CommandBuffer cb;
 q.ForEach([&](Entity e, const Position& p) {
   if (p.y < 0.0f)
-    cb.DeleteEntity(e); // queue entity e for deletion if its position falls below zero
+    cb.Del(e); // queue entity e for deletion if its position falls below zero
 });
 cb.Commit(&w); // after calling this all entities with y position bellow zero get deleted
 ```

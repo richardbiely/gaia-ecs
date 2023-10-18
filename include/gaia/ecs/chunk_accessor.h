@@ -28,13 +28,13 @@ namespace gaia {
 				//! \tparam T Component
 				//! \return True if the component is present. False otherwise.
 				template <typename T>
-				GAIA_NODISCARD bool HasComponent() const {
-					return m_chunk.HasComponent<T>();
+				GAIA_NODISCARD bool Has() const {
+					return m_chunk.Has<T>();
 				}
 
 				//! Checks if the entity at the current iterator index is enabled.
 				//! \return True it the entity is enabled. False otherwise.
-				GAIA_NODISCARD bool IsEntityEnabled(uint32_t entityIdx) const {
+				GAIA_NODISCARD bool IsEnabled(uint32_t entityIdx) const {
 					return !m_chunk.GetDisabledEntityMask().test(entityIdx);
 				}
 

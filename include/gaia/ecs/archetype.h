@@ -684,7 +684,7 @@ namespace gaia {
 				\return True if the component is present. False otherwise.
 				*/
 				template <typename T>
-				GAIA_NODISCARD bool HasComponent() const {
+				GAIA_NODISCARD bool Has() const {
 					return HasComponent_Internal<T>();
 				}
 
