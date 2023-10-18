@@ -30,17 +30,17 @@ namespace gaia {
 				static constexpr uint16_t MAX_CHUNK_LIFESPAN = (1 << CHUNK_LIFESPAN_BITS) - 1;
 
 				//! Maxiumum number of entities per chunk
-				static constexpr uint16_t MAX_CHUNK_ENTITES = 512;
-				static constexpr uint16_t MAX_CHUNK_ENTITES_BITS = (uint16_t)utils::count_bits(MAX_CHUNK_ENTITES);
-				using DisabledEntityMask = containers::bitset<MAX_CHUNK_ENTITES>;
+				static constexpr uint16_t MAX_CHUNK_ENTITIES = 512;
+				static constexpr uint16_t MAX_CHUNK_ENTITIES_BITS = (uint16_t)utils::count_bits(MAX_CHUNK_ENTITIES);
+				using DisabledEntityMask = containers::bitset<MAX_CHUNK_ENTITIES>;
 
 				//! Archetype the chunk belongs to
 				ArchetypeId archetypeId;
 
 				//! Number of items enabled in the chunk.
-				uint32_t count: MAX_CHUNK_ENTITES_BITS;
+				uint32_t count: MAX_CHUNK_ENTITIES_BITS;
 				//! Capacity (copied from the owner archetype).
-				uint32_t capacity: MAX_CHUNK_ENTITES_BITS;
+				uint32_t capacity: MAX_CHUNK_ENTITIES_BITS;
 				//! Once removal is requested and it hits 0 the chunk is removed.
 				uint32_t lifespanCountdown: CHUNK_LIFESPAN_BITS;
 				//! If true this chunk stores disabled entities
