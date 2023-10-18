@@ -14591,17 +14591,17 @@ namespace gaia {
 				static constexpr uint16_t MAX_CHUNK_LIFESPAN = (1 << CHUNK_LIFESPAN_BITS) - 1;
 
 				//! Maxiumum number of entities per chunk
-				static constexpr uint16_t MAX_CHUNK_ENTITES = 512;
-				static constexpr uint16_t MAX_CHUNK_ENTITES_BITS = (uint16_t)utils::count_bits(MAX_CHUNK_ENTITES);
-				using DisabledEntityMask = containers::bitset<MAX_CHUNK_ENTITES>;
+				static constexpr uint16_t MAX_CHUNK_ENTITIES = 512;
+				static constexpr uint16_t MAX_CHUNK_ENTITIES_BITS = (uint16_t)utils::count_bits(MAX_CHUNK_ENTITIES);
+				using DisabledEntityMask = containers::bitset<MAX_CHUNK_ENTITIES>;
 
 				//! Archetype the chunk belongs to
 				ArchetypeId archetypeId;
 
 				//! Number of items enabled in the chunk.
-				uint32_t count: MAX_CHUNK_ENTITES_BITS;
+				uint32_t count: MAX_CHUNK_ENTITIES_BITS;
 				//! Capacity (copied from the owner archetype).
-				uint32_t capacity: MAX_CHUNK_ENTITES_BITS;
+				uint32_t capacity: MAX_CHUNK_ENTITIES_BITS;
 				//! Once removal is requested and it hits 0 the chunk is removed.
 				uint32_t lifespanCountdown: CHUNK_LIFESPAN_BITS;
 				//! If true this chunk stores disabled entities
@@ -15993,7 +15993,7 @@ namespace gaia {
 			private:
 				struct {
 					//! The number of entities this archetype can take (e.g 5 = 5 entities with all their components)
-					uint32_t capacity: ChunkHeader::MAX_CHUNK_ENTITES_BITS;
+					uint32_t capacity: ChunkHeader::MAX_CHUNK_ENTITIES_BITS;
 					//! How many bytes of data is needed for a fully utilized chunk
 					uint32_t chunkDataBytes : 16;
 				} m_properties{};
@@ -16356,9 +16356,8 @@ namespace gaia {
 						goto recalculate;
 
 					// TODO: Make it possible for chunks to be not restricted by ChunkHeader::DisabledEntityMask::BitCount.
-					// TODO: Consider having chunks of different sizes as this would minimize the memory footprint.
-					if (maxGenericItemsInArchetype > ChunkHeader::MAX_CHUNK_ENTITES) {
-						maxGenericItemsInArchetype = ChunkHeader::MAX_CHUNK_ENTITES;
+					if (maxGenericItemsInArchetype > ChunkHeader::MAX_CHUNK_ENTITIES) {
+						maxGenericItemsInArchetype = ChunkHeader::MAX_CHUNK_ENTITIES;
 						goto recalculate;
 					}
 

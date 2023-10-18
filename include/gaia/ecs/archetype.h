@@ -81,7 +81,7 @@ namespace gaia {
 			private:
 				struct {
 					//! The number of entities this archetype can take (e.g 5 = 5 entities with all their components)
-					uint32_t capacity: ChunkHeader::MAX_CHUNK_ENTITES_BITS;
+					uint32_t capacity: ChunkHeader::MAX_CHUNK_ENTITIES_BITS;
 					//! How many bytes of data is needed for a fully utilized chunk
 					uint32_t chunkDataBytes : 16;
 				} m_properties{};
@@ -444,9 +444,8 @@ namespace gaia {
 						goto recalculate;
 
 					// TODO: Make it possible for chunks to be not restricted by ChunkHeader::DisabledEntityMask::BitCount.
-					// TODO: Consider having chunks of different sizes as this would minimize the memory footprint.
-					if (maxGenericItemsInArchetype > ChunkHeader::MAX_CHUNK_ENTITES) {
-						maxGenericItemsInArchetype = ChunkHeader::MAX_CHUNK_ENTITES;
+					if (maxGenericItemsInArchetype > ChunkHeader::MAX_CHUNK_ENTITIES) {
+						maxGenericItemsInArchetype = ChunkHeader::MAX_CHUNK_ENTITIES;
 						goto recalculate;
 					}
 
