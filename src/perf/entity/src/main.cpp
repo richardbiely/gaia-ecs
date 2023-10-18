@@ -8,7 +8,7 @@ constexpr uint32_t NEntities = 1'000;
 
 void AddEntities(ecs::World& w, uint32_t n) {
 	for (uint32_t i = 0; i < n; ++i) {
-		[[maybe_unused]] auto e = w.CreateEntity();
+		[[maybe_unused]] auto e = w.Add();
 		gaia::dont_optimize(e);
 	}
 }
@@ -38,18 +38,18 @@ struct Component<Version, T, 0> {}; // empty component
 
 namespace detail {
 	template <typename T, uint32_t ValuesCount, uint32_t ComponentCount>
-	constexpr void AddComponents(ecs::World& w, ecs::Entity e) {
+	constexpr void Adds(ecs::World& w, ecs::Entity e) {
 		utils::for_each<ComponentCount>([&](auto i) {
-			w.AddComponent<Component<i, T, ValuesCount>>(e);
+			w.Add<Component<i, T, ValuesCount>>(e);
 		});
 	}
 } // namespace detail
 
 template <typename T, uint32_t ValuesCount, uint32_t ComponentCount>
-constexpr void AddComponents(ecs::World& w, uint32_t n) {
+constexpr void Adds(ecs::World& w, uint32_t n) {
 	for (uint32_t i = 0; i < n; ++i) {
-		[[maybe_unused]] auto e = w.CreateEntity();
-		detail::AddComponents<T, ValuesCount, ComponentCount>(w, e);
+		[[maybe_unused]] auto e = w.Add();
+		detail::Adds<T, ValuesCount, ComponentCount>(w, e);
 	}
 }
 
@@ -62,10 +62,10 @@ void BM_CreateEntity_With_Component(picobench::state& state) {
 		// Simulate the hot path. This happens when the component was
 		// added at least once and thus the graph edges are already created.
 		state.stop_timer();
-		AddComponents<float, 0, Iterations>(w, 1);
+		Adds<float, 0, Iterations>(w, 1);
 		state.start_timer();
 
-		AddComponents<float, 0, Iterations>(w, NEntities);
+		Adds<float, 0, Iterations>(w, NEntities);
 	}
 }
 

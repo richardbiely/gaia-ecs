@@ -441,7 +441,7 @@ namespace gaia {
 			//! \param entity Entity
 			//! \return Reference to the archetype.
 			GAIA_NODISCARD archetype::Archetype& GetArchetype(Entity entity) const {
-				GAIA_ASSERT(IsEntityValid(entity));
+				GAIA_ASSERT(IsValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
 				auto* pChunk = entityContainer.pChunk;
@@ -593,9 +593,9 @@ namespace gaia {
 				return entityContainer;
 			}
 
-			ComponentSetter RemoveComponent_Internal(
+			ComponentSetter DelComponent_Internal(
 					component::ComponentType componentType, Entity entity, const component::ComponentInfo& infoToRemove) {
-				GAIA_PROF_SCOPE(RemoveComponent);
+				GAIA_PROF_SCOPE(Del);
 
 				auto& entityContainer = m_entities[entity.id()];
 				auto* pChunk = entityContainer.pChunk;
@@ -644,7 +644,7 @@ namespace gaia {
 
 			//! Creates a new entity from archetype
 			//! \return Entity
-			GAIA_NODISCARD Entity CreateEntity(archetype::Archetype& archetype) {
+			GAIA_NODISCARD Entity Add(archetype::Archetype& archetype) {
 				const auto entity = m_entities.allocate();
 
 				const auto& entityContainer = m_entities[entity.id()];
@@ -710,7 +710,7 @@ namespace gaia {
 
 			//! Checks if \param entity is valid.
 			//! \return True is the entity is valid. False otherwise.
-			GAIA_NODISCARD bool IsEntityValid(Entity entity) const {
+			GAIA_NODISCARD bool IsValid(Entity entity) const {
 				// Entity ID has to fit inside the entity array
 				if (entity.id() >= m_entities.size())
 					return false;
@@ -728,7 +728,7 @@ namespace gaia {
 
 			//! Checks if \param entity is currently used by the world.
 			//! \return True is the entity is used. False otherwise.
-			GAIA_NODISCARD bool IsEntityUsed(Entity entity) const {
+			GAIA_NODISCARD bool Has(Entity entity) const {
 				// Entity ID has to fit inside the entity array
 				if (entity.id() >= m_entities.size())
 					return false;
@@ -768,7 +768,7 @@ namespace gaia {
 
 			//! Creates a new empty entity
 			//! \return New entity
-			GAIA_NODISCARD Entity CreateEntity() {
+			GAIA_NODISCARD Entity Add() {
 				const auto entity = m_entities.allocate();
 				auto* pChunk = m_archetypes[0]->FindOrCreateFreeChunk();
 				StoreEntity(entity, pChunk);
@@ -778,14 +778,14 @@ namespace gaia {
 			//! Creates a new entity by cloning an already existing one.
 			//! \param entity Entity to clone
 			//! \return New entity
-			GAIA_NODISCARD Entity CreateEntity(Entity entity) {
+			GAIA_NODISCARD Entity Add(Entity entity) {
 				auto& entityContainer = m_entities[entity.id()];
 
 				auto* pChunk = entityContainer.pChunk;
 				GAIA_ASSERT(pChunk != nullptr);
 
 				auto& archetype = *m_archetypes[pChunk->GetArchetypeId()];
-				const auto newEntity = CreateEntity(archetype);
+				const auto newEntity = Add(archetype);
 
 				archetype::Chunk::CopyEntityData(entity, newEntity, {m_entities.data(), m_entities.size()});
 
@@ -794,11 +794,11 @@ namespace gaia {
 
 			//! Removes an entity along with all data associated with it.
 			//! \param entity Entity to delete
-			void DeleteEntity(Entity entity) {
+			void Del(Entity entity) {
 				if (m_entities.item_count() == 0 || entity == EntityNull)
 					return;
 
-				GAIA_ASSERT(IsEntityValid(entity));
+				GAIA_ASSERT(IsValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
 
@@ -816,7 +816,7 @@ namespace gaia {
 			//! \param entity Entity
 			//! \param enable Enable or disable the entity
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			void EnableEntity(Entity entity, bool enable) {
+			void Enable(Entity entity, bool enable) {
 				auto& entityContainer = m_entities[entity.id()];
 				entityContainer.dis = !enable;
 
@@ -836,7 +836,7 @@ namespace gaia {
 			//! \return True it the entity is valid. False otherwise.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			bool IsEnabled(Entity entity) const {
-				GAIA_ASSERT(IsEntityValid(entity));
+				GAIA_ASSERT(IsValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
 				return !entityContainer.dis;
@@ -850,7 +850,7 @@ namespace gaia {
 
 			//! Returns an entity at the index \param idx
 			//! \return Entity
-			GAIA_NODISCARD Entity GetEntity(uint32_t idx) const {
+			GAIA_NODISCARD Entity Get(uint32_t idx) const {
 				GAIA_ASSERT(idx < m_entities.size());
 				const auto& entityContainer = m_entities[idx];
 				return {idx, entityContainer.gen};
@@ -883,9 +883,9 @@ namespace gaia {
 			//! \warning It is expected the component is not present on \param entity yet. Undefined behavior otherwise.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename T>
-			ComponentSetter AddComponent(Entity entity) {
+			ComponentSetter Add(Entity entity) {
 				component::VerifyComponent<T>();
-				GAIA_ASSERT(IsEntityValid(entity));
+				GAIA_ASSERT(IsValid(entity));
 
 				using U = typename component::component_type_t<T>::Type;
 				const auto& info = ComponentCache::Get().GetOrCreateComponentInfo<U>();
@@ -903,21 +903,21 @@ namespace gaia {
 			//! \warning It is expected the component is not present on \param entity yet. Undefined behavior otherwise.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename T, typename U = typename component::component_type_t<T>::Type>
-			ComponentSetter AddComponent(Entity entity, U&& value) {
+			ComponentSetter Add(Entity entity, U&& value) {
 				component::VerifyComponent<T>();
-				GAIA_ASSERT(IsEntityValid(entity));
+				GAIA_ASSERT(IsValid(entity));
 
 				const auto& info = ComponentCache::Get().GetOrCreateComponentInfo<U>();
 
 				if constexpr (component::component_type_v<T> == component::ComponentType::CT_Generic) {
 					auto& entityContainer = AddComponent_Internal(component::ComponentType::CT_Generic, entity, info);
 					auto* pChunk = entityContainer.pChunk;
-					pChunk->template SetComponent<T>(entityContainer.idx, std::forward<U>(value));
+					pChunk->template Set<T>(entityContainer.idx, std::forward<U>(value));
 					return ComponentSetter{entityContainer.pChunk, entityContainer.idx};
 				} else {
 					auto& entityContainer = AddComponent_Internal(component::ComponentType::CT_Chunk, entity, info);
 					auto* pChunk = entityContainer.pChunk;
-					pChunk->template SetComponent<T>(std::forward<U>(value));
+					pChunk->template Set<T>(std::forward<U>(value));
 					return ComponentSetter{entityContainer.pChunk, entityContainer.idx};
 				}
 			}
@@ -929,15 +929,15 @@ namespace gaia {
 			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename T>
-			ComponentSetter RemoveComponent(Entity entity) {
+			ComponentSetter Del(Entity entity) {
 				component::VerifyComponent<T>();
-				GAIA_ASSERT(IsEntityValid(entity));
+				GAIA_ASSERT(IsValid(entity));
 
 				using U = typename component::component_type_t<T>::Type;
 				const auto& info = ComponentCache::Get().GetOrCreateComponentInfo<U>();
 
 				constexpr auto componentType = component::component_type_v<T>;
-				return RemoveComponent_Internal(componentType, entity, info);
+				return DelComponent_Internal(componentType, entity, info);
 			}
 
 			//----------------------------------------------------------------------
@@ -950,11 +950,11 @@ namespace gaia {
 			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename T, typename U = typename component::component_type_t<T>::Type>
-			ComponentSetter SetComponent(Entity entity, U&& value) {
-				GAIA_ASSERT(IsEntityValid(entity));
+			ComponentSetter Set(Entity entity, U&& value) {
+				GAIA_ASSERT(IsValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
-				return ComponentSetter{entityContainer.pChunk, entityContainer.idx}.SetComponent<T>(std::forward<U>(value));
+				return ComponentSetter{entityContainer.pChunk, entityContainer.idx}.Set<T>(std::forward<U>(value));
 			}
 
 			//! Sets the value of the component \tparam T on \param entity without trigger a world version update.
@@ -965,12 +965,11 @@ namespace gaia {
 			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename T, typename U = typename component::component_type_t<T>::Type>
-			ComponentSetter SetComponentSilent(Entity entity, U&& value) {
-				GAIA_ASSERT(IsEntityValid(entity));
+			ComponentSetter SetSilent(Entity entity, U&& value) {
+				GAIA_ASSERT(IsValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
-				return ComponentSetter{entityContainer.pChunk, entityContainer.idx}.SetComponentSilent<T>(
-						std::forward<U>(value));
+				return ComponentSetter{entityContainer.pChunk, entityContainer.idx}.SetSilent<T>(std::forward<U>(value));
 			}
 
 			//----------------------------------------------------------------------
@@ -982,11 +981,11 @@ namespace gaia {
 			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename T>
-			GAIA_NODISCARD auto GetComponent(Entity entity) const {
-				GAIA_ASSERT(IsEntityValid(entity));
+			GAIA_NODISCARD auto Get(Entity entity) const {
+				GAIA_ASSERT(IsValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
-				return ComponentGetter{entityContainer.pChunk, entityContainer.idx}.GetComponent<T>();
+				return ComponentGetter{entityContainer.pChunk, entityContainer.idx}.Get<T>();
 			}
 
 			//! Tells if \param entity contains the component \tparam T.
@@ -995,11 +994,11 @@ namespace gaia {
 			//! \return True if the component is present on entity.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename T>
-			GAIA_NODISCARD bool HasComponent(Entity entity) const {
-				GAIA_ASSERT(IsEntityValid(entity));
+			GAIA_NODISCARD bool Has(Entity entity) const {
+				GAIA_ASSERT(IsValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
-				return ComponentGetter{entityContainer.pChunk, entityContainer.idx}.HasComponent<T>();
+				return ComponentGetter{entityContainer.pChunk, entityContainer.idx}.Has<T>();
 			}
 
 		private:

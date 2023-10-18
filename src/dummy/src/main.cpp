@@ -55,7 +55,7 @@ public:
 				p[i].z += v[i].z * dt;
 			}
 
-			if (iter.IsEntityEnabled(0))
+			if (iter.IsEnabled(0))
 				p[0].x += 1.f;
 		});
 	}
@@ -80,7 +80,7 @@ public:
 				p[i].z += v[i].z * dt;
 			}
 
-			if (iter.IsEntityEnabled(0))
+			if (iter.IsEnabled(0))
 				p[0].x += 1.f;
 		});
 	}
@@ -110,13 +110,13 @@ public:
 
 void CreateEntities(ecs::World& w) {
 	{
-		auto e = w.CreateEntity();
-		w.AddComponent<Position>(e, {0, 100, 0});
-		w.AddComponent<Velocity>(e, {1, 0, 0});
+		auto e = w.Add();
+		w.Add<Position>(e, {0, 100, 0});
+		w.Add<Velocity>(e, {1, 0, 0});
 
 		constexpr uint32_t N = 1000;
 		for (uint32_t i = 0; i < N; i++) {
-			[[maybe_unused]] auto newentity = w.CreateEntity(e);
+			[[maybe_unused]] auto newentity = w.Add(e);
 		}
 	}
 }

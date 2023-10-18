@@ -60,8 +60,7 @@ namespace gaia {
 
 				void Commit(CommandBufferCtx& ctx) const {
 					auto* pArchetype = (archetype::Archetype*)archetypePtr;
-					[[maybe_unused]] const auto res =
-							ctx.entityMap.try_emplace(ctx.entities++, ctx.world.CreateEntity(*pArchetype));
+					[[maybe_unused]] const auto res = ctx.entityMap.try_emplace(ctx.entities++, ctx.world.Add(*pArchetype));
 					GAIA_ASSERT(res.second);
 				}
 			};
@@ -69,7 +68,7 @@ namespace gaia {
 				Entity entity;
 
 				void Commit(CommandBufferCtx& ctx) const {
-					[[maybe_unused]] const auto res = ctx.entityMap.try_emplace(ctx.entities++, ctx.world.CreateEntity(entity));
+					[[maybe_unused]] const auto res = ctx.entityMap.try_emplace(ctx.entities++, ctx.world.Add(entity));
 					GAIA_ASSERT(res.second);
 				}
 			};
@@ -77,7 +76,7 @@ namespace gaia {
 				Entity entity;
 
 				void Commit(CommandBufferCtx& ctx) const {
-					ctx.world.DeleteEntity(entity);
+					ctx.world.Del(entity);
 				}
 			};
 			struct ADD_COMPONENT_t: CommandBufferCmd_t {
@@ -224,7 +223,7 @@ namespace gaia {
 
 				void Commit(CommandBufferCtx& ctx) const {
 					const auto& info = ComponentCache::Get().GetComponentInfo(componentId);
-					ctx.world.RemoveComponent_Internal(componentType, entity, info);
+					ctx.world.DelComponent_Internal(componentType, entity, info);
 				}
 			};
 
@@ -239,7 +238,7 @@ namespace gaia {
 			\return Entity that will be created. The id is not usable right away. It
 			will be filled with proper data after Commit()
 			*/
-			GAIA_NODISCARD TempEntity CreateEntity(archetype::Archetype& archetype) {
+			GAIA_NODISCARD TempEntity Add(archetype::Archetype& archetype) {
 				DataBuffer_SerializationWrapper s(m_data);
 				s.save(CREATE_ENTITY_FROM_ARCHETYPE);
 
@@ -264,7 +263,7 @@ namespace gaia {
 			\return Entity that will be created. The id is not usable right away. It
 			will be filled with proper data after Commit()
 			*/
-			GAIA_NODISCARD TempEntity CreateEntity() {
+			GAIA_NODISCARD TempEntity Add() {
 				DataBuffer_SerializationWrapper s(m_data);
 				s.save(CREATE_ENTITY);
 
@@ -276,7 +275,7 @@ namespace gaia {
 			entity \return Entity that will be created. The id is not usable right
 			away. It will be filled with proper data after Commit()
 			*/
-			GAIA_NODISCARD TempEntity CreateEntity(Entity entityFrom) {
+			GAIA_NODISCARD TempEntity Add(Entity entityFrom) {
 				DataBuffer_SerializationWrapper s(m_data);
 				s.save(CREATE_ENTITY_FROM_ENTITY);
 
@@ -290,7 +289,7 @@ namespace gaia {
 			/*!
 			Requests an existing \param entity to be removed.
 			*/
-			void DeleteEntity(Entity entity) {
+			void Del(Entity entity) {
 				DataBuffer_SerializationWrapper s(m_data);
 				s.save(DELETE_ENTITY);
 
@@ -303,7 +302,7 @@ namespace gaia {
 			Requests a component to be added to entity.
 			*/
 			template <typename T>
-			void AddComponent(Entity entity) {
+			void Add(Entity entity) {
 				// Make sure the component is registered
 				const auto& info = ComponentCache::Get().GetOrCreateComponentInfo<T>();
 
@@ -324,7 +323,7 @@ namespace gaia {
 			Requests a component to be added to temporary entity.
 			*/
 			template <typename T>
-			void AddComponent(TempEntity entity) {
+			void Add(TempEntity entity) {
 				// Make sure the component is registered
 				const auto& info = ComponentCache::Get().GetOrCreateComponentInfo<T>();
 
@@ -345,7 +344,7 @@ namespace gaia {
 			Requests a component to be added to entity.
 			*/
 			template <typename T>
-			void AddComponent(Entity entity, T&& value) {
+			void Add(Entity entity, T&& value) {
 				// Make sure the component is registered
 				const auto& info = ComponentCache::Get().GetOrCreateComponentInfo<T>();
 
@@ -367,7 +366,7 @@ namespace gaia {
 			Requests a component to be added to temporary entity.
 			*/
 			template <typename T>
-			void AddComponent(TempEntity entity, T&& value) {
+			void Add(TempEntity entity, T&& value) {
 				// Make sure the component is registered
 				const auto& info = ComponentCache::Get().GetOrCreateComponentInfo<T>();
 
@@ -389,7 +388,7 @@ namespace gaia {
 			Requests component data to be set to given values for a given entity.
 			*/
 			template <typename T>
-			void SetComponent(Entity entity, T&& value) {
+			void Set(Entity entity, T&& value) {
 				// No need to check if the component is registered.
 				// If we want to set the value of a component we must have created it already.
 				// (void)ComponentCache::Get().GetComponentInfo<T>();
@@ -413,7 +412,7 @@ namespace gaia {
 			entity.
 			*/
 			template <typename T>
-			void SetComponent(TempEntity entity, T&& value) {
+			void Set(TempEntity entity, T&& value) {
 				// No need to check if the component is registered.
 				// If we want to set the value of a component we must have created it already.
 				// (void)ComponentCache::Get().GetOrCreateComponentInfo<T>();
@@ -436,7 +435,7 @@ namespace gaia {
 			Requests removal of a component from entity
 			*/
 			template <typename T>
-			void RemoveComponent(Entity entity) {
+			void Del(Entity entity) {
 				// No need to check if the component is registered.
 				// If we want to remove a component we must have created it already.
 				// (void)ComponentCache::Get().GetOrCreateComponentInfo<T>();
@@ -459,7 +458,7 @@ namespace gaia {
 			static constexpr CommandBufferReadFunc CommandBufferRead[] = {
 					// CREATE_ENTITY
 					[](CommandBufferCtx& ctx) {
-						[[maybe_unused]] const auto res = ctx.entityMap.try_emplace(ctx.entities++, ctx.world.CreateEntity());
+						[[maybe_unused]] const auto res = ctx.entityMap.try_emplace(ctx.entities++, ctx.world.Add());
 						GAIA_ASSERT(res.second);
 					},
 					// CREATE_ENTITY_FROM_ARCHETYPE
