@@ -1,6 +1,8 @@
 #pragma once
 
-#include "../config/config_core.h"
+#include "../config/config.h"
+
+#include "../config/profiler.h"
 #include "../containers/sarray.h"
 
 #define JOB_QUEUE_USE_LOCKS 1

@@ -7,6 +7,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "../config/profiler.h"
 #include "../containers/sarray_ext.h"
 #include "../utils/utility.h"
 #include "archetype_common.h"

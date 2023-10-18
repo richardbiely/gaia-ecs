@@ -1,10 +1,12 @@
 #pragma once
 
+#include "../config/config.h"
+
 #include <functional>
 #include <inttypes.h>
 #include <mutex>
 
-#include "../config/config_core.h"
+#include "../config/profiler.h"
 #include "../containers/darray.h"
 #include "../containers/ilist.h"
 #include "../containers/sarray.h"
@@ -36,7 +38,8 @@ namespace gaia {
 			std::function<void()> func;
 
 			JobContainer() = default;
-			JobContainer(uint32_t index, uint32_t generation): containers::ilist_item(index, generation), state(JobInternalState::Idle) {}
+			JobContainer(uint32_t index, uint32_t generation):
+					containers::ilist_item(index, generation), state(JobInternalState::Idle) {}
 		};
 
 		struct JobDependency: containers::ilist_item {
