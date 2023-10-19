@@ -5,8 +5,8 @@
 #include <type_traits>
 #include <utility>
 
+#include "../core/utility.h"
 #include "../meta/reflection.h"
-#include "../utils/utility.h"
 
 namespace gaia {
 	namespace ser {

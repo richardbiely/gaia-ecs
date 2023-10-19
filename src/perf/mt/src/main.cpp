@@ -78,7 +78,7 @@ void BM_Schedule_Simple(picobench::state& state) {
 	const uint32_t Jobs = user_data >> 32;
 	const uint32_t ItemsPerJob = N / Jobs;
 
-	containers::darray<uint32_t> arr;
+	cnt::darray<uint32_t> arr;
 	arr.resize(N);
 	for (uint32_t i = 0; i < arr.size(); ++i)
 		arr[i] = i;
@@ -95,7 +95,7 @@ void BM_Schedule_Complex(picobench::state& state) {
 	const uint32_t Jobs = user_data >> 32;
 	const uint32_t ItemsPerJob = N / Jobs;
 
-	containers::darray<uint32_t> arr;
+	cnt::darray<uint32_t> arr;
 	arr.resize(N);
 	for (uint32_t i = 0; i < arr.size(); ++i)
 		arr[i] = i;
@@ -127,7 +127,7 @@ void BM_ScheduleParallel_Simple(picobench::state& state) {
 	const auto user_data = state.user_data();
 	const uint32_t N = user_data & 0xFFFFFFFF;
 
-	containers::darray<uint32_t> arr;
+	cnt::darray<uint32_t> arr;
 	arr.resize(N);
 	for (uint32_t i = 0; i < arr.size(); ++i)
 		arr[i] = i;
@@ -142,7 +142,7 @@ void BM_ScheduleParallel_Complex(picobench::state& state) {
 	const auto user_data = state.user_data();
 	const uint32_t N = user_data & 0xFFFFFFFF;
 
-	containers::darray<uint32_t> arr;
+	cnt::darray<uint32_t> arr;
 	arr.resize(N);
 	for (uint32_t i = 0; i < arr.size(); ++i)
 		arr[i] = i;

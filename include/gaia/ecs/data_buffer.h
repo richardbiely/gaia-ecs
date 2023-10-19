@@ -3,7 +3,7 @@
 
 #include <type_traits>
 
-#include "../containers/darray_ext.h"
+#include "../cnt/darray_ext.h"
 #include "component_cache.h"
 
 namespace gaia {
@@ -12,7 +12,7 @@ namespace gaia {
 			// Increase the capacity by multiples of CapacityIncreaseSize
 			static constexpr uint32_t CapacityIncreaseSize = 128U;
 			// TODO: Replace with some memory allocator
-			using DataContainer = containers::darray_ext<uint8_t, CapacityIncreaseSize>;
+			using DataContainer = cnt::darray_ext<uint8_t, CapacityIncreaseSize>;
 
 			//! Buffer holding raw data
 			DataContainer m_data;
@@ -60,7 +60,7 @@ namespace gaia {
 				EnsureCapacity(sizeof(T));
 
 				m_data.resize(m_dataPos + sizeof(T));
-				utils::unaligned_ref<T> mem(&m_data[m_dataPos]);
+				mem::unaligned_ref<T> mem(&m_data[m_dataPos]);
 				mem = std::forward<T>(value);
 
 				m_dataPos += sizeof(T);
@@ -122,7 +122,7 @@ namespace gaia {
 			void Load(T& value) {
 				GAIA_ASSERT(m_dataPos + sizeof(T) <= m_data.size());
 
-				value = utils::unaligned_ref<T>((void*)&m_data[m_dataPos]);
+				value = mem::unaligned_ref<T>((void*)&m_data[m_dataPos]);
 
 				m_dataPos += sizeof(T);
 			}

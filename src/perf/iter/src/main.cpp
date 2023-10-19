@@ -21,7 +21,7 @@ namespace detail {
 		(void)w;
 		(void)e;
 #else
-		utils::for_each<ComponentCount>([&](auto i) {
+		core::for_each<ComponentCount>([&](auto i) {
 			w.Add<Component<i, T, ValuesCount>>(e);
 		});
 #endif
@@ -41,50 +41,50 @@ void Create_Archetypes_1(ecs::World& w) {
 }
 
 void Create_Archetypes_100(ecs::World& w) {
-	utils::for_each<4>([&](auto i) {
+	core::for_each<4>([&](auto i) {
 		Adds<float, i, 25>(w, EntitiesPerArchetype);
 	});
 }
 
 template <uint32_t N, uint32_t ComponentCount>
 void Create_Archetypes_N(ecs::World& w) {
-	utils::for_each<N>([&](auto i) {
+	core::for_each<N>([&](auto i) {
 		Adds<bool, i, ComponentCount>(w, EntitiesPerArchetype);
 	});
 	//-----------------------------------------
-	utils::for_each<N>([&](auto i) {
+	core::for_each<N>([&](auto i) {
 		Adds<int8_t, i, ComponentCount>(w, EntitiesPerArchetype);
 	});
 	//-----------------------------------------
-	utils::for_each<N>([&](auto i) {
+	core::for_each<N>([&](auto i) {
 		Adds<uint8_t, i, ComponentCount>(w, EntitiesPerArchetype);
 	});
 	//-----------------------------------------
-	utils::for_each<N>([&](auto i) {
+	core::for_each<N>([&](auto i) {
 		Adds<int16_t, i, ComponentCount>(w, EntitiesPerArchetype);
 	});
 	//-----------------------------------------
-	utils::for_each<N>([&](auto i) {
+	core::for_each<N>([&](auto i) {
 		Adds<uint16_t, i, ComponentCount>(w, EntitiesPerArchetype);
 	});
 	//-----------------------------------------
-	utils::for_each<N>([&](auto i) {
+	core::for_each<N>([&](auto i) {
 		Adds<int32_t, i, ComponentCount>(w, EntitiesPerArchetype);
 	});
 	//-----------------------------------------
-	utils::for_each<N>([&](auto i) {
+	core::for_each<N>([&](auto i) {
 		Adds<uint32_t, i, ComponentCount>(w, EntitiesPerArchetype);
 	});
 	//-----------------------------------------
-	utils::for_each<N>([&](auto i) {
+	core::for_each<N>([&](auto i) {
 		Adds<int64_t, i, ComponentCount>(w, EntitiesPerArchetype);
 	});
 	//-----------------------------------------
-	utils::for_each<N>([&](auto i) {
+	core::for_each<N>([&](auto i) {
 		Adds<uint64_t, i, ComponentCount>(w, EntitiesPerArchetype);
 	});
 	//-----------------------------------------
-	utils::for_each<N>([&](auto i) {
+	core::for_each<N>([&](auto i) {
 		Adds<float, i, ComponentCount>(w, EntitiesPerArchetype);
 	});
 }

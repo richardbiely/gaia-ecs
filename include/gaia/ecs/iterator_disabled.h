@@ -4,8 +4,8 @@
 #include <cinttypes>
 #include <type_traits>
 
-#include "../containers/bitset.h"
-#include "../containers/sarray_ext.h"
+#include "../cnt/bitset.h"
+#include "../cnt/sarray_ext.h"
 #include "chunk.h"
 #include "chunk_accessor.h"
 
@@ -15,7 +15,7 @@ namespace gaia {
 		private:
 			using Mask = detail::ChunkAccessorMask;
 
-			containers::sarr_ext<uint16_t, Mask::BitCount> m_indices;
+			cnt::sarr_ext<uint16_t, Mask::BitCount> m_indices;
 
 		public:
 			IteratorDisabled(archetype::Chunk& chunk): detail::ChunkAccessor(chunk) {

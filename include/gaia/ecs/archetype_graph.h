@@ -2,8 +2,8 @@
 
 #include <cinttypes>
 
+#include "../cnt/map.h"
 #include "../config/logging.h"
-#include "../containers/map.h"
 #include "archetype_common.h"
 #include "component.h"
 #include "component_cache.h"
@@ -17,9 +17,9 @@ namespace gaia {
 				};
 
 				//! Map of edges in the archetype graph when adding components
-				containers::map<component::ComponentId, ArchetypeGraphEdge> m_edgesAdd[component::ComponentType::CT_Count];
+				cnt::map<component::ComponentId, ArchetypeGraphEdge> m_edgesAdd[component::ComponentType::CT_Count];
 				//! Map of edges in the archetype graph when removing components
-				containers::map<component::ComponentId, ArchetypeGraphEdge> m_edgesDel[component::ComponentType::CT_Count];
+				cnt::map<component::ComponentId, ArchetypeGraphEdge> m_edgesDel[component::ComponentType::CT_Count];
 
 			public:
 				//! Creates an edge in the graph leading to the target archetype \param archetypeId via component \param

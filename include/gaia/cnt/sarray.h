@@ -3,8 +3,8 @@
 #include "impl/sarray_impl.h"
 
 namespace gaia {
-	namespace containers {
+	namespace cnt {
 		template <typename T, uint32_t N>
-		using sarray = containers::sarr<T, N>;
-	} // namespace containers
+		using sarray = cnt::sarr<T, N>;
+	} // namespace cnt
 } // namespace gaia

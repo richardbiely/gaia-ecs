@@ -7,7 +7,7 @@
 #include "darray.h"
 
 namespace gaia {
-	namespace containers {
+	namespace cnt {
 		struct ilist_item_base {};
 		struct ilist_item: public ilist_item_base {
 			//! Allocated items: Index in the list.
@@ -27,7 +27,7 @@ namespace gaia {
 		//! that initializes them.
 		template <typename TListItem, typename TItemHandle>
 		struct ilist {
-			using internal_storage = containers::darray<TListItem>;
+			using internal_storage = cnt::darray<TListItem>;
 			// TODO: replace this iterator with a real list iterator
 			using iterator = typename internal_storage::iterator;
 
@@ -175,5 +175,5 @@ namespace gaia {
 				GAIA_ASSERT(nextFreeItem == TItemHandle::IdMask);
 			}
 		};
-	} // namespace containers
+	} // namespace cnt
 } // namespace gaia

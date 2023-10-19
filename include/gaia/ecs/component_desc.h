@@ -5,12 +5,12 @@
 #include <tuple>
 #include <type_traits>
 
+#include "../core/span.h"
+#include "../core/utility.h"
+#include "../mem/data_layout_policy.h"
+#include "../mem/mem_utils.h"
 #include "../meta/reflection.h"
-#include "../utils/data_layout_policy.h"
-#include "../utils/mem_utils.h"
-#include "../utils/span.h"
-#include "../utils/type_info.h"
-#include "../utils/utility.h"
+#include "../meta/type_info.h"
 #include "component.h"
 
 namespace gaia {
@@ -84,10 +84,10 @@ namespace gaia {
 
 				GAIA_NODISCARD uint32_t CalculateNewMemoryOffset(uint32_t addr, size_t N) const noexcept {
 					if (properties.soa == 0) {
-						addr = (uint32_t)utils::detail::get_aligned_byte_offset(addr, properties.alig, properties.size, N);
+						addr = (uint32_t)mem::detail::get_aligned_byte_offset(addr, properties.alig, properties.size, N);
 					} else {
 						for (uint32_t i = 0; i < (uint32_t)properties.soa; ++i)
-							addr = (uint32_t)utils::detail::get_aligned_byte_offset(addr, properties.alig, soaSizes[i], N);
+							addr = (uint32_t)mem::detail::get_aligned_byte_offset(addr, properties.alig, soaSizes[i], N);
 					}
 					return addr;
 				}
@@ -97,19 +97,19 @@ namespace gaia {
 					using U = typename component_type_t<T>::Type;
 
 					ComponentDesc info{};
-					info.name = utils::type_info::name<U>();
+					info.name = meta::type_info::name<U>();
 					info.componentId = GetComponentId<T>();
 
 					if constexpr (!std::is_empty_v<U>) {
 						info.properties.size = (uint32_t)sizeof(U);
 
 						static_assert(MaxAlignment_Bits, "Maximum supported alignemnt for a component is MaxAlignment");
-						info.properties.alig = (uint32_t)utils::auto_view_policy<U>::Alignment;
+						info.properties.alig = (uint32_t)mem::auto_view_policy<U>::Alignment;
 
-						if constexpr (utils::is_soa_layout_v<U>) {
+						if constexpr (mem::is_soa_layout_v<U>) {
 							uint32_t i = 0;
 							using TTuple = decltype(meta::struct_to_tuple(U{}));
-							utils::for_each_tuple(TTuple{}, [&](auto&& item) {
+							core::for_each_tuple(TTuple{}, [&](auto&& item) {
 								static_assert(sizeof(item) <= 255, "Each member of a SoA component can be at most 255 B long!");
 								info.soaSizes[i] = (uint8_t)sizeof(item);
 								++i;
@@ -122,14 +122,14 @@ namespace gaia {
 							// Custom construction
 							if constexpr (!std::is_trivially_constructible_v<U>) {
 								info.ctor = [](void* ptr, uint32_t cnt) {
-									utils::call_ctor((U*)ptr, cnt);
+									core::call_ctor((U*)ptr, cnt);
 								};
 							}
 
 							// Custom destruction
 							if constexpr (!std::is_trivially_destructible_v<U>) {
 								info.dtor = [](void* ptr, uint32_t cnt) {
-									utils::call_dtor((U*)ptr, cnt);
+									core::call_dtor((U*)ptr, cnt);
 								};
 							}
 

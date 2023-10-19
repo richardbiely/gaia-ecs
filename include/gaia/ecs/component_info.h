@@ -1,7 +1,7 @@
 #pragma once
 #include <type_traits>
 
-#include "../utils/type_info.h"
+#include "../meta/type_info.h"
 #include "component.h"
 
 namespace gaia {
@@ -32,7 +32,7 @@ namespace gaia {
 					using U = typename component_type_t<T>::Type;
 
 					ComponentInfo info{};
-					info.lookupHash = {utils::type_info::hash<U>()};
+					info.lookupHash = {meta::type_info::hash<U>()};
 					info.matcherHash = CalculateMatcherHash<U>();
 					info.componentId = GetComponentId<T>();
 

@@ -7,7 +7,7 @@
 #include "bitset_iterator.h"
 
 namespace gaia {
-	namespace containers {
+	namespace cnt {
 
 		template <uint32_t NBits>
 		class bitset {
@@ -229,5 +229,5 @@ namespace gaia {
 				return NBits;
 			}
 		};
-	} // namespace containers
+	} // namespace cnt
 } // namespace gaia

@@ -7,9 +7,9 @@
 #include <type_traits>
 #include <utility>
 
+#include "../cnt/sarray_ext.h"
 #include "../config/profiler.h"
-#include "../containers/sarray_ext.h"
-#include "../utils/utility.h"
+#include "../core/utility.h"
 #include "archetype_common.h"
 #include "chunk_allocator.h"
 #include "chunk_header.h"
@@ -18,6 +18,7 @@
 #include "component_cache.h"
 #include "component_utils.h"
 #include "entity.h"
+
 
 namespace gaia {
 	namespace ecs {
@@ -52,7 +53,7 @@ namespace gaia {
 					// const uint32_t sizeBytes = ...;
 					// auto* curr = (uint8_t*)&m_data[0] + 1;
 					// for (uint32_t i = 0; i < sizeBytes; ++i, (void)++curr) {
-					// 	const auto* addr = utils::addressof(*curr);
+					// 	const auto* addr = mem::addressof(*curr);
 					// 	(void)new (const_cast<void*>(static_cast<const volatile void*>(addr))) uint8_t;
 					// }
 				}
@@ -60,8 +61,8 @@ namespace gaia {
 				GAIA_MSVC_WARNING_POP()
 
 				void Init(
-						const containers::sarray<ComponentIdArray, component::ComponentType::CT_Count>& componentIds,
-						const containers::sarray<ComponentOffsetArray, component::ComponentType::CT_Count>& componentOffsets) {
+						const cnt::sarray<ComponentIdArray, component::ComponentType::CT_Count>& componentIds,
+						const cnt::sarray<ComponentOffsetArray, component::ComponentType::CT_Count>& componentOffsets) {
 					m_header.componentCount[component::ComponentType::CT_Generic] =
 							(uint8_t)componentIds[component::ComponentType::CT_Generic].size();
 					m_header.componentCount[component::ComponentType::CT_Chunk] =
@@ -87,7 +88,7 @@ namespace gaia {
 						for (uint32_t i = 0; i < component::ComponentType::CT_Count; ++i) {
 							auto offset = m_header.offsets.firstByte_ComponentIds[i];
 							for (const auto componentId: componentIds[i]) {
-								utils::unaligned_ref<component::ComponentId>{(void*)&m_data[offset]} = componentId;
+								mem::unaligned_ref<component::ComponentId>{(void*)&m_data[offset]} = componentId;
 								offset += sizeof(component::ComponentId);
 							}
 						}
@@ -98,7 +99,7 @@ namespace gaia {
 						for (uint32_t i = 0; i < component::ComponentType::CT_Count; ++i) {
 							auto offset = m_header.offsets.firstByte_ComponentOffsets[i];
 							for (const auto componentOffset: componentOffsets[i]) {
-								utils::unaligned_ref<archetype::ChunkComponentOffset>{(void*)&m_data[offset]} = componentOffset;
+								mem::unaligned_ref<archetype::ChunkComponentOffset>{(void*)&m_data[offset]} = componentOffset;
 								offset += sizeof(archetype::ChunkComponentOffset);
 							}
 						}
@@ -248,8 +249,8 @@ namespace gaia {
 				static Chunk* Create(
 						uint32_t archetypeId, uint16_t chunkIndex, uint16_t capacity, uint16_t dataBytes, uint32_t& worldVersion,
 						const ChunkHeaderOffsets& offsets,
-						const containers::sarray<ComponentIdArray, component::ComponentType::CT_Count>& componentIds,
-						const containers::sarray<ComponentOffsetArray, component::ComponentType::CT_Count>& componentOffsets) {
+						const cnt::sarray<ComponentIdArray, component::ComponentType::CT_Count>& componentIds,
+						const cnt::sarray<ComponentOffsetArray, component::ComponentType::CT_Count>& componentOffsets) {
 					const auto totalBytes = GetTotalChunkSize(dataBytes);
 					const auto sizeType = detail::ChunkAllocatorImpl::GetMemoryBlockSizeType(totalBytes);
 #if GAIA_ECS_CHUNK_ALLOCATOR
@@ -294,7 +295,7 @@ namespace gaia {
 				Remove the last entity from chunk.
 				\param chunksToRemove Container of chunks ready for removal
 				*/
-				void RemoveLastEntity(containers::darray<archetype::Chunk*>& chunksToRemove) {
+				void RemoveLastEntity(cnt::darray<archetype::Chunk*>& chunksToRemove) {
 					GAIA_ASSERT(
 							!IsStructuralChangesLocked() && "Entities can't be removed while their chunk is being iterated "
 																							"(structural changes are forbidden during this time!)");
@@ -337,7 +338,7 @@ namespace gaia {
 				GAIA_NODISCARD auto View() const {
 					using U = typename component::component_type_t<T>::Type;
 
-					return utils::auto_view_policy_get<U>{View_Internal<T>()};
+					return mem::auto_view_policy_get<U>{View_Internal<T>()};
 				}
 
 				/*!
@@ -351,7 +352,7 @@ namespace gaia {
 					using U = typename component::component_type_t<T>::Type;
 					static_assert(!std::is_same_v<U, Entity>);
 
-					return utils::auto_view_policy_set<U>{ViewRW_Internal<T, true>()};
+					return mem::auto_view_policy_set<U>{ViewRW_Internal<T, true>()};
 				}
 
 				/*!
@@ -366,7 +367,7 @@ namespace gaia {
 					using U = typename component::component_type_t<T>::Type;
 					static_assert(!std::is_same_v<U, Entity>);
 
-					return utils::auto_view_policy_set<U>{ViewRW_Internal<T, false>()};
+					return mem::auto_view_policy_set<U>{ViewRW_Internal<T, false>()};
 				}
 
 				/*!
@@ -561,7 +562,7 @@ namespace gaia {
 					GAIA_ASSERT(index < m_header.count && "Entity chunk index out of bounds!");
 
 					const auto offset = sizeof(Entity) * index + m_header.offsets.firstByte_EntityData;
-					utils::unaligned_ref<Entity> mem((void*)&m_data[offset]);
+					mem::unaligned_ref<Entity> mem((void*)&m_data[offset]);
 					mem = entity;
 				}
 
@@ -574,7 +575,7 @@ namespace gaia {
 					GAIA_ASSERT(index < m_header.count && "Entity chunk index out of bounds!");
 
 					const auto offset = sizeof(Entity) * index + m_header.offsets.firstByte_EntityData;
-					utils::unaligned_ref<Entity> mem((void*)&m_data[offset]);
+					mem::unaligned_ref<Entity> mem((void*)&m_data[offset]);
 					return mem;
 				}
 
@@ -631,7 +632,7 @@ namespace gaia {
 					const auto componentIds = GetComponentIdSpan(componentType);
 					const auto componentOffsets = GetComponentOffsetSpan(componentType);
 
-					componentIdx = (uint32_t)utils::get_index_unsafe(componentIds, componentId);
+					componentIdx = (uint32_t)core::get_index_unsafe(componentIds, componentId);
 					const auto offset = componentOffsets[componentIdx];
 					GAIA_ASSERT(offset >= m_header.offsets.firstByte_EntityData);
 					return offset;
@@ -685,7 +686,7 @@ namespace gaia {
 					const auto componentIds = GetComponentIdSpan(componentType);
 					const auto componentOffsets = GetComponentOffsetSpan(componentType);
 
-					const auto idx = utils::get_index_unsafe(componentIds, componentId);
+					const auto idx = core::get_index_unsafe(componentIds, componentId);
 					const auto offset = componentOffsets[idx];
 					const auto idxSrc = offset + entityIndex * desc.properties.size;
 					GAIA_ASSERT(idxSrc < GetByteSize());
@@ -762,7 +763,7 @@ namespace gaia {
 				*/
 				GAIA_NODISCARD bool Has(component::ComponentType componentType, component::ComponentId componentId) const {
 					const auto componentIds = GetComponentIdSpan(componentType);
-					return utils::has(componentIds, componentId);
+					return core::has(componentIds, componentId);
 				}
 
 				/*!
@@ -936,7 +937,7 @@ namespace gaia {
 				GAIA_NODISCARD uint32_t
 				GetComponentIdx(component::ComponentType componentType, component::ComponentId componentId) const {
 					const auto componentIds = GetComponentIdSpan(componentType);
-					const auto idx = utils::get_index_unsafe(componentIds, componentId);
+					const auto idx = core::get_index_unsafe(componentIds, componentId);
 					GAIA_ASSERT(idx != BadIndex);
 					return (uint32_t)idx;
 				}
@@ -959,7 +960,7 @@ namespace gaia {
 				}
 
 				template <typename... T, typename Func>
-				GAIA_FORCEINLINE void ForEach([[maybe_unused]] utils::func_type_list<T...> types, Func func) {
+				GAIA_FORCEINLINE void ForEach([[maybe_unused]] core::func_type_list<T...> types, Func func) {
 					const uint32_t size = GetEntityCount();
 					GAIA_ASSERT(size > 0);
 

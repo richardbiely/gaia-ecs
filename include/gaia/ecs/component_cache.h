@@ -4,10 +4,10 @@
 #include <cinttypes>
 #include <type_traits>
 
+#include "../cnt/darray.h"
+#include "../cnt/map.h"
 #include "../config/logging.h"
-#include "../containers/darray.h"
-#include "../containers/map.h"
-#include "../utils/type_info.h"
+#include "../meta/type_info.h"
 #include "component.h"
 #include "component_desc.h"
 #include "component_info.h"
@@ -15,8 +15,8 @@
 namespace gaia {
 	namespace ecs {
 		class ComponentCache {
-			containers::darray<const component::ComponentInfo*> m_infoByIndex;
-			containers::darray<component::ComponentDesc> m_descByIndex;
+			cnt::darray<const component::ComponentInfo*> m_infoByIndex;
+			cnt::darray<component::ComponentDesc> m_descByIndex;
 
 			ComponentCache() {
 				// Reserve enough storage space for most use-cases

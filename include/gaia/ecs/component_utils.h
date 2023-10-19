@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../utils/utility.h"
+#include "../core/utility.h"
 #include "component.h"
 #include "component_cache.h"
 
@@ -13,7 +13,7 @@ namespace gaia {
 			inline void CalculateMatcherHash(ComponentMatcherHash& matcherHash, component::ComponentId componentId) noexcept {
 				const auto& cc = ComponentCache::Get();
 				const auto componentHash = cc.GetComponentInfo(componentId).matcherHash.hash;
-				matcherHash.hash = utils::combine_or(matcherHash.hash, componentHash);
+				matcherHash.hash = core::combine_or(matcherHash.hash, componentHash);
 			}
 
 			//! Calculates a component matcher hash from the provided component ids
@@ -27,7 +27,7 @@ namespace gaia {
 				const auto& cc = ComponentCache::Get();
 				ComponentMatcherHash::Type hash = cc.GetComponentInfo(componentIds[0]).matcherHash.hash;
 				for (uint32_t i = 1; i < infosSize; ++i)
-					hash = utils::combine_or(hash, cc.GetComponentInfo(componentIds[i]).matcherHash.hash);
+					hash = core::combine_or(hash, cc.GetComponentInfo(componentIds[i]).matcherHash.hash);
 				return {hash};
 			}
 
@@ -42,16 +42,16 @@ namespace gaia {
 				const auto& cc = ComponentCache::Get();
 				ComponentLookupHash::Type hash = cc.GetComponentInfo(componentIds[0]).lookupHash.hash;
 				for (uint32_t i = 1; i < infosSize; ++i)
-					hash = utils::hash_combine(hash, cc.GetComponentInfo(componentIds[i]).lookupHash.hash);
+					hash = core::hash_combine(hash, cc.GetComponentInfo(componentIds[i]).lookupHash.hash);
 				return {hash};
 			}
 
-			using SortComponentCond = utils::is_smaller<ComponentId>;
+			using SortComponentCond = core::is_smaller<ComponentId>;
 
 			//! Sorts component ids
 			template <typename Container>
 			inline void SortComponents(Container& c) noexcept {
-				utils::sort(c, SortComponentCond{});
+				core::sort(c, SortComponentCond{});
 			}
 		} // namespace component
 	} // namespace ecs

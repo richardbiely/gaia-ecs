@@ -2,9 +2,9 @@
 
 #include <type_traits>
 
-#include "../containers/darray.h"
-#include "../containers/sarray_ext.h"
-#include "../utils/hashing_policy.h"
+#include "../cnt/darray.h"
+#include "../cnt/sarray_ext.h"
+#include "../core/hashing_policy.h"
 #include "component.h"
 #include "component_utils.h"
 
@@ -28,10 +28,10 @@ namespace gaia {
 			};
 
 			using QueryId = uint32_t;
-			using LookupHash = utils::direct_hash_key<uint64_t>;
-			using ComponentIdArray = containers::sarray_ext<component::ComponentId, MAX_COMPONENTS_IN_QUERY>;
-			using ListTypeArray = containers::sarray_ext<ListType, MAX_COMPONENTS_IN_QUERY>;
-			using ChangeFilterArray = containers::sarray_ext<component::ComponentId, MAX_COMPONENTS_IN_QUERY>;
+			using LookupHash = core::direct_hash_key<uint64_t>;
+			using ComponentIdArray = cnt::sarray_ext<component::ComponentId, MAX_COMPONENTS_IN_QUERY>;
+			using ListTypeArray = cnt::sarray_ext<ListType, MAX_COMPONENTS_IN_QUERY>;
+			using ChangeFilterArray = cnt::sarray_ext<component::ComponentId, MAX_COMPONENTS_IN_QUERY>;
 
 			static constexpr QueryId QueryIdBad = (QueryId)-1;
 
@@ -49,7 +49,7 @@ namespace gaia {
 					//! List of component matcher hashes
 					component::ComponentMatcherHash hash[ListType::LT_Count];
 					//! Array of indiices to the last checked archetype in the component-to-archetype map
-					containers::darray<uint32_t> lastMatchedArchetypeIndex;
+					cnt::darray<uint32_t> lastMatchedArchetypeIndex;
 					//! List of filtered components
 					ChangeFilterArray withChanged;
 					//! Read-write mask. Bit 0 stands for component 0 in component arrays.
@@ -121,9 +121,9 @@ namespace gaia {
 				for (uint32_t i = 0; i < component::ComponentType::CT_Count; ++i) {
 					auto& data = ctx.data[i];
 					// Make sure the read-write mask remains correct after sorting
-					utils::sort(data.componentIds, component::SortComponentCond{}, [&](uint32_t left, uint32_t right) {
-						utils::swap(data.componentIds[left], data.componentIds[right]);
-						utils::swap(data.rules[left], data.rules[right]);
+					core::sort(data.componentIds, component::SortComponentCond{}, [&](uint32_t left, uint32_t right) {
+						core::swap(data.componentIds[left], data.componentIds[right]);
+						core::swap(data.rules[left], data.rules[right]);
 
 						{
 							// Swap the bits in the read-write mask
@@ -166,11 +166,11 @@ namespace gaia {
 
 						const auto& componentIds = data.componentIds;
 						for (const auto componentId: componentIds)
-							hash = utils::hash_combine(hash, (LookupHash::Type)componentId);
-						hash = utils::hash_combine(hash, (LookupHash::Type)componentIds.size());
+							hash = core::hash_combine(hash, (LookupHash::Type)componentId);
+						hash = core::hash_combine(hash, (LookupHash::Type)componentIds.size());
 
-						hash = utils::hash_combine(hash, (LookupHash::Type)data.readWriteMask);
-						hashLookup = utils::hash_combine(hashLookup, hash);
+						hash = core::hash_combine(hash, (LookupHash::Type)data.readWriteMask);
+						hashLookup = core::hash_combine(hashLookup, hash);
 					}
 
 					// Rules
@@ -179,10 +179,10 @@ namespace gaia {
 
 						const auto& rules = data.withChanged;
 						for (auto listType: rules)
-							hash = utils::hash_combine(hash, (LookupHash::Type)listType);
-						hash = utils::hash_combine(hash, (LookupHash::Type)rules.size());
+							hash = core::hash_combine(hash, (LookupHash::Type)listType);
+						hash = core::hash_combine(hash, (LookupHash::Type)rules.size());
 
-						hashLookup = utils::hash_combine(hashLookup, hash);
+						hashLookup = core::hash_combine(hashLookup, hash);
 					}
 
 					// Filters
@@ -191,14 +191,14 @@ namespace gaia {
 
 						const auto& withChanged = data.withChanged;
 						for (auto componentId: withChanged)
-							hash = utils::hash_combine(hash, (LookupHash::Type)componentId);
-						hash = utils::hash_combine(hash, (LookupHash::Type)withChanged.size());
+							hash = core::hash_combine(hash, (LookupHash::Type)componentId);
+						hash = core::hash_combine(hash, (LookupHash::Type)withChanged.size());
 
-						hashLookup = utils::hash_combine(hashLookup, hash);
+						hashLookup = core::hash_combine(hashLookup, hash);
 					}
 				}
 
-				ctx.hashLookup = {utils::calculate_hash64(hashLookup)};
+				ctx.hashLookup = {core::calculate_hash64(hashLookup)};
 			}
 		} // namespace query
 	} // namespace ecs

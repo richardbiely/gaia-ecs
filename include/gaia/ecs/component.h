@@ -1,10 +1,10 @@
 #pragma once
 #include <cinttypes>
 
-#include "../utils/data_layout_policy.h"
-#include "../utils/hashing_policy.h"
-#include "../utils/type_info.h"
-#include "../utils/utility.h"
+#include "../core/hashing_policy.h"
+#include "../core/utility.h"
+#include "../mem/data_layout_policy.h"
+#include "../meta/type_info.h"
 
 namespace gaia {
 	namespace ecs {
@@ -22,8 +22,8 @@ namespace gaia {
 			inline const char* const ComponentTypeString[component::ComponentType::CT_Count] = {"Generic", "Chunk"};
 
 			using ComponentId = uint32_t;
-			using ComponentLookupHash = utils::direct_hash_key<uint64_t>;
-			using ComponentMatcherHash = utils::direct_hash_key<uint64_t>;
+			using ComponentLookupHash = core::direct_hash_key<uint64_t>;
+			using ComponentMatcherHash = core::direct_hash_key<uint64_t>;
 			using ComponentIdSpan = std::span<const ComponentId>;
 
 			static constexpr ComponentId ComponentIdBad = (ComponentId)-1;
@@ -66,7 +66,7 @@ namespace gaia {
 				struct is_component_type_valid:
 						std::bool_constant<
 								// SoA types need to be trivial. No restrictions otherwise.
-								(!utils::is_soa_layout_v<T> || std::is_trivially_copyable_v<T>)> {};
+								(!mem::is_soa_layout_v<T> || std::is_trivially_copyable_v<T>)> {};
 
 				template <typename T, typename = void>
 				struct component_type {
@@ -99,7 +99,7 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD inline ComponentId GetComponentId() {
 				using U = typename component_type_t<T>::Type;
-				return utils::type_info::id<U>();
+				return meta::type_info::id<U>();
 			}
 
 			template <typename T>
@@ -128,7 +128,7 @@ namespace gaia {
 			namespace detail {
 				template <typename T>
 				constexpr uint64_t CalculateMatcherHash() noexcept {
-					return (uint64_t(1) << (utils::type_info::hash<T>() % uint64_t(63)));
+					return (uint64_t(1) << (meta::type_info::hash<T>() % uint64_t(63)));
 				}
 			} // namespace detail
 
@@ -140,7 +140,7 @@ namespace gaia {
 				if constexpr (sizeof...(Rest) == 0)
 					return {detail::CalculateMatcherHash<T>()};
 				else
-					return {utils::combine_or(detail::CalculateMatcherHash<T>(), detail::CalculateMatcherHash<Rest>()...)};
+					return {core::combine_or(detail::CalculateMatcherHash<T>(), detail::CalculateMatcherHash<Rest>()...)};
 			}
 
 			template <>
@@ -157,8 +157,8 @@ namespace gaia {
 					return {0};
 				} else {
 					ComponentLookupHash::Type hash = arr[0];
-					utils::for_each<arrSize - 1>([&hash, &arr](auto i) {
-						hash = utils::hash_combine(hash, arr[i + 1]);
+					core::for_each<arrSize - 1>([&hash, &arr](auto i) {
+						hash = core::hash_combine(hash, arr[i + 1]);
 					});
 					return {hash};
 				}
@@ -170,9 +170,9 @@ namespace gaia {
 			template <typename T, typename... Rest>
 			GAIA_NODISCARD constexpr ComponentLookupHash CalculateLookupHash() noexcept {
 				if constexpr (sizeof...(Rest) == 0)
-					return {utils::type_info::hash<T>()};
+					return {meta::type_info::hash<T>()};
 				else
-					return {utils::hash_combine(utils::type_info::hash<T>(), utils::type_info::hash<Rest>()...)};
+					return {core::hash_combine(meta::type_info::hash<T>(), meta::type_info::hash<Rest>()...)};
 			}
 
 			template <>

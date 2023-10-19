@@ -197,11 +197,11 @@ Query q = w.CreateQuery();
 q.All<Position>(); // Consider only entities with Position
 
 // Fill the entities array with entities with a Position component.
-containers::darray<ecs::Entity> entities;
+cnt::darray<ecs::Entity> entities;
 q.ToArray(entities);
 
 // Fill the positions array with position data.
-containers::darray<Position> positions;
+cnt::darray<Position> positions;
 q.ToArray(positions);
 
 // Calculate the number of entities satisfying the query
@@ -322,7 +322,7 @@ if (is_e1_enabled) { ... }
 ecs::Query q = w.CreateQuery().All<Position>();
 
 // Fills the array with only e2 because e1 is disabled.
-containers::darray<ecs::Entity> entities;
+cnt::darray<ecs::Entity> entities;
 q.ToArray(entities);
 
 // Fills the array with both e1 and e2.
@@ -433,7 +433,7 @@ If you try to make an unprotected structural change with GAIA_DEBUG enabled (set
 By default, all data inside components are treated as an array of structures (AoS) via an implicit
 
 ```cpp
-static constexpr auto Layout = utils::DataLayout::AoS
+static constexpr auto Layout = mem::DataLayout::AoS
 ```
 
 This is the natural behavior of the language and what you would normally expect.
@@ -443,7 +443,7 @@ If we imagine an ordinary array of 4 Position components defined above with this
 However, in specific cases, you might want to consider organizing your component's internal data as structure or arrays (SoA):
 
 ```cpp
-static constexpr auto Layout = utils::DataLayout::SoA
+static constexpr auto Layout = mem::DataLayout::SoA
 ```
 
 Using the example above will make Gaia-ECS treat Position components like this in memory: xxxx yyyy zzzz.
@@ -453,11 +453,11 @@ If used correctly this can have vast performance implications. Not only do you o
 ```cpp
 struct PositionSoA {
   float x, y, z;
-  static constexpr auto Layout = utils::DataLayout::SoA;
+  static constexpr auto Layout = mem::DataLayout::SoA;
 };
 struct VelocitySoA {
   float x, y, z;
-  static constexpr auto Layout = utils::DataLayout::SoA;
+  static constexpr auto Layout = mem::DataLayout::SoA;
 };
 ...
 
@@ -520,7 +520,7 @@ struct Transform {
   Quaternion r;
 };
 struct Transform {
-  containers::darray<Transform> transforms;
+  cnt::darray<Transform> transforms;
   int some_int_data;
 };
 
@@ -667,7 +667,7 @@ static uint32_t SumNumbers(std::span<const uint32_t> arr) {
 
 ...
 constexpr uint32_t N = 1'000'000;
-containers::darray<uint32_t> arr;
+cnt::darray<uint32_t> arr;
 __fill_arr_with_N_values__();
 
 std::atomic_uint32_t sum = 0;

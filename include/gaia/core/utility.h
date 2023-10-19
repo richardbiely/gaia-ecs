@@ -10,7 +10,7 @@
 namespace gaia {
 	constexpr uint32_t BadIndex = uint32_t(-1);
 
-	namespace utils {
+	namespace core {
 		//----------------------------------------------------------------------
 		// Bit-byte conversion
 		//----------------------------------------------------------------------
@@ -75,13 +75,13 @@ namespace gaia {
 		template <typename T, typename TCmpFunc>
 		constexpr void swap_if(T& lhs, T& rhs, TCmpFunc cmpFunc) noexcept {
 			if (!cmpFunc(lhs, rhs))
-				utils::swap(lhs, rhs);
+				core::swap(lhs, rhs);
 		}
 
 		template <typename T, typename TCmpFunc>
 		constexpr void swap_if_not(T& lhs, T& rhs, TCmpFunc cmpFunc) noexcept {
 			if (cmpFunc(lhs, rhs))
-				utils::swap(lhs, rhs);
+				core::swap(lhs, rhs);
 		}
 
 		template <typename C, typename TCmpFunc, typename TSortFunc>
@@ -393,7 +393,7 @@ namespace gaia {
 					if (first[i] == value)
 						return &first[i];
 				}
-			} else if constexpr (std::is_same_v<typename InputIt::iterator_category, GAIA_UTIL::random_access_iterator_tag>) {
+			} else if constexpr (std::is_same_v<typename InputIt::iterator_category, core::random_access_iterator_tag>) {
 				auto size = distance(first, last);
 				for (decltype(size) i = 0; i < size; ++i) {
 					if (*(first[i]) == value)
@@ -413,7 +413,7 @@ namespace gaia {
 			if constexpr (has_find<C>::value)
 				return arr.find(item);
 			else
-				return GAIA_UTIL::find(arr.begin(), arr.end(), item);
+				return core::find(arr.begin(), arr.end(), item);
 		}
 
 		template <typename InputIt, typename Func>
@@ -424,7 +424,7 @@ namespace gaia {
 					if (func(first[i]))
 						return &first[i];
 				}
-			} else if constexpr (std::is_same_v<typename InputIt::iterator_category, GAIA_UTIL::random_access_iterator_tag>) {
+			} else if constexpr (std::is_same_v<typename InputIt::iterator_category, core::random_access_iterator_tag>) {
 				auto size = distance(first, last);
 				for (decltype(size) i = 0; i < size; ++i) {
 					if (func(*(first[i])))
@@ -444,7 +444,7 @@ namespace gaia {
 			if constexpr (has_find_if<C, UnaryPredicate>::value)
 				return arr.find_id(predicate);
 			else
-				return GAIA_UTIL::find_if(arr.begin(), arr.end(), predicate);
+				return core::find_if(arr.begin(), arr.end(), predicate);
 		}
 
 		template <typename InputIt, typename Func>
@@ -455,7 +455,7 @@ namespace gaia {
 					if (!func(first[i]))
 						return &first[i];
 				}
-			} else if constexpr (std::is_same_v<typename InputIt::iterator_category, GAIA_UTIL::random_access_iterator_tag>) {
+			} else if constexpr (std::is_same_v<typename InputIt::iterator_category, core::random_access_iterator_tag>) {
 				auto size = distance(first, last);
 				for (decltype(size) i = 0; i < size; ++i) {
 					if (!func(*(first[i])))
@@ -475,7 +475,7 @@ namespace gaia {
 			if constexpr (has_find_if_not<C, UnaryPredicate>::value)
 				return arr.find_if_not(predicate);
 			else
-				return GAIA_UTIL::find_if_not(arr.begin(), arr.end(), predicate);
+				return core::find_if_not(arr.begin(), arr.end(), predicate);
 		}
 
 		//----------------------------------------------------------------------
@@ -500,12 +500,12 @@ namespace gaia {
 			if (it == arr.end())
 				return BadIndex;
 
-			return (decltype(BadIndex))GAIA_UTIL::distance(arr.begin(), it);
+			return (decltype(BadIndex))core::distance(arr.begin(), it);
 		}
 
 		template <typename C>
 		constexpr auto get_index_unsafe(const C& arr, typename C::const_reference item) {
-			return (decltype(BadIndex))GAIA_UTIL::distance(arr.begin(), find(arr, item));
+			return (decltype(BadIndex))core::distance(arr.begin(), find(arr, item));
 		}
 
 		template <typename UnaryPredicate, typename C>
@@ -514,12 +514,12 @@ namespace gaia {
 			if (it == arr.end())
 				return BadIndex;
 
-			return (decltype(BadIndex))GAIA_UTIL::distance(arr.begin(), it);
+			return (decltype(BadIndex))core::distance(arr.begin(), it);
 		}
 
 		template <typename UnaryPredicate, typename C>
 		constexpr auto get_index_if_unsafe(const C& arr, UnaryPredicate predicate) {
-			return (decltype(BadIndex))GAIA_UTIL::distance(arr.begin(), find_if(arr, predicate));
+			return (decltype(BadIndex))core::distance(arr.begin(), find_if(arr, predicate));
 		}
 
 		//----------------------------------------------------------------------
@@ -601,9 +601,9 @@ namespace gaia {
 				int i = low - 1;
 				for (int j = low; j <= high - 1; j++) {
 					if (func(arr[j], pivot))
-						utils::swap(arr[++i], arr[j]);
+						core::swap(arr[++i], arr[j]);
 				}
-				utils::swap(arr[++i], arr[high]);
+				core::swap(arr[++i], arr[high]);
 				return i;
 			}
 
@@ -1001,5 +1001,5 @@ namespace gaia {
 				// detail::quick_sort(arr, 0, n - 1);
 			}
 		}
-	} // namespace utils
+	} // namespace core
 } // namespace gaia

@@ -4,8 +4,8 @@
 #include <cinttypes>
 #include <type_traits>
 
-#include "../containers/map.h"
-#include "../containers/sarray_ext.h"
+#include "../cnt/map.h"
+#include "../cnt/sarray_ext.h"
 #include "../ser/serialization.h"
 #include "archetype.h"
 #include "common.h"
@@ -33,7 +33,7 @@ namespace gaia {
 			struct CommandBufferCtx: DataBuffer_SerializationWrapper {
 				ecs::World& world;
 				uint32_t entities;
-				containers::map<uint32_t, Entity> entityMap;
+				cnt::map<uint32_t, Entity> entityMap;
 			};
 
 			enum CommandBufferCmd : uint8_t {

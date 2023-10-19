@@ -4,17 +4,17 @@
 #include <cinttypes>
 #include <type_traits>
 
+#include "../cnt/darray.h"
+#include "../cnt/ilist.h"
+#include "../cnt/map.h"
+#include "../cnt/sarray.h"
+#include "../cnt/sarray_ext.h"
+#include "../cnt/set.h"
 #include "../config/profiler.h"
-#include "../containers/darray.h"
-#include "../containers/ilist.h"
-#include "../containers/map.h"
-#include "../containers/sarray.h"
-#include "../containers/sarray_ext.h"
-#include "../containers/set.h"
-#include "../utils/hashing_policy.h"
-#include "../utils/span.h"
-#include "../utils/type_info.h"
-#include "../utils/utility.h"
+#include "../core/hashing_policy.h"
+#include "../core/span.h"
+#include "../core/utility.h"
+#include "../meta/type_info.h"
 #include "archetype.h"
 #include "archetype_common.h"
 #include "chunk.h"
@@ -30,6 +30,7 @@
 #include "query_cache.h"
 #include "query_common.h"
 
+
 namespace gaia {
 	namespace ecs {
 		class GAIA_API World final {
@@ -42,21 +43,21 @@ namespace gaia {
 			//! Cache of queries
 			QueryCache m_queryCache;
 			//! Cache of query ids to speed up ForEach
-			containers::map<component::ComponentLookupHash, query::QueryId> m_uniqueFuncQueryPairs;
+			cnt::map<component::ComponentLookupHash, query::QueryId> m_uniqueFuncQueryPairs;
 			//! Map of componentId -> archetype matches.
 			query::ComponentToArchetypeMap m_componentToArchetypeMap;
 
 			//! Map of archetypes mapping to the same hash - used for lookups
-			containers::map<archetype::ArchetypeLookupKey, archetype::Archetype*> m_archetypeMap;
+			cnt::map<archetype::ArchetypeLookupKey, archetype::Archetype*> m_archetypeMap;
 			//! List of archetypes - used for iteration
 			archetype::ArchetypeList m_archetypes;
 
 			//! Implicit list of entities. Used for look-ups only when searching for
 			//! entities in chunks + data validation
-			containers::ilist<EntityContainer, Entity> m_entities;
+			cnt::ilist<EntityContainer, Entity> m_entities;
 
 			//! List of chunks to delete
-			containers::darray<archetype::Chunk*> m_chunksToRemove;
+			cnt::darray<archetype::Chunk*> m_chunksToRemove;
 #if !GAIA_AVOID_CHUNK_FRAGMENTATION
 			//! ID of the last defragmented archetype
 			uint32_t m_defragLastArchetypeID = 0;
@@ -193,7 +194,7 @@ namespace gaia {
 					const auto it = m_componentToArchetypeMap.find(componentId);
 					if (it == m_componentToArchetypeMap.end())
 						m_componentToArchetypeMap.try_emplace(componentId, archetype::ArchetypeList{pArchetype});
-					else if (!utils::has(it->second, pArchetype))
+					else if (!core::has(it->second, pArchetype))
 						it->second.push_back(pArchetype);
 				};
 
@@ -215,7 +216,7 @@ namespace gaia {
 				GAIA_ASSERT((m_archetypes.empty() || pArchetype == m_archetypes[0]) || pArchetype->GetLookupHash().hash != 0);
 
 				// Make sure the archetype is not registered yet
-				GAIA_ASSERT(!utils::has(m_archetypes, pArchetype));
+				GAIA_ASSERT(!core::has(m_archetypes, pArchetype));
 
 				// Register the archetype
 				m_archetypes.push_back(pArchetype);
@@ -265,7 +266,7 @@ namespace gaia {
 					archetype::Archetype& archetype, Entity entity, component::ComponentType componentType,
 					const component::ComponentInfo& infoToRemove) {
 				const auto& componentIds = archetype.GetComponentIdArray(componentType);
-				if GAIA_UNLIKELY (!utils::has(componentIds, infoToRemove.componentId)) {
+				if GAIA_UNLIKELY (!core::has(componentIds, infoToRemove.componentId)) {
 					GAIA_ASSERT(false && "Trying to remove a component which wasn't added");
 					GAIA_LOG_W(
 							"Trying to remove a component from entity [%u.%u] but it was never added", entity.id(), entity.gen());
@@ -336,9 +337,9 @@ namespace gaia {
 
 				const uint32_t a = componentType;
 				const uint32_t b = (componentType + 1) & 1;
-				const containers::sarray_ext<uint32_t, archetype::MAX_COMPONENTS_PER_ARCHETYPE>* infos[2];
+				const cnt::sarray_ext<uint32_t, archetype::MAX_COMPONENTS_PER_ARCHETYPE>* infos[2];
 
-				containers::sarray_ext<uint32_t, archetype::MAX_COMPONENTS_PER_ARCHETYPE> infosNew;
+				cnt::sarray_ext<uint32_t, archetype::MAX_COMPONENTS_PER_ARCHETYPE> infosNew;
 				infos[a] = &infosNew;
 				infos[b] = &pArchetypeLeft->GetComponentIdArray((component::ComponentType)b);
 
@@ -394,9 +395,9 @@ namespace gaia {
 
 				const uint32_t a = componentType;
 				const uint32_t b = (componentType + 1) & 1;
-				const containers::sarray_ext<uint32_t, archetype::MAX_COMPONENTS_PER_ARCHETYPE>* infos[2];
+				const cnt::sarray_ext<uint32_t, archetype::MAX_COMPONENTS_PER_ARCHETYPE>* infos[2];
 
-				containers::sarray_ext<uint32_t, archetype::MAX_COMPONENTS_PER_ARCHETYPE> infosNew;
+				cnt::sarray_ext<uint32_t, archetype::MAX_COMPONENTS_PER_ARCHETYPE> infosNew;
 				infos[a] = &infosNew;
 				infos[b] = &pArchetypeRight->GetComponentIdArray((component::ComponentType)b);
 
@@ -669,7 +670,7 @@ namespace gaia {
 					// Skip reclaimed chunks
 					if (pChunk->HasEntities()) {
 						pChunk->PrepareToDie();
-						utils::erase_fast(m_chunksToRemove, i);
+						core::erase_fast(m_chunksToRemove, i);
 						continue;
 					}
 
@@ -1003,13 +1004,13 @@ namespace gaia {
 
 		private:
 			template <typename... T>
-			void UnpackArgsIntoQuery(Query& query, [[maybe_unused]] utils::func_type_list<T...> types) const {
+			void UnpackArgsIntoQuery(Query& query, [[maybe_unused]] core::func_type_list<T...> types) const {
 				static_assert(sizeof...(T) > 0, "Inputs-less functors can not be unpacked to query");
 				query.All<T...>();
 			}
 
 			template <typename... T>
-			static void RegisterComponents_Internal([[maybe_unused]] utils::func_type_list<T...> types) {
+			static void RegisterComponents_Internal([[maybe_unused]] core::func_type_list<T...> types) {
 				static_assert(sizeof...(T) > 0, "Empty Query is not supported in this context");
 				auto& cc = ComponentCache::Get();
 				((void)cc.GetOrCreateComponentInfo<T>(), ...);
@@ -1017,13 +1018,13 @@ namespace gaia {
 
 			template <typename Func>
 			static void RegisterComponents() {
-				using InputArgs = decltype(utils::func_args(&Func::operator()));
+				using InputArgs = decltype(core::func_args(&Func::operator()));
 				RegisterComponents_Internal(InputArgs{});
 			}
 
 			template <typename... T>
 			static constexpr component::ComponentLookupHash
-			CalculateQueryIdLookupHash([[maybe_unused]] utils::func_type_list<T...> types) {
+			CalculateQueryIdLookupHash([[maybe_unused]] core::func_type_list<T...> types) {
 				return component::CalculateLookupHash<T...>();
 			}
 
@@ -1043,7 +1044,7 @@ namespace gaia {
 			//!          easier to use and for non-critical code paths it is the most elegant way of iterating your data.
 			template <typename Func>
 			void ForEach(Func func) {
-				using InputArgs = decltype(utils::func_args(&Func::operator()));
+				using InputArgs = decltype(core::func_args(&Func::operator()));
 
 				RegisterComponents<Func>();
 

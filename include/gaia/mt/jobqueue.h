@@ -2,12 +2,12 @@
 
 #include "../config/config.h"
 
+#include "../cnt/sarray.h"
 #include "../config/profiler.h"
-#include "../containers/sarray.h"
 
 #define JOB_QUEUE_USE_LOCKS 1
 #if JOB_QUEUE_USE_LOCKS
-	#include "../containers/sringbuffer.h"
+	#include "../cnt/sringbuffer.h"
 	#include <mutex>
 #endif
 
@@ -24,9 +24,9 @@ namespace gaia {
 
 #if JOB_QUEUE_USE_LOCKS
 			std::mutex m_bufferLock;
-			containers::sringbuffer<JobHandle, N> m_buffer;
+			cnt::sringbuffer<JobHandle, N> m_buffer;
 #else
-			containers::sarray<JobHandle, N> m_buffer;
+			cnt::sarray<JobHandle, N> m_buffer;
 			std::atomic_uint32_t m_bottom{};
 			std::atomic_uint32_t m_top{};
 #endif
