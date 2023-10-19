@@ -19,7 +19,6 @@
 #include "component_utils.h"
 #include "entity.h"
 
-
 namespace gaia {
 	namespace ecs {
 		namespace archetype {
@@ -113,32 +112,32 @@ namespace gaia {
 				\return Span of read-only component data.
 				*/
 				template <typename T>
-				GAIA_NODISCARD GAIA_FORCEINLINE auto View_Internal() const {
+				GAIA_NODISCARD GAIA_FORCEINLINE auto View_Internal() const -> decltype(std::span<const uint8_t>{}) {
 					using U = typename component::component_type_t<T>::Type;
 
 					if constexpr (std::is_same_v<U, Entity>) {
-						return std::span<const uint8_t>{
-								(const uint8_t*)&GetData(m_header.offsets.firstByte_EntityData), GetEntityCount()};
+						return {(const uint8_t*)&GetData(m_header.offsets.firstByte_EntityData), GetEntityCount()};
 					} else {
 						static_assert(!std::is_empty_v<U>, "Attempting to get value of an empty component");
 
 						const auto componentId = component::GetComponentId<T>();
+						constexpr auto componentType = component::component_type_v<T>;
 
-						if constexpr (component::component_type_v<T> == component::ComponentType::CT_Generic) {
-							const auto offset = FindDataOffset(component::ComponentType::CT_Generic, componentId);
+						// Find at what byte offset the first component of a given type is located
+						uint32_t componentIdx = 0;
+						const auto offset = FindDataOffset(componentType, componentId, componentIdx);
 
+						if constexpr (componentType == component::ComponentType::CT_Generic) {
 							[[maybe_unused]] const auto capacity = GetEntityCapacity();
 							[[maybe_unused]] const auto maxOffset = offset + capacity * sizeof(U);
 							GAIA_ASSERT(maxOffset <= GetByteSize());
 
-							return std::span<const uint8_t>{(const uint8_t*)&GetData(offset), GetEntityCount()};
+							return {(const uint8_t*)&GetData(offset), GetEntityCount()};
 						} else {
-							const auto offset = FindDataOffset(component::ComponentType::CT_Chunk, componentId);
-
 							[[maybe_unused]] const auto maxOffset = offset + sizeof(U);
 							GAIA_ASSERT(maxOffset <= GetByteSize());
 
-							return std::span<const uint8_t>{(const uint8_t*)&GetData(offset), 1};
+							return {(const uint8_t*)&GetData(offset), 1};
 						}
 					}
 				}
@@ -151,7 +150,7 @@ namespace gaia {
 				\return Span of read-write component data.
 				*/
 				template <typename T, bool WorldVersionUpdateWanted>
-				GAIA_NODISCARD GAIA_FORCEINLINE auto ViewRW_Internal() {
+				GAIA_NODISCARD GAIA_FORCEINLINE auto ViewRW_Internal() -> decltype(std::span<uint8_t>{}) {
 					using U = typename component::component_type_t<T>::Type;
 #if GAIA_COMPILER_MSVC && _MSC_VER <= 1916
 					// Workaround for MSVC 2017 bug where it incorrectly evaluates the static assert
@@ -164,33 +163,27 @@ namespace gaia {
 					static_assert(!std::is_empty_v<U>, "Attempting to set value of an empty component");
 
 					const auto componentId = component::GetComponentId<T>();
+					constexpr auto componentType = component::component_type_v<T>;
+
+					// Find at what byte offset the first component of a given type is located
 					uint32_t componentIdx = 0;
+					const auto offset = FindDataOffset(componentType, componentId, componentIdx);
 
-					if constexpr (component::component_type_v<T> == component::ComponentType::CT_Generic) {
-						const auto offset = FindDataOffset(component::ComponentType::CT_Generic, componentId, componentIdx);
+					// Update version number if necessary so we know RW access was used on the chunk
+					if constexpr (WorldVersionUpdateWanted)
+						this->UpdateWorldVersion(componentType, componentIdx);
 
+					if constexpr (componentType == component::ComponentType::CT_Generic) {
 						[[maybe_unused]] const auto capacity = GetEntityCapacity();
 						[[maybe_unused]] const auto maxOffset = offset + capacity * sizeof(U);
 						GAIA_ASSERT(maxOffset <= GetByteSize());
 
-						if constexpr (WorldVersionUpdateWanted) {
-							// Update version number so we know RW access was used on chunk
-							this->UpdateWorldVersion(component::ComponentType::CT_Generic, componentIdx);
-						}
-
-						return std::span<uint8_t>{(uint8_t*)&GetData(offset), GetEntityCount()};
+						return {(uint8_t*)&GetData(offset), GetEntityCount()};
 					} else {
-						const auto offset = FindDataOffset(component::ComponentType::CT_Chunk, componentId, componentIdx);
-
 						[[maybe_unused]] const auto maxOffset = offset + sizeof(U);
 						GAIA_ASSERT(maxOffset <= GetByteSize());
 
-						if constexpr (WorldVersionUpdateWanted) {
-							// Update version number so we know RW access was used on chunk
-							this->UpdateWorldVersion(component::ComponentType::CT_Chunk, componentIdx);
-						}
-
-						return std::span<uint8_t>{(uint8_t*)&GetData(offset), 1};
+						return {(uint8_t*)&GetData(offset), 1};
 					}
 				}
 
@@ -205,10 +198,10 @@ namespace gaia {
 				template <typename T>
 				GAIA_NODISCARD auto GetComponent_Internal(uint32_t index) const {
 					using U = typename component::component_type_t<T>::Type;
-					using RetValue = decltype(View<T>()[0]);
+					using RetValueType = decltype(View<T>()[0]);
 
 					GAIA_ASSERT(index < m_header.count);
-					if constexpr (sizeof(RetValue) > 8)
+					if constexpr (sizeof(RetValueType) > 8)
 						return (const U&)View<T>()[index];
 					else
 						return View<T>()[index];
@@ -400,12 +393,12 @@ namespace gaia {
 					GAIA_ASSERT(pOldChunk->GetArchetypeId() == pNewChunk->GetArchetypeId());
 
 					const auto& cc = ComponentCache::Get();
-					const auto oldInfos = pOldChunk->GetComponentIdSpan(component::ComponentType::CT_Generic);
-					const auto oldOffs = pOldChunk->GetComponentOffsetSpan(component::ComponentType::CT_Generic);
+					auto oldIds = pOldChunk->GetComponentIdSpan(component::ComponentType::CT_Generic);
+					auto oldOffs = pOldChunk->GetComponentOffsetSpan(component::ComponentType::CT_Generic);
 
 					// Copy generic component data from reference entity to our new entity
-					for (uint32_t i = 0; i < oldInfos.size(); i++) {
-						const auto& desc = cc.GetComponentDesc(oldInfos[i]);
+					for (uint32_t i = 0; i < oldIds.size(); i++) {
+						const auto& desc = cc.GetComponentDesc(oldIds[i]);
 						if (desc.properties.size == 0U)
 							continue;
 
@@ -434,12 +427,12 @@ namespace gaia {
 					GAIA_ASSERT(pOldChunk->GetArchetypeId() == GetArchetypeId());
 
 					const auto& cc = ComponentCache::Get();
-					const auto oldInfos = pOldChunk->GetComponentIdSpan(component::ComponentType::CT_Generic);
-					const auto oldOffs = pOldChunk->GetComponentOffsetSpan(component::ComponentType::CT_Generic);
+					auto oldIds = pOldChunk->GetComponentIdSpan(component::ComponentType::CT_Generic);
+					auto oldOffs = pOldChunk->GetComponentOffsetSpan(component::ComponentType::CT_Generic);
 
 					// Copy generic component data from reference entity to our new entity
-					for (uint32_t i = 0; i < oldInfos.size(); i++) {
-						const auto& desc = cc.GetComponentDesc(oldInfos[i]);
+					for (uint32_t i = 0; i < oldIds.size(); i++) {
+						const auto& desc = cc.GetComponentDesc(oldIds[i]);
 						if (desc.properties.size == 0U)
 							continue;
 
@@ -470,10 +463,10 @@ namespace gaia {
 					// Find intersection of the two component lists.
 					// We ignore chunk components here because they should't be influenced
 					// by entities moving around.
-					const auto oldInfos = pOldChunk->GetComponentIdSpan(component::ComponentType::CT_Generic);
-					const auto oldOffs = pOldChunk->GetComponentOffsetSpan(component::ComponentType::CT_Generic);
-					const auto newInfos = GetComponentIdSpan(component::ComponentType::CT_Generic);
-					const auto newOffs = GetComponentOffsetSpan(component::ComponentType::CT_Generic);
+					auto oldIds = pOldChunk->GetComponentIdSpan(component::ComponentType::CT_Generic);
+					auto oldOffs = pOldChunk->GetComponentOffsetSpan(component::ComponentType::CT_Generic);
+					auto newIds = GetComponentIdSpan(component::ComponentType::CT_Generic);
+					auto newOffs = GetComponentOffsetSpan(component::ComponentType::CT_Generic);
 
 					// Arrays are sorted so we can do linear intersection lookup
 					{
@@ -496,9 +489,9 @@ namespace gaia {
 							desc.CtorFrom(pSrc, pDst);
 						};
 
-						while (i < oldInfos.size() && j < newInfos.size()) {
-							const auto& descOld = cc.GetComponentDesc(oldInfos[i]);
-							const auto& descNew = cc.GetComponentDesc(newInfos[j]);
+						while (i < oldIds.size() && j < newIds.size()) {
+							const auto& descOld = cc.GetComponentDesc(oldIds[i]);
+							const auto& descNew = cc.GetComponentDesc(newIds[j]);
 
 							if (&descOld == &descNew) {
 								moveData(descOld);
@@ -523,15 +516,15 @@ namespace gaia {
 						SetEntity(index, entity);
 
 						const auto& cc = ComponentCache::Get();
-						const auto componentIds = GetComponentIdSpan(component::ComponentType::CT_Generic);
-						const auto componentOffsets = GetComponentOffsetSpan(component::ComponentType::CT_Generic);
+						auto compIds = GetComponentIdSpan(component::ComponentType::CT_Generic);
+						auto compOffs = GetComponentOffsetSpan(component::ComponentType::CT_Generic);
 
-						for (uint32_t i = 0; i < componentIds.size(); i++) {
-							const auto& desc = cc.GetComponentDesc(componentIds[i]);
+						for (uint32_t i = 0; i < compIds.size(); i++) {
+							const auto& desc = cc.GetComponentDesc(compIds[i]);
 							if (desc.properties.size == 0U)
 								continue;
 
-							const auto offset = componentOffsets[i];
+							const auto offset = compOffs[i];
 							const auto idxSrc = offset + index * desc.properties.size;
 							const auto idxDst = offset + (m_header.count - 1U) * desc.properties.size;
 
@@ -562,8 +555,9 @@ namespace gaia {
 					GAIA_ASSERT(index < m_header.count && "Entity chunk index out of bounds!");
 
 					const auto offset = sizeof(Entity) * index + m_header.offsets.firstByte_EntityData;
-					mem::unaligned_ref<Entity> mem((void*)&m_data[offset]);
-					mem = entity;
+					// unaligned_ref note necessary because entity data is aligned
+					auto* pMem = (Entity*)&m_data[offset];
+					*pMem = entity;
 				}
 
 				/*!
@@ -575,8 +569,9 @@ namespace gaia {
 					GAIA_ASSERT(index < m_header.count && "Entity chunk index out of bounds!");
 
 					const auto offset = sizeof(Entity) * index + m_header.offsets.firstByte_EntityData;
-					mem::unaligned_ref<Entity> mem((void*)&m_data[offset]);
-					return mem;
+					// unaligned_ref note necessary because entity data is aligned
+					auto* pMem = (Entity*)&m_data[offset];
+					return *pMem;
 				}
 
 				/*!
@@ -624,16 +619,13 @@ namespace gaia {
 				*/
 				GAIA_NODISCARD ChunkComponentOffset FindDataOffset(
 						component::ComponentType componentType, component::ComponentId componentId, uint32_t& componentIdx) const {
-					// Searching for a component that's not there! Programmer mistake.
-					GAIA_ASSERT(Has(componentType, componentId));
 					// Don't use this with empty components. It's impossible to write to them anyway.
 					GAIA_ASSERT(ComponentCache::Get().GetComponentDesc(componentId).properties.size != 0);
 
-					const auto componentIds = GetComponentIdSpan(componentType);
-					const auto componentOffsets = GetComponentOffsetSpan(componentType);
+					componentIdx = GetComponentIdx(componentType, componentId);
 
-					componentIdx = (uint32_t)core::get_index_unsafe(componentIds, componentId);
-					const auto offset = componentOffsets[componentIdx];
+					auto compOffs = GetComponentOffsetSpan(componentType);
+					const auto offset = compOffs[componentIdx];
 					GAIA_ASSERT(offset >= m_header.offsets.firstByte_EntityData);
 					return offset;
 				}
@@ -683,11 +675,10 @@ namespace gaia {
 					if (desc.ctor == nullptr)
 						return;
 
-					const auto componentIds = GetComponentIdSpan(componentType);
-					const auto componentOffsets = GetComponentOffsetSpan(componentType);
+					const auto idx = GetComponentIdx(componentType, componentId);
 
-					const auto idx = core::get_index_unsafe(componentIds, componentId);
-					const auto offset = componentOffsets[idx];
+					auto compOffs = GetComponentOffsetSpan(componentType);
+					const auto offset = compOffs[idx];
 					const auto idxSrc = offset + entityIndex * desc.properties.size;
 					GAIA_ASSERT(idxSrc < GetByteSize());
 
@@ -706,15 +697,15 @@ namespace gaia {
 					GAIA_ASSERT(componentType == component::ComponentType::CT_Generic || (entityIndex == 0 && entityCount == 1));
 
 					const auto& cc = ComponentCache::Get();
-					const auto componentIds = GetComponentIdSpan(componentType);
-					const auto componentOffsets = GetComponentOffsetSpan(componentType);
+					auto compIds = GetComponentIdSpan(componentType);
+					auto compOffs = GetComponentOffsetSpan(componentType);
 
-					for (uint32_t i = 0; i < componentIds.size(); i++) {
-						const auto& desc = cc.GetComponentDesc(componentIds[i]);
+					for (uint32_t i = 0; i < compIds.size(); i++) {
+						const auto& desc = cc.GetComponentDesc(compIds[i]);
 						if (desc.ctor == nullptr)
 							continue;
 
-						const auto offset = componentOffsets[i];
+						const auto offset = compOffs[i];
 						const auto idxSrc = offset + entityIndex * desc.properties.size;
 						GAIA_ASSERT(idxSrc < GetByteSize());
 
@@ -734,15 +725,15 @@ namespace gaia {
 					GAIA_ASSERT(componentType == component::ComponentType::CT_Generic || (entityIndex == 0 && entityCount == 1));
 
 					const auto& cc = ComponentCache::Get();
-					const auto componentIds = GetComponentIdSpan(componentType);
-					const auto componentOffsets = GetComponentOffsetSpan(componentType);
+					auto compIds = GetComponentIdSpan(componentType);
+					auto compOffs = GetComponentOffsetSpan(componentType);
 
-					for (uint32_t i = 0; i < componentIds.size(); ++i) {
-						const auto& desc = cc.GetComponentDesc(componentIds[i]);
+					for (uint32_t i = 0; i < compIds.size(); ++i) {
+						const auto& desc = cc.GetComponentDesc(compIds[i]);
 						if (desc.dtor == nullptr)
 							continue;
 
-						const auto offset = componentOffsets[i];
+						const auto offset = compOffs[i];
 						const auto idxSrc = offset + entityIndex * desc.properties.size;
 						GAIA_ASSERT(idxSrc < GetByteSize());
 
@@ -762,8 +753,8 @@ namespace gaia {
 				\return True if found. False otherwise.
 				*/
 				GAIA_NODISCARD bool Has(component::ComponentType componentType, component::ComponentId componentId) const {
-					const auto componentIds = GetComponentIdSpan(componentType);
-					return core::has(componentIds, componentId);
+					auto compIds = GetComponentIdSpan(componentType);
+					return core::has(compIds, componentId);
 				}
 
 				/*!
@@ -936,10 +927,10 @@ namespace gaia {
 				*/
 				GAIA_NODISCARD uint32_t
 				GetComponentIdx(component::ComponentType componentType, component::ComponentId componentId) const {
-					const auto componentIds = GetComponentIdSpan(componentType);
-					const auto idx = core::get_index_unsafe(componentIds, componentId);
+					auto compIds = GetComponentIdSpan(componentType);
+					const auto idx = core::get_index_unsafe(compIds, componentId);
 					GAIA_ASSERT(idx != BadIndex);
-					return (uint32_t)idx;
+					return idx;
 				}
 
 				//----------------------------------------------------------------------
@@ -1100,7 +1091,7 @@ namespace gaia {
 				//! Returns true if the provided version is newer than the one stored internally
 				GAIA_NODISCARD bool
 				DidChange(component::ComponentType componentType, uint32_t version, uint32_t componentIdx) const {
-					const auto versions = GetComponentVersionSpan(componentType);
+					auto versions = GetComponentVersionSpan(componentType);
 					return DidVersionChange(versions[componentIdx], version);
 				}
 
@@ -1109,13 +1100,13 @@ namespace gaia {
 					// Make sure only proper input is provided
 					GAIA_ASSERT(componentIdx >= 0 && componentIdx < archetype::MAX_COMPONENTS_PER_ARCHETYPE);
 
-					const auto versions = GetComponentVersionSpan(componentType);
+					auto versions = GetComponentVersionSpan(componentType);
 					versions[componentIdx] = m_header.worldVersion;
 				}
 
 				//! Update version of all components of a given \param componentType
 				GAIA_FORCEINLINE void UpdateWorldVersion(component::ComponentType componentType) const {
-					const auto versions = GetComponentVersionSpan(componentType);
+					auto versions = GetComponentVersionSpan(componentType);
 					for (auto& v: versions)
 						v = m_header.worldVersion;
 				}
