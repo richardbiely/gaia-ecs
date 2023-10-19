@@ -3,14 +3,14 @@
 
 #include <type_traits>
 
+#include "../cnt/darray.h"
+#include "../cnt/map.h"
+#include "../cnt/sarray_ext.h"
 #include "../config/profiler.h"
-#include "../containers/darray.h"
-#include "../containers/map.h"
-#include "../containers/sarray_ext.h"
+#include "../core/hashing_policy.h"
+#include "../core/utility.h"
 #include "../mt/jobhandle.h"
 #include "../ser/serialization.h"
-#include "../utils/hashing_policy.h"
-#include "../utils/utility.h"
 #include "archetype.h"
 #include "archetype_common.h"
 #include "chunk.h"
@@ -25,6 +25,7 @@
 #include "query_cache.h"
 #include "query_common.h"
 #include "query_info.h"
+
 
 namespace gaia {
 	namespace ecs {
@@ -46,7 +47,7 @@ namespace gaia {
 			class QueryImpl final {
 				static constexpr uint32_t ChunkBatchSize = 16;
 				using CChunkSpan = std::span<const archetype::Chunk*>;
-				using ChunkBatchedList = containers::sarray_ext<archetype::Chunk*, ChunkBatchSize>;
+				using ChunkBatchedList = cnt::sarray_ext<archetype::Chunk*, ChunkBatchSize>;
 				using CmdBufferCmdFunc = void (*)(DataBuffer& buffer, query::LookupCtx& ctx);
 
 			public:
@@ -72,7 +73,7 @@ namespace gaia {
 						auto& rules = data.rules;
 
 						// Unique component ids only
-						GAIA_ASSERT(!utils::has(componentIds, componentId));
+						GAIA_ASSERT(!core::has(componentIds, componentId));
 
 #if GAIA_DEBUG
 						// There's a limit to the amount of components which we can store
@@ -111,8 +112,8 @@ namespace gaia {
 						auto& withChanged = data.withChanged;
 						const auto& rules = data.rules;
 
-						GAIA_ASSERT(utils::has(componentIds, componentId));
-						GAIA_ASSERT(!utils::has(withChanged, componentId));
+						GAIA_ASSERT(core::has(componentIds, componentId));
+						GAIA_ASSERT(!core::has(withChanged, componentId));
 
 #if GAIA_DEBUG
 						// There's a limit to the amount of components which we can store
@@ -128,7 +129,7 @@ namespace gaia {
 						}
 #endif
 
-						const auto componentIdx = utils::get_index_unsafe(componentIds, componentId);
+						const auto componentIdx = core::get_index_unsafe(componentIds, componentId);
 
 						// Component has to be present in anyList or allList.
 						// NoneList makes no sense because we skip those in query processing anyway.
@@ -276,7 +277,7 @@ namespace gaia {
 
 				//! Unpacks the parameter list \param types into query \param query and performs All for each of them
 				template <typename... T>
-				void UnpackArgsIntoQuery_All(QueryImpl& query, [[maybe_unused]] utils::func_type_list<T...> types) const {
+				void UnpackArgsIntoQuery_All(QueryImpl& query, [[maybe_unused]] core::func_type_list<T...> types) const {
 					static_assert(sizeof...(T) > 0, "Inputs-less functors can not be unpacked to query");
 					query.All<T...>();
 				}
@@ -284,7 +285,7 @@ namespace gaia {
 				//! Unpacks the parameter list \param types into query \param query and performs HasAll for each of them
 				template <typename... T>
 				GAIA_NODISCARD bool UnpackArgsIntoQuery_HasAll(
-						const query::QueryInfo& queryInfo, [[maybe_unused]] utils::func_type_list<T...> types) const {
+						const query::QueryInfo& queryInfo, [[maybe_unused]] core::func_type_list<T...> types) const {
 					if constexpr (sizeof...(T) > 0)
 						return queryInfo.HasAll<T...>();
 					else
@@ -373,7 +374,7 @@ namespace gaia {
 
 				template <bool HasFilters, typename Func>
 				void ProcessQueryOnChunks_NoConstraints(
-						Func func, ChunkBatchedList& chunkBatch, const containers::darray<archetype::Chunk*>& chunks,
+						Func func, ChunkBatchedList& chunkBatch, const cnt::darray<archetype::Chunk*>& chunks,
 						const query::QueryInfo& queryInfo) {
 					uint32_t chunkOffset = 0;
 					uint32_t itemsLeft = chunks.size();
@@ -403,7 +404,7 @@ namespace gaia {
 
 				template <bool HasFilters, typename Func>
 				void ProcessQueryOnChunks(
-						Func func, ChunkBatchedList& chunkBatch, const containers::darray<archetype::Chunk*>& chunks,
+						Func func, ChunkBatchedList& chunkBatch, const cnt::darray<archetype::Chunk*>& chunks,
 						const query::QueryInfo& queryInfo, bool enabledOnly) {
 					uint32_t chunkOffset = 0;
 					uint32_t itemsLeft = chunks.size();
@@ -479,7 +480,7 @@ namespace gaia {
 
 				template <typename Func>
 				void ForEach_Internal(query::QueryInfo& queryInfo, Func func) {
-					using InputArgs = decltype(utils::func_args(&Func::operator()));
+					using InputArgs = decltype(core::func_args(&Func::operator()));
 
 #if GAIA_DEBUG
 					// Make sure we only use components specified in the query
@@ -501,7 +502,7 @@ namespace gaia {
 
 				template <bool FuncEnabled = UseCaching>
 				QueryImpl(
-						QueryCache& queryCache, uint32_t& worldVersion, const containers::darray<archetype::Archetype*>& archetypes,
+						QueryCache& queryCache, uint32_t& worldVersion, const cnt::darray<archetype::Archetype*>& archetypes,
 						const query::ComponentToArchetypeMap& componentToArchetypeMap):
 						m_worldVersion(&worldVersion),
 						m_archetypes(&archetypes), m_componentToArchetypeMap(&componentToArchetypeMap) {
@@ -510,7 +511,7 @@ namespace gaia {
 
 				template <bool FuncEnabled = !UseCaching>
 				QueryImpl(
-						uint32_t& worldVersion, const containers::darray<archetype::Archetype*>& archetypes,
+						uint32_t& worldVersion, const cnt::darray<archetype::Archetype*>& archetypes,
 						const query::ComponentToArchetypeMap& componentToArchetypeMap):
 						m_worldVersion(&worldVersion),
 						m_archetypes(&archetypes), m_componentToArchetypeMap(&componentToArchetypeMap) {}
@@ -598,7 +599,7 @@ namespace gaia {
 
 				template <bool UseFilters, Constraints c, typename ChunksContainer>
 				GAIA_NODISCARD bool HasEntities_Helper(query::QueryInfo& queryInfo, const ChunksContainer& chunks) {
-					return utils::has_if(chunks, [&](archetype::Chunk* pChunk) {
+					return core::has_if(chunks, [&](archetype::Chunk* pChunk) {
 						if constexpr (UseFilters) {
 							if constexpr (c == Constraints::AcceptAll)
 								return pChunk->HasEntities() && CheckFilters(*pChunk, queryInfo);

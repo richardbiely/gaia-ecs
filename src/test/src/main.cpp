@@ -21,15 +21,15 @@ struct Position {
 };
 struct PositionSoA {
 	float x, y, z;
-	static constexpr auto Layout = utils::DataLayout::SoA;
+	static constexpr auto Layout = mem::DataLayout::SoA;
 };
 struct PositionSoA8 {
 	float x, y, z;
-	static constexpr auto Layout = utils::DataLayout::SoA8;
+	static constexpr auto Layout = mem::DataLayout::SoA8;
 };
 struct PositionSoA16 {
 	float x, y, z;
-	static constexpr auto Layout = utils::DataLayout::SoA16;
+	static constexpr auto Layout = mem::DataLayout::SoA16;
 };
 struct Acceleration {
 	float x, y, z;
@@ -41,19 +41,19 @@ struct DummySoA {
 	float x, y;
 	bool b;
 	float w;
-	static constexpr auto Layout = utils::DataLayout::SoA;
+	static constexpr auto Layout = mem::DataLayout::SoA;
 };
 struct RotationSoA {
 	float x, y, z, w;
-	static constexpr auto Layout = utils::DataLayout::SoA;
+	static constexpr auto Layout = mem::DataLayout::SoA;
 };
 struct RotationSoA8 {
 	float x, y, z, w;
-	static constexpr auto Layout = utils::DataLayout::SoA8;
+	static constexpr auto Layout = mem::DataLayout::SoA8;
 };
 struct RotationSoA16 {
 	float x, y, z, w;
-	static constexpr auto Layout = utils::DataLayout::SoA16;
+	static constexpr auto Layout = mem::DataLayout::SoA16;
 };
 struct Scale {
 	float x, y, z;
@@ -170,24 +170,24 @@ TEST_CASE("ComponentTypes") {
 
 TEST_CASE("Memory allocation") {
 	SECTION("mem_alloc") {
-		void* pMem = utils::mem_alloc(311);
+		void* pMem = mem::mem_alloc(311);
 		REQUIRE(pMem != nullptr);
-		utils::mem_free(pMem);
+		mem::mem_free(pMem);
 	}
 	SECTION("mem_alloc_alig A") {
-		void* pMem = utils::mem_alloc_alig(1, 16);
+		void* pMem = mem::mem_alloc_alig(1, 16);
 		REQUIRE(pMem != nullptr);
-		utils::mem_free_alig(pMem);
+		mem::mem_free_alig(pMem);
 	}
 	SECTION("mem_alloc_alig B") {
-		void* pMem = utils::mem_alloc_alig(311, 16);
+		void* pMem = mem::mem_alloc_alig(311, 16);
 		REQUIRE(pMem != nullptr);
-		utils::mem_free_alig(pMem);
+		mem::mem_free_alig(pMem);
 	}
 }
 
 TEST_CASE("Containers - sarray") {
-	containers::sarray<uint32_t, 5> arr = {0, 1, 2, 3, 4};
+	cnt::sarray<uint32_t, 5> arr = {0, 1, 2, 3, 4};
 	REQUIRE(arr[0] == 0);
 	REQUIRE(arr[1] == 1);
 	REQUIRE(arr[2] == 2);
@@ -202,16 +202,16 @@ TEST_CASE("Containers - sarray") {
 	REQUIRE(cnt == 5);
 	REQUIRE(cnt == arr.size());
 
-	REQUIRE(utils::find(arr, 0U) == arr.begin());
-	REQUIRE(utils::find(arr, 100U) == arr.end());
+	REQUIRE(core::find(arr, 0U) == arr.begin());
+	REQUIRE(core::find(arr, 100U) == arr.end());
 
-	REQUIRE(utils::has(arr, 0U));
-	REQUIRE_FALSE(utils::has(arr, 100U));
+	REQUIRE(core::has(arr, 0U));
+	REQUIRE_FALSE(core::has(arr, 100U));
 }
 
 TEST_CASE("bit_view") {
 	constexpr uint32_t BlockBits = 6;
-	using view = utils::bit_view<BlockBits>;
+	using view = core::bit_view<BlockBits>;
 	// Number of BlockBits-sized elements
 	constexpr uint32_t NBlocks = view::MaxValue + 1;
 	// Number of bytes necessary to host "Blocks" number of BlockBits-sized elements
@@ -235,7 +235,7 @@ TEST_CASE("bit_view") {
 }
 
 TEST_CASE("Containers - sarray_ext") {
-	containers::sarray_ext<uint32_t, 5> arr;
+	cnt::sarray_ext<uint32_t, 5> arr;
 	arr.push_back(0);
 	REQUIRE(arr[0] == 0);
 	arr.push_back(1);
@@ -255,15 +255,15 @@ TEST_CASE("Containers - sarray_ext") {
 	REQUIRE(cnt == 5);
 	REQUIRE(cnt == arr.size());
 
-	REQUIRE(utils::find(arr, 0U) == arr.begin());
-	REQUIRE(utils::find(arr, 100U) == arr.end());
+	REQUIRE(core::find(arr, 0U) == arr.begin());
+	REQUIRE(core::find(arr, 100U) == arr.end());
 
-	REQUIRE(utils::has(arr, 0U));
-	REQUIRE_FALSE(utils::has(arr, 100U));
+	REQUIRE(core::has(arr, 0U));
+	REQUIRE_FALSE(core::has(arr, 100U));
 }
 
 TEST_CASE("Containers - darr") {
-	containers::darr<uint32_t> arr;
+	cnt::darr<uint32_t> arr;
 	arr.push_back(0);
 	REQUIRE(arr[0] == 0);
 	arr.push_back(1);
@@ -287,16 +287,16 @@ TEST_CASE("Containers - darr") {
 	REQUIRE(cnt == 7);
 	REQUIRE(cnt == arr.size());
 
-	REQUIRE(utils::find(arr, 0U) == arr.begin());
-	REQUIRE(utils::find(arr, 100U) == arr.end());
+	REQUIRE(core::find(arr, 0U) == arr.begin());
+	REQUIRE(core::find(arr, 100U) == arr.end());
 
-	REQUIRE(utils::has(arr, 0U));
-	REQUIRE_FALSE(utils::has(arr, 100U));
+	REQUIRE(core::has(arr, 0U));
+	REQUIRE_FALSE(core::has(arr, 100U));
 }
 
 TEST_CASE("Containers - sringbuffer") {
 	{
-		containers::sringbuffer<uint32_t, 5> arr = {0, 1, 2, 3, 4};
+		cnt::sringbuffer<uint32_t, 5> arr = {0, 1, 2, 3, 4};
 		uint32_t val{};
 
 		REQUIRE_FALSE(arr.empty());
@@ -333,7 +333,7 @@ TEST_CASE("Containers - sringbuffer") {
 	}
 
 	{
-		containers::sringbuffer<uint32_t, 5> arr;
+		cnt::sringbuffer<uint32_t, 5> arr;
 		uint32_t val{};
 
 		REQUIRE(arr.empty());
@@ -396,14 +396,14 @@ TEST_CASE("Containers - sringbuffer") {
 }
 
 TEST_CASE("Containers - ilist") {
-	struct EntityContainer: containers::ilist_item {
+	struct EntityContainer: cnt::ilist_item {
 		int value;
 
 		EntityContainer() = default;
-		EntityContainer(uint32_t index, uint32_t generation): containers::ilist_item(index, generation) {}
+		EntityContainer(uint32_t index, uint32_t generation): cnt::ilist_item(index, generation) {}
 	};
 	SECTION("0 -> 1 -> 2") {
-		containers::ilist<EntityContainer, ecs::Entity> il;
+		cnt::ilist<EntityContainer, ecs::Entity> il;
 		ecs::Entity handles[3];
 
 		handles[0] = il.allocate();
@@ -455,7 +455,7 @@ TEST_CASE("Containers - ilist") {
 		REQUIRE(il[2].gen == 1);
 	}
 	SECTION("2 -> 1 -> 0") {
-		containers::ilist<EntityContainer, ecs::Entity> il;
+		cnt::ilist<EntityContainer, ecs::Entity> il;
 		ecs::Entity handles[3];
 
 		handles[0] = il.allocate();
@@ -517,7 +517,7 @@ void test_bitset() {
 	static_assert(NBits >= 5);
 
 	SECTION("Bit operations") {
-		containers::bitset<NBits> bs;
+		cnt::bitset<NBits> bs;
 		REQUIRE(bs.count() == 0);
 		REQUIRE(bs.size() == NBits);
 		REQUIRE(bs.any() == false);
@@ -592,14 +592,14 @@ void test_bitset() {
 	}
 	SECTION("Iteration") {
 		{
-			containers::bitset<NBits> bs;
+			cnt::bitset<NBits> bs;
 			uint32_t i = 0;
 			for ([[maybe_unused]] auto val: bs)
 				++i;
 			REQUIRE(i == 0);
 		}
 		auto fwd_iterator_test = [](std::span<uint32_t> vals) {
-			containers::bitset<NBits> bs;
+			cnt::bitset<NBits> bs;
 			for (uint32_t bit: vals)
 				bs.set(bit);
 			const uint32_t c = bs.count();
@@ -668,7 +668,7 @@ TEST_CASE("Containers - bitset") {
 		test_bitset<512>();
 	}
 	SECTION("Ranges 11 bits") {
-		containers::bitset<11> bs;
+		cnt::bitset<11> bs;
 		bs.set(1);
 		bs.set(10);
 		bs.flip(2, 9);
@@ -703,7 +703,7 @@ TEST_CASE("Containers - bitset") {
 		REQUIRE(bs.none() == true);
 	}
 	SECTION("Ranges 64 bits") {
-		containers::bitset<64> bs;
+		cnt::bitset<64> bs;
 		bs.set(1);
 		bs.set(10);
 		bs.flip(2, 9);
@@ -738,7 +738,7 @@ TEST_CASE("Containers - bitset") {
 		REQUIRE(bs.none() == true);
 	}
 	SECTION("Ranges 101 bits") {
-		containers::bitset<101> bs;
+		cnt::bitset<101> bs;
 		bs.set(1);
 		bs.set(100);
 		bs.flip(2, 99);
@@ -780,7 +780,7 @@ void test_dbitset() {
 	static_assert(NBits >= 5);
 
 	SECTION("Bit operations") {
-		containers::dbitset bs;
+		cnt::dbitset bs;
 		REQUIRE(bs.count() == 0);
 		REQUIRE(bs.size() == 1);
 		REQUIRE(bs.any() == false);
@@ -855,14 +855,14 @@ void test_dbitset() {
 	}
 	SECTION("Iteration") {
 		{
-			containers::dbitset bs;
+			cnt::dbitset bs;
 			uint32_t i = 0;
 			for ([[maybe_unused]] auto val: bs)
 				++i;
 			REQUIRE(i == 0);
 		}
 		auto fwd_iterator_test = [](std::span<uint32_t> vals) {
-			containers::dbitset bs;
+			cnt::dbitset bs;
 			for (uint32_t bit: vals)
 				bs.set(bit);
 			const uint32_t c = bs.count();
@@ -931,7 +931,7 @@ TEST_CASE("Containers - dbitset") {
 		test_dbitset<512>();
 	}
 	SECTION("Ranges 11 bits") {
-		containers::dbitset bs;
+		cnt::dbitset bs;
 		bs.resize(11);
 
 		bs.set(1);
@@ -968,7 +968,7 @@ TEST_CASE("Containers - dbitset") {
 		REQUIRE(bs.none() == true);
 	}
 	SECTION("Ranges 64 bits") {
-		containers::dbitset bs;
+		cnt::dbitset bs;
 		bs.resize(64);
 
 		bs.set(1);
@@ -1005,7 +1005,7 @@ TEST_CASE("Containers - dbitset") {
 		REQUIRE(bs.none() == true);
 	}
 	SECTION("Ranges 101 bits") {
-		containers::dbitset bs;
+		cnt::dbitset bs;
 		bs.resize(101);
 
 		bs.set(1);
@@ -1047,14 +1047,14 @@ TEST_CASE("for_each") {
 	constexpr uint32_t N = 10;
 	SECTION("index agument") {
 		uint32_t cnt = 0;
-		utils::for_each<N>([&cnt](auto i) {
+		core::for_each<N>([&cnt](auto i) {
 			cnt += i;
 		});
 		REQUIRE(cnt == 0 + 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9);
 	}
 	SECTION("no index agument") {
 		uint32_t cnt = 0;
-		utils::for_each<N>([&cnt]() {
+		core::for_each<N>([&cnt]() {
 			cnt++;
 		});
 		REQUIRE(cnt == N);
@@ -1065,14 +1065,14 @@ TEST_CASE("for_each_ext") {
 	constexpr uint32_t N = 10;
 	SECTION("index agument") {
 		uint32_t cnt = 0;
-		utils::for_each_ext<2, N - 1, 2>([&cnt](auto i) {
+		core::for_each_ext<2, N - 1, 2>([&cnt](auto i) {
 			cnt += i;
 		});
 		REQUIRE(cnt == 2 + 4 + 6 + 8);
 	}
 	SECTION("no index agument") {
 		uint32_t cnt = 0;
-		utils::for_each_ext<2, N - 1, 2>([&cnt]() {
+		core::for_each_ext<2, N - 1, 2>([&cnt]() {
 			cnt++;
 		});
 		REQUIRE(cnt == 4);
@@ -1081,7 +1081,7 @@ TEST_CASE("for_each_ext") {
 
 TEST_CASE("for_each_tuple") {
 	uint32_t val = 0;
-	utils::for_each_tuple(std::make_tuple(69, 10, 20), [&val](const auto& value) {
+	core::for_each_tuple(std::make_tuple(69, 10, 20), [&val](const auto& value) {
 		val += value;
 	});
 	REQUIRE(val == 99);
@@ -1089,7 +1089,7 @@ TEST_CASE("for_each_tuple") {
 
 TEST_CASE("for_each_pack") {
 	uint32_t val = 0;
-	utils::for_each_pack(
+	core::for_each_pack(
 			[&val](const auto& value) {
 				val += value;
 			},
@@ -1104,9 +1104,9 @@ void sort_descending(C arr) {
 	for (TValue i = 0; i < (TValue)arr.size(); ++i)
 		arr[i] = i;
 	if constexpr (IsRuntime)
-		utils::sort(arr, utils::is_greater<TValue>());
+		core::sort(arr, core::is_greater<TValue>());
 	else
-		utils::sort_ct(arr, utils::is_greater<TValue>());
+		core::sort_ct(arr, core::is_greater<TValue>());
 	for (uint32_t i = 1; i < arr.size(); ++i)
 		REQUIRE(arr[i - 1] > arr[i]);
 }
@@ -1118,72 +1118,72 @@ void sort_ascending(C arr) {
 	for (TValue i = 0; i < (TValue)arr.size(); ++i)
 		arr[i] = i;
 	if constexpr (IsRuntime)
-		utils::sort(arr, utils::is_smaller<TValue>());
+		core::sort(arr, core::is_smaller<TValue>());
 	else
-		utils::sort_ct(arr, utils::is_smaller<TValue>());
+		core::sort_ct(arr, core::is_smaller<TValue>());
 	for (uint32_t i = 1; i < arr.size(); ++i)
 		REQUIRE(arr[i - 1] < arr[i]);
 }
 
 TEST_CASE("Compile-time sort descending") {
-	sort_descending<false>(containers::sarray<uint32_t, 2>{});
-	sort_descending<false>(containers::sarray<uint32_t, 3>{});
-	sort_descending<false>(containers::sarray<uint32_t, 4>{});
-	sort_descending<false>(containers::sarray<uint32_t, 5>{});
-	sort_descending<false>(containers::sarray<uint32_t, 6>{});
-	sort_descending<false>(containers::sarray<uint32_t, 7>{});
-	sort_descending<false>(containers::sarray<uint32_t, 8>{});
-	sort_descending<false>(containers::sarray<uint32_t, 9>{});
-	sort_descending<false>(containers::sarray<uint32_t, 10>{});
-	sort_descending<false>(containers::sarray<uint32_t, 11>{});
-	sort_descending<false>(containers::sarray<uint32_t, 12>{});
-	sort_descending<false>(containers::sarray<uint32_t, 13>{});
-	sort_descending<false>(containers::sarray<uint32_t, 14>{});
-	sort_descending<false>(containers::sarray<uint32_t, 15>{});
-	sort_descending<false>(containers::sarray<uint32_t, 16>{});
-	sort_descending<false>(containers::sarray<uint32_t, 17>{});
-	sort_descending<false>(containers::sarray<uint32_t, 18>{});
+	sort_descending<false>(cnt::sarray<uint32_t, 2>{});
+	sort_descending<false>(cnt::sarray<uint32_t, 3>{});
+	sort_descending<false>(cnt::sarray<uint32_t, 4>{});
+	sort_descending<false>(cnt::sarray<uint32_t, 5>{});
+	sort_descending<false>(cnt::sarray<uint32_t, 6>{});
+	sort_descending<false>(cnt::sarray<uint32_t, 7>{});
+	sort_descending<false>(cnt::sarray<uint32_t, 8>{});
+	sort_descending<false>(cnt::sarray<uint32_t, 9>{});
+	sort_descending<false>(cnt::sarray<uint32_t, 10>{});
+	sort_descending<false>(cnt::sarray<uint32_t, 11>{});
+	sort_descending<false>(cnt::sarray<uint32_t, 12>{});
+	sort_descending<false>(cnt::sarray<uint32_t, 13>{});
+	sort_descending<false>(cnt::sarray<uint32_t, 14>{});
+	sort_descending<false>(cnt::sarray<uint32_t, 15>{});
+	sort_descending<false>(cnt::sarray<uint32_t, 16>{});
+	sort_descending<false>(cnt::sarray<uint32_t, 17>{});
+	sort_descending<false>(cnt::sarray<uint32_t, 18>{});
 }
 
 TEST_CASE("Compile-time sort ascending") {
-	sort_ascending<false>(containers::sarray<uint32_t, 2>{});
-	sort_ascending<false>(containers::sarray<uint32_t, 3>{});
-	sort_ascending<false>(containers::sarray<uint32_t, 4>{});
-	sort_ascending<false>(containers::sarray<uint32_t, 5>{});
-	sort_ascending<false>(containers::sarray<uint32_t, 6>{});
-	sort_ascending<false>(containers::sarray<uint32_t, 7>{});
-	sort_ascending<false>(containers::sarray<uint32_t, 8>{});
-	sort_ascending<false>(containers::sarray<uint32_t, 9>{});
-	sort_ascending<false>(containers::sarray<uint32_t, 10>{});
-	sort_ascending<false>(containers::sarray<uint32_t, 11>{});
-	sort_ascending<false>(containers::sarray<uint32_t, 12>{});
-	sort_ascending<false>(containers::sarray<uint32_t, 13>{});
-	sort_ascending<false>(containers::sarray<uint32_t, 14>{});
-	sort_ascending<false>(containers::sarray<uint32_t, 15>{});
-	sort_ascending<false>(containers::sarray<uint32_t, 16>{});
-	sort_ascending<false>(containers::sarray<uint32_t, 17>{});
-	sort_ascending<false>(containers::sarray<uint32_t, 18>{});
+	sort_ascending<false>(cnt::sarray<uint32_t, 2>{});
+	sort_ascending<false>(cnt::sarray<uint32_t, 3>{});
+	sort_ascending<false>(cnt::sarray<uint32_t, 4>{});
+	sort_ascending<false>(cnt::sarray<uint32_t, 5>{});
+	sort_ascending<false>(cnt::sarray<uint32_t, 6>{});
+	sort_ascending<false>(cnt::sarray<uint32_t, 7>{});
+	sort_ascending<false>(cnt::sarray<uint32_t, 8>{});
+	sort_ascending<false>(cnt::sarray<uint32_t, 9>{});
+	sort_ascending<false>(cnt::sarray<uint32_t, 10>{});
+	sort_ascending<false>(cnt::sarray<uint32_t, 11>{});
+	sort_ascending<false>(cnt::sarray<uint32_t, 12>{});
+	sort_ascending<false>(cnt::sarray<uint32_t, 13>{});
+	sort_ascending<false>(cnt::sarray<uint32_t, 14>{});
+	sort_ascending<false>(cnt::sarray<uint32_t, 15>{});
+	sort_ascending<false>(cnt::sarray<uint32_t, 16>{});
+	sort_ascending<false>(cnt::sarray<uint32_t, 17>{});
+	sort_ascending<false>(cnt::sarray<uint32_t, 18>{});
 }
 
 TEST_CASE("Run-time sort - sorting network") {
-	sort_descending<true>(containers::sarray<uint32_t, 5>{});
-	sort_ascending<true>(containers::sarray<uint32_t, 5>{});
+	sort_descending<true>(cnt::sarray<uint32_t, 5>{});
+	sort_ascending<true>(cnt::sarray<uint32_t, 5>{});
 }
 
 TEST_CASE("Run-time sort - bubble sort") {
-	sort_descending<true>(containers::sarray<uint32_t, 15>{});
-	sort_ascending<true>(containers::sarray<uint32_t, 15>{});
+	sort_descending<true>(cnt::sarray<uint32_t, 15>{});
+	sort_ascending<true>(cnt::sarray<uint32_t, 15>{});
 }
 
 TEST_CASE("Run-time sort - quick sort") {
-	sort_descending<true>(containers::sarray<uint32_t, 45>{});
-	sort_ascending<true>(containers::sarray<uint32_t, 45>{});
+	sort_descending<true>(cnt::sarray<uint32_t, 45>{});
+	sort_ascending<true>(cnt::sarray<uint32_t, 45>{});
 }
 
 template <typename T>
 void TestDataLayoutAoS() {
 	constexpr uint32_t N = 100;
-	containers::sarray<T, N> data;
+	cnt::sarray<T, N> data;
 
 	for (uint32_t i = 0; i < N; ++i) {
 		const auto f = (float)(i + 1);
@@ -1215,7 +1215,7 @@ TEST_CASE("DataLayout AoS") {
 template <typename T>
 void TestDataLayoutSoA() {
 	constexpr uint32_t N = 100;
-	containers::sarray<T, N> data;
+	cnt::sarray<T, N> data;
 
 	for (uint32_t i = 0; i < N; ++i) {
 		const float f[] = {(float)(i + 1), (float)(i + 2), (float)(i + 3)};
@@ -1250,7 +1250,7 @@ void TestDataLayoutSoA() {
 template <>
 void TestDataLayoutSoA<DummySoA>() {
 	constexpr uint32_t N = 100;
-	containers::sarray<DummySoA, N> data{};
+	cnt::sarray<DummySoA, N> data{};
 
 	for (uint32_t i = 0; i < N; ++i) {
 		float f[] = {(float)(i + 1), (float)(i + 2), (float)(i + 3)};
@@ -1411,7 +1411,7 @@ TEST_CASE("CreateAndRemoveEntity - no components") {
 	// 10,000 picked so we create enough entites that they overflow
 	// into another chunk
 	const uint32_t N = 10'000;
-	containers::darr<ecs::Entity> arr;
+	cnt::darr<ecs::Entity> arr;
 	arr.reserve(N);
 
 	// Create entities
@@ -1450,7 +1450,7 @@ TEST_CASE("CreateAndRemoveEntity - 1 component") {
 	// 10,000 picked so we create enough entites that they overflow
 	// into another chunk
 	const uint32_t N = 10'000;
-	containers::darr<ecs::Entity> arr;
+	cnt::darr<ecs::Entity> arr;
 	arr.reserve(N);
 
 	for (uint32_t i = 0; i < N; i++)
@@ -1503,14 +1503,14 @@ void Test_Query_QueryResult() {
 	auto q3 = w.CreateQuery<UseCachedQuery>().template All<Position, Rotation>();
 
 	{
-		containers::darr<ecs::Entity> arr;
+		cnt::darr<ecs::Entity> arr;
 		q1.ToArray(arr);
 		GAIA_ASSERT(arr.size() == N);
 		for (uint32_t i = 0; i < arr.size(); ++i)
 			REQUIRE(arr[i].id() == i);
 	}
 	{
-		containers::darr<Position> arr;
+		cnt::darr<Position> arr;
 		q1.ToArray(arr);
 		GAIA_ASSERT(arr.size() == N);
 		for (uint32_t i = 0; i < arr.size(); ++i) {
@@ -1596,11 +1596,11 @@ void Test_Query_QueryResult_Complex() {
 	auto q5 = w.CreateQuery<UseCachedQuery>().template All<Position, Scale, Something>();
 
 	{
-		containers::darr<ecs::Entity> ents;
+		cnt::darr<ecs::Entity> ents;
 		q1.ToArray(ents);
 		REQUIRE(ents.size() == N);
 
-		containers::darr<Position> arr;
+		cnt::darr<Position> arr;
 		q1.ToArray(arr);
 		REQUIRE(arr.size() == N);
 
@@ -1655,9 +1655,9 @@ void Test_Query_QueryResult_Complex() {
 	}
 
 	{
-		containers::darr<ecs::Entity> ents;
+		cnt::darr<ecs::Entity> ents;
 		q4.ToArray(ents);
-		containers::darr<Position> arr;
+		cnt::darr<Position> arr;
 		q4.ToArray(arr);
 		REQUIRE(ents.size() == arr.size());
 
@@ -1670,9 +1670,9 @@ void Test_Query_QueryResult_Complex() {
 		}
 	}
 	{
-		containers::darr<ecs::Entity> ents;
+		cnt::darr<ecs::Entity> ents;
 		q4.ToArray(ents);
-		containers::darr<Scale> arr;
+		cnt::darr<Scale> arr;
 		q4.ToArray(arr);
 		REQUIRE(ents.size() == arr.size());
 
@@ -1699,9 +1699,9 @@ void Test_Query_QueryResult_Complex() {
 	}
 
 	{
-		containers::darr<ecs::Entity> ents;
+		cnt::darr<ecs::Entity> ents;
 		q5.ToArray(ents);
-		containers::darr<Position> arr;
+		cnt::darr<Position> arr;
 		q5.ToArray(arr);
 		REQUIRE(ents.size() == arr.size());
 
@@ -1714,9 +1714,9 @@ void Test_Query_QueryResult_Complex() {
 		}
 	}
 	{
-		containers::darr<ecs::Entity> ents;
+		cnt::darr<ecs::Entity> ents;
 		q5.ToArray(ents);
-		containers::darr<Scale> arr;
+		cnt::darr<Scale> arr;
 		q5.ToArray(arr);
 		REQUIRE(ents.size() == arr.size());
 
@@ -1772,7 +1772,7 @@ void Test_Query_Equality() {
 		auto qq2 = w.CreateQuery<UseCachedQuery>().template All<Rotation, Position>();
 		REQUIRE(qq1.CalculateEntityCount() == qq2.CalculateEntityCount());
 
-		containers::darr<ecs::Entity> ents1, ents2;
+		cnt::darr<ecs::Entity> ents1, ents2;
 		qq1.ToArray(ents1);
 		qq2.ToArray(ents2);
 		REQUIRE(ents1.size() == ents2.size());
@@ -1790,7 +1790,7 @@ void Test_Query_Equality() {
 		ecs::Query qq2 = w.CreateQuery().All<Rotation, Something, Position, Acceleration>();
 		REQUIRE(qq1.CalculateEntityCount() == qq2.CalculateEntityCount());
 
-		containers::darr<ecs::Entity> ents1, ents2;
+		cnt::darr<ecs::Entity> ents1, ents2;
 		qq1.ToArray(ents1);
 		qq2.ToArray(ents2);
 		REQUIRE(ents1.size() == ents2.size());
@@ -1825,7 +1825,7 @@ TEST_CASE("Enable") {
 
 	// 10,000 picked so we create enough entites that they overflow into another chunk
 	const uint32_t N = 10'000;
-	containers::darr<ecs::Entity> arr;
+	cnt::darr<ecs::Entity> arr;
 	arr.reserve(N);
 
 	for (uint32_t i = 0; i < N; i++)
@@ -1949,7 +1949,7 @@ TEST_CASE("Add - generic") {
 // TEST_CASE("Add - from query") {
 // 	ecs::World w;
 
-// 	containers::sarray<ecs::Entity, 5> ents;
+// 	cnt::sarray<ecs::Entity, 5> ents;
 // 	for (auto& e: ents)
 // 		e = w.Add();
 
@@ -2535,7 +2535,7 @@ TEST_CASE("Set - generic") {
 	ecs::World w;
 
 	constexpr uint32_t N = 100;
-	containers::darr<ecs::Entity> arr;
+	cnt::darr<ecs::Entity> arr;
 	arr.reserve(N);
 
 	for (uint32_t i = 0; i < N; ++i) {
@@ -2620,7 +2620,7 @@ TEST_CASE("Set - generic & chunk") {
 	ecs::World w;
 
 	constexpr uint32_t N = 100;
-	containers::darr<ecs::Entity> arr;
+	cnt::darr<ecs::Entity> arr;
 	arr.reserve(N);
 
 	for (uint32_t i = 0; i < N; ++i) {
@@ -2707,7 +2707,7 @@ TEST_CASE("Components - non trivial") {
 	ecs::World w;
 
 	constexpr uint32_t N = 100;
-	containers::darr<ecs::Entity> arr;
+	cnt::darr<ecs::Entity> arr;
 	arr.reserve(N);
 
 	for (uint32_t i = 0; i < N; ++i) {
@@ -3276,7 +3276,7 @@ bool CompareSerializableTypes(const T& a, const T& b) {
 
 	// Do element-wise comparison
 	bool ret = true;
-	utils::for_each<std::tuple_size<decltype(ta)>::value>([&](auto i) {
+	core::for_each<std::tuple_size<decltype(ta)>::value>([&](auto i) {
 		const auto& aa = std::get<i>(ta);
 		const auto& bb = std::get<i>(ta);
 		ret = ret && CompareSerializableType(aa, bb);
@@ -3471,12 +3471,12 @@ TEST_CASE("Serialization - simple") {
 }
 
 struct SerializeStructSArray {
-	containers::sarray<uint32_t, 8> arr;
+	cnt::sarray<uint32_t, 8> arr;
 	float f;
 };
 
 struct SerializeStructSArrayNonTrivial {
-	containers::sarray<FooNonTrivial, 8> arr;
+	cnt::sarray<FooNonTrivial, 8> arr;
 	float f;
 
 	bool operator==(const SerializeStructSArrayNonTrivial& other) const {
@@ -3485,12 +3485,12 @@ struct SerializeStructSArrayNonTrivial {
 };
 
 struct SerializeStructDArray {
-	containers::darr<uint32_t> arr;
+	cnt::darr<uint32_t> arr;
 	float f;
 };
 
 struct SerializeStructDArrayNonTrivial {
-	containers::darr<uint32_t> arr;
+	cnt::darr<uint32_t> arr;
 	float f;
 
 	bool operator==(const SerializeStructDArrayNonTrivial& other) const {
@@ -3499,7 +3499,7 @@ struct SerializeStructDArrayNonTrivial {
 };
 
 struct SerializeCustomStructInternalDArray {
-	containers::darr<CustomStructInternal> arr;
+	cnt::darr<CustomStructInternal> arr;
 	float f;
 
 	bool operator==(const SerializeCustomStructInternalDArray& other) const {
@@ -3629,11 +3629,11 @@ TEST_CASE("Multithreading - Schedule") {
 	constexpr uint32_t ItemsPerJob = 5000;
 	constexpr uint32_t N = JobCount * ItemsPerJob;
 
-	containers::sarray<uint32_t, JobCount> res;
+	cnt::sarray<uint32_t, JobCount> res;
 	for (uint32_t i = 0; i < res.max_size(); ++i)
 		res[i] = 0;
 
-	containers::darray<uint32_t> arr;
+	cnt::darray<uint32_t> arr;
 	arr.resize(N);
 	for (uint32_t i = 0; i < arr.size(); ++i)
 		arr[i] = 1;
@@ -3648,7 +3648,7 @@ TEST_CASE("Multithreading - ScheduleParallel") {
 	constexpr uint32_t ItemsPerJob = 5000;
 	constexpr uint32_t N = JobCount * ItemsPerJob;
 
-	containers::darray<uint32_t> arr;
+	cnt::darray<uint32_t> arr;
 	arr.resize(N);
 	for (uint32_t i = 0; i < arr.size(); ++i)
 		arr[i] = 1;
@@ -3672,8 +3672,8 @@ TEST_CASE("Multithreading - Complete") {
 
 	constexpr uint32_t Jobs = 15000;
 
-	containers::darray<mt::JobHandle> handles;
-	containers::darray<uint32_t> res;
+	cnt::darray<mt::JobHandle> handles;
+	cnt::darray<uint32_t> res;
 
 	handles.resize(Jobs);
 	res.resize(Jobs);

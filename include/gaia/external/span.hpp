@@ -32,12 +32,12 @@ http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/n4820.pdf
 #endif
 
 namespace gaia {
-	namespace containers {
+	namespace cnt {
 		template <typename T, uint32_t N>
 		class sarr;
 		template <typename T, uint32_t N>
-		using sarray = containers::sarr<T, N>;
-	} // namespace containers
+		using sarray = cnt::sarr<T, N>;
+	} // namespace cnt
 } // namespace gaia
 
 // Various feature test macros
@@ -229,7 +229,7 @@ namespace TCB_SPAN_NAMESPACE_NAME {
 		struct is_std_array: std::false_type {};
 
 		template <typename T, auto N>
-		struct is_std_array<gaia::containers::sarray<T, N>>: std::true_type {};
+		struct is_std_array<gaia::cnt::sarray<T, N>>: std::true_type {};
 
 		template <typename, typename = void>
 		struct has_size_and_data: std::false_type {};
@@ -318,16 +318,16 @@ namespace TCB_SPAN_NAMESPACE_NAME {
 		// 		typename T, std::size_t N, std::size_t E = Extent,
 		// 		typename std::enable_if<
 		// 				(E == dynamic_extent || N == E) &&
-		// 						detail::is_container_element_type_compatible<gaia::containers::sarray<T, N>&, ElementType>::value,
+		// 						detail::is_container_element_type_compatible<gaia::cnt::sarray<T, N>&, ElementType>::value,
 		// 				int>::type = 0>
-		// TCB_SPAN_ARRAY_CONSTEXPR span(gaia::containers::sarray<T, N>& arr) noexcept: storage_(arr.data(), N) {}
+		// TCB_SPAN_ARRAY_CONSTEXPR span(gaia::cnt::sarray<T, N>& arr) noexcept: storage_(arr.data(), N) {}
 
 		// template <
 		// 		typename T, std::size_t N, std::size_t E = Extent,
 		// 		typename std::enable_if<
 		// 				(E == dynamic_extent || N == E) &&
-		// 						detail::is_container_element_type_compatible<const gaia::containers::sarray<T, N>&,
-		// ElementType>::value, 				int>::type = 0> TCB_SPAN_ARRAY_CONSTEXPR span(const gaia::containers::sarray<T, N>&
+		// 						detail::is_container_element_type_compatible<const gaia::cnt::sarray<T, N>&,
+		// ElementType>::value, 				int>::type = 0> TCB_SPAN_ARRAY_CONSTEXPR span(const gaia::cnt::sarray<T, N>&
 		// arr) noexcept: storage_(arr.data(), N) {}
 
 		template <
@@ -460,10 +460,10 @@ namespace TCB_SPAN_NAMESPACE_NAME {
 	span(T (&)[N]) -> span<T, N>;
 
 	template <typename T, size_t N>
-	span(gaia::containers::sarray<T, N>&) -> span<T, N>;
+	span(gaia::cnt::sarray<T, N>&) -> span<T, N>;
 
 	template <typename T, size_t N>
-	span(const gaia::containers::sarray<T, N>&) -> span<const T, N>;
+	span(const gaia::cnt::sarray<T, N>&) -> span<const T, N>;
 
 	template <typename Container>
 	span(Container&) -> span<typename std::remove_reference<decltype(*detail::data(std::declval<Container&>()))>::type>;
@@ -484,12 +484,12 @@ namespace TCB_SPAN_NAMESPACE_NAME {
 	}
 
 	template <typename T, std::size_t N>
-	TCB_SPAN_ARRAY_CONSTEXPR span<T, N> make_span(gaia::containers::sarray<T, N>& arr) noexcept {
+	TCB_SPAN_ARRAY_CONSTEXPR span<T, N> make_span(gaia::cnt::sarray<T, N>& arr) noexcept {
 		return {arr};
 	}
 
 	template <typename T, std::size_t N>
-	TCB_SPAN_ARRAY_CONSTEXPR span<const T, N> make_span(const gaia::containers::sarray<T, N>& arr) noexcept {
+	TCB_SPAN_ARRAY_CONSTEXPR span<const T, N> make_span(const gaia::cnt::sarray<T, N>& arr) noexcept {
 		return {arr};
 	}
 

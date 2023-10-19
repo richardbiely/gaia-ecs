@@ -1,11 +1,11 @@
 #pragma once
 #include "../config/config.h"
 
-#include "../containers/darray.h"
-#include "../containers/sarray_ext.h"
-#include "../containers/set.h"
-#include "../utils/hashing_policy.h"
-#include "../utils/utility.h"
+#include "../cnt/darray.h"
+#include "../cnt/sarray_ext.h"
+#include "../cnt/set.h"
+#include "../core/hashing_policy.h"
+#include "../core/utility.h"
 #include "archetype.h"
 #include "archetype_common.h"
 #include "component.h"
@@ -17,7 +17,7 @@ namespace gaia {
 		struct Entity;
 
 		namespace query {
-			using ComponentToArchetypeMap = containers::map<component::ComponentId, archetype::ArchetypeList>;
+			using ComponentToArchetypeMap = cnt::map<component::ComponentId, archetype::ArchetypeList>;
 
 			class QueryInfo {
 			public:
@@ -47,8 +47,8 @@ namespace gaia {
 
 						// Component id has to be present
 						const auto componentId = component::GetComponentId<T>();
-						GAIA_ASSERT(utils::has(componentIds, componentId));
-						const auto idx = utils::get_index_unsafe(componentIds, componentId);
+						GAIA_ASSERT(core::has(componentIds, componentId));
+						const auto idx = core::get_index_unsafe(componentIds, componentId);
 						if (listType != query::ListType::LT_Count && listType != data.rules[idx])
 							return false;
 
@@ -212,7 +212,7 @@ namespace gaia {
 				//! the archetype is cached. This is necessary so we do not iterate all chunks over and over again when running
 				//! queries.
 				void Match(const ComponentToArchetypeMap& componentToArchetypeMap, uint32_t archetypeCount) {
-					static containers::set<archetype::Archetype*> s_tmpArchetypeMatches;
+					static cnt::set<archetype::Archetype*> s_tmpArchetypeMatches;
 
 					// Skip if no new archetype appeared
 					if (m_lastArchetypeIdx == archetypeCount)

@@ -8,11 +8,11 @@
 #if GAIA_DEBUG
 	#include "../config/logging.h"
 #endif
-#include "../containers/darray.h"
-#include "../containers/map.h"
-#include "../utils/hashing_policy.h"
-#include "../utils/type_info.h"
-#include "../utils/utility.h"
+#include "../cnt/darray.h"
+#include "../cnt/map.h"
+#include "../core/hashing_policy.h"
+#include "../core/utility.h"
+#include "../meta/type_info.h"
 
 namespace gaia {
 	namespace ecs {
@@ -115,17 +115,17 @@ namespace gaia {
 
 		class BaseSystemManager {
 		protected:
-			using SystemHash = utils::direct_hash_key<uint64_t>;
+			using SystemHash = core::direct_hash_key<uint64_t>;
 
 			World& m_world;
 			//! Map of all systems - used for look-ups only
-			containers::map<SystemHash, BaseSystem*> m_systemsMap;
+			cnt::map<SystemHash, BaseSystem*> m_systemsMap;
 			//! List of system - used for iteration
-			containers::darray<BaseSystem*> m_systems;
+			cnt::darray<BaseSystem*> m_systems;
 			//! List of new systems which need to be initialised
-			containers::darray<BaseSystem*> m_systemsToCreate;
+			cnt::darray<BaseSystem*> m_systemsToCreate;
 			//! List of systems which need to be deleted
-			containers::darray<BaseSystem*> m_systemsToRemove;
+			cnt::darray<BaseSystem*> m_systemsToRemove;
 
 		public:
 			BaseSystemManager(World& world): m_world(world) {}
@@ -171,7 +171,7 @@ namespace gaia {
 				for (auto* pSystem: m_systemsToRemove)
 					m_systemsMap.erase({pSystem->m_hash});
 				for (auto* pSystem: m_systemsToRemove) {
-					m_systems.erase(utils::find(m_systems, pSystem));
+					m_systems.erase(core::find(m_systems, pSystem));
 				}
 				for (auto* pSystem: m_systemsToRemove)
 					delete pSystem;
@@ -209,7 +209,7 @@ namespace gaia {
 
 			template <typename T>
 			T* CreateSystem([[maybe_unused]] const char* name = nullptr) {
-				GAIA_SAFE_CONSTEXPR auto hash = utils::type_info::hash<std::decay_t<T>>();
+				GAIA_SAFE_CONSTEXPR auto hash = meta::type_info::hash<std::decay_t<T>>();
 
 				const auto res = m_systemsMap.try_emplace({hash}, nullptr);
 				if GAIA_UNLIKELY (!res.second)
@@ -220,7 +220,7 @@ namespace gaia {
 
 #if GAIA_PROFILER_CPU
 				if (name == nullptr) {
-					constexpr auto ct_name = utils::type_info::name<T>();
+					constexpr auto ct_name = meta::type_info::name<T>();
 					const size_t len = ct_name.size() > MaxSystemNameLength - 1 ? MaxSystemNameLength - 1 : ct_name.size();
 
 	#if GAIA_COMPILER_MSVC || GAIA_PLATFORM_WINDOWS
@@ -263,7 +263,7 @@ namespace gaia {
 
 			template <typename T>
 			GAIA_NODISCARD T* FindSystem() {
-				GAIA_SAFE_CONSTEXPR auto hash = utils::type_info::hash<std::decay_t<T>>();
+				GAIA_SAFE_CONSTEXPR auto hash = meta::type_info::hash<std::decay_t<T>>();
 
 				const auto it = m_systemsMap.find({hash});
 				if (it != m_systemsMap.end())

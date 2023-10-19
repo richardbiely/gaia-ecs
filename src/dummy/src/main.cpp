@@ -6,7 +6,7 @@ struct Position {
 	float x, y, z;
 };
 struct PositionSoA {
-	static constexpr auto Layout = utils::DataLayout::SoA;
+	static constexpr auto Layout = mem::DataLayout::SoA;
 	float x, y, z;
 };
 struct Velocity {
@@ -127,7 +127,7 @@ void CreateEntities(ecs::World& w) {
 ////////////////////////////////////////////////////////////////////////////
 
 struct test_0 {
-	containers::darray<int8_t*> arr;
+	cnt::darray<int8_t*> arr;
 
 	test_0() {
 		arr.reserve(2);
@@ -161,7 +161,7 @@ struct test_0 {
 } g_test_0;
 
 struct test_00 {
-	containers::darray<int8_t> arr;
+	cnt::darray<int8_t> arr;
 
 	test_00() {
 		arr.reserve(2);
@@ -200,7 +200,7 @@ struct test_00 {
 } g_test_00;
 
 struct test_000 {
-	containers::sarray<int8_t, 4> arr;
+	cnt::sarray<int8_t, 4> arr;
 
 	test_000() {
 		arr = {10, 10, 10, 10};
@@ -233,7 +233,7 @@ struct test_000 {
 } g_test_000;
 
 struct test_1 {
-	containers::darray<Position> arr;
+	cnt::darray<Position> arr;
 
 	test_1() {
 		arr.reserve(2);
@@ -267,7 +267,7 @@ struct test_1 {
 } g_test_1;
 
 struct test_2 {
-	containers::darray<PositionSoA> arr;
+	cnt::darray<PositionSoA> arr;
 
 	test_2() {
 		arr.reserve(2);
@@ -324,8 +324,8 @@ int main() {
 
 	printf("aos\n");
 	{
-		using vp = utils::data_view_policy_aos<int*>;
-		utils::raw_data_holder<int*, 10> arr;
+		using vp = mem::data_view_policy_aos<int*>;
+		mem::raw_data_holder<int*, 10> arr;
 		(void)arr;
 		auto aa = arr[0];
 		(void)aa;
@@ -339,7 +339,7 @@ int main() {
 
 	printf("darray<int8_t*>\n");
 	{
-		containers::darray<int8_t*> arr;
+		cnt::darray<int8_t*> arr;
 		arr.reserve(2);
 
 		int8_t dummy = 10;
@@ -360,7 +360,7 @@ int main() {
 
 	printf("darray<int*>\n");
 	{
-		containers::darray<int*> arr;
+		cnt::darray<int*> arr;
 		arr.reserve(2);
 
 		int dummy = 10;
@@ -381,7 +381,7 @@ int main() {
 
 	printf("darray<const int*>\n");
 	{
-		containers::darray<const int*> arr;
+		cnt::darray<const int*> arr;
 		arr.reserve(2);
 
 		const int dummy = 10;

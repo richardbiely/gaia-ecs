@@ -1,18 +1,18 @@
 #pragma once
 #include "../config/config_core_end.h"
 
-#include "../containers/darray.h"
-#include "../containers/map.h"
+#include "../cnt/darray.h"
+#include "../cnt/map.h"
 #include "query_common.h"
 #include "query_info.h"
 
 namespace gaia {
 	namespace ecs {
 		class QueryCache {
-			using QueryCacheLookupArray = containers::darray<uint32_t>;
+			using QueryCacheLookupArray = cnt::darray<uint32_t>;
 
-			containers::map<query::LookupHash, QueryCacheLookupArray> m_queryCache;
-			containers::darray<query::QueryInfo> m_queryArr;
+			cnt::map<query::LookupHash, QueryCacheLookupArray> m_queryCache;
+			cnt::darray<query::QueryInfo> m_queryArr;
 
 		public:
 			QueryCache() {

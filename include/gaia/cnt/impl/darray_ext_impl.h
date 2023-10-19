@@ -6,12 +6,12 @@
 #include <type_traits>
 #include <utility>
 
-#include "../../utils/data_layout_policy.h"
-#include "../../utils/iterator.h"
-#include "../../utils/mem_utils.h"
+#include "../../core/iterator.h"
+#include "../../mem/data_layout_policy.h"
+#include "../../mem/mem_utils.h"
 
 namespace gaia {
-	namespace containers {
+	namespace cnt {
 		//! Array of elements of type \tparam T allocated on heap or stack. Stack capacity is \tparam N elements.
 		//! If the number of elements is bellow \tparam N the stack storage is used.
 		//! If the number of elements is above \tparam N the heap storage is used.
@@ -21,7 +21,7 @@ namespace gaia {
 		public:
 			static_assert(N > 0);
 
-			using iterator_category = GAIA_UTIL::random_access_iterator_tag;
+			using iterator_category = core::random_access_iterator_tag;
 			using value_type = T;
 			using reference = T&;
 			using const_reference = const T&;
@@ -29,14 +29,14 @@ namespace gaia {
 			using const_pointer = T*;
 			using difference_type = decltype(N);
 			using size_type = decltype(N);
-			using view_policy = utils::auto_view_policy<T>;
+			using view_policy = mem::auto_view_policy<T>;
 
 			static constexpr size_type extent = N;
 			static constexpr uint32_t allocated_bytes = view_policy::get_min_byte_size(0, N);
 
 		private:
 			//! Data allocated on the stack
-			utils::raw_data_holder<T, allocated_bytes> m_data;
+			mem::raw_data_holder<T, allocated_bytes> m_data;
 			//! Data allocated on the heap
 			T* m_pDataHeap = nullptr;
 			//! Pointer to the currently used data
@@ -68,14 +68,14 @@ namespace gaia {
 				// This means we prefer more frequent allocations over memory fragmentation.
 				auto* pDataOld = m_pDataHeap;
 				m_pDataHeap = view_policy::alloc_mem(m_cap = (cap * 3) / 2 + 1);
-				utils::move_elements<T>(m_pDataHeap, pDataOld, 0, cnt);
+				mem::move_elements<T>(m_pDataHeap, pDataOld, 0, cnt);
 				view_policy::free_mem(pDataOld, cnt);
 			}
 
 		public:
 			class iterator {
 			public:
-				using iterator_category = GAIA_UTIL::random_access_iterator_tag;
+				using iterator_category = core::random_access_iterator_tag;
 				using value_type = T;
 				using difference_type = darr_ext::size_type;
 				using pointer = T*;
@@ -159,7 +159,7 @@ namespace gaia {
 				friend class darr_ext;
 
 			public:
-				using iterator_category = GAIA_UTIL::random_access_iterator_tag;
+				using iterator_category = core::random_access_iterator_tag;
 				using value_type = T;
 				using difference_type = darr_ext::size_type;
 				// using pointer = T*; not supported
@@ -175,7 +175,7 @@ namespace gaia {
 				iterator_soa(uint8_t* ptr, uint32_t cnt, uint32_t idx): m_ptr(ptr), m_cnt(cnt), m_idx(idx) {}
 
 				T operator*() const {
-					return utils::data_view_policy<T::Layout, T>::get({m_ptr, m_cnt}, m_idx);
+					return mem::data_view_policy<T::Layout, T>::get({m_ptr, m_cnt}, m_idx);
 				}
 
 				iterator_soa operator[](size_type offset) const {
@@ -260,14 +260,13 @@ namespace gaia {
 
 			template <typename InputIt>
 			darr_ext(InputIt first, InputIt last) {
-				const auto count = (size_type)GAIA_UTIL::distance(first, last);
+				const auto count = (size_type)core::distance(first, last);
 				resize(count);
 
 				if constexpr (std::is_pointer_v<InputIt>) {
 					for (size_type i = 0; i < count; ++i)
 						operator[](i) = first[i];
-				} else if constexpr (std::is_same_v<
-																 typename InputIt::iterator_category, GAIA_UTIL::random_access_iterator_tag>) {
+				} else if constexpr (std::is_same_v<typename InputIt::iterator_category, core::random_access_iterator_tag>) {
 					for (size_type i = 0; i < count; ++i)
 						operator[](i) = *(first[i]);
 				} else {
@@ -282,14 +281,14 @@ namespace gaia {
 			darr_ext(const darr_ext& other): darr_ext(other.begin(), other.end()) {}
 
 			darr_ext(darr_ext&& other) noexcept: m_cnt(other.m_cnt), m_cap(other.m_cap) {
-				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
+				GAIA_ASSERT(gaia::mem::addressof(other) != this);
 
 				if (other.m_pData == other.m_pDataHeap) {
 					m_pData = m_pDataHeap;
 					m_pDataHeap = other.m_pDataHeap;
 				} else {
 					m_pData = m_data;
-					utils::move_elements<T>(m_data, other.m_data, 0, other.size());
+					mem::move_elements<T>(m_data, other.m_data, 0, other.size());
 					m_pDataHeap = nullptr;
 				}
 
@@ -305,17 +304,17 @@ namespace gaia {
 			}
 
 			darr_ext& operator=(const darr_ext& other) {
-				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
+				GAIA_ASSERT(gaia::mem::addressof(other) != this);
 
 				resize(other.size());
-				utils::copy_elements<T>(
+				mem::copy_elements<T>(
 						(uint8_t*)m_pData, (const uint8_t*)other.m_pData, 0, other.size(), capacity(), other.capacity());
 
 				return *this;
 			}
 
 			darr_ext& operator=(darr_ext&& other) noexcept {
-				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
+				GAIA_ASSERT(gaia::mem::addressof(other) != this);
 
 				m_cnt = other.m_cnt;
 				m_cap = other.m_cap;
@@ -324,7 +323,7 @@ namespace gaia {
 					m_pDataHeap = other.m_pDataHeap;
 				} else {
 					m_pData = m_data;
-					utils::move_elements<T>(m_data, other.m_data, 0, other.m_data.size());
+					mem::move_elements<T>(m_data, other.m_data, 0, other.m_data.size());
 					m_pDataHeap = nullptr;
 				}
 
@@ -365,11 +364,11 @@ namespace gaia {
 				if (m_pDataHeap) {
 					auto* pDataOld = m_pDataHeap;
 					m_pDataHeap = view_policy::alloc_mem(count);
-					utils::move_elements<T>(m_pDataHeap, pDataOld, 0, size(), count, m_cap);
+					mem::move_elements<T>(m_pDataHeap, pDataOld, 0, size(), count, m_cap);
 					view_policy::free_mem(pDataOld, size());
 				} else {
 					m_pDataHeap = view_policy::alloc_mem(count);
-					utils::move_elements<T>(m_pDataHeap, m_data, 0, size(), count, m_cap);
+					mem::move_elements<T>(m_pDataHeap, m_data, 0, size(), count, m_cap);
 				}
 
 				m_cap = count;
@@ -385,10 +384,10 @@ namespace gaia {
 				auto* pDataOld = m_pDataHeap;
 				m_pDataHeap = view_policy::alloc_mem(count);
 				if (pDataOld != nullptr) {
-					utils::move_elements<T>(m_pDataHeap, pDataOld, 0, size(), count, m_cap);
+					mem::move_elements<T>(m_pDataHeap, pDataOld, 0, size(), count, m_cap);
 					view_policy::free_mem(pDataOld, size());
 				} else
-					utils::move_elements<T>(m_pDataHeap, m_data, 0, size(), count, m_cap);
+					mem::move_elements<T>(m_pDataHeap, m_data, 0, size(), count, m_cap);
 
 				m_cap = count;
 				m_cnt = count;
@@ -398,7 +397,7 @@ namespace gaia {
 			void push_back(const T& arg) {
 				try_grow();
 
-				if constexpr (utils::is_soa_layout_v<T>) {
+				if constexpr (mem::is_soa_layout_v<T>) {
 					operator[](m_cnt++) = arg;
 				} else {
 					auto* ptr = m_pData + sizeof(T) * (m_cnt++);
@@ -409,7 +408,7 @@ namespace gaia {
 			void push_back(T&& arg) {
 				try_grow();
 
-				if constexpr (utils::is_soa_layout_v<T>) {
+				if constexpr (mem::is_soa_layout_v<T>) {
 					operator[](m_cnt++) = std::forward<T>(arg);
 				} else {
 					auto* ptr = m_pData + sizeof(T) * (m_cnt++);
@@ -421,7 +420,7 @@ namespace gaia {
 			auto emplace_back(Args&&... args) {
 				try_grow();
 
-				if constexpr (utils::is_soa_layout_v<T>) {
+				if constexpr (mem::is_soa_layout_v<T>) {
 					operator[](m_cnt++) = T(std::forward<Args>(args)...);
 					return;
 				} else {
@@ -433,7 +432,7 @@ namespace gaia {
 
 			void pop_back() noexcept {
 				GAIA_ASSERT(!empty());
-				if constexpr (utils::is_soa_layout_v<T>) {
+				if constexpr (mem::is_soa_layout_v<T>) {
 					--m_cnt;
 				} else {
 					auto* ptr = m_pData + sizeof(T) * (--m_cnt);
@@ -444,10 +443,10 @@ namespace gaia {
 			iterator erase(iterator pos) noexcept {
 				GAIA_ASSERT(pos.m_ptr >= data() && pos.m_ptr < (data() + m_cap - 1));
 
-				const auto idxSrc = (size_type)GAIA_UTIL::distance(pos, begin());
+				const auto idxSrc = (size_type)core::distance(pos, begin());
 				const auto idxDst = size() - 1;
 
-				utils::shift_elements_left<T>(m_pData, idxSrc, idxDst);
+				mem::shift_elements_left<T>(m_pData, idxSrc, idxDst);
 				--m_cnt;
 
 				return iterator((pointer)m_pData + idxSrc);
@@ -457,7 +456,7 @@ namespace gaia {
 				const auto idxSrc = pos.m_idx;
 				const auto idxDst = size() - 1;
 
-				utils::shift_elements_left<T>(m_pData, idxSrc, idxDst);
+				mem::shift_elements_left<T>(m_pData, idxSrc, idxDst);
 				--m_cnt;
 
 				return iterator_soa(m_pData, m_cnt, idxSrc);
@@ -469,20 +468,20 @@ namespace gaia {
 				GAIA_ASSERT(last.m_cnt >= first.m_cnt);
 
 				const auto size = last.m_cnt - first.m_cnt;
-				utils::shift_elements_left<T>(m_pData, first.cnt, last.cnt);
+				mem::shift_elements_left<T>(m_pData, first.cnt, last.cnt);
 				m_cnt -= size;
 
 				return {(pointer)m_pData + size_type(last.m_cnt)};
 			}
 
 			iterator_soa erase(iterator_soa first, iterator_soa last) noexcept {
-				static_assert(!utils::is_soa_layout_v<T>);
+				static_assert(!mem::is_soa_layout_v<T>);
 				GAIA_ASSERT(first.m_idx >= 0 && first.m_idx < size());
 				GAIA_ASSERT(last.m_idx >= 0 && last.m_idx < size());
 				GAIA_ASSERT(last.m_idx >= first.m_idx);
 
 				const auto cnt = last.m_idx - first.m_idx;
-				utils::shift_elements_left<T>(m_pData, first.cnt, last.cnt);
+				mem::shift_elements_left<T>(m_pData, first.cnt, last.cnt);
 				m_cnt -= cnt;
 
 				return iterator_soa(m_pData, m_cnt, last.m_cnt);
@@ -500,11 +499,11 @@ namespace gaia {
 					auto* pDataOld = m_pDataHeap;
 
 					if (size() < extent) {
-						utils::move_elements<T>(m_data, pDataOld, 0, size());
+						mem::move_elements<T>(m_data, pDataOld, 0, size());
 						m_pData = m_data;
 					} else {
 						m_pDataHeap = view_policy::mem_alloc(m_cap = size());
-						utils::move_elements<T>(m_pDataHeap, pDataOld, 0, size());
+						mem::move_elements<T>(m_pDataHeap, pDataOld, 0, size());
 						m_pData = m_pDataHeap;
 					}
 
@@ -531,7 +530,7 @@ namespace gaia {
 
 			GAIA_NODISCARD auto front() noexcept {
 				GAIA_ASSERT(!empty());
-				if constexpr (utils::is_soa_layout_v<T>)
+				if constexpr (mem::is_soa_layout_v<T>)
 					return *begin();
 				else
 					return (reference)*begin();
@@ -539,7 +538,7 @@ namespace gaia {
 
 			GAIA_NODISCARD auto front() const noexcept {
 				GAIA_ASSERT(!empty());
-				if constexpr (utils::is_soa_layout_v<T>)
+				if constexpr (mem::is_soa_layout_v<T>)
 					return *begin();
 				else
 					return (const_reference)*begin();
@@ -547,7 +546,7 @@ namespace gaia {
 
 			GAIA_NODISCARD auto back() noexcept {
 				GAIA_ASSERT(!empty());
-				if constexpr (utils::is_soa_layout_v<T>)
+				if constexpr (mem::is_soa_layout_v<T>)
 					return operator[](m_cnt - 1);
 				else
 					return (reference) operator[](m_cnt - 1);
@@ -555,35 +554,35 @@ namespace gaia {
 
 			GAIA_NODISCARD auto back() const noexcept {
 				GAIA_ASSERT(!empty());
-				if constexpr (utils::is_soa_layout_v<T>)
+				if constexpr (mem::is_soa_layout_v<T>)
 					return operator[](m_cnt - 1);
 				else
 					return (const_reference) operator[](m_cnt - 1);
 			}
 
 			GAIA_NODISCARD auto begin() const noexcept {
-				if constexpr (utils::is_soa_layout_v<T>)
+				if constexpr (mem::is_soa_layout_v<T>)
 					return iterator_soa(m_pData, size(), 0);
 				else
 					return iterator((pointer)m_pData);
 			}
 
 			GAIA_NODISCARD auto rbegin() const noexcept {
-				if constexpr (utils::is_soa_layout_v<T>)
+				if constexpr (mem::is_soa_layout_v<T>)
 					return iterator_soa(m_pData, size(), size() - 1);
 				else
 					return iterator((pointer)&back());
 			}
 
 			GAIA_NODISCARD auto end() const noexcept {
-				if constexpr (utils::is_soa_layout_v<T>)
+				if constexpr (mem::is_soa_layout_v<T>)
 					return iterator_soa(m_pData, size(), size());
 				else
 					return iterator((pointer)m_pData + size());
 			}
 
 			GAIA_NODISCARD auto rend() const noexcept {
-				if constexpr (utils::is_soa_layout_v<T>)
+				if constexpr (mem::is_soa_layout_v<T>)
 					return iterator_soa(m_pData, size(), -1);
 				else
 					return iterator((pointer)m_pData - 1);
@@ -601,13 +600,13 @@ namespace gaia {
 
 			template <size_t Item>
 			auto soa_view_mut() noexcept {
-				return utils::data_view_policy<T::Layout, T>::template get<Item>(
+				return mem::data_view_policy<T::Layout, T>::template get<Item>(
 						std::span<uint8_t>{(uint8_t*)m_pData, capacity()});
 			}
 
 			template <size_t Item>
 			auto soa_view() const noexcept {
-				return utils::data_view_policy<T::Layout, T>::template get<Item>(
+				return mem::data_view_policy<T::Layout, T>::template get<Item>(
 						std::span<const uint8_t>{(const uint8_t*)m_pData, capacity()});
 			}
 		};
@@ -624,6 +623,6 @@ namespace gaia {
 			return detail::to_sarray_impl(a, std::make_index_sequence<N>{});
 		}
 
-	} // namespace containers
+	} // namespace cnt
 
 } // namespace gaia

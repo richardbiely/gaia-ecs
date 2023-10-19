@@ -4,17 +4,18 @@
 #include <cinttypes>
 #include <cstdint>
 
+#include "../cnt/darray.h"
+#include "../cnt/sarray.h"
+#include "../cnt/sarray_ext.h"
 #include "../config/logging.h"
 #include "../config/profiler.h"
-#include "../containers/darray.h"
-#include "../containers/sarray.h"
-#include "../containers/sarray_ext.h"
-#include "../utils/bit_utils.h"
-#include "../utils/dyn_singleton.h"
-#include "../utils/mem_alloc.h"
-#include "../utils/span.h"
-#include "../utils/utility.h"
+#include "../core/bit_utils.h"
+#include "../core/dyn_singleton.h"
+#include "../core/span.h"
+#include "../core/utility.h"
+#include "../mem/mem_alloc.h"
 #include "common.h"
+
 
 namespace gaia {
 	namespace ecs {
@@ -41,7 +42,7 @@ namespace gaia {
 		namespace detail {
 			class ChunkAllocatorImpl;
 		}
-		using ChunkAllocator = utils::dyn_singleton<detail::ChunkAllocatorImpl>;
+		using ChunkAllocator = core::dyn_singleton<detail::ChunkAllocatorImpl>;
 
 		namespace detail {
 
@@ -53,11 +54,11 @@ namespace gaia {
 
 				struct MemoryPage {
 					static constexpr uint16_t NBlocks = 62;
-					static constexpr uint16_t NBlocks_Bits = (uint16_t)utils::count_bits(NBlocks);
+					static constexpr uint16_t NBlocks_Bits = (uint16_t)core::count_bits(NBlocks);
 					static constexpr uint32_t InvalidBlockId = NBlocks + 1;
 					static constexpr uint32_t BlockArrayBytes = ((uint32_t)NBlocks_Bits * (uint32_t)NBlocks + 7) / 8;
-					using BlockArray = containers::sarray<uint8_t, BlockArrayBytes>;
-					using BitView = utils::bit_view<NBlocks_Bits>;
+					using BlockArray = cnt::sarray<uint8_t, BlockArrayBytes>;
+					using BitView = core::bit_view<NBlocks_Bits>;
 
 					//! Pointer to data managed by page
 					void* m_data;
@@ -105,7 +106,7 @@ namespace gaia {
 							// Encode info about chunk's page in the memory block.
 							// The actual pointer returned is offset by UsableOffset bytes
 							uint8_t* pMemoryBlock = (uint8_t*)m_data + index * GetMemoryBlockSize(m_sizeType);
-							*utils::unaligned_pointer<uintptr_t>{pMemoryBlock} = (uintptr_t)this;
+							*mem::unaligned_pointer<uintptr_t>{pMemoryBlock} = (uintptr_t)this;
 							return (void*)(pMemoryBlock + MemoryBlockUsableOffset);
 						};
 
@@ -121,7 +122,7 @@ namespace gaia {
 							return StoreChunkAddress(index);
 						}
 
-						GAIA_ASSERT(m_nextFreeBlock < m_blockCnt && "Block allocator recycle containers::list broken!");
+						GAIA_ASSERT(m_nextFreeBlock < m_blockCnt && "Block allocator recycle cnt::list broken!");
 
 						++m_usedBlocks;
 						--m_freeBlocks;
@@ -141,7 +142,7 @@ namespace gaia {
 						const auto dataAddr = (uintptr_t)m_data;
 						const auto blockIdx = (uint32_t)((blckAddr - dataAddr) / GetMemoryBlockSize(m_sizeType));
 
-						// Update our implicit containers::list
+						// Update our implicit cnt::list
 						if (m_freeBlocks == 0U) {
 							WriteBlockIdx(blockIdx, InvalidBlockId);
 							m_nextFreeBlock = blockIdx;
@@ -170,9 +171,9 @@ namespace gaia {
 				struct MemoryPageContainer {
 					//! List of available pages
 					//! Note, this currently only contains at most 1 item
-					containers::darray<MemoryPage*> pagesFree;
+					cnt::darray<MemoryPage*> pagesFree;
 					//! List of full pages
-					containers::darray<MemoryPage*> pagesFull;
+					cnt::darray<MemoryPage*> pagesFull;
 				};
 
 				//! Container for pages storing various-sized chunks
@@ -223,7 +224,7 @@ namespace gaia {
 						// Handle full pages
 						if (pPage->IsFull()) {
 							// Remove the page from the open list and update the swapped page's pointer
-							utils::erase_fast(container.pagesFree, 0);
+							core::erase_fast(container.pagesFree, 0);
 							if (!container.pagesFree.empty())
 								container.pagesFree[0]->m_pageIdx = 0;
 
@@ -250,20 +251,20 @@ namespace gaia {
 #if GAIA_DEBUG
 						if (pageFull) {
 							[[maybe_unused]] auto it =
-									utils::find_if(container.pagesFull.begin(), container.pagesFull.end(), [&](auto page) {
+									core::find_if(container.pagesFull.begin(), container.pagesFull.end(), [&](auto page) {
 										return page == pPage;
 									});
 							GAIA_ASSERT(
 									it != container.pagesFull.end() && "ChunkAllocator delete couldn't find the memory page expected "
-																										 "in the full pages containers::list");
+																										 "in the full pages cnt::list");
 						} else {
 							[[maybe_unused]] auto it =
-									utils::find_if(container.pagesFree.begin(), container.pagesFree.end(), [&](auto page) {
+									core::find_if(container.pagesFree.begin(), container.pagesFree.end(), [&](auto page) {
 										return page == pPage;
 									});
 							GAIA_ASSERT(
 									it != container.pagesFree.end() && "ChunkAllocator delete couldn't find memory page expected in "
-																										 "the free pages containers::list");
+																										 "the free pages cnt::list");
 						}
 #endif
 
@@ -271,7 +272,7 @@ namespace gaia {
 						if (pageFull) {
 							// Our page is no longer full. Remove it from the list and update the swapped page's pointer
 							container.pagesFull.back()->m_pageIdx = pPage->m_pageIdx;
-							utils::erase_fast(container.pagesFull, pPage->m_pageIdx);
+							core::erase_fast(container.pagesFull, pPage->m_pageIdx);
 
 							// Move our page to the open list
 							pPage->m_pageIdx = (uint32_t)container.pagesFree.size();
@@ -286,7 +287,7 @@ namespace gaia {
 							if (pPage->IsEmpty()) {
 								GAIA_ASSERT(!container.pagesFree.empty());
 								container.pagesFree.back()->m_pageIdx = pPage->m_pageIdx;
-								utils::erase_fast(container.pagesFree, pPage->m_pageIdx);
+								core::erase_fast(container.pagesFree, pPage->m_pageIdx);
 							}
 
 							// When there is nothing left, delete the allocator
@@ -322,7 +323,7 @@ namespace gaia {
 								continue;
 							}
 
-							utils::erase_fast(container.pagesFree, i);
+							core::erase_fast(container.pagesFree, i);
 							FreePage(pPage);
 							if (!container.pagesFree.empty())
 								container.pagesFree[i]->m_pageIdx = (uint32_t)i;
@@ -355,12 +356,12 @@ namespace gaia {
 			private:
 				static MemoryPage* AllocPage(uint8_t sizeType) {
 					const auto size = GetMemoryBlockSize(sizeType) * MemoryPage::NBlocks;
-					auto* pPageData = utils::mem_alloc_alig(size, 16);
+					auto* pPageData = mem::mem_alloc_alig(size, 16);
 					return new MemoryPage(pPageData, sizeType);
 				}
 
 				static void FreePage(MemoryPage* page) {
-					utils::mem_free_alig(page->m_data);
+					mem::mem_free_alig(page->m_data);
 					delete page;
 				}
 

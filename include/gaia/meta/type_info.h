@@ -1,11 +1,11 @@
 #pragma once
 #include "../config/config.h"
 
-#include "hashing_policy.h"
-#include "span.h"
+#include "../core/hashing_policy.h"
+#include "../core/span.h"
 
 namespace gaia {
-	namespace utils {
+	namespace meta {
 
 		//! Provides statically generated unique identifier for a given group of types.
 		template <typename...>
@@ -90,7 +90,7 @@ namespace gaia {
 #endif
 
 				auto n = name<T>();
-				return calculate_hash64(n.data(), n.size());
+				return core::calculate_hash64(n.data(), n.size());
 
 #if GAIA_COMPILER_MSVC && _MSV_VER <= 1916
 				GAIA_MSVC_WARNING_PUSH()
@@ -98,5 +98,5 @@ namespace gaia {
 			}
 		};
 
-	} // namespace utils
+	} // namespace meta
 } // namespace gaia

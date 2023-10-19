@@ -12,14 +12,14 @@ struct Position {
 };
 struct PositionSoA {
 	float x, y, z;
-	static constexpr auto Layout = utils::DataLayout::SoA;
+	static constexpr auto Layout = mem::DataLayout::SoA;
 };
 struct Velocity {
 	float x, y, z;
 };
 struct VelocitySoA {
 	float x, y, z;
-	static constexpr auto Layout = utils::DataLayout::SoA;
+	static constexpr auto Layout = mem::DataLayout::SoA;
 };
 struct Rotation {
 	float x, y, z, w;
@@ -665,7 +665,7 @@ void BM_NonECS(picobench::state& state) {
 
 	// Create entities.
 	// We allocate via new to simulate the usual kind of behavior in games
-	containers::darray<IUnit*> units(N * 2);
+	cnt::darray<IUnit*> units(N * 2);
 	{
 		for (uint32_t i = 0; i < N; i++) {
 			auto* u = new UnitStatic();
@@ -844,7 +844,7 @@ void BM_NonECS_BetterMemoryLayout(picobench::state& state) {
 	using namespace NonECS_BetterMemoryLayout;
 
 	// Create entities.
-	containers::darray<UnitStatic> units_static(N);
+	cnt::darray<UnitStatic> units_static(N);
 	for (uint32_t i = 0; i < N; i++) {
 		UnitStatic u;
 		u.p = {0, 100, 0};
@@ -853,10 +853,10 @@ void BM_NonECS_BetterMemoryLayout(picobench::state& state) {
 		units_static[i] = std::move(u);
 	}
 
-	containers::darray<UnitDynamic1> units_dynamic1(N / 4);
-	containers::darray<UnitDynamic2> units_dynamic2(N / 4);
-	containers::darray<UnitDynamic3> units_dynamic3(N / 4);
-	containers::darray<UnitDynamic4> units_dynamic4(N / 4);
+	cnt::darray<UnitDynamic1> units_dynamic1(N / 4);
+	cnt::darray<UnitDynamic2> units_dynamic2(N / 4);
+	cnt::darray<UnitDynamic3> units_dynamic3(N / 4);
+	cnt::darray<UnitDynamic4> units_dynamic4(N / 4);
 
 	for (uint32_t i = 0; i < N / 4; i++) {
 		UnitDynamic1 u;
@@ -951,8 +951,7 @@ void BM_NonECS_BetterMemoryLayout(picobench::state& state) {
 template <uint32_t Groups>
 void BM_NonECS_DOD(picobench::state& state) {
 	struct UnitDynamic {
-		static void
-		updatePosition(containers::darray<Position>& p, const containers::darray<Velocity>& v, float deltaTime) {
+		static void updatePosition(cnt::darray<Position>& p, const cnt::darray<Velocity>& v, float deltaTime) {
 			for (uint32_t i = 0; i < p.size(); i++) {
 				p[i].x += v[i].x * deltaTime;
 				p[i].y += v[i].y * deltaTime;
@@ -963,7 +962,7 @@ void BM_NonECS_DOD(picobench::state& state) {
 			gaia::dont_optimize(p[0].y);
 			gaia::dont_optimize(p[0].z);
 		}
-		static void handleGroundCollision(containers::darray<Position>& p, containers::darray<Velocity>& v) {
+		static void handleGroundCollision(cnt::darray<Position>& p, cnt::darray<Velocity>& v) {
 			for (uint32_t i = 0; i < p.size(); i++) {
 				if (p[i].y < 0.0f) {
 					p[i].y = 0.0f;
@@ -975,14 +974,14 @@ void BM_NonECS_DOD(picobench::state& state) {
 			gaia::dont_optimize(v[0].y);
 		}
 
-		static void applyGravity(containers::darray<Velocity>& v, float deltaTime) {
+		static void applyGravity(cnt::darray<Velocity>& v, float deltaTime) {
 			for (uint32_t i = 0; i < v.size(); i++)
 				v[i].y += 9.81f * deltaTime;
 
 			gaia::dont_optimize(v[0].y);
 		}
 
-		static uint32_t calculateAliveUnits(const containers::darray<Health>& h) {
+		static uint32_t calculateAliveUnits(const cnt::darray<Health>& h) {
 			uint32_t aliveUnits = 0;
 			for (uint32_t i = 0; i < h.size(); i++) {
 				if (h[i].value > 0)
@@ -996,9 +995,9 @@ void BM_NonECS_DOD(picobench::state& state) {
 
 	// Create static entities.
 	struct static_units_group {
-		containers::darray<Position> units_p{NGroup};
-		containers::darray<Rotation> units_r{NGroup};
-		containers::darray<Scale> units_s{NGroup};
+		cnt::darray<Position> units_p{NGroup};
+		cnt::darray<Rotation> units_r{NGroup};
+		cnt::darray<Scale> units_s{NGroup};
 	} static_groups[Groups];
 	for (auto& g: static_groups) {
 		for (uint32_t i = 0; i < NGroup; i++) {
@@ -1010,13 +1009,13 @@ void BM_NonECS_DOD(picobench::state& state) {
 
 	// Create dynamic entities.
 	struct dynamic_units_group {
-		containers::darray<Position> units_p{NGroup};
-		containers::darray<Rotation> units_r{NGroup};
-		containers::darray<Scale> units_s{NGroup};
-		containers::darray<Velocity> units_v{NGroup};
-		containers::darray<Direction> units_d{NGroup};
-		containers::darray<Health> units_h{NGroup};
-		containers::darray<IsEnemy> units_e{NGroup};
+		cnt::darray<Position> units_p{NGroup};
+		cnt::darray<Rotation> units_r{NGroup};
+		cnt::darray<Scale> units_s{NGroup};
+		cnt::darray<Velocity> units_v{NGroup};
+		cnt::darray<Direction> units_d{NGroup};
+		cnt::darray<Health> units_h{NGroup};
+		cnt::darray<IsEnemy> units_e{NGroup};
 	} dynamic_groups[Groups];
 	for (auto& g: dynamic_groups) {
 		for (uint32_t i = 0; i < NGroup; i++) {
@@ -1068,11 +1067,11 @@ void BM_NonECS_DOD(picobench::state& state) {
 template <uint32_t Groups>
 void BM_NonECS_DOD_SoA(picobench::state& state) {
 	struct UnitDynamic {
-		static void updatePosition(containers::darray<PositionSoA>& p, const containers::darray<VelocitySoA>& v) {
+		static void updatePosition(cnt::darray<PositionSoA>& p, const cnt::darray<VelocitySoA>& v) {
 			GAIA_PROF_SCOPE(updatePosition);
 
-			GAIA_UTIL::auto_view_policy_set<PositionSoA> pv{p};
-			GAIA_UTIL::auto_view_policy_get<VelocitySoA> vv{v};
+			gaia::mem::auto_view_policy_set<PositionSoA> pv{p};
+			gaia::mem::auto_view_policy_get<VelocitySoA> vv{v};
 
 			auto ppx = pv.set<0>();
 			auto ppy = pv.set<1>();
@@ -1094,11 +1093,11 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 			gaia::dont_optimize(ppz[0]);
 		}
 
-		static void handleGroundCollision(containers::darray<PositionSoA>& p, containers::darray<VelocitySoA>& v) {
+		static void handleGroundCollision(cnt::darray<PositionSoA>& p, cnt::darray<VelocitySoA>& v) {
 			GAIA_PROF_SCOPE(handleGroundCollision);
 
-			GAIA_UTIL::auto_view_policy_set<PositionSoA> pv{p};
-			GAIA_UTIL::auto_view_policy_set<VelocitySoA> vv{v};
+			gaia::mem::auto_view_policy_set<PositionSoA> pv{p};
+			gaia::mem::auto_view_policy_set<VelocitySoA> vv{v};
 
 			auto ppy = pv.set<1>();
 			auto vvy = vv.set<1>();
@@ -1114,10 +1113,10 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 			gaia::dont_optimize(vvy[0]);
 		}
 
-		static void applyGravity(containers::darray<VelocitySoA>& v) {
+		static void applyGravity(cnt::darray<VelocitySoA>& v) {
 			GAIA_PROF_SCOPE(applyGravity);
 
-			GAIA_UTIL::auto_view_policy_set<VelocitySoA> vv{v};
+			gaia::mem::auto_view_policy_set<VelocitySoA> vv{v};
 
 			auto vvy = vv.set<1>();
 
@@ -1127,7 +1126,7 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 			gaia::dont_optimize(vvy[0]);
 		}
 
-		static uint32_t calculateAliveUnits(const containers::darray<Health>& h) {
+		static uint32_t calculateAliveUnits(const cnt::darray<Health>& h) {
 			GAIA_PROF_SCOPE(calculateAliveUnits);
 
 			uint32_t aliveUnits = 0;
@@ -1143,9 +1142,9 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 
 	// Create static entities.
 	struct static_units_group {
-		containers::darray<PositionSoA> units_p{NGroup};
-		containers::darray<Rotation> units_r{NGroup};
-		containers::darray<Scale> units_s{NGroup};
+		cnt::darray<PositionSoA> units_p{NGroup};
+		cnt::darray<Rotation> units_r{NGroup};
+		cnt::darray<Scale> units_s{NGroup};
 	} static_groups[Groups];
 	for (auto& g: static_groups) {
 		for (uint32_t i = 0; i < NGroup; i++) {
@@ -1157,13 +1156,13 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 
 	// Create dynamic entities.
 	struct dynamic_units_group {
-		containers::darray<PositionSoA> units_p{NGroup};
-		containers::darray<Rotation> units_r{NGroup};
-		containers::darray<Scale> units_s{NGroup};
-		containers::darray<VelocitySoA> units_v{NGroup};
-		containers::darray<Direction> units_d{NGroup};
-		containers::darray<Health> units_h{NGroup};
-		containers::darray<IsEnemy> units_e{NGroup};
+		cnt::darray<PositionSoA> units_p{NGroup};
+		cnt::darray<Rotation> units_r{NGroup};
+		cnt::darray<Scale> units_s{NGroup};
+		cnt::darray<VelocitySoA> units_v{NGroup};
+		cnt::darray<Direction> units_d{NGroup};
+		cnt::darray<Health> units_h{NGroup};
+		cnt::darray<IsEnemy> units_e{NGroup};
 	} dynamic_groups[Groups];
 	for (auto& g: dynamic_groups) {
 		for (uint32_t i = 0; i < NGroup; i++) {
@@ -1221,7 +1220,7 @@ int main(int argc, char* argv[]) {
 		bool cachegrind = false;
 		bool test_dod = false;
 
-		const gaia::containers::darray<std::string_view> args(argv + 1, argv + argc);
+		const gaia::cnt::darray<std::string_view> args(argv + 1, argv + argc);
 		for (const auto& arg: args) {
 			if (arg == "-cg") {
 				cachegrind = true;

@@ -1,6 +1,7 @@
 #pragma once
+#include "../cnt/ilist.h"
 #include "../config/config.h"
-#include "../containers/ilist.h"
+
 
 #include <cinttypes>
 #include <type_traits>
@@ -102,7 +103,7 @@ namespace gaia {
 			class Chunk;
 		}
 
-		struct EntityContainer: containers::ilist_item_base {
+		struct EntityContainer: cnt::ilist_item_base {
 			//! Allocated items: Index in the list.
 			//! Deleted items: Index of the next deleted item in the list.
 			uint32_t idx;

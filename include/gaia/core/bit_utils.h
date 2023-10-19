@@ -6,7 +6,7 @@
 #include "utility.h"
 
 namespace gaia {
-	namespace utils {
+	namespace core {
 		template <uint32_t BlockBits>
 		struct bit_view {
 			static constexpr uint32_t MaxValue = (1 << BlockBits) - 1;
@@ -26,7 +26,7 @@ namespace gaia {
 				const bool overlaps = idxBit + BlockBits > 8;
 				if (overlaps) {
 					// Value spans over two bytes
-					const uint8_t shift2 = 8 - idxBit;
+					const uint8_t shift2 = uint8_t(8U - idxBit);
 					const uint8_t mask2 = ~(MaxValue >> shift2);
 					m_data[idxByte + 1] = (m_data[idxByte + 1] & mask2) | (value >> shift2);
 				}
@@ -43,7 +43,7 @@ namespace gaia {
 				const bool overlaps = idxBit + BlockBits > 8;
 				if (overlaps) {
 					// Value spans over two bytes
-					const uint8_t shift2 = 8 - idxBit;
+					const uint8_t shift2 = uint8_t(8U - idxBit);
 					const uint8_t mask2 = MaxValue >> shift2;
 					const uint8_t byte2 = (m_data[idxByte + 1] & mask2) << shift2;
 					return byte1 | byte2;
@@ -52,5 +52,5 @@ namespace gaia {
 				return byte1;
 			}
 		};
-	} // namespace utils
+	} // namespace core
 } // namespace gaia

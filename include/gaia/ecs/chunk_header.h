@@ -4,8 +4,8 @@
 #include <cinttypes>
 #include <cstdint>
 
-#include "../containers/bitset.h"
-#include "../utils/utility.h"
+#include "../cnt/bitset.h"
+#include "../core/utility.h"
 #include "archetype_common.h"
 #include "component.h"
 
@@ -31,8 +31,8 @@ namespace gaia {
 
 				//! Maxiumum number of entities per chunk
 				static constexpr uint16_t MAX_CHUNK_ENTITIES = 512;
-				static constexpr uint16_t MAX_CHUNK_ENTITIES_BITS = (uint16_t)utils::count_bits(MAX_CHUNK_ENTITIES);
-				using DisabledEntityMask = containers::bitset<MAX_CHUNK_ENTITIES>;
+				static constexpr uint16_t MAX_CHUNK_ENTITIES_BITS = (uint16_t)core::count_bits(MAX_CHUNK_ENTITIES);
+				using DisabledEntityMask = cnt::bitset<MAX_CHUNK_ENTITIES>;
 
 				//! Archetype the chunk belongs to
 				ArchetypeId archetypeId;

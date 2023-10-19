@@ -5,13 +5,13 @@
 #include <type_traits>
 #include <utility>
 
+#include "../core/span.h"
+#include "../core/utility.h"
 #include "../meta/reflection.h"
-#include "../utils/span.h"
-#include "../utils/utility.h"
 #include "mem_alloc.h"
 
 namespace gaia {
-	namespace utils {
+	namespace mem {
 		enum class DataLayout : uint32_t {
 			AoS, //< Array Of Structures
 			SoA, //< Structure Of Arrays, 4 packed items, good for SSE and similar
@@ -28,14 +28,14 @@ namespace gaia {
 			//----------------------------------------------------------------------
 
 			inline constexpr size_t get_aligned_byte_offset(uintptr_t address, size_t alig, size_t itemSize, size_t cnt) {
-				const auto padding = utils::padding(address, alig);
+				const auto padding = mem::padding(address, alig);
 				address += padding + itemSize * cnt;
 				return address;
 			}
 
 			template <typename T, size_t Alignment>
 			constexpr size_t get_aligned_byte_offset(uintptr_t address, size_t cnt) {
-				const auto padding = utils::padding<Alignment>(address);
+				const auto padding = mem::padding<Alignment>(address);
 				const auto itemSize = sizeof(T);
 				address += padding + itemSize * cnt;
 				return address;
@@ -141,16 +141,16 @@ namespace gaia {
 
 			GAIA_NODISCARD static uint8_t* alloc_mem(size_t cnt) noexcept {
 				const auto bytes = get_min_byte_size(0, cnt);
-				auto* pData = (uint8_t*)utils::mem_alloc(bytes);
-				utils::call_ctor((ValueType*)pData, cnt);
+				auto* pData = (uint8_t*)mem::mem_alloc(bytes);
+				core::call_ctor((ValueType*)pData, cnt);
 				return pData;
 			}
 
 			static void free_mem(uint8_t* pData, size_t cnt) noexcept {
 				if (pData == nullptr)
 					return;
-				utils::call_dtor((ValueType*)pData, cnt);
-				return utils::mem_free(pData);
+				core::call_dtor((ValueType*)pData, cnt);
+				return mem::mem_free(pData);
 			}
 
 			GAIA_NODISCARD constexpr static ValueType get_value(std::span<const ValueType> s, size_t idx) noexcept {
@@ -273,13 +273,13 @@ namespace gaia {
 
 			GAIA_NODISCARD static uint8_t* alloc_mem(size_t cnt) noexcept {
 				const auto bytes = get_min_byte_size(0, cnt);
-				return (uint8_t*)utils::mem_alloc_alig(bytes, Alignment);
+				return (uint8_t*)mem::mem_alloc_alig(bytes, Alignment);
 			}
 
 			static void free_mem(uint8_t* pData, [[maybe_unused]] size_t cnt) noexcept {
 				if (pData == nullptr)
 					return;
-				return utils::mem_free_alig(pData);
+				return mem::mem_free_alig(pData);
 			}
 
 			GAIA_NODISCARD constexpr static ValueType get(std::span<const uint8_t> s, size_t idx) noexcept {
@@ -334,9 +334,9 @@ namespace gaia {
 			constexpr static size_t
 			get_aligned_byte_offset_seq(uintptr_t address, size_t cnt, std::index_sequence<Ids...> /*no_name*/) {
 				// Align the address for the first type
-				address = utils::align<Alignment>(address);
+				address = mem::align<Alignment>(address);
 				// Offset and align the rest
-				((address = utils::align<Alignment>(address + sizeof(value_type<Ids>) * cnt)), ...);
+				((address = mem::align<Alignment>(address + sizeof(value_type<Ids>) * cnt)), ...);
 				return address;
 			}
 
@@ -356,12 +356,12 @@ namespace gaia {
 			template <size_t... Ids>
 			GAIA_NODISCARD constexpr static ValueType get_internal(
 					TTuple& t, std::span<const uint8_t> s, size_t idx, std::index_sequence<Ids...> /*no_name*/) noexcept {
-				auto address = utils::align<Alignment>((uintptr_t)s.data());
+				auto address = mem::align<Alignment>((uintptr_t)s.data());
 				((
 						 // Put the value at the address into our tuple. Data is aligned so we can read directly.
 						 std::get<Ids>(t) = get_ref<value_type<Ids>>((const uint8_t*)address, idx),
 						 // Skip towards the next element and make sure the address is aligned properly
-						 address = utils::align<Alignment>(address + sizeof(value_type<Ids>) * s.size())),
+						 address = mem::align<Alignment>(address + sizeof(value_type<Ids>) * s.size())),
 				 ...);
 				return meta::tuple_to_struct<ValueType, TTuple>(std::forward<TTuple>(t));
 			}
@@ -369,12 +369,12 @@ namespace gaia {
 			template <size_t... Ids>
 			constexpr static void
 			set_internal(TTuple& t, std::span<uint8_t> s, size_t idx, std::index_sequence<Ids...> /*no_name*/) noexcept {
-				auto address = utils::align<Alignment>((uintptr_t)s.data());
+				auto address = mem::align<Alignment>((uintptr_t)s.data());
 				((
 						 // Set the tuple value. Data is aligned so we can write directly.
 						 get_ref<value_type<Ids>>((uint8_t*)address, idx) = std::get<Ids>(t),
 						 // Skip towards the next element and make sure the address is aligned properly
-						 address = utils::align<Alignment>(address + sizeof(value_type<Ids>) * s.size())),
+						 address = mem::align<Alignment>(address + sizeof(value_type<Ids>) * s.size())),
 				 ...);
 			}
 		};
@@ -537,5 +537,5 @@ namespace gaia {
 		template <typename T, uint32_t N>
 		using raw_data_holder = detail::raw_data_holder<N, auto_view_policy<T>::ArrayAlignment>;
 
-	} // namespace utils
+	} // namespace mem
 } // namespace gaia

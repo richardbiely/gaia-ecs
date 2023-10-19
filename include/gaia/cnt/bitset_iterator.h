@@ -5,7 +5,7 @@
 #include <type_traits>
 
 namespace gaia {
-	namespace containers {
+	namespace cnt {
 		template <typename TBitset, bool IsInverse>
 		class bitset_const_iterator {
 		public:
@@ -171,5 +171,5 @@ namespace gaia {
 				return m_pos != other.m_pos;
 			}
 		};
-	} // namespace containers
+	} // namespace cnt
 } // namespace gaia

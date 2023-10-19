@@ -1,7 +1,7 @@
 #pragma once
 
 namespace gaia {
-	namespace utils {
+	namespace core {
 		//! Gaia-ECS is a header-only library which means we want to avoid using global
 		//! static variables because they would get copied to each translation units.
 		//! At the same time the goal is for users to not see any memory allocation used
@@ -38,5 +38,5 @@ namespace gaia {
 				get().Done();
 			}
 		};
-	} // namespace utils
+	} // namespace core
 } // namespace gaia

@@ -29,7 +29,7 @@
 #endif
 
 namespace gaia {
-	namespace utils {
+	namespace mem {
 		inline void* mem_alloc(size_t size) {
 			GAIA_ASSERT(size > 0);
 
@@ -189,5 +189,5 @@ namespace gaia {
 
 		template <class T>
 		const T* addressof(const T&&) = delete;
-	} // namespace utils
+	} // namespace mem
 } // namespace gaia

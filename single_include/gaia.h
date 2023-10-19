@@ -655,12 +655,6 @@ namespace gaia {
 #endif
 
 //------------------------------------------------------------------------------
-// General settings
-//------------------------------------------------------------------------------
-
-#define GAIA_UTIL gaia::utils
-
-//------------------------------------------------------------------------------
 // Debug features
 //------------------------------------------------------------------------------
 
@@ -1056,12 +1050,12 @@ http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/n4820.pdf
 #endif
 
 namespace gaia {
-	namespace containers {
+	namespace cnt {
 		template <typename T, uint32_t N>
 		class sarr;
 		template <typename T, uint32_t N>
-		using sarray = containers::sarr<T, N>;
-	} // namespace containers
+		using sarray = cnt::sarr<T, N>;
+	} // namespace cnt
 } // namespace gaia
 
 // Various feature test macros
@@ -1253,7 +1247,7 @@ namespace TCB_SPAN_NAMESPACE_NAME {
 		struct is_std_array: std::false_type {};
 
 		template <typename T, auto N>
-		struct is_std_array<gaia::containers::sarray<T, N>>: std::true_type {};
+		struct is_std_array<gaia::cnt::sarray<T, N>>: std::true_type {};
 
 		template <typename, typename = void>
 		struct has_size_and_data: std::false_type {};
@@ -1342,16 +1336,16 @@ namespace TCB_SPAN_NAMESPACE_NAME {
 		// 		typename T, std::size_t N, std::size_t E = Extent,
 		// 		typename std::enable_if<
 		// 				(E == dynamic_extent || N == E) &&
-		// 						detail::is_container_element_type_compatible<gaia::containers::sarray<T, N>&, ElementType>::value,
+		// 						detail::is_container_element_type_compatible<gaia::cnt::sarray<T, N>&, ElementType>::value,
 		// 				int>::type = 0>
-		// TCB_SPAN_ARRAY_CONSTEXPR span(gaia::containers::sarray<T, N>& arr) noexcept: storage_(arr.data(), N) {}
+		// TCB_SPAN_ARRAY_CONSTEXPR span(gaia::cnt::sarray<T, N>& arr) noexcept: storage_(arr.data(), N) {}
 
 		// template <
 		// 		typename T, std::size_t N, std::size_t E = Extent,
 		// 		typename std::enable_if<
 		// 				(E == dynamic_extent || N == E) &&
-		// 						detail::is_container_element_type_compatible<const gaia::containers::sarray<T, N>&,
-		// ElementType>::value, 				int>::type = 0> TCB_SPAN_ARRAY_CONSTEXPR span(const gaia::containers::sarray<T, N>&
+		// 						detail::is_container_element_type_compatible<const gaia::cnt::sarray<T, N>&,
+		// ElementType>::value, 				int>::type = 0> TCB_SPAN_ARRAY_CONSTEXPR span(const gaia::cnt::sarray<T, N>&
 		// arr) noexcept: storage_(arr.data(), N) {}
 
 		template <
@@ -1484,10 +1478,10 @@ namespace TCB_SPAN_NAMESPACE_NAME {
 	span(T (&)[N]) -> span<T, N>;
 
 	template <typename T, size_t N>
-	span(gaia::containers::sarray<T, N>&) -> span<T, N>;
+	span(gaia::cnt::sarray<T, N>&) -> span<T, N>;
 
 	template <typename T, size_t N>
-	span(const gaia::containers::sarray<T, N>&) -> span<const T, N>;
+	span(const gaia::cnt::sarray<T, N>&) -> span<const T, N>;
 
 	template <typename Container>
 	span(Container&) -> span<typename std::remove_reference<decltype(*detail::data(std::declval<Container&>()))>::type>;
@@ -1508,12 +1502,12 @@ namespace TCB_SPAN_NAMESPACE_NAME {
 	}
 
 	template <typename T, std::size_t N>
-	TCB_SPAN_ARRAY_CONSTEXPR span<T, N> make_span(gaia::containers::sarray<T, N>& arr) noexcept {
+	TCB_SPAN_ARRAY_CONSTEXPR span<T, N> make_span(gaia::cnt::sarray<T, N>& arr) noexcept {
 		return {arr};
 	}
 
 	template <typename T, std::size_t N>
-	TCB_SPAN_ARRAY_CONSTEXPR span<const T, N> make_span(const gaia::containers::sarray<T, N>& arr) noexcept {
+	TCB_SPAN_ARRAY_CONSTEXPR span<const T, N> make_span(const gaia::cnt::sarray<T, N>& arr) noexcept {
 		return {arr};
 	}
 
@@ -1577,7 +1571,7 @@ namespace std {
 #include <type_traits>
 
 namespace gaia {
-	namespace utils {
+	namespace core {
 		struct input_iterator_tag {};
 		struct output_iterator_tag {};
 
@@ -1678,13 +1672,13 @@ namespace gaia {
 				return offset;
 			}
 		}
-	} // namespace utils
+	} // namespace core
 } // namespace gaia
 
 namespace gaia {
 	constexpr uint32_t BadIndex = uint32_t(-1);
 
-	namespace utils {
+	namespace core {
 		//----------------------------------------------------------------------
 		// Bit-byte conversion
 		//----------------------------------------------------------------------
@@ -1749,13 +1743,13 @@ namespace gaia {
 		template <typename T, typename TCmpFunc>
 		constexpr void swap_if(T& lhs, T& rhs, TCmpFunc cmpFunc) noexcept {
 			if (!cmpFunc(lhs, rhs))
-				utils::swap(lhs, rhs);
+				core::swap(lhs, rhs);
 		}
 
 		template <typename T, typename TCmpFunc>
 		constexpr void swap_if_not(T& lhs, T& rhs, TCmpFunc cmpFunc) noexcept {
 			if (cmpFunc(lhs, rhs))
-				utils::swap(lhs, rhs);
+				core::swap(lhs, rhs);
 		}
 
 		template <typename C, typename TCmpFunc, typename TSortFunc>
@@ -2067,7 +2061,7 @@ namespace gaia {
 					if (first[i] == value)
 						return &first[i];
 				}
-			} else if constexpr (std::is_same_v<typename InputIt::iterator_category, GAIA_UTIL::random_access_iterator_tag>) {
+			} else if constexpr (std::is_same_v<typename InputIt::iterator_category, core::random_access_iterator_tag>) {
 				auto size = distance(first, last);
 				for (decltype(size) i = 0; i < size; ++i) {
 					if (*(first[i]) == value)
@@ -2087,7 +2081,7 @@ namespace gaia {
 			if constexpr (has_find<C>::value)
 				return arr.find(item);
 			else
-				return GAIA_UTIL::find(arr.begin(), arr.end(), item);
+				return core::find(arr.begin(), arr.end(), item);
 		}
 
 		template <typename InputIt, typename Func>
@@ -2098,7 +2092,7 @@ namespace gaia {
 					if (func(first[i]))
 						return &first[i];
 				}
-			} else if constexpr (std::is_same_v<typename InputIt::iterator_category, GAIA_UTIL::random_access_iterator_tag>) {
+			} else if constexpr (std::is_same_v<typename InputIt::iterator_category, core::random_access_iterator_tag>) {
 				auto size = distance(first, last);
 				for (decltype(size) i = 0; i < size; ++i) {
 					if (func(*(first[i])))
@@ -2118,7 +2112,7 @@ namespace gaia {
 			if constexpr (has_find_if<C, UnaryPredicate>::value)
 				return arr.find_id(predicate);
 			else
-				return GAIA_UTIL::find_if(arr.begin(), arr.end(), predicate);
+				return core::find_if(arr.begin(), arr.end(), predicate);
 		}
 
 		template <typename InputIt, typename Func>
@@ -2129,7 +2123,7 @@ namespace gaia {
 					if (!func(first[i]))
 						return &first[i];
 				}
-			} else if constexpr (std::is_same_v<typename InputIt::iterator_category, GAIA_UTIL::random_access_iterator_tag>) {
+			} else if constexpr (std::is_same_v<typename InputIt::iterator_category, core::random_access_iterator_tag>) {
 				auto size = distance(first, last);
 				for (decltype(size) i = 0; i < size; ++i) {
 					if (!func(*(first[i])))
@@ -2149,7 +2143,7 @@ namespace gaia {
 			if constexpr (has_find_if_not<C, UnaryPredicate>::value)
 				return arr.find_if_not(predicate);
 			else
-				return GAIA_UTIL::find_if_not(arr.begin(), arr.end(), predicate);
+				return core::find_if_not(arr.begin(), arr.end(), predicate);
 		}
 
 		//----------------------------------------------------------------------
@@ -2174,12 +2168,12 @@ namespace gaia {
 			if (it == arr.end())
 				return BadIndex;
 
-			return (decltype(BadIndex))GAIA_UTIL::distance(arr.begin(), it);
+			return (decltype(BadIndex))core::distance(arr.begin(), it);
 		}
 
 		template <typename C>
 		constexpr auto get_index_unsafe(const C& arr, typename C::const_reference item) {
-			return (decltype(BadIndex))GAIA_UTIL::distance(arr.begin(), find(arr, item));
+			return (decltype(BadIndex))core::distance(arr.begin(), find(arr, item));
 		}
 
 		template <typename UnaryPredicate, typename C>
@@ -2188,12 +2182,12 @@ namespace gaia {
 			if (it == arr.end())
 				return BadIndex;
 
-			return (decltype(BadIndex))GAIA_UTIL::distance(arr.begin(), it);
+			return (decltype(BadIndex))core::distance(arr.begin(), it);
 		}
 
 		template <typename UnaryPredicate, typename C>
 		constexpr auto get_index_if_unsafe(const C& arr, UnaryPredicate predicate) {
-			return (decltype(BadIndex))GAIA_UTIL::distance(arr.begin(), find_if(arr, predicate));
+			return (decltype(BadIndex))core::distance(arr.begin(), find_if(arr, predicate));
 		}
 
 		//----------------------------------------------------------------------
@@ -2275,9 +2269,9 @@ namespace gaia {
 				int i = low - 1;
 				for (int j = low; j <= high - 1; j++) {
 					if (func(arr[j], pivot))
-						utils::swap(arr[++i], arr[j]);
+						core::swap(arr[++i], arr[j]);
 				}
-				utils::swap(arr[++i], arr[high]);
+				core::swap(arr[++i], arr[high]);
 				return i;
 			}
 
@@ -2675,11 +2669,11 @@ namespace gaia {
 				// detail::quick_sort(arr, 0, n - 1);
 			}
 		}
-	} // namespace utils
+	} // namespace core
 } // namespace gaia
 
 namespace gaia {
-	namespace utils {
+	namespace core {
 		template <uint32_t BlockBits>
 		struct bit_view {
 			static constexpr uint32_t MaxValue = (1 << BlockBits) - 1;
@@ -2699,7 +2693,7 @@ namespace gaia {
 				const bool overlaps = idxBit + BlockBits > 8;
 				if (overlaps) {
 					// Value spans over two bytes
-					const uint8_t shift2 = 8 - idxBit;
+					const uint8_t shift2 = uint8_t(8U - idxBit);
 					const uint8_t mask2 = ~(MaxValue >> shift2);
 					m_data[idxByte + 1] = (m_data[idxByte + 1] & mask2) | (value >> shift2);
 				}
@@ -2716,7 +2710,7 @@ namespace gaia {
 				const bool overlaps = idxBit + BlockBits > 8;
 				if (overlaps) {
 					// Value spans over two bytes
-					const uint8_t shift2 = 8 - idxBit;
+					const uint8_t shift2 = uint8_t(8U - idxBit);
 					const uint8_t mask2 = MaxValue >> shift2;
 					const uint8_t byte2 = (m_data[idxByte + 1] & mask2) << shift2;
 					return byte1 | byte2;
@@ -2725,7 +2719,208 @@ namespace gaia {
 				return byte1;
 			}
 		};
-	} // namespace utils
+	} // namespace core
+} // namespace gaia
+
+#include <cstdint>
+#include <type_traits>
+
+namespace gaia {
+	namespace core {
+
+		namespace detail {
+			template <typename, typename = void>
+			struct is_direct_hash_key: std::false_type {};
+			template <typename T>
+			struct is_direct_hash_key<T, std::void_t<decltype(T::IsDirectHashKey)>>: std::true_type {};
+
+			//-----------------------------------------------------------------------------------
+
+			constexpr void hash_combine2_out(uint32_t& lhs, uint32_t rhs) {
+				lhs ^= rhs + 0x9e3779b9 + (lhs << 6) + (lhs >> 2);
+			}
+			constexpr void hash_combine2_out(uint64_t& lhs, uint64_t rhs) {
+				lhs ^= rhs + 0x9e3779B97f4a7c15ULL + (lhs << 6) + (lhs >> 2);
+			}
+
+			template <typename T>
+			GAIA_NODISCARD constexpr T hash_combine2(T lhs, T rhs) {
+				hash_combine2_out(lhs, rhs);
+				return lhs;
+			}
+		} // namespace detail
+
+		template <typename T>
+		inline constexpr bool is_direct_hash_key_v = detail::is_direct_hash_key<T>::value;
+
+		template <typename T>
+		struct direct_hash_key {
+			using Type = T;
+
+			static_assert(std::is_integral_v<T>);
+			static constexpr bool IsDirectHashKey = true;
+
+			T hash;
+			bool operator==(direct_hash_key other) const {
+				return hash == other.hash;
+			}
+			bool operator!=(direct_hash_key other) const {
+				return hash != other.hash;
+			}
+		};
+
+		//! Combines values via OR.
+		template <typename... T>
+		constexpr auto combine_or([[maybe_unused]] T... t) {
+			return (... | t);
+		}
+
+		//! Combines hashes into another complex one
+		template <typename T, typename... Rest>
+		constexpr T hash_combine(T first, T next, Rest... rest) {
+			auto h = detail::hash_combine2(first, next);
+			(detail::hash_combine2_out(h, rest), ...);
+			return h;
+		}
+
+#if GAIA_ECS_HASH == GAIA_ECS_HASH_FNV1A
+
+		namespace detail {
+			namespace fnv1a {
+				constexpr uint64_t val_64_const = 0xcbf29ce484222325;
+				constexpr uint64_t prime_64_const = 0x100000001b3;
+			} // namespace fnv1a
+		} // namespace detail
+
+		constexpr uint64_t calculate_hash64(const char* const str) noexcept {
+			uint64_t hash = detail::fnv1a::val_64_const;
+
+			uint64_t i = 0;
+			while (str[i] != '\0') {
+				hash = (hash ^ uint64_t(str[i])) * detail::fnv1a::prime_64_const;
+				++i;
+			}
+
+			return hash;
+		}
+
+		constexpr uint64_t calculate_hash64(const char* const str, const uint64_t length) noexcept {
+			uint64_t hash = detail::fnv1a::val_64_const;
+
+			for (uint64_t i = 0; i < length; i++)
+				hash = (hash ^ uint64_t(str[i])) * detail::fnv1a::prime_64_const;
+
+			return hash;
+		}
+
+#elif GAIA_ECS_HASH == GAIA_ECS_HASH_MURMUR2A
+
+		// Thank you https://gist.github.com/oteguro/10538695
+
+		GAIA_MSVC_WARNING_PUSH()
+		GAIA_MSVC_WARNING_DISABLE(4592)
+
+		namespace detail {
+			namespace murmur2a {
+				constexpr uint64_t seed_64_const = 0xe17a1465ULL;
+				constexpr uint64_t m = 0xc6a4a7935bd1e995ULL;
+				constexpr uint64_t r = 47;
+
+				constexpr uint64_t Load8(const char* data) {
+					return (uint64_t(data[7]) << 56) | (uint64_t(data[6]) << 48) | (uint64_t(data[5]) << 40) |
+								 (uint64_t(data[4]) << 32) | (uint64_t(data[3]) << 24) | (uint64_t(data[2]) << 16) |
+								 (uint64_t(data[1]) << 8) | (uint64_t(data[0]) << 0);
+				}
+
+				constexpr uint64_t StaticHashValueLast64(uint64_t h) {
+					return (((h * m) ^ ((h * m) >> r)) * m) ^ ((((h * m) ^ ((h * m) >> r)) * m) >> r);
+				}
+
+				constexpr uint64_t StaticHashValueLast64_(uint64_t h) {
+					return (((h) ^ ((h) >> r)) * m) ^ ((((h) ^ ((h) >> r)) * m) >> r);
+				}
+
+				constexpr uint64_t StaticHashValue64Tail1(uint64_t h, const char* data) {
+					return StaticHashValueLast64((h ^ uint64_t(data[0])));
+				}
+
+				constexpr uint64_t StaticHashValue64Tail2(uint64_t h, const char* data) {
+					return StaticHashValue64Tail1((h ^ uint64_t(data[1]) << 8), data);
+				}
+
+				constexpr uint64_t StaticHashValue64Tail3(uint64_t h, const char* data) {
+					return StaticHashValue64Tail2((h ^ uint64_t(data[2]) << 16), data);
+				}
+
+				constexpr uint64_t StaticHashValue64Tail4(uint64_t h, const char* data) {
+					return StaticHashValue64Tail3((h ^ uint64_t(data[3]) << 24), data);
+				}
+
+				constexpr uint64_t StaticHashValue64Tail5(uint64_t h, const char* data) {
+					return StaticHashValue64Tail4((h ^ uint64_t(data[4]) << 32), data);
+				}
+
+				constexpr uint64_t StaticHashValue64Tail6(uint64_t h, const char* data) {
+					return StaticHashValue64Tail5((h ^ uint64_t(data[5]) << 40), data);
+				}
+
+				constexpr uint64_t StaticHashValue64Tail7(uint64_t h, const char* data) {
+					return StaticHashValue64Tail6((h ^ uint64_t(data[6]) << 48), data);
+				}
+
+				constexpr uint64_t StaticHashValueRest64(uint64_t h, uint64_t len, const char* data) {
+					return ((len & 7) == 7)		? StaticHashValue64Tail7(h, data)
+								 : ((len & 7) == 6) ? StaticHashValue64Tail6(h, data)
+								 : ((len & 7) == 5) ? StaticHashValue64Tail5(h, data)
+								 : ((len & 7) == 4) ? StaticHashValue64Tail4(h, data)
+								 : ((len & 7) == 3) ? StaticHashValue64Tail3(h, data)
+								 : ((len & 7) == 2) ? StaticHashValue64Tail2(h, data)
+								 : ((len & 7) == 1) ? StaticHashValue64Tail1(h, data)
+																		: StaticHashValueLast64_(h);
+				}
+
+				constexpr uint64_t StaticHashValueLoop64(uint64_t i, uint64_t h, uint64_t len, const char* data) {
+					return (
+							i == 0 ? StaticHashValueRest64(h, len, data)
+										 : StaticHashValueLoop64(
+													 i - 1, (h ^ (((Load8(data) * m) ^ ((Load8(data) * m) >> r)) * m)) * m, len, data + 8));
+				}
+
+				constexpr uint64_t hash_murmur2a_64_ct(const char* key, uint64_t len, uint64_t seed) {
+					return StaticHashValueLoop64(len / 8, seed ^ (len * m), (len), key);
+				}
+			} // namespace murmur2a
+		} // namespace detail
+
+		constexpr uint64_t calculate_hash64(uint64_t value) {
+			value ^= value >> 33U;
+			value *= 0xff51afd7ed558ccdULL;
+			value ^= value >> 33U;
+
+			value *= 0xc4ceb9fe1a85ec53ULL;
+			value ^= value >> 33U;
+			return value;
+		}
+
+		constexpr uint64_t calculate_hash64(const char* str) {
+			uint64_t size = 0;
+			while (str[size] != '\0')
+				++size;
+
+			return detail::murmur2a::hash_murmur2a_64_ct(str, size, detail::murmur2a::seed_64_const);
+		}
+
+		constexpr uint64_t calculate_hash64(const char* str, uint64_t length) {
+			return detail::murmur2a::hash_murmur2a_64_ct(str, length, detail::murmur2a::seed_64_const);
+		}
+
+		GAIA_MSVC_WARNING_POP()
+
+#else
+	#error "Unknown hashing type defined"
+#endif
+
+	} // namespace core
 } // namespace gaia
 
 #include <tuple>
@@ -3067,7 +3262,7 @@ namespace gaia {
 #endif
 
 namespace gaia {
-	namespace utils {
+	namespace mem {
 		inline void* mem_alloc(size_t size) {
 			GAIA_ASSERT(size > 0);
 
@@ -3227,11 +3422,11 @@ namespace gaia {
 
 		template <class T>
 		const T* addressof(const T&&) = delete;
-	} // namespace utils
+	} // namespace mem
 } // namespace gaia
 
 namespace gaia {
-	namespace utils {
+	namespace mem {
 		enum class DataLayout : uint32_t {
 			AoS, //< Array Of Structures
 			SoA, //< Structure Of Arrays, 4 packed items, good for SSE and similar
@@ -3248,14 +3443,14 @@ namespace gaia {
 			//----------------------------------------------------------------------
 
 			inline constexpr size_t get_aligned_byte_offset(uintptr_t address, size_t alig, size_t itemSize, size_t cnt) {
-				const auto padding = utils::padding(address, alig);
+				const auto padding = mem::padding(address, alig);
 				address += padding + itemSize * cnt;
 				return address;
 			}
 
 			template <typename T, size_t Alignment>
 			constexpr size_t get_aligned_byte_offset(uintptr_t address, size_t cnt) {
-				const auto padding = utils::padding<Alignment>(address);
+				const auto padding = mem::padding<Alignment>(address);
 				const auto itemSize = sizeof(T);
 				address += padding + itemSize * cnt;
 				return address;
@@ -3361,16 +3556,16 @@ namespace gaia {
 
 			GAIA_NODISCARD static uint8_t* alloc_mem(size_t cnt) noexcept {
 				const auto bytes = get_min_byte_size(0, cnt);
-				auto* pData = (uint8_t*)utils::mem_alloc(bytes);
-				utils::call_ctor((ValueType*)pData, cnt);
+				auto* pData = (uint8_t*)mem::mem_alloc(bytes);
+				core::call_ctor((ValueType*)pData, cnt);
 				return pData;
 			}
 
 			static void free_mem(uint8_t* pData, size_t cnt) noexcept {
 				if (pData == nullptr)
 					return;
-				utils::call_dtor((ValueType*)pData, cnt);
-				return utils::mem_free(pData);
+				core::call_dtor((ValueType*)pData, cnt);
+				return mem::mem_free(pData);
 			}
 
 			GAIA_NODISCARD constexpr static ValueType get_value(std::span<const ValueType> s, size_t idx) noexcept {
@@ -3493,13 +3688,13 @@ namespace gaia {
 
 			GAIA_NODISCARD static uint8_t* alloc_mem(size_t cnt) noexcept {
 				const auto bytes = get_min_byte_size(0, cnt);
-				return (uint8_t*)utils::mem_alloc_alig(bytes, Alignment);
+				return (uint8_t*)mem::mem_alloc_alig(bytes, Alignment);
 			}
 
 			static void free_mem(uint8_t* pData, [[maybe_unused]] size_t cnt) noexcept {
 				if (pData == nullptr)
 					return;
-				return utils::mem_free_alig(pData);
+				return mem::mem_free_alig(pData);
 			}
 
 			GAIA_NODISCARD constexpr static ValueType get(std::span<const uint8_t> s, size_t idx) noexcept {
@@ -3554,9 +3749,9 @@ namespace gaia {
 			constexpr static size_t
 			get_aligned_byte_offset_seq(uintptr_t address, size_t cnt, std::index_sequence<Ids...> /*no_name*/) {
 				// Align the address for the first type
-				address = utils::align<Alignment>(address);
+				address = mem::align<Alignment>(address);
 				// Offset and align the rest
-				((address = utils::align<Alignment>(address + sizeof(value_type<Ids>) * cnt)), ...);
+				((address = mem::align<Alignment>(address + sizeof(value_type<Ids>) * cnt)), ...);
 				return address;
 			}
 
@@ -3576,12 +3771,12 @@ namespace gaia {
 			template <size_t... Ids>
 			GAIA_NODISCARD constexpr static ValueType get_internal(
 					TTuple& t, std::span<const uint8_t> s, size_t idx, std::index_sequence<Ids...> /*no_name*/) noexcept {
-				auto address = utils::align<Alignment>((uintptr_t)s.data());
+				auto address = mem::align<Alignment>((uintptr_t)s.data());
 				((
 						 // Put the value at the address into our tuple. Data is aligned so we can read directly.
 						 std::get<Ids>(t) = get_ref<value_type<Ids>>((const uint8_t*)address, idx),
 						 // Skip towards the next element and make sure the address is aligned properly
-						 address = utils::align<Alignment>(address + sizeof(value_type<Ids>) * s.size())),
+						 address = mem::align<Alignment>(address + sizeof(value_type<Ids>) * s.size())),
 				 ...);
 				return meta::tuple_to_struct<ValueType, TTuple>(std::forward<TTuple>(t));
 			}
@@ -3589,12 +3784,12 @@ namespace gaia {
 			template <size_t... Ids>
 			constexpr static void
 			set_internal(TTuple& t, std::span<uint8_t> s, size_t idx, std::index_sequence<Ids...> /*no_name*/) noexcept {
-				auto address = utils::align<Alignment>((uintptr_t)s.data());
+				auto address = mem::align<Alignment>((uintptr_t)s.data());
 				((
 						 // Set the tuple value. Data is aligned so we can write directly.
 						 get_ref<value_type<Ids>>((uint8_t*)address, idx) = std::get<Ids>(t),
 						 // Skip towards the next element and make sure the address is aligned properly
-						 address = utils::align<Alignment>(address + sizeof(value_type<Ids>) * s.size())),
+						 address = mem::align<Alignment>(address + sizeof(value_type<Ids>) * s.size())),
 				 ...);
 			}
 		};
@@ -3757,208 +3952,7 @@ namespace gaia {
 		template <typename T, uint32_t N>
 		using raw_data_holder = detail::raw_data_holder<N, auto_view_policy<T>::ArrayAlignment>;
 
-	} // namespace utils
-} // namespace gaia
-
-#include <cstdint>
-#include <type_traits>
-
-namespace gaia {
-	namespace utils {
-
-		namespace detail {
-			template <typename, typename = void>
-			struct is_direct_hash_key: std::false_type {};
-			template <typename T>
-			struct is_direct_hash_key<T, std::void_t<decltype(T::IsDirectHashKey)>>: std::true_type {};
-
-			//-----------------------------------------------------------------------------------
-
-			constexpr void hash_combine2_out(uint32_t& lhs, uint32_t rhs) {
-				lhs ^= rhs + 0x9e3779b9 + (lhs << 6) + (lhs >> 2);
-			}
-			constexpr void hash_combine2_out(uint64_t& lhs, uint64_t rhs) {
-				lhs ^= rhs + 0x9e3779B97f4a7c15ULL + (lhs << 6) + (lhs >> 2);
-			}
-
-			template <typename T>
-			GAIA_NODISCARD constexpr T hash_combine2(T lhs, T rhs) {
-				hash_combine2_out(lhs, rhs);
-				return lhs;
-			}
-		} // namespace detail
-
-		template <typename T>
-		inline constexpr bool is_direct_hash_key_v = detail::is_direct_hash_key<T>::value;
-
-		template <typename T>
-		struct direct_hash_key {
-			using Type = T;
-
-			static_assert(std::is_integral_v<T>);
-			static constexpr bool IsDirectHashKey = true;
-
-			T hash;
-			bool operator==(direct_hash_key other) const {
-				return hash == other.hash;
-			}
-			bool operator!=(direct_hash_key other) const {
-				return hash != other.hash;
-			}
-		};
-
-		//! Combines values via OR.
-		template <typename... T>
-		constexpr auto combine_or([[maybe_unused]] T... t) {
-			return (... | t);
-		}
-
-		//! Combines hashes into another complex one
-		template <typename T, typename... Rest>
-		constexpr T hash_combine(T first, T next, Rest... rest) {
-			auto h = detail::hash_combine2(first, next);
-			(detail::hash_combine2_out(h, rest), ...);
-			return h;
-		}
-
-#if GAIA_ECS_HASH == GAIA_ECS_HASH_FNV1A
-
-		namespace detail {
-			namespace fnv1a {
-				constexpr uint64_t val_64_const = 0xcbf29ce484222325;
-				constexpr uint64_t prime_64_const = 0x100000001b3;
-			} // namespace fnv1a
-		} // namespace detail
-
-		constexpr uint64_t calculate_hash64(const char* const str) noexcept {
-			uint64_t hash = detail::fnv1a::val_64_const;
-
-			uint64_t i = 0;
-			while (str[i] != '\0') {
-				hash = (hash ^ uint64_t(str[i])) * detail::fnv1a::prime_64_const;
-				++i;
-			}
-
-			return hash;
-		}
-
-		constexpr uint64_t calculate_hash64(const char* const str, const uint64_t length) noexcept {
-			uint64_t hash = detail::fnv1a::val_64_const;
-
-			for (uint64_t i = 0; i < length; i++)
-				hash = (hash ^ uint64_t(str[i])) * detail::fnv1a::prime_64_const;
-
-			return hash;
-		}
-
-#elif GAIA_ECS_HASH == GAIA_ECS_HASH_MURMUR2A
-
-		// Thank you https://gist.github.com/oteguro/10538695
-
-		GAIA_MSVC_WARNING_PUSH()
-		GAIA_MSVC_WARNING_DISABLE(4592)
-
-		namespace detail {
-			namespace murmur2a {
-				constexpr uint64_t seed_64_const = 0xe17a1465ULL;
-				constexpr uint64_t m = 0xc6a4a7935bd1e995ULL;
-				constexpr uint64_t r = 47;
-
-				constexpr uint64_t Load8(const char* data) {
-					return (uint64_t(data[7]) << 56) | (uint64_t(data[6]) << 48) | (uint64_t(data[5]) << 40) |
-								 (uint64_t(data[4]) << 32) | (uint64_t(data[3]) << 24) | (uint64_t(data[2]) << 16) |
-								 (uint64_t(data[1]) << 8) | (uint64_t(data[0]) << 0);
-				}
-
-				constexpr uint64_t StaticHashValueLast64(uint64_t h) {
-					return (((h * m) ^ ((h * m) >> r)) * m) ^ ((((h * m) ^ ((h * m) >> r)) * m) >> r);
-				}
-
-				constexpr uint64_t StaticHashValueLast64_(uint64_t h) {
-					return (((h) ^ ((h) >> r)) * m) ^ ((((h) ^ ((h) >> r)) * m) >> r);
-				}
-
-				constexpr uint64_t StaticHashValue64Tail1(uint64_t h, const char* data) {
-					return StaticHashValueLast64((h ^ uint64_t(data[0])));
-				}
-
-				constexpr uint64_t StaticHashValue64Tail2(uint64_t h, const char* data) {
-					return StaticHashValue64Tail1((h ^ uint64_t(data[1]) << 8), data);
-				}
-
-				constexpr uint64_t StaticHashValue64Tail3(uint64_t h, const char* data) {
-					return StaticHashValue64Tail2((h ^ uint64_t(data[2]) << 16), data);
-				}
-
-				constexpr uint64_t StaticHashValue64Tail4(uint64_t h, const char* data) {
-					return StaticHashValue64Tail3((h ^ uint64_t(data[3]) << 24), data);
-				}
-
-				constexpr uint64_t StaticHashValue64Tail5(uint64_t h, const char* data) {
-					return StaticHashValue64Tail4((h ^ uint64_t(data[4]) << 32), data);
-				}
-
-				constexpr uint64_t StaticHashValue64Tail6(uint64_t h, const char* data) {
-					return StaticHashValue64Tail5((h ^ uint64_t(data[5]) << 40), data);
-				}
-
-				constexpr uint64_t StaticHashValue64Tail7(uint64_t h, const char* data) {
-					return StaticHashValue64Tail6((h ^ uint64_t(data[6]) << 48), data);
-				}
-
-				constexpr uint64_t StaticHashValueRest64(uint64_t h, uint64_t len, const char* data) {
-					return ((len & 7) == 7)		? StaticHashValue64Tail7(h, data)
-								 : ((len & 7) == 6) ? StaticHashValue64Tail6(h, data)
-								 : ((len & 7) == 5) ? StaticHashValue64Tail5(h, data)
-								 : ((len & 7) == 4) ? StaticHashValue64Tail4(h, data)
-								 : ((len & 7) == 3) ? StaticHashValue64Tail3(h, data)
-								 : ((len & 7) == 2) ? StaticHashValue64Tail2(h, data)
-								 : ((len & 7) == 1) ? StaticHashValue64Tail1(h, data)
-																		: StaticHashValueLast64_(h);
-				}
-
-				constexpr uint64_t StaticHashValueLoop64(uint64_t i, uint64_t h, uint64_t len, const char* data) {
-					return (
-							i == 0 ? StaticHashValueRest64(h, len, data)
-										 : StaticHashValueLoop64(
-													 i - 1, (h ^ (((Load8(data) * m) ^ ((Load8(data) * m) >> r)) * m)) * m, len, data + 8));
-				}
-
-				constexpr uint64_t hash_murmur2a_64_ct(const char* key, uint64_t len, uint64_t seed) {
-					return StaticHashValueLoop64(len / 8, seed ^ (len * m), (len), key);
-				}
-			} // namespace murmur2a
-		} // namespace detail
-
-		constexpr uint64_t calculate_hash64(uint64_t value) {
-			value ^= value >> 33U;
-			value *= 0xff51afd7ed558ccdULL;
-			value ^= value >> 33U;
-
-			value *= 0xc4ceb9fe1a85ec53ULL;
-			value ^= value >> 33U;
-			return value;
-		}
-
-		constexpr uint64_t calculate_hash64(const char* str) {
-			uint64_t size = 0;
-			while (str[size] != '\0')
-				++size;
-
-			return detail::murmur2a::hash_murmur2a_64_ct(str, size, detail::murmur2a::seed_64_const);
-		}
-
-		constexpr uint64_t calculate_hash64(const char* str, uint64_t length) {
-			return detail::murmur2a::hash_murmur2a_64_ct(str, length, detail::murmur2a::seed_64_const);
-		}
-
-		GAIA_MSVC_WARNING_POP()
-
-#else
-	#error "Unknown hashing type defined"
-#endif
-
-	} // namespace utils
+	} // namespace mem
 } // namespace gaia
 
 #include <cinttypes>
@@ -3966,7 +3960,7 @@ namespace gaia {
 #include <utility>
 
 namespace gaia {
-	namespace utils {
+	namespace mem {
 		namespace detail {
 			template <typename T>
 			void copy_elements_aos(T* GAIA_RESTRICT dst, const T* GAIA_RESTRICT src, uint32_t idxSrc, uint32_t idxDst) {
@@ -3974,7 +3968,7 @@ namespace gaia {
 				GAIA_MSVC_WARNING_DISABLE(6385)
 
 				static_assert(std::is_copy_assignable_v<T>);
-				static_assert(!utils::is_soa_layout_v<T>);
+				static_assert(!mem::is_soa_layout_v<T>);
 
 				for (uint32_t i = idxSrc; i < idxDst; ++i)
 					dst[i] = src[i];
@@ -4002,7 +3996,7 @@ namespace gaia {
 				GAIA_MSVC_WARNING_DISABLE(6385)
 
 				static_assert(std::is_move_assignable_v<T>);
-				static_assert(!utils::is_soa_layout_v<T>);
+				static_assert(!mem::is_soa_layout_v<T>);
 
 				for (uint32_t i = idxSrc; i < idxDst; ++i)
 					dst[i] = std::move(src[i]);
@@ -4016,7 +4010,7 @@ namespace gaia {
 				GAIA_MSVC_WARNING_PUSH()
 				GAIA_MSVC_WARNING_DISABLE(6385)
 
-				static_assert(!utils::is_soa_layout_v<T>);
+				static_assert(!mem::is_soa_layout_v<T>);
 
 				if constexpr (std::is_move_assignable_v<T>) {
 					for (uint32_t i = idxSrc; i < idxDst; ++i)
@@ -4044,14 +4038,14 @@ namespace gaia {
 
 		template <typename T>
 		void construct_elements(T* pData, size_t cnt) {
-			if constexpr (!utils::is_soa_layout_v<T>)
-				utils::call_ctor(pData, cnt);
+			if constexpr (!mem::is_soa_layout_v<T>)
+				core::call_ctor(pData, cnt);
 		}
 
 		template <typename T>
 		void destruct_elements(T* pData, size_t cnt) {
-			if constexpr (!utils::is_soa_layout_v<T>)
-				utils::call_ctor(pData, cnt);
+			if constexpr (!mem::is_soa_layout_v<T>)
+				core::call_ctor(pData, cnt);
 		}
 
 		//! Copy \param size elements of type \tparam T from the address pointer to by \param src to \param dst
@@ -4059,7 +4053,7 @@ namespace gaia {
 		void copy_elements(
 				uint8_t* GAIA_RESTRICT dst, const uint8_t* GAIA_RESTRICT src, uint32_t idxSrc, uint32_t idxDst,
 				[[maybe_unused]] uint32_t sizeDst, [[maybe_unused]] uint32_t sizeSrc) {
-			if constexpr (utils::is_soa_layout_v<T>)
+			if constexpr (mem::is_soa_layout_v<T>)
 				detail::copy_elements_soa<T>(dst, src, sizeDst, sizeSrc, idxSrc, idxDst);
 			else
 				detail::copy_elements_aos<T>((T*)dst, (const T*)src, idxSrc, idxDst);
@@ -4070,7 +4064,7 @@ namespace gaia {
 		void move_elements(
 				uint8_t* GAIA_RESTRICT dst, const uint8_t* GAIA_RESTRICT src, uint32_t idxSrc, uint32_t idxDst,
 				[[maybe_unused]] uint32_t sizeDst, [[maybe_unused]] uint32_t sizeSrc) {
-			if constexpr (std::is_move_assignable_v<T> && !utils::is_soa_layout_v<T>)
+			if constexpr (std::is_move_assignable_v<T> && !mem::is_soa_layout_v<T>)
 				detail::move_elements_aos<T>((T*)dst, (const T*)src, idxSrc, idxDst);
 			else
 				copy_elements<T>(dst, src, idxSrc, idxDst, sizeDst, sizeSrc);
@@ -4080,16 +4074,16 @@ namespace gaia {
 		template <typename T>
 		void
 		shift_elements_left(uint8_t* GAIA_RESTRICT dst, uint32_t idxSrc, uint32_t idxDst, [[maybe_unused]] uint32_t size) {
-			if constexpr (utils::is_soa_layout_v<T>)
+			if constexpr (mem::is_soa_layout_v<T>)
 				detail::shift_elements_left_soa<T>(*dst, idxSrc, idxDst, size);
 			else
 				detail::shift_elements_left_aos<T>((T*)dst, idxSrc, idxDst);
 		}
-	} // namespace utils
+	} // namespace mem
 } // namespace gaia
 
 namespace gaia {
-	namespace utils {
+	namespace meta {
 
 		//! Provides statically generated unique identifier for a given group of types.
 		template <typename...>
@@ -4174,7 +4168,7 @@ namespace gaia {
 #endif
 
 				auto n = name<T>();
-				return calculate_hash64(n.data(), n.size());
+				return core::calculate_hash64(n.data(), n.size());
 
 #if GAIA_COMPILER_MSVC && _MSV_VER <= 1916
 				GAIA_MSVC_WARNING_PUSH()
@@ -4182,7 +4176,7 @@ namespace gaia {
 			}
 		};
 
-	} // namespace utils
+	} // namespace meta
 } // namespace gaia
 
 #include <type_traits>
@@ -4446,7 +4440,7 @@ namespace gaia {
 #include <type_traits>
 
 namespace gaia {
-	namespace containers {
+	namespace cnt {
 		template <typename TBitset, bool IsInverse>
 		class bitset_const_iterator {
 		public:
@@ -4612,11 +4606,11 @@ namespace gaia {
 				return m_pos != other.m_pos;
 			}
 		};
-	} // namespace containers
+	} // namespace cnt
 } // namespace gaia
 
 namespace gaia {
-	namespace containers {
+	namespace cnt {
 
 		template <uint32_t NBits>
 		class bitset {
@@ -4838,7 +4832,7 @@ namespace gaia {
 				return NBits;
 			}
 		};
-	} // namespace containers
+	} // namespace cnt
 } // namespace gaia
 
 #include <cstddef>
@@ -4847,7 +4841,7 @@ namespace gaia {
 #include <utility>
 
 namespace gaia {
-	namespace containers {
+	namespace cnt {
 		//! Array with variable size of elements of type \tparam T allocated on heap.
 		//! Interface compatiblity with std::vector where it matters.
 		template <typename T>
@@ -4860,7 +4854,7 @@ namespace gaia {
 			using const_pointer = T*;
 			using difference_type = uint32_t;
 			using size_type = uint32_t;
-			using view_policy = utils::auto_view_policy<T>;
+			using view_policy = mem::auto_view_policy<T>;
 
 		private:
 			uint8_t* m_pData = nullptr;
@@ -4886,7 +4880,7 @@ namespace gaia {
 				// This means we prefer more frequent allocations over memory fragmentation.
 				uint8_t* pDataOld = m_pData;
 				m_pData = view_policy::alloc_mem(m_cap = (cap * 3) / 2 + 1);
-				utils::move_elements<T>(m_pData, pDataOld, 0, cnt, m_cap, cap);
+				mem::move_elements<T>(m_pData, pDataOld, 0, cnt, m_cap, cap);
 				view_policy::free_mem(pDataOld, cnt);
 			}
 
@@ -4895,7 +4889,7 @@ namespace gaia {
 				friend class darr;
 
 			public:
-				using iterator_category = GAIA_UTIL::random_access_iterator_tag;
+				using iterator_category = core::random_access_iterator_tag;
 				using value_type = T;
 				using difference_type = darr::size_type;
 				using pointer = T*;
@@ -4979,7 +4973,7 @@ namespace gaia {
 				friend class darr;
 
 			public:
-				using iterator_category = GAIA_UTIL::random_access_iterator_tag;
+				using iterator_category = core::random_access_iterator_tag;
 				using value_type = T;
 				using difference_type = darr::size_type;
 				// using pointer = T*; not supported
@@ -4995,7 +4989,7 @@ namespace gaia {
 				iterator_soa(uint8_t* ptr, uint32_t cnt, uint32_t idx): m_ptr(ptr), m_cnt(cnt), m_idx(idx) {}
 
 				T operator*() const {
-					return utils::data_view_policy<T::Layout, T>::get({m_ptr, m_cnt}, m_idx);
+					return mem::data_view_policy<T::Layout, T>::get({m_ptr, m_cnt}, m_idx);
 				}
 
 				iterator_soa operator[](size_type offset) const {
@@ -5080,14 +5074,13 @@ namespace gaia {
 
 			template <typename InputIt>
 			darr(InputIt first, InputIt last) {
-				const auto count = (size_type)GAIA_UTIL::distance(first, last);
+				const auto count = (size_type)core::distance(first, last);
 				resize(count);
 
 				if constexpr (std::is_pointer_v<InputIt>) {
 					for (size_type i = 0; i < count; ++i)
 						operator[](i) = first[i];
-				} else if constexpr (std::is_same_v<
-																 typename InputIt::iterator_category, GAIA_UTIL::random_access_iterator_tag>) {
+				} else if constexpr (std::is_same_v<typename InputIt::iterator_category, core::random_access_iterator_tag>) {
 					for (size_type i = 0; i < count; ++i)
 						operator[](i) = *(first[i]);
 				} else {
@@ -5113,17 +5106,17 @@ namespace gaia {
 			}
 
 			darr& operator=(const darr& other) {
-				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
+				GAIA_ASSERT(gaia::mem::addressof(other) != this);
 
 				resize(other.size());
-				utils::copy_elements<T>(
+				mem::copy_elements<T>(
 						(uint8_t*)m_pData, (const uint8_t*)other.m_pData, 0, other.size(), capacity(), other.capacity());
 
 				return *this;
 			}
 
 			darr& operator=(darr&& other) noexcept {
-				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
+				GAIA_ASSERT(gaia::mem::addressof(other) != this);
 
 				m_cnt = other.m_cnt;
 				m_cap = other.m_cap;
@@ -5165,7 +5158,7 @@ namespace gaia {
 				auto* pDataOld = m_pData;
 				m_pData = view_policy::alloc_mem(count);
 				if (pDataOld != nullptr) {
-					utils::move_elements<T>(m_pData, pDataOld, 0, size(), count, m_cap);
+					mem::move_elements<T>(m_pData, pDataOld, 0, size(), count, m_cap);
 					view_policy::free_mem(pDataOld, size());
 				}
 
@@ -5181,7 +5174,7 @@ namespace gaia {
 				auto* pDataOld = m_pData;
 				m_pData = view_policy::alloc_mem(count);
 				if GAIA_LIKELY (pDataOld != nullptr) {
-					utils::move_elements<T>(m_pData, pDataOld, 0, size(), count, m_cap);
+					mem::move_elements<T>(m_pData, pDataOld, 0, size(), count, m_cap);
 					view_policy::free_mem(pDataOld, size());
 				}
 
@@ -5192,7 +5185,7 @@ namespace gaia {
 			void push_back(const T& arg) {
 				try_grow();
 
-				if constexpr (utils::is_soa_layout_v<T>) {
+				if constexpr (mem::is_soa_layout_v<T>) {
 					operator[](m_cnt++) = arg;
 				} else {
 					auto* ptr = m_pData + sizeof(T) * (m_cnt++);
@@ -5203,7 +5196,7 @@ namespace gaia {
 			void push_back(T&& arg) {
 				try_grow();
 
-				if constexpr (utils::is_soa_layout_v<T>) {
+				if constexpr (mem::is_soa_layout_v<T>) {
 					operator[](m_cnt++) = std::forward<T>(arg);
 				} else {
 					auto* ptr = m_pData + sizeof(T) * (m_cnt++);
@@ -5215,7 +5208,7 @@ namespace gaia {
 			auto emplace_back(Args&&... args) {
 				try_grow();
 
-				if constexpr (utils::is_soa_layout_v<T>) {
+				if constexpr (mem::is_soa_layout_v<T>) {
 					operator[](m_cnt++) = T(std::forward<Args>(args)...);
 					return;
 				} else {
@@ -5227,7 +5220,7 @@ namespace gaia {
 
 			void pop_back() noexcept {
 				GAIA_ASSERT(!empty());
-				if constexpr (utils::is_soa_layout_v<T>) {
+				if constexpr (mem::is_soa_layout_v<T>) {
 					--m_cnt;
 				} else {
 					auto* ptr = m_pData + sizeof(T) * (--m_cnt);
@@ -5238,10 +5231,10 @@ namespace gaia {
 			iterator erase(iterator pos) noexcept {
 				GAIA_ASSERT(pos.m_ptr >= data() && pos.m_ptr < (data() + m_cap - 1));
 
-				const auto idxSrc = (size_type)GAIA_UTIL::distance(pos, begin());
+				const auto idxSrc = (size_type)core::distance(pos, begin());
 				const auto idxDst = size() - 1;
 
-				utils::shift_elements_left<T>(m_pData, idxSrc, idxDst, m_cap);
+				mem::shift_elements_left<T>(m_pData, idxSrc, idxDst, m_cap);
 				--m_cnt;
 
 				return iterator((pointer)m_pData + idxSrc);
@@ -5251,33 +5244,33 @@ namespace gaia {
 				const auto idxSrc = pos.m_idx;
 				const auto idxDst = size() - 1;
 
-				utils::shift_elements_left<T>(m_pData, idxSrc, idxDst);
+				mem::shift_elements_left<T>(m_pData, idxSrc, idxDst);
 				--m_cnt;
 
 				return iterator_soa(m_pData, m_cnt, idxSrc);
 			}
 
 			iterator erase(iterator first, iterator last) noexcept {
-				static_assert(!utils::is_soa_layout_v<T>);
+				static_assert(!mem::is_soa_layout_v<T>);
 				GAIA_ASSERT(first.m_cnt >= 0 && first.m_cnt < size());
 				GAIA_ASSERT(last.m_cnt >= 0 && last.m_cnt < size());
 				GAIA_ASSERT(last.m_cnt >= first.m_cnt);
 
 				const auto cnt = last.m_cnt - first.m_cnt;
-				utils::shift_elements_left<T>(m_pData, first.cnt, last.cnt);
+				mem::shift_elements_left<T>(m_pData, first.cnt, last.cnt);
 				m_cnt -= cnt;
 
 				return {(pointer)m_pData + size_type(last.m_cnt)};
 			}
 
 			iterator_soa erase(iterator_soa first, iterator_soa last) noexcept {
-				static_assert(!utils::is_soa_layout_v<T>);
+				static_assert(!mem::is_soa_layout_v<T>);
 				GAIA_ASSERT(first.m_idx >= 0 && first.m_idx < size());
 				GAIA_ASSERT(last.m_idx >= 0 && last.m_idx < size());
 				GAIA_ASSERT(last.m_idx >= first.m_idx);
 
 				const auto cnt = last.m_idx - first.m_idx;
-				utils::shift_elements_left<T>(m_pData, first.cnt, last.cnt);
+				mem::shift_elements_left<T>(m_pData, first.cnt, last.cnt);
 				m_cnt -= cnt;
 
 				return iterator_soa(m_pData, m_cnt, last.m_cnt);
@@ -5293,7 +5286,7 @@ namespace gaia {
 
 				auto* pDataOld = m_pData;
 				m_pData = view_policy::mem_alloc(m_cap = size());
-				utils::move_elements<T>(m_pData, pDataOld, 0, size());
+				mem::move_elements<T>(m_pData, pDataOld, 0, size());
 				view_policy::mem_free(pDataOld);
 			}
 
@@ -5315,7 +5308,7 @@ namespace gaia {
 
 			GAIA_NODISCARD auto front() noexcept {
 				GAIA_ASSERT(!empty());
-				if constexpr (utils::is_soa_layout_v<T>)
+				if constexpr (mem::is_soa_layout_v<T>)
 					return *begin();
 				else
 					return (reference)*begin();
@@ -5323,7 +5316,7 @@ namespace gaia {
 
 			GAIA_NODISCARD auto front() const noexcept {
 				GAIA_ASSERT(!empty());
-				if constexpr (utils::is_soa_layout_v<T>)
+				if constexpr (mem::is_soa_layout_v<T>)
 					return *begin();
 				else
 					return (const_reference)*begin();
@@ -5331,7 +5324,7 @@ namespace gaia {
 
 			GAIA_NODISCARD auto back() noexcept {
 				GAIA_ASSERT(!empty());
-				if constexpr (utils::is_soa_layout_v<T>)
+				if constexpr (mem::is_soa_layout_v<T>)
 					return operator[](m_cnt - 1);
 				else
 					return (reference)(operator[](m_cnt - 1));
@@ -5339,35 +5332,35 @@ namespace gaia {
 
 			GAIA_NODISCARD auto back() const noexcept {
 				GAIA_ASSERT(!empty());
-				if constexpr (utils::is_soa_layout_v<T>)
+				if constexpr (mem::is_soa_layout_v<T>)
 					return operator[](m_cnt - 1);
 				else
 					return (const_reference) operator[](m_cnt - 1);
 			}
 
 			GAIA_NODISCARD auto begin() const noexcept {
-				if constexpr (utils::is_soa_layout_v<T>)
+				if constexpr (mem::is_soa_layout_v<T>)
 					return iterator_soa(m_pData, size(), 0);
 				else
 					return iterator((pointer)m_pData);
 			}
 
 			GAIA_NODISCARD auto rbegin() const noexcept {
-				if constexpr (utils::is_soa_layout_v<T>)
+				if constexpr (mem::is_soa_layout_v<T>)
 					return iterator_soa(m_pData, size(), size() - 1);
 				else
 					return iterator((pointer)&back());
 			}
 
 			GAIA_NODISCARD auto end() const noexcept {
-				if constexpr (utils::is_soa_layout_v<T>)
+				if constexpr (mem::is_soa_layout_v<T>)
 					return iterator_soa(m_pData, size(), size());
 				else
 					return iterator((pointer)m_pData + size());
 			}
 
 			GAIA_NODISCARD auto rend() const noexcept {
-				if constexpr (utils::is_soa_layout_v<T>)
+				if constexpr (mem::is_soa_layout_v<T>)
 					return iterator_soa(m_pData, size(), -1);
 				else
 					return iterator((pointer)m_pData - 1);
@@ -5385,25 +5378,25 @@ namespace gaia {
 
 			template <size_t Item>
 			auto soa_view_mut() noexcept {
-				return utils::data_view_policy<T::Layout, T>::template get<Item>(
+				return mem::data_view_policy<T::Layout, T>::template get<Item>(
 						std::span<uint8_t>{(uint8_t*)m_pData, capacity()});
 			}
 
 			template <size_t Item>
 			auto soa_view() const noexcept {
-				return utils::data_view_policy<T::Layout, T>::template get<Item>(
+				return mem::data_view_policy<T::Layout, T>::template get<Item>(
 						std::span<const uint8_t>{(const uint8_t*)m_pData, capacity()});
 			}
 		};
-	} // namespace containers
+	} // namespace cnt
 
 } // namespace gaia
 
 namespace gaia {
-	namespace containers {
+	namespace cnt {
 		template <typename T>
-		using darray = containers::darr<T>;
-	} // namespace containers
+		using darray = cnt::darr<T>;
+	} // namespace cnt
 } // namespace gaia
 
 // TODO: There is no quickly achievable std alternative so go with gaia container
@@ -5414,7 +5407,7 @@ namespace gaia {
 #include <utility>
 
 namespace gaia {
-	namespace containers {
+	namespace cnt {
 		//! Array of elements of type \tparam T allocated on heap or stack. Stack capacity is \tparam N elements.
 		//! If the number of elements is bellow \tparam N the stack storage is used.
 		//! If the number of elements is above \tparam N the heap storage is used.
@@ -5424,7 +5417,7 @@ namespace gaia {
 		public:
 			static_assert(N > 0);
 
-			using iterator_category = GAIA_UTIL::random_access_iterator_tag;
+			using iterator_category = core::random_access_iterator_tag;
 			using value_type = T;
 			using reference = T&;
 			using const_reference = const T&;
@@ -5432,14 +5425,14 @@ namespace gaia {
 			using const_pointer = T*;
 			using difference_type = decltype(N);
 			using size_type = decltype(N);
-			using view_policy = utils::auto_view_policy<T>;
+			using view_policy = mem::auto_view_policy<T>;
 
 			static constexpr size_type extent = N;
 			static constexpr uint32_t allocated_bytes = view_policy::get_min_byte_size(0, N);
 
 		private:
 			//! Data allocated on the stack
-			utils::raw_data_holder<T, allocated_bytes> m_data;
+			mem::raw_data_holder<T, allocated_bytes> m_data;
 			//! Data allocated on the heap
 			T* m_pDataHeap = nullptr;
 			//! Pointer to the currently used data
@@ -5471,14 +5464,14 @@ namespace gaia {
 				// This means we prefer more frequent allocations over memory fragmentation.
 				auto* pDataOld = m_pDataHeap;
 				m_pDataHeap = view_policy::alloc_mem(m_cap = (cap * 3) / 2 + 1);
-				utils::move_elements<T>(m_pDataHeap, pDataOld, 0, cnt);
+				mem::move_elements<T>(m_pDataHeap, pDataOld, 0, cnt);
 				view_policy::free_mem(pDataOld, cnt);
 			}
 
 		public:
 			class iterator {
 			public:
-				using iterator_category = GAIA_UTIL::random_access_iterator_tag;
+				using iterator_category = core::random_access_iterator_tag;
 				using value_type = T;
 				using difference_type = darr_ext::size_type;
 				using pointer = T*;
@@ -5562,7 +5555,7 @@ namespace gaia {
 				friend class darr_ext;
 
 			public:
-				using iterator_category = GAIA_UTIL::random_access_iterator_tag;
+				using iterator_category = core::random_access_iterator_tag;
 				using value_type = T;
 				using difference_type = darr_ext::size_type;
 				// using pointer = T*; not supported
@@ -5578,7 +5571,7 @@ namespace gaia {
 				iterator_soa(uint8_t* ptr, uint32_t cnt, uint32_t idx): m_ptr(ptr), m_cnt(cnt), m_idx(idx) {}
 
 				T operator*() const {
-					return utils::data_view_policy<T::Layout, T>::get({m_ptr, m_cnt}, m_idx);
+					return mem::data_view_policy<T::Layout, T>::get({m_ptr, m_cnt}, m_idx);
 				}
 
 				iterator_soa operator[](size_type offset) const {
@@ -5663,14 +5656,13 @@ namespace gaia {
 
 			template <typename InputIt>
 			darr_ext(InputIt first, InputIt last) {
-				const auto count = (size_type)GAIA_UTIL::distance(first, last);
+				const auto count = (size_type)core::distance(first, last);
 				resize(count);
 
 				if constexpr (std::is_pointer_v<InputIt>) {
 					for (size_type i = 0; i < count; ++i)
 						operator[](i) = first[i];
-				} else if constexpr (std::is_same_v<
-																 typename InputIt::iterator_category, GAIA_UTIL::random_access_iterator_tag>) {
+				} else if constexpr (std::is_same_v<typename InputIt::iterator_category, core::random_access_iterator_tag>) {
 					for (size_type i = 0; i < count; ++i)
 						operator[](i) = *(first[i]);
 				} else {
@@ -5685,14 +5677,14 @@ namespace gaia {
 			darr_ext(const darr_ext& other): darr_ext(other.begin(), other.end()) {}
 
 			darr_ext(darr_ext&& other) noexcept: m_cnt(other.m_cnt), m_cap(other.m_cap) {
-				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
+				GAIA_ASSERT(gaia::mem::addressof(other) != this);
 
 				if (other.m_pData == other.m_pDataHeap) {
 					m_pData = m_pDataHeap;
 					m_pDataHeap = other.m_pDataHeap;
 				} else {
 					m_pData = m_data;
-					utils::move_elements<T>(m_data, other.m_data, 0, other.size());
+					mem::move_elements<T>(m_data, other.m_data, 0, other.size());
 					m_pDataHeap = nullptr;
 				}
 
@@ -5708,17 +5700,17 @@ namespace gaia {
 			}
 
 			darr_ext& operator=(const darr_ext& other) {
-				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
+				GAIA_ASSERT(gaia::mem::addressof(other) != this);
 
 				resize(other.size());
-				utils::copy_elements<T>(
+				mem::copy_elements<T>(
 						(uint8_t*)m_pData, (const uint8_t*)other.m_pData, 0, other.size(), capacity(), other.capacity());
 
 				return *this;
 			}
 
 			darr_ext& operator=(darr_ext&& other) noexcept {
-				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
+				GAIA_ASSERT(gaia::mem::addressof(other) != this);
 
 				m_cnt = other.m_cnt;
 				m_cap = other.m_cap;
@@ -5727,7 +5719,7 @@ namespace gaia {
 					m_pDataHeap = other.m_pDataHeap;
 				} else {
 					m_pData = m_data;
-					utils::move_elements<T>(m_data, other.m_data, 0, other.m_data.size());
+					mem::move_elements<T>(m_data, other.m_data, 0, other.m_data.size());
 					m_pDataHeap = nullptr;
 				}
 
@@ -5768,11 +5760,11 @@ namespace gaia {
 				if (m_pDataHeap) {
 					auto* pDataOld = m_pDataHeap;
 					m_pDataHeap = view_policy::alloc_mem(count);
-					utils::move_elements<T>(m_pDataHeap, pDataOld, 0, size(), count, m_cap);
+					mem::move_elements<T>(m_pDataHeap, pDataOld, 0, size(), count, m_cap);
 					view_policy::free_mem(pDataOld, size());
 				} else {
 					m_pDataHeap = view_policy::alloc_mem(count);
-					utils::move_elements<T>(m_pDataHeap, m_data, 0, size(), count, m_cap);
+					mem::move_elements<T>(m_pDataHeap, m_data, 0, size(), count, m_cap);
 				}
 
 				m_cap = count;
@@ -5788,10 +5780,10 @@ namespace gaia {
 				auto* pDataOld = m_pDataHeap;
 				m_pDataHeap = view_policy::alloc_mem(count);
 				if (pDataOld != nullptr) {
-					utils::move_elements<T>(m_pDataHeap, pDataOld, 0, size(), count, m_cap);
+					mem::move_elements<T>(m_pDataHeap, pDataOld, 0, size(), count, m_cap);
 					view_policy::free_mem(pDataOld, size());
 				} else
-					utils::move_elements<T>(m_pDataHeap, m_data, 0, size(), count, m_cap);
+					mem::move_elements<T>(m_pDataHeap, m_data, 0, size(), count, m_cap);
 
 				m_cap = count;
 				m_cnt = count;
@@ -5801,7 +5793,7 @@ namespace gaia {
 			void push_back(const T& arg) {
 				try_grow();
 
-				if constexpr (utils::is_soa_layout_v<T>) {
+				if constexpr (mem::is_soa_layout_v<T>) {
 					operator[](m_cnt++) = arg;
 				} else {
 					auto* ptr = m_pData + sizeof(T) * (m_cnt++);
@@ -5812,7 +5804,7 @@ namespace gaia {
 			void push_back(T&& arg) {
 				try_grow();
 
-				if constexpr (utils::is_soa_layout_v<T>) {
+				if constexpr (mem::is_soa_layout_v<T>) {
 					operator[](m_cnt++) = std::forward<T>(arg);
 				} else {
 					auto* ptr = m_pData + sizeof(T) * (m_cnt++);
@@ -5824,7 +5816,7 @@ namespace gaia {
 			auto emplace_back(Args&&... args) {
 				try_grow();
 
-				if constexpr (utils::is_soa_layout_v<T>) {
+				if constexpr (mem::is_soa_layout_v<T>) {
 					operator[](m_cnt++) = T(std::forward<Args>(args)...);
 					return;
 				} else {
@@ -5836,7 +5828,7 @@ namespace gaia {
 
 			void pop_back() noexcept {
 				GAIA_ASSERT(!empty());
-				if constexpr (utils::is_soa_layout_v<T>) {
+				if constexpr (mem::is_soa_layout_v<T>) {
 					--m_cnt;
 				} else {
 					auto* ptr = m_pData + sizeof(T) * (--m_cnt);
@@ -5847,10 +5839,10 @@ namespace gaia {
 			iterator erase(iterator pos) noexcept {
 				GAIA_ASSERT(pos.m_ptr >= data() && pos.m_ptr < (data() + m_cap - 1));
 
-				const auto idxSrc = (size_type)GAIA_UTIL::distance(pos, begin());
+				const auto idxSrc = (size_type)core::distance(pos, begin());
 				const auto idxDst = size() - 1;
 
-				utils::shift_elements_left<T>(m_pData, idxSrc, idxDst);
+				mem::shift_elements_left<T>(m_pData, idxSrc, idxDst);
 				--m_cnt;
 
 				return iterator((pointer)m_pData + idxSrc);
@@ -5860,7 +5852,7 @@ namespace gaia {
 				const auto idxSrc = pos.m_idx;
 				const auto idxDst = size() - 1;
 
-				utils::shift_elements_left<T>(m_pData, idxSrc, idxDst);
+				mem::shift_elements_left<T>(m_pData, idxSrc, idxDst);
 				--m_cnt;
 
 				return iterator_soa(m_pData, m_cnt, idxSrc);
@@ -5872,20 +5864,20 @@ namespace gaia {
 				GAIA_ASSERT(last.m_cnt >= first.m_cnt);
 
 				const auto size = last.m_cnt - first.m_cnt;
-				utils::shift_elements_left<T>(m_pData, first.cnt, last.cnt);
+				mem::shift_elements_left<T>(m_pData, first.cnt, last.cnt);
 				m_cnt -= size;
 
 				return {(pointer)m_pData + size_type(last.m_cnt)};
 			}
 
 			iterator_soa erase(iterator_soa first, iterator_soa last) noexcept {
-				static_assert(!utils::is_soa_layout_v<T>);
+				static_assert(!mem::is_soa_layout_v<T>);
 				GAIA_ASSERT(first.m_idx >= 0 && first.m_idx < size());
 				GAIA_ASSERT(last.m_idx >= 0 && last.m_idx < size());
 				GAIA_ASSERT(last.m_idx >= first.m_idx);
 
 				const auto cnt = last.m_idx - first.m_idx;
-				utils::shift_elements_left<T>(m_pData, first.cnt, last.cnt);
+				mem::shift_elements_left<T>(m_pData, first.cnt, last.cnt);
 				m_cnt -= cnt;
 
 				return iterator_soa(m_pData, m_cnt, last.m_cnt);
@@ -5903,11 +5895,11 @@ namespace gaia {
 					auto* pDataOld = m_pDataHeap;
 
 					if (size() < extent) {
-						utils::move_elements<T>(m_data, pDataOld, 0, size());
+						mem::move_elements<T>(m_data, pDataOld, 0, size());
 						m_pData = m_data;
 					} else {
 						m_pDataHeap = view_policy::mem_alloc(m_cap = size());
-						utils::move_elements<T>(m_pDataHeap, pDataOld, 0, size());
+						mem::move_elements<T>(m_pDataHeap, pDataOld, 0, size());
 						m_pData = m_pDataHeap;
 					}
 
@@ -5934,7 +5926,7 @@ namespace gaia {
 
 			GAIA_NODISCARD auto front() noexcept {
 				GAIA_ASSERT(!empty());
-				if constexpr (utils::is_soa_layout_v<T>)
+				if constexpr (mem::is_soa_layout_v<T>)
 					return *begin();
 				else
 					return (reference)*begin();
@@ -5942,7 +5934,7 @@ namespace gaia {
 
 			GAIA_NODISCARD auto front() const noexcept {
 				GAIA_ASSERT(!empty());
-				if constexpr (utils::is_soa_layout_v<T>)
+				if constexpr (mem::is_soa_layout_v<T>)
 					return *begin();
 				else
 					return (const_reference)*begin();
@@ -5950,7 +5942,7 @@ namespace gaia {
 
 			GAIA_NODISCARD auto back() noexcept {
 				GAIA_ASSERT(!empty());
-				if constexpr (utils::is_soa_layout_v<T>)
+				if constexpr (mem::is_soa_layout_v<T>)
 					return operator[](m_cnt - 1);
 				else
 					return (reference) operator[](m_cnt - 1);
@@ -5958,35 +5950,35 @@ namespace gaia {
 
 			GAIA_NODISCARD auto back() const noexcept {
 				GAIA_ASSERT(!empty());
-				if constexpr (utils::is_soa_layout_v<T>)
+				if constexpr (mem::is_soa_layout_v<T>)
 					return operator[](m_cnt - 1);
 				else
 					return (const_reference) operator[](m_cnt - 1);
 			}
 
 			GAIA_NODISCARD auto begin() const noexcept {
-				if constexpr (utils::is_soa_layout_v<T>)
+				if constexpr (mem::is_soa_layout_v<T>)
 					return iterator_soa(m_pData, size(), 0);
 				else
 					return iterator((pointer)m_pData);
 			}
 
 			GAIA_NODISCARD auto rbegin() const noexcept {
-				if constexpr (utils::is_soa_layout_v<T>)
+				if constexpr (mem::is_soa_layout_v<T>)
 					return iterator_soa(m_pData, size(), size() - 1);
 				else
 					return iterator((pointer)&back());
 			}
 
 			GAIA_NODISCARD auto end() const noexcept {
-				if constexpr (utils::is_soa_layout_v<T>)
+				if constexpr (mem::is_soa_layout_v<T>)
 					return iterator_soa(m_pData, size(), size());
 				else
 					return iterator((pointer)m_pData + size());
 			}
 
 			GAIA_NODISCARD auto rend() const noexcept {
-				if constexpr (utils::is_soa_layout_v<T>)
+				if constexpr (mem::is_soa_layout_v<T>)
 					return iterator_soa(m_pData, size(), -1);
 				else
 					return iterator((pointer)m_pData - 1);
@@ -6004,13 +5996,13 @@ namespace gaia {
 
 			template <size_t Item>
 			auto soa_view_mut() noexcept {
-				return utils::data_view_policy<T::Layout, T>::template get<Item>(
+				return mem::data_view_policy<T::Layout, T>::template get<Item>(
 						std::span<uint8_t>{(uint8_t*)m_pData, capacity()});
 			}
 
 			template <size_t Item>
 			auto soa_view() const noexcept {
-				return utils::data_view_policy<T::Layout, T>::template get<Item>(
+				return mem::data_view_policy<T::Layout, T>::template get<Item>(
 						std::span<const uint8_t>{(const uint8_t*)m_pData, capacity()});
 			}
 		};
@@ -6027,22 +6019,22 @@ namespace gaia {
 			return detail::to_sarray_impl(a, std::make_index_sequence<N>{});
 		}
 
-	} // namespace containers
+	} // namespace cnt
 
 } // namespace gaia
 
 namespace gaia {
-	namespace containers {
+	namespace cnt {
 		template <typename T, uint32_t N>
-		using darray_ext = containers::darr_ext<T, N>;
-	} // namespace containers
+		using darray_ext = cnt::darr_ext<T, N>;
+	} // namespace cnt
 } // namespace gaia
 
 #include <cinttypes>
 #include <type_traits>
 
 namespace gaia {
-	namespace containers {
+	namespace cnt {
 		class dbitset {
 		private:
 			struct size_type_selector {
@@ -6097,7 +6089,7 @@ namespace gaia {
 						m_pData[i] = 0;
 				} else {
 					// Copy the old data over and set the old data to zeros
-					utils::copy_elements<size_type>((uint8_t*)m_pData, (const uint8_t*)pDataOld, 0, itemsOld, 0, 0);
+					mem::copy_elements<size_type>((uint8_t*)m_pData, (const uint8_t*)pDataOld, 0, itemsOld, 0, 0);
 					for (uint32_t i = itemsOld; i < itemsNew; ++i)
 						m_pData[i] = 0;
 
@@ -6135,10 +6127,10 @@ namespace gaia {
 			}
 
 			dbitset& operator=(const dbitset& other) {
-				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
+				GAIA_ASSERT(gaia::mem::addressof(other) != this);
 
 				resize(other.m_cnt);
-				utils::copy_elements<size_type>((uint8_t*)m_pData, (const uint8_t*)other.m_pData, 0, other.items(), 0, 0);
+				mem::copy_elements<size_type>((uint8_t*)m_pData, (const uint8_t*)other.m_pData, 0, other.items(), 0, 0);
 				return *this;
 			}
 
@@ -6147,7 +6139,7 @@ namespace gaia {
 			}
 
 			dbitset& operator=(dbitset&& other) noexcept {
-				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
+				GAIA_ASSERT(gaia::mem::addressof(other) != this);
 
 				m_pData = other.m_pData;
 				m_cnt = other.m_cnt;
@@ -6179,7 +6171,7 @@ namespace gaia {
 				} else {
 					const uint32_t itemsOld = items();
 					// Copy the old data over and set the old data to zeros
-					utils::copy_elements<size_type>((uint8_t*)m_pData, (const uint8_t*)pDataOld, 0, itemsOld, 0, 0);
+					mem::copy_elements<size_type>((uint8_t*)m_pData, (const uint8_t*)pDataOld, 0, itemsOld, 0, 0);
 					for (uint32_t i = itemsOld; i < itemsNew; ++i)
 						m_pData[i] = 0;
 
@@ -6213,7 +6205,7 @@ namespace gaia {
 						m_pData[i] = 0;
 				} else {
 					// Copy the old data over and set the old data to zeros
-					utils::copy_elements<size_type>((uint8_t*)m_pData, (const uint8_t*)pDataOld, 0, itemsOld, 0, 0);
+					mem::copy_elements<size_type>((uint8_t*)m_pData, (const uint8_t*)pDataOld, 0, itemsOld, 0, 0);
 					for (uint32_t i = itemsOld; i < itemsNew; ++i)
 						m_pData[i] = 0;
 
@@ -6432,14 +6424,14 @@ namespace gaia {
 				return m_cap;
 			}
 		};
-	} // namespace containers
+	} // namespace cnt
 } // namespace gaia
 
 #include <cinttypes>
 #include <type_traits>
 
 namespace gaia {
-	namespace containers {
+	namespace cnt {
 		struct ilist_item_base {};
 		struct ilist_item: public ilist_item_base {
 			//! Allocated items: Index in the list.
@@ -6459,7 +6451,7 @@ namespace gaia {
 		//! that initializes them.
 		template <typename TListItem, typename TItemHandle>
 		struct ilist {
-			using internal_storage = containers::darray<TListItem>;
+			using internal_storage = cnt::darray<TListItem>;
 			// TODO: replace this iterator with a real list iterator
 			using iterator = typename internal_storage::iterator;
 
@@ -6607,7 +6599,7 @@ namespace gaia {
 				GAIA_ASSERT(nextFreeItem == TItemHandle::IdMask);
 			}
 		};
-	} // namespace containers
+	} // namespace cnt
 } // namespace gaia
 
 //                 ______  _____                 ______                _________
@@ -6889,7 +6881,7 @@ namespace robin_hood {
 				while (mListForFree) {
 					T* tmp = *mListForFree;
 					ROBIN_HOOD_LOG("std::free")
-					GAIA_UTIL::mem_free(mListForFree);
+					gaia::mem::mem_free(mListForFree);
 					mListForFree = reinterpret_cast_no_cast_align_warning<T**>(tmp);
 				}
 				mHead = nullptr;
@@ -6925,7 +6917,7 @@ namespace robin_hood {
 				if (numBytes < ALIGNMENT + ALIGNED_SIZE) {
 					// not enough data for at least one element. Free and return.
 					ROBIN_HOOD_LOG("std::free")
-					GAIA_UTIL::mem_free(ptr);
+					gaia::mem::mem_free(ptr);
 				} else {
 					ROBIN_HOOD_LOG("add to buffer")
 					add(ptr, numBytes);
@@ -6990,14 +6982,15 @@ namespace robin_hood {
 				// alloc new memory: [prev |T, T, ... T]
 				size_t const bytes = ALIGNMENT + ALIGNED_SIZE * numElementsToAlloc;
 				ROBIN_HOOD_LOG(
-						"GAIA_UTIL::mem_alloc " << bytes << " = " << ALIGNMENT << " + " << ALIGNED_SIZE << " * "
+						"gaia::mem::mem_alloc " << bytes << " = " << ALIGNMENT << " + " << ALIGNED_SIZE << " * "
 																		<< numElementsToAlloc)
-				add(assertNotNull<std::bad_alloc>(GAIA_UTIL::mem_alloc(bytes)), bytes);
+				add(assertNotNull<std::bad_alloc>(gaia::mem::mem_alloc(bytes)), bytes);
 				return mHead;
 			}
 
 			// enforce byte alignment of the T's
-			static constexpr size_t ALIGNMENT = GAIA_UTIL::get_max(std::alignment_of<T>::value, std::alignment_of<T*>::value);
+			static constexpr size_t ALIGNMENT =
+					gaia::core::get_max(std::alignment_of<T>::value, std::alignment_of<T*>::value);
 
 			static constexpr size_t ALIGNED_SIZE = ((sizeof(T) - 1) / ALIGNMENT + 1) * ALIGNMENT;
 
@@ -7021,7 +7014,7 @@ namespace robin_hood {
 			// we are not using the data, so just free it.
 			void addOrFree(void* ptr, size_t ROBIN_HOOD_UNUSED(numBytes) /*unused*/) noexcept {
 				ROBIN_HOOD_LOG("std::free")
-				GAIA_UTIL::mem_free(ptr);
+				gaia::mem::mem_free(ptr);
 			}
 		};
 
@@ -7262,7 +7255,7 @@ namespace robin_hood {
 	};
 
 	template <typename T>
-	struct hash<T, typename std::enable_if<GAIA_UTIL::is_direct_hash_key_v<T>>::type> {
+	struct hash<T, typename std::enable_if<gaia::core::is_direct_hash_key_v<T>>::type> {
 		size_t operator()(const T& obj) const noexcept {
 			if constexpr (detail::has_hash<T>::value)
 				return obj.hash;
@@ -7657,7 +7650,7 @@ namespace robin_hood {
 				using value_type = typename Self::value_type;
 				using reference = typename std::conditional<IsConst, value_type const&, value_type&>::type;
 				using pointer = typename std::conditional<IsConst, value_type const*, value_type*>::type;
-				using iterator_category = GAIA_UTIL::forward_iterator_tag;
+				using iterator_category = gaia::core::forward_iterator_tag;
 
 				// default constructed iterator can be compared to itself, but WON'T return true when
 				// compared to end().
@@ -7771,7 +7764,7 @@ namespace robin_hood {
 
 				// direct_hash_key is expected to be a proper hash. No additional hash tricks are required
 				using HashKeyRaw = std::decay_t<HashKey>;
-				if constexpr (!GAIA_UTIL::is_direct_hash_key_v<HashKeyRaw>) {
+				if constexpr (!gaia::core::is_direct_hash_key_v<HashKeyRaw>) {
 					// In addition to whatever hash is used, add another mul & shift so we get better hashing.
 					// This serves as a bad hash prevention, if the given data is
 					// badly mixed.
@@ -7862,7 +7855,7 @@ namespace robin_hood {
 				// nothing found!
 				return mMask == 0 ? 0
 													: static_cast<size_t>(
-																GAIA_UTIL::distance(mKeyVals, reinterpret_cast_no_cast_align_warning<Node*>(mInfo)));
+																gaia::core::distance(mKeyVals, reinterpret_cast_no_cast_align_warning<Node*>(mInfo)));
 			}
 
 			void cloneData(const Table& o) {
@@ -8016,9 +8009,9 @@ namespace robin_hood {
 					auto const numBytesTotal = calcNumBytesTotal(numElementsWithBuffer);
 
 					ROBIN_HOOD_LOG(
-							"GAIA_UTIL::mem_alloc " << numBytesTotal << " = calcNumBytesTotal(" << numElementsWithBuffer << ")")
+							"gaia::mem::mem_alloc " << numBytesTotal << " = calcNumBytesTotal(" << numElementsWithBuffer << ")")
 					mHashMultiplier = o.mHashMultiplier;
-					mKeyVals = static_cast<Node*>(detail::assertNotNull<std::bad_alloc>(GAIA_UTIL::mem_alloc(numBytesTotal)));
+					mKeyVals = static_cast<Node*>(detail::assertNotNull<std::bad_alloc>(gaia::mem::mem_alloc(numBytesTotal)));
 					// no need for calloc because clonData does memcpy
 					mInfo = reinterpret_cast<uint8_t*>(mKeyVals + numElementsWithBuffer);
 					mNumElements = o.mNumElements;
@@ -8067,14 +8060,14 @@ namespace robin_hood {
 					if (0 != mMask) {
 						// only deallocate if we actually have data!
 						ROBIN_HOOD_LOG("std::free")
-						GAIA_UTIL::mem_free(mKeyVals);
+						gaia::mem::mem_free(mKeyVals);
 					}
 
 					auto const numElementsWithBuffer = calcNumElementsWithBuffer(o.mMask + 1);
 					auto const numBytesTotal = calcNumBytesTotal(numElementsWithBuffer);
 					ROBIN_HOOD_LOG(
-							"GAIA_UTIL::mem_alloc " << numBytesTotal << " = calcNumBytesTotal(" << numElementsWithBuffer << ")")
-					mKeyVals = static_cast<Node*>(detail::assertNotNull<std::bad_alloc>(GAIA_UTIL::mem_alloc(numBytesTotal)));
+							"gaia::mem::mem_alloc " << numBytesTotal << " = calcNumBytesTotal(" << numElementsWithBuffer << ")")
+					mKeyVals = static_cast<Node*>(detail::assertNotNull<std::bad_alloc>(gaia::mem::mem_alloc(numBytesTotal)));
 
 					// no need for calloc here because cloneData performs a memcpy.
 					mInfo = reinterpret_cast<uint8_t*>(mKeyVals + numElementsWithBuffer);
@@ -8115,7 +8108,7 @@ namespace robin_hood {
 				auto const numElementsWithBuffer = calcNumElementsWithBuffer(mMask + 1);
 				// clear everything, then set the sentinel again
 				uint8_t const z = 0;
-				GAIA_UTIL::fill(mInfo, mInfo + calcNumBytesInfo(numElementsWithBuffer), z);
+				gaia::core::fill(mInfo, mInfo + calcNumBytesInfo(numElementsWithBuffer), z);
 				mInfo[numElementsWithBuffer] = 1;
 
 				mInfoInc = InitialInfoInc;
@@ -8566,7 +8559,7 @@ namespace robin_hood {
 
 			GAIA_NODISCARD size_t calcNumElementsWithBuffer(size_t numElements) const noexcept {
 				auto maxNumElementsAllowed = calcMaxNumElementsAllowed(numElements);
-				return numElements + GAIA_UTIL::get_min(maxNumElementsAllowed, (static_cast<size_t>(0xFF)));
+				return numElements + gaia::core::get_min(maxNumElementsAllowed, (static_cast<size_t>(0xFF)));
 			}
 
 			// calculation only allowed for 2^n values
@@ -8605,7 +8598,7 @@ namespace robin_hood {
 
 			void reserve(size_t c, bool forceRehash) {
 				ROBIN_HOOD_TRACE(this)
-				auto const minElementsAllowed = GAIA_UTIL::get_max(c, mNumElements);
+				auto const minElementsAllowed = gaia::core::get_max(c, mNumElements);
 				auto newSize = InitialNumElements;
 				while (calcMaxNumElementsAllowed(newSize) < minElementsAllowed && newSize != 0) {
 					newSize *= 2;
@@ -8653,7 +8646,7 @@ namespace robin_hood {
 					if (oldKeyVals != reinterpret_cast_no_cast_align_warning<Node*>(&mMask)) {
 						// don't destroy old data: put it into the pool instead
 						if (forceFree) {
-							GAIA_UTIL::mem_free(oldKeyVals);
+							gaia::mem::mem_free(oldKeyVals);
 						} else {
 							DataPool::addOrFree(oldKeyVals, calcNumBytesTotal(oldMaxElementsWithBuffer));
 						}
@@ -8740,7 +8733,7 @@ namespace robin_hood {
 				// malloc & zero mInfo. Faster than calloc everything.
 				auto const numBytesTotal = calcNumBytesTotal(numElementsWithBuffer);
 				ROBIN_HOOD_LOG("std::calloc " << numBytesTotal << " = calcNumBytesTotal(" << numElementsWithBuffer << ")")
-				mKeyVals = reinterpret_cast<Node*>(detail::assertNotNull<std::bad_alloc>(GAIA_UTIL::mem_alloc(numBytesTotal)));
+				mKeyVals = reinterpret_cast<Node*>(detail::assertNotNull<std::bad_alloc>(gaia::mem::mem_alloc(numBytesTotal)));
 				mInfo = reinterpret_cast<uint8_t*>(mKeyVals + numElementsWithBuffer);
 				std::memset(mInfo, 0, numBytesTotal - numElementsWithBuffer * sizeof(Node));
 
@@ -8886,7 +8879,7 @@ namespace robin_hood {
 				// [-Werror=free-nonheap-object]
 				if (mKeyVals != reinterpret_cast_no_cast_align_warning<Node*>(&mMask)) {
 					ROBIN_HOOD_LOG("std::free")
-					GAIA_UTIL::mem_free(mKeyVals);
+					gaia::mem::mem_free(mKeyVals);
 				}
 			}
 
@@ -8917,17 +8910,17 @@ namespace robin_hood {
 	// map
 
 	template <
-			typename Key, typename T, typename Hash = hash<Key>, typename KeyEqual = GAIA_UTIL::equal_to<Key>,
+			typename Key, typename T, typename Hash = hash<Key>, typename KeyEqual = gaia::core::equal_to<Key>,
 			size_t MaxLoadFactor100 = 80>
 	using unordered_flat_map = detail::Table<true, MaxLoadFactor100, Key, T, Hash, KeyEqual>;
 
 	template <
-			typename Key, typename T, typename Hash = hash<Key>, typename KeyEqual = GAIA_UTIL::equal_to<Key>,
+			typename Key, typename T, typename Hash = hash<Key>, typename KeyEqual = gaia::core::equal_to<Key>,
 			size_t MaxLoadFactor100 = 80>
 	using unordered_node_map = detail::Table<false, MaxLoadFactor100, Key, T, Hash, KeyEqual>;
 
 	template <
-			typename Key, typename T, typename Hash = hash<Key>, typename KeyEqual = GAIA_UTIL::equal_to<Key>,
+			typename Key, typename T, typename Hash = hash<Key>, typename KeyEqual = gaia::core::equal_to<Key>,
 			size_t MaxLoadFactor100 = 80>
 	using unordered_map = detail::Table<
 			sizeof(robin_hood::pair<Key, T>) <= sizeof(size_t) * 6 &&
@@ -8938,17 +8931,17 @@ namespace robin_hood {
 	// set
 
 	template <
-			typename Key, typename Hash = hash<Key>, typename KeyEqual = GAIA_UTIL::equal_to<Key>,
+			typename Key, typename Hash = hash<Key>, typename KeyEqual = gaia::core::equal_to<Key>,
 			size_t MaxLoadFactor100 = 80>
 	using unordered_flat_set = detail::Table<true, MaxLoadFactor100, Key, void, Hash, KeyEqual>;
 
 	template <
-			typename Key, typename Hash = hash<Key>, typename KeyEqual = GAIA_UTIL::equal_to<Key>,
+			typename Key, typename Hash = hash<Key>, typename KeyEqual = gaia::core::equal_to<Key>,
 			size_t MaxLoadFactor100 = 80>
 	using unordered_node_set = detail::Table<false, MaxLoadFactor100, Key, void, Hash, KeyEqual>;
 
 	template <
-			typename Key, typename Hash = hash<Key>, typename KeyEqual = GAIA_UTIL::equal_to<Key>,
+			typename Key, typename Hash = hash<Key>, typename KeyEqual = gaia::core::equal_to<Key>,
 			size_t MaxLoadFactor100 = 80>
 	using unordered_set = detail::Table<
 			sizeof(Key) <= sizeof(size_t) * 6 && std::is_nothrow_move_constructible<Key>::value &&
@@ -8960,10 +8953,10 @@ namespace robin_hood {
 #endif
 
 namespace gaia {
-	namespace containers {
+	namespace cnt {
 		template <typename Key, typename Data>
 		using map = robin_hood::unordered_flat_map<Key, Data>;
-	} // namespace containers
+	} // namespace cnt
 } // namespace gaia
 
 #include <cstddef>
@@ -8972,7 +8965,7 @@ namespace gaia {
 #include <utility>
 
 namespace gaia {
-	namespace containers {
+	namespace cnt {
 		//! Array of elements of type \tparam T with fixed size and capacity \tparam N allocated on stack.
 		//! Interface compatiblity with std::array where it matters.
 		template <typename T, uint32_t N>
@@ -8987,16 +8980,16 @@ namespace gaia {
 			using const_pointer = T*;
 			using difference_type = decltype(N);
 			using size_type = decltype(N);
-			using view_policy = utils::auto_view_policy<T>;
+			using view_policy = mem::auto_view_policy<T>;
 
 			static constexpr size_type extent = N;
 			static constexpr uint32_t allocated_bytes = view_policy::get_min_byte_size(0, N);
 
-			utils::raw_data_holder<T, allocated_bytes> m_data;
+			mem::raw_data_holder<T, allocated_bytes> m_data;
 
 			class iterator {
 			public:
-				using iterator_category = GAIA_UTIL::random_access_iterator_tag;
+				using iterator_category = core::random_access_iterator_tag;
 				using value_type = T;
 				using difference_type = sarr::size_type;
 				using pointer = T*;
@@ -9080,7 +9073,7 @@ namespace gaia {
 				friend class sarr;
 
 			public:
-				using iterator_category = GAIA_UTIL::random_access_iterator_tag;
+				using iterator_category = core::random_access_iterator_tag;
 				using value_type = T;
 				using difference_type = sarr::size_type;
 				// using pointer = T*; not supported
@@ -9096,7 +9089,7 @@ namespace gaia {
 				iterator_soa(uint8_t* ptr, uint32_t cnt, uint32_t idx): m_ptr(ptr), m_cnt(cnt), m_idx(idx) {}
 
 				T operator*() const {
-					return utils::data_view_policy<T::Layout, T>::get({m_ptr, m_cnt}, m_idx);
+					return mem::data_view_policy<T::Layout, T>::get({m_ptr, m_cnt}, m_idx);
 				}
 
 				iterator_soa operator[](size_type offset) const {
@@ -9168,24 +9161,23 @@ namespace gaia {
 			};
 
 			constexpr sarr() noexcept {
-				utils::construct_elements((pointer)&m_data[0], extent);
+				mem::construct_elements((pointer)&m_data[0], extent);
 			}
 
 			~sarr() {
-				utils::destruct_elements((pointer)&m_data[0], extent);
+				mem::destruct_elements((pointer)&m_data[0], extent);
 			}
 
 			template <typename InputIt>
 			constexpr sarr(InputIt first, InputIt last) noexcept {
-				utils::construct_elements((pointer)&m_data[0], extent);
+				mem::construct_elements((pointer)&m_data[0], extent);
 
-				const auto count = (size_type)GAIA_UTIL::distance(first, last);
+				const auto count = (size_type)core::distance(first, last);
 
 				if constexpr (std::is_pointer_v<InputIt>) {
 					for (size_type i = 0; i < count; ++i)
 						operator[](i) = first[i];
-				} else if constexpr (std::is_same_v<
-																 typename InputIt::iterator_category, GAIA_UTIL::random_access_iterator_tag>) {
+				} else if constexpr (std::is_same_v<typename InputIt::iterator_category, core::random_access_iterator_tag>) {
 					for (size_type i = 0; i < count; ++i)
 						operator[](i) = *(first[i]);
 				} else {
@@ -9200,10 +9192,10 @@ namespace gaia {
 			constexpr sarr(const sarr& other): sarr(other.begin(), other.end()) {}
 
 			constexpr sarr(sarr&& other) noexcept {
-				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
+				GAIA_ASSERT(gaia::mem::addressof(other) != this);
 
-				utils::construct_elements((pointer)&m_data[0], extent);
-				utils::move_elements<T>((uint8_t*)m_data, (const uint8_t*)other.m_data, 0, other.size(), extent, other.extent);
+				mem::construct_elements((pointer)&m_data[0], extent);
+				mem::move_elements<T>((uint8_t*)m_data, (const uint8_t*)other.m_data, 0, other.size(), extent, other.extent);
 
 				other.m_cnt = size_type(0);
 			}
@@ -9214,20 +9206,20 @@ namespace gaia {
 			}
 
 			constexpr sarr& operator=(const sarr& other) {
-				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
+				GAIA_ASSERT(gaia::mem::addressof(other) != this);
 
-				utils::construct_elements((pointer)&m_data[0], extent);
-				utils::copy_elements<T>(
+				mem::construct_elements((pointer)&m_data[0], extent);
+				mem::copy_elements<T>(
 						(uint8_t*)&m_data[0], (const uint8_t*)&other.m_data[0], 0, other.size(), extent, other.extent);
 
 				return *this;
 			}
 
 			constexpr sarr& operator=(sarr&& other) noexcept {
-				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
+				GAIA_ASSERT(gaia::mem::addressof(other) != this);
 
-				utils::construct_elements((pointer)&m_data[0], extent);
-				utils::move_elements<T>(
+				mem::construct_elements((pointer)&m_data[0], extent);
+				mem::move_elements<T>(
 						(uint8_t*)&m_data[0], (const uint8_t*)&other.m_data[0], 0, other.size(), extent, other.extent);
 
 				return *this;
@@ -9264,7 +9256,7 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD constexpr auto front() noexcept {
-				if constexpr (utils::is_soa_layout_v<T>)
+				if constexpr (mem::is_soa_layout_v<T>)
 					return *begin();
 				else
 					return (reference)*begin();
@@ -9272,49 +9264,49 @@ namespace gaia {
 
 			GAIA_NODISCARD constexpr auto front() const noexcept {
 
-				if constexpr (utils::is_soa_layout_v<T>)
+				if constexpr (mem::is_soa_layout_v<T>)
 					return *begin();
 				else
 					return (const_reference)*begin();
 			}
 
 			GAIA_NODISCARD constexpr auto back() noexcept {
-				if constexpr (utils::is_soa_layout_v<T>)
+				if constexpr (mem::is_soa_layout_v<T>)
 					return (operator[])(N - 1);
 				else
 					return (reference) operator[](N - 1);
 			}
 
 			GAIA_NODISCARD constexpr auto back() const noexcept {
-				if constexpr (utils::is_soa_layout_v<T>)
+				if constexpr (mem::is_soa_layout_v<T>)
 					return operator[](N - 1);
 				else
 					return (const_reference) operator[](N - 1);
 			}
 
 			GAIA_NODISCARD constexpr auto begin() const noexcept {
-				if constexpr (utils::is_soa_layout_v<T>)
+				if constexpr (mem::is_soa_layout_v<T>)
 					return iterator_soa(m_data, size(), 0);
 				else
 					return iterator((pointer)&m_data[0]);
 			}
 
 			GAIA_NODISCARD constexpr auto rbegin() const noexcept {
-				if constexpr (utils::is_soa_layout_v<T>)
+				if constexpr (mem::is_soa_layout_v<T>)
 					return iterator_soa(m_data, size(), size() - 1);
 				else
 					return iterator((pointer)&back());
 			}
 
 			GAIA_NODISCARD constexpr auto end() const noexcept {
-				if constexpr (utils::is_soa_layout_v<T>)
+				if constexpr (mem::is_soa_layout_v<T>)
 					return iterator_soa(m_data, size(), size());
 				else
 					return iterator((pointer)&m_data[0] + size());
 			}
 
 			GAIA_NODISCARD constexpr auto rend() const noexcept {
-				if constexpr (utils::is_soa_layout_v<T>)
+				if constexpr (mem::is_soa_layout_v<T>)
 					return iterator_soa(m_data, size(), -1);
 				else
 					return iterator((pointer)m_data - 1);
@@ -9329,13 +9321,13 @@ namespace gaia {
 
 			template <size_t Item>
 			auto soa_view_mut() noexcept {
-				return utils::data_view_policy<T::Layout, T>::template get<Item>(
+				return mem::data_view_policy<T::Layout, T>::template get<Item>(
 						std::span<uint8_t>{(uint8_t*)&m_data[0], extent});
 			}
 
 			template <size_t Item>
 			auto soa_view() const noexcept {
-				return utils::data_view_policy<T::Layout, T>::template get<Item>(
+				return mem::data_view_policy<T::Layout, T>::template get<Item>(
 						std::span<const uint8_t>{(const uint8_t*)&m_data[0], extent});
 			}
 		};
@@ -9355,24 +9347,24 @@ namespace gaia {
 		template <typename T, typename... U>
 		sarr(T, U...) -> sarr<T, 1 + (uint32_t)sizeof...(U)>;
 
-	} // namespace containers
+	} // namespace cnt
 } // namespace gaia
 
 namespace std {
 	template <typename T, uint32_t N>
-	struct tuple_size<gaia::containers::sarr<T, N>>: std::integral_constant<uint32_t, N> {};
+	struct tuple_size<gaia::cnt::sarr<T, N>>: std::integral_constant<uint32_t, N> {};
 
 	template <size_t I, typename T, uint32_t N>
-	struct tuple_element<I, gaia::containers::sarr<T, N>> {
+	struct tuple_element<I, gaia::cnt::sarr<T, N>> {
 		using type = T;
 	};
 } // namespace std
 
 namespace gaia {
-	namespace containers {
+	namespace cnt {
 		template <typename T, uint32_t N>
-		using sarray = containers::sarr<T, N>;
-	} // namespace containers
+		using sarray = cnt::sarr<T, N>;
+	} // namespace cnt
 } // namespace gaia
 
 // TODO: There is no quickly achievable std alternative so go with gaia container
@@ -9384,7 +9376,7 @@ namespace gaia {
 #include <utility>
 
 namespace gaia {
-	namespace containers {
+	namespace cnt {
 		//! Array of elements of type \tparam T with fixed capacity \tparam N and variable size allocated on stack.
 		//! Interface compatiblity with std::array where it matters.
 		template <typename T, uint32_t N>
@@ -9392,7 +9384,7 @@ namespace gaia {
 		public:
 			static_assert(N > 0);
 
-			using iterator_category = GAIA_UTIL::random_access_iterator_tag;
+			using iterator_category = core::random_access_iterator_tag;
 			using value_type = T;
 			using reference = T&;
 			using const_reference = const T&;
@@ -9400,19 +9392,19 @@ namespace gaia {
 			using const_pointer = T*;
 			using difference_type = decltype(N);
 			using size_type = decltype(N);
-			using view_policy = utils::auto_view_policy<T>;
+			using view_policy = mem::auto_view_policy<T>;
 
 			static constexpr size_type extent = N;
 			static constexpr uint32_t allocated_bytes = view_policy::get_min_byte_size(0, N);
 
 		private:
-			utils::raw_data_holder<T, allocated_bytes> m_data;
+			mem::raw_data_holder<T, allocated_bytes> m_data;
 			size_type m_cnt = size_type(0);
 
 		public:
 			class iterator {
 			public:
-				using iterator_category = GAIA_UTIL::random_access_iterator_tag;
+				using iterator_category = core::random_access_iterator_tag;
 				using value_type = T;
 				using difference_type = sarr_ext::size_type;
 				using pointer = T*;
@@ -9496,7 +9488,7 @@ namespace gaia {
 				friend class sarr_ext;
 
 			public:
-				using iterator_category = GAIA_UTIL::random_access_iterator_tag;
+				using iterator_category = core::random_access_iterator_tag;
 				using value_type = T;
 				using difference_type = sarr_ext::size_type;
 				// using pointer = T*; not supported
@@ -9512,7 +9504,7 @@ namespace gaia {
 				iterator_soa(uint8_t* ptr, uint32_t cnt, uint32_t idx): m_ptr(ptr), m_cnt(cnt), m_idx(idx) {}
 
 				T operator*() const {
-					return utils::data_view_policy<T::Layout, T>::get({m_ptr, m_cnt}, m_idx);
+					return mem::data_view_policy<T::Layout, T>::get({m_ptr, m_cnt}, m_idx);
 				}
 
 				iterator_soa operator[](size_type offset) const {
@@ -9584,11 +9576,11 @@ namespace gaia {
 			};
 
 			constexpr sarr_ext() noexcept {
-				utils::construct_elements((pointer)&m_data[0], extent);
+				mem::construct_elements((pointer)&m_data[0], extent);
 			}
 
 			~sarr_ext() {
-				utils::destruct_elements((pointer)&m_data[0], extent);
+				mem::destruct_elements((pointer)&m_data[0], extent);
 			}
 
 			constexpr sarr_ext(size_type count, reference value) noexcept {
@@ -9604,16 +9596,15 @@ namespace gaia {
 
 			template <typename InputIt>
 			constexpr sarr_ext(InputIt first, InputIt last) noexcept {
-				utils::construct_elements((pointer)&m_data[0], extent);
+				mem::construct_elements((pointer)&m_data[0], extent);
 
-				const auto count = (size_type)GAIA_UTIL::distance(first, last);
+				const auto count = (size_type)core::distance(first, last);
 				resize(count);
 
 				if constexpr (std::is_pointer_v<InputIt>) {
 					for (size_type i = 0; i < count; ++i)
 						operator[](i) = first[i];
-				} else if constexpr (std::is_same_v<
-																 typename InputIt::iterator_category, GAIA_UTIL::random_access_iterator_tag>) {
+				} else if constexpr (std::is_same_v<typename InputIt::iterator_category, core::random_access_iterator_tag>) {
 					for (size_type i = 0; i < count; ++i)
 						operator[](i) = *(first[i]);
 				} else {
@@ -9628,10 +9619,10 @@ namespace gaia {
 			constexpr sarr_ext(const sarr_ext& other): sarr_ext(other.begin(), other.end()) {}
 
 			constexpr sarr_ext(sarr_ext&& other) noexcept: m_cnt(other.m_cnt) {
-				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
+				GAIA_ASSERT(gaia::mem::addressof(other) != this);
 
-				utils::construct_elements((pointer)&m_data[0], extent);
-				utils::move_elements<T>(m_data, other.m_data, 0, other.size(), extent, other.extent);
+				mem::construct_elements((pointer)&m_data[0], extent);
+				mem::move_elements<T>(m_data, other.m_data, 0, other.size(), extent, other.extent);
 
 				other.m_cnt = size_type(0);
 			}
@@ -9642,22 +9633,22 @@ namespace gaia {
 			}
 
 			constexpr sarr_ext& operator=(const sarr_ext& other) {
-				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
+				GAIA_ASSERT(gaia::mem::addressof(other) != this);
 
-				utils::construct_elements((pointer)&m_data[0], extent);
+				mem::construct_elements((pointer)&m_data[0], extent);
 				resize(other.size());
-				utils::copy_elements<T>(
+				mem::copy_elements<T>(
 						(uint8_t*)&m_data[0], (const uint8_t*)&other.m_data[0], 0, other.size(), extent, other.extent);
 
 				return *this;
 			}
 
 			constexpr sarr_ext& operator=(sarr_ext&& other) noexcept {
-				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
+				GAIA_ASSERT(gaia::mem::addressof(other) != this);
 
-				utils::construct_elements((pointer)&m_data[0], extent);
+				mem::construct_elements((pointer)&m_data[0], extent);
 				resize(other.m_cnt);
-				utils::move_elements<T>(
+				mem::move_elements<T>(
 						(uint8_t*)&m_data[0], (const uint8_t*)&other.m_data[0], 0, other.size(), extent, other.extent);
 
 				other.m_cnt = size_type(0);
@@ -9686,7 +9677,7 @@ namespace gaia {
 			constexpr void push_back(const T& arg) noexcept {
 				GAIA_ASSERT(size() < N);
 
-				if constexpr (utils::is_soa_layout_v<T>) {
+				if constexpr (mem::is_soa_layout_v<T>) {
 					operator[](m_cnt++) = arg;
 				} else {
 					auto* ptr = m_data + sizeof(T) * (m_cnt++);
@@ -9697,7 +9688,7 @@ namespace gaia {
 			constexpr void push_back(T&& arg) noexcept {
 				GAIA_ASSERT(size() < N);
 
-				if constexpr (utils::is_soa_layout_v<T>) {
+				if constexpr (mem::is_soa_layout_v<T>) {
 					operator[](m_cnt++) = std::forward<T>(arg);
 				} else {
 					auto* ptr = m_data + sizeof(T) * (m_cnt++);
@@ -9709,7 +9700,7 @@ namespace gaia {
 			constexpr auto emplace_back(Args&&... args) {
 				GAIA_ASSERT(size() < N);
 
-				if constexpr (utils::is_soa_layout_v<T>) {
+				if constexpr (mem::is_soa_layout_v<T>) {
 					operator[](m_cnt++) = T(std::forward<Args>(args)...);
 					return;
 				} else {
@@ -9721,7 +9712,7 @@ namespace gaia {
 
 			constexpr void pop_back() noexcept {
 				GAIA_ASSERT(!empty());
-				if constexpr (utils::is_soa_layout_v<T>) {
+				if constexpr (mem::is_soa_layout_v<T>) {
 					--m_cnt;
 				} else {
 					auto* ptr = m_data + sizeof(T) * (--m_cnt);
@@ -9732,10 +9723,10 @@ namespace gaia {
 			constexpr iterator erase(iterator pos) noexcept {
 				GAIA_ASSERT(pos.m_ptr >= data() && pos.m_ptr < (data() + extent - 1));
 
-				const auto idxSrc = (size_type)GAIA_UTIL::distance(pos, begin());
+				const auto idxSrc = (size_type)core::distance(pos, begin());
 				const auto idxDst = size() - 1;
 
-				utils::shift_elements_left<T>(&m_data[0], idxSrc, idxDst);
+				mem::shift_elements_left<T>(&m_data[0], idxSrc, idxDst);
 				--m_cnt;
 
 				return iterator((pointer)m_data + idxSrc);
@@ -9745,7 +9736,7 @@ namespace gaia {
 				const auto idxSrc = pos.m_idx;
 				const auto idxDst = size() - 1;
 
-				utils::shift_elements_left<T>(m_data, idxSrc, idxDst);
+				mem::shift_elements_left<T>(m_data, idxSrc, idxDst);
 				--m_cnt;
 
 				return iterator_soa(m_data, m_cnt, idxSrc);
@@ -9757,20 +9748,20 @@ namespace gaia {
 				GAIA_ASSERT(last.m_cnt >= first.m_cnt);
 
 				const auto cnt = last.m_cnt - first.m_cnt;
-				utils::shift_elements_left<T>(&m_data[0], first.cnt, last.cnt);
+				mem::shift_elements_left<T>(&m_data[0], first.cnt, last.cnt);
 				m_cnt -= cnt;
 
 				return {(pointer)m_data + size_type(last.m_cnt)};
 			}
 
 			iterator_soa erase(iterator_soa first, iterator_soa last) noexcept {
-				static_assert(!utils::is_soa_layout_v<T>);
+				static_assert(!mem::is_soa_layout_v<T>);
 				GAIA_ASSERT(first.m_idx >= 0 && first.m_idx < size());
 				GAIA_ASSERT(last.m_idx >= 0 && last.m_idx < size());
 				GAIA_ASSERT(last.m_idx >= first.m_idx);
 
 				const auto cnt = last.m_idx - first.m_idx;
-				utils::shift_elements_left<T>(m_data, first.cnt, last.cnt);
+				mem::shift_elements_left<T>(m_data, first.cnt, last.cnt);
 				m_cnt -= cnt;
 
 				return iterator_soa(m_data, m_cnt, last.m_cnt);
@@ -9799,7 +9790,7 @@ namespace gaia {
 
 			GAIA_NODISCARD constexpr auto front() noexcept {
 				GAIA_ASSERT(!empty());
-				if constexpr (utils::is_soa_layout_v<T>)
+				if constexpr (mem::is_soa_layout_v<T>)
 					return *begin();
 				else
 					return (reference)*begin();
@@ -9807,7 +9798,7 @@ namespace gaia {
 
 			GAIA_NODISCARD constexpr auto front() const noexcept {
 				GAIA_ASSERT(!empty());
-				if constexpr (utils::is_soa_layout_v<T>)
+				if constexpr (mem::is_soa_layout_v<T>)
 					return *begin();
 				else
 					return (const_reference)*begin();
@@ -9815,7 +9806,7 @@ namespace gaia {
 
 			GAIA_NODISCARD constexpr auto back() noexcept {
 				GAIA_ASSERT(!empty());
-				if constexpr (utils::is_soa_layout_v<T>)
+				if constexpr (mem::is_soa_layout_v<T>)
 					return (operator[])(N - 1);
 				else
 					return (reference) operator[](N - 1);
@@ -9823,35 +9814,35 @@ namespace gaia {
 
 			GAIA_NODISCARD constexpr auto back() const noexcept {
 				GAIA_ASSERT(!empty());
-				if constexpr (utils::is_soa_layout_v<T>)
+				if constexpr (mem::is_soa_layout_v<T>)
 					return operator[](N - 1);
 				else
 					return (const_reference) operator[](N - 1);
 			}
 
 			GAIA_NODISCARD constexpr auto begin() const noexcept {
-				if constexpr (utils::is_soa_layout_v<T>)
+				if constexpr (mem::is_soa_layout_v<T>)
 					return iterator_soa(m_data, size(), 0);
 				else
 					return iterator((pointer)&m_data[0]);
 			}
 
 			GAIA_NODISCARD constexpr auto rbegin() const noexcept {
-				if constexpr (utils::is_soa_layout_v<T>)
+				if constexpr (mem::is_soa_layout_v<T>)
 					return iterator_soa(m_data, size(), size() - 1);
 				else
 					return iterator((pointer)&back());
 			}
 
 			GAIA_NODISCARD constexpr auto end() const noexcept {
-				if constexpr (utils::is_soa_layout_v<T>)
+				if constexpr (mem::is_soa_layout_v<T>)
 					return iterator_soa(m_data, size(), size());
 				else
 					return iterator((pointer)&m_data[0] + size());
 			}
 
 			GAIA_NODISCARD constexpr auto rend() const noexcept {
-				if constexpr (utils::is_soa_layout_v<T>)
+				if constexpr (mem::is_soa_layout_v<T>)
 					return iterator_soa(m_data, size(), -1);
 				else
 					return iterator((pointer)m_data - 1);
@@ -9869,13 +9860,13 @@ namespace gaia {
 
 			template <size_t Item>
 			auto soa_view_mut() noexcept {
-				return utils::data_view_policy<T::Layout, T>::template get<Item>(
+				return mem::data_view_policy<T::Layout, T>::template get<Item>(
 						std::span<uint8_t>{(uint8_t*)&m_data[0], extent});
 			}
 
 			template <size_t Item>
 			auto soa_view() const noexcept {
-				return utils::data_view_policy<T::Layout, T>::template get<Item>(
+				return mem::data_view_policy<T::Layout, T>::template get<Item>(
 						std::span<const uint8_t>{(const uint8_t*)&m_data[0], extent});
 			}
 		};
@@ -9892,25 +9883,25 @@ namespace gaia {
 			return detail::to_sarray_impl(a, std::make_index_sequence<N>{});
 		}
 
-	} // namespace containers
+	} // namespace cnt
 
 } // namespace gaia
 
 namespace std {
 	template <typename T, uint32_t N>
-	struct tuple_size<gaia::containers::sarr_ext<T, N>>: std::integral_constant<uint32_t, N> {};
+	struct tuple_size<gaia::cnt::sarr_ext<T, N>>: std::integral_constant<uint32_t, N> {};
 
 	template <size_t I, typename T, uint32_t N>
-	struct tuple_element<I, gaia::containers::sarr_ext<T, N>> {
+	struct tuple_element<I, gaia::cnt::sarr_ext<T, N>> {
 		using type = T;
 	};
 } // namespace std
 
 namespace gaia {
-	namespace containers {
+	namespace cnt {
 		template <typename T, uint32_t N>
-		using sarray_ext = containers::sarr_ext<T, N>;
-	} // namespace containers
+		using sarray_ext = cnt::sarr_ext<T, N>;
+	} // namespace cnt
 } // namespace gaia
 
 //                 ______  _____                 ______                _________
@@ -10192,7 +10183,7 @@ namespace robin_hood {
 				while (mListForFree) {
 					T* tmp = *mListForFree;
 					ROBIN_HOOD_LOG("std::free")
-					GAIA_UTIL::mem_free(mListForFree);
+					gaia::mem::mem_free(mListForFree);
 					mListForFree = reinterpret_cast_no_cast_align_warning<T**>(tmp);
 				}
 				mHead = nullptr;
@@ -10228,7 +10219,7 @@ namespace robin_hood {
 				if (numBytes < ALIGNMENT + ALIGNED_SIZE) {
 					// not enough data for at least one element. Free and return.
 					ROBIN_HOOD_LOG("std::free")
-					GAIA_UTIL::mem_free(ptr);
+					gaia::mem::mem_free(ptr);
 				} else {
 					ROBIN_HOOD_LOG("add to buffer")
 					add(ptr, numBytes);
@@ -10293,14 +10284,15 @@ namespace robin_hood {
 				// alloc new memory: [prev |T, T, ... T]
 				size_t const bytes = ALIGNMENT + ALIGNED_SIZE * numElementsToAlloc;
 				ROBIN_HOOD_LOG(
-						"GAIA_UTIL::mem_alloc " << bytes << " = " << ALIGNMENT << " + " << ALIGNED_SIZE << " * "
+						"gaia::mem::mem_alloc " << bytes << " = " << ALIGNMENT << " + " << ALIGNED_SIZE << " * "
 																		<< numElementsToAlloc)
-				add(assertNotNull<std::bad_alloc>(GAIA_UTIL::mem_alloc(bytes)), bytes);
+				add(assertNotNull<std::bad_alloc>(gaia::mem::mem_alloc(bytes)), bytes);
 				return mHead;
 			}
 
 			// enforce byte alignment of the T's
-			static constexpr size_t ALIGNMENT = GAIA_UTIL::get_max(std::alignment_of<T>::value, std::alignment_of<T*>::value);
+			static constexpr size_t ALIGNMENT =
+					gaia::core::get_max(std::alignment_of<T>::value, std::alignment_of<T*>::value);
 
 			static constexpr size_t ALIGNED_SIZE = ((sizeof(T) - 1) / ALIGNMENT + 1) * ALIGNMENT;
 
@@ -10324,7 +10316,7 @@ namespace robin_hood {
 			// we are not using the data, so just free it.
 			void addOrFree(void* ptr, size_t ROBIN_HOOD_UNUSED(numBytes) /*unused*/) noexcept {
 				ROBIN_HOOD_LOG("std::free")
-				GAIA_UTIL::mem_free(ptr);
+				gaia::mem::mem_free(ptr);
 			}
 		};
 
@@ -10565,7 +10557,7 @@ namespace robin_hood {
 	};
 
 	template <typename T>
-	struct hash<T, typename std::enable_if<GAIA_UTIL::is_direct_hash_key_v<T>>::type> {
+	struct hash<T, typename std::enable_if<gaia::core::is_direct_hash_key_v<T>>::type> {
 		size_t operator()(const T& obj) const noexcept {
 			if constexpr (detail::has_hash<T>::value)
 				return obj.hash;
@@ -10960,7 +10952,7 @@ namespace robin_hood {
 				using value_type = typename Self::value_type;
 				using reference = typename std::conditional<IsConst, value_type const&, value_type&>::type;
 				using pointer = typename std::conditional<IsConst, value_type const*, value_type*>::type;
-				using iterator_category = GAIA_UTIL::forward_iterator_tag;
+				using iterator_category = gaia::core::forward_iterator_tag;
 
 				// default constructed iterator can be compared to itself, but WON'T return true when
 				// compared to end().
@@ -11074,7 +11066,7 @@ namespace robin_hood {
 
 				// direct_hash_key is expected to be a proper hash. No additional hash tricks are required
 				using HashKeyRaw = std::decay_t<HashKey>;
-				if constexpr (!GAIA_UTIL::is_direct_hash_key_v<HashKeyRaw>) {
+				if constexpr (!gaia::core::is_direct_hash_key_v<HashKeyRaw>) {
 					// In addition to whatever hash is used, add another mul & shift so we get better hashing.
 					// This serves as a bad hash prevention, if the given data is
 					// badly mixed.
@@ -11165,7 +11157,7 @@ namespace robin_hood {
 				// nothing found!
 				return mMask == 0 ? 0
 													: static_cast<size_t>(
-																GAIA_UTIL::distance(mKeyVals, reinterpret_cast_no_cast_align_warning<Node*>(mInfo)));
+																gaia::core::distance(mKeyVals, reinterpret_cast_no_cast_align_warning<Node*>(mInfo)));
 			}
 
 			void cloneData(const Table& o) {
@@ -11319,9 +11311,9 @@ namespace robin_hood {
 					auto const numBytesTotal = calcNumBytesTotal(numElementsWithBuffer);
 
 					ROBIN_HOOD_LOG(
-							"GAIA_UTIL::mem_alloc " << numBytesTotal << " = calcNumBytesTotal(" << numElementsWithBuffer << ")")
+							"gaia::mem::mem_alloc " << numBytesTotal << " = calcNumBytesTotal(" << numElementsWithBuffer << ")")
 					mHashMultiplier = o.mHashMultiplier;
-					mKeyVals = static_cast<Node*>(detail::assertNotNull<std::bad_alloc>(GAIA_UTIL::mem_alloc(numBytesTotal)));
+					mKeyVals = static_cast<Node*>(detail::assertNotNull<std::bad_alloc>(gaia::mem::mem_alloc(numBytesTotal)));
 					// no need for calloc because clonData does memcpy
 					mInfo = reinterpret_cast<uint8_t*>(mKeyVals + numElementsWithBuffer);
 					mNumElements = o.mNumElements;
@@ -11370,14 +11362,14 @@ namespace robin_hood {
 					if (0 != mMask) {
 						// only deallocate if we actually have data!
 						ROBIN_HOOD_LOG("std::free")
-						GAIA_UTIL::mem_free(mKeyVals);
+						gaia::mem::mem_free(mKeyVals);
 					}
 
 					auto const numElementsWithBuffer = calcNumElementsWithBuffer(o.mMask + 1);
 					auto const numBytesTotal = calcNumBytesTotal(numElementsWithBuffer);
 					ROBIN_HOOD_LOG(
-							"GAIA_UTIL::mem_alloc " << numBytesTotal << " = calcNumBytesTotal(" << numElementsWithBuffer << ")")
-					mKeyVals = static_cast<Node*>(detail::assertNotNull<std::bad_alloc>(GAIA_UTIL::mem_alloc(numBytesTotal)));
+							"gaia::mem::mem_alloc " << numBytesTotal << " = calcNumBytesTotal(" << numElementsWithBuffer << ")")
+					mKeyVals = static_cast<Node*>(detail::assertNotNull<std::bad_alloc>(gaia::mem::mem_alloc(numBytesTotal)));
 
 					// no need for calloc here because cloneData performs a memcpy.
 					mInfo = reinterpret_cast<uint8_t*>(mKeyVals + numElementsWithBuffer);
@@ -11418,7 +11410,7 @@ namespace robin_hood {
 				auto const numElementsWithBuffer = calcNumElementsWithBuffer(mMask + 1);
 				// clear everything, then set the sentinel again
 				uint8_t const z = 0;
-				GAIA_UTIL::fill(mInfo, mInfo + calcNumBytesInfo(numElementsWithBuffer), z);
+				gaia::core::fill(mInfo, mInfo + calcNumBytesInfo(numElementsWithBuffer), z);
 				mInfo[numElementsWithBuffer] = 1;
 
 				mInfoInc = InitialInfoInc;
@@ -11869,7 +11861,7 @@ namespace robin_hood {
 
 			GAIA_NODISCARD size_t calcNumElementsWithBuffer(size_t numElements) const noexcept {
 				auto maxNumElementsAllowed = calcMaxNumElementsAllowed(numElements);
-				return numElements + GAIA_UTIL::get_min(maxNumElementsAllowed, (static_cast<size_t>(0xFF)));
+				return numElements + gaia::core::get_min(maxNumElementsAllowed, (static_cast<size_t>(0xFF)));
 			}
 
 			// calculation only allowed for 2^n values
@@ -11908,7 +11900,7 @@ namespace robin_hood {
 
 			void reserve(size_t c, bool forceRehash) {
 				ROBIN_HOOD_TRACE(this)
-				auto const minElementsAllowed = GAIA_UTIL::get_max(c, mNumElements);
+				auto const minElementsAllowed = gaia::core::get_max(c, mNumElements);
 				auto newSize = InitialNumElements;
 				while (calcMaxNumElementsAllowed(newSize) < minElementsAllowed && newSize != 0) {
 					newSize *= 2;
@@ -11956,7 +11948,7 @@ namespace robin_hood {
 					if (oldKeyVals != reinterpret_cast_no_cast_align_warning<Node*>(&mMask)) {
 						// don't destroy old data: put it into the pool instead
 						if (forceFree) {
-							GAIA_UTIL::mem_free(oldKeyVals);
+							gaia::mem::mem_free(oldKeyVals);
 						} else {
 							DataPool::addOrFree(oldKeyVals, calcNumBytesTotal(oldMaxElementsWithBuffer));
 						}
@@ -12043,7 +12035,7 @@ namespace robin_hood {
 				// malloc & zero mInfo. Faster than calloc everything.
 				auto const numBytesTotal = calcNumBytesTotal(numElementsWithBuffer);
 				ROBIN_HOOD_LOG("std::calloc " << numBytesTotal << " = calcNumBytesTotal(" << numElementsWithBuffer << ")")
-				mKeyVals = reinterpret_cast<Node*>(detail::assertNotNull<std::bad_alloc>(GAIA_UTIL::mem_alloc(numBytesTotal)));
+				mKeyVals = reinterpret_cast<Node*>(detail::assertNotNull<std::bad_alloc>(gaia::mem::mem_alloc(numBytesTotal)));
 				mInfo = reinterpret_cast<uint8_t*>(mKeyVals + numElementsWithBuffer);
 				std::memset(mInfo, 0, numBytesTotal - numElementsWithBuffer * sizeof(Node));
 
@@ -12189,7 +12181,7 @@ namespace robin_hood {
 				// [-Werror=free-nonheap-object]
 				if (mKeyVals != reinterpret_cast_no_cast_align_warning<Node*>(&mMask)) {
 					ROBIN_HOOD_LOG("std::free")
-					GAIA_UTIL::mem_free(mKeyVals);
+					gaia::mem::mem_free(mKeyVals);
 				}
 			}
 
@@ -12220,17 +12212,17 @@ namespace robin_hood {
 	// map
 
 	template <
-			typename Key, typename T, typename Hash = hash<Key>, typename KeyEqual = GAIA_UTIL::equal_to<Key>,
+			typename Key, typename T, typename Hash = hash<Key>, typename KeyEqual = gaia::core::equal_to<Key>,
 			size_t MaxLoadFactor100 = 80>
 	using unordered_flat_map = detail::Table<true, MaxLoadFactor100, Key, T, Hash, KeyEqual>;
 
 	template <
-			typename Key, typename T, typename Hash = hash<Key>, typename KeyEqual = GAIA_UTIL::equal_to<Key>,
+			typename Key, typename T, typename Hash = hash<Key>, typename KeyEqual = gaia::core::equal_to<Key>,
 			size_t MaxLoadFactor100 = 80>
 	using unordered_node_map = detail::Table<false, MaxLoadFactor100, Key, T, Hash, KeyEqual>;
 
 	template <
-			typename Key, typename T, typename Hash = hash<Key>, typename KeyEqual = GAIA_UTIL::equal_to<Key>,
+			typename Key, typename T, typename Hash = hash<Key>, typename KeyEqual = gaia::core::equal_to<Key>,
 			size_t MaxLoadFactor100 = 80>
 	using unordered_map = detail::Table<
 			sizeof(robin_hood::pair<Key, T>) <= sizeof(size_t) * 6 &&
@@ -12241,17 +12233,17 @@ namespace robin_hood {
 	// set
 
 	template <
-			typename Key, typename Hash = hash<Key>, typename KeyEqual = GAIA_UTIL::equal_to<Key>,
+			typename Key, typename Hash = hash<Key>, typename KeyEqual = gaia::core::equal_to<Key>,
 			size_t MaxLoadFactor100 = 80>
 	using unordered_flat_set = detail::Table<true, MaxLoadFactor100, Key, void, Hash, KeyEqual>;
 
 	template <
-			typename Key, typename Hash = hash<Key>, typename KeyEqual = GAIA_UTIL::equal_to<Key>,
+			typename Key, typename Hash = hash<Key>, typename KeyEqual = gaia::core::equal_to<Key>,
 			size_t MaxLoadFactor100 = 80>
 	using unordered_node_set = detail::Table<false, MaxLoadFactor100, Key, void, Hash, KeyEqual>;
 
 	template <
-			typename Key, typename Hash = hash<Key>, typename KeyEqual = GAIA_UTIL::equal_to<Key>,
+			typename Key, typename Hash = hash<Key>, typename KeyEqual = gaia::core::equal_to<Key>,
 			size_t MaxLoadFactor100 = 80>
 	using unordered_set = detail::Table<
 			sizeof(Key) <= sizeof(size_t) * 6 && std::is_nothrow_move_constructible<Key>::value &&
@@ -12263,10 +12255,10 @@ namespace robin_hood {
 #endif
 
 namespace gaia {
-	namespace containers {
+	namespace cnt {
 		template <typename Key>
 		using set = robin_hood::unordered_flat_set<Key>;
-	} // namespace containers
+	} // namespace cnt
 } // namespace gaia
 
 #include <cstddef>
@@ -12274,16 +12266,16 @@ namespace gaia {
 #include <utility>
 
 namespace gaia {
-	namespace containers {
+	namespace cnt {
 		//! Array of elements of type \tparam T with fixed size and capacity \tparam N allocated on stack.
 		//! Interface compatiblity with std::array where it matters.
 		template <typename T, uint32_t N>
 		class sringbuffer {
 		public:
 			static_assert(N > 1);
-			static_assert(!utils::is_soa_layout_v<T>);
+			static_assert(!mem::is_soa_layout_v<T>);
 
-			using iterator_category = utils::random_access_iterator_tag;
+			using iterator_category = core::random_access_iterator_tag;
 			using value_type = T;
 			using reference = T&;
 			using const_reference = const T&;
@@ -12302,7 +12294,7 @@ namespace gaia {
 
 			template <typename InputIt>
 			sringbuffer(InputIt first, InputIt last) {
-				const auto count = (size_type)utils::distance(first, last);
+				const auto count = (size_type)core::distance(first, last);
 				GAIA_ASSERT(count <= max_size());
 				if (count < 1)
 					return;
@@ -12313,7 +12305,7 @@ namespace gaia {
 				if constexpr (std::is_pointer_v<InputIt>) {
 					for (size_type i = 0; i < count; ++i)
 						m_data[i] = first[i];
-				} else if constexpr (std::is_same_v<typename InputIt::iterator_category, utils::random_access_iterator_tag>) {
+				} else if constexpr (std::is_same_v<typename InputIt::iterator_category, core::random_access_iterator_tag>) {
 					for (size_type i = 0; i < count; ++i)
 						m_data[i] = *(first[i]);
 				} else {
@@ -12328,9 +12320,9 @@ namespace gaia {
 			sringbuffer(const sringbuffer& other): sringbuffer(other.begin(), other.end()) {}
 
 			sringbuffer(sringbuffer&& other) noexcept: m_tail(other.m_tail), m_size(other.m_size) {
-				GAIA_ASSERT(utils::addressof(other) != this);
+				GAIA_ASSERT(mem::addressof(other) != this);
 
-				utils::move_elements<T>(m_data, other.m_data, 0, other.size(), extent, other.extent);
+				mem::move_elements<T>(m_data, other.m_data, 0, other.size(), extent, other.extent);
 
 				other.m_tail = size_type(0);
 				other.m_size = size_type(0);
@@ -12342,9 +12334,9 @@ namespace gaia {
 			}
 
 			constexpr sringbuffer& operator=(const sringbuffer& other) {
-				GAIA_ASSERT(utils::addressof(other) != this);
+				GAIA_ASSERT(mem::addressof(other) != this);
 
-				utils::copy_elements<T>((uint8_t*)&m_data[0], other.m_data, 0, other.size(), extent, other.extent);
+				mem::copy_elements<T>((uint8_t*)&m_data[0], other.m_data, 0, other.size(), extent, other.extent);
 
 				m_tail = other.m_tail;
 				m_size = other.m_size;
@@ -12353,9 +12345,9 @@ namespace gaia {
 			}
 
 			constexpr sringbuffer& operator=(sringbuffer&& other) noexcept {
-				GAIA_ASSERT(utils::addressof(other) != this);
+				GAIA_ASSERT(mem::addressof(other) != this);
 
-				utils::move_elements<T>(m_data, other.m_data, 0, other.size(), extent, other.extent);
+				mem::move_elements<T>(m_data, other.m_data, 0, other.size(), extent, other.extent);
 
 				m_tail = other.m_tail;
 				m_size = other.m_size;
@@ -12468,7 +12460,7 @@ namespace gaia {
 		template <typename T, typename... U>
 		sringbuffer(T, U...) -> sringbuffer<T, 1 + sizeof...(U)>;
 
-	} // namespace containers
+	} // namespace cnt
 
 } // namespace gaia
 
@@ -12627,22 +12619,22 @@ namespace gaia {
 			Busy = Submitted | Running,
 		};
 
-		struct JobContainer: containers::ilist_item {
+		struct JobContainer: cnt::ilist_item {
 			uint32_t dependencyIdx;
 			JobInternalState state;
 			std::function<void()> func;
 
 			JobContainer() = default;
 			JobContainer(uint32_t index, uint32_t generation):
-					containers::ilist_item(index, generation), state(JobInternalState::Idle) {}
+					cnt::ilist_item(index, generation), state(JobInternalState::Idle) {}
 		};
 
-		struct JobDependency: containers::ilist_item {
+		struct JobDependency: cnt::ilist_item {
 			uint32_t dependencyIdxNext;
 			JobHandle dependsOn;
 
 			JobDependency() = default;
-			JobDependency(uint32_t index, uint32_t generation): containers::ilist_item(index, generation) {}
+			JobDependency(uint32_t index, uint32_t generation): cnt::ilist_item(index, generation) {}
 		};
 
 		using DepHandle = JobHandle;
@@ -12650,11 +12642,11 @@ namespace gaia {
 		class JobManager {
 			std::mutex m_jobsLock;
 			//! Implicit list of jobs
-			containers::ilist<JobContainer, JobHandle> m_jobs;
+			cnt::ilist<JobContainer, JobHandle> m_jobs;
 
 			std::mutex m_depsLock;
 			//! List of job dependencies
-			containers::ilist<JobDependency, DepHandle> m_deps;
+			cnt::ilist<JobDependency, DepHandle> m_deps;
 
 		public:
 			//! Cleans up any job allocations and dependicies associated with \param jobHandle
@@ -12895,9 +12887,9 @@ namespace gaia {
 
 #if JOB_QUEUE_USE_LOCKS
 			std::mutex m_bufferLock;
-			containers::sringbuffer<JobHandle, N> m_buffer;
+			cnt::sringbuffer<JobHandle, N> m_buffer;
 #else
-			containers::sarray<JobHandle, N> m_buffer;
+			cnt::sarray<JobHandle, N> m_buffer;
 			std::atomic_uint32_t m_bottom{};
 			std::atomic_uint32_t m_top{};
 #endif
@@ -13027,7 +13019,7 @@ namespace gaia {
 			//! ID of the main thread
 			std::thread::id m_mainThreadId;
 			//! List of worker threads
-			containers::sarr_ext<std::thread, MaxWorkers> m_workers;
+			cnt::sarr_ext<std::thread, MaxWorkers> m_workers;
 			//! Manager for internal jobs
 			JobManager m_jobManager;
 			//! List of pending user jobs
@@ -13447,8 +13439,8 @@ namespace gaia {
 			inline const char* const ComponentTypeString[component::ComponentType::CT_Count] = {"Generic", "Chunk"};
 
 			using ComponentId = uint32_t;
-			using ComponentLookupHash = utils::direct_hash_key<uint64_t>;
-			using ComponentMatcherHash = utils::direct_hash_key<uint64_t>;
+			using ComponentLookupHash = core::direct_hash_key<uint64_t>;
+			using ComponentMatcherHash = core::direct_hash_key<uint64_t>;
 			using ComponentIdSpan = std::span<const ComponentId>;
 
 			static constexpr ComponentId ComponentIdBad = (ComponentId)-1;
@@ -13491,7 +13483,7 @@ namespace gaia {
 				struct is_component_type_valid:
 						std::bool_constant<
 								// SoA types need to be trivial. No restrictions otherwise.
-								(!utils::is_soa_layout_v<T> || std::is_trivially_copyable_v<T>)> {};
+								(!mem::is_soa_layout_v<T> || std::is_trivially_copyable_v<T>)> {};
 
 				template <typename T, typename = void>
 				struct component_type {
@@ -13524,7 +13516,7 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD inline ComponentId GetComponentId() {
 				using U = typename component_type_t<T>::Type;
-				return utils::type_info::id<U>();
+				return meta::type_info::id<U>();
 			}
 
 			template <typename T>
@@ -13553,7 +13545,7 @@ namespace gaia {
 			namespace detail {
 				template <typename T>
 				constexpr uint64_t CalculateMatcherHash() noexcept {
-					return (uint64_t(1) << (utils::type_info::hash<T>() % uint64_t(63)));
+					return (uint64_t(1) << (meta::type_info::hash<T>() % uint64_t(63)));
 				}
 			} // namespace detail
 
@@ -13565,7 +13557,7 @@ namespace gaia {
 				if constexpr (sizeof...(Rest) == 0)
 					return {detail::CalculateMatcherHash<T>()};
 				else
-					return {utils::combine_or(detail::CalculateMatcherHash<T>(), detail::CalculateMatcherHash<Rest>()...)};
+					return {core::combine_or(detail::CalculateMatcherHash<T>(), detail::CalculateMatcherHash<Rest>()...)};
 			}
 
 			template <>
@@ -13582,8 +13574,8 @@ namespace gaia {
 					return {0};
 				} else {
 					ComponentLookupHash::Type hash = arr[0];
-					utils::for_each<arrSize - 1>([&hash, &arr](auto i) {
-						hash = utils::hash_combine(hash, arr[i + 1]);
+					core::for_each<arrSize - 1>([&hash, &arr](auto i) {
+						hash = core::hash_combine(hash, arr[i + 1]);
 					});
 					return {hash};
 				}
@@ -13595,9 +13587,9 @@ namespace gaia {
 			template <typename T, typename... Rest>
 			GAIA_NODISCARD constexpr ComponentLookupHash CalculateLookupHash() noexcept {
 				if constexpr (sizeof...(Rest) == 0)
-					return {utils::type_info::hash<T>()};
+					return {meta::type_info::hash<T>()};
 				else
-					return {utils::hash_combine(utils::type_info::hash<T>(), utils::type_info::hash<Rest>()...)};
+					return {core::hash_combine(meta::type_info::hash<T>(), meta::type_info::hash<Rest>()...)};
 			}
 
 			template <>
@@ -13625,11 +13617,11 @@ namespace gaia {
 			class Archetype;
 
 			using ArchetypeId = uint32_t;
-			using ArchetypeList = containers::darray<Archetype*>;
-			using ComponentIdArray = containers::sarray_ext<component::ComponentId, MAX_COMPONENTS_PER_ARCHETYPE>;
+			using ArchetypeList = cnt::darray<Archetype*>;
+			using ComponentIdArray = cnt::sarray_ext<component::ComponentId, MAX_COMPONENTS_PER_ARCHETYPE>;
 			using ChunkVersionOffset = uint8_t;
 			using ChunkComponentOffset = uint16_t;
-			using ComponentOffsetArray = containers::sarray_ext<ChunkComponentOffset, MAX_COMPONENTS_PER_ARCHETYPE>;
+			using ComponentOffsetArray = cnt::sarray_ext<ChunkComponentOffset, MAX_COMPONENTS_PER_ARCHETYPE>;
 
 			static constexpr ArchetypeId ArchetypeIdBad = (ArchetypeId)-1;
 
@@ -13720,10 +13712,10 @@ namespace gaia {
 
 				GAIA_NODISCARD uint32_t CalculateNewMemoryOffset(uint32_t addr, size_t N) const noexcept {
 					if (properties.soa == 0) {
-						addr = (uint32_t)utils::detail::get_aligned_byte_offset(addr, properties.alig, properties.size, N);
+						addr = (uint32_t)mem::detail::get_aligned_byte_offset(addr, properties.alig, properties.size, N);
 					} else {
 						for (uint32_t i = 0; i < (uint32_t)properties.soa; ++i)
-							addr = (uint32_t)utils::detail::get_aligned_byte_offset(addr, properties.alig, soaSizes[i], N);
+							addr = (uint32_t)mem::detail::get_aligned_byte_offset(addr, properties.alig, soaSizes[i], N);
 					}
 					return addr;
 				}
@@ -13733,19 +13725,19 @@ namespace gaia {
 					using U = typename component_type_t<T>::Type;
 
 					ComponentDesc info{};
-					info.name = utils::type_info::name<U>();
+					info.name = meta::type_info::name<U>();
 					info.componentId = GetComponentId<T>();
 
 					if constexpr (!std::is_empty_v<U>) {
 						info.properties.size = (uint32_t)sizeof(U);
 
 						static_assert(MaxAlignment_Bits, "Maximum supported alignemnt for a component is MaxAlignment");
-						info.properties.alig = (uint32_t)utils::auto_view_policy<U>::Alignment;
+						info.properties.alig = (uint32_t)mem::auto_view_policy<U>::Alignment;
 
-						if constexpr (utils::is_soa_layout_v<U>) {
+						if constexpr (mem::is_soa_layout_v<U>) {
 							uint32_t i = 0;
 							using TTuple = decltype(meta::struct_to_tuple(U{}));
-							utils::for_each_tuple(TTuple{}, [&](auto&& item) {
+							core::for_each_tuple(TTuple{}, [&](auto&& item) {
 								static_assert(sizeof(item) <= 255, "Each member of a SoA component can be at most 255 B long!");
 								info.soaSizes[i] = (uint8_t)sizeof(item);
 								++i;
@@ -13758,14 +13750,14 @@ namespace gaia {
 							// Custom construction
 							if constexpr (!std::is_trivially_constructible_v<U>) {
 								info.ctor = [](void* ptr, uint32_t cnt) {
-									utils::call_ctor((U*)ptr, cnt);
+									core::call_ctor((U*)ptr, cnt);
 								};
 							}
 
 							// Custom destruction
 							if constexpr (!std::is_trivially_destructible_v<U>) {
 								info.dtor = [](void* ptr, uint32_t cnt) {
-									utils::call_dtor((U*)ptr, cnt);
+									core::call_dtor((U*)ptr, cnt);
 								};
 							}
 
@@ -13868,7 +13860,7 @@ namespace gaia {
 					using U = typename component_type_t<T>::Type;
 
 					ComponentInfo info{};
-					info.lookupHash = {utils::type_info::hash<U>()};
+					info.lookupHash = {meta::type_info::hash<U>()};
 					info.matcherHash = CalculateMatcherHash<U>();
 					info.componentId = GetComponentId<T>();
 
@@ -13888,8 +13880,8 @@ namespace gaia {
 namespace gaia {
 	namespace ecs {
 		class ComponentCache {
-			containers::darray<const component::ComponentInfo*> m_infoByIndex;
-			containers::darray<component::ComponentDesc> m_descByIndex;
+			cnt::darray<const component::ComponentInfo*> m_infoByIndex;
+			cnt::darray<component::ComponentDesc> m_descByIndex;
 
 			ComponentCache() {
 				// Reserve enough storage space for most use-cases
@@ -14011,9 +14003,9 @@ namespace gaia {
 				};
 
 				//! Map of edges in the archetype graph when adding components
-				containers::map<component::ComponentId, ArchetypeGraphEdge> m_edgesAdd[component::ComponentType::CT_Count];
+				cnt::map<component::ComponentId, ArchetypeGraphEdge> m_edgesAdd[component::ComponentType::CT_Count];
 				//! Map of edges in the archetype graph when removing components
-				containers::map<component::ComponentId, ArchetypeGraphEdge> m_edgesDel[component::ComponentType::CT_Count];
+				cnt::map<component::ComponentId, ArchetypeGraphEdge> m_edgesDel[component::ComponentType::CT_Count];
 
 			public:
 				//! Creates an edge in the graph leading to the target archetype \param archetypeId via component \param
@@ -14134,7 +14126,7 @@ namespace gaia {
 #include <cstdint>
 
 namespace gaia {
-	namespace utils {
+	namespace core {
 		//! Gaia-ECS is a header-only library which means we want to avoid using global
 		//! static variables because they would get copied to each translation units.
 		//! At the same time the goal is for users to not see any memory allocation used
@@ -14171,7 +14163,7 @@ namespace gaia {
 				get().Done();
 			}
 		};
-	} // namespace utils
+	} // namespace core
 } // namespace gaia
 
 #include <cinttypes>
@@ -14223,7 +14215,7 @@ namespace gaia {
 		namespace detail {
 			class ChunkAllocatorImpl;
 		}
-		using ChunkAllocator = utils::dyn_singleton<detail::ChunkAllocatorImpl>;
+		using ChunkAllocator = core::dyn_singleton<detail::ChunkAllocatorImpl>;
 
 		namespace detail {
 
@@ -14235,11 +14227,11 @@ namespace gaia {
 
 				struct MemoryPage {
 					static constexpr uint16_t NBlocks = 62;
-					static constexpr uint16_t NBlocks_Bits = (uint16_t)utils::count_bits(NBlocks);
+					static constexpr uint16_t NBlocks_Bits = (uint16_t)core::count_bits(NBlocks);
 					static constexpr uint32_t InvalidBlockId = NBlocks + 1;
 					static constexpr uint32_t BlockArrayBytes = ((uint32_t)NBlocks_Bits * (uint32_t)NBlocks + 7) / 8;
-					using BlockArray = containers::sarray<uint8_t, BlockArrayBytes>;
-					using BitView = utils::bit_view<NBlocks_Bits>;
+					using BlockArray = cnt::sarray<uint8_t, BlockArrayBytes>;
+					using BitView = core::bit_view<NBlocks_Bits>;
 
 					//! Pointer to data managed by page
 					void* m_data;
@@ -14287,7 +14279,7 @@ namespace gaia {
 							// Encode info about chunk's page in the memory block.
 							// The actual pointer returned is offset by UsableOffset bytes
 							uint8_t* pMemoryBlock = (uint8_t*)m_data + index * GetMemoryBlockSize(m_sizeType);
-							*utils::unaligned_pointer<uintptr_t>{pMemoryBlock} = (uintptr_t)this;
+							*mem::unaligned_pointer<uintptr_t>{pMemoryBlock} = (uintptr_t)this;
 							return (void*)(pMemoryBlock + MemoryBlockUsableOffset);
 						};
 
@@ -14303,7 +14295,7 @@ namespace gaia {
 							return StoreChunkAddress(index);
 						}
 
-						GAIA_ASSERT(m_nextFreeBlock < m_blockCnt && "Block allocator recycle containers::list broken!");
+						GAIA_ASSERT(m_nextFreeBlock < m_blockCnt && "Block allocator recycle cnt::list broken!");
 
 						++m_usedBlocks;
 						--m_freeBlocks;
@@ -14323,7 +14315,7 @@ namespace gaia {
 						const auto dataAddr = (uintptr_t)m_data;
 						const auto blockIdx = (uint32_t)((blckAddr - dataAddr) / GetMemoryBlockSize(m_sizeType));
 
-						// Update our implicit containers::list
+						// Update our implicit cnt::list
 						if (m_freeBlocks == 0U) {
 							WriteBlockIdx(blockIdx, InvalidBlockId);
 							m_nextFreeBlock = blockIdx;
@@ -14352,9 +14344,9 @@ namespace gaia {
 				struct MemoryPageContainer {
 					//! List of available pages
 					//! Note, this currently only contains at most 1 item
-					containers::darray<MemoryPage*> pagesFree;
+					cnt::darray<MemoryPage*> pagesFree;
 					//! List of full pages
-					containers::darray<MemoryPage*> pagesFull;
+					cnt::darray<MemoryPage*> pagesFull;
 				};
 
 				//! Container for pages storing various-sized chunks
@@ -14405,7 +14397,7 @@ namespace gaia {
 						// Handle full pages
 						if (pPage->IsFull()) {
 							// Remove the page from the open list and update the swapped page's pointer
-							utils::erase_fast(container.pagesFree, 0);
+							core::erase_fast(container.pagesFree, 0);
 							if (!container.pagesFree.empty())
 								container.pagesFree[0]->m_pageIdx = 0;
 
@@ -14432,20 +14424,20 @@ namespace gaia {
 #if GAIA_DEBUG
 						if (pageFull) {
 							[[maybe_unused]] auto it =
-									utils::find_if(container.pagesFull.begin(), container.pagesFull.end(), [&](auto page) {
+									core::find_if(container.pagesFull.begin(), container.pagesFull.end(), [&](auto page) {
 										return page == pPage;
 									});
 							GAIA_ASSERT(
 									it != container.pagesFull.end() && "ChunkAllocator delete couldn't find the memory page expected "
-																										 "in the full pages containers::list");
+																										 "in the full pages cnt::list");
 						} else {
 							[[maybe_unused]] auto it =
-									utils::find_if(container.pagesFree.begin(), container.pagesFree.end(), [&](auto page) {
+									core::find_if(container.pagesFree.begin(), container.pagesFree.end(), [&](auto page) {
 										return page == pPage;
 									});
 							GAIA_ASSERT(
 									it != container.pagesFree.end() && "ChunkAllocator delete couldn't find memory page expected in "
-																										 "the free pages containers::list");
+																										 "the free pages cnt::list");
 						}
 #endif
 
@@ -14453,7 +14445,7 @@ namespace gaia {
 						if (pageFull) {
 							// Our page is no longer full. Remove it from the list and update the swapped page's pointer
 							container.pagesFull.back()->m_pageIdx = pPage->m_pageIdx;
-							utils::erase_fast(container.pagesFull, pPage->m_pageIdx);
+							core::erase_fast(container.pagesFull, pPage->m_pageIdx);
 
 							// Move our page to the open list
 							pPage->m_pageIdx = (uint32_t)container.pagesFree.size();
@@ -14468,7 +14460,7 @@ namespace gaia {
 							if (pPage->IsEmpty()) {
 								GAIA_ASSERT(!container.pagesFree.empty());
 								container.pagesFree.back()->m_pageIdx = pPage->m_pageIdx;
-								utils::erase_fast(container.pagesFree, pPage->m_pageIdx);
+								core::erase_fast(container.pagesFree, pPage->m_pageIdx);
 							}
 
 							// When there is nothing left, delete the allocator
@@ -14504,7 +14496,7 @@ namespace gaia {
 								continue;
 							}
 
-							utils::erase_fast(container.pagesFree, i);
+							core::erase_fast(container.pagesFree, i);
 							FreePage(pPage);
 							if (!container.pagesFree.empty())
 								container.pagesFree[i]->m_pageIdx = (uint32_t)i;
@@ -14537,12 +14529,12 @@ namespace gaia {
 			private:
 				static MemoryPage* AllocPage(uint8_t sizeType) {
 					const auto size = GetMemoryBlockSize(sizeType) * MemoryPage::NBlocks;
-					auto* pPageData = utils::mem_alloc_alig(size, 16);
+					auto* pPageData = mem::mem_alloc_alig(size, 16);
 					return new MemoryPage(pPageData, sizeType);
 				}
 
 				static void FreePage(MemoryPage* page) {
-					utils::mem_free_alig(page->m_data);
+					mem::mem_free_alig(page->m_data);
 					delete page;
 				}
 
@@ -14592,8 +14584,8 @@ namespace gaia {
 
 				//! Maxiumum number of entities per chunk
 				static constexpr uint16_t MAX_CHUNK_ENTITIES = 512;
-				static constexpr uint16_t MAX_CHUNK_ENTITIES_BITS = (uint16_t)utils::count_bits(MAX_CHUNK_ENTITIES);
-				using DisabledEntityMask = containers::bitset<MAX_CHUNK_ENTITIES>;
+				static constexpr uint16_t MAX_CHUNK_ENTITIES_BITS = (uint16_t)core::count_bits(MAX_CHUNK_ENTITIES);
+				using DisabledEntityMask = cnt::bitset<MAX_CHUNK_ENTITIES>;
 
 				//! Archetype the chunk belongs to
 				ArchetypeId archetypeId;
@@ -14655,7 +14647,7 @@ namespace gaia {
 			inline void CalculateMatcherHash(ComponentMatcherHash& matcherHash, component::ComponentId componentId) noexcept {
 				const auto& cc = ComponentCache::Get();
 				const auto componentHash = cc.GetComponentInfo(componentId).matcherHash.hash;
-				matcherHash.hash = utils::combine_or(matcherHash.hash, componentHash);
+				matcherHash.hash = core::combine_or(matcherHash.hash, componentHash);
 			}
 
 			//! Calculates a component matcher hash from the provided component ids
@@ -14669,7 +14661,7 @@ namespace gaia {
 				const auto& cc = ComponentCache::Get();
 				ComponentMatcherHash::Type hash = cc.GetComponentInfo(componentIds[0]).matcherHash.hash;
 				for (uint32_t i = 1; i < infosSize; ++i)
-					hash = utils::combine_or(hash, cc.GetComponentInfo(componentIds[i]).matcherHash.hash);
+					hash = core::combine_or(hash, cc.GetComponentInfo(componentIds[i]).matcherHash.hash);
 				return {hash};
 			}
 
@@ -14684,16 +14676,16 @@ namespace gaia {
 				const auto& cc = ComponentCache::Get();
 				ComponentLookupHash::Type hash = cc.GetComponentInfo(componentIds[0]).lookupHash.hash;
 				for (uint32_t i = 1; i < infosSize; ++i)
-					hash = utils::hash_combine(hash, cc.GetComponentInfo(componentIds[i]).lookupHash.hash);
+					hash = core::hash_combine(hash, cc.GetComponentInfo(componentIds[i]).lookupHash.hash);
 				return {hash};
 			}
 
-			using SortComponentCond = utils::is_smaller<ComponentId>;
+			using SortComponentCond = core::is_smaller<ComponentId>;
 
 			//! Sorts component ids
 			template <typename Container>
 			inline void SortComponents(Container& c) noexcept {
-				utils::sort(c, SortComponentCond{});
+				core::sort(c, SortComponentCond{});
 			}
 		} // namespace component
 	} // namespace ecs
@@ -14799,7 +14791,7 @@ namespace gaia {
 			class Chunk;
 		}
 
-		struct EntityContainer: containers::ilist_item_base {
+		struct EntityContainer: cnt::ilist_item_base {
 			//! Allocated items: Index in the list.
 			//! Deleted items: Index of the next deleted item in the list.
 			uint32_t idx;
@@ -14852,7 +14844,7 @@ namespace gaia {
 					// const uint32_t sizeBytes = ...;
 					// auto* curr = (uint8_t*)&m_data[0] + 1;
 					// for (uint32_t i = 0; i < sizeBytes; ++i, (void)++curr) {
-					// 	const auto* addr = utils::addressof(*curr);
+					// 	const auto* addr = mem::addressof(*curr);
 					// 	(void)new (const_cast<void*>(static_cast<const volatile void*>(addr))) uint8_t;
 					// }
 				}
@@ -14860,8 +14852,8 @@ namespace gaia {
 				GAIA_MSVC_WARNING_POP()
 
 				void Init(
-						const containers::sarray<ComponentIdArray, component::ComponentType::CT_Count>& componentIds,
-						const containers::sarray<ComponentOffsetArray, component::ComponentType::CT_Count>& componentOffsets) {
+						const cnt::sarray<ComponentIdArray, component::ComponentType::CT_Count>& componentIds,
+						const cnt::sarray<ComponentOffsetArray, component::ComponentType::CT_Count>& componentOffsets) {
 					m_header.componentCount[component::ComponentType::CT_Generic] =
 							(uint8_t)componentIds[component::ComponentType::CT_Generic].size();
 					m_header.componentCount[component::ComponentType::CT_Chunk] =
@@ -14887,7 +14879,7 @@ namespace gaia {
 						for (uint32_t i = 0; i < component::ComponentType::CT_Count; ++i) {
 							auto offset = m_header.offsets.firstByte_ComponentIds[i];
 							for (const auto componentId: componentIds[i]) {
-								utils::unaligned_ref<component::ComponentId>{(void*)&m_data[offset]} = componentId;
+								mem::unaligned_ref<component::ComponentId>{(void*)&m_data[offset]} = componentId;
 								offset += sizeof(component::ComponentId);
 							}
 						}
@@ -14898,7 +14890,7 @@ namespace gaia {
 						for (uint32_t i = 0; i < component::ComponentType::CT_Count; ++i) {
 							auto offset = m_header.offsets.firstByte_ComponentOffsets[i];
 							for (const auto componentOffset: componentOffsets[i]) {
-								utils::unaligned_ref<archetype::ChunkComponentOffset>{(void*)&m_data[offset]} = componentOffset;
+								mem::unaligned_ref<archetype::ChunkComponentOffset>{(void*)&m_data[offset]} = componentOffset;
 								offset += sizeof(archetype::ChunkComponentOffset);
 							}
 						}
@@ -15048,8 +15040,8 @@ namespace gaia {
 				static Chunk* Create(
 						uint32_t archetypeId, uint16_t chunkIndex, uint16_t capacity, uint16_t dataBytes, uint32_t& worldVersion,
 						const ChunkHeaderOffsets& offsets,
-						const containers::sarray<ComponentIdArray, component::ComponentType::CT_Count>& componentIds,
-						const containers::sarray<ComponentOffsetArray, component::ComponentType::CT_Count>& componentOffsets) {
+						const cnt::sarray<ComponentIdArray, component::ComponentType::CT_Count>& componentIds,
+						const cnt::sarray<ComponentOffsetArray, component::ComponentType::CT_Count>& componentOffsets) {
 					const auto totalBytes = GetTotalChunkSize(dataBytes);
 					const auto sizeType = detail::ChunkAllocatorImpl::GetMemoryBlockSizeType(totalBytes);
 #if GAIA_ECS_CHUNK_ALLOCATOR
@@ -15094,7 +15086,7 @@ namespace gaia {
 				Remove the last entity from chunk.
 				\param chunksToRemove Container of chunks ready for removal
 				*/
-				void RemoveLastEntity(containers::darray<archetype::Chunk*>& chunksToRemove) {
+				void RemoveLastEntity(cnt::darray<archetype::Chunk*>& chunksToRemove) {
 					GAIA_ASSERT(
 							!IsStructuralChangesLocked() && "Entities can't be removed while their chunk is being iterated "
 																							"(structural changes are forbidden during this time!)");
@@ -15137,7 +15129,7 @@ namespace gaia {
 				GAIA_NODISCARD auto View() const {
 					using U = typename component::component_type_t<T>::Type;
 
-					return utils::auto_view_policy_get<U>{View_Internal<T>()};
+					return mem::auto_view_policy_get<U>{View_Internal<T>()};
 				}
 
 				/*!
@@ -15151,7 +15143,7 @@ namespace gaia {
 					using U = typename component::component_type_t<T>::Type;
 					static_assert(!std::is_same_v<U, Entity>);
 
-					return utils::auto_view_policy_set<U>{ViewRW_Internal<T, true>()};
+					return mem::auto_view_policy_set<U>{ViewRW_Internal<T, true>()};
 				}
 
 				/*!
@@ -15166,7 +15158,7 @@ namespace gaia {
 					using U = typename component::component_type_t<T>::Type;
 					static_assert(!std::is_same_v<U, Entity>);
 
-					return utils::auto_view_policy_set<U>{ViewRW_Internal<T, false>()};
+					return mem::auto_view_policy_set<U>{ViewRW_Internal<T, false>()};
 				}
 
 				/*!
@@ -15361,7 +15353,7 @@ namespace gaia {
 					GAIA_ASSERT(index < m_header.count && "Entity chunk index out of bounds!");
 
 					const auto offset = sizeof(Entity) * index + m_header.offsets.firstByte_EntityData;
-					utils::unaligned_ref<Entity> mem((void*)&m_data[offset]);
+					mem::unaligned_ref<Entity> mem((void*)&m_data[offset]);
 					mem = entity;
 				}
 
@@ -15374,7 +15366,7 @@ namespace gaia {
 					GAIA_ASSERT(index < m_header.count && "Entity chunk index out of bounds!");
 
 					const auto offset = sizeof(Entity) * index + m_header.offsets.firstByte_EntityData;
-					utils::unaligned_ref<Entity> mem((void*)&m_data[offset]);
+					mem::unaligned_ref<Entity> mem((void*)&m_data[offset]);
 					return mem;
 				}
 
@@ -15431,7 +15423,7 @@ namespace gaia {
 					const auto componentIds = GetComponentIdSpan(componentType);
 					const auto componentOffsets = GetComponentOffsetSpan(componentType);
 
-					componentIdx = (uint32_t)utils::get_index_unsafe(componentIds, componentId);
+					componentIdx = (uint32_t)core::get_index_unsafe(componentIds, componentId);
 					const auto offset = componentOffsets[componentIdx];
 					GAIA_ASSERT(offset >= m_header.offsets.firstByte_EntityData);
 					return offset;
@@ -15485,7 +15477,7 @@ namespace gaia {
 					const auto componentIds = GetComponentIdSpan(componentType);
 					const auto componentOffsets = GetComponentOffsetSpan(componentType);
 
-					const auto idx = utils::get_index_unsafe(componentIds, componentId);
+					const auto idx = core::get_index_unsafe(componentIds, componentId);
 					const auto offset = componentOffsets[idx];
 					const auto idxSrc = offset + entityIndex * desc.properties.size;
 					GAIA_ASSERT(idxSrc < GetByteSize());
@@ -15562,7 +15554,7 @@ namespace gaia {
 				*/
 				GAIA_NODISCARD bool Has(component::ComponentType componentType, component::ComponentId componentId) const {
 					const auto componentIds = GetComponentIdSpan(componentType);
-					return utils::has(componentIds, componentId);
+					return core::has(componentIds, componentId);
 				}
 
 				/*!
@@ -15736,7 +15728,7 @@ namespace gaia {
 				GAIA_NODISCARD uint32_t
 				GetComponentIdx(component::ComponentType componentType, component::ComponentId componentId) const {
 					const auto componentIds = GetComponentIdSpan(componentType);
-					const auto idx = utils::get_index_unsafe(componentIds, componentId);
+					const auto idx = core::get_index_unsafe(componentIds, componentId);
 					GAIA_ASSERT(idx != BadIndex);
 					return (uint32_t)idx;
 				}
@@ -15759,7 +15751,7 @@ namespace gaia {
 				}
 
 				template <typename... T, typename Func>
-				GAIA_FORCEINLINE void ForEach([[maybe_unused]] utils::func_type_list<T...> types, Func func) {
+				GAIA_FORCEINLINE void ForEach([[maybe_unused]] core::func_type_list<T...> types, Func func) {
 					const uint32_t size = GetEntityCount();
 					GAIA_ASSERT(size > 0);
 
@@ -15985,9 +15977,9 @@ namespace gaia {
 
 			class Archetype final: public ArchetypeBase {
 			public:
-				using LookupHash = utils::direct_hash_key<uint64_t>;
-				using GenericComponentHash = utils::direct_hash_key<uint64_t>;
-				using ChunkComponentHash = utils::direct_hash_key<uint64_t>;
+				using LookupHash = core::direct_hash_key<uint64_t>;
+				using GenericComponentHash = core::direct_hash_key<uint64_t>;
+				using ChunkComponentHash = core::direct_hash_key<uint64_t>;
 
 			private:
 				struct {
@@ -16001,18 +15993,18 @@ namespace gaia {
 				uint32_t& m_worldVersion;
 
 				//! List of chunks allocated by this archetype
-				containers::darray<Chunk*> m_chunks;
+				cnt::darray<Chunk*> m_chunks;
 				//! Mask of chunks with disabled entities
-				// containers::dbitset m_disabledMask;
+				// cnt::dbitset m_disabledMask;
 				//! Graph of archetypes linked with this one
 				ArchetypeGraph m_graph;
 
 				//! Offsets to various parts of data inside chunk
 				ChunkHeaderOffsets m_dataOffsets;
 				//! List of component indices
-				containers::sarray<ComponentIdArray, component::ComponentType::CT_Count> m_componentIds;
+				cnt::sarray<ComponentIdArray, component::ComponentType::CT_Count> m_componentIds;
 				//! List of components offset indices
-				containers::sarray<ComponentOffsetArray, component::ComponentType::CT_Count> m_componentOffsets;
+				cnt::sarray<ComponentOffsetArray, component::ComponentType::CT_Count> m_componentOffsets;
 
 				//! Hash of generic components
 				GenericComponentHash m_genericHash = {0};
@@ -16033,7 +16025,7 @@ namespace gaia {
 					// We expect versions to fit in the first 256 bytes.
 					// With 64 components per archetype (32 generic + 32 chunk) this gives us some headroom.
 					{
-						const auto padding = utils::padding<alignof(uint32_t)>(memoryAddress);
+						const auto padding = mem::padding<alignof(uint32_t)>(memoryAddress);
 						offset += padding;
 
 						if (!m_componentIds[component::ComponentType::CT_Generic].empty()) {
@@ -16050,7 +16042,7 @@ namespace gaia {
 
 					// Component ids
 					{
-						const auto padding = utils::padding<alignof(component::ComponentId)>(offset);
+						const auto padding = mem::padding<alignof(component::ComponentId)>(offset);
 						offset += padding;
 
 						if (!m_componentIds[component::ComponentType::CT_Generic].empty()) {
@@ -16065,7 +16057,7 @@ namespace gaia {
 
 					// Component offsets
 					{
-						const auto padding = utils::padding<alignof(ChunkComponentOffset)>(offset);
+						const auto padding = mem::padding<alignof(ChunkComponentOffset)>(offset);
 						offset += padding;
 
 						if (!m_componentIds[component::ComponentType::CT_Generic].empty()) {
@@ -16082,7 +16074,7 @@ namespace gaia {
 
 					// First entity offset
 					{
-						const auto padding = utils::padding<alignof(Entity)>(offset);
+						const auto padding = mem::padding<alignof(Entity)>(offset);
 						offset += padding;
 						m_dataOffsets.firstByte_EntityData = (ChunkComponentOffset)offset;
 					}
@@ -16156,7 +16148,7 @@ namespace gaia {
 				}
 #endif
 
-				GAIA_NODISCARD Chunk* FindOrCreateFreeChunk_Internal(containers::darray<Chunk*>& chunkArray) const {
+				GAIA_NODISCARD Chunk* FindOrCreateFreeChunk_Internal(cnt::darray<Chunk*>& chunkArray) const {
 					const auto chunkCnt = chunkArray.size();
 
 					if (chunkCnt > 0) {
@@ -16205,7 +16197,7 @@ namespace gaia {
 				GAIA_NODISCARD bool
 				HasComponent_Internal(component::ComponentType componentType, component::ComponentId componentId) const {
 					const auto& componentIds = GetComponentIdArray(componentType);
-					return utils::has(componentIds, componentId);
+					return core::has(componentIds, componentId);
 				}
 
 				/*!
@@ -16293,7 +16285,7 @@ namespace gaia {
 
 				GAIA_NODISCARD static LookupHash
 				CalculateLookupHash(GenericComponentHash genericHash, ChunkComponentHash chunkHash) noexcept {
-					return {utils::hash_combine(genericHash.hash, chunkHash.hash)};
+					return {core::hash_combine(genericHash.hash, chunkHash.hash)};
 				}
 
 				GAIA_NODISCARD static Archetype* Create(
@@ -16392,7 +16384,7 @@ namespace gaia {
 								ids[i] = componentId;
 								ofs[i] = {};
 							} else {
-								const auto padding = utils::padding(currentOffset, alignment);
+								const auto padding = mem::padding(currentOffset, alignment);
 								currentOffset += padding;
 
 								// Register the component info
@@ -16456,8 +16448,8 @@ namespace gaia {
 					auto remove = [&](auto& chunkArray) {
 						if (chunkArray.size() > 1)
 							chunkArray.back()->SetChunkIndex(chunkIndex);
-						GAIA_ASSERT(chunkIndex == utils::get_index(chunkArray, pChunk));
-						utils::erase_fast(chunkArray, chunkIndex);
+						GAIA_ASSERT(chunkIndex == core::get_index(chunkArray, pChunk));
+						core::erase_fast(chunkArray, chunkIndex);
 					};
 
 					remove(m_chunks);
@@ -16479,8 +16471,8 @@ namespace gaia {
 				//! \param maxEntites Maximum number of entities moved per call
 				//! \param chunksToRemove Container of chunks ready for removal
 				//! \param entities Container with entities
-				void Defragment(
-						uint32_t& maxEntities, containers::darray<Chunk*>& chunksToRemove, std::span<EntityContainer> entities) {
+				void
+				Defragment(uint32_t& maxEntities, cnt::darray<Chunk*>& chunksToRemove, std::span<EntityContainer> entities) {
 					// Assuming the following chunk layout:
 					//   Chunk_1: 10/10
 					//   Chunk_2:  1/10
@@ -16561,7 +16553,7 @@ namespace gaia {
 					return m_properties.capacity;
 				}
 
-				GAIA_NODISCARD const containers::darray<Chunk*>& GetChunks() const {
+				GAIA_NODISCARD const cnt::darray<Chunk*>& GetChunks() const {
 					return m_chunks;
 				}
 
@@ -16606,7 +16598,7 @@ namespace gaia {
 				*/
 				GAIA_NODISCARD uint32_t
 				GetComponentIdx(component::ComponentType componentType, component::ComponentId componentId) const {
-					const auto idx = utils::get_index_unsafe(m_componentIds[componentType], componentId);
+					const auto idx = core::get_index_unsafe(m_componentIds[componentType], componentId);
 					GAIA_ASSERT(idx != BadIndex);
 					return (uint32_t)idx;
 				}
@@ -16968,7 +16960,7 @@ namespace gaia {
 			// Increase the capacity by multiples of CapacityIncreaseSize
 			static constexpr uint32_t CapacityIncreaseSize = 128U;
 			// TODO: Replace with some memory allocator
-			using DataContainer = containers::darray_ext<uint8_t, CapacityIncreaseSize>;
+			using DataContainer = cnt::darray_ext<uint8_t, CapacityIncreaseSize>;
 
 			//! Buffer holding raw data
 			DataContainer m_data;
@@ -17016,7 +17008,7 @@ namespace gaia {
 				EnsureCapacity(sizeof(T));
 
 				m_data.resize(m_dataPos + sizeof(T));
-				utils::unaligned_ref<T> mem(&m_data[m_dataPos]);
+				mem::unaligned_ref<T> mem(&m_data[m_dataPos]);
 				mem = std::forward<T>(value);
 
 				m_dataPos += sizeof(T);
@@ -17078,7 +17070,7 @@ namespace gaia {
 			void Load(T& value) {
 				GAIA_ASSERT(m_dataPos + sizeof(T) <= m_data.size());
 
-				value = utils::unaligned_ref<T>((void*)&m_data[m_dataPos]);
+				value = mem::unaligned_ref<T>((void*)&m_data[m_dataPos]);
 
 				m_dataPos += sizeof(T);
 			}
@@ -17173,7 +17165,7 @@ namespace gaia {
 		private:
 			using Mask = detail::ChunkAccessorMask;
 
-			containers::sarr_ext<uint16_t, Mask::BitCount> m_indices;
+			cnt::sarr_ext<uint16_t, Mask::BitCount> m_indices;
 
 		public:
 			IteratorDisabled(archetype::Chunk& chunk): detail::ChunkAccessor(chunk) {
@@ -17210,7 +17202,7 @@ namespace gaia {
 		private:
 			using Mask = detail::ChunkAccessorMask;
 
-			containers::sarr_ext<uint16_t, Mask::BitCount> m_indices;
+			cnt::sarr_ext<uint16_t, Mask::BitCount> m_indices;
 
 		public:
 			IteratorEnabled(archetype::Chunk& chunk): detail::ChunkAccessor(chunk) {
@@ -17260,10 +17252,10 @@ namespace gaia {
 			};
 
 			using QueryId = uint32_t;
-			using LookupHash = utils::direct_hash_key<uint64_t>;
-			using ComponentIdArray = containers::sarray_ext<component::ComponentId, MAX_COMPONENTS_IN_QUERY>;
-			using ListTypeArray = containers::sarray_ext<ListType, MAX_COMPONENTS_IN_QUERY>;
-			using ChangeFilterArray = containers::sarray_ext<component::ComponentId, MAX_COMPONENTS_IN_QUERY>;
+			using LookupHash = core::direct_hash_key<uint64_t>;
+			using ComponentIdArray = cnt::sarray_ext<component::ComponentId, MAX_COMPONENTS_IN_QUERY>;
+			using ListTypeArray = cnt::sarray_ext<ListType, MAX_COMPONENTS_IN_QUERY>;
+			using ChangeFilterArray = cnt::sarray_ext<component::ComponentId, MAX_COMPONENTS_IN_QUERY>;
 
 			static constexpr QueryId QueryIdBad = (QueryId)-1;
 
@@ -17281,7 +17273,7 @@ namespace gaia {
 					//! List of component matcher hashes
 					component::ComponentMatcherHash hash[ListType::LT_Count];
 					//! Array of indiices to the last checked archetype in the component-to-archetype map
-					containers::darray<uint32_t> lastMatchedArchetypeIndex;
+					cnt::darray<uint32_t> lastMatchedArchetypeIndex;
 					//! List of filtered components
 					ChangeFilterArray withChanged;
 					//! Read-write mask. Bit 0 stands for component 0 in component arrays.
@@ -17353,9 +17345,9 @@ namespace gaia {
 				for (uint32_t i = 0; i < component::ComponentType::CT_Count; ++i) {
 					auto& data = ctx.data[i];
 					// Make sure the read-write mask remains correct after sorting
-					utils::sort(data.componentIds, component::SortComponentCond{}, [&](uint32_t left, uint32_t right) {
-						utils::swap(data.componentIds[left], data.componentIds[right]);
-						utils::swap(data.rules[left], data.rules[right]);
+					core::sort(data.componentIds, component::SortComponentCond{}, [&](uint32_t left, uint32_t right) {
+						core::swap(data.componentIds[left], data.componentIds[right]);
+						core::swap(data.rules[left], data.rules[right]);
 
 						{
 							// Swap the bits in the read-write mask
@@ -17398,11 +17390,11 @@ namespace gaia {
 
 						const auto& componentIds = data.componentIds;
 						for (const auto componentId: componentIds)
-							hash = utils::hash_combine(hash, (LookupHash::Type)componentId);
-						hash = utils::hash_combine(hash, (LookupHash::Type)componentIds.size());
+							hash = core::hash_combine(hash, (LookupHash::Type)componentId);
+						hash = core::hash_combine(hash, (LookupHash::Type)componentIds.size());
 
-						hash = utils::hash_combine(hash, (LookupHash::Type)data.readWriteMask);
-						hashLookup = utils::hash_combine(hashLookup, hash);
+						hash = core::hash_combine(hash, (LookupHash::Type)data.readWriteMask);
+						hashLookup = core::hash_combine(hashLookup, hash);
 					}
 
 					// Rules
@@ -17411,10 +17403,10 @@ namespace gaia {
 
 						const auto& rules = data.withChanged;
 						for (auto listType: rules)
-							hash = utils::hash_combine(hash, (LookupHash::Type)listType);
-						hash = utils::hash_combine(hash, (LookupHash::Type)rules.size());
+							hash = core::hash_combine(hash, (LookupHash::Type)listType);
+						hash = core::hash_combine(hash, (LookupHash::Type)rules.size());
 
-						hashLookup = utils::hash_combine(hashLookup, hash);
+						hashLookup = core::hash_combine(hashLookup, hash);
 					}
 
 					// Filters
@@ -17423,14 +17415,14 @@ namespace gaia {
 
 						const auto& withChanged = data.withChanged;
 						for (auto componentId: withChanged)
-							hash = utils::hash_combine(hash, (LookupHash::Type)componentId);
-						hash = utils::hash_combine(hash, (LookupHash::Type)withChanged.size());
+							hash = core::hash_combine(hash, (LookupHash::Type)componentId);
+						hash = core::hash_combine(hash, (LookupHash::Type)withChanged.size());
 
-						hashLookup = utils::hash_combine(hashLookup, hash);
+						hashLookup = core::hash_combine(hashLookup, hash);
 					}
 				}
 
-				ctx.hashLookup = {utils::calculate_hash64(hashLookup)};
+				ctx.hashLookup = {core::calculate_hash64(hashLookup)};
 			}
 		} // namespace query
 	} // namespace ecs
@@ -17441,7 +17433,7 @@ namespace gaia {
 		struct Entity;
 
 		namespace query {
-			using ComponentToArchetypeMap = containers::map<component::ComponentId, archetype::ArchetypeList>;
+			using ComponentToArchetypeMap = cnt::map<component::ComponentId, archetype::ArchetypeList>;
 
 			class QueryInfo {
 			public:
@@ -17471,8 +17463,8 @@ namespace gaia {
 
 						// Component id has to be present
 						const auto componentId = component::GetComponentId<T>();
-						GAIA_ASSERT(utils::has(componentIds, componentId));
-						const auto idx = utils::get_index_unsafe(componentIds, componentId);
+						GAIA_ASSERT(core::has(componentIds, componentId));
+						const auto idx = core::get_index_unsafe(componentIds, componentId);
 						if (listType != query::ListType::LT_Count && listType != data.rules[idx])
 							return false;
 
@@ -17636,7 +17628,7 @@ namespace gaia {
 				//! the archetype is cached. This is necessary so we do not iterate all chunks over and over again when running
 				//! queries.
 				void Match(const ComponentToArchetypeMap& componentToArchetypeMap, uint32_t archetypeCount) {
-					static containers::set<archetype::Archetype*> s_tmpArchetypeMatches;
+					static cnt::set<archetype::Archetype*> s_tmpArchetypeMatches;
 
 					// Skip if no new archetype appeared
 					if (m_lastArchetypeIdx == archetypeCount)
@@ -17752,10 +17744,10 @@ namespace gaia {
 namespace gaia {
 	namespace ecs {
 		class QueryCache {
-			using QueryCacheLookupArray = containers::darray<uint32_t>;
+			using QueryCacheLookupArray = cnt::darray<uint32_t>;
 
-			containers::map<query::LookupHash, QueryCacheLookupArray> m_queryCache;
-			containers::darray<query::QueryInfo> m_queryArr;
+			cnt::map<query::LookupHash, QueryCacheLookupArray> m_queryCache;
+			cnt::darray<query::QueryInfo> m_queryArr;
 
 		public:
 			QueryCache() {
@@ -17832,7 +17824,7 @@ namespace gaia {
 			class QueryImpl final {
 				static constexpr uint32_t ChunkBatchSize = 16;
 				using CChunkSpan = std::span<const archetype::Chunk*>;
-				using ChunkBatchedList = containers::sarray_ext<archetype::Chunk*, ChunkBatchSize>;
+				using ChunkBatchedList = cnt::sarray_ext<archetype::Chunk*, ChunkBatchSize>;
 				using CmdBufferCmdFunc = void (*)(DataBuffer& buffer, query::LookupCtx& ctx);
 
 			public:
@@ -17858,7 +17850,7 @@ namespace gaia {
 						auto& rules = data.rules;
 
 						// Unique component ids only
-						GAIA_ASSERT(!utils::has(componentIds, componentId));
+						GAIA_ASSERT(!core::has(componentIds, componentId));
 
 #if GAIA_DEBUG
 						// There's a limit to the amount of components which we can store
@@ -17897,8 +17889,8 @@ namespace gaia {
 						auto& withChanged = data.withChanged;
 						const auto& rules = data.rules;
 
-						GAIA_ASSERT(utils::has(componentIds, componentId));
-						GAIA_ASSERT(!utils::has(withChanged, componentId));
+						GAIA_ASSERT(core::has(componentIds, componentId));
+						GAIA_ASSERT(!core::has(withChanged, componentId));
 
 #if GAIA_DEBUG
 						// There's a limit to the amount of components which we can store
@@ -17914,7 +17906,7 @@ namespace gaia {
 						}
 #endif
 
-						const auto componentIdx = utils::get_index_unsafe(componentIds, componentId);
+						const auto componentIdx = core::get_index_unsafe(componentIds, componentId);
 
 						// Component has to be present in anyList or allList.
 						// NoneList makes no sense because we skip those in query processing anyway.
@@ -18062,7 +18054,7 @@ namespace gaia {
 
 				//! Unpacks the parameter list \param types into query \param query and performs All for each of them
 				template <typename... T>
-				void UnpackArgsIntoQuery_All(QueryImpl& query, [[maybe_unused]] utils::func_type_list<T...> types) const {
+				void UnpackArgsIntoQuery_All(QueryImpl& query, [[maybe_unused]] core::func_type_list<T...> types) const {
 					static_assert(sizeof...(T) > 0, "Inputs-less functors can not be unpacked to query");
 					query.All<T...>();
 				}
@@ -18070,7 +18062,7 @@ namespace gaia {
 				//! Unpacks the parameter list \param types into query \param query and performs HasAll for each of them
 				template <typename... T>
 				GAIA_NODISCARD bool UnpackArgsIntoQuery_HasAll(
-						const query::QueryInfo& queryInfo, [[maybe_unused]] utils::func_type_list<T...> types) const {
+						const query::QueryInfo& queryInfo, [[maybe_unused]] core::func_type_list<T...> types) const {
 					if constexpr (sizeof...(T) > 0)
 						return queryInfo.HasAll<T...>();
 					else
@@ -18159,7 +18151,7 @@ namespace gaia {
 
 				template <bool HasFilters, typename Func>
 				void ProcessQueryOnChunks_NoConstraints(
-						Func func, ChunkBatchedList& chunkBatch, const containers::darray<archetype::Chunk*>& chunks,
+						Func func, ChunkBatchedList& chunkBatch, const cnt::darray<archetype::Chunk*>& chunks,
 						const query::QueryInfo& queryInfo) {
 					uint32_t chunkOffset = 0;
 					uint32_t itemsLeft = chunks.size();
@@ -18189,7 +18181,7 @@ namespace gaia {
 
 				template <bool HasFilters, typename Func>
 				void ProcessQueryOnChunks(
-						Func func, ChunkBatchedList& chunkBatch, const containers::darray<archetype::Chunk*>& chunks,
+						Func func, ChunkBatchedList& chunkBatch, const cnt::darray<archetype::Chunk*>& chunks,
 						const query::QueryInfo& queryInfo, bool enabledOnly) {
 					uint32_t chunkOffset = 0;
 					uint32_t itemsLeft = chunks.size();
@@ -18265,7 +18257,7 @@ namespace gaia {
 
 				template <typename Func>
 				void ForEach_Internal(query::QueryInfo& queryInfo, Func func) {
-					using InputArgs = decltype(utils::func_args(&Func::operator()));
+					using InputArgs = decltype(core::func_args(&Func::operator()));
 
 #if GAIA_DEBUG
 					// Make sure we only use components specified in the query
@@ -18287,7 +18279,7 @@ namespace gaia {
 
 				template <bool FuncEnabled = UseCaching>
 				QueryImpl(
-						QueryCache& queryCache, uint32_t& worldVersion, const containers::darray<archetype::Archetype*>& archetypes,
+						QueryCache& queryCache, uint32_t& worldVersion, const cnt::darray<archetype::Archetype*>& archetypes,
 						const query::ComponentToArchetypeMap& componentToArchetypeMap):
 						m_worldVersion(&worldVersion),
 						m_archetypes(&archetypes), m_componentToArchetypeMap(&componentToArchetypeMap) {
@@ -18296,7 +18288,7 @@ namespace gaia {
 
 				template <bool FuncEnabled = !UseCaching>
 				QueryImpl(
-						uint32_t& worldVersion, const containers::darray<archetype::Archetype*>& archetypes,
+						uint32_t& worldVersion, const cnt::darray<archetype::Archetype*>& archetypes,
 						const query::ComponentToArchetypeMap& componentToArchetypeMap):
 						m_worldVersion(&worldVersion),
 						m_archetypes(&archetypes), m_componentToArchetypeMap(&componentToArchetypeMap) {}
@@ -18384,7 +18376,7 @@ namespace gaia {
 
 				template <bool UseFilters, Constraints c, typename ChunksContainer>
 				GAIA_NODISCARD bool HasEntities_Helper(query::QueryInfo& queryInfo, const ChunksContainer& chunks) {
-					return utils::has_if(chunks, [&](archetype::Chunk* pChunk) {
+					return core::has_if(chunks, [&](archetype::Chunk* pChunk) {
 						if constexpr (UseFilters) {
 							if constexpr (c == Constraints::AcceptAll)
 								return pChunk->HasEntities() && CheckFilters(*pChunk, queryInfo);
@@ -18636,21 +18628,21 @@ namespace gaia {
 			//! Cache of queries
 			QueryCache m_queryCache;
 			//! Cache of query ids to speed up ForEach
-			containers::map<component::ComponentLookupHash, query::QueryId> m_uniqueFuncQueryPairs;
+			cnt::map<component::ComponentLookupHash, query::QueryId> m_uniqueFuncQueryPairs;
 			//! Map of componentId -> archetype matches.
 			query::ComponentToArchetypeMap m_componentToArchetypeMap;
 
 			//! Map of archetypes mapping to the same hash - used for lookups
-			containers::map<archetype::ArchetypeLookupKey, archetype::Archetype*> m_archetypeMap;
+			cnt::map<archetype::ArchetypeLookupKey, archetype::Archetype*> m_archetypeMap;
 			//! List of archetypes - used for iteration
 			archetype::ArchetypeList m_archetypes;
 
 			//! Implicit list of entities. Used for look-ups only when searching for
 			//! entities in chunks + data validation
-			containers::ilist<EntityContainer, Entity> m_entities;
+			cnt::ilist<EntityContainer, Entity> m_entities;
 
 			//! List of chunks to delete
-			containers::darray<archetype::Chunk*> m_chunksToRemove;
+			cnt::darray<archetype::Chunk*> m_chunksToRemove;
 #if !GAIA_AVOID_CHUNK_FRAGMENTATION
 			//! ID of the last defragmented archetype
 			uint32_t m_defragLastArchetypeID = 0;
@@ -18787,7 +18779,7 @@ namespace gaia {
 					const auto it = m_componentToArchetypeMap.find(componentId);
 					if (it == m_componentToArchetypeMap.end())
 						m_componentToArchetypeMap.try_emplace(componentId, archetype::ArchetypeList{pArchetype});
-					else if (!utils::has(it->second, pArchetype))
+					else if (!core::has(it->second, pArchetype))
 						it->second.push_back(pArchetype);
 				};
 
@@ -18809,7 +18801,7 @@ namespace gaia {
 				GAIA_ASSERT((m_archetypes.empty() || pArchetype == m_archetypes[0]) || pArchetype->GetLookupHash().hash != 0);
 
 				// Make sure the archetype is not registered yet
-				GAIA_ASSERT(!utils::has(m_archetypes, pArchetype));
+				GAIA_ASSERT(!core::has(m_archetypes, pArchetype));
 
 				// Register the archetype
 				m_archetypes.push_back(pArchetype);
@@ -18859,7 +18851,7 @@ namespace gaia {
 					archetype::Archetype& archetype, Entity entity, component::ComponentType componentType,
 					const component::ComponentInfo& infoToRemove) {
 				const auto& componentIds = archetype.GetComponentIdArray(componentType);
-				if GAIA_UNLIKELY (!utils::has(componentIds, infoToRemove.componentId)) {
+				if GAIA_UNLIKELY (!core::has(componentIds, infoToRemove.componentId)) {
 					GAIA_ASSERT(false && "Trying to remove a component which wasn't added");
 					GAIA_LOG_W(
 							"Trying to remove a component from entity [%u.%u] but it was never added", entity.id(), entity.gen());
@@ -18930,9 +18922,9 @@ namespace gaia {
 
 				const uint32_t a = componentType;
 				const uint32_t b = (componentType + 1) & 1;
-				const containers::sarray_ext<uint32_t, archetype::MAX_COMPONENTS_PER_ARCHETYPE>* infos[2];
+				const cnt::sarray_ext<uint32_t, archetype::MAX_COMPONENTS_PER_ARCHETYPE>* infos[2];
 
-				containers::sarray_ext<uint32_t, archetype::MAX_COMPONENTS_PER_ARCHETYPE> infosNew;
+				cnt::sarray_ext<uint32_t, archetype::MAX_COMPONENTS_PER_ARCHETYPE> infosNew;
 				infos[a] = &infosNew;
 				infos[b] = &pArchetypeLeft->GetComponentIdArray((component::ComponentType)b);
 
@@ -18988,9 +18980,9 @@ namespace gaia {
 
 				const uint32_t a = componentType;
 				const uint32_t b = (componentType + 1) & 1;
-				const containers::sarray_ext<uint32_t, archetype::MAX_COMPONENTS_PER_ARCHETYPE>* infos[2];
+				const cnt::sarray_ext<uint32_t, archetype::MAX_COMPONENTS_PER_ARCHETYPE>* infos[2];
 
-				containers::sarray_ext<uint32_t, archetype::MAX_COMPONENTS_PER_ARCHETYPE> infosNew;
+				cnt::sarray_ext<uint32_t, archetype::MAX_COMPONENTS_PER_ARCHETYPE> infosNew;
 				infos[a] = &infosNew;
 				infos[b] = &pArchetypeRight->GetComponentIdArray((component::ComponentType)b);
 
@@ -19263,7 +19255,7 @@ namespace gaia {
 					// Skip reclaimed chunks
 					if (pChunk->HasEntities()) {
 						pChunk->PrepareToDie();
-						utils::erase_fast(m_chunksToRemove, i);
+						core::erase_fast(m_chunksToRemove, i);
 						continue;
 					}
 
@@ -19597,13 +19589,13 @@ namespace gaia {
 
 		private:
 			template <typename... T>
-			void UnpackArgsIntoQuery(Query& query, [[maybe_unused]] utils::func_type_list<T...> types) const {
+			void UnpackArgsIntoQuery(Query& query, [[maybe_unused]] core::func_type_list<T...> types) const {
 				static_assert(sizeof...(T) > 0, "Inputs-less functors can not be unpacked to query");
 				query.All<T...>();
 			}
 
 			template <typename... T>
-			static void RegisterComponents_Internal([[maybe_unused]] utils::func_type_list<T...> types) {
+			static void RegisterComponents_Internal([[maybe_unused]] core::func_type_list<T...> types) {
 				static_assert(sizeof...(T) > 0, "Empty Query is not supported in this context");
 				auto& cc = ComponentCache::Get();
 				((void)cc.GetOrCreateComponentInfo<T>(), ...);
@@ -19611,13 +19603,13 @@ namespace gaia {
 
 			template <typename Func>
 			static void RegisterComponents() {
-				using InputArgs = decltype(utils::func_args(&Func::operator()));
+				using InputArgs = decltype(core::func_args(&Func::operator()));
 				RegisterComponents_Internal(InputArgs{});
 			}
 
 			template <typename... T>
 			static constexpr component::ComponentLookupHash
-			CalculateQueryIdLookupHash([[maybe_unused]] utils::func_type_list<T...> types) {
+			CalculateQueryIdLookupHash([[maybe_unused]] core::func_type_list<T...> types) {
 				return component::CalculateLookupHash<T...>();
 			}
 
@@ -19637,7 +19629,7 @@ namespace gaia {
 			//!          easier to use and for non-critical code paths it is the most elegant way of iterating your data.
 			template <typename Func>
 			void ForEach(Func func) {
-				using InputArgs = decltype(utils::func_args(&Func::operator()));
+				using InputArgs = decltype(core::func_args(&Func::operator()));
 
 				RegisterComponents<Func>();
 
@@ -19732,7 +19724,7 @@ namespace gaia {
 			struct CommandBufferCtx: DataBuffer_SerializationWrapper {
 				ecs::World& world;
 				uint32_t entities;
-				containers::map<uint32_t, Entity> entityMap;
+				cnt::map<uint32_t, Entity> entityMap;
 			};
 
 			enum CommandBufferCmd : uint8_t {
@@ -20353,17 +20345,17 @@ namespace gaia {
 
 		class BaseSystemManager {
 		protected:
-			using SystemHash = utils::direct_hash_key<uint64_t>;
+			using SystemHash = core::direct_hash_key<uint64_t>;
 
 			World& m_world;
 			//! Map of all systems - used for look-ups only
-			containers::map<SystemHash, BaseSystem*> m_systemsMap;
+			cnt::map<SystemHash, BaseSystem*> m_systemsMap;
 			//! List of system - used for iteration
-			containers::darray<BaseSystem*> m_systems;
+			cnt::darray<BaseSystem*> m_systems;
 			//! List of new systems which need to be initialised
-			containers::darray<BaseSystem*> m_systemsToCreate;
+			cnt::darray<BaseSystem*> m_systemsToCreate;
 			//! List of systems which need to be deleted
-			containers::darray<BaseSystem*> m_systemsToRemove;
+			cnt::darray<BaseSystem*> m_systemsToRemove;
 
 		public:
 			BaseSystemManager(World& world): m_world(world) {}
@@ -20409,7 +20401,7 @@ namespace gaia {
 				for (auto* pSystem: m_systemsToRemove)
 					m_systemsMap.erase({pSystem->m_hash});
 				for (auto* pSystem: m_systemsToRemove) {
-					m_systems.erase(utils::find(m_systems, pSystem));
+					m_systems.erase(core::find(m_systems, pSystem));
 				}
 				for (auto* pSystem: m_systemsToRemove)
 					delete pSystem;
@@ -20447,7 +20439,7 @@ namespace gaia {
 
 			template <typename T>
 			T* CreateSystem([[maybe_unused]] const char* name = nullptr) {
-				GAIA_SAFE_CONSTEXPR auto hash = utils::type_info::hash<std::decay_t<T>>();
+				GAIA_SAFE_CONSTEXPR auto hash = meta::type_info::hash<std::decay_t<T>>();
 
 				const auto res = m_systemsMap.try_emplace({hash}, nullptr);
 				if GAIA_UNLIKELY (!res.second)
@@ -20458,7 +20450,7 @@ namespace gaia {
 
 #if GAIA_PROFILER_CPU
 				if (name == nullptr) {
-					constexpr auto ct_name = utils::type_info::name<T>();
+					constexpr auto ct_name = meta::type_info::name<T>();
 					const size_t len = ct_name.size() > MaxSystemNameLength - 1 ? MaxSystemNameLength - 1 : ct_name.size();
 
 	#if GAIA_COMPILER_MSVC || GAIA_PLATFORM_WINDOWS
@@ -20501,7 +20493,7 @@ namespace gaia {
 
 			template <typename T>
 			GAIA_NODISCARD T* FindSystem() {
-				GAIA_SAFE_CONSTEXPR auto hash = utils::type_info::hash<std::decay_t<T>>();
+				GAIA_SAFE_CONSTEXPR auto hash = meta::type_info::hash<std::decay_t<T>>();
 
 				const auto it = m_systemsMap.find({hash});
 				if (it != m_systemsMap.end())

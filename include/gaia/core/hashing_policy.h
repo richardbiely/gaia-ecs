@@ -5,7 +5,7 @@
 #include <type_traits>
 
 namespace gaia {
-	namespace utils {
+	namespace core {
 
 		namespace detail {
 			template <typename, typename = void>
@@ -199,5 +199,5 @@ namespace gaia {
 	#error "Unknown hashing type defined"
 #endif
 
-	} // namespace utils
+	} // namespace core
 } // namespace gaia

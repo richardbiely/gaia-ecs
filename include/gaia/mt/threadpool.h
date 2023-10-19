@@ -17,9 +17,9 @@
 #include <mutex>
 #include <thread>
 
+#include "../cnt/sarray_ext.h"
 #include "../config/logging.h"
-#include "../containers/sarray_ext.h"
-#include "../utils/span.h"
+#include "../core/span.h"
 
 #include "jobcommon.h"
 #include "jobhandle.h"
@@ -35,7 +35,7 @@ namespace gaia {
 			//! ID of the main thread
 			std::thread::id m_mainThreadId;
 			//! List of worker threads
-			containers::sarr_ext<std::thread, MaxWorkers> m_workers;
+			cnt::sarr_ext<std::thread, MaxWorkers> m_workers;
 			//! Manager for internal jobs
 			JobManager m_jobManager;
 			//! List of pending user jobs

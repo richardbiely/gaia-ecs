@@ -3,11 +3,11 @@
 
 #include <cinttypes>
 
-#include "../containers/darray.h"
-#include "../containers/dbitset.h"
-#include "../containers/sarray.h"
-#include "../containers/sarray_ext.h"
-#include "../utils/hashing_policy.h"
+#include "../cnt/darray.h"
+#include "../cnt/dbitset.h"
+#include "../cnt/sarray.h"
+#include "../cnt/sarray_ext.h"
+#include "../core/hashing_policy.h"
 #include "archetype_common.h"
 #include "archetype_graph.h"
 #include "chunk.h"
@@ -74,9 +74,9 @@ namespace gaia {
 
 			class Archetype final: public ArchetypeBase {
 			public:
-				using LookupHash = utils::direct_hash_key<uint64_t>;
-				using GenericComponentHash = utils::direct_hash_key<uint64_t>;
-				using ChunkComponentHash = utils::direct_hash_key<uint64_t>;
+				using LookupHash = core::direct_hash_key<uint64_t>;
+				using GenericComponentHash = core::direct_hash_key<uint64_t>;
+				using ChunkComponentHash = core::direct_hash_key<uint64_t>;
 
 			private:
 				struct {
@@ -90,18 +90,18 @@ namespace gaia {
 				uint32_t& m_worldVersion;
 
 				//! List of chunks allocated by this archetype
-				containers::darray<Chunk*> m_chunks;
+				cnt::darray<Chunk*> m_chunks;
 				//! Mask of chunks with disabled entities
-				// containers::dbitset m_disabledMask;
+				// cnt::dbitset m_disabledMask;
 				//! Graph of archetypes linked with this one
 				ArchetypeGraph m_graph;
 
 				//! Offsets to various parts of data inside chunk
 				ChunkHeaderOffsets m_dataOffsets;
 				//! List of component indices
-				containers::sarray<ComponentIdArray, component::ComponentType::CT_Count> m_componentIds;
+				cnt::sarray<ComponentIdArray, component::ComponentType::CT_Count> m_componentIds;
 				//! List of components offset indices
-				containers::sarray<ComponentOffsetArray, component::ComponentType::CT_Count> m_componentOffsets;
+				cnt::sarray<ComponentOffsetArray, component::ComponentType::CT_Count> m_componentOffsets;
 
 				//! Hash of generic components
 				GenericComponentHash m_genericHash = {0};
@@ -122,7 +122,7 @@ namespace gaia {
 					// We expect versions to fit in the first 256 bytes.
 					// With 64 components per archetype (32 generic + 32 chunk) this gives us some headroom.
 					{
-						const auto padding = utils::padding<alignof(uint32_t)>(memoryAddress);
+						const auto padding = mem::padding<alignof(uint32_t)>(memoryAddress);
 						offset += padding;
 
 						if (!m_componentIds[component::ComponentType::CT_Generic].empty()) {
@@ -139,7 +139,7 @@ namespace gaia {
 
 					// Component ids
 					{
-						const auto padding = utils::padding<alignof(component::ComponentId)>(offset);
+						const auto padding = mem::padding<alignof(component::ComponentId)>(offset);
 						offset += padding;
 
 						if (!m_componentIds[component::ComponentType::CT_Generic].empty()) {
@@ -154,7 +154,7 @@ namespace gaia {
 
 					// Component offsets
 					{
-						const auto padding = utils::padding<alignof(ChunkComponentOffset)>(offset);
+						const auto padding = mem::padding<alignof(ChunkComponentOffset)>(offset);
 						offset += padding;
 
 						if (!m_componentIds[component::ComponentType::CT_Generic].empty()) {
@@ -171,7 +171,7 @@ namespace gaia {
 
 					// First entity offset
 					{
-						const auto padding = utils::padding<alignof(Entity)>(offset);
+						const auto padding = mem::padding<alignof(Entity)>(offset);
 						offset += padding;
 						m_dataOffsets.firstByte_EntityData = (ChunkComponentOffset)offset;
 					}
@@ -245,7 +245,7 @@ namespace gaia {
 				}
 #endif
 
-				GAIA_NODISCARD Chunk* FindOrCreateFreeChunk_Internal(containers::darray<Chunk*>& chunkArray) const {
+				GAIA_NODISCARD Chunk* FindOrCreateFreeChunk_Internal(cnt::darray<Chunk*>& chunkArray) const {
 					const auto chunkCnt = chunkArray.size();
 
 					if (chunkCnt > 0) {
@@ -294,7 +294,7 @@ namespace gaia {
 				GAIA_NODISCARD bool
 				HasComponent_Internal(component::ComponentType componentType, component::ComponentId componentId) const {
 					const auto& componentIds = GetComponentIdArray(componentType);
-					return utils::has(componentIds, componentId);
+					return core::has(componentIds, componentId);
 				}
 
 				/*!
@@ -382,7 +382,7 @@ namespace gaia {
 
 				GAIA_NODISCARD static LookupHash
 				CalculateLookupHash(GenericComponentHash genericHash, ChunkComponentHash chunkHash) noexcept {
-					return {utils::hash_combine(genericHash.hash, chunkHash.hash)};
+					return {core::hash_combine(genericHash.hash, chunkHash.hash)};
 				}
 
 				GAIA_NODISCARD static Archetype* Create(
@@ -481,7 +481,7 @@ namespace gaia {
 								ids[i] = componentId;
 								ofs[i] = {};
 							} else {
-								const auto padding = utils::padding(currentOffset, alignment);
+								const auto padding = mem::padding(currentOffset, alignment);
 								currentOffset += padding;
 
 								// Register the component info
@@ -545,8 +545,8 @@ namespace gaia {
 					auto remove = [&](auto& chunkArray) {
 						if (chunkArray.size() > 1)
 							chunkArray.back()->SetChunkIndex(chunkIndex);
-						GAIA_ASSERT(chunkIndex == utils::get_index(chunkArray, pChunk));
-						utils::erase_fast(chunkArray, chunkIndex);
+						GAIA_ASSERT(chunkIndex == core::get_index(chunkArray, pChunk));
+						core::erase_fast(chunkArray, chunkIndex);
 					};
 
 					remove(m_chunks);
@@ -568,8 +568,8 @@ namespace gaia {
 				//! \param maxEntites Maximum number of entities moved per call
 				//! \param chunksToRemove Container of chunks ready for removal
 				//! \param entities Container with entities
-				void Defragment(
-						uint32_t& maxEntities, containers::darray<Chunk*>& chunksToRemove, std::span<EntityContainer> entities) {
+				void
+				Defragment(uint32_t& maxEntities, cnt::darray<Chunk*>& chunksToRemove, std::span<EntityContainer> entities) {
 					// Assuming the following chunk layout:
 					//   Chunk_1: 10/10
 					//   Chunk_2:  1/10
@@ -650,7 +650,7 @@ namespace gaia {
 					return m_properties.capacity;
 				}
 
-				GAIA_NODISCARD const containers::darray<Chunk*>& GetChunks() const {
+				GAIA_NODISCARD const cnt::darray<Chunk*>& GetChunks() const {
 					return m_chunks;
 				}
 
@@ -695,7 +695,7 @@ namespace gaia {
 				*/
 				GAIA_NODISCARD uint32_t
 				GetComponentIdx(component::ComponentType componentType, component::ComponentId componentId) const {
-					const auto idx = utils::get_index_unsafe(m_componentIds[componentType], componentId);
+					const auto idx = core::get_index_unsafe(m_componentIds[componentType], componentId);
 					GAIA_ASSERT(idx != BadIndex);
 					return (uint32_t)idx;
 				}

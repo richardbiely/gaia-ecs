@@ -3,8 +3,8 @@
 #include "impl/darray_impl.h"
 
 namespace gaia {
-	namespace containers {
+	namespace cnt {
 		template <typename T>
-		using darray = containers::darr<T>;
-	} // namespace containers
+		using darray = cnt::darr<T>;
+	} // namespace cnt
 } // namespace gaia

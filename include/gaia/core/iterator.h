@@ -5,7 +5,7 @@
 #include <type_traits>
 
 namespace gaia {
-	namespace utils {
+	namespace core {
 		struct input_iterator_tag {};
 		struct output_iterator_tag {};
 
@@ -106,5 +106,5 @@ namespace gaia {
 				return offset;
 			}
 		}
-	} // namespace utils
+	} // namespace core
 } // namespace gaia

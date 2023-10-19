@@ -73,9 +73,9 @@ namespace std {
 	template <>
 	struct hash<Position> {
 		size_t operator()(const Position& p) const noexcept {
-			const uint64_t h1 = utils::calculate_hash64(p.x);
-			const uint64_t h2 = utils::calculate_hash64(p.y);
-			return utils::hash_combine(h1, h2);
+			const uint64_t h1 = core::calculate_hash64(p.x);
+			const uint64_t h2 = core::calculate_hash64(p.y);
+			return core::hash_combine(h1, h2);
 		}
 	};
 } // namespace std
@@ -252,8 +252,8 @@ public:
 	}
 
 	std::vector<uint32_t> FindPath(const std::vector<Node>& graph, uint32_t start_id, uint32_t goal_id) {
-		containers::map<uint32_t, uint32_t> parents; // key: ID, data: parentID
-		containers::map<uint32_t, std::pair<float, float>> scores; // key: ID, data: <g, f>
+		cnt::map<uint32_t, uint32_t> parents; // key: ID, data: parentID
+		cnt::map<uint32_t, std::pair<float, float>> scores; // key: ID, data: <g, f>
 		std::unordered_set<uint32_t> closed_set;
 		MyPriorityQueue open_set;
 
@@ -354,7 +354,7 @@ struct World {
 	//! map tiles
 	char map[ScreenY][ScreenX]{};
 	//! tile content
-	containers::map<Position, containers::darray<ecs::Entity>> content;
+	cnt::map<Position, cnt::darray<ecs::Entity>> content;
 	//! quit the game when true
 	bool terminate = false;
 
@@ -438,7 +438,7 @@ struct World {
 	}
 
 	void CreateEnemies() {
-		containers::sarray<ecs::Entity, 3> enemies;
+		cnt::sarray<ecs::Entity, 3> enemies;
 		for (uint32_t i = 0; i < enemies.size(); ++i) {
 			auto& e = enemies[i];
 			e = w.Add();
@@ -522,7 +522,7 @@ struct CollisionData {
 
 class CollisionSystem final: public ecs::System {
 	ecs::Query m_q;
-	containers::darray<CollisionData> m_colliding;
+	cnt::darray<CollisionData> m_colliding;
 
 public:
 	void OnCreated() override {
@@ -622,7 +622,7 @@ public:
 		});
 	}
 
-	const containers::darray<CollisionData>& GetCollisions() const {
+	const cnt::darray<CollisionData>& GetCollisions() const {
 		return m_colliding;
 	}
 };

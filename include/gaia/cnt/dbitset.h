@@ -4,11 +4,11 @@
 #include <cinttypes>
 #include <type_traits>
 
-#include "../utils/mem_utils.h"
+#include "../mem/mem_utils.h"
 #include "bitset_iterator.h"
 
 namespace gaia {
-	namespace containers {
+	namespace cnt {
 		class dbitset {
 		private:
 			struct size_type_selector {
@@ -63,7 +63,7 @@ namespace gaia {
 						m_pData[i] = 0;
 				} else {
 					// Copy the old data over and set the old data to zeros
-					utils::copy_elements<size_type>((uint8_t*)m_pData, (const uint8_t*)pDataOld, 0, itemsOld, 0, 0);
+					mem::copy_elements<size_type>((uint8_t*)m_pData, (const uint8_t*)pDataOld, 0, itemsOld, 0, 0);
 					for (uint32_t i = itemsOld; i < itemsNew; ++i)
 						m_pData[i] = 0;
 
@@ -101,10 +101,10 @@ namespace gaia {
 			}
 
 			dbitset& operator=(const dbitset& other) {
-				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
+				GAIA_ASSERT(gaia::mem::addressof(other) != this);
 
 				resize(other.m_cnt);
-				utils::copy_elements<size_type>((uint8_t*)m_pData, (const uint8_t*)other.m_pData, 0, other.items(), 0, 0);
+				mem::copy_elements<size_type>((uint8_t*)m_pData, (const uint8_t*)other.m_pData, 0, other.items(), 0, 0);
 				return *this;
 			}
 
@@ -113,7 +113,7 @@ namespace gaia {
 			}
 
 			dbitset& operator=(dbitset&& other) noexcept {
-				GAIA_ASSERT(GAIA_UTIL::addressof(other) != this);
+				GAIA_ASSERT(gaia::mem::addressof(other) != this);
 
 				m_pData = other.m_pData;
 				m_cnt = other.m_cnt;
@@ -145,7 +145,7 @@ namespace gaia {
 				} else {
 					const uint32_t itemsOld = items();
 					// Copy the old data over and set the old data to zeros
-					utils::copy_elements<size_type>((uint8_t*)m_pData, (const uint8_t*)pDataOld, 0, itemsOld, 0, 0);
+					mem::copy_elements<size_type>((uint8_t*)m_pData, (const uint8_t*)pDataOld, 0, itemsOld, 0, 0);
 					for (uint32_t i = itemsOld; i < itemsNew; ++i)
 						m_pData[i] = 0;
 
@@ -179,7 +179,7 @@ namespace gaia {
 						m_pData[i] = 0;
 				} else {
 					// Copy the old data over and set the old data to zeros
-					utils::copy_elements<size_type>((uint8_t*)m_pData, (const uint8_t*)pDataOld, 0, itemsOld, 0, 0);
+					mem::copy_elements<size_type>((uint8_t*)m_pData, (const uint8_t*)pDataOld, 0, itemsOld, 0, 0);
 					for (uint32_t i = itemsOld; i < itemsNew; ++i)
 						m_pData[i] = 0;
 
@@ -398,5 +398,5 @@ namespace gaia {
 				return m_cap;
 			}
 		};
-	} // namespace containers
+	} // namespace cnt
 } // namespace gaia

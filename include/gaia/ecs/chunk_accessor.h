@@ -4,7 +4,7 @@
 #include <cinttypes>
 #include <type_traits>
 
-#include "../containers/bitset.h"
+#include "../cnt/bitset.h"
 #include "chunk.h"
 #include "component.h"
 #include "component_getter.h"
