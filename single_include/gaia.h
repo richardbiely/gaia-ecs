@@ -20367,7 +20367,7 @@ namespace gaia {
 
 		public:
 			BaseSystemManager(World& world): m_world(world) {}
-			~BaseSystemManager() {
+			virtual ~BaseSystemManager() {
 				Clear();
 			}
 
