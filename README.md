@@ -587,10 +587,15 @@ in.size = 5;
 
 ecs::DataBuffer db;
 ecs::DataBuffer_SerializationWrapper s(db);
+// Reserve enough bytes in the buffer so it can fit the entire in
 s.reserve(ser::size_bytes(in));
 ser::save(s, in);
+// Move to the start of the buffer and load its contents to out
 s.seek(0);
 ser::load(s, out);
+// Let's release the memory we allocated
+delete in.ptr;
+delete out.ptr;
 ```
 
 You will usually use internal specialization when you have the access to your data container and at the same time do not want to expose its internal structure. Or if you simply like intrusive coding style better. In order to use it the following 3 member functions need to be provided:
@@ -861,12 +866,7 @@ The project is thoroughly unit-tested and includes thousands of unit tests cover
 It can be controlled via -DGAIA_BUILD_UNITTEST=ON/OFF (OFF by default).
 
 # Future
-Currently, many new features and improvements to the current system are planned.<br/>
-Among the most prominent ones are:
-* scheduler - a system that would allow parallel execution of all systems by default, work-stealing, and an easy setup of dependencies
-* scenes - a way to serialize the state of chunks or entire worlds
-* scripting - expose low-level structures of the framework so it can be implemented by various other languages including scripting ones
-* debugger - an editor that would give one an overview of worlds created by the framework (number of entities, chunk fragmentation, systems running, etc)
+To see what the future holds for this project navigate [here](https://github.com/users/richardbiely/projects/1/views/1)
 
 # Contributions
 
