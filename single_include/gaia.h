@@ -14630,7 +14630,7 @@ namespace gaia {
 						archetypeId(aid),
 						count(0), capacity(cap), lifespanCountdown(0), hasDisabledEntities(0), structuralChangesLocked(0),
 						hasAnyCustomGenericCtor(0), hasAnyCustomChunkCtor(0), hasAnyCustomGenericDtor(0), hasAnyCustomChunkDtor(0),
-						offsets(offs), index(chunkIndex), sizeType(st), worldVersion(version) {
+						sizeType(st), offsets(offs), index(chunkIndex), worldVersion(version) {
 					// Make sure the alignment is right
 					GAIA_ASSERT(uintptr_t(this) % (sizeof(size_t)) == 0);
 				}
@@ -14911,7 +14911,7 @@ namespace gaia {
 					using U = typename component::component_type_t<T>::Type;
 
 					if constexpr (std::is_same_v<U, Entity>) {
-						return {(const uint8_t*)&GetData(m_header.offsets.firstByte_EntityData), GetEntityCount()};
+						return {&GetData(m_header.offsets.firstByte_EntityData), GetEntityCount()};
 					} else {
 						static_assert(!std::is_empty_v<U>, "Attempting to get value of an empty component");
 
@@ -14927,12 +14927,12 @@ namespace gaia {
 							[[maybe_unused]] const auto maxOffset = offset + capacity * sizeof(U);
 							GAIA_ASSERT(maxOffset <= GetByteSize());
 
-							return {(const uint8_t*)&GetData(offset), GetEntityCount()};
+							return {&GetData(offset), GetEntityCount()};
 						} else {
 							[[maybe_unused]] const auto maxOffset = offset + sizeof(U);
 							GAIA_ASSERT(maxOffset <= GetByteSize());
 
-							return {(const uint8_t*)&GetData(offset), 1};
+							return {&GetData(offset), 1};
 						}
 					}
 				}
@@ -14973,12 +14973,12 @@ namespace gaia {
 						[[maybe_unused]] const auto maxOffset = offset + capacity * sizeof(U);
 						GAIA_ASSERT(maxOffset <= GetByteSize());
 
-						return {(uint8_t*)&GetData(offset), GetEntityCount()};
+						return {&GetData(offset), GetEntityCount()};
 					} else {
 						[[maybe_unused]] const auto maxOffset = offset + sizeof(U);
 						GAIA_ASSERT(maxOffset <= GetByteSize());
 
-						return {(uint8_t*)&GetData(offset), 1};
+						return {&GetData(offset), 1};
 					}
 				}
 
@@ -16020,7 +16020,7 @@ namespace gaia {
 					// We expect versions to fit in the first 256 bytes.
 					// With 64 components per archetype (32 generic + 32 chunk) this gives us some headroom.
 					{
-						offset = mem::align<alignof(uint32_t)>(memoryAddress);
+						offset += mem::padding<alignof(uint32_t)>(memoryAddress);
 
 						if (!m_componentIds[component::ComponentType::CT_Generic].empty()) {
 							GAIA_ASSERT(offset < 256);
@@ -16036,7 +16036,7 @@ namespace gaia {
 
 					// Component ids
 					{
-						offset = mem::align<alignof(component::ComponentId)>(offset);
+						offset += mem::padding<alignof(component::ComponentId)>(offset);
 
 						if (!m_componentIds[component::ComponentType::CT_Generic].empty()) {
 							m_dataOffsets.firstByte_ComponentIds[component::ComponentType::CT_Generic] = (ChunkComponentOffset)offset;
@@ -16050,7 +16050,7 @@ namespace gaia {
 
 					// Component offsets
 					{
-						offset = mem::align<alignof(ChunkComponentOffset)>(offset);
+						offset += mem::padding<alignof(ChunkComponentOffset)>(offset);
 
 						if (!m_componentIds[component::ComponentType::CT_Generic].empty()) {
 							m_dataOffsets.firstByte_ComponentOffsets[component::ComponentType::CT_Generic] =
@@ -16066,7 +16066,7 @@ namespace gaia {
 
 					// First entity offset
 					{
-						offset = mem::align<alignof(Entity)>(offset);
+						offset += mem::padding<alignof(Entity)>(offset);
 						m_dataOffsets.firstByte_EntityData = (ChunkComponentOffset)offset;
 					}
 				}
