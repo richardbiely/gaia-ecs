@@ -77,7 +77,7 @@ namespace gaia {
 						archetypeId(aid),
 						count(0), capacity(cap), lifespanCountdown(0), hasDisabledEntities(0), structuralChangesLocked(0),
 						hasAnyCustomGenericCtor(0), hasAnyCustomChunkCtor(0), hasAnyCustomGenericDtor(0), hasAnyCustomChunkDtor(0),
-						offsets(offs), index(chunkIndex), sizeType(st), worldVersion(version) {
+						sizeType(st), offsets(offs), index(chunkIndex), worldVersion(version) {
 					// Make sure the alignment is right
 					GAIA_ASSERT(uintptr_t(this) % (sizeof(size_t)) == 0);
 				}

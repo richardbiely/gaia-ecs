@@ -118,7 +118,7 @@ namespace gaia {
 					using U = typename component::component_type_t<T>::Type;
 
 					if constexpr (std::is_same_v<U, Entity>) {
-						return {(const uint8_t*)&GetData(m_header.offsets.firstByte_EntityData), GetEntityCount()};
+						return {&GetData(m_header.offsets.firstByte_EntityData), GetEntityCount()};
 					} else {
 						static_assert(!std::is_empty_v<U>, "Attempting to get value of an empty component");
 
@@ -134,12 +134,12 @@ namespace gaia {
 							[[maybe_unused]] const auto maxOffset = offset + capacity * sizeof(U);
 							GAIA_ASSERT(maxOffset <= GetByteSize());
 
-							return {(const uint8_t*)&GetData(offset), GetEntityCount()};
+							return {&GetData(offset), GetEntityCount()};
 						} else {
 							[[maybe_unused]] const auto maxOffset = offset + sizeof(U);
 							GAIA_ASSERT(maxOffset <= GetByteSize());
 
-							return {(const uint8_t*)&GetData(offset), 1};
+							return {&GetData(offset), 1};
 						}
 					}
 				}
@@ -180,12 +180,12 @@ namespace gaia {
 						[[maybe_unused]] const auto maxOffset = offset + capacity * sizeof(U);
 						GAIA_ASSERT(maxOffset <= GetByteSize());
 
-						return {(uint8_t*)&GetData(offset), GetEntityCount()};
+						return {&GetData(offset), GetEntityCount()};
 					} else {
 						[[maybe_unused]] const auto maxOffset = offset + sizeof(U);
 						GAIA_ASSERT(maxOffset <= GetByteSize());
 
-						return {(uint8_t*)&GetData(offset), 1};
+						return {&GetData(offset), 1};
 					}
 				}
 
