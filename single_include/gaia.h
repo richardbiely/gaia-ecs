@@ -14880,7 +14880,8 @@ namespace gaia {
 						for (uint32_t i = 0; i < component::ComponentType::CT_Count; ++i) {
 							auto offset = m_header.offsets.firstByte_ComponentIds[i];
 							for (const auto componentId: componentIds[i]) {
-								mem::unaligned_ref<component::ComponentId>{(void*)&m_data[offset]} = componentId;
+								// unaligned_ref not necessary because data is aligned
+								*(component::ComponentId*)&m_data[offset] = componentId;
 								offset += sizeof(component::ComponentId);
 							}
 						}
@@ -14891,7 +14892,8 @@ namespace gaia {
 						for (uint32_t i = 0; i < component::ComponentType::CT_Count; ++i) {
 							auto offset = m_header.offsets.firstByte_ComponentOffsets[i];
 							for (const auto componentOffset: componentOffsets[i]) {
-								mem::unaligned_ref<archetype::ChunkComponentOffset>{(void*)&m_data[offset]} = componentOffset;
+								// unaligned_ref not necessary because data is aligned
+								*(archetype::ChunkComponentOffset*)&m_data[offset] = componentOffset;
 								offset += sizeof(archetype::ChunkComponentOffset);
 							}
 						}
@@ -15348,7 +15350,7 @@ namespace gaia {
 					GAIA_ASSERT(index < m_header.count && "Entity chunk index out of bounds!");
 
 					const auto offset = sizeof(Entity) * index + m_header.offsets.firstByte_EntityData;
-					// unaligned_ref note necessary because entity data is aligned
+					// unaligned_ref not necessary because data is aligned
 					auto* pMem = (Entity*)&m_data[offset];
 					*pMem = entity;
 				}
@@ -15362,7 +15364,7 @@ namespace gaia {
 					GAIA_ASSERT(index < m_header.count && "Entity chunk index out of bounds!");
 
 					const auto offset = sizeof(Entity) * index + m_header.offsets.firstByte_EntityData;
-					// unaligned_ref note necessary because entity data is aligned
+					// unaligned_ref not necessary because data is aligned
 					auto* pMem = (Entity*)&m_data[offset];
 					return *pMem;
 				}
@@ -16018,8 +16020,7 @@ namespace gaia {
 					// We expect versions to fit in the first 256 bytes.
 					// With 64 components per archetype (32 generic + 32 chunk) this gives us some headroom.
 					{
-						const auto padding = mem::padding<alignof(uint32_t)>(memoryAddress);
-						offset += padding;
+						offset = mem::align<alignof(uint32_t)>(memoryAddress);
 
 						if (!m_componentIds[component::ComponentType::CT_Generic].empty()) {
 							GAIA_ASSERT(offset < 256);
@@ -16035,8 +16036,7 @@ namespace gaia {
 
 					// Component ids
 					{
-						const auto padding = mem::padding<alignof(component::ComponentId)>(offset);
-						offset += padding;
+						offset = mem::align<alignof(component::ComponentId)>(offset);
 
 						if (!m_componentIds[component::ComponentType::CT_Generic].empty()) {
 							m_dataOffsets.firstByte_ComponentIds[component::ComponentType::CT_Generic] = (ChunkComponentOffset)offset;
@@ -16050,8 +16050,7 @@ namespace gaia {
 
 					// Component offsets
 					{
-						const auto padding = mem::padding<alignof(ChunkComponentOffset)>(offset);
-						offset += padding;
+						offset = mem::align<alignof(ChunkComponentOffset)>(offset);
 
 						if (!m_componentIds[component::ComponentType::CT_Generic].empty()) {
 							m_dataOffsets.firstByte_ComponentOffsets[component::ComponentType::CT_Generic] =
@@ -16067,8 +16066,7 @@ namespace gaia {
 
 					// First entity offset
 					{
-						const auto padding = mem::padding<alignof(Entity)>(offset);
-						offset += padding;
+						offset = mem::align<alignof(Entity)>(offset);
 						m_dataOffsets.firstByte_EntityData = (ChunkComponentOffset)offset;
 					}
 				}
@@ -16377,8 +16375,7 @@ namespace gaia {
 								ids[i] = componentId;
 								ofs[i] = {};
 							} else {
-								const auto padding = mem::padding(currentOffset, alignment);
-								currentOffset += padding;
+								currentOffset = mem::align(currentOffset, alignment);
 
 								// Register the component info
 								ids[i] = componentId;

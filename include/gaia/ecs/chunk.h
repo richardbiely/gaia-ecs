@@ -87,7 +87,8 @@ namespace gaia {
 						for (uint32_t i = 0; i < component::ComponentType::CT_Count; ++i) {
 							auto offset = m_header.offsets.firstByte_ComponentIds[i];
 							for (const auto componentId: componentIds[i]) {
-								mem::unaligned_ref<component::ComponentId>{(void*)&m_data[offset]} = componentId;
+								// unaligned_ref not necessary because data is aligned
+								*(component::ComponentId*)&m_data[offset] = componentId;
 								offset += sizeof(component::ComponentId);
 							}
 						}
@@ -98,7 +99,8 @@ namespace gaia {
 						for (uint32_t i = 0; i < component::ComponentType::CT_Count; ++i) {
 							auto offset = m_header.offsets.firstByte_ComponentOffsets[i];
 							for (const auto componentOffset: componentOffsets[i]) {
-								mem::unaligned_ref<archetype::ChunkComponentOffset>{(void*)&m_data[offset]} = componentOffset;
+								// unaligned_ref not necessary because data is aligned
+								*(archetype::ChunkComponentOffset*)&m_data[offset] = componentOffset;
 								offset += sizeof(archetype::ChunkComponentOffset);
 							}
 						}
@@ -555,7 +557,7 @@ namespace gaia {
 					GAIA_ASSERT(index < m_header.count && "Entity chunk index out of bounds!");
 
 					const auto offset = sizeof(Entity) * index + m_header.offsets.firstByte_EntityData;
-					// unaligned_ref note necessary because entity data is aligned
+					// unaligned_ref not necessary because data is aligned
 					auto* pMem = (Entity*)&m_data[offset];
 					*pMem = entity;
 				}
@@ -569,7 +571,7 @@ namespace gaia {
 					GAIA_ASSERT(index < m_header.count && "Entity chunk index out of bounds!");
 
 					const auto offset = sizeof(Entity) * index + m_header.offsets.firstByte_EntityData;
-					// unaligned_ref note necessary because entity data is aligned
+					// unaligned_ref not necessary because data is aligned
 					auto* pMem = (Entity*)&m_data[offset];
 					return *pMem;
 				}
