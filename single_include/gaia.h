@@ -14578,7 +14578,7 @@ namespace gaia {
 
 			struct ChunkHeader final {
 			public:
-				static constexpr uint16_t CHUNK_LIFESPAN_BITS = 4;
+				static constexpr uint16_t CHUNK_LIFESPAN_BITS = 3;
 				//! Number of ticks before empty chunks are removed
 				static constexpr uint16_t MAX_CHUNK_LIFESPAN = (1 << CHUNK_LIFESPAN_BITS) - 1;
 
@@ -14600,21 +14600,22 @@ namespace gaia {
 				uint32_t hasDisabledEntities : 1;
 				//! Updated when chunks are being iterated. Used to inform of structural changes when they shouldn't happen.
 				uint32_t structuralChangesLocked : 3;
-				//! True if there's a component that requires custom construction
+				//! True if there's any generic component that requires custom construction
 				uint32_t hasAnyCustomGenericCtor : 1;
-				//! True if there's a component that requires custom construction
+				//! True if there's any chunk component that requires custom construction
 				uint32_t hasAnyCustomChunkCtor : 1;
-				//! True if there's a component that requires custom destruction
+				//! True if there's any generic component that requires custom destruction
 				uint32_t hasAnyCustomGenericDtor : 1;
-				//! True if there's a component that requires custom destruction
+				//! True if there's any chunk component that requires custom destruction
 				uint32_t hasAnyCustomChunkDtor : 1;
+				//! Chunk size type. This tells whether it's 8K or 16K
+				uint32_t sizeType : 1;
 
 				//! Offsets to various parts of data inside chunk
 				ChunkHeaderOffsets offsets;
-				//! Chunk index in its archetype list
-				uint16_t index : 15;
-				//! Chunk size
-				uint16_t sizeType : 1;
+				//! Chunk index in its archetype list.
+				//! max(index) * MAX_CHUNK_ENTITIES = MAX_ARCHETYPE_ENTITIES. Currently 33'553'920.
+				uint16_t index;
 
 				//! Number of components on the archetype
 				uint8_t componentCount[component::ComponentType::CT_Count]{};
