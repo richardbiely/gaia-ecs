@@ -122,8 +122,7 @@ namespace gaia {
 					// We expect versions to fit in the first 256 bytes.
 					// With 64 components per archetype (32 generic + 32 chunk) this gives us some headroom.
 					{
-						const auto padding = mem::padding<alignof(uint32_t)>(memoryAddress);
-						offset += padding;
+						offset = mem::align<alignof(uint32_t)>(memoryAddress);
 
 						if (!m_componentIds[component::ComponentType::CT_Generic].empty()) {
 							GAIA_ASSERT(offset < 256);
@@ -139,8 +138,7 @@ namespace gaia {
 
 					// Component ids
 					{
-						const auto padding = mem::padding<alignof(component::ComponentId)>(offset);
-						offset += padding;
+						offset = mem::align<alignof(component::ComponentId)>(offset);
 
 						if (!m_componentIds[component::ComponentType::CT_Generic].empty()) {
 							m_dataOffsets.firstByte_ComponentIds[component::ComponentType::CT_Generic] = (ChunkComponentOffset)offset;
@@ -154,8 +152,7 @@ namespace gaia {
 
 					// Component offsets
 					{
-						const auto padding = mem::padding<alignof(ChunkComponentOffset)>(offset);
-						offset += padding;
+						offset = mem::align<alignof(ChunkComponentOffset)>(offset);
 
 						if (!m_componentIds[component::ComponentType::CT_Generic].empty()) {
 							m_dataOffsets.firstByte_ComponentOffsets[component::ComponentType::CT_Generic] =
@@ -171,8 +168,7 @@ namespace gaia {
 
 					// First entity offset
 					{
-						const auto padding = mem::padding<alignof(Entity)>(offset);
-						offset += padding;
+						offset = mem::align<alignof(Entity)>(offset);
 						m_dataOffsets.firstByte_EntityData = (ChunkComponentOffset)offset;
 					}
 				}
@@ -481,8 +477,7 @@ namespace gaia {
 								ids[i] = componentId;
 								ofs[i] = {};
 							} else {
-								const auto padding = mem::padding(currentOffset, alignment);
-								currentOffset += padding;
+								currentOffset = mem::align(currentOffset, alignment);
 
 								// Register the component info
 								ids[i] = componentId;
