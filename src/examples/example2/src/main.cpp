@@ -26,7 +26,7 @@ int main() {
 	auto e = w.Add();
 	w.Add<Position>(e, {});
 	w.Add<Acceleration>(e, {0, 0, 1});
-	for (size_t i = 1; i < N; i++) {
+	for (size_t i = 1; i < N; ++i) {
 		[[maybe_unused]] auto newentity = w.Add(e);
 	}
 
@@ -35,7 +35,7 @@ int main() {
 
 	// Move until a key is hit
 	constexpr size_t GameLoops = 10'000;
-	for (size_t i = 1U; i < GameLoops; i++) {
+	for (size_t i = 1U; i < GameLoops; ++i) {
 		float dt = 0.01f; // simulate 100 FPS
 		MoveSystem(w, dt);
 	}

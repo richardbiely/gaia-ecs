@@ -1704,7 +1704,7 @@ namespace gaia {
 			uint32_t bits_needed = 0;
 			while (number > 0) {
 				number >>= 1;
-				bits_needed++;
+				++bits_needed;
 			}
 			return bits_needed;
 		}
@@ -2267,7 +2267,7 @@ namespace gaia {
 			int quick_sort_partition(Container& arr, TSortFunc func, int low, int high) {
 				const auto& pivot = arr[high];
 				int i = low - 1;
-				for (int j = low; j <= high - 1; j++) {
+				for (int j = low; j <= high - 1; ++j) {
 					if (func(arr[j], pivot))
 						core::swap(arr[++i], arr[j]);
 				}
@@ -2537,8 +2537,8 @@ namespace gaia {
 				swap_if(arr[3], arr[4], func);
 			} else if (arr.size() <= 32) {
 				auto n = arr.size();
-				for (decltype(n) i = 0; i < n - 1; i++) {
-					for (decltype(n) j = 0; j < n - i - 1; j++)
+				for (decltype(n) i = 0; i < n - 1; ++i) {
+					for (decltype(n) j = 0; j < n - i - 1; ++j)
 						swap_if(arr[j], arr[j + 1], func);
 				}
 			} else {
@@ -2660,8 +2660,8 @@ namespace gaia {
 				try_swap_if(arr, 3, 4, func, sortFunc);
 			} else if (arr.size() <= 32) {
 				auto n = arr.size();
-				for (decltype(n) i = 0; i < n - 1; i++)
-					for (decltype(n) j = 0; j < n - i - 1; j++)
+				for (decltype(n) i = 0; i < n - 1; ++i)
+					for (decltype(n) j = 0; j < n - i - 1; ++j)
 						try_swap_if(arr, j, j + 1, func, sortFunc);
 			} else {
 				GAIA_ASSERT(false && "sort currently supports at most 32 items in the array");
@@ -2807,7 +2807,7 @@ namespace gaia {
 		constexpr uint64_t calculate_hash64(const char* const str, const uint64_t length) noexcept {
 			uint64_t hash = detail::fnv1a::val_64_const;
 
-			for (uint64_t i = 0; i < length; i++)
+			for (uint64_t i = 0; i < length; ++i)
 				hash = (hash ^ uint64_t(str[i])) * detail::fnv1a::prime_64_const;
 
 			return hash;
@@ -4751,7 +4751,7 @@ namespace gaia {
 					// First word
 					m_data[wordIdxFrom] ^= getMask(bitFrom % BitsPerItem, BitsPerItem - 1);
 					// Middle
-					for (uint32_t i = wordIdxFrom + 1; i <= wordIdxTo - 1; i++)
+					for (uint32_t i = wordIdxFrom + 1; i <= wordIdxTo - 1; ++i)
 						m_data[i] = ~m_data[i];
 					// Last word
 					m_data[wordIdxTo] ^= getMask(0, bitTo % BitsPerItem);
@@ -5086,7 +5086,7 @@ namespace gaia {
 				} else {
 					size_type i = 0;
 					for (auto it = first; it != last; ++it)
-						operator[](i++) = *it;
+						operator[](++i) = *it;
 				}
 			}
 
@@ -5668,7 +5668,7 @@ namespace gaia {
 				} else {
 					size_type i = 0;
 					for (auto it = first; it != last; ++it)
-						operator[](i++) = *it;
+						operator[](++i) = *it;
 				}
 			}
 
@@ -6333,7 +6333,7 @@ namespace gaia {
 					// First word
 					m_pData[wordIdxFrom] ^= getMask(bitFrom % BitsPerItem, BitsPerItem - 1);
 					// Middle
-					for (uint32_t i = wordIdxFrom + 1; i <= wordIdxTo - 1; i++)
+					for (uint32_t i = wordIdxFrom + 1; i <= wordIdxTo - 1; ++i)
 						m_pData[i] = ~m_pData[i];
 					// Last word
 					m_pData[wordIdxTo] ^= getMask(0, bitTo % BitsPerItem);
@@ -7680,8 +7680,8 @@ namespace robin_hood {
 
 				// prefix increment. Undefined behavior if we are at end()!
 				Iter& operator++() noexcept {
-					mInfo++;
-					mKeyVals++;
+					++mInfo;
+					++mKeyVals;
 					fastForward();
 					return *this;
 				}
@@ -9183,7 +9183,7 @@ namespace gaia {
 				} else {
 					size_type i = 0;
 					for (auto it = first; it != last; ++it)
-						operator[](i++) = *it;
+						operator[](++i) = *it;
 				}
 			}
 
@@ -9610,7 +9610,7 @@ namespace gaia {
 				} else {
 					size_type i = 0;
 					for (auto it = first; it != last; ++it)
-						operator[](i++) = *it;
+						operator[](++i) = *it;
 				}
 			}
 
@@ -10982,8 +10982,8 @@ namespace robin_hood {
 
 				// prefix increment. Undefined behavior if we are at end()!
 				Iter& operator++() noexcept {
-					mInfo++;
-					mKeyVals++;
+					++mInfo;
+					++mKeyVals;
 					fastForward();
 					return *this;
 				}
@@ -15192,7 +15192,7 @@ namespace gaia {
 					auto oldOffs = pOldChunk->GetComponentOffsetSpan(component::ComponentType::CT_Generic);
 
 					// Copy generic component data from reference entity to our new entity
-					for (uint32_t i = 0; i < oldIds.size(); i++) {
+					for (uint32_t i = 0; i < oldIds.size(); ++i) {
 						const auto& desc = cc.GetComponentDesc(oldIds[i]);
 						if (desc.properties.size == 0U)
 							continue;
@@ -15226,7 +15226,7 @@ namespace gaia {
 					auto oldOffs = pOldChunk->GetComponentOffsetSpan(component::ComponentType::CT_Generic);
 
 					// Copy generic component data from reference entity to our new entity
-					for (uint32_t i = 0; i < oldIds.size(); i++) {
+					for (uint32_t i = 0; i < oldIds.size(); ++i) {
 						const auto& desc = cc.GetComponentDesc(oldIds[i]);
 						if (desc.properties.size == 0U)
 							continue;
@@ -15314,7 +15314,7 @@ namespace gaia {
 						auto compIds = GetComponentIdSpan(component::ComponentType::CT_Generic);
 						auto compOffs = GetComponentOffsetSpan(component::ComponentType::CT_Generic);
 
-						for (uint32_t i = 0; i < compIds.size(); i++) {
+						for (uint32_t i = 0; i < compIds.size(); ++i) {
 							const auto& desc = cc.GetComponentDesc(compIds[i]);
 							if (desc.properties.size == 0U)
 								continue;
@@ -15495,7 +15495,7 @@ namespace gaia {
 					auto compIds = GetComponentIdSpan(componentType);
 					auto compOffs = GetComponentOffsetSpan(componentType);
 
-					for (uint32_t i = 0; i < compIds.size(); i++) {
+					for (uint32_t i = 0; i < compIds.size(); ++i) {
 						const auto& desc = cc.GetComponentDesc(compIds[i]);
 						if (desc.ctor == nullptr)
 							continue;
@@ -18812,7 +18812,7 @@ namespace gaia {
 							"Trying to add a component to entity [%u.%u] but there's no space left!", entity.id(), entity.gen());
 					GAIA_LOG_W("Already present:");
 					const uint32_t oldInfosCount = componentIds.size();
-					for (uint32_t i = 0; i < oldInfosCount; i++) {
+					for (uint32_t i = 0; i < oldInfosCount; ++i) {
 						const auto& info = cc.GetComponentDesc(componentIds[i]);
 						GAIA_LOG_W("> [%u] %.*s", (uint32_t)i, (uint32_t)info.name.size(), info.name.data());
 					}
@@ -20514,7 +20514,7 @@ namespace gaia {
 
 #if GAIA_DEBUG
 				// Make sure there are no circular dependencies
-				for (auto j = 1U; j < m_systems.size(); j++) {
+				for (auto j = 1U; j < m_systems.size(); ++j) {
 					if (!m_systems[j - 1]->DependsOn(m_systems[j]))
 						continue;
 					GAIA_ASSERT(false && "Wrong systems dependencies!");

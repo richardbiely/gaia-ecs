@@ -695,7 +695,7 @@ A similar result can be achieved via ***Schedule***. It is a bit more complicate
 constexpr uint32_t ItemsPerJob = 1234;
 constexpr uint32_t Jobs = (N + ItemsPerJob - 1) / ItemsPerJob;
 std::atomic_uint32_t sum = 0;
-for (uint32_t i = 0; i < Jobs; i++) {
+for (uint32_t i = 0; i < Jobs; ++i) {
   mt::Job job {[&arr, &sum, i, ItemsPerJob, func]() {
     const auto idxStart = i * ItemsPerJob;
     const auto idxEnd = std::min((i + 1) * ItemsPerJob, N);

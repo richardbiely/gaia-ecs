@@ -307,7 +307,7 @@ namespace gaia {
 					// First word
 					m_pData[wordIdxFrom] ^= getMask(bitFrom % BitsPerItem, BitsPerItem - 1);
 					// Middle
-					for (uint32_t i = wordIdxFrom + 1; i <= wordIdxTo - 1; i++)
+					for (uint32_t i = wordIdxFrom + 1; i <= wordIdxTo - 1; ++i)
 						m_pData[i] = ~m_pData[i];
 					// Last word
 					m_pData[wordIdxTo] ^= getMask(0, bitTo % BitsPerItem);
