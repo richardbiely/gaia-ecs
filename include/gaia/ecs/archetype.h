@@ -81,9 +81,9 @@ namespace gaia {
 			private:
 				struct {
 					//! The number of entities this archetype can take (e.g 5 = 5 entities with all their components)
-					uint32_t capacity: ChunkHeader::MAX_CHUNK_ENTITIES_BITS;
+					uint16_t capacity;
 					//! How many bytes of data is needed for a fully utilized chunk
-					uint32_t chunkDataBytes : 16;
+					uint16_t chunkDataBytes;
 				} m_properties{};
 				static_assert(sizeof(m_properties) <= sizeof(uint32_t));
 				//! Stable reference to parent world's world version
@@ -241,46 +241,6 @@ namespace gaia {
 				}
 #endif
 
-				GAIA_NODISCARD Chunk* FindOrCreateFreeChunk_Internal(cnt::darray<Chunk*>& chunkArray) const {
-					const auto chunkCnt = chunkArray.size();
-
-					if (chunkCnt > 0) {
-#if GAIA_AVOID_CHUNK_FRAGMENTATION
-						// In order to avoid memory fragmentation we always take from the back.
-						// This means all previous chunks are always going to be fully utilized
-						// and it is safe for as to peek at the last one to make descisions.
-						auto* pChunk = FindFirstNonFullChunk_Internal(chunkArray);
-						if (pChunk != nullptr)
-							return pChunk;
-#else
-						// Find first semi-empty chunk.
-						// Picking the first non-full would only support fragmentation.
-						Chunk* pEmptyChunk = nullptr;
-						for (auto* pChunk: chunkArray) {
-							GAIA_ASSERT(pChunk != nullptr);
-							const auto entityCnt = pChunk->GetEntityCount();
-							if GAIA_UNLIKELY (entityCnt == 0)
-								pEmptyChunk = pChunk;
-							else if (entityCnt < pChunk->GetEntityCapacity())
-								return pChunk;
-						}
-						if (pEmptyChunk != nullptr)
-							return pEmptyChunk;
-#endif
-					}
-
-					// Make sure not too many chunks are allocated
-					GAIA_ASSERT(chunkCnt < UINT16_MAX);
-
-					// No free space found anywhere. Let's create a new chunk.
-					auto* pChunk = Chunk::Create(
-							m_archetypeId, (uint16_t)chunkCnt, m_properties.capacity, m_properties.chunkDataBytes, m_worldVersion,
-							m_dataOffsets, m_componentIds, m_componentOffsets);
-
-					chunkArray.push_back(pChunk);
-					return pChunk;
-				}
-
 				/*!
 				Checks if a component with \param componentId and type \param componentType is present in the archetype.
 				\param componentId Component id
@@ -386,6 +346,7 @@ namespace gaia {
 						component::ComponentIdSpan componentIdsChunk) {
 					auto* newArch = new Archetype(worldVersion);
 					newArch->m_archetypeId = archetypeId;
+					const uint32_t maxEntities = archetypeId == 0 ? ChunkHeader::MAX_CHUNK_ENTITIES : 512;
 
 					newArch->m_componentIds[component::ComponentType::CT_Generic].resize((uint32_t)componentIdsGeneric.size());
 					newArch->m_componentIds[component::ComponentType::CT_Chunk].resize((uint32_t)componentIdsChunk.size());
@@ -439,9 +400,13 @@ namespace gaia {
 									currentOffset, maxGenericItemsInArchetype, componentIdsChunk, 1, maxDataOffsetTarget))
 						goto recalculate;
 
-					// TODO: Make it possible for chunks to be not restricted by ChunkHeader::DisabledEntityMask::BitCount.
-					if (maxGenericItemsInArchetype > ChunkHeader::MAX_CHUNK_ENTITIES) {
-						maxGenericItemsInArchetype = ChunkHeader::MAX_CHUNK_ENTITIES;
+					// Limit the number of entities to a ceratain number so we can make use of smaller
+					// chunks where it makes sense.
+					// TODO:
+					// Tweak this so the full remaining capacity is used. So if we occupy 7000 B we still
+					// have 1000 B left to fill.
+					if (maxGenericItemsInArchetype > maxEntities) {
+						maxGenericItemsInArchetype = maxEntities;
 						goto recalculate;
 					}
 
@@ -491,7 +456,8 @@ namespace gaia {
 					registerComponents(componentIdsGeneric, component::ComponentType::CT_Generic, maxGenericItemsInArchetype);
 					registerComponents(componentIdsChunk, component::ComponentType::CT_Chunk, 1);
 
-					newArch->m_properties.capacity = (uint32_t)maxGenericItemsInArchetype;
+					GAIA_ASSERT(maxGenericItemsInArchetype < MAX_UINT16);
+					newArch->m_properties.capacity = (uint16_t)maxGenericItemsInArchetype;
 					newArch->m_properties.chunkDataBytes = (uint16_t)currentOffset;
 					GAIA_ASSERT(
 							Chunk::GetTotalChunkSize((uint16_t)currentOffset) <
@@ -523,8 +489,8 @@ namespace gaia {
 				\param index Index of the entity
 				\param enableEntity Enables the entity
 				*/
-				void EnableEntity(Chunk* pChunk, uint32_t entityIdx, bool enableEntity) {
-					pChunk->EnableEntity(entityIdx, enableEntity);
+				void EnableEntity(Chunk* pChunk, uint32_t entityIdx, bool enableEntity, std::span<EntityContainer> entities) {
+					pChunk->EnableEntity(entityIdx, enableEntity, entities);
 					// m_disabledMask.set(pChunk->GetChunkIndex(), enableEntity ? true : pChunk->HasDisabledEntities());
 				}
 
@@ -636,8 +602,42 @@ namespace gaia {
 				//! Tries to locate a chunk that has some space left for a new entity.
 				//! If not found a new chunk is created.
 				GAIA_NODISCARD Chunk* FindOrCreateFreeChunk() {
-					auto* pChunk = FindOrCreateFreeChunk_Internal(m_chunks);
-					GAIA_ASSERT(!pChunk->HasDisabledEntities());
+					const auto chunkCnt = m_chunks.size();
+
+					if (chunkCnt > 0) {
+#if GAIA_AVOID_CHUNK_FRAGMENTATION
+						// In order to avoid memory fragmentation we always take from the back.
+						// This means all previous chunks are always going to be fully utilized
+						// and it is safe for as to peek at the last one to make descisions.
+						auto* pChunk = FindFirstNonFullChunk_Internal(chunkArray);
+						if (pChunk != nullptr)
+							return pChunk;
+#else
+						// Find first semi-empty chunk.
+						// Picking the first non-full would only support fragmentation.
+						Chunk* pEmptyChunk = nullptr;
+						for (auto* pChunk: m_chunks) {
+							GAIA_ASSERT(pChunk != nullptr);
+							const auto entityCnt = pChunk->GetEntityCount();
+							if GAIA_UNLIKELY (entityCnt == 0)
+								pEmptyChunk = pChunk;
+							else if (entityCnt < pChunk->GetEntityCapacity())
+								return pChunk;
+						}
+						if (pEmptyChunk != nullptr)
+							return pEmptyChunk;
+#endif
+					}
+
+					// Make sure not too many chunks are allocated
+					GAIA_ASSERT(chunkCnt < UINT32_MAX);
+
+					// No free space found anywhere. Let's create a new chunk.
+					auto* pChunk = Chunk::Create(
+							m_archetypeId, chunkCnt, m_properties.capacity, m_properties.chunkDataBytes, m_worldVersion,
+							m_dataOffsets, m_componentIds, m_componentOffsets);
+
+					m_chunks.push_back(pChunk);
 					return pChunk;
 				}
 
@@ -732,7 +732,7 @@ namespace gaia {
 					uint32_t entityCountDisabled = 0;
 					for (const auto* chunk: archetype.m_chunks) {
 						entityCount += chunk->GetEntityCount();
-						entityCountDisabled += chunk->GetDisabledEntityMask().count();
+						entityCountDisabled += chunk->GetDisabledEntityCount();
 					}
 
 					// Calculate the number of components

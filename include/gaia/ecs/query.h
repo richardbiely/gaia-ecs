@@ -26,7 +26,6 @@
 #include "query_common.h"
 #include "query_info.h"
 
-
 namespace gaia {
 	namespace ecs {
 		namespace detail {
@@ -416,16 +415,12 @@ namespace gaia {
 						for (const auto* pChunk: chunkSpan) {
 							if (!pChunk->HasEntities())
 								continue;
-							if (enabledOnly == pChunk->HasDisabledEntities()) {
-								const auto maskCnt = pChunk->GetDisabledEntityMask().count();
 
-								// We want enabled entities but there are only disables ones on the chunk
-								if (enabledOnly && maskCnt == pChunk->GetEntityCount())
-									continue;
-								// We want disabled entities but there are only enabled ones on the chunk
-								if (!enabledOnly && maskCnt == 0)
-									continue;
-							}
+							if (enabledOnly && !pChunk->HasEnabledEntities())
+								continue;
+							if (!enabledOnly && !pChunk->HasDisabledEntities())
+								continue;
+
 							if constexpr (HasFilters) {
 								if (!CheckFilters(*pChunk, queryInfo))
 									continue;
@@ -604,17 +599,16 @@ namespace gaia {
 							if constexpr (c == Constraints::AcceptAll)
 								return pChunk->HasEntities() && CheckFilters(*pChunk, queryInfo);
 							else if constexpr (c == Constraints::EnabledOnly)
-								return pChunk->GetDisabledEntityMask().count() != pChunk->GetEntityCount() &&
-											 CheckFilters(*pChunk, queryInfo);
+								return pChunk->GetDisabledEntityCount() != pChunk->GetEntityCount() && CheckFilters(*pChunk, queryInfo);
 							else // if constexpr (c == Constraints::DisabledOnly)
-								return pChunk->GetDisabledEntityMask().count() > 0 && CheckFilters(*pChunk, queryInfo);
+								return pChunk->GetDisabledEntityCount() > 0 && CheckFilters(*pChunk, queryInfo);
 						} else {
 							if constexpr (c == Constraints::AcceptAll)
 								return pChunk->HasEntities();
 							else if constexpr (c == Constraints::EnabledOnly)
-								return pChunk->GetDisabledEntityMask().count() != pChunk->GetEntityCount();
+								return pChunk->GetDisabledEntityCount() != pChunk->GetEntityCount();
 							else // if constexpr (c == Constraints::DisabledOnly)
-								return pChunk->GetDisabledEntityMask().count() > 0;
+								return pChunk->GetDisabledEntityCount() > 0;
 						}
 					});
 				}
@@ -636,9 +630,9 @@ namespace gaia {
 
 						// Entity count
 						if constexpr (c == Constraints::EnabledOnly)
-							cnt += pChunk->GetEntityCount() - pChunk->GetDisabledEntityMask().count();
+							cnt += pChunk->GetEnabledEntityCount();
 						else if constexpr (c == Constraints::DisabledOnly)
-							cnt += pChunk->GetDisabledEntityMask().count();
+							cnt += pChunk->GetDisabledEntityCount();
 						else
 							cnt += pChunk->GetEntityCount();
 					}

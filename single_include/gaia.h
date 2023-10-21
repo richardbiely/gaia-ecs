@@ -13649,6 +13649,7 @@ namespace gaia {
 				using FuncDtor = void(void*, uint32_t);
 				using FuncCopy = void(void*, void*);
 				using FuncMove = void(void*, void*);
+				using FuncSwap = void(void*, void*);
 
 				//! Component name
 				std::span<const char> name;
@@ -13664,6 +13665,8 @@ namespace gaia {
 				FuncCopy* copy = nullptr;
 				//! Fucntion to call when the component needs to be moved
 				FuncMove* move = nullptr;
+				//! Function to call when the component needs to swap
+				FuncSwap* swap = nullptr;
 				//! Unique component identifier
 				ComponentId componentId = ComponentIdBad;
 
@@ -13708,6 +13711,10 @@ namespace gaia {
 				void Dtor(void* pSrc) const {
 					if (dtor != nullptr)
 						dtor(pSrc, 1);
+				}
+
+				void Swap(void* pLeft, void* pRight) const {
+					swap(pLeft, pRight);
 				}
 
 				GAIA_NODISCARD uint32_t CalculateNewMemoryOffset(uint32_t addr, size_t N) const noexcept {
@@ -13814,6 +13821,25 @@ namespace gaia {
 									(void)new (dst) U(std::move(*src));
 								};
 							}
+						}
+
+						// Value swap
+						if constexpr (std::is_move_constructible_v<U> && std::is_move_assignable_v<U>) {
+							info.swap = [](void* left, void* right) {
+								auto* l = (U*)left;
+								auto* r = (U*)right;
+								U tmp = std::move(*l);
+								*r = std::move(*l);
+								*r = std::move(tmp);
+							};
+						} else {
+							info.swap = [](void* left, void* right) {
+								auto* l = (U*)left;
+								auto* r = (U*)right;
+								U tmp = *l;
+								*r = *l;
+								*r = tmp;
+							};
 						}
 					}
 
@@ -14577,27 +14603,27 @@ namespace gaia {
 			};
 
 			struct ChunkHeader final {
-			public:
-				static constexpr uint16_t CHUNK_LIFESPAN_BITS = 3;
+				static constexpr uint16_t CHUNK_LIFESPAN_BITS = 4;
 				//! Number of ticks before empty chunks are removed
 				static constexpr uint16_t MAX_CHUNK_LIFESPAN = (1 << CHUNK_LIFESPAN_BITS) - 1;
 
+				static constexpr uint16_t MAX_CHUNK_ENTITIES_BITS = 16;
 				//! Maxiumum number of entities per chunk
-				static constexpr uint16_t MAX_CHUNK_ENTITIES = 512;
-				static constexpr uint16_t MAX_CHUNK_ENTITIES_BITS = (uint16_t)core::count_bits(MAX_CHUNK_ENTITIES);
-				using DisabledEntityMask = cnt::bitset<MAX_CHUNK_ENTITIES>;
+				static constexpr uint16_t MAX_CHUNK_ENTITIES = (1 << MAX_CHUNK_ENTITIES_BITS) - 1;
 
 				//! Archetype the chunk belongs to
 				ArchetypeId archetypeId;
-
+				//! Chunk index in its archetype list
+				uint32_t index;
 				//! Number of items enabled in the chunk.
-				uint32_t count: MAX_CHUNK_ENTITIES_BITS;
+				uint16_t count;
 				//! Capacity (copied from the owner archetype).
-				uint32_t capacity: MAX_CHUNK_ENTITIES_BITS;
+				uint16_t capacity;
+
+				//! Index of the first enabled entity in the chunk
+				uint32_t firstEnabledEntityIndex : 16;
 				//! Once removal is requested and it hits 0 the chunk is removed.
 				uint32_t lifespanCountdown: CHUNK_LIFESPAN_BITS;
-				//! If true this chunk stores disabled entities
-				uint32_t hasDisabledEntities : 1;
 				//! Updated when chunks are being iterated. Used to inform of structural changes when they shouldn't happen.
 				uint32_t structuralChangesLocked : 3;
 				//! True if there's any generic component that requires custom construction
@@ -14610,29 +14636,34 @@ namespace gaia {
 				uint32_t hasAnyCustomChunkDtor : 1;
 				//! Chunk size type. This tells whether it's 8K or 16K
 				uint32_t sizeType : 1;
+				//! Empty space for future use
+				uint32_t unused : 4;
 
 				//! Offsets to various parts of data inside chunk
 				ChunkHeaderOffsets offsets;
-				//! Chunk index in its archetype list.
-				//! max(index) * MAX_CHUNK_ENTITIES = MAX_ARCHETYPE_ENTITIES. Currently 33'553'920.
-				uint16_t index;
 
 				//! Number of components on the archetype
 				uint8_t componentCount[component::ComponentType::CT_Count]{};
 				//! Version of the world (stable pointer to parent world's world version)
 				uint32_t& worldVersion;
-				//! Mask of disabled entities
-				DisabledEntityMask disabledEntityMask;
 
 				ChunkHeader(
-						uint32_t aid, uint16_t chunkIndex, uint16_t cap, uint16_t st, const ChunkHeaderOffsets& offs,
+						uint32_t aid, uint32_t chunkIndex, uint16_t cap, uint16_t st, const ChunkHeaderOffsets& offs,
 						uint32_t& version):
 						archetypeId(aid),
-						count(0), capacity(cap), lifespanCountdown(0), hasDisabledEntities(0), structuralChangesLocked(0),
-						hasAnyCustomGenericCtor(0), hasAnyCustomChunkCtor(0), hasAnyCustomGenericDtor(0), hasAnyCustomChunkDtor(0),
-						sizeType(st), offsets(offs), index(chunkIndex), worldVersion(version) {
+						index(chunkIndex), count(0), capacity(cap), firstEnabledEntityIndex(0), lifespanCountdown(0),
+						structuralChangesLocked(0), hasAnyCustomGenericCtor(0), hasAnyCustomChunkCtor(0),
+						hasAnyCustomGenericDtor(0), hasAnyCustomChunkDtor(0), sizeType(st), offsets(offs), worldVersion(version) {
 					// Make sure the alignment is right
 					GAIA_ASSERT(uintptr_t(this) % (sizeof(size_t)) == 0);
+				}
+
+				bool HasDisabledEntities() const {
+					return count > 0 && firstEnabledEntityIndex > 0;
+				}
+
+				bool HasEnabledEntities() const {
+					return count > 0 && firstEnabledEntityIndex != count;
 				}
 			};
 		} // namespace archetype
@@ -14816,9 +14847,12 @@ namespace gaia {
 	namespace ecs {
 		namespace archetype {
 			class Chunk final {
-			private:
+			public:
+				// TODO: Make this private
 				//! Chunk header
 				ChunkHeader m_header;
+
+			private:
 				//! Pointer to where the chunk data starts.
 				//! Data layed out as following:
 				//!			1) ComponentVersions[component::ComponentType::CT_Generic]
@@ -14836,7 +14870,7 @@ namespace gaia {
 				GAIA_MSVC_WARNING_DISABLE(26495)
 
 				Chunk(
-						uint32_t archetypeId, uint16_t chunkIndex, uint16_t capacity, uint16_t st, uint32_t& worldVersion,
+						uint32_t archetypeId, uint32_t chunkIndex, uint16_t capacity, uint16_t st, uint32_t& worldVersion,
 						const ChunkHeaderOffsets& headerOffsets):
 						m_header(archetypeId, chunkIndex, capacity, st, headerOffsets, worldVersion) {
 					// Chunk data area consist of memory offsets + component data. Normally. we would initialize it.
@@ -15009,7 +15043,6 @@ namespace gaia {
 					// Should never be called over an empty chunk
 					GAIA_ASSERT(HasEntities());
 					--m_header.count;
-					m_header.disabledEntityMask.set(m_header.count, false);
 				}
 
 			public:
@@ -15035,7 +15068,7 @@ namespace gaia {
 				\return Newly allocated chunk
 				*/
 				static Chunk* Create(
-						uint32_t archetypeId, uint16_t chunkIndex, uint16_t capacity, uint16_t dataBytes, uint32_t& worldVersion,
+						uint32_t archetypeId, uint32_t chunkIndex, uint16_t capacity, uint16_t dataBytes, uint32_t& worldVersion,
 						const ChunkHeaderOffsets& offsets,
 						const cnt::sarray<ComponentIdArray, component::ComponentType::CT_Count>& componentIds,
 						const cnt::sarray<ComponentOffsetArray, component::ComponentType::CT_Count>& componentOffsets) {
@@ -15300,11 +15333,17 @@ namespace gaia {
 					}
 				}
 
-				void SwapEntitiesInsideChunkAndDeleteOld(uint32_t index, std::span<EntityContainer> entities) {
-					GAIA_PROF_SCOPE(SwapEntitiesInsideChunkAndDeleteOld);
+				/*!
+				Tries to remove the entity at index \param index.
+				Removal is done via swapping with last entity in chunk.
+				Upon removal, all associated data is also removed.
+				If the entity at the given index already is the last chunk entity, it is removed directly.
+				*/
+				void RemoveChunkEntity(uint32_t index, std::span<EntityContainer> entities) {
+					GAIA_PROF_SCOPE(RemoveChunkEntity);
 
 					const auto left = index;
-					const auto right = m_header.count - 1;
+					const auto right = (uint32_t)m_header.count - 1;
 					// The "left" entity is the one we are going to destroy so it needs to preceed the "right"
 					GAIA_ASSERT(left <= right);
 
@@ -15366,6 +15405,61 @@ namespace gaia {
 				}
 
 				/*!
+				Tries to swap the entity at index \param left with the one at the index \param right.
+				When swapping, all data associated with the two entities is swapped as well.
+				If \param left equals \param right no swapping is performed.
+				\warning "Left" must he smaller or equal to "right"
+				*/
+				void SwapChunkEntities(uint32_t left, uint32_t right, std::span<EntityContainer> entities) {
+					// The "left" entity is the one we are going to destroy so it needs to preceed the "right".
+					// Unlike RemoveChunkEntity, it is not technically necessary but we do it
+					// anyway for the sake of consistency.
+					GAIA_ASSERT(left <= right);
+
+					// If there are at least two entities inside to swap
+					if GAIA_UNLIKELY (m_header.count <= 1)
+						return;
+					if (left == right)
+						return;
+
+					GAIA_PROF_SCOPE(SwapEntitiesInsideChunk);
+
+					// Update entity indices inside chunk
+					const auto entityLeft = GetEntity(left);
+					const auto entityRight = GetEntity(right);
+					SetEntity(left, entityRight);
+					SetEntity(right, entityLeft);
+
+					const auto& cc = ComponentCache::Get();
+					auto compIds = GetComponentIdSpan(component::ComponentType::CT_Generic);
+					auto compOffs = GetComponentOffsetSpan(component::ComponentType::CT_Generic);
+
+					for (uint32_t i = 0; i < compIds.size(); ++i) {
+						const auto& desc = cc.GetComponentDesc(compIds[i]);
+						if (desc.properties.size == 0U)
+							continue;
+
+						const auto offset = compOffs[i];
+						const auto idxSrc = offset + left * desc.properties.size;
+						const auto idxDst = offset + right * desc.properties.size;
+
+						GAIA_ASSERT(idxSrc < GetByteSize());
+						GAIA_ASSERT(idxDst < GetByteSize());
+						GAIA_ASSERT(idxSrc != idxDst);
+
+						auto* pSrc = (void*)&m_data[idxSrc];
+						auto* pDst = (void*)&m_data[idxDst];
+						desc.Swap(pSrc, pDst);
+					}
+
+					// Entities were swapped. Update their index & generation in the entity container.
+					entities[entityLeft.id()].idx = right;
+					entities[entityLeft.id()].gen = entityRight.gen();
+					entities[entityRight.id()].idx = left;
+					entities[entityRight.id()].gen = entityLeft.gen();
+				}
+
+				/*!
 				Makes the entity a part of a chunk on a given index.
 				\param index Index of the entity
 				\param entity Entity to store in the chunk
@@ -15398,16 +15492,28 @@ namespace gaia {
 				\param index Index of the entity
 				\param enableEntity Enables or disabled the entity
 				*/
-				void EnableEntity(uint32_t index, bool enableEntity) {
+				void EnableEntity(uint32_t index, bool enableEntity, std::span<EntityContainer> entities) {
 					GAIA_ASSERT(index < m_header.count && "Entity chunk index out of bounds!");
 
-					if (enableEntity) {
-						m_header.disabledEntityMask.set(index, false);
-						SetDisabled(m_header.disabledEntityMask.any());
-					} else {
-						m_header.disabledEntityMask.set(index, true);
-						SetDisabled(true);
+					if (enableEntity && m_header.HasDisabledEntities()) {
+						// Trying to enable an already enabled entity
+						if (IsEntityEnabled(index))
+							return;
+						// Try swapping our entity with the last disabled one
+						SwapChunkEntities(--m_header.firstEnabledEntityIndex, index, entities);
+					} else if (!enableEntity && m_header.HasEnabledEntities()) {
+						// Trying to disable an already disabled entity
+						if (!IsEntityEnabled(index))
+							return;
+						// Try swapping our entity with the last one in our chunk
+						SwapChunkEntities(m_header.firstEnabledEntityIndex++, index, entities);
 					}
+				}
+
+				bool IsEntityEnabled(uint32_t index) const {
+					GAIA_ASSERT(m_header.count > 0);
+
+					return index >= (uint32_t)m_header.firstEnabledEntityIndex;
 				}
 
 				/*!
@@ -15802,21 +15908,24 @@ namespace gaia {
 					return m_header.archetypeId;
 				}
 
-				void SetChunkIndex(uint16_t value) {
+				//! Sets the index of this chunk in its archetype's storage
+				void SetChunkIndex(uint32_t value) {
 					m_header.index = value;
 				}
 
-				GAIA_NODISCARD uint16_t GetChunkIndex() const {
+				//! Returns the index of this chunk in its archetype's storage
+				GAIA_NODISCARD uint32_t GetChunkIndex() const {
 					return m_header.index;
 				}
 
-				void SetDisabled(bool value) {
-					m_header.hasDisabledEntities = value;
+				//! Checks is this chunk has any enabled entities
+				GAIA_NODISCARD bool HasEnabledEntities() const {
+					return m_header.HasEnabledEntities();
 				}
 
-				//! Checks is this chunk is disabled
+				//! Checks is this chunk has any disabled entities
 				GAIA_NODISCARD bool HasDisabledEntities() const {
-					return m_header.hasDisabledEntities != 0;
+					return m_header.HasDisabledEntities();
 				}
 
 				//! Checks is this chunk is dying
@@ -15864,9 +15973,19 @@ namespace gaia {
 					return m_header.count > 0;
 				}
 
-				//! Returns the number of entities in the chunk
+				//! Returns the total number of entities in the chunk (both enabled and disabled)
 				GAIA_NODISCARD uint32_t GetEntityCount() const {
 					return m_header.count;
+				}
+
+				//! Return the number of entities in the chunk which are enabled
+				GAIA_NODISCARD uint32_t GetEnabledEntityCount() const {
+					return m_header.count - m_header.firstEnabledEntityIndex;
+				}
+
+				//! Return the number of entities in the chunk which are enabled
+				GAIA_NODISCARD uint32_t GetDisabledEntityCount() const {
+					return m_header.firstEnabledEntityIndex;
 				}
 
 				//! Returns the number of entities in the chunk
@@ -15876,16 +15995,6 @@ namespace gaia {
 
 				GAIA_NODISCARD uint32_t GetByteSize() const {
 					return detail::ChunkAllocatorImpl::GetMemoryBlockSize(m_header.sizeType);
-				}
-
-				//! Returns the mask of disabled entities
-				GAIA_NODISCARD ChunkHeader::DisabledEntityMask& GetDisabledEntityMask() {
-					return m_header.disabledEntityMask;
-				}
-
-				//! Returns the mask of disabled entities
-				GAIA_NODISCARD const ChunkHeader::DisabledEntityMask& GetDisabledEntityMask() const {
-					return m_header.disabledEntityMask;
 				}
 
 				GAIA_NODISCARD std::span<uint32_t> GetComponentVersionSpan(component::ComponentType componentType) const {
@@ -16003,9 +16112,9 @@ namespace gaia {
 			private:
 				struct {
 					//! The number of entities this archetype can take (e.g 5 = 5 entities with all their components)
-					uint32_t capacity: ChunkHeader::MAX_CHUNK_ENTITIES_BITS;
+					uint16_t capacity;
 					//! How many bytes of data is needed for a fully utilized chunk
-					uint32_t chunkDataBytes : 16;
+					uint16_t chunkDataBytes;
 				} m_properties{};
 				static_assert(sizeof(m_properties) <= sizeof(uint32_t));
 				//! Stable reference to parent world's world version
@@ -16163,46 +16272,6 @@ namespace gaia {
 				}
 #endif
 
-				GAIA_NODISCARD Chunk* FindOrCreateFreeChunk_Internal(cnt::darray<Chunk*>& chunkArray) const {
-					const auto chunkCnt = chunkArray.size();
-
-					if (chunkCnt > 0) {
-#if GAIA_AVOID_CHUNK_FRAGMENTATION
-						// In order to avoid memory fragmentation we always take from the back.
-						// This means all previous chunks are always going to be fully utilized
-						// and it is safe for as to peek at the last one to make descisions.
-						auto* pChunk = FindFirstNonFullChunk_Internal(chunkArray);
-						if (pChunk != nullptr)
-							return pChunk;
-#else
-						// Find first semi-empty chunk.
-						// Picking the first non-full would only support fragmentation.
-						Chunk* pEmptyChunk = nullptr;
-						for (auto* pChunk: chunkArray) {
-							GAIA_ASSERT(pChunk != nullptr);
-							const auto entityCnt = pChunk->GetEntityCount();
-							if GAIA_UNLIKELY (entityCnt == 0)
-								pEmptyChunk = pChunk;
-							else if (entityCnt < pChunk->GetEntityCapacity())
-								return pChunk;
-						}
-						if (pEmptyChunk != nullptr)
-							return pEmptyChunk;
-#endif
-					}
-
-					// Make sure not too many chunks are allocated
-					GAIA_ASSERT(chunkCnt < UINT16_MAX);
-
-					// No free space found anywhere. Let's create a new chunk.
-					auto* pChunk = Chunk::Create(
-							m_archetypeId, (uint16_t)chunkCnt, m_properties.capacity, m_properties.chunkDataBytes, m_worldVersion,
-							m_dataOffsets, m_componentIds, m_componentOffsets);
-
-					chunkArray.push_back(pChunk);
-					return pChunk;
-				}
-
 				/*!
 				Checks if a component with \param componentId and type \param componentType is present in the archetype.
 				\param componentId Component id
@@ -16308,6 +16377,7 @@ namespace gaia {
 						component::ComponentIdSpan componentIdsChunk) {
 					auto* newArch = new Archetype(worldVersion);
 					newArch->m_archetypeId = archetypeId;
+					const uint32_t maxEntities = archetypeId == 0 ? ChunkHeader::MAX_CHUNK_ENTITIES : 512;
 
 					newArch->m_componentIds[component::ComponentType::CT_Generic].resize((uint32_t)componentIdsGeneric.size());
 					newArch->m_componentIds[component::ComponentType::CT_Chunk].resize((uint32_t)componentIdsChunk.size());
@@ -16361,9 +16431,13 @@ namespace gaia {
 									currentOffset, maxGenericItemsInArchetype, componentIdsChunk, 1, maxDataOffsetTarget))
 						goto recalculate;
 
-					// TODO: Make it possible for chunks to be not restricted by ChunkHeader::DisabledEntityMask::BitCount.
-					if (maxGenericItemsInArchetype > ChunkHeader::MAX_CHUNK_ENTITIES) {
-						maxGenericItemsInArchetype = ChunkHeader::MAX_CHUNK_ENTITIES;
+					// Limit the number of entities to a ceratain number so we can make use of smaller
+					// chunks where it makes sense.
+					// TODO:
+					// Tweak this so the full remaining capacity is used. So if we occupy 7000 B we still
+					// have 1000 B left to fill.
+					if (maxGenericItemsInArchetype > maxEntities) {
+						maxGenericItemsInArchetype = maxEntities;
 						goto recalculate;
 					}
 
@@ -16413,7 +16487,8 @@ namespace gaia {
 					registerComponents(componentIdsGeneric, component::ComponentType::CT_Generic, maxGenericItemsInArchetype);
 					registerComponents(componentIdsChunk, component::ComponentType::CT_Chunk, 1);
 
-					newArch->m_properties.capacity = (uint32_t)maxGenericItemsInArchetype;
+					GAIA_ASSERT(maxGenericItemsInArchetype < MAX_UINT16);
+					newArch->m_properties.capacity = (uint16_t)maxGenericItemsInArchetype;
 					newArch->m_properties.chunkDataBytes = (uint16_t)currentOffset;
 					GAIA_ASSERT(
 							Chunk::GetTotalChunkSize((uint16_t)currentOffset) <
@@ -16445,8 +16520,8 @@ namespace gaia {
 				\param index Index of the entity
 				\param enableEntity Enables the entity
 				*/
-				void EnableEntity(Chunk* pChunk, uint32_t entityIdx, bool enableEntity) {
-					pChunk->EnableEntity(entityIdx, enableEntity);
+				void EnableEntity(Chunk* pChunk, uint32_t entityIdx, bool enableEntity, std::span<EntityContainer> entities) {
+					pChunk->EnableEntity(entityIdx, enableEntity, entities);
 					// m_disabledMask.set(pChunk->GetChunkIndex(), enableEntity ? true : pChunk->HasDisabledEntities());
 				}
 
@@ -16558,8 +16633,42 @@ namespace gaia {
 				//! Tries to locate a chunk that has some space left for a new entity.
 				//! If not found a new chunk is created.
 				GAIA_NODISCARD Chunk* FindOrCreateFreeChunk() {
-					auto* pChunk = FindOrCreateFreeChunk_Internal(m_chunks);
-					GAIA_ASSERT(!pChunk->HasDisabledEntities());
+					const auto chunkCnt = m_chunks.size();
+
+					if (chunkCnt > 0) {
+#if GAIA_AVOID_CHUNK_FRAGMENTATION
+						// In order to avoid memory fragmentation we always take from the back.
+						// This means all previous chunks are always going to be fully utilized
+						// and it is safe for as to peek at the last one to make descisions.
+						auto* pChunk = FindFirstNonFullChunk_Internal(chunkArray);
+						if (pChunk != nullptr)
+							return pChunk;
+#else
+						// Find first semi-empty chunk.
+						// Picking the first non-full would only support fragmentation.
+						Chunk* pEmptyChunk = nullptr;
+						for (auto* pChunk: m_chunks) {
+							GAIA_ASSERT(pChunk != nullptr);
+							const auto entityCnt = pChunk->GetEntityCount();
+							if GAIA_UNLIKELY (entityCnt == 0)
+								pEmptyChunk = pChunk;
+							else if (entityCnt < pChunk->GetEntityCapacity())
+								return pChunk;
+						}
+						if (pEmptyChunk != nullptr)
+							return pEmptyChunk;
+#endif
+					}
+
+					// Make sure not too many chunks are allocated
+					GAIA_ASSERT(chunkCnt < UINT32_MAX);
+
+					// No free space found anywhere. Let's create a new chunk.
+					auto* pChunk = Chunk::Create(
+							m_archetypeId, chunkCnt, m_properties.capacity, m_properties.chunkDataBytes, m_worldVersion,
+							m_dataOffsets, m_componentIds, m_componentOffsets);
+
+					m_chunks.push_back(pChunk);
 					return pChunk;
 				}
 
@@ -16654,7 +16763,7 @@ namespace gaia {
 					uint32_t entityCountDisabled = 0;
 					for (const auto* chunk: archetype.m_chunks) {
 						entityCount += chunk->GetEntityCount();
-						entityCountDisabled += chunk->GetDisabledEntityMask().count();
+						entityCountDisabled += chunk->GetDisabledEntityCount();
 					}
 
 					// Calculate the number of components
@@ -16868,10 +16977,6 @@ namespace gaia {
 namespace gaia {
 	namespace ecs {
 		namespace detail {
-			using ChunkAccessorMask = archetype::ChunkHeader::DisabledEntityMask;
-			using ChunkAccessorIter = ChunkAccessorMask::const_iterator;
-			using ChunkAccessorIterInverse = ChunkAccessorMask::const_iterator_inverse;
-
 			class ChunkAccessor {
 			protected:
 				archetype::Chunk& m_chunk;
@@ -16890,7 +16995,7 @@ namespace gaia {
 				//! Checks if the entity at the current iterator index is enabled.
 				//! \return True it the entity is enabled. False otherwise.
 				GAIA_NODISCARD bool IsEnabled(uint32_t entityIdx) const {
-					return !m_chunk.GetDisabledEntityMask().test(entityIdx);
+					return entityIdx >= m_chunk.GetDisabledEntityCount() && entityIdx < m_chunk.GetEntityCount();
 				}
 
 				//! Returns a read-only entity or component view.
@@ -17176,32 +17281,22 @@ namespace gaia {
 namespace gaia {
 	namespace ecs {
 		struct IteratorDisabled: public detail::ChunkAccessor {
-		private:
-			using Mask = detail::ChunkAccessorMask;
-
-			cnt::sarr_ext<uint16_t, Mask::BitCount> m_indices;
+			using Iter = ChunkAccessorIt;
 
 		public:
-			IteratorDisabled(archetype::Chunk& chunk): detail::ChunkAccessor(chunk) {
-				// Build indices we use for iteration
-				const auto& mask = chunk.GetDisabledEntityMask();
-				const auto it0 = detail::ChunkAccessorIter(mask, 0, true);
-				const auto it1 = detail::ChunkAccessorIter(mask, m_chunk.GetEntityCount(), false);
-				for (auto it = it0; it != it1; ++it)
-					m_indices.push_back((uint16_t)*it);
+			IteratorDisabled(archetype::Chunk& chunk): detail::ChunkAccessor(chunk) {}
+
+			GAIA_NODISCARD Iter begin() const {
+				return Iter(0);
 			}
 
-			GAIA_NODISCARD auto begin() const {
-				return m_indices.begin();
+			GAIA_NODISCARD Iter end() const {
+				return Iter(m_chunk.GetDisabledEntityCount());
 			}
 
-			GAIA_NODISCARD auto end() const {
-				return m_indices.end();
-			}
-
-			//! Returns the number of entities accessible via the iterator
+			//! Calculates the number of entities accessible via the iterator
 			GAIA_NODISCARD uint32_t size() const {
-				return (uint32_t)m_indices.size();
+				return m_chunk.GetDisabledEntityCount();
 			}
 		};
 	} // namespace ecs
@@ -17213,32 +17308,22 @@ namespace gaia {
 namespace gaia {
 	namespace ecs {
 		struct IteratorEnabled: public detail::ChunkAccessor {
-		private:
-			using Mask = detail::ChunkAccessorMask;
-
-			cnt::sarr_ext<uint16_t, Mask::BitCount> m_indices;
+			using Iter = ChunkAccessorIt;
 
 		public:
-			IteratorEnabled(archetype::Chunk& chunk): detail::ChunkAccessor(chunk) {
-				// Build indices we use for iteration
-				const auto& mask = chunk.GetDisabledEntityMask();
-				const auto it0 = detail::ChunkAccessorIterInverse(mask, 0, true);
-				const auto it1 = detail::ChunkAccessorIterInverse(mask, m_chunk.GetEntityCount(), false);
-				for (auto it = it0; it != it1; ++it)
-					m_indices.push_back((uint16_t)*it);
+			IteratorEnabled(archetype::Chunk& chunk): detail::ChunkAccessor(chunk) {}
+
+			GAIA_NODISCARD Iter begin() const {
+				return Iter(m_chunk.GetDisabledEntityCount());
 			}
 
-			GAIA_NODISCARD auto begin() const {
-				return m_indices.begin();
+			GAIA_NODISCARD Iter end() const {
+				return Iter(m_chunk.GetEntityCount());
 			}
 
-			GAIA_NODISCARD auto end() const {
-				return m_indices.end();
-			}
-
-			//! Returns the number of entities accessible via the iterator
+			//! Calculates the number of entities accessible via the iterator
 			GAIA_NODISCARD uint32_t size() const {
-				return (uint32_t)m_indices.size();
+				return m_chunk.GetEnabledEntityCount();
 			}
 		};
 	} // namespace ecs
@@ -18207,16 +18292,12 @@ namespace gaia {
 						for (const auto* pChunk: chunkSpan) {
 							if (!pChunk->HasEntities())
 								continue;
-							if (enabledOnly == pChunk->HasDisabledEntities()) {
-								const auto maskCnt = pChunk->GetDisabledEntityMask().count();
 
-								// We want enabled entities but there are only disables ones on the chunk
-								if (enabledOnly && maskCnt == pChunk->GetEntityCount())
-									continue;
-								// We want disabled entities but there are only enabled ones on the chunk
-								if (!enabledOnly && maskCnt == 0)
-									continue;
-							}
+							if (enabledOnly && !pChunk->HasEnabledEntities())
+								continue;
+							if (!enabledOnly && !pChunk->HasDisabledEntities())
+								continue;
+
 							if constexpr (HasFilters) {
 								if (!CheckFilters(*pChunk, queryInfo))
 									continue;
@@ -18395,17 +18476,16 @@ namespace gaia {
 							if constexpr (c == Constraints::AcceptAll)
 								return pChunk->HasEntities() && CheckFilters(*pChunk, queryInfo);
 							else if constexpr (c == Constraints::EnabledOnly)
-								return pChunk->GetDisabledEntityMask().count() != pChunk->GetEntityCount() &&
-											 CheckFilters(*pChunk, queryInfo);
+								return pChunk->GetDisabledEntityCount() != pChunk->GetEntityCount() && CheckFilters(*pChunk, queryInfo);
 							else // if constexpr (c == Constraints::DisabledOnly)
-								return pChunk->GetDisabledEntityMask().count() > 0 && CheckFilters(*pChunk, queryInfo);
+								return pChunk->GetDisabledEntityCount() > 0 && CheckFilters(*pChunk, queryInfo);
 						} else {
 							if constexpr (c == Constraints::AcceptAll)
 								return pChunk->HasEntities();
 							else if constexpr (c == Constraints::EnabledOnly)
-								return pChunk->GetDisabledEntityMask().count() != pChunk->GetEntityCount();
+								return pChunk->GetDisabledEntityCount() != pChunk->GetEntityCount();
 							else // if constexpr (c == Constraints::DisabledOnly)
-								return pChunk->GetDisabledEntityMask().count() > 0;
+								return pChunk->GetDisabledEntityCount() > 0;
 						}
 					});
 				}
@@ -18427,9 +18507,9 @@ namespace gaia {
 
 						// Entity count
 						if constexpr (c == Constraints::EnabledOnly)
-							cnt += pChunk->GetEntityCount() - pChunk->GetDisabledEntityMask().count();
+							cnt += pChunk->GetEnabledEntityCount();
 						else if constexpr (c == Constraints::DisabledOnly)
-							cnt += pChunk->GetDisabledEntityMask().count();
+							cnt += pChunk->GetDisabledEntityCount();
 						else
 							cnt += pChunk->GetEntityCount();
 					}
@@ -18683,9 +18763,10 @@ namespace gaia {
 				GAIA_PROF_SCOPE(RemoveEntity);
 
 				const auto entity = pChunk->GetEntity(entityChunkIndex);
-				auto& archetype = *m_archetypes[pChunk->GetArchetypeId()];
 
 #if GAIA_AVOID_CHUNK_FRAGMENTATION
+				auto& archetype = *m_archetypes[pChunk->GetArchetypeId()];
+
 				// Swap the last entity in the last chunk with the entity spot we just created by moving
 				// the entity to somewhere else.
 				auto* pOldChunk = archetype.FindFirstNonEmptyChunk();
@@ -18694,7 +18775,7 @@ namespace gaia {
 					const bool wasDisabled = m_entities[entity.id()].dis;
 
 					// Transfer data form the last entity to the new one
-					pChunk->SwapEntitiesInsideChunkAndDeleteOld(entityChunkIndex, m_entities);
+					pChunk->RemoveChunkEntity(entityChunkIndex, m_entities);
 					pChunk->RemoveLastEntity(m_chunksToRemove);
 
 					// Transfer the disabled state
@@ -18726,15 +18807,23 @@ namespace gaia {
 
 				archetype.VerifyChunksFramentation();
 #else
-				const uint32_t lastEntityIdx = chunkEntityCount - 1;
-				const bool wasDisabled = pChunk->GetDisabledEntityMask().test(lastEntityIdx);
+				if (pChunk->IsEntityEnabled(entityChunkIndex)) {
+					// Entity was previously enabled. Swap with the last entity
+					pChunk->RemoveChunkEntity(entityChunkIndex, {m_entities.data(), m_entities.size()});
+					// If this was the first enabled entity make sure to update the index
+					if (pChunk->m_header.firstEnabledEntityIndex > 0 &&
+							entityChunkIndex == pChunk->m_header.firstEnabledEntityIndex)
+						--pChunk->m_header.firstEnabledEntityIndex;
+				} else {
+					// Entity was previously disabled. Swap with the last disabled entity
+					const auto pivot = pChunk->GetDisabledEntityCount() - 1;
+					pChunk->SwapChunkEntities(entityChunkIndex, pivot, {m_entities.data(), m_entities.size()});
+					// Once swapped, try to swap with the last (enabled) entity in the chunk.
+					pChunk->RemoveChunkEntity(pivot, {m_entities.data(), m_entities.size()});
+					--pChunk->m_header.firstEnabledEntityIndex;
+				}
 
-				pChunk->SwapEntitiesInsideChunkAndDeleteOld(entityChunkIndex, {m_entities.data(), m_entities.size()});
-
-				// Transfer the disabled state is possible
-				if GAIA_LIKELY (chunkEntityCount > 1)
-					archetype.EnableEntity(pChunk, entityChunkIndex, !wasDisabled);
-
+				// At this point the last entity is no longer valid so remove it
 				pChunk->RemoveLastEntity(m_chunksToRemove);
 
 				if constexpr (IsEntityReleaseWanted)
@@ -19087,9 +19176,8 @@ namespace gaia {
 				const auto newIndex = pNewChunk->AddEntity(oldEntity);
 
 				// Transfer the disabled state
-				const bool wasDisabled = pOldChunk->GetDisabledEntityMask().test(oldIndex);
+				const bool wasEnabled = !entityContainer.dis;
 				auto& newArchetype = *m_archetypes[pNewChunk->GetArchetypeId()];
-				newArchetype.EnableEntity(pNewChunk, newIndex, !wasDisabled);
 
 				// No data movement necessary when dealing with the root archetype
 				if GAIA_LIKELY (pNewChunk->GetArchetypeId() + pOldChunk->GetArchetypeId() != 0) {
@@ -19099,6 +19187,8 @@ namespace gaia {
 					else
 						pNewChunk->MoveForeignEntityData(oldEntity, newIndex, {m_entities.data(), m_entities.size()});
 				}
+
+				newArchetype.EnableEntity(pNewChunk, newIndex, wasEnabled, {m_entities.data(), m_entities.size()});
 
 				// Remove the entity record from the old chunk
 				RemoveEntity<false>(pOldChunk, oldIndex);
@@ -19427,7 +19517,7 @@ namespace gaia {
 
 				if (auto* pChunk = entityContainer.pChunk) {
 					auto& archetype = *m_archetypes[pChunk->GetArchetypeId()];
-					archetype.EnableEntity(pChunk, entityContainer.idx, enable);
+					archetype.EnableEntity(pChunk, entityContainer.idx, enable, {m_entities.data(), m_entities.size()});
 				}
 			}
 

@@ -21,6 +21,7 @@ namespace gaia {
 				using FuncDtor = void(void*, uint32_t);
 				using FuncCopy = void(void*, void*);
 				using FuncMove = void(void*, void*);
+				using FuncSwap = void(void*, void*);
 
 				//! Component name
 				std::span<const char> name;
@@ -36,6 +37,8 @@ namespace gaia {
 				FuncCopy* copy = nullptr;
 				//! Fucntion to call when the component needs to be moved
 				FuncMove* move = nullptr;
+				//! Function to call when the component needs to swap
+				FuncSwap* swap = nullptr;
 				//! Unique component identifier
 				ComponentId componentId = ComponentIdBad;
 
@@ -80,6 +83,10 @@ namespace gaia {
 				void Dtor(void* pSrc) const {
 					if (dtor != nullptr)
 						dtor(pSrc, 1);
+				}
+
+				void Swap(void* pLeft, void* pRight) const {
+					swap(pLeft, pRight);
 				}
 
 				GAIA_NODISCARD uint32_t CalculateNewMemoryOffset(uint32_t addr, size_t N) const noexcept {
@@ -186,6 +193,25 @@ namespace gaia {
 									(void)new (dst) U(std::move(*src));
 								};
 							}
+						}
+
+						// Value swap
+						if constexpr (std::is_move_constructible_v<U> && std::is_move_assignable_v<U>) {
+							info.swap = [](void* left, void* right) {
+								auto* l = (U*)left;
+								auto* r = (U*)right;
+								U tmp = std::move(*l);
+								*r = std::move(*l);
+								*r = std::move(tmp);
+							};
+						} else {
+							info.swap = [](void* left, void* right) {
+								auto* l = (U*)left;
+								auto* r = (U*)right;
+								U tmp = *l;
+								*r = *l;
+								*r = tmp;
+							};
 						}
 					}
 
