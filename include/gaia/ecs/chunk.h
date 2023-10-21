@@ -508,16 +508,23 @@ namespace gaia {
 				}
 
 				void SwapEntitiesInsideChunkAndDeleteOld(uint32_t index, std::span<EntityContainer> entities) {
-					// If there are at least two entities inside and it's not already the
-					// last one let's swap our entity with the last one in the chunk.
-					if GAIA_LIKELY (m_header.count > 1 && m_header.count != index + 1) {
-						GAIA_PROF_SCOPE(SwapEntitiesInsideChunkAndDeleteOld);
+					GAIA_PROF_SCOPE(SwapEntitiesInsideChunkAndDeleteOld);
 
-						// Swap data at index with the last one
-						const auto entity = GetEntity(m_header.count - 1);
-						SetEntity(index, entity);
+					const auto left = index;
+					const auto right = m_header.count - 1;
+					// The "left" entity is the one we are going to destroy so it needs to preceed the "right"
+					GAIA_ASSERT(left <= right);
 
-						const auto& cc = ComponentCache::Get();
+					const auto& cc = ComponentCache::Get();
+
+					// There must be at least 2 entities inside to swap
+					if GAIA_LIKELY (left < right) {
+						GAIA_ASSERT(m_header.count > 1);
+
+						// Update entity index inside chunk
+						const auto entity = GetEntity(right);
+						SetEntity(left, entity);
+
 						auto compIds = GetComponentIdSpan(component::ComponentType::CT_Generic);
 						auto compOffs = GetComponentOffsetSpan(component::ComponentType::CT_Generic);
 
@@ -527,8 +534,8 @@ namespace gaia {
 								continue;
 
 							const auto offset = compOffs[i];
-							const auto idxSrc = offset + index * desc.properties.size;
-							const auto idxDst = offset + (m_header.count - 1U) * desc.properties.size;
+							const auto idxSrc = offset + left * desc.properties.size;
+							const auto idxDst = offset + right * desc.properties.size;
 
 							GAIA_ASSERT(idxSrc < GetByteSize());
 							GAIA_ASSERT(idxDst < GetByteSize());
@@ -540,11 +547,28 @@ namespace gaia {
 							desc.Dtor(pSrc);
 						}
 
-						// Entity has been replaced with the last one in chunk.
-						// Update its index so look ups can find it.
+						// Entity has been replaced with the last one in our chunk.
+						// Update its index and generation so look ups can find it.
 						auto& entityContainer = entities[entity.id()];
-						entityContainer.idx = index;
+						entityContainer.idx = left;
 						entityContainer.gen = entity.gen();
+					} else {
+						auto compIds = GetComponentIdSpan(component::ComponentType::CT_Generic);
+						auto compOffs = GetComponentOffsetSpan(component::ComponentType::CT_Generic);
+
+						for (uint32_t i = 0; i < compIds.size(); ++i) {
+							const auto& desc = cc.GetComponentDesc(compIds[i]);
+							if (desc.properties.size == 0U)
+								continue;
+
+							const auto offset = compOffs[i];
+							const auto idxSrc = offset + left * desc.properties.size;
+
+							GAIA_ASSERT(idxSrc < GetByteSize());
+
+							auto* pSrc = (void*)&m_data[idxSrc];
+							desc.Dtor(pSrc);
+						}
 					}
 				}
 
