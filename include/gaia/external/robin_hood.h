@@ -1083,8 +1083,8 @@ namespace robin_hood {
 
 				// prefix increment. Undefined behavior if we are at end()!
 				Iter& operator++() noexcept {
-					mInfo++;
-					mKeyVals++;
+					++mInfo;
+					++mKeyVals;
 					fastForward();
 					return *this;
 				}

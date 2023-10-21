@@ -30,7 +30,6 @@
 #include "query_cache.h"
 #include "query_common.h"
 
-
 namespace gaia {
 	namespace ecs {
 		class GAIA_API World final {
@@ -237,7 +236,7 @@ namespace gaia {
 							"Trying to add a component to entity [%u.%u] but there's no space left!", entity.id(), entity.gen());
 					GAIA_LOG_W("Already present:");
 					const uint32_t oldInfosCount = componentIds.size();
-					for (uint32_t i = 0; i < oldInfosCount; i++) {
+					for (uint32_t i = 0; i < oldInfosCount; ++i) {
 						const auto& info = cc.GetComponentDesc(componentIds[i]);
 						GAIA_LOG_W("> [%u] %.*s", (uint32_t)i, (uint32_t)info.name.size(), info.name.data());
 					}

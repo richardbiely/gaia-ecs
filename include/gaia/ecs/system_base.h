@@ -294,7 +294,7 @@ namespace gaia {
 
 #if GAIA_DEBUG
 				// Make sure there are no circular dependencies
-				for (auto j = 1U; j < m_systems.size(); j++) {
+				for (auto j = 1U; j < m_systems.size(); ++j) {
 					if (!m_systems[j - 1]->DependsOn(m_systems[j]))
 						continue;
 					GAIA_ASSERT(false && "Wrong systems dependencies!");

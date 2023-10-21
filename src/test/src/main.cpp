@@ -1055,7 +1055,7 @@ TEST_CASE("for_each") {
 	SECTION("no index agument") {
 		uint32_t cnt = 0;
 		core::for_each<N>([&cnt]() {
-			cnt++;
+			++cnt;
 		});
 		REQUIRE(cnt == N);
 	}
@@ -1073,7 +1073,7 @@ TEST_CASE("for_each_ext") {
 	SECTION("no index agument") {
 		uint32_t cnt = 0;
 		core::for_each_ext<2, N - 1, 2>([&cnt]() {
-			cnt++;
+			++cnt;
 		});
 		REQUIRE(cnt == 4);
 	}
@@ -1364,7 +1364,7 @@ TEST_CASE("Add - no components") {
 	};
 
 	const uint32_t N = 10'000;
-	for (uint32_t i = 0; i < N; i++)
+	for (uint32_t i = 0; i < N; ++i)
 		create(i);
 }
 
@@ -1384,7 +1384,7 @@ TEST_CASE("Add - 1 component") {
 	};
 
 	const uint32_t N = 10'000;
-	for (uint32_t i = 0; i < N; i++)
+	for (uint32_t i = 0; i < N; ++i)
 		create(i);
 }
 
@@ -1415,10 +1415,10 @@ TEST_CASE("CreateAndRemoveEntity - no components") {
 	arr.reserve(N);
 
 	// Create entities
-	for (uint32_t i = 0; i < N; i++)
+	for (uint32_t i = 0; i < N; ++i)
 		arr.push_back(create(i));
 	// Remove entities
-	for (uint32_t i = 0; i < N; i++)
+	for (uint32_t i = 0; i < N; ++i)
 		remove(arr[i]);
 }
 
@@ -1453,9 +1453,9 @@ TEST_CASE("CreateAndRemoveEntity - 1 component") {
 	cnt::darr<ecs::Entity> arr;
 	arr.reserve(N);
 
-	for (uint32_t i = 0; i < N; i++)
+	for (uint32_t i = 0; i < N; ++i)
 		arr.push_back(create(i));
-	for (uint32_t i = 0; i < N; i++)
+	for (uint32_t i = 0; i < N; ++i)
 		remove(arr[i]);
 }
 
@@ -1494,7 +1494,7 @@ void Test_Query_QueryResult() {
 	};
 
 	const uint32_t N = 10'000;
-	for (uint32_t i = 0; i < N; i++)
+	for (uint32_t i = 0; i < N; ++i)
 		create(i);
 
 	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
@@ -1585,7 +1585,7 @@ void Test_Query_QueryResult_Complex() {
 	};
 
 	const uint32_t N = 10'000;
-	for (uint32_t i = 0; i < N; i++)
+	for (uint32_t i = 0; i < N; ++i)
 		create(i);
 
 	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
@@ -1764,7 +1764,7 @@ void Test_Query_Equality() {
 		};
 
 		const uint32_t N = 100;
-		for (uint32_t i = 0; i < N; i++)
+		for (uint32_t i = 0; i < N; ++i)
 			create();
 
 		constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
@@ -1828,7 +1828,7 @@ TEST_CASE("Enable") {
 	cnt::darr<ecs::Entity> arr;
 	arr.reserve(N);
 
-	for (uint32_t i = 0; i < N; i++)
+	for (uint32_t i = 0; i < N; ++i)
 		arr.push_back(create(i));
 
 	SECTION("State validity") {
@@ -2791,13 +2791,13 @@ TEST_CASE("CommandBuffer") {
 		ecs::CommandBuffer cb(w);
 
 		const uint32_t N = 100;
-		for (uint32_t i = 0; i < N; i++) {
+		for (uint32_t i = 0; i < N; ++i) {
 			[[maybe_unused]] auto tmp = cb.Add();
 		}
 
 		cb.Commit();
 
-		for (uint32_t i = 0; i < N; i++) {
+		for (uint32_t i = 0; i < N; ++i) {
 			auto e = w.Get(i);
 			REQUIRE(e.id() == i);
 		}
@@ -2810,13 +2810,13 @@ TEST_CASE("CommandBuffer") {
 		auto mainEntity = w.Add();
 
 		const uint32_t N = 100;
-		for (uint32_t i = 0; i < N; i++) {
+		for (uint32_t i = 0; i < N; ++i) {
 			[[maybe_unused]] auto tmp = cb.Add(mainEntity);
 		}
 
 		cb.Commit();
 
-		for (uint32_t i = 0; i < N; i++) {
+		for (uint32_t i = 0; i < N; ++i) {
 			auto e = w.Get(i + 1);
 			REQUIRE(e.id() == i + 1);
 		}
@@ -3218,7 +3218,7 @@ void TestDataLayoutSoA_ECS() {
 	};
 
 	const uint32_t N = 10'000;
-	for (uint32_t i = 0; i < N; i++)
+	for (uint32_t i = 0; i < N; ++i)
 		create();
 
 	ecs::Query q = w.CreateQuery().All<T>();
@@ -3608,7 +3608,7 @@ void Run_Schedule_Simple(const uint32_t* pArr, uint32_t* pRes, uint32_t Jobs, ui
 
 	std::atomic_uint32_t sum = 0;
 
-	for (uint32_t i = 0; i < Jobs; i++) {
+	for (uint32_t i = 0; i < Jobs; ++i) {
 		mt::Job job;
 		job.func = [&pArr, &pRes, i, ItemsPerJob, func]() {
 			const auto idxStart = i * ItemsPerJob;
@@ -3619,7 +3619,7 @@ void Run_Schedule_Simple(const uint32_t* pArr, uint32_t* pRes, uint32_t Jobs, ui
 	}
 	tp.CompleteAll();
 
-	for (uint32_t i = 0; i < Jobs; i++) {
+	for (uint32_t i = 0; i < Jobs; ++i) {
 		REQUIRE(pRes[i] == ItemsPerJob);
 	}
 }
@@ -3681,7 +3681,7 @@ TEST_CASE("Multithreading - Complete") {
 	for (uint32_t i = 0; i < res.size(); ++i)
 		res[i] = (uint32_t)-1;
 
-	for (uint32_t i = 0; i < Jobs; i++) {
+	for (uint32_t i = 0; i < Jobs; ++i) {
 		mt::Job job;
 		job.func = [&res, i]() {
 			res[i] = i;
@@ -3689,7 +3689,7 @@ TEST_CASE("Multithreading - Complete") {
 		handles[i] = tp.Schedule(job);
 	}
 
-	for (uint32_t i = 0; i < Jobs; i++) {
+	for (uint32_t i = 0; i < Jobs; ++i) {
 		tp.Complete(handles[i]);
 		REQUIRE(res[i] == i);
 	}
@@ -3703,7 +3703,7 @@ TEST_CASE("Multithreading - CompleteMany") {
 	constexpr uint32_t Iters = 15000;
 	uint32_t res = (uint32_t)-1;
 
-	for (uint32_t i = 0; i < Iters; i++) {
+	for (uint32_t i = 0; i < Iters; ++i) {
 		mt::Job job0{[&res, i]() {
 			res = (i + 1);
 		}};

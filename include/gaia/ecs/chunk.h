@@ -399,7 +399,7 @@ namespace gaia {
 					auto oldOffs = pOldChunk->GetComponentOffsetSpan(component::ComponentType::CT_Generic);
 
 					// Copy generic component data from reference entity to our new entity
-					for (uint32_t i = 0; i < oldIds.size(); i++) {
+					for (uint32_t i = 0; i < oldIds.size(); ++i) {
 						const auto& desc = cc.GetComponentDesc(oldIds[i]);
 						if (desc.properties.size == 0U)
 							continue;
@@ -433,7 +433,7 @@ namespace gaia {
 					auto oldOffs = pOldChunk->GetComponentOffsetSpan(component::ComponentType::CT_Generic);
 
 					// Copy generic component data from reference entity to our new entity
-					for (uint32_t i = 0; i < oldIds.size(); i++) {
+					for (uint32_t i = 0; i < oldIds.size(); ++i) {
 						const auto& desc = cc.GetComponentDesc(oldIds[i]);
 						if (desc.properties.size == 0U)
 							continue;
@@ -521,7 +521,7 @@ namespace gaia {
 						auto compIds = GetComponentIdSpan(component::ComponentType::CT_Generic);
 						auto compOffs = GetComponentOffsetSpan(component::ComponentType::CT_Generic);
 
-						for (uint32_t i = 0; i < compIds.size(); i++) {
+						for (uint32_t i = 0; i < compIds.size(); ++i) {
 							const auto& desc = cc.GetComponentDesc(compIds[i]);
 							if (desc.properties.size == 0U)
 								continue;
@@ -702,7 +702,7 @@ namespace gaia {
 					auto compIds = GetComponentIdSpan(componentType);
 					auto compOffs = GetComponentOffsetSpan(componentType);
 
-					for (uint32_t i = 0; i < compIds.size(); i++) {
+					for (uint32_t i = 0; i < compIds.size(); ++i) {
 						const auto& desc = cc.GetComponentDesc(compIds[i]);
 						if (desc.ctor == nullptr)
 							continue;

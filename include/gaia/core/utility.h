@@ -36,7 +36,7 @@ namespace gaia {
 			uint32_t bits_needed = 0;
 			while (number > 0) {
 				number >>= 1;
-				bits_needed++;
+				++bits_needed;
 			}
 			return bits_needed;
 		}
@@ -599,7 +599,7 @@ namespace gaia {
 			int quick_sort_partition(Container& arr, TSortFunc func, int low, int high) {
 				const auto& pivot = arr[high];
 				int i = low - 1;
-				for (int j = low; j <= high - 1; j++) {
+				for (int j = low; j <= high - 1; ++j) {
 					if (func(arr[j], pivot))
 						core::swap(arr[++i], arr[j]);
 				}
@@ -869,8 +869,8 @@ namespace gaia {
 				swap_if(arr[3], arr[4], func);
 			} else if (arr.size() <= 32) {
 				auto n = arr.size();
-				for (decltype(n) i = 0; i < n - 1; i++) {
-					for (decltype(n) j = 0; j < n - i - 1; j++)
+				for (decltype(n) i = 0; i < n - 1; ++i) {
+					for (decltype(n) j = 0; j < n - i - 1; ++j)
 						swap_if(arr[j], arr[j + 1], func);
 				}
 			} else {
@@ -992,8 +992,8 @@ namespace gaia {
 				try_swap_if(arr, 3, 4, func, sortFunc);
 			} else if (arr.size() <= 32) {
 				auto n = arr.size();
-				for (decltype(n) i = 0; i < n - 1; i++)
-					for (decltype(n) j = 0; j < n - i - 1; j++)
+				for (decltype(n) i = 0; i < n - 1; ++i)
+					for (decltype(n) j = 0; j < n - i - 1; ++j)
 						try_swap_if(arr, j, j + 1, func, sortFunc);
 			} else {
 				GAIA_ASSERT(false && "sort currently supports at most 32 items in the array");

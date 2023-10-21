@@ -86,7 +86,7 @@ namespace gaia {
 		constexpr uint64_t calculate_hash64(const char* const str, const uint64_t length) noexcept {
 			uint64_t hash = detail::fnv1a::val_64_const;
 
-			for (uint64_t i = 0; i < length; i++)
+			for (uint64_t i = 0; i < length; ++i)
 				hash = (hash ^ uint64_t(str[i])) * detail::fnv1a::prime_64_const;
 
 			return hash;

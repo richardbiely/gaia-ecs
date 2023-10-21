@@ -246,7 +246,7 @@ namespace gaia {
 				} else {
 					size_type i = 0;
 					for (auto it = first; it != last; ++it)
-						operator[](i++) = *it;
+						operator[](++i) = *it;
 				}
 			}
 
