@@ -4,7 +4,6 @@
 #include <cinttypes>
 #include <type_traits>
 
-#include "../cnt/bitset.h"
 #include "chunk.h"
 #include "component.h"
 #include "component_getter.h"
@@ -13,10 +12,6 @@
 namespace gaia {
 	namespace ecs {
 		namespace detail {
-			using ChunkAccessorMask = archetype::ChunkHeader::DisabledEntityMask;
-			using ChunkAccessorIter = ChunkAccessorMask::const_iterator;
-			using ChunkAccessorIterInverse = ChunkAccessorMask::const_iterator_inverse;
-
 			class ChunkAccessor {
 			protected:
 				archetype::Chunk& m_chunk;
@@ -35,7 +30,7 @@ namespace gaia {
 				//! Checks if the entity at the current iterator index is enabled.
 				//! \return True it the entity is enabled. False otherwise.
 				GAIA_NODISCARD bool IsEnabled(uint32_t entityIdx) const {
-					return !m_chunk.GetDisabledEntityMask().test(entityIdx);
+					return entityIdx >= m_chunk.GetDisabledEntityCount() && entityIdx < m_chunk.GetEntityCount();
 				}
 
 				//! Returns a read-only entity or component view.

@@ -83,9 +83,10 @@ namespace gaia {
 				GAIA_PROF_SCOPE(RemoveEntity);
 
 				const auto entity = pChunk->GetEntity(entityChunkIndex);
-				auto& archetype = *m_archetypes[pChunk->GetArchetypeId()];
 
 #if GAIA_AVOID_CHUNK_FRAGMENTATION
+				auto& archetype = *m_archetypes[pChunk->GetArchetypeId()];
+
 				// Swap the last entity in the last chunk with the entity spot we just created by moving
 				// the entity to somewhere else.
 				auto* pOldChunk = archetype.FindFirstNonEmptyChunk();
@@ -94,7 +95,7 @@ namespace gaia {
 					const bool wasDisabled = m_entities[entity.id()].dis;
 
 					// Transfer data form the last entity to the new one
-					pChunk->SwapEntitiesInsideChunkAndDeleteOld(entityChunkIndex, m_entities);
+					pChunk->RemoveChunkEntity(entityChunkIndex, m_entities);
 					pChunk->RemoveLastEntity(m_chunksToRemove);
 
 					// Transfer the disabled state
@@ -126,15 +127,23 @@ namespace gaia {
 
 				archetype.VerifyChunksFramentation();
 #else
-				const uint32_t lastEntityIdx = chunkEntityCount - 1;
-				const bool wasDisabled = pChunk->GetDisabledEntityMask().test(lastEntityIdx);
+				if (pChunk->IsEntityEnabled(entityChunkIndex)) {
+					// Entity was previously enabled. Swap with the last entity
+					pChunk->RemoveChunkEntity(entityChunkIndex, {m_entities.data(), m_entities.size()});
+					// If this was the first enabled entity make sure to update the index
+					if (pChunk->m_header.firstEnabledEntityIndex > 0 &&
+							entityChunkIndex == pChunk->m_header.firstEnabledEntityIndex)
+						--pChunk->m_header.firstEnabledEntityIndex;
+				} else {
+					// Entity was previously disabled. Swap with the last disabled entity
+					const auto pivot = pChunk->GetDisabledEntityCount() - 1;
+					pChunk->SwapChunkEntities(entityChunkIndex, pivot, {m_entities.data(), m_entities.size()});
+					// Once swapped, try to swap with the last (enabled) entity in the chunk.
+					pChunk->RemoveChunkEntity(pivot, {m_entities.data(), m_entities.size()});
+					--pChunk->m_header.firstEnabledEntityIndex;
+				}
 
-				pChunk->SwapEntitiesInsideChunkAndDeleteOld(entityChunkIndex, {m_entities.data(), m_entities.size()});
-
-				// Transfer the disabled state is possible
-				if GAIA_LIKELY (chunkEntityCount > 1)
-					archetype.EnableEntity(pChunk, entityChunkIndex, !wasDisabled);
-
+				// At this point the last entity is no longer valid so remove it
 				pChunk->RemoveLastEntity(m_chunksToRemove);
 
 				if constexpr (IsEntityReleaseWanted)
@@ -487,9 +496,8 @@ namespace gaia {
 				const auto newIndex = pNewChunk->AddEntity(oldEntity);
 
 				// Transfer the disabled state
-				const bool wasDisabled = pOldChunk->GetDisabledEntityMask().test(oldIndex);
+				const bool wasEnabled = !entityContainer.dis;
 				auto& newArchetype = *m_archetypes[pNewChunk->GetArchetypeId()];
-				newArchetype.EnableEntity(pNewChunk, newIndex, !wasDisabled);
 
 				// No data movement necessary when dealing with the root archetype
 				if GAIA_LIKELY (pNewChunk->GetArchetypeId() + pOldChunk->GetArchetypeId() != 0) {
@@ -499,6 +507,8 @@ namespace gaia {
 					else
 						pNewChunk->MoveForeignEntityData(oldEntity, newIndex, {m_entities.data(), m_entities.size()});
 				}
+
+				newArchetype.EnableEntity(pNewChunk, newIndex, wasEnabled, {m_entities.data(), m_entities.size()});
 
 				// Remove the entity record from the old chunk
 				RemoveEntity<false>(pOldChunk, oldIndex);
@@ -827,7 +837,7 @@ namespace gaia {
 
 				if (auto* pChunk = entityContainer.pChunk) {
 					auto& archetype = *m_archetypes[pChunk->GetArchetypeId()];
-					archetype.EnableEntity(pChunk, entityContainer.idx, enable);
+					archetype.EnableEntity(pChunk, entityContainer.idx, enable, {m_entities.data(), m_entities.size()});
 				}
 			}
 
