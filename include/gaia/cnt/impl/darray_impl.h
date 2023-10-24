@@ -296,13 +296,14 @@ namespace gaia {
 			darr& operator=(darr&& other) noexcept {
 				GAIA_ASSERT(gaia::mem::addressof(other) != this);
 
+				view_policy::free_mem(m_pData, size());
+				m_pData = other.m_pData;
 				m_cnt = other.m_cnt;
 				m_cap = other.m_cap;
-				m_pData = other.m_pData;
 
+				other.m_pData = nullptr;
 				other.m_cnt = size_type(0);
 				other.m_cap = size_type(0);
-				other.m_pData = nullptr;
 
 				return *this;
 			}
@@ -398,12 +399,13 @@ namespace gaia {
 
 			void pop_back() noexcept {
 				GAIA_ASSERT(!empty());
-				if constexpr (mem::is_soa_layout_v<T>) {
-					--m_cnt;
-				} else {
-					auto* ptr = m_pData + sizeof(T) * (--m_cnt);
+
+				if constexpr (!mem::is_soa_layout_v<T>) {
+					auto* ptr = m_pData + sizeof(T) * m_cnt;
 					((pointer)ptr)->~T();
 				}
+
+				--m_cnt;
 			}
 
 			iterator erase(iterator pos) noexcept {

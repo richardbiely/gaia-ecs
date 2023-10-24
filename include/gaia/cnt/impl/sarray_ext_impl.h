@@ -358,12 +358,13 @@ namespace gaia {
 
 			constexpr void pop_back() noexcept {
 				GAIA_ASSERT(!empty());
-				if constexpr (mem::is_soa_layout_v<T>) {
-					--m_cnt;
-				} else {
-					auto* ptr = m_data + sizeof(T) * (--m_cnt);
+
+				if constexpr (!mem::is_soa_layout_v<T>) {
+					auto* ptr = m_data + sizeof(T) * m_cnt;
 					((pointer)ptr)->~T();
 				}
+
+				--m_cnt;
 			}
 
 			constexpr iterator erase(iterator pos) noexcept {
