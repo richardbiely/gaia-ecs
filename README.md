@@ -161,7 +161,8 @@ w.set<Velocity>(e, {0, 0, 2}).
 Components are returned by value for components with sizes up to 8 bytes (including). Bigger components are returned by const reference.
 
 ```cpp
-// Read Velocity's value. As shown above Velocity is 12 bytes in size. Therefore, it is returned by const reference.
+// Read Velocity's value. As shown above Velocity is 12 bytes in size.
+// Therefore, it is returned by const reference.
 const auto& velRef = w.get<Velocity>(e);
 // However, it is easy to store a copy.
 auto velCopy = w.get<Velocity>(e);
@@ -212,25 +213,32 @@ More complex queries can be created by combining All, Any and None in any way yo
 
 ```cpp
 ecs::Query q = w.query();
-q.all<Position, Velocity>(); // Take into account everything with Position and Velocity...
-q.any<Something, SomethingElse>(); // ... at least Something or SomethingElse...
-q.none<Player>(); // ... and no Player component...
+// Take into account everything with Position and Velocity...
+q.all<Position, Velocity>();
+// ... at least Something or SomethingElse...
+q.any<Something, SomethingElse>();
+// ... and no Player component...
+q.none<Player>();
 ```
 
 All Query operations can be chained and it is also possible to invoke various filters multiple times with unique components:
 
 ```cpp
 ecs::Query q = w.query();
-q.all<Position>() // Take into account everything with Position...
- .all<Velocity>() // ... and at the same time everything with Velocity...
- .any<Something, SomethingElse>() // ... at least Something or SomethingElse...
- .none<Player>(); // ... and no Player component...
+// Take into account everything with Position...
+q.all<Position>()
+// ... and at the same time everything with Velocity...
+ .all<Velocity>()
+ // ... at least Something or SomethingElse...
+ .any<Something, SomethingElse>()
+ // ... and no Player component...
+ .none<Player>(); 
 ```
 
 All queries are cached by default. This makes sense for queries which happen very often. They are fast to process but might take more time to prepare initially. If caching is not needed you should use uncached queries and save some resources. You would normally do this for one-time initializations or rarely used operations.
 
 ```cpp
-// Create an uncache query taking into account all entities with either Positon or Velocity components
+// Create an uncached query taking into account all entities with either Positon or Velocity components
 ecs::QueryUncached q = w.query<false>().any<Position, Velocity>(); 
 q.each([&](ecs::Iterator iter) {
   ...
@@ -256,11 +264,13 @@ For possibly better performance and more features, consider using explicit Query
 
 ```cpp
 ecs::Query q = w.query();
-q.all<Position, const Velocity>(); // Take into account all entities with Position and Velocity...
-q.none<Player>(); // ... but no Player component.
+// Take into account all entities with Position and Velocity...
+q.all<Position, const Velocity>();
+// ... but no Player component.
+q.none<Player>();
 
 q.each([&](Position& p, const Velocity& v) {
-  // This operations runs for each entity with Position, Velocity and no Player component
+  // Run the scope for each entity with Position, Velocity and no Player component
   p.x += v.x * dt;
   p.y += v.y * dt;
   p.z += v.z * dt;
@@ -383,12 +393,16 @@ Using changed we can make the iteration run only if particular components change
 
 ```cpp
 ecs::Query q = w.query();
-q.all<Position, const Velocity>(); // Take into account all entities with Position and Velocity...
-q.none<Player>(); // ... no Player component...
-q.changed<Velocity>(); // ... but only iterate when Velocity changes
+// Take into account all entities with Position and Velocity...
+q.all<Position, const Velocity>();
+// ... no Player component...
+q.none<Player>(); 
+// ... but only iterate when Velocity changes
+q.changed<Velocity>();
 
 q.each([&](Position& p, const Velocity& v) {
-  // This operations runs for each entity with Position, Velocity and no Player component but ONLY when Velocity has changed
+  // This scope runs for each entity with Position, Velocity and no Player component
+  // but only when Velocity has changed.
   p.x += v.x * dt;
   p.y += v.y * dt;
   p.z += v.z * dt;
@@ -408,7 +422,8 @@ Now if you create your entities carefully they get organized in grid fields impl
 ```cpp
 w.add<Position>(e1, {10,1});
 w.add<Position>(e2, {19,1});
-w.add<ecs::AsChunk<GridPosition>>(e1, {1, 0}); // Both e1 and e2 share a common grid position of {1,0} now
+// Make both e1 and e2 share a common grid position of {1,0}
+w.add<ecs::AsChunk<GridPosition>>(e1, {1, 0});
 ```
 
 ## Delayed execution
@@ -423,10 +438,13 @@ Performing an unprotected structural change is undefined behavior and most likel
 ```cpp
 ecs::CommandBuffer cb;
 q.each([&](Entity e, const Position& p) {
-  if (p.y < 0.0f)
-    cb.del(e); // queue entity e for deletion if its position falls below zero
+  if (p.y < 0.0f) {
+    // Queue entity e for deletion if its position falls below zero
+    cb.del(e);
+  }
 });
-cb.commit(&w); // after calling this all entities with y position bellow zero get deleted
+// Make the queued command happen
+cb.commit(&w);
 ```
 
 If you try to make an unprotected structural change with GAIA_DEBUG enabled (set by default when Debug configuration is used) the framework will assert letting you know you are using it the wrong way.
@@ -677,7 +695,8 @@ mt::JobParallel job {[&arr, &sum](const mt::JobArgs& args) {
 
 // Schedule multiple jobs to run in paralell. Make each job process up to 1234 items.
 mt::JobHandle jobHandle = tp.sched_par(job, N, 1234);
-// Alternatively, we can tell the job system to figure out the group size on its own by simply omitting the group size or using 0:
+// Alternatively, we can tell the job system to figure out the group size on its own
+// by simply omitting the group size or using 0:
 // mt::JobHandle jobHandle = tp.sched_par(job, N);
 // mt::JobHandle jobHandle = tp.sched_par(job, N, 0);
 
@@ -709,7 +728,8 @@ tp.wait_all();
 
 Sometimes we need to wait for the result of another operation before we can proceed. To achieve this we need to use low-level API and handle job registration and submitting jobs on our own.
 >**NOTE:<br/>** 
-This is because once submitted we can not modify the job anymore. If we could, dependencies would not necessary be adhered to. Let us say there is a job A depending on job B. If job A is submitted before creating the dependency, a worker thread could execute the job before the dependency is created. As a result, the dependency would not be respected and job A would be free to finish before job B.
+This is because once submitted we can not modify the job anymore. If we could, dependencies would not necessary be adhered to.<br/>
+Let us say there is a job A depending on job B. If job A is submitted before creating the dependency, a worker thread could execute the job before the dependency is created. As a result, the dependency would not be respected and job A would be free to finish before job B.
 
 ```cpp
 mt::Job job0;
@@ -722,7 +742,7 @@ job1.func = [&arr, i]() {
 };
 mt::Job job2;
 job2.func = [&arr, i]() {
-  arr[i] /= i;
+  arr[i] += i;
 };
 
 // Register our jobs in the job system
@@ -734,13 +754,14 @@ auto job2Handle = tp.add(job2);
 tp.dep(job1Handle, job0Handle);
 tp.dep(job2Handle, job1Handle);
 
-// Submit jobs so worker threads can pick them up. The order in which jobs are submitted does not matter.
+// Submit jobs so worker threads can pick them up.
+// The order in which jobs are submitted does not matter.
 tp.submit(job2Handle);
 tp.submit(job1Handle);
 tp.submit(job0Handle);
 
 // Wait for the last job to complete.
-// Calling wait() for dependencies is not necessary because it will be done internally.
+// Calling wait() for dependencies is not necessary. It is be done internally.
 tp.wait(job2Handle);
 ```
 
@@ -757,7 +778,7 @@ The project is [continuously tested](https://github.com/richardbiely/gaia-ecs/ac
 ## Dependencies
 [CMake](https://cmake.org) 3.12 or later is required to prepare the build. Other tools are officially not supported at the moment.
 
-Unit testing is handled via [Catch2 v3.3.2](https://github.com/catchorg/Catch2/releases/tag/v3.3.2). It can be controlled via -DGAIA_BUILD_UNITTEST=ON/OFF when configuring the project (OFF by default).
+Unit testing is handled via [Catch2 v3.4.0](https://github.com/catchorg/Catch2/releases/tag/v3.4.0). It can be controlled via -DGAIA_BUILD_UNITTEST=ON/OFF when configuring the project (OFF by default).
 
 # Installation
 
