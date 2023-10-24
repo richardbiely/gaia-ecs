@@ -219,6 +219,7 @@ namespace gaia {
 					// Should never be called over an empty chunk
 					GAIA_ASSERT(HasEntities());
 					--m_header.count;
+					--m_header.countEnabled;
 				}
 
 			public:
@@ -373,6 +374,7 @@ namespace gaia {
 				*/
 				GAIA_NODISCARD uint32_t AddEntity(Entity entity) {
 					const auto index = m_header.count++;
+					++m_header.countEnabled;
 					SetEntity(index, entity);
 
 					UpdateVersion(m_header.worldVersion);
@@ -628,11 +630,16 @@ namespace gaia {
 						desc.Swap(pSrc, pDst);
 					}
 
-					// Entities were swapped. Update their index & generation in the entity container.
-					entities[entityLeft.id()].idx = right;
-					entities[entityLeft.id()].gen = entityRight.gen();
-					entities[entityRight.id()].idx = left;
-					entities[entityRight.id()].gen = entityLeft.gen();
+					// Entities were swapped. Update their entity container records.
+					auto& ecLeft = entities[entityLeft.id()];
+					bool ecLeftWasDisabled = ecLeft.dis;
+					auto& ecRight = entities[entityRight.id()];
+					ecLeft.idx = right;
+					ecLeft.gen = entityRight.gen();
+					ecLeft.dis = ecRight.dis;
+					ecRight.idx = left;
+					ecRight.gen = entityLeft.gen();
+					ecRight.dis = ecLeftWasDisabled;
 				}
 
 				/*!
@@ -671,18 +678,28 @@ namespace gaia {
 				void EnableEntity(uint32_t index, bool enableEntity, std::span<EntityContainer> entities) {
 					GAIA_ASSERT(index < m_header.count && "Entity chunk index out of bounds!");
 
-					if (enableEntity && m_header.HasDisabledEntities()) {
+					if (enableEntity) {
+						// Nothing to enable if there are no disabled entities
+						if (!m_header.HasDisabledEntities())
+							return;
 						// Trying to enable an already enabled entity
 						if (IsEntityEnabled(index))
 							return;
 						// Try swapping our entity with the last disabled one
 						SwapChunkEntities(--m_header.firstEnabledEntityIndex, index, entities);
-					} else if (!enableEntity && m_header.HasEnabledEntities()) {
+						entities[GetEntity(index).id()].dis = 0;
+						++m_header.countEnabled;
+					} else {
+						// Nothing to disable if there are no enabled entities
+						if (!m_header.HasEnabledEntities())
+							return;
 						// Trying to disable an already disabled entity
 						if (!IsEntityEnabled(index))
 							return;
 						// Try swapping our entity with the last one in our chunk
 						SwapChunkEntities(m_header.firstEnabledEntityIndex++, index, entities);
+						entities[GetEntity(index).id()].dis = 1;
+						--m_header.countEnabled;
 					}
 				}
 
@@ -1053,8 +1070,10 @@ namespace gaia {
 
 				template <typename... T, typename Func>
 				GAIA_FORCEINLINE void ForEach([[maybe_unused]] core::func_type_list<T...> types, Func func) {
-					const uint32_t size = GetEntityCount();
-					GAIA_ASSERT(size > 0);
+					const uint32_t idxFrom = m_header.firstEnabledEntityIndex;
+					const uint32_t idxStop = m_header.count;
+					GAIA_ASSERT(idxStop > idxFrom);
+					GAIA_ASSERT(idxStop > 0);
 
 					if constexpr (sizeof...(T) > 0) {
 						// Pointers to the respective component types in the chunk, e.g
@@ -1069,11 +1088,11 @@ namespace gaia {
 						//		for (uint32_t i: iter)
 						//			func(p[i], v[i]);
 
-						for (uint32_t i = 0; i < size; ++i)
+						for (uint32_t i = idxFrom; i < idxStop; ++i)
 							func(std::get<decltype(GetComponentView<T>())>(dataPointerTuple)[i]...);
 					} else {
 						// No functor parameters. Do an empty loop.
-						for (uint32_t i = 0; i < size; ++i)
+						for (uint32_t i = idxFrom; i < idxStop; ++i)
 							func();
 					}
 				}
@@ -1156,7 +1175,7 @@ namespace gaia {
 
 				//! Return the number of entities in the chunk which are enabled
 				GAIA_NODISCARD uint32_t GetEnabledEntityCount() const {
-					return m_header.count - m_header.firstEnabledEntityIndex;
+					return m_header.countEnabled;
 				}
 
 				//! Return the number of entities in the chunk which are enabled

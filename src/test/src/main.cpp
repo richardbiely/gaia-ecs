@@ -1564,9 +1564,9 @@ void Test_Query_QueryResult() {
 }
 
 TEST_CASE("Query - QueryResult") {
-	// SECTION("Cached query") {
-	// 	Test_Query_QueryResult<ecs::Query>();
-	// }
+	SECTION("Cached query") {
+		Test_Query_QueryResult<ecs::Query>();
+	}
 	SECTION("Non-cached query") {
 		Test_Query_QueryResult<ecs::QueryUncached>();
 	}
@@ -1831,14 +1831,16 @@ TEST_CASE("Enable") {
 	for (uint32_t i = 0; i < N; ++i)
 		arr.push_back(create(i));
 
-	SECTION("State validity") {
+	SECTION("State validity")
+	{
 		w.Enable(arr[0], false);
 		REQUIRE_FALSE(w.IsEnabled(arr[0]));
 		w.Enable(arr[0], true);
 		REQUIRE(w.IsEnabled(arr[0]));
 	}
 
-	SECTION("State persistance") {
+	SECTION("State persistance")
+	{
 		w.Enable(arr[0], false);
 		w.Del<Position>(arr[0]);
 		REQUIRE_FALSE(w.IsEnabled(arr[0]));
@@ -1853,11 +1855,12 @@ TEST_CASE("Enable") {
 	auto checkQuery = [&q](uint32_t expectedCountAll, uint32_t expectedCountEnabled, uint32_t expectedCountDisabled) {
 		{
 			uint32_t cnt = 0;
-			q.ForEach([&]([[maybe_unused]] ecs::Iterator iter) {
+			q.ForEach([&]([[maybe_unused]] ecs::IteratorAll iter) {
 				const uint32_t cExpected = iter.size();
 				uint32_t c = 0;
-				for ([[maybe_unused]] auto i: iter)
+				iter.for_each([&]() {
 					++c;
+				});
 				REQUIRE(c == cExpected);
 				cnt += c;
 			});
@@ -1868,13 +1871,13 @@ TEST_CASE("Enable") {
 		}
 		{
 			uint32_t cnt = 0;
-			q.ForEach([&]([[maybe_unused]] ecs::IteratorEnabled iter) {
+			q.ForEach([&]([[maybe_unused]] ecs::Iterator iter) {
 				const uint32_t cExpected = iter.size();
 				uint32_t c = 0;
-				for ([[maybe_unused]] auto i: iter) {
+				iter.for_each([&](uint32_t i) {
 					REQUIRE(iter.IsEnabled(i));
 					++c;
-				}
+				});
 				REQUIRE(c == cExpected);
 				cnt += c;
 			});
@@ -1888,10 +1891,10 @@ TEST_CASE("Enable") {
 			q.ForEach([&]([[maybe_unused]] ecs::IteratorDisabled iter) {
 				const uint32_t cExpected = iter.size();
 				uint32_t c = 0;
-				for ([[maybe_unused]] auto i: iter) {
+				iter.for_each([&](uint32_t i) {
 					REQUIRE(!iter.IsEnabled(i));
 					++c;
-				}
+				});
 				REQUIRE(c == cExpected);
 				cnt += c;
 			});
@@ -1904,23 +1907,29 @@ TEST_CASE("Enable") {
 
 	checkQuery(N, N, 0);
 
-	SECTION("Disable vs query") {
+	SECTION("Disable vs query")
+	{
 		w.Enable(arr[1000], false);
 		checkQuery(N, N - 1, 1);
 	}
-	SECTION("Enable vs query") {
+	
+	SECTION("Enable vs query")
+	{
 		w.Enable(arr[1000], true);
 		checkQuery(N, N, 0);
 	}
 
-	SECTION("Disable vs query") {
+	SECTION("Disable vs query")
+	{
 		w.Enable(arr[1], false);
 		w.Enable(arr[1000], false);
 		w.Enable(arr[2000], false);
 		w.Enable(arr[9990], false);
 		checkQuery(N, N - 4, 4);
 	}
-	SECTION("Enable vs query") {
+
+	SECTION("Enable vs query")
+	{
 		w.Enable(arr[1], true);
 		w.Enable(arr[1000], true);
 		w.Enable(arr[2000], true);
@@ -2590,11 +2599,11 @@ TEST_CASE("Set - generic") {
 			auto scaleView = iter.ViewRW<Scale>();
 			auto elseView = iter.ViewRW<Else>();
 
-			for (const auto i: iter) {
+			iter.for_each([&](uint32_t i) {
 				rotationView[i] = {1, 2, 3, 4};
 				scaleView[i] = {11, 22, 33};
 				elseView[i] = {true};
-			}
+			});
 		});
 
 		for (const auto ent: arr) {
@@ -2681,11 +2690,11 @@ TEST_CASE("Set - generic & chunk") {
 			auto scaleView = iter.ViewRW<Scale>();
 			auto elseView = iter.ViewRW<Else>();
 
-			for (const auto i: iter) {
+			iter.for_each([&](uint32_t i) {
 				rotationView[i] = {1, 2, 3, 4};
 				scaleView[i] = {11, 22, 33};
 				elseView[i] = {true};
-			}
+			});
 		});
 
 		w.Set<ecs::AsChunk<Position>>(arr[0], {111, 222, 333});
@@ -2765,11 +2774,11 @@ TEST_CASE("Components - non trivial") {
 			auto str2View = iter.ViewRW<StringComponent2>();
 			auto posView = iter.ViewRW<PositionNonTrivial>();
 
-			for (const auto i: iter) {
+			iter.for_each([&](uint32_t i) {
 				strView[i] = {StringComponentDefaultValue};
 				str2View[i].value = StringComponent2DefaultValue_2;
 				posView[i] = {111, 222, 333};
-			}
+			});
 		});
 
 		for (const auto ent: arr) {

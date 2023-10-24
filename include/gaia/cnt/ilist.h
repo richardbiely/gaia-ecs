@@ -9,6 +9,7 @@
 namespace gaia {
 	namespace cnt {
 		struct ilist_item_base {};
+		
 		struct ilist_item: public ilist_item_base {
 			//! Allocated items: Index in the list.
 			//! Deleted items: Index of the next deleted item in the list.

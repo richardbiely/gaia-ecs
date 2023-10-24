@@ -16,7 +16,6 @@
 #include "../mem/mem_alloc.h"
 #include "common.h"
 
-
 namespace gaia {
 	namespace ecs {
 		//! Size of one allocated block of memory
@@ -192,11 +191,11 @@ namespace gaia {
 				ChunkAllocatorImpl& operator=(ChunkAllocatorImpl&&) = delete;
 				ChunkAllocatorImpl& operator=(const ChunkAllocatorImpl&) = delete;
 
-				static uint16_t GetMemoryBlockSize(uint32_t sizeType) {
+				static constexpr uint16_t GetMemoryBlockSize(uint32_t sizeType) {
 					return sizeType != 0 ? MaxMemoryBlockSize : MaxMemoryBlockSize / 2;
 				}
 
-				static uint8_t GetMemoryBlockSizeType(uint32_t sizeBytes) {
+				static constexpr uint8_t GetMemoryBlockSizeType(uint32_t sizeBytes) {
 					return (uint8_t)(sizeBytes > MaxMemoryBlockSize / 2);
 				}
 

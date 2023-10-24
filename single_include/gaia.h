@@ -6433,6 +6433,7 @@ namespace gaia {
 namespace gaia {
 	namespace cnt {
 		struct ilist_item_base {};
+		
 		struct ilist_item: public ilist_item_base {
 			//! Allocated items: Index in the list.
 			//! Deleted items: Index of the next deleted item in the list.
@@ -14391,11 +14392,11 @@ namespace gaia {
 				ChunkAllocatorImpl& operator=(ChunkAllocatorImpl&&) = delete;
 				ChunkAllocatorImpl& operator=(const ChunkAllocatorImpl&) = delete;
 
-				static uint16_t GetMemoryBlockSize(uint32_t sizeType) {
+				static constexpr uint16_t GetMemoryBlockSize(uint32_t sizeType) {
 					return sizeType != 0 ? MaxMemoryBlockSize : MaxMemoryBlockSize / 2;
 				}
 
-				static uint8_t GetMemoryBlockSizeType(uint32_t sizeBytes) {
+				static constexpr uint8_t GetMemoryBlockSizeType(uint32_t sizeBytes) {
 					return (uint8_t)(sizeBytes > MaxMemoryBlockSize / 2);
 				}
 
@@ -14588,141 +14589,6 @@ namespace gaia {
 #include <cinttypes>
 #include <cstdint>
 
-namespace gaia {
-	namespace ecs {
-		namespace archetype {
-			struct ChunkHeaderOffsets {
-				//! Byte at which the first version number is located
-				ChunkVersionOffset firstByte_Versions[component::ComponentType::CT_Count]{};
-				//! Byte at which the first component id is located
-				ChunkComponentOffset firstByte_ComponentIds[component::ComponentType::CT_Count]{};
-				//! Byte at which the first component offset is located
-				ChunkComponentOffset firstByte_ComponentOffsets[component::ComponentType::CT_Count]{};
-				//! Byte at which the first entity is located
-				ChunkComponentOffset firstByte_EntityData{};
-			};
-
-			struct ChunkHeader final {
-				static constexpr uint16_t CHUNK_LIFESPAN_BITS = 4;
-				//! Number of ticks before empty chunks are removed
-				static constexpr uint16_t MAX_CHUNK_LIFESPAN = (1 << CHUNK_LIFESPAN_BITS) - 1;
-
-				static constexpr uint16_t MAX_CHUNK_ENTITIES_BITS = 16;
-				//! Maxiumum number of entities per chunk
-				static constexpr uint16_t MAX_CHUNK_ENTITIES = (1 << MAX_CHUNK_ENTITIES_BITS) - 1;
-
-				//! Archetype the chunk belongs to
-				ArchetypeId archetypeId;
-				//! Chunk index in its archetype list
-				uint32_t index;
-				//! Number of items enabled in the chunk.
-				uint16_t count;
-				//! Capacity (copied from the owner archetype).
-				uint16_t capacity;
-
-				//! Index of the first enabled entity in the chunk
-				uint32_t firstEnabledEntityIndex : 16;
-				//! Once removal is requested and it hits 0 the chunk is removed.
-				uint32_t lifespanCountdown: CHUNK_LIFESPAN_BITS;
-				//! Updated when chunks are being iterated. Used to inform of structural changes when they shouldn't happen.
-				uint32_t structuralChangesLocked : 3;
-				//! True if there's any generic component that requires custom construction
-				uint32_t hasAnyCustomGenericCtor : 1;
-				//! True if there's any chunk component that requires custom construction
-				uint32_t hasAnyCustomChunkCtor : 1;
-				//! True if there's any generic component that requires custom destruction
-				uint32_t hasAnyCustomGenericDtor : 1;
-				//! True if there's any chunk component that requires custom destruction
-				uint32_t hasAnyCustomChunkDtor : 1;
-				//! Chunk size type. This tells whether it's 8K or 16K
-				uint32_t sizeType : 1;
-				//! Empty space for future use
-				uint32_t unused : 4;
-
-				//! Offsets to various parts of data inside chunk
-				ChunkHeaderOffsets offsets;
-
-				//! Number of components on the archetype
-				uint8_t componentCount[component::ComponentType::CT_Count]{};
-				//! Version of the world (stable pointer to parent world's world version)
-				uint32_t& worldVersion;
-
-				ChunkHeader(
-						uint32_t aid, uint32_t chunkIndex, uint16_t cap, uint16_t st, const ChunkHeaderOffsets& offs,
-						uint32_t& version):
-						archetypeId(aid),
-						index(chunkIndex), count(0), capacity(cap), firstEnabledEntityIndex(0), lifespanCountdown(0),
-						structuralChangesLocked(0), hasAnyCustomGenericCtor(0), hasAnyCustomChunkCtor(0),
-						hasAnyCustomGenericDtor(0), hasAnyCustomChunkDtor(0), sizeType(st), offsets(offs), worldVersion(version) {
-					// Make sure the alignment is right
-					GAIA_ASSERT(uintptr_t(this) % (sizeof(size_t)) == 0);
-				}
-
-				bool HasDisabledEntities() const {
-					return count > 0 && firstEnabledEntityIndex > 0;
-				}
-
-				bool HasEnabledEntities() const {
-					return count > 0 && firstEnabledEntityIndex != count;
-				}
-			};
-		} // namespace archetype
-	} // namespace ecs
-} // namespace gaia
-
-namespace gaia {
-	namespace ecs {
-		namespace component {
-			//! Updates the provided component matcher hash based on the provided component id
-			//! \param matcherHash Initial matcher hash
-			//! \param componentId Component id
-			inline void CalculateMatcherHash(ComponentMatcherHash& matcherHash, component::ComponentId componentId) noexcept {
-				const auto& cc = ComponentCache::Get();
-				const auto componentHash = cc.GetComponentInfo(componentId).matcherHash.hash;
-				matcherHash.hash = core::combine_or(matcherHash.hash, componentHash);
-			}
-
-			//! Calculates a component matcher hash from the provided component ids
-			//! \param componentIds Span of component ids
-			//! \return Component matcher hash
-			GAIA_NODISCARD inline ComponentMatcherHash CalculateMatcherHash(ComponentIdSpan componentIds) noexcept {
-				const auto infosSize = componentIds.size();
-				if (infosSize == 0)
-					return {0};
-
-				const auto& cc = ComponentCache::Get();
-				ComponentMatcherHash::Type hash = cc.GetComponentInfo(componentIds[0]).matcherHash.hash;
-				for (uint32_t i = 1; i < infosSize; ++i)
-					hash = core::combine_or(hash, cc.GetComponentInfo(componentIds[i]).matcherHash.hash);
-				return {hash};
-			}
-
-			//! Calculates a component lookup hash from the provided component ids
-			//! \param componentIds Span of component ids
-			//! \return Component lookup hash
-			GAIA_NODISCARD inline ComponentLookupHash CalculateLookupHash(ComponentIdSpan componentIds) noexcept {
-				const auto infosSize = componentIds.size();
-				if (infosSize == 0)
-					return {0};
-
-				const auto& cc = ComponentCache::Get();
-				ComponentLookupHash::Type hash = cc.GetComponentInfo(componentIds[0]).lookupHash.hash;
-				for (uint32_t i = 1; i < infosSize; ++i)
-					hash = core::hash_combine(hash, cc.GetComponentInfo(componentIds[i]).lookupHash.hash);
-				return {hash};
-			}
-
-			using SortComponentCond = core::is_smaller<ComponentId>;
-
-			//! Sorts component ids
-			template <typename Container>
-			inline void SortComponents(Container& c) noexcept {
-				core::sort(c, SortComponentCond{});
-			}
-		} // namespace component
-	} // namespace ecs
-} // namespace gaia
-
 #include <cinttypes>
 #include <type_traits>
 
@@ -14840,6 +14706,145 @@ namespace gaia {
 			EntityContainer() = default;
 			EntityContainer(uint32_t index, uint32_t generation): idx(index), gen(generation), dis(0), pChunk(nullptr) {}
 		};
+	} // namespace ecs
+} // namespace gaia
+
+namespace gaia {
+	namespace ecs {
+		namespace archetype {
+			struct ChunkHeaderOffsets {
+				//! Byte at which the first version number is located
+				ChunkVersionOffset firstByte_Versions[component::ComponentType::CT_Count]{};
+				//! Byte at which the first component id is located
+				ChunkComponentOffset firstByte_ComponentIds[component::ComponentType::CT_Count]{};
+				//! Byte at which the first component offset is located
+				ChunkComponentOffset firstByte_ComponentOffsets[component::ComponentType::CT_Count]{};
+				//! Byte at which the first entity is located
+				ChunkComponentOffset firstByte_EntityData{};
+			};
+
+			struct ChunkHeader final {
+				static constexpr uint16_t CHUNK_LIFESPAN_BITS = 4;
+				//! Number of ticks before empty chunks are removed
+				static constexpr uint16_t MAX_CHUNK_LIFESPAN = (1 << CHUNK_LIFESPAN_BITS) - 1;
+
+				//! Maxiumum number of entities per chunk.
+				//! Defined as sizeof(big_chunk) / sizeof(entity)
+				static constexpr uint16_t MAX_CHUNK_ENTITIES =
+						(detail::ChunkAllocatorImpl::GetMemoryBlockSize(1) - 64) / sizeof(Entity);
+				static constexpr uint16_t MAX_CHUNK_ENTITIES_BITS = (uint16_t)core::count_bits(MAX_CHUNK_ENTITIES);
+
+				//! Archetype the chunk belongs to
+				ArchetypeId archetypeId;
+				//! Chunk index in its archetype list
+				uint32_t index;
+				//! Total number of entities in the chunk.
+				uint16_t count;
+				//! Number of enabled entities in the chunk.
+				uint16_t countEnabled;
+				//! Capacity (copied from the owner archetype).
+				uint16_t capacity;
+
+				//! Index of the first enabled entity in the chunk
+				uint32_t firstEnabledEntityIndex: MAX_CHUNK_ENTITIES_BITS;
+				//! Once removal is requested and it hits 0 the chunk is removed.
+				uint32_t lifespanCountdown: CHUNK_LIFESPAN_BITS;
+				//! Updated when chunks are being iterated. Used to inform of structural changes when they shouldn't happen.
+				uint32_t structuralChangesLocked : 3;
+				//! True if there's any generic component that requires custom construction
+				uint32_t hasAnyCustomGenericCtor : 1;
+				//! True if there's any chunk component that requires custom construction
+				uint32_t hasAnyCustomChunkCtor : 1;
+				//! True if there's any generic component that requires custom destruction
+				uint32_t hasAnyCustomGenericDtor : 1;
+				//! True if there's any chunk component that requires custom destruction
+				uint32_t hasAnyCustomChunkDtor : 1;
+				//! Chunk size type. This tells whether it's 8K or 16K
+				uint32_t sizeType : 1;
+				//! Empty space for future use
+				uint32_t unused : 8;
+
+				//! Offsets to various parts of data inside chunk
+				ChunkHeaderOffsets offsets;
+
+				//! Number of components on the archetype
+				uint8_t componentCount[component::ComponentType::CT_Count]{};
+				//! Version of the world (stable pointer to parent world's world version)
+				uint32_t& worldVersion;
+
+				ChunkHeader(
+						uint32_t aid, uint32_t chunkIndex, uint16_t cap, uint16_t st, const ChunkHeaderOffsets& offs,
+						uint32_t& version):
+						archetypeId(aid),
+						index(chunkIndex), count(0), countEnabled(0), capacity(cap), firstEnabledEntityIndex(0),
+						lifespanCountdown(0), structuralChangesLocked(0), hasAnyCustomGenericCtor(0), hasAnyCustomChunkCtor(0),
+						hasAnyCustomGenericDtor(0), hasAnyCustomChunkDtor(0), sizeType(st), offsets(offs), worldVersion(version) {
+					// Make sure the alignment is right
+					GAIA_ASSERT(uintptr_t(this) % (sizeof(size_t)) == 0);
+				}
+
+				bool HasDisabledEntities() const {
+					return firstEnabledEntityIndex > 0;
+				}
+
+				bool HasEnabledEntities() const {
+					return countEnabled > 0;
+				}
+			};
+		} // namespace archetype
+	} // namespace ecs
+} // namespace gaia
+
+namespace gaia {
+	namespace ecs {
+		namespace component {
+			//! Updates the provided component matcher hash based on the provided component id
+			//! \param matcherHash Initial matcher hash
+			//! \param componentId Component id
+			inline void CalculateMatcherHash(ComponentMatcherHash& matcherHash, component::ComponentId componentId) noexcept {
+				const auto& cc = ComponentCache::Get();
+				const auto componentHash = cc.GetComponentInfo(componentId).matcherHash.hash;
+				matcherHash.hash = core::combine_or(matcherHash.hash, componentHash);
+			}
+
+			//! Calculates a component matcher hash from the provided component ids
+			//! \param componentIds Span of component ids
+			//! \return Component matcher hash
+			GAIA_NODISCARD inline ComponentMatcherHash CalculateMatcherHash(ComponentIdSpan componentIds) noexcept {
+				const auto infosSize = componentIds.size();
+				if (infosSize == 0)
+					return {0};
+
+				const auto& cc = ComponentCache::Get();
+				ComponentMatcherHash::Type hash = cc.GetComponentInfo(componentIds[0]).matcherHash.hash;
+				for (uint32_t i = 1; i < infosSize; ++i)
+					hash = core::combine_or(hash, cc.GetComponentInfo(componentIds[i]).matcherHash.hash);
+				return {hash};
+			}
+
+			//! Calculates a component lookup hash from the provided component ids
+			//! \param componentIds Span of component ids
+			//! \return Component lookup hash
+			GAIA_NODISCARD inline ComponentLookupHash CalculateLookupHash(ComponentIdSpan componentIds) noexcept {
+				const auto infosSize = componentIds.size();
+				if (infosSize == 0)
+					return {0};
+
+				const auto& cc = ComponentCache::Get();
+				ComponentLookupHash::Type hash = cc.GetComponentInfo(componentIds[0]).lookupHash.hash;
+				for (uint32_t i = 1; i < infosSize; ++i)
+					hash = core::hash_combine(hash, cc.GetComponentInfo(componentIds[i]).lookupHash.hash);
+				return {hash};
+			}
+
+			using SortComponentCond = core::is_smaller<ComponentId>;
+
+			//! Sorts component ids
+			template <typename Container>
+			inline void SortComponents(Container& c) noexcept {
+				core::sort(c, SortComponentCond{});
+			}
+		} // namespace component
 	} // namespace ecs
 } // namespace gaia
 
@@ -15043,6 +15048,7 @@ namespace gaia {
 					// Should never be called over an empty chunk
 					GAIA_ASSERT(HasEntities());
 					--m_header.count;
+					--m_header.countEnabled;
 				}
 
 			public:
@@ -15197,6 +15203,7 @@ namespace gaia {
 				*/
 				GAIA_NODISCARD uint32_t AddEntity(Entity entity) {
 					const auto index = m_header.count++;
+					++m_header.countEnabled;
 					SetEntity(index, entity);
 
 					UpdateVersion(m_header.worldVersion);
@@ -15452,11 +15459,16 @@ namespace gaia {
 						desc.Swap(pSrc, pDst);
 					}
 
-					// Entities were swapped. Update their index & generation in the entity container.
-					entities[entityLeft.id()].idx = right;
-					entities[entityLeft.id()].gen = entityRight.gen();
-					entities[entityRight.id()].idx = left;
-					entities[entityRight.id()].gen = entityLeft.gen();
+					// Entities were swapped. Update their entity container records.
+					auto& ecLeft = entities[entityLeft.id()];
+					bool ecLeftWasDisabled = ecLeft.dis;
+					auto& ecRight = entities[entityRight.id()];
+					ecLeft.idx = right;
+					ecLeft.gen = entityRight.gen();
+					ecLeft.dis = ecRight.dis;
+					ecRight.idx = left;
+					ecRight.gen = entityLeft.gen();
+					ecRight.dis = ecLeftWasDisabled;
 				}
 
 				/*!
@@ -15495,18 +15507,28 @@ namespace gaia {
 				void EnableEntity(uint32_t index, bool enableEntity, std::span<EntityContainer> entities) {
 					GAIA_ASSERT(index < m_header.count && "Entity chunk index out of bounds!");
 
-					if (enableEntity && m_header.HasDisabledEntities()) {
+					if (enableEntity) {
+						// Nothing to enable if there are no disabled entities
+						if (!m_header.HasDisabledEntities())
+							return;
 						// Trying to enable an already enabled entity
 						if (IsEntityEnabled(index))
 							return;
 						// Try swapping our entity with the last disabled one
 						SwapChunkEntities(--m_header.firstEnabledEntityIndex, index, entities);
-					} else if (!enableEntity && m_header.HasEnabledEntities()) {
+						entities[GetEntity(index).id()].dis = 0;
+						++m_header.countEnabled;
+					} else {
+						// Nothing to disable if there are no enabled entities
+						if (!m_header.HasEnabledEntities())
+							return;
 						// Trying to disable an already disabled entity
 						if (!IsEntityEnabled(index))
 							return;
 						// Try swapping our entity with the last one in our chunk
 						SwapChunkEntities(m_header.firstEnabledEntityIndex++, index, entities);
+						entities[GetEntity(index).id()].dis = 1;
+						--m_header.countEnabled;
 					}
 				}
 
@@ -15877,8 +15899,10 @@ namespace gaia {
 
 				template <typename... T, typename Func>
 				GAIA_FORCEINLINE void ForEach([[maybe_unused]] core::func_type_list<T...> types, Func func) {
-					const uint32_t size = GetEntityCount();
-					GAIA_ASSERT(size > 0);
+					const uint32_t idxFrom = m_header.firstEnabledEntityIndex;
+					const uint32_t idxStop = m_header.count;
+					GAIA_ASSERT(idxStop > idxFrom);
+					GAIA_ASSERT(idxStop > 0);
 
 					if constexpr (sizeof...(T) > 0) {
 						// Pointers to the respective component types in the chunk, e.g
@@ -15893,11 +15917,11 @@ namespace gaia {
 						//		for (uint32_t i: iter)
 						//			func(p[i], v[i]);
 
-						for (uint32_t i = 0; i < size; ++i)
+						for (uint32_t i = idxFrom; i < idxStop; ++i)
 							func(std::get<decltype(GetComponentView<T>())>(dataPointerTuple)[i]...);
 					} else {
 						// No functor parameters. Do an empty loop.
-						for (uint32_t i = 0; i < size; ++i)
+						for (uint32_t i = idxFrom; i < idxStop; ++i)
 							func();
 					}
 				}
@@ -15980,7 +16004,7 @@ namespace gaia {
 
 				//! Return the number of entities in the chunk which are enabled
 				GAIA_NODISCARD uint32_t GetEnabledEntityCount() const {
-					return m_header.count - m_header.firstEnabledEntityIndex;
+					return m_header.countEnabled;
 				}
 
 				//! Return the number of entities in the chunk which are enabled
@@ -16487,7 +16511,6 @@ namespace gaia {
 					registerComponents(componentIdsGeneric, component::ComponentType::CT_Generic, maxGenericItemsInArchetype);
 					registerComponents(componentIdsChunk, component::ComponentType::CT_Chunk, 1);
 
-					GAIA_ASSERT(maxGenericItemsInArchetype < MAX_UINT16);
 					newArch->m_properties.capacity = (uint16_t)maxGenericItemsInArchetype;
 					newArch->m_properties.chunkDataBytes = (uint16_t)currentOffset;
 					GAIA_ASSERT(
@@ -17029,40 +17052,43 @@ namespace gaia {
 		} // namespace detail
 
 		struct ChunkAccessorIt {
-		public:
 			using value_type = uint32_t;
 
 		protected:
 			value_type m_pos;
 
 		public:
-			ChunkAccessorIt(value_type pos): m_pos(pos) {}
+			ChunkAccessorIt(value_type pos) noexcept: m_pos(pos) {}
 
-			GAIA_NODISCARD value_type operator*() const {
+			GAIA_NODISCARD value_type operator*() const noexcept {
 				return m_pos;
 			}
 
-			GAIA_NODISCARD value_type operator->() const {
+			GAIA_NODISCARD value_type operator->() const noexcept {
 				return m_pos;
 			}
 
-			ChunkAccessorIt operator++() {
+			ChunkAccessorIt operator++() noexcept {
 				++m_pos;
 				return *this;
 			}
 
-			GAIA_NODISCARD ChunkAccessorIt operator++(int) {
+			GAIA_NODISCARD ChunkAccessorIt operator++(int) noexcept {
 				ChunkAccessorIt temp(*this);
 				++*this;
 				return temp;
 			}
 
-			GAIA_NODISCARD bool operator==(const ChunkAccessorIt& other) const {
+			GAIA_NODISCARD bool operator==(const ChunkAccessorIt& other) const noexcept {
 				return m_pos == other.m_pos;
 			}
 
-			GAIA_NODISCARD bool operator!=(const ChunkAccessorIt& other) const {
+			GAIA_NODISCARD bool operator!=(const ChunkAccessorIt& other) const noexcept {
 				return m_pos != other.m_pos;
+			}
+
+			GAIA_NODISCARD bool operator<(const ChunkAccessorIt& other) const noexcept {
+				return m_pos < other.m_pos;
 			}
 		};
 	} // namespace ecs
@@ -17249,81 +17275,75 @@ namespace gaia {
 #include <type_traits>
 
 #include <cinttypes>
+#include <span>
 #include <type_traits>
 
 namespace gaia {
 	namespace ecs {
+		namespace detail {
+			template <typename Func>
+			void for_each(const uint32_t idxFrom, const uint32_t idxStop, Func&& func) noexcept {
+				if constexpr (std::is_invocable_v<Func&&, uint32_t>) {
+					for (auto i = idxFrom; i < idxStop; ++i)
+						func(i);
+				} else {
+					for (auto i = idxFrom; i < idxStop; ++i)
+						func();
+				}
+			}
+		} // namespace detail
+
 		struct Iterator: public detail::ChunkAccessor {
 			using Iter = ChunkAccessorIt;
 
-		public:
-			Iterator(archetype::Chunk& chunk): detail::ChunkAccessor(chunk) {}
+			Iterator(archetype::Chunk& chunk) noexcept: detail::ChunkAccessor(chunk) {}
 
-			GAIA_NODISCARD Iter begin() const {
-				return Iter(0);
+			//! Returns the number of entities accessible via the iterator
+			GAIA_NODISCARD uint32_t size() const noexcept {
+				return m_chunk.GetEnabledEntityCount();
 			}
 
-			GAIA_NODISCARD Iter end() const {
-				return Iter(m_chunk.GetEntityCount());
-			}
-
-			//! Calculates the number of entities accessible via the iterator
-			GAIA_NODISCARD uint32_t size() const {
-				return m_chunk.GetEntityCount();
+			template <typename Func>
+			void for_each(Func func) noexcept {
+				const auto idxFrom = m_chunk.GetDisabledEntityCount();
+				const auto idxStop = m_chunk.GetEntityCount();
+				detail::for_each(idxFrom, idxStop, func);
 			}
 		};
-	} // namespace ecs
-} // namespace gaia
 
-#include <cinttypes>
-#include <type_traits>
-
-namespace gaia {
-	namespace ecs {
 		struct IteratorDisabled: public detail::ChunkAccessor {
 			using Iter = ChunkAccessorIt;
 
-		public:
-			IteratorDisabled(archetype::Chunk& chunk): detail::ChunkAccessor(chunk) {}
+			IteratorDisabled(archetype::Chunk& chunk) noexcept: detail::ChunkAccessor(chunk) {}
 
-			GAIA_NODISCARD Iter begin() const {
-				return Iter(0);
-			}
-
-			GAIA_NODISCARD Iter end() const {
-				return Iter(m_chunk.GetDisabledEntityCount());
-			}
-
-			//! Calculates the number of entities accessible via the iterator
-			GAIA_NODISCARD uint32_t size() const {
+			//! Returns the number of entities accessible via the iterator
+			GAIA_NODISCARD uint32_t size() const noexcept {
 				return m_chunk.GetDisabledEntityCount();
 			}
+
+			template <typename Func>
+			void for_each(Func&& func) noexcept {
+				const auto idxFrom = 0;
+				const auto idxStop = m_chunk.GetDisabledEntityCount();
+				detail::for_each(idxFrom, idxStop, func);
+			}
 		};
-	} // namespace ecs
-} // namespace gaia
 
-#include <cinttypes>
-#include <type_traits>
-
-namespace gaia {
-	namespace ecs {
-		struct IteratorEnabled: public detail::ChunkAccessor {
+		struct IteratorAll: public detail::ChunkAccessor {
 			using Iter = ChunkAccessorIt;
 
-		public:
-			IteratorEnabled(archetype::Chunk& chunk): detail::ChunkAccessor(chunk) {}
+			IteratorAll(archetype::Chunk& chunk) noexcept: detail::ChunkAccessor(chunk) {}
 
-			GAIA_NODISCARD Iter begin() const {
-				return Iter(m_chunk.GetDisabledEntityCount());
+			//! Returns the number of entities accessible via the iterator
+			GAIA_NODISCARD uint32_t size() const noexcept {
+				return m_chunk.GetEntityCount();
 			}
 
-			GAIA_NODISCARD Iter end() const {
-				return Iter(m_chunk.GetEntityCount());
-			}
-
-			//! Calculates the number of entities accessible via the iterator
-			GAIA_NODISCARD uint32_t size() const {
-				return m_chunk.GetEnabledEntityCount();
+			template <typename Func>
+			void for_each(Func&& func) noexcept {
+				const auto idxFrom = 0;
+				const auto idxStop = m_chunk.GetEntityCount();
+				detail::for_each(idxFrom, idxStop, func);
 			}
 		};
 	} // namespace ecs
@@ -18443,13 +18463,13 @@ namespace gaia {
 				void ForEach(Func func) {
 					auto& queryInfo = FetchQueryInfo();
 
-					if constexpr (std::is_invocable<Func, Iterator>::value)
+					if constexpr (std::is_invocable<Func, IteratorAll>::value)
 						ForEach_RunQueryOnChunks(queryInfo, Constraints::AcceptAll, [&](archetype::Chunk& chunk) {
-							func(Iterator(chunk));
+							func(IteratorAll(chunk));
 						});
-					else if constexpr (std::is_invocable<Func, IteratorEnabled>::value)
+					else if constexpr (std::is_invocable<Func, Iterator>::value)
 						ForEach_RunQueryOnChunks(queryInfo, Constraints::EnabledOnly, [&](archetype::Chunk& chunk) {
-							func(IteratorEnabled(chunk));
+							func(Iterator(chunk));
 						});
 					else if constexpr (std::is_invocable<Func, IteratorDisabled>::value)
 						ForEach_RunQueryOnChunks(queryInfo, Constraints::DisabledOnly, [&](archetype::Chunk& chunk) {
@@ -18826,10 +18846,9 @@ namespace gaia {
 				// At this point the last entity is no longer valid so remove it
 				pChunk->RemoveLastEntity(m_chunksToRemove);
 
+				pChunk->UpdateVersions();
 				if constexpr (IsEntityReleaseWanted)
 					ReleaseEntity(entity);
-
-				pChunk->UpdateVersions();
 #endif
 			}
 
@@ -19172,12 +19191,18 @@ namespace gaia {
 				auto& entityContainer = m_entities[oldEntity.id()];
 				auto* pOldChunk = entityContainer.pChunk;
 
-				const auto oldIndex = entityContainer.idx;
+				const auto oldIndex0 = entityContainer.idx;
 				const auto newIndex = pNewChunk->AddEntity(oldEntity);
 
 				// Transfer the disabled state
 				const bool wasEnabled = !entityContainer.dis;
+				auto& oldArchetype = *m_archetypes[pOldChunk->GetArchetypeId()];
 				auto& newArchetype = *m_archetypes[pNewChunk->GetArchetypeId()];
+
+				// Make sure the old entity becomes enabled now
+				oldArchetype.EnableEntity(pOldChunk, oldIndex0, true, {m_entities.data(), m_entities.size()});
+				// Enabling the entity might have changed the index so fetch it again
+				const auto oldIndex = m_entities[oldEntity.id()].idx;
 
 				// No data movement necessary when dealing with the root archetype
 				if GAIA_LIKELY (pNewChunk->GetArchetypeId() + pOldChunk->GetArchetypeId() != 0) {
@@ -19188,6 +19213,7 @@ namespace gaia {
 						pNewChunk->MoveForeignEntityData(oldEntity, newIndex, {m_entities.data(), m_entities.size()});
 				}
 
+				// Transfer the enabled state to the new archetype as well
 				newArchetype.EnableEntity(pNewChunk, newIndex, wasEnabled, {m_entities.data(), m_entities.size()});
 
 				// Remove the entity record from the old chunk
@@ -19197,6 +19223,8 @@ namespace gaia {
 				entityContainer.pChunk = pNewChunk;
 				entityContainer.idx = newIndex;
 				entityContainer.gen = oldEntity.gen();
+				GAIA_ASSERT(entityContainer.dis == !wasEnabled);
+				// entityContainer.dis = !wasEnabled;
 
 				// End-state validation
 				ValidateChunk(pOldChunk);
@@ -19508,7 +19536,6 @@ namespace gaia {
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			void Enable(Entity entity, bool enable) {
 				auto& entityContainer = m_entities[entity.id()];
-				entityContainer.dis = !enable;
 
 				GAIA_ASSERT(
 						(!entityContainer.pChunk || !entityContainer.pChunk->IsStructuralChangesLocked()) &&
@@ -19529,7 +19556,12 @@ namespace gaia {
 				GAIA_ASSERT(IsValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
-				return !entityContainer.dis;
+				const bool entityStateInContainer = !entityContainer.dis;
+#if GAIA_ASSERT_ENABLED
+				const bool entityStateInChunk = entityContainer.pChunk->IsEntityEnabled(entityContainer.idx);
+				GAIA_ASSERT(entityStateInChunk == entityStateInContainer);
+#endif
+				return entityStateInContainer;
 			}
 
 			//! Returns the number of active entities

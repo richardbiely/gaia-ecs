@@ -146,10 +146,9 @@ namespace gaia {
 				// At this point the last entity is no longer valid so remove it
 				pChunk->RemoveLastEntity(m_chunksToRemove);
 
+				pChunk->UpdateVersions();
 				if constexpr (IsEntityReleaseWanted)
 					ReleaseEntity(entity);
-
-				pChunk->UpdateVersions();
 #endif
 			}
 
@@ -492,12 +491,18 @@ namespace gaia {
 				auto& entityContainer = m_entities[oldEntity.id()];
 				auto* pOldChunk = entityContainer.pChunk;
 
-				const auto oldIndex = entityContainer.idx;
+				const auto oldIndex0 = entityContainer.idx;
 				const auto newIndex = pNewChunk->AddEntity(oldEntity);
 
 				// Transfer the disabled state
 				const bool wasEnabled = !entityContainer.dis;
+				auto& oldArchetype = *m_archetypes[pOldChunk->GetArchetypeId()];
 				auto& newArchetype = *m_archetypes[pNewChunk->GetArchetypeId()];
+
+				// Make sure the old entity becomes enabled now
+				oldArchetype.EnableEntity(pOldChunk, oldIndex0, true, {m_entities.data(), m_entities.size()});
+				// Enabling the entity might have changed the index so fetch it again
+				const auto oldIndex = m_entities[oldEntity.id()].idx;
 
 				// No data movement necessary when dealing with the root archetype
 				if GAIA_LIKELY (pNewChunk->GetArchetypeId() + pOldChunk->GetArchetypeId() != 0) {
@@ -508,6 +513,7 @@ namespace gaia {
 						pNewChunk->MoveForeignEntityData(oldEntity, newIndex, {m_entities.data(), m_entities.size()});
 				}
 
+				// Transfer the enabled state to the new archetype as well
 				newArchetype.EnableEntity(pNewChunk, newIndex, wasEnabled, {m_entities.data(), m_entities.size()});
 
 				// Remove the entity record from the old chunk
@@ -517,6 +523,8 @@ namespace gaia {
 				entityContainer.pChunk = pNewChunk;
 				entityContainer.idx = newIndex;
 				entityContainer.gen = oldEntity.gen();
+				GAIA_ASSERT(entityContainer.dis == !wasEnabled);
+				// entityContainer.dis = !wasEnabled;
 
 				// End-state validation
 				ValidateChunk(pOldChunk);
@@ -828,7 +836,6 @@ namespace gaia {
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			void Enable(Entity entity, bool enable) {
 				auto& entityContainer = m_entities[entity.id()];
-				entityContainer.dis = !enable;
 
 				GAIA_ASSERT(
 						(!entityContainer.pChunk || !entityContainer.pChunk->IsStructuralChangesLocked()) &&
@@ -849,7 +856,12 @@ namespace gaia {
 				GAIA_ASSERT(IsValid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
-				return !entityContainer.dis;
+				const bool entityStateInContainer = !entityContainer.dis;
+#if GAIA_ASSERT_ENABLED
+				const bool entityStateInChunk = entityContainer.pChunk->IsEntityEnabled(entityContainer.idx);
+				GAIA_ASSERT(entityStateInChunk == entityStateInContainer);
+#endif
+				return entityStateInContainer;
 			}
 
 			//! Returns the number of active entities

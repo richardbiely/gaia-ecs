@@ -64,40 +64,43 @@ namespace gaia {
 		} // namespace detail
 
 		struct ChunkAccessorIt {
-		public:
 			using value_type = uint32_t;
 
 		protected:
 			value_type m_pos;
 
 		public:
-			ChunkAccessorIt(value_type pos): m_pos(pos) {}
+			ChunkAccessorIt(value_type pos) noexcept: m_pos(pos) {}
 
-			GAIA_NODISCARD value_type operator*() const {
+			GAIA_NODISCARD value_type operator*() const noexcept {
 				return m_pos;
 			}
 
-			GAIA_NODISCARD value_type operator->() const {
+			GAIA_NODISCARD value_type operator->() const noexcept {
 				return m_pos;
 			}
 
-			ChunkAccessorIt operator++() {
+			ChunkAccessorIt operator++() noexcept {
 				++m_pos;
 				return *this;
 			}
 
-			GAIA_NODISCARD ChunkAccessorIt operator++(int) {
+			GAIA_NODISCARD ChunkAccessorIt operator++(int) noexcept {
 				ChunkAccessorIt temp(*this);
 				++*this;
 				return temp;
 			}
 
-			GAIA_NODISCARD bool operator==(const ChunkAccessorIt& other) const {
+			GAIA_NODISCARD bool operator==(const ChunkAccessorIt& other) const noexcept {
 				return m_pos == other.m_pos;
 			}
 
-			GAIA_NODISCARD bool operator!=(const ChunkAccessorIt& other) const {
+			GAIA_NODISCARD bool operator!=(const ChunkAccessorIt& other) const noexcept {
 				return m_pos != other.m_pos;
+			}
+
+			GAIA_NODISCARD bool operator<(const ChunkAccessorIt& other) const noexcept {
+				return m_pos < other.m_pos;
 			}
 		};
 	} // namespace ecs
