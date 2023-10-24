@@ -532,8 +532,7 @@ for (uint32_t i=0; i<10; ++i)
   t.transforms.push_back({});
 t.some_int_data = 42069;
 
-ecs::DataBuffer db;
-ecs::DataBuffer_SerializationWrapper s(db);
+ecs::SerializationBuffer s;
 // Calculate how many bytes is it necessary to serialize "in"
 s.reserve(ser::bytes(in));
 // Save "in" to our buffer
@@ -587,8 +586,7 @@ in.ptr[3] = 'a';
 in.ptr[4] = '\0';
 in.size = 5;
 
-ecs::DataBuffer db;
-ecs::DataBuffer_SerializationWrapper s(db);
+ecs::SerializationBuffer s;
 // Reserve enough bytes in the buffer so it can fit the entire in
 s.reserve(ser::bytes(in));
 ser::save(s, in);

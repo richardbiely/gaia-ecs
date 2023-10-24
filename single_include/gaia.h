@@ -17111,7 +17111,7 @@ namespace gaia {
 
 namespace gaia {
 	namespace ecs {
-		class DataBuffer {
+		class SerializationBuffer {
 			// Increase the capacity by multiples of CapacityIncreaseSize
 			static constexpr uint32_t CapacityIncreaseSize = 128U;
 			// TODO: Replace with some memory allocator
@@ -17123,26 +17123,29 @@ namespace gaia {
 			uint32_t m_dataPos = 0;
 
 		public:
-			DataBuffer() {}
-
 			void reset() {
 				m_dataPos = 0;
 				m_data.clear();
 			}
 
 			//! Returns the number of bytes written in the buffer
-			GAIA_NODISCARD uint32_t size() const {
+			GAIA_NODISCARD uint32_t bytes() const {
 				return (uint32_t)m_data.size();
 			}
 
+			//! Returns true if there is no data written in the buffer
+			GAIA_NODISCARD bool empty() const {
+				return m_data.empty();
+			}
+
 			//! Makes sure there is enough capacity in our data container to hold another \param size bytes of data
-			void ensure_capacity(uint32_t size) {
+			void reserve(uint32_t size) {
 				const auto nextSize = m_dataPos + size;
-				if (nextSize <= (uint32_t)m_data.size())
+				if (nextSize <= bytes())
 					return;
 
 				// Make sure there is enough capacity to hold our data
-				const auto newSize = m_data.size() + size;
+				const auto newSize = bytes() + size;
 				const auto newCapacity = (newSize / CapacityIncreaseSize) * CapacityIncreaseSize + CapacityIncreaseSize;
 				m_data.reserve(newCapacity);
 			}
@@ -17160,7 +17163,7 @@ namespace gaia {
 			//! Writes \param value to the buffer
 			template <typename T>
 			void save(T&& value) {
-				ensure_capacity(sizeof(T));
+				reserve(sizeof(T));
 
 				m_data.resize(m_dataPos + sizeof(T));
 				mem::unaligned_ref<T> mem(&m_data[m_dataPos]);
@@ -17171,7 +17174,7 @@ namespace gaia {
 
 			//! Writes \param size bytes of data starting at the address \param pSrc to the buffer
 			void save(const void* pSrc, uint32_t size) {
-				ensure_capacity(size);
+				reserve(size);
 
 				// Copy "size" bytes of raw data starting at pSrc
 				m_data.resize(m_dataPos + size);
@@ -17188,7 +17191,7 @@ namespace gaia {
 				const bool isManualDestroyNeeded = desc.func_ctor_copy != nullptr || desc.func_ctor_move != nullptr;
 				constexpr bool isRValue = std::is_rvalue_reference_v<decltype(value)>;
 
-				ensure_capacity(sizeof(isManualDestroyNeeded) + sizeof(T));
+				reserve(sizeof(isManualDestroyNeeded) + sizeof(T));
 				save(isManualDestroyNeeded);
 				m_data.resize(m_dataPos + sizeof(T));
 
@@ -17207,7 +17210,7 @@ namespace gaia {
 			//! Loads \param value from the buffer
 			template <typename T>
 			void load(T& value) {
-				GAIA_ASSERT(m_dataPos + sizeof(T) <= m_data.size());
+				GAIA_ASSERT(m_dataPos + sizeof(T) <= bytes());
 
 				value = mem::unaligned_ref<T>((void*)&m_data[m_dataPos]);
 
@@ -17216,7 +17219,7 @@ namespace gaia {
 
 			//! Loads \param size bytes of data from the buffer and writes them to the address \param pDst
 			void load(void* pDst, uint32_t size) {
-				GAIA_ASSERT(m_dataPos + size <= m_data.size());
+				GAIA_ASSERT(m_dataPos + size <= bytes());
 
 				memcpy(pDst, (void*)&m_data[m_dataPos], size);
 
@@ -17229,7 +17232,7 @@ namespace gaia {
 				load(isManualDestroyNeeded);
 
 				const auto& desc = ComponentCache::get().comp_desc(componentId);
-				GAIA_ASSERT(m_dataPos + desc.properties.size <= m_data.size());
+				GAIA_ASSERT(m_dataPos + desc.properties.size <= bytes());
 
 				auto* pSrc = (void*)&m_data[m_dataPos];
 				desc.move(pSrc, pDst);
@@ -17237,43 +17240,6 @@ namespace gaia {
 					desc.dtor(pSrc);
 
 				m_dataPos += desc.properties.size;
-			}
-		};
-
-		class DataBuffer_SerializationWrapper {
-			ecs::DataBuffer& m_buffer;
-
-		public:
-			DataBuffer_SerializationWrapper(ecs::DataBuffer& buffer): m_buffer(buffer) {}
-
-			ecs::DataBuffer& buffer() {
-				return m_buffer;
-			}
-
-			void reserve(uint32_t size) {
-				m_buffer.ensure_capacity(size);
-			}
-
-			void seek(uint32_t pos) {
-				m_buffer.seek(pos);
-			}
-
-			template <typename T>
-			void save(T&& arg) {
-				m_buffer.save(std::forward<T>(arg));
-			}
-
-			void save(const void* pSrc, uint32_t size) {
-				m_buffer.save(pSrc, size);
-			}
-
-			template <typename T>
-			void load(T& arg) {
-				m_buffer.load(arg);
-			}
-
-			void load(void* pDst, uint32_t size) {
-				m_buffer.load(pDst, size);
 			}
 		};
 	} // namespace ecs
@@ -17953,7 +17919,7 @@ namespace gaia {
 				static constexpr uint32_t ChunkBatchSize = 16;
 				using CChunkSpan = std::span<const archetype::Chunk*>;
 				using ChunkBatchedList = cnt::sarray_ext<archetype::Chunk*, ChunkBatchSize>;
-				using CmdBufferCmdFunc = void (*)(DataBuffer& buffer, query::LookupCtx& ctx);
+				using CmdBufferCmdFunc = void (*)(SerializationBuffer& buffer, query::LookupCtx& ctx);
 
 			public:
 				//! QueryImpl constraints
@@ -18057,24 +18023,22 @@ namespace gaia {
 
 				static constexpr CmdBufferCmdFunc CommandBufferRead[] = {
 						// Add component
-						[](DataBuffer& buffer, query::LookupCtx& ctx) {
+						[](SerializationBuffer& buffer, query::LookupCtx& ctx) {
 							Command_AddComponent cmd;
-							DataBuffer_SerializationWrapper s(buffer);
-							ser::load(s, cmd);
+							ser::load(buffer, cmd);
 							cmd.exec(ctx);
 						},
 						// Add filter
-						[](DataBuffer& buffer, query::LookupCtx& ctx) {
+						[](SerializationBuffer& buffer, query::LookupCtx& ctx) {
 							Command_Filter cmd;
-							DataBuffer_SerializationWrapper s(buffer);
-							ser::load(s, cmd);
+							ser::load(buffer, cmd);
 							cmd.exec(ctx);
 						}};
 
 				//! Storage for data based on whether Caching is used or not
 				QueryImplStorage<UseCaching> m_storage;
 				//! Buffer with commands used to fetch the QueryInfo
-				DataBuffer m_cmdBuffer;
+				SerializationBuffer m_serBuffer;
 				//! World version (stable pointer to parent world's world version)
 				uint32_t* m_worldVersion{};
 				//! List of achetypes (stable pointer to parent world's archetype array)
@@ -18134,9 +18098,8 @@ namespace gaia {
 					(void)cc.goc_comp_info<T>();
 
 					Command_AddComponent cmd{componentId, compType, listType, isReadWrite};
-					DataBuffer_SerializationWrapper s(m_cmdBuffer);
-					ser::save(s, Command_AddComponent::Id);
-					ser::save(s, cmd);
+					ser::save(m_serBuffer, Command_AddComponent::Id);
+					ser::save(m_serBuffer, cmd);
 				}
 
 				template <typename T>
@@ -18145,9 +18108,8 @@ namespace gaia {
 					constexpr auto compType = component::component_type_v<T>;
 
 					Command_Filter cmd{componentId, compType};
-					DataBuffer_SerializationWrapper s(m_cmdBuffer);
-					ser::save(s, Command_Filter::Id);
-					ser::save(s, cmd);
+					ser::save(m_serBuffer, Command_Filter::Id);
+					ser::save(m_serBuffer, cmd);
 				}
 
 				//--------------------------------------------------------------------------------
@@ -18161,21 +18123,19 @@ namespace gaia {
 					}
 #endif
 
-					DataBuffer_SerializationWrapper s(m_cmdBuffer);
-
 					// Read data from buffer and execute the command stored in it
-					m_cmdBuffer.seek(0);
-					while (m_cmdBuffer.tell() < m_cmdBuffer.size()) {
+					m_serBuffer.seek(0);
+					while (m_serBuffer.tell() < m_serBuffer.bytes()) {
 						CommandBufferCmd id{};
-						ser::load(s, id);
-						CommandBufferRead[id](m_cmdBuffer, ctx);
+						ser::load(m_serBuffer, id);
+						CommandBufferRead[id](m_serBuffer, ctx);
 					}
 
 					// Calculate the lookup hash from the provided context
 					query::calc_lookup_hash(ctx);
 
 					// We can free all temporary data now
-					m_cmdBuffer.reset();
+					m_serBuffer.reset();
 				}
 
 				//--------------------------------------------------------------------------------
@@ -19856,10 +19816,19 @@ namespace gaia {
 		Therefore, such operations have to be executed after the loop is done.
 		*/
 		class CommandBuffer final {
-			struct CommandBufferCtx: DataBuffer_SerializationWrapper {
+			struct CommandBufferCtx: SerializationBuffer {
 				ecs::World& world;
 				uint32_t entities;
 				cnt::map<uint32_t, Entity> entityMap;
+
+				CommandBufferCtx(ecs::World& w): world(w), entities(0) {}
+
+				using SerializationBuffer::reset;
+				void reset() {
+					SerializationBuffer::reset();
+					entities = 0;
+					entityMap.clear();
+				}
 			};
 
 			enum CommandBufferCmd : uint8_t {
@@ -19941,7 +19910,7 @@ namespace gaia {
 					const auto& desc = ComponentCache::get().comp_desc(componentId);
 					const auto offset = pChunk->find_data_offset(compType, info.componentId);
 					auto* pComponentData = (void*)&pChunk->data(offset + (uint32_t)indexInChunk * desc.properties.size);
-					ctx.buffer().load_comp(pComponentData, componentId);
+					ctx.load_comp(pComponentData, componentId);
 				}
 			};
 			struct ADD_COMPONENT_TO_TEMPENTITY_t: CommandBufferCmd_t {
@@ -19997,7 +19966,7 @@ namespace gaia {
 					const auto& desc = ComponentCache::get().comp_desc(componentId);
 					const auto offset = pChunk->find_data_offset(compType, desc.componentId);
 					auto* pComponentData = (void*)&pChunk->data(offset + (uint32_t)indexInChunk * desc.properties.size);
-					ctx.buffer().load_comp(pComponentData, componentId);
+					ctx.load_comp(pComponentData, componentId);
 				}
 			};
 			struct SET_COMPONENT_t: CommandBufferCmd_t {
@@ -20014,7 +19983,7 @@ namespace gaia {
 					const auto& desc = ComponentCache::get().comp_desc(componentId);
 					const auto offset = pChunk->find_data_offset(compType, componentId);
 					auto* pComponentData = (void*)&pChunk->data(offset + (uint32_t)indexInChunk * desc.properties.size);
-					ctx.buffer().load_comp(pComponentData, componentId);
+					ctx.load_comp(pComponentData, componentId);
 				}
 			};
 			struct SET_COMPONENT_FOR_TEMPENTITY_t: CommandBufferCmd_t {
@@ -20039,7 +20008,7 @@ namespace gaia {
 					const auto& desc = ComponentCache::get().comp_desc(componentId);
 					const auto offset = pChunk->find_data_offset(compType, componentId);
 					auto* pComponentData = (void*)&pChunk->data(offset + (uint32_t)indexInChunk * desc.properties.size);
-					ctx.buffer().load_comp(pComponentData, componentId);
+					ctx.load_comp(pComponentData, componentId);
 				}
 			};
 			struct REMOVE_COMPONENT_t: CommandBufferCmd_t {
@@ -20056,7 +20025,7 @@ namespace gaia {
 			friend class World;
 
 			World& m_world;
-			DataBuffer m_data;
+			CommandBufferCtx m_ctx;
 			uint32_t m_entities;
 
 			/*!
@@ -20065,18 +20034,17 @@ namespace gaia {
 			will be filled with proper data after commit()
 			*/
 			GAIA_NODISCARD TempEntity add(archetype::Archetype& archetype) {
-				DataBuffer_SerializationWrapper s(m_data);
-				s.save(CREATE_ENTITY_FROM_ARCHETYPE);
+				m_ctx.save(CREATE_ENTITY_FROM_ARCHETYPE);
 
 				CREATE_ENTITY_FROM_ARCHETYPE_t cmd;
 				cmd.archetypePtr = (uintptr_t)&archetype;
-				ser::save(s, cmd);
+				ser::save(m_ctx, cmd);
 
 				return {m_entities++};
 			}
 
 		public:
-			CommandBuffer(World& world): m_world(world), m_entities(0) {}
+			CommandBuffer(World& world): m_world(world), m_ctx(world), m_entities(0) {}
 			~CommandBuffer() = default;
 
 			CommandBuffer(CommandBuffer&&) = delete;
@@ -20090,8 +20058,7 @@ namespace gaia {
 			will be filled with proper data after commit()
 			*/
 			GAIA_NODISCARD TempEntity add() {
-				DataBuffer_SerializationWrapper s(m_data);
-				s.save(CREATE_ENTITY);
+				m_ctx.save(CREATE_ENTITY);
 
 				return {m_entities++};
 			}
@@ -20102,12 +20069,11 @@ namespace gaia {
 			away. It will be filled with proper data after commit()
 			*/
 			GAIA_NODISCARD TempEntity add(Entity entityFrom) {
-				DataBuffer_SerializationWrapper s(m_data);
-				s.save(CREATE_ENTITY_FROM_ENTITY);
+				m_ctx.save(CREATE_ENTITY_FROM_ENTITY);
 
 				CREATE_ENTITY_FROM_ENTITY_t cmd;
 				cmd.entity = entityFrom;
-				ser::save(s, cmd);
+				ser::save(m_ctx, cmd);
 
 				return {m_entities++};
 			}
@@ -20116,12 +20082,11 @@ namespace gaia {
 			Requests an existing \param entity to be removed.
 			*/
 			void del(Entity entity) {
-				DataBuffer_SerializationWrapper s(m_data);
-				s.save(DELETE_ENTITY);
+				m_ctx.save(DELETE_ENTITY);
 
 				DELETE_ENTITY_t cmd;
 				cmd.entity = entity;
-				ser::save(s, cmd);
+				ser::save(m_ctx, cmd);
 			}
 
 			/*!
@@ -20135,14 +20100,13 @@ namespace gaia {
 				using U = typename component::component_type_t<T>::Type;
 				component::verify_comp<U>();
 
-				DataBuffer_SerializationWrapper s(m_data);
-				s.save(ADD_COMPONENT);
+				m_ctx.save(ADD_COMPONENT);
 
 				ADD_COMPONENT_t cmd;
 				cmd.entity = entity;
 				cmd.compType = component::component_type_v<T>;
 				cmd.componentId = info.componentId;
-				ser::save(s, cmd);
+				ser::save(m_ctx, cmd);
 			}
 
 			/*!
@@ -20156,14 +20120,13 @@ namespace gaia {
 				using U = typename component::component_type_t<T>::Type;
 				component::verify_comp<U>();
 
-				DataBuffer_SerializationWrapper s(m_data);
-				s.save(ADD_COMPONENT_TO_TEMPENTITY);
+				m_ctx.save(ADD_COMPONENT_TO_TEMPENTITY);
 
 				ADD_COMPONENT_TO_TEMPENTITY_t cmd;
 				cmd.tempEntity = entity;
 				cmd.compType = component::component_type_v<T>;
 				cmd.componentId = info.componentId;
-				ser::save(s, cmd);
+				ser::save(m_ctx, cmd);
 			}
 
 			/*!
@@ -20177,15 +20140,14 @@ namespace gaia {
 				using U = typename component::component_type_t<T>::Type;
 				component::verify_comp<U>();
 
-				DataBuffer_SerializationWrapper s(m_data);
-				s.save(ADD_COMPONENT_DATA);
+				m_ctx.save(ADD_COMPONENT_DATA);
 
 				ADD_COMPONENT_DATA_t cmd;
 				cmd.entity = entity;
 				cmd.compType = component::component_type_v<T>;
 				cmd.componentId = info.componentId;
-				ser::save(s, cmd);
-				s.buffer().save_comp(std::forward<U>(value));
+				ser::save(m_ctx, cmd);
+				m_ctx.save_comp(std::forward<U>(value));
 			}
 
 			/*!
@@ -20199,15 +20161,14 @@ namespace gaia {
 				using U = typename component::component_type_t<T>::Type;
 				component::verify_comp<U>();
 
-				DataBuffer_SerializationWrapper s(m_data);
-				s.save(ADD_COMPONENT_TO_TEMPENTITY_DATA);
+				m_ctx.save(ADD_COMPONENT_TO_TEMPENTITY_DATA);
 
 				ADD_COMPONENT_TO_TEMPENTITY_t cmd;
 				cmd.tempEntity = entity;
 				cmd.compType = component::component_type_v<T>;
 				cmd.componentId = info.componentId;
-				ser::save(s, cmd);
-				s.buffer().save_comp(std::forward<U>(value));
+				ser::save(m_ctx, cmd);
+				m_ctx.save_comp(std::forward<U>(value));
 			}
 
 			/*!
@@ -20222,15 +20183,14 @@ namespace gaia {
 				using U = typename component::component_type_t<T>::Type;
 				component::verify_comp<U>();
 
-				DataBuffer_SerializationWrapper s(m_data);
-				s.save(SET_COMPONENT);
+				m_ctx.save(SET_COMPONENT);
 
 				SET_COMPONENT_t cmd;
 				cmd.entity = entity;
 				cmd.compType = component::component_type_v<T>;
 				cmd.componentId = component::comp_id<T>();
-				ser::save(s, cmd);
-				s.buffer().save_comp(std::forward<U>(value));
+				ser::save(m_ctx, cmd);
+				m_ctx.save_comp(std::forward<U>(value));
 			}
 
 			/*!
@@ -20246,15 +20206,14 @@ namespace gaia {
 				using U = typename component::component_type_t<T>::Type;
 				component::verify_comp<U>();
 
-				DataBuffer_SerializationWrapper s(m_data);
-				s.save(SET_COMPONENT_FOR_TEMPENTITY);
+				m_ctx.save(SET_COMPONENT_FOR_TEMPENTITY);
 
 				SET_COMPONENT_FOR_TEMPENTITY_t cmd;
 				cmd.tempEntity = entity;
 				cmd.compType = component::component_type_v<T>;
 				cmd.componentId = component::comp_id<T>();
-				ser::save(s, cmd);
-				s.buffer().save_comp(std::forward<U>(value));
+				ser::save(m_ctx, cmd);
+				m_ctx.save_comp(std::forward<U>(value));
 			}
 
 			/*!
@@ -20269,14 +20228,13 @@ namespace gaia {
 				using U = typename component::component_type_t<T>::Type;
 				component::verify_comp<U>();
 
-				DataBuffer_SerializationWrapper s(m_data);
-				s.save(REMOVE_COMPONENT);
+				m_ctx.save(REMOVE_COMPONENT);
 
 				REMOVE_COMPONENT_t cmd;
 				cmd.entity = entity;
 				cmd.compType = component::component_type_v<T>;
 				cmd.componentId = component::comp_id<T>();
-				ser::save(s, cmd);
+				ser::save(m_ctx, cmd);
 			}
 
 		private:
@@ -20353,18 +20311,19 @@ namespace gaia {
 			Commits all queued changes.
 			*/
 			void commit() {
-				CommandBufferCtx ctx{m_data, m_world, 0, {}};
+				if (m_ctx.empty())
+					return;
 
 				// Extract data from the buffer
-				m_data.seek(0);
-				while (m_data.tell() < m_data.size()) {
+				m_ctx.seek(0);
+				while (m_ctx.tell() < m_ctx.bytes()) {
 					CommandBufferCmd id{};
-					ctx.load(id);
-					CommandBufferRead[id](ctx);
+					m_ctx.load(id);
+					CommandBufferRead[id](m_ctx);
 				}
 
 				m_entities = 0;
-				m_data.reset();
+				m_ctx.reset();
 			} // namespace ecs
 		}; // namespace gaia
 	} // namespace ecs

@@ -3400,8 +3400,7 @@ TEST_CASE("Serialization - custom") {
 		in.ptr[4] = '\0';
 		in.size = 5;
 
-		ecs::DataBuffer db;
-		ecs::DataBuffer_SerializationWrapper s(db);
+		ecs::SerializationBuffer s;
 		s.reserve(ser::bytes(in));
 
 		ser::save(s, in);
@@ -3422,8 +3421,7 @@ TEST_CASE("Serialization - custom") {
 		in.ptr[4] = '\0';
 		in.size = 5;
 
-		ecs::DataBuffer db;
-		ecs::DataBuffer_SerializationWrapper s(db);
+		ecs::SerializationBuffer s;
 		s.reserve(ser::bytes(in));
 
 		ser::save(s, in);
@@ -3440,8 +3438,7 @@ TEST_CASE("Serialization - simple") {
 	{
 		Int3 in{1, 2, 3}, out{};
 
-		ecs::DataBuffer db;
-		ecs::DataBuffer_SerializationWrapper s(db);
+		ecs::SerializationBuffer s;
 		s.reserve(ser::bytes(in));
 
 		ser::save(s, in);
@@ -3454,8 +3451,7 @@ TEST_CASE("Serialization - simple") {
 	{
 		Position in{1, 2, 3}, out{};
 
-		ecs::DataBuffer db;
-		ecs::DataBuffer_SerializationWrapper s(db);
+		ecs::SerializationBuffer s;
 		s.reserve(ser::bytes(in));
 
 		ser::save(s, in);
@@ -3468,8 +3464,7 @@ TEST_CASE("Serialization - simple") {
 	{
 		SerializeStruct1 in{1, 2, true, 3.12345f}, out{};
 
-		ecs::DataBuffer db;
-		ecs::DataBuffer_SerializationWrapper s(db);
+		ecs::SerializationBuffer s;
 		s.reserve(ser::bytes(in));
 
 		ser::save(s, in);
@@ -3482,8 +3477,7 @@ TEST_CASE("Serialization - simple") {
 	{
 		SerializeStruct2 in{FooNonTrivial(111), 1, 2, true, 3.12345f}, out{};
 
-		ecs::DataBuffer db;
-		ecs::DataBuffer_SerializationWrapper s(db);
+		ecs::SerializationBuffer s;
 		s.reserve(ser::bytes(in));
 
 		ser::save(s, in);
@@ -3538,8 +3532,7 @@ TEST_CASE("Serialization - arrays") {
 			in.arr[i] = i;
 		in.f = 3.12345f;
 
-		ecs::DataBuffer db;
-		ecs::DataBuffer_SerializationWrapper s(db);
+		ecs::SerializationBuffer s;
 		s.reserve(ser::bytes(in));
 
 		ser::save(s, in);
@@ -3555,8 +3548,7 @@ TEST_CASE("Serialization - arrays") {
 			in.arr[i] = FooNonTrivial(i);
 		in.f = 3.12345f;
 
-		ecs::DataBuffer db;
-		ecs::DataBuffer_SerializationWrapper s(db);
+		ecs::SerializationBuffer s;
 		s.reserve(ser::bytes(in));
 
 		ser::save(s, in);
@@ -3573,8 +3565,7 @@ TEST_CASE("Serialization - arrays") {
 			in.arr[i] = i;
 		in.f = 3.12345f;
 
-		ecs::DataBuffer db;
-		ecs::DataBuffer_SerializationWrapper s(db);
+		ecs::SerializationBuffer s;
 		s.reserve(ser::bytes(in));
 
 		ser::save(s, in);
@@ -3598,8 +3589,7 @@ TEST_CASE("Serialization - arrays") {
 		}
 		in.f = 3.12345f;
 
-		ecs::DataBuffer db;
-		ecs::DataBuffer_SerializationWrapper s(db);
+		ecs::SerializationBuffer s;
 		s.reserve(ser::bytes(in));
 
 		ser::save(s, in);

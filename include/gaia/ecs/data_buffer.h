@@ -8,7 +8,7 @@
 
 namespace gaia {
 	namespace ecs {
-		class DataBuffer {
+		class SerializationBuffer {
 			// Increase the capacity by multiples of CapacityIncreaseSize
 			static constexpr uint32_t CapacityIncreaseSize = 128U;
 			// TODO: Replace with some memory allocator
@@ -20,26 +20,29 @@ namespace gaia {
 			uint32_t m_dataPos = 0;
 
 		public:
-			DataBuffer() {}
-
 			void reset() {
 				m_dataPos = 0;
 				m_data.clear();
 			}
 
 			//! Returns the number of bytes written in the buffer
-			GAIA_NODISCARD uint32_t size() const {
+			GAIA_NODISCARD uint32_t bytes() const {
 				return (uint32_t)m_data.size();
 			}
 
+			//! Returns true if there is no data written in the buffer
+			GAIA_NODISCARD bool empty() const {
+				return m_data.empty();
+			}
+
 			//! Makes sure there is enough capacity in our data container to hold another \param size bytes of data
-			void ensure_capacity(uint32_t size) {
+			void reserve(uint32_t size) {
 				const auto nextSize = m_dataPos + size;
-				if (nextSize <= (uint32_t)m_data.size())
+				if (nextSize <= bytes())
 					return;
 
 				// Make sure there is enough capacity to hold our data
-				const auto newSize = m_data.size() + size;
+				const auto newSize = bytes() + size;
 				const auto newCapacity = (newSize / CapacityIncreaseSize) * CapacityIncreaseSize + CapacityIncreaseSize;
 				m_data.reserve(newCapacity);
 			}
@@ -57,7 +60,7 @@ namespace gaia {
 			//! Writes \param value to the buffer
 			template <typename T>
 			void save(T&& value) {
-				ensure_capacity(sizeof(T));
+				reserve(sizeof(T));
 
 				m_data.resize(m_dataPos + sizeof(T));
 				mem::unaligned_ref<T> mem(&m_data[m_dataPos]);
@@ -68,7 +71,7 @@ namespace gaia {
 
 			//! Writes \param size bytes of data starting at the address \param pSrc to the buffer
 			void save(const void* pSrc, uint32_t size) {
-				ensure_capacity(size);
+				reserve(size);
 
 				// Copy "size" bytes of raw data starting at pSrc
 				m_data.resize(m_dataPos + size);
@@ -85,7 +88,7 @@ namespace gaia {
 				const bool isManualDestroyNeeded = desc.func_ctor_copy != nullptr || desc.func_ctor_move != nullptr;
 				constexpr bool isRValue = std::is_rvalue_reference_v<decltype(value)>;
 
-				ensure_capacity(sizeof(isManualDestroyNeeded) + sizeof(T));
+				reserve(sizeof(isManualDestroyNeeded) + sizeof(T));
 				save(isManualDestroyNeeded);
 				m_data.resize(m_dataPos + sizeof(T));
 
@@ -104,7 +107,7 @@ namespace gaia {
 			//! Loads \param value from the buffer
 			template <typename T>
 			void load(T& value) {
-				GAIA_ASSERT(m_dataPos + sizeof(T) <= m_data.size());
+				GAIA_ASSERT(m_dataPos + sizeof(T) <= bytes());
 
 				value = mem::unaligned_ref<T>((void*)&m_data[m_dataPos]);
 
@@ -113,7 +116,7 @@ namespace gaia {
 
 			//! Loads \param size bytes of data from the buffer and writes them to the address \param pDst
 			void load(void* pDst, uint32_t size) {
-				GAIA_ASSERT(m_dataPos + size <= m_data.size());
+				GAIA_ASSERT(m_dataPos + size <= bytes());
 
 				memcpy(pDst, (void*)&m_data[m_dataPos], size);
 
@@ -126,7 +129,7 @@ namespace gaia {
 				load(isManualDestroyNeeded);
 
 				const auto& desc = ComponentCache::get().comp_desc(componentId);
-				GAIA_ASSERT(m_dataPos + desc.properties.size <= m_data.size());
+				GAIA_ASSERT(m_dataPos + desc.properties.size <= bytes());
 
 				auto* pSrc = (void*)&m_data[m_dataPos];
 				desc.move(pSrc, pDst);
@@ -134,43 +137,6 @@ namespace gaia {
 					desc.dtor(pSrc);
 
 				m_dataPos += desc.properties.size;
-			}
-		};
-
-		class DataBuffer_SerializationWrapper {
-			ecs::DataBuffer& m_buffer;
-
-		public:
-			DataBuffer_SerializationWrapper(ecs::DataBuffer& buffer): m_buffer(buffer) {}
-
-			ecs::DataBuffer& buffer() {
-				return m_buffer;
-			}
-
-			void reserve(uint32_t size) {
-				m_buffer.ensure_capacity(size);
-			}
-
-			void seek(uint32_t pos) {
-				m_buffer.seek(pos);
-			}
-
-			template <typename T>
-			void save(T&& arg) {
-				m_buffer.save(std::forward<T>(arg));
-			}
-
-			void save(const void* pSrc, uint32_t size) {
-				m_buffer.save(pSrc, size);
-			}
-
-			template <typename T>
-			void load(T& arg) {
-				m_buffer.load(arg);
-			}
-
-			void load(void* pDst, uint32_t size) {
-				m_buffer.load(pDst, size);
 			}
 		};
 	} // namespace ecs
