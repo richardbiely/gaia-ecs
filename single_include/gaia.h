@@ -12819,7 +12819,7 @@ namespace gaia {
 			//! This means \param jobHandle will run only after \param dependsOn finishes.
 			//! \warning Must be used from the main thread.
 			//! \warning Needs to be called before any of the listed jobs are scheduled.
-			void add_dep(JobHandle jobHandle, JobHandle dependsOn) {
+			void dep(JobHandle jobHandle, JobHandle dependsOn) {
 				std::scoped_lock<std::mutex> lockJobs(m_jobsLock);
 				auto& job = m_jobs[jobHandle.id()];
 
@@ -12852,7 +12852,7 @@ namespace gaia {
 			//! This means \param jobHandle will run only after all \param dependsOnSpan jobs finish.
 			//! \warning Must be used from the main thread.
 			//! \warning Needs to be called before any of the listed jobs are scheduled.
-			void add_deps(JobHandle jobHandle, std::span<const JobHandle> dependsOnSpan) {
+			void deps(JobHandle jobHandle, std::span<const JobHandle> dependsOnSpan) {
 				if (dependsOnSpan.empty())
 					return;
 
@@ -13125,22 +13125,22 @@ namespace gaia {
 			//! This means \param jobHandle will run only after \param dependsOn finishes.
 			//! \warning Must be used from the main thread.
 			//! \warning Needs to be called before any of the listed jobs are scheduled.
-			void add_dep(JobHandle jobHandle, JobHandle dependsOn) {
-				m_jobManager.add_dep(jobHandle, dependsOn);
+			void dep(JobHandle jobHandle, JobHandle dependsOn) {
+				m_jobManager.dep(jobHandle, dependsOn);
 			}
 
 			//! Makes \param jobHandle depend on the jobs listed in \param dependsOnSpan.
 			//! This means \param jobHandle will run only after all \param dependsOnSpan jobs finish.
 			//! \warning Must be used from the main thread.
 			//! \warning Needs to be called before any of the listed jobs are scheduled.
-			void add_deps(JobHandle jobHandle, std::span<const JobHandle> dependsOnSpan) {
-				m_jobManager.add_deps(jobHandle, dependsOnSpan);
+			void deps(JobHandle jobHandle, std::span<const JobHandle> dependsOnSpan) {
+				m_jobManager.deps(jobHandle, dependsOnSpan);
 			}
 
 			//! Creates a job system job from \param job.
 			//! \warning Must be used from the main thread.
 			//! \return Job handle of the scheduled job.
-			JobHandle create_job(const Job& job) {
+			JobHandle add(const Job& job) {
 				GAIA_ASSERT(main_thread());
 
 				// Don't add new jobs once stop was requested
@@ -13194,7 +13194,7 @@ namespace gaia {
 			//! \warning Dependencies can't be modified for this job.
 			//! \return Job handle of the scheduled job.
 			JobHandle sched(const Job& job) {
-				JobHandle jobHandle = create_job(job);
+				JobHandle jobHandle = add(job);
 				submit(jobHandle);
 				return jobHandle;
 			}
@@ -13206,8 +13206,8 @@ namespace gaia {
 			//! \warning Dependencies can't be modified for this job.
 			//! \return Job handle of the scheduled job.
 			JobHandle sched(const Job& job, JobHandle dependsOn) {
-				JobHandle jobHandle = create_job(job);
-				add_dep(jobHandle, dependsOn);
+				JobHandle jobHandle = add(job);
+				dep(jobHandle, dependsOn);
 				submit(jobHandle);
 				return jobHandle;
 			}
@@ -13219,8 +13219,8 @@ namespace gaia {
 			//! \warning Dependencies can't be modified for this job.
 			//! \return Job handle of the scheduled job.
 			JobHandle sched(const Job& job, std::span<const JobHandle> dependsOnSpan) {
-				JobHandle jobHandle = create_job(job);
-				add_deps(jobHandle, dependsOnSpan);
+				JobHandle jobHandle = add(job);
+				deps(jobHandle, dependsOnSpan);
 				submit(jobHandle);
 				return jobHandle;
 			}
@@ -13271,7 +13271,7 @@ namespace gaia {
 					};
 
 					JobHandle jobHandle = m_jobManager.alloc_job({groupJobFunc});
-					add_dep(groupHandle, jobHandle);
+					dep(groupHandle, jobHandle);
 					submit(jobHandle);
 				}
 
@@ -18052,7 +18052,7 @@ namespace gaia {
 			public:
 				query::QueryInfo& fetch_query_info() {
 					if constexpr (UseCaching) {
-						// Make sure the query was created by World.create_query()
+						// Make sure the query was created by World.query()
 						GAIA_ASSERT(m_storage.m_entityQueryCache != nullptr);
 
 						// Lookup hash is present which means QueryInfo was already found
@@ -18450,7 +18450,7 @@ namespace gaia {
 
 				template <typename Func, bool FuncEnabled = UseCaching, typename std::enable_if<FuncEnabled>::type* = nullptr>
 				void each(query::QueryId queryId, Func func) {
-					// Make sure the query was created by World.create_query()
+					// Make sure the query was created by World.query()
 					GAIA_ASSERT(m_storage.m_entityQueryCache != nullptr);
 					GAIA_ASSERT(queryId != query::QueryIdBad);
 
@@ -19710,7 +19710,7 @@ namespace gaia {
 
 		public:
 			template <bool UseCache = true>
-			auto create_query() {
+			auto query() {
 				if constexpr (UseCache)
 					return Query(m_queryCache, m_worldVersion, m_archetypes, m_componentToArchetypeMap);
 				else
@@ -19730,14 +19730,14 @@ namespace gaia {
 
 				constexpr auto lookupHash = calc_query_id_lookup_hash(InputArgs{});
 				if (m_uniqueFuncQueryPairs.count(lookupHash) == 0) {
-					Query query = create_query();
-					unpack_args_into_query(query, InputArgs{});
-					(void)query.fetch_query_info();
-					m_uniqueFuncQueryPairs.try_emplace(lookupHash, query.id());
-					create_query().each(query.id(), func);
+					Query q = query();
+					unpack_args_into_query(q, InputArgs{});
+					(void)q.fetch_query_info();
+					m_uniqueFuncQueryPairs.try_emplace(lookupHash, q.id());
+					query().each(q.id(), func);
 				} else {
 					const auto queryId = m_uniqueFuncQueryPairs[lookupHash];
-					create_query().each(queryId, func);
+					query().each(queryId, func);
 				}
 			}
 
@@ -20373,10 +20373,10 @@ namespace gaia {
 			BaseSystem& operator=(const BaseSystem&) = delete;
 
 		public:
-			GAIA_NODISCARD World& GetWorld() {
+			GAIA_NODISCARD World& world() {
 				return *m_world;
 			}
-			GAIA_NODISCARD const World& GetWorld() const {
+			GAIA_NODISCARD const World& world() const {
 				return *m_world;
 			}
 

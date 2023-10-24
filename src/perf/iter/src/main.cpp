@@ -120,7 +120,7 @@ DEFINE_FOREACH_INTERNALQUERY(1000)
 		Create_Archetypes_##ArchetypeCount(w);                                                                             \
                                                                                                                        \
 		using c1 = Component<0, float, 3>;                                                                                 \
-		auto query = w.create_query().all<const c1>();                                                                     \
+		auto query = w.query().all<const c1>();                                                                            \
                                                                                                                        \
 		/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */              \
 		gaia::dont_optimize(query.has_entities());                                                                         \
@@ -145,7 +145,7 @@ DEFINE_FOREACH_EXTERNALQUERY(1000)
 		Create_Archetypes_##ArchetypeCount(w);                                                                             \
                                                                                                                        \
 		using c1 = Component<0, float, 3>;                                                                                 \
-		auto query = w.create_query().all<const c1>();                                                                     \
+		auto query = w.query().all<const c1>();                                                                            \
                                                                                                                        \
 		/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */              \
 		gaia::dont_optimize(query.has_entities());                                                                         \
@@ -173,7 +173,7 @@ DEFINE_FOREACHCHUNK_EXTERNALQUERY_ITER(1000)
 		Create_Archetypes_##ArchetypeCount(w);                                                                             \
                                                                                                                        \
 		using c1 = Component<0, float, 3>;                                                                                 \
-		auto query = w.create_query().all<const c1>();                                                                     \
+		auto query = w.query().all<const c1>();                                                                            \
                                                                                                                        \
 		/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */              \
 		gaia::dont_optimize(query.has_entities());                                                                         \
@@ -198,7 +198,7 @@ DEFINE_FOREACHCHUNK_EXTERNALQUERY_INDEX(1000);
 		Create_Archetypes_##ArchetypeCount(w);                                                                             \
                                                                                                                        \
 		using c1 = Component<0, float, 3>;                                                                                 \
-		auto query = w.create_query().all<const c1>();                                                                     \
+		auto query = w.query().all<const c1>();                                                                            \
                                                                                                                        \
 		/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */              \
 		gaia::dont_optimize(query.has_entities());                                                                         \

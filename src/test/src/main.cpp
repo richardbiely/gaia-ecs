@@ -1498,9 +1498,9 @@ void Test_Query_QueryResult() {
 		create(i);
 
 	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
-	auto q1 = w.create_query<UseCachedQuery>().template all<Position>();
-	auto q2 = w.create_query<UseCachedQuery>().template all<Rotation>();
-	auto q3 = w.create_query<UseCachedQuery>().template all<Position, Rotation>();
+	auto q1 = w.query<UseCachedQuery>().template all<Position>();
+	auto q2 = w.query<UseCachedQuery>().template all<Rotation>();
+	auto q3 = w.query<UseCachedQuery>().template all<Position, Rotation>();
 
 	{
 		cnt::darr<ecs::Entity> arr;
@@ -1589,11 +1589,11 @@ void Test_Query_QueryResult_Complex() {
 		create(i);
 
 	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
-	auto q1 = w.create_query<UseCachedQuery>().template all<Position>();
-	auto q2 = w.create_query<UseCachedQuery>().template all<Rotation>();
-	auto q3 = w.create_query<UseCachedQuery>().template all<Position, Rotation>();
-	auto q4 = w.create_query<UseCachedQuery>().template all<Position, Scale>();
-	auto q5 = w.create_query<UseCachedQuery>().template all<Position, Scale, Something>();
+	auto q1 = w.query<UseCachedQuery>().template all<Position>();
+	auto q2 = w.query<UseCachedQuery>().template all<Rotation>();
+	auto q3 = w.query<UseCachedQuery>().template all<Position, Rotation>();
+	auto q4 = w.query<UseCachedQuery>().template all<Position, Scale>();
+	auto q5 = w.query<UseCachedQuery>().template all<Position, Scale, Something>();
 
 	{
 		cnt::darr<ecs::Entity> ents;
@@ -1768,8 +1768,8 @@ void Test_Query_Equality() {
 			create();
 
 		constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
-		auto qq1 = w.create_query<UseCachedQuery>().template all<Position, Rotation>();
-		auto qq2 = w.create_query<UseCachedQuery>().template all<Rotation, Position>();
+		auto qq1 = w.query<UseCachedQuery>().template all<Position, Rotation>();
+		auto qq2 = w.query<UseCachedQuery>().template all<Rotation, Position>();
 		REQUIRE(qq1.calc_entity_cnt() == qq2.calc_entity_cnt());
 
 		cnt::darr<ecs::Entity> ents1, ents2;
@@ -1786,8 +1786,8 @@ void Test_Query_Equality() {
 	SECTION("4 components") {
 		ecs::World w;
 
-		ecs::Query qq1 = w.create_query().all<Position, Rotation, Acceleration, Something>();
-		ecs::Query qq2 = w.create_query().all<Rotation, Something, Position, Acceleration>();
+		ecs::Query qq1 = w.query().all<Position, Rotation, Acceleration, Something>();
+		ecs::Query qq2 = w.query().all<Rotation, Something, Position, Acceleration>();
 		REQUIRE(qq1.calc_entity_cnt() == qq2.calc_entity_cnt());
 
 		cnt::darr<ecs::Entity> ents1, ents2;
@@ -1848,7 +1848,7 @@ TEST_CASE("Enable") {
 		REQUIRE(w.enabled(arr[0]));
 	}
 
-	ecs::Query q = w.create_query().all<Position>();
+	ecs::Query q = w.query().all<Position>();
 
 	auto checkQuery = [&q](uint32_t expectedCountAll, uint32_t expectedCountEnabled, uint32_t expectedCountDisabled) {
 		{
@@ -2292,8 +2292,8 @@ TEST_CASE("Usage 1 - simple query, 1 chunk component") {
 	auto e = w.add();
 	w.add<ecs::AsChunk<Position>>(e);
 
-	auto q = w.create_query().all<ecs::AsChunk<Position>>();
-	auto qq = w.create_query().all<Position>();
+	auto q = w.query().all<ecs::AsChunk<Position>>();
+	auto qq = w.query().all<Position>();
 
 	{
 		uint32_t cnt = 0;
@@ -2411,7 +2411,7 @@ TEST_CASE("Usage 2 - simple query, many components") {
 		REQUIRE(cnt == 1);
 	}
 	{
-		ecs::Query q = w.create_query().any<Position, Acceleration>();
+		ecs::Query q = w.query().any<Position, Acceleration>();
 
 		uint32_t cnt = 0;
 		q.each([&](ecs::Iterator iter) {
@@ -2425,7 +2425,7 @@ TEST_CASE("Usage 2 - simple query, many components") {
 		REQUIRE(cnt == 2);
 	}
 	{
-		ecs::Query q = w.create_query().any<Position, Acceleration>().all<Scale>();
+		ecs::Query q = w.query().any<Position, Acceleration>().all<Scale>();
 
 		uint32_t cnt = 0;
 		q.each([&](ecs::Iterator iter) {
@@ -2441,7 +2441,7 @@ TEST_CASE("Usage 2 - simple query, many components") {
 		REQUIRE(cnt == 1);
 	}
 	{
-		ecs::Query q = w.create_query().any<Position, Acceleration>().none<Scale>();
+		ecs::Query q = w.query().any<Position, Acceleration>().none<Scale>();
 
 		uint32_t cnt = 0;
 		q.each([&](ecs::Iterator iter) {
@@ -2471,7 +2471,7 @@ TEST_CASE("Usage 2 - simple query, many chunk components") {
 
 	{
 		uint32_t cnt = 0;
-		auto q = w.create_query().all<ecs::AsChunk<Position>>();
+		auto q = w.query().all<ecs::AsChunk<Position>>();
 		q.each([&]([[maybe_unused]] ecs::Iterator iter) {
 			++cnt;
 		});
@@ -2479,7 +2479,7 @@ TEST_CASE("Usage 2 - simple query, many chunk components") {
 	}
 	{
 		uint32_t cnt = 0;
-		auto q = w.create_query().all<ecs::AsChunk<Acceleration>>();
+		auto q = w.query().all<ecs::AsChunk<Acceleration>>();
 		q.each([&]([[maybe_unused]] ecs::Iterator iter) {
 			++cnt;
 		});
@@ -2487,7 +2487,7 @@ TEST_CASE("Usage 2 - simple query, many chunk components") {
 	}
 	{
 		uint32_t cnt = 0;
-		auto q = w.create_query().all<ecs::AsChunk<Rotation>>();
+		auto q = w.query().all<ecs::AsChunk<Rotation>>();
 		q.each([&]([[maybe_unused]] ecs::Iterator iter) {
 			++cnt;
 		});
@@ -2495,7 +2495,7 @@ TEST_CASE("Usage 2 - simple query, many chunk components") {
 	}
 	{
 		uint32_t cnt = 0;
-		auto q = w.create_query().all<ecs::AsChunk<Else>>();
+		auto q = w.query().all<ecs::AsChunk<Else>>();
 		q.each([&]([[maybe_unused]] ecs::Iterator iter) {
 			++cnt;
 		});
@@ -2503,14 +2503,14 @@ TEST_CASE("Usage 2 - simple query, many chunk components") {
 	}
 	{
 		uint32_t cnt = 0;
-		auto q = w.create_query().all<ecs::AsChunk<Scale>>();
+		auto q = w.query().all<ecs::AsChunk<Scale>>();
 		q.each([&]([[maybe_unused]] ecs::Iterator iter) {
 			++cnt;
 		});
 		REQUIRE(cnt == 2);
 	}
 	{
-		ecs::Query q = w.create_query().any<ecs::AsChunk<Position>, ecs::AsChunk<Acceleration>>();
+		ecs::Query q = w.query().any<ecs::AsChunk<Position>, ecs::AsChunk<Acceleration>>();
 
 		uint32_t cnt = 0;
 		q.each([&](ecs::Iterator iter) {
@@ -2524,8 +2524,7 @@ TEST_CASE("Usage 2 - simple query, many chunk components") {
 		REQUIRE(cnt == 2);
 	}
 	{
-		ecs::Query q =
-				w.create_query().any<ecs::AsChunk<Position>, ecs::AsChunk<Acceleration>>().all<ecs::AsChunk<Scale>>();
+		ecs::Query q = w.query().any<ecs::AsChunk<Position>, ecs::AsChunk<Acceleration>>().all<ecs::AsChunk<Scale>>();
 
 		uint32_t cnt = 0;
 		q.each([&](ecs::Iterator iter) {
@@ -2541,8 +2540,7 @@ TEST_CASE("Usage 2 - simple query, many chunk components") {
 		REQUIRE(cnt == 1);
 	}
 	{
-		ecs::Query q =
-				w.create_query().any<ecs::AsChunk<Position>, ecs::AsChunk<Acceleration>>().none<ecs::AsChunk<Scale>>();
+		ecs::Query q = w.query().any<ecs::AsChunk<Position>, ecs::AsChunk<Acceleration>>().none<ecs::AsChunk<Scale>>();
 
 		uint32_t cnt = 0;
 		q.each([&](ecs::Iterator iter) {
@@ -2587,7 +2585,7 @@ TEST_CASE("Set - generic") {
 
 	// Modify values
 	{
-		ecs::Query q = w.create_query().all<Rotation, Scale, Else>();
+		ecs::Query q = w.query().all<Rotation, Scale, Else>();
 
 		q.each([&](ecs::Iterator iter) {
 			auto rotationView = iter.view_mut<Rotation>();
@@ -2678,7 +2676,7 @@ TEST_CASE("Set - generic & chunk") {
 
 	// Modify values
 	{
-		ecs::Query q = w.create_query().all<Rotation, Scale, Else>();
+		ecs::Query q = w.query().all<Rotation, Scale, Else>();
 
 		q.each([&](ecs::Iterator iter) {
 			auto rotationView = iter.view_mut<Rotation>();
@@ -2762,7 +2760,7 @@ TEST_CASE("Components - non trivial") {
 
 	// Modify values
 	{
-		ecs::Query q = w.create_query().all<StringComponent, StringComponent2, PositionNonTrivial>();
+		ecs::Query q = w.query().all<StringComponent, StringComponent2, PositionNonTrivial>();
 
 		q.each([&](ecs::Iterator iter) {
 			auto strView = iter.view_mut<StringComponent>();
@@ -3100,7 +3098,7 @@ TEST_CASE("CommandBuffer") {
 
 TEST_CASE("Query Filter - no systems") {
 	ecs::World w;
-	ecs::Query q = w.create_query().all<const Position>().changed<Position>();
+	ecs::Query q = w.query().all<const Position>().changed<Position>();
 
 	auto e = w.add();
 	w.add<Position>(e);
@@ -3166,7 +3164,7 @@ TEST_CASE("Query Filter - systems") {
 	class WriterSystem final: public ecs::System {
 	public:
 		void OnUpdate() override {
-			GetWorld().each([]([[maybe_unused]] Position& a) {});
+			world().each([]([[maybe_unused]] Position& a) {});
 		}
 	};
 	class WriterSystemSilent final: public ecs::System {
@@ -3174,7 +3172,7 @@ TEST_CASE("Query Filter - systems") {
 
 	public:
 		void OnCreated() override {
-			m_q = GetWorld().create_query().all<Position>();
+			m_q = world().query().all<Position>();
 		}
 		void OnUpdate() override {
 			m_q.each([&](ecs::Iterator iter) {
@@ -3193,7 +3191,7 @@ TEST_CASE("Query Filter - systems") {
 			m_expectedCnt = cnt;
 		}
 		void OnCreated() override {
-			m_q = GetWorld().create_query().all<const Position>().changed<Position>();
+			m_q = world().query().all<const Position>().changed<Position>();
 		}
 		void OnUpdate() override {
 			uint32_t cnt = 0;
@@ -3244,7 +3242,7 @@ void TestDataLayoutSoA_ECS() {
 	for (uint32_t i = 0; i < N; ++i)
 		create();
 
-	ecs::Query q = w.create_query().all<T>();
+	ecs::Query q = w.query().all<T>();
 	uint32_t j = 0;
 	q.each([&](ecs::Iterator iter) {
 		auto t = iter.view_mut<T>();
@@ -3728,10 +3726,10 @@ TEST_CASE("Multithreading - CompleteMany") {
 			res /= (i + 1); // we add +1 everywhere to avoid division by zero at i==0
 		}};
 
-		const mt::JobHandle jobHandle[] = {tp.create_job(job0), tp.create_job(job1), tp.create_job(job2)};
+		const mt::JobHandle jobHandle[] = {tp.add(job0), tp.add(job1), tp.add(job2)};
 
-		tp.add_dep(jobHandle[1], jobHandle[0]);
-		tp.add_dep(jobHandle[2], jobHandle[1]);
+		tp.dep(jobHandle[1], jobHandle[0]);
+		tp.dep(jobHandle[2], jobHandle[1]);
 
 		// 2, 0, 1 -> wrong sum
 		// Submit jobs in random order to make sure this doesn't work just by accident

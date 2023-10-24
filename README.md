@@ -178,7 +178,7 @@ const bool hasVelocity = w.has<Velocity>(e);
 ...
 
 // Check if entities hidden behind the iterator have Velocity (via iterator).
-ecs::Query q = w.create_query().any<Position, Velocity>(); 
+ecs::Query q = w.query().any<Position, Velocity>(); 
 q.each([&](ecs::Iterator iter) {
   const bool hasPosition = iter.has<Position>();
   const bool hasVelocity = iter.has<Velocity>();
@@ -193,7 +193,7 @@ For querying data you can use a Query. It can help you find all entities, compon
 >**NOTE:**<br/>Every Query creates a cache internally. Therefore, the first usage is a little bit slower than the subsequent usage is going to be. You likely use the same query multiple times in your program, often without noticing. Because of that, caching becomes useful as it avoids wasting memory and performance when finding matches.
 
 ```cpp
-Query q = w.create_query();
+Query q = w.query();
 q.all<Position>(); // Consider only entities with Position
 
 // Fill the entities array with entities with a Position component.
@@ -211,7 +211,7 @@ const auto numberOfMatches = q.calc_entity_cnt();
 More complex queries can be created by combining All, Any and None in any way you can imagine:
 
 ```cpp
-ecs::Query q = w.create_query();
+ecs::Query q = w.query();
 q.all<Position, Velocity>(); // Take into account everything with Position and Velocity...
 q.any<Something, SomethingElse>(); // ... at least Something or SomethingElse...
 q.none<Player>(); // ... and no Player component...
@@ -220,7 +220,7 @@ q.none<Player>(); // ... and no Player component...
 All Query operations can be chained and it is also possible to invoke various filters multiple times with unique components:
 
 ```cpp
-ecs::Query q = w.create_query();
+ecs::Query q = w.query();
 q.all<Position>() // Take into account everything with Position...
  .all<Velocity>() // ... and at the same time everything with Velocity...
  .any<Something, SomethingElse>() // ... at least Something or SomethingElse...
@@ -231,7 +231,7 @@ All queries are cached by default. This makes sense for queries which happen ver
 
 ```cpp
 // Create an uncache query taking into account all entities with either Positon or Velocity components
-ecs::QueryUncached q = w.create_query<false>().any<Position, Velocity>(); 
+ecs::QueryUncached q = w.query<false>().any<Position, Velocity>(); 
 q.each([&](ecs::Iterator iter) {
   ...
 });
@@ -255,7 +255,7 @@ w.each([&](Position& p, const Velocity& v) {
 For possibly better performance and more features, consider using explicit Query when possible.
 
 ```cpp
-ecs::Query q = w.create_query();
+ecs::Query q = w.query();
 q.all<Position, const Velocity>(); // Take into account all entities with Position and Velocity...
 q.none<Player>(); // ... but no Player component.
 
@@ -278,7 +278,7 @@ There are three types of iterators:
 3) ecs::IteratorAll - iterate over all entities
 
 ```cpp
-ecs::Query q = w.create_query();
+ecs::Query q = w.query();
 q.all<Position, const Velocity>();
 
 q.each([](ecs::IteratorAll iter) {
@@ -324,7 +324,7 @@ const bool is_e1_enabled = w.enabled(e1);
 if (is_e1_enabled) { ... }
 
 // Prepare out query
-ecs::Query q = w.create_query().all<Position>();
+ecs::Query q = w.query().all<Position>();
 
 // Fills the array with only e2 because e1 is disabled.
 cnt::darray<ecs::Entity> entities;
@@ -370,7 +370,7 @@ struct Disabled {};
 
 e.add<Disabled>(); // disable entity
 
-ecs::Query q = w.create_query().all<Position, Disabled>; 
+ecs::Query q = w.query().all<Position, Disabled>; 
 q.each([&](ecs::Iterator iter){
   // Processes all disabled entities
 });
@@ -382,7 +382,7 @@ e.del<Disabled>(); // enable entity
 Using changed we can make the iteration run only if particular components change. You can save quite a bit of performance using this technique.
 
 ```cpp
-ecs::Query q = w.create_query();
+ecs::Query q = w.query();
 q.all<Position, const Velocity>(); // Take into account all entities with Position and Velocity...
 q.none<Player>(); // ... no Player component...
 q.changed<Velocity>(); // ... but only iterate when Velocity changes
@@ -463,7 +463,7 @@ struct VelocitySoA {
 };
 ...
 
-ecs::Query q = w.Query().all<PositionSoA, const VelocitySoA>;
+ecs::Query q = w.query().all<PositionSoA, const VelocitySoA>;
 q.each([](ecs::Iterator iter) {
   // Position
   auto vp = iter.view_mut<PositionSoA>(); // read-write access to PositionSoA
@@ -726,13 +726,13 @@ job2.func = [&arr, i]() {
 };
 
 // Register our jobs in the job system
-auto job0Handle = tp.create_job(job0);
-auto job1Handle = tp.create_job(job1);
-auto job2Handle = tp.create_job(job2);
+auto job0Handle = tp.add(job0);
+auto job1Handle = tp.add(job1);
+auto job2Handle = tp.add(job2);
 
 // Create dependencies
-tp.add_dep(job1Handle, job0Handle);
-tp.add_dep(job2Handle, job1Handle);
+tp.dep(job1Handle, job0Handle);
+tp.dep(job2Handle, job1Handle);
 
 // Submit jobs so worker threads can pick them up. The order in which jobs are submitted does not matter.
 tp.submit(job2Handle);
