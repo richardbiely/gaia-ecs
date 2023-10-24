@@ -1504,14 +1504,14 @@ void Test_Query_QueryResult() {
 
 	{
 		cnt::darr<ecs::Entity> arr;
-		q1.as_arr(arr);
+		q1.arr(arr);
 		GAIA_ASSERT(arr.size() == N);
 		for (uint32_t i = 0; i < arr.size(); ++i)
 			REQUIRE(arr[i].id() == i);
 	}
 	{
 		cnt::darr<Position> arr;
-		q1.as_arr(arr);
+		q1.arr(arr);
 		GAIA_ASSERT(arr.size() == N);
 		for (uint32_t i = 0; i < arr.size(); ++i) {
 			const auto& pos = arr[i];
@@ -1597,11 +1597,11 @@ void Test_Query_QueryResult_Complex() {
 
 	{
 		cnt::darr<ecs::Entity> ents;
-		q1.as_arr(ents);
+		q1.arr(ents);
 		REQUIRE(ents.size() == N);
 
 		cnt::darr<Position> arr;
-		q1.as_arr(arr);
+		q1.arr(arr);
 		REQUIRE(arr.size() == N);
 
 		for (uint32_t i = 0; i < arr.size(); ++i) {
@@ -1656,9 +1656,9 @@ void Test_Query_QueryResult_Complex() {
 
 	{
 		cnt::darr<ecs::Entity> ents;
-		q4.as_arr(ents);
+		q4.arr(ents);
 		cnt::darr<Position> arr;
-		q4.as_arr(arr);
+		q4.arr(arr);
 		REQUIRE(ents.size() == arr.size());
 
 		for (uint32_t i = 0; i < arr.size(); ++i) {
@@ -1671,9 +1671,9 @@ void Test_Query_QueryResult_Complex() {
 	}
 	{
 		cnt::darr<ecs::Entity> ents;
-		q4.as_arr(ents);
+		q4.arr(ents);
 		cnt::darr<Scale> arr;
-		q4.as_arr(arr);
+		q4.arr(arr);
 		REQUIRE(ents.size() == arr.size());
 
 		for (uint32_t i = 0; i < arr.size(); ++i) {
@@ -1700,9 +1700,9 @@ void Test_Query_QueryResult_Complex() {
 
 	{
 		cnt::darr<ecs::Entity> ents;
-		q5.as_arr(ents);
+		q5.arr(ents);
 		cnt::darr<Position> arr;
-		q5.as_arr(arr);
+		q5.arr(arr);
 		REQUIRE(ents.size() == arr.size());
 
 		for (uint32_t i = 0; i < arr.size(); ++i) {
@@ -1715,9 +1715,9 @@ void Test_Query_QueryResult_Complex() {
 	}
 	{
 		cnt::darr<ecs::Entity> ents;
-		q5.as_arr(ents);
+		q5.arr(ents);
 		cnt::darr<Scale> arr;
-		q5.as_arr(arr);
+		q5.arr(arr);
 		REQUIRE(ents.size() == arr.size());
 
 		for (uint32_t i = 0; i < arr.size(); ++i) {
@@ -1773,8 +1773,8 @@ void Test_Query_Equality() {
 		REQUIRE(qq1.calc_entity_cnt() == qq2.calc_entity_cnt());
 
 		cnt::darr<ecs::Entity> ents1, ents2;
-		qq1.as_arr(ents1);
-		qq2.as_arr(ents2);
+		qq1.arr(ents1);
+		qq2.arr(ents2);
 		REQUIRE(ents1.size() == ents2.size());
 
 		uint32_t i = 0;
@@ -1791,8 +1791,8 @@ void Test_Query_Equality() {
 		REQUIRE(qq1.calc_entity_cnt() == qq2.calc_entity_cnt());
 
 		cnt::darr<ecs::Entity> ents1, ents2;
-		qq1.as_arr(ents1);
-		qq2.as_arr(ents2);
+		qq1.arr(ents1);
+		qq2.arr(ents2);
 		REQUIRE(ents1.size() == ents2.size());
 
 		uint32_t i = 0;

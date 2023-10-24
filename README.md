@@ -198,11 +198,11 @@ q.all<Position>(); // Consider only entities with Position
 
 // Fill the entities array with entities with a Position component.
 cnt::darray<ecs::Entity> entities;
-q.as_arr(entities);
+q.arr(entities);
 
 // Fill the positions array with position data.
 cnt::darray<Position> positions;
-q.as_arr(positions);
+q.arr(positions);
 
 // Calculate the number of entities satisfying the query
 const auto numberOfMatches = q.calc_entity_cnt();
@@ -328,13 +328,13 @@ ecs::Query q = w.query().all<Position>();
 
 // Fills the array with only e2 because e1 is disabled.
 cnt::darray<ecs::Entity> entities;
-q.as_arr(entities);
+q.arr(entities);
 
 // Fills the array with both e1 and e2.
-q.as_arr(entities, ecs::Query::Constraint::AcceptAll);
+q.arr(entities, ecs::Query::Constraint::AcceptAll);
 
 // Fills the array with only e1 because e1 is disabled.
-q.as_arr(entities, ecs::Query::Constraint::DisabledOnly);
+q.arr(entities, ecs::Query::Constraint::DisabledOnly);
 
 q.each([](ecs::Iterator iter) {
   auto p = iter.view_mut<Position>(); // Read-Write access to Position
@@ -507,7 +507,7 @@ Serialization of arbitrary data is available via following functions:
 - ***ser::save*** - writes data to serialization buffer
 - ***ser::load*** - loads data from serialization buffer
 
-Any data structure can be serialized at compile-time into to provided serialization buffer. Native types, compound types, arrays and anything with data() + size() functions are supported out-of-the-box. If resize() is available it will be utilized as well.
+Any data structure can be serialized at compile-time into the provided serialization buffer. Native types, compound types, arrays and anything with data() + size() functions are supported out-of-the-box. If resize() is available it will be utilized.
 
 Example:
 ```cpp
@@ -629,7 +629,7 @@ struct CustomStruct {
 ## Multithreading
 To fully utilize your system's potential Gaia-ECS allows you to spread your tasks into multiple threads. This can be achieved in multiple ways.
 
-Tasks that can not be split into multiple parts or it does not make sense for them to be split can use ***Schedule***. It registers a job in the job system and immediately submits it so worker threads can pick it up:
+Tasks that can not be split into multiple parts or it does not make sense for them to be split can use ***sched***. It registers a job in the job system and immediately submits it so worker threads can pick it up:
 ```cpp
 mt::Job job0 {[]() {
   InitializeScriptEngine();
@@ -648,15 +648,15 @@ tp.wait(jobHandle1);
 ```
 
 >**NOTE:<br/>**
-It is important to call ***complete*** for each scheduled ***JobHandle*** because it also performs cleanup.
+It is important to call ***wait*** for each scheduled ***JobHandle*** because it also performs cleanup.
 
-Instead of waiting for each job separately, we can also wait for all jobs to be completed using ***CompleteAll***. This however introduces a hard sync point so it should be used with caution. Ideally, you would want to schedule many jobs and have zero sync points. In most, cases this will not ever happen and at least some sync points are going to be introduced. For instance, before any character can move in the game, all physics calculations will need to be finished.
+Instead of waiting for each job separately, we can also wait for all jobs to be completed using ***wait_all***. This however introduces a hard sync point so it should be used with caution. Ideally, you would want to schedule many jobs and have zero sync points. In most, cases this will not ever happen and at least some sync points are going to be introduced. For instance, before any character can move in the game, all physics calculations will need to be finished.
 ```cpp
 // Wait for all jobs to complete
 tp.wait_all();
 ```
 
-When crunching larger data sets it is often beneficial to split the load among threads automatically. This is what ***ScheduleParallel*** is for. 
+When crunching larger data sets it is often beneficial to split the load among threads automatically. This is what ***sched_par*** is for. 
 
 ```cpp
 static uint32_t SumNumbers(std::span<const uint32_t> arr) {
@@ -688,7 +688,7 @@ tp.wait(jobHandle);
 GAIA_LOG("Sum: %u\n", sum);
 ```
 
-A similar result can be achieved via ***Schedule***. It is a bit more complicated because we need to handle workload splitting ourselves. The most compact (and least efficient) version would look something like this:
+A similar result can be achieved via ***sched***. It is a bit more complicated because we need to handle workload splitting ourselves. The most compact (and least efficient) version would look something like this:
 
 ```cpp
 ...
@@ -740,7 +740,7 @@ tp.submit(job1Handle);
 tp.submit(job0Handle);
 
 // Wait for the last job to complete.
-// Calling complete for dependencies is not necessary because it will be done internally.
+// Calling wait() for dependencies is not necessary because it will be done internally.
 tp.wait(job2Handle);
 ```
 
