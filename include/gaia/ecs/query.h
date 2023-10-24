@@ -363,7 +363,7 @@ namespace gaia {
 					chunks.clear();
 				}
 
-				template <bool has_filters, typename Func>
+				template <bool HasFilters, typename Func>
 				void run_query_unconstrained(
 						Func func, ChunkBatchedList& chunkBatch, const cnt::darray<archetype::Chunk*>& chunks,
 						const query::QueryInfo& queryInfo) {
@@ -377,7 +377,7 @@ namespace gaia {
 						for (const auto* pChunk: chunkSpan) {
 							if (!pChunk->has_entities())
 								continue;
-							if constexpr (has_filters) {
+							if constexpr (HasFilters) {
 								if (!match_filters(*pChunk, queryInfo))
 									continue;
 							}
@@ -393,7 +393,7 @@ namespace gaia {
 					}
 				}
 
-				template <bool has_filters, typename Func>
+				template <bool HasFilters, typename Func>
 				void run_query_constrained(
 						Func func, ChunkBatchedList& chunkBatch, const cnt::darray<archetype::Chunk*>& chunks,
 						const query::QueryInfo& queryInfo, bool enabledOnly) {
@@ -413,7 +413,7 @@ namespace gaia {
 							if (!enabledOnly && !pChunk->has_disabled_entities())
 								continue;
 
-							if constexpr (has_filters) {
+							if constexpr (HasFilters) {
 								if (!match_filters(*pChunk, queryInfo))
 									continue;
 							}
