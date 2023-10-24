@@ -542,7 +542,7 @@ public:
 			auto vel = iter.ViewRW<Velocity>();
 			auto pos = iter.View<Position>();
 
-			iter.for_each([&](uint32_t i) {
+			iter.each([&](uint32_t i) {
 				// Skip stationary objects
 				const auto& v =
 						vel[i]; // This is <= 8 bytes so it would be okay even if we did a copy rather than const reference

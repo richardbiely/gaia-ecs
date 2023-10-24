@@ -212,7 +212,7 @@ namespace gaia {
 
 		namespace detail {
 			template <auto FirstIdx, auto Iters, typename Func, auto... Is>
-			constexpr void for_each_impl(Func func, std::integer_sequence<decltype(Iters), Is...> /*no_name*/) {
+			constexpr void each_impl(Func func, std::integer_sequence<decltype(Iters), Is...> /*no_name*/) {
 				if constexpr ((std::is_invocable_v<Func&&, std::integral_constant<decltype(Is), Is>> && ...))
 					(func(std::integral_constant<decltype(Is), FirstIdx + Is>{}), ...);
 				else
@@ -220,7 +220,7 @@ namespace gaia {
 			}
 
 			template <auto FirstIdx, typename Tuple, typename Func, auto... Is>
-			void for_each_tuple_impl(Func func, std::index_sequence<Is...> /*no_name*/) {
+			void each_tuple_impl(Func func, std::index_sequence<Is...> /*no_name*/) {
 				if constexpr ((std::is_invocable_v<Func&&, std::integral_constant<decltype(Is), FirstIdx + Is>> && ...))
 					(func(std::integral_constant<decltype(Is), FirstIdx + Is>{}), ...);
 				else
@@ -228,7 +228,7 @@ namespace gaia {
 			}
 
 			template <auto FirstIdx, typename Tuple, typename Func, auto... Is>
-			void for_each_tuple_impl(Tuple&& tuple, Func func, std::index_sequence<Is...> /*no_name*/) {
+			void each_tuple_impl(Tuple&& tuple, Func func, std::index_sequence<Is...> /*no_name*/) {
 				(func(std::get<FirstIdx + Is>(tuple)), ...);
 			}
 		} // namespace detail
@@ -241,20 +241,20 @@ namespace gaia {
 		//!
 		//! Example 1 (index argument):
 		//! sarray<int, 10> arr = { ... };
-		//! for_each<arr.size()>([&arr](auto i) {
+		//! each<arr.size()>([&arr](auto i) {
 		//!    GAIA_LOG_N("%d", i);
 		//! });
 		//!
 		//! Example 2 (no index argument):
 		//! uint32_t cnt = 0;
-		//! for_each<10>([&cnt]() {
+		//! each<10>([&cnt]() {
 		//!    GAIA_LOG_N("Invocation number: %u", cnt++);
 		//! });
 		template <auto Iters, typename Func>
-		constexpr void for_each(Func func) {
+		constexpr void each(Func func) {
 			using TIters = decltype(Iters);
 			constexpr TIters First = 0;
-			detail::for_each_impl<First, Iters, Func>(func, std::make_integer_sequence<TIters, Iters>());
+			detail::each_impl<First, Iters, Func>(func, std::make_integer_sequence<TIters, Iters>());
 		}
 
 		//! Compile-time for loop with adjustable range.
@@ -262,20 +262,20 @@ namespace gaia {
 		//!
 		//! Example 1 (index argument):
 		//! sarray<int, 10> arr;
-		//! for_each_ext<0, 10>([&arr](auto i) {
+		//! each_ext<0, 10>([&arr](auto i) {
 		//!    GAIA_LOG_N("%d", i);
 		//! });
 		//!
 		//! Example 2 (no argument):
 		//! uint32_t cnt = 0;
-		//! for_each_ext<0, 10>([&cnt]() {
+		//! each_ext<0, 10>([&cnt]() {
 		//!    GAIA_LOG_N("Invocation number: %u", cnt++);
 		//! });
 		template <auto FirstIdx, auto LastIdx, typename Func>
-		constexpr void for_each_ext(Func func) {
+		constexpr void each_ext(Func func) {
 			static_assert(LastIdx >= FirstIdx);
 			const auto Iters = LastIdx - FirstIdx;
-			detail::for_each_impl<FirstIdx, Iters, Func>(func, std::make_integer_sequence<decltype(Iters), Iters>());
+			detail::each_impl<FirstIdx, Iters, Func>(func, std::make_integer_sequence<decltype(Iters), Iters>());
 		}
 
 		//! Compile-time for loop with adjustable range and iteration size.
@@ -284,24 +284,24 @@ namespace gaia {
 		//!
 		//! Example 1 (index argument):
 		//! sarray<int, 10> arr;
-		//! for_each_ext<0, 10, 2>([&arr](auto i) {
+		//! each_ext<0, 10, 2>([&arr](auto i) {
 		//!    GAIA_LOG_N("%d", i);
 		//! });
 		//!
 		//! Example 2 (no argument):
 		//! uint32_t cnt = 0;
-		//! for_each_ext<0, 10, 2>([&cnt]() {
+		//! each_ext<0, 10, 2>([&cnt]() {
 		//!    GAIA_LOG_N("Invocation number: %u", cnt++);
 		//! });
 		template <auto FirstIdx, auto LastIdx, auto Inc, typename Func>
-		constexpr void for_each_ext(Func func) {
+		constexpr void each_ext(Func func) {
 			if constexpr (FirstIdx < LastIdx) {
 				if constexpr (std::is_invocable_v<Func&&, std::integral_constant<decltype(FirstIdx), FirstIdx>>)
 					func(std::integral_constant<decltype(FirstIdx), FirstIdx>());
 				else
 					func();
 
-				for_each_ext<FirstIdx + Inc, LastIdx, Inc>(func);
+				each_ext<FirstIdx + Inc, LastIdx, Inc>(func);
 			}
 		}
 
@@ -310,13 +310,13 @@ namespace gaia {
 		//! Example:
 		//! template<typename... Args>
 		//! void print(const Args&... args) {
-		//!  for_each_pack([](const auto& value) {
+		//!  each_pack([](const auto& value) {
 		//!    std::cout << value << std::endl;
 		//!  });
 		//! }
 		//! print(69, "likes", 420.0f);
 		template <typename Func, typename... Args>
-		constexpr void for_each_pack(Func func, Args&&... args) {
+		constexpr void each_pack(Func func, Args&&... args) {
 			(func(std::forward<Args>(args)), ...);
 		}
 
@@ -324,21 +324,21 @@ namespace gaia {
 		//! tuple_size (sarray, std::pair etc).
 		//!
 		//! Example:
-		//! for_each_tuple(
+		//! each_tuple(
 		//!		std::make_tuple(69, "likes", 420.0f),
 		//!		[](const auto& value) {
 		//! 		std::cout << value << std::endl;
 		//! 	});
 		template <typename Tuple, typename Func>
-		constexpr void for_each_tuple(Tuple&& tuple, Func func) {
+		constexpr void each_tuple(Tuple&& tuple, Func func) {
 			constexpr auto TSize = std::tuple_size<std::remove_reference_t<Tuple>>::value;
-			detail::for_each_tuple_impl<(size_t)0>(std::forward<Tuple>(tuple), func, std::make_index_sequence<TSize>{});
+			detail::each_tuple_impl<(size_t)0>(std::forward<Tuple>(tuple), func, std::make_index_sequence<TSize>{});
 		}
 
 		template <typename Tuple, typename Func>
-		constexpr void for_each_tuple(Func func) {
+		constexpr void each_tuple(Func func) {
 			constexpr auto TSize = std::tuple_size<std::remove_reference_t<Tuple>>::value;
-			detail::for_each_tuple_impl<(size_t)0, Tuple>(func, std::make_index_sequence<TSize>{});
+			detail::each_tuple_impl<(size_t)0, Tuple>(func, std::make_index_sequence<TSize>{});
 		}
 
 		//! Compile-time for loop over tuples and other objects implementing
@@ -346,39 +346,39 @@ namespace gaia {
 		//! Iteration starts at \tparam FirstIdx and ends at \tparam LastIdx (excluding).
 		//!
 		//! Example:
-		//! for_each_tuple(
+		//! each_tuple(
 		//!		std::make_tuple(69, "likes", 420.0f),
 		//!		[](const auto& value) {
 		//! 		std::cout << value << std::endl;
 		//! 	});
 		template <auto FirstIdx, auto LastIdx, typename Tuple, typename Func>
-		constexpr void for_each_tuple_ext(Tuple&& tuple, Func func) {
+		constexpr void each_tuple_ext(Tuple&& tuple, Func func) {
 			constexpr auto TSize = std::tuple_size<std::remove_reference_t<Tuple>>::value;
 			static_assert(LastIdx >= FirstIdx);
 			static_assert(LastIdx <= TSize);
 			constexpr auto Iters = LastIdx - FirstIdx;
-			detail::for_each_tuple_impl<FirstIdx>(std::forward<Tuple>(tuple), func, std::make_index_sequence<Iters>{});
+			detail::each_tuple_impl<FirstIdx>(std::forward<Tuple>(tuple), func, std::make_index_sequence<Iters>{});
 		}
 
 		template <auto FirstIdx, auto LastIdx, typename Tuple, typename Func>
-		constexpr void for_each_tuple_ext(Func func) {
+		constexpr void each_tuple_ext(Func func) {
 			constexpr auto TSize = std::tuple_size<std::remove_reference_t<Tuple>>::value;
 			static_assert(LastIdx >= FirstIdx);
 			static_assert(LastIdx <= TSize);
 			constexpr auto Iters = LastIdx - FirstIdx;
-			detail::for_each_tuple_impl<FirstIdx, Tuple>(func, std::make_index_sequence<Iters>{});
+			detail::each_tuple_impl<FirstIdx, Tuple>(func, std::make_index_sequence<Iters>{});
 		}
 
 		template <typename InputIt, typename Func>
-		constexpr Func for_each(InputIt first, InputIt last, Func func) {
+		constexpr Func each(InputIt first, InputIt last, Func func) {
 			for (; first != last; ++first)
 				func(*first);
 			return func;
 		}
 
 		template <typename C, typename Func>
-		constexpr auto for_each(const C& arr, Func func) {
-			return for_each(arr.begin(), arr.end(), func);
+		constexpr auto each(const C& arr, Func func) {
+			return each(arr.begin(), arr.end(), func);
 		}
 
 		//----------------------------------------------------------------------

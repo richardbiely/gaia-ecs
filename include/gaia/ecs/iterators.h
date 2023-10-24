@@ -12,7 +12,7 @@ namespace gaia {
 	namespace ecs {
 		namespace detail {
 			template <typename Func>
-			void for_each(const uint32_t idxFrom, const uint32_t idxStop, Func&& func) noexcept {
+			void each(const uint32_t idxFrom, const uint32_t idxStop, Func&& func) noexcept {
 				if constexpr (std::is_invocable_v<Func&&, uint32_t>) {
 					for (auto i = idxFrom; i < idxStop; ++i)
 						func(i);
@@ -34,10 +34,10 @@ namespace gaia {
 			}
 
 			template <typename Func>
-			void for_each(Func func) noexcept {
+			void each(Func func) noexcept {
 				const auto idxFrom = m_chunk.GetDisabledEntityCount();
 				const auto idxStop = m_chunk.GetEntityCount();
-				detail::for_each(idxFrom, idxStop, func);
+				detail::each(idxFrom, idxStop, func);
 			}
 		};
 
@@ -52,10 +52,10 @@ namespace gaia {
 			}
 
 			template <typename Func>
-			void for_each(Func&& func) noexcept {
+			void each(Func&& func) noexcept {
 				const auto idxFrom = 0;
 				const auto idxStop = m_chunk.GetDisabledEntityCount();
-				detail::for_each(idxFrom, idxStop, func);
+				detail::each(idxFrom, idxStop, func);
 			}
 		};
 
@@ -70,10 +70,10 @@ namespace gaia {
 			}
 
 			template <typename Func>
-			void for_each(Func&& func) noexcept {
+			void each(Func&& func) noexcept {
 				const auto idxFrom = 0;
 				const auto idxStop = m_chunk.GetEntityCount();
-				detail::for_each(idxFrom, idxStop, func);
+				detail::each(idxFrom, idxStop, func);
 			}
 		};
 	} // namespace ecs

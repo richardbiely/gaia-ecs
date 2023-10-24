@@ -39,7 +39,7 @@ struct Component<Version, T, 0> {}; // empty component
 namespace detail {
 	template <typename T, uint32_t ValuesCount, uint32_t ComponentCount>
 	constexpr void Adds(ecs::World& w, ecs::Entity e) {
-		core::for_each<ComponentCount>([&](auto i) {
+		core::each<ComponentCount>([&](auto i) {
 			w.Add<Component<i, T, ValuesCount>>(e);
 		});
 	}

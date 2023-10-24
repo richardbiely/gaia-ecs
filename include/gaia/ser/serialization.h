@@ -176,7 +176,7 @@ namespace gaia {
 				}
 				// Classes
 				else if constexpr (std::is_class_v<type>) {
-					meta::for_each_member(item, [&](auto&&... items) {
+					meta::each_member(item, [&](auto&&... items) {
 						size_in_bytes += (size_bytes_one(items) + ...);
 					});
 				} else
@@ -223,7 +223,7 @@ namespace gaia {
 				}
 				// Classes
 				else if constexpr (std::is_class_v<type>) {
-					meta::for_each_member(std::forward<T>(arg), [&s](auto&&... items) {
+					meta::each_member(std::forward<T>(arg), [&s](auto&&... items) {
 						// TODO: Handle contiguous blocks of trivially copiable types
 						(serialize_data_one<Write>(s, items), ...);
 					});

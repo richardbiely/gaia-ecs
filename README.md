@@ -286,14 +286,14 @@ q.ForEach([](ecs::IteratorAll iter) {
   auto v = iter.View<Velocity>(); // Read-only access to Velocity
 
   // Iterate over all enabled entities and update their add 1.f to their x-axis position
-  iter.for_each([&](uint32_t i) {
+  iter.each([&](uint32_t i) {
     if (!iter.IsEnabled(i))
       return;
     p[i].x += 1.f;
   }
 
   // Iterate over all entities in the chunk and update their position based on their velocity
-  iter.for_each([&](uint32_t i) {
+  iter.each([&](uint32_t i) {
     p[i].x += v[i].x * dt;
     p[i].y += v[i].y * dt;
     p[i].z += v[i].z * dt;
@@ -339,21 +339,21 @@ q.ToArray(entities, ecs::Query::Constraint::DisabledOnly);
 q.ForEach([](ecs::Iterator iter) {
   auto p = iter.ViewRW<Position>(); // Read-Write access to Position
   // Iterates over enabled entities
-  iter.for_each([&](uint32_t i) {
+  iter.each([&](uint32_t i) {
     p[i] = {}; // reset the position of each enabled entity
   }
 });
 q.ForEach([](ecs::IteratorDisabled iter) {
   auto p = iter.ViewRW<Position>(); // Read-Write access to Position
   // Iterates over disabled entities
-  iter.for_each([&](uint32_t i) {
+  iter.each([&](uint32_t i) {
     p[i] = {}; // reset the position of each disabled entity
   }
 });
 q.ForEach([](ecs::IteratorAll iter) {
   auto p = iter.ViewRW<Position>(); // Read-Write access to Position
   // Iterates over all entities
-  iter.for_each([&](uint32_t i) {
+  iter.each([&](uint32_t i) {
     if (iter.IsEnabled(i)) {
       p[i] = {}; // reset the position of each enabled entity
     }
