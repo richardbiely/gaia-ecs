@@ -542,12 +542,12 @@ public:
 			auto vel = iter.ViewRW<Velocity>();
 			auto pos = iter.View<Position>();
 
-			for (const auto i: iter) {
+			iter.for_each([&](uint32_t i) {
 				// Skip stationary objects
 				const auto& v =
 						vel[i]; // This is <= 8 bytes so it would be okay even if we did a copy rather than const reference
 				if (v.x == 0 && v.y == 0)
-					continue;
+					return;
 
 				auto e = ent[i];
 				const auto& p =
@@ -607,7 +607,7 @@ public:
 
 				// Skip if no collisions were detected
 				if (collisionsBefore == m_colliding.size())
-					continue;
+					return;
 
 			onCollision:
 				// Alter the velocity according to the first contact we made along the way.
@@ -618,7 +618,7 @@ public:
 					vel[i] = {naa, 0};
 				else
 					vel[i] = {0, naa};
-			}
+			});
 		});
 	}
 

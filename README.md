@@ -272,23 +272,28 @@ q.ForEach([&](Position& p, const Velocity& v) {
 ### Iterator
 Iteration using the iterator gives you even more expressive power and also opens doors for new kinds of optimizations. Iterator is an abstraction above archetype chunks responsible for holding entities and components.
 
+There are three types of iterators:
+1) ecs::Iterator - iterates over enabled entities
+2) ecs::IteratorDisabled - iterates over distabled entities
+3) ecs::IteratorAll - iterate over all entities
+
 ```cpp
 ecs::Query q = w.CreateQuery();
 q.All<Position, const Velocity>();
 
-q.ForEach([](ecs::Iterator iter) {
+q.ForEach([](ecs::IteratorAll iter) {
   auto p = iter.ViewRW<Position>(); // Read-write access to Position
   auto v = iter.View<Velocity>(); // Read-only access to Velocity
 
   // Iterate over all enabled entities and update their add 1.f to their x-axis position
-  for (auto i: iter) {
+  iter.for_each([&](uint32_t i) {
     if (!iter.IsEnabled(i))
-      continue;
+      return;
     p[i].x += 1.f;
   }
 
   // Iterate over all entities in the chunk and update their position based on their velocity
-  for (auto i: iter) {
+  iter.for_each([&](uint32_t i) {
     p[i].x += v[i].x * dt;
     p[i].y += v[i].y * dt;
     p[i].z += v[i].z * dt;
@@ -333,31 +338,28 @@ q.ToArray(entities, ecs::Query::Constraint::DisabledOnly);
 
 q.ForEach([](ecs::Iterator iter) {
   auto p = iter.ViewRW<Position>(); // Read-Write access to Position
+  // Iterates over enabled entities
+  iter.for_each([&](uint32_t i) {
+    p[i] = {}; // reset the position of each enabled entity
+  }
+});
+q.ForEach([](ecs::IteratorDisabled iter) {
+  auto p = iter.ViewRW<Position>(); // Read-Write access to Position
+  // Iterates over disabled entities
+  iter.for_each([&](uint32_t i) {
+    p[i] = {}; // reset the position of each disabled entity
+  }
+});
+q.ForEach([](ecs::IteratorAll iter) {
+  auto p = iter.ViewRW<Position>(); // Read-Write access to Position
   // Iterates over all entities
-  for (auto i: iter) {
+  iter.for_each([&](uint32_t i) {
     if (iter.IsEnabled(i)) {
       p[i] = {}; // reset the position of each enabled entity
     }
   }
 });
-q.ForEach([](ecs::IteratorDisabled iter) {
-  auto p = iter.ViewRW<Position>(); // Read-Write access to Position
-  // Iterates only over disabled entities
-  for (auto i: iter) {
-    p[i] = {}; // reset the position of each disabled entity
-  }
-});
-q.ForEach([](ecs::IteratorEnabled iter) {
-  auto p = iter.ViewRW<Position>(); // Read-Write access to Position
-  // Iterates only over enabled entities
-  for (auto i: iter) {
-    p[i] = {}; // reset the position of each enabled entity
-  }
-});
 ```
-
->**NOTE:<br/>**
-***IteratorEnabled*** and ***IteratorDisabled*** don't give you access to ***Views*** nor give you access to indices. This is because both enabled and disabled entities are stored in the same chunk. Views would allow you access to data beyond the scope of constraints. If you need more flexibility, that is what ***Iterator*** is for.
 
 If you do not wish to fragment entities inside the chunk you can simply create a tag component and assign it to your entity. This will move the entity to a new archetype so it is a lot slower. However, because disabled entities are now clearly separated calling some query operations might be slightly faster (no need to check if the entity is disabled or not internally).
 

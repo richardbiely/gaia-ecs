@@ -456,7 +456,6 @@ namespace gaia {
 					registerComponents(componentIdsGeneric, component::ComponentType::CT_Generic, maxGenericItemsInArchetype);
 					registerComponents(componentIdsChunk, component::ComponentType::CT_Chunk, 1);
 
-					GAIA_ASSERT(maxGenericItemsInArchetype < MAX_UINT16);
 					newArch->m_properties.capacity = (uint16_t)maxGenericItemsInArchetype;
 					newArch->m_properties.chunkDataBytes = (uint16_t)currentOffset;
 					GAIA_ASSERT(

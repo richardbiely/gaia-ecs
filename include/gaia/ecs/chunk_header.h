@@ -7,7 +7,9 @@
 #include "../cnt/bitset.h"
 #include "../core/utility.h"
 #include "archetype_common.h"
+#include "chunk_allocator.h"
 #include "component.h"
+#include "entity.h"
 
 namespace gaia {
 	namespace ecs {
@@ -28,21 +30,25 @@ namespace gaia {
 				//! Number of ticks before empty chunks are removed
 				static constexpr uint16_t MAX_CHUNK_LIFESPAN = (1 << CHUNK_LIFESPAN_BITS) - 1;
 
-				static constexpr uint16_t MAX_CHUNK_ENTITIES_BITS = 16;
-				//! Maxiumum number of entities per chunk
-				static constexpr uint16_t MAX_CHUNK_ENTITIES = (1 << MAX_CHUNK_ENTITIES_BITS) - 1;
+				//! Maxiumum number of entities per chunk.
+				//! Defined as sizeof(big_chunk) / sizeof(entity)
+				static constexpr uint16_t MAX_CHUNK_ENTITIES =
+						(detail::ChunkAllocatorImpl::GetMemoryBlockSize(1) - 64) / sizeof(Entity);
+				static constexpr uint16_t MAX_CHUNK_ENTITIES_BITS = (uint16_t)core::count_bits(MAX_CHUNK_ENTITIES);
 
 				//! Archetype the chunk belongs to
 				ArchetypeId archetypeId;
 				//! Chunk index in its archetype list
 				uint32_t index;
-				//! Number of items enabled in the chunk.
+				//! Total number of entities in the chunk.
 				uint16_t count;
+				//! Number of enabled entities in the chunk.
+				uint16_t countEnabled;
 				//! Capacity (copied from the owner archetype).
 				uint16_t capacity;
 
 				//! Index of the first enabled entity in the chunk
-				uint32_t firstEnabledEntityIndex : 16;
+				uint32_t firstEnabledEntityIndex: MAX_CHUNK_ENTITIES_BITS;
 				//! Once removal is requested and it hits 0 the chunk is removed.
 				uint32_t lifespanCountdown: CHUNK_LIFESPAN_BITS;
 				//! Updated when chunks are being iterated. Used to inform of structural changes when they shouldn't happen.
@@ -58,7 +64,7 @@ namespace gaia {
 				//! Chunk size type. This tells whether it's 8K or 16K
 				uint32_t sizeType : 1;
 				//! Empty space for future use
-				uint32_t unused : 4;
+				uint32_t unused : 8;
 
 				//! Offsets to various parts of data inside chunk
 				ChunkHeaderOffsets offsets;
@@ -72,19 +78,19 @@ namespace gaia {
 						uint32_t aid, uint32_t chunkIndex, uint16_t cap, uint16_t st, const ChunkHeaderOffsets& offs,
 						uint32_t& version):
 						archetypeId(aid),
-						index(chunkIndex), count(0), capacity(cap), firstEnabledEntityIndex(0), lifespanCountdown(0),
-						structuralChangesLocked(0), hasAnyCustomGenericCtor(0), hasAnyCustomChunkCtor(0),
+						index(chunkIndex), count(0), countEnabled(0), capacity(cap), firstEnabledEntityIndex(0),
+						lifespanCountdown(0), structuralChangesLocked(0), hasAnyCustomGenericCtor(0), hasAnyCustomChunkCtor(0),
 						hasAnyCustomGenericDtor(0), hasAnyCustomChunkDtor(0), sizeType(st), offsets(offs), worldVersion(version) {
 					// Make sure the alignment is right
 					GAIA_ASSERT(uintptr_t(this) % (sizeof(size_t)) == 0);
 				}
 
 				bool HasDisabledEntities() const {
-					return count > 0 && firstEnabledEntityIndex > 0;
+					return firstEnabledEntityIndex > 0;
 				}
 
 				bool HasEnabledEntities() const {
-					return count > 0 && firstEnabledEntityIndex != count;
+					return countEnabled > 0;
 				}
 			};
 		} // namespace archetype

@@ -19,9 +19,7 @@
 #include "component_cache.h"
 #include "component_utils.h"
 #include "data_buffer.h"
-#include "iterator.h"
-#include "iterator_disabled.h"
-#include "iterator_enabled.h"
+#include "iterators.h"
 #include "query_cache.h"
 #include "query_common.h"
 #include "query_info.h"
@@ -566,13 +564,13 @@ namespace gaia {
 				void ForEach(Func func) {
 					auto& queryInfo = FetchQueryInfo();
 
-					if constexpr (std::is_invocable<Func, Iterator>::value)
+					if constexpr (std::is_invocable<Func, IteratorAll>::value)
 						ForEach_RunQueryOnChunks(queryInfo, Constraints::AcceptAll, [&](archetype::Chunk& chunk) {
-							func(Iterator(chunk));
+							func(IteratorAll(chunk));
 						});
-					else if constexpr (std::is_invocable<Func, IteratorEnabled>::value)
+					else if constexpr (std::is_invocable<Func, Iterator>::value)
 						ForEach_RunQueryOnChunks(queryInfo, Constraints::EnabledOnly, [&](archetype::Chunk& chunk) {
-							func(IteratorEnabled(chunk));
+							func(Iterator(chunk));
 						});
 					else if constexpr (std::is_invocable<Func, IteratorDisabled>::value)
 						ForEach_RunQueryOnChunks(queryInfo, Constraints::DisabledOnly, [&](archetype::Chunk& chunk) {

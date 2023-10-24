@@ -45,15 +45,15 @@ public:
 	}
 
 	void OnUpdate() override {
-		m_q.ForEach([](ecs::Iterator iter) {
+		m_q.ForEach([](ecs::IteratorAll iter) {
 			auto p = iter.ViewRW<Position>();
 			auto v = iter.View<Velocity>();
 			const float dt = 0.01f;
-			for (auto i: iter) {
+			iter.for_each([&](uint32_t i) {
 				p[i].x += v[i].x * dt;
 				p[i].y += v[i].y * dt;
 				p[i].z += v[i].z * dt;
-			}
+			});
 
 			if (iter.IsEnabled(0))
 				p[0].x += 1.f;
@@ -70,7 +70,7 @@ public:
 	}
 
 	void OnUpdate() override {
-		m_q.ForEach([](ecs::Iterator iter) {
+		m_q.ForEach([](ecs::IteratorAll iter) {
 			auto p = iter.ViewRW<Position>();
 			auto v = iter.View<Velocity>();
 			const float dt = 0.01f;
@@ -86,7 +86,7 @@ public:
 	}
 };
 
-class PositionSystem_EnabledOnly final: public ecs::System {
+class PositionSystem_DisabledOnly final: public ecs::System {
 	ecs::Query m_q;
 
 public:
@@ -95,15 +95,15 @@ public:
 	}
 
 	void OnUpdate() override {
-		m_q.ForEach([](ecs::IteratorEnabled iter) {
+		m_q.ForEach([](ecs::IteratorDisabled iter) {
 			auto p = iter.ViewRW<Position>();
 			auto v = iter.View<Velocity>();
 			const float dt = 0.01f;
-			for (auto i: iter) {
+			iter.for_each([&](uint32_t i) {
 				p[i].x += v[i].x * dt;
 				p[i].y += v[i].y * dt;
 				p[i].z += v[i].z * dt;
-			}
+			});
 		});
 	}
 };
@@ -407,7 +407,7 @@ int main() {
 	sm.CreateSystem<PositionSystem>();
 	sm.CreateSystem<PositionSystem_All>();
 	sm.CreateSystem<PositionSystem_All2>();
-	sm.CreateSystem<PositionSystem_EnabledOnly>();
+	sm.CreateSystem<PositionSystem_DisabledOnly>();
 	for (uint32_t i = 0; i < 1000; ++i) {
 		sm.Update();
 		w.Update();

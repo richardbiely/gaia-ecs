@@ -49,7 +49,7 @@ template <typename T, uint32_t ValuesCount, uint32_t ComponentCount>
 constexpr void Adds(ecs::World& w, uint32_t n) {
 	for (uint32_t i = 0; i < n; ++i) {
 		[[maybe_unused]] auto e = w.Add();
-		detail::Adds<T, ValuesCount, ComponentCount>(w, e);
+		::detail::Adds<T, ValuesCount, ComponentCount>(w, e);
 	}
 }
 
