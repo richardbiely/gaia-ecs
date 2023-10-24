@@ -22,7 +22,7 @@ namespace detail {
 		(void)e;
 #else
 		core::each<ComponentCount>([&](auto i) {
-			w.Add<Component<i, T, ValuesCount>>(e);
+			w.add<Component<i, T, ValuesCount>>(e);
 		});
 #endif
 	}
@@ -31,7 +31,7 @@ namespace detail {
 template <typename T, uint32_t ValuesCount, uint32_t ComponentCount>
 constexpr void Adds(ecs::World& w, uint32_t n) {
 	for (uint32_t i = 0; i < n; ++i) {
-		[[maybe_unused]] auto e = w.Add();
+		[[maybe_unused]] auto e = w.add();
 		::detail::Adds<T, ValuesCount, ComponentCount>(w, e);
 	}
 }
@@ -103,7 +103,7 @@ void Create_Archetypes_1000(ecs::World& w) {
 		for (auto _: state) {                                                                                              \
 			(void)_;                                                                                                         \
 			float f = 0.f;                                                                                                   \
-			w.ForEach([&](const c1& p) {                                                                                     \
+			w.each([&](const c1& p) {                                                                                        \
 				f += p.value[0];                                                                                               \
 			});                                                                                                              \
 			gaia::dont_optimize(f);                                                                                          \
@@ -120,15 +120,15 @@ DEFINE_FOREACH_INTERNALQUERY(1000)
 		Create_Archetypes_##ArchetypeCount(w);                                                                             \
                                                                                                                        \
 		using c1 = Component<0, float, 3>;                                                                                 \
-		auto query = w.CreateQuery().All<const c1>();                                                                      \
+		auto query = w.create_query().all<const c1>();                                                                     \
                                                                                                                        \
 		/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */              \
-		gaia::dont_optimize(query.HasEntities());                                                                          \
+		gaia::dont_optimize(query.has_entities());                                                                         \
                                                                                                                        \
 		for (auto _: state) {                                                                                              \
 			(void)_;                                                                                                         \
 			float f = 0.f;                                                                                                   \
-			query.ForEach([&](const c1& p) {                                                                                 \
+			query.each([&](const c1& p) {                                                                                    \
 				f += p.value[0];                                                                                               \
 			});                                                                                                              \
 			gaia::dont_optimize(f);                                                                                          \
@@ -145,16 +145,16 @@ DEFINE_FOREACH_EXTERNALQUERY(1000)
 		Create_Archetypes_##ArchetypeCount(w);                                                                             \
                                                                                                                        \
 		using c1 = Component<0, float, 3>;                                                                                 \
-		auto query = w.CreateQuery().All<const c1>();                                                                      \
+		auto query = w.create_query().all<const c1>();                                                                     \
                                                                                                                        \
 		/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */              \
-		gaia::dont_optimize(query.HasEntities());                                                                          \
+		gaia::dont_optimize(query.has_entities());                                                                         \
                                                                                                                        \
 		for (auto _: state) {                                                                                              \
 			(void)_;                                                                                                         \
 			float f = 0.f;                                                                                                   \
-			query.ForEach([&](ecs::Iterator iter) {                                                                          \
-				auto c1View = iter.View<c1>();                                                                                 \
+			query.each([&](ecs::Iterator iter) {                                                                             \
+				auto c1View = iter.view<c1>();                                                                                 \
 				iter.each([&](uint32_t i) {                                                                                    \
 					f += c1View[i].value[0];                                                                                     \
 				});                                                                                                            \
@@ -173,16 +173,16 @@ DEFINE_FOREACHCHUNK_EXTERNALQUERY_ITER(1000)
 		Create_Archetypes_##ArchetypeCount(w);                                                                             \
                                                                                                                        \
 		using c1 = Component<0, float, 3>;                                                                                 \
-		auto query = w.CreateQuery().All<const c1>();                                                                      \
+		auto query = w.create_query().all<const c1>();                                                                     \
                                                                                                                        \
 		/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */              \
-		gaia::dont_optimize(query.HasEntities());                                                                          \
+		gaia::dont_optimize(query.has_entities());                                                                         \
                                                                                                                        \
 		for (auto _: state) {                                                                                              \
 			(void)_;                                                                                                         \
 			float f = 0.f;                                                                                                   \
-			query.ForEach([&](ecs::Iterator iter) {                                                                          \
-				auto c1View = iter.View<c1>();                                                                                 \
+			query.each([&](ecs::Iterator iter) {                                                                             \
+				auto c1View = iter.view<c1>();                                                                                 \
 				for (uint32_t i = 0; i < iter.size(); ++i)                                                                     \
 					f += c1View[i].value[0];                                                                                     \
 			});                                                                                                              \
@@ -198,16 +198,16 @@ DEFINE_FOREACHCHUNK_EXTERNALQUERY_INDEX(1000);
 		Create_Archetypes_##ArchetypeCount(w);                                                                             \
                                                                                                                        \
 		using c1 = Component<0, float, 3>;                                                                                 \
-		auto query = w.CreateQuery().All<const c1>();                                                                      \
+		auto query = w.create_query().all<const c1>();                                                                     \
                                                                                                                        \
 		/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */              \
-		gaia::dont_optimize(query.HasEntities());                                                                          \
+		gaia::dont_optimize(query.has_entities());                                                                         \
                                                                                                                        \
 		for (auto _: state) {                                                                                              \
 			(void)_;                                                                                                         \
 			float f = 0.f;                                                                                                   \
-			query.ForEach([&](ecs::IteratorAll iter) {                                                                       \
-				auto c1View = iter.View<c1>();                                                                                 \
+			query.each([&](ecs::IteratorAll iter) {                                                                          \
+				auto c1View = iter.view<c1>();                                                                                 \
 				iter.each([&](uint32_t i) {                                                                                    \
 					f += c1View[i].value[0];                                                                                     \
 				});                                                                                                            \
@@ -220,17 +220,17 @@ DEFINE_FOREACHCHUNK_EXTERNALQUERY_ALL(1000);
 
 #define PICO_SETTINGS() iterations({8192}).samples(3)
 
-PICOBENCH_SUITE("ForEach - internal query");
+PICOBENCH_SUITE("each - internal query");
 PICOBENCH(BM_ForEach_Internal_1).PICO_SETTINGS().label("1 archetype");
 PICOBENCH(BM_ForEach_Internal_100).PICO_SETTINGS().label("100 archetypes");
 PICOBENCH(BM_ForEach_Internal_1000).PICO_SETTINGS().label("1000 archetypes");
 
-PICOBENCH_SUITE("ForEach - external query");
+PICOBENCH_SUITE("each - external query");
 PICOBENCH(BM_ForEach_External_1).PICO_SETTINGS().label("1 archetype");
 PICOBENCH(BM_ForEach_External_100).PICO_SETTINGS().label("100 archetypes");
 PICOBENCH(BM_ForEach_External_1000).PICO_SETTINGS().label("1000 archetypes");
 
-PICOBENCH_SUITE("ForEach - external query, iterator");
+PICOBENCH_SUITE("each - external query, iterator");
 PICOBENCH(BM_ForEachChunk_External_Iter_1).PICO_SETTINGS().label("1 archetype");
 PICOBENCH(BM_ForEachChunk_External_Iter_100).PICO_SETTINGS().label("100 archetypes");
 PICOBENCH(BM_ForEachChunk_External_Iter_1000).PICO_SETTINGS().label("1000 archetypes");

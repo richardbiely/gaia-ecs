@@ -284,7 +284,7 @@ namespace gaia {
 
 			GAIA_NODISCARD constexpr static ValueType get(std::span<const uint8_t> s, size_t idx) noexcept {
 				auto t = meta::struct_to_tuple(ValueType{});
-				return get_internal(t, s, idx, std::make_index_sequence<TTupleItems>());
+				return get_inter(t, s, idx, std::make_index_sequence<TTupleItems>());
 			}
 
 			template <size_t Item>
@@ -303,17 +303,17 @@ namespace gaia {
 
 				constexpr void operator=(const ValueType& val) noexcept {
 					auto t = meta::struct_to_tuple(val);
-					set_internal(t, m_data, m_idx, std::make_index_sequence<TTupleItems>());
+					set_inter(t, m_data, m_idx, std::make_index_sequence<TTupleItems>());
 				}
 
 				constexpr void operator=(ValueType&& val) noexcept {
 					auto t = meta::struct_to_tuple(std::forward<ValueType>(val));
-					set_internal(t, m_data, m_idx, std::make_index_sequence<TTupleItems>());
+					set_inter(t, m_data, m_idx, std::make_index_sequence<TTupleItems>());
 				}
 
 				GAIA_NODISCARD constexpr operator ValueType() const noexcept {
 					auto t = meta::struct_to_tuple(ValueType{});
-					return get_internal(
+					return get_inter(
 							t, {(const uint8_t*)m_data.data(), m_data.size()}, m_idx, std::make_index_sequence<TTupleItems>());
 				}
 			};
@@ -354,8 +354,8 @@ namespace gaia {
 			}
 
 			template <size_t... Ids>
-			GAIA_NODISCARD constexpr static ValueType get_internal(
-					TTuple& t, std::span<const uint8_t> s, size_t idx, std::index_sequence<Ids...> /*no_name*/) noexcept {
+			GAIA_NODISCARD constexpr static ValueType
+			get_inter(TTuple& t, std::span<const uint8_t> s, size_t idx, std::index_sequence<Ids...> /*no_name*/) noexcept {
 				auto address = mem::align<Alignment>((uintptr_t)s.data());
 				((
 						 // Put the value at the address into our tuple. Data is aligned so we can read directly.
@@ -368,7 +368,7 @@ namespace gaia {
 
 			template <size_t... Ids>
 			constexpr static void
-			set_internal(TTuple& t, std::span<uint8_t> s, size_t idx, std::index_sequence<Ids...> /*no_name*/) noexcept {
+			set_inter(TTuple& t, std::span<uint8_t> s, size_t idx, std::index_sequence<Ids...> /*no_name*/) noexcept {
 				auto address = mem::align<Alignment>((uintptr_t)s.data());
 				((
 						 // Set the tuple value. Data is aligned so we can write directly.
@@ -510,11 +510,11 @@ namespace gaia {
 
 		namespace detail {
 			template <typename, typename = void>
-			struct auto_view_policy_internal {
+			struct auto_view_policy_inter {
 				static constexpr DataLayout data_layout_type = DataLayout::AoS;
 			};
 			template <typename T>
-			struct auto_view_policy_internal<T, std::void_t<decltype(T::Layout)>> {
+			struct auto_view_policy_inter<T, std::void_t<decltype(T::Layout)>> {
 				static constexpr DataLayout data_layout_type = T::Layout;
 			};
 
@@ -525,11 +525,11 @@ namespace gaia {
 		} // namespace detail
 
 		template <typename T>
-		using auto_view_policy = data_view_policy<detail::auto_view_policy_internal<T>::data_layout_type, T>;
+		using auto_view_policy = data_view_policy<detail::auto_view_policy_inter<T>::data_layout_type, T>;
 		template <typename T>
-		using auto_view_policy_get = data_view_policy_get<detail::auto_view_policy_internal<T>::data_layout_type, T>;
+		using auto_view_policy_get = data_view_policy_get<detail::auto_view_policy_inter<T>::data_layout_type, T>;
 		template <typename T>
-		using auto_view_policy_set = data_view_policy_set<detail::auto_view_policy_internal<T>::data_layout_type, T>;
+		using auto_view_policy_set = data_view_policy_set<detail::auto_view_policy_inter<T>::data_layout_type, T>;
 
 		template <typename T>
 		inline constexpr bool is_soa_layout_v = detail::is_soa_layout<T>::value;

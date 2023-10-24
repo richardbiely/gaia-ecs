@@ -62,34 +62,34 @@ namespace gaia {
 
 				GAIA_MSVC_WARNING_POP()
 
-				void Init(
-						const cnt::sarray<ComponentIdArray, component::ComponentType::CT_Count>& componentIds,
-						const cnt::sarray<ComponentOffsetArray, component::ComponentType::CT_Count>& componentOffsets) {
+				void init(
+						const cnt::sarray<ComponentIdArray, component::ComponentType::CT_Count>& compIds,
+						const cnt::sarray<ComponentOffsetArray, component::ComponentType::CT_Count>& compOffs) {
 					m_header.componentCount[component::ComponentType::CT_Generic] =
-							(uint8_t)componentIds[component::ComponentType::CT_Generic].size();
+							(uint8_t)compIds[component::ComponentType::CT_Generic].size();
 					m_header.componentCount[component::ComponentType::CT_Chunk] =
-							(uint8_t)componentIds[component::ComponentType::CT_Chunk].size();
+							(uint8_t)compIds[component::ComponentType::CT_Chunk].size();
 
-					const auto& cc = ComponentCache::Get();
+					const auto& cc = ComponentCache::get();
 
-					const auto& componentIdsGeneric = componentIds[component::ComponentType::CT_Generic];
-					for (const auto componentId: componentIdsGeneric) {
-						const auto& desc = cc.GetComponentDesc(componentId);
-						m_header.hasAnyCustomGenericCtor |= (desc.ctor != nullptr);
-						m_header.hasAnyCustomGenericDtor |= (desc.dtor != nullptr);
+					const auto& compIdsGeneric = compIds[component::ComponentType::CT_Generic];
+					for (const auto componentId: compIdsGeneric) {
+						const auto& desc = cc.comp_desc(componentId);
+						m_header.hasAnyCustomGenericCtor |= (desc.func_ctor != nullptr);
+						m_header.hasAnyCustomGenericDtor |= (desc.func_dtor != nullptr);
 					}
-					const auto& componentIdsChunk = componentIds[component::ComponentType::CT_Chunk];
-					for (const auto componentId: componentIdsChunk) {
-						const auto& desc = cc.GetComponentDesc(componentId);
-						m_header.hasAnyCustomChunkCtor |= (desc.ctor != nullptr);
-						m_header.hasAnyCustomChunkDtor |= (desc.dtor != nullptr);
+					const auto& compIdsChunk = compIds[component::ComponentType::CT_Chunk];
+					for (const auto componentId: compIdsChunk) {
+						const auto& desc = cc.comp_desc(componentId);
+						m_header.hasAnyCustomChunkCtor |= (desc.func_ctor != nullptr);
+						m_header.hasAnyCustomChunkDtor |= (desc.func_dtor != nullptr);
 					}
 
 					// Copy provided component id data to this chunk's data area
 					{
 						for (uint32_t i = 0; i < component::ComponentType::CT_Count; ++i) {
 							auto offset = m_header.offsets.firstByte_ComponentIds[i];
-							for (const auto componentId: componentIds[i]) {
+							for (const auto componentId: compIds[i]) {
 								// unaligned_ref not necessary because data is aligned
 								*(component::ComponentId*)&m_data[offset] = componentId;
 								offset += sizeof(component::ComponentId);
@@ -101,7 +101,7 @@ namespace gaia {
 					{
 						for (uint32_t i = 0; i < component::ComponentType::CT_Count; ++i) {
 							auto offset = m_header.offsets.firstByte_ComponentOffsets[i];
-							for (const auto componentOffset: componentOffsets[i]) {
+							for (const auto componentOffset: compOffs[i]) {
 								// unaligned_ref not necessary because data is aligned
 								*(archetype::ChunkComponentOffset*)&m_data[offset] = componentOffset;
 								offset += sizeof(archetype::ChunkComponentOffset);
@@ -117,32 +117,31 @@ namespace gaia {
 				\return Span of read-only component data.
 				*/
 				template <typename T>
-				GAIA_NODISCARD GAIA_FORCEINLINE auto View_Internal() const -> decltype(std::span<const uint8_t>{}) {
+				GAIA_NODISCARD GAIA_FORCEINLINE auto view_inter() const -> decltype(std::span<const uint8_t>{}) {
 					using U = typename component::component_type_t<T>::Type;
 
 					if constexpr (std::is_same_v<U, Entity>) {
-						return {&GetData(m_header.offsets.firstByte_EntityData), GetEntityCount()};
+						return {&data(m_header.offsets.firstByte_EntityData), size()};
 					} else {
 						static_assert(!std::is_empty_v<U>, "Attempting to get value of an empty component");
 
-						const auto componentId = component::GetComponentId<T>();
-						constexpr auto componentType = component::component_type_v<T>;
+						const auto componentId = component::comp_id<T>();
+						constexpr auto compType = component::component_type_v<T>;
 
 						// Find at what byte offset the first component of a given type is located
 						uint32_t componentIdx = 0;
-						const auto offset = FindDataOffset(componentType, componentId, componentIdx);
+						const auto offset = find_data_offset(compType, componentId, componentIdx);
 
-						if constexpr (componentType == component::ComponentType::CT_Generic) {
-							[[maybe_unused]] const auto capacity = GetEntityCapacity();
-							[[maybe_unused]] const auto maxOffset = offset + capacity * sizeof(U);
-							GAIA_ASSERT(maxOffset <= GetByteSize());
+						if constexpr (compType == component::ComponentType::CT_Generic) {
+							[[maybe_unused]] const auto maxOffset = offset + capacity() * sizeof(U);
+							GAIA_ASSERT(maxOffset <= bytes());
 
-							return {&GetData(offset), GetEntityCount()};
+							return {&data(offset), size()};
 						} else {
 							[[maybe_unused]] const auto maxOffset = offset + sizeof(U);
-							GAIA_ASSERT(maxOffset <= GetByteSize());
+							GAIA_ASSERT(maxOffset <= bytes());
 
-							return {&GetData(offset), 1};
+							return {&data(offset), 1};
 						}
 					}
 				}
@@ -155,7 +154,7 @@ namespace gaia {
 				\return Span of read-write component data.
 				*/
 				template <typename T, bool WorldVersionUpdateWanted>
-				GAIA_NODISCARD GAIA_FORCEINLINE auto ViewRW_Internal() -> decltype(std::span<uint8_t>{}) {
+				GAIA_NODISCARD GAIA_FORCEINLINE auto view_mut_inter() -> decltype(std::span<uint8_t>{}) {
 					using U = typename component::component_type_t<T>::Type;
 #if GAIA_COMPILER_MSVC && _MSC_VER <= 1916
 					// Workaround for MSVC 2017 bug where it incorrectly evaluates the static assert
@@ -167,28 +166,27 @@ namespace gaia {
 #endif
 					static_assert(!std::is_empty_v<U>, "Attempting to set value of an empty component");
 
-					const auto componentId = component::GetComponentId<T>();
-					constexpr auto componentType = component::component_type_v<T>;
+					const auto componentId = component::comp_id<T>();
+					constexpr auto compType = component::component_type_v<T>;
 
 					// Find at what byte offset the first component of a given type is located
 					uint32_t componentIdx = 0;
-					const auto offset = FindDataOffset(componentType, componentId, componentIdx);
+					const auto offset = find_data_offset(compType, componentId, componentIdx);
 
 					// Update version number if necessary so we know RW access was used on the chunk
 					if constexpr (WorldVersionUpdateWanted)
-						this->UpdateWorldVersion(componentType, componentIdx);
+						this->update_world_version(compType, componentIdx);
 
-					if constexpr (componentType == component::ComponentType::CT_Generic) {
-						[[maybe_unused]] const auto capacity = GetEntityCapacity();
-						[[maybe_unused]] const auto maxOffset = offset + capacity * sizeof(U);
-						GAIA_ASSERT(maxOffset <= GetByteSize());
+					if constexpr (compType == component::ComponentType::CT_Generic) {
+						[[maybe_unused]] const auto maxOffset = offset + capacity() * sizeof(U);
+						GAIA_ASSERT(maxOffset <= bytes());
 
-						return {&GetData(offset), GetEntityCount()};
+						return {&data(offset), size()};
 					} else {
 						[[maybe_unused]] const auto maxOffset = offset + sizeof(U);
-						GAIA_ASSERT(maxOffset <= GetByteSize());
+						GAIA_ASSERT(maxOffset <= bytes());
 
-						return {&GetData(offset), 1};
+						return {&data(offset), 1};
 					}
 				}
 
@@ -201,23 +199,23 @@ namespace gaia {
 				\return Value stored in the component if smaller than 8 bytes. Const reference to the value otherwise.
 				*/
 				template <typename T>
-				GAIA_NODISCARD auto GetComponent_Internal(uint32_t index) const {
+				GAIA_NODISCARD auto comp_inter(uint32_t index) const {
 					using U = typename component::component_type_t<T>::Type;
-					using RetValueType = decltype(View<T>()[0]);
+					using RetValueType = decltype(view<T>()[0]);
 
 					GAIA_ASSERT(index < m_header.count);
 					if constexpr (sizeof(RetValueType) > 8)
-						return (const U&)View<T>()[index];
+						return (const U&)view<T>()[index];
 					else
-						return View<T>()[index];
+						return view<T>()[index];
 				}
 
 				/*!
 				Removes the entity at from the chunk and updates the world versions
 				*/
-				void RemoveLastEntity_Internal() {
+				void remove_last_entity_inter() {
 					// Should never be called over an empty chunk
-					GAIA_ASSERT(HasEntities());
+					GAIA_ASSERT(has_entities());
 					--m_header.count;
 					--m_header.countEnabled;
 				}
@@ -229,12 +227,12 @@ namespace gaia {
 				Chunk& operator=(Chunk&& chunk) = delete;
 				~Chunk() = default;
 
-				static uint16_t GetTotalChunkSize(uint16_t dataSize) {
+				static uint16_t chunk_total_bytes(uint16_t dataSize) {
 					uint16_t header = (uint16_t)sizeof(ChunkHeader) + (uint16_t)MemoryBlockUsableOffset;
 					return header + dataSize;
 				}
 
-				static uint16_t GetChunkDataSize(uint16_t totalSize) {
+				static uint16_t chunk_data_bytes(uint16_t totalSize) {
 					uint16_t header = (uint16_t)sizeof(ChunkHeader) + (uint16_t)MemoryBlockUsableOffset;
 					return totalSize - header;
 				}
@@ -244,24 +242,24 @@ namespace gaia {
 				\param chunkIndex Index of this chunk within the parent archetype
 				\return Newly allocated chunk
 				*/
-				static Chunk* Create(
+				static Chunk* create(
 						uint32_t archetypeId, uint32_t chunkIndex, uint16_t capacity, uint16_t dataBytes, uint32_t& worldVersion,
 						const ChunkHeaderOffsets& offsets,
-						const cnt::sarray<ComponentIdArray, component::ComponentType::CT_Count>& componentIds,
-						const cnt::sarray<ComponentOffsetArray, component::ComponentType::CT_Count>& componentOffsets) {
-					const auto totalBytes = GetTotalChunkSize(dataBytes);
-					const auto sizeType = detail::ChunkAllocatorImpl::GetMemoryBlockSizeType(totalBytes);
+						const cnt::sarray<ComponentIdArray, component::ComponentType::CT_Count>& compIds,
+						const cnt::sarray<ComponentOffsetArray, component::ComponentType::CT_Count>& compOffs) {
+					const auto totalBytes = chunk_total_bytes(dataBytes);
+					const auto sizeType = detail::ChunkAllocatorImpl::mem_block_size_type(totalBytes);
 #if GAIA_ECS_CHUNK_ALLOCATOR
-					auto* pChunk = (Chunk*)ChunkAllocator::get().Allocate(totalBytes);
+					auto* pChunk = (Chunk*)ChunkAllocator::get().alloc(totalBytes);
 					new (pChunk) Chunk(archetypeId, chunkIndex, capacity, sizeType, worldVersion, offsets);
 #else
 					GAIA_ASSERT(totalBytes <= MaxMemoryBlockSize);
-					const auto allocSize = detail::ChunkAllocatorImpl::GetMemoryBlockSize(sizeType);
+					const auto allocSize = detail::ChunkAllocatorImpl::mem_block_size(sizeType);
 					auto* pChunkMem = new uint8_t[allocSize];
 					auto* pChunk = new (pChunkMem) Chunk(archetypeId, chunkIndex, capacity, sizeType, worldVersion, offsets);
 #endif
 
-					pChunk->Init(componentIds, componentOffsets);
+					pChunk->init(compIds, compOffs);
 
 					return pChunk;
 				}
@@ -270,18 +268,18 @@ namespace gaia {
 				Releases all memory allocated by \param pChunk.
 				\param pChunk Chunk which we want to destroy
 				*/
-				static void Release(Chunk* pChunk) {
+				static void free(Chunk* pChunk) {
 					GAIA_ASSERT(pChunk != nullptr);
 
 					// Call destructors for components that need it
-					if (pChunk->HasAnyCustomGenericDestructor())
-						pChunk->CallDestructors(component::ComponentType::CT_Generic, 0, pChunk->GetEntityCount());
-					if (pChunk->HasAnyCustomChunkDestructor())
-						pChunk->CallDestructors(component::ComponentType::CT_Chunk, 0, 1);
+					if (pChunk->has_custom_generic_dtor())
+						pChunk->call_dtors(component::ComponentType::CT_Generic, 0, pChunk->size());
+					if (pChunk->has_custom_chunk_dtor())
+						pChunk->call_dtors(component::ComponentType::CT_Chunk, 0, 1);
 
 #if GAIA_ECS_CHUNK_ALLOCATOR
 					pChunk->~Chunk();
-					ChunkAllocator::get().Release(pChunk);
+					ChunkAllocator::get().free(pChunk);
 #else
 					pChunk->~Chunk();
 					auto* pChunkMem = (uint8_t*)pChunk;
@@ -293,14 +291,14 @@ namespace gaia {
 				Remove the last entity from chunk.
 				\param chunksToRemove Container of chunks ready for removal
 				*/
-				void RemoveLastEntity(cnt::darray<archetype::Chunk*>& chunksToRemove) {
+				void remove_last_entity(cnt::darray<archetype::Chunk*>& chunksToRemove) {
 					GAIA_ASSERT(
-							!IsStructuralChangesLocked() && "Entities can't be removed while their chunk is being iterated "
-																							"(structural changes are forbidden during this time!)");
+							!has_structural_changes() && "Entities can't be removed while their chunk is being iterated "
+																					 "(structural changes are forbidden during this time!)");
 
-					RemoveLastEntity_Internal();
+					remove_last_entity_inter();
 
-					if (!IsDying() && !HasEntities()) {
+					if (!dying() && !has_entities()) {
 						// When the chunk is emptied we want it to be removed. We can't do it
 						// right away and need to wait for world's GC to be called.
 						//
@@ -313,17 +311,17 @@ namespace gaia {
 						// be removed. The chunk might be reclaimed before GC happens but it
 						// simply ignores such requests. This way GC always has at most one
 						// record for removal for any given chunk.
-						PrepareToDie();
+						prepare_to_die();
 
 						chunksToRemove.push_back(this);
 					}
 				}
 
 				//! Updates the version numbers for this chunk.
-				void UpdateVersions() {
-					UpdateVersion(m_header.worldVersion);
-					UpdateWorldVersion(component::ComponentType::CT_Generic);
-					UpdateWorldVersion(component::ComponentType::CT_Chunk);
+				void update_versions() {
+					update_version(m_header.worldVersion);
+					update_world_version(component::ComponentType::CT_Generic);
+					update_world_version(component::ComponentType::CT_Chunk);
 				}
 
 				/*!
@@ -333,10 +331,10 @@ namespace gaia {
 				\return Entity of component view with read-only access
 				*/
 				template <typename T>
-				GAIA_NODISCARD auto View() const {
+				GAIA_NODISCARD auto view() const {
 					using U = typename component::component_type_t<T>::Type;
 
-					return mem::auto_view_policy_get<U>{View_Internal<T>()};
+					return mem::auto_view_policy_get<U>{view_inter<T>()};
 				}
 
 				/*!
@@ -346,11 +344,11 @@ namespace gaia {
 				\return Entity or component view with read-write access
 				*/
 				template <typename T>
-				GAIA_NODISCARD auto ViewRW() {
+				GAIA_NODISCARD auto view_mut() {
 					using U = typename component::component_type_t<T>::Type;
 					static_assert(!std::is_same_v<U, Entity>);
 
-					return mem::auto_view_policy_set<U>{ViewRW_Internal<T, true>()};
+					return mem::auto_view_policy_set<U>{view_mut_inter<T, true>()};
 				}
 
 				/*!
@@ -361,25 +359,25 @@ namespace gaia {
 				\return Component view with read-write access
 				*/
 				template <typename T>
-				GAIA_NODISCARD auto ViewRWSilent() {
+				GAIA_NODISCARD auto sview_mut() {
 					using U = typename component::component_type_t<T>::Type;
 					static_assert(!std::is_same_v<U, Entity>);
 
-					return mem::auto_view_policy_set<U>{ViewRW_Internal<T, false>()};
+					return mem::auto_view_policy_set<U>{view_mut_inter<T, false>()};
 				}
 
 				/*!
 				Make \param entity a part of the chunk at the version of the world
 				\return Index of the entity within the chunk.
 				*/
-				GAIA_NODISCARD uint32_t AddEntity(Entity entity) {
+				GAIA_NODISCARD uint32_t add_entity(Entity entity) {
 					const auto index = m_header.count++;
 					++m_header.countEnabled;
-					SetEntity(index, entity);
+					set_entity(index, entity);
 
-					UpdateVersion(m_header.worldVersion);
-					UpdateWorldVersion(component::ComponentType::CT_Generic);
-					UpdateWorldVersion(component::ComponentType::CT_Chunk);
+					update_version(m_header.worldVersion);
+					update_world_version(component::ComponentType::CT_Generic);
+					update_world_version(component::ComponentType::CT_Chunk);
 
 					return index;
 				}
@@ -387,8 +385,8 @@ namespace gaia {
 				/*!
 				Copies all data associated with \param oldEntity into \param newEntity.
 				*/
-				static void CopyEntityData(Entity oldEntity, Entity newEntity, std::span<EntityContainer> entities) {
-					GAIA_PROF_SCOPE(CopyEntityData);
+				static void copy_entity_data(Entity oldEntity, Entity newEntity, std::span<EntityContainer> entities) {
+					GAIA_PROF_SCOPE(copy_entity_data);
 
 					auto& oldEntityContainer = entities[oldEntity.id()];
 					auto* pOldChunk = oldEntityContainer.pChunk;
@@ -396,15 +394,15 @@ namespace gaia {
 					auto& newEntityContainer = entities[newEntity.id()];
 					auto* pNewChunk = newEntityContainer.pChunk;
 
-					GAIA_ASSERT(pOldChunk->GetArchetypeId() == pNewChunk->GetArchetypeId());
+					GAIA_ASSERT(pOldChunk->archetype_id() == pNewChunk->archetype_id());
 
-					const auto& cc = ComponentCache::Get();
-					auto oldIds = pOldChunk->GetComponentIdSpan(component::ComponentType::CT_Generic);
-					auto oldOffs = pOldChunk->GetComponentOffsetSpan(component::ComponentType::CT_Generic);
+					const auto& cc = ComponentCache::get();
+					auto oldIds = pOldChunk->comp_id_view(component::ComponentType::CT_Generic);
+					auto oldOffs = pOldChunk->comp_offset_view(component::ComponentType::CT_Generic);
 
 					// Copy generic component data from reference entity to our new entity
 					for (uint32_t i = 0; i < oldIds.size(); ++i) {
-						const auto& desc = cc.GetComponentDesc(oldIds[i]);
+						const auto& desc = cc.comp_desc(oldIds[i]);
 						if (desc.properties.size == 0U)
 							continue;
 
@@ -412,33 +410,33 @@ namespace gaia {
 						const auto idxSrc = offset + desc.properties.size * (uint32_t)oldEntityContainer.idx;
 						const auto idxDst = offset + desc.properties.size * (uint32_t)newEntityContainer.idx;
 
-						GAIA_ASSERT(idxSrc < pOldChunk->GetByteSize());
-						GAIA_ASSERT(idxDst < pNewChunk->GetByteSize());
+						GAIA_ASSERT(idxSrc < pOldChunk->bytes());
+						GAIA_ASSERT(idxDst < pNewChunk->bytes());
 
-						auto* pSrc = (void*)&pOldChunk->GetData(idxSrc);
-						auto* pDst = (void*)&pNewChunk->GetData(idxDst);
-						desc.Copy(pSrc, pDst);
+						auto* pSrc = (void*)&pOldChunk->data(idxSrc);
+						auto* pDst = (void*)&pNewChunk->data(idxDst);
+						desc.copy(pSrc, pDst);
 					}
 				}
 
 				/*!
 				Moves all data associated with \param entity into the chunk so that it is stored at \param newEntityIdx.
 				*/
-				void MoveEntityData(Entity entity, uint32_t newEntityIdx, std::span<EntityContainer> entities) {
+				void move_entity_data(Entity entity, uint32_t newEntityIdx, std::span<EntityContainer> entities) {
 					GAIA_PROF_SCOPE(CopyEntityFrom);
 
 					auto& oldEntityContainer = entities[entity.id()];
 					auto* pOldChunk = oldEntityContainer.pChunk;
 
-					GAIA_ASSERT(pOldChunk->GetArchetypeId() == GetArchetypeId());
+					GAIA_ASSERT(pOldChunk->archetype_id() == archetype_id());
 
-					const auto& cc = ComponentCache::Get();
-					auto oldIds = pOldChunk->GetComponentIdSpan(component::ComponentType::CT_Generic);
-					auto oldOffs = pOldChunk->GetComponentOffsetSpan(component::ComponentType::CT_Generic);
+					const auto& cc = ComponentCache::get();
+					auto oldIds = pOldChunk->comp_id_view(component::ComponentType::CT_Generic);
+					auto oldOffs = pOldChunk->comp_offset_view(component::ComponentType::CT_Generic);
 
 					// Copy generic component data from reference entity to our new entity
 					for (uint32_t i = 0; i < oldIds.size(); ++i) {
-						const auto& desc = cc.GetComponentDesc(oldIds[i]);
+						const auto& desc = cc.comp_desc(oldIds[i]);
 						if (desc.properties.size == 0U)
 							continue;
 
@@ -446,33 +444,33 @@ namespace gaia {
 						const auto idxSrc = offset + desc.properties.size * (uint32_t)oldEntityContainer.idx;
 						const auto idxDst = offset + desc.properties.size * newEntityIdx;
 
-						GAIA_ASSERT(idxSrc < pOldChunk->GetByteSize());
-						GAIA_ASSERT(idxDst < GetByteSize());
+						GAIA_ASSERT(idxSrc < pOldChunk->bytes());
+						GAIA_ASSERT(idxDst < bytes());
 
-						auto* pSrc = (void*)&pOldChunk->GetData(idxSrc);
-						auto* pDst = (void*)&GetData(idxDst);
-						desc.CtorFrom(pSrc, pDst);
+						auto* pSrc = (void*)&pOldChunk->data(idxSrc);
+						auto* pDst = (void*)&data(idxDst);
+						desc.ctor_from(pSrc, pDst);
 					}
 				}
 
 				/*!
 				Moves all data associated with \param entity into the chunk so that it is stored at index \param newEntityIdx.
 				*/
-				void MoveForeignEntityData(Entity entity, uint32_t newEntityIdx, std::span<EntityContainer> entities) {
-					GAIA_PROF_SCOPE(MoveForeignEntityData);
+				void move_foreign_entity_data(Entity entity, uint32_t newEntityIdx, std::span<EntityContainer> entities) {
+					GAIA_PROF_SCOPE(move_foreign_entity_data);
 
 					auto& oldEntityContainer = entities[entity.id()];
 					auto* pOldChunk = oldEntityContainer.pChunk;
 
-					const auto& cc = ComponentCache::Get();
+					const auto& cc = ComponentCache::get();
 
 					// Find intersection of the two component lists.
 					// We ignore chunk components here because they should't be influenced
 					// by entities moving around.
-					auto oldIds = pOldChunk->GetComponentIdSpan(component::ComponentType::CT_Generic);
-					auto oldOffs = pOldChunk->GetComponentOffsetSpan(component::ComponentType::CT_Generic);
-					auto newIds = GetComponentIdSpan(component::ComponentType::CT_Generic);
-					auto newOffs = GetComponentOffsetSpan(component::ComponentType::CT_Generic);
+					auto oldIds = pOldChunk->comp_id_view(component::ComponentType::CT_Generic);
+					auto oldOffs = pOldChunk->comp_offset_view(component::ComponentType::CT_Generic);
+					auto newIds = comp_id_view(component::ComponentType::CT_Generic);
+					auto newOffs = comp_offset_view(component::ComponentType::CT_Generic);
 
 					// Arrays are sorted so we can do linear intersection lookup
 					{
@@ -487,17 +485,17 @@ namespace gaia {
 							const auto idxSrc = oldOffs[i] + desc.properties.size * (uint32_t)oldEntityContainer.idx;
 							const auto idxDst = newOffs[j] + desc.properties.size * newEntityIdx;
 
-							GAIA_ASSERT(idxSrc < pOldChunk->GetByteSize());
-							GAIA_ASSERT(idxDst < GetByteSize());
+							GAIA_ASSERT(idxSrc < pOldChunk->bytes());
+							GAIA_ASSERT(idxDst < bytes());
 
-							auto* pSrc = (void*)&pOldChunk->GetData(idxSrc);
-							auto* pDst = (void*)&GetData(idxDst);
-							desc.CtorFrom(pSrc, pDst);
+							auto* pSrc = (void*)&pOldChunk->data(idxSrc);
+							auto* pDst = (void*)&data(idxDst);
+							desc.ctor_from(pSrc, pDst);
 						};
 
 						while (i < oldIds.size() && j < newIds.size()) {
-							const auto& descOld = cc.GetComponentDesc(oldIds[i]);
-							const auto& descNew = cc.GetComponentDesc(newIds[j]);
+							const auto& descOld = cc.comp_desc(oldIds[i]);
+							const auto& descNew = cc.comp_desc(newIds[j]);
 
 							if (&descOld == &descNew) {
 								moveData(descOld);
@@ -517,29 +515,29 @@ namespace gaia {
 				Upon removal, all associated data is also removed.
 				If the entity at the given index already is the last chunk entity, it is removed directly.
 				*/
-				void RemoveChunkEntity(uint32_t index, std::span<EntityContainer> entities) {
-					GAIA_PROF_SCOPE(RemoveChunkEntity);
+				void remove_chunk_entity(uint32_t index, std::span<EntityContainer> entities) {
+					GAIA_PROF_SCOPE(remove_chunk_entity);
 
 					const auto left = index;
 					const auto right = (uint32_t)m_header.count - 1;
 					// The "left" entity is the one we are going to destroy so it needs to preceed the "right"
 					GAIA_ASSERT(left <= right);
 
-					const auto& cc = ComponentCache::Get();
+					const auto& cc = ComponentCache::get();
 
 					// There must be at least 2 entities inside to swap
 					if GAIA_LIKELY (left < right) {
 						GAIA_ASSERT(m_header.count > 1);
 
 						// Update entity index inside chunk
-						const auto entity = GetEntity(right);
-						SetEntity(left, entity);
+						const auto entity = get_entity(right);
+						set_entity(left, entity);
 
-						auto compIds = GetComponentIdSpan(component::ComponentType::CT_Generic);
-						auto compOffs = GetComponentOffsetSpan(component::ComponentType::CT_Generic);
+						auto compIds = comp_id_view(component::ComponentType::CT_Generic);
+						auto compOffs = comp_offset_view(component::ComponentType::CT_Generic);
 
 						for (uint32_t i = 0; i < compIds.size(); ++i) {
-							const auto& desc = cc.GetComponentDesc(compIds[i]);
+							const auto& desc = cc.comp_desc(compIds[i]);
 							if (desc.properties.size == 0U)
 								continue;
 
@@ -547,14 +545,14 @@ namespace gaia {
 							const auto idxSrc = offset + left * desc.properties.size;
 							const auto idxDst = offset + right * desc.properties.size;
 
-							GAIA_ASSERT(idxSrc < GetByteSize());
-							GAIA_ASSERT(idxDst < GetByteSize());
+							GAIA_ASSERT(idxSrc < bytes());
+							GAIA_ASSERT(idxDst < bytes());
 							GAIA_ASSERT(idxSrc != idxDst);
 
 							auto* pSrc = (void*)&m_data[idxSrc];
 							auto* pDst = (void*)&m_data[idxDst];
-							desc.Move(pSrc, pDst);
-							desc.Dtor(pSrc);
+							desc.move(pSrc, pDst);
+							desc.dtor(pSrc);
 						}
 
 						// Entity has been replaced with the last one in our chunk.
@@ -563,21 +561,21 @@ namespace gaia {
 						entityContainer.idx = left;
 						entityContainer.gen = entity.gen();
 					} else {
-						auto compIds = GetComponentIdSpan(component::ComponentType::CT_Generic);
-						auto compOffs = GetComponentOffsetSpan(component::ComponentType::CT_Generic);
+						auto compIds = comp_id_view(component::ComponentType::CT_Generic);
+						auto compOffs = comp_offset_view(component::ComponentType::CT_Generic);
 
 						for (uint32_t i = 0; i < compIds.size(); ++i) {
-							const auto& desc = cc.GetComponentDesc(compIds[i]);
+							const auto& desc = cc.comp_desc(compIds[i]);
 							if (desc.properties.size == 0U)
 								continue;
 
 							const auto offset = compOffs[i];
 							const auto idxSrc = offset + left * desc.properties.size;
 
-							GAIA_ASSERT(idxSrc < GetByteSize());
+							GAIA_ASSERT(idxSrc < bytes());
 
 							auto* pSrc = (void*)&m_data[idxSrc];
-							desc.Dtor(pSrc);
+							desc.dtor(pSrc);
 						}
 					}
 				}
@@ -588,9 +586,9 @@ namespace gaia {
 				If \param left equals \param right no swapping is performed.
 				\warning "Left" must he smaller or equal to "right"
 				*/
-				void SwapChunkEntities(uint32_t left, uint32_t right, std::span<EntityContainer> entities) {
+				void swap_chunk_entities(uint32_t left, uint32_t right, std::span<EntityContainer> entities) {
 					// The "left" entity is the one we are going to destroy so it needs to preceed the "right".
-					// Unlike RemoveChunkEntity, it is not technically necessary but we do it
+					// Unlike remove_chunk_entity, it is not technically necessary but we do it
 					// anyway for the sake of consistency.
 					GAIA_ASSERT(left <= right);
 
@@ -603,17 +601,17 @@ namespace gaia {
 					GAIA_PROF_SCOPE(SwapEntitiesInsideChunk);
 
 					// Update entity indices inside chunk
-					const auto entityLeft = GetEntity(left);
-					const auto entityRight = GetEntity(right);
-					SetEntity(left, entityRight);
-					SetEntity(right, entityLeft);
+					const auto entityLeft = get_entity(left);
+					const auto entityRight = get_entity(right);
+					set_entity(left, entityRight);
+					set_entity(right, entityLeft);
 
-					const auto& cc = ComponentCache::Get();
-					auto compIds = GetComponentIdSpan(component::ComponentType::CT_Generic);
-					auto compOffs = GetComponentOffsetSpan(component::ComponentType::CT_Generic);
+					const auto& cc = ComponentCache::get();
+					auto compIds = comp_id_view(component::ComponentType::CT_Generic);
+					auto compOffs = comp_offset_view(component::ComponentType::CT_Generic);
 
 					for (uint32_t i = 0; i < compIds.size(); ++i) {
-						const auto& desc = cc.GetComponentDesc(compIds[i]);
+						const auto& desc = cc.comp_desc(compIds[i]);
 						if (desc.properties.size == 0U)
 							continue;
 
@@ -621,13 +619,13 @@ namespace gaia {
 						const auto idxSrc = offset + left * desc.properties.size;
 						const auto idxDst = offset + right * desc.properties.size;
 
-						GAIA_ASSERT(idxSrc < GetByteSize());
-						GAIA_ASSERT(idxDst < GetByteSize());
+						GAIA_ASSERT(idxSrc < bytes());
+						GAIA_ASSERT(idxDst < bytes());
 						GAIA_ASSERT(idxSrc != idxDst);
 
 						auto* pSrc = (void*)&m_data[idxSrc];
 						auto* pDst = (void*)&m_data[idxDst];
-						desc.Swap(pSrc, pDst);
+						desc.swap(pSrc, pDst);
 					}
 
 					// Entities were swapped. Update their entity container records.
@@ -647,7 +645,7 @@ namespace gaia {
 				\param index Index of the entity
 				\param entity Entity to store in the chunk
 				*/
-				void SetEntity(uint32_t index, Entity entity) {
+				void set_entity(uint32_t index, Entity entity) {
 					GAIA_ASSERT(index < m_header.count && "Entity chunk index out of bounds!");
 
 					const auto offset = sizeof(Entity) * index + m_header.offsets.firstByte_EntityData;
@@ -661,7 +659,7 @@ namespace gaia {
 				\param index Index of the entity
 				\return Entity on a given index within the chunk.
 				*/
-				GAIA_NODISCARD Entity GetEntity(uint32_t index) const {
+				GAIA_NODISCARD Entity get_entity(uint32_t index) const {
 					GAIA_ASSERT(index < m_header.count && "Entity chunk index out of bounds!");
 
 					const auto offset = sizeof(Entity) * index + m_header.offsets.firstByte_EntityData;
@@ -675,35 +673,35 @@ namespace gaia {
 				\param index Index of the entity
 				\param enableEntity Enables or disabled the entity
 				*/
-				void EnableEntity(uint32_t index, bool enableEntity, std::span<EntityContainer> entities) {
+				void enable_entity(uint32_t index, bool enableEntity, std::span<EntityContainer> entities) {
 					GAIA_ASSERT(index < m_header.count && "Entity chunk index out of bounds!");
 
 					if (enableEntity) {
 						// Nothing to enable if there are no disabled entities
-						if (!m_header.HasDisabledEntities())
+						if (!m_header.has_disabled_entities())
 							return;
 						// Trying to enable an already enabled entity
-						if (IsEntityEnabled(index))
+						if (enabled(index))
 							return;
 						// Try swapping our entity with the last disabled one
-						SwapChunkEntities(--m_header.firstEnabledEntityIndex, index, entities);
-						entities[GetEntity(index).id()].dis = 0;
+						swap_chunk_entities(--m_header.firstEnabledEntityIndex, index, entities);
+						entities[get_entity(index).id()].dis = 0;
 						++m_header.countEnabled;
 					} else {
 						// Nothing to disable if there are no enabled entities
-						if (!m_header.HasEnabledEntities())
+						if (!m_header.has_enabled_entities())
 							return;
 						// Trying to disable an already disabled entity
-						if (!IsEntityEnabled(index))
+						if (!enabled(index))
 							return;
 						// Try swapping our entity with the last one in our chunk
-						SwapChunkEntities(m_header.firstEnabledEntityIndex++, index, entities);
-						entities[GetEntity(index).id()].dis = 1;
+						swap_chunk_entities(m_header.firstEnabledEntityIndex++, index, entities);
+						entities[get_entity(index).id()].dis = 1;
 						--m_header.countEnabled;
 					}
 				}
 
-				bool IsEntityEnabled(uint32_t index) const {
+				bool enabled(uint32_t index) const {
 					GAIA_ASSERT(m_header.count > 0);
 
 					return index >= (uint32_t)m_header.firstEnabledEntityIndex;
@@ -714,7 +712,7 @@ namespace gaia {
 				\param offset Offset into chunk data
 				\return Pointer to chunk data.
 				*/
-				uint8_t& GetData(uint32_t offset) {
+				uint8_t& data(uint32_t offset) {
 					return m_data[offset];
 				}
 
@@ -723,26 +721,26 @@ namespace gaia {
 				\param offset Offset into chunk data
 				\return Pointer to chunk data.
 				*/
-				const uint8_t& GetData(uint32_t offset) const {
+				const uint8_t& data(uint32_t offset) const {
 					return m_data[offset];
 				}
 
 				/*!
 				Returns an offset to chunk data at which the component is stored.
 				\warning It is expected the component with \param componentId is present. Undefined behavior otherwise.
-				\param componentType Component type
+				\param compType Component type
 				\param componentId Component id
 				\param componentIdx Index of the component in this chunk's component array
 				\return Offset from the start of chunk data area.
 				*/
-				GAIA_NODISCARD ChunkComponentOffset FindDataOffset(
-						component::ComponentType componentType, component::ComponentId componentId, uint32_t& componentIdx) const {
+				GAIA_NODISCARD ChunkComponentOffset find_data_offset(
+						component::ComponentType compType, component::ComponentId componentId, uint32_t& componentIdx) const {
 					// Don't use this with empty components. It's impossible to write to them anyway.
-					GAIA_ASSERT(ComponentCache::Get().GetComponentDesc(componentId).properties.size != 0);
+					GAIA_ASSERT(ComponentCache::get().comp_desc(componentId).properties.size != 0);
 
-					componentIdx = GetComponentIdx(componentType, componentId);
+					componentIdx = comp_idx(compType, componentId);
 
-					auto compOffs = GetComponentOffsetSpan(componentType);
+					auto compOffs = comp_offset_view(compType);
 					const auto offset = compOffs[componentIdx];
 					GAIA_ASSERT(offset >= m_header.offsets.firstByte_EntityData);
 					return offset;
@@ -751,112 +749,111 @@ namespace gaia {
 				/*!
 				Returns an offset to chunk data at which the component is stored.
 				\warning It is expected the component with \param componentId is present. Undefined behavior otherwise.
-				\param componentType Component type
+				\param compType Component type
 				\param componentId Component id
 				\return Offset from the start of chunk data area.
 				*/
 				GAIA_NODISCARD GAIA_FORCEINLINE ChunkComponentOffset
-				FindDataOffset(component::ComponentType componentType, component::ComponentId componentId) const {
+				find_data_offset(component::ComponentType compType, component::ComponentId componentId) const {
 					[[maybe_unused]] uint32_t componentIdx = 0;
-					return FindDataOffset(componentType, componentId, componentIdx);
+					return find_data_offset(compType, componentId, componentIdx);
 				}
 
 				//----------------------------------------------------------------------
 				// Component handling
 				//----------------------------------------------------------------------
 
-				bool HasAnyCustomGenericConstructor() const {
+				bool has_custom_generic_ctor() const {
 					return m_header.hasAnyCustomGenericCtor;
 				}
 
-				bool HasAnyCustomChunkConstructor() const {
+				bool has_custom_chunk_ctor() const {
 					return m_header.hasAnyCustomChunkCtor;
 				}
 
-				bool HasAnyCustomGenericDestructor() const {
+				bool has_custom_generic_dtor() const {
 					return m_header.hasAnyCustomGenericDtor;
 				}
 
-				bool HasAnyCustomChunkDestructor() const {
+				bool has_custom_chunk_dtor() const {
 					return m_header.hasAnyCustomChunkDtor;
 				}
 
-				void CallConstructor(
-						component::ComponentType componentType, component::ComponentId componentId, uint32_t entityIndex) {
-					GAIA_PROF_SCOPE(CallConstructor);
+				void call_ctor(component::ComponentType compType, component::ComponentId componentId, uint32_t entIdx) {
+					GAIA_PROF_SCOPE(call_ctor);
 
 					// Make sure only generic types are used with indices
-					GAIA_ASSERT(componentType == component::ComponentType::CT_Generic || entityIndex == 0);
+					GAIA_ASSERT(compType == component::ComponentType::CT_Generic || entIdx == 0);
 
-					const auto& cc = ComponentCache::Get();
-					const auto& desc = cc.GetComponentDesc(componentId);
-					if (desc.ctor == nullptr)
+					const auto& cc = ComponentCache::get();
+					const auto& desc = cc.comp_desc(componentId);
+					if (desc.func_ctor == nullptr)
 						return;
 
-					const auto idx = GetComponentIdx(componentType, componentId);
+					const auto idx = comp_idx(compType, componentId);
 
-					auto compOffs = GetComponentOffsetSpan(componentType);
+					auto compOffs = comp_offset_view(compType);
 					const auto offset = compOffs[idx];
-					const auto idxSrc = offset + entityIndex * desc.properties.size;
-					GAIA_ASSERT(idxSrc < GetByteSize());
+					const auto idxSrc = offset + entIdx * desc.properties.size;
+					GAIA_ASSERT(idxSrc < bytes());
 
 					auto* pSrc = (void*)&m_data[idxSrc];
-					desc.ctor(pSrc, 1);
+					desc.func_ctor(pSrc, 1);
 				}
 
-				void CallConstructors(component::ComponentType componentType, uint32_t entityIndex, uint32_t entityCount) {
-					GAIA_PROF_SCOPE(CallConstructors);
+				void call_ctors(component::ComponentType compType, uint32_t entIdx, uint32_t entCnt) {
+					GAIA_PROF_SCOPE(call_ctors);
 
 					GAIA_ASSERT(
-							componentType == component::ComponentType::CT_Generic && HasAnyCustomGenericConstructor() ||
-							componentType == component::ComponentType::CT_Chunk && HasAnyCustomChunkConstructor());
+							compType == component::ComponentType::CT_Generic && has_custom_generic_ctor() ||
+							compType == component::ComponentType::CT_Chunk && has_custom_chunk_ctor());
 
 					// Make sure only generic types are used with indices
-					GAIA_ASSERT(componentType == component::ComponentType::CT_Generic || (entityIndex == 0 && entityCount == 1));
+					GAIA_ASSERT(compType == component::ComponentType::CT_Generic || (entIdx == 0 && entCnt == 1));
 
-					const auto& cc = ComponentCache::Get();
-					auto compIds = GetComponentIdSpan(componentType);
-					auto compOffs = GetComponentOffsetSpan(componentType);
+					const auto& cc = ComponentCache::get();
+					auto compIds = comp_id_view(compType);
+					auto compOffs = comp_offset_view(compType);
 
 					for (uint32_t i = 0; i < compIds.size(); ++i) {
-						const auto& desc = cc.GetComponentDesc(compIds[i]);
-						if (desc.ctor == nullptr)
+						const auto& desc = cc.comp_desc(compIds[i]);
+						if (desc.func_ctor == nullptr)
 							continue;
 
 						const auto offset = compOffs[i];
-						const auto idxSrc = offset + entityIndex * desc.properties.size;
-						GAIA_ASSERT(idxSrc < GetByteSize());
+						const auto idxSrc = offset + entIdx * desc.properties.size;
+						GAIA_ASSERT(idxSrc < bytes());
 
 						auto* pSrc = (void*)&m_data[idxSrc];
-						desc.ctor(pSrc, entityCount);
+						desc.func_ctor(pSrc, entCnt);
 					}
 				}
 
-				void CallDestructors(component::ComponentType componentType, uint32_t entityIndex, uint32_t entityCount) {
-					GAIA_PROF_SCOPE(CallDestructors);
+				void call_dtors(component::ComponentType compType, uint32_t entIdx, uint32_t entCnt) {
+					GAIA_PROF_SCOPE(call_dtors);
 
 					GAIA_ASSERT(
-							componentType == component::ComponentType::CT_Generic && HasAnyCustomGenericDestructor() ||
-							componentType == component::ComponentType::CT_Chunk && HasAnyCustomChunkDestructor());
+							compType == component::ComponentType::CT_Generic && has_custom_generic_dtor() ||
+							compType == component::ComponentType::CT_Chunk && has_custom_chunk_dtor());
 
 					// Make sure only generic types are used with indices
-					GAIA_ASSERT(componentType == component::ComponentType::CT_Generic || (entityIndex == 0 && entityCount == 1));
+					GAIA_ASSERT(compType == component::ComponentType::CT_Generic || (entIdx == 0 && entCnt == 1));
 
-					const auto& cc = ComponentCache::Get();
-					auto compIds = GetComponentIdSpan(componentType);
-					auto compOffs = GetComponentOffsetSpan(componentType);
+					const auto& cc = ComponentCache::get();
+					auto compIds = comp_id_view(compType);
+					auto compOffs = comp_offset_view(compType);
 
 					for (uint32_t i = 0; i < compIds.size(); ++i) {
-						const auto& desc = cc.GetComponentDesc(compIds[i]);
-						if (desc.dtor == nullptr)
+						const auto& desc = cc.comp_desc(compIds[i]);
+						if (desc.func_dtor == nullptr)
 							continue;
 
 						const auto offset = compOffs[i];
-						const auto idxSrc = offset + entityIndex * desc.properties.size;
-						GAIA_ASSERT(idxSrc < GetByteSize());
+						const auto idxSrc = offset + entIdx * desc.properties.size;
+						GAIA_ASSERT(idxSrc < bytes());
 
 						auto* pSrc = (void*)&m_data[idxSrc];
-						desc.dtor(pSrc, entityCount);
+						desc.func_dtor(pSrc, entCnt);
 					}
 				};
 
@@ -865,13 +862,13 @@ namespace gaia {
 				//----------------------------------------------------------------------
 
 				/*!
-				Checks if a component with \param componentId and type \param componentType is present in the chunk.
+				Checks if a component with \param componentId and type \param compType is present in the chunk.
 				\param componentId Component id
-				\param componentType Component type
+				\param compType Component type
 				\return True if found. False otherwise.
 				*/
-				GAIA_NODISCARD bool Has(component::ComponentType componentType, component::ComponentId componentId) const {
-					auto compIds = GetComponentIdSpan(componentType);
+				GAIA_NODISCARD bool has(component::ComponentType compType, component::ComponentId componentId) const {
+					auto compIds = comp_id_view(compType);
 					return core::has(compIds, componentId);
 				}
 
@@ -881,11 +878,11 @@ namespace gaia {
 				\return True if the component is present. False otherwise.
 				*/
 				template <typename T>
-				GAIA_NODISCARD bool Has() const {
-					const auto componentId = component::GetComponentId<T>();
+				GAIA_NODISCARD bool has() const {
+					const auto componentId = component::comp_id<T>();
 
-					constexpr auto componentType = component::component_type_v<T>;
-					return Has(componentType, componentId);
+					constexpr auto compType = component::component_type_v<T>;
+					return has(compType, componentId);
 				}
 
 				//----------------------------------------------------------------------
@@ -900,16 +897,16 @@ namespace gaia {
 				\param value Value to set for the component
 				*/
 				template <typename T, typename U = typename component::component_type_t<T>::Type>
-				U& Set(uint32_t index) {
+				U& set(uint32_t index) {
 					static_assert(
 							component::component_type_v<T> == component::ComponentType::CT_Generic,
 							"Set providing an index can only be used with generic components");
 
 					// Update the world version
-					UpdateVersion(m_header.worldVersion);
+					update_version(m_header.worldVersion);
 
 					GAIA_ASSERT(index < m_header.capacity);
-					return ViewRW<T>()[index];
+					return view_mut<T>()[index];
 				}
 
 				/*!
@@ -920,12 +917,12 @@ namespace gaia {
 				\param value Value to set for the component
 				*/
 				template <typename T, typename U = typename component::component_type_t<T>::Type>
-				U& Set() {
+				U& set() {
 					// Update the world version
-					UpdateVersion(m_header.worldVersion);
+					update_version(m_header.worldVersion);
 
 					GAIA_ASSERT(0 < m_header.capacity);
-					return ViewRW<T>()[0];
+					return view_mut<T>()[0];
 				}
 
 				/*!
@@ -936,16 +933,16 @@ namespace gaia {
 				\param value Value to set for the component
 				*/
 				template <typename T, typename U = typename component::component_type_t<T>::Type>
-				void Set(uint32_t index, U&& value) {
+				void set(uint32_t index, U&& value) {
 					static_assert(
 							component::component_type_v<T> == component::ComponentType::CT_Generic,
 							"Set providing an index can only be used with generic components");
 
 					// Update the world version
-					UpdateVersion(m_header.worldVersion);
+					update_version(m_header.worldVersion);
 
 					GAIA_ASSERT(index < m_header.capacity);
-					ViewRW<T>()[index] = std::forward<U>(value);
+					view_mut<T>()[index] = std::forward<U>(value);
 				}
 
 				/*!
@@ -955,16 +952,16 @@ namespace gaia {
 				\param value Value to set for the component
 				*/
 				template <typename T, typename U = typename component::component_type_t<T>::Type>
-				void Set(U&& value) {
+				void set(U&& value) {
 					static_assert(
 							component::component_type_v<T> != component::ComponentType::CT_Generic,
 							"Set not providing an index can only be used with non-generic components");
 
 					// Update the world version
-					UpdateVersion(m_header.worldVersion);
+					update_version(m_header.worldVersion);
 
 					GAIA_ASSERT(0 < m_header.capacity);
-					ViewRW<T>()[0] = std::forward<U>(value);
+					view_mut<T>()[0] = std::forward<U>(value);
 				}
 
 				/*!
@@ -976,13 +973,13 @@ namespace gaia {
 				\param value Value to set for the component
 				*/
 				template <typename T, typename U = typename component::component_type_t<T>::Type>
-				void SetSilent(uint32_t index, U&& value) {
+				void sset(uint32_t index, U&& value) {
 					static_assert(
 							component::component_type_v<T> == component::ComponentType::CT_Generic,
 							"SetSilent providing an index can only be used with generic components");
 
 					GAIA_ASSERT(index < m_header.capacity);
-					ViewRWSilent<T>()[index] = std::forward<U>(value);
+					sview_mut<T>()[index] = std::forward<U>(value);
 				}
 
 				/*!
@@ -993,13 +990,13 @@ namespace gaia {
 				\param value Value to set for the component
 				*/
 				template <typename T, typename U = typename component::component_type_t<T>::Type>
-				void SetSilent(U&& value) {
+				void sset(U&& value) {
 					static_assert(
 							component::component_type_v<T> != component::ComponentType::CT_Generic,
 							"SetSilent not providing an index can only be used with non-generic components");
 
 					GAIA_ASSERT(0 < m_header.capacity);
-					ViewRWSilent<T>()[0] = std::forward<U>(value);
+					sview_mut<T>()[0] = std::forward<U>(value);
 				}
 
 				//----------------------------------------------------------------------
@@ -1015,12 +1012,12 @@ namespace gaia {
 				\return Value stored in the component.
 				*/
 				template <typename T>
-				GAIA_NODISCARD auto Get(uint32_t index) const {
+				GAIA_NODISCARD auto get(uint32_t index) const {
 					static_assert(
 							component::component_type_v<T> == component::ComponentType::CT_Generic,
 							"Get providing an index can only be used with generic components");
 
-					return GetComponent_Internal<T>(index);
+					return comp_inter<T>(index);
 				}
 
 				/*!
@@ -1030,22 +1027,21 @@ namespace gaia {
 				\return Value stored in the component.
 				*/
 				template <typename T>
-				GAIA_NODISCARD auto Get() const {
+				GAIA_NODISCARD auto get() const {
 					static_assert(
 							component::component_type_v<T> != component::ComponentType::CT_Generic,
 							"Get not providing an index can only be used with non-generic components");
 
-					return GetComponent_Internal<T>(0);
+					return comp_inter<T>(0);
 				}
 
 				/*!
 				Returns the internal index of a component based on the provided \param componentId.
-				\param componentType Component type
+				\param compType Component type
 				\return Component index if the component was found. -1 otherwise.
 				*/
-				GAIA_NODISCARD uint32_t
-				GetComponentIdx(component::ComponentType componentType, component::ComponentId componentId) const {
-					auto compIds = GetComponentIdSpan(componentType);
+				GAIA_NODISCARD uint32_t comp_idx(component::ComponentType compType, component::ComponentId componentId) const {
+					auto compIds = comp_id_view(compType);
 					const auto idx = core::get_index_unsafe(compIds, componentId);
 					GAIA_ASSERT(idx != BadIndex);
 					return idx;
@@ -1056,20 +1052,20 @@ namespace gaia {
 				//----------------------------------------------------------------------
 
 				template <typename T>
-				GAIA_NODISCARD constexpr GAIA_FORCEINLINE auto GetComponentView() {
+				GAIA_NODISCARD constexpr GAIA_FORCEINLINE auto comp_view() {
 					using U = typename component::component_type_t<T>::Type;
 					using UOriginal = typename component::component_type_t<T>::TypeOriginal;
 					if constexpr (component::is_component_mut_v<UOriginal>) {
-						auto s = ViewRW_Internal<U, true>();
+						auto s = view_mut_inter<U, true>();
 						return std::span{(U*)s.data(), s.size()};
 					} else {
-						auto s = View_Internal<U>();
+						auto s = view_inter<U>();
 						return std::span{(const U*)s.data(), s.size()};
 					}
 				}
 
 				template <typename... T, typename Func>
-				GAIA_FORCEINLINE void ForEach([[maybe_unused]] core::func_type_list<T...> types, Func func) {
+				GAIA_FORCEINLINE void each([[maybe_unused]] core::func_type_list<T...> types, Func func) {
 					const uint32_t idxFrom = m_header.firstEnabledEntityIndex;
 					const uint32_t idxStop = m_header.count;
 					GAIA_ASSERT(idxStop > idxFrom);
@@ -1077,11 +1073,11 @@ namespace gaia {
 
 					if constexpr (sizeof...(T) > 0) {
 						// Pointers to the respective component types in the chunk, e.g
-						// 		q.ForEach([&](Position& p, const Velocity& v) {...}
+						// 		q.each([&](Position& p, const Velocity& v) {...}
 						// Translates to:
-						//  	auto p = iter.ViewRW_Internal<Position, true>();
-						//		auto v = iter.View_Internal<Velocity>();
-						auto dataPointerTuple = std::make_tuple(GetComponentView<T>()...);
+						//  	auto p = iter.view_mut_inter<Position, true>();
+						//		auto v = iter.view_inter<Velocity>();
+						auto dataPointerTuple = std::make_tuple(comp_view<T>()...);
 
 						// Iterate over each entity in the chunk.
 						// Translates to:
@@ -1089,7 +1085,7 @@ namespace gaia {
 						//			func(p[i], v[i]);
 
 						for (uint32_t i = idxFrom; i < idxStop; ++i)
-							func(std::get<decltype(GetComponentView<T>())>(dataPointerTuple)[i]...);
+							func(std::get<decltype(comp_view<T>())>(dataPointerTuple)[i]...);
 					} else {
 						// No functor parameters. Do an empty loop.
 						for (uint32_t i = idxFrom; i < idxStop; ++i)
@@ -1099,46 +1095,46 @@ namespace gaia {
 
 				//----------------------------------------------------------------------
 
-				GAIA_NODISCARD ArchetypeId GetArchetypeId() const {
+				GAIA_NODISCARD ArchetypeId archetype_id() const {
 					return m_header.archetypeId;
 				}
 
 				//! Sets the index of this chunk in its archetype's storage
-				void SetChunkIndex(uint32_t value) {
+				void set_idx(uint32_t value) {
 					m_header.index = value;
 				}
 
 				//! Returns the index of this chunk in its archetype's storage
-				GAIA_NODISCARD uint32_t GetChunkIndex() const {
+				GAIA_NODISCARD uint32_t idx() const {
 					return m_header.index;
 				}
 
 				//! Checks is this chunk has any enabled entities
-				GAIA_NODISCARD bool HasEnabledEntities() const {
-					return m_header.HasEnabledEntities();
+				GAIA_NODISCARD bool has_enabled_entities() const {
+					return m_header.has_enabled_entities();
 				}
 
 				//! Checks is this chunk has any disabled entities
-				GAIA_NODISCARD bool HasDisabledEntities() const {
-					return m_header.HasDisabledEntities();
+				GAIA_NODISCARD bool has_disabled_entities() const {
+					return m_header.has_disabled_entities();
 				}
 
 				//! Checks is this chunk is dying
-				GAIA_NODISCARD bool IsDying() const {
+				GAIA_NODISCARD bool dying() const {
 					return m_header.lifespanCountdown > 0;
 				}
 
-				void PrepareToDie() {
+				void prepare_to_die() {
 					m_header.lifespanCountdown = ChunkHeader::MAX_CHUNK_LIFESPAN;
 				}
 
-				bool ProgressDeath() {
-					GAIA_ASSERT(IsDying());
+				bool progress_death() {
+					GAIA_ASSERT(dying());
 					--m_header.lifespanCountdown;
-					return IsDying();
+					return dying();
 				}
 
-				void SetStructuralChanges(bool value) {
+				void set_structural_changes(bool value) {
 					if (value) {
 						GAIA_ASSERT(m_header.structuralChangesLocked < 16);
 						++m_header.structuralChangesLocked;
@@ -1148,93 +1144,90 @@ namespace gaia {
 					}
 				}
 
-				bool IsStructuralChangesLocked() const {
+				bool has_structural_changes() const {
 					return m_header.structuralChangesLocked != 0;
 				}
 
 				//! Checks is the full capacity of the has has been reached
-				GAIA_NODISCARD bool IsFull() const {
+				GAIA_NODISCARD bool full() const {
 					return m_header.count >= m_header.capacity;
 				}
 
 				//! Checks is the chunk is semi-full.
-				GAIA_NODISCARD bool IsSemiFull() const {
+				GAIA_NODISCARD bool is_semi() const {
 					constexpr float Threshold = 0.7f;
 					return ((float)m_header.count / (float)m_header.capacity) < Threshold;
 				}
 
 				//! Checks is there are any entities in the chunk
-				GAIA_NODISCARD bool HasEntities() const {
+				GAIA_NODISCARD bool has_entities() const {
 					return m_header.count > 0;
 				}
 
 				//! Returns the total number of entities in the chunk (both enabled and disabled)
-				GAIA_NODISCARD uint32_t GetEntityCount() const {
+				GAIA_NODISCARD uint32_t size() const {
 					return m_header.count;
 				}
 
 				//! Return the number of entities in the chunk which are enabled
-				GAIA_NODISCARD uint32_t GetEnabledEntityCount() const {
+				GAIA_NODISCARD uint32_t size_enabled() const {
 					return m_header.countEnabled;
 				}
 
 				//! Return the number of entities in the chunk which are enabled
-				GAIA_NODISCARD uint32_t GetDisabledEntityCount() const {
+				GAIA_NODISCARD uint32_t size_disabled() const {
 					return m_header.firstEnabledEntityIndex;
 				}
 
 				//! Returns the number of entities in the chunk
-				GAIA_NODISCARD uint32_t GetEntityCapacity() const {
+				GAIA_NODISCARD uint32_t capacity() const {
 					return m_header.capacity;
 				}
 
-				GAIA_NODISCARD uint32_t GetByteSize() const {
-					return detail::ChunkAllocatorImpl::GetMemoryBlockSize(m_header.sizeType);
+				GAIA_NODISCARD uint32_t bytes() const {
+					return detail::ChunkAllocatorImpl::mem_block_size(m_header.sizeType);
 				}
 
-				GAIA_NODISCARD std::span<uint32_t> GetComponentVersionSpan(component::ComponentType componentType) const {
-					const auto offset = m_header.offsets.firstByte_Versions[componentType];
-					return {(uint32_t*)(&m_data[offset]), m_header.componentCount[componentType]};
+				GAIA_NODISCARD std::span<uint32_t> comp_version_view(component::ComponentType compType) const {
+					const auto offset = m_header.offsets.firstByte_Versions[compType];
+					return {(uint32_t*)(&m_data[offset]), m_header.componentCount[compType]};
 				}
 
-				GAIA_NODISCARD std::span<const component::ComponentId>
-				GetComponentIdSpan(component::ComponentType componentType) const {
+				GAIA_NODISCARD std::span<const component::ComponentId> comp_id_view(component::ComponentType compType) const {
 					using RetType = std::add_pointer_t<const component::ComponentId>;
-					const auto offset = m_header.offsets.firstByte_ComponentIds[componentType];
-					return {(RetType)&m_data[offset], m_header.componentCount[componentType]};
+					const auto offset = m_header.offsets.firstByte_ComponentIds[compType];
+					return {(RetType)&m_data[offset], m_header.componentCount[compType]};
 				}
 
-				GAIA_NODISCARD std::span<const ChunkComponentOffset>
-				GetComponentOffsetSpan(component::ComponentType componentType) const {
+				GAIA_NODISCARD std::span<const ChunkComponentOffset> comp_offset_view(component::ComponentType compType) const {
 					using RetType = std::add_pointer_t<const ChunkComponentOffset>;
-					const auto offset = m_header.offsets.firstByte_ComponentOffsets[componentType];
-					return {(RetType)&m_data[offset], m_header.componentCount[componentType]};
+					const auto offset = m_header.offsets.firstByte_ComponentOffsets[compType];
+					return {(RetType)&m_data[offset], m_header.componentCount[compType]};
 				}
 
 				//! Returns true if the provided version is newer than the one stored internally
-				GAIA_NODISCARD bool
-				DidChange(component::ComponentType componentType, uint32_t version, uint32_t componentIdx) const {
-					auto versions = GetComponentVersionSpan(componentType);
-					return DidVersionChange(versions[componentIdx], version);
+				GAIA_NODISCARD bool changed(component::ComponentType compType, uint32_t version, uint32_t componentIdx) const {
+					auto versions = comp_version_view(compType);
+					return version_changed(versions[componentIdx], version);
 				}
 
-				//! Update version of a component at the index \param componentIdx of a given \param componentType
-				GAIA_FORCEINLINE void UpdateWorldVersion(component::ComponentType componentType, uint32_t componentIdx) const {
+				//! Update version of a component at the index \param componentIdx of a given \param compType
+				GAIA_FORCEINLINE void update_world_version(component::ComponentType compType, uint32_t componentIdx) const {
 					// Make sure only proper input is provided
 					GAIA_ASSERT(componentIdx >= 0 && componentIdx < archetype::MAX_COMPONENTS_PER_ARCHETYPE);
 
-					auto versions = GetComponentVersionSpan(componentType);
+					auto versions = comp_version_view(compType);
 					versions[componentIdx] = m_header.worldVersion;
 				}
 
-				//! Update version of all components of a given \param componentType
-				GAIA_FORCEINLINE void UpdateWorldVersion(component::ComponentType componentType) const {
-					auto versions = GetComponentVersionSpan(componentType);
+				//! Update version of all components of a given \param compType
+				GAIA_FORCEINLINE void update_world_version(component::ComponentType compType) const {
+					auto versions = comp_version_view(compType);
 					for (auto& v: versions)
 						v = m_header.worldVersion;
 				}
 
-				void Diag(uint32_t index) const {
+				void diag(uint32_t index) const {
 					GAIA_LOG_N(
 							"  Chunk #%04u, entities:%u/%u, lifespanCountdown:%u", index, m_header.count, m_header.capacity,
 							m_header.lifespanCountdown);

@@ -10,7 +10,7 @@ struct Acceleration {
 };
 
 void MoveSystem(ecs::World& w, float dt) {
-	w.ForEach([&](Position& p, const Acceleration& a) {
+	w.each([&](Position& p, const Acceleration& a) {
 		p.x += a.x * dt;
 		p.y += a.y * dt;
 		p.z += a.z * dt;
@@ -23,15 +23,15 @@ int main() {
 	constexpr uint32_t N = 10'000;
 
 	// Create entities with position and acceleration
-	auto e = w.Add();
-	w.Add<Position>(e, {});
-	w.Add<Acceleration>(e, {0, 0, 1});
+	auto e = w.add();
+	w.add<Position>(e, {});
+	w.add<Acceleration>(e, {0, 0, 1});
 	for (size_t i = 1; i < N; ++i) {
-		[[maybe_unused]] auto newentity = w.Add(e);
+		[[maybe_unused]] auto newentity = w.add(e);
 	}
 
 	// Record the original position
-	auto p0 = w.Get<Position>(e);
+	auto p0 = w.get<Position>(e);
 
 	// Move until a key is hit
 	constexpr size_t GameLoops = 10'000;
@@ -40,7 +40,7 @@ int main() {
 		MoveSystem(w, dt);
 	}
 
-	auto p1 = w.Get<Position>(e);
+	auto p1 = w.get<Position>(e);
 	GAIA_LOG_N("Entity 0 moved from [%.2f,%.2f,%.2f] to [%.2f,%.2f,%.2f]", p0.x, p0.y, p0.z, p1.x, p1.y, p1.z);
 
 	return 0;

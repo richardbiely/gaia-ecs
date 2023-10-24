@@ -15,13 +15,13 @@ namespace gaia {
 			//! \param value Value to set for the component
 			//! \return ComponentSetter
 			template <typename T, typename U = typename component::component_type_t<T>::Type>
-			U& Set() {
-				component::VerifyComponent<T>();
+			U& set() {
+				component::verify_comp<T>();
 
 				if constexpr (component::component_type_v<T> == component::ComponentType::CT_Generic)
-					return m_pChunk->template Set<T>(m_idx);
+					return m_pChunk->template set<T>(m_idx);
 				else
-					return m_pChunk->template Set<T>();
+					return m_pChunk->template set<T>();
 			}
 
 			//! Sets the value of the component \tparam T on \param entity.
@@ -29,13 +29,13 @@ namespace gaia {
 			//! \param value Value to set for the component
 			//! \return ComponentSetter
 			template <typename T, typename U = typename component::component_type_t<T>::Type>
-			ComponentSetter& Set(U&& data) {
-				component::VerifyComponent<T>();
+			ComponentSetter& set(U&& data) {
+				component::verify_comp<T>();
 
 				if constexpr (component::component_type_v<T> == component::ComponentType::CT_Generic)
-					m_pChunk->template Set<T>(m_idx, std::forward<U>(data));
+					m_pChunk->template set<T>(m_idx, std::forward<U>(data));
 				else
-					m_pChunk->template Set<T>(std::forward<U>(data));
+					m_pChunk->template set<T>(std::forward<U>(data));
 				return *this;
 			}
 
@@ -44,13 +44,13 @@ namespace gaia {
 			//! \param value Value to set for the component
 			//! \return ComponentSetter
 			template <typename T, typename U = typename component::component_type_t<T>::Type>
-			ComponentSetter& SetSilent(U&& data) {
-				component::VerifyComponent<T>();
+			ComponentSetter& sset(U&& data) {
+				component::verify_comp<T>();
 
 				if constexpr (component::component_type_v<T> == component::ComponentType::CT_Generic)
-					m_pChunk->template SetSilent<T>(m_idx, std::forward<U>(data));
+					m_pChunk->template sset<T>(m_idx, std::forward<U>(data));
 				else
-					m_pChunk->template SetSilent<T>(std::forward<U>(data));
+					m_pChunk->template sset<T>(std::forward<U>(data));
 				return *this;
 			}
 		};

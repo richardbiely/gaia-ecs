@@ -23,14 +23,14 @@ namespace gaia {
 				//! \tparam T Component
 				//! \return True if the component is present. False otherwise.
 				template <typename T>
-				GAIA_NODISCARD bool Has() const {
-					return m_chunk.Has<T>();
+				GAIA_NODISCARD bool has() const {
+					return m_chunk.has<T>();
 				}
 
 				//! Checks if the entity at the current iterator index is enabled.
 				//! \return True it the entity is enabled. False otherwise.
-				GAIA_NODISCARD bool IsEnabled(uint32_t entityIdx) const {
-					return entityIdx >= m_chunk.GetDisabledEntityCount() && entityIdx < m_chunk.GetEntityCount();
+				GAIA_NODISCARD bool enabled(uint32_t entityIdx) const {
+					return entityIdx >= m_chunk.size_disabled() && entityIdx < m_chunk.size();
 				}
 
 				//! Returns a read-only entity or component view.
@@ -38,8 +38,8 @@ namespace gaia {
 				//! \tparam T Component or Entity
 				//! \return Entity of component view with read-only access
 				template <typename T>
-				GAIA_NODISCARD auto View() const {
-					return m_chunk.View<T>();
+				GAIA_NODISCARD auto view() const {
+					return m_chunk.view<T>();
 				}
 
 				//! Returns a mutable entity or component view.
@@ -47,8 +47,8 @@ namespace gaia {
 				//! \tparam T Component or Entity
 				//! \return Entity or component view with read-write access
 				template <typename T>
-				GAIA_NODISCARD auto ViewRW() {
-					return m_chunk.ViewRW<T>();
+				GAIA_NODISCARD auto view_mut() {
+					return m_chunk.view_mut<T>();
 				}
 
 				//! Returns a mutable component view.
@@ -57,8 +57,8 @@ namespace gaia {
 				//! \tparam T Component
 				//! \return Component view with read-write access
 				template <typename T>
-				GAIA_NODISCARD auto ViewRWSilent() {
-					return m_chunk.ViewRWSilent<T>();
+				GAIA_NODISCARD auto sview_mut() {
+					return m_chunk.sview_mut<T>();
 				}
 			};
 		} // namespace detail

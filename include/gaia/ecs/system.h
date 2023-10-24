@@ -29,11 +29,11 @@ namespace gaia {
 
 		protected:
 			void OnBeforeUpdate() final {
-				m_beforeUpdateCmdBuffer.Commit();
+				m_beforeUpdateCmdBuffer.commit();
 			}
 
 			void OnAfterUpdate() final {
-				m_afterUpdateCmdBuffer.Commit();
+				m_afterUpdateCmdBuffer.commit();
 			}
 		};
 	} // namespace ecs

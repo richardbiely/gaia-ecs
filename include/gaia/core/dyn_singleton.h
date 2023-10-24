@@ -35,7 +35,7 @@ namespace gaia {
 			dyn_singleton& operator=(const dyn_singleton&) = delete;
 
 			~dyn_singleton() {
-				get().Done();
+				get().done();
 			}
 		};
 	} // namespace core

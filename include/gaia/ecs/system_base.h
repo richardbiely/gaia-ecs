@@ -57,7 +57,7 @@ namespace gaia {
 			}
 
 			//! Enable/disable system
-			void Enable(bool enable) {
+			void enable(bool enable) {
 				bool prev = m_enabled;
 				m_enabled = enable;
 				if (prev == enable)
@@ -70,7 +70,7 @@ namespace gaia {
 			}
 
 			//! Returns true if system is enabled
-			GAIA_NODISCARD bool IsEnabled() const {
+			GAIA_NODISCARD bool enabled() const {
 				return m_enabled;
 			}
 
@@ -78,7 +78,7 @@ namespace gaia {
 			//! Called when system is first created
 			virtual void OnCreated() {}
 			//! Called every time system is started (before the first run and after
-			//! Enable(true) is called
+			//! enable(true) is called
 			virtual void OnStarted() {}
 
 			//! Called right before every OnUpdate()
@@ -88,7 +88,7 @@ namespace gaia {
 			//! Called aright after every OnUpdate()
 			virtual void AfterOnUpdate() {}
 
-			//! Called every time system is stopped (after Enable(false) is called and
+			//! Called every time system is stopped (after enable(false) is called and
 			//! before OnDestroyed when system is being destroyed
 			virtual void OnStopped() {}
 			//! Called when system are to be cleaned up.
@@ -105,10 +105,10 @@ namespace gaia {
 			}
 
 		private:
-			void SetDestroyed(bool destroy) {
+			void set_destroyed(bool destroy) {
 				m_destroy = destroy;
 			}
-			bool IsDestroyed() const {
+			bool destroyed() const {
 				return m_destroy;
 			}
 		};
@@ -130,7 +130,7 @@ namespace gaia {
 		public:
 			BaseSystemManager(World& world): m_world(world) {}
 			virtual ~BaseSystemManager() {
-				Clear();
+				clear();
 			}
 
 			BaseSystemManager(BaseSystemManager&& world) = delete;
@@ -138,9 +138,9 @@ namespace gaia {
 			BaseSystemManager& operator=(BaseSystemManager&&) = delete;
 			BaseSystemManager& operator=(const BaseSystemManager&) = delete;
 
-			void Clear() {
+			void clear() {
 				for (auto* pSystem: m_systems)
-					pSystem->Enable(false);
+					pSystem->enable(false);
 				for (auto* pSystem: m_systems)
 					pSystem->OnCleanup();
 				for (auto* pSystem: m_systems)
@@ -155,15 +155,15 @@ namespace gaia {
 				m_systemsToRemove.clear();
 			}
 
-			void Cleanup() {
+			void cleanup() {
 				for (auto& s: m_systems)
 					s->OnCleanup();
 			}
 
-			void Update() {
+			void update() {
 				// Remove all systems queued to be destroyed
 				for (auto* pSystem: m_systemsToRemove)
-					pSystem->Enable(false);
+					pSystem->enable(false);
 				for (auto* pSystem: m_systemsToRemove)
 					pSystem->OnCleanup();
 				for (auto* pSystem: m_systemsToRemove)
@@ -179,12 +179,12 @@ namespace gaia {
 
 				if GAIA_UNLIKELY (!m_systemsToCreate.empty()) {
 					// Sort systems if necessary
-					SortSystems();
+					sort();
 
 					// Create all new systems
 					for (auto* pSystem: m_systemsToCreate) {
 						pSystem->OnCreated();
-						if (pSystem->IsEnabled())
+						if (pSystem->enabled())
 							pSystem->OnStarted();
 					}
 					m_systemsToCreate.clear();
@@ -193,7 +193,7 @@ namespace gaia {
 				OnBeforeUpdate();
 
 				for (auto* pSystem: m_systems) {
-					if (!pSystem->IsEnabled())
+					if (!pSystem->enabled())
 						continue;
 
 					{
@@ -208,7 +208,7 @@ namespace gaia {
 			}
 
 			template <typename T>
-			T* CreateSystem([[maybe_unused]] const char* name = nullptr) {
+			T* add([[maybe_unused]] const char* name = nullptr) {
 				GAIA_SAFE_CONSTEXPR auto hash = meta::type_info::hash<std::decay_t<T>>();
 
 				const auto res = m_systemsMap.try_emplace({hash}, nullptr);
@@ -250,19 +250,19 @@ namespace gaia {
 			}
 
 			template <typename T>
-			void RemoveSystem() {
-				auto pSystem = FindSystem<T>();
-				if (pSystem == nullptr || pSystem->IsDestroyed())
+			void del() {
+				auto pSystem = find<T>();
+				if (pSystem == nullptr || pSystem->destroyed())
 					return;
 
-				pSystem->SetDestroyed(true);
+				pSystem->set_destroyed(true);
 
 				// Request removal of the system
 				m_systemsToRemove.push_back(pSystem);
 			}
 
 			template <typename T>
-			GAIA_NODISCARD T* FindSystem() {
+			GAIA_NODISCARD T* find() {
 				GAIA_SAFE_CONSTEXPR auto hash = meta::type_info::hash<std::decay_t<T>>();
 
 				const auto it = m_systemsMap.find({hash});
@@ -277,7 +277,7 @@ namespace gaia {
 			virtual void OnAfterUpdate() {}
 
 		private:
-			void SortSystems() {
+			void sort() {
 				for (uint32_t l = 0; l < m_systems.size() - 1; l++) {
 					auto min = l;
 					for (uint32_t p = l + 1; p < m_systems.size(); p++) {

@@ -112,9 +112,9 @@ In the code examples below we will assume we are inside the namespace already.
 
 ```cpp
 ecs::World w;
-auto e = w.Add();
+auto e = w.add();
 ... // do something with the created entity
-w.Del(e);
+w.del(e);
 ```
 
 ### Add or remove component
@@ -130,41 +130,41 @@ struct Velocity {
 ecs::World w;
 
 // Create an entity with Position and Velocity.
-auto e = w.Add();
-w.Add<Position>(e, {0, 100, 0});
-w.Add<Velocity>(e, {0, 0, 1});
+auto e = w.add();
+w.add<Position>(e, {0, 100, 0});
+w.add<Velocity>(e, {0, 0, 1});
 
 // Remove Velocity from the entity.
-w.Del<Velocity>(e);
+w.del<Velocity>(e);
 ```
 
 ### Set or get component value
 
 ```cpp
 // Change Velocity's value.
-w.Set<Velocity>(e, {0, 0, 2});
+w.set<Velocity>(e, {0, 0, 2});
 // Same as above but the world version is not updated so nobody gets notified of this change.
-w.SetSilent<Velocity>(e, {4, 2, 0});
+w.sset<Velocity>(e, {4, 2, 0});
 ```
 
 In case there are more different components on the entity you would like to change the value you can achieve it via Set chaining:
 
 ```cpp
 // Change Velocity's value on entity "e"
-w.Set<Velocity>(e, {0, 0, 2}).
+w.set<Velocity>(e, {0, 0, 2}).
 // Change Position's value on entity "e"
-  Set<Position>({0, 100, 0}).
+  set<Position>({0, 100, 0}).
 // Change...
-  Set...;
+  set...;
 ```
 
 Components are returned by value for components with sizes up to 8 bytes (including). Bigger components are returned by const reference.
 
 ```cpp
 // Read Velocity's value. As shown above Velocity is 12 bytes in size. Therefore, it is returned by const reference.
-const auto& velRef = w.Get<Velocity>(e);
+const auto& velRef = w.get<Velocity>(e);
 // However, it is easy to store a copy.
-auto velCopy = w.Get<Velocity>(e);
+auto velCopy = w.get<Velocity>(e);
 ```
 
 Both read and write operations are also accessible via views. Check [simple iteration](#simple-iteration) and [query iteration](#query-iteration) sections to see how.
@@ -174,14 +174,14 @@ Whether or not a certain component is associated with an entity can be checked i
 
 ```cpp
 // Check if entity e has Velocity (via world).
-const bool hasVelocity = w.Has<Velocity>(e);
+const bool hasVelocity = w.has<Velocity>(e);
 ...
 
 // Check if entities hidden behind the iterator have Velocity (via iterator).
-ecs::Query q = w.CreateQuery().Any<Position, Velocity>(); 
-q.ForEach([&](ecs::Iterator iter) {
-  const bool hasPosition = iter.Has<Position>();
-  const bool hasVelocity = iter.Has<Velocity>();
+ecs::Query q = w.create_query().any<Position, Velocity>(); 
+q.each([&](ecs::Iterator iter) {
+  const bool hasPosition = iter.has<Position>();
+  const bool hasVelocity = iter.has<Velocity>();
   ...
 });
 ```
@@ -193,73 +193,73 @@ For querying data you can use a Query. It can help you find all entities, compon
 >**NOTE:**<br/>Every Query creates a cache internally. Therefore, the first usage is a little bit slower than the subsequent usage is going to be. You likely use the same query multiple times in your program, often without noticing. Because of that, caching becomes useful as it avoids wasting memory and performance when finding matches.
 
 ```cpp
-Query q = w.CreateQuery();
-q.All<Position>(); // Consider only entities with Position
+Query q = w.create_query();
+q.all<Position>(); // Consider only entities with Position
 
 // Fill the entities array with entities with a Position component.
 cnt::darray<ecs::Entity> entities;
-q.ToArray(entities);
+q.as_arr(entities);
 
 // Fill the positions array with position data.
 cnt::darray<Position> positions;
-q.ToArray(positions);
+q.as_arr(positions);
 
 // Calculate the number of entities satisfying the query
-const auto numberOfMatches = q.CalculateEntityCount();
+const auto numberOfMatches = q.calc_entity_cnt();
 ```
 
 More complex queries can be created by combining All, Any and None in any way you can imagine:
 
 ```cpp
-ecs::Query q = w.CreateQuery();
-q.All<Position, Velocity>(); // Take into account everything with Position and Velocity...
-q.Any<Something, SomethingElse>(); // ... at least Something or SomethingElse...
-q.None<Player>(); // ... and no Player component...
+ecs::Query q = w.create_query();
+q.all<Position, Velocity>(); // Take into account everything with Position and Velocity...
+q.any<Something, SomethingElse>(); // ... at least Something or SomethingElse...
+q.none<Player>(); // ... and no Player component...
 ```
 
 All Query operations can be chained and it is also possible to invoke various filters multiple times with unique components:
 
 ```cpp
-ecs::Query q = w.CreateQuery();
-q.All<Position>() // Take into account everything with Position...
- .All<Velocity>() // ... and at the same time everything with Velocity...
- .Any<Something, SomethingElse>() // ... at least Something or SomethingElse...
- .None<Player>(); // ... and no Player component...
+ecs::Query q = w.create_query();
+q.all<Position>() // Take into account everything with Position...
+ .all<Velocity>() // ... and at the same time everything with Velocity...
+ .any<Something, SomethingElse>() // ... at least Something or SomethingElse...
+ .none<Player>(); // ... and no Player component...
 ```
 
 All queries are cached by default. This makes sense for queries which happen very often. They are fast to process but might take more time to prepare initially. If caching is not needed you should use uncached queries and save some resources. You would normally do this for one-time initializations or rarely used operations.
 
 ```cpp
 // Create an uncache query taking into account all entities with either Positon or Velocity components
-ecs::QueryUncached q = w.CreateQuery<false>().Any<Position, Velocity>(); 
-q.ForEach([&](ecs::Iterator iter) {
+ecs::QueryUncached q = w.create_query<false>().any<Position, Velocity>(); 
+q.each([&](ecs::Iterator iter) {
   ...
 });
 ```
 
 ### Simple iteration
-The simplest way to iterate over data is using ecs::World::ForEach.<br/>
+The simplest way to iterate over data is using ecs::World::each.<br/>
 It provides the least room for optimization (that does not mean the generated code is slow by any means) but is very easy to read.
 
 ```cpp
-w.ForEach([&](Position& p, const Velocity& v) {
+w.each([&](Position& p, const Velocity& v) {
   p.x += v.x * dt;
   p.y += v.y * dt;
   p.z += v.z * dt;
 });
 ```
 
->**NOTE:**<br/>This creates a Query internally from the arguments provided to ForEach.
+>**NOTE:**<br/>This creates a Query internally from the arguments provided to each.
 
 ### Query iteration
 For possibly better performance and more features, consider using explicit Query when possible.
 
 ```cpp
-ecs::Query q = w.CreateQuery();
-q.All<Position, const Velocity>(); // Take into account all entities with Position and Velocity...
-q.None<Player>(); // ... but no Player component.
+ecs::Query q = w.create_query();
+q.all<Position, const Velocity>(); // Take into account all entities with Position and Velocity...
+q.none<Player>(); // ... but no Player component.
 
-q.ForEach([&](Position& p, const Velocity& v) {
+q.each([&](Position& p, const Velocity& v) {
   // This operations runs for each entity with Position, Velocity and no Player component
   p.x += v.x * dt;
   p.y += v.y * dt;
@@ -278,16 +278,16 @@ There are three types of iterators:
 3) ecs::IteratorAll - iterate over all entities
 
 ```cpp
-ecs::Query q = w.CreateQuery();
-q.All<Position, const Velocity>();
+ecs::Query q = w.create_query();
+q.all<Position, const Velocity>();
 
-q.ForEach([](ecs::IteratorAll iter) {
-  auto p = iter.ViewRW<Position>(); // Read-write access to Position
-  auto v = iter.View<Velocity>(); // Read-only access to Velocity
+q.each([](ecs::IteratorAll iter) {
+  auto p = iter.view_mut<Position>(); // Read-write access to Position
+  auto v = iter.view<Velocity>(); // Read-only access to Velocity
 
   // Iterate over all enabled entities and update their add 1.f to their x-axis position
   iter.each([&](uint32_t i) {
-    if (!iter.IsEnabled(i))
+    if (!iter.enabled(i))
       return;
     p[i].x += 1.f;
   }
@@ -311,50 +311,50 @@ Changing the enabled state of an entity is a special operation that marks the en
 ecs::Entity e1, e2;
 
 // Create 2 entities with Position component
-w.Add(e1);
-w.Add(e2);
-w.Add<Position>(e1);
-w.Add<Position>(e2);
+w.add(e1);
+w.add(e2);
+w.add<Position>(e1);
+w.add<Position>(e2);
 
 // Disable the first entity
-w.Enable(e1, false);
+w.enable(e1, false);
 
 // Check if e1 is enabled
-const bool is_e1_enabled = w.IsEnabled(e1);
+const bool is_e1_enabled = w.enabled(e1);
 if (is_e1_enabled) { ... }
 
 // Prepare out query
-ecs::Query q = w.CreateQuery().All<Position>();
+ecs::Query q = w.create_query().all<Position>();
 
 // Fills the array with only e2 because e1 is disabled.
 cnt::darray<ecs::Entity> entities;
-q.ToArray(entities);
+q.as_arr(entities);
 
 // Fills the array with both e1 and e2.
-q.ToArray(entities, ecs::Query::Constraint::AcceptAll);
+q.as_arr(entities, ecs::Query::Constraint::AcceptAll);
 
 // Fills the array with only e1 because e1 is disabled.
-q.ToArray(entities, ecs::Query::Constraint::DisabledOnly);
+q.as_arr(entities, ecs::Query::Constraint::DisabledOnly);
 
-q.ForEach([](ecs::Iterator iter) {
-  auto p = iter.ViewRW<Position>(); // Read-Write access to Position
+q.each([](ecs::Iterator iter) {
+  auto p = iter.view_mut<Position>(); // Read-Write access to Position
   // Iterates over enabled entities
   iter.each([&](uint32_t i) {
     p[i] = {}; // reset the position of each enabled entity
   }
 });
-q.ForEach([](ecs::IteratorDisabled iter) {
-  auto p = iter.ViewRW<Position>(); // Read-Write access to Position
+q.each([](ecs::IteratorDisabled iter) {
+  auto p = iter.view_mut<Position>(); // Read-Write access to Position
   // Iterates over disabled entities
   iter.each([&](uint32_t i) {
     p[i] = {}; // reset the position of each disabled entity
   }
 });
-q.ForEach([](ecs::IteratorAll iter) {
-  auto p = iter.ViewRW<Position>(); // Read-Write access to Position
+q.each([](ecs::IteratorAll iter) {
+  auto p = iter.view_mut<Position>(); // Read-Write access to Position
   // Iterates over all entities
   iter.each([&](uint32_t i) {
-    if (iter.IsEnabled(i)) {
+    if (iter.enabled(i)) {
       p[i] = {}; // reset the position of each enabled entity
     }
   }
@@ -368,26 +368,26 @@ struct Disabled {};
 
 ...
 
-e.Add<Disabled>(); // disable entity
+e.add<Disabled>(); // disable entity
 
-ecs::Query q = w.CreateQuery().All<Position, Disabled>; 
-q.ForEach([&](ecs::Iterator iter){
+ecs::Query q = w.create_query().all<Position, Disabled>; 
+q.each([&](ecs::Iterator iter){
   // Processes all disabled entities
 });
 
-e.Del<Disabled>(); // enable entity
+e.del<Disabled>(); // enable entity
 ```
 
 ### Change detection
-Using WithChanged we can make the iteration run only if particular components change. You can save quite a bit of performance using this technique.
+Using changed we can make the iteration run only if particular components change. You can save quite a bit of performance using this technique.
 
 ```cpp
-ecs::Query q = w.CreateQuery();
-q.All<Position, const Velocity>(); // Take into account all entities with Position and Velocity...
-q.None<Player>(); // ... no Player component...
-q.WithChanged<Velocity>(); // ... but only iterate when Velocity changes
+ecs::Query q = w.create_query();
+q.all<Position, const Velocity>(); // Take into account all entities with Position and Velocity...
+q.none<Player>(); // ... no Player component...
+q.changed<Velocity>(); // ... but only iterate when Velocity changes
 
-q.ForEach([&](Position& p, const Velocity& v) {
+q.each([&](Position& p, const Velocity& v) {
   // This operations runs for each entity with Position, Velocity and no Player component but ONLY when Velocity has changed
   p.x += v.x * dt;
   p.y += v.y * dt;
@@ -406,9 +406,9 @@ For instance, imagine you have a grid with fields of 100 meters squared.
 Now if you create your entities carefully they get organized in grid fields implicitly on the data level already without you having to use any sort of spatial map container.
 
 ```cpp
-w.Add<Position>(e1, {10,1});
-w.Add<Position>(e2, {19,1});
-w.Add<ecs::AsChunk<GridPosition>>(e1, {1, 0}); // Both e1 and e2 share a common grid position of {1,0} now
+w.add<Position>(e1, {10,1});
+w.add<Position>(e2, {19,1});
+w.add<ecs::AsChunk<GridPosition>>(e1, {1, 0}); // Both e1 and e2 share a common grid position of {1,0} now
 ```
 
 ## Delayed execution
@@ -422,11 +422,11 @@ Performing an unprotected structural change is undefined behavior and most likel
 
 ```cpp
 ecs::CommandBuffer cb;
-q.ForEach([&](Entity e, const Position& p) {
+q.each([&](Entity e, const Position& p) {
   if (p.y < 0.0f)
-    cb.Del(e); // queue entity e for deletion if its position falls below zero
+    cb.del(e); // queue entity e for deletion if its position falls below zero
 });
-cb.Commit(&w); // after calling this all entities with y position bellow zero get deleted
+cb.commit(&w); // after calling this all entities with y position bellow zero get deleted
 ```
 
 If you try to make an unprotected structural change with GAIA_DEBUG enabled (set by default when Debug configuration is used) the framework will assert letting you know you are using it the wrong way.
@@ -463,16 +463,16 @@ struct VelocitySoA {
 };
 ...
 
-ecs::Query q = w.Query().All<PositionSoA, const VelocitySoA>;
-q.ForEach([](ecs::Iterator iter) {
+ecs::Query q = w.Query().all<PositionSoA, const VelocitySoA>;
+q.each([](ecs::Iterator iter) {
   // Position
-  auto vp = iter.ViewRW<PositionSoA>(); // read-write access to PositionSoA
+  auto vp = iter.view_mut<PositionSoA>(); // read-write access to PositionSoA
   auto px = vp.set<0>(); // continuous block of "x" from PositionSoA
   auto py = vp.set<1>(); // continuous block of "y" from PositionSoA
   auto pz = vp.set<2>(); // continuous block of "z" from PositionSoA
 
   // Velocity
-  auto vv = iter.View<VelocitySoA>(); // read-only access to VelocitySoA
+  auto vv = iter.view<VelocitySoA>(); // read-only access to VelocitySoA
   auto vx = vv.get<0>(); // continuous block of "x" from VelocitySoA
   auto vy = vv.get<1>(); // continuous block of "y" from VelocitySoA
   auto vz = vv.get<2>(); // continuous block of "z" from VelocitySoA
@@ -503,7 +503,7 @@ q.ForEach([](ecs::Iterator iter) {
 
 ## Serialization
 Serialization of arbitrary data is available via following functions:
-- ***ser::size_bytes*** - calculates how many bytes the data needs to serialize
+- ***ser::bytes*** - calculates how many bytes the data needs to serialize
 - ***ser::save*** - writes data to serialization buffer
 - ***ser::load*** - loads data from serialization buffer
 
@@ -535,7 +535,7 @@ t.some_int_data = 42069;
 ecs::DataBuffer db;
 ecs::DataBuffer_SerializationWrapper s(db);
 // Calculate how many bytes is it necessary to serialize "in"
-s.reserve(ser::size_bytes(in));
+s.reserve(ser::bytes(in));
 // Save "in" to our buffer
 ser::save(s, in);
 // Load the contents of buffer to "out" 
@@ -555,7 +555,7 @@ struct CustomStruct {
 
 namespace gaia::ser {
   template <>
-  uint32_t size_bytes(const CustomStruct& data) {
+  uint32_t bytes(const CustomStruct& data) {
     return data.size + sizeof(data.size);
   }
   
@@ -590,7 +590,7 @@ in.size = 5;
 ecs::DataBuffer db;
 ecs::DataBuffer_SerializationWrapper s(db);
 // Reserve enough bytes in the buffer so it can fit the entire in
-s.reserve(ser::size_bytes(in));
+s.reserve(ser::bytes(in));
 ser::save(s, in);
 // Move to the start of the buffer and load its contents to out
 s.seek(0);
@@ -607,7 +607,7 @@ struct CustomStruct {
   char* ptr;
   uint32_t size;
   
-  constexpr uint32_t size_bytes() const noexcept {
+  constexpr uint32_t bytes() const noexcept {
     return size + sizeof(size);
   }
   
@@ -641,21 +641,21 @@ mt::Job job1 {[]() {
 }};
 
 // Schedule jobs for parallel execution
-mt::JobHandle jobHandle0 = tp.Schedule(job0);
-mt::JobHandle jobHandle1 = tp.Schedule(job1);
+mt::JobHandle jobHandle0 = tp.sched(job0);
+mt::JobHandle jobHandle1 = tp.sched(job1);
 
 // Wait for jobs to complete
-tp.Complete(jobHandle0);
-tp.Complete(jobHandle1);
+tp.wait(jobHandle0);
+tp.wait(jobHandle1);
 ```
 
 >**NOTE:<br/>**
-It is important to call ***Complete*** for each scheduled ***JobHandle*** because it also performs cleanup.
+It is important to call ***complete*** for each scheduled ***JobHandle*** because it also performs cleanup.
 
 Instead of waiting for each job separately, we can also wait for all jobs to be completed using ***CompleteAll***. This however introduces a hard sync point so it should be used with caution. Ideally, you would want to schedule many jobs and have zero sync points. In most, cases this will not ever happen and at least some sync points are going to be introduced. For instance, before any character can move in the game, all physics calculations will need to be finished.
 ```cpp
 // Wait for all jobs to complete
-tp.CompleteAll();
+tp.wait_all();
 ```
 
 When crunching larger data sets it is often beneficial to split the load among threads automatically. This is what ***ScheduleParallel*** is for. 
@@ -678,13 +678,13 @@ mt::JobParallel job {[&arr, &sum](const mt::JobArgs& args) {
   }};
 
 // Schedule multiple jobs to run in paralell. Make each job process up to 1234 items.
-mt::JobHandle jobHandle = tp.ScheduleParallel(job, N, 1234);
+mt::JobHandle jobHandle = tp.sched_par(job, N, 1234);
 // Alternatively, we can tell the job system to figure out the group size on its own by simply omitting the group size or using 0:
-// mt::JobHandle jobHandle = tp.ScheduleParallel(job, N);
-// mt::JobHandle jobHandle = tp.ScheduleParallel(job, N, 0);
+// mt::JobHandle jobHandle = tp.sched_par(job, N);
+// mt::JobHandle jobHandle = tp.sched_par(job, N, 0);
 
 // Wait for jobs to complete
-tp.Complete(jobHandle);
+tp.wait(jobHandle);
 
 // Use the result
 GAIA_LOG("Sum: %u\n", sum);
@@ -703,10 +703,10 @@ for (uint32_t i = 0; i < Jobs; ++i) {
     const auto idxEnd = std::min((i + 1) * ItemsPerJob, N);
     sum += SumNumbers({arr.data() + idxStart, idxEnd - idxStart});
   }};
-  tp.Schedule(job);
+  tp.sched(job);
 }
 // Wait for all previous tasks to complete
-tp.CompleteAll();
+tp.wait_all();
 ```
 
 Sometimes we need to wait for the result of another operation before we can proceed. To achieve this we need to use low-level API and handle job registration and submitting jobs on our own.
@@ -728,22 +728,22 @@ job2.func = [&arr, i]() {
 };
 
 // Register our jobs in the job system
-auto job0Handle = tp.CreateJob(job0);
-auto job1Handle = tp.CreateJob(job1);
-auto job2Handle = tp.CreateJob(job2);
+auto job0Handle = tp.create_job(job0);
+auto job1Handle = tp.create_job(job1);
+auto job2Handle = tp.create_job(job2);
 
 // Create dependencies
-tp.AddDependency(job1Handle, job0Handle);
-tp.AddDependency(job2Handle, job1Handle);
+tp.add_dep(job1Handle, job0Handle);
+tp.add_dep(job2Handle, job1Handle);
 
 // Submit jobs so worker threads can pick them up. The order in which jobs are submitted does not matter.
-tp.Submit(job2Handle);
-tp.Submit(job1Handle);
-tp.Submit(job0Handle);
+tp.submit(job2Handle);
+tp.submit(job1Handle);
+tp.submit(job0Handle);
 
 // Wait for the last job to complete.
-// Calling Complete for dependencies is not necessary because it will be done internally.
-tp.Complete(job2Handle);
+// Calling complete for dependencies is not necessary because it will be done internally.
+tp.wait(job2Handle);
 ```
 
 # Requirements

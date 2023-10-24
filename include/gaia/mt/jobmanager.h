@@ -63,7 +63,7 @@ namespace gaia {
 
 		public:
 			//! Cleans up any job allocations and dependicies associated with \param jobHandle
-			void Complete(JobHandle jobHandle) {
+			void wait(JobHandle jobHandle) {
 				// We need to release any dependencies related to this job
 				auto& job = m_jobs[jobHandle.id()];
 
@@ -74,19 +74,19 @@ namespace gaia {
 				while (depIdx != (uint32_t)-1) {
 					auto& dep = m_deps[depIdx];
 					const uint32_t depIdxNext = dep.dependencyIdxNext;
-					Complete(dep.dependsOn);
-					DeallocateDependency(DepHandle{depIdx, 0});
+					wait(dep.dependsOn);
+					free_dep(DepHandle{depIdx, 0});
 					depIdx = depIdxNext;
 				}
 
 				// Deallocate the job itself
-				DeallocateJob(jobHandle);
+				free_job(jobHandle);
 			}
 
 			//! Allocates a new job container identified by a unique JobHandle.
 			//! \return JobHandle
 			//! \warning Must be used from the main thread.
-			GAIA_NODISCARD JobHandle AllocateJob(const Job& job) {
+			GAIA_NODISCARD JobHandle alloc_job(const Job& job) {
 				std::scoped_lock<std::mutex> lock(m_jobsLock);
 				auto handle = m_jobs.allocate();
 				auto& j = m_jobs[handle.id()];
@@ -100,7 +100,7 @@ namespace gaia {
 			//! Invalidates \param jobHandle by resetting its index in the job pool.
 			//! Everytime a job is deallocated its generation is increased by one.
 			//! \warning Must be used from the main thread.
-			void DeallocateJob(JobHandle jobHandle) {
+			void free_job(JobHandle jobHandle) {
 				// No need to lock. Called from the main thread only when the job has finished already.
 				// --> std::scoped_lock<std::mutex> lock(m_jobsLock);
 				auto& job = m_jobs.release(jobHandle);
@@ -110,19 +110,19 @@ namespace gaia {
 			//! Allocates a new dependency identified by a unique DepHandle.
 			//! \return DepHandle
 			//! \warning Must be used from the main thread.
-			GAIA_NODISCARD DepHandle AllocateDependency() {
+			GAIA_NODISCARD DepHandle alloc_dep() {
 				return m_deps.allocate();
 			}
 
 			//! Invalidates \param depHandle by resetting its index in the dependency pool.
 			//! Everytime a dependency is deallocated its generation is increased by one.
 			//! \warning Must be used from the main thread.
-			void DeallocateDependency(DepHandle depHandle) {
+			void free_dep(DepHandle depHandle) {
 				m_deps.release(depHandle);
 			}
 
 			//! Resets the job pool.
-			void Reset() {
+			void reset() {
 				{
 					// No need to lock. Called from the main thread only when all jobs have finished already.
 					// --> std::scoped_lock<std::mutex> lock(m_jobsLock);
@@ -135,7 +135,7 @@ namespace gaia {
 				}
 			}
 
-			void Run(JobHandle jobHandle) {
+			void run(JobHandle jobHandle) {
 				std::function<void()> func;
 
 				{
@@ -155,7 +155,7 @@ namespace gaia {
 
 			//! Evaluates job dependencies.
 			//! \return True if job dependencies are met. False otherwise
-			GAIA_NODISCARD bool HandleDependencies(JobHandle jobHandle) {
+			GAIA_NODISCARD bool handle_deps(JobHandle jobHandle) {
 				GAIA_PROF_SCOPE(JobManager::HandleDeps);
 				std::scoped_lock<std::mutex> lockJobs(m_jobsLock);
 				auto& job = m_jobs[jobHandle.id()];
@@ -172,7 +172,7 @@ namespace gaia {
 					// have already finished and there's no need to check them.
 					do {
 						JobDependency dep = m_deps[depsId];
-						if (!IsDone(dep.dependsOn)) {
+						if (!Isdone(dep.dependsOn)) {
 							m_jobs[jobHandle.id()].dependencyIdx = depsId;
 							return false;
 						}
@@ -190,21 +190,21 @@ namespace gaia {
 			//! This means \param jobHandle will run only after \param dependsOn finishes.
 			//! \warning Must be used from the main thread.
 			//! \warning Needs to be called before any of the listed jobs are scheduled.
-			void AddDependency(JobHandle jobHandle, JobHandle dependsOn) {
+			void add_dep(JobHandle jobHandle, JobHandle dependsOn) {
 				std::scoped_lock<std::mutex> lockJobs(m_jobsLock);
 				auto& job = m_jobs[jobHandle.id()];
 
 #if GAIA_ASSERT_ENABLED
 				GAIA_ASSERT(jobHandle != dependsOn);
-				GAIA_ASSERT(!IsBusy(jobHandle));
-				GAIA_ASSERT(!IsBusy(dependsOn));
+				GAIA_ASSERT(!busy(jobHandle));
+				GAIA_ASSERT(!busy(dependsOn));
 #endif
 
 				{
 					GAIA_PROF_SCOPE(JobManager::AddDep);
 					std::scoped_lock<std::mutex> lockDeps(m_depsLock);
 
-					auto depHandle = AllocateDependency();
+					auto depHandle = alloc_dep();
 					auto& dep = m_deps[depHandle.id()];
 					dep.dependsOn = dependsOn;
 
@@ -223,17 +223,17 @@ namespace gaia {
 			//! This means \param jobHandle will run only after all \param dependsOnSpan jobs finish.
 			//! \warning Must be used from the main thread.
 			//! \warning Needs to be called before any of the listed jobs are scheduled.
-			void AddDependencies(JobHandle jobHandle, std::span<const JobHandle> dependsOnSpan) {
+			void add_deps(JobHandle jobHandle, std::span<const JobHandle> dependsOnSpan) {
 				if (dependsOnSpan.empty())
 					return;
 
 				auto& job = m_jobs[jobHandle.id()];
 
 #if GAIA_ASSERT_ENABLED
-				GAIA_ASSERT(!IsBusy(jobHandle));
+				GAIA_ASSERT(!busy(jobHandle));
 				for (auto dependsOn: dependsOnSpan) {
 					GAIA_ASSERT(jobHandle != dependsOn);
-					GAIA_ASSERT(!IsBusy(dependsOn));
+					GAIA_ASSERT(!busy(dependsOn));
 				}
 #endif
 
@@ -243,7 +243,7 @@ namespace gaia {
 					std::scoped_lock<std::mutex> lockDeps(m_depsLock);
 
 					for (uint32_t i = 0; i < dependsOnSpan.size(); ++i) {
-						auto depHandle = AllocateDependency();
+						auto depHandle = alloc_dep();
 						auto& dep = m_deps[depHandle.id()];
 						dep.dependsOn = dependsOnSpan[i];
 
@@ -259,24 +259,24 @@ namespace gaia {
 				}
 			}
 
-			void Submit(JobHandle jobHandle) {
+			void submit(JobHandle jobHandle) {
 				auto& job = m_jobs[jobHandle.id()];
 				GAIA_ASSERT(job.state < JobInternalState::Submitted);
 				job.state = JobInternalState::Submitted;
 			}
 
-			void ReSubmit(JobHandle jobHandle) {
+			void resubmit(JobHandle jobHandle) {
 				auto& job = m_jobs[jobHandle.id()];
 				GAIA_ASSERT(job.state <= JobInternalState::Submitted);
 				job.state = JobInternalState::Submitted;
 			}
 
-			GAIA_NODISCARD bool IsBusy(JobHandle jobHandle) const {
+			GAIA_NODISCARD bool busy(JobHandle jobHandle) const {
 				const auto& job = m_jobs[jobHandle.id()];
 				return ((uint32_t)job.state & (uint32_t)JobInternalState::Busy) != 0;
 			}
 
-			GAIA_NODISCARD bool IsDone(JobHandle jobHandle) const {
+			GAIA_NODISCARD bool Isdone(JobHandle jobHandle) const {
 				const auto& job = m_jobs[jobHandle.id()];
 				return ((uint32_t)job.state & (uint32_t)JobInternalState::Done) != 0;
 			}

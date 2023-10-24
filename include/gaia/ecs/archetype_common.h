@@ -24,7 +24,7 @@ namespace gaia {
 
 			static constexpr ArchetypeId ArchetypeIdBad = (ArchetypeId)-1;
 
-			GAIA_NODISCARD inline constexpr bool VerifyArchetypeComponentCount(uint32_t count) {
+			GAIA_NODISCARD inline constexpr bool verify_archetype_comp_cnt(uint32_t count) {
 				return count <= MAX_COMPONENTS_PER_ARCHETYPE;
 			}
 		} // namespace archetype

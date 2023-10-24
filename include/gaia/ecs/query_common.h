@@ -43,7 +43,7 @@ namespace gaia {
 
 				struct Data {
 					//! List of querried components
-					ComponentIdArray componentIds;
+					ComponentIdArray compIds;
 					//! Filtering rules for the components
 					ListTypeArray rules;
 					//! List of component matcher hashes
@@ -74,7 +74,7 @@ namespace gaia {
 						const auto& right = other.data[i];
 
 						// Check array sizes first
-						if (left.componentIds.size() != right.componentIds.size())
+						if (left.compIds.size() != right.compIds.size())
 							return false;
 						if (left.rules.size() != right.rules.size())
 							return false;
@@ -90,8 +90,8 @@ namespace gaia {
 						}
 
 						// Components need to be the same
-						for (uint32_t j = 0; j < left.componentIds.size(); ++j) {
-							if (left.componentIds[j] != right.componentIds[j])
+						for (uint32_t j = 0; j < left.compIds.size(); ++j) {
+							if (left.compIds[j] != right.compIds[j])
 								return false;
 						}
 
@@ -117,12 +117,12 @@ namespace gaia {
 			};
 
 			//! Sorts internal component arrays
-			inline void SortComponentArrays(LookupCtx& ctx) {
+			inline void sort(LookupCtx& ctx) {
 				for (uint32_t i = 0; i < component::ComponentType::CT_Count; ++i) {
 					auto& data = ctx.data[i];
 					// Make sure the read-write mask remains correct after sorting
-					core::sort(data.componentIds, component::SortComponentCond{}, [&](uint32_t left, uint32_t right) {
-						core::swap(data.componentIds[left], data.componentIds[right]);
+					core::sort(data.compIds, component::SortComponentCond{}, [&](uint32_t left, uint32_t right) {
+						core::swap(data.compIds[left], data.compIds[right]);
 						core::swap(data.rules[left], data.rules[right]);
 
 						{
@@ -140,18 +140,18 @@ namespace gaia {
 				}
 			}
 
-			inline void CalculateMatcherHashes(LookupCtx& ctx) {
+			inline void matcher_hashes(LookupCtx& ctx) {
 				// Sort the arrays if necessary
-				SortComponentArrays(ctx);
+				sort(ctx);
 
 				// Calculate the matcher hash
 				for (auto& data: ctx.data) {
 					for (uint32_t i = 0; i < data.rules.size(); ++i)
-						component::CalculateMatcherHash(data.hash[data.rules[i]], data.componentIds[i]);
+						component::matcher_hash(data.hash[data.rules[i]], data.compIds[i]);
 				}
 			}
 
-			inline void CalculateLookupHash(LookupCtx& ctx) {
+			inline void calc_lookup_hash(LookupCtx& ctx) {
 				// Make sure we don't calculate the hash twice
 				GAIA_ASSERT(ctx.hashLookup.hash == 0);
 
@@ -164,10 +164,10 @@ namespace gaia {
 					{
 						LookupHash::Type hash = 0;
 
-						const auto& componentIds = data.componentIds;
-						for (const auto componentId: componentIds)
+						const auto& compIds = data.compIds;
+						for (const auto componentId: compIds)
 							hash = core::hash_combine(hash, (LookupHash::Type)componentId);
-						hash = core::hash_combine(hash, (LookupHash::Type)componentIds.size());
+						hash = core::hash_combine(hash, (LookupHash::Type)compIds.size());
 
 						hash = core::hash_combine(hash, (LookupHash::Type)data.readWriteMask);
 						hashLookup = core::hash_combine(hashLookup, hash);

@@ -52,7 +52,7 @@ namespace gaia {
 
 		private:
 			ThreadPool(): m_jobsPending(0), m_stop(false) {
-				uint32_t workersCnt = CalculateThreadCount(0);
+				uint32_t workersCnt = calc_thread_cnt(0);
 				if (workersCnt > MaxWorkers)
 					workersCnt = MaxWorkers;
 
@@ -65,14 +65,14 @@ namespace gaia {
 						// Set the worker thread name.
 						// Needs to be called from inside the thread because some platforms
 						// can change the name only when run from the specific thread.
-						SetThreadName(i);
+						set_thread_name(i);
 
 						// Process jobs
-						ThreadLoop();
+						worker_loop();
 					});
 
 					// Stick each thread to a specific CPU core
-					SetThreadAffinity(i);
+					set_thread_affinity(i);
 				}
 			}
 
@@ -82,40 +82,40 @@ namespace gaia {
 			ThreadPool& operator=(const ThreadPool&) = delete;
 
 		public:
-			static ThreadPool& Get() {
+			static ThreadPool& get() {
 				static ThreadPool threadPool;
 				return threadPool;
 			}
 
-			GAIA_NODISCARD uint32_t GetWorkersCount() const {
+			GAIA_NODISCARD uint32_t workers() const {
 				return m_workers.size();
 			}
 
 			~ThreadPool() {
-				Reset();
+				reset();
 			}
 
 			//! Makes \param jobHandle depend on \param dependsOn.
 			//! This means \param jobHandle will run only after \param dependsOn finishes.
 			//! \warning Must be used from the main thread.
 			//! \warning Needs to be called before any of the listed jobs are scheduled.
-			void AddDependency(JobHandle jobHandle, JobHandle dependsOn) {
-				m_jobManager.AddDependency(jobHandle, dependsOn);
+			void add_dep(JobHandle jobHandle, JobHandle dependsOn) {
+				m_jobManager.add_dep(jobHandle, dependsOn);
 			}
 
 			//! Makes \param jobHandle depend on the jobs listed in \param dependsOnSpan.
 			//! This means \param jobHandle will run only after all \param dependsOnSpan jobs finish.
 			//! \warning Must be used from the main thread.
 			//! \warning Needs to be called before any of the listed jobs are scheduled.
-			void AddDependencies(JobHandle jobHandle, std::span<const JobHandle> dependsOnSpan) {
-				m_jobManager.AddDependencies(jobHandle, dependsOnSpan);
+			void add_deps(JobHandle jobHandle, std::span<const JobHandle> dependsOnSpan) {
+				m_jobManager.add_deps(jobHandle, dependsOnSpan);
 			}
 
 			//! Creates a job system job from \param job.
 			//! \warning Must be used from the main thread.
 			//! \return Job handle of the scheduled job.
-			JobHandle CreateJob(const Job& job) {
-				GAIA_ASSERT(IsMainThread());
+			JobHandle create_job(const Job& job) {
+				GAIA_ASSERT(main_thread());
 
 				// Don't add new jobs once stop was requested
 				if GAIA_UNLIKELY (m_stop)
@@ -123,7 +123,7 @@ namespace gaia {
 
 				++m_jobsPending;
 
-				return m_jobManager.AllocateJob(job);
+				return m_jobManager.alloc_job(job);
 			}
 
 			//! Pushes \param jobHandle into the internal queue so worker threads
@@ -131,13 +131,13 @@ namespace gaia {
 			//! If there are more jobs than the queue can handle it puts the calling
 			//! thread to sleep until workers consume enough jobs.
 			//! \warning Once submited, dependencies can't be modified for this job.
-			void Submit(JobHandle jobHandle) {
-				m_jobManager.Submit(jobHandle);
+			void submit(JobHandle jobHandle) {
+				m_jobManager.submit(jobHandle);
 
 				// Try pushing a new job until it we succeed.
 				// The thread is put to sleep if pushing the jobs fails.
-				while (!m_jobQueue.TryPush(jobHandle))
-					Poll();
+				while (!m_jobQueue.try_push(jobHandle))
+					poll();
 
 				// Wake some worker thread
 				m_cv.notify_one();
@@ -149,13 +149,13 @@ namespace gaia {
 			//! If there are more jobs than the queue can handle it puts the calling
 			//! thread to sleep until workers consume enough jobs.
 			//! \warning Internal usage only. Only worker theads can decide to resubmit.
-			void ReSubmit(JobHandle jobHandle) {
-				m_jobManager.ReSubmit(jobHandle);
+			void resubmit(JobHandle jobHandle) {
+				m_jobManager.resubmit(jobHandle);
 
 				// Try pushing a new job until it we succeed.
 				// The thread is put to sleep if pushing the jobs fails.
-				while (!m_jobQueue.TryPush(jobHandle))
-					Poll();
+				while (!m_jobQueue.try_push(jobHandle))
+					poll();
 
 				// Wake some worker thread
 				m_cv.notify_one();
@@ -167,9 +167,9 @@ namespace gaia {
 			//! \warning Must be used from the main thread.
 			//! \warning Dependencies can't be modified for this job.
 			//! \return Job handle of the scheduled job.
-			JobHandle Schedule(const Job& job) {
-				JobHandle jobHandle = CreateJob(job);
-				Submit(jobHandle);
+			JobHandle sched(const Job& job) {
+				JobHandle jobHandle = create_job(job);
+				submit(jobHandle);
 				return jobHandle;
 			}
 
@@ -179,10 +179,10 @@ namespace gaia {
 			//! \warning Must be used from the main thread.
 			//! \warning Dependencies can't be modified for this job.
 			//! \return Job handle of the scheduled job.
-			JobHandle Schedule(const Job& job, JobHandle dependsOn) {
-				JobHandle jobHandle = CreateJob(job);
-				AddDependency(jobHandle, dependsOn);
-				Submit(jobHandle);
+			JobHandle sched(const Job& job, JobHandle dependsOn) {
+				JobHandle jobHandle = create_job(job);
+				add_dep(jobHandle, dependsOn);
+				submit(jobHandle);
 				return jobHandle;
 			}
 
@@ -192,10 +192,10 @@ namespace gaia {
 			//! \warning Must be used from the main thread.
 			//! \warning Dependencies can't be modified for this job.
 			//! \return Job handle of the scheduled job.
-			JobHandle Schedule(const Job& job, std::span<const JobHandle> dependsOnSpan) {
-				JobHandle jobHandle = CreateJob(job);
-				AddDependencies(jobHandle, dependsOnSpan);
-				Submit(jobHandle);
+			JobHandle sched(const Job& job, std::span<const JobHandle> dependsOnSpan) {
+				JobHandle jobHandle = create_job(job);
+				add_deps(jobHandle, dependsOnSpan);
+				submit(jobHandle);
 				return jobHandle;
 			}
 
@@ -206,8 +206,8 @@ namespace gaia {
 			//! \warning Must be used from the main thread.
 			//! \warning Dependencies can't be modified for this job.
 			//! \return Job handle of the scheduled batch of jobs.
-			JobHandle ScheduleParallel(const JobParallel& job, uint32_t itemsToProcess, uint32_t groupSize) {
-				GAIA_ASSERT(IsMainThread());
+			JobHandle sched_par(const JobParallel& job, uint32_t itemsToProcess, uint32_t groupSize) {
+				GAIA_ASSERT(main_thread());
 
 				// Empty data set are considered wrong inputs
 				GAIA_ASSERT(itemsToProcess != 0);
@@ -228,7 +228,7 @@ namespace gaia {
 				// Internal jobs + 1 for the groupHandle
 				m_jobsPending += (jobs + 1U);
 
-				JobHandle groupHandle = m_jobManager.AllocateJob({});
+				JobHandle groupHandle = m_jobManager.alloc_job({});
 
 				for (uint32_t jobIndex = 0; jobIndex < jobs; ++jobIndex) {
 					// Create one job per group
@@ -244,42 +244,42 @@ namespace gaia {
 						job.func(args);
 					};
 
-					JobHandle jobHandle = m_jobManager.AllocateJob({groupJobFunc});
-					AddDependency(groupHandle, jobHandle);
-					Submit(jobHandle);
+					JobHandle jobHandle = m_jobManager.alloc_job({groupJobFunc});
+					add_dep(groupHandle, jobHandle);
+					submit(jobHandle);
 				}
 
-				Submit(groupHandle);
+				submit(groupHandle);
 				return groupHandle;
 			}
 
 			//! Wait for the job to finish.
 			//! \param jobHandle Job handle
 			//! \warning Must be used from the main thread.
-			void Complete(JobHandle jobHandle) {
-				GAIA_ASSERT(IsMainThread());
+			void wait(JobHandle jobHandle) {
+				GAIA_ASSERT(main_thread());
 
-				while (m_jobManager.IsBusy(jobHandle))
-					Poll();
+				while (m_jobManager.busy(jobHandle))
+					poll();
 
-				GAIA_ASSERT(!m_jobManager.IsBusy(jobHandle));
-				m_jobManager.Complete(jobHandle);
+				GAIA_ASSERT(!m_jobManager.busy(jobHandle));
+				m_jobManager.wait(jobHandle);
 			}
 
 			//! Wait for all jobs to finish.
 			//! \warning Must be used from the main thread.
-			void CompleteAll() {
-				GAIA_ASSERT(IsMainThread());
+			void wait_all() {
+				GAIA_ASSERT(main_thread());
 
-				while (IsBusy())
-					PollAll();
+				while (busy())
+					poll_all();
 
 				GAIA_ASSERT(m_jobsPending == 0);
-				m_jobManager.Reset();
+				m_jobManager.reset();
 			}
 
 		private:
-			void SetThreadAffinity(uint32_t threadID) {
+			void set_thread_affinity(uint32_t threadID) {
 				// TODO:
 				// Some cores might have multiple logic threads, there might be
 				// more socket and some cores might even be physically different
@@ -323,7 +323,7 @@ namespace gaia {
 #endif
 			}
 
-			void SetThreadName(uint32_t threadID) {
+			void set_thread_name(uint32_t threadID) {
 #if GAIA_PLATFORM_WINDOWS
 				auto nativeHandle = (HANDLE)m_workers[threadID].native_handle();
 
@@ -352,11 +352,11 @@ namespace gaia {
 #endif
 			}
 
-			GAIA_NODISCARD bool IsMainThread() const {
+			GAIA_NODISCARD bool main_thread() const {
 				return std::this_thread::get_id() == m_mainThreadId;
 			}
 
-			GAIA_NODISCARD static uint32_t CalculateThreadCount(uint32_t threadsWanted) {
+			GAIA_NODISCARD static uint32_t calc_thread_cnt(uint32_t threadsWanted) {
 				// Make sure a reasonable amount of threads is used
 				if (threadsWanted == 0) {
 					// Subtract one (the main thread)
@@ -367,11 +367,11 @@ namespace gaia {
 				return threadsWanted;
 			}
 
-			void ThreadLoop() {
+			void worker_loop() {
 				while (!m_stop) {
 					JobHandle jobHandle;
 
-					if (!m_jobQueue.TryPop(jobHandle)) {
+					if (!m_jobQueue.try_pop(jobHandle)) {
 						std::unique_lock<std::mutex> lock(m_cvLock);
 						m_cv.wait(lock);
 						continue;
@@ -382,21 +382,21 @@ namespace gaia {
 					// Make sure we can execute the job.
 					// If it has dependencies which were not completed we need to reschedule
 					// and come back to it later.
-					if (!m_jobManager.HandleDependencies(jobHandle)) {
-						ReSubmit(jobHandle);
+					if (!m_jobManager.handle_deps(jobHandle)) {
+						resubmit(jobHandle);
 						continue;
 					}
 
-					m_jobManager.Run(jobHandle);
+					m_jobManager.run(jobHandle);
 					--m_jobsPending;
 				}
 			}
 
-			void Reset() {
+			void reset() {
 				// Request stopping
 				m_stop = true;
-				// Complete all remaining work
-				CompleteAll();
+				// complete all remaining work
+				wait_all();
 				// Wake up any threads that were put to sleep
 				m_cv.notify_all();
 				// Join threads with the main one
@@ -408,12 +408,12 @@ namespace gaia {
 
 			//! Checks whether workers are busy doing work.
 			//!	\return True if any workers are busy doing work.
-			GAIA_NODISCARD bool IsBusy() const {
+			GAIA_NODISCARD bool busy() const {
 				return m_jobsPending > 0;
 			}
 
 			//! Wakes up some worker thread and reschedules the current one.
-			void Poll() {
+			void poll() {
 				// Wake some worker thread
 				m_cv.notify_one();
 
@@ -422,7 +422,7 @@ namespace gaia {
 			}
 
 			//! Wakes up all worker threads and reschedules the current one.
-			void PollAll() {
+			void poll_all() {
 				// Wake some worker thread
 				m_cv.notify_all();
 

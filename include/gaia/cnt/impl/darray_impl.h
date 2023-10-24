@@ -407,7 +407,7 @@ namespace gaia {
 			}
 
 			iterator erase(iterator pos) noexcept {
-				GAIA_ASSERT(pos.m_ptr >= data() && pos.m_ptr < (data() + m_cap - 1));
+				GAIA_ASSERT(pos >= data() && pos < (data() + m_cap - 1));
 
 				const auto idxSrc = (size_type)core::distance(pos, begin());
 				const auto idxDst = size() - 1;

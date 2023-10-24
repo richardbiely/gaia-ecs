@@ -23,11 +23,11 @@ class PositionSystem final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q = GetWorld().CreateQuery().All<Position, const Velocity>();
+		m_q = GetWorld().create_query().all<Position, const Velocity>();
 	}
 
 	void OnUpdate() override {
-		m_q.ForEach([](Position& p, const Velocity& v) {
+		m_q.each([](Position& p, const Velocity& v) {
 			const float dt = 0.01f;
 			p.x += v.x * dt;
 			p.y += v.y * dt;
@@ -41,13 +41,13 @@ class PositionSystem_All final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q = GetWorld().CreateQuery().All<Position, const Velocity>();
+		m_q = GetWorld().create_query().all<Position, const Velocity>();
 	}
 
 	void OnUpdate() override {
-		m_q.ForEach([](ecs::IteratorAll iter) {
-			auto p = iter.ViewRW<Position>();
-			auto v = iter.View<Velocity>();
+		m_q.each([](ecs::IteratorAll iter) {
+			auto p = iter.view_mut<Position>();
+			auto v = iter.view<Velocity>();
 			const float dt = 0.01f;
 			iter.each([&](uint32_t i) {
 				p[i].x += v[i].x * dt;
@@ -55,7 +55,7 @@ public:
 				p[i].z += v[i].z * dt;
 			});
 
-			if (iter.IsEnabled(0))
+			if (iter.enabled(0))
 				p[0].x += 1.f;
 		});
 	}
@@ -66,13 +66,13 @@ class PositionSystem_All2 final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q = GetWorld().CreateQuery().All<Position, const Velocity>();
+		m_q = GetWorld().create_query().all<Position, const Velocity>();
 	}
 
 	void OnUpdate() override {
-		m_q.ForEach([](ecs::IteratorAll iter) {
-			auto p = iter.ViewRW<Position>();
-			auto v = iter.View<Velocity>();
+		m_q.each([](ecs::IteratorAll iter) {
+			auto p = iter.view_mut<Position>();
+			auto v = iter.view<Velocity>();
 			const float dt = 0.01f;
 			for (uint32_t i = 0; i < iter.size(); ++i) {
 				p[i].x += v[i].x * dt;
@@ -80,7 +80,7 @@ public:
 				p[i].z += v[i].z * dt;
 			}
 
-			if (iter.IsEnabled(0))
+			if (iter.enabled(0))
 				p[0].x += 1.f;
 		});
 	}
@@ -91,13 +91,13 @@ class PositionSystem_DisabledOnly final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q = GetWorld().CreateQuery().All<Position, const Velocity>();
+		m_q = GetWorld().create_query().all<Position, const Velocity>();
 	}
 
 	void OnUpdate() override {
-		m_q.ForEach([](ecs::IteratorDisabled iter) {
-			auto p = iter.ViewRW<Position>();
-			auto v = iter.View<Velocity>();
+		m_q.each([](ecs::IteratorDisabled iter) {
+			auto p = iter.view_mut<Position>();
+			auto v = iter.view<Velocity>();
 			const float dt = 0.01f;
 			iter.each([&](uint32_t i) {
 				p[i].x += v[i].x * dt;
@@ -110,13 +110,13 @@ public:
 
 void CreateEntities(ecs::World& w) {
 	{
-		auto e = w.Add();
-		w.Add<Position>(e, {0, 100, 0});
-		w.Add<Velocity>(e, {1, 0, 0});
+		auto e = w.add();
+		w.add<Position>(e, {0, 100, 0});
+		w.add<Velocity>(e, {1, 0, 0});
 
 		constexpr uint32_t N = 1000;
 		for (uint32_t i = 0; i < N; ++i) {
-			[[maybe_unused]] auto newentity = w.Add(e);
+			[[maybe_unused]] auto newentity = w.add(e);
 		}
 	}
 }
@@ -404,13 +404,13 @@ int main() {
 	CreateEntities(w);
 
 	ecs::SystemManager sm(w);
-	sm.CreateSystem<PositionSystem>();
-	sm.CreateSystem<PositionSystem_All>();
-	sm.CreateSystem<PositionSystem_All2>();
-	sm.CreateSystem<PositionSystem_DisabledOnly>();
+	sm.add<PositionSystem>();
+	sm.add<PositionSystem_All>();
+	sm.add<PositionSystem_All2>();
+	sm.add<PositionSystem_DisabledOnly>();
 	for (uint32_t i = 0; i < 1000; ++i) {
-		sm.Update();
-		w.Update();
+		sm.update();
+		w.update();
 	}
 
 	return 0;

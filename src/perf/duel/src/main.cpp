@@ -56,15 +56,15 @@ float CalculateDelta(picobench::state& state) {
 template <bool SoA>
 void CreateECSEntities_Static(ecs::World& w) {
 	{
-		auto e = w.Add();
+		auto e = w.add();
 		if constexpr (SoA)
-			w.Add<PositionSoA>(e, {0, 100, 0});
+			w.add<PositionSoA>(e, {0, 100, 0});
 		else
-			w.Add<Position>(e, {0, 100, 0});
-		w.Add<Rotation>(e, {1, 2, 3, 4});
-		w.Add<Scale>(e, {1, 1, 1});
+			w.add<Position>(e, {0, 100, 0});
+		w.add<Rotation>(e, {1, 2, 3, 4});
+		w.add<Scale>(e, {1, 1, 1});
 		for (uint32_t i = 0; i < N; ++i) {
-			[[maybe_unused]] auto newentity = w.Add(e);
+			[[maybe_unused]] auto newentity = w.add(e);
 		}
 	}
 }
@@ -72,73 +72,73 @@ void CreateECSEntities_Static(ecs::World& w) {
 template <bool SoA>
 void CreateECSEntities_Dynamic(ecs::World& w) {
 	{
-		auto e = w.Add();
+		auto e = w.add();
 		if constexpr (SoA)
-			w.Add<PositionSoA>(e, {0, 100, 0});
+			w.add<PositionSoA>(e, {0, 100, 0});
 		else
-			w.Add<Position>(e, {0, 100, 0});
-		w.Add<Rotation>(e, {1, 2, 3, 4});
-		w.Add<Scale>(e, {1, 1, 1});
+			w.add<Position>(e, {0, 100, 0});
+		w.add<Rotation>(e, {1, 2, 3, 4});
+		w.add<Scale>(e, {1, 1, 1});
 		if constexpr (SoA)
-			w.Add<VelocitySoA>(e, {0, 0, 1});
+			w.add<VelocitySoA>(e, {0, 0, 1});
 		else
-			w.Add<Velocity>(e, {0, 0, 1});
+			w.add<Velocity>(e, {0, 0, 1});
 		for (uint32_t i = 0; i < N / 4; ++i) {
-			[[maybe_unused]] auto newentity = w.Add(e);
+			[[maybe_unused]] auto newentity = w.add(e);
 		}
 	}
 	{
-		auto e = w.Add();
+		auto e = w.add();
 		if constexpr (SoA)
-			w.Add<PositionSoA>(e, {0, 100, 0});
+			w.add<PositionSoA>(e, {0, 100, 0});
 		else
-			w.Add<Position>(e, {0, 100, 0});
-		w.Add<Rotation>(e, {1, 2, 3, 4});
-		w.Add<Scale>(e, {1, 1, 1});
+			w.add<Position>(e, {0, 100, 0});
+		w.add<Rotation>(e, {1, 2, 3, 4});
+		w.add<Scale>(e, {1, 1, 1});
 		if constexpr (SoA)
-			w.Add<VelocitySoA>(e, {0, 0, 1});
+			w.add<VelocitySoA>(e, {0, 0, 1});
 		else
-			w.Add<Velocity>(e, {0, 0, 1});
-		w.Add<Direction>(e, {0, 0, 1});
+			w.add<Velocity>(e, {0, 0, 1});
+		w.add<Direction>(e, {0, 0, 1});
 		for (uint32_t i = 0; i < N / 4; ++i) {
-			[[maybe_unused]] auto newentity = w.Add(e);
+			[[maybe_unused]] auto newentity = w.add(e);
 		}
 	}
 	{
-		auto e = w.Add();
+		auto e = w.add();
 		if constexpr (SoA)
-			w.Add<PositionSoA>(e, {0, 100, 0});
+			w.add<PositionSoA>(e, {0, 100, 0});
 		else
-			w.Add<Position>(e, {0, 100, 0});
-		w.Add<Rotation>(e, {1, 2, 3, 4});
-		w.Add<Scale>(e, {1, 1, 1});
+			w.add<Position>(e, {0, 100, 0});
+		w.add<Rotation>(e, {1, 2, 3, 4});
+		w.add<Scale>(e, {1, 1, 1});
 		if constexpr (SoA)
-			w.Add<VelocitySoA>(e, {0, 0, 1});
+			w.add<VelocitySoA>(e, {0, 0, 1});
 		else
-			w.Add<Velocity>(e, {0, 0, 1});
-		w.Add<Direction>(e, {0, 0, 1});
-		w.Add<Health>(e, {100, 100});
+			w.add<Velocity>(e, {0, 0, 1});
+		w.add<Direction>(e, {0, 0, 1});
+		w.add<Health>(e, {100, 100});
 		for (uint32_t i = 0; i < N / 4; ++i) {
-			[[maybe_unused]] auto newentity = w.Add(e);
+			[[maybe_unused]] auto newentity = w.add(e);
 		}
 	}
 	{
-		auto e = w.Add();
+		auto e = w.add();
 		if constexpr (SoA)
-			w.Add<PositionSoA>(e, {0, 100, 0});
+			w.add<PositionSoA>(e, {0, 100, 0});
 		else
-			w.Add<Position>(e, {0, 100, 0});
-		w.Add<Rotation>(e, {1, 2, 3, 4});
-		w.Add<Scale>(e, {1, 1, 1});
+			w.add<Position>(e, {0, 100, 0});
+		w.add<Rotation>(e, {1, 2, 3, 4});
+		w.add<Scale>(e, {1, 1, 1});
 		if constexpr (SoA)
-			w.Add<VelocitySoA>(e, {0, 0, 1});
+			w.add<VelocitySoA>(e, {0, 0, 1});
 		else
-			w.Add<Velocity>(e, {0, 0, 1});
-		w.Add<Direction>(e, {0, 0, 1});
-		w.Add<Health>(e, {100, 100});
-		w.Add<IsEnemy>(e, {false});
+			w.add<Velocity>(e, {0, 0, 1});
+		w.add<Direction>(e, {0, 0, 1});
+		w.add<Health>(e, {100, 100});
+		w.add<IsEnemy>(e, {false});
 		for (uint32_t i = 0; i < N / 4; ++i) {
-			[[maybe_unused]] auto newentity = w.Add(e);
+			[[maybe_unused]] auto newentity = w.add(e);
 		}
 	}
 }
@@ -148,16 +148,16 @@ void BM_ECS(picobench::state& state) {
 	CreateECSEntities_Static<false>(w);
 	CreateECSEntities_Dynamic<false>(w);
 
-	auto queryPosCVel = w.CreateQuery().All<Position, const Velocity>();
-	auto queryPosVel = w.CreateQuery().All<Position, Velocity>();
-	auto queryVel = w.CreateQuery().All<Velocity>();
-	auto queryCHealth = w.CreateQuery().All<const Health>();
+	auto queryPosCVel = w.create_query().all<Position, const Velocity>();
+	auto queryPosVel = w.create_query().all<Position, Velocity>();
+	auto queryVel = w.create_query().all<Velocity>();
+	auto queryCHealth = w.create_query().all<const Health>();
 
 	/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */
-	(void)queryPosCVel.HasEntities();
-	(void)queryPosVel.HasEntities();
-	(void)queryVel.HasEntities();
-	(void)queryCHealth.HasEntities();
+	(void)queryPosCVel.has_entities();
+	(void)queryPosVel.has_entities();
+	(void)queryVel.has_entities();
+	(void)queryCHealth.has_entities();
 
 	srand(0);
 	for (auto _: state) {
@@ -165,25 +165,25 @@ void BM_ECS(picobench::state& state) {
 		dt = CalculateDelta(state);
 
 		// Update position
-		queryPosCVel.ForEach([&](Position& p, const Velocity& v) {
+		queryPosCVel.each([&](Position& p, const Velocity& v) {
 			p.x += v.x * dt;
 			p.y += v.y * dt;
 			p.z += v.z * dt;
 		});
 		// Handle ground collision
-		queryPosVel.ForEach([&](Position& p, Velocity& v) {
+		queryPosVel.each([&](Position& p, Velocity& v) {
 			if (p.y < 0.0f) {
 				p.y = 0.0f;
 				v.y = 0.0f;
 			}
 		});
 		// Apply gravity
-		queryVel.ForEach([&](Velocity& v) {
+		queryVel.each([&](Velocity& v) {
 			v.y += 9.81f * dt;
 		});
 		// Calculate the number of units alive
 		uint32_t aliveUnits = 0;
-		queryCHealth.ForEach([&](const Health& h) {
+		queryCHealth.each([&](const Health& h) {
 			if (h.value > 0)
 				++aliveUnits;
 		});
@@ -198,7 +198,7 @@ protected:
 	ecs::Query* m_q;
 
 public:
-	void Init(ecs::Query* q) {
+	void init(ecs::Query* q) {
 		m_q = q;
 	}
 };
@@ -208,21 +208,21 @@ void BM_ECS_WithSystems(picobench::state& state) {
 	CreateECSEntities_Static<false>(w);
 	CreateECSEntities_Dynamic<false>(w);
 
-	auto queryPosCVel = w.CreateQuery().All<Position, const Velocity>();
-	auto queryPosVel = w.CreateQuery().All<Position, Velocity>();
-	auto queryVel = w.CreateQuery().All<Velocity>();
-	auto queryCHealth = w.CreateQuery().All<const Health>();
+	auto queryPosCVel = w.create_query().all<Position, const Velocity>();
+	auto queryPosVel = w.create_query().all<Position, Velocity>();
+	auto queryVel = w.create_query().all<Velocity>();
+	auto queryCHealth = w.create_query().all<const Health>();
 
 	/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */
-	(void)queryPosCVel.HasEntities();
-	(void)queryPosCVel.HasEntities();
-	(void)queryPosCVel.HasEntities();
-	(void)queryPosCVel.HasEntities();
+	(void)queryPosCVel.has_entities();
+	(void)queryPosCVel.has_entities();
+	(void)queryPosCVel.has_entities();
+	(void)queryPosCVel.has_entities();
 
 	class PositionSystem final: public TestSystem {
 	public:
 		void OnUpdate() override {
-			m_q->ForEach([](Position& p, const Velocity& v) {
+			m_q->each([](Position& p, const Velocity& v) {
 				p.x += v.x * dt;
 				p.y += v.y * dt;
 				p.z += v.z * dt;
@@ -232,7 +232,7 @@ void BM_ECS_WithSystems(picobench::state& state) {
 	class CollisionSystem final: public TestSystem {
 	public:
 		void OnUpdate() override {
-			m_q->ForEach([](Position& p, Velocity& v) {
+			m_q->each([](Position& p, Velocity& v) {
 				if (p.y < 0.0f) {
 					p.y = 0.0f;
 					v.y = 0.0f;
@@ -243,7 +243,7 @@ void BM_ECS_WithSystems(picobench::state& state) {
 	class GravitySystem final: public TestSystem {
 	public:
 		void OnUpdate() override {
-			m_q->ForEach([](Velocity& v) {
+			m_q->each([](Velocity& v) {
 				v.y += 9.81f * dt;
 			});
 		}
@@ -252,7 +252,7 @@ void BM_ECS_WithSystems(picobench::state& state) {
 	public:
 		void OnUpdate() override {
 			uint32_t aliveUnits = 0;
-			m_q->ForEach([&](const Health& h) {
+			m_q->each([&](const Health& h) {
 				if (h.value > 0)
 					++aliveUnits;
 			});
@@ -261,17 +261,17 @@ void BM_ECS_WithSystems(picobench::state& state) {
 	};
 
 	ecs::SystemManager sm(w);
-	sm.CreateSystem<PositionSystem>()->Init(&queryPosCVel);
-	sm.CreateSystem<CollisionSystem>()->Init(&queryPosVel);
-	sm.CreateSystem<GravitySystem>()->Init(&queryVel);
-	sm.CreateSystem<CalculateAliveUnitsSystem>()->Init(&queryCHealth);
+	sm.add<PositionSystem>()->init(&queryPosCVel);
+	sm.add<CollisionSystem>()->init(&queryPosVel);
+	sm.add<GravitySystem>()->init(&queryVel);
+	sm.add<CalculateAliveUnitsSystem>()->init(&queryCHealth);
 
 	srand(0);
 	for (auto _: state) {
 		(void)_;
 		dt = CalculateDelta(state);
 
-		sm.Update();
+		sm.update();
 	}
 }
 
@@ -280,23 +280,23 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 	CreateECSEntities_Static<false>(w);
 	CreateECSEntities_Dynamic<false>(w);
 
-	auto queryPosCVel = w.CreateQuery().All<Position, const Velocity>();
-	auto queryPosVel = w.CreateQuery().All<Position, Velocity>();
-	auto queryVel = w.CreateQuery().All<Velocity>();
-	auto queryCHealth = w.CreateQuery().All<const Health>();
+	auto queryPosCVel = w.create_query().all<Position, const Velocity>();
+	auto queryPosVel = w.create_query().all<Position, Velocity>();
+	auto queryVel = w.create_query().all<Velocity>();
+	auto queryCHealth = w.create_query().all<const Health>();
 
 	/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */
-	(void)queryPosCVel.HasEntities();
-	(void)queryPosVel.HasEntities();
-	(void)queryVel.HasEntities();
-	(void)queryCHealth.HasEntities();
+	(void)queryPosCVel.has_entities();
+	(void)queryPosVel.has_entities();
+	(void)queryVel.has_entities();
+	(void)queryCHealth.has_entities();
 
 	class PositionSystem final: public TestSystem {
 	public:
 		void OnUpdate() override {
-			m_q->ForEach([](ecs::Iterator iter) {
-				auto p = iter.ViewRW<Position>();
-				auto v = iter.View<Velocity>();
+			m_q->each([](ecs::Iterator iter) {
+				auto p = iter.view_mut<Position>();
+				auto v = iter.view<Velocity>();
 
 				iter.each([&](uint32_t i) {
 					p[i].x += v[i].x * dt;
@@ -310,9 +310,9 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 	class CollisionSystem final: public TestSystem {
 	public:
 		void OnUpdate() override {
-			m_q->ForEach([](ecs::Iterator iter) {
-				auto p = iter.ViewRW<Position>();
-				auto v = iter.ViewRW<Velocity>();
+			m_q->each([](ecs::Iterator iter) {
+				auto p = iter.view_mut<Position>();
+				auto v = iter.view_mut<Velocity>();
 
 				iter.each([&](uint32_t i) {
 					if (p[i].y < 0.0f) {
@@ -326,8 +326,8 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 	class GravitySystem final: public TestSystem {
 	public:
 		void OnUpdate() override {
-			m_q->ForEach([](ecs::Iterator iter) {
-				auto v = iter.ViewRW<Velocity>();
+			m_q->each([](ecs::Iterator iter) {
+				auto v = iter.view_mut<Velocity>();
 
 				iter.each([&](uint32_t i) {
 					v[i].y += 9.81f * dt;
@@ -339,8 +339,8 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 	public:
 		void OnUpdate() override {
 			uint32_t aliveUnits = 0;
-			m_q->ForEach([&](ecs::Iterator iter) {
-				auto h = iter.View<Health>();
+			m_q->each([&](ecs::Iterator iter) {
+				auto h = iter.view<Health>();
 
 				uint32_t a = 0;
 				iter.each([&](uint32_t i) {
@@ -354,17 +354,17 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 	};
 
 	ecs::SystemManager sm(w);
-	sm.CreateSystem<PositionSystem>()->Init(&queryPosCVel);
-	sm.CreateSystem<CollisionSystem>()->Init(&queryPosVel);
-	sm.CreateSystem<GravitySystem>()->Init(&queryVel);
-	sm.CreateSystem<CalculateAliveUnitsSystem>()->Init(&queryCHealth);
+	sm.add<PositionSystem>()->init(&queryPosCVel);
+	sm.add<CollisionSystem>()->init(&queryPosVel);
+	sm.add<GravitySystem>()->init(&queryVel);
+	sm.add<CalculateAliveUnitsSystem>()->init(&queryCHealth);
 
 	srand(0);
 	for (auto _: state) {
 		(void)_;
 		dt = CalculateDelta(state);
 
-		sm.Update();
+		sm.update();
 	}
 }
 
@@ -373,23 +373,23 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 	CreateECSEntities_Static<true>(w);
 	CreateECSEntities_Dynamic<true>(w);
 
-	auto queryPosCVel = w.CreateQuery().All<PositionSoA, const VelocitySoA>();
-	auto queryPosVel = w.CreateQuery().All<PositionSoA, VelocitySoA>();
-	auto queryVel = w.CreateQuery().All<VelocitySoA>();
-	auto queryCHealth = w.CreateQuery().All<const Health>();
+	auto queryPosCVel = w.create_query().all<PositionSoA, const VelocitySoA>();
+	auto queryPosVel = w.create_query().all<PositionSoA, VelocitySoA>();
+	auto queryVel = w.create_query().all<VelocitySoA>();
+	auto queryCHealth = w.create_query().all<const Health>();
 
 	/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */
-	(void)queryPosCVel.HasEntities();
-	(void)queryPosVel.HasEntities();
-	(void)queryVel.HasEntities();
-	(void)queryCHealth.HasEntities();
+	(void)queryPosCVel.has_entities();
+	(void)queryPosVel.has_entities();
+	(void)queryVel.has_entities();
+	(void)queryCHealth.has_entities();
 
 	class PositionSystem final: public TestSystem {
 	public:
 		void OnUpdate() override {
-			m_q->ForEach([](ecs::Iterator iter) {
-				auto p = iter.ViewRW<PositionSoA>();
-				auto v = iter.View<VelocitySoA>();
+			m_q->each([](ecs::Iterator iter) {
+				auto p = iter.view_mut<PositionSoA>();
+				auto v = iter.view<VelocitySoA>();
 
 				auto ppx = p.set<0>();
 				auto ppy = p.set<1>();
@@ -414,9 +414,9 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 	class CollisionSystem final: public TestSystem {
 	public:
 		void OnUpdate() override {
-			m_q->ForEach([](ecs::Iterator iter) {
-				auto p = iter.ViewRW<PositionSoA>();
-				auto v = iter.ViewRW<VelocitySoA>();
+			m_q->each([](ecs::Iterator iter) {
+				auto p = iter.view_mut<PositionSoA>();
+				auto v = iter.view_mut<VelocitySoA>();
 
 				auto ppy = p.set<1>();
 				auto vvy = v.set<1>();
@@ -433,8 +433,8 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 	class GravitySystem final: public TestSystem {
 	public:
 		void OnUpdate() override {
-			m_q->ForEach([](ecs::Iterator iter) {
-				auto v = iter.ViewRW<VelocitySoA>();
+			m_q->each([](ecs::Iterator iter) {
+				auto v = iter.view_mut<VelocitySoA>();
 				auto vvy = v.set<1>();
 
 				iter.each([&](uint32_t i) {
@@ -447,8 +447,8 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 	public:
 		void OnUpdate() override {
 			uint32_t aliveUnits = 0;
-			m_q->ForEach([&](ecs::Iterator iter) {
-				auto h = iter.View<Health>();
+			m_q->each([&](ecs::Iterator iter) {
+				auto h = iter.view<Health>();
 
 				uint32_t a = 0;
 				iter.each([&](uint32_t i) {
@@ -462,17 +462,17 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 	};
 
 	ecs::SystemManager sm(w);
-	sm.CreateSystem<PositionSystem>()->Init(&queryPosCVel);
-	sm.CreateSystem<CollisionSystem>()->Init(&queryPosVel);
-	sm.CreateSystem<GravitySystem>()->Init(&queryVel);
-	sm.CreateSystem<CalculateAliveUnitsSystem>()->Init(&queryCHealth);
+	sm.add<PositionSystem>()->init(&queryPosCVel);
+	sm.add<CollisionSystem>()->init(&queryPosVel);
+	sm.add<GravitySystem>()->init(&queryVel);
+	sm.add<CalculateAliveUnitsSystem>()->init(&queryCHealth);
 
 	srand(0);
 	for (auto _: state) {
 		(void)_;
 		dt = CalculateDelta(state);
 
-		sm.Update();
+		sm.update();
 	}
 }
 
