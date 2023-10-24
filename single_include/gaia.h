@@ -18459,7 +18459,7 @@ namespace gaia {
 				}
 
 				template <bool UseFilters, Constraints c, typename ChunksContainer>
-				GAIA_NODISCARD bool HasEntities_Helper(query::QueryInfo& queryInfo, const ChunksContainer& chunks) {
+				GAIA_NODISCARD bool has_entities_inter(query::QueryInfo& queryInfo, const ChunksContainer& chunks) {
 					return core::has_if(chunks, [&](archetype::Chunk* pChunk) {
 						if constexpr (UseFilters) {
 							if constexpr (c == Constraints::AcceptAll)
@@ -18548,17 +18548,17 @@ namespace gaia {
 						switch (constraints) {
 							case Constraints::EnabledOnly: {
 								for (auto* pArchetype: queryInfo)
-									if (HasEntities_Helper<true, Constraints::EnabledOnly>(queryInfo, pArchetype->chunks()))
+									if (has_entities_inter<true, Constraints::EnabledOnly>(queryInfo, pArchetype->chunks()))
 										return true;
 							} break;
 							case Constraints::DisabledOnly: {
 								for (auto* pArchetype: queryInfo)
-									if (HasEntities_Helper<true, Constraints::DisabledOnly>(queryInfo, pArchetype->chunks()))
+									if (has_entities_inter<true, Constraints::DisabledOnly>(queryInfo, pArchetype->chunks()))
 										return true;
 							} break;
 							case Constraints::AcceptAll: {
 								for (auto* pArchetype: queryInfo)
-									if (HasEntities_Helper<true, Constraints::AcceptAll>(queryInfo, pArchetype->chunks()))
+									if (has_entities_inter<true, Constraints::AcceptAll>(queryInfo, pArchetype->chunks()))
 										return true;
 							} break;
 						}
@@ -18566,17 +18566,17 @@ namespace gaia {
 						switch (constraints) {
 							case Constraints::EnabledOnly: {
 								for (auto* pArchetype: queryInfo)
-									if (HasEntities_Helper<false, Constraints::EnabledOnly>(queryInfo, pArchetype->chunks()))
+									if (has_entities_inter<false, Constraints::EnabledOnly>(queryInfo, pArchetype->chunks()))
 										return true;
 							} break;
 							case Constraints::DisabledOnly: {
 								for (auto* pArchetype: queryInfo)
-									if (HasEntities_Helper<false, Constraints::DisabledOnly>(queryInfo, pArchetype->chunks()))
+									if (has_entities_inter<false, Constraints::DisabledOnly>(queryInfo, pArchetype->chunks()))
 										return true;
 							} break;
 							case Constraints::AcceptAll: {
 								for (auto* pArchetype: queryInfo)
-									if (HasEntities_Helper<false, Constraints::AcceptAll>(queryInfo, pArchetype->chunks()))
+									if (has_entities_inter<false, Constraints::AcceptAll>(queryInfo, pArchetype->chunks()))
 										return true;
 							} break;
 						}
