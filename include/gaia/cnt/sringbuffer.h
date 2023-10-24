@@ -9,9 +9,16 @@
 
 namespace gaia {
 	namespace cnt {
-		//! Array of elements of type \tparam T with fixed size and capacity \tparam N allocated on stack.
+		namespace sringbuffer_detail {
+			using difference_type = uint32_t;
+			using size_type = uint32_t;
+		} // namespace sringbuffer_detail
+
+		//! Array of elements of type \tparam T with fixed size and capacity \tparam N allocated on stack
+		//! working as a ring buffer. That means the element at position N-1 is followed by the element
+		//! at the position 0.
 		//! Interface compatiblity with std::array where it matters.
-		template <typename T, uint32_t N>
+		template <typename T, sringbuffer_detail::size_type N>
 		class sringbuffer {
 		public:
 			static_assert(N > 1);
@@ -23,8 +30,8 @@ namespace gaia {
 			using const_reference = const T&;
 			using pointer = T*;
 			using const_pointer = T*;
-			using difference_type = decltype(N);
-			using size_type = decltype(N);
+			using difference_type = sringbuffer_detail::size_type;
+			using size_type = sringbuffer_detail::size_type;
 
 			static constexpr size_type extent = N;
 

@@ -12,6 +12,186 @@
 
 namespace gaia {
 	namespace cnt {
+		namespace darr_detail {
+			using difference_type = uint32_t;
+			using size_type = uint32_t;
+		} // namespace darr_detail
+
+		template <typename T>
+		struct darr_iterator {
+			using iterator_category = core::random_access_iterator_tag;
+			using value_type = T;
+			using pointer = T*;
+			using reference = T&;
+			using difference_type = darr_detail::difference_type;
+			using size_type = darr_detail::size_type;
+
+			using iterator = darr_iterator;
+
+		private:
+			pointer m_ptr;
+
+		public:
+			darr_iterator(T* ptr): m_ptr(ptr) {}
+
+			T& operator*() const {
+				return *m_ptr;
+			}
+			T* operator->() const {
+				return m_ptr;
+			}
+			iterator operator[](size_type offset) const {
+				return {m_ptr + offset};
+			}
+
+			iterator& operator+=(size_type diff) {
+				m_ptr += diff;
+				return *this;
+			}
+			iterator& operator-=(size_type diff) {
+				m_ptr -= diff;
+				return *this;
+			}
+			iterator& operator++() {
+				++m_ptr;
+				return *this;
+			}
+			iterator operator++(int) {
+				iterator temp(*this);
+				++*this;
+				return temp;
+			}
+			iterator& operator--() {
+				--m_ptr;
+				return *this;
+			}
+			iterator operator--(int) {
+				iterator temp(*this);
+				--*this;
+				return temp;
+			}
+
+			iterator operator+(size_type offset) const {
+				return {m_ptr + offset};
+			}
+			iterator operator-(size_type offset) const {
+				return {m_ptr - offset};
+			}
+			difference_type operator-(const iterator& other) const {
+				return (difference_type)(m_ptr - other.m_ptr);
+			}
+
+			GAIA_NODISCARD bool operator==(const iterator& other) const {
+				return m_ptr == other.m_ptr;
+			}
+			GAIA_NODISCARD bool operator!=(const iterator& other) const {
+				return m_ptr != other.m_ptr;
+			}
+			GAIA_NODISCARD bool operator>(const iterator& other) const {
+				return m_ptr > other.m_ptr;
+			}
+			GAIA_NODISCARD bool operator>=(const iterator& other) const {
+				return m_ptr >= other.m_ptr;
+			}
+			GAIA_NODISCARD bool operator<(const iterator& other) const {
+				return m_ptr < other.m_ptr;
+			}
+			GAIA_NODISCARD bool operator<=(const iterator& other) const {
+				return m_ptr <= other.m_ptr;
+			}
+		};
+
+		template <typename T>
+		struct darr_iterator_soa {
+			using iterator_category = core::random_access_iterator_tag;
+			using value_type = T;
+			// using pointer = T*; not supported
+			// using reference = T&; not supported
+			using difference_type = darr_detail::difference_type;
+			using size_type = darr_detail::size_type;
+
+			using iterator = darr_iterator_soa;
+
+		private:
+			uint8_t* m_ptr;
+			uint32_t m_cnt;
+			uint32_t m_idx;
+
+		public:
+			darr_iterator_soa(uint8_t* ptr, uint32_t cnt, uint32_t idx): m_ptr(ptr), m_cnt(cnt), m_idx(idx) {}
+
+			T operator*() const {
+				return mem::data_view_policy<T::Layout, T>::get({m_ptr, m_cnt}, m_idx);
+			}
+
+			iterator operator[](size_type offset) const {
+				return iterator(m_ptr, m_cnt, m_idx + offset);
+			}
+
+			iterator& operator+=(size_type diff) {
+				m_idx += diff;
+				return *this;
+			}
+			iterator& operator-=(size_type diff) {
+				m_idx -= diff;
+				return *this;
+			}
+			iterator& operator++() {
+				++m_idx;
+				return *this;
+			}
+			iterator operator++(int) {
+				iterator temp(*this);
+				++*this;
+				return temp;
+			}
+			iterator& operator--() {
+				--m_idx;
+				return *this;
+			}
+			iterator operator--(int) {
+				iterator temp(*this);
+				--*this;
+				return temp;
+			}
+
+			iterator operator+(size_type offset) const {
+				return iterator(m_ptr, m_cnt, m_idx + offset);
+			}
+			iterator operator-(size_type offset) const {
+				return iterator(m_ptr, m_cnt, m_idx + offset);
+			}
+			difference_type operator-(const iterator& other) const {
+				GAIA_ASSERT(m_ptr == other.m_ptr);
+				return (difference_type)(m_idx - other.m_idx);
+			}
+
+			GAIA_NODISCARD bool operator==(const iterator& other) const {
+				GAIA_ASSERT(m_ptr == other.m_ptr);
+				return m_idx == other.m_idx;
+			}
+			GAIA_NODISCARD bool operator!=(const iterator& other) const {
+				GAIA_ASSERT(m_ptr == other.m_ptr);
+				return m_idx != other.m_idx;
+			}
+			GAIA_NODISCARD bool operator>(const iterator& other) const {
+				GAIA_ASSERT(m_ptr == other.m_ptr);
+				return m_idx > other.m_idx;
+			}
+			GAIA_NODISCARD bool operator>=(const iterator& other) const {
+				GAIA_ASSERT(m_ptr == other.m_ptr);
+				return m_idx >= other.m_idx;
+			}
+			GAIA_NODISCARD bool operator<(const iterator& other) const {
+				GAIA_ASSERT(m_ptr == other.m_ptr);
+				return m_idx < other.m_idx;
+			}
+			GAIA_NODISCARD bool operator<=(const iterator& other) const {
+				GAIA_ASSERT(m_ptr == other.m_ptr);
+				return m_idx <= other.m_idx;
+			}
+		};
+
 		//! Array with variable size of elements of type \tparam T allocated on heap.
 		//! Interface compatiblity with std::vector where it matters.
 		template <typename T>
@@ -22,9 +202,12 @@ namespace gaia {
 			using const_reference = const T&;
 			using pointer = T*;
 			using const_pointer = T*;
-			using difference_type = uint32_t;
-			using size_type = uint32_t;
 			using view_policy = mem::auto_view_policy<T>;
+			using difference_type = darr_detail::difference_type;
+			using size_type = darr_detail::size_type;
+
+			using iterator = darr_iterator<T>;
+			using iterator_soa = darr_iterator_soa<T>;
 
 		private:
 			uint8_t* m_pData = nullptr;
@@ -55,181 +238,6 @@ namespace gaia {
 			}
 
 		public:
-			class iterator {
-				friend class darr;
-
-			public:
-				using iterator_category = core::random_access_iterator_tag;
-				using value_type = T;
-				using difference_type = darr::size_type;
-				using pointer = T*;
-				using reference = T&;
-				using size_type = darr::size_type;
-
-			private:
-				pointer m_ptr;
-
-			public:
-				iterator(T* ptr): m_ptr(ptr) {}
-
-				T& operator*() const {
-					return *m_ptr;
-				}
-				T* operator->() const {
-					return m_ptr;
-				}
-				iterator operator[](size_type offset) const {
-					return {m_ptr + offset};
-				}
-
-				iterator& operator+=(size_type diff) {
-					m_ptr += diff;
-					return *this;
-				}
-				iterator& operator-=(size_type diff) {
-					m_ptr -= diff;
-					return *this;
-				}
-				iterator& operator++() {
-					++m_ptr;
-					return *this;
-				}
-				iterator operator++(int) {
-					iterator temp(*this);
-					++*this;
-					return temp;
-				}
-				iterator& operator--() {
-					--m_ptr;
-					return *this;
-				}
-				iterator operator--(int) {
-					iterator temp(*this);
-					--*this;
-					return temp;
-				}
-
-				iterator operator+(size_type offset) const {
-					return {m_ptr + offset};
-				}
-				iterator operator-(size_type offset) const {
-					return {m_ptr - offset};
-				}
-				difference_type operator-(const iterator& other) const {
-					return (difference_type)(m_ptr - other.m_ptr);
-				}
-
-				GAIA_NODISCARD bool operator==(const iterator& other) const {
-					return m_ptr == other.m_ptr;
-				}
-				GAIA_NODISCARD bool operator!=(const iterator& other) const {
-					return m_ptr != other.m_ptr;
-				}
-				GAIA_NODISCARD bool operator>(const iterator& other) const {
-					return m_ptr > other.m_ptr;
-				}
-				GAIA_NODISCARD bool operator>=(const iterator& other) const {
-					return m_ptr >= other.m_ptr;
-				}
-				GAIA_NODISCARD bool operator<(const iterator& other) const {
-					return m_ptr < other.m_ptr;
-				}
-				GAIA_NODISCARD bool operator<=(const iterator& other) const {
-					return m_ptr <= other.m_ptr;
-				}
-			};
-
-			class iterator_soa {
-				friend class darr;
-
-			public:
-				using iterator_category = core::random_access_iterator_tag;
-				using value_type = T;
-				using difference_type = darr::size_type;
-				// using pointer = T*; not supported
-				// using reference = T&; not supported
-				using size_type = darr::size_type;
-
-			private:
-				uint8_t* m_ptr;
-				uint32_t m_cnt;
-				uint32_t m_idx;
-
-			public:
-				iterator_soa(uint8_t* ptr, uint32_t cnt, uint32_t idx): m_ptr(ptr), m_cnt(cnt), m_idx(idx) {}
-
-				T operator*() const {
-					return mem::data_view_policy<T::Layout, T>::get({m_ptr, m_cnt}, m_idx);
-				}
-
-				iterator_soa operator[](size_type offset) const {
-					return iterator_soa(m_ptr, m_cnt, m_idx + offset);
-				}
-
-				iterator_soa& operator+=(size_type diff) {
-					m_idx += diff;
-					return *this;
-				}
-				iterator& operator-=(size_type diff) {
-					m_idx -= diff;
-					return *this;
-				}
-				iterator_soa& operator++() {
-					++m_idx;
-					return *this;
-				}
-				iterator_soa operator++(int) {
-					iterator_soa temp(*this);
-					++*this;
-					return temp;
-				}
-				iterator_soa& operator--() {
-					--m_idx;
-					return *this;
-				}
-				iterator_soa operator--(int) {
-					iterator_soa temp(*this);
-					--*this;
-					return temp;
-				}
-
-				iterator_soa operator+(size_type offset) const {
-					return iterator_soa(m_ptr, m_cnt, m_idx + offset);
-				}
-				iterator_soa operator-(size_type offset) const {
-					return iterator_soa(m_ptr, m_cnt, m_idx + offset);
-				}
-				difference_type operator-(const iterator_soa& other) const {
-					GAIA_ASSERT(m_ptr == other.m_ptr);
-					return (difference_type)(m_idx - other.m_idx);
-				}
-
-				GAIA_NODISCARD bool operator==(const iterator_soa& other) const {
-					GAIA_ASSERT(m_ptr == other.m_ptr);
-					return m_idx == other.m_idx;
-				}
-				GAIA_NODISCARD bool operator!=(const iterator_soa& other) const {
-					GAIA_ASSERT(m_ptr == other.m_ptr);
-					return m_idx != other.m_idx;
-				}
-				GAIA_NODISCARD bool operator>(const iterator_soa& other) const {
-					GAIA_ASSERT(m_ptr == other.m_ptr);
-					return m_idx > other.m_idx;
-				}
-				GAIA_NODISCARD bool operator>=(const iterator_soa& other) const {
-					GAIA_ASSERT(m_ptr == other.m_ptr);
-					return m_idx >= other.m_idx;
-				}
-				GAIA_NODISCARD bool operator<(const iterator_soa& other) const {
-					GAIA_ASSERT(m_ptr == other.m_ptr);
-					return m_idx < other.m_idx;
-				}
-				GAIA_NODISCARD bool operator<=(const iterator_soa& other) const {
-					GAIA_ASSERT(m_ptr == other.m_ptr);
-					return m_idx <= other.m_idx;
-				}
-			};
-
 			constexpr darr() noexcept = default;
 
 			darr(size_type count, const T& value) {

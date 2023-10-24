@@ -9,7 +9,7 @@
 namespace gaia {
 	namespace cnt {
 		struct ilist_item_base {};
-		
+
 		struct ilist_item: public ilist_item_base {
 			//! Allocated items: Index in the list.
 			//! Deleted items: Index of the next deleted item in the list.
@@ -38,8 +38,8 @@ namespace gaia {
 			using const_reference = const TListItem&;
 			using pointer = TListItem*;
 			using const_pointer = TListItem*;
-			using difference_type = uint32_t;
-			using size_type = uint32_t;
+			using difference_type = typename internal_storage::difference_type;
+			using size_type = typename internal_storage::size_type;
 
 			static_assert(std::is_base_of<ilist_item_base, TListItem>::value);
 			//! Implicit list items

@@ -4,7 +4,7 @@
 
 namespace gaia {
 	namespace cnt {
-		template <typename T, uint32_t N>
+		template <typename T, sarr_detail::size_type N>
 		using sarray = cnt::sarr<T, N>;
 	} // namespace cnt
 } // namespace gaia
