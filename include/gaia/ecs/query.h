@@ -45,7 +45,7 @@ namespace gaia {
 				static constexpr uint32_t ChunkBatchSize = 16;
 				using CChunkSpan = std::span<const archetype::Chunk*>;
 				using ChunkBatchedList = cnt::sarray_ext<archetype::Chunk*, ChunkBatchSize>;
-				using CmdBufferCmdFunc = void (*)(DataBuffer& buffer, query::LookupCtx& ctx);
+				using CmdBufferCmdFunc = void (*)(SerializationBuffer& buffer, query::LookupCtx& ctx);
 
 			public:
 				//! QueryImpl constraints
@@ -149,24 +149,22 @@ namespace gaia {
 
 				static constexpr CmdBufferCmdFunc CommandBufferRead[] = {
 						// Add component
-						[](DataBuffer& buffer, query::LookupCtx& ctx) {
+						[](SerializationBuffer& buffer, query::LookupCtx& ctx) {
 							Command_AddComponent cmd;
-							DataBuffer_SerializationWrapper s(buffer);
-							ser::load(s, cmd);
+							ser::load(buffer, cmd);
 							cmd.exec(ctx);
 						},
 						// Add filter
-						[](DataBuffer& buffer, query::LookupCtx& ctx) {
+						[](SerializationBuffer& buffer, query::LookupCtx& ctx) {
 							Command_Filter cmd;
-							DataBuffer_SerializationWrapper s(buffer);
-							ser::load(s, cmd);
+							ser::load(buffer, cmd);
 							cmd.exec(ctx);
 						}};
 
 				//! Storage for data based on whether Caching is used or not
 				QueryImplStorage<UseCaching> m_storage;
 				//! Buffer with commands used to fetch the QueryInfo
-				DataBuffer m_cmdBuffer;
+				SerializationBuffer m_serBuffer;
 				//! World version (stable pointer to parent world's world version)
 				uint32_t* m_worldVersion{};
 				//! List of achetypes (stable pointer to parent world's archetype array)
@@ -226,9 +224,8 @@ namespace gaia {
 					(void)cc.goc_comp_info<T>();
 
 					Command_AddComponent cmd{componentId, compType, listType, isReadWrite};
-					DataBuffer_SerializationWrapper s(m_cmdBuffer);
-					ser::save(s, Command_AddComponent::Id);
-					ser::save(s, cmd);
+					ser::save(m_serBuffer, Command_AddComponent::Id);
+					ser::save(m_serBuffer, cmd);
 				}
 
 				template <typename T>
@@ -237,9 +234,8 @@ namespace gaia {
 					constexpr auto compType = component::component_type_v<T>;
 
 					Command_Filter cmd{componentId, compType};
-					DataBuffer_SerializationWrapper s(m_cmdBuffer);
-					ser::save(s, Command_Filter::Id);
-					ser::save(s, cmd);
+					ser::save(m_serBuffer, Command_Filter::Id);
+					ser::save(m_serBuffer, cmd);
 				}
 
 				//--------------------------------------------------------------------------------
@@ -253,21 +249,19 @@ namespace gaia {
 					}
 #endif
 
-					DataBuffer_SerializationWrapper s(m_cmdBuffer);
-
 					// Read data from buffer and execute the command stored in it
-					m_cmdBuffer.seek(0);
-					while (m_cmdBuffer.tell() < m_cmdBuffer.size()) {
+					m_serBuffer.seek(0);
+					while (m_serBuffer.tell() < m_serBuffer.bytes()) {
 						CommandBufferCmd id{};
-						ser::load(s, id);
-						CommandBufferRead[id](m_cmdBuffer, ctx);
+						ser::load(m_serBuffer, id);
+						CommandBufferRead[id](m_serBuffer, ctx);
 					}
 
 					// Calculate the lookup hash from the provided context
 					query::calc_lookup_hash(ctx);
 
 					// We can free all temporary data now
-					m_cmdBuffer.reset();
+					m_serBuffer.reset();
 				}
 
 				//--------------------------------------------------------------------------------
