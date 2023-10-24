@@ -18506,7 +18506,7 @@ namespace gaia {
 				}
 
 				template <bool UseFilters, Constraints c, typename ChunksContainerIn, typename ChunksContainerOut>
-				void as_arr_inter(query::QueryInfo& queryInfo, const ChunksContainerIn& chunks, ChunksContainerOut& outArray) {
+				void arr_inter(query::QueryInfo& queryInfo, const ChunksContainerIn& chunks, ChunksContainerOut& outArray) {
 					using ContainerItemType = typename ChunksContainerOut::value_type;
 
 					for (auto* pChunk: chunks) {
@@ -18537,7 +18537,7 @@ namespace gaia {
 					Returns true or false depending on whether there are entities matching the query.
 					\warning Only use if you only care if there are any entities matching the query.
 									 The result is not cached and repeated calls to the function might be slow.
-									 If you already called as_arr, checking if it is empty is preferred.
+									 If you already called arr(), checking if it is empty is preferred.
 					\return True if there are any entites matchine the query. False otherwise.
 					*/
 				bool has_entities(Constraints constraints = Constraints::EnabledOnly) {
@@ -18589,7 +18589,7 @@ namespace gaia {
 				Returns the number of entities matching the query
 				\warning Only use if you only care about the number of entities matching the query.
 								 The result is not cached and repeated calls to the function might be slow.
-								 If you already called as_arr, use the size provided by the array.
+								 If you already called arr(), use the size provided by the array.
 				\return The number of matching entities
 				*/
 				uint32_t calc_entity_cnt(Constraints constraints = Constraints::EnabledOnly) {
@@ -18639,7 +18639,7 @@ namespace gaia {
 				\return Array with entities or components
 				*/
 				template <typename Container>
-				void as_arr(Container& outArray, Constraints constraints = Constraints::EnabledOnly) {
+				void arr(Container& outArray, Constraints constraints = Constraints::EnabledOnly) {
 					const auto entCnt = calc_entity_cnt();
 					if (entCnt == 0)
 						return;
@@ -18652,30 +18652,30 @@ namespace gaia {
 						switch (constraints) {
 							case Constraints::EnabledOnly:
 								for (auto* pArchetype: queryInfo)
-									as_arr_inter<true, Constraints::EnabledOnly>(queryInfo, pArchetype->chunks(), outArray);
+									arr_inter<true, Constraints::EnabledOnly>(queryInfo, pArchetype->chunks(), outArray);
 								break;
 							case Constraints::DisabledOnly:
 								for (auto* pArchetype: queryInfo)
-									as_arr_inter<true, Constraints::DisabledOnly>(queryInfo, pArchetype->chunks(), outArray);
+									arr_inter<true, Constraints::DisabledOnly>(queryInfo, pArchetype->chunks(), outArray);
 								break;
 							case Constraints::AcceptAll:
 								for (auto* pArchetype: queryInfo)
-									as_arr_inter<true, Constraints::AcceptAll>(queryInfo, pArchetype->chunks(), outArray);
+									arr_inter<true, Constraints::AcceptAll>(queryInfo, pArchetype->chunks(), outArray);
 								break;
 						}
 					} else {
 						switch (constraints) {
 							case Constraints::EnabledOnly:
 								for (auto* pArchetype: queryInfo)
-									as_arr_inter<false, Constraints::EnabledOnly>(queryInfo, pArchetype->chunks(), outArray);
+									arr_inter<false, Constraints::EnabledOnly>(queryInfo, pArchetype->chunks(), outArray);
 								break;
 							case Constraints::DisabledOnly:
 								for (auto* pArchetype: queryInfo)
-									as_arr_inter<false, Constraints::DisabledOnly>(queryInfo, pArchetype->chunks(), outArray);
+									arr_inter<false, Constraints::DisabledOnly>(queryInfo, pArchetype->chunks(), outArray);
 								break;
 							case Constraints::AcceptAll:
 								for (auto* pArchetype: queryInfo)
-									as_arr_inter<false, Constraints::AcceptAll>(queryInfo, pArchetype->chunks(), outArray);
+									arr_inter<false, Constraints::AcceptAll>(queryInfo, pArchetype->chunks(), outArray);
 								break;
 						}
 					}
