@@ -678,15 +678,16 @@ When crunching larger data sets it is often beneficial to split the load among t
 
 ```cpp
 static uint32_t SumNumbers(std::span<const uint32_t> arr) {
-	uint32_t sum = 0;
-	for (uint32_t val: arr) sum += val;
-	return sum;
+  uint32_t sum = 0;
+  for (uint32_t val: arr)
+    sum += val;
+  return sum;
 }
-
 ...
+
 constexpr uint32_t N = 1'000'000;
 cnt::darray<uint32_t> arr;
-__fill_arr_with_N_values__();
+...
 
 std::atomic_uint32_t sum = 0;
 mt::JobParallel job {[&arr, &sum](const mt::JobArgs& args) {
@@ -713,6 +714,7 @@ A similar result can be achieved via ***sched***. It is a bit more complicated b
 ...
 constexpr uint32_t ItemsPerJob = 1234;
 constexpr uint32_t Jobs = (N + ItemsPerJob - 1) / ItemsPerJob;
+
 std::atomic_uint32_t sum = 0;
 for (uint32_t i = 0; i < Jobs; ++i) {
   mt::Job job {[&arr, &sum, i, ItemsPerJob, func]() {
@@ -722,6 +724,7 @@ for (uint32_t i = 0; i < Jobs; ++i) {
   }};
   tp.sched(job);
 }
+
 // Wait for all previous tasks to complete
 tp.wait_all();
 ```
