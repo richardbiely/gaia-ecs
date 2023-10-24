@@ -107,8 +107,8 @@ namespace gaia {
 			//! This means \param jobHandle will run only after all \param dependsOnSpan jobs finish.
 			//! \warning Must be used from the main thread.
 			//! \warning Needs to be called before any of the listed jobs are scheduled.
-			void deps(JobHandle jobHandle, std::span<const JobHandle> dependsOnSpan) {
-				m_jobManager.deps(jobHandle, dependsOnSpan);
+			void dep(JobHandle jobHandle, std::span<const JobHandle> dependsOnSpan) {
+				m_jobManager.dep(jobHandle, dependsOnSpan);
 			}
 
 			//! Creates a job system job from \param job.
@@ -194,7 +194,7 @@ namespace gaia {
 			//! \return Job handle of the scheduled job.
 			JobHandle sched(const Job& job, std::span<const JobHandle> dependsOnSpan) {
 				JobHandle jobHandle = add(job);
-				deps(jobHandle, dependsOnSpan);
+				dep(jobHandle, dependsOnSpan);
 				submit(jobHandle);
 				return jobHandle;
 			}

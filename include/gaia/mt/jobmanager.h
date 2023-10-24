@@ -223,7 +223,7 @@ namespace gaia {
 			//! This means \param jobHandle will run only after all \param dependsOnSpan jobs finish.
 			//! \warning Must be used from the main thread.
 			//! \warning Needs to be called before any of the listed jobs are scheduled.
-			void deps(JobHandle jobHandle, std::span<const JobHandle> dependsOnSpan) {
+			void dep(JobHandle jobHandle, std::span<const JobHandle> dependsOnSpan) {
 				if (dependsOnSpan.empty())
 					return;
 
