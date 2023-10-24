@@ -49,10 +49,10 @@ namespace gaia {
 			BaseSystem& operator=(const BaseSystem&) = delete;
 
 		public:
-			GAIA_NODISCARD World& GetWorld() {
+			GAIA_NODISCARD World& world() {
 				return *m_world;
 			}
-			GAIA_NODISCARD const World& GetWorld() const {
+			GAIA_NODISCARD const World& world() const {
 				return *m_world;
 			}
 

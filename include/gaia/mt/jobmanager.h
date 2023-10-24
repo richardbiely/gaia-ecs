@@ -190,7 +190,7 @@ namespace gaia {
 			//! This means \param jobHandle will run only after \param dependsOn finishes.
 			//! \warning Must be used from the main thread.
 			//! \warning Needs to be called before any of the listed jobs are scheduled.
-			void add_dep(JobHandle jobHandle, JobHandle dependsOn) {
+			void dep(JobHandle jobHandle, JobHandle dependsOn) {
 				std::scoped_lock<std::mutex> lockJobs(m_jobsLock);
 				auto& job = m_jobs[jobHandle.id()];
 
@@ -223,7 +223,7 @@ namespace gaia {
 			//! This means \param jobHandle will run only after all \param dependsOnSpan jobs finish.
 			//! \warning Must be used from the main thread.
 			//! \warning Needs to be called before any of the listed jobs are scheduled.
-			void add_deps(JobHandle jobHandle, std::span<const JobHandle> dependsOnSpan) {
+			void deps(JobHandle jobHandle, std::span<const JobHandle> dependsOnSpan) {
 				if (dependsOnSpan.empty())
 					return;
 

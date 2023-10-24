@@ -23,7 +23,7 @@ class PositionSystem final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q = GetWorld().create_query().all<Position, const Velocity>();
+		m_q = world().query().all<Position, const Velocity>();
 	}
 
 	void OnUpdate() override {
@@ -41,7 +41,7 @@ class PositionSystem_All final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q = GetWorld().create_query().all<Position, const Velocity>();
+		m_q = world().query().all<Position, const Velocity>();
 	}
 
 	void OnUpdate() override {
@@ -66,7 +66,7 @@ class PositionSystem_All2 final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q = GetWorld().create_query().all<Position, const Velocity>();
+		m_q = world().query().all<Position, const Velocity>();
 	}
 
 	void OnUpdate() override {
@@ -91,7 +91,7 @@ class PositionSystem_DisabledOnly final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q = GetWorld().create_query().all<Position, const Velocity>();
+		m_q = world().query().all<Position, const Velocity>();
 	}
 
 	void OnUpdate() override {

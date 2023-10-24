@@ -178,7 +178,7 @@ namespace gaia {
 			public:
 				query::QueryInfo& fetch_query_info() {
 					if constexpr (UseCaching) {
-						// Make sure the query was created by World.create_query()
+						// Make sure the query was created by World.query()
 						GAIA_ASSERT(m_storage.m_entityQueryCache != nullptr);
 
 						// Lookup hash is present which means QueryInfo was already found
@@ -576,7 +576,7 @@ namespace gaia {
 
 				template <typename Func, bool FuncEnabled = UseCaching, typename std::enable_if<FuncEnabled>::type* = nullptr>
 				void each(query::QueryId queryId, Func func) {
-					// Make sure the query was created by World.create_query()
+					// Make sure the query was created by World.query()
 					GAIA_ASSERT(m_storage.m_entityQueryCache != nullptr);
 					GAIA_ASSERT(queryId != query::QueryIdBad);
 

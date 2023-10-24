@@ -1052,7 +1052,7 @@ namespace gaia {
 
 		public:
 			template <bool UseCache = true>
-			auto create_query() {
+			auto query() {
 				if constexpr (UseCache)
 					return Query(m_queryCache, m_worldVersion, m_archetypes, m_componentToArchetypeMap);
 				else
@@ -1072,14 +1072,14 @@ namespace gaia {
 
 				constexpr auto lookupHash = calc_query_id_lookup_hash(InputArgs{});
 				if (m_uniqueFuncQueryPairs.count(lookupHash) == 0) {
-					Query query = create_query();
-					unpack_args_into_query(query, InputArgs{});
-					(void)query.fetch_query_info();
-					m_uniqueFuncQueryPairs.try_emplace(lookupHash, query.id());
-					create_query().each(query.id(), func);
+					Query q = query();
+					unpack_args_into_query(q, InputArgs{});
+					(void)q.fetch_query_info();
+					m_uniqueFuncQueryPairs.try_emplace(lookupHash, q.id());
+					query().each(q.id(), func);
 				} else {
 					const auto queryId = m_uniqueFuncQueryPairs[lookupHash];
-					create_query().each(queryId, func);
+					query().each(queryId, func);
 				}
 			}
 

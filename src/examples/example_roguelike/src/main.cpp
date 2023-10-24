@@ -499,7 +499,7 @@ class UpdateMapSystem final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q = GetWorld().create_query().all<const Position, RigidBody>();
+		m_q = world().query().all<const Position, RigidBody>();
 	}
 	void OnUpdate() override {
 		g_world.content.clear();
@@ -526,7 +526,7 @@ class CollisionSystem final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q = GetWorld().create_query().all<const Position, Velocity, const RigidBody>();
+		m_q = world().query().all<const Position, Velocity, const RigidBody>();
 	}
 
 	void OnUpdate() override {
@@ -583,8 +583,8 @@ public:
 					bool hadCollision = false;
 					for (auto e2: it->second) {
 						// If the content has non-zero velocity we need to determine if we'd hit it
-						if (GetWorld().has<Velocity>(e2)) {
-							auto v2 = GetWorld().get<Velocity>(e2);
+						if (world().has<Velocity>(e2)) {
+							auto v2 = world().get<Velocity>(e2);
 							if (v2.x != 0 && v2.y != 0) {
 								const int vv2[2] = {v2.x, v2.y};
 
@@ -632,7 +632,7 @@ class OrientationSystem final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q = GetWorld().create_query().all<Orientation, const Velocity>().changed<Velocity>();
+		m_q = world().query().all<Orientation, const Velocity>().changed<Velocity>();
 	}
 
 	void OnUpdate() override {
@@ -655,7 +655,7 @@ class MoveSystem final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q = GetWorld().create_query().all<Position, const Velocity>();
+		m_q = world().query().all<Position, const Velocity>();
 	}
 
 	void OnUpdate() override {
@@ -683,8 +683,8 @@ public:
 				continue;
 
 			uint32_t idx1{}, idx2{};
-			auto* pChunk1 = GetWorld().get_chunk(coll.e1, idx1);
-			auto* pChunk2 = GetWorld().get_chunk(coll.e2, idx2);
+			auto* pChunk1 = world().get_chunk(coll.e1, idx1);
+			auto* pChunk2 = world().get_chunk(coll.e2, idx2);
 
 			// Skip non-damagable things
 			if (!pChunk2->has<Health>())
@@ -725,11 +725,11 @@ public:
 			// Entity -> world content collision
 			if (coll.e2 == ecs::EntityNull) {
 				uint32_t idx1{};
-				auto* pChunk1 = GetWorld().get_chunk(coll.e1, idx1);
+				auto* pChunk1 = world().get_chunk(coll.e1, idx1);
 				GAIA_ASSERT(pChunk1 != nullptr);
 
 				// An arrow colliding with something. Bring its health to 0 (destroyed).
-				// We could have simpy called GetWorld().del(coll.e1) but doing it
+				// We could have simpy called world().del(coll.e1) but doing it
 				// this way allows our more control. Who knows what kinds of effect and
 				// post-processing we might have in mind for the arrow later in the frame.
 				if (pChunk1->has<Item>() && pChunk1->has<Health>()) {
@@ -743,8 +743,8 @@ public:
 			// Entity -> entity collision
 			else {
 				uint32_t idx1{}, idx2{};
-				auto* pChunk1 = GetWorld().get_chunk(coll.e1, idx1);
-				auto* pChunk2 = GetWorld().get_chunk(coll.e2, idx2);
+				auto* pChunk1 = world().get_chunk(coll.e1, idx1);
+				auto* pChunk2 = world().get_chunk(coll.e2, idx2);
 				GAIA_ASSERT(pChunk1 != nullptr);
 				GAIA_ASSERT(pChunk2 != nullptr);
 
@@ -781,7 +781,7 @@ class HandleHealthSystem final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q = GetWorld().create_query().all<Health>().changed<Health>();
+		m_q = world().query().all<Health>().changed<Health>();
 	}
 
 	void OnUpdate() override {
@@ -797,7 +797,7 @@ class HandleDeathSystem final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q = GetWorld().create_query().all<const Health, const Position>().changed<Health>();
+		m_q = world().query().all<const Health, const Position>().changed<Health>();
 	}
 
 	void OnUpdate() override {
@@ -816,7 +816,7 @@ class WriteSpritesToMapSystem final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q = GetWorld().create_query().all<const Position, const Sprite>();
+		m_q = world().query().all<const Position, const Sprite>();
 	}
 
 	void OnUpdate() override {
@@ -846,8 +846,8 @@ class UISystem final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_qp = GetWorld().create_query().all<const Health, Player>();
-		m_qe = GetWorld().create_query().all<const Health>().none<Player, Item>();
+		m_qp = world().query().all<const Health, Player>();
+		m_qe = world().query().all<const Health>().none<Player, Item>();
 	}
 
 	void OnUpdate() override {
@@ -868,8 +868,8 @@ class GameStateSystem: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_qp = GetWorld().create_query().all<const Health, Player>();
-		m_qe = GetWorld().create_query().all<const Health>().none<Player, Item>();
+		m_qp = world().query().all<const Health, Player>();
+		m_qe = world().query().all<const Health>().none<Player, Item>();
 	}
 
 	void OnUpdate() override {
@@ -893,7 +893,7 @@ class InputSystem final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q = GetWorld().create_query().all<const Player, Velocity, const Position, const Orientation>();
+		m_q = world().query().all<const Player, Velocity, const Position, const Orientation>();
 	}
 
 	void OnUpdate() override {
