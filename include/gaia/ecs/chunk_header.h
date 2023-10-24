@@ -33,7 +33,7 @@ namespace gaia {
 				//! Maxiumum number of entities per chunk.
 				//! Defined as sizeof(big_chunk) / sizeof(entity)
 				static constexpr uint16_t MAX_CHUNK_ENTITIES =
-						(detail::ChunkAllocatorImpl::GetMemoryBlockSize(1) - 64) / sizeof(Entity);
+						(detail::ChunkAllocatorImpl::mem_block_size(1) - 64) / sizeof(Entity);
 				static constexpr uint16_t MAX_CHUNK_ENTITIES_BITS = (uint16_t)core::count_bits(MAX_CHUNK_ENTITIES);
 
 				//! Archetype the chunk belongs to
@@ -85,11 +85,11 @@ namespace gaia {
 					GAIA_ASSERT(uintptr_t(this) % (sizeof(size_t)) == 0);
 				}
 
-				bool HasDisabledEntities() const {
+				bool has_disabled_entities() const {
 					return firstEnabledEntityIndex > 0;
 				}
 
-				bool HasEnabledEntities() const {
+				bool has_enabled_entities() const {
 					return countEnabled > 0;
 				}
 			};

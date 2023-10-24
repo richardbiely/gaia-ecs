@@ -30,13 +30,13 @@ namespace gaia {
 
 			//! Returns the number of entities accessible via the iterator
 			GAIA_NODISCARD uint32_t size() const noexcept {
-				return m_chunk.GetEnabledEntityCount();
+				return m_chunk.size_enabled();
 			}
 
 			template <typename Func>
 			void each(Func func) noexcept {
-				const auto idxFrom = m_chunk.GetDisabledEntityCount();
-				const auto idxStop = m_chunk.GetEntityCount();
+				const auto idxFrom = m_chunk.size_disabled();
+				const auto idxStop = m_chunk.size();
 				detail::each(idxFrom, idxStop, func);
 			}
 		};
@@ -48,13 +48,13 @@ namespace gaia {
 
 			//! Returns the number of entities accessible via the iterator
 			GAIA_NODISCARD uint32_t size() const noexcept {
-				return m_chunk.GetDisabledEntityCount();
+				return m_chunk.size_disabled();
 			}
 
 			template <typename Func>
 			void each(Func&& func) noexcept {
 				const auto idxFrom = 0;
-				const auto idxStop = m_chunk.GetDisabledEntityCount();
+				const auto idxStop = m_chunk.size_disabled();
 				detail::each(idxFrom, idxStop, func);
 			}
 		};
@@ -66,13 +66,13 @@ namespace gaia {
 
 			//! Returns the number of entities accessible via the iterator
 			GAIA_NODISCARD uint32_t size() const noexcept {
-				return m_chunk.GetEntityCount();
+				return m_chunk.size();
 			}
 
 			template <typename Func>
 			void each(Func&& func) noexcept {
 				const auto idxFrom = 0;
-				const auto idxStop = m_chunk.GetEntityCount();
+				const auto idxStop = m_chunk.size();
 				detail::each(idxFrom, idxStop, func);
 			}
 		};

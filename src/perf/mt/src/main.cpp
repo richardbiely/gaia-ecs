@@ -31,14 +31,14 @@ static uint32_t BenchFunc_Complex(std::span<const uint32_t> arr) {
 }
 
 void Run_Schedule_Empty(uint32_t Jobs) {
-	auto& tp = mt::ThreadPool::Get();
+	auto& tp = mt::ThreadPool::get();
 
 	for (uint32_t i = 0; i < Jobs; ++i) {
 		mt::Job job;
 		job.func = []() {};
-		tp.Schedule(job);
+		tp.sched(job);
 	}
-	tp.CompleteAll();
+	tp.wait_all();
 }
 
 void BM_Schedule_Empty(picobench::state& state) {
@@ -54,7 +54,7 @@ void BM_Schedule_Empty(picobench::state& state) {
 
 template <typename Func>
 void Run_Schedule_Simple(const uint32_t* pArr, uint32_t Jobs, uint32_t ItemsPerJob, Func func) {
-	auto& tp = mt::ThreadPool::Get();
+	auto& tp = mt::ThreadPool::get();
 
 	std::atomic_uint32_t sum = 0;
 
@@ -65,9 +65,9 @@ void Run_Schedule_Simple(const uint32_t* pArr, uint32_t Jobs, uint32_t ItemsPerJ
 			const auto idxEnd = (i + 1) * ItemsPerJob;
 			sum += func({pArr + idxStart, idxEnd - idxStart});
 		};
-		tp.Schedule(job);
+		tp.sched(job);
 	}
-	tp.CompleteAll();
+	tp.wait_all();
 
 	gaia::dont_optimize(sum);
 }
@@ -108,7 +108,7 @@ void BM_Schedule_Complex(picobench::state& state) {
 
 template <typename Func>
 void Run_ScheduleParallel(const uint32_t* pArr, uint32_t Items, Func func) {
-	auto& tp = mt::ThreadPool::Get();
+	auto& tp = mt::ThreadPool::get();
 
 	std::atomic_uint32_t sum = 0;
 
@@ -117,8 +117,8 @@ void Run_ScheduleParallel(const uint32_t* pArr, uint32_t Items, Func func) {
 		sum += func({pArr + args.idxStart, args.idxEnd - args.idxStart});
 	};
 
-	tp.ScheduleParallel(job, Items, 0);
-	tp.CompleteAll();
+	tp.sched_par(job, Items, 0);
+	tp.wait_all();
 
 	gaia::dont_optimize(sum);
 }
@@ -181,7 +181,7 @@ PICOBENCH(BM_Schedule_Simple).PICO_SETTINGS().user_data(ItemsToProcess_Trivial |
 PICOBENCH(BM_Schedule_Simple).PICO_SETTINGS().user_data(ItemsToProcess_Trivial | (8ll << 32)).label("Schedule, 8");
 PICOBENCH(BM_Schedule_Simple)
 		.PICO_SETTINGS()
-		.user_data(ItemsToProcess_Trivial | ((uint64_t)mt::ThreadPool::Get().GetWorkersCount()) << 32)
+		.user_data(ItemsToProcess_Trivial | ((uint64_t)mt::ThreadPool::get().workers()) << 32)
 		.label("Schedule, MAX");
 PICOBENCH(BM_ScheduleParallel_Simple).PICO_SETTINGS().user_data(ItemsToProcess_Trivial).label("ScheduleParallel");
 
@@ -196,7 +196,7 @@ PICOBENCH(BM_Schedule_Simple).PICO_SETTINGS().user_data(ItemsToProcess_Simple | 
 PICOBENCH(BM_Schedule_Simple).PICO_SETTINGS().user_data(ItemsToProcess_Simple | (8ll << 32)).label("Schedule, 8");
 PICOBENCH(BM_Schedule_Simple)
 		.PICO_SETTINGS()
-		.user_data(ItemsToProcess_Simple | ((uint64_t)mt::ThreadPool::Get().GetWorkersCount()) << 32)
+		.user_data(ItemsToProcess_Simple | ((uint64_t)mt::ThreadPool::get().workers()) << 32)
 		.label("Schedule, MAX");
 PICOBENCH(BM_ScheduleParallel_Simple).PICO_SETTINGS().user_data(ItemsToProcess_Simple).label("ScheduleParallel");
 
@@ -211,6 +211,6 @@ PICOBENCH(BM_Schedule_Complex).PICO_SETTINGS().user_data(ItemsToProcess_Complex 
 PICOBENCH(BM_Schedule_Complex).PICO_SETTINGS().user_data(ItemsToProcess_Complex | (8ll << 32)).label("Schedule, 8");
 PICOBENCH(BM_Schedule_Complex)
 		.PICO_SETTINGS()
-		.user_data(ItemsToProcess_Complex | ((uint64_t)mt::ThreadPool::Get().GetWorkersCount()) << 32)
+		.user_data(ItemsToProcess_Complex | ((uint64_t)mt::ThreadPool::get().workers()) << 32)
 		.label("Schedule, MAX");
 PICOBENCH(BM_ScheduleParallel_Complex).PICO_SETTINGS().user_data(ItemsToProcess_Complex).label("ScheduleParallel");

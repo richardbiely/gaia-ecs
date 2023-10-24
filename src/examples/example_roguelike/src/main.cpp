@@ -202,7 +202,7 @@ public:
 			SetEdgeCost(index, cost);
 		}
 
-		uint32_t GetComponentId() const {
+		uint32_t comp_id() const {
 			return id;
 		}
 		bool HasNeighbor(uint32_t index) const {
@@ -235,8 +235,8 @@ public:
 
 	// Define a function to estimate the cost from a node to the end node (using Euclidean distance)
 	float HeuristicCostEstimate(const Node& current, const Node& goal) const {
-		const uint32_t cid = current.GetComponentId();
-		const uint32_t gid = goal.GetComponentId();
+		const uint32_t cid = current.comp_id();
+		const uint32_t gid = goal.comp_id();
 		const uint32_t dx = NodeIdToX(cid) - NodeIdToX(gid);
 		const uint32_t dy = NodeIdToY(cid) - NodeIdToY(gid);
 		const uint32_t dxx = dx * dx;
@@ -360,7 +360,7 @@ struct World {
 
 	explicit World(ecs::World& world): w(world) {}
 
-	void Init() {
+	void init() {
 		InitWorldMap();
 		CreatePlayer();
 		CreateEnemies();
@@ -426,66 +426,66 @@ struct World {
 	}
 
 	void CreatePlayer() {
-		auto player = w.Add();
-		w.Add<Position>(player, {5, 10});
-		w.Add<Velocity>(player, {0, 0});
-		w.Add<RigidBody>(player);
-		w.Add<Orientation>(player, {1, 0});
-		w.Add<Sprite>(player, {TILE_PLAYER});
-		w.Add<Health>(player, {100, 100});
-		w.Add<BattleStats>(player, {9, 5});
-		w.Add<Player>(player);
+		auto player = w.add();
+		w.add<Position>(player, {5, 10});
+		w.add<Velocity>(player, {0, 0});
+		w.add<RigidBody>(player);
+		w.add<Orientation>(player, {1, 0});
+		w.add<Sprite>(player, {TILE_PLAYER});
+		w.add<Health>(player, {100, 100});
+		w.add<BattleStats>(player, {9, 5});
+		w.add<Player>(player);
 	}
 
 	void CreateEnemies() {
 		cnt::sarray<ecs::Entity, 3> enemies;
 		for (uint32_t i = 0; i < enemies.size(); ++i) {
 			auto& e = enemies[i];
-			e = w.Add();
-			w.Add<Position>(e, {});
-			w.Add<Velocity>(e, {0, 0});
-			w.Add<RigidBody>(e);
+			e = w.add();
+			w.add<Position>(e, {});
+			w.add<Velocity>(e, {0, 0});
+			w.add<RigidBody>(e);
 			const bool isOrc = i % 2;
 			if (isOrc) {
-				w.Add<Sprite>(e, {TILE_ENEMY_ORC});
-				w.Add<Health>(e, {60, 60});
-				w.Add<BattleStats>(e, {12, 7});
+				w.add<Sprite>(e, {TILE_ENEMY_ORC});
+				w.add<Health>(e, {60, 60});
+				w.add<BattleStats>(e, {12, 7});
 			} else {
-				w.Add<Sprite>(e, {TILE_ENEMY_GOBLIN});
-				w.Add<Health>(e, {40, 40});
-				w.Add<BattleStats>(e, {10, 5});
+				w.add<Sprite>(e, {TILE_ENEMY_GOBLIN});
+				w.add<Health>(e, {40, 40});
+				w.add<BattleStats>(e, {10, 5});
 			}
 		}
-		w.Set<Position>(enemies[0], {8, 8});
-		w.Set<Position>(enemies[1], {10, 10});
-		w.Set<Position>(enemies[2], {12, 12});
+		w.set<Position>(enemies[0], {8, 8});
+		w.set<Position>(enemies[1], {10, 10});
+		w.set<Position>(enemies[2], {12, 12});
 	}
 
 	void CreateItems() {
-		auto potion = w.Add();
-		w.Add<Position>(potion, {5, 5});
-		w.Add<Sprite>(potion, {TILE_POTION});
-		w.Add<RigidBody>(potion);
-		w.Add<Item>(potion, {ItemType::Potion});
-		w.Add<BattleStats>(potion, {10, 0});
+		auto potion = w.add();
+		w.add<Position>(potion, {5, 5});
+		w.add<Sprite>(potion, {TILE_POTION});
+		w.add<RigidBody>(potion);
+		w.add<Item>(potion, {ItemType::Potion});
+		w.add<BattleStats>(potion, {10, 0});
 
-		auto poison = w.Add();
-		w.Add<Position>(poison, {15, 10});
-		w.Add<Sprite>(poison, {TILE_POISON});
-		w.Add<RigidBody>(poison);
-		w.Add<Item>(poison, {ItemType::Poison});
-		w.Add<BattleStats>(poison, {-10, 0});
+		auto poison = w.add();
+		w.add<Position>(poison, {15, 10});
+		w.add<Sprite>(poison, {TILE_POISON});
+		w.add<RigidBody>(poison);
+		w.add<Item>(poison, {ItemType::Poison});
+		w.add<BattleStats>(poison, {-10, 0});
 	}
 
 	void CreateArrow(Position p, Velocity v) {
-		auto e = w.Add();
-		w.Add<Position>(e, std::move(p));
-		w.Add<Velocity>(e, std::move(v));
-		w.Add<RigidBody>(e);
-		w.Add<Sprite>(e, {TILE_ARROW});
-		w.Add<Item>(e, {ItemType::Arrow});
-		w.Add<BattleStats>(e, {10, 0});
-		w.Add<Health>(e, {1, 1});
+		auto e = w.add();
+		w.add<Position>(e, std::move(p));
+		w.add<Velocity>(e, std::move(v));
+		w.add<RigidBody>(e);
+		w.add<Sprite>(e, {TILE_ARROW});
+		w.add<Item>(e, {ItemType::Arrow});
+		w.add<BattleStats>(e, {10, 0});
+		w.add<Health>(e, {1, 1});
 	}
 };
 World g_world(g_ecs);
@@ -499,11 +499,11 @@ class UpdateMapSystem final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q = GetWorld().CreateQuery().All<const Position, RigidBody>();
+		m_q = GetWorld().create_query().all<const Position, RigidBody>();
 	}
 	void OnUpdate() override {
 		g_world.content.clear();
-		m_q.ForEach([&](ecs::Entity e, const Position& p) {
+		m_q.each([&](ecs::Entity e, const Position& p) {
 			g_world.content[p].push_back(e);
 		});
 	}
@@ -526,7 +526,7 @@ class CollisionSystem final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q = GetWorld().CreateQuery().All<const Position, Velocity, const RigidBody>();
+		m_q = GetWorld().create_query().all<const Position, Velocity, const RigidBody>();
 	}
 
 	void OnUpdate() override {
@@ -537,10 +537,10 @@ public:
 			return val < 0 ? -1 : 1;
 		};
 
-		m_q.ForEach([&](ecs::Iterator iter) {
-			auto ent = iter.View<ecs::Entity>();
-			auto vel = iter.ViewRW<Velocity>();
-			auto pos = iter.View<Position>();
+		m_q.each([&](ecs::Iterator iter) {
+			auto ent = iter.view<ecs::Entity>();
+			auto vel = iter.view_mut<Velocity>();
+			auto pos = iter.view<Position>();
 
 			iter.each([&](uint32_t i) {
 				// Skip stationary objects
@@ -583,8 +583,8 @@ public:
 					bool hadCollision = false;
 					for (auto e2: it->second) {
 						// If the content has non-zero velocity we need to determine if we'd hit it
-						if (GetWorld().Has<Velocity>(e2)) {
-							auto v2 = GetWorld().Get<Velocity>(e2);
+						if (GetWorld().has<Velocity>(e2)) {
+							auto v2 = GetWorld().get<Velocity>(e2);
 							if (v2.x != 0 && v2.y != 0) {
 								const int vv2[2] = {v2.x, v2.y};
 
@@ -632,12 +632,12 @@ class OrientationSystem final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q = GetWorld().CreateQuery().All<Orientation, const Velocity>().WithChanged<Velocity>();
+		m_q = GetWorld().create_query().all<Orientation, const Velocity>().changed<Velocity>();
 	}
 
 	void OnUpdate() override {
 		// Update orientation based on the current velocity
-		m_q.ForEach([&](Orientation& o, const Velocity& v) {
+		m_q.each([&](Orientation& o, const Velocity& v) {
 			if (v.x != 0) {
 				o.x = v.x > 0 ? 1 : -1;
 				o.y = 0;
@@ -655,12 +655,12 @@ class MoveSystem final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q = GetWorld().CreateQuery().All<Position, const Velocity>();
+		m_q = GetWorld().create_query().all<Position, const Velocity>();
 	}
 
 	void OnUpdate() override {
 		// Update position based on current velocity
-		m_q.ForEach([&](Position& p, const Velocity& v) {
+		m_q.each([&](Position& p, const Velocity& v) {
 			p.x += v.x;
 			p.y += v.y;
 		});
@@ -672,7 +672,7 @@ class HandleDamageSystem final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_collisionSystem = g_smSimulation.FindSystem<CollisionSystem>();
+		m_collisionSystem = g_smSimulation.find<CollisionSystem>();
 	}
 
 	void OnUpdate() override {
@@ -683,31 +683,31 @@ public:
 				continue;
 
 			uint32_t idx1{}, idx2{};
-			auto* pChunk1 = GetWorld().GetChunk(coll.e1, idx1);
-			auto* pChunk2 = GetWorld().GetChunk(coll.e2, idx2);
+			auto* pChunk1 = GetWorld().get_chunk(coll.e1, idx1);
+			auto* pChunk2 = GetWorld().get_chunk(coll.e2, idx2);
 
 			// Skip non-damagable things
-			if (!pChunk2->Has<Health>())
+			if (!pChunk2->has<Health>())
 				continue;
-			if (!pChunk1->Has<BattleStats>() || !pChunk2->Has<BattleStats>())
+			if (!pChunk1->has<BattleStats>() || !pChunk2->has<BattleStats>())
 				continue;
 
 			// Verify if damage can be applied (e.g. power > armor)
-			const auto stats1 = pChunk1->View<BattleStats>();
-			const auto stats2 = pChunk2->View<BattleStats>();
+			const auto stats1 = pChunk1->view<BattleStats>();
+			const auto stats2 = pChunk2->view<BattleStats>();
 
 			const int damage = stats1[idx1].power - stats2[idx2].armor;
 			if (damage < 0)
 				continue;
 
 			// Apply damage
-			auto health2 = pChunk2->ViewRW<Health>();
+			auto health2 = pChunk2->view_mut<Health>();
 			health2[idx2].value -= damage;
 		}
 	}
 
 	bool DependsOn([[maybe_unused]] const BaseSystem* system) const override {
-		return system == g_smSimulation.FindSystem<CollisionSystem>();
+		return system == g_smSimulation.find<CollisionSystem>();
 	}
 };
 
@@ -716,7 +716,7 @@ class HandleItemHitSystem final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_collisionSystem = g_smSimulation.FindSystem<CollisionSystem>();
+		m_collisionSystem = g_smSimulation.find<CollisionSystem>();
 	}
 
 	void OnUpdate() override {
@@ -725,17 +725,17 @@ public:
 			// Entity -> world content collision
 			if (coll.e2 == ecs::EntityNull) {
 				uint32_t idx1{};
-				auto* pChunk1 = GetWorld().GetChunk(coll.e1, idx1);
+				auto* pChunk1 = GetWorld().get_chunk(coll.e1, idx1);
 				GAIA_ASSERT(pChunk1 != nullptr);
 
 				// An arrow colliding with something. Bring its health to 0 (destroyed).
-				// We could have simpy called GetWorld().Del(coll.e1) but doing it
+				// We could have simpy called GetWorld().del(coll.e1) but doing it
 				// this way allows our more control. Who knows what kinds of effect and
 				// post-processing we might have in mind for the arrow later in the frame.
-				if (pChunk1->Has<Item>() && pChunk1->Has<Health>()) {
-					auto item1 = pChunk1->View<Item>();
+				if (pChunk1->has<Item>() && pChunk1->has<Health>()) {
+					auto item1 = pChunk1->view<Item>();
 					if (item1[idx1].type == ItemType::Arrow) {
-						auto health1 = pChunk1->ViewRW<Health>();
+						auto health1 = pChunk1->view_mut<Health>();
 						health1[idx1].value = 0;
 					}
 				}
@@ -743,27 +743,27 @@ public:
 			// Entity -> entity collision
 			else {
 				uint32_t idx1{}, idx2{};
-				auto* pChunk1 = GetWorld().GetChunk(coll.e1, idx1);
-				auto* pChunk2 = GetWorld().GetChunk(coll.e2, idx2);
+				auto* pChunk1 = GetWorld().get_chunk(coll.e1, idx1);
+				auto* pChunk2 = GetWorld().get_chunk(coll.e2, idx2);
 				GAIA_ASSERT(pChunk1 != nullptr);
 				GAIA_ASSERT(pChunk2 != nullptr);
 
 				// TODO: Add ability to get a list of components based on query
 
 				// E.g. a player colliding with an item
-				if (pChunk1->Has<Health>() && pChunk2->Has<Item>() && pChunk2->Has<BattleStats>()) {
-					auto health1 = pChunk1->ViewRW<Health>();
-					auto stats2 = pChunk2->View<BattleStats>();
+				if (pChunk1->has<Health>() && pChunk2->has<Item>() && pChunk2->has<BattleStats>()) {
+					auto health1 = pChunk1->view_mut<Health>();
+					auto stats2 = pChunk2->view<BattleStats>();
 
 					// Apply the item's effect
 					health1[idx1].value += stats2[idx2].power;
 				}
 
 				// An arrow colliding with something. Bring its health to 0 (destroyed).
-				if (pChunk1->Has<Item>() && pChunk1->Has<Health>()) {
-					auto item1 = pChunk1->View<Item>();
+				if (pChunk1->has<Item>() && pChunk1->has<Health>()) {
+					auto item1 = pChunk1->view<Item>();
 					if (item1[idx1].type == ItemType::Arrow) {
-						auto health1 = pChunk1->ViewRW<Health>();
+						auto health1 = pChunk1->view_mut<Health>();
 						health1[idx1].value = 0;
 					}
 				}
@@ -772,7 +772,7 @@ public:
 	}
 
 	bool DependsOn([[maybe_unused]] const BaseSystem* system) const override {
-		return system == g_smSimulation.FindSystem<CollisionSystem>();
+		return system == g_smSimulation.find<CollisionSystem>();
 	}
 };
 
@@ -781,11 +781,11 @@ class HandleHealthSystem final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q = GetWorld().CreateQuery().All<Health>().WithChanged<Health>();
+		m_q = GetWorld().create_query().all<Health>().changed<Health>();
 	}
 
 	void OnUpdate() override {
-		m_q.ForEach([&](Health& h) {
+		m_q.each([&](Health& h) {
 			if (h.value > h.valueMax)
 				h.value = h.valueMax;
 		});
@@ -797,16 +797,16 @@ class HandleDeathSystem final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q = GetWorld().CreateQuery().All<const Health, const Position>().WithChanged<Health>();
+		m_q = GetWorld().create_query().all<const Health, const Position>().changed<Health>();
 	}
 
 	void OnUpdate() override {
-		m_q.ForEach([&](ecs::Entity e, const Health& h, const Position& p) {
+		m_q.each([&](ecs::Entity e, const Health& h, const Position& p) {
 			if (h.value > 0)
 				return;
 
 			g_world.map[p.y][p.x] = TILE_FREE;
-			g_smSimulation.AfterUpdateCmdBufer().Del(e);
+			g_smSimulation.AfterUpdateCmdBufer().del(e);
 		});
 	}
 };
@@ -816,13 +816,13 @@ class WriteSpritesToMapSystem final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q = GetWorld().CreateQuery().All<const Position, const Sprite>();
+		m_q = GetWorld().create_query().all<const Position, const Sprite>();
 	}
 
 	void OnUpdate() override {
 		ClearScreen();
 		g_world.InitWorldMap();
-		m_q.ForEach([&](const Position& p, const Sprite& s) {
+		m_q.each([&](const Position& p, const Sprite& s) {
 			g_world.map[p.y][p.x] = s.value;
 		});
 	}
@@ -846,16 +846,16 @@ class UISystem final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_qp = GetWorld().CreateQuery().All<const Health, Player>();
-		m_qe = GetWorld().CreateQuery().All<const Health>().None<Player, Item>();
+		m_qp = GetWorld().create_query().all<const Health, Player>();
+		m_qe = GetWorld().create_query().all<const Health>().none<Player, Item>();
 	}
 
 	void OnUpdate() override {
-		m_qp.ForEach([](const Health& h) {
+		m_qp.each([](const Health& h) {
 			printf("Player health: %d/%d\n", h.value, h.valueMax);
 		});
 
-		m_qe.ForEach([&](ecs::Entity e, const Health& h) {
+		m_qe.each([&](ecs::Entity e, const Health& h) {
 			printf("Enemy %u:%u health: %d/%d\n", e.id(), e.gen(), h.value, h.valueMax);
 		});
 	}
@@ -868,18 +868,18 @@ class GameStateSystem: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_qp = GetWorld().CreateQuery().All<const Health, Player>();
-		m_qe = GetWorld().CreateQuery().All<const Health>().None<Player, Item>();
+		m_qp = GetWorld().create_query().all<const Health, Player>();
+		m_qe = GetWorld().create_query().all<const Health>().none<Player, Item>();
 	}
 
 	void OnUpdate() override {
-		const bool hasPlayer = m_qp.HasEntities();
+		const bool hasPlayer = m_qp.has_entities();
 		if (!hasPlayer) {
 			printf("You are dead. Good job.\n");
 			g_world.terminate = true;
 		}
 
-		const bool hasEnemies = m_qe.HasEntities();
+		const bool hasEnemies = m_qe.has_entities();
 		if (m_hadEnemies && !hasEnemies) {
 			printf("All enemies are gone. They must have died of old age waiting for you to kill them.\n");
 			g_world.terminate = true;
@@ -893,7 +893,7 @@ class InputSystem final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q = GetWorld().CreateQuery().All<const Player, Velocity, const Position, const Orientation>();
+		m_q = GetWorld().create_query().all<const Player, Velocity, const Position, const Orientation>();
 	}
 
 	void OnUpdate() override {
@@ -902,7 +902,7 @@ public:
 		g_world.terminate = key == KEY_QUIT;
 
 		// Player movement
-		m_q.ForEach([&](Velocity& v, const Position& p, const Orientation& o) {
+		m_q.each([&](Velocity& v, const Position& p, const Orientation& o) {
 			v = {0, 0};
 			if (key == KEY_UP) {
 				v = {0, -1};
@@ -940,29 +940,29 @@ int main() {
 			TILE_POTION, TILE_POISON, TILE_WALL);
 
 	// Pre-simulation step
-	g_smSimulation.CreateSystem<InputSystem>();
-	g_smPreSimulation.CreateSystem<UpdateMapSystem>();
+	g_smSimulation.add<InputSystem>();
+	g_smPreSimulation.add<UpdateMapSystem>();
 	// Simulation
-	g_smSimulation.CreateSystem<OrientationSystem>();
-	g_smSimulation.CreateSystem<CollisionSystem>();
-	g_smSimulation.CreateSystem<MoveSystem>();
-	g_smSimulation.CreateSystem<HandleDamageSystem>();
-	g_smSimulation.CreateSystem<HandleItemHitSystem>();
-	g_smSimulation.CreateSystem<HandleHealthSystem>();
-	g_smSimulation.CreateSystem<HandleDeathSystem>();
+	g_smSimulation.add<OrientationSystem>();
+	g_smSimulation.add<CollisionSystem>();
+	g_smSimulation.add<MoveSystem>();
+	g_smSimulation.add<HandleDamageSystem>();
+	g_smSimulation.add<HandleItemHitSystem>();
+	g_smSimulation.add<HandleHealthSystem>();
+	g_smSimulation.add<HandleDeathSystem>();
 	// Post-simulation step
-	g_smPostSimulation.CreateSystem<WriteSpritesToMapSystem>();
-	g_smPostSimulation.CreateSystem<RenderSystem>();
-	g_smPostSimulation.CreateSystem<UISystem>();
-	g_smPostSimulation.CreateSystem<GameStateSystem>();
+	g_smPostSimulation.add<WriteSpritesToMapSystem>();
+	g_smPostSimulation.add<RenderSystem>();
+	g_smPostSimulation.add<UISystem>();
+	g_smPostSimulation.add<GameStateSystem>();
 
-	g_world.Init();
+	g_world.init();
 
 	while (!g_world.terminate) {
-		g_smPreSimulation.Update();
-		g_smSimulation.Update();
-		g_smPostSimulation.Update();
-		g_ecs.Update();
+		g_smPreSimulation.update();
+		g_smSimulation.update();
+		g_smPostSimulation.update();
+		g_ecs.update();
 	}
 
 	return 0;

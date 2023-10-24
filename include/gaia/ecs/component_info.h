@@ -28,21 +28,21 @@ namespace gaia {
 				}
 
 				template <typename T>
-				GAIA_NODISCARD static constexpr ComponentInfo Calculate() {
+				GAIA_NODISCARD static constexpr ComponentInfo init() {
 					using U = typename component_type_t<T>::Type;
 
 					ComponentInfo info{};
 					info.lookupHash = {meta::type_info::hash<U>()};
-					info.matcherHash = CalculateMatcherHash<U>();
-					info.componentId = GetComponentId<T>();
+					info.matcherHash = calc_matcher_hash<U>();
+					info.componentId = comp_id<T>();
 
 					return info;
 				}
 
 				template <typename T>
-				static const ComponentInfo* Create() {
+				static const ComponentInfo* create() {
 					using U = std::decay_t<T>;
-					return new ComponentInfo{Calculate<U>()};
+					return new ComponentInfo{init<U>()};
 				}
 			};
 		} // namespace component

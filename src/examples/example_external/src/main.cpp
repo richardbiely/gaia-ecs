@@ -4,7 +4,7 @@ using namespace gaia;
 
 int main() {
 	ecs::World w;
-	auto e = w.Add();
+	auto e = w.add();
 	GAIA_LOG_N("entity %u.%u", e.id(), e.gen());
 	return 0;
 }

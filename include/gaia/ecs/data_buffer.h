@@ -22,18 +22,18 @@ namespace gaia {
 		public:
 			DataBuffer() {}
 
-			void Reset() {
+			void reset() {
 				m_dataPos = 0;
 				m_data.clear();
 			}
 
 			//! Returns the number of bytes written in the buffer
-			GAIA_NODISCARD uint32_t Size() const {
+			GAIA_NODISCARD uint32_t size() const {
 				return (uint32_t)m_data.size();
 			}
 
 			//! Makes sure there is enough capacity in our data container to hold another \param size bytes of data
-			void EnsureCapacity(uint32_t size) {
+			void ensure_capacity(uint32_t size) {
 				const auto nextSize = m_dataPos + size;
 				if (nextSize <= (uint32_t)m_data.size())
 					return;
@@ -45,19 +45,19 @@ namespace gaia {
 			}
 
 			//! Changes the current position in the buffer
-			void Seek(uint32_t pos) {
+			void seek(uint32_t pos) {
 				m_dataPos = pos;
 			}
 
 			//! Returns the current position in the buffer
-			GAIA_NODISCARD uint32_t GetPos() const {
+			GAIA_NODISCARD uint32_t tell() const {
 				return m_dataPos;
 			}
 
 			//! Writes \param value to the buffer
 			template <typename T>
-			void Save(T&& value) {
-				EnsureCapacity(sizeof(T));
+			void save(T&& value) {
+				ensure_capacity(sizeof(T));
 
 				m_data.resize(m_dataPos + sizeof(T));
 				mem::unaligned_ref<T> mem(&m_data[m_dataPos]);
@@ -66,33 +66,9 @@ namespace gaia {
 				m_dataPos += sizeof(T);
 			}
 
-			//! Writes \param value to the buffer
-			template <typename T>
-			void SaveComponent(T&& value) {
-				const auto componentId = component::GetComponentId<T>();
-				const auto& desc = ComponentCache::Get().GetComponentDesc(componentId);
-				const bool isManualDestroyNeeded = desc.ctor_copy != nullptr || desc.ctor_move != nullptr;
-				constexpr bool isRValue = std::is_rvalue_reference_v<decltype(value)>;
-
-				EnsureCapacity(sizeof(isManualDestroyNeeded) + sizeof(T));
-				Save(isManualDestroyNeeded);
-				m_data.resize(m_dataPos + sizeof(T));
-
-				auto* pSrc = (void*)&value;
-				auto* pDst = (void*)&m_data[m_dataPos];
-				if (isRValue && desc.ctor_move != nullptr)
-					desc.ctor_move(pSrc, pDst);
-				else if (desc.ctor_copy != nullptr)
-					desc.ctor_copy(pSrc, pDst);
-				else
-					memmove(pDst, (const void*)pSrc, sizeof(T));
-
-				m_dataPos += sizeof(T);
-			}
-
 			//! Writes \param size bytes of data starting at the address \param pSrc to the buffer
-			void Save(const void* pSrc, uint32_t size) {
-				EnsureCapacity(size);
+			void save(const void* pSrc, uint32_t size) {
+				ensure_capacity(size);
 
 				// Copy "size" bytes of raw data starting at pSrc
 				m_data.resize(m_dataPos + size);
@@ -101,25 +77,33 @@ namespace gaia {
 				m_dataPos += size;
 			}
 
-			//! Loads \param value from the buffer
-			void LoadComponent(void* pDst, component::ComponentId componentId) {
-				bool isManualDestroyNeeded = false;
-				Load(isManualDestroyNeeded);
+			//! Writes \param value to the buffer
+			template <typename T>
+			void save_comp(T&& value) {
+				const auto componentId = component::comp_id<T>();
+				const auto& desc = ComponentCache::get().comp_desc(componentId);
+				const bool isManualDestroyNeeded = desc.func_ctor_copy != nullptr || desc.func_ctor_move != nullptr;
+				constexpr bool isRValue = std::is_rvalue_reference_v<decltype(value)>;
 
-				const auto& desc = ComponentCache::Get().GetComponentDesc(componentId);
-				GAIA_ASSERT(m_dataPos + desc.properties.size <= m_data.size());
+				ensure_capacity(sizeof(isManualDestroyNeeded) + sizeof(T));
+				save(isManualDestroyNeeded);
+				m_data.resize(m_dataPos + sizeof(T));
 
-				auto* pSrc = (void*)&m_data[m_dataPos];
-				desc.Move(pSrc, pDst);
-				if (isManualDestroyNeeded)
-					desc.Dtor(pSrc);
+				auto* pSrc = (void*)&value;
+				auto* pDst = (void*)&m_data[m_dataPos];
+				if (isRValue && desc.func_ctor_move != nullptr)
+					desc.func_ctor_move(pSrc, pDst);
+				else if (desc.func_ctor_copy != nullptr)
+					desc.func_ctor_copy(pSrc, pDst);
+				else
+					memmove(pDst, (const void*)pSrc, sizeof(T));
 
-				m_dataPos += desc.properties.size;
+				m_dataPos += sizeof(T);
 			}
 
 			//! Loads \param value from the buffer
 			template <typename T>
-			void Load(T& value) {
+			void load(T& value) {
 				GAIA_ASSERT(m_dataPos + sizeof(T) <= m_data.size());
 
 				value = mem::unaligned_ref<T>((void*)&m_data[m_dataPos]);
@@ -128,12 +112,28 @@ namespace gaia {
 			}
 
 			//! Loads \param size bytes of data from the buffer and writes them to the address \param pDst
-			void Load(void* pDst, uint32_t size) {
+			void load(void* pDst, uint32_t size) {
 				GAIA_ASSERT(m_dataPos + size <= m_data.size());
 
 				memcpy(pDst, (void*)&m_data[m_dataPos], size);
 
 				m_dataPos += size;
+			}
+
+			//! Loads \param value from the buffer
+			void load_comp(void* pDst, component::ComponentId componentId) {
+				bool isManualDestroyNeeded = false;
+				load(isManualDestroyNeeded);
+
+				const auto& desc = ComponentCache::get().comp_desc(componentId);
+				GAIA_ASSERT(m_dataPos + desc.properties.size <= m_data.size());
+
+				auto* pSrc = (void*)&m_data[m_dataPos];
+				desc.move(pSrc, pDst);
+				if (isManualDestroyNeeded)
+					desc.dtor(pSrc);
+
+				m_dataPos += desc.properties.size;
 			}
 		};
 
@@ -148,29 +148,29 @@ namespace gaia {
 			}
 
 			void reserve(uint32_t size) {
-				m_buffer.EnsureCapacity(size);
+				m_buffer.ensure_capacity(size);
 			}
 
 			void seek(uint32_t pos) {
-				m_buffer.Seek(pos);
+				m_buffer.seek(pos);
 			}
 
 			template <typename T>
 			void save(T&& arg) {
-				m_buffer.Save(std::forward<T>(arg));
+				m_buffer.save(std::forward<T>(arg));
 			}
 
 			void save(const void* pSrc, uint32_t size) {
-				m_buffer.Save(pSrc, size);
+				m_buffer.save(pSrc, size);
 			}
 
 			template <typename T>
 			void load(T& arg) {
-				m_buffer.Load(arg);
+				m_buffer.load(arg);
 			}
 
 			void load(void* pDst, uint32_t size) {
-				m_buffer.Load(pDst, size);
+				m_buffer.load(pDst, size);
 			}
 		};
 	} // namespace ecs

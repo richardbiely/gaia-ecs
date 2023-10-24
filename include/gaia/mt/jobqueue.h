@@ -34,7 +34,7 @@ namespace gaia {
 		public:
 			//! Tries adding a job to the queue. FIFO.
 			//! \return True if the job was added. False otherwise (e.g. maximum capacity has been reached).
-			GAIA_NODISCARD bool TryPush(JobHandle jobHandle) {
+			GAIA_NODISCARD bool try_push(JobHandle jobHandle) {
 				GAIA_PROF_SCOPE(JobQueue::TryPush);
 
 #if JOB_QUEUE_USE_LOCKS
@@ -61,8 +61,8 @@ namespace gaia {
 
 			//! Tries retriving a job to the queue. FIFO.
 			//! \return True if the job was retrived. False otherwise (e.g. there are no jobs).
-			GAIA_NODISCARD bool TryPop(JobHandle& jobHandle) {
-				GAIA_PROF_SCOPE(JobQueue::TryPop);
+			GAIA_NODISCARD bool try_pop(JobHandle& jobHandle) {
+				GAIA_PROF_SCOPE(JobQueue::try_pop);
 
 #if JOB_QUEUE_USE_LOCKS
 				std::scoped_lock<std::mutex> lock(m_bufferLock);
@@ -112,8 +112,8 @@ namespace gaia {
 
 			//! Tries stealing a job from the queue. LIFO.
 			//! \return True if the job was stolen. False otherwise (e.g. there are no jobs).
-			GAIA_NODISCARD bool TrySteal(JobHandle& jobHandle) {
-				GAIA_PROF_SCOPE(JobQueue::TrySteal);
+			GAIA_NODISCARD bool try_steal(JobHandle& jobHandle) {
+				GAIA_PROF_SCOPE(JobQueue::try_steal);
 
 #if JOB_QUEUE_USE_LOCKS
 				std::scoped_lock<std::mutex> lock(m_bufferLock);

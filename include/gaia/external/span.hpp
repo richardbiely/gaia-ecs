@@ -404,7 +404,7 @@ namespace TCB_SPAN_NAMESPACE_NAME {
 			return storage_.size;
 		}
 
-		constexpr size_type size_bytes() const noexcept {
+		constexpr size_type bytes() const noexcept {
 			return size() * sizeof(element_type);
 		}
 
@@ -507,14 +507,14 @@ namespace TCB_SPAN_NAMESPACE_NAME {
 	template <typename ElementType, std::size_t Extent>
 	span<const byte, ((Extent == dynamic_extent) ? dynamic_extent : sizeof(ElementType) * Extent)>
 	as_bytes(span<ElementType, Extent> s) noexcept {
-		return {reinterpret_cast<const byte*>(s.data()), s.size_bytes()};
+		return {reinterpret_cast<const byte*>(s.data()), s.bytes()};
 	}
 
 	template <
 			class ElementType, size_t Extent, typename std::enable_if<!std::is_const<ElementType>::value, int>::type = 0>
 	span<byte, ((Extent == dynamic_extent) ? dynamic_extent : sizeof(ElementType) * Extent)>
 	as_writable_bytes(span<ElementType, Extent> s) noexcept {
-		return {reinterpret_cast<byte*>(s.data()), s.size_bytes()};
+		return {reinterpret_cast<byte*>(s.data()), s.bytes()};
 	}
 
 	template <std::size_t N, typename E, std::size_t S>

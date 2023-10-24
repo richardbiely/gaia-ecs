@@ -1305,35 +1305,35 @@ TEST_CASE("DataLayout SoA16") {
 	TestDataLayoutSoA<RotationSoA16>();
 }
 
-TEST_CASE("Entity - IsValid") {
+TEST_CASE("Entity - valid") {
 	ecs::World w;
 	{
-		auto e = w.Add();
-		REQUIRE(w.IsValid(e));
-		w.Del(e);
-		REQUIRE_FALSE(w.IsValid(e));
+		auto e = w.add();
+		REQUIRE(w.valid(e));
+		w.del(e);
+		REQUIRE_FALSE(w.valid(e));
 	}
 	{
-		auto e = w.Add();
-		REQUIRE(w.IsValid(e));
-		w.Del(e);
-		REQUIRE_FALSE(w.IsValid(e));
+		auto e = w.add();
+		REQUIRE(w.valid(e));
+		w.del(e);
+		REQUIRE_FALSE(w.valid(e));
 	}
 }
 
-TEST_CASE("Entity - Has") {
+TEST_CASE("Entity - has") {
 	ecs::World w;
 	{
-		auto e = w.Add();
-		REQUIRE(w.Has(e));
-		w.Del(e);
-		REQUIRE_FALSE(w.Has(e));
+		auto e = w.add();
+		REQUIRE(w.has(e));
+		w.del(e);
+		REQUIRE_FALSE(w.has(e));
 	}
 	{
-		auto e = w.Add();
-		REQUIRE(w.Has(e));
-		w.Del(e);
-		REQUIRE_FALSE(w.Has(e));
+		auto e = w.add();
+		REQUIRE(w.has(e));
+		w.del(e);
+		REQUIRE_FALSE(w.has(e));
 	}
 }
 
@@ -1344,9 +1344,9 @@ TEST_CASE("EntityNull") {
 	REQUIRE_FALSE(ecs::EntityNull != ecs::EntityNull);
 
 	ecs::World w;
-	REQUIRE_FALSE(w.IsValid(ecs::EntityNull));
+	REQUIRE_FALSE(w.valid(ecs::EntityNull));
 
-	auto e = w.Add();
+	auto e = w.add();
 	REQUIRE(e != ecs::EntityNull);
 	REQUIRE(ecs::EntityNull != e);
 	REQUIRE_FALSE(e == ecs::EntityNull);
@@ -1357,7 +1357,7 @@ TEST_CASE("Add - no components") {
 	ecs::World w;
 
 	auto create = [&](uint32_t id) {
-		auto e = w.Add();
+		auto e = w.add();
 		const bool ok = e.id() == id && e.gen() == 0;
 		REQUIRE(ok);
 		return e;
@@ -1372,11 +1372,11 @@ TEST_CASE("Add - 1 component") {
 	ecs::World w;
 
 	auto create = [&](uint32_t id) {
-		auto e = w.Add();
-		w.Add<Int3>(e, {id, id, id});
+		auto e = w.add();
+		w.add<Int3>(e, {id, id, id});
 		const bool ok = e.id() == id && e.gen() == 0;
 		REQUIRE(ok);
-		auto pos = w.Get<Int3>(e);
+		auto pos = w.get<Int3>(e);
 		REQUIRE(pos.x == id);
 		REQUIRE(pos.y == id);
 		REQUIRE(pos.z == id);
@@ -1388,23 +1388,23 @@ TEST_CASE("Add - 1 component") {
 		create(i);
 }
 
-TEST_CASE("CreateAndRemoveEntity - no components") {
+TEST_CASE("CreateAndremove_entity - no components") {
 	ecs::World w;
 
 	auto create = [&](uint32_t id) {
-		auto e = w.Add();
+		auto e = w.add();
 		const bool ok = e.id() == id && e.gen() == 0;
 		REQUIRE(ok);
 		return e;
 	};
 	auto remove = [&](ecs::Entity e) {
-		w.Del(e);
-		auto de = w.Get(e.id());
+		w.del(e);
+		auto de = w.get(e.id());
 		const bool ok = de.gen() == e.gen() + 1;
 		REQUIRE(ok);
-		auto* ch = w.GetChunk(e);
+		auto* ch = w.get_chunk(e);
 		REQUIRE(ch == nullptr);
-		const bool isEntityValid = w.IsValid(e);
+		const bool isEntityValid = w.valid(e);
 		REQUIRE_FALSE(isEntityValid);
 	};
 
@@ -1422,28 +1422,28 @@ TEST_CASE("CreateAndRemoveEntity - no components") {
 		remove(arr[i]);
 }
 
-TEST_CASE("CreateAndRemoveEntity - 1 component") {
+TEST_CASE("CreateAndremove_entity - 1 component") {
 	ecs::World w;
 
 	auto create = [&](uint32_t id) {
-		auto e = w.Add();
-		w.Add<Int3>(e, {id, id, id});
+		auto e = w.add();
+		w.add<Int3>(e, {id, id, id});
 		const bool ok = e.id() == id && e.gen() == 0;
 		REQUIRE(ok);
-		auto pos = w.Get<Int3>(e);
+		auto pos = w.get<Int3>(e);
 		REQUIRE(pos.x == id);
 		REQUIRE(pos.y == id);
 		REQUIRE(pos.z == id);
 		return e;
 	};
 	auto remove = [&](ecs::Entity e) {
-		w.Del(e);
-		auto de = w.Get(e.id());
+		w.del(e);
+		auto de = w.get(e.id());
 		const bool ok = de.gen() == e.gen() + 1;
 		REQUIRE(ok);
-		auto* ch = w.GetChunk(e);
+		auto* ch = w.get_chunk(e);
 		REQUIRE(ch == nullptr);
-		const bool isEntityValid = w.IsValid(e);
+		const bool isEntityValid = w.valid(e);
 		REQUIRE_FALSE(isEntityValid);
 	};
 
@@ -1469,13 +1469,13 @@ namespace dummy {
 
 TEST_CASE("Add - namespaces") {
 	ecs::World w;
-	auto e = w.Add();
-	w.Add<Position>(e, {1, 1, 1});
-	w.Add<dummy::Position>(e, {2, 2, 2});
-	REQUIRE(w.Has<Position>(e));
-	REQUIRE(w.Has<dummy::Position>(e));
-	auto p1 = w.Get<Position>(e);
-	auto p2 = w.Get<dummy::Position>(e);
+	auto e = w.add();
+	w.add<Position>(e, {1, 1, 1});
+	w.add<dummy::Position>(e, {2, 2, 2});
+	REQUIRE(w.has<Position>(e));
+	REQUIRE(w.has<dummy::Position>(e));
+	auto p1 = w.get<Position>(e);
+	auto p2 = w.get<dummy::Position>(e);
 	REQUIRE(p1.x == 1.f);
 	REQUIRE(p1.y == 1.f);
 	REQUIRE(p1.z == 1.f);
@@ -1489,8 +1489,8 @@ void Test_Query_QueryResult() {
 	ecs::World w;
 
 	auto create = [&](uint32_t i) {
-		auto e = w.Add();
-		w.Add<Position>(e, {(float)i, (float)i, (float)i});
+		auto e = w.add();
+		w.add<Position>(e, {(float)i, (float)i, (float)i});
 	};
 
 	const uint32_t N = 10'000;
@@ -1498,20 +1498,20 @@ void Test_Query_QueryResult() {
 		create(i);
 
 	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
-	auto q1 = w.CreateQuery<UseCachedQuery>().template All<Position>();
-	auto q2 = w.CreateQuery<UseCachedQuery>().template All<Rotation>();
-	auto q3 = w.CreateQuery<UseCachedQuery>().template All<Position, Rotation>();
+	auto q1 = w.create_query<UseCachedQuery>().template all<Position>();
+	auto q2 = w.create_query<UseCachedQuery>().template all<Rotation>();
+	auto q3 = w.create_query<UseCachedQuery>().template all<Position, Rotation>();
 
 	{
 		cnt::darr<ecs::Entity> arr;
-		q1.ToArray(arr);
+		q1.as_arr(arr);
 		GAIA_ASSERT(arr.size() == N);
 		for (uint32_t i = 0; i < arr.size(); ++i)
 			REQUIRE(arr[i].id() == i);
 	}
 	{
 		cnt::darr<Position> arr;
-		q1.ToArray(arr);
+		q1.as_arr(arr);
 		GAIA_ASSERT(arr.size() == N);
 		for (uint32_t i = 0; i < arr.size(); ++i) {
 			const auto& pos = arr[i];
@@ -1521,42 +1521,42 @@ void Test_Query_QueryResult() {
 		}
 	}
 	{
-		const auto cnt = q1.CalculateEntityCount();
+		const auto cnt = q1.calc_entity_cnt();
 		REQUIRE(cnt > 0);
 
-		const auto has = q1.HasEntities();
+		const auto has = q1.has_entities();
 		REQUIRE(has == true);
 
 		uint32_t cnt2 = 0;
-		q1.ForEach([&]() {
+		q1.each([&]() {
 			++cnt2;
 		});
 		REQUIRE(cnt == cnt2);
 	}
 
 	{
-		const auto cnt = q2.CalculateEntityCount();
+		const auto cnt = q2.calc_entity_cnt();
 		REQUIRE(cnt == 0);
 
-		const auto has = q2.HasEntities();
+		const auto has = q2.has_entities();
 		REQUIRE(has == false);
 
 		uint32_t cnt2 = 0;
-		q2.ForEach([&]() {
+		q2.each([&]() {
 			++cnt2;
 		});
 		REQUIRE(cnt == cnt2);
 	}
 
 	{
-		const auto cnt = q3.CalculateEntityCount();
+		const auto cnt = q3.calc_entity_cnt();
 		REQUIRE(cnt == 0);
 
-		const auto has = q3.HasEntities();
+		const auto has = q3.has_entities();
 		REQUIRE(has == false);
 
 		uint32_t cnt3 = 0;
-		q3.ForEach([&]() {
+		q3.each([&]() {
 			++cnt3;
 		});
 		REQUIRE(cnt == cnt3);
@@ -1577,11 +1577,11 @@ void Test_Query_QueryResult_Complex() {
 	ecs::World w;
 
 	auto create = [&](uint32_t i) {
-		auto e = w.Add();
-		w.Add<Position>(e, {(float)i, (float)i, (float)i});
-		w.Add<Scale>(e, {(float)i * 2, (float)i * 2, (float)i * 2});
+		auto e = w.add();
+		w.add<Position>(e, {(float)i, (float)i, (float)i});
+		w.add<Scale>(e, {(float)i * 2, (float)i * 2, (float)i * 2});
 		if (i % 2 == 0)
-			w.Add<Something>(e, {true});
+			w.add<Something>(e, {true});
 	};
 
 	const uint32_t N = 10'000;
@@ -1589,19 +1589,19 @@ void Test_Query_QueryResult_Complex() {
 		create(i);
 
 	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
-	auto q1 = w.CreateQuery<UseCachedQuery>().template All<Position>();
-	auto q2 = w.CreateQuery<UseCachedQuery>().template All<Rotation>();
-	auto q3 = w.CreateQuery<UseCachedQuery>().template All<Position, Rotation>();
-	auto q4 = w.CreateQuery<UseCachedQuery>().template All<Position, Scale>();
-	auto q5 = w.CreateQuery<UseCachedQuery>().template All<Position, Scale, Something>();
+	auto q1 = w.create_query<UseCachedQuery>().template all<Position>();
+	auto q2 = w.create_query<UseCachedQuery>().template all<Rotation>();
+	auto q3 = w.create_query<UseCachedQuery>().template all<Position, Rotation>();
+	auto q4 = w.create_query<UseCachedQuery>().template all<Position, Scale>();
+	auto q5 = w.create_query<UseCachedQuery>().template all<Position, Scale, Something>();
 
 	{
 		cnt::darr<ecs::Entity> ents;
-		q1.ToArray(ents);
+		q1.as_arr(ents);
 		REQUIRE(ents.size() == N);
 
 		cnt::darr<Position> arr;
-		q1.ToArray(arr);
+		q1.as_arr(arr);
 		REQUIRE(arr.size() == N);
 
 		for (uint32_t i = 0; i < arr.size(); ++i) {
@@ -1613,42 +1613,42 @@ void Test_Query_QueryResult_Complex() {
 		}
 	}
 	{
-		const auto cnt = q1.CalculateEntityCount();
+		const auto cnt = q1.calc_entity_cnt();
 		REQUIRE(cnt > 0);
 
-		const auto has = q1.HasEntities();
+		const auto has = q1.has_entities();
 		REQUIRE(has == true);
 
 		uint32_t cnt2 = 0;
-		q1.ForEach([&]() {
+		q1.each([&]() {
 			++cnt2;
 		});
 		REQUIRE(cnt2 == cnt);
 	}
 
 	{
-		const auto cnt = q2.CalculateEntityCount();
+		const auto cnt = q2.calc_entity_cnt();
 		REQUIRE(cnt == 0);
 
-		const auto has = q2.HasEntities();
+		const auto has = q2.has_entities();
 		REQUIRE(has == false);
 
 		uint32_t cnt2 = 0;
-		q2.ForEach([&]() {
+		q2.each([&]() {
 			++cnt2;
 		});
 		REQUIRE(cnt2 == cnt);
 	}
 
 	{
-		const auto cnt = q3.CalculateEntityCount();
+		const auto cnt = q3.calc_entity_cnt();
 		REQUIRE(cnt == 0);
 
-		const auto has = q3.HasEntities();
+		const auto has = q3.has_entities();
 		REQUIRE(has == false);
 
 		uint32_t cnt3 = 0;
-		q3.ForEach([&]() {
+		q3.each([&]() {
 			++cnt3;
 		});
 		REQUIRE(cnt3 == cnt);
@@ -1656,9 +1656,9 @@ void Test_Query_QueryResult_Complex() {
 
 	{
 		cnt::darr<ecs::Entity> ents;
-		q4.ToArray(ents);
+		q4.as_arr(ents);
 		cnt::darr<Position> arr;
-		q4.ToArray(arr);
+		q4.as_arr(arr);
 		REQUIRE(ents.size() == arr.size());
 
 		for (uint32_t i = 0; i < arr.size(); ++i) {
@@ -1671,9 +1671,9 @@ void Test_Query_QueryResult_Complex() {
 	}
 	{
 		cnt::darr<ecs::Entity> ents;
-		q4.ToArray(ents);
+		q4.as_arr(ents);
 		cnt::darr<Scale> arr;
-		q4.ToArray(arr);
+		q4.as_arr(arr);
 		REQUIRE(ents.size() == arr.size());
 
 		for (uint32_t i = 0; i < arr.size(); ++i) {
@@ -1685,14 +1685,14 @@ void Test_Query_QueryResult_Complex() {
 		}
 	}
 	{
-		const auto cnt = q4.CalculateEntityCount();
+		const auto cnt = q4.calc_entity_cnt();
 		REQUIRE(cnt > 0);
 
-		const auto has = q4.HasEntities();
+		const auto has = q4.has_entities();
 		REQUIRE(has == true);
 
 		uint32_t cnt4 = 0;
-		q4.ForEach([&]() {
+		q4.each([&]() {
 			++cnt4;
 		});
 		REQUIRE(cnt4 == cnt);
@@ -1700,9 +1700,9 @@ void Test_Query_QueryResult_Complex() {
 
 	{
 		cnt::darr<ecs::Entity> ents;
-		q5.ToArray(ents);
+		q5.as_arr(ents);
 		cnt::darr<Position> arr;
-		q5.ToArray(arr);
+		q5.as_arr(arr);
 		REQUIRE(ents.size() == arr.size());
 
 		for (uint32_t i = 0; i < arr.size(); ++i) {
@@ -1715,9 +1715,9 @@ void Test_Query_QueryResult_Complex() {
 	}
 	{
 		cnt::darr<ecs::Entity> ents;
-		q5.ToArray(ents);
+		q5.as_arr(ents);
 		cnt::darr<Scale> arr;
-		q5.ToArray(arr);
+		q5.as_arr(arr);
 		REQUIRE(ents.size() == arr.size());
 
 		for (uint32_t i = 0; i < arr.size(); ++i) {
@@ -1729,14 +1729,14 @@ void Test_Query_QueryResult_Complex() {
 		}
 	}
 	{
-		const auto cnt = q5.CalculateEntityCount();
+		const auto cnt = q5.calc_entity_cnt();
 		REQUIRE(cnt > 0);
 
-		const auto has = q5.HasEntities();
+		const auto has = q5.has_entities();
 		REQUIRE(has == true);
 
 		uint32_t cnt5 = 0;
-		q5.ForEach([&]() {
+		q5.each([&]() {
 			++cnt5;
 		});
 		REQUIRE(cnt5 == cnt);
@@ -1758,9 +1758,9 @@ void Test_Query_Equality() {
 		ecs::World w;
 
 		auto create = [&]() {
-			auto e = w.Add();
-			w.Add<Position>(e);
-			w.Add<Rotation>(e);
+			auto e = w.add();
+			w.add<Position>(e);
+			w.add<Rotation>(e);
 		};
 
 		const uint32_t N = 100;
@@ -1768,13 +1768,13 @@ void Test_Query_Equality() {
 			create();
 
 		constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
-		auto qq1 = w.CreateQuery<UseCachedQuery>().template All<Position, Rotation>();
-		auto qq2 = w.CreateQuery<UseCachedQuery>().template All<Rotation, Position>();
-		REQUIRE(qq1.CalculateEntityCount() == qq2.CalculateEntityCount());
+		auto qq1 = w.create_query<UseCachedQuery>().template all<Position, Rotation>();
+		auto qq2 = w.create_query<UseCachedQuery>().template all<Rotation, Position>();
+		REQUIRE(qq1.calc_entity_cnt() == qq2.calc_entity_cnt());
 
 		cnt::darr<ecs::Entity> ents1, ents2;
-		qq1.ToArray(ents1);
-		qq2.ToArray(ents2);
+		qq1.as_arr(ents1);
+		qq2.as_arr(ents2);
 		REQUIRE(ents1.size() == ents2.size());
 
 		uint32_t i = 0;
@@ -1786,13 +1786,13 @@ void Test_Query_Equality() {
 	SECTION("4 components") {
 		ecs::World w;
 
-		ecs::Query qq1 = w.CreateQuery().All<Position, Rotation, Acceleration, Something>();
-		ecs::Query qq2 = w.CreateQuery().All<Rotation, Something, Position, Acceleration>();
-		REQUIRE(qq1.CalculateEntityCount() == qq2.CalculateEntityCount());
+		ecs::Query qq1 = w.create_query().all<Position, Rotation, Acceleration, Something>();
+		ecs::Query qq2 = w.create_query().all<Rotation, Something, Position, Acceleration>();
+		REQUIRE(qq1.calc_entity_cnt() == qq2.calc_entity_cnt());
 
 		cnt::darr<ecs::Entity> ents1, ents2;
-		qq1.ToArray(ents1);
-		qq2.ToArray(ents2);
+		qq1.as_arr(ents1);
+		qq2.as_arr(ents2);
 		REQUIRE(ents1.size() == ents2.size());
 
 		uint32_t i = 0;
@@ -1816,10 +1816,10 @@ TEST_CASE("Enable") {
 	ecs::World w;
 
 	auto create = [&](uint32_t id) {
-		auto e = w.Add();
+		auto e = w.add();
 		const bool ok = e.id() == id && e.gen() == 0;
 		REQUIRE(ok);
-		w.Add<Position>(e);
+		w.add<Position>(e);
 		return e;
 	};
 
@@ -1832,28 +1832,28 @@ TEST_CASE("Enable") {
 		arr.push_back(create(i));
 
 	SECTION("State validity") {
-		w.Enable(arr[0], false);
-		REQUIRE_FALSE(w.IsEnabled(arr[0]));
-		w.Enable(arr[0], true);
-		REQUIRE(w.IsEnabled(arr[0]));
+		w.enable(arr[0], false);
+		REQUIRE_FALSE(w.enabled(arr[0]));
+		w.enable(arr[0], true);
+		REQUIRE(w.enabled(arr[0]));
 	}
 
 	SECTION("State persistance") {
-		w.Enable(arr[0], false);
-		w.Del<Position>(arr[0]);
-		REQUIRE_FALSE(w.IsEnabled(arr[0]));
+		w.enable(arr[0], false);
+		w.del<Position>(arr[0]);
+		REQUIRE_FALSE(w.enabled(arr[0]));
 
-		w.Enable(arr[0], true);
-		w.Add<Position>(arr[0]);
-		REQUIRE(w.IsEnabled(arr[0]));
+		w.enable(arr[0], true);
+		w.add<Position>(arr[0]);
+		REQUIRE(w.enabled(arr[0]));
 	}
 
-	ecs::Query q = w.CreateQuery().All<Position>();
+	ecs::Query q = w.create_query().all<Position>();
 
 	auto checkQuery = [&q](uint32_t expectedCountAll, uint32_t expectedCountEnabled, uint32_t expectedCountDisabled) {
 		{
 			uint32_t cnt = 0;
-			q.ForEach([&]([[maybe_unused]] ecs::IteratorAll iter) {
+			q.each([&]([[maybe_unused]] ecs::IteratorAll iter) {
 				const uint32_t cExpected = iter.size();
 				uint32_t c = 0;
 				iter.each([&]() {
@@ -1864,16 +1864,16 @@ TEST_CASE("Enable") {
 			});
 			REQUIRE(cnt == expectedCountAll);
 
-			cnt = q.CalculateEntityCount(ecs::Query::Constraints::AcceptAll);
+			cnt = q.calc_entity_cnt(ecs::Query::Constraints::AcceptAll);
 			REQUIRE(cnt == expectedCountAll);
 		}
 		{
 			uint32_t cnt = 0;
-			q.ForEach([&]([[maybe_unused]] ecs::Iterator iter) {
+			q.each([&]([[maybe_unused]] ecs::Iterator iter) {
 				const uint32_t cExpected = iter.size();
 				uint32_t c = 0;
 				iter.each([&](uint32_t i) {
-					REQUIRE(iter.IsEnabled(i));
+					REQUIRE(iter.enabled(i));
 					++c;
 				});
 				REQUIRE(c == cExpected);
@@ -1881,16 +1881,16 @@ TEST_CASE("Enable") {
 			});
 			REQUIRE(cnt == expectedCountEnabled);
 
-			cnt = q.CalculateEntityCount();
+			cnt = q.calc_entity_cnt();
 			REQUIRE(cnt == expectedCountEnabled);
 		}
 		{
 			uint32_t cnt = 0;
-			q.ForEach([&]([[maybe_unused]] ecs::IteratorDisabled iter) {
+			q.each([&]([[maybe_unused]] ecs::IteratorDisabled iter) {
 				const uint32_t cExpected = iter.size();
 				uint32_t c = 0;
 				iter.each([&](uint32_t i) {
-					REQUIRE(!iter.IsEnabled(i));
+					REQUIRE(!iter.enabled(i));
 					++c;
 				});
 				REQUIRE(c == cExpected);
@@ -1898,7 +1898,7 @@ TEST_CASE("Enable") {
 			});
 			REQUIRE(cnt == expectedCountDisabled);
 
-			cnt = q.CalculateEntityCount(ecs::Query::Constraints::DisabledOnly);
+			cnt = q.calc_entity_cnt(ecs::Query::Constraints::DisabledOnly);
 			REQUIRE(cnt == expectedCountDisabled);
 		}
 	};
@@ -1906,28 +1906,28 @@ TEST_CASE("Enable") {
 	checkQuery(N, N, 0);
 
 	SECTION("Disable vs query") {
-		w.Enable(arr[1000], false);
+		w.enable(arr[1000], false);
 		checkQuery(N, N - 1, 1);
 	}
 
 	SECTION("Enable vs query") {
-		w.Enable(arr[1000], true);
+		w.enable(arr[1000], true);
 		checkQuery(N, N, 0);
 	}
 
 	SECTION("Disable vs query") {
-		w.Enable(arr[1], false);
-		w.Enable(arr[1000], false);
-		w.Enable(arr[2000], false);
-		w.Enable(arr[9990], false);
+		w.enable(arr[1], false);
+		w.enable(arr[1000], false);
+		w.enable(arr[2000], false);
+		w.enable(arr[9990], false);
 		checkQuery(N, N - 4, 4);
 	}
 
 	SECTION("Enable vs query") {
-		w.Enable(arr[1], true);
-		w.Enable(arr[1000], true);
-		w.Enable(arr[2000], true);
-		w.Enable(arr[9990], true);
+		w.enable(arr[1], true);
+		w.enable(arr[1000], true);
+		w.enable(arr[2000], true);
+		w.enable(arr[9990], true);
 		checkQuery(N, N, 0);
 	}
 }
@@ -1936,32 +1936,32 @@ TEST_CASE("Add - generic") {
 	ecs::World w;
 
 	{
-		auto e = w.Add();
-		w.Add<Position>(e);
-		w.Add<Acceleration>(e);
+		auto e = w.add();
+		w.add<Position>(e);
+		w.add<Acceleration>(e);
 
-		REQUIRE(w.Has<Position>(e));
-		REQUIRE(w.Has<Acceleration>(e));
-		REQUIRE_FALSE(w.Has<ecs::AsChunk<Position>>(e));
-		REQUIRE_FALSE(w.Has<ecs::AsChunk<Acceleration>>(e));
+		REQUIRE(w.has<Position>(e));
+		REQUIRE(w.has<Acceleration>(e));
+		REQUIRE_FALSE(w.has<ecs::AsChunk<Position>>(e));
+		REQUIRE_FALSE(w.has<ecs::AsChunk<Acceleration>>(e));
 	}
 
 	{
-		auto e = w.Add();
-		w.Add<Position>(e, {1, 2, 3});
-		w.Add<Acceleration>(e, {4, 5, 6});
+		auto e = w.add();
+		w.add<Position>(e, {1, 2, 3});
+		w.add<Acceleration>(e, {4, 5, 6});
 
-		REQUIRE(w.Has<Position>(e));
-		REQUIRE(w.Has<Acceleration>(e));
-		REQUIRE_FALSE(w.Has<ecs::AsChunk<Position>>(e));
-		REQUIRE_FALSE(w.Has<ecs::AsChunk<Acceleration>>(e));
+		REQUIRE(w.has<Position>(e));
+		REQUIRE(w.has<Acceleration>(e));
+		REQUIRE_FALSE(w.has<ecs::AsChunk<Position>>(e));
+		REQUIRE_FALSE(w.has<ecs::AsChunk<Acceleration>>(e));
 
-		auto p = w.Get<Position>(e);
+		auto p = w.get<Position>(e);
 		REQUIRE(p.x == 1);
 		REQUIRE(p.y == 2);
 		REQUIRE(p.z == 3);
 
-		auto a = w.Get<Acceleration>(e);
+		auto a = w.get<Acceleration>(e);
 		REQUIRE(a.x == 4);
 		REQUIRE(a.y == 5);
 		REQUIRE(a.z == 6);
@@ -1973,74 +1973,74 @@ TEST_CASE("Add - generic") {
 
 // 	cnt::sarray<ecs::Entity, 5> ents;
 // 	for (auto& e: ents)
-// 		e = w.Add();
+// 		e = w.add();
 
 // 	for (uint32_t i = 0; i < ents.size() - 1; ++i)
-// 		w.Add<Position>(ents[i], {(float)i, (float)i, (float)i});
+// 		w.add<Position>(ents[i], {(float)i, (float)i, (float)i});
 
 // 	ecs::Query q;
-// 	q.All<Position>();
-// 	w.Add<Acceleration>(q, {1.f, 2.f, 3.f});
+// 	q.all<Position>();
+// 	w.add<Acceleration>(q, {1.f, 2.f, 3.f});
 
 // 	for (uint32_t i = 0; i < ents.size() - 1; ++i) {
-// 		REQUIRE(w.Has<Position>(ents[i]));
-// 		REQUIRE(w.Has<Acceleration>(ents[i]));
+// 		REQUIRE(w.has<Position>(ents[i]));
+// 		REQUIRE(w.has<Acceleration>(ents[i]));
 
 // 		Position p;
-// 		w.Get<Position>(ents[i], p);
+// 		w.get<Position>(ents[i], p);
 // 		REQUIRE(p.x == (float)i);
 // 		REQUIRE(p.y == (float)i);
 // 		REQUIRE(p.z == (float)i);
 
 // 		Acceleration a;
-// 		w.Get<Acceleration>(ents[i], a);
+// 		w.get<Acceleration>(ents[i], a);
 // 		REQUIRE(a.x == 1.f);
 // 		REQUIRE(a.y == 2.f);
 // 		REQUIRE(a.z == 3.f);
 // 	}
 
 // 	{
-// 		REQUIRE_FALSE(w.Has<Position>(ents[4]));
-// 		REQUIRE_FALSE(w.Has<Acceleration>(ents[4]));
+// 		REQUIRE_FALSE(w.has<Position>(ents[4]));
+// 		REQUIRE_FALSE(w.has<Acceleration>(ents[4]));
 // 	}
 // }
 
 TEST_CASE("Add - chunk") {
 	{
 		ecs::World w;
-		auto e = w.Add();
-		w.Add<ecs::AsChunk<Position>>(e);
-		w.Add<ecs::AsChunk<Acceleration>>(e);
+		auto e = w.add();
+		w.add<ecs::AsChunk<Position>>(e);
+		w.add<ecs::AsChunk<Acceleration>>(e);
 
-		REQUIRE_FALSE(w.Has<Position>(e));
-		REQUIRE_FALSE(w.Has<Acceleration>(e));
-		REQUIRE(w.Has<ecs::AsChunk<Position>>(e));
-		REQUIRE(w.Has<ecs::AsChunk<Acceleration>>(e));
+		REQUIRE_FALSE(w.has<Position>(e));
+		REQUIRE_FALSE(w.has<Acceleration>(e));
+		REQUIRE(w.has<ecs::AsChunk<Position>>(e));
+		REQUIRE(w.has<ecs::AsChunk<Acceleration>>(e));
 	}
 
 	{
 		ecs::World w;
-		auto e = w.Add();
+		auto e = w.add();
 
 		// Add Position chunk component
-		w.Add<ecs::AsChunk<Position>>(e, {1, 2, 3});
-		REQUIRE(w.Has<ecs::AsChunk<Position>>(e));
-		REQUIRE_FALSE(w.Has<Position>(e));
+		w.add<ecs::AsChunk<Position>>(e, {1, 2, 3});
+		REQUIRE(w.has<ecs::AsChunk<Position>>(e));
+		REQUIRE_FALSE(w.has<Position>(e));
 		{
-			auto p = w.Get<ecs::AsChunk<Position>>(e);
+			auto p = w.get<ecs::AsChunk<Position>>(e);
 			REQUIRE(p.x == 1);
 			REQUIRE(p.y == 2);
 			REQUIRE(p.z == 3);
 		}
 		// Add Acceleration chunk component.
 		// This moves "e" to a new archetype.
-		w.Add<ecs::AsChunk<Acceleration>>(e, {4, 5, 6});
-		REQUIRE(w.Has<ecs::AsChunk<Position>>(e));
-		REQUIRE(w.Has<ecs::AsChunk<Acceleration>>(e));
-		REQUIRE_FALSE(w.Has<Position>(e));
-		REQUIRE_FALSE(w.Has<Acceleration>(e));
+		w.add<ecs::AsChunk<Acceleration>>(e, {4, 5, 6});
+		REQUIRE(w.has<ecs::AsChunk<Position>>(e));
+		REQUIRE(w.has<ecs::AsChunk<Acceleration>>(e));
+		REQUIRE_FALSE(w.has<Position>(e));
+		REQUIRE_FALSE(w.has<Acceleration>(e));
 		{
-			auto a = w.Get<ecs::AsChunk<Acceleration>>(e);
+			auto a = w.get<ecs::AsChunk<Acceleration>>(e);
 			REQUIRE(a.x == 4);
 			REQUIRE(a.y == 5);
 			REQUIRE(a.z == 6);
@@ -2048,7 +2048,7 @@ TEST_CASE("Add - chunk") {
 		{
 			// Because "e" was moved to a new archetype nobody ever set the value.
 			// Therefore, it is garbage and won't match the original chunk.
-			auto p = w.Get<ecs::AsChunk<Position>>(e);
+			auto p = w.get<ecs::AsChunk<Position>>(e);
 			REQUIRE_FALSE(p.x == 1);
 			REQUIRE_FALSE(p.y == 2);
 			REQUIRE_FALSE(p.z == 3);
@@ -2056,121 +2056,121 @@ TEST_CASE("Add - chunk") {
 	}
 }
 
-TEST_CASE("Del - generic") {
+TEST_CASE("del - generic") {
 	{
 		ecs::World w;
-		auto e1 = w.Add();
+		auto e1 = w.add();
 
 		{
-			w.Add<Position>(e1);
-			w.Del<Position>(e1);
-			REQUIRE_FALSE(w.Has<Position>(e1));
+			w.add<Position>(e1);
+			w.del<Position>(e1);
+			REQUIRE_FALSE(w.has<Position>(e1));
 		}
 		{
-			w.Add<Rotation>(e1);
-			w.Del<Rotation>(e1);
-			REQUIRE_FALSE(w.Has<Rotation>(e1));
+			w.add<Rotation>(e1);
+			w.del<Rotation>(e1);
+			REQUIRE_FALSE(w.has<Rotation>(e1));
 		}
 	}
 	{
 		ecs::World w;
-		auto e1 = w.Add();
+		auto e1 = w.add();
 		{
-			w.Add<Position>(e1);
-			w.Add<Rotation>(e1);
+			w.add<Position>(e1);
+			w.add<Rotation>(e1);
 
 			{
-				w.Del<Position>(e1);
-				REQUIRE_FALSE(w.Has<Position>(e1));
-				REQUIRE(w.Has<Rotation>(e1));
+				w.del<Position>(e1);
+				REQUIRE_FALSE(w.has<Position>(e1));
+				REQUIRE(w.has<Rotation>(e1));
 			}
 			{
-				w.Del<Rotation>(e1);
-				REQUIRE_FALSE(w.Has<Position>(e1));
-				REQUIRE_FALSE(w.Has<Rotation>(e1));
+				w.del<Rotation>(e1);
+				REQUIRE_FALSE(w.has<Position>(e1));
+				REQUIRE_FALSE(w.has<Rotation>(e1));
 			}
 		}
 		{
-			w.Add<Rotation>(e1);
-			w.Add<Position>(e1);
+			w.add<Rotation>(e1);
+			w.add<Position>(e1);
 			{
-				w.Del<Position>(e1);
-				REQUIRE_FALSE(w.Has<Position>(e1));
-				REQUIRE(w.Has<Rotation>(e1));
+				w.del<Position>(e1);
+				REQUIRE_FALSE(w.has<Position>(e1));
+				REQUIRE(w.has<Rotation>(e1));
 			}
 			{
-				w.Del<Rotation>(e1);
-				REQUIRE_FALSE(w.Has<Position>(e1));
-				REQUIRE_FALSE(w.Has<Rotation>(e1));
+				w.del<Rotation>(e1);
+				REQUIRE_FALSE(w.has<Position>(e1));
+				REQUIRE_FALSE(w.has<Rotation>(e1));
 			}
 		}
 	}
 }
 
-TEST_CASE("Del - chunk") {
+TEST_CASE("del - chunk") {
 	ecs::World w;
-	auto e1 = w.Add();
+	auto e1 = w.add();
 
 	{
-		w.Add<ecs::AsChunk<Position>>(e1);
-		w.Add<ecs::AsChunk<Acceleration>>(e1);
+		w.add<ecs::AsChunk<Position>>(e1);
+		w.add<ecs::AsChunk<Acceleration>>(e1);
 		{
-			w.Del<ecs::AsChunk<Position>>(e1);
-			REQUIRE_FALSE(w.Has<ecs::AsChunk<Position>>(e1));
-			REQUIRE(w.Has<ecs::AsChunk<Acceleration>>(e1));
+			w.del<ecs::AsChunk<Position>>(e1);
+			REQUIRE_FALSE(w.has<ecs::AsChunk<Position>>(e1));
+			REQUIRE(w.has<ecs::AsChunk<Acceleration>>(e1));
 		}
 		{
-			w.Del<ecs::AsChunk<Acceleration>>(e1);
-			REQUIRE_FALSE(w.Has<ecs::AsChunk<Position>>(e1));
-			REQUIRE_FALSE(w.Has<ecs::AsChunk<Acceleration>>(e1));
+			w.del<ecs::AsChunk<Acceleration>>(e1);
+			REQUIRE_FALSE(w.has<ecs::AsChunk<Position>>(e1));
+			REQUIRE_FALSE(w.has<ecs::AsChunk<Acceleration>>(e1));
 		}
 	}
 
 	{
-		w.Add<ecs::AsChunk<Acceleration>>(e1);
-		w.Add<ecs::AsChunk<Position>>(e1);
+		w.add<ecs::AsChunk<Acceleration>>(e1);
+		w.add<ecs::AsChunk<Position>>(e1);
 		{
-			w.Del<ecs::AsChunk<Position>>(e1);
-			REQUIRE_FALSE(w.Has<ecs::AsChunk<Position>>(e1));
-			REQUIRE(w.Has<ecs::AsChunk<Acceleration>>(e1));
+			w.del<ecs::AsChunk<Position>>(e1);
+			REQUIRE_FALSE(w.has<ecs::AsChunk<Position>>(e1));
+			REQUIRE(w.has<ecs::AsChunk<Acceleration>>(e1));
 		}
 		{
-			w.Del<ecs::AsChunk<Acceleration>>(e1);
-			REQUIRE_FALSE(w.Has<ecs::AsChunk<Position>>(e1));
-			REQUIRE_FALSE(w.Has<ecs::AsChunk<Acceleration>>(e1));
+			w.del<ecs::AsChunk<Acceleration>>(e1);
+			REQUIRE_FALSE(w.has<ecs::AsChunk<Position>>(e1));
+			REQUIRE_FALSE(w.has<ecs::AsChunk<Acceleration>>(e1));
 		}
 	}
 }
 
-TEST_CASE("Del - generic, chunk") {
+TEST_CASE("del - generic, chunk") {
 	ecs::World w;
-	auto e1 = w.Add();
+	auto e1 = w.add();
 
 	{
-		w.Add<Position>(e1);
-		w.Add<Acceleration>(e1);
-		w.Add<ecs::AsChunk<Position>>(e1);
-		w.Add<ecs::AsChunk<Acceleration>>(e1);
+		w.add<Position>(e1);
+		w.add<Acceleration>(e1);
+		w.add<ecs::AsChunk<Position>>(e1);
+		w.add<ecs::AsChunk<Acceleration>>(e1);
 		{
-			w.Del<Position>(e1);
-			REQUIRE_FALSE(w.Has<Position>(e1));
-			REQUIRE(w.Has<Acceleration>(e1));
-			REQUIRE(w.Has<ecs::AsChunk<Position>>(e1));
-			REQUIRE(w.Has<ecs::AsChunk<Acceleration>>(e1));
+			w.del<Position>(e1);
+			REQUIRE_FALSE(w.has<Position>(e1));
+			REQUIRE(w.has<Acceleration>(e1));
+			REQUIRE(w.has<ecs::AsChunk<Position>>(e1));
+			REQUIRE(w.has<ecs::AsChunk<Acceleration>>(e1));
 		}
 		{
-			w.Del<Acceleration>(e1);
-			REQUIRE_FALSE(w.Has<Position>(e1));
-			REQUIRE_FALSE(w.Has<Acceleration>(e1));
-			REQUIRE(w.Has<ecs::AsChunk<Position>>(e1));
-			REQUIRE(w.Has<ecs::AsChunk<Acceleration>>(e1));
+			w.del<Acceleration>(e1);
+			REQUIRE_FALSE(w.has<Position>(e1));
+			REQUIRE_FALSE(w.has<Acceleration>(e1));
+			REQUIRE(w.has<ecs::AsChunk<Position>>(e1));
+			REQUIRE(w.has<ecs::AsChunk<Acceleration>>(e1));
 		}
 		{
-			w.Del<ecs::AsChunk<Acceleration>>(e1);
-			REQUIRE_FALSE(w.Has<Position>(e1));
-			REQUIRE_FALSE(w.Has<Acceleration>(e1));
-			REQUIRE(w.Has<ecs::AsChunk<Position>>(e1));
-			REQUIRE_FALSE(w.Has<ecs::AsChunk<Acceleration>>(e1));
+			w.del<ecs::AsChunk<Acceleration>>(e1);
+			REQUIRE_FALSE(w.has<Position>(e1));
+			REQUIRE_FALSE(w.has<Acceleration>(e1));
+			REQUIRE(w.has<ecs::AsChunk<Position>>(e1));
+			REQUIRE_FALSE(w.has<ecs::AsChunk<Acceleration>>(e1));
 		}
 	}
 }
@@ -2178,52 +2178,52 @@ TEST_CASE("Del - generic, chunk") {
 TEST_CASE("Usage 1 - simple query, 0 component") {
 	ecs::World w;
 
-	auto e = w.Add();
+	auto e = w.add();
 
 	{
 		uint32_t cnt = 0;
-		w.ForEach([&]([[maybe_unused]] const Acceleration& a) {
+		w.each([&]([[maybe_unused]] const Acceleration& a) {
 			++cnt;
 		});
 		REQUIRE(cnt == 0);
 	}
 	{
 		uint32_t cnt = 0;
-		w.ForEach([&]([[maybe_unused]] const Position& a) {
+		w.each([&]([[maybe_unused]] const Position& a) {
 			++cnt;
 		});
 		REQUIRE(cnt == 0);
 	}
 
-	auto e1 = w.Add(e);
-	auto e2 = w.Add(e);
-	auto e3 = w.Add(e);
+	auto e1 = w.add(e);
+	auto e2 = w.add(e);
+	auto e3 = w.add(e);
 
 	{
 		uint32_t cnt = 0;
-		w.ForEach([&]([[maybe_unused]] const Position& a) {
+		w.each([&]([[maybe_unused]] const Position& a) {
 			++cnt;
 		});
 		REQUIRE(cnt == 0);
 	}
 
-	w.Del(e1);
+	w.del(e1);
 
 	{
 		uint32_t cnt = 0;
-		w.ForEach([&]([[maybe_unused]] const Position& a) {
+		w.each([&]([[maybe_unused]] const Position& a) {
 			++cnt;
 		});
 		REQUIRE(cnt == 0);
 	}
 
-	w.Del(e2);
-	w.Del(e3);
-	w.Del(e);
+	w.del(e2);
+	w.del(e3);
+	w.del(e);
 
 	{
 		uint32_t cnt = 0;
-		w.ForEach([&]([[maybe_unused]] const Position& a) {
+		w.each([&]([[maybe_unused]] const Position& a) {
 			++cnt;
 		});
 		REQUIRE(cnt == 0);
@@ -2233,53 +2233,53 @@ TEST_CASE("Usage 1 - simple query, 0 component") {
 TEST_CASE("Usage 1 - simple query, 1 component") {
 	ecs::World w;
 
-	auto e = w.Add();
-	w.Add<Position>(e);
+	auto e = w.add();
+	w.add<Position>(e);
 
 	{
 		uint32_t cnt = 0;
-		w.ForEach([&]([[maybe_unused]] const Acceleration& a) {
+		w.each([&]([[maybe_unused]] const Acceleration& a) {
 			++cnt;
 		});
 		REQUIRE(cnt == 0);
 	}
 	{
 		uint32_t cnt = 0;
-		w.ForEach([&]([[maybe_unused]] const Position& a) {
+		w.each([&]([[maybe_unused]] const Position& a) {
 			++cnt;
 		});
 		REQUIRE(cnt == 1);
 	}
 
-	auto e1 = w.Add(e);
-	auto e2 = w.Add(e);
-	auto e3 = w.Add(e);
+	auto e1 = w.add(e);
+	auto e2 = w.add(e);
+	auto e3 = w.add(e);
 
 	{
 		uint32_t cnt = 0;
-		w.ForEach([&]([[maybe_unused]] const Position& a) {
+		w.each([&]([[maybe_unused]] const Position& a) {
 			++cnt;
 		});
 		REQUIRE(cnt == 4);
 	}
 
-	w.Del(e1);
+	w.del(e1);
 
 	{
 		uint32_t cnt = 0;
-		w.ForEach([&]([[maybe_unused]] const Position& a) {
+		w.each([&]([[maybe_unused]] const Position& a) {
 			++cnt;
 		});
 		REQUIRE(cnt == 3);
 	}
 
-	w.Del(e2);
-	w.Del(e3);
-	w.Del(e);
+	w.del(e2);
+	w.del(e3);
+	w.del(e);
 
 	{
 		uint32_t cnt = 0;
-		w.ForEach([&]([[maybe_unused]] const Position& a) {
+		w.each([&]([[maybe_unused]] const Position& a) {
 			++cnt;
 		});
 		REQUIRE(cnt == 0);
@@ -2289,63 +2289,63 @@ TEST_CASE("Usage 1 - simple query, 1 component") {
 TEST_CASE("Usage 1 - simple query, 1 chunk component") {
 	ecs::World w;
 
-	auto e = w.Add();
-	w.Add<ecs::AsChunk<Position>>(e);
+	auto e = w.add();
+	w.add<ecs::AsChunk<Position>>(e);
 
-	auto q = w.CreateQuery().All<ecs::AsChunk<Position>>();
-	auto qq = w.CreateQuery().All<Position>();
+	auto q = w.create_query().all<ecs::AsChunk<Position>>();
+	auto qq = w.create_query().all<Position>();
 
 	{
 		uint32_t cnt = 0;
-		w.ForEach([&]([[maybe_unused]] const Position& a) {
+		w.each([&]([[maybe_unused]] const Position& a) {
 			++cnt;
 		});
 		REQUIRE(cnt == 0);
 	}
 	{
 		uint32_t cnt = 0;
-		qq.ForEach([&]() {
+		qq.each([&]() {
 			++cnt;
 		});
 		REQUIRE(cnt == 0);
 	}
 	{
 		uint32_t cnt = 0;
-		q.ForEach([&]([[maybe_unused]] ecs::Iterator iter) {
+		q.each([&]([[maybe_unused]] ecs::Iterator iter) {
 			++cnt;
 		});
 		REQUIRE(cnt == 1);
 	}
 
-	auto e1 = w.Add(e);
-	auto e2 = w.Add(e);
-	auto e3 = w.Add(e);
+	auto e1 = w.add(e);
+	auto e2 = w.add(e);
+	auto e3 = w.add(e);
 
 	{
 		uint32_t cnt = 0;
-		q.ForEach([&]([[maybe_unused]] ecs::Iterator iter) {
+		q.each([&]([[maybe_unused]] ecs::Iterator iter) {
 			++cnt;
 		});
 		REQUIRE(cnt == 1);
 	}
 
-	w.Del(e1);
+	w.del(e1);
 
 	{
 		uint32_t cnt = 0;
-		q.ForEach([&]([[maybe_unused]] ecs::Iterator iter) {
+		q.each([&]([[maybe_unused]] ecs::Iterator iter) {
 			++cnt;
 		});
 		REQUIRE(cnt == 1);
 	}
 
-	w.Del(e2);
-	w.Del(e3);
-	w.Del(e);
+	w.del(e2);
+	w.del(e3);
+	w.del(e);
 
 	{
 		uint32_t cnt = 0;
-		q.ForEach([&]([[maybe_unused]] ecs::Iterator iter) {
+		q.each([&]([[maybe_unused]] ecs::Iterator iter) {
 			++cnt;
 		});
 		REQUIRE(cnt == 0);
@@ -2355,96 +2355,96 @@ TEST_CASE("Usage 1 - simple query, 1 chunk component") {
 TEST_CASE("Usage 2 - simple query, many components") {
 	ecs::World w;
 
-	auto e1 = w.Add();
-	w.Add<Position>(e1, {});
-	w.Add<Acceleration>(e1, {});
-	w.Add<Else>(e1, {});
-	auto e2 = w.Add();
-	w.Add<Rotation>(e2, {});
-	w.Add<Scale>(e2, {});
-	w.Add<Else>(e2, {});
-	auto e3 = w.Add();
-	w.Add<Position>(e3, {});
-	w.Add<Acceleration>(e3, {});
-	w.Add<Scale>(e3, {});
+	auto e1 = w.add();
+	w.add<Position>(e1, {});
+	w.add<Acceleration>(e1, {});
+	w.add<Else>(e1, {});
+	auto e2 = w.add();
+	w.add<Rotation>(e2, {});
+	w.add<Scale>(e2, {});
+	w.add<Else>(e2, {});
+	auto e3 = w.add();
+	w.add<Position>(e3, {});
+	w.add<Acceleration>(e3, {});
+	w.add<Scale>(e3, {});
 
 	{
 		uint32_t cnt = 0;
-		w.ForEach([&]([[maybe_unused]] const Position& a) {
+		w.each([&]([[maybe_unused]] const Position& a) {
 			++cnt;
 		});
 		REQUIRE(cnt == 2);
 	}
 	{
 		uint32_t cnt = 0;
-		w.ForEach([&]([[maybe_unused]] const Acceleration& a) {
+		w.each([&]([[maybe_unused]] const Acceleration& a) {
 			++cnt;
 		});
 		REQUIRE(cnt == 2);
 	}
 	{
 		uint32_t cnt = 0;
-		w.ForEach([&]([[maybe_unused]] const Rotation& a) {
+		w.each([&]([[maybe_unused]] const Rotation& a) {
 			++cnt;
 		});
 		REQUIRE(cnt == 1);
 	}
 	{
 		uint32_t cnt = 0;
-		w.ForEach([&]([[maybe_unused]] const Scale& a) {
+		w.each([&]([[maybe_unused]] const Scale& a) {
 			++cnt;
 		});
 		REQUIRE(cnt == 2);
 	}
 	{
 		uint32_t cnt = 0;
-		w.ForEach([&]([[maybe_unused]] const Position& p, [[maybe_unused]] const Acceleration& s) {
+		w.each([&]([[maybe_unused]] const Position& p, [[maybe_unused]] const Acceleration& s) {
 			++cnt;
 		});
 		REQUIRE(cnt == 2);
 	}
 	{
 		uint32_t cnt = 0;
-		w.ForEach([&]([[maybe_unused]] const Position& p, [[maybe_unused]] const Scale& s) {
+		w.each([&]([[maybe_unused]] const Position& p, [[maybe_unused]] const Scale& s) {
 			++cnt;
 		});
 		REQUIRE(cnt == 1);
 	}
 	{
-		ecs::Query q = w.CreateQuery().Any<Position, Acceleration>();
+		ecs::Query q = w.create_query().any<Position, Acceleration>();
 
 		uint32_t cnt = 0;
-		q.ForEach([&](ecs::Iterator iter) {
+		q.each([&](ecs::Iterator iter) {
 			++cnt;
 
-			const bool ok1 = iter.Has<Position>() || iter.Has<Acceleration>();
+			const bool ok1 = iter.has<Position>() || iter.has<Acceleration>();
 			REQUIRE(ok1);
-			const bool ok2 = iter.Has<Acceleration>() || iter.Has<Position>();
+			const bool ok2 = iter.has<Acceleration>() || iter.has<Position>();
 			REQUIRE(ok2);
 		});
 		REQUIRE(cnt == 2);
 	}
 	{
-		ecs::Query q = w.CreateQuery().Any<Position, Acceleration>().All<Scale>();
+		ecs::Query q = w.create_query().any<Position, Acceleration>().all<Scale>();
 
 		uint32_t cnt = 0;
-		q.ForEach([&](ecs::Iterator iter) {
+		q.each([&](ecs::Iterator iter) {
 			++cnt;
 
 			REQUIRE(iter.size() == 1);
 
-			const bool ok1 = iter.Has<Position>() || iter.Has<Acceleration>();
+			const bool ok1 = iter.has<Position>() || iter.has<Acceleration>();
 			REQUIRE(ok1);
-			const bool ok2 = iter.Has<Acceleration>() || iter.Has<Position>();
+			const bool ok2 = iter.has<Acceleration>() || iter.has<Position>();
 			REQUIRE(ok2);
 		});
 		REQUIRE(cnt == 1);
 	}
 	{
-		ecs::Query q = w.CreateQuery().Any<Position, Acceleration>().None<Scale>();
+		ecs::Query q = w.create_query().any<Position, Acceleration>().none<Scale>();
 
 		uint32_t cnt = 0;
-		q.ForEach([&](ecs::Iterator iter) {
+		q.each([&](ecs::Iterator iter) {
 			++cnt;
 
 			REQUIRE(iter.size() == 1);
@@ -2456,95 +2456,96 @@ TEST_CASE("Usage 2 - simple query, many components") {
 TEST_CASE("Usage 2 - simple query, many chunk components") {
 	ecs::World w;
 
-	auto e1 = w.Add();
-	w.Add<ecs::AsChunk<Position>>(e1, {});
-	w.Add<ecs::AsChunk<Acceleration>>(e1, {});
-	w.Add<ecs::AsChunk<Else>>(e1, {});
-	auto e2 = w.Add();
-	w.Add<ecs::AsChunk<Rotation>>(e2, {});
-	w.Add<ecs::AsChunk<Scale>>(e2, {});
-	w.Add<ecs::AsChunk<Else>>(e2, {});
-	auto e3 = w.Add();
-	w.Add<ecs::AsChunk<Position>>(e3, {});
-	w.Add<ecs::AsChunk<Acceleration>>(e3, {});
-	w.Add<ecs::AsChunk<Scale>>(e3, {});
+	auto e1 = w.add();
+	w.add<ecs::AsChunk<Position>>(e1, {});
+	w.add<ecs::AsChunk<Acceleration>>(e1, {});
+	w.add<ecs::AsChunk<Else>>(e1, {});
+	auto e2 = w.add();
+	w.add<ecs::AsChunk<Rotation>>(e2, {});
+	w.add<ecs::AsChunk<Scale>>(e2, {});
+	w.add<ecs::AsChunk<Else>>(e2, {});
+	auto e3 = w.add();
+	w.add<ecs::AsChunk<Position>>(e3, {});
+	w.add<ecs::AsChunk<Acceleration>>(e3, {});
+	w.add<ecs::AsChunk<Scale>>(e3, {});
 
 	{
 		uint32_t cnt = 0;
-		auto q = w.CreateQuery().All<ecs::AsChunk<Position>>();
-		q.ForEach([&]([[maybe_unused]] ecs::Iterator iter) {
+		auto q = w.create_query().all<ecs::AsChunk<Position>>();
+		q.each([&]([[maybe_unused]] ecs::Iterator iter) {
 			++cnt;
 		});
 		REQUIRE(cnt == 2);
 	}
 	{
 		uint32_t cnt = 0;
-		auto q = w.CreateQuery().All<ecs::AsChunk<Acceleration>>();
-		q.ForEach([&]([[maybe_unused]] ecs::Iterator iter) {
+		auto q = w.create_query().all<ecs::AsChunk<Acceleration>>();
+		q.each([&]([[maybe_unused]] ecs::Iterator iter) {
 			++cnt;
 		});
 		REQUIRE(cnt == 2);
 	}
 	{
 		uint32_t cnt = 0;
-		auto q = w.CreateQuery().All<ecs::AsChunk<Rotation>>();
-		q.ForEach([&]([[maybe_unused]] ecs::Iterator iter) {
+		auto q = w.create_query().all<ecs::AsChunk<Rotation>>();
+		q.each([&]([[maybe_unused]] ecs::Iterator iter) {
 			++cnt;
 		});
 		REQUIRE(cnt == 1);
 	}
 	{
 		uint32_t cnt = 0;
-		auto q = w.CreateQuery().All<ecs::AsChunk<Else>>();
-		q.ForEach([&]([[maybe_unused]] ecs::Iterator iter) {
+		auto q = w.create_query().all<ecs::AsChunk<Else>>();
+		q.each([&]([[maybe_unused]] ecs::Iterator iter) {
 			++cnt;
 		});
 		REQUIRE(cnt == 2);
 	}
 	{
 		uint32_t cnt = 0;
-		auto q = w.CreateQuery().All<ecs::AsChunk<Scale>>();
-		q.ForEach([&]([[maybe_unused]] ecs::Iterator iter) {
+		auto q = w.create_query().all<ecs::AsChunk<Scale>>();
+		q.each([&]([[maybe_unused]] ecs::Iterator iter) {
 			++cnt;
 		});
 		REQUIRE(cnt == 2);
 	}
 	{
-		ecs::Query q = w.CreateQuery().Any<ecs::AsChunk<Position>, ecs::AsChunk<Acceleration>>();
+		ecs::Query q = w.create_query().any<ecs::AsChunk<Position>, ecs::AsChunk<Acceleration>>();
 
 		uint32_t cnt = 0;
-		q.ForEach([&](ecs::Iterator iter) {
+		q.each([&](ecs::Iterator iter) {
 			++cnt;
 
-			const bool ok1 = iter.Has<ecs::AsChunk<Position>>() || iter.Has<ecs::AsChunk<Acceleration>>();
+			const bool ok1 = iter.has<ecs::AsChunk<Position>>() || iter.has<ecs::AsChunk<Acceleration>>();
 			REQUIRE(ok1);
-			const bool ok2 = iter.Has<ecs::AsChunk<Acceleration>>() || iter.Has<ecs::AsChunk<Position>>();
+			const bool ok2 = iter.has<ecs::AsChunk<Acceleration>>() || iter.has<ecs::AsChunk<Position>>();
 			REQUIRE(ok2);
 		});
 		REQUIRE(cnt == 2);
 	}
 	{
-		ecs::Query q = w.CreateQuery().Any<ecs::AsChunk<Position>, ecs::AsChunk<Acceleration>>().All<ecs::AsChunk<Scale>>();
+		ecs::Query q =
+				w.create_query().any<ecs::AsChunk<Position>, ecs::AsChunk<Acceleration>>().all<ecs::AsChunk<Scale>>();
 
 		uint32_t cnt = 0;
-		q.ForEach([&](ecs::Iterator iter) {
+		q.each([&](ecs::Iterator iter) {
 			++cnt;
 
 			REQUIRE(iter.size() == 1);
 
-			const bool ok1 = iter.Has<ecs::AsChunk<Position>>() || iter.Has<ecs::AsChunk<Acceleration>>();
+			const bool ok1 = iter.has<ecs::AsChunk<Position>>() || iter.has<ecs::AsChunk<Acceleration>>();
 			REQUIRE(ok1);
-			const bool ok2 = iter.Has<ecs::AsChunk<Acceleration>>() || iter.Has<ecs::AsChunk<Position>>();
+			const bool ok2 = iter.has<ecs::AsChunk<Acceleration>>() || iter.has<ecs::AsChunk<Position>>();
 			REQUIRE(ok2);
 		});
 		REQUIRE(cnt == 1);
 	}
 	{
 		ecs::Query q =
-				w.CreateQuery().Any<ecs::AsChunk<Position>, ecs::AsChunk<Acceleration>>().None<ecs::AsChunk<Scale>>();
+				w.create_query().any<ecs::AsChunk<Position>, ecs::AsChunk<Acceleration>>().none<ecs::AsChunk<Scale>>();
 
 		uint32_t cnt = 0;
-		q.ForEach([&](ecs::Iterator iter) {
+		q.each([&](ecs::Iterator iter) {
 			++cnt;
 
 			REQUIRE(iter.size() == 1);
@@ -2561,37 +2562,37 @@ TEST_CASE("Set - generic") {
 	arr.reserve(N);
 
 	for (uint32_t i = 0; i < N; ++i) {
-		arr.push_back(w.Add());
-		w.Add<Rotation>(arr.back(), {});
-		w.Add<Scale>(arr.back(), {});
-		w.Add<Else>(arr.back(), {});
+		arr.push_back(w.add());
+		w.add<Rotation>(arr.back(), {});
+		w.add<Scale>(arr.back(), {});
+		w.add<Else>(arr.back(), {});
 	}
 
 	// Default values
 	for (const auto ent: arr) {
-		auto r = w.Get<Rotation>(ent);
+		auto r = w.get<Rotation>(ent);
 		REQUIRE(r.x == 0);
 		REQUIRE(r.y == 0);
 		REQUIRE(r.z == 0);
 		REQUIRE(r.w == 0);
 
-		auto s = w.Get<Scale>(ent);
+		auto s = w.get<Scale>(ent);
 		REQUIRE(s.x == 0);
 		REQUIRE(s.y == 0);
 		REQUIRE(s.z == 0);
 
-		auto e = w.Get<Else>(ent);
+		auto e = w.get<Else>(ent);
 		REQUIRE(e.value == false);
 	}
 
 	// Modify values
 	{
-		ecs::Query q = w.CreateQuery().All<Rotation, Scale, Else>();
+		ecs::Query q = w.create_query().all<Rotation, Scale, Else>();
 
-		q.ForEach([&](ecs::Iterator iter) {
-			auto rotationView = iter.ViewRW<Rotation>();
-			auto scaleView = iter.ViewRW<Scale>();
-			auto elseView = iter.ViewRW<Else>();
+		q.each([&](ecs::Iterator iter) {
+			auto rotationView = iter.view_mut<Rotation>();
+			auto scaleView = iter.view_mut<Scale>();
+			auto elseView = iter.view_mut<Else>();
 
 			iter.each([&](uint32_t i) {
 				rotationView[i] = {1, 2, 3, 4};
@@ -2601,39 +2602,39 @@ TEST_CASE("Set - generic") {
 		});
 
 		for (const auto ent: arr) {
-			auto r = w.Get<Rotation>(ent);
+			auto r = w.get<Rotation>(ent);
 			REQUIRE(r.x == 1);
 			REQUIRE(r.y == 2);
 			REQUIRE(r.z == 3);
 			REQUIRE(r.w == 4);
 
-			auto s = w.Get<Scale>(ent);
+			auto s = w.get<Scale>(ent);
 			REQUIRE(s.x == 11);
 			REQUIRE(s.y == 22);
 			REQUIRE(s.z == 33);
 
-			auto e = w.Get<Else>(ent);
+			auto e = w.get<Else>(ent);
 			REQUIRE(e.value == true);
 		}
 	}
 
 	// Add one more component and check if the values are still fine after creating a new archetype
 	{
-		auto ent = w.Add(arr[0]);
-		w.Add<Position>(ent, {5, 6, 7});
+		auto ent = w.add(arr[0]);
+		w.add<Position>(ent, {5, 6, 7});
 
-		auto r = w.Get<Rotation>(ent);
+		auto r = w.get<Rotation>(ent);
 		REQUIRE(r.x == 1);
 		REQUIRE(r.y == 2);
 		REQUIRE(r.z == 3);
 		REQUIRE(r.w == 4);
 
-		auto s = w.Get<Scale>(ent);
+		auto s = w.get<Scale>(ent);
 		REQUIRE(s.x == 11);
 		REQUIRE(s.y == 22);
 		REQUIRE(s.z == 33);
 
-		auto e = w.Get<Else>(ent);
+		auto e = w.get<Else>(ent);
 		REQUIRE(e.value == true);
 	}
 }
@@ -2646,30 +2647,30 @@ TEST_CASE("Set - generic & chunk") {
 	arr.reserve(N);
 
 	for (uint32_t i = 0; i < N; ++i) {
-		arr.push_back(w.Add());
-		w.Add<Rotation>(arr.back(), {});
-		w.Add<Scale>(arr.back(), {});
-		w.Add<Else>(arr.back(), {});
-		w.Add<ecs::AsChunk<Position>>(arr.back(), {});
+		arr.push_back(w.add());
+		w.add<Rotation>(arr.back(), {});
+		w.add<Scale>(arr.back(), {});
+		w.add<Else>(arr.back(), {});
+		w.add<ecs::AsChunk<Position>>(arr.back(), {});
 	}
 
 	// Default values
 	for (const auto ent: arr) {
-		auto r = w.Get<Rotation>(ent);
+		auto r = w.get<Rotation>(ent);
 		REQUIRE(r.x == 0);
 		REQUIRE(r.y == 0);
 		REQUIRE(r.z == 0);
 		REQUIRE(r.w == 0);
 
-		auto s = w.Get<Scale>(ent);
+		auto s = w.get<Scale>(ent);
 		REQUIRE(s.x == 0);
 		REQUIRE(s.y == 0);
 		REQUIRE(s.z == 0);
 
-		auto e = w.Get<Else>(ent);
+		auto e = w.get<Else>(ent);
 		REQUIRE(e.value == false);
 
-		auto p = w.Get<ecs::AsChunk<Position>>(ent);
+		auto p = w.get<ecs::AsChunk<Position>>(ent);
 		REQUIRE(p.x == 0);
 		REQUIRE(p.y == 0);
 		REQUIRE(p.z == 0);
@@ -2677,12 +2678,12 @@ TEST_CASE("Set - generic & chunk") {
 
 	// Modify values
 	{
-		ecs::Query q = w.CreateQuery().All<Rotation, Scale, Else>();
+		ecs::Query q = w.create_query().all<Rotation, Scale, Else>();
 
-		q.ForEach([&](ecs::Iterator iter) {
-			auto rotationView = iter.ViewRW<Rotation>();
-			auto scaleView = iter.ViewRW<Scale>();
-			auto elseView = iter.ViewRW<Else>();
+		q.each([&](ecs::Iterator iter) {
+			auto rotationView = iter.view_mut<Rotation>();
+			auto scaleView = iter.view_mut<Scale>();
+			auto elseView = iter.view_mut<Else>();
 
 			iter.each([&](uint32_t i) {
 				rotationView[i] = {1, 2, 3, 4};
@@ -2691,33 +2692,33 @@ TEST_CASE("Set - generic & chunk") {
 			});
 		});
 
-		w.Set<ecs::AsChunk<Position>>(arr[0], {111, 222, 333});
+		w.set<ecs::AsChunk<Position>>(arr[0], {111, 222, 333});
 
 		{
-			Position p = w.Get<ecs::AsChunk<Position>>(arr[0]);
+			Position p = w.get<ecs::AsChunk<Position>>(arr[0]);
 			REQUIRE(p.x == 111);
 			REQUIRE(p.y == 222);
 			REQUIRE(p.z == 333);
 		}
 		{
 			for (const auto ent: arr) {
-				auto r = w.Get<Rotation>(ent);
+				auto r = w.get<Rotation>(ent);
 				REQUIRE(r.x == 1);
 				REQUIRE(r.y == 2);
 				REQUIRE(r.z == 3);
 				REQUIRE(r.w == 4);
 
-				auto s = w.Get<Scale>(ent);
+				auto s = w.get<Scale>(ent);
 				REQUIRE(s.x == 11);
 				REQUIRE(s.y == 22);
 				REQUIRE(s.z == 33);
 
-				auto e = w.Get<Else>(ent);
+				auto e = w.get<Else>(ent);
 				REQUIRE(e.value == true);
 			}
 		}
 		{
-			auto p = w.Get<ecs::AsChunk<Position>>(arr[0]);
+			auto p = w.get<ecs::AsChunk<Position>>(arr[0]);
 			REQUIRE(p.x == 111);
 			REQUIRE(p.y == 222);
 			REQUIRE(p.z == 333);
@@ -2733,27 +2734,27 @@ TEST_CASE("Components - non trivial") {
 	arr.reserve(N);
 
 	for (uint32_t i = 0; i < N; ++i) {
-		arr.push_back(w.Add());
-		w.Add<StringComponent>(arr.back(), {});
-		w.Add<StringComponent2>(arr.back(), {});
-		w.Add<PositionNonTrivial>(arr.back(), {});
+		arr.push_back(w.add());
+		w.add<StringComponent>(arr.back(), {});
+		w.add<StringComponent2>(arr.back(), {});
+		w.add<PositionNonTrivial>(arr.back(), {});
 	}
 
 	// Default values
 	for (const auto ent: arr) {
-		const auto& s1 = w.Get<StringComponent>(ent);
+		const auto& s1 = w.get<StringComponent>(ent);
 		REQUIRE(s1.value.empty());
 
 		{
-			auto s2 = w.Get<StringComponent2>(ent);
+			auto s2 = w.get<StringComponent2>(ent);
 			REQUIRE(s2.value == StringComponent2DefaultValue);
 		}
 		{
-			const auto& s2 = w.Get<StringComponent2>(ent);
+			const auto& s2 = w.get<StringComponent2>(ent);
 			REQUIRE(s2.value == StringComponent2DefaultValue);
 		}
 
-		const auto& p = w.Get<PositionNonTrivial>(ent);
+		const auto& p = w.get<PositionNonTrivial>(ent);
 		REQUIRE(p.x == 1);
 		REQUIRE(p.y == 2);
 		REQUIRE(p.z == 3);
@@ -2761,12 +2762,12 @@ TEST_CASE("Components - non trivial") {
 
 	// Modify values
 	{
-		ecs::Query q = w.CreateQuery().All<StringComponent, StringComponent2, PositionNonTrivial>();
+		ecs::Query q = w.create_query().all<StringComponent, StringComponent2, PositionNonTrivial>();
 
-		q.ForEach([&](ecs::Iterator iter) {
-			auto strView = iter.ViewRW<StringComponent>();
-			auto str2View = iter.ViewRW<StringComponent2>();
-			auto posView = iter.ViewRW<PositionNonTrivial>();
+		q.each([&](ecs::Iterator iter) {
+			auto strView = iter.view_mut<StringComponent>();
+			auto str2View = iter.view_mut<StringComponent2>();
+			auto posView = iter.view_mut<PositionNonTrivial>();
 
 			iter.each([&](uint32_t i) {
 				strView[i] = {StringComponentDefaultValue};
@@ -2776,13 +2777,13 @@ TEST_CASE("Components - non trivial") {
 		});
 
 		for (const auto ent: arr) {
-			const auto& s1 = w.Get<StringComponent>(ent);
+			const auto& s1 = w.get<StringComponent>(ent);
 			REQUIRE(s1.value == StringComponentDefaultValue);
 
-			const auto& s2 = w.Get<StringComponent2>(ent);
+			const auto& s2 = w.get<StringComponent2>(ent);
 			REQUIRE(s2.value == StringComponent2DefaultValue_2);
 
-			const auto& p = w.Get<PositionNonTrivial>(ent);
+			const auto& p = w.get<PositionNonTrivial>(ent);
 			REQUIRE(p.x == 111);
 			REQUIRE(p.y == 222);
 			REQUIRE(p.z == 333);
@@ -2791,16 +2792,16 @@ TEST_CASE("Components - non trivial") {
 
 	// Add one more component and check if the values are still fine after creating a new archetype
 	{
-		auto ent = w.Add(arr[0]);
-		w.Add<Position>(ent, {5, 6, 7});
+		auto ent = w.add(arr[0]);
+		w.add<Position>(ent, {5, 6, 7});
 
-		const auto& s1 = w.Get<StringComponent>(ent);
+		const auto& s1 = w.get<StringComponent>(ent);
 		REQUIRE(s1.value == StringComponentDefaultValue);
 
-		const auto& s2 = w.Get<StringComponent2>(ent);
+		const auto& s2 = w.get<StringComponent2>(ent);
 		REQUIRE(s2.value == StringComponent2DefaultValue_2);
 
-		const auto& p = w.Get<PositionNonTrivial>(ent);
+		const auto& p = w.get<PositionNonTrivial>(ent);
 		REQUIRE(p.x == 111);
 		REQUIRE(p.y == 222);
 		REQUIRE(p.z == 333);
@@ -2814,13 +2815,13 @@ TEST_CASE("CommandBuffer") {
 
 		const uint32_t N = 100;
 		for (uint32_t i = 0; i < N; ++i) {
-			[[maybe_unused]] auto tmp = cb.Add();
+			[[maybe_unused]] auto tmp = cb.add();
 		}
 
-		cb.Commit();
+		cb.commit();
 
 		for (uint32_t i = 0; i < N; ++i) {
-			auto e = w.Get(i);
+			auto e = w.get(i);
 			REQUIRE(e.id() == i);
 		}
 	}
@@ -2829,17 +2830,17 @@ TEST_CASE("CommandBuffer") {
 		ecs::World w;
 		ecs::CommandBuffer cb(w);
 
-		auto mainEntity = w.Add();
+		auto mainEntity = w.add();
 
 		const uint32_t N = 100;
 		for (uint32_t i = 0; i < N; ++i) {
-			[[maybe_unused]] auto tmp = cb.Add(mainEntity);
+			[[maybe_unused]] auto tmp = cb.add(mainEntity);
 		}
 
-		cb.Commit();
+		cb.commit();
 
 		for (uint32_t i = 0; i < N; ++i) {
-			auto e = w.Get(i + 1);
+			auto e = w.get(i + 1);
 			REQUIRE(e.id() == i + 1);
 		}
 	}
@@ -2848,14 +2849,14 @@ TEST_CASE("CommandBuffer") {
 		ecs::World w;
 		ecs::CommandBuffer cb(w);
 
-		auto mainEntity = w.Add();
-		w.Add<Position>(mainEntity, {1, 2, 3});
+		auto mainEntity = w.add();
+		w.add<Position>(mainEntity, {1, 2, 3});
 
-		[[maybe_unused]] auto tmp = cb.Add(mainEntity);
-		cb.Commit();
-		auto e = w.Get(1);
-		REQUIRE(w.Has<Position>(e));
-		auto p = w.Get<Position>(e);
+		[[maybe_unused]] auto tmp = cb.add(mainEntity);
+		cb.commit();
+		auto e = w.get(1);
+		REQUIRE(w.has<Position>(e));
+		auto p = w.get<Position>(e);
 		REQUIRE(p.x == 1);
 		REQUIRE(p.y == 2);
 		REQUIRE(p.z == 3);
@@ -2865,40 +2866,40 @@ TEST_CASE("CommandBuffer") {
 		ecs::World w;
 		ecs::CommandBuffer cb(w);
 
-		auto e = w.Add();
-		cb.Add<Position>(e);
-		REQUIRE_FALSE(w.Has<Position>(e));
-		cb.Commit();
-		REQUIRE(w.Has<Position>(e));
+		auto e = w.add();
+		cb.add<Position>(e);
+		REQUIRE_FALSE(w.has<Position>(e));
+		cb.commit();
+		REQUIRE(w.has<Position>(e));
 	}
 
 	SECTION("Delayed component addition to a to-be-created entity") {
 		ecs::World w;
 		ecs::CommandBuffer cb(w);
 
-		auto tmp = cb.Add();
-		REQUIRE_FALSE(w.GetEntityCount());
-		cb.Add<Position>(tmp);
-		cb.Commit();
+		auto tmp = cb.add();
+		REQUIRE_FALSE(w.size());
+		cb.add<Position>(tmp);
+		cb.commit();
 
-		auto e = w.Get(0);
-		REQUIRE(w.Has<Position>(e));
+		auto e = w.get(0);
+		REQUIRE(w.has<Position>(e));
 	}
 
 	SECTION("Delayed component setting of an existing entity") {
 		ecs::World w;
 		ecs::CommandBuffer cb(w);
 
-		auto e = w.Add();
+		auto e = w.add();
 
-		cb.Add<Position>(e);
-		cb.Set<Position>(e, {1, 2, 3});
-		REQUIRE_FALSE(w.Has<Position>(e));
+		cb.add<Position>(e);
+		cb.set<Position>(e, {1, 2, 3});
+		REQUIRE_FALSE(w.has<Position>(e));
 
-		cb.Commit();
-		REQUIRE(w.Has<Position>(e));
+		cb.commit();
+		REQUIRE(w.has<Position>(e));
 
-		auto p = w.Get<Position>(e);
+		auto p = w.get<Position>(e);
 		REQUIRE(p.x == 1);
 		REQUIRE(p.y == 2);
 		REQUIRE(p.z == 3);
@@ -2908,25 +2909,25 @@ TEST_CASE("CommandBuffer") {
 		ecs::World w;
 		ecs::CommandBuffer cb(w);
 
-		auto e = w.Add();
+		auto e = w.add();
 
-		cb.Add<Position>(e);
-		cb.Set<Position>(e, {1, 2, 3});
-		cb.Add<Acceleration>(e);
-		cb.Set<Acceleration>(e, {4, 5, 6});
-		REQUIRE_FALSE(w.Has<Position>(e));
-		REQUIRE_FALSE(w.Has<Acceleration>(e));
+		cb.add<Position>(e);
+		cb.set<Position>(e, {1, 2, 3});
+		cb.add<Acceleration>(e);
+		cb.set<Acceleration>(e, {4, 5, 6});
+		REQUIRE_FALSE(w.has<Position>(e));
+		REQUIRE_FALSE(w.has<Acceleration>(e));
 
-		cb.Commit();
-		REQUIRE(w.Has<Position>(e));
-		REQUIRE(w.Has<Acceleration>(e));
+		cb.commit();
+		REQUIRE(w.has<Position>(e));
+		REQUIRE(w.has<Acceleration>(e));
 
-		auto p = w.Get<Position>(e);
+		auto p = w.get<Position>(e);
 		REQUIRE(p.x == 1);
 		REQUIRE(p.y == 2);
 		REQUIRE(p.z == 3);
 
-		auto a = w.Get<Acceleration>(e);
+		auto a = w.get<Acceleration>(e);
 		REQUIRE(a.x == 4);
 		REQUIRE(a.y == 5);
 		REQUIRE(a.z == 6);
@@ -2936,17 +2937,17 @@ TEST_CASE("CommandBuffer") {
 		ecs::World w;
 		ecs::CommandBuffer cb(w);
 
-		auto tmp = cb.Add();
-		REQUIRE_FALSE(w.GetEntityCount());
+		auto tmp = cb.add();
+		REQUIRE_FALSE(w.size());
 
-		cb.Add<Position>(tmp);
-		cb.Set<Position>(tmp, {1, 2, 3});
-		cb.Commit();
+		cb.add<Position>(tmp);
+		cb.set<Position>(tmp, {1, 2, 3});
+		cb.commit();
 
-		auto e = w.Get(0);
-		REQUIRE(w.Has<Position>(e));
+		auto e = w.get(0);
+		REQUIRE(w.has<Position>(e));
 
-		auto p = w.Get<Position>(e);
+		auto p = w.get<Position>(e);
 		REQUIRE(p.x == 1);
 		REQUIRE(p.y == 2);
 		REQUIRE(p.z == 3);
@@ -2956,25 +2957,25 @@ TEST_CASE("CommandBuffer") {
 		ecs::World w;
 		ecs::CommandBuffer cb(w);
 
-		auto tmp = cb.Add();
-		REQUIRE_FALSE(w.GetEntityCount());
+		auto tmp = cb.add();
+		REQUIRE_FALSE(w.size());
 
-		cb.Add<Position>(tmp);
-		cb.Add<Acceleration>(tmp);
-		cb.Set<Position>(tmp, {1, 2, 3});
-		cb.Set<Acceleration>(tmp, {4, 5, 6});
-		cb.Commit();
+		cb.add<Position>(tmp);
+		cb.add<Acceleration>(tmp);
+		cb.set<Position>(tmp, {1, 2, 3});
+		cb.set<Acceleration>(tmp, {4, 5, 6});
+		cb.commit();
 
-		auto e = w.Get(0);
-		REQUIRE(w.Has<Position>(e));
-		REQUIRE(w.Has<Acceleration>(e));
+		auto e = w.get(0);
+		REQUIRE(w.has<Position>(e));
+		REQUIRE(w.has<Acceleration>(e));
 
-		auto p = w.Get<Position>(e);
+		auto p = w.get<Position>(e);
 		REQUIRE(p.x == 1);
 		REQUIRE(p.y == 2);
 		REQUIRE(p.z == 3);
 
-		auto a = w.Get<Acceleration>(e);
+		auto a = w.get<Acceleration>(e);
 		REQUIRE(a.x == 4);
 		REQUIRE(a.y == 5);
 		REQUIRE(a.z == 6);
@@ -2984,16 +2985,16 @@ TEST_CASE("CommandBuffer") {
 		ecs::World w;
 		ecs::CommandBuffer cb(w);
 
-		auto tmp = cb.Add();
-		REQUIRE_FALSE(w.GetEntityCount());
+		auto tmp = cb.add();
+		REQUIRE_FALSE(w.size());
 
-		cb.Add<Position>(tmp, {1, 2, 3});
-		cb.Commit();
+		cb.add<Position>(tmp, {1, 2, 3});
+		cb.commit();
 
-		auto e = w.Get(0);
-		REQUIRE(w.Has<Position>(e));
+		auto e = w.get(0);
+		REQUIRE(w.has<Position>(e));
 
-		auto p = w.Get<Position>(e);
+		auto p = w.get<Position>(e);
 		REQUIRE(p.x == 1);
 		REQUIRE(p.y == 2);
 		REQUIRE(p.z == 3);
@@ -3003,23 +3004,23 @@ TEST_CASE("CommandBuffer") {
 		ecs::World w;
 		ecs::CommandBuffer cb(w);
 
-		auto tmp = cb.Add();
-		REQUIRE_FALSE(w.GetEntityCount());
+		auto tmp = cb.add();
+		REQUIRE_FALSE(w.size());
 
-		cb.Add<Position>(tmp, {1, 2, 3});
-		cb.Add<Acceleration>(tmp, {4, 5, 6});
-		cb.Commit();
+		cb.add<Position>(tmp, {1, 2, 3});
+		cb.add<Acceleration>(tmp, {4, 5, 6});
+		cb.commit();
 
-		auto e = w.Get(0);
-		REQUIRE(w.Has<Position>(e));
-		REQUIRE(w.Has<Acceleration>(e));
+		auto e = w.get(0);
+		REQUIRE(w.has<Position>(e));
+		REQUIRE(w.has<Acceleration>(e));
 
-		auto p = w.Get<Position>(e);
+		auto p = w.get<Position>(e);
 		REQUIRE(p.x == 1);
 		REQUIRE(p.y == 2);
 		REQUIRE(p.z == 3);
 
-		auto a = w.Get<Acceleration>(e);
+		auto a = w.get<Acceleration>(e);
 		REQUIRE(a.x == 4);
 		REQUIRE(a.y == 5);
 		REQUIRE(a.z == 6);
@@ -3029,127 +3030,127 @@ TEST_CASE("CommandBuffer") {
 		ecs::World w;
 		ecs::CommandBuffer cb(w);
 
-		auto e = w.Add();
-		w.Add<Position>(e, {1, 2, 3});
+		auto e = w.add();
+		w.add<Position>(e, {1, 2, 3});
 
-		cb.Del<Position>(e);
-		REQUIRE(w.Has<Position>(e));
+		cb.del<Position>(e);
+		REQUIRE(w.has<Position>(e));
 		{
-			auto p = w.Get<Position>(e);
+			auto p = w.get<Position>(e);
 			REQUIRE(p.x == 1);
 			REQUIRE(p.y == 2);
 			REQUIRE(p.z == 3);
 		}
 
-		cb.Commit();
-		REQUIRE_FALSE(w.Has<Position>(e));
+		cb.commit();
+		REQUIRE_FALSE(w.has<Position>(e));
 	}
 
 	SECTION("Delayed 2 component removal from an existing entity") {
 		ecs::World w;
 		ecs::CommandBuffer cb(w);
 
-		auto e = w.Add();
-		w.Add<Position>(e, {1, 2, 3});
-		w.Add<Acceleration>(e, {4, 5, 6});
+		auto e = w.add();
+		w.add<Position>(e, {1, 2, 3});
+		w.add<Acceleration>(e, {4, 5, 6});
 
-		cb.Del<Position>(e);
-		cb.Del<Acceleration>(e);
-		REQUIRE(w.Has<Position>(e));
-		REQUIRE(w.Has<Acceleration>(e));
+		cb.del<Position>(e);
+		cb.del<Acceleration>(e);
+		REQUIRE(w.has<Position>(e));
+		REQUIRE(w.has<Acceleration>(e));
 		{
-			auto p = w.Get<Position>(e);
+			auto p = w.get<Position>(e);
 			REQUIRE(p.x == 1);
 			REQUIRE(p.y == 2);
 			REQUIRE(p.z == 3);
 
-			auto a = w.Get<Acceleration>(e);
+			auto a = w.get<Acceleration>(e);
 			REQUIRE(a.x == 4);
 			REQUIRE(a.y == 5);
 			REQUIRE(a.z == 6);
 		}
 
-		cb.Commit();
-		REQUIRE_FALSE(w.Has<Position>(e));
-		REQUIRE_FALSE(w.Has<Acceleration>(e));
+		cb.commit();
+		REQUIRE_FALSE(w.has<Position>(e));
+		REQUIRE_FALSE(w.has<Acceleration>(e));
 	}
 
 	SECTION("Delayed non-trivial component setting of an existing entity") {
 		ecs::World w;
 		ecs::CommandBuffer cb(w);
 
-		auto e = w.Add();
+		auto e = w.add();
 
-		cb.Add<StringComponent>(e);
-		cb.Set<StringComponent>(e, {StringComponentDefaultValue});
-		cb.Add<StringComponent2>(e);
-		REQUIRE_FALSE(w.Has<StringComponent>(e));
-		REQUIRE_FALSE(w.Has<StringComponent2>(e));
+		cb.add<StringComponent>(e);
+		cb.set<StringComponent>(e, {StringComponentDefaultValue});
+		cb.add<StringComponent2>(e);
+		REQUIRE_FALSE(w.has<StringComponent>(e));
+		REQUIRE_FALSE(w.has<StringComponent2>(e));
 
-		cb.Commit();
-		REQUIRE(w.Has<StringComponent>(e));
-		REQUIRE(w.Has<StringComponent2>(e));
+		cb.commit();
+		REQUIRE(w.has<StringComponent>(e));
+		REQUIRE(w.has<StringComponent2>(e));
 
-		auto s1 = w.Get<StringComponent>(e);
+		auto s1 = w.get<StringComponent>(e);
 		REQUIRE(s1.value == StringComponentDefaultValue);
-		auto s2 = w.Get<StringComponent2>(e);
+		auto s2 = w.get<StringComponent2>(e);
 		REQUIRE(s2.value == StringComponent2DefaultValue);
 	}
 }
 
 TEST_CASE("Query Filter - no systems") {
 	ecs::World w;
-	ecs::Query q = w.CreateQuery().All<const Position>().WithChanged<Position>();
+	ecs::Query q = w.create_query().all<const Position>().changed<Position>();
 
-	auto e = w.Add();
-	w.Add<Position>(e);
+	auto e = w.add();
+	w.add<Position>(e);
 
 	// System-less filters
 	{
 		uint32_t cnt = 0;
-		q.ForEach([&]([[maybe_unused]] const Position& a) {
+		q.each([&]([[maybe_unused]] const Position& a) {
 			++cnt;
 		});
 		REQUIRE(cnt == 1); // first run always happens
 	}
 	{
 		uint32_t cnt = 0;
-		q.ForEach([&]([[maybe_unused]] const Position& a) {
+		q.each([&]([[maybe_unused]] const Position& a) {
 			++cnt;
 		});
 		REQUIRE(cnt == 0); // no change of position so this shouldn't run
 	}
-	{ w.Set<Position>(e, {}); }
+	{ w.set<Position>(e, {}); }
 	{
 		uint32_t cnt = 0;
-		q.ForEach([&]([[maybe_unused]] const Position& a) {
+		q.each([&]([[maybe_unused]] const Position& a) {
 			++cnt;
 		});
 		REQUIRE(cnt == 1);
 	}
 	{
 		uint32_t cnt = 0;
-		q.ForEach([&]([[maybe_unused]] const Position& a) {
+		q.each([&]([[maybe_unused]] const Position& a) {
 			++cnt;
 		});
 		REQUIRE(cnt == 0);
 	}
-	{ w.SetSilent<Position>(e, {}); }
+	{ w.sset<Position>(e, {}); }
 	{
 		uint32_t cnt = 0;
-		q.ForEach([&]([[maybe_unused]] const Position& a) {
+		q.each([&]([[maybe_unused]] const Position& a) {
 			++cnt;
 		});
 		REQUIRE(cnt == 0);
 	}
 	{
-		auto* ch = w.GetChunk(e);
-		auto p = ch->ViewRWSilent<Position>();
+		auto* ch = w.get_chunk(e);
+		auto p = ch->sview_mut<Position>();
 		p[0] = {};
 	}
 	{
 		uint32_t cnt = 0;
-		q.ForEach([&]([[maybe_unused]] const Position& a) {
+		q.each([&]([[maybe_unused]] const Position& a) {
 			++cnt;
 		});
 		REQUIRE(cnt == 0);
@@ -3159,13 +3160,13 @@ TEST_CASE("Query Filter - no systems") {
 TEST_CASE("Query Filter - systems") {
 	ecs::World w;
 
-	auto e = w.Add();
-	w.Add<Position>(e);
+	auto e = w.add();
+	w.add<Position>(e);
 
 	class WriterSystem final: public ecs::System {
 	public:
 		void OnUpdate() override {
-			GetWorld().ForEach([]([[maybe_unused]] Position& a) {});
+			GetWorld().each([]([[maybe_unused]] Position& a) {});
 		}
 	};
 	class WriterSystemSilent final: public ecs::System {
@@ -3173,11 +3174,11 @@ TEST_CASE("Query Filter - systems") {
 
 	public:
 		void OnCreated() override {
-			m_q = GetWorld().CreateQuery().All<Position>();
+			m_q = GetWorld().create_query().all<Position>();
 		}
 		void OnUpdate() override {
-			m_q.ForEach([&](ecs::Iterator iter) {
-				auto posRWView = iter.ViewRWSilent<Position>();
+			m_q.each([&](ecs::Iterator iter) {
+				auto posRWView = iter.sview_mut<Position>();
 				(void)posRWView;
 			});
 		}
@@ -3192,42 +3193,42 @@ TEST_CASE("Query Filter - systems") {
 			m_expectedCnt = cnt;
 		}
 		void OnCreated() override {
-			m_q = GetWorld().CreateQuery().All<const Position>().WithChanged<Position>();
+			m_q = GetWorld().create_query().all<const Position>().changed<Position>();
 		}
 		void OnUpdate() override {
 			uint32_t cnt = 0;
-			m_q.ForEach([&]([[maybe_unused]] const Position& a) {
+			m_q.each([&]([[maybe_unused]] const Position& a) {
 				++cnt;
 			});
 			REQUIRE(cnt == m_expectedCnt);
 		}
 	};
 	ecs::SystemManager sm(w);
-	auto* ws = sm.CreateSystem<WriterSystem>();
-	auto* wss = sm.CreateSystem<WriterSystemSilent>();
-	auto* rs = sm.CreateSystem<ReaderSystem>();
+	auto* ws = sm.add<WriterSystem>();
+	auto* wss = sm.add<WriterSystemSilent>();
+	auto* rs = sm.add<ReaderSystem>();
 
 	// first run always happens
-	ws->Enable(false);
-	wss->Enable(false);
+	ws->enable(false);
+	wss->enable(false);
 	rs->SetExpectedCount(1);
-	sm.Update();
+	sm.update();
 	// no change of position so ReaderSystem should't see changes
 	rs->SetExpectedCount(0);
-	sm.Update();
+	sm.update();
 	// update position so ReaderSystem should detect a change
-	ws->Enable(true);
+	ws->enable(true);
 	rs->SetExpectedCount(1);
-	sm.Update();
+	sm.update();
 	// no change of position so ReaderSystem shouldn't see changes
-	ws->Enable(false);
+	ws->enable(false);
 	rs->SetExpectedCount(0);
-	sm.Update();
+	sm.update();
 	// silent writer enabled again. If should not cause an update
-	ws->Enable(false);
-	wss->Enable(true);
+	ws->enable(false);
+	wss->enable(true);
 	rs->SetExpectedCount(0);
-	sm.Update();
+	sm.update();
 }
 
 template <typename T>
@@ -3235,18 +3236,18 @@ void TestDataLayoutSoA_ECS() {
 	ecs::World w;
 
 	auto create = [&]() {
-		auto e = w.Add();
-		w.Add<T>(e, {});
+		auto e = w.add();
+		w.add<T>(e, {});
 	};
 
 	const uint32_t N = 10'000;
 	for (uint32_t i = 0; i < N; ++i)
 		create();
 
-	ecs::Query q = w.CreateQuery().All<T>();
+	ecs::Query q = w.create_query().all<T>();
 	uint32_t j = 0;
-	q.ForEach([&](ecs::Iterator iter) {
-		auto t = iter.ViewRW<T>();
+	q.each([&](ecs::Iterator iter) {
+		auto t = iter.view_mut<T>();
 		auto tx = t.template set<0>();
 		auto ty = t.template set<1>();
 		auto tz = t.template set<2>();
@@ -3345,7 +3346,7 @@ struct CustomStruct {
 
 namespace gaia::ser {
 	template <>
-	uint32_t size_bytes(const CustomStruct& data) {
+	uint32_t bytes(const CustomStruct& data) {
 		return data.size + sizeof(data.size);
 	}
 	template <typename Serializer>
@@ -3370,7 +3371,7 @@ struct CustomStructInternal {
 		return ptr == other.ptr && size == other.size;
 	}
 
-	constexpr uint32_t size_bytes() const noexcept {
+	constexpr uint32_t bytes() const noexcept {
 		return size + sizeof(size);
 	}
 
@@ -3401,7 +3402,7 @@ TEST_CASE("Serialization - custom") {
 
 		ecs::DataBuffer db;
 		ecs::DataBuffer_SerializationWrapper s(db);
-		s.reserve(ser::size_bytes(in));
+		s.reserve(ser::bytes(in));
 
 		ser::save(s, in);
 		s.seek(0);
@@ -3423,7 +3424,7 @@ TEST_CASE("Serialization - custom") {
 
 		ecs::DataBuffer db;
 		ecs::DataBuffer_SerializationWrapper s(db);
-		s.reserve(ser::size_bytes(in));
+		s.reserve(ser::bytes(in));
 
 		ser::save(s, in);
 		s.seek(0);
@@ -3441,7 +3442,7 @@ TEST_CASE("Serialization - simple") {
 
 		ecs::DataBuffer db;
 		ecs::DataBuffer_SerializationWrapper s(db);
-		s.reserve(ser::size_bytes(in));
+		s.reserve(ser::bytes(in));
 
 		ser::save(s, in);
 		s.seek(0);
@@ -3455,7 +3456,7 @@ TEST_CASE("Serialization - simple") {
 
 		ecs::DataBuffer db;
 		ecs::DataBuffer_SerializationWrapper s(db);
-		s.reserve(ser::size_bytes(in));
+		s.reserve(ser::bytes(in));
 
 		ser::save(s, in);
 		s.seek(0);
@@ -3469,7 +3470,7 @@ TEST_CASE("Serialization - simple") {
 
 		ecs::DataBuffer db;
 		ecs::DataBuffer_SerializationWrapper s(db);
-		s.reserve(ser::size_bytes(in));
+		s.reserve(ser::bytes(in));
 
 		ser::save(s, in);
 		s.seek(0);
@@ -3483,7 +3484,7 @@ TEST_CASE("Serialization - simple") {
 
 		ecs::DataBuffer db;
 		ecs::DataBuffer_SerializationWrapper s(db);
-		s.reserve(ser::size_bytes(in));
+		s.reserve(ser::bytes(in));
 
 		ser::save(s, in);
 		s.seek(0);
@@ -3539,7 +3540,7 @@ TEST_CASE("Serialization - arrays") {
 
 		ecs::DataBuffer db;
 		ecs::DataBuffer_SerializationWrapper s(db);
-		s.reserve(ser::size_bytes(in));
+		s.reserve(ser::bytes(in));
 
 		ser::save(s, in);
 		s.seek(0);
@@ -3556,7 +3557,7 @@ TEST_CASE("Serialization - arrays") {
 
 		ecs::DataBuffer db;
 		ecs::DataBuffer_SerializationWrapper s(db);
-		s.reserve(ser::size_bytes(in));
+		s.reserve(ser::bytes(in));
 
 		ser::save(s, in);
 		s.seek(0);
@@ -3574,7 +3575,7 @@ TEST_CASE("Serialization - arrays") {
 
 		ecs::DataBuffer db;
 		ecs::DataBuffer_SerializationWrapper s(db);
-		s.reserve(ser::size_bytes(in));
+		s.reserve(ser::bytes(in));
 
 		ser::save(s, in);
 		s.seek(0);
@@ -3599,7 +3600,7 @@ TEST_CASE("Serialization - arrays") {
 
 		ecs::DataBuffer db;
 		ecs::DataBuffer_SerializationWrapper s(db);
-		s.reserve(ser::size_bytes(in));
+		s.reserve(ser::bytes(in));
 
 		ser::save(s, in);
 		s.seek(0);
@@ -3627,7 +3628,7 @@ static uint32_t JobSystemFunc(std::span<const uint32_t> arr) {
 
 template <typename Func>
 void Run_Schedule_Simple(const uint32_t* pArr, uint32_t* pRes, uint32_t Jobs, uint32_t ItemsPerJob, Func func) {
-	auto& tp = mt::ThreadPool::Get();
+	auto& tp = mt::ThreadPool::get();
 
 	std::atomic_uint32_t sum = 0;
 
@@ -3638,9 +3639,9 @@ void Run_Schedule_Simple(const uint32_t* pArr, uint32_t* pRes, uint32_t Jobs, ui
 			const auto idxEnd = (i + 1) * ItemsPerJob;
 			pRes[i] += func({pArr + idxStart, idxEnd - idxStart});
 		};
-		tp.Schedule(job);
+		tp.sched(job);
 	}
-	tp.CompleteAll();
+	tp.wait_all();
 
 	for (uint32_t i = 0; i < Jobs; ++i) {
 		REQUIRE(pRes[i] == ItemsPerJob);
@@ -3665,7 +3666,7 @@ TEST_CASE("Multithreading - Schedule") {
 }
 
 TEST_CASE("Multithreading - ScheduleParallel") {
-	auto& tp = mt::ThreadPool::Get();
+	auto& tp = mt::ThreadPool::get();
 
 	constexpr uint32_t JobCount = 64;
 	constexpr uint32_t ItemsPerJob = 5000;
@@ -3682,16 +3683,16 @@ TEST_CASE("Multithreading - ScheduleParallel") {
 		sum1 += JobSystemFunc({arr.data() + args.idxStart, args.idxEnd - args.idxStart});
 	};
 
-	auto jobHandle = tp.ScheduleParallel(j1, N, ItemsPerJob);
-	tp.Complete(jobHandle);
+	auto jobHandle = tp.sched_par(j1, N, ItemsPerJob);
+	tp.wait(jobHandle);
 
 	REQUIRE(sum1 == N);
 
-	tp.CompleteAll();
+	tp.wait_all();
 }
 
-TEST_CASE("Multithreading - Complete") {
-	auto& tp = mt::ThreadPool::Get();
+TEST_CASE("Multithreading - complete") {
+	auto& tp = mt::ThreadPool::get();
 
 	constexpr uint32_t Jobs = 15000;
 
@@ -3709,17 +3710,17 @@ TEST_CASE("Multithreading - Complete") {
 		job.func = [&res, i]() {
 			res[i] = i;
 		};
-		handles[i] = tp.Schedule(job);
+		handles[i] = tp.sched(job);
 	}
 
 	for (uint32_t i = 0; i < Jobs; ++i) {
-		tp.Complete(handles[i]);
+		tp.wait(handles[i]);
 		REQUIRE(res[i] == i);
 	}
 }
 
 TEST_CASE("Multithreading - CompleteMany") {
-	auto& tp = mt::ThreadPool::Get();
+	auto& tp = mt::ThreadPool::get();
 
 	srand(0);
 
@@ -3737,21 +3738,21 @@ TEST_CASE("Multithreading - CompleteMany") {
 			res /= (i + 1); // we add +1 everywhere to avoid division by zero at i==0
 		}};
 
-		const mt::JobHandle jobHandle[] = {tp.CreateJob(job0), tp.CreateJob(job1), tp.CreateJob(job2)};
+		const mt::JobHandle jobHandle[] = {tp.create_job(job0), tp.create_job(job1), tp.create_job(job2)};
 
-		tp.AddDependency(jobHandle[1], jobHandle[0]);
-		tp.AddDependency(jobHandle[2], jobHandle[1]);
+		tp.add_dep(jobHandle[1], jobHandle[0]);
+		tp.add_dep(jobHandle[2], jobHandle[1]);
 
 		// 2, 0, 1 -> wrong sum
 		// Submit jobs in random order to make sure this doesn't work just by accident
 		const uint32_t startIdx0 = rand() % 3;
 		const uint32_t startIdx1 = (startIdx0 + 1) % 3;
 		const uint32_t startIdx2 = (startIdx0 + 2) % 3;
-		tp.Submit(jobHandle[startIdx0]);
-		tp.Submit(jobHandle[startIdx1]);
-		tp.Submit(jobHandle[startIdx2]);
+		tp.submit(jobHandle[startIdx0]);
+		tp.submit(jobHandle[startIdx1]);
+		tp.submit(jobHandle[startIdx2]);
 
-		tp.Complete(jobHandle[2]);
+		tp.wait(jobHandle[2]);
 
 		REQUIRE(res == (i + 1));
 	}

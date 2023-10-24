@@ -26,13 +26,13 @@ namespace gaia {
 			}
 
 		public:
-			static ComponentCache& Get() {
+			static ComponentCache& get() {
 				static ComponentCache cache;
 				return cache;
 			}
 
 			~ComponentCache() {
-				ClearRegisteredInfoCache();
+				clear();
 			}
 
 			ComponentCache(ComponentCache&&) = delete;
@@ -43,14 +43,14 @@ namespace gaia {
 			//! Registers the component info for \tparam T. If it already exists it is returned.
 			//! \return Component info
 			template <typename T>
-			GAIA_NODISCARD GAIA_FORCEINLINE const component::ComponentInfo& GetOrCreateComponentInfo() {
+			GAIA_NODISCARD GAIA_FORCEINLINE const component::ComponentInfo& goc_comp_info() {
 				using U = typename component::component_type_t<T>::Type;
-				const auto componentId = component::GetComponentId<T>();
+				const auto componentId = component::comp_id<T>();
 
 				auto createInfo = [&]() GAIA_LAMBDAINLINE -> const component::ComponentInfo& {
-					const auto* pInfo = component::ComponentInfo::Create<U>();
+					const auto* pInfo = component::ComponentInfo::create<U>();
 					m_infoByIndex[componentId] = pInfo;
-					m_descByIndex[componentId] = component::ComponentDesc::Create<U>();
+					m_descByIndex[componentId] = component::ComponentDesc::create<U>();
 					return *pInfo;
 				};
 
@@ -85,7 +85,7 @@ namespace gaia {
 			//! \warning It is expected the component info with a given component id exists! Undefined behavior otherwise.
 			//! \return Component info
 			GAIA_NODISCARD GAIA_FORCEINLINE const component::ComponentInfo&
-			GetComponentInfo(component::ComponentId componentId) const noexcept {
+			comp_info(component::ComponentId componentId) const noexcept {
 				GAIA_ASSERT(componentId < m_infoByIndex.size());
 				const auto* pInfo = m_infoByIndex[componentId];
 				GAIA_ASSERT(pInfo != nullptr);
@@ -95,8 +95,7 @@ namespace gaia {
 			//! Returns the component creation info given the \param componentId.
 			//! \warning It is expected the component info with a given component id exists! Undefined behavior otherwise.
 			//! \return Component info
-			GAIA_NODISCARD const component::ComponentDesc&
-			GetComponentDesc(component::ComponentId componentId) const noexcept {
+			GAIA_NODISCARD const component::ComponentDesc& comp_desc(component::ComponentId componentId) const noexcept {
 				GAIA_ASSERT(componentId < m_descByIndex.size());
 				return m_descByIndex[componentId];
 			}
@@ -105,12 +104,12 @@ namespace gaia {
 			//! \warning It is expected the component already exists! Undefined behavior otherwise.
 			//! \return Component info
 			template <typename T>
-			GAIA_NODISCARD const component::ComponentInfo& GetComponentInfo() const noexcept {
-				const auto componentId = component::GetComponentId<T>();
-				return GetComponentInfo(componentId);
+			GAIA_NODISCARD const component::ComponentInfo& comp_info() const noexcept {
+				const auto componentId = component::comp_id<T>();
+				return comp_info(componentId);
 			}
 
-			void Diag() const {
+			void diag() const {
 				const auto registeredTypes = (uint32_t)m_descByIndex.size();
 				GAIA_LOG_N("Registered infos: %u", registeredTypes);
 
@@ -119,7 +118,7 @@ namespace gaia {
 			}
 
 		private:
-			void ClearRegisteredInfoCache() {
+			void clear() {
 				for (const auto* pInfo: m_infoByIndex)
 					delete pInfo;
 				m_infoByIndex.clear();

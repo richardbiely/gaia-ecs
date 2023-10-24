@@ -8,7 +8,7 @@ constexpr uint32_t NEntities = 1'000;
 
 void AddEntities(ecs::World& w, uint32_t n) {
 	for (uint32_t i = 0; i < n; ++i) {
-		[[maybe_unused]] auto e = w.Add();
+		[[maybe_unused]] auto e = w.add();
 		gaia::dont_optimize(e);
 	}
 }
@@ -40,7 +40,7 @@ namespace detail {
 	template <typename T, uint32_t ValuesCount, uint32_t ComponentCount>
 	constexpr void Adds(ecs::World& w, ecs::Entity e) {
 		core::each<ComponentCount>([&](auto i) {
-			w.Add<Component<i, T, ValuesCount>>(e);
+			w.add<Component<i, T, ValuesCount>>(e);
 		});
 	}
 } // namespace detail
@@ -48,7 +48,7 @@ namespace detail {
 template <typename T, uint32_t ValuesCount, uint32_t ComponentCount>
 constexpr void Adds(ecs::World& w, uint32_t n) {
 	for (uint32_t i = 0; i < n; ++i) {
-		[[maybe_unused]] auto e = w.Add();
+		[[maybe_unused]] auto e = w.add();
 		::detail::Adds<T, ValuesCount, ComponentCount>(w, e);
 	}
 }

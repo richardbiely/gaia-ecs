@@ -30,13 +30,13 @@ namespace gaia {
 			//! \warning It is expected that the query has already been registered. Undefined behavior otherwise.
 			//! \param queryId Query used to search for query info
 			//! \return Query info
-			query::QueryInfo& Get(query::QueryId queryId) {
+			query::QueryInfo& get(query::QueryId queryId) {
 				return m_queryArr[queryId];
 			};
 
 			//! Registers the provided query lookup context \param ctx. If it already exists it is returned.
 			//! \return Query id
-			uint32_t GetOrCreate(query::LookupCtx&& ctx) {
+			uint32_t goc(query::LookupCtx&& ctx) {
 				GAIA_ASSERT(ctx.hashLookup.hash != 0);
 
 				// Check if the query info exists first
@@ -61,7 +61,7 @@ namespace gaia {
 				}
 
 				const auto queryId = (query::QueryId)m_queryArr.size();
-				m_queryArr.push_back(query::QueryInfo::Create(queryId, std::move(ctx)));
+				m_queryArr.push_back(query::QueryInfo::create(queryId, std::move(ctx)));
 				ret.first->second.push_back(queryId);
 				return queryId;
 			};

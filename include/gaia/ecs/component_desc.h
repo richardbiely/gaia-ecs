@@ -26,19 +26,19 @@ namespace gaia {
 				//! Component name
 				std::span<const char> name;
 				//! Function to call when the component needs to be constructed
-				FuncCtor* ctor = nullptr;
+				FuncCtor* func_ctor = nullptr;
 				//! Function to call when the component needs to be move constructed
-				FuncMove* ctor_move = nullptr;
+				FuncMove* func_ctor_move = nullptr;
 				//! Function to call when the component needs to be copy constructed
-				FuncCopy* ctor_copy = nullptr;
+				FuncCopy* func_ctor_copy = nullptr;
 				//! Function to call when the component needs to be destroyed
-				FuncDtor* dtor = nullptr;
+				FuncDtor* func_dtor = nullptr;
 				//! Function to call when the component needs to be copied
-				FuncCopy* copy = nullptr;
+				FuncCopy* func_copy = nullptr;
 				//! Fucntion to call when the component needs to be moved
-				FuncMove* move = nullptr;
+				FuncMove* func_move = nullptr;
 				//! Function to call when the component needs to swap
-				FuncSwap* swap = nullptr;
+				FuncSwap* func_swap = nullptr;
 				//! Unique component identifier
 				ComponentId componentId = ComponentIdBad;
 
@@ -57,39 +57,39 @@ namespace gaia {
 
 				uint8_t soaSizes[meta::StructToTupleMaxTypes];
 
-				void CtorFrom(void* pSrc, void* pDst) const {
-					if (ctor_move != nullptr)
-						ctor_move(pSrc, pDst);
-					else if (ctor_copy != nullptr)
-						ctor_copy(pSrc, pDst);
+				void ctor_from(void* pSrc, void* pDst) const {
+					if (func_ctor_move != nullptr)
+						func_ctor_move(pSrc, pDst);
+					else if (func_ctor_copy != nullptr)
+						func_ctor_copy(pSrc, pDst);
 					else
 						memmove(pDst, (const void*)pSrc, properties.size);
 				}
 
-				void Move(void* pSrc, void* pDst) const {
-					if (move != nullptr)
-						move(pSrc, pDst);
+				void move(void* pSrc, void* pDst) const {
+					if (func_move != nullptr)
+						func_move(pSrc, pDst);
 					else
-						Copy(pSrc, pDst);
-				}
-
-				void Copy(void* pSrc, void* pDst) const {
-					if (copy != nullptr)
 						copy(pSrc, pDst);
+				}
+
+				void copy(void* pSrc, void* pDst) const {
+					if (func_copy != nullptr)
+						func_copy(pSrc, pDst);
 					else
 						memmove(pDst, (const void*)pSrc, properties.size);
 				}
 
-				void Dtor(void* pSrc) const {
-					if (dtor != nullptr)
-						dtor(pSrc, 1);
+				void dtor(void* pSrc) const {
+					if (func_dtor != nullptr)
+						func_dtor(pSrc, 1);
 				}
 
-				void Swap(void* pLeft, void* pRight) const {
-					swap(pLeft, pRight);
+				void swap(void* pLeft, void* pRight) const {
+					func_swap(pLeft, pRight);
 				}
 
-				GAIA_NODISCARD uint32_t CalculateNewMemoryOffset(uint32_t addr, size_t N) const noexcept {
+				GAIA_NODISCARD uint32_t calc_new_mem_offset(uint32_t addr, size_t N) const noexcept {
 					if (properties.soa == 0) {
 						addr = (uint32_t)mem::detail::get_aligned_byte_offset(addr, properties.alig, properties.size, N);
 					} else {
@@ -100,12 +100,12 @@ namespace gaia {
 				}
 
 				template <typename T>
-				GAIA_NODISCARD static constexpr ComponentDesc Calculate() {
+				GAIA_NODISCARD static constexpr ComponentDesc build() {
 					using U = typename component_type_t<T>::Type;
 
 					ComponentDesc info{};
 					info.name = meta::type_info::name<U>();
-					info.componentId = GetComponentId<T>();
+					info.componentId = comp_id<T>();
 
 					if constexpr (!std::is_empty_v<U>) {
 						info.properties.size = (uint32_t)sizeof(U);
@@ -128,14 +128,14 @@ namespace gaia {
 
 							// Custom construction
 							if constexpr (!std::is_trivially_constructible_v<U>) {
-								info.ctor = [](void* ptr, uint32_t cnt) {
+								info.func_ctor = [](void* ptr, uint32_t cnt) {
 									core::call_ctor((U*)ptr, cnt);
 								};
 							}
 
 							// Custom destruction
 							if constexpr (!std::is_trivially_destructible_v<U>) {
-								info.dtor = [](void* ptr, uint32_t cnt) {
+								info.func_dtor = [](void* ptr, uint32_t cnt) {
 									core::call_dtor((U*)ptr, cnt);
 								};
 							}
@@ -143,24 +143,24 @@ namespace gaia {
 							// Copyability
 							if (!std::is_trivially_copyable_v<U>) {
 								if constexpr (std::is_copy_assignable_v<U>) {
-									info.copy = [](void* from, void* to) {
+									info.func_copy = [](void* from, void* to) {
 										auto* src = (U*)from;
 										auto* dst = (U*)to;
 										*dst = *src;
 									};
-									info.ctor_copy = [](void* from, void* to) {
+									info.func_ctor_copy = [](void* from, void* to) {
 										auto* src = (U*)from;
 										auto* dst = (U*)to;
 										new (dst) U();
 										*dst = *src;
 									};
 								} else if constexpr (std::is_copy_constructible_v<U>) {
-									info.copy = [](void* from, void* to) {
+									info.func_copy = [](void* from, void* to) {
 										auto* src = (U*)from;
 										auto* dst = (U*)to;
 										*dst = U(*src);
 									};
-									info.ctor_copy = [](void* from, void* to) {
+									info.func_ctor_copy = [](void* from, void* to) {
 										auto* src = (U*)from;
 										auto* dst = (U*)to;
 										(void)new (dst) U(std::move(*src));
@@ -170,24 +170,24 @@ namespace gaia {
 
 							// Movability
 							if constexpr (!std::is_trivially_move_assignable_v<U> && std::is_move_assignable_v<U>) {
-								info.move = [](void* from, void* to) {
+								info.func_move = [](void* from, void* to) {
 									auto* src = (U*)from;
 									auto* dst = (U*)to;
 									*dst = std::move(*src);
 								};
-								info.ctor_move = [](void* from, void* to) {
+								info.func_ctor_move = [](void* from, void* to) {
 									auto* src = (U*)from;
 									auto* dst = (U*)to;
 									new (dst) U();
 									*dst = std::move(*src);
 								};
 							} else if constexpr (!std::is_trivially_move_constructible_v<U> && std::is_move_constructible_v<U>) {
-								info.move = [](void* from, void* to) {
+								info.func_move = [](void* from, void* to) {
 									auto* src = (U*)from;
 									auto* dst = (U*)to;
 									*dst = U(std::move(*src));
 								};
-								info.ctor_move = [](void* from, void* to) {
+								info.func_ctor_move = [](void* from, void* to) {
 									auto* src = (U*)from;
 									auto* dst = (U*)to;
 									(void)new (dst) U(std::move(*src));
@@ -197,7 +197,7 @@ namespace gaia {
 
 						// Value swap
 						if constexpr (std::is_move_constructible_v<U> && std::is_move_assignable_v<U>) {
-							info.swap = [](void* left, void* right) {
+							info.func_swap = [](void* left, void* right) {
 								auto* l = (U*)left;
 								auto* r = (U*)right;
 								U tmp = std::move(*l);
@@ -205,7 +205,7 @@ namespace gaia {
 								*r = std::move(tmp);
 							};
 						} else {
-							info.swap = [](void* left, void* right) {
+							info.func_swap = [](void* left, void* right) {
 								auto* l = (U*)left;
 								auto* r = (U*)right;
 								U tmp = *l;
@@ -219,9 +219,9 @@ namespace gaia {
 				}
 
 				template <typename T>
-				GAIA_NODISCARD static ComponentDesc Create() {
+				GAIA_NODISCARD static ComponentDesc create() {
 					using U = std::decay_t<T>;
-					return ComponentDesc::Calculate<U>();
+					return ComponentDesc::build<U>();
 				}
 			};
 		} // namespace component

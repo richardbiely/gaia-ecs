@@ -78,7 +78,7 @@ namespace gaia {
 					std::true_type {};
 
 			GAIA_DEFINE_HAS_FUNCTION(resize);
-			GAIA_DEFINE_HAS_FUNCTION(size_bytes);
+			GAIA_DEFINE_HAS_FUNCTION(bytes);
 			GAIA_DEFINE_HAS_FUNCTION(save);
 			GAIA_DEFINE_HAS_FUNCTION(load);
 
@@ -94,7 +94,7 @@ namespace gaia {
 			};
 
 			template <typename T>
-			GAIA_NODISCARD constexpr serialization_type_id get_integral_type() {
+			GAIA_NODISCARD constexpr serialization_type_id int_type_id() {
 				if constexpr (std::is_same_v<int8_t, T> || std::is_same_v<signed char, T>) {
 					return serialization_type_id::s8;
 				} else if constexpr (std::is_same_v<uint8_t, T> || std::is_same_v<unsigned char, T>) {
@@ -119,7 +119,7 @@ namespace gaia {
 			}
 
 			template <typename T>
-			GAIA_NODISCARD constexpr serialization_type_id get_floating_point_type() {
+			GAIA_NODISCARD constexpr serialization_type_id flt_type_id() {
 				// if constexpr (std::is_same_v<float8_t, T>) {
 				// 	return serialization_type_id::f8;
 				// } else if constexpr (std::is_same_v<float16_t, T>) {
@@ -138,13 +138,13 @@ namespace gaia {
 			}
 
 			template <typename T>
-			GAIA_NODISCARD constexpr serialization_type_id get_type_id() {
+			GAIA_NODISCARD constexpr serialization_type_id type_id() {
 				if constexpr (std::is_enum_v<T>)
-					return get_integral_type<std::underlying_type_t<T>>();
+					return int_type_id<std::underlying_type_t<T>>();
 				else if constexpr (std::is_integral_v<T>)
-					return get_integral_type<T>();
+					return int_type_id<T>();
 				else if constexpr (std::is_floating_point_v<T>)
-					return get_floating_point_type<T>();
+					return flt_type_id<T>();
 				else if constexpr (detail::has_data_and_size<T>::value)
 					return serialization_type_id::data_and_size;
 				else if constexpr (std::is_class_v<T>)
@@ -155,16 +155,16 @@ namespace gaia {
 			}
 
 			template <typename T>
-			GAIA_NODISCARD constexpr uint32_t size_bytes_one(const T& item) noexcept {
+			GAIA_NODISCARD constexpr uint32_t bytes_one(const T& item) noexcept {
 				using type = typename std::decay_t<typename std::remove_pointer_t<T>>;
 
-				constexpr auto id = detail::get_type_id<type>();
+				constexpr auto id = detail::type_id<type>();
 				static_assert(id != detail::serialization_type_id::Last);
 				uint32_t size_in_bytes{};
 
-				// Custom size_bytes() has precedence
-				if constexpr (has_size_bytes<type>::value) {
-					size_in_bytes = (uint32_t)item.size_bytes();
+				// Custom bytes() has precedence
+				if constexpr (has_bytes<type>::value) {
+					size_in_bytes = (uint32_t)item.bytes();
 				}
 				// Trivially serializable types
 				else if constexpr (is_trivially_serializable<type>::value) {
@@ -177,7 +177,7 @@ namespace gaia {
 				// Classes
 				else if constexpr (std::is_class_v<type>) {
 					meta::each_member(item, [&](auto&&... items) {
-						size_in_bytes += (size_bytes_one(items) + ...);
+						size_in_bytes += (bytes_one(items) + ...);
 					});
 				} else
 					static_assert(!sizeof(type), "Type is not supported for serialization, yet");
@@ -186,7 +186,7 @@ namespace gaia {
 			}
 
 			template <bool Write, typename Serializer, typename T>
-			void serialize_data_one(Serializer& s, T&& arg) {
+			void ser_data_one(Serializer& s, T&& arg) {
 				using type = typename std::decay_t<typename std::remove_pointer_t<T>>;
 
 				// Custom save() & load() have precedence
@@ -210,7 +210,7 @@ namespace gaia {
 							s.save(size);
 						}
 						for (const auto& e: arg)
-							serialize_data_one<Write>(s, e);
+							ser_data_one<Write>(s, e);
 					} else {
 						if constexpr (has_resize<type>::value) {
 							auto size = arg.size();
@@ -218,14 +218,14 @@ namespace gaia {
 							arg.resize(size);
 						}
 						for (auto& e: arg)
-							serialize_data_one<Write>(s, e);
+							ser_data_one<Write>(s, e);
 					}
 				}
 				// Classes
 				else if constexpr (std::is_class_v<type>) {
 					meta::each_member(std::forward<T>(arg), [&s](auto&&... items) {
 						// TODO: Handle contiguous blocks of trivially copiable types
-						(serialize_data_one<Write>(s, items), ...);
+						(ser_data_one<Write>(s, items), ...);
 					});
 				} else
 					static_assert(!sizeof(type), "Type is not supported for serialization, yet");
@@ -235,8 +235,8 @@ namespace gaia {
 		//! Calculates the number of bytes necessary to serialize data using the "save" function.
 		//! \warning Compile-time.
 		template <typename T>
-		GAIA_NODISCARD uint32_t size_bytes(const T& data) {
-			return detail::size_bytes_one(data);
+		GAIA_NODISCARD uint32_t bytes(const T& data) {
+			return detail::bytes_one(data);
 		}
 
 		//! Write \param data using \tparam Writer at compile-time.
@@ -245,7 +245,7 @@ namespace gaia {
 		//! 					template <typename T> void save(const T& arg);
 		template <typename Writer, typename T>
 		void save(Writer& writer, const T& data) {
-			detail::serialize_data_one<true>(writer, data);
+			detail::ser_data_one<true>(writer, data);
 		}
 
 		//! Read \param data using \tparam Reader at compile-time.
@@ -254,7 +254,7 @@ namespace gaia {
 		//! 					template <typename T> void load(T& arg);
 		template <typename Reader, typename T>
 		void load(Reader& reader, T& data) {
-			detail::serialize_data_one<false>(reader, data);
+			detail::ser_data_one<false>(reader, data);
 		}
 	} // namespace ser
 } // namespace gaia

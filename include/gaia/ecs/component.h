@@ -97,7 +97,7 @@ namespace gaia {
 			//! Returns the component id for \tparam T
 			//! \return Component id
 			template <typename T>
-			GAIA_NODISCARD inline ComponentId GetComponentId() {
+			GAIA_NODISCARD inline ComponentId comp_id() {
 				using U = typename component_type_t<T>::Type;
 				return meta::type_info::id<U>();
 			}
@@ -110,7 +110,7 @@ namespace gaia {
 			//----------------------------------------------------------------------
 
 			template <typename T>
-			constexpr void VerifyComponent() {
+			constexpr void verify_comp() {
 				using U = typename component_type_t<T>::Type;
 				// Make sure we only use this for "raw" types
 				static_assert(!std::is_const_v<U>);
@@ -127,31 +127,31 @@ namespace gaia {
 
 			namespace detail {
 				template <typename T>
-				constexpr uint64_t CalculateMatcherHash() noexcept {
+				constexpr uint64_t calc_matcher_hash() noexcept {
 					return (uint64_t(1) << (meta::type_info::hash<T>() % uint64_t(63)));
 				}
 			} // namespace detail
 
 			template <typename = void, typename...>
-			constexpr ComponentMatcherHash CalculateMatcherHash() noexcept;
+			constexpr ComponentMatcherHash calc_matcher_hash() noexcept;
 
 			template <typename T, typename... Rest>
-			GAIA_NODISCARD constexpr ComponentMatcherHash CalculateMatcherHash() noexcept {
+			GAIA_NODISCARD constexpr ComponentMatcherHash calc_matcher_hash() noexcept {
 				if constexpr (sizeof...(Rest) == 0)
-					return {detail::CalculateMatcherHash<T>()};
+					return {detail::calc_matcher_hash<T>()};
 				else
-					return {core::combine_or(detail::CalculateMatcherHash<T>(), detail::CalculateMatcherHash<Rest>()...)};
+					return {core::combine_or(detail::calc_matcher_hash<T>(), detail::calc_matcher_hash<Rest>()...)};
 			}
 
 			template <>
-			GAIA_NODISCARD constexpr ComponentMatcherHash CalculateMatcherHash() noexcept {
+			GAIA_NODISCARD constexpr ComponentMatcherHash calc_matcher_hash() noexcept {
 				return {0};
 			}
 
 			//-----------------------------------------------------------------------------------
 
 			template <typename Container>
-			GAIA_NODISCARD constexpr ComponentLookupHash CalculateLookupHash(Container arr) noexcept {
+			GAIA_NODISCARD constexpr ComponentLookupHash calc_lookup_hash(Container arr) noexcept {
 				constexpr auto arrSize = arr.size();
 				if constexpr (arrSize == 0) {
 					return {0};
@@ -165,10 +165,10 @@ namespace gaia {
 			}
 
 			template <typename = void, typename...>
-			constexpr ComponentLookupHash CalculateLookupHash() noexcept;
+			constexpr ComponentLookupHash calc_lookup_hash() noexcept;
 
 			template <typename T, typename... Rest>
-			GAIA_NODISCARD constexpr ComponentLookupHash CalculateLookupHash() noexcept {
+			GAIA_NODISCARD constexpr ComponentLookupHash calc_lookup_hash() noexcept {
 				if constexpr (sizeof...(Rest) == 0)
 					return {meta::type_info::hash<T>()};
 				else
@@ -176,7 +176,7 @@ namespace gaia {
 			}
 
 			template <>
-			GAIA_NODISCARD constexpr ComponentLookupHash CalculateLookupHash() noexcept {
+			GAIA_NODISCARD constexpr ComponentLookupHash calc_lookup_hash() noexcept {
 				return {0};
 			}
 		} // namespace component
