@@ -294,6 +294,8 @@ namespace gaia {
 				GAIA_ASSERT(gaia::mem::addressof(other) != this);
 
 				if (other.m_pData == other.m_pDataHeap) {
+					if (m_pData == m_pDataHeap)
+						view_policy::free_mem(m_pDataHeap);
 					m_pData = m_pDataHeap;
 					m_pDataHeap = other.m_pDataHeap;
 				} else {
@@ -302,10 +304,10 @@ namespace gaia {
 					m_pDataHeap = nullptr;
 				}
 
-				other.m_cnt = size_type(0);
-				other.m_cap = extent;
 				other.m_pDataHeap = nullptr;
 				other.m_pData = m_data;
+				other.m_cnt = size_type(0);
+				other.m_cap = extent;
 			}
 
 			darr_ext& operator=(std::initializer_list<T> il) {
@@ -442,12 +444,13 @@ namespace gaia {
 
 			void pop_back() noexcept {
 				GAIA_ASSERT(!empty());
-				if constexpr (mem::is_soa_layout_v<T>) {
-					--m_cnt;
-				} else {
-					auto* ptr = m_pData + sizeof(T) * (--m_cnt);
+
+				if constexpr (!mem::is_soa_layout_v<T>) {
+					auto* ptr = m_pData + sizeof(T) * m_cnt;
 					((pointer)ptr)->~T();
 				}
+
+				--m_cnt;
 			}
 
 			iterator erase(iterator pos) noexcept {
