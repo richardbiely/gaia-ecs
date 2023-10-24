@@ -157,7 +157,7 @@ namespace gaia {
 					return {0};
 				} else {
 					ComponentLookupHash::Type hash = arr[0];
-					core::for_each<arrSize - 1>([&hash, &arr](auto i) {
+					core::each<arrSize - 1>([&hash, &arr](auto i) {
 						hash = core::hash_combine(hash, arr[i + 1]);
 					});
 					return {hash};

@@ -1043,53 +1043,53 @@ TEST_CASE("Containers - dbitset") {
 	}
 }
 
-TEST_CASE("for_each") {
+TEST_CASE("each") {
 	constexpr uint32_t N = 10;
 	SECTION("index agument") {
 		uint32_t cnt = 0;
-		core::for_each<N>([&cnt](auto i) {
+		core::each<N>([&cnt](auto i) {
 			cnt += i;
 		});
 		REQUIRE(cnt == 0 + 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9);
 	}
 	SECTION("no index agument") {
 		uint32_t cnt = 0;
-		core::for_each<N>([&cnt]() {
+		core::each<N>([&cnt]() {
 			++cnt;
 		});
 		REQUIRE(cnt == N);
 	}
 }
 
-TEST_CASE("for_each_ext") {
+TEST_CASE("each_ext") {
 	constexpr uint32_t N = 10;
 	SECTION("index agument") {
 		uint32_t cnt = 0;
-		core::for_each_ext<2, N - 1, 2>([&cnt](auto i) {
+		core::each_ext<2, N - 1, 2>([&cnt](auto i) {
 			cnt += i;
 		});
 		REQUIRE(cnt == 2 + 4 + 6 + 8);
 	}
 	SECTION("no index agument") {
 		uint32_t cnt = 0;
-		core::for_each_ext<2, N - 1, 2>([&cnt]() {
+		core::each_ext<2, N - 1, 2>([&cnt]() {
 			++cnt;
 		});
 		REQUIRE(cnt == 4);
 	}
 }
 
-TEST_CASE("for_each_tuple") {
+TEST_CASE("each_tuple") {
 	uint32_t val = 0;
-	core::for_each_tuple(std::make_tuple(69, 10, 20), [&val](const auto& value) {
+	core::each_tuple(std::make_tuple(69, 10, 20), [&val](const auto& value) {
 		val += value;
 	});
 	REQUIRE(val == 99);
 }
 
-TEST_CASE("for_each_pack") {
+TEST_CASE("each_pack") {
 	uint32_t val = 0;
-	core::for_each_pack(
+	core::each_pack(
 			[&val](const auto& value) {
 				val += value;
 			},
@@ -1831,16 +1831,14 @@ TEST_CASE("Enable") {
 	for (uint32_t i = 0; i < N; ++i)
 		arr.push_back(create(i));
 
-	SECTION("State validity")
-	{
+	SECTION("State validity") {
 		w.Enable(arr[0], false);
 		REQUIRE_FALSE(w.IsEnabled(arr[0]));
 		w.Enable(arr[0], true);
 		REQUIRE(w.IsEnabled(arr[0]));
 	}
 
-	SECTION("State persistance")
-	{
+	SECTION("State persistance") {
 		w.Enable(arr[0], false);
 		w.Del<Position>(arr[0]);
 		REQUIRE_FALSE(w.IsEnabled(arr[0]));
@@ -1858,7 +1856,7 @@ TEST_CASE("Enable") {
 			q.ForEach([&]([[maybe_unused]] ecs::IteratorAll iter) {
 				const uint32_t cExpected = iter.size();
 				uint32_t c = 0;
-				iter.for_each([&]() {
+				iter.each([&]() {
 					++c;
 				});
 				REQUIRE(c == cExpected);
@@ -1874,7 +1872,7 @@ TEST_CASE("Enable") {
 			q.ForEach([&]([[maybe_unused]] ecs::Iterator iter) {
 				const uint32_t cExpected = iter.size();
 				uint32_t c = 0;
-				iter.for_each([&](uint32_t i) {
+				iter.each([&](uint32_t i) {
 					REQUIRE(iter.IsEnabled(i));
 					++c;
 				});
@@ -1891,7 +1889,7 @@ TEST_CASE("Enable") {
 			q.ForEach([&]([[maybe_unused]] ecs::IteratorDisabled iter) {
 				const uint32_t cExpected = iter.size();
 				uint32_t c = 0;
-				iter.for_each([&](uint32_t i) {
+				iter.each([&](uint32_t i) {
 					REQUIRE(!iter.IsEnabled(i));
 					++c;
 				});
@@ -1907,20 +1905,17 @@ TEST_CASE("Enable") {
 
 	checkQuery(N, N, 0);
 
-	SECTION("Disable vs query")
-	{
+	SECTION("Disable vs query") {
 		w.Enable(arr[1000], false);
 		checkQuery(N, N - 1, 1);
 	}
-	
-	SECTION("Enable vs query")
-	{
+
+	SECTION("Enable vs query") {
 		w.Enable(arr[1000], true);
 		checkQuery(N, N, 0);
 	}
 
-	SECTION("Disable vs query")
-	{
+	SECTION("Disable vs query") {
 		w.Enable(arr[1], false);
 		w.Enable(arr[1000], false);
 		w.Enable(arr[2000], false);
@@ -1928,8 +1923,7 @@ TEST_CASE("Enable") {
 		checkQuery(N, N - 4, 4);
 	}
 
-	SECTION("Enable vs query")
-	{
+	SECTION("Enable vs query") {
 		w.Enable(arr[1], true);
 		w.Enable(arr[1000], true);
 		w.Enable(arr[2000], true);
@@ -2599,7 +2593,7 @@ TEST_CASE("Set - generic") {
 			auto scaleView = iter.ViewRW<Scale>();
 			auto elseView = iter.ViewRW<Else>();
 
-			iter.for_each([&](uint32_t i) {
+			iter.each([&](uint32_t i) {
 				rotationView[i] = {1, 2, 3, 4};
 				scaleView[i] = {11, 22, 33};
 				elseView[i] = {true};
@@ -2690,7 +2684,7 @@ TEST_CASE("Set - generic & chunk") {
 			auto scaleView = iter.ViewRW<Scale>();
 			auto elseView = iter.ViewRW<Else>();
 
-			iter.for_each([&](uint32_t i) {
+			iter.each([&](uint32_t i) {
 				rotationView[i] = {1, 2, 3, 4};
 				scaleView[i] = {11, 22, 33};
 				elseView[i] = {true};
@@ -2774,7 +2768,7 @@ TEST_CASE("Components - non trivial") {
 			auto str2View = iter.ViewRW<StringComponent2>();
 			auto posView = iter.ViewRW<PositionNonTrivial>();
 
-			iter.for_each([&](uint32_t i) {
+			iter.each([&](uint32_t i) {
 				strView[i] = {StringComponentDefaultValue};
 				str2View[i].value = StringComponent2DefaultValue_2;
 				posView[i] = {111, 222, 333};
@@ -3305,7 +3299,7 @@ bool CompareSerializableTypes(const T& a, const T& b) {
 
 	// Do element-wise comparison
 	bool ret = true;
-	core::for_each<std::tuple_size<decltype(ta)>::value>([&](auto i) {
+	core::each<std::tuple_size<decltype(ta)>::value>([&](auto i) {
 		const auto& aa = std::get<i>(ta);
 		const auto& bb = std::get<i>(ta);
 		ret = ret && CompareSerializableType(aa, bb);

@@ -49,7 +49,7 @@ public:
 			auto p = iter.ViewRW<Position>();
 			auto v = iter.View<Velocity>();
 			const float dt = 0.01f;
-			iter.for_each([&](uint32_t i) {
+			iter.each([&](uint32_t i) {
 				p[i].x += v[i].x * dt;
 				p[i].y += v[i].y * dt;
 				p[i].z += v[i].z * dt;
@@ -99,7 +99,7 @@ public:
 			auto p = iter.ViewRW<Position>();
 			auto v = iter.View<Velocity>();
 			const float dt = 0.01f;
-			iter.for_each([&](uint32_t i) {
+			iter.each([&](uint32_t i) {
 				p[i].x += v[i].x * dt;
 				p[i].y += v[i].y * dt;
 				p[i].z += v[i].z * dt;

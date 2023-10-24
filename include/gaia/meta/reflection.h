@@ -220,7 +220,7 @@ namespace gaia {
 		}
 
 		template <typename T, typename Func>
-		auto for_each_member(T&& object, Func&& visitor) {
+		auto each_member(T&& object, Func&& visitor) {
 			using type = std::decay_t<T>;
 
 			if constexpr (std::is_empty_v<type>) {

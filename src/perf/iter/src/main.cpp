@@ -21,7 +21,7 @@ namespace detail {
 		(void)w;
 		(void)e;
 #else
-		core::for_each<ComponentCount>([&](auto i) {
+		core::each<ComponentCount>([&](auto i) {
 			w.Add<Component<i, T, ValuesCount>>(e);
 		});
 #endif
@@ -41,50 +41,50 @@ void Create_Archetypes_1(ecs::World& w) {
 }
 
 void Create_Archetypes_100(ecs::World& w) {
-	core::for_each<4>([&](auto i) {
+	core::each<4>([&](auto i) {
 		Adds<float, i, 25>(w, EntitiesPerArchetype);
 	});
 }
 
 template <uint32_t N, uint32_t ComponentCount>
 void Create_Archetypes_N(ecs::World& w) {
-	core::for_each<N>([&](auto i) {
+	core::each<N>([&](auto i) {
 		Adds<bool, i, ComponentCount>(w, EntitiesPerArchetype);
 	});
 	//-----------------------------------------
-	core::for_each<N>([&](auto i) {
+	core::each<N>([&](auto i) {
 		Adds<int8_t, i, ComponentCount>(w, EntitiesPerArchetype);
 	});
 	//-----------------------------------------
-	core::for_each<N>([&](auto i) {
+	core::each<N>([&](auto i) {
 		Adds<uint8_t, i, ComponentCount>(w, EntitiesPerArchetype);
 	});
 	//-----------------------------------------
-	core::for_each<N>([&](auto i) {
+	core::each<N>([&](auto i) {
 		Adds<int16_t, i, ComponentCount>(w, EntitiesPerArchetype);
 	});
 	//-----------------------------------------
-	core::for_each<N>([&](auto i) {
+	core::each<N>([&](auto i) {
 		Adds<uint16_t, i, ComponentCount>(w, EntitiesPerArchetype);
 	});
 	//-----------------------------------------
-	core::for_each<N>([&](auto i) {
+	core::each<N>([&](auto i) {
 		Adds<int32_t, i, ComponentCount>(w, EntitiesPerArchetype);
 	});
 	//-----------------------------------------
-	core::for_each<N>([&](auto i) {
+	core::each<N>([&](auto i) {
 		Adds<uint32_t, i, ComponentCount>(w, EntitiesPerArchetype);
 	});
 	//-----------------------------------------
-	core::for_each<N>([&](auto i) {
+	core::each<N>([&](auto i) {
 		Adds<int64_t, i, ComponentCount>(w, EntitiesPerArchetype);
 	});
 	//-----------------------------------------
-	core::for_each<N>([&](auto i) {
+	core::each<N>([&](auto i) {
 		Adds<uint64_t, i, ComponentCount>(w, EntitiesPerArchetype);
 	});
 	//-----------------------------------------
-	core::for_each<N>([&](auto i) {
+	core::each<N>([&](auto i) {
 		Adds<float, i, ComponentCount>(w, EntitiesPerArchetype);
 	});
 }
@@ -155,7 +155,7 @@ DEFINE_FOREACH_EXTERNALQUERY(1000)
 			float f = 0.f;                                                                                                   \
 			query.ForEach([&](ecs::Iterator iter) {                                                                          \
 				auto c1View = iter.View<c1>();                                                                                 \
-				iter.for_each([&](uint32_t i) {                                                                                \
+				iter.each([&](uint32_t i) {                                                                                    \
 					f += c1View[i].value[0];                                                                                     \
 				});                                                                                                            \
 			});                                                                                                              \
@@ -208,7 +208,7 @@ DEFINE_FOREACHCHUNK_EXTERNALQUERY_INDEX(1000);
 			float f = 0.f;                                                                                                   \
 			query.ForEach([&](ecs::IteratorAll iter) {                                                                       \
 				auto c1View = iter.View<c1>();                                                                                 \
-				iter.for_each([&](uint32_t i) {                                                                                \
+				iter.each([&](uint32_t i) {                                                                                    \
 					f += c1View[i].value[0];                                                                                     \
 				});                                                                                                            \
 			});                                                                                                              \

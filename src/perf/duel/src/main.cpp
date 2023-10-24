@@ -298,7 +298,7 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 				auto p = iter.ViewRW<Position>();
 				auto v = iter.View<Velocity>();
 
-				iter.for_each([&](uint32_t i) {
+				iter.each([&](uint32_t i) {
 					p[i].x += v[i].x * dt;
 					p[i].y += v[i].y * dt;
 					p[i].z += v[i].z * dt;
@@ -314,7 +314,7 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 				auto p = iter.ViewRW<Position>();
 				auto v = iter.ViewRW<Velocity>();
 
-				iter.for_each([&](uint32_t i) {
+				iter.each([&](uint32_t i) {
 					if (p[i].y < 0.0f) {
 						p[i].y = 0.0f;
 						v[i].y = 0.0f;
@@ -329,7 +329,7 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 			m_q->ForEach([](ecs::Iterator iter) {
 				auto v = iter.ViewRW<Velocity>();
 
-				iter.for_each([&](uint32_t i) {
+				iter.each([&](uint32_t i) {
 					v[i].y += 9.81f * dt;
 				});
 			});
@@ -343,7 +343,7 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 				auto h = iter.View<Health>();
 
 				uint32_t a = 0;
-				iter.for_each([&](uint32_t i) {
+				iter.each([&](uint32_t i) {
 					if (h[i].value > 0)
 						++a;
 				});
@@ -399,13 +399,13 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 				auto vvy = v.get<1>();
 				auto vvz = v.get<2>();
 
-				iter.for_each([&](uint32_t i) {
+				iter.each([&](uint32_t i) {
 					ppx[i] += vvx[i] * dt;
 				});
-				iter.for_each([&](uint32_t i) {
+				iter.each([&](uint32_t i) {
 					ppy[i] += vvy[i] * dt;
 				});
-				iter.for_each([&](uint32_t i) {
+				iter.each([&](uint32_t i) {
 					ppz[i] += vvz[i] * dt;
 				});
 			});
@@ -421,7 +421,7 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 				auto ppy = p.set<1>();
 				auto vvy = v.set<1>();
 
-				iter.for_each([&](uint32_t i) {
+				iter.each([&](uint32_t i) {
 					if (ppy[i] < 0.0f) {
 						ppy[i] = 0.0f;
 						vvy[i] = 0.0f;
@@ -437,7 +437,7 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 				auto v = iter.ViewRW<VelocitySoA>();
 				auto vvy = v.set<1>();
 
-				iter.for_each([&](uint32_t i) {
+				iter.each([&](uint32_t i) {
 					vvy[i] += dt * 9.81f;
 				});
 			});
@@ -451,7 +451,7 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 				auto h = iter.View<Health>();
 
 				uint32_t a = 0;
-				iter.for_each([&](uint32_t i) {
+				iter.each([&](uint32_t i) {
 					if (h[i].value > 0)
 						++a;
 				});
