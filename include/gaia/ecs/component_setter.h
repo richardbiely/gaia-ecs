@@ -2,7 +2,7 @@
 #include <cstdint>
 
 #include "chunk.h"
-#include "component.h"
+#include "comp/component.h"
 
 namespace gaia {
 	namespace ecs {
@@ -14,11 +14,11 @@ namespace gaia {
 			//! \tparam T Component
 			//! \param value Value to set for the component
 			//! \return ComponentSetter
-			template <typename T, typename U = typename component::component_type_t<T>::Type>
+			template <typename T, typename U = typename comp::component_type_t<T>::Type>
 			U& set() {
-				component::verify_comp<T>();
+				comp::verify_comp<T>();
 
-				if constexpr (component::component_type_v<T> == component::ComponentType::CT_Generic)
+				if constexpr (comp::component_type_v<T> == comp::ComponentType::CT_Generic)
 					return m_pChunk->template set<T>(m_idx);
 				else
 					return m_pChunk->template set<T>();
@@ -28,11 +28,11 @@ namespace gaia {
 			//! \tparam T Component
 			//! \param value Value to set for the component
 			//! \return ComponentSetter
-			template <typename T, typename U = typename component::component_type_t<T>::Type>
+			template <typename T, typename U = typename comp::component_type_t<T>::Type>
 			ComponentSetter& set(U&& data) {
-				component::verify_comp<T>();
+				comp::verify_comp<T>();
 
-				if constexpr (component::component_type_v<T> == component::ComponentType::CT_Generic)
+				if constexpr (comp::component_type_v<T> == comp::ComponentType::CT_Generic)
 					m_pChunk->template set<T>(m_idx, std::forward<U>(data));
 				else
 					m_pChunk->template set<T>(std::forward<U>(data));
@@ -43,11 +43,11 @@ namespace gaia {
 			//! \tparam T Component
 			//! \param value Value to set for the component
 			//! \return ComponentSetter
-			template <typename T, typename U = typename component::component_type_t<T>::Type>
+			template <typename T, typename U = typename comp::component_type_t<T>::Type>
 			ComponentSetter& sset(U&& data) {
-				component::verify_comp<T>();
+				comp::verify_comp<T>();
 
-				if constexpr (component::component_type_v<T> == component::ComponentType::CT_Generic)
+				if constexpr (comp::component_type_v<T> == comp::ComponentType::CT_Generic)
 					m_pChunk->template sset<T>(m_idx, std::forward<U>(data));
 				else
 					m_pChunk->template sset<T>(std::forward<U>(data));

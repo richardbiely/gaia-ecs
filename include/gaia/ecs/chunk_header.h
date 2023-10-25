@@ -8,7 +8,7 @@
 #include "../core/utility.h"
 #include "archetype_common.h"
 #include "chunk_allocator.h"
-#include "component.h"
+#include "comp/component.h"
 #include "entity.h"
 
 namespace gaia {
@@ -16,11 +16,11 @@ namespace gaia {
 		namespace archetype {
 			struct ChunkHeaderOffsets {
 				//! Byte at which the first version number is located
-				ChunkVersionOffset firstByte_Versions[component::ComponentType::CT_Count]{};
+				ChunkVersionOffset firstByte_Versions[comp::ComponentType::CT_Count]{};
 				//! Byte at which the first component id is located
-				ChunkComponentOffset firstByte_ComponentIds[component::ComponentType::CT_Count]{};
+				ChunkComponentOffset firstByte_ComponentIds[comp::ComponentType::CT_Count]{};
 				//! Byte at which the first component offset is located
-				ChunkComponentOffset firstByte_ComponentOffsets[component::ComponentType::CT_Count]{};
+				ChunkComponentOffset firstByte_ComponentOffsets[comp::ComponentType::CT_Count]{};
 				//! Byte at which the first entity is located
 				ChunkComponentOffset firstByte_EntityData{};
 			};
@@ -70,7 +70,7 @@ namespace gaia {
 				ChunkHeaderOffsets offsets;
 
 				//! Number of components on the archetype
-				uint8_t componentCount[component::ComponentType::CT_Count]{};
+				uint8_t componentCount[comp::ComponentType::CT_Count]{};
 				//! Version of the world (stable pointer to parent world's world version)
 				uint32_t& worldVersion;
 

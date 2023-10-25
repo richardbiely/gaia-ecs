@@ -1,30 +1,31 @@
 #pragma once
+
 #include <type_traits>
 
-#include "../meta/type_info.h"
+#include "../../meta/type_info.h"
 #include "component.h"
 
 namespace gaia {
 	namespace ecs {
-		namespace component {
+		namespace comp {
 			struct ComponentInfo final {
 				//! Complex hash used for look-ups
 				ComponentLookupHash lookupHash;
 				//! Simple hash used for matching component
 				ComponentMatcherHash matcherHash;
 				//! Unique component identifier
-				ComponentId componentId;
+				ComponentId compId;
 
 				GAIA_NODISCARD bool operator==(const ComponentInfo& other) const {
 					GAIA_ASSERT(lookupHash == other.lookupHash);
-					return componentId == other.componentId;
+					return compId == other.compId;
 				}
 				GAIA_NODISCARD bool operator!=(const ComponentInfo& other) const {
 					GAIA_ASSERT(lookupHash != other.lookupHash);
-					return componentId != other.componentId;
+					return compId != other.compId;
 				}
 				GAIA_NODISCARD bool operator<(const ComponentInfo& other) const {
-					return componentId < other.componentId;
+					return compId < other.compId;
 				}
 
 				template <typename T>
@@ -34,7 +35,7 @@ namespace gaia {
 					ComponentInfo info{};
 					info.lookupHash = {meta::type_info::hash<U>()};
 					info.matcherHash = calc_matcher_hash<U>();
-					info.componentId = comp_id<T>();
+					info.compId = comp_id<T>();
 
 					return info;
 				}
@@ -45,6 +46,6 @@ namespace gaia {
 					return new ComponentInfo{init<U>()};
 				}
 			};
-		} // namespace component
+		} // namespace comp
 	} // namespace ecs
 } // namespace gaia

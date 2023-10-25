@@ -1,15 +1,14 @@
 #pragma once
 #include <cinttypes>
 
-#include "../core/hashing_policy.h"
-#include "../core/utility.h"
-#include "../mem/data_layout_policy.h"
-#include "../meta/type_info.h"
+#include "../../core/hashing_policy.h"
+#include "../../core/utility.h"
+#include "../../mem/data_layout_policy.h"
+#include "../../meta/type_info.h"
 
 namespace gaia {
 	namespace ecs {
-		namespace component {
-
+		namespace comp {
 			enum ComponentType : uint8_t {
 				// General purpose component
 				CT_Generic = 0,
@@ -19,7 +18,7 @@ namespace gaia {
 				CT_Count
 			};
 
-			inline const char* const ComponentTypeString[component::ComponentType::CT_Count] = {"Generic", "Chunk"};
+			inline const char* const ComponentTypeString[comp::ComponentType::CT_Count] = {"Generic", "Chunk"};
 
 			using ComponentId = uint32_t;
 			using ComponentLookupHash = core::direct_hash_key<uint64_t>;
@@ -44,13 +43,13 @@ namespace gaia {
 				struct ExtractComponentType_NoComponentType {
 					using Type = typename std::decay_t<typename std::remove_pointer_t<T>>;
 					using TypeOriginal = T;
-					static constexpr component::ComponentType TComponentType = component::ComponentType::CT_Generic;
+					static constexpr comp::ComponentType TComponentType = comp::ComponentType::CT_Generic;
 				};
 				template <typename T>
 				struct ExtractComponentType_WithComponentType {
 					using Type = typename T::TType;
 					using TypeOriginal = typename T::TTypeOriginal;
-					static constexpr component::ComponentType TComponentType = T::TComponentType;
+					static constexpr comp::ComponentType TComponentType = T::TComponentType;
 				};
 
 				template <typename, typename = void>
@@ -179,13 +178,13 @@ namespace gaia {
 			GAIA_NODISCARD constexpr ComponentLookupHash calc_lookup_hash() noexcept {
 				return {0};
 			}
-		} // namespace component
+		} // namespace comp
 
 		template <typename T>
 		struct AsChunk {
 			using TType = typename std::decay_t<typename std::remove_pointer_t<T>>;
 			using TTypeOriginal = T;
-			static constexpr component::ComponentType TComponentType = component::ComponentType::CT_Chunk;
+			static constexpr comp::ComponentType TComponentType = comp::ComponentType::CT_Chunk;
 		};
 	} // namespace ecs
 } // namespace gaia

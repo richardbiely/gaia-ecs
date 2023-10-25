@@ -1,18 +1,18 @@
 #pragma once
 
-#include "../core/utility.h"
+#include "../../core/utility.h"
+#include "../component_cache.h"
 #include "component.h"
-#include "component_cache.h"
 
 namespace gaia {
 	namespace ecs {
-		namespace component {
+		namespace comp {
 			//! Updates the provided component matcher hash based on the provided component id
 			//! \param matcherHash Initial matcher hash
-			//! \param componentId Component id
-			inline void matcher_hash(ComponentMatcherHash& matcherHash, component::ComponentId componentId) noexcept {
+			//! \param compId Component id
+			inline void matcher_hash(ComponentMatcherHash& matcherHash, comp::ComponentId compId) noexcept {
 				const auto& cc = ComponentCache::get();
-				const auto componentHash = cc.comp_info(componentId).matcherHash.hash;
+				const auto componentHash = cc.comp_info(compId).matcherHash.hash;
 				matcherHash.hash = core::combine_or(matcherHash.hash, componentHash);
 			}
 
@@ -53,6 +53,6 @@ namespace gaia {
 			inline void sort(Container& c) noexcept {
 				core::sort(c, SortComponentCond{});
 			}
-		} // namespace component
+		} // namespace comp
 	} // namespace ecs
 } // namespace gaia

@@ -9,7 +9,7 @@
 #include "../ser/serialization.h"
 #include "archetype.h"
 #include "common.h"
-#include "component.h"
+#include "comp/component.h"
 #include "component_cache.h"
 #include "data_buffer.h"
 #include "entity.h"
@@ -90,11 +90,11 @@ namespace gaia {
 			};
 			struct ADD_COMPONENT_t: CommandBufferCmd_t {
 				Entity entity;
-				component::ComponentId componentId;
-				component::ComponentType compType;
+				comp::ComponentId compId;
+				comp::ComponentType compType;
 
 				void commit(CommandBufferCtx& ctx) const {
-					const auto& info = ComponentCache::get().comp_info(componentId);
+					const auto& info = ComponentCache::get().comp_info(compId);
 					ctx.world.add_inter(compType, entity, info);
 
 #if GAIA_ASSERT_ENABLED
@@ -106,31 +106,31 @@ namespace gaia {
 			};
 			struct ADD_COMPONENT_DATA_t: CommandBufferCmd_t {
 				Entity entity;
-				component::ComponentId componentId;
-				component::ComponentType compType;
+				comp::ComponentId compId;
+				comp::ComponentType compType;
 
 				void commit(CommandBufferCtx& ctx) const {
-					const auto& info = ComponentCache::get().comp_info(componentId);
+					const auto& info = ComponentCache::get().comp_info(compId);
 					ctx.world.add_inter(compType, entity, info);
 
 					uint32_t indexInChunk{};
 					auto* pChunk = ctx.world.get_chunk(entity, indexInChunk);
 					GAIA_ASSERT(pChunk != nullptr);
 
-					if (compType == component::ComponentType::CT_Chunk)
+					if (compType == comp::ComponentType::CT_Chunk)
 						indexInChunk = 0;
 
 					// Component data
-					const auto& desc = ComponentCache::get().comp_desc(componentId);
-					const auto offset = pChunk->find_data_offset(compType, info.componentId);
+					const auto& desc = ComponentCache::get().comp_desc(compId);
+					const auto offset = pChunk->find_data_offset(compType, info.compId);
 					auto* pComponentData = (void*)&pChunk->data(offset + (uint32_t)indexInChunk * desc.properties.size);
-					ctx.load_comp(pComponentData, componentId);
+					ctx.load_comp(pComponentData, compId);
 				}
 			};
 			struct ADD_COMPONENT_TO_TEMPENTITY_t: CommandBufferCmd_t {
 				TempEntity tempEntity;
-				component::ComponentId componentId;
-				component::ComponentType compType;
+				comp::ComponentId compId;
+				comp::ComponentType compType;
 
 				void commit(CommandBufferCtx& ctx) const {
 					// For delayed entities we have to do a look in our map
@@ -141,7 +141,7 @@ namespace gaia {
 
 					Entity entity = it->second;
 
-					const auto& info = ComponentCache::get().comp_info(componentId);
+					const auto& info = ComponentCache::get().comp_info(compId);
 					ctx.world.add_inter(compType, entity, info);
 
 #if GAIA_ASSERT_ENABLED
@@ -153,8 +153,8 @@ namespace gaia {
 			};
 			struct ADD_COMPONENT_TO_TEMPENTITY_DATA_t: CommandBufferCmd_t {
 				TempEntity tempEntity;
-				component::ComponentId componentId;
-				component::ComponentType compType;
+				comp::ComponentId compId;
+				comp::ComponentType compType;
 
 				void commit(CommandBufferCtx& ctx) const {
 					// For delayed entities we have to do a look in our map
@@ -166,44 +166,44 @@ namespace gaia {
 					Entity entity = it->second;
 
 					// Components
-					const auto& info = ComponentCache::get().comp_info(componentId);
+					const auto& info = ComponentCache::get().comp_info(compId);
 					ctx.world.add_inter(compType, entity, info);
 
 					uint32_t indexInChunk{};
 					auto* pChunk = ctx.world.get_chunk(entity, indexInChunk);
 					GAIA_ASSERT(pChunk != nullptr);
 
-					if (compType == component::ComponentType::CT_Chunk)
+					if (compType == comp::ComponentType::CT_Chunk)
 						indexInChunk = 0;
 
 					// Component data
-					const auto& desc = ComponentCache::get().comp_desc(componentId);
-					const auto offset = pChunk->find_data_offset(compType, desc.componentId);
+					const auto& desc = ComponentCache::get().comp_desc(compId);
+					const auto offset = pChunk->find_data_offset(compType, desc.compId);
 					auto* pComponentData = (void*)&pChunk->data(offset + (uint32_t)indexInChunk * desc.properties.size);
-					ctx.load_comp(pComponentData, componentId);
+					ctx.load_comp(pComponentData, compId);
 				}
 			};
 			struct SET_COMPONENT_t: CommandBufferCmd_t {
 				Entity entity;
-				component::ComponentId componentId;
-				component::ComponentType compType;
+				comp::ComponentId compId;
+				comp::ComponentType compType;
 
 				void commit(CommandBufferCtx& ctx) const {
 					const auto& entityContainer = ctx.world.m_entities[entity.id()];
 					auto* pChunk = entityContainer.pChunk;
-					const auto indexInChunk = compType == component::ComponentType::CT_Chunk ? 0U : entityContainer.idx;
+					const auto indexInChunk = compType == comp::ComponentType::CT_Chunk ? 0U : entityContainer.idx;
 
 					// Component data
-					const auto& desc = ComponentCache::get().comp_desc(componentId);
-					const auto offset = pChunk->find_data_offset(compType, componentId);
+					const auto& desc = ComponentCache::get().comp_desc(compId);
+					const auto offset = pChunk->find_data_offset(compType, compId);
 					auto* pComponentData = (void*)&pChunk->data(offset + (uint32_t)indexInChunk * desc.properties.size);
-					ctx.load_comp(pComponentData, componentId);
+					ctx.load_comp(pComponentData, compId);
 				}
 			};
 			struct SET_COMPONENT_FOR_TEMPENTITY_t: CommandBufferCmd_t {
 				TempEntity tempEntity;
-				component::ComponentId componentId;
-				component::ComponentType compType;
+				comp::ComponentId compId;
+				comp::ComponentType compType;
 
 				void commit(CommandBufferCtx& ctx) const {
 					// For delayed entities we have to do a look in our map
@@ -216,22 +216,22 @@ namespace gaia {
 
 					const auto& entityContainer = ctx.world.m_entities[entity.id()];
 					auto* pChunk = entityContainer.pChunk;
-					const auto indexInChunk = compType == component::ComponentType::CT_Chunk ? 0U : entityContainer.idx;
+					const auto indexInChunk = compType == comp::ComponentType::CT_Chunk ? 0U : entityContainer.idx;
 
 					// Component data
-					const auto& desc = ComponentCache::get().comp_desc(componentId);
-					const auto offset = pChunk->find_data_offset(compType, componentId);
+					const auto& desc = ComponentCache::get().comp_desc(compId);
+					const auto offset = pChunk->find_data_offset(compType, compId);
 					auto* pComponentData = (void*)&pChunk->data(offset + (uint32_t)indexInChunk * desc.properties.size);
-					ctx.load_comp(pComponentData, componentId);
+					ctx.load_comp(pComponentData, compId);
 				}
 			};
 			struct REMOVE_COMPONENT_t: CommandBufferCmd_t {
 				Entity entity;
-				component::ComponentId componentId;
-				component::ComponentType compType;
+				comp::ComponentId compId;
+				comp::ComponentType compType;
 
 				void commit(CommandBufferCtx& ctx) const {
-					const auto& info = ComponentCache::get().comp_info(componentId);
+					const auto& info = ComponentCache::get().comp_info(compId);
 					ctx.world.del_inter(compType, entity, info);
 				}
 			};
@@ -310,15 +310,15 @@ namespace gaia {
 				// Make sure the component is registered
 				const auto& info = ComponentCache::get().goc_comp_info<T>();
 
-				using U = typename component::component_type_t<T>::Type;
-				component::verify_comp<U>();
+				using U = typename comp::component_type_t<T>::Type;
+				comp::verify_comp<U>();
 
 				m_ctx.save(ADD_COMPONENT);
 
 				ADD_COMPONENT_t cmd;
 				cmd.entity = entity;
-				cmd.compType = component::component_type_v<T>;
-				cmd.componentId = info.componentId;
+				cmd.compType = comp::component_type_v<T>;
+				cmd.compId = info.compId;
 				ser::save(m_ctx, cmd);
 			}
 
@@ -330,15 +330,15 @@ namespace gaia {
 				// Make sure the component is registered
 				const auto& info = ComponentCache::get().goc_comp_info<T>();
 
-				using U = typename component::component_type_t<T>::Type;
-				component::verify_comp<U>();
+				using U = typename comp::component_type_t<T>::Type;
+				comp::verify_comp<U>();
 
 				m_ctx.save(ADD_COMPONENT_TO_TEMPENTITY);
 
 				ADD_COMPONENT_TO_TEMPENTITY_t cmd;
 				cmd.tempEntity = entity;
-				cmd.compType = component::component_type_v<T>;
-				cmd.componentId = info.componentId;
+				cmd.compType = comp::component_type_v<T>;
+				cmd.compId = info.compId;
 				ser::save(m_ctx, cmd);
 			}
 
@@ -350,15 +350,15 @@ namespace gaia {
 				// Make sure the component is registered
 				const auto& info = ComponentCache::get().goc_comp_info<T>();
 
-				using U = typename component::component_type_t<T>::Type;
-				component::verify_comp<U>();
+				using U = typename comp::component_type_t<T>::Type;
+				comp::verify_comp<U>();
 
 				m_ctx.save(ADD_COMPONENT_DATA);
 
 				ADD_COMPONENT_DATA_t cmd;
 				cmd.entity = entity;
-				cmd.compType = component::component_type_v<T>;
-				cmd.componentId = info.componentId;
+				cmd.compType = comp::component_type_v<T>;
+				cmd.compId = info.compId;
 				ser::save(m_ctx, cmd);
 				m_ctx.save_comp(std::forward<U>(value));
 			}
@@ -371,15 +371,15 @@ namespace gaia {
 				// Make sure the component is registered
 				const auto& info = ComponentCache::get().goc_comp_info<T>();
 
-				using U = typename component::component_type_t<T>::Type;
-				component::verify_comp<U>();
+				using U = typename comp::component_type_t<T>::Type;
+				comp::verify_comp<U>();
 
 				m_ctx.save(ADD_COMPONENT_TO_TEMPENTITY_DATA);
 
 				ADD_COMPONENT_TO_TEMPENTITY_t cmd;
 				cmd.tempEntity = entity;
-				cmd.compType = component::component_type_v<T>;
-				cmd.componentId = info.componentId;
+				cmd.compType = comp::component_type_v<T>;
+				cmd.compId = info.compId;
 				ser::save(m_ctx, cmd);
 				m_ctx.save_comp(std::forward<U>(value));
 			}
@@ -393,15 +393,15 @@ namespace gaia {
 				// If we want to set the value of a component we must have created it already.
 				// (void)ComponentCache::get().comp_info<T>();
 
-				using U = typename component::component_type_t<T>::Type;
-				component::verify_comp<U>();
+				using U = typename comp::component_type_t<T>::Type;
+				comp::verify_comp<U>();
 
 				m_ctx.save(SET_COMPONENT);
 
 				SET_COMPONENT_t cmd;
 				cmd.entity = entity;
-				cmd.compType = component::component_type_v<T>;
-				cmd.componentId = component::comp_id<T>();
+				cmd.compType = comp::component_type_v<T>;
+				cmd.compId = comp::comp_id<T>();
 				ser::save(m_ctx, cmd);
 				m_ctx.save_comp(std::forward<U>(value));
 			}
@@ -416,15 +416,15 @@ namespace gaia {
 				// If we want to set the value of a component we must have created it already.
 				// (void)ComponentCache::get().goc_comp_info<T>();
 
-				using U = typename component::component_type_t<T>::Type;
-				component::verify_comp<U>();
+				using U = typename comp::component_type_t<T>::Type;
+				comp::verify_comp<U>();
 
 				m_ctx.save(SET_COMPONENT_FOR_TEMPENTITY);
 
 				SET_COMPONENT_FOR_TEMPENTITY_t cmd;
 				cmd.tempEntity = entity;
-				cmd.compType = component::component_type_v<T>;
-				cmd.componentId = component::comp_id<T>();
+				cmd.compType = comp::component_type_v<T>;
+				cmd.compId = comp::comp_id<T>();
 				ser::save(m_ctx, cmd);
 				m_ctx.save_comp(std::forward<U>(value));
 			}
@@ -438,15 +438,15 @@ namespace gaia {
 				// If we want to remove a component we must have created it already.
 				// (void)ComponentCache::get().goc_comp_info<T>();
 
-				using U = typename component::component_type_t<T>::Type;
-				component::verify_comp<U>();
+				using U = typename comp::component_type_t<T>::Type;
+				comp::verify_comp<U>();
 
 				m_ctx.save(REMOVE_COMPONENT);
 
 				REMOVE_COMPONENT_t cmd;
 				cmd.entity = entity;
-				cmd.compType = component::component_type_v<T>;
-				cmd.componentId = component::comp_id<T>();
+				cmd.compType = comp::component_type_v<T>;
+				cmd.compId = comp::comp_id<T>();
 				ser::save(m_ctx, cmd);
 			}
 
