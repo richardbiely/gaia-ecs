@@ -77,7 +77,7 @@ namespace gaia {
 
 				pChunk->update_versions();
 				if constexpr (IsEntityDeleteWanted)
-					release_entity(entity);
+					del_entity(entity);
 			}
 
 			//! defragments chunks.
@@ -383,9 +383,10 @@ namespace gaia {
 				return *m_archetypes[pChunk == nullptr ? archetype::ArchetypeId(0) : pChunk->archetype_id()];
 			}
 
-			//! Invalidates \param entityToDelete
-			void release_entity(Entity entityToDelete) {
-				auto& entityContainer = m_entities.release(entityToDelete);
+			//! Invalidates the entity record, effectivelly deleting it
+			//! \param entity Entity to delete
+			void del_entity(Entity entity) {
+				auto& entityContainer = m_entities.free(entity);
 				entityContainer.pChunk = nullptr;
 			}
 
@@ -586,19 +587,18 @@ namespace gaia {
 #endif
 			}
 
-			//! Creates a new entity from archetype
-			//! \return Entity
+			//! Creates a new entity of a given archetype
+			//! \param archetype Archetype the entity should inherit
+			//! \return New entity
 			GAIA_NODISCARD Entity add(archetype::Archetype& archetype) {
-				const auto entity = m_entities.allocate();
+				const auto entity = m_entities.alloc();
 
-				const auto& entityContainer = m_entities[entity.id()];
 				auto* pChunk = archetype.foc_free_chunk();
-
 				store_entity(entity, pChunk);
 
 				// Call constructors for the generic components on the newly added entity if necessary
 				if (pChunk->has_custom_generic_ctor())
-					pChunk->call_ctors(component::ComponentType::CT_Generic, entityContainer.idx, 1);
+					pChunk->call_ctors(component::ComponentType::CT_Generic, pChunk->size() - 1, 1);
 
 				return entity;
 			}
@@ -712,10 +712,7 @@ namespace gaia {
 			//! Creates a new empty entity
 			//! \return New entity
 			GAIA_NODISCARD Entity add() {
-				const auto entity = m_entities.allocate();
-				auto* pChunk = m_archetypes[0]->foc_free_chunk();
-				store_entity(entity, pChunk);
-				return entity;
+				return add(*m_archetypes[0]);
 			}
 
 			//! Creates a new entity by cloning an already existing one.
@@ -751,7 +748,7 @@ namespace gaia {
 					validate_chunk(pChunk);
 					validate_entities();
 				} else {
-					release_entity(entity);
+					del_entity(entity);
 				}
 			}
 
