@@ -57,28 +57,29 @@ namespace gaia {
 			using iterator_cat_t = typename iterator_traits<It>::iterator_category;
 
 			template <typename T, typename = void>
-			constexpr bool is_iterator_v = false;
+			[[maybe_unused]] constexpr bool is_iterator_v = false;
 
 			template <typename T>
-			constexpr bool is_iterator_v<T, std::void_t<iterator_cat_t<T>>> = true;
+			[[maybe_unused]] constexpr bool is_iterator_v<T, std::void_t<iterator_cat_t<T>>> = true;
 
 			template <typename T>
 			struct is_iterator: std::bool_constant<is_iterator_v<T>> {};
 
 			template <typename It>
-			constexpr bool is_input_iter_v = std::is_convertible_v<iterator_cat_t<It>, input_iterator_tag>;
+			[[maybe_unused]] constexpr bool is_input_iter_v = std::is_convertible_v<iterator_cat_t<It>, input_iterator_tag>;
 
 			template <typename It>
-			constexpr bool is_fwd_iter_v = std::is_convertible_v<iterator_cat_t<It>, forward_iterator_tag>;
+			[[maybe_unused]] constexpr bool is_fwd_iter_v = std::is_convertible_v<iterator_cat_t<It>, forward_iterator_tag>;
 
 			template <typename It>
-			constexpr bool is_rev_iter_v = std::is_convertible_v<iterator_cat_t<It>, reverse_iterator_tag>;
+			[[maybe_unused]] constexpr bool is_rev_iter_v = std::is_convertible_v<iterator_cat_t<It>, reverse_iterator_tag>;
 
 			template <typename It>
-			constexpr bool is_bidi_iter_v = std::is_convertible_v<iterator_cat_t<It>, bidirectional_iterator_tag>;
+			[[maybe_unused]] constexpr bool is_bidi_iter_v = std::is_convertible_v<iterator_cat_t<It>, bidirectional_iterator_tag>;
 
 			template <typename It>
-			constexpr bool is_random_iter_v = std::is_convertible_v<iterator_cat_t<It>, random_access_iterator_tag>;
+			[[maybe_unused]] constexpr bool is_random_iter_v =
+					std::is_convertible_v<iterator_cat_t<It>, random_access_iterator_tag>;
 		} // namespace detail
 
 		template <typename It>

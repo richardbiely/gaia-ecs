@@ -284,7 +284,7 @@ namespace gaia {
 
 				// Make sure to sort the component infos so we receive the same hash no matter the order in which components
 				// are provided Bubble sort is okay. We're dealing with at most Chunk::MAX_COMPONENTS items.
-				sort(infosNew);
+				sort(infosNew, SortComponentCond{});
 
 				// Once sorted we can calculate the hashes
 				const Archetype::GenericComponentHash genericHash = {
