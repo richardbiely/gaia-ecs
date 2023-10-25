@@ -57,10 +57,8 @@ namespace gaia {
 
 			//! List of chunks to delete
 			cnt::darray<archetype::Chunk*> m_chunksToRemove;
-#if !GAIA_AVOID_CHUNK_FRAGMENTATION
 			//! ID of the last defragmented archetype
 			uint32_t m_defragLastArchetypeID = 0;
-#endif
 
 			//! With every structural change world version changes
 			uint32_t m_worldVersion = 0;
@@ -84,49 +82,6 @@ namespace gaia {
 
 				const auto entity = pChunk->get_entity(entityChunkIndex);
 
-#if GAIA_AVOID_CHUNK_FRAGMENTATION
-				auto& archetype = *m_archetypes[pChunk->archetype_id()];
-
-				// Swap the last entity in the last chunk with the entity spot we just created by moving
-				// the entity to somewhere else.
-				auto* pOldChunk = archetype.find_first_nonempty_chunk();
-				if (pOldChunk == pChunk) {
-					const uint32_t lastEntityIdx = chunkEntityCount - 1;
-					const bool wasDisabled = m_entities[entity.id()].dis;
-
-					// Transfer data form the last entity to the new one
-					pChunk->remove_chunk_entity(entityChunkIndex, m_entities);
-					pChunk->remove_last_entity(m_chunksToRemove);
-
-					// Transfer the disabled state
-					if GAIA_LIKELY (chunkEntityCount > 1)
-						archetype.enable_entity(pChunk, entityChunkIndex, !wasDisabled);
-				} else if (pOldChunk != nullptr && pOldChunk->has_entities()) {
-					const uint32_t lastEntityIdx = pOldChunk->size() - 1;
-					const bool wasDisabled = m_entities[entity.id()].dis;
-
-					// Transfer data form the old chunk to the new one
-					auto lastEntity = pOldChunk->get_entity(lastEntityIdx);
-					pChunk->set_entity(entityChunkIndex, lastEntity);
-					pChunk->move_entity_data(lastEntity, entityChunkIndex, m_entities);
-					pOldChunk->remove_last_entity(m_chunksToRemove);
-					pOldChunk->update_versions();
-
-					// Transfer the disabled state
-					archetype.enable_entity(pChunk, entityChunkIndex, !wasDisabled);
-
-					auto& lastEntityContainer = m_entities[lastEntity.id()];
-					lastEntityContainer.pChunk = pChunk;
-					lastEntityContainer.idx = entityChunkIndex;
-					lastEntityContainer.gen = lastEntity.gen();
-				}
-
-				pChunk->update_versions();
-				if constexpr (IsEntityReleaseWanted)
-					release_entity(entity);
-
-				archetype.verify_chunks_frag();
-#else
 				if (pChunk->enabled(entityChunkIndex)) {
 					// Entity was previously enabled. Swap with the last entity
 					pChunk->remove_chunk_entity(entityChunkIndex, {m_entities.data(), m_entities.size()});
@@ -149,10 +104,8 @@ namespace gaia {
 				pChunk->update_versions();
 				if constexpr (IsEntityReleaseWanted)
 					release_entity(entity);
-#endif
 			}
 
-#if !GAIA_AVOID_CHUNK_FRAGMENTATION
 			//! defragments chunks.
 			//! \param maxEntites Maximum number of entities moved per call
 			void defrag_chunks(uint32_t maxEntities) {
@@ -166,7 +119,6 @@ namespace gaia {
 						return;
 				}
 			}
-#endif
 
 			//! Searches for archetype with a given set of components
 			//! \param lookupHash Archetype lookup hash
@@ -705,12 +657,11 @@ namespace gaia {
 				}
 				m_chunksToRemove.clear();
 
-#if !GAIA_AVOID_CHUNK_FRAGMENTATION
-				// defragment chunks only now. If we did this at the begging of the function
+				// Defragment chunks only now. If we did this at the begging of the function,
 				// we would needlessly iterate chunks which have no way of being collected because
-				// it would be their first frame dying.
-				defrag_chunks(100);
-#endif
+				// it would be their first frame dying. This way, the number of chunks to process
+				// is lower.
+				defrag_chunks(GAIA_DEFRAG_ENTITIES_PER_FRAME);
 			}
 
 		public:
