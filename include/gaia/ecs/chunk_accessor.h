@@ -5,7 +5,7 @@
 #include <type_traits>
 
 #include "chunk.h"
-#include "comp/component.h"
+#include "component.h"
 #include "component_getter.h"
 #include "component_setter.h"
 
