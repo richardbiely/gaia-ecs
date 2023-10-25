@@ -515,8 +515,8 @@ namespace gaia {
 				Upon removal, all associated data is also removed.
 				If the entity at the given index already is the last chunk entity, it is removed directly.
 				*/
-				void remove_chunk_entity(uint32_t index, std::span<EntityContainer> entities) {
-					GAIA_PROF_SCOPE(remove_chunk_entity);
+				void remove_entity_inter(uint32_t index, std::span<EntityContainer> entities) {
+					GAIA_PROF_SCOPE(remove_entity_inter);
 
 					const auto left = index;
 					const auto right = (uint32_t)m_header.count - 1;
@@ -529,8 +529,11 @@ namespace gaia {
 					if GAIA_LIKELY (left < right) {
 						GAIA_ASSERT(m_header.count > 1);
 
-						// Update entity index inside chunk
 						const auto entity = get_entity(right);
+						auto& entityContainer = entities[entity.id()];
+						const auto wasDisabled = entityContainer.dis;
+
+						// Update entity index inside chunk
 						set_entity(left, entity);
 
 						auto compIds = comp_id_view(component::ComponentType::CT_Generic);
@@ -556,10 +559,10 @@ namespace gaia {
 						}
 
 						// Entity has been replaced with the last one in our chunk.
-						// Update its index and generation so look ups can find it.
-						auto& entityContainer = entities[entity.id()];
+						// Update its container record.
 						entityContainer.idx = left;
 						entityContainer.gen = entity.gen();
+						entityContainer.dis = wasDisabled;
 					} else {
 						auto compIds = comp_id_view(component::ComponentType::CT_Generic);
 						auto compOffs = comp_offset_view(component::ComponentType::CT_Generic);
@@ -581,6 +584,43 @@ namespace gaia {
 				}
 
 				/*!
+				Tries to remove the entity at index \param index.
+				Removal is done via swapping with last entity in chunk.
+				Upon removal, all associated data is also removed.
+				If the entity at the given index already is the last chunk entity, it is removed directly.
+				*/
+				void remove_entity(
+						uint32_t index, std::span<EntityContainer> entities, cnt::darray<archetype::Chunk*>& chunksToRemove) {
+					GAIA_ASSERT(
+							!has_structural_changes() && "Entities can't be removed while their chunk is being iterated "
+																					 "(structural changes are forbidden during this time!)");
+
+					const auto chunkEntityCount = size();
+					if GAIA_UNLIKELY (chunkEntityCount == 0)
+						return;
+
+					GAIA_PROF_SCOPE(remove_entity);
+
+					if (enabled(index)) {
+						// Entity was previously enabled. Swap with the last entity
+						remove_entity_inter(index, entities);
+						// If this was the first enabled entity make sure to update the index
+						if (m_header.firstEnabledEntityIndex > 0 && index == m_header.firstEnabledEntityIndex)
+							--m_header.firstEnabledEntityIndex;
+					} else {
+						// Entity was previously disabled. Swap with the last disabled entity
+						const auto pivot = size_disabled() - 1;
+						swap_chunk_entities(index, pivot, entities);
+						// Once swapped, try to swap with the last (enabled) entity in the chunk.
+						remove_entity_inter(pivot, entities);
+						--m_header.firstEnabledEntityIndex;
+					}
+
+					// At this point the last entity is no longer valid so remove it
+					remove_last_entity(chunksToRemove);
+				}
+
+				/*!
 				Tries to swap the entity at index \param left with the one at the index \param right.
 				When swapping, all data associated with the two entities is swapped as well.
 				If \param left equals \param right no swapping is performed.
@@ -588,7 +628,7 @@ namespace gaia {
 				*/
 				void swap_chunk_entities(uint32_t left, uint32_t right, std::span<EntityContainer> entities) {
 					// The "left" entity is the one we are going to destroy so it needs to preceed the "right".
-					// Unlike remove_chunk_entity, it is not technically necessary but we do it
+					// Unlike remove_entity_inter, it is not technically necessary but we do it
 					// anyway for the sake of consistency.
 					GAIA_ASSERT(left <= right);
 
@@ -701,6 +741,11 @@ namespace gaia {
 					}
 				}
 
+				/*!
+				Checks if the entity is enabled.
+				\param index Index of the entity
+				\return True if entity is enabled. False otherwise.
+				*/
 				bool enabled(uint32_t index) const {
 					GAIA_ASSERT(m_header.count > 0);
 
@@ -708,7 +753,7 @@ namespace gaia {
 				}
 
 				/*!
-				Returns a pointer to chunk data.
+				Returns a mutable pointer to chunk data.
 				\param offset Offset into chunk data
 				\return Pointer to chunk data.
 				*/
@@ -717,7 +762,7 @@ namespace gaia {
 				}
 
 				/*!
-				Returns a pointer to chunk data.
+				Returns an immutable pointer to chunk data.
 				\param offset Offset into chunk data
 				\return Pointer to chunk data.
 				*/
