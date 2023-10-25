@@ -67,42 +67,16 @@ namespace gaia {
 			//! Remove an entity from chunk.
 			//! \param pChunk Chunk we remove the entity from
 			//! \param entityChunkIndex Index of entity within its chunk
-			//! \tparam IsEntityReleaseWanted True if entity is to be released as well. False otherwise.
-			template <bool IsEntityReleaseWanted>
+			//! \tparam IsEntityDeleteWanted True if entity is to be deleted. False otherwise.
+			template <bool IsEntityDeleteWanted>
 			void remove_entity(archetype::Chunk* pChunk, uint32_t entityChunkIndex) {
-				GAIA_ASSERT(
-						!pChunk->has_structural_changes() && "Entities can't be removed while their chunk is being iterated "
-																								 "(structural changes are forbidden during this time!)");
-
-				const auto chunkEntityCount = pChunk->size();
-				if GAIA_UNLIKELY (chunkEntityCount == 0)
-					return;
-
 				GAIA_PROF_SCOPE(remove_entity);
 
 				const auto entity = pChunk->get_entity(entityChunkIndex);
-
-				if (pChunk->enabled(entityChunkIndex)) {
-					// Entity was previously enabled. Swap with the last entity
-					pChunk->remove_chunk_entity(entityChunkIndex, {m_entities.data(), m_entities.size()});
-					// If this was the first enabled entity make sure to update the index
-					if (pChunk->m_header.firstEnabledEntityIndex > 0 &&
-							entityChunkIndex == pChunk->m_header.firstEnabledEntityIndex)
-						--pChunk->m_header.firstEnabledEntityIndex;
-				} else {
-					// Entity was previously disabled. Swap with the last disabled entity
-					const auto pivot = pChunk->size_disabled() - 1;
-					pChunk->swap_chunk_entities(entityChunkIndex, pivot, {m_entities.data(), m_entities.size()});
-					// Once swapped, try to swap with the last (enabled) entity in the chunk.
-					pChunk->remove_chunk_entity(pivot, {m_entities.data(), m_entities.size()});
-					--pChunk->m_header.firstEnabledEntityIndex;
-				}
-
-				// At this point the last entity is no longer valid so remove it
-				pChunk->remove_last_entity(m_chunksToRemove);
+				pChunk->remove_entity(entityChunkIndex, {m_entities.data(), m_entities.size()}, m_chunksToRemove);
 
 				pChunk->update_versions();
-				if constexpr (IsEntityReleaseWanted)
+				if constexpr (IsEntityDeleteWanted)
 					release_entity(entity);
 			}
 
@@ -446,16 +420,15 @@ namespace gaia {
 
 				const auto oldIndex0 = entityContainer.idx;
 				const auto newIndex = pNewChunk->add_entity(oldEntity);
-
-				// Transfer the disabled state
 				const bool wasEnabled = !entityContainer.dis;
+
 				auto& oldArchetype = *m_archetypes[pOldChunk->archetype_id()];
 				auto& newArchetype = *m_archetypes[pNewChunk->archetype_id()];
 
 				// Make sure the old entity becomes enabled now
 				oldArchetype.enable_entity(pOldChunk, oldIndex0, true, {m_entities.data(), m_entities.size()});
 				// Enabling the entity might have changed the index so fetch it again
-				const auto oldIndex = m_entities[oldEntity.id()].idx;
+				const auto oldIndex = entityContainer.idx;
 
 				// No data movement necessary when dealing with the root archetype
 				if GAIA_LIKELY (pNewChunk->archetype_id() + pOldChunk->archetype_id() != 0) {
@@ -466,7 +439,7 @@ namespace gaia {
 						pNewChunk->move_foreign_entity_data(oldEntity, newIndex, {m_entities.data(), m_entities.size()});
 				}
 
-				// Transfer the enabled state to the new archetype as well
+				// Transfer the original enabled state to the new archetype
 				newArchetype.enable_entity(pNewChunk, newIndex, wasEnabled, {m_entities.data(), m_entities.size()});
 
 				// Remove the entity record from the old chunk
