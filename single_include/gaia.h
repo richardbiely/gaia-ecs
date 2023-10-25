@@ -622,22 +622,13 @@ namespace gaia {
 
 //! If enabled, explicit memory prefetching is used when querying chunks, possibly improving performance in
 //! edge-cases
-#ifndef GAIA_USE_PREFETCH 
+#ifndef GAIA_USE_PREFETCH
 	#define GAIA_USE_PREFETCH 1
 #endif
 
-//! When searching for empty chunk we have two options:
-//! 1) pick any non-empty one first
-//!    - fragments memory, progresivelly slower peformance over time possible
-//!    - fast removals because entity swaps happen within the same chunk
-//! 2) always take from the last chunk
-//!    - avoids memory fragmentation altogether
-//!    - makes entity removal and component movement slower because we always swap with the last chunk
-//!
-//! We stick with (1) as a default because in general it is better to take a small performance hit
-//! for defragmeneting every once in a while than having consistently slower performance all the time.
-#ifndef GAIA_AVOID_CHUNK_FRAGMENTATION
-	#define GAIA_AVOID_CHUNK_FRAGMENTATION 0
+//! Maximum number of entities to defragment per frame
+#ifndef GAIA_DEFRAG_ENTITIES_PER_FRAME
+	#define GAIA_DEFRAG_ENTITIES_PER_FRAME 100
 #endif
 
 //------------------------------------------------------------------------------
@@ -16265,74 +16256,6 @@ namespace gaia {
 					}
 				}
 
-#if GAIA_AVOID_CHUNK_FRAGMENTATION
-				static void VerifyChunksFragmentation_inter(std::span<Chunk*> chunkArray) {
-					if (chunkArray.size() <= 1)
-						return;
-
-					uint32_t i = 1;
-
-					if (chunkArray[0]->full()) {
-						// Make sure all chunks before the first non-full one are full
-						for (; i < chunkArray.size(); ++i) {
-							auto* pChunk = chunkArray[i];
-							if (pChunk->full())
-								GAIA_ASSERT(chunkArray[i - 1]->full());
-							else
-								break;
-						}
-					}
-
-					// Make sure all chunks after the full non-full are empty
-					++i;
-					for (; i < chunkArray.size(); ++i) {
-						GAIA_ASSERT(!chunkArray[i]->has_entities());
-					}
-				}
-
-				//! Returns the first non-full chunk or nullptr if there is no such chunk.
-				GAIA_NODISCARD static Chunk* FindFirstNonFullChunk_inter(std::span<Chunk*> chunkArray) {
-					if GAIA_UNLIKELY (chunkArray.empty())
-						return nullptr;
-
-					Chunk* pFirstNonFullChunk = nullptr;
-					uint32_t i = (uint32_t)chunkArray.size() - 1;
-					do {
-						auto* pChunk = chunkArray[i];
-						if (pChunk->full())
-							break;
-
-						pFirstNonFullChunk = pChunk;
-					} while (i-- > 0);
-
-					return pFirstNonFullChunk;
-				}
-
-				//! Returns the first non-empty chunk or nullptr if there are no chunks.
-				GAIA_NODISCARD static Chunk* find_first_nonempty_chunk_inter(std::span<Chunk*> chunkArray) {
-					if GAIA_UNLIKELY (chunkArray.empty())
-						return nullptr;
-					if (chunkArray.size() == 1)
-						return chunkArray[0];
-
-					Chunk* pFirstNonEmptyChunk = nullptr;
-					uint32_t i = (uint32_t)chunkArray.size() - 1;
-					do {
-						auto* pChunk = chunkArray[i];
-						if (pChunk->full()) {
-							if (pFirstNonEmptyChunk == nullptr)
-								return pChunk;
-							break;
-						}
-
-						if (pChunk->has_entities())
-							pFirstNonEmptyChunk = pChunk;
-					} while (i-- > 0);
-
-					return pFirstNonEmptyChunk;
-				}
-#endif
-
 				/*!
 				Checks if a component with \param componentId and type \param compType is present in the archetype.
 				\param componentId Component id
@@ -16583,18 +16506,6 @@ namespace gaia {
 					remove(m_chunks);
 				}
 
-#if GAIA_AVOID_CHUNK_FRAGMENTATION
-				void verify_chunks_frag() const {
-					VerifyChunksFragmentation_inter(m_chunks);
-				}
-
-				//! Returns the first non-empty chunk or nullptr if none is found.
-				GAIA_NODISCARD Chunk* find_first_nonempty_chunk() const {
-					auto* pChunk = find_first_nonempty_chunk_inter(m_chunks);
-					GAIA_ASSERT(pChunk == nullptr || !pChunk->has_disabled_entities());
-					return pChunk;
-				}
-#else
 				//! defragments the chunk.
 				//! \param maxEntites Maximum number of entities moved per call
 				//! \param chunksToRemove Container of chunks ready for removal
@@ -16666,7 +16577,6 @@ namespace gaia {
 						maxEntities -= entitiesToMove;
 					}
 				}
-#endif
 
 				//! Tries to locate a chunk that has some space left for a new entity.
 				//! If not found a new chunk is created.
@@ -16674,14 +16584,6 @@ namespace gaia {
 					const auto chunkCnt = m_chunks.size();
 
 					if (chunkCnt > 0) {
-#if GAIA_AVOID_CHUNK_FRAGMENTATION
-						// In order to avoid memory fragmentation we always take from the back.
-						// This means all previous chunks are always going to be fully utilized
-						// and it is safe for as to peek at the last one to make descisions.
-						auto* pChunk = FindFirstNonFullChunk_inter(chunkArray);
-						if (pChunk != nullptr)
-							return pChunk;
-#else
 						// Find first semi-empty chunk.
 						// Picking the first non-full would only support fragmentation.
 						Chunk* pEmptyChunk = nullptr;
@@ -16695,7 +16597,6 @@ namespace gaia {
 						}
 						if (pEmptyChunk != nullptr)
 							return pEmptyChunk;
-#endif
 					}
 
 					// Make sure not too many chunks are allocated
@@ -18721,10 +18622,8 @@ namespace gaia {
 
 			//! List of chunks to delete
 			cnt::darray<archetype::Chunk*> m_chunksToRemove;
-#if !GAIA_AVOID_CHUNK_FRAGMENTATION
 			//! ID of the last defragmented archetype
 			uint32_t m_defragLastArchetypeID = 0;
-#endif
 
 			//! With every structural change world version changes
 			uint32_t m_worldVersion = 0;
@@ -18748,49 +18647,6 @@ namespace gaia {
 
 				const auto entity = pChunk->get_entity(entityChunkIndex);
 
-#if GAIA_AVOID_CHUNK_FRAGMENTATION
-				auto& archetype = *m_archetypes[pChunk->archetype_id()];
-
-				// Swap the last entity in the last chunk with the entity spot we just created by moving
-				// the entity to somewhere else.
-				auto* pOldChunk = archetype.find_first_nonempty_chunk();
-				if (pOldChunk == pChunk) {
-					const uint32_t lastEntityIdx = chunkEntityCount - 1;
-					const bool wasDisabled = m_entities[entity.id()].dis;
-
-					// Transfer data form the last entity to the new one
-					pChunk->remove_chunk_entity(entityChunkIndex, m_entities);
-					pChunk->remove_last_entity(m_chunksToRemove);
-
-					// Transfer the disabled state
-					if GAIA_LIKELY (chunkEntityCount > 1)
-						archetype.enable_entity(pChunk, entityChunkIndex, !wasDisabled);
-				} else if (pOldChunk != nullptr && pOldChunk->has_entities()) {
-					const uint32_t lastEntityIdx = pOldChunk->size() - 1;
-					const bool wasDisabled = m_entities[entity.id()].dis;
-
-					// Transfer data form the old chunk to the new one
-					auto lastEntity = pOldChunk->get_entity(lastEntityIdx);
-					pChunk->set_entity(entityChunkIndex, lastEntity);
-					pChunk->move_entity_data(lastEntity, entityChunkIndex, m_entities);
-					pOldChunk->remove_last_entity(m_chunksToRemove);
-					pOldChunk->update_versions();
-
-					// Transfer the disabled state
-					archetype.enable_entity(pChunk, entityChunkIndex, !wasDisabled);
-
-					auto& lastEntityContainer = m_entities[lastEntity.id()];
-					lastEntityContainer.pChunk = pChunk;
-					lastEntityContainer.idx = entityChunkIndex;
-					lastEntityContainer.gen = lastEntity.gen();
-				}
-
-				pChunk->update_versions();
-				if constexpr (IsEntityReleaseWanted)
-					release_entity(entity);
-
-				archetype.verify_chunks_frag();
-#else
 				if (pChunk->enabled(entityChunkIndex)) {
 					// Entity was previously enabled. Swap with the last entity
 					pChunk->remove_chunk_entity(entityChunkIndex, {m_entities.data(), m_entities.size()});
@@ -18813,10 +18669,8 @@ namespace gaia {
 				pChunk->update_versions();
 				if constexpr (IsEntityReleaseWanted)
 					release_entity(entity);
-#endif
 			}
 
-#if !GAIA_AVOID_CHUNK_FRAGMENTATION
 			//! defragments chunks.
 			//! \param maxEntites Maximum number of entities moved per call
 			void defrag_chunks(uint32_t maxEntities) {
@@ -18830,7 +18684,6 @@ namespace gaia {
 						return;
 				}
 			}
-#endif
 
 			//! Searches for archetype with a given set of components
 			//! \param lookupHash Archetype lookup hash
@@ -19369,12 +19222,11 @@ namespace gaia {
 				}
 				m_chunksToRemove.clear();
 
-#if !GAIA_AVOID_CHUNK_FRAGMENTATION
-				// defragment chunks only now. If we did this at the begging of the function
+				// Defragment chunks only now. If we did this at the begging of the function,
 				// we would needlessly iterate chunks which have no way of being collected because
-				// it would be their first frame dying.
-				defrag_chunks(100);
-#endif
+				// it would be their first frame dying. This way, the number of chunks to process
+				// is lower.
+				defrag_chunks(GAIA_DEFRAG_ENTITIES_PER_FRAME);
 			}
 
 		public:
@@ -20030,7 +19882,6 @@ namespace gaia {
 
 			friend class World;
 
-			World& m_world;
 			CommandBufferCtx m_ctx;
 			uint32_t m_entities;
 
@@ -20050,7 +19901,7 @@ namespace gaia {
 			}
 
 		public:
-			CommandBuffer(World& world): m_world(world), m_ctx(world), m_entities(0) {}
+			CommandBuffer(World& world): m_ctx(world), m_entities(0) {}
 			~CommandBuffer() = default;
 
 			CommandBuffer(CommandBuffer&&) = delete;

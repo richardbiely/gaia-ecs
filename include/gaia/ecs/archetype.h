@@ -172,74 +172,6 @@ namespace gaia {
 					}
 				}
 
-#if GAIA_AVOID_CHUNK_FRAGMENTATION
-				static void VerifyChunksFragmentation_inter(std::span<Chunk*> chunkArray) {
-					if (chunkArray.size() <= 1)
-						return;
-
-					uint32_t i = 1;
-
-					if (chunkArray[0]->full()) {
-						// Make sure all chunks before the first non-full one are full
-						for (; i < chunkArray.size(); ++i) {
-							auto* pChunk = chunkArray[i];
-							if (pChunk->full())
-								GAIA_ASSERT(chunkArray[i - 1]->full());
-							else
-								break;
-						}
-					}
-
-					// Make sure all chunks after the full non-full are empty
-					++i;
-					for (; i < chunkArray.size(); ++i) {
-						GAIA_ASSERT(!chunkArray[i]->has_entities());
-					}
-				}
-
-				//! Returns the first non-full chunk or nullptr if there is no such chunk.
-				GAIA_NODISCARD static Chunk* FindFirstNonFullChunk_inter(std::span<Chunk*> chunkArray) {
-					if GAIA_UNLIKELY (chunkArray.empty())
-						return nullptr;
-
-					Chunk* pFirstNonFullChunk = nullptr;
-					uint32_t i = (uint32_t)chunkArray.size() - 1;
-					do {
-						auto* pChunk = chunkArray[i];
-						if (pChunk->full())
-							break;
-
-						pFirstNonFullChunk = pChunk;
-					} while (i-- > 0);
-
-					return pFirstNonFullChunk;
-				}
-
-				//! Returns the first non-empty chunk or nullptr if there are no chunks.
-				GAIA_NODISCARD static Chunk* find_first_nonempty_chunk_inter(std::span<Chunk*> chunkArray) {
-					if GAIA_UNLIKELY (chunkArray.empty())
-						return nullptr;
-					if (chunkArray.size() == 1)
-						return chunkArray[0];
-
-					Chunk* pFirstNonEmptyChunk = nullptr;
-					uint32_t i = (uint32_t)chunkArray.size() - 1;
-					do {
-						auto* pChunk = chunkArray[i];
-						if (pChunk->full()) {
-							if (pFirstNonEmptyChunk == nullptr)
-								return pChunk;
-							break;
-						}
-
-						if (pChunk->has_entities())
-							pFirstNonEmptyChunk = pChunk;
-					} while (i-- > 0);
-
-					return pFirstNonEmptyChunk;
-				}
-#endif
-
 				/*!
 				Checks if a component with \param componentId and type \param compType is present in the archetype.
 				\param componentId Component id
@@ -490,18 +422,6 @@ namespace gaia {
 					remove(m_chunks);
 				}
 
-#if GAIA_AVOID_CHUNK_FRAGMENTATION
-				void verify_chunks_frag() const {
-					VerifyChunksFragmentation_inter(m_chunks);
-				}
-
-				//! Returns the first non-empty chunk or nullptr if none is found.
-				GAIA_NODISCARD Chunk* find_first_nonempty_chunk() const {
-					auto* pChunk = find_first_nonempty_chunk_inter(m_chunks);
-					GAIA_ASSERT(pChunk == nullptr || !pChunk->has_disabled_entities());
-					return pChunk;
-				}
-#else
 				//! defragments the chunk.
 				//! \param maxEntites Maximum number of entities moved per call
 				//! \param chunksToRemove Container of chunks ready for removal
@@ -573,7 +493,6 @@ namespace gaia {
 						maxEntities -= entitiesToMove;
 					}
 				}
-#endif
 
 				//! Tries to locate a chunk that has some space left for a new entity.
 				//! If not found a new chunk is created.
@@ -581,14 +500,6 @@ namespace gaia {
 					const auto chunkCnt = m_chunks.size();
 
 					if (chunkCnt > 0) {
-#if GAIA_AVOID_CHUNK_FRAGMENTATION
-						// In order to avoid memory fragmentation we always take from the back.
-						// This means all previous chunks are always going to be fully utilized
-						// and it is safe for as to peek at the last one to make descisions.
-						auto* pChunk = FindFirstNonFullChunk_inter(chunkArray);
-						if (pChunk != nullptr)
-							return pChunk;
-#else
 						// Find first semi-empty chunk.
 						// Picking the first non-full would only support fragmentation.
 						Chunk* pEmptyChunk = nullptr;
@@ -602,7 +513,6 @@ namespace gaia {
 						}
 						if (pEmptyChunk != nullptr)
 							return pEmptyChunk;
-#endif
 					}
 
 					// Make sure not too many chunks are allocated

@@ -238,7 +238,6 @@ namespace gaia {
 
 			friend class World;
 
-			World& m_world;
 			CommandBufferCtx m_ctx;
 			uint32_t m_entities;
 
@@ -258,7 +257,7 @@ namespace gaia {
 			}
 
 		public:
-			CommandBuffer(World& world): m_world(world), m_ctx(world), m_entities(0) {}
+			CommandBuffer(World& world): m_ctx(world), m_entities(0) {}
 			~CommandBuffer() = default;
 
 			CommandBuffer(CommandBuffer&&) = delete;
