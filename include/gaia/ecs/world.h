@@ -450,7 +450,7 @@ namespace gaia {
 				entityContainer.pChunk = pNewChunk;
 				entityContainer.idx = newIndex;
 				entityContainer.gen = oldEntity.gen();
-				GAIA_ASSERT(entityContainer.dis == !wasEnabled);
+				GAIA_ASSERT((bool)entityContainer.dis == !wasEnabled);
 				// entityContainer.dis = !wasEnabled;
 
 				// End-state validation
