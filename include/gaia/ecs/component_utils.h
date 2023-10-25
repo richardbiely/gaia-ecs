@@ -46,11 +46,5 @@ namespace gaia {
 		}
 
 		using SortComponentCond = core::is_smaller<ComponentId>;
-
-		//! Sorts component ids
-		template <typename Container>
-		inline void sort(Container& c) noexcept {
-			core::sort(c, SortComponentCond{});
-		}
 	} // namespace ecs
 } // namespace gaia

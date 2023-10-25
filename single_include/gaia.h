@@ -1614,28 +1614,29 @@ namespace gaia {
 			using iterator_cat_t = typename iterator_traits<It>::iterator_category;
 
 			template <typename T, typename = void>
-			constexpr bool is_iterator_v = false;
+			[[maybe_unused]] constexpr bool is_iterator_v = false;
 
 			template <typename T>
-			constexpr bool is_iterator_v<T, std::void_t<iterator_cat_t<T>>> = true;
+			[[maybe_unused]] constexpr bool is_iterator_v<T, std::void_t<iterator_cat_t<T>>> = true;
 
 			template <typename T>
 			struct is_iterator: std::bool_constant<is_iterator_v<T>> {};
 
 			template <typename It>
-			constexpr bool is_input_iter_v = std::is_convertible_v<iterator_cat_t<It>, input_iterator_tag>;
+			[[maybe_unused]] constexpr bool is_input_iter_v = std::is_convertible_v<iterator_cat_t<It>, input_iterator_tag>;
 
 			template <typename It>
-			constexpr bool is_fwd_iter_v = std::is_convertible_v<iterator_cat_t<It>, forward_iterator_tag>;
+			[[maybe_unused]] constexpr bool is_fwd_iter_v = std::is_convertible_v<iterator_cat_t<It>, forward_iterator_tag>;
 
 			template <typename It>
-			constexpr bool is_rev_iter_v = std::is_convertible_v<iterator_cat_t<It>, reverse_iterator_tag>;
+			[[maybe_unused]] constexpr bool is_rev_iter_v = std::is_convertible_v<iterator_cat_t<It>, reverse_iterator_tag>;
 
 			template <typename It>
-			constexpr bool is_bidi_iter_v = std::is_convertible_v<iterator_cat_t<It>, bidirectional_iterator_tag>;
+			[[maybe_unused]] constexpr bool is_bidi_iter_v = std::is_convertible_v<iterator_cat_t<It>, bidirectional_iterator_tag>;
 
 			template <typename It>
-			constexpr bool is_random_iter_v = std::is_convertible_v<iterator_cat_t<It>, random_access_iterator_tag>;
+			[[maybe_unused]] constexpr bool is_random_iter_v =
+					std::is_convertible_v<iterator_cat_t<It>, random_access_iterator_tag>;
 		} // namespace detail
 
 		template <typename It>
@@ -14389,7 +14390,7 @@ namespace gaia {
 				//! When true, destruction has been requested
 				bool m_isDone = false;
 
-				ChunkAllocatorImpl() noexcept = default;
+				ChunkAllocatorImpl() = default;
 
 			public:
 				~ChunkAllocatorImpl() = default;
@@ -14842,12 +14843,6 @@ namespace gaia {
 		}
 
 		using SortComponentCond = core::is_smaller<ComponentId>;
-
-		//! Sorts component ids
-		template <typename Container>
-		inline void sort(Container& c) noexcept {
-			core::sort(c, SortComponentCond{});
-		}
 	} // namespace ecs
 } // namespace gaia
 
@@ -18834,7 +18829,7 @@ namespace gaia {
 
 				// Make sure to sort the component infos so we receive the same hash no matter the order in which components
 				// are provided Bubble sort is okay. We're dealing with at most Chunk::MAX_COMPONENTS items.
-				sort(infosNew);
+				sort(infosNew, SortComponentCond{});
 
 				// Once sorted we can calculate the hashes
 				const Archetype::GenericComponentHash genericHash = {

@@ -181,7 +181,7 @@ namespace gaia {
 				//! When true, destruction has been requested
 				bool m_isDone = false;
 
-				ChunkAllocatorImpl() noexcept = default;
+				ChunkAllocatorImpl() = default;
 
 			public:
 				~ChunkAllocatorImpl() = default;
