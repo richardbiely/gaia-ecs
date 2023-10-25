@@ -6540,7 +6540,7 @@ namespace gaia {
 
 			//! Allocates a new item in the list
 			//! \return Handle to the new item
-			GAIA_NODISCARD TItemHandle allocate() {
+			GAIA_NODISCARD TItemHandle alloc() {
 				if GAIA_UNLIKELY (m_freeItems == 0U) {
 					// We don't want to go out of range for new item
 					const auto itemCnt = (size_type)m_items.size();
@@ -6568,7 +6568,7 @@ namespace gaia {
 
 			//! Invalidates \param handle.
 			//! Everytime an item is deallocated its generation is increased by one.
-			TListItem& release(TItemHandle handle) {
+			TListItem& free(TItemHandle handle) {
 				auto& item = m_items[handle.id()];
 
 				// New generation
@@ -12714,7 +12714,7 @@ namespace gaia {
 			//! \warning Must be used from the main thread.
 			GAIA_NODISCARD JobHandle alloc_job(const Job& job) {
 				std::scoped_lock<std::mutex> lock(m_jobsLock);
-				auto handle = m_jobs.allocate();
+				auto handle = m_jobs.alloc();
 				auto& j = m_jobs[handle.id()];
 				GAIA_ASSERT(j.state == JobInternalState::Idle || j.state == JobInternalState::Released);
 				j.dependencyIdx = (uint32_t)-1;
@@ -12729,7 +12729,7 @@ namespace gaia {
 			void free_job(JobHandle jobHandle) {
 				// No need to lock. Called from the main thread only when the job has finished already.
 				// --> std::scoped_lock<std::mutex> lock(m_jobsLock);
-				auto& job = m_jobs.release(jobHandle);
+				auto& job = m_jobs.free(jobHandle);
 				job.state = JobInternalState::Released;
 			}
 
@@ -12737,14 +12737,14 @@ namespace gaia {
 			//! \return DepHandle
 			//! \warning Must be used from the main thread.
 			GAIA_NODISCARD DepHandle alloc_dep() {
-				return m_deps.allocate();
+				return m_deps.alloc();
 			}
 
 			//! Invalidates \param depHandle by resetting its index in the dependency pool.
 			//! Everytime a dependency is deallocated its generation is increased by one.
 			//! \warning Must be used from the main thread.
 			void free_dep(DepHandle depHandle) {
-				m_deps.release(depHandle);
+				m_deps.free(depHandle);
 			}
 
 			//! Resets the job pool.
@@ -18695,7 +18695,7 @@ namespace gaia {
 
 				pChunk->update_versions();
 				if constexpr (IsEntityDeleteWanted)
-					release_entity(entity);
+					del_entity(entity);
 			}
 
 			//! defragments chunks.
@@ -19001,9 +19001,10 @@ namespace gaia {
 				return *m_archetypes[pChunk == nullptr ? archetype::ArchetypeId(0) : pChunk->archetype_id()];
 			}
 
-			//! Invalidates \param entityToDelete
-			void release_entity(Entity entityToDelete) {
-				auto& entityContainer = m_entities.release(entityToDelete);
+			//! Invalidates the entity record, effectivelly deleting it
+			//! \param entity Entity to delete
+			void del_entity(Entity entity) {
+				auto& entityContainer = m_entities.free(entity);
 				entityContainer.pChunk = nullptr;
 			}
 
@@ -19204,19 +19205,18 @@ namespace gaia {
 #endif
 			}
 
-			//! Creates a new entity from archetype
-			//! \return Entity
+			//! Creates a new entity of a given archetype
+			//! \param archetype Archetype the entity should inherit
+			//! \return New entity
 			GAIA_NODISCARD Entity add(archetype::Archetype& archetype) {
-				const auto entity = m_entities.allocate();
+				const auto entity = m_entities.alloc();
 
-				const auto& entityContainer = m_entities[entity.id()];
 				auto* pChunk = archetype.foc_free_chunk();
-
 				store_entity(entity, pChunk);
 
 				// Call constructors for the generic components on the newly added entity if necessary
 				if (pChunk->has_custom_generic_ctor())
-					pChunk->call_ctors(component::ComponentType::CT_Generic, entityContainer.idx, 1);
+					pChunk->call_ctors(component::ComponentType::CT_Generic, pChunk->size() - 1, 1);
 
 				return entity;
 			}
@@ -19330,10 +19330,7 @@ namespace gaia {
 			//! Creates a new empty entity
 			//! \return New entity
 			GAIA_NODISCARD Entity add() {
-				const auto entity = m_entities.allocate();
-				auto* pChunk = m_archetypes[0]->foc_free_chunk();
-				store_entity(entity, pChunk);
-				return entity;
+				return add(*m_archetypes[0]);
 			}
 
 			//! Creates a new entity by cloning an already existing one.
@@ -19369,7 +19366,7 @@ namespace gaia {
 					validate_chunk(pChunk);
 					validate_entities();
 				} else {
-					release_entity(entity);
+					del_entity(entity);
 				}
 			}
 

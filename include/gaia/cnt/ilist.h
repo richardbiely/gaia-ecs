@@ -104,7 +104,7 @@ namespace gaia {
 
 			//! Allocates a new item in the list
 			//! \return Handle to the new item
-			GAIA_NODISCARD TItemHandle allocate() {
+			GAIA_NODISCARD TItemHandle alloc() {
 				if GAIA_UNLIKELY (m_freeItems == 0U) {
 					// We don't want to go out of range for new item
 					const auto itemCnt = (size_type)m_items.size();
@@ -132,7 +132,7 @@ namespace gaia {
 
 			//! Invalidates \param handle.
 			//! Everytime an item is deallocated its generation is increased by one.
-			TListItem& release(TItemHandle handle) {
+			TListItem& free(TItemHandle handle) {
 				auto& item = m_items[handle.id()];
 
 				// New generation

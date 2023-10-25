@@ -88,7 +88,7 @@ namespace gaia {
 			//! \warning Must be used from the main thread.
 			GAIA_NODISCARD JobHandle alloc_job(const Job& job) {
 				std::scoped_lock<std::mutex> lock(m_jobsLock);
-				auto handle = m_jobs.allocate();
+				auto handle = m_jobs.alloc();
 				auto& j = m_jobs[handle.id()];
 				GAIA_ASSERT(j.state == JobInternalState::Idle || j.state == JobInternalState::Released);
 				j.dependencyIdx = (uint32_t)-1;
@@ -103,7 +103,7 @@ namespace gaia {
 			void free_job(JobHandle jobHandle) {
 				// No need to lock. Called from the main thread only when the job has finished already.
 				// --> std::scoped_lock<std::mutex> lock(m_jobsLock);
-				auto& job = m_jobs.release(jobHandle);
+				auto& job = m_jobs.free(jobHandle);
 				job.state = JobInternalState::Released;
 			}
 
@@ -111,14 +111,14 @@ namespace gaia {
 			//! \return DepHandle
 			//! \warning Must be used from the main thread.
 			GAIA_NODISCARD DepHandle alloc_dep() {
-				return m_deps.allocate();
+				return m_deps.alloc();
 			}
 
 			//! Invalidates \param depHandle by resetting its index in the dependency pool.
 			//! Everytime a dependency is deallocated its generation is increased by one.
 			//! \warning Must be used from the main thread.
 			void free_dep(DepHandle depHandle) {
-				m_deps.release(depHandle);
+				m_deps.free(depHandle);
 			}
 
 			//! Resets the job pool.
