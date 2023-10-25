@@ -30,22 +30,22 @@ namespace gaia {
 			template <bool Cached>
 			struct QueryImplStorage {
 				//! QueryImpl cache id
-				query::QueryId m_queryId = query::QueryIdBad;
+				QueryId m_queryId = QueryIdBad;
 				//! QueryImpl cache (stable pointer to parent world's query cache)
 				QueryCache* m_entityQueryCache{};
 			};
 
 			template <>
 			struct QueryImplStorage<false> {
-				query::QueryInfo m_queryInfo;
+				QueryInfo m_queryInfo;
 			};
 
 			template <bool UseCaching = true>
 			class QueryImpl final {
 				static constexpr uint32_t ChunkBatchSize = 16;
-				using CChunkSpan = std::span<const archetype::Chunk*>;
-				using ChunkBatchedList = cnt::sarray_ext<archetype::Chunk*, ChunkBatchSize>;
-				using CmdBufferCmdFunc = void (*)(SerializationBuffer& buffer, query::LookupCtx& ctx);
+				using CChunkSpan = std::span<const Chunk*>;
+				using ChunkBatchedList = cnt::sarray_ext<Chunk*, ChunkBatchSize>;
+				using CmdBufferCmdFunc = void (*)(SerializationBuffer& buffer, QueryCtx& ctx);
 
 			public:
 				//! QueryImpl constraints
@@ -58,27 +58,27 @@ namespace gaia {
 				struct Command_AddComponent {
 					static constexpr CommandBufferCmd Id = CommandBufferCmd::ADD_COMPONENT;
 
-					component::ComponentId componentId;
-					component::ComponentType compType;
-					query::ListType listType;
+					ComponentId compId;
+					ComponentType compType;
+					QueryListType listType;
 					bool isReadWrite;
 
-					void exec(query::LookupCtx& ctx) const {
+					void exec(QueryCtx& ctx) const {
 						auto& data = ctx.data[compType];
 						auto& compIds = data.compIds;
 						auto& lastMatchedArchetypeIndex = data.lastMatchedArchetypeIndex;
 						auto& rules = data.rules;
 
 						// Unique component ids only
-						GAIA_ASSERT(!core::has(compIds, componentId));
+						GAIA_ASSERT(!core::has(compIds, compId));
 
 #if GAIA_DEBUG
 						// There's a limit to the amount of components which we can store
-						if (compIds.size() >= query::MAX_COMPONENTS_IN_QUERY) {
+						if (compIds.size() >= MAX_COMPONENTS_IN_QUERY) {
 							GAIA_ASSERT(false && "Trying to create an ECS query with too many components!");
 
 							const auto& cc = ComponentCache::get();
-							auto componentName = cc.comp_desc(componentId).name;
+							auto componentName = cc.comp_desc(compId).name;
 							GAIA_LOG_E(
 									"Trying to add ECS component '%.*s' to an already full ECS query!", (uint32_t)componentName.size(),
 									componentName.data());
@@ -88,11 +88,11 @@ namespace gaia {
 #endif
 
 						data.readWriteMask |= (uint8_t)isReadWrite << (uint8_t)compIds.size();
-						compIds.push_back(componentId);
+						compIds.push_back(compId);
 						lastMatchedArchetypeIndex.push_back(0);
 						rules.push_back(listType);
 
-						if (listType == query::ListType::LT_All)
+						if (listType == QueryListType::LT_All)
 							++data.rulesAllCount;
 					}
 				};
@@ -100,25 +100,25 @@ namespace gaia {
 				struct Command_Filter {
 					static constexpr CommandBufferCmd Id = CommandBufferCmd::ADD_FILTER;
 
-					component::ComponentId componentId;
-					component::ComponentType compType;
+					ComponentId compId;
+					ComponentType compType;
 
-					void exec(query::LookupCtx& ctx) const {
+					void exec(QueryCtx& ctx) const {
 						auto& data = ctx.data[compType];
 						auto& compIds = data.compIds;
 						auto& withChanged = data.withChanged;
 						const auto& rules = data.rules;
 
-						GAIA_ASSERT(core::has(compIds, componentId));
-						GAIA_ASSERT(!core::has(withChanged, componentId));
+						GAIA_ASSERT(core::has(compIds, compId));
+						GAIA_ASSERT(!core::has(withChanged, compId));
 
 #if GAIA_DEBUG
 						// There's a limit to the amount of components which we can store
-						if (withChanged.size() >= query::MAX_COMPONENTS_IN_QUERY) {
+						if (withChanged.size() >= MAX_COMPONENTS_IN_QUERY) {
 							GAIA_ASSERT(false && "Trying to create an ECS filter query with too many components!");
 
 							const auto& cc = ComponentCache::get();
-							auto componentName = cc.comp_desc(componentId).name;
+							auto componentName = cc.comp_desc(compId).name;
 							GAIA_LOG_E(
 									"Trying to add ECS component %.*s to an already full filter query!", (uint32_t)componentName.size(),
 									componentName.data());
@@ -126,19 +126,19 @@ namespace gaia {
 						}
 #endif
 
-						const auto componentIdx = core::get_index_unsafe(compIds, componentId);
+						const auto compIdx = core::get_index_unsafe(compIds, compId);
 
 						// Component has to be present in anyList or allList.
 						// NoneList makes no sense because we skip those in query processing anyway.
-						if (rules[componentIdx] != query::ListType::LT_None) {
-							withChanged.push_back(componentId);
+						if (rules[compIdx] != QueryListType::LT_None) {
+							withChanged.push_back(compId);
 							return;
 						}
 
 						GAIA_ASSERT(false && "SetChangeFilter trying to filter ECS component which is not a part of the query");
 #if GAIA_DEBUG
 						const auto& cc = ComponentCache::get();
-						auto componentName = cc.comp_desc(componentId).name;
+						auto componentName = cc.comp_desc(compId).name;
 						GAIA_LOG_E(
 								"SetChangeFilter trying to filter ECS component %.*s but "
 								"it's not a part of the query!",
@@ -149,13 +149,13 @@ namespace gaia {
 
 				static constexpr CmdBufferCmdFunc CommandBufferRead[] = {
 						// Add component
-						[](SerializationBuffer& buffer, query::LookupCtx& ctx) {
+						[](SerializationBuffer& buffer, QueryCtx& ctx) {
 							Command_AddComponent cmd;
 							ser::load(buffer, cmd);
 							cmd.exec(ctx);
 						},
 						// Add filter
-						[](SerializationBuffer& buffer, query::LookupCtx& ctx) {
+						[](SerializationBuffer& buffer, QueryCtx& ctx) {
 							Command_Filter cmd;
 							ser::load(buffer, cmd);
 							cmd.exec(ctx);
@@ -168,38 +168,38 @@ namespace gaia {
 				//! World version (stable pointer to parent world's world version)
 				uint32_t* m_worldVersion{};
 				//! List of achetypes (stable pointer to parent world's archetype array)
-				const archetype::ArchetypeList* m_archetypes{};
+				const ArchetypeList* m_archetypes{};
 				//! Map of component ids to archetypes (stable pointer to parent world's archetype component-to-archetype map)
-				const query::ComponentToArchetypeMap* m_componentToArchetypeMap{};
+				const ComponentToArchetypeMap* m_componentToArchetypeMap{};
 				//! Execution mode
-				query::ExecutionMode m_executionMode = query::ExecutionMode::Run;
+				QueryExecMode m_executionMode = QueryExecMode::Run;
 
 				//--------------------------------------------------------------------------------
 			public:
-				query::QueryInfo& fetch_query_info() {
+				QueryInfo& fetch_query_info() {
 					if constexpr (UseCaching) {
 						// Make sure the query was created by World.query()
 						GAIA_ASSERT(m_storage.m_entityQueryCache != nullptr);
 
 						// Lookup hash is present which means QueryInfo was already found
-						if GAIA_LIKELY (m_storage.m_queryId != query::QueryIdBad) {
+						if GAIA_LIKELY (m_storage.m_queryId != QueryIdBad) {
 							auto& queryInfo = m_storage.m_entityQueryCache->get(m_storage.m_queryId);
 							queryInfo.match(*m_componentToArchetypeMap, (uint32_t)m_archetypes->size());
 							return queryInfo;
 						}
 
 						// No lookup hash is present which means QueryInfo needs to fetched or created
-						query::LookupCtx ctx;
+						QueryCtx ctx;
 						commit(ctx);
 						m_storage.m_queryId = m_storage.m_entityQueryCache->goc(std::move(ctx));
 						auto& queryInfo = m_storage.m_entityQueryCache->get(m_storage.m_queryId);
 						queryInfo.match(*m_componentToArchetypeMap, (uint32_t)m_archetypes->size());
 						return queryInfo;
 					} else {
-						if GAIA_UNLIKELY (m_storage.m_queryInfo.id() == query::QueryIdBad) {
-							query::LookupCtx ctx;
+						if GAIA_UNLIKELY (m_storage.m_queryInfo.id() == QueryIdBad) {
+							QueryCtx ctx;
 							commit(ctx);
-							m_storage.m_queryInfo = query::QueryInfo::create(query::QueryId{}, std::move(ctx));
+							m_storage.m_queryInfo = QueryInfo::create(QueryId{}, std::move(ctx));
 						}
 						m_storage.m_queryInfo.match(*m_componentToArchetypeMap, (uint32_t)m_archetypes->size());
 						return m_storage.m_queryInfo;
@@ -209,13 +209,13 @@ namespace gaia {
 				//--------------------------------------------------------------------------------
 			private:
 				template <typename T>
-				void add_inter(query::ListType listType) {
-					using U = typename component::component_type_t<T>::Type;
-					using UOriginal = typename component::component_type_t<T>::TypeOriginal;
+				void add_inter(QueryListType listType) {
+					using U = typename component_type_t<T>::Type;
+					using UOriginal = typename component_type_t<T>::TypeOriginal;
 					using UOriginalPR = std::remove_reference_t<std::remove_pointer_t<UOriginal>>;
 
-					const auto componentId = component::comp_id<T>();
-					constexpr auto compType = component::component_type_v<T>;
+					const auto compId = comp_id<T>();
+					constexpr auto compType = component_type_v<T>;
 					constexpr bool isReadWrite =
 							std::is_same_v<U, UOriginal> || (!std::is_const_v<UOriginalPR> && !std::is_empty_v<U>);
 
@@ -223,29 +223,29 @@ namespace gaia {
 					auto& cc = ComponentCache::get();
 					(void)cc.goc_comp_info<T>();
 
-					Command_AddComponent cmd{componentId, compType, listType, isReadWrite};
+					Command_AddComponent cmd{compId, compType, listType, isReadWrite};
 					ser::save(m_serBuffer, Command_AddComponent::Id);
 					ser::save(m_serBuffer, cmd);
 				}
 
 				template <typename T>
 				void WithChanged_inter() {
-					const auto componentId = component::comp_id<T>();
-					constexpr auto compType = component::component_type_v<T>;
+					const auto compId = comp_id<T>();
+					constexpr auto compType = component_type_v<T>;
 
-					Command_Filter cmd{componentId, compType};
+					Command_Filter cmd{compId, compType};
 					ser::save(m_serBuffer, Command_Filter::Id);
 					ser::save(m_serBuffer, cmd);
 				}
 
 				//--------------------------------------------------------------------------------
 
-				void commit(query::LookupCtx& ctx) {
+				void commit(QueryCtx& ctx) {
 #if GAIA_ASSERT_ENABLED
 					if constexpr (UseCaching) {
-						GAIA_ASSERT(m_storage.m_queryId == query::QueryIdBad);
+						GAIA_ASSERT(m_storage.m_queryId == QueryIdBad);
 					} else {
-						GAIA_ASSERT(m_storage.m_queryInfo.id() == query::QueryIdBad);
+						GAIA_ASSERT(m_storage.m_queryInfo.id() == QueryIdBad);
 					}
 #endif
 
@@ -258,7 +258,7 @@ namespace gaia {
 					}
 
 					// Calculate the lookup hash from the provided context
-					query::calc_lookup_hash(ctx);
+					calc_lookup_hash(ctx);
 
 					// We can free all temporary data now
 					m_serBuffer.reset();
@@ -276,7 +276,7 @@ namespace gaia {
 				//! Unpacks the parameter list \param types into query \param query and performs has_all for each of them
 				template <typename... T>
 				GAIA_NODISCARD bool unpack_args_into_query_has_all(
-						const query::QueryInfo& queryInfo, [[maybe_unused]] core::func_type_list<T...> types) const {
+						const QueryInfo& queryInfo, [[maybe_unused]] core::func_type_list<T...> types) const {
 					if constexpr (sizeof...(T) > 0)
 						return queryInfo.has_all<T...>();
 					else
@@ -285,27 +285,27 @@ namespace gaia {
 
 				//--------------------------------------------------------------------------------
 
-				GAIA_NODISCARD static bool match_filters(const archetype::Chunk& chunk, const query::QueryInfo& queryInfo) {
+				GAIA_NODISCARD static bool match_filters(const Chunk& chunk, const QueryInfo& queryInfo) {
 					GAIA_ASSERT(chunk.has_entities() && "match_filters called on an empty chunk");
 
 					const auto queryVersion = queryInfo.world_version();
 
 					// See if any generic component has changed
 					{
-						const auto& filtered = queryInfo.filters(component::ComponentType::CT_Generic);
-						for (const auto componentId: filtered) {
-							const auto componentIdx = chunk.comp_idx(component::ComponentType::CT_Generic, componentId);
-							if (chunk.changed(component::ComponentType::CT_Generic, queryVersion, componentIdx))
+						const auto& filtered = queryInfo.filters(ComponentType::CT_Generic);
+						for (const auto compId: filtered) {
+							const auto compIdx = chunk.comp_idx(ComponentType::CT_Generic, compId);
+							if (chunk.changed(ComponentType::CT_Generic, queryVersion, compIdx))
 								return true;
 						}
 					}
 
 					// See if any chunk component has changed
 					{
-						const auto& filtered = queryInfo.filters(component::ComponentType::CT_Chunk);
-						for (const auto componentId: filtered) {
-							const uint32_t componentIdx = chunk.comp_idx(component::ComponentType::CT_Chunk, componentId);
-							if (chunk.changed(component::ComponentType::CT_Chunk, queryVersion, componentIdx))
+						const auto& filtered = queryInfo.filters(ComponentType::CT_Chunk);
+						for (const auto compId: filtered) {
+							const uint32_t compIdx = chunk.comp_idx(ComponentType::CT_Chunk, compId);
+							if (chunk.changed(ComponentType::CT_Chunk, queryVersion, compIdx))
 								return true;
 						}
 					}
@@ -365,15 +365,14 @@ namespace gaia {
 
 				template <bool HasFilters, typename Func>
 				void run_query_unconstrained(
-						Func func, ChunkBatchedList& chunkBatch, const cnt::darray<archetype::Chunk*>& chunks,
-						const query::QueryInfo& queryInfo) {
+						Func func, ChunkBatchedList& chunkBatch, const cnt::darray<Chunk*>& chunks, const QueryInfo& queryInfo) {
 					uint32_t chunkOffset = 0;
 					uint32_t itemsLeft = chunks.size();
 					while (itemsLeft > 0) {
 						const auto maxBatchSize = chunkBatch.max_size() - chunkBatch.size();
 						const auto batchSize = itemsLeft > maxBatchSize ? maxBatchSize : itemsLeft;
 
-						CChunkSpan chunkSpan((const archetype::Chunk**)&chunks[chunkOffset], batchSize);
+						CChunkSpan chunkSpan((const Chunk**)&chunks[chunkOffset], batchSize);
 						for (const auto* pChunk: chunkSpan) {
 							if (!pChunk->has_entities())
 								continue;
@@ -382,7 +381,7 @@ namespace gaia {
 									continue;
 							}
 
-							chunkBatch.push_back(const_cast<archetype::Chunk*>(pChunk));
+							chunkBatch.push_back(const_cast<Chunk*>(pChunk));
 						}
 
 						if GAIA_UNLIKELY (chunkBatch.size() == chunkBatch.max_size())
@@ -395,15 +394,15 @@ namespace gaia {
 
 				template <bool HasFilters, typename Func>
 				void run_query_constrained(
-						Func func, ChunkBatchedList& chunkBatch, const cnt::darray<archetype::Chunk*>& chunks,
-						const query::QueryInfo& queryInfo, bool enabledOnly) {
+						Func func, ChunkBatchedList& chunkBatch, const cnt::darray<Chunk*>& chunks, const QueryInfo& queryInfo,
+						bool enabledOnly) {
 					uint32_t chunkOffset = 0;
 					uint32_t itemsLeft = chunks.size();
 					while (itemsLeft > 0) {
 						const auto maxBatchSize = chunkBatch.max_size() - chunkBatch.size();
 						const auto batchSize = itemsLeft > maxBatchSize ? maxBatchSize : itemsLeft;
 
-						CChunkSpan chunkSpan((const archetype::Chunk**)&chunks[chunkOffset], batchSize);
+						CChunkSpan chunkSpan((const Chunk**)&chunks[chunkOffset], batchSize);
 						for (const auto* pChunk: chunkSpan) {
 							if (!pChunk->has_entities())
 								continue;
@@ -418,7 +417,7 @@ namespace gaia {
 									continue;
 							}
 
-							chunkBatch.push_back(const_cast<archetype::Chunk*>(pChunk));
+							chunkBatch.push_back(const_cast<Chunk*>(pChunk));
 						}
 
 						if GAIA_UNLIKELY (chunkBatch.size() == chunkBatch.max_size())
@@ -430,7 +429,7 @@ namespace gaia {
 				}
 
 				template <typename Func>
-				void run_query_on_chunks(query::QueryInfo& queryInfo, Constraints constraints, Func func) {
+				void run_query_on_chunks(QueryInfo& queryInfo, Constraints constraints, Func func) {
 					// Update the world version
 					update_version(*m_worldVersion);
 
@@ -466,7 +465,7 @@ namespace gaia {
 				}
 
 				template <typename Func>
-				void each_inter(query::QueryInfo& queryInfo, Func func) {
+				void each_inter(QueryInfo& queryInfo, Func func) {
 					using InputArgs = decltype(core::func_args(&Func::operator()));
 
 #if GAIA_DEBUG
@@ -474,14 +473,14 @@ namespace gaia {
 					GAIA_ASSERT(unpack_args_into_query_has_all(queryInfo, InputArgs{}));
 #endif
 
-					run_query_on_chunks(queryInfo, Constraints::EnabledOnly, [&](archetype::Chunk& chunk) {
+					run_query_on_chunks(queryInfo, Constraints::EnabledOnly, [&](Chunk& chunk) {
 						chunk.each(InputArgs{}, func);
 					});
 				}
 
 				void invalidate() {
 					if constexpr (UseCaching)
-						m_storage.m_queryId = query::QueryIdBad;
+						m_storage.m_queryId = QueryIdBad;
 				}
 
 			public:
@@ -489,8 +488,8 @@ namespace gaia {
 
 				template <bool FuncEnabled = UseCaching>
 				QueryImpl(
-						QueryCache& queryCache, uint32_t& worldVersion, const cnt::darray<archetype::Archetype*>& archetypes,
-						const query::ComponentToArchetypeMap& componentToArchetypeMap):
+						QueryCache& queryCache, uint32_t& worldVersion, const cnt::darray<Archetype*>& archetypes,
+						const ComponentToArchetypeMap& componentToArchetypeMap):
 						m_worldVersion(&worldVersion),
 						m_archetypes(&archetypes), m_componentToArchetypeMap(&componentToArchetypeMap) {
 					m_storage.m_entityQueryCache = &queryCache;
@@ -498,8 +497,8 @@ namespace gaia {
 
 				template <bool FuncEnabled = !UseCaching>
 				QueryImpl(
-						uint32_t& worldVersion, const cnt::darray<archetype::Archetype*>& archetypes,
-						const query::ComponentToArchetypeMap& componentToArchetypeMap):
+						uint32_t& worldVersion, const cnt::darray<Archetype*>& archetypes,
+						const ComponentToArchetypeMap& componentToArchetypeMap):
 						m_worldVersion(&worldVersion),
 						m_archetypes(&archetypes), m_componentToArchetypeMap(&componentToArchetypeMap) {}
 
@@ -513,7 +512,7 @@ namespace gaia {
 					// Adding new rules invalidates the query
 					invalidate();
 					// Add commands to the command buffer
-					(add_inter<T>(query::ListType::LT_All), ...);
+					(add_inter<T>(QueryListType::LT_All), ...);
 					return *this;
 				}
 
@@ -522,7 +521,7 @@ namespace gaia {
 					// Adding new rules invalidates the query
 					invalidate();
 					// Add commands to the command buffer
-					(add_inter<T>(query::ListType::LT_Any), ...);
+					(add_inter<T>(QueryListType::LT_Any), ...);
 					return *this;
 				}
 
@@ -531,7 +530,7 @@ namespace gaia {
 					// Adding new rules invalidates the query
 					invalidate();
 					// Add commands to the command buffer
-					(add_inter<T>(query::ListType::LT_None), ...);
+					(add_inter<T>(QueryListType::LT_None), ...);
 					return *this;
 				}
 
@@ -545,12 +544,12 @@ namespace gaia {
 				}
 
 				QueryImpl& sched() {
-					m_executionMode = query::ExecutionMode::Single;
+					m_executionMode = QueryExecMode::Single;
 					return *this;
 				}
 
 				QueryImpl& sched_par() {
-					m_executionMode = query::ExecutionMode::Parallel;
+					m_executionMode = QueryExecMode::Parallel;
 					return *this;
 				}
 
@@ -559,15 +558,15 @@ namespace gaia {
 					auto& queryInfo = fetch_query_info();
 
 					if constexpr (std::is_invocable<Func, IteratorAll>::value)
-						run_query_on_chunks(queryInfo, Constraints::AcceptAll, [&](archetype::Chunk& chunk) {
+						run_query_on_chunks(queryInfo, Constraints::AcceptAll, [&](Chunk& chunk) {
 							func(IteratorAll(chunk));
 						});
 					else if constexpr (std::is_invocable<Func, Iterator>::value)
-						run_query_on_chunks(queryInfo, Constraints::EnabledOnly, [&](archetype::Chunk& chunk) {
+						run_query_on_chunks(queryInfo, Constraints::EnabledOnly, [&](Chunk& chunk) {
 							func(Iterator(chunk));
 						});
 					else if constexpr (std::is_invocable<Func, IteratorDisabled>::value)
-						run_query_on_chunks(queryInfo, Constraints::DisabledOnly, [&](archetype::Chunk& chunk) {
+						run_query_on_chunks(queryInfo, Constraints::DisabledOnly, [&](Chunk& chunk) {
 							func(IteratorDisabled(chunk));
 						});
 					else
@@ -575,18 +574,18 @@ namespace gaia {
 				}
 
 				template <typename Func, bool FuncEnabled = UseCaching, typename std::enable_if<FuncEnabled>::type* = nullptr>
-				void each(query::QueryId queryId, Func func) {
+				void each(QueryId queryId, Func func) {
 					// Make sure the query was created by World.query()
 					GAIA_ASSERT(m_storage.m_entityQueryCache != nullptr);
-					GAIA_ASSERT(queryId != query::QueryIdBad);
+					GAIA_ASSERT(queryId != QueryIdBad);
 
 					auto& queryInfo = m_storage.m_entityQueryCache->get(queryId);
 					each_inter(queryInfo, func);
 				}
 
 				template <bool UseFilters, Constraints c, typename ChunksContainer>
-				GAIA_NODISCARD bool has_entities_inter(query::QueryInfo& queryInfo, const ChunksContainer& chunks) {
-					return core::has_if(chunks, [&](archetype::Chunk* pChunk) {
+				GAIA_NODISCARD bool has_entities_inter(QueryInfo& queryInfo, const ChunksContainer& chunks) {
+					return core::has_if(chunks, [&](Chunk* pChunk) {
 						if constexpr (UseFilters) {
 							if constexpr (c == Constraints::AcceptAll)
 								return pChunk->has_entities() && match_filters(*pChunk, queryInfo);
@@ -606,7 +605,7 @@ namespace gaia {
 				}
 
 				template <bool UseFilters, Constraints c, typename ChunksContainer>
-				GAIA_NODISCARD uint32_t calc_entity_cnt_inter(query::QueryInfo& queryInfo, const ChunksContainer& chunks) {
+				GAIA_NODISCARD uint32_t calc_entity_cnt_inter(QueryInfo& queryInfo, const ChunksContainer& chunks) {
 					uint32_t cnt = 0;
 
 					for (auto* pChunk: chunks) {
@@ -632,7 +631,7 @@ namespace gaia {
 				}
 
 				template <bool UseFilters, Constraints c, typename ChunksContainerIn, typename ChunksContainerOut>
-				void arr_inter(query::QueryInfo& queryInfo, const ChunksContainerIn& chunks, ChunksContainerOut& outArray) {
+				void arr_inter(QueryInfo& queryInfo, const ChunksContainerIn& chunks, ChunksContainerOut& outArray) {
 					using ContainerItemType = typename ChunksContainerOut::value_type;
 
 					for (auto* pChunk: chunks) {

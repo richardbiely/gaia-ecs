@@ -11,8 +11,8 @@ namespace gaia {
 		class QueryCache {
 			using QueryCacheLookupArray = cnt::darray<uint32_t>;
 
-			cnt::map<query::LookupHash, QueryCacheLookupArray> m_queryCache;
-			cnt::darray<query::QueryInfo> m_queryArr;
+			cnt::map<QueryLookupHash, QueryCacheLookupArray> m_queryCache;
+			cnt::darray<QueryInfo> m_queryArr;
 
 		public:
 			QueryCache() {
@@ -30,13 +30,13 @@ namespace gaia {
 			//! \warning It is expected that the query has already been registered. Undefined behavior otherwise.
 			//! \param queryId Query used to search for query info
 			//! \return Query info
-			query::QueryInfo& get(query::QueryId queryId) {
+			QueryInfo& get(QueryId queryId) {
 				return m_queryArr[queryId];
 			};
 
 			//! Registers the provided query lookup context \param ctx. If it already exists it is returned.
 			//! \return Query id
-			uint32_t goc(query::LookupCtx&& ctx) {
+			uint32_t goc(QueryCtx&& ctx) {
 				GAIA_ASSERT(ctx.hashLookup.hash != 0);
 
 				// Check if the query info exists first
@@ -45,7 +45,7 @@ namespace gaia {
 					const auto& queryIds = ret.first->second;
 
 					// Record with the query info lookup hash exists but we need to check if the query itself is a part of it.
-					if GAIA_LIKELY (ctx.queryId != query::QueryIdBad) {
+					if GAIA_LIKELY (ctx.queryId != QueryIdBad) {
 						// Make sure the same hash gets us to the proper query
 						for (const auto queryId: queryIds) {
 							const auto& queryInfo = m_queryArr[queryId];
@@ -56,12 +56,12 @@ namespace gaia {
 						}
 
 						GAIA_ASSERT(false && "QueryInfo not found despite having its lookupHash and cacheId set!");
-						return query::QueryIdBad;
+						return QueryIdBad;
 					}
 				}
 
-				const auto queryId = (query::QueryId)m_queryArr.size();
-				m_queryArr.push_back(query::QueryInfo::create(queryId, std::move(ctx)));
+				const auto queryId = (QueryId)m_queryArr.size();
+				m_queryArr.push_back(QueryInfo::create(queryId, std::move(ctx)));
 				ret.first->second.push_back(queryId);
 				return queryId;
 			};

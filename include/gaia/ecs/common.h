@@ -1,5 +1,5 @@
 #pragma once
-#include "../config/config_core.h"
+#include "../config/config.h"
 
 #include <cinttypes>
 
