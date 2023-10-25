@@ -8,15 +8,15 @@
 #include "../cnt/map.h"
 #include "../config/logging.h"
 #include "../meta/type_info.h"
-#include "comp/component.h"
-#include "comp/component_desc.h"
-#include "comp/component_info.h"
+#include "component.h"
+#include "component_desc.h"
+#include "component_info.h"
 
 namespace gaia {
 	namespace ecs {
 		class ComponentCache {
-			cnt::darray<const comp::ComponentInfo*> m_infoByIndex;
-			cnt::darray<comp::ComponentDesc> m_descByIndex;
+			cnt::darray<const component::ComponentInfo*> m_infoByIndex;
+			cnt::darray<component::ComponentDesc> m_descByIndex;
 
 			ComponentCache() {
 				// Reserve enough storage space for most use-cases
@@ -43,20 +43,20 @@ namespace gaia {
 			//! Registers the component info for \tparam T. If it already exists it is returned.
 			//! \return Component info
 			template <typename T>
-			GAIA_NODISCARD GAIA_FORCEINLINE const comp::ComponentInfo& goc_comp_info() {
-				using U = typename comp::component_type_t<T>::Type;
-				const auto compId = comp::comp_id<T>();
+			GAIA_NODISCARD GAIA_FORCEINLINE const component::ComponentInfo& goc_comp_info() {
+				using U = typename component::component_type_t<T>::Type;
+				const auto componentId = component::comp_id<T>();
 
-				auto createInfo = [&]() GAIA_LAMBDAINLINE -> const comp::ComponentInfo& {
-					const auto* pInfo = comp::ComponentInfo::create<U>();
-					m_infoByIndex[compId] = pInfo;
-					m_descByIndex[compId] = comp::ComponentDesc::create<U>();
+				auto createInfo = [&]() GAIA_LAMBDAINLINE -> const component::ComponentInfo& {
+					const auto* pInfo = component::ComponentInfo::create<U>();
+					m_infoByIndex[componentId] = pInfo;
+					m_descByIndex[componentId] = component::ComponentDesc::create<U>();
 					return *pInfo;
 				};
 
-				if GAIA_UNLIKELY (compId >= m_infoByIndex.size()) {
+				if GAIA_UNLIKELY (componentId >= m_infoByIndex.size()) {
 					const auto oldSize = m_infoByIndex.size();
-					const auto newSize = compId + 1U;
+					const auto newSize = componentId + 1U;
 
 					// Increase the capacity by multiples of CapacityIncreaseSize
 					constexpr uint32_t CapacityIncreaseSize = 128;
@@ -74,38 +74,39 @@ namespace gaia {
 					return createInfo();
 				}
 
-				if GAIA_UNLIKELY (m_infoByIndex[compId] == nullptr) {
+				if GAIA_UNLIKELY (m_infoByIndex[componentId] == nullptr) {
 					return createInfo();
 				}
 
-				return *m_infoByIndex[compId];
+				return *m_infoByIndex[componentId];
 			}
 
-			//! Returns the component info given the \param compId.
+			//! Returns the component info given the \param componentId.
 			//! \warning It is expected the component info with a given component id exists! Undefined behavior otherwise.
 			//! \return Component info
-			GAIA_NODISCARD GAIA_FORCEINLINE const comp::ComponentInfo& comp_info(comp::ComponentId compId) const noexcept {
-				GAIA_ASSERT(compId < m_infoByIndex.size());
-				const auto* pInfo = m_infoByIndex[compId];
+			GAIA_NODISCARD GAIA_FORCEINLINE const component::ComponentInfo&
+			comp_info(component::ComponentId componentId) const noexcept {
+				GAIA_ASSERT(componentId < m_infoByIndex.size());
+				const auto* pInfo = m_infoByIndex[componentId];
 				GAIA_ASSERT(pInfo != nullptr);
 				return *pInfo;
 			}
 
-			//! Returns the component creation info given the \param compId.
+			//! Returns the component creation info given the \param componentId.
 			//! \warning It is expected the component info with a given component id exists! Undefined behavior otherwise.
 			//! \return Component info
-			GAIA_NODISCARD const comp::ComponentDesc& comp_desc(comp::ComponentId compId) const noexcept {
-				GAIA_ASSERT(compId < m_descByIndex.size());
-				return m_descByIndex[compId];
+			GAIA_NODISCARD const component::ComponentDesc& comp_desc(component::ComponentId componentId) const noexcept {
+				GAIA_ASSERT(componentId < m_descByIndex.size());
+				return m_descByIndex[componentId];
 			}
 
 			//! Returns the component info for \tparam T.
 			//! \warning It is expected the component already exists! Undefined behavior otherwise.
 			//! \return Component info
 			template <typename T>
-			GAIA_NODISCARD const comp::ComponentInfo& comp_info() const noexcept {
-				const auto compId = comp::comp_id<T>();
-				return comp_info(compId);
+			GAIA_NODISCARD const component::ComponentInfo& comp_info() const noexcept {
+				const auto componentId = component::comp_id<T>();
+				return comp_info(componentId);
 			}
 
 			void diag() const {
@@ -113,7 +114,7 @@ namespace gaia {
 				GAIA_LOG_N("Registered infos: %u", registeredTypes);
 
 				for (const auto& desc: m_descByIndex)
-					GAIA_LOG_N("  id:%010u, %.*s", desc.compId, (uint32_t)desc.name.size(), desc.name.data());
+					GAIA_LOG_N("  id:%010u, %.*s", desc.componentId, (uint32_t)desc.name.size(), desc.name.data());
 			}
 
 		private:

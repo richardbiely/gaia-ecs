@@ -5,8 +5,8 @@
 #include "../cnt/darray.h"
 #include "../cnt/sarray_ext.h"
 #include "../core/hashing_policy.h"
-#include "comp/component.h"
-#include "comp/component_utils.h"
+#include "component.h"
+#include "component_utils.h"
 
 namespace gaia {
 	namespace ecs {
@@ -29,9 +29,9 @@ namespace gaia {
 
 			using QueryId = uint32_t;
 			using LookupHash = core::direct_hash_key<uint64_t>;
-			using ComponentIdArray = cnt::sarray_ext<comp::ComponentId, MAX_COMPONENTS_IN_QUERY>;
+			using ComponentIdArray = cnt::sarray_ext<component::ComponentId, MAX_COMPONENTS_IN_QUERY>;
 			using ListTypeArray = cnt::sarray_ext<ListType, MAX_COMPONENTS_IN_QUERY>;
-			using ChangeFilterArray = cnt::sarray_ext<comp::ComponentId, MAX_COMPONENTS_IN_QUERY>;
+			using ChangeFilterArray = cnt::sarray_ext<component::ComponentId, MAX_COMPONENTS_IN_QUERY>;
 
 			static constexpr QueryId QueryIdBad = (QueryId)-1;
 
@@ -47,7 +47,7 @@ namespace gaia {
 					//! Filtering rules for the components
 					ListTypeArray rules;
 					//! List of component matcher hashes
-					comp::ComponentMatcherHash hash[ListType::LT_Count];
+					component::ComponentMatcherHash hash[ListType::LT_Count];
 					//! Array of indiices to the last checked archetype in the component-to-archetype map
 					cnt::darray<uint32_t> lastMatchedArchetypeIndex;
 					//! List of filtered components
@@ -57,7 +57,7 @@ namespace gaia {
 					uint8_t readWriteMask;
 					//! The number of components which are required for the query to match
 					uint8_t rulesAllCount;
-				} data[comp::ComponentType::CT_Count]{};
+				} data[component::ComponentType::CT_Count]{};
 				static_assert(MAX_COMPONENTS_IN_QUERY == 8); // Make sure that MAX_COMPONENTS_IN_QUERY can fit into m_rw
 
 				GAIA_NODISCARD bool operator==(const LookupCtx& other) const {
@@ -69,7 +69,7 @@ namespace gaia {
 					if (hashLookup != other.hashLookup)
 						return false;
 
-					for (uint32_t i = 0; i < comp::ComponentType::CT_Count; ++i) {
+					for (uint32_t i = 0; i < component::ComponentType::CT_Count; ++i) {
 						const auto& left = data[i];
 						const auto& right = other.data[i];
 
@@ -118,10 +118,10 @@ namespace gaia {
 
 			//! Sorts internal component arrays
 			inline void sort(LookupCtx& ctx) {
-				for (uint32_t i = 0; i < comp::ComponentType::CT_Count; ++i) {
+				for (uint32_t i = 0; i < component::ComponentType::CT_Count; ++i) {
 					auto& data = ctx.data[i];
 					// Make sure the read-write mask remains correct after sorting
-					core::sort(data.compIds, comp::SortComponentCond{}, [&](uint32_t left, uint32_t right) {
+					core::sort(data.compIds, component::SortComponentCond{}, [&](uint32_t left, uint32_t right) {
 						core::swap(data.compIds[left], data.compIds[right]);
 						core::swap(data.rules[left], data.rules[right]);
 
@@ -147,7 +147,7 @@ namespace gaia {
 				// Calculate the matcher hash
 				for (auto& data: ctx.data) {
 					for (uint32_t i = 0; i < data.rules.size(); ++i)
-						comp::matcher_hash(data.hash[data.rules[i]], data.compIds[i]);
+						component::matcher_hash(data.hash[data.rules[i]], data.compIds[i]);
 				}
 			}
 
@@ -157,7 +157,7 @@ namespace gaia {
 
 				LookupHash::Type hashLookup = 0;
 
-				for (uint32_t i = 0; i < comp::ComponentType::CT_Count; ++i) {
+				for (uint32_t i = 0; i < component::ComponentType::CT_Count; ++i) {
 					auto& data = ctx.data[i];
 
 					// Components
@@ -165,8 +165,8 @@ namespace gaia {
 						LookupHash::Type hash = 0;
 
 						const auto& compIds = data.compIds;
-						for (const auto compId: compIds)
-							hash = core::hash_combine(hash, (LookupHash::Type)compId);
+						for (const auto componentId: compIds)
+							hash = core::hash_combine(hash, (LookupHash::Type)componentId);
 						hash = core::hash_combine(hash, (LookupHash::Type)compIds.size());
 
 						hash = core::hash_combine(hash, (LookupHash::Type)data.readWriteMask);
@@ -190,8 +190,8 @@ namespace gaia {
 						LookupHash::Type hash = 0;
 
 						const auto& withChanged = data.withChanged;
-						for (auto compId: withChanged)
-							hash = core::hash_combine(hash, (LookupHash::Type)compId);
+						for (auto componentId: withChanged)
+							hash = core::hash_combine(hash, (LookupHash::Type)componentId);
 						hash = core::hash_combine(hash, (LookupHash::Type)withChanged.size());
 
 						hashLookup = core::hash_combine(hashLookup, hash);
