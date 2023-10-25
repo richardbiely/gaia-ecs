@@ -1,21 +1,21 @@
 #pragma once
-#include "../config/config_core.h"
+#include "../../config/config_core.h"
 
 #include <cinttypes>
 #include <tuple>
 #include <type_traits>
 
-#include "../core/span.h"
-#include "../core/utility.h"
-#include "../mem/data_layout_policy.h"
-#include "../mem/mem_utils.h"
-#include "../meta/reflection.h"
-#include "../meta/type_info.h"
+#include "../../core/span.h"
+#include "../../core/utility.h"
+#include "../../mem/data_layout_policy.h"
+#include "../../mem/mem_utils.h"
+#include "../../meta/reflection.h"
+#include "../../meta/type_info.h"
 #include "component.h"
 
 namespace gaia {
 	namespace ecs {
-		namespace component {
+		namespace comp {
 			struct ComponentDesc final {
 				using FuncCtor = void(void*, uint32_t);
 				using FuncDtor = void(void*, uint32_t);
@@ -40,7 +40,7 @@ namespace gaia {
 				//! Function to call when the component needs to swap
 				FuncSwap* func_swap = nullptr;
 				//! Unique component identifier
-				ComponentId componentId = ComponentIdBad;
+				ComponentId compId = ComponentIdBad;
 
 				static constexpr uint32_t MaxAlignment_Bits = 10;
 				static constexpr uint32_t MaxAlignment = (1U << MaxAlignment_Bits) - 1;
@@ -105,7 +105,7 @@ namespace gaia {
 
 					ComponentDesc info{};
 					info.name = meta::type_info::name<U>();
-					info.componentId = comp_id<T>();
+					info.compId = comp_id<T>();
 
 					if constexpr (!std::is_empty_v<U>) {
 						info.properties.size = (uint32_t)sizeof(U);
@@ -224,6 +224,6 @@ namespace gaia {
 					return ComponentDesc::build<U>();
 				}
 			};
-		} // namespace component
+		} // namespace comp
 	} // namespace ecs
 } // namespace gaia

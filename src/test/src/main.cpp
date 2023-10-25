@@ -163,9 +163,9 @@ TEST_CASE("Intrinsics") {
 }
 
 TEST_CASE("ComponentTypes") {
-	REQUIRE(ecs::component::component_type_v<uint32_t> == ecs::component::ComponentType::CT_Generic);
-	REQUIRE(ecs::component::component_type_v<Position> == ecs::component::ComponentType::CT_Generic);
-	REQUIRE(ecs::component::component_type_v<ecs::AsChunk<Position>> == ecs::component::ComponentType::CT_Chunk);
+	REQUIRE(ecs::comp::component_type_v<uint32_t> == ecs::comp::ComponentType::CT_Generic);
+	REQUIRE(ecs::comp::component_type_v<Position> == ecs::comp::ComponentType::CT_Generic);
+	REQUIRE(ecs::comp::component_type_v<ecs::AsChunk<Position>> == ecs::comp::ComponentType::CT_Chunk);
 }
 
 TEST_CASE("Memory allocation") {

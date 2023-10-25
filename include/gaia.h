@@ -36,7 +36,7 @@
 #include "gaia/ecs/chunk_allocator.h"
 #include "gaia/ecs/command_buffer.h"
 #include "gaia/ecs/common.h"
-#include "gaia/ecs/component.h"
+#include "gaia/ecs/comp/component.h"
 #include "gaia/ecs/component_getter.h"
 #include "gaia/ecs/component_setter.h"
 #include "gaia/ecs/entity.h"

@@ -2,7 +2,7 @@
 #include <cstdint>
 
 #include "chunk.h"
-#include "component.h"
+#include "comp/component.h"
 
 namespace gaia {
 	namespace ecs {
@@ -15,9 +15,9 @@ namespace gaia {
 			//! \return Value stored in the component.
 			template <typename T>
 			GAIA_NODISCARD auto get() const {
-				component::verify_comp<T>();
+				comp::verify_comp<T>();
 
-				if constexpr (component::component_type_v<T> == component::ComponentType::CT_Generic)
+				if constexpr (comp::component_type_v<T> == comp::ComponentType::CT_Generic)
 					return m_pChunk->template get<T>(m_idx);
 				else
 					return m_pChunk->template get<T>();
@@ -28,7 +28,7 @@ namespace gaia {
 			//! \return True if the component is present on entity.
 			template <typename T>
 			GAIA_NODISCARD bool has() const {
-				component::verify_comp<T>();
+				comp::verify_comp<T>();
 
 				return m_pChunk->template has<T>();
 			}
