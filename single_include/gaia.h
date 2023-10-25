@@ -17211,15 +17211,14 @@ namespace gaia {
 #include <type_traits>
 
 #include <cinttypes>
-#include <span>
 #include <type_traits>
 
 namespace gaia {
 	namespace ecs {
 		namespace detail {
 			template <typename Func>
-			void each(const uint32_t idxFrom, const uint32_t idxStop, Func&& func) noexcept {
-				if constexpr (std::is_invocable_v<Func&&, uint32_t>) {
+			void each(const uint32_t idxFrom, const uint32_t idxStop, Func func) noexcept {
+				if constexpr (std::is_invocable_v<Func, uint32_t>) {
 					for (auto i = idxFrom; i < idxStop; ++i)
 						func(i);
 				} else {
@@ -17258,7 +17257,7 @@ namespace gaia {
 			}
 
 			template <typename Func>
-			void each(Func&& func) noexcept {
+			void each(Func func) noexcept {
 				const auto idxFrom = 0;
 				const auto idxStop = m_chunk.size_disabled();
 				detail::each(idxFrom, idxStop, func);
@@ -17276,7 +17275,7 @@ namespace gaia {
 			}
 
 			template <typename Func>
-			void each(Func&& func) noexcept {
+			void each(Func func) noexcept {
 				const auto idxFrom = 0;
 				const auto idxStop = m_chunk.size();
 				detail::each(idxFrom, idxStop, func);
