@@ -14,10 +14,10 @@ namespace gaia {
 		namespace detail {
 			class ChunkAccessor {
 			protected:
-				archetype::Chunk& m_chunk;
+				Chunk& m_chunk;
 
 			public:
-				ChunkAccessor(archetype::Chunk& chunk): m_chunk(chunk) {}
+				ChunkAccessor(Chunk& chunk): m_chunk(chunk) {}
 
 				//! Checks if component \tparam T is present in the chunk.
 				//! \tparam T Component

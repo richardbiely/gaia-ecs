@@ -83,8 +83,8 @@ namespace gaia {
 			//! Writes \param value to the buffer
 			template <typename T>
 			void save_comp(T&& value) {
-				const auto componentId = component::comp_id<T>();
-				const auto& desc = ComponentCache::get().comp_desc(componentId);
+				const auto compId = comp_id<T>();
+				const auto& desc = ComponentCache::get().comp_desc(compId);
 				const bool isManualDestroyNeeded = desc.func_ctor_copy != nullptr || desc.func_ctor_move != nullptr;
 				constexpr bool isRValue = std::is_rvalue_reference_v<decltype(value)>;
 
@@ -124,11 +124,11 @@ namespace gaia {
 			}
 
 			//! Loads \param value from the buffer
-			void load_comp(void* pDst, component::ComponentId componentId) {
+			void load_comp(void* pDst, ComponentId compId) {
 				bool isManualDestroyNeeded = false;
 				load(isManualDestroyNeeded);
 
-				const auto& desc = ComponentCache::get().comp_desc(componentId);
+				const auto& desc = ComponentCache::get().comp_desc(compId);
 				GAIA_ASSERT(m_dataPos + desc.properties.size <= bytes());
 
 				auto* pSrc = (void*)&m_data[m_dataPos];

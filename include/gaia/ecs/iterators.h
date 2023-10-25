@@ -25,7 +25,7 @@ namespace gaia {
 		struct Iterator: public detail::ChunkAccessor {
 			using Iter = ChunkAccessorIt;
 
-			Iterator(archetype::Chunk& chunk) noexcept: detail::ChunkAccessor(chunk) {}
+			Iterator(Chunk& chunk) noexcept: detail::ChunkAccessor(chunk) {}
 
 			//! Returns the number of entities accessible via the iterator
 			GAIA_NODISCARD uint32_t size() const noexcept {
@@ -43,7 +43,7 @@ namespace gaia {
 		struct IteratorDisabled: public detail::ChunkAccessor {
 			using Iter = ChunkAccessorIt;
 
-			IteratorDisabled(archetype::Chunk& chunk) noexcept: detail::ChunkAccessor(chunk) {}
+			IteratorDisabled(Chunk& chunk) noexcept: detail::ChunkAccessor(chunk) {}
 
 			//! Returns the number of entities accessible via the iterator
 			GAIA_NODISCARD uint32_t size() const noexcept {
@@ -61,7 +61,7 @@ namespace gaia {
 		struct IteratorAll: public detail::ChunkAccessor {
 			using Iter = ChunkAccessorIt;
 
-			IteratorAll(archetype::Chunk& chunk) noexcept: detail::ChunkAccessor(chunk) {}
+			IteratorAll(Chunk& chunk) noexcept: detail::ChunkAccessor(chunk) {}
 
 			//! Returns the number of entities accessible via the iterator
 			GAIA_NODISCARD uint32_t size() const noexcept {

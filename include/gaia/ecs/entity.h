@@ -2,7 +2,6 @@
 #include "../cnt/ilist.h"
 #include "../config/config.h"
 
-
 #include <cinttypes>
 #include <type_traits>
 
@@ -99,9 +98,7 @@ namespace gaia {
 
 		inline constexpr EntityNull_t EntityNull{};
 
-		namespace archetype {
-			class Chunk;
-		}
+		class Chunk;
 
 		struct EntityContainer: cnt::ilist_item_base {
 			//! Allocated items: Index in the list.
@@ -112,7 +109,7 @@ namespace gaia {
 			//! Disabled
 			uint32_t dis : 1;
 			//! Chunk the entity currently resides in
-			archetype::Chunk* pChunk;
+			Chunk* pChunk;
 #if !GAIA_64
 			uint32_t pChunk_padding;
 #endif
