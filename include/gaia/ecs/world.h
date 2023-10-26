@@ -388,8 +388,8 @@ namespace gaia {
 			void store_entity(Entity entity, Chunk* pChunk) {
 				GAIA_ASSERT(pChunk != nullptr);
 				GAIA_ASSERT(
-						!pChunk->has_structural_changes() && "Entities can't be added while their chunk is being iterated "
-																								 "(structural changes are forbidden during this time!)");
+						!pChunk->locked() && "Entities can't be added while their chunk is being iterated "
+																 "(structural changes are forbidden during this time!)");
 
 				auto& entityContainer = m_entities[entity.id()];
 				entityContainer.pChunk = pChunk;
@@ -504,8 +504,8 @@ namespace gaia {
 
 				GAIA_ASSERT(pChunk != nullptr);
 				GAIA_ASSERT(
-						!pChunk->has_structural_changes() && "New components can't be added while their chunk is being iterated "
-																								 "(structural changes are forbidden during this time!)");
+						!pChunk->locked() && "New components can't be added while their chunk is being iterated "
+																 "(structural changes are forbidden during this time!)");
 
 				// Adding a component to an entity which already is a part of some chunk
 				{
@@ -537,8 +537,8 @@ namespace gaia {
 
 				GAIA_ASSERT(pChunk != nullptr);
 				GAIA_ASSERT(
-						!pChunk->has_structural_changes() && "Components can't be removed while their chunk is being iterated "
-																								 "(structural changes are forbidden during this time!)");
+						!pChunk->locked() && "Components can't be removed while their chunk is being iterated "
+																 "(structural changes are forbidden during this time!)");
 
 				auto& archetype = *m_archetypes[pChunk->archetype_id()];
 
@@ -750,7 +750,7 @@ namespace gaia {
 				auto& entityContainer = m_entities[entity.id()];
 
 				GAIA_ASSERT(
-						(!entityContainer.pChunk || !entityContainer.pChunk->has_structural_changes()) &&
+						(!entityContainer.pChunk || !entityContainer.pChunk->locked()) &&
 						"Entities can't be enabled/disabled while their chunk is being iterated "
 						"(structural changes are forbidden during this time!)");
 
