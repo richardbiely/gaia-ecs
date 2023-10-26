@@ -18268,33 +18268,26 @@ namespace gaia {
 						m_storage.m_queryId = QueryIdBad;
 				}
 
-				template <bool UseFilters, Constraints c, typename ChunksContainer>
+				template <bool UseFilters, typename Iter, typename ChunksContainer>
 				GAIA_NODISCARD bool has_entities_inter(QueryInfo& queryInfo, const ChunksContainer& chunks) {
 					return core::has_if(chunks, [&](Chunk* pChunk) {
+						Iter iter(*pChunk);
 						if constexpr (UseFilters) {
-							if constexpr (c == Constraints::AcceptAll)
-								return pChunk->has_entities() && match_filters(*pChunk, queryInfo);
-							else if constexpr (c == Constraints::EnabledOnly)
-								return pChunk->size_disabled() != pChunk->size() && match_filters(*pChunk, queryInfo);
-							else // if constexpr (c == Constraints::DisabledOnly)
-								return pChunk->size_disabled() > 0 && match_filters(*pChunk, queryInfo);
+							return iter.size() > 0 && match_filters(*pChunk, queryInfo);
 						} else {
-							if constexpr (c == Constraints::AcceptAll)
-								return pChunk->has_entities();
-							else if constexpr (c == Constraints::EnabledOnly)
-								return pChunk->size_disabled() != pChunk->size();
-							else // if constexpr (c == Constraints::DisabledOnly)
-								return pChunk->size_disabled() > 0;
+							return iter.size() > 0;
 						}
 					});
 				}
 
-				template <bool UseFilters, Constraints c, typename ChunksContainer>
+				template <bool UseFilters, typename Iter, typename ChunksContainer>
 				GAIA_NODISCARD uint32_t calc_entity_cnt_inter(QueryInfo& queryInfo, const ChunksContainer& chunks) {
 					uint32_t cnt = 0;
 
 					for (auto* pChunk: chunks) {
-						if (!pChunk->has_entities())
+						Iter iter(*pChunk);
+						const auto entityCnt = iter.size();
+						if (entityCnt == 0)
 							continue;
 
 						// Filters
@@ -18304,32 +18297,20 @@ namespace gaia {
 						}
 
 						// Entity count
-						if constexpr (c == Constraints::EnabledOnly)
-							cnt += pChunk->size_enabled();
-						else if constexpr (c == Constraints::DisabledOnly)
-							cnt += pChunk->size_disabled();
-						else
-							cnt += pChunk->size();
+						cnt += entityCnt;
 					}
 
 					return cnt;
 				}
 
-				template <bool UseFilters, Constraints c, typename ChunksContainerIn, typename ChunksContainerOut>
-				void arr_inter(QueryInfo& queryInfo, const ChunksContainerIn& chunks, ChunksContainerOut& outArray) {
-					using ContainerItemType = typename ChunksContainerOut::value_type;
+				template <bool UseFilters, typename Iter, typename ContainerOut>
+				void arr_inter(QueryInfo& queryInfo, const cnt::darray<Chunk*>& chunks, ContainerOut& outArray) {
+					using ContainerItemType = typename ContainerOut::value_type;
 
 					for (auto* pChunk: chunks) {
-						if (!pChunk->has_entities())
+						Iter iter(*pChunk);
+						if (iter.size() == 0)
 							continue;
-
-						if constexpr (c == Constraints::EnabledOnly) {
-							if (pChunk->has_disabled_entities())
-								continue;
-						} else if constexpr (c == Constraints::DisabledOnly) {
-							if (!pChunk->has_disabled_entities())
-								continue;
-						}
 
 						// Filters
 						if constexpr (UseFilters) {
@@ -18338,8 +18319,9 @@ namespace gaia {
 						}
 
 						const auto componentView = pChunk->template view<ContainerItemType>();
-						for (uint32_t i = 0; i < pChunk->size(); ++i)
+						iter.each([&](uint32_t i) {
 							outArray.push_back(componentView[i]);
+						});
 					}
 				}
 
@@ -18458,17 +18440,17 @@ namespace gaia {
 						switch (constraints) {
 							case Constraints::EnabledOnly: {
 								for (auto* pArchetype: queryInfo)
-									if (has_entities_inter<true, Constraints::EnabledOnly>(queryInfo, pArchetype->chunks()))
+									if (has_entities_inter<true, Iterator>(queryInfo, pArchetype->chunks()))
 										return true;
 							} break;
 							case Constraints::DisabledOnly: {
 								for (auto* pArchetype: queryInfo)
-									if (has_entities_inter<true, Constraints::DisabledOnly>(queryInfo, pArchetype->chunks()))
+									if (has_entities_inter<true, IteratorDisabled>(queryInfo, pArchetype->chunks()))
 										return true;
 							} break;
 							case Constraints::AcceptAll: {
 								for (auto* pArchetype: queryInfo)
-									if (has_entities_inter<true, Constraints::AcceptAll>(queryInfo, pArchetype->chunks()))
+									if (has_entities_inter<true, IteratorAll>(queryInfo, pArchetype->chunks()))
 										return true;
 							} break;
 						}
@@ -18476,17 +18458,17 @@ namespace gaia {
 						switch (constraints) {
 							case Constraints::EnabledOnly: {
 								for (auto* pArchetype: queryInfo)
-									if (has_entities_inter<false, Constraints::EnabledOnly>(queryInfo, pArchetype->chunks()))
+									if (has_entities_inter<false, Iterator>(queryInfo, pArchetype->chunks()))
 										return true;
 							} break;
 							case Constraints::DisabledOnly: {
 								for (auto* pArchetype: queryInfo)
-									if (has_entities_inter<false, Constraints::DisabledOnly>(queryInfo, pArchetype->chunks()))
+									if (has_entities_inter<false, IteratorDisabled>(queryInfo, pArchetype->chunks()))
 										return true;
 							} break;
 							case Constraints::AcceptAll: {
 								for (auto* pArchetype: queryInfo)
-									if (has_entities_inter<false, Constraints::AcceptAll>(queryInfo, pArchetype->chunks()))
+									if (has_entities_inter<false, IteratorAll>(queryInfo, pArchetype->chunks()))
 										return true;
 							} break;
 						}
@@ -18511,30 +18493,30 @@ namespace gaia {
 						switch (constraints) {
 							case Constraints::EnabledOnly: {
 								for (auto* pArchetype: queryInfo)
-									entCnt += calc_entity_cnt_inter<true, Constraints::EnabledOnly>(queryInfo, pArchetype->chunks());
+									entCnt += calc_entity_cnt_inter<true, Iterator>(queryInfo, pArchetype->chunks());
 							} break;
 							case Constraints::DisabledOnly: {
 								for (auto* pArchetype: queryInfo)
-									entCnt += calc_entity_cnt_inter<true, Constraints::DisabledOnly>(queryInfo, pArchetype->chunks());
+									entCnt += calc_entity_cnt_inter<true, IteratorDisabled>(queryInfo, pArchetype->chunks());
 							} break;
 							case Constraints::AcceptAll: {
 								for (auto* pArchetype: queryInfo)
-									entCnt += calc_entity_cnt_inter<true, Constraints::AcceptAll>(queryInfo, pArchetype->chunks());
+									entCnt += calc_entity_cnt_inter<true, IteratorAll>(queryInfo, pArchetype->chunks());
 							} break;
 						}
 					} else {
 						switch (constraints) {
 							case Constraints::EnabledOnly: {
 								for (auto* pArchetype: queryInfo)
-									entCnt += calc_entity_cnt_inter<false, Constraints::EnabledOnly>(queryInfo, pArchetype->chunks());
+									entCnt += calc_entity_cnt_inter<false, Iterator>(queryInfo, pArchetype->chunks());
 							} break;
 							case Constraints::DisabledOnly: {
 								for (auto* pArchetype: queryInfo)
-									entCnt += calc_entity_cnt_inter<false, Constraints::DisabledOnly>(queryInfo, pArchetype->chunks());
+									entCnt += calc_entity_cnt_inter<false, IteratorDisabled>(queryInfo, pArchetype->chunks());
 							} break;
 							case Constraints::AcceptAll: {
 								for (auto* pArchetype: queryInfo)
-									entCnt += calc_entity_cnt_inter<false, Constraints::AcceptAll>(queryInfo, pArchetype->chunks());
+									entCnt += calc_entity_cnt_inter<false, IteratorAll>(queryInfo, pArchetype->chunks());
 							} break;
 						}
 					}
@@ -18562,30 +18544,30 @@ namespace gaia {
 						switch (constraints) {
 							case Constraints::EnabledOnly:
 								for (auto* pArchetype: queryInfo)
-									arr_inter<true, Constraints::EnabledOnly>(queryInfo, pArchetype->chunks(), outArray);
+									arr_inter<true, Iterator>(queryInfo, pArchetype->chunks(), outArray);
 								break;
 							case Constraints::DisabledOnly:
 								for (auto* pArchetype: queryInfo)
-									arr_inter<true, Constraints::DisabledOnly>(queryInfo, pArchetype->chunks(), outArray);
+									arr_inter<true, IteratorDisabled>(queryInfo, pArchetype->chunks(), outArray);
 								break;
 							case Constraints::AcceptAll:
 								for (auto* pArchetype: queryInfo)
-									arr_inter<true, Constraints::AcceptAll>(queryInfo, pArchetype->chunks(), outArray);
+									arr_inter<true, IteratorAll>(queryInfo, pArchetype->chunks(), outArray);
 								break;
 						}
 					} else {
 						switch (constraints) {
 							case Constraints::EnabledOnly:
 								for (auto* pArchetype: queryInfo)
-									arr_inter<false, Constraints::EnabledOnly>(queryInfo, pArchetype->chunks(), outArray);
+									arr_inter<false, Iterator>(queryInfo, pArchetype->chunks(), outArray);
 								break;
 							case Constraints::DisabledOnly:
 								for (auto* pArchetype: queryInfo)
-									arr_inter<false, Constraints::DisabledOnly>(queryInfo, pArchetype->chunks(), outArray);
+									arr_inter<false, IteratorDisabled>(queryInfo, pArchetype->chunks(), outArray);
 								break;
 							case Constraints::AcceptAll:
 								for (auto* pArchetype: queryInfo)
-									arr_inter<false, Constraints::AcceptAll>(queryInfo, pArchetype->chunks(), outArray);
+									arr_inter<false, IteratorAll>(queryInfo, pArchetype->chunks(), outArray);
 								break;
 						}
 					}
