@@ -122,7 +122,7 @@ namespace gaia {
 			*/
 			template <typename T>
 			GAIA_NODISCARD GAIA_FORCEINLINE auto view_inter() const -> decltype(std::span<const uint8_t>{}) {
-				using U = typename component_kind_t<T>::Kind;
+				using U = typename component_type_t<T>::Type;
 
 				if constexpr (std::is_same_v<U, Entity>) {
 					return {&data(m_header.offsets.firstByte_EntityData), size()};
@@ -159,7 +159,7 @@ namespace gaia {
 			*/
 			template <typename T, bool WorldVersionUpdateWanted>
 			GAIA_NODISCARD GAIA_FORCEINLINE auto view_mut_inter() -> decltype(std::span<uint8_t>{}) {
-				using U = typename component_kind_t<T>::Kind;
+				using U = typename component_type_t<T>::Type;
 #if GAIA_COMPILER_MSVC && _MSC_VER <= 1916
 				// Workaround for MSVC 2017 bug where it incorrectly evaluates the static assert
 				// even in context where it shouldn't.
@@ -204,7 +204,7 @@ namespace gaia {
 			*/
 			template <typename T>
 			GAIA_NODISCARD auto comp_inter(uint32_t index) const {
-				using U = typename component_kind_t<T>::Kind;
+				using U = typename component_type_t<T>::Type;
 				using RetValueType = decltype(view<T>()[0]);
 
 				GAIA_ASSERT(index < m_header.count);
@@ -335,7 +335,7 @@ namespace gaia {
 			*/
 			template <typename T>
 			GAIA_NODISCARD auto view() const {
-				using U = typename component_kind_t<T>::Kind;
+				using U = typename component_type_t<T>::Type;
 
 				return mem::auto_view_policy_get<U>{view_inter<T>()};
 			}
@@ -348,7 +348,7 @@ namespace gaia {
 			*/
 			template <typename T>
 			GAIA_NODISCARD auto view_mut() {
-				using U = typename component_kind_t<T>::Kind;
+				using U = typename component_type_t<T>::Type;
 				static_assert(!std::is_same_v<U, Entity>);
 
 				return mem::auto_view_policy_set<U>{view_mut_inter<T, true>()};
@@ -363,10 +363,51 @@ namespace gaia {
 			*/
 			template <typename T>
 			GAIA_NODISCARD auto sview_mut() {
-				using U = typename component_kind_t<T>::Kind;
+				using U = typename component_type_t<T>::Type;
 				static_assert(!std::is_same_v<U, Entity>);
 
 				return mem::auto_view_policy_set<U>{view_mut_inter<T, false>()};
+			}
+
+			/*!
+			Returns eiterh a mutable or immutable entity/component view based on the requested type.
+			Value and const types are considered immutable. Anything else is mutable.
+			\warning If \tparam T is a component it is expected to be present. Undefined behavior otherwise.
+			\tparam T Component or Entity
+			\return Entity or component view
+			*/
+			template <typename T>
+			GAIA_NODISCARD auto view_auto() {
+				using U = typename component_type_t<T>::Type;
+				using UOriginal = typename component_type_t<T>::TypeOriginal;
+				if constexpr (is_component_mut_v<UOriginal>) {
+					auto s = view_mut_inter<U, true>();
+					return std::span{(U*)s.data(), s.size()};
+				} else {
+					auto s = view_inter<U>();
+					return std::span{(const U*)s.data(), s.size()};
+				}
+			}
+
+			/*!
+			Returns eiterh a mutable or immutable entity/component view based on the requested type.
+			Value and const types are considered immutable. Anything else is mutable.
+			Doesn't update the world version when read-write access is aquired.
+			\warning If \tparam T is a component it is expected to be present. Undefined behavior otherwise.
+			\tparam T Component or Entity
+			\return Entity or component view
+			*/
+			template <typename T>
+			GAIA_NODISCARD auto sview_auto() {
+				using U = typename component_type_t<T>::Type;
+				using UOriginal = typename component_type_t<T>::TypeOriginal;
+				if constexpr (is_component_mut_v<UOriginal>) {
+					auto s = view_mut_inter<U, false>();
+					return std::span{(U*)s.data(), s.size()};
+				} else {
+					auto s = view_inter<U>();
+					return std::span{(const U*)s.data(), s.size()};
+				}
 			}
 
 			/*!
@@ -943,7 +984,7 @@ namespace gaia {
 			\param index Index of entity in the chunk
 			\param value Value to set for the component
 			*/
-			template <typename T, typename U = typename component_kind_t<T>::Kind>
+			template <typename T, typename U = typename component_type_t<T>::Type>
 			U& set(uint32_t index) {
 				static_assert(
 						component_kind_v<T> == ComponentKind::CK_Generic,
@@ -963,7 +1004,7 @@ namespace gaia {
 			\param index Index of entity in the chunk
 			\param value Value to set for the component
 			*/
-			template <typename T, typename U = typename component_kind_t<T>::Kind>
+			template <typename T, typename U = typename component_type_t<T>::Type>
 			U& set() {
 				// Update the world version
 				update_version(m_header.worldVersion);
@@ -979,7 +1020,7 @@ namespace gaia {
 			\param index Index of entity in the chunk
 			\param value Value to set for the component
 			*/
-			template <typename T, typename U = typename component_kind_t<T>::Kind>
+			template <typename T, typename U = typename component_type_t<T>::Type>
 			void set(uint32_t index, U&& value) {
 				static_assert(
 						component_kind_v<T> == ComponentKind::CK_Generic,
@@ -998,7 +1039,7 @@ namespace gaia {
 			\tparam T Component
 			\param value Value to set for the component
 			*/
-			template <typename T, typename U = typename component_kind_t<T>::Kind>
+			template <typename T, typename U = typename component_type_t<T>::Type>
 			void set(U&& value) {
 				static_assert(
 						component_kind_v<T> != ComponentKind::CK_Generic,
@@ -1019,7 +1060,7 @@ namespace gaia {
 			\param index Index of entity in the chunk
 			\param value Value to set for the component
 			*/
-			template <typename T, typename U = typename component_kind_t<T>::Kind>
+			template <typename T, typename U = typename component_type_t<T>::Type>
 			void sset(uint32_t index, U&& value) {
 				static_assert(
 						component_kind_v<T> == ComponentKind::CK_Generic,
@@ -1036,7 +1077,7 @@ namespace gaia {
 			\tparam T Component
 			\param value Value to set for the component
 			*/
-			template <typename T, typename U = typename component_kind_t<T>::Kind>
+			template <typename T, typename U = typename component_type_t<T>::Type>
 			void sset(U&& value) {
 				static_assert(
 						component_kind_v<T> != ComponentKind::CK_Generic,
@@ -1092,52 +1133,6 @@ namespace gaia {
 				const auto idx = core::get_index_unsafe(compIds, compId);
 				GAIA_ASSERT(idx != BadIndex);
 				return idx;
-			}
-
-			//----------------------------------------------------------------------
-			// Iteration
-			//----------------------------------------------------------------------
-
-			template <typename T>
-			GAIA_NODISCARD constexpr GAIA_FORCEINLINE auto comp_view() {
-				using U = typename component_kind_t<T>::Kind;
-				using UOriginal = typename component_kind_t<T>::KindOriginal;
-				if constexpr (is_component_mut_v<UOriginal>) {
-					auto s = view_mut_inter<U, true>();
-					return std::span{(U*)s.data(), s.size()};
-				} else {
-					auto s = view_inter<U>();
-					return std::span{(const U*)s.data(), s.size()};
-				}
-			}
-
-			template <typename... T, typename Func>
-			GAIA_FORCEINLINE void each([[maybe_unused]] core::func_type_list<T...> types, Func func) {
-				const uint32_t idxFrom = m_header.firstEnabledEntityIndex;
-				const uint32_t idxStop = m_header.count;
-				GAIA_ASSERT(idxStop > idxFrom);
-				GAIA_ASSERT(idxStop > 0);
-
-				if constexpr (sizeof...(T) > 0) {
-					// Pointers to the respective component types in the chunk, e.g
-					// 		q.each([&](Position& p, const Velocity& v) {...}
-					// Translates to:
-					//  	auto p = iter.view_mut_inter<Position, true>();
-					//		auto v = iter.view_inter<Velocity>();
-					auto dataPointerTuple = std::make_tuple(comp_view<T>()...);
-
-					// Iterate over each entity in the chunk.
-					// Translates to:
-					//		for (uint32_t i: iter)
-					//			func(p[i], v[i]);
-
-					for (uint32_t i = idxFrom; i < idxStop; ++i)
-						func(std::get<decltype(comp_view<T>())>(dataPointerTuple)[i]...);
-				} else {
-					// No functor parameters. Do an empty loop.
-					for (uint32_t i = idxFrom; i < idxStop; ++i)
-						func();
-				}
 			}
 
 			//----------------------------------------------------------------------

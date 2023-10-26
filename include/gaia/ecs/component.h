@@ -36,43 +36,43 @@ namespace gaia {
 			template <typename, typename = void>
 			struct has_component_kind: std::false_type {};
 			template <typename T>
-			struct has_component_kind<T, std::void_t<decltype(T::TComponentKind)>>: std::true_type {};
+			struct has_component_kind<T, std::void_t<decltype(T::Kind)>>: std::true_type {};
 
 			template <typename T>
-			struct ExtractComponentKind_NoComponentKind {
-				using Kind = typename std::decay_t<typename std::remove_pointer_t<T>>;
-				using KindOriginal = T;
-				static constexpr ComponentKind TComponentKind = ComponentKind::CK_Generic;
+			struct ExtractComponentType_NoComponentKind {
+				using Type = typename std::decay_t<typename std::remove_pointer_t<T>>;
+				using TypeOriginal = T;
+				static constexpr ComponentKind Kind = ComponentKind::CK_Generic;
 			};
 			template <typename T>
-			struct ExtractComponentKind_WithComponentKind {
-				using Kind = typename T::TKind;
-				using KindOriginal = typename T::TKindOriginal;
-				static constexpr ComponentKind TComponentKind = T::TComponentKind;
+			struct ExtractComponentType_WithComponentKind {
+				using Type = typename T::TKind;
+				using TypeOriginal = typename T::TTypeOriginal;
+				static constexpr ComponentKind Kind = T::Kind;
 			};
 
 			template <typename, typename = void>
 			struct is_generic_component: std::true_type {};
 			template <typename T>
-			struct is_generic_component<T, std::void_t<decltype(T::TComponentKind)>>:
-					std::bool_constant<T::TComponentKind == ComponentKind::CK_Generic> {};
+			struct is_generic_component<T, std::void_t<decltype(T::Kind)>>:
+					std::bool_constant<T::Kind == ComponentKind::CK_Generic> {};
 
 			template <typename T>
 			struct is_component_size_valid: std::bool_constant<sizeof(T) < MAX_COMPONENTS_SIZE_IN_BYTES> {};
 
 			template <typename T>
-			struct is_component_kind_valid:
+			struct is_component_type_valid:
 					std::bool_constant<
 							// SoA types need to be trivial. No restrictions otherwise.
 							(!mem::is_soa_layout_v<T> || std::is_trivially_copyable_v<T>)> {};
 
 			template <typename T, typename = void>
-			struct component_kind {
-				using type = typename detail::ExtractComponentKind_NoComponentKind<T>;
+			struct component_type {
+				using type = typename detail::ExtractComponentType_NoComponentKind<T>;
 			};
 			template <typename T>
-			struct component_kind<T, std::void_t<decltype(T::TComponentKind)>> {
-				using type = typename detail::ExtractComponentKind_WithComponentKind<T>;
+			struct component_type<T, std::void_t<decltype(T::Kind)>> {
+				using type = typename detail::ExtractComponentType_WithComponentKind<T>;
 			};
 
 			template <typename T>
@@ -85,18 +85,18 @@ namespace gaia {
 		template <typename T>
 		inline constexpr bool is_component_size_valid_v = detail::is_component_size_valid<T>::value;
 		template <typename T>
-		inline constexpr bool is_component_kind_valid_v = detail::is_component_kind_valid<T>::value;
+		inline constexpr bool is_component_type_valid_v = detail::is_component_type_valid<T>::value;
 
 		template <typename T>
-		using component_kind_t = typename detail::component_kind<T>::type;
+		using component_type_t = typename detail::component_type<T>::type;
 		template <typename T>
-		inline constexpr ComponentKind component_kind_v = component_kind_t<T>::TComponentKind;
+		inline constexpr ComponentKind component_kind_v = component_type_t<T>::Kind;
 
 		//! Returns the component id for \tparam T
 		//! \return Component id
 		template <typename T>
 		GAIA_NODISCARD inline ComponentId comp_id() {
-			using U = typename component_kind_t<T>::Kind;
+			using U = typename component_type_t<T>::Type;
 			return meta::type_info::id<U>();
 		}
 
@@ -109,14 +109,14 @@ namespace gaia {
 
 		template <typename T>
 		constexpr void verify_comp() {
-			using U = typename component_kind_t<T>::Kind;
+			using U = typename component_type_t<T>::Type;
 			// Make sure we only use this for "raw" types
 			static_assert(!std::is_const_v<U>);
 			static_assert(!std::is_pointer_v<U>);
 			static_assert(!std::is_reference_v<U>);
 			static_assert(!std::is_volatile_v<U>);
 			static_assert(is_component_size_valid_v<U>, "MAX_COMPONENTS_SIZE_IN_BYTES in bytes is exceeded");
-			static_assert(is_component_kind_valid_v<U>, "Component type restrictions not met");
+			static_assert(is_component_type_valid_v<U>, "Component type restrictions not met");
 		}
 
 		//----------------------------------------------------------------------
@@ -181,8 +181,8 @@ namespace gaia {
 		template <typename T>
 		struct AsChunk {
 			using TKind = typename std::decay_t<typename std::remove_pointer_t<T>>;
-			using TKindOriginal = T;
-			static constexpr ComponentKind TComponentKind = ComponentKind::CK_Chunk;
+			using TTypeOriginal = T;
+			static constexpr ComponentKind Kind = ComponentKind::CK_Chunk;
 		};
 	} // namespace ecs
 } // namespace gaia

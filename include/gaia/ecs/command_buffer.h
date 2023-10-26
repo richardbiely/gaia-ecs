@@ -309,7 +309,7 @@ namespace gaia {
 				// Make sure the component is registered
 				const auto& info = ComponentCache::get().goc_comp_info<T>();
 
-				using U = typename component_kind_t<T>::Kind;
+				using U = typename component_type_t<T>::Type;
 				verify_comp<U>();
 
 				m_ctx.save(ADD_COMPONENT);
@@ -329,7 +329,7 @@ namespace gaia {
 				// Make sure the component is registered
 				const auto& info = ComponentCache::get().goc_comp_info<T>();
 
-				using U = typename component_kind_t<T>::Kind;
+				using U = typename component_type_t<T>::Type;
 				verify_comp<U>();
 
 				m_ctx.save(ADD_COMPONENT_TO_TEMPENTITY);
@@ -349,7 +349,7 @@ namespace gaia {
 				// Make sure the component is registered
 				const auto& info = ComponentCache::get().goc_comp_info<T>();
 
-				using U = typename component_kind_t<T>::Kind;
+				using U = typename component_type_t<T>::Type;
 				verify_comp<U>();
 
 				m_ctx.save(ADD_COMPONENT_DATA);
@@ -370,7 +370,7 @@ namespace gaia {
 				// Make sure the component is registered
 				const auto& info = ComponentCache::get().goc_comp_info<T>();
 
-				using U = typename component_kind_t<T>::Kind;
+				using U = typename component_type_t<T>::Type;
 				verify_comp<U>();
 
 				m_ctx.save(ADD_COMPONENT_TO_TEMPENTITY_DATA);
@@ -392,7 +392,7 @@ namespace gaia {
 				// If we want to set the value of a component we must have created it already.
 				// (void)ComponentCache::get().comp_info<T>();
 
-				using U = typename component_kind_t<T>::Kind;
+				using U = typename component_type_t<T>::Type;
 				verify_comp<U>();
 
 				m_ctx.save(SET_COMPONENT);
@@ -415,7 +415,7 @@ namespace gaia {
 				// If we want to set the value of a component we must have created it already.
 				// (void)ComponentCache::get().goc_comp_info<T>();
 
-				using U = typename component_kind_t<T>::Kind;
+				using U = typename component_type_t<T>::Type;
 				verify_comp<U>();
 
 				m_ctx.save(SET_COMPONENT_FOR_TEMPENTITY);
@@ -437,7 +437,7 @@ namespace gaia {
 				// If we want to remove a component we must have created it already.
 				// (void)ComponentCache::get().goc_comp_info<T>();
 
-				using U = typename component_kind_t<T>::Kind;
+				using U = typename component_type_t<T>::Type;
 				verify_comp<U>();
 
 				m_ctx.save(REMOVE_COMPONENT);

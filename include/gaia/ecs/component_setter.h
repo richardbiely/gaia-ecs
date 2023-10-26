@@ -14,7 +14,7 @@ namespace gaia {
 			//! \tparam T Component
 			//! \param value Value to set for the component
 			//! \return ComponentSetter
-			template <typename T, typename U = typename component_kind_t<T>::Kind>
+			template <typename T, typename U = typename component_type_t<T>::Type>
 			U& set() {
 				verify_comp<T>();
 
@@ -28,7 +28,7 @@ namespace gaia {
 			//! \tparam T Component
 			//! \param value Value to set for the component
 			//! \return ComponentSetter
-			template <typename T, typename U = typename component_kind_t<T>::Kind>
+			template <typename T, typename U = typename component_type_t<T>::Type>
 			ComponentSetter& set(U&& data) {
 				verify_comp<T>();
 
@@ -43,7 +43,7 @@ namespace gaia {
 			//! \tparam T Component
 			//! \param value Value to set for the component
 			//! \return ComponentSetter
-			template <typename T, typename U = typename component_kind_t<T>::Kind>
+			template <typename T, typename U = typename component_type_t<T>::Type>
 			ComponentSetter& sset(U&& data) {
 				verify_comp<T>();
 

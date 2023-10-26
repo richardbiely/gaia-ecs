@@ -59,8 +59,8 @@ namespace gaia {
 
 			template <typename T>
 			bool has_inter(QueryListType listType) const {
-				using U = typename component_kind_t<T>::Kind;
-				using UOriginal = typename component_kind_t<T>::KindOriginal;
+				using U = typename component_type_t<T>::Type;
+				using UOriginal = typename component_type_t<T>::TypeOriginal;
 				using UOriginalPR = std::remove_reference_t<std::remove_pointer_t<UOriginal>>;
 				constexpr bool isReadWrite =
 						std::is_same_v<U, UOriginal> || (!std::is_const_v<UOriginalPR> && !std::is_empty_v<U>);

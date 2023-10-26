@@ -44,7 +44,7 @@ namespace gaia {
 			//! \return Component info
 			template <typename T>
 			GAIA_NODISCARD GAIA_FORCEINLINE const ComponentInfo& goc_comp_info() {
-				using U = typename component_kind_t<T>::Kind;
+				using U = typename component_type_t<T>::Type;
 				const auto compId = comp_id<T>();
 
 				auto createInfo = [&]() GAIA_LAMBDAINLINE -> const ComponentInfo& {

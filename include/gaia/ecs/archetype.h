@@ -387,7 +387,7 @@ namespace gaia {
 			}
 
 			/*!
-			Removes a chunk from the list of chunks managed by their achetype.
+			Removes a chunk from the list of chunks managed by their archetype.
 			\param pChunk Chunk to remove from the list of managed archetypes
 			*/
 			void remove_chunk(Chunk* pChunk) {

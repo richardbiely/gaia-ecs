@@ -167,7 +167,7 @@ namespace gaia {
 				SerializationBuffer m_serBuffer;
 				//! World version (stable pointer to parent world's world version)
 				uint32_t* m_worldVersion{};
-				//! List of achetypes (stable pointer to parent world's archetype array)
+				//! List of archetypes (stable pointer to parent world's archetype array)
 				const ArchetypeList* m_archetypes{};
 				//! Map of component ids to archetypes (stable pointer to parent world's archetype component-to-archetype map)
 				const ComponentToArchetypeMap* m_componentToArchetypeMap{};
@@ -210,8 +210,8 @@ namespace gaia {
 			private:
 				template <typename T>
 				void add_inter(QueryListType listType) {
-					using U = typename component_kind_t<T>::Kind;
-					using UOriginal = typename component_kind_t<T>::KindOriginal;
+					using U = typename component_type_t<T>::Type;
+					using UOriginal = typename component_type_t<T>::TypeOriginal;
 					using UOriginalPR = std::remove_reference_t<std::remove_pointer_t<UOriginal>>;
 
 					const auto compId = comp_id<T>();
@@ -392,10 +392,9 @@ namespace gaia {
 					}
 				}
 
-				template <bool HasFilters, typename Func>
+				template <bool HasFilters, bool EnabledOnly, typename Func>
 				void run_query_constrained(
-						Func func, ChunkBatchedList& chunkBatch, const cnt::darray<Chunk*>& chunks, const QueryInfo& queryInfo,
-						bool enabledOnly) {
+						Func func, ChunkBatchedList& chunkBatch, const cnt::darray<Chunk*>& chunks, const QueryInfo& queryInfo) {
 					uint32_t chunkOffset = 0;
 					uint32_t itemsLeft = chunks.size();
 					while (itemsLeft > 0) {
@@ -407,10 +406,13 @@ namespace gaia {
 							if (!pChunk->has_entities())
 								continue;
 
-							if (enabledOnly && !pChunk->has_enabled_entities())
-								continue;
-							if (!enabledOnly && !pChunk->has_disabled_entities())
-								continue;
+							if constexpr (EnabledOnly) {
+								if (!pChunk->has_enabled_entities())
+									continue;
+							} else {
+								if (!pChunk->has_disabled_entities())
+									continue;
+							}
 
 							if constexpr (HasFilters) {
 								if (!match_filters(*pChunk, queryInfo))
@@ -428,8 +430,8 @@ namespace gaia {
 					}
 				}
 
-				template <typename Func>
-				void run_query_on_chunks(QueryInfo& queryInfo, Constraints constraints, Func func) {
+				template <typename Iter, typename Func>
+				void run_query_on_chunks(QueryInfo& queryInfo, Func func) {
 					// Update the world version
 					update_version(*m_worldVersion);
 
@@ -438,22 +440,22 @@ namespace gaia {
 					const bool hasFilters = queryInfo.has_filters();
 					if (hasFilters) {
 						// Evaluation defaults to EnabledOnly changes. AcceptAll is something that has to be asked for explicitely
-						if GAIA_UNLIKELY (constraints == Constraints::AcceptAll) {
+						if constexpr (std::is_same_v<Iter, IteratorAll>) {
 							for (auto* pArchetype: queryInfo)
 								run_query_unconstrained<true>(func, chunkBatch, pArchetype->chunks(), queryInfo);
 						} else {
-							const bool enabledOnly = constraints == Constraints::EnabledOnly;
+							constexpr bool enabledOnly = std::is_same_v<Iter, Iterator>;
 							for (auto* pArchetype: queryInfo)
-								run_query_constrained<true>(func, chunkBatch, pArchetype->chunks(), queryInfo, enabledOnly);
+								run_query_constrained<true, enabledOnly>(func, chunkBatch, pArchetype->chunks(), queryInfo);
 						}
 					} else {
-						if GAIA_UNLIKELY (constraints == Constraints::AcceptAll) {
+						if constexpr (std::is_same_v<Iter, IteratorAll>) {
 							for (auto* pArchetype: queryInfo)
 								run_query_unconstrained<false>(func, chunkBatch, pArchetype->chunks(), queryInfo);
 						} else {
-							const bool enabledOnly = constraints == Constraints::EnabledOnly;
+							constexpr bool enabledOnly = std::is_same_v<Iter, Iterator>;
 							for (auto* pArchetype: queryInfo)
-								run_query_constrained<false>(func, chunkBatch, pArchetype->chunks(), queryInfo, enabledOnly);
+								run_query_constrained<false, enabledOnly>(func, chunkBatch, pArchetype->chunks(), queryInfo);
 						}
 					}
 
@@ -464,23 +466,130 @@ namespace gaia {
 					queryInfo.set_world_version(*m_worldVersion);
 				}
 
+				template <typename Iter, typename Func, typename... T>
+				GAIA_FORCEINLINE void
+				run_query_on_chunk(Chunk& chunk, Func func, [[maybe_unused]] core::func_type_list<T...> types) {
+					if constexpr (sizeof...(T) > 0) {
+						// Pointers to the respective component types in the chunk, e.g
+						// 		q.each([&](Position& p, const Velocity& v) {...}
+						// Translates to:
+						//  	auto p = iter.view_mut_inter<Position, true>();
+						//		auto v = iter.view_inter<Velocity>();
+						auto dataPointerTuple = std::make_tuple(chunk.view_auto<T>()...);
+
+						// Iterate over each entity in the chunk.
+						// Translates to:
+						//		for (uint32_t i: iter)
+						//			func(p[i], v[i]);
+
+						Iter iter(chunk);
+						iter.each([&](uint32_t i) {
+							func(std::get<decltype(chunk.view_auto<T>())>(dataPointerTuple)[i]...);
+						});
+					} else {
+						// No functor parameters. Do an empty loop.
+						Iter iter(chunk);
+						iter.each([&](uint32_t i) {
+							func();
+						});
+					}
+				}
+
 				template <typename Func>
 				void each_inter(QueryInfo& queryInfo, Func func) {
 					using InputArgs = decltype(core::func_args(&Func::operator()));
 
+					// Entity and/or components provided as a type
+					{
 #if GAIA_DEBUG
-					// Make sure we only use components specified in the query
-					GAIA_ASSERT(unpack_args_into_query_has_all(queryInfo, InputArgs{}));
+						// Make sure we only use components specified in the query
+						GAIA_ASSERT(unpack_args_into_query_has_all(queryInfo, InputArgs{}));
 #endif
 
-					run_query_on_chunks(queryInfo, Constraints::EnabledOnly, [&](Chunk& chunk) {
-						chunk.each(InputArgs{}, func);
-					});
+						run_query_on_chunks<Iterator>(queryInfo, [&](Chunk& chunk) {
+							run_query_on_chunk<Iterator>(chunk, func, InputArgs{});
+						});
+					}
 				}
 
 				void invalidate() {
 					if constexpr (UseCaching)
 						m_storage.m_queryId = QueryIdBad;
+				}
+
+				template <bool UseFilters, Constraints c, typename ChunksContainer>
+				GAIA_NODISCARD bool has_entities_inter(QueryInfo& queryInfo, const ChunksContainer& chunks) {
+					return core::has_if(chunks, [&](Chunk* pChunk) {
+						if constexpr (UseFilters) {
+							if constexpr (c == Constraints::AcceptAll)
+								return pChunk->has_entities() && match_filters(*pChunk, queryInfo);
+							else if constexpr (c == Constraints::EnabledOnly)
+								return pChunk->size_disabled() != pChunk->size() && match_filters(*pChunk, queryInfo);
+							else // if constexpr (c == Constraints::DisabledOnly)
+								return pChunk->size_disabled() > 0 && match_filters(*pChunk, queryInfo);
+						} else {
+							if constexpr (c == Constraints::AcceptAll)
+								return pChunk->has_entities();
+							else if constexpr (c == Constraints::EnabledOnly)
+								return pChunk->size_disabled() != pChunk->size();
+							else // if constexpr (c == Constraints::DisabledOnly)
+								return pChunk->size_disabled() > 0;
+						}
+					});
+				}
+
+				template <bool UseFilters, Constraints c, typename ChunksContainer>
+				GAIA_NODISCARD uint32_t calc_entity_cnt_inter(QueryInfo& queryInfo, const ChunksContainer& chunks) {
+					uint32_t cnt = 0;
+
+					for (auto* pChunk: chunks) {
+						if (!pChunk->has_entities())
+							continue;
+
+						// Filters
+						if constexpr (UseFilters) {
+							if (!match_filters(*pChunk, queryInfo))
+								continue;
+						}
+
+						// Entity count
+						if constexpr (c == Constraints::EnabledOnly)
+							cnt += pChunk->size_enabled();
+						else if constexpr (c == Constraints::DisabledOnly)
+							cnt += pChunk->size_disabled();
+						else
+							cnt += pChunk->size();
+					}
+
+					return cnt;
+				}
+
+				template <bool UseFilters, Constraints c, typename ChunksContainerIn, typename ChunksContainerOut>
+				void arr_inter(QueryInfo& queryInfo, const ChunksContainerIn& chunks, ChunksContainerOut& outArray) {
+					using ContainerItemType = typename ChunksContainerOut::value_type;
+
+					for (auto* pChunk: chunks) {
+						if (!pChunk->has_entities())
+							continue;
+
+						if constexpr (c == Constraints::EnabledOnly) {
+							if (pChunk->has_disabled_entities())
+								continue;
+						} else if constexpr (c == Constraints::DisabledOnly) {
+							if (!pChunk->has_disabled_entities())
+								continue;
+						}
+
+						// Filters
+						if constexpr (UseFilters) {
+							if (!match_filters(*pChunk, queryInfo))
+								continue;
+						}
+
+						const auto componentView = pChunk->template view<ContainerItemType>();
+						for (uint32_t i = 0; i < pChunk->size(); ++i)
+							outArray.push_back(componentView[i]);
+					}
 				}
 
 			public:
@@ -557,16 +666,16 @@ namespace gaia {
 				void each(Func func) {
 					auto& queryInfo = fetch_query_info();
 
-					if constexpr (std::is_invocable<Func, IteratorAll>::value)
-						run_query_on_chunks(queryInfo, Constraints::AcceptAll, [&](Chunk& chunk) {
+					if constexpr (std::is_invocable_v<Func, IteratorAll>)
+						run_query_on_chunks<IteratorAll>(queryInfo, [&](Chunk& chunk) {
 							func(IteratorAll(chunk));
 						});
-					else if constexpr (std::is_invocable<Func, Iterator>::value)
-						run_query_on_chunks(queryInfo, Constraints::EnabledOnly, [&](Chunk& chunk) {
+					else if constexpr (std::is_invocable_v<Func, Iterator>)
+						run_query_on_chunks<Iterator>(queryInfo, [&](Chunk& chunk) {
 							func(Iterator(chunk));
 						});
-					else if constexpr (std::is_invocable<Func, IteratorDisabled>::value)
-						run_query_on_chunks(queryInfo, Constraints::DisabledOnly, [&](Chunk& chunk) {
+					else if constexpr (std::is_invocable_v<Func, IteratorDisabled>)
+						run_query_on_chunks<IteratorDisabled>(queryInfo, [&](Chunk& chunk) {
 							func(IteratorDisabled(chunk));
 						});
 					else
@@ -581,81 +690,6 @@ namespace gaia {
 
 					auto& queryInfo = m_storage.m_entityQueryCache->get(queryId);
 					each_inter(queryInfo, func);
-				}
-
-				template <bool UseFilters, Constraints c, typename ChunksContainer>
-				GAIA_NODISCARD bool has_entities_inter(QueryInfo& queryInfo, const ChunksContainer& chunks) {
-					return core::has_if(chunks, [&](Chunk* pChunk) {
-						if constexpr (UseFilters) {
-							if constexpr (c == Constraints::AcceptAll)
-								return pChunk->has_entities() && match_filters(*pChunk, queryInfo);
-							else if constexpr (c == Constraints::EnabledOnly)
-								return pChunk->size_disabled() != pChunk->size() && match_filters(*pChunk, queryInfo);
-							else // if constexpr (c == Constraints::DisabledOnly)
-								return pChunk->size_disabled() > 0 && match_filters(*pChunk, queryInfo);
-						} else {
-							if constexpr (c == Constraints::AcceptAll)
-								return pChunk->has_entities();
-							else if constexpr (c == Constraints::EnabledOnly)
-								return pChunk->size_disabled() != pChunk->size();
-							else // if constexpr (c == Constraints::DisabledOnly)
-								return pChunk->size_disabled() > 0;
-						}
-					});
-				}
-
-				template <bool UseFilters, Constraints c, typename ChunksContainer>
-				GAIA_NODISCARD uint32_t calc_entity_cnt_inter(QueryInfo& queryInfo, const ChunksContainer& chunks) {
-					uint32_t cnt = 0;
-
-					for (auto* pChunk: chunks) {
-						if (!pChunk->has_entities())
-							continue;
-
-						// Filters
-						if constexpr (UseFilters) {
-							if (!match_filters(*pChunk, queryInfo))
-								continue;
-						}
-
-						// Entity count
-						if constexpr (c == Constraints::EnabledOnly)
-							cnt += pChunk->size_enabled();
-						else if constexpr (c == Constraints::DisabledOnly)
-							cnt += pChunk->size_disabled();
-						else
-							cnt += pChunk->size();
-					}
-
-					return cnt;
-				}
-
-				template <bool UseFilters, Constraints c, typename ChunksContainerIn, typename ChunksContainerOut>
-				void arr_inter(QueryInfo& queryInfo, const ChunksContainerIn& chunks, ChunksContainerOut& outArray) {
-					using ContainerItemType = typename ChunksContainerOut::value_type;
-
-					for (auto* pChunk: chunks) {
-						if (!pChunk->has_entities())
-							continue;
-
-						if constexpr (c == Constraints::EnabledOnly) {
-							if (pChunk->has_disabled_entities())
-								continue;
-						} else if constexpr (c == Constraints::DisabledOnly) {
-							if (!pChunk->has_disabled_entities())
-								continue;
-						}
-
-						// Filters
-						if constexpr (UseFilters) {
-							if (!match_filters(*pChunk, queryInfo))
-								continue;
-						}
-
-						const auto componentView = pChunk->template view<ContainerItemType>();
-						for (uint32_t i = 0; i < pChunk->size(); ++i)
-							outArray.push_back(componentView[i]);
-					}
 				}
 
 				/*!
