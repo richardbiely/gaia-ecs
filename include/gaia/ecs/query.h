@@ -59,12 +59,12 @@ namespace gaia {
 					static constexpr CommandBufferCmd Id = CommandBufferCmd::ADD_COMPONENT;
 
 					ComponentId compId;
-					ComponentType compType;
+					ComponentKind compKind;
 					QueryListType listType;
 					bool isReadWrite;
 
 					void exec(QueryCtx& ctx) const {
-						auto& data = ctx.data[compType];
+						auto& data = ctx.data[compKind];
 						auto& compIds = data.compIds;
 						auto& lastMatchedArchetypeIndex = data.lastMatchedArchetypeIndex;
 						auto& rules = data.rules;
@@ -101,10 +101,10 @@ namespace gaia {
 					static constexpr CommandBufferCmd Id = CommandBufferCmd::ADD_FILTER;
 
 					ComponentId compId;
-					ComponentType compType;
+					ComponentKind compKind;
 
 					void exec(QueryCtx& ctx) const {
-						auto& data = ctx.data[compType];
+						auto& data = ctx.data[compKind];
 						auto& compIds = data.compIds;
 						auto& withChanged = data.withChanged;
 						const auto& rules = data.rules;
@@ -210,12 +210,12 @@ namespace gaia {
 			private:
 				template <typename T>
 				void add_inter(QueryListType listType) {
-					using U = typename component_type_t<T>::Type;
-					using UOriginal = typename component_type_t<T>::TypeOriginal;
+					using U = typename component_kind_t<T>::Kind;
+					using UOriginal = typename component_kind_t<T>::KindOriginal;
 					using UOriginalPR = std::remove_reference_t<std::remove_pointer_t<UOriginal>>;
 
 					const auto compId = comp_id<T>();
-					constexpr auto compType = component_type_v<T>;
+					constexpr auto compKind = component_kind_v<T>;
 					constexpr bool isReadWrite =
 							std::is_same_v<U, UOriginal> || (!std::is_const_v<UOriginalPR> && !std::is_empty_v<U>);
 
@@ -223,7 +223,7 @@ namespace gaia {
 					auto& cc = ComponentCache::get();
 					(void)cc.goc_comp_info<T>();
 
-					Command_AddComponent cmd{compId, compType, listType, isReadWrite};
+					Command_AddComponent cmd{compId, compKind, listType, isReadWrite};
 					ser::save(m_serBuffer, Command_AddComponent::Id);
 					ser::save(m_serBuffer, cmd);
 				}
@@ -231,9 +231,9 @@ namespace gaia {
 				template <typename T>
 				void WithChanged_inter() {
 					const auto compId = comp_id<T>();
-					constexpr auto compType = component_type_v<T>;
+					constexpr auto compKind = component_kind_v<T>;
 
-					Command_Filter cmd{compId, compType};
+					Command_Filter cmd{compId, compKind};
 					ser::save(m_serBuffer, Command_Filter::Id);
 					ser::save(m_serBuffer, cmd);
 				}
@@ -292,20 +292,20 @@ namespace gaia {
 
 					// See if any generic component has changed
 					{
-						const auto& filtered = queryInfo.filters(ComponentType::CT_Generic);
+						const auto& filtered = queryInfo.filters(ComponentKind::CK_Generic);
 						for (const auto compId: filtered) {
-							const auto compIdx = chunk.comp_idx(ComponentType::CT_Generic, compId);
-							if (chunk.changed(ComponentType::CT_Generic, queryVersion, compIdx))
+							const auto compIdx = chunk.comp_idx(ComponentKind::CK_Generic, compId);
+							if (chunk.changed(ComponentKind::CK_Generic, queryVersion, compIdx))
 								return true;
 						}
 					}
 
 					// See if any chunk component has changed
 					{
-						const auto& filtered = queryInfo.filters(ComponentType::CT_Chunk);
+						const auto& filtered = queryInfo.filters(ComponentKind::CK_Chunk);
 						for (const auto compId: filtered) {
-							const uint32_t compIdx = chunk.comp_idx(ComponentType::CT_Chunk, compId);
-							if (chunk.changed(ComponentType::CT_Chunk, queryVersion, compIdx))
+							const uint32_t compIdx = chunk.comp_idx(ComponentKind::CK_Chunk, compId);
+							if (chunk.changed(ComponentKind::CK_Chunk, queryVersion, compIdx))
 								return true;
 						}
 					}

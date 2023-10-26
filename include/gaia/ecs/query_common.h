@@ -56,7 +56,7 @@ namespace gaia {
 				uint8_t readWriteMask;
 				//! The number of components which are required for the query to match
 				uint8_t rulesAllCount;
-			} data[ComponentType::CT_Count]{};
+			} data[ComponentKind::CK_Count]{};
 			static_assert(MAX_COMPONENTS_IN_QUERY == 8); // Make sure that MAX_COMPONENTS_IN_QUERY can fit into m_rw
 
 			GAIA_NODISCARD bool operator==(const QueryCtx& other) const {
@@ -68,7 +68,7 @@ namespace gaia {
 				if (hashLookup != other.hashLookup)
 					return false;
 
-				for (uint32_t i = 0; i < ComponentType::CT_Count; ++i) {
+				for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
 					const auto& left = data[i];
 					const auto& right = other.data[i];
 
@@ -117,7 +117,7 @@ namespace gaia {
 
 		//! Sorts internal component arrays
 		inline void sort(QueryCtx& ctx) {
-			for (uint32_t i = 0; i < ComponentType::CT_Count; ++i) {
+			for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
 				auto& data = ctx.data[i];
 				// Make sure the read-write mask remains correct after sorting
 				core::sort(data.compIds, SortComponentCond{}, [&](uint32_t left, uint32_t right) {
@@ -156,7 +156,7 @@ namespace gaia {
 
 			QueryLookupHash::Type hashLookup = 0;
 
-			for (uint32_t i = 0; i < ComponentType::CT_Count; ++i) {
+			for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
 				auto& data = ctx.data[i];
 
 				// Components

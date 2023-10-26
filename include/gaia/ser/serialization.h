@@ -94,7 +94,7 @@ namespace gaia {
 			};
 
 			template <typename T>
-			GAIA_NODISCARD constexpr serialization_type_id int_type_id() {
+			GAIA_NODISCARD constexpr serialization_type_id int_kind_id() {
 				if constexpr (std::is_same_v<int8_t, T> || std::is_same_v<signed char, T>) {
 					return serialization_type_id::s8;
 				} else if constexpr (std::is_same_v<uint8_t, T> || std::is_same_v<unsigned char, T>) {
@@ -140,9 +140,9 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD constexpr serialization_type_id type_id() {
 				if constexpr (std::is_enum_v<T>)
-					return int_type_id<std::underlying_type_t<T>>();
+					return int_kind_id<std::underlying_type_t<T>>();
 				else if constexpr (std::is_integral_v<T>)
-					return int_type_id<T>();
+					return int_kind_id<T>();
 				else if constexpr (std::is_floating_point_v<T>)
 					return flt_type_id<T>();
 				else if constexpr (detail::has_data_and_size<T>::value)

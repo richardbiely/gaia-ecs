@@ -18,11 +18,11 @@ namespace gaia {
 
 		struct ChunkHeaderOffsets {
 			//! Byte at which the first version number is located
-			ChunkVersionOffset firstByte_Versions[ComponentType::CT_Count]{};
+			ChunkVersionOffset firstByte_Versions[ComponentKind::CK_Count]{};
 			//! Byte at which the first component id is located
-			ChunkComponentOffset firstByte_ComponentIds[ComponentType::CT_Count]{};
+			ChunkComponentOffset firstByte_ComponentIds[ComponentKind::CK_Count]{};
 			//! Byte at which the first component offset is located
-			ChunkComponentOffset firstByte_CompOffs[ComponentType::CT_Count]{};
+			ChunkComponentOffset firstByte_CompOffs[ComponentKind::CK_Count]{};
 			//! Byte at which the first entity is located
 			ChunkComponentOffset firstByte_EntityData{};
 		};
@@ -72,7 +72,7 @@ namespace gaia {
 			ChunkHeaderOffsets offsets;
 
 			//! Number of components on the archetype
-			uint8_t componentCount[ComponentType::CT_Count]{};
+			uint8_t componentCount[ComponentKind::CK_Count]{};
 			//! Version of the world (stable pointer to parent world's world version)
 			uint32_t& worldVersion;
 

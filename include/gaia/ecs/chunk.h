@@ -37,12 +37,12 @@ namespace gaia {
 		private:
 			//! Pointer to where the chunk data starts.
 			//! Data layed out as following:
-			//!			1) ComponentVersions[ComponentType::CT_Generic]
-			//!			2) ComponentVersions[ComponentType::CT_Chunk]
-			//!     3) ComponentIds[ComponentType::CT_Generic]
-			//!			4) ComponentIds[ComponentType::CT_Chunk]
-			//!			5) CompOffs[ComponentType::CT_Generic]
-			//!			6) CompOffs[ComponentType::CT_Chunk]
+			//!			1) ComponentVersions[ComponentKind::CK_Generic]
+			//!			2) ComponentVersions[ComponentKind::CK_Chunk]
+			//!     3) ComponentIds[ComponentKind::CK_Generic]
+			//!			4) ComponentIds[ComponentKind::CK_Chunk]
+			//!			5) CompOffs[ComponentKind::CK_Generic]
+			//!			6) CompOffs[ComponentKind::CK_Chunk]
 			//!			7) Entities
 			//!			8) Components
 			//! Note, root archetypes store only entites, therefore it is fully occupied with entities.
@@ -69,20 +69,20 @@ namespace gaia {
 			GAIA_MSVC_WARNING_POP()
 
 			void init(
-					const cnt::sarray<ComponentIdArray, ComponentType::CT_Count>& compIds,
-					const cnt::sarray<ComponentOffsetArray, ComponentType::CT_Count>& compOffs) {
-				m_header.componentCount[ComponentType::CT_Generic] = (uint8_t)compIds[ComponentType::CT_Generic].size();
-				m_header.componentCount[ComponentType::CT_Chunk] = (uint8_t)compIds[ComponentType::CT_Chunk].size();
+					const cnt::sarray<ComponentIdArray, ComponentKind::CK_Count>& compIds,
+					const cnt::sarray<ComponentOffsetArray, ComponentKind::CK_Count>& compOffs) {
+				m_header.componentCount[ComponentKind::CK_Generic] = (uint8_t)compIds[ComponentKind::CK_Generic].size();
+				m_header.componentCount[ComponentKind::CK_Chunk] = (uint8_t)compIds[ComponentKind::CK_Chunk].size();
 
 				const auto& cc = ComponentCache::get();
 
-				const auto& compIdsGeneric = compIds[ComponentType::CT_Generic];
+				const auto& compIdsGeneric = compIds[ComponentKind::CK_Generic];
 				for (const auto compId: compIdsGeneric) {
 					const auto& desc = cc.comp_desc(compId);
 					m_header.hasAnyCustomGenericCtor |= (desc.func_ctor != nullptr);
 					m_header.hasAnyCustomGenericDtor |= (desc.func_dtor != nullptr);
 				}
-				const auto& compIdsChunk = compIds[ComponentType::CT_Chunk];
+				const auto& compIdsChunk = compIds[ComponentKind::CK_Chunk];
 				for (const auto compId: compIdsChunk) {
 					const auto& desc = cc.comp_desc(compId);
 					m_header.hasAnyCustomChunkCtor |= (desc.func_ctor != nullptr);
@@ -91,7 +91,7 @@ namespace gaia {
 
 				// Copy provided component id data to this chunk's data area
 				{
-					for (uint32_t i = 0; i < ComponentType::CT_Count; ++i) {
+					for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
 						auto offset = m_header.offsets.firstByte_ComponentIds[i];
 						for (const auto compId: compIds[i]) {
 							// unaligned_ref not necessary because data is aligned
@@ -103,7 +103,7 @@ namespace gaia {
 
 				// Copy provided component offset data to this chunk's data area
 				{
-					for (uint32_t i = 0; i < ComponentType::CT_Count; ++i) {
+					for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
 						auto offset = m_header.offsets.firstByte_CompOffs[i];
 						for (const auto compOff: compOffs[i]) {
 							// unaligned_ref not necessary because data is aligned
@@ -122,7 +122,7 @@ namespace gaia {
 			*/
 			template <typename T>
 			GAIA_NODISCARD GAIA_FORCEINLINE auto view_inter() const -> decltype(std::span<const uint8_t>{}) {
-				using U = typename component_type_t<T>::Type;
+				using U = typename component_kind_t<T>::Kind;
 
 				if constexpr (std::is_same_v<U, Entity>) {
 					return {&data(m_header.offsets.firstByte_EntityData), size()};
@@ -130,13 +130,13 @@ namespace gaia {
 					static_assert(!std::is_empty_v<U>, "Attempting to get value of an empty component");
 
 					const auto compId = comp_id<T>();
-					constexpr auto compType = component_type_v<T>;
+					constexpr auto compKind = component_kind_v<T>;
 
 					// Find at what byte offset the first component of a given type is located
 					uint32_t compIdx = 0;
-					const auto offset = find_data_offset(compType, compId, compIdx);
+					const auto offset = find_data_offset(compKind, compId, compIdx);
 
-					if constexpr (compType == ComponentType::CT_Generic) {
+					if constexpr (compKind == ComponentKind::CK_Generic) {
 						[[maybe_unused]] const auto maxOffset = offset + capacity() * sizeof(U);
 						GAIA_ASSERT(maxOffset <= bytes());
 
@@ -159,7 +159,7 @@ namespace gaia {
 			*/
 			template <typename T, bool WorldVersionUpdateWanted>
 			GAIA_NODISCARD GAIA_FORCEINLINE auto view_mut_inter() -> decltype(std::span<uint8_t>{}) {
-				using U = typename component_type_t<T>::Type;
+				using U = typename component_kind_t<T>::Kind;
 #if GAIA_COMPILER_MSVC && _MSC_VER <= 1916
 				// Workaround for MSVC 2017 bug where it incorrectly evaluates the static assert
 				// even in context where it shouldn't.
@@ -171,17 +171,17 @@ namespace gaia {
 				static_assert(!std::is_empty_v<U>, "Attempting to set value of an empty component");
 
 				const auto compId = comp_id<T>();
-				constexpr auto compType = component_type_v<T>;
+				constexpr auto compKind = component_kind_v<T>;
 
 				// Find at what byte offset the first component of a given type is located
 				uint32_t compIdx = 0;
-				const auto offset = find_data_offset(compType, compId, compIdx);
+				const auto offset = find_data_offset(compKind, compId, compIdx);
 
 				// Update version number if necessary so we know RW access was used on the chunk
 				if constexpr (WorldVersionUpdateWanted)
-					this->update_world_version(compType, compIdx);
+					this->update_world_version(compKind, compIdx);
 
-				if constexpr (compType == ComponentType::CT_Generic) {
+				if constexpr (compKind == ComponentKind::CK_Generic) {
 					[[maybe_unused]] const auto maxOffset = offset + capacity() * sizeof(U);
 					GAIA_ASSERT(maxOffset <= bytes());
 
@@ -204,7 +204,7 @@ namespace gaia {
 			*/
 			template <typename T>
 			GAIA_NODISCARD auto comp_inter(uint32_t index) const {
-				using U = typename component_type_t<T>::Type;
+				using U = typename component_kind_t<T>::Kind;
 				using RetValueType = decltype(view<T>()[0]);
 
 				GAIA_ASSERT(index < m_header.count);
@@ -248,8 +248,8 @@ namespace gaia {
 			*/
 			static Chunk* create(
 					uint32_t archetypeId, uint32_t chunkIndex, uint16_t capacity, uint16_t dataBytes, uint32_t& worldVersion,
-					const ChunkHeaderOffsets& offsets, const cnt::sarray<ComponentIdArray, ComponentType::CT_Count>& compIds,
-					const cnt::sarray<ComponentOffsetArray, ComponentType::CT_Count>& compOffs) {
+					const ChunkHeaderOffsets& offsets, const cnt::sarray<ComponentIdArray, ComponentKind::CK_Count>& compIds,
+					const cnt::sarray<ComponentOffsetArray, ComponentKind::CK_Count>& compOffs) {
 				const auto totalBytes = chunk_total_bytes(dataBytes);
 				const auto sizeType = detail::ChunkAllocatorImpl::mem_block_size_type(totalBytes);
 #if GAIA_ECS_CHUNK_ALLOCATOR
@@ -276,9 +276,9 @@ namespace gaia {
 
 				// Call destructors for components that need it
 				if (pChunk->has_custom_generic_dtor())
-					pChunk->call_dtors(ComponentType::CT_Generic, 0, pChunk->size());
+					pChunk->call_dtors(ComponentKind::CK_Generic, 0, pChunk->size());
 				if (pChunk->has_custom_chunk_dtor())
-					pChunk->call_dtors(ComponentType::CT_Chunk, 0, 1);
+					pChunk->call_dtors(ComponentKind::CK_Chunk, 0, 1);
 
 #if GAIA_ECS_CHUNK_ALLOCATOR
 				pChunk->~Chunk();
@@ -323,8 +323,8 @@ namespace gaia {
 			//! Updates the version numbers for this chunk.
 			void update_versions() {
 				update_version(m_header.worldVersion);
-				update_world_version(ComponentType::CT_Generic);
-				update_world_version(ComponentType::CT_Chunk);
+				update_world_version(ComponentKind::CK_Generic);
+				update_world_version(ComponentKind::CK_Chunk);
 			}
 
 			/*!
@@ -335,7 +335,7 @@ namespace gaia {
 			*/
 			template <typename T>
 			GAIA_NODISCARD auto view() const {
-				using U = typename component_type_t<T>::Type;
+				using U = typename component_kind_t<T>::Kind;
 
 				return mem::auto_view_policy_get<U>{view_inter<T>()};
 			}
@@ -348,7 +348,7 @@ namespace gaia {
 			*/
 			template <typename T>
 			GAIA_NODISCARD auto view_mut() {
-				using U = typename component_type_t<T>::Type;
+				using U = typename component_kind_t<T>::Kind;
 				static_assert(!std::is_same_v<U, Entity>);
 
 				return mem::auto_view_policy_set<U>{view_mut_inter<T, true>()};
@@ -363,7 +363,7 @@ namespace gaia {
 			*/
 			template <typename T>
 			GAIA_NODISCARD auto sview_mut() {
-				using U = typename component_type_t<T>::Type;
+				using U = typename component_kind_t<T>::Kind;
 				static_assert(!std::is_same_v<U, Entity>);
 
 				return mem::auto_view_policy_set<U>{view_mut_inter<T, false>()};
@@ -379,8 +379,8 @@ namespace gaia {
 				set_entity(index, entity);
 
 				update_version(m_header.worldVersion);
-				update_world_version(ComponentType::CT_Generic);
-				update_world_version(ComponentType::CT_Chunk);
+				update_world_version(ComponentKind::CK_Generic);
+				update_world_version(ComponentKind::CK_Chunk);
 
 				return index;
 			}
@@ -400,8 +400,8 @@ namespace gaia {
 				GAIA_ASSERT(pOldChunk->archetype_id() == pNewChunk->archetype_id());
 
 				const auto& cc = ComponentCache::get();
-				auto oldIds = pOldChunk->comp_id_view(ComponentType::CT_Generic);
-				auto oldOffs = pOldChunk->comp_offset_view(ComponentType::CT_Generic);
+				auto oldIds = pOldChunk->comp_id_view(ComponentKind::CK_Generic);
+				auto oldOffs = pOldChunk->comp_offset_view(ComponentKind::CK_Generic);
 
 				// Copy generic component data from reference entity to our new entity
 				for (uint32_t i = 0; i < oldIds.size(); ++i) {
@@ -434,8 +434,8 @@ namespace gaia {
 				GAIA_ASSERT(pOldChunk->archetype_id() == archetype_id());
 
 				const auto& cc = ComponentCache::get();
-				auto oldIds = pOldChunk->comp_id_view(ComponentType::CT_Generic);
-				auto oldOffs = pOldChunk->comp_offset_view(ComponentType::CT_Generic);
+				auto oldIds = pOldChunk->comp_id_view(ComponentKind::CK_Generic);
+				auto oldOffs = pOldChunk->comp_offset_view(ComponentKind::CK_Generic);
 
 				// Copy generic component data from reference entity to our new entity
 				for (uint32_t i = 0; i < oldIds.size(); ++i) {
@@ -470,10 +470,10 @@ namespace gaia {
 				// Find intersection of the two component lists.
 				// We ignore chunk components here because they should't be influenced
 				// by entities moving around.
-				auto oldIds = pOldChunk->comp_id_view(ComponentType::CT_Generic);
-				auto oldOffs = pOldChunk->comp_offset_view(ComponentType::CT_Generic);
-				auto newIds = comp_id_view(ComponentType::CT_Generic);
-				auto newOffs = comp_offset_view(ComponentType::CT_Generic);
+				auto oldIds = pOldChunk->comp_id_view(ComponentKind::CK_Generic);
+				auto oldOffs = pOldChunk->comp_offset_view(ComponentKind::CK_Generic);
+				auto newIds = comp_id_view(ComponentKind::CK_Generic);
+				auto newOffs = comp_offset_view(ComponentKind::CK_Generic);
 
 				// Arrays are sorted so we can do linear intersection lookup
 				{
@@ -539,8 +539,8 @@ namespace gaia {
 					// Update entity index inside chunk
 					set_entity(left, entity);
 
-					auto compIds = comp_id_view(ComponentType::CT_Generic);
-					auto compOffs = comp_offset_view(ComponentType::CT_Generic);
+					auto compIds = comp_id_view(ComponentKind::CK_Generic);
+					auto compOffs = comp_offset_view(ComponentKind::CK_Generic);
 
 					for (uint32_t i = 0; i < compIds.size(); ++i) {
 						const auto& desc = cc.comp_desc(compIds[i]);
@@ -567,8 +567,8 @@ namespace gaia {
 					entityContainer.gen = entity.gen();
 					entityContainer.dis = wasDisabled;
 				} else {
-					auto compIds = comp_id_view(ComponentType::CT_Generic);
-					auto compOffs = comp_offset_view(ComponentType::CT_Generic);
+					auto compIds = comp_id_view(ComponentKind::CK_Generic);
+					auto compOffs = comp_offset_view(ComponentKind::CK_Generic);
 
 					for (uint32_t i = 0; i < compIds.size(); ++i) {
 						const auto& desc = cc.comp_desc(compIds[i]);
@@ -649,8 +649,8 @@ namespace gaia {
 				set_entity(right, entityLeft);
 
 				const auto& cc = ComponentCache::get();
-				auto compIds = comp_id_view(ComponentType::CT_Generic);
-				auto compOffs = comp_offset_view(ComponentType::CT_Generic);
+				auto compIds = comp_id_view(ComponentKind::CK_Generic);
+				auto compOffs = comp_offset_view(ComponentKind::CK_Generic);
 
 				for (uint32_t i = 0; i < compIds.size(); ++i) {
 					const auto& desc = cc.comp_desc(compIds[i]);
@@ -775,19 +775,19 @@ namespace gaia {
 			/*!
 			Returns an offset to chunk data at which the component is stored.
 			\warning It is expected the component with \param compId is present. Undefined behavior otherwise.
-			\param compType Component type
+			\param compKind Component type
 			\param compId Component id
 			\param compIdx Index of the component in this chunk's component array
 			\return Offset from the start of chunk data area.
 			*/
 			GAIA_NODISCARD ChunkComponentOffset
-			find_data_offset(ComponentType compType, ComponentId compId, uint32_t& compIdx) const {
+			find_data_offset(ComponentKind compKind, ComponentId compId, uint32_t& compIdx) const {
 				// Don't use this with empty components. It's impossible to write to them anyway.
 				GAIA_ASSERT(ComponentCache::get().comp_desc(compId).properties.size != 0);
 
-				compIdx = comp_idx(compType, compId);
+				compIdx = comp_idx(compKind, compId);
 
-				auto compOffs = comp_offset_view(compType);
+				auto compOffs = comp_offset_view(compKind);
 				const auto offset = compOffs[compIdx];
 				GAIA_ASSERT(offset >= m_header.offsets.firstByte_EntityData);
 				return offset;
@@ -796,14 +796,14 @@ namespace gaia {
 			/*!
 			Returns an offset to chunk data at which the component is stored.
 			\warning It is expected the component with \param compId is present. Undefined behavior otherwise.
-			\param compType Component type
+			\param compKind Component type
 			\param compId Component id
 			\return Offset from the start of chunk data area.
 			*/
 			GAIA_NODISCARD GAIA_FORCEINLINE ChunkComponentOffset
-			find_data_offset(ComponentType compType, ComponentId compId) const {
+			find_data_offset(ComponentKind compKind, ComponentId compId) const {
 				[[maybe_unused]] uint32_t compIdx = 0;
-				return find_data_offset(compType, compId, compIdx);
+				return find_data_offset(compKind, compId, compIdx);
 			}
 
 			//----------------------------------------------------------------------
@@ -826,20 +826,20 @@ namespace gaia {
 				return m_header.hasAnyCustomChunkDtor;
 			}
 
-			void call_ctor(ComponentType compType, ComponentId compId, uint32_t entIdx) {
+			void call_ctor(ComponentKind compKind, ComponentId compId, uint32_t entIdx) {
 				GAIA_PROF_SCOPE(call_ctor);
 
 				// Make sure only generic types are used with indices
-				GAIA_ASSERT(compType == ComponentType::CT_Generic || entIdx == 0);
+				GAIA_ASSERT(compKind == ComponentKind::CK_Generic || entIdx == 0);
 
 				const auto& cc = ComponentCache::get();
 				const auto& desc = cc.comp_desc(compId);
 				if (desc.func_ctor == nullptr)
 					return;
 
-				const auto idx = comp_idx(compType, compId);
+				const auto idx = comp_idx(compKind, compId);
 
-				auto compOffs = comp_offset_view(compType);
+				auto compOffs = comp_offset_view(compKind);
 				const auto offset = compOffs[idx];
 				const auto idxSrc = offset + entIdx * desc.properties.size;
 				GAIA_ASSERT(idxSrc < bytes());
@@ -848,19 +848,19 @@ namespace gaia {
 				desc.func_ctor(pSrc, 1);
 			}
 
-			void call_ctors(ComponentType compType, uint32_t entIdx, uint32_t entCnt) {
+			void call_ctors(ComponentKind compKind, uint32_t entIdx, uint32_t entCnt) {
 				GAIA_PROF_SCOPE(call_ctors);
 
 				GAIA_ASSERT(
-						compType == ComponentType::CT_Generic && has_custom_generic_ctor() ||
-						compType == ComponentType::CT_Chunk && has_custom_chunk_ctor());
+						compKind == ComponentKind::CK_Generic && has_custom_generic_ctor() ||
+						compKind == ComponentKind::CK_Chunk && has_custom_chunk_ctor());
 
 				// Make sure only generic types are used with indices
-				GAIA_ASSERT(compType == ComponentType::CT_Generic || (entIdx == 0 && entCnt == 1));
+				GAIA_ASSERT(compKind == ComponentKind::CK_Generic || (entIdx == 0 && entCnt == 1));
 
 				const auto& cc = ComponentCache::get();
-				auto compIds = comp_id_view(compType);
-				auto compOffs = comp_offset_view(compType);
+				auto compIds = comp_id_view(compKind);
+				auto compOffs = comp_offset_view(compKind);
 
 				for (uint32_t i = 0; i < compIds.size(); ++i) {
 					const auto& desc = cc.comp_desc(compIds[i]);
@@ -876,19 +876,19 @@ namespace gaia {
 				}
 			}
 
-			void call_dtors(ComponentType compType, uint32_t entIdx, uint32_t entCnt) {
+			void call_dtors(ComponentKind compKind, uint32_t entIdx, uint32_t entCnt) {
 				GAIA_PROF_SCOPE(call_dtors);
 
 				GAIA_ASSERT(
-						compType == ComponentType::CT_Generic && has_custom_generic_dtor() ||
-						compType == ComponentType::CT_Chunk && has_custom_chunk_dtor());
+						compKind == ComponentKind::CK_Generic && has_custom_generic_dtor() ||
+						compKind == ComponentKind::CK_Chunk && has_custom_chunk_dtor());
 
 				// Make sure only generic types are used with indices
-				GAIA_ASSERT(compType == ComponentType::CT_Generic || (entIdx == 0 && entCnt == 1));
+				GAIA_ASSERT(compKind == ComponentKind::CK_Generic || (entIdx == 0 && entCnt == 1));
 
 				const auto& cc = ComponentCache::get();
-				auto compIds = comp_id_view(compType);
-				auto compOffs = comp_offset_view(compType);
+				auto compIds = comp_id_view(compKind);
+				auto compOffs = comp_offset_view(compKind);
 
 				for (uint32_t i = 0; i < compIds.size(); ++i) {
 					const auto& desc = cc.comp_desc(compIds[i]);
@@ -909,13 +909,13 @@ namespace gaia {
 			//----------------------------------------------------------------------
 
 			/*!
-			Checks if a component with \param compId and type \param compType is present in the chunk.
+			Checks if a component with \param compId and type \param compKind is present in the chunk.
 			\param compId Component id
-			\param compType Component type
+			\param compKind Component type
 			\return True if found. False otherwise.
 			*/
-			GAIA_NODISCARD bool has(ComponentType compType, ComponentId compId) const {
-				auto compIds = comp_id_view(compType);
+			GAIA_NODISCARD bool has(ComponentKind compKind, ComponentId compId) const {
+				auto compIds = comp_id_view(compKind);
 				return core::has(compIds, compId);
 			}
 
@@ -928,8 +928,8 @@ namespace gaia {
 			GAIA_NODISCARD bool has() const {
 				const auto compId = comp_id<T>();
 
-				constexpr auto compType = component_type_v<T>;
-				return has(compType, compId);
+				constexpr auto compKind = component_kind_v<T>;
+				return has(compKind, compId);
 			}
 
 			//----------------------------------------------------------------------
@@ -943,10 +943,10 @@ namespace gaia {
 			\param index Index of entity in the chunk
 			\param value Value to set for the component
 			*/
-			template <typename T, typename U = typename component_type_t<T>::Type>
+			template <typename T, typename U = typename component_kind_t<T>::Kind>
 			U& set(uint32_t index) {
 				static_assert(
-						component_type_v<T> == ComponentType::CT_Generic,
+						component_kind_v<T> == ComponentKind::CK_Generic,
 						"Set providing an index can only be used with generic components");
 
 				// Update the world version
@@ -963,7 +963,7 @@ namespace gaia {
 			\param index Index of entity in the chunk
 			\param value Value to set for the component
 			*/
-			template <typename T, typename U = typename component_type_t<T>::Type>
+			template <typename T, typename U = typename component_kind_t<T>::Kind>
 			U& set() {
 				// Update the world version
 				update_version(m_header.worldVersion);
@@ -979,10 +979,10 @@ namespace gaia {
 			\param index Index of entity in the chunk
 			\param value Value to set for the component
 			*/
-			template <typename T, typename U = typename component_type_t<T>::Type>
+			template <typename T, typename U = typename component_kind_t<T>::Kind>
 			void set(uint32_t index, U&& value) {
 				static_assert(
-						component_type_v<T> == ComponentType::CT_Generic,
+						component_kind_v<T> == ComponentKind::CK_Generic,
 						"Set providing an index can only be used with generic components");
 
 				// Update the world version
@@ -998,10 +998,10 @@ namespace gaia {
 			\tparam T Component
 			\param value Value to set for the component
 			*/
-			template <typename T, typename U = typename component_type_t<T>::Type>
+			template <typename T, typename U = typename component_kind_t<T>::Kind>
 			void set(U&& value) {
 				static_assert(
-						component_type_v<T> != ComponentType::CT_Generic,
+						component_kind_v<T> != ComponentKind::CK_Generic,
 						"Set not providing an index can only be used with non-generic components");
 
 				// Update the world version
@@ -1019,10 +1019,10 @@ namespace gaia {
 			\param index Index of entity in the chunk
 			\param value Value to set for the component
 			*/
-			template <typename T, typename U = typename component_type_t<T>::Type>
+			template <typename T, typename U = typename component_kind_t<T>::Kind>
 			void sset(uint32_t index, U&& value) {
 				static_assert(
-						component_type_v<T> == ComponentType::CT_Generic,
+						component_kind_v<T> == ComponentKind::CK_Generic,
 						"SetSilent providing an index can only be used with generic components");
 
 				GAIA_ASSERT(index < m_header.capacity);
@@ -1036,10 +1036,10 @@ namespace gaia {
 			\tparam T Component
 			\param value Value to set for the component
 			*/
-			template <typename T, typename U = typename component_type_t<T>::Type>
+			template <typename T, typename U = typename component_kind_t<T>::Kind>
 			void sset(U&& value) {
 				static_assert(
-						component_type_v<T> != ComponentType::CT_Generic,
+						component_kind_v<T> != ComponentKind::CK_Generic,
 						"SetSilent not providing an index can only be used with non-generic components");
 
 				GAIA_ASSERT(0 < m_header.capacity);
@@ -1061,7 +1061,7 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD auto get(uint32_t index) const {
 				static_assert(
-						component_type_v<T> == ComponentType::CT_Generic,
+						component_kind_v<T> == ComponentKind::CK_Generic,
 						"Get providing an index can only be used with generic components");
 
 				return comp_inter<T>(index);
@@ -1076,7 +1076,7 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD auto get() const {
 				static_assert(
-						component_type_v<T> != ComponentType::CT_Generic,
+						component_kind_v<T> != ComponentKind::CK_Generic,
 						"Get not providing an index can only be used with non-generic components");
 
 				return comp_inter<T>(0);
@@ -1084,11 +1084,11 @@ namespace gaia {
 
 			/*!
 			Returns the internal index of a component based on the provided \param compId.
-			\param compType Component type
+			\param compKind Component type
 			\return Component index if the component was found. -1 otherwise.
 			*/
-			GAIA_NODISCARD uint32_t comp_idx(ComponentType compType, ComponentId compId) const {
-				auto compIds = comp_id_view(compType);
+			GAIA_NODISCARD uint32_t comp_idx(ComponentKind compKind, ComponentId compId) const {
+				auto compIds = comp_id_view(compKind);
 				const auto idx = core::get_index_unsafe(compIds, compId);
 				GAIA_ASSERT(idx != BadIndex);
 				return idx;
@@ -1100,8 +1100,8 @@ namespace gaia {
 
 			template <typename T>
 			GAIA_NODISCARD constexpr GAIA_FORCEINLINE auto comp_view() {
-				using U = typename component_type_t<T>::Type;
-				using UOriginal = typename component_type_t<T>::TypeOriginal;
+				using U = typename component_kind_t<T>::Kind;
+				using UOriginal = typename component_kind_t<T>::KindOriginal;
 				if constexpr (is_component_mut_v<UOriginal>) {
 					auto s = view_mut_inter<U, true>();
 					return std::span{(U*)s.data(), s.size()};
@@ -1235,41 +1235,41 @@ namespace gaia {
 				return detail::ChunkAllocatorImpl::mem_block_size(m_header.sizeType);
 			}
 
-			GAIA_NODISCARD std::span<uint32_t> comp_version_view(ComponentType compType) const {
-				const auto offset = m_header.offsets.firstByte_Versions[compType];
-				return {(uint32_t*)(&m_data[offset]), m_header.componentCount[compType]};
+			GAIA_NODISCARD std::span<uint32_t> comp_version_view(ComponentKind compKind) const {
+				const auto offset = m_header.offsets.firstByte_Versions[compKind];
+				return {(uint32_t*)(&m_data[offset]), m_header.componentCount[compKind]};
 			}
 
-			GAIA_NODISCARD std::span<const ComponentId> comp_id_view(ComponentType compType) const {
+			GAIA_NODISCARD std::span<const ComponentId> comp_id_view(ComponentKind compKind) const {
 				using RetType = std::add_pointer_t<const ComponentId>;
-				const auto offset = m_header.offsets.firstByte_ComponentIds[compType];
-				return {(RetType)&m_data[offset], m_header.componentCount[compType]};
+				const auto offset = m_header.offsets.firstByte_ComponentIds[compKind];
+				return {(RetType)&m_data[offset], m_header.componentCount[compKind]};
 			}
 
-			GAIA_NODISCARD std::span<const ChunkComponentOffset> comp_offset_view(ComponentType compType) const {
+			GAIA_NODISCARD std::span<const ChunkComponentOffset> comp_offset_view(ComponentKind compKind) const {
 				using RetType = std::add_pointer_t<const ChunkComponentOffset>;
-				const auto offset = m_header.offsets.firstByte_CompOffs[compType];
-				return {(RetType)&m_data[offset], m_header.componentCount[compType]};
+				const auto offset = m_header.offsets.firstByte_CompOffs[compKind];
+				return {(RetType)&m_data[offset], m_header.componentCount[compKind]};
 			}
 
 			//! Returns true if the provided version is newer than the one stored internally
-			GAIA_NODISCARD bool changed(ComponentType compType, uint32_t version, uint32_t compIdx) const {
-				auto versions = comp_version_view(compType);
+			GAIA_NODISCARD bool changed(ComponentKind compKind, uint32_t version, uint32_t compIdx) const {
+				auto versions = comp_version_view(compKind);
 				return version_changed(versions[compIdx], version);
 			}
 
-			//! Update version of a component at the index \param compIdx of a given \param compType
-			GAIA_FORCEINLINE void update_world_version(ComponentType compType, uint32_t compIdx) const {
+			//! Update version of a component at the index \param compIdx of a given \param compKind
+			GAIA_FORCEINLINE void update_world_version(ComponentKind compKind, uint32_t compIdx) const {
 				// Make sure only proper input is provided
 				GAIA_ASSERT(compIdx >= 0 && compIdx < Chunk::MAX_COMPONENTS);
 
-				auto versions = comp_version_view(compType);
+				auto versions = comp_version_view(compKind);
 				versions[compIdx] = m_header.worldVersion;
 			}
 
-			//! Update version of all components of a given \param compType
-			GAIA_FORCEINLINE void update_world_version(ComponentType compType) const {
-				auto versions = comp_version_view(compType);
+			//! Update version of all components of a given \param compKind
+			GAIA_FORCEINLINE void update_world_version(ComponentKind compKind) const {
+				auto versions = comp_version_view(compKind);
 				for (auto& v: versions)
 					v = m_header.worldVersion;
 			}

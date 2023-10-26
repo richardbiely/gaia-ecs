@@ -120,7 +120,7 @@ namespace gaia {
 			World& m_world;
 			//! Map of all systems - used for look-ups only
 			cnt::map<SystemHash, BaseSystem*> m_systemsMap;
-			//! List of system - used for iteration
+			//! List of systems - used for iteration
 			cnt::darray<BaseSystem*> m_systems;
 			//! List of new systems which need to be initialised
 			cnt::darray<BaseSystem*> m_systemsToCreate;

@@ -16,37 +16,37 @@ namespace gaia {
 			};
 
 			//! Map of edges in the archetype graph when adding components
-			cnt::map<ComponentId, ArchetypeGraphEdge> m_edgesAdd[ComponentType::CT_Count];
+			cnt::map<ComponentId, ArchetypeGraphEdge> m_edgesAdd[ComponentKind::CK_Count];
 			//! Map of edges in the archetype graph when removing components
-			cnt::map<ComponentId, ArchetypeGraphEdge> m_edgesDel[ComponentType::CT_Count];
+			cnt::map<ComponentId, ArchetypeGraphEdge> m_edgesDel[ComponentKind::CK_Count];
 
 		public:
 			//! Creates an edge in the graph leading to the target archetype \param archetypeId via component \param
-			//! compId of type \param compType.
-			void add_edge_right(ComponentType compType, ComponentId compId, ArchetypeId archetypeId) {
-				[[maybe_unused]] const auto ret = m_edgesAdd[compType].try_emplace({compId}, ArchetypeGraphEdge{archetypeId});
+			//! compId of type \param compKind.
+			void add_edge_right(ComponentKind compKind, ComponentId compId, ArchetypeId archetypeId) {
+				[[maybe_unused]] const auto ret = m_edgesAdd[compKind].try_emplace({compId}, ArchetypeGraphEdge{archetypeId});
 				GAIA_ASSERT(ret.second);
 			}
 
 			//! Creates an edge in the graph leading to the target archetype \param archetypeId via component \param
-			//! compId of type \param compType.
-			void add_edge_left(ComponentType compType, ComponentId compId, ArchetypeId archetypeId) {
-				[[maybe_unused]] const auto ret = m_edgesDel[compType].try_emplace({compId}, ArchetypeGraphEdge{archetypeId});
+			//! compId of type \param compKind.
+			void add_edge_left(ComponentKind compKind, ComponentId compId, ArchetypeId archetypeId) {
+				[[maybe_unused]] const auto ret = m_edgesDel[compKind].try_emplace({compId}, ArchetypeGraphEdge{archetypeId});
 				GAIA_ASSERT(ret.second);
 			}
 
-			//! Checks if the graph edge for component type \param compType contains the component \param compId.
+			//! Checks if the graph edge for component type \param compKind contains the component \param compId.
 			//! \return Archetype id of the target archetype if the edge is found. ArchetypeIdBad otherwise.
-			GAIA_NODISCARD ArchetypeId find_edge_right(ComponentType compType, const ComponentId compId) const {
-				const auto& edges = m_edgesAdd[compType];
+			GAIA_NODISCARD ArchetypeId find_edge_right(ComponentKind compKind, const ComponentId compId) const {
+				const auto& edges = m_edgesAdd[compKind];
 				const auto it = edges.find({compId});
 				return it != edges.end() ? it->second.archetypeId : ArchetypeIdBad;
 			}
 
-			//! Checks if the graph edge for component type \param compType contains the component \param compId.
+			//! Checks if the graph edge for component type \param compKind contains the component \param compId.
 			//! \return Archetype id of the target archetype if the edge is found. ArchetypeIdBad otherwise.
-			GAIA_NODISCARD ArchetypeId find_edge_left(ComponentType compType, const ComponentId compId) const {
-				const auto& edges = m_edgesDel[compType];
+			GAIA_NODISCARD ArchetypeId find_edge_left(ComponentKind compKind, const ComponentId compId) const {
+				const auto& edges = m_edgesDel[compKind];
 				const auto it = edges.find({compId});
 				return it != edges.end() ? it->second.archetypeId : ArchetypeIdBad;
 			}
@@ -56,8 +56,8 @@ namespace gaia {
 
 				// // Add edges (movement towards the leafs)
 				// {
-				// 	const auto& edgesG = m_edgesAdd[ComponentType::CT_Generic];
-				// 	const auto& edgesC = m_edgesAdd[ComponentType::CT_Chunk];
+				// 	const auto& edgesG = m_edgesAdd[ComponentKind::CK_Generic];
+				// 	const auto& edgesC = m_edgesAdd[ComponentKind::CK_Chunk];
 				// 	const auto edgeCount = (uint32_t)(edgesG.size() + edgesC.size());
 				// 	if (edgeCount > 0) {
 				// 		GAIA_LOG_N("  Add edges - count:%u", edgeCount);
@@ -88,8 +88,8 @@ namespace gaia {
 
 				// // Delete edges (movement towards the root)
 				// {
-				// 	const auto& edgesG = m_edgesDel[ComponentType::CT_Generic];
-				// 	const auto& edgesC = m_edgesDel[ComponentType::CT_Chunk];
+				// 	const auto& edgesG = m_edgesDel[ComponentKind::CK_Generic];
+				// 	const auto& edgesC = m_edgesDel[ComponentKind::CK_Chunk];
 				// 	const auto edgeCount = (uint32_t)(edgesG.size() + edgesC.size());
 				// 	if (edgeCount > 0) {
 				// 		GAIA_LOG_N("  del edges - count:%u", edgeCount);
