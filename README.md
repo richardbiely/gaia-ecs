@@ -194,7 +194,7 @@ For querying data you can use a Query. It can help you find all entities, compon
 >**NOTE:**<br/>Every Query creates a cache internally. Therefore, the first usage is a little bit slower than the subsequent usage is going to be. You likely use the same query multiple times in your program, often without noticing. Because of that, caching becomes useful as it avoids wasting memory and performance when finding matches.
 
 ```cpp
-Query q = w.query();
+ecs::Query q = w.query();
 q.all<Position>(); // Consider only entities with Position
 
 // Fill the entities array with entities with a Position component.

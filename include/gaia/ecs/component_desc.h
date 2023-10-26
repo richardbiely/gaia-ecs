@@ -16,11 +16,29 @@
 namespace gaia {
 	namespace ecs {
 		struct ComponentDesc final {
+			static constexpr uint32_t MaxAlignment_Bits = 10;
+			static constexpr uint32_t MaxAlignment = (1U << MaxAlignment_Bits) - 1;
+
 			using FuncCtor = void(void*, uint32_t);
 			using FuncDtor = void(void*, uint32_t);
 			using FuncCopy = void(void*, void*);
 			using FuncMove = void(void*, void*);
 			using FuncSwap = void(void*, void*);
+
+			//! Unique component identifier
+			ComponentId compId = ComponentIdBad;
+
+			//! Various component properties
+			struct {
+				//! Component alignment
+				uint32_t alig: MaxAlignment_Bits;
+				//! Component size
+				uint32_t size: MAX_COMPONENTS_SIZE_BITS;
+				//! SOA variables. If > 0 the component is laid out in SoA style
+				uint32_t soa: meta::StructToTupleMaxTypes_Bits;
+			} properties{};
+
+			uint8_t soaSizes[meta::StructToTupleMaxTypes];
 
 			//! Component name
 			std::span<const char> name;
@@ -38,23 +56,6 @@ namespace gaia {
 			FuncMove* func_move = nullptr;
 			//! Function to call when the component needs to swap
 			FuncSwap* func_swap = nullptr;
-			//! Unique component identifier
-			ComponentId compId = ComponentIdBad;
-
-			static constexpr uint32_t MaxAlignment_Bits = 10;
-			static constexpr uint32_t MaxAlignment = (1U << MaxAlignment_Bits) - 1;
-
-			//! Various component properties
-			struct {
-				//! Component alignment
-				uint32_t alig: MaxAlignment_Bits;
-				//! Component size
-				uint32_t size: MAX_COMPONENTS_SIZE_BITS;
-				//! SOA variables. If > 0 the component is laid out in SoA style
-				uint32_t soa: meta::StructToTupleMaxTypes_Bits;
-			} properties{};
-
-			uint8_t soaSizes[meta::StructToTupleMaxTypes];
 
 			void ctor_from(void* pSrc, void* pDst) const {
 				if (func_ctor_move != nullptr)
@@ -100,11 +101,11 @@ namespace gaia {
 
 			template <typename T>
 			GAIA_NODISCARD static constexpr ComponentDesc build() {
-				using U = typename component_type_t<T>::Type;
+				using U = typename component_kind_t<T>::Kind;
 
 				ComponentDesc info{};
-				info.name = meta::type_info::name<U>();
 				info.compId = comp_id<T>();
+				info.name = meta::type_info::name<U>();
 
 				if constexpr (!std::is_empty_v<U>) {
 					info.properties.size = (uint32_t)sizeof(U);

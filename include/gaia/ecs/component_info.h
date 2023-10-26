@@ -28,7 +28,7 @@ namespace gaia {
 
 			template <typename T>
 			GAIA_NODISCARD static constexpr ComponentInfo init() {
-				using U = typename component_type_t<T>::Type;
+				using U = typename component_kind_t<T>::Kind;
 
 				ComponentInfo info{};
 				info.lookupHash = {meta::type_info::hash<U>()};
