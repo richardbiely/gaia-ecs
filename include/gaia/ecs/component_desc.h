@@ -116,7 +116,7 @@ namespace gaia {
 					if constexpr (mem::is_soa_layout_v<U>) {
 						uint32_t i = 0;
 						using TTuple = decltype(meta::struct_to_tuple(U{}));
-						core::each_tuple(TTuple{}, [&](auto&& item) {
+						core::each_tuple<TTuple>([&](auto&& item) {
 							static_assert(sizeof(item) <= 255, "Each member of a SoA component can be at most 255 B long!");
 							info.soaSizes[i] = (uint8_t)sizeof(item);
 							++i;
