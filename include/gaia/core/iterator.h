@@ -16,7 +16,6 @@ namespace gaia {
 		struct contiguous_iterator_tag: random_access_iterator_tag {};
 
 		namespace detail {
-
 			template <typename, typename = void>
 			struct iterator_traits_base {}; // empty for non-iterators
 
@@ -75,7 +74,8 @@ namespace gaia {
 			[[maybe_unused]] constexpr bool is_rev_iter_v = std::is_convertible_v<iterator_cat_t<It>, reverse_iterator_tag>;
 
 			template <typename It>
-			[[maybe_unused]] constexpr bool is_bidi_iter_v = std::is_convertible_v<iterator_cat_t<It>, bidirectional_iterator_tag>;
+			[[maybe_unused]] constexpr bool is_bidi_iter_v =
+					std::is_convertible_v<iterator_cat_t<It>, bidirectional_iterator_tag>;
 
 			template <typename It>
 			[[maybe_unused]] constexpr bool is_random_iter_v =
@@ -107,5 +107,47 @@ namespace gaia {
 				return offset;
 			}
 		}
+
+		struct index_iterator {
+			using iterator_category = core::random_access_iterator_tag;
+			using value_type = uint32_t;
+
+		protected:
+			value_type m_pos;
+
+		public:
+			index_iterator(value_type pos) noexcept: m_pos(pos) {}
+
+			GAIA_NODISCARD value_type operator*() const noexcept {
+				return m_pos;
+			}
+
+			GAIA_NODISCARD value_type operator->() const noexcept {
+				return m_pos;
+			}
+
+			index_iterator operator++() noexcept {
+				++m_pos;
+				return *this;
+			}
+
+			GAIA_NODISCARD index_iterator operator++(int) noexcept {
+				index_iterator temp(*this);
+				++*this;
+				return temp;
+			}
+
+			GAIA_NODISCARD bool operator==(const index_iterator& other) const noexcept {
+				return m_pos == other.m_pos;
+			}
+
+			GAIA_NODISCARD bool operator!=(const index_iterator& other) const noexcept {
+				return m_pos != other.m_pos;
+			}
+
+			GAIA_NODISCARD bool operator<(const index_iterator& other) const noexcept {
+				return m_pos < other.m_pos;
+			}
+		};
 	} // namespace core
 } // namespace gaia

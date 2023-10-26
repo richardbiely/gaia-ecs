@@ -121,11 +121,16 @@ namespace gaia {
 			\return Span of read-only component data.
 			*/
 			template <typename T>
-			GAIA_NODISCARD GAIA_FORCEINLINE auto view_inter() const -> decltype(std::span<const uint8_t>{}) {
+			GAIA_NODISCARD GAIA_FORCEINLINE auto view_inter(uint32_t from, uint32_t to) const
+					-> decltype(std::span<const uint8_t>{}) {
 				using U = typename component_type_t<T>::Type;
 
+				GAIA_ASSERT(to <= size());
+				[[maybe_unused]] const uint32_t count = to - from;
+
 				if constexpr (std::is_same_v<U, Entity>) {
-					return {&data(m_header.offsets.firstByte_EntityData), size()};
+					const auto offset = m_header.offsets.firstByte_EntityData + sizeof(U) * from;
+					return {&data(offset), count};
 				} else {
 					static_assert(!std::is_empty_v<U>, "Attempting to get value of an empty component");
 
@@ -134,16 +139,18 @@ namespace gaia {
 
 					// Find at what byte offset the first component of a given type is located
 					uint32_t compIdx = 0;
-					const auto offset = find_data_offset(compKind, compId, compIdx);
+					const auto offsetFirst = find_data_offset(compKind, compId, compIdx);
+					const auto offset = offsetFirst + from * (uint32_t)sizeof(U);
 
 					if constexpr (compKind == ComponentKind::CK_Generic) {
-						[[maybe_unused]] const auto maxOffset = offset + capacity() * sizeof(U);
+						[[maybe_unused]] const auto maxOffset = offsetFirst + capacity() * sizeof(U);
 						GAIA_ASSERT(maxOffset <= bytes());
 
-						return {&data(offset), size()};
+						return {&data(offset), count};
 					} else {
 						[[maybe_unused]] const auto maxOffset = offset + sizeof(U);
 						GAIA_ASSERT(maxOffset <= bytes());
+						GAIA_ASSERT(count == 1);
 
 						return {&data(offset), 1};
 					}
@@ -158,7 +165,8 @@ namespace gaia {
 			\return Span of read-write component data.
 			*/
 			template <typename T, bool WorldVersionUpdateWanted>
-			GAIA_NODISCARD GAIA_FORCEINLINE auto view_mut_inter() -> decltype(std::span<uint8_t>{}) {
+			GAIA_NODISCARD GAIA_FORCEINLINE auto view_mut_inter(uint32_t from, uint32_t to)
+					-> decltype(std::span<uint8_t>{}) {
 				using U = typename component_type_t<T>::Type;
 #if GAIA_COMPILER_MSVC && _MSC_VER <= 1916
 				// Workaround for MSVC 2017 bug where it incorrectly evaluates the static assert
@@ -170,12 +178,16 @@ namespace gaia {
 #endif
 				static_assert(!std::is_empty_v<U>, "Attempting to set value of an empty component");
 
+				GAIA_ASSERT(to <= size());
+				[[maybe_unused]] const uint32_t count = to - from;
+
 				const auto compId = comp_id<T>();
 				constexpr auto compKind = component_kind_v<T>;
 
 				// Find at what byte offset the first component of a given type is located
 				uint32_t compIdx = 0;
-				const auto offset = find_data_offset(compKind, compId, compIdx);
+				const auto offsetFirst = find_data_offset(compKind, compId, compIdx);
+				const auto offset = offsetFirst + from * (uint32_t)sizeof(U);
 
 				// Update version number if necessary so we know RW access was used on the chunk
 				if constexpr (WorldVersionUpdateWanted)
@@ -185,10 +197,11 @@ namespace gaia {
 					[[maybe_unused]] const auto maxOffset = offset + capacity() * sizeof(U);
 					GAIA_ASSERT(maxOffset <= bytes());
 
-					return {&data(offset), size()};
+					return {&data(offset), count};
 				} else {
 					[[maybe_unused]] const auto maxOffset = offset + sizeof(U);
 					GAIA_ASSERT(maxOffset <= bytes());
+					GAIA_ASSERT(count == 1);
 
 					return {&data(offset), 1};
 				}
@@ -331,27 +344,41 @@ namespace gaia {
 			Returns a read-only entity or component view.
 			\warning If \tparam T is a component it is expected it is present. Undefined behavior otherwise.
 			\tparam T Component or Entity
+			\param from First valid entity index
+			\param to Last valid entity index
 			\return Entity of component view with read-only access
 			*/
 			template <typename T>
-			GAIA_NODISCARD auto view() const {
+			GAIA_NODISCARD auto view(uint32_t from, uint32_t to) const {
 				using U = typename component_type_t<T>::Type;
 
-				return mem::auto_view_policy_get<U>{view_inter<T>()};
+				return mem::auto_view_policy_get<U>{view_inter<T>(from, to)};
+			}
+
+			template <typename T>
+			GAIA_NODISCARD auto view() const {
+				return view<T>(0, size());
 			}
 
 			/*!
 			Returns a mutable entity or component view.
 			\warning If \tparam T is a component it is expected it is present. Undefined behavior otherwise.
 			\tparam T Component or Entity
+			\param from First valid entity index
+			\param to Last valid entity index
 			\return Entity or component view with read-write access
 			*/
 			template <typename T>
-			GAIA_NODISCARD auto view_mut() {
+			GAIA_NODISCARD auto view_mut(uint32_t from, uint32_t to) {
 				using U = typename component_type_t<T>::Type;
 				static_assert(!std::is_same_v<U, Entity>);
 
-				return mem::auto_view_policy_set<U>{view_mut_inter<T, true>()};
+				return mem::auto_view_policy_set<U>{view_mut_inter<T, true>(from, to)};
+			}
+
+			template <typename T>
+			GAIA_NODISCARD auto view_mut() {
+				return view_mut<T>(0, size());
 			}
 
 			/*!
@@ -359,55 +386,76 @@ namespace gaia {
 			Doesn't update the world version when the access is aquired.
 			\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
 			\tparam T Component
+			\param from First valid entity index
+			\param to Last valid entity index
 			\return Component view with read-write access
 			*/
 			template <typename T>
-			GAIA_NODISCARD auto sview_mut() {
+			GAIA_NODISCARD auto sview_mut(uint32_t from, uint32_t to) {
 				using U = typename component_type_t<T>::Type;
 				static_assert(!std::is_same_v<U, Entity>);
 
-				return mem::auto_view_policy_set<U>{view_mut_inter<T, false>()};
+				return mem::auto_view_policy_set<U>{view_mut_inter<T, false>(from, to)};
+			}
+
+			template <typename T>
+			GAIA_NODISCARD auto sview_mut() {
+				return sview_mut<T>(0, size());
 			}
 
 			/*!
-			Returns eiterh a mutable or immutable entity/component view based on the requested type.
+			Returns either a mutable or immutable entity/component view based on the requested type.
 			Value and const types are considered immutable. Anything else is mutable.
 			\warning If \tparam T is a component it is expected to be present. Undefined behavior otherwise.
 			\tparam T Component or Entity
+			\param from First valid entity index
+			\param to Last valid entity index
 			\return Entity or component view
 			*/
 			template <typename T>
-			GAIA_NODISCARD auto view_auto() {
+			GAIA_NODISCARD auto view_auto(uint32_t from, uint32_t to) {
 				using U = typename component_type_t<T>::Type;
 				using UOriginal = typename component_type_t<T>::TypeOriginal;
 				if constexpr (is_component_mut_v<UOriginal>) {
-					auto s = view_mut_inter<U, true>();
+					auto s = view_mut_inter<U, true>(from, to);
 					return std::span{(U*)s.data(), s.size()};
 				} else {
-					auto s = view_inter<U>();
+					auto s = view_inter<U>(from, to);
 					return std::span{(const U*)s.data(), s.size()};
 				}
 			}
 
+			template <typename T>
+			GAIA_NODISCARD auto view_auto() {
+				return view_auto<T>(0, size());
+			}
+
 			/*!
-			Returns eiterh a mutable or immutable entity/component view based on the requested type.
+			Returns either a mutable or immutable entity/component view based on the requested type.
 			Value and const types are considered immutable. Anything else is mutable.
 			Doesn't update the world version when read-write access is aquired.
 			\warning If \tparam T is a component it is expected to be present. Undefined behavior otherwise.
 			\tparam T Component or Entity
+			\param from First valid entity index
+			\param to Last valid entity index
 			\return Entity or component view
 			*/
 			template <typename T>
-			GAIA_NODISCARD auto sview_auto() {
+			GAIA_NODISCARD auto sview_auto(uint32_t from, uint32_t to) {
 				using U = typename component_type_t<T>::Type;
 				using UOriginal = typename component_type_t<T>::TypeOriginal;
 				if constexpr (is_component_mut_v<UOriginal>) {
-					auto s = view_mut_inter<U, false>();
+					auto s = view_mut_inter<U, false>(from, to);
 					return std::span{(U*)s.data(), s.size()};
 				} else {
-					auto s = view_inter<U>();
+					auto s = view_inter<U>(from, to);
 					return std::span{(const U*)s.data(), s.size()};
 				}
+			}
+
+			template <typename T>
+			GAIA_NODISCARD auto sview_auto() {
+				return sview_auto<T>(0, size());
 			}
 
 			/*!

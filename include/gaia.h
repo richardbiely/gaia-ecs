@@ -32,15 +32,15 @@
 
 #include "gaia/ecs/archetype.h"
 #include "gaia/ecs/chunk.h"
-#include "gaia/ecs/chunk_accessor.h"
 #include "gaia/ecs/chunk_allocator.h"
+#include "gaia/ecs/chunk_iterator.h"
 #include "gaia/ecs/command_buffer.h"
 #include "gaia/ecs/common.h"
 #include "gaia/ecs/component.h"
 #include "gaia/ecs/component_getter.h"
 #include "gaia/ecs/component_setter.h"
 #include "gaia/ecs/entity.h"
-#include "gaia/ecs/iterators.h"
 #include "gaia/ecs/query.h"
 #include "gaia/ecs/system.h"
 #include "gaia/ecs/world.h"
+
