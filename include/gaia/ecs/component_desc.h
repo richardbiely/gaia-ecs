@@ -101,7 +101,7 @@ namespace gaia {
 
 			template <typename T>
 			GAIA_NODISCARD static constexpr ComponentDesc build() {
-				using U = typename component_kind_t<T>::Kind;
+				using U = typename component_type_t<T>::Type;
 
 				ComponentDesc info{};
 				info.compId = comp_id<T>();

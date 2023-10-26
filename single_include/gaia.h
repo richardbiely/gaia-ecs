@@ -13499,43 +13499,43 @@ namespace gaia {
 			template <typename, typename = void>
 			struct has_component_kind: std::false_type {};
 			template <typename T>
-			struct has_component_kind<T, std::void_t<decltype(T::TComponentKind)>>: std::true_type {};
+			struct has_component_kind<T, std::void_t<decltype(T::Kind)>>: std::true_type {};
 
 			template <typename T>
-			struct ExtractComponentKind_NoComponentKind {
-				using Kind = typename std::decay_t<typename std::remove_pointer_t<T>>;
-				using KindOriginal = T;
-				static constexpr ComponentKind TComponentKind = ComponentKind::CK_Generic;
+			struct ExtractComponentType_NoComponentKind {
+				using Type = typename std::decay_t<typename std::remove_pointer_t<T>>;
+				using TypeOriginal = T;
+				static constexpr ComponentKind Kind = ComponentKind::CK_Generic;
 			};
 			template <typename T>
-			struct ExtractComponentKind_WithComponentKind {
-				using Kind = typename T::TKind;
-				using KindOriginal = typename T::TKindOriginal;
-				static constexpr ComponentKind TComponentKind = T::TComponentKind;
+			struct ExtractComponentType_WithComponentKind {
+				using Type = typename T::TKind;
+				using TypeOriginal = typename T::TTypeOriginal;
+				static constexpr ComponentKind Kind = T::Kind;
 			};
 
 			template <typename, typename = void>
 			struct is_generic_component: std::true_type {};
 			template <typename T>
-			struct is_generic_component<T, std::void_t<decltype(T::TComponentKind)>>:
-					std::bool_constant<T::TComponentKind == ComponentKind::CK_Generic> {};
+			struct is_generic_component<T, std::void_t<decltype(T::Kind)>>:
+					std::bool_constant<T::Kind == ComponentKind::CK_Generic> {};
 
 			template <typename T>
 			struct is_component_size_valid: std::bool_constant<sizeof(T) < MAX_COMPONENTS_SIZE_IN_BYTES> {};
 
 			template <typename T>
-			struct is_component_kind_valid:
+			struct is_component_type_valid:
 					std::bool_constant<
 							// SoA types need to be trivial. No restrictions otherwise.
 							(!mem::is_soa_layout_v<T> || std::is_trivially_copyable_v<T>)> {};
 
 			template <typename T, typename = void>
-			struct component_kind {
-				using type = typename detail::ExtractComponentKind_NoComponentKind<T>;
+			struct component_type {
+				using type = typename detail::ExtractComponentType_NoComponentKind<T>;
 			};
 			template <typename T>
-			struct component_kind<T, std::void_t<decltype(T::TComponentKind)>> {
-				using type = typename detail::ExtractComponentKind_WithComponentKind<T>;
+			struct component_type<T, std::void_t<decltype(T::Kind)>> {
+				using type = typename detail::ExtractComponentType_WithComponentKind<T>;
 			};
 
 			template <typename T>
@@ -13548,18 +13548,18 @@ namespace gaia {
 		template <typename T>
 		inline constexpr bool is_component_size_valid_v = detail::is_component_size_valid<T>::value;
 		template <typename T>
-		inline constexpr bool is_component_kind_valid_v = detail::is_component_kind_valid<T>::value;
+		inline constexpr bool is_component_type_valid_v = detail::is_component_type_valid<T>::value;
 
 		template <typename T>
-		using component_kind_t = typename detail::component_kind<T>::type;
+		using component_type_t = typename detail::component_type<T>::type;
 		template <typename T>
-		inline constexpr ComponentKind component_kind_v = component_kind_t<T>::TComponentKind;
+		inline constexpr ComponentKind component_kind_v = component_type_t<T>::Kind;
 
 		//! Returns the component id for \tparam T
 		//! \return Component id
 		template <typename T>
 		GAIA_NODISCARD inline ComponentId comp_id() {
-			using U = typename component_kind_t<T>::Kind;
+			using U = typename component_type_t<T>::Type;
 			return meta::type_info::id<U>();
 		}
 
@@ -13572,14 +13572,14 @@ namespace gaia {
 
 		template <typename T>
 		constexpr void verify_comp() {
-			using U = typename component_kind_t<T>::Kind;
+			using U = typename component_type_t<T>::Type;
 			// Make sure we only use this for "raw" types
 			static_assert(!std::is_const_v<U>);
 			static_assert(!std::is_pointer_v<U>);
 			static_assert(!std::is_reference_v<U>);
 			static_assert(!std::is_volatile_v<U>);
 			static_assert(is_component_size_valid_v<U>, "MAX_COMPONENTS_SIZE_IN_BYTES in bytes is exceeded");
-			static_assert(is_component_kind_valid_v<U>, "Component type restrictions not met");
+			static_assert(is_component_type_valid_v<U>, "Component type restrictions not met");
 		}
 
 		//----------------------------------------------------------------------
@@ -13644,8 +13644,8 @@ namespace gaia {
 		template <typename T>
 		struct AsChunk {
 			using TKind = typename std::decay_t<typename std::remove_pointer_t<T>>;
-			using TKindOriginal = T;
-			static constexpr ComponentKind TComponentKind = ComponentKind::CK_Chunk;
+			using TTypeOriginal = T;
+			static constexpr ComponentKind Kind = ComponentKind::CK_Chunk;
 		};
 	} // namespace ecs
 } // namespace gaia
@@ -13745,7 +13745,7 @@ namespace gaia {
 
 			template <typename T>
 			GAIA_NODISCARD static constexpr ComponentDesc build() {
-				using U = typename component_kind_t<T>::Kind;
+				using U = typename component_type_t<T>::Type;
 
 				ComponentDesc info{};
 				info.compId = comp_id<T>();
@@ -13897,7 +13897,7 @@ namespace gaia {
 
 			template <typename T>
 			GAIA_NODISCARD static constexpr ComponentInfo init() {
-				using U = typename component_kind_t<T>::Kind;
+				using U = typename component_type_t<T>::Type;
 
 				ComponentInfo info{};
 				info.lookupHash = {meta::type_info::hash<U>()};
@@ -13948,7 +13948,7 @@ namespace gaia {
 			//! \return Component info
 			template <typename T>
 			GAIA_NODISCARD GAIA_FORCEINLINE const ComponentInfo& goc_comp_info() {
-				using U = typename component_kind_t<T>::Kind;
+				using U = typename component_type_t<T>::Type;
 				const auto compId = comp_id<T>();
 
 				auto createInfo = [&]() GAIA_LAMBDAINLINE -> const ComponentInfo& {
@@ -14943,7 +14943,7 @@ namespace gaia {
 			*/
 			template <typename T>
 			GAIA_NODISCARD GAIA_FORCEINLINE auto view_inter() const -> decltype(std::span<const uint8_t>{}) {
-				using U = typename component_kind_t<T>::Kind;
+				using U = typename component_type_t<T>::Type;
 
 				if constexpr (std::is_same_v<U, Entity>) {
 					return {&data(m_header.offsets.firstByte_EntityData), size()};
@@ -14980,7 +14980,7 @@ namespace gaia {
 			*/
 			template <typename T, bool WorldVersionUpdateWanted>
 			GAIA_NODISCARD GAIA_FORCEINLINE auto view_mut_inter() -> decltype(std::span<uint8_t>{}) {
-				using U = typename component_kind_t<T>::Kind;
+				using U = typename component_type_t<T>::Type;
 #if GAIA_COMPILER_MSVC && _MSC_VER <= 1916
 				// Workaround for MSVC 2017 bug where it incorrectly evaluates the static assert
 				// even in context where it shouldn't.
@@ -15025,7 +15025,7 @@ namespace gaia {
 			*/
 			template <typename T>
 			GAIA_NODISCARD auto comp_inter(uint32_t index) const {
-				using U = typename component_kind_t<T>::Kind;
+				using U = typename component_type_t<T>::Type;
 				using RetValueType = decltype(view<T>()[0]);
 
 				GAIA_ASSERT(index < m_header.count);
@@ -15156,7 +15156,7 @@ namespace gaia {
 			*/
 			template <typename T>
 			GAIA_NODISCARD auto view() const {
-				using U = typename component_kind_t<T>::Kind;
+				using U = typename component_type_t<T>::Type;
 
 				return mem::auto_view_policy_get<U>{view_inter<T>()};
 			}
@@ -15169,7 +15169,7 @@ namespace gaia {
 			*/
 			template <typename T>
 			GAIA_NODISCARD auto view_mut() {
-				using U = typename component_kind_t<T>::Kind;
+				using U = typename component_type_t<T>::Type;
 				static_assert(!std::is_same_v<U, Entity>);
 
 				return mem::auto_view_policy_set<U>{view_mut_inter<T, true>()};
@@ -15184,10 +15184,51 @@ namespace gaia {
 			*/
 			template <typename T>
 			GAIA_NODISCARD auto sview_mut() {
-				using U = typename component_kind_t<T>::Kind;
+				using U = typename component_type_t<T>::Type;
 				static_assert(!std::is_same_v<U, Entity>);
 
 				return mem::auto_view_policy_set<U>{view_mut_inter<T, false>()};
+			}
+
+			/*!
+			Returns eiterh a mutable or immutable entity/component view based on the requested type.
+			Value and const types are considered immutable. Anything else is mutable.
+			\warning If \tparam T is a component it is expected to be present. Undefined behavior otherwise.
+			\tparam T Component or Entity
+			\return Entity or component view
+			*/
+			template <typename T>
+			GAIA_NODISCARD auto view_auto() {
+				using U = typename component_type_t<T>::Type;
+				using UOriginal = typename component_type_t<T>::TypeOriginal;
+				if constexpr (is_component_mut_v<UOriginal>) {
+					auto s = view_mut_inter<U, true>();
+					return std::span{(U*)s.data(), s.size()};
+				} else {
+					auto s = view_inter<U>();
+					return std::span{(const U*)s.data(), s.size()};
+				}
+			}
+
+			/*!
+			Returns eiterh a mutable or immutable entity/component view based on the requested type.
+			Value and const types are considered immutable. Anything else is mutable.
+			Doesn't update the world version when read-write access is aquired.
+			\warning If \tparam T is a component it is expected to be present. Undefined behavior otherwise.
+			\tparam T Component or Entity
+			\return Entity or component view
+			*/
+			template <typename T>
+			GAIA_NODISCARD auto sview_auto() {
+				using U = typename component_type_t<T>::Type;
+				using UOriginal = typename component_type_t<T>::TypeOriginal;
+				if constexpr (is_component_mut_v<UOriginal>) {
+					auto s = view_mut_inter<U, false>();
+					return std::span{(U*)s.data(), s.size()};
+				} else {
+					auto s = view_inter<U>();
+					return std::span{(const U*)s.data(), s.size()};
+				}
 			}
 
 			/*!
@@ -15764,7 +15805,7 @@ namespace gaia {
 			\param index Index of entity in the chunk
 			\param value Value to set for the component
 			*/
-			template <typename T, typename U = typename component_kind_t<T>::Kind>
+			template <typename T, typename U = typename component_type_t<T>::Type>
 			U& set(uint32_t index) {
 				static_assert(
 						component_kind_v<T> == ComponentKind::CK_Generic,
@@ -15784,7 +15825,7 @@ namespace gaia {
 			\param index Index of entity in the chunk
 			\param value Value to set for the component
 			*/
-			template <typename T, typename U = typename component_kind_t<T>::Kind>
+			template <typename T, typename U = typename component_type_t<T>::Type>
 			U& set() {
 				// Update the world version
 				update_version(m_header.worldVersion);
@@ -15800,7 +15841,7 @@ namespace gaia {
 			\param index Index of entity in the chunk
 			\param value Value to set for the component
 			*/
-			template <typename T, typename U = typename component_kind_t<T>::Kind>
+			template <typename T, typename U = typename component_type_t<T>::Type>
 			void set(uint32_t index, U&& value) {
 				static_assert(
 						component_kind_v<T> == ComponentKind::CK_Generic,
@@ -15819,7 +15860,7 @@ namespace gaia {
 			\tparam T Component
 			\param value Value to set for the component
 			*/
-			template <typename T, typename U = typename component_kind_t<T>::Kind>
+			template <typename T, typename U = typename component_type_t<T>::Type>
 			void set(U&& value) {
 				static_assert(
 						component_kind_v<T> != ComponentKind::CK_Generic,
@@ -15840,7 +15881,7 @@ namespace gaia {
 			\param index Index of entity in the chunk
 			\param value Value to set for the component
 			*/
-			template <typename T, typename U = typename component_kind_t<T>::Kind>
+			template <typename T, typename U = typename component_type_t<T>::Type>
 			void sset(uint32_t index, U&& value) {
 				static_assert(
 						component_kind_v<T> == ComponentKind::CK_Generic,
@@ -15857,7 +15898,7 @@ namespace gaia {
 			\tparam T Component
 			\param value Value to set for the component
 			*/
-			template <typename T, typename U = typename component_kind_t<T>::Kind>
+			template <typename T, typename U = typename component_type_t<T>::Type>
 			void sset(U&& value) {
 				static_assert(
 						component_kind_v<T> != ComponentKind::CK_Generic,
@@ -15913,52 +15954,6 @@ namespace gaia {
 				const auto idx = core::get_index_unsafe(compIds, compId);
 				GAIA_ASSERT(idx != BadIndex);
 				return idx;
-			}
-
-			//----------------------------------------------------------------------
-			// Iteration
-			//----------------------------------------------------------------------
-
-			template <typename T>
-			GAIA_NODISCARD constexpr GAIA_FORCEINLINE auto comp_view() {
-				using U = typename component_kind_t<T>::Kind;
-				using UOriginal = typename component_kind_t<T>::KindOriginal;
-				if constexpr (is_component_mut_v<UOriginal>) {
-					auto s = view_mut_inter<U, true>();
-					return std::span{(U*)s.data(), s.size()};
-				} else {
-					auto s = view_inter<U>();
-					return std::span{(const U*)s.data(), s.size()};
-				}
-			}
-
-			template <typename... T, typename Func>
-			GAIA_FORCEINLINE void each([[maybe_unused]] core::func_type_list<T...> types, Func func) {
-				const uint32_t idxFrom = m_header.firstEnabledEntityIndex;
-				const uint32_t idxStop = m_header.count;
-				GAIA_ASSERT(idxStop > idxFrom);
-				GAIA_ASSERT(idxStop > 0);
-
-				if constexpr (sizeof...(T) > 0) {
-					// Pointers to the respective component types in the chunk, e.g
-					// 		q.each([&](Position& p, const Velocity& v) {...}
-					// Translates to:
-					//  	auto p = iter.view_mut_inter<Position, true>();
-					//		auto v = iter.view_inter<Velocity>();
-					auto dataPointerTuple = std::make_tuple(comp_view<T>()...);
-
-					// Iterate over each entity in the chunk.
-					// Translates to:
-					//		for (uint32_t i: iter)
-					//			func(p[i], v[i]);
-
-					for (uint32_t i = idxFrom; i < idxStop; ++i)
-						func(std::get<decltype(comp_view<T>())>(dataPointerTuple)[i]...);
-				} else {
-					// No functor parameters. Do an empty loop.
-					for (uint32_t i = idxFrom; i < idxStop; ++i)
-						func();
-				}
 			}
 
 			//----------------------------------------------------------------------
@@ -16473,7 +16468,7 @@ namespace gaia {
 			}
 
 			/*!
-			Removes a chunk from the list of chunks managed by their achetype.
+			Removes a chunk from the list of chunks managed by their archetype.
 			\param pChunk Chunk to remove from the list of managed archetypes
 			*/
 			void remove_chunk(Chunk* pChunk) {
@@ -16859,7 +16854,7 @@ namespace gaia {
 			//! \tparam T Component
 			//! \param value Value to set for the component
 			//! \return ComponentSetter
-			template <typename T, typename U = typename component_kind_t<T>::Kind>
+			template <typename T, typename U = typename component_type_t<T>::Type>
 			U& set() {
 				verify_comp<T>();
 
@@ -16873,7 +16868,7 @@ namespace gaia {
 			//! \tparam T Component
 			//! \param value Value to set for the component
 			//! \return ComponentSetter
-			template <typename T, typename U = typename component_kind_t<T>::Kind>
+			template <typename T, typename U = typename component_type_t<T>::Type>
 			ComponentSetter& set(U&& data) {
 				verify_comp<T>();
 
@@ -16888,7 +16883,7 @@ namespace gaia {
 			//! \tparam T Component
 			//! \param value Value to set for the component
 			//! \return ComponentSetter
-			template <typename T, typename U = typename component_kind_t<T>::Kind>
+			template <typename T, typename U = typename component_type_t<T>::Type>
 			ComponentSetter& sset(U&& data) {
 				verify_comp<T>();
 
@@ -17462,8 +17457,8 @@ namespace gaia {
 
 			template <typename T>
 			bool has_inter(QueryListType listType) const {
-				using U = typename component_kind_t<T>::Kind;
-				using UOriginal = typename component_kind_t<T>::KindOriginal;
+				using U = typename component_type_t<T>::Type;
+				using UOriginal = typename component_type_t<T>::TypeOriginal;
 				using UOriginalPR = std::remove_reference_t<std::remove_pointer_t<UOriginal>>;
 				constexpr bool isReadWrite =
 						std::is_same_v<U, UOriginal> || (!std::is_const_v<UOriginalPR> && !std::is_empty_v<U>);
@@ -17923,7 +17918,7 @@ namespace gaia {
 				SerializationBuffer m_serBuffer;
 				//! World version (stable pointer to parent world's world version)
 				uint32_t* m_worldVersion{};
-				//! List of achetypes (stable pointer to parent world's archetype array)
+				//! List of archetypes (stable pointer to parent world's archetype array)
 				const ArchetypeList* m_archetypes{};
 				//! Map of component ids to archetypes (stable pointer to parent world's archetype component-to-archetype map)
 				const ComponentToArchetypeMap* m_componentToArchetypeMap{};
@@ -17966,8 +17961,8 @@ namespace gaia {
 			private:
 				template <typename T>
 				void add_inter(QueryListType listType) {
-					using U = typename component_kind_t<T>::Kind;
-					using UOriginal = typename component_kind_t<T>::KindOriginal;
+					using U = typename component_type_t<T>::Type;
+					using UOriginal = typename component_type_t<T>::TypeOriginal;
 					using UOriginalPR = std::remove_reference_t<std::remove_pointer_t<UOriginal>>;
 
 					const auto compId = comp_id<T>();
@@ -18148,10 +18143,9 @@ namespace gaia {
 					}
 				}
 
-				template <bool HasFilters, typename Func>
+				template <bool HasFilters, bool EnabledOnly, typename Func>
 				void run_query_constrained(
-						Func func, ChunkBatchedList& chunkBatch, const cnt::darray<Chunk*>& chunks, const QueryInfo& queryInfo,
-						bool enabledOnly) {
+						Func func, ChunkBatchedList& chunkBatch, const cnt::darray<Chunk*>& chunks, const QueryInfo& queryInfo) {
 					uint32_t chunkOffset = 0;
 					uint32_t itemsLeft = chunks.size();
 					while (itemsLeft > 0) {
@@ -18163,10 +18157,13 @@ namespace gaia {
 							if (!pChunk->has_entities())
 								continue;
 
-							if (enabledOnly && !pChunk->has_enabled_entities())
-								continue;
-							if (!enabledOnly && !pChunk->has_disabled_entities())
-								continue;
+							if constexpr (EnabledOnly) {
+								if (!pChunk->has_enabled_entities())
+									continue;
+							} else {
+								if (!pChunk->has_disabled_entities())
+									continue;
+							}
 
 							if constexpr (HasFilters) {
 								if (!match_filters(*pChunk, queryInfo))
@@ -18184,8 +18181,8 @@ namespace gaia {
 					}
 				}
 
-				template <typename Func>
-				void run_query_on_chunks(QueryInfo& queryInfo, Constraints constraints, Func func) {
+				template <typename Iter, typename Func>
+				void run_query_on_chunks(QueryInfo& queryInfo, Func func) {
 					// Update the world version
 					update_version(*m_worldVersion);
 
@@ -18194,22 +18191,22 @@ namespace gaia {
 					const bool hasFilters = queryInfo.has_filters();
 					if (hasFilters) {
 						// Evaluation defaults to EnabledOnly changes. AcceptAll is something that has to be asked for explicitely
-						if GAIA_UNLIKELY (constraints == Constraints::AcceptAll) {
+						if constexpr (std::is_same_v<Iter, IteratorAll>) {
 							for (auto* pArchetype: queryInfo)
 								run_query_unconstrained<true>(func, chunkBatch, pArchetype->chunks(), queryInfo);
 						} else {
-							const bool enabledOnly = constraints == Constraints::EnabledOnly;
+							constexpr bool enabledOnly = std::is_same_v<Iter, Iterator>;
 							for (auto* pArchetype: queryInfo)
-								run_query_constrained<true>(func, chunkBatch, pArchetype->chunks(), queryInfo, enabledOnly);
+								run_query_constrained<true, enabledOnly>(func, chunkBatch, pArchetype->chunks(), queryInfo);
 						}
 					} else {
-						if GAIA_UNLIKELY (constraints == Constraints::AcceptAll) {
+						if constexpr (std::is_same_v<Iter, IteratorAll>) {
 							for (auto* pArchetype: queryInfo)
 								run_query_unconstrained<false>(func, chunkBatch, pArchetype->chunks(), queryInfo);
 						} else {
-							const bool enabledOnly = constraints == Constraints::EnabledOnly;
+							constexpr bool enabledOnly = std::is_same_v<Iter, Iterator>;
 							for (auto* pArchetype: queryInfo)
-								run_query_constrained<false>(func, chunkBatch, pArchetype->chunks(), queryInfo, enabledOnly);
+								run_query_constrained<false, enabledOnly>(func, chunkBatch, pArchetype->chunks(), queryInfo);
 						}
 					}
 
@@ -18220,23 +18217,130 @@ namespace gaia {
 					queryInfo.set_world_version(*m_worldVersion);
 				}
 
+				template <typename Iter, typename Func, typename... T>
+				GAIA_FORCEINLINE void
+				run_query_on_chunk(Chunk& chunk, Func func, [[maybe_unused]] core::func_type_list<T...> types) {
+					if constexpr (sizeof...(T) > 0) {
+						// Pointers to the respective component types in the chunk, e.g
+						// 		q.each([&](Position& p, const Velocity& v) {...}
+						// Translates to:
+						//  	auto p = iter.view_mut_inter<Position, true>();
+						//		auto v = iter.view_inter<Velocity>();
+						auto dataPointerTuple = std::make_tuple(chunk.view_auto<T>()...);
+
+						// Iterate over each entity in the chunk.
+						// Translates to:
+						//		for (uint32_t i: iter)
+						//			func(p[i], v[i]);
+
+						Iter iter(chunk);
+						iter.each([&](uint32_t i) {
+							func(std::get<decltype(chunk.view_auto<T>())>(dataPointerTuple)[i]...);
+						});
+					} else {
+						// No functor parameters. Do an empty loop.
+						Iter iter(chunk);
+						iter.each([&](uint32_t i) {
+							func();
+						});
+					}
+				}
+
 				template <typename Func>
 				void each_inter(QueryInfo& queryInfo, Func func) {
 					using InputArgs = decltype(core::func_args(&Func::operator()));
 
+					// Entity and/or components provided as a type
+					{
 #if GAIA_DEBUG
-					// Make sure we only use components specified in the query
-					GAIA_ASSERT(unpack_args_into_query_has_all(queryInfo, InputArgs{}));
+						// Make sure we only use components specified in the query
+						GAIA_ASSERT(unpack_args_into_query_has_all(queryInfo, InputArgs{}));
 #endif
 
-					run_query_on_chunks(queryInfo, Constraints::EnabledOnly, [&](Chunk& chunk) {
-						chunk.each(InputArgs{}, func);
-					});
+						run_query_on_chunks<Iterator>(queryInfo, [&](Chunk& chunk) {
+							run_query_on_chunk<Iterator>(chunk, func, InputArgs{});
+						});
+					}
 				}
 
 				void invalidate() {
 					if constexpr (UseCaching)
 						m_storage.m_queryId = QueryIdBad;
+				}
+
+				template <bool UseFilters, Constraints c, typename ChunksContainer>
+				GAIA_NODISCARD bool has_entities_inter(QueryInfo& queryInfo, const ChunksContainer& chunks) {
+					return core::has_if(chunks, [&](Chunk* pChunk) {
+						if constexpr (UseFilters) {
+							if constexpr (c == Constraints::AcceptAll)
+								return pChunk->has_entities() && match_filters(*pChunk, queryInfo);
+							else if constexpr (c == Constraints::EnabledOnly)
+								return pChunk->size_disabled() != pChunk->size() && match_filters(*pChunk, queryInfo);
+							else // if constexpr (c == Constraints::DisabledOnly)
+								return pChunk->size_disabled() > 0 && match_filters(*pChunk, queryInfo);
+						} else {
+							if constexpr (c == Constraints::AcceptAll)
+								return pChunk->has_entities();
+							else if constexpr (c == Constraints::EnabledOnly)
+								return pChunk->size_disabled() != pChunk->size();
+							else // if constexpr (c == Constraints::DisabledOnly)
+								return pChunk->size_disabled() > 0;
+						}
+					});
+				}
+
+				template <bool UseFilters, Constraints c, typename ChunksContainer>
+				GAIA_NODISCARD uint32_t calc_entity_cnt_inter(QueryInfo& queryInfo, const ChunksContainer& chunks) {
+					uint32_t cnt = 0;
+
+					for (auto* pChunk: chunks) {
+						if (!pChunk->has_entities())
+							continue;
+
+						// Filters
+						if constexpr (UseFilters) {
+							if (!match_filters(*pChunk, queryInfo))
+								continue;
+						}
+
+						// Entity count
+						if constexpr (c == Constraints::EnabledOnly)
+							cnt += pChunk->size_enabled();
+						else if constexpr (c == Constraints::DisabledOnly)
+							cnt += pChunk->size_disabled();
+						else
+							cnt += pChunk->size();
+					}
+
+					return cnt;
+				}
+
+				template <bool UseFilters, Constraints c, typename ChunksContainerIn, typename ChunksContainerOut>
+				void arr_inter(QueryInfo& queryInfo, const ChunksContainerIn& chunks, ChunksContainerOut& outArray) {
+					using ContainerItemType = typename ChunksContainerOut::value_type;
+
+					for (auto* pChunk: chunks) {
+						if (!pChunk->has_entities())
+							continue;
+
+						if constexpr (c == Constraints::EnabledOnly) {
+							if (pChunk->has_disabled_entities())
+								continue;
+						} else if constexpr (c == Constraints::DisabledOnly) {
+							if (!pChunk->has_disabled_entities())
+								continue;
+						}
+
+						// Filters
+						if constexpr (UseFilters) {
+							if (!match_filters(*pChunk, queryInfo))
+								continue;
+						}
+
+						const auto componentView = pChunk->template view<ContainerItemType>();
+						for (uint32_t i = 0; i < pChunk->size(); ++i)
+							outArray.push_back(componentView[i]);
+					}
 				}
 
 			public:
@@ -18313,16 +18417,16 @@ namespace gaia {
 				void each(Func func) {
 					auto& queryInfo = fetch_query_info();
 
-					if constexpr (std::is_invocable<Func, IteratorAll>::value)
-						run_query_on_chunks(queryInfo, Constraints::AcceptAll, [&](Chunk& chunk) {
+					if constexpr (std::is_invocable_v<Func, IteratorAll>)
+						run_query_on_chunks<IteratorAll>(queryInfo, [&](Chunk& chunk) {
 							func(IteratorAll(chunk));
 						});
-					else if constexpr (std::is_invocable<Func, Iterator>::value)
-						run_query_on_chunks(queryInfo, Constraints::EnabledOnly, [&](Chunk& chunk) {
+					else if constexpr (std::is_invocable_v<Func, Iterator>)
+						run_query_on_chunks<Iterator>(queryInfo, [&](Chunk& chunk) {
 							func(Iterator(chunk));
 						});
-					else if constexpr (std::is_invocable<Func, IteratorDisabled>::value)
-						run_query_on_chunks(queryInfo, Constraints::DisabledOnly, [&](Chunk& chunk) {
+					else if constexpr (std::is_invocable_v<Func, IteratorDisabled>)
+						run_query_on_chunks<IteratorDisabled>(queryInfo, [&](Chunk& chunk) {
 							func(IteratorDisabled(chunk));
 						});
 					else
@@ -18337,81 +18441,6 @@ namespace gaia {
 
 					auto& queryInfo = m_storage.m_entityQueryCache->get(queryId);
 					each_inter(queryInfo, func);
-				}
-
-				template <bool UseFilters, Constraints c, typename ChunksContainer>
-				GAIA_NODISCARD bool has_entities_inter(QueryInfo& queryInfo, const ChunksContainer& chunks) {
-					return core::has_if(chunks, [&](Chunk* pChunk) {
-						if constexpr (UseFilters) {
-							if constexpr (c == Constraints::AcceptAll)
-								return pChunk->has_entities() && match_filters(*pChunk, queryInfo);
-							else if constexpr (c == Constraints::EnabledOnly)
-								return pChunk->size_disabled() != pChunk->size() && match_filters(*pChunk, queryInfo);
-							else // if constexpr (c == Constraints::DisabledOnly)
-								return pChunk->size_disabled() > 0 && match_filters(*pChunk, queryInfo);
-						} else {
-							if constexpr (c == Constraints::AcceptAll)
-								return pChunk->has_entities();
-							else if constexpr (c == Constraints::EnabledOnly)
-								return pChunk->size_disabled() != pChunk->size();
-							else // if constexpr (c == Constraints::DisabledOnly)
-								return pChunk->size_disabled() > 0;
-						}
-					});
-				}
-
-				template <bool UseFilters, Constraints c, typename ChunksContainer>
-				GAIA_NODISCARD uint32_t calc_entity_cnt_inter(QueryInfo& queryInfo, const ChunksContainer& chunks) {
-					uint32_t cnt = 0;
-
-					for (auto* pChunk: chunks) {
-						if (!pChunk->has_entities())
-							continue;
-
-						// Filters
-						if constexpr (UseFilters) {
-							if (!match_filters(*pChunk, queryInfo))
-								continue;
-						}
-
-						// Entity count
-						if constexpr (c == Constraints::EnabledOnly)
-							cnt += pChunk->size_enabled();
-						else if constexpr (c == Constraints::DisabledOnly)
-							cnt += pChunk->size_disabled();
-						else
-							cnt += pChunk->size();
-					}
-
-					return cnt;
-				}
-
-				template <bool UseFilters, Constraints c, typename ChunksContainerIn, typename ChunksContainerOut>
-				void arr_inter(QueryInfo& queryInfo, const ChunksContainerIn& chunks, ChunksContainerOut& outArray) {
-					using ContainerItemType = typename ChunksContainerOut::value_type;
-
-					for (auto* pChunk: chunks) {
-						if (!pChunk->has_entities())
-							continue;
-
-						if constexpr (c == Constraints::EnabledOnly) {
-							if (pChunk->has_disabled_entities())
-								continue;
-						} else if constexpr (c == Constraints::DisabledOnly) {
-							if (!pChunk->has_disabled_entities())
-								continue;
-						}
-
-						// Filters
-						if constexpr (UseFilters) {
-							if (!match_filters(*pChunk, queryInfo))
-								continue;
-						}
-
-						const auto componentView = pChunk->template view<ContainerItemType>();
-						for (uint32_t i = 0; i < pChunk->size(); ++i)
-							outArray.push_back(componentView[i]);
-					}
 				}
 
 				/*!
@@ -19360,7 +19389,7 @@ namespace gaia {
 				verify_comp<T>();
 				GAIA_ASSERT(valid(entity));
 
-				using U = typename component_kind_t<T>::Kind;
+				using U = typename component_type_t<T>::Type;
 				const auto& info = ComponentCache::get().goc_comp_info<U>();
 
 				constexpr auto compKind = component_kind_v<T>;
@@ -19375,7 +19404,7 @@ namespace gaia {
 			//! \return ComponentSetter object.
 			//! \warning It is expected the component is not present on \param entity yet. Undefined behavior otherwise.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			template <typename T, typename U = typename component_kind_t<T>::Kind>
+			template <typename T, typename U = typename component_type_t<T>::Type>
 			ComponentSetter add(Entity entity, U&& value) {
 				verify_comp<T>();
 				GAIA_ASSERT(valid(entity));
@@ -19406,7 +19435,7 @@ namespace gaia {
 				verify_comp<T>();
 				GAIA_ASSERT(valid(entity));
 
-				using U = typename component_kind_t<T>::Kind;
+				using U = typename component_type_t<T>::Type;
 				const auto& info = ComponentCache::get().goc_comp_info<U>();
 
 				constexpr auto compKind = component_kind_v<T>;
@@ -19422,7 +19451,7 @@ namespace gaia {
 			//! \return ComponentSetter
 			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			template <typename T, typename U = typename component_kind_t<T>::Kind>
+			template <typename T, typename U = typename component_type_t<T>::Type>
 			ComponentSetter set(Entity entity, U&& value) {
 				GAIA_ASSERT(valid(entity));
 
@@ -19437,7 +19466,7 @@ namespace gaia {
 			//! \return ComponentSetter
 			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			template <typename T, typename U = typename component_kind_t<T>::Kind>
+			template <typename T, typename U = typename component_type_t<T>::Type>
 			ComponentSetter sset(Entity entity, U&& value) {
 				GAIA_ASSERT(valid(entity));
 
@@ -19887,7 +19916,7 @@ namespace gaia {
 				// Make sure the component is registered
 				const auto& info = ComponentCache::get().goc_comp_info<T>();
 
-				using U = typename component_kind_t<T>::Kind;
+				using U = typename component_type_t<T>::Type;
 				verify_comp<U>();
 
 				m_ctx.save(ADD_COMPONENT);
@@ -19907,7 +19936,7 @@ namespace gaia {
 				// Make sure the component is registered
 				const auto& info = ComponentCache::get().goc_comp_info<T>();
 
-				using U = typename component_kind_t<T>::Kind;
+				using U = typename component_type_t<T>::Type;
 				verify_comp<U>();
 
 				m_ctx.save(ADD_COMPONENT_TO_TEMPENTITY);
@@ -19927,7 +19956,7 @@ namespace gaia {
 				// Make sure the component is registered
 				const auto& info = ComponentCache::get().goc_comp_info<T>();
 
-				using U = typename component_kind_t<T>::Kind;
+				using U = typename component_type_t<T>::Type;
 				verify_comp<U>();
 
 				m_ctx.save(ADD_COMPONENT_DATA);
@@ -19948,7 +19977,7 @@ namespace gaia {
 				// Make sure the component is registered
 				const auto& info = ComponentCache::get().goc_comp_info<T>();
 
-				using U = typename component_kind_t<T>::Kind;
+				using U = typename component_type_t<T>::Type;
 				verify_comp<U>();
 
 				m_ctx.save(ADD_COMPONENT_TO_TEMPENTITY_DATA);
@@ -19970,7 +19999,7 @@ namespace gaia {
 				// If we want to set the value of a component we must have created it already.
 				// (void)ComponentCache::get().comp_info<T>();
 
-				using U = typename component_kind_t<T>::Kind;
+				using U = typename component_type_t<T>::Type;
 				verify_comp<U>();
 
 				m_ctx.save(SET_COMPONENT);
@@ -19993,7 +20022,7 @@ namespace gaia {
 				// If we want to set the value of a component we must have created it already.
 				// (void)ComponentCache::get().goc_comp_info<T>();
 
-				using U = typename component_kind_t<T>::Kind;
+				using U = typename component_type_t<T>::Type;
 				verify_comp<U>();
 
 				m_ctx.save(SET_COMPONENT_FOR_TEMPENTITY);
@@ -20015,7 +20044,7 @@ namespace gaia {
 				// If we want to remove a component we must have created it already.
 				// (void)ComponentCache::get().goc_comp_info<T>();
 
-				using U = typename component_kind_t<T>::Kind;
+				using U = typename component_type_t<T>::Type;
 				verify_comp<U>();
 
 				m_ctx.save(REMOVE_COMPONENT);

@@ -821,7 +821,7 @@ namespace gaia {
 				verify_comp<T>();
 				GAIA_ASSERT(valid(entity));
 
-				using U = typename component_kind_t<T>::Kind;
+				using U = typename component_type_t<T>::Type;
 				const auto& info = ComponentCache::get().goc_comp_info<U>();
 
 				constexpr auto compKind = component_kind_v<T>;
@@ -836,7 +836,7 @@ namespace gaia {
 			//! \return ComponentSetter object.
 			//! \warning It is expected the component is not present on \param entity yet. Undefined behavior otherwise.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			template <typename T, typename U = typename component_kind_t<T>::Kind>
+			template <typename T, typename U = typename component_type_t<T>::Type>
 			ComponentSetter add(Entity entity, U&& value) {
 				verify_comp<T>();
 				GAIA_ASSERT(valid(entity));
@@ -867,7 +867,7 @@ namespace gaia {
 				verify_comp<T>();
 				GAIA_ASSERT(valid(entity));
 
-				using U = typename component_kind_t<T>::Kind;
+				using U = typename component_type_t<T>::Type;
 				const auto& info = ComponentCache::get().goc_comp_info<U>();
 
 				constexpr auto compKind = component_kind_v<T>;
@@ -883,7 +883,7 @@ namespace gaia {
 			//! \return ComponentSetter
 			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			template <typename T, typename U = typename component_kind_t<T>::Kind>
+			template <typename T, typename U = typename component_type_t<T>::Type>
 			ComponentSetter set(Entity entity, U&& value) {
 				GAIA_ASSERT(valid(entity));
 
@@ -898,7 +898,7 @@ namespace gaia {
 			//! \return ComponentSetter
 			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			template <typename T, typename U = typename component_kind_t<T>::Kind>
+			template <typename T, typename U = typename component_type_t<T>::Type>
 			ComponentSetter sset(Entity entity, U&& value) {
 				GAIA_ASSERT(valid(entity));
 
