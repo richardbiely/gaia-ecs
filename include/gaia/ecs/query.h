@@ -191,7 +191,7 @@ namespace gaia {
 						// No lookup hash is present which means QueryInfo needs to fetched or created
 						QueryCtx ctx;
 						commit(ctx);
-						m_storage.m_queryId = m_storage.m_entityQueryCache->goc(std::move(ctx));
+						m_storage.m_queryId = m_storage.m_entityQueryCache->goc(GAIA_MOV(ctx));
 						auto& queryInfo = m_storage.m_entityQueryCache->get(m_storage.m_queryId);
 						queryInfo.match(*m_componentToArchetypeMap, (uint32_t)m_archetypes->size());
 						return queryInfo;
@@ -199,7 +199,7 @@ namespace gaia {
 						if GAIA_UNLIKELY (m_storage.m_queryInfo.id() == QueryIdBad) {
 							QueryCtx ctx;
 							commit(ctx);
-							m_storage.m_queryInfo = QueryInfo::create(QueryId{}, std::move(ctx));
+							m_storage.m_queryInfo = QueryInfo::create(QueryId{}, GAIA_MOV(ctx));
 						}
 						m_storage.m_queryInfo.match(*m_componentToArchetypeMap, (uint32_t)m_archetypes->size());
 						return m_storage.m_queryInfo;

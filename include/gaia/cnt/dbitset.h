@@ -109,7 +109,7 @@ namespace gaia {
 			}
 
 			dbitset(dbitset&& other) noexcept {
-				*this = std::move(other);
+				*this = GAIA_MOV(other);
 			}
 
 			dbitset& operator=(dbitset&& other) noexcept {

@@ -411,7 +411,7 @@ struct World {
 				if (x > 0)
 					node.InitIndex(3, map[y][x - 1] != TILE_WALL);
 
-				graph.push_back(std::move(node));
+				graph.push_back(GAIA_MOV(node));
 			}
 		}
 
@@ -479,8 +479,8 @@ struct World {
 
 	void CreateArrow(Position p, Velocity v) {
 		auto e = w.add();
-		w.add<Position>(e, std::move(p));
-		w.add<Velocity>(e, std::move(v));
+		w.add<Position>(e, GAIA_MOV(p));
+		w.add<Velocity>(e, GAIA_MOV(v));
 		w.add<RigidBody>(e);
 		w.add<Sprite>(e, {TILE_ARROW});
 		w.add<Item>(e, {ItemType::Arrow});

@@ -173,7 +173,7 @@ namespace gaia {
 			GAIA_NODISCARD static QueryInfo create(QueryId id, QueryCtx&& ctx) {
 				QueryInfo info;
 				matcher_hashes(ctx);
-				info.m_lookupCtx = std::move(ctx);
+				info.m_lookupCtx = GAIA_MOV(ctx);
 				info.m_lookupCtx.queryId = id;
 				return info;
 			}

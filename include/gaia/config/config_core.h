@@ -186,6 +186,10 @@ namespace gaia {
 
 //------------------------------------------------------------------------------
 
+//! Replacement for std::move.
+//! Rather than an intrinsic, older compilers would treat it an an ordinary function.
+//! As a result, compilation times were longer and performance slower in non-optimized builds.
+#define GAIA_MOV(x) static_cast<typename std::remove_reference<decltype(x)>::type&&>(x)
 //! Replacement for std::forward.
 //! Rather than an intrinsic, older compilers would treat it an an ordinary function.
 //! As a result, compilation times were longer and performance slower in non-optimized builds.
