@@ -28,15 +28,19 @@ namespace gaia {
 		};
 
 		struct ChunkHeader final {
-			static constexpr uint16_t CHUNK_LIFESPAN_BITS = 4;
-			//! Number of ticks before empty chunks are removed
-			static constexpr uint16_t MAX_CHUNK_LIFESPAN = (1 << CHUNK_LIFESPAN_BITS) - 1;
-
 			//! Maxiumum number of entities per chunk.
 			//! Defined as sizeof(big_chunk) / sizeof(entity)
 			static constexpr uint16_t MAX_CHUNK_ENTITIES =
 					(detail::ChunkAllocatorImpl::mem_block_size(1) - 64) / sizeof(Entity);
 			static constexpr uint16_t MAX_CHUNK_ENTITIES_BITS = (uint16_t)core::count_bits(MAX_CHUNK_ENTITIES);
+
+			static constexpr uint16_t CHUNK_LIFESPAN_BITS = 4;
+			//! Number of ticks before empty chunks are removed
+			static constexpr uint16_t MAX_CHUNK_LIFESPAN = (1 << CHUNK_LIFESPAN_BITS) - 1;
+
+			static constexpr uint16_t CHUNK_LOCKS_BITS = 3;
+			//! Number of locks the chunk can aquire
+			static constexpr uint16_t MAX_CHUNK_LOCKS = (1 << CHUNK_LOCKS_BITS) - 1;
 
 			//! Archetype the chunk belongs to
 			ArchetypeId archetypeId;
@@ -54,7 +58,7 @@ namespace gaia {
 			//! Once removal is requested and it hits 0 the chunk is removed.
 			uint32_t lifespanCountdown: CHUNK_LIFESPAN_BITS;
 			//! Updated when chunks are being iterated. Used to inform of structural changes when they shouldn't happen.
-			uint32_t structuralChangesLocked : 3;
+			uint32_t structuralChangesLocked: CHUNK_LOCKS_BITS;
 			//! True if there's any generic component that requires custom construction
 			uint32_t hasAnyCustomGenericCtor : 1;
 			//! True if there's any chunk component that requires custom construction

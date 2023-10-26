@@ -14725,15 +14725,19 @@ namespace gaia {
 		};
 
 		struct ChunkHeader final {
-			static constexpr uint16_t CHUNK_LIFESPAN_BITS = 4;
-			//! Number of ticks before empty chunks are removed
-			static constexpr uint16_t MAX_CHUNK_LIFESPAN = (1 << CHUNK_LIFESPAN_BITS) - 1;
-
 			//! Maxiumum number of entities per chunk.
 			//! Defined as sizeof(big_chunk) / sizeof(entity)
 			static constexpr uint16_t MAX_CHUNK_ENTITIES =
 					(detail::ChunkAllocatorImpl::mem_block_size(1) - 64) / sizeof(Entity);
 			static constexpr uint16_t MAX_CHUNK_ENTITIES_BITS = (uint16_t)core::count_bits(MAX_CHUNK_ENTITIES);
+
+			static constexpr uint16_t CHUNK_LIFESPAN_BITS = 4;
+			//! Number of ticks before empty chunks are removed
+			static constexpr uint16_t MAX_CHUNK_LIFESPAN = (1 << CHUNK_LIFESPAN_BITS) - 1;
+
+			static constexpr uint16_t CHUNK_LOCKS_BITS = 3;
+			//! Number of locks the chunk can aquire
+			static constexpr uint16_t MAX_CHUNK_LOCKS = (1 << CHUNK_LOCKS_BITS) - 1;
 
 			//! Archetype the chunk belongs to
 			ArchetypeId archetypeId;
@@ -14751,7 +14755,7 @@ namespace gaia {
 			//! Once removal is requested and it hits 0 the chunk is removed.
 			uint32_t lifespanCountdown: CHUNK_LIFESPAN_BITS;
 			//! Updated when chunks are being iterated. Used to inform of structural changes when they shouldn't happen.
-			uint32_t structuralChangesLocked : 3;
+			uint32_t structuralChangesLocked: CHUNK_LOCKS_BITS;
 			//! True if there's any generic component that requires custom construction
 			uint32_t hasAnyCustomGenericCtor : 1;
 			//! True if there's any chunk component that requires custom construction
@@ -15117,8 +15121,8 @@ namespace gaia {
 			*/
 			void remove_last_entity(cnt::darray<Chunk*>& chunksToRemove) {
 				GAIA_ASSERT(
-						!has_structural_changes() && "Entities can't be removed while their chunk is being iterated "
-																				 "(structural changes are forbidden during this time!)");
+						!locked() && "Entities can't be removed while their chunk is being iterated "
+												 "(structural changes are forbidden during this time!)");
 
 				remove_last_entity_inter();
 
@@ -15456,8 +15460,8 @@ namespace gaia {
 			*/
 			void remove_entity(uint32_t index, std::span<EntityContainer> entities, cnt::darray<Chunk*>& chunksToRemove) {
 				GAIA_ASSERT(
-						!has_structural_changes() && "Entities can't be removed while their chunk is being iterated "
-																				 "(structural changes are forbidden during this time!)");
+						!locked() && "Entities can't be removed while their chunk is being iterated "
+												 "(structural changes are forbidden during this time!)");
 
 				const auto chunkEntityCount = size();
 				if GAIA_UNLIKELY (chunkEntityCount == 0)
@@ -15578,6 +15582,9 @@ namespace gaia {
 			\param enableEntity Enables or disabled the entity
 			*/
 			void enable_entity(uint32_t index, bool enableEntity, std::span<EntityContainer> entities) {
+				GAIA_ASSERT(
+						!locked() && "Entities can't be enable while their chunk is being iterated "
+												 "(structural changes are forbidden during this time!)");
 				GAIA_ASSERT(index < m_header.count && "Entity chunk index out of bounds!");
 
 				if (enableEntity) {
@@ -15997,9 +16004,12 @@ namespace gaia {
 				return dying();
 			}
 
-			void set_structural_changes(bool value) {
+			//! If true locks the chunk for structural changed.
+			//! While locked, no new entities or component can be added or removed.
+			//! While locked, no entities can be enabled or disabled.
+			void lock(bool value) {
 				if (value) {
-					GAIA_ASSERT(m_header.structuralChangesLocked < 16);
+					GAIA_ASSERT(m_header.structuralChangesLocked < ChunkHeader::MAX_CHUNK_LOCKS);
 					++m_header.structuralChangesLocked;
 				} else {
 					GAIA_ASSERT(m_header.structuralChangesLocked > 0);
@@ -16007,7 +16017,8 @@ namespace gaia {
 				}
 			}
 
-			bool has_structural_changes() const {
+			//! Checks if the chunk is locked for structural changes.
+			bool locked() const {
 				return m_header.structuralChangesLocked != 0;
 			}
 
@@ -18068,20 +18079,24 @@ namespace gaia {
 				//! Execute functors in batches
 				template <typename Func>
 				static void run_func_batched(Func func, ChunkBatchedList& chunks) {
-					GAIA_ASSERT(!chunks.empty());
+					const auto chunkCnt = chunks.size();
+					GAIA_ASSERT(chunkCnt > 0);
 
 					// This is what the function is doing:
-					// for (auto *pChunk: chunks)
+					// for (auto *pChunk: chunks) {
+					//  pChunk->lock(true);
 					//	func(*pChunk);
+					//  pChunk->lock(false);
+					// }
 					// chunks.clear();
 
 					GAIA_PROF_SCOPE(run_func_batched);
 
 					// We only have one chunk to process
-					if GAIA_UNLIKELY (chunks.size() == 1) {
-						chunks[0]->set_structural_changes(true);
+					if GAIA_UNLIKELY (chunkCnt == 1) {
+						chunks[0]->lock(true);
 						func(*chunks[0]);
-						chunks[0]->set_structural_changes(false);
+						chunks[0]->lock(false);
 						chunks.clear();
 						return;
 					}
@@ -18095,21 +18110,21 @@ namespace gaia {
 					// Let us be conservative for now and go with T2. That means we will try to keep our data at
 					// least in L3 cache or higher.
 					gaia::prefetch(&chunks[1], PrefetchHint::PREFETCH_HINT_T2);
-					chunks[0]->set_structural_changes(true);
+					chunks[0]->lock(true);
 					func(*chunks[0]);
-					chunks[0]->set_structural_changes(false);
+					chunks[0]->lock(false);
 
 					uint32_t chunkIdx = 1;
-					for (; chunkIdx < chunks.size() - 1; ++chunkIdx) {
+					for (; chunkIdx < chunkCnt - 1; ++chunkIdx) {
 						gaia::prefetch(&chunks[chunkIdx + 1], PrefetchHint::PREFETCH_HINT_T2);
-						chunks[chunkIdx]->set_structural_changes(true);
+						chunks[chunkIdx]->lock(true);
 						func(*chunks[chunkIdx]);
-						chunks[chunkIdx]->set_structural_changes(false);
+						chunks[chunkIdx]->lock(false);
 					}
 
-					chunks[chunkIdx]->set_structural_changes(true);
+					chunks[chunkIdx]->lock(true);
 					func(*chunks[chunkIdx]);
-					chunks[chunkIdx]->set_structural_changes(false);
+					chunks[chunkIdx]->lock(false);
 
 					chunks.clear();
 				}
@@ -18940,8 +18955,8 @@ namespace gaia {
 			void store_entity(Entity entity, Chunk* pChunk) {
 				GAIA_ASSERT(pChunk != nullptr);
 				GAIA_ASSERT(
-						!pChunk->has_structural_changes() && "Entities can't be added while their chunk is being iterated "
-																								 "(structural changes are forbidden during this time!)");
+						!pChunk->locked() && "Entities can't be added while their chunk is being iterated "
+																 "(structural changes are forbidden during this time!)");
 
 				auto& entityContainer = m_entities[entity.id()];
 				entityContainer.pChunk = pChunk;
@@ -19056,8 +19071,8 @@ namespace gaia {
 
 				GAIA_ASSERT(pChunk != nullptr);
 				GAIA_ASSERT(
-						!pChunk->has_structural_changes() && "New components can't be added while their chunk is being iterated "
-																								 "(structural changes are forbidden during this time!)");
+						!pChunk->locked() && "New components can't be added while their chunk is being iterated "
+																 "(structural changes are forbidden during this time!)");
 
 				// Adding a component to an entity which already is a part of some chunk
 				{
@@ -19089,8 +19104,8 @@ namespace gaia {
 
 				GAIA_ASSERT(pChunk != nullptr);
 				GAIA_ASSERT(
-						!pChunk->has_structural_changes() && "Components can't be removed while their chunk is being iterated "
-																								 "(structural changes are forbidden during this time!)");
+						!pChunk->locked() && "Components can't be removed while their chunk is being iterated "
+																 "(structural changes are forbidden during this time!)");
 
 				auto& archetype = *m_archetypes[pChunk->archetype_id()];
 
@@ -19302,7 +19317,7 @@ namespace gaia {
 				auto& entityContainer = m_entities[entity.id()];
 
 				GAIA_ASSERT(
-						(!entityContainer.pChunk || !entityContainer.pChunk->has_structural_changes()) &&
+						(!entityContainer.pChunk || !entityContainer.pChunk->locked()) &&
 						"Entities can't be enabled/disabled while their chunk is being iterated "
 						"(structural changes are forbidden during this time!)");
 

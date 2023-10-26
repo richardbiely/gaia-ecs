@@ -296,8 +296,8 @@ namespace gaia {
 			*/
 			void remove_last_entity(cnt::darray<Chunk*>& chunksToRemove) {
 				GAIA_ASSERT(
-						!has_structural_changes() && "Entities can't be removed while their chunk is being iterated "
-																				 "(structural changes are forbidden during this time!)");
+						!locked() && "Entities can't be removed while their chunk is being iterated "
+												 "(structural changes are forbidden during this time!)");
 
 				remove_last_entity_inter();
 
@@ -635,8 +635,8 @@ namespace gaia {
 			*/
 			void remove_entity(uint32_t index, std::span<EntityContainer> entities, cnt::darray<Chunk*>& chunksToRemove) {
 				GAIA_ASSERT(
-						!has_structural_changes() && "Entities can't be removed while their chunk is being iterated "
-																				 "(structural changes are forbidden during this time!)");
+						!locked() && "Entities can't be removed while their chunk is being iterated "
+												 "(structural changes are forbidden during this time!)");
 
 				const auto chunkEntityCount = size();
 				if GAIA_UNLIKELY (chunkEntityCount == 0)
@@ -757,6 +757,9 @@ namespace gaia {
 			\param enableEntity Enables or disabled the entity
 			*/
 			void enable_entity(uint32_t index, bool enableEntity, std::span<EntityContainer> entities) {
+				GAIA_ASSERT(
+						!locked() && "Entities can't be enable while their chunk is being iterated "
+												 "(structural changes are forbidden during this time!)");
 				GAIA_ASSERT(index < m_header.count && "Entity chunk index out of bounds!");
 
 				if (enableEntity) {
@@ -1176,9 +1179,12 @@ namespace gaia {
 				return dying();
 			}
 
-			void set_structural_changes(bool value) {
+			//! If true locks the chunk for structural changed.
+			//! While locked, no new entities or component can be added or removed.
+			//! While locked, no entities can be enabled or disabled.
+			void lock(bool value) {
 				if (value) {
-					GAIA_ASSERT(m_header.structuralChangesLocked < 16);
+					GAIA_ASSERT(m_header.structuralChangesLocked < ChunkHeader::MAX_CHUNK_LOCKS);
 					++m_header.structuralChangesLocked;
 				} else {
 					GAIA_ASSERT(m_header.structuralChangesLocked > 0);
@@ -1186,7 +1192,8 @@ namespace gaia {
 				}
 			}
 
-			bool has_structural_changes() const {
+			//! Checks if the chunk is locked for structural changes.
+			bool locked() const {
 				return m_header.structuralChangesLocked != 0;
 			}
 

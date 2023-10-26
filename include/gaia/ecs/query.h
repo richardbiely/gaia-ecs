@@ -317,20 +317,24 @@ namespace gaia {
 				//! Execute functors in batches
 				template <typename Func>
 				static void run_func_batched(Func func, ChunkBatchedList& chunks) {
-					GAIA_ASSERT(!chunks.empty());
+					const auto chunkCnt = chunks.size();
+					GAIA_ASSERT(chunkCnt > 0);
 
 					// This is what the function is doing:
-					// for (auto *pChunk: chunks)
+					// for (auto *pChunk: chunks) {
+					//  pChunk->lock(true);
 					//	func(*pChunk);
+					//  pChunk->lock(false);
+					// }
 					// chunks.clear();
 
 					GAIA_PROF_SCOPE(run_func_batched);
 
 					// We only have one chunk to process
-					if GAIA_UNLIKELY (chunks.size() == 1) {
-						chunks[0]->set_structural_changes(true);
+					if GAIA_UNLIKELY (chunkCnt == 1) {
+						chunks[0]->lock(true);
 						func(*chunks[0]);
-						chunks[0]->set_structural_changes(false);
+						chunks[0]->lock(false);
 						chunks.clear();
 						return;
 					}
@@ -344,21 +348,21 @@ namespace gaia {
 					// Let us be conservative for now and go with T2. That means we will try to keep our data at
 					// least in L3 cache or higher.
 					gaia::prefetch(&chunks[1], PrefetchHint::PREFETCH_HINT_T2);
-					chunks[0]->set_structural_changes(true);
+					chunks[0]->lock(true);
 					func(*chunks[0]);
-					chunks[0]->set_structural_changes(false);
+					chunks[0]->lock(false);
 
 					uint32_t chunkIdx = 1;
-					for (; chunkIdx < chunks.size() - 1; ++chunkIdx) {
+					for (; chunkIdx < chunkCnt - 1; ++chunkIdx) {
 						gaia::prefetch(&chunks[chunkIdx + 1], PrefetchHint::PREFETCH_HINT_T2);
-						chunks[chunkIdx]->set_structural_changes(true);
+						chunks[chunkIdx]->lock(true);
 						func(*chunks[chunkIdx]);
-						chunks[chunkIdx]->set_structural_changes(false);
+						chunks[chunkIdx]->lock(false);
 					}
 
-					chunks[chunkIdx]->set_structural_changes(true);
+					chunks[chunkIdx]->lock(true);
 					func(*chunks[chunkIdx]);
-					chunks[chunkIdx]->set_structural_changes(false);
+					chunks[chunkIdx]->lock(false);
 
 					chunks.clear();
 				}
