@@ -317,7 +317,7 @@ namespace gaia {
 		//! print(69, "likes", 420.0f);
 		template <typename Func, typename... Args>
 		constexpr void each_pack(Func func, Args&&... args) {
-			(func(std::forward<Args>(args)), ...);
+			(func(GAIA_FWD(args)), ...);
 		}
 
 		//! Compile-time for loop over tuples and other objects implementing
@@ -332,7 +332,7 @@ namespace gaia {
 		template <typename Tuple, typename Func>
 		constexpr void each_tuple(Tuple&& tuple, Func func) {
 			constexpr auto TSize = std::tuple_size<std::remove_reference_t<Tuple>>::value;
-			detail::each_tuple_impl<(size_t)0>(std::forward<Tuple>(tuple), func, std::make_index_sequence<TSize>{});
+			detail::each_tuple_impl<(size_t)0>(GAIA_FWD(tuple), func, std::make_index_sequence<TSize>{});
 		}
 
 		template <typename Tuple, typename Func>
@@ -357,7 +357,7 @@ namespace gaia {
 			static_assert(LastIdx >= FirstIdx);
 			static_assert(LastIdx <= TSize);
 			constexpr auto Iters = LastIdx - FirstIdx;
-			detail::each_tuple_impl<FirstIdx>(std::forward<Tuple>(tuple), func, std::make_index_sequence<Iters>{});
+			detail::each_tuple_impl<FirstIdx>(GAIA_FWD(tuple), func, std::make_index_sequence<Iters>{});
 		}
 
 		template <auto FirstIdx, auto LastIdx, typename Tuple, typename Func>

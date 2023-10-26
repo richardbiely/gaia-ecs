@@ -166,7 +166,7 @@ namespace gaia {
 			}
 
 			constexpr static void set(std::span<ValueType> s, size_t idx, ValueType&& val) noexcept {
-				s[idx] = std::forward<ValueType>(val);
+				s[idx] = GAIA_FWD(val);
 			}
 		};
 
@@ -283,8 +283,7 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD constexpr static ValueType get(std::span<const uint8_t> s, size_t idx) noexcept {
-				auto t = meta::struct_to_tuple(ValueType{});
-				return get_inter(t, s, idx, std::make_index_sequence<TTupleItems>());
+				return get_inter(meta::struct_to_tuple(ValueType{}), s, idx, std::make_index_sequence<TTupleItems>());
 			}
 
 			template <size_t Item>
@@ -302,19 +301,17 @@ namespace gaia {
 				accessor(std::span<uint8_t> data, size_t idx): m_data(data), m_idx(idx) {}
 
 				constexpr void operator=(const ValueType& val) noexcept {
-					auto t = meta::struct_to_tuple(val);
-					set_inter(t, m_data, m_idx, std::make_index_sequence<TTupleItems>());
+					set_inter(meta::struct_to_tuple(val), m_data, m_idx, std::make_index_sequence<TTupleItems>());
 				}
 
 				constexpr void operator=(ValueType&& val) noexcept {
-					auto t = meta::struct_to_tuple(std::forward<ValueType>(val));
-					set_inter(t, m_data, m_idx, std::make_index_sequence<TTupleItems>());
+					set_inter(meta::struct_to_tuple(GAIA_FWD(val)), m_data, m_idx, std::make_index_sequence<TTupleItems>());
 				}
 
 				GAIA_NODISCARD constexpr operator ValueType() const noexcept {
-					auto t = meta::struct_to_tuple(ValueType{});
 					return get_inter(
-							t, {(const uint8_t*)m_data.data(), m_data.size()}, m_idx, std::make_index_sequence<TTupleItems>());
+							meta::struct_to_tuple(ValueType{}), {(const uint8_t*)m_data.data(), m_data.size()}, m_idx,
+							std::make_index_sequence<TTupleItems>());
 				}
 			};
 
@@ -355,7 +352,7 @@ namespace gaia {
 
 			template <size_t... Ids>
 			GAIA_NODISCARD constexpr static ValueType
-			get_inter(TTuple& t, std::span<const uint8_t> s, size_t idx, std::index_sequence<Ids...> /*no_name*/) noexcept {
+			get_inter(TTuple&& t, std::span<const uint8_t> s, size_t idx, std::index_sequence<Ids...> /*no_name*/) noexcept {
 				auto address = mem::align<Alignment>((uintptr_t)s.data());
 				((
 						 // Put the value at the address into our tuple. Data is aligned so we can read directly.
@@ -363,12 +360,12 @@ namespace gaia {
 						 // Skip towards the next element and make sure the address is aligned properly
 						 address = mem::align<Alignment>(address + sizeof(value_type<Ids>) * s.size())),
 				 ...);
-				return meta::tuple_to_struct<ValueType, TTuple>(std::forward<TTuple>(t));
+				return meta::tuple_to_struct<ValueType, TTuple>(GAIA_FWD(t));
 			}
 
 			template <size_t... Ids>
 			constexpr static void
-			set_inter(TTuple& t, std::span<uint8_t> s, size_t idx, std::index_sequence<Ids...> /*no_name*/) noexcept {
+			set_inter(TTuple&& t, std::span<uint8_t> s, size_t idx, std::index_sequence<Ids...> /*no_name*/) noexcept {
 				auto address = mem::align<Alignment>((uintptr_t)s.data());
 				((
 						 // Set the tuple value. Data is aligned so we can write directly.
@@ -464,7 +461,7 @@ namespace gaia {
 					view_policy::set(m_data, m_idx) = val;
 				}
 				constexpr void operator=(ValueType&& val) noexcept {
-					view_policy::set(m_data, m_idx) = std::forward<ValueType>(val);
+					view_policy::set(m_data, m_idx) = GAIA_FWD(val);
 				}
 			};
 

@@ -846,12 +846,12 @@ namespace gaia {
 				if constexpr (component_kind_v<T> == ComponentKind::CK_Generic) {
 					auto& entityContainer = add_inter(ComponentKind::CK_Generic, entity, info);
 					auto* pChunk = entityContainer.pChunk;
-					pChunk->template set<T>(entityContainer.idx, std::forward<U>(value));
+					pChunk->template set<T>(entityContainer.idx, GAIA_FWD(value));
 					return ComponentSetter{entityContainer.pChunk, entityContainer.idx};
 				} else {
 					auto& entityContainer = add_inter(ComponentKind::CK_Chunk, entity, info);
 					auto* pChunk = entityContainer.pChunk;
-					pChunk->template set<T>(std::forward<U>(value));
+					pChunk->template set<T>(GAIA_FWD(value));
 					return ComponentSetter{entityContainer.pChunk, entityContainer.idx};
 				}
 			}
@@ -888,7 +888,7 @@ namespace gaia {
 				GAIA_ASSERT(valid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
-				return ComponentSetter{entityContainer.pChunk, entityContainer.idx}.set<T>(std::forward<U>(value));
+				return ComponentSetter{entityContainer.pChunk, entityContainer.idx}.set<T>(GAIA_FWD(value));
 			}
 
 			//! Sets the value of the component \tparam T on \param entity without trigger a world version update.
@@ -903,7 +903,7 @@ namespace gaia {
 				GAIA_ASSERT(valid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
-				return ComponentSetter{entityContainer.pChunk, entityContainer.idx}.sset<T>(std::forward<U>(value));
+				return ComponentSetter{entityContainer.pChunk, entityContainer.idx}.sset<T>(GAIA_FWD(value));
 			}
 
 			//----------------------------------------------------------------------

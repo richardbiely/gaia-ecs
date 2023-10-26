@@ -198,9 +198,9 @@ namespace gaia {
 				// Trivially serializable types
 				else if constexpr (is_trivially_serializable<type>::value) {
 					if constexpr (Write)
-						s.save(std::forward<T>(arg));
+						s.save(GAIA_FWD(arg));
 					else
-						s.load(std::forward<T>(arg));
+						s.load(GAIA_FWD(arg));
 				}
 				// Types which have data() and size() member functions
 				else if constexpr (detail::has_data_and_size<type>::value) {
@@ -223,7 +223,7 @@ namespace gaia {
 				}
 				// Classes
 				else if constexpr (std::is_class_v<type>) {
-					meta::each_member(std::forward<T>(arg), [&s](auto&&... items) {
+					meta::each_member(GAIA_FWD(arg), [&s](auto&&... items) {
 						// TODO: Handle contiguous blocks of trivially copiable types
 						(ser_data_one<Write>(s, items), ...);
 					});

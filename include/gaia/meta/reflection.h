@@ -32,14 +32,14 @@ namespace gaia {
 
 		template <typename S, size_t... Is, typename Tuple>
 		GAIA_NODISCARD S tuple_to_struct(std::index_sequence<Is...> /*no_name*/, Tuple&& tup) {
-			return {std::get<Is>(std::forward<Tuple>(tup))...};
+			return {std::get<Is>(GAIA_FWD(tup))...};
 		}
 
 		template <typename S, typename Tuple>
 		GAIA_NODISCARD S tuple_to_struct(Tuple&& tup) {
 			using T = std::remove_reference_t<Tuple>;
 
-			return tuple_to_struct<S>(std::make_index_sequence<std::tuple_size<T>{}>{}, std::forward<Tuple>(tup));
+			return tuple_to_struct<S>(std::make_index_sequence<std::tuple_size<T>{}>{}, GAIA_FWD(tup));
 		}
 
 		//----------------------------------------------------------------------

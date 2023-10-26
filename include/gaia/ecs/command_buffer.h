@@ -359,7 +359,7 @@ namespace gaia {
 				cmd.compKind = component_kind_v<T>;
 				cmd.compId = info.compId;
 				ser::save(m_ctx, cmd);
-				m_ctx.save_comp(std::forward<U>(value));
+				m_ctx.save_comp(GAIA_FWD(value));
 			}
 
 			/*!
@@ -380,7 +380,7 @@ namespace gaia {
 				cmd.compKind = component_kind_v<T>;
 				cmd.compId = info.compId;
 				ser::save(m_ctx, cmd);
-				m_ctx.save_comp(std::forward<U>(value));
+				m_ctx.save_comp(GAIA_FWD(value));
 			}
 
 			/*!
@@ -402,7 +402,7 @@ namespace gaia {
 				cmd.compKind = component_kind_v<T>;
 				cmd.compId = comp_id<T>();
 				ser::save(m_ctx, cmd);
-				m_ctx.save_comp(std::forward<U>(value));
+				m_ctx.save_comp(GAIA_FWD(value));
 			}
 
 			/*!
@@ -425,7 +425,7 @@ namespace gaia {
 				cmd.compKind = component_kind_v<T>;
 				cmd.compId = comp_id<T>();
 				ser::save(m_ctx, cmd);
-				m_ctx.save_comp(std::forward<U>(value));
+				m_ctx.save_comp(GAIA_FWD(value));
 			}
 
 			/*!
