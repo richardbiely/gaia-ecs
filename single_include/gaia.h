@@ -1582,7 +1582,6 @@ namespace gaia {
 		struct contiguous_iterator_tag: random_access_iterator_tag {};
 
 		namespace detail {
-
 			template <typename, typename = void>
 			struct iterator_traits_base {}; // empty for non-iterators
 
@@ -1641,7 +1640,8 @@ namespace gaia {
 			[[maybe_unused]] constexpr bool is_rev_iter_v = std::is_convertible_v<iterator_cat_t<It>, reverse_iterator_tag>;
 
 			template <typename It>
-			[[maybe_unused]] constexpr bool is_bidi_iter_v = std::is_convertible_v<iterator_cat_t<It>, bidirectional_iterator_tag>;
+			[[maybe_unused]] constexpr bool is_bidi_iter_v =
+					std::is_convertible_v<iterator_cat_t<It>, bidirectional_iterator_tag>;
 
 			template <typename It>
 			[[maybe_unused]] constexpr bool is_random_iter_v =
@@ -1673,6 +1673,48 @@ namespace gaia {
 				return offset;
 			}
 		}
+
+		struct index_iterator {
+			using iterator_category = core::random_access_iterator_tag;
+			using value_type = uint32_t;
+
+		protected:
+			value_type m_pos;
+
+		public:
+			index_iterator(value_type pos) noexcept: m_pos(pos) {}
+
+			GAIA_NODISCARD value_type operator*() const noexcept {
+				return m_pos;
+			}
+
+			GAIA_NODISCARD value_type operator->() const noexcept {
+				return m_pos;
+			}
+
+			index_iterator operator++() noexcept {
+				++m_pos;
+				return *this;
+			}
+
+			GAIA_NODISCARD index_iterator operator++(int) noexcept {
+				index_iterator temp(*this);
+				++*this;
+				return temp;
+			}
+
+			GAIA_NODISCARD bool operator==(const index_iterator& other) const noexcept {
+				return m_pos == other.m_pos;
+			}
+
+			GAIA_NODISCARD bool operator!=(const index_iterator& other) const noexcept {
+				return m_pos != other.m_pos;
+			}
+
+			GAIA_NODISCARD bool operator<(const index_iterator& other) const noexcept {
+				return m_pos < other.m_pos;
+			}
+		};
 	} // namespace core
 } // namespace gaia
 
@@ -15003,11 +15045,16 @@ namespace gaia {
 			\return Span of read-only component data.
 			*/
 			template <typename T>
-			GAIA_NODISCARD GAIA_FORCEINLINE auto view_inter() const -> decltype(std::span<const uint8_t>{}) {
+			GAIA_NODISCARD GAIA_FORCEINLINE auto view_inter(uint32_t from, uint32_t to) const
+					-> decltype(std::span<const uint8_t>{}) {
 				using U = typename component_type_t<T>::Type;
 
+				GAIA_ASSERT(to <= size());
+				[[maybe_unused]] const uint32_t count = to - from;
+
 				if constexpr (std::is_same_v<U, Entity>) {
-					return {&data(m_header.offsets.firstByte_EntityData), size()};
+					const auto offset = m_header.offsets.firstByte_EntityData + sizeof(U) * from;
+					return {&data(offset), count};
 				} else {
 					static_assert(!std::is_empty_v<U>, "Attempting to get value of an empty component");
 
@@ -15016,16 +15063,18 @@ namespace gaia {
 
 					// Find at what byte offset the first component of a given type is located
 					uint32_t compIdx = 0;
-					const auto offset = find_data_offset(compKind, compId, compIdx);
+					const auto offsetFirst = find_data_offset(compKind, compId, compIdx);
+					const auto offset = offsetFirst + from * (uint32_t)sizeof(U);
 
 					if constexpr (compKind == ComponentKind::CK_Generic) {
-						[[maybe_unused]] const auto maxOffset = offset + capacity() * sizeof(U);
+						[[maybe_unused]] const auto maxOffset = offsetFirst + capacity() * sizeof(U);
 						GAIA_ASSERT(maxOffset <= bytes());
 
-						return {&data(offset), size()};
+						return {&data(offset), count};
 					} else {
 						[[maybe_unused]] const auto maxOffset = offset + sizeof(U);
 						GAIA_ASSERT(maxOffset <= bytes());
+						GAIA_ASSERT(count == 1);
 
 						return {&data(offset), 1};
 					}
@@ -15040,7 +15089,8 @@ namespace gaia {
 			\return Span of read-write component data.
 			*/
 			template <typename T, bool WorldVersionUpdateWanted>
-			GAIA_NODISCARD GAIA_FORCEINLINE auto view_mut_inter() -> decltype(std::span<uint8_t>{}) {
+			GAIA_NODISCARD GAIA_FORCEINLINE auto view_mut_inter(uint32_t from, uint32_t to)
+					-> decltype(std::span<uint8_t>{}) {
 				using U = typename component_type_t<T>::Type;
 #if GAIA_COMPILER_MSVC && _MSC_VER <= 1916
 				// Workaround for MSVC 2017 bug where it incorrectly evaluates the static assert
@@ -15052,12 +15102,16 @@ namespace gaia {
 #endif
 				static_assert(!std::is_empty_v<U>, "Attempting to set value of an empty component");
 
+				GAIA_ASSERT(to <= size());
+				[[maybe_unused]] const uint32_t count = to - from;
+
 				const auto compId = comp_id<T>();
 				constexpr auto compKind = component_kind_v<T>;
 
 				// Find at what byte offset the first component of a given type is located
 				uint32_t compIdx = 0;
-				const auto offset = find_data_offset(compKind, compId, compIdx);
+				const auto offsetFirst = find_data_offset(compKind, compId, compIdx);
+				const auto offset = offsetFirst + from * (uint32_t)sizeof(U);
 
 				// Update version number if necessary so we know RW access was used on the chunk
 				if constexpr (WorldVersionUpdateWanted)
@@ -15067,10 +15121,11 @@ namespace gaia {
 					[[maybe_unused]] const auto maxOffset = offset + capacity() * sizeof(U);
 					GAIA_ASSERT(maxOffset <= bytes());
 
-					return {&data(offset), size()};
+					return {&data(offset), count};
 				} else {
 					[[maybe_unused]] const auto maxOffset = offset + sizeof(U);
 					GAIA_ASSERT(maxOffset <= bytes());
+					GAIA_ASSERT(count == 1);
 
 					return {&data(offset), 1};
 				}
@@ -15213,27 +15268,41 @@ namespace gaia {
 			Returns a read-only entity or component view.
 			\warning If \tparam T is a component it is expected it is present. Undefined behavior otherwise.
 			\tparam T Component or Entity
+			\param from First valid entity index
+			\param to Last valid entity index
 			\return Entity of component view with read-only access
 			*/
 			template <typename T>
-			GAIA_NODISCARD auto view() const {
+			GAIA_NODISCARD auto view(uint32_t from, uint32_t to) const {
 				using U = typename component_type_t<T>::Type;
 
-				return mem::auto_view_policy_get<U>{view_inter<T>()};
+				return mem::auto_view_policy_get<U>{view_inter<T>(from, to)};
+			}
+
+			template <typename T>
+			GAIA_NODISCARD auto view() const {
+				return view<T>(0, size());
 			}
 
 			/*!
 			Returns a mutable entity or component view.
 			\warning If \tparam T is a component it is expected it is present. Undefined behavior otherwise.
 			\tparam T Component or Entity
+			\param from First valid entity index
+			\param to Last valid entity index
 			\return Entity or component view with read-write access
 			*/
 			template <typename T>
-			GAIA_NODISCARD auto view_mut() {
+			GAIA_NODISCARD auto view_mut(uint32_t from, uint32_t to) {
 				using U = typename component_type_t<T>::Type;
 				static_assert(!std::is_same_v<U, Entity>);
 
-				return mem::auto_view_policy_set<U>{view_mut_inter<T, true>()};
+				return mem::auto_view_policy_set<U>{view_mut_inter<T, true>(from, to)};
+			}
+
+			template <typename T>
+			GAIA_NODISCARD auto view_mut() {
+				return view_mut<T>(0, size());
 			}
 
 			/*!
@@ -15241,55 +15310,76 @@ namespace gaia {
 			Doesn't update the world version when the access is aquired.
 			\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
 			\tparam T Component
+			\param from First valid entity index
+			\param to Last valid entity index
 			\return Component view with read-write access
 			*/
 			template <typename T>
-			GAIA_NODISCARD auto sview_mut() {
+			GAIA_NODISCARD auto sview_mut(uint32_t from, uint32_t to) {
 				using U = typename component_type_t<T>::Type;
 				static_assert(!std::is_same_v<U, Entity>);
 
-				return mem::auto_view_policy_set<U>{view_mut_inter<T, false>()};
+				return mem::auto_view_policy_set<U>{view_mut_inter<T, false>(from, to)};
+			}
+
+			template <typename T>
+			GAIA_NODISCARD auto sview_mut() {
+				return sview_mut<T>(0, size());
 			}
 
 			/*!
-			Returns eiterh a mutable or immutable entity/component view based on the requested type.
+			Returns either a mutable or immutable entity/component view based on the requested type.
 			Value and const types are considered immutable. Anything else is mutable.
 			\warning If \tparam T is a component it is expected to be present. Undefined behavior otherwise.
 			\tparam T Component or Entity
+			\param from First valid entity index
+			\param to Last valid entity index
 			\return Entity or component view
 			*/
 			template <typename T>
-			GAIA_NODISCARD auto view_auto() {
+			GAIA_NODISCARD auto view_auto(uint32_t from, uint32_t to) {
 				using U = typename component_type_t<T>::Type;
 				using UOriginal = typename component_type_t<T>::TypeOriginal;
 				if constexpr (is_component_mut_v<UOriginal>) {
-					auto s = view_mut_inter<U, true>();
+					auto s = view_mut_inter<U, true>(from, to);
 					return std::span{(U*)s.data(), s.size()};
 				} else {
-					auto s = view_inter<U>();
+					auto s = view_inter<U>(from, to);
 					return std::span{(const U*)s.data(), s.size()};
 				}
 			}
 
+			template <typename T>
+			GAIA_NODISCARD auto view_auto() {
+				return view_auto<T>(0, size());
+			}
+
 			/*!
-			Returns eiterh a mutable or immutable entity/component view based on the requested type.
+			Returns either a mutable or immutable entity/component view based on the requested type.
 			Value and const types are considered immutable. Anything else is mutable.
 			Doesn't update the world version when read-write access is aquired.
 			\warning If \tparam T is a component it is expected to be present. Undefined behavior otherwise.
 			\tparam T Component or Entity
+			\param from First valid entity index
+			\param to Last valid entity index
 			\return Entity or component view
 			*/
 			template <typename T>
-			GAIA_NODISCARD auto sview_auto() {
+			GAIA_NODISCARD auto sview_auto(uint32_t from, uint32_t to) {
 				using U = typename component_type_t<T>::Type;
 				using UOriginal = typename component_type_t<T>::TypeOriginal;
 				if constexpr (is_component_mut_v<UOriginal>) {
-					auto s = view_mut_inter<U, false>();
+					auto s = view_mut_inter<U, false>(from, to);
 					return std::span{(U*)s.data(), s.size()};
 				} else {
-					auto s = view_inter<U>();
+					auto s = view_inter<U>(from, to);
 					return std::span{(const U*)s.data(), s.size()};
 				}
+			}
+
+			template <typename T>
+			GAIA_NODISCARD auto sview_auto() {
+				return sview_auto<T>(0, size());
 			}
 
 			/*!
@@ -16876,104 +16966,15 @@ namespace gaia {
 #include <cinttypes>
 #include <type_traits>
 
-#include <cstdint>
-
-namespace gaia {
-	namespace ecs {
-		struct ComponentGetter {
-			const Chunk* m_pChunk;
-			uint32_t m_idx;
-
-			//! Returns the value stored in the component \tparam T on \param entity.
-			//! \tparam T Component
-			//! \return Value stored in the component.
-			template <typename T>
-			GAIA_NODISCARD auto get() const {
-				verify_comp<T>();
-
-				if constexpr (component_kind_v<T> == ComponentKind::CK_Generic)
-					return m_pChunk->template get<T>(m_idx);
-				else
-					return m_pChunk->template get<T>();
-			}
-
-			//! Tells if \param entity contains the component \tparam T.
-			//! \tparam T Component
-			//! \return True if the component is present on entity.
-			template <typename T>
-			GAIA_NODISCARD bool has() const {
-				verify_comp<T>();
-
-				return m_pChunk->template has<T>();
-			}
-		};
-	} // namespace ecs
-} // namespace gaia
-
-#include <cstdint>
-
-namespace gaia {
-	namespace ecs {
-		struct ComponentSetter {
-			Chunk* m_pChunk;
-			uint32_t m_idx;
-
-			//! Sets the value of the component \tparam T on \param entity.
-			//! \tparam T Component
-			//! \param value Value to set for the component
-			//! \return ComponentSetter
-			template <typename T, typename U = typename component_type_t<T>::Type>
-			U& set() {
-				verify_comp<T>();
-
-				if constexpr (component_kind_v<T> == ComponentKind::CK_Generic)
-					return m_pChunk->template set<T>(m_idx);
-				else
-					return m_pChunk->template set<T>();
-			}
-
-			//! Sets the value of the component \tparam T on \param entity.
-			//! \tparam T Component
-			//! \param value Value to set for the component
-			//! \return ComponentSetter
-			template <typename T, typename U = typename component_type_t<T>::Type>
-			ComponentSetter& set(U&& data) {
-				verify_comp<T>();
-
-				if constexpr (component_kind_v<T> == ComponentKind::CK_Generic)
-					m_pChunk->template set<T>(m_idx, GAIA_FWD(data));
-				else
-					m_pChunk->template set<T>(GAIA_FWD(data));
-				return *this;
-			}
-
-			//! Sets the value of the component \tparam T on \param entity without trigger a world version update.
-			//! \tparam T Component
-			//! \param value Value to set for the component
-			//! \return ComponentSetter
-			template <typename T, typename U = typename component_type_t<T>::Type>
-			ComponentSetter& sset(U&& data) {
-				verify_comp<T>();
-
-				if constexpr (component_kind_v<T> == ComponentKind::CK_Generic)
-					m_pChunk->template sset<T>(m_idx, GAIA_FWD(data));
-				else
-					m_pChunk->template sset<T>(GAIA_FWD(data));
-				return *this;
-			}
-		};
-	} // namespace ecs
-} // namespace gaia
-
 namespace gaia {
 	namespace ecs {
 		namespace detail {
-			class ChunkAccessor {
+			class IteratorBase {
 			protected:
 				Chunk& m_chunk;
 
 			public:
-				ChunkAccessor(Chunk& chunk): m_chunk(chunk) {}
+				IteratorBase(Chunk& chunk): m_chunk(chunk) {}
 
 				//! Checks if component \tparam T is present in the chunk.
 				//! \tparam T Component
@@ -16982,81 +16983,272 @@ namespace gaia {
 				GAIA_NODISCARD bool has() const {
 					return m_chunk.has<T>();
 				}
-
-				//! Checks if the entity at the current iterator index is enabled.
-				//! \return True it the entity is enabled. False otherwise.
-				GAIA_NODISCARD bool enabled(uint32_t entityIdx) const {
-					return entityIdx >= m_chunk.size_disabled() && entityIdx < m_chunk.size();
-				}
-
-				//! Returns a read-only entity or component view.
-				//! \warning If \tparam T is a component it is expected it is present. Undefined behavior otherwise.
-				//! \tparam T Component or Entity
-				//! \return Entity of component view with read-only access
-				template <typename T>
-				GAIA_NODISCARD auto view() const {
-					return m_chunk.view<T>();
-				}
-
-				//! Returns a mutable entity or component view.
-				//! \warning If \tparam T is a component it is expected it is present. Undefined behavior otherwise.
-				//! \tparam T Component or Entity
-				//! \return Entity or component view with read-write access
-				template <typename T>
-				GAIA_NODISCARD auto view_mut() {
-					return m_chunk.view_mut<T>();
-				}
-
-				//! Returns a mutable component view.
-				//! Doesn't update the world version when the access is aquired.
-				//! \warning It is expected the component \tparam T is present. Undefined behavior otherwise.
-				//! \tparam T Component
-				//! \return Component view with read-write access
-				template <typename T>
-				GAIA_NODISCARD auto sview_mut() {
-					return m_chunk.sview_mut<T>();
-				}
 			};
+
+			template <typename Func>
+			void each(Func func, const uint32_t size) noexcept {
+				if constexpr (std::is_invocable_v<Func, uint32_t>) {
+					for (uint32_t i = 0; i < size; ++i)
+						func(i);
+				} else {
+					for (uint32_t i = 0; i < size; ++i)
+						func();
+				}
+			}
 		} // namespace detail
 
-		struct ChunkAccessorIt {
-			using value_type = uint32_t;
+		struct Iterator: public detail::IteratorBase {
+			using Iter = core::index_iterator;
 
-		protected:
-			value_type m_pos;
+			Iterator(Chunk& chunk) noexcept: detail::IteratorBase(chunk) {}
 
-		public:
-			ChunkAccessorIt(value_type pos) noexcept: m_pos(pos) {}
-
-			GAIA_NODISCARD value_type operator*() const noexcept {
-				return m_pos;
+			//! Returns the number of entities accessible via the iterator
+			GAIA_NODISCARD uint32_t size() const noexcept {
+				return m_chunk.size_enabled();
 			}
 
-			GAIA_NODISCARD value_type operator->() const noexcept {
-				return m_pos;
+			//! Returns a read-only entity or component view.
+			//! \warning If \tparam T is a component it is expected it is present. Undefined behavior otherwise.
+			//! \tparam T Component or Entity
+			//! \return Entity of component view with read-only access
+			template <typename T>
+			GAIA_NODISCARD auto view() const {
+				return m_chunk.view<T>(from(), to());
 			}
 
-			ChunkAccessorIt operator++() noexcept {
-				++m_pos;
-				return *this;
+			//! Returns a mutable entity or component view.
+			//! \warning If \tparam T is a component it is expected it is present. Undefined behavior otherwise.
+			//! \tparam T Component or Entity
+			//! \return Entity or component view with read-write access
+			template <typename T>
+			GAIA_NODISCARD auto view_mut() {
+				return m_chunk.view_mut<T>(from(), to());
 			}
 
-			GAIA_NODISCARD ChunkAccessorIt operator++(int) noexcept {
-				ChunkAccessorIt temp(*this);
-				++*this;
-				return temp;
+			//! Returns a mutable component view.
+			//! Doesn't update the world version when the access is aquired.
+			//! \warning It is expected the component \tparam T is present. Undefined behavior otherwise.
+			//! \tparam T Component
+			//! \return Component view with read-write access
+			template <typename T>
+			GAIA_NODISCARD auto sview_mut() {
+				return m_chunk.sview_mut<T>(from(), to());
 			}
 
-			GAIA_NODISCARD bool operator==(const ChunkAccessorIt& other) const noexcept {
-				return m_pos == other.m_pos;
+			//! Returns either a mutable or immutable entity/component view based on the requested type.
+			//! Value and const types are considered immutable. Anything else is mutable.
+			//! \warning If \tparam T is a component it is expected to be present. Undefined behavior otherwise.
+			//! \tparam T Component or Entity
+			//! \return Entity or component view
+			template <typename T>
+			GAIA_NODISCARD auto view_auto() {
+				return m_chunk.view_auto<T>(from(), to());
 			}
 
-			GAIA_NODISCARD bool operator!=(const ChunkAccessorIt& other) const noexcept {
-				return m_pos != other.m_pos;
+			//! Returns either a mutable or immutable entity/component view based on the requested type.
+			//! Value and const types are considered immutable. Anything else is mutable.
+			//! Doesn't update the world version when read-write access is aquired.
+			//! \warning If \tparam T is a component it is expected to be present. Undefined behavior otherwise.
+			//! \tparam T Component or Entity
+			//! \return Entity or component view
+			template <typename T>
+			GAIA_NODISCARD auto sview_auto() {
+				return m_chunk.sview_auto<T>(from(), to());
 			}
 
-			GAIA_NODISCARD bool operator<(const ChunkAccessorIt& other) const noexcept {
-				return m_pos < other.m_pos;
+			//! Runs the functor for each item handled by the iterator
+			//! \tparam func Function to execute
+			template <typename Func>
+			void each(Func func) noexcept {
+				detail::each(func, size());
+			}
+
+			//! Checks if the entity at the current iterator index is enabled.
+			//! \return True it the entity is enabled. False otherwise.
+			GAIA_NODISCARD bool enabled(uint32_t index) const {
+				const auto entityIdx = from() + index;
+				return from() + entityIdx >= m_chunk.size_disabled() && entityIdx < m_chunk.size();
+			}
+
+		private:
+			//! Returns the starting index of the iterator
+			GAIA_NODISCARD uint32_t from() const noexcept {
+				return m_chunk.size_disabled();
+			}
+
+			//! Returns the ending index of the iterator (one past the last valid index)
+			GAIA_NODISCARD uint32_t to() const noexcept {
+				return m_chunk.size();
+			}
+		};
+
+		struct IteratorDisabled: public detail::IteratorBase {
+			using Iter = core::index_iterator;
+
+			IteratorDisabled(Chunk& chunk) noexcept: detail::IteratorBase(chunk) {}
+
+			//! Returns the number of entities accessible via the iterator
+			GAIA_NODISCARD uint32_t size() const noexcept {
+				return m_chunk.size_disabled();
+			}
+
+			//! Returns a read-only entity or component view.
+			//! \warning If \tparam T is a component it is expected it is present. Undefined behavior otherwise.
+			//! \tparam T Component or Entity
+			//! \return Entity of component view with read-only access
+			template <typename T>
+			GAIA_NODISCARD auto view() const {
+				return m_chunk.view<T>(from(), to());
+			}
+
+			//! Returns a mutable entity or component view.
+			//! \warning If \tparam T is a component it is expected it is present. Undefined behavior otherwise.
+			//! \tparam T Component or Entity
+			//! \return Entity or component view with read-write access
+			template <typename T>
+			GAIA_NODISCARD auto view_mut() {
+				return m_chunk.view_mut<T>(from(), to());
+			}
+
+			//! Returns a mutable component view.
+			//! Doesn't update the world version when the access is aquired.
+			//! \warning It is expected the component \tparam T is present. Undefined behavior otherwise.
+			//! \tparam T Component
+			//! \return Component view with read-write access
+			template <typename T>
+			GAIA_NODISCARD auto sview_mut() {
+				return m_chunk.sview_mut<T>(from(), to());
+			}
+
+			//! Returns either a mutable or immutable entity/component view based on the requested type.
+			//! Value and const types are considered immutable. Anything else is mutable.
+			//! \warning If \tparam T is a component it is expected to be present. Undefined behavior otherwise.
+			//! \tparam T Component or Entity
+			//! \return Entity or component view
+			template <typename T>
+			GAIA_NODISCARD auto view_auto() {
+				return m_chunk.view_auto<T>(from(), to());
+			}
+
+			//! Returns either a mutable or immutable entity/component view based on the requested type.
+			//! Value and const types are considered immutable. Anything else is mutable.
+			//! Doesn't update the world version when read-write access is aquired.
+			//! \warning If \tparam T is a component it is expected to be present. Undefined behavior otherwise.
+			//! \tparam T Component or Entity
+			//! \return Entity or component view
+			template <typename T>
+			GAIA_NODISCARD auto sview_auto() {
+				return m_chunk.sview_auto<T>(from(), to());
+			}
+
+			//! Runs the functor for each item handled by the iterator
+			//! \tparam func Function to execute
+			template <typename Func>
+			void each(Func func) noexcept {
+				detail::each(func, size());
+			}
+
+			//! Checks if the entity at the current iterator index is enabled.
+			//! \return True it the entity is enabled. False otherwise.
+			GAIA_NODISCARD bool enabled(uint32_t index) const {
+				const auto entityIdx = from() + index;
+				return from() + entityIdx >= m_chunk.size_disabled() && entityIdx < m_chunk.size();
+			}
+
+		private:
+			//! Returns the starting index of the iterator
+			GAIA_NODISCARD uint32_t from() const noexcept {
+				return 0;
+			}
+
+			//! Returns the ending index of the iterator (one past the last valid index)
+			GAIA_NODISCARD uint32_t to() const noexcept {
+				return m_chunk.size_disabled();
+			}
+		};
+
+		struct IteratorAll: public detail::IteratorBase {
+			using Iter = core::index_iterator;
+
+			IteratorAll(Chunk& chunk) noexcept: detail::IteratorBase(chunk) {}
+
+			//! Returns the number of entities accessible via the iterator
+			GAIA_NODISCARD uint32_t size() const noexcept {
+				return m_chunk.size();
+			}
+
+			//! Returns a read-only entity or component view.
+			//! \warning If \tparam T is a component it is expected it is present. Undefined behavior otherwise.
+			//! \tparam T Component or Entity
+			//! \return Entity of component view with read-only access
+			template <typename T>
+			GAIA_NODISCARD auto view() const {
+				return m_chunk.view<T>(from(), to());
+			}
+
+			//! Returns a mutable entity or component view.
+			//! \warning If \tparam T is a component it is expected it is present. Undefined behavior otherwise.
+			//! \tparam T Component or Entity
+			//! \return Entity or component view with read-write access
+			template <typename T>
+			GAIA_NODISCARD auto view_mut() {
+				return m_chunk.view_mut<T>(from(), to());
+			}
+
+			//! Returns a mutable component view.
+			//! Doesn't update the world version when the access is aquired.
+			//! \warning It is expected the component \tparam T is present. Undefined behavior otherwise.
+			//! \tparam T Component
+			//! \return Component view with read-write access
+			template <typename T>
+			GAIA_NODISCARD auto sview_mut() {
+				return m_chunk.sview_mut<T>(from(), to());
+			}
+
+			//! Returns either a mutable or immutable entity/component view based on the requested type.
+			//! Value and const types are considered immutable. Anything else is mutable.
+			//! \warning If \tparam T is a component it is expected to be present. Undefined behavior otherwise.
+			//! \tparam T Component or Entity
+			//! \return Entity or component view
+			template <typename T>
+			GAIA_NODISCARD auto view_auto() {
+				return m_chunk.view_auto<T>(from(), to());
+			}
+
+			//! Returns either a mutable or immutable entity/component view based on the requested type.
+			//! Value and const types are considered immutable. Anything else is mutable.
+			//! Doesn't update the world version when read-write access is aquired.
+			//! \warning If \tparam T is a component it is expected to be present. Undefined behavior otherwise.
+			//! \tparam T Component or Entity
+			//! \return Entity or component view
+			template <typename T>
+			GAIA_NODISCARD auto sview_auto() {
+				return m_chunk.sview_auto<T>(from(), to());
+			}
+
+			//! Runs the functor for each item handled by the iterator
+			//! \tparam func Function to execute
+			template <typename Func>
+			void each(Func func) noexcept {
+				detail::each(func, size());
+			}
+
+			//! Checks if the entity at the current iterator index is enabled.
+			//! \return True it the entity is enabled. False otherwise.
+			GAIA_NODISCARD bool enabled(uint32_t index) const {
+				const auto entityIdx = from() + index;
+				return from() + entityIdx >= m_chunk.size_disabled() && entityIdx < m_chunk.size();
+			}
+
+		private:
+			//! Returns the starting index of the iterator
+			GAIA_NODISCARD uint32_t from() const noexcept {
+				return 0;
+			}
+
+			//! Returns the ending index of the iterator (one past the last valid index)
+			GAIA_NODISCARD uint32_t to() const noexcept {
+				return m_chunk.size();
 			}
 		};
 	} // namespace ecs
@@ -17206,81 +17398,96 @@ namespace gaia {
 #include <cinttypes>
 #include <type_traits>
 
-#include <type_traits>
-
-#include <cinttypes>
-#include <type_traits>
+#include <cstdint>
 
 namespace gaia {
 	namespace ecs {
-		namespace detail {
-			template <typename Func>
-			void each(const uint32_t idxFrom, const uint32_t idxStop, Func func) noexcept {
-				if constexpr (std::is_invocable_v<Func, uint32_t>) {
-					for (auto i = idxFrom; i < idxStop; ++i)
-						func(i);
-				} else {
-					for (auto i = idxFrom; i < idxStop; ++i)
-						func();
-				}
-			}
-		} // namespace detail
+		struct ComponentGetter {
+			const Chunk* m_pChunk;
+			uint32_t m_idx;
 
-		struct Iterator: public detail::ChunkAccessor {
-			using Iter = ChunkAccessorIt;
+			//! Returns the value stored in the component \tparam T on \param entity.
+			//! \tparam T Component
+			//! \return Value stored in the component.
+			template <typename T>
+			GAIA_NODISCARD auto get() const {
+				verify_comp<T>();
 
-			Iterator(Chunk& chunk) noexcept: detail::ChunkAccessor(chunk) {}
-
-			//! Returns the number of entities accessible via the iterator
-			GAIA_NODISCARD uint32_t size() const noexcept {
-				return m_chunk.size_enabled();
+				if constexpr (component_kind_v<T> == ComponentKind::CK_Generic)
+					return m_pChunk->template get<T>(m_idx);
+				else
+					return m_pChunk->template get<T>();
 			}
 
-			template <typename Func>
-			void each(Func func) noexcept {
-				const auto idxFrom = m_chunk.size_disabled();
-				const auto idxStop = m_chunk.size();
-				detail::each(idxFrom, idxStop, func);
-			}
-		};
+			//! Tells if \param entity contains the component \tparam T.
+			//! \tparam T Component
+			//! \return True if the component is present on entity.
+			template <typename T>
+			GAIA_NODISCARD bool has() const {
+				verify_comp<T>();
 
-		struct IteratorDisabled: public detail::ChunkAccessor {
-			using Iter = ChunkAccessorIt;
-
-			IteratorDisabled(Chunk& chunk) noexcept: detail::ChunkAccessor(chunk) {}
-
-			//! Returns the number of entities accessible via the iterator
-			GAIA_NODISCARD uint32_t size() const noexcept {
-				return m_chunk.size_disabled();
-			}
-
-			template <typename Func>
-			void each(Func func) noexcept {
-				const auto idxFrom = 0;
-				const auto idxStop = m_chunk.size_disabled();
-				detail::each(idxFrom, idxStop, func);
-			}
-		};
-
-		struct IteratorAll: public detail::ChunkAccessor {
-			using Iter = ChunkAccessorIt;
-
-			IteratorAll(Chunk& chunk) noexcept: detail::ChunkAccessor(chunk) {}
-
-			//! Returns the number of entities accessible via the iterator
-			GAIA_NODISCARD uint32_t size() const noexcept {
-				return m_chunk.size();
-			}
-
-			template <typename Func>
-			void each(Func func) noexcept {
-				const auto idxFrom = 0;
-				const auto idxStop = m_chunk.size();
-				detail::each(idxFrom, idxStop, func);
+				return m_pChunk->template has<T>();
 			}
 		};
 	} // namespace ecs
 } // namespace gaia
+
+#include <cstdint>
+
+namespace gaia {
+	namespace ecs {
+		struct ComponentSetter {
+			Chunk* m_pChunk;
+			uint32_t m_idx;
+
+			//! Sets the value of the component \tparam T on \param entity.
+			//! \tparam T Component
+			//! \param value Value to set for the component
+			//! \return ComponentSetter
+			template <typename T, typename U = typename component_type_t<T>::Type>
+			U& set() {
+				verify_comp<T>();
+
+				if constexpr (component_kind_v<T> == ComponentKind::CK_Generic)
+					return m_pChunk->template set<T>(m_idx);
+				else
+					return m_pChunk->template set<T>();
+			}
+
+			//! Sets the value of the component \tparam T on \param entity.
+			//! \tparam T Component
+			//! \param value Value to set for the component
+			//! \return ComponentSetter
+			template <typename T, typename U = typename component_type_t<T>::Type>
+			ComponentSetter& set(U&& data) {
+				verify_comp<T>();
+
+				if constexpr (component_kind_v<T> == ComponentKind::CK_Generic)
+					m_pChunk->template set<T>(m_idx, GAIA_FWD(data));
+				else
+					m_pChunk->template set<T>(GAIA_FWD(data));
+				return *this;
+			}
+
+			//! Sets the value of the component \tparam T on \param entity without trigger a world version update.
+			//! \tparam T Component
+			//! \param value Value to set for the component
+			//! \return ComponentSetter
+			template <typename T, typename U = typename component_type_t<T>::Type>
+			ComponentSetter& sset(U&& data) {
+				verify_comp<T>();
+
+				if constexpr (component_kind_v<T> == ComponentKind::CK_Generic)
+					m_pChunk->template sset<T>(m_idx, GAIA_FWD(data));
+				else
+					m_pChunk->template sset<T>(GAIA_FWD(data));
+				return *this;
+			}
+		};
+	} // namespace ecs
+} // namespace gaia
+
+#include <type_traits>
 
 #include <type_traits>
 
@@ -18293,21 +18500,22 @@ namespace gaia {
 				GAIA_FORCEINLINE void
 				run_query_on_chunk(Chunk& chunk, Func func, [[maybe_unused]] core::func_type_list<T...> types) {
 					if constexpr (sizeof...(T) > 0) {
+						Iter iter(chunk);
+
 						// Pointers to the respective component types in the chunk, e.g
 						// 		q.each([&](Position& p, const Velocity& v) {...}
 						// Translates to:
 						//  	auto p = iter.view_mut_inter<Position, true>();
 						//		auto v = iter.view_inter<Velocity>();
-						auto dataPointerTuple = std::make_tuple(chunk.view_auto<T>()...);
+						auto dataPointerTuple = std::make_tuple(iter.template view_auto<T>()...);
 
 						// Iterate over each entity in the chunk.
 						// Translates to:
 						//		for (uint32_t i: iter)
 						//			func(p[i], v[i]);
 
-						Iter iter(chunk);
 						iter.each([&](uint32_t i) {
-							func(std::get<decltype(chunk.view_auto<T>())>(dataPointerTuple)[i]...);
+							func(std::get<decltype(iter.template view_auto<T>())>(dataPointerTuple)[i]...);
 						});
 					} else {
 						// No functor parameters. Do an empty loop.

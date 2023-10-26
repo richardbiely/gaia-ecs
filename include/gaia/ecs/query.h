@@ -14,15 +14,16 @@
 #include "archetype.h"
 #include "archetype_common.h"
 #include "chunk.h"
+#include "chunk_iterator.h"
 #include "common.h"
 #include "component.h"
 #include "component_cache.h"
 #include "component_utils.h"
 #include "data_buffer.h"
-#include "iterators.h"
 #include "query_cache.h"
 #include "query_common.h"
 #include "query_info.h"
+
 
 namespace gaia {
 	namespace ecs {
@@ -474,21 +475,22 @@ namespace gaia {
 				GAIA_FORCEINLINE void
 				run_query_on_chunk(Chunk& chunk, Func func, [[maybe_unused]] core::func_type_list<T...> types) {
 					if constexpr (sizeof...(T) > 0) {
+						Iter iter(chunk);
+
 						// Pointers to the respective component types in the chunk, e.g
 						// 		q.each([&](Position& p, const Velocity& v) {...}
 						// Translates to:
 						//  	auto p = iter.view_mut_inter<Position, true>();
 						//		auto v = iter.view_inter<Velocity>();
-						auto dataPointerTuple = std::make_tuple(chunk.view_auto<T>()...);
+						auto dataPointerTuple = std::make_tuple(iter.template view_auto<T>()...);
 
 						// Iterate over each entity in the chunk.
 						// Translates to:
 						//		for (uint32_t i: iter)
 						//			func(p[i], v[i]);
 
-						Iter iter(chunk);
 						iter.each([&](uint32_t i) {
-							func(std::get<decltype(chunk.view_auto<T>())>(dataPointerTuple)[i]...);
+							func(std::get<decltype(iter.template view_auto<T>())>(dataPointerTuple)[i]...);
 						});
 					} else {
 						// No functor parameters. Do an empty loop.

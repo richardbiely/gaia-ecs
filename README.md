@@ -499,27 +499,38 @@ q.each([](ecs::Iterator iter) {
   auto vy = vv.get<1>(); // continuous block of "y" from VelocitySoA
   auto vz = vv.get<2>(); // continuous block of "z" from VelocitySoA
 
-  // The loop becomes very simple now.
-  auto exec = [&](float* GAIA_RESTRICT p, const float* GAIA_RESTRICT v, uint32_t size) {
-    for (uint32_t i = 0; i < size; ++i)
-      p[i] += v[i] * dt;
-    /*
-    You can even use SIMD intrinsics now without a worry. The code bellow uses x86 SIMD intrinsics.
-    Note, this is just an example not an optimal way to rewrite the loop.
-    Also, most compilers will auto-vectorize this code in release builds anyway.
-    for (uint32_t i = 0; i < size; i+=4) {
-      const auto pVec = _mm_load_ps(p + i);
-      const auto vVec = _mm_load_ps(v + i);
-      const auto respVec = _mm_fmadd_ps(vVec, dtVec, pVec);
-      _mm_store_ps(p + i, respVec);
-    }*/
-  };
   // Handle x coordinates
-  exec(px.data(), vx.data(), iter.size());
+  iter.each([&](uint32_t i)) {
+    px[i] += vx[i] * dt;
+  });
   // Handle y coordinates
-  exec(py.data(), vy.data(), iter.size());
+  iter.each([&](uint32_t i)) {
+    py[i] += vy[i] * dt;
+  });
   // Handle z coordinates
-  exec(pz.data(), vz.data(), iter.size());
+  iter.each([&](uint32_t i)) {
+    pz[i] += vz[i] * dt;
+  });
+
+  /*
+  You can even use SIMD intrinsics now without a worry.
+  Note, this is just an example not an optimal way to rewrite the loop.
+  Also, most compilers will auto-vectorize this code in release builds anyway.
+
+  The code bellow uses x86 SIMD intrinsics.
+  uint32_t i = 0;
+  // Process SSE-sized blocks first
+  for (; i < iter.size(); i+=4) {
+    const auto pVec = _mm_load_ps(px.data() + i);
+    const auto vVec = _mm_load_ps(vx.data() + i);
+    const auto respVec = _mm_fmadd_ps(vVec, dtVec, pVec);
+    _mm_store_ps(px.data() + i, respVec);
+  }
+  // Process the rest of the elements
+  for (; i < iter.to(); ++i) {
+    ...
+  }
+  */
 });
 ```
 
