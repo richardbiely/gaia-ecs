@@ -48,7 +48,7 @@ namespace gaia {
 				static_assert(!mem::is_soa_layout_v<T>);
 
 				for (uint32_t i = idxSrc; i < idxDst; ++i)
-					dst[i] = std::move(src[i]);
+					dst[i] = GAIA_MOV(src[i]);
 
 				GAIA_MSVC_WARNING_POP()
 			}
@@ -63,7 +63,7 @@ namespace gaia {
 
 				if constexpr (std::is_move_assignable_v<T>) {
 					for (uint32_t i = idxSrc; i < idxDst; ++i)
-						dst[i] = std::move(dst[i + 1]);
+						dst[i] = GAIA_MOV(dst[i + 1]);
 				} else {
 					for (uint32_t i = idxSrc; i < idxDst; ++i)
 						dst[i] = dst[i + 1];

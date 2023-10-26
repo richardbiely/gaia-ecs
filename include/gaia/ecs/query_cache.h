@@ -61,7 +61,7 @@ namespace gaia {
 				}
 
 				const auto queryId = (QueryId)m_queryArr.size();
-				m_queryArr.push_back(QueryInfo::create(queryId, std::move(ctx)));
+				m_queryArr.push_back(QueryInfo::create(queryId, GAIA_MOV(ctx)));
 				ret.first->second.push_back(queryId);
 				return queryId;
 			};

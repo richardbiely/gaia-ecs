@@ -855,7 +855,7 @@ void BM_NonECS_BetterMemoryLayout(picobench::state& state) {
 		u.p = {0, 100, 0};
 		u.r = {1, 2, 3, 4};
 		u.s = {1, 1, 1};
-		units_static[i] = std::move(u);
+		units_static[i] = GAIA_MOV(u);
 	}
 
 	cnt::darray<UnitDynamic1> units_dynamic1(N / 4);
@@ -869,7 +869,7 @@ void BM_NonECS_BetterMemoryLayout(picobench::state& state) {
 		u.r = {1, 2, 3, 4};
 		u.s = {1, 1, 1};
 		u.v = {0, 0, 1};
-		units_dynamic1[i] = std::move(u);
+		units_dynamic1[i] = GAIA_MOV(u);
 	}
 	for (uint32_t i = 0; i < N / 4; ++i) {
 		UnitDynamic2 u;
@@ -878,7 +878,7 @@ void BM_NonECS_BetterMemoryLayout(picobench::state& state) {
 		u.s = {1, 1, 1};
 		u.v = {0, 0, 1};
 		u.d = {0, 0, 1};
-		units_dynamic2[i] = std::move(u);
+		units_dynamic2[i] = GAIA_MOV(u);
 	}
 	for (uint32_t i = 0; i < N / 4; ++i) {
 		UnitDynamic3 u;
@@ -888,7 +888,7 @@ void BM_NonECS_BetterMemoryLayout(picobench::state& state) {
 		u.s = {1, 1, 1};
 		u.d = {0, 0, 1};
 		u.h = {100, 100};
-		units_dynamic3[i] = std::move(u);
+		units_dynamic3[i] = GAIA_MOV(u);
 	}
 	for (uint32_t i = 0; i < N / 4; ++i) {
 		UnitDynamic4 u;
@@ -899,7 +899,7 @@ void BM_NonECS_BetterMemoryLayout(picobench::state& state) {
 		u.d = {0, 0, 1};
 		u.h = {100, 100};
 		u.e = {false};
-		units_dynamic4[i] = std::move(u);
+		units_dynamic4[i] = GAIA_MOV(u);
 	}
 
 	auto exec = [](auto& arr) {

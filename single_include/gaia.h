@@ -186,6 +186,10 @@ namespace gaia {
 
 //------------------------------------------------------------------------------
 
+//! Replacement for std::move.
+//! Rather than an intrinsic, older compilers would treat it an an ordinary function.
+//! As a result, compilation times were longer and performance slower in non-optimized builds.
+#define GAIA_MOV(x) static_cast<typename std::remove_reference<decltype(x)>::type&&>(x)
 //! Replacement for std::forward.
 //! Rather than an intrinsic, older compilers would treat it an an ordinary function.
 //! As a result, compilation times were longer and performance slower in non-optimized builds.
@@ -1732,9 +1736,9 @@ namespace gaia {
 
 		template <typename T>
 		constexpr void swap(T& left, T& right) {
-			T tmp = std::move(left);
-			left = std::move(right);
-			right = std::move(tmp);
+			T tmp = GAIA_MOV(left);
+			left = GAIA_MOV(right);
+			right = GAIA_MOV(tmp);
 		}
 
 		template <typename T, typename TCmpFunc>
@@ -3993,7 +3997,7 @@ namespace gaia {
 				static_assert(!mem::is_soa_layout_v<T>);
 
 				for (uint32_t i = idxSrc; i < idxDst; ++i)
-					dst[i] = std::move(src[i]);
+					dst[i] = GAIA_MOV(src[i]);
 
 				GAIA_MSVC_WARNING_POP()
 			}
@@ -4008,7 +4012,7 @@ namespace gaia {
 
 				if constexpr (std::is_move_assignable_v<T>) {
 					for (uint32_t i = idxSrc; i < idxDst; ++i)
-						dst[i] = std::move(dst[i + 1]);
+						dst[i] = GAIA_MOV(dst[i + 1]);
 				} else {
 					for (uint32_t i = idxSrc; i < idxDst; ++i)
 						dst[i] = dst[i + 1];
@@ -6150,7 +6154,7 @@ namespace gaia {
 			}
 
 			dbitset(dbitset&& other) noexcept {
-				*this = std::move(other);
+				*this = GAIA_MOV(other);
 			}
 
 			dbitset& operator=(dbitset&& other) noexcept {
@@ -7070,14 +7074,14 @@ namespace robin_hood {
 
 		// pair constructors are explicit so we don't accidentally call this ctor when we don't have to.
 		explicit constexpr pair(std::pair<T1, T2>&& o) noexcept(
-				noexcept(T1(std::move(std::declval<T1&&>()))) && noexcept(T2(std::move(std::declval<T2&&>())))):
-				first(std::move(o.first)),
-				second(std::move(o.second)) {}
+				noexcept(T1(GAIA_MOV(std::declval<T1&&>()))) && noexcept(T2(GAIA_MOV(std::declval<T2&&>())))):
+				first(GAIA_MOV(o.first)),
+				second(GAIA_MOV(o.second)) {}
 
 		constexpr pair(T1&& a, T2&& b) noexcept(
-				noexcept(T1(std::move(std::declval<T1&&>()))) && noexcept(T2(std::move(std::declval<T2&&>())))):
-				first(std::move(a)),
-				second(std::move(b)) {}
+				noexcept(T1(GAIA_MOV(std::declval<T1&&>()))) && noexcept(T2(GAIA_MOV(std::declval<T2&&>())))):
+				first(GAIA_MOV(a)),
+				second(GAIA_MOV(b)) {}
 
 		template <typename U1, typename U2>
 		constexpr pair(U1&& a, U2&& b) noexcept(
@@ -7422,7 +7426,7 @@ namespace robin_hood {
 
 				DataNode(M& ROBIN_HOOD_UNUSED(map) /*unused*/, DataNode<M, true>&& n) noexcept(
 						std::is_nothrow_move_constructible<value_type>::value):
-						mData(std::move(n.mData)) {}
+						mData(GAIA_MOV(n.mData)) {}
 
 				// doesn't do anything
 				void destroy(M& ROBIN_HOOD_UNUSED(map) /*unused*/) noexcept {}
@@ -7489,7 +7493,7 @@ namespace robin_hood {
 					::new (static_cast<void*>(mData)) value_type(GAIA_FWD(args)...);
 				}
 
-				DataNode(M& ROBIN_HOOD_UNUSED(map) /*unused*/, DataNode<M, false>&& n) noexcept: mData(std::move(n.mData)) {}
+				DataNode(M& ROBIN_HOOD_UNUSED(map) /*unused*/, DataNode<M, false>&& n) noexcept: mData(GAIA_MOV(n.mData)) {}
 
 				void destroy(M& map) noexcept {
 					// don't deallocate, just put it into list of datapool.
@@ -7809,9 +7813,9 @@ namespace robin_hood {
 			// Shift everything up by one element. Tries to move stuff around.
 			void shiftUp(size_t startIdx, size_t const insertion_idx) noexcept(std::is_nothrow_move_assignable<Node>::value) {
 				auto idx = startIdx;
-				::new (static_cast<void*>(mKeyVals + idx)) Node(std::move(mKeyVals[idx - 1]));
+				::new (static_cast<void*>(mKeyVals + idx)) Node(GAIA_MOV(mKeyVals[idx - 1]));
 				while (--idx != insertion_idx) {
-					mKeyVals[idx] = std::move(mKeyVals[idx - 1]);
+					mKeyVals[idx] = GAIA_MOV(mKeyVals[idx - 1]);
 				}
 
 				idx = startIdx;
@@ -7835,7 +7839,7 @@ namespace robin_hood {
 				while (mInfo[idx + 1] >= 2 * mInfoInc) {
 					ROBIN_HOOD_COUNT(shiftDown)
 					mInfo[idx] = static_cast<uint8_t>(mInfo[idx + 1] - mInfoInc);
-					mKeyVals[idx] = std::move(mKeyVals[idx + 1]);
+					mKeyVals[idx] = GAIA_MOV(mKeyVals[idx + 1]);
 					++idx;
 				}
 
@@ -7911,10 +7915,10 @@ namespace robin_hood {
 
 				auto& l = mKeyVals[insertion_idx];
 				if (idx == insertion_idx) {
-					::new (static_cast<void*>(&l)) Node(std::move(keyval));
+					::new (static_cast<void*>(&l)) Node(GAIA_MOV(keyval));
 				} else {
 					shiftUp(idx, insertion_idx);
-					l = std::move(keyval);
+					l = GAIA_MOV(keyval);
 				}
 
 				// put at empty spot
@@ -7968,18 +7972,18 @@ namespace robin_hood {
 			}
 
 			Table(Table&& o) noexcept:
-					WHash(std::move(static_cast<WHash&>(o))), WKeyEqual(std::move(static_cast<WKeyEqual&>(o))),
-					DataPool(std::move(static_cast<DataPool&>(o))) {
+					WHash(GAIA_MOV(static_cast<WHash&>(o))), WKeyEqual(GAIA_MOV(static_cast<WKeyEqual&>(o))),
+					DataPool(GAIA_MOV(static_cast<DataPool&>(o))) {
 				ROBIN_HOOD_TRACE(this)
 				if (o.mMask) {
-					mHashMultiplier = std::move(o.mHashMultiplier);
-					mKeyVals = std::move(o.mKeyVals);
-					mInfo = std::move(o.mInfo);
-					mNumElements = std::move(o.mNumElements);
-					mMask = std::move(o.mMask);
-					mMaxNumElementsAllowed = std::move(o.mMaxNumElementsAllowed);
-					mInfoInc = std::move(o.mInfoInc);
-					mInfoHashShift = std::move(o.mInfoHashShift);
+					mHashMultiplier = GAIA_MOV(o.mHashMultiplier);
+					mKeyVals = GAIA_MOV(o.mKeyVals);
+					mInfo = GAIA_MOV(o.mInfo);
+					mNumElements = GAIA_MOV(o.mNumElements);
+					mMask = GAIA_MOV(o.mMask);
+					mMaxNumElementsAllowed = GAIA_MOV(o.mMaxNumElementsAllowed);
+					mInfoInc = GAIA_MOV(o.mInfoInc);
+					mInfoHashShift = GAIA_MOV(o.mInfoHashShift);
 					// set other's mask to 0 so its destructor won't do anything
 					o.init();
 				}
@@ -7991,17 +7995,17 @@ namespace robin_hood {
 					if (o.mMask) {
 						// only move stuff if the other map actually has some data
 						destroy();
-						mHashMultiplier = std::move(o.mHashMultiplier);
-						mKeyVals = std::move(o.mKeyVals);
-						mInfo = std::move(o.mInfo);
-						mNumElements = std::move(o.mNumElements);
-						mMask = std::move(o.mMask);
-						mMaxNumElementsAllowed = std::move(o.mMaxNumElementsAllowed);
-						mInfoInc = std::move(o.mInfoInc);
-						mInfoHashShift = std::move(o.mInfoHashShift);
-						WHash::operator=(std::move(static_cast<WHash&>(o)));
-						WKeyEqual::operator=(std::move(static_cast<WKeyEqual&>(o)));
-						DataPool::operator=(std::move(static_cast<DataPool&>(o)));
+						mHashMultiplier = GAIA_MOV(o.mHashMultiplier);
+						mKeyVals = GAIA_MOV(o.mKeyVals);
+						mInfo = GAIA_MOV(o.mInfo);
+						mNumElements = GAIA_MOV(o.mNumElements);
+						mMask = GAIA_MOV(o.mMask);
+						mMaxNumElementsAllowed = GAIA_MOV(o.mMaxNumElementsAllowed);
+						mInfoInc = GAIA_MOV(o.mInfoInc);
+						mInfoHashShift = GAIA_MOV(o.mInfoHashShift);
+						WHash::operator=(GAIA_MOV(static_cast<WHash&>(o)));
+						WKeyEqual::operator=(GAIA_MOV(static_cast<WKeyEqual&>(o)));
+						DataPool::operator=(GAIA_MOV(static_cast<DataPool&>(o)));
 
 						o.init();
 
@@ -8192,12 +8196,12 @@ namespace robin_hood {
 
 					case InsertionState::new_node:
 						::new (static_cast<void*>(&mKeyVals[idxAndState.first]))
-								Node(*this, std::piecewise_construct, std::forward_as_tuple(std::move(key)), std::forward_as_tuple());
+								Node(*this, std::piecewise_construct, std::forward_as_tuple(GAIA_MOV(key)), std::forward_as_tuple());
 						break;
 
 					case InsertionState::overwrite_node:
 						mKeyVals[idxAndState.first] =
-								Node(*this, std::piecewise_construct, std::forward_as_tuple(std::move(key)), std::forward_as_tuple());
+								Node(*this, std::piecewise_construct, std::forward_as_tuple(GAIA_MOV(key)), std::forward_as_tuple());
 						break;
 
 					case InsertionState::overflow_error:
@@ -8217,7 +8221,7 @@ namespace robin_hood {
 
 			void insert(std::initializer_list<value_type> ilist) {
 				for (auto&& vt: ilist) {
-					insert(std::move(vt));
+					insert(GAIA_MOV(vt));
 				}
 			}
 
@@ -8232,11 +8236,11 @@ namespace robin_hood {
 						break;
 
 					case InsertionState::new_node:
-						::new (static_cast<void*>(&mKeyVals[idxAndState.first])) Node(*this, std::move(n));
+						::new (static_cast<void*>(&mKeyVals[idxAndState.first])) Node(*this, GAIA_MOV(n));
 						break;
 
 					case InsertionState::overwrite_node:
-						mKeyVals[idxAndState.first] = std::move(n);
+						mKeyVals[idxAndState.first] = GAIA_MOV(n);
 						break;
 
 					case InsertionState::overflow_error:
@@ -8263,7 +8267,7 @@ namespace robin_hood {
 
 			template <typename... Args>
 			std::pair<iterator, bool> try_emplace(key_type&& key, Args&&... args) {
-				return try_emplace_impl(std::move(key), GAIA_FWD(args)...);
+				return try_emplace_impl(GAIA_MOV(key), GAIA_FWD(args)...);
 			}
 
 			template <typename... Args>
@@ -8275,7 +8279,7 @@ namespace robin_hood {
 			template <typename... Args>
 			iterator try_emplace(const_iterator hint, key_type&& key, Args&&... args) {
 				(void)hint;
-				return try_emplace_impl(std::move(key), GAIA_FWD(args)...).first;
+				return try_emplace_impl(GAIA_MOV(key), GAIA_FWD(args)...).first;
 			}
 
 			template <typename Mapped>
@@ -8285,7 +8289,7 @@ namespace robin_hood {
 
 			template <typename Mapped>
 			std::pair<iterator, bool> insert_or_assign(key_type&& key, Mapped&& obj) {
-				return insertOrAssignImpl(std::move(key), GAIA_FWD(obj));
+				return insertOrAssignImpl(GAIA_MOV(key), GAIA_FWD(obj));
 			}
 
 			template <typename Mapped>
@@ -8297,7 +8301,7 @@ namespace robin_hood {
 			template <typename Mapped>
 			iterator insert_or_assign(const_iterator hint, key_type&& key, Mapped&& obj) {
 				(void)hint;
-				return insertOrAssignImpl(std::move(key), GAIA_FWD(obj)).first;
+				return insertOrAssignImpl(GAIA_MOV(key), GAIA_FWD(obj)).first;
 			}
 
 			std::pair<iterator, bool> insert(const value_type& keyval) {
@@ -8311,12 +8315,12 @@ namespace robin_hood {
 			}
 
 			std::pair<iterator, bool> insert(value_type&& keyval) {
-				return emplace(std::move(keyval));
+				return emplace(GAIA_MOV(keyval));
 			}
 
 			iterator insert(const_iterator hint, value_type&& keyval) {
 				(void)hint;
-				return emplace(std::move(keyval)).first;
+				return emplace(GAIA_MOV(keyval)).first;
 			}
 
 			// Returns 1 if key is found, 0 otherwise.
@@ -8650,7 +8654,7 @@ namespace robin_hood {
 						if (oldInfo[i] != 0) {
 							// might throw an exception, which is really bad since we are in the middle of
 							// moving stuff.
-							insert_move(std::move(oldKeyVals[i]));
+							insert_move(GAIA_MOV(oldKeyVals[i]));
 							// destroy the node but DON'T destroy the data.
 							oldKeyVals[i].~Node();
 						}
@@ -10391,14 +10395,14 @@ namespace robin_hood {
 
 		// pair constructors are explicit so we don't accidentally call this ctor when we don't have to.
 		explicit constexpr pair(std::pair<T1, T2>&& o) noexcept(
-				noexcept(T1(std::move(std::declval<T1&&>()))) && noexcept(T2(std::move(std::declval<T2&&>())))):
-				first(std::move(o.first)),
-				second(std::move(o.second)) {}
+				noexcept(T1(GAIA_MOV(std::declval<T1&&>()))) && noexcept(T2(GAIA_MOV(std::declval<T2&&>())))):
+				first(GAIA_MOV(o.first)),
+				second(GAIA_MOV(o.second)) {}
 
 		constexpr pair(T1&& a, T2&& b) noexcept(
-				noexcept(T1(std::move(std::declval<T1&&>()))) && noexcept(T2(std::move(std::declval<T2&&>())))):
-				first(std::move(a)),
-				second(std::move(b)) {}
+				noexcept(T1(GAIA_MOV(std::declval<T1&&>()))) && noexcept(T2(GAIA_MOV(std::declval<T2&&>())))):
+				first(GAIA_MOV(a)),
+				second(GAIA_MOV(b)) {}
 
 		template <typename U1, typename U2>
 		constexpr pair(U1&& a, U2&& b) noexcept(
@@ -10743,7 +10747,7 @@ namespace robin_hood {
 
 				DataNode(M& ROBIN_HOOD_UNUSED(map) /*unused*/, DataNode<M, true>&& n) noexcept(
 						std::is_nothrow_move_constructible<value_type>::value):
-						mData(std::move(n.mData)) {}
+						mData(GAIA_MOV(n.mData)) {}
 
 				// doesn't do anything
 				void destroy(M& ROBIN_HOOD_UNUSED(map) /*unused*/) noexcept {}
@@ -10810,7 +10814,7 @@ namespace robin_hood {
 					::new (static_cast<void*>(mData)) value_type(GAIA_FWD(args)...);
 				}
 
-				DataNode(M& ROBIN_HOOD_UNUSED(map) /*unused*/, DataNode<M, false>&& n) noexcept: mData(std::move(n.mData)) {}
+				DataNode(M& ROBIN_HOOD_UNUSED(map) /*unused*/, DataNode<M, false>&& n) noexcept: mData(GAIA_MOV(n.mData)) {}
 
 				void destroy(M& map) noexcept {
 					// don't deallocate, just put it into list of datapool.
@@ -11130,9 +11134,9 @@ namespace robin_hood {
 			// Shift everything up by one element. Tries to move stuff around.
 			void shiftUp(size_t startIdx, size_t const insertion_idx) noexcept(std::is_nothrow_move_assignable<Node>::value) {
 				auto idx = startIdx;
-				::new (static_cast<void*>(mKeyVals + idx)) Node(std::move(mKeyVals[idx - 1]));
+				::new (static_cast<void*>(mKeyVals + idx)) Node(GAIA_MOV(mKeyVals[idx - 1]));
 				while (--idx != insertion_idx) {
-					mKeyVals[idx] = std::move(mKeyVals[idx - 1]);
+					mKeyVals[idx] = GAIA_MOV(mKeyVals[idx - 1]);
 				}
 
 				idx = startIdx;
@@ -11156,7 +11160,7 @@ namespace robin_hood {
 				while (mInfo[idx + 1] >= 2 * mInfoInc) {
 					ROBIN_HOOD_COUNT(shiftDown)
 					mInfo[idx] = static_cast<uint8_t>(mInfo[idx + 1] - mInfoInc);
-					mKeyVals[idx] = std::move(mKeyVals[idx + 1]);
+					mKeyVals[idx] = GAIA_MOV(mKeyVals[idx + 1]);
 					++idx;
 				}
 
@@ -11232,10 +11236,10 @@ namespace robin_hood {
 
 				auto& l = mKeyVals[insertion_idx];
 				if (idx == insertion_idx) {
-					::new (static_cast<void*>(&l)) Node(std::move(keyval));
+					::new (static_cast<void*>(&l)) Node(GAIA_MOV(keyval));
 				} else {
 					shiftUp(idx, insertion_idx);
-					l = std::move(keyval);
+					l = GAIA_MOV(keyval);
 				}
 
 				// put at empty spot
@@ -11289,18 +11293,18 @@ namespace robin_hood {
 			}
 
 			Table(Table&& o) noexcept:
-					WHash(std::move(static_cast<WHash&>(o))), WKeyEqual(std::move(static_cast<WKeyEqual&>(o))),
-					DataPool(std::move(static_cast<DataPool&>(o))) {
+					WHash(GAIA_MOV(static_cast<WHash&>(o))), WKeyEqual(GAIA_MOV(static_cast<WKeyEqual&>(o))),
+					DataPool(GAIA_MOV(static_cast<DataPool&>(o))) {
 				ROBIN_HOOD_TRACE(this)
 				if (o.mMask) {
-					mHashMultiplier = std::move(o.mHashMultiplier);
-					mKeyVals = std::move(o.mKeyVals);
-					mInfo = std::move(o.mInfo);
-					mNumElements = std::move(o.mNumElements);
-					mMask = std::move(o.mMask);
-					mMaxNumElementsAllowed = std::move(o.mMaxNumElementsAllowed);
-					mInfoInc = std::move(o.mInfoInc);
-					mInfoHashShift = std::move(o.mInfoHashShift);
+					mHashMultiplier = GAIA_MOV(o.mHashMultiplier);
+					mKeyVals = GAIA_MOV(o.mKeyVals);
+					mInfo = GAIA_MOV(o.mInfo);
+					mNumElements = GAIA_MOV(o.mNumElements);
+					mMask = GAIA_MOV(o.mMask);
+					mMaxNumElementsAllowed = GAIA_MOV(o.mMaxNumElementsAllowed);
+					mInfoInc = GAIA_MOV(o.mInfoInc);
+					mInfoHashShift = GAIA_MOV(o.mInfoHashShift);
 					// set other's mask to 0 so its destructor won't do anything
 					o.init();
 				}
@@ -11312,17 +11316,17 @@ namespace robin_hood {
 					if (o.mMask) {
 						// only move stuff if the other map actually has some data
 						destroy();
-						mHashMultiplier = std::move(o.mHashMultiplier);
-						mKeyVals = std::move(o.mKeyVals);
-						mInfo = std::move(o.mInfo);
-						mNumElements = std::move(o.mNumElements);
-						mMask = std::move(o.mMask);
-						mMaxNumElementsAllowed = std::move(o.mMaxNumElementsAllowed);
-						mInfoInc = std::move(o.mInfoInc);
-						mInfoHashShift = std::move(o.mInfoHashShift);
-						WHash::operator=(std::move(static_cast<WHash&>(o)));
-						WKeyEqual::operator=(std::move(static_cast<WKeyEqual&>(o)));
-						DataPool::operator=(std::move(static_cast<DataPool&>(o)));
+						mHashMultiplier = GAIA_MOV(o.mHashMultiplier);
+						mKeyVals = GAIA_MOV(o.mKeyVals);
+						mInfo = GAIA_MOV(o.mInfo);
+						mNumElements = GAIA_MOV(o.mNumElements);
+						mMask = GAIA_MOV(o.mMask);
+						mMaxNumElementsAllowed = GAIA_MOV(o.mMaxNumElementsAllowed);
+						mInfoInc = GAIA_MOV(o.mInfoInc);
+						mInfoHashShift = GAIA_MOV(o.mInfoHashShift);
+						WHash::operator=(GAIA_MOV(static_cast<WHash&>(o)));
+						WKeyEqual::operator=(GAIA_MOV(static_cast<WKeyEqual&>(o)));
+						DataPool::operator=(GAIA_MOV(static_cast<DataPool&>(o)));
 
 						o.init();
 
@@ -11513,12 +11517,12 @@ namespace robin_hood {
 
 					case InsertionState::new_node:
 						::new (static_cast<void*>(&mKeyVals[idxAndState.first]))
-								Node(*this, std::piecewise_construct, std::forward_as_tuple(std::move(key)), std::forward_as_tuple());
+								Node(*this, std::piecewise_construct, std::forward_as_tuple(GAIA_MOV(key)), std::forward_as_tuple());
 						break;
 
 					case InsertionState::overwrite_node:
 						mKeyVals[idxAndState.first] =
-								Node(*this, std::piecewise_construct, std::forward_as_tuple(std::move(key)), std::forward_as_tuple());
+								Node(*this, std::piecewise_construct, std::forward_as_tuple(GAIA_MOV(key)), std::forward_as_tuple());
 						break;
 
 					case InsertionState::overflow_error:
@@ -11538,7 +11542,7 @@ namespace robin_hood {
 
 			void insert(std::initializer_list<value_type> ilist) {
 				for (auto&& vt: ilist) {
-					insert(std::move(vt));
+					insert(GAIA_MOV(vt));
 				}
 			}
 
@@ -11553,11 +11557,11 @@ namespace robin_hood {
 						break;
 
 					case InsertionState::new_node:
-						::new (static_cast<void*>(&mKeyVals[idxAndState.first])) Node(*this, std::move(n));
+						::new (static_cast<void*>(&mKeyVals[idxAndState.first])) Node(*this, GAIA_MOV(n));
 						break;
 
 					case InsertionState::overwrite_node:
-						mKeyVals[idxAndState.first] = std::move(n);
+						mKeyVals[idxAndState.first] = GAIA_MOV(n);
 						break;
 
 					case InsertionState::overflow_error:
@@ -11584,7 +11588,7 @@ namespace robin_hood {
 
 			template <typename... Args>
 			std::pair<iterator, bool> try_emplace(key_type&& key, Args&&... args) {
-				return try_emplace_impl(std::move(key), GAIA_FWD(args)...);
+				return try_emplace_impl(GAIA_MOV(key), GAIA_FWD(args)...);
 			}
 
 			template <typename... Args>
@@ -11596,7 +11600,7 @@ namespace robin_hood {
 			template <typename... Args>
 			iterator try_emplace(const_iterator hint, key_type&& key, Args&&... args) {
 				(void)hint;
-				return try_emplace_impl(std::move(key), GAIA_FWD(args)...).first;
+				return try_emplace_impl(GAIA_MOV(key), GAIA_FWD(args)...).first;
 			}
 
 			template <typename Mapped>
@@ -11606,7 +11610,7 @@ namespace robin_hood {
 
 			template <typename Mapped>
 			std::pair<iterator, bool> insert_or_assign(key_type&& key, Mapped&& obj) {
-				return insertOrAssignImpl(std::move(key), GAIA_FWD(obj));
+				return insertOrAssignImpl(GAIA_MOV(key), GAIA_FWD(obj));
 			}
 
 			template <typename Mapped>
@@ -11618,7 +11622,7 @@ namespace robin_hood {
 			template <typename Mapped>
 			iterator insert_or_assign(const_iterator hint, key_type&& key, Mapped&& obj) {
 				(void)hint;
-				return insertOrAssignImpl(std::move(key), GAIA_FWD(obj)).first;
+				return insertOrAssignImpl(GAIA_MOV(key), GAIA_FWD(obj)).first;
 			}
 
 			std::pair<iterator, bool> insert(const value_type& keyval) {
@@ -11632,12 +11636,12 @@ namespace robin_hood {
 			}
 
 			std::pair<iterator, bool> insert(value_type&& keyval) {
-				return emplace(std::move(keyval));
+				return emplace(GAIA_MOV(keyval));
 			}
 
 			iterator insert(const_iterator hint, value_type&& keyval) {
 				(void)hint;
-				return emplace(std::move(keyval)).first;
+				return emplace(GAIA_MOV(keyval)).first;
 			}
 
 			// Returns 1 if key is found, 0 otherwise.
@@ -11971,7 +11975,7 @@ namespace robin_hood {
 						if (oldInfo[i] != 0) {
 							// might throw an exception, which is really bad since we are in the middle of
 							// moving stuff.
-							insert_move(std::move(oldKeyVals[i]));
+							insert_move(GAIA_MOV(oldKeyVals[i]));
 							// destroy the node but DON'T destroy the data.
 							oldKeyVals[i].~Node();
 						}
@@ -13809,7 +13813,7 @@ namespace gaia {
 								info.func_ctor_copy = [](void* from, void* to) {
 									auto* src = (U*)from;
 									auto* dst = (U*)to;
-									(void)new (dst) U(std::move(*src));
+									(void)new (dst) U(GAIA_MOV(*src));
 								};
 							}
 						}
@@ -13819,24 +13823,24 @@ namespace gaia {
 							info.func_move = [](void* from, void* to) {
 								auto* src = (U*)from;
 								auto* dst = (U*)to;
-								*dst = std::move(*src);
+								*dst = GAIA_MOV(*src);
 							};
 							info.func_ctor_move = [](void* from, void* to) {
 								auto* src = (U*)from;
 								auto* dst = (U*)to;
 								new (dst) U();
-								*dst = std::move(*src);
+								*dst = GAIA_MOV(*src);
 							};
 						} else if constexpr (!std::is_trivially_move_constructible_v<U> && std::is_move_constructible_v<U>) {
 							info.func_move = [](void* from, void* to) {
 								auto* src = (U*)from;
 								auto* dst = (U*)to;
-								*dst = U(std::move(*src));
+								*dst = U(GAIA_MOV(*src));
 							};
 							info.func_ctor_move = [](void* from, void* to) {
 								auto* src = (U*)from;
 								auto* dst = (U*)to;
-								(void)new (dst) U(std::move(*src));
+								(void)new (dst) U(GAIA_MOV(*src));
 							};
 						}
 					}
@@ -13846,9 +13850,9 @@ namespace gaia {
 						info.func_swap = [](void* left, void* right) {
 							auto* l = (U*)left;
 							auto* r = (U*)right;
-							U tmp = std::move(*l);
-							*r = std::move(*l);
-							*r = std::move(tmp);
+							U tmp = GAIA_MOV(*l);
+							*r = GAIA_MOV(*l);
+							*r = GAIA_MOV(tmp);
 						};
 					} else {
 						info.func_swap = [](void* left, void* right) {
@@ -17584,7 +17588,7 @@ namespace gaia {
 			GAIA_NODISCARD static QueryInfo create(QueryId id, QueryCtx&& ctx) {
 				QueryInfo info;
 				matcher_hashes(ctx);
-				info.m_lookupCtx = std::move(ctx);
+				info.m_lookupCtx = GAIA_MOV(ctx);
 				info.m_lookupCtx.queryId = id;
 				return info;
 			}
@@ -17780,7 +17784,7 @@ namespace gaia {
 				}
 
 				const auto queryId = (QueryId)m_queryArr.size();
-				m_queryArr.push_back(QueryInfo::create(queryId, std::move(ctx)));
+				m_queryArr.push_back(QueryInfo::create(queryId, GAIA_MOV(ctx)));
 				ret.first->second.push_back(queryId);
 				return queryId;
 			};
@@ -17955,7 +17959,7 @@ namespace gaia {
 						// No lookup hash is present which means QueryInfo needs to fetched or created
 						QueryCtx ctx;
 						commit(ctx);
-						m_storage.m_queryId = m_storage.m_entityQueryCache->goc(std::move(ctx));
+						m_storage.m_queryId = m_storage.m_entityQueryCache->goc(GAIA_MOV(ctx));
 						auto& queryInfo = m_storage.m_entityQueryCache->get(m_storage.m_queryId);
 						queryInfo.match(*m_componentToArchetypeMap, (uint32_t)m_archetypes->size());
 						return queryInfo;
@@ -17963,7 +17967,7 @@ namespace gaia {
 						if GAIA_UNLIKELY (m_storage.m_queryInfo.id() == QueryIdBad) {
 							QueryCtx ctx;
 							commit(ctx);
-							m_storage.m_queryInfo = QueryInfo::create(QueryId{}, std::move(ctx));
+							m_storage.m_queryInfo = QueryInfo::create(QueryId{}, GAIA_MOV(ctx));
 						}
 						m_storage.m_queryInfo.match(*m_componentToArchetypeMap, (uint32_t)m_archetypes->size());
 						return m_storage.m_queryInfo;

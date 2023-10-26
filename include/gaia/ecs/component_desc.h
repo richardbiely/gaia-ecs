@@ -163,7 +163,7 @@ namespace gaia {
 								info.func_ctor_copy = [](void* from, void* to) {
 									auto* src = (U*)from;
 									auto* dst = (U*)to;
-									(void)new (dst) U(std::move(*src));
+									(void)new (dst) U(GAIA_MOV(*src));
 								};
 							}
 						}
@@ -173,24 +173,24 @@ namespace gaia {
 							info.func_move = [](void* from, void* to) {
 								auto* src = (U*)from;
 								auto* dst = (U*)to;
-								*dst = std::move(*src);
+								*dst = GAIA_MOV(*src);
 							};
 							info.func_ctor_move = [](void* from, void* to) {
 								auto* src = (U*)from;
 								auto* dst = (U*)to;
 								new (dst) U();
-								*dst = std::move(*src);
+								*dst = GAIA_MOV(*src);
 							};
 						} else if constexpr (!std::is_trivially_move_constructible_v<U> && std::is_move_constructible_v<U>) {
 							info.func_move = [](void* from, void* to) {
 								auto* src = (U*)from;
 								auto* dst = (U*)to;
-								*dst = U(std::move(*src));
+								*dst = U(GAIA_MOV(*src));
 							};
 							info.func_ctor_move = [](void* from, void* to) {
 								auto* src = (U*)from;
 								auto* dst = (U*)to;
-								(void)new (dst) U(std::move(*src));
+								(void)new (dst) U(GAIA_MOV(*src));
 							};
 						}
 					}
@@ -200,9 +200,9 @@ namespace gaia {
 						info.func_swap = [](void* left, void* right) {
 							auto* l = (U*)left;
 							auto* r = (U*)right;
-							U tmp = std::move(*l);
-							*r = std::move(*l);
-							*r = std::move(tmp);
+							U tmp = GAIA_MOV(*l);
+							*r = GAIA_MOV(*l);
+							*r = GAIA_MOV(tmp);
 						};
 					} else {
 						info.func_swap = [](void* left, void* right) {

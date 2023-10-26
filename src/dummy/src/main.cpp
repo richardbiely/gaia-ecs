@@ -241,7 +241,7 @@ struct test_1 {
 		Position dummy = {1, 2, 3};
 		arr.push_back(dummy);
 		arr.push_back(dummy);
-		arr.push_back(std::move(dummy));
+		arr.push_back(GAIA_MOV(dummy));
 		arr.push_back({1, 2, 3});
 	}
 
@@ -275,7 +275,7 @@ struct test_2 {
 		PositionSoA dummy = {1, 2, 3};
 		arr.push_back(dummy);
 		arr.push_back(dummy);
-		arr.push_back(std::move(dummy));
+		arr.push_back(GAIA_MOV(dummy));
 		arr.push_back({1, 2, 3});
 	}
 

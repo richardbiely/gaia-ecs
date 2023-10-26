@@ -67,9 +67,9 @@ namespace gaia {
 
 		template <typename T>
 		constexpr void swap(T& left, T& right) {
-			T tmp = std::move(left);
-			left = std::move(right);
-			right = std::move(tmp);
+			T tmp = GAIA_MOV(left);
+			left = GAIA_MOV(right);
+			right = GAIA_MOV(tmp);
 		}
 
 		template <typename T, typename TCmpFunc>
