@@ -489,7 +489,7 @@ namespace gaia {
 					} else {
 						// No functor parameters. Do an empty loop.
 						Iter iter(chunk);
-						iter.each([&](uint32_t i) {
+						iter.each([&func]() {
 							func();
 						});
 					}
