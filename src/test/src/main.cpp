@@ -1521,11 +1521,11 @@ void Test_Query_QueryResult() {
 		}
 	}
 	{
-		const auto cnt = q1.calc_entity_cnt();
+		const auto cnt = q1.count();
 		REQUIRE(cnt > 0);
 
-		const auto has = q1.has_entities();
-		REQUIRE(has == true);
+		const auto empty = q1.empty();
+		REQUIRE(empty == false);
 
 		uint32_t cnt2 = 0;
 		q1.each([&]() {
@@ -1535,11 +1535,11 @@ void Test_Query_QueryResult() {
 	}
 
 	{
-		const auto cnt = q2.calc_entity_cnt();
+		const auto cnt = q2.count();
 		REQUIRE(cnt == 0);
 
-		const auto has = q2.has_entities();
-		REQUIRE(has == false);
+		const auto empty = q2.empty();
+		REQUIRE(empty == true);
 
 		uint32_t cnt2 = 0;
 		q2.each([&]() {
@@ -1549,11 +1549,11 @@ void Test_Query_QueryResult() {
 	}
 
 	{
-		const auto cnt = q3.calc_entity_cnt();
+		const auto cnt = q3.count();
 		REQUIRE(cnt == 0);
 
-		const auto has = q3.has_entities();
-		REQUIRE(has == false);
+		const auto empty = q3.empty();
+		REQUIRE(empty == true);
 
 		uint32_t cnt3 = 0;
 		q3.each([&]() {
@@ -1613,11 +1613,11 @@ void Test_Query_QueryResult_Complex() {
 		}
 	}
 	{
-		const auto cnt = q1.calc_entity_cnt();
+		const auto cnt = q1.count();
 		REQUIRE(cnt > 0);
 
-		const auto has = q1.has_entities();
-		REQUIRE(has == true);
+		const auto empty = q1.empty();
+		REQUIRE(empty == false);
 
 		uint32_t cnt2 = 0;
 		q1.each([&]() {
@@ -1627,11 +1627,11 @@ void Test_Query_QueryResult_Complex() {
 	}
 
 	{
-		const auto cnt = q2.calc_entity_cnt();
+		const auto cnt = q2.count();
 		REQUIRE(cnt == 0);
 
-		const auto has = q2.has_entities();
-		REQUIRE(has == false);
+		const auto empty = q2.empty();
+		REQUIRE(empty == true);
 
 		uint32_t cnt2 = 0;
 		q2.each([&]() {
@@ -1641,11 +1641,11 @@ void Test_Query_QueryResult_Complex() {
 	}
 
 	{
-		const auto cnt = q3.calc_entity_cnt();
+		const auto cnt = q3.count();
 		REQUIRE(cnt == 0);
 
-		const auto has = q3.has_entities();
-		REQUIRE(has == false);
+		const auto empty = q3.empty();
+		REQUIRE(empty == true);
 
 		uint32_t cnt3 = 0;
 		q3.each([&]() {
@@ -1685,11 +1685,11 @@ void Test_Query_QueryResult_Complex() {
 		}
 	}
 	{
-		const auto cnt = q4.calc_entity_cnt();
+		const auto cnt = q4.count();
 		REQUIRE(cnt > 0);
 
-		const auto has = q4.has_entities();
-		REQUIRE(has == true);
+		const auto empty = q4.empty();
+		REQUIRE(empty == false);
 
 		uint32_t cnt4 = 0;
 		q4.each([&]() {
@@ -1729,11 +1729,11 @@ void Test_Query_QueryResult_Complex() {
 		}
 	}
 	{
-		const auto cnt = q5.calc_entity_cnt();
+		const auto cnt = q5.count();
 		REQUIRE(cnt > 0);
 
-		const auto has = q5.has_entities();
-		REQUIRE(has == true);
+		const auto empty = q5.empty();
+		REQUIRE(empty == false);
 
 		uint32_t cnt5 = 0;
 		q5.each([&]() {
@@ -1770,7 +1770,7 @@ void Test_Query_Equality() {
 		constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
 		auto qq1 = w.query<UseCachedQuery>().template all<Position, Rotation>();
 		auto qq2 = w.query<UseCachedQuery>().template all<Rotation, Position>();
-		REQUIRE(qq1.calc_entity_cnt() == qq2.calc_entity_cnt());
+		REQUIRE(qq1.count() == qq2.count());
 
 		cnt::darr<ecs::Entity> ents1, ents2;
 		qq1.arr(ents1);
@@ -1788,7 +1788,7 @@ void Test_Query_Equality() {
 
 		ecs::Query qq1 = w.query().all<Position, Rotation, Acceleration, Something>();
 		ecs::Query qq2 = w.query().all<Rotation, Something, Position, Acceleration>();
-		REQUIRE(qq1.calc_entity_cnt() == qq2.calc_entity_cnt());
+		REQUIRE(qq1.count() == qq2.count());
 
 		cnt::darr<ecs::Entity> ents1, ents2;
 		qq1.arr(ents1);
@@ -1864,7 +1864,7 @@ TEST_CASE("Enable") {
 			});
 			REQUIRE(cnt == expectedCountAll);
 
-			cnt = q.calc_entity_cnt(ecs::Query::Constraints::AcceptAll);
+			cnt = q.count(ecs::Query::Constraints::AcceptAll);
 			REQUIRE(cnt == expectedCountAll);
 		}
 		{
@@ -1881,7 +1881,7 @@ TEST_CASE("Enable") {
 			});
 			REQUIRE(cnt == expectedCountEnabled);
 
-			cnt = q.calc_entity_cnt();
+			cnt = q.count();
 			REQUIRE(cnt == expectedCountEnabled);
 		}
 		{
@@ -1898,7 +1898,7 @@ TEST_CASE("Enable") {
 			});
 			REQUIRE(cnt == expectedCountDisabled);
 
-			cnt = q.calc_entity_cnt(ecs::Query::Constraints::DisabledOnly);
+			cnt = q.count(ecs::Query::Constraints::DisabledOnly);
 			REQUIRE(cnt == expectedCountDisabled);
 		}
 	};

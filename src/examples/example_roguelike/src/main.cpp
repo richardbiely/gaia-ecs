@@ -873,18 +873,18 @@ public:
 	}
 
 	void OnUpdate() override {
-		const bool hasPlayer = m_qp.has_entities();
-		if (!hasPlayer) {
+		const bool hasNoPlayer = m_qp.empty();
+		if (hasNoPlayer) {
 			printf("You are dead. Good job.\n");
 			g_world.terminate = true;
 		}
 
-		const bool hasEnemies = m_qe.has_entities();
-		if (m_hadEnemies && !hasEnemies) {
+		const bool hasNoEnemies = m_qe.empty();
+		if (m_hadEnemies && hasNoEnemies) {
 			printf("All enemies are gone. They must have died of old age waiting for you to kill them.\n");
 			g_world.terminate = true;
 		}
-		m_hadEnemies = hasEnemies;
+		m_hadEnemies = !hasNoEnemies;
 	}
 };
 

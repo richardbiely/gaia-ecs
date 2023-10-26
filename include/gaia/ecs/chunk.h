@@ -219,7 +219,7 @@ namespace gaia {
 			*/
 			void remove_last_entity_inter() {
 				// Should never be called over an empty chunk
-				GAIA_ASSERT(has_entities());
+				GAIA_ASSERT(!empty());
 				--m_header.count;
 				--m_header.countEnabled;
 			}
@@ -301,7 +301,7 @@ namespace gaia {
 
 				remove_last_entity_inter();
 
-				if (!dying() && !has_entities()) {
+				if (!dying() && empty()) {
 					// When the chunk is emptied we want it to be removed. We can't do it
 					// right away and need to wait for world's GC to be called.
 					//
@@ -1202,8 +1202,8 @@ namespace gaia {
 			}
 
 			//! Checks is there are any entities in the chunk
-			GAIA_NODISCARD bool has_entities() const {
-				return m_header.count > 0;
+			GAIA_NODISCARD bool empty() const {
+				return m_header.count == 0;
 			}
 
 			//! Returns the total number of entities in the chunk (both enabled and disabled)

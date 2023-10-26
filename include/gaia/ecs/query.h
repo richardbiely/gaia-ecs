@@ -286,7 +286,7 @@ namespace gaia {
 				//--------------------------------------------------------------------------------
 
 				GAIA_NODISCARD static bool match_filters(const Chunk& chunk, const QueryInfo& queryInfo) {
-					GAIA_ASSERT(chunk.has_entities() && "match_filters called on an empty chunk");
+					GAIA_ASSERT(!chunk.empty() && "match_filters called on an empty chunk");
 
 					const auto queryVersion = queryInfo.world_version();
 
@@ -374,7 +374,7 @@ namespace gaia {
 
 						CChunkSpan chunkSpan((const Chunk**)&chunks[chunkOffset], batchSize);
 						for (const auto* pChunk: chunkSpan) {
-							if (!pChunk->has_entities())
+							if (pChunk->empty())
 								continue;
 							if constexpr (HasFilters) {
 								if (!match_filters(*pChunk, queryInfo))
@@ -403,7 +403,7 @@ namespace gaia {
 
 						CChunkSpan chunkSpan((const Chunk**)&chunks[chunkOffset], batchSize);
 						for (const auto* pChunk: chunkSpan) {
-							if (!pChunk->has_entities())
+							if (pChunk->empty())
 								continue;
 
 							if constexpr (EnabledOnly) {
@@ -518,7 +518,7 @@ namespace gaia {
 				}
 
 				template <bool UseFilters, typename Iter>
-				GAIA_NODISCARD bool has_entities_inter(QueryInfo& queryInfo, const cnt::darray<Chunk*>& chunks) {
+				GAIA_NODISCARD bool empty_inter(QueryInfo& queryInfo, const cnt::darray<Chunk*>& chunks) {
 					return core::has_if(chunks, [&](Chunk* pChunk) {
 						Iter iter(*pChunk);
 						if constexpr (UseFilters) {
@@ -530,7 +530,7 @@ namespace gaia {
 				}
 
 				template <bool UseFilters, typename Iter>
-				GAIA_NODISCARD uint32_t calc_entity_cnt_inter(QueryInfo& queryInfo, const cnt::darray<Chunk*>& chunks) {
+				GAIA_NODISCARD uint32_t count_inter(QueryInfo& queryInfo, const cnt::darray<Chunk*>& chunks) {
 					uint32_t cnt = 0;
 
 					for (auto* pChunk: chunks) {
@@ -675,13 +675,14 @@ namespace gaia {
 				}
 
 				/*!
-					Returns true or false depending on whether there are entities matching the query.
+					Returns true or false depending on whether there are any entities matching the query.
 					\warning Only use if you only care if there are any entities matching the query.
 									 The result is not cached and repeated calls to the function might be slow.
 									 If you already called arr(), checking if it is empty is preferred.
+									 Use empty() instead of calling count()==0.
 					\return True if there are any entites matchine the query. False otherwise.
 					*/
-				bool has_entities(Constraints constraints = Constraints::EnabledOnly) {
+				bool empty(Constraints constraints = Constraints::EnabledOnly) {
 					auto& queryInfo = fetch_query_info();
 					const bool hasFilters = queryInfo.has_filters();
 
@@ -689,51 +690,52 @@ namespace gaia {
 						switch (constraints) {
 							case Constraints::EnabledOnly: {
 								for (auto* pArchetype: queryInfo)
-									if (has_entities_inter<true, Iterator>(queryInfo, pArchetype->chunks()))
-										return true;
+									if (empty_inter<true, Iterator>(queryInfo, pArchetype->chunks()))
+										return false;
 							} break;
 							case Constraints::DisabledOnly: {
 								for (auto* pArchetype: queryInfo)
-									if (has_entities_inter<true, IteratorDisabled>(queryInfo, pArchetype->chunks()))
-										return true;
+									if (empty_inter<true, IteratorDisabled>(queryInfo, pArchetype->chunks()))
+										return false;
 							} break;
 							case Constraints::AcceptAll: {
 								for (auto* pArchetype: queryInfo)
-									if (has_entities_inter<true, IteratorAll>(queryInfo, pArchetype->chunks()))
-										return true;
+									if (empty_inter<true, IteratorAll>(queryInfo, pArchetype->chunks()))
+										return false;
 							} break;
 						}
 					} else {
 						switch (constraints) {
 							case Constraints::EnabledOnly: {
 								for (auto* pArchetype: queryInfo)
-									if (has_entities_inter<false, Iterator>(queryInfo, pArchetype->chunks()))
-										return true;
+									if (empty_inter<false, Iterator>(queryInfo, pArchetype->chunks()))
+										return false;
 							} break;
 							case Constraints::DisabledOnly: {
 								for (auto* pArchetype: queryInfo)
-									if (has_entities_inter<false, IteratorDisabled>(queryInfo, pArchetype->chunks()))
-										return true;
+									if (empty_inter<false, IteratorDisabled>(queryInfo, pArchetype->chunks()))
+										return false;
 							} break;
 							case Constraints::AcceptAll: {
 								for (auto* pArchetype: queryInfo)
-									if (has_entities_inter<false, IteratorAll>(queryInfo, pArchetype->chunks()))
-										return true;
+									if (empty_inter<false, IteratorAll>(queryInfo, pArchetype->chunks()))
+										return false;
 							} break;
 						}
 					}
 
-					return false;
+					return true;
 				}
 
 				/*!
-				Returns the number of entities matching the query
+				Calculates the number of entities matching the query
 				\warning Only use if you only care about the number of entities matching the query.
 								 The result is not cached and repeated calls to the function might be slow.
 								 If you already called arr(), use the size provided by the array.
+								 Use empty() instead of calling count()==0.
 				\return The number of matching entities
 				*/
-				uint32_t calc_entity_cnt(Constraints constraints = Constraints::EnabledOnly) {
+				uint32_t count(Constraints constraints = Constraints::EnabledOnly) {
 					auto& queryInfo = fetch_query_info();
 					uint32_t entCnt = 0;
 
@@ -742,30 +744,30 @@ namespace gaia {
 						switch (constraints) {
 							case Constraints::EnabledOnly: {
 								for (auto* pArchetype: queryInfo)
-									entCnt += calc_entity_cnt_inter<true, Iterator>(queryInfo, pArchetype->chunks());
+									entCnt += count_inter<true, Iterator>(queryInfo, pArchetype->chunks());
 							} break;
 							case Constraints::DisabledOnly: {
 								for (auto* pArchetype: queryInfo)
-									entCnt += calc_entity_cnt_inter<true, IteratorDisabled>(queryInfo, pArchetype->chunks());
+									entCnt += count_inter<true, IteratorDisabled>(queryInfo, pArchetype->chunks());
 							} break;
 							case Constraints::AcceptAll: {
 								for (auto* pArchetype: queryInfo)
-									entCnt += calc_entity_cnt_inter<true, IteratorAll>(queryInfo, pArchetype->chunks());
+									entCnt += count_inter<true, IteratorAll>(queryInfo, pArchetype->chunks());
 							} break;
 						}
 					} else {
 						switch (constraints) {
 							case Constraints::EnabledOnly: {
 								for (auto* pArchetype: queryInfo)
-									entCnt += calc_entity_cnt_inter<false, Iterator>(queryInfo, pArchetype->chunks());
+									entCnt += count_inter<false, Iterator>(queryInfo, pArchetype->chunks());
 							} break;
 							case Constraints::DisabledOnly: {
 								for (auto* pArchetype: queryInfo)
-									entCnt += calc_entity_cnt_inter<false, IteratorDisabled>(queryInfo, pArchetype->chunks());
+									entCnt += count_inter<false, IteratorDisabled>(queryInfo, pArchetype->chunks());
 							} break;
 							case Constraints::AcceptAll: {
 								for (auto* pArchetype: queryInfo)
-									entCnt += calc_entity_cnt_inter<false, IteratorAll>(queryInfo, pArchetype->chunks());
+									entCnt += count_inter<false, IteratorAll>(queryInfo, pArchetype->chunks());
 							} break;
 						}
 					}
@@ -774,14 +776,14 @@ namespace gaia {
 				}
 
 				/*!
-				Appends all components or entities matching the query to the array
+				Appends all components or entities matching the query to the output array
 				\tparam outArray Container storing entities or components
 				\param constraints QueryImpl constraints
 				\return Array with entities or components
 				*/
 				template <typename Container>
 				void arr(Container& outArray, Constraints constraints = Constraints::EnabledOnly) {
-					const auto entCnt = calc_entity_cnt();
+					const auto entCnt = count();
 					if (entCnt == 0)
 						return;
 

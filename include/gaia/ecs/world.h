@@ -476,7 +476,7 @@ namespace gaia {
 				(void)pChunk;
 				GAIA_ASSERT(pChunk != nullptr);
 
-				if (pChunk->has_entities()) {
+				if (!pChunk->empty()) {
 					// Make sure a proper amount of entities reference the chunk
 					uint32_t cnt = 0;
 					for (const auto& e: m_entities) {
@@ -601,7 +601,7 @@ namespace gaia {
 					auto* pChunk = m_chunksToRemove[i];
 
 					// Skip reclaimed chunks
-					if (pChunk->has_entities()) {
+					if (!pChunk->empty()) {
 						pChunk->prepare_to_die();
 						core::erase_fast(m_chunksToRemove, i);
 						continue;
