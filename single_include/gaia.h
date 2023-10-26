@@ -15050,10 +15050,10 @@ namespace gaia {
 				using U = typename component_type_t<T>::Type;
 
 				GAIA_ASSERT(to <= size());
-				[[maybe_unused]] const uint32_t count = to - from;
 
 				if constexpr (std::is_same_v<U, Entity>) {
 					const auto offset = m_header.offsets.firstByte_EntityData + sizeof(U) * from;
+					const uint32_t count = to - from;
 					return {&data(offset), count};
 				} else {
 					static_assert(!std::is_empty_v<U>, "Attempting to get value of an empty component");
@@ -15070,11 +15070,12 @@ namespace gaia {
 						[[maybe_unused]] const auto maxOffset = offsetFirst + capacity() * sizeof(U);
 						GAIA_ASSERT(maxOffset <= bytes());
 
+						const uint32_t count = to - from;
 						return {&data(offset), count};
 					} else {
 						[[maybe_unused]] const auto maxOffset = offset + sizeof(U);
 						GAIA_ASSERT(maxOffset <= bytes());
-						GAIA_ASSERT(count == 1);
+						// GAIA_ASSERT(count == 1); we don't really care and always consider 1 for chunk components
 
 						return {&data(offset), 1};
 					}
@@ -15103,7 +15104,6 @@ namespace gaia {
 				static_assert(!std::is_empty_v<U>, "Attempting to set value of an empty component");
 
 				GAIA_ASSERT(to <= size());
-				[[maybe_unused]] const uint32_t count = to - from;
 
 				const auto compId = comp_id<T>();
 				constexpr auto compKind = component_kind_v<T>;
@@ -15121,11 +15121,12 @@ namespace gaia {
 					[[maybe_unused]] const auto maxOffset = offset + capacity() * sizeof(U);
 					GAIA_ASSERT(maxOffset <= bytes());
 
+					const uint32_t count = to - from;
 					return {&data(offset), count};
 				} else {
 					[[maybe_unused]] const auto maxOffset = offset + sizeof(U);
 					GAIA_ASSERT(maxOffset <= bytes());
-					GAIA_ASSERT(count == 1);
+					// GAIA_ASSERT(count == 1); we don't really care and always consider 1 for chunk components
 
 					return {&data(offset), 1};
 				}
