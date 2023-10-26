@@ -517,8 +517,8 @@ namespace gaia {
 						m_storage.m_queryId = QueryIdBad;
 				}
 
-				template <bool UseFilters, typename Iter, typename ChunksContainer>
-				GAIA_NODISCARD bool has_entities_inter(QueryInfo& queryInfo, const ChunksContainer& chunks) {
+				template <bool UseFilters, typename Iter>
+				GAIA_NODISCARD bool has_entities_inter(QueryInfo& queryInfo, const cnt::darray<Chunk*>& chunks) {
 					return core::has_if(chunks, [&](Chunk* pChunk) {
 						Iter iter(*pChunk);
 						if constexpr (UseFilters) {
@@ -529,8 +529,8 @@ namespace gaia {
 					});
 				}
 
-				template <bool UseFilters, typename Iter, typename ChunksContainer>
-				GAIA_NODISCARD uint32_t calc_entity_cnt_inter(QueryInfo& queryInfo, const ChunksContainer& chunks) {
+				template <bool UseFilters, typename Iter>
+				GAIA_NODISCARD uint32_t calc_entity_cnt_inter(QueryInfo& queryInfo, const cnt::darray<Chunk*>& chunks) {
 					uint32_t cnt = 0;
 
 					for (auto* pChunk: chunks) {
