@@ -1,3 +1,4 @@
+#include "gaia/config/config_core.h"
 #include <gaia.h>
 
 #if GAIA_COMPILER_MSVC
@@ -1080,11 +1081,87 @@ TEST_CASE("each_ext") {
 }
 
 TEST_CASE("each_tuple") {
-	uint32_t val = 0;
-	core::each_tuple(std::make_tuple(69, 10, 20), [&val](const auto& value) {
-		val += value;
-	});
-	REQUIRE(val == 99);
+	SECTION("func(Args)") {
+		uint32_t val = 0;
+		core::each_tuple(std::make_tuple(69, 10, 20), [&val](const auto& value) {
+			val += value;
+		});
+		REQUIRE(val == 99);
+	}
+	SECTION("func(Args, iter)") {
+		uint32_t val = 0;
+		uint32_t iter = 0;
+		core::each_tuple(std::make_tuple(69, 10, 20), [&](const auto& value, uint32_t i) {
+			val += value;
+			REQUIRE(i == iter);
+			++iter;
+		});
+		REQUIRE(val == 99);
+	}
+}
+
+TEST_CASE("each_tuple_ext") {
+	SECTION("func(Args)") {
+		uint32_t val = 0;
+		core::each_tuple_ext<1, 3>(std::make_tuple(69, 10, 20), [&val](const auto& value) {
+			val += value;
+		});
+		REQUIRE(val == 30);
+	}
+	SECTION("func(Args, iter)") {
+		uint32_t val = 0;
+		uint32_t iter = 1;
+		core::each_tuple_ext<1, 3>(std::make_tuple(69, 10, 20), [&](const auto& value, uint32_t i) {
+			val += value;
+			REQUIRE(i == iter);
+			++iter;
+		});
+		REQUIRE(val == 30);
+	}
+}
+
+TEST_CASE("each_tuple2") {
+	SECTION("func(Args)") {
+		uint32_t val = 0;
+		using TTuple = std::tuple<int, int, double>;
+		core::each_tuple<TTuple>([&val](auto&& item) {
+			val += sizeof(item);
+		});
+		REQUIRE(val == 16);
+	}
+	SECTION("func(Args, iter)") {
+		uint32_t val = 0;
+		uint32_t iter = 0;
+		using TTuple = std::tuple<int, int, double>;
+		core::each_tuple<TTuple>([&](auto&& item, uint32_t i) {
+			val += sizeof(item);
+			REQUIRE(i == iter);
+			++iter;
+		});
+		REQUIRE(val == 16);
+	}
+}
+
+TEST_CASE("each_tuple_ext2") {
+	SECTION("func(Args)") {
+		uint32_t val = 0;
+		using TTuple = std::tuple<int, int, double>;
+		core::each_tuple_ext<1, 3, TTuple>([&val](auto&& item) {
+			val += sizeof(item);
+		});
+		REQUIRE(val == 12);
+	}
+	SECTION("func(Args, iter)") {
+		uint32_t val = 0;
+		uint32_t iter = 1;
+		using TTuple = std::tuple<int, int, double>;
+		core::each_tuple_ext<1, 3, TTuple>([&](auto&& item, uint32_t i) {
+			val += sizeof(item);
+			REQUIRE(i == iter);
+			++iter;
+		});
+		REQUIRE(val == 12);
+	}
 }
 
 TEST_CASE("each_pack") {

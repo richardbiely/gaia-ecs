@@ -1890,15 +1890,29 @@ namespace gaia {
 
 			template <auto FirstIdx, typename Tuple, typename Func, auto... Is>
 			void each_tuple_impl(Func func, std::index_sequence<Is...> /*no_name*/) {
-				if constexpr ((std::is_invocable_v<Func&&, std::integral_constant<decltype(Is), FirstIdx + Is>> && ...))
-					(func(std::integral_constant<decltype(Is), FirstIdx + Is>{}), ...);
+				if constexpr ((std::is_invocable_v<
+													 Func&&, decltype(std::tuple_element_t<FirstIdx + Is, Tuple>{}),
+													 std::integral_constant<decltype(Is), Is>> &&
+											 ...))
+					// func(Args&& arg, uint32_t idx)
+					(func(std::tuple_element_t<FirstIdx + Is, Tuple>{}, std::integral_constant<decltype(Is), FirstIdx + Is>{}),
+					 ...);
 				else
+					// func(Args&& arg)
 					(func(std::tuple_element_t<FirstIdx + Is, Tuple>{}), ...);
 			}
 
 			template <auto FirstIdx, typename Tuple, typename Func, auto... Is>
 			void each_tuple_impl(Tuple&& tuple, Func func, std::index_sequence<Is...> /*no_name*/) {
-				(func(std::get<FirstIdx + Is>(tuple)), ...);
+				if constexpr ((std::is_invocable_v<
+													 Func&&, decltype(std::get<FirstIdx + Is>(tuple)),
+													 std::integral_constant<decltype(Is), Is>> &&
+											 ...))
+					// func(Args&& arg, uint32_t idx)
+					(func(std::get<FirstIdx + Is>(tuple), std::integral_constant<decltype(Is), FirstIdx + Is>{}), ...);
+				else
+					// func(Args&& arg)
+					(func(std::get<FirstIdx + Is>(tuple)), ...);
 			}
 		} // namespace detail
 
@@ -1998,12 +2012,31 @@ namespace gaia {
 		//!		[](const auto& value) {
 		//! 		std::cout << value << std::endl;
 		//! 	});
+		//! Output:
+		//! 69
+		//! likes
+		//! 420.0f
 		template <typename Tuple, typename Func>
 		constexpr void each_tuple(Tuple&& tuple, Func func) {
 			constexpr auto TSize = std::tuple_size<std::remove_reference_t<Tuple>>::value;
 			detail::each_tuple_impl<(size_t)0>(GAIA_FWD(tuple), func, std::make_index_sequence<TSize>{});
 		}
 
+		//! Compile-time for loop over tuples and other objects implementing
+		//! tuple_size (sarray, std::pair etc).
+		//! \warning This does not use a tuple instance, only the type.
+		//!          Use for compile-time operations only.
+		//!
+		//! Example:
+		//! each_tuple(
+		//!		std::make_tuple(69, "likes", 420.0f),
+		//!		[](const auto& value) {
+		//! 		std::cout << value << std::endl;
+		//! 	});
+		//! Output:
+		//! 0
+		//! nullptr
+		//! 0.0f
 		template <typename Tuple, typename Func>
 		constexpr void each_tuple(Func func) {
 			constexpr auto TSize = std::tuple_size<std::remove_reference_t<Tuple>>::value;
@@ -2015,11 +2048,14 @@ namespace gaia {
 		//! Iteration starts at \tparam FirstIdx and ends at \tparam LastIdx (excluding).
 		//!
 		//! Example:
-		//! each_tuple(
+		//! each_tuple_ext<1, 3>(
 		//!		std::make_tuple(69, "likes", 420.0f),
 		//!		[](const auto& value) {
 		//! 		std::cout << value << std::endl;
 		//! 	});
+		//! Output:
+		//! likes
+		//! 420.0f
 		template <auto FirstIdx, auto LastIdx, typename Tuple, typename Func>
 		constexpr void each_tuple_ext(Tuple&& tuple, Func func) {
 			constexpr auto TSize = std::tuple_size<std::remove_reference_t<Tuple>>::value;
@@ -2029,6 +2065,21 @@ namespace gaia {
 			detail::each_tuple_impl<FirstIdx>(GAIA_FWD(tuple), func, std::make_index_sequence<Iters>{});
 		}
 
+		//! Compile-time for loop over tuples and other objects implementing
+		//! tuple_size (sarray, std::pair etc).
+		//! Iteration starts at \tparam FirstIdx and ends at \tparam LastIdx (excluding).
+		//! \warning This does not use a tuple instance, only the type.
+		//!          Use for compile-time operations only.
+		//!
+		//! Example:
+		//! each_tuple(
+		//!		1, 3, std::make_tuple(69, "likes", 420.0f),
+		//!		[](const auto& value) {
+		//! 		std::cout << value << std::endl;
+		//! 	});
+		//! Output:
+		//! nullptr
+		//! 0.0f
 		template <auto FirstIdx, auto LastIdx, typename Tuple, typename Func>
 		constexpr void each_tuple_ext(Func func) {
 			constexpr auto TSize = std::tuple_size<std::remove_reference_t<Tuple>>::value;
@@ -13766,7 +13817,7 @@ namespace gaia {
 					if constexpr (mem::is_soa_layout_v<U>) {
 						uint32_t i = 0;
 						using TTuple = decltype(meta::struct_to_tuple(U{}));
-						core::each_tuple(TTuple{}, [&](auto&& item) {
+						core::each_tuple<TTuple>([&](auto&& item) {
 							static_assert(sizeof(item) <= 255, "Each member of a SoA component can be at most 255 B long!");
 							info.soaSizes[i] = (uint8_t)sizeof(item);
 							++i;
