@@ -1033,7 +1033,7 @@ namespace gaia {
 				update_version(m_header.worldVersion);
 
 				GAIA_ASSERT(index < m_header.capacity);
-				view_mut<T>()[index] = std::forward<U>(value);
+				view_mut<T>()[index] = GAIA_FWD(value);
 			}
 
 			/*!
@@ -1052,7 +1052,7 @@ namespace gaia {
 				update_version(m_header.worldVersion);
 
 				GAIA_ASSERT(0 < m_header.capacity);
-				view_mut<T>()[0] = std::forward<U>(value);
+				view_mut<T>()[0] = GAIA_FWD(value);
 			}
 
 			/*!
@@ -1070,7 +1070,7 @@ namespace gaia {
 						"SetSilent providing an index can only be used with generic components");
 
 				GAIA_ASSERT(index < m_header.capacity);
-				sview_mut<T>()[index] = std::forward<U>(value);
+				sview_mut<T>()[index] = GAIA_FWD(value);
 			}
 
 			/*!
@@ -1087,7 +1087,7 @@ namespace gaia {
 						"SetSilent not providing an index can only be used with non-generic components");
 
 				GAIA_ASSERT(0 < m_header.capacity);
-				sview_mut<T>()[0] = std::forward<U>(value);
+				sview_mut<T>()[0] = GAIA_FWD(value);
 			}
 
 			//----------------------------------------------------------------------
@@ -1208,14 +1208,14 @@ namespace gaia {
 				return ((float)m_header.count / (float)m_header.capacity) < Threshold;
 			}
 
-			//! Checks is there are any entities in the chunk
-			GAIA_NODISCARD bool empty() const {
-				return m_header.count == 0;
-			}
-
 			//! Returns the total number of entities in the chunk (both enabled and disabled)
 			GAIA_NODISCARD uint32_t size() const {
 				return m_header.count;
+			}
+
+			//! Checks is there are any entities in the chunk
+			GAIA_NODISCARD bool empty() const {
+				return size() == 0;
 			}
 
 			//! Return the number of entities in the chunk which are enabled

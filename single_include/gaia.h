@@ -186,6 +186,11 @@ namespace gaia {
 
 //------------------------------------------------------------------------------
 
+//! Replacement for std::forward.
+//! Rather than an intrinsic, older compilers would treat it an an ordinary function.
+//! As a result, compilation times were longer and performance slower in non-optimized builds.
+#define GAIA_FWD(x) decltype(x)(x)
+
 #if (GAIA_COMPILER_MSVC && _MSC_VER >= 1400) || GAIA_COMPILER_GCC || GAIA_COMPILER_CLANG
 	#define GAIA_RESTRICT __restrict
 #else
@@ -1977,7 +1982,7 @@ namespace gaia {
 		//! print(69, "likes", 420.0f);
 		template <typename Func, typename... Args>
 		constexpr void each_pack(Func func, Args&&... args) {
-			(func(std::forward<Args>(args)), ...);
+			(func(GAIA_FWD(args)), ...);
 		}
 
 		//! Compile-time for loop over tuples and other objects implementing
@@ -1992,7 +1997,7 @@ namespace gaia {
 		template <typename Tuple, typename Func>
 		constexpr void each_tuple(Tuple&& tuple, Func func) {
 			constexpr auto TSize = std::tuple_size<std::remove_reference_t<Tuple>>::value;
-			detail::each_tuple_impl<(size_t)0>(std::forward<Tuple>(tuple), func, std::make_index_sequence<TSize>{});
+			detail::each_tuple_impl<(size_t)0>(GAIA_FWD(tuple), func, std::make_index_sequence<TSize>{});
 		}
 
 		template <typename Tuple, typename Func>
@@ -2017,7 +2022,7 @@ namespace gaia {
 			static_assert(LastIdx >= FirstIdx);
 			static_assert(LastIdx <= TSize);
 			constexpr auto Iters = LastIdx - FirstIdx;
-			detail::each_tuple_impl<FirstIdx>(std::forward<Tuple>(tuple), func, std::make_index_sequence<Iters>{});
+			detail::each_tuple_impl<FirstIdx>(GAIA_FWD(tuple), func, std::make_index_sequence<Iters>{});
 		}
 
 		template <auto FirstIdx, auto LastIdx, typename Tuple, typename Func>
@@ -2949,14 +2954,14 @@ namespace gaia {
 
 		template <typename S, size_t... Is, typename Tuple>
 		GAIA_NODISCARD S tuple_to_struct(std::index_sequence<Is...> /*no_name*/, Tuple&& tup) {
-			return {std::get<Is>(std::forward<Tuple>(tup))...};
+			return {std::get<Is>(GAIA_FWD(tup))...};
 		}
 
 		template <typename S, typename Tuple>
 		GAIA_NODISCARD S tuple_to_struct(Tuple&& tup) {
 			using T = std::remove_reference_t<Tuple>;
 
-			return tuple_to_struct<S>(std::make_index_sequence<std::tuple_size<T>{}>{}, std::forward<Tuple>(tup));
+			return tuple_to_struct<S>(std::make_index_sequence<std::tuple_size<T>{}>{}, GAIA_FWD(tup));
 		}
 
 		//----------------------------------------------------------------------
@@ -3573,7 +3578,7 @@ namespace gaia {
 			}
 
 			constexpr static void set(std::span<ValueType> s, size_t idx, ValueType&& val) noexcept {
-				s[idx] = std::forward<ValueType>(val);
+				s[idx] = GAIA_FWD(val);
 			}
 		};
 
@@ -3690,8 +3695,7 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD constexpr static ValueType get(std::span<const uint8_t> s, size_t idx) noexcept {
-				auto t = meta::struct_to_tuple(ValueType{});
-				return get_inter(t, s, idx, std::make_index_sequence<TTupleItems>());
+				return get_inter(meta::struct_to_tuple(ValueType{}), s, idx, std::make_index_sequence<TTupleItems>());
 			}
 
 			template <size_t Item>
@@ -3709,19 +3713,17 @@ namespace gaia {
 				accessor(std::span<uint8_t> data, size_t idx): m_data(data), m_idx(idx) {}
 
 				constexpr void operator=(const ValueType& val) noexcept {
-					auto t = meta::struct_to_tuple(val);
-					set_inter(t, m_data, m_idx, std::make_index_sequence<TTupleItems>());
+					set_inter(meta::struct_to_tuple(val), m_data, m_idx, std::make_index_sequence<TTupleItems>());
 				}
 
 				constexpr void operator=(ValueType&& val) noexcept {
-					auto t = meta::struct_to_tuple(std::forward<ValueType>(val));
-					set_inter(t, m_data, m_idx, std::make_index_sequence<TTupleItems>());
+					set_inter(meta::struct_to_tuple(GAIA_FWD(val)), m_data, m_idx, std::make_index_sequence<TTupleItems>());
 				}
 
 				GAIA_NODISCARD constexpr operator ValueType() const noexcept {
-					auto t = meta::struct_to_tuple(ValueType{});
 					return get_inter(
-							t, {(const uint8_t*)m_data.data(), m_data.size()}, m_idx, std::make_index_sequence<TTupleItems>());
+							meta::struct_to_tuple(ValueType{}), {(const uint8_t*)m_data.data(), m_data.size()}, m_idx,
+							std::make_index_sequence<TTupleItems>());
 				}
 			};
 
@@ -3762,7 +3764,7 @@ namespace gaia {
 
 			template <size_t... Ids>
 			GAIA_NODISCARD constexpr static ValueType
-			get_inter(TTuple& t, std::span<const uint8_t> s, size_t idx, std::index_sequence<Ids...> /*no_name*/) noexcept {
+			get_inter(TTuple&& t, std::span<const uint8_t> s, size_t idx, std::index_sequence<Ids...> /*no_name*/) noexcept {
 				auto address = mem::align<Alignment>((uintptr_t)s.data());
 				((
 						 // Put the value at the address into our tuple. Data is aligned so we can read directly.
@@ -3770,12 +3772,12 @@ namespace gaia {
 						 // Skip towards the next element and make sure the address is aligned properly
 						 address = mem::align<Alignment>(address + sizeof(value_type<Ids>) * s.size())),
 				 ...);
-				return meta::tuple_to_struct<ValueType, TTuple>(std::forward<TTuple>(t));
+				return meta::tuple_to_struct<ValueType, TTuple>(GAIA_FWD(t));
 			}
 
 			template <size_t... Ids>
 			constexpr static void
-			set_inter(TTuple& t, std::span<uint8_t> s, size_t idx, std::index_sequence<Ids...> /*no_name*/) noexcept {
+			set_inter(TTuple&& t, std::span<uint8_t> s, size_t idx, std::index_sequence<Ids...> /*no_name*/) noexcept {
 				auto address = mem::align<Alignment>((uintptr_t)s.data());
 				((
 						 // Set the tuple value. Data is aligned so we can write directly.
@@ -3871,7 +3873,7 @@ namespace gaia {
 					view_policy::set(m_data, m_idx) = val;
 				}
 				constexpr void operator=(ValueType&& val) noexcept {
-					view_policy::set(m_data, m_idx) = std::forward<ValueType>(val);
+					view_policy::set(m_data, m_idx) = GAIA_FWD(val);
 				}
 			};
 
@@ -4364,9 +4366,9 @@ namespace gaia {
 				// Trivially serializable types
 				else if constexpr (is_trivially_serializable<type>::value) {
 					if constexpr (Write)
-						s.save(std::forward<T>(arg));
+						s.save(GAIA_FWD(arg));
 					else
-						s.load(std::forward<T>(arg));
+						s.load(GAIA_FWD(arg));
 				}
 				// Types which have data() and size() member functions
 				else if constexpr (detail::has_data_and_size<type>::value) {
@@ -4389,7 +4391,7 @@ namespace gaia {
 				}
 				// Classes
 				else if constexpr (std::is_class_v<type>) {
-					meta::each_member(std::forward<T>(arg), [&s](auto&&... items) {
+					meta::each_member(GAIA_FWD(arg), [&s](auto&&... items) {
 						// TODO: Handle contiguous blocks of trivially copiable types
 						(ser_data_one<Write>(s, items), ...);
 					});
@@ -5198,10 +5200,10 @@ namespace gaia {
 				try_grow();
 
 				if constexpr (mem::is_soa_layout_v<T>) {
-					operator[](m_cnt++) = std::forward<T>(arg);
+					operator[](m_cnt++) = GAIA_FWD(arg);
 				} else {
 					auto* ptr = m_pData + sizeof(T) * (m_cnt++);
-					::new (ptr) T(std::forward<T>(arg));
+					::new (ptr) T(GAIA_FWD(arg));
 				}
 			}
 
@@ -5210,11 +5212,11 @@ namespace gaia {
 				try_grow();
 
 				if constexpr (mem::is_soa_layout_v<T>) {
-					operator[](m_cnt++) = T(std::forward<Args>(args)...);
+					operator[](m_cnt++) = T(GAIA_FWD(args)...);
 					return;
 				} else {
 					auto* ptr = m_pData + sizeof(T) * (m_cnt++);
-					::new (ptr) T(std::forward<Args>(args)...);
+					::new (ptr) T(GAIA_FWD(args)...);
 					return (reference)*ptr;
 				}
 			}
@@ -5296,12 +5298,12 @@ namespace gaia {
 				return m_cnt;
 			}
 
-			GAIA_NODISCARD size_type capacity() const noexcept {
-				return m_cap;
-			}
-
 			GAIA_NODISCARD bool empty() const noexcept {
 				return size() == 0;
+			}
+
+			GAIA_NODISCARD size_type capacity() const noexcept {
+				return m_cap;
 			}
 
 			GAIA_NODISCARD size_type max_size() const noexcept {
@@ -5817,10 +5819,10 @@ namespace gaia {
 				try_grow();
 
 				if constexpr (mem::is_soa_layout_v<T>) {
-					operator[](m_cnt++) = std::forward<T>(arg);
+					operator[](m_cnt++) = GAIA_FWD(arg);
 				} else {
 					auto* ptr = m_pData + sizeof(T) * (m_cnt++);
-					::new (ptr) T(std::forward<T>(arg));
+					::new (ptr) T(GAIA_FWD(arg));
 				}
 			}
 
@@ -5829,11 +5831,11 @@ namespace gaia {
 				try_grow();
 
 				if constexpr (mem::is_soa_layout_v<T>) {
-					operator[](m_cnt++) = T(std::forward<Args>(args)...);
+					operator[](m_cnt++) = T(GAIA_FWD(args)...);
 					return;
 				} else {
 					auto* ptr = m_pData + sizeof(T) * (m_cnt++);
-					::new (ptr) T(std::forward<Args>(args)...);
+					::new (ptr) T(GAIA_FWD(args)...);
 					return (reference)*ptr;
 				}
 			}
@@ -5925,12 +5927,12 @@ namespace gaia {
 				return m_cnt;
 			}
 
-			GAIA_NODISCARD size_type capacity() const noexcept {
-				return m_cap;
-			}
-
 			GAIA_NODISCARD bool empty() const noexcept {
 				return size() == 0;
+			}
+
+			GAIA_NODISCARD size_type capacity() const noexcept {
+				return m_cap;
 			}
 
 			GAIA_NODISCARD size_type max_size() const noexcept {
@@ -6523,12 +6525,12 @@ namespace gaia {
 				return (size_type)m_items.size();
 			}
 
-			GAIA_NODISCARD size_type capacity() const noexcept {
-				return (size_type)m_items.capacity();
-			}
-
 			GAIA_NODISCARD bool empty() const noexcept {
 				return size() == 0;
+			}
+
+			GAIA_NODISCARD size_type capacity() const noexcept {
+				return (size_type)m_items.capacity();
 			}
 
 			GAIA_NODISCARD iterator begin() const noexcept {
@@ -6827,7 +6829,7 @@ namespace robin_hood {
 				void
 				doThrow(Args&&... args) {
 			// NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
-			throw E(std::forward<Args>(args)...);
+			throw E(GAIA_FWD(args)...);
 		}
 #else
 				void
@@ -6839,7 +6841,7 @@ namespace robin_hood {
 		template <typename E, typename T, typename... Args>
 		T* assertNotNull(T* t, Args&&... args) {
 			if GAIA_UNLIKELY (nullptr == t) {
-				doThrow<E>(std::forward<Args>(args)...);
+				doThrow<E>(GAIA_FWD(args)...);
 			}
 			return t;
 		}
@@ -7079,9 +7081,9 @@ namespace robin_hood {
 
 		template <typename U1, typename U2>
 		constexpr pair(U1&& a, U2&& b) noexcept(
-				noexcept(T1(std::forward<U1>(std::declval<U1&&>()))) && noexcept(T2(std::forward<U2>(std::declval<U2&&>())))):
-				first(std::forward<U1>(a)),
-				second(std::forward<U2>(b)) {}
+				noexcept(T1(GAIA_FWD(std::declval<U1&&>()))) && noexcept(T2(GAIA_FWD(std::declval<U2&&>())))):
+				first(GAIA_FWD(a)),
+				second(GAIA_FWD(b)) {}
 
 		template <typename... U1, typename... U2>
 		// MSVC 2015 produces error "C2476: ‘constexpr’ constructor does not initialize all members"
@@ -7109,8 +7111,8 @@ namespace robin_hood {
 																																																						 I2>(
 																																																				 std::declval<std::tuple<
 																																																						 U2...>&>()))...))):
-				first(std::forward<U1>(std::get<I1>(a))...),
-				second(std::forward<U2>(std::get<I2>(b))...) {
+				first(GAIA_FWD(std::get<I1>(a))...),
+				second(GAIA_FWD(std::get<I2>(b))...) {
 			// make visual studio compiler happy about warning about unused a & b.
 			// Visual studio's pair implementation disables warning 4100.
 			(void)a;
@@ -7415,8 +7417,8 @@ namespace robin_hood {
 			public:
 				template <typename... Args>
 				explicit DataNode(M& ROBIN_HOOD_UNUSED(map) /*unused*/, Args&&... args) noexcept(
-						noexcept(value_type(std::forward<Args>(args)...))):
-						mData(std::forward<Args>(args)...) {}
+						noexcept(value_type(GAIA_FWD(args)...))):
+						mData(GAIA_FWD(args)...) {}
 
 				DataNode(M& ROBIN_HOOD_UNUSED(map) /*unused*/, DataNode<M, true>&& n) noexcept(
 						std::is_nothrow_move_constructible<value_type>::value):
@@ -7484,7 +7486,7 @@ namespace robin_hood {
 			public:
 				template <typename... Args>
 				explicit DataNode(M& map, Args&&... args): mData(map.allocate()) {
-					::new (static_cast<void*>(mData)) value_type(std::forward<Args>(args)...);
+					::new (static_cast<void*>(mData)) value_type(GAIA_FWD(args)...);
 				}
 
 				DataNode(M& ROBIN_HOOD_UNUSED(map) /*unused*/, DataNode<M, false>&& n) noexcept: mData(std::move(n.mData)) {}
@@ -8222,7 +8224,7 @@ namespace robin_hood {
 			template <typename... Args>
 			std::pair<iterator, bool> emplace(Args&&... args) {
 				ROBIN_HOOD_TRACE(this)
-				Node n{*this, std::forward<Args>(args)...};
+				Node n{*this, GAIA_FWD(args)...};
 				auto idxAndState = insertKeyPrepareEmptySpot(getFirstConst(n));
 				switch (idxAndState.second) {
 					case InsertionState::key_found:
@@ -8251,51 +8253,51 @@ namespace robin_hood {
 			template <typename... Args>
 			iterator emplace_hint(const_iterator position, Args&&... args) {
 				(void)position;
-				return emplace(std::forward<Args>(args)...).first;
+				return emplace(GAIA_FWD(args)...).first;
 			}
 
 			template <typename... Args>
 			std::pair<iterator, bool> try_emplace(const key_type& key, Args&&... args) {
-				return try_emplace_impl(key, std::forward<Args>(args)...);
+				return try_emplace_impl(key, GAIA_FWD(args)...);
 			}
 
 			template <typename... Args>
 			std::pair<iterator, bool> try_emplace(key_type&& key, Args&&... args) {
-				return try_emplace_impl(std::move(key), std::forward<Args>(args)...);
+				return try_emplace_impl(std::move(key), GAIA_FWD(args)...);
 			}
 
 			template <typename... Args>
 			iterator try_emplace(const_iterator hint, const key_type& key, Args&&... args) {
 				(void)hint;
-				return try_emplace_impl(key, std::forward<Args>(args)...).first;
+				return try_emplace_impl(key, GAIA_FWD(args)...).first;
 			}
 
 			template <typename... Args>
 			iterator try_emplace(const_iterator hint, key_type&& key, Args&&... args) {
 				(void)hint;
-				return try_emplace_impl(std::move(key), std::forward<Args>(args)...).first;
+				return try_emplace_impl(std::move(key), GAIA_FWD(args)...).first;
 			}
 
 			template <typename Mapped>
 			std::pair<iterator, bool> insert_or_assign(const key_type& key, Mapped&& obj) {
-				return insertOrAssignImpl(key, std::forward<Mapped>(obj));
+				return insertOrAssignImpl(key, GAIA_FWD(obj));
 			}
 
 			template <typename Mapped>
 			std::pair<iterator, bool> insert_or_assign(key_type&& key, Mapped&& obj) {
-				return insertOrAssignImpl(std::move(key), std::forward<Mapped>(obj));
+				return insertOrAssignImpl(std::move(key), GAIA_FWD(obj));
 			}
 
 			template <typename Mapped>
 			iterator insert_or_assign(const_iterator hint, const key_type& key, Mapped&& obj) {
 				(void)hint;
-				return insertOrAssignImpl(key, std::forward<Mapped>(obj)).first;
+				return insertOrAssignImpl(key, GAIA_FWD(obj)).first;
 			}
 
 			template <typename Mapped>
 			iterator insert_or_assign(const_iterator hint, key_type&& key, Mapped&& obj) {
 				(void)hint;
-				return insertOrAssignImpl(std::move(key), std::forward<Mapped>(obj)).first;
+				return insertOrAssignImpl(std::move(key), GAIA_FWD(obj)).first;
 			}
 
 			std::pair<iterator, bool> insert(const value_type& keyval) {
@@ -8686,14 +8688,14 @@ namespace robin_hood {
 
 					case InsertionState::new_node:
 						::new (static_cast<void*>(&mKeyVals[idxAndState.first])) Node(
-								*this, std::piecewise_construct, std::forward_as_tuple(std::forward<OtherKey>(key)),
-								std::forward_as_tuple(std::forward<Args>(args)...));
+								*this, std::piecewise_construct, std::forward_as_tuple(GAIA_FWD(key)),
+								std::forward_as_tuple(GAIA_FWD(args)...));
 						break;
 
 					case InsertionState::overwrite_node:
 						mKeyVals[idxAndState.first] = Node(
-								*this, std::piecewise_construct, std::forward_as_tuple(std::forward<OtherKey>(key)),
-								std::forward_as_tuple(std::forward<Args>(args)...));
+								*this, std::piecewise_construct, std::forward_as_tuple(GAIA_FWD(key)),
+								std::forward_as_tuple(GAIA_FWD(args)...));
 						break;
 
 					case InsertionState::overflow_error:
@@ -8712,19 +8714,19 @@ namespace robin_hood {
 				auto idxAndState = insertKeyPrepareEmptySpot(key);
 				switch (idxAndState.second) {
 					case InsertionState::key_found:
-						mKeyVals[idxAndState.first].getSecond() = std::forward<Mapped>(obj);
+						mKeyVals[idxAndState.first].getSecond() = GAIA_FWD(obj);
 						break;
 
 					case InsertionState::new_node:
 						::new (static_cast<void*>(&mKeyVals[idxAndState.first])) Node(
-								*this, std::piecewise_construct, std::forward_as_tuple(std::forward<OtherKey>(key)),
-								std::forward_as_tuple(std::forward<Mapped>(obj)));
+								*this, std::piecewise_construct, std::forward_as_tuple(GAIA_FWD(key)),
+								std::forward_as_tuple(GAIA_FWD(obj)));
 						break;
 
 					case InsertionState::overwrite_node:
 						mKeyVals[idxAndState.first] = Node(
-								*this, std::piecewise_construct, std::forward_as_tuple(std::forward<OtherKey>(key)),
-								std::forward_as_tuple(std::forward<Mapped>(obj)));
+								*this, std::piecewise_construct, std::forward_as_tuple(GAIA_FWD(key)),
+								std::forward_as_tuple(GAIA_FWD(obj)));
 						break;
 
 					case InsertionState::overflow_error:
@@ -9721,10 +9723,10 @@ namespace gaia {
 				GAIA_ASSERT(size() < N);
 
 				if constexpr (mem::is_soa_layout_v<T>) {
-					operator[](m_cnt++) = std::forward<T>(arg);
+					operator[](m_cnt++) = GAIA_FWD(arg);
 				} else {
 					auto* ptr = m_data + sizeof(T) * (m_cnt++);
-					::new (ptr) T(std::forward<T>(arg));
+					::new (ptr) T(GAIA_FWD(arg));
 				}
 			}
 
@@ -9733,11 +9735,11 @@ namespace gaia {
 				GAIA_ASSERT(size() < N);
 
 				if constexpr (mem::is_soa_layout_v<T>) {
-					operator[](m_cnt++) = T(std::forward<Args>(args)...);
+					operator[](m_cnt++) = T(GAIA_FWD(args)...);
 					return;
 				} else {
 					auto* ptr = m_data + sizeof(T) * (m_cnt++);
-					::new (ptr) T(std::forward<Args>(args)...);
+					::new (ptr) T(GAIA_FWD(args)...);
 					return (reference)*ptr;
 				}
 			}
@@ -10148,7 +10150,7 @@ namespace robin_hood {
 				void
 				doThrow(Args&&... args) {
 			// NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
-			throw E(std::forward<Args>(args)...);
+			throw E(GAIA_FWD(args)...);
 		}
 #else
 				void
@@ -10160,7 +10162,7 @@ namespace robin_hood {
 		template <typename E, typename T, typename... Args>
 		T* assertNotNull(T* t, Args&&... args) {
 			if GAIA_UNLIKELY (nullptr == t) {
-				doThrow<E>(std::forward<Args>(args)...);
+				doThrow<E>(GAIA_FWD(args)...);
 			}
 			return t;
 		}
@@ -10400,9 +10402,9 @@ namespace robin_hood {
 
 		template <typename U1, typename U2>
 		constexpr pair(U1&& a, U2&& b) noexcept(
-				noexcept(T1(std::forward<U1>(std::declval<U1&&>()))) && noexcept(T2(std::forward<U2>(std::declval<U2&&>())))):
-				first(std::forward<U1>(a)),
-				second(std::forward<U2>(b)) {}
+				noexcept(T1(GAIA_FWD(std::declval<U1&&>()))) && noexcept(T2(GAIA_FWD(std::declval<U2&&>())))):
+				first(GAIA_FWD(a)),
+				second(GAIA_FWD(b)) {}
 
 		template <typename... U1, typename... U2>
 		// MSVC 2015 produces error "C2476: ‘constexpr’ constructor does not initialize all members"
@@ -10430,8 +10432,8 @@ namespace robin_hood {
 																																																						 I2>(
 																																																				 std::declval<std::tuple<
 																																																						 U2...>&>()))...))):
-				first(std::forward<U1>(std::get<I1>(a))...),
-				second(std::forward<U2>(std::get<I2>(b))...) {
+				first(GAIA_FWD(std::get<I1>(a))...),
+				second(GAIA_FWD(std::get<I2>(b))...) {
 			// make visual studio compiler happy about warning about unused a & b.
 			// Visual studio's pair implementation disables warning 4100.
 			(void)a;
@@ -10736,8 +10738,8 @@ namespace robin_hood {
 			public:
 				template <typename... Args>
 				explicit DataNode(M& ROBIN_HOOD_UNUSED(map) /*unused*/, Args&&... args) noexcept(
-						noexcept(value_type(std::forward<Args>(args)...))):
-						mData(std::forward<Args>(args)...) {}
+						noexcept(value_type(GAIA_FWD(args)...))):
+						mData(GAIA_FWD(args)...) {}
 
 				DataNode(M& ROBIN_HOOD_UNUSED(map) /*unused*/, DataNode<M, true>&& n) noexcept(
 						std::is_nothrow_move_constructible<value_type>::value):
@@ -10805,7 +10807,7 @@ namespace robin_hood {
 			public:
 				template <typename... Args>
 				explicit DataNode(M& map, Args&&... args): mData(map.allocate()) {
-					::new (static_cast<void*>(mData)) value_type(std::forward<Args>(args)...);
+					::new (static_cast<void*>(mData)) value_type(GAIA_FWD(args)...);
 				}
 
 				DataNode(M& ROBIN_HOOD_UNUSED(map) /*unused*/, DataNode<M, false>&& n) noexcept: mData(std::move(n.mData)) {}
@@ -11543,7 +11545,7 @@ namespace robin_hood {
 			template <typename... Args>
 			std::pair<iterator, bool> emplace(Args&&... args) {
 				ROBIN_HOOD_TRACE(this)
-				Node n{*this, std::forward<Args>(args)...};
+				Node n{*this, GAIA_FWD(args)...};
 				auto idxAndState = insertKeyPrepareEmptySpot(getFirstConst(n));
 				switch (idxAndState.second) {
 					case InsertionState::key_found:
@@ -11572,51 +11574,51 @@ namespace robin_hood {
 			template <typename... Args>
 			iterator emplace_hint(const_iterator position, Args&&... args) {
 				(void)position;
-				return emplace(std::forward<Args>(args)...).first;
+				return emplace(GAIA_FWD(args)...).first;
 			}
 
 			template <typename... Args>
 			std::pair<iterator, bool> try_emplace(const key_type& key, Args&&... args) {
-				return try_emplace_impl(key, std::forward<Args>(args)...);
+				return try_emplace_impl(key, GAIA_FWD(args)...);
 			}
 
 			template <typename... Args>
 			std::pair<iterator, bool> try_emplace(key_type&& key, Args&&... args) {
-				return try_emplace_impl(std::move(key), std::forward<Args>(args)...);
+				return try_emplace_impl(std::move(key), GAIA_FWD(args)...);
 			}
 
 			template <typename... Args>
 			iterator try_emplace(const_iterator hint, const key_type& key, Args&&... args) {
 				(void)hint;
-				return try_emplace_impl(key, std::forward<Args>(args)...).first;
+				return try_emplace_impl(key, GAIA_FWD(args)...).first;
 			}
 
 			template <typename... Args>
 			iterator try_emplace(const_iterator hint, key_type&& key, Args&&... args) {
 				(void)hint;
-				return try_emplace_impl(std::move(key), std::forward<Args>(args)...).first;
+				return try_emplace_impl(std::move(key), GAIA_FWD(args)...).first;
 			}
 
 			template <typename Mapped>
 			std::pair<iterator, bool> insert_or_assign(const key_type& key, Mapped&& obj) {
-				return insertOrAssignImpl(key, std::forward<Mapped>(obj));
+				return insertOrAssignImpl(key, GAIA_FWD(obj));
 			}
 
 			template <typename Mapped>
 			std::pair<iterator, bool> insert_or_assign(key_type&& key, Mapped&& obj) {
-				return insertOrAssignImpl(std::move(key), std::forward<Mapped>(obj));
+				return insertOrAssignImpl(std::move(key), GAIA_FWD(obj));
 			}
 
 			template <typename Mapped>
 			iterator insert_or_assign(const_iterator hint, const key_type& key, Mapped&& obj) {
 				(void)hint;
-				return insertOrAssignImpl(key, std::forward<Mapped>(obj)).first;
+				return insertOrAssignImpl(key, GAIA_FWD(obj)).first;
 			}
 
 			template <typename Mapped>
 			iterator insert_or_assign(const_iterator hint, key_type&& key, Mapped&& obj) {
 				(void)hint;
-				return insertOrAssignImpl(std::move(key), std::forward<Mapped>(obj)).first;
+				return insertOrAssignImpl(std::move(key), GAIA_FWD(obj)).first;
 			}
 
 			std::pair<iterator, bool> insert(const value_type& keyval) {
@@ -12007,14 +12009,14 @@ namespace robin_hood {
 
 					case InsertionState::new_node:
 						::new (static_cast<void*>(&mKeyVals[idxAndState.first])) Node(
-								*this, std::piecewise_construct, std::forward_as_tuple(std::forward<OtherKey>(key)),
-								std::forward_as_tuple(std::forward<Args>(args)...));
+								*this, std::piecewise_construct, std::forward_as_tuple(GAIA_FWD(key)),
+								std::forward_as_tuple(GAIA_FWD(args)...));
 						break;
 
 					case InsertionState::overwrite_node:
 						mKeyVals[idxAndState.first] = Node(
-								*this, std::piecewise_construct, std::forward_as_tuple(std::forward<OtherKey>(key)),
-								std::forward_as_tuple(std::forward<Args>(args)...));
+								*this, std::piecewise_construct, std::forward_as_tuple(GAIA_FWD(key)),
+								std::forward_as_tuple(GAIA_FWD(args)...));
 						break;
 
 					case InsertionState::overflow_error:
@@ -12033,19 +12035,19 @@ namespace robin_hood {
 				auto idxAndState = insertKeyPrepareEmptySpot(key);
 				switch (idxAndState.second) {
 					case InsertionState::key_found:
-						mKeyVals[idxAndState.first].getSecond() = std::forward<Mapped>(obj);
+						mKeyVals[idxAndState.first].getSecond() = GAIA_FWD(obj);
 						break;
 
 					case InsertionState::new_node:
 						::new (static_cast<void*>(&mKeyVals[idxAndState.first])) Node(
-								*this, std::piecewise_construct, std::forward_as_tuple(std::forward<OtherKey>(key)),
-								std::forward_as_tuple(std::forward<Mapped>(obj)));
+								*this, std::piecewise_construct, std::forward_as_tuple(GAIA_FWD(key)),
+								std::forward_as_tuple(GAIA_FWD(obj)));
 						break;
 
 					case InsertionState::overwrite_node:
 						mKeyVals[idxAndState.first] = Node(
-								*this, std::piecewise_construct, std::forward_as_tuple(std::forward<OtherKey>(key)),
-								std::forward_as_tuple(std::forward<Mapped>(obj)));
+								*this, std::piecewise_construct, std::forward_as_tuple(GAIA_FWD(key)),
+								std::forward_as_tuple(GAIA_FWD(obj)));
 						break;
 
 					case InsertionState::overflow_error:
@@ -12410,7 +12412,7 @@ namespace gaia {
 			void push_back(T&& arg) {
 				GAIA_ASSERT(m_size < N);
 				const auto head = (m_tail + m_size) % N;
-				m_data[head] = std::forward<T>(arg);
+				m_data[head] = GAIA_FWD(arg);
 				++m_size;
 			}
 
@@ -12423,7 +12425,7 @@ namespace gaia {
 
 			void pop_front(T&& out) {
 				GAIA_ASSERT(!empty());
-				out = std::forward<T>(m_data[m_tail]);
+				out = GAIA_FWD(m_data[m_tail]);
 				m_tail = (m_tail + 1) % N;
 				--m_size;
 			}
@@ -12438,7 +12440,7 @@ namespace gaia {
 			void pop_back(T&& out) {
 				GAIA_ASSERT(m_size < N);
 				const auto head = (m_tail + m_size - 1) % N;
-				out = std::forward<T>(m_data[head]);
+				out = GAIA_FWD(m_data[head]);
 				--m_size;
 			}
 
@@ -12447,7 +12449,7 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD constexpr bool empty() const noexcept {
-				return !m_size;
+				return size() == 0;
 			}
 
 			GAIA_NODISCARD constexpr size_type max_size() const noexcept {
@@ -15858,7 +15860,7 @@ namespace gaia {
 				update_version(m_header.worldVersion);
 
 				GAIA_ASSERT(index < m_header.capacity);
-				view_mut<T>()[index] = std::forward<U>(value);
+				view_mut<T>()[index] = GAIA_FWD(value);
 			}
 
 			/*!
@@ -15877,7 +15879,7 @@ namespace gaia {
 				update_version(m_header.worldVersion);
 
 				GAIA_ASSERT(0 < m_header.capacity);
-				view_mut<T>()[0] = std::forward<U>(value);
+				view_mut<T>()[0] = GAIA_FWD(value);
 			}
 
 			/*!
@@ -15895,7 +15897,7 @@ namespace gaia {
 						"SetSilent providing an index can only be used with generic components");
 
 				GAIA_ASSERT(index < m_header.capacity);
-				sview_mut<T>()[index] = std::forward<U>(value);
+				sview_mut<T>()[index] = GAIA_FWD(value);
 			}
 
 			/*!
@@ -15912,7 +15914,7 @@ namespace gaia {
 						"SetSilent not providing an index can only be used with non-generic components");
 
 				GAIA_ASSERT(0 < m_header.capacity);
-				sview_mut<T>()[0] = std::forward<U>(value);
+				sview_mut<T>()[0] = GAIA_FWD(value);
 			}
 
 			//----------------------------------------------------------------------
@@ -16033,14 +16035,14 @@ namespace gaia {
 				return ((float)m_header.count / (float)m_header.capacity) < Threshold;
 			}
 
-			//! Checks is there are any entities in the chunk
-			GAIA_NODISCARD bool empty() const {
-				return m_header.count == 0;
-			}
-
 			//! Returns the total number of entities in the chunk (both enabled and disabled)
 			GAIA_NODISCARD uint32_t size() const {
 				return m_header.count;
+			}
+
+			//! Checks is there are any entities in the chunk
+			GAIA_NODISCARD bool empty() const {
+				return size() == 0;
 			}
 
 			//! Return the number of entities in the chunk which are enabled
@@ -16884,9 +16886,9 @@ namespace gaia {
 				verify_comp<T>();
 
 				if constexpr (component_kind_v<T> == ComponentKind::CK_Generic)
-					m_pChunk->template set<T>(m_idx, std::forward<U>(data));
+					m_pChunk->template set<T>(m_idx, GAIA_FWD(data));
 				else
-					m_pChunk->template set<T>(std::forward<U>(data));
+					m_pChunk->template set<T>(GAIA_FWD(data));
 				return *this;
 			}
 
@@ -16899,9 +16901,9 @@ namespace gaia {
 				verify_comp<T>();
 
 				if constexpr (component_kind_v<T> == ComponentKind::CK_Generic)
-					m_pChunk->template sset<T>(m_idx, std::forward<U>(data));
+					m_pChunk->template sset<T>(m_idx, GAIA_FWD(data));
 				else
-					m_pChunk->template sset<T>(std::forward<U>(data));
+					m_pChunk->template sset<T>(GAIA_FWD(data));
 				return *this;
 			}
 		};
@@ -17068,7 +17070,7 @@ namespace gaia {
 
 				m_data.resize(m_dataPos + sizeof(T));
 				mem::unaligned_ref<T> mem(&m_data[m_dataPos]);
-				mem = std::forward<T>(value);
+				mem = GAIA_FWD(value);
 
 				m_dataPos += sizeof(T);
 			}
@@ -19413,12 +19415,12 @@ namespace gaia {
 				if constexpr (component_kind_v<T> == ComponentKind::CK_Generic) {
 					auto& entityContainer = add_inter(ComponentKind::CK_Generic, entity, info);
 					auto* pChunk = entityContainer.pChunk;
-					pChunk->template set<T>(entityContainer.idx, std::forward<U>(value));
+					pChunk->template set<T>(entityContainer.idx, GAIA_FWD(value));
 					return ComponentSetter{entityContainer.pChunk, entityContainer.idx};
 				} else {
 					auto& entityContainer = add_inter(ComponentKind::CK_Chunk, entity, info);
 					auto* pChunk = entityContainer.pChunk;
-					pChunk->template set<T>(std::forward<U>(value));
+					pChunk->template set<T>(GAIA_FWD(value));
 					return ComponentSetter{entityContainer.pChunk, entityContainer.idx};
 				}
 			}
@@ -19455,7 +19457,7 @@ namespace gaia {
 				GAIA_ASSERT(valid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
-				return ComponentSetter{entityContainer.pChunk, entityContainer.idx}.set<T>(std::forward<U>(value));
+				return ComponentSetter{entityContainer.pChunk, entityContainer.idx}.set<T>(GAIA_FWD(value));
 			}
 
 			//! Sets the value of the component \tparam T on \param entity without trigger a world version update.
@@ -19470,7 +19472,7 @@ namespace gaia {
 				GAIA_ASSERT(valid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
-				return ComponentSetter{entityContainer.pChunk, entityContainer.idx}.sset<T>(std::forward<U>(value));
+				return ComponentSetter{entityContainer.pChunk, entityContainer.idx}.sset<T>(GAIA_FWD(value));
 			}
 
 			//----------------------------------------------------------------------
@@ -19965,7 +19967,7 @@ namespace gaia {
 				cmd.compKind = component_kind_v<T>;
 				cmd.compId = info.compId;
 				ser::save(m_ctx, cmd);
-				m_ctx.save_comp(std::forward<U>(value));
+				m_ctx.save_comp(GAIA_FWD(value));
 			}
 
 			/*!
@@ -19986,7 +19988,7 @@ namespace gaia {
 				cmd.compKind = component_kind_v<T>;
 				cmd.compId = info.compId;
 				ser::save(m_ctx, cmd);
-				m_ctx.save_comp(std::forward<U>(value));
+				m_ctx.save_comp(GAIA_FWD(value));
 			}
 
 			/*!
@@ -20008,7 +20010,7 @@ namespace gaia {
 				cmd.compKind = component_kind_v<T>;
 				cmd.compId = comp_id<T>();
 				ser::save(m_ctx, cmd);
-				m_ctx.save_comp(std::forward<U>(value));
+				m_ctx.save_comp(GAIA_FWD(value));
 			}
 
 			/*!
@@ -20031,7 +20033,7 @@ namespace gaia {
 				cmd.compKind = component_kind_v<T>;
 				cmd.compId = comp_id<T>();
 				ser::save(m_ctx, cmd);
-				m_ctx.save_comp(std::forward<U>(value));
+				m_ctx.save_comp(GAIA_FWD(value));
 			}
 
 			/*!

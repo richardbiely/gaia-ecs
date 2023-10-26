@@ -119,7 +119,7 @@ namespace gaia {
 			void push_back(T&& arg) {
 				GAIA_ASSERT(m_size < N);
 				const auto head = (m_tail + m_size) % N;
-				m_data[head] = std::forward<T>(arg);
+				m_data[head] = GAIA_FWD(arg);
 				++m_size;
 			}
 
@@ -132,7 +132,7 @@ namespace gaia {
 
 			void pop_front(T&& out) {
 				GAIA_ASSERT(!empty());
-				out = std::forward<T>(m_data[m_tail]);
+				out = GAIA_FWD(m_data[m_tail]);
 				m_tail = (m_tail + 1) % N;
 				--m_size;
 			}
@@ -147,7 +147,7 @@ namespace gaia {
 			void pop_back(T&& out) {
 				GAIA_ASSERT(m_size < N);
 				const auto head = (m_tail + m_size - 1) % N;
-				out = std::forward<T>(m_data[head]);
+				out = GAIA_FWD(m_data[head]);
 				--m_size;
 			}
 
@@ -156,7 +156,7 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD constexpr bool empty() const noexcept {
-				return !m_size;
+				return size() == 0;
 			}
 
 			GAIA_NODISCARD constexpr size_type max_size() const noexcept {

@@ -33,9 +33,9 @@ namespace gaia {
 				verify_comp<T>();
 
 				if constexpr (component_kind_v<T> == ComponentKind::CK_Generic)
-					m_pChunk->template set<T>(m_idx, std::forward<U>(data));
+					m_pChunk->template set<T>(m_idx, GAIA_FWD(data));
 				else
-					m_pChunk->template set<T>(std::forward<U>(data));
+					m_pChunk->template set<T>(GAIA_FWD(data));
 				return *this;
 			}
 
@@ -48,9 +48,9 @@ namespace gaia {
 				verify_comp<T>();
 
 				if constexpr (component_kind_v<T> == ComponentKind::CK_Generic)
-					m_pChunk->template sset<T>(m_idx, std::forward<U>(data));
+					m_pChunk->template sset<T>(m_idx, GAIA_FWD(data));
 				else
-					m_pChunk->template sset<T>(std::forward<U>(data));
+					m_pChunk->template sset<T>(GAIA_FWD(data));
 				return *this;
 			}
 		};

@@ -421,10 +421,10 @@ namespace gaia {
 				try_grow();
 
 				if constexpr (mem::is_soa_layout_v<T>) {
-					operator[](m_cnt++) = std::forward<T>(arg);
+					operator[](m_cnt++) = GAIA_FWD(arg);
 				} else {
 					auto* ptr = m_pData + sizeof(T) * (m_cnt++);
-					::new (ptr) T(std::forward<T>(arg));
+					::new (ptr) T(GAIA_FWD(arg));
 				}
 			}
 
@@ -433,11 +433,11 @@ namespace gaia {
 				try_grow();
 
 				if constexpr (mem::is_soa_layout_v<T>) {
-					operator[](m_cnt++) = T(std::forward<Args>(args)...);
+					operator[](m_cnt++) = T(GAIA_FWD(args)...);
 					return;
 				} else {
 					auto* ptr = m_pData + sizeof(T) * (m_cnt++);
-					::new (ptr) T(std::forward<Args>(args)...);
+					::new (ptr) T(GAIA_FWD(args)...);
 					return (reference)*ptr;
 				}
 			}
@@ -529,12 +529,12 @@ namespace gaia {
 				return m_cnt;
 			}
 
-			GAIA_NODISCARD size_type capacity() const noexcept {
-				return m_cap;
-			}
-
 			GAIA_NODISCARD bool empty() const noexcept {
 				return size() == 0;
+			}
+
+			GAIA_NODISCARD size_type capacity() const noexcept {
+				return m_cap;
 			}
 
 			GAIA_NODISCARD size_type max_size() const noexcept {

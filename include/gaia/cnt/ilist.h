@@ -86,12 +86,12 @@ namespace gaia {
 				return (size_type)m_items.size();
 			}
 
-			GAIA_NODISCARD size_type capacity() const noexcept {
-				return (size_type)m_items.capacity();
-			}
-
 			GAIA_NODISCARD bool empty() const noexcept {
 				return size() == 0;
+			}
+
+			GAIA_NODISCARD size_type capacity() const noexcept {
+				return (size_type)m_items.capacity();
 			}
 
 			GAIA_NODISCARD iterator begin() const noexcept {

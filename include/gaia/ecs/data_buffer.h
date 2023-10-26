@@ -64,7 +64,7 @@ namespace gaia {
 
 				m_data.resize(m_dataPos + sizeof(T));
 				mem::unaligned_ref<T> mem(&m_data[m_dataPos]);
-				mem = std::forward<T>(value);
+				mem = GAIA_FWD(value);
 
 				m_dataPos += sizeof(T);
 			}

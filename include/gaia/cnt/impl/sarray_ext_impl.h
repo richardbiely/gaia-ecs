@@ -335,10 +335,10 @@ namespace gaia {
 				GAIA_ASSERT(size() < N);
 
 				if constexpr (mem::is_soa_layout_v<T>) {
-					operator[](m_cnt++) = std::forward<T>(arg);
+					operator[](m_cnt++) = GAIA_FWD(arg);
 				} else {
 					auto* ptr = m_data + sizeof(T) * (m_cnt++);
-					::new (ptr) T(std::forward<T>(arg));
+					::new (ptr) T(GAIA_FWD(arg));
 				}
 			}
 
@@ -347,11 +347,11 @@ namespace gaia {
 				GAIA_ASSERT(size() < N);
 
 				if constexpr (mem::is_soa_layout_v<T>) {
-					operator[](m_cnt++) = T(std::forward<Args>(args)...);
+					operator[](m_cnt++) = T(GAIA_FWD(args)...);
 					return;
 				} else {
 					auto* ptr = m_data + sizeof(T) * (m_cnt++);
-					::new (ptr) T(std::forward<Args>(args)...);
+					::new (ptr) T(GAIA_FWD(args)...);
 					return (reference)*ptr;
 				}
 			}

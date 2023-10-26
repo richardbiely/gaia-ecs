@@ -216,7 +216,7 @@ namespace robin_hood {
 				void
 				doThrow(Args&&... args) {
 			// NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
-			throw E(std::forward<Args>(args)...);
+			throw E(GAIA_FWD(args)...);
 		}
 #else
 				void
@@ -228,7 +228,7 @@ namespace robin_hood {
 		template <typename E, typename T, typename... Args>
 		T* assertNotNull(T* t, Args&&... args) {
 			if GAIA_UNLIKELY (nullptr == t) {
-				doThrow<E>(std::forward<Args>(args)...);
+				doThrow<E>(GAIA_FWD(args)...);
 			}
 			return t;
 		}
@@ -468,9 +468,9 @@ namespace robin_hood {
 
 		template <typename U1, typename U2>
 		constexpr pair(U1&& a, U2&& b) noexcept(
-				noexcept(T1(std::forward<U1>(std::declval<U1&&>()))) && noexcept(T2(std::forward<U2>(std::declval<U2&&>())))):
-				first(std::forward<U1>(a)),
-				second(std::forward<U2>(b)) {}
+				noexcept(T1(GAIA_FWD(std::declval<U1&&>()))) && noexcept(T2(GAIA_FWD(std::declval<U2&&>())))):
+				first(GAIA_FWD(a)),
+				second(GAIA_FWD(b)) {}
 
 		template <typename... U1, typename... U2>
 		// MSVC 2015 produces error "C2476: ‘constexpr’ constructor does not initialize all members"
@@ -498,8 +498,8 @@ namespace robin_hood {
 																																																						 I2>(
 																																																				 std::declval<std::tuple<
 																																																						 U2...>&>()))...))):
-				first(std::forward<U1>(std::get<I1>(a))...),
-				second(std::forward<U2>(std::get<I2>(b))...) {
+				first(GAIA_FWD(std::get<I1>(a))...),
+				second(GAIA_FWD(std::get<I2>(b))...) {
 			// make visual studio compiler happy about warning about unused a & b.
 			// Visual studio's pair implementation disables warning 4100.
 			(void)a;
@@ -804,8 +804,8 @@ namespace robin_hood {
 			public:
 				template <typename... Args>
 				explicit DataNode(M& ROBIN_HOOD_UNUSED(map) /*unused*/, Args&&... args) noexcept(
-						noexcept(value_type(std::forward<Args>(args)...))):
-						mData(std::forward<Args>(args)...) {}
+						noexcept(value_type(GAIA_FWD(args)...))):
+						mData(GAIA_FWD(args)...) {}
 
 				DataNode(M& ROBIN_HOOD_UNUSED(map) /*unused*/, DataNode<M, true>&& n) noexcept(
 						std::is_nothrow_move_constructible<value_type>::value):
@@ -873,7 +873,7 @@ namespace robin_hood {
 			public:
 				template <typename... Args>
 				explicit DataNode(M& map, Args&&... args): mData(map.allocate()) {
-					::new (static_cast<void*>(mData)) value_type(std::forward<Args>(args)...);
+					::new (static_cast<void*>(mData)) value_type(GAIA_FWD(args)...);
 				}
 
 				DataNode(M& ROBIN_HOOD_UNUSED(map) /*unused*/, DataNode<M, false>&& n) noexcept: mData(std::move(n.mData)) {}
@@ -1611,7 +1611,7 @@ namespace robin_hood {
 			template <typename... Args>
 			std::pair<iterator, bool> emplace(Args&&... args) {
 				ROBIN_HOOD_TRACE(this)
-				Node n{*this, std::forward<Args>(args)...};
+				Node n{*this, GAIA_FWD(args)...};
 				auto idxAndState = insertKeyPrepareEmptySpot(getFirstConst(n));
 				switch (idxAndState.second) {
 					case InsertionState::key_found:
@@ -1640,51 +1640,51 @@ namespace robin_hood {
 			template <typename... Args>
 			iterator emplace_hint(const_iterator position, Args&&... args) {
 				(void)position;
-				return emplace(std::forward<Args>(args)...).first;
+				return emplace(GAIA_FWD(args)...).first;
 			}
 
 			template <typename... Args>
 			std::pair<iterator, bool> try_emplace(const key_type& key, Args&&... args) {
-				return try_emplace_impl(key, std::forward<Args>(args)...);
+				return try_emplace_impl(key, GAIA_FWD(args)...);
 			}
 
 			template <typename... Args>
 			std::pair<iterator, bool> try_emplace(key_type&& key, Args&&... args) {
-				return try_emplace_impl(std::move(key), std::forward<Args>(args)...);
+				return try_emplace_impl(std::move(key), GAIA_FWD(args)...);
 			}
 
 			template <typename... Args>
 			iterator try_emplace(const_iterator hint, const key_type& key, Args&&... args) {
 				(void)hint;
-				return try_emplace_impl(key, std::forward<Args>(args)...).first;
+				return try_emplace_impl(key, GAIA_FWD(args)...).first;
 			}
 
 			template <typename... Args>
 			iterator try_emplace(const_iterator hint, key_type&& key, Args&&... args) {
 				(void)hint;
-				return try_emplace_impl(std::move(key), std::forward<Args>(args)...).first;
+				return try_emplace_impl(std::move(key), GAIA_FWD(args)...).first;
 			}
 
 			template <typename Mapped>
 			std::pair<iterator, bool> insert_or_assign(const key_type& key, Mapped&& obj) {
-				return insertOrAssignImpl(key, std::forward<Mapped>(obj));
+				return insertOrAssignImpl(key, GAIA_FWD(obj));
 			}
 
 			template <typename Mapped>
 			std::pair<iterator, bool> insert_or_assign(key_type&& key, Mapped&& obj) {
-				return insertOrAssignImpl(std::move(key), std::forward<Mapped>(obj));
+				return insertOrAssignImpl(std::move(key), GAIA_FWD(obj));
 			}
 
 			template <typename Mapped>
 			iterator insert_or_assign(const_iterator hint, const key_type& key, Mapped&& obj) {
 				(void)hint;
-				return insertOrAssignImpl(key, std::forward<Mapped>(obj)).first;
+				return insertOrAssignImpl(key, GAIA_FWD(obj)).first;
 			}
 
 			template <typename Mapped>
 			iterator insert_or_assign(const_iterator hint, key_type&& key, Mapped&& obj) {
 				(void)hint;
-				return insertOrAssignImpl(std::move(key), std::forward<Mapped>(obj)).first;
+				return insertOrAssignImpl(std::move(key), GAIA_FWD(obj)).first;
 			}
 
 			std::pair<iterator, bool> insert(const value_type& keyval) {
@@ -2075,14 +2075,14 @@ namespace robin_hood {
 
 					case InsertionState::new_node:
 						::new (static_cast<void*>(&mKeyVals[idxAndState.first])) Node(
-								*this, std::piecewise_construct, std::forward_as_tuple(std::forward<OtherKey>(key)),
-								std::forward_as_tuple(std::forward<Args>(args)...));
+								*this, std::piecewise_construct, std::forward_as_tuple(GAIA_FWD(key)),
+								std::forward_as_tuple(GAIA_FWD(args)...));
 						break;
 
 					case InsertionState::overwrite_node:
 						mKeyVals[idxAndState.first] = Node(
-								*this, std::piecewise_construct, std::forward_as_tuple(std::forward<OtherKey>(key)),
-								std::forward_as_tuple(std::forward<Args>(args)...));
+								*this, std::piecewise_construct, std::forward_as_tuple(GAIA_FWD(key)),
+								std::forward_as_tuple(GAIA_FWD(args)...));
 						break;
 
 					case InsertionState::overflow_error:
@@ -2101,19 +2101,19 @@ namespace robin_hood {
 				auto idxAndState = insertKeyPrepareEmptySpot(key);
 				switch (idxAndState.second) {
 					case InsertionState::key_found:
-						mKeyVals[idxAndState.first].getSecond() = std::forward<Mapped>(obj);
+						mKeyVals[idxAndState.first].getSecond() = GAIA_FWD(obj);
 						break;
 
 					case InsertionState::new_node:
 						::new (static_cast<void*>(&mKeyVals[idxAndState.first])) Node(
-								*this, std::piecewise_construct, std::forward_as_tuple(std::forward<OtherKey>(key)),
-								std::forward_as_tuple(std::forward<Mapped>(obj)));
+								*this, std::piecewise_construct, std::forward_as_tuple(GAIA_FWD(key)),
+								std::forward_as_tuple(GAIA_FWD(obj)));
 						break;
 
 					case InsertionState::overwrite_node:
 						mKeyVals[idxAndState.first] = Node(
-								*this, std::piecewise_construct, std::forward_as_tuple(std::forward<OtherKey>(key)),
-								std::forward_as_tuple(std::forward<Mapped>(obj)));
+								*this, std::piecewise_construct, std::forward_as_tuple(GAIA_FWD(key)),
+								std::forward_as_tuple(GAIA_FWD(obj)));
 						break;
 
 					case InsertionState::overflow_error:
