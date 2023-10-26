@@ -154,10 +154,10 @@ void BM_ECS(picobench::state& state) {
 	auto queryCHealth = w.query().all<const Health>();
 
 	/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */
-	(void)queryPosCVel.has_entities();
-	(void)queryPosVel.has_entities();
-	(void)queryVel.has_entities();
-	(void)queryCHealth.has_entities();
+	gaia::dont_optimize(queryPosCVel.empty());
+	gaia::dont_optimize(queryPosVel.empty());
+	gaia::dont_optimize(queryVel.empty());
+	gaia::dont_optimize(queryCHealth.empty());
 
 	srand(0);
 	for (auto _: state) {
@@ -214,10 +214,10 @@ void BM_ECS_WithSystems(picobench::state& state) {
 	auto queryCHealth = w.query().all<const Health>();
 
 	/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */
-	(void)queryPosCVel.has_entities();
-	(void)queryPosCVel.has_entities();
-	(void)queryPosCVel.has_entities();
-	(void)queryPosCVel.has_entities();
+	gaia::dont_optimize(queryPosCVel.empty());
+	gaia::dont_optimize(queryPosVel.empty());
+	gaia::dont_optimize(queryVel.empty());
+	gaia::dont_optimize(queryCHealth.empty());
 
 	class PositionSystem final: public TestSystem {
 	public:
@@ -286,10 +286,10 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 	auto queryCHealth = w.query().all<const Health>();
 
 	/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */
-	(void)queryPosCVel.has_entities();
-	(void)queryPosVel.has_entities();
-	(void)queryVel.has_entities();
-	(void)queryCHealth.has_entities();
+	gaia::dont_optimize(queryPosCVel.empty());
+	gaia::dont_optimize(queryPosVel.empty());
+	gaia::dont_optimize(queryVel.empty());
+	gaia::dont_optimize(queryCHealth.empty());
 
 	class PositionSystem final: public TestSystem {
 	public:
@@ -379,10 +379,10 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 	auto queryCHealth = w.query().all<const Health>();
 
 	/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */
-	(void)queryPosCVel.has_entities();
-	(void)queryPosVel.has_entities();
-	(void)queryVel.has_entities();
-	(void)queryCHealth.has_entities();
+	gaia::dont_optimize(queryPosCVel.empty());
+	gaia::dont_optimize(queryPosVel.empty());
+	gaia::dont_optimize(queryVel.empty());
+	gaia::dont_optimize(queryCHealth.empty());
 
 	class PositionSystem final: public TestSystem {
 	public:

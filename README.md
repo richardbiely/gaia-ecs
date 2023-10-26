@@ -206,7 +206,11 @@ cnt::darray<Position> positions;
 q.arr(positions);
 
 // Calculate the number of entities satisfying the query
-const auto numberOfMatches = q.calc_entity_cnt();
+const auto numberOfMatches = q.count();
+
+// Check if any entities satisfy the query.
+// Possibly faster than count() because it stops on the first match.
+const bool hasMatches = !q.empty();
 ```
 
 More complex queries can be created by combining All, Any and None in any way you can imagine:
