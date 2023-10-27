@@ -287,6 +287,10 @@ namespace gaia {
 			*/
 			static void free(Chunk* pChunk) {
 				GAIA_ASSERT(pChunk != nullptr);
+				GAIA_ASSERT(!pChunk->dead());
+
+				// Mark as dead
+				pChunk->die();
 
 				// Call destructors for components that need it
 				if (pChunk->has_custom_generic_dtor())
@@ -328,7 +332,7 @@ namespace gaia {
 					// be removed. The chunk might be reclaimed before GC happens but it
 					// simply ignores such requests. This way GC always has at most one
 					// record for removal for any given chunk.
-					prepare_to_die();
+					revive();
 
 					chunksToRemove.push_back(this);
 				}
@@ -1218,7 +1222,19 @@ namespace gaia {
 				return m_header.lifespanCountdown > 0;
 			}
 
-			void prepare_to_die() {
+			//! Marks the chunk as dead
+			void die() {
+				m_header.dead = 1;
+			}
+
+			//! Checks is this chunk is dying
+			GAIA_NODISCARD bool dead() const {
+				return m_header.dead == 1;
+			}
+
+			//! Makes the chunk alive again
+			void revive() {
+				GAIA_ASSERT(!dead());
 				m_header.lifespanCountdown = ChunkHeader::MAX_CHUNK_LIFESPAN;
 			}
 

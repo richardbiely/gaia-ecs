@@ -602,7 +602,7 @@ namespace gaia {
 
 					// Skip reclaimed chunks
 					if (!pChunk->empty()) {
-						pChunk->prepare_to_die();
+						pChunk->revive();
 						core::erase_fast(m_chunksToRemove, i);
 						continue;
 					}

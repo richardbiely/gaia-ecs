@@ -864,20 +864,25 @@ public:
 class GameStateSystem: public ecs::System {
 	ecs::Query m_qp;
 	ecs::Query m_qe;
-	bool m_hadEnemies = true;
+	bool m_hadPlayer;
+	bool m_hadEnemies;
 
 public:
 	void OnCreated() override {
 		m_qp = world().query().all<const Health, Player>();
 		m_qe = world().query().all<const Health>().none<Player, Item>();
+
+		m_hadPlayer = !m_qp.empty();
+		m_hadEnemies = !m_qe.empty();
 	}
 
 	void OnUpdate() override {
 		const bool hasNoPlayer = m_qp.empty();
-		if (hasNoPlayer) {
+		if (m_hadPlayer && hasNoPlayer) {
 			printf("You are dead. Good job.\n");
 			g_world.terminate = true;
 		}
+		m_hadPlayer = !hasNoPlayer;
 
 		const bool hasNoEnemies = m_qe.empty();
 		if (m_hadEnemies && hasNoEnemies) {
