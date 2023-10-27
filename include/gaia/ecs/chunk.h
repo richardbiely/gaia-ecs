@@ -59,7 +59,7 @@ namespace gaia {
 				// However, the memory offsets part are all trivial types and components are initialized via their
 				// constructors so we do not really need to do anything.
 				// const uint32_t sizeBytes = ...;
-				// auto* curr = (uint8_t*)&m_data[0] + 1;
+				// auto* curr = (uint8_t*)&data(0) + 1;
 				// for (uint32_t i = 0; i < sizeBytes; ++i, (void)++curr) {
 				// 	const auto* addr = mem::addressof(*curr);
 				// 	(void)new (const_cast<void*>(static_cast<const volatile void*>(addr))) uint8_t;
@@ -95,7 +95,7 @@ namespace gaia {
 						auto offset = m_header.offsets.firstByte_ComponentIds[i];
 						for (const auto compId: compIds[i]) {
 							// unaligned_ref not necessary because data is aligned
-							*(ComponentId*)&m_data[offset] = compId;
+							*(ComponentId*)&data(offset) = compId;
 							offset += sizeof(ComponentId);
 						}
 					}
@@ -107,7 +107,7 @@ namespace gaia {
 						auto offset = m_header.offsets.firstByte_CompOffs[i];
 						for (const auto compOff: compOffs[i]) {
 							// unaligned_ref not necessary because data is aligned
-							*(ChunkComponentOffset*)&m_data[offset] = compOff;
+							*(ChunkComponentOffset*)&data(offset) = compOff;
 							offset += sizeof(ChunkComponentOffset);
 						}
 					}
@@ -128,7 +128,7 @@ namespace gaia {
 				GAIA_ASSERT(to <= size());
 
 				if constexpr (std::is_same_v<U, Entity>) {
-					const auto offset = m_header.offsets.firstByte_EntityData + sizeof(U) * from;
+					const auto offset = m_header.offsets.firstByte_EntityData + from * (uint32_t)sizeof(U);
 					const uint32_t count = to - from;
 					return {&data(offset), count};
 				} else {
@@ -143,13 +143,13 @@ namespace gaia {
 					const auto offset = offsetFirst + from * (uint32_t)sizeof(U);
 
 					if constexpr (compKind == ComponentKind::CK_Generic) {
-						[[maybe_unused]] const auto maxOffset = offsetFirst + capacity() * sizeof(U);
+						[[maybe_unused]] const auto maxOffset = offsetFirst + capacity() * (uint32_t)sizeof(U);
 						GAIA_ASSERT(maxOffset <= bytes());
 
 						const uint32_t count = to - from;
 						return {&data(offset), count};
 					} else {
-						[[maybe_unused]] const auto maxOffset = offset + sizeof(U);
+						[[maybe_unused]] const auto maxOffset = offset + (uint32_t)sizeof(U);
 						GAIA_ASSERT(maxOffset <= bytes());
 						// GAIA_ASSERT(count == 1); we don't really care and always consider 1 for chunk components
 
@@ -169,42 +169,41 @@ namespace gaia {
 			GAIA_NODISCARD GAIA_FORCEINLINE auto view_mut_inter(uint32_t from, uint32_t to)
 					-> decltype(std::span<uint8_t>{}) {
 				using U = typename component_type_t<T>::Type;
-#if GAIA_COMPILER_MSVC && _MSC_VER <= 1916
-				// Workaround for MSVC 2017 bug where it incorrectly evaluates the static assert
-				// even in context where it shouldn't.
-				// Unfortunatelly, even runtime assert can't be used...
-				// GAIA_ASSERT(!std::is_same_v<U, Entity>::value);
-#else
-				static_assert(!std::is_same_v<U, Entity>);
-#endif
-				static_assert(!std::is_empty_v<U>, "Attempting to set value of an empty component");
 
 				GAIA_ASSERT(to <= size());
 
-				const auto compId = comp_id<T>();
-				constexpr auto compKind = component_kind_v<T>;
-
-				// Find at what byte offset the first component of a given type is located
-				uint32_t compIdx = 0;
-				const auto offsetFirst = find_data_offset(compKind, compId, compIdx);
-				const auto offset = offsetFirst + from * (uint32_t)sizeof(U);
-
-				// Update version number if necessary so we know RW access was used on the chunk
-				if constexpr (WorldVersionUpdateWanted)
-					this->update_world_version(compKind, compIdx);
-
-				if constexpr (compKind == ComponentKind::CK_Generic) {
-					[[maybe_unused]] const auto maxOffset = offset + capacity() * sizeof(U);
-					GAIA_ASSERT(maxOffset <= bytes());
-
+				if constexpr (std::is_same_v<U, Entity>) {
+					const auto offset = m_header.offsets.firstByte_EntityData + from * (uint32_t)sizeof(U);
 					const uint32_t count = to - from;
 					return {&data(offset), count};
 				} else {
-					[[maybe_unused]] const auto maxOffset = offset + sizeof(U);
-					GAIA_ASSERT(maxOffset <= bytes());
-					// GAIA_ASSERT(count == 1); we don't really care and always consider 1 for chunk components
+					static_assert(!std::is_empty_v<U>, "Attempting to set value of an empty component");
 
-					return {&data(offset), 1};
+					const auto compId = comp_id<T>();
+					constexpr auto compKind = component_kind_v<T>;
+
+					// Find at what byte offset the first component of a given type is located
+					uint32_t compIdx = 0;
+					const auto offsetFirst = find_data_offset(compKind, compId, compIdx);
+					const auto offset = offsetFirst + from * (uint32_t)sizeof(U);
+
+					// Update version number if necessary so we know RW access was used on the chunk
+					if constexpr (WorldVersionUpdateWanted)
+						update_world_version(compKind, compIdx);
+
+					if constexpr (compKind == ComponentKind::CK_Generic) {
+						[[maybe_unused]] const auto maxOffset = offset + capacity() * (uint32_t)sizeof(U);
+						GAIA_ASSERT(maxOffset <= bytes());
+
+						const uint32_t count = to - from;
+						return {&data(offset), count};
+					} else {
+						[[maybe_unused]] const auto maxOffset = offset + (uint32_t)sizeof(U);
+						GAIA_ASSERT(maxOffset <= bytes());
+						// GAIA_ASSERT(count == 1); we don't really care and always consider 1 for chunk components
+
+						return {&data(offset), 1};
+					}
 				}
 			}
 
@@ -470,7 +469,7 @@ namespace gaia {
 			GAIA_NODISCARD uint32_t add_entity(Entity entity) {
 				const auto index = m_header.count++;
 				++m_header.countEnabled;
-				set_entity(index, entity);
+				entity_view()[index] = entity;
 
 				update_version(m_header.worldVersion);
 				update_world_version(ComponentKind::CK_Generic);
@@ -626,12 +625,12 @@ namespace gaia {
 				if GAIA_LIKELY (left < right) {
 					GAIA_ASSERT(m_header.count > 1);
 
-					const auto entity = get_entity(right);
+					const auto entity = entity_view()[right];
 					auto& entityContainer = entities[entity.id()];
 					const auto wasDisabled = entityContainer.dis;
 
 					// Update entity index inside chunk
-					set_entity(left, entity);
+					entity_view()[left] = entity;
 
 					auto compIds = comp_id_view(ComponentKind::CK_Generic);
 					auto compOffs = comp_offset_view(ComponentKind::CK_Generic);
@@ -649,8 +648,8 @@ namespace gaia {
 						GAIA_ASSERT(idxDst < bytes());
 						GAIA_ASSERT(idxSrc != idxDst);
 
-						auto* pSrc = (void*)&m_data[idxSrc];
-						auto* pDst = (void*)&m_data[idxDst];
+						auto* pSrc = (void*)&data(idxSrc);
+						auto* pDst = (void*)&data(idxDst);
 						desc.move(pSrc, pDst);
 						desc.dtor(pSrc);
 					}
@@ -674,7 +673,7 @@ namespace gaia {
 
 						GAIA_ASSERT(idxSrc < bytes());
 
-						auto* pSrc = (void*)&m_data[idxSrc];
+						auto* pSrc = (void*)&data(idxSrc);
 						desc.dtor(pSrc);
 					}
 				}
@@ -737,10 +736,10 @@ namespace gaia {
 				GAIA_PROF_SCOPE(SwapEntitiesInsideChunk);
 
 				// Update entity indices inside chunk
-				const auto entityLeft = get_entity(left);
-				const auto entityRight = get_entity(right);
-				set_entity(left, entityRight);
-				set_entity(right, entityLeft);
+				const auto entityLeft = entity_view()[left];
+				const auto entityRight = entity_view()[right];
+				entity_view()[left] = entityRight;
+				entity_view()[right] = entityLeft;
 
 				const auto& cc = ComponentCache::get();
 				auto compIds = comp_id_view(ComponentKind::CK_Generic);
@@ -759,8 +758,8 @@ namespace gaia {
 					GAIA_ASSERT(idxDst < bytes());
 					GAIA_ASSERT(idxSrc != idxDst);
 
-					auto* pSrc = (void*)&m_data[idxSrc];
-					auto* pDst = (void*)&m_data[idxDst];
+					auto* pSrc = (void*)&data(idxSrc);
+					auto* pDst = (void*)&data(idxDst);
 					desc.swap(pSrc, pDst);
 				}
 
@@ -774,34 +773,6 @@ namespace gaia {
 				ecRight.idx = left;
 				ecRight.gen = entityLeft.gen();
 				ecRight.dis = ecLeftWasDisabled;
-			}
-
-			/*!
-			Makes the entity a part of a chunk on a given index.
-			\param index Index of the entity
-			\param entity Entity to store in the chunk
-			*/
-			void set_entity(uint32_t index, Entity entity) {
-				GAIA_ASSERT(index < m_header.count && "Entity chunk index out of bounds!");
-
-				const auto offset = sizeof(Entity) * index + m_header.offsets.firstByte_EntityData;
-				// unaligned_ref not necessary because data is aligned
-				auto* pMem = (Entity*)&m_data[offset];
-				*pMem = entity;
-			}
-
-			/*!
-			Returns the entity on a given index in the chunk.
-			\param index Index of the entity
-			\return Entity on a given index within the chunk.
-			*/
-			GAIA_NODISCARD Entity get_entity(uint32_t index) const {
-				GAIA_ASSERT(index < m_header.count && "Entity chunk index out of bounds!");
-
-				const auto offset = sizeof(Entity) * index + m_header.offsets.firstByte_EntityData;
-				// unaligned_ref not necessary because data is aligned
-				auto* pMem = (Entity*)&m_data[offset];
-				return *pMem;
 			}
 
 			/*!
@@ -824,7 +795,7 @@ namespace gaia {
 						return;
 					// Try swapping our entity with the last disabled one
 					swap_chunk_entities(--m_header.firstEnabledEntityIndex, index, entities);
-					entities[get_entity(index).id()].dis = 0;
+					entities[entity_view()[index].id()].dis = 0;
 					++m_header.countEnabled;
 				} else {
 					// Nothing to disable if there are no enabled entities
@@ -835,7 +806,7 @@ namespace gaia {
 						return;
 					// Try swapping our entity with the last one in our chunk
 					swap_chunk_entities(m_header.firstEnabledEntityIndex++, index, entities);
-					entities[get_entity(index).id()].dis = 1;
+					entities[entity_view()[index].id()].dis = 1;
 					--m_header.countEnabled;
 				}
 			}
@@ -941,7 +912,7 @@ namespace gaia {
 				const auto idxSrc = offset + entIdx * desc.properties.size;
 				GAIA_ASSERT(idxSrc < bytes());
 
-				auto* pSrc = (void*)&m_data[idxSrc];
+				auto* pSrc = (void*)&data(idxSrc);
 				desc.func_ctor(pSrc, 1);
 			}
 
@@ -968,7 +939,7 @@ namespace gaia {
 					const auto idxSrc = offset + entIdx * desc.properties.size;
 					GAIA_ASSERT(idxSrc < bytes());
 
-					auto* pSrc = (void*)&m_data[idxSrc];
+					auto* pSrc = (void*)&data(idxSrc);
 					desc.func_ctor(pSrc, entCnt);
 				}
 			}
@@ -996,7 +967,7 @@ namespace gaia {
 					const auto idxSrc = offset + entIdx * desc.properties.size;
 					GAIA_ASSERT(idxSrc < bytes());
 
-					auto* pSrc = (void*)&m_data[idxSrc];
+					auto* pSrc = (void*)&data(idxSrc);
 					desc.func_dtor(pSrc, entCnt);
 				}
 			};
@@ -1298,25 +1269,34 @@ namespace gaia {
 				return m_header.capacity;
 			}
 
+			//! Returns the number of bytes the chunk spans over
 			GAIA_NODISCARD uint32_t bytes() const {
 				return detail::ChunkAllocatorImpl::mem_block_size(m_header.sizeType);
 			}
 
 			GAIA_NODISCARD std::span<uint32_t> comp_version_view(ComponentKind compKind) const {
 				const auto offset = m_header.offsets.firstByte_Versions[compKind];
-				return {(uint32_t*)(&m_data[offset]), m_header.componentCount[compKind]};
+				return {(uint32_t*)(&data(offset)), m_header.componentCount[compKind]};
 			}
 
 			GAIA_NODISCARD std::span<const ComponentId> comp_id_view(ComponentKind compKind) const {
 				using RetType = std::add_pointer_t<const ComponentId>;
 				const auto offset = m_header.offsets.firstByte_ComponentIds[compKind];
-				return {(RetType)&m_data[offset], m_header.componentCount[compKind]};
+				return {(RetType)&data(offset), m_header.componentCount[compKind]};
 			}
 
 			GAIA_NODISCARD std::span<const ChunkComponentOffset> comp_offset_view(ComponentKind compKind) const {
 				using RetType = std::add_pointer_t<const ChunkComponentOffset>;
 				const auto offset = m_header.offsets.firstByte_CompOffs[compKind];
-				return {(RetType)&m_data[offset], m_header.componentCount[compKind]};
+				return {(RetType)&data(offset), m_header.componentCount[compKind]};
+			}
+
+			GAIA_NODISCARD std::span<const Entity> entity_view() const {
+				return {(const Entity*)view_inter<Entity>(0, size()).data(), size()};
+			}
+
+			GAIA_NODISCARD std::span<Entity> entity_view() {
+				return {(Entity*)view_mut_inter<Entity, false>(0, size()).data(), size()};
 			}
 
 			//! Returns true if the provided version is newer than the one stored internally

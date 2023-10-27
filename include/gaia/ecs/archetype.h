@@ -450,7 +450,7 @@ namespace gaia {
 					const uint32_t entitiesToMove = entitiesInChunk > maxEntities ? maxEntities : entitiesInChunk;
 					for (uint32_t i = 0; i < entitiesToMove; ++i) {
 						const auto lastEntityIdx = entitiesInChunk - i - 1;
-						auto entity = pSrcChunk->get_entity(lastEntityIdx);
+						auto entity = pSrcChunk->entity_view()[lastEntityIdx];
 
 						const auto& entityContainer = entities[entity.id()];
 
