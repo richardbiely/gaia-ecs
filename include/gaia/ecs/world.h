@@ -72,7 +72,7 @@ namespace gaia {
 			void remove_entity(Chunk* pChunk, uint32_t entityChunkIndex) {
 				GAIA_PROF_SCOPE(remove_entity);
 
-				const auto entity = pChunk->get_entity(entityChunkIndex);
+				const auto entity = pChunk->entity_view()[entityChunkIndex];
 				pChunk->remove_entity(entityChunkIndex, {m_entities.data(), m_entities.size()}, m_chunksToRemove);
 
 				pChunk->update_versions();
@@ -656,7 +656,7 @@ namespace gaia {
 
 				// The entity in the chunk must match the index in the entity container
 				auto* pChunk = entityContainer.pChunk;
-				return pChunk != nullptr && pChunk->get_entity(entityContainer.idx) == entity;
+				return pChunk != nullptr && pChunk->entity_view()[entityContainer.idx] == entity;
 			}
 
 			//! Checks if \param entity is currently used by the world.
