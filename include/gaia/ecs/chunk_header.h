@@ -55,8 +55,10 @@ namespace gaia {
 
 			//! Index of the first enabled entity in the chunk
 			uint32_t firstEnabledEntityIndex: MAX_CHUNK_ENTITIES_BITS;
-			//! Once removal is requested and it hits 0 the chunk is removed.
+			//! When it hits 0 the chunk is scheduled for deletion
 			uint32_t lifespanCountdown: CHUNK_LIFESPAN_BITS;
+			//! True if deleted, false otherwise
+			uint32_t dead : 1;
 			//! Updated when chunks are being iterated. Used to inform of structural changes when they shouldn't happen.
 			uint32_t structuralChangesLocked: CHUNK_LOCKS_BITS;
 			//! True if there's any generic component that requires custom construction
@@ -70,7 +72,7 @@ namespace gaia {
 			//! Chunk size type. This tells whether it's 8K or 16K
 			uint32_t sizeType : 1;
 			//! Empty space for future use
-			uint32_t unused : 8;
+			uint32_t unused : 7;
 
 			//! Offsets to various parts of data inside chunk
 			ChunkHeaderOffsets offsets;
@@ -85,8 +87,9 @@ namespace gaia {
 					uint32_t& version):
 					archetypeId(aid),
 					index(chunkIndex), count(0), countEnabled(0), capacity(cap), firstEnabledEntityIndex(0), lifespanCountdown(0),
-					structuralChangesLocked(0), hasAnyCustomGenericCtor(0), hasAnyCustomChunkCtor(0), hasAnyCustomGenericDtor(0),
-					hasAnyCustomChunkDtor(0), sizeType(st), offsets(offs), worldVersion(version) {
+					dead(0), structuralChangesLocked(0), hasAnyCustomGenericCtor(0), hasAnyCustomChunkCtor(0),
+					hasAnyCustomGenericDtor(0), hasAnyCustomChunkDtor(0), sizeType(st), unused(0), offsets(offs),
+					worldVersion(version) {
 				// Make sure the alignment is right
 				GAIA_ASSERT(uintptr_t(this) % (sizeof(size_t)) == 0);
 			}

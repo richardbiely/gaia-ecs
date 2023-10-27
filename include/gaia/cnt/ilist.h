@@ -135,19 +135,14 @@ namespace gaia {
 			TListItem& free(TItemHandle handle) {
 				auto& item = m_items[handle.id()];
 
-				// New generation
-				const auto gen = ++item.gen;
-
 				// Update our implicit list
-				if GAIA_UNLIKELY (m_freeItems == 0) {
-					m_nextFreeIdx = handle.id();
+				if GAIA_UNLIKELY (m_freeItems == 0)
 					item.idx = TItemHandle::IdMask;
-					item.gen = gen;
-				} else {
+				else
 					item.idx = m_nextFreeIdx;
-					item.gen = gen;
-					m_nextFreeIdx = handle.id();
-				}
+				++item.gen;
+
+				m_nextFreeIdx = handle.id();
 				++m_freeItems;
 
 				return item;
