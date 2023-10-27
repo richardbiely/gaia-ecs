@@ -24,7 +24,6 @@
 #include "query_common.h"
 #include "query_info.h"
 
-
 namespace gaia {
 	namespace ecs {
 		namespace detail {
@@ -47,10 +46,6 @@ namespace gaia {
 				using CChunkSpan = std::span<const Chunk*>;
 				using ChunkBatchedList = cnt::sarray_ext<Chunk*, ChunkBatchSize>;
 				using CmdBufferCmdFunc = void (*)(SerializationBuffer& buffer, QueryCtx& ctx);
-
-			public:
-				//! QueryImpl constraints
-				enum class Constraints : uint8_t { EnabledOnly, DisabledOnly, AcceptAll };
 
 			private:
 				//! Command buffer command type

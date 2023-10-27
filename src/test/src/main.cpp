@@ -1941,7 +1941,7 @@ TEST_CASE("Enable") {
 			});
 			REQUIRE(cnt == expectedCountAll);
 
-			cnt = q.count(ecs::Query::Constraints::AcceptAll);
+			cnt = q.count(ecs::Constraints::AcceptAll);
 			REQUIRE(cnt == expectedCountAll);
 		}
 		{
@@ -1975,7 +1975,7 @@ TEST_CASE("Enable") {
 			});
 			REQUIRE(cnt == expectedCountDisabled);
 
-			cnt = q.count(ecs::Query::Constraints::DisabledOnly);
+			cnt = q.count(ecs::Constraints::DisabledOnly);
 			REQUIRE(cnt == expectedCountDisabled);
 		}
 	};
