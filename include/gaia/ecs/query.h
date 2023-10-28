@@ -600,6 +600,16 @@ namespace gaia {
 				}
 
 				template <typename... T>
+				void all_unpack([[maybe_unused]] core::func_type_list<T...> types) {
+					if constexpr (sizeof...(T) > 0) {
+						// Adding new rules invalidates the query
+						invalidate();
+						// Add commands to the command buffer
+						(add_inter<T>(QueryListType::LT_All), ...);
+					}
+				}
+
+				template <typename... T>
 				QueryImpl& all() {
 					// Adding new rules invalidates the query
 					invalidate();
