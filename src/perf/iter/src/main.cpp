@@ -155,9 +155,7 @@ DEFINE_FOREACH_EXTERNALQUERY(1000)
 			float f = 0.f;                                                                                                   \
 			query.each([&](ecs::Iterator iter) {                                                                             \
 				auto c1View = iter.view<c1>();                                                                                 \
-				iter.each([&](uint32_t i) {                                                                                    \
-					f += c1View[i].value[0];                                                                                     \
-				});                                                                                                            \
+				GAIA_EACH(iter) f += c1View[i].value[0];                                                                       \
 			});                                                                                                              \
 			gaia::dont_optimize(f);                                                                                          \
 		}                                                                                                                  \
@@ -183,8 +181,7 @@ DEFINE_FOREACHCHUNK_EXTERNALQUERY_ITER(1000)
 			float f = 0.f;                                                                                                   \
 			query.each([&](ecs::Iterator iter) {                                                                             \
 				auto c1View = iter.view<c1>();                                                                                 \
-				for (uint32_t i = 0; i < iter.size(); ++i)                                                                     \
-					f += c1View[i].value[0];                                                                                     \
+				GAIA_EACH(iter) f += c1View[i].value[0];                                                                       \
 			});                                                                                                              \
 			gaia::dont_optimize(f);                                                                                          \
 		}                                                                                                                  \
@@ -208,9 +205,7 @@ DEFINE_FOREACHCHUNK_EXTERNALQUERY_INDEX(1000);
 			float f = 0.f;                                                                                                   \
 			query.each([&](ecs::IteratorAll iter) {                                                                          \
 				auto c1View = iter.view<c1>();                                                                                 \
-				iter.each([&](uint32_t i) {                                                                                    \
-					f += c1View[i].value[0];                                                                                     \
-				});                                                                                                            \
+				GAIA_EACH(iter) f += c1View[i].value[0];                                                                       \
 			});                                                                                                              \
 			gaia::dont_optimize(f);                                                                                          \
 		}                                                                                                                  \

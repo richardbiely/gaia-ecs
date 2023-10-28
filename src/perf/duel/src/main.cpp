@@ -298,11 +298,11 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 				auto p = iter.view_mut<Position>();
 				auto v = iter.view<Velocity>();
 
-				iter.each([&](uint32_t i) {
+				GAIA_EACH(iter) {
 					p[i].x += v[i].x * dt;
 					p[i].y += v[i].y * dt;
 					p[i].z += v[i].z * dt;
-				});
+				}
 			});
 		}
 	};
@@ -314,12 +314,12 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 				auto p = iter.view_mut<Position>();
 				auto v = iter.view_mut<Velocity>();
 
-				iter.each([&](uint32_t i) {
+				GAIA_EACH(iter) {
 					if (p[i].y < 0.0f) {
 						p[i].y = 0.0f;
 						v[i].y = 0.0f;
 					}
-				});
+				}
 			});
 		}
 	};
@@ -328,10 +328,7 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 		void OnUpdate() override {
 			m_q->each([](ecs::Iterator iter) {
 				auto v = iter.view_mut<Velocity>();
-
-				iter.each([&](uint32_t i) {
-					v[i].y += 9.81f * dt;
-				});
+				GAIA_EACH(iter) v[i].y += 9.81f * dt;
 			});
 		}
 	};
@@ -343,10 +340,10 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 				auto h = iter.view<Health>();
 
 				uint32_t a = 0;
-				iter.each([&](uint32_t i) {
+				GAIA_EACH(iter) {
 					if (h[i].value > 0)
 						++a;
-				});
+				}
 				aliveUnits += a;
 			});
 			gaia::dont_optimize(aliveUnits);
@@ -399,15 +396,9 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 				auto vvy = v.get<1>();
 				auto vvz = v.get<2>();
 
-				iter.each([&](uint32_t i) {
-					ppx[i] += vvx[i] * dt;
-				});
-				iter.each([&](uint32_t i) {
-					ppy[i] += vvy[i] * dt;
-				});
-				iter.each([&](uint32_t i) {
-					ppz[i] += vvz[i] * dt;
-				});
+				GAIA_EACH(iter) ppx[i] += vvx[i] * dt;
+				GAIA_EACH(iter) ppy[i] += vvy[i] * dt;
+				GAIA_EACH(iter) ppz[i] += vvz[i] * dt;
 			});
 		}
 	};
@@ -421,12 +412,12 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 				auto ppy = p.set<1>();
 				auto vvy = v.set<1>();
 
-				iter.each([&](uint32_t i) {
+				GAIA_EACH(iter) {
 					if (ppy[i] < 0.0f) {
 						ppy[i] = 0.0f;
 						vvy[i] = 0.0f;
 					}
-				});
+				}
 			});
 		}
 	};
@@ -437,9 +428,7 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 				auto v = iter.view_mut<VelocitySoA>();
 				auto vvy = v.set<1>();
 
-				iter.each([&](uint32_t i) {
-					vvy[i] += dt * 9.81f;
-				});
+				GAIA_EACH(iter) vvy[i] += dt * 9.81f;
 			});
 		}
 	};
@@ -451,10 +440,10 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 				auto h = iter.view<Health>();
 
 				uint32_t a = 0;
-				iter.each([&](uint32_t i) {
+				GAIA_EACH(iter) {
 					if (h[i].value > 0)
 						++a;
-				});
+				}
 				aliveUnits += a;
 			});
 			gaia::dont_optimize(aliveUnits);

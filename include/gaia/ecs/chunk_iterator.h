@@ -70,20 +70,6 @@ namespace gaia {
 					return m_chunk.sview_auto<T>(from(), to());
 				}
 
-				//! Runs the functor for each item handled by the iterator
-				//! \tparam func Function to execute
-				template <typename Func>
-				void each(Func func) noexcept {
-					const auto s = size();
-					if constexpr (std::is_invocable_v<Func, uint32_t>) {
-						for (uint32_t i = 0; i < s; ++i)
-							func(i);
-					} else {
-						for (uint32_t i = 0; i < s; ++i)
-							func();
-					}
-				}
-
 				//! Checks if the entity at the current iterator index is enabled.
 				//! \return True it the entity is enabled. False otherwise.
 				GAIA_NODISCARD bool enabled(uint32_t index) const {

@@ -1933,9 +1933,7 @@ TEST_CASE("Enable") {
 			q.each([&]([[maybe_unused]] ecs::IteratorAll iter) {
 				const uint32_t cExpected = iter.size();
 				uint32_t c = 0;
-				iter.each([&]() {
-					++c;
-				});
+				GAIA_EACH(iter) ++c;
 				REQUIRE(c == cExpected);
 				cnt += c;
 			});
@@ -1949,10 +1947,10 @@ TEST_CASE("Enable") {
 			q.each([&]([[maybe_unused]] ecs::Iterator iter) {
 				const uint32_t cExpected = iter.size();
 				uint32_t c = 0;
-				iter.each([&](uint32_t i) {
+				GAIA_EACH(iter) {
 					REQUIRE(iter.enabled(i));
 					++c;
-				});
+				}
 				REQUIRE(c == cExpected);
 				cnt += c;
 			});
@@ -1966,10 +1964,10 @@ TEST_CASE("Enable") {
 			q.each([&]([[maybe_unused]] ecs::IteratorDisabled iter) {
 				const uint32_t cExpected = iter.size();
 				uint32_t c = 0;
-				iter.each([&](uint32_t i) {
+				GAIA_EACH(iter) {
 					REQUIRE(!iter.enabled(i));
 					++c;
-				});
+				}
 				REQUIRE(c == cExpected);
 				cnt += c;
 			});
@@ -2669,11 +2667,11 @@ TEST_CASE("Set - generic") {
 			auto scaleView = iter.view_mut<Scale>();
 			auto elseView = iter.view_mut<Else>();
 
-			iter.each([&](uint32_t i) {
+			GAIA_EACH(iter) {
 				rotationView[i] = {1, 2, 3, 4};
 				scaleView[i] = {11, 22, 33};
 				elseView[i] = {true};
-			});
+			}
 		});
 
 		for (const auto ent: arr) {
@@ -2760,11 +2758,11 @@ TEST_CASE("Set - generic & chunk") {
 			auto scaleView = iter.view_mut<Scale>();
 			auto elseView = iter.view_mut<Else>();
 
-			iter.each([&](uint32_t i) {
+			GAIA_EACH(iter) {
 				rotationView[i] = {1, 2, 3, 4};
 				scaleView[i] = {11, 22, 33};
 				elseView[i] = {true};
-			});
+			}
 		});
 
 		w.set<ecs::AsChunk<Position>>(arr[0], {111, 222, 333});
@@ -2844,11 +2842,11 @@ TEST_CASE("Components - non trivial") {
 			auto str2View = iter.view_mut<StringComponent2>();
 			auto posView = iter.view_mut<PositionNonTrivial>();
 
-			iter.each([&](uint32_t i) {
+			GAIA_EACH(iter) {
 				strView[i] = {StringComponentDefaultValue};
 				str2View[i].value = StringComponent2DefaultValue_2;
 				posView[i] = {111, 222, 333};
-			});
+			}
 		});
 
 		for (const auto ent: arr) {

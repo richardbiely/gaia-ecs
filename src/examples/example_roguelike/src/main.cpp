@@ -542,7 +542,7 @@ public:
 			auto vel = iter.view_mut<Velocity>();
 			auto pos = iter.view<Position>();
 
-			iter.each([&](uint32_t i) {
+			GAIA_EACH(iter) {
 				// Skip stationary objects
 				const auto& v =
 						vel[i]; // This is <= 8 bytes so it would be okay even if we did a copy rather than const reference
@@ -618,7 +618,7 @@ public:
 					vel[i] = {naa, 0};
 				else
 					vel[i] = {0, naa};
-			});
+			}
 		});
 	}
 

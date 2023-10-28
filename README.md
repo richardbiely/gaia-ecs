@@ -300,14 +300,14 @@ q.each([](ecs::IteratorAll iter) {
   auto v = iter.view<Velocity>(); // Read-only access to Velocity
 
   // Iterate over all enabled entities and update their add 1.f to their x-axis position
-  iter.each([&](uint32_t i) {
+  GAIA_EACH(iter) {
     if (!iter.enabled(i))
       return;
     p[i].x += 1.f;
   }
 
   // Iterate over all entities in the chunk and update their position based on their velocity
-  iter.each([&](uint32_t i) {
+  GAIA_EACH(iter) {
     p[i].x += v[i].x * dt;
     p[i].y += v[i].y * dt;
     p[i].z += v[i].z * dt;
@@ -353,21 +353,17 @@ q.arr(entities, ecs::Query::Constraint::DisabledOnly);
 q.each([](ecs::Iterator iter) {
   auto p = iter.view_mut<Position>(); // Read-Write access to Position
   // Iterates over enabled entities
-  iter.each([&](uint32_t i) {
-    p[i] = {}; // reset the position of each enabled entity
-  }
+  GAIA_EACH(iter) p[i] = {}; // reset the position of each enabled entity
 });
 q.each([](ecs::IteratorDisabled iter) {
   auto p = iter.view_mut<Position>(); // Read-Write access to Position
   // Iterates over disabled entities
-  iter.each([&](uint32_t i) {
-    p[i] = {}; // reset the position of each disabled entity
-  }
+  GAIA_EACH(iter) p[i] = {}; // reset the position of each disabled entity
 });
 q.each([](ecs::IteratorAll iter) {
   auto p = iter.view_mut<Position>(); // Read-Write access to Position
   // Iterates over all entities
-  iter.each([&](uint32_t i) {
+  GAIA_EACH(iter) {
     if (iter.enabled(i)) {
       p[i] = {}; // reset the position of each enabled entity
     }
@@ -500,17 +496,11 @@ q.each([](ecs::Iterator iter) {
   auto vz = vv.get<2>(); // continuous block of "z" from VelocitySoA
 
   // Handle x coordinates
-  iter.each([&](uint32_t i)) {
-    px[i] += vx[i] * dt;
-  });
+  GAIA_EACH(iter) px[i] += vx[i] * dt;
   // Handle y coordinates
-  iter.each([&](uint32_t i)) {
-    py[i] += vy[i] * dt;
-  });
+  GAIA_EACH(iter) py[i] += vy[i] * dt;
   // Handle z coordinates
-  iter.each([&](uint32_t i)) {
-    pz[i] += vz[i] * dt;
-  });
+  GAIA_EACH(iter) pz[i] += vz[i] * dt;
 
   /*
   You can even use SIMD intrinsics now without a worry.
@@ -527,7 +517,7 @@ q.each([](ecs::Iterator iter) {
     _mm_store_ps(px.data() + i, respVec);
   }
   // Process the rest of the elements
-  for (; i < iter.to(); ++i) {
+  for (; i < iter.size(); ++i) {
     ...
   }
   */

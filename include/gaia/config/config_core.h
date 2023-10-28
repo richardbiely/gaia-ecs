@@ -155,6 +155,9 @@
 #define GAIA_CONCAT_IMPL(x, y) x##y
 #define GAIA_CONCAT(x, y) GAIA_CONCAT_IMPL(x, y)
 
+#define GAIA_EACH(container) for (uint32_t i = 0; i < (container).size(); ++i)
+#define GAIA_EACH2(container, varname) for (uint32_t varname = 0; varname < (container).size(); ++varname)
+
 //------------------------------------------------------------------------------
 // Endianess
 // Endianess detection is hell as far as compile-time is concerned.

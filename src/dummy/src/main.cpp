@@ -49,11 +49,11 @@ public:
 			auto p = iter.view_mut<Position>();
 			auto v = iter.view<Velocity>();
 			const float dt = 0.01f;
-			iter.each([&](uint32_t i) {
+			GAIA_EACH(iter) {
 				p[i].x += v[i].x * dt;
 				p[i].y += v[i].y * dt;
 				p[i].z += v[i].z * dt;
-			});
+			}
 
 			if (iter.enabled(0))
 				p[0].x += 1.f;
@@ -99,11 +99,11 @@ public:
 			auto p = iter.view_mut<Position>();
 			auto v = iter.view<Velocity>();
 			const float dt = 0.01f;
-			iter.each([&](uint32_t i) {
+			GAIA_EACH(iter) {
 				p[i].x += v[i].x * dt;
 				p[i].y += v[i].y * dt;
 				p[i].z += v[i].z * dt;
-			});
+			}
 		});
 	}
 };
