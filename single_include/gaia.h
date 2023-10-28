@@ -16270,7 +16270,7 @@ namespace gaia {
 			ArchetypeId m_archetypeId = ArchetypeIdBad;
 
 		public:
-			GAIA_NODISCARD ArchetypeId archetype_id() const {
+			GAIA_NODISCARD ArchetypeId id() const {
 				return m_archetypeId;
 			}
 		};
@@ -16810,13 +16810,13 @@ namespace gaia {
 
 			void build_graph_edges(Archetype* pArchetypeRight, ComponentKind compKind, ComponentId compId) {
 				GAIA_ASSERT(pArchetypeRight != this);
-				m_graph.add_edge_right(compKind, compId, pArchetypeRight->archetype_id());
+				m_graph.add_edge_right(compKind, compId, pArchetypeRight->id());
 				pArchetypeRight->build_graph_edges_left(this, compKind, compId);
 			}
 
 			void build_graph_edges_left(Archetype* pArchetypeLeft, ComponentKind compKind, ComponentId compId) {
 				GAIA_ASSERT(pArchetypeLeft != this);
-				m_graph.add_edge_left(compKind, compId, pArchetypeLeft->archetype_id());
+				m_graph.add_edge_left(compKind, compId, pArchetypeLeft->id());
 			}
 
 			//! Checks if the graph edge for component type \param compKind contains the component \param compId.
@@ -16862,8 +16862,7 @@ namespace gaia {
 						"mask:%016" PRIx64 "/%016" PRIx64 ", "
 						"chunks:%u (%uK), data:%u/%u/%u B, "
 						"entities:%u/%u/%u",
-						archetype.archetype_id(), archetype.lookup_hash().hash,
-						archetype.matcher_hash(ComponentKind::CK_Generic).hash,
+						archetype.id(), archetype.lookup_hash().hash, archetype.matcher_hash(ComponentKind::CK_Generic).hash,
 						archetype.matcher_hash(ComponentKind::CK_Chunk).hash, (uint32_t)archetype.chunks().size(),
 						Chunk::chunk_total_bytes(archetype.props().chunkDataBytes) <= 8192 ? 8 : 16, genericComponentsSize,
 						chunkComponentsSize, archetype.props().chunkDataBytes, entCnt, entCntDisabled, archetype.props().capacity);
@@ -16942,7 +16941,7 @@ namespace gaia {
 				if GAIA_LIKELY (m_hash != other.m_hash)
 					return false;
 
-				const auto id = m_pArchetypeBase->archetype_id();
+				const auto id = m_pArchetypeBase->id();
 				if (id == ArchetypeIdBad) {
 					const auto* pArchetype = (const Archetype*)other.m_pArchetypeBase;
 					const auto* pArchetypeLookupChecker = (const ArchetypeLookupChecker*)m_pArchetypeBase;
