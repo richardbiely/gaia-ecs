@@ -46,7 +46,7 @@ namespace gaia {
 			};
 			template <typename T>
 			struct ExtractComponentType_WithComponentKind {
-				using Type = typename T::TKind;
+				using Type = typename T::TType;
 				using TypeOriginal = typename T::TTypeOriginal;
 				static constexpr ComponentKind Kind = T::Kind;
 			};
@@ -180,7 +180,7 @@ namespace gaia {
 
 		template <typename T>
 		struct AsChunk {
-			using TKind = typename std::decay_t<typename std::remove_pointer_t<T>>;
+			using TType = typename std::decay_t<typename std::remove_pointer_t<T>>;
 			using TTypeOriginal = T;
 			static constexpr ComponentKind Kind = ComponentKind::CK_Chunk;
 		};

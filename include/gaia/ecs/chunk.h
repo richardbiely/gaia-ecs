@@ -318,9 +318,12 @@ namespace gaia {
 
 				remove_last_entity_inter();
 
+				// TODO: This needs cleaning up.
+				//       Chunk should have no idea of the world and also should not store
+				//       any states realted to its lifetime.
 				if (!dying() && empty()) {
 					// When the chunk is emptied we want it to be removed. We can't do it
-					// right away and need to wait for world's GC to be called.
+					// right away and need to wait for world::gc() to be called.
 					//
 					// However, we need to prevent the following:
 					//    1) chunk is emptied, add it to some removal list
@@ -328,8 +331,8 @@ namespace gaia {
 					//    3) chunk is emptied, add it to some removal list again
 					//
 					// Therefore, we have a flag telling us the chunk is already waiting to
-					// be removed. The chunk might be reclaimed before GC happens but it
-					// simply ignores such requests. This way GC always has at most one
+					// be removed. The chunk might be reclaimed before garbage collection happens
+					// but it simply ignores such requests. This way we always have at most one
 					// record for removal for any given chunk.
 					revive();
 
