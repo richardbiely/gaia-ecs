@@ -484,15 +484,11 @@ namespace gaia {
 						//		for (uint32_t i: iter)
 						//			func(p[i], v[i]);
 
-						iter.each([&](uint32_t i) {
-							func(std::get<decltype(iter.template view_auto<T>())>(dataPointerTuple)[i]...);
-						});
+						GAIA_EACH(iter) func(std::get<decltype(iter.template view_auto<T>())>(dataPointerTuple)[i]...);
 					} else {
 						// No functor parameters. Do an empty loop.
 						Iter iter(chunk);
-						iter.each([&func]() {
-							func();
-						});
+						GAIA_EACH(iter) func();
 					}
 				}
 
@@ -569,9 +565,7 @@ namespace gaia {
 						}
 
 						const auto componentView = pChunk->template view<ContainerItemType>();
-						iter.each([&](uint32_t i) {
-							outArray.push_back(componentView[i]);
-						});
+						GAIA_EACH(iter) outArray.push_back(componentView[i]);
 					}
 				}
 

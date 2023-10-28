@@ -155,6 +155,9 @@
 #define GAIA_CONCAT_IMPL(x, y) x##y
 #define GAIA_CONCAT(x, y) GAIA_CONCAT_IMPL(x, y)
 
+#define GAIA_EACH(container) for (uint32_t i = 0; i < (container).size(); ++i)
+#define GAIA_EACH2(container, varname) for (uint32_t varname = 0; varname < (container).size(); ++varname)
+
 //------------------------------------------------------------------------------
 // Endianess
 // Endianess detection is hell as far as compile-time is concerned.
@@ -17027,20 +17030,6 @@ namespace gaia {
 					return m_chunk.sview_auto<T>(from(), to());
 				}
 
-				//! Runs the functor for each item handled by the iterator
-				//! \tparam func Function to execute
-				template <typename Func>
-				void each(Func func) noexcept {
-					const auto s = size();
-					if constexpr (std::is_invocable_v<Func, uint32_t>) {
-						for (uint32_t i = 0; i < s; ++i)
-							func(i);
-					} else {
-						for (uint32_t i = 0; i < s; ++i)
-							func();
-					}
-				}
-
 				//! Checks if the entity at the current iterator index is enabled.
 				//! \return True it the entity is enabled. False otherwise.
 				GAIA_NODISCARD bool enabled(uint32_t index) const {
@@ -18347,15 +18336,11 @@ namespace gaia {
 						//		for (uint32_t i: iter)
 						//			func(p[i], v[i]);
 
-						iter.each([&](uint32_t i) {
-							func(std::get<decltype(iter.template view_auto<T>())>(dataPointerTuple)[i]...);
-						});
+						GAIA_EACH(iter) func(std::get<decltype(iter.template view_auto<T>())>(dataPointerTuple)[i]...);
 					} else {
 						// No functor parameters. Do an empty loop.
 						Iter iter(chunk);
-						iter.each([&func]() {
-							func();
-						});
+						GAIA_EACH(iter) func();
 					}
 				}
 
@@ -18432,9 +18417,7 @@ namespace gaia {
 						}
 
 						const auto componentView = pChunk->template view<ContainerItemType>();
-						iter.each([&](uint32_t i) {
-							outArray.push_back(componentView[i]);
-						});
+						GAIA_EACH(iter) outArray.push_back(componentView[i]);
 					}
 				}
 
