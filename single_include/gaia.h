@@ -13603,7 +13603,7 @@ namespace gaia {
 			};
 			template <typename T>
 			struct ExtractComponentType_WithComponentKind {
-				using Type = typename T::TKind;
+				using Type = typename T::TType;
 				using TypeOriginal = typename T::TTypeOriginal;
 				static constexpr ComponentKind Kind = T::Kind;
 			};
@@ -13737,7 +13737,7 @@ namespace gaia {
 
 		template <typename T>
 		struct AsChunk {
-			using TKind = typename std::decay_t<typename std::remove_pointer_t<T>>;
+			using TType = typename std::decay_t<typename std::remove_pointer_t<T>>;
 			using TTypeOriginal = T;
 			static constexpr ComponentKind Kind = ComponentKind::CK_Chunk;
 		};
@@ -15248,9 +15248,12 @@ namespace gaia {
 
 				remove_last_entity_inter();
 
+				// TODO: This needs cleaning up.
+				//       Chunk should have no idea of the world and also should not store
+				//       any states realted to its lifetime.
 				if (!dying() && empty()) {
 					// When the chunk is emptied we want it to be removed. We can't do it
-					// right away and need to wait for world's GC to be called.
+					// right away and need to wait for world::gc() to be called.
 					//
 					// However, we need to prevent the following:
 					//    1) chunk is emptied, add it to some removal list
@@ -15258,8 +15261,8 @@ namespace gaia {
 					//    3) chunk is emptied, add it to some removal list again
 					//
 					// Therefore, we have a flag telling us the chunk is already waiting to
-					// be removed. The chunk might be reclaimed before GC happens but it
-					// simply ignores such requests. This way GC always has at most one
+					// be removed. The chunk might be reclaimed before garbage collection happens
+					// but it simply ignores such requests. This way we always have at most one
 					// record for removal for any given chunk.
 					revive();
 
@@ -18742,7 +18745,33 @@ namespace gaia {
 					del_entity(entity);
 			}
 
-			//! defragments chunks.
+			//! Checks all chunks which are empty and have not been used for a while and tries to delete them
+			void remove_empty_chunks() {
+				for (uint32_t i = 0; i < m_chunksToRemove.size();) {
+					auto* pChunk = m_chunksToRemove[i];
+
+					// Skip reclaimed chunks
+					if (!pChunk->empty()) {
+						pChunk->revive();
+						core::erase_fast(m_chunksToRemove, i);
+						continue;
+					}
+
+					if (pChunk->progress_death()) {
+						++i;
+						continue;
+					}
+				}
+
+				// Remove all dead chunks
+				for (auto* pChunk: m_chunksToRemove) {
+					auto& archetype = *m_archetypes[pChunk->archetype_id()];
+					archetype.remove_chunk(pChunk);
+				}
+				m_chunksToRemove.clear();
+			}
+
+			//! Defragments chunks.
 			//! \param maxEntites Maximum number of entities moved per call
 			void defrag_chunks(uint32_t maxEntities) {
 				const auto maxIters = (uint32_t)m_archetypes.size();
@@ -19255,37 +19284,9 @@ namespace gaia {
 				return entity;
 			}
 
-			//! Garbage collection. Checks all chunks and archetypes which are empty and have not been
-			//! used for a while and tries to delete them and release memory allocated by them.
-			void GC() {
-				// Handle chunks
-				for (uint32_t i = 0; i < m_chunksToRemove.size();) {
-					auto* pChunk = m_chunksToRemove[i];
-
-					// Skip reclaimed chunks
-					if (!pChunk->empty()) {
-						pChunk->revive();
-						core::erase_fast(m_chunksToRemove, i);
-						continue;
-					}
-
-					if (pChunk->progress_death()) {
-						++i;
-						continue;
-					}
-				}
-
-				// Remove all dead chunks
-				for (auto* pChunk: m_chunksToRemove) {
-					auto& archetype = *m_archetypes[pChunk->archetype_id()];
-					archetype.remove_chunk(pChunk);
-				}
-				m_chunksToRemove.clear();
-
-				// Defragment chunks only now. If we did this at the begging of the function,
-				// we would needlessly iterate chunks which have no way of being collected because
-				// it would be their first frame dying. This way, the number of chunks to process
-				// is lower.
+			//! Garbage collection
+			void gc() {
+				remove_empty_chunks();
 				defrag_chunks(GAIA_DEFRAG_ENTITIES_PER_FRAME);
 			}
 
@@ -19657,9 +19658,9 @@ namespace gaia {
 			}
 
 			//! Performs various internal operations related to the end of the frame such as
-			//! memory cleanup and other various managment operations which keep the system healthy.
+			//! memory cleanup and other managment operations which keep the system healthy.
 			void update() {
-				GC();
+				gc();
 
 				// Signal the end of the frame
 				GAIA_PROF_FRAME();
