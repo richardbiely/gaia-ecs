@@ -18463,6 +18463,16 @@ namespace gaia {
 				}
 
 				template <typename... T>
+				void all_unpack([[maybe_unused]] core::func_type_list<T...> types) {
+					if constexpr (sizeof...(T) > 0) {
+						// Adding new rules invalidates the query
+						invalidate();
+						// Add commands to the command buffer
+						(add_inter<T>(QueryListType::LT_All), ...);
+					}
+				}
+
+				template <typename... T>
 				QueryImpl& all() {
 					// Adding new rules invalidates the query
 					invalidate();
@@ -19290,6 +19300,19 @@ namespace gaia {
 				defrag_chunks(GAIA_DEFRAG_ENTITIES_PER_FRAME);
 			}
 
+			//! Makes sure all given components are registered and calculates their common lookup hash
+			template <typename... T>
+			static ComponentLookupHash reg_and_calc_lookup_hash([[maybe_unused]] core::func_type_list<T...> types) {
+				static_assert(sizeof...(T) > 0, "At least one type must be given");
+
+				// Makre sure components are registred in the cache
+				auto& cc = ComponentCache::get();
+				((void)cc.goc_comp_info<T>(), ...);
+
+				// Calculate the lookup hash of the provided components
+				return ecs::calc_lookup_hash<T...>();
+			}
+
 		public:
 			World() {
 				init();
@@ -19598,33 +19621,9 @@ namespace gaia {
 				return ComponentGetter{entityContainer.pChunk, entityContainer.idx}.has<T>();
 			}
 
-		private:
-			template <typename... T>
-			static void unpack_args_into_query(Query& query, [[maybe_unused]] core::func_type_list<T...> types) {
-				static_assert(sizeof...(T) > 0, "Inputs-less functors can not be unpacked to query");
-				query.all<T...>();
-			}
-
-			template <typename... T>
-			static void reg_comps_inter([[maybe_unused]] core::func_type_list<T...> types) {
-				static_assert(sizeof...(T) > 0, "Empty Query is not supported in this context");
-				auto& cc = ComponentCache::get();
-				((void)cc.goc_comp_info<T>(), ...);
-			}
-
-			template <typename Func>
-			static void reg_comps() {
-				using InputArgs = decltype(core::func_args(&Func::operator()));
-				reg_comps_inter(InputArgs{});
-			}
-
-			template <typename... T>
-			static constexpr ComponentLookupHash
-			calc_query_id_lookup_hash([[maybe_unused]] core::func_type_list<T...> types) {
-				return calc_lookup_hash<T...>();
-			}
-
-		public:
+			//! Provides a query set up to work with the parent world.
+			//! \tparam UseCache If true, results of the query are cached
+			//! \return Valid query object
 			template <bool UseCache = true>
 			auto query() {
 				if constexpr (UseCache)
@@ -19642,12 +19641,10 @@ namespace gaia {
 			void each(Func func) {
 				using InputArgs = decltype(core::func_args(&Func::operator()));
 
-				reg_comps<Func>();
-
-				constexpr auto lookupHash = calc_query_id_lookup_hash(InputArgs{});
+				const auto lookupHash = reg_and_calc_lookup_hash(InputArgs{});
 				if (m_uniqueFuncQueryPairs.count(lookupHash) == 0) {
 					Query q = query();
-					unpack_args_into_query(q, InputArgs{});
+					q.all_unpack(InputArgs{});
 					(void)q.fetch_query_info();
 					m_uniqueFuncQueryPairs.try_emplace(lookupHash, q.id());
 					query().each(q.id(), func);
@@ -19705,9 +19702,7 @@ namespace gaia {
 				}
 			}
 
-			/*!
-			Performs all diagnostics.
-			*/
+			//! Performs all diagnostics.
 			void diag() const {
 				diag_archetypes();
 				diag_components();
