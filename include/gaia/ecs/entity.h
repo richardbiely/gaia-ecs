@@ -110,9 +110,6 @@ namespace gaia {
 			uint32_t dis : 1;
 			//! Chunk the entity currently resides in
 			Chunk* pChunk;
-#if !GAIA_64
-			uint32_t pChunk_padding;
-#endif
 
 			EntityContainer() = default;
 			EntityContainer(uint32_t index, uint32_t generation): idx(index), gen(generation), dis(0), pChunk(nullptr) {}
