@@ -187,8 +187,8 @@ namespace gaia {
 						// No lookup hash is present which means QueryInfo needs to fetched or created
 						QueryCtx ctx;
 						commit(ctx);
-						m_storage.m_queryId = m_storage.m_entityQueryCache->goc(GAIA_MOV(ctx));
-						auto& queryInfo = m_storage.m_entityQueryCache->get(m_storage.m_queryId);
+						auto& queryInfo = m_storage.m_entityQueryCache->goc(GAIA_MOV(ctx));
+						m_storage.m_queryId = queryInfo.id();
 						queryInfo.match(*m_componentToArchetypeMap, (uint32_t)m_archetypes->size());
 						return queryInfo;
 					} else {
@@ -481,8 +481,7 @@ namespace gaia {
 
 						// Iterate over each entity in the chunk.
 						// Translates to:
-						//		for (uint32_t i: iter)
-						//			func(p[i], v[i]);
+						//		GAIA_EACH(iter) func(p[i], v[i]);
 
 						GAIA_EACH(iter) func(std::get<decltype(iter.template view_auto<T>())>(dataPointerTuple)[i]...);
 					} else {
