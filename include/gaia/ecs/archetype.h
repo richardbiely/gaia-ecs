@@ -80,9 +80,8 @@ namespace gaia {
 				//! The number of entities this archetype can take (e.g 5 = 5 entities with all their components)
 				uint16_t capacity;
 				//! How many bytes of data is needed for a fully utilized chunk
-				uint16_t chunkDataBytes;
+				ChunkComponentOffset chunkDataBytes;
 			};
-			static_assert(sizeof(Properties) <= sizeof(uint32_t));
 
 		private:
 			Properties m_properties{};
@@ -98,8 +97,12 @@ namespace gaia {
 
 			//! Offsets to various parts of data inside chunk
 			ChunkHeaderOffsets m_dataOffsets;
-			//! List of component indices
+			//! List of component ids
 			cnt::sarray<Chunk::ComponentIdArray, ComponentKind::CK_Count> m_compIds;
+#if GAIA_COMP_ID_PROBING
+			//! List of component ids -> offset index mappings
+			cnt::sarray<Chunk::ComponentIdInterMap, ComponentKind::CK_Count> m_compIdMap;
+#endif
 			//! List of components offset indices
 			cnt::sarray<Chunk::ComponentOffsetArray, ComponentKind::CK_Count> m_compOffs;
 
@@ -116,51 +119,47 @@ namespace gaia {
 			Archetype(uint32_t& worldVersion): m_worldVersion(worldVersion) {}
 
 			void UpdateDataOffsets(uintptr_t memoryAddress) {
-				uint32_t offset = 0;
+				uintptr_t offset = 0;
 
 				// Versions
 				// We expect versions to fit in the first 256 bytes.
 				// With 64 components per archetype (32 generic + 32 chunk) this gives us some headroom.
 				{
-					offset += mem::padding<alignof(uint32_t)>(memoryAddress);
-
-					if (!comp_ids(ComponentKind::CK_Generic).empty()) {
+					using VersionValue = uint32_t;
+					offset += mem::padding<alignof(VersionValue)>(memoryAddress);
+					for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
 						GAIA_ASSERT(offset < 256);
-						m_dataOffsets.firstByte_Versions[ComponentKind::CK_Generic] = (ChunkVersionOffset)offset;
-						offset += sizeof(uint32_t) * comp_ids(ComponentKind::CK_Generic).size();
-					}
-					if (!comp_ids(ComponentKind::CK_Chunk).empty()) {
-						GAIA_ASSERT(offset < 256);
-						m_dataOffsets.firstByte_Versions[ComponentKind::CK_Chunk] = (ChunkVersionOffset)offset;
-						offset += sizeof(uint32_t) * comp_ids(ComponentKind::CK_Chunk).size();
+						m_dataOffsets.firstByte_Versions[i] = (ChunkVersionOffset)offset;
+						offset += sizeof(VersionValue) * comp_ids((ComponentKind)i).size();
 					}
 				}
 
 				// Component ids
 				{
 					offset += mem::padding<alignof(ComponentId)>(offset);
-
-					if (!comp_ids(ComponentKind::CK_Generic).empty()) {
-						m_dataOffsets.firstByte_ComponentIds[ComponentKind::CK_Generic] = (ChunkComponentOffset)offset;
-						offset += sizeof(ComponentId) * comp_ids(ComponentKind::CK_Generic).size();
-					}
-					if (!comp_ids(ComponentKind::CK_Chunk).empty()) {
-						m_dataOffsets.firstByte_ComponentIds[ComponentKind::CK_Chunk] = (ChunkComponentOffset)offset;
-						offset += sizeof(ComponentId) * comp_ids(ComponentKind::CK_Chunk).size();
+					for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
+						m_dataOffsets.firstByte_ComponentIds[i] = (ChunkComponentOffset)offset;
+						offset += sizeof(ComponentId) * comp_ids((ComponentKind)i).size();
 					}
 				}
+
+#if GAIA_COMP_ID_PROBING
+				// Component ids internal map
+				{
+					offset += mem::padding<alignof(ComponentId)>(offset);
+					for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
+						m_dataOffsets.firstByte_ComponentIdMap[i] = (ChunkComponentOffset)offset;
+						offset += sizeof(ComponentId) * comp_ids((ComponentKind)i).size();
+					}
+				}
+#endif
 
 				// Component offsets
 				{
 					offset += mem::padding<alignof(ChunkComponentOffset)>(offset);
-
-					if (!comp_ids(ComponentKind::CK_Generic).empty()) {
-						m_dataOffsets.firstByte_CompOffs[ComponentKind::CK_Generic] = (ChunkComponentOffset)offset;
-						offset += sizeof(ChunkComponentOffset) * comp_ids(ComponentKind::CK_Generic).size();
-					}
-					if (!comp_ids(ComponentKind::CK_Chunk).empty()) {
-						m_dataOffsets.firstByte_CompOffs[ComponentKind::CK_Chunk] = (ChunkComponentOffset)offset;
-						offset += sizeof(ChunkComponentOffset) * comp_ids(ComponentKind::CK_Chunk).size();
+					for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
+						m_dataOffsets.firstByte_CompOffs[i] = (ChunkComponentOffset)offset;
+						offset += sizeof(ChunkComponentOffset) * comp_ids((ComponentKind)i).size();
 					}
 				}
 
@@ -211,6 +210,50 @@ namespace gaia {
 				return true;
 			};
 
+			static void registerComponents(
+					Archetype& arch, ComponentIdSpan compIds, ComponentKind compKind, uint32_t& currOff, uint32_t count) {
+				const auto& cc = ComponentCache::get();
+				auto& ids = arch.m_compIds[compKind];
+#if GAIA_COMP_ID_PROBING
+				auto& ids_ofs = arch.m_compIdMap[compKind];
+#endif
+				auto& ofs = arch.m_compOffs[compKind];
+
+				// Set component ids
+				for (uint32_t i = 0; i < compIds.size(); ++i)
+					ids[i] = compIds[i];
+
+#if GAIA_COMP_ID_PROBING
+				// Generate component id map. Initialize it with ComponentIdBad values.
+				for (auto& compId: ids_ofs)
+					compId = ComponentIdBad;
+				for (auto compId: compIds)
+					ecs::set_comp_idx({ids_ofs.data(), ids_ofs.size()}, compId);
+#endif
+
+				// Calulate offsets and assign them indices according to our mappings
+				for (uint32_t i = 0; i < compIds.size(); ++i) {
+					const auto compId = compIds[i];
+					const auto& desc = cc.comp_desc(compId);
+#if GAIA_COMP_ID_PROBING
+					const auto compIdx = ecs::get_comp_idx({ids_ofs.data(), ids_ofs.size()}, compId);
+#else
+					const auto compIdx = i;
+#endif
+					const auto alig = desc.properties.alig;
+					if (alig == 0) {
+						GAIA_ASSERT(desc.properties.size == 0);
+						ofs[compIdx] = {};
+					} else {
+						currOff = mem::align(currOff, alig);
+						ofs[compIdx] = (ChunkComponentOffset)currOff;
+
+						// Make sure the following component list is properly aligned
+						currOff += desc.properties.size * count;
+					}
+				}
+			}
+
 		public:
 			Archetype(Archetype&& world) = delete;
 			Archetype(const Archetype& world) = delete;
@@ -244,6 +287,10 @@ namespace gaia {
 
 				newArch->m_compIds[ComponentKind::CK_Generic].resize((uint32_t)compIdsGeneric.size());
 				newArch->m_compIds[ComponentKind::CK_Chunk].resize((uint32_t)compIdsChunk.size());
+#if GAIA_COMP_ID_PROBING
+				newArch->m_compIdMap[ComponentKind::CK_Generic].resize((uint32_t)compIdsGeneric.size());
+				newArch->m_compIdMap[ComponentKind::CK_Chunk].resize((uint32_t)compIdsChunk.size());
+#endif
 				newArch->m_compOffs[ComponentKind::CK_Generic].resize((uint32_t)compIdsGeneric.size());
 				newArch->m_compOffs[ComponentKind::CK_Chunk].resize((uint32_t)compIdsChunk.size());
 				newArch->UpdateDataOffsets(sizeof(ChunkHeader) + MemoryBlockUsableOffset);
@@ -316,39 +363,14 @@ namespace gaia {
 
 				// Update the offsets according to the recalculated maxGenericItemsInArchetype
 				currOff = dataOffset.firstByte_EntityData + (uint32_t)sizeof(Entity) * maxGenericItemsInArchetype;
+				registerComponents(*newArch, compIdsGeneric, ComponentKind::CK_Generic, currOff, maxGenericItemsInArchetype);
+				registerComponents(*newArch, compIdsChunk, ComponentKind::CK_Chunk, currOff, 1);
 
-				auto registerComponents = [&](ComponentIdSpan compIds, ComponentKind compKind, const uint32_t count) {
-					auto& ids = newArch->m_compIds[compKind];
-					auto& ofs = newArch->m_compOffs[compKind];
-
-					for (uint32_t i = 0; i < compIds.size(); ++i) {
-						const auto compId = compIds[i];
-						const auto& desc = cc.comp_desc(compId);
-						const auto alignment = desc.properties.alig;
-						if (alignment == 0) {
-							GAIA_ASSERT(desc.properties.size == 0);
-
-							// Register the component info
-							ids[i] = compId;
-							ofs[i] = {};
-						} else {
-							currOff = mem::align(currOff, alignment);
-
-							// Register the component info
-							ids[i] = compId;
-							ofs[i] = (ChunkComponentOffset)currOff;
-
-							// Make sure the following component list is properly aligned
-							currOff += desc.properties.size * count;
-						}
-					}
-				};
-				registerComponents(compIdsGeneric, ComponentKind::CK_Generic, maxGenericItemsInArchetype);
-				registerComponents(compIdsChunk, ComponentKind::CK_Chunk, 1);
-
+				GAIA_ASSERT(
+						Chunk::chunk_total_bytes((ChunkComponentOffset)currOff) <
+						detail::ChunkAllocatorImpl::mem_block_size(currOff));
 				newArch->m_properties.capacity = (uint16_t)maxGenericItemsInArchetype;
-				newArch->m_properties.chunkDataBytes = (uint16_t)currOff;
-				GAIA_ASSERT(Chunk::chunk_total_bytes((uint16_t)currOff) < detail::ChunkAllocatorImpl::mem_block_size(currOff));
+				newArch->m_properties.chunkDataBytes = (ChunkComponentOffset)currOff;
 
 				newArch->m_matcherHash[ComponentKind::CK_Generic] = ecs::matcher_hash(compIdsGeneric);
 				newArch->m_matcherHash[ComponentKind::CK_Chunk] = ecs::matcher_hash(compIdsChunk);
@@ -443,7 +465,7 @@ namespace gaia {
 					const uint32_t entitiesToMove = entitiesInChunk > maxEntities ? maxEntities : entitiesInChunk;
 					for (uint32_t i = 0; i < entitiesToMove; ++i) {
 						const auto lastEntityIdx = entitiesInChunk - i - 1;
-						auto entity = pSrcChunk->entity_view()[lastEntityIdx];
+						const auto entity = pSrcChunk->entity_view()[lastEntityIdx];
 
 						const auto& entityContainer = entities[entity.id()];
 
@@ -504,8 +526,12 @@ namespace gaia {
 
 				// No free space found anywhere. Let's create a new chunk.
 				auto* pChunk = Chunk::create(
-						m_archetypeId, chunkCnt, m_properties.capacity, m_properties.chunkDataBytes, m_worldVersion, m_dataOffsets,
-						m_compIds, m_compOffs);
+						m_archetypeId, chunkCnt, props().capacity, m_properties.chunkDataBytes, m_worldVersion, m_dataOffsets,
+						m_compIds,
+#if GAIA_COMP_ID_PROBING
+						m_compIdMap,
+#endif
+						m_compOffs);
 
 				m_chunks.push_back(pChunk);
 				return pChunk;
@@ -553,17 +579,6 @@ namespace gaia {
 
 				constexpr auto compKind = component_kind_v<T>;
 				return has_inter(compKind, compId);
-			}
-
-			/*!
-			Returns the internal index of a component based on the provided \param compId.
-			\param compKind Component type
-			\return Component index if the component was found. -1 otherwise.
-			*/
-			GAIA_NODISCARD uint32_t comp_idx(ComponentKind compKind, ComponentId compId) const {
-				const auto idx = core::get_index_unsafe(comp_ids(compKind), compId);
-				GAIA_ASSERT(idx != BadIndex);
-				return (uint32_t)idx;
 			}
 
 			void build_graph_edges(Archetype* pArchetypeRight, ComponentKind compKind, ComponentId compId) {

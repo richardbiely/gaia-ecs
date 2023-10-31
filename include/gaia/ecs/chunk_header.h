@@ -13,14 +13,13 @@
 
 namespace gaia {
 	namespace ecs {
-		using ChunkVersionOffset = uint8_t;
-		using ChunkComponentOffset = uint16_t;
-
 		struct ChunkHeaderOffsets {
 			//! Byte at which the first version number is located
 			ChunkVersionOffset firstByte_Versions[ComponentKind::CK_Count]{};
 			//! Byte at which the first component id is located
 			ChunkComponentOffset firstByte_ComponentIds[ComponentKind::CK_Count]{};
+			//! Byte at which the componentID map is located
+			ChunkComponentOffset firstByte_ComponentIdMap[ComponentKind::CK_Count]{};
 			//! Byte at which the first component offset is located
 			ChunkComponentOffset firstByte_CompOffs[ComponentKind::CK_Count]{};
 			//! Byte at which the first entity is located

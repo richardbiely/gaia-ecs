@@ -59,6 +59,12 @@
 	#define GAIA_DEFRAG_ENTITIES_PER_FRAME 100
 #endif
 
+//! When enabled a very small hash table is stored in chunks internally which
+//! is used to do ComponentId -> component index lookups.
+#ifndef GAIA_COMP_ID_PROBING
+	#define GAIA_COMP_ID_PROBING 0
+#endif
+
 //------------------------------------------------------------------------------
 
 #include "config_core_end.h"

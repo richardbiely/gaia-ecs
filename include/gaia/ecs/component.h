@@ -20,6 +20,9 @@ namespace gaia {
 		inline const char* const ComponentKindString[ComponentKind::CK_Count] = {"Generic", "Chunk"};
 
 		using ComponentId = uint32_t;
+		using ChunkVersionOffset = uint8_t;
+		using CompOffsetMappingIndex = uint8_t;
+		using ChunkComponentOffset = uint16_t;
 		using ComponentLookupHash = core::direct_hash_key<uint64_t>;
 		using ComponentMatcherHash = core::direct_hash_key<uint64_t>;
 		using ComponentIdSpan = std::span<const ComponentId>;
@@ -103,6 +106,12 @@ namespace gaia {
 		template <typename T>
 		inline constexpr bool is_component_mut_v = detail::is_component_mut<T>::value;
 
+		template <typename T>
+		struct AsChunk {
+			using TType = typename std::decay_t<typename std::remove_pointer_t<T>>;
+			using TTypeOriginal = T;
+			static constexpr ComponentKind Kind = ComponentKind::CK_Chunk;
+		};
 		//----------------------------------------------------------------------
 		// Component verification
 		//----------------------------------------------------------------------
@@ -120,7 +129,7 @@ namespace gaia {
 		}
 
 		//----------------------------------------------------------------------
-		// Component hash operations
+		// Component matcher hash
 		//----------------------------------------------------------------------
 
 		namespace detail {
@@ -146,7 +155,9 @@ namespace gaia {
 			return {0};
 		}
 
-		//-----------------------------------------------------------------------------------
+		//----------------------------------------------------------------------
+		// Component lookup hash
+		//----------------------------------------------------------------------
 
 		template <typename Container>
 		GAIA_NODISCARD constexpr ComponentLookupHash calc_lookup_hash(Container arr) noexcept {
@@ -178,11 +189,59 @@ namespace gaia {
 			return {0};
 		}
 
-		template <typename T>
-		struct AsChunk {
-			using TType = typename std::decay_t<typename std::remove_pointer_t<T>>;
-			using TTypeOriginal = T;
-			static constexpr ComponentKind Kind = ComponentKind::CK_Chunk;
-		};
+#if GAIA_COMP_ID_PROBING
+		//----------------------------------------------------------------------
+		// Inline component id hash map
+		//----------------------------------------------------------------------
+
+		inline uint32_t comp_idx_hash(ComponentId compId) {
+			return compId * 2654435761;
+		}
+
+		inline void set_comp_idx(std::span<ComponentId> data, ComponentId compId) {
+			GAIA_ASSERT(!data.empty());
+
+			// Calculate the index / hash key
+			auto idx = (CompOffsetMappingIndex)(comp_idx_hash(compId) % data.size());
+
+			// Linear probing for collision handling
+			while (data[idx] != ComponentIdBad && data[idx] != compId)
+				idx = (idx + 1) % data.size();
+
+			// If slot is empty, insert the index
+			GAIA_ASSERT(data[idx] == ComponentIdBad);
+			data[idx] = compId;
+		}
+
+		inline CompOffsetMappingIndex get_comp_idx(std::span<const ComponentId> data, ComponentId compId) {
+			GAIA_ASSERT(!data.empty());
+
+			// Calculate the index / hash key
+			auto idx = (CompOffsetMappingIndex)(comp_idx_hash(compId) % data.size());
+
+			// Linear probing for collision handling
+			while (data[idx] != ComponentIdBad && data[idx] != compId)
+				idx = (idx + 1) % data.size();
+
+			return idx;
+		}
+
+		inline bool has_comp_idx(std::span<const ComponentId> data, ComponentId compId) {
+			if (data.empty())
+				return false;
+
+			auto idx = (CompOffsetMappingIndex)(comp_idx_hash(compId) % data.size());
+			const auto idxOrig = idx;
+
+			// Linear probing for collision handling
+			while (data[idx] != ComponentIdBad && data[idx] != compId) {
+				idx = (idx + 1) % data.size();
+				if (idx == idxOrig)
+					return false;
+			}
+
+			return data[idx] == compId;
+		}
+#endif
 	} // namespace ecs
 } // namespace gaia
