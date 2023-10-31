@@ -379,10 +379,6 @@ namespace gaia {
 			\param chunksToRemove Container of chunks ready for removal
 			*/
 			void remove_last_entity(cnt::darray<Chunk*>& chunksToRemove) {
-				GAIA_ASSERT(
-						!locked() && "Entities can't be removed while their chunk is being iterated "
-												 "(structural changes are forbidden during this time!)");
-
 				remove_last_entity_inter();
 
 				// TODO: This needs cleaning up.
@@ -564,7 +560,7 @@ namespace gaia {
 				auto& newEntityContainer = entities[newEntity.id()];
 				auto* pNewChunk = newEntityContainer.pChunk;
 
-				GAIA_ASSERT(pOldChunk->archetype_id() == pNewChunk->archetype_id());
+				GAIA_ASSERT(oldEntityContainer.pArchetype == newEntityContainer.pArchetype);
 
 				const auto& cc = ComponentCache::get();
 				auto oldIds = pOldChunk->comp_id_view(ComponentKind::CK_Generic);

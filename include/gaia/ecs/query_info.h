@@ -215,6 +215,7 @@ namespace gaia {
 					for (uint32_t i = 0; i < data.compIds.size(); ++i) {
 						const auto compId = data.compIds[i];
 
+						// Check if any archetype is associated with the component id
 						const auto it = componentToArchetypeMap.find(compId);
 						if (it == componentToArchetypeMap.end())
 							continue;

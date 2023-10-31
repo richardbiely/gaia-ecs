@@ -164,7 +164,7 @@ namespace gaia {
 				//! World version (stable pointer to parent world's world version)
 				uint32_t* m_worldVersion{};
 				//! List of archetypes (stable pointer to parent world's archetype array)
-				const ArchetypeList* m_archetypes{};
+				const cnt::map<ArchetypeId, Archetype*>* m_archetypes{};
 				//! Map of component ids to archetypes (stable pointer to parent world's archetype component-to-archetype map)
 				const ComponentToArchetypeMap* m_componentToArchetypeMap{};
 				//! Execution mode
@@ -573,7 +573,7 @@ namespace gaia {
 
 				template <bool FuncEnabled = UseCaching>
 				QueryImpl(
-						QueryCache& queryCache, uint32_t& worldVersion, const cnt::darray<Archetype*>& archetypes,
+						QueryCache& queryCache, uint32_t& worldVersion, const cnt::map<ArchetypeId, Archetype*>& archetypes,
 						const ComponentToArchetypeMap& componentToArchetypeMap):
 						m_worldVersion(&worldVersion),
 						m_archetypes(&archetypes), m_componentToArchetypeMap(&componentToArchetypeMap) {
@@ -582,7 +582,7 @@ namespace gaia {
 
 				template <bool FuncEnabled = !UseCaching>
 				QueryImpl(
-						uint32_t& worldVersion, const cnt::darray<Archetype*>& archetypes,
+						uint32_t& worldVersion, const cnt::map<ArchetypeId, Archetype*>& archetypes,
 						const ComponentToArchetypeMap& componentToArchetypeMap):
 						m_worldVersion(&worldVersion),
 						m_archetypes(&archetypes), m_componentToArchetypeMap(&componentToArchetypeMap) {}
