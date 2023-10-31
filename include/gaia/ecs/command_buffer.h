@@ -121,7 +121,8 @@ namespace gaia {
 
 					// Component data
 					const auto& desc = ComponentCache::get().comp_desc(compId);
-					const auto offset = pChunk->data_offset(compKind, info.compId);
+					const auto compIdx = pChunk->comp_idx(compKind, compId);
+					const auto offset = pChunk->data_offset(compKind, compIdx);
 					auto* pComponentData = (void*)&pChunk->data(offset + (uint32_t)indexInChunk * desc.properties.size);
 					ctx.load_comp(pComponentData, compId);
 				}
@@ -177,7 +178,8 @@ namespace gaia {
 
 					// Component data
 					const auto& desc = ComponentCache::get().comp_desc(compId);
-					const auto offset = pChunk->data_offset(compKind, desc.compId);
+					const auto compIdx = pChunk->comp_idx(compKind, compId);
+					const auto offset = pChunk->data_offset(compKind, compIdx);
 					auto* pComponentData = (void*)&pChunk->data(offset + (uint32_t)indexInChunk * desc.properties.size);
 					ctx.load_comp(pComponentData, compId);
 				}
@@ -194,7 +196,8 @@ namespace gaia {
 
 					// Component data
 					const auto& desc = ComponentCache::get().comp_desc(compId);
-					const auto offset = pChunk->data_offset(compKind, compId);
+					const auto compIdx = pChunk->comp_idx(compKind, compId);
+					const auto offset = pChunk->data_offset(compKind, compIdx);
 					auto* pComponentData = (void*)&pChunk->data(offset + (uint32_t)indexInChunk * desc.properties.size);
 					ctx.load_comp(pComponentData, compId);
 				}
@@ -219,7 +222,8 @@ namespace gaia {
 
 					// Component data
 					const auto& desc = ComponentCache::get().comp_desc(compId);
-					const auto offset = pChunk->data_offset(compKind, compId);
+					const auto compIdx = pChunk->comp_idx(compKind, compId);
+					const auto offset = pChunk->data_offset(compKind, compIdx);
 					auto* pComponentData = (void*)&pChunk->data(offset + (uint32_t)indexInChunk * desc.properties.size);
 					ctx.load_comp(pComponentData, compId);
 				}
