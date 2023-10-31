@@ -563,7 +563,7 @@ namespace gaia {
 								continue;
 						}
 
-						const auto componentView = pChunk->template view<ContainerItemType>();
+						const auto componentView = iter.template view<ContainerItemType>();
 						GAIA_EACH(iter) outArray.push_back(componentView[i]);
 					}
 				}
