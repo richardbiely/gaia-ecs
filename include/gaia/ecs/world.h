@@ -205,8 +205,8 @@ namespace gaia {
 				}
 
 				// Don't add the same component twice
-				for (uint32_t i = 0; i < compIds.size(); ++i) {
-					const auto& info = cc.comp_desc(compIds[i]);
+				for (auto compId: compIds) {
+					const auto& info = cc.comp_desc(compId);
 					if (info.compId == infoToAdd.compId) {
 						GAIA_ASSERT(false && "Trying to add a duplicate component");
 
