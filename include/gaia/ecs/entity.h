@@ -1,6 +1,7 @@
 #pragma once
 #include "../cnt/ilist.h"
 #include "../config/config.h"
+#include "gaia/ecs/archetype.h"
 
 #include <cinttypes>
 #include <type_traits>
@@ -99,6 +100,7 @@ namespace gaia {
 		inline constexpr EntityNull_t EntityNull{};
 
 		class Chunk;
+		class Archetype;
 
 		struct EntityContainer: cnt::ilist_item_base {
 			//! Allocated items: Index in the list.
@@ -108,11 +110,14 @@ namespace gaia {
 			uint32_t gen : 31;
 			//! Disabled
 			uint32_t dis : 1;
+			//! Archetype
+			Archetype* pArchetype;
 			//! Chunk the entity currently resides in
 			Chunk* pChunk;
 
 			EntityContainer() = default;
-			EntityContainer(uint32_t index, uint32_t generation): idx(index), gen(generation), dis(0), pChunk(nullptr) {}
+			EntityContainer(uint32_t index, uint32_t generation):
+					idx(index), gen(generation), dis(0), pArchetype(nullptr), pChunk(nullptr) {}
 		};
 	} // namespace ecs
 } // namespace gaia
