@@ -220,13 +220,15 @@ namespace gaia {
 			}
 
 			template <auto FirstIdx, typename Tuple, typename Func, auto... Is>
-			void each_tuple_impl(Func func, std::index_sequence<Is...> /*no_name*/) {
+			void each_tuple_impl(Func func, std::integer_sequence<decltype(FirstIdx), Is...> /*no_name*/) {
 				if constexpr ((std::is_invocable_v<
 													 Func&&, decltype(std::tuple_element_t<FirstIdx + Is, Tuple>{}),
-													 std::integral_constant<decltype(Is), Is>> &&
+													 std::integral_constant<decltype(FirstIdx), Is>> &&
 											 ...))
 					// func(Args&& arg, uint32_t idx)
-					(func(std::tuple_element_t<FirstIdx + Is, Tuple>{}, std::integral_constant<decltype(Is), FirstIdx + Is>{}),
+					(func(
+							 std::tuple_element_t<FirstIdx + Is, Tuple>{},
+							 std::integral_constant<decltype(FirstIdx), FirstIdx + Is>{}),
 					 ...);
 				else
 					// func(Args&& arg)
@@ -234,13 +236,13 @@ namespace gaia {
 			}
 
 			template <auto FirstIdx, typename Tuple, typename Func, auto... Is>
-			void each_tuple_impl(Tuple&& tuple, Func func, std::index_sequence<Is...> /*no_name*/) {
+			void each_tuple_impl(Tuple&& tuple, Func func, std::integer_sequence<decltype(FirstIdx), Is...> /*no_name*/) {
 				if constexpr ((std::is_invocable_v<
 													 Func&&, decltype(std::get<FirstIdx + Is>(tuple)),
-													 std::integral_constant<decltype(Is), Is>> &&
+													 std::integral_constant<decltype(FirstIdx), Is>> &&
 											 ...))
 					// func(Args&& arg, uint32_t idx)
-					(func(std::get<FirstIdx + Is>(tuple), std::integral_constant<decltype(Is), FirstIdx + Is>{}), ...);
+					(func(std::get<FirstIdx + Is>(tuple), std::integral_constant<decltype(FirstIdx), FirstIdx + Is>{}), ...);
 				else
 					// func(Args&& arg)
 					(func(std::get<FirstIdx + Is>(tuple)), ...);
@@ -349,8 +351,9 @@ namespace gaia {
 		//! 420.0f
 		template <typename Tuple, typename Func>
 		constexpr void each_tuple(Tuple&& tuple, Func func) {
-			constexpr auto TSize = std::tuple_size<std::remove_reference_t<Tuple>>::value;
-			detail::each_tuple_impl<(size_t)0>(GAIA_FWD(tuple), func, std::make_index_sequence<TSize>{});
+			using TTSize = uint32_t;
+			constexpr auto TSize = (TTSize)std::tuple_size<std::remove_reference_t<Tuple>>::value;
+			detail::each_tuple_impl<(TTSize)0>(GAIA_FWD(tuple), func, std::make_integer_sequence<TTSize, TSize>{});
 		}
 
 		//! Compile-time for loop over tuples and other objects implementing
@@ -370,8 +373,9 @@ namespace gaia {
 		//! 0.0f
 		template <typename Tuple, typename Func>
 		constexpr void each_tuple(Func func) {
-			constexpr auto TSize = std::tuple_size<std::remove_reference_t<Tuple>>::value;
-			detail::each_tuple_impl<(size_t)0, Tuple>(func, std::make_index_sequence<TSize>{});
+			using TTSize = uint32_t;
+			constexpr auto TSize = (TTSize)std::tuple_size<std::remove_reference_t<Tuple>>::value;
+			detail::each_tuple_impl<(TTSize)0, Tuple>(func, std::make_integer_sequence<TTSize, TSize>{});
 		}
 
 		//! Compile-time for loop over tuples and other objects implementing
@@ -393,7 +397,7 @@ namespace gaia {
 			static_assert(LastIdx >= FirstIdx);
 			static_assert(LastIdx <= TSize);
 			constexpr auto Iters = LastIdx - FirstIdx;
-			detail::each_tuple_impl<FirstIdx>(GAIA_FWD(tuple), func, std::make_index_sequence<Iters>{});
+			detail::each_tuple_impl<FirstIdx>(GAIA_FWD(tuple), func, std::make_integer_sequence<decltype(FirstIdx), Iters>{});
 		}
 
 		//! Compile-time for loop over tuples and other objects implementing
@@ -417,7 +421,7 @@ namespace gaia {
 			static_assert(LastIdx >= FirstIdx);
 			static_assert(LastIdx <= TSize);
 			constexpr auto Iters = LastIdx - FirstIdx;
-			detail::each_tuple_impl<FirstIdx, Tuple>(func, std::make_index_sequence<Iters>{});
+			detail::each_tuple_impl<FirstIdx, Tuple>(func, std::make_integer_sequence<decltype(FirstIdx), Iters>{});
 		}
 
 		template <typename InputIt, typename Func>
