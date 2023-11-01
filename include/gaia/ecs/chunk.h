@@ -55,9 +55,9 @@ namespace gaia {
 			GAIA_MSVC_WARNING_DISABLE(26495)
 
 			Chunk(
-					uint32_t archetypeId, uint32_t chunkIndex, uint16_t capacity, uint16_t st, uint32_t& worldVersion,
+					uint32_t chunkIndex, uint16_t capacity, uint16_t st, uint32_t& worldVersion,
 					const ChunkHeaderOffsets& headerOffsets):
-					m_header(archetypeId, chunkIndex, capacity, st, headerOffsets, worldVersion) {
+					m_header(chunkIndex, capacity, st, headerOffsets, worldVersion) {
 				// Chunk data area consist of memory offsets + component data. Normally. we would initialize it.
 				// However, the memory offsets part are all trivial types and components are initialized via their
 				// constructors so we do not really need to do anything.
@@ -130,12 +130,6 @@ namespace gaia {
 			GAIA_NODISCARD std::span<uint32_t> comp_version_view_mut(ComponentKind compKind) {
 				const auto offset = m_header.offsets.firstByte_Versions[compKind];
 				return {(uint32_t*)(&data(offset)), m_header.componentCount[compKind]};
-			}
-
-			GAIA_NODISCARD std::span<const ComponentId> comp_id_view(ComponentKind compKind) const {
-				using RetType = std::add_pointer_t<const ComponentId>;
-				const auto offset = m_header.offsets.firstByte_ComponentIds[compKind];
-				return {(RetType)&data(offset), m_header.componentCount[compKind]};
 			}
 
 			GAIA_NODISCARD std::span<ComponentId> comp_id_view_mut(ComponentKind compKind) {
@@ -320,7 +314,7 @@ namespace gaia {
 			\return Newly allocated chunk
 			*/
 			static Chunk* create(
-					uint32_t archetypeId, uint32_t chunkIndex, uint16_t capacity, uint16_t dataBytes, uint32_t& worldVersion,
+					uint32_t chunkIndex, uint16_t capacity, uint16_t dataBytes, uint32_t& worldVersion,
 					const ChunkHeaderOffsets& offsets, const cnt::sarray<ComponentIdArray, ComponentKind::CK_Count>& compIds,
 #if GAIA_COMP_ID_PROBING
 					const cnt::sarray<ComponentIdInterMap, ComponentKind::CK_Count>& compIdMap,
@@ -330,12 +324,12 @@ namespace gaia {
 				const auto sizeType = detail::ChunkAllocatorImpl::mem_block_size_type(totalBytes);
 #if GAIA_ECS_CHUNK_ALLOCATOR
 				auto* pChunk = (Chunk*)ChunkAllocator::get().alloc(totalBytes);
-				new (pChunk) Chunk(archetypeId, chunkIndex, capacity, sizeType, worldVersion, offsets);
+				new (pChunk) Chunk(chunkIndex, capacity, sizeType, worldVersion, offsets);
 #else
 				GAIA_ASSERT(totalBytes <= MaxMemoryBlockSize);
 				const auto allocSize = detail::ChunkAllocatorImpl::mem_block_size(sizeType);
 				auto* pChunkMem = new uint8_t[allocSize];
-				auto* pChunk = new (pChunkMem) Chunk(archetypeId, chunkIndex, capacity, sizeType, worldVersion, offsets);
+				auto* pChunk = new (pChunkMem) Chunk(chunkIndex, capacity, sizeType, worldVersion, offsets);
 #endif
 
 #if GAIA_COMP_ID_PROBING
@@ -397,7 +391,7 @@ namespace gaia {
 					// be removed. The chunk might be reclaimed before garbage collection happens
 					// but it simply ignores such requests. This way we always have at most one
 					// record for removal for any given chunk.
-					revive();
+					start_dying();
 
 					chunksToRemove.push_back(this);
 				}
@@ -532,6 +526,12 @@ namespace gaia {
 				return {(const Entity*)view_inter<Entity>(0, size()).data(), size()};
 			}
 
+			GAIA_NODISCARD std::span<const ComponentId> comp_id_view(ComponentKind compKind) const {
+				using RetType = std::add_pointer_t<const ComponentId>;
+				const auto offset = m_header.offsets.firstByte_ComponentIds[compKind];
+				return {(RetType)&data(offset), m_header.componentCount[compKind]};
+			}
+
 			/*!
 			Make \param entity a part of the chunk at the version of the world
 			\return Index of the entity within the chunk.
@@ -593,8 +593,6 @@ namespace gaia {
 
 				auto& oldEntityContainer = entities[entity.id()];
 				auto* pOldChunk = oldEntityContainer.pChunk;
-
-				GAIA_ASSERT(pOldChunk->archetype_id() == archetype_id());
 
 				const auto& cc = ComponentCache::get();
 				auto oldIds = pOldChunk->comp_id_view(ComponentKind::CK_Generic);
@@ -1222,10 +1220,6 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			GAIA_NODISCARD ArchetypeId archetype_id() const {
-				return m_header.archetypeId;
-			}
-
 			//! Sets the index of this chunk in its archetype's storage
 			void set_idx(uint32_t value) {
 				m_header.index = value;
@@ -1261,12 +1255,20 @@ namespace gaia {
 				return m_header.dead == 1;
 			}
 
-			//! Makes the chunk alive again
-			void revive() {
+			//! Starts the process of dying
+			void start_dying() {
 				GAIA_ASSERT(!dead());
 				m_header.lifespanCountdown = ChunkHeader::MAX_CHUNK_LIFESPAN;
 			}
 
+			//! Makes the chunk alive again
+			void revive() {
+				GAIA_ASSERT(!dead());
+				m_header.lifespanCountdown = 0;
+			}
+
+			//! Updates internal lifetime
+			//! \return True if there is some lifespan left, false otherwise.
 			bool progress_death() {
 				GAIA_ASSERT(dying());
 				--m_header.lifespanCountdown;

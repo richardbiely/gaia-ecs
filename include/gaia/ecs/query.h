@@ -62,7 +62,7 @@ namespace gaia {
 					void exec(QueryCtx& ctx) const {
 						auto& data = ctx.data[compKind];
 						auto& compIds = data.compIds;
-						auto& lastMatchedArchetypeIndex = data.lastMatchedArchetypeIndex;
+						auto& lastMatchedArchetypeIdx = data.lastMatchedArchetypeIdx;
 						auto& rules = data.rules;
 
 						// Unique component ids only
@@ -85,7 +85,7 @@ namespace gaia {
 
 						data.readWriteMask |= (uint8_t)isReadWrite << (uint8_t)compIds.size();
 						compIds.push_back(compId);
-						lastMatchedArchetypeIndex.push_back(0);
+						lastMatchedArchetypeIdx.push_back(0);
 						rules.push_back(listType);
 
 						if (listType == QueryListType::LT_All)
@@ -161,6 +161,8 @@ namespace gaia {
 				QueryImplStorage<UseCaching> m_storage;
 				//! Buffer with commands used to fetch the QueryInfo
 				SerializationBuffer m_serBuffer;
+				//! World version (stable pointer to parent world's m_nextArchetypeId)
+				ArchetypeId* m_nextArchetypeId{};
 				//! World version (stable pointer to parent world's world version)
 				uint32_t* m_worldVersion{};
 				//! List of archetypes (stable pointer to parent world's archetype array)
@@ -180,16 +182,16 @@ namespace gaia {
 						// Lookup hash is present which means QueryInfo was already found
 						if GAIA_LIKELY (m_storage.m_queryId != QueryIdBad) {
 							auto& queryInfo = m_storage.m_entityQueryCache->get(m_storage.m_queryId);
-							queryInfo.match(*m_componentToArchetypeMap, (uint32_t)m_archetypes->size());
+							queryInfo.match(*m_componentToArchetypeMap, last_archetype_id());
 							return queryInfo;
 						}
 
-						// No lookup hash is present which means QueryInfo needs to fetched or created
+						// No lookup hash is present which means QueryInfo needs to be fetched or created
 						QueryCtx ctx;
 						commit(ctx);
 						auto& queryInfo = m_storage.m_entityQueryCache->goc(GAIA_MOV(ctx));
 						m_storage.m_queryId = queryInfo.id();
-						queryInfo.match(*m_componentToArchetypeMap, (uint32_t)m_archetypes->size());
+						queryInfo.match(*m_componentToArchetypeMap, last_archetype_id());
 						return queryInfo;
 					} else {
 						if GAIA_UNLIKELY (m_storage.m_queryInfo.id() == QueryIdBad) {
@@ -197,13 +199,17 @@ namespace gaia {
 							commit(ctx);
 							m_storage.m_queryInfo = QueryInfo::create(QueryId{}, GAIA_MOV(ctx));
 						}
-						m_storage.m_queryInfo.match(*m_componentToArchetypeMap, (uint32_t)m_archetypes->size());
+						m_storage.m_queryInfo.match(*m_componentToArchetypeMap, last_archetype_id());
 						return m_storage.m_queryInfo;
 					}
 				}
 
 				//--------------------------------------------------------------------------------
 			private:
+				ArchetypeId last_archetype_id() const {
+					return *m_nextArchetypeId - 1;
+				}
+
 				template <typename T>
 				void add_inter(QueryListType listType) {
 					using U = typename component_type_t<T>::Type;
@@ -491,23 +497,6 @@ namespace gaia {
 					}
 				}
 
-				template <typename Func>
-				void each_inter(QueryInfo& queryInfo, Func func) {
-					using InputArgs = decltype(core::func_args(&Func::operator()));
-
-					// Entity and/or components provided as a type
-					{
-#if GAIA_DEBUG
-						// Make sure we only use components specified in the query
-						GAIA_ASSERT(unpack_args_into_query_has_all(queryInfo, InputArgs{}));
-#endif
-
-						run_query_on_chunks<Iterator>(queryInfo, [&](Chunk& chunk) {
-							run_query_on_chunk<Iterator>(chunk, func, InputArgs{});
-						});
-					}
-				}
-
 				void invalidate() {
 					if constexpr (UseCaching)
 						m_storage.m_queryId = QueryIdBad;
@@ -573,19 +562,22 @@ namespace gaia {
 
 				template <bool FuncEnabled = UseCaching>
 				QueryImpl(
-						QueryCache& queryCache, uint32_t& worldVersion, const cnt::map<ArchetypeId, Archetype*>& archetypes,
+						QueryCache& queryCache, ArchetypeId& nextArchetypeId, uint32_t& worldVersion,
+						const cnt::map<ArchetypeId, Archetype*>& archetypes,
 						const ComponentToArchetypeMap& componentToArchetypeMap):
-						m_worldVersion(&worldVersion),
-						m_archetypes(&archetypes), m_componentToArchetypeMap(&componentToArchetypeMap) {
+						m_nextArchetypeId(&nextArchetypeId),
+						m_worldVersion(&worldVersion), m_archetypes(&archetypes),
+						m_componentToArchetypeMap(&componentToArchetypeMap) {
 					m_storage.m_entityQueryCache = &queryCache;
 				}
 
 				template <bool FuncEnabled = !UseCaching>
 				QueryImpl(
-						uint32_t& worldVersion, const cnt::map<ArchetypeId, Archetype*>& archetypes,
+						ArchetypeId& nextArchetypeId, uint32_t& worldVersion, const cnt::map<ArchetypeId, Archetype*>& archetypes,
 						const ComponentToArchetypeMap& componentToArchetypeMap):
-						m_worldVersion(&worldVersion),
-						m_archetypes(&archetypes), m_componentToArchetypeMap(&componentToArchetypeMap) {}
+						m_nextArchetypeId(&nextArchetypeId),
+						m_worldVersion(&worldVersion), m_archetypes(&archetypes),
+						m_componentToArchetypeMap(&componentToArchetypeMap) {}
 
 				GAIA_NODISCARD uint32_t id() const {
 					static_assert(UseCaching, "id() can be used only with cached queries");
@@ -649,6 +641,23 @@ namespace gaia {
 				}
 
 				template <typename Func>
+				void each(QueryInfo& queryInfo, Func func) {
+					using InputArgs = decltype(core::func_args(&Func::operator()));
+
+					// Entity and/or components provided as a type
+					{
+#if GAIA_DEBUG
+						// Make sure we only use components specified in the query
+						GAIA_ASSERT(unpack_args_into_query_has_all(queryInfo, InputArgs{}));
+#endif
+
+						run_query_on_chunks<Iterator>(queryInfo, [&](Chunk& chunk) {
+							run_query_on_chunk<Iterator>(chunk, func, InputArgs{});
+						});
+					}
+				}
+
+				template <typename Func>
 				void each(Func func) {
 					auto& queryInfo = fetch_query_info();
 
@@ -665,7 +674,7 @@ namespace gaia {
 							func(IteratorDisabled(chunk));
 						});
 					else
-						each_inter(queryInfo, func);
+						each(queryInfo, func);
 				}
 
 				template <typename Func, bool FuncEnabled = UseCaching, typename std::enable_if<FuncEnabled>::type* = nullptr>
@@ -675,7 +684,7 @@ namespace gaia {
 					GAIA_ASSERT(queryId != QueryIdBad);
 
 					auto& queryInfo = m_storage.m_entityQueryCache->get(queryId);
-					each_inter(queryInfo, func);
+					each(queryInfo, func);
 				}
 
 				/*!

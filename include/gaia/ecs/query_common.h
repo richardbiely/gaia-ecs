@@ -47,8 +47,8 @@ namespace gaia {
 				QueryListTypeArray rules;
 				//! List of component matcher hashes
 				ComponentMatcherHash hash[QueryListType::LT_Count];
-				//! Array of indiices to the last checked archetype in the component-to-archetype map
-				cnt::darray<uint32_t> lastMatchedArchetypeIndex;
+				//! Array of indices to the last checked archetype in the component-to-archetype map
+				cnt::darray<uint32_t> lastMatchedArchetypeIdx;
 				//! List of filtered components
 				QueryChangeArray withChanged;
 				//! Read-write mask. Bit 0 stands for component 0 in component arrays.
