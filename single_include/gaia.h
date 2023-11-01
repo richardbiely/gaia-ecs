@@ -18437,6 +18437,8 @@ namespace gaia {
 				template <bool HasFilters, typename Iter, typename Func>
 				void run_query(
 						const QueryInfo& queryInfo, Func func, ChunkBatchedList& chunkBatch, const cnt::darray<Chunk*>& chunks) {
+					GAIA_PROF_SCOPE(run_query); // batch preparation + chunk processing
+
 					uint32_t chunkOffset = 0;
 					uint32_t itemsLeft = chunks.size();
 					while (itemsLeft > 0) {
@@ -18519,7 +18521,7 @@ namespace gaia {
 				}
 
 				template <bool UseFilters, typename Iter>
-				GAIA_NODISCARD bool empty_inter(QueryInfo& queryInfo, const cnt::darray<Chunk*>& chunks) {
+				GAIA_NODISCARD bool empty_inter(const QueryInfo& queryInfo, const cnt::darray<Chunk*>& chunks) {
 					return core::has_if(chunks, [&](Chunk* pChunk) {
 						Iter iter(*pChunk);
 						if constexpr (UseFilters) {
@@ -18531,7 +18533,7 @@ namespace gaia {
 				}
 
 				template <bool UseFilters, typename Iter>
-				GAIA_NODISCARD uint32_t count_inter(QueryInfo& queryInfo, const cnt::darray<Chunk*>& chunks) {
+				GAIA_NODISCARD uint32_t count_inter(const QueryInfo& queryInfo, const cnt::darray<Chunk*>& chunks) {
 					uint32_t cnt = 0;
 
 					for (auto* pChunk: chunks) {
@@ -18554,7 +18556,7 @@ namespace gaia {
 				}
 
 				template <bool UseFilters, typename Iter, typename ContainerOut>
-				void arr_inter(QueryInfo& queryInfo, const cnt::darray<Chunk*>& chunks, ContainerOut& outArray) {
+				void arr_inter(const QueryInfo& queryInfo, const cnt::darray<Chunk*>& chunks, ContainerOut& outArray) {
 					using ContainerItemType = typename ContainerOut::value_type;
 
 					for (auto* pChunk: chunks) {
@@ -18568,8 +18570,8 @@ namespace gaia {
 								continue;
 						}
 
-						const auto componentView = iter.template view<ContainerItemType>();
-						GAIA_EACH(iter) outArray.push_back(componentView[i]);
+						const auto dataView = iter.template view<ContainerItemType>();
+						GAIA_EACH(iter) outArray.push_back(dataView[i]);
 					}
 				}
 
@@ -18904,6 +18906,8 @@ namespace gaia {
 
 			//! Delete an empty chunk from its archetype
 			void remove_empty_chunk(Chunk* pChunk) {
+				GAIA_PROF_SCOPE(remove_empty_chunk);
+
 				GAIA_ASSERT(pChunk != nullptr);
 				GAIA_ASSERT(pChunk->empty());
 				GAIA_ASSERT(!pChunk->dying());
@@ -18923,6 +18927,8 @@ namespace gaia {
 
 			//! Delete all chunks which are empty (have no entities) and have not been used in a while
 			void remove_empty_chunks() {
+				GAIA_PROF_SCOPE(remove_empty_chunks);
+
 				for (uint32_t i = 0; i < m_chunksToRemove.size();) {
 					auto* pChunk = m_chunksToRemove[i];
 
@@ -18947,6 +18953,8 @@ namespace gaia {
 
 			//! Delete an empty archetype from the world
 			void remove_empty_archetype(Archetype* pArchetype) {
+				GAIA_PROF_SCOPE(remove_empty_archetype);
+
 				GAIA_ASSERT(pArchetype != nullptr);
 				GAIA_ASSERT(pArchetype->empty());
 				GAIA_ASSERT(!pArchetype->dying());
@@ -18961,6 +18969,8 @@ namespace gaia {
 
 			//! Delete all archetypes which are empty (have no used chunks) and have not been used in a while
 			void remove_empty_archetypes() {
+				GAIA_PROF_SCOPE(remove_empty_archetypes);
+
 				cnt::sarr_ext<Archetype*, 512> tmp;
 
 				for (uint32_t i = 0; i < m_archetypesToRemove.size();) {
@@ -19003,6 +19013,8 @@ namespace gaia {
 			//! Defragments chunks.
 			//! \param maxEntites Maximum number of entities moved per call
 			void defrag_chunks(uint32_t maxEntities) {
+				GAIA_PROF_SCOPE(defrag_chunks);
+
 				const auto maxIters = (uint32_t)m_archetypesById.size();
 				for (uint32_t i = 0; i < maxIters; ++i) {
 					m_defragLastArchetypeID = (m_defragLastArchetypeID + i) % maxIters;
@@ -19517,6 +19529,8 @@ namespace gaia {
 
 			//! Garbage collection
 			void gc() {
+				GAIA_PROF_SCOPE(gc);
+
 				remove_empty_chunks();
 				defrag_chunks(GAIA_DEFRAG_ENTITIES_PER_FRAME);
 				remove_empty_archetypes();
