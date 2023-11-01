@@ -15641,23 +15641,22 @@ namespace gaia {
 
 						if (oldId == newId) {
 							const auto& desc = cc.comp_desc(oldId);
-							if (desc.properties.size == 0U)
-								return;
+							if (desc.properties.size != 0U) {
+								// Map component ids to offset indices
+								const auto offsetOld = pOldChunk->data_offset(ComponentKind::CK_Generic, i);
+								const auto offsetNew = data_offset(ComponentKind::CK_Generic, j);
 
-							// Map component ids to offset indices
-							const auto offsetOld = pOldChunk->data_offset(ComponentKind::CK_Generic, i);
-							const auto offsetNew = data_offset(ComponentKind::CK_Generic, j);
+								// Let's move all type data from oldEntity to newEntity
+								const auto idxSrc = offsetOld + desc.properties.size * (uint32_t)oldEntityContainer.idx;
+								const auto idxDst = offsetNew + desc.properties.size * newEntityIdx;
 
-							// Let's move all type data from oldEntity to newEntity
-							const auto idxSrc = offsetOld + desc.properties.size * (uint32_t)oldEntityContainer.idx;
-							const auto idxDst = offsetNew + desc.properties.size * newEntityIdx;
+								GAIA_ASSERT(idxSrc < pOldChunk->bytes());
+								GAIA_ASSERT(idxDst < bytes());
 
-							GAIA_ASSERT(idxSrc < pOldChunk->bytes());
-							GAIA_ASSERT(idxDst < bytes());
-
-							auto* pSrc = (void*)&pOldChunk->data(idxSrc);
-							auto* pDst = (void*)&data(idxDst);
-							desc.ctor_from(pSrc, pDst);
+								auto* pSrc = (void*)&pOldChunk->data(idxSrc);
+								auto* pDst = (void*)&data(idxDst);
+								desc.ctor_from(pSrc, pDst);
+							}
 
 							++i;
 							++j;
@@ -17704,8 +17703,8 @@ namespace gaia {
 			QueryCtx m_lookupCtx;
 			//! List of archetypes matching the query
 			ArchetypeList m_archetypeCache;
-			//! Index of the last archetype in the world we checked
-			uint32_t m_lastArchetypeIdx = 0;
+			//! Id of the last archetype in the world we checked
+			uint32_t m_lastArchetypeId = 0;
 			//! Version of the world for which the query has been called most recently
 			uint32_t m_worldVersion = 0;
 
@@ -17880,10 +17879,10 @@ namespace gaia {
 				static cnt::set<Archetype*> s_tmpArchetypeMatches;
 
 				// Skip if no new archetype appeared
-				GAIA_ASSERT(archetypeLastId >= m_lastArchetypeIdx);
-				if (m_lastArchetypeIdx == archetypeLastId)
+				GAIA_ASSERT(archetypeLastId >= m_lastArchetypeId);
+				if (m_lastArchetypeId == archetypeLastId)
 					return;
-				m_lastArchetypeIdx = archetypeLastId;
+				m_lastArchetypeId = archetypeLastId;
 
 				// Match against generic types
 				{
@@ -17988,7 +17987,7 @@ namespace gaia {
 				if (idx == BadIndex)
 					return;
 				core::erase_fast(m_archetypeCache, idx);
-				--m_lastArchetypeIdx;
+				--m_lastArchetypeId;
 			}
 
 			GAIA_NODISCARD ArchetypeList::iterator begin() {

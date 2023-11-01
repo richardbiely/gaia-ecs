@@ -28,8 +28,8 @@ namespace gaia {
 			QueryCtx m_lookupCtx;
 			//! List of archetypes matching the query
 			ArchetypeList m_archetypeCache;
-			//! Index of the last archetype in the world we checked
-			uint32_t m_lastArchetypeIdx = 0;
+			//! Id of the last archetype in the world we checked
+			uint32_t m_lastArchetypeId = 0;
 			//! Version of the world for which the query has been called most recently
 			uint32_t m_worldVersion = 0;
 
@@ -204,10 +204,10 @@ namespace gaia {
 				static cnt::set<Archetype*> s_tmpArchetypeMatches;
 
 				// Skip if no new archetype appeared
-				GAIA_ASSERT(archetypeLastId >= m_lastArchetypeIdx);
-				if (m_lastArchetypeIdx == archetypeLastId)
+				GAIA_ASSERT(archetypeLastId >= m_lastArchetypeId);
+				if (m_lastArchetypeId == archetypeLastId)
 					return;
-				m_lastArchetypeIdx = archetypeLastId;
+				m_lastArchetypeId = archetypeLastId;
 
 				// Match against generic types
 				{
@@ -312,7 +312,7 @@ namespace gaia {
 				if (idx == BadIndex)
 					return;
 				core::erase_fast(m_archetypeCache, idx);
-				--m_lastArchetypeIdx;
+				--m_lastArchetypeId;
 			}
 
 			GAIA_NODISCARD ArchetypeList::iterator begin() {
