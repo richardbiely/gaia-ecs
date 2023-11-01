@@ -231,7 +231,7 @@ namespace gaia {
 				}
 
 				template <typename T>
-				void WithChanged_inter() {
+				void changed_inter() {
 					const auto compId = comp_id<T>();
 					constexpr auto compKind = component_kind_v<T>;
 
@@ -585,16 +585,6 @@ namespace gaia {
 				}
 
 				template <typename... T>
-				void all_unpack([[maybe_unused]] core::func_type_list<T...> types) {
-					if constexpr (sizeof...(T) > 0) {
-						// Adding new rules invalidates the query
-						invalidate();
-						// Add commands to the command buffer
-						(add_inter<T>(QueryListType::LT_All), ...);
-					}
-				}
-
-				template <typename... T>
 				QueryImpl& all() {
 					// Adding new rules invalidates the query
 					invalidate();
@@ -626,7 +616,7 @@ namespace gaia {
 					// Adding new rules invalidates the query
 					invalidate();
 					// Add commands to the command buffer
-					(WithChanged_inter<T>(), ...);
+					(changed_inter<T>(), ...);
 					return *this;
 				}
 

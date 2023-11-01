@@ -2355,16 +2355,19 @@ TEST_CASE("Usage 1 - simple query, 0 component") {
 
 	auto e = w.add();
 
+	auto qa = w.query().all<const Acceleration>();
+	auto qp = w.query().all<const Position>();
+
 	{
 		uint32_t cnt = 0;
-		w.each([&]([[maybe_unused]] const Acceleration& a) {
+		qa.each([&]([[maybe_unused]] const Acceleration&) {
 			++cnt;
 		});
 		REQUIRE(cnt == 0);
 	}
 	{
 		uint32_t cnt = 0;
-		w.each([&]([[maybe_unused]] const Position& a) {
+		qp.each([&]([[maybe_unused]] const Position&) {
 			++cnt;
 		});
 		REQUIRE(cnt == 0);
@@ -2376,7 +2379,7 @@ TEST_CASE("Usage 1 - simple query, 0 component") {
 
 	{
 		uint32_t cnt = 0;
-		w.each([&]([[maybe_unused]] const Position& a) {
+		qp.each([&]([[maybe_unused]] const Position&) {
 			++cnt;
 		});
 		REQUIRE(cnt == 0);
@@ -2386,7 +2389,7 @@ TEST_CASE("Usage 1 - simple query, 0 component") {
 
 	{
 		uint32_t cnt = 0;
-		w.each([&]([[maybe_unused]] const Position& a) {
+		qp.each([&]([[maybe_unused]] const Position&) {
 			++cnt;
 		});
 		REQUIRE(cnt == 0);
@@ -2398,7 +2401,7 @@ TEST_CASE("Usage 1 - simple query, 0 component") {
 
 	{
 		uint32_t cnt = 0;
-		w.each([&]([[maybe_unused]] const Position& a) {
+		qp.each([&]([[maybe_unused]] const Position&) {
 			++cnt;
 		});
 		REQUIRE(cnt == 0);
@@ -2411,16 +2414,19 @@ TEST_CASE("Usage 1 - simple query, 1 component") {
 	auto e = w.add();
 	w.add<Position>(e);
 
+	auto qa = w.query().all<const Acceleration>();
+	auto qp = w.query().all<const Position>();
+
 	{
 		uint32_t cnt = 0;
-		w.each([&]([[maybe_unused]] const Acceleration& a) {
+		qa.each([&]([[maybe_unused]] const Acceleration&) {
 			++cnt;
 		});
 		REQUIRE(cnt == 0);
 	}
 	{
 		uint32_t cnt = 0;
-		w.each([&]([[maybe_unused]] const Position& a) {
+		qp.each([&]([[maybe_unused]] const Position&) {
 			++cnt;
 		});
 		REQUIRE(cnt == 1);
@@ -2432,7 +2438,7 @@ TEST_CASE("Usage 1 - simple query, 1 component") {
 
 	{
 		uint32_t cnt = 0;
-		w.each([&]([[maybe_unused]] const Position& a) {
+		qp.each([&]([[maybe_unused]] const Position&) {
 			++cnt;
 		});
 		REQUIRE(cnt == 4);
@@ -2442,7 +2448,7 @@ TEST_CASE("Usage 1 - simple query, 1 component") {
 
 	{
 		uint32_t cnt = 0;
-		w.each([&]([[maybe_unused]] const Position& a) {
+		qp.each([&]([[maybe_unused]] const Position&) {
 			++cnt;
 		});
 		REQUIRE(cnt == 3);
@@ -2454,7 +2460,7 @@ TEST_CASE("Usage 1 - simple query, 1 component") {
 
 	{
 		uint32_t cnt = 0;
-		w.each([&]([[maybe_unused]] const Position& a) {
+		qp.each([&]([[maybe_unused]] const Position&) {
 			++cnt;
 		});
 		REQUIRE(cnt == 0);
@@ -2467,12 +2473,12 @@ TEST_CASE("Usage 1 - simple query, 1 chunk component") {
 	auto e = w.add();
 	w.add<ecs::AsChunk<Position>>(e);
 
-	auto q = w.query().all<ecs::AsChunk<Position>>();
-	auto qq = w.query().all<Position>();
+	auto q = w.query().all<ecs::AsChunk<const Position>>();
+	auto qq = w.query().all<const Position>();
 
 	{
 		uint32_t cnt = 0;
-		w.each([&]([[maybe_unused]] const Position& a) {
+		qq.each([&]([[maybe_unused]] const Position&) {
 			++cnt;
 		});
 		REQUIRE(cnt == 0);
@@ -2545,42 +2551,48 @@ TEST_CASE("Usage 2 - simple query, many components") {
 
 	{
 		uint32_t cnt = 0;
-		w.each([&]([[maybe_unused]] const Position& a) {
+		auto q = w.query().all<const Position>();
+		q.each([&]([[maybe_unused]] const Position&) {
 			++cnt;
 		});
 		REQUIRE(cnt == 2);
 	}
 	{
 		uint32_t cnt = 0;
-		w.each([&]([[maybe_unused]] const Acceleration& a) {
+		auto q = w.query().all<const Acceleration>();
+		q.each([&]([[maybe_unused]] const Acceleration&) {
 			++cnt;
 		});
 		REQUIRE(cnt == 2);
 	}
 	{
 		uint32_t cnt = 0;
-		w.each([&]([[maybe_unused]] const Rotation& a) {
+		auto q = w.query().all<const Rotation>();
+		q.each([&]([[maybe_unused]] const Rotation&) {
 			++cnt;
 		});
 		REQUIRE(cnt == 1);
 	}
 	{
 		uint32_t cnt = 0;
-		w.each([&]([[maybe_unused]] const Scale& a) {
+		auto q = w.query().all<const Scale>();
+		q.each([&]([[maybe_unused]] const Scale&) {
 			++cnt;
 		});
 		REQUIRE(cnt == 2);
 	}
 	{
 		uint32_t cnt = 0;
-		w.each([&]([[maybe_unused]] const Position& p, [[maybe_unused]] const Acceleration& s) {
+		auto q = w.query().all<const Position, const Acceleration>();
+		q.each([&]([[maybe_unused]] const Position&, [[maybe_unused]] const Acceleration&) {
 			++cnt;
 		});
 		REQUIRE(cnt == 2);
 	}
 	{
 		uint32_t cnt = 0;
-		w.each([&]([[maybe_unused]] const Position& p, [[maybe_unused]] const Scale& s) {
+		auto q = w.query().all<const Position, const Scale>();
+		q.each([&]([[maybe_unused]] const Position&, [[maybe_unused]] const Scale&) {
 			++cnt;
 		});
 		REQUIRE(cnt == 1);
@@ -2685,7 +2697,7 @@ TEST_CASE("Usage 2 - simple query, many chunk components") {
 		REQUIRE(cnt == 2);
 	}
 	{
-		ecs::Query q = w.query().any<ecs::AsChunk<Position>, ecs::AsChunk<Acceleration>>();
+		auto q = w.query().any<ecs::AsChunk<Position>, ecs::AsChunk<Acceleration>>();
 
 		uint32_t cnt = 0;
 		q.each([&](ecs::Iterator iter) {
@@ -2699,7 +2711,7 @@ TEST_CASE("Usage 2 - simple query, many chunk components") {
 		REQUIRE(cnt == 2);
 	}
 	{
-		ecs::Query q = w.query().any<ecs::AsChunk<Position>, ecs::AsChunk<Acceleration>>().all<ecs::AsChunk<Scale>>();
+		auto q = w.query().any<ecs::AsChunk<Position>, ecs::AsChunk<Acceleration>>().all<ecs::AsChunk<Scale>>();
 
 		uint32_t cnt = 0;
 		q.each([&](ecs::Iterator iter) {
@@ -2715,7 +2727,7 @@ TEST_CASE("Usage 2 - simple query, many chunk components") {
 		REQUIRE(cnt == 1);
 	}
 	{
-		ecs::Query q = w.query().any<ecs::AsChunk<Position>, ecs::AsChunk<Acceleration>>().none<ecs::AsChunk<Scale>>();
+		auto q = w.query().any<ecs::AsChunk<Position>, ecs::AsChunk<Acceleration>>().none<ecs::AsChunk<Scale>>();
 
 		uint32_t cnt = 0;
 		q.each([&](ecs::Iterator iter) {
@@ -3337,9 +3349,14 @@ TEST_CASE("Query Filter - systems") {
 	w.add<Position>(e);
 
 	class WriterSystem final: public ecs::System {
+		ecs::Query m_q;
+
 	public:
+		void OnCreated() override {
+			m_q = world().query().all<Position>();
+		}
 		void OnUpdate() override {
-			world().each([]([[maybe_unused]] Position& a) {});
+			m_q.each([]([[maybe_unused]] Position&) {});
 		}
 	};
 	class WriterSystemSilent final: public ecs::System {
