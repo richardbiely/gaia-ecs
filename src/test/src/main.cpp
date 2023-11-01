@@ -64,6 +64,7 @@ struct Something {
 struct Else {
 	bool value;
 };
+struct Empty {};
 
 struct PositionNonTrivial {
 	float x, y, z;
@@ -1502,100 +1503,88 @@ TEST_CASE("Add - 1 component") {
 		create(i);
 }
 
-// TEST_CASE("Add - 2 components") {
-// 	ecs::World w;
+namespace dummy {
+	struct Position {
+		float x;
+		float y;
+		float z;
+	};
+} // namespace dummy
 
-// 	auto create = [&](uint32_t id) {
-// 		auto e = w.add();
-// 		const bool ok = e.id() == id && e.gen() == 0;
-// 		REQUIRE(ok);
+TEST_CASE("Add - namespaces") {
+	ecs::World w;
+	auto e = w.add();
+	w.add<Position>(e, {1, 1, 1});
+	w.add<dummy::Position>(e, {2, 2, 2});
 
-// 		{
-// 			w.add<Int3>(e, {id, id, id});
-// 			REQUIRE(w.has<Int3>(e));
-// 			auto val = w.get<Int3>(e);
-// 			REQUIRE(val.x == id);
-// 			REQUIRE(val.y == id);
-// 			REQUIRE(val.z == id);
-// 		}
-// 		{
-// 			w.add<Position>(e, {(float)id, (float)id, (float)id});
-// 			REQUIRE(w.has<Position>(e));
-// 			auto val = w.get<Position>(e);
-// 			REQUIRE(val.x == (float)id);
-// 			REQUIRE(val.y == (float)id);
-// 			REQUIRE(val.z == (float)id);
-// 		}
+	REQUIRE(w.has<Position>(e));
+	REQUIRE(w.has<dummy::Position>(e));
 
-// 		// The original component needs to stay valid
-// 		{
-// 			REQUIRE(w.has<Int3>(e));
-// 			auto val = w.get<Int3>(e);
-// 			REQUIRE(val.x == id);
-// 			REQUIRE(val.y == id);
-// 			REQUIRE(val.z == id);
-// 		}
-// 	};
+	{
+		auto p1 = w.get<Position>(e);
+		REQUIRE(p1.x == 1.f);
+		REQUIRE(p1.y == 1.f);
+		REQUIRE(p1.z == 1.f);
+	}
+	{
+		auto p2 = w.get<dummy::Position>(e);
+		REQUIRE(p2.x == 2.f);
+		REQUIRE(p2.y == 2.f);
+		REQUIRE(p2.z == 2.f);
+	}
+}
 
-// 	const uint32_t N = 10'000;
-// 	for (uint32_t i = 0; i < N; ++i)
-// 		create(i);
-// }
+TEST_CASE("Add - many components") {
+	ecs::World w;
 
-// TEST_CASE("Add - 3 components") {
-// 	ecs::World w;
+	auto create = [&](uint32_t id) {
+		auto e = w.add();
+		const bool ok = e.id() == id && e.gen() == 0;
+		REQUIRE(ok);
 
-// 	auto create = [&](uint32_t id) {
-// 		auto e = w.add();
-// 		const bool ok = e.id() == id && e.gen() == 0;
-// 		REQUIRE(ok);
+		w.add<Int3>(e, {3, 3, 3});
+		w.add<Position>(e, {1, 1, 1});
+		w.add<Empty>(e), w.add<Else>(e, {true});
+		w.add<Rotation>(e, {2, 2, 2, 2});
+		w.add<Scale>(e, {4, 4, 4});
 
-// 		{
-// 			w.add<Int3>(e, {id, id, id});
-// 			REQUIRE(w.has<Int3>(e));
-// 			auto val = w.get<Int3>(e);
-// 			REQUIRE(val.x == id);
-// 			REQUIRE(val.y == id);
-// 			REQUIRE(val.z == id);
-// 		}
-// 		{
-// 			w.add<Position>(e, {(float)id, (float)id, (float)id});
-// 			REQUIRE(w.has<Position>(e));
-// 			auto val = w.get<Position>(e);
-// 			REQUIRE(val.x == (float)id);
-// 			REQUIRE(val.y == (float)id);
-// 			REQUIRE(val.z == (float)id);
-// 		}
-// 		{
-// 			w.add<Scale>(e, {(float)id, (float)id, (float)id});
-// 			REQUIRE(w.has<Scale>(e));
-// 			auto val = w.get<Scale>(e);
-// 			REQUIRE(val.x == (float)id);
-// 			REQUIRE(val.y == (float)id);
-// 			REQUIRE(val.z == (float)id);
-// 		}
+		REQUIRE(w.has<Int3>(e));
+		REQUIRE(w.has<Position>(e));
+		REQUIRE(w.has<Empty>(e));
+		REQUIRE(w.has<Rotation>(e));
+		REQUIRE(w.has<Scale>(e));
 
-// 		// The original components needs to stay valid
-// 		{
-// 			REQUIRE(w.has<Int3>(e));
-// 			auto val = w.get<Int3>(e);
-// 			REQUIRE(val.x == id);
-// 			REQUIRE(val.y == id);
-// 			REQUIRE(val.z == id);
-// 		}
-// 		{
-// 			REQUIRE(w.has<Scale>(e));
-// 			auto val = w.get<Scale>(e);
-// 			REQUIRE(val.x == (float)id);
-// 			REQUIRE(val.y == (float)id);
-// 			REQUIRE(val.z == (float)id);
-// 		}
-// 	};
+		{
+			auto val = w.get<Int3>(e);
+			REQUIRE(val.x == 3);
+			REQUIRE(val.y == 3);
+			REQUIRE(val.z == 3);
+		}
+		{
+			auto val = w.get<Position>(e);
+			REQUIRE(val.x == 1.f);
+			REQUIRE(val.y == 1.f);
+			REQUIRE(val.z == 1.f);
+		}
+		{
+			auto val = w.get<Rotation>(e);
+			REQUIRE(val.x == 2.f);
+			REQUIRE(val.y == 2.f);
+			REQUIRE(val.z == 2.f);
+			REQUIRE(val.w == 2.f);
+		}
+		{
+			auto val = w.get<Scale>(e);
+			REQUIRE(val.x == 4.f);
+			REQUIRE(val.y == 4.f);
+			REQUIRE(val.z == 4.f);
+		}
+	};
 
-// 	const uint32_t N = 10'000;
-// 	for (uint32_t i = 0; i < N; ++i)
-// 		create(i);
-// }
+	const uint32_t N = 10'000;
+	for (uint32_t i = 0; i < N; ++i)
+		create(i);
+}
 
 TEST_CASE("CreateAndRemove_entity - no components") {
 	ecs::World w;
@@ -1666,39 +1655,6 @@ TEST_CASE("CreateAndRemove_entity - 1 component") {
 		arr.push_back(create(i));
 	for (uint32_t i = 0; i < N; ++i)
 		remove(arr[i]);
-}
-
-namespace dummy {
-	struct Position {
-		float x;
-		float y;
-		float z;
-	};
-} // namespace dummy
-
-TEST_CASE("Add - namespaces") {
-	ecs::World w;
-	auto e = w.add();
-	w.add<Position>(e, {1, 1, 1});
-	REQUIRE(w.has<Position>(e));
-	auto p1 = w.get<Position>(e);
-	REQUIRE(p1.x == 1.f);
-	REQUIRE(p1.y == 1.f);
-	REQUIRE(p1.z == 1.f);
-
-	w.add<dummy::Position>(e, {2, 2, 2});
-	REQUIRE(w.has<dummy::Position>(e));
-	auto p2 = w.get<dummy::Position>(e);
-	REQUIRE(p2.x == 2.f);
-	REQUIRE(p2.y == 2.f);
-	REQUIRE(p2.z == 2.f);
-
-	// Verify original component is still intact
-	REQUIRE(w.has<Position>(e));
-	p1 = w.get<Position>(e);
-	REQUIRE(p1.x == 1.f);
-	REQUIRE(p1.y == 1.f);
-	REQUIRE(p1.z == 1.f);
 }
 
 template <typename TQuery>

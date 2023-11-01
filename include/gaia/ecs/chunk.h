@@ -644,23 +644,22 @@ namespace gaia {
 
 						if (oldId == newId) {
 							const auto& desc = cc.comp_desc(oldId);
-							if (desc.properties.size == 0U)
-								return;
+							if (desc.properties.size != 0U) {
+								// Map component ids to offset indices
+								const auto offsetOld = pOldChunk->data_offset(ComponentKind::CK_Generic, i);
+								const auto offsetNew = data_offset(ComponentKind::CK_Generic, j);
 
-							// Map component ids to offset indices
-							const auto offsetOld = pOldChunk->data_offset(ComponentKind::CK_Generic, i);
-							const auto offsetNew = data_offset(ComponentKind::CK_Generic, j);
+								// Let's move all type data from oldEntity to newEntity
+								const auto idxSrc = offsetOld + desc.properties.size * (uint32_t)oldEntityContainer.idx;
+								const auto idxDst = offsetNew + desc.properties.size * newEntityIdx;
 
-							// Let's move all type data from oldEntity to newEntity
-							const auto idxSrc = offsetOld + desc.properties.size * (uint32_t)oldEntityContainer.idx;
-							const auto idxDst = offsetNew + desc.properties.size * newEntityIdx;
+								GAIA_ASSERT(idxSrc < pOldChunk->bytes());
+								GAIA_ASSERT(idxDst < bytes());
 
-							GAIA_ASSERT(idxSrc < pOldChunk->bytes());
-							GAIA_ASSERT(idxDst < bytes());
-
-							auto* pSrc = (void*)&pOldChunk->data(idxSrc);
-							auto* pDst = (void*)&data(idxDst);
-							desc.ctor_from(pSrc, pDst);
+								auto* pSrc = (void*)&pOldChunk->data(idxSrc);
+								auto* pDst = (void*)&data(idxDst);
+								desc.ctor_from(pSrc, pDst);
+							}
 
 							++i;
 							++j;
