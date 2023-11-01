@@ -16208,9 +16208,19 @@ namespace gaia {
 				return ecs::get_comp_idx({pSrc, m_header.componentCount[compKind]}, compId);
 #else
 				auto compIds = comp_id_view(compKind);
-				const auto idx = core::get_index_unsafe(compIds, compId);
-				GAIA_ASSERT(idx != BadIndex);
-				return idx;
+				for (uint32_t idx = 0; idx < compIds.size(); ++idx)
+					if (compIds[idx] == compId)
+						return idx;
+
+				GAIA_ASSERT(false);
+				return BadIndex;
+
+				// NOTE: This code bellow does technically the same as above.
+				//       However, compilers can't quite optimize it as well because it does some more
+				//       calculations. This is a used often so go with the custom code.
+				// const auto idx = core::get_index_unsafe(compIds, compId);
+				// GAIA_ASSERT(idx != BadIndex);
+				// return idx;
 #endif
 			}
 
@@ -17721,13 +17731,23 @@ namespace gaia {
 					// Component id has to be present
 					const auto compId = comp_id<T>();
 					GAIA_ASSERT(core::has(compIds, compId));
-					const auto idx = core::get_index_unsafe(compIds, compId);
-					if (listType != QueryListType::LT_Count && listType != data.rules[idx])
+
+					// Get the index
+					uint32_t compIdx = 0;
+					for (; compIdx < compIds.size(); ++compIdx)
+						if (compIds[compIdx] == compId)
+							break;
+					// NOTE: This code bellow does technically the same as above.
+					//       However, compilers can't quite optimize it as well because it does some more
+					//       calculations. This is a used often so go with the custom code.
+					// const auto compIdx = core::get_index_unsafe(compIds, compId);
+
+					if (listType != data.rules[compIdx])
 						return false;
 
 					// Read-write mask must match
-					const uint32_t maskRW = (uint32_t)data.readWriteMask & (1U << (uint32_t)idx);
-					const uint32_t maskXX = (uint32_t)isReadWrite << idx;
+					const uint32_t maskRW = (uint32_t)data.readWriteMask & (1U << compIdx);
+					const uint32_t maskXX = (uint32_t)isReadWrite << compIdx;
 					return maskRW == maskXX;
 				}
 			}
@@ -17899,7 +17919,7 @@ namespace gaia {
 						const auto lastMatchedIdx = data.lastMatchedArchetypeIdx[i];
 						for (auto j = lastMatchedIdx; j < archetypes.size(); ++j) {
 							auto* pArchetype = archetypes[j];
-							
+
 							// Early exit if generic query doesn't match
 							const auto retGeneric = match(*pArchetype, ComponentKind::CK_Generic);
 							if (retGeneric == MatchArchetypeQueryRet::Fail)
@@ -17960,11 +17980,6 @@ namespace gaia {
 			GAIA_NODISCARD bool has_filters() const {
 				return !m_lookupCtx.data[ComponentKind::CK_Generic].withChanged.empty() ||
 							 !m_lookupCtx.data[ComponentKind::CK_Chunk].withChanged.empty();
-			}
-
-			template <typename... T>
-			bool has() const {
-				return (has_inter<T>(QueryListType::LT_Count) || ...);
 			}
 
 			template <typename... T>
@@ -18187,7 +18202,14 @@ namespace gaia {
 						}
 #endif
 
-						const auto compIdx = core::get_index_unsafe(compIds, compId);
+						uint32_t compIdx = 0;
+						for (; compIdx < compIds.size(); ++compIdx)
+							if (compIds[compIdx] == compId)
+								break;
+						// NOTE: This code bellow does technically the same as above.
+						//       However, compilers can't quite optimize it as well because it does some more
+						//       calculations. This is a used often so go with the custom code.
+						// const auto compIdx = core::get_index_unsafe(compIds, compId);
 
 						// Component has to be present in anyList or allList.
 						// NoneList makes no sense because we skip those in query processing anyway.

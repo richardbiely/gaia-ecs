@@ -1211,9 +1211,19 @@ namespace gaia {
 				return ecs::get_comp_idx({pSrc, m_header.componentCount[compKind]}, compId);
 #else
 				auto compIds = comp_id_view(compKind);
-				const auto idx = core::get_index_unsafe(compIds, compId);
-				GAIA_ASSERT(idx != BadIndex);
-				return idx;
+				for (uint32_t idx = 0; idx < compIds.size(); ++idx)
+					if (compIds[idx] == compId)
+						return idx;
+
+				GAIA_ASSERT(false);
+				return BadIndex;
+
+				// NOTE: This code bellow does technically the same as above.
+				//       However, compilers can't quite optimize it as well because it does some more
+				//       calculations. This is a used often so go with the custom code.
+				// const auto idx = core::get_index_unsafe(compIds, compId);
+				// GAIA_ASSERT(idx != BadIndex);
+				// return idx;
 #endif
 			}
 
