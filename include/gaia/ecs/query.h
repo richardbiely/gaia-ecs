@@ -123,7 +123,14 @@ namespace gaia {
 						}
 #endif
 
-						const auto compIdx = core::get_index_unsafe(compIds, compId);
+						uint32_t compIdx = 0;
+						for (; compIdx < compIds.size(); ++compIdx)
+							if (compIds[compIdx] == compId)
+								break;
+						// NOTE: This code bellow does technically the same as above.
+						//       However, compilers can't quite optimize it as well because it does some more
+						//       calculations. This is a used often so go with the custom code.
+						// const auto compIdx = core::get_index_unsafe(compIds, compId);
 
 						// Component has to be present in anyList or allList.
 						// NoneList makes no sense because we skip those in query processing anyway.
