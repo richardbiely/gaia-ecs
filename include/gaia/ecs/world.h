@@ -84,6 +84,8 @@ namespace gaia {
 
 			//! Delete an empty chunk from its archetype
 			void remove_empty_chunk(Chunk* pChunk) {
+				GAIA_PROF_SCOPE(remove_empty_chunk);
+
 				GAIA_ASSERT(pChunk != nullptr);
 				GAIA_ASSERT(pChunk->empty());
 				GAIA_ASSERT(!pChunk->dying());
@@ -103,6 +105,8 @@ namespace gaia {
 
 			//! Delete all chunks which are empty (have no entities) and have not been used in a while
 			void remove_empty_chunks() {
+				GAIA_PROF_SCOPE(remove_empty_chunks);
+
 				for (uint32_t i = 0; i < m_chunksToRemove.size();) {
 					auto* pChunk = m_chunksToRemove[i];
 
@@ -127,6 +131,8 @@ namespace gaia {
 
 			//! Delete an empty archetype from the world
 			void remove_empty_archetype(Archetype* pArchetype) {
+				GAIA_PROF_SCOPE(remove_empty_archetype);
+
 				GAIA_ASSERT(pArchetype != nullptr);
 				GAIA_ASSERT(pArchetype->empty());
 				GAIA_ASSERT(!pArchetype->dying());
@@ -141,6 +147,8 @@ namespace gaia {
 
 			//! Delete all archetypes which are empty (have no used chunks) and have not been used in a while
 			void remove_empty_archetypes() {
+				GAIA_PROF_SCOPE(remove_empty_archetypes);
+
 				cnt::sarr_ext<Archetype*, 512> tmp;
 
 				for (uint32_t i = 0; i < m_archetypesToRemove.size();) {
@@ -183,6 +191,8 @@ namespace gaia {
 			//! Defragments chunks.
 			//! \param maxEntites Maximum number of entities moved per call
 			void defrag_chunks(uint32_t maxEntities) {
+				GAIA_PROF_SCOPE(defrag_chunks);
+
 				const auto maxIters = (uint32_t)m_archetypesById.size();
 				for (uint32_t i = 0; i < maxIters; ++i) {
 					m_defragLastArchetypeID = (m_defragLastArchetypeID + i) % maxIters;
@@ -697,6 +707,8 @@ namespace gaia {
 
 			//! Garbage collection
 			void gc() {
+				GAIA_PROF_SCOPE(gc);
+
 				remove_empty_chunks();
 				defrag_chunks(GAIA_DEFRAG_ENTITIES_PER_FRAME);
 				remove_empty_archetypes();

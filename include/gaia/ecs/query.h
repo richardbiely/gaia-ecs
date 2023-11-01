@@ -373,6 +373,8 @@ namespace gaia {
 				template <bool HasFilters, typename Iter, typename Func>
 				void run_query(
 						const QueryInfo& queryInfo, Func func, ChunkBatchedList& chunkBatch, const cnt::darray<Chunk*>& chunks) {
+					GAIA_PROF_SCOPE(run_query); // batch preparation + chunk processing
+
 					uint32_t chunkOffset = 0;
 					uint32_t itemsLeft = chunks.size();
 					while (itemsLeft > 0) {
@@ -455,7 +457,7 @@ namespace gaia {
 				}
 
 				template <bool UseFilters, typename Iter>
-				GAIA_NODISCARD bool empty_inter(QueryInfo& queryInfo, const cnt::darray<Chunk*>& chunks) {
+				GAIA_NODISCARD bool empty_inter(const QueryInfo& queryInfo, const cnt::darray<Chunk*>& chunks) {
 					return core::has_if(chunks, [&](Chunk* pChunk) {
 						Iter iter(*pChunk);
 						if constexpr (UseFilters) {
@@ -467,7 +469,7 @@ namespace gaia {
 				}
 
 				template <bool UseFilters, typename Iter>
-				GAIA_NODISCARD uint32_t count_inter(QueryInfo& queryInfo, const cnt::darray<Chunk*>& chunks) {
+				GAIA_NODISCARD uint32_t count_inter(const QueryInfo& queryInfo, const cnt::darray<Chunk*>& chunks) {
 					uint32_t cnt = 0;
 
 					for (auto* pChunk: chunks) {
@@ -490,7 +492,7 @@ namespace gaia {
 				}
 
 				template <bool UseFilters, typename Iter, typename ContainerOut>
-				void arr_inter(QueryInfo& queryInfo, const cnt::darray<Chunk*>& chunks, ContainerOut& outArray) {
+				void arr_inter(const QueryInfo& queryInfo, const cnt::darray<Chunk*>& chunks, ContainerOut& outArray) {
 					using ContainerItemType = typename ContainerOut::value_type;
 
 					for (auto* pChunk: chunks) {
@@ -504,8 +506,8 @@ namespace gaia {
 								continue;
 						}
 
-						const auto componentView = iter.template view<ContainerItemType>();
-						GAIA_EACH(iter) outArray.push_back(componentView[i]);
+						const auto dataView = iter.template view<ContainerItemType>();
+						GAIA_EACH(iter) outArray.push_back(dataView[i]);
 					}
 				}
 
