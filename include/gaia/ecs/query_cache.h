@@ -81,6 +81,14 @@ namespace gaia {
 				m_queryArr.push_back(QueryInfo::create(queryId, GAIA_MOV(ctx)));
 				return get(queryId);
 			};
+
+			cnt::darray<QueryInfo>::iterator begin() {
+				return m_queryArr.begin();
+			}
+
+			cnt::darray<QueryInfo>::iterator end() {
+				return m_queryArr.end();
+			}
 		};
 	} // namespace ecs
 } // namespace gaia

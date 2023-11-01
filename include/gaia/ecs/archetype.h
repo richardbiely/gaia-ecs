@@ -115,10 +115,17 @@ namespace gaia {
 			//! Hash of components within this archetype - used for matching
 			ComponentMatcherHash m_matcherHash[ComponentKind::CK_Count]{};
 
+			static constexpr uint16_t CHUNK_LIFESPAN_BITS = 7;
+			//! Number of ticks before empty chunks are removed
+			static constexpr uint16_t MAX_ARCHETYPE_LIFESPAN = (1 << CHUNK_LIFESPAN_BITS) - 1;
+
+			uint32_t m_lifespanCountdown: CHUNK_LIFESPAN_BITS;
+			uint32_t m_dead : 1;
+
 			// Constructor is hidden. Create archetypes via Create
 			Archetype(uint32_t& worldVersion): m_worldVersion(worldVersion) {}
 
-			void UpdateDataOffsets(uintptr_t memoryAddress) {
+			void update_data_offsets(uintptr_t memoryAddress) {
 				uintptr_t offset = 0;
 
 				// Versions
@@ -210,7 +217,7 @@ namespace gaia {
 				return true;
 			};
 
-			static void registerComponents(
+			static void reg_components(
 					Archetype& arch, ComponentIdSpan compIds, ComponentKind compKind, uint32_t& currOff, uint32_t count) {
 				const auto& cc = ComponentCache::get();
 				auto& ids = arch.m_compIds[compKind];
@@ -293,7 +300,7 @@ namespace gaia {
 #endif
 				newArch->m_compOffs[ComponentKind::CK_Generic].resize((uint32_t)compIdsGeneric.size());
 				newArch->m_compOffs[ComponentKind::CK_Chunk].resize((uint32_t)compIdsChunk.size());
-				newArch->UpdateDataOffsets(sizeof(ChunkHeader) + MemoryBlockUsableOffset);
+				newArch->update_data_offsets(sizeof(ChunkHeader) + MemoryBlockUsableOffset);
 
 				const auto& cc = ComponentCache::get();
 				const auto& dataOffset = newArch->m_dataOffsets;
@@ -363,8 +370,8 @@ namespace gaia {
 
 				// Update the offsets according to the recalculated maxGenericItemsInArchetype
 				currOff = dataOffset.firstByte_EntityData + (uint32_t)sizeof(Entity) * maxGenericItemsInArchetype;
-				registerComponents(*newArch, compIdsGeneric, ComponentKind::CK_Generic, currOff, maxGenericItemsInArchetype);
-				registerComponents(*newArch, compIdsChunk, ComponentKind::CK_Chunk, currOff, 1);
+				reg_components(*newArch, compIdsGeneric, ComponentKind::CK_Generic, currOff, maxGenericItemsInArchetype);
+				reg_components(*newArch, compIdsChunk, ComponentKind::CK_Chunk, currOff, 1);
 
 				GAIA_ASSERT(
 						Chunk::chunk_total_bytes((ChunkComponentOffset)currOff) <
@@ -405,7 +412,7 @@ namespace gaia {
 			Removes a chunk from the list of chunks managed by their archetype.
 			\param pChunk Chunk to remove from the list of managed archetypes
 			*/
-			void remove_chunk(Chunk* pChunk) {
+			void remove_chunk(Chunk* pChunk, cnt::darray<Archetype*>& archetypesToRemove) {
 				const auto chunkIndex = pChunk->idx();
 
 				Chunk::free(pChunk);
@@ -418,6 +425,27 @@ namespace gaia {
 				};
 
 				remove(m_chunks);
+
+				// TODO: This needs cleaning up.
+				//       Chunk should have no idea of the world and also should not store
+				//       any states realted to its lifetime.
+				if (!dying() && empty()) {
+					// When the chunk is emptied we want it to be removed. We can't do it
+					// right away and need to wait for world::gc() to be called.
+					//
+					// However, we need to prevent the following:
+					//    1) chunk is emptied, add it to some removal list
+					//    2) chunk is reclaimed
+					//    3) chunk is emptied, add it to some removal list again
+					//
+					// Therefore, we have a flag telling us the chunk is already waiting to
+					// be removed. The chunk might be reclaimed before garbage collection happens
+					// but it simply ignores such requests. This way we always have at most one
+					// record for removal for any given chunk.
+					start_dying();
+
+					archetypesToRemove.push_back(this);
+				}
 			}
 
 			//! defragments the chunk.
@@ -526,8 +554,7 @@ namespace gaia {
 
 				// No free space found anywhere. Let's create a new chunk.
 				auto* pChunk = Chunk::create(
-						m_archetypeId, chunkCnt, props().capacity, m_properties.chunkDataBytes, m_worldVersion, m_dataOffsets,
-						m_compIds,
+						chunkCnt, props().capacity, m_properties.chunkDataBytes, m_worldVersion, m_dataOffsets, m_compIds,
 #if GAIA_COMP_ID_PROBING
 						m_compIdMap,
 #endif
@@ -602,6 +629,46 @@ namespace gaia {
 			//! \return Archetype id of the target archetype if the edge is found. ArchetypeIdBad otherwise.
 			GAIA_NODISCARD ArchetypeId find_edge_left(ComponentKind compKind, const ComponentId compId) const {
 				return m_graph.find_edge_left(compKind, compId);
+			}
+
+			//! Checks is there are no chunk in the archetype
+			GAIA_NODISCARD bool empty() const {
+				return m_chunks.empty();
+			}
+
+			//! Checks is this chunk is dying
+			GAIA_NODISCARD bool dying() const {
+				return m_lifespanCountdown > 0;
+			}
+
+			//! Marks the chunk as dead
+			void die() {
+				m_dead = 1;
+			}
+
+			//! Checks is this chunk is dying
+			GAIA_NODISCARD bool dead() const {
+				return m_dead == 1;
+			}
+
+			//! Starts the process of dying
+			void start_dying() {
+				GAIA_ASSERT(!dead());
+				m_lifespanCountdown = MAX_ARCHETYPE_LIFESPAN;
+			}
+
+			//! Makes the chunk alive again
+			void revive() {
+				GAIA_ASSERT(!dead());
+				m_lifespanCountdown = 0;
+			}
+
+			//! Updates internal lifetime
+			//! \return True if there is some lifespan left, false otherwise.
+			bool progress_death() {
+				GAIA_ASSERT(dying());
+				--m_lifespanCountdown;
+				return dying();
 			}
 
 			static void diag_basic_info(const Archetype& archetype) {

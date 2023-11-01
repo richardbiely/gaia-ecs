@@ -14913,8 +14913,6 @@ namespace gaia {
 			//! Number of locks the chunk can aquire
 			static constexpr uint16_t MAX_CHUNK_LOCKS = (1 << CHUNK_LOCKS_BITS) - 1;
 
-			//! Archetype the chunk belongs to
-			ArchetypeId archetypeId;
 			//! Chunk index in its archetype list
 			uint32_t index;
 			//! Total number of entities in the chunk.
@@ -14953,10 +14951,7 @@ namespace gaia {
 			//! Version of the world (stable pointer to parent world's world version)
 			uint32_t& worldVersion;
 
-			ChunkHeader(
-					uint32_t aid, uint32_t chunkIndex, uint16_t cap, uint16_t st, const ChunkHeaderOffsets& offs,
-					uint32_t& version):
-					archetypeId(aid),
+			ChunkHeader(uint32_t chunkIndex, uint16_t cap, uint16_t st, const ChunkHeaderOffsets& offs, uint32_t& version):
 					index(chunkIndex), count(0), countEnabled(0), capacity(cap), firstEnabledEntityIndex(0), lifespanCountdown(0),
 					dead(0), structuralChangesLocked(0), hasAnyCustomGenericCtor(0), hasAnyCustomChunkCtor(0),
 					hasAnyCustomGenericDtor(0), hasAnyCustomChunkDtor(0), sizeType(st), unused(0), offsets(offs),
@@ -15057,9 +15052,9 @@ namespace gaia {
 			GAIA_MSVC_WARNING_DISABLE(26495)
 
 			Chunk(
-					uint32_t archetypeId, uint32_t chunkIndex, uint16_t capacity, uint16_t st, uint32_t& worldVersion,
+					uint32_t chunkIndex, uint16_t capacity, uint16_t st, uint32_t& worldVersion,
 					const ChunkHeaderOffsets& headerOffsets):
-					m_header(archetypeId, chunkIndex, capacity, st, headerOffsets, worldVersion) {
+					m_header(chunkIndex, capacity, st, headerOffsets, worldVersion) {
 				// Chunk data area consist of memory offsets + component data. Normally. we would initialize it.
 				// However, the memory offsets part are all trivial types and components are initialized via their
 				// constructors so we do not really need to do anything.
@@ -15132,12 +15127,6 @@ namespace gaia {
 			GAIA_NODISCARD std::span<uint32_t> comp_version_view_mut(ComponentKind compKind) {
 				const auto offset = m_header.offsets.firstByte_Versions[compKind];
 				return {(uint32_t*)(&data(offset)), m_header.componentCount[compKind]};
-			}
-
-			GAIA_NODISCARD std::span<const ComponentId> comp_id_view(ComponentKind compKind) const {
-				using RetType = std::add_pointer_t<const ComponentId>;
-				const auto offset = m_header.offsets.firstByte_ComponentIds[compKind];
-				return {(RetType)&data(offset), m_header.componentCount[compKind]};
 			}
 
 			GAIA_NODISCARD std::span<ComponentId> comp_id_view_mut(ComponentKind compKind) {
@@ -15322,7 +15311,7 @@ namespace gaia {
 			\return Newly allocated chunk
 			*/
 			static Chunk* create(
-					uint32_t archetypeId, uint32_t chunkIndex, uint16_t capacity, uint16_t dataBytes, uint32_t& worldVersion,
+					uint32_t chunkIndex, uint16_t capacity, uint16_t dataBytes, uint32_t& worldVersion,
 					const ChunkHeaderOffsets& offsets, const cnt::sarray<ComponentIdArray, ComponentKind::CK_Count>& compIds,
 #if GAIA_COMP_ID_PROBING
 					const cnt::sarray<ComponentIdInterMap, ComponentKind::CK_Count>& compIdMap,
@@ -15332,12 +15321,12 @@ namespace gaia {
 				const auto sizeType = detail::ChunkAllocatorImpl::mem_block_size_type(totalBytes);
 #if GAIA_ECS_CHUNK_ALLOCATOR
 				auto* pChunk = (Chunk*)ChunkAllocator::get().alloc(totalBytes);
-				new (pChunk) Chunk(archetypeId, chunkIndex, capacity, sizeType, worldVersion, offsets);
+				new (pChunk) Chunk(chunkIndex, capacity, sizeType, worldVersion, offsets);
 #else
 				GAIA_ASSERT(totalBytes <= MaxMemoryBlockSize);
 				const auto allocSize = detail::ChunkAllocatorImpl::mem_block_size(sizeType);
 				auto* pChunkMem = new uint8_t[allocSize];
-				auto* pChunk = new (pChunkMem) Chunk(archetypeId, chunkIndex, capacity, sizeType, worldVersion, offsets);
+				auto* pChunk = new (pChunkMem) Chunk(chunkIndex, capacity, sizeType, worldVersion, offsets);
 #endif
 
 #if GAIA_COMP_ID_PROBING
@@ -15399,7 +15388,7 @@ namespace gaia {
 					// be removed. The chunk might be reclaimed before garbage collection happens
 					// but it simply ignores such requests. This way we always have at most one
 					// record for removal for any given chunk.
-					revive();
+					start_dying();
 
 					chunksToRemove.push_back(this);
 				}
@@ -15534,6 +15523,12 @@ namespace gaia {
 				return {(const Entity*)view_inter<Entity>(0, size()).data(), size()};
 			}
 
+			GAIA_NODISCARD std::span<const ComponentId> comp_id_view(ComponentKind compKind) const {
+				using RetType = std::add_pointer_t<const ComponentId>;
+				const auto offset = m_header.offsets.firstByte_ComponentIds[compKind];
+				return {(RetType)&data(offset), m_header.componentCount[compKind]};
+			}
+
 			/*!
 			Make \param entity a part of the chunk at the version of the world
 			\return Index of the entity within the chunk.
@@ -15595,8 +15590,6 @@ namespace gaia {
 
 				auto& oldEntityContainer = entities[entity.id()];
 				auto* pOldChunk = oldEntityContainer.pChunk;
-
-				GAIA_ASSERT(pOldChunk->archetype_id() == archetype_id());
 
 				const auto& cc = ComponentCache::get();
 				auto oldIds = pOldChunk->comp_id_view(ComponentKind::CK_Generic);
@@ -16224,10 +16217,6 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			GAIA_NODISCARD ArchetypeId archetype_id() const {
-				return m_header.archetypeId;
-			}
-
 			//! Sets the index of this chunk in its archetype's storage
 			void set_idx(uint32_t value) {
 				m_header.index = value;
@@ -16263,12 +16252,20 @@ namespace gaia {
 				return m_header.dead == 1;
 			}
 
-			//! Makes the chunk alive again
-			void revive() {
+			//! Starts the process of dying
+			void start_dying() {
 				GAIA_ASSERT(!dead());
 				m_header.lifespanCountdown = ChunkHeader::MAX_CHUNK_LIFESPAN;
 			}
 
+			//! Makes the chunk alive again
+			void revive() {
+				GAIA_ASSERT(!dead());
+				m_header.lifespanCountdown = 0;
+			}
+
+			//! Updates internal lifetime
+			//! \return True if there is some lifespan left, false otherwise.
 			bool progress_death() {
 				GAIA_ASSERT(dying());
 				--m_header.lifespanCountdown;
@@ -16461,10 +16458,17 @@ namespace gaia {
 			//! Hash of components within this archetype - used for matching
 			ComponentMatcherHash m_matcherHash[ComponentKind::CK_Count]{};
 
+			static constexpr uint16_t CHUNK_LIFESPAN_BITS = 7;
+			//! Number of ticks before empty chunks are removed
+			static constexpr uint16_t MAX_ARCHETYPE_LIFESPAN = (1 << CHUNK_LIFESPAN_BITS) - 1;
+
+			uint32_t m_lifespanCountdown: CHUNK_LIFESPAN_BITS;
+			uint32_t m_dead : 1;
+
 			// Constructor is hidden. Create archetypes via Create
 			Archetype(uint32_t& worldVersion): m_worldVersion(worldVersion) {}
 
-			void UpdateDataOffsets(uintptr_t memoryAddress) {
+			void update_data_offsets(uintptr_t memoryAddress) {
 				uintptr_t offset = 0;
 
 				// Versions
@@ -16556,7 +16560,7 @@ namespace gaia {
 				return true;
 			};
 
-			static void registerComponents(
+			static void reg_components(
 					Archetype& arch, ComponentIdSpan compIds, ComponentKind compKind, uint32_t& currOff, uint32_t count) {
 				const auto& cc = ComponentCache::get();
 				auto& ids = arch.m_compIds[compKind];
@@ -16639,7 +16643,7 @@ namespace gaia {
 #endif
 				newArch->m_compOffs[ComponentKind::CK_Generic].resize((uint32_t)compIdsGeneric.size());
 				newArch->m_compOffs[ComponentKind::CK_Chunk].resize((uint32_t)compIdsChunk.size());
-				newArch->UpdateDataOffsets(sizeof(ChunkHeader) + MemoryBlockUsableOffset);
+				newArch->update_data_offsets(sizeof(ChunkHeader) + MemoryBlockUsableOffset);
 
 				const auto& cc = ComponentCache::get();
 				const auto& dataOffset = newArch->m_dataOffsets;
@@ -16709,8 +16713,8 @@ namespace gaia {
 
 				// Update the offsets according to the recalculated maxGenericItemsInArchetype
 				currOff = dataOffset.firstByte_EntityData + (uint32_t)sizeof(Entity) * maxGenericItemsInArchetype;
-				registerComponents(*newArch, compIdsGeneric, ComponentKind::CK_Generic, currOff, maxGenericItemsInArchetype);
-				registerComponents(*newArch, compIdsChunk, ComponentKind::CK_Chunk, currOff, 1);
+				reg_components(*newArch, compIdsGeneric, ComponentKind::CK_Generic, currOff, maxGenericItemsInArchetype);
+				reg_components(*newArch, compIdsChunk, ComponentKind::CK_Chunk, currOff, 1);
 
 				GAIA_ASSERT(
 						Chunk::chunk_total_bytes((ChunkComponentOffset)currOff) <
@@ -16751,7 +16755,7 @@ namespace gaia {
 			Removes a chunk from the list of chunks managed by their archetype.
 			\param pChunk Chunk to remove from the list of managed archetypes
 			*/
-			void remove_chunk(Chunk* pChunk) {
+			void remove_chunk(Chunk* pChunk, cnt::darray<Archetype*>& archetypesToRemove) {
 				const auto chunkIndex = pChunk->idx();
 
 				Chunk::free(pChunk);
@@ -16764,6 +16768,27 @@ namespace gaia {
 				};
 
 				remove(m_chunks);
+
+				// TODO: This needs cleaning up.
+				//       Chunk should have no idea of the world and also should not store
+				//       any states realted to its lifetime.
+				if (!dying() && empty()) {
+					// When the chunk is emptied we want it to be removed. We can't do it
+					// right away and need to wait for world::gc() to be called.
+					//
+					// However, we need to prevent the following:
+					//    1) chunk is emptied, add it to some removal list
+					//    2) chunk is reclaimed
+					//    3) chunk is emptied, add it to some removal list again
+					//
+					// Therefore, we have a flag telling us the chunk is already waiting to
+					// be removed. The chunk might be reclaimed before garbage collection happens
+					// but it simply ignores such requests. This way we always have at most one
+					// record for removal for any given chunk.
+					start_dying();
+
+					archetypesToRemove.push_back(this);
+				}
 			}
 
 			//! defragments the chunk.
@@ -16872,8 +16897,7 @@ namespace gaia {
 
 				// No free space found anywhere. Let's create a new chunk.
 				auto* pChunk = Chunk::create(
-						m_archetypeId, chunkCnt, props().capacity, m_properties.chunkDataBytes, m_worldVersion, m_dataOffsets,
-						m_compIds,
+						chunkCnt, props().capacity, m_properties.chunkDataBytes, m_worldVersion, m_dataOffsets, m_compIds,
 #if GAIA_COMP_ID_PROBING
 						m_compIdMap,
 #endif
@@ -16948,6 +16972,46 @@ namespace gaia {
 			//! \return Archetype id of the target archetype if the edge is found. ArchetypeIdBad otherwise.
 			GAIA_NODISCARD ArchetypeId find_edge_left(ComponentKind compKind, const ComponentId compId) const {
 				return m_graph.find_edge_left(compKind, compId);
+			}
+
+			//! Checks is there are no chunk in the archetype
+			GAIA_NODISCARD bool empty() const {
+				return m_chunks.empty();
+			}
+
+			//! Checks is this chunk is dying
+			GAIA_NODISCARD bool dying() const {
+				return m_lifespanCountdown > 0;
+			}
+
+			//! Marks the chunk as dead
+			void die() {
+				m_dead = 1;
+			}
+
+			//! Checks is this chunk is dying
+			GAIA_NODISCARD bool dead() const {
+				return m_dead == 1;
+			}
+
+			//! Starts the process of dying
+			void start_dying() {
+				GAIA_ASSERT(!dead());
+				m_lifespanCountdown = MAX_ARCHETYPE_LIFESPAN;
+			}
+
+			//! Makes the chunk alive again
+			void revive() {
+				GAIA_ASSERT(!dead());
+				m_lifespanCountdown = 0;
+			}
+
+			//! Updates internal lifetime
+			//! \return True if there is some lifespan left, false otherwise.
+			bool progress_death() {
+				GAIA_ASSERT(dying());
+				--m_lifespanCountdown;
+				return dying();
 			}
 
 			static void diag_basic_info(const Archetype& archetype) {
@@ -17469,8 +17533,8 @@ namespace gaia {
 				QueryListTypeArray rules;
 				//! List of component matcher hashes
 				ComponentMatcherHash hash[QueryListType::LT_Count];
-				//! Array of indiices to the last checked archetype in the component-to-archetype map
-				cnt::darray<uint32_t> lastMatchedArchetypeIndex;
+				//! Array of indices to the last checked archetype in the component-to-archetype map
+				cnt::darray<uint32_t> lastMatchedArchetypeIdx;
 				//! List of filtered components
 				QueryChangeArray withChanged;
 				//! Read-write mask. Bit 0 stands for component 0 in component arrays.
@@ -17641,7 +17705,7 @@ namespace gaia {
 			//! List of archetypes matching the query
 			ArchetypeList m_archetypeCache;
 			//! Index of the last archetype in the world we checked
-			uint32_t m_lastArchetypeIdx = 1; // skip the root archetype
+			uint32_t m_lastArchetypeIdx = 0;
 			//! Version of the world for which the query has been called most recently
 			uint32_t m_worldVersion = 0;
 
@@ -17810,16 +17874,16 @@ namespace gaia {
 				return !operator==(other);
 			}
 
-			//! Tries to match the query against archetypes in \param componentToArchetypeMap. For each matched archetype
-			//! the archetype is cached. This is necessary so we do not iterate all chunks over and over again when running
-			//! queries.
-			void match(const ComponentToArchetypeMap& componentToArchetypeMap, uint32_t archetypeCount) {
+			//! Tries to match the query against archetypes in \param componentToArchetypeMap.
+			//! This is necessary so we do not iterate all chunks over and over again when running queries.
+			void match(const ComponentToArchetypeMap& componentToArchetypeMap, uint32_t archetypeLastId) {
 				static cnt::set<Archetype*> s_tmpArchetypeMatches;
 
 				// Skip if no new archetype appeared
-				if (m_lastArchetypeIdx == archetypeCount)
+				GAIA_ASSERT(archetypeLastId >= m_lastArchetypeIdx);
+				if (m_lastArchetypeIdx == archetypeLastId)
 					return;
-				m_lastArchetypeIdx = archetypeCount;
+				m_lastArchetypeIdx = archetypeLastId;
 
 				// Match against generic types
 				{
@@ -17832,8 +17896,11 @@ namespace gaia {
 						if (it == componentToArchetypeMap.end())
 							continue;
 
-						for (uint32_t j = data.lastMatchedArchetypeIndex[i]; j < it->second.size(); ++j) {
-							auto* pArchetype = it->second[j];
+						const auto& archetypes = it->second;
+						const auto lastMatchedIdx = data.lastMatchedArchetypeIdx[i];
+						for (auto j = lastMatchedIdx; j < archetypes.size(); ++j) {
+							auto* pArchetype = archetypes[j];
+							
 							// Early exit if generic query doesn't match
 							const auto retGeneric = match(*pArchetype, ComponentKind::CK_Generic);
 							if (retGeneric == MatchArchetypeQueryRet::Fail)
@@ -17841,7 +17908,7 @@ namespace gaia {
 
 							(void)s_tmpArchetypeMatches.emplace(pArchetype);
 						}
-						data.lastMatchedArchetypeIndex[i] = (uint32_t)it->second.size();
+						data.lastMatchedArchetypeIdx[i] = archetypes.size();
 					}
 				}
 
@@ -17855,7 +17922,7 @@ namespace gaia {
 						if (it == componentToArchetypeMap.end())
 							continue;
 
-						for (uint32_t j = data.lastMatchedArchetypeIndex[i]; j < it->second.size(); ++j) {
+						for (uint32_t j = data.lastMatchedArchetypeIdx[i]; j < it->second.size(); ++j) {
 							auto* pArchetype = it->second[j];
 							// Early exit if generic query doesn't match
 							const auto retGeneric = match(*pArchetype, ComponentKind::CK_Chunk);
@@ -17866,7 +17933,7 @@ namespace gaia {
 
 							(void)s_tmpArchetypeMatches.emplace(pArchetype);
 						}
-						data.lastMatchedArchetypeIndex[i] = (uint32_t)it->second.size();
+						data.lastMatchedArchetypeIdx[i] = (uint32_t)it->second.size();
 					}
 				}
 
@@ -17914,6 +17981,14 @@ namespace gaia {
 			template <typename... T>
 			bool has_none() const {
 				return (!has_inter<T>(QueryListType::LT_None) && ...);
+			}
+
+			void remove(Archetype* pArchetype) {
+				const auto idx = core::get_index(m_archetypeCache, pArchetype);
+				if (idx == BadIndex)
+					return;
+				core::erase_fast(m_archetypeCache, idx);
+				--m_lastArchetypeIdx;
 			}
 
 			GAIA_NODISCARD ArchetypeList::iterator begin() {
@@ -18002,6 +18077,14 @@ namespace gaia {
 				m_queryArr.push_back(QueryInfo::create(queryId, GAIA_MOV(ctx)));
 				return get(queryId);
 			};
+
+			cnt::darray<QueryInfo>::iterator begin() {
+				return m_queryArr.begin();
+			}
+
+			cnt::darray<QueryInfo>::iterator end() {
+				return m_queryArr.end();
+			}
 		};
 	} // namespace ecs
 } // namespace gaia
@@ -18044,7 +18127,7 @@ namespace gaia {
 					void exec(QueryCtx& ctx) const {
 						auto& data = ctx.data[compKind];
 						auto& compIds = data.compIds;
-						auto& lastMatchedArchetypeIndex = data.lastMatchedArchetypeIndex;
+						auto& lastMatchedArchetypeIdx = data.lastMatchedArchetypeIdx;
 						auto& rules = data.rules;
 
 						// Unique component ids only
@@ -18067,7 +18150,7 @@ namespace gaia {
 
 						data.readWriteMask |= (uint8_t)isReadWrite << (uint8_t)compIds.size();
 						compIds.push_back(compId);
-						lastMatchedArchetypeIndex.push_back(0);
+						lastMatchedArchetypeIdx.push_back(0);
 						rules.push_back(listType);
 
 						if (listType == QueryListType::LT_All)
@@ -18143,6 +18226,8 @@ namespace gaia {
 				QueryImplStorage<UseCaching> m_storage;
 				//! Buffer with commands used to fetch the QueryInfo
 				SerializationBuffer m_serBuffer;
+				//! World version (stable pointer to parent world's m_nextArchetypeId)
+				ArchetypeId* m_nextArchetypeId{};
 				//! World version (stable pointer to parent world's world version)
 				uint32_t* m_worldVersion{};
 				//! List of archetypes (stable pointer to parent world's archetype array)
@@ -18162,16 +18247,16 @@ namespace gaia {
 						// Lookup hash is present which means QueryInfo was already found
 						if GAIA_LIKELY (m_storage.m_queryId != QueryIdBad) {
 							auto& queryInfo = m_storage.m_entityQueryCache->get(m_storage.m_queryId);
-							queryInfo.match(*m_componentToArchetypeMap, (uint32_t)m_archetypes->size());
+							queryInfo.match(*m_componentToArchetypeMap, last_archetype_id());
 							return queryInfo;
 						}
 
-						// No lookup hash is present which means QueryInfo needs to fetched or created
+						// No lookup hash is present which means QueryInfo needs to be fetched or created
 						QueryCtx ctx;
 						commit(ctx);
 						auto& queryInfo = m_storage.m_entityQueryCache->goc(GAIA_MOV(ctx));
 						m_storage.m_queryId = queryInfo.id();
-						queryInfo.match(*m_componentToArchetypeMap, (uint32_t)m_archetypes->size());
+						queryInfo.match(*m_componentToArchetypeMap, last_archetype_id());
 						return queryInfo;
 					} else {
 						if GAIA_UNLIKELY (m_storage.m_queryInfo.id() == QueryIdBad) {
@@ -18179,13 +18264,17 @@ namespace gaia {
 							commit(ctx);
 							m_storage.m_queryInfo = QueryInfo::create(QueryId{}, GAIA_MOV(ctx));
 						}
-						m_storage.m_queryInfo.match(*m_componentToArchetypeMap, (uint32_t)m_archetypes->size());
+						m_storage.m_queryInfo.match(*m_componentToArchetypeMap, last_archetype_id());
 						return m_storage.m_queryInfo;
 					}
 				}
 
 				//--------------------------------------------------------------------------------
 			private:
+				ArchetypeId last_archetype_id() const {
+					return *m_nextArchetypeId - 1;
+				}
+
 				template <typename T>
 				void add_inter(QueryListType listType) {
 					using U = typename component_type_t<T>::Type;
@@ -18473,23 +18562,6 @@ namespace gaia {
 					}
 				}
 
-				template <typename Func>
-				void each_inter(QueryInfo& queryInfo, Func func) {
-					using InputArgs = decltype(core::func_args(&Func::operator()));
-
-					// Entity and/or components provided as a type
-					{
-#if GAIA_DEBUG
-						// Make sure we only use components specified in the query
-						GAIA_ASSERT(unpack_args_into_query_has_all(queryInfo, InputArgs{}));
-#endif
-
-						run_query_on_chunks<Iterator>(queryInfo, [&](Chunk& chunk) {
-							run_query_on_chunk<Iterator>(chunk, func, InputArgs{});
-						});
-					}
-				}
-
 				void invalidate() {
 					if constexpr (UseCaching)
 						m_storage.m_queryId = QueryIdBad;
@@ -18555,19 +18627,22 @@ namespace gaia {
 
 				template <bool FuncEnabled = UseCaching>
 				QueryImpl(
-						QueryCache& queryCache, uint32_t& worldVersion, const cnt::map<ArchetypeId, Archetype*>& archetypes,
+						QueryCache& queryCache, ArchetypeId& nextArchetypeId, uint32_t& worldVersion,
+						const cnt::map<ArchetypeId, Archetype*>& archetypes,
 						const ComponentToArchetypeMap& componentToArchetypeMap):
-						m_worldVersion(&worldVersion),
-						m_archetypes(&archetypes), m_componentToArchetypeMap(&componentToArchetypeMap) {
+						m_nextArchetypeId(&nextArchetypeId),
+						m_worldVersion(&worldVersion), m_archetypes(&archetypes),
+						m_componentToArchetypeMap(&componentToArchetypeMap) {
 					m_storage.m_entityQueryCache = &queryCache;
 				}
 
 				template <bool FuncEnabled = !UseCaching>
 				QueryImpl(
-						uint32_t& worldVersion, const cnt::map<ArchetypeId, Archetype*>& archetypes,
+						ArchetypeId& nextArchetypeId, uint32_t& worldVersion, const cnt::map<ArchetypeId, Archetype*>& archetypes,
 						const ComponentToArchetypeMap& componentToArchetypeMap):
-						m_worldVersion(&worldVersion),
-						m_archetypes(&archetypes), m_componentToArchetypeMap(&componentToArchetypeMap) {}
+						m_nextArchetypeId(&nextArchetypeId),
+						m_worldVersion(&worldVersion), m_archetypes(&archetypes),
+						m_componentToArchetypeMap(&componentToArchetypeMap) {}
 
 				GAIA_NODISCARD uint32_t id() const {
 					static_assert(UseCaching, "id() can be used only with cached queries");
@@ -18631,6 +18706,23 @@ namespace gaia {
 				}
 
 				template <typename Func>
+				void each(QueryInfo& queryInfo, Func func) {
+					using InputArgs = decltype(core::func_args(&Func::operator()));
+
+					// Entity and/or components provided as a type
+					{
+#if GAIA_DEBUG
+						// Make sure we only use components specified in the query
+						GAIA_ASSERT(unpack_args_into_query_has_all(queryInfo, InputArgs{}));
+#endif
+
+						run_query_on_chunks<Iterator>(queryInfo, [&](Chunk& chunk) {
+							run_query_on_chunk<Iterator>(chunk, func, InputArgs{});
+						});
+					}
+				}
+
+				template <typename Func>
 				void each(Func func) {
 					auto& queryInfo = fetch_query_info();
 
@@ -18647,7 +18739,7 @@ namespace gaia {
 							func(IteratorDisabled(chunk));
 						});
 					else
-						each_inter(queryInfo, func);
+						each(queryInfo, func);
 				}
 
 				template <typename Func, bool FuncEnabled = UseCaching, typename std::enable_if<FuncEnabled>::type* = nullptr>
@@ -18657,7 +18749,7 @@ namespace gaia {
 					GAIA_ASSERT(queryId != QueryIdBad);
 
 					auto& queryInfo = m_storage.m_entityQueryCache->get(queryId);
-					each_inter(queryInfo, func);
+					each(queryInfo, func);
 				}
 
 				/*!
@@ -18837,6 +18929,8 @@ namespace gaia {
 			cnt::map<ArchetypeLookupKey, Archetype*> m_archetypesByHash;
 			//! Map of archetypes identified by their ID
 			cnt::map<ArchetypeId, Archetype*> m_archetypesById;
+			//! Id assigned to the next created archetype
+			ArchetypeId m_nextArchetypeId = 0;
 
 			//! Implicit list of entities. Used for look-ups only when searching for
 			//! entities in chunks + data validation
@@ -18844,6 +18938,8 @@ namespace gaia {
 
 			//! List of chunks to delete
 			cnt::darray<Chunk*> m_chunksToRemove;
+			//! List of archetypes to delete
+			cnt::darray<Archetype*> m_archetypesToRemove;
 			//! ID of the last defragmented archetype
 			uint32_t m_defragLastArchetypeID = 0;
 
@@ -18867,7 +18963,26 @@ namespace gaia {
 					del_entity(entity);
 			}
 
-			//! Checks all chunks which are empty and have not been used for a while and tries to delete them
+			//! Delete an empty chunk from its archetype
+			void remove_empty_chunk(Chunk* pChunk) {
+				GAIA_ASSERT(pChunk != nullptr);
+				GAIA_ASSERT(pChunk->empty());
+				GAIA_ASSERT(!pChunk->dying());
+
+				auto comps_0 = pChunk->comp_id_view(ComponentKind::CK_Generic);
+				auto comps_1 = pChunk->comp_id_view(ComponentKind::CK_Chunk);
+				const Archetype::GenericComponentHash hash_0 = {calc_lookup_hash(comps_0).hash};
+				const Archetype::ChunkComponentHash hash_1 = {calc_lookup_hash(comps_1).hash};
+				const auto lookupHash = Archetype::calc_lookup_hash(hash_0, hash_1);
+
+				auto* pArchetype = find_archetype(
+						lookupHash, pChunk->comp_id_view(ComponentKind::CK_Generic), pChunk->comp_id_view(ComponentKind::CK_Chunk));
+				GAIA_ASSERT(pArchetype != nullptr);
+
+				pArchetype->remove_chunk(pChunk, m_archetypesToRemove);
+			}
+
+			//! Delete all chunks which are empty (have no entities) and have not been used in a while
 			void remove_empty_chunks() {
 				for (uint32_t i = 0; i < m_chunksToRemove.size();) {
 					auto* pChunk = m_chunksToRemove[i];
@@ -18879,18 +18994,71 @@ namespace gaia {
 						continue;
 					}
 
+					// Skip chunks which still has some lifetime left
 					if (pChunk->progress_death()) {
 						++i;
 						continue;
 					}
+
+					// Remove unused chunks
+					remove_empty_chunk(pChunk);
+					core::erase_fast(m_chunksToRemove, i);
+				}
+			}
+
+			//! Delete an empty archetype from the world
+			void remove_empty_archetype(Archetype* pArchetype) {
+				GAIA_ASSERT(pArchetype != nullptr);
+				GAIA_ASSERT(pArchetype->empty());
+				GAIA_ASSERT(!pArchetype->dying());
+
+				auto c0 = pArchetype->comp_ids(ComponentKind::CK_Generic);
+				auto c1 = pArchetype->comp_ids(ComponentKind::CK_Chunk);
+				auto tmpArchetype = ArchetypeLookupChecker({c0.data(), c0.size()}, {c1.data(), c1.size()});
+				ArchetypeLookupKey key(pArchetype->lookup_hash(), &tmpArchetype);
+				m_archetypesByHash.erase(key);
+				m_archetypesById.erase(pArchetype->id());
+			}
+
+			//! Delete all archetypes which are empty (have no used chunks) and have not been used in a while
+			void remove_empty_archetypes() {
+				cnt::sarr_ext<Archetype*, 512> tmp;
+
+				for (uint32_t i = 0; i < m_archetypesToRemove.size();) {
+					auto* pArchetype = m_archetypesToRemove[i];
+
+					// Skip reclaimed chunks
+					if (!pArchetype->empty()) {
+						pArchetype->revive();
+						core::erase_fast(m_archetypesToRemove, i);
+						continue;
+					}
+
+					// Skip chunks which still has some lifetime left
+					if (pArchetype->progress_death()) {
+						++i;
+						continue;
+					}
+
+					tmp.push_back(pArchetype);
+
+					// Remove the unused archetype
+					remove_empty_archetype(pArchetype);
+					core::erase_fast(m_chunksToRemove, i);
 				}
 
-				// Remove all dead chunks
-				for (auto* pChunk: m_chunksToRemove) {
-					auto& archetype = *m_archetypesById[pChunk->archetype_id()];
-					archetype.remove_chunk(pChunk);
+				// Remove all dead archetypes from query caches.
+				// Because the number of cached queries is way higher than the number of archetypes
+				// we want to remove, we flip the logic around and iterate over all query caches
+				// and match against our lits.
+				// TODO: Think of how to speed this up. If there are 1k cached queries is it still
+				//       going to be fast enough?
+				if (!tmp.empty()) {
+					for (auto& info: m_queryCache) {
+						for (auto* pArchetype: tmp)
+							info.remove(pArchetype);
+					}
 				}
-				m_chunksToRemove.clear();
 			}
 
 			//! Defragments chunks.
@@ -18931,8 +19099,7 @@ namespace gaia {
 			//! \param compIdsChunk Span of chunk component infos
 			//! \return Pointer to the new archetype.
 			GAIA_NODISCARD Archetype* create_archetype(ComponentIdSpan compIdsGeneric, ComponentIdSpan compIdsChunk) {
-				auto* pArchetype =
-						Archetype::create((ArchetypeId)m_archetypesById.size(), m_worldVersion, compIdsGeneric, compIdsChunk);
+				auto* pArchetype = Archetype::create(m_nextArchetypeId++, m_worldVersion, compIdsGeneric, compIdsChunk);
 
 				auto registerComponentToArchetypePair = [&](ComponentId compId) {
 					const auto it = m_componentToArchetypeMap.find(compId);
@@ -19239,9 +19406,9 @@ namespace gaia {
 				const auto oldIndex = entityContainer.idx;
 
 				// No data movement necessary when dealing with the root archetype
-				if GAIA_LIKELY (pNewChunk->archetype_id() + pOldChunk->archetype_id() != 0) {
+				if GAIA_LIKELY (newArchetype.id() + oldArchetype.id() != 0) {
 					// Move data from the old chunk to the new one
-					if (pOldChunk->archetype_id() == pNewChunk->archetype_id())
+					if (newArchetype.id() == oldArchetype.id())
 						pNewChunk->move_entity_data(oldEntity, newIndex, {m_entities.data(), m_entities.size()});
 					else
 						pNewChunk->move_foreign_entity_data(oldEntity, newIndex, {m_entities.data(), m_entities.size()});
@@ -19325,7 +19492,7 @@ namespace gaia {
 
 				// Adding a component to an entity which already is a part of some chunk
 				{
-					auto& archetype = *m_archetypesById[pChunk->archetype_id()];
+					auto& archetype = *entityContainer.pArchetype;
 
 #if GAIA_DEBUG
 					verify_add(archetype, entity, compKind, infoToAdd);
@@ -19356,7 +19523,7 @@ namespace gaia {
 						!pChunk->locked() && "Components can't be removed while their chunk is being iterated "
 																 "(structural changes are forbidden during this time!)");
 
-				auto& archetype = *m_archetypesById[pChunk->archetype_id()];
+				auto& archetype = *entityContainer.pArchetype;
 
 #if GAIA_DEBUG
 				verify_del(archetype, entity, compKind, infoToRemove);
@@ -19413,6 +19580,7 @@ namespace gaia {
 			void gc() {
 				remove_empty_chunks();
 				defrag_chunks(GAIA_DEFRAG_ENTITIES_PER_FRAME);
+				remove_empty_archetypes();
 			}
 
 			//! Makes sure all given components are registered and calculates their common lookup hash
@@ -19515,7 +19683,7 @@ namespace gaia {
 				auto* pChunk = entityContainer.pChunk;
 				GAIA_ASSERT(pChunk != nullptr);
 
-				auto& archetype = *m_archetypesById[pChunk->archetype_id()];
+				auto& archetype = *entityContainer.pArchetype;
 				const auto newEntity = add(archetype);
 
 				Chunk::copy_entity_data(entity, newEntity, {m_entities.data(), m_entities.size()});
@@ -19551,14 +19719,13 @@ namespace gaia {
 				auto& entityContainer = m_entities[entity.id()];
 
 				GAIA_ASSERT(
-						(!entityContainer.pChunk || !entityContainer.pChunk->locked()) &&
+						(entityContainer.pChunk && !entityContainer.pChunk->locked()) &&
 						"Entities can't be enabled/disabled while their chunk is being iterated "
 						"(structural changes are forbidden during this time!)");
 
-				if (auto* pChunk = entityContainer.pChunk) {
-					auto& archetype = *m_archetypesById[pChunk->archetype_id()];
-					archetype.enable_entity(pChunk, entityContainer.idx, enable, {m_entities.data(), m_entities.size()});
-				}
+				auto& archetype = *entityContainer.pArchetype;
+				archetype.enable_entity(
+						entityContainer.pChunk, entityContainer.idx, enable, {m_entities.data(), m_entities.size()});
 			}
 
 			//! Checks if an entity is valid.
@@ -19742,9 +19909,9 @@ namespace gaia {
 			template <bool UseCache = true>
 			auto query() {
 				if constexpr (UseCache)
-					return Query(m_queryCache, m_worldVersion, m_archetypesById, m_componentToArchetypeMap);
+					return Query(m_queryCache, m_nextArchetypeId, m_worldVersion, m_archetypesById, m_componentToArchetypeMap);
 				else
-					return QueryUncached(m_worldVersion, m_archetypesById, m_componentToArchetypeMap);
+					return QueryUncached(m_nextArchetypeId, m_worldVersion, m_archetypesById, m_componentToArchetypeMap);
 			}
 
 			//! Iterates over all chunks satisfying conditions set by \param func and calls \param func for all of them.

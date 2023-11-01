@@ -29,7 +29,7 @@ namespace gaia {
 			//! List of archetypes matching the query
 			ArchetypeList m_archetypeCache;
 			//! Index of the last archetype in the world we checked
-			uint32_t m_lastArchetypeIdx = 1; // skip the root archetype
+			uint32_t m_lastArchetypeIdx = 0;
 			//! Version of the world for which the query has been called most recently
 			uint32_t m_worldVersion = 0;
 
@@ -198,16 +198,16 @@ namespace gaia {
 				return !operator==(other);
 			}
 
-			//! Tries to match the query against archetypes in \param componentToArchetypeMap. For each matched archetype
-			//! the archetype is cached. This is necessary so we do not iterate all chunks over and over again when running
-			//! queries.
-			void match(const ComponentToArchetypeMap& componentToArchetypeMap, uint32_t archetypeCount) {
+			//! Tries to match the query against archetypes in \param componentToArchetypeMap.
+			//! This is necessary so we do not iterate all chunks over and over again when running queries.
+			void match(const ComponentToArchetypeMap& componentToArchetypeMap, uint32_t archetypeLastId) {
 				static cnt::set<Archetype*> s_tmpArchetypeMatches;
 
 				// Skip if no new archetype appeared
-				if (m_lastArchetypeIdx == archetypeCount)
+				GAIA_ASSERT(archetypeLastId >= m_lastArchetypeIdx);
+				if (m_lastArchetypeIdx == archetypeLastId)
 					return;
-				m_lastArchetypeIdx = archetypeCount;
+				m_lastArchetypeIdx = archetypeLastId;
 
 				// Match against generic types
 				{
@@ -220,8 +220,11 @@ namespace gaia {
 						if (it == componentToArchetypeMap.end())
 							continue;
 
-						for (uint32_t j = data.lastMatchedArchetypeIndex[i]; j < it->second.size(); ++j) {
-							auto* pArchetype = it->second[j];
+						const auto& archetypes = it->second;
+						const auto lastMatchedIdx = data.lastMatchedArchetypeIdx[i];
+						for (auto j = lastMatchedIdx; j < archetypes.size(); ++j) {
+							auto* pArchetype = archetypes[j];
+							
 							// Early exit if generic query doesn't match
 							const auto retGeneric = match(*pArchetype, ComponentKind::CK_Generic);
 							if (retGeneric == MatchArchetypeQueryRet::Fail)
@@ -229,7 +232,7 @@ namespace gaia {
 
 							(void)s_tmpArchetypeMatches.emplace(pArchetype);
 						}
-						data.lastMatchedArchetypeIndex[i] = (uint32_t)it->second.size();
+						data.lastMatchedArchetypeIdx[i] = archetypes.size();
 					}
 				}
 
@@ -243,7 +246,7 @@ namespace gaia {
 						if (it == componentToArchetypeMap.end())
 							continue;
 
-						for (uint32_t j = data.lastMatchedArchetypeIndex[i]; j < it->second.size(); ++j) {
+						for (uint32_t j = data.lastMatchedArchetypeIdx[i]; j < it->second.size(); ++j) {
 							auto* pArchetype = it->second[j];
 							// Early exit if generic query doesn't match
 							const auto retGeneric = match(*pArchetype, ComponentKind::CK_Chunk);
@@ -254,7 +257,7 @@ namespace gaia {
 
 							(void)s_tmpArchetypeMatches.emplace(pArchetype);
 						}
-						data.lastMatchedArchetypeIndex[i] = (uint32_t)it->second.size();
+						data.lastMatchedArchetypeIdx[i] = (uint32_t)it->second.size();
 					}
 				}
 
@@ -302,6 +305,14 @@ namespace gaia {
 			template <typename... T>
 			bool has_none() const {
 				return (!has_inter<T>(QueryListType::LT_None) && ...);
+			}
+
+			void remove(Archetype* pArchetype) {
+				const auto idx = core::get_index(m_archetypeCache, pArchetype);
+				if (idx == BadIndex)
+					return;
+				core::erase_fast(m_archetypeCache, idx);
+				--m_lastArchetypeIdx;
 			}
 
 			GAIA_NODISCARD ArchetypeList::iterator begin() {

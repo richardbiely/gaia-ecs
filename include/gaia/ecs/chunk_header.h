@@ -41,8 +41,6 @@ namespace gaia {
 			//! Number of locks the chunk can aquire
 			static constexpr uint16_t MAX_CHUNK_LOCKS = (1 << CHUNK_LOCKS_BITS) - 1;
 
-			//! Archetype the chunk belongs to
-			ArchetypeId archetypeId;
 			//! Chunk index in its archetype list
 			uint32_t index;
 			//! Total number of entities in the chunk.
@@ -81,10 +79,7 @@ namespace gaia {
 			//! Version of the world (stable pointer to parent world's world version)
 			uint32_t& worldVersion;
 
-			ChunkHeader(
-					uint32_t aid, uint32_t chunkIndex, uint16_t cap, uint16_t st, const ChunkHeaderOffsets& offs,
-					uint32_t& version):
-					archetypeId(aid),
+			ChunkHeader(uint32_t chunkIndex, uint16_t cap, uint16_t st, const ChunkHeaderOffsets& offs, uint32_t& version):
 					index(chunkIndex), count(0), countEnabled(0), capacity(cap), firstEnabledEntityIndex(0), lifespanCountdown(0),
 					dead(0), structuralChangesLocked(0), hasAnyCustomGenericCtor(0), hasAnyCustomChunkCtor(0),
 					hasAnyCustomGenericDtor(0), hasAnyCustomChunkDtor(0), sizeType(st), unused(0), offsets(offs),

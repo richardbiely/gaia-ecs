@@ -1,7 +1,6 @@
 #pragma once
 #include "../cnt/ilist.h"
 #include "../config/config.h"
-#include "gaia/ecs/archetype.h"
 
 #include <cinttypes>
 #include <type_traits>
