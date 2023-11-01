@@ -43,7 +43,8 @@ namespace gaia {
 			template <bool UseCaching = true>
 			class QueryImpl final {
 				static constexpr uint32_t ChunkBatchSize = 16;
-				using CChunkSpan = std::span<const Chunk*>;
+				using ChunkSpan = std::span<const Chunk*>;
+				using ChunkSpanMut = std::span<Chunk*>;
 				using ChunkBatchedList = cnt::sarray_ext<Chunk*, ChunkBatchSize>;
 				using CmdBufferCmdFunc = void (*)(SerializationBuffer& buffer, QueryCtx& ctx);
 
@@ -369,63 +370,27 @@ namespace gaia {
 					chunks.clear();
 				}
 
-				template <bool HasFilters, typename Func>
-				void run_query_unconstrained(
-						Func func, ChunkBatchedList& chunkBatch, const cnt::darray<Chunk*>& chunks, const QueryInfo& queryInfo) {
+				template <bool HasFilters, typename Iter, typename Func>
+				void run_query(
+						const QueryInfo& queryInfo, Func func, ChunkBatchedList& chunkBatch, const cnt::darray<Chunk*>& chunks) {
 					uint32_t chunkOffset = 0;
 					uint32_t itemsLeft = chunks.size();
 					while (itemsLeft > 0) {
 						const auto maxBatchSize = chunkBatch.max_size() - chunkBatch.size();
 						const auto batchSize = itemsLeft > maxBatchSize ? maxBatchSize : itemsLeft;
 
-						CChunkSpan chunkSpan((const Chunk**)&chunks[chunkOffset], batchSize);
-						for (const auto* pChunk: chunkSpan) {
-							if (pChunk->empty())
+						ChunkSpanMut chunkSpan((Chunk**)&chunks[chunkOffset], batchSize);
+						for (auto* pChunk: chunkSpan) {
+							Iter iter(*pChunk);
+							if (iter.size() == 0)
 								continue;
-							if constexpr (HasFilters) {
-								if (!match_filters(*pChunk, queryInfo))
-									continue;
-							}
-
-							chunkBatch.push_back(const_cast<Chunk*>(pChunk));
-						}
-
-						if GAIA_UNLIKELY (chunkBatch.size() == chunkBatch.max_size())
-							run_func_batched(func, chunkBatch);
-
-						itemsLeft -= batchSize;
-						chunkOffset += batchSize;
-					}
-				}
-
-				template <bool HasFilters, bool EnabledOnly, typename Func>
-				void run_query_constrained(
-						Func func, ChunkBatchedList& chunkBatch, const cnt::darray<Chunk*>& chunks, const QueryInfo& queryInfo) {
-					uint32_t chunkOffset = 0;
-					uint32_t itemsLeft = chunks.size();
-					while (itemsLeft > 0) {
-						const auto maxBatchSize = chunkBatch.max_size() - chunkBatch.size();
-						const auto batchSize = itemsLeft > maxBatchSize ? maxBatchSize : itemsLeft;
-
-						CChunkSpan chunkSpan((const Chunk**)&chunks[chunkOffset], batchSize);
-						for (const auto* pChunk: chunkSpan) {
-							if (pChunk->empty())
-								continue;
-
-							if constexpr (EnabledOnly) {
-								if (!pChunk->has_enabled_entities())
-									continue;
-							} else {
-								if (!pChunk->has_disabled_entities())
-									continue;
-							}
 
 							if constexpr (HasFilters) {
 								if (!match_filters(*pChunk, queryInfo))
 									continue;
 							}
 
-							chunkBatch.push_back(const_cast<Chunk*>(pChunk));
+							chunkBatch.push_back(pChunk);
 						}
 
 						if GAIA_UNLIKELY (chunkBatch.size() == chunkBatch.max_size())
@@ -445,24 +410,11 @@ namespace gaia {
 
 					const bool hasFilters = queryInfo.has_filters();
 					if (hasFilters) {
-						// Evaluation defaults to EnabledOnly changes. AcceptAll is something that has to be asked for explicitely
-						if constexpr (std::is_same_v<Iter, IteratorAll>) {
-							for (auto* pArchetype: queryInfo)
-								run_query_unconstrained<true>(func, chunkBatch, pArchetype->chunks(), queryInfo);
-						} else {
-							constexpr bool enabledOnly = std::is_same_v<Iter, Iterator>;
-							for (auto* pArchetype: queryInfo)
-								run_query_constrained<true, enabledOnly>(func, chunkBatch, pArchetype->chunks(), queryInfo);
-						}
+						for (auto* pArchetype: queryInfo)
+							run_query<true, Iter>(queryInfo, func, chunkBatch, pArchetype->chunks());
 					} else {
-						if constexpr (std::is_same_v<Iter, IteratorAll>) {
-							for (auto* pArchetype: queryInfo)
-								run_query_unconstrained<false>(func, chunkBatch, pArchetype->chunks(), queryInfo);
-						} else {
-							constexpr bool enabledOnly = std::is_same_v<Iter, Iterator>;
-							for (auto* pArchetype: queryInfo)
-								run_query_constrained<false, enabledOnly>(func, chunkBatch, pArchetype->chunks(), queryInfo);
-						}
+						for (auto* pArchetype: queryInfo)
+							run_query<false, Iter>(queryInfo, func, chunkBatch, pArchetype->chunks());
 					}
 
 					if (!chunkBatch.empty())
