@@ -19679,8 +19679,8 @@ namespace gaia {
 			GAIA_NODISCARD Entity add(Entity entity) {
 				auto& entityContainer = m_entities[entity.id()];
 
-				auto* pChunk = entityContainer.pChunk;
-				GAIA_ASSERT(pChunk != nullptr);
+				GAIA_ASSERT(entityContainer.pChunk != nullptr);
+				GAIA_ASSERT(entityContainer.pArchetype != nullptr);
 
 				auto& archetype = *entityContainer.pArchetype;
 				const auto newEntity = add(archetype);
