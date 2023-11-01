@@ -10,7 +10,8 @@ struct Acceleration {
 };
 
 void MoveSystem(ecs::World& w, float dt) {
-	w.each([&](Position& p, const Acceleration& a) {
+	auto q = w.query().all<Position, const Acceleration>();
+	q.each([&](Position& p, const Acceleration& a) {
 		p.x += a.x * dt;
 		p.y += a.y * dt;
 		p.z += a.z * dt;

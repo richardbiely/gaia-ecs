@@ -93,29 +93,8 @@ void Create_Archetypes_1000(ecs::World& w) {
 	Create_Archetypes_N<4, 25>(w);
 }
 
-#define DEFINE_FOREACH_INTERNALQUERY(ArchetypeCount)                                                                   \
-	void BM_ForEach_Internal_##ArchetypeCount(picobench::state& state) {                                                 \
-		ecs::World w;                                                                                                      \
-		Create_Archetypes_##ArchetypeCount(w);                                                                             \
-                                                                                                                       \
-		using c1 = Component<0, float, 3>;                                                                                 \
-                                                                                                                       \
-		for (auto _: state) {                                                                                              \
-			(void)_;                                                                                                         \
-			float f = 0.f;                                                                                                   \
-			w.each([&](const c1& p) {                                                                                        \
-				f += p.value[0];                                                                                               \
-			});                                                                                                              \
-			gaia::dont_optimize(f);                                                                                          \
-		}                                                                                                                  \
-	}
-
-DEFINE_FOREACH_INTERNALQUERY(1)
-DEFINE_FOREACH_INTERNALQUERY(100)
-DEFINE_FOREACH_INTERNALQUERY(1000)
-
-#define DEFINE_FOREACH_EXTERNALQUERY(ArchetypeCount)                                                                   \
-	void BM_ForEach_External_##ArchetypeCount(picobench::state& state) {                                                 \
+#define DEFINE_EACH(ArchetypeCount)                                                                   \
+	void BM_Each_##ArchetypeCount(picobench::state& state) {                                                 \
 		ecs::World w;                                                                                                      \
 		Create_Archetypes_##ArchetypeCount(w);                                                                             \
                                                                                                                        \
@@ -135,12 +114,12 @@ DEFINE_FOREACH_INTERNALQUERY(1000)
 		}                                                                                                                  \
 	}
 
-DEFINE_FOREACH_EXTERNALQUERY(1)
-DEFINE_FOREACH_EXTERNALQUERY(100)
-DEFINE_FOREACH_EXTERNALQUERY(1000)
+DEFINE_EACH(1)
+DEFINE_EACH(100)
+DEFINE_EACH(1000)
 
-#define DEFINE_FOREACHCHUNK_EXTERNALQUERY_ITER(ArchetypeCount)                                                         \
-	void BM_ForEachChunk_External_Iter_##ArchetypeCount(picobench::state& state) {                                       \
+#define DEFINE_EACH_ITER(ArchetypeCount)                                                         \
+	void BM_Each_Iter_##ArchetypeCount(picobench::state& state) {                                       \
 		ecs::World w;                                                                                                      \
 		Create_Archetypes_##ArchetypeCount(w);                                                                             \
                                                                                                                        \
@@ -161,12 +140,12 @@ DEFINE_FOREACH_EXTERNALQUERY(1000)
 		}                                                                                                                  \
 	}
 
-DEFINE_FOREACHCHUNK_EXTERNALQUERY_ITER(1)
-DEFINE_FOREACHCHUNK_EXTERNALQUERY_ITER(100)
-DEFINE_FOREACHCHUNK_EXTERNALQUERY_ITER(1000)
+DEFINE_EACH_ITER(1)
+DEFINE_EACH_ITER(100)
+DEFINE_EACH_ITER(1000)
 
-#define DEFINE_FOREACHCHUNK_EXTERNALQUERY_INDEX(ArchetypeCount)                                                        \
-	void BM_ForEachChunk_External_Index_##ArchetypeCount(picobench::state& state) {                                      \
+#define DEFINE_EACH_ITER_INDEX(ArchetypeCount)                                                        \
+	void BM_Each_Iter_Index_##ArchetypeCount(picobench::state& state) {                                      \
 		ecs::World w;                                                                                                      \
 		Create_Archetypes_##ArchetypeCount(w);                                                                             \
                                                                                                                        \
@@ -187,10 +166,10 @@ DEFINE_FOREACHCHUNK_EXTERNALQUERY_ITER(1000)
 		}                                                                                                                  \
 	}
 
-DEFINE_FOREACHCHUNK_EXTERNALQUERY_INDEX(1000);
+DEFINE_EACH_ITER_INDEX(1000);
 
-#define DEFINE_FOREACHCHUNK_EXTERNALQUERY_ALL(ArchetypeCount)                                                          \
-	void BM_ForEachChunk_External_All_##ArchetypeCount(picobench::state& state) {                                        \
+#define DEFINE_EACH_ITER_ALL(ArchetypeCount)                                                          \
+	void BM_Each_Iter_All_##ArchetypeCount(picobench::state& state) {                                        \
 		ecs::World w;                                                                                                      \
 		Create_Archetypes_##ArchetypeCount(w);                                                                             \
                                                                                                                        \
@@ -211,23 +190,18 @@ DEFINE_FOREACHCHUNK_EXTERNALQUERY_INDEX(1000);
 		}                                                                                                                  \
 	}
 
-DEFINE_FOREACHCHUNK_EXTERNALQUERY_ALL(1000);
+DEFINE_EACH_ITER_ALL(1000);
 
 #define PICO_SETTINGS() iterations({8192}).samples(3)
 
-PICOBENCH_SUITE("each - internal query");
-PICOBENCH(BM_ForEach_Internal_1).PICO_SETTINGS().label("1 archetype");
-PICOBENCH(BM_ForEach_Internal_100).PICO_SETTINGS().label("100 archetypes");
-PICOBENCH(BM_ForEach_Internal_1000).PICO_SETTINGS().label("1000 archetypes");
+PICOBENCH_SUITE("each");
+PICOBENCH(BM_Each_1).PICO_SETTINGS().label("1 archetype");
+PICOBENCH(BM_Each_100).PICO_SETTINGS().label("100 archetypes");
+PICOBENCH(BM_Each_1000).PICO_SETTINGS().label("1000 archetypes");
 
-PICOBENCH_SUITE("each - external query");
-PICOBENCH(BM_ForEach_External_1).PICO_SETTINGS().label("1 archetype");
-PICOBENCH(BM_ForEach_External_100).PICO_SETTINGS().label("100 archetypes");
-PICOBENCH(BM_ForEach_External_1000).PICO_SETTINGS().label("1000 archetypes");
-
-PICOBENCH_SUITE("each - external query, iterator");
-PICOBENCH(BM_ForEachChunk_External_Iter_1).PICO_SETTINGS().label("1 archetype");
-PICOBENCH(BM_ForEachChunk_External_Iter_100).PICO_SETTINGS().label("100 archetypes");
-PICOBENCH(BM_ForEachChunk_External_Iter_1000).PICO_SETTINGS().label("1000 archetypes");
-PICOBENCH(BM_ForEachChunk_External_Index_1000).PICO_SETTINGS().label("1000 archetypes (Idx)");
-PICOBENCH(BM_ForEachChunk_External_All_1000).PICO_SETTINGS().label("1000 archetypes (All)");
+PICOBENCH_SUITE("each - iterator");
+PICOBENCH(BM_Each_Iter_1).PICO_SETTINGS().label("1 archetype");
+PICOBENCH(BM_Each_Iter_100).PICO_SETTINGS().label("100 archetypes");
+PICOBENCH(BM_Each_Iter_1000).PICO_SETTINGS().label("1000 archetypes");
+PICOBENCH(BM_Each_Iter_Index_1000).PICO_SETTINGS().label("1000 archetypes (Idx)");
+PICOBENCH(BM_Each_Iter_All_1000).PICO_SETTINGS().label("1000 archetypes (All)");

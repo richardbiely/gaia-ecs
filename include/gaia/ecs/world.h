@@ -41,8 +41,6 @@ namespace gaia {
 
 			//! Cache of queries
 			QueryCache m_queryCache;
-			//! Cache of query ids to speed up each
-			cnt::map<ComponentLookupHash, QueryId> m_uniqueFuncQueryPairs;
 			//! Map of compId -> archetype matches.
 			ComponentToArchetypeMap m_componentToArchetypeMap;
 
@@ -704,19 +702,6 @@ namespace gaia {
 				remove_empty_archetypes();
 			}
 
-			//! Makes sure all given components are registered and calculates their common lookup hash
-			template <typename... T>
-			static ComponentLookupHash reg_and_calc_lookup_hash([[maybe_unused]] core::func_type_list<T...> types) {
-				static_assert(sizeof...(T) > 0, "At least one type must be given");
-
-				// Makre sure components are registred in the cache
-				auto& cc = ComponentCache::get();
-				((void)cc.goc_comp_info<T>(), ...);
-
-				// Calculate the lookup hash of the provided components
-				return ecs::calc_lookup_hash<T...>();
-			}
-
 		public:
 			World() {
 				init();
@@ -1033,28 +1018,6 @@ namespace gaia {
 					return Query(m_queryCache, m_nextArchetypeId, m_worldVersion, m_archetypesById, m_componentToArchetypeMap);
 				else
 					return QueryUncached(m_nextArchetypeId, m_worldVersion, m_archetypesById, m_componentToArchetypeMap);
-			}
-
-			//! Iterates over all chunks satisfying conditions set by \param func and calls \param func for all of them.
-			//! Query instance is generated internally from the input arguments of \param func.
-			//! \warning Performance-wise it has less potential than iterating using ecs::Chunk or a comparable each
-			//!          passing in a query because it needs to do cached query lookups on each invocation. However, it is
-			//!          easier to use and for non-critical code paths it is the most elegant way of iterating your data.
-			template <typename Func>
-			void each(Func func) {
-				using InputArgs = decltype(core::func_args(&Func::operator()));
-
-				const auto lookupHash = reg_and_calc_lookup_hash(InputArgs{});
-				if (m_uniqueFuncQueryPairs.count(lookupHash) == 0) {
-					Query q = query();
-					q.all_unpack(InputArgs{});
-					(void)q.fetch_query_info();
-					m_uniqueFuncQueryPairs.try_emplace(lookupHash, q.id());
-					query().each(q.id(), func);
-				} else {
-					const auto queryId = m_uniqueFuncQueryPairs[lookupHash];
-					query().each(queryId, func);
-				}
 			}
 
 			//! Performs various internal operations related to the end of the frame such as

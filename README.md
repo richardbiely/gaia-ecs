@@ -43,9 +43,7 @@ Gaia-ECS is a fast and easy-to-use [ECS](#ecs) framework. Some of its current fe
     * [Component presence](#component-presence)
   * [Data processing](#data-processing)
     * [Query](#query)
-    * [Simple iteration](#simple-iteration)
-    * [Query iteration](#query-iteration)
-    * [Iterator](#iterator)
+    * [Iteration](#iteration)
     * [Constraints](#constraints)
     * [Change detection](#change-detection)
   * [Chunk components](#chunk-components)
@@ -244,27 +242,11 @@ All queries are cached by default. This makes sense for queries which happen ver
 ```cpp
 // Create an uncached query taking into account all entities with either Positon or Velocity components
 ecs::QueryUncached q = w.query<false>().any<Position, Velocity>(); 
-q.each([&](ecs::Iterator iter) {
-  ...
-});
 ```
 
-### Simple iteration
-The simplest way to iterate over data is using ecs::World::each.<br/>
-It provides the least room for optimization (that does not mean the generated code is slow by any means) but is very easy to read.
-
-```cpp
-w.each([&](Position& p, const Velocity& v) {
-  p.x += v.x * dt;
-  p.y += v.y * dt;
-  p.z += v.z * dt;
-});
-```
-
->**NOTE:**<br/>This creates a Query internally from the arguments provided to each.
-
-### Query iteration
-For possibly better performance and more features, consider using explicit Query when possible.
+### Iteration
+To process data from queries one uses the ***ecs::Query::each*** function.
+It accepts either a list of components or an iterator as its argument.
 
 ```cpp
 ecs::Query q = w.query();
@@ -283,13 +265,13 @@ q.each([&](Position& p, const Velocity& v) {
 
 >**NOTE:**<br/>Iterating over components not present in the query is not supported and results in asserts and undefined behavior. This is done to prevent various logic errors which might sneak in otherwise.
 
-### Iterator
-Iteration using the iterator gives you even more expressive power and also opens doors for new kinds of optimizations. Iterator is an abstraction above archetype chunks responsible for holding entities and components.
+Processing via an iterator gives you even more expressive power and also opens doors for new kinds of optimizations.
+Iterator is an abstraction above underlying data structures and gives you access to their public API.
 
 There are three types of iterators:
-1) ecs::Iterator - iterates over enabled entities
-2) ecs::IteratorDisabled - iterates over distabled entities
-3) ecs::IteratorAll - iterate over all entities
+1) ***ecs::Iterator*** - iterates over enabled entities
+2) ***ecs::IteratorDisabled*** - iterates over distabled entities
+3) ***ecs::IteratorAll*** - iterate over all entities
 
 ```cpp
 ecs::Query q = w.query();
@@ -299,20 +281,29 @@ q.each([](ecs::IteratorAll iter) {
   auto p = iter.view_mut<Position>(); // Read-write access to Position
   auto v = iter.view<Velocity>(); // Read-only access to Velocity
 
-  // Iterate over all enabled entities and update their add 1.f to their x-axis position
+  // Iterate over all enabled entities and update their x-axis position
   GAIA_EACH(iter) {
     if (!iter.enabled(i))
       return;
     p[i].x += 1.f;
   }
 
-  // Iterate over all entities in the chunk and update their position based on their velocity
+  // Iterate over all entities and update their position based on their velocity
   GAIA_EACH(iter) {
     p[i].x += v[i].x * dt;
     p[i].y += v[i].y * dt;
     p[i].z += v[i].z * dt;
   }
 });
+```
+
+***GAIA_EACH(iter)*** is simply a shortcut for
+```
+for (uint32_t i=0; i<iter.size(); ++i)
+```
+A similar macro exists where you can specify the variable name. It is called ***GAIA_EACH2(iter,k)***
+```
+for (uint32_t k=0; k<iter.size(); ++k)
 ```
 
 ### Constraints
