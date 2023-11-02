@@ -3454,17 +3454,15 @@ void TestDataLayoutSoA_ECS() {
 	});
 }
 
-// TODO: Fix me
-// TEST_CASE("DataLayout SoA - ECS") {
-// 	TestDataLayoutSoA_ECS<PositionSoA>();
-// 	TestDataLayoutSoA_ECS<RotationSoA>();
-// }
+TEST_CASE("DataLayout SoA - ECS") {
+	TestDataLayoutSoA_ECS<PositionSoA>();
+	TestDataLayoutSoA_ECS<RotationSoA>();
+}
 
-// TODO: Fix me
-// TEST_CASE("DataLayout SoA8 - ECS") {
-// 	TestDataLayoutSoA_ECS<PositionSoA8>();
-// 	TestDataLayoutSoA_ECS<RotationSoA8>();
-// }
+TEST_CASE("DataLayout SoA8 - ECS") {
+	TestDataLayoutSoA_ECS<PositionSoA8>();
+	TestDataLayoutSoA_ECS<RotationSoA8>();
+}
 
 // TODO: Fix me
 // TEST_CASE("DataLayout SoA16 - ECS") {
