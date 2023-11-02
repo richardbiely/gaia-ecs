@@ -16332,7 +16332,6 @@ namespace gaia {
 				GAIA_ASSERT(ecs::has_comp_idx({pSrc, m_header.componentCount[compKind]}, compId));
 				return ecs::get_comp_idx({pSrc, m_header.componentCount[compKind]}, compId);
 #else
-				GAIA_ASSERT(ecs::has_comp_idx({pSrc, m_header.componentCount[compKind]}, compId));
 				return ecs::comp_idx<MAX_COMPONENTS>(
 						(const ComponentId*)&data(m_header.offsets.firstByte_ComponentIds[compKind]), compId);
 #endif
