@@ -93,8 +93,8 @@ void Create_Archetypes_1000(ecs::World& w) {
 	Create_Archetypes_N<4, 25>(w);
 }
 
-#define DEFINE_EACH(ArchetypeCount)                                                                   \
-	void BM_Each_##ArchetypeCount(picobench::state& state) {                                                 \
+#define DEFINE_EACH(ArchetypeCount)                                                                                    \
+	void BM_Each_##ArchetypeCount(picobench::state& state) {                                                             \
 		ecs::World w;                                                                                                      \
 		Create_Archetypes_##ArchetypeCount(w);                                                                             \
                                                                                                                        \
@@ -118,8 +118,8 @@ DEFINE_EACH(1)
 DEFINE_EACH(100)
 DEFINE_EACH(1000)
 
-#define DEFINE_EACH_ITER(ArchetypeCount)                                                         \
-	void BM_Each_Iter_##ArchetypeCount(picobench::state& state) {                                       \
+#define DEFINE_EACH_ITER(ArchetypeCount)                                                                               \
+	void BM_Each_Iter_##ArchetypeCount(picobench::state& state) {                                                        \
 		ecs::World w;                                                                                                      \
 		Create_Archetypes_##ArchetypeCount(w);                                                                             \
                                                                                                                        \
@@ -144,8 +144,8 @@ DEFINE_EACH_ITER(1)
 DEFINE_EACH_ITER(100)
 DEFINE_EACH_ITER(1000)
 
-#define DEFINE_EACH_ITER_INDEX(ArchetypeCount)                                                        \
-	void BM_Each_Iter_Index_##ArchetypeCount(picobench::state& state) {                                      \
+#define DEFINE_EACH_ITER_INDEX(ArchetypeCount)                                                                         \
+	void BM_Each_Iter_Index_##ArchetypeCount(picobench::state& state) {                                                  \
 		ecs::World w;                                                                                                      \
 		Create_Archetypes_##ArchetypeCount(w);                                                                             \
                                                                                                                        \
@@ -168,8 +168,8 @@ DEFINE_EACH_ITER(1000)
 
 DEFINE_EACH_ITER_INDEX(1000);
 
-#define DEFINE_EACH_ITER_ALL(ArchetypeCount)                                                          \
-	void BM_Each_Iter_All_##ArchetypeCount(picobench::state& state) {                                        \
+#define DEFINE_EACH_ITER_ALL(ArchetypeCount)                                                                           \
+	void BM_Each_Iter_All_##ArchetypeCount(picobench::state& state) {                                                    \
 		ecs::World w;                                                                                                      \
 		Create_Archetypes_##ArchetypeCount(w);                                                                             \
                                                                                                                        \

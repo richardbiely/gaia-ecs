@@ -146,7 +146,9 @@ namespace gaia {
 					offset += mem::padding<alignof(ComponentId)>(offset);
 					for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
 						m_dataOffsets.firstByte_ComponentIds[i] = (ChunkComponentOffset)offset;
-						offset += sizeof(ComponentId) * comp_ids((ComponentKind)i).size();
+
+						// Storage-wise, treat the component array as it it were MAX_COMPONENTS long.
+						offset += sizeof(ComponentId) * Chunk::MAX_COMPONENTS;
 					}
 				}
 
