@@ -43,19 +43,8 @@ namespace gaia {
 					const auto& data = m_lookupCtx.data[compKind];
 					const auto& compIds = data.compIds;
 
-					// Component id has to be present
 					const auto compId = comp_id<T>();
-					GAIA_ASSERT(core::has(compIds, compId));
-
-					// Get the index
-					uint32_t compIdx = 0;
-					for (; compIdx < compIds.size(); ++compIdx)
-						if (compIds[compIdx] == compId)
-							break;
-					// NOTE: This code bellow does technically the same as above.
-					//       However, compilers can't quite optimize it as well because it does some more
-					//       calculations. This is a used often so go with the custom code.
-					// const auto compIdx = core::get_index_unsafe(compIds, compId);
+					const auto compIdx = ecs::comp_idx<MAX_COMPONENTS_IN_QUERY>(compIds.data(), compId);
 
 					if (listType != data.rules[compIdx])
 						return false;

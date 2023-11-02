@@ -632,8 +632,7 @@ namespace gaia {
 	#define GAIA_ECS_HASH GAIA_ECS_HASH_MURMUR2A
 #endif
 
-//! If enabled, explicit memory prefetching is used when querying chunks, possibly improving performance in
-//! edge-cases
+//! If enabled, memory prefetching is used when querying chunks, possibly improving performance in edge-cases
 #ifndef GAIA_USE_PREFETCH
 	#define GAIA_USE_PREFETCH 1
 #endif
@@ -643,10 +642,17 @@ namespace gaia {
 	#define GAIA_DEFRAG_ENTITIES_PER_FRAME 100
 #endif
 
-//! When enabled a very small hash table is stored in chunks internally which
+//! If enabled, a very small hash table is stored in chunks internally which
 //! is used to do ComponentId -> component index lookups.
+//! \warning Experimental, don't use.
 #ifndef GAIA_COMP_ID_PROBING
 	#define GAIA_COMP_ID_PROBING 0
+#endif
+
+//! If enabled, ComponentID to component idx is calculated using SIMD.
+//! \warning Experimental, don't use.
+#ifndef GAIA_USE_SIMD_COMP_IDX
+	#define GAIA_USE_SIMD_COMP_IDX 0
 #endif
 
 //------------------------------------------------------------------------------
@@ -13759,6 +13765,111 @@ namespace gaia {
 			return {0};
 		}
 
+		//! Located the index at which the provided component id is located in the component array
+		//! \param pCompIds Pointer to the start of the component array
+		//! \param compId Component id we search for
+		//! \return Index of the component id in the array
+		//! \warning The component id must be present in the array
+		template <uint32_t MAX_COMPONENTS>
+		GAIA_NODISCARD inline uint32_t comp_idx(const ComponentId* pCompIds, ComponentId compId) {
+#if GAIA_COMP_ID_PROBING
+			GAIA_ASSERT(ecs::has_comp_idx({pCompIds, MAX_COMPONENTS}, compId));
+			return ecs::get_comp_idx({pCompIds, MAX_COMPONENTS}, compId);
+#else
+	#if GAIA_USE_SIMD_COMP_IDX && GAIA_ARCH == GAIA_ARCH_ARM
+			// Set the search value in a Neon register
+			uint32x4_t searchValue = vdupq_n_u32(compId);
+
+			// auto _mm_movemask_ps = [](uint32x4_t v) {
+			// 	static const uint32x4_t mask = {1, 2, 4, 8};
+			// 	const uint32x4_t av = vandq_u32(v, mask), xv = vextq_u32(av, av, 2), ov = vorrq_u32(av, xv);
+			// 	return vgetq_lane_u32(vorrq_u32(ov, vextq_u32(ov, ov, 3)), 0);
+			// };
+			// // This is slower
+			// // auto _mm_movemask_ps = [](uint32x4_t CR) {
+			// // 	static const uint32_t elementIndex[4]{1, 2, 4, 8};
+			// // 	static const uint32x4_t mask = vld1q_u32(elementIndex); // extract element Index bitmask from compare
+			// result
+			// // 	uint32x4_t vtemp = vandq_u32(CR, mask);
+			// // 	uint32x2_t VL = vget_low_u32(vtemp); // get low 2 uint32
+			// // 	uint32x2_t VH = vget_high_u32(vtemp); // get high 2 uint32
+			// // 	VL = vorr_u32(VL, VH);
+			// // 	VL = vpadd_u32(VL, VL);
+			// // 	return vget_lane_u32(VL, 0);
+			// // };
+
+			// for (uint32_t j = 0; j < MAX_COMPONENTS; j += 4) {
+			// 	uint32x4_t values[4] = {
+			// 			vld1q_u32(&pCompIds[j + 0]),
+			// 			vld1q_u32(&pCompIds[j + 1]),
+			// 			vld1q_u32(&pCompIds[j + 2]),
+			// 			vld1q_u32(&pCompIds[j + 3]),
+			// 	};
+			// 	uint32x4_t cmp[4] = {
+			// 			vceqq_u32(values[0], searchValue), vceqq_u32(values[1], searchValue), vceqq_u32(values[2], searchValue),
+			// 			vceqq_u32(values[3], searchValue)};
+			// 	uint32_t res[4] = {
+			// 			_mm_movemask_ps(cmp[0]), _mm_movemask_ps(cmp[1]), _mm_movemask_ps(cmp[2]), _mm_movemask_ps(cmp[3])};
+
+			// 	// This is way slower than searching in non-simd way
+			// 	// static const uint32x4_t s = vdupq_n_u32(1);
+			// 	// auto v = vld1q_u32(res);
+			// 	// auto c = vceqq_u32(v, s);
+			// 	// auto r = _mm_movemask_ps(c);
+			// 	// if (r != 0)
+			// 	// 	return __builtin_ctz(r);
+			// 	for (uint32_t i = 0; i < 4; ++i) {
+			// 		if (res[i] != 0)
+			// 			return __builtin_ctz(res[i]);
+			// 	}
+			// }
+
+			// GAIA_ASSERT(false);
+			// return 0;
+
+			uint32_t i = 0;
+			uint64_t res = 0;
+			do {
+				// Load the elements into a Neon register
+				uint32x4_t values = vld1q_u32(&pCompIds[i]);
+				// Compare values with searchValue
+				uint32x4_t cmp = vceqq_u32(values, searchValue);
+				// Convert to uint16x4_t
+				uint16x4_t cmp2 = vshrn_n_u32(cmp, 16);
+				// Convert to uint64x1_t
+				uint64x1_t mask = vreinterpret_u64_u16(cmp2);
+				// Convert to scalar uint64_t
+				res = vget_lane_u64(mask, 0);
+
+				i += 4;
+			} while (res == 0);
+			// Find the first set bit and divide by 16 because the numbers
+			// are stored in 16-bit pairs. This will return 0..3.
+			uint32_t iii = __builtin_clzll(res);
+			uint32_t idx = (63 - iii) / 16;
+			return idx + i;
+	#else
+			// We let the compiler know the upper iteration bound at compile-time.
+			// This way it can optimize better (e.g. loop unrolling, vectorization).
+			for (uint32_t idx = 0; idx < MAX_COMPONENTS; ++idx)
+				if (pCompIds[idx] == compId)
+					return idx;
+
+			GAIA_ASSERT(false);
+			return BadIndex;
+
+				// NOTE: This code does technically the same as the above.
+				//       However, compilers can't quite optimize it as well because it does some more
+				//       calculations.
+				//			 Component ID to component index conversion might be used often to it deserves
+				//       optimizing as much as possible.
+				// const auto idx = core::get_index_unsafe({pCompIds, MAX_COMPONENTS}, compId);
+				// GAIA_ASSERT(idx != BadIndex);
+				// return idx;
+	#endif
+#endif
+		}
+
 #if GAIA_COMP_ID_PROBING
 		//----------------------------------------------------------------------
 		// Inline component id hash map
@@ -14316,6 +14427,13 @@ namespace gaia {
 #include <tuple>
 #include <type_traits>
 #include <utility>
+
+#if GAIA_USE_SIMD_COMP_IDX
+	#if GAIA_ARCH == GAIA_ARCH_ARM
+		#include <arm_neon.h>
+	#else
+	#endif
+#endif
 
 #include <cinttypes>
 #include <cstdint>
@@ -15096,8 +15214,15 @@ namespace gaia {
 				for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
 					auto src = compIds[i];
 					auto dst = comp_id_view_mut((ComponentKind)i);
-					for (uint32_t j = 0; j < src.size(); ++j)
-						dst[j] = src[j];
+
+					// We treat the component array as if were MAX_COMPONENTS long.
+					// Real size can be smaller.
+					ComponentId* pDst = dst.data();
+					uint32_t j = 0;
+					for (; j < src.size(); ++j)
+						pDst[j] = src[j];
+					for (; j < MAX_COMPONENTS; ++j)
+						pDst[j] = ComponentIdBad;
 				}
 
 #if GAIA_COMP_ID_PROBING
@@ -16207,20 +16332,9 @@ namespace gaia {
 				GAIA_ASSERT(ecs::has_comp_idx({pSrc, m_header.componentCount[compKind]}, compId));
 				return ecs::get_comp_idx({pSrc, m_header.componentCount[compKind]}, compId);
 #else
-				auto compIds = comp_id_view(compKind);
-				for (uint32_t idx = 0; idx < compIds.size(); ++idx)
-					if (compIds[idx] == compId)
-						return idx;
-
-				GAIA_ASSERT(false);
-				return BadIndex;
-
-				// NOTE: This code bellow does technically the same as above.
-				//       However, compilers can't quite optimize it as well because it does some more
-				//       calculations. This is a used often so go with the custom code.
-				// const auto idx = core::get_index_unsafe(compIds, compId);
-				// GAIA_ASSERT(idx != BadIndex);
-				// return idx;
+				GAIA_ASSERT(ecs::has_comp_idx({pSrc, m_header.componentCount[compKind]}, compId));
+				return ecs::comp_idx<MAX_COMPONENTS>(
+						(const ComponentId*)&data(m_header.offsets.firstByte_ComponentIds[compKind]), compId);
 #endif
 			}
 
@@ -16498,7 +16612,9 @@ namespace gaia {
 					offset += mem::padding<alignof(ComponentId)>(offset);
 					for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
 						m_dataOffsets.firstByte_ComponentIds[i] = (ChunkComponentOffset)offset;
-						offset += sizeof(ComponentId) * comp_ids((ComponentKind)i).size();
+
+						// Storage-wise, treat the component array as it it were MAX_COMPONENTS long.
+						offset += sizeof(ComponentId) * Chunk::MAX_COMPONENTS;
 					}
 				}
 
@@ -17728,19 +17844,8 @@ namespace gaia {
 					const auto& data = m_lookupCtx.data[compKind];
 					const auto& compIds = data.compIds;
 
-					// Component id has to be present
 					const auto compId = comp_id<T>();
-					GAIA_ASSERT(core::has(compIds, compId));
-
-					// Get the index
-					uint32_t compIdx = 0;
-					for (; compIdx < compIds.size(); ++compIdx)
-						if (compIds[compIdx] == compId)
-							break;
-					// NOTE: This code bellow does technically the same as above.
-					//       However, compilers can't quite optimize it as well because it does some more
-					//       calculations. This is a used often so go with the custom code.
-					// const auto compIdx = core::get_index_unsafe(compIds, compId);
+					const auto compIdx = ecs::comp_idx<MAX_COMPONENTS_IN_QUERY>(compIds.data(), compId);
 
 					if (listType != data.rules[compIdx])
 						return false;

@@ -7,6 +7,13 @@
 #include <type_traits>
 #include <utility>
 
+#if GAIA_USE_SIMD_COMP_IDX
+	#if GAIA_ARCH == GAIA_ARCH_ARM
+		#include <arm_neon.h>
+	#else
+	#endif
+#endif
+
 #include "../cnt/sarray_ext.h"
 #include "../config/profiler.h"
 #include "../core/utility.h"
@@ -99,8 +106,15 @@ namespace gaia {
 				for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
 					auto src = compIds[i];
 					auto dst = comp_id_view_mut((ComponentKind)i);
-					for (uint32_t j = 0; j < src.size(); ++j)
-						dst[j] = src[j];
+
+					// We treat the component array as if were MAX_COMPONENTS long.
+					// Real size can be smaller.
+					ComponentId* pDst = dst.data();
+					uint32_t j = 0;
+					for (; j < src.size(); ++j)
+						pDst[j] = src[j];
+					for (; j < MAX_COMPONENTS; ++j)
+						pDst[j] = ComponentIdBad;
 				}
 
 #if GAIA_COMP_ID_PROBING
@@ -1210,20 +1224,9 @@ namespace gaia {
 				GAIA_ASSERT(ecs::has_comp_idx({pSrc, m_header.componentCount[compKind]}, compId));
 				return ecs::get_comp_idx({pSrc, m_header.componentCount[compKind]}, compId);
 #else
-				auto compIds = comp_id_view(compKind);
-				for (uint32_t idx = 0; idx < compIds.size(); ++idx)
-					if (compIds[idx] == compId)
-						return idx;
-
-				GAIA_ASSERT(false);
-				return BadIndex;
-
-				// NOTE: This code bellow does technically the same as above.
-				//       However, compilers can't quite optimize it as well because it does some more
-				//       calculations. This is a used often so go with the custom code.
-				// const auto idx = core::get_index_unsafe(compIds, compId);
-				// GAIA_ASSERT(idx != BadIndex);
-				// return idx;
+				GAIA_ASSERT(ecs::has_comp_idx({pSrc, m_header.componentCount[compKind]}, compId));
+				return ecs::comp_idx<MAX_COMPONENTS>(
+						(const ComponentId*)&data(m_header.offsets.firstByte_ComponentIds[compKind]), compId);
 #endif
 			}
 

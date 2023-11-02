@@ -48,8 +48,7 @@
 	#define GAIA_ECS_HASH GAIA_ECS_HASH_MURMUR2A
 #endif
 
-//! If enabled, explicit memory prefetching is used when querying chunks, possibly improving performance in
-//! edge-cases
+//! If enabled, memory prefetching is used when querying chunks, possibly improving performance in edge-cases
 #ifndef GAIA_USE_PREFETCH
 	#define GAIA_USE_PREFETCH 1
 #endif
@@ -59,10 +58,17 @@
 	#define GAIA_DEFRAG_ENTITIES_PER_FRAME 100
 #endif
 
-//! When enabled a very small hash table is stored in chunks internally which
+//! If enabled, a very small hash table is stored in chunks internally which
 //! is used to do ComponentId -> component index lookups.
+//! \warning Experimental, don't use.
 #ifndef GAIA_COMP_ID_PROBING
 	#define GAIA_COMP_ID_PROBING 0
+#endif
+
+//! If enabled, ComponentID to component idx is calculated using SIMD.
+//! \warning Experimental, don't use.
+#ifndef GAIA_USE_SIMD_COMP_IDX
+	#define GAIA_USE_SIMD_COMP_IDX 0
 #endif
 
 //------------------------------------------------------------------------------
