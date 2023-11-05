@@ -187,29 +187,6 @@ TEST_CASE("Memory allocation") {
 	}
 }
 
-TEST_CASE("Containers - sarray") {
-	cnt::sarray<uint32_t, 5> arr = {0, 1, 2, 3, 4};
-	REQUIRE(arr[0] == 0);
-	REQUIRE(arr[1] == 1);
-	REQUIRE(arr[2] == 2);
-	REQUIRE(arr[3] == 3);
-	REQUIRE(arr[4] == 4);
-
-	uint32_t cnt = 0;
-	for (auto val: arr) {
-		REQUIRE(val == cnt);
-		++cnt;
-	}
-	REQUIRE(cnt == 5);
-	REQUIRE(cnt == arr.size());
-
-	REQUIRE(core::find(arr, 0U) == arr.begin());
-	REQUIRE(core::find(arr, 100U) == arr.end());
-
-	REQUIRE(core::has(arr, 0U));
-	REQUIRE_FALSE(core::has(arr, 100U));
-}
-
 TEST_CASE("bit_view") {
 	constexpr uint32_t BlockBits = 6;
 	using view = core::bit_view<BlockBits>;
@@ -235,64 +212,133 @@ TEST_CASE("bit_view") {
 	}
 }
 
-TEST_CASE("Containers - sarray_ext") {
-	cnt::sarray_ext<uint32_t, 5> arr;
-	arr.push_back(0);
-	REQUIRE(arr[0] == 0);
-	arr.push_back(1);
-	REQUIRE(arr[1] == 1);
-	arr.push_back(2);
-	REQUIRE(arr[2] == 2);
-	arr.push_back(3);
-	REQUIRE(arr[3] == 3);
-	arr.push_back(4);
-	REQUIRE(arr[4] == 4);
+template <typename Container>
+void fixed_arr_test() {
+	constexpr auto N = Container::extent;
+	static_assert(N > 2); // we need at least 2 items to complete this test
+	Container arr;
+
+	for (uint32_t i = 0; i < N; ++i) {
+		arr[i] = i;
+		REQUIRE(arr[i] == i);
+	}
+	// Verify the values remain the same even after the internal buffer is reallocated
+	for (uint32_t i = 0; i < N; ++i) {
+		REQUIRE(arr[i] == i);
+	}
+
+	// Container comparison
+	{
+		Container arrEmpty;
+		REQUIRE_FALSE(arrEmpty == arr);
+
+		Container arr2(arr);
+		REQUIRE(arr2 == arr);
+	}
 
 	uint32_t cnt = 0;
 	for (auto val: arr) {
 		REQUIRE(val == cnt);
 		++cnt;
 	}
-	REQUIRE(cnt == 5);
+	REQUIRE(cnt == N);
 	REQUIRE(cnt == arr.size());
 
 	REQUIRE(core::find(arr, 0U) == arr.begin());
-	REQUIRE(core::find(arr, 100U) == arr.end());
+	REQUIRE(core::find(arr, N) == arr.end());
 
 	REQUIRE(core::has(arr, 0U));
-	REQUIRE_FALSE(core::has(arr, 100U));
+	REQUIRE_FALSE(core::has(arr, N));
+}
+
+TEST_CASE("Containers - sarr") {
+	using arr = cnt::sarr<uint32_t, 100>;
+	fixed_arr_test<arr>();
+}
+
+template <typename Container>
+void resizable_arr_test(uint32_t N) {
+	GAIA_ASSERT(N > 2); // we need at least 2 items to complete this test
+	Container arr;
+
+	for (uint32_t i = 0; i < N; ++i) {
+		arr.push_back(i);
+		REQUIRE(arr[i] == i);
+	}
+	// Verify the values remain the same even after the internal buffer is reallocated
+	for (uint32_t i = 0; i < N; ++i) {
+		REQUIRE(arr[i] == i);
+	}
+
+	// Container comparison
+	{
+		Container arrEmpty;
+		REQUIRE_FALSE(arrEmpty == arr);
+
+		Container arr2(arr);
+		REQUIRE(arr2 == arr);
+	}
+
+	uint32_t cnt = 0;
+	for (auto val: arr) {
+		REQUIRE(val == cnt);
+		++cnt;
+	}
+	REQUIRE(cnt == N);
+	REQUIRE(cnt == arr.size());
+
+	REQUIRE(core::find(arr, 0U) == arr.begin());
+	REQUIRE(core::find(arr, N) == arr.end());
+
+	REQUIRE(core::has(arr, 0U));
+	REQUIRE_FALSE(core::has(arr, N));
+
+	arr.erase(arr.begin());
+	REQUIRE(arr.size() == (N - 1));
+	REQUIRE(core::find(arr, 0U) == arr.end());
+	for (uint32_t i = 0; i < arr.size(); ++i)
+		REQUIRE(arr[i] == i + 1);
+
+	arr.clear();
+	REQUIRE(arr.empty());
+
+	arr.push_back(11);
+	arr.erase(arr.begin());
+	REQUIRE(arr.empty());
+
+	arr.push_back(11);
+	arr.push_back(12);
+	arr.push_back(13);
+	arr.push_back(14);
+	arr.push_back(15);
+	arr.erase(arr.begin() + 1, arr.begin() + 4);
+	REQUIRE(arr.size() == 2);
+	REQUIRE(arr[0] == 11);
+	REQUIRE(arr[1] == 15);
+
+	arr.erase(arr.begin(), arr.end());
+	REQUIRE(arr.empty());
+}
+
+TEST_CASE("Containers - sarr_ext") {
+	using arr = cnt::sarr_ext<uint32_t, 100>;
+	resizable_arr_test<arr>(100);
 }
 
 TEST_CASE("Containers - darr") {
-	cnt::darr<uint32_t> arr;
-	arr.push_back(0);
-	REQUIRE(arr[0] == 0);
-	arr.push_back(1);
-	REQUIRE(arr[1] == 1);
-	arr.push_back(2);
-	REQUIRE(arr[2] == 2);
-	arr.push_back(3);
-	REQUIRE(arr[3] == 3);
-	arr.push_back(4);
-	REQUIRE(arr[4] == 4);
-	arr.push_back(5);
-	REQUIRE(arr[5] == 5);
-	arr.push_back(6);
-	REQUIRE(arr[6] == 6);
+	using arr = cnt::darr<uint32_t>;
+	resizable_arr_test<arr>(100);
+	resizable_arr_test<arr>(10000);
+}
 
-	uint32_t cnt = 0;
-	for (auto val: arr) {
-		REQUIRE(val == cnt);
-		++cnt;
-	}
-	REQUIRE(cnt == 7);
-	REQUIRE(cnt == arr.size());
+TEST_CASE("Containers - darr_ext") {
+	using arr0 = cnt::darr_ext<uint32_t, 50>;
+	resizable_arr_test<arr0>(100);
+	resizable_arr_test<arr0>(10000);
 
-	REQUIRE(core::find(arr, 0U) == arr.begin());
-	REQUIRE(core::find(arr, 100U) == arr.end());
-
-	REQUIRE(core::has(arr, 0U));
-	REQUIRE_FALSE(core::has(arr, 100U));
+	using arr1 = cnt::darr_ext<uint32_t, 100>;
+	resizable_arr_test<arr1>(100);
+	resizable_arr_test<arr1>(10000);
 }
 
 TEST_CASE("Containers - sringbuffer") {
@@ -1398,7 +1444,7 @@ TEST_CASE("ComponentId - internal map") {
 		}
 
 		// Get indices
-		cnt::set<ecs::ChunkComponentOffset> indices;
+		cnt::set<ecs::ChunkDataOffset> indices;
 		for (uint32_t j = 0; j < data.size(); ++j) {
 			const auto idx = ecs::get_comp_idx({data.data(), data.size()}, compId0 + j);
 			REQUIRE_FALSE(indices.contains(idx));
@@ -1470,16 +1516,21 @@ TEST_CASE("EntityNull") {
 TEST_CASE("Add - no components") {
 	ecs::World w;
 
-	auto create = [&](uint32_t id) {
-		auto e = w.add();
+	auto verify = [](ecs::Entity e, uint32_t id) {
 		const bool ok = e.id() == id && e.gen() == 0;
 		REQUIRE(ok);
+	};
+	auto create = [&](uint32_t id) {
+		auto e = w.add();
+		verify(e, id);
 		return e;
 	};
 
 	const uint32_t N = 10'000;
 	for (uint32_t i = 0; i < N; ++i)
 		create(i);
+	for (uint32_t i = 0; i < N; ++i)
+		verify(w.get(i), i);
 }
 
 TEST_CASE("Add - 1 component") {
@@ -1586,22 +1637,21 @@ TEST_CASE("Add - many components") {
 		create(i);
 }
 
-TEST_CASE("CreateAndRemove_entity - no components") {
+TEST_CASE("AddAndDel_entity - no components") {
 	ecs::World w;
 
+	auto verify = [](ecs::Entity e, uint32_t id, uint32_t genExpected) {
+		const bool ok = e.id() == id && e.gen() == genExpected;
+		REQUIRE(ok);
+	};
 	auto create = [&](uint32_t id) {
 		auto e = w.add();
-		const bool ok = e.id() == id && e.gen() == 0;
-		REQUIRE(ok);
+		verify(e, id, 0);
 		return e;
 	};
 	auto remove = [&](ecs::Entity e) {
 		w.del(e);
-		auto de = w.get(e.id());
-		const bool ok = de.gen() == e.gen() + 1;
-		REQUIRE(ok);
-		auto* ch = w.get_chunk(e);
-		REQUIRE(ch == nullptr);
+		verify(w.get(e.id()), e.id(), 1);
 		const bool isEntityValid = w.valid(e);
 		REQUIRE_FALSE(isEntityValid);
 	};
@@ -1615,12 +1665,15 @@ TEST_CASE("CreateAndRemove_entity - no components") {
 	// Create entities
 	for (uint32_t i = 0; i < N; ++i)
 		arr.push_back(create(i));
+	// Verify ids are still valid
+	for (uint32_t i = 0; i < N; ++i)
+		verify(w.get(i), i, 0);
 	// Remove entities
 	for (uint32_t i = 0; i < N; ++i)
 		remove(arr[i]);
 }
 
-TEST_CASE("CreateAndRemove_entity - 1 component") {
+TEST_CASE("AddAndDel_entity - 1 component") {
 	ecs::World w;
 
 	auto create = [&](uint32_t id) {
@@ -1639,8 +1692,6 @@ TEST_CASE("CreateAndRemove_entity - 1 component") {
 		auto de = w.get(e.id());
 		const bool ok = de.gen() == e.gen() + 1;
 		REQUIRE(ok);
-		auto* ch = w.get_chunk(e);
-		REQUIRE(ch == nullptr);
 		const bool isEntityValid = w.valid(e);
 		REQUIRE_FALSE(isEntityValid);
 	};

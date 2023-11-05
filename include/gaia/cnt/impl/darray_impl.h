@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "../../core/iterator.h"
+#include "../../core/utility.h"
 #include "../../mem/data_layout_policy.h"
 #include "../../mem/mem_utils.h"
 
@@ -123,7 +124,9 @@ namespace gaia {
 			T operator*() const {
 				return mem::data_view_policy<T::Layout, T>::get({m_ptr, m_cnt}, m_idx);
 			}
-
+			T operator->() const {
+				return mem::data_view_policy<T::Layout, T>::get({m_ptr, m_cnt}, m_idx);
+			}
 			iterator operator[](size_type offset) const {
 				return iterator(m_ptr, m_cnt, m_idx + offset);
 			}
@@ -219,7 +222,7 @@ namespace gaia {
 				const auto cap = capacity();
 
 				// Unless we reached the capacity don't do anything
-				if GAIA_LIKELY (cap != 0 && cap != cnt)
+				if GAIA_LIKELY (cap != 0 && cnt < cap)
 					return;
 
 				// If no data is allocated go with at least 4 elements
@@ -228,11 +231,12 @@ namespace gaia {
 					return;
 				}
 
-				// Increase the size of an existing array.
 				// We increase the capacity in multiples of 1.5 which is about the golden ratio (1.618).
 				// This means we prefer more frequent allocations over memory fragmentation.
-				uint8_t* pDataOld = m_pData;
-				m_pData = view_policy::alloc_mem(m_cap = (cap * 3) / 2 + 1);
+				m_cap = (cap * 3 + 1) / 2;
+
+				auto* pDataOld = m_pData;
+				m_pData = view_policy::alloc_mem(m_cap);
 				mem::move_elements<T>(m_pData, pDataOld, 0, cnt, m_cap, cap);
 				view_policy::free_mem(pDataOld, cnt);
 			}
@@ -240,7 +244,7 @@ namespace gaia {
 		public:
 			constexpr darr() noexcept = default;
 
-			darr(size_type count, const T& value) {
+			darr(size_type count, const_reference value) {
 				resize(count);
 				for (auto it: *this)
 					*it = value;
@@ -346,14 +350,20 @@ namespace gaia {
 
 			void resize(size_type count) {
 				if (count <= m_cap) {
+					if constexpr (!mem::is_soa_layout_v<T>)
+						core::call_dtor(&data()[count], size() - count);
+
 					m_cnt = count;
 					return;
 				}
 
 				auto* pDataOld = m_pData;
 				m_pData = view_policy::alloc_mem(count);
-				if GAIA_LIKELY (pDataOld != nullptr) {
+				if (pDataOld != nullptr) {
 					mem::move_elements<T>(m_pData, pDataOld, 0, size(), count, m_cap);
+					// Default-construct new items
+					core::call_ctor<T>(&data()[size()], count - size());
+					// Release old memory
 					view_policy::free_mem(pDataOld, size());
 				}
 
@@ -400,67 +410,65 @@ namespace gaia {
 			void pop_back() noexcept {
 				GAIA_ASSERT(!empty());
 
-				if constexpr (!mem::is_soa_layout_v<T>) {
-					auto* ptr = m_pData + sizeof(T) * m_cnt;
-					((pointer)ptr)->~T();
-				}
+				if constexpr (!mem::is_soa_layout_v<T>)
+					core::call_dtor(&data()[m_cnt]);
 
 				--m_cnt;
 			}
 
+			//! Removes the element at pos
+			//! \param pos Iterator to the element to remove
 			iterator erase(iterator pos) noexcept {
-				GAIA_ASSERT(pos >= data() && pos < (data() + m_cap - 1));
+				GAIA_ASSERT(pos >= data());
+				GAIA_ASSERT(empty() || pos < (data() + size()));
 
-				const auto idxSrc = (size_type)core::distance(pos, begin());
-				const auto idxDst = size() - 1;
+				if (empty())
+					return end();
+
+				const auto idxSrc = (size_type)core::distance(begin(), pos);
+				const auto idxDst = (size_type)core::distance(begin(), end()) - 1;
 
 				mem::shift_elements_left<T>(m_pData, idxSrc, idxDst, m_cap);
+				// Destroy if it's the last element
+				if constexpr (!mem::is_soa_layout_v<T>)
+					core::call_dtor(&data()[m_cnt - 1]);
+
 				--m_cnt;
 
-				return iterator((pointer)m_pData + idxSrc);
+				return iterator(data() + idxSrc);
 			}
 
-			iterator_soa erase(iterator_soa pos) noexcept {
-				const auto idxSrc = pos.m_idx;
-				const auto idxDst = size() - 1;
-
-				mem::shift_elements_left<T>(m_pData, idxSrc, idxDst);
-				--m_cnt;
-
-				return iterator_soa(m_pData, m_cnt, idxSrc);
-			}
-
+			//! Removes the elements in the range [first, last)
+			//! \param first Iterator to the element to remove
+			//! \param last Iterator to the one beyond the last element to remove
 			iterator erase(iterator first, iterator last) noexcept {
-				static_assert(!mem::is_soa_layout_v<T>);
-				GAIA_ASSERT(first.m_cnt >= 0 && first.m_cnt < size());
-				GAIA_ASSERT(last.m_cnt >= 0 && last.m_cnt < size());
-				GAIA_ASSERT(last.m_cnt >= first.m_cnt);
+				GAIA_ASSERT(first >= data())
+				GAIA_ASSERT(empty() || first < (data() + size()));
+				GAIA_ASSERT(last > first);
+				GAIA_ASSERT(last <= (data() + size()));
 
-				const auto cnt = last.m_cnt - first.m_cnt;
-				mem::shift_elements_left<T>(m_pData, first.cnt, last.cnt);
+				if (empty())
+					return end();
+
+				const auto idxSrc = (size_type)core::distance(begin(), first);
+				const auto idxDst = size();
+				const auto cnt = last - first;
+
+				mem::shift_elements_left_n<T>(m_pData, idxSrc, idxDst, cnt, m_cap);
+				// Destroy if it's the last element
+				if constexpr (!mem::is_soa_layout_v<T>)
+					core::call_dtor(&data()[m_cnt - cnt], cnt);
+
 				m_cnt -= cnt;
 
-				return {(pointer)m_pData + size_type(last.m_cnt)};
-			}
-
-			iterator_soa erase(iterator_soa first, iterator_soa last) noexcept {
-				static_assert(!mem::is_soa_layout_v<T>);
-				GAIA_ASSERT(first.m_idx >= 0 && first.m_idx < size());
-				GAIA_ASSERT(last.m_idx >= 0 && last.m_idx < size());
-				GAIA_ASSERT(last.m_idx >= first.m_idx);
-
-				const auto cnt = last.m_idx - first.m_idx;
-				mem::shift_elements_left<T>(m_pData, first.cnt, last.cnt);
-				m_cnt -= cnt;
-
-				return iterator_soa(m_pData, m_cnt, last.m_cnt);
+				return iterator(data() + idxSrc);
 			}
 
 			void clear() {
 				resize(0);
 			}
 
-			void shirk_to_fit() {
+			void shrink_to_fit() {
 				if (capacity() == size())
 					return;
 
@@ -522,7 +530,7 @@ namespace gaia {
 				if constexpr (mem::is_soa_layout_v<T>)
 					return iterator_soa(m_pData, size(), 0);
 				else
-					return iterator((pointer)m_pData);
+					return iterator(data());
 			}
 
 			GAIA_NODISCARD auto rbegin() const noexcept {
@@ -536,14 +544,14 @@ namespace gaia {
 				if constexpr (mem::is_soa_layout_v<T>)
 					return iterator_soa(m_pData, size(), size());
 				else
-					return iterator((pointer)m_pData + size());
+					return iterator(data() + size());
 			}
 
 			GAIA_NODISCARD auto rend() const noexcept {
 				if constexpr (mem::is_soa_layout_v<T>)
 					return iterator_soa(m_pData, size(), -1);
 				else
-					return iterator((pointer)m_pData - 1);
+					return iterator(data() - 1);
 			}
 
 			GAIA_NODISCARD bool operator==(const darr& other) const {

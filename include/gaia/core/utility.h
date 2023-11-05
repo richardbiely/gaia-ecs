@@ -46,10 +46,24 @@ namespace gaia {
 		//----------------------------------------------------------------------
 
 		template <typename T>
+		void call_ctor(T* pData) {
+			if constexpr (!std::is_trivially_constructible_v<T>) {
+				(void)::new (pData) T();
+			}
+		}
+
+		template <typename T>
 		void call_ctor(T* pData, size_t cnt) {
 			if constexpr (!std::is_trivially_constructible_v<T>) {
 				for (size_t i = 0; i < cnt; ++i)
 					(void)::new (pData + i) T();
+			}
+		}
+
+		template <typename T>
+		void call_dtor(T* pData) {
+			if constexpr (!std::is_trivially_constructible_v<T>) {
+				pData.~T();
 			}
 		}
 
@@ -581,11 +595,9 @@ namespace gaia {
 		// Erasure
 		//----------------------------------------------------------------------
 
-		//! Replaces the item at \param idx in the array \param arr with the last item of the array if possible and removes
-		//! its last item.
-		//! Use when shifting of the entire erray is not wanted.
-		//! \warning If the item order is important and the size of the array changes after calling this function you need
-		//! to sort the array.
+		//! Replaces the item at \param idx in the array \param arr with the last item of the array if possible and
+		//! removes its last item. Use when shifting of the entire erray is not wanted. \warning If the item order is
+		//! important and the size of the array changes after calling this function you need to sort the array.
 		template <typename C>
 		void erase_fast(C& arr, typename C::size_type idx) {
 			if (idx >= arr.size())
