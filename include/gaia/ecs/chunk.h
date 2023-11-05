@@ -38,11 +38,13 @@ namespace gaia {
 #if GAIA_COMP_ID_PROBING
 			using ComponentIdInterMap = cnt::sarray_ext<ComponentId, MAX_COMPONENTS>;
 #endif
-			using ComponentOffsetArray = cnt::sarray_ext<ChunkComponentOffset, MAX_COMPONENTS>;
+			using ComponentOffsetArray = cnt::sarray_ext<ChunkDataOffset, MAX_COMPONENTS>;
 
 			// TODO: Make this private
 			//! Chunk header
 			ChunkHeader m_header;
+			//! Pointers to various parts of data inside chunk
+			ChunkRecords m_records;
 
 		private:
 			//! Pointer to where the chunk data starts.
@@ -51,8 +53,8 @@ namespace gaia {
 			//!			2) ComponentVersions[ComponentKind::CK_Chunk]
 			//!     3) ComponentIds[ComponentKind::CK_Generic]
 			//!			4) ComponentIds[ComponentKind::CK_Chunk]
-			//!			5) CompOffs[ComponentKind::CK_Generic]
-			//!			6) CompOffs[ComponentKind::CK_Chunk]
+			//!			5) ComponentRecords[ComponentKind::CK_Generic]
+			//!			6) ComponentRecords[ComponentKind::CK_Chunk]
 			//!			7) Entities
 			//!			8) Components
 			//! Note, root archetypes store only entites, therefore it is fully occupied with entities.
@@ -61,19 +63,15 @@ namespace gaia {
 			GAIA_MSVC_WARNING_PUSH()
 			GAIA_MSVC_WARNING_DISABLE(26495)
 
-			Chunk(
-					uint32_t chunkIndex, uint16_t capacity, uint16_t st, uint32_t& worldVersion,
-					const ChunkHeaderOffsets& headerOffsets):
-					m_header(chunkIndex, capacity, st, headerOffsets, worldVersion) {
-				// Chunk data area consist of memory offsets + component data. Normally. we would initialize it.
-				// However, the memory offsets part are all trivial types and components are initialized via their
-				// constructors so we do not really need to do anything.
-				// const uint32_t sizeBytes = ...;
-				// auto* curr = (uint8_t*)&data(0) + 1;
-				// for (uint32_t i = 0; i < sizeBytes; ++i, (void)++curr) {
-				// 	const auto* addr = mem::addressof(*curr);
-				// 	(void)new (const_cast<void*>(static_cast<const volatile void*>(addr))) uint8_t;
-				// }
+			// Hidden default constructor. Only use to calculate the relative offset of m_data
+			Chunk() = default;
+
+			Chunk(uint32_t chunkIndex, uint16_t capacity, uint16_t st, uint32_t& worldVersion):
+					m_header(chunkIndex, capacity, st, worldVersion) {
+				// Chunk data area consist of memory offsets, entities and component data. Normally. we would need
+				// to in-place construct all of it manually.
+				// However, the memory offsets and entities are all trivial types and components are initialized via
+				// their constructors on-demand (if not trivial) so we do not really need to do any construction here.
 			}
 
 			GAIA_MSVC_WARNING_POP()
@@ -83,6 +81,7 @@ namespace gaia {
 #if GAIA_COMP_ID_PROBING
 					const cnt::sarray<ComponentIdInterMap, ComponentKind::CK_Count>& compIdMap,
 #endif
+					const ChunkDataOffsets& headerOffsets,
 					const cnt::sarray<ComponentOffsetArray, ComponentKind::CK_Count>& compOffs) {
 				m_header.componentCount[ComponentKind::CK_Generic] = (uint8_t)compIds[ComponentKind::CK_Generic].size();
 				m_header.componentCount[ComponentKind::CK_Chunk] = (uint8_t)compIds[ComponentKind::CK_Chunk].size();
@@ -102,24 +101,54 @@ namespace gaia {
 					m_header.hasAnyCustomChunkDtor |= (desc.func_dtor != nullptr);
 				}
 
-				// Copy provided component id data to this chunk's data area
+				// Cache pointers to versions
 				for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
-					auto src = compIds[i];
-					auto dst = comp_id_view_mut((ComponentKind)i);
+					if (compIds[i].empty())
+						continue;
+
+					m_records.pVersions[i] = (ComponentVersion*)&data(headerOffsets.firstByte_Versions[i]);
+				}
+
+				// Cache component ids
+				for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
+					if (compIds[i].empty())
+						continue;
+
+					auto* dst = m_records.pComponentIds[i] = (ComponentId*)&data(headerOffsets.firstByte_ComponentIds[i]);
+					const auto& cids = compIds[i];
 
 					// We treat the component array as if were MAX_COMPONENTS long.
 					// Real size can be smaller.
-					ComponentId* pDst = dst.data();
 					uint32_t j = 0;
-					for (; j < src.size(); ++j)
-						pDst[j] = src[j];
+					for (; j < cids.size(); ++j)
+						dst[j] = cids[j];
 					for (; j < MAX_COMPONENTS; ++j)
-						pDst[j] = ComponentIdBad;
+						dst[j] = ComponentIdBad;
+				}
+
+				// Cache component records
+				for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
+					if (compIds[i].empty())
+						continue;
+
+					auto* dst = m_records.pRecords[i] = (ComponentRecord*)&data(headerOffsets.firstByte_Records[i]);
+					const auto& offs = compOffs[i];
+					const auto& cids = compIds[i];
+					for (uint32_t j = 0; j < cids.size(); ++j) {
+						const auto& desc = cc.comp_desc(cids[j]);
+						dst[j].id = cids[j];
+						dst[j].size = desc.properties.size;
+						const auto off = offs[j];
+						dst[j].pData = &data(off);
+					}
 				}
 
 #if GAIA_COMP_ID_PROBING
 				// Copy provided component id hash map
 				for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
+					if (compIds[i].empty())
+						continue;
+
 					auto src = compIdMap[i];
 					auto* dst = comp_id_mapping_ptr_mut((ComponentKind)i);
 					for (uint32_t j = 0; j < src.size(); ++j)
@@ -127,55 +156,29 @@ namespace gaia {
 				}
 #endif
 
-				// Copy provided component offset data to this chunk's data area
-				for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
-					auto src = compOffs[i];
-					auto* dst = comp_offset_ptr_mut((ComponentKind)i);
-					for (uint32_t j = 0; j < src.size(); ++j)
-						dst[j] = src[j];
-				}
+				m_records.pEntities = (Entity*)&data(headerOffsets.firstByte_EntityData);
 			}
 
-			GAIA_NODISCARD std::span<const uint32_t> comp_version_view(ComponentKind compKind) const {
-				const auto offset = m_header.offsets.firstByte_Versions[compKind];
-				return {(const uint32_t*)(&data(offset)), m_header.componentCount[compKind]};
+			GAIA_NODISCARD std::span<const ComponentVersion> comp_version_view(ComponentKind compKind) const {
+				return {(const ComponentVersion*)m_records.pVersions[compKind], m_header.componentCount[compKind]};
 			}
 
-			GAIA_NODISCARD std::span<uint32_t> comp_version_view_mut(ComponentKind compKind) {
-				const auto offset = m_header.offsets.firstByte_Versions[compKind];
-				return {(uint32_t*)(&data(offset)), m_header.componentCount[compKind]};
-			}
-
-			GAIA_NODISCARD std::span<ComponentId> comp_id_view_mut(ComponentKind compKind) {
-				using RetType = std::add_pointer_t<ComponentId>;
-				const auto offset = m_header.offsets.firstByte_ComponentIds[compKind];
-				return {(RetType)&data(offset), m_header.componentCount[compKind]};
+			GAIA_NODISCARD std::span<ComponentVersion> comp_version_view_mut(ComponentKind compKind) {
+				return {m_records.pVersions[compKind], m_header.componentCount[compKind]};
 			}
 
 #if GAIA_COMP_ID_PROBING
 			GAIA_NODISCARD const ComponentId* comp_id_mapping_ptr(ComponentKind compKind) const {
-				const auto offset = m_header.offsets.firstByte_ComponentIdMap[compKind];
-				return (const ComponentId*)&data(offset);
+				return (const ComponentId*)m_records.compIdMap[compKind];
 			}
 
-			GAIA_NODISCARD ComponentId* comp_id_mapping_ptr_mut(ComponentKind compKind) const {
-				const auto offset = m_header.offsets.firstByte_ComponentIdMap[compKind];
-				return (ComponentId*)&data(offset);
+			GAIA_NODISCARD ComponentId* comp_id_mapping_ptr_mut(ComponentKind compKind) {
+				return m_records.compIdMap[compKind];
 			}
 #endif
 
-			GAIA_NODISCARD const ChunkComponentOffset* comp_offset_ptr(ComponentKind compKind) const {
-				const auto offset = m_header.offsets.firstByte_CompOffs[compKind];
-				return (const ChunkComponentOffset*)&data(offset);
-			}
-
-			GAIA_NODISCARD ChunkComponentOffset* comp_offset_ptr_mut(ComponentKind compKind) const {
-				const auto offset = m_header.offsets.firstByte_CompOffs[compKind];
-				return (ChunkComponentOffset*)&data(offset);
-			}
-
 			GAIA_NODISCARD std::span<Entity> entity_view_mut() {
-				return {(Entity*)view_mut_inter<Entity, false>(0, size()).data(), size()};
+				return {m_records.pEntities, size()};
 			}
 
 			/*!
@@ -190,12 +193,9 @@ namespace gaia {
 				using U = typename component_type_t<T>::Type;
 
 				GAIA_ASSERT(to <= size());
-				constexpr auto usize = (uint32_t)sizeof(U);
 
 				if constexpr (std::is_same_v<U, Entity>) {
-					const auto offset = m_header.offsets.firstByte_EntityData + from * usize;
-					const uint32_t count = to - from;
-					return {&data(offset), count};
+					return {(const uint8_t*)&m_records.pEntities[from], to - from};
 				} else {
 					static_assert(!std::is_empty_v<U>, "Attempting to get value of an empty component");
 
@@ -203,22 +203,11 @@ namespace gaia {
 					const auto compId = comp_id<T>();
 					const auto compIdx = comp_idx(compKind, compId);
 
-					// Find at what byte offset the first component of a given type is located
-					const auto offsetFirst = data_offset(compKind, compIdx);
-					const auto offset = offsetFirst + from * usize;
-
 					if constexpr (compKind == ComponentKind::CK_Generic) {
-						[[maybe_unused]] const auto maxOffset = offsetFirst + capacity() * usize;
-						GAIA_ASSERT(maxOffset <= bytes());
-
-						const uint32_t count = to - from;
-						return {&data(offset), count};
+						return {comp_ptr(compKind, compIdx, from), to - from};
 					} else {
-						[[maybe_unused]] const auto maxOffset = offset + usize;
-						GAIA_ASSERT(maxOffset <= bytes());
 						// GAIA_ASSERT(count == 1); we don't really care and always consider 1 for chunk components
-
-						return {&data(offset), 1};
+						return {comp_ptr(compKind, compIdx), 1};
 					}
 				}
 			}
@@ -236,14 +225,11 @@ namespace gaia {
 				using U = typename component_type_t<T>::Type;
 
 				GAIA_ASSERT(to <= size());
-				constexpr auto usize = (uint32_t)sizeof(U);
 
 				if constexpr (std::is_same_v<U, Entity>) {
 					static_assert(!WorldVersionUpdateWanted);
 
-					const auto offset = m_header.offsets.firstByte_EntityData + from * usize;
-					const uint32_t count = to - from;
-					return {&data(offset), count};
+					return {(uint8_t*)&m_records.pEntities[from], to - from};
 				} else {
 					static_assert(!std::is_empty_v<U>, "Attempting to set value of an empty component");
 
@@ -251,26 +237,15 @@ namespace gaia {
 					const auto compId = comp_id<T>();
 					const auto compIdx = comp_idx(compKind, compId);
 
-					// Find at what byte offset the first component of a given type is located
-					const auto offsetFirst = data_offset(compKind, compIdx);
-					const auto offset = offsetFirst + from * usize;
-
 					// Update version number if necessary so we know RW access was used on the chunk
 					if constexpr (WorldVersionUpdateWanted)
 						update_world_version(compKind, compIdx);
 
 					if constexpr (compKind == ComponentKind::CK_Generic) {
-						[[maybe_unused]] const auto maxOffset = offset + capacity() * usize;
-						GAIA_ASSERT(maxOffset <= bytes());
-
-						const uint32_t count = to - from;
-						return {&data(offset), count};
+						return {comp_ptr_mut(compKind, compIdx, from), to - from};
 					} else {
-						[[maybe_unused]] const auto maxOffset = offset + usize;
-						GAIA_ASSERT(maxOffset <= bytes());
 						// GAIA_ASSERT(count == 1); we don't really care and always consider 1 for chunk components
-
-						return {&data(offset), 1};
+						return {comp_ptr_mut(compKind, compIdx), 1};
 					}
 				}
 			}
@@ -312,14 +287,32 @@ namespace gaia {
 			Chunk& operator=(Chunk&& chunk) = delete;
 			~Chunk() = default;
 
-			static uint16_t chunk_total_bytes(uint16_t dataSize) {
-				uint16_t header = (uint16_t)sizeof(ChunkHeader) + (uint16_t)MemoryBlockUsableOffset;
-				return header + dataSize;
+			static constexpr uint16_t chunk_header_size() {
+				const auto dataAreaOffset =
+						// ChunkAllocator reserves the first few bytes for internal purposes
+						MemoryBlockUsableOffset +
+						// Chunk "header" area (before actuall entity/component data starts)
+						sizeof(ChunkHeader) + sizeof(ChunkRecords);
+				static_assert(dataAreaOffset < UINT16_MAX);
+				return dataAreaOffset;
 			}
 
-			static uint16_t chunk_data_bytes(uint16_t totalSize) {
-				uint16_t header = (uint16_t)sizeof(ChunkHeader) + (uint16_t)MemoryBlockUsableOffset;
-				return totalSize - header;
+			static constexpr uint16_t chunk_total_bytes(uint16_t dataSize) {
+				return chunk_header_size() + dataSize;
+			}
+
+			static constexpr uint16_t chunk_data_bytes(uint16_t totalSize) {
+				return totalSize - chunk_header_size();
+			}
+
+			//! Returns the relative offset of m_data in Chunk
+			static uintptr_t chunk_data_area_offset() {
+				// Note, offsetof is implementation-defined and conditionally-supported since C++17.
+				// Therefore, we instantiate the chunk and calculate the relative address ourselves.
+				Chunk chunk;
+				const auto chunk_offset = (uintptr_t)&chunk;
+				const auto data_offset = (uintptr_t)&chunk.m_data[0];
+				return data_offset - chunk_offset;
 			}
 
 			/*!
@@ -329,7 +322,7 @@ namespace gaia {
 			*/
 			static Chunk* create(
 					uint32_t chunkIndex, uint16_t capacity, uint16_t dataBytes, uint32_t& worldVersion,
-					const ChunkHeaderOffsets& offsets, const cnt::sarray<ComponentIdArray, ComponentKind::CK_Count>& compIds,
+					const ChunkDataOffsets& offsets, const cnt::sarray<ComponentIdArray, ComponentKind::CK_Count>& compIds,
 #if GAIA_COMP_ID_PROBING
 					const cnt::sarray<ComponentIdInterMap, ComponentKind::CK_Count>& compIdMap,
 #endif
@@ -338,18 +331,18 @@ namespace gaia {
 				const auto sizeType = detail::ChunkAllocatorImpl::mem_block_size_type(totalBytes);
 #if GAIA_ECS_CHUNK_ALLOCATOR
 				auto* pChunk = (Chunk*)ChunkAllocator::get().alloc(totalBytes);
-				new (pChunk) Chunk(chunkIndex, capacity, sizeType, worldVersion, offsets);
+				new (pChunk) Chunk(chunkIndex, capacity, sizeType, worldVersion);
 #else
 				GAIA_ASSERT(totalBytes <= MaxMemoryBlockSize);
 				const auto allocSize = detail::ChunkAllocatorImpl::mem_block_size(sizeType);
 				auto* pChunkMem = new uint8_t[allocSize];
-				auto* pChunk = new (pChunkMem) Chunk(chunkIndex, capacity, sizeType, worldVersion, offsets);
+				auto* pChunk = new (pChunkMem) Chunk(chunkIndex, capacity, sizeType, worldVersion);
 #endif
 
 #if GAIA_COMP_ID_PROBING
-				pChunk->init(compIds, compIdMap, compOffs);
+				pChunk->init(compIds, compIdMap, offsets, compOffs);
 #else
-				pChunk->init(compIds, compOffs);
+				pChunk->init(compIds, offsets, compOffs);
 #endif
 
 				return pChunk;
@@ -537,13 +530,31 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD std::span<const Entity> entity_view() const {
-				return {(const Entity*)view_inter<Entity>(0, size()).data(), size()};
+				return {(const Entity*)m_records.pEntities, size()};
 			}
 
 			GAIA_NODISCARD std::span<const ComponentId> comp_id_view(ComponentKind compKind) const {
-				using RetType = std::add_pointer_t<const ComponentId>;
-				const auto offset = m_header.offsets.firstByte_ComponentIds[compKind];
-				return {(RetType)&data(offset), m_header.componentCount[compKind]};
+				return {(const ComponentId*)m_records.pComponentIds[compKind], m_header.componentCount[compKind]};
+			}
+
+			GAIA_NODISCARD uint8_t* comp_ptr_mut(ComponentKind compKind, uint32_t compIdx) {
+				const auto& rec = m_records.pRecords[compKind][compIdx];
+				return rec.pData;
+			}
+
+			GAIA_NODISCARD uint8_t* comp_ptr_mut(ComponentKind compKind, uint32_t compIdx, uint32_t offset) {
+				const auto& rec = m_records.pRecords[compKind][compIdx];
+				return rec.pData + (uintptr_t)rec.size * offset;
+			}
+
+			GAIA_NODISCARD const uint8_t* comp_ptr(ComponentKind compKind, uint32_t compIdx) const {
+				const auto& rec = m_records.pRecords[compKind][compIdx];
+				return rec.pData;
+			}
+
+			GAIA_NODISCARD const uint8_t* comp_ptr(ComponentKind compKind, uint32_t compIdx, uint32_t offset) const {
+				const auto& rec = m_records.pRecords[compKind][compIdx];
+				return rec.pData + (uintptr_t)rec.size * offset;
 			}
 
 			/*!
@@ -586,15 +597,8 @@ namespace gaia {
 					if (desc.properties.size == 0U)
 						continue;
 
-					const auto offset = pOldChunk->data_offset(ComponentKind::CK_Generic, compIdx);
-					const auto idxSrc = offset + desc.properties.size * (uint32_t)oldEntityContainer.idx;
-					const auto idxDst = offset + desc.properties.size * (uint32_t)newEntityContainer.idx;
-
-					GAIA_ASSERT(idxSrc < pOldChunk->bytes());
-					GAIA_ASSERT(idxDst < pNewChunk->bytes());
-
-					auto* pSrc = (void*)&pOldChunk->data(idxSrc);
-					auto* pDst = (void*)&pNewChunk->data(idxDst);
+					auto* pSrc = (void*)pOldChunk->comp_ptr_mut(ComponentKind::CK_Generic, compIdx, oldEntityContainer.idx);
+					auto* pDst = (void*)pNewChunk->comp_ptr_mut(ComponentKind::CK_Generic, compIdx, newEntityContainer.idx);
 					desc.copy(pSrc, pDst);
 				}
 			}
@@ -618,15 +622,8 @@ namespace gaia {
 					if (desc.properties.size == 0U)
 						continue;
 
-					const auto offset = pOldChunk->data_offset(ComponentKind::CK_Generic, compIdx);
-					const auto idxSrc = offset + desc.properties.size * (uint32_t)oldEntityContainer.idx;
-					const auto idxDst = offset + desc.properties.size * newEntityIdx;
-
-					GAIA_ASSERT(idxSrc < pOldChunk->bytes());
-					GAIA_ASSERT(idxDst < bytes());
-
-					auto* pSrc = (void*)&pOldChunk->data(idxSrc);
-					auto* pDst = (void*)&data(idxDst);
+					auto* pSrc = (void*)pOldChunk->comp_ptr_mut(ComponentKind::CK_Generic, compIdx, oldEntityContainer.idx);
+					auto* pDst = (void*)comp_ptr_mut(ComponentKind::CK_Generic, compIdx, newEntityIdx);
 					desc.ctor_from(pSrc, pDst);
 				}
 			}
@@ -659,19 +656,8 @@ namespace gaia {
 						if (oldId == newId) {
 							const auto& desc = cc.comp_desc(oldId);
 							if (desc.properties.size != 0U) {
-								// Map component ids to offset indices
-								const auto offsetOld = pOldChunk->data_offset(ComponentKind::CK_Generic, i);
-								const auto offsetNew = data_offset(ComponentKind::CK_Generic, j);
-
-								// Let's move all type data from oldEntity to newEntity
-								const auto idxSrc = offsetOld + desc.properties.size * (uint32_t)oldEntityContainer.idx;
-								const auto idxDst = offsetNew + desc.properties.size * newEntityIdx;
-
-								GAIA_ASSERT(idxSrc < pOldChunk->bytes());
-								GAIA_ASSERT(idxDst < bytes());
-
-								auto* pSrc = (void*)&pOldChunk->data(idxSrc);
-								auto* pDst = (void*)&data(idxDst);
+								auto* pSrc = (void*)pOldChunk->comp_ptr_mut(ComponentKind::CK_Generic, i, oldEntityContainer.idx);
+								auto* pDst = (void*)comp_ptr_mut(ComponentKind::CK_Generic, j, newEntityIdx);
 								desc.ctor_from(pSrc, pDst);
 							}
 
@@ -720,16 +706,8 @@ namespace gaia {
 						if (desc.properties.size == 0U)
 							continue;
 
-						const auto offset = data_offset(ComponentKind::CK_Generic, compIdx);
-						const auto idxSrc = offset + left * desc.properties.size;
-						const auto idxDst = offset + right * desc.properties.size;
-
-						GAIA_ASSERT(idxSrc < bytes());
-						GAIA_ASSERT(idxDst < bytes());
-						GAIA_ASSERT(idxSrc != idxDst);
-
-						auto* pSrc = (void*)&data(idxSrc);
-						auto* pDst = (void*)&data(idxDst);
+						auto* pSrc = (void*)comp_ptr_mut(ComponentKind::CK_Generic, compIdx, left);
+						auto* pDst = (void*)comp_ptr_mut(ComponentKind::CK_Generic, compIdx, right);
 						desc.move(pSrc, pDst);
 						desc.dtor(pSrc);
 					}
@@ -748,12 +726,7 @@ namespace gaia {
 						if (desc.properties.size == 0U)
 							continue;
 
-						const auto offset = data_offset(ComponentKind::CK_Generic, compIdx);
-						const auto idxSrc = offset + left * desc.properties.size;
-
-						GAIA_ASSERT(idxSrc < bytes());
-
-						auto* pSrc = (void*)&data(idxSrc);
+						auto* pSrc = (void*)comp_ptr_mut(ComponentKind::CK_Generic, compIdx, left);
 						desc.dtor(pSrc);
 					}
 				}
@@ -830,16 +803,8 @@ namespace gaia {
 					if (desc.properties.size == 0U)
 						continue;
 
-					const auto offset = data_offset(ComponentKind::CK_Generic, compIdx);
-					const auto idxSrc = offset + left * desc.properties.size;
-					const auto idxDst = offset + right * desc.properties.size;
-
-					GAIA_ASSERT(idxSrc < bytes());
-					GAIA_ASSERT(idxDst < bytes());
-					GAIA_ASSERT(idxSrc != idxDst);
-
-					auto* pSrc = (void*)&data(idxSrc);
-					auto* pDst = (void*)&data(idxDst);
+					auto* pSrc = (void*)comp_ptr_mut(ComponentKind::CK_Generic, compIdx, left);
+					auto* pDst = (void*)comp_ptr_mut(ComponentKind::CK_Generic, compIdx, right);
 					desc.swap(pSrc, pDst);
 				}
 
@@ -920,20 +885,6 @@ namespace gaia {
 				return m_data[offset];
 			}
 
-			/*!
-			Returns an offset to chunk data at which the component is stored.
-			\warning It is expected the component with \param compId is present. Undefined behavior otherwise.
-			\param compKind Component type
-			\param compIdx Index of the component in this chunk's component array
-			\return Offset from the start of chunk data area.
-			*/
-			GAIA_NODISCARD ChunkComponentOffset data_offset(ComponentKind compKind, uint32_t compIdx) const {
-				GAIA_ASSERT(compIdx < m_header.componentCount[compKind]);
-				const auto offset = comp_offset_ptr(compKind)[compIdx];
-				GAIA_ASSERT(offset >= m_header.offsets.firstByte_EntityData);
-				return offset;
-			}
-
 			//----------------------------------------------------------------------
 			// Component handling
 			//----------------------------------------------------------------------
@@ -966,11 +917,7 @@ namespace gaia {
 					return;
 
 				const auto compIdx = comp_idx(compKind, compId);
-				const auto offset = data_offset(compKind, compIdx);
-				const auto idxSrc = offset + entIdx * desc.properties.size;
-				GAIA_ASSERT(idxSrc < bytes());
-
-				auto* pSrc = (void*)&data(idxSrc);
+				auto* pSrc = (void*)comp_ptr_mut(compKind, compIdx, entIdx);
 				desc.func_ctor(pSrc, 1);
 			}
 
@@ -993,11 +940,7 @@ namespace gaia {
 					if (desc.func_ctor == nullptr)
 						continue;
 
-					const auto offset = data_offset(compKind, compIdx);
-					const auto idxSrc = offset + entIdx * desc.properties.size;
-					GAIA_ASSERT(idxSrc < bytes());
-
-					auto* pSrc = (void*)&data(idxSrc);
+					auto* pSrc = (void*)comp_ptr_mut(compKind, compIdx, entIdx);
 					desc.func_ctor(pSrc, entCnt);
 				}
 			}
@@ -1021,11 +964,7 @@ namespace gaia {
 					if (desc.func_dtor == nullptr)
 						continue;
 
-					const auto offset = data_offset(compKind, compIdx);
-					const auto idxSrc = offset + entIdx * desc.properties.size;
-					GAIA_ASSERT(idxSrc < bytes());
-
-					auto* pSrc = (void*)&data(idxSrc);
+					auto* pSrc = (void*)comp_ptr_mut(compKind, compIdx, entIdx);
 					desc.func_dtor(pSrc, entCnt);
 				}
 			};
@@ -1224,8 +1163,7 @@ namespace gaia {
 				GAIA_ASSERT(ecs::has_comp_idx({pSrc, m_header.componentCount[compKind]}, compId));
 				return ecs::get_comp_idx({pSrc, m_header.componentCount[compKind]}, compId);
 #else
-				return ecs::comp_idx<MAX_COMPONENTS>(
-						(const ComponentId*)&data(m_header.offsets.firstByte_ComponentIds[compKind]), compId);
+				return ecs::comp_idx<MAX_COMPONENTS>(m_records.pComponentIds[compKind], compId);
 #endif
 			}
 
@@ -1353,10 +1291,8 @@ namespace gaia {
 
 			//! Update version of a component at the index \param compIdx of a given \param compKind
 			GAIA_FORCEINLINE void update_world_version(ComponentKind compKind, uint32_t compIdx) {
-				// Make sure only proper input is provided
-				GAIA_ASSERT(compIdx >= 0 && compIdx < Chunk::MAX_COMPONENTS);
-
-				comp_version_view_mut(compKind)[compIdx] = m_header.worldVersion;
+				auto versions = comp_version_view_mut(compKind);
+				versions[compIdx] = m_header.worldVersion;
 			}
 
 			//! Update version of all components of a given \param compKind

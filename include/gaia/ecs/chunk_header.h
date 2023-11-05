@@ -13,17 +13,43 @@
 
 namespace gaia {
 	namespace ecs {
-		struct ChunkHeaderOffsets {
+		struct ChunkDataOffsets {
 			//! Byte at which the first version number is located
-			ChunkVersionOffset firstByte_Versions[ComponentKind::CK_Count]{};
+			ChunkDataVersionOffset firstByte_Versions[ComponentKind::CK_Count]{};
 			//! Byte at which the first component id is located
-			ChunkComponentOffset firstByte_ComponentIds[ComponentKind::CK_Count]{};
+			ChunkDataOffset firstByte_ComponentIds[ComponentKind::CK_Count]{};
+			//! Byte at which the first component id is located
+			ChunkDataOffset firstByte_Records[ComponentKind::CK_Count]{};
+#if GAIA_COMP_ID_PROBING
 			//! Byte at which the componentID map is located
-			ChunkComponentOffset firstByte_ComponentIdMap[ComponentKind::CK_Count]{};
-			//! Byte at which the first component offset is located
-			ChunkComponentOffset firstByte_CompOffs[ComponentKind::CK_Count]{};
+			ChunkDataOffset firstByte_CompIdMap[ComponentKind::CK_Count]{};
+#endif
 			//! Byte at which the first entity is located
-			ChunkComponentOffset firstByte_EntityData{};
+			ChunkDataOffset firstByte_EntityData{};
+		};
+
+		struct ComponentRecord {
+			//! Component id
+			ComponentId id;
+			//! Component size
+			uint32_t size;
+			//! Pointer to where the first instance of the component is stored
+			uint8_t* pData;
+		};
+
+		struct ChunkRecords {
+			//! Pointer to where component versions are stored
+			ComponentVersion* pVersions[ComponentKind::CK_Count]{};
+			//! Pointer to where component ids are stored
+			ComponentId* pComponentIds[ComponentKind::CK_Count]{};
+			//! Pointer to the array of component records
+			ComponentRecord* pRecords[ComponentKind::CK_Count]{};
+#if GAIA_COMP_ID_PROBING
+			//! Pointer to the component id map
+			ComponentId* compIdMap[ComponentKind::CK_Count]{};
+#endif
+			//! Pointer to the array of entities
+			Entity* pEntities{};
 		};
 
 		struct ChunkHeader final {
@@ -71,19 +97,18 @@ namespace gaia {
 			//! Empty space for future use
 			uint32_t unused : 7;
 
-			//! Offsets to various parts of data inside chunk
-			ChunkHeaderOffsets offsets;
-
 			//! Number of components on the archetype
 			uint8_t componentCount[ComponentKind::CK_Count]{};
 			//! Version of the world (stable pointer to parent world's world version)
 			uint32_t& worldVersion;
 
-			ChunkHeader(uint32_t chunkIndex, uint16_t cap, uint16_t st, const ChunkHeaderOffsets& offs, uint32_t& version):
+			static inline uint32_t s_worldVersionDummy = 0;
+			ChunkHeader(): worldVersion(s_worldVersionDummy) {}
+
+			ChunkHeader(uint32_t chunkIndex, uint16_t cap, uint16_t st, uint32_t& version):
 					index(chunkIndex), count(0), countEnabled(0), capacity(cap), firstEnabledEntityIndex(0), lifespanCountdown(0),
 					dead(0), structuralChangesLocked(0), hasAnyCustomGenericCtor(0), hasAnyCustomChunkCtor(0),
-					hasAnyCustomGenericDtor(0), hasAnyCustomChunkDtor(0), sizeType(st), unused(0), offsets(offs),
-					worldVersion(version) {
+					hasAnyCustomGenericDtor(0), hasAnyCustomChunkDtor(0), sizeType(st), unused(0), worldVersion(version) {
 				// Make sure the alignment is right
 				GAIA_ASSERT(uintptr_t(this) % (sizeof(size_t)) == 0);
 			}

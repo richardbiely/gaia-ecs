@@ -702,6 +702,13 @@ namespace gaia {
 				if (pChunk->has_custom_generic_ctor())
 					pChunk->call_ctors(ComponentKind::CK_Generic, pChunk->size() - 1, 1);
 
+#if GAIA_ASSERT_ENABLED
+				const auto& ec = m_entities[entity.id()];
+				GAIA_ASSERT(ec.pChunk == pChunk);
+				auto entityExpected = pChunk->entity_view()[ec.idx];
+				GAIA_ASSERT(entityExpected == entity);
+#endif
+
 				return entity;
 			}
 
@@ -873,6 +880,12 @@ namespace gaia {
 			GAIA_NODISCARD Entity get(uint32_t idx) const {
 				GAIA_ASSERT(idx < m_entities.size());
 				const auto& entityContainer = m_entities[idx];
+#if GAIA_ASSERT_ENABLED
+				if (entityContainer.pChunk != nullptr) {
+					auto entityExpected = entityContainer.pChunk->entity_view()[entityContainer.idx];
+					GAIA_ASSERT(entityExpected == Entity(idx, entityContainer.gen));
+				}
+#endif
 				return {idx, entityContainer.gen};
 			}
 
