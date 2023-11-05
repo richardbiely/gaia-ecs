@@ -20,9 +20,10 @@ namespace gaia {
 		inline const char* const ComponentKindString[ComponentKind::CK_Count] = {"Generic", "Chunk"};
 
 		using ComponentId = uint32_t;
-		using ChunkVersionOffset = uint8_t;
+		using ComponentVersion = uint32_t;
+		using ChunkDataVersionOffset = uint8_t;
 		using CompOffsetMappingIndex = uint8_t;
-		using ChunkComponentOffset = uint16_t;
+		using ChunkDataOffset = uint16_t;
 		using ComponentLookupHash = core::direct_hash_key<uint64_t>;
 		using ComponentMatcherHash = core::direct_hash_key<uint64_t>;
 		using ComponentIdSpan = std::span<const ComponentId>;
@@ -196,11 +197,7 @@ namespace gaia {
 		//! \warning The component id must be present in the array
 		template <uint32_t MAX_COMPONENTS>
 		GAIA_NODISCARD inline uint32_t comp_idx(const ComponentId* pCompIds, ComponentId compId) {
-#if GAIA_COMP_ID_PROBING
-			GAIA_ASSERT(ecs::has_comp_idx({pCompIds, MAX_COMPONENTS}, compId));
-			return ecs::get_comp_idx({pCompIds, MAX_COMPONENTS}, compId);
-#else
-	#if GAIA_USE_SIMD_COMP_IDX && GAIA_ARCH == GAIA_ARCH_ARM
+#if GAIA_USE_SIMD_COMP_IDX && GAIA_ARCH == GAIA_ARCH_ARM
 			// Set the search value in a Neon register
 			uint32x4_t searchValue = vdupq_n_u32(compId);
 
@@ -272,7 +269,7 @@ namespace gaia {
 			uint32_t iii = __builtin_clzll(res);
 			uint32_t idx = (63 - iii) / 16;
 			return idx + i;
-	#else
+#else
 			// We let the compiler know the upper iteration bound at compile-time.
 			// This way it can optimize better (e.g. loop unrolling, vectorization).
 			for (uint32_t idx = 0; idx < MAX_COMPONENTS; ++idx)
@@ -282,15 +279,14 @@ namespace gaia {
 			GAIA_ASSERT(false);
 			return BadIndex;
 
-				// NOTE: This code does technically the same as the above.
-				//       However, compilers can't quite optimize it as well because it does some more
-				//       calculations.
-				//			 Component ID to component index conversion might be used often to it deserves
-				//       optimizing as much as possible.
-				// const auto idx = core::get_index_unsafe({pCompIds, MAX_COMPONENTS}, compId);
-				// GAIA_ASSERT(idx != BadIndex);
-				// return idx;
-	#endif
+			// NOTE: This code does technically the same as the above.
+			//       However, compilers can't quite optimize it as well because it does some more
+			//       calculations.
+			//			 Component ID to component index conversion might be used often to it deserves
+			//       optimizing as much as possible.
+			// const auto idx = core::get_index_unsafe({pCompIds, MAX_COMPONENTS}, compId);
+			// GAIA_ASSERT(idx != BadIndex);
+			// return idx;
 #endif
 		}
 

@@ -80,7 +80,7 @@ namespace gaia {
 				//! The number of entities this archetype can take (e.g 5 = 5 entities with all their components)
 				uint16_t capacity;
 				//! How many bytes of data is needed for a fully utilized chunk
-				ChunkComponentOffset chunkDataBytes;
+				ChunkDataOffset chunkDataBytes;
 			};
 
 		private:
@@ -96,7 +96,7 @@ namespace gaia {
 			ArchetypeGraph m_graph;
 
 			//! Offsets to various parts of data inside chunk
-			ChunkHeaderOffsets m_dataOffsets;
+			ChunkDataOffsets m_dataOffsets;
 			//! List of component ids
 			cnt::sarray<Chunk::ComponentIdArray, ComponentKind::CK_Count> m_compIds;
 #if GAIA_COMP_ID_PROBING
@@ -125,6 +125,9 @@ namespace gaia {
 			// Constructor is hidden. Create archetypes via Create
 			Archetype(uint32_t& worldVersion): m_worldVersion(worldVersion) {}
 
+			//! Calulcates offsets in memory at which important chunk data is going to be stored.
+			//! These offsets are use to setup the chunk data area layout.
+			//! \param memoryAddress Memory address used to calculate offsets
 			void update_data_offsets(uintptr_t memoryAddress) {
 				uintptr_t offset = 0;
 
@@ -132,12 +135,15 @@ namespace gaia {
 				// We expect versions to fit in the first 256 bytes.
 				// With 64 components per archetype (32 generic + 32 chunk) this gives us some headroom.
 				{
-					using VersionValue = uint32_t;
-					offset += mem::padding<alignof(VersionValue)>(memoryAddress);
+					offset += mem::padding<alignof(ComponentVersion)>(memoryAddress);
 					for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
+						const auto cnt = comp_ids((ComponentKind)i).size();
+						if (cnt == 0)
+							continue;
+
 						GAIA_ASSERT(offset < 256);
-						m_dataOffsets.firstByte_Versions[i] = (ChunkVersionOffset)offset;
-						offset += sizeof(VersionValue) * comp_ids((ComponentKind)i).size();
+						m_dataOffsets.firstByte_Versions[i] = (ChunkDataVersionOffset)offset;
+						offset += sizeof(ComponentVersion) * cnt;
 					}
 				}
 
@@ -145,10 +151,29 @@ namespace gaia {
 				{
 					offset += mem::padding<alignof(ComponentId)>(offset);
 					for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
-						m_dataOffsets.firstByte_ComponentIds[i] = (ChunkComponentOffset)offset;
+						const auto cnt = comp_ids((ComponentKind)i).size();
+						if (cnt == 0)
+							continue;
+
+						m_dataOffsets.firstByte_ComponentIds[i] = (ChunkDataOffset)offset;
 
 						// Storage-wise, treat the component array as it it were MAX_COMPONENTS long.
 						offset += sizeof(ComponentId) * Chunk::MAX_COMPONENTS;
+					}
+				}
+
+				// Component records
+				{
+					offset += mem::padding<alignof(ComponentRecord)>(offset);
+					for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
+						const auto cnt = comp_ids((ComponentKind)i).size();
+						if (cnt == 0)
+							continue;
+
+						m_dataOffsets.firstByte_Records[i] = (ChunkDataOffset)offset;
+
+						// Storage-wise, treat the component array as it it were MAX_COMPONENTS long.
+						offset += sizeof(ComponentRecord) * cnt;
 					}
 				}
 
@@ -157,25 +182,20 @@ namespace gaia {
 				{
 					offset += mem::padding<alignof(ComponentId)>(offset);
 					for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
-						m_dataOffsets.firstByte_ComponentIdMap[i] = (ChunkComponentOffset)offset;
-						offset += sizeof(ComponentId) * comp_ids((ComponentKind)i).size();
+						const auto cnt = comp_ids((ComponentKind)i).size();
+						if (cnt == 0)
+							continue;
+
+						m_dataOffsets.firstByte_CompIdMap[i] = (ChunkDataOffset)offset;
+						offset += sizeof(ComponentId) * cnt;
 					}
 				}
 #endif
 
-				// Component offsets
-				{
-					offset += mem::padding<alignof(ChunkComponentOffset)>(offset);
-					for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
-						m_dataOffsets.firstByte_CompOffs[i] = (ChunkComponentOffset)offset;
-						offset += sizeof(ChunkComponentOffset) * comp_ids((ComponentKind)i).size();
-					}
-				}
-
 				// First entity offset
 				{
 					offset += mem::padding<alignof(Entity)>(offset);
-					m_dataOffsets.firstByte_EntityData = (ChunkComponentOffset)offset;
+					m_dataOffsets.firstByte_EntityData = (ChunkDataOffset)offset;
 				}
 			}
 
@@ -194,7 +214,7 @@ namespace gaia {
 			Estimates how many entities can fit into the chunk described by \param compIds components.
 			*/
 			static bool est_max_entities_per_archetype(
-					uint32_t& dataOffset, uint32_t& maxItems, ComponentIdSpan compIds, uint32_t size, uint32_t maxDataOffset) {
+					uint32_t& offs, uint32_t& maxItems, ComponentIdSpan compIds, uint32_t size, uint32_t maxDataOffset) {
 				const auto& cc = ComponentCache::get();
 
 				for (const auto compId: compIds) {
@@ -204,7 +224,7 @@ namespace gaia {
 						continue;
 
 					// If we're beyond what the chunk could take, subtract one entity
-					const auto nextOffset = desc.calc_new_mem_offset(dataOffset, size);
+					const auto nextOffset = desc.calc_new_mem_offset(offs, size);
 					if (nextOffset >= maxDataOffset) {
 						const auto subtractItems = (nextOffset - maxDataOffset + desc.properties.size) / desc.properties.size;
 						GAIA_ASSERT(subtractItems > 0);
@@ -213,7 +233,7 @@ namespace gaia {
 						return false;
 					}
 
-					dataOffset = nextOffset;
+					offs = nextOffset;
 				}
 
 				return true;
@@ -255,7 +275,7 @@ namespace gaia {
 						ofs[compIdx] = {};
 					} else {
 						currOff = mem::align(currOff, alig);
-						ofs[compIdx] = (ChunkComponentOffset)currOff;
+						ofs[compIdx] = (ChunkDataOffset)currOff;
 
 						// Make sure the following component list is properly aligned
 						currOff += desc.properties.size * count;
@@ -302,10 +322,18 @@ namespace gaia {
 #endif
 				newArch->m_compOffs[ComponentKind::CK_Generic].resize((uint32_t)compIdsGeneric.size());
 				newArch->m_compOffs[ComponentKind::CK_Chunk].resize((uint32_t)compIdsChunk.size());
-				newArch->update_data_offsets(sizeof(ChunkHeader) + MemoryBlockUsableOffset);
+
+				static auto ChunkDataAreaOffset = Chunk::chunk_data_area_offset();
+				newArch->update_data_offsets(
+						// This is not a real memory address.
+						// Chunk memory is organized as header+data. The offsets we calculate here belong to
+						// the data area.
+						// Every allocated chunk is going to have the same relative offset from the header part
+						// which is why providing a fictional relative offset is enough.
+						ChunkDataAreaOffset);
 
 				const auto& cc = ComponentCache::get();
-				const auto& dataOffset = newArch->m_dataOffsets;
+				const auto& offs = newArch->m_dataOffsets;
 
 				// Calculate the number of entities per chunks precisely so we can
 				// fit as many of them into chunk as possible.
@@ -332,12 +360,12 @@ namespace gaia {
 				// Theoretical maximum number of components we can fit into one chunk.
 				// This can be further reduced due alignment and padding.
 				auto maxGenericItemsInArchetype =
-						(maxDataOffsetTarget - dataOffset.firstByte_EntityData - chunkComponentListSize - 1) /
+						(maxDataOffsetTarget - offs.firstByte_EntityData - chunkComponentListSize - 1) /
 						(genericComponentListSize + (uint32_t)sizeof(Entity));
 
 				bool finalCheck = false;
 			recalculate:
-				auto currOff = dataOffset.firstByte_EntityData + (uint32_t)sizeof(Entity) * maxGenericItemsInArchetype;
+				auto currOff = offs.firstByte_EntityData + (uint32_t)sizeof(Entity) * maxGenericItemsInArchetype;
 
 				// Adjust the maximum number of entities. Recalculation happens at most once when the original guess
 				// for entity count is not right (most likely because of padding or usage of SoA components).
@@ -365,21 +393,20 @@ namespace gaia {
 					maxDataOffsetTarget = size0;
 
 					maxGenericItemsInArchetype =
-							(maxDataOffsetTarget - dataOffset.firstByte_EntityData - chunkComponentListSize - 1) /
+							(maxDataOffsetTarget - offs.firstByte_EntityData - chunkComponentListSize - 1) /
 							(genericComponentListSize + (uint32_t)sizeof(Entity));
 					goto recalculate;
 				}
 
 				// Update the offsets according to the recalculated maxGenericItemsInArchetype
-				currOff = dataOffset.firstByte_EntityData + (uint32_t)sizeof(Entity) * maxGenericItemsInArchetype;
+				currOff = offs.firstByte_EntityData + (uint32_t)sizeof(Entity) * maxGenericItemsInArchetype;
 				reg_components(*newArch, compIdsGeneric, ComponentKind::CK_Generic, currOff, maxGenericItemsInArchetype);
 				reg_components(*newArch, compIdsChunk, ComponentKind::CK_Chunk, currOff, 1);
 
 				GAIA_ASSERT(
-						Chunk::chunk_total_bytes((ChunkComponentOffset)currOff) <
-						detail::ChunkAllocatorImpl::mem_block_size(currOff));
+						Chunk::chunk_total_bytes((ChunkDataOffset)currOff) < detail::ChunkAllocatorImpl::mem_block_size(currOff));
 				newArch->m_properties.capacity = (uint16_t)maxGenericItemsInArchetype;
-				newArch->m_properties.chunkDataBytes = (ChunkComponentOffset)currOff;
+				newArch->m_properties.chunkDataBytes = (ChunkDataOffset)currOff;
 
 				newArch->m_matcherHash[ComponentKind::CK_Generic] = ecs::matcher_hash(compIdsGeneric);
 				newArch->m_matcherHash[ComponentKind::CK_Chunk] = ecs::matcher_hash(compIdsChunk);

@@ -120,10 +120,8 @@ namespace gaia {
 						indexInChunk = 0;
 
 					// Component data
-					const auto& desc = ComponentCache::get().comp_desc(compId);
 					const auto compIdx = pChunk->comp_idx(compKind, compId);
-					const auto offset = pChunk->data_offset(compKind, compIdx);
-					auto* pComponentData = (void*)&pChunk->data(offset + (uint32_t)indexInChunk * desc.properties.size);
+					auto* pComponentData = (void*)pChunk->comp_ptr_mut(compKind, compIdx, indexInChunk);
 					ctx.load_comp(pComponentData, compId);
 				}
 			};
@@ -177,10 +175,8 @@ namespace gaia {
 						indexInChunk = 0;
 
 					// Component data
-					const auto& desc = ComponentCache::get().comp_desc(compId);
 					const auto compIdx = pChunk->comp_idx(compKind, compId);
-					const auto offset = pChunk->data_offset(compKind, compIdx);
-					auto* pComponentData = (void*)&pChunk->data(offset + (uint32_t)indexInChunk * desc.properties.size);
+					auto* pComponentData = (void*)pChunk->comp_ptr_mut(compKind, compIdx, indexInChunk);
 					ctx.load_comp(pComponentData, compId);
 				}
 			};
@@ -195,10 +191,8 @@ namespace gaia {
 					const auto indexInChunk = compKind == ComponentKind::CK_Chunk ? 0U : entityContainer.idx;
 
 					// Component data
-					const auto& desc = ComponentCache::get().comp_desc(compId);
 					const auto compIdx = pChunk->comp_idx(compKind, compId);
-					const auto offset = pChunk->data_offset(compKind, compIdx);
-					auto* pComponentData = (void*)&pChunk->data(offset + (uint32_t)indexInChunk * desc.properties.size);
+					auto* pComponentData = (void*)pChunk->comp_ptr_mut(compKind, compIdx, indexInChunk);
 					ctx.load_comp(pComponentData, compId);
 				}
 			};
@@ -221,10 +215,8 @@ namespace gaia {
 					const auto indexInChunk = compKind == ComponentKind::CK_Chunk ? 0U : entityContainer.idx;
 
 					// Component data
-					const auto& desc = ComponentCache::get().comp_desc(compId);
 					const auto compIdx = pChunk->comp_idx(compKind, compId);
-					const auto offset = pChunk->data_offset(compKind, compIdx);
-					auto* pComponentData = (void*)&pChunk->data(offset + (uint32_t)indexInChunk * desc.properties.size);
+					auto* pComponentData = (void*)pChunk->comp_ptr_mut(compKind, compIdx, indexInChunk);
 					ctx.load_comp(pComponentData, compId);
 				}
 			};
