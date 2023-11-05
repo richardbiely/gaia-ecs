@@ -374,7 +374,7 @@ namespace gaia {
 			//! \param pos Iterator to the element to remove
 			constexpr iterator erase(iterator pos) noexcept {
 				GAIA_ASSERT(pos >= data());
-				GAIA_ASSERT(empty() || pos < (data() + size()));
+				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));
 
 				if (empty())
 					return end();
@@ -397,7 +397,7 @@ namespace gaia {
 			//! \param last Iterator to the one beyond the last element to remove
 			iterator erase(iterator first, iterator last) noexcept {
 				GAIA_ASSERT(first >= data())
-				GAIA_ASSERT(empty() || first < (data() + size()));
+				GAIA_ASSERT(empty() || (first < iterator(data() + size())));
 				GAIA_ASSERT(last > first);
 				GAIA_ASSERT(last <= (data() + size()));
 
@@ -422,9 +422,23 @@ namespace gaia {
 				resize(0);
 			}
 
-			constexpr void resize(size_type size) noexcept {
-				GAIA_ASSERT(size <= N);
-				m_cnt = size;
+			constexpr void resize(size_type count) noexcept {
+				GAIA_ASSERT(count <= max_size());
+
+				// Resizing to a smaller size
+				if (count <= m_cnt) {
+					// Destroy elements at the end
+					if constexpr (!mem::is_soa_layout_v<T>)
+						core::call_dtor(&data()[count], size() - count);
+				} else
+				// Resizing to a bigger size but still within allocated capacity
+				{
+					// Constuct new elements
+					if constexpr (!mem::is_soa_layout_v<T>)
+						core::call_ctor(&data()[size()], count - size());
+				}
+
+				m_cnt = count;
 			}
 
 			GAIA_NODISCARD constexpr size_type size() const noexcept {
