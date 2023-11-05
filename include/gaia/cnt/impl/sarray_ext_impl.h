@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "../../core/iterator.h"
+#include "../../core/utility.h"
 #include "../../mem/data_layout_policy.h"
 #include "../../mem/mem_utils.h"
 
@@ -124,7 +125,9 @@ namespace gaia {
 			T operator*() const {
 				return mem::data_view_policy<T::Layout, T>::get({m_ptr, m_cnt}, m_idx);
 			}
-
+			T operator->() const {
+				return mem::data_view_policy<T::Layout, T>::get({m_ptr, m_cnt}, m_idx);
+			}
 			iterator operator[](size_type offset) const {
 				return iterator(m_ptr, m_cnt, m_idx + offset);
 			}
@@ -221,17 +224,15 @@ namespace gaia {
 			size_type m_cnt = size_type(0);
 
 		public:
-			constexpr sarr_ext() noexcept {
-				mem::construct_elements((pointer)&m_data[0], extent);
-			}
+			constexpr sarr_ext() noexcept = default;
 
 			~sarr_ext() {
-				mem::destruct_elements((pointer)&m_data[0], extent);
+				if constexpr (!mem::is_soa_layout_v<T>)
+					core::call_dtor(data(), m_cnt);
 			}
 
-			constexpr sarr_ext(size_type count, reference value) noexcept {
+			constexpr sarr_ext(size_type count, const_reference value) noexcept {
 				resize(count);
-
 				for (auto it: *this)
 					*it = value;
 			}
@@ -242,7 +243,8 @@ namespace gaia {
 
 			template <typename InputIt>
 			constexpr sarr_ext(InputIt first, InputIt last) noexcept {
-				mem::construct_elements((pointer)&m_data[0], extent);
+				if constexpr (!mem::is_soa_layout_v<T>)
+					core::call_ctor(data(), extent);
 
 				const auto count = (size_type)core::distance(first, last);
 				resize(count);
@@ -267,7 +269,8 @@ namespace gaia {
 			constexpr sarr_ext(sarr_ext&& other) noexcept: m_cnt(other.m_cnt) {
 				GAIA_ASSERT(gaia::mem::addressof(other) != this);
 
-				mem::construct_elements((pointer)&m_data[0], extent);
+				if constexpr (!mem::is_soa_layout_v<T>)
+					core::call_ctor(data(), extent);
 				mem::move_elements<T>(m_data, other.m_data, 0, other.size(), extent, other.extent);
 
 				other.m_cnt = size_type(0);
@@ -281,7 +284,8 @@ namespace gaia {
 			constexpr sarr_ext& operator=(const sarr_ext& other) {
 				GAIA_ASSERT(gaia::mem::addressof(other) != this);
 
-				mem::construct_elements((pointer)&m_data[0], extent);
+				if constexpr (!mem::is_soa_layout_v<T>)
+					core::call_ctor(data(), extent);
 				resize(other.size());
 				mem::copy_elements<T>(
 						(uint8_t*)&m_data[0], (const uint8_t*)&other.m_data[0], 0, other.size(), extent, other.extent);
@@ -292,7 +296,8 @@ namespace gaia {
 			constexpr sarr_ext& operator=(sarr_ext&& other) noexcept {
 				GAIA_ASSERT(gaia::mem::addressof(other) != this);
 
-				mem::construct_elements((pointer)&m_data[0], extent);
+				if constexpr (!mem::is_soa_layout_v<T>)
+					core::call_ctor(data(), extent);
 				resize(other.m_cnt);
 				mem::move_elements<T>(
 						(uint8_t*)&m_data[0], (const uint8_t*)&other.m_data[0], 0, other.size(), extent, other.extent);
@@ -359,59 +364,58 @@ namespace gaia {
 			constexpr void pop_back() noexcept {
 				GAIA_ASSERT(!empty());
 
-				if constexpr (!mem::is_soa_layout_v<T>) {
-					auto* ptr = m_data + sizeof(T) * m_cnt;
-					((pointer)ptr)->~T();
-				}
+				if constexpr (!mem::is_soa_layout_v<T>)
+					core::call_dtor(&data()[m_cnt]);
 
 				--m_cnt;
 			}
 
+			//! Removes the element at pos
+			//! \param pos Iterator to the element to remove
 			constexpr iterator erase(iterator pos) noexcept {
-				GAIA_ASSERT(pos.m_ptr >= data() && pos.m_ptr < (data() + extent - 1));
+				GAIA_ASSERT(pos >= data());
+				GAIA_ASSERT(empty() || pos < (data() + size()));
 
-				const auto idxSrc = (size_type)core::distance(pos, begin());
-				const auto idxDst = size() - 1;
+				if (empty())
+					return end();
 
-				mem::shift_elements_left<T>(&m_data[0], idxSrc, idxDst);
+				const auto idxSrc = (size_type)core::distance(begin(), pos);
+				const auto idxDst = (size_type)core::distance(begin(), end()) - 1;
+
+				mem::shift_elements_left<T>(m_data, idxSrc, idxDst, extent);
+				// Destroy if it's the last element
+				if constexpr (!mem::is_soa_layout_v<T>)
+					core::call_dtor(&data()[m_cnt - 1]);
+
 				--m_cnt;
 
-				return iterator((pointer)m_data + idxSrc);
+				return iterator(data() + idxSrc);
 			}
 
-			iterator_soa erase(iterator_soa pos) noexcept {
-				const auto idxSrc = pos.m_idx;
-				const auto idxDst = size() - 1;
+			//! Removes the elements in the range [first, last)
+			//! \param first Iterator to the element to remove
+			//! \param last Iterator to the one beyond the last element to remove
+			iterator erase(iterator first, iterator last) noexcept {
+				GAIA_ASSERT(first >= data())
+				GAIA_ASSERT(empty() || first < (data() + size()));
+				GAIA_ASSERT(last > first);
+				GAIA_ASSERT(last <= (data() + size()));
 
-				mem::shift_elements_left<T>(m_data, idxSrc, idxDst);
-				--m_cnt;
+				if (empty())
+					return end();
 
-				return iterator_soa(m_data, m_cnt, idxSrc);
-			}
+				const auto idxSrc = (size_type)core::distance(begin(), first);
+				const auto idxDst = size();
+				const auto cnt = last - first;
 
-			constexpr iterator erase(iterator first, iterator last) noexcept {
-				GAIA_ASSERT(first.m_cnt >= 0 && first.m_cnt < size());
-				GAIA_ASSERT(last.m_cnt >= 0 && last.m_cnt < size());
-				GAIA_ASSERT(last.m_cnt >= first.m_cnt);
+				mem::shift_elements_left_n<T>(m_data, idxSrc, idxDst, cnt, extent);
+				// Destroy if it's the last element
+				if constexpr (!mem::is_soa_layout_v<T>)
+					core::call_dtor(&data()[m_cnt - cnt], cnt);
 
-				const auto cnt = last.m_cnt - first.m_cnt;
-				mem::shift_elements_left<T>(&m_data[0], first.cnt, last.cnt);
 				m_cnt -= cnt;
 
-				return {(pointer)m_data + size_type(last.m_cnt)};
-			}
-
-			iterator_soa erase(iterator_soa first, iterator_soa last) noexcept {
-				static_assert(!mem::is_soa_layout_v<T>);
-				GAIA_ASSERT(first.m_idx >= 0 && first.m_idx < size());
-				GAIA_ASSERT(last.m_idx >= 0 && last.m_idx < size());
-				GAIA_ASSERT(last.m_idx >= first.m_idx);
-
-				const auto cnt = last.m_idx - first.m_idx;
-				mem::shift_elements_left<T>(m_data, first.cnt, last.cnt);
-				m_cnt -= cnt;
-
-				return iterator_soa(m_data, m_cnt, last.m_cnt);
+				return iterator(data() + idxSrc);
 			}
 
 			constexpr void clear() noexcept {
@@ -500,7 +504,7 @@ namespace gaia {
 					return false;
 				const size_type n = size();
 				for (size_type i = 0; i < n; ++i)
-					if (!(m_data[i] == other.m_data[i]))
+					if (!(operator[](i) == other[i]))
 						return false;
 				return true;
 			}

@@ -122,7 +122,9 @@ namespace gaia {
 			T operator*() const {
 				return mem::data_view_policy<T::Layout, T>::get({m_ptr, m_cnt}, m_idx);
 			}
-
+			T operator->() const {
+				return mem::data_view_policy<T::Layout, T>::get({m_ptr, m_cnt}, m_idx);
+			}
 			iterator operator[](size_type offset) const {
 				return iterator(m_ptr, m_cnt, m_idx + offset);
 			}
@@ -216,16 +218,19 @@ namespace gaia {
 			mem::raw_data_holder<T, allocated_bytes> m_data;
 
 			constexpr sarr() noexcept {
-				mem::construct_elements((pointer)&m_data[0], extent);
+				if constexpr (!mem::is_soa_layout_v<T>)
+					core::call_ctor(data(), extent);
 			}
 
 			~sarr() {
-				mem::destruct_elements((pointer)&m_data[0], extent);
+				if constexpr (!mem::is_soa_layout_v<T>)
+					core::call_dtor(data(), extent);
 			}
 
 			template <typename InputIt>
 			constexpr sarr(InputIt first, InputIt last) noexcept {
-				mem::construct_elements((pointer)&m_data[0], extent);
+				if constexpr (!mem::is_soa_layout_v<T>)
+					core::call_ctor(data(), extent);
 
 				const auto count = (size_type)core::distance(first, last);
 
@@ -249,7 +254,8 @@ namespace gaia {
 			constexpr sarr(sarr&& other) noexcept {
 				GAIA_ASSERT(gaia::mem::addressof(other) != this);
 
-				mem::construct_elements((pointer)&m_data[0], extent);
+				if constexpr (!mem::is_soa_layout_v<T>)
+					core::call_ctor(data(), extent);
 				mem::move_elements<T>((uint8_t*)m_data, (const uint8_t*)other.m_data, 0, other.size(), extent, other.extent);
 
 				other.m_cnt = size_type(0);
@@ -263,7 +269,8 @@ namespace gaia {
 			constexpr sarr& operator=(const sarr& other) {
 				GAIA_ASSERT(gaia::mem::addressof(other) != this);
 
-				mem::construct_elements((pointer)&m_data[0], extent);
+				if constexpr (!mem::is_soa_layout_v<T>)
+					core::call_ctor(data(), extent);
 				mem::copy_elements<T>(
 						(uint8_t*)&m_data[0], (const uint8_t*)&other.m_data[0], 0, other.size(), extent, other.extent);
 
@@ -273,7 +280,8 @@ namespace gaia {
 			constexpr sarr& operator=(sarr&& other) noexcept {
 				GAIA_ASSERT(gaia::mem::addressof(other) != this);
 
-				mem::construct_elements((pointer)&m_data[0], extent);
+				if constexpr (!mem::is_soa_layout_v<T>)
+					core::call_ctor(data(), extent);
 				mem::move_elements<T>(
 						(uint8_t*)&m_data[0], (const uint8_t*)&other.m_data[0], 0, other.size(), extent, other.extent);
 
@@ -369,7 +377,7 @@ namespace gaia {
 
 			GAIA_NODISCARD constexpr bool operator==(const sarr& other) const {
 				for (size_type i = 0; i < N; ++i)
-					if (!(m_data[i] == other.m_data[i]))
+					if (!(operator[](i) == other[i]))
 						return false;
 				return true;
 			}
