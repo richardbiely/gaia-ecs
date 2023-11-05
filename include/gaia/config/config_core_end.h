@@ -36,7 +36,7 @@
 
 #if GAIA_DISABLE_ASSERTS
 	#undef GAIA_ASSERT
-	#define GAIA_ASSERT(cond) (void(0))
+	#define GAIA_ASSERT(cond)
 #elif !defined(GAIA_ASSERT)
 	#include <cassert>
 	// For Debug builds use system's native assertion capabilities
@@ -46,9 +46,7 @@
 			{                                                                                                                \
 				GAIA_MSVC_WARNING_PUSH()                                                                                       \
 				GAIA_MSVC_WARNING_DISABLE(4127)                                                                                \
-				if GAIA_LIKELY (cond)                                                                                          \
-					(void(0));                                                                                                   \
-				else                                                                                                           \
+				if GAIA_UNLIKELY (!(cond))                                                                                        \
 					[] {                                                                                                         \
 						assert(!#cond);                                                                                            \
 					}();                                                                                                         \
@@ -62,9 +60,7 @@
 				{                                                                                                              \
 					GAIA_MSVC_WARNING_PUSH()                                                                                     \
 					GAIA_MSVC_WARNING_DISABLE(4127)                                                                              \
-					if GAIA_LIKELY (cond)                                                                                        \
-						(void(0));                                                                                                 \
-					else                                                                                                         \
+					if GAIA_UNLIKELY (!(cond))                                                                                      \
 						[] {                                                                                                       \
 							GAIA_LOG_E("%s:%d: Assertion failed: '%s'.", __FILE__, __LINE__, #cond);                                 \
 						}();                                                                                                       \
@@ -72,7 +68,7 @@
 				}
 		#else
 			#define GAIA_ASSERT_ENABLED 0
-			#define GAIA_ASSERT(cond) (void(0))
+			#define GAIA_ASSERT(cond)
 		#endif
 	#endif
 #endif
