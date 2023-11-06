@@ -324,12 +324,12 @@ namespace gaia {
 				return (const_pointer)m_pData;
 			}
 
-			GAIA_NODISCARD auto operator[](size_type pos) noexcept -> decltype(view_policy::set({}, 0)) {
+			GAIA_NODISCARD decltype(auto) operator[](size_type pos) noexcept {
 				GAIA_ASSERT(pos < size());
 				return view_policy::set({(typename view_policy::TargetCastType)m_pData, capacity()}, pos);
 			}
 
-			GAIA_NODISCARD auto operator[](size_type pos) const noexcept -> decltype(view_policy::get({}, 0)) {
+			GAIA_NODISCARD decltype(auto) operator[](size_type pos) const noexcept {
 				GAIA_ASSERT(pos < size());
 				return view_policy::get({(typename view_policy::TargetCastType)m_pData, capacity()}, pos);
 			}

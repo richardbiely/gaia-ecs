@@ -404,7 +404,7 @@ namespace gaia {
 				static_assert(!std::is_same_v<C, data_view_policy_soa_get>);
 			}
 
-			GAIA_NODISCARD constexpr auto operator[](size_t idx) const noexcept -> decltype(view_policy::get({}, 0)) {
+			GAIA_NODISCARD constexpr decltype(auto) operator[](size_t idx) const noexcept {
 				return view_policy::get(m_data, idx);
 			}
 
@@ -465,7 +465,7 @@ namespace gaia {
 				}
 			};
 
-			GAIA_NODISCARD constexpr auto operator[](size_t idx) const noexcept -> decltype(view_policy::get({}, 0)) {
+			GAIA_NODISCARD constexpr decltype(auto) operator[](size_t idx) const noexcept {
 				return view_policy::get({(const uint8_t*)m_data.data(), m_data.size()}, idx);
 			}
 			GAIA_NODISCARD constexpr auto operator[](size_t idx) noexcept {
