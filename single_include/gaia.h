@@ -14458,71 +14458,67 @@ namespace gaia {
 			}
 
 			void diag() const {
-				// const auto& cc = ComponentCache::get();
+				const auto& cc = ComponentCache::get();
 
-				// // Add edges (movement towards the leafs)
-				// {
-				// 	const auto& edgesG = m_edgesAdd[ComponentKind::CK_Generic];
-				// 	const auto& edgesC = m_edgesAdd[ComponentKind::CK_Chunk];
-				// 	const auto edgeCount = (uint32_t)(edgesG.size() + edgesC.size());
-				// 	if (edgeCount > 0) {
-				// 		GAIA_LOG_N("  Add edges - count:%u", edgeCount);
+				// Add edges (movement towards the leafs)
+				{
+					const auto& edgesG = m_edgesAdd[ComponentKind::CK_Generic];
+					const auto& edgesC = m_edgesAdd[ComponentKind::CK_Chunk];
+					const auto edgeCount = (uint32_t)(edgesG.size() + edgesC.size());
+					if (edgeCount > 0) {
+						GAIA_LOG_N("  Add edges - count:%u", edgeCount);
 
-				// 		if (!edgesG.empty()) {
-				// 			GAIA_LOG_N("    Generic - count:%u", (uint32_t)edgesG.size());
-				// 			for (const auto& edge: edgesG) {
-				// 				const auto& info = cc.comp_info(edge.first);
-				// 				const auto& infoCreate = cc.comp_desc(info.comp);
-				// 				GAIA_LOG_N(
-				// 						"      %.*s (--> Archetype ID:%u)", (uint32_t)infoCreate.name.size(), infoCreate.name.data(),
-				// 						edge.second.archetypeId);
-				// 			}
-				// 		}
+						if (!edgesG.empty()) {
+							GAIA_LOG_N("    Generic - count:%u", (uint32_t)edgesG.size());
+							for (const auto& edge: edgesG) {
+								const auto& desc = cc.comp_desc(edge.first);
+								GAIA_LOG_N(
+										"      %.*s (--> Archetype ID:%u)", (uint32_t)desc.name.size(), desc.name.data(),
+										edge.second.archetypeId);
+							}
+						}
 
-				// 		if (!edgesC.empty()) {
-				// 			GAIA_LOG_N("    Chunk - count:%u", (uint32_t)edgesC.size());
-				// 			for (const auto& edge: edgesC) {
-				// 				const auto& info = cc.comp_info(edge.first);
-				// 				const auto& infoCreate = cc.comp_desc(info.comp);
-				// 				GAIA_LOG_N(
-				// 						"      %.*s (--> Archetype ID:%u)", (uint32_t)infoCreate.name.size(), infoCreate.name.data(),
-				// 						edge.second.archetypeId);
-				// 			}
-				// 		}
-				// 	}
-				// }
+						if (!edgesC.empty()) {
+							GAIA_LOG_N("    Chunk - count:%u", (uint32_t)edgesC.size());
+							for (const auto& edge: edgesC) {
+								const auto& desc = cc.comp_desc(edge.first);
+								GAIA_LOG_N(
+										"      %.*s (--> Archetype ID:%u)", (uint32_t)desc.name.size(), desc.name.data(),
+										edge.second.archetypeId);
+							}
+						}
+					}
+				}
 
-				// // Delete edges (movement towards the root)
-				// {
-				// 	const auto& edgesG = m_edgesDel[ComponentKind::CK_Generic];
-				// 	const auto& edgesC = m_edgesDel[ComponentKind::CK_Chunk];
-				// 	const auto edgeCount = (uint32_t)(edgesG.size() + edgesC.size());
-				// 	if (edgeCount > 0) {
-				// 		GAIA_LOG_N("  del edges - count:%u", edgeCount);
+				// Delete edges (movement towards the root)
+				{
+					const auto& edgesG = m_edgesDel[ComponentKind::CK_Generic];
+					const auto& edgesC = m_edgesDel[ComponentKind::CK_Chunk];
+					const auto edgeCount = (uint32_t)(edgesG.size() + edgesC.size());
+					if (edgeCount > 0) {
+						GAIA_LOG_N("  del edges - count:%u", edgeCount);
 
-				// 		if (!edgesG.empty()) {
-				// 			GAIA_LOG_N("    Generic - count:%u", (uint32_t)edgesG.size());
-				// 			for (const auto& edge: edgesG) {
-				// 				const auto& info = cc.comp_info(edge.first);
-				// 				const auto& infoCreate = cc.comp_desc(info.comp);
-				// 				GAIA_LOG_N(
-				// 						"      %.*s (--> Archetype ID:%u)", (uint32_t)infoCreate.name.size(), infoCreate.name.data(),
-				// 						edge.second.archetypeId);
-				// 			}
-				// 		}
+						if (!edgesG.empty()) {
+							GAIA_LOG_N("    Generic - count:%u", (uint32_t)edgesG.size());
+							for (const auto& edge: edgesG) {
+								const auto& desc = cc.comp_desc(edge.first);
+								GAIA_LOG_N(
+										"      %.*s (--> Archetype ID:%u)", (uint32_t)desc.name.size(), desc.name.data(),
+										edge.second.archetypeId);
+							}
+						}
 
-				// 		if (!edgesC.empty()) {
-				// 			GAIA_LOG_N("    Chunk - count:%u", (uint32_t)edgesC.size());
-				// 			for (const auto& edge: edgesC) {
-				// 				const auto& info = cc.comp_info(edge.first);
-				// 				const auto& infoCreate = cc.comp_desc(info.comp);
-				// 				GAIA_LOG_N(
-				// 						"      %.*s (--> Archetype ID:%u)", (uint32_t)infoCreate.name.size(), infoCreate.name.data(),
-				// 						edge.second.archetypeId);
-				// 			}
-				// 		}
-				// 	}
-				// }
+						if (!edgesC.empty()) {
+							GAIA_LOG_N("    Chunk - count:%u", (uint32_t)edgesC.size());
+							for (const auto& edge: edgesC) {
+								const auto& desc = cc.comp_desc(edge.first);
+								GAIA_LOG_N(
+										"      %.*s (--> Archetype ID:%u)", (uint32_t)desc.name.size(), desc.name.data(),
+										edge.second.archetypeId);
+							}
+						}
+					}
+				}
 			}
 		};
 	} // namespace ecs
@@ -15321,19 +15317,6 @@ namespace gaia {
 
 				const auto& cc = ComponentCache::get();
 
-				const auto& compsGeneric = comps[ComponentKind::CK_Generic];
-				for (const auto comp: compsGeneric) {
-					const auto& desc = cc.comp_desc(comp.id());
-					m_header.hasAnyCustomGenericCtor |= (desc.func_ctor != nullptr);
-					m_header.hasAnyCustomGenericDtor |= (desc.func_dtor != nullptr);
-				}
-				const auto& compsChunk = comps[ComponentKind::CK_Chunk];
-				for (const auto comp: compsChunk) {
-					const auto& desc = cc.comp_desc(comp.id());
-					m_header.hasAnyCustomChunkCtor |= (desc.func_ctor != nullptr);
-					m_header.hasAnyCustomChunkDtor |= (desc.func_dtor != nullptr);
-				}
-
 				// Cache pointers to versions
 				for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
 					if (comps[i].empty())
@@ -15389,6 +15372,22 @@ namespace gaia {
 #endif
 
 				m_records.pEntities = (Entity*)&data(headerOffsets.firstByte_EntityData);
+
+				// Now that records are set, we use the cached component descriptors to set ctor/dtor masks.
+				{
+					auto recs = comp_rec_view(ComponentKind::CK_Generic);
+					for (const auto& rec: recs) {
+						m_header.hasAnyCustomGenericCtor |= (rec.pDesc->func_ctor != nullptr);
+						m_header.hasAnyCustomGenericDtor |= (rec.pDesc->func_dtor != nullptr);
+					}
+				}
+				{
+					auto recs = comp_rec_view(ComponentKind::CK_Chunk);
+					for (const auto& rec: recs) {
+						m_header.hasAnyCustomChunkCtor |= (rec.pDesc->func_ctor != nullptr);
+						m_header.hasAnyCustomChunkDtor |= (rec.pDesc->func_dtor != nullptr);
+					}
+				}
 			}
 
 			GAIA_NODISCARD std::span<const ComponentVersion> comp_version_view(ComponentKind compKind) const {
@@ -15884,7 +15883,8 @@ namespace gaia {
 						const auto newId = newIds[j];
 
 						if (oldId == newId) {
-							const auto& rec = comp_rec_view(ComponentKind::CK_Generic)[j];
+							auto recs = comp_rec_view(ComponentKind::CK_Generic);
+							const auto& rec = recs[j];
 							GAIA_ASSERT(rec.comp.id() == oldId);
 							if (rec.comp.size() != 0U) {
 								auto* pSrc = (void*)pOldChunk->comp_ptr_mut(ComponentKind::CK_Generic, i, oldEntityContainer.idx);
@@ -16129,7 +16129,7 @@ namespace gaia {
 				return m_header.hasAnyCustomChunkDtor;
 			}
 
-			void call_ctor(ComponentKind compKind, const ComponentDesc& desc, uint32_t entIdx) {
+			void call_ctor(ComponentKind compKind, uint32_t entIdx, const ComponentDesc& desc) {
 				GAIA_PROF_SCOPE(call_ctor);
 
 				// Make sure only generic types are used with indices
@@ -16153,17 +16153,14 @@ namespace gaia {
 				// Make sure only generic types are used with indices
 				GAIA_ASSERT(compKind == ComponentKind::CK_Generic || (entIdx == 0 && entCnt == 1));
 
-				const auto& cc = ComponentCache::get();
-				auto compIds = comp_id_view(compKind);
-
-				for (uint32_t compIdx = 0; compIdx < compIds.size(); ++compIdx) {
-					const auto compId = compIds[compIdx];
-					const auto& desc = cc.comp_desc(compId);
-					if (desc.func_ctor == nullptr)
+				auto recs = comp_rec_view(compKind);
+				for (uint32_t compIdx = 0; compIdx < recs.size(); ++compIdx) {
+					const auto* pDesc = recs[compIdx].pDesc;
+					if (pDesc->func_ctor == nullptr)
 						continue;
 
 					auto* pSrc = (void*)comp_ptr_mut(compKind, compIdx, entIdx);
-					desc.func_ctor(pSrc, entCnt);
+					pDesc->func_ctor(pSrc, entCnt);
 				}
 			}
 
@@ -16177,17 +16174,14 @@ namespace gaia {
 				// Make sure only generic types are used with indices
 				GAIA_ASSERT(compKind == ComponentKind::CK_Generic || (entIdx == 0 && entCnt == 1));
 
-				const auto& cc = ComponentCache::get();
-				auto compIds = comp_id_view(compKind);
-
-				for (uint32_t compIdx = 0; compIdx < compIds.size(); ++compIdx) {
-					const auto compId = compIds[compIdx];
-					const auto& desc = cc.comp_desc(compId);
-					if (desc.func_dtor == nullptr)
+				auto recs = comp_rec_view(compKind);
+				for (uint32_t compIdx = 0; compIdx < recs.size(); ++compIdx) {
+					const auto* pDesc = recs[compIdx].pDesc;
+					if (pDesc->func_dtor == nullptr)
 						continue;
 
 					auto* pSrc = (void*)comp_ptr_mut(compKind, compIdx, entIdx);
-					desc.func_dtor(pSrc, entCnt);
+					pDesc->func_dtor(pSrc, entCnt);
 				}
 			};
 
@@ -19099,9 +19093,9 @@ namespace gaia {
 				cnt::sarr_ext<Component, Chunk::MAX_COMPONENTS> comps[ComponentKind::CK_Count];
 				for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
 					auto& dst = comps[i];
-					const auto& rec = pChunk->comp_rec_view((ComponentKind)i);
-					for (uint32_t j = 0; j < rec.size(); ++j)
-						dst[j] = rec[j].comp;
+					auto recs = pChunk->comp_rec_view((ComponentKind)i);
+					for (uint32_t j = 0; j < recs.size(); ++j)
+						dst[j] = recs[j].comp;
 				}
 
 				const Archetype::GenericComponentHash genericHash = {calc_lookup_hash({comps[0].data(), comps[0].size()}).hash};
@@ -19646,9 +19640,9 @@ namespace gaia {
 
 				// Call the constructor for the newly added component if necessary
 				if (compKind == ComponentKind::CK_Generic)
-					pChunk->call_ctor(compKind, desc, entityContainer.idx);
+					pChunk->call_ctor(compKind, entityContainer.idx, desc);
 				else if (compKind == ComponentKind::CK_Chunk)
-					pChunk->call_ctor(compKind, desc, 0);
+					pChunk->call_ctor(compKind, 0, desc);
 
 				return entityContainer;
 			}
