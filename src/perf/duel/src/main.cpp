@@ -1208,29 +1208,29 @@ int main(int argc, char* argv[]) {
 	if (r.error() == picobench::error_unknown_cmd_line_argument)
 		r.set_error(picobench::no_error);
 
-	// With Cachegrind enabled we want to be able to pick what benchmark to run so it is easier
+	// With profiling mode enabled we want to be able to pick what benchmark to run so it is easier
 	// for us to isolate the results.
 	{
-		bool cachegrind = false;
-		bool test_dod = false;
+		bool profilingMode = false;
+		bool dodMode = false;
 
 		const gaia::cnt::darray<std::string_view> args(argv + 1, argv + argc);
 		for (const auto& arg: args) {
-			if (arg == "-cg") {
-				cachegrind = true;
+			if (arg == "-p") {
+				profilingMode = true;
 				continue;
 			}
 			if (arg == "-dod") {
-				test_dod = true;
+				dodMode = true;
 				continue;
 			}
 		}
 
-		GAIA_LOG_N("CacheGrind = %d", cachegrind);
-		GAIA_LOG_N("DOD mode   = %d", test_dod);
+		GAIA_LOG_N("Profiling mode = %s", profilingMode ? "ON" : "OFF");
+		GAIA_LOG_N("DOD mode       = %s", dodMode ? "ON" : "OFF");
 
-		if (cachegrind) {
-			if (test_dod) {
+		if (profilingMode) {
+			if (dodMode) {
 				// PICOBENCH_SUITE_REG("NonECS_DOD");
 				PICOBENCH_REG(BM_NonECS_DOD<80>).PICO_SETTINGS_1().label("DOD_Chunks_80");
 			} else {

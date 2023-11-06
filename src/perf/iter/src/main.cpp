@@ -1,4 +1,4 @@
-#define PICOBENCH_IMPLEMENT_WITH_MAIN
+#define PICOBENCH_IMPLEMENT
 #include "gaia/external/picobench.hpp"
 #include <gaia.h>
 
@@ -193,15 +193,51 @@ DEFINE_EACH_ITER_INDEX(1000);
 DEFINE_EACH_ITER_ALL(1000);
 
 #define PICO_SETTINGS() iterations({8192}).samples(3)
+#define PICO_SETTINGS_1() iterations({8192}).samples(1)
+#define PICOBENCH_SUITE_REG(name) r.current_suite_name() = name;
+#define PICOBENCH_REG(func) (void)r.add_benchmark(#func, func)
 
-PICOBENCH_SUITE("each");
-PICOBENCH(BM_Each_1).PICO_SETTINGS().label("1 archetype");
-PICOBENCH(BM_Each_100).PICO_SETTINGS().label("100 archetypes");
-PICOBENCH(BM_Each_1000).PICO_SETTINGS().label("1000 archetypes");
+int main(int argc, char* argv[]) {
+	picobench::runner r(true);
+	r.parse_cmd_line(argc, argv);
 
-PICOBENCH_SUITE("each - iterator");
-PICOBENCH(BM_Each_Iter_1).PICO_SETTINGS().label("1 archetype");
-PICOBENCH(BM_Each_Iter_100).PICO_SETTINGS().label("100 archetypes");
-PICOBENCH(BM_Each_Iter_1000).PICO_SETTINGS().label("1000 archetypes");
-PICOBENCH(BM_Each_Iter_Index_1000).PICO_SETTINGS().label("1000 archetypes (Idx)");
-PICOBENCH(BM_Each_Iter_All_1000).PICO_SETTINGS().label("1000 archetypes (All)");
+	// If picobench encounters an unknown command line argument it returns false and sets an error.
+	// Ignore this behavior.
+	// We only need to make sure to provide the custom arguments after the picobench ones.
+	if (r.error() == picobench::error_unknown_cmd_line_argument)
+		r.set_error(picobench::no_error);
+
+	// With profiling mode enabled we want to be able to pick what benchmark to run so it is easier
+	// for us to isolate the results.
+	{
+		bool profilingMode = false;
+
+		const gaia::cnt::darray<std::string_view> args(argv + 1, argv + argc);
+		for (const auto& arg: args) {
+			if (arg == "-p") {
+				profilingMode = true;
+				continue;
+			}
+		}
+
+		GAIA_LOG_N("Profiling mode = %s", profilingMode ? "ON" : "OFF");
+
+		if (profilingMode) {
+			PICOBENCH_REG(BM_Each_Iter_All_1000).PICO_SETTINGS_1().label("1000 archetypes (All)");
+		} else {
+			PICOBENCH_SUITE_REG("each");
+			PICOBENCH_REG(BM_Each_1).PICO_SETTINGS().label("1 archetype");
+			PICOBENCH_REG(BM_Each_100).PICO_SETTINGS().label("100 archetypes");
+			PICOBENCH_REG(BM_Each_1000).PICO_SETTINGS().label("1000 archetypes");
+
+			PICOBENCH_SUITE_REG("each - iterator");
+			PICOBENCH_REG(BM_Each_Iter_1).PICO_SETTINGS().label("1 archetype");
+			PICOBENCH_REG(BM_Each_Iter_100).PICO_SETTINGS().label("100 archetypes");
+			PICOBENCH_REG(BM_Each_Iter_1000).PICO_SETTINGS().label("1000 archetypes");
+			PICOBENCH_REG(BM_Each_Iter_Index_1000).PICO_SETTINGS().label("1000 archetypes (Idx)");
+			PICOBENCH_REG(BM_Each_Iter_All_1000).PICO_SETTINGS().label("1000 archetypes (All)");
+		}
+	}
+
+	return r.run(0);
+}
