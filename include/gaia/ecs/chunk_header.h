@@ -10,6 +10,7 @@
 #include "chunk_allocator.h"
 #include "component.h"
 #include "entity.h"
+#include "gaia/ecs/component_desc.h"
 
 namespace gaia {
 	namespace ecs {
@@ -30,11 +31,11 @@ namespace gaia {
 
 		struct ComponentRecord {
 			//! Component id
-			ComponentId id;
-			//! Component size
-			uint32_t size;
+			Component comp;
 			//! Pointer to where the first instance of the component is stored
 			uint8_t* pData;
+			//! Pointer to component descriptor
+			const ComponentDesc* pDesc;
 		};
 
 		struct ChunkRecords {
@@ -46,7 +47,7 @@ namespace gaia {
 			ComponentRecord* pRecords[ComponentKind::CK_Count]{};
 #if GAIA_COMP_ID_PROBING
 			//! Pointer to the component id map
-			ComponentId* compIdMap[ComponentKind::CK_Count]{};
+			ComponentId* compMap[ComponentKind::CK_Count]{};
 #endif
 			//! Pointer to the array of entities
 			Entity* pEntities{};

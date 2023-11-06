@@ -129,14 +129,13 @@ namespace gaia {
 				load(isManualDestroyNeeded);
 
 				const auto& desc = ComponentCache::get().comp_desc(compId);
-				GAIA_ASSERT(m_dataPos + desc.properties.size <= bytes());
-
+				GAIA_ASSERT(m_dataPos + desc.comp.size() <= bytes());
 				auto* pSrc = (void*)&m_data[m_dataPos];
 				desc.move(pSrc, pDst);
 				if (isManualDestroyNeeded)
 					desc.dtor(pSrc);
 
-				m_dataPos += desc.properties.size;
+				m_dataPos += desc.comp.size();
 			}
 		};
 	} // namespace ecs

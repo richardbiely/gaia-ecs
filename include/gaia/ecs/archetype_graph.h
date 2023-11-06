@@ -22,30 +22,30 @@ namespace gaia {
 
 		public:
 			//! Creates an edge in the graph leading to the target archetype \param archetypeId via component \param
-			//! compId of type \param compKind.
+			//! comp of type \param compKind.
 			void add_edge_right(ComponentKind compKind, ComponentId compId, ArchetypeId archetypeId) {
 				[[maybe_unused]] const auto ret = m_edgesAdd[compKind].try_emplace({compId}, ArchetypeGraphEdge{archetypeId});
 				GAIA_ASSERT(ret.second);
 			}
 
 			//! Creates an edge in the graph leading to the target archetype \param archetypeId via component \param
-			//! compId of type \param compKind.
+			//! comp of type \param compKind.
 			void add_edge_left(ComponentKind compKind, ComponentId compId, ArchetypeId archetypeId) {
 				[[maybe_unused]] const auto ret = m_edgesDel[compKind].try_emplace({compId}, ArchetypeGraphEdge{archetypeId});
 				GAIA_ASSERT(ret.second);
 			}
 
-			//! Checks if the graph edge for component type \param compKind contains the component \param compId.
+			//! Checks if the graph edge for component type \param compKind contains the component \param comp.
 			//! \return Archetype id of the target archetype if the edge is found. ArchetypeIdBad otherwise.
-			GAIA_NODISCARD ArchetypeId find_edge_right(ComponentKind compKind, const ComponentId compId) const {
+			GAIA_NODISCARD ArchetypeId find_edge_right(ComponentKind compKind, ComponentId compId) const {
 				const auto& edges = m_edgesAdd[compKind];
 				const auto it = edges.find({compId});
 				return it != edges.end() ? it->second.archetypeId : ArchetypeIdBad;
 			}
 
-			//! Checks if the graph edge for component type \param compKind contains the component \param compId.
+			//! Checks if the graph edge for component type \param compKind contains the component \param comp.
 			//! \return Archetype id of the target archetype if the edge is found. ArchetypeIdBad otherwise.
-			GAIA_NODISCARD ArchetypeId find_edge_left(ComponentKind compKind, const ComponentId compId) const {
+			GAIA_NODISCARD ArchetypeId find_edge_left(ComponentKind compKind, ComponentId compId) const {
 				const auto& edges = m_edgesDel[compKind];
 				const auto it = edges.find({compId});
 				return it != edges.end() ? it->second.archetypeId : ArchetypeIdBad;
@@ -66,7 +66,7 @@ namespace gaia {
 				// 			GAIA_LOG_N("    Generic - count:%u", (uint32_t)edgesG.size());
 				// 			for (const auto& edge: edgesG) {
 				// 				const auto& info = cc.comp_info(edge.first);
-				// 				const auto& infoCreate = cc.comp_desc(info.compId);
+				// 				const auto& infoCreate = cc.comp_desc(info.comp);
 				// 				GAIA_LOG_N(
 				// 						"      %.*s (--> Archetype ID:%u)", (uint32_t)infoCreate.name.size(), infoCreate.name.data(),
 				// 						edge.second.archetypeId);
@@ -77,7 +77,7 @@ namespace gaia {
 				// 			GAIA_LOG_N("    Chunk - count:%u", (uint32_t)edgesC.size());
 				// 			for (const auto& edge: edgesC) {
 				// 				const auto& info = cc.comp_info(edge.first);
-				// 				const auto& infoCreate = cc.comp_desc(info.compId);
+				// 				const auto& infoCreate = cc.comp_desc(info.comp);
 				// 				GAIA_LOG_N(
 				// 						"      %.*s (--> Archetype ID:%u)", (uint32_t)infoCreate.name.size(), infoCreate.name.data(),
 				// 						edge.second.archetypeId);
@@ -98,7 +98,7 @@ namespace gaia {
 				// 			GAIA_LOG_N("    Generic - count:%u", (uint32_t)edgesG.size());
 				// 			for (const auto& edge: edgesG) {
 				// 				const auto& info = cc.comp_info(edge.first);
-				// 				const auto& infoCreate = cc.comp_desc(info.compId);
+				// 				const auto& infoCreate = cc.comp_desc(info.comp);
 				// 				GAIA_LOG_N(
 				// 						"      %.*s (--> Archetype ID:%u)", (uint32_t)infoCreate.name.size(), infoCreate.name.data(),
 				// 						edge.second.archetypeId);
@@ -109,7 +109,7 @@ namespace gaia {
 				// 			GAIA_LOG_N("    Chunk - count:%u", (uint32_t)edgesC.size());
 				// 			for (const auto& edge: edgesC) {
 				// 				const auto& info = cc.comp_info(edge.first);
-				// 				const auto& infoCreate = cc.comp_desc(info.compId);
+				// 				const auto& infoCreate = cc.comp_desc(info.comp);
 				// 				GAIA_LOG_N(
 				// 						"      %.*s (--> Archetype ID:%u)", (uint32_t)infoCreate.name.size(), infoCreate.name.data(),
 				// 						edge.second.archetypeId);

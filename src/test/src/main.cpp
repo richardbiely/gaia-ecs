@@ -1429,36 +1429,36 @@ TEST_CASE("DataLayout SoA16") {
 }
 
 #if GAIA_COMP_ID_PROBING
-TEST_CASE("ComponentId - internal map") {
+TEST_CASE("ComponentId internal map") {
 	for (uint32_t i = 1; i < 10; ++i) {
 		cnt::darray<ecs::ComponentId> data{};
 		data.resize(i * 10);
-		for (auto& compId: data)
-			compId = ecs::ComponentIdBad;
+		for (auto& comp: data)
+			comp = ecs::ComponentIdBad;
 
-		const ecs::ComponentId compId0 = 1000000;
+		const ecs::ComponentId comp0 = 1000000;
 
 		// Fill the data array
 		for (uint32_t j = 0; j < data.size(); ++j) {
-			ecs::set_comp_idx({data.data(), data.size()}, compId0 + j);
+			ecs::set_comp_idx({data.data(), data.size()}, comp0 + j);
 		}
 
 		// Get indices
 		cnt::set<ecs::ChunkDataOffset> indices;
 		for (uint32_t j = 0; j < data.size(); ++j) {
-			const auto idx = ecs::get_comp_idx({data.data(), data.size()}, compId0 + j);
+			const auto idx = ecs::get_comp_idx({data.data(), data.size()}, comp0 + j);
 			REQUIRE_FALSE(indices.contains(idx));
 		}
 
 		// All component ids must be found
 		for (uint32_t j = 0; j < data.size(); ++j) {
-			const bool has = ecs::has_comp_idx({data.data(), data.size()}, compId0 + j);
+			const bool has = ecs::has_comp_idx({data.data(), data.size()}, comp0 + j);
 			REQUIRE(has);
 		}
 
 		// Following component ids must be not found because we didn't add them
 		for (uint32_t j = 0; j < data.size(); ++j) {
-			const bool has = ecs::has_comp_idx({data.data(), data.size()}, compId0 - 1 - j);
+			const bool has = ecs::has_comp_idx({data.data(), data.size()}, comp0 - 1 - j);
 			REQUIRE_FALSE(has);
 		}
 	}
@@ -1595,7 +1595,8 @@ TEST_CASE("Add - many components") {
 
 		w.add<Int3>(e, {3, 3, 3});
 		w.add<Position>(e, {1, 1, 1});
-		w.add<Empty>(e), w.add<Else>(e, {true});
+		w.add<Empty>(e);
+		w.add<Else>(e, {true});
 		w.add<Rotation>(e, {2, 2, 2, 2});
 		w.add<Scale>(e, {4, 4, 4});
 
@@ -2183,14 +2184,14 @@ TEST_CASE("Add - generic") {
 		REQUIRE_FALSE(w.has<ecs::AsChunk<Acceleration>>(e));
 
 		auto p = w.get<Position>(e);
-		REQUIRE(p.x == 1);
-		REQUIRE(p.y == 2);
-		REQUIRE(p.z == 3);
+		REQUIRE(p.x == 1.f);
+		REQUIRE(p.y == 2.f);
+		REQUIRE(p.z == 3.f);
 
 		auto a = w.get<Acceleration>(e);
-		REQUIRE(a.x == 4);
-		REQUIRE(a.y == 5);
-		REQUIRE(a.z == 6);
+		REQUIRE(a.x == 4.f);
+		REQUIRE(a.y == 5.f);
+		REQUIRE(a.z == 6.f);
 	}
 }
 
@@ -2254,9 +2255,9 @@ TEST_CASE("Add - chunk") {
 		REQUIRE_FALSE(w.has<Position>(e));
 		{
 			auto p = w.get<ecs::AsChunk<Position>>(e);
-			REQUIRE(p.x == 1);
-			REQUIRE(p.y == 2);
-			REQUIRE(p.z == 3);
+			REQUIRE(p.x == 1.f);
+			REQUIRE(p.y == 2.f);
+			REQUIRE(p.z == 3.f);
 		}
 		// Add Acceleration chunk component.
 		// This moves "e" to a new archetype.
@@ -2267,17 +2268,17 @@ TEST_CASE("Add - chunk") {
 		REQUIRE_FALSE(w.has<Acceleration>(e));
 		{
 			auto a = w.get<ecs::AsChunk<Acceleration>>(e);
-			REQUIRE(a.x == 4);
-			REQUIRE(a.y == 5);
-			REQUIRE(a.z == 6);
+			REQUIRE(a.x == 4.f);
+			REQUIRE(a.y == 5.f);
+			REQUIRE(a.z == 6.f);
 		}
 		{
 			// Because "e" was moved to a new archetype nobody ever set the value.
 			// Therefore, it is garbage and won't match the original chunk.
 			auto p = w.get<ecs::AsChunk<Position>>(e);
-			REQUIRE_FALSE(p.x == 1);
-			REQUIRE_FALSE(p.y == 2);
-			REQUIRE_FALSE(p.z == 3);
+			REQUIRE_FALSE(p.x == 1.f);
+			REQUIRE_FALSE(p.y == 2.f);
+			REQUIRE_FALSE(p.z == 3.f);
 		}
 	}
 }
@@ -2798,24 +2799,26 @@ TEST_CASE("Set - generic") {
 	arr.reserve(N);
 
 	for (uint32_t i = 0; i < N; ++i) {
-		arr.push_back(w.add());
-		w.add<Rotation>(arr.back(), {});
-		w.add<Scale>(arr.back(), {});
-		w.add<Else>(arr.back(), {});
+		const auto ent = w.add();
+		REQUIRE(ent.id() == i);
+		arr.push_back(ent);
+		w.add<Rotation>(ent, {});
+		w.add<Scale>(ent, {});
+		w.add<Else>(ent, {});
 	}
 
 	// Default values
 	for (const auto ent: arr) {
 		auto r = w.get<Rotation>(ent);
-		REQUIRE(r.x == 0);
-		REQUIRE(r.y == 0);
-		REQUIRE(r.z == 0);
-		REQUIRE(r.w == 0);
+		REQUIRE(r.x == 0.f);
+		REQUIRE(r.y == 0.f);
+		REQUIRE(r.z == 0.f);
+		REQUIRE(r.w == 0.f);
 
 		auto s = w.get<Scale>(ent);
-		REQUIRE(s.x == 0);
-		REQUIRE(s.y == 0);
-		REQUIRE(s.z == 0);
+		REQUIRE(s.x == 0.f);
+		REQUIRE(s.y == 0.f);
+		REQUIRE(s.z == 0.f);
 
 		auto e = w.get<Else>(ent);
 		REQUIRE(e.value == false);
@@ -2839,15 +2842,15 @@ TEST_CASE("Set - generic") {
 
 		for (const auto ent: arr) {
 			auto r = w.get<Rotation>(ent);
-			REQUIRE(r.x == 1);
-			REQUIRE(r.y == 2);
-			REQUIRE(r.z == 3);
-			REQUIRE(r.w == 4);
+			REQUIRE(r.x == 1.f);
+			REQUIRE(r.y == 2.f);
+			REQUIRE(r.z == 3.f);
+			REQUIRE(r.w == 4.f);
 
 			auto s = w.get<Scale>(ent);
-			REQUIRE(s.x == 11);
-			REQUIRE(s.y == 22);
-			REQUIRE(s.z == 33);
+			REQUIRE(s.x == 11.f);
+			REQUIRE(s.y == 22.f);
+			REQUIRE(s.z == 33.f);
 
 			auto e = w.get<Else>(ent);
 			REQUIRE(e.value == true);
@@ -2860,15 +2863,15 @@ TEST_CASE("Set - generic") {
 		w.add<Position>(ent, {5, 6, 7});
 
 		auto r = w.get<Rotation>(ent);
-		REQUIRE(r.x == 1);
-		REQUIRE(r.y == 2);
-		REQUIRE(r.z == 3);
-		REQUIRE(r.w == 4);
+		REQUIRE(r.x == 1.f);
+		REQUIRE(r.y == 2.f);
+		REQUIRE(r.z == 3.f);
+		REQUIRE(r.w == 4.f);
 
 		auto s = w.get<Scale>(ent);
-		REQUIRE(s.x == 11);
-		REQUIRE(s.y == 22);
-		REQUIRE(s.z == 33);
+		REQUIRE(s.x == 11.f);
+		REQUIRE(s.y == 22.f);
+		REQUIRE(s.z == 33.f);
 
 		auto e = w.get<Else>(ent);
 		REQUIRE(e.value == true);
@@ -2893,23 +2896,23 @@ TEST_CASE("Set - generic & chunk") {
 	// Default values
 	for (const auto ent: arr) {
 		auto r = w.get<Rotation>(ent);
-		REQUIRE(r.x == 0);
-		REQUIRE(r.y == 0);
-		REQUIRE(r.z == 0);
-		REQUIRE(r.w == 0);
+		REQUIRE(r.x == 0.f);
+		REQUIRE(r.y == 0.f);
+		REQUIRE(r.z == 0.f);
+		REQUIRE(r.w == 0.f);
 
 		auto s = w.get<Scale>(ent);
-		REQUIRE(s.x == 0);
-		REQUIRE(s.y == 0);
-		REQUIRE(s.z == 0);
+		REQUIRE(s.x == 0.f);
+		REQUIRE(s.y == 0.f);
+		REQUIRE(s.z == 0.f);
 
 		auto e = w.get<Else>(ent);
 		REQUIRE(e.value == false);
 
 		auto p = w.get<ecs::AsChunk<Position>>(ent);
-		REQUIRE(p.x == 0);
-		REQUIRE(p.y == 0);
-		REQUIRE(p.z == 0);
+		REQUIRE(p.x == 0.f);
+		REQUIRE(p.y == 0.f);
+		REQUIRE(p.z == 0.f);
 	}
 
 	// Modify values
@@ -2932,22 +2935,22 @@ TEST_CASE("Set - generic & chunk") {
 
 		{
 			Position p = w.get<ecs::AsChunk<Position>>(arr[0]);
-			REQUIRE(p.x == 111);
-			REQUIRE(p.y == 222);
-			REQUIRE(p.z == 333);
+			REQUIRE(p.x == 111.f);
+			REQUIRE(p.y == 222.f);
+			REQUIRE(p.z == 333.f);
 		}
 		{
 			for (const auto ent: arr) {
 				auto r = w.get<Rotation>(ent);
-				REQUIRE(r.x == 1);
-				REQUIRE(r.y == 2);
-				REQUIRE(r.z == 3);
-				REQUIRE(r.w == 4);
+				REQUIRE(r.x == 1.f);
+				REQUIRE(r.y == 2.f);
+				REQUIRE(r.z == 3.f);
+				REQUIRE(r.w == 4.f);
 
 				auto s = w.get<Scale>(ent);
-				REQUIRE(s.x == 11);
-				REQUIRE(s.y == 22);
-				REQUIRE(s.z == 33);
+				REQUIRE(s.x == 11.f);
+				REQUIRE(s.y == 22.f);
+				REQUIRE(s.z == 33.f);
 
 				auto e = w.get<Else>(ent);
 				REQUIRE(e.value == true);
@@ -2955,9 +2958,9 @@ TEST_CASE("Set - generic & chunk") {
 		}
 		{
 			auto p = w.get<ecs::AsChunk<Position>>(arr[0]);
-			REQUIRE(p.x == 111);
-			REQUIRE(p.y == 222);
-			REQUIRE(p.z == 333);
+			REQUIRE(p.x == 111.f);
+			REQUIRE(p.y == 222.f);
+			REQUIRE(p.z == 333.f);
 		}
 	}
 }
@@ -2991,9 +2994,9 @@ TEST_CASE("Components - non trivial") {
 		}
 
 		const auto& p = w.get<PositionNonTrivial>(ent);
-		REQUIRE(p.x == 1);
-		REQUIRE(p.y == 2);
-		REQUIRE(p.z == 3);
+		REQUIRE(p.x == 1.f);
+		REQUIRE(p.y == 2.f);
+		REQUIRE(p.z == 3.f);
 	}
 
 	// Modify values
@@ -3020,9 +3023,9 @@ TEST_CASE("Components - non trivial") {
 			REQUIRE(s2.value == StringComponent2DefaultValue_2);
 
 			const auto& p = w.get<PositionNonTrivial>(ent);
-			REQUIRE(p.x == 111);
-			REQUIRE(p.y == 222);
-			REQUIRE(p.z == 333);
+			REQUIRE(p.x == 111.f);
+			REQUIRE(p.y == 222.f);
+			REQUIRE(p.z == 333.f);
 		}
 	}
 
@@ -3038,9 +3041,9 @@ TEST_CASE("Components - non trivial") {
 		REQUIRE(s2.value == StringComponent2DefaultValue_2);
 
 		const auto& p = w.get<PositionNonTrivial>(ent);
-		REQUIRE(p.x == 111);
-		REQUIRE(p.y == 222);
-		REQUIRE(p.z == 333);
+		REQUIRE(p.x == 111.f);
+		REQUIRE(p.y == 222.f);
+		REQUIRE(p.z == 333.f);
 	}
 }
 
@@ -3093,9 +3096,9 @@ TEST_CASE("CommandBuffer") {
 		auto e = w.get(1);
 		REQUIRE(w.has<Position>(e));
 		auto p = w.get<Position>(e);
-		REQUIRE(p.x == 1);
-		REQUIRE(p.y == 2);
-		REQUIRE(p.z == 3);
+		REQUIRE(p.x == 1.f);
+		REQUIRE(p.y == 2.f);
+		REQUIRE(p.z == 3.f);
 	}
 
 	SECTION("Delayed component addition to an existing entity") {
@@ -3159,14 +3162,14 @@ TEST_CASE("CommandBuffer") {
 		REQUIRE(w.has<Acceleration>(e));
 
 		auto p = w.get<Position>(e);
-		REQUIRE(p.x == 1);
-		REQUIRE(p.y == 2);
-		REQUIRE(p.z == 3);
+		REQUIRE(p.x == 1.f);
+		REQUIRE(p.y == 2.f);
+		REQUIRE(p.z == 3.f);
 
 		auto a = w.get<Acceleration>(e);
-		REQUIRE(a.x == 4);
-		REQUIRE(a.y == 5);
-		REQUIRE(a.z == 6);
+		REQUIRE(a.x == 4.f);
+		REQUIRE(a.y == 5.f);
+		REQUIRE(a.z == 6.f);
 	}
 
 	SECTION("Delayed component setting of a to-be-created entity") {
@@ -3184,9 +3187,9 @@ TEST_CASE("CommandBuffer") {
 		REQUIRE(w.has<Position>(e));
 
 		auto p = w.get<Position>(e);
-		REQUIRE(p.x == 1);
-		REQUIRE(p.y == 2);
-		REQUIRE(p.z == 3);
+		REQUIRE(p.x == 1.f);
+		REQUIRE(p.y == 2.f);
+		REQUIRE(p.z == 3.f);
 	}
 
 	SECTION("Delayed 2 components setting of a to-be-created entity") {
@@ -3207,14 +3210,14 @@ TEST_CASE("CommandBuffer") {
 		REQUIRE(w.has<Acceleration>(e));
 
 		auto p = w.get<Position>(e);
-		REQUIRE(p.x == 1);
-		REQUIRE(p.y == 2);
-		REQUIRE(p.z == 3);
+		REQUIRE(p.x == 1.f);
+		REQUIRE(p.y == 2.f);
+		REQUIRE(p.z == 3.f);
 
 		auto a = w.get<Acceleration>(e);
-		REQUIRE(a.x == 4);
-		REQUIRE(a.y == 5);
-		REQUIRE(a.z == 6);
+		REQUIRE(a.x == 4.f);
+		REQUIRE(a.y == 5.f);
+		REQUIRE(a.z == 6.f);
 	}
 
 	SECTION("Delayed component add with setting of a to-be-created entity") {
@@ -3231,9 +3234,9 @@ TEST_CASE("CommandBuffer") {
 		REQUIRE(w.has<Position>(e));
 
 		auto p = w.get<Position>(e);
-		REQUIRE(p.x == 1);
-		REQUIRE(p.y == 2);
-		REQUIRE(p.z == 3);
+		REQUIRE(p.x == 1.f);
+		REQUIRE(p.y == 2.f);
+		REQUIRE(p.z == 3.f);
 	}
 
 	SECTION("Delayed 2 components add with setting of a to-be-created entity") {
@@ -3252,14 +3255,14 @@ TEST_CASE("CommandBuffer") {
 		REQUIRE(w.has<Acceleration>(e));
 
 		auto p = w.get<Position>(e);
-		REQUIRE(p.x == 1);
-		REQUIRE(p.y == 2);
-		REQUIRE(p.z == 3);
+		REQUIRE(p.x == 1.f);
+		REQUIRE(p.y == 2.f);
+		REQUIRE(p.z == 3.f);
 
 		auto a = w.get<Acceleration>(e);
-		REQUIRE(a.x == 4);
-		REQUIRE(a.y == 5);
-		REQUIRE(a.z == 6);
+		REQUIRE(a.x == 4.f);
+		REQUIRE(a.y == 5.f);
+		REQUIRE(a.z == 6.f);
 	}
 
 	SECTION("Delayed component removal from an existing entity") {
@@ -3273,9 +3276,9 @@ TEST_CASE("CommandBuffer") {
 		REQUIRE(w.has<Position>(e));
 		{
 			auto p = w.get<Position>(e);
-			REQUIRE(p.x == 1);
-			REQUIRE(p.y == 2);
-			REQUIRE(p.z == 3);
+			REQUIRE(p.x == 1.f);
+			REQUIRE(p.y == 2.f);
+			REQUIRE(p.z == 3.f);
 		}
 
 		cb.commit();
@@ -3296,14 +3299,14 @@ TEST_CASE("CommandBuffer") {
 		REQUIRE(w.has<Acceleration>(e));
 		{
 			auto p = w.get<Position>(e);
-			REQUIRE(p.x == 1);
-			REQUIRE(p.y == 2);
-			REQUIRE(p.z == 3);
+			REQUIRE(p.x == 1.f);
+			REQUIRE(p.y == 2.f);
+			REQUIRE(p.z == 3.f);
 
 			auto a = w.get<Acceleration>(e);
-			REQUIRE(a.x == 4);
-			REQUIRE(a.y == 5);
-			REQUIRE(a.z == 6);
+			REQUIRE(a.x == 4.f);
+			REQUIRE(a.y == 5.f);
+			REQUIRE(a.z == 6.f);
 		}
 
 		cb.commit();

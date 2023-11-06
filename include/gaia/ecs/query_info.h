@@ -16,7 +16,7 @@ namespace gaia {
 	namespace ecs {
 		struct Entity;
 
-		using ComponentToArchetypeMap = cnt::map<ComponentId, ArchetypeList>;
+		using ComponentIdToArchetypeMap = cnt::map<ComponentId, ArchetypeList>;
 
 		class QueryInfo {
 		public:
@@ -41,10 +41,10 @@ namespace gaia {
 					return true;
 				} else {
 					const auto& data = m_lookupCtx.data[compKind];
-					const auto& compIds = data.compIds;
+					const auto& comps = data.comps;
 
 					const auto compId = comp_id<T>();
-					const auto compIdx = ecs::comp_idx<MAX_COMPONENTS_IN_QUERY>(compIds.data(), compId);
+					const auto compIdx = ecs::comp_idx<MAX_COMPONENTS_IN_QUERY>(comps.data(), compId);
 
 					if (listType != data.rules[compIdx])
 						return false;
@@ -68,25 +68,25 @@ namespace gaia {
 				return has_inter<U>(listType, compKind, isReadWrite);
 			}
 
-			//! Tries to match query component ids with those in \param compIds given the rule \param func.
+			//! Tries to match query component ids with those in \param comps given the rule \param func.
 			//! \return True if there is a match, false otherwise.
 			template <typename Func>
-			GAIA_NODISCARD bool match_inter(
-					ComponentKind compKind, const Chunk::ComponentIdArray& compIds, QueryListType listType, Func func) const {
+			GAIA_NODISCARD bool
+			match_inter(ComponentKind compKind, const Chunk::ComponentArray& comps, QueryListType listType, Func func) const {
 				const auto& data = m_lookupCtx.data[compKind];
 
 				// Arrays are sorted so we can do linear intersection lookup
 				uint32_t i = 0;
 				uint32_t j = 0;
-				while (i < compIds.size() && j < data.compIds.size()) {
+				while (i < comps.size() && j < data.comps.size()) {
 					if (data.rules[j] == listType) {
-						const auto compIdArchetype = compIds[i];
-						const auto compIdQuery = data.compIds[j];
+						const auto compArchetype = comps[i];
+						const auto compQuery = data.comps[j];
 
-						if (compIdArchetype == compIdQuery && func(compIdArchetype, compIdQuery))
+						if (compArchetype == compQuery && func(compArchetype, compQuery))
 							return true;
 
-						if (SortComponentCond{}.operator()(compIdArchetype, compIdQuery)) {
+						if (SortComponentCond{}.operator()(compArchetype, compQuery)) {
 							++i;
 							continue;
 						}
@@ -97,22 +97,22 @@ namespace gaia {
 				return false;
 			}
 
-			//! Tries to match all query component ids with those in \param compIds.
+			//! Tries to match all query component ids with those in \param comps.
 			//! \return True on the first match, false otherwise.
 			GAIA_NODISCARD bool
-			match_one(ComponentKind compKind, const Chunk::ComponentIdArray& compIds, QueryListType listType) const {
-				return match_inter(compKind, compIds, listType, [](ComponentId compId, ComponentId compIdQuery) {
-					return compId == compIdQuery;
+			match_one(ComponentKind compKind, const Chunk::ComponentArray& comps, QueryListType listType) const {
+				return match_inter(compKind, comps, listType, [](Component comp, Component compQuery) {
+					return comp == compQuery;
 				});
 			}
 
-			//! Tries to match all query component ids with those in \param compIds.
+			//! Tries to match all query component ids with those in \param comps.
 			//! \return True if all ids match, false otherwise.
-			GAIA_NODISCARD bool match_all(ComponentKind compKind, const Chunk::ComponentIdArray& compIds) const {
+			GAIA_NODISCARD bool match_all(ComponentKind compKind, const Chunk::ComponentArray& comps) const {
 				uint32_t matches = 0;
 				const auto& data = m_lookupCtx.data[compKind];
-				return match_inter(compKind, compIds, QueryListType::LT_All, [&](ComponentId compId, ComponentId compIdQuery) {
-					return compId == compIdQuery && (++matches == data.rulesAllCount);
+				return match_inter(compKind, comps, QueryListType::LT_All, [&](Component comp, Component compQuery) {
+					return comp == compQuery && (++matches == data.rulesAllCount);
 				});
 			}
 
@@ -121,7 +121,7 @@ namespace gaia {
 			//! or MatchArchetypeQueryRet::Skip is not relevant.
 			GAIA_NODISCARD MatchArchetypeQueryRet match(const Archetype& archetype, ComponentKind compKind) const {
 				const auto& matcherHash = archetype.matcher_hash(compKind);
-				const auto& compIds = archetype.comp_ids(compKind);
+				const auto& comps = archetype.comps(compKind);
 				const auto& compData = data(compKind);
 
 				const auto withNoneTest = matcherHash.hash & compData.hash[QueryListType::LT_None].hash;
@@ -138,13 +138,13 @@ namespace gaia {
 
 				// If there is any match with withNoneList we quit
 				if (withNoneTest != 0) {
-					if (match_one(compKind, compIds, QueryListType::LT_None))
+					if (match_one(compKind, comps, QueryListType::LT_None))
 						return MatchArchetypeQueryRet::Fail;
 				}
 
 				// If there is any match with withAnyTest
 				if (withAnyTest != 0) {
-					if (match_one(compKind, compIds, QueryListType::LT_Any))
+					if (match_one(compKind, comps, QueryListType::LT_Any))
 						goto checkWithAllMatches;
 
 					// At least one match necessary to continue
@@ -156,9 +156,9 @@ namespace gaia {
 				if (withAllTest != 0) {
 					if (
 							// We skip archetypes with less components than the query requires
-							compData.rulesAllCount <= compIds.size() &&
+							compData.rulesAllCount <= comps.size() &&
 							// Match everything with LT_ALL
-							match_all(compKind, compIds))
+							match_all(compKind, comps))
 						return MatchArchetypeQueryRet::Ok;
 
 					// No match found. We're done
@@ -199,7 +199,7 @@ namespace gaia {
 
 			//! Tries to match the query against archetypes in \param componentToArchetypeMap.
 			//! This is necessary so we do not iterate all chunks over and over again when running queries.
-			void match(const ComponentToArchetypeMap& componentToArchetypeMap, uint32_t archetypeLastId) {
+			void match(const ComponentIdToArchetypeMap& componentToArchetypeMap, uint32_t archetypeLastId) {
 				static cnt::set<Archetype*> s_tmpArchetypeMatches;
 
 				// Skip if no new archetype appeared
@@ -211,11 +211,11 @@ namespace gaia {
 				// Match against generic types
 				{
 					auto& data = m_lookupCtx.data[ComponentKind::CK_Generic];
-					for (uint32_t i = 0; i < data.compIds.size(); ++i) {
-						const auto compId = data.compIds[i];
+					for (uint32_t i = 0; i < data.comps.size(); ++i) {
+						const auto comp = data.comps[i];
 
 						// Check if any archetype is associated with the component id
-						const auto it = componentToArchetypeMap.find(compId);
+						const auto it = componentToArchetypeMap.find(comp.id());
 						if (it == componentToArchetypeMap.end())
 							continue;
 
@@ -238,10 +238,10 @@ namespace gaia {
 				// Match against chunk types
 				{
 					auto& data = m_lookupCtx.data[ComponentKind::CK_Chunk];
-					for (uint32_t i = 0; i < data.compIds.size(); ++i) {
-						const auto compId = data.compIds[i];
+					for (uint32_t i = 0; i < data.comps.size(); ++i) {
+						const auto comp = data.comps[i];
 
-						const auto it = componentToArchetypeMap.find(compId);
+						const auto it = componentToArchetypeMap.find(comp.id());
 						if (it == componentToArchetypeMap.end())
 							continue;
 
@@ -273,8 +273,8 @@ namespace gaia {
 				return m_lookupCtx.data[compKind];
 			}
 
-			GAIA_NODISCARD const QueryComponentIdArray& comp_ids(ComponentKind compKind) const {
-				return m_lookupCtx.data[compKind].compIds;
+			GAIA_NODISCARD const QueryComponentArray& comps(ComponentKind compKind) const {
+				return m_lookupCtx.data[compKind].comps;
 			}
 
 			GAIA_NODISCARD const QueryChangeArray& filters(ComponentKind compKind) const {

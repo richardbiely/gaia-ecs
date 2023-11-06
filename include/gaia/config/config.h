@@ -65,12 +65,6 @@
 	#define GAIA_COMP_ID_PROBING 0
 #endif
 
-//! If enabled, ComponentID to component idx is calculated using SIMD.
-//! \warning Experimental, don't use.
-#ifndef GAIA_USE_SIMD_COMP_IDX
-	#define GAIA_USE_SIMD_COMP_IDX 0
-#endif
-
 //------------------------------------------------------------------------------
 
 #include "config_core_end.h"

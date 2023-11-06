@@ -55,27 +55,27 @@ namespace gaia {
 				struct Command_AddComponent {
 					static constexpr CommandBufferCmd Id = CommandBufferCmd::ADD_COMPONENT;
 
-					ComponentId compId;
+					Component comp;
 					ComponentKind compKind;
 					QueryListType listType;
 					bool isReadWrite;
 
 					void exec(QueryCtx& ctx) const {
 						auto& data = ctx.data[compKind];
-						auto& compIds = data.compIds;
+						auto& comps = data.comps;
 						auto& lastMatchedArchetypeIdx = data.lastMatchedArchetypeIdx;
 						auto& rules = data.rules;
 
 						// Unique component ids only
-						GAIA_ASSERT(!core::has(compIds, compId));
+						GAIA_ASSERT(!core::has(comps, comp));
 
 #if GAIA_DEBUG
 						// There's a limit to the amount of components which we can store
-						if (compIds.size() >= MAX_COMPONENTS_IN_QUERY) {
+						if (comps.size() >= MAX_COMPONENTS_IN_QUERY) {
 							GAIA_ASSERT(false && "Trying to create an ECS query with too many components!");
 
 							const auto& cc = ComponentCache::get();
-							auto componentName = cc.comp_desc(compId).name;
+							auto componentName = cc.comp_desc(comp.id()).name;
 							GAIA_LOG_E(
 									"Trying to add ECS component '%.*s' to an already full ECS query!", (uint32_t)componentName.size(),
 									componentName.data());
@@ -84,8 +84,8 @@ namespace gaia {
 						}
 #endif
 
-						data.readWriteMask |= (uint8_t)isReadWrite << (uint8_t)compIds.size();
-						compIds.push_back(compId);
+						data.readWriteMask |= (uint8_t)isReadWrite << (uint8_t)comps.size();
+						comps.push_back(comp);
 						lastMatchedArchetypeIdx.push_back(0);
 						rules.push_back(listType);
 
@@ -97,17 +97,17 @@ namespace gaia {
 				struct Command_Filter {
 					static constexpr CommandBufferCmd Id = CommandBufferCmd::ADD_FILTER;
 
-					ComponentId compId;
+					Component comp;
 					ComponentKind compKind;
 
 					void exec(QueryCtx& ctx) const {
 						auto& data = ctx.data[compKind];
-						auto& compIds = data.compIds;
+						auto& comps = data.comps;
 						auto& withChanged = data.withChanged;
 						const auto& rules = data.rules;
 
-						GAIA_ASSERT(core::has(compIds, compId));
-						GAIA_ASSERT(!core::has(withChanged, compId));
+						GAIA_ASSERT(core::has(comps, comp));
+						GAIA_ASSERT(!core::has(withChanged, comp));
 
 #if GAIA_DEBUG
 						// There's a limit to the amount of components which we can store
@@ -115,7 +115,7 @@ namespace gaia {
 							GAIA_ASSERT(false && "Trying to create an ECS filter query with too many components!");
 
 							const auto& cc = ComponentCache::get();
-							auto componentName = cc.comp_desc(compId).name;
+							auto componentName = cc.comp_desc(comp.id()).name;
 							GAIA_LOG_E(
 									"Trying to add ECS component %.*s to an already full filter query!", (uint32_t)componentName.size(),
 									componentName.data());
@@ -124,25 +124,25 @@ namespace gaia {
 #endif
 
 						uint32_t compIdx = 0;
-						for (; compIdx < compIds.size(); ++compIdx)
-							if (compIds[compIdx] == compId)
+						for (; compIdx < comps.size(); ++compIdx)
+							if (comps[compIdx] == comp)
 								break;
 						// NOTE: This code bellow does technically the same as above.
 						//       However, compilers can't quite optimize it as well because it does some more
 						//       calculations. This is a used often so go with the custom code.
-						// const auto compIdx = core::get_index_unsafe(compIds, compId);
+						// const auto compIdx = core::get_index_unsafe(comps, comp);
 
 						// Component has to be present in anyList or allList.
 						// NoneList makes no sense because we skip those in query processing anyway.
 						if (rules[compIdx] != QueryListType::LT_None) {
-							withChanged.push_back(compId);
+							withChanged.push_back(comp);
 							return;
 						}
 
 						GAIA_ASSERT(false && "SetChangeFilter trying to filter ECS component which is not a part of the query");
 #if GAIA_DEBUG
 						const auto& cc = ComponentCache::get();
-						auto componentName = cc.comp_desc(compId).name;
+						auto componentName = cc.comp_desc(comp.id()).name;
 						GAIA_LOG_E(
 								"SetChangeFilter trying to filter ECS component %.*s but "
 								"it's not a part of the query!",
@@ -176,7 +176,7 @@ namespace gaia {
 				//! List of archetypes (stable pointer to parent world's archetype array)
 				const cnt::map<ArchetypeId, Archetype*>* m_archetypes{};
 				//! Map of component ids to archetypes (stable pointer to parent world's archetype component-to-archetype map)
-				const ComponentToArchetypeMap* m_componentToArchetypeMap{};
+				const ComponentIdToArchetypeMap* m_componentToArchetypeMap{};
 				//! Execution mode
 				QueryExecMode m_executionMode = QueryExecMode::Run;
 
@@ -224,16 +224,15 @@ namespace gaia {
 					using UOriginal = typename component_type_t<T>::TypeOriginal;
 					using UOriginalPR = std::remove_reference_t<std::remove_pointer_t<UOriginal>>;
 
-					const auto compId = comp_id<T>();
 					constexpr auto compKind = component_kind_v<T>;
 					constexpr bool isReadWrite =
 							std::is_same_v<U, UOriginal> || (!std::is_const_v<UOriginalPR> && !std::is_empty_v<U>);
 
 					// Make sure the component is always registered
 					auto& cc = ComponentCache::get();
-					(void)cc.goc_comp_info<T>();
+					const auto& desc = cc.goc_comp_desc<T>();
 
-					Command_AddComponent cmd{compId, compKind, listType, isReadWrite};
+					Command_AddComponent cmd{desc.comp, compKind, listType, isReadWrite};
 					ser::save(m_serBuffer, Command_AddComponent::Id);
 					ser::save(m_serBuffer, cmd);
 				}
@@ -243,7 +242,11 @@ namespace gaia {
 					const auto compId = comp_id<T>();
 					constexpr auto compKind = component_kind_v<T>;
 
-					Command_Filter cmd{compId, compKind};
+					// Make sure the component is always registered
+					auto& cc = ComponentCache::get();
+					const auto& desc = cc.goc_comp_desc<T>();
+
+					Command_Filter cmd{desc.comp, compKind};
 					ser::save(m_serBuffer, Command_Filter::Id);
 					ser::save(m_serBuffer, cmd);
 				}
@@ -303,8 +306,8 @@ namespace gaia {
 					// See if any generic component has changed
 					{
 						const auto& filtered = queryInfo.filters(ComponentKind::CK_Generic);
-						for (const auto compId: filtered) {
-							const auto compIdx = chunk.comp_idx(ComponentKind::CK_Generic, compId);
+						for (const auto comp: filtered) {
+							const auto compIdx = chunk.comp_idx(ComponentKind::CK_Generic, comp.id());
 							if (chunk.changed(ComponentKind::CK_Generic, queryVersion, compIdx))
 								return true;
 						}
@@ -313,8 +316,8 @@ namespace gaia {
 					// See if any chunk component has changed
 					{
 						const auto& filtered = queryInfo.filters(ComponentKind::CK_Chunk);
-						for (const auto compId: filtered) {
-							const uint32_t compIdx = chunk.comp_idx(ComponentKind::CK_Chunk, compId);
+						for (const auto comp: filtered) {
+							const uint32_t compIdx = chunk.comp_idx(ComponentKind::CK_Chunk, comp.id());
 							if (chunk.changed(ComponentKind::CK_Chunk, queryVersion, compIdx))
 								return true;
 						}
@@ -525,7 +528,7 @@ namespace gaia {
 				QueryImpl(
 						QueryCache& queryCache, ArchetypeId& nextArchetypeId, uint32_t& worldVersion,
 						const cnt::map<ArchetypeId, Archetype*>& archetypes,
-						const ComponentToArchetypeMap& componentToArchetypeMap):
+						const ComponentIdToArchetypeMap& componentToArchetypeMap):
 						m_nextArchetypeId(&nextArchetypeId),
 						m_worldVersion(&worldVersion), m_archetypes(&archetypes),
 						m_componentToArchetypeMap(&componentToArchetypeMap) {
@@ -535,7 +538,7 @@ namespace gaia {
 				template <bool FuncEnabled = !UseCaching>
 				QueryImpl(
 						ArchetypeId& nextArchetypeId, uint32_t& worldVersion, const cnt::map<ArchetypeId, Archetype*>& archetypes,
-						const ComponentToArchetypeMap& componentToArchetypeMap):
+						const ComponentIdToArchetypeMap& componentToArchetypeMap):
 						m_nextArchetypeId(&nextArchetypeId),
 						m_worldVersion(&worldVersion), m_archetypes(&archetypes),
 						m_componentToArchetypeMap(&componentToArchetypeMap) {}

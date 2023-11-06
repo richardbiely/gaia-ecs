@@ -41,8 +41,8 @@ namespace gaia {
 
 			//! Cache of queries
 			QueryCache m_queryCache;
-			//! Map of compId -> archetype matches.
-			ComponentToArchetypeMap m_componentToArchetypeMap;
+			//! Map of components -> archetype matches
+			ComponentIdToArchetypeMap m_componentToArchetypeMap;
 
 			//! Map of archetypes identified by their component hash code
 			cnt::map<ArchetypeLookupKey, Archetype*> m_archetypesByHash;
@@ -90,14 +90,20 @@ namespace gaia {
 				GAIA_ASSERT(pChunk->empty());
 				GAIA_ASSERT(!pChunk->dying());
 
-				auto comps_0 = pChunk->comp_id_view(ComponentKind::CK_Generic);
-				auto comps_1 = pChunk->comp_id_view(ComponentKind::CK_Chunk);
-				const Archetype::GenericComponentHash hash_0 = {calc_lookup_hash(comps_0).hash};
-				const Archetype::ChunkComponentHash hash_1 = {calc_lookup_hash(comps_1).hash};
-				const auto lookupHash = Archetype::calc_lookup_hash(hash_0, hash_1);
+				cnt::sarr_ext<Component, Chunk::MAX_COMPONENTS> comps[ComponentKind::CK_Count];
+				for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
+					auto& dst = comps[i];
+					const auto& rec = pChunk->comp_rec_view((ComponentKind)i);
+					for (uint32_t j = 0; j < rec.size(); ++j)
+						dst[j] = rec[j].comp;
+				}
 
-				auto* pArchetype = find_archetype(
-						lookupHash, pChunk->comp_id_view(ComponentKind::CK_Generic), pChunk->comp_id_view(ComponentKind::CK_Chunk));
+				const Archetype::GenericComponentHash genericHash = {calc_lookup_hash({comps[0].data(), comps[0].size()}).hash};
+				const Archetype::ChunkComponentHash chunkHash = {calc_lookup_hash({comps[1].data(), comps[1].size()}).hash};
+				const auto lookupHash = Archetype::calc_lookup_hash(genericHash, chunkHash);
+
+				auto* pArchetype =
+						find_archetype(lookupHash, {comps[0].data(), comps[0].size()}, {comps[1].data(), comps[1].size()});
 				GAIA_ASSERT(pArchetype != nullptr);
 
 				pArchetype->remove_chunk(pChunk, m_archetypesToRemove);
@@ -137,8 +143,8 @@ namespace gaia {
 				GAIA_ASSERT(pArchetype->empty());
 				GAIA_ASSERT(!pArchetype->dying());
 
-				auto c0 = pArchetype->comp_ids(ComponentKind::CK_Generic);
-				auto c1 = pArchetype->comp_ids(ComponentKind::CK_Chunk);
+				auto c0 = pArchetype->comps(ComponentKind::CK_Generic);
+				auto c1 = pArchetype->comps(ComponentKind::CK_Chunk);
 				auto tmpArchetype = ArchetypeLookupChecker({c0.data(), c0.size()}, {c1.data(), c1.size()});
 				ArchetypeLookupKey key(pArchetype->lookup_hash(), &tmpArchetype);
 				m_archetypesByHash.erase(key);
@@ -206,12 +212,12 @@ namespace gaia {
 
 			//! Searches for archetype with a given set of components
 			//! \param lookupHash Archetype lookup hash
-			//! \param compIdsGeneric Span of generic component ids
-			//! \param compIdsChunk Span of chunk component ids
+			//! \param compsGeneric Span of generic component ids
+			//! \param compsChunk Span of chunk component ids
 			//! \return Pointer to archetype or nullptr.
 			GAIA_NODISCARD Archetype*
-			find_archetype(Archetype::LookupHash lookupHash, ComponentIdSpan compIdsGeneric, ComponentIdSpan compIdsChunk) {
-				auto tmpArchetype = ArchetypeLookupChecker(compIdsGeneric, compIdsChunk);
+			find_archetype(Archetype::LookupHash lookupHash, ComponentSpan compsGeneric, ComponentSpan compsChunk) {
+				auto tmpArchetype = ArchetypeLookupChecker(compsGeneric, compsChunk);
 				ArchetypeLookupKey key(lookupHash, &tmpArchetype);
 
 				// Search for the archetype in the map
@@ -224,24 +230,24 @@ namespace gaia {
 			}
 
 			//! Creates a new archetype from a given set of components
-			//! \param compIdsGeneric Span of generic component infos
-			//! \param compIdsChunk Span of chunk component infos
+			//! \param compsGeneric Span of generic components
+			//! \param compsChunk Span of chunk components
 			//! \return Pointer to the new archetype.
-			GAIA_NODISCARD Archetype* create_archetype(ComponentIdSpan compIdsGeneric, ComponentIdSpan compIdsChunk) {
-				auto* pArchetype = Archetype::create(m_nextArchetypeId++, m_worldVersion, compIdsGeneric, compIdsChunk);
+			GAIA_NODISCARD Archetype* create_archetype(ComponentSpan compsGeneric, ComponentSpan compsChunk) {
+				auto* pArchetype = Archetype::create(m_nextArchetypeId++, m_worldVersion, compsGeneric, compsChunk);
 
-				auto registerComponentToArchetypePair = [&](ComponentId compId) {
-					const auto it = m_componentToArchetypeMap.find(compId);
+				auto registerComponentToArchetypePair = [&](Component comp) {
+					const auto it = m_componentToArchetypeMap.find(comp.id());
 					if (it == m_componentToArchetypeMap.end())
-						m_componentToArchetypeMap.try_emplace(compId, ArchetypeList{pArchetype});
+						m_componentToArchetypeMap.try_emplace(comp.id(), ArchetypeList{pArchetype});
 					else if (!core::has(it->second, pArchetype))
 						it->second.push_back(pArchetype);
 				};
 
-				for (const auto compId: compIdsGeneric)
-					registerComponentToArchetypePair(compId);
-				for (const auto compId: compIdsChunk)
-					registerComponentToArchetypePair(compId);
+				for (const auto comp: compsGeneric)
+					registerComponentToArchetypePair(comp);
+				for (const auto comp: compsChunk)
+					registerComponentToArchetypePair(comp);
 
 				return pArchetype;
 			}
@@ -251,10 +257,11 @@ namespace gaia {
 			void reg_archetype(Archetype* pArchetype) {
 				// Make sure hashes were set already
 				GAIA_ASSERT(
-						(m_archetypesById.empty() || pArchetype == m_archetypesById[0]) ||
+						(m_archetypesById.empty() || pArchetype == m_archetypesById.begin()->second) ||
 						(pArchetype->generic_hash().hash != 0 || pArchetype->chunk_hash().hash != 0));
 				GAIA_ASSERT(
-						(m_archetypesById.empty() || pArchetype == m_archetypesById[0]) || pArchetype->lookup_hash().hash != 0);
+						(m_archetypesById.empty() || pArchetype == m_archetypesById.begin()->second) ||
+						pArchetype->lookup_hash().hash != 0);
 
 				// Make sure the archetype is not registered yet
 				GAIA_ASSERT(!m_archetypesById.contains(pArchetype->id()));
@@ -266,46 +273,45 @@ namespace gaia {
 
 #if GAIA_DEBUG
 			static void
-			verify_add(Archetype& archetype, Entity entity, ComponentKind compKind, const ComponentInfo& infoToAdd) {
-				const auto& compIds = archetype.comp_ids(compKind);
+			verify_add(Archetype& archetype, Entity entity, ComponentKind compKind, const ComponentDesc& descToAdd) {
+				const auto& comps = archetype.comps(compKind);
 				const auto& cc = ComponentCache::get();
 
-				// Make sure not to add too many infos
-				if GAIA_UNLIKELY (compIds.size() + 1 >= Chunk::MAX_COMPONENTS) {
+				// Make sure not to add too many comps
+				if GAIA_UNLIKELY (comps.size() + 1 >= Chunk::MAX_COMPONENTS) {
 					GAIA_ASSERT(false && "Trying to add too many components to entity!");
 					GAIA_LOG_W(
 							"Trying to add a component to entity [%u.%u] but there's no space left!", entity.id(), entity.gen());
 					GAIA_LOG_W("Already present:");
-					const uint32_t oldInfosCount = compIds.size();
-					for (uint32_t i = 0; i < oldInfosCount; ++i) {
-						const auto& info = cc.comp_desc(compIds[i]);
-						GAIA_LOG_W("> [%u] %.*s", (uint32_t)i, (uint32_t)info.name.size(), info.name.data());
+					for (uint32_t i = 0; i < comps.size(); ++i) {
+						const auto& desc = cc.comp_desc(comps[i].id());
+						GAIA_LOG_W("> [%u] %.*s", (uint32_t)i, (uint32_t)desc.name.size(), desc.name.data());
 					}
 					GAIA_LOG_W("Trying to add:");
 					{
-						const auto& info = cc.comp_desc(infoToAdd.compId);
-						GAIA_LOG_W("> %.*s", (uint32_t)info.name.size(), info.name.data());
+						const auto& desc = cc.comp_desc(descToAdd.comp.id());
+						GAIA_LOG_W("> %.*s", (uint32_t)desc.name.size(), desc.name.data());
 					}
 				}
 
 				// Don't add the same component twice
-				for (auto compId: compIds) {
-					const auto& info = cc.comp_desc(compId);
-					if (info.compId == infoToAdd.compId) {
+				for (auto comp: comps) {
+					const auto& desc = cc.comp_desc(comp.id());
+					if (desc.comp == descToAdd.comp) {
 						GAIA_ASSERT(false && "Trying to add a duplicate component");
 
 						GAIA_LOG_W(
 								"Trying to add a duplicate of component %s to entity [%u.%u]", ComponentKindString[compKind],
 								entity.id(), entity.gen());
-						GAIA_LOG_W("> %.*s", (uint32_t)info.name.size(), info.name.data());
+						GAIA_LOG_W("> %.*s", (uint32_t)desc.name.size(), desc.name.data());
 					}
 				}
 			}
 
 			static void
-			verify_del(Archetype& archetype, Entity entity, ComponentKind compKind, const ComponentInfo& infoToRemove) {
-				const auto& compIds = archetype.comp_ids(compKind);
-				if GAIA_UNLIKELY (!core::has(compIds, infoToRemove.compId)) {
+			verify_del(Archetype& archetype, Entity entity, ComponentKind compKind, const ComponentDesc& descToRemove) {
+				const auto& comps = archetype.comps(compKind);
+				if GAIA_UNLIKELY (!archetype.has(compKind, descToRemove.comp.id())) {
 					GAIA_ASSERT(false && "Trying to remove a component which wasn't added");
 					GAIA_LOG_W(
 							"Trying to remove a component from entity [%u.%u] but it was never added", entity.id(), entity.gen());
@@ -313,15 +319,15 @@ namespace gaia {
 
 					const auto& cc = ComponentCache::get();
 
-					for (uint32_t k = 0; k < compIds.size(); k++) {
-						const auto& info = cc.comp_desc(compIds[k]);
-						GAIA_LOG_W("> [%u] %.*s", (uint32_t)k, (uint32_t)info.name.size(), info.name.data());
+					for (uint32_t k = 0; k < comps.size(); k++) {
+						const auto& desc = cc.comp_desc(comps[k].id());
+						GAIA_LOG_W("> [%u] %.*s", (uint32_t)k, (uint32_t)desc.name.size(), desc.name.data());
 					}
 
 					{
 						GAIA_LOG_W("Trying to remove:");
-						const auto& info = cc.comp_desc(infoToRemove.compId);
-						GAIA_LOG_W("> %.*s", (uint32_t)info.name.size(), info.name.data());
+						const auto& desc = cc.comp_desc(descToRemove.comp.id());
+						GAIA_LOG_W("> %.*s", (uint32_t)desc.name.size(), desc.name.data());
 					}
 				}
 			}
@@ -330,35 +336,35 @@ namespace gaia {
 			//! Searches for an archetype which is formed by adding \param compKind to \param pArchetypeLeft.
 			//! If no such archetype is found a new one is created.
 			//! \param pArchetypeLeft Archetype we originate from.
-			//! \param compKind Component infos.
-			//! \param infoToAdd Component we want to add.
+			//! \param compKind Component comps.
+			//! \param descToAdd Component we want to add.
 			//! \return Pointer to archetype.
 			GAIA_NODISCARD Archetype*
-			foc_archetype_add_comp(Archetype* pArchetypeLeft, ComponentKind compKind, const ComponentInfo& infoToAdd) {
+			foc_archetype_add_comp(Archetype* pArchetypeLeft, ComponentKind compKind, const ComponentDesc& descToAdd) {
 				// We don't want to store edges for the root archetype because the more components there are the longer
 				// it would take to find anything. Therefore, for the root archetype we always make a lookup.
 				// Compared to an ordinary lookup this path is stripped as much as possible.
-				if (pArchetypeLeft == m_archetypesById[0]) {
+				if (pArchetypeLeft == m_archetypesById.begin()->second) {
 					Archetype* pArchetypeRight = nullptr;
 
 					if (compKind == ComponentKind::CK_Generic) {
-						const auto genericHash = infoToAdd.lookupHash;
+						const auto genericHash = descToAdd.lookupHash;
 						const auto lookupHash = Archetype::calc_lookup_hash(genericHash, {0});
-						pArchetypeRight = find_archetype(lookupHash, ComponentIdSpan(&infoToAdd.compId, 1), {});
+						pArchetypeRight = find_archetype(lookupHash, ComponentSpan(&descToAdd.comp, 1), {});
 						if (pArchetypeRight == nullptr) {
-							pArchetypeRight = create_archetype(ComponentIdSpan(&infoToAdd.compId, 1), {});
+							pArchetypeRight = create_archetype(ComponentSpan(&descToAdd.comp, 1), {});
 							pArchetypeRight->set_hashes({genericHash}, {0}, lookupHash);
-							pArchetypeRight->build_graph_edges_left(pArchetypeLeft, compKind, infoToAdd.compId);
+							pArchetypeRight->build_graph_edges_left(pArchetypeLeft, compKind, descToAdd.comp.id());
 							reg_archetype(pArchetypeRight);
 						}
 					} else {
-						const auto chunkHash = infoToAdd.lookupHash;
+						const auto chunkHash = descToAdd.lookupHash;
 						const auto lookupHash = Archetype::calc_lookup_hash({0}, chunkHash);
-						pArchetypeRight = find_archetype(lookupHash, {}, ComponentIdSpan(&infoToAdd.compId, 1));
+						pArchetypeRight = find_archetype(lookupHash, {}, ComponentSpan(&descToAdd.comp, 1));
 						if (pArchetypeRight == nullptr) {
-							pArchetypeRight = create_archetype({}, ComponentIdSpan(&infoToAdd.compId, 1));
+							pArchetypeRight = create_archetype({}, ComponentSpan(&descToAdd.comp, 1));
 							pArchetypeRight->set_hashes({0}, {chunkHash}, lookupHash);
-							pArchetypeRight->build_graph_edges_left(pArchetypeLeft, compKind, infoToAdd.compId);
+							pArchetypeRight->build_graph_edges_left(pArchetypeLeft, compKind, descToAdd.comp.id());
 							reg_archetype(pArchetypeRight);
 						}
 					}
@@ -368,47 +374,47 @@ namespace gaia {
 
 				// Check if the component is found when following the "add" edges
 				{
-					const auto archetypeId = pArchetypeLeft->find_edge_right(compKind, infoToAdd.compId);
+					const auto archetypeId = pArchetypeLeft->find_edge_right(compKind, descToAdd.comp.id());
 					if (archetypeId != ArchetypeIdBad)
 						return m_archetypesById[archetypeId];
 				}
 
 				const uint32_t a = compKind;
 				const uint32_t b = (compKind + 1) & 1;
-				const cnt::sarray_ext<uint32_t, Chunk::MAX_COMPONENTS>* infos[2];
+				const cnt::sarray_ext<Component, Chunk::MAX_COMPONENTS>* comps[2];
 
-				cnt::sarray_ext<uint32_t, Chunk::MAX_COMPONENTS> infosNew;
-				infos[a] = &infosNew;
-				infos[b] = &pArchetypeLeft->comp_ids((ComponentKind)b);
+				cnt::sarray_ext<Component, Chunk::MAX_COMPONENTS> compsNew;
+				comps[a] = &compsNew;
+				comps[b] = &pArchetypeLeft->comps((ComponentKind)b);
 
-				// Prepare a joint array of component infos of old + the newly added component
+				// Prepare a joint array of components of old + the newly added component
 				{
-					const auto& compIds = pArchetypeLeft->comp_ids((ComponentKind)a);
-					const auto componentInfosSize = compIds.size();
-					infosNew.resize(componentInfosSize + 1);
+					const auto& compsOld = pArchetypeLeft->comps((ComponentKind)a);
+					const auto componentDescSize = compsOld.size();
+					compsNew.resize(componentDescSize + 1);
 
-					for (uint32_t j = 0; j < componentInfosSize; ++j)
-						infosNew[j] = compIds[j];
-					infosNew[componentInfosSize] = infoToAdd.compId;
+					for (uint32_t j = 0; j < componentDescSize; ++j)
+						compsNew[j] = compsOld[j];
+					compsNew[componentDescSize] = descToAdd.comp;
 				}
 
-				// Make sure to sort the component infos so we receive the same hash no matter the order in which components
+				// Make sure to sort the components so we receive the same hash no matter the order in which components
 				// are provided Bubble sort is okay. We're dealing with at most Chunk::MAX_COMPONENTS items.
-				sort(infosNew, SortComponentCond{});
+				sort(compsNew, SortComponentCond{});
 
 				// Once sorted we can calculate the hashes
 				const Archetype::GenericComponentHash genericHash = {
-						calc_lookup_hash({infos[0]->data(), infos[0]->size()}).hash};
-				const Archetype::ChunkComponentHash chunkHash = {calc_lookup_hash({infos[1]->data(), infos[1]->size()}).hash};
+						calc_lookup_hash({comps[0]->data(), comps[0]->size()}).hash};
+				const Archetype::ChunkComponentHash chunkHash = {calc_lookup_hash({comps[1]->data(), comps[1]->size()}).hash};
 				const auto lookupHash = Archetype::calc_lookup_hash(genericHash, chunkHash);
 
 				auto* pArchetypeRight =
-						find_archetype(lookupHash, {infos[0]->data(), infos[0]->size()}, {infos[1]->data(), infos[1]->size()});
+						find_archetype(lookupHash, {comps[0]->data(), comps[0]->size()}, {comps[1]->data(), comps[1]->size()});
 				if (pArchetypeRight == nullptr) {
 					pArchetypeRight =
-							create_archetype({infos[0]->data(), infos[0]->size()}, {infos[1]->data(), infos[1]->size()});
+							create_archetype({comps[0]->data(), comps[0]->size()}, {comps[1]->data(), comps[1]->size()});
 					pArchetypeRight->set_hashes(genericHash, chunkHash, lookupHash);
-					pArchetypeLeft->build_graph_edges(pArchetypeRight, compKind, infoToAdd.compId);
+					pArchetypeLeft->build_graph_edges(pArchetypeRight, compKind, descToAdd.comp.id());
 					reg_archetype(pArchetypeRight);
 				}
 
@@ -418,50 +424,50 @@ namespace gaia {
 			//! Searches for an archetype which is formed by removing \param compKind from \param pArchetypeRight.
 			//! If no such archetype is found a new one is created.
 			//! \param pArchetypeRight Archetype we originate from.
-			//! \param compKind Component infos.
-			//! \param infoToRemove Component we want to remove.
+			//! \param compKind Component comps.
+			//! \param descToRemove Component we want to remove.
 			//! \return Pointer to archetype.
 			GAIA_NODISCARD Archetype*
-			foc_archetype_remove_comp(Archetype* pArchetypeRight, ComponentKind compKind, const ComponentInfo& infoToRemove) {
+			foc_archetype_remove_comp(Archetype* pArchetypeRight, ComponentKind compKind, const ComponentDesc& descToRemove) {
 				// Check if the component is found when following the "del" edges
 				{
-					const auto archetypeId = pArchetypeRight->find_edge_left(compKind, infoToRemove.compId);
+					const auto archetypeId = pArchetypeRight->find_edge_left(compKind, descToRemove.comp.id());
 					if (archetypeId != ArchetypeIdBad)
 						return m_archetypesById[archetypeId];
 				}
 
 				const uint32_t a = compKind;
 				const uint32_t b = (compKind + 1) & 1;
-				const cnt::sarray_ext<uint32_t, Chunk::MAX_COMPONENTS>* infos[2];
+				const cnt::sarray_ext<Component, Chunk::MAX_COMPONENTS>* comps[2];
 
-				cnt::sarray_ext<uint32_t, Chunk::MAX_COMPONENTS> infosNew;
-				infos[a] = &infosNew;
-				infos[b] = &pArchetypeRight->comp_ids((ComponentKind)b);
+				cnt::sarray_ext<Component, Chunk::MAX_COMPONENTS> compsNew;
+				comps[a] = &compsNew;
+				comps[b] = &pArchetypeRight->comps((ComponentKind)b);
 
 				// Find the intersection
-				for (const auto compId: pArchetypeRight->comp_ids((ComponentKind)a)) {
-					if (compId == infoToRemove.compId)
+				for (const auto comp: pArchetypeRight->comps((ComponentKind)a)) {
+					if (comp == descToRemove.comp)
 						continue;
 
-					infosNew.push_back(compId);
+					compsNew.push_back(comp);
 				}
 
 				// Return if there's no change
-				if (infosNew.size() == pArchetypeRight->comp_ids((ComponentKind)a).size())
+				if (compsNew.size() == pArchetypeRight->comps((ComponentKind)a).size())
 					return nullptr;
 
 				// Calculate the hashes
 				const Archetype::GenericComponentHash genericHash = {
-						calc_lookup_hash({infos[0]->data(), infos[0]->size()}).hash};
-				const Archetype::ChunkComponentHash chunkHash = {calc_lookup_hash({infos[1]->data(), infos[1]->size()}).hash};
+						calc_lookup_hash({comps[0]->data(), comps[0]->size()}).hash};
+				const Archetype::ChunkComponentHash chunkHash = {calc_lookup_hash({comps[1]->data(), comps[1]->size()}).hash};
 				const auto lookupHash = Archetype::calc_lookup_hash(genericHash, chunkHash);
 
 				auto* pArchetype =
-						find_archetype(lookupHash, {infos[0]->data(), infos[0]->size()}, {infos[1]->data(), infos[1]->size()});
+						find_archetype(lookupHash, {comps[0]->data(), comps[0]->size()}, {comps[1]->data(), comps[1]->size()});
 				if (pArchetype == nullptr) {
-					pArchetype = create_archetype({infos[0]->data(), infos[0]->size()}, {infos[1]->data(), infos[1]->size()});
+					pArchetype = create_archetype({comps[0]->data(), comps[0]->size()}, {comps[1]->data(), comps[1]->size()});
 					pArchetype->set_hashes(genericHash, lookupHash, lookupHash);
-					pArchetype->build_graph_edges(pArchetypeRight, compKind, infoToRemove.compId);
+					pArchetype->build_graph_edges(pArchetypeRight, compKind, descToRemove.comp.id());
 					reg_archetype(pArchetype);
 				}
 
@@ -607,7 +613,7 @@ namespace gaia {
 #endif
 			}
 
-			EntityContainer& add_inter(ComponentKind compKind, Entity entity, const ComponentInfo& infoToAdd) {
+			EntityContainer& add_inter(ComponentKind compKind, Entity entity, const ComponentDesc& desc) {
 				GAIA_PROF_SCOPE(AddComponent);
 
 				auto& entityContainer = m_entities[entity.id()];
@@ -624,24 +630,24 @@ namespace gaia {
 					auto& archetype = *entityContainer.pArchetype;
 
 #if GAIA_DEBUG
-					verify_add(archetype, entity, compKind, infoToAdd);
+					verify_add(archetype, entity, compKind, desc);
 #endif
 
-					auto* pTargetArchetype = foc_archetype_add_comp(&archetype, compKind, infoToAdd);
+					auto* pTargetArchetype = foc_archetype_add_comp(&archetype, compKind, desc);
 					move_entity(entity, *pTargetArchetype);
 					pChunk = entityContainer.pChunk;
 				}
 
 				// Call the constructor for the newly added component if necessary
 				if (compKind == ComponentKind::CK_Generic)
-					pChunk->call_ctor(compKind, infoToAdd.compId, entityContainer.idx);
+					pChunk->call_ctor(compKind, desc, entityContainer.idx);
 				else if (compKind == ComponentKind::CK_Chunk)
-					pChunk->call_ctor(compKind, infoToAdd.compId, 0);
+					pChunk->call_ctor(compKind, desc, 0);
 
 				return entityContainer;
 			}
 
-			ComponentSetter del_inter(ComponentKind compKind, Entity entity, const ComponentInfo& infoToRemove) {
+			ComponentSetter del_inter(ComponentKind compKind, Entity entity, const ComponentDesc& descToRemove) {
 				GAIA_PROF_SCOPE(del);
 
 				auto& entityContainer = m_entities[entity.id()];
@@ -655,10 +661,10 @@ namespace gaia {
 				auto& archetype = *entityContainer.pArchetype;
 
 #if GAIA_DEBUG
-				verify_del(archetype, entity, compKind, infoToRemove);
+				verify_del(archetype, entity, compKind, descToRemove);
 #endif
 
-				auto* pNewArchetype = foc_archetype_remove_comp(&archetype, compKind, infoToRemove);
+				auto* pNewArchetype = foc_archetype_remove_comp(&archetype, compKind, descToRemove);
 				GAIA_ASSERT(pNewArchetype != nullptr);
 				move_entity(entity, *pNewArchetype);
 
@@ -796,7 +802,7 @@ namespace gaia {
 			//! Creates a new empty entity
 			//! \return New entity
 			GAIA_NODISCARD Entity add() {
-				return add(*m_archetypesById[0]);
+				return add(*m_archetypesById.begin()->second);
 			}
 
 			//! Creates a new entity by cloning an already existing one.
@@ -886,7 +892,7 @@ namespace gaia {
 					GAIA_ASSERT(entityExpected == Entity(idx, entityContainer.gen));
 				}
 #endif
-				return {idx, entityContainer.gen};
+				return Entity(idx, entityContainer.gen);
 			}
 
 			//! Returns a chunk containing the \param entity.
@@ -921,10 +927,10 @@ namespace gaia {
 				GAIA_ASSERT(valid(entity));
 
 				using U = typename component_type_t<T>::Type;
-				const auto& info = ComponentCache::get().goc_comp_info<U>();
+				const auto& desc = ComponentCache::get().goc_comp_desc<U>();
 
 				constexpr auto compKind = component_kind_v<T>;
-				auto& entityContainer = add_inter(compKind, entity, info);
+				auto& entityContainer = add_inter(compKind, entity, desc);
 				return ComponentSetter{entityContainer.pChunk, entityContainer.idx};
 			}
 
@@ -940,15 +946,15 @@ namespace gaia {
 				verify_comp<T>();
 				GAIA_ASSERT(valid(entity));
 
-				const auto& info = ComponentCache::get().goc_comp_info<U>();
+				const auto& desc = ComponentCache::get().goc_comp_desc<U>();
 
 				if constexpr (component_kind_v<T> == ComponentKind::CK_Generic) {
-					auto& entityContainer = add_inter(ComponentKind::CK_Generic, entity, info);
+					auto& entityContainer = add_inter(ComponentKind::CK_Generic, entity, desc);
 					auto* pChunk = entityContainer.pChunk;
 					pChunk->template set<T>(entityContainer.idx, GAIA_FWD(value));
 					return ComponentSetter{entityContainer.pChunk, entityContainer.idx};
 				} else {
-					auto& entityContainer = add_inter(ComponentKind::CK_Chunk, entity, info);
+					auto& entityContainer = add_inter(ComponentKind::CK_Chunk, entity, desc);
 					auto* pChunk = entityContainer.pChunk;
 					pChunk->template set<T>(GAIA_FWD(value));
 					return ComponentSetter{entityContainer.pChunk, entityContainer.idx};
@@ -967,10 +973,10 @@ namespace gaia {
 				GAIA_ASSERT(valid(entity));
 
 				using U = typename component_type_t<T>::Type;
-				const auto& info = ComponentCache::get().goc_comp_info<U>();
+				const auto& desc = ComponentCache::get().goc_comp_desc<U>();
 
 				constexpr auto compKind = component_kind_v<T>;
-				return del_inter(compKind, entity, info);
+				return del_inter(compKind, entity, desc);
 			}
 
 			//----------------------------------------------------------------------
