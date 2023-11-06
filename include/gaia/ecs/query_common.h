@@ -28,9 +28,9 @@ namespace gaia {
 
 		using QueryId = uint32_t;
 		using QueryLookupHash = core::direct_hash_key<uint64_t>;
-		using QueryComponentIdArray = cnt::sarray_ext<ComponentId, MAX_COMPONENTS_IN_QUERY>;
+		using QueryComponentArray = cnt::sarray_ext<Component, MAX_COMPONENTS_IN_QUERY>;
 		using QueryListTypeArray = cnt::sarray_ext<QueryListType, MAX_COMPONENTS_IN_QUERY>;
-		using QueryChangeArray = cnt::sarray_ext<ComponentId, MAX_COMPONENTS_IN_QUERY>;
+		using QueryChangeArray = cnt::sarray_ext<Component, MAX_COMPONENTS_IN_QUERY>;
 
 		static constexpr QueryId QueryIdBad = (QueryId)-1;
 
@@ -42,7 +42,7 @@ namespace gaia {
 
 			struct Data {
 				//! List of querried components
-				QueryComponentIdArray compIds;
+				QueryComponentArray comps;
 				//! Filtering rules for the components
 				QueryListTypeArray rules;
 				//! List of component matcher hashes
@@ -73,7 +73,7 @@ namespace gaia {
 					const auto& right = other.data[i];
 
 					// Check array sizes first
-					if (left.compIds.size() != right.compIds.size())
+					if (left.comps.size() != right.comps.size())
 						return false;
 					if (left.rules.size() != right.rules.size())
 						return false;
@@ -89,8 +89,8 @@ namespace gaia {
 					}
 
 					// Components need to be the same
-					for (uint32_t j = 0; j < left.compIds.size(); ++j) {
-						if (left.compIds[j] != right.compIds[j])
+					for (uint32_t j = 0; j < left.comps.size(); ++j) {
+						if (left.comps[j] != right.comps[j])
 							return false;
 					}
 
@@ -120,8 +120,8 @@ namespace gaia {
 			for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
 				auto& data = ctx.data[i];
 				// Make sure the read-write mask remains correct after sorting
-				core::sort(data.compIds, SortComponentCond{}, [&](uint32_t left, uint32_t right) {
-					core::swap(data.compIds[left], data.compIds[right]);
+				core::sort(data.comps, SortComponentCond{}, [&](uint32_t left, uint32_t right) {
+					core::swap(data.comps[left], data.comps[right]);
 					core::swap(data.rules[left], data.rules[right]);
 
 					{
@@ -146,7 +146,7 @@ namespace gaia {
 			// Calculate the matcher hash
 			for (auto& data: ctx.data) {
 				for (uint32_t i = 0; i < data.rules.size(); ++i)
-					matcher_hash(data.hash[data.rules[i]], data.compIds[i]);
+					matcher_hash(data.hash[data.rules[i]], data.comps[i]);
 			}
 		}
 
@@ -163,10 +163,10 @@ namespace gaia {
 				{
 					QueryLookupHash::Type hash = 0;
 
-					const auto& compIds = data.compIds;
-					for (const auto compId: compIds)
-						hash = core::hash_combine(hash, (QueryLookupHash::Type)compId);
-					hash = core::hash_combine(hash, (QueryLookupHash::Type)compIds.size());
+					const auto& comps = data.comps;
+					for (const auto comp: comps)
+						hash = core::hash_combine(hash, (QueryLookupHash::Type)comp.id());
+					hash = core::hash_combine(hash, (QueryLookupHash::Type)comps.size());
 
 					hash = core::hash_combine(hash, (QueryLookupHash::Type)data.readWriteMask);
 					hashLookup = core::hash_combine(hashLookup, hash);
@@ -176,7 +176,7 @@ namespace gaia {
 				{
 					QueryLookupHash::Type hash = 0;
 
-					const auto& rules = data.withChanged;
+					const auto& rules = data.rules;
 					for (auto listType: rules)
 						hash = core::hash_combine(hash, (QueryLookupHash::Type)listType);
 					hash = core::hash_combine(hash, (QueryLookupHash::Type)rules.size());
@@ -189,8 +189,8 @@ namespace gaia {
 					QueryLookupHash::Type hash = 0;
 
 					const auto& withChanged = data.withChanged;
-					for (auto compId: withChanged)
-						hash = core::hash_combine(hash, (QueryLookupHash::Type)compId);
+					for (auto comp: withChanged)
+						hash = core::hash_combine(hash, (QueryLookupHash::Type)comp.id());
 					hash = core::hash_combine(hash, (QueryLookupHash::Type)withChanged.size());
 
 					hashLookup = core::hash_combine(hashLookup, hash);

@@ -93,8 +93,8 @@ namespace gaia {
 				ComponentKind compKind;
 
 				void commit(CommandBufferCtx& ctx) const {
-					const auto& info = ComponentCache::get().comp_info(compId);
-					ctx.world.add_inter(compKind, entity, info);
+					const auto& desc = ComponentCache::get().comp_desc(compId);
+					ctx.world.add_inter(compKind, entity, desc);
 
 #if GAIA_ASSERT_ENABLED
 					[[maybe_unused]] uint32_t indexInChunk{};
@@ -109,8 +109,8 @@ namespace gaia {
 				ComponentKind compKind;
 
 				void commit(CommandBufferCtx& ctx) const {
-					const auto& info = ComponentCache::get().comp_info(compId);
-					ctx.world.add_inter(compKind, entity, info);
+					const auto& desc = ComponentCache::get().comp_desc(compId);
+					ctx.world.add_inter(compKind, entity, desc);
 
 					uint32_t indexInChunk{};
 					auto* pChunk = ctx.world.get_chunk(entity, indexInChunk);
@@ -139,8 +139,8 @@ namespace gaia {
 
 					Entity entity = it->second;
 
-					const auto& info = ComponentCache::get().comp_info(compId);
-					ctx.world.add_inter(compKind, entity, info);
+					const auto& desc = ComponentCache::get().comp_desc(compId);
+					ctx.world.add_inter(compKind, entity, desc);
 
 #if GAIA_ASSERT_ENABLED
 					[[maybe_unused]] uint32_t indexInChunk{};
@@ -164,8 +164,8 @@ namespace gaia {
 					Entity entity = it->second;
 
 					// Components
-					const auto& info = ComponentCache::get().comp_info(compId);
-					ctx.world.add_inter(compKind, entity, info);
+					const auto& desc = ComponentCache::get().comp_desc(compId);
+					ctx.world.add_inter(compKind, entity, desc);
 
 					uint32_t indexInChunk{};
 					auto* pChunk = ctx.world.get_chunk(entity, indexInChunk);
@@ -226,8 +226,8 @@ namespace gaia {
 				ComponentKind compKind;
 
 				void commit(CommandBufferCtx& ctx) const {
-					const auto& info = ComponentCache::get().comp_info(compId);
-					ctx.world.del_inter(compKind, entity, info);
+					const auto& desc = ComponentCache::get().comp_desc(compId);
+					ctx.world.del_inter(compKind, entity, desc);
 				}
 			};
 
@@ -303,7 +303,7 @@ namespace gaia {
 			template <typename T>
 			void add(Entity entity) {
 				// Make sure the component is registered
-				const auto& info = ComponentCache::get().goc_comp_info<T>();
+				const auto& desc = ComponentCache::get().goc_comp_desc<T>();
 
 				using U = typename component_type_t<T>::Type;
 				verify_comp<U>();
@@ -313,7 +313,7 @@ namespace gaia {
 				ADD_COMPONENT_t cmd;
 				cmd.entity = entity;
 				cmd.compKind = component_kind_v<T>;
-				cmd.compId = info.compId;
+				cmd.compId = desc.comp.id();
 				ser::save(m_ctx, cmd);
 			}
 
@@ -323,7 +323,7 @@ namespace gaia {
 			template <typename T>
 			void add(TempEntity entity) {
 				// Make sure the component is registered
-				const auto& info = ComponentCache::get().goc_comp_info<T>();
+				const auto& desc = ComponentCache::get().goc_comp_desc<T>();
 
 				using U = typename component_type_t<T>::Type;
 				verify_comp<U>();
@@ -333,7 +333,7 @@ namespace gaia {
 				ADD_COMPONENT_TO_TEMPENTITY_t cmd;
 				cmd.tempEntity = entity;
 				cmd.compKind = component_kind_v<T>;
-				cmd.compId = info.compId;
+				cmd.compId = desc.comp.id();
 				ser::save(m_ctx, cmd);
 			}
 
@@ -343,7 +343,7 @@ namespace gaia {
 			template <typename T>
 			void add(Entity entity, T&& value) {
 				// Make sure the component is registered
-				const auto& info = ComponentCache::get().goc_comp_info<T>();
+				const auto& desc = ComponentCache::get().goc_comp_desc<T>();
 
 				using U = typename component_type_t<T>::Type;
 				verify_comp<U>();
@@ -353,7 +353,7 @@ namespace gaia {
 				ADD_COMPONENT_DATA_t cmd;
 				cmd.entity = entity;
 				cmd.compKind = component_kind_v<T>;
-				cmd.compId = info.compId;
+				cmd.compId = desc.comp.id();
 				ser::save(m_ctx, cmd);
 				m_ctx.save_comp(GAIA_FWD(value));
 			}
@@ -364,7 +364,7 @@ namespace gaia {
 			template <typename T>
 			void add(TempEntity entity, T&& value) {
 				// Make sure the component is registered
-				const auto& info = ComponentCache::get().goc_comp_info<T>();
+				const auto& desc = ComponentCache::get().goc_comp_desc<T>();
 
 				using U = typename component_type_t<T>::Type;
 				verify_comp<U>();
@@ -374,7 +374,7 @@ namespace gaia {
 				ADD_COMPONENT_TO_TEMPENTITY_t cmd;
 				cmd.tempEntity = entity;
 				cmd.compKind = component_kind_v<T>;
-				cmd.compId = info.compId;
+				cmd.compId = desc.comp.id();
 				ser::save(m_ctx, cmd);
 				m_ctx.save_comp(GAIA_FWD(value));
 			}
@@ -386,7 +386,7 @@ namespace gaia {
 			void set(Entity entity, T&& value) {
 				// No need to check if the component is registered.
 				// If we want to set the value of a component we must have created it already.
-				// (void)ComponentCache::get().comp_info<T>();
+				// (void)ComponentCache::get().comp_desc<T>();
 
 				using U = typename component_type_t<T>::Type;
 				verify_comp<U>();
@@ -409,7 +409,7 @@ namespace gaia {
 			void set(TempEntity entity, T&& value) {
 				// No need to check if the component is registered.
 				// If we want to set the value of a component we must have created it already.
-				// (void)ComponentCache::get().goc_comp_info<T>();
+				// (void)ComponentCache::get().goc_comp_desc<T>();
 
 				using U = typename component_type_t<T>::Type;
 				verify_comp<U>();
@@ -431,7 +431,7 @@ namespace gaia {
 			void del(Entity entity) {
 				// No need to check if the component is registered.
 				// If we want to remove a component we must have created it already.
-				// (void)ComponentCache::get().goc_comp_info<T>();
+				// (void)ComponentCache::get().goc_comp_desc<T>();
 
 				using U = typename component_type_t<T>::Type;
 				verify_comp<U>();
