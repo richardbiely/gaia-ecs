@@ -44,8 +44,8 @@ fi
 ####################################################################
 
 OUTPUT_BASE="src/perf/duel/gaia_perf_duel"
-OUTPUT_ARGS_DOD="-cg -dod"
-OUTPUT_ARGS_ECS="-cg"
+OUTPUT_ARGS_DOD="-p -dod"
+OUTPUT_ARGS_ECS="-p"
 
 VALGRIND_ARGS="--tool=cachegrind"
 

@@ -1,4 +1,4 @@
-#define PICOBENCH_IMPLEMENT_WITH_MAIN
+#define PICOBENCH_IMPLEMENT
 #include "gaia/external/picobench.hpp"
 #include <gaia.h>
 
@@ -70,12 +70,48 @@ void BM_CreateEntity_With_Component(picobench::state& state) {
 }
 
 #define PICO_SETTINGS() iterations({1024}).samples(3)
+#define PICO_SETTINGS_1() iterations({1024}).samples(1)
+#define PICOBENCH_SUITE_REG(name) r.current_suite_name() = name;
+#define PICOBENCH_REG(func) (void)r.add_benchmark(#func, func)
 
-PICOBENCH_SUITE("Entity and component creation");
-PICOBENCH(BM_CreateEntity).PICO_SETTINGS().label("0 components");
-PICOBENCH(BM_CreateEntity_With_Component<1>).PICO_SETTINGS().label("1 component");
-PICOBENCH(BM_CreateEntity_With_Component<2>).PICO_SETTINGS().label("2 components");
-PICOBENCH(BM_CreateEntity_With_Component<4>).PICO_SETTINGS().label("4 components");
-PICOBENCH(BM_CreateEntity_With_Component<8>).PICO_SETTINGS().label("8 components");
-PICOBENCH(BM_CreateEntity_With_Component<16>).PICO_SETTINGS().label("16 components");
-PICOBENCH(BM_CreateEntity_With_Component<32>).PICO_SETTINGS().label("32 components");
+int main(int argc, char* argv[]) {
+	picobench::runner r(true);
+	r.parse_cmd_line(argc, argv);
+
+	// If picobench encounters an unknown command line argument it returns false and sets an error.
+	// Ignore this behavior.
+	// We only need to make sure to provide the custom arguments after the picobench ones.
+	if (r.error() == picobench::error_unknown_cmd_line_argument)
+		r.set_error(picobench::no_error);
+
+	// With profiling mode enabled we want to be able to pick what benchmark to run so it is easier
+	// for us to isolate the results.
+	{
+		bool profilingMode = false;
+
+		const gaia::cnt::darray<std::string_view> args(argv + 1, argv + argc);
+		for (const auto& arg: args) {
+			if (arg == "-p") {
+				profilingMode = true;
+				continue;
+			}
+		}
+
+		GAIA_LOG_N("Profiling mode = %s", profilingMode ? "ON" : "OFF");
+
+		if (profilingMode) {
+			PICOBENCH_REG(BM_CreateEntity_With_Component<32>).PICO_SETTINGS().label("32 components");
+		} else {
+			PICOBENCH_SUITE_REG("Entity and component creation");
+			PICOBENCH_REG(BM_CreateEntity).PICO_SETTINGS().label("0 components");
+			PICOBENCH_REG(BM_CreateEntity_With_Component<1>).PICO_SETTINGS().label("1 component");
+			PICOBENCH_REG(BM_CreateEntity_With_Component<2>).PICO_SETTINGS().label("2 components");
+			PICOBENCH_REG(BM_CreateEntity_With_Component<4>).PICO_SETTINGS().label("4 components");
+			PICOBENCH_REG(BM_CreateEntity_With_Component<8>).PICO_SETTINGS().label("8 components");
+			PICOBENCH_REG(BM_CreateEntity_With_Component<16>).PICO_SETTINGS().label("16 components");
+			PICOBENCH_REG(BM_CreateEntity_With_Component<32>).PICO_SETTINGS().label("32 components");
+		}
+	}
+
+	return r.run(0);
+}
