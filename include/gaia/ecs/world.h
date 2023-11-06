@@ -93,9 +93,9 @@ namespace gaia {
 				cnt::sarr_ext<Component, Chunk::MAX_COMPONENTS> comps[ComponentKind::CK_Count];
 				for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
 					auto& dst = comps[i];
-					const auto& rec = pChunk->comp_rec_view((ComponentKind)i);
-					for (uint32_t j = 0; j < rec.size(); ++j)
-						dst[j] = rec[j].comp;
+					auto recs = pChunk->comp_rec_view((ComponentKind)i);
+					for (uint32_t j = 0; j < recs.size(); ++j)
+						dst[j] = recs[j].comp;
 				}
 
 				const Archetype::GenericComponentHash genericHash = {calc_lookup_hash({comps[0].data(), comps[0].size()}).hash};
@@ -640,9 +640,9 @@ namespace gaia {
 
 				// Call the constructor for the newly added component if necessary
 				if (compKind == ComponentKind::CK_Generic)
-					pChunk->call_ctor(compKind, desc, entityContainer.idx);
+					pChunk->call_ctor(compKind, entityContainer.idx, desc);
 				else if (compKind == ComponentKind::CK_Chunk)
-					pChunk->call_ctor(compKind, desc, 0);
+					pChunk->call_ctor(compKind, 0, desc);
 
 				return entityContainer;
 			}
