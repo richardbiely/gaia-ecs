@@ -10,10 +10,11 @@
 #include "chunk_allocator.h"
 #include "component.h"
 #include "entity.h"
-#include "gaia/ecs/component_desc.h"
 
 namespace gaia {
 	namespace ecs {
+		class ComponentDesc;
+
 		struct ChunkDataOffsets {
 			//! Byte at which the first version number is located
 			ChunkDataVersionOffset firstByte_Versions[ComponentKind::CK_Count]{};

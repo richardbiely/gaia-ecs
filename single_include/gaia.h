@@ -15064,6 +15064,8 @@ namespace gaia {
 
 namespace gaia {
 	namespace ecs {
+		class ComponentDesc;
+
 		struct ChunkDataOffsets {
 			//! Byte at which the first version number is located
 			ChunkDataVersionOffset firstByte_Versions[ComponentKind::CK_Count]{};
