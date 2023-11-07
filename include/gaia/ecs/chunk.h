@@ -19,6 +19,7 @@
 #include "component_desc.h"
 #include "component_utils.h"
 #include "entity.h"
+#include "entity_container.h"
 
 namespace gaia {
 	namespace ecs {
