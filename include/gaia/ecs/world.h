@@ -27,6 +27,7 @@
 #include "component_utils.h"
 #include "entity.h"
 #include "entity_container.h"
+#include "gaia/config/config_core.h"
 #include "query.h"
 #include "query_cache.h"
 #include "query_common.h"
@@ -395,9 +396,14 @@ namespace gaia {
 					const auto componentDescSize = compsOld.size();
 					compsNew.resize(componentDescSize + 1);
 
-					for (uint32_t j = 0; j < componentDescSize; ++j)
-						compsNew[j] = compsOld[j];
-					compsNew[componentDescSize] = descToAdd.comp;
+					for (uint32_t j = 0; j < componentDescSize; ++j) {
+						// NOTE: GCC 13 with optimizations enabled has a bug causing stringop-overflow warning to trigger
+						//       on the following assignment:
+						//       compsNew[j] = compsOld[j];
+						//       Therefore, we split the assignment into two parts.
+						auto comp = compsOld[j];
+						compsNew[j] = comp;
+					}
 				}
 
 				// Make sure to sort the components so we receive the same hash no matter the order in which components
