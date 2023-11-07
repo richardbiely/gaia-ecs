@@ -15388,6 +15388,10 @@ namespace gaia {
 						m_header.hasAnyCustomUniCtor |= (rec.pDesc->func_ctor != nullptr);
 						m_header.hasAnyCustomUniDtor |= (rec.pDesc->func_dtor != nullptr);
 					}
+
+					// Also construct unique components if possible
+					if (has_custom_uni_ctor())
+						call_ctors(ComponentKind::CK_Uni, 0, 1);
 				}
 			}
 
@@ -16132,8 +16136,9 @@ namespace gaia {
 			void call_ctor(ComponentKind compKind, uint32_t entIdx, const ComponentDesc& desc) {
 				GAIA_PROF_SCOPE(call_ctor);
 
-				// Make sure only generic types are used with indices
-				GAIA_ASSERT(compKind == ComponentKind::CK_Gen || entIdx == 0);
+				// Make sure only generic components are used with this function.
+				// Unique components are automatically constructed with chunks.
+				GAIA_ASSERT(compKind == ComponentKind::CK_Gen);
 
 				if (desc.func_ctor == nullptr)
 					return;
@@ -19637,11 +19642,10 @@ namespace gaia {
 					pChunk = entityContainer.pChunk;
 				}
 
-				// Call the constructor for the newly added component if necessary
+				// Call the constructor for the newly added component if necessary.
+				// Unique component constructors are handled automatically when a new chunk is created.
 				if (compKind == ComponentKind::CK_Gen)
 					pChunk->call_ctor(compKind, entityContainer.idx, desc);
-				else if (compKind == ComponentKind::CK_Uni)
-					pChunk->call_ctor(compKind, 0, desc);
 
 				return entityContainer;
 			}

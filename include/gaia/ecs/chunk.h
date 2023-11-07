@@ -152,6 +152,10 @@ namespace gaia {
 						m_header.hasAnyCustomUniCtor |= (rec.pDesc->func_ctor != nullptr);
 						m_header.hasAnyCustomUniDtor |= (rec.pDesc->func_dtor != nullptr);
 					}
+
+					// Also construct unique components if possible
+					if (has_custom_uni_ctor())
+						call_ctors(ComponentKind::CK_Uni, 0, 1);
 				}
 			}
 
@@ -896,8 +900,9 @@ namespace gaia {
 			void call_ctor(ComponentKind compKind, uint32_t entIdx, const ComponentDesc& desc) {
 				GAIA_PROF_SCOPE(call_ctor);
 
-				// Make sure only generic types are used with indices
-				GAIA_ASSERT(compKind == ComponentKind::CK_Gen || entIdx == 0);
+				// Make sure only generic components are used with this function.
+				// Unique components are automatically constructed with chunks.
+				GAIA_ASSERT(compKind == ComponentKind::CK_Gen);
 
 				if (desc.func_ctor == nullptr)
 					return;

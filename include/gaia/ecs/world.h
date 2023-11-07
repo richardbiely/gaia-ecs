@@ -637,11 +637,10 @@ namespace gaia {
 					pChunk = entityContainer.pChunk;
 				}
 
-				// Call the constructor for the newly added component if necessary
+				// Call the constructor for the newly added component if necessary.
+				// Unique component constructors are handled automatically when a new chunk is created.
 				if (compKind == ComponentKind::CK_Gen)
 					pChunk->call_ctor(compKind, entityContainer.idx, desc);
-				else if (compKind == ComponentKind::CK_Uni)
-					pChunk->call_ctor(compKind, 0, desc);
 
 				return entityContainer;
 			}
