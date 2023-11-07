@@ -19420,6 +19420,7 @@ namespace gaia {
 						auto comp = compsOld[j];
 						compsNew[j] = comp;
 					}
+					compsNew[componentDescSize] = descToAdd.comp;
 				}
 
 				// Make sure to sort the components so we receive the same hash no matter the order in which components
