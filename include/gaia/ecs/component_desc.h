@@ -122,14 +122,14 @@ namespace gaia {
 						// Custom construction
 						if constexpr (!std::is_trivially_constructible_v<U>) {
 							desc.func_ctor = [](void* ptr, uint32_t cnt) {
-								core::call_ctor((U*)ptr, cnt);
+								core::call_ctor_n((U*)ptr, cnt);
 							};
 						}
 
 						// Custom destruction
 						if constexpr (!std::is_trivially_destructible_v<U>) {
 							desc.func_dtor = [](void* ptr, uint32_t cnt) {
-								core::call_dtor((U*)ptr, cnt);
+								core::call_dtor_n((U*)ptr, cnt);
 							};
 						}
 

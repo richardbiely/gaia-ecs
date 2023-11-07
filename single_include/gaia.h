@@ -1769,23 +1769,28 @@ namespace gaia {
 		}
 
 		template <typename T>
-		void call_ctor(T* pData, size_t cnt) {
-			if constexpr (!std::is_trivially_constructible_v<T>) {
+		void call_ctor_n(T* pData, size_t cnt) {
+			if constexpr (!std::is_trivially_destructible_v<T>) {
 				for (size_t i = 0; i < cnt; ++i)
 					(void)::new (pData + i) T();
 			}
 		}
 
+		template <typename T, typename... Args>
+		void call_ctor(T* pData, Args&&... args) {
+			(void)::new (pData) T(GAIA_FWD(args)...);
+		}
+
 		template <typename T>
 		void call_dtor(T* pData) {
-			if constexpr (!std::is_trivially_constructible_v<T>) {
+			if constexpr (!std::is_trivially_destructible_v<T>) {
 				pData.~T();
 			}
 		}
 
 		template <typename T>
-		void call_dtor(T* pData, size_t cnt) {
-			if constexpr (!std::is_trivially_constructible_v<T>) {
+		void call_dtor_n(T* pData, size_t cnt) {
+			if constexpr (!std::is_trivially_destructible_v<T>) {
 				for (size_t i = 0; i < cnt; ++i)
 					pData[i].~T();
 			}
@@ -3672,14 +3677,14 @@ namespace gaia {
 			GAIA_NODISCARD static uint8_t* alloc_mem(size_t cnt) noexcept {
 				const auto bytes = get_min_byte_size(0, cnt);
 				auto* pData = (uint8_t*)mem::mem_alloc(bytes);
-				core::call_ctor((ValueType*)pData, cnt);
+				core::call_ctor_n((ValueType*)pData, cnt);
 				return pData;
 			}
 
 			static void free_mem(uint8_t* pData, size_t cnt) noexcept {
 				if (pData == nullptr)
 					return;
-				core::call_dtor((ValueType*)pData, cnt);
+				core::call_dtor_n((ValueType*)pData, cnt);
 				return mem::mem_free(pData);
 			}
 
@@ -5336,7 +5341,7 @@ namespace gaia {
 				if (count <= m_cnt) {
 					// Destroy elements at the end
 					if constexpr (!mem::is_soa_layout_v<T>)
-						core::call_dtor(&data()[count], size() - count);
+						core::call_dtor_n(&data()[count], size() - count);
 
 					m_cnt = count;
 					return;
@@ -5346,7 +5351,7 @@ namespace gaia {
 				if (count <= m_cap) {
 					// Constuct new elements
 					if constexpr (!mem::is_soa_layout_v<T>)
-						core::call_ctor(&data()[size()], count - size());
+						core::call_ctor_n(&data()[size()], count - size());
 
 					m_cnt = count;
 					return;
@@ -5358,7 +5363,7 @@ namespace gaia {
 					// Move old data to the new location
 					mem::move_elements<T>(m_pData, pDataOld, 0, size(), count, m_cap);
 					// Default-construct new items
-					core::call_ctor<T>(&data()[size()], count - size());
+					core::call_ctor_n(&data()[size()], count - size());
 				}
 				// Release old memory
 				view_policy::free_mem(pDataOld, size());
@@ -5374,7 +5379,7 @@ namespace gaia {
 					operator[](m_cnt++) = arg;
 				} else {
 					auto* ptr = m_pData + sizeof(T) * (m_cnt++);
-					::new (ptr) T(arg);
+					core::call_ctor((T*)ptr, arg);
 				}
 			}
 
@@ -5385,7 +5390,7 @@ namespace gaia {
 					operator[](m_cnt++) = GAIA_FWD(arg);
 				} else {
 					auto* ptr = m_pData + sizeof(T) * (m_cnt++);
-					::new (ptr) T(GAIA_FWD(arg));
+					core::call_ctor((T*)ptr, GAIA_FWD(arg));
 				}
 			}
 
@@ -5398,7 +5403,7 @@ namespace gaia {
 					return;
 				} else {
 					auto* ptr = m_pData + sizeof(T) * (m_cnt++);
-					::new (ptr) T(GAIA_FWD(args)...);
+					core::call_ctor((T*)ptr, GAIA_FWD(args)...);
 					return (reference)*ptr;
 				}
 			}
@@ -5453,7 +5458,7 @@ namespace gaia {
 				mem::shift_elements_left_n<T>(m_pData, idxSrc, idxDst, cnt, m_cap);
 				// Destroy if it's the last element
 				if constexpr (!mem::is_soa_layout_v<T>)
-					core::call_dtor(&data()[m_cnt - cnt], cnt);
+					core::call_dtor_n(&data()[m_cnt - cnt], cnt);
 
 				m_cnt -= cnt;
 
@@ -5980,7 +5985,7 @@ namespace gaia {
 				if (count <= m_cnt) {
 					// Destroy elements at the endif (count <= m_cap) {
 					if constexpr (!mem::is_soa_layout_v<T>)
-						core::call_dtor(&data()[count], size() - count);
+						core::call_dtor_n(&data()[count], size() - count);
 
 					m_cnt = count;
 					return;
@@ -5990,7 +5995,7 @@ namespace gaia {
 				if (count <= m_cap) {
 					// Constuct new elements
 					if constexpr (!mem::is_soa_layout_v<T>)
-						core::call_ctor(&data()[size()], count - size());
+						core::call_ctor_n(&data()[size()], count - size());
 
 					m_cnt = count;
 					return;
@@ -6001,7 +6006,7 @@ namespace gaia {
 				if (pDataOld != nullptr) {
 					mem::move_elements<T>(m_pDataHeap, pDataOld, 0, size(), count, m_cap);
 					// Default-construct new items
-					core::call_ctor<T>(&data()[size()], count - size());
+					core::call_ctor_n(&data()[size()], count - size());
 					// Release old memory
 					view_policy::free_mem(pDataOld, size());
 				} else {
@@ -6020,7 +6025,7 @@ namespace gaia {
 					operator[](m_cnt++) = arg;
 				} else {
 					auto* ptr = m_pData + sizeof(T) * (m_cnt++);
-					::new (ptr) T(arg);
+					core::call_ctor((T*)ptr, arg);
 				}
 			}
 
@@ -6031,7 +6036,7 @@ namespace gaia {
 					operator[](m_cnt++) = GAIA_FWD(arg);
 				} else {
 					auto* ptr = m_pData + sizeof(T) * (m_cnt++);
-					::new (ptr) T(GAIA_FWD(arg));
+					core::call_ctor((T*)ptr, GAIA_FWD(arg));
 				}
 			}
 
@@ -6044,7 +6049,7 @@ namespace gaia {
 					return;
 				} else {
 					auto* ptr = m_pData + sizeof(T) * (m_cnt++);
-					::new (ptr) T(GAIA_FWD(args)...);
+					core::call_ctor((T*)ptr, GAIA_FWD(args)...);
 					return (reference)*ptr;
 				}
 			}
@@ -6099,7 +6104,7 @@ namespace gaia {
 				mem::shift_elements_left_n<T>(m_pData, idxSrc, idxDst, cnt, m_cap);
 				// Destroy if it's the last element
 				if constexpr (!mem::is_soa_layout_v<T>)
-					core::call_dtor(&data()[m_cnt - cnt], cnt);
+					core::call_dtor_n(&data()[m_cnt - cnt], cnt);
 
 				m_cnt -= cnt;
 
@@ -9393,18 +9398,18 @@ namespace gaia {
 
 			constexpr sarr() noexcept {
 				if constexpr (!mem::is_soa_layout_v<T>)
-					core::call_ctor(data(), extent);
+					core::call_ctor_n(data(), extent);
 			}
 
 			~sarr() {
 				if constexpr (!mem::is_soa_layout_v<T>)
-					core::call_dtor(data(), extent);
+					core::call_dtor_n(data(), extent);
 			}
 
 			template <typename InputIt>
 			constexpr sarr(InputIt first, InputIt last) noexcept {
 				if constexpr (!mem::is_soa_layout_v<T>)
-					core::call_ctor(data(), extent);
+					core::call_ctor_n(data(), extent);
 
 				const auto count = (size_type)core::distance(first, last);
 
@@ -9429,7 +9434,7 @@ namespace gaia {
 				GAIA_ASSERT(gaia::mem::addressof(other) != this);
 
 				if constexpr (!mem::is_soa_layout_v<T>)
-					core::call_ctor(data(), extent);
+					core::call_ctor_n(data(), extent);
 				mem::move_elements<T>((uint8_t*)m_data, (const uint8_t*)other.m_data, 0, other.size(), extent, other.extent);
 
 				other.m_cnt = size_type(0);
@@ -9444,7 +9449,7 @@ namespace gaia {
 				GAIA_ASSERT(gaia::mem::addressof(other) != this);
 
 				if constexpr (!mem::is_soa_layout_v<T>)
-					core::call_ctor(data(), extent);
+					core::call_ctor_n(data(), extent);
 				mem::copy_elements<T>(
 						(uint8_t*)&m_data[0], (const uint8_t*)&other.m_data[0], 0, other.size(), extent, other.extent);
 
@@ -9455,7 +9460,7 @@ namespace gaia {
 				GAIA_ASSERT(gaia::mem::addressof(other) != this);
 
 				if constexpr (!mem::is_soa_layout_v<T>)
-					core::call_ctor(data(), extent);
+					core::call_ctor_n(data(), extent);
 				mem::move_elements<T>(
 						(uint8_t*)&m_data[0], (const uint8_t*)&other.m_data[0], 0, other.size(), extent, other.extent);
 
@@ -9826,7 +9831,7 @@ namespace gaia {
 
 			~sarr_ext() {
 				if constexpr (!mem::is_soa_layout_v<T>)
-					core::call_dtor(data(), m_cnt);
+					core::call_dtor_n(data(), m_cnt);
 			}
 
 			constexpr sarr_ext(size_type count, const_reference value) noexcept {
@@ -9842,7 +9847,7 @@ namespace gaia {
 			template <typename InputIt>
 			constexpr sarr_ext(InputIt first, InputIt last) noexcept {
 				if constexpr (!mem::is_soa_layout_v<T>)
-					core::call_ctor(data(), extent);
+					core::call_ctor_n(data(), extent);
 
 				const auto count = (size_type)core::distance(first, last);
 				resize(count);
@@ -9868,7 +9873,7 @@ namespace gaia {
 				GAIA_ASSERT(gaia::mem::addressof(other) != this);
 
 				if constexpr (!mem::is_soa_layout_v<T>)
-					core::call_ctor(data(), extent);
+					core::call_ctor_n(data(), extent);
 				mem::move_elements<T>(m_data, other.m_data, 0, other.size(), extent, other.extent);
 
 				other.m_cnt = size_type(0);
@@ -9883,7 +9888,7 @@ namespace gaia {
 				GAIA_ASSERT(gaia::mem::addressof(other) != this);
 
 				if constexpr (!mem::is_soa_layout_v<T>)
-					core::call_ctor(data(), extent);
+					core::call_ctor_n(data(), extent);
 				resize(other.size());
 				mem::copy_elements<T>(
 						(uint8_t*)&m_data[0], (const uint8_t*)&other.m_data[0], 0, other.size(), extent, other.extent);
@@ -9895,7 +9900,7 @@ namespace gaia {
 				GAIA_ASSERT(gaia::mem::addressof(other) != this);
 
 				if constexpr (!mem::is_soa_layout_v<T>)
-					core::call_ctor(data(), extent);
+					core::call_ctor_n(data(), extent);
 				resize(other.m_cnt);
 				mem::move_elements<T>(
 						(uint8_t*)&m_data[0], (const uint8_t*)&other.m_data[0], 0, other.size(), extent, other.extent);
@@ -9930,7 +9935,7 @@ namespace gaia {
 					operator[](m_cnt++) = arg;
 				} else {
 					auto* ptr = m_data + sizeof(T) * (m_cnt++);
-					::new (ptr) T(arg);
+					core::call_ctor((T*)ptr, arg);
 				}
 			}
 
@@ -9941,7 +9946,7 @@ namespace gaia {
 					operator[](m_cnt++) = GAIA_FWD(arg);
 				} else {
 					auto* ptr = m_data + sizeof(T) * (m_cnt++);
-					::new (ptr) T(GAIA_FWD(arg));
+					core::call_ctor((T*)ptr, GAIA_FWD(arg));
 				}
 			}
 
@@ -9954,7 +9959,7 @@ namespace gaia {
 					return;
 				} else {
 					auto* ptr = m_data + sizeof(T) * (m_cnt++);
-					::new (ptr) T(GAIA_FWD(args)...);
+					core::call_ctor((T*)ptr, GAIA_FWD(args)...);
 					return (reference)*ptr;
 				}
 			}
@@ -10009,7 +10014,7 @@ namespace gaia {
 				mem::shift_elements_left_n<T>(m_data, idxSrc, idxDst, cnt, extent);
 				// Destroy if it's the last element
 				if constexpr (!mem::is_soa_layout_v<T>)
-					core::call_dtor(&data()[m_cnt - cnt], cnt);
+					core::call_dtor_n(&data()[m_cnt - cnt], cnt);
 
 				m_cnt -= cnt;
 
@@ -10027,13 +10032,13 @@ namespace gaia {
 				if (count <= m_cnt) {
 					// Destroy elements at the end
 					if constexpr (!mem::is_soa_layout_v<T>)
-						core::call_dtor(&data()[count], size() - count);
+						core::call_dtor_n(&data()[count], size() - count);
 				} else
 				// Resizing to a bigger size but still within allocated capacity
 				{
 					// Constuct new elements
 					if constexpr (!mem::is_soa_layout_v<T>)
-						core::call_ctor(&data()[size()], count - size());
+						core::call_ctor_n(&data()[size()], count - size());
 				}
 
 				m_cnt = count;
@@ -14214,14 +14219,14 @@ namespace gaia {
 						// Custom construction
 						if constexpr (!std::is_trivially_constructible_v<U>) {
 							desc.func_ctor = [](void* ptr, uint32_t cnt) {
-								core::call_ctor((U*)ptr, cnt);
+								core::call_ctor_n((U*)ptr, cnt);
 							};
 						}
 
 						// Custom destruction
 						if constexpr (!std::is_trivially_destructible_v<U>) {
 							desc.func_dtor = [](void* ptr, uint32_t cnt) {
-								core::call_dtor((U*)ptr, cnt);
+								core::call_dtor_n((U*)ptr, cnt);
 							};
 						}
 
