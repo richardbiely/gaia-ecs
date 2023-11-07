@@ -210,7 +210,7 @@ namespace gaia {
 
 				// Match against generic types
 				{
-					auto& data = m_lookupCtx.data[ComponentKind::CK_Generic];
+					auto& data = m_lookupCtx.data[ComponentKind::CK_Gen];
 					for (uint32_t i = 0; i < data.comps.size(); ++i) {
 						const auto comp = data.comps[i];
 
@@ -225,8 +225,8 @@ namespace gaia {
 							auto* pArchetype = archetypes[j];
 
 							// Early exit if generic query doesn't match
-							const auto retGeneric = match(*pArchetype, ComponentKind::CK_Generic);
-							if (retGeneric == MatchArchetypeQueryRet::Fail)
+							const auto ret = match(*pArchetype, ComponentKind::CK_Gen);
+							if (ret == MatchArchetypeQueryRet::Fail)
 								continue;
 
 							(void)s_tmpArchetypeMatches.emplace(pArchetype);
@@ -235,9 +235,9 @@ namespace gaia {
 					}
 				}
 
-				// Match against chunk types
+				// Match against unique types
 				{
-					auto& data = m_lookupCtx.data[ComponentKind::CK_Chunk];
+					auto& data = m_lookupCtx.data[ComponentKind::CK_Uni];
 					for (uint32_t i = 0; i < data.comps.size(); ++i) {
 						const auto comp = data.comps[i];
 
@@ -247,9 +247,9 @@ namespace gaia {
 
 						for (uint32_t j = data.lastMatchedArchetypeIdx[i]; j < it->second.size(); ++j) {
 							auto* pArchetype = it->second[j];
-							// Early exit if generic query doesn't match
-							const auto retGeneric = match(*pArchetype, ComponentKind::CK_Chunk);
-							if (retGeneric == MatchArchetypeQueryRet::Fail) {
+							// Early exit if unique query doesn't match
+							const auto ret = match(*pArchetype, ComponentKind::CK_Uni);
+							if (ret == MatchArchetypeQueryRet::Fail) {
 								s_tmpArchetypeMatches.erase(pArchetype);
 								continue;
 							}
@@ -282,8 +282,8 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD bool has_filters() const {
-				return !m_lookupCtx.data[ComponentKind::CK_Generic].withChanged.empty() ||
-							 !m_lookupCtx.data[ComponentKind::CK_Chunk].withChanged.empty();
+				return !m_lookupCtx.data[ComponentKind::CK_Gen].withChanged.empty() ||
+							 !m_lookupCtx.data[ComponentKind::CK_Uni].withChanged.empty();
 			}
 
 			template <typename... T>

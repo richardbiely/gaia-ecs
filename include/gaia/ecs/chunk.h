@@ -43,12 +43,12 @@ namespace gaia {
 		private:
 			//! Pointer to where the chunk data starts.
 			//! Data layed out as following:
-			//!			1) ComponentVersions[ComponentKind::CK_Generic]
-			//!			2) ComponentVersions[ComponentKind::CK_Chunk]
-			//!     3) ComponentIds[ComponentKind::CK_Generic]
-			//!			4) ComponentIds[ComponentKind::CK_Chunk]
-			//!			5) ComponentRecords[ComponentKind::CK_Generic]
-			//!			6) ComponentRecords[ComponentKind::CK_Chunk]
+			//!			1) ComponentVersions[ComponentKind::CK_Gen]
+			//!			2) ComponentVersions[ComponentKind::CK_Uni]
+			//!     3) ComponentIds[ComponentKind::CK_Gen]
+			//!			4) ComponentIds[ComponentKind::CK_Uni]
+			//!			5) ComponentRecords[ComponentKind::CK_Gen]
+			//!			6) ComponentRecords[ComponentKind::CK_Uni]
 			//!			7) Entities
 			//!			8) Components
 			//! Note, root archetypes store only entites, therefore it is fully occupied with entities.
@@ -77,8 +77,8 @@ namespace gaia {
 #endif
 					const ChunkDataOffsets& headerOffsets,
 					const cnt::sarray<ComponentOffsetArray, ComponentKind::CK_Count>& compOffs) {
-				m_header.componentCount[ComponentKind::CK_Generic] = (uint8_t)comps[ComponentKind::CK_Generic].size();
-				m_header.componentCount[ComponentKind::CK_Chunk] = (uint8_t)comps[ComponentKind::CK_Chunk].size();
+				m_header.componentCount[ComponentKind::CK_Gen] = (uint8_t)comps[ComponentKind::CK_Gen].size();
+				m_header.componentCount[ComponentKind::CK_Uni] = (uint8_t)comps[ComponentKind::CK_Uni].size();
 
 				const auto& cc = ComponentCache::get();
 
@@ -140,17 +140,17 @@ namespace gaia {
 
 				// Now that records are set, we use the cached component descriptors to set ctor/dtor masks.
 				{
-					auto recs = comp_rec_view(ComponentKind::CK_Generic);
+					auto recs = comp_rec_view(ComponentKind::CK_Gen);
 					for (const auto& rec: recs) {
-						m_header.hasAnyCustomGenericCtor |= (rec.pDesc->func_ctor != nullptr);
-						m_header.hasAnyCustomGenericDtor |= (rec.pDesc->func_dtor != nullptr);
+						m_header.hasAnyCustomGenCtor |= (rec.pDesc->func_ctor != nullptr);
+						m_header.hasAnyCustomGenDtor |= (rec.pDesc->func_dtor != nullptr);
 					}
 				}
 				{
-					auto recs = comp_rec_view(ComponentKind::CK_Chunk);
+					auto recs = comp_rec_view(ComponentKind::CK_Uni);
 					for (const auto& rec: recs) {
-						m_header.hasAnyCustomChunkCtor |= (rec.pDesc->func_ctor != nullptr);
-						m_header.hasAnyCustomChunkDtor |= (rec.pDesc->func_dtor != nullptr);
+						m_header.hasAnyCustomUniCtor |= (rec.pDesc->func_ctor != nullptr);
+						m_header.hasAnyCustomUniDtor |= (rec.pDesc->func_dtor != nullptr);
 					}
 				}
 			}
@@ -199,10 +199,10 @@ namespace gaia {
 					const auto compId = comp_id<T>();
 					const auto compIdx = comp_idx(compKind, compId);
 
-					if constexpr (compKind == ComponentKind::CK_Generic) {
+					if constexpr (compKind == ComponentKind::CK_Gen) {
 						return {comp_ptr(compKind, compIdx, from), to - from};
 					} else {
-						// GAIA_ASSERT(count == 1); we don't really care and always consider 1 for chunk components
+						// GAIA_ASSERT(count == 1); we don't really care and always consider 1 for unique components
 						return {comp_ptr(compKind, compIdx), 1};
 					}
 				}
@@ -237,10 +237,10 @@ namespace gaia {
 					if constexpr (WorldVersionUpdateWanted)
 						update_world_version(compKind, compIdx);
 
-					if constexpr (compKind == ComponentKind::CK_Generic) {
+					if constexpr (compKind == ComponentKind::CK_Gen) {
 						return {comp_ptr_mut(compKind, compIdx, from), to - from};
 					} else {
-						// GAIA_ASSERT(count == 1); we don't really care and always consider 1 for chunk components
+						// GAIA_ASSERT(count == 1); we don't really care and always consider 1 for unique components
 						return {comp_ptr_mut(compKind, compIdx), 1};
 					}
 				}
@@ -356,10 +356,10 @@ namespace gaia {
 				pChunk->die();
 
 				// Call destructors for components that need it
-				if (pChunk->has_custom_generic_dtor())
-					pChunk->call_dtors(ComponentKind::CK_Generic, 0, pChunk->size());
-				if (pChunk->has_custom_chunk_dtor())
-					pChunk->call_dtors(ComponentKind::CK_Chunk, 0, 1);
+				if (pChunk->has_custom_gen_dtor())
+					pChunk->call_dtors(ComponentKind::CK_Gen, 0, pChunk->size());
+				if (pChunk->has_custom_uni_dtor())
+					pChunk->call_dtors(ComponentKind::CK_Uni, 0, 1);
 
 #if GAIA_ECS_CHUNK_ALLOCATOR
 				pChunk->~Chunk();
@@ -403,8 +403,8 @@ namespace gaia {
 			//! Updates the version numbers for this chunk.
 			void update_versions() {
 				update_version(m_header.worldVersion);
-				update_world_version(ComponentKind::CK_Generic);
-				update_world_version(ComponentKind::CK_Chunk);
+				update_world_version(ComponentKind::CK_Gen);
+				update_world_version(ComponentKind::CK_Uni);
 			}
 
 			/*!
@@ -567,8 +567,8 @@ namespace gaia {
 				entity_view_mut()[index] = entity;
 
 				update_version(m_header.worldVersion);
-				update_world_version(ComponentKind::CK_Generic);
-				update_world_version(ComponentKind::CK_Chunk);
+				update_world_version(ComponentKind::CK_Gen);
+				update_world_version(ComponentKind::CK_Uni);
 
 				return index;
 			}
@@ -587,7 +587,7 @@ namespace gaia {
 
 				GAIA_ASSERT(oldEntityContainer.pArchetype == newEntityContainer.pArchetype);
 
-				auto oldRecs = pOldChunk->comp_rec_view(ComponentKind::CK_Generic);
+				auto oldRecs = pOldChunk->comp_rec_view(ComponentKind::CK_Gen);
 
 				// Copy generic component data from reference entity to our new entity
 				for (uint32_t compIdx = 0; compIdx < oldRecs.size(); ++compIdx) {
@@ -595,8 +595,8 @@ namespace gaia {
 					if (rec.comp.size() == 0U)
 						continue;
 
-					auto* pSrc = (void*)pOldChunk->comp_ptr_mut(ComponentKind::CK_Generic, compIdx, oldEntityContainer.idx);
-					auto* pDst = (void*)pNewChunk->comp_ptr_mut(ComponentKind::CK_Generic, compIdx, newEntityContainer.idx);
+					auto* pSrc = (void*)pOldChunk->comp_ptr_mut(ComponentKind::CK_Gen, compIdx, oldEntityContainer.idx);
+					auto* pDst = (void*)pNewChunk->comp_ptr_mut(ComponentKind::CK_Gen, compIdx, newEntityContainer.idx);
 					rec.pDesc->copy(pSrc, pDst);
 				}
 			}
@@ -610,7 +610,7 @@ namespace gaia {
 				auto& oldEntityContainer = entities[entity.id()];
 				auto* pOldChunk = oldEntityContainer.pChunk;
 
-				auto oldRecs = pOldChunk->comp_rec_view(ComponentKind::CK_Generic);
+				auto oldRecs = pOldChunk->comp_rec_view(ComponentKind::CK_Gen);
 
 				// Copy generic component data from reference entity to our new entity
 				for (uint32_t compIdx = 0; compIdx < oldRecs.size(); ++compIdx) {
@@ -618,8 +618,8 @@ namespace gaia {
 					if (rec.comp.size() == 0U)
 						continue;
 
-					auto* pSrc = (void*)pOldChunk->comp_ptr_mut(ComponentKind::CK_Generic, compIdx, oldEntityContainer.idx);
-					auto* pDst = (void*)comp_ptr_mut(ComponentKind::CK_Generic, compIdx, newEntityIdx);
+					auto* pSrc = (void*)pOldChunk->comp_ptr_mut(ComponentKind::CK_Gen, compIdx, oldEntityContainer.idx);
+					auto* pDst = (void*)comp_ptr_mut(ComponentKind::CK_Gen, compIdx, newEntityIdx);
 					rec.pDesc->ctor_from(pSrc, pDst);
 				}
 			}
@@ -634,10 +634,9 @@ namespace gaia {
 				auto* pOldChunk = oldEntityContainer.pChunk;
 
 				// Find intersection of the two component lists.
-				// We ignore chunk components here because they should't be influenced
-				// by entities moving around.
-				auto oldIds = pOldChunk->comp_id_view(ComponentKind::CK_Generic);
-				auto newIds = comp_id_view(ComponentKind::CK_Generic);
+				// We ignore unique components here because they are not influenced by entities moving around.
+				auto oldIds = pOldChunk->comp_id_view(ComponentKind::CK_Gen);
+				auto newIds = comp_id_view(ComponentKind::CK_Gen);
 
 				// Arrays are sorted so we can do linear intersection lookup
 				{
@@ -648,12 +647,12 @@ namespace gaia {
 						const auto newId = newIds[j];
 
 						if (oldId == newId) {
-							auto recs = comp_rec_view(ComponentKind::CK_Generic);
+							auto recs = comp_rec_view(ComponentKind::CK_Gen);
 							const auto& rec = recs[j];
 							GAIA_ASSERT(rec.comp.id() == oldId);
 							if (rec.comp.size() != 0U) {
-								auto* pSrc = (void*)pOldChunk->comp_ptr_mut(ComponentKind::CK_Generic, i, oldEntityContainer.idx);
-								auto* pDst = (void*)comp_ptr_mut(ComponentKind::CK_Generic, j, newEntityIdx);
+								auto* pSrc = (void*)pOldChunk->comp_ptr_mut(ComponentKind::CK_Gen, i, oldEntityContainer.idx);
+								auto* pDst = (void*)comp_ptr_mut(ComponentKind::CK_Gen, j, newEntityIdx);
 								rec.pDesc->ctor_from(pSrc, pDst);
 							}
 
@@ -692,15 +691,15 @@ namespace gaia {
 					// Update entity index inside chunk
 					entity_view_mut()[left] = entity;
 
-					auto recs = comp_rec_view(ComponentKind::CK_Generic);
+					auto recs = comp_rec_view(ComponentKind::CK_Gen);
 
 					for (uint32_t compIdx = 0; compIdx < recs.size(); ++compIdx) {
 						const auto& rec = recs[compIdx];
 						if (rec.comp.size() == 0U)
 							continue;
 
-						auto* pSrc = (void*)comp_ptr_mut(ComponentKind::CK_Generic, compIdx, left);
-						auto* pDst = (void*)comp_ptr_mut(ComponentKind::CK_Generic, compIdx, right);
+						auto* pSrc = (void*)comp_ptr_mut(ComponentKind::CK_Gen, compIdx, left);
+						auto* pDst = (void*)comp_ptr_mut(ComponentKind::CK_Gen, compIdx, right);
 						rec.pDesc->move(pSrc, pDst);
 						rec.pDesc->dtor(pSrc);
 					}
@@ -711,14 +710,14 @@ namespace gaia {
 					entityContainer.gen = entity.gen();
 					entityContainer.dis = wasDisabled;
 				} else {
-					auto recs = comp_rec_view(ComponentKind::CK_Generic);
+					auto recs = comp_rec_view(ComponentKind::CK_Gen);
 
 					for (uint32_t compIdx = 0; compIdx < recs.size(); ++compIdx) {
 						const auto& rec = recs[compIdx];
 						if (rec.comp.size() == 0U)
 							continue;
 
-						auto* pSrc = (void*)comp_ptr_mut(ComponentKind::CK_Generic, compIdx, left);
+						auto* pSrc = (void*)comp_ptr_mut(ComponentKind::CK_Gen, compIdx, left);
 						rec.pDesc->dtor(pSrc);
 					}
 				}
@@ -786,14 +785,14 @@ namespace gaia {
 				entity_view_mut()[left] = entityRight;
 				entity_view_mut()[right] = entityLeft;
 
-				auto recs = comp_rec_view(ComponentKind::CK_Generic);
+				auto recs = comp_rec_view(ComponentKind::CK_Gen);
 				for (uint32_t compIdx = 0; compIdx < recs.size(); ++compIdx) {
 					const auto& rec = recs[compIdx];
 					if (rec.comp.size() == 0U)
 						continue;
 
-					auto* pSrc = (void*)comp_ptr_mut(ComponentKind::CK_Generic, compIdx, left);
-					auto* pDst = (void*)comp_ptr_mut(ComponentKind::CK_Generic, compIdx, right);
+					auto* pSrc = (void*)comp_ptr_mut(ComponentKind::CK_Gen, compIdx, left);
+					auto* pDst = (void*)comp_ptr_mut(ComponentKind::CK_Gen, compIdx, right);
 					rec.pDesc->swap(pSrc, pDst);
 				}
 
@@ -878,27 +877,27 @@ namespace gaia {
 			// Component handling
 			//----------------------------------------------------------------------
 
-			bool has_custom_generic_ctor() const {
-				return m_header.hasAnyCustomGenericCtor;
+			bool has_custom_gen_ctor() const {
+				return m_header.hasAnyCustomGenCtor;
 			}
 
-			bool has_custom_chunk_ctor() const {
-				return m_header.hasAnyCustomChunkCtor;
+			bool has_custom_uni_ctor() const {
+				return m_header.hasAnyCustomUniCtor;
 			}
 
-			bool has_custom_generic_dtor() const {
-				return m_header.hasAnyCustomGenericDtor;
+			bool has_custom_gen_dtor() const {
+				return m_header.hasAnyCustomGenDtor;
 			}
 
-			bool has_custom_chunk_dtor() const {
-				return m_header.hasAnyCustomChunkDtor;
+			bool has_custom_uni_dtor() const {
+				return m_header.hasAnyCustomUniDtor;
 			}
 
 			void call_ctor(ComponentKind compKind, uint32_t entIdx, const ComponentDesc& desc) {
 				GAIA_PROF_SCOPE(call_ctor);
 
 				// Make sure only generic types are used with indices
-				GAIA_ASSERT(compKind == ComponentKind::CK_Generic || entIdx == 0);
+				GAIA_ASSERT(compKind == ComponentKind::CK_Gen || entIdx == 0);
 
 				if (desc.func_ctor == nullptr)
 					return;
@@ -912,11 +911,11 @@ namespace gaia {
 				GAIA_PROF_SCOPE(call_ctors);
 
 				GAIA_ASSERT(
-						compKind == ComponentKind::CK_Generic && has_custom_generic_ctor() ||
-						compKind == ComponentKind::CK_Chunk && has_custom_chunk_ctor());
+						compKind == ComponentKind::CK_Gen && has_custom_gen_ctor() ||
+						compKind == ComponentKind::CK_Uni && has_custom_uni_ctor());
 
 				// Make sure only generic types are used with indices
-				GAIA_ASSERT(compKind == ComponentKind::CK_Generic || (entIdx == 0 && entCnt == 1));
+				GAIA_ASSERT(compKind == ComponentKind::CK_Gen || (entIdx == 0 && entCnt == 1));
 
 				auto recs = comp_rec_view(compKind);
 				for (uint32_t compIdx = 0; compIdx < recs.size(); ++compIdx) {
@@ -933,11 +932,11 @@ namespace gaia {
 				GAIA_PROF_SCOPE(call_dtors);
 
 				GAIA_ASSERT(
-						compKind == ComponentKind::CK_Generic && has_custom_generic_dtor() ||
-						compKind == ComponentKind::CK_Chunk && has_custom_chunk_dtor());
+						compKind == ComponentKind::CK_Gen && has_custom_gen_dtor() ||
+						compKind == ComponentKind::CK_Uni && has_custom_uni_dtor());
 
 				// Make sure only generic types are used with indices
-				GAIA_ASSERT(compKind == ComponentKind::CK_Generic || (entIdx == 0 && entCnt == 1));
+				GAIA_ASSERT(compKind == ComponentKind::CK_Gen || (entIdx == 0 && entCnt == 1));
 
 				auto recs = comp_rec_view(compKind);
 				for (uint32_t compIdx = 0; compIdx < recs.size(); ++compIdx) {
@@ -988,7 +987,7 @@ namespace gaia {
 			//----------------------------------------------------------------------
 
 			/*!
-			Sets the value of the chunk component \tparam T on \param index in the chunk.
+			Sets the value of the unique component \tparam T on \param index in the chunk.
 			\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
 			\tparam T Component
 			\param index Index of entity in the chunk
@@ -997,7 +996,7 @@ namespace gaia {
 			template <typename T, typename U = typename component_type_t<T>::Type>
 			U& set(uint32_t index) {
 				static_assert(
-						component_kind_v<T> == ComponentKind::CK_Generic,
+						component_kind_v<T> == ComponentKind::CK_Gen,
 						"Set providing an index can only be used with generic components");
 
 				// Update the world version
@@ -1008,7 +1007,7 @@ namespace gaia {
 			}
 
 			/*!
-			Sets the value of the chunk component \tparam T on \param index in the chunk.
+			Sets the value of the unique component \tparam T on \param index in the chunk.
 			\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
 			\tparam T Component
 			\param index Index of entity in the chunk
@@ -1024,16 +1023,16 @@ namespace gaia {
 			}
 
 			/*!
-			Sets the value of the chunk component \tparam T on \param index in the chunk.
+			Sets the value of a generic component \tparam T on \param index in the chunk.
 			\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
 			\tparam T Component
 			\param index Index of entity in the chunk
-			\param value Value to set for the component
+			\param value New component value
 			*/
 			template <typename T, typename U = typename component_type_t<T>::Type>
 			void set(uint32_t index, U&& value) {
 				static_assert(
-						component_kind_v<T> == ComponentKind::CK_Generic,
+						component_kind_v<T> == ComponentKind::CK_Gen,
 						"Set providing an index can only be used with generic components");
 
 				// Update the world version
@@ -1044,15 +1043,15 @@ namespace gaia {
 			}
 
 			/*!
-			Sets the value of the chunk component \tparam T in the chunk.
+			Sets the value of a unique component \tparam T in the chunk.
 			\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
 			\tparam T Component
-			\param value Value to set for the component
+			\param value New component value
 			*/
 			template <typename T, typename U = typename component_type_t<T>::Type>
 			void set(U&& value) {
 				static_assert(
-						component_kind_v<T> != ComponentKind::CK_Generic,
+						component_kind_v<T> != ComponentKind::CK_Gen,
 						"Set not providing an index can only be used with non-generic components");
 
 				// Update the world version
@@ -1063,17 +1062,17 @@ namespace gaia {
 			}
 
 			/*!
-			Sets the value of the chunk component \tparam T on \param index in the chunk.
+			Sets the value of a generic component \tparam T on \param index in the chunk.
 			\warning World version is not updated so Query filters will not be able to catch this change.
 			\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
 			\tparam T Component
 			\param index Index of entity in the chunk
-			\param value Value to set for the component
+			\param value New component value
 			*/
 			template <typename T, typename U = typename component_type_t<T>::Type>
 			void sset(uint32_t index, U&& value) {
 				static_assert(
-						component_kind_v<T> == ComponentKind::CK_Generic,
+						component_kind_v<T> == ComponentKind::CK_Gen,
 						"SetSilent providing an index can only be used with generic components");
 
 				GAIA_ASSERT(index < m_header.capacity);
@@ -1081,16 +1080,16 @@ namespace gaia {
 			}
 
 			/*!
-			Sets the value of the chunk component \tparam T in the chunk.
+			Sets the value of a unique component \tparam T in the chunk.
 			\warning World version is not updated so Query filters will not be able to catch this change.
 			\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
 			\tparam T Component
-			\param value Value to set for the component
+			\param value Newcomponent value
 			*/
 			template <typename T, typename U = typename component_type_t<T>::Type>
 			void sset(U&& value) {
 				static_assert(
-						component_kind_v<T> != ComponentKind::CK_Generic,
+						component_kind_v<T> != ComponentKind::CK_Gen,
 						"SetSilent not providing an index can only be used with non-generic components");
 
 				GAIA_ASSERT(0 < m_header.capacity);
@@ -1102,7 +1101,7 @@ namespace gaia {
 			//----------------------------------------------------------------------
 
 			/*!
-			Returns the value stored in the component \tparam T on \param index in the chunk.
+			Returns the value stored in the generic component \tparam T on \param index in the chunk.
 			\warning It is expected the \param index is valid. Undefined behavior otherwise.
 			\warning It is expected the component \tparam T is present. Undefined behavior otherwise.
 			\tparam T Component
@@ -1112,22 +1111,22 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) get(uint32_t index) const {
 				static_assert(
-						component_kind_v<T> == ComponentKind::CK_Generic,
+						component_kind_v<T> == ComponentKind::CK_Gen,
 						"Get providing an index can only be used with generic components");
 
 				return comp_inter<T>(index);
 			}
 
 			/*!
-			Returns the value stored in the chunk component \tparam T.
-			\warning It is expected the chunk component \tparam T is present. Undefined behavior otherwise.
+			Returns the value stored in the unique component \tparam T.
+			\warning It is expected the unique component \tparam T is present. Undefined behavior otherwise.
 			\tparam T Component
 			\return Value stored in the component.
 			*/
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) get() const {
 				static_assert(
-						component_kind_v<T> != ComponentKind::CK_Generic,
+						component_kind_v<T> != ComponentKind::CK_Gen,
 						"Get not providing an index can only be used with non-generic components");
 
 				return comp_inter<T>(0);

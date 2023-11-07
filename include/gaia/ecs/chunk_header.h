@@ -86,13 +86,13 @@ namespace gaia {
 			//! Updated when chunks are being iterated. Used to inform of structural changes when they shouldn't happen.
 			uint32_t structuralChangesLocked: CHUNK_LOCKS_BITS;
 			//! True if there's any generic component that requires custom construction
-			uint32_t hasAnyCustomGenericCtor : 1;
-			//! True if there's any chunk component that requires custom construction
-			uint32_t hasAnyCustomChunkCtor : 1;
+			uint32_t hasAnyCustomGenCtor : 1;
+			//! True if there's any unique component that requires custom construction
+			uint32_t hasAnyCustomUniCtor : 1;
 			//! True if there's any generic component that requires custom destruction
-			uint32_t hasAnyCustomGenericDtor : 1;
-			//! True if there's any chunk component that requires custom destruction
-			uint32_t hasAnyCustomChunkDtor : 1;
+			uint32_t hasAnyCustomGenDtor : 1;
+			//! True if there's any unique component that requires custom destruction
+			uint32_t hasAnyCustomUniDtor : 1;
 			//! Chunk size type. This tells whether it's 8K or 16K
 			uint32_t sizeType : 1;
 			//! Empty space for future use
@@ -108,8 +108,8 @@ namespace gaia {
 
 			ChunkHeader(uint32_t chunkIndex, uint16_t cap, uint16_t st, uint32_t& version):
 					index(chunkIndex), count(0), countEnabled(0), capacity(cap), firstEnabledEntityIndex(0), lifespanCountdown(0),
-					dead(0), structuralChangesLocked(0), hasAnyCustomGenericCtor(0), hasAnyCustomChunkCtor(0),
-					hasAnyCustomGenericDtor(0), hasAnyCustomChunkDtor(0), sizeType(st), unused(0), worldVersion(version) {
+					dead(0), structuralChangesLocked(0), hasAnyCustomGenCtor(0), hasAnyCustomUniCtor(0), hasAnyCustomGenDtor(0),
+					hasAnyCustomUniDtor(0), sizeType(st), unused(0), worldVersion(version) {
 				// Make sure the alignment is right
 				GAIA_ASSERT(uintptr_t(this) % (sizeof(size_t)) == 0);
 			}

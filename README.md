@@ -46,7 +46,7 @@ Gaia-ECS is a fast and easy-to-use [ECS](#ecs) framework. Some of its current fe
     * [Iteration](#iteration)
     * [Constraints](#constraints)
     * [Change detection](#change-detection)
-  * [Chunk components](#chunk-components)
+  * [Unique components](#unique-components)
   * [Delayed execution](#delayed-execution)
   * [Data layouts](#data-layouts)
   * [Serialization](#serialization)
@@ -402,8 +402,8 @@ q.each([&](Position& p, const Velocity& v) {
 
 >**NOTE:**<br/>If there are 100 Position components in the chunk and only one them changes, the other 99 are considered changed as well. This chunk-wide behavior might seem counter-intuitive but it is in fact a performance optimization. The reason why this works is because it is easier to reason about a group of entities than checking each of them separately.
 
-## Chunk components
-A chunk component is a special kind of data that exists at most once per chunk. In other words, you attach data to one chunk specifically. It survives entity removals and unlike generic components, they do not transfer to a new chunk along with their entity.
+## Unique components
+Unique component is a special kind of data that exists at most once per chunk. In other words, you attach data to one chunk specifically. It survives entity removals and unlike generic components, they do not transfer to a new chunk along with their entity.
 
 If you organize your data with care (which you should) this can save you some very precious memory or performance depending on your use case.
 
@@ -414,7 +414,7 @@ Now if you create your entities carefully they get organized in grid fields impl
 w.add<Position>(e1, {10,1});
 w.add<Position>(e2, {19,1});
 // Make both e1 and e2 share a common grid position of {1,0}
-w.add<ecs::AsChunk<GridPosition>>(e1, {1, 0});
+w.add<ecs::uni<GridPosition>>(e1, {1, 0});
 ```
 
 ## Delayed execution

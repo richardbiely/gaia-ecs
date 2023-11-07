@@ -164,9 +164,9 @@ TEST_CASE("Intrinsics") {
 }
 
 TEST_CASE("ComponentKinds") {
-	REQUIRE(ecs::component_kind_v<uint32_t> == ecs::ComponentKind::CK_Generic);
-	REQUIRE(ecs::component_kind_v<Position> == ecs::ComponentKind::CK_Generic);
-	REQUIRE(ecs::component_kind_v<ecs::AsChunk<Position>> == ecs::ComponentKind::CK_Chunk);
+	REQUIRE(ecs::component_kind_v<uint32_t> == ecs::ComponentKind::CK_Gen);
+	REQUIRE(ecs::component_kind_v<Position> == ecs::ComponentKind::CK_Gen);
+	REQUIRE(ecs::component_kind_v<ecs::uni<Position>> == ecs::ComponentKind::CK_Uni);
 }
 
 TEST_CASE("Memory allocation") {
@@ -2169,8 +2169,8 @@ TEST_CASE("Add - generic") {
 
 		REQUIRE(w.has<Position>(e));
 		REQUIRE(w.has<Acceleration>(e));
-		REQUIRE_FALSE(w.has<ecs::AsChunk<Position>>(e));
-		REQUIRE_FALSE(w.has<ecs::AsChunk<Acceleration>>(e));
+		REQUIRE_FALSE(w.has<ecs::uni<Position>>(e));
+		REQUIRE_FALSE(w.has<ecs::uni<Acceleration>>(e));
 	}
 
 	{
@@ -2180,8 +2180,8 @@ TEST_CASE("Add - generic") {
 
 		REQUIRE(w.has<Position>(e));
 		REQUIRE(w.has<Acceleration>(e));
-		REQUIRE_FALSE(w.has<ecs::AsChunk<Position>>(e));
-		REQUIRE_FALSE(w.has<ecs::AsChunk<Acceleration>>(e));
+		REQUIRE_FALSE(w.has<ecs::uni<Position>>(e));
+		REQUIRE_FALSE(w.has<ecs::uni<Acceleration>>(e));
 
 		auto p = w.get<Position>(e);
 		REQUIRE(p.x == 1.f);
@@ -2236,38 +2236,38 @@ TEST_CASE("Add - chunk") {
 	{
 		ecs::World w;
 		auto e = w.add();
-		w.add<ecs::AsChunk<Position>>(e);
-		w.add<ecs::AsChunk<Acceleration>>(e);
+		w.add<ecs::uni<Position>>(e);
+		w.add<ecs::uni<Acceleration>>(e);
 
 		REQUIRE_FALSE(w.has<Position>(e));
 		REQUIRE_FALSE(w.has<Acceleration>(e));
-		REQUIRE(w.has<ecs::AsChunk<Position>>(e));
-		REQUIRE(w.has<ecs::AsChunk<Acceleration>>(e));
+		REQUIRE(w.has<ecs::uni<Position>>(e));
+		REQUIRE(w.has<ecs::uni<Acceleration>>(e));
 	}
 
 	{
 		ecs::World w;
 		auto e = w.add();
 
-		// Add Position chunk component
-		w.add<ecs::AsChunk<Position>>(e, {1, 2, 3});
-		REQUIRE(w.has<ecs::AsChunk<Position>>(e));
+		// Add Position unique component
+		w.add<ecs::uni<Position>>(e, {1, 2, 3});
+		REQUIRE(w.has<ecs::uni<Position>>(e));
 		REQUIRE_FALSE(w.has<Position>(e));
 		{
-			auto p = w.get<ecs::AsChunk<Position>>(e);
+			auto p = w.get<ecs::uni<Position>>(e);
 			REQUIRE(p.x == 1.f);
 			REQUIRE(p.y == 2.f);
 			REQUIRE(p.z == 3.f);
 		}
-		// Add Acceleration chunk component.
+		// Add Acceleration unique component.
 		// This moves "e" to a new archetype.
-		w.add<ecs::AsChunk<Acceleration>>(e, {4, 5, 6});
-		REQUIRE(w.has<ecs::AsChunk<Position>>(e));
-		REQUIRE(w.has<ecs::AsChunk<Acceleration>>(e));
+		w.add<ecs::uni<Acceleration>>(e, {4, 5, 6});
+		REQUIRE(w.has<ecs::uni<Position>>(e));
+		REQUIRE(w.has<ecs::uni<Acceleration>>(e));
 		REQUIRE_FALSE(w.has<Position>(e));
 		REQUIRE_FALSE(w.has<Acceleration>(e));
 		{
-			auto a = w.get<ecs::AsChunk<Acceleration>>(e);
+			auto a = w.get<ecs::uni<Acceleration>>(e);
 			REQUIRE(a.x == 4.f);
 			REQUIRE(a.y == 5.f);
 			REQUIRE(a.z == 6.f);
@@ -2275,7 +2275,7 @@ TEST_CASE("Add - chunk") {
 		{
 			// Because "e" was moved to a new archetype nobody ever set the value.
 			// Therefore, it is garbage and won't match the original chunk.
-			auto p = w.get<ecs::AsChunk<Position>>(e);
+			auto p = w.get<ecs::uni<Position>>(e);
 			REQUIRE_FALSE(p.x == 1.f);
 			REQUIRE_FALSE(p.y == 2.f);
 			REQUIRE_FALSE(p.z == 3.f);
@@ -2339,32 +2339,32 @@ TEST_CASE("del - chunk") {
 	auto e1 = w.add();
 
 	{
-		w.add<ecs::AsChunk<Position>>(e1);
-		w.add<ecs::AsChunk<Acceleration>>(e1);
+		w.add<ecs::uni<Position>>(e1);
+		w.add<ecs::uni<Acceleration>>(e1);
 		{
-			w.del<ecs::AsChunk<Position>>(e1);
-			REQUIRE_FALSE(w.has<ecs::AsChunk<Position>>(e1));
-			REQUIRE(w.has<ecs::AsChunk<Acceleration>>(e1));
+			w.del<ecs::uni<Position>>(e1);
+			REQUIRE_FALSE(w.has<ecs::uni<Position>>(e1));
+			REQUIRE(w.has<ecs::uni<Acceleration>>(e1));
 		}
 		{
-			w.del<ecs::AsChunk<Acceleration>>(e1);
-			REQUIRE_FALSE(w.has<ecs::AsChunk<Position>>(e1));
-			REQUIRE_FALSE(w.has<ecs::AsChunk<Acceleration>>(e1));
+			w.del<ecs::uni<Acceleration>>(e1);
+			REQUIRE_FALSE(w.has<ecs::uni<Position>>(e1));
+			REQUIRE_FALSE(w.has<ecs::uni<Acceleration>>(e1));
 		}
 	}
 
 	{
-		w.add<ecs::AsChunk<Acceleration>>(e1);
-		w.add<ecs::AsChunk<Position>>(e1);
+		w.add<ecs::uni<Acceleration>>(e1);
+		w.add<ecs::uni<Position>>(e1);
 		{
-			w.del<ecs::AsChunk<Position>>(e1);
-			REQUIRE_FALSE(w.has<ecs::AsChunk<Position>>(e1));
-			REQUIRE(w.has<ecs::AsChunk<Acceleration>>(e1));
+			w.del<ecs::uni<Position>>(e1);
+			REQUIRE_FALSE(w.has<ecs::uni<Position>>(e1));
+			REQUIRE(w.has<ecs::uni<Acceleration>>(e1));
 		}
 		{
-			w.del<ecs::AsChunk<Acceleration>>(e1);
-			REQUIRE_FALSE(w.has<ecs::AsChunk<Position>>(e1));
-			REQUIRE_FALSE(w.has<ecs::AsChunk<Acceleration>>(e1));
+			w.del<ecs::uni<Acceleration>>(e1);
+			REQUIRE_FALSE(w.has<ecs::uni<Position>>(e1));
+			REQUIRE_FALSE(w.has<ecs::uni<Acceleration>>(e1));
 		}
 	}
 }
@@ -2376,28 +2376,28 @@ TEST_CASE("del - generic, chunk") {
 	{
 		w.add<Position>(e1);
 		w.add<Acceleration>(e1);
-		w.add<ecs::AsChunk<Position>>(e1);
-		w.add<ecs::AsChunk<Acceleration>>(e1);
+		w.add<ecs::uni<Position>>(e1);
+		w.add<ecs::uni<Acceleration>>(e1);
 		{
 			w.del<Position>(e1);
 			REQUIRE_FALSE(w.has<Position>(e1));
 			REQUIRE(w.has<Acceleration>(e1));
-			REQUIRE(w.has<ecs::AsChunk<Position>>(e1));
-			REQUIRE(w.has<ecs::AsChunk<Acceleration>>(e1));
+			REQUIRE(w.has<ecs::uni<Position>>(e1));
+			REQUIRE(w.has<ecs::uni<Acceleration>>(e1));
 		}
 		{
 			w.del<Acceleration>(e1);
 			REQUIRE_FALSE(w.has<Position>(e1));
 			REQUIRE_FALSE(w.has<Acceleration>(e1));
-			REQUIRE(w.has<ecs::AsChunk<Position>>(e1));
-			REQUIRE(w.has<ecs::AsChunk<Acceleration>>(e1));
+			REQUIRE(w.has<ecs::uni<Position>>(e1));
+			REQUIRE(w.has<ecs::uni<Acceleration>>(e1));
 		}
 		{
-			w.del<ecs::AsChunk<Acceleration>>(e1);
+			w.del<ecs::uni<Acceleration>>(e1);
 			REQUIRE_FALSE(w.has<Position>(e1));
 			REQUIRE_FALSE(w.has<Acceleration>(e1));
-			REQUIRE(w.has<ecs::AsChunk<Position>>(e1));
-			REQUIRE_FALSE(w.has<ecs::AsChunk<Acceleration>>(e1));
+			REQUIRE(w.has<ecs::uni<Position>>(e1));
+			REQUIRE_FALSE(w.has<ecs::uni<Acceleration>>(e1));
 		}
 	}
 }
@@ -2519,13 +2519,13 @@ TEST_CASE("Usage 1 - simple query, 1 component") {
 	}
 }
 
-TEST_CASE("Usage 1 - simple query, 1 chunk component") {
+TEST_CASE("Usage 1 - simple query, 1 unique component") {
 	ecs::World w;
 
 	auto e = w.add();
-	w.add<ecs::AsChunk<Position>>(e);
+	w.add<ecs::uni<Position>>(e);
 
-	auto q = w.query().all<ecs::AsChunk<const Position>>();
+	auto q = w.query().all<ecs::uni<const Position>>();
 	auto qq = w.query().all<const Position>();
 
 	{
@@ -2692,25 +2692,25 @@ TEST_CASE("Usage 2 - simple query, many components") {
 	}
 }
 
-TEST_CASE("Usage 2 - simple query, many chunk components") {
+TEST_CASE("Usage 2 - simple query, many unique components") {
 	ecs::World w;
 
 	auto e1 = w.add();
-	w.add<ecs::AsChunk<Position>>(e1, {});
-	w.add<ecs::AsChunk<Acceleration>>(e1, {});
-	w.add<ecs::AsChunk<Else>>(e1, {});
+	w.add<ecs::uni<Position>>(e1, {});
+	w.add<ecs::uni<Acceleration>>(e1, {});
+	w.add<ecs::uni<Else>>(e1, {});
 	auto e2 = w.add();
-	w.add<ecs::AsChunk<Rotation>>(e2, {});
-	w.add<ecs::AsChunk<Scale>>(e2, {});
-	w.add<ecs::AsChunk<Else>>(e2, {});
+	w.add<ecs::uni<Rotation>>(e2, {});
+	w.add<ecs::uni<Scale>>(e2, {});
+	w.add<ecs::uni<Else>>(e2, {});
 	auto e3 = w.add();
-	w.add<ecs::AsChunk<Position>>(e3, {});
-	w.add<ecs::AsChunk<Acceleration>>(e3, {});
-	w.add<ecs::AsChunk<Scale>>(e3, {});
+	w.add<ecs::uni<Position>>(e3, {});
+	w.add<ecs::uni<Acceleration>>(e3, {});
+	w.add<ecs::uni<Scale>>(e3, {});
 
 	{
 		uint32_t cnt = 0;
-		auto q = w.query().all<ecs::AsChunk<Position>>();
+		auto q = w.query().all<ecs::uni<Position>>();
 		q.each([&]([[maybe_unused]] ecs::Iterator iter) {
 			++cnt;
 		});
@@ -2718,7 +2718,7 @@ TEST_CASE("Usage 2 - simple query, many chunk components") {
 	}
 	{
 		uint32_t cnt = 0;
-		auto q = w.query().all<ecs::AsChunk<Acceleration>>();
+		auto q = w.query().all<ecs::uni<Acceleration>>();
 		q.each([&]([[maybe_unused]] ecs::Iterator iter) {
 			++cnt;
 		});
@@ -2726,7 +2726,7 @@ TEST_CASE("Usage 2 - simple query, many chunk components") {
 	}
 	{
 		uint32_t cnt = 0;
-		auto q = w.query().all<ecs::AsChunk<Rotation>>();
+		auto q = w.query().all<ecs::uni<Rotation>>();
 		q.each([&]([[maybe_unused]] ecs::Iterator iter) {
 			++cnt;
 		});
@@ -2734,7 +2734,7 @@ TEST_CASE("Usage 2 - simple query, many chunk components") {
 	}
 	{
 		uint32_t cnt = 0;
-		auto q = w.query().all<ecs::AsChunk<Else>>();
+		auto q = w.query().all<ecs::uni<Else>>();
 		q.each([&]([[maybe_unused]] ecs::Iterator iter) {
 			++cnt;
 		});
@@ -2742,28 +2742,28 @@ TEST_CASE("Usage 2 - simple query, many chunk components") {
 	}
 	{
 		uint32_t cnt = 0;
-		auto q = w.query().all<ecs::AsChunk<Scale>>();
+		auto q = w.query().all<ecs::uni<Scale>>();
 		q.each([&]([[maybe_unused]] ecs::Iterator iter) {
 			++cnt;
 		});
 		REQUIRE(cnt == 2);
 	}
 	{
-		auto q = w.query().any<ecs::AsChunk<Position>, ecs::AsChunk<Acceleration>>();
+		auto q = w.query().any<ecs::uni<Position>, ecs::uni<Acceleration>>();
 
 		uint32_t cnt = 0;
 		q.each([&](ecs::Iterator iter) {
 			++cnt;
 
-			const bool ok1 = iter.has<ecs::AsChunk<Position>>() || iter.has<ecs::AsChunk<Acceleration>>();
+			const bool ok1 = iter.has<ecs::uni<Position>>() || iter.has<ecs::uni<Acceleration>>();
 			REQUIRE(ok1);
-			const bool ok2 = iter.has<ecs::AsChunk<Acceleration>>() || iter.has<ecs::AsChunk<Position>>();
+			const bool ok2 = iter.has<ecs::uni<Acceleration>>() || iter.has<ecs::uni<Position>>();
 			REQUIRE(ok2);
 		});
 		REQUIRE(cnt == 2);
 	}
 	{
-		auto q = w.query().any<ecs::AsChunk<Position>, ecs::AsChunk<Acceleration>>().all<ecs::AsChunk<Scale>>();
+		auto q = w.query().any<ecs::uni<Position>, ecs::uni<Acceleration>>().all<ecs::uni<Scale>>();
 
 		uint32_t cnt = 0;
 		q.each([&](ecs::Iterator iter) {
@@ -2771,15 +2771,15 @@ TEST_CASE("Usage 2 - simple query, many chunk components") {
 
 			REQUIRE(iter.size() == 1);
 
-			const bool ok1 = iter.has<ecs::AsChunk<Position>>() || iter.has<ecs::AsChunk<Acceleration>>();
+			const bool ok1 = iter.has<ecs::uni<Position>>() || iter.has<ecs::uni<Acceleration>>();
 			REQUIRE(ok1);
-			const bool ok2 = iter.has<ecs::AsChunk<Acceleration>>() || iter.has<ecs::AsChunk<Position>>();
+			const bool ok2 = iter.has<ecs::uni<Acceleration>>() || iter.has<ecs::uni<Position>>();
 			REQUIRE(ok2);
 		});
 		REQUIRE(cnt == 1);
 	}
 	{
-		auto q = w.query().any<ecs::AsChunk<Position>, ecs::AsChunk<Acceleration>>().none<ecs::AsChunk<Scale>>();
+		auto q = w.query().any<ecs::uni<Position>, ecs::uni<Acceleration>>().none<ecs::uni<Scale>>();
 
 		uint32_t cnt = 0;
 		q.each([&](ecs::Iterator iter) {
@@ -2890,7 +2890,7 @@ TEST_CASE("Set - generic & chunk") {
 		w.add<Rotation>(arr.back(), {});
 		w.add<Scale>(arr.back(), {});
 		w.add<Else>(arr.back(), {});
-		w.add<ecs::AsChunk<Position>>(arr.back(), {});
+		w.add<ecs::uni<Position>>(arr.back(), {});
 	}
 
 	// Default values
@@ -2909,7 +2909,7 @@ TEST_CASE("Set - generic & chunk") {
 		auto e = w.get<Else>(ent);
 		REQUIRE(e.value == false);
 
-		auto p = w.get<ecs::AsChunk<Position>>(ent);
+		auto p = w.get<ecs::uni<Position>>(ent);
 		REQUIRE(p.x == 0.f);
 		REQUIRE(p.y == 0.f);
 		REQUIRE(p.z == 0.f);
@@ -2931,10 +2931,10 @@ TEST_CASE("Set - generic & chunk") {
 			}
 		});
 
-		w.set<ecs::AsChunk<Position>>(arr[0], {111, 222, 333});
+		w.set<ecs::uni<Position>>(arr[0], {111, 222, 333});
 
 		{
-			Position p = w.get<ecs::AsChunk<Position>>(arr[0]);
+			Position p = w.get<ecs::uni<Position>>(arr[0]);
 			REQUIRE(p.x == 111.f);
 			REQUIRE(p.y == 222.f);
 			REQUIRE(p.z == 333.f);
@@ -2957,7 +2957,7 @@ TEST_CASE("Set - generic & chunk") {
 			}
 		}
 		{
-			auto p = w.get<ecs::AsChunk<Position>>(arr[0]);
+			auto p = w.get<ecs::uni<Position>>(arr[0]);
 			REQUIRE(p.x == 111.f);
 			REQUIRE(p.y == 222.f);
 			REQUIRE(p.z == 333.f);

@@ -116,7 +116,7 @@ namespace gaia {
 					auto* pChunk = ctx.world.get_chunk(entity, indexInChunk);
 					GAIA_ASSERT(pChunk != nullptr);
 
-					if (compKind == ComponentKind::CK_Chunk)
+					if (compKind == ComponentKind::CK_Uni)
 						indexInChunk = 0;
 
 					// Component data
@@ -171,7 +171,7 @@ namespace gaia {
 					auto* pChunk = ctx.world.get_chunk(entity, indexInChunk);
 					GAIA_ASSERT(pChunk != nullptr);
 
-					if (compKind == ComponentKind::CK_Chunk)
+					if (compKind == ComponentKind::CK_Uni)
 						indexInChunk = 0;
 
 					// Component data
@@ -188,7 +188,7 @@ namespace gaia {
 				void commit(CommandBufferCtx& ctx) const {
 					const auto& entityContainer = ctx.world.m_entities[entity.id()];
 					auto* pChunk = entityContainer.pChunk;
-					const auto indexInChunk = compKind == ComponentKind::CK_Chunk ? 0U : entityContainer.idx;
+					const auto indexInChunk = compKind == ComponentKind::CK_Uni ? 0U : entityContainer.idx;
 
 					// Component data
 					const auto compIdx = pChunk->comp_idx(compKind, compId);
@@ -212,7 +212,7 @@ namespace gaia {
 
 					const auto& entityContainer = ctx.world.m_entities[entity.id()];
 					auto* pChunk = entityContainer.pChunk;
-					const auto indexInChunk = compKind == ComponentKind::CK_Chunk ? 0U : entityContainer.idx;
+					const auto indexInChunk = compKind == ComponentKind::CK_Uni ? 0U : entityContainer.idx;
 
 					// Component data
 					const auto compIdx = pChunk->comp_idx(compKind, compId);
