@@ -26,6 +26,7 @@
 #include "component_setter.h"
 #include "component_utils.h"
 #include "entity.h"
+#include "entity_container.h"
 #include "query.h"
 #include "query_cache.h"
 #include "query_common.h"
@@ -840,6 +841,20 @@ namespace gaia {
 				}
 			}
 
+			//! Returns an entity at the index \param idx
+			//! \return Entity
+			GAIA_NODISCARD Entity get(uint32_t idx) const {
+				GAIA_ASSERT(idx < m_entities.size());
+				const auto& entityContainer = m_entities[idx];
+#if GAIA_ASSERT_ENABLED
+				if (entityContainer.pChunk != nullptr) {
+					auto entityExpected = entityContainer.pChunk->entity_view()[entityContainer.idx];
+					GAIA_ASSERT(entityExpected == Entity(idx, entityContainer.gen));
+				}
+#endif
+				return Entity(idx, entityContainer.gen);
+			}
+
 			//! Enables or disables an entire entity.
 			//! \param entity Entity
 			//! \param enable Enable or disable the entity
@@ -857,9 +872,9 @@ namespace gaia {
 						entityContainer.pChunk, entityContainer.idx, enable, {m_entities.data(), m_entities.size()});
 			}
 
-			//! Checks if an entity is valid.
+			//! Checks if an entity is enabled.
 			//! \param entity Entity
-			//! \return True it the entity is valid. False otherwise.
+			//! \return True it the entity is enabled. False otherwise.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			bool enabled(Entity entity) const {
 				GAIA_ASSERT(valid(entity));
@@ -879,19 +894,7 @@ namespace gaia {
 				return m_entities.item_count();
 			}
 
-			//! Returns an entity at the index \param idx
-			//! \return Entity
-			GAIA_NODISCARD Entity get(uint32_t idx) const {
-				GAIA_ASSERT(idx < m_entities.size());
-				const auto& entityContainer = m_entities[idx];
-#if GAIA_ASSERT_ENABLED
-				if (entityContainer.pChunk != nullptr) {
-					auto entityExpected = entityContainer.pChunk->entity_view()[entityContainer.idx];
-					GAIA_ASSERT(entityExpected == Entity(idx, entityContainer.gen));
-				}
-#endif
-				return Entity(idx, entityContainer.gen);
-			}
+			//----------------------------------------------------------------------
 
 			//! Returns a chunk containing the \param entity.
 			//! \return Chunk or nullptr if not found.

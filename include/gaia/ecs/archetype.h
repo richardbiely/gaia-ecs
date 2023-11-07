@@ -21,6 +21,7 @@
 namespace gaia {
 	namespace ecs {
 		class Archetype;
+		struct EntityContainer;
 
 		class ArchetypeBase {
 		protected:
@@ -452,7 +453,7 @@ namespace gaia {
 				}
 			}
 
-			//! defragments the chunk.
+			//! Defragments the chunk.
 			//! \param maxEntites Maximum number of entities moved per call
 			//! \param chunksToRemove Container of chunks ready for removal
 			//! \param entities Container with entities
