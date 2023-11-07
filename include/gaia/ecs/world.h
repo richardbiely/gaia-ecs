@@ -28,6 +28,7 @@
 #include "entity.h"
 #include "entity_container.h"
 #include "query.h"
+#include "query_info.h"
 #include "query_cache.h"
 #include "query_common.h"
 
