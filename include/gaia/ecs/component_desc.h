@@ -25,7 +25,7 @@ namespace gaia {
 			//! Unique component identifier
 			Component comp = ComponentBad;
 			//! Complex hash used for look-ups
-			ComponentLookupHash lookupHash;
+			ComponentLookupHash hashLookup;
 			//! Simple hash used for matching component
 			ComponentMatcherHash matcherHash;
 			//! If component is SoA, this stores how many bytes each of the elemenets take
@@ -98,7 +98,7 @@ namespace gaia {
 				uint32_t size = 0, alig = 0, soa = 0;
 
 				ComponentDesc desc{};
-				desc.lookupHash = {meta::type_info::hash<U>()};
+				desc.hashLookup = {meta::type_info::hash<U>()};
 				desc.matcherHash = calc_matcher_hash<U>();
 				desc.name = meta::type_info::name<U>();
 

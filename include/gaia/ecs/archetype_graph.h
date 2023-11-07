@@ -56,8 +56,8 @@ namespace gaia {
 
 				// Add edges (movement towards the leafs)
 				{
-					const auto& edgesG = m_edgesAdd[ComponentKind::CK_Generic];
-					const auto& edgesC = m_edgesAdd[ComponentKind::CK_Chunk];
+					const auto& edgesG = m_edgesAdd[ComponentKind::CK_Gen];
+					const auto& edgesC = m_edgesAdd[ComponentKind::CK_Uni];
 					const auto edgeCount = (uint32_t)(edgesG.size() + edgesC.size());
 					if (edgeCount > 0) {
 						GAIA_LOG_N("  Add edges - count:%u", edgeCount);
@@ -73,7 +73,7 @@ namespace gaia {
 						}
 
 						if (!edgesC.empty()) {
-							GAIA_LOG_N("    Chunk - count:%u", (uint32_t)edgesC.size());
+							GAIA_LOG_N("    Unique - count:%u", (uint32_t)edgesC.size());
 							for (const auto& edge: edgesC) {
 								const auto& desc = cc.comp_desc(edge.first);
 								GAIA_LOG_N(
@@ -86,8 +86,8 @@ namespace gaia {
 
 				// Delete edges (movement towards the root)
 				{
-					const auto& edgesG = m_edgesDel[ComponentKind::CK_Generic];
-					const auto& edgesC = m_edgesDel[ComponentKind::CK_Chunk];
+					const auto& edgesG = m_edgesDel[ComponentKind::CK_Gen];
+					const auto& edgesC = m_edgesDel[ComponentKind::CK_Uni];
 					const auto edgeCount = (uint32_t)(edgesG.size() + edgesC.size());
 					if (edgeCount > 0) {
 						GAIA_LOG_N("  del edges - count:%u", edgeCount);

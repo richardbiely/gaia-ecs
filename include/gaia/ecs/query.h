@@ -305,20 +305,20 @@ namespace gaia {
 
 					// See if any generic component has changed
 					{
-						const auto& filtered = queryInfo.filters(ComponentKind::CK_Generic);
+						const auto& filtered = queryInfo.filters(ComponentKind::CK_Gen);
 						for (const auto comp: filtered) {
-							const auto compIdx = chunk.comp_idx(ComponentKind::CK_Generic, comp.id());
-							if (chunk.changed(ComponentKind::CK_Generic, queryVersion, compIdx))
+							const auto compIdx = chunk.comp_idx(ComponentKind::CK_Gen, comp.id());
+							if (chunk.changed(ComponentKind::CK_Gen, queryVersion, compIdx))
 								return true;
 						}
 					}
 
-					// See if any chunk component has changed
+					// See if any unique component has changed
 					{
-						const auto& filtered = queryInfo.filters(ComponentKind::CK_Chunk);
+						const auto& filtered = queryInfo.filters(ComponentKind::CK_Uni);
 						for (const auto comp: filtered) {
-							const uint32_t compIdx = chunk.comp_idx(ComponentKind::CK_Chunk, comp.id());
-							if (chunk.changed(ComponentKind::CK_Chunk, queryVersion, compIdx))
+							const uint32_t compIdx = chunk.comp_idx(ComponentKind::CK_Uni, comp.id());
+							if (chunk.changed(ComponentKind::CK_Uni, queryVersion, compIdx))
 								return true;
 						}
 					}

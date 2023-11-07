@@ -9,15 +9,15 @@
 namespace gaia {
 	namespace ecs {
 		enum ComponentKind : uint8_t {
-			// General purpose component
-			CK_Generic = 0,
-			// Chunk component
-			CK_Chunk,
-			// Number of component types
+			// Generic component, one per entity
+			CK_Gen = 0,
+			// Unique component, one per chunk
+			CK_Uni,
+			// Number of component kinds
 			CK_Count
 		};
 
-		inline const char* const ComponentKindString[ComponentKind::CK_Count] = {"Generic", "Chunk"};
+		inline const char* const ComponentKindString[ComponentKind::CK_Count] = {"Gen", "Uni"};
 
 		//----------------------------------------------------------------------
 		// Component
@@ -55,7 +55,8 @@ namespace gaia {
 
 		public:
 			Component() noexcept = default;
-			explicit Component([[maybe_unused]] bool bad) noexcept {
+			explicit Component(bool bad) noexcept {
+				(void)bad;
 				val = (InternalType)-1;
 			}
 			explicit Component(uint32_t id, uint32_t soa, uint32_t size, uint32_t alig) {
@@ -160,7 +161,7 @@ namespace gaia {
 			struct ExtractComponentType_NoComponentKind {
 				using Type = typename std::decay_t<typename std::remove_pointer_t<T>>;
 				using TypeOriginal = T;
-				static constexpr ComponentKind Kind = ComponentKind::CK_Generic;
+				static constexpr ComponentKind Kind = ComponentKind::CK_Gen;
 			};
 			template <typename T>
 			struct ExtractComponentType_WithComponentKind {
@@ -170,10 +171,10 @@ namespace gaia {
 			};
 
 			template <typename, typename = void>
-			struct is_generic_component: std::true_type {};
+			struct is_gen_component: std::true_type {};
 			template <typename T>
-			struct is_generic_component<T, std::void_t<decltype(T::Kind)>>:
-					std::bool_constant<T::Kind == ComponentKind::CK_Generic> {};
+			struct is_gen_component<T, std::void_t<decltype(T::Kind)>>:
+					std::bool_constant<T::Kind == ComponentKind::CK_Gen> {};
 
 			template <typename T>
 			struct is_component_size_valid: std::bool_constant<sizeof(T) < Component::MaxComponentSizeInBytes> {};
@@ -222,10 +223,10 @@ namespace gaia {
 		inline constexpr bool is_component_mut_v = detail::is_component_mut<T>::value;
 
 		template <typename T>
-		struct AsChunk {
+		struct uni {
 			using TType = typename std::decay_t<typename std::remove_pointer_t<T>>;
 			using TTypeOriginal = T;
-			static constexpr ComponentKind Kind = ComponentKind::CK_Chunk;
+			static constexpr ComponentKind Kind = ComponentKind::CK_Uni;
 		};
 		//----------------------------------------------------------------------
 		// Component verification
@@ -305,8 +306,8 @@ namespace gaia {
 		}
 
 		//! Located the index at which the provided component id is located in the component array
-		//! \param pCompIds Pointer to the start of the component array
-		//! \param comp Component id we search for
+		//! \param pComps Pointer to the start of the component array
+		//! \param compID Component id we search for
 		//! \return Index of the component id in the array
 		//! \warning The component id must be present in the array
 		template <uint32_t MAX_COMPONENTS>
@@ -322,8 +323,8 @@ namespace gaia {
 		}
 
 		//! Located the index at which the provided component id is located in the component array
-		//! \param pCompIds Pointer to the start of the component array
-		//! \param comp Component id we search for
+		//! \param pCompIds Pointer to the start of the component id array
+		//! \param compId Component id we search for
 		//! \return Index of the component id in the array
 		//! \warning The component id must be present in the array
 		template <uint32_t MAX_COMPONENTS>

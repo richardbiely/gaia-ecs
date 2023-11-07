@@ -39,9 +39,9 @@ namespace gaia {
 				return {0};
 
 			const auto& cc = ComponentCache::get();
-			ComponentLookupHash::Type hash = cc.comp_desc(comps[0].id()).lookupHash.hash;
+			ComponentLookupHash::Type hash = cc.comp_desc(comps[0].id()).hashLookup.hash;
 			for (uint32_t i = 1; i < compsSize; ++i)
-				hash = core::hash_combine(hash, cc.comp_desc(comps[i].id()).lookupHash.hash);
+				hash = core::hash_combine(hash, cc.comp_desc(comps[i].id()).hashLookup.hash);
 			return {hash};
 		}
 
