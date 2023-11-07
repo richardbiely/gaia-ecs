@@ -27,7 +27,6 @@
 #include "component_utils.h"
 #include "entity.h"
 #include "entity_container.h"
-#include "gaia/config/config_core.h"
 #include "query.h"
 #include "query_cache.h"
 #include "query_common.h"
@@ -404,6 +403,7 @@ namespace gaia {
 						auto comp = compsOld[j];
 						compsNew[j] = comp;
 					}
+					compsNew[componentDescSize] = descToAdd.comp;
 				}
 
 				// Make sure to sort the components so we receive the same hash no matter the order in which components
