@@ -485,20 +485,16 @@ namespace gaia {
 			\return Entity or component view
 			*/
 			template <typename T>
-			GAIA_NODISCARD auto view_auto(uint32_t from, uint32_t to) {
-				using U = typename component_type_t<T>::Type;
+			GAIA_NODISCARD decltype(auto) view_auto(uint32_t from, uint32_t to) {
 				using UOriginal = typename component_type_t<T>::TypeOriginal;
-				if constexpr (is_component_mut_v<UOriginal>) {
-					auto s = view_mut_inter<U, true>(from, to);
-					return std::span{(U*)s.data(), s.size()};
-				} else {
-					auto s = view_inter<U>(from, to);
-					return std::span{(const U*)s.data(), s.size()};
-				}
+				if constexpr (is_component_mut_v<UOriginal>)
+					return view_mut<T>(from, to);
+				else
+					return view<T>(from, to);
 			}
 
 			template <typename T>
-			GAIA_NODISCARD auto view_auto() {
+			GAIA_NODISCARD decltype(auto) view_auto() {
 				return view_auto<T>(0, size());
 			}
 
@@ -513,20 +509,16 @@ namespace gaia {
 			\return Entity or component view
 			*/
 			template <typename T>
-			GAIA_NODISCARD auto sview_auto(uint32_t from, uint32_t to) {
-				using U = typename component_type_t<T>::Type;
+			GAIA_NODISCARD decltype(auto) sview_auto(uint32_t from, uint32_t to) {
 				using UOriginal = typename component_type_t<T>::TypeOriginal;
-				if constexpr (is_component_mut_v<UOriginal>) {
-					auto s = view_mut_inter<U, false>(from, to);
-					return std::span{(U*)s.data(), s.size()};
-				} else {
-					auto s = view_inter<U>(from, to);
-					return std::span{(const U*)s.data(), s.size()};
-				}
+				if constexpr (is_component_mut_v<UOriginal>)
+					return sview_mut<T>(from, to);
+				else
+					return view<T>(from, to);
 			}
 
 			template <typename T>
-			GAIA_NODISCARD auto sview_auto() {
+			GAIA_NODISCARD decltype(auto) sview_auto() {
 				return sview_auto<T>(0, size());
 			}
 

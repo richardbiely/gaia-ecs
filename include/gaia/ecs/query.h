@@ -470,11 +470,10 @@ namespace gaia {
 				GAIA_NODISCARD bool empty_inter(const QueryInfo& queryInfo, const cnt::darray<Chunk*>& chunks) {
 					return core::has_if(chunks, [&](Chunk* pChunk) {
 						Iter iter(*pChunk);
-						if constexpr (UseFilters) {
+						if constexpr (UseFilters)
 							return iter.size() > 0 && match_filters(*pChunk, queryInfo);
-						} else {
+						else
 							return iter.size() > 0;
-						}
 					});
 				}
 
@@ -598,17 +597,14 @@ namespace gaia {
 				void each(QueryInfo& queryInfo, Func func) {
 					using InputArgs = decltype(core::func_args(&Func::operator()));
 
-					// Entity and/or components provided as a type
-					{
 #if GAIA_DEBUG
-						// Make sure we only use components specified in the query
-						GAIA_ASSERT(unpack_args_into_query_has_all(queryInfo, InputArgs{}));
+					// Make sure we only use components specified in the query
+					GAIA_ASSERT(unpack_args_into_query_has_all(queryInfo, InputArgs{}));
 #endif
 
-						run_query_on_chunks<Iterator>(queryInfo, [&](Chunk& chunk) {
-							run_query_on_chunk<Iterator>(chunk, func, InputArgs{});
-						});
-					}
+					run_query_on_chunks<Iterator>(queryInfo, [&](Chunk& chunk) {
+						run_query_on_chunk<Iterator>(chunk, func, InputArgs{});
+					});
 				}
 
 				template <typename Func>

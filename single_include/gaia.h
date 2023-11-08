@@ -15732,20 +15732,16 @@ namespace gaia {
 			\return Entity or component view
 			*/
 			template <typename T>
-			GAIA_NODISCARD auto view_auto(uint32_t from, uint32_t to) {
-				using U = typename component_type_t<T>::Type;
+			GAIA_NODISCARD decltype(auto) view_auto(uint32_t from, uint32_t to) {
 				using UOriginal = typename component_type_t<T>::TypeOriginal;
-				if constexpr (is_component_mut_v<UOriginal>) {
-					auto s = view_mut_inter<U, true>(from, to);
-					return std::span{(U*)s.data(), s.size()};
-				} else {
-					auto s = view_inter<U>(from, to);
-					return std::span{(const U*)s.data(), s.size()};
-				}
+				if constexpr (is_component_mut_v<UOriginal>)
+					return view_mut<T>(from, to);
+				else
+					return view<T>(from, to);
 			}
 
 			template <typename T>
-			GAIA_NODISCARD auto view_auto() {
+			GAIA_NODISCARD decltype(auto) view_auto() {
 				return view_auto<T>(0, size());
 			}
 
@@ -15760,20 +15756,16 @@ namespace gaia {
 			\return Entity or component view
 			*/
 			template <typename T>
-			GAIA_NODISCARD auto sview_auto(uint32_t from, uint32_t to) {
-				using U = typename component_type_t<T>::Type;
+			GAIA_NODISCARD decltype(auto) sview_auto(uint32_t from, uint32_t to) {
 				using UOriginal = typename component_type_t<T>::TypeOriginal;
-				if constexpr (is_component_mut_v<UOriginal>) {
-					auto s = view_mut_inter<U, false>(from, to);
-					return std::span{(U*)s.data(), s.size()};
-				} else {
-					auto s = view_inter<U>(from, to);
-					return std::span{(const U*)s.data(), s.size()};
-				}
+				if constexpr (is_component_mut_v<UOriginal>)
+					return sview_mut<T>(from, to);
+				else
+					return view<T>(from, to);
 			}
 
 			template <typename T>
-			GAIA_NODISCARD auto sview_auto() {
+			GAIA_NODISCARD decltype(auto) sview_auto() {
 				return sview_auto<T>(0, size());
 			}
 
@@ -16571,7 +16563,7 @@ namespace gaia {
 			for (uint32_t k = 0; k < ComponentKind::CK_Count; ++k) {
 				const auto& c0 = comps[k];
 				const auto& c1 = compsOther[k];
-				for (uint32_t i = 0; i < c0.size(); ++i) {
+				GAIA_EACH(c0) {
 					if (c0[i] != c1[i])
 						return false;
 				}
@@ -16764,8 +16756,8 @@ namespace gaia {
 				auto& ofs = arch.m_compOffs[compKind];
 
 				// Set component ids
-				for (uint32_t i = 0; i < comps.size(); ++i)
-					ids[i] = comps[i];
+				GAIA_EACH(comps)
+				ids[i] = comps[i];
 
 #if GAIA_COMP_ID_PROBING
 				// Generate component id map. Initialize it with ComponentBad values.
@@ -16776,7 +16768,7 @@ namespace gaia {
 #endif
 
 				// Calulate offsets and assign them indices according to our mappings
-				for (uint32_t i = 0; i < comps.size(); ++i) {
+				GAIA_EACH(comps) {
 					const auto comp = comps[i];
 #if GAIA_COMP_ID_PROBING
 					const auto compIdx = ecs::get_comp_idx({map.data(), map.size()}, comp.id());
@@ -18720,11 +18712,10 @@ namespace gaia {
 				GAIA_NODISCARD bool empty_inter(const QueryInfo& queryInfo, const cnt::darray<Chunk*>& chunks) {
 					return core::has_if(chunks, [&](Chunk* pChunk) {
 						Iter iter(*pChunk);
-						if constexpr (UseFilters) {
+						if constexpr (UseFilters)
 							return iter.size() > 0 && match_filters(*pChunk, queryInfo);
-						} else {
+						else
 							return iter.size() > 0;
-						}
 					});
 				}
 
@@ -18848,17 +18839,14 @@ namespace gaia {
 				void each(QueryInfo& queryInfo, Func func) {
 					using InputArgs = decltype(core::func_args(&Func::operator()));
 
-					// Entity and/or components provided as a type
-					{
 #if GAIA_DEBUG
-						// Make sure we only use components specified in the query
-						GAIA_ASSERT(unpack_args_into_query_has_all(queryInfo, InputArgs{}));
+					// Make sure we only use components specified in the query
+					GAIA_ASSERT(unpack_args_into_query_has_all(queryInfo, InputArgs{}));
 #endif
 
-						run_query_on_chunks<Iterator>(queryInfo, [&](Chunk& chunk) {
-							run_query_on_chunk<Iterator>(chunk, func, InputArgs{});
-						});
-					}
+					run_query_on_chunks<Iterator>(queryInfo, [&](Chunk& chunk) {
+						run_query_on_chunk<Iterator>(chunk, func, InputArgs{});
+					});
 				}
 
 				template <typename Func>
