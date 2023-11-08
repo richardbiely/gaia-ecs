@@ -14270,15 +14270,14 @@ namespace gaia {
 namespace gaia {
 	namespace ecs {
 		class ComponentCache {
+			static constexpr uint32_t FastComponentCacheSize = 1024;
+
 			cnt::darray<const ComponentDesc*> m_descByIndex;
+			cnt::map<ComponentId, const ComponentDesc*> m_descByIndexMap;
 
 			ComponentCache() {
 				// Reserve enough storage space for most use-cases
-				constexpr uint32_t DefaultComponentCacheSize = 2048;
-				m_descByIndex.reserve(DefaultComponentCacheSize);
-
-				// Make sure unused memory is initialized to nullptr
-				GAIA_EACH(m_descByIndex) m_descByIndex[i] = nullptr;
+				m_descByIndex.reserve(FastComponentCacheSize);
 			}
 
 		public:
@@ -14303,45 +14302,68 @@ namespace gaia {
 				using U = typename component_type_t<T>::Type;
 				const auto compId = comp_id<T>();
 
-				auto createDesc = [&]() GAIA_LAMBDAINLINE -> const ComponentDesc& {
-					const auto* pDesc = ComponentDesc::create<U>();
-					m_descByIndex[compId] = pDesc;
-					return *pDesc;
-				};
+				// Fast path for small component ids - use the array storage
+				if (compId < FastComponentCacheSize) {
+					auto createDesc = [&]() -> const ComponentDesc& {
+						const auto* pDesc = ComponentDesc::create<U>();
+						m_descByIndex[compId] = pDesc;
+						return *pDesc;
+					};
 
-				if GAIA_UNLIKELY (compId >= m_descByIndex.size()) {
-					const auto oldSize = m_descByIndex.size();
-					const auto newSize = compId + 1U;
+					if GAIA_UNLIKELY (compId >= m_descByIndex.size()) {
+						const auto oldSize = m_descByIndex.size();
+						const auto newSize = compId + 1U;
 
-					// Increase the capacity by multiples of CapacityIncreaseSize
-					constexpr uint32_t CapacityIncreaseSize = 128;
-					const auto oldCapacity = m_descByIndex.capacity();
-					const auto newCapacity = (newSize / CapacityIncreaseSize) * CapacityIncreaseSize + CapacityIncreaseSize;
-					if (oldCapacity < newCapacity) {
+						// Increase the capacity by multiples of CapacityIncreaseSize
+						constexpr uint32_t CapacityIncreaseSize = 128;
+						const auto newCapacity = (newSize / CapacityIncreaseSize) * CapacityIncreaseSize + CapacityIncreaseSize;
 						m_descByIndex.reserve(newCapacity);
-						// Make sure unused memory is initialized to nullptr
-						GAIA_FOR2(oldSize, newCapacity) m_descByIndex[i] = nullptr;
+
+						// Update the size
+						m_descByIndex.resize(newSize);
+
+						// Make sure unused memory is initialized to nullptr.
+						GAIA_FOR2(oldSize, newSize - 1) m_descByIndex[i] = nullptr;
+
+						return createDesc();
 					}
 
-					// Update the size
-					m_descByIndex.resize(newSize);
+					if GAIA_UNLIKELY (m_descByIndex[compId] == nullptr) {
+						return createDesc();
+					}
 
-					return createDesc();
+					return *m_descByIndex[compId];
 				}
 
-				if GAIA_UNLIKELY (m_descByIndex[compId] == nullptr) {
-					return createDesc();
-				}
+				// Generic path for large component ids - use the map storage
+				{
+					auto createDesc = [&]() -> const ComponentDesc& {
+						const auto* pDesc = ComponentDesc::create<U>();
+						m_descByIndexMap.emplace(compId, pDesc);
+						return *pDesc;
+					};
 
-				return *m_descByIndex[compId];
+					const auto it = m_descByIndexMap.find(compId);
+					if (it == m_descByIndexMap.end())
+						return createDesc();
+
+					return *it->second;
+				}
 			}
 
 			//! Returns the component creation info given the \param compId.
 			//! \warning It is expected the component info with a given component id exists! Undefined behavior otherwise.
 			//! \return Component info
 			GAIA_NODISCARD const ComponentDesc& comp_desc(ComponentId compId) const noexcept {
-				GAIA_ASSERT(compId < m_descByIndex.size());
-				return *m_descByIndex[compId];
+				// Fast path - array storage
+				if (compId < FastComponentCacheSize) {
+					GAIA_ASSERT(compId < m_descByIndex.size());
+					return *m_descByIndex[compId];
+				}
+
+				// Generic path - map storage
+				GAIA_ASSERT(m_descByIndexMap.contains(compId));
+				return *m_descByIndexMap.find(compId)->second;
 			}
 
 			//! Returns the component info for \tparam T.
@@ -14357,15 +14379,23 @@ namespace gaia {
 				const auto registeredTypes = m_descByIndex.size();
 				GAIA_LOG_N("Registered comps: %u", registeredTypes);
 
-				for (const auto* desc: m_descByIndex)
-					GAIA_LOG_N("  id:%010u, %.*s", desc->comp.id(), (uint32_t)desc->name.size(), desc->name.data());
+				auto logDesc = [](const ComponentDesc* pDesc) {
+					GAIA_LOG_N("  id:%010u, %.*s", pDesc->comp.id(), (uint32_t)pDesc->name.size(), pDesc->name.data());
+				};
+				for (const auto* pDesc: m_descByIndex)
+					logDesc(pDesc);
+				for (auto [componentId, pDesc]: m_descByIndexMap)
+					logDesc(pDesc);
 			}
 
 		private:
 			void clear() {
 				for (const auto* pDesc: m_descByIndex)
 					delete pDesc;
+				for (auto [componentId, pDesc]: m_descByIndexMap)
+					delete pDesc;
 				m_descByIndex.clear();
+				m_descByIndexMap.clear();
 			}
 		};
 	} // namespace ecs
