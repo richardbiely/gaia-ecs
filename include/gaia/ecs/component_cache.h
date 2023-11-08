@@ -63,9 +63,7 @@ namespace gaia {
 					m_descByIndex.resize(newSize);
 
 					// Make sure that unused memory is initialized to nullptr
-					for (uint32_t i = oldSize; i < newSize; ++i)
-						m_descByIndex[i] = nullptr;
-
+					GAIA_FOR2(oldSize, newSize) m_descByIndex[i] = nullptr;
 					return createDesc();
 				}
 

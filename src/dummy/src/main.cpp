@@ -115,7 +115,7 @@ void CreateEntities(ecs::World& w) {
 		w.add<Velocity>(e, {1, 0, 0});
 
 		constexpr uint32_t N = 1000;
-		for (uint32_t i = 0; i < N; ++i) {
+		GAIA_FOR(N) {
 			[[maybe_unused]] auto newentity = w.add(e);
 		}
 	}
@@ -408,7 +408,7 @@ int main() {
 	sm.add<PositionSystem_All>();
 	sm.add<PositionSystem_All2>();
 	sm.add<PositionSystem_DisabledOnly>();
-	for (uint32_t i = 0; i < 1000; ++i) {
+	GAIA_FOR(1000) {
 		sm.update();
 		w.update();
 	}

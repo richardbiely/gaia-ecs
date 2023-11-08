@@ -25,8 +25,7 @@ namespace gaia {
 
 			const auto& cc = ComponentCache::get();
 			ComponentMatcherHash::Type hash = cc.comp_desc(comps[0].id()).matcherHash.hash;
-			for (uint32_t i = 1; i < compsSize; ++i)
-				hash = core::combine_or(hash, cc.comp_desc(comps[i].id()).matcherHash.hash);
+			GAIA_FOR2(1, compsSize) hash = core::combine_or(hash, cc.comp_desc(comps[i].id()).matcherHash.hash);
 			return {hash};
 		}
 
@@ -40,8 +39,7 @@ namespace gaia {
 
 			const auto& cc = ComponentCache::get();
 			ComponentLookupHash::Type hash = cc.comp_desc(comps[0].id()).hashLookup.hash;
-			for (uint32_t i = 1; i < compsSize; ++i)
-				hash = core::hash_combine(hash, cc.comp_desc(comps[i].id()).hashLookup.hash);
+			GAIA_FOR2(1, compsSize) hash = core::hash_combine(hash, cc.comp_desc(comps[i].id()).hashLookup.hash);
 			return {hash};
 		}
 

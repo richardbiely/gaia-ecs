@@ -19,8 +19,7 @@ namespace gaia {
 				static_assert(std::is_copy_assignable_v<T>);
 				static_assert(!mem::is_soa_layout_v<T>);
 
-				for (uint32_t i = idxSrc; i < idxDst; ++i)
-					dst[i] = src[i];
+				GAIA_FOR2(idxSrc, idxDst) dst[i] = src[i];
 
 				GAIA_MSVC_WARNING_POP()
 			}
@@ -32,9 +31,10 @@ namespace gaia {
 				GAIA_MSVC_WARNING_PUSH()
 				GAIA_MSVC_WARNING_DISABLE(6385)
 
-				for (uint32_t i = idxSrc; i < idxDst; ++i)
+				GAIA_FOR2(idxSrc, idxDst) {
 					(data_view_policy_set<T::Layout, T>({std::span<uint8_t>{dst, sizeDst}}))[i] =
 							(data_view_policy_set<T::Layout, T>({std::span<const uint8_t>{(const uint8_t*)src, sizeSrc}}))[i];
+				}
 
 				GAIA_MSVC_WARNING_POP()
 			}
@@ -47,8 +47,7 @@ namespace gaia {
 				static_assert(std::is_move_assignable_v<T>);
 				static_assert(!mem::is_soa_layout_v<T>);
 
-				for (uint32_t i = idxSrc; i < idxDst; ++i)
-					dst[i] = GAIA_MOV(src[i]);
+				GAIA_FOR2(idxSrc, idxDst) dst[i] = GAIA_MOV(src[i]);
 
 				GAIA_MSVC_WARNING_POP()
 			}
@@ -61,13 +60,10 @@ namespace gaia {
 
 				static_assert(!mem::is_soa_layout_v<T>);
 
-				if constexpr (std::is_move_assignable_v<T>) {
-					for (uint32_t i = idxSrc; i < idxDst; ++i)
-						dst[i] = GAIA_MOV(dst[i + n]);
-				} else {
-					for (uint32_t i = idxSrc; i < idxDst; ++i)
-						dst[i] = dst[i + n];
-				}
+				if constexpr (std::is_move_assignable_v<T>)
+					GAIA_FOR2(idxSrc, idxDst) dst[i] = GAIA_MOV(dst[i + n]);
+				else
+					GAIA_FOR2(idxSrc, idxDst) dst[i] = dst[i + n];
 
 				GAIA_MSVC_WARNING_POP()
 			}
@@ -81,13 +77,10 @@ namespace gaia {
 				static_assert(!mem::is_soa_layout_v<T>);
 
 				const auto max = idxDst - idxSrc - n;
-				if constexpr (std::is_move_assignable_v<T>) {
-					for (uint32_t i = 0; i < max; ++i)
-						dst[idxSrc + i] = GAIA_MOV(dst[idxSrc + i + n]);
-				} else {
-					for (uint32_t i = 0; i < max; ++i)
-						dst[idxSrc + i] = dst[idxSrc + i + n];
-				}
+				if constexpr (std::is_move_assignable_v<T>)
+					GAIA_FOR(max) dst[idxSrc + i] = GAIA_MOV(dst[idxSrc + i + n]);
+				else
+					GAIA_FOR(max) dst[idxSrc + i] = dst[idxSrc + i + n];
 
 				GAIA_MSVC_WARNING_POP()
 			}
@@ -98,9 +91,10 @@ namespace gaia {
 				GAIA_MSVC_WARNING_PUSH()
 				GAIA_MSVC_WARNING_DISABLE(6385)
 
-				for (uint32_t i = idxSrc; i < idxDst; ++i)
+				GAIA_FOR2(idxSrc, idxDst) {
 					(data_view_policy_set<T::Layout, T>({std::span<uint8_t>{dst, size}}))[i] =
 							(data_view_policy_get<T::Layout, T>({std::span<const uint8_t>{(const uint8_t*)dst, size}}))[i + n];
+				}
 
 				GAIA_MSVC_WARNING_POP()
 			}

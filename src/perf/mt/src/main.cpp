@@ -29,7 +29,7 @@ static uint32_t BenchFunc_Complex(std::span<const uint32_t> arr) {
 void Run_Schedule_Empty(uint32_t Jobs) {
 	auto& tp = mt::ThreadPool::get();
 
-	for (uint32_t i = 0; i < Jobs; ++i) {
+	GAIA_FOR(Jobs) {
 		mt::Job job;
 		job.func = []() {};
 		tp.sched(job);
@@ -54,7 +54,7 @@ void Run_Schedule_Simple(const uint32_t* pArr, uint32_t Jobs, uint32_t ItemsPerJ
 
 	std::atomic_uint32_t sum = 0;
 
-	for (uint32_t i = 0; i < Jobs; ++i) {
+	GAIA_FOR(Jobs) {
 		mt::Job job;
 		job.func = [&pArr, &sum, i, ItemsPerJob, func]() {
 			const auto idxStart = i * ItemsPerJob;

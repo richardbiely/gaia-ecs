@@ -84,7 +84,7 @@ namespace gaia {
 				const auto& cc = ComponentCache::get();
 
 				// Cache pointers to versions
-				for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
+				GAIA_FOR(ComponentKind::CK_Count) {
 					if (comps[i].empty())
 						continue;
 
@@ -92,7 +92,7 @@ namespace gaia {
 				}
 
 				// Cache component ids
-				for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
+				GAIA_FOR(ComponentKind::CK_Count) {
 					if (comps[i].empty())
 						continue;
 
@@ -109,14 +109,14 @@ namespace gaia {
 				}
 
 				// Cache component records
-				for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
+				GAIA_FOR(ComponentKind::CK_Count) {
 					if (comps[i].empty())
 						continue;
 
 					auto* dst = m_records.pRecords[i] = (ComponentRecord*)&data(headerOffsets.firstByte_Records[i]);
 					const auto& offs = compOffs[i];
 					const auto& cids = comps[i];
-					GAIA_EACH2(cids, j) {
+					GAIA_EACH_(cids, j) {
 						dst[j].comp = cids[j];
 						const auto off = offs[j];
 						dst[j].pData = &data(off);
@@ -126,13 +126,13 @@ namespace gaia {
 
 #if GAIA_COMP_ID_PROBING
 				// Copy provided component id hash map
-				for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
+				GAIA_FOR(ComponentKind::CK_Count) {
 					if (comps[i].empty())
 						continue;
 
 					const auto& map = compMap[i];
 					auto* dst = comp_id_mapping_ptr_mut((ComponentKind)i);
-					GAIA_EACH2(map, j) dst[j] = map[j];
+					GAIA_EACH_(map, j) dst[j] = map[j];
 				}
 #endif
 

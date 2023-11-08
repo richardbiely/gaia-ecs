@@ -92,10 +92,10 @@ namespace gaia {
 				GAIA_ASSERT(!pChunk->dying());
 
 				cnt::sarr_ext<Component, Chunk::MAX_COMPONENTS> comps[ComponentKind::CK_Count];
-				for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
+				GAIA_FOR(ComponentKind::CK_Count) {
 					auto& dst = comps[i];
 					auto recs = pChunk->comp_rec_view((ComponentKind)i);
-					GAIA_EACH2(recs, j) dst[j] = recs[j].comp;
+					GAIA_EACH_(recs, j) dst[j] = recs[j].comp;
 				}
 
 				const Archetype::GenComponentHash hashGen = {calc_lookup_hash({comps[0].data(), comps[0].size()}).hash};
@@ -201,7 +201,7 @@ namespace gaia {
 				GAIA_PROF_SCOPE(defrag_chunks);
 
 				const auto maxIters = (uint32_t)m_archetypesById.size();
-				for (uint32_t i = 0; i < maxIters; ++i) {
+				GAIA_FOR(maxIters) {
 					m_defragLastArchetypeID = (m_defragLastArchetypeID + i) % maxIters;
 
 					auto* pArchetype = m_archetypesById[m_defragLastArchetypeID];
@@ -394,7 +394,7 @@ namespace gaia {
 					const auto componentDescSize = compsOld.size();
 					compsNew.resize(componentDescSize + 1);
 
-					for (uint32_t j = 0; j < componentDescSize; ++j) {
+					GAIA_FOR_(componentDescSize, j) {
 						// NOTE: GCC 13 with optimizations enabled has a bug causing stringop-overflow warning to trigger
 						//       on the following assignment:
 						//       compsNew[j] = compsOld[j];

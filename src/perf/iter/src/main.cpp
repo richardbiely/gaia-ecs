@@ -17,7 +17,7 @@ struct Component<Version, T, 0> {}; // empty component
 namespace detail {
 	template <typename T, uint32_t ValuesCount, uint32_t ComponentCount>
 	constexpr void Adds(ecs::World& w, ecs::Entity e) {
-#if 1
+#if 0
 		(void)w;
 		(void)e;
 #else
@@ -30,7 +30,7 @@ namespace detail {
 
 template <typename T, uint32_t ValuesCount, uint32_t ComponentCount>
 constexpr void Adds(ecs::World& w, uint32_t n) {
-	for (uint32_t i = 0; i < n; ++i) {
+	GAIA_FOR(n) {
 		[[maybe_unused]] auto e = w.add();
 		::detail::Adds<T, ValuesCount, ComponentCount>(w, e);
 	}

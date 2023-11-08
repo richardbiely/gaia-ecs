@@ -84,8 +84,9 @@ namespace gaia {
 				if (comp.soa() == 0) {
 					addr = (uint32_t)mem::detail::get_aligned_byte_offset(addr, comp.alig(), comp.size(), N);
 				} else {
-					for (uint32_t i = 0; i < comp.soa(); ++i)
+					GAIA_FOR(comp.soa()) {
 						addr = (uint32_t)mem::detail::get_aligned_byte_offset(addr, comp.alig(), soaSizes[i], N);
+					}
 				}
 				return addr;
 			}

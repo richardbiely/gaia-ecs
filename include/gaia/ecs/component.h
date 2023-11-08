@@ -314,9 +314,10 @@ namespace gaia {
 		GAIA_NODISCARD inline uint32_t comp_idx(const Component* pComps, ComponentId compId) {
 			// We let the compiler know the upper iteration bound at compile-time.
 			// This way it can optimize better (e.g. loop unrolling, vectorization).
-			for (uint32_t idx = 0; idx < MAX_COMPONENTS; ++idx)
-				if (pComps[idx].id() == compId)
-					return idx;
+			GAIA_FOR(MAX_COMPONENTS) {
+				if (pComps[i].id() == compId)
+					return i;
+			}
 
 			GAIA_ASSERT(false);
 			return BadIndex;
@@ -331,9 +332,10 @@ namespace gaia {
 		GAIA_NODISCARD inline uint32_t comp_idx(const ComponentId* pCompIds, ComponentId compId) {
 			// We let the compiler know the upper iteration bound at compile-time.
 			// This way it can optimize better (e.g. loop unrolling, vectorization).
-			for (uint32_t idx = 0; idx < MAX_COMPONENTS; ++idx)
-				if (pCompIds[idx] == compId)
-					return idx;
+			GAIA_FOR(MAX_COMPONENTS) {
+				if (pCompIds[i] == compId)
+					return i;
+			}
 
 			GAIA_ASSERT(false);
 			return BadIndex;
@@ -343,9 +345,9 @@ namespace gaia {
 			//       calculations.
 			//			 Component ID to component index conversion might be used often to it deserves
 			//       optimizing as much as possible.
-			// const auto idx = core::get_index_unsafe({pCompIds, MAX_COMPONENTS}, compId);
-			// GAIA_ASSERT(idx != BadIndex);
-			// return idx;
+			// const auto i = core::get_index_unsafe({pCompIds, MAX_COMPONENTS}, compId);
+			// GAIA_ASSERT(i != BadIndex);
+			// return i;
 		}
 
 #if GAIA_COMP_ID_PROBING

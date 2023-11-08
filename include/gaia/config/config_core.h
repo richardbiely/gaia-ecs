@@ -155,8 +155,12 @@
 #define GAIA_CONCAT_IMPL(x, y) x##y
 #define GAIA_CONCAT(x, y) GAIA_CONCAT_IMPL(x, y)
 
+#define GAIA_FOR(max) for (uint32_t i = 0; i < (max); ++i)
+#define GAIA_FOR_(max, varname) for (uint32_t varname = 0; varname < (max); ++varname)
+#define GAIA_FOR2(min, max) for (uint32_t i = (min); i < (max); ++i)
+#define GAIA_FOR2_(min, max, varname) for (uint32_t varname = (min); varname < (max); ++varname)
 #define GAIA_EACH(container) for (uint32_t i = 0; i < (container).size(); ++i)
-#define GAIA_EACH2(container, varname) for (uint32_t varname = 0; varname < (container).size(); ++varname)
+#define GAIA_EACH_(container, varname) for (uint32_t varname = 0; varname < (container).size(); ++varname)
 
 //------------------------------------------------------------------------------
 // Endianess

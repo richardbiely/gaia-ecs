@@ -107,47 +107,5 @@ namespace gaia {
 				return offset;
 			}
 		}
-
-		struct index_iterator {
-			using iterator_category = core::random_access_iterator_tag;
-			using value_type = uint32_t;
-
-		protected:
-			value_type m_pos;
-
-		public:
-			index_iterator(value_type pos) noexcept: m_pos(pos) {}
-
-			GAIA_NODISCARD value_type operator*() const noexcept {
-				return m_pos;
-			}
-
-			GAIA_NODISCARD value_type operator->() const noexcept {
-				return m_pos;
-			}
-
-			index_iterator operator++() noexcept {
-				++m_pos;
-				return *this;
-			}
-
-			GAIA_NODISCARD index_iterator operator++(int) noexcept {
-				index_iterator temp(*this);
-				++*this;
-				return temp;
-			}
-
-			GAIA_NODISCARD bool operator==(const index_iterator& other) const noexcept {
-				return m_pos == other.m_pos;
-			}
-
-			GAIA_NODISCARD bool operator!=(const index_iterator& other) const noexcept {
-				return m_pos != other.m_pos;
-			}
-
-			GAIA_NODISCARD bool operator<(const index_iterator& other) const noexcept {
-				return m_pos < other.m_pos;
-			}
-		};
 	} // namespace core
 } // namespace gaia

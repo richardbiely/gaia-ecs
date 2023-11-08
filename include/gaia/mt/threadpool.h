@@ -60,7 +60,7 @@ namespace gaia {
 
 				m_mainThreadId = std::this_thread::get_id();
 
-				for (uint32_t i = 0; i < workersCnt; ++i) {
+				GAIA_FOR(workersCnt) {
 					m_workers[i] = std::thread([this, i]() {
 						// Set the worker thread name.
 						// Needs to be called from inside the thread because some platforms
@@ -230,7 +230,7 @@ namespace gaia {
 
 				JobHandle groupHandle = m_jobManager.alloc_job({});
 
-				for (uint32_t jobIndex = 0; jobIndex < jobs; ++jobIndex) {
+				GAIA_FOR_(jobs, jobIndex) {
 					// Create one job per group
 					auto groupJobFunc = [job, itemsToProcess, groupSize, jobIndex]() {
 						const uint32_t groupJobIdxStart = jobIndex * groupSize;

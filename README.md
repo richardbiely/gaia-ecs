@@ -301,7 +301,7 @@ q.each([](ecs::IteratorAll iter) {
 ```
 for (uint32_t i=0; i<iter.size(); ++i)
 ```
-A similar macro exists where you can specify the variable name. It is called ***GAIA_EACH2(iter,k)***
+A similar macro exists where you can specify the variable name. It is called ***GAIA_EACH_(iter,k)***
 ```
 for (uint32_t k=0; k<iter.size(); ++k)
 ```
@@ -542,8 +542,7 @@ struct Transform {
 
 ...
 Transform in, out;
-for (uint32_t i=0; i<10; ++i)
-  t.transforms.push_back({});
+GAIA_FOR(10) t.transforms.push_back({});
 t.some_int_data = 42069;
 
 ecs::SerializationBuffer s;
@@ -712,7 +711,7 @@ constexpr uint32_t ItemsPerJob = 1234;
 constexpr uint32_t Jobs = (N + ItemsPerJob - 1) / ItemsPerJob;
 
 std::atomic_uint32_t sum = 0;
-for (uint32_t i = 0; i < Jobs; ++i) {
+GAIA_FOR(Jobs) { // for (uint32_t i=0; i<Jobs; ++i)
   mt::Job job {[&arr, &sum, i, ItemsPerJob, func]() {
     const auto idxStart = i * ItemsPerJob;
     const auto idxEnd = std::min((i + 1) * ItemsPerJob, N);

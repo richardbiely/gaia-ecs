@@ -68,7 +68,7 @@ namespace gaia {
 				if (hashLookup != other.hashLookup)
 					return false;
 
-				for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
+				GAIA_FOR(ComponentKind::CK_Count) {
 					const auto& left = data[i];
 					const auto& right = other.data[i];
 
@@ -83,25 +83,25 @@ namespace gaia {
 						return false;
 
 					// Matches hashes need to be the same
-					for (uint32_t j = 0; j < QueryListType::LT_Count; ++j) {
+					GAIA_FOR_(QueryListType::LT_Count, j) {
 						if (left.hash[j] != right.hash[j])
 							return false;
 					}
 
 					// Components need to be the same
-					GAIA_EACH2(left.comps, j) {
+					GAIA_EACH_(left.comps, j) {
 						if (left.comps[j] != right.comps[j])
 							return false;
 					}
 
 					// Rules need to be the same
-					GAIA_EACH2(left.rules, j) {
+					GAIA_EACH_(left.rules, j) {
 						if (left.rules[j] != right.rules[j])
 							return false;
 					}
 
 					// Filters need to be the same
-					GAIA_EACH2(left.withChanged, j) {
+					GAIA_EACH_(left.withChanged, j) {
 						if (left.withChanged[j] != right.withChanged[j])
 							return false;
 					}
@@ -117,7 +117,7 @@ namespace gaia {
 
 		//! Sorts internal component arrays
 		inline void sort(QueryCtx& ctx) {
-			for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
+			GAIA_FOR(ComponentKind::CK_Count) {
 				auto& data = ctx.data[i];
 				// Make sure the read-write mask remains correct after sorting
 				core::sort(data.comps, SortComponentCond{}, [&](uint32_t left, uint32_t right) {
@@ -155,7 +155,7 @@ namespace gaia {
 
 			QueryLookupHash::Type hashLookup = 0;
 
-			for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
+			GAIA_FOR(ComponentKind::CK_Count) {
 				auto& data = ctx.data[i];
 
 				// Components

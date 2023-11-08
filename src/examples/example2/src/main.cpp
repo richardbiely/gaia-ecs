@@ -27,7 +27,7 @@ int main() {
 	auto e = w.add();
 	w.add<Position>(e, {});
 	w.add<Acceleration>(e, {0, 0, 1});
-	for (size_t i = 1; i < N; ++i) {
+	GAIA_FOR(N) {
 		[[maybe_unused]] auto newentity = w.add(e);
 	}
 
@@ -35,8 +35,8 @@ int main() {
 	auto p0 = w.get<Position>(e);
 
 	// Move until a key is hit
-	constexpr size_t GameLoops = 10'000;
-	for (size_t i = 1U; i < GameLoops; ++i) {
+	constexpr uint32_t GameLoops = 1'000;
+	GAIA_FOR(GameLoops) {
 		float dt = 0.01f; // simulate 100 FPS
 		MoveSystem(w, dt);
 	}

@@ -66,28 +66,28 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD constexpr bool operator==(const bitset& other) const {
-				for (uint32_t i = 0; i < Items; ++i)
+				GAIA_FOR(Items) {
 					if (m_data[i] != other.m_data[i])
 						return false;
+				}
 				return true;
 			}
 
 			GAIA_NODISCARD constexpr bool operator!=(const bitset& other) const {
-				for (uint32_t i = 0; i < Items; ++i)
+				GAIA_FOR(Items) {
 					if (m_data[i] == other.m_data[i])
 						return false;
+				}
 				return true;
 			}
 
 			//! Sets all bits
 			constexpr void set() {
 				if constexpr (HasTrailingBits) {
-					for (uint32_t i = 0; i < Items - 1; ++i)
-						m_data[i] = (size_type)-1;
+					GAIA_FOR(Items - 1) m_data[i] = (size_type)-1;
 					m_data[Items - 1] = LastItemMask;
 				} else {
-					for (uint32_t i = 0; i < Items; ++i)
-						m_data[i] = (size_type)-1;
+					GAIA_FOR(Items) m_data[i] = (size_type)-1;
 				}
 			}
 
@@ -103,12 +103,10 @@ namespace gaia {
 			//! Flips all bits
 			constexpr bitset& flip() {
 				if constexpr (HasTrailingBits) {
-					for (uint32_t i = 0; i < Items - 1; ++i)
-						m_data[i] = ~m_data[i];
+					GAIA_FOR(Items - 1) m_data[i] = ~m_data[i];
 					m_data[Items - 1] = (~m_data[Items - 1]) & LastItemMask;
 				} else {
-					for (uint32_t i = 0; i < Items; ++i)
-						m_data[i] = ~m_data[i];
+					GAIA_FOR(Items) m_data[i] = ~m_data[i];
 				}
 				return *this;
 			}
@@ -148,8 +146,7 @@ namespace gaia {
 					// First word
 					m_data[wordIdxFrom] ^= getMask(bitFrom % BitsPerItem, BitsPerItem - 1);
 					// Middle
-					for (uint32_t i = wordIdxFrom + 1; i <= wordIdxTo - 1; ++i)
-						m_data[i] = ~m_data[i];
+					GAIA_FOR2(wordIdxFrom + 1, wordIdxTo) m_data[i] = ~m_data[i];
 					// Last word
 					m_data[wordIdxTo] ^= getMask(0, bitTo % BitsPerItem);
 				}
@@ -159,8 +156,7 @@ namespace gaia {
 
 			//! Unsets all bits
 			constexpr void reset() {
-				for (uint32_t i = 0; i < Items; ++i)
-					m_data[i] = 0;
+				GAIA_FOR(Items) m_data[i] = 0;
 			}
 
 			//! Unsets the bit at the postion \param pos
@@ -178,31 +174,35 @@ namespace gaia {
 			//! Checks if all bits are set
 			GAIA_NODISCARD constexpr bool all() const {
 				if constexpr (HasTrailingBits) {
-					for (uint32_t i = 0; i < Items - 1; ++i)
+					GAIA_FOR(Items - 1) {
 						if (m_data[i] != (size_type)-1)
 							return false;
+					}
 					return (m_data[Items - 1] & LastItemMask) == LastItemMask;
 				} else {
-					for (uint32_t i = 0; i < Items; ++i)
+					GAIA_FOR(Items) {
 						if (m_data[i] != (size_type)-1)
 							return false;
+					}
 					return true;
 				}
 			}
 
 			//! Checks if any bit is set
 			GAIA_NODISCARD constexpr bool any() const {
-				for (uint32_t i = 0; i < Items; ++i)
+				GAIA_FOR(Items) {
 					if (m_data[i] != 0)
 						return true;
+				}
 				return false;
 			}
 
 			//! Checks if all bits are reset
 			GAIA_NODISCARD constexpr bool none() const {
-				for (uint32_t i = 0; i < Items; ++i)
+				GAIA_FOR(Items) {
 					if (m_data[i] != 0)
 						return false;
+				}
 				return true;
 			}
 
@@ -213,11 +213,9 @@ namespace gaia {
 				GAIA_MSVC_WARNING_PUSH()
 				GAIA_MSVC_WARNING_DISABLE(4244)
 				if constexpr (sizeof(size_type) == 4) {
-					for (uint32_t i = 0; i < Items; ++i)
-						total += GAIA_POPCNT(m_data[i]);
+					GAIA_FOR(Items) total += GAIA_POPCNT(m_data[i]);
 				} else {
-					for (uint32_t i = 0; i < Items; ++i)
-						total += GAIA_POPCNT64(m_data[i]);
+					GAIA_FOR(Items) total += GAIA_POPCNT64(m_data[i]);
 				}
 				GAIA_MSVC_WARNING_POP()
 

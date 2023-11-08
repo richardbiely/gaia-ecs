@@ -36,17 +36,17 @@ namespace gaia {
 
 		GAIA_NODISCARD inline bool cmp_comps(ComponentSpan* comps, ComponentSpan* compsOther) {
 			// Size has to match
-			for (uint32_t k = 0; k < ComponentKind::CK_Count; ++k) {
-				if (comps[k].size() != compsOther[k].size())
+			GAIA_FOR(ComponentKind::CK_Count) {
+				if (comps[i].size() != compsOther[i].size())
 					return false;
 			}
 
 			// Elements have to match
-			for (uint32_t k = 0; k < ComponentKind::CK_Count; ++k) {
-				const auto& c0 = comps[k];
-				const auto& c1 = compsOther[k];
-				GAIA_EACH(c0) {
-					if (c0[i] != c1[i])
+			GAIA_FOR(ComponentKind::CK_Count) {
+				const auto& c0 = comps[i];
+				const auto& c1 = compsOther[i];
+				GAIA_EACH_(c0, j) {
+					if (c0[j] != c1[j])
 						return false;
 				}
 			}
@@ -137,7 +137,7 @@ namespace gaia {
 				// With 64 components per archetype (32 generic + 32 unique) this gives us some headroom.
 				{
 					offset += mem::padding<alignof(ComponentVersion)>(memoryAddress);
-					for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
+					GAIA_FOR(ComponentKind::CK_Count) {
 						const auto cnt = comps((ComponentKind)i).size();
 						if (cnt == 0)
 							continue;
@@ -151,7 +151,7 @@ namespace gaia {
 				// Component ids
 				{
 					offset += mem::padding<alignof(Component)>(offset);
-					for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
+					GAIA_FOR(ComponentKind::CK_Count) {
 						const auto cnt = comps((ComponentKind)i).size();
 						if (cnt == 0)
 							continue;
@@ -166,7 +166,7 @@ namespace gaia {
 				// Component records
 				{
 					offset += mem::padding<alignof(ComponentRecord)>(offset);
-					for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
+					GAIA_FOR(ComponentKind::CK_Count) {
 						const auto cnt = comps((ComponentKind)i).size();
 						if (cnt == 0)
 							continue;
@@ -182,7 +182,7 @@ namespace gaia {
 				// Component ids internal map
 				{
 					offset += mem::padding<alignof(Component)>(offset);
-					for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
+					GAIA_FOR(ComponentKind::CK_Count) {
 						const auto cnt = comps((ComponentKind)i).size();
 						if (cnt == 0)
 							continue;
@@ -495,7 +495,7 @@ namespace gaia {
 
 					const uint32_t entitiesInChunk = pSrcChunk->size();
 					const uint32_t entitiesToMove = entitiesInChunk > maxEntities ? maxEntities : entitiesInChunk;
-					for (uint32_t i = 0; i < entitiesToMove; ++i) {
+					GAIA_FOR(entitiesToMove) {
 						const auto lastEntityIdx = entitiesInChunk - i - 1;
 						const auto entity = pSrcChunk->entity_view()[lastEntityIdx];
 
