@@ -221,7 +221,7 @@ namespace gaia {
 
 						const auto& archetypes = it->second;
 						const auto lastMatchedIdx = data.lastMatchedArchetypeIdx[i];
-						for (auto j = lastMatchedIdx; j < archetypes.size(); ++j) {
+						GAIA_FOR2_(lastMatchedIdx, archetypes.size(), j) {
 							auto* pArchetype = archetypes[j];
 
 							// Early exit if generic query doesn't match
@@ -245,7 +245,7 @@ namespace gaia {
 						if (it == componentToArchetypeMap.end())
 							continue;
 
-						for (uint32_t j = data.lastMatchedArchetypeIdx[i]; j < it->second.size(); ++j) {
+						GAIA_FOR2_(data.lastMatchedArchetypeIdx[i], it->second.size(), j) {
 							auto* pArchetype = it->second[j];
 							// Early exit if unique query doesn't match
 							const auto ret = match(*pArchetype, ComponentKind::CK_Uni);

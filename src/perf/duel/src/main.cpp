@@ -63,7 +63,7 @@ void CreateECSEntities_Static(ecs::World& w) {
 			w.add<Position>(e, {0, 100, 0});
 		w.add<Rotation>(e, {1, 2, 3, 4});
 		w.add<Scale>(e, {1, 1, 1});
-		for (uint32_t i = 0; i < N; ++i) {
+		GAIA_FOR(N) {
 			[[maybe_unused]] auto newentity = w.add(e);
 		}
 	}
@@ -83,7 +83,7 @@ void CreateECSEntities_Dynamic(ecs::World& w) {
 			w.add<VelocitySoA>(e, {0, 0, 1});
 		else
 			w.add<Velocity>(e, {0, 0, 1});
-		for (uint32_t i = 0; i < N / 4; ++i) {
+		GAIA_FOR(N / 4) {
 			[[maybe_unused]] auto newentity = w.add(e);
 		}
 	}
@@ -100,7 +100,7 @@ void CreateECSEntities_Dynamic(ecs::World& w) {
 		else
 			w.add<Velocity>(e, {0, 0, 1});
 		w.add<Direction>(e, {0, 0, 1});
-		for (uint32_t i = 0; i < N / 4; ++i) {
+		GAIA_FOR(N / 4) {
 			[[maybe_unused]] auto newentity = w.add(e);
 		}
 	}
@@ -118,7 +118,7 @@ void CreateECSEntities_Dynamic(ecs::World& w) {
 			w.add<Velocity>(e, {0, 0, 1});
 		w.add<Direction>(e, {0, 0, 1});
 		w.add<Health>(e, {100, 100});
-		for (uint32_t i = 0; i < N / 4; ++i) {
+		GAIA_FOR(N / 4) {
 			[[maybe_unused]] auto newentity = w.add(e);
 		}
 	}
@@ -137,7 +137,7 @@ void CreateECSEntities_Dynamic(ecs::World& w) {
 		w.add<Direction>(e, {0, 0, 1});
 		w.add<Health>(e, {100, 100});
 		w.add<IsEnemy>(e, {false});
-		for (uint32_t i = 0; i < N / 4; ++i) {
+		GAIA_FOR(N/4) {
 			[[maybe_unused]] auto newentity = w.add(e);
 		}
 	}
@@ -661,7 +661,7 @@ void BM_NonECS(picobench::state& state) {
 	// We allocate via new to simulate the usual kind of behavior in games
 	cnt::darray<IUnit*> units(N * 2);
 	{
-		for (uint32_t i = 0; i < N; ++i) {
+		GAIA_FOR(N) {
 			auto* u = new UnitStatic();
 			u->p = {0, 100, 0};
 			u->r = {1, 2, 3, 4};
@@ -669,7 +669,7 @@ void BM_NonECS(picobench::state& state) {
 			units[i] = u;
 		}
 		uint32_t j = N;
-		for (uint32_t i = 0; i < N / 4; ++i) {
+		GAIA_FOR(N/4) {
 			auto* u = new UnitDynamic1();
 			u->p = {0, 100, 0};
 			u->r = {1, 2, 3, 4};
@@ -678,7 +678,7 @@ void BM_NonECS(picobench::state& state) {
 			units[j + i] = u;
 		}
 		j += N / 4;
-		for (uint32_t i = 0; i < N / 4; ++i) {
+		GAIA_FOR(N/4) {
 			auto* u = new UnitDynamic2();
 			u->p = {0, 100, 0};
 			u->r = {1, 2, 3, 4};
@@ -687,7 +687,7 @@ void BM_NonECS(picobench::state& state) {
 			units[j + i] = u;
 		}
 		j += N / 4;
-		for (uint32_t i = 0; i < N / 4; ++i) {
+		GAIA_FOR(N/4) {
 			auto* u = new UnitDynamic3();
 			u->p = {0, 100, 0};
 			u->r = {1, 2, 3, 4};
@@ -696,7 +696,7 @@ void BM_NonECS(picobench::state& state) {
 			units[j + i] = u;
 		}
 		j += N / 4;
-		for (uint32_t i = 0; i < N / 4; ++i) {
+		GAIA_FOR(N/4) {
 			auto* u = new UnitDynamic4();
 			u->p = {0, 100, 0};
 			u->r = {1, 2, 3, 4};
@@ -839,7 +839,7 @@ void BM_NonECS_BetterMemoryLayout(picobench::state& state) {
 
 	// Create entities.
 	cnt::darray<UnitStatic> units_static(N);
-	for (uint32_t i = 0; i < N; ++i) {
+	GAIA_FOR(N) {
 		UnitStatic u;
 		u.p = {0, 100, 0};
 		u.r = {1, 2, 3, 4};
@@ -852,7 +852,7 @@ void BM_NonECS_BetterMemoryLayout(picobench::state& state) {
 	cnt::darray<UnitDynamic3> units_dynamic3(N / 4);
 	cnt::darray<UnitDynamic4> units_dynamic4(N / 4);
 
-	for (uint32_t i = 0; i < N / 4; ++i) {
+	GAIA_FOR(N/4) {
 		UnitDynamic1 u;
 		u.p = {0, 100, 0};
 		u.r = {1, 2, 3, 4};
@@ -860,7 +860,7 @@ void BM_NonECS_BetterMemoryLayout(picobench::state& state) {
 		u.v = {0, 0, 1};
 		units_dynamic1[i] = GAIA_MOV(u);
 	}
-	for (uint32_t i = 0; i < N / 4; ++i) {
+	GAIA_FOR(N/4) {
 		UnitDynamic2 u;
 		u.p = {0, 100, 0};
 		u.r = {1, 2, 3, 4};
@@ -869,7 +869,7 @@ void BM_NonECS_BetterMemoryLayout(picobench::state& state) {
 		u.d = {0, 0, 1};
 		units_dynamic2[i] = GAIA_MOV(u);
 	}
-	for (uint32_t i = 0; i < N / 4; ++i) {
+	GAIA_FOR(N/4) {
 		UnitDynamic3 u;
 		u.p = {0, 100, 0};
 		u.r = {1, 2, 3, 4};
@@ -879,7 +879,7 @@ void BM_NonECS_BetterMemoryLayout(picobench::state& state) {
 		u.h = {100, 100};
 		units_dynamic3[i] = GAIA_MOV(u);
 	}
-	for (uint32_t i = 0; i < N / 4; ++i) {
+	GAIA_FOR(N/4) {
 		UnitDynamic4 u;
 		u.p = {0, 100, 0};
 		u.r = {1, 2, 3, 4};
@@ -993,7 +993,7 @@ void BM_NonECS_DOD(picobench::state& state) {
 		cnt::darray<Scale> units_s{NGroup};
 	} static_groups[Groups];
 	for (auto& g: static_groups) {
-		for (uint32_t i = 0; i < NGroup; ++i) {
+		GAIA_FOR(NGroup) {
 			g.units_p[i] = {0, 100, 0};
 			g.units_r[i] = {1, 2, 3, 4};
 			g.units_s[i] = {1, 1, 1};
@@ -1011,7 +1011,7 @@ void BM_NonECS_DOD(picobench::state& state) {
 		cnt::darray<IsEnemy> units_e{NGroup};
 	} dynamic_groups[Groups];
 	for (auto& g: dynamic_groups) {
-		for (uint32_t i = 0; i < NGroup; ++i) {
+		GAIA_FOR(NGroup) {
 			g.units_p[i] = {0, 100, 0};
 			g.units_r[i] = {1, 2, 3, 4};
 			g.units_s[i] = {1, 1, 1};
@@ -1136,7 +1136,7 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 		cnt::darray<Scale> units_s{NGroup};
 	} static_groups[Groups];
 	for (auto& g: static_groups) {
-		for (uint32_t i = 0; i < NGroup; ++i) {
+		GAIA_FOR(NGroup) {
 			g.units_p[i] = {0, 100, 0};
 			g.units_r[i] = {1, 2, 3, 4};
 			g.units_s[i] = {1, 1, 1};
@@ -1154,7 +1154,7 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 		cnt::darray<IsEnemy> units_e{NGroup};
 	} dynamic_groups[Groups];
 	for (auto& g: dynamic_groups) {
-		for (uint32_t i = 0; i < NGroup; ++i) {
+		GAIA_FOR(NGroup) {
 			g.units_p[i] = {0, 100, 0};
 			g.units_r[i] = {1, 2, 3, 4};
 			g.units_s[i] = {1, 1, 1};

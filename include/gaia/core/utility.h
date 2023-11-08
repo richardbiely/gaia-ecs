@@ -54,7 +54,7 @@ namespace gaia {
 
 		template <typename T>
 		void call_ctor_n(T* pData, size_t cnt) {
-			if constexpr (!std::is_trivially_destructible_v<T>) {
+			if constexpr (!std::is_trivially_constructible_v<T>) {
 				for (size_t i = 0; i < cnt; ++i)
 					(void)::new (pData + i) T();
 			}

@@ -295,7 +295,7 @@ public:
 
 			// Iterate over the neighbors of the current node
 			const Node& current_node = graph[current_id];
-			for (uint32_t i = 0; i < MAX_NEIGHBORS; ++i) {
+			GAIA_FOR(MAX_NEIGHBORS) {
 				// We need to have a neighbor
 				if (!current_node.HasNeighbor(i))
 					continue;
@@ -369,25 +369,25 @@ struct World {
 
 	void InitWorldMap() {
 		// map
-		for (uint32_t y = 0; y < ScreenY; ++y) {
-			for (uint32_t x = 0; x < ScreenX; ++x) {
+		GAIA_FOR_(ScreenY, y) {
+			GAIA_FOR_(ScreenX, x) {
 				map[y][x] = TILE_FREE;
 			}
 		}
 
 		// edges
-		for (uint32_t y = 1; y < ScreenY - 1; ++y) {
+		GAIA_FOR_(ScreenY, y) {
 			map[y][0] = TILE_WALL;
 			map[y][ScreenX - 1] = TILE_WALL;
 		}
-		for (uint32_t x = 0; x < ScreenX; ++x) {
+		GAIA_FOR_(ScreenX, x) {
 			map[0][x] = TILE_WALL;
 			map[ScreenY - 1][x] = TILE_WALL;
 		}
 		// random obstacles in the upper right part
 		srand(0);
-		for (uint32_t y = 3; y < ScreenY / 2; ++y) {
-			for (uint32_t x = ScreenX / 2; x < ScreenX - 2; ++x) {
+		GAIA_FOR2_(3, ScreenY / 2, y) {
+			GAIA_FOR2_(ScreenX / 2, ScreenX - 2, x) {
 				bool placeWall = (rand() % 4) == 0;
 				if (placeWall)
 					map[y][x] = TILE_WALL;
@@ -398,9 +398,9 @@ struct World {
 		std::vector<AStar::Node> graph;
 		graph.reserve(ScreenX * ScreenY);
 		uint32_t index = 0;
-		for (uint32_t y = 0; y < ScreenY; ++y) {
-			for (uint32_t x = 0; x < ScreenX; ++x, ++index) {
-				AStar::Node node{index};
+		GAIA_FOR_(ScreenY, y) {
+			GAIA_FOR_(ScreenX, x) {
+				AStar::Node node{index++};
 
 				if (y > 0)
 					node.InitIndex(0, map[y - 1][x] != TILE_WALL);
@@ -831,8 +831,8 @@ public:
 class RenderSystem final: public ecs::System {
 public:
 	void OnUpdate() override {
-		for (uint32_t y = 0; y < ScreenY; ++y) {
-			for (uint32_t x = 0; x < ScreenX; ++x) {
+		GAIA_FOR_(ScreenY, y) {
+			GAIA_FOR_(ScreenX, x) {
 				putchar(g_world.map[y][x]);
 			}
 			printf("\n");

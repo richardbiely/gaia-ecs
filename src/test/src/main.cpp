@@ -198,7 +198,7 @@ TEST_CASE("bit_view") {
 	uint8_t arr[N]{};
 	view bv{arr};
 
-	for (uint32_t i = 0; i < NBlocks; ++i) {
+	GAIA_FOR(NBlocks) {
 		bv.set(i * BlockBits, (uint8_t)i);
 
 		const uint8_t val = bv.get(i * BlockBits);
@@ -206,7 +206,7 @@ TEST_CASE("bit_view") {
 	}
 
 	// Make sure nothing was overriden
-	for (uint32_t i = 0; i < NBlocks; ++i) {
+	GAIA_FOR(NBlocks) {
 		const uint8_t val = bv.get(i * BlockBits);
 		REQUIRE(val == i);
 	}
@@ -218,12 +218,12 @@ void fixed_arr_test() {
 	static_assert(N > 2); // we need at least 2 items to complete this test
 	Container arr;
 
-	for (uint32_t i = 0; i < N; ++i) {
+	GAIA_FOR(N) {
 		arr[i] = i;
 		REQUIRE(arr[i] == i);
 	}
 	// Verify the values remain the same even after the internal buffer is reallocated
-	for (uint32_t i = 0; i < N; ++i) {
+	GAIA_FOR(N) {
 		REQUIRE(arr[i] == i);
 	}
 
@@ -261,12 +261,12 @@ void resizable_arr_test(uint32_t N) {
 	GAIA_ASSERT(N > 2); // we need at least 2 items to complete this test
 	Container arr;
 
-	for (uint32_t i = 0; i < N; ++i) {
+	GAIA_FOR(N) {
 		arr.push_back(i);
 		REQUIRE(arr[i] == i);
 	}
 	// Verify the values remain the same even after the internal buffer is reallocated
-	for (uint32_t i = 0; i < N; ++i) {
+	GAIA_FOR(N) {
 		REQUIRE(arr[i] == i);
 	}
 
@@ -1308,7 +1308,7 @@ void TestDataLayoutAoS() {
 	constexpr uint32_t N = 100;
 	cnt::sarray<T, N> data;
 
-	for (uint32_t i = 0; i < N; ++i) {
+	GAIA_FOR(N) {
 		const auto f = (float)(i + 1);
 		data[i] = {f, f, f};
 
@@ -1319,7 +1319,7 @@ void TestDataLayoutAoS() {
 	}
 
 	SECTION("Make sure that all values are correct (e.g. that they were not overriden by one of the loop iteration)") {
-		for (uint32_t i = 0; i < N; ++i) {
+		GAIA_FOR(N) {
 			const auto f = (float)(i + 1);
 
 			auto val = data[i];
@@ -1340,7 +1340,7 @@ void TestDataLayoutSoA() {
 	constexpr uint32_t N = 100;
 	cnt::sarray<T, N> data;
 
-	for (uint32_t i = 0; i < N; ++i) {
+	GAIA_FOR(N) {
 		const float f[] = {(float)(i + 1), (float)(i + 2), (float)(i + 3)};
 		data[i] = {f[0], f[1], f[2]};
 
@@ -1356,7 +1356,7 @@ void TestDataLayoutSoA() {
 	}
 
 	// Make sure that all values are correct (e.g. that they were not overriden by one of the loop iteration)
-	for (uint32_t i = 0; i < N; ++i) {
+	GAIA_FOR(N) {
 		const float f[] = {(float)(i + 1), (float)(i + 2), (float)(i + 3)};
 		T val = data[i];
 		REQUIRE(val.x == f[0]);
@@ -1375,7 +1375,7 @@ void TestDataLayoutSoA<DummySoA>() {
 	constexpr uint32_t N = 100;
 	cnt::sarray<DummySoA, N> data{};
 
-	for (uint32_t i = 0; i < N; ++i) {
+	GAIA_FOR(N) {
 		float f[] = {(float)(i + 1), (float)(i + 2), (float)(i + 3)};
 		data[i] = {f[0], f[1], true, f[2]};
 
@@ -1394,7 +1394,7 @@ void TestDataLayoutSoA<DummySoA>() {
 	}
 
 	// Make sure that all values are correct (e.g. that they were not overriden by one of the loop iteration)
-	for (uint32_t i = 0; i < N; ++i) {
+	GAIA_FOR(N) {
 		const float f[] = {(float)(i + 1), (float)(i + 2), (float)(i + 3)};
 
 		DummySoA val = data[i];
@@ -1439,25 +1439,25 @@ TEST_CASE("ComponentId internal map") {
 		const ecs::ComponentId comp0 = 1000000;
 
 		// Fill the data array
-		GAIA_EACH2(data, j) {
+		GAIA_EACH_(data, j) {
 			ecs::set_comp_idx({data.data(), data.size()}, comp0 + j);
 		}
 
 		// Get indices
 		cnt::set<ecs::ChunkDataOffset> indices;
-		GAIA_EACH2(data, j) {
+		GAIA_EACH_(data, j) {
 			const auto idx = ecs::get_comp_idx({data.data(), data.size()}, comp0 + j);
 			REQUIRE_FALSE(indices.contains(idx));
 		}
 
 		// All component ids must be found
-		GAIA_EACH2(data, j) {
+		GAIA_EACH_(data, j) {
 			const bool has = ecs::has_comp_idx({data.data(), data.size()}, comp0 + j);
 			REQUIRE(has);
 		}
 
 		// Following component ids must be not found because we didn't add them
-		GAIA_EACH2(data, j) {
+		GAIA_EACH_(data, j) {
 			const bool has = ecs::has_comp_idx({data.data(), data.size()}, comp0 - 1 - j);
 			REQUIRE_FALSE(has);
 		}
@@ -1527,10 +1527,8 @@ TEST_CASE("Add - no components") {
 	};
 
 	const uint32_t N = 10'000;
-	for (uint32_t i = 0; i < N; ++i)
-		create(i);
-	for (uint32_t i = 0; i < N; ++i)
-		verify(w.get(i), i);
+	GAIA_FOR(N) create(i);
+	GAIA_FOR(N) verify(w.get(i), i);
 }
 
 TEST_CASE("Add - 1 component") {
@@ -1550,8 +1548,8 @@ TEST_CASE("Add - 1 component") {
 	};
 
 	const uint32_t N = 10'000;
-	for (uint32_t i = 0; i < N; ++i)
-		create(i);
+	GAIA_FOR(N)
+	create(i);
 }
 
 namespace dummy {
@@ -1634,8 +1632,8 @@ TEST_CASE("Add - many components") {
 	};
 
 	const uint32_t N = 10'000;
-	for (uint32_t i = 0; i < N; ++i)
-		create(i);
+	GAIA_FOR(N)
+	create(i);
 }
 
 TEST_CASE("AddAndDel_entity - no components") {
@@ -1664,14 +1662,14 @@ TEST_CASE("AddAndDel_entity - no components") {
 	arr.reserve(N);
 
 	// Create entities
-	for (uint32_t i = 0; i < N; ++i)
-		arr.push_back(create(i));
+	GAIA_FOR(N)
+	arr.push_back(create(i));
 	// Verify ids are still valid
-	for (uint32_t i = 0; i < N; ++i)
-		verify(w.get(i), i, 0);
+	GAIA_FOR(N)
+	verify(w.get(i), i, 0);
 	// Remove entities
-	for (uint32_t i = 0; i < N; ++i)
-		remove(arr[i]);
+	GAIA_FOR(N)
+	remove(arr[i]);
 }
 
 TEST_CASE("AddAndDel_entity - 1 component") {
@@ -1703,10 +1701,10 @@ TEST_CASE("AddAndDel_entity - 1 component") {
 	cnt::darr<ecs::Entity> arr;
 	arr.reserve(N);
 
-	for (uint32_t i = 0; i < N; ++i)
-		arr.push_back(create(i));
-	for (uint32_t i = 0; i < N; ++i)
-		remove(arr[i]);
+	GAIA_FOR(N)
+	arr.push_back(create(i));
+	GAIA_FOR(N)
+	remove(arr[i]);
 }
 
 template <typename TQuery>
@@ -1719,8 +1717,8 @@ void Test_Query_QueryResult() {
 	};
 
 	const uint32_t N = 10'000;
-	for (uint32_t i = 0; i < N; ++i)
-		create(i);
+	GAIA_FOR(N)
+	create(i);
 
 	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
 	auto q1 = w.query<UseCachedQuery>().template all<Position>();
@@ -1809,8 +1807,8 @@ void Test_Query_QueryResult_Complex() {
 	};
 
 	const uint32_t N = 10'000;
-	for (uint32_t i = 0; i < N; ++i)
-		create(i);
+	GAIA_FOR(N)
+	create(i);
 
 	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
 	auto q1 = w.query<UseCachedQuery>().template all<Position>();
@@ -1992,8 +1990,8 @@ void Test_Query_Equality() {
 		};
 
 		const uint32_t N = 100;
-		for (uint32_t i = 0; i < N; ++i)
-			create();
+		GAIA_FOR(N)
+		create();
 
 		constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
 		auto qq1 = w.query<UseCachedQuery>().template all<Position, Rotation>();
@@ -2056,8 +2054,8 @@ TEST_CASE("Enable") {
 	cnt::darr<ecs::Entity> arr;
 	arr.reserve(N);
 
-	for (uint32_t i = 0; i < N; ++i)
-		arr.push_back(create(i));
+	GAIA_FOR(N)
+	arr.push_back(create(i));
 
 	SECTION("State validity") {
 		w.enable(arr[0], false);
@@ -2797,7 +2795,7 @@ TEST_CASE("Set - generic") {
 	cnt::darr<ecs::Entity> arr;
 	arr.reserve(N);
 
-	for (uint32_t i = 0; i < N; ++i) {
+	GAIA_FOR(N) {
 		const auto ent = w.add();
 		REQUIRE(ent.id() == i);
 		arr.push_back(ent);
@@ -2884,7 +2882,7 @@ TEST_CASE("Set - generic & chunk") {
 	cnt::darr<ecs::Entity> arr;
 	arr.reserve(N);
 
-	for (uint32_t i = 0; i < N; ++i) {
+	GAIA_FOR(N) {
 		arr.push_back(w.add());
 		w.add<Rotation>(arr.back(), {});
 		w.add<Scale>(arr.back(), {});
@@ -2971,7 +2969,7 @@ TEST_CASE("Components - non trivial") {
 	cnt::darr<ecs::Entity> arr;
 	arr.reserve(N);
 
-	for (uint32_t i = 0; i < N; ++i) {
+	GAIA_FOR(N) {
 		arr.push_back(w.add());
 		w.add<StringComponent>(arr.back(), {});
 		w.add<StringComponent2>(arr.back(), {});
@@ -3052,13 +3050,13 @@ TEST_CASE("CommandBuffer") {
 		ecs::CommandBuffer cb(w);
 
 		const uint32_t N = 100;
-		for (uint32_t i = 0; i < N; ++i) {
+		GAIA_FOR(N) {
 			[[maybe_unused]] auto tmp = cb.add();
 		}
 
 		cb.commit();
 
-		for (uint32_t i = 0; i < N; ++i) {
+		GAIA_FOR(N) {
 			auto e = w.get(i);
 			REQUIRE(e.id() == i);
 		}
@@ -3071,13 +3069,13 @@ TEST_CASE("CommandBuffer") {
 		auto mainEntity = w.add();
 
 		const uint32_t N = 100;
-		for (uint32_t i = 0; i < N; ++i) {
+		GAIA_FOR(N) {
 			[[maybe_unused]] auto tmp = cb.add(mainEntity);
 		}
 
 		cb.commit();
 
-		for (uint32_t i = 0; i < N; ++i) {
+		GAIA_FOR(N) {
 			auto e = w.get(i + 1);
 			REQUIRE(e.id() == i + 1);
 		}
@@ -3484,8 +3482,7 @@ void TestDataLayoutSoA_ECS() {
 	};
 
 	const uint32_t N = 10'000;
-	for (uint32_t i = 0; i < N; ++i)
-		create();
+	GAIA_FOR(N) create();
 
 	ecs::Query q = w.query().all<T>();
 
@@ -3885,7 +3882,7 @@ void Run_Schedule_Simple(const uint32_t* pArr, uint32_t* pRes, uint32_t Jobs, ui
 
 	std::atomic_uint32_t sum = 0;
 
-	for (uint32_t i = 0; i < Jobs; ++i) {
+	GAIA_FOR(Jobs) {
 		mt::Job job;
 		job.func = [&pArr, &pRes, i, ItemsPerJob, func]() {
 			const auto idxStart = i * ItemsPerJob;
@@ -3896,9 +3893,7 @@ void Run_Schedule_Simple(const uint32_t* pArr, uint32_t* pRes, uint32_t Jobs, ui
 	}
 	tp.wait_all();
 
-	for (uint32_t i = 0; i < Jobs; ++i) {
-		REQUIRE(pRes[i] == ItemsPerJob);
-	}
+	GAIA_FOR(Jobs) REQUIRE(pRes[i] == ItemsPerJob);
 }
 
 TEST_CASE("Multithreading - Schedule") {
@@ -3907,8 +3902,7 @@ TEST_CASE("Multithreading - Schedule") {
 	constexpr uint32_t N = JobCount * ItemsPerJob;
 
 	cnt::sarray<uint32_t, JobCount> res;
-	for (uint32_t i = 0; i < res.max_size(); ++i)
-		res[i] = 0;
+	GAIA_FOR(res.max_size()) res[i] = 0;
 
 	cnt::darray<uint32_t> arr;
 	arr.resize(N);
@@ -3955,7 +3949,7 @@ TEST_CASE("Multithreading - complete") {
 
 	GAIA_EACH(res) res[i] = (uint32_t)-1;
 
-	for (uint32_t i = 0; i < Jobs; ++i) {
+	GAIA_FOR(Jobs) {
 		mt::Job job;
 		job.func = [&res, i]() {
 			res[i] = i;
@@ -3963,7 +3957,7 @@ TEST_CASE("Multithreading - complete") {
 		handles[i] = tp.sched(job);
 	}
 
-	for (uint32_t i = 0; i < Jobs; ++i) {
+	GAIA_FOR(Jobs) {
 		tp.wait(handles[i]);
 		REQUIRE(res[i] == i);
 	}
@@ -3977,7 +3971,7 @@ TEST_CASE("Multithreading - CompleteMany") {
 	constexpr uint32_t Iters = 15000;
 	uint32_t res = (uint32_t)-1;
 
-	for (uint32_t i = 0; i < Iters; ++i) {
+	GAIA_FOR(Iters) {
 		mt::Job job0{[&res, i]() {
 			res = (i + 1);
 		}};

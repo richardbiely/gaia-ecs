@@ -186,9 +186,10 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD bool operator==(const sringbuffer& other) const {
-				for (size_type i = 0; i < N; ++i)
-					if (!(m_data[i] == other.m_data[i]))
+				for (size_type i = 0; i < N; ++i) {
+					if (m_data[i] == other.m_data[i])
 						return false;
+				}
 				return true;
 			}
 		};

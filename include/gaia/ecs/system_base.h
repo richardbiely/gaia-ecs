@@ -278,9 +278,9 @@ namespace gaia {
 
 		private:
 			void sort() {
-				for (uint32_t l = 0; l < m_systems.size() - 1; l++) {
+				GAIA_FOR_(m_systems.size() - 1, l) {
 					auto min = l;
-					for (uint32_t p = l + 1; p < m_systems.size(); p++) {
+					GAIA_FOR2_(l + 1, m_systems.size(), p) {
 						const auto* sl = m_systems[l];
 						const auto* pl = m_systems[p];
 						if (sl->DependsOn(pl))
@@ -294,7 +294,7 @@ namespace gaia {
 
 #if GAIA_DEBUG
 				// Make sure there are no circular dependencies
-				for (auto j = 1U; j < m_systems.size(); ++j) {
+				GAIA_FOR2_(1U, m_systems.size(), j) {
 					if (!m_systems[j - 1]->DependsOn(m_systems[j]))
 						continue;
 					GAIA_ASSERT(false && "Wrong systems dependencies!");

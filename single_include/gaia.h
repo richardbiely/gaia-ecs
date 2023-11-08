@@ -155,8 +155,12 @@
 #define GAIA_CONCAT_IMPL(x, y) x##y
 #define GAIA_CONCAT(x, y) GAIA_CONCAT_IMPL(x, y)
 
+#define GAIA_FOR(max) for (uint32_t i = 0; i < (max); ++i)
+#define GAIA_FOR_(max, varname) for (uint32_t varname = 0; varname < (max); ++varname)
+#define GAIA_FOR2(min, max) for (uint32_t i = (min); i < (max); ++i)
+#define GAIA_FOR2_(min, max, varname) for (uint32_t varname = (min); varname < (max); ++varname)
 #define GAIA_EACH(container) for (uint32_t i = 0; i < (container).size(); ++i)
-#define GAIA_EACH2(container, varname) for (uint32_t varname = 0; varname < (container).size(); ++varname)
+#define GAIA_EACH_(container, varname) for (uint32_t varname = 0; varname < (container).size(); ++varname)
 
 //------------------------------------------------------------------------------
 // Endianess
@@ -1678,48 +1682,6 @@ namespace gaia {
 				return offset;
 			}
 		}
-
-		struct index_iterator {
-			using iterator_category = core::random_access_iterator_tag;
-			using value_type = uint32_t;
-
-		protected:
-			value_type m_pos;
-
-		public:
-			index_iterator(value_type pos) noexcept: m_pos(pos) {}
-
-			GAIA_NODISCARD value_type operator*() const noexcept {
-				return m_pos;
-			}
-
-			GAIA_NODISCARD value_type operator->() const noexcept {
-				return m_pos;
-			}
-
-			index_iterator operator++() noexcept {
-				++m_pos;
-				return *this;
-			}
-
-			GAIA_NODISCARD index_iterator operator++(int) noexcept {
-				index_iterator temp(*this);
-				++*this;
-				return temp;
-			}
-
-			GAIA_NODISCARD bool operator==(const index_iterator& other) const noexcept {
-				return m_pos == other.m_pos;
-			}
-
-			GAIA_NODISCARD bool operator!=(const index_iterator& other) const noexcept {
-				return m_pos != other.m_pos;
-			}
-
-			GAIA_NODISCARD bool operator<(const index_iterator& other) const noexcept {
-				return m_pos < other.m_pos;
-			}
-		};
 	} // namespace core
 } // namespace gaia
 
@@ -1770,7 +1732,7 @@ namespace gaia {
 
 		template <typename T>
 		void call_ctor_n(T* pData, size_t cnt) {
-			if constexpr (!std::is_trivially_destructible_v<T>) {
+			if constexpr (!std::is_trivially_constructible_v<T>) {
 				for (size_t i = 0; i < cnt; ++i)
 					(void)::new (pData + i) T();
 			}
@@ -4087,8 +4049,7 @@ namespace gaia {
 				static_assert(std::is_copy_assignable_v<T>);
 				static_assert(!mem::is_soa_layout_v<T>);
 
-				for (uint32_t i = idxSrc; i < idxDst; ++i)
-					dst[i] = src[i];
+				GAIA_FOR2(idxSrc, idxDst) dst[i] = src[i];
 
 				GAIA_MSVC_WARNING_POP()
 			}
@@ -4100,9 +4061,10 @@ namespace gaia {
 				GAIA_MSVC_WARNING_PUSH()
 				GAIA_MSVC_WARNING_DISABLE(6385)
 
-				for (uint32_t i = idxSrc; i < idxDst; ++i)
+				GAIA_FOR2(idxSrc, idxDst) {
 					(data_view_policy_set<T::Layout, T>({std::span<uint8_t>{dst, sizeDst}}))[i] =
 							(data_view_policy_set<T::Layout, T>({std::span<const uint8_t>{(const uint8_t*)src, sizeSrc}}))[i];
+				}
 
 				GAIA_MSVC_WARNING_POP()
 			}
@@ -4115,8 +4077,7 @@ namespace gaia {
 				static_assert(std::is_move_assignable_v<T>);
 				static_assert(!mem::is_soa_layout_v<T>);
 
-				for (uint32_t i = idxSrc; i < idxDst; ++i)
-					dst[i] = GAIA_MOV(src[i]);
+				GAIA_FOR2(idxSrc, idxDst) dst[i] = GAIA_MOV(src[i]);
 
 				GAIA_MSVC_WARNING_POP()
 			}
@@ -4129,13 +4090,10 @@ namespace gaia {
 
 				static_assert(!mem::is_soa_layout_v<T>);
 
-				if constexpr (std::is_move_assignable_v<T>) {
-					for (uint32_t i = idxSrc; i < idxDst; ++i)
-						dst[i] = GAIA_MOV(dst[i + n]);
-				} else {
-					for (uint32_t i = idxSrc; i < idxDst; ++i)
-						dst[i] = dst[i + n];
-				}
+				if constexpr (std::is_move_assignable_v<T>)
+					GAIA_FOR2(idxSrc, idxDst) dst[i] = GAIA_MOV(dst[i + n]);
+				else
+					GAIA_FOR2(idxSrc, idxDst) dst[i] = dst[i + n];
 
 				GAIA_MSVC_WARNING_POP()
 			}
@@ -4149,13 +4107,10 @@ namespace gaia {
 				static_assert(!mem::is_soa_layout_v<T>);
 
 				const auto max = idxDst - idxSrc - n;
-				if constexpr (std::is_move_assignable_v<T>) {
-					for (uint32_t i = 0; i < max; ++i)
-						dst[idxSrc + i] = GAIA_MOV(dst[idxSrc + i + n]);
-				} else {
-					for (uint32_t i = 0; i < max; ++i)
-						dst[idxSrc + i] = dst[idxSrc + i + n];
-				}
+				if constexpr (std::is_move_assignable_v<T>)
+					GAIA_FOR(max) dst[idxSrc + i] = GAIA_MOV(dst[idxSrc + i + n]);
+				else
+					GAIA_FOR(max) dst[idxSrc + i] = dst[idxSrc + i + n];
 
 				GAIA_MSVC_WARNING_POP()
 			}
@@ -4166,9 +4121,10 @@ namespace gaia {
 				GAIA_MSVC_WARNING_PUSH()
 				GAIA_MSVC_WARNING_DISABLE(6385)
 
-				for (uint32_t i = idxSrc; i < idxDst; ++i)
+				GAIA_FOR2(idxSrc, idxDst) {
 					(data_view_policy_set<T::Layout, T>({std::span<uint8_t>{dst, size}}))[i] =
 							(data_view_policy_get<T::Layout, T>({std::span<const uint8_t>{(const uint8_t*)dst, size}}))[i + n];
+				}
 
 				GAIA_MSVC_WARNING_POP()
 			}
@@ -4818,28 +4774,28 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD constexpr bool operator==(const bitset& other) const {
-				for (uint32_t i = 0; i < Items; ++i)
+				GAIA_FOR(Items) {
 					if (m_data[i] != other.m_data[i])
 						return false;
+				}
 				return true;
 			}
 
 			GAIA_NODISCARD constexpr bool operator!=(const bitset& other) const {
-				for (uint32_t i = 0; i < Items; ++i)
+				GAIA_FOR(Items) {
 					if (m_data[i] == other.m_data[i])
 						return false;
+				}
 				return true;
 			}
 
 			//! Sets all bits
 			constexpr void set() {
 				if constexpr (HasTrailingBits) {
-					for (uint32_t i = 0; i < Items - 1; ++i)
-						m_data[i] = (size_type)-1;
+					GAIA_FOR(Items - 1) m_data[i] = (size_type)-1;
 					m_data[Items - 1] = LastItemMask;
 				} else {
-					for (uint32_t i = 0; i < Items; ++i)
-						m_data[i] = (size_type)-1;
+					GAIA_FOR(Items) m_data[i] = (size_type)-1;
 				}
 			}
 
@@ -4855,12 +4811,10 @@ namespace gaia {
 			//! Flips all bits
 			constexpr bitset& flip() {
 				if constexpr (HasTrailingBits) {
-					for (uint32_t i = 0; i < Items - 1; ++i)
-						m_data[i] = ~m_data[i];
+					GAIA_FOR(Items - 1) m_data[i] = ~m_data[i];
 					m_data[Items - 1] = (~m_data[Items - 1]) & LastItemMask;
 				} else {
-					for (uint32_t i = 0; i < Items; ++i)
-						m_data[i] = ~m_data[i];
+					GAIA_FOR(Items) m_data[i] = ~m_data[i];
 				}
 				return *this;
 			}
@@ -4900,8 +4854,7 @@ namespace gaia {
 					// First word
 					m_data[wordIdxFrom] ^= getMask(bitFrom % BitsPerItem, BitsPerItem - 1);
 					// Middle
-					for (uint32_t i = wordIdxFrom + 1; i <= wordIdxTo - 1; ++i)
-						m_data[i] = ~m_data[i];
+					GAIA_FOR2(wordIdxFrom + 1, wordIdxTo) m_data[i] = ~m_data[i];
 					// Last word
 					m_data[wordIdxTo] ^= getMask(0, bitTo % BitsPerItem);
 				}
@@ -4911,8 +4864,7 @@ namespace gaia {
 
 			//! Unsets all bits
 			constexpr void reset() {
-				for (uint32_t i = 0; i < Items; ++i)
-					m_data[i] = 0;
+				GAIA_FOR(Items) m_data[i] = 0;
 			}
 
 			//! Unsets the bit at the postion \param pos
@@ -4930,31 +4882,35 @@ namespace gaia {
 			//! Checks if all bits are set
 			GAIA_NODISCARD constexpr bool all() const {
 				if constexpr (HasTrailingBits) {
-					for (uint32_t i = 0; i < Items - 1; ++i)
+					GAIA_FOR(Items - 1) {
 						if (m_data[i] != (size_type)-1)
 							return false;
+					}
 					return (m_data[Items - 1] & LastItemMask) == LastItemMask;
 				} else {
-					for (uint32_t i = 0; i < Items; ++i)
+					GAIA_FOR(Items) {
 						if (m_data[i] != (size_type)-1)
 							return false;
+					}
 					return true;
 				}
 			}
 
 			//! Checks if any bit is set
 			GAIA_NODISCARD constexpr bool any() const {
-				for (uint32_t i = 0; i < Items; ++i)
+				GAIA_FOR(Items) {
 					if (m_data[i] != 0)
 						return true;
+				}
 				return false;
 			}
 
 			//! Checks if all bits are reset
 			GAIA_NODISCARD constexpr bool none() const {
-				for (uint32_t i = 0; i < Items; ++i)
+				GAIA_FOR(Items) {
 					if (m_data[i] != 0)
 						return false;
+				}
 				return true;
 			}
 
@@ -4965,11 +4921,9 @@ namespace gaia {
 				GAIA_MSVC_WARNING_PUSH()
 				GAIA_MSVC_WARNING_DISABLE(4244)
 				if constexpr (sizeof(size_type) == 4) {
-					for (uint32_t i = 0; i < Items; ++i)
-						total += GAIA_POPCNT(m_data[i]);
+					GAIA_FOR(Items) total += GAIA_POPCNT(m_data[i]);
 				} else {
-					for (uint32_t i = 0; i < Items; ++i)
-						total += GAIA_POPCNT64(m_data[i]);
+					GAIA_FOR(Items) total += GAIA_POPCNT64(m_data[i]);
 				}
 				GAIA_MSVC_WARNING_POP()
 
@@ -6313,13 +6267,11 @@ namespace gaia {
 				m_pData = new size_type[itemsNew];
 				if (pDataOld == nullptr) {
 					// Make sure the new data is set to zeros
-					for (uint32_t i = itemsOld; i < itemsNew; ++i)
-						m_pData[i] = 0;
+					GAIA_FOR2(itemsOld, itemsNew) m_pData[i] = 0;
 				} else {
 					// Copy the old data over and set the old data to zeros
 					mem::copy_elements<size_type>((uint8_t*)m_pData, (const uint8_t*)pDataOld, 0, itemsOld, 0, 0);
-					for (uint32_t i = itemsOld; i < itemsNew; ++i)
-						m_pData[i] = 0;
+					GAIA_FOR2(itemsOld, itemsNew) m_pData[i] = 0;
 
 					// Release the old data
 					delete[] pDataOld;
@@ -6394,14 +6346,12 @@ namespace gaia {
 				m_pData = new size_type[itemsNew];
 				if (pDataOld == nullptr) {
 					// Make sure the new data is set to zeros
-					for (uint32_t i = 0; i < itemsNew; ++i)
-						m_pData[i] = 0;
+					GAIA_FOR(itemsNew) m_pData[i] = 0;
 				} else {
 					const uint32_t itemsOld = items();
 					// Copy the old data over and set the old data to zeros
 					mem::copy_elements<size_type>((uint8_t*)m_pData, (const uint8_t*)pDataOld, 0, itemsOld, 0, 0);
-					for (uint32_t i = itemsOld; i < itemsNew; ++i)
-						m_pData[i] = 0;
+					GAIA_FOR2(itemsOld, itemsNew) m_pData[i] = 0;
 
 					// Release old data
 					delete[] pDataOld;
@@ -6429,13 +6379,11 @@ namespace gaia {
 				m_pData = new size_type[itemsNew];
 				if (pDataOld == nullptr) {
 					// Make sure the new data is set to zeros
-					for (uint32_t i = 0; i < itemsNew; ++i)
-						m_pData[i] = 0;
+					GAIA_FOR(itemsNew) m_pData[i] = 0;
 				} else {
 					// Copy the old data over and set the old data to zeros
 					mem::copy_elements<size_type>((uint8_t*)m_pData, (const uint8_t*)pDataOld, 0, itemsOld, 0, 0);
-					for (uint32_t i = itemsOld; i < itemsNew; ++i)
-						m_pData[i] = 0;
+					GAIA_FOR2(itemsOld, itemsNew) m_pData[i] = 0;
 
 					// Release old data
 					delete[] pDataOld;
@@ -6467,17 +6415,19 @@ namespace gaia {
 
 			GAIA_NODISCARD bool operator==(const dbitset& other) const {
 				const uint32_t item_count = items();
-				for (uint32_t i = 0; i < item_count; ++i)
+				GAIA_FOR(item_count) {
 					if (m_pData[i] != other.m_pData[i])
 						return false;
+				}
 				return true;
 			}
 
 			GAIA_NODISCARD bool operator!=(const dbitset& other) const {
 				const uint32_t item_count = items();
-				for (uint32_t i = 0; i < item_count; ++i)
+				GAIA_FOR(item_count) {
 					if (m_pData[i] == other.m_pData[i])
 						return false;
+				}
 				return true;
 			}
 
@@ -6490,13 +6440,10 @@ namespace gaia {
 				const auto lastItemMask = last_item_mask();
 
 				if (lastItemMask != 0) {
-					uint32_t i = 0;
-					for (; i < item_count - 1; ++i)
-						m_pData[i] = (size_type)-1;
-					m_pData[i] = lastItemMask;
+					GAIA_FOR(item_count - 1) m_pData[i] = (size_type)-1;
+					m_pData[item_count - 1] = lastItemMask;
 				} else {
-					for (uint32_t i = 0; i < item_count; ++i)
-						m_pData[i] = (size_type)-1;
+					GAIA_FOR(item_count) m_pData[i] = (size_type)-1;
 				}
 			}
 
@@ -6519,13 +6466,10 @@ namespace gaia {
 				const auto lastItemMask = last_item_mask();
 
 				if (lastItemMask != 0) {
-					uint32_t i = 0;
-					for (; i < item_count - 1; ++i)
-						m_pData[i] = ~m_pData[i];
-					m_pData[i] = (~m_pData[i]) & lastItemMask;
+					GAIA_FOR(item_count - 1) m_pData[i] = ~m_pData[i];
+					m_pData[item_count - 1] = (~m_pData[item_count - 1]) & lastItemMask;
 				} else {
-					for (uint32_t i = 0; i <= item_count; ++i)
-						m_pData[i] = ~m_pData[i];
+					GAIA_FOR(item_count + 1) m_pData[i] = ~m_pData[i];
 				}
 			}
 
@@ -6561,8 +6505,7 @@ namespace gaia {
 					// First word
 					m_pData[wordIdxFrom] ^= getMask(bitFrom % BitsPerItem, BitsPerItem - 1);
 					// Middle
-					for (uint32_t i = wordIdxFrom + 1; i <= wordIdxTo - 1; ++i)
-						m_pData[i] = ~m_pData[i];
+					GAIA_FOR2(wordIdxFrom + 1, wordIdxTo) m_pData[i] = ~m_pData[i];
 					// Last word
 					m_pData[wordIdxTo] ^= getMask(0, bitTo % BitsPerItem);
 				}
@@ -6573,8 +6516,7 @@ namespace gaia {
 			//! Unsets all bits
 			void reset() {
 				const auto item_count = items();
-				for (uint32_t i = 0; i < item_count; ++i)
-					m_pData[i] = 0;
+				GAIA_FOR(item_count) m_pData[i] = 0;
 			}
 
 			//! Unsets the bit at the postion \param pos
@@ -6594,9 +6536,10 @@ namespace gaia {
 				const auto item_count = items() - 1;
 				const auto lastItemMask = last_item_mask();
 
-				for (uint32_t i = 0; i < item_count; ++i)
+				GAIA_FOR(item_count) {
 					if (m_pData[i] != (size_type)-1)
 						return false;
+				}
 
 				if (has_trailing_bits())
 					return (m_pData[item_count] & lastItemMask) == lastItemMask;
@@ -6607,18 +6550,20 @@ namespace gaia {
 			//! Checks if any bit is set
 			GAIA_NODISCARD bool any() const {
 				const auto item_count = items();
-				for (uint32_t i = 0; i < item_count; ++i)
+				GAIA_FOR(item_count) {
 					if (m_pData[i] != 0)
 						return true;
+				}
 				return false;
 			}
 
 			//! Checks if all bits are reset
 			GAIA_NODISCARD bool none() const {
 				const auto item_count = items();
-				for (uint32_t i = 0; i < item_count; ++i)
+				GAIA_FOR(item_count) {
 					if (m_pData[i] != 0)
 						return false;
+				}
 				return true;
 			}
 
@@ -6631,11 +6576,9 @@ namespace gaia {
 				GAIA_MSVC_WARNING_PUSH()
 				GAIA_MSVC_WARNING_DISABLE(4244)
 				if constexpr (sizeof(size_type) == 4) {
-					for (uint32_t i = 0; i < item_count; ++i)
-						total += GAIA_POPCNT(m_pData[i]);
+					GAIA_FOR(item_count) total += GAIA_POPCNT(m_pData[i]);
 				} else {
-					for (uint32_t i = 0; i < item_count; ++i)
-						total += GAIA_POPCNT64(m_pData[i]);
+					GAIA_FOR(item_count) total += GAIA_POPCNT64(m_pData[i]);
 				}
 				GAIA_MSVC_WARNING_POP()
 
@@ -12712,9 +12655,10 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD bool operator==(const sringbuffer& other) const {
-				for (size_type i = 0; i < N; ++i)
-					if (!(m_data[i] == other.m_data[i]))
+				for (size_type i = 0; i < N; ++i) {
+					if (m_data[i] == other.m_data[i])
 						return false;
+				}
 				return true;
 			}
 		};
@@ -13104,10 +13048,10 @@ namespace gaia {
 				{
 					std::scoped_lock<std::mutex> lockDeps(m_depsLock);
 
-					for (auto jobHandle: dependsOnSpan) {
+					for (auto dependsOn: dependsOnSpan) {
 						auto depHandle = alloc_dep();
 						auto& dep = m_deps[depHandle.id()];
-						dep.dependsOn = jobHandle;
+						dep.dependsOn = dependsOn;
 
 						if (job.dependencyIdx == (uint32_t)-1)
 							// First time adding a dependency to this job. Point it to the first allocated handle
@@ -13319,7 +13263,7 @@ namespace gaia {
 
 				m_mainThreadId = std::this_thread::get_id();
 
-				for (uint32_t i = 0; i < workersCnt; ++i) {
+				GAIA_FOR(workersCnt) {
 					m_workers[i] = std::thread([this, i]() {
 						// Set the worker thread name.
 						// Needs to be called from inside the thread because some platforms
@@ -13489,7 +13433,7 @@ namespace gaia {
 
 				JobHandle groupHandle = m_jobManager.alloc_job({});
 
-				for (uint32_t jobIndex = 0; jobIndex < jobs; ++jobIndex) {
+				GAIA_FOR_(jobs, jobIndex) {
 					// Create one job per group
 					auto groupJobFunc = [job, itemsToProcess, groupSize, jobIndex]() {
 						const uint32_t groupJobIdxStart = jobIndex * groupSize;
@@ -14012,9 +13956,10 @@ namespace gaia {
 		GAIA_NODISCARD inline uint32_t comp_idx(const Component* pComps, ComponentId compId) {
 			// We let the compiler know the upper iteration bound at compile-time.
 			// This way it can optimize better (e.g. loop unrolling, vectorization).
-			for (uint32_t idx = 0; idx < MAX_COMPONENTS; ++idx)
-				if (pComps[idx].id() == compId)
-					return idx;
+			GAIA_FOR(MAX_COMPONENTS) {
+				if (pComps[i].id() == compId)
+					return i;
+			}
 
 			GAIA_ASSERT(false);
 			return BadIndex;
@@ -14029,9 +13974,10 @@ namespace gaia {
 		GAIA_NODISCARD inline uint32_t comp_idx(const ComponentId* pCompIds, ComponentId compId) {
 			// We let the compiler know the upper iteration bound at compile-time.
 			// This way it can optimize better (e.g. loop unrolling, vectorization).
-			for (uint32_t idx = 0; idx < MAX_COMPONENTS; ++idx)
-				if (pCompIds[idx] == compId)
-					return idx;
+			GAIA_FOR(MAX_COMPONENTS) {
+				if (pCompIds[i] == compId)
+					return i;
+			}
 
 			GAIA_ASSERT(false);
 			return BadIndex;
@@ -14041,9 +13987,9 @@ namespace gaia {
 			//       calculations.
 			//			 Component ID to component index conversion might be used often to it deserves
 			//       optimizing as much as possible.
-			// const auto idx = core::get_index_unsafe({pCompIds, MAX_COMPONENTS}, compId);
-			// GAIA_ASSERT(idx != BadIndex);
-			// return idx;
+			// const auto i = core::get_index_unsafe({pCompIds, MAX_COMPONENTS}, compId);
+			// GAIA_ASSERT(i != BadIndex);
+			// return i;
 		}
 
 #if GAIA_COMP_ID_PROBING
@@ -14181,8 +14127,9 @@ namespace gaia {
 				if (comp.soa() == 0) {
 					addr = (uint32_t)mem::detail::get_aligned_byte_offset(addr, comp.alig(), comp.size(), N);
 				} else {
-					for (uint32_t i = 0; i < comp.soa(); ++i)
+					GAIA_FOR(comp.soa()) {
 						addr = (uint32_t)mem::detail::get_aligned_byte_offset(addr, comp.alig(), soaSizes[i], N);
+					}
 				}
 				return addr;
 			}
@@ -14372,9 +14319,7 @@ namespace gaia {
 					m_descByIndex.resize(newSize);
 
 					// Make sure that unused memory is initialized to nullptr
-					for (uint32_t i = oldSize; i < newSize; ++i)
-						m_descByIndex[i] = nullptr;
-
+					GAIA_FOR2(oldSize, newSize) m_descByIndex[i] = nullptr;
 					return createDesc();
 				}
 
@@ -15215,8 +15160,7 @@ namespace gaia {
 
 			const auto& cc = ComponentCache::get();
 			ComponentMatcherHash::Type hash = cc.comp_desc(comps[0].id()).matcherHash.hash;
-			for (uint32_t i = 1; i < compsSize; ++i)
-				hash = core::combine_or(hash, cc.comp_desc(comps[i].id()).matcherHash.hash);
+			GAIA_FOR2(1, compsSize) hash = core::combine_or(hash, cc.comp_desc(comps[i].id()).matcherHash.hash);
 			return {hash};
 		}
 
@@ -15230,8 +15174,7 @@ namespace gaia {
 
 			const auto& cc = ComponentCache::get();
 			ComponentLookupHash::Type hash = cc.comp_desc(comps[0].id()).hashLookup.hash;
-			for (uint32_t i = 1; i < compsSize; ++i)
-				hash = core::hash_combine(hash, cc.comp_desc(comps[i].id()).hashLookup.hash);
+			GAIA_FOR2(1, compsSize) hash = core::hash_combine(hash, cc.comp_desc(comps[i].id()).hashLookup.hash);
 			return {hash};
 		}
 
@@ -15331,7 +15274,7 @@ namespace gaia {
 				const auto& cc = ComponentCache::get();
 
 				// Cache pointers to versions
-				for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
+				GAIA_FOR(ComponentKind::CK_Count) {
 					if (comps[i].empty())
 						continue;
 
@@ -15339,7 +15282,7 @@ namespace gaia {
 				}
 
 				// Cache component ids
-				for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
+				GAIA_FOR(ComponentKind::CK_Count) {
 					if (comps[i].empty())
 						continue;
 
@@ -15356,14 +15299,14 @@ namespace gaia {
 				}
 
 				// Cache component records
-				for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
+				GAIA_FOR(ComponentKind::CK_Count) {
 					if (comps[i].empty())
 						continue;
 
 					auto* dst = m_records.pRecords[i] = (ComponentRecord*)&data(headerOffsets.firstByte_Records[i]);
 					const auto& offs = compOffs[i];
 					const auto& cids = comps[i];
-					GAIA_EACH2(cids, j) {
+					GAIA_EACH_(cids, j) {
 						dst[j].comp = cids[j];
 						const auto off = offs[j];
 						dst[j].pData = &data(off);
@@ -15373,13 +15316,13 @@ namespace gaia {
 
 #if GAIA_COMP_ID_PROBING
 				// Copy provided component id hash map
-				for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
+				GAIA_FOR(ComponentKind::CK_Count) {
 					if (comps[i].empty())
 						continue;
 
 					const auto& map = compMap[i];
 					auto* dst = comp_id_mapping_ptr_mut((ComponentKind)i);
-					GAIA_EACH2(map, j) dst[j] = map[j];
+					GAIA_EACH_(map, j) dst[j] = map[j];
 				}
 #endif
 
@@ -16553,17 +16496,17 @@ namespace gaia {
 
 		GAIA_NODISCARD inline bool cmp_comps(ComponentSpan* comps, ComponentSpan* compsOther) {
 			// Size has to match
-			for (uint32_t k = 0; k < ComponentKind::CK_Count; ++k) {
-				if (comps[k].size() != compsOther[k].size())
+			GAIA_FOR(ComponentKind::CK_Count) {
+				if (comps[i].size() != compsOther[i].size())
 					return false;
 			}
 
 			// Elements have to match
-			for (uint32_t k = 0; k < ComponentKind::CK_Count; ++k) {
-				const auto& c0 = comps[k];
-				const auto& c1 = compsOther[k];
-				GAIA_EACH(c0) {
-					if (c0[i] != c1[i])
+			GAIA_FOR(ComponentKind::CK_Count) {
+				const auto& c0 = comps[i];
+				const auto& c1 = compsOther[i];
+				GAIA_EACH_(c0, j) {
+					if (c0[j] != c1[j])
 						return false;
 				}
 			}
@@ -16654,7 +16597,7 @@ namespace gaia {
 				// With 64 components per archetype (32 generic + 32 unique) this gives us some headroom.
 				{
 					offset += mem::padding<alignof(ComponentVersion)>(memoryAddress);
-					for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
+					GAIA_FOR(ComponentKind::CK_Count) {
 						const auto cnt = comps((ComponentKind)i).size();
 						if (cnt == 0)
 							continue;
@@ -16668,7 +16611,7 @@ namespace gaia {
 				// Component ids
 				{
 					offset += mem::padding<alignof(Component)>(offset);
-					for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
+					GAIA_FOR(ComponentKind::CK_Count) {
 						const auto cnt = comps((ComponentKind)i).size();
 						if (cnt == 0)
 							continue;
@@ -16683,7 +16626,7 @@ namespace gaia {
 				// Component records
 				{
 					offset += mem::padding<alignof(ComponentRecord)>(offset);
-					for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
+					GAIA_FOR(ComponentKind::CK_Count) {
 						const auto cnt = comps((ComponentKind)i).size();
 						if (cnt == 0)
 							continue;
@@ -16699,7 +16642,7 @@ namespace gaia {
 				// Component ids internal map
 				{
 					offset += mem::padding<alignof(Component)>(offset);
-					for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
+					GAIA_FOR(ComponentKind::CK_Count) {
 						const auto cnt = comps((ComponentKind)i).size();
 						if (cnt == 0)
 							continue;
@@ -17012,7 +16955,7 @@ namespace gaia {
 
 					const uint32_t entitiesInChunk = pSrcChunk->size();
 					const uint32_t entitiesToMove = entitiesInChunk > maxEntities ? maxEntities : entitiesInChunk;
-					for (uint32_t i = 0; i < entitiesToMove; ++i) {
+					GAIA_FOR(entitiesToMove) {
 						const auto lastEntityIdx = entitiesInChunk - i - 1;
 						const auto entity = pSrcChunk->entity_view()[lastEntityIdx];
 
@@ -17735,7 +17678,7 @@ namespace gaia {
 				if (hashLookup != other.hashLookup)
 					return false;
 
-				for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
+				GAIA_FOR(ComponentKind::CK_Count) {
 					const auto& left = data[i];
 					const auto& right = other.data[i];
 
@@ -17750,25 +17693,25 @@ namespace gaia {
 						return false;
 
 					// Matches hashes need to be the same
-					for (uint32_t j = 0; j < QueryListType::LT_Count; ++j) {
+					GAIA_FOR_(QueryListType::LT_Count, j) {
 						if (left.hash[j] != right.hash[j])
 							return false;
 					}
 
 					// Components need to be the same
-					GAIA_EACH2(left.comps, j) {
+					GAIA_EACH_(left.comps, j) {
 						if (left.comps[j] != right.comps[j])
 							return false;
 					}
 
 					// Rules need to be the same
-					GAIA_EACH2(left.rules, j) {
+					GAIA_EACH_(left.rules, j) {
 						if (left.rules[j] != right.rules[j])
 							return false;
 					}
 
 					// Filters need to be the same
-					GAIA_EACH2(left.withChanged, j) {
+					GAIA_EACH_(left.withChanged, j) {
 						if (left.withChanged[j] != right.withChanged[j])
 							return false;
 					}
@@ -17784,7 +17727,7 @@ namespace gaia {
 
 		//! Sorts internal component arrays
 		inline void sort(QueryCtx& ctx) {
-			for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
+			GAIA_FOR(ComponentKind::CK_Count) {
 				auto& data = ctx.data[i];
 				// Make sure the read-write mask remains correct after sorting
 				core::sort(data.comps, SortComponentCond{}, [&](uint32_t left, uint32_t right) {
@@ -17822,7 +17765,7 @@ namespace gaia {
 
 			QueryLookupHash::Type hashLookup = 0;
 
-			for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
+			GAIA_FOR(ComponentKind::CK_Count) {
 				auto& data = ctx.data[i];
 
 				// Components
@@ -18077,7 +18020,7 @@ namespace gaia {
 
 						const auto& archetypes = it->second;
 						const auto lastMatchedIdx = data.lastMatchedArchetypeIdx[i];
-						for (auto j = lastMatchedIdx; j < archetypes.size(); ++j) {
+						GAIA_FOR2_(lastMatchedIdx, archetypes.size(), j) {
 							auto* pArchetype = archetypes[j];
 
 							// Early exit if generic query doesn't match
@@ -18101,7 +18044,7 @@ namespace gaia {
 						if (it == componentToArchetypeMap.end())
 							continue;
 
-						for (uint32_t j = data.lastMatchedArchetypeIdx[i]; j < it->second.size(); ++j) {
+						GAIA_FOR2_(data.lastMatchedArchetypeIdx[i], it->second.size(), j) {
 							auto* pArchetype = it->second[j];
 							// Early exit if unique query doesn't match
 							const auto ret = match(*pArchetype, ComponentKind::CK_Uni);
@@ -19094,10 +19037,10 @@ namespace gaia {
 				GAIA_ASSERT(!pChunk->dying());
 
 				cnt::sarr_ext<Component, Chunk::MAX_COMPONENTS> comps[ComponentKind::CK_Count];
-				for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
+				GAIA_FOR(ComponentKind::CK_Count) {
 					auto& dst = comps[i];
 					auto recs = pChunk->comp_rec_view((ComponentKind)i);
-					GAIA_EACH2(recs, j) dst[j] = recs[j].comp;
+					GAIA_EACH_(recs, j) dst[j] = recs[j].comp;
 				}
 
 				const Archetype::GenComponentHash hashGen = {calc_lookup_hash({comps[0].data(), comps[0].size()}).hash};
@@ -19203,7 +19146,7 @@ namespace gaia {
 				GAIA_PROF_SCOPE(defrag_chunks);
 
 				const auto maxIters = (uint32_t)m_archetypesById.size();
-				for (uint32_t i = 0; i < maxIters; ++i) {
+				GAIA_FOR(maxIters) {
 					m_defragLastArchetypeID = (m_defragLastArchetypeID + i) % maxIters;
 
 					auto* pArchetype = m_archetypesById[m_defragLastArchetypeID];
@@ -19396,7 +19339,7 @@ namespace gaia {
 					const auto componentDescSize = compsOld.size();
 					compsNew.resize(componentDescSize + 1);
 
-					for (uint32_t j = 0; j < componentDescSize; ++j) {
+					GAIA_FOR_(componentDescSize, j) {
 						// NOTE: GCC 13 with optimizations enabled has a bug causing stringop-overflow warning to trigger
 						//       on the following assignment:
 						//       compsNew[j] = compsOld[j];
@@ -20912,9 +20855,9 @@ namespace gaia {
 
 		private:
 			void sort() {
-				for (uint32_t l = 0; l < m_systems.size() - 1; l++) {
+				GAIA_FOR_(m_systems.size() - 1, l) {
 					auto min = l;
-					for (uint32_t p = l + 1; p < m_systems.size(); p++) {
+					GAIA_FOR2_(l + 1, m_systems.size(), p) {
 						const auto* sl = m_systems[l];
 						const auto* pl = m_systems[p];
 						if (sl->DependsOn(pl))
@@ -20928,7 +20871,7 @@ namespace gaia {
 
 #if GAIA_DEBUG
 				// Make sure there are no circular dependencies
-				for (auto j = 1U; j < m_systems.size(); ++j) {
+				GAIA_FOR2_(1U, m_systems.size(), j) {
 					if (!m_systems[j - 1]->DependsOn(m_systems[j]))
 						continue;
 					GAIA_ASSERT(false && "Wrong systems dependencies!");
