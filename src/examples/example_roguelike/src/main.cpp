@@ -439,7 +439,7 @@ struct World {
 
 	void CreateEnemies() {
 		cnt::sarray<ecs::Entity, 3> enemies;
-		for (uint32_t i = 0; i < enemies.size(); ++i) {
+		GAIA_EACH(enemies) {
 			auto& e = enemies[i];
 			e = w.add();
 			w.add<Position>(e, {});

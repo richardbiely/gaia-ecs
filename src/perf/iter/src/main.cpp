@@ -17,7 +17,7 @@ struct Component<Version, T, 0> {}; // empty component
 namespace detail {
 	template <typename T, uint32_t ValuesCount, uint32_t ComponentCount>
 	constexpr void Adds(ecs::World& w, ecs::Entity e) {
-#if 0
+#if 1
 		(void)w;
 		(void)e;
 #else

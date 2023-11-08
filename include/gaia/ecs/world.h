@@ -95,8 +95,7 @@ namespace gaia {
 				for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
 					auto& dst = comps[i];
 					auto recs = pChunk->comp_rec_view((ComponentKind)i);
-					for (uint32_t j = 0; j < recs.size(); ++j)
-						dst[j] = recs[j].comp;
+					GAIA_EACH2(recs, j) dst[j] = recs[j].comp;
 				}
 
 				const Archetype::GenComponentHash hashGen = {calc_lookup_hash({comps[0].data(), comps[0].size()}).hash};
@@ -285,7 +284,7 @@ namespace gaia {
 					GAIA_LOG_W(
 							"Trying to add a component to entity [%u.%u] but there's no space left!", entity.id(), entity.gen());
 					GAIA_LOG_W("Already present:");
-					for (uint32_t i = 0; i < comps.size(); ++i) {
+					GAIA_EACH(comps) {
 						const auto& desc = cc.comp_desc(comps[i].id());
 						GAIA_LOG_W("> [%u] %.*s", (uint32_t)i, (uint32_t)desc.name.size(), desc.name.data());
 					}
@@ -321,9 +320,9 @@ namespace gaia {
 
 					const auto& cc = ComponentCache::get();
 
-					for (uint32_t k = 0; k < comps.size(); k++) {
-						const auto& desc = cc.comp_desc(comps[k].id());
-						GAIA_LOG_W("> [%u] %.*s", (uint32_t)k, (uint32_t)desc.name.size(), desc.name.data());
+					GAIA_EACH(comps) {
+						const auto& desc = cc.comp_desc(comps[i].id());
+						GAIA_LOG_W("> [%u] %.*s", i, (uint32_t)desc.name.size(), desc.name.data());
 					}
 
 					{

@@ -242,10 +242,10 @@ namespace gaia {
 				{
 					std::scoped_lock<std::mutex> lockDeps(m_depsLock);
 
-					for (uint32_t i = 0; i < dependsOnSpan.size(); ++i) {
+					for (auto jobHandle: dependsOnSpan) {
 						auto depHandle = alloc_dep();
 						auto& dep = m_deps[depHandle.id()];
-						dep.dependsOn = dependsOnSpan[i];
+						dep.dependsOn = jobHandle;
 
 						if (job.dependencyIdx == (uint32_t)-1)
 							// First time adding a dependency to this job. Point it to the first allocated handle

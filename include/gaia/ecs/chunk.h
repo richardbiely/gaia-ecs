@@ -116,7 +116,7 @@ namespace gaia {
 					auto* dst = m_records.pRecords[i] = (ComponentRecord*)&data(headerOffsets.firstByte_Records[i]);
 					const auto& offs = compOffs[i];
 					const auto& cids = comps[i];
-					for (uint32_t j = 0; j < cids.size(); ++j) {
+					GAIA_EACH2(cids, j) {
 						dst[j].comp = cids[j];
 						const auto off = offs[j];
 						dst[j].pData = &data(off);
@@ -132,8 +132,7 @@ namespace gaia {
 
 					const auto& map = compMap[i];
 					auto* dst = comp_id_mapping_ptr_mut((ComponentKind)i);
-					for (uint32_t j = 0; j < map.size(); ++j)
-						dst[j] = map[j];
+					GAIA_EACH2(map, j) dst[j] = map[j];
 				}
 #endif
 
@@ -587,13 +586,13 @@ namespace gaia {
 				auto oldRecs = pOldChunk->comp_rec_view(ComponentKind::CK_Gen);
 
 				// Copy generic component data from reference entity to our new entity
-				for (uint32_t compIdx = 0; compIdx < oldRecs.size(); ++compIdx) {
-					const auto& rec = oldRecs[compIdx];
+				GAIA_EACH(oldRecs) {
+					const auto& rec = oldRecs[i];
 					if (rec.comp.size() == 0U)
 						continue;
 
-					auto* pSrc = (void*)pOldChunk->comp_ptr_mut(ComponentKind::CK_Gen, compIdx, oldEntityContainer.idx);
-					auto* pDst = (void*)pNewChunk->comp_ptr_mut(ComponentKind::CK_Gen, compIdx, newEntityContainer.idx);
+					auto* pSrc = (void*)pOldChunk->comp_ptr_mut(ComponentKind::CK_Gen, i, oldEntityContainer.idx);
+					auto* pDst = (void*)pNewChunk->comp_ptr_mut(ComponentKind::CK_Gen, i, newEntityContainer.idx);
 					rec.pDesc->copy(pSrc, pDst);
 				}
 			}
@@ -610,13 +609,13 @@ namespace gaia {
 				auto oldRecs = pOldChunk->comp_rec_view(ComponentKind::CK_Gen);
 
 				// Copy generic component data from reference entity to our new entity
-				for (uint32_t compIdx = 0; compIdx < oldRecs.size(); ++compIdx) {
-					const auto& rec = oldRecs[compIdx];
+				GAIA_EACH(oldRecs) {
+					const auto& rec = oldRecs[i];
 					if (rec.comp.size() == 0U)
 						continue;
 
-					auto* pSrc = (void*)pOldChunk->comp_ptr_mut(ComponentKind::CK_Gen, compIdx, oldEntityContainer.idx);
-					auto* pDst = (void*)comp_ptr_mut(ComponentKind::CK_Gen, compIdx, newEntityIdx);
+					auto* pSrc = (void*)pOldChunk->comp_ptr_mut(ComponentKind::CK_Gen, i, oldEntityContainer.idx);
+					auto* pDst = (void*)comp_ptr_mut(ComponentKind::CK_Gen, i, newEntityIdx);
 					rec.pDesc->ctor_from(pSrc, pDst);
 				}
 			}
@@ -690,13 +689,13 @@ namespace gaia {
 
 					auto recs = comp_rec_view(ComponentKind::CK_Gen);
 
-					for (uint32_t compIdx = 0; compIdx < recs.size(); ++compIdx) {
-						const auto& rec = recs[compIdx];
+					GAIA_EACH(recs) {
+						const auto& rec = recs[i];
 						if (rec.comp.size() == 0U)
 							continue;
 
-						auto* pSrc = (void*)comp_ptr_mut(ComponentKind::CK_Gen, compIdx, left);
-						auto* pDst = (void*)comp_ptr_mut(ComponentKind::CK_Gen, compIdx, right);
+						auto* pSrc = (void*)comp_ptr_mut(ComponentKind::CK_Gen, i, left);
+						auto* pDst = (void*)comp_ptr_mut(ComponentKind::CK_Gen, i, right);
 						rec.pDesc->move(pSrc, pDst);
 						rec.pDesc->dtor(pSrc);
 					}
@@ -709,12 +708,12 @@ namespace gaia {
 				} else {
 					auto recs = comp_rec_view(ComponentKind::CK_Gen);
 
-					for (uint32_t compIdx = 0; compIdx < recs.size(); ++compIdx) {
-						const auto& rec = recs[compIdx];
+					GAIA_EACH(recs) {
+						const auto& rec = recs[i];
 						if (rec.comp.size() == 0U)
 							continue;
 
-						auto* pSrc = (void*)comp_ptr_mut(ComponentKind::CK_Gen, compIdx, left);
+						auto* pSrc = (void*)comp_ptr_mut(ComponentKind::CK_Gen, i, left);
 						rec.pDesc->dtor(pSrc);
 					}
 				}
@@ -783,13 +782,13 @@ namespace gaia {
 				entity_view_mut()[right] = entityLeft;
 
 				auto recs = comp_rec_view(ComponentKind::CK_Gen);
-				for (uint32_t compIdx = 0; compIdx < recs.size(); ++compIdx) {
-					const auto& rec = recs[compIdx];
+				GAIA_EACH(recs) {
+					const auto& rec = recs[i];
 					if (rec.comp.size() == 0U)
 						continue;
 
-					auto* pSrc = (void*)comp_ptr_mut(ComponentKind::CK_Gen, compIdx, left);
-					auto* pDst = (void*)comp_ptr_mut(ComponentKind::CK_Gen, compIdx, right);
+					auto* pSrc = (void*)comp_ptr_mut(ComponentKind::CK_Gen, i, left);
+					auto* pDst = (void*)comp_ptr_mut(ComponentKind::CK_Gen, i, right);
 					rec.pDesc->swap(pSrc, pDst);
 				}
 
@@ -916,12 +915,12 @@ namespace gaia {
 				GAIA_ASSERT(compKind == ComponentKind::CK_Gen || (entIdx == 0 && entCnt == 1));
 
 				auto recs = comp_rec_view(compKind);
-				for (uint32_t compIdx = 0; compIdx < recs.size(); ++compIdx) {
-					const auto* pDesc = recs[compIdx].pDesc;
+				GAIA_EACH(recs) {
+					const auto* pDesc = recs[i].pDesc;
 					if (pDesc->func_ctor == nullptr)
 						continue;
 
-					auto* pSrc = (void*)comp_ptr_mut(compKind, compIdx, entIdx);
+					auto* pSrc = (void*)comp_ptr_mut(compKind, i, entIdx);
 					pDesc->func_ctor(pSrc, entCnt);
 				}
 			}
@@ -937,12 +936,12 @@ namespace gaia {
 				GAIA_ASSERT(compKind == ComponentKind::CK_Gen || (entIdx == 0 && entCnt == 1));
 
 				auto recs = comp_rec_view(compKind);
-				for (uint32_t compIdx = 0; compIdx < recs.size(); ++compIdx) {
-					const auto* pDesc = recs[compIdx].pDesc;
+				GAIA_EACH(recs) {
+					const auto* pDesc = recs[i].pDesc;
 					if (pDesc->func_dtor == nullptr)
 						continue;
 
-					auto* pSrc = (void*)comp_ptr_mut(compKind, compIdx, entIdx);
+					auto* pSrc = (void*)comp_ptr_mut(compKind, i, entIdx);
 					pDesc->func_dtor(pSrc, entCnt);
 				}
 			};

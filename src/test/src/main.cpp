@@ -296,8 +296,8 @@ void resizable_arr_test(uint32_t N) {
 	arr.erase(arr.begin());
 	REQUIRE(arr.size() == (N - 1));
 	REQUIRE(core::find(arr, 0U) == arr.end());
-	for (uint32_t i = 0; i < arr.size(); ++i)
-		REQUIRE(arr[i] == i + 1);
+	GAIA_EACH(arr)
+	REQUIRE(arr[i] == i + 1);
 
 	arr.clear();
 	REQUIRE(arr.empty());
@@ -1439,25 +1439,25 @@ TEST_CASE("ComponentId internal map") {
 		const ecs::ComponentId comp0 = 1000000;
 
 		// Fill the data array
-		for (uint32_t j = 0; j < data.size(); ++j) {
+		GAIA_EACH2(data, j) {
 			ecs::set_comp_idx({data.data(), data.size()}, comp0 + j);
 		}
 
 		// Get indices
 		cnt::set<ecs::ChunkDataOffset> indices;
-		for (uint32_t j = 0; j < data.size(); ++j) {
+		GAIA_EACH2(data, j) {
 			const auto idx = ecs::get_comp_idx({data.data(), data.size()}, comp0 + j);
 			REQUIRE_FALSE(indices.contains(idx));
 		}
 
 		// All component ids must be found
-		for (uint32_t j = 0; j < data.size(); ++j) {
+		GAIA_EACH2(data, j) {
 			const bool has = ecs::has_comp_idx({data.data(), data.size()}, comp0 + j);
 			REQUIRE(has);
 		}
 
 		// Following component ids must be not found because we didn't add them
-		for (uint32_t j = 0; j < data.size(); ++j) {
+		GAIA_EACH2(data, j) {
 			const bool has = ecs::has_comp_idx({data.data(), data.size()}, comp0 - 1 - j);
 			REQUIRE_FALSE(has);
 		}
@@ -1731,14 +1731,13 @@ void Test_Query_QueryResult() {
 		cnt::darr<ecs::Entity> arr;
 		q1.arr(arr);
 		GAIA_ASSERT(arr.size() == N);
-		for (uint32_t i = 0; i < arr.size(); ++i)
-			REQUIRE(arr[i].id() == i);
+		GAIA_EACH(arr) REQUIRE(arr[i].id() == i);
 	}
 	{
 		cnt::darr<Position> arr;
 		q1.arr(arr);
 		GAIA_ASSERT(arr.size() == N);
-		for (uint32_t i = 0; i < arr.size(); ++i) {
+		GAIA_EACH(arr) {
 			const auto& pos = arr[i];
 			REQUIRE(pos.x == (float)i);
 			REQUIRE(pos.y == (float)i);
@@ -1829,7 +1828,7 @@ void Test_Query_QueryResult_Complex() {
 		REQUIRE(ents.size() == arr.size());
 		REQUIRE(arr.size() == N);
 
-		for (uint32_t i = 0; i < arr.size(); ++i) {
+		GAIA_EACH(arr) {
 			const auto& pos = arr[i];
 			const auto val = ents[i].id();
 			REQUIRE(pos.x == (float)val);
@@ -1887,7 +1886,7 @@ void Test_Query_QueryResult_Complex() {
 		REQUIRE(ents.size() == arr.size());
 		REQUIRE(ents.size() == N);
 
-		for (uint32_t i = 0; i < arr.size(); ++i) {
+		GAIA_EACH(arr) {
 			const auto& pos = arr[i];
 			const auto val = ents[i].id();
 			REQUIRE(pos.x == (float)val);
@@ -1903,7 +1902,7 @@ void Test_Query_QueryResult_Complex() {
 		REQUIRE(ents.size() == arr.size());
 		REQUIRE(ents.size() == N);
 
-		for (uint32_t i = 0; i < arr.size(); ++i) {
+		GAIA_EACH(arr) {
 			const auto& s = arr[i];
 			const auto val = ents[i].id() * 2;
 			REQUIRE(s.x == (float)val);
@@ -1933,7 +1932,7 @@ void Test_Query_QueryResult_Complex() {
 		REQUIRE(ents.size() == arr.size());
 		REQUIRE(ents.size() == N / 2);
 
-		for (uint32_t i = 0; i < arr.size(); ++i) {
+		GAIA_EACH(arr) {
 			const auto& pos = arr[i];
 			const auto val = ents[i].id();
 			REQUIRE(pos.x == (float)val);
@@ -1949,7 +1948,7 @@ void Test_Query_QueryResult_Complex() {
 		REQUIRE(ents.size() == arr.size());
 		REQUIRE(ents.size() == N / 2);
 
-		for (uint32_t i = 0; i < arr.size(); ++i) {
+		GAIA_EACH(arr) {
 			const auto& s = arr[i];
 			const auto val = ents[i].id() * 2;
 			REQUIRE(s.x == (float)val);
@@ -3489,23 +3488,47 @@ void TestDataLayoutSoA_ECS() {
 		create();
 
 	ecs::Query q = w.query().all<T>();
-	uint32_t j = 0;
-	q.each([&](ecs::Iterator iter) {
-		auto t = iter.view_mut<T>();
-		auto tx = t.template set<0>();
-		auto ty = t.template set<1>();
-		auto tz = t.template set<2>();
-		for (uint32_t i = 0; i < iter.size(); ++i, ++j) {
-			auto f = (float)j;
-			tx[i] = f;
-			ty[i] = f;
-			tz[i] = f;
 
-			REQUIRE(tx[i] == f);
-			REQUIRE(ty[i] == f);
-			REQUIRE(tz[i] == f);
+	SECTION("each - iterator") {
+		{
+			const auto cnt = q.count();
+			REQUIRE(cnt == N);
+
+			uint32_t j = 0;
+			q.each([&](ecs::Iterator iter) {
+				auto t = iter.view_mut<T>();
+				auto tx = t.template set<0>();
+				auto ty = t.template set<1>();
+				auto tz = t.template set<2>();
+				GAIA_EACH(iter) {
+					auto f = (float)j;
+					tx[i] = f;
+					ty[i] = f;
+					tz[i] = f;
+
+					REQUIRE(tx[i] == f);
+					REQUIRE(ty[i] == f);
+					REQUIRE(tz[i] == f);
+
+					++j;
+				}
+			});
+			REQUIRE(j == cnt);
 		}
-	});
+
+		// Make sure disabling works
+		{
+			auto e = w.get(0);
+			w.enable(e, false);
+			const auto cnt = q.count();
+			REQUIRE(cnt == N - 1);
+			uint32_t cntCalculated = 0;
+			q.each([&]([[maybe_unused]] ecs::Iterator iter) {
+				cntCalculated += iter.size();
+			});
+			REQUIRE(cnt == cntCalculated);
+		}
+	}
 }
 
 TEST_CASE("DataLayout SoA - ECS") {
@@ -3772,8 +3795,7 @@ struct SerializeCustomStructInternalDArray {
 TEST_CASE("Serialization - arrays") {
 	{
 		SerializeStructSArray in{}, out{};
-		for (uint32_t i = 0; i < in.arr.size(); ++i)
-			in.arr[i] = i;
+		GAIA_EACH(in.arr) in.arr[i] = i;
 		in.f = 3.12345f;
 
 		ecs::SerializationBuffer s;
@@ -3788,8 +3810,7 @@ TEST_CASE("Serialization - arrays") {
 
 	{
 		SerializeStructSArrayNonTrivial in{}, out{};
-		for (uint32_t i = 0; i < in.arr.size(); ++i)
-			in.arr[i] = FooNonTrivial(i);
+		GAIA_EACH(in.arr) in.arr[i] = FooNonTrivial(i);
 		in.f = 3.12345f;
 
 		ecs::SerializationBuffer s;
@@ -3805,8 +3826,7 @@ TEST_CASE("Serialization - arrays") {
 	{
 		SerializeStructDArray in{}, out{};
 		in.arr.resize(10);
-		for (uint32_t i = 0; i < in.arr.size(); ++i)
-			in.arr[i] = i;
+		GAIA_EACH(in.arr) in.arr[i] = i;
 		in.f = 3.12345f;
 
 		ecs::SerializationBuffer s;
@@ -3855,8 +3875,7 @@ TEST_CASE("Serialization - arrays") {
 
 static uint32_t JobSystemFunc(std::span<const uint32_t> arr) {
 	uint32_t sum = 0;
-	for (uint32_t i = 0; i < arr.size(); ++i)
-		sum += arr[i];
+	GAIA_EACH(arr) sum += arr[i];
 	return sum;
 }
 
@@ -3893,8 +3912,7 @@ TEST_CASE("Multithreading - Schedule") {
 
 	cnt::darray<uint32_t> arr;
 	arr.resize(N);
-	for (uint32_t i = 0; i < arr.size(); ++i)
-		arr[i] = 1;
+	GAIA_EACH(arr) arr[i] = 1;
 
 	Run_Schedule_Simple(arr.data(), res.data(), JobCount, ItemsPerJob, JobSystemFunc);
 }
@@ -3908,8 +3926,7 @@ TEST_CASE("Multithreading - ScheduleParallel") {
 
 	cnt::darray<uint32_t> arr;
 	arr.resize(N);
-	for (uint32_t i = 0; i < arr.size(); ++i)
-		arr[i] = 1;
+	GAIA_EACH(arr) arr[i] = 1;
 
 	std::atomic_uint32_t sum1 = 0;
 	mt::JobParallel j1;
@@ -3936,8 +3953,7 @@ TEST_CASE("Multithreading - complete") {
 	handles.resize(Jobs);
 	res.resize(Jobs);
 
-	for (uint32_t i = 0; i < res.size(); ++i)
-		res[i] = (uint32_t)-1;
+	GAIA_EACH(res) res[i] = (uint32_t)-1;
 
 	for (uint32_t i = 0; i < Jobs; ++i) {
 		mt::Job job;

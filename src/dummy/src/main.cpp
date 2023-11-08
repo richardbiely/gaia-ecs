@@ -74,7 +74,7 @@ public:
 			auto p = iter.view_mut<Position>();
 			auto v = iter.view<Velocity>();
 			const float dt = 0.01f;
-			for (uint32_t i = 0; i < iter.size(); ++i) {
+			GAIA_EACH(iter) {
 				p[i].x += v[i].x * dt;
 				p[i].y += v[i].y * dt;
 				p[i].z += v[i].z * dt;
