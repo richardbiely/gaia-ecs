@@ -45,7 +45,7 @@ namespace gaia {
 			for (uint32_t k = 0; k < ComponentKind::CK_Count; ++k) {
 				const auto& c0 = comps[k];
 				const auto& c1 = compsOther[k];
-				for (uint32_t i = 0; i < c0.size(); ++i) {
+				GAIA_EACH(c0) {
 					if (c0[i] != c1[i])
 						return false;
 				}
@@ -238,8 +238,7 @@ namespace gaia {
 				auto& ofs = arch.m_compOffs[compKind];
 
 				// Set component ids
-				for (uint32_t i = 0; i < comps.size(); ++i)
-					ids[i] = comps[i];
+				GAIA_EACH(comps) ids[i] = comps[i];
 
 #if GAIA_COMP_ID_PROBING
 				// Generate component id map. Initialize it with ComponentBad values.
@@ -250,7 +249,7 @@ namespace gaia {
 #endif
 
 				// Calulate offsets and assign them indices according to our mappings
-				for (uint32_t i = 0; i < comps.size(); ++i) {
+				GAIA_EACH(comps) {
 					const auto comp = comps[i];
 #if GAIA_COMP_ID_PROBING
 					const auto compIdx = ecs::get_comp_idx({map.data(), map.size()}, comp.id());
@@ -745,7 +744,7 @@ namespace gaia {
 
 			static void diag_chunk_info(const Archetype& archetype) {
 				auto logChunks = [](const auto& chunks) {
-					for (uint32_t i = 0; i < chunks.size(); ++i) {
+					GAIA_EACH(chunks) {
 						const auto* pChunk = chunks[i];
 						pChunk->diag((uint32_t)i);
 					}

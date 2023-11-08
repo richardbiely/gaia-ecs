@@ -89,19 +89,19 @@ namespace gaia {
 					}
 
 					// Components need to be the same
-					for (uint32_t j = 0; j < left.comps.size(); ++j) {
+					GAIA_EACH2(left.comps, j) {
 						if (left.comps[j] != right.comps[j])
 							return false;
 					}
 
 					// Rules need to be the same
-					for (uint32_t j = 0; j < left.rules.size(); ++j) {
+					GAIA_EACH2(left.rules, j) {
 						if (left.rules[j] != right.rules[j])
 							return false;
 					}
 
 					// Filters need to be the same
-					for (uint32_t j = 0; j < left.withChanged.size(); ++j) {
+					GAIA_EACH2(left.withChanged, j) {
 						if (left.withChanged[j] != right.withChanged[j])
 							return false;
 					}
@@ -145,8 +145,7 @@ namespace gaia {
 
 			// Calculate the matcher hash
 			for (auto& data: ctx.data) {
-				for (uint32_t i = 0; i < data.rules.size(); ++i)
-					matcher_hash(data.hash[data.rules[i]], data.comps[i]);
+				GAIA_EACH(data.rules) matcher_hash(data.hash[data.rules[i]], data.comps[i]);
 			}
 		}
 

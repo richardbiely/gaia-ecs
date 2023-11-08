@@ -211,7 +211,7 @@ namespace gaia {
 				// Match against generic types
 				{
 					auto& data = m_lookupCtx.data[ComponentKind::CK_Gen];
-					for (uint32_t i = 0; i < data.comps.size(); ++i) {
+					GAIA_EACH(data.comps) {
 						const auto comp = data.comps[i];
 
 						// Check if any archetype is associated with the component id
@@ -238,7 +238,7 @@ namespace gaia {
 				// Match against unique types
 				{
 					auto& data = m_lookupCtx.data[ComponentKind::CK_Uni];
-					for (uint32_t i = 0; i < data.comps.size(); ++i) {
+					GAIA_EACH(data.comps) {
 						const auto comp = data.comps[i];
 
 						const auto it = componentToArchetypeMap.find(comp.id());

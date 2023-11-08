@@ -13104,10 +13104,10 @@ namespace gaia {
 				{
 					std::scoped_lock<std::mutex> lockDeps(m_depsLock);
 
-					for (uint32_t i = 0; i < dependsOnSpan.size(); ++i) {
+					for (auto jobHandle: dependsOnSpan) {
 						auto depHandle = alloc_dep();
 						auto& dep = m_deps[depHandle.id()];
-						dep.dependsOn = dependsOnSpan[i];
+						dep.dependsOn = jobHandle;
 
 						if (job.dependencyIdx == (uint32_t)-1)
 							// First time adding a dependency to this job. Point it to the first allocated handle
@@ -15363,7 +15363,7 @@ namespace gaia {
 					auto* dst = m_records.pRecords[i] = (ComponentRecord*)&data(headerOffsets.firstByte_Records[i]);
 					const auto& offs = compOffs[i];
 					const auto& cids = comps[i];
-					for (uint32_t j = 0; j < cids.size(); ++j) {
+					GAIA_EACH2(cids, j) {
 						dst[j].comp = cids[j];
 						const auto off = offs[j];
 						dst[j].pData = &data(off);
@@ -15379,8 +15379,7 @@ namespace gaia {
 
 					const auto& map = compMap[i];
 					auto* dst = comp_id_mapping_ptr_mut((ComponentKind)i);
-					for (uint32_t j = 0; j < map.size(); ++j)
-						dst[j] = map[j];
+					GAIA_EACH2(map, j) dst[j] = map[j];
 				}
 #endif
 
@@ -15834,13 +15833,13 @@ namespace gaia {
 				auto oldRecs = pOldChunk->comp_rec_view(ComponentKind::CK_Gen);
 
 				// Copy generic component data from reference entity to our new entity
-				for (uint32_t compIdx = 0; compIdx < oldRecs.size(); ++compIdx) {
-					const auto& rec = oldRecs[compIdx];
+				GAIA_EACH(oldRecs) {
+					const auto& rec = oldRecs[i];
 					if (rec.comp.size() == 0U)
 						continue;
 
-					auto* pSrc = (void*)pOldChunk->comp_ptr_mut(ComponentKind::CK_Gen, compIdx, oldEntityContainer.idx);
-					auto* pDst = (void*)pNewChunk->comp_ptr_mut(ComponentKind::CK_Gen, compIdx, newEntityContainer.idx);
+					auto* pSrc = (void*)pOldChunk->comp_ptr_mut(ComponentKind::CK_Gen, i, oldEntityContainer.idx);
+					auto* pDst = (void*)pNewChunk->comp_ptr_mut(ComponentKind::CK_Gen, i, newEntityContainer.idx);
 					rec.pDesc->copy(pSrc, pDst);
 				}
 			}
@@ -15857,13 +15856,13 @@ namespace gaia {
 				auto oldRecs = pOldChunk->comp_rec_view(ComponentKind::CK_Gen);
 
 				// Copy generic component data from reference entity to our new entity
-				for (uint32_t compIdx = 0; compIdx < oldRecs.size(); ++compIdx) {
-					const auto& rec = oldRecs[compIdx];
+				GAIA_EACH(oldRecs) {
+					const auto& rec = oldRecs[i];
 					if (rec.comp.size() == 0U)
 						continue;
 
-					auto* pSrc = (void*)pOldChunk->comp_ptr_mut(ComponentKind::CK_Gen, compIdx, oldEntityContainer.idx);
-					auto* pDst = (void*)comp_ptr_mut(ComponentKind::CK_Gen, compIdx, newEntityIdx);
+					auto* pSrc = (void*)pOldChunk->comp_ptr_mut(ComponentKind::CK_Gen, i, oldEntityContainer.idx);
+					auto* pDst = (void*)comp_ptr_mut(ComponentKind::CK_Gen, i, newEntityIdx);
 					rec.pDesc->ctor_from(pSrc, pDst);
 				}
 			}
@@ -15937,13 +15936,13 @@ namespace gaia {
 
 					auto recs = comp_rec_view(ComponentKind::CK_Gen);
 
-					for (uint32_t compIdx = 0; compIdx < recs.size(); ++compIdx) {
-						const auto& rec = recs[compIdx];
+					GAIA_EACH(recs) {
+						const auto& rec = recs[i];
 						if (rec.comp.size() == 0U)
 							continue;
 
-						auto* pSrc = (void*)comp_ptr_mut(ComponentKind::CK_Gen, compIdx, left);
-						auto* pDst = (void*)comp_ptr_mut(ComponentKind::CK_Gen, compIdx, right);
+						auto* pSrc = (void*)comp_ptr_mut(ComponentKind::CK_Gen, i, left);
+						auto* pDst = (void*)comp_ptr_mut(ComponentKind::CK_Gen, i, right);
 						rec.pDesc->move(pSrc, pDst);
 						rec.pDesc->dtor(pSrc);
 					}
@@ -15956,12 +15955,12 @@ namespace gaia {
 				} else {
 					auto recs = comp_rec_view(ComponentKind::CK_Gen);
 
-					for (uint32_t compIdx = 0; compIdx < recs.size(); ++compIdx) {
-						const auto& rec = recs[compIdx];
+					GAIA_EACH(recs) {
+						const auto& rec = recs[i];
 						if (rec.comp.size() == 0U)
 							continue;
 
-						auto* pSrc = (void*)comp_ptr_mut(ComponentKind::CK_Gen, compIdx, left);
+						auto* pSrc = (void*)comp_ptr_mut(ComponentKind::CK_Gen, i, left);
 						rec.pDesc->dtor(pSrc);
 					}
 				}
@@ -16030,13 +16029,13 @@ namespace gaia {
 				entity_view_mut()[right] = entityLeft;
 
 				auto recs = comp_rec_view(ComponentKind::CK_Gen);
-				for (uint32_t compIdx = 0; compIdx < recs.size(); ++compIdx) {
-					const auto& rec = recs[compIdx];
+				GAIA_EACH(recs) {
+					const auto& rec = recs[i];
 					if (rec.comp.size() == 0U)
 						continue;
 
-					auto* pSrc = (void*)comp_ptr_mut(ComponentKind::CK_Gen, compIdx, left);
-					auto* pDst = (void*)comp_ptr_mut(ComponentKind::CK_Gen, compIdx, right);
+					auto* pSrc = (void*)comp_ptr_mut(ComponentKind::CK_Gen, i, left);
+					auto* pDst = (void*)comp_ptr_mut(ComponentKind::CK_Gen, i, right);
 					rec.pDesc->swap(pSrc, pDst);
 				}
 
@@ -16163,12 +16162,12 @@ namespace gaia {
 				GAIA_ASSERT(compKind == ComponentKind::CK_Gen || (entIdx == 0 && entCnt == 1));
 
 				auto recs = comp_rec_view(compKind);
-				for (uint32_t compIdx = 0; compIdx < recs.size(); ++compIdx) {
-					const auto* pDesc = recs[compIdx].pDesc;
+				GAIA_EACH(recs) {
+					const auto* pDesc = recs[i].pDesc;
 					if (pDesc->func_ctor == nullptr)
 						continue;
 
-					auto* pSrc = (void*)comp_ptr_mut(compKind, compIdx, entIdx);
+					auto* pSrc = (void*)comp_ptr_mut(compKind, i, entIdx);
 					pDesc->func_ctor(pSrc, entCnt);
 				}
 			}
@@ -16184,12 +16183,12 @@ namespace gaia {
 				GAIA_ASSERT(compKind == ComponentKind::CK_Gen || (entIdx == 0 && entCnt == 1));
 
 				auto recs = comp_rec_view(compKind);
-				for (uint32_t compIdx = 0; compIdx < recs.size(); ++compIdx) {
-					const auto* pDesc = recs[compIdx].pDesc;
+				GAIA_EACH(recs) {
+					const auto* pDesc = recs[i].pDesc;
 					if (pDesc->func_dtor == nullptr)
 						continue;
 
-					auto* pSrc = (void*)comp_ptr_mut(compKind, compIdx, entIdx);
+					auto* pSrc = (void*)comp_ptr_mut(compKind, i, entIdx);
 					pDesc->func_dtor(pSrc, entCnt);
 				}
 			};
@@ -16756,8 +16755,7 @@ namespace gaia {
 				auto& ofs = arch.m_compOffs[compKind];
 
 				// Set component ids
-				GAIA_EACH(comps)
-				ids[i] = comps[i];
+				GAIA_EACH(comps) ids[i] = comps[i];
 
 #if GAIA_COMP_ID_PROBING
 				// Generate component id map. Initialize it with ComponentBad values.
@@ -17263,7 +17261,7 @@ namespace gaia {
 
 			static void diag_chunk_info(const Archetype& archetype) {
 				auto logChunks = [](const auto& chunks) {
-					for (uint32_t i = 0; i < chunks.size(); ++i) {
+					GAIA_EACH(chunks) {
 						const auto* pChunk = chunks[i];
 						pChunk->diag((uint32_t)i);
 					}
@@ -17758,19 +17756,19 @@ namespace gaia {
 					}
 
 					// Components need to be the same
-					for (uint32_t j = 0; j < left.comps.size(); ++j) {
+					GAIA_EACH2(left.comps, j) {
 						if (left.comps[j] != right.comps[j])
 							return false;
 					}
 
 					// Rules need to be the same
-					for (uint32_t j = 0; j < left.rules.size(); ++j) {
+					GAIA_EACH2(left.rules, j) {
 						if (left.rules[j] != right.rules[j])
 							return false;
 					}
 
 					// Filters need to be the same
-					for (uint32_t j = 0; j < left.withChanged.size(); ++j) {
+					GAIA_EACH2(left.withChanged, j) {
 						if (left.withChanged[j] != right.withChanged[j])
 							return false;
 					}
@@ -17814,8 +17812,7 @@ namespace gaia {
 
 			// Calculate the matcher hash
 			for (auto& data: ctx.data) {
-				for (uint32_t i = 0; i < data.rules.size(); ++i)
-					matcher_hash(data.hash[data.rules[i]], data.comps[i]);
+				GAIA_EACH(data.rules) matcher_hash(data.hash[data.rules[i]], data.comps[i]);
 			}
 		}
 
@@ -18070,7 +18067,7 @@ namespace gaia {
 				// Match against generic types
 				{
 					auto& data = m_lookupCtx.data[ComponentKind::CK_Gen];
-					for (uint32_t i = 0; i < data.comps.size(); ++i) {
+					GAIA_EACH(data.comps) {
 						const auto comp = data.comps[i];
 
 						// Check if any archetype is associated with the component id
@@ -18097,7 +18094,7 @@ namespace gaia {
 				// Match against unique types
 				{
 					auto& data = m_lookupCtx.data[ComponentKind::CK_Uni];
-					for (uint32_t i = 0; i < data.comps.size(); ++i) {
+					GAIA_EACH(data.comps) {
 						const auto comp = data.comps[i];
 
 						const auto it = componentToArchetypeMap.find(comp.id());
@@ -19100,8 +19097,7 @@ namespace gaia {
 				for (uint32_t i = 0; i < ComponentKind::CK_Count; ++i) {
 					auto& dst = comps[i];
 					auto recs = pChunk->comp_rec_view((ComponentKind)i);
-					for (uint32_t j = 0; j < recs.size(); ++j)
-						dst[j] = recs[j].comp;
+					GAIA_EACH2(recs, j) dst[j] = recs[j].comp;
 				}
 
 				const Archetype::GenComponentHash hashGen = {calc_lookup_hash({comps[0].data(), comps[0].size()}).hash};
@@ -19290,7 +19286,7 @@ namespace gaia {
 					GAIA_LOG_W(
 							"Trying to add a component to entity [%u.%u] but there's no space left!", entity.id(), entity.gen());
 					GAIA_LOG_W("Already present:");
-					for (uint32_t i = 0; i < comps.size(); ++i) {
+					GAIA_EACH(comps) {
 						const auto& desc = cc.comp_desc(comps[i].id());
 						GAIA_LOG_W("> [%u] %.*s", (uint32_t)i, (uint32_t)desc.name.size(), desc.name.data());
 					}
@@ -19326,9 +19322,9 @@ namespace gaia {
 
 					const auto& cc = ComponentCache::get();
 
-					for (uint32_t k = 0; k < comps.size(); k++) {
-						const auto& desc = cc.comp_desc(comps[k].id());
-						GAIA_LOG_W("> [%u] %.*s", (uint32_t)k, (uint32_t)desc.name.size(), desc.name.data());
+					GAIA_EACH(comps) {
+						const auto& desc = cc.comp_desc(comps[i].id());
+						GAIA_LOG_W("> [%u] %.*s", i, (uint32_t)desc.name.size(), desc.name.data());
 					}
 
 					{

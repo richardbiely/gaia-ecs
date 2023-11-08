@@ -6,24 +6,20 @@ using namespace gaia;
 
 static uint32_t BenchFunc_Simple(std::span<const uint32_t> arr) {
 	uint32_t sum = 0;
-	for (uint32_t i = 0; i < arr.size(); ++i)
-		sum += arr[i];
+	GAIA_EACH(arr) sum += arr[i];
 	return sum;
 }
 
 static uint32_t BenchFunc_Complex(std::span<const uint32_t> arr) {
 	uint32_t sum = 0;
-	for (uint32_t i = 0; i < arr.size(); ++i)
-		sum += arr[i];
-	for (uint32_t i = 0; i < arr.size(); ++i)
-		sum *= arr[i];
-	for (uint32_t i = 0; i < arr.size(); ++i) {
+	GAIA_EACH(arr) sum += arr[i];
+	GAIA_EACH(arr) sum *= arr[i];
+	GAIA_EACH(arr) {
 		if (arr[i] != 0)
 			sum %= arr[i];
 	}
-	for (uint32_t i = 0; i < arr.size(); ++i)
-		sum *= arr[i];
-	for (uint32_t i = 0; i < arr.size(); ++i) {
+	GAIA_EACH(arr) sum *= arr[i];
+	GAIA_EACH(arr) {
 		if (arr[i] != 0)
 			sum /= arr[i];
 	}
@@ -80,8 +76,7 @@ void BM_Schedule_Simple(picobench::state& state) {
 
 	cnt::darray<uint32_t> arr;
 	arr.resize(N);
-	for (uint32_t i = 0; i < arr.size(); ++i)
-		arr[i] = i;
+	GAIA_EACH(arr) arr[i] = i;
 
 	for (auto _: state) {
 		(void)_;
@@ -97,8 +92,7 @@ void BM_Schedule_Complex(picobench::state& state) {
 
 	cnt::darray<uint32_t> arr;
 	arr.resize(N);
-	for (uint32_t i = 0; i < arr.size(); ++i)
-		arr[i] = i;
+	GAIA_EACH(arr) arr[i] = i;
 
 	for (auto _: state) {
 		(void)_;
@@ -129,8 +123,7 @@ void BM_ScheduleParallel_Simple(picobench::state& state) {
 
 	cnt::darray<uint32_t> arr;
 	arr.resize(N);
-	for (uint32_t i = 0; i < arr.size(); ++i)
-		arr[i] = i;
+	GAIA_EACH(arr) arr[i] = i;
 
 	for (auto _: state) {
 		(void)_;
@@ -144,8 +137,7 @@ void BM_ScheduleParallel_Complex(picobench::state& state) {
 
 	cnt::darray<uint32_t> arr;
 	arr.resize(N);
-	for (uint32_t i = 0; i < arr.size(); ++i)
-		arr[i] = i;
+	GAIA_EACH(arr) arr[i] = i;
 
 	for (auto _: state) {
 		(void)_;
