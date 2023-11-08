@@ -20,6 +20,9 @@ namespace gaia {
 				// Reserve enough storage space for most use-cases
 				constexpr uint32_t DefaultComponentCacheSize = 2048;
 				m_descByIndex.reserve(DefaultComponentCacheSize);
+
+				// Make sure unused memory is initialized to nullptr
+				GAIA_EACH(m_descByIndex) m_descByIndex[i] = nullptr;
 			}
 
 		public:
@@ -56,14 +59,17 @@ namespace gaia {
 
 					// Increase the capacity by multiples of CapacityIncreaseSize
 					constexpr uint32_t CapacityIncreaseSize = 128;
+					const auto oldCapacity = m_descByIndex.capacity();
 					const auto newCapacity = (newSize / CapacityIncreaseSize) * CapacityIncreaseSize + CapacityIncreaseSize;
-					m_descByIndex.reserve(newCapacity);
+					if (oldCapacity < newCapacity) {
+						m_descByIndex.reserve(newCapacity);
+						// Make sure unused memory is initialized to nullptr
+						GAIA_FOR2(oldSize, newCapacity) m_descByIndex[i] = nullptr;
+					}
 
 					// Update the size
 					m_descByIndex.resize(newSize);
 
-					// Make sure that unused memory is initialized to nullptr
-					GAIA_FOR2(oldSize, newSize) m_descByIndex[i] = nullptr;
 					return createDesc();
 				}
 
