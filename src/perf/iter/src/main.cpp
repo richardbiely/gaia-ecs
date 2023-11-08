@@ -17,7 +17,10 @@ struct Component<Version, T, 0> {}; // empty component
 namespace detail {
 	template <typename T, uint32_t ValuesCount, uint32_t ComponentCount>
 	constexpr void Adds(ecs::World& w, ecs::Entity e) {
-#if 0
+#if GAIA_DEBUG_BUILD
+		// Do not to anything in debug builds. It just slows down compilation.
+		// This benchmark makes heavy use of templates because it generates
+		// thousand of types and does not play well with fast iteration times.
 		(void)w;
 		(void)e;
 #else
