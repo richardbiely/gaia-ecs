@@ -35,27 +35,24 @@ PATH_RELEASE="./${PATH_BASE}/release"
 
 # Debug mode
 cmake -E make_directory ${PATH_DEBUG}
-cmake ${COMPILER_SETTINGS} -DCMAKE_BUILD_TYPE=Debug ${BUILD_SETTINGS_COMMON} -S .. -B ${PATH_DEBUG}
-cmake --build ${PATH_DEBUG} --config Debug
-if [ $? -ne 0 ]; then
+cmake "${COMPILER_SETTINGS}" -DCMAKE_BUILD_TYPE=Debug "${BUILD_SETTINGS_COMMON}" -S .. -B ${PATH_DEBUG}
+if ! cmake --build ${PATH_DEBUG} --config Debug; then
     echo "${PATH_DEBUG} build failed"
     exit 1
 fi
 
 # Debug mode + profiler
 cmake -E make_directory ${PATH_DEBUG_PROF}
-cmake ${COMPILER_SETTINGS} -DCMAKE_BUILD_TYPE=Debug ${BUILD_SETTINGS_COMMON_PROF} -S .. -B ${PATH_DEBUG_PROF}
-cmake --build ${PATH_DEBUG_PROF} --config Debug
-if [ $? -ne 0 ]; then
+cmake "${COMPILER_SETTINGS}" -DCMAKE_BUILD_TYPE=Debug "${BUILD_SETTINGS_COMMON_PROF}" -S .. -B ${PATH_DEBUG_PROF}
+if ! cmake --build ${PATH_DEBUG_PROF} --config Debug; then
     echo "${PATH_DEBUG_PROF} build failed"
     exit 1
 fi
 
 # Release mode
 cmake -E make_directory ${PATH_RELEASE}
-cmake ${COMPILER_SETTINGS} -DCMAKE_BUILD_TYPE=Release ${BUILD_SETTINGS_COMMON} -S .. -B ${PATH_RELEASE}
-cmake --build ${PATH_RELEASE} --config Release
-if [ $? -ne 0 ]; then
+cmake "${COMPILER_SETTINGS}" -DCMAKE_BUILD_TYPE=Release "${BUILD_SETTINGS_COMMON}" -S .. -B ${PATH_RELEASE}
+if ! cmake --build ${PATH_RELEASE} --config Release; then
     echo "${PATH_RELEASE} build failed"
     exit 1
 fi
