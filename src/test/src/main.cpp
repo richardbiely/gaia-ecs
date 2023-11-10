@@ -3573,11 +3573,10 @@ TEST_CASE("DataLayout SoA8 - ECS") {
 	TestDataLayoutSoA_ECS<RotationSoA8>();
 }
 
-// TODO: Fix me
-// TEST_CASE("DataLayout SoA16 - ECS") {
-// 	TestDataLayoutSoA_ECS<PositionSoA16>();
-// 	TestDataLayoutSoA_ECS<RotationSoA16>();
-// }
+TEST_CASE("DataLayout SoA16 - ECS") {
+	TestDataLayoutSoA_ECS<PositionSoA16>();
+	TestDataLayoutSoA_ECS<RotationSoA16>();
+}
 
 //------------------------------------------------------------------------------
 // Serialization
