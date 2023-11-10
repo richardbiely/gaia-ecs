@@ -15091,7 +15091,7 @@ namespace gaia {
 
 namespace gaia {
 	namespace ecs {
-		class ComponentDesc;
+		struct ComponentDesc;
 
 		struct ChunkDataOffsets {
 			//! Byte at which the first version number is located
@@ -17595,7 +17595,6 @@ namespace gaia {
 } // namespace gaia
 
 #include <cinttypes>
-#include <mach/exception_types.h>
 #include <type_traits>
 
 #include <cstdint>
