@@ -370,9 +370,9 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 	CreateECSEntities_Static<true>(w);
 	CreateECSEntities_Dynamic<true>(w);
 
-	auto queryPosCVel = w.query().all<Position&, Velocity>();
-	auto queryPosVel = w.query().all<Position&, Velocity&>();
-	auto queryVel = w.query().all<Velocity&>();
+	auto queryPosCVel = w.query().all<PositionSoA&, VelocitySoA>();
+	auto queryPosVel = w.query().all<PositionSoA&, VelocitySoA&>();
+	auto queryVel = w.query().all<VelocitySoA&>();
 	auto queryCHealth = w.query().all<Health>();
 
 	/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */
