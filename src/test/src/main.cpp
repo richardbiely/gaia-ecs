@@ -2404,8 +2404,8 @@ TEST_CASE("Usage 1 - simple query, 0 component") {
 
 	auto e = w.add();
 
-	auto qa = w.query().all<const Acceleration>();
-	auto qp = w.query().all<const Position>();
+	auto qa = w.query().all<Acceleration>();
+	auto qp = w.query().all<Position>();
 
 	{
 		uint32_t cnt = 0;
@@ -2463,8 +2463,8 @@ TEST_CASE("Usage 1 - simple query, 1 component") {
 	auto e = w.add();
 	w.add<Position>(e);
 
-	auto qa = w.query().all<const Acceleration>();
-	auto qp = w.query().all<const Position>();
+	auto qa = w.query().all<Acceleration>();
+	auto qp = w.query().all<Position>();
 
 	{
 		uint32_t cnt = 0;
@@ -2522,8 +2522,8 @@ TEST_CASE("Usage 1 - simple query, 1 unique component") {
 	auto e = w.add();
 	w.add<ecs::uni<Position>>(e);
 
-	auto q = w.query().all<ecs::uni<const Position>>();
-	auto qq = w.query().all<const Position>();
+	auto q = w.query().all<ecs::uni<Position>>();
+	auto qq = w.query().all<Position>();
 
 	{
 		uint32_t cnt = 0;
@@ -2600,7 +2600,7 @@ TEST_CASE("Usage 2 - simple query, many components") {
 
 	{
 		uint32_t cnt = 0;
-		auto q = w.query().all<const Position>();
+		auto q = w.query().all<Position>();
 		q.each([&]([[maybe_unused]] const Position&) {
 			++cnt;
 		});
@@ -2608,7 +2608,7 @@ TEST_CASE("Usage 2 - simple query, many components") {
 	}
 	{
 		uint32_t cnt = 0;
-		auto q = w.query().all<const Acceleration>();
+		auto q = w.query().all<Acceleration>();
 		q.each([&]([[maybe_unused]] const Acceleration&) {
 			++cnt;
 		});
@@ -2616,7 +2616,7 @@ TEST_CASE("Usage 2 - simple query, many components") {
 	}
 	{
 		uint32_t cnt = 0;
-		auto q = w.query().all<const Rotation>();
+		auto q = w.query().all<Rotation>();
 		q.each([&]([[maybe_unused]] const Rotation&) {
 			++cnt;
 		});
@@ -2624,7 +2624,7 @@ TEST_CASE("Usage 2 - simple query, many components") {
 	}
 	{
 		uint32_t cnt = 0;
-		auto q = w.query().all<const Scale>();
+		auto q = w.query().all<Scale>();
 		q.each([&]([[maybe_unused]] const Scale&) {
 			++cnt;
 		});
@@ -2632,7 +2632,7 @@ TEST_CASE("Usage 2 - simple query, many components") {
 	}
 	{
 		uint32_t cnt = 0;
-		auto q = w.query().all<const Position, const Acceleration>();
+		auto q = w.query().all<Position, Acceleration>();
 		q.each([&]([[maybe_unused]] const Position&, [[maybe_unused]] const Acceleration&) {
 			++cnt;
 		});
@@ -2640,7 +2640,7 @@ TEST_CASE("Usage 2 - simple query, many components") {
 	}
 	{
 		uint32_t cnt = 0;
-		auto q = w.query().all<const Position, const Scale>();
+		auto q = w.query().all<Position, Scale>();
 		q.each([&]([[maybe_unused]] const Position&, [[maybe_unused]] const Scale&) {
 			++cnt;
 		});
@@ -2823,7 +2823,7 @@ TEST_CASE("Set - generic") {
 
 	// Modify values
 	{
-		ecs::Query q = w.query().all<Rotation, Scale, Else>();
+		ecs::Query q = w.query().all<Rotation&, Scale&, Else&>();
 
 		q.each([&](ecs::Iterator iter) {
 			auto rotationView = iter.view_mut<Rotation>();
@@ -2914,7 +2914,7 @@ TEST_CASE("Set - generic & chunk") {
 
 	// Modify values
 	{
-		ecs::Query q = w.query().all<Rotation, Scale, Else>();
+		ecs::Query q = w.query().all<Rotation&, Scale&, Else&>();
 
 		q.each([&](ecs::Iterator iter) {
 			auto rotationView = iter.view_mut<Rotation>();
@@ -2998,7 +2998,7 @@ TEST_CASE("Components - non trivial") {
 
 	// Modify values
 	{
-		ecs::Query q = w.query().all<StringComponent, StringComponent2, PositionNonTrivial>();
+		ecs::Query q = w.query().all<StringComponent&, StringComponent2&, PositionNonTrivial&>();
 
 		q.each([&](ecs::Iterator iter) {
 			auto strView = iter.view_mut<StringComponent>();
@@ -3336,7 +3336,7 @@ TEST_CASE("CommandBuffer") {
 
 TEST_CASE("Query Filter - no systems") {
 	ecs::World w;
-	ecs::Query q = w.query().all<const Position>().changed<Position>();
+	ecs::Query q = w.query().all<Position>().changed<Position>();
 
 	auto e = w.add();
 	w.add<Position>(e);
@@ -3404,7 +3404,7 @@ TEST_CASE("Query Filter - systems") {
 
 	public:
 		void OnCreated() override {
-			m_q = world().query().all<Position>();
+			m_q = world().query().all<Position&>();
 		}
 		void OnUpdate() override {
 			m_q.each([]([[maybe_unused]] Position&) {});
@@ -3415,7 +3415,7 @@ TEST_CASE("Query Filter - systems") {
 
 	public:
 		void OnCreated() override {
-			m_q = world().query().all<Position>();
+			m_q = world().query().all<Position&>();
 		}
 		void OnUpdate() override {
 			m_q.each([&](ecs::Iterator iter) {
@@ -3434,7 +3434,7 @@ TEST_CASE("Query Filter - systems") {
 			m_expectedCnt = cnt;
 		}
 		void OnCreated() override {
-			m_q = world().query().all<const Position>().changed<Position>();
+			m_q = world().query().all<Position>().changed<Position>();
 		}
 		void OnUpdate() override {
 			uint32_t cnt = 0;
@@ -3484,9 +3484,9 @@ void TestDataLayoutSoA_ECS() {
 	const uint32_t N = 10'000;
 	GAIA_FOR(N) create();
 
-	ecs::Query q = w.query().all<T>();
-
 	SECTION("each - iterator") {
+		ecs::Query q = w.query().all<T&>();
+
 		{
 			const auto cnt = q.count();
 			REQUIRE(cnt == N);
@@ -3520,12 +3520,47 @@ void TestDataLayoutSoA_ECS() {
 			const auto cnt = q.count();
 			REQUIRE(cnt == N - 1);
 			uint32_t cntCalculated = 0;
-			q.each([&]([[maybe_unused]] ecs::Iterator iter) {
+			q.each([&](ecs::Iterator iter) {
 				cntCalculated += iter.size();
 			});
 			REQUIRE(cnt == cntCalculated);
 		}
 	}
+
+	// TODO: Finish this part
+	// SECTION("each") {
+	// 	ecs::Query q = w.query().all<T>();
+
+	// 	{
+	// 		const auto cnt = q.count();
+	// 		REQUIRE(cnt == N);
+
+	// 		uint32_t j = 0;
+	// 		// TODO: Add SoA support for q.each([](T& t){})
+	// 		q.each([&](const T& t) {
+	// 			auto f = (float)j;
+	// 			REQUIRE(t.x == f);
+	// 			REQUIRE(t.y == f);
+	// 			REQUIRE(t.z == f);
+
+	// 			++j;
+	// 		});
+	// 		REQUIRE(j == cnt);
+	// 	}
+
+	// 	// Make sure disabling works
+	// 	{
+	// 		auto e = w.get(0);
+	// 		w.enable(e, false);
+	// 		const auto cnt = q.count();
+	// 		REQUIRE(cnt == N - 1);
+	// 		uint32_t cntCalculated = 0;
+	// 		q.each([&]([[maybe_unused]] const T& t) {
+	// 			++cntCalculated;
+	// 		});
+	// 		REQUIRE(cnt == cntCalculated);
+	// 	}
+	// }
 }
 
 TEST_CASE("DataLayout SoA - ECS") {

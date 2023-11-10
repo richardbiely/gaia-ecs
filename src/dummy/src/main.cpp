@@ -1,4 +1,6 @@
+#include "gaia/ecs/component.h"
 #include <gaia.h>
+#include <type_traits>
 
 using namespace gaia;
 
@@ -19,11 +21,11 @@ struct Velocity {
 ////////////////////////////////////////////////////////////////////////////
 
 class PositionSystem final: public ecs::System {
-	ecs::Query m_q;
+	ecs::QueryUncached m_q;
 
 public:
 	void OnCreated() override {
-		m_q = world().query().all<Position, const Velocity>();
+		m_q = world().query<false>().all<Position&, Velocity>();
 	}
 
 	void OnUpdate() override {
@@ -41,7 +43,7 @@ class PositionSystem_All final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q = world().query().all<Position, const Velocity>();
+		m_q = world().query().all<Position&, Velocity>();
 	}
 
 	void OnUpdate() override {
@@ -66,7 +68,7 @@ class PositionSystem_All2 final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q = world().query().all<Position, const Velocity>();
+		m_q = world().query().all<Position&, Velocity>();
 	}
 
 	void OnUpdate() override {
@@ -91,7 +93,7 @@ class PositionSystem_DisabledOnly final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q = world().query().all<Position, const Velocity>();
+		m_q = world().query().all<Position&, Velocity>();
 	}
 
 	void OnUpdate() override {

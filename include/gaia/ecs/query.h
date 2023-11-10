@@ -220,13 +220,8 @@ namespace gaia {
 
 				template <typename T>
 				void add_inter(QueryListType listType) {
-					using U = typename component_type_t<T>::Type;
-					using UOriginal = typename component_type_t<T>::TypeOriginal;
-					using UOriginalPR = std::remove_reference_t<std::remove_pointer_t<UOriginal>>;
-
 					constexpr auto compKind = component_kind_v<T>;
-					constexpr bool isReadWrite =
-							std::is_same_v<U, UOriginal> || (!std::is_const_v<UOriginalPR> && !std::is_empty_v<U>);
+					constexpr auto isReadWrite = is_arg_mut_v<T>;
 
 					// Make sure the component is always registered
 					auto& cc = ComponentCache::get();
@@ -239,6 +234,8 @@ namespace gaia {
 
 				template <typename T>
 				void changed_inter() {
+					static_assert(is_raw_v<T>, "Use changed() with raw types only");
+
 					const auto compId = comp_id<T>();
 					constexpr auto compKind = component_kind_v<T>;
 
@@ -598,7 +595,20 @@ namespace gaia {
 					using InputArgs = decltype(core::func_args(&Func::operator()));
 
 #if GAIA_DEBUG
-					// Make sure we only use components specified in the query
+					// Make sure we only use components specified in the query.
+					// Constness is respected. Therefore, if a type is const when registered to query,
+					// it has to be const (or immutable) also in each().
+					// in query.
+					// Example 1:
+					//   auto q = w.query().all<MyType>(); // immutable access requested
+					//   q.each([](MyType val)) {}); // okay
+					//   q.each([](const MyType& val)) {}); // okay
+					//   q.each([](MyType& val)) {}); // error
+					// Example 2:
+					//   auto q = w.query().all<MyType&>(); // mutable access requested
+					//   q.each([](MyType val)) {}); // error
+					//   q.each([](const MyType& val)) {}); // error
+					//   q.each([](MyType& val)) {}); // okay
 					GAIA_ASSERT(unpack_args_into_query_has_all(queryInfo, InputArgs{}));
 #endif
 

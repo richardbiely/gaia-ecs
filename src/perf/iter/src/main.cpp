@@ -102,7 +102,7 @@ void Create_Archetypes_1000(ecs::World& w) {
 		Create_Archetypes_##ArchetypeCount(w);                                                                             \
                                                                                                                        \
 		using c1 = Component<0, float, 3>;                                                                                 \
-		auto query = w.query().all<const c1>();                                                                            \
+		auto query = w.query().all<c1>();                                                                                  \
                                                                                                                        \
 		/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */              \
 		gaia::dont_optimize(query.empty());                                                                                \
@@ -127,7 +127,7 @@ DEFINE_EACH(1000)
 		Create_Archetypes_##ArchetypeCount(w);                                                                             \
                                                                                                                        \
 		using c1 = Component<0, float, 3>;                                                                                 \
-		auto query = w.query().all<const c1>();                                                                            \
+		auto query = w.query().all<c1>();                                                                                  \
                                                                                                                        \
 		/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */              \
 		gaia::dont_optimize(query.empty());                                                                                \
@@ -153,7 +153,7 @@ DEFINE_EACH_ITER(1000)
 		Create_Archetypes_##ArchetypeCount(w);                                                                             \
                                                                                                                        \
 		using c1 = Component<0, float, 3>;                                                                                 \
-		auto query = w.query().all<const c1>();                                                                            \
+		auto query = w.query().all<c1>();                                                                                  \
                                                                                                                        \
 		/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */              \
 		gaia::dont_optimize(query.empty());                                                                                \
@@ -177,7 +177,7 @@ DEFINE_EACH_ITER_INDEX(1000);
 		Create_Archetypes_##ArchetypeCount(w);                                                                             \
                                                                                                                        \
 		using c1 = Component<0, float, 3>;                                                                                 \
-		auto query = w.query().all<const c1>();                                                                            \
+		auto query = w.query().all<c1>();                                                                                  \
                                                                                                                        \
 		/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */              \
 		gaia::dont_optimize(query.empty());                                                                                \

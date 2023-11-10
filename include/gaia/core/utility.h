@@ -11,6 +11,16 @@ namespace gaia {
 	constexpr uint32_t BadIndex = uint32_t(-1);
 
 	namespace core {
+		namespace detail {
+			template <class T>
+			struct rem_rp {
+				using type = std::remove_reference_t<std::remove_pointer_t<T>>;
+			};
+		} // namespace detail
+
+		template <class T>
+		using rem_rp_t = typename detail::rem_rp<T>::type;
+
 		//----------------------------------------------------------------------
 		// Bit-byte conversion
 		//----------------------------------------------------------------------

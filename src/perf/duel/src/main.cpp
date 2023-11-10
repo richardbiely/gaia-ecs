@@ -137,7 +137,7 @@ void CreateECSEntities_Dynamic(ecs::World& w) {
 		w.add<Direction>(e, {0, 0, 1});
 		w.add<Health>(e, {100, 100});
 		w.add<IsEnemy>(e, {false});
-		GAIA_FOR(N/4) {
+		GAIA_FOR(N / 4) {
 			[[maybe_unused]] auto newentity = w.add(e);
 		}
 	}
@@ -148,10 +148,10 @@ void BM_ECS(picobench::state& state) {
 	CreateECSEntities_Static<false>(w);
 	CreateECSEntities_Dynamic<false>(w);
 
-	auto queryPosCVel = w.query().all<Position, const Velocity>();
-	auto queryPosVel = w.query().all<Position, Velocity>();
-	auto queryVel = w.query().all<Velocity>();
-	auto queryCHealth = w.query().all<const Health>();
+	auto queryPosCVel = w.query().all<Position&, Velocity>();
+	auto queryPosVel = w.query().all<Position&, Velocity&>();
+	auto queryVel = w.query().all<Velocity&>();
+	auto queryCHealth = w.query().all<Health>();
 
 	/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */
 	gaia::dont_optimize(queryPosCVel.empty());
@@ -208,10 +208,10 @@ void BM_ECS_WithSystems(picobench::state& state) {
 	CreateECSEntities_Static<false>(w);
 	CreateECSEntities_Dynamic<false>(w);
 
-	auto queryPosCVel = w.query().all<Position, const Velocity>();
-	auto queryPosVel = w.query().all<Position, Velocity>();
-	auto queryVel = w.query().all<Velocity>();
-	auto queryCHealth = w.query().all<const Health>();
+	auto queryPosCVel = w.query().all<Position&, Velocity>();
+	auto queryPosVel = w.query().all<Position&, Velocity&>();
+	auto queryVel = w.query().all<Velocity&>();
+	auto queryCHealth = w.query().all<Health>();
 
 	/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */
 	gaia::dont_optimize(queryPosCVel.empty());
@@ -280,10 +280,10 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 	CreateECSEntities_Static<false>(w);
 	CreateECSEntities_Dynamic<false>(w);
 
-	auto queryPosCVel = w.query().all<Position, const Velocity>();
-	auto queryPosVel = w.query().all<Position, Velocity>();
-	auto queryVel = w.query().all<Velocity>();
-	auto queryCHealth = w.query().all<const Health>();
+	auto queryPosCVel = w.query().all<Position&, Velocity>();
+	auto queryPosVel = w.query().all<Position&, Velocity&>();
+	auto queryVel = w.query().all<Velocity&>();
+	auto queryCHealth = w.query().all<Health>();
 
 	/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */
 	gaia::dont_optimize(queryPosCVel.empty());
@@ -370,10 +370,10 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 	CreateECSEntities_Static<true>(w);
 	CreateECSEntities_Dynamic<true>(w);
 
-	auto queryPosCVel = w.query().all<PositionSoA, const VelocitySoA>();
-	auto queryPosVel = w.query().all<PositionSoA, VelocitySoA>();
-	auto queryVel = w.query().all<VelocitySoA>();
-	auto queryCHealth = w.query().all<const Health>();
+	auto queryPosCVel = w.query().all<Position&, Velocity>();
+	auto queryPosVel = w.query().all<Position&, Velocity&>();
+	auto queryVel = w.query().all<Velocity&>();
+	auto queryCHealth = w.query().all<Health>();
 
 	/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */
 	gaia::dont_optimize(queryPosCVel.empty());
@@ -669,7 +669,7 @@ void BM_NonECS(picobench::state& state) {
 			units[i] = u;
 		}
 		uint32_t j = N;
-		GAIA_FOR(N/4) {
+		GAIA_FOR(N / 4) {
 			auto* u = new UnitDynamic1();
 			u->p = {0, 100, 0};
 			u->r = {1, 2, 3, 4};
@@ -678,7 +678,7 @@ void BM_NonECS(picobench::state& state) {
 			units[j + i] = u;
 		}
 		j += N / 4;
-		GAIA_FOR(N/4) {
+		GAIA_FOR(N / 4) {
 			auto* u = new UnitDynamic2();
 			u->p = {0, 100, 0};
 			u->r = {1, 2, 3, 4};
@@ -687,7 +687,7 @@ void BM_NonECS(picobench::state& state) {
 			units[j + i] = u;
 		}
 		j += N / 4;
-		GAIA_FOR(N/4) {
+		GAIA_FOR(N / 4) {
 			auto* u = new UnitDynamic3();
 			u->p = {0, 100, 0};
 			u->r = {1, 2, 3, 4};
@@ -696,7 +696,7 @@ void BM_NonECS(picobench::state& state) {
 			units[j + i] = u;
 		}
 		j += N / 4;
-		GAIA_FOR(N/4) {
+		GAIA_FOR(N / 4) {
 			auto* u = new UnitDynamic4();
 			u->p = {0, 100, 0};
 			u->r = {1, 2, 3, 4};
@@ -852,7 +852,7 @@ void BM_NonECS_BetterMemoryLayout(picobench::state& state) {
 	cnt::darray<UnitDynamic3> units_dynamic3(N / 4);
 	cnt::darray<UnitDynamic4> units_dynamic4(N / 4);
 
-	GAIA_FOR(N/4) {
+	GAIA_FOR(N / 4) {
 		UnitDynamic1 u;
 		u.p = {0, 100, 0};
 		u.r = {1, 2, 3, 4};
@@ -860,7 +860,7 @@ void BM_NonECS_BetterMemoryLayout(picobench::state& state) {
 		u.v = {0, 0, 1};
 		units_dynamic1[i] = GAIA_MOV(u);
 	}
-	GAIA_FOR(N/4) {
+	GAIA_FOR(N / 4) {
 		UnitDynamic2 u;
 		u.p = {0, 100, 0};
 		u.r = {1, 2, 3, 4};
@@ -869,7 +869,7 @@ void BM_NonECS_BetterMemoryLayout(picobench::state& state) {
 		u.d = {0, 0, 1};
 		units_dynamic2[i] = GAIA_MOV(u);
 	}
-	GAIA_FOR(N/4) {
+	GAIA_FOR(N / 4) {
 		UnitDynamic3 u;
 		u.p = {0, 100, 0};
 		u.r = {1, 2, 3, 4};
@@ -879,7 +879,7 @@ void BM_NonECS_BetterMemoryLayout(picobench::state& state) {
 		u.h = {100, 100};
 		units_dynamic3[i] = GAIA_MOV(u);
 	}
-	GAIA_FOR(N/4) {
+	GAIA_FOR(N / 4) {
 		UnitDynamic4 u;
 		u.p = {0, 100, 0};
 		u.r = {1, 2, 3, 4};

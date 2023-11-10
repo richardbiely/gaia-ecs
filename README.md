@@ -251,7 +251,7 @@ It accepts either a list of components or an iterator as its argument.
 ```cpp
 ecs::Query q = w.query();
 // Take into account all entities with Position and Velocity...
-q.all<Position, const Velocity>();
+q.all<Position&, Velocity>();
 // ... but no Player component.
 q.none<Player>();
 
@@ -275,7 +275,7 @@ There are three types of iterators:
 
 ```cpp
 ecs::Query q = w.query();
-q.all<Position, const Velocity>();
+q.all<Position&, Velocity>();
 
 q.each([](ecs::IteratorAll iter) {
   auto p = iter.view_mut<Position>(); // Read-write access to Position
@@ -329,7 +329,7 @@ const bool is_e1_enabled = w.enabled(e1);
 if (is_e1_enabled) { ... }
 
 // Prepare out query
-ecs::Query q = w.query().all<Position>();
+ecs::Query q = w.query().all<Position&>();
 
 // Fills the array with only e2 because e1 is disabled.
 cnt::darray<ecs::Entity> entities;
@@ -385,7 +385,7 @@ Using changed we can make the iteration run only if particular components change
 ```cpp
 ecs::Query q = w.query();
 // Take into account all entities with Position and Velocity...
-q.all<Position, const Velocity>();
+q.all<Position&, Velocity>();
 // ... no Player component...
 q.none<Player>(); 
 // ... but only iterate when Velocity changes
@@ -472,7 +472,7 @@ struct VelocitySoA {
 };
 ...
 
-ecs::Query q = w.query().all<PositionSoA, const VelocitySoA>;
+ecs::Query q = w.query().all<PositionSoA&, VelocitySoA>;
 q.each([](ecs::Iterator iter) {
   // Position
   auto vp = iter.view_mut<PositionSoA>(); // read-write access to PositionSoA

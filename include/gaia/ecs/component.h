@@ -1,5 +1,8 @@
 #pragma once
+#include "../config/config.h"
+
 #include <cinttypes>
+#include <type_traits>
 
 #include "../core/hashing_policy.h"
 #include "../core/utility.h"
@@ -92,9 +95,11 @@ namespace gaia {
 				return (uint32_t)data.alig;
 			}
 
+			// We don't want automatic conversion from Component to ComponentId
 			// operator ComponentId() const {
 			// 	return id();
 			// }
+
 			bool operator<(Component other) const {
 				return id() < other.id();
 			}
@@ -148,6 +153,21 @@ namespace gaia {
 		using ComponentSpan = std::span<const Component>;
 
 		//----------------------------------------------------------------------
+		// Component verification
+		//----------------------------------------------------------------------
+
+		namespace detail {
+			template <typename T>
+			struct is_component_size_valid: std::bool_constant<sizeof(T) < Component::MaxComponentSizeInBytes> {};
+
+			template <typename T>
+			struct is_component_type_valid:
+					std::bool_constant<
+							// SoA types need to be trivial. No restrictions otherwise.
+							(!mem::is_soa_layout_v<T> || std::is_trivially_copyable_v<T>)> {};
+		} // namespace detail
+
+		//----------------------------------------------------------------------
 		// Component type deduction
 		//----------------------------------------------------------------------
 
@@ -159,14 +179,20 @@ namespace gaia {
 
 			template <typename T>
 			struct ExtractComponentType_NoComponentKind {
+				//! Raw type with no additional sugar
 				using Type = typename std::decay_t<typename std::remove_pointer_t<T>>;
+				//! Original template type
 				using TypeOriginal = T;
+				//! Component kind
 				static constexpr ComponentKind Kind = ComponentKind::CK_Gen;
 			};
 			template <typename T>
 			struct ExtractComponentType_WithComponentKind {
+				//! Raw type with no additional sugar
 				using Type = typename T::TType;
+				//! Original template type
 				using TypeOriginal = typename T::TTypeOriginal;
+				//! Component kind
 				static constexpr ComponentKind Kind = T::Kind;
 			};
 
@@ -175,15 +201,6 @@ namespace gaia {
 			template <typename T>
 			struct is_gen_component<T, std::void_t<decltype(T::Kind)>>:
 					std::bool_constant<T::Kind == ComponentKind::CK_Gen> {};
-
-			template <typename T>
-			struct is_component_size_valid: std::bool_constant<sizeof(T) < Component::MaxComponentSizeInBytes> {};
-
-			template <typename T>
-			struct is_component_type_valid:
-					std::bool_constant<
-							// SoA types need to be trivial. No restrictions otherwise.
-							(!mem::is_soa_layout_v<T> || std::is_trivially_copyable_v<T>)> {};
 
 			template <typename T, typename = void>
 			struct component_type {
@@ -195,16 +212,10 @@ namespace gaia {
 			};
 
 			template <typename T>
-			struct is_component_mut:
+			struct is_arg_mut:
 					std::bool_constant<
-							!std::is_const_v<std::remove_reference_t<std::remove_pointer_t<T>>> &&
-							(std::is_pointer<T>::value || std::is_reference<T>::value)> {};
+							!std::is_const_v<core::rem_rp_t<T>> && (std::is_pointer<T>::value || std::is_reference<T>::value)> {};
 		} // namespace detail
-
-		template <typename T>
-		inline constexpr bool is_component_size_valid_v = detail::is_component_size_valid<T>::value;
-		template <typename T>
-		inline constexpr bool is_component_type_valid_v = detail::is_component_type_valid<T>::value;
 
 		template <typename T>
 		using component_type_t = typename detail::component_type<T>::type;
@@ -220,14 +231,21 @@ namespace gaia {
 		}
 
 		template <typename T>
-		inline constexpr bool is_component_mut_v = detail::is_component_mut<T>::value;
+		inline constexpr bool is_arg_mut_v = detail::is_arg_mut<T>::value;
+
+		template <typename T>
+		inline constexpr bool is_raw_v = std::is_same_v<T, std::decay_t<std::remove_pointer_t<T>>>;
 
 		template <typename T>
 		struct uni {
+			//! Raw type with no additional sugar
 			using TType = typename std::decay_t<typename std::remove_pointer_t<T>>;
+			//! Original template type
 			using TTypeOriginal = T;
+			//! Component kind
 			static constexpr ComponentKind Kind = ComponentKind::CK_Uni;
 		};
+
 		//----------------------------------------------------------------------
 		// Component verification
 		//----------------------------------------------------------------------
@@ -235,13 +253,12 @@ namespace gaia {
 		template <typename T>
 		constexpr void verify_comp() {
 			using U = typename component_type_t<T>::Type;
+
 			// Make sure we only use this for "raw" types
 			static_assert(!std::is_const_v<U>);
 			static_assert(!std::is_pointer_v<U>);
 			static_assert(!std::is_reference_v<U>);
 			static_assert(!std::is_volatile_v<U>);
-			static_assert(is_component_size_valid_v<U>, "MaxComponentSizeInBytes in bytes is exceeded");
-			static_assert(is_component_type_valid_v<U>, "Component type restrictions not met");
 		}
 
 		//----------------------------------------------------------------------

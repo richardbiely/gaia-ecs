@@ -499,7 +499,7 @@ class UpdateMapSystem final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q = world().query().all<const Position, RigidBody>();
+		m_q = world().query().all<Position, RigidBody>();
 	}
 	void OnUpdate() override {
 		g_world.content.clear();
@@ -526,7 +526,7 @@ class CollisionSystem final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q = world().query().all<const Position, Velocity, const RigidBody>();
+		m_q = world().query().all<Position, Velocity&, RigidBody>();
 	}
 
 	void OnUpdate() override {
@@ -632,7 +632,7 @@ class OrientationSystem final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q = world().query().all<Orientation, const Velocity>().changed<Velocity>();
+		m_q = world().query().all<Orientation&, Velocity>().changed<Velocity>();
 	}
 
 	void OnUpdate() override {
@@ -655,7 +655,7 @@ class MoveSystem final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q = world().query().all<Position, const Velocity>();
+		m_q = world().query().all<Position&, Velocity>();
 	}
 
 	void OnUpdate() override {
@@ -781,7 +781,7 @@ class HandleHealthSystem final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q = world().query().all<Health>().changed<Health>();
+		m_q = world().query().all<Health&>().changed<Health>();
 	}
 
 	void OnUpdate() override {
@@ -797,7 +797,7 @@ class HandleDeathSystem final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q = world().query().all<const Health, const Position>().changed<Health>();
+		m_q = world().query().all<Health, Position>().changed<Health>();
 	}
 
 	void OnUpdate() override {
@@ -816,7 +816,7 @@ class WriteSpritesToMapSystem final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q = world().query().all<const Position, const Sprite>();
+		m_q = world().query().all<Position, Sprite>();
 	}
 
 	void OnUpdate() override {
@@ -846,8 +846,8 @@ class UISystem final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_qp = world().query().all<const Health, Player>();
-		m_qe = world().query().all<const Health>().none<Player, Item>();
+		m_qp = world().query().all<Health, Player>();
+		m_qe = world().query().all<Health>().none<Player, Item>();
 	}
 
 	void OnUpdate() override {
@@ -869,8 +869,8 @@ class GameStateSystem: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_qp = world().query().all<const Health, Player>();
-		m_qe = world().query().all<const Health>().none<Player, Item>();
+		m_qp = world().query().all<Health, Player>();
+		m_qe = world().query().all<Health>().none<Player, Item>();
 
 		m_hadPlayer = !m_qp.empty();
 		m_hadEnemies = !m_qe.empty();
@@ -898,7 +898,7 @@ class InputSystem final: public ecs::System {
 
 public:
 	void OnCreated() override {
-		m_q = world().query().all<const Player, Velocity, const Position, const Orientation>();
+		m_q = world().query().all<Player, Velocity&, Position, Orientation>();
 	}
 
 	void OnUpdate() override {
