@@ -63,6 +63,8 @@ namespace gaia {
 			cnt::darray<Archetype*> m_archetypesToRemove;
 			//! ID of the last defragmented archetype
 			uint32_t m_defragLastArchetypeID = 0;
+			//! Maximum number of entities to defragment per world tick
+			uint32_t m_defragEntitesPerTick = 100;
 
 			//! With every structural change world version changes
 			uint32_t m_worldVersion = 0;
@@ -754,7 +756,7 @@ namespace gaia {
 				GAIA_PROF_SCOPE(gc);
 
 				remove_empty_chunks();
-				defrag_chunks(GAIA_DEFRAG_ENTITIES_PER_FRAME);
+				defrag_chunks(m_defragEntitesPerTick);
 				remove_empty_archetypes();
 			}
 
@@ -1091,6 +1093,12 @@ namespace gaia {
 
 				// Signal the end of the frame
 				GAIA_PROF_FRAME();
+			}
+
+			//! Sets the maximum number of entites defragmented per world tick
+			//! \param value Number of entities to defragment
+			void defrag_entities_per_tick(uint32_t value) {
+				m_defragEntitesPerTick = value;
 			}
 
 			//--------------------------------------------------------------------------------

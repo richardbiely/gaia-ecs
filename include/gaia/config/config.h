@@ -53,11 +53,6 @@
 	#define GAIA_USE_PREFETCH 1
 #endif
 
-//! Maximum number of entities to defragment per frame
-#ifndef GAIA_DEFRAG_ENTITIES_PER_FRAME
-	#define GAIA_DEFRAG_ENTITIES_PER_FRAME 100
-#endif
-
 //! If enabled, a very small hash table is stored in chunks internally which
 //! is used to do ComponentId -> component index lookups.
 //! \warning Experimental, don't use.
