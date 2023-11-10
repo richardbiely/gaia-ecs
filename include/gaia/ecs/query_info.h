@@ -37,7 +37,9 @@ namespace gaia {
 			bool has_inter(
 					[[maybe_unused]] QueryListType listType, [[maybe_unused]] ComponentKind compKind, bool isReadWrite) const {
 				if constexpr (std::is_same_v<T, Entity>) {
-					// Skip Entity input args
+					// Entities are read-only.
+					GAIA_ASSERT(!isReadWrite);
+					// Skip Entity input args. Entities are always there.
 					return true;
 				} else {
 					const auto& data = m_lookupCtx.data[compKind];
@@ -58,13 +60,13 @@ namespace gaia {
 
 			template <typename T>
 			bool has_inter(QueryListType listType) const {
-				using U = typename component_type_t<T>::Type;
-				using UOriginal = typename component_type_t<T>::TypeOriginal;
-				using UOriginalPR = std::remove_reference_t<std::remove_pointer_t<UOriginal>>;
-				constexpr bool isReadWrite =
-						std::is_same_v<U, UOriginal> || (!std::is_const_v<UOriginalPR> && !std::is_empty_v<U>);
+				// static_assert(is_raw_v<<T>, "has() must be used with raw types");
 
+				using U = typename component_type_t<T>::Type;
+
+				constexpr bool isReadWrite = is_arg_mut_v<T>;
 				constexpr auto compKind = component_kind_v<T>;
+
 				return has_inter<U>(listType, compKind, isReadWrite);
 			}
 

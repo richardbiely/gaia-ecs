@@ -105,7 +105,9 @@ namespace gaia {
 		void copy_elements(
 				uint8_t* GAIA_RESTRICT dst, const uint8_t* GAIA_RESTRICT src, uint32_t idxSrc, uint32_t idxDst,
 				[[maybe_unused]] uint32_t sizeDst, [[maybe_unused]] uint32_t sizeSrc) {
-			GAIA_ASSERT(idxSrc < idxDst);
+			GAIA_ASSERT(idxSrc <= idxDst);
+			if (idxSrc == idxDst)
+				return;
 
 			if constexpr (mem::is_soa_layout_v<T>)
 				detail::copy_elements_soa<T>(dst, src, sizeDst, sizeSrc, idxSrc, idxDst);

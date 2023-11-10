@@ -1689,6 +1689,16 @@ namespace gaia {
 	constexpr uint32_t BadIndex = uint32_t(-1);
 
 	namespace core {
+		namespace detail {
+			template <class T>
+			struct rem_rp {
+				using type = std::remove_reference_t<std::remove_pointer_t<T>>;
+			};
+		} // namespace detail
+
+		template <class T>
+		using rem_rp_t = typename detail::rem_rp<T>::type;
+
 		//----------------------------------------------------------------------
 		// Bit-byte conversion
 		//----------------------------------------------------------------------
@@ -4135,7 +4145,9 @@ namespace gaia {
 		void copy_elements(
 				uint8_t* GAIA_RESTRICT dst, const uint8_t* GAIA_RESTRICT src, uint32_t idxSrc, uint32_t idxDst,
 				[[maybe_unused]] uint32_t sizeDst, [[maybe_unused]] uint32_t sizeSrc) {
-			GAIA_ASSERT(idxSrc < idxDst);
+			GAIA_ASSERT(idxSrc <= idxDst);
+			if (idxSrc == idxDst)
+				return;
 
 			if constexpr (mem::is_soa_layout_v<T>)
 				detail::copy_elements_soa<T>(dst, src, sizeDst, sizeSrc, idxSrc, idxDst);
@@ -13647,6 +13659,7 @@ namespace gaia {
 #include <cinttypes>
 
 #include <cinttypes>
+#include <type_traits>
 
 namespace gaia {
 	namespace ecs {
@@ -13734,9 +13747,11 @@ namespace gaia {
 				return (uint32_t)data.alig;
 			}
 
+			// We don't want automatic conversion from Component to ComponentId
 			// operator ComponentId() const {
 			// 	return id();
 			// }
+
 			bool operator<(Component other) const {
 				return id() < other.id();
 			}
@@ -13790,6 +13805,21 @@ namespace gaia {
 		using ComponentSpan = std::span<const Component>;
 
 		//----------------------------------------------------------------------
+		// Component verification
+		//----------------------------------------------------------------------
+
+		namespace detail {
+			template <typename T>
+			struct is_component_size_valid: std::bool_constant<sizeof(T) < Component::MaxComponentSizeInBytes> {};
+
+			template <typename T>
+			struct is_component_type_valid:
+					std::bool_constant<
+							// SoA types need to be trivial. No restrictions otherwise.
+							(!mem::is_soa_layout_v<T> || std::is_trivially_copyable_v<T>)> {};
+		} // namespace detail
+
+		//----------------------------------------------------------------------
 		// Component type deduction
 		//----------------------------------------------------------------------
 
@@ -13801,14 +13831,20 @@ namespace gaia {
 
 			template <typename T>
 			struct ExtractComponentType_NoComponentKind {
+				//! Raw type with no additional sugar
 				using Type = typename std::decay_t<typename std::remove_pointer_t<T>>;
+				//! Original template type
 				using TypeOriginal = T;
+				//! Component kind
 				static constexpr ComponentKind Kind = ComponentKind::CK_Gen;
 			};
 			template <typename T>
 			struct ExtractComponentType_WithComponentKind {
+				//! Raw type with no additional sugar
 				using Type = typename T::TType;
+				//! Original template type
 				using TypeOriginal = typename T::TTypeOriginal;
+				//! Component kind
 				static constexpr ComponentKind Kind = T::Kind;
 			};
 
@@ -13817,15 +13853,6 @@ namespace gaia {
 			template <typename T>
 			struct is_gen_component<T, std::void_t<decltype(T::Kind)>>:
 					std::bool_constant<T::Kind == ComponentKind::CK_Gen> {};
-
-			template <typename T>
-			struct is_component_size_valid: std::bool_constant<sizeof(T) < Component::MaxComponentSizeInBytes> {};
-
-			template <typename T>
-			struct is_component_type_valid:
-					std::bool_constant<
-							// SoA types need to be trivial. No restrictions otherwise.
-							(!mem::is_soa_layout_v<T> || std::is_trivially_copyable_v<T>)> {};
 
 			template <typename T, typename = void>
 			struct component_type {
@@ -13837,16 +13864,10 @@ namespace gaia {
 			};
 
 			template <typename T>
-			struct is_component_mut:
+			struct is_arg_mut:
 					std::bool_constant<
-							!std::is_const_v<std::remove_reference_t<std::remove_pointer_t<T>>> &&
-							(std::is_pointer<T>::value || std::is_reference<T>::value)> {};
+							!std::is_const_v<core::rem_rp_t<T>> && (std::is_pointer<T>::value || std::is_reference<T>::value)> {};
 		} // namespace detail
-
-		template <typename T>
-		inline constexpr bool is_component_size_valid_v = detail::is_component_size_valid<T>::value;
-		template <typename T>
-		inline constexpr bool is_component_type_valid_v = detail::is_component_type_valid<T>::value;
 
 		template <typename T>
 		using component_type_t = typename detail::component_type<T>::type;
@@ -13862,14 +13883,21 @@ namespace gaia {
 		}
 
 		template <typename T>
-		inline constexpr bool is_component_mut_v = detail::is_component_mut<T>::value;
+		inline constexpr bool is_arg_mut_v = detail::is_arg_mut<T>::value;
+
+		template <typename T>
+		inline constexpr bool is_raw_v = std::is_same_v<T, std::decay_t<std::remove_pointer_t<T>>>;
 
 		template <typename T>
 		struct uni {
+			//! Raw type with no additional sugar
 			using TType = typename std::decay_t<typename std::remove_pointer_t<T>>;
+			//! Original template type
 			using TTypeOriginal = T;
+			//! Component kind
 			static constexpr ComponentKind Kind = ComponentKind::CK_Uni;
 		};
+
 		//----------------------------------------------------------------------
 		// Component verification
 		//----------------------------------------------------------------------
@@ -13877,13 +13905,12 @@ namespace gaia {
 		template <typename T>
 		constexpr void verify_comp() {
 			using U = typename component_type_t<T>::Type;
+
 			// Make sure we only use this for "raw" types
 			static_assert(!std::is_const_v<U>);
 			static_assert(!std::is_pointer_v<U>);
 			static_assert(!std::is_reference_v<U>);
 			static_assert(!std::is_volatile_v<U>);
-			static_assert(is_component_size_valid_v<U>, "MaxComponentSizeInBytes in bytes is exceeded");
-			static_assert(is_component_type_valid_v<U>, "Component type restrictions not met");
 		}
 
 		//----------------------------------------------------------------------
@@ -15714,7 +15741,7 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) view_auto(uint32_t from, uint32_t to) {
 				using UOriginal = typename component_type_t<T>::TypeOriginal;
-				if constexpr (is_component_mut_v<UOriginal>)
+				if constexpr (is_arg_mut_v<UOriginal>)
 					return view_mut<T>(from, to);
 				else
 					return view<T>(from, to);
@@ -15738,7 +15765,7 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) sview_auto(uint32_t from, uint32_t to) {
 				using UOriginal = typename component_type_t<T>::TypeOriginal;
-				if constexpr (is_component_mut_v<UOriginal>)
+				if constexpr (is_arg_mut_v<UOriginal>)
 					return sview_mut<T>(from, to);
 				else
 					return view<T>(from, to);
@@ -17874,7 +17901,9 @@ namespace gaia {
 			bool has_inter(
 					[[maybe_unused]] QueryListType listType, [[maybe_unused]] ComponentKind compKind, bool isReadWrite) const {
 				if constexpr (std::is_same_v<T, Entity>) {
-					// Skip Entity input args
+					// Entities are read-only.
+					GAIA_ASSERT(!isReadWrite);
+					// Skip Entity input args. Entities are always there.
 					return true;
 				} else {
 					const auto& data = m_lookupCtx.data[compKind];
@@ -17895,13 +17924,13 @@ namespace gaia {
 
 			template <typename T>
 			bool has_inter(QueryListType listType) const {
-				using U = typename component_type_t<T>::Type;
-				using UOriginal = typename component_type_t<T>::TypeOriginal;
-				using UOriginalPR = std::remove_reference_t<std::remove_pointer_t<UOriginal>>;
-				constexpr bool isReadWrite =
-						std::is_same_v<U, UOriginal> || (!std::is_const_v<UOriginalPR> && !std::is_empty_v<U>);
+				// static_assert(is_raw_v<<T>, "has() must be used with raw types");
 
+				using U = typename component_type_t<T>::Type;
+
+				constexpr bool isReadWrite = is_arg_mut_v<T>;
 				constexpr auto compKind = component_kind_v<T>;
+
 				return has_inter<U>(listType, compKind, isReadWrite);
 			}
 
@@ -18440,13 +18469,8 @@ namespace gaia {
 
 				template <typename T>
 				void add_inter(QueryListType listType) {
-					using U = typename component_type_t<T>::Type;
-					using UOriginal = typename component_type_t<T>::TypeOriginal;
-					using UOriginalPR = std::remove_reference_t<std::remove_pointer_t<UOriginal>>;
-
 					constexpr auto compKind = component_kind_v<T>;
-					constexpr bool isReadWrite =
-							std::is_same_v<U, UOriginal> || (!std::is_const_v<UOriginalPR> && !std::is_empty_v<U>);
+					constexpr auto isReadWrite = is_arg_mut_v<T>;
 
 					// Make sure the component is always registered
 					auto& cc = ComponentCache::get();
@@ -18459,6 +18483,8 @@ namespace gaia {
 
 				template <typename T>
 				void changed_inter() {
+					static_assert(is_raw_v<T>, "Use changed() with raw types only");
+
 					const auto compId = comp_id<T>();
 					constexpr auto compKind = component_kind_v<T>;
 
@@ -18818,7 +18844,20 @@ namespace gaia {
 					using InputArgs = decltype(core::func_args(&Func::operator()));
 
 #if GAIA_DEBUG
-					// Make sure we only use components specified in the query
+					// Make sure we only use components specified in the query.
+					// Constness is respected. Therefore, if a type is const when registered to query,
+					// it has to be const (or immutable) also in each().
+					// in query.
+					// Example 1:
+					//   auto q = w.query().all<MyType>(); // immutable access requested
+					//   q.each([](MyType val)) {}); // okay
+					//   q.each([](const MyType& val)) {}); // okay
+					//   q.each([](MyType& val)) {}); // error
+					// Example 2:
+					//   auto q = w.query().all<MyType&>(); // mutable access requested
+					//   q.each([](MyType val)) {}); // error
+					//   q.each([](const MyType& val)) {}); // error
+					//   q.each([](MyType& val)) {}); // okay
 					GAIA_ASSERT(unpack_args_into_query_has_all(queryInfo, InputArgs{}));
 #endif
 
