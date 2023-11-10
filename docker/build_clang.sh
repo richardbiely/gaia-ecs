@@ -4,7 +4,7 @@ PATH_BASE="build-clang"
 
 while getopts ":c" flag; do
     case "${flag}" in
-        c) # remove the build direcetory
+        c) # remove the build directory
           rm -rf ${PATH_BASE};;
         \?) # invalid option
          echo "Error: Invalid option"
