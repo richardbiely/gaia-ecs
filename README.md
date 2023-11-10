@@ -2,16 +2,19 @@
 @cond TURN_OFF_DOXYGEN
 -->
 # Gaia-ECS
+[![Version][badge.version]][version]
 [![Build Status][badge.actions]][actions]
 [![language][badge.language]][language]
 [![license][badge.license]][license]
 [![codacy][badge.codacy]][codacy]
 
-[badge.actions]: https://github.com/richardbiely/gaia-ecs/workflows/build/badge.svg
-[badge.language]: https://img.shields.io/badge/language-C%2B%2B17-yellow
-[badge.license]: https://img.shields.io/badge/license-MIT-blue
-[badge.codacy]: https://app.codacy.com/project/badge/Grade/bb28fa362fce4054bbaf7a6ba9aed140
+[badge.version]: https://img.shields.io/github/v/release/richardbiely/gaia-ecs?style=for-the-badge
+[badge.actions]: https://img.shields.io/github/actions/workflow/status/richardbiely/gaia-ecs/build.yml?branch=main&style=for-the-badge
+[badge.language]: https://img.shields.io/badge/language-C%2B%2B17-yellow?style=for-the-badge
+[badge.license]: https://img.shields.io/badge/license-MIT-blue?style=for-the-badge
+[badge.codacy]: https://app.codacy.com/project/badge/Grade/bb28fa362fce4054bbaf7a6ba9aed140?style=for-the-badge
 
+[version]: https://github.com/richardbiely/gaia-ecs/releases
 [actions]: https://github.com/richardbiely/gaia-ecs/actions
 [language]: https://en.wikipedia.org/wiki/C%2B%2B17
 [license]: https://en.wikipedia.org/wiki/MIT_License
