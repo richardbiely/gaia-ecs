@@ -96,7 +96,7 @@ namespace gaia {
 				GAIA_FOR(ComponentKind::CK_Count) {
 					auto recs = pChunk->comp_rec_view((ComponentKind)i);
 					auto& dst = comps[i];
-					dst.resize(recs.size());
+					dst.resize((uint32_t)recs.size());
 					GAIA_EACH_(recs, j) dst[j] = recs[j].comp;
 				}
 

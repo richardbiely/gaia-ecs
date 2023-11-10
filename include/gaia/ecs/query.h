@@ -236,7 +236,6 @@ namespace gaia {
 				void changed_inter() {
 					static_assert(is_raw_v<T>, "Use changed() with raw types only");
 
-					const auto compId = comp_id<T>();
 					constexpr auto compKind = component_kind_v<T>;
 
 					// Make sure the component is always registered
