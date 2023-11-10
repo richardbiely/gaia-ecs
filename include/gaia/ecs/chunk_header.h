@@ -13,7 +13,7 @@
 
 namespace gaia {
 	namespace ecs {
-		class ComponentDesc;
+		struct ComponentDesc;
 
 		struct ChunkDataOffsets {
 			//! Byte at which the first version number is located
