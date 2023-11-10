@@ -16641,11 +16641,14 @@ namespace gaia {
 			//! Hash of components within this archetype - used for matching
 			ComponentMatcherHash m_matcherHash[ComponentKind::CK_Count]{};
 
-			static constexpr uint16_t CHUNK_LIFESPAN_BITS = 7;
+			//! Number of bits representing archetype lifespan
+			static constexpr uint16_t ARCHETYPE_LIFESPAN_BITS = 7;
+			//! Archetype lifespan must be at least as long as chunk lifespan
+			static_assert(ARCHETYPE_LIFESPAN_BITS >= ChunkHeader::CHUNK_LIFESPAN_BITS);
 			//! Number of ticks before empty chunks are removed
-			static constexpr uint16_t MAX_ARCHETYPE_LIFESPAN = (1 << CHUNK_LIFESPAN_BITS) - 1;
+			static constexpr uint16_t MAX_ARCHETYPE_LIFESPAN = (1 << ARCHETYPE_LIFESPAN_BITS) - 1;
 
-			uint32_t m_lifespanCountdown: CHUNK_LIFESPAN_BITS;
+			uint32_t m_lifespanCountdown: ARCHETYPE_LIFESPAN_BITS;
 			uint32_t m_dead : 1;
 
 			// Constructor is hidden. Create archetypes via Create
@@ -16954,6 +16957,10 @@ namespace gaia {
 				};
 
 				remove(m_chunks);
+
+				// No deleting for the root archetype
+				if (m_archetypeId == 0)
+					return;
 
 				// TODO: This needs cleaning up.
 				//       Chunk should have no idea of the world and also should not store
@@ -17588,6 +17595,7 @@ namespace gaia {
 } // namespace gaia
 
 #include <cinttypes>
+#include <mach/exception_types.h>
 #include <type_traits>
 
 #include <cstdint>
@@ -19115,8 +19123,9 @@ namespace gaia {
 
 				cnt::sarr_ext<Component, Chunk::MAX_COMPONENTS> comps[ComponentKind::CK_Count];
 				GAIA_FOR(ComponentKind::CK_Count) {
-					auto& dst = comps[i];
 					auto recs = pChunk->comp_rec_view((ComponentKind)i);
+					auto& dst = comps[i];
+					dst.resize(recs.size());
 					GAIA_EACH_(recs, j) dst[j] = recs[j].comp;
 				}
 
@@ -19165,6 +19174,19 @@ namespace gaia {
 				GAIA_ASSERT(pArchetype->empty());
 				GAIA_ASSERT(!pArchetype->dying());
 
+				// If the deleted archetype is the last one we defragmented
+				// make sure to point to the next one.
+				if (m_defragLastArchetypeID == pArchetype->id()) {
+					auto it = m_archetypesById.find(pArchetype->id());
+					++it;
+
+					// Handle the wrap-around
+					if (it == m_archetypesById.end())
+						m_defragLastArchetypeID = m_archetypesById.begin()->second->id();
+					else
+						m_defragLastArchetypeID = it->second->id();
+				}
+
 				const auto& compsGen = pArchetype->comps(ComponentKind::CK_Gen);
 				const auto& compsUni = pArchetype->comps(ComponentKind::CK_Uni);
 				auto tmpArchetype =
@@ -19183,7 +19205,7 @@ namespace gaia {
 				for (uint32_t i = 0; i < m_archetypesToRemove.size();) {
 					auto* pArchetype = m_archetypesToRemove[i];
 
-					// Skip reclaimed chunks
+					// Skip reclaimed archetypes
 					if (!pArchetype->empty()) {
 						pArchetype->revive();
 						core::erase_fast(m_archetypesToRemove, i);
@@ -19200,7 +19222,7 @@ namespace gaia {
 
 					// Remove the unused archetype
 					remove_empty_archetype(pArchetype);
-					core::erase_fast(m_chunksToRemove, i);
+					core::erase_fast(m_archetypesToRemove, i);
 				}
 
 				// Remove all dead archetypes from query caches.
@@ -19223,13 +19245,25 @@ namespace gaia {
 				GAIA_PROF_SCOPE(defrag_chunks);
 
 				const auto maxIters = (uint32_t)m_archetypesById.size();
-				GAIA_FOR(maxIters) {
-					m_defragLastArchetypeID = (m_defragLastArchetypeID + i) % maxIters;
+				// There has to be at least the root archetype present
+				GAIA_ASSERT(maxIters > 0);
 
+				auto it = m_archetypesById.find(m_defragLastArchetypeID);
+				// Every time we delete an archetype we mamke sure the defrag ID is updated.
+				// Therefore, it should always be valid.
+				GAIA_ASSERT(it != m_archetypesById.end());
+
+				GAIA_FOR(maxIters) {
 					auto* pArchetype = m_archetypesById[m_defragLastArchetypeID];
 					pArchetype->defrag(maxEntities, m_chunksToRemove, {m_entities.data(), m_entities.size()});
 					if (maxEntities == 0)
 						return;
+
+					++it;
+					if (it == m_archetypesById.end())
+						m_defragLastArchetypeID = m_archetypesById.begin()->second->id();
+					else
+						m_defragLastArchetypeID = it->second->id();
 				}
 			}
 

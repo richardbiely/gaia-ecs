@@ -28,9 +28,9 @@
 #include "entity.h"
 #include "entity_container.h"
 #include "query.h"
-#include "query_info.h"
 #include "query_cache.h"
 #include "query_common.h"
+#include "query_info.h"
 
 namespace gaia {
 	namespace ecs {
@@ -94,8 +94,9 @@ namespace gaia {
 
 				cnt::sarr_ext<Component, Chunk::MAX_COMPONENTS> comps[ComponentKind::CK_Count];
 				GAIA_FOR(ComponentKind::CK_Count) {
-					auto& dst = comps[i];
 					auto recs = pChunk->comp_rec_view((ComponentKind)i);
+					auto& dst = comps[i];
+					dst.resize(recs.size());
 					GAIA_EACH_(recs, j) dst[j] = recs[j].comp;
 				}
 
@@ -144,6 +145,19 @@ namespace gaia {
 				GAIA_ASSERT(pArchetype->empty());
 				GAIA_ASSERT(!pArchetype->dying());
 
+				// If the deleted archetype is the last one we defragmented
+				// make sure to point to the next one.
+				if (m_defragLastArchetypeID == pArchetype->id()) {
+					auto it = m_archetypesById.find(pArchetype->id());
+					++it;
+
+					// Handle the wrap-around
+					if (it == m_archetypesById.end())
+						m_defragLastArchetypeID = m_archetypesById.begin()->second->id();
+					else
+						m_defragLastArchetypeID = it->second->id();
+				}
+
 				const auto& compsGen = pArchetype->comps(ComponentKind::CK_Gen);
 				const auto& compsUni = pArchetype->comps(ComponentKind::CK_Uni);
 				auto tmpArchetype =
@@ -162,7 +176,7 @@ namespace gaia {
 				for (uint32_t i = 0; i < m_archetypesToRemove.size();) {
 					auto* pArchetype = m_archetypesToRemove[i];
 
-					// Skip reclaimed chunks
+					// Skip reclaimed archetypes
 					if (!pArchetype->empty()) {
 						pArchetype->revive();
 						core::erase_fast(m_archetypesToRemove, i);
@@ -179,7 +193,7 @@ namespace gaia {
 
 					// Remove the unused archetype
 					remove_empty_archetype(pArchetype);
-					core::erase_fast(m_chunksToRemove, i);
+					core::erase_fast(m_archetypesToRemove, i);
 				}
 
 				// Remove all dead archetypes from query caches.
@@ -202,13 +216,25 @@ namespace gaia {
 				GAIA_PROF_SCOPE(defrag_chunks);
 
 				const auto maxIters = (uint32_t)m_archetypesById.size();
-				GAIA_FOR(maxIters) {
-					m_defragLastArchetypeID = (m_defragLastArchetypeID + i) % maxIters;
+				// There has to be at least the root archetype present
+				GAIA_ASSERT(maxIters > 0);
 
+				auto it = m_archetypesById.find(m_defragLastArchetypeID);
+				// Every time we delete an archetype we mamke sure the defrag ID is updated.
+				// Therefore, it should always be valid.
+				GAIA_ASSERT(it != m_archetypesById.end());
+
+				GAIA_FOR(maxIters) {
 					auto* pArchetype = m_archetypesById[m_defragLastArchetypeID];
 					pArchetype->defrag(maxEntities, m_chunksToRemove, {m_entities.data(), m_entities.size()});
 					if (maxEntities == 0)
 						return;
+
+					++it;
+					if (it == m_archetypesById.end())
+						m_defragLastArchetypeID = m_archetypesById.begin()->second->id();
+					else
+						m_defragLastArchetypeID = it->second->id();
 				}
 			}
 

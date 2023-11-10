@@ -116,11 +116,14 @@ namespace gaia {
 			//! Hash of components within this archetype - used for matching
 			ComponentMatcherHash m_matcherHash[ComponentKind::CK_Count]{};
 
-			static constexpr uint16_t CHUNK_LIFESPAN_BITS = 7;
+			//! Number of bits representing archetype lifespan
+			static constexpr uint16_t ARCHETYPE_LIFESPAN_BITS = 7;
+			//! Archetype lifespan must be at least as long as chunk lifespan
+			static_assert(ARCHETYPE_LIFESPAN_BITS >= ChunkHeader::CHUNK_LIFESPAN_BITS);
 			//! Number of ticks before empty chunks are removed
-			static constexpr uint16_t MAX_ARCHETYPE_LIFESPAN = (1 << CHUNK_LIFESPAN_BITS) - 1;
+			static constexpr uint16_t MAX_ARCHETYPE_LIFESPAN = (1 << ARCHETYPE_LIFESPAN_BITS) - 1;
 
-			uint32_t m_lifespanCountdown: CHUNK_LIFESPAN_BITS;
+			uint32_t m_lifespanCountdown: ARCHETYPE_LIFESPAN_BITS;
 			uint32_t m_dead : 1;
 
 			// Constructor is hidden. Create archetypes via Create
@@ -429,6 +432,10 @@ namespace gaia {
 				};
 
 				remove(m_chunks);
+
+				// No deleting for the root archetype
+				if (m_archetypeId == 0)
+					return;
 
 				// TODO: This needs cleaning up.
 				//       Chunk should have no idea of the world and also should not store
