@@ -588,7 +588,7 @@ namespace gaia {
 // Smaller changes and features
 #define GAIA_VERSION_MINOR 7
 // Fixes and tweaks
-#define GAIA_VERSION_PATCH 7
+#define GAIA_VERSION_PATCH 8
 
 //------------------------------------------------------------------------------
 // General settings.
@@ -602,21 +602,6 @@ namespace gaia {
 //! If enabled, no asserts are thrown even in debug builds
 #if !defined(GAIA_DISABLE_ASSERTS)
 	#define GAIA_DISABLE_ASSERTS 0
-#endif
-
-//! Number of bits used for the entity identifier.
-//! You should only touch this if you need more than 2^20 entities which should be fairly
-//! difficult to achieve.
-//! Check entity.h IdBits and GenBits for more info.
-#if !defined(GAIA_ENTITY_IDBITS)
-	#define GAIA_ENTITY_IDBITS 20
-#endif
-//! Number of bits used for the entity generation.
-//! You should only touch this if you need more than 2^12 generations for your entities
-//! which should be fairly difficult to achive.
-//! Check entity.h IdBits and GenBits for more info.
-#if !defined(GAIA_ENTITY_GENBITS)
-	#define GAIA_ENTITY_GENBITS 12
 #endif
 
 //------------------------------------------------------------------------------
@@ -13656,6 +13641,163 @@ namespace gaia {
 #include <cinttypes>
 #include <type_traits>
 
+#include <cinttypes>
+
+namespace gaia {
+	namespace ecs {
+		using Identifier = uint64_t;
+		inline constexpr Identifier IdentifierBad = (Identifier)-1;
+		inline constexpr Identifier EntityCompMask = IdentifierBad << 1;
+
+		using IdentifierId = uint32_t;
+		using IdentifierData = uint32_t;
+
+		using EntityId = IdentifierId;
+		using ComponentId = IdentifierId;
+
+		inline constexpr IdentifierId IdentifierIdBad = (IdentifierId)-1;
+
+		struct Entity final {
+			static constexpr uint32_t IdMask = IdentifierIdBad;
+
+			struct InternalData {
+				//! Index in the entity array
+				EntityId id;
+				//! Generation index. Incremented every time an entity is deleted
+				IdentifierData gen : 31;
+				//! Special flag indicating that this is an entity (used by IsEntity). Always 1
+				IdentifierData isEntity : 1;
+			};
+			static_assert(sizeof(InternalData) == sizeof(Identifier));
+
+			union {
+				InternalData data;
+				Identifier val;
+			};
+
+			Entity() noexcept = default;
+			Entity(Identifier value) noexcept {
+				val = value;
+				data.isEntity = 1;
+			}
+			Entity(EntityId id, IdentifierData gen) noexcept {
+				data.id = id;
+				data.gen = gen;
+				data.isEntity = 1;
+			}
+
+			GAIA_NODISCARD constexpr auto id() const noexcept {
+				return (uint32_t)data.id;
+			}
+			GAIA_NODISCARD constexpr auto gen() const noexcept {
+				return (uint32_t)data.gen;
+			}
+			GAIA_NODISCARD constexpr bool is_entity() const noexcept {
+				const auto isEntity = (uint32_t)data.isEntity;
+				GAIA_ASSERT(isEntity == 1);
+				return isEntity == 1;
+			}
+			GAIA_NODISCARD constexpr auto value() const noexcept {
+				return val;
+			}
+
+			GAIA_NODISCARD constexpr bool operator==(Entity other) const noexcept {
+				return value() == other.value();
+			}
+			GAIA_NODISCARD constexpr bool operator!=(Entity other) const noexcept {
+				return value() != other.value();
+			}
+			GAIA_NODISCARD constexpr bool operator<(Entity other) const noexcept {
+				return id() < other.id();
+			}
+		};
+
+		struct Component final {
+			static constexpr uint32_t IdMask = IdentifierIdBad;
+			static constexpr uint32_t MaxAlignment_Bits = 10;
+			static constexpr uint32_t MaxAlignment = (1U << MaxAlignment_Bits) - 1;
+			static constexpr uint32_t MaxComponentSize_Bits = 8;
+			static constexpr uint32_t MaxComponentSizeInBytes = (1 << MaxComponentSize_Bits) - 1;
+
+			struct InternalData {
+				//! Index in the entity array
+				ComponentId id;
+				//! Component is SoA
+				IdentifierData soa: meta::StructToTupleMaxTypes_Bits;
+				//! Component size
+				IdentifierData size: MaxComponentSize_Bits;
+				//! Component alignment
+				IdentifierData alig: MaxAlignment_Bits;
+				//! Unused part
+				IdentifierData unused : 9;
+				//! Special flag indicating that this is an entity (used by IsEntity). Always 0
+				IdentifierData isEntity : 1;
+			};
+			static_assert(sizeof(InternalData) == sizeof(Identifier));
+
+			union {
+				InternalData data;
+				Identifier val;
+			};
+
+			Component() noexcept = default;
+			Component(Identifier value) noexcept {
+				val = value;
+				data.unused = 0;
+				data.isEntity = 0;
+			}
+			Component(uint32_t id, uint32_t soa, uint32_t size, uint32_t alig) noexcept {
+				data.id = id;
+				data.soa = soa;
+				data.size = size;
+				data.alig = alig;
+				data.unused = 0;
+				data.isEntity = 0;
+			}
+
+			GAIA_NODISCARD constexpr auto id() const noexcept {
+				return (uint32_t)data.id;
+			}
+			GAIA_NODISCARD constexpr auto soa() const noexcept {
+				return (uint32_t)data.soa;
+			}
+			GAIA_NODISCARD constexpr auto size() const noexcept {
+				return (uint32_t)data.size;
+			}
+			GAIA_NODISCARD constexpr auto alig() const noexcept {
+				return (uint32_t)data.alig;
+			}
+			GAIA_NODISCARD constexpr bool is_entity() const noexcept {
+				const auto isEntity = (uint32_t)data.isEntity;
+				GAIA_ASSERT(isEntity == 0);
+				return isEntity == 1;
+			}
+			GAIA_NODISCARD constexpr auto value() const noexcept {
+				return val;
+			}
+
+			GAIA_NODISCARD constexpr bool operator==(Component other) const noexcept {
+				return value() == other.value();
+			}
+			GAIA_NODISCARD constexpr bool operator!=(Component other) const noexcept {
+				return value() != other.value();
+			}
+			GAIA_NODISCARD constexpr bool operator<(Component other) const noexcept {
+				return id() < other.id();
+			}
+		};
+
+		template <typename T>
+		inline bool is_entity(T id) {
+			return id.is_entity();
+		}
+		inline bool is_entity(Identifier id) {
+			return static_cast<Entity>(id).is_entity();
+		}
+
+	} // namespace ecs
+} // namespace gaia
+
 namespace gaia {
 	namespace ecs {
 		enum ComponentKind : uint8_t {
@@ -13668,124 +13810,6 @@ namespace gaia {
 		};
 
 		inline const char* const ComponentKindString[ComponentKind::CK_Count] = {"Gen", "Uni"};
-
-		//----------------------------------------------------------------------
-		// Component
-		//----------------------------------------------------------------------
-
-		using ComponentId = uint32_t;
-		static constexpr ComponentId ComponentIdBad = (ComponentId)-1;
-
-		struct Component {
-			using InternalType = uint64_t;
-
-			static constexpr uint32_t MaxAlignment_Bits = 10;
-			static constexpr uint32_t MaxAlignment = (1U << MaxAlignment_Bits) - 1;
-			static constexpr uint32_t MaxComponentSize_Bits = 8;
-			static constexpr uint32_t MaxComponentSizeInBytes = (1 << MaxComponentSize_Bits) - 1;
-			static constexpr InternalType Bad = (InternalType)-1;
-
-		private:
-			struct ComponentData {
-				//! Component identifier
-				InternalType id : 32;
-				//! Component is SoA
-				InternalType soa: meta::StructToTupleMaxTypes_Bits;
-				//! Component size
-				InternalType size: MaxComponentSize_Bits;
-				//! Component alignment
-				InternalType alig: MaxAlignment_Bits;
-			};
-			static_assert(sizeof(ComponentData) == sizeof(InternalType));
-
-			union {
-				ComponentData data;
-				InternalType val;
-			};
-
-		public:
-			Component() noexcept = default;
-			explicit Component(bool bad) noexcept {
-				(void)bad;
-				val = (InternalType)-1;
-			}
-			explicit Component(uint32_t id, uint32_t soa, uint32_t size, uint32_t alig) {
-				data.id = id;
-				data.soa = soa;
-				data.size = size;
-				data.alig = alig;
-			}
-			~Component() = default;
-
-			Component(Component&&) noexcept = default;
-			Component(const Component&) = default;
-			Component& operator=(Component&&) noexcept = default;
-			Component& operator=(const Component&) = default;
-
-			GAIA_NODISCARD constexpr bool operator==(const Component& other) const noexcept {
-				return val == other.val;
-			}
-			GAIA_NODISCARD constexpr bool operator!=(const Component& other) const noexcept {
-				return val != other.val;
-			}
-
-			GAIA_NODISCARD auto id() const {
-				return (uint32_t)data.id;
-			}
-			GAIA_NODISCARD auto soa() const {
-				return (uint32_t)data.soa;
-			}
-			GAIA_NODISCARD auto size() const {
-				return (uint32_t)data.size;
-			}
-			GAIA_NODISCARD auto alig() const {
-				return (uint32_t)data.alig;
-			}
-
-			// We don't want automatic conversion from Component to ComponentId
-			// operator ComponentId() const {
-			// 	return id();
-			// }
-
-			bool operator<(Component other) const {
-				return id() < other.id();
-			}
-		};
-
-		//----------------------------------------------------------------------
-		// ComponentBad
-		//----------------------------------------------------------------------
-
-		struct ComponentNull_t {
-			GAIA_NODISCARD operator Component() const noexcept {
-				return Component(false);
-			}
-
-			GAIA_NODISCARD constexpr bool operator==([[maybe_unused]] const ComponentNull_t& null) const noexcept {
-				return true;
-			}
-			GAIA_NODISCARD constexpr bool operator!=([[maybe_unused]] const ComponentNull_t& null) const noexcept {
-				return false;
-			}
-		};
-
-		GAIA_NODISCARD inline bool operator==(const ComponentNull_t& null, const Component& comp) noexcept {
-			return static_cast<Component>(null).id() == comp.id();
-		}
-
-		GAIA_NODISCARD inline bool operator!=(const ComponentNull_t& null, const Component& comp) noexcept {
-			return static_cast<Component>(null).id() != comp.id();
-		}
-
-		GAIA_NODISCARD inline bool operator==(const Component& comp, const ComponentNull_t& null) noexcept {
-			return null == comp;
-		}
-
-		GAIA_NODISCARD inline bool operator!=(const Component& comp, const ComponentNull_t& null) noexcept {
-			return null != comp;
-		}
-
-		inline constexpr ComponentNull_t ComponentBad{};
 
 		//----------------------------------------------------------------------
 		// Component-related types
@@ -14030,11 +14054,11 @@ namespace gaia {
 			auto idx = (CompOffsetMappingIndex)(comp_idx_hash(compId) % data.size());
 
 			// Linear probing for collision handling
-			while (data[idx] != ComponentIdBad && data[idx] != compId)
+			while (data[idx] != IdentifierIdBad && data[idx] != compId)
 				idx = (idx + 1) % data.size();
 
 			// If slot is empty, insert the index
-			GAIA_ASSERT(data[idx] == ComponentIdBad);
+			GAIA_ASSERT(data[idx] == IdentifierIdBad);
 			data[idx] = compId;
 		}
 
@@ -14045,7 +14069,7 @@ namespace gaia {
 			auto idx = (CompOffsetMappingIndex)(comp_idx_hash(compId) % data.size());
 
 			// Linear probing for collision handling
-			while (data[idx] != ComponentIdBad && data[idx] != compId)
+			while (data[idx] != IdentifierIdBad && data[idx] != compId)
 				idx = (idx + 1) % data.size();
 
 			return idx;
@@ -14059,7 +14083,7 @@ namespace gaia {
 			const auto idxOrig = idx;
 
 			// Linear probing for collision handling
-			while (data[idx] != ComponentIdBad && data[idx] != compId) {
+			while (data[idx] != IdentifierIdBad && data[idx] != compId) {
 				idx = (idx + 1) % data.size();
 				if (idx == idxOrig)
 					return false;
@@ -14088,7 +14112,7 @@ namespace gaia {
 			using FuncSwap = void(void*, void*);
 
 			//! Unique component identifier
-			Component comp = ComponentBad;
+			Component comp = {IdentifierBad};
 			//! Complex hash used for look-ups
 			ComponentLookupHash hashLookup;
 			//! Simple hash used for matching component
@@ -14152,6 +14176,10 @@ namespace gaia {
 					GAIA_FOR(comp.soa()) {
 						addr = (uint32_t)mem::detail::get_aligned_byte_offset(addr, comp.alig(), soaSizes[i], N);
 					}
+					// TODO: Magic offset. Otherwise, SoA data might leak past the chunk boundary when accessing
+					//       the last element. By faking the memory offset we can bypass this is issue for now.
+					//       Obviously, this needs fixing at some point.
+					addr += comp.soa() * 4;
 				}
 				return addr;
 			}
@@ -14986,104 +15014,6 @@ namespace gaia {
 #include <cinttypes>
 #include <cstdint>
 
-#include <cinttypes>
-#include <type_traits>
-
-namespace gaia {
-	namespace ecs {
-		using EntityInternalType = uint32_t;
-		using EntityId = EntityInternalType;
-		using EntityGenId = EntityInternalType;
-
-		struct Entity final {
-			static constexpr EntityInternalType IdBits = GAIA_ENTITY_IDBITS;
-			static constexpr EntityInternalType GenBits = GAIA_ENTITY_GENBITS;
-			static constexpr EntityInternalType IdMask = (uint32_t)(uint64_t(1) << IdBits) - 1;
-			static constexpr EntityInternalType GenMask = (uint32_t)(uint64_t(1) << GenBits) - 1;
-
-			static constexpr uint32_t EntityBitsTotal = IdBits + GenBits;
-			using EntitySizeType = std::conditional_t<(EntityBitsTotal > 32), uint64_t, uint32_t>;
-			static_assert(EntityBitsTotal <= 64, "EntityBitsTotal must fit inside 64 bits");
-			static_assert(IdBits <= 31, "Entity IdBits must be at most 31 bits long");
-			static_assert(GenBits > 10, "Entity GenBits is recommended to be at least 10 bits long");
-
-		private:
-			struct EntityData {
-				//! Index in entity array
-				EntityInternalType id: IdBits;
-				//! Generation index. Incremented every time an entity is deleted
-				EntityInternalType gen: GenBits;
-			};
-
-			union {
-				EntityData data;
-				EntitySizeType val;
-			};
-
-		public:
-			Entity() noexcept = default;
-			Entity(EntityId id, EntityGenId gen) {
-				data.id = id;
-				data.gen = gen;
-			}
-			~Entity() = default;
-
-			Entity(Entity&&) noexcept = default;
-			Entity(const Entity&) = default;
-			Entity& operator=(Entity&&) noexcept = default;
-			Entity& operator=(const Entity&) = default;
-
-			GAIA_NODISCARD constexpr bool operator==(const Entity& other) const noexcept {
-				return val == other.val;
-			}
-			GAIA_NODISCARD constexpr bool operator!=(const Entity& other) const noexcept {
-				return val != other.val;
-			}
-
-			auto id() const {
-				return data.id;
-			}
-			auto gen() const {
-				return data.gen;
-			}
-			auto value() const {
-				return val;
-			}
-		};
-
-		struct EntityNull_t {
-			GAIA_NODISCARD operator Entity() const noexcept {
-				return Entity(Entity::IdMask, Entity::GenMask);
-			}
-
-			GAIA_NODISCARD constexpr bool operator==([[maybe_unused]] const EntityNull_t& null) const noexcept {
-				return true;
-			}
-			GAIA_NODISCARD constexpr bool operator!=([[maybe_unused]] const EntityNull_t& null) const noexcept {
-				return false;
-			}
-		};
-
-		GAIA_NODISCARD inline bool operator==(const EntityNull_t& null, const Entity& entity) noexcept {
-			return static_cast<Entity>(null).id() == entity.id();
-		}
-
-		GAIA_NODISCARD inline bool operator!=(const EntityNull_t& null, const Entity& entity) noexcept {
-			return static_cast<Entity>(null).id() != entity.id();
-		}
-
-		GAIA_NODISCARD inline bool operator==(const Entity& entity, const EntityNull_t& null) noexcept {
-			return null == entity;
-		}
-
-		GAIA_NODISCARD inline bool operator!=(const Entity& entity, const EntityNull_t& null) noexcept {
-			return null != entity;
-		}
-
-		inline constexpr EntityNull_t EntityNull{};
-	} // namespace ecs
-} // namespace gaia
-
 namespace gaia {
 	namespace ecs {
 		struct ComponentDesc;
@@ -15355,7 +15285,7 @@ namespace gaia {
 					for (; j < cids.size(); ++j)
 						dst[j] = cids[j].id();
 					for (; j < MAX_COMPONENTS; ++j)
-						dst[j] = ComponentIdBad;
+						dst[j] = IdentifierIdBad;
 				}
 
 				// Cache component records
@@ -16766,7 +16696,7 @@ namespace gaia {
 #if GAIA_COMP_ID_PROBING
 				// Generate component id map. Initialize it with ComponentBad values.
 				for (auto& compId: map)
-					compId = ComponentIdBad;
+					compId = IdentifierIdBad;
 				for (auto comp: comps)
 					ecs::set_comp_idx({map.data(), map.size()}, comp.id());
 #endif
@@ -19880,7 +19810,7 @@ namespace gaia {
 			//! Removes an entity along with all data associated with it.
 			//! \param entity Entity to delete
 			void del(Entity entity) {
-				if (m_entities.item_count() == 0 || entity == EntityNull)
+				if (m_entities.item_count() == 0 || entity == IdentifierBad)
 					return;
 
 				GAIA_ASSERT(valid(entity));
@@ -20149,7 +20079,7 @@ namespace gaia {
 
 					uint32_t iters = 0;
 					auto fe = m_entities[m_entities.get_next_free_item()].idx;
-					while (fe != Entity::IdMask) {
+					while (fe != IdentifierIdBad) {
 						GAIA_LOG_N("  --> %u", m_entities[fe].idx);
 						fe = m_entities[fe].idx;
 						++iters;

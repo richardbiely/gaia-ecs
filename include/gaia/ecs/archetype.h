@@ -16,7 +16,7 @@
 #include "component.h"
 #include "component_cache.h"
 #include "component_utils.h"
-#include "entity.h"
+#include "id.h"
 
 namespace gaia {
 	namespace ecs {
@@ -246,7 +246,7 @@ namespace gaia {
 #if GAIA_COMP_ID_PROBING
 				// Generate component id map. Initialize it with ComponentBad values.
 				for (auto& compId: map)
-					compId = ComponentIdBad;
+					compId = IdentifierIdBad;
 				for (auto comp: comps)
 					ecs::set_comp_idx({map.data(), map.size()}, comp.id());
 #endif

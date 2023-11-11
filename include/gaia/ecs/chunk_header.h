@@ -9,7 +9,7 @@
 #include "archetype_common.h"
 #include "chunk_allocator.h"
 #include "component.h"
-#include "entity.h"
+#include "id.h"
 
 namespace gaia {
 	namespace ecs {

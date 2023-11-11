@@ -1,3 +1,5 @@
+#include "gaia/ecs/component_cache.h"
+#include "gaia/ecs/id.h"
 #include <gaia.h>
 
 #if GAIA_COMPILER_MSVC
@@ -1434,7 +1436,7 @@ TEST_CASE("ComponentId internal map") {
 		cnt::darray<ecs::ComponentId> data{};
 		data.resize(i * 10);
 		for (auto& comp: data)
-			comp = ecs::ComponentIdBad;
+			comp = ecs::IdentifierIdBad;
 
 		const ecs::ComponentId comp0 = 1000000;
 
@@ -1498,19 +1500,16 @@ TEST_CASE("Entity - has") {
 }
 
 TEST_CASE("EntityNull") {
-	REQUIRE_FALSE(ecs::Entity{} == ecs::EntityNull);
-
-	REQUIRE(ecs::EntityNull == ecs::EntityNull);
-	REQUIRE_FALSE(ecs::EntityNull != ecs::EntityNull);
+	REQUIRE_FALSE(ecs::Entity{} == ecs::IdentifierBad);
 
 	ecs::World w;
-	REQUIRE_FALSE(w.valid(ecs::EntityNull));
+	REQUIRE_FALSE(w.valid(ecs::IdentifierBad));
 
 	auto e = w.add();
-	REQUIRE(e != ecs::EntityNull);
-	REQUIRE(ecs::EntityNull != e);
-	REQUIRE_FALSE(e == ecs::EntityNull);
-	REQUIRE_FALSE(ecs::EntityNull == e);
+	REQUIRE(e != ecs::IdentifierBad);
+	REQUIRE_FALSE(e == ecs::IdentifierBad);
+
+	REQUIRE(ecs::is_entity(e));
 }
 
 TEST_CASE("Add - no components") {
@@ -1548,8 +1547,10 @@ TEST_CASE("Add - 1 component") {
 	};
 
 	const uint32_t N = 10'000;
-	GAIA_FOR(N)
-	create(i);
+	GAIA_FOR(N) create(i);
+
+	const auto& desc = ecs::ComponentCache::get().comp_desc<Int3>();
+	REQUIRE_FALSE(ecs::is_entity(desc.comp));
 }
 
 namespace dummy {
@@ -1632,8 +1633,7 @@ TEST_CASE("Add - many components") {
 	};
 
 	const uint32_t N = 10'000;
-	GAIA_FOR(N)
-	create(i);
+	GAIA_FOR(N) create(i);
 }
 
 TEST_CASE("AddAndDel_entity - no components") {
@@ -1717,8 +1717,7 @@ void Test_Query_QueryResult() {
 	};
 
 	const uint32_t N = 10'000;
-	GAIA_FOR(N)
-	create(i);
+	GAIA_FOR(N) create(i);
 
 	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
 	auto q1 = w.query<UseCachedQuery>().template all<Position>();
@@ -1807,8 +1806,7 @@ void Test_Query_QueryResult_Complex() {
 	};
 
 	const uint32_t N = 10'000;
-	GAIA_FOR(N)
-	create(i);
+	GAIA_FOR(N) create(i);
 
 	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
 	auto q1 = w.query<UseCachedQuery>().template all<Position>();

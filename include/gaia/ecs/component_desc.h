@@ -23,7 +23,7 @@ namespace gaia {
 			using FuncSwap = void(void*, void*);
 
 			//! Unique component identifier
-			Component comp = ComponentBad;
+			Component comp = {IdentifierBad};
 			//! Complex hash used for look-ups
 			ComponentLookupHash hashLookup;
 			//! Simple hash used for matching component
@@ -87,6 +87,10 @@ namespace gaia {
 					GAIA_FOR(comp.soa()) {
 						addr = (uint32_t)mem::detail::get_aligned_byte_offset(addr, comp.alig(), soaSizes[i], N);
 					}
+					// TODO: Magic offset. Otherwise, SoA data might leak past the chunk boundary when accessing
+					//       the last element. By faking the memory offset we can bypass this is issue for now.
+					//       Obviously, this needs fixing at some point.
+					addr += comp.soa() * 4;
 				}
 				return addr;
 			}
