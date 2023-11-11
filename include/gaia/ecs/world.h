@@ -32,7 +32,6 @@
 #include "query_common.h"
 #include "query_info.h"
 
-
 namespace gaia {
 	namespace ecs {
 		class GAIA_API World final {
@@ -51,6 +50,8 @@ namespace gaia {
 			cnt::map<ArchetypeLookupKey, Archetype*> m_archetypesByHash;
 			//! Map of archetypes identified by their ID
 			cnt::map<ArchetypeId, Archetype*> m_archetypesById;
+			//! Pointer to the root archetype
+			Archetype* m_pRootArchetype = nullptr;
 			//! Id assigned to the next created archetype
 			ArchetypeId m_nextArchetypeId = 0;
 
@@ -267,18 +268,18 @@ namespace gaia {
 			GAIA_NODISCARD Archetype* create_archetype(ComponentSpan compsGen, ComponentSpan compsUni) {
 				auto* pArchetype = Archetype::create(m_nextArchetypeId++, m_worldVersion, compsGen, compsUni);
 
-				auto registerComponentToArchetypePair = [&](Component comp) {
-					const auto it = m_componentToArchetypeMap.find(comp.id());
+				auto registerComponentToArchetypePair = [&](ComponentId compId) {
+					const auto it = m_componentToArchetypeMap.find(compId);
 					if (it == m_componentToArchetypeMap.end())
-						m_componentToArchetypeMap.try_emplace(comp.id(), ArchetypeList{pArchetype});
+						m_componentToArchetypeMap.try_emplace(compId, ArchetypeList{pArchetype});
 					else if (!core::has(it->second, pArchetype))
 						it->second.push_back(pArchetype);
 				};
 
 				for (auto comp: compsGen)
-					registerComponentToArchetypePair(comp);
+					registerComponentToArchetypePair(comp.id());
 				for (auto comp: compsUni)
-					registerComponentToArchetypePair(comp);
+					registerComponentToArchetypePair(comp.id());
 
 				return pArchetype;
 			}
@@ -288,10 +289,10 @@ namespace gaia {
 			void reg_archetype(Archetype* pArchetype) {
 				// Make sure hashes were set already
 				GAIA_ASSERT(
-						(m_archetypesById.empty() || pArchetype == m_archetypesById.begin()->second) ||
+						(m_archetypesById.empty() || pArchetype == m_pRootArchetype) ||
 						(pArchetype->generic_hash().hash != 0 || pArchetype->chunk_hash().hash != 0));
 				GAIA_ASSERT(
-						(m_archetypesById.empty() || pArchetype == m_archetypesById.begin()->second) ||
+						(m_archetypesById.empty() || pArchetype == m_pRootArchetype) ||
 						pArchetype->lookup_hash().hash != 0);
 
 				// Make sure the archetype is not registered yet
@@ -375,7 +376,7 @@ namespace gaia {
 				// We don't want to store edges for the root archetype because the more components there are the longer
 				// it would take to find anything. Therefore, for the root archetype we always make a lookup.
 				// Compared to an ordinary lookup this path is stripped as much as possible.
-				if (pArchetypeLeft == m_archetypesById.begin()->second) {
+				if (pArchetypeLeft == m_pRootArchetype) {
 					Archetype* pArchetypeRight = nullptr;
 
 					if (compKind == ComponentKind::CK_Gen) {
@@ -706,9 +707,9 @@ namespace gaia {
 			}
 
 			void init() {
-				auto* pRootArchetype = create_archetype({}, {});
-				pRootArchetype->set_hashes({0}, {0}, Archetype::calc_lookup_hash({0}, {0}));
-				reg_archetype(pRootArchetype);
+				m_pRootArchetype = create_archetype({}, {});
+				m_pRootArchetype->set_hashes({0}, {0}, Archetype::calc_lookup_hash({0}, {0}));
+				reg_archetype(m_pRootArchetype);
 			}
 
 			void done() {
@@ -836,7 +837,7 @@ namespace gaia {
 			//! Creates a new empty entity
 			//! \return New entity
 			GAIA_NODISCARD Entity add() {
-				return add(*m_archetypesById.begin()->second);
+				return add(*m_pRootArchetype);
 			}
 
 			//! Creates a new entity by cloning an already existing one.
