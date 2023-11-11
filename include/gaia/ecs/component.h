@@ -8,6 +8,7 @@
 #include "../core/utility.h"
 #include "../mem/data_layout_policy.h"
 #include "../meta/type_info.h"
+#include "id.h"
 
 namespace gaia {
 	namespace ecs {
@@ -21,124 +22,6 @@ namespace gaia {
 		};
 
 		inline const char* const ComponentKindString[ComponentKind::CK_Count] = {"Gen", "Uni"};
-
-		//----------------------------------------------------------------------
-		// Component
-		//----------------------------------------------------------------------
-
-		using ComponentId = uint32_t;
-		static constexpr ComponentId ComponentIdBad = (ComponentId)-1;
-
-		struct Component {
-			using InternalType = uint64_t;
-
-			static constexpr uint32_t MaxAlignment_Bits = 10;
-			static constexpr uint32_t MaxAlignment = (1U << MaxAlignment_Bits) - 1;
-			static constexpr uint32_t MaxComponentSize_Bits = 8;
-			static constexpr uint32_t MaxComponentSizeInBytes = (1 << MaxComponentSize_Bits) - 1;
-			static constexpr InternalType Bad = (InternalType)-1;
-
-		private:
-			struct ComponentData {
-				//! Component identifier
-				InternalType id : 32;
-				//! Component is SoA
-				InternalType soa: meta::StructToTupleMaxTypes_Bits;
-				//! Component size
-				InternalType size: MaxComponentSize_Bits;
-				//! Component alignment
-				InternalType alig: MaxAlignment_Bits;
-			};
-			static_assert(sizeof(ComponentData) == sizeof(InternalType));
-
-			union {
-				ComponentData data;
-				InternalType val;
-			};
-
-		public:
-			Component() noexcept = default;
-			explicit Component(bool bad) noexcept {
-				(void)bad;
-				val = (InternalType)-1;
-			}
-			explicit Component(uint32_t id, uint32_t soa, uint32_t size, uint32_t alig) {
-				data.id = id;
-				data.soa = soa;
-				data.size = size;
-				data.alig = alig;
-			}
-			~Component() = default;
-
-			Component(Component&&) noexcept = default;
-			Component(const Component&) = default;
-			Component& operator=(Component&&) noexcept = default;
-			Component& operator=(const Component&) = default;
-
-			GAIA_NODISCARD constexpr bool operator==(const Component& other) const noexcept {
-				return val == other.val;
-			}
-			GAIA_NODISCARD constexpr bool operator!=(const Component& other) const noexcept {
-				return val != other.val;
-			}
-
-			GAIA_NODISCARD auto id() const {
-				return (uint32_t)data.id;
-			}
-			GAIA_NODISCARD auto soa() const {
-				return (uint32_t)data.soa;
-			}
-			GAIA_NODISCARD auto size() const {
-				return (uint32_t)data.size;
-			}
-			GAIA_NODISCARD auto alig() const {
-				return (uint32_t)data.alig;
-			}
-
-			// We don't want automatic conversion from Component to ComponentId
-			// operator ComponentId() const {
-			// 	return id();
-			// }
-
-			bool operator<(Component other) const {
-				return id() < other.id();
-			}
-		};
-
-		//----------------------------------------------------------------------
-		// ComponentBad
-		//----------------------------------------------------------------------
-
-		struct ComponentNull_t {
-			GAIA_NODISCARD operator Component() const noexcept {
-				return Component(false);
-			}
-
-			GAIA_NODISCARD constexpr bool operator==([[maybe_unused]] const ComponentNull_t& null) const noexcept {
-				return true;
-			}
-			GAIA_NODISCARD constexpr bool operator!=([[maybe_unused]] const ComponentNull_t& null) const noexcept {
-				return false;
-			}
-		};
-
-		GAIA_NODISCARD inline bool operator==(const ComponentNull_t& null, const Component& comp) noexcept {
-			return static_cast<Component>(null).id() == comp.id();
-		}
-
-		GAIA_NODISCARD inline bool operator!=(const ComponentNull_t& null, const Component& comp) noexcept {
-			return static_cast<Component>(null).id() != comp.id();
-		}
-
-		GAIA_NODISCARD inline bool operator==(const Component& comp, const ComponentNull_t& null) noexcept {
-			return null == comp;
-		}
-
-		GAIA_NODISCARD inline bool operator!=(const Component& comp, const ComponentNull_t& null) noexcept {
-			return null != comp;
-		}
-
-		inline constexpr ComponentNull_t ComponentBad{};
 
 		//----------------------------------------------------------------------
 		// Component-related types
@@ -383,11 +266,11 @@ namespace gaia {
 			auto idx = (CompOffsetMappingIndex)(comp_idx_hash(compId) % data.size());
 
 			// Linear probing for collision handling
-			while (data[idx] != ComponentIdBad && data[idx] != compId)
+			while (data[idx] != IdentifierIdBad && data[idx] != compId)
 				idx = (idx + 1) % data.size();
 
 			// If slot is empty, insert the index
-			GAIA_ASSERT(data[idx] == ComponentIdBad);
+			GAIA_ASSERT(data[idx] == IdentifierIdBad);
 			data[idx] = compId;
 		}
 
@@ -398,7 +281,7 @@ namespace gaia {
 			auto idx = (CompOffsetMappingIndex)(comp_idx_hash(compId) % data.size());
 
 			// Linear probing for collision handling
-			while (data[idx] != ComponentIdBad && data[idx] != compId)
+			while (data[idx] != IdentifierIdBad && data[idx] != compId)
 				idx = (idx + 1) % data.size();
 
 			return idx;
@@ -412,7 +295,7 @@ namespace gaia {
 			const auto idxOrig = idx;
 
 			// Linear probing for collision handling
-			while (data[idx] != ComponentIdBad && data[idx] != compId) {
+			while (data[idx] != IdentifierIdBad && data[idx] != compId) {
 				idx = (idx + 1) % data.size();
 				if (idx == idxOrig)
 					return false;

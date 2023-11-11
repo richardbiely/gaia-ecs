@@ -18,8 +18,8 @@
 #include "component_cache.h"
 #include "component_desc.h"
 #include "component_utils.h"
-#include "entity.h"
 #include "entity_container.h"
+#include "id.h"
 
 namespace gaia {
 	namespace ecs {
@@ -105,7 +105,7 @@ namespace gaia {
 					for (; j < cids.size(); ++j)
 						dst[j] = cids[j].id();
 					for (; j < MAX_COMPONENTS; ++j)
-						dst[j] = ComponentIdBad;
+						dst[j] = IdentifierIdBad;
 				}
 
 				// Cache component records

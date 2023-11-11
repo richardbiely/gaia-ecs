@@ -16,21 +16,6 @@
 	#define GAIA_DISABLE_ASSERTS 0
 #endif
 
-//! Number of bits used for the entity identifier.
-//! You should only touch this if you need more than 2^20 entities which should be fairly
-//! difficult to achieve.
-//! Check entity.h IdBits and GenBits for more info.
-#if !defined(GAIA_ENTITY_IDBITS)
-	#define GAIA_ENTITY_IDBITS 20
-#endif
-//! Number of bits used for the entity generation.
-//! You should only touch this if you need more than 2^12 generations for your entities
-//! which should be fairly difficult to achive.
-//! Check entity.h IdBits and GenBits for more info.
-#if !defined(GAIA_ENTITY_GENBITS)
-	#define GAIA_ENTITY_GENBITS 12
-#endif
-
 //------------------------------------------------------------------------------
 // Internal features.
 // You are free to modify these but you probably should not.

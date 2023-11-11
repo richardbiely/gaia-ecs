@@ -570,7 +570,7 @@ public:
 				for (; pp[ii] != pp_end; pp[ii] += dd[ii], naa += dd[ii]) {
 					// Stop on wall collisions
 					if (g_world.map[pp[1]][pp[0]] == TILE_WALL) {
-						m_colliding.push_back({e, ecs::EntityNull, Position{pp[0], pp[1]}, v});
+						m_colliding.push_back({e, ecs::IdentifierBad, Position{pp[0], pp[1]}, v});
 						goto onCollision;
 					}
 
@@ -679,7 +679,7 @@ public:
 		const auto& colls = m_collisionSystem->GetCollisions();
 		for (const auto& coll: colls) {
 			// Skip world collisions
-			if (coll.e2 == ecs::EntityNull)
+			if (coll.e2 == ecs::IdentifierBad)
 				continue;
 
 			uint32_t idx1{}, idx2{};
@@ -723,7 +723,7 @@ public:
 		const auto& colls = m_collisionSystem->GetCollisions();
 		for (const auto& coll: colls) {
 			// Entity -> world content collision
-			if (coll.e2 == ecs::EntityNull) {
+			if (coll.e2 == ecs::IdentifierBad) {
 				uint32_t idx1{};
 				auto* pChunk1 = world().get_chunk(coll.e1, idx1);
 				GAIA_ASSERT(pChunk1 != nullptr);

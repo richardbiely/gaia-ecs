@@ -25,12 +25,13 @@
 #include "component_getter.h"
 #include "component_setter.h"
 #include "component_utils.h"
-#include "entity.h"
 #include "entity_container.h"
+#include "id.h"
 #include "query.h"
 #include "query_cache.h"
 #include "query_common.h"
 #include "query_info.h"
+
 
 namespace gaia {
 	namespace ecs {
@@ -858,7 +859,7 @@ namespace gaia {
 			//! Removes an entity along with all data associated with it.
 			//! \param entity Entity to delete
 			void del(Entity entity) {
-				if (m_entities.item_count() == 0 || entity == EntityNull)
+				if (m_entities.item_count() == 0 || entity == IdentifierBad)
 					return;
 
 				GAIA_ASSERT(valid(entity));
@@ -1127,7 +1128,7 @@ namespace gaia {
 
 					uint32_t iters = 0;
 					auto fe = m_entities[m_entities.get_next_free_item()].idx;
-					while (fe != Entity::IdMask) {
+					while (fe != IdentifierIdBad) {
 						GAIA_LOG_N("  --> %u", m_entities[fe].idx);
 						fe = m_entities[fe].idx;
 						++iters;

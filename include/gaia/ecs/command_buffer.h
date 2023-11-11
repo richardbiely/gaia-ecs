@@ -12,7 +12,7 @@
 #include "component.h"
 #include "component_cache.h"
 #include "data_buffer.h"
-#include "entity.h"
+#include "id.h"
 #include "world.h"
 
 namespace gaia {
