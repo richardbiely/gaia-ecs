@@ -1636,6 +1636,59 @@ TEST_CASE("Add - many components") {
 	GAIA_FOR(N) create(i);
 }
 
+TEST_CASE("Add - many components, bulk") {
+	ecs::World w;
+
+	auto create = [&](uint32_t id) {
+		auto e = w.add();
+		const bool ok = e.id() == id && e.gen() == 0;
+		REQUIRE(ok);
+
+		w.bulk(e).add<Int3, Position, Empty>().add<Else>().add<Rotation>().add<Scale>();
+
+		w.set<Int3>(e, {3, 3, 3})
+				.set<Position>({1, 1, 1})
+				.set<Else>({true})
+				.set<Rotation>({2, 2, 2, 2})
+				.set<Scale>({4, 4, 4});
+
+		REQUIRE(w.has<Int3>(e));
+		REQUIRE(w.has<Position>(e));
+		REQUIRE(w.has<Empty>(e));
+		REQUIRE(w.has<Rotation>(e));
+		REQUIRE(w.has<Scale>(e));
+
+		{
+			auto val = w.get<Int3>(e);
+			REQUIRE(val.x == 3);
+			REQUIRE(val.y == 3);
+			REQUIRE(val.z == 3);
+		}
+		{
+			auto val = w.get<Position>(e);
+			REQUIRE(val.x == 1.f);
+			REQUIRE(val.y == 1.f);
+			REQUIRE(val.z == 1.f);
+		}
+		{
+			auto val = w.get<Rotation>(e);
+			REQUIRE(val.x == 2.f);
+			REQUIRE(val.y == 2.f);
+			REQUIRE(val.z == 2.f);
+			REQUIRE(val.w == 2.f);
+		}
+		{
+			auto val = w.get<Scale>(e);
+			REQUIRE(val.x == 4.f);
+			REQUIRE(val.y == 4.f);
+			REQUIRE(val.z == 4.f);
+		}
+	};
+
+	const uint32_t N = 10'000;
+	GAIA_FOR(N) create(i);
+}
+
 TEST_CASE("AddAndDel_entity - no components") {
 	ecs::World w;
 

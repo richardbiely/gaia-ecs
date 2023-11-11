@@ -15803,21 +15803,22 @@ namespace gaia {
 				}
 			}
 
-			/*!
-			Moves all data associated with \param entity into the chunk so that it is stored at index \param newEntityIdx.
-			*/
-			void move_foreign_entity_data(Entity entity, uint32_t newEntityIdx, std::span<EntityContainer> entities) {
+			static void move_foreign_entity_data(
+					Chunk* pOldChunk, uint32_t oldIdx, Chunk* pNewChunk, uint32_t newIdx, ComponentKind compKind) {
 				GAIA_PROF_SCOPE(move_foreign_entity_data);
 
-				auto& oldEntityContainer = entities[entity.id()];
-				auto* pOldChunk = oldEntityContainer.pChunk;
+				GAIA_ASSERT(pOldChunk != nullptr);
+				GAIA_ASSERT(pNewChunk != nullptr);
+				GAIA_ASSERT(oldIdx < pOldChunk->size());
+				GAIA_ASSERT(newIdx < pNewChunk->size());
+
+				auto oldIds = pOldChunk->comp_id_view(compKind);
+				auto newIds = pNewChunk->comp_id_view(compKind);
+				auto recsNew = pNewChunk->comp_rec_view(compKind);
 
 				// Find intersection of the two component lists.
-				// We ignore unique components here because they are not influenced by entities moving around.
-				auto oldIds = pOldChunk->comp_id_view(ComponentKind::CK_Gen);
-				auto newIds = comp_id_view(ComponentKind::CK_Gen);
-
-				// Arrays are sorted so we can do linear intersection lookup
+				// Arrays are sorted so we can do linear intersection lookup.
+				// Call constructor on each match.
 				{
 					uint32_t i = 0;
 					uint32_t j = 0;
@@ -15826,23 +15827,53 @@ namespace gaia {
 						const auto newId = newIds[j];
 
 						if (oldId == newId) {
-							auto recs = comp_rec_view(ComponentKind::CK_Gen);
-							const auto& rec = recs[j];
-							GAIA_ASSERT(rec.comp.id() == oldId);
+							const auto& rec = recsNew[j];
+							GAIA_ASSERT(rec.comp.id() == newId);
 							if (rec.comp.size() != 0U) {
-								auto* pSrc = (void*)pOldChunk->comp_ptr_mut(ComponentKind::CK_Gen, i, oldEntityContainer.idx);
-								auto* pDst = (void*)comp_ptr_mut(ComponentKind::CK_Gen, j, newEntityIdx);
+								auto* pSrc = (void*)pOldChunk->comp_ptr_mut(compKind, i, oldIdx);
+								auto* pDst = (void*)pNewChunk->comp_ptr_mut(compKind, j, newIdx);
 								rec.pDesc->ctor_from(pSrc, pDst);
 							}
 
 							++i;
 							++j;
-						} else if (SortComponentIdCond{}.operator()(oldId, newId))
+						} else if (SortComponentIdCond{}.operator()(oldId, newId)) {
 							++i;
-						else
+						} else {
+							// No match with the old chunk. Construct the component
+							const auto& rec = recsNew[j];
+							GAIA_ASSERT(rec.comp.id() == newId);
+							if (rec.pDesc->func_ctor != nullptr) {
+								auto* pDst = (void*)pNewChunk->comp_ptr_mut(compKind, j, newIdx);
+								rec.pDesc->func_ctor(pDst, 1);
+							}
+
 							++j;
+						}
+					}
+
+					// Initialize the rest of the components
+					for (; j < newIds.size(); ++j) {
+						const auto& rec = recsNew[j];
+						if (rec.pDesc->func_ctor != nullptr) {
+							auto* pDst = (void*)pNewChunk->comp_ptr_mut(compKind, j, newIdx);
+							rec.pDesc->func_ctor(pDst, 1);
+						}
 					}
 				}
+			}
+
+			/*!
+			Moves all data associated with \param entity into the chunk so that it is stored at index \param newEntityIdx.
+			*/
+			void move_foreign_entity_data(Entity entity, uint32_t newEntityIdx, std::span<EntityContainer> entities) {
+				GAIA_PROF_SCOPE(move_foreign_entity_data);
+
+				auto& oldEntityContainer = entities[entity.id()];
+				move_foreign_entity_data(
+						oldEntityContainer.pChunk, oldEntityContainer.idx, this, newEntityIdx,
+						// We ignore unique components here because they are not influenced by entities moving around.
+						ComponentKind::CK_Gen);
 			}
 
 			/*!
@@ -17086,13 +17117,17 @@ namespace gaia {
 			}
 
 			void build_graph_edges(Archetype* pArchetypeRight, ComponentKind compKind, ComponentId compId) {
+				// Loops can't happen
 				GAIA_ASSERT(pArchetypeRight != this);
+
 				m_graph.add_edge_right(compKind, compId, pArchetypeRight->id());
 				pArchetypeRight->build_graph_edges_left(this, compKind, compId);
 			}
 
 			void build_graph_edges_left(Archetype* pArchetypeLeft, ComponentKind compKind, ComponentId compId) {
+				// Loops can't happen
 				GAIA_ASSERT(pArchetypeLeft != this);
+
 				m_graph.add_edge_left(compKind, compId, pArchetypeLeft->id());
 			}
 
@@ -19247,8 +19282,7 @@ namespace gaia {
 						(m_archetypesById.empty() || pArchetype == m_pRootArchetype) ||
 						(pArchetype->generic_hash().hash != 0 || pArchetype->chunk_hash().hash != 0));
 				GAIA_ASSERT(
-						(m_archetypesById.empty() || pArchetype == m_pRootArchetype) ||
-						pArchetype->lookup_hash().hash != 0);
+						(m_archetypesById.empty() || pArchetype == m_pRootArchetype) || pArchetype->lookup_hash().hash != 0);
 
 				// Make sure the archetype is not registered yet
 				GAIA_ASSERT(!m_archetypesById.contains(pArchetype->id()));
@@ -19325,7 +19359,7 @@ namespace gaia {
 			//! \param pArchetypeLeft Archetype we originate from.
 			//! \param compKind Component comps.
 			//! \param descToAdd Component we want to add.
-			//! \return Pointer to archetype.
+			//! \return Archetype pointer.
 			GAIA_NODISCARD Archetype*
 			foc_archetype_add_comp(Archetype* pArchetypeLeft, ComponentKind compKind, const ComponentDesc& descToAdd) {
 				// We don't want to store edges for the root archetype because the more components there are the longer
@@ -19509,6 +19543,7 @@ namespace gaia {
 			/*!
 			Moves an entity along with all its generic components from its current chunk to another one.
 			\param oldEntity Entity to move
+			\param targetArchetype Target archetype
 			\param targetChunk Target chunk
 			*/
 			void move_entity(Entity oldEntity, Archetype& targetArchetype, Chunk& targetChunk) {
@@ -19567,7 +19602,7 @@ namespace gaia {
 			*/
 			void move_entity(Entity oldEntity, Archetype& newArchetype) {
 				auto* pNewChunk = newArchetype.foc_free_chunk();
-				return move_entity(oldEntity, newArchetype, *pNewChunk);
+				move_entity(oldEntity, newArchetype, *pNewChunk);
 			}
 
 			//! Verifies than the implicit linked list of entities is valid
@@ -19604,61 +19639,80 @@ namespace gaia {
 #endif
 			}
 
-			EntityContainer& add_inter(ComponentKind compKind, Entity entity, const ComponentDesc& desc) {
-				GAIA_PROF_SCOPE(AddComponent);
+			struct CompMoveHelper {
+				World& m_world;
+				Entity m_entity;
+				Archetype* m_pArchetype;
 
-				auto& entityContainer = m_entities[entity.id()];
-
-				auto* pChunk = entityContainer.pChunk;
-
-				GAIA_ASSERT(pChunk != nullptr);
-				GAIA_ASSERT(
-						!pChunk->locked() && "New components can't be added while their chunk is being iterated "
-																 "(structural changes are forbidden during this time!)");
-
-				// Adding a component to an entity which already is a part of some chunk
-				{
-					auto& archetype = *entityContainer.pArchetype;
-
-#if GAIA_DEBUG
-					verify_add(archetype, entity, compKind, desc);
-#endif
-
-					auto* pTargetArchetype = foc_archetype_add_comp(&archetype, compKind, desc);
-					move_entity(entity, *pTargetArchetype);
-					pChunk = entityContainer.pChunk;
+				CompMoveHelper(World& world, Entity entity): m_world(world), m_entity(entity) {
+					GAIA_ASSERT(world.valid(entity));
+					auto& entityContainer = world.m_entities[entity.id()];
+					m_pArchetype = entityContainer.pArchetype;
 				}
 
-				// Call the constructor for the newly added component if necessary.
-				// Unique component constructors are handled automatically when a new chunk is created.
-				if (compKind == ComponentKind::CK_Gen)
-					pChunk->call_ctor(compKind, entityContainer.idx, desc);
+				CompMoveHelper(const CompMoveHelper&) = default;
+				CompMoveHelper(CompMoveHelper&&) = delete;
+				CompMoveHelper& operator=(const CompMoveHelper&) = delete;
+				CompMoveHelper& operator=(CompMoveHelper&&) = delete;
 
-				return entityContainer;
-			}
+				~CompMoveHelper() {
+					// Now that we have the final archetype move the entity it
+					m_world.move_entity(m_entity, *m_pArchetype);
+				}
 
-			ComponentSetter del_inter(ComponentKind compKind, Entity entity, const ComponentDesc& descToRemove) {
-				GAIA_PROF_SCOPE(del);
-
-				auto& entityContainer = m_entities[entity.id()];
-				auto* pChunk = entityContainer.pChunk;
-
-				GAIA_ASSERT(pChunk != nullptr);
-				GAIA_ASSERT(
-						!pChunk->locked() && "Components can't be removed while their chunk is being iterated "
-																 "(structural changes are forbidden during this time!)");
-
-				auto& archetype = *entityContainer.pArchetype;
+				CompMoveHelper& add(ComponentKind compKind, const ComponentDesc& desc) {
+					GAIA_PROF_SCOPE(AddComponent);
 
 #if GAIA_DEBUG
-				verify_del(archetype, entity, compKind, descToRemove);
+					verify_add(*m_pArchetype, m_entity, compKind, desc);
 #endif
 
-				auto* pNewArchetype = foc_archetype_remove_comp(&archetype, compKind, descToRemove);
-				GAIA_ASSERT(pNewArchetype != nullptr);
-				move_entity(entity, *pNewArchetype);
+					m_pArchetype = m_world.foc_archetype_add_comp(m_pArchetype, compKind, desc);
 
-				return ComponentSetter{pChunk, entityContainer.idx};
+					return *this;
+				}
+
+				template <typename... T>
+				CompMoveHelper& add() {
+					(verify_comp<T>(), ...);
+
+					auto& cc = ComponentCache::get();
+
+					(add(component_kind_v<T>, cc.goc_comp_desc<typename component_type_t<T>::Type>()), ...);
+
+					return *this;
+				}
+
+				CompMoveHelper& del(ComponentKind compKind, const ComponentDesc& desc) {
+					GAIA_PROF_SCOPE(DelComponent);
+
+#if GAIA_DEBUG
+					verify_del(*m_pArchetype, m_entity, compKind, desc);
+#endif
+
+					m_pArchetype = m_world.foc_archetype_remove_comp(m_pArchetype, compKind, desc);
+
+					return *this;
+				}
+
+				template <typename ...T>
+				CompMoveHelper& del() {
+					(verify_comp<T>(), ...);
+
+					auto& cc = ComponentCache::get();
+
+					(del(component_kind_v<T>, cc.goc_comp_desc<typename component_type_t<T>::Type>()), ...);
+
+					return *this;
+				}
+			};
+
+			CompMoveHelper& add_inter(Entity entity, ComponentKind compKind, const ComponentDesc& desc) {
+				return CompMoveHelper(*this, entity).add(compKind, desc);
+			}
+
+			CompMoveHelper& del_inter(Entity entity, ComponentKind compKind, const ComponentDesc& desc) {
+				return CompMoveHelper(*this, entity).del(compKind, desc);
 			}
 
 			void init() {
@@ -19907,6 +19961,10 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
+			CompMoveHelper bulk(Entity entity) {
+				return CompMoveHelper(*this, entity);
+			}
+
 			//! Attaches a new component \tparam T to \param entity.
 			//! \tparam T Component
 			//! \param entity Entity
@@ -19920,9 +19978,11 @@ namespace gaia {
 
 				using U = typename component_type_t<T>::Type;
 				const auto& desc = ComponentCache::get().goc_comp_desc<U>();
+				const auto& entityContainer = m_entities[entity.id()];
 
 				constexpr auto compKind = component_kind_v<T>;
-				auto& entityContainer = add_inter(compKind, entity, desc);
+				add_inter(entity, compKind, desc);
+
 				return ComponentSetter{entityContainer.pChunk, entityContainer.idx};
 			}
 
@@ -19939,16 +19999,16 @@ namespace gaia {
 				GAIA_ASSERT(valid(entity));
 
 				const auto& desc = ComponentCache::get().goc_comp_desc<U>();
+				const auto& entityContainer = m_entities[entity.id()];
+
+				constexpr auto compKind = component_kind_v<T>;
+				add_inter(entity, compKind, desc);
 
 				if constexpr (component_kind_v<T> == ComponentKind::CK_Gen) {
-					auto& entityContainer = add_inter(ComponentKind::CK_Gen, entity, desc);
-					auto* pChunk = entityContainer.pChunk;
-					pChunk->template set<T>(entityContainer.idx, GAIA_FWD(value));
+					entityContainer.pChunk->template set<T>(entityContainer.idx, GAIA_FWD(value));
 					return ComponentSetter{entityContainer.pChunk, entityContainer.idx};
 				} else {
-					auto& entityContainer = add_inter(ComponentKind::CK_Uni, entity, desc);
-					auto* pChunk = entityContainer.pChunk;
-					pChunk->template set<T>(GAIA_FWD(value));
+					entityContainer.pChunk->template set<T>(GAIA_FWD(value));
 					return ComponentSetter{entityContainer.pChunk, entityContainer.idx};
 				}
 			}
@@ -19966,9 +20026,12 @@ namespace gaia {
 
 				using U = typename component_type_t<T>::Type;
 				const auto& desc = ComponentCache::get().goc_comp_desc<U>();
+				const auto& entityContainer = m_entities[entity.id()];
 
 				constexpr auto compKind = component_kind_v<T>;
-				return del_inter(compKind, entity, desc);
+				del_inter(entity, compKind, desc);
+
+				return ComponentSetter{entityContainer.pChunk, entityContainer.idx};
 			}
 
 			//----------------------------------------------------------------------
@@ -20186,7 +20249,7 @@ namespace gaia {
 
 				void commit(CommandBufferCtx& ctx) const {
 					const auto& desc = ComponentCache::get().comp_desc(compId);
-					ctx.world.add_inter(compKind, entity, desc);
+					ctx.world.add_inter(entity, compKind, desc);
 
 #if GAIA_ASSERT_ENABLED
 					[[maybe_unused]] uint32_t indexInChunk{};
@@ -20202,7 +20265,7 @@ namespace gaia {
 
 				void commit(CommandBufferCtx& ctx) const {
 					const auto& desc = ComponentCache::get().comp_desc(compId);
-					ctx.world.add_inter(compKind, entity, desc);
+					ctx.world.add_inter(entity, compKind, desc);
 
 					uint32_t indexInChunk{};
 					auto* pChunk = ctx.world.get_chunk(entity, indexInChunk);
@@ -20232,7 +20295,7 @@ namespace gaia {
 					Entity entity = it->second;
 
 					const auto& desc = ComponentCache::get().comp_desc(compId);
-					ctx.world.add_inter(compKind, entity, desc);
+					ctx.world.add_inter(entity, compKind, desc);
 
 #if GAIA_ASSERT_ENABLED
 					[[maybe_unused]] uint32_t indexInChunk{};
@@ -20257,7 +20320,7 @@ namespace gaia {
 
 					// Components
 					const auto& desc = ComponentCache::get().comp_desc(compId);
-					ctx.world.add_inter(compKind, entity, desc);
+					ctx.world.add_inter(entity, compKind, desc);
 
 					uint32_t indexInChunk{};
 					auto* pChunk = ctx.world.get_chunk(entity, indexInChunk);
@@ -20319,7 +20382,7 @@ namespace gaia {
 
 				void commit(CommandBufferCtx& ctx) const {
 					const auto& desc = ComponentCache::get().comp_desc(compId);
-					ctx.world.del_inter(compKind, entity, desc);
+					ctx.world.del_inter(entity, compKind, desc);
 				}
 			};
 

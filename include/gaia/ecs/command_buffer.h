@@ -94,7 +94,7 @@ namespace gaia {
 
 				void commit(CommandBufferCtx& ctx) const {
 					const auto& desc = ComponentCache::get().comp_desc(compId);
-					ctx.world.add_inter(compKind, entity, desc);
+					ctx.world.add_inter(entity, compKind, desc);
 
 #if GAIA_ASSERT_ENABLED
 					[[maybe_unused]] uint32_t indexInChunk{};
@@ -110,7 +110,7 @@ namespace gaia {
 
 				void commit(CommandBufferCtx& ctx) const {
 					const auto& desc = ComponentCache::get().comp_desc(compId);
-					ctx.world.add_inter(compKind, entity, desc);
+					ctx.world.add_inter(entity, compKind, desc);
 
 					uint32_t indexInChunk{};
 					auto* pChunk = ctx.world.get_chunk(entity, indexInChunk);
@@ -140,7 +140,7 @@ namespace gaia {
 					Entity entity = it->second;
 
 					const auto& desc = ComponentCache::get().comp_desc(compId);
-					ctx.world.add_inter(compKind, entity, desc);
+					ctx.world.add_inter(entity, compKind, desc);
 
 #if GAIA_ASSERT_ENABLED
 					[[maybe_unused]] uint32_t indexInChunk{};
@@ -165,7 +165,7 @@ namespace gaia {
 
 					// Components
 					const auto& desc = ComponentCache::get().comp_desc(compId);
-					ctx.world.add_inter(compKind, entity, desc);
+					ctx.world.add_inter(entity, compKind, desc);
 
 					uint32_t indexInChunk{};
 					auto* pChunk = ctx.world.get_chunk(entity, indexInChunk);
@@ -227,7 +227,7 @@ namespace gaia {
 
 				void commit(CommandBufferCtx& ctx) const {
 					const auto& desc = ComponentCache::get().comp_desc(compId);
-					ctx.world.del_inter(compKind, entity, desc);
+					ctx.world.del_inter(entity, compKind, desc);
 				}
 			};
 

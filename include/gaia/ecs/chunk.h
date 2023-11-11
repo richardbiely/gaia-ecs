@@ -620,21 +620,22 @@ namespace gaia {
 				}
 			}
 
-			/*!
-			Moves all data associated with \param entity into the chunk so that it is stored at index \param newEntityIdx.
-			*/
-			void move_foreign_entity_data(Entity entity, uint32_t newEntityIdx, std::span<EntityContainer> entities) {
+			static void move_foreign_entity_data(
+					Chunk* pOldChunk, uint32_t oldIdx, Chunk* pNewChunk, uint32_t newIdx, ComponentKind compKind) {
 				GAIA_PROF_SCOPE(move_foreign_entity_data);
 
-				auto& oldEntityContainer = entities[entity.id()];
-				auto* pOldChunk = oldEntityContainer.pChunk;
+				GAIA_ASSERT(pOldChunk != nullptr);
+				GAIA_ASSERT(pNewChunk != nullptr);
+				GAIA_ASSERT(oldIdx < pOldChunk->size());
+				GAIA_ASSERT(newIdx < pNewChunk->size());
+
+				auto oldIds = pOldChunk->comp_id_view(compKind);
+				auto newIds = pNewChunk->comp_id_view(compKind);
+				auto recsNew = pNewChunk->comp_rec_view(compKind);
 
 				// Find intersection of the two component lists.
-				// We ignore unique components here because they are not influenced by entities moving around.
-				auto oldIds = pOldChunk->comp_id_view(ComponentKind::CK_Gen);
-				auto newIds = comp_id_view(ComponentKind::CK_Gen);
-
-				// Arrays are sorted so we can do linear intersection lookup
+				// Arrays are sorted so we can do linear intersection lookup.
+				// Call constructor on each match.
 				{
 					uint32_t i = 0;
 					uint32_t j = 0;
@@ -643,23 +644,53 @@ namespace gaia {
 						const auto newId = newIds[j];
 
 						if (oldId == newId) {
-							auto recs = comp_rec_view(ComponentKind::CK_Gen);
-							const auto& rec = recs[j];
-							GAIA_ASSERT(rec.comp.id() == oldId);
+							const auto& rec = recsNew[j];
+							GAIA_ASSERT(rec.comp.id() == newId);
 							if (rec.comp.size() != 0U) {
-								auto* pSrc = (void*)pOldChunk->comp_ptr_mut(ComponentKind::CK_Gen, i, oldEntityContainer.idx);
-								auto* pDst = (void*)comp_ptr_mut(ComponentKind::CK_Gen, j, newEntityIdx);
+								auto* pSrc = (void*)pOldChunk->comp_ptr_mut(compKind, i, oldIdx);
+								auto* pDst = (void*)pNewChunk->comp_ptr_mut(compKind, j, newIdx);
 								rec.pDesc->ctor_from(pSrc, pDst);
 							}
 
 							++i;
 							++j;
-						} else if (SortComponentIdCond{}.operator()(oldId, newId))
+						} else if (SortComponentIdCond{}.operator()(oldId, newId)) {
 							++i;
-						else
+						} else {
+							// No match with the old chunk. Construct the component
+							const auto& rec = recsNew[j];
+							GAIA_ASSERT(rec.comp.id() == newId);
+							if (rec.pDesc->func_ctor != nullptr) {
+								auto* pDst = (void*)pNewChunk->comp_ptr_mut(compKind, j, newIdx);
+								rec.pDesc->func_ctor(pDst, 1);
+							}
+
 							++j;
+						}
+					}
+
+					// Initialize the rest of the components
+					for (; j < newIds.size(); ++j) {
+						const auto& rec = recsNew[j];
+						if (rec.pDesc->func_ctor != nullptr) {
+							auto* pDst = (void*)pNewChunk->comp_ptr_mut(compKind, j, newIdx);
+							rec.pDesc->func_ctor(pDst, 1);
+						}
 					}
 				}
+			}
+
+			/*!
+			Moves all data associated with \param entity into the chunk so that it is stored at index \param newEntityIdx.
+			*/
+			void move_foreign_entity_data(Entity entity, uint32_t newEntityIdx, std::span<EntityContainer> entities) {
+				GAIA_PROF_SCOPE(move_foreign_entity_data);
+
+				auto& oldEntityContainer = entities[entity.id()];
+				move_foreign_entity_data(
+						oldEntityContainer.pChunk, oldEntityContainer.idx, this, newEntityIdx,
+						// We ignore unique components here because they are not influenced by entities moving around.
+						ComponentKind::CK_Gen);
 			}
 
 			/*!
