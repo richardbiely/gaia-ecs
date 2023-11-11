@@ -633,13 +633,17 @@ namespace gaia {
 			}
 
 			void build_graph_edges(Archetype* pArchetypeRight, ComponentKind compKind, ComponentId compId) {
+				// Loops can't happen
 				GAIA_ASSERT(pArchetypeRight != this);
+
 				m_graph.add_edge_right(compKind, compId, pArchetypeRight->id());
 				pArchetypeRight->build_graph_edges_left(this, compKind, compId);
 			}
 
 			void build_graph_edges_left(Archetype* pArchetypeLeft, ComponentKind compKind, ComponentId compId) {
+				// Loops can't happen
 				GAIA_ASSERT(pArchetypeLeft != this);
+
 				m_graph.add_edge_left(compKind, compId, pArchetypeLeft->id());
 			}
 
