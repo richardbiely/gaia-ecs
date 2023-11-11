@@ -188,7 +188,8 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD const ValueType& operator[](size_t idx) const noexcept {
-				return std::span<const ValueType>{(const ValueType*)m_data.data(), m_data.size()}[idx];
+				GAIA_ASSERT(idx < m_data.size());
+				return ((const ValueType*)m_data.data())[idx];
 			}
 
 			GAIA_NODISCARD auto data() const noexcept {
@@ -218,11 +219,13 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD ValueType& operator[](size_t idx) noexcept {
-				return std::span<ValueType>{(ValueType*)m_data.data(), m_data.size()}[idx];
+				GAIA_ASSERT(idx < m_data.size());
+				return ((ValueType*)m_data.data())[idx];
 			}
 
 			GAIA_NODISCARD const ValueType& operator[](size_t idx) const noexcept {
-				return std::span<const ValueType>{(const ValueType*)m_data.data(), m_data.size()}[idx];
+				GAIA_ASSERT(idx < m_data.size());
+				return ((const ValueType*)m_data.data())[idx];
 			}
 
 			GAIA_NODISCARD auto data() const noexcept {
