@@ -1646,7 +1646,8 @@ TEST_CASE("Add - many components, bulk") {
 
 		w.bulk(e).add<Int3, Position, Empty>().add<Else>().add<Rotation>().add<Scale>();
 
-		w.set<Int3>(e, {3, 3, 3})
+		w.set(e)
+				.set<Int3>({3, 3, 3})
 				.set<Position>({1, 1, 1})
 				.set<Else>({true})
 				.set<Rotation>({2, 2, 2, 2})

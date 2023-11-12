@@ -13908,7 +13908,7 @@ namespace gaia {
 		inline constexpr bool is_arg_mut_v = detail::is_arg_mut<T>::value;
 
 		template <typename T>
-		inline constexpr bool is_raw_v = std::is_same_v<T, std::decay_t<std::remove_pointer_t<T>>>;
+		inline constexpr bool is_raw_v = std::is_same_v<T, std::decay_t<std::remove_pointer_t<T>>> && !std::is_array_v<T>;
 
 		template <typename T>
 		struct uni {
@@ -13929,10 +13929,7 @@ namespace gaia {
 			using U = typename component_type_t<T>::Type;
 
 			// Make sure we only use this for "raw" types
-			static_assert(!std::is_const_v<U>);
-			static_assert(!std::is_pointer_v<U>);
-			static_assert(!std::is_reference_v<U>);
-			static_assert(!std::is_volatile_v<U>);
+			static_assert(is_raw_v<U>, "Components have to be \"raw\" types - no arrays, no const, reference, pointer or volatile");
 		}
 
 		//----------------------------------------------------------------------
@@ -19695,7 +19692,7 @@ namespace gaia {
 					return *this;
 				}
 
-				template <typename ...T>
+				template <typename... T>
 				CompMoveHelper& del() {
 					(verify_comp<T>(), ...);
 
@@ -19961,6 +19958,10 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
+			//! Starts a bulk add/remove operation on \param entity.
+			//! \param entity Entity
+			//! \return CompMoveHelper
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			CompMoveHelper bulk(Entity entity) {
 				return CompMoveHelper(*this, entity);
 			}
@@ -20036,34 +20037,43 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
+			//! Starts a bulk set operation on \param entity.
+			//! \param entity Entity
+			//! \return ComponentSetter
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			ComponentSetter set(Entity entity) {
+				GAIA_ASSERT(valid(entity));
+
+				const auto& entityContainer = m_entities[entity.id()];
+				return ComponentSetter{entityContainer.pChunk, entityContainer.idx};
+			}
+
 			//! Sets the value of the component \tparam T on \param entity.
 			//! \tparam T Component
 			//! \param entity Entity
 			//! \param value Value to set for the component
-			//! \return ComponentSetter
 			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename T, typename U = typename component_type_t<T>::Type>
-			ComponentSetter set(Entity entity, U&& value) {
+			void set(Entity entity, U&& value) {
 				GAIA_ASSERT(valid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
-				return ComponentSetter{entityContainer.pChunk, entityContainer.idx}.set<T>(GAIA_FWD(value));
+				ComponentSetter{entityContainer.pChunk, entityContainer.idx}.set<T>(GAIA_FWD(value));
 			}
 
-			//! Sets the value of the component \tparam T on \param entity without trigger a world version update.
+			//! Sets the value of the component \tparam T on \param entity without triggering a world version update.
 			//! \tparam T Component
 			//! \param entity Entity
 			//! \param value Value to set for the component
-			//! \return ComponentSetter
 			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename T, typename U = typename component_type_t<T>::Type>
-			ComponentSetter sset(Entity entity, U&& value) {
+			void sset(Entity entity, U&& value) {
 				GAIA_ASSERT(valid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
-				return ComponentSetter{entityContainer.pChunk, entityContainer.idx}.sset<T>(GAIA_FWD(value));
+				ComponentSetter{entityContainer.pChunk, entityContainer.idx}.sset<T>(GAIA_FWD(value));
 			}
 
 			//----------------------------------------------------------------------

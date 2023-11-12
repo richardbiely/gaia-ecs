@@ -117,7 +117,7 @@ namespace gaia {
 		inline constexpr bool is_arg_mut_v = detail::is_arg_mut<T>::value;
 
 		template <typename T>
-		inline constexpr bool is_raw_v = std::is_same_v<T, std::decay_t<std::remove_pointer_t<T>>>;
+		inline constexpr bool is_raw_v = std::is_same_v<T, std::decay_t<std::remove_pointer_t<T>>> && !std::is_array_v<T>;
 
 		template <typename T>
 		struct uni {
@@ -138,10 +138,7 @@ namespace gaia {
 			using U = typename component_type_t<T>::Type;
 
 			// Make sure we only use this for "raw" types
-			static_assert(!std::is_const_v<U>);
-			static_assert(!std::is_pointer_v<U>);
-			static_assert(!std::is_reference_v<U>);
-			static_assert(!std::is_volatile_v<U>);
+			static_assert(is_raw_v<U>, "Components have to be \"raw\" types - no arrays, no const, reference, pointer or volatile");
 		}
 
 		//----------------------------------------------------------------------

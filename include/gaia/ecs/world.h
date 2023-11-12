@@ -705,7 +705,7 @@ namespace gaia {
 					return *this;
 				}
 
-				template <typename ...T>
+				template <typename... T>
 				CompMoveHelper& del() {
 					(verify_comp<T>(), ...);
 
@@ -971,6 +971,10 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
+			//! Starts a bulk add/remove operation on \param entity.
+			//! \param entity Entity
+			//! \return CompMoveHelper
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			CompMoveHelper bulk(Entity entity) {
 				return CompMoveHelper(*this, entity);
 			}
@@ -1046,34 +1050,43 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
+			//! Starts a bulk set operation on \param entity.
+			//! \param entity Entity
+			//! \return ComponentSetter
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			ComponentSetter set(Entity entity) {
+				GAIA_ASSERT(valid(entity));
+
+				const auto& entityContainer = m_entities[entity.id()];
+				return ComponentSetter{entityContainer.pChunk, entityContainer.idx};
+			}
+
 			//! Sets the value of the component \tparam T on \param entity.
 			//! \tparam T Component
 			//! \param entity Entity
 			//! \param value Value to set for the component
-			//! \return ComponentSetter
 			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename T, typename U = typename component_type_t<T>::Type>
-			ComponentSetter set(Entity entity, U&& value) {
+			void set(Entity entity, U&& value) {
 				GAIA_ASSERT(valid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
-				return ComponentSetter{entityContainer.pChunk, entityContainer.idx}.set<T>(GAIA_FWD(value));
+				ComponentSetter{entityContainer.pChunk, entityContainer.idx}.set<T>(GAIA_FWD(value));
 			}
 
-			//! Sets the value of the component \tparam T on \param entity without trigger a world version update.
+			//! Sets the value of the component \tparam T on \param entity without triggering a world version update.
 			//! \tparam T Component
 			//! \param entity Entity
 			//! \param value Value to set for the component
-			//! \return ComponentSetter
 			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename T, typename U = typename component_type_t<T>::Type>
-			ComponentSetter sset(Entity entity, U&& value) {
+			void sset(Entity entity, U&& value) {
 				GAIA_ASSERT(valid(entity));
 
 				const auto& entityContainer = m_entities[entity.id()];
-				return ComponentSetter{entityContainer.pChunk, entityContainer.idx}.sset<T>(GAIA_FWD(value));
+				ComponentSetter{entityContainer.pChunk, entityContainer.idx}.sset<T>(GAIA_FWD(value));
 			}
 
 			//----------------------------------------------------------------------

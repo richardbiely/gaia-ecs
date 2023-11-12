@@ -427,14 +427,22 @@ struct World {
 
 	void CreatePlayer() {
 		auto player = w.add();
-		w.add<Position>(player, {5, 10});
-		w.add<Velocity>(player, {0, 0});
-		w.add<RigidBody>(player);
-		w.add<Orientation>(player, {1, 0});
-		w.add<Sprite>(player, {TILE_PLAYER});
-		w.add<Health>(player, {100, 100});
-		w.add<BattleStats>(player, {9, 5});
-		w.add<Player>(player);
+		w.bulk(player)
+				.add<Position>()
+				.add<Velocity>()
+				.add<RigidBody>()
+				.add<Orientation>()
+				.add<Sprite>()
+				.add<Health>()
+				.add<BattleStats>()
+				.add<Player>();
+		w.set(player)
+				.set<Position>({5, 10})
+				.set<Velocity>({0, 0})
+				.set<Orientation>({1, 0})
+				.set<Sprite>({TILE_PLAYER})
+				.set<Health>({100, 100})
+				.set<BattleStats>({9, 5});
 	}
 
 	void CreateEnemies() {
@@ -442,18 +450,13 @@ struct World {
 		GAIA_EACH(enemies) {
 			auto& e = enemies[i];
 			e = w.add();
-			w.add<Position>(e, {});
-			w.add<Velocity>(e, {0, 0});
-			w.add<RigidBody>(e);
+			w.bulk(e).add<Position>().add<Velocity>().add<RigidBody>().add<Sprite>().add<Health>().add<BattleStats>();
+
 			const bool isOrc = i % 2;
 			if (isOrc) {
-				w.add<Sprite>(e, {TILE_ENEMY_ORC});
-				w.add<Health>(e, {60, 60});
-				w.add<BattleStats>(e, {12, 7});
+				w.set(e).set<Sprite>({TILE_ENEMY_ORC}).set<Health>({60, 60}).set<BattleStats>({12, 7});
 			} else {
-				w.add<Sprite>(e, {TILE_ENEMY_GOBLIN});
-				w.add<Health>(e, {40, 40});
-				w.add<BattleStats>(e, {10, 5});
+				w.set(e).set<Sprite>({TILE_ENEMY_GOBLIN}).set<Health>({40, 40}).set<BattleStats>({10, 5});
 			}
 		}
 		w.set<Position>(enemies[0], {8, 8});
@@ -463,29 +466,39 @@ struct World {
 
 	void CreateItems() {
 		auto potion = w.add();
-		w.add<Position>(potion, {5, 5});
-		w.add<Sprite>(potion, {TILE_POTION});
-		w.add<RigidBody>(potion);
-		w.add<Item>(potion, {ItemType::Potion});
-		w.add<BattleStats>(potion, {10, 0});
+		w.bulk(potion).add<Position>().add<Sprite>().add<RigidBody>().add<Item>().add<BattleStats>();
+		w.set(potion)
+				.set<Position>({5, 5})
+				.set<Sprite>({TILE_POTION})
+				.set<Item>({ItemType::Potion})
+				.set<BattleStats>({10, 0});
 
 		auto poison = w.add();
-		w.add<Position>(poison, {15, 10});
-		w.add<Sprite>(poison, {TILE_POISON});
-		w.add<RigidBody>(poison);
-		w.add<Item>(poison, {ItemType::Poison});
-		w.add<BattleStats>(poison, {-10, 0});
+		w.bulk(poison).add<Position>().add<Sprite>().add<RigidBody>().add<Item>().add<BattleStats>();
+		w.set(poison)
+				.set<Position>({15, 10})
+				.set<Sprite>({TILE_POISON})
+				.set<Item>({ItemType::Poison})
+				.set<BattleStats>({-10, 0});
 	}
 
 	void CreateArrow(Position p, Velocity v) {
 		auto e = w.add();
-		w.add<Position>(e, GAIA_MOV(p));
-		w.add<Velocity>(e, GAIA_MOV(v));
-		w.add<RigidBody>(e);
-		w.add<Sprite>(e, {TILE_ARROW});
-		w.add<Item>(e, {ItemType::Arrow});
-		w.add<BattleStats>(e, {10, 0});
-		w.add<Health>(e, {1, 1});
+		w.bulk(e)
+				.add<Position>()
+				.add<Velocity>()
+				.add<Sprite>()
+				.add<RigidBody>()
+				.add<Item>()
+				.add<BattleStats>()
+				.add<Health>();
+		w.set(e)
+				.set<Position>(GAIA_MOV(p))
+				.set<Velocity>(GAIA_MOV(v))
+				.set<Sprite>({TILE_ARROW})
+				.set<Item>({ItemType::Arrow})
+				.set<BattleStats>({10, 0})
+				.set<Health>({1, 1});
 	}
 };
 World g_world(g_ecs);
