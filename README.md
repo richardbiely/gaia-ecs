@@ -139,6 +139,27 @@ w.add<Velocity>(e, {0, 0, 1});
 w.del<Velocity>(e);
 ```
 
+When adding or removing multiple components at once if is more efficient doing it via chaining:
+
+```cpp
+ecs::World w;
+
+// Create an entity with Position.
+auto e = w.add();
+w.add<Position>();
+
+w.bulk(e)
+ // add Position to entity e
+ .add<Velocity>()
+ // remove Position from entity e
+ .del<Position>()
+ // add Velocity to entity e
+ .add<Rotation>()
+ // add a bunch of other components to entity e
+ .add<Something1, Something2, Something3>();
+
+```
+
 ### Set or get component value
 
 ```cpp
@@ -148,15 +169,16 @@ w.set<Velocity>(e, {0, 0, 2});
 w.sset<Velocity>(e, {4, 2, 0});
 ```
 
-In case there are more different components on the entity you would like to change the value you can achieve it via Set chaining:
+When setting multiple component values at once it is more efficient doing it via chaining:
 
 ```cpp
+w.set(e)
 // Change Velocity's value on entity "e"
-w.set<Velocity>(e, {0, 0, 2}).
+  .set<Velocity>({0, 0, 2})
 // Change Position's value on entity "e"
-  set<Position>({0, 100, 0}).
+  .set<Position>({0, 100, 0})
 // Change...
-  set...;
+  .set...;
 ```
 
 Components are returned by value for components with sizes up to 8 bytes (including). Bigger components are returned by const reference.
