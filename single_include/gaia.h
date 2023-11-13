@@ -1674,10 +1674,22 @@ namespace gaia {
 			struct rem_rp {
 				using type = std::remove_reference_t<std::remove_pointer_t<T>>;
 			};
+
+			template <typename T>
+			struct is_mut:
+					std::bool_constant<
+							!std::is_const_v<typename rem_rp<T>::type> &&
+							(std::is_pointer<T>::value || std::is_reference<T>::value)> {};
 		} // namespace detail
 
 		template <class T>
 		using rem_rp_t = typename detail::rem_rp<T>::type;
+
+		template <typename T>
+		inline constexpr bool is_mut_v = detail::is_mut<T>::value;
+
+		template <typename T>
+		inline constexpr bool is_raw_v = std::is_same_v<T, std::decay_t<std::remove_pointer_t<T>>> && !std::is_array_v<T>;
 
 		//----------------------------------------------------------------------
 		// Bit-byte conversion
@@ -1874,6 +1886,30 @@ namespace gaia {
 		GAIA_DEFINE_HAS_FUNCTION(find)
 		GAIA_DEFINE_HAS_FUNCTION(find_if)
 		GAIA_DEFINE_HAS_FUNCTION(find_if_not)
+
+		namespace detail {
+			template <typename T>
+			constexpr auto has_member_equals_check(int)
+					-> decltype(std::declval<T>().operator==(std::declval<T>()), std::true_type{});
+			template <typename T, typename... Args>
+			constexpr std::false_type has_member_equals_check(...);
+
+			template <typename T>
+			constexpr auto has_global_equals_check(int)
+					-> decltype(operator==(std::declval<T>(), std::declval<T>()), std::true_type{});
+			template <typename T, typename... Args>
+			constexpr std::false_type has_global_equals_check(...);
+		} // namespace detail
+
+		template <typename T>
+		struct has_member_equals {
+			static constexpr bool value = decltype(detail::has_member_equals_check<T>(0))::value;
+		};
+
+		template <typename T>
+		struct has_global_equals {
+			static constexpr bool value = decltype(detail::has_global_equals_check<T>(0))::value;
+		};
 
 		//----------------------------------------------------------------------
 		// Type helpers
@@ -4419,7 +4455,7 @@ namespace gaia {
 					return int_kind_id<T>();
 				else if constexpr (std::is_floating_point_v<T>)
 					return flt_type_id<T>();
-				else if constexpr (detail::has_data_and_size<T>::value)
+				else if constexpr (has_data_and_size<T>::value)
 					return serialization_type_id::data_and_size;
 				else if constexpr (std::is_class_v<T>)
 					return serialization_type_id::trivial_wrapper;
@@ -4432,8 +4468,8 @@ namespace gaia {
 			GAIA_NODISCARD constexpr uint32_t bytes_one(const T& item) noexcept {
 				using type = typename std::decay_t<typename std::remove_pointer_t<T>>;
 
-				constexpr auto id = detail::type_id<type>();
-				static_assert(id != detail::serialization_type_id::Last);
+				constexpr auto id = type_id<type>();
+				static_assert(id != serialization_type_id::Last);
 				uint32_t size_in_bytes{};
 
 				// Custom bytes() has precedence
@@ -4445,7 +4481,7 @@ namespace gaia {
 					size_in_bytes = (uint32_t)sizeof(type);
 				}
 				// Types which have data() and size() member functions
-				else if constexpr (detail::has_data_and_size<type>::value) {
+				else if constexpr (has_data_and_size<type>::value) {
 					size_in_bytes = (uint32_t)item.size();
 				}
 				// Classes
@@ -4477,7 +4513,7 @@ namespace gaia {
 						s.load(GAIA_FWD(arg));
 				}
 				// Types which have data() and size() member functions
-				else if constexpr (detail::has_data_and_size<type>::value) {
+				else if constexpr (has_data_and_size<type>::value) {
 					if constexpr (Write) {
 						if constexpr (has_resize<type>::value) {
 							const auto size = arg.size();
@@ -13884,11 +13920,6 @@ namespace gaia {
 			struct component_type<T, std::void_t<decltype(T::Kind)>> {
 				using type = typename detail::ExtractComponentType_WithComponentKind<T>;
 			};
-
-			template <typename T>
-			struct is_arg_mut:
-					std::bool_constant<
-							!std::is_const_v<core::rem_rp_t<T>> && (std::is_pointer<T>::value || std::is_reference<T>::value)> {};
 		} // namespace detail
 
 		template <typename T>
@@ -13903,12 +13934,6 @@ namespace gaia {
 			using U = typename component_type_t<T>::Type;
 			return meta::type_info::id<U>();
 		}
-
-		template <typename T>
-		inline constexpr bool is_arg_mut_v = detail::is_arg_mut<T>::value;
-
-		template <typename T>
-		inline constexpr bool is_raw_v = std::is_same_v<T, std::decay_t<std::remove_pointer_t<T>>> && !std::is_array_v<T>;
 
 		template <typename T>
 		struct uni {
@@ -13929,7 +13954,26 @@ namespace gaia {
 			using U = typename component_type_t<T>::Type;
 
 			// Make sure we only use this for "raw" types
-			static_assert(is_raw_v<U>, "Components have to be \"raw\" types - no arrays, no const, reference, pointer or volatile");
+			static_assert(
+					core::is_raw_v<U>,
+					"Components have to be \"raw\" types - no arrays, no const, reference, pointer or volatile");
+		}
+
+		template <typename T>
+		constexpr void verify_comp([[maybe_unused]] ComponentKind compKind) {
+			verify_comp<T>();
+
+#if GAIA_ASSERT_ENABLED
+			using U = typename component_type_t<T>::Type;
+			if (!std::is_trivial_v<U>) {
+				if (compKind != ComponentKind::CK_Uni)
+					return;
+
+				constexpr bool hasGlobalCmp = core::has_global_equals<U>::value;
+				constexpr bool hasMemberCmp = core::has_member_equals<U>::value;
+				GAIA_ASSERT((hasGlobalCmp || hasMemberCmp) && "Non-trivial Uni component must implement operator==");
+			}
+#endif
 		}
 
 		//----------------------------------------------------------------------
@@ -14099,6 +14143,7 @@ namespace gaia {
 #include <type_traits>
 
 #include <cinttypes>
+#include <cstring>
 #include <tuple>
 #include <type_traits>
 
@@ -14110,6 +14155,7 @@ namespace gaia {
 			using FuncCopy = void(void*, void*);
 			using FuncMove = void(void*, void*);
 			using FuncSwap = void(void*, void*);
+			using FuncCmp = bool(const void*, const void*);
 
 			//! Unique component identifier
 			Component comp = {IdentifierBad};
@@ -14136,6 +14182,8 @@ namespace gaia {
 			FuncMove* func_move = nullptr;
 			//! Function to call when the component needs to swap
 			FuncSwap* func_swap = nullptr;
+			//! Function to call when comparing two components of the same type
+			FuncCmp* func_cmp = nullptr;
 
 			void ctor_from(void* pSrc, void* pDst) const {
 				if (func_ctor_move != nullptr)
@@ -14166,7 +14214,18 @@ namespace gaia {
 			}
 
 			void swap(void* pLeft, void* pRight) const {
+				// Function pointer is not provided only in 2 cases:
+				// 1) SoA component
+				GAIA_ASSERT(func_swap != nullptr);
 				func_swap(pLeft, pRight);
+			}
+
+			bool cmp(const void* pLeft, const void* pRight) const {
+				// We only ever compare components during defragmentation when they are uni components.
+				// For those cases the comparison operator must be present.
+				// Correct setup should be ensured by a compile time check when adding a new component.
+				GAIA_ASSERT(func_cmp != nullptr);
+				return func_cmp(pLeft, pRight);
 			}
 
 			GAIA_NODISCARD uint32_t calc_new_mem_offset(uint32_t addr, size_t N) const noexcept {
@@ -14186,25 +14245,25 @@ namespace gaia {
 
 			template <typename T>
 			GAIA_NODISCARD static constexpr ComponentDesc build() {
-				using U = typename component_type_t<T>::Type;
+				static_assert(core::is_raw_v<T>);
 
 				uint32_t id = comp_id<T>();
 				uint32_t size = 0, alig = 0, soa = 0;
 
 				ComponentDesc desc{};
-				desc.hashLookup = {meta::type_info::hash<U>()};
-				desc.matcherHash = calc_matcher_hash<U>();
-				desc.name = meta::type_info::name<U>();
+				desc.hashLookup = {meta::type_info::hash<T>()};
+				desc.matcherHash = calc_matcher_hash<T>();
+				desc.name = meta::type_info::name<T>();
 
-				if constexpr (!std::is_empty_v<U>) {
-					size = (uint32_t)sizeof(U);
+				if constexpr (!std::is_empty_v<T>) {
+					size = (uint32_t)sizeof(T);
 
 					static_assert(Component::MaxAlignment_Bits, "Maximum supported alignemnt for a component is MaxAlignment");
-					alig = (uint32_t)mem::auto_view_policy<U>::Alignment;
+					alig = (uint32_t)mem::auto_view_policy<T>::Alignment;
 
-					if constexpr (mem::is_soa_layout_v<U>) {
+					if constexpr (mem::is_soa_layout_v<T>) {
 						uint32_t i = 0;
-						using TTuple = decltype(meta::struct_to_tuple(U{}));
+						using TTuple = decltype(meta::struct_to_tuple(T{}));
 						core::each_tuple<TTuple>([&](auto&& item) {
 							static_assert(sizeof(item) <= 255, "Each member of a SoA component can be at most 255 B long!");
 							desc.soaSizes[i] = (uint8_t)sizeof(item);
@@ -14214,90 +14273,108 @@ namespace gaia {
 						GAIA_ASSERT(i <= meta::StructToTupleMaxTypes);
 					} else {
 						// Custom construction
-						if constexpr (!std::is_trivially_constructible_v<U>) {
+						if constexpr (!std::is_trivially_constructible_v<T>) {
 							desc.func_ctor = [](void* ptr, uint32_t cnt) {
-								core::call_ctor_n((U*)ptr, cnt);
+								core::call_ctor_n((T*)ptr, cnt);
 							};
 						}
 
 						// Custom destruction
-						if constexpr (!std::is_trivially_destructible_v<U>) {
+						if constexpr (!std::is_trivially_destructible_v<T>) {
 							desc.func_dtor = [](void* ptr, uint32_t cnt) {
-								core::call_dtor_n((U*)ptr, cnt);
+								core::call_dtor_n((T*)ptr, cnt);
 							};
 						}
 
 						// Copyability
-						if (!std::is_trivially_copyable_v<U>) {
-							if constexpr (std::is_copy_assignable_v<U>) {
+						if (!std::is_trivially_copyable_v<T>) {
+							if constexpr (std::is_copy_assignable_v<T>) {
 								desc.func_copy = [](void* from, void* to) {
-									auto* src = (U*)from;
-									auto* dst = (U*)to;
+									auto* src = (T*)from;
+									auto* dst = (T*)to;
 									*dst = *src;
 								};
 								desc.func_ctor_copy = [](void* from, void* to) {
-									auto* src = (U*)from;
-									auto* dst = (U*)to;
-									new (dst) U();
+									auto* src = (T*)from;
+									auto* dst = (T*)to;
+									new (dst) T();
 									*dst = *src;
 								};
-							} else if constexpr (std::is_copy_constructible_v<U>) {
+							} else if constexpr (std::is_copy_constructible_v<T>) {
 								desc.func_copy = [](void* from, void* to) {
-									auto* src = (U*)from;
-									auto* dst = (U*)to;
-									*dst = U(*src);
+									auto* src = (T*)from;
+									auto* dst = (T*)to;
+									*dst = T(*src);
 								};
 								desc.func_ctor_copy = [](void* from, void* to) {
-									auto* src = (U*)from;
-									auto* dst = (U*)to;
-									(void)new (dst) U(GAIA_MOV(*src));
+									auto* src = (T*)from;
+									auto* dst = (T*)to;
+									(void)new (dst) T(GAIA_MOV(*src));
 								};
 							}
 						}
 
 						// Movability
-						if constexpr (!std::is_trivially_move_assignable_v<U> && std::is_move_assignable_v<U>) {
+						if constexpr (!std::is_trivially_move_assignable_v<T> && std::is_move_assignable_v<T>) {
 							desc.func_move = [](void* from, void* to) {
-								auto* src = (U*)from;
-								auto* dst = (U*)to;
+								auto* src = (T*)from;
+								auto* dst = (T*)to;
 								*dst = GAIA_MOV(*src);
 							};
 							desc.func_ctor_move = [](void* from, void* to) {
-								auto* src = (U*)from;
-								auto* dst = (U*)to;
-								new (dst) U();
+								auto* src = (T*)from;
+								auto* dst = (T*)to;
+								new (dst) T();
 								*dst = GAIA_MOV(*src);
 							};
-						} else if constexpr (!std::is_trivially_move_constructible_v<U> && std::is_move_constructible_v<U>) {
+						} else if constexpr (!std::is_trivially_move_constructible_v<T> && std::is_move_constructible_v<T>) {
 							desc.func_move = [](void* from, void* to) {
-								auto* src = (U*)from;
-								auto* dst = (U*)to;
-								*dst = U(GAIA_MOV(*src));
+								auto* src = (T*)from;
+								auto* dst = (T*)to;
+								*dst = T(GAIA_MOV(*src));
 							};
 							desc.func_ctor_move = [](void* from, void* to) {
-								auto* src = (U*)from;
-								auto* dst = (U*)to;
-								(void)new (dst) U(GAIA_MOV(*src));
+								auto* src = (T*)from;
+								auto* dst = (T*)to;
+								(void)new (dst) T(GAIA_MOV(*src));
 							};
 						}
 					}
 
 					// Value swap
-					if constexpr (std::is_move_constructible_v<U> && std::is_move_assignable_v<U>) {
+					if constexpr (std::is_move_constructible_v<T> && std::is_move_assignable_v<T>) {
 						desc.func_swap = [](void* left, void* right) {
-							auto* l = (U*)left;
-							auto* r = (U*)right;
-							U tmp = GAIA_MOV(*l);
+							auto* l = (T*)left;
+							auto* r = (T*)right;
+							T tmp = GAIA_MOV(*l);
 							*r = GAIA_MOV(*l);
 							*r = GAIA_MOV(tmp);
 						};
 					} else {
 						desc.func_swap = [](void* left, void* right) {
-							auto* l = (U*)left;
-							auto* r = (U*)right;
-							U tmp = *l;
+							auto* l = (T*)left;
+							auto* r = (T*)right;
+							T tmp = *l;
 							*r = *l;
 							*r = tmp;
+						};
+					}
+
+					// Value comparison
+					constexpr bool hasGlobalCmp = core::has_global_equals<T>::value;
+					constexpr bool hasMemberCmp = core::has_member_equals<T>::value;
+					if constexpr (hasGlobalCmp || hasMemberCmp) {
+						desc.func_cmp = [](const void* left, const void* right) {
+							const auto* l = (const T*)left;
+							const auto* r = (const T*)right;
+							return *l == *r;
+						};
+					} else {
+						// fallback comparison function
+						desc.func_cmp = [](const void* left, const void* right) {
+							const auto* l = (const T*)left;
+							const auto* r = (const T*)right;
+							return memcmp(l, r, 1) == 0;
 						};
 					}
 
@@ -14310,8 +14387,7 @@ namespace gaia {
 
 			template <typename T>
 			GAIA_NODISCARD static ComponentDesc* create() {
-				using U = std::decay_t<T>;
-				return new ComponentDesc{ComponentDesc::build<U>()};
+				return new ComponentDesc{ComponentDesc::build<T>()};
 			}
 		};
 	} // namespace ecs
@@ -15666,7 +15742,7 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) view_auto(uint32_t from, uint32_t to) {
 				using UOriginal = typename component_type_t<T>::TypeOriginal;
-				if constexpr (is_arg_mut_v<UOriginal>)
+				if constexpr (core::is_mut_v<UOriginal>)
 					return view_mut<T>(from, to);
 				else
 					return view<T>(from, to);
@@ -15690,7 +15766,7 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) sview_auto(uint32_t from, uint32_t to) {
 				using UOriginal = typename component_type_t<T>::TypeOriginal;
-				if constexpr (is_arg_mut_v<UOriginal>)
+				if constexpr (core::is_mut_v<UOriginal>)
 					return sview_mut<T>(from, to);
 				else
 					return view<T>(from, to);
@@ -16960,10 +17036,14 @@ namespace gaia {
 				// TODO:
 				// Implement mask of semi-full chunks so we can pick one easily when searching
 				// for a chunk to fill with a new entity and when defragmenting.
-				// NOTE:
+				// NOTE 1:
 				// Even though entity movement might be present during defragmentation, we do
 				// not update the world version here because no real structural changes happen.
 				// All entites and components remain intact, they just move to a different place.
+				// NOTE 2:
+				// Entities belonging to chunks with uni components are locked to their chunk.
+				// Therefore, we won't defragment them unless their uni components contain matching
+				// values.
 
 				if (m_chunks.empty())
 					return;
@@ -16977,9 +17057,34 @@ namespace gaia {
 
 				auto* pDstChunk = m_chunks[front];
 
+				const bool hasChunkComps = !m_comps[ComponentKind::CK_Uni].empty();
+
 				// Find the first semi-empty chunk in the back
 				while (front < back && m_chunks[--back]->is_semi()) {
 					auto* pSrcChunk = m_chunks[back];
+
+					// Make sure chunk components have matching values
+					if (hasChunkComps) {
+						auto rec = pSrcChunk->comp_rec_view(ComponentKind::CK_Uni);
+						bool res = true;
+						GAIA_EACH(rec) {
+							const auto* pSrcVal = (const void*)pSrcChunk->comp_ptr(ComponentKind::CK_Uni, i, 0);
+							const auto* pDstVal = (const void*)pDstChunk->comp_ptr(ComponentKind::CK_Uni, i, 0);
+							if (rec[i].pDesc->cmp(pSrcVal, pDstVal)) {
+								res = false;
+								break;
+							}
+						}
+
+						// When there is not a match we move to the next chunk
+						if (!res) {
+							++front;
+
+							// We reached the source chunk which means this archetype has been defragmented
+							if (front >= back)
+								return;
+						}
+					}
 
 					const uint32_t entitiesInChunk = pSrcChunk->size();
 					const uint32_t entitiesToMove = entitiesInChunk > maxEntities ? maxEntities : entitiesInChunk;
@@ -17895,7 +18000,7 @@ namespace gaia {
 
 				using U = typename component_type_t<T>::Type;
 
-				constexpr bool isReadWrite = is_arg_mut_v<T>;
+				constexpr bool isReadWrite = core::is_mut_v<T>;
 				constexpr auto compKind = component_kind_v<T>;
 
 				return has_inter<U>(listType, compKind, isReadWrite);
@@ -18437,7 +18542,7 @@ namespace gaia {
 				template <typename T>
 				void add_inter(QueryListType listType) {
 					constexpr auto compKind = component_kind_v<T>;
-					constexpr auto isReadWrite = is_arg_mut_v<T>;
+					constexpr auto isReadWrite = core::is_mut_v<T>;
 
 					// Make sure the component is always registered
 					auto& cc = ComponentCache::get();
@@ -18450,7 +18555,7 @@ namespace gaia {
 
 				template <typename T>
 				void changed_inter() {
-					static_assert(is_raw_v<T>, "Use changed() with raw types only");
+					static_assert(core::is_raw_v<T>, "Use changed() with raw types only");
 
 					constexpr auto compKind = component_kind_v<T>;
 
@@ -19671,7 +19776,7 @@ namespace gaia {
 
 				template <typename... T>
 				CompMoveHelper& add() {
-					(verify_comp<T>(), ...);
+					(verify_comp<T>(component_kind_v<T>), ...);
 
 					auto& cc = ComponentCache::get();
 
@@ -19974,14 +20079,14 @@ namespace gaia {
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename T>
 			ComponentSetter add(Entity entity) {
-				verify_comp<T>();
+				constexpr auto compKind = component_kind_v<T>;
+				verify_comp<T>(compKind);
 				GAIA_ASSERT(valid(entity));
 
 				using U = typename component_type_t<T>::Type;
 				const auto& desc = ComponentCache::get().goc_comp_desc<U>();
 				const auto& entityContainer = m_entities[entity.id()];
 
-				constexpr auto compKind = component_kind_v<T>;
 				add_inter(entity, compKind, desc);
 
 				return ComponentSetter{entityContainer.pChunk, entityContainer.idx};
@@ -19996,13 +20101,13 @@ namespace gaia {
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename T, typename U = typename component_type_t<T>::Type>
 			ComponentSetter add(Entity entity, U&& value) {
-				verify_comp<T>();
+				constexpr auto compKind = component_kind_v<T>;
+				verify_comp<T>(compKind);
 				GAIA_ASSERT(valid(entity));
 
 				const auto& desc = ComponentCache::get().goc_comp_desc<U>();
 				const auto& entityContainer = m_entities[entity.id()];
 
-				constexpr auto compKind = component_kind_v<T>;
 				add_inter(entity, compKind, desc);
 
 				if constexpr (component_kind_v<T> == ComponentKind::CK_Gen) {
@@ -20471,13 +20576,14 @@ namespace gaia {
 				const auto& desc = ComponentCache::get().goc_comp_desc<T>();
 
 				using U = typename component_type_t<T>::Type;
-				verify_comp<U>();
+				constexpr auto compKind = component_kind_v<T>;
+				verify_comp<U>(compKind);
 
 				m_ctx.save(ADD_COMPONENT);
 
 				ADD_COMPONENT_t cmd;
 				cmd.entity = entity;
-				cmd.compKind = component_kind_v<T>;
+				cmd.compKind = compKind;
 				cmd.compId = desc.comp.id();
 				ser::save(m_ctx, cmd);
 			}
@@ -20491,13 +20597,14 @@ namespace gaia {
 				const auto& desc = ComponentCache::get().goc_comp_desc<T>();
 
 				using U = typename component_type_t<T>::Type;
-				verify_comp<U>();
+				constexpr auto compKind = component_kind_v<T>;
+				verify_comp<U>(compKind);
 
 				m_ctx.save(ADD_COMPONENT_TO_TEMPENTITY);
 
 				ADD_COMPONENT_TO_TEMPENTITY_t cmd;
 				cmd.tempEntity = entity;
-				cmd.compKind = component_kind_v<T>;
+				cmd.compKind = compKind;
 				cmd.compId = desc.comp.id();
 				ser::save(m_ctx, cmd);
 			}
@@ -20511,13 +20618,14 @@ namespace gaia {
 				const auto& desc = ComponentCache::get().goc_comp_desc<T>();
 
 				using U = typename component_type_t<T>::Type;
-				verify_comp<U>();
+				constexpr auto compKind = component_kind_v<T>;
+				verify_comp<U>(compKind);
 
 				m_ctx.save(ADD_COMPONENT_DATA);
 
 				ADD_COMPONENT_DATA_t cmd;
 				cmd.entity = entity;
-				cmd.compKind = component_kind_v<T>;
+				cmd.compKind = compKind;
 				cmd.compId = desc.comp.id();
 				ser::save(m_ctx, cmd);
 				m_ctx.save_comp(GAIA_FWD(value));
@@ -20532,13 +20640,14 @@ namespace gaia {
 				const auto& desc = ComponentCache::get().goc_comp_desc<T>();
 
 				using U = typename component_type_t<T>::Type;
-				verify_comp<U>();
+				constexpr auto compKind = component_kind_v<T>;
+				verify_comp<U>(compKind);
 
 				m_ctx.save(ADD_COMPONENT_TO_TEMPENTITY_DATA);
 
 				ADD_COMPONENT_TO_TEMPENTITY_t cmd;
 				cmd.tempEntity = entity;
-				cmd.compKind = component_kind_v<T>;
+				cmd.compKind = compKind;
 				cmd.compId = desc.comp.id();
 				ser::save(m_ctx, cmd);
 				m_ctx.save_comp(GAIA_FWD(value));

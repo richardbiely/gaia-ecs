@@ -16,10 +16,22 @@ namespace gaia {
 			struct rem_rp {
 				using type = std::remove_reference_t<std::remove_pointer_t<T>>;
 			};
+
+			template <typename T>
+			struct is_mut:
+					std::bool_constant<
+							!std::is_const_v<typename rem_rp<T>::type> &&
+							(std::is_pointer<T>::value || std::is_reference<T>::value)> {};
 		} // namespace detail
 
 		template <class T>
 		using rem_rp_t = typename detail::rem_rp<T>::type;
+
+		template <typename T>
+		inline constexpr bool is_mut_v = detail::is_mut<T>::value;
+
+		template <typename T>
+		inline constexpr bool is_raw_v = std::is_same_v<T, std::decay_t<std::remove_pointer_t<T>>> && !std::is_array_v<T>;
 
 		//----------------------------------------------------------------------
 		// Bit-byte conversion
@@ -216,6 +228,30 @@ namespace gaia {
 		GAIA_DEFINE_HAS_FUNCTION(find)
 		GAIA_DEFINE_HAS_FUNCTION(find_if)
 		GAIA_DEFINE_HAS_FUNCTION(find_if_not)
+
+		namespace detail {
+			template <typename T>
+			constexpr auto has_member_equals_check(int)
+					-> decltype(std::declval<T>().operator==(std::declval<T>()), std::true_type{});
+			template <typename T, typename... Args>
+			constexpr std::false_type has_member_equals_check(...);
+
+			template <typename T>
+			constexpr auto has_global_equals_check(int)
+					-> decltype(operator==(std::declval<T>(), std::declval<T>()), std::true_type{});
+			template <typename T, typename... Args>
+			constexpr std::false_type has_global_equals_check(...);
+		} // namespace detail
+
+		template <typename T>
+		struct has_member_equals {
+			static constexpr bool value = decltype(detail::has_member_equals_check<T>(0))::value;
+		};
+
+		template <typename T>
+		struct has_global_equals {
+			static constexpr bool value = decltype(detail::has_global_equals_check<T>(0))::value;
+		};
 
 		//----------------------------------------------------------------------
 		// Type helpers

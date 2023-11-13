@@ -479,10 +479,14 @@ namespace gaia {
 				// TODO:
 				// Implement mask of semi-full chunks so we can pick one easily when searching
 				// for a chunk to fill with a new entity and when defragmenting.
-				// NOTE:
+				// NOTE 1:
 				// Even though entity movement might be present during defragmentation, we do
 				// not update the world version here because no real structural changes happen.
 				// All entites and components remain intact, they just move to a different place.
+				// NOTE 2:
+				// Entities belonging to chunks with uni components are locked to their chunk.
+				// Therefore, we won't defragment them unless their uni components contain matching
+				// values.
 
 				if (m_chunks.empty())
 					return;
@@ -496,9 +500,34 @@ namespace gaia {
 
 				auto* pDstChunk = m_chunks[front];
 
+				const bool hasChunkComps = !m_comps[ComponentKind::CK_Uni].empty();
+
 				// Find the first semi-empty chunk in the back
 				while (front < back && m_chunks[--back]->is_semi()) {
 					auto* pSrcChunk = m_chunks[back];
+
+					// Make sure chunk components have matching values
+					if (hasChunkComps) {
+						auto rec = pSrcChunk->comp_rec_view(ComponentKind::CK_Uni);
+						bool res = true;
+						GAIA_EACH(rec) {
+							const auto* pSrcVal = (const void*)pSrcChunk->comp_ptr(ComponentKind::CK_Uni, i, 0);
+							const auto* pDstVal = (const void*)pDstChunk->comp_ptr(ComponentKind::CK_Uni, i, 0);
+							if (rec[i].pDesc->cmp(pSrcVal, pDstVal)) {
+								res = false;
+								break;
+							}
+						}
+
+						// When there is not a match we move to the next chunk
+						if (!res) {
+							++front;
+
+							// We reached the source chunk which means this archetype has been defragmented
+							if (front >= back)
+								return;
+						}
+					}
 
 					const uint32_t entitiesInChunk = pSrcChunk->size();
 					const uint32_t entitiesToMove = entitiesInChunk > maxEntities ? maxEntities : entitiesInChunk;

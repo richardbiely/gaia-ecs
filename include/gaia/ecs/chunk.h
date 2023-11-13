@@ -486,7 +486,7 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) view_auto(uint32_t from, uint32_t to) {
 				using UOriginal = typename component_type_t<T>::TypeOriginal;
-				if constexpr (is_arg_mut_v<UOriginal>)
+				if constexpr (core::is_mut_v<UOriginal>)
 					return view_mut<T>(from, to);
 				else
 					return view<T>(from, to);
@@ -510,7 +510,7 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) sview_auto(uint32_t from, uint32_t to) {
 				using UOriginal = typename component_type_t<T>::TypeOriginal;
-				if constexpr (is_arg_mut_v<UOriginal>)
+				if constexpr (core::is_mut_v<UOriginal>)
 					return sview_mut<T>(from, to);
 				else
 					return view<T>(from, to);

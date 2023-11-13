@@ -93,11 +93,6 @@ namespace gaia {
 			struct component_type<T, std::void_t<decltype(T::Kind)>> {
 				using type = typename detail::ExtractComponentType_WithComponentKind<T>;
 			};
-
-			template <typename T>
-			struct is_arg_mut:
-					std::bool_constant<
-							!std::is_const_v<core::rem_rp_t<T>> && (std::is_pointer<T>::value || std::is_reference<T>::value)> {};
 		} // namespace detail
 
 		template <typename T>
@@ -112,12 +107,6 @@ namespace gaia {
 			using U = typename component_type_t<T>::Type;
 			return meta::type_info::id<U>();
 		}
-
-		template <typename T>
-		inline constexpr bool is_arg_mut_v = detail::is_arg_mut<T>::value;
-
-		template <typename T>
-		inline constexpr bool is_raw_v = std::is_same_v<T, std::decay_t<std::remove_pointer_t<T>>> && !std::is_array_v<T>;
 
 		template <typename T>
 		struct uni {
@@ -138,7 +127,26 @@ namespace gaia {
 			using U = typename component_type_t<T>::Type;
 
 			// Make sure we only use this for "raw" types
-			static_assert(is_raw_v<U>, "Components have to be \"raw\" types - no arrays, no const, reference, pointer or volatile");
+			static_assert(
+					core::is_raw_v<U>,
+					"Components have to be \"raw\" types - no arrays, no const, reference, pointer or volatile");
+		}
+
+		template <typename T>
+		constexpr void verify_comp([[maybe_unused]] ComponentKind compKind) {
+			verify_comp<T>();
+
+#if GAIA_ASSERT_ENABLED
+			using U = typename component_type_t<T>::Type;
+			if (!std::is_trivial_v<U>) {
+				if (compKind != ComponentKind::CK_Uni)
+					return;
+
+				constexpr bool hasGlobalCmp = core::has_global_equals<U>::value;
+				constexpr bool hasMemberCmp = core::has_member_equals<U>::value;
+				GAIA_ASSERT((hasGlobalCmp || hasMemberCmp) && "Non-trivial Uni component must implement operator==");
+			}
+#endif
 		}
 
 		//----------------------------------------------------------------------

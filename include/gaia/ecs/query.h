@@ -221,7 +221,7 @@ namespace gaia {
 				template <typename T>
 				void add_inter(QueryListType listType) {
 					constexpr auto compKind = component_kind_v<T>;
-					constexpr auto isReadWrite = is_arg_mut_v<T>;
+					constexpr auto isReadWrite = core::is_mut_v<T>;
 
 					// Make sure the component is always registered
 					auto& cc = ComponentCache::get();
@@ -234,7 +234,7 @@ namespace gaia {
 
 				template <typename T>
 				void changed_inter() {
-					static_assert(is_raw_v<T>, "Use changed() with raw types only");
+					static_assert(core::is_raw_v<T>, "Use changed() with raw types only");
 
 					constexpr auto compKind = component_kind_v<T>;
 
