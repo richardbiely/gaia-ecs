@@ -306,13 +306,14 @@ namespace gaia {
 				const auto& desc = ComponentCache::get().goc_comp_desc<T>();
 
 				using U = typename component_type_t<T>::Type;
-				verify_comp<U>();
+				constexpr auto compKind = component_kind_v<T>;
+				verify_comp<U>(compKind);
 
 				m_ctx.save(ADD_COMPONENT);
 
 				ADD_COMPONENT_t cmd;
 				cmd.entity = entity;
-				cmd.compKind = component_kind_v<T>;
+				cmd.compKind = compKind;
 				cmd.compId = desc.comp.id();
 				ser::save(m_ctx, cmd);
 			}
@@ -326,13 +327,14 @@ namespace gaia {
 				const auto& desc = ComponentCache::get().goc_comp_desc<T>();
 
 				using U = typename component_type_t<T>::Type;
-				verify_comp<U>();
+				constexpr auto compKind = component_kind_v<T>;
+				verify_comp<U>(compKind);
 
 				m_ctx.save(ADD_COMPONENT_TO_TEMPENTITY);
 
 				ADD_COMPONENT_TO_TEMPENTITY_t cmd;
 				cmd.tempEntity = entity;
-				cmd.compKind = component_kind_v<T>;
+				cmd.compKind = compKind;
 				cmd.compId = desc.comp.id();
 				ser::save(m_ctx, cmd);
 			}
@@ -346,13 +348,14 @@ namespace gaia {
 				const auto& desc = ComponentCache::get().goc_comp_desc<T>();
 
 				using U = typename component_type_t<T>::Type;
-				verify_comp<U>();
+				constexpr auto compKind = component_kind_v<T>;
+				verify_comp<U>(compKind);
 
 				m_ctx.save(ADD_COMPONENT_DATA);
 
 				ADD_COMPONENT_DATA_t cmd;
 				cmd.entity = entity;
-				cmd.compKind = component_kind_v<T>;
+				cmd.compKind = compKind;
 				cmd.compId = desc.comp.id();
 				ser::save(m_ctx, cmd);
 				m_ctx.save_comp(GAIA_FWD(value));
@@ -367,13 +370,14 @@ namespace gaia {
 				const auto& desc = ComponentCache::get().goc_comp_desc<T>();
 
 				using U = typename component_type_t<T>::Type;
-				verify_comp<U>();
+				constexpr auto compKind = component_kind_v<T>;
+				verify_comp<U>(compKind);
 
 				m_ctx.save(ADD_COMPONENT_TO_TEMPENTITY_DATA);
 
 				ADD_COMPONENT_TO_TEMPENTITY_t cmd;
 				cmd.tempEntity = entity;
-				cmd.compKind = component_kind_v<T>;
+				cmd.compKind = compKind;
 				cmd.compId = desc.comp.id();
 				ser::save(m_ctx, cmd);
 				m_ctx.save_comp(GAIA_FWD(value));

@@ -684,7 +684,7 @@ namespace gaia {
 
 				template <typename... T>
 				CompMoveHelper& add() {
-					(verify_comp<T>(), ...);
+					(verify_comp<T>(component_kind_v<T>), ...);
 
 					auto& cc = ComponentCache::get();
 
@@ -987,14 +987,14 @@ namespace gaia {
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename T>
 			ComponentSetter add(Entity entity) {
-				verify_comp<T>();
+				constexpr auto compKind = component_kind_v<T>;
+				verify_comp<T>(compKind);
 				GAIA_ASSERT(valid(entity));
 
 				using U = typename component_type_t<T>::Type;
 				const auto& desc = ComponentCache::get().goc_comp_desc<U>();
 				const auto& entityContainer = m_entities[entity.id()];
 
-				constexpr auto compKind = component_kind_v<T>;
 				add_inter(entity, compKind, desc);
 
 				return ComponentSetter{entityContainer.pChunk, entityContainer.idx};
@@ -1009,13 +1009,13 @@ namespace gaia {
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename T, typename U = typename component_type_t<T>::Type>
 			ComponentSetter add(Entity entity, U&& value) {
-				verify_comp<T>();
+				constexpr auto compKind = component_kind_v<T>;
+				verify_comp<T>(compKind);
 				GAIA_ASSERT(valid(entity));
 
 				const auto& desc = ComponentCache::get().goc_comp_desc<U>();
 				const auto& entityContainer = m_entities[entity.id()];
 
-				constexpr auto compKind = component_kind_v<T>;
 				add_inter(entity, compKind, desc);
 
 				if constexpr (component_kind_v<T> == ComponentKind::CK_Gen) {

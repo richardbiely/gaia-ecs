@@ -1,5 +1,3 @@
-#include "gaia/ecs/component_cache.h"
-#include "gaia/ecs/id.h"
 #include <gaia.h>
 
 #if GAIA_COMPILER_MSVC
@@ -101,6 +99,39 @@ struct StringComponent2 {
 	StringComponent2& operator=(const StringComponent2&) = default;
 	StringComponent2& operator=(StringComponent2&&) noexcept = default;
 };
+GAIA_DEFINE_HAS_FUNCTION(foo)
+struct Dummy0 {
+	Dummy0* foo(const Dummy0&) const {
+		return nullptr;
+	}
+};
+inline bool operator==(const Dummy0&, const Dummy0&) {
+	return true;
+}
+struct Dummy1 {
+	bool operator==(const Dummy1&) const {
+		return true;
+	}
+};
+
+TEST_CASE("has_XYZ_equals_check") {
+	{
+		constexpr auto hasMember = core::has_member_equals<Dummy0>::value;
+		constexpr auto hasGlobal = core::has_global_equals<Dummy0>::value;
+		//constexpr auto hasFoo = has_foo<Dummy0>::value;
+		REQUIRE_FALSE(hasMember);
+		REQUIRE(hasGlobal);
+		//REQUIRE(hasFoo);
+	}
+	{
+		constexpr auto hasMember = core::has_member_equals<Dummy1>::value;
+		constexpr auto hasGlobal = core::has_global_equals<Dummy1>::value;
+		//constexpr auto hasFoo = has_foo<Dummy1>::value;
+		REQUIRE(hasMember);
+		REQUIRE_FALSE(hasGlobal);
+		//REQUIRE_FALSE(hasFoo);
+	}
+}
 
 TEST_CASE("Intrinsics") {
 	SECTION("POPCNT") {
@@ -3848,7 +3879,7 @@ struct SerializeStructSArrayNonTrivial {
 	float f;
 
 	bool operator==(const SerializeStructSArrayNonTrivial& other) const {
-		return arr == other.arr && f == other.f;
+		return f == other.f && arr == other.arr;
 	}
 };
 
@@ -3862,7 +3893,7 @@ struct SerializeStructDArrayNonTrivial {
 	float f;
 
 	bool operator==(const SerializeStructDArrayNonTrivial& other) const {
-		return arr == other.arr && f == other.f;
+		return f == other.f && arr == other.arr;
 	}
 };
 
@@ -3871,7 +3902,7 @@ struct SerializeCustomStructInternalDArray {
 	float f;
 
 	bool operator==(const SerializeCustomStructInternalDArray& other) const {
-		return arr == other.arr && f == other.f;
+		return f == other.f && arr == other.arr;
 	}
 };
 

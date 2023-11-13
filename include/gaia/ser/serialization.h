@@ -145,7 +145,7 @@ namespace gaia {
 					return int_kind_id<T>();
 				else if constexpr (std::is_floating_point_v<T>)
 					return flt_type_id<T>();
-				else if constexpr (detail::has_data_and_size<T>::value)
+				else if constexpr (has_data_and_size<T>::value)
 					return serialization_type_id::data_and_size;
 				else if constexpr (std::is_class_v<T>)
 					return serialization_type_id::trivial_wrapper;
@@ -158,8 +158,8 @@ namespace gaia {
 			GAIA_NODISCARD constexpr uint32_t bytes_one(const T& item) noexcept {
 				using type = typename std::decay_t<typename std::remove_pointer_t<T>>;
 
-				constexpr auto id = detail::type_id<type>();
-				static_assert(id != detail::serialization_type_id::Last);
+				constexpr auto id = type_id<type>();
+				static_assert(id != serialization_type_id::Last);
 				uint32_t size_in_bytes{};
 
 				// Custom bytes() has precedence
@@ -171,7 +171,7 @@ namespace gaia {
 					size_in_bytes = (uint32_t)sizeof(type);
 				}
 				// Types which have data() and size() member functions
-				else if constexpr (detail::has_data_and_size<type>::value) {
+				else if constexpr (has_data_and_size<type>::value) {
 					size_in_bytes = (uint32_t)item.size();
 				}
 				// Classes
@@ -203,7 +203,7 @@ namespace gaia {
 						s.load(GAIA_FWD(arg));
 				}
 				// Types which have data() and size() member functions
-				else if constexpr (detail::has_data_and_size<type>::value) {
+				else if constexpr (has_data_and_size<type>::value) {
 					if constexpr (Write) {
 						if constexpr (has_resize<type>::value) {
 							const auto size = arg.size();

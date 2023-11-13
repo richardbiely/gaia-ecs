@@ -64,7 +64,7 @@ namespace gaia {
 
 				using U = typename component_type_t<T>::Type;
 
-				constexpr bool isReadWrite = is_arg_mut_v<T>;
+				constexpr bool isReadWrite = core::is_mut_v<T>;
 				constexpr auto compKind = component_kind_v<T>;
 
 				return has_inter<U>(listType, compKind, isReadWrite);
