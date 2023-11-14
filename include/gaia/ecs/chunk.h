@@ -711,15 +711,14 @@ namespace gaia {
 				if GAIA_LIKELY (left < right) {
 					GAIA_ASSERT(m_header.count > 1);
 
-					const auto entity = entity_view()[right];
-					auto& entityContainer = entities[entity.id()];
-					const auto wasDisabled = entityContainer.dis;
+					// const auto leftEntity = entity_view()[left];
+					const auto rightEntity = entity_view()[right];
 
-					// Update entity index inside chunk
-					entity_view_mut()[left] = entity;
+					// Update entity data inside chunk
+					entity_view_mut()[left] = rightEntity;
 
+					// Move component data from rightEntity to leftEntity
 					auto recs = comp_rec_view(ComponentKind::CK_Gen);
-
 					GAIA_EACH(recs) {
 						const auto& rec = recs[i];
 						if (rec.comp.size() == 0U)
@@ -731,14 +730,13 @@ namespace gaia {
 						rec.pDesc->dtor(pSrc);
 					}
 
-					// Entity has been replaced with the last one in our chunk.
-					// Update its container record.
-					entityContainer.idx = left;
-					entityContainer.gen = entity.gen();
-					entityContainer.dis = wasDisabled;
+					// Entity has been replaced with the last one in our chunk. Update its container record.
+					auto& ecRight = entities[rightEntity.id()];
+					ecRight.idx = left;
+					ecRight.gen = rightEntity.gen();
 				} else {
+					// This is the last entity in chunk so simply destroy the data
 					auto recs = comp_rec_view(ComponentKind::CK_Gen);
-
 					GAIA_EACH(recs) {
 						const auto& rec = recs[i];
 						if (rec.comp.size() == 0U)
@@ -826,13 +824,16 @@ namespace gaia {
 				// Entities were swapped. Update their entity container records.
 				auto& ecLeft = entities[entityLeft.id()];
 				bool ecLeftWasDisabled = ecLeft.dis;
+				const char* ecLeftName = ecLeft.name;
 				auto& ecRight = entities[entityRight.id()];
 				ecLeft.idx = right;
 				ecLeft.gen = entityRight.gen();
 				ecLeft.dis = ecRight.dis;
+				ecLeft.name = ecRight.name;
 				ecRight.idx = left;
 				ecRight.gen = entityLeft.gen();
 				ecRight.dis = ecLeftWasDisabled;
+				ecRight.name = ecLeftName;
 			}
 
 			/*!

@@ -118,18 +118,18 @@ TEST_CASE("has_XYZ_equals_check") {
 	{
 		constexpr auto hasMember = core::has_member_equals<Dummy0>::value;
 		constexpr auto hasGlobal = core::has_global_equals<Dummy0>::value;
-		//constexpr auto hasFoo = has_foo<Dummy0>::value;
+		// constexpr auto hasFoo = has_foo<Dummy0>::value;
 		REQUIRE_FALSE(hasMember);
 		REQUIRE(hasGlobal);
-		//REQUIRE(hasFoo);
+		// REQUIRE(hasFoo);
 	}
 	{
 		constexpr auto hasMember = core::has_member_equals<Dummy1>::value;
 		constexpr auto hasGlobal = core::has_global_equals<Dummy1>::value;
-		//constexpr auto hasFoo = has_foo<Dummy1>::value;
+		// constexpr auto hasFoo = has_foo<Dummy1>::value;
 		REQUIRE(hasMember);
 		REQUIRE_FALSE(hasGlobal);
-		//REQUIRE_FALSE(hasFoo);
+		// REQUIRE_FALSE(hasFoo);
 	}
 }
 
@@ -1530,7 +1530,7 @@ TEST_CASE("Entity - has") {
 	}
 }
 
-TEST_CASE("EntityNull") {
+TEST_CASE("Entity - IdentifierBad") {
 	REQUIRE_FALSE(ecs::Entity{} == ecs::IdentifierBad);
 
 	ecs::World w;
@@ -2479,6 +2479,39 @@ TEST_CASE("del - generic, chunk") {
 			REQUIRE(w.has<ecs::uni<Position>>(e1));
 			REQUIRE_FALSE(w.has<ecs::uni<Acceleration>>(e1));
 		}
+	}
+}
+
+TEST_CASE("entity name") {
+	ecs::World w;
+
+	constexpr auto MaxLen = 64;
+	char tmp[64];
+
+	auto create = [&](uint32_t id) {
+		auto e = w.add();
+		GAIA_SETFMT(tmp, MaxLen, "name_%u", id);
+		w.name(e, tmp);
+	};
+	auto verify = [&](uint32_t id) {
+		auto e = w.get(id);
+		GAIA_SETFMT(tmp, MaxLen, "name_%u", id);
+		const auto* ename = w.name(e);
+
+		const auto l0 = strlen(tmp);
+		const auto l1 = strlen(ename);
+		REQUIRE(l0 == l1);
+		REQUIRE(strcmp(tmp, ename) == 0);
+	};
+
+	const uint32_t N = 10'000;
+	GAIA_FOR(N) create(i);
+	GAIA_FOR(N) verify(i);
+
+	{
+		w.del(w.get(9000));
+		GAIA_FOR(9000) verify(i);
+		GAIA_FOR2(9001, N) verify(i);
 	}
 }
 

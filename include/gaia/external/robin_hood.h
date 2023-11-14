@@ -238,7 +238,7 @@ namespace robin_hood {
 			// using memcpy so we don't get into unaligned load problems.
 			// compiler should optimize this very well anyways.
 			T t;
-			std::memcpy(&t, ptr, sizeof(T));
+			memcpy(&t, ptr, sizeof(T));
 			return t;
 		}
 
@@ -328,7 +328,7 @@ namespace robin_hood {
 			}
 
 			void swap(BulkPoolAllocator<T, MinNumAllocs, MaxNumAllocs>& other) noexcept {
-				using std::swap;
+				using gaia::core::swap;
 				swap(mHead, other.mHead);
 				swap(mListForFree, other.mListForFree);
 			}
@@ -436,7 +436,7 @@ namespace robin_hood {
 	struct is_transparent_tag {};
 
 	// A custom pair implementation is used in the map because std::pair is not is_trivially_copyable,
-	// which means it would  not be allowed to be used in std::memcpy. This struct is copyable, which is
+	// which means it would not be allowed to be used in memcpy. This struct is copyable, which is
 	// also tested.
 	template <typename T1, typename T2>
 	struct pair {
@@ -508,7 +508,7 @@ namespace robin_hood {
 
 		void
 		swap(pair<T1, T2>& o) noexcept((detail::swappable::nothrow<T1>::value) && (detail::swappable::nothrow<T2>::value)) {
-			using std::swap;
+			using gaia::core::swap;
 			swap(first, o.first);
 			swap(second, o.second);
 		}
@@ -933,7 +933,7 @@ namespace robin_hood {
 				}
 
 				void swap(DataNode<M, false>& o) noexcept {
-					using std::swap;
+					using gaia::core::swap;
 					swap(mData, o.mData);
 				}
 
@@ -1493,7 +1493,7 @@ namespace robin_hood {
 			// Swaps everything between the two maps.
 			void swap(Table& o) {
 				ROBIN_HOOD_TRACE(this)
-				using std::swap;
+				using gaia::core::swap;
 				swap(o, *this);
 			}
 
@@ -2223,7 +2223,7 @@ namespace robin_hood {
 				for (size_t i = 0; i < numElementsWithBuffer; i += 8) {
 					auto val = unaligned_load<uint64_t>(mInfo + i);
 					val = (val >> 1U) & UINT64_C(0x7f7f7f7f7f7f7f7f);
-					std::memcpy(mInfo + i, &val, sizeof(val));
+					memcpy(mInfo + i, &val, sizeof(val));
 				}
 				// update sentinel, which might have been cleared out!
 				mInfo[numElementsWithBuffer] = 1;

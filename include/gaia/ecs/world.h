@@ -14,6 +14,7 @@
 #include "../core/hashing_policy.h"
 #include "../core/span.h"
 #include "../core/utility.h"
+#include "../mem/mem_alloc.h"
 #include "../meta/type_info.h"
 #include "archetype.h"
 #include "archetype_common.h"
@@ -26,6 +27,7 @@
 #include "component_setter.h"
 #include "component_utils.h"
 #include "entity_container.h"
+#include "gaia/config/config_core.h"
 #include "id.h"
 #include "query.h"
 #include "query_cache.h"
@@ -40,6 +42,42 @@ namespace gaia {
 			friend class CommandBuffer;
 			friend void* AllocateChunkMemory(World& world);
 			friend void ReleaseChunkMemory(World& world, void* mem);
+
+			struct EntityNameLookupKey {
+				using LookupHash = core::direct_hash_key<uint64_t>;
+
+			private:
+				const char* m_pStr;
+				LookupHash m_hash;
+
+			public:
+				static constexpr bool IsDirectHashKey = true;
+
+				EntityNameLookupKey(): m_pStr(nullptr), m_hash({0}) {}
+				EntityNameLookupKey(const char* pStr): m_pStr(pStr), m_hash(calc(pStr)) {}
+				EntityNameLookupKey(const char* pStr, LookupHash hash): m_pStr(pStr), m_hash(hash) {}
+
+				static LookupHash calc(const char* pStr) {
+					return {core::calculate_hash64(pStr)};
+				}
+
+				size_t hash() const {
+					return (size_t)m_hash.hash;
+				}
+
+				const char* str() const {
+					return m_pStr;
+				}
+
+				bool operator==(const EntityNameLookupKey& other) const {
+					// Hash doesn't match we don't have a match.
+					// Hash collisions are expected to be very unlikely so optimize for this case.
+					if GAIA_LIKELY (m_hash != other.m_hash)
+						return false;
+
+					return strcmp(m_pStr, other.m_pStr) == 0;
+				}
+			};
 
 			//! Cache of queries
 			QueryCache m_queryCache;
@@ -58,6 +96,8 @@ namespace gaia {
 			//! Implicit list of entities. Used for look-ups only when searching for
 			//! entities in chunks + data validation
 			cnt::ilist<EntityContainer, Entity> m_entities;
+			//! Name to entity mapping
+			cnt::map<EntityNameLookupKey, Entity> m_nameToEntity;
 
 			//! List of chunks to delete
 			cnt::darray<Chunk*> m_chunksToRemove;
@@ -530,6 +570,12 @@ namespace gaia {
 				auto& entityContainer = m_entities.free(entity);
 				entityContainer.pArchetype = nullptr;
 				entityContainer.pChunk = nullptr;
+
+				if (entityContainer.name != nullptr) {
+					m_nameToEntity.erase(EntityNameLookupKey(entityContainer.name));
+					mem::mem_free((void*)entityContainer.name);
+					entityContainer.name = nullptr;
+				}
 			}
 
 			//! Associates an entity with a chunk.
@@ -548,6 +594,7 @@ namespace gaia {
 				entityContainer.idx = pChunk->add_entity(entity);
 				entityContainer.gen = entity.gen();
 				entityContainer.dis = 0;
+				entityContainer.name = nullptr;
 			}
 
 			/*!
@@ -597,7 +644,6 @@ namespace gaia {
 				entityContainer.idx = newIndex;
 				entityContainer.gen = oldEntity.gen();
 				GAIA_ASSERT((bool)entityContainer.dis == !wasEnabled);
-				// entityContainer.dis = !wasEnabled;
 
 				// End-state validation
 				validate_chunk(pOldChunk);
@@ -717,6 +763,9 @@ namespace gaia {
 				}
 			};
 
+			GAIA_MSVC_WARNING_PUSH()
+			GAIA_MSVC_WARNING_DISABLE(4172) // returning address of local variable or temporary
+
 			CompMoveHelper& add_inter(Entity entity, ComponentKind compKind, const ComponentDesc& desc) {
 				return CompMoveHelper(*this, entity).add(compKind, desc);
 			}
@@ -724,6 +773,8 @@ namespace gaia {
 			CompMoveHelper& del_inter(Entity entity, ComponentKind compKind, const ComponentDesc& desc) {
 				return CompMoveHelper(*this, entity).del(compKind, desc);
 			}
+
+			GAIA_MSVC_WARNING_POP()
 
 			void init() {
 				m_pRootArchetype = create_archetype({}, {});
@@ -1118,6 +1169,72 @@ namespace gaia {
 				return ComponentGetter{entityContainer.pChunk, entityContainer.idx}.has<T>();
 			}
 
+			//----------------------------------------------------------------------
+
+			//! Assignes a \param name to \param entity. The string is copied and kept internally.
+			//! \param entity Entity
+			//! \param name Name
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning Name is expected to be unique. Any previously existing association will be overriden.
+			GAIA_NODISCARD void name(Entity entity, const char* name) {
+				GAIA_ASSERT(valid(entity));
+				GAIA_ASSERT(name != nullptr);
+				if (name == nullptr)
+					return;
+
+				auto res = m_nameToEntity.try_emplace(EntityNameLookupKey(name), entity);
+				// Make sure the name is unique. Ignore setting the same name twice on the same entity
+				GAIA_ASSERT(res.second || res.first->second == entity);
+
+				// Not a unique name, nothing to do
+				if (!res.second)
+					return;
+
+				// Allocate enough storage for the string
+				const auto len = strlen(name);
+				char* entityStr = (char*)mem::mem_alloc(len + 1);
+				memcpy((void*)entityStr, (const void*)name, len + 1);
+				entityStr[len] = 0;
+
+				// Update the map so it points to the newly allocated string.
+				// We replace the pointer we provided in try_emplace with an internally allocated string.
+				auto p = robin_hood::pair(std::make_pair(EntityNameLookupKey(entityStr, {res.first->first.hash()}), entity));
+				res.first->swap(p);
+
+				// Update the entity container string pointer
+				auto& entityContainer = m_entities[entity.id()];
+				entityContainer.name = entityStr;
+			}
+
+			//! Returns the name assigned to \param entity.
+			//! \param entity Entity
+			//! \return Name assigned to entity.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			GAIA_NODISCARD const char* name(Entity entity) const {
+				GAIA_ASSERT(valid(entity));
+
+				const auto& entityContainer = m_entities[entity.id()];
+				return entityContainer.name;
+			}
+
+			//! Returns the entity that is assigned with the \param name.
+			//! \param name Name
+			//! \return Entity assigned the given name.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			GAIA_NODISCARD Entity name(const char* name) const {
+				GAIA_ASSERT(name != nullptr);
+				if (name == nullptr)
+					return IdentifierBad;
+
+				const auto it = m_nameToEntity.find(EntityNameLookupKey(name));
+				if (it == m_nameToEntity.end())
+					return IdentifierBad;
+
+				return it->second;
+			}
+
+			//----------------------------------------------------------------------
+
 			//! Provides a query set up to work with the parent world.
 			//! \tparam UseCache If true, results of the query are cached
 			//! \return Valid query object
@@ -1128,6 +1245,8 @@ namespace gaia {
 				else
 					return QueryUncached(m_nextArchetypeId, m_worldVersion, m_archetypesById, m_componentToArchetypeMap);
 			}
+
+			//----------------------------------------------------------------------
 
 			//! Performs various internal operations related to the end of the frame such as
 			//! memory cleanup and other managment operations which keep the system healthy.

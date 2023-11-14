@@ -41,6 +41,7 @@ Gaia-ECS is a fast and easy-to-use [ECS](#ecs) framework. Some of its current fe
   * [Minimum requirements](#minimum-requirements)
   * [Basic operations](#basic-operations)
     * [Create or delete entity](#create-or-delete-entity)
+    * [Name entity](#name-entity)
     * [Add or remove component](#add-or-remove-component)
     * [Set or get component value](#set-or-get-component-value)
     * [Component presence](#component-presence)
@@ -113,9 +114,27 @@ In the code examples below we will assume we are inside the namespace already.
 
 ```cpp
 ecs::World w;
-auto e = w.add();
+ecs::Entity e = w.add();
 ... // do something with the created entity
 w.del(e);
+```
+
+### Name entity
+
+Each entity can be assigned a unique name. This is useful for debugging or entity lookup.
+
+```cpp
+ecs::World w;
+ecs::Entity e = w.add();
+
+// Entity "e" named "my_unique_name"
+w.name(e, "my_unique_name");
+
+// Pointer to "my_unique_name" returned
+const char* name = w.name(e);
+
+// Entity returned
+ecs::Entity e_by_name = w.entity("my_unique_name");
 ```
 
 ### Add or remove component
@@ -131,7 +150,7 @@ struct Velocity {
 ecs::World w;
 
 // Create an entity with Position and Velocity.
-auto e = w.add();
+ecs::Entity e = w.add();
 w.add<Position>(e, {0, 100, 0});
 w.add<Velocity>(e, {0, 0, 1});
 
@@ -145,7 +164,7 @@ When adding or removing multiple components at once if is more efficient doing i
 ecs::World w;
 
 // Create an entity with Position.
-auto e = w.add();
+ecs::Entity e = w.add();
 w.add<Position>();
 
 w.bulk(e)
