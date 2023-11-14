@@ -19921,18 +19921,13 @@ namespace gaia {
 				}
 			};
 
-			GAIA_MSVC_WARNING_PUSH()
-			GAIA_MSVC_WARNING_DISABLE(4172) // returning address of local variable or temporary
-
-			CompMoveHelper& add_inter(Entity entity, ComponentKind compKind, const ComponentDesc& desc) {
-				return CompMoveHelper(*this, entity).add(compKind, desc);
+			void add_inter(Entity entity, ComponentKind compKind, const ComponentDesc& desc) {
+				CompMoveHelper(*this, entity).add(compKind, desc);
 			}
 
-			CompMoveHelper& del_inter(Entity entity, ComponentKind compKind, const ComponentDesc& desc) {
-				return CompMoveHelper(*this, entity).del(compKind, desc);
+			void del_inter(Entity entity, ComponentKind compKind, const ComponentDesc& desc) {
+				CompMoveHelper(*this, entity).del(compKind, desc);
 			}
-
-			GAIA_MSVC_WARNING_POP()
 
 			void init() {
 				m_pRootArchetype = create_archetype({}, {});
