@@ -202,11 +202,7 @@ struct test_00 {
 } g_test_00;
 
 struct test_000 {
-	cnt::sarray<int8_t, 4> arr;
-
-	test_000() {
-		arr = {10, 10, 10, 10};
-	}
+	cnt::sarray<int8_t, 4> arr{10, 10, 10, 10};
 
 	void getters() const {
 		const auto& valR = arr[0];

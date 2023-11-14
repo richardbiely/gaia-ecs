@@ -182,11 +182,11 @@ namespace gaia {
 		}
 
 		constexpr uint64_t calculate_hash64(const char* str) {
-			uint64_t size = 0;
-			while (str[size] != '\0')
-				++size;
+			uint64_t length = 0;
+			while (str[length] != '\0')
+				++length;
 
-			return detail::murmur2a::hash_murmur2a_64_ct(str, size, detail::murmur2a::seed_64_const);
+			return detail::murmur2a::hash_murmur2a_64_ct(str, length, detail::murmur2a::seed_64_const);
 		}
 
 		constexpr uint64_t calculate_hash64(const char* str, uint64_t length) {
