@@ -469,6 +469,24 @@ namespace gaia {
 	#define GAIA_LAMBDAINLINE
 #endif
 
+#ifdef __has_cpp_attribute
+	#if __has_cpp_attribute(assume) >= 202207L
+		#define GAIA_ASSUME(...) [[assume(__VA_ARGS__)]]
+	#endif
+#endif
+#ifndef GAIA_ASSUME
+	#if GAIA_COMPILER_CLANG
+		#define GAIA_ASSUME(...) __builtin_assume(__VA_ARGS__)
+	#elif GAIA_COMPILER_MSVC
+		#define GAIA_ASSUME(...) __assume(__VA_ARGS__)
+	#elif (GAIA_COMPILER_GCC && __GNUC__ >= 13)
+		#define GAIA_ASSUME(...) __attribute__((__assume__(__VA_ARGS__)))
+	#endif
+#endif
+#ifndef GAIA_ASSUME
+	#define GAIA_ASSUME(...)
+#endif
+
 //------------------------------------------------------------------------------
 
 #if GAIA_COMPILER_MSVC

@@ -44,29 +44,51 @@ namespace gaia {
 			friend void ReleaseChunkMemory(World& world, void* mem);
 
 			struct EntityNameLookupKey {
-				using LookupHash = core::direct_hash_key<uint64_t>;
+				static constexpr uint32_t MaxLen = 128;
+				using LookupHash = core::direct_hash_key<uint32_t>;
 
 			private:
 				const char* m_pStr;
+				uint32_t m_len;
 				LookupHash m_hash;
+
+				static uint32_t len(const char* pStr) {
+					GAIA_FOR(MaxLen) {
+						if (pStr[i] == 0)
+							return i;
+					}
+					GAIA_ASSERT(false && "Only null-terminated strings up to MaxLen characters are supported");
+					return BadIndex;
+				}
+
+				static LookupHash calc(const char* pStr, uint32_t len) {
+					return {static_cast<unsigned int>(core::calculate_hash64(pStr, len))};
+				}
 
 			public:
 				static constexpr bool IsDirectHashKey = true;
 
-				EntityNameLookupKey(): m_pStr(nullptr), m_hash({0}) {}
-				EntityNameLookupKey(const char* pStr): m_pStr(pStr), m_hash(calc(pStr)) {}
-				EntityNameLookupKey(const char* pStr, LookupHash hash): m_pStr(pStr), m_hash(hash) {}
-
-				static LookupHash calc(const char* pStr) {
-					return {core::calculate_hash64(pStr)};
+				EntityNameLookupKey() = default;
+				//! Constructor calulating hash and length from the provided string \param pStr
+				//! \warning String has to be null-terminanted and up to MaxLen characters long.
+				//!          Undefined behavior otherwise.
+				explicit EntityNameLookupKey(const char* pStr): m_pStr(pStr), m_len(len(pStr)) {
+					m_hash = calc(pStr, m_len);
 				}
-
-				size_t hash() const {
-					return (size_t)m_hash.hash;
-				}
+				//! Constructor just for setting values
+				explicit EntityNameLookupKey(const char* pStr, uint32_t len, LookupHash hash):
+						m_pStr(pStr), m_len(len), m_hash(hash) {}
 
 				const char* str() const {
 					return m_pStr;
+				}
+
+				uint32_t len() const {
+					return m_len;
+				}
+
+				uint32_t hash() const {
+					return m_hash.hash;
 				}
 
 				bool operator==(const EntityNameLookupKey& other) const {
@@ -75,7 +97,19 @@ namespace gaia {
 					if GAIA_LIKELY (m_hash != other.m_hash)
 						return false;
 
-					return strcmp(m_pStr, other.m_pStr) == 0;
+					// Lengths have to match
+					if (m_len != other.m_len)
+						return false;
+
+					// Contents have to match
+					const auto l = m_len;
+					GAIA_ASSUME(l < MaxLen);
+					GAIA_FOR(l) {
+						if (m_pStr[i] != other.m_pStr[i])
+							return false;
+					}
+
+					return true;
 				}
 			};
 
@@ -1176,7 +1210,7 @@ namespace gaia {
 			//! \param name Name
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			//! \warning Name is expected to be unique. Any previously existing association will be overriden.
-			GAIA_NODISCARD void name(Entity entity, const char* name) {
+			void name(Entity entity, const char* name) {
 				GAIA_ASSERT(valid(entity));
 				GAIA_ASSERT(name != nullptr);
 				if (name == nullptr)
@@ -1198,7 +1232,8 @@ namespace gaia {
 
 				// Update the map so it points to the newly allocated string.
 				// We replace the pointer we provided in try_emplace with an internally allocated string.
-				auto p = robin_hood::pair(std::make_pair(EntityNameLookupKey(entityStr, {res.first->first.hash()}), entity));
+				auto& key = res.first->first;
+				auto p = robin_hood::pair(std::make_pair(EntityNameLookupKey(entityStr, key.len(), {key.hash()}), entity));
 				res.first->swap(p);
 
 				// Update the entity container string pointer
