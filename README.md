@@ -130,11 +130,11 @@ ecs::Entity e = w.add();
 // Entity "e" named "my_unique_name"
 w.name(e, "my_unique_name");
 
-// Pointer to "my_unique_name" returned
+// Pointer to the "my_unique_name" string stored in the world returned
 const char* name = w.name(e);
 
-// Entity returned
-ecs::Entity e_by_name = w.entity("my_unique_name");
+// Entity returned identified by the string returned
+ecs::Entity e_by_name = w.get("my_unique_name");
 ```
 
 ### Add or remove component
