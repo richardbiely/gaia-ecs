@@ -1219,15 +1219,16 @@ namespace gaia {
 				if (!res.second)
 					return;
 
+				auto& key = res.first->first;
+
 				// Allocate enough storage for the string
-				const auto len = strlen(name);
-				char* entityStr = (char*)mem::mem_alloc(len + 1);
-				memcpy((void*)entityStr, (const void*)name, len + 1);
-				entityStr[len] = 0;
+				char* entityStr = (char*)mem::mem_alloc(key.len() + 1);
+				memcpy((void*)entityStr, (const void*)name, key.len() + 1);
+				entityStr[key.len()] = 0;
 
 				// Update the map so it points to the newly allocated string.
 				// We replace the pointer we provided in try_emplace with an internally allocated string.
-				auto& key = res.first->first;
+
 				auto p = robin_hood::pair(std::make_pair(EntityNameLookupKey(entityStr, key.len(), {key.hash()}), entity));
 				res.first->swap(p);
 
