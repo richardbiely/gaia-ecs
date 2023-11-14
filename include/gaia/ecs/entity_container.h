@@ -23,10 +23,12 @@ namespace gaia {
 			Archetype* pArchetype;
 			//! Chunk the entity currently resides in
 			Chunk* pChunk;
+			//! Name associated with the entity
+			const char* name;
 
 			EntityContainer() = default;
 			EntityContainer(uint32_t index, uint32_t generation):
-					idx(index), gen(generation), dis(0), pArchetype(nullptr), pChunk(nullptr) {}
+					idx(index), gen(generation), dis(0), pArchetype(nullptr), pChunk(nullptr), name(nullptr) {}
 		};
 	} // namespace ecs
 } // namespace gaia

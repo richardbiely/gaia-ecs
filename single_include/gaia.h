@@ -1552,6 +1552,7 @@ namespace std {
 }
 #endif
 
+#include <cstdio>
 #include <tuple>
 #include <type_traits>
 #include <utility>
@@ -1667,6 +1668,18 @@ namespace gaia {
 
 namespace gaia {
 	constexpr uint32_t BadIndex = uint32_t(-1);
+
+#if GAIA_COMPILER_MSVC || GAIA_PLATFORM_WINDOWS
+	#define GAIA_STRCPY(var, max_len, text) strncpy_s((var), (text), (size_t)-1)
+	#define GAIA_SETFMT(var, max_len, fmt, ...) snprintf_s((var), (max_len), fmt, __VA_ARGS__)
+#else
+	#define GAIA_STRCPY(var, max_len, text)                                                                              \
+		{                                                                                                                  \
+			strncpy((var), (text), (max_len));                                                                               \
+			(var)[(max_len)-1] = 0;                                                                                          \
+		}
+	#define GAIA_SETFMT(var, max_len, fmt, ...) snprintf((var), (max_len), fmt, __VA_ARGS__)
+#endif
 
 	namespace core {
 		namespace detail {
@@ -7033,7 +7046,7 @@ namespace robin_hood {
 			// using memcpy so we don't get into unaligned load problems.
 			// compiler should optimize this very well anyways.
 			T t;
-			std::memcpy(&t, ptr, sizeof(T));
+			memcpy(&t, ptr, sizeof(T));
 			return t;
 		}
 
@@ -7123,7 +7136,7 @@ namespace robin_hood {
 			}
 
 			void swap(BulkPoolAllocator<T, MinNumAllocs, MaxNumAllocs>& other) noexcept {
-				using std::swap;
+				using gaia::core::swap;
 				swap(mHead, other.mHead);
 				swap(mListForFree, other.mListForFree);
 			}
@@ -7231,7 +7244,7 @@ namespace robin_hood {
 	struct is_transparent_tag {};
 
 	// A custom pair implementation is used in the map because std::pair is not is_trivially_copyable,
-	// which means it would  not be allowed to be used in std::memcpy. This struct is copyable, which is
+	// which means it would not be allowed to be used in memcpy. This struct is copyable, which is
 	// also tested.
 	template <typename T1, typename T2>
 	struct pair {
@@ -7303,7 +7316,7 @@ namespace robin_hood {
 
 		void
 		swap(pair<T1, T2>& o) noexcept((detail::swappable::nothrow<T1>::value) && (detail::swappable::nothrow<T2>::value)) {
-			using std::swap;
+			using gaia::core::swap;
 			swap(first, o.first);
 			swap(second, o.second);
 		}
@@ -7728,7 +7741,7 @@ namespace robin_hood {
 				}
 
 				void swap(DataNode<M, false>& o) noexcept {
-					using std::swap;
+					using gaia::core::swap;
 					swap(mData, o.mData);
 				}
 
@@ -8288,7 +8301,7 @@ namespace robin_hood {
 			// Swaps everything between the two maps.
 			void swap(Table& o) {
 				ROBIN_HOOD_TRACE(this)
-				using std::swap;
+				using gaia::core::swap;
 				swap(o, *this);
 			}
 
@@ -9018,7 +9031,7 @@ namespace robin_hood {
 				for (size_t i = 0; i < numElementsWithBuffer; i += 8) {
 					auto val = unaligned_load<uint64_t>(mInfo + i);
 					val = (val >> 1U) & UINT64_C(0x7f7f7f7f7f7f7f7f);
-					std::memcpy(mInfo + i, &val, sizeof(val));
+					memcpy(mInfo + i, &val, sizeof(val));
 				}
 				// update sentinel, which might have been cleared out!
 				mInfo[numElementsWithBuffer] = 1;
@@ -10379,7 +10392,7 @@ namespace robin_hood {
 			// using memcpy so we don't get into unaligned load problems.
 			// compiler should optimize this very well anyways.
 			T t;
-			std::memcpy(&t, ptr, sizeof(T));
+			memcpy(&t, ptr, sizeof(T));
 			return t;
 		}
 
@@ -10469,7 +10482,7 @@ namespace robin_hood {
 			}
 
 			void swap(BulkPoolAllocator<T, MinNumAllocs, MaxNumAllocs>& other) noexcept {
-				using std::swap;
+				using gaia::core::swap;
 				swap(mHead, other.mHead);
 				swap(mListForFree, other.mListForFree);
 			}
@@ -10577,7 +10590,7 @@ namespace robin_hood {
 	struct is_transparent_tag {};
 
 	// A custom pair implementation is used in the map because std::pair is not is_trivially_copyable,
-	// which means it would  not be allowed to be used in std::memcpy. This struct is copyable, which is
+	// which means it would not be allowed to be used in memcpy. This struct is copyable, which is
 	// also tested.
 	template <typename T1, typename T2>
 	struct pair {
@@ -10649,7 +10662,7 @@ namespace robin_hood {
 
 		void
 		swap(pair<T1, T2>& o) noexcept((detail::swappable::nothrow<T1>::value) && (detail::swappable::nothrow<T2>::value)) {
-			using std::swap;
+			using gaia::core::swap;
 			swap(first, o.first);
 			swap(second, o.second);
 		}
@@ -11074,7 +11087,7 @@ namespace robin_hood {
 				}
 
 				void swap(DataNode<M, false>& o) noexcept {
-					using std::swap;
+					using gaia::core::swap;
 					swap(mData, o.mData);
 				}
 
@@ -11634,7 +11647,7 @@ namespace robin_hood {
 			// Swaps everything between the two maps.
 			void swap(Table& o) {
 				ROBIN_HOOD_TRACE(this)
-				using std::swap;
+				using gaia::core::swap;
 				swap(o, *this);
 			}
 
@@ -12364,7 +12377,7 @@ namespace robin_hood {
 				for (size_t i = 0; i < numElementsWithBuffer; i += 8) {
 					auto val = unaligned_load<uint64_t>(mInfo + i);
 					val = (val >> 1U) & UINT64_C(0x7f7f7f7f7f7f7f7f);
-					std::memcpy(mInfo + i, &val, sizeof(val));
+					memcpy(mInfo + i, &val, sizeof(val));
 				}
 				// update sentinel, which might have been cleared out!
 				mInfo[numElementsWithBuffer] = 1;
@@ -14075,7 +14088,7 @@ namespace gaia {
 			// NOTE: This code does technically the same as the above.
 			//       However, compilers can't quite optimize it as well because it does some more
 			//       calculations.
-			//			 Component ID to component index conversion might be used often to it deserves
+			//			 Component ID to component index conversion might be used often so it deserves
 			//       optimizing as much as possible.
 			// const auto i = core::get_index_unsafe({pCompIds, MAX_COMPONENTS}, compId);
 			// GAIA_ASSERT(i != BadIndex);
@@ -15269,10 +15282,12 @@ namespace gaia {
 			Archetype* pArchetype;
 			//! Chunk the entity currently resides in
 			Chunk* pChunk;
+			//! Name associated with the entity
+			const char* name;
 
 			EntityContainer() = default;
 			EntityContainer(uint32_t index, uint32_t generation):
-					idx(index), gen(generation), dis(0), pArchetype(nullptr), pChunk(nullptr) {}
+					idx(index), gen(generation), dis(0), pArchetype(nullptr), pChunk(nullptr), name(nullptr) {}
 		};
 	} // namespace ecs
 } // namespace gaia
@@ -15967,15 +15982,14 @@ namespace gaia {
 				if GAIA_LIKELY (left < right) {
 					GAIA_ASSERT(m_header.count > 1);
 
-					const auto entity = entity_view()[right];
-					auto& entityContainer = entities[entity.id()];
-					const auto wasDisabled = entityContainer.dis;
+					// const auto leftEntity = entity_view()[left];
+					const auto rightEntity = entity_view()[right];
 
-					// Update entity index inside chunk
-					entity_view_mut()[left] = entity;
+					// Update entity data inside chunk
+					entity_view_mut()[left] = rightEntity;
 
+					// Move component data from rightEntity to leftEntity
 					auto recs = comp_rec_view(ComponentKind::CK_Gen);
-
 					GAIA_EACH(recs) {
 						const auto& rec = recs[i];
 						if (rec.comp.size() == 0U)
@@ -15987,14 +16001,13 @@ namespace gaia {
 						rec.pDesc->dtor(pSrc);
 					}
 
-					// Entity has been replaced with the last one in our chunk.
-					// Update its container record.
-					entityContainer.idx = left;
-					entityContainer.gen = entity.gen();
-					entityContainer.dis = wasDisabled;
+					// Entity has been replaced with the last one in our chunk. Update its container record.
+					auto& ecRight = entities[rightEntity.id()];
+					ecRight.idx = left;
+					ecRight.gen = rightEntity.gen();
 				} else {
+					// This is the last entity in chunk so simply destroy the data
 					auto recs = comp_rec_view(ComponentKind::CK_Gen);
-
 					GAIA_EACH(recs) {
 						const auto& rec = recs[i];
 						if (rec.comp.size() == 0U)
@@ -16082,13 +16095,16 @@ namespace gaia {
 				// Entities were swapped. Update their entity container records.
 				auto& ecLeft = entities[entityLeft.id()];
 				bool ecLeftWasDisabled = ecLeft.dis;
+				const char* ecLeftName = ecLeft.name;
 				auto& ecRight = entities[entityRight.id()];
 				ecLeft.idx = right;
 				ecLeft.gen = entityRight.gen();
 				ecLeft.dis = ecRight.dis;
+				ecLeft.name = ecRight.name;
 				ecRight.idx = left;
 				ecRight.gen = entityLeft.gen();
 				ecRight.dis = ecLeftWasDisabled;
+				ecRight.name = ecLeftName;
 			}
 
 			/*!
@@ -19133,6 +19149,42 @@ namespace gaia {
 			friend void* AllocateChunkMemory(World& world);
 			friend void ReleaseChunkMemory(World& world, void* mem);
 
+			struct EntityNameLookupKey {
+				using LookupHash = core::direct_hash_key<uint64_t>;
+
+			private:
+				const char* m_pStr;
+				LookupHash m_hash;
+
+			public:
+				static constexpr bool IsDirectHashKey = true;
+
+				EntityNameLookupKey(): m_pStr(nullptr), m_hash({0}) {}
+				EntityNameLookupKey(const char* pStr): m_pStr(pStr), m_hash(calc(pStr)) {}
+				EntityNameLookupKey(const char* pStr, LookupHash hash): m_pStr(pStr), m_hash(hash) {}
+
+				static LookupHash calc(const char* pStr) {
+					return {core::calculate_hash64(pStr)};
+				}
+
+				size_t hash() const {
+					return (size_t)m_hash.hash;
+				}
+
+				const char* str() const {
+					return m_pStr;
+				}
+
+				bool operator==(const EntityNameLookupKey& other) const {
+					// Hash doesn't match we don't have a match.
+					// Hash collisions are expected to be very unlikely so optimize for this case.
+					if GAIA_LIKELY (m_hash != other.m_hash)
+						return false;
+
+					return strcmp(m_pStr, other.m_pStr) == 0;
+				}
+			};
+
 			//! Cache of queries
 			QueryCache m_queryCache;
 			//! Map of components -> archetype matches
@@ -19150,6 +19202,8 @@ namespace gaia {
 			//! Implicit list of entities. Used for look-ups only when searching for
 			//! entities in chunks + data validation
 			cnt::ilist<EntityContainer, Entity> m_entities;
+			//! Name to entity mapping
+			cnt::map<EntityNameLookupKey, Entity> m_nameToEntity;
 
 			//! List of chunks to delete
 			cnt::darray<Chunk*> m_chunksToRemove;
@@ -19622,6 +19676,12 @@ namespace gaia {
 				auto& entityContainer = m_entities.free(entity);
 				entityContainer.pArchetype = nullptr;
 				entityContainer.pChunk = nullptr;
+
+				if (entityContainer.name != nullptr) {
+					m_nameToEntity.erase(EntityNameLookupKey(entityContainer.name));
+					mem::mem_free((void*)entityContainer.name);
+					entityContainer.name = nullptr;
+				}
 			}
 
 			//! Associates an entity with a chunk.
@@ -19640,6 +19700,7 @@ namespace gaia {
 				entityContainer.idx = pChunk->add_entity(entity);
 				entityContainer.gen = entity.gen();
 				entityContainer.dis = 0;
+				entityContainer.name = nullptr;
 			}
 
 			/*!
@@ -19689,7 +19750,6 @@ namespace gaia {
 				entityContainer.idx = newIndex;
 				entityContainer.gen = oldEntity.gen();
 				GAIA_ASSERT((bool)entityContainer.dis == !wasEnabled);
-				// entityContainer.dis = !wasEnabled;
 
 				// End-state validation
 				validate_chunk(pOldChunk);
@@ -19809,6 +19869,9 @@ namespace gaia {
 				}
 			};
 
+			GAIA_MSVC_WARNING_PUSH()
+			GAIA_MSVC_WARNING_DISABLE(4172) // returning address of local variable or temporary
+
 			CompMoveHelper& add_inter(Entity entity, ComponentKind compKind, const ComponentDesc& desc) {
 				return CompMoveHelper(*this, entity).add(compKind, desc);
 			}
@@ -19816,6 +19879,8 @@ namespace gaia {
 			CompMoveHelper& del_inter(Entity entity, ComponentKind compKind, const ComponentDesc& desc) {
 				return CompMoveHelper(*this, entity).del(compKind, desc);
 			}
+
+			GAIA_MSVC_WARNING_POP()
 
 			void init() {
 				m_pRootArchetype = create_archetype({}, {});
@@ -20210,6 +20275,72 @@ namespace gaia {
 				return ComponentGetter{entityContainer.pChunk, entityContainer.idx}.has<T>();
 			}
 
+			//----------------------------------------------------------------------
+
+			//! Assignes a \param name to \param entity. The string is copied and kept internally.
+			//! \param entity Entity
+			//! \param name Name
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning Name is expected to be unique. Any previously existing association will be overriden.
+			GAIA_NODISCARD void name(Entity entity, const char* name) {
+				GAIA_ASSERT(valid(entity));
+				GAIA_ASSERT(name != nullptr);
+				if (name == nullptr)
+					return;
+
+				auto res = m_nameToEntity.try_emplace(EntityNameLookupKey(name), entity);
+				// Make sure the name is unique. Ignore setting the same name twice on the same entity
+				GAIA_ASSERT(res.second || res.first->second == entity);
+
+				// Not a unique name, nothing to do
+				if (!res.second)
+					return;
+
+				// Allocate enough storage for the string
+				const auto len = strlen(name);
+				char* entityStr = (char*)mem::mem_alloc(len + 1);
+				memcpy((void*)entityStr, (const void*)name, len + 1);
+				entityStr[len] = 0;
+
+				// Update the map so it points to the newly allocated string.
+				// We replace the pointer we provided in try_emplace with an internally allocated string.
+				auto p = robin_hood::pair(std::make_pair(EntityNameLookupKey(entityStr, {res.first->first.hash()}), entity));
+				res.first->swap(p);
+
+				// Update the entity container string pointer
+				auto& entityContainer = m_entities[entity.id()];
+				entityContainer.name = entityStr;
+			}
+
+			//! Returns the name assigned to \param entity.
+			//! \param entity Entity
+			//! \return Name assigned to entity.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			GAIA_NODISCARD const char* name(Entity entity) const {
+				GAIA_ASSERT(valid(entity));
+
+				const auto& entityContainer = m_entities[entity.id()];
+				return entityContainer.name;
+			}
+
+			//! Returns the entity that is assigned with the \param name.
+			//! \param name Name
+			//! \return Entity assigned the given name.
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			GAIA_NODISCARD Entity name(const char* name) const {
+				GAIA_ASSERT(name != nullptr);
+				if (name == nullptr)
+					return IdentifierBad;
+
+				const auto it = m_nameToEntity.find(EntityNameLookupKey(name));
+				if (it == m_nameToEntity.end())
+					return IdentifierBad;
+
+				return it->second;
+			}
+
+			//----------------------------------------------------------------------
+
 			//! Provides a query set up to work with the parent world.
 			//! \tparam UseCache If true, results of the query are cached
 			//! \return Valid query object
@@ -20220,6 +20351,8 @@ namespace gaia {
 				else
 					return QueryUncached(m_nextArchetypeId, m_worldVersion, m_archetypesById, m_componentToArchetypeMap);
 			}
+
+			//----------------------------------------------------------------------
 
 			//! Performs various internal operations related to the end of the frame such as
 			//! memory cleanup and other managment operations which keep the system healthy.
@@ -21027,22 +21160,11 @@ namespace gaia {
 #if GAIA_PROFILER_CPU
 				if (name == nullptr) {
 					constexpr auto ct_name = meta::type_info::name<T>();
-					const size_t len = ct_name.size() > MaxSystemNameLength - 1 ? MaxSystemNameLength - 1 : ct_name.size();
-
-	#if GAIA_COMPILER_MSVC || GAIA_PLATFORM_WINDOWS
-					strncpy_s(pSystem->m_name, ct_name.data(), len);
-	#else
-					strncpy(pSystem->m_name, ct_name.data(), len);
-	#endif
+					const size_t len = ct_name.size() >= MaxSystemNameLength ? MaxSystemNameLength : ct_name.size() + 1;
+					GAIA_SETSTR(pSystem->m_name, ct_name.data(), len);
 				} else {
-	#if GAIA_COMPILER_MSVC || GAIA_PLATFORM_WINDOWS
-					strncpy_s(pSystem->m_name, name, (size_t)-1);
-	#else
-					strncpy(pSystem->m_name, name, MaxSystemNameLength - 1);
-	#endif
+					GAIA_SETSTR(pSystem->m_name, name, MaxSystemNameLength);
 				}
-
-				pSystem->m_name[MaxSystemNameLength - 1] = 0;
 #endif
 
 				pSystem->m_hash = hash;

@@ -248,7 +248,7 @@ namespace gaia {
 			// NOTE: This code does technically the same as the above.
 			//       However, compilers can't quite optimize it as well because it does some more
 			//       calculations.
-			//			 Component ID to component index conversion might be used often to it deserves
+			//			 Component ID to component index conversion might be used often so it deserves
 			//       optimizing as much as possible.
 			// const auto i = core::get_index_unsafe({pCompIds, MAX_COMPONENTS}, compId);
 			// GAIA_ASSERT(i != BadIndex);
