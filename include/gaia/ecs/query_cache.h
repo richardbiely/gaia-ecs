@@ -58,6 +58,11 @@ namespace gaia {
 			QueryCache& operator=(QueryCache&&) = delete;
 			QueryCache& operator=(const QueryCache&) = delete;
 
+			void clear() {
+				m_queryCache.clear();
+				m_queryArr.clear();
+			}
+
 			//! Returns an already existing query info from the provided \param queryId.
 			//! \warning It is expected that the query has already been registered. Undefined behavior otherwise.
 			//! \param queryId Query used to search for query info

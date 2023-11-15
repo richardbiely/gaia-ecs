@@ -18335,6 +18335,11 @@ namespace gaia {
 			QueryCache& operator=(QueryCache&&) = delete;
 			QueryCache& operator=(const QueryCache&) = delete;
 
+			void clear() {
+				m_queryCache.clear();
+				m_queryArr.clear();
+			}
+
 			//! Returns an already existing query info from the provided \param queryId.
 			//! \warning It is expected that the query has already been registered. Undefined behavior otherwise.
 			//! \param queryId Query used to search for query info
@@ -20100,16 +20105,25 @@ namespace gaia {
 					m_archetypesById = {};
 					m_archetypesByHash = {};
 					m_chunksToRemove = {};
+					m_archetypesToRemove = {};
+				}
+
+				// Clear caches
+				{
+					m_componentToArchetypeMap = {};
+					m_queryCache.clear();
 				}
 
 				// Clear entity names
-				for (auto& pair: m_nameToEntity) {
-					if (!pair.first.owned())
-						continue;
-					// Release any memory allocated for owned names
-					mem::mem_free((void*)pair.first.str());
+				{
+					for (auto& pair: m_nameToEntity) {
+						if (!pair.first.owned())
+							continue;
+						// Release any memory allocated for owned names
+						mem::mem_free((void*)pair.first.str());
+					}
+					m_nameToEntity = {};
 				}
-				m_nameToEntity = {};
 			}
 
 			//----------------------------------------------------------------------
