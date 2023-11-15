@@ -17831,9 +17831,11 @@ namespace gaia {
 			static_assert(MAX_COMPONENTS_IN_QUERY == 8); // Make sure that MAX_COMPONENTS_IN_QUERY can fit into m_rw
 
 			GAIA_NODISCARD bool operator==(const QueryCtx& other) const {
+				// Comparison expected to be done only the first time the query is set up
+				GAIA_ASSERT(queryId == QueryIdBad);
 				// Fast path when cache ids are set
-				if (queryId != QueryIdBad && queryId == other.queryId)
-					return true;
+				// if (queryId != QueryIdBad && queryId == other.queryId)
+				// 	return true;
 
 				// Lookup hash must match
 				if (hashLookup != other.hashLookup)
