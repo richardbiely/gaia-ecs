@@ -997,16 +997,25 @@ namespace gaia {
 					m_archetypesById = {};
 					m_archetypesByHash = {};
 					m_chunksToRemove = {};
+					m_archetypesToRemove = {};
+				}
+
+				// Clear caches
+				{
+					m_componentToArchetypeMap = {};
+					m_queryCache.clear();
 				}
 
 				// Clear entity names
-				for (auto& pair: m_nameToEntity) {
-					if (!pair.first.owned())
-						continue;
-					// Release any memory allocated for owned names
-					mem::mem_free((void*)pair.first.str());
+				{
+					for (auto& pair: m_nameToEntity) {
+						if (!pair.first.owned())
+							continue;
+						// Release any memory allocated for owned names
+						mem::mem_free((void*)pair.first.str());
+					}
+					m_nameToEntity = {};
 				}
-				m_nameToEntity = {};
 			}
 
 			//----------------------------------------------------------------------
