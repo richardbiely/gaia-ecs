@@ -168,11 +168,11 @@ ecs::Entity e = w.add();
 w.add<Position>();
 
 w.bulk(e)
- // add Position to entity e
+ // add Velocity to entity e
  .add<Velocity>()
  // remove Position from entity e
  .del<Position>()
- // add Velocity to entity e
+ // add Rotation to entity e
  .add<Rotation>()
  // add a bunch of other components to entity e
  .add<Something1, Something2, Something3>();
