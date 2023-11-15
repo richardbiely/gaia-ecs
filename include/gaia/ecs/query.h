@@ -177,9 +177,7 @@ namespace gaia {
 				const cnt::map<ArchetypeId, Archetype*>* m_archetypes{};
 				//! Map of component ids to archetypes (stable pointer to parent world's archetype component-to-archetype map)
 				const ComponentIdToArchetypeMap* m_componentToArchetypeMap{};
-				//! Execution mode
-				QueryExecMode m_executionMode = QueryExecMode::Run;
-
+				
 				//--------------------------------------------------------------------------------
 			public:
 				QueryInfo& fetch_query_info() {
@@ -576,16 +574,6 @@ namespace gaia {
 					invalidate();
 					// Add commands to the command buffer
 					(changed_inter<T>(), ...);
-					return *this;
-				}
-
-				QueryImpl& sched() {
-					m_executionMode = QueryExecMode::Single;
-					return *this;
-				}
-
-				QueryImpl& sched_par() {
-					m_executionMode = QueryExecMode::Parallel;
 					return *this;
 				}
 
