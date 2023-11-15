@@ -17991,7 +17991,7 @@ namespace gaia {
 			//! List of archetypes matching the query
 			ArchetypeList m_archetypeCache;
 			//! Id of the last archetype in the world we checked
-			uint32_t m_lastArchetypeId = 0;
+			ArchetypeId m_lastArchetypeId = 0;
 			//! Version of the world for which the query has been called most recently
 			uint32_t m_worldVersion = 0;
 
@@ -18163,7 +18163,7 @@ namespace gaia {
 
 			//! Tries to match the query against archetypes in \param componentToArchetypeMap.
 			//! This is necessary so we do not iterate all chunks over and over again when running queries.
-			void match(const ComponentIdToArchetypeMap& componentToArchetypeMap, uint32_t archetypeLastId) {
+			void match(const ComponentIdToArchetypeMap& componentToArchetypeMap, ArchetypeId archetypeLastId) {
 				static cnt::set<Archetype*> s_tmpArchetypeMatches;
 
 				// Skip if no new archetype appeared
@@ -18270,7 +18270,6 @@ namespace gaia {
 				if (idx == BadIndex)
 					return;
 				core::erase_fast(m_archetypeCache, idx);
-				--m_lastArchetypeId;
 			}
 
 			GAIA_NODISCARD ArchetypeList::iterator begin() {
