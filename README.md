@@ -121,20 +121,46 @@ w.del(e);
 
 ### Name entity
 
-Each entity can be assigned a unique name. This is useful for debugging or entity lookup.
+Each entity can be assigned a unique name. This is useful for debugging or entity lookup when entity id is not present for any reason.
 
 ```cpp
 ecs::World w;
 ecs::Entity e = w.add();
 
-// Entity "e" named "my_unique_name"
+// Entity "e" named "my_unique_name".
+// The string is copied and stored internally.
 w.name(e, "my_unique_name");
 
-// Pointer to the "my_unique_name" string stored in the world returned
+// If you know the length of the string, you can provide it as well
+w.name(e, "my_unique_name", 14);
+
+// Pointer to the string used as entity name for entity "e"
 const char* name = w.name(e);
 
-// Entity returned identified by the string returned
+// Entity identified by the string returned.
+// In this case, "e_by_name" and "e" are equal.
 ecs::Entity e_by_name = w.get("my_unique_name");
+
+// The name can be unset by setting it to nullptr
+w.name(e, nullptr);
+```
+
+If you already have a dedicated string storage it would be a waste to duplicate the memory. In this case you can use ***ecs::world::name_raw*** to name entities. In this case the string is NOT copied and NOT stored internally. You are responsible for its lifetime. The pointer also needs to be stable. Otherwise, any time your storage tries to move the string to a different place you have to unset the name before it happens and set it anew after the move is done.
+
+```cpp
+const char* pUserManagedString = ...;
+w.name_raw(e, pUserManagedString);
+
+// If you now the length, you can provide it
+w.name_raw(e, pUserManagedString, userManagedStringLength);
+
+// If the user-managed string pointer is not stable, you need to unset the name before the pointer changes location
+w.name_raw(e, nullptr);
+...
+// ... the change of pointer happens
+...
+// After the user-managed string changed location and obtained a new pointer, you set the name again
+w.name_raw(e, pUserManagedString);
 ```
 
 ### Add or remove component
