@@ -1747,14 +1747,11 @@ TEST_CASE("AddAndDel_entity - no components") {
 	arr.reserve(N);
 
 	// Create entities
-	GAIA_FOR(N)
-	arr.push_back(create(i));
+	GAIA_FOR(N) arr.push_back(create(i));
 	// Verify ids are still valid
-	GAIA_FOR(N)
-	verify(w.get(i), i, 0);
+	GAIA_FOR(N) verify(w.get(i), i, 0);
 	// Remove entities
-	GAIA_FOR(N)
-	remove(arr[i]);
+	GAIA_FOR(N) remove(arr[i]);
 }
 
 TEST_CASE("AddAndDel_entity - 1 component") {
@@ -1786,10 +1783,8 @@ TEST_CASE("AddAndDel_entity - 1 component") {
 	cnt::darr<ecs::Entity> arr;
 	arr.reserve(N);
 
-	GAIA_FOR(N)
-	arr.push_back(create(i));
-	GAIA_FOR(N)
-	remove(arr[i]);
+	GAIA_FOR(N) arr.push_back(create(i));
+	GAIA_FOR(N) remove(arr[i]);
 }
 
 template <typename TQuery>
@@ -2073,8 +2068,7 @@ void Test_Query_Equality() {
 		};
 
 		const uint32_t N = 100;
-		GAIA_FOR(N)
-		create();
+		GAIA_FOR(N) create();
 
 		constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
 		auto qq1 = w.query<UseCachedQuery>().template all<Position, Rotation>();
@@ -2137,8 +2131,7 @@ TEST_CASE("Enable") {
 	cnt::darr<ecs::Entity> arr;
 	arr.reserve(N);
 
-	GAIA_FOR(N)
-	arr.push_back(create(i));
+	GAIA_FOR(N) arr.push_back(create(i));
 
 	SECTION("State validity") {
 		w.enable(arr[0], false);
@@ -2485,13 +2478,18 @@ TEST_CASE("del - generic, chunk") {
 TEST_CASE("entity name") {
 	ecs::World w;
 
-	constexpr auto MaxLen = 64;
-	char tmp[64];
+	constexpr auto MaxLen = 16;
+	char tmp[MaxLen];
 
 	auto create = [&](uint32_t id) {
 		auto e = w.add();
 		GAIA_SETFMT(tmp, MaxLen, "name_%u", id);
 		w.name(e, tmp);
+	};
+	auto create_raw = [&](uint32_t id) {
+		auto e = w.add();
+		GAIA_SETFMT(tmp, MaxLen, "name_%u", id);
+		w.name_raw(e, tmp);
 	};
 	auto verify = [&](uint32_t id) {
 		auto e = w.get(id);
@@ -2504,11 +2502,50 @@ TEST_CASE("entity name") {
 		REQUIRE(strcmp(tmp, ename) == 0);
 	};
 
-	const uint32_t N = 10'000;
-	GAIA_FOR(N) create(i);
-	GAIA_FOR(N) verify(i);
+	SECTION("basic") {
+		create(0);
+		verify(0);
 
-	{
+		auto e = w.get(0U);
+
+#if !GAIA_ASSERT_ENABLED
+		// Renaming has to fail. Can be tested only with asserts disabled
+		// because the situation is assert-protected.
+		{
+			auto e1 = w.add();
+			w.name(e1, "name_0");
+			REQUIRE(w.name(e1) == nullptr);
+			REQUIRE(w.get("name_0") == e);
+		}
+#endif
+
+		w.name(e, nullptr);
+		REQUIRE(w.get("name_0") == ecs::IdentifierBad);
+		REQUIRE(w.name(e) == nullptr);
+
+		w.name(e, "name_0");
+		w.del(e);
+		REQUIRE(w.get("name_0") == ecs::IdentifierBad);
+	}
+
+	SECTION("basic - non-owned") {
+		create_raw(0);
+		verify(0);
+
+		auto e = w.get(0U);
+		w.name(e, nullptr);
+		REQUIRE(w.get("name_0") == ecs::IdentifierBad);
+		REQUIRE(w.name(e) == nullptr);
+
+		w.name_raw(e, "name_0");
+		w.del(e);
+		REQUIRE(w.get("name_0") == ecs::IdentifierBad);
+	}
+
+	SECTION("many") {
+		constexpr uint32_t N = 10'000;
+		GAIA_FOR(N) create(i);
+		GAIA_FOR(N) verify(i);
 		w.del(w.get(9000));
 		GAIA_FOR(9000) verify(i);
 		GAIA_FOR2(9001, N) verify(i);
@@ -3234,7 +3271,7 @@ TEST_CASE("CommandBuffer") {
 		cb.add<Position>(tmp);
 		cb.commit();
 
-		auto e = w.get(0);
+		auto e = w.get(0U);
 		REQUIRE(w.has<Position>(e));
 	}
 
@@ -3296,7 +3333,7 @@ TEST_CASE("CommandBuffer") {
 		cb.set<Position>(tmp, {1, 2, 3});
 		cb.commit();
 
-		auto e = w.get(0);
+		auto e = w.get(0U);
 		REQUIRE(w.has<Position>(e));
 
 		auto p = w.get<Position>(e);
@@ -3318,7 +3355,7 @@ TEST_CASE("CommandBuffer") {
 		cb.set<Acceleration>(tmp, {4, 5, 6});
 		cb.commit();
 
-		auto e = w.get(0);
+		auto e = w.get(0U);
 		REQUIRE(w.has<Position>(e));
 		REQUIRE(w.has<Acceleration>(e));
 
@@ -3343,7 +3380,7 @@ TEST_CASE("CommandBuffer") {
 		cb.add<Position>(tmp, {1, 2, 3});
 		cb.commit();
 
-		auto e = w.get(0);
+		auto e = w.get(0U);
 		REQUIRE(w.has<Position>(e));
 
 		auto p = w.get<Position>(e);
@@ -3363,7 +3400,7 @@ TEST_CASE("CommandBuffer") {
 		cb.add<Acceleration>(tmp, {4, 5, 6});
 		cb.commit();
 
-		auto e = w.get(0);
+		auto e = w.get(0U);
 		REQUIRE(w.has<Position>(e));
 		REQUIRE(w.has<Acceleration>(e));
 
@@ -3631,7 +3668,7 @@ void TestDataLayoutSoA_ECS() {
 
 		// Make sure disabling works
 		{
-			auto e = w.get(0);
+			auto e = w.get(0U);
 			w.enable(e, false);
 			const auto cnt = q.count();
 			REQUIRE(cnt == N - 1);
@@ -3666,7 +3703,7 @@ void TestDataLayoutSoA_ECS() {
 
 	// 	// Make sure disabling works
 	// 	{
-	// 		auto e = w.get(0);
+	// 		auto e = w.get(0U);
 	// 		w.enable(e, false);
 	// 		const auto cnt = q.count();
 	// 		REQUIRE(cnt == N - 1);

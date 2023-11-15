@@ -44,12 +44,17 @@ namespace gaia {
 			friend void ReleaseChunkMemory(World& world, void* mem);
 
 			struct EntityNameLookupKey {
-				static constexpr uint32_t MaxLen = 128;
+				static constexpr uint32_t MaxLen = 256;
 				using LookupHash = core::direct_hash_key<uint32_t>;
 
 			private:
+				//! Pointer to the string
 				const char* m_pStr;
-				uint32_t m_len;
+				//! Length of the string
+				uint32_t m_len : 31;
+				//! 1 - owned (lifetime managed by the framework), 0 - non-owned (lifetime user-managed)
+				uint32_t m_owned : 1;
+				//! String hash
 				LookupHash m_hash;
 
 				static uint32_t len(const char* pStr) {
@@ -75,9 +80,14 @@ namespace gaia {
 				explicit EntityNameLookupKey(const char* pStr): m_pStr(pStr), m_len(len(pStr)) {
 					m_hash = calc(pStr, m_len);
 				}
+				//! Constructor calulating hash from the provided string \param pStr and \param length
+				//! \warning String has to be null-terminanted and up to MaxLen characters long.
+				//!          Undefined behavior otherwise.
+				explicit EntityNameLookupKey(const char* pStr, uint32_t len):
+						m_pStr(pStr), m_len(len), m_hash(calc(pStr, len)) {}
 				//! Constructor just for setting values
-				explicit EntityNameLookupKey(const char* pStr, uint32_t len, LookupHash hash):
-						m_pStr(pStr), m_len(len), m_hash(hash) {}
+				explicit EntityNameLookupKey(const char* pStr, uint32_t len, uint32_t owned, LookupHash hash):
+						m_pStr(pStr), m_len(len), m_owned(owned), m_hash(hash) {}
 
 				const char* str() const {
 					return m_pStr;
@@ -85,6 +95,10 @@ namespace gaia {
 
 				uint32_t len() const {
 					return m_len;
+				}
+
+				bool owned() const {
+					return m_owned == 1;
 				}
 
 				uint32_t hash() const {
@@ -598,18 +612,35 @@ namespace gaia {
 				return *m_entities[entity.id()].pArchetype;
 			}
 
+			//! Removes any name associated with the entity
+			//! \param entity Entity the name of which we want to delete
+			void del_name(Entity entity) {
+				auto& entityContainer = m_entities[entity.id()];
+				if (entityContainer.name != nullptr) {
+					const auto it = m_nameToEntity.find(EntityNameLookupKey(entityContainer.name));
+					// If the assert is hit it means the pointer to the name string was invalidated or became dangling.
+					// That should not be possible for strings managed internally so the only other option is user-managed
+					// strings are broken.
+					GAIA_ASSERT(it != m_nameToEntity.end());
+					if (it != m_nameToEntity.end()) {
+						// Release memory allocated for the string if we own it
+						if (it->first.owned())
+							mem::mem_free((void*)entityContainer.name);
+
+						m_nameToEntity.erase(it);
+					}
+					entityContainer.name = nullptr;
+				}
+			}
+
 			//! Invalidates the entity record, effectivelly deleting it
 			//! \param entity Entity to delete
 			void del_entity(Entity entity) {
+				del_name(entity);
+
 				auto& entityContainer = m_entities.free(entity);
 				entityContainer.pArchetype = nullptr;
 				entityContainer.pChunk = nullptr;
-
-				if (entityContainer.name != nullptr) {
-					m_nameToEntity.erase(EntityNameLookupKey(entityContainer.name));
-					mem::mem_free((void*)entityContainer.name);
-					entityContainer.name = nullptr;
-				}
 			}
 
 			//! Associates an entity with a chunk.
@@ -805,6 +836,52 @@ namespace gaia {
 				CompMoveHelper(*this, entity).del(compKind, desc);
 			}
 
+			template <bool IsOwned>
+			void name_inter(Entity entity, const char* name, uint32_t len) {
+				GAIA_ASSERT(valid(entity));
+
+				if (name == nullptr) {
+					GAIA_ASSERT(len == 0);
+					del_name(entity);
+					return;
+				}
+
+				auto res = len == 0 ? m_nameToEntity.try_emplace(EntityNameLookupKey(name), entity)
+														: m_nameToEntity.try_emplace(EntityNameLookupKey(name, len), entity);
+				// Make sure the name is unique. Ignore setting the same name twice on the same entity
+				GAIA_ASSERT(res.second || res.first->second == entity);
+
+				// Not a unique name, nothing to do
+				if (!res.second)
+					return;
+
+				auto& key = res.first->first;
+
+				if constexpr (IsOwned) {
+					// Allocate enough storage for the name
+					char* entityStr = (char*)mem::mem_alloc(key.len() + 1);
+					memcpy((void*)entityStr, (const void*)name, key.len() + 1);
+					entityStr[key.len()] = 0;
+
+					// Update the map so it points to the newly allocated string.
+					// We replace the pointer we provided in try_emplace with an internally allocated string.
+					auto p = robin_hood::pair(std::make_pair(EntityNameLookupKey(entityStr, key.len(), 1, {key.hash()}), entity));
+					res.first->swap(p);
+
+					// Update the entity container string pointer
+					auto& entityContainer = m_entities[entity.id()];
+					entityContainer.name = entityStr;
+				} else {
+					// We tell the map the string is non-owned.
+					auto p = robin_hood::pair(std::make_pair(EntityNameLookupKey(key.str(), key.len(), 0, {key.hash()}), entity));
+					res.first->swap(p);
+
+					// Update the entity container string pointer
+					auto& entityContainer = m_entities[entity.id()];
+					entityContainer.name = name;
+				}
+			}
+
 			void init() {
 				m_pRootArchetype = create_archetype({}, {});
 				m_pRootArchetype->set_hashes({0}, {0}, Archetype::calc_lookup_hash({0}, {0}));
@@ -909,7 +986,7 @@ namespace gaia {
 			//! Clears the world so that all its entities and components are released
 			void cleanup() {
 				// Clear entities
-				m_entities.clear();
+				m_entities = {};
 
 				// Clear archetypes
 				{
@@ -921,6 +998,15 @@ namespace gaia {
 					m_archetypesByHash = {};
 					m_chunksToRemove = {};
 				}
+
+				// Clear entity names
+				for (auto& pair: m_nameToEntity) {
+					if (!pair.first.owned())
+						continue;
+					// Release any memory allocated for owned names
+					mem::mem_free((void*)pair.first.str());
+				}
+				m_nameToEntity = {};
 			}
 
 			//----------------------------------------------------------------------
@@ -1200,41 +1286,29 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Assignes a \param name to \param entity. The string is copied and kept internally.
+			//! Assigns a \param name to \param entity. The string is copied and kept internally.
 			//! \param entity Entity
-			//! \param name Name
+			//! \param name A null-terminated string
+			//! \param len String length. If zero, the length is calculated
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			//! \warning Name is expected to be unique. Any previously existing association will be overriden.
-			void name(Entity entity, const char* name) {
-				GAIA_ASSERT(valid(entity));
-				GAIA_ASSERT(name != nullptr);
-				if (name == nullptr)
-					return;
+			//! \warning Name is expected to be unique. If it is not this function does nothing.
+			void name(Entity entity, const char* name, uint32_t len = 0) {
+				name_inter<true>(entity, name, len);
+			}
 
-				auto res = m_nameToEntity.try_emplace(EntityNameLookupKey(name), entity);
-				// Make sure the name is unique. Ignore setting the same name twice on the same entity
-				GAIA_ASSERT(res.second || res.first->second == entity);
-
-				// Not a unique name, nothing to do
-				if (!res.second)
-					return;
-
-				auto& key = res.first->first;
-
-				// Allocate enough storage for the string
-				char* entityStr = (char*)mem::mem_alloc(key.len() + 1);
-				memcpy((void*)entityStr, (const void*)name, key.len() + 1);
-				entityStr[key.len()] = 0;
-
-				// Update the map so it points to the newly allocated string.
-				// We replace the pointer we provided in try_emplace with an internally allocated string.
-
-				auto p = robin_hood::pair(std::make_pair(EntityNameLookupKey(entityStr, key.len(), {key.hash()}), entity));
-				res.first->swap(p);
-
-				// Update the entity container string pointer
-				auto& entityContainer = m_entities[entity.id()];
-				entityContainer.name = entityStr;
+			//! Assigns a \param name to \param entity.
+			//! The string is NOT copied. Your are responsible for its lifetime.
+			//! \param entity Entity
+			//! \param name Pointer to a stable null-terminated string
+			//! \param len String length. If zero, the length is calculated
+			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning Name is expected to be unique. If it is not this function does nothing.
+			//! \warning In this case the string is NOT copied and NOT stored internally. You are responsible for its
+			//!          lifetime. The pointer also needs to be stable. Otherwise, any time your storage tries to move
+			//!          the string to a different place you have to unset the name before it happens and set it anew
+			//!          after the move is done.
+			void name_raw(Entity entity, const char* name, uint32_t len = 0) {
+				name_inter<false>(entity, name, len);
 			}
 
 			//! Returns the name assigned to \param entity.
@@ -1252,8 +1326,7 @@ namespace gaia {
 			//! \param name Name
 			//! \return Entity assigned the given name.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
-			GAIA_NODISCARD Entity name(const char* name) const {
-				GAIA_ASSERT(name != nullptr);
+			GAIA_NODISCARD Entity get(const char* name) const {
 				if (name == nullptr)
 					return IdentifierBad;
 
