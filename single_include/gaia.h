@@ -17797,16 +17797,6 @@ namespace gaia {
 		//! List type
 		enum QueryListType : uint8_t { LT_None, LT_Any, LT_All, LT_Count };
 
-		//! Exection mode
-		enum class QueryExecMode : uint8_t {
-			//! Run on the main thread
-			Run,
-			//! Run on a single worker thread
-			Single,
-			//! Run on as many worker threads as possible
-			Parallel
-		};
-
 		using QueryId = uint32_t;
 		using QueryLookupHash = core::direct_hash_key<uint64_t>;
 		using QueryComponentArray = cnt::sarray_ext<Component, MAX_COMPONENTS_IN_QUERY>;
@@ -18532,9 +18522,7 @@ namespace gaia {
 				const cnt::map<ArchetypeId, Archetype*>* m_archetypes{};
 				//! Map of component ids to archetypes (stable pointer to parent world's archetype component-to-archetype map)
 				const ComponentIdToArchetypeMap* m_componentToArchetypeMap{};
-				//! Execution mode
-				QueryExecMode m_executionMode = QueryExecMode::Run;
-
+				
 				//--------------------------------------------------------------------------------
 			public:
 				QueryInfo& fetch_query_info() {
@@ -18931,16 +18919,6 @@ namespace gaia {
 					invalidate();
 					// Add commands to the command buffer
 					(changed_inter<T>(), ...);
-					return *this;
-				}
-
-				QueryImpl& sched() {
-					m_executionMode = QueryExecMode::Single;
-					return *this;
-				}
-
-				QueryImpl& sched_par() {
-					m_executionMode = QueryExecMode::Parallel;
 					return *this;
 				}
 
@@ -20343,15 +20321,16 @@ namespace gaia {
 				if (!res.second)
 					return;
 
+				auto& key = res.first->first;
+
 				// Allocate enough storage for the string
-				const auto len = strlen(name);
-				char* entityStr = (char*)mem::mem_alloc(len + 1);
-				memcpy((void*)entityStr, (const void*)name, len + 1);
-				entityStr[len] = 0;
+				char* entityStr = (char*)mem::mem_alloc(key.len() + 1);
+				memcpy((void*)entityStr, (const void*)name, key.len() + 1);
+				entityStr[key.len()] = 0;
 
 				// Update the map so it points to the newly allocated string.
 				// We replace the pointer we provided in try_emplace with an internally allocated string.
-				auto& key = res.first->first;
+
 				auto p = robin_hood::pair(std::make_pair(EntityNameLookupKey(entityStr, key.len(), {key.hash()}), entity));
 				res.first->swap(p);
 
