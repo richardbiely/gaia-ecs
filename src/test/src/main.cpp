@@ -1500,13 +1500,7 @@ TEST_CASE("ComponentId internal map") {
 
 TEST_CASE("Entity - valid") {
 	ecs::World w;
-	{
-		auto e = w.add();
-		REQUIRE(w.valid(e));
-		w.del(e);
-		REQUIRE_FALSE(w.valid(e));
-	}
-	{
+	GAIA_FOR(2) {
 		auto e = w.add();
 		REQUIRE(w.valid(e));
 		w.del(e);
@@ -1516,13 +1510,7 @@ TEST_CASE("Entity - valid") {
 
 TEST_CASE("Entity - has") {
 	ecs::World w;
-	{
-		auto e = w.add();
-		REQUIRE(w.has(e));
-		w.del(e);
-		REQUIRE_FALSE(w.has(e));
-	}
-	{
+	GAIA_FOR(2) {
 		auto e = w.add();
 		REQUIRE(w.has(e));
 		w.del(e);
@@ -2134,10 +2122,28 @@ TEST_CASE("Enable") {
 	GAIA_FOR(N) arr.push_back(create(i));
 
 	SECTION("State validity") {
+		auto e0 = w.get(0U);
+		auto e1 = w.get(1U);
+
 		w.enable(arr[0], false);
 		REQUIRE_FALSE(w.enabled(arr[0]));
+		REQUIRE(e0 == w.get(0U));
+
 		w.enable(arr[0], true);
 		REQUIRE(w.enabled(arr[0]));
+		REQUIRE(e0 == w.get(0U));
+
+		w.enable(arr[1], false);
+		REQUIRE(w.enabled(arr[0]));
+		REQUIRE_FALSE(w.enabled(arr[1]));
+		REQUIRE(e0 == w.get(0U));
+		REQUIRE(e1 == w.get(1U));
+
+		w.enable(arr[1], true);
+		REQUIRE(w.enabled(arr[0]));
+		REQUIRE(w.enabled(arr[1]));
+		REQUIRE(e0 == w.get(0U));
+		REQUIRE(e1 == w.get(1U));
 	}
 
 	SECTION("State persistance") {
@@ -2575,6 +2581,22 @@ TEST_CASE("entity name") {
 		w.del(w.get(9000));
 		GAIA_FOR(9000) verify(i);
 		GAIA_FOR2(9001, N) verify(i);
+
+		{
+			auto e = w.get(1000);
+			{
+				w.enable(e, false);
+				const auto* str = w.name(e);
+				REQUIRE(strcmp(str, "name_1000") == 0);
+				REQUIRE(e == w.get("name_1000"));
+			}
+			{
+				w.enable(e, true);
+				const auto* str = w.name(e);
+				REQUIRE(strcmp(str, "name_1000") == 0);
+				REQUIRE(e == w.get("name_1000"));
+			}
+		}
 	}
 }
 

@@ -733,7 +733,6 @@ namespace gaia {
 					// Entity has been replaced with the last one in our chunk. Update its container record.
 					auto& ecRight = entities[rightEntity.id()];
 					ecRight.idx = left;
-					ecRight.gen = rightEntity.gen();
 				} else {
 					// This is the last entity in chunk so simply destroy the data
 					auto recs = comp_rec_view(ComponentKind::CK_Gen);
@@ -796,20 +795,20 @@ namespace gaia {
 				// anyway for the sake of consistency.
 				GAIA_ASSERT(left <= right);
 
-				// If there are at least two entities inside to swap
-				if GAIA_UNLIKELY (m_header.count <= 1)
-					return;
-				if (left == right)
+				// If there are at least two different entities inside to swap
+				if GAIA_UNLIKELY (m_header.count <= 1 || left == right)
 					return;
 
 				GAIA_PROF_SCOPE(chunk::swap_chunk_entities);
 
-				// Update entity indices inside chunk
-				const auto entityLeft = entity_view()[left];
-				const auto entityRight = entity_view()[right];
-				entity_view_mut()[left] = entityRight;
-				entity_view_mut()[right] = entityLeft;
+				// Update entity data
+				auto ev = entity_view_mut();
+				const auto entityLeft = ev[left];
+				const auto entityRight = ev[right];
+				ev[left] = entityRight;
+				ev[right] = entityLeft;
 
+				// Swap component data
 				auto recs = comp_rec_view(ComponentKind::CK_Gen);
 				GAIA_EACH(recs) {
 					const auto& rec = recs[i];
@@ -821,10 +820,11 @@ namespace gaia {
 					rec.pDesc->swap(pSrc, pDst);
 				}
 
-				// Entities were swapped. Update their entity container records.
+				// Update indices in entity container.
 				auto& ecLeft = entities[entityLeft.id()];
 				auto& ecRight = entities[entityRight.id()];
-				core::swap(ecLeft, ecRight);
+				ecLeft.idx = right;
+				ecRight.idx = left;
 			}
 
 			/*!
@@ -846,8 +846,9 @@ namespace gaia {
 					if (enabled(index))
 						return;
 					// Try swapping our entity with the last disabled one
+					const auto entityId = entity_view()[index].id();
 					swap_chunk_entities(--m_header.firstEnabledEntityIndex, index, entities);
-					entities[entity_view()[index].id()].dis = 0;
+					entities[entityId].dis = 0;
 					++m_header.countEnabled;
 				} else {
 					// Nothing to disable if there are no enabled entities
@@ -857,8 +858,9 @@ namespace gaia {
 					if (!enabled(index))
 						return;
 					// Try swapping our entity with the last one in our chunk
+					const auto entityId = entity_view()[index].id();
 					swap_chunk_entities(m_header.firstEnabledEntityIndex++, index, entities);
-					entities[entity_view()[index].id()].dis = 1;
+					entities[entityId].dis = 1;
 					--m_header.countEnabled;
 				}
 			}

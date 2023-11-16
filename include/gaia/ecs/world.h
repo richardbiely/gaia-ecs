@@ -623,8 +623,6 @@ namespace gaia {
 				entityContainer.pArchetype = &newArchetype;
 				entityContainer.pChunk = pNewChunk;
 				entityContainer.idx = newIndex;
-				entityContainer.gen = oldEntity.gen();
-				GAIA_ASSERT((bool)entityContainer.dis == !wasEnabled);
 
 				// End-state validation
 				validate_chunk(pOldChunk);
@@ -987,18 +985,18 @@ namespace gaia {
 				}
 			}
 
-			//! Returns an entity at the index \param idx
+			//! Returns the entity located at the index \param id
 			//! \return Entity
-			GAIA_NODISCARD Entity get(uint32_t idx) const {
-				GAIA_ASSERT(idx < m_entities.size());
-				const auto& entityContainer = m_entities[idx];
+			GAIA_NODISCARD Entity get(EntityId id) const {
+				GAIA_ASSERT(id < m_entities.size());
+				const auto& entityContainer = m_entities[id];
 #if GAIA_ASSERT_ENABLED
 				if (entityContainer.pChunk != nullptr) {
 					auto entityExpected = entityContainer.pChunk->entity_view()[entityContainer.idx];
-					GAIA_ASSERT(entityExpected == Entity(idx, entityContainer.gen));
+					GAIA_ASSERT(entityExpected == Entity(id, entityContainer.gen));
 				}
 #endif
-				return Entity(idx, entityContainer.gen);
+				return Entity(id, entityContainer.gen);
 			}
 
 			//! Enables or disables an entire entity.

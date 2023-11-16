@@ -13024,7 +13024,7 @@ namespace gaia {
 			//! Evaluates job dependencies.
 			//! \return True if job dependencies are met. False otherwise
 			GAIA_NODISCARD bool handle_deps(JobHandle jobHandle) {
-				GAIA_PROF_SCOPE(JobManager::HandleDeps);
+				GAIA_PROF_SCOPE(JobManager::handle_deps);
 				std::scoped_lock<std::mutex> lockJobs(m_jobsLock);
 				auto& job = m_jobs[jobHandle.id()];
 				if (job.dependencyIdx == (uint32_t)-1)
@@ -13069,7 +13069,7 @@ namespace gaia {
 #endif
 
 				{
-					GAIA_PROF_SCOPE(JobManager::AddDep);
+					GAIA_PROF_SCOPE(JobManager::dep);
 					std::scoped_lock<std::mutex> lockDeps(m_depsLock);
 
 					auto depHandle = alloc_dep();
@@ -13105,7 +13105,7 @@ namespace gaia {
 				}
 #endif
 
-				GAIA_PROF_SCOPE(JobManager::AddDeps);
+				GAIA_PROF_SCOPE(JobManager::deps);
 				std::scoped_lock<std::mutex> lockJobs(m_jobsLock);
 				{
 					std::scoped_lock<std::mutex> lockDeps(m_depsLock);
@@ -13179,7 +13179,7 @@ namespace gaia {
 			//! Tries adding a job to the queue. FIFO.
 			//! \return True if the job was added. False otherwise (e.g. maximum capacity has been reached).
 			GAIA_NODISCARD bool try_push(JobHandle jobHandle) {
-				GAIA_PROF_SCOPE(JobQueue::TryPush);
+				GAIA_PROF_SCOPE(JobQueue::try_push);
 
 #if JOB_QUEUE_USE_LOCKS
 				std::scoped_lock<std::mutex> lock(m_bufferLock);
@@ -15862,7 +15862,7 @@ namespace gaia {
 			Copies all data associated with \param oldEntity into \param newEntity.
 			*/
 			static void copy_entity_data(Entity oldEntity, Entity newEntity, std::span<EntityContainer> entities) {
-				GAIA_PROF_SCOPE(copy_entity_data);
+				GAIA_PROF_SCOPE(chunk::copy_entity_data);
 
 				auto& oldEntityContainer = entities[oldEntity.id()];
 				auto* pOldChunk = oldEntityContainer.pChunk;
@@ -15890,7 +15890,7 @@ namespace gaia {
 			Moves all data associated with \param entity into the chunk so that it is stored at \param newEntityIdx.
 			*/
 			void move_entity_data(Entity entity, uint32_t newEntityIdx, std::span<EntityContainer> entities) {
-				GAIA_PROF_SCOPE(CopyEntityFrom);
+				GAIA_PROF_SCOPE(chunk::move_entity_data);
 
 				auto& oldEntityContainer = entities[entity.id()];
 				auto* pOldChunk = oldEntityContainer.pChunk;
@@ -15911,7 +15911,7 @@ namespace gaia {
 
 			static void move_foreign_entity_data(
 					Chunk* pOldChunk, uint32_t oldIdx, Chunk* pNewChunk, uint32_t newIdx, ComponentKind compKind) {
-				GAIA_PROF_SCOPE(move_foreign_entity_data);
+				GAIA_PROF_SCOPE(chunk::move_foreign_entity_data);
 
 				GAIA_ASSERT(pOldChunk != nullptr);
 				GAIA_ASSERT(pNewChunk != nullptr);
@@ -15973,7 +15973,7 @@ namespace gaia {
 			Moves all data associated with \param entity into the chunk so that it is stored at index \param newEntityIdx.
 			*/
 			void move_foreign_entity_data(Entity entity, uint32_t newEntityIdx, std::span<EntityContainer> entities) {
-				GAIA_PROF_SCOPE(move_foreign_entity_data);
+				GAIA_PROF_SCOPE(chunk::move_foreign_entity_data);
 
 				auto& oldEntityContainer = entities[entity.id()];
 				move_foreign_entity_data(
@@ -15989,7 +15989,7 @@ namespace gaia {
 			If the entity at the given index already is the last chunk entity, it is removed directly.
 			*/
 			void remove_entity_inter(uint32_t index, std::span<EntityContainer> entities) {
-				GAIA_PROF_SCOPE(remove_entity_inter);
+				GAIA_PROF_SCOPE(chunk::remove_entity_inter);
 
 				const auto left = index;
 				const auto right = (uint32_t)m_header.count - 1;
@@ -16022,7 +16022,6 @@ namespace gaia {
 					// Entity has been replaced with the last one in our chunk. Update its container record.
 					auto& ecRight = entities[rightEntity.id()];
 					ecRight.idx = left;
-					ecRight.gen = rightEntity.gen();
 				} else {
 					// This is the last entity in chunk so simply destroy the data
 					auto recs = comp_rec_view(ComponentKind::CK_Gen);
@@ -16052,7 +16051,7 @@ namespace gaia {
 				if GAIA_UNLIKELY (chunkEntityCount == 0)
 					return;
 
-				GAIA_PROF_SCOPE(remove_entity);
+				GAIA_PROF_SCOPE(chunk::remove_entity);
 
 				if (enabled(index)) {
 					// Entity was previously enabled. Swap with the last entity
@@ -16085,20 +16084,20 @@ namespace gaia {
 				// anyway for the sake of consistency.
 				GAIA_ASSERT(left <= right);
 
-				// If there are at least two entities inside to swap
-				if GAIA_UNLIKELY (m_header.count <= 1)
-					return;
-				if (left == right)
+				// If there are at least two different entities inside to swap
+				if GAIA_UNLIKELY (m_header.count <= 1 || left == right)
 					return;
 
-				GAIA_PROF_SCOPE(swap_chunk_entities);
+				GAIA_PROF_SCOPE(chunk::swap_chunk_entities);
 
-				// Update entity indices inside chunk
-				const auto entityLeft = entity_view()[left];
-				const auto entityRight = entity_view()[right];
-				entity_view_mut()[left] = entityRight;
-				entity_view_mut()[right] = entityLeft;
+				// Update entity data
+				auto ev = entity_view_mut();
+				const auto entityLeft = ev[left];
+				const auto entityRight = ev[right];
+				ev[left] = entityRight;
+				ev[right] = entityLeft;
 
+				// Swap component data
 				auto recs = comp_rec_view(ComponentKind::CK_Gen);
 				GAIA_EACH(recs) {
 					const auto& rec = recs[i];
@@ -16110,10 +16109,11 @@ namespace gaia {
 					rec.pDesc->swap(pSrc, pDst);
 				}
 
-				// Entities were swapped. Update their entity container records.
+				// Update indices in entity container.
 				auto& ecLeft = entities[entityLeft.id()];
 				auto& ecRight = entities[entityRight.id()];
-				core::swap(ecLeft, ecRight);
+				ecLeft.idx = right;
+				ecRight.idx = left;
 			}
 
 			/*!
@@ -16135,8 +16135,9 @@ namespace gaia {
 					if (enabled(index))
 						return;
 					// Try swapping our entity with the last disabled one
+					const auto entityId = entity_view()[index].id();
 					swap_chunk_entities(--m_header.firstEnabledEntityIndex, index, entities);
-					entities[entity_view()[index].id()].dis = 0;
+					entities[entityId].dis = 0;
 					++m_header.countEnabled;
 				} else {
 					// Nothing to disable if there are no enabled entities
@@ -16146,8 +16147,9 @@ namespace gaia {
 					if (!enabled(index))
 						return;
 					// Try swapping our entity with the last one in our chunk
+					const auto entityId = entity_view()[index].id();
 					swap_chunk_entities(m_header.firstEnabledEntityIndex++, index, entities);
-					entities[entity_view()[index].id()].dis = 1;
+					entities[entityId].dis = 1;
 					--m_header.countEnabled;
 				}
 			}
@@ -16202,7 +16204,7 @@ namespace gaia {
 			}
 
 			void call_ctor(ComponentKind compKind, uint32_t entIdx, const ComponentDesc& desc) {
-				GAIA_PROF_SCOPE(call_ctor);
+				GAIA_PROF_SCOPE(chunk::call_ctor);
 
 				// Make sure only generic components are used with this function.
 				// Unique components are automatically constructed with chunks.
@@ -16217,7 +16219,7 @@ namespace gaia {
 			}
 
 			void call_ctors(ComponentKind compKind, uint32_t entIdx, uint32_t entCnt) {
-				GAIA_PROF_SCOPE(call_ctors);
+				GAIA_PROF_SCOPE(chunk::call_ctors);
 
 				GAIA_ASSERT(
 						compKind == ComponentKind::CK_Gen && has_custom_gen_ctor() ||
@@ -16238,7 +16240,7 @@ namespace gaia {
 			}
 
 			void call_dtors(ComponentKind compKind, uint32_t entIdx, uint32_t entCnt) {
-				GAIA_PROF_SCOPE(call_dtors);
+				GAIA_PROF_SCOPE(chunk::call_dtors);
 
 				GAIA_ASSERT(
 						compKind == ComponentKind::CK_Gen && has_custom_gen_dtor() ||
@@ -18164,7 +18166,7 @@ namespace gaia {
 			//! the query. \return MatchArchetypeQueryRet::Fail if there is no match, MatchArchetypeQueryRet::Ok for match
 			//! or MatchArchetypeQueryRet::Skip is not relevant.
 			GAIA_NODISCARD MatchArchetypeQueryRet match(const Archetype& archetype, ComponentKind compKind) const {
-				GAIA_PROF_SCOPE(queryinfo_match);
+				GAIA_PROF_SCOPE(queryinfo::match);
 
 				const auto& matcherHash = archetype.matcher_hash(compKind);
 				const auto& comps = archetype.comps(compKind);
@@ -18254,7 +18256,7 @@ namespace gaia {
 					return;
 				m_lastArchetypeId = archetypeLastId;
 
-				GAIA_PROF_SCOPE(queryinfo_match);
+				GAIA_PROF_SCOPE(queryinfo::match);
 
 				// Match against generic types
 				{
@@ -18352,7 +18354,7 @@ namespace gaia {
 			//! Removes an archetype from cache
 			//! \param pArchetype Archetype to remove
 			void remove(Archetype* pArchetype) {
-				GAIA_PROF_SCOPE(queryinfo_remove);
+				GAIA_PROF_SCOPE(queryinfo::remove);
 
 				const auto idx = core::get_index(m_archetypeCache, pArchetype);
 				if (idx == BadIndex)
@@ -18631,7 +18633,7 @@ namespace gaia {
 				//! Fetches the QueryInfo object.
 				//! \return QueryInfo object
 				QueryInfo& fetch() {
-					GAIA_PROF_SCOPE(query_fetch);
+					GAIA_PROF_SCOPE(query::fetch);
 
 					if constexpr (UseCaching) {
 						// Make sure the query was created by World.query()
@@ -18788,7 +18790,7 @@ namespace gaia {
 					// }
 					// chunks.clear();
 
-					GAIA_PROF_SCOPE(query_run_func_batched);
+					GAIA_PROF_SCOPE(query::run_func_batched);
 
 					// We only have one chunk to process
 					if GAIA_UNLIKELY (chunkCnt == 1) {
@@ -18830,7 +18832,7 @@ namespace gaia {
 				template <bool HasFilters, typename Iter, typename Func>
 				void run_query(
 						const QueryInfo& queryInfo, Func func, ChunkBatchedList& chunkBatch, const cnt::darray<Chunk*>& chunks) {
-					GAIA_PROF_SCOPE(query_run_query); // batch preparation + chunk processing
+					GAIA_PROF_SCOPE(query::run_query); // batch preparation + chunk processing
 
 					uint32_t chunkOffset = 0;
 					uint32_t itemsLeft = chunks.size();
@@ -19292,7 +19294,7 @@ namespace gaia {
 			//! \tparam IsEntityDeleteWanted True if entity is to be deleted. False otherwise.
 			template <bool IsEntityDeleteWanted>
 			void remove_entity(Chunk* pChunk, uint32_t entityChunkIndex) {
-				GAIA_PROF_SCOPE(remove_entity);
+				GAIA_PROF_SCOPE(world::remove_entity);
 
 				const auto entity = pChunk->entity_view()[entityChunkIndex];
 				pChunk->remove_entity(entityChunkIndex, {m_entities.data(), m_entities.size()}, m_chunksToRemove);
@@ -19304,7 +19306,7 @@ namespace gaia {
 
 			//! Delete an empty chunk from its archetype
 			void remove_empty_chunk(Chunk* pChunk) {
-				GAIA_PROF_SCOPE(remove_empty_chunk);
+				GAIA_PROF_SCOPE(world::remove_empty_chunk);
 
 				GAIA_ASSERT(pChunk != nullptr);
 				GAIA_ASSERT(pChunk->empty());
@@ -19331,7 +19333,7 @@ namespace gaia {
 
 			//! Delete all chunks which are empty (have no entities) and have not been used in a while
 			void remove_empty_chunks() {
-				GAIA_PROF_SCOPE(remove_empty_chunks);
+				GAIA_PROF_SCOPE(world::remove_empty_chunks);
 
 				for (uint32_t i = 0; i < m_chunksToRemove.size();) {
 					auto* pChunk = m_chunksToRemove[i];
@@ -19357,7 +19359,7 @@ namespace gaia {
 
 			//! Delete an empty archetype from the world
 			void remove_empty_archetype(Archetype* pArchetype) {
-				GAIA_PROF_SCOPE(remove_empty_archetype);
+				GAIA_PROF_SCOPE(world::remove_empty_archetype);
 
 				GAIA_ASSERT(pArchetype != nullptr);
 				GAIA_ASSERT(pArchetype->empty());
@@ -19387,7 +19389,7 @@ namespace gaia {
 
 			//! Delete all archetypes which are empty (have no used chunks) and have not been used in a while
 			void remove_empty_archetypes() {
-				GAIA_PROF_SCOPE(remove_empty_archetypes);
+				GAIA_PROF_SCOPE(world::remove_empty_archetypes);
 
 				cnt::sarr_ext<Archetype*, 512> tmp;
 
@@ -19431,7 +19433,7 @@ namespace gaia {
 			//! Defragments chunks.
 			//! \param maxEntites Maximum number of entities moved per call
 			void defrag_chunks(uint32_t maxEntities) {
-				GAIA_PROF_SCOPE(defrag_chunks);
+				GAIA_PROF_SCOPE(world::defrag_chunks);
 
 				const auto maxIters = (uint32_t)m_archetypesById.size();
 				// There has to be at least the root archetype present
@@ -19795,7 +19797,7 @@ namespace gaia {
 			\param targetChunk Target chunk
 			*/
 			void move_entity(Entity oldEntity, Archetype& targetArchetype, Chunk& targetChunk) {
-				GAIA_PROF_SCOPE(move_entity);
+				GAIA_PROF_SCOPE(world::move_entity);
 
 				auto* pNewChunk = &targetChunk;
 
@@ -19833,8 +19835,6 @@ namespace gaia {
 				entityContainer.pArchetype = &newArchetype;
 				entityContainer.pChunk = pNewChunk;
 				entityContainer.idx = newIndex;
-				entityContainer.gen = oldEntity.gen();
-				GAIA_ASSERT((bool)entityContainer.dis == !wasEnabled);
 
 				// End-state validation
 				validate_chunk(pOldChunk);
@@ -19908,7 +19908,7 @@ namespace gaia {
 				}
 
 				CompMoveHelper& add(ComponentKind compKind, const ComponentDesc& desc) {
-					GAIA_PROF_SCOPE(AddComponent);
+					GAIA_PROF_SCOPE(world::add_comp);
 
 #if GAIA_DEBUG
 					verify_add(*m_pArchetype, m_entity, compKind, desc);
@@ -19931,7 +19931,7 @@ namespace gaia {
 				}
 
 				CompMoveHelper& del(ComponentKind compKind, const ComponentDesc& desc) {
-					GAIA_PROF_SCOPE(DelComponent);
+					GAIA_PROF_SCOPE(world::del_comp);
 
 #if GAIA_DEBUG
 					verify_del(*m_pArchetype, m_entity, compKind, desc);
@@ -20057,7 +20057,7 @@ namespace gaia {
 
 			//! Garbage collection
 			void gc() {
-				GAIA_PROF_SCOPE(gc);
+				GAIA_PROF_SCOPE(world::gc);
 
 				remove_empty_chunks();
 				defrag_chunks(m_defragEntitesPerTick);
@@ -20197,18 +20197,18 @@ namespace gaia {
 				}
 			}
 
-			//! Returns an entity at the index \param idx
+			//! Returns the entity located at the index \param id
 			//! \return Entity
-			GAIA_NODISCARD Entity get(uint32_t idx) const {
-				GAIA_ASSERT(idx < m_entities.size());
-				const auto& entityContainer = m_entities[idx];
+			GAIA_NODISCARD Entity get(EntityId id) const {
+				GAIA_ASSERT(id < m_entities.size());
+				const auto& entityContainer = m_entities[id];
 #if GAIA_ASSERT_ENABLED
 				if (entityContainer.pChunk != nullptr) {
 					auto entityExpected = entityContainer.pChunk->entity_view()[entityContainer.idx];
-					GAIA_ASSERT(entityExpected == Entity(idx, entityContainer.gen));
+					GAIA_ASSERT(entityExpected == Entity(id, entityContainer.gen));
 				}
 #endif
-				return Entity(idx, entityContainer.gen);
+				return Entity(id, entityContainer.gen);
 			}
 
 			//! Enables or disables an entire entity.
