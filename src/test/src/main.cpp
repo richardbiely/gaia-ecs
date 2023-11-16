@@ -2505,8 +2505,20 @@ TEST_CASE("entity name") {
 	SECTION("basic") {
 		create(0);
 		verify(0);
-
 		auto e = w.get(0U);
+
+		// If we change the original string we still must have a match
+		{
+			GAIA_SETFMT(tmp, MaxLen, "name_%d", 1);
+			const auto* str = w.name(e);
+			REQUIRE(strcmp(str, "name_1") != 0);
+			REQUIRE(strcmp(str, "name_0") == 0);
+			REQUIRE(w.get("name_0") == e);
+			REQUIRE(w.get("name_1") == ecs::IdentifierBad);
+
+			// Change the name back
+			GAIA_SETFMT(tmp, MaxLen, "name_%d", 0);
+		}
 
 #if !GAIA_ASSERT_ENABLED
 		// Renaming has to fail. Can be tested only with asserts disabled
@@ -2531,8 +2543,22 @@ TEST_CASE("entity name") {
 	SECTION("basic - non-owned") {
 		create_raw(0);
 		verify(0);
-
 		auto e = w.get(0U);
+
+		// If we change the original string we can't have a match
+		{
+			GAIA_SETFMT(tmp, MaxLen, "name_%d", 1);
+			const auto* str = w.name(e);
+			REQUIRE(strcmp(str, "name_1") == 0);
+			REQUIRE(w.get("name_0") == ecs::IdentifierBad);
+			// Hash was calculated for name_0 but we changed the string to name_1.
+			// Hash won't match so we shouldn't be able to find the entity still.
+			REQUIRE(w.get("name_1") == ecs::IdentifierBad);
+
+			// Change the name back
+			GAIA_SETFMT(tmp, MaxLen, "name_%d", 0);
+		}
+
 		w.name(e, nullptr);
 		REQUIRE(w.get("name_0") == ecs::IdentifierBad);
 		REQUIRE(w.name(e) == nullptr);

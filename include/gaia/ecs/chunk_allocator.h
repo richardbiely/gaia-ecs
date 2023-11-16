@@ -293,7 +293,7 @@ namespace gaia {
 							core::erase_fast(container.pagesFree, pPage->m_idx);
 						}
 
-						try_delte_this();
+						try_delete_this();
 					}
 				}
 
@@ -366,7 +366,7 @@ namespace gaia {
 					m_isDone = true;
 				}
 
-				void try_delte_this() {
+				void try_delete_this() {
 					// When there is nothing left, delete the allocator
 					bool allEmpty = true;
 					for (const auto& c: m_pages)
