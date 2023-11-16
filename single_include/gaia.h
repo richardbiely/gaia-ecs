@@ -16112,17 +16112,8 @@ namespace gaia {
 
 				// Entities were swapped. Update their entity container records.
 				auto& ecLeft = entities[entityLeft.id()];
-				bool ecLeftWasDisabled = ecLeft.dis;
-				const char* ecLeftName = ecLeft.name;
 				auto& ecRight = entities[entityRight.id()];
-				ecLeft.idx = right;
-				ecLeft.gen = entityRight.gen();
-				ecLeft.dis = ecRight.dis;
-				ecLeft.name = ecRight.name;
-				ecRight.idx = left;
-				ecRight.gen = entityLeft.gen();
-				ecRight.dis = ecLeftWasDisabled;
-				ecRight.name = ecLeftName;
+				core::swap(ecLeft, ecRight);
 			}
 
 			/*!
