@@ -123,6 +123,8 @@ namespace gaia {
 			//! the query. \return MatchArchetypeQueryRet::Fail if there is no match, MatchArchetypeQueryRet::Ok for match
 			//! or MatchArchetypeQueryRet::Skip is not relevant.
 			GAIA_NODISCARD MatchArchetypeQueryRet match(const Archetype& archetype, ComponentKind compKind) const {
+				GAIA_PROF_SCOPE(queryinfo_match);
+
 				const auto& matcherHash = archetype.matcher_hash(compKind);
 				const auto& comps = archetype.comps(compKind);
 				const auto& compData = data(compKind);
