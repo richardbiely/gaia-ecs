@@ -291,10 +291,10 @@ namespace gaia {
 				// Remove all dead archetypes from query caches.
 				// Because the number of cached queries is way higher than the number of archetypes
 				// we want to remove, we flip the logic around and iterate over all query caches
-				// and match against our lits.
-				// TODO: Think of how to speed this up. If there are 1k cached queries is it still
-				//       going to be fast enough?
+				// and match against our lists.
 				if (!tmp.empty()) {
+					// TODO: How to speed this up? If there are 1k cached queries is it still going to
+					//       be fast enough or do we get spikes?
 					for (auto& info: m_queryCache) {
 						for (auto* pArchetype: tmp)
 							info.remove(pArchetype);

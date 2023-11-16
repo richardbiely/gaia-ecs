@@ -4,6 +4,7 @@
 #include "../cnt/darray.h"
 #include "../cnt/sarray_ext.h"
 #include "../cnt/set.h"
+#include "../config/profiler.h"
 #include "../core/hashing_policy.h"
 #include "../core/utility.h"
 #include "archetype.h"
@@ -210,6 +211,8 @@ namespace gaia {
 					return;
 				m_lastArchetypeId = archetypeLastId;
 
+				GAIA_PROF_SCOPE(queryinfo_match);
+
 				// Match against generic types
 				{
 					auto& data = m_lookupCtx.data[ComponentKind::CK_Gen];
@@ -303,11 +306,24 @@ namespace gaia {
 				return (!has_inter<T>(QueryListType::LT_None) && ...);
 			}
 
+			//! Removes an archetype from cache
+			//! \param pArchetype Archetype to remove
 			void remove(Archetype* pArchetype) {
+				GAIA_PROF_SCOPE(queryinfo_remove);
+
 				const auto idx = core::get_index(m_archetypeCache, pArchetype);
 				if (idx == BadIndex)
 					return;
 				core::erase_fast(m_archetypeCache, idx);
+
+				// An archetype was removed from the world so the last matching archetype index needs to be
+				// lowered by one for every component context.
+				for (auto& ctxData: m_lookupCtx.data) {
+					for (auto& lastMatchedArchetypeIdx: ctxData.lastMatchedArchetypeIdx) {
+						if (lastMatchedArchetypeIdx > 0)
+							--lastMatchedArchetypeIdx;
+					}
+				}
 			}
 
 			GAIA_NODISCARD ArchetypeList::iterator begin() {

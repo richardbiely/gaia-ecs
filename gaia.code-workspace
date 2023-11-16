@@ -110,5 +110,6 @@
 		"cmake.useProjectStatusView": false,
 		"cmake.buildDirectory": "${workspaceFolder}/build/${buildType}",
 		"vsicons.projectDetection.autoReload": true,
+		"cmake.options.statusBarVisibility": "compact",
 	}
 }

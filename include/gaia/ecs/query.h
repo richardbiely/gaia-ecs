@@ -177,22 +177,27 @@ namespace gaia {
 				const cnt::map<ArchetypeId, Archetype*>* m_archetypes{};
 				//! Map of component ids to archetypes (stable pointer to parent world's archetype component-to-archetype map)
 				const ComponentIdToArchetypeMap* m_componentToArchetypeMap{};
-				
+
 				//--------------------------------------------------------------------------------
 			public:
-				QueryInfo& fetch_query_info() {
+				//! Fetches the QueryInfo object.
+				//! \return QueryInfo object
+				QueryInfo& fetch() {
+					GAIA_PROF_SCOPE(query_fetch);
+
 					if constexpr (UseCaching) {
 						// Make sure the query was created by World.query()
 						GAIA_ASSERT(m_storage.m_entityQueryCache != nullptr);
 
-						// Lookup hash is present which means QueryInfo was already found
+						// If queryId is set it means QueryInfo was already created.
+						// Because caching is used, we expect this to be the common case.
 						if GAIA_LIKELY (m_storage.m_queryId != QueryIdBad) {
 							auto& queryInfo = m_storage.m_entityQueryCache->get(m_storage.m_queryId);
 							queryInfo.match(*m_componentToArchetypeMap, last_archetype_id());
 							return queryInfo;
 						}
 
-						// No lookup hash is present which means QueryInfo needs to be fetched or created
+						// No queryId is set which means QueryInfo needs to be created
 						QueryCtx ctx;
 						commit(ctx);
 						auto& queryInfo = m_storage.m_entityQueryCache->goc(GAIA_MOV(ctx));
@@ -335,7 +340,7 @@ namespace gaia {
 					// }
 					// chunks.clear();
 
-					GAIA_PROF_SCOPE(run_func_batched);
+					GAIA_PROF_SCOPE(query_run_func_batched);
 
 					// We only have one chunk to process
 					if GAIA_UNLIKELY (chunkCnt == 1) {
@@ -377,7 +382,7 @@ namespace gaia {
 				template <bool HasFilters, typename Iter, typename Func>
 				void run_query(
 						const QueryInfo& queryInfo, Func func, ChunkBatchedList& chunkBatch, const cnt::darray<Chunk*>& chunks) {
-					GAIA_PROF_SCOPE(run_query); // batch preparation + chunk processing
+					GAIA_PROF_SCOPE(query_run_query); // batch preparation + chunk processing
 
 					uint32_t chunkOffset = 0;
 					uint32_t itemsLeft = chunks.size();
@@ -606,7 +611,7 @@ namespace gaia {
 
 				template <typename Func>
 				void each(Func func) {
-					auto& queryInfo = fetch_query_info();
+					auto& queryInfo = fetch();
 
 					if constexpr (std::is_invocable_v<Func, IteratorAll>)
 						run_query_on_chunks<IteratorAll>(queryInfo, [&](Chunk& chunk) {
@@ -643,7 +648,7 @@ namespace gaia {
 					\return True if there are any entites matchine the query. False otherwise.
 					*/
 				bool empty(Constraints constraints = Constraints::EnabledOnly) {
-					auto& queryInfo = fetch_query_info();
+					auto& queryInfo = fetch();
 					const bool hasFilters = queryInfo.has_filters();
 
 					if (hasFilters) {
@@ -696,7 +701,7 @@ namespace gaia {
 				\return The number of matching entities
 				*/
 				uint32_t count(Constraints constraints = Constraints::EnabledOnly) {
-					auto& queryInfo = fetch_query_info();
+					auto& queryInfo = fetch();
 					uint32_t entCnt = 0;
 
 					const bool hasFilters = queryInfo.has_filters();
@@ -748,7 +753,7 @@ namespace gaia {
 						return;
 
 					outArray.reserve(entCnt);
-					auto& queryInfo = fetch_query_info();
+					auto& queryInfo = fetch();
 
 					const bool hasFilters = queryInfo.has_filters();
 					if (hasFilters) {

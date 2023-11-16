@@ -18172,6 +18172,8 @@ namespace gaia {
 					return;
 				m_lastArchetypeId = archetypeLastId;
 
+				GAIA_PROF_SCOPE(queryinfo_match);
+
 				// Match against generic types
 				{
 					auto& data = m_lookupCtx.data[ComponentKind::CK_Gen];
@@ -18265,11 +18267,24 @@ namespace gaia {
 				return (!has_inter<T>(QueryListType::LT_None) && ...);
 			}
 
+			//! Removes an archetype from cache
+			//! \param pArchetype Archetype to remove
 			void remove(Archetype* pArchetype) {
+				GAIA_PROF_SCOPE(queryinfo_remove);
+
 				const auto idx = core::get_index(m_archetypeCache, pArchetype);
 				if (idx == BadIndex)
 					return;
 				core::erase_fast(m_archetypeCache, idx);
+
+				// An archetype was removed from the world so the last matching archetype index needs to be
+				// lowered by one for every component context.
+				for (auto& ctxData: m_lookupCtx.data) {
+					for (auto& lastMatchedArchetypeIdx: ctxData.lastMatchedArchetypeIdx) {
+						if (lastMatchedArchetypeIdx > 0)
+							--lastMatchedArchetypeIdx;
+					}
+				}
 			}
 
 			GAIA_NODISCARD ArchetypeList::iterator begin() {
@@ -18528,22 +18543,27 @@ namespace gaia {
 				const cnt::map<ArchetypeId, Archetype*>* m_archetypes{};
 				//! Map of component ids to archetypes (stable pointer to parent world's archetype component-to-archetype map)
 				const ComponentIdToArchetypeMap* m_componentToArchetypeMap{};
-				
+
 				//--------------------------------------------------------------------------------
 			public:
-				QueryInfo& fetch_query_info() {
+				//! Fetches the QueryInfo object.
+				//! \return QueryInfo object
+				QueryInfo& fetch() {
+					GAIA_PROF_SCOPE(query_fetch);
+
 					if constexpr (UseCaching) {
 						// Make sure the query was created by World.query()
 						GAIA_ASSERT(m_storage.m_entityQueryCache != nullptr);
 
-						// Lookup hash is present which means QueryInfo was already found
+						// If queryId is set it means QueryInfo was already created.
+						// Because caching is used, we expect this to be the common case.
 						if GAIA_LIKELY (m_storage.m_queryId != QueryIdBad) {
 							auto& queryInfo = m_storage.m_entityQueryCache->get(m_storage.m_queryId);
 							queryInfo.match(*m_componentToArchetypeMap, last_archetype_id());
 							return queryInfo;
 						}
 
-						// No lookup hash is present which means QueryInfo needs to be fetched or created
+						// No queryId is set which means QueryInfo needs to be created
 						QueryCtx ctx;
 						commit(ctx);
 						auto& queryInfo = m_storage.m_entityQueryCache->goc(GAIA_MOV(ctx));
@@ -18686,7 +18706,7 @@ namespace gaia {
 					// }
 					// chunks.clear();
 
-					GAIA_PROF_SCOPE(run_func_batched);
+					GAIA_PROF_SCOPE(query_run_func_batched);
 
 					// We only have one chunk to process
 					if GAIA_UNLIKELY (chunkCnt == 1) {
@@ -18728,7 +18748,7 @@ namespace gaia {
 				template <bool HasFilters, typename Iter, typename Func>
 				void run_query(
 						const QueryInfo& queryInfo, Func func, ChunkBatchedList& chunkBatch, const cnt::darray<Chunk*>& chunks) {
-					GAIA_PROF_SCOPE(run_query); // batch preparation + chunk processing
+					GAIA_PROF_SCOPE(query_run_query); // batch preparation + chunk processing
 
 					uint32_t chunkOffset = 0;
 					uint32_t itemsLeft = chunks.size();
@@ -18957,7 +18977,7 @@ namespace gaia {
 
 				template <typename Func>
 				void each(Func func) {
-					auto& queryInfo = fetch_query_info();
+					auto& queryInfo = fetch();
 
 					if constexpr (std::is_invocable_v<Func, IteratorAll>)
 						run_query_on_chunks<IteratorAll>(queryInfo, [&](Chunk& chunk) {
@@ -18994,7 +19014,7 @@ namespace gaia {
 					\return True if there are any entites matchine the query. False otherwise.
 					*/
 				bool empty(Constraints constraints = Constraints::EnabledOnly) {
-					auto& queryInfo = fetch_query_info();
+					auto& queryInfo = fetch();
 					const bool hasFilters = queryInfo.has_filters();
 
 					if (hasFilters) {
@@ -19047,7 +19067,7 @@ namespace gaia {
 				\return The number of matching entities
 				*/
 				uint32_t count(Constraints constraints = Constraints::EnabledOnly) {
-					auto& queryInfo = fetch_query_info();
+					auto& queryInfo = fetch();
 					uint32_t entCnt = 0;
 
 					const bool hasFilters = queryInfo.has_filters();
@@ -19099,7 +19119,7 @@ namespace gaia {
 						return;
 
 					outArray.reserve(entCnt);
-					auto& queryInfo = fetch_query_info();
+					auto& queryInfo = fetch();
 
 					const bool hasFilters = queryInfo.has_filters();
 					if (hasFilters) {
@@ -19399,10 +19419,10 @@ namespace gaia {
 				// Remove all dead archetypes from query caches.
 				// Because the number of cached queries is way higher than the number of archetypes
 				// we want to remove, we flip the logic around and iterate over all query caches
-				// and match against our lits.
-				// TODO: Think of how to speed this up. If there are 1k cached queries is it still
-				//       going to be fast enough?
+				// and match against our lists.
 				if (!tmp.empty()) {
+					// TODO: How to speed this up? If there are 1k cached queries is it still going to
+					//       be fast enough or do we get spikes?
 					for (auto& info: m_queryCache) {
 						for (auto* pArchetype: tmp)
 							info.remove(pArchetype);
