@@ -482,13 +482,13 @@ namespace NonECS {
 		IUnit& operator=(const IUnit&) = default;
 		IUnit& operator=(IUnit&&) noexcept = default;
 
-		virtual void updatePosition(float deltaTime) = 0;
+		virtual void update_pos(float deltaTime) = 0;
 		virtual void updatePosition_verify() {}
 
-		virtual void handleGroundCollision(float deltaTime) = 0;
+		virtual void handle_collision(float deltaTime) = 0;
 		virtual void handleGroundCollision_verify() {}
 
-		virtual void applyGravity(float deltaTime) = 0;
+		virtual void apply_gravity(float deltaTime) = 0;
 		virtual void applyGravity_verify() {}
 
 		virtual bool isAlive() const = 0;
@@ -496,9 +496,9 @@ namespace NonECS {
 	};
 
 	struct UnitStatic: public IUnit {
-		void updatePosition([[maybe_unused]] float deltaTime) override {}
-		void handleGroundCollision([[maybe_unused]] float deltaTime) override {}
-		void applyGravity([[maybe_unused]] float deltaTime) override {}
+		void update_pos([[maybe_unused]] float deltaTime) override {}
+		void handle_collision([[maybe_unused]] float deltaTime) override {}
+		void apply_gravity([[maybe_unused]] float deltaTime) override {}
 		bool isAlive() const override {
 			return true;
 		}
@@ -507,7 +507,7 @@ namespace NonECS {
 	struct UnitDynamic1: public IUnit {
 		Velocity v;
 
-		void updatePosition(float deltaTime) override {
+		void update_pos(float deltaTime) override {
 			p.x += v.x * deltaTime;
 			p.y += v.y * deltaTime;
 			p.z += v.z * deltaTime;
@@ -516,7 +516,7 @@ namespace NonECS {
 			gaia::dont_optimize(p.x);
 		}
 
-		void handleGroundCollision([[maybe_unused]] float deltaTime) override {
+		void handle_collision([[maybe_unused]] float deltaTime) override {
 			if (p.y < 0.0f) {
 				p.y = 0.0f;
 				v.y = 0.0f;
@@ -526,7 +526,7 @@ namespace NonECS {
 			gaia::dont_optimize(v.y);
 		}
 
-		void applyGravity(float deltaTime) override {
+		void apply_gravity(float deltaTime) override {
 			v.y += 9.81f * deltaTime;
 		}
 		void applyGravity_verify() override {
@@ -542,7 +542,7 @@ namespace NonECS {
 		Velocity v;
 		Direction d;
 
-		void updatePosition(float deltaTime) override {
+		void update_pos(float deltaTime) override {
 			p.x += v.x * deltaTime;
 			p.y += v.y * deltaTime;
 			p.z += v.z * deltaTime;
@@ -551,7 +551,7 @@ namespace NonECS {
 			gaia::dont_optimize(p.x);
 		}
 
-		void handleGroundCollision([[maybe_unused]] float deltaTime) override {
+		void handle_collision([[maybe_unused]] float deltaTime) override {
 			if (p.y < 0.0f) {
 				p.y = 0.0f;
 				v.y = 0.0f;
@@ -561,7 +561,7 @@ namespace NonECS {
 			gaia::dont_optimize(v.y);
 		}
 
-		void applyGravity(float deltaTime) override {
+		void apply_gravity(float deltaTime) override {
 			v.y += 9.81f * deltaTime;
 		}
 		void applyGravity_verify() override {
@@ -578,7 +578,7 @@ namespace NonECS {
 		Direction d;
 		Health h;
 
-		void updatePosition(float deltaTime) override {
+		void update_pos(float deltaTime) override {
 			p.x += v.x * deltaTime;
 			p.y += v.y * deltaTime;
 			p.z += v.z * deltaTime;
@@ -587,7 +587,7 @@ namespace NonECS {
 			gaia::dont_optimize(p.x);
 		}
 
-		void handleGroundCollision([[maybe_unused]] float deltaTime) override {
+		void handle_collision([[maybe_unused]] float deltaTime) override {
 			if (p.y < 0.0f) {
 				p.y = 0.0f;
 				v.y = 0.0f;
@@ -597,7 +597,7 @@ namespace NonECS {
 			gaia::dont_optimize(v.x);
 		}
 
-		void applyGravity(float deltaTime) override {
+		void apply_gravity(float deltaTime) override {
 			v.y += 9.81f * deltaTime;
 		}
 		void applyGravity_verify() override {
@@ -618,7 +618,7 @@ namespace NonECS {
 		Health h;
 		IsEnemy e;
 
-		void updatePosition(float deltaTime) override {
+		void update_pos(float deltaTime) override {
 			p.x += v.x * deltaTime;
 			p.y += v.y * deltaTime;
 			p.z += v.z * deltaTime;
@@ -627,7 +627,7 @@ namespace NonECS {
 			gaia::dont_optimize(p.x);
 		}
 
-		void handleGroundCollision([[maybe_unused]] float deltaTime) override {
+		void handle_collision([[maybe_unused]] float deltaTime) override {
 			if (p.y < 0.0f) {
 				p.y = 0.0f;
 				v.y = 0.0f;
@@ -637,7 +637,7 @@ namespace NonECS {
 			gaia::dont_optimize(v.x);
 		}
 
-		void applyGravity(float deltaTime) override {
+		void apply_gravity(float deltaTime) override {
 			v.y += 9.81f * deltaTime;
 		}
 		void applyGravity_verify() override {
@@ -716,13 +716,13 @@ void BM_NonECS(picobench::state& state) {
 		// Process entities
 		if constexpr (AlternativeExecOrder) {
 			for (auto& u: units)
-				u->updatePosition(dt);
+				u->update_pos(dt);
 			units[0]->updatePosition_verify();
 			for (auto& u: units)
-				u->handleGroundCollision(dt);
+				u->handle_collision(dt);
 			units[0]->handleGroundCollision_verify();
 			for (auto& u: units)
-				u->applyGravity(dt);
+				u->apply_gravity(dt);
 			units[0]->applyGravity_verify();
 			for (auto& u: units) {
 				if (u->isAlive())
@@ -730,9 +730,9 @@ void BM_NonECS(picobench::state& state) {
 			}
 		} else {
 			for (auto& u: units) {
-				u->updatePosition(dt);
-				u->handleGroundCollision(dt);
-				u->applyGravity(dt);
+				u->update_pos(dt);
+				u->handle_collision(dt);
+				u->apply_gravity(dt);
 				if (u->isAlive())
 					++aliveUnits;
 			}
@@ -761,13 +761,13 @@ namespace NonECS_BetterMemoryLayout {
 	};
 
 	struct UnitStatic: UnitData {
-		void updatePosition([[maybe_unused]] float deltaTime) {}
+		void update_pos([[maybe_unused]] float deltaTime) {}
 		void updatePosition_verify() {}
 
-		void handleGroundCollision([[maybe_unused]] float deltaTime) {}
+		void handle_collision([[maybe_unused]] float deltaTime) {}
 		void handleGroundCollision_verify() {}
 
-		void applyGravity([[maybe_unused]] float deltaTime) {}
+		void apply_gravity([[maybe_unused]] float deltaTime) {}
 		void applyGravity_verify() {}
 
 		bool isAlive() const {
@@ -779,7 +779,7 @@ namespace NonECS_BetterMemoryLayout {
 	struct UnitDynamic1: UnitData {
 		Velocity v;
 
-		void updatePosition(float deltaTime) {
+		void update_pos(float deltaTime) {
 			p.x += v.x * deltaTime;
 			p.y += v.y * deltaTime;
 			p.z += v.z * deltaTime;
@@ -788,7 +788,7 @@ namespace NonECS_BetterMemoryLayout {
 			gaia::dont_optimize(p.x);
 		}
 
-		void handleGroundCollision([[maybe_unused]] float deltaTime) {
+		void handle_collision([[maybe_unused]] float deltaTime) {
 			if (p.y < 0.0f) {
 				p.y = 0.0f;
 				v.y = 0.0f;
@@ -798,7 +798,7 @@ namespace NonECS_BetterMemoryLayout {
 			gaia::dont_optimize(v.y);
 		}
 
-		void applyGravity(float deltaTime) {
+		void apply_gravity(float deltaTime) {
 			v.y += 9.81f * deltaTime;
 		}
 		void applyGravity_verify() {
@@ -894,21 +894,21 @@ void BM_NonECS_BetterMemoryLayout(picobench::state& state) {
 	auto exec = [](auto& arr) {
 		if constexpr (AlternativeExecOrder) {
 			for (auto& u: arr)
-				u.updatePosition(dt);
+				u.update_pos(dt);
 			arr[0].updatePosition_verify();
 
 			for (auto& u: arr)
-				u.handleGroundCollision(dt);
+				u.handle_collision(dt);
 			arr[0].handleGroundCollision_verify();
 
 			for (auto& u: arr)
-				u.applyGravity(dt);
+				u.apply_gravity(dt);
 			arr[0].applyGravity_verify();
 		} else {
 			for (auto& u: arr) {
-				u.updatePosition(dt);
-				u.handleGroundCollision(dt);
-				u.applyGravity(dt);
+				u.update_pos(dt);
+				u.handle_collision(dt);
+				u.apply_gravity(dt);
 			}
 			arr[0].updatePosition_verify();
 			arr[0].handleGroundCollision_verify();
@@ -945,7 +945,7 @@ void BM_NonECS_BetterMemoryLayout(picobench::state& state) {
 template <uint32_t Groups>
 void BM_NonECS_DOD(picobench::state& state) {
 	struct UnitDynamic {
-		static void updatePosition(cnt::darray<Position>& p, const cnt::darray<Velocity>& v, float deltaTime) {
+		static void update_pos(cnt::darray<Position>& p, const cnt::darray<Velocity>& v, float deltaTime) {
 			GAIA_EACH(p) {
 				p[i].x += v[i].x * deltaTime;
 				p[i].y += v[i].y * deltaTime;
@@ -956,7 +956,7 @@ void BM_NonECS_DOD(picobench::state& state) {
 			gaia::dont_optimize(p[0].y);
 			gaia::dont_optimize(p[0].z);
 		}
-		static void handleGroundCollision(cnt::darray<Position>& p, cnt::darray<Velocity>& v) {
+		static void handle_collision(cnt::darray<Position>& p, cnt::darray<Velocity>& v) {
 			GAIA_EACH(p) {
 				if (p[i].y < 0.0f) {
 					p[i].y = 0.0f;
@@ -968,13 +968,13 @@ void BM_NonECS_DOD(picobench::state& state) {
 			gaia::dont_optimize(v[0].y);
 		}
 
-		static void applyGravity(cnt::darray<Velocity>& v, float deltaTime) {
+		static void apply_gravity(cnt::darray<Velocity>& v, float deltaTime) {
 			GAIA_EACH(v) v[i].y += 9.81f * deltaTime;
 
 			gaia::dont_optimize(v[0].y);
 		}
 
-		static uint32_t calculateAliveUnits(const cnt::darray<Health>& h) {
+		static uint32_t calc_alive_units(const cnt::darray<Health>& h) {
 			uint32_t aliveUnits = 0;
 			GAIA_EACH(h) {
 				if (h[i].value > 0)
@@ -1028,29 +1028,29 @@ void BM_NonECS_DOD(picobench::state& state) {
 		dt = CalculateDelta(state);
 
 		{
-			GAIA_PROF_SCOPE(updatePosition);
+			GAIA_PROF_SCOPE(update_pos);
 
 			for (auto& g: dynamic_groups)
-				UnitDynamic::updatePosition(g.units_p, g.units_v, dt);
+				UnitDynamic::update_pos(g.units_p, g.units_v, dt);
 		}
 
 		{
-			GAIA_PROF_SCOPE(handleGroundPosition);
+			GAIA_PROF_SCOPE(handle_collision);
 
 			for (auto& g: dynamic_groups)
-				UnitDynamic::handleGroundCollision(g.units_p, g.units_v);
+				UnitDynamic::handle_collision(g.units_p, g.units_v);
 		}
 
 		{
-			GAIA_PROF_SCOPE(applyGravity);
+			GAIA_PROF_SCOPE(apply_gravity);
 
 			for (auto& g: dynamic_groups)
-				UnitDynamic::applyGravity(g.units_v, dt);
+				UnitDynamic::apply_gravity(g.units_v, dt);
 		}
 
 		uint32_t aliveUnits = 0;
 		for (auto& g: dynamic_groups)
-			aliveUnits += UnitDynamic::calculateAliveUnits(g.units_h);
+			aliveUnits += UnitDynamic::calc_alive_units(g.units_h);
 		gaia::dont_optimize(aliveUnits);
 
 		GAIA_PROF_FRAME();
@@ -1060,8 +1060,8 @@ void BM_NonECS_DOD(picobench::state& state) {
 template <uint32_t Groups>
 void BM_NonECS_DOD_SoA(picobench::state& state) {
 	struct UnitDynamic {
-		static void updatePosition(cnt::darray<PositionSoA>& p, const cnt::darray<VelocitySoA>& v) {
-			GAIA_PROF_SCOPE(updatePosition);
+		static void update_pos(cnt::darray<PositionSoA>& p, const cnt::darray<VelocitySoA>& v) {
+			GAIA_PROF_SCOPE(update_pos);
 
 			gaia::mem::auto_view_policy_set<PositionSoA> pv{p};
 			gaia::mem::auto_view_policy_get<VelocitySoA> vv{v};
@@ -1083,8 +1083,8 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 			gaia::dont_optimize(ppz[0]);
 		}
 
-		static void handleGroundCollision(cnt::darray<PositionSoA>& p, cnt::darray<VelocitySoA>& v) {
-			GAIA_PROF_SCOPE(handleGroundCollision);
+		static void handle_collision(cnt::darray<PositionSoA>& p, cnt::darray<VelocitySoA>& v) {
+			GAIA_PROF_SCOPE(handle_collision);
 
 			gaia::mem::auto_view_policy_set<PositionSoA> pv{p};
 			gaia::mem::auto_view_policy_set<VelocitySoA> vv{v};
@@ -1103,8 +1103,8 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 			gaia::dont_optimize(vvy[0]);
 		}
 
-		static void applyGravity(cnt::darray<VelocitySoA>& v) {
-			GAIA_PROF_SCOPE(applyGravity);
+		static void apply_gravity(cnt::darray<VelocitySoA>& v) {
+			GAIA_PROF_SCOPE(apply_gravity);
 
 			gaia::mem::auto_view_policy_set<VelocitySoA> vv{v};
 
@@ -1115,8 +1115,8 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 			gaia::dont_optimize(vvy[0]);
 		}
 
-		static uint32_t calculateAliveUnits(const cnt::darray<Health>& h) {
-			GAIA_PROF_SCOPE(calculateAliveUnits);
+		static uint32_t calc_alive_units(const cnt::darray<Health>& h) {
+			GAIA_PROF_SCOPE(calc_alive_units);
 
 			uint32_t aliveUnits = 0;
 			GAIA_EACH(h) {
@@ -1171,17 +1171,17 @@ void BM_NonECS_DOD_SoA(picobench::state& state) {
 		dt = CalculateDelta(state);
 
 		for (auto& g: dynamic_groups)
-			UnitDynamic::updatePosition(g.units_p, g.units_v);
+			UnitDynamic::update_pos(g.units_p, g.units_v);
 
 		for (auto& g: dynamic_groups)
-			UnitDynamic::handleGroundCollision(g.units_p, g.units_v);
+			UnitDynamic::handle_collision(g.units_p, g.units_v);
 
 		for (auto& g: dynamic_groups)
-			UnitDynamic::applyGravity(g.units_v);
+			UnitDynamic::apply_gravity(g.units_v);
 
 		uint32_t aliveUnits = 0;
 		for (auto& g: dynamic_groups)
-			aliveUnits += UnitDynamic::calculateAliveUnits(g.units_h);
+			aliveUnits += UnitDynamic::calc_alive_units(g.units_h);
 		gaia::dont_optimize(aliveUnits);
 
 		GAIA_PROF_FRAME();

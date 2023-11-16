@@ -35,7 +35,7 @@ namespace gaia {
 			//! Tries adding a job to the queue. FIFO.
 			//! \return True if the job was added. False otherwise (e.g. maximum capacity has been reached).
 			GAIA_NODISCARD bool try_push(JobHandle jobHandle) {
-				GAIA_PROF_SCOPE(JobQueue::TryPush);
+				GAIA_PROF_SCOPE(JobQueue::try_push);
 
 #if JOB_QUEUE_USE_LOCKS
 				std::scoped_lock<std::mutex> lock(m_bufferLock);

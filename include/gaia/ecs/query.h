@@ -183,7 +183,7 @@ namespace gaia {
 				//! Fetches the QueryInfo object.
 				//! \return QueryInfo object
 				QueryInfo& fetch() {
-					GAIA_PROF_SCOPE(query_fetch);
+					GAIA_PROF_SCOPE(query::fetch);
 
 					if constexpr (UseCaching) {
 						// Make sure the query was created by World.query()
@@ -340,7 +340,7 @@ namespace gaia {
 					// }
 					// chunks.clear();
 
-					GAIA_PROF_SCOPE(query_run_func_batched);
+					GAIA_PROF_SCOPE(query::run_func_batched);
 
 					// We only have one chunk to process
 					if GAIA_UNLIKELY (chunkCnt == 1) {
@@ -382,7 +382,7 @@ namespace gaia {
 				template <bool HasFilters, typename Iter, typename Func>
 				void run_query(
 						const QueryInfo& queryInfo, Func func, ChunkBatchedList& chunkBatch, const cnt::darray<Chunk*>& chunks) {
-					GAIA_PROF_SCOPE(query_run_query); // batch preparation + chunk processing
+					GAIA_PROF_SCOPE(query::run_query); // batch preparation + chunk processing
 
 					uint32_t chunkOffset = 0;
 					uint32_t itemsLeft = chunks.size();

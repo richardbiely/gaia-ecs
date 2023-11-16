@@ -156,7 +156,7 @@ namespace gaia {
 			//! Evaluates job dependencies.
 			//! \return True if job dependencies are met. False otherwise
 			GAIA_NODISCARD bool handle_deps(JobHandle jobHandle) {
-				GAIA_PROF_SCOPE(JobManager::HandleDeps);
+				GAIA_PROF_SCOPE(JobManager::handle_deps);
 				std::scoped_lock<std::mutex> lockJobs(m_jobsLock);
 				auto& job = m_jobs[jobHandle.id()];
 				if (job.dependencyIdx == (uint32_t)-1)
@@ -201,7 +201,7 @@ namespace gaia {
 #endif
 
 				{
-					GAIA_PROF_SCOPE(JobManager::AddDep);
+					GAIA_PROF_SCOPE(JobManager::dep);
 					std::scoped_lock<std::mutex> lockDeps(m_depsLock);
 
 					auto depHandle = alloc_dep();
@@ -237,7 +237,7 @@ namespace gaia {
 				}
 #endif
 
-				GAIA_PROF_SCOPE(JobManager::AddDeps);
+				GAIA_PROF_SCOPE(JobManager::deps);
 				std::scoped_lock<std::mutex> lockJobs(m_jobsLock);
 				{
 					std::scoped_lock<std::mutex> lockDeps(m_depsLock);

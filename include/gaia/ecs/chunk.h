@@ -573,7 +573,7 @@ namespace gaia {
 			Copies all data associated with \param oldEntity into \param newEntity.
 			*/
 			static void copy_entity_data(Entity oldEntity, Entity newEntity, std::span<EntityContainer> entities) {
-				GAIA_PROF_SCOPE(copy_entity_data);
+				GAIA_PROF_SCOPE(chunk::copy_entity_data);
 
 				auto& oldEntityContainer = entities[oldEntity.id()];
 				auto* pOldChunk = oldEntityContainer.pChunk;
@@ -601,7 +601,7 @@ namespace gaia {
 			Moves all data associated with \param entity into the chunk so that it is stored at \param newEntityIdx.
 			*/
 			void move_entity_data(Entity entity, uint32_t newEntityIdx, std::span<EntityContainer> entities) {
-				GAIA_PROF_SCOPE(CopyEntityFrom);
+				GAIA_PROF_SCOPE(chunk::move_entity_data);
 
 				auto& oldEntityContainer = entities[entity.id()];
 				auto* pOldChunk = oldEntityContainer.pChunk;
@@ -622,7 +622,7 @@ namespace gaia {
 
 			static void move_foreign_entity_data(
 					Chunk* pOldChunk, uint32_t oldIdx, Chunk* pNewChunk, uint32_t newIdx, ComponentKind compKind) {
-				GAIA_PROF_SCOPE(move_foreign_entity_data);
+				GAIA_PROF_SCOPE(chunk::move_foreign_entity_data);
 
 				GAIA_ASSERT(pOldChunk != nullptr);
 				GAIA_ASSERT(pNewChunk != nullptr);
@@ -684,7 +684,7 @@ namespace gaia {
 			Moves all data associated with \param entity into the chunk so that it is stored at index \param newEntityIdx.
 			*/
 			void move_foreign_entity_data(Entity entity, uint32_t newEntityIdx, std::span<EntityContainer> entities) {
-				GAIA_PROF_SCOPE(move_foreign_entity_data);
+				GAIA_PROF_SCOPE(chunk::move_foreign_entity_data);
 
 				auto& oldEntityContainer = entities[entity.id()];
 				move_foreign_entity_data(
@@ -700,7 +700,7 @@ namespace gaia {
 			If the entity at the given index already is the last chunk entity, it is removed directly.
 			*/
 			void remove_entity_inter(uint32_t index, std::span<EntityContainer> entities) {
-				GAIA_PROF_SCOPE(remove_entity_inter);
+				GAIA_PROF_SCOPE(chunk::remove_entity_inter);
 
 				const auto left = index;
 				const auto right = (uint32_t)m_header.count - 1;
@@ -763,7 +763,7 @@ namespace gaia {
 				if GAIA_UNLIKELY (chunkEntityCount == 0)
 					return;
 
-				GAIA_PROF_SCOPE(remove_entity);
+				GAIA_PROF_SCOPE(chunk::remove_entity);
 
 				if (enabled(index)) {
 					// Entity was previously enabled. Swap with the last entity
@@ -802,7 +802,7 @@ namespace gaia {
 				if (left == right)
 					return;
 
-				GAIA_PROF_SCOPE(SwapEntitiesInsideChunk);
+				GAIA_PROF_SCOPE(chunk::swap_chunk_entities);
 
 				// Update entity indices inside chunk
 				const auto entityLeft = entity_view()[left];
@@ -913,7 +913,7 @@ namespace gaia {
 			}
 
 			void call_ctor(ComponentKind compKind, uint32_t entIdx, const ComponentDesc& desc) {
-				GAIA_PROF_SCOPE(call_ctor);
+				GAIA_PROF_SCOPE(chunk::call_ctor);
 
 				// Make sure only generic components are used with this function.
 				// Unique components are automatically constructed with chunks.
@@ -928,7 +928,7 @@ namespace gaia {
 			}
 
 			void call_ctors(ComponentKind compKind, uint32_t entIdx, uint32_t entCnt) {
-				GAIA_PROF_SCOPE(call_ctors);
+				GAIA_PROF_SCOPE(chunk::call_ctors);
 
 				GAIA_ASSERT(
 						compKind == ComponentKind::CK_Gen && has_custom_gen_ctor() ||
@@ -949,7 +949,7 @@ namespace gaia {
 			}
 
 			void call_dtors(ComponentKind compKind, uint32_t entIdx, uint32_t entCnt) {
-				GAIA_PROF_SCOPE(call_dtors);
+				GAIA_PROF_SCOPE(chunk::call_dtors);
 
 				GAIA_ASSERT(
 						compKind == ComponentKind::CK_Gen && has_custom_gen_dtor() ||

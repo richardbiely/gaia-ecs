@@ -123,7 +123,7 @@ namespace gaia {
 			//! the query. \return MatchArchetypeQueryRet::Fail if there is no match, MatchArchetypeQueryRet::Ok for match
 			//! or MatchArchetypeQueryRet::Skip is not relevant.
 			GAIA_NODISCARD MatchArchetypeQueryRet match(const Archetype& archetype, ComponentKind compKind) const {
-				GAIA_PROF_SCOPE(queryinfo_match);
+				GAIA_PROF_SCOPE(queryinfo::match);
 
 				const auto& matcherHash = archetype.matcher_hash(compKind);
 				const auto& comps = archetype.comps(compKind);
@@ -213,7 +213,7 @@ namespace gaia {
 					return;
 				m_lastArchetypeId = archetypeLastId;
 
-				GAIA_PROF_SCOPE(queryinfo_match);
+				GAIA_PROF_SCOPE(queryinfo::match);
 
 				// Match against generic types
 				{
@@ -311,7 +311,7 @@ namespace gaia {
 			//! Removes an archetype from cache
 			//! \param pArchetype Archetype to remove
 			void remove(Archetype* pArchetype) {
-				GAIA_PROF_SCOPE(queryinfo_remove);
+				GAIA_PROF_SCOPE(queryinfo::remove);
 
 				const auto idx = core::get_index(m_archetypeCache, pArchetype);
 				if (idx == BadIndex)

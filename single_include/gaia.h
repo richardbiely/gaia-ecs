@@ -16091,7 +16091,7 @@ namespace gaia {
 				if (left == right)
 					return;
 
-				GAIA_PROF_SCOPE(SwapEntitiesInsideChunk);
+				GAIA_PROF_SCOPE(swap_chunk_entities);
 
 				// Update entity indices inside chunk
 				const auto entityLeft = entity_view()[left];
