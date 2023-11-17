@@ -85,7 +85,7 @@ namespace gaia {
 			void save_comp(T&& value) {
 				const auto compId = comp_id<T>();
 				const auto& desc = ComponentCache::get().comp_desc(compId);
-				const bool isManualDestroyNeeded = desc.func_ctor_copy != nullptr || desc.func_ctor_move != nullptr;
+				const bool isManualDestroyNeeded = desc.func_copy_ctor != nullptr || desc.func_move_ctor != nullptr;
 				constexpr bool isRValue = std::is_rvalue_reference_v<decltype(value)>;
 
 				reserve(sizeof(isManualDestroyNeeded) + sizeof(T));
@@ -94,10 +94,10 @@ namespace gaia {
 
 				auto* pSrc = (void*)&value;
 				auto* pDst = (void*)&m_data[m_dataPos];
-				if (isRValue && desc.func_ctor_move != nullptr)
-					desc.func_ctor_move(pSrc, pDst);
-				else if (desc.func_ctor_copy != nullptr)
-					desc.func_ctor_copy(pSrc, pDst);
+				if (isRValue && desc.func_move_ctor != nullptr)
+					desc.func_move_ctor(pSrc, pDst);
+				else if (desc.func_copy_ctor != nullptr)
+					desc.func_copy_ctor(pSrc, pDst);
 				else
 					memmove(pDst, (const void*)pSrc, sizeof(T));
 

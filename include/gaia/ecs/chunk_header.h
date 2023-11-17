@@ -12,7 +12,7 @@
 
 namespace gaia {
 	namespace ecs {
-		struct ComponentDesc;
+		struct ComponentCacheItem;
 
 		struct ChunkDataOffsets {
 			//! Byte at which the first version number is located
@@ -35,7 +35,7 @@ namespace gaia {
 			//! Pointer to where the first instance of the component is stored
 			uint8_t* pData;
 			//! Pointer to component descriptor
-			const ComponentDesc* pDesc;
+			const ComponentCacheItem* pDesc;
 		};
 
 		struct ChunkRecords {

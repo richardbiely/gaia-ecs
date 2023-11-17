@@ -914,7 +914,7 @@ namespace gaia {
 				return m_header.hasAnyCustomUniDtor;
 			}
 
-			void call_ctor(ComponentKind compKind, uint32_t entIdx, const ComponentDesc& desc) {
+			void call_ctor(ComponentKind compKind, uint32_t entIdx, const ComponentCacheItem& desc) {
 				GAIA_PROF_SCOPE(chunk::call_ctor);
 
 				// Make sure only generic components are used with this function.

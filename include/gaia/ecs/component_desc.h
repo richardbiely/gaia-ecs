@@ -1,6 +1,7 @@
 #pragma once
 #include "../config/config.h"
 
+#include <__tuple_dir/tuple_size.h>
 #include <cstdint>
 #include <cstring>
 #include <tuple>
@@ -16,7 +17,10 @@
 
 namespace gaia {
 	namespace ecs {
+		template <typename T>
 		struct ComponentDesc final {
+			static_assert(core::is_raw_v<T>);
+
 			using FuncCtor = void(void*, uint32_t);
 			using FuncDtor = void(void*, uint32_t);
 			using FuncCopy = void(void*, void*);
@@ -24,237 +28,201 @@ namespace gaia {
 			using FuncSwap = void(void*, void*);
 			using FuncCmp = bool(const void*, const void*);
 
-			//! Unique component identifier
-			Component comp = {IdentifierBad};
-			//! Complex hash used for look-ups
-			ComponentLookupHash hashLookup;
-			//! Simple hash used for matching component
-			ComponentMatcherHash matcherHash;
-			//! If component is SoA, this stores how many bytes each of the elemenets take
-			uint8_t soaSizes[meta::StructToTupleMaxTypes];
-
-			//! Component name
-			std::span<const char> name;
-			//! Function to call when the component needs to be constructed
-			FuncCtor* func_ctor = nullptr;
-			//! Function to call when the component needs to be move constructed
-			FuncMove* func_ctor_move = nullptr;
-			//! Function to call when the component needs to be copy constructed
-			FuncCopy* func_ctor_copy = nullptr;
-			//! Function to call when the component needs to be destroyed
-			FuncDtor* func_dtor = nullptr;
-			//! Function to call when the component needs to be copied
-			FuncCopy* func_copy = nullptr;
-			//! Fucntion to call when the component needs to be moved
-			FuncMove* func_move = nullptr;
-			//! Function to call when the component needs to swap
-			FuncSwap* func_swap = nullptr;
-			//! Function to call when comparing two components of the same type
-			FuncCmp* func_cmp = nullptr;
-
-			void ctor_from(void* pSrc, void* pDst) const {
-				if (func_ctor_move != nullptr)
-					func_ctor_move(pSrc, pDst);
-				else if (func_ctor_copy != nullptr)
-					func_ctor_copy(pSrc, pDst);
-				else
-					memmove(pDst, (const void*)pSrc, comp.size());
+			static uint32_t id() {
+				return comp_id<T>();
 			}
 
-			void move(void* pSrc, void* pDst) const {
-				if (func_move != nullptr)
-					func_move(pSrc, pDst);
-				else
-					copy(pSrc, pDst);
+			static constexpr ComponentLookupHash hash_lookup() {
+				return {meta::type_info::hash<T>()};
 			}
 
-			void copy(void* pSrc, void* pDst) const {
-				if (func_copy != nullptr)
-					func_copy(pSrc, pDst);
-				else
-					memmove(pDst, (const void*)pSrc, comp.size());
+			static constexpr ComponentMatcherHash hash_matcher() {
+				return calc_matcher_hash<T>();
 			}
 
-			void dtor(void* pSrc) const {
-				if (func_dtor != nullptr)
-					func_dtor(pSrc, 1);
+			static constexpr auto name() {
+				return meta::type_info::name<T>();
 			}
 
-			void swap(void* pLeft, void* pRight) const {
-				// Function pointer is not provided only in 2 cases:
-				// 1) SoA component
-				GAIA_ASSERT(func_swap != nullptr);
-				func_swap(pLeft, pRight);
+			static constexpr uint32_t size() {
+				return (uint32_t)sizeof(T);
 			}
 
-			bool cmp(const void* pLeft, const void* pRight) const {
-				// We only ever compare components during defragmentation when they are uni components.
-				// For those cases the comparison operator must be present.
-				// Correct setup should be ensured by a compile time check when adding a new component.
-				GAIA_ASSERT(func_cmp != nullptr);
-				return func_cmp(pLeft, pRight);
-			}
-
-			GAIA_NODISCARD uint32_t calc_new_mem_offset(uint32_t addr, size_t N) const noexcept {
-				if (comp.soa() == 0) {
-					addr = (uint32_t)mem::detail::get_aligned_byte_offset(addr, comp.alig(), comp.size(), N);
-				} else {
-					GAIA_FOR(comp.soa()) {
-						addr = (uint32_t)mem::detail::get_aligned_byte_offset(addr, comp.alig(), soaSizes[i], N);
-					}
-					// TODO: Magic offset. Otherwise, SoA data might leak past the chunk boundary when accessing
-					//       the last element. By faking the memory offset we can bypass this is issue for now.
-					//       Obviously, this needs fixing at some point.
-					addr += comp.soa() * 4;
-				}
-				return addr;
-			}
-
-			template <typename T>
-			GAIA_NODISCARD static constexpr ComponentDesc build() {
-				static_assert(core::is_raw_v<T>);
-
-				uint32_t id = comp_id<T>();
-				uint32_t size = 0, alig = 0, soa = 0;
-
-				ComponentDesc desc{};
-				desc.hashLookup = {meta::type_info::hash<T>()};
-				desc.matcherHash = calc_matcher_hash<T>();
-				desc.name = meta::type_info::name<T>();
-
+			static constexpr uint32_t alig() {
 				if constexpr (!std::is_empty_v<T>) {
-					size = (uint32_t)sizeof(T);
+					constexpr auto alig = mem::auto_view_policy<T>::Alignment;
+					static_assert(alig < Component::MaxAlignment, "Maximum supported alignemnt for a component is MaxAlignment");
+					return alig;
+				} else {
+					return 0;
+				}
+			}
 
-					static_assert(Component::MaxAlignment_Bits, "Maximum supported alignemnt for a component is MaxAlignment");
-					alig = (uint32_t)mem::auto_view_policy<T>::Alignment;
+			static uint32_t soa(std::span<uint8_t, meta::StructToTupleMaxTypes> soaSizes) {
+				if constexpr (mem::is_soa_layout_v<T>) {
+					uint32_t i = 0;
+					using TTuple = decltype(meta::struct_to_tuple(T{}));
+					// is_soa_layout_v is always false for empty types so we know there is at least one element in the tuple
+					constexpr auto TTupleSize = std::tuple_size_v<TTuple>;
+					static_assert(TTupleSize > 0);
+					static_assert(TTupleSize <= meta::StructToTupleMaxTypes);
+					core::each_tuple<TTuple>([&](auto&& item) {
+						static_assert(sizeof(item) <= 255, "Each member of a SoA component can be at most 255 B long!");
+						soaSizes[i] = (uint8_t)sizeof(item);
+						++i;
+					});
+					GAIA_ASSERT(i <= meta::StructToTupleMaxTypes);
+					return i;
+				} else {
+					return 0U;
+				}
+			}
 
-					if constexpr (mem::is_soa_layout_v<T>) {
-						uint32_t i = 0;
-						using TTuple = decltype(meta::struct_to_tuple(T{}));
-						core::each_tuple<TTuple>([&](auto&& item) {
-							static_assert(sizeof(item) <= 255, "Each member of a SoA component can be at most 255 B long!");
-							desc.soaSizes[i] = (uint8_t)sizeof(item);
-							++i;
-						});
-						soa = i;
-						GAIA_ASSERT(i <= meta::StructToTupleMaxTypes);
-					} else {
-						// Custom construction
-						if constexpr (!std::is_trivially_constructible_v<T>) {
-							desc.func_ctor = [](void* ptr, uint32_t cnt) {
-								core::call_ctor_n((T*)ptr, cnt);
-							};
-						}
+			static constexpr auto func_ctor() {
+				if constexpr (!mem::is_soa_layout_v<T> && !std::is_trivially_constructible_v<T>) {
+					return [](void* ptr, uint32_t cnt) {
+						core::call_ctor_n((T*)ptr, cnt);
+					};
+				} else {
+					return nullptr;
+				}
+			}
 
-						// Custom destruction
-						if constexpr (!std::is_trivially_destructible_v<T>) {
-							desc.func_dtor = [](void* ptr, uint32_t cnt) {
-								core::call_dtor_n((T*)ptr, cnt);
-							};
-						}
+			static constexpr auto func_dtor() {
+				if constexpr (!mem::is_soa_layout_v<T> && !std::is_trivially_destructible_v<T>) {
+					return [](void* ptr, uint32_t cnt) {
+						core::call_dtor_n((T*)ptr, cnt);
+					};
+				} else {
+					return nullptr;
+				}
+			}
 
-						// Copyability
-						if (!std::is_trivially_copyable_v<T>) {
-							if constexpr (std::is_copy_assignable_v<T>) {
-								desc.func_copy = [](void* from, void* to) {
-									auto* src = (T*)from;
-									auto* dst = (T*)to;
-									*dst = *src;
-								};
-								desc.func_ctor_copy = [](void* from, void* to) {
-									auto* src = (T*)from;
-									auto* dst = (T*)to;
-									new (dst) T();
-									*dst = *src;
-								};
-							} else if constexpr (std::is_copy_constructible_v<T>) {
-								desc.func_copy = [](void* from, void* to) {
-									auto* src = (T*)from;
-									auto* dst = (T*)to;
-									*dst = T(*src);
-								};
-								desc.func_ctor_copy = [](void* from, void* to) {
-									auto* src = (T*)from;
-									auto* dst = (T*)to;
-									(void)new (dst) T(GAIA_MOV(*src));
-								};
-							}
-						}
+			static constexpr auto func_copy_ctor() {
+				if constexpr (mem::is_soa_layout_v<T>) {
+					return nullptr;
+				} else if constexpr (std::is_copy_assignable_v<T>) {
+					return [](void* from, void* to) {
+						auto* src = (T*)from;
+						auto* dst = (T*)to;
+						new (dst) T();
+						*dst = *src;
+					};
+				} else if constexpr (std::is_copy_constructible_v<T>) {
+					return [](void* from, void* to) {
+						auto* src = (T*)from;
+						auto* dst = (T*)to;
+						(void)new (dst) T(GAIA_MOV(*src));
+					};
+				} else {
+					return nullptr;
+				}
+			}
 
-						// Movability
-						if constexpr (!std::is_trivially_move_assignable_v<T> && std::is_move_assignable_v<T>) {
-							desc.func_move = [](void* from, void* to) {
-								auto* src = (T*)from;
-								auto* dst = (T*)to;
-								*dst = GAIA_MOV(*src);
-							};
-							desc.func_ctor_move = [](void* from, void* to) {
-								auto* src = (T*)from;
-								auto* dst = (T*)to;
-								new (dst) T();
-								*dst = GAIA_MOV(*src);
-							};
-						} else if constexpr (!std::is_trivially_move_constructible_v<T> && std::is_move_constructible_v<T>) {
-							desc.func_move = [](void* from, void* to) {
-								auto* src = (T*)from;
-								auto* dst = (T*)to;
-								*dst = T(GAIA_MOV(*src));
-							};
-							desc.func_ctor_move = [](void* from, void* to) {
-								auto* src = (T*)from;
-								auto* dst = (T*)to;
-								(void)new (dst) T(GAIA_MOV(*src));
-							};
-						}
-					}
+			static constexpr auto func_copy() {
+				if constexpr (mem::is_soa_layout_v<T>) {
+					return nullptr;
+				} else if constexpr (std::is_copy_assignable_v<T>) {
+					return [](void* from, void* to) {
+						auto* src = (T*)from;
+						auto* dst = (T*)to;
+						*dst = *src;
+					};
+				} else if constexpr (std::is_copy_constructible_v<T>) {
+					return [](void* from, void* to) {
+						auto* src = (T*)from;
+						auto* dst = (T*)to;
+						*dst = T(*src);
+					};
+				} else {
+					return nullptr;
+				}
+			}
 
-					// Value swap
-					if constexpr (std::is_move_constructible_v<T> && std::is_move_assignable_v<T>) {
-						desc.func_swap = [](void* left, void* right) {
-							auto* l = (T*)left;
-							auto* r = (T*)right;
-							T tmp = GAIA_MOV(*l);
-							*r = GAIA_MOV(*l);
-							*r = GAIA_MOV(tmp);
-						};
-					} else {
-						desc.func_swap = [](void* left, void* right) {
-							auto* l = (T*)left;
-							auto* r = (T*)right;
-							T tmp = *l;
-							*r = *l;
-							*r = tmp;
-						};
-					}
+			static constexpr auto func_move_ctor() {
+				if constexpr (mem::is_soa_layout_v<T>) {
+					return nullptr;
+				} else if constexpr (!std::is_trivially_move_assignable_v<T> && std::is_move_assignable_v<T>) {
+					return [](void* from, void* to) {
+						auto* src = (T*)from;
+						auto* dst = (T*)to;
+						new (dst) T();
+						*dst = GAIA_MOV(*src);
+					};
+				} else if constexpr (!std::is_trivially_move_constructible_v<T> && std::is_move_constructible_v<T>) {
+					return [](void* from, void* to) {
+						auto* src = (T*)from;
+						auto* dst = (T*)to;
+						(void)new (dst) T(GAIA_MOV(*src));
+					};
+				} else {
+					return nullptr;
+				}
+			}
 
-					// Value comparison
+			static constexpr auto func_move() {
+				if constexpr (mem::is_soa_layout_v<T>) {
+					return nullptr;
+				} else if constexpr (!std::is_trivially_move_assignable_v<T> && std::is_move_assignable_v<T>) {
+					return [](void* from, void* to) {
+						auto* src = (T*)from;
+						auto* dst = (T*)to;
+						*dst = GAIA_MOV(*src);
+					};
+				} else if constexpr (!std::is_trivially_move_constructible_v<T> && std::is_move_constructible_v<T>) {
+					return [](void* from, void* to) {
+						auto* src = (T*)from;
+						auto* dst = (T*)to;
+						*dst = T(GAIA_MOV(*src));
+					};
+				} else {
+					return nullptr;
+				}
+			}
+
+			static constexpr auto func_swap() {
+				if constexpr (mem::is_soa_layout_v<T>) {
+					return nullptr;
+				} else if constexpr (std::is_move_constructible_v<T> && std::is_move_assignable_v<T>) {
+					return [](void* left, void* right) {
+						auto* l = (T*)left;
+						auto* r = (T*)right;
+						T tmp = GAIA_MOV(*l);
+						*r = GAIA_MOV(*l);
+						*r = GAIA_MOV(tmp);
+					};
+				} else {
+					return [](void* left, void* right) {
+						auto* l = (T*)left;
+						auto* r = (T*)right;
+						T tmp = *l;
+						*r = *l;
+						*r = tmp;
+					};
+				}
+			}
+
+			static constexpr auto func_cmp() {
+				if constexpr (mem::is_soa_layout_v<T>) {
+					return nullptr;
+				} else {
 					constexpr bool hasGlobalCmp = core::has_global_equals<T>::value;
 					constexpr bool hasMemberCmp = core::has_member_equals<T>::value;
 					if constexpr (hasGlobalCmp || hasMemberCmp) {
-						desc.func_cmp = [](const void* left, const void* right) {
+						return [](const void* left, const void* right) {
 							const auto* l = (const T*)left;
 							const auto* r = (const T*)right;
 							return *l == *r;
 						};
 					} else {
 						// fallback comparison function
-						desc.func_cmp = [](const void* left, const void* right) {
+						return [](const void* left, const void* right) {
 							const auto* l = (const T*)left;
 							const auto* r = (const T*)right;
 							return memcmp(l, r, 1) == 0;
 						};
 					}
-
-					desc.comp = Component(id, soa, size, alig);
 				}
-
-				desc.comp = Component(id, soa, size, alig);
-				return desc;
-			}
-
-			template <typename T>
-			GAIA_NODISCARD static ComponentDesc* create() {
-				return new ComponentDesc{ComponentDesc::build<T>()};
 			}
 		};
 	} // namespace ecs

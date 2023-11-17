@@ -308,7 +308,7 @@ namespace gaia {
 
 #if GAIA_DEBUG
 			static void
-			verify_add(Archetype& archetype, Entity entity, ComponentKind compKind, const ComponentDesc& descToAdd) {
+			verify_add(Archetype& archetype, Entity entity, ComponentKind compKind, const ComponentCacheItem& descToAdd) {
 				const auto& comps = archetype.comps(compKind);
 				const auto& cc = ComponentCache::get();
 
@@ -344,7 +344,7 @@ namespace gaia {
 			}
 
 			static void
-			verify_del(Archetype& archetype, Entity entity, ComponentKind compKind, const ComponentDesc& descToRemove) {
+			verify_del(Archetype& archetype, Entity entity, ComponentKind compKind, const ComponentCacheItem& descToRemove) {
 				const auto& comps = archetype.comps(compKind);
 				if GAIA_UNLIKELY (!archetype.has(compKind, descToRemove.comp.id())) {
 					GAIA_ASSERT(false && "Trying to remove a component which wasn't added");
@@ -375,7 +375,7 @@ namespace gaia {
 			//! \param descToAdd Component we want to add.
 			//! \return Archetype pointer.
 			GAIA_NODISCARD Archetype*
-			foc_archetype_add_comp(Archetype* pArchetypeLeft, ComponentKind compKind, const ComponentDesc& descToAdd) {
+			foc_archetype_add_comp(Archetype* pArchetypeLeft, ComponentKind compKind, const ComponentCacheItem& descToAdd) {
 				// We don't want to store edges for the root archetype because the more components there are the longer
 				// it would take to find anything. Therefore, for the root archetype we always make a lookup.
 				// Compared to an ordinary lookup this path is stripped as much as possible.
@@ -468,7 +468,7 @@ namespace gaia {
 			//! \param descToRemove Component we want to remove.
 			//! \return Pointer to archetype.
 			GAIA_NODISCARD Archetype*
-			foc_archetype_remove_comp(Archetype* pArchetypeRight, ComponentKind compKind, const ComponentDesc& descToRemove) {
+			foc_archetype_remove_comp(Archetype* pArchetypeRight, ComponentKind compKind, const ComponentCacheItem& descToRemove) {
 				// Check if the component is found when following the "del" edges
 				{
 					const auto archetypeId = pArchetypeRight->find_edge_left(compKind, descToRemove.comp.id());
@@ -695,7 +695,7 @@ namespace gaia {
 					m_world.move_entity(m_entity, *m_pArchetype);
 				}
 
-				CompMoveHelper& add(ComponentKind compKind, const ComponentDesc& desc) {
+				CompMoveHelper& add(ComponentKind compKind, const ComponentCacheItem& desc) {
 					GAIA_PROF_SCOPE(world::add_comp);
 
 #if GAIA_DEBUG
@@ -718,7 +718,7 @@ namespace gaia {
 					return *this;
 				}
 
-				CompMoveHelper& del(ComponentKind compKind, const ComponentDesc& desc) {
+				CompMoveHelper& del(ComponentKind compKind, const ComponentCacheItem& desc) {
 					GAIA_PROF_SCOPE(world::del_comp);
 
 #if GAIA_DEBUG
@@ -742,11 +742,11 @@ namespace gaia {
 				}
 			};
 
-			void add_inter(Entity entity, ComponentKind compKind, const ComponentDesc& desc) {
+			void add_inter(Entity entity, ComponentKind compKind, const ComponentCacheItem& desc) {
 				CompMoveHelper(*this, entity).add(compKind, desc);
 			}
 
-			void del_inter(Entity entity, ComponentKind compKind, const ComponentDesc& desc) {
+			void del_inter(Entity entity, ComponentKind compKind, const ComponentCacheItem& desc) {
 				CompMoveHelper(*this, entity).del(compKind, desc);
 			}
 

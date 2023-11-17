@@ -9,7 +9,7 @@
 #include "../config/logging.h"
 #include "../meta/type_info.h"
 #include "component.h"
-#include "component_desc.h"
+#include "component_cache_item.h"
 
 namespace gaia {
 	namespace ecs {
@@ -17,9 +17,9 @@ namespace gaia {
 			static constexpr uint32_t FastComponentCacheSize = 1024;
 
 			//! Fast-lookup cache for the first FastComponentCacheSize components
-			cnt::darray<const ComponentDesc*> m_descByIndex;
+			cnt::darray<const ComponentCacheItem*> m_descByIndex;
 			//! Slower but more memory-friendly lookup cache for components with ids beyond FastComponentCacheSize
-			cnt::map<ComponentId, const ComponentDesc*> m_descByIndexMap;
+			cnt::map<ComponentId, const ComponentCacheItem*> m_descByIndexMap;
 
 			ComponentCache() {
 				// Reserve enough storage space for most use-cases
@@ -56,14 +56,14 @@ namespace gaia {
 			//! Registers the component info for \tparam T. If it already exists it is returned.
 			//! \return Component info
 			template <typename T>
-			GAIA_NODISCARD GAIA_FORCEINLINE const ComponentDesc& goc_comp_desc() {
+			GAIA_NODISCARD GAIA_FORCEINLINE const ComponentCacheItem& goc_comp_desc() {
 				using U = typename component_type_t<T>::Type;
 				const auto compId = comp_id<T>();
 
 				// Fast path for small component ids - use the array storage
 				if (compId < FastComponentCacheSize) {
-					auto createDesc = [&]() -> const ComponentDesc& {
-						const auto* pDesc = ComponentDesc::create<U>();
+					auto createDesc = [&]() -> const ComponentCacheItem& {
+						const auto* pDesc = ComponentCacheItem::create<U>();
 						m_descByIndex[compId] = pDesc;
 						return *pDesc;
 					};
@@ -95,8 +95,8 @@ namespace gaia {
 
 				// Generic path for large component ids - use the map storage
 				{
-					auto createDesc = [&]() -> const ComponentDesc& {
-						const auto* pDesc = ComponentDesc::create<U>();
+					auto createDesc = [&]() -> const ComponentCacheItem& {
+						const auto* pDesc = ComponentCacheItem::create<U>();
 						m_descByIndexMap.emplace(compId, pDesc);
 						return *pDesc;
 					};
@@ -112,7 +112,7 @@ namespace gaia {
 			//! Returns the component creation info given the \param compId.
 			//! \warning It is expected the component info with a given component id exists! Undefined behavior otherwise.
 			//! \return Component info
-			GAIA_NODISCARD const ComponentDesc& comp_desc(ComponentId compId) const noexcept {
+			GAIA_NODISCARD const ComponentCacheItem& comp_desc(ComponentId compId) const noexcept {
 				// Fast path - array storage
 				if (compId < FastComponentCacheSize) {
 					GAIA_ASSERT(compId < m_descByIndex.size());
@@ -128,7 +128,7 @@ namespace gaia {
 			//! \warning It is expected the component already exists! Undefined behavior otherwise.
 			//! \return Component info
 			template <typename T>
-			GAIA_NODISCARD const ComponentDesc& comp_desc() const noexcept {
+			GAIA_NODISCARD const ComponentCacheItem& comp_desc() const noexcept {
 				const auto compId = comp_id<T>();
 				return comp_desc(compId);
 			}
@@ -137,7 +137,7 @@ namespace gaia {
 				const auto registeredTypes = m_descByIndex.size();
 				GAIA_LOG_N("Registered comps: %u", registeredTypes);
 
-				auto logDesc = [](const ComponentDesc* pDesc) {
+				auto logDesc = [](const ComponentCacheItem* pDesc) {
 					GAIA_LOG_N("  id:%010u, %.*s", pDesc->comp.id(), (uint32_t)pDesc->name.size(), pDesc->name.data());
 				};
 				for (const auto* pDesc: m_descByIndex)

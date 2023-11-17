@@ -521,7 +521,7 @@ namespace gaia {
 			template <typename, typename = void>
 			struct is_soa_layout: std::false_type {};
 			template <typename T>
-			struct is_soa_layout<T, std::void_t<decltype(T::Layout)>>: std::bool_constant<(T::Layout != DataLayout::AoS)> {};
+			struct is_soa_layout<T, std::void_t<decltype(T::Layout)>>: std::bool_constant<!std::is_empty_v<T> && (T::Layout != DataLayout::AoS)> {};
 		} // namespace detail
 
 		template <typename T>
