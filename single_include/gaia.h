@@ -13749,6 +13749,7 @@ namespace gaia {
 			Entity() noexcept = default;
 			Entity(Identifier value) noexcept {
 				val = value;
+				GAIA_ASSERT(is_entity());
 				data.isEntity = 1;
 			}
 			Entity(EntityId id, IdentifierData gen) noexcept {
@@ -13814,6 +13815,7 @@ namespace gaia {
 			Component() noexcept = default;
 			Component(Identifier value) noexcept {
 				val = value;
+				GAIA_ASSERT(!is_entity());
 				data.unused = 0;
 				data.isEntity = 0;
 			}
@@ -20310,11 +20312,10 @@ namespace gaia {
 			//! Attaches a new component \tparam T to \param entity.
 			//! \tparam T Component
 			//! \param entity Entity
-			//! \return ComponentSetter
 			//! \warning It is expected the component is not present on \param entity yet. Undefined behavior otherwise.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename T>
-			ComponentSetter add(Entity entity) {
+			void add(Entity entity) {
 				constexpr auto compKind = component_kind_v<T>;
 				verify_comp<T>(compKind);
 				GAIA_ASSERT(valid(entity));
@@ -20324,19 +20325,16 @@ namespace gaia {
 				const auto& entityContainer = m_entities[entity.id()];
 
 				add_inter(entity, compKind, desc);
-
-				return ComponentSetter{entityContainer.pChunk, entityContainer.idx};
 			}
 
 			//! Attaches a new component \tparam T to \param entity. Also sets its value.
 			//! \tparam T Component
 			//! \param entity Entity
 			//! \param value Value to set for the component
-			//! \return ComponentSetter object.
 			//! \warning It is expected the component is not present on \param entity yet. Undefined behavior otherwise.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename T, typename U = typename component_type_t<T>::Type>
-			ComponentSetter add(Entity entity, U&& value) {
+			void add(Entity entity, U&& value) {
 				constexpr auto compKind = component_kind_v<T>;
 				verify_comp<T>(compKind);
 				GAIA_ASSERT(valid(entity));
@@ -20348,21 +20346,18 @@ namespace gaia {
 
 				if constexpr (component_kind_v<T> == ComponentKind::CK_Gen) {
 					entityContainer.pChunk->template set<T>(entityContainer.idx, GAIA_FWD(value));
-					return ComponentSetter{entityContainer.pChunk, entityContainer.idx};
 				} else {
 					entityContainer.pChunk->template set<T>(GAIA_FWD(value));
-					return ComponentSetter{entityContainer.pChunk, entityContainer.idx};
 				}
 			}
 
 			//! Removes a component \tparam T from \param entity.
 			//! \tparam T Component
 			//! \param entity Entity
-			//! \return ComponentSetter
 			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename T>
-			ComponentSetter del(Entity entity) {
+			void del(Entity entity) {
 				verify_comp<T>();
 				GAIA_ASSERT(valid(entity));
 
@@ -20372,8 +20367,6 @@ namespace gaia {
 
 				constexpr auto compKind = component_kind_v<T>;
 				del_inter(entity, compKind, desc);
-
-				return ComponentSetter{entityContainer.pChunk, entityContainer.idx};
 			}
 
 			//----------------------------------------------------------------------

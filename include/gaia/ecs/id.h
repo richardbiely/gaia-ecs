@@ -40,6 +40,7 @@ namespace gaia {
 			Entity() noexcept = default;
 			Entity(Identifier value) noexcept {
 				val = value;
+				GAIA_ASSERT(is_entity());
 				data.isEntity = 1;
 			}
 			Entity(EntityId id, IdentifierData gen) noexcept {
@@ -105,6 +106,7 @@ namespace gaia {
 			Component() noexcept = default;
 			Component(Identifier value) noexcept {
 				val = value;
+				GAIA_ASSERT(!is_entity());
 				data.unused = 0;
 				data.isEntity = 0;
 			}

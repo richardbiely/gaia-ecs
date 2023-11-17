@@ -111,15 +111,13 @@ public:
 };
 
 void CreateEntities(ecs::World& w) {
-	{
-		auto e = w.add();
-		w.add<Position>(e, {0, 100, 0});
-		w.add<Velocity>(e, {1, 0, 0});
+	auto e = w.add();
+	w.add<Position>(e, {0, 100, 0});
+	w.add<Velocity>(e, {1, 0, 0});
 
-		constexpr uint32_t N = 1000;
-		GAIA_FOR(N) {
-			[[maybe_unused]] auto newentity = w.add(e);
-		}
+	constexpr uint32_t N = 1000;
+	GAIA_FOR(N) {
+		[[maybe_unused]] auto newentity = w.add(e);
 	}
 }
 
