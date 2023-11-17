@@ -1,11 +1,11 @@
 #pragma once
 #include "../config/config.h"
 
-#include <cinttypes>
 #include <cstdint>
 #include <tuple>
 #include <type_traits>
 #include <utility>
+
 
 #include "../cnt/sarray_ext.h"
 #include "../config/profiler.h"
@@ -328,13 +328,13 @@ namespace gaia {
 #endif
 					const cnt::sarray<ComponentOffsetArray, ComponentKind::CK_Count>& compOffs) {
 				const auto totalBytes = chunk_total_bytes(dataBytes);
-				const auto sizeType = detail::ChunkAllocatorImpl::mem_block_size_type(totalBytes);
+				const auto sizeType = mem_block_size_type(totalBytes);
 #if GAIA_ECS_CHUNK_ALLOCATOR
 				auto* pChunk = (Chunk*)ChunkAllocator::get().alloc(totalBytes);
 				new (pChunk) Chunk(chunkIndex, capacity, sizeType, worldVersion);
 #else
 				GAIA_ASSERT(totalBytes <= MaxMemoryBlockSize);
-				const auto allocSize = detail::ChunkAllocatorImpl::mem_block_size(sizeType);
+				const auto allocSize = mem_block_size(sizeType);
 				auto* pChunkMem = new uint8_t[allocSize];
 				auto* pChunk = new (pChunkMem) Chunk(chunkIndex, capacity, sizeType, worldVersion);
 #endif
@@ -1282,7 +1282,7 @@ namespace gaia {
 
 			//! Returns the number of bytes the chunk spans over
 			GAIA_NODISCARD uint32_t bytes() const {
-				return detail::ChunkAllocatorImpl::mem_block_size(m_header.sizeType);
+				return mem_block_size(m_header.sizeType);
 			}
 
 			//! Returns true if the provided version is newer than the one stored internally

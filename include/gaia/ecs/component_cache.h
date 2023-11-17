@@ -1,7 +1,7 @@
 #pragma once
 #include "../config/config.h"
 
-#include <cinttypes>
+#include <cstdint>
 #include <type_traits>
 
 #include "../cnt/darray.h"
@@ -16,7 +16,9 @@ namespace gaia {
 		class ComponentCache {
 			static constexpr uint32_t FastComponentCacheSize = 1024;
 
+			//! Fast-lookup cache for the first FastComponentCacheSize components
 			cnt::darray<const ComponentDesc*> m_descByIndex;
+			//! Slower but more memory-friendly lookup cache for components with ids beyond FastComponentCacheSize
 			cnt::map<ComponentId, const ComponentDesc*> m_descByIndexMap;
 
 			ComponentCache() {
@@ -38,6 +40,18 @@ namespace gaia {
 			ComponentCache(const ComponentCache&) = delete;
 			ComponentCache& operator=(ComponentCache&&) = delete;
 			ComponentCache& operator=(const ComponentCache&) = delete;
+
+			//! Clears the contents of the component cache
+			//! \warning Should be used only after worlds are cleared because it invalidates all currently
+			//!          existing component ids. Any cached content would stop working.
+			void clear() {
+				for (const auto* pDesc: m_descByIndex)
+					delete pDesc;
+				for (auto [componentId, pDesc]: m_descByIndexMap)
+					delete pDesc;
+				m_descByIndex.clear();
+				m_descByIndexMap.clear();
+			}
 
 			//! Registers the component info for \tparam T. If it already exists it is returned.
 			//! \return Component info
@@ -130,16 +144,6 @@ namespace gaia {
 					logDesc(pDesc);
 				for (auto [componentId, pDesc]: m_descByIndexMap)
 					logDesc(pDesc);
-			}
-
-		private:
-			void clear() {
-				for (const auto* pDesc: m_descByIndex)
-					delete pDesc;
-				for (auto [componentId, pDesc]: m_descByIndexMap)
-					delete pDesc;
-				m_descByIndex.clear();
-				m_descByIndexMap.clear();
 			}
 		};
 	} // namespace ecs

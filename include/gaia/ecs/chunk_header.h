@@ -1,7 +1,6 @@
 #pragma once
 #include "../config/config.h"
 
-#include <cinttypes>
 #include <cstdint>
 
 #include "../cnt/bitset.h"
@@ -57,8 +56,7 @@ namespace gaia {
 		struct ChunkHeader final {
 			//! Maxiumum number of entities per chunk.
 			//! Defined as sizeof(big_chunk) / sizeof(entity)
-			static constexpr uint16_t MAX_CHUNK_ENTITIES =
-					(detail::ChunkAllocatorImpl::mem_block_size(1) - 64) / sizeof(Entity);
+			static constexpr uint16_t MAX_CHUNK_ENTITIES = (mem_block_size(1) - 64) / sizeof(Entity);
 			static constexpr uint16_t MAX_CHUNK_ENTITIES_BITS = (uint16_t)core::count_bits(MAX_CHUNK_ENTITIES);
 
 			static constexpr uint16_t CHUNK_LIFESPAN_BITS = 4;

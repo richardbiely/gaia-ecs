@@ -1,6 +1,7 @@
 #pragma once
 #include "../config/config.h"
 
+#include <cstdint>
 #include <cinttypes>
 
 #include "../cnt/darray.h"
@@ -332,8 +333,8 @@ namespace gaia {
 				for (auto comp: compsUni)
 					uniCompsSize += comp.size();
 
-				const uint32_t size0 = Chunk::chunk_data_bytes(detail::ChunkAllocatorImpl::mem_block_size(0));
-				const uint32_t size1 = Chunk::chunk_data_bytes(detail::ChunkAllocatorImpl::mem_block_size(1));
+				const uint32_t size0 = Chunk::chunk_data_bytes(mem_block_size(0));
+				const uint32_t size1 = Chunk::chunk_data_bytes(mem_block_size(1));
 				const auto sizeM = (size0 + size1) / 2;
 
 				uint32_t maxDataOffsetTarget = size1;
@@ -381,8 +382,7 @@ namespace gaia {
 				reg_components(*newArch, compsGen, ComponentKind::CK_Gen, currOff, maxGenItemsInArchetype);
 				reg_components(*newArch, compsUni, ComponentKind::CK_Uni, currOff, 1);
 
-				GAIA_ASSERT(
-						Chunk::chunk_total_bytes((ChunkDataOffset)currOff) < detail::ChunkAllocatorImpl::mem_block_size(currOff));
+				GAIA_ASSERT(Chunk::chunk_total_bytes((ChunkDataOffset)currOff) < mem_block_size(currOff));
 				newArch->m_properties.capacity = (uint16_t)maxGenItemsInArchetype;
 				newArch->m_properties.chunkDataBytes = (ChunkDataOffset)currOff;
 

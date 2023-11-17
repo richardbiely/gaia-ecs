@@ -1,20 +1,23 @@
 #pragma once
 #include "../config/config.h"
 
-#include <cinttypes>
 #include <cstdint>
 
-#include "../cnt/darray.h"
-#include "../cnt/sarray.h"
-#include "../cnt/sarray_ext.h"
-#include "../config/logging.h"
-#include "../config/profiler.h"
-#include "../core/bit_utils.h"
-#include "../core/dyn_singleton.h"
-#include "../core/span.h"
-#include "../core/utility.h"
-#include "../mem/mem_alloc.h"
-#include "common.h"
+#if GAIA_ECS_CHUNK_ALLOCATOR
+	#include <cinttypes>
+
+	#include "../cnt/darray.h"
+	#include "../cnt/sarray.h"
+	#include "../cnt/sarray_ext.h"
+	#include "../config/logging.h"
+	#include "../config/profiler.h"
+	#include "../core/bit_utils.h"
+	#include "../core/dyn_singleton.h"
+	#include "../core/span.h"
+	#include "../core/utility.h"
+	#include "../mem/mem_alloc.h"
+	#include "common.h"
+#endif
 
 namespace gaia {
 	namespace ecs {
@@ -23,6 +26,15 @@ namespace gaia {
 		//! Unusable area at the beggining of the allocated block designated for special pruposes
 		static constexpr uint32_t MemoryBlockUsableOffset = sizeof(uintptr_t);
 
+		inline constexpr uint16_t mem_block_size(uint32_t sizeType) {
+			return sizeType != 0 ? MaxMemoryBlockSize : MaxMemoryBlockSize / 2;
+		}
+
+		inline constexpr uint8_t mem_block_size_type(uint32_t sizeBytes) {
+			return (uint8_t)(sizeBytes > MaxMemoryBlockSize / 2);
+		}
+
+#if GAIA_ECS_CHUNK_ALLOCATOR
 		struct ChunkAllocatorPageStats final {
 			//! Total allocated memory
 			uint64_t mem_total;
@@ -185,23 +197,32 @@ namespace gaia {
 				//! When true, destruction has been requested
 				bool m_isDone = false;
 
+			private:
 				ChunkAllocatorImpl() = default;
 
+				void on_delete() {
+					flush();
+
+					// Make sure there are no leaks
+					auto memStats = stats();
+					for (const auto& s: memStats.stats) {
+						if (s.mem_total != 0) {
+							GAIA_ASSERT(false && "ECS leaking memory");
+							GAIA_LOG_W("ECS leaking memory!");
+							diag();
+						}
+					}
+				}
+
 			public:
-				~ChunkAllocatorImpl() = default;
+				~ChunkAllocatorImpl() {
+					on_delete();
+				}
 
 				ChunkAllocatorImpl(ChunkAllocatorImpl&& world) = delete;
 				ChunkAllocatorImpl(const ChunkAllocatorImpl& world) = delete;
 				ChunkAllocatorImpl& operator=(ChunkAllocatorImpl&&) = delete;
 				ChunkAllocatorImpl& operator=(const ChunkAllocatorImpl&) = delete;
-
-				static constexpr uint16_t mem_block_size(uint32_t sizeType) {
-					return sizeType != 0 ? MaxMemoryBlockSize : MaxMemoryBlockSize / 2;
-				}
-
-				static constexpr uint8_t mem_block_size_type(uint32_t sizeBytes) {
-					return (uint8_t)(sizeBytes > MaxMemoryBlockSize / 2);
-				}
 
 				/*!
 				Allocates memory
@@ -256,7 +277,7 @@ namespace gaia {
 
 					auto& container = m_pages[pPage->m_sizeType];
 
-#if GAIA_ASSERT_ENABLED
+	#if GAIA_ASSERT_ENABLED
 					if (wasFull) {
 						const auto res = core::has_if(container.pagesFull, [&](auto* page) {
 							return page == pPage;
@@ -268,7 +289,7 @@ namespace gaia {
 						});
 						GAIA_ASSERT(res && "Memory page couldn't be found among free pages");
 					}
-#endif
+	#endif
 
 					// Free the chunk
 					pPage->free_block(pBlock);
@@ -388,6 +409,8 @@ namespace gaia {
 				};
 			};
 		} // namespace detail
+
+#endif
 
 	} // namespace ecs
 } // namespace gaia

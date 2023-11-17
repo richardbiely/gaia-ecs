@@ -3780,6 +3780,112 @@ TEST_CASE("DataLayout SoA16 - ECS") {
 }
 
 //------------------------------------------------------------------------------
+// Component cache
+//------------------------------------------------------------------------------
+
+TEST_CASE("Component cache") {
+	auto& cc = ecs::ComponentCache::get();
+
+	{
+		cc.clear();
+		const auto comp = cc.goc_comp_desc<Position>().comp;
+		REQUIRE(comp == cc.goc_comp_desc<const Position>().comp);
+		REQUIRE(comp == cc.goc_comp_desc<Position&>().comp);
+		REQUIRE(comp == cc.goc_comp_desc<const Position&>().comp);
+		REQUIRE(comp == cc.goc_comp_desc<Position*>().comp);
+		REQUIRE(comp == cc.goc_comp_desc<const Position*>().comp);
+	}
+	{
+		cc.clear();
+		const auto comp = cc.goc_comp_desc<const Position>().comp;
+		REQUIRE(comp == cc.goc_comp_desc<Position>().comp);
+		REQUIRE(comp == cc.goc_comp_desc<Position&>().comp);
+		REQUIRE(comp == cc.goc_comp_desc<const Position&>().comp);
+		REQUIRE(comp == cc.goc_comp_desc<Position*>().comp);
+		REQUIRE(comp == cc.goc_comp_desc<const Position*>().comp);
+	}
+	{
+		cc.clear();
+		const auto comp = cc.goc_comp_desc<Position&>().comp;
+		REQUIRE(comp == cc.goc_comp_desc<Position>().comp);
+		REQUIRE(comp == cc.goc_comp_desc<const Position>().comp);
+		REQUIRE(comp == cc.goc_comp_desc<const Position&>().comp);
+		REQUIRE(comp == cc.goc_comp_desc<Position*>().comp);
+		REQUIRE(comp == cc.goc_comp_desc<const Position*>().comp);
+	}
+	{
+		cc.clear();
+		const auto comp = cc.goc_comp_desc<const Position&>().comp;
+		REQUIRE(comp == cc.goc_comp_desc<Position>().comp);
+		REQUIRE(comp == cc.goc_comp_desc<const Position>().comp);
+		REQUIRE(comp == cc.goc_comp_desc<Position&>().comp);
+		REQUIRE(comp == cc.goc_comp_desc<Position*>().comp);
+		REQUIRE(comp == cc.goc_comp_desc<const Position*>().comp);
+	}
+	{
+		cc.clear();
+		const auto comp = cc.goc_comp_desc<Position*>().comp;
+		REQUIRE(comp == cc.goc_comp_desc<Position>().comp);
+		REQUIRE(comp == cc.goc_comp_desc<const Position>().comp);
+		REQUIRE(comp == cc.goc_comp_desc<Position&>().comp);
+		REQUIRE(comp == cc.goc_comp_desc<const Position&>().comp);
+		REQUIRE(comp == cc.goc_comp_desc<const Position*>().comp);
+	}
+	{
+		cc.clear();
+		const auto comp = cc.goc_comp_desc<const Position*>().comp;
+		REQUIRE(comp == cc.goc_comp_desc<Position>().comp);
+		REQUIRE(comp == cc.goc_comp_desc<const Position>().comp);
+		REQUIRE(comp == cc.goc_comp_desc<Position&>().comp);
+		REQUIRE(comp == cc.goc_comp_desc<const Position&>().comp);
+		REQUIRE(comp == cc.goc_comp_desc<Position*>().comp);
+	}
+}
+
+//------------------------------------------------------------------------------
+// Multiple worlds
+//------------------------------------------------------------------------------
+
+TEST_CASE("Multiple worlds") {
+	ecs::World w1, w2;
+	{
+		auto e = w1.add();
+		w1.add<Position>(e, {1, 1, 1});
+		(void)w1.add(e);
+		(void)w1.add(e);
+	}
+	{
+		auto e = w2.add();
+		w2.add<Scale>(e, {2, 0, 0});
+		w2.add<Position>(e, {2, 2, 2});
+	}
+
+	uint32_t c = 0;
+	auto q1 = w1.query().all<Position>();
+	q1.each([&c](const Position& p) {
+		REQUIRE(p.x == 1.f);
+		REQUIRE(p.y == 1.f);
+		REQUIRE(p.z == 1.f);
+		++c;
+	});
+	REQUIRE(c == 3);
+
+	c = 0;
+	auto q2 = w2.query().all<Position>();
+	q2.each([&c](const Position& p) {
+		REQUIRE(p.x == 2.f);
+		REQUIRE(p.y == 2.f);
+		REQUIRE(p.z == 2.f);
+		++c;
+	});
+	REQUIRE(c == 1);
+
+	
+	//w2.cleanup();
+	//w1.cleanup();
+}
+
+//------------------------------------------------------------------------------
 // Serialization
 //------------------------------------------------------------------------------
 
