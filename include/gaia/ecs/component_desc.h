@@ -1,7 +1,6 @@
 #pragma once
 #include "../config/config.h"
 
-#include <__tuple_dir/tuple_size.h>
 #include <cstdint>
 #include <cstring>
 #include <tuple>

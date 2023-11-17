@@ -1,3 +1,4 @@
+#include "gaia/ecs/world.h"
 #include <gaia.h>
 
 #if GAIA_COMPILER_MSVC
@@ -1568,7 +1569,7 @@ TEST_CASE("Add - 1 component") {
 	const uint32_t N = 10'000;
 	GAIA_FOR(N) create(i);
 
-	const auto& desc = ecs::ComponentCache::get().comp_desc<Int3>();
+	const auto& desc = w.comp_cache().comp_desc<Int3>();
 	REQUIRE_FALSE(ecs::is_entity(desc.comp));
 }
 
@@ -3784,8 +3785,8 @@ TEST_CASE("DataLayout SoA16 - ECS") {
 //------------------------------------------------------------------------------
 
 TEST_CASE("Component cache") {
-	auto& cc = ecs::ComponentCache::get();
-
+	ecs::World w;
+	auto& cc = w.comp_cache_mut();
 	{
 		cc.clear();
 		const auto comp = cc.goc_comp_desc<Position>().comp;

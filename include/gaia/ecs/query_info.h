@@ -11,6 +11,7 @@
 #include "archetype_common.h"
 #include "component.h"
 #include "component_utils.h"
+#include "gaia/ecs/component_cache.h"
 #include "query_common.h"
 
 namespace gaia {
@@ -30,9 +31,9 @@ namespace gaia {
 			//! List of archetypes matching the query
 			ArchetypeList m_archetypeCache;
 			//! Id of the last archetype in the world we checked
-			ArchetypeId m_lastArchetypeId = 0;
+			ArchetypeId m_lastArchetypeId{};
 			//! Version of the world for which the query has been called most recently
-			uint32_t m_worldVersion = 0;
+			uint32_t m_worldVersion{};
 
 			template <typename T>
 			bool has_inter(

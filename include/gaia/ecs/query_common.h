@@ -25,6 +25,7 @@ namespace gaia {
 		static constexpr QueryId QueryIdBad = (QueryId)-1;
 
 		struct QueryCtx {
+			ComponentCache* cc{};
 			//! Lookup hash for this query
 			QueryLookupHash hashLookup{};
 			//! Query id
@@ -132,16 +133,19 @@ namespace gaia {
 		}
 
 		inline void matcher_hashes(QueryCtx& ctx) {
+			GAIA_ASSERT(ctx.cc != nullptr);
+
 			// Sort the arrays if necessary
 			sort(ctx);
 
 			// Calculate the matcher hash
 			for (auto& data: ctx.data) {
-				GAIA_EACH(data.rules) matcher_hash(data.hash[data.rules[i]], data.comps[i]);
+				GAIA_EACH(data.rules) matcher_hash(*ctx.cc, data.hash[data.rules[i]], data.comps[i]);
 			}
 		}
 
 		inline void calc_lookup_hash(QueryCtx& ctx) {
+			GAIA_ASSERT(ctx.cc != nullptr);
 			// Make sure we don't calculate the hash twice
 			GAIA_ASSERT(ctx.hashLookup.hash == 0);
 

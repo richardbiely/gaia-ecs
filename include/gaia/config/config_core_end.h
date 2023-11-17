@@ -46,7 +46,7 @@
 			{                                                                                                                \
 				GAIA_MSVC_WARNING_PUSH()                                                                                       \
 				GAIA_MSVC_WARNING_DISABLE(4127)                                                                                \
-				if GAIA_UNLIKELY (!(cond))                                                                                        \
+				if GAIA_UNLIKELY (!(cond))                                                                                     \
 					[] {                                                                                                         \
 						assert(!#cond);                                                                                            \
 					}();                                                                                                         \
@@ -60,7 +60,7 @@
 				{                                                                                                              \
 					GAIA_MSVC_WARNING_PUSH()                                                                                     \
 					GAIA_MSVC_WARNING_DISABLE(4127)                                                                              \
-					if GAIA_UNLIKELY (!(cond))                                                                                      \
+					if GAIA_UNLIKELY (!(cond))                                                                                   \
 						[] {                                                                                                       \
 							GAIA_LOG_E("%s:%d: Assertion failed: '%s'.", __FILE__, __LINE__, #cond);                                 \
 						}();                                                                                                       \
@@ -100,7 +100,7 @@ namespace gaia {
 	};
 
 	//! Prefetch intrinsic
-	extern inline void prefetch([[maybe_unused]] const void* x, [[maybe_unused]] int hint) {
+	inline void prefetch([[maybe_unused]] const void* x, [[maybe_unused]] int hint) {
 #if GAIA_USE_PREFETCH
 	#if GAIA_COMPILER_CLANG
 		// In the gcc version of prefetch(), hint is only a constant _after_ inlining

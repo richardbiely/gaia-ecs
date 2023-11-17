@@ -34,7 +34,7 @@ namespace gaia {
 				uint32_t entities;
 				cnt::map<uint32_t, Entity> entityMap;
 
-				CommandBufferCtx(ecs::World& w): world(w), entities(0) {}
+				CommandBufferCtx(ecs::World& w): SerializationBuffer(&w.comp_cache()), world(w), entities(0) {}
 
 				using SerializationBuffer::reset;
 				void reset() {
@@ -93,7 +93,7 @@ namespace gaia {
 				ComponentKind compKind;
 
 				void commit(CommandBufferCtx& ctx) const {
-					const auto& desc = ComponentCache::get().comp_desc(compId);
+					const auto& desc = comp_cache(ctx.world).comp_desc(compId);
 					ctx.world.add_inter(entity, compKind, desc);
 
 #if GAIA_ASSERT_ENABLED
@@ -109,7 +109,7 @@ namespace gaia {
 				ComponentKind compKind;
 
 				void commit(CommandBufferCtx& ctx) const {
-					const auto& desc = ComponentCache::get().comp_desc(compId);
+					const auto& desc = comp_cache(ctx.world).comp_desc(compId);
 					ctx.world.add_inter(entity, compKind, desc);
 
 					uint32_t indexInChunk{};
@@ -139,7 +139,7 @@ namespace gaia {
 
 					Entity entity = it->second;
 
-					const auto& desc = ComponentCache::get().comp_desc(compId);
+					const auto& desc = comp_cache(ctx.world).comp_desc(compId);
 					ctx.world.add_inter(entity, compKind, desc);
 
 #if GAIA_ASSERT_ENABLED
@@ -164,7 +164,7 @@ namespace gaia {
 					Entity entity = it->second;
 
 					// Components
-					const auto& desc = ComponentCache::get().comp_desc(compId);
+					const auto& desc = comp_cache(ctx.world).comp_desc(compId);
 					ctx.world.add_inter(entity, compKind, desc);
 
 					uint32_t indexInChunk{};
@@ -226,7 +226,7 @@ namespace gaia {
 				ComponentKind compKind;
 
 				void commit(CommandBufferCtx& ctx) const {
-					const auto& desc = ComponentCache::get().comp_desc(compId);
+					const auto& desc = comp_cache(ctx.world).comp_desc(compId);
 					ctx.world.del_inter(entity, compKind, desc);
 				}
 			};
@@ -303,7 +303,7 @@ namespace gaia {
 			template <typename T>
 			void add(Entity entity) {
 				// Make sure the component is registered
-				const auto& desc = ComponentCache::get().goc_comp_desc<T>();
+				const auto& desc = comp_cache_mut(m_ctx.world).goc_comp_desc<T>();
 
 				using U = typename component_type_t<T>::Type;
 				constexpr auto compKind = component_kind_v<T>;
@@ -324,7 +324,7 @@ namespace gaia {
 			template <typename T>
 			void add(TempEntity entity) {
 				// Make sure the component is registered
-				const auto& desc = ComponentCache::get().goc_comp_desc<T>();
+				const auto& desc = comp_cache_mut(m_ctx.world).goc_comp_desc<T>();
 
 				using U = typename component_type_t<T>::Type;
 				constexpr auto compKind = component_kind_v<T>;
@@ -345,7 +345,7 @@ namespace gaia {
 			template <typename T>
 			void add(Entity entity, T&& value) {
 				// Make sure the component is registered
-				const auto& desc = ComponentCache::get().goc_comp_desc<T>();
+				const auto& desc = comp_cache_mut(m_ctx.world).goc_comp_desc<T>();
 
 				using U = typename component_type_t<T>::Type;
 				constexpr auto compKind = component_kind_v<T>;
@@ -367,7 +367,7 @@ namespace gaia {
 			template <typename T>
 			void add(TempEntity entity, T&& value) {
 				// Make sure the component is registered
-				const auto& desc = ComponentCache::get().goc_comp_desc<T>();
+				const auto& desc = comp_cache_mut(m_ctx.world).goc_comp_desc<T>();
 
 				using U = typename component_type_t<T>::Type;
 				constexpr auto compKind = component_kind_v<T>;
@@ -390,7 +390,7 @@ namespace gaia {
 			void set(Entity entity, T&& value) {
 				// No need to check if the component is registered.
 				// If we want to set the value of a component we must have created it already.
-				// (void)ComponentCache::get().comp_desc<T>();
+				// (void)comp_cache(ctx.world).comp_desc<T>();
 
 				using U = typename component_type_t<T>::Type;
 				verify_comp<U>();
@@ -413,7 +413,7 @@ namespace gaia {
 			void set(TempEntity entity, T&& value) {
 				// No need to check if the component is registered.
 				// If we want to set the value of a component we must have created it already.
-				// (void)ComponentCache::get().goc_comp_desc<T>();
+				// (void)m_ctx.world.comp_cache_mut().goc_comp_desc<T>();
 
 				using U = typename component_type_t<T>::Type;
 				verify_comp<U>();
@@ -435,7 +435,7 @@ namespace gaia {
 			void del(Entity entity) {
 				// No need to check if the component is registered.
 				// If we want to remove a component we must have created it already.
-				// (void)ComponentCache::get().goc_comp_desc<T>();
+				// (void)m_ctx.world.comp_cache_mut().goc_comp_desc<T>();
 
 				using U = typename component_type_t<T>::Type;
 				verify_comp<U>();

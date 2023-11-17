@@ -10,6 +10,9 @@
 
 namespace gaia {
 	namespace ecs {
+		class World;
+		inline const ComponentCache& comp_cache(World& world);
+
 		class ArchetypeGraph {
 			struct ArchetypeGraphEdge {
 				ArchetypeId archetypeId;
@@ -51,9 +54,7 @@ namespace gaia {
 				return it != edges.end() ? it->second.archetypeId : ArchetypeIdBad;
 			}
 
-			void diag() const {
-				const auto& cc = ComponentCache::get();
-
+			void diag(const ComponentCache& cc) const {
 				// Add edges (movement towards the leafs)
 				{
 					const auto& edgesG = m_edgesAdd[ComponentKind::CK_Gen];

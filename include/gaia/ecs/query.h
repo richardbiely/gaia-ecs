@@ -74,8 +74,7 @@ namespace gaia {
 						if (comps.size() >= MAX_COMPONENTS_IN_QUERY) {
 							GAIA_ASSERT(false && "Trying to create an ECS query with too many components!");
 
-							const auto& cc = ComponentCache::get();
-							auto componentName = cc.comp_desc(comp.id()).name;
+							auto componentName = ctx.cc->comp_desc(comp.id()).name;
 							GAIA_LOG_E(
 									"Trying to add ECS component '%.*s' to an already full ECS query!", (uint32_t)componentName.size(),
 									componentName.data());
@@ -114,8 +113,7 @@ namespace gaia {
 						if (withChanged.size() >= MAX_COMPONENTS_IN_QUERY) {
 							GAIA_ASSERT(false && "Trying to create an ECS filter query with too many components!");
 
-							const auto& cc = ComponentCache::get();
-							auto componentName = cc.comp_desc(comp.id()).name;
+							auto componentName = ctx.cc->comp_desc(comp.id()).name;
 							GAIA_LOG_E(
 									"Trying to add ECS component %.*s to an already full filter query!", (uint32_t)componentName.size(),
 									componentName.data());
@@ -141,8 +139,7 @@ namespace gaia {
 
 						GAIA_ASSERT(false && "SetChangeFilter trying to filter ECS component which is not a part of the query");
 #if GAIA_DEBUG
-						const auto& cc = ComponentCache::get();
-						auto componentName = cc.comp_desc(comp.id()).name;
+						auto componentName = ctx.cc->comp_desc(comp.id()).name;
 						GAIA_LOG_E(
 								"SetChangeFilter trying to filter ECS component %.*s but "
 								"it's not a part of the query!",
@@ -165,6 +162,7 @@ namespace gaia {
 							cmd.exec(ctx);
 						}};
 
+				ComponentCache* m_cc{};
 				//! Storage for data based on whether Caching is used or not
 				QueryImplStorage<UseCaching> m_storage;
 				//! Buffer with commands used to fetch the QueryInfo
@@ -199,6 +197,7 @@ namespace gaia {
 
 						// No queryId is set which means QueryInfo needs to be created
 						QueryCtx ctx;
+						ctx.cc = m_cc;
 						commit(ctx);
 						auto& queryInfo = m_storage.m_entityQueryCache->goc(GAIA_MOV(ctx));
 						m_storage.m_queryId = queryInfo.id();
@@ -207,6 +206,7 @@ namespace gaia {
 					} else {
 						if GAIA_UNLIKELY (m_storage.m_queryInfo.id() == QueryIdBad) {
 							QueryCtx ctx;
+							ctx.cc = m_cc;
 							commit(ctx);
 							m_storage.m_queryInfo = QueryInfo::create(QueryId{}, GAIA_MOV(ctx));
 						}
@@ -227,8 +227,7 @@ namespace gaia {
 					constexpr auto isReadWrite = core::is_mut_v<T>;
 
 					// Make sure the component is always registered
-					auto& cc = ComponentCache::get();
-					const auto& desc = cc.goc_comp_desc<T>();
+					const auto& desc = m_cc->goc_comp_desc<T>();
 
 					Command_AddComponent cmd{desc.comp, compKind, listType, isReadWrite};
 					ser::save(m_serBuffer, Command_AddComponent::Id);
@@ -242,8 +241,7 @@ namespace gaia {
 					constexpr auto compKind = component_kind_v<T>;
 
 					// Make sure the component is always registered
-					auto& cc = ComponentCache::get();
-					const auto& desc = cc.goc_comp_desc<T>();
+					const auto& desc = m_cc->goc_comp_desc<T>();
 
 					Command_Filter cmd{desc.comp, compKind};
 					ser::save(m_serBuffer, Command_Filter::Id);
@@ -524,22 +522,23 @@ namespace gaia {
 
 				template <bool FuncEnabled = UseCaching>
 				QueryImpl(
-						QueryCache& queryCache, ArchetypeId& nextArchetypeId, uint32_t& worldVersion,
+						ComponentCache& cc, QueryCache& queryCache, ArchetypeId& nextArchetypeId, uint32_t& worldVersion,
 						const cnt::map<ArchetypeId, Archetype*>& archetypes,
 						const ComponentIdToArchetypeMap& componentToArchetypeMap):
-						m_nextArchetypeId(&nextArchetypeId),
-						m_worldVersion(&worldVersion), m_archetypes(&archetypes),
-						m_componentToArchetypeMap(&componentToArchetypeMap) {
+						m_cc(&cc),
+						m_serBuffer(&cc), m_nextArchetypeId(&nextArchetypeId), m_worldVersion(&worldVersion),
+						m_archetypes(&archetypes), m_componentToArchetypeMap(&componentToArchetypeMap) {
 					m_storage.m_entityQueryCache = &queryCache;
 				}
 
 				template <bool FuncEnabled = !UseCaching>
 				QueryImpl(
-						ArchetypeId& nextArchetypeId, uint32_t& worldVersion, const cnt::map<ArchetypeId, Archetype*>& archetypes,
+						ComponentCache& cc, ArchetypeId& nextArchetypeId, uint32_t& worldVersion,
+						const cnt::map<ArchetypeId, Archetype*>& archetypes,
 						const ComponentIdToArchetypeMap& componentToArchetypeMap):
-						m_nextArchetypeId(&nextArchetypeId),
-						m_worldVersion(&worldVersion), m_archetypes(&archetypes),
-						m_componentToArchetypeMap(&componentToArchetypeMap) {}
+						m_cc(&cc),
+						m_serBuffer(&cc), m_nextArchetypeId(&nextArchetypeId), m_worldVersion(&worldVersion),
+						m_archetypes(&archetypes), m_componentToArchetypeMap(&componentToArchetypeMap) {}
 
 				GAIA_NODISCARD uint32_t id() const {
 					static_assert(UseCaching, "id() can be used only with cached queries");

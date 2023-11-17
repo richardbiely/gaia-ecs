@@ -14,12 +14,22 @@ namespace gaia {
 			// TODO: Replace with some memory allocator
 			using DataContainer = cnt::darray_ext<uint8_t, CapacityIncreaseSize>;
 
+			const ComponentCache* m_cc;
 			//! Buffer holding raw data
 			DataContainer m_data;
 			//! Current position in the buffer
 			uint32_t m_dataPos = 0;
 
 		public:
+			SerializationBuffer() = default;
+			SerializationBuffer(const ComponentCache* cc): m_cc(cc) {}
+			~SerializationBuffer() = default;
+
+			SerializationBuffer(const SerializationBuffer&) = default;
+			SerializationBuffer(SerializationBuffer&&) = default;
+			SerializationBuffer& operator=(const SerializationBuffer&) = default;
+			SerializationBuffer& operator=(SerializationBuffer&&) = default;
+
 			void reset() {
 				m_dataPos = 0;
 				m_data.clear();
@@ -84,7 +94,7 @@ namespace gaia {
 			template <typename T>
 			void save_comp(T&& value) {
 				const auto compId = comp_id<T>();
-				const auto& desc = ComponentCache::get().comp_desc(compId);
+				const auto& desc = m_cc->comp_desc(compId);
 				const bool isManualDestroyNeeded = desc.func_copy_ctor != nullptr || desc.func_move_ctor != nullptr;
 				constexpr bool isRValue = std::is_rvalue_reference_v<decltype(value)>;
 
@@ -128,7 +138,7 @@ namespace gaia {
 				bool isManualDestroyNeeded = false;
 				load(isManualDestroyNeeded);
 
-				const auto& desc = ComponentCache::get().comp_desc(compId);
+				const auto& desc = m_cc->comp_desc(compId);
 				GAIA_ASSERT(m_dataPos + desc.comp.size() <= bytes());
 				auto* pSrc = (void*)&m_data[m_dataPos];
 				desc.move(pSrc, pDst);

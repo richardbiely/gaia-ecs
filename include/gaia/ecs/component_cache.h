@@ -21,15 +21,10 @@ namespace gaia {
 			//! Slower but more memory-friendly lookup cache for components with ids beyond FastComponentCacheSize
 			cnt::map<ComponentId, const ComponentCacheItem*> m_descByIndexMap;
 
+		public:
 			ComponentCache() {
 				// Reserve enough storage space for most use-cases
 				m_descByIndex.reserve(FastComponentCacheSize);
-			}
-
-		public:
-			static ComponentCache& get() {
-				static ComponentCache cache;
-				return cache;
 			}
 
 			~ComponentCache() {

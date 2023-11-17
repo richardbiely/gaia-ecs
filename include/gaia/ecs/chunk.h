@@ -6,7 +6,6 @@
 #include <type_traits>
 #include <utility>
 
-
 #include "../cnt/sarray_ext.h"
 #include "../config/profiler.h"
 #include "../core/utility.h"
@@ -72,7 +71,7 @@ namespace gaia {
 			GAIA_MSVC_WARNING_POP()
 
 			void init(
-					const cnt::sarray<ComponentArray, ComponentKind::CK_Count>& comps,
+					const ComponentCache& cc, const cnt::sarray<ComponentArray, ComponentKind::CK_Count>& comps,
 #if GAIA_COMP_ID_PROBING
 					const cnt::sarray<ComponentIdInterMap, ComponentKind::CK_Count>& compMap,
 #endif
@@ -80,8 +79,6 @@ namespace gaia {
 					const cnt::sarray<ComponentOffsetArray, ComponentKind::CK_Count>& compOffs) {
 				m_header.componentCount[ComponentKind::CK_Gen] = (uint8_t)comps[ComponentKind::CK_Gen].size();
 				m_header.componentCount[ComponentKind::CK_Uni] = (uint8_t)comps[ComponentKind::CK_Uni].size();
-
-				const auto& cc = ComponentCache::get();
 
 				// Cache pointers to versions
 				GAIA_FOR(ComponentKind::CK_Count) {
@@ -321,7 +318,7 @@ namespace gaia {
 			\return Newly allocated chunk
 			*/
 			static Chunk* create(
-					uint32_t chunkIndex, uint16_t capacity, uint16_t dataBytes, uint32_t& worldVersion,
+					const ComponentCache& cc, uint32_t chunkIndex, uint16_t capacity, uint16_t dataBytes, uint32_t& worldVersion,
 					const ChunkDataOffsets& offsets, const cnt::sarray<ComponentArray, ComponentKind::CK_Count>& comps,
 #if GAIA_COMP_ID_PROBING
 					const cnt::sarray<ComponentIdInterMap, ComponentKind::CK_Count>& compMap,
@@ -340,9 +337,9 @@ namespace gaia {
 #endif
 
 #if GAIA_COMP_ID_PROBING
-				pChunk->init(comps, compMap, offsets, compOffs);
+				pChunk->init(cc, comps, compMap, offsets, compOffs);
 #else
-				pChunk->init(comps, offsets, compOffs);
+				pChunk->init(cc, comps, offsets, compOffs);
 #endif
 
 				return pChunk;

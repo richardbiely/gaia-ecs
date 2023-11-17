@@ -43,6 +43,8 @@ namespace gaia {
 			friend void* AllocateChunkMemory(World& world);
 			friend void ReleaseChunkMemory(World& world, void* mem);
 
+			//! Cache of components
+			ComponentCache m_compCache;
 			//! Cache of queries
 			QueryCache m_queryCache;
 			//! Map of components -> archetype matches
@@ -108,8 +110,10 @@ namespace gaia {
 					GAIA_EACH_(recs, j) dst[j] = recs[j].comp;
 				}
 
-				const Archetype::GenComponentHash hashGen = {calc_lookup_hash({comps[0].data(), comps[0].size()}).hash};
-				const Archetype::UniComponentHash hashUni = {calc_lookup_hash({comps[1].data(), comps[1].size()}).hash};
+				const Archetype::GenComponentHash hashGen = {
+						calc_lookup_hash(comp_cache(), {comps[0].data(), comps[0].size()}).hash};
+				const Archetype::UniComponentHash hashUni = {
+						calc_lookup_hash(comp_cache(), {comps[1].data(), comps[1].size()}).hash};
 				const auto hashLookup = Archetype::calc_lookup_hash(hashGen, hashUni);
 
 				auto* pArchetype =
@@ -270,7 +274,7 @@ namespace gaia {
 			//! \param compsUni Span of unique components
 			//! \return Pointer to the new archetype.
 			GAIA_NODISCARD Archetype* create_archetype(ComponentSpan compsGen, ComponentSpan compsUni) {
-				auto* pArchetype = Archetype::create(m_nextArchetypeId++, m_worldVersion, compsGen, compsUni);
+				auto* pArchetype = Archetype::create(comp_cache(), m_nextArchetypeId++, m_worldVersion, compsGen, compsUni);
 
 				auto registerComponentToArchetypePair = [&](ComponentId compId) {
 					const auto it = m_componentToArchetypeMap.find(compId);
@@ -307,10 +311,10 @@ namespace gaia {
 			}
 
 #if GAIA_DEBUG
-			static void
-			verify_add(Archetype& archetype, Entity entity, ComponentKind compKind, const ComponentCacheItem& descToAdd) {
+			static void verify_add(
+					Archetype& archetype, Entity entity, ComponentKind compKind, const ComponentCache& cc,
+					const ComponentCacheItem& descToAdd) {
 				const auto& comps = archetype.comps(compKind);
-				const auto& cc = ComponentCache::get();
 
 				// Make sure not to add too many comps
 				if GAIA_UNLIKELY (comps.size() + 1 >= Chunk::MAX_COMPONENTS) {
@@ -343,16 +347,15 @@ namespace gaia {
 				}
 			}
 
-			static void
-			verify_del(Archetype& archetype, Entity entity, ComponentKind compKind, const ComponentCacheItem& descToRemove) {
+			static void verify_del(
+					Archetype& archetype, Entity entity, ComponentKind compKind, const ComponentCache& cc,
+					const ComponentCacheItem& descToRemove) {
 				const auto& comps = archetype.comps(compKind);
 				if GAIA_UNLIKELY (!archetype.has(compKind, descToRemove.comp.id())) {
 					GAIA_ASSERT(false && "Trying to remove a component which wasn't added");
 					GAIA_LOG_W(
 							"Trying to remove a component from entity [%u.%u] but it was never added", entity.id(), entity.gen());
 					GAIA_LOG_W("Currently present:");
-
-					const auto& cc = ComponentCache::get();
 
 					GAIA_EACH(comps) {
 						const auto& desc = cc.comp_desc(comps[i].id());
@@ -444,8 +447,10 @@ namespace gaia {
 				sort(compsNew, SortComponentCond{});
 
 				// Once sorted we can calculate the hashes
-				const Archetype::GenComponentHash hashGen = {calc_lookup_hash({comps[0]->data(), comps[0]->size()}).hash};
-				const Archetype::UniComponentHash hashUni = {calc_lookup_hash({comps[1]->data(), comps[1]->size()}).hash};
+				const Archetype::GenComponentHash hashGen = {
+						calc_lookup_hash(comp_cache(), {comps[0]->data(), comps[0]->size()}).hash};
+				const Archetype::UniComponentHash hashUni = {
+						calc_lookup_hash(comp_cache(), {comps[1]->data(), comps[1]->size()}).hash};
 				const auto hashLookup = Archetype::calc_lookup_hash(hashGen, hashUni);
 
 				auto* pArchetypeRight =
@@ -467,8 +472,8 @@ namespace gaia {
 			//! \param compKind Component comps.
 			//! \param descToRemove Component we want to remove.
 			//! \return Pointer to archetype.
-			GAIA_NODISCARD Archetype*
-			foc_archetype_remove_comp(Archetype* pArchetypeRight, ComponentKind compKind, const ComponentCacheItem& descToRemove) {
+			GAIA_NODISCARD Archetype* foc_archetype_remove_comp(
+					Archetype* pArchetypeRight, ComponentKind compKind, const ComponentCacheItem& descToRemove) {
 				// Check if the component is found when following the "del" edges
 				{
 					const auto archetypeId = pArchetypeRight->find_edge_left(compKind, descToRemove.comp.id());
@@ -497,8 +502,10 @@ namespace gaia {
 					return nullptr;
 
 				// Calculate the hashes
-				const Archetype::GenComponentHash hashGen = {calc_lookup_hash({comps[0]->data(), comps[0]->size()}).hash};
-				const Archetype::UniComponentHash hashUni = {calc_lookup_hash({comps[1]->data(), comps[1]->size()}).hash};
+				const Archetype::GenComponentHash hashGen = {
+						calc_lookup_hash(comp_cache(), {comps[0]->data(), comps[0]->size()}).hash};
+				const Archetype::UniComponentHash hashUni = {
+						calc_lookup_hash(comp_cache(), {comps[1]->data(), comps[1]->size()}).hash};
 				const auto hashLookup = Archetype::calc_lookup_hash(hashGen, hashUni);
 
 				auto* pArchetype =
@@ -636,7 +643,7 @@ namespace gaia {
 			\param newArchetype Target archetype
 			*/
 			void move_entity(Entity oldEntity, Archetype& newArchetype) {
-				auto* pNewChunk = newArchetype.foc_free_chunk();
+				auto* pNewChunk = newArchetype.foc_free_chunk(comp_cache());
 				move_entity(oldEntity, newArchetype, *pNewChunk);
 			}
 
@@ -699,7 +706,7 @@ namespace gaia {
 					GAIA_PROF_SCOPE(world::add_comp);
 
 #if GAIA_DEBUG
-					verify_add(*m_pArchetype, m_entity, compKind, desc);
+					verify_add(*m_pArchetype, m_entity, compKind, m_world.comp_cache(), desc);
 #endif
 
 					m_pArchetype = m_world.foc_archetype_add_comp(m_pArchetype, compKind, desc);
@@ -710,11 +717,7 @@ namespace gaia {
 				template <typename... T>
 				CompMoveHelper& add() {
 					(verify_comp<T>(component_kind_v<T>), ...);
-
-					auto& cc = ComponentCache::get();
-
-					(add(component_kind_v<T>, cc.goc_comp_desc<typename component_type_t<T>::Type>()), ...);
-
+					(add(component_kind_v<T>, m_world.comp_cache_mut().goc_comp_desc<typename component_type_t<T>::Type>()), ...);
 					return *this;
 				}
 
@@ -722,7 +725,7 @@ namespace gaia {
 					GAIA_PROF_SCOPE(world::del_comp);
 
 #if GAIA_DEBUG
-					verify_del(*m_pArchetype, m_entity, compKind, desc);
+					verify_del(*m_pArchetype, m_entity, compKind, m_world.comp_cache(), desc);
 #endif
 
 					m_pArchetype = m_world.foc_archetype_remove_comp(m_pArchetype, compKind, desc);
@@ -733,10 +736,7 @@ namespace gaia {
 				template <typename... T>
 				CompMoveHelper& del() {
 					(verify_comp<T>(), ...);
-
-					auto& cc = ComponentCache::get();
-
-					(del(component_kind_v<T>, cc.goc_comp_desc<typename component_type_t<T>::Type>()), ...);
+					(del(component_kind_v<T>, m_world.comp_cache_mut().goc_comp_desc<typename component_type_t<T>::Type>()), ...);
 
 					return *this;
 				}
@@ -816,7 +816,7 @@ namespace gaia {
 			GAIA_NODISCARD Entity add(Archetype& archetype) {
 				const auto entity = m_entities.alloc();
 
-				auto* pChunk = archetype.foc_free_chunk();
+				auto* pChunk = archetype.foc_free_chunk(comp_cache());
 				store_entity(entity, &archetype, pChunk);
 
 				// Call constructors for the generic components on the newly added entity if necessary
@@ -855,6 +855,13 @@ namespace gaia {
 			World(const World&) = delete;
 			World& operator=(World&&) = delete;
 			World& operator=(const World&) = delete;
+
+			GAIA_NODISCARD ComponentCache& comp_cache_mut() {
+				return m_compCache;
+			}
+			GAIA_NODISCARD const ComponentCache& comp_cache() const {
+				return m_compCache;
+			}
 
 			//! Checks if \param entity is valid.
 			//! \return True is the entity is valid. False otherwise.
@@ -920,6 +927,9 @@ namespace gaia {
 					}
 					m_nameToEntity = {};
 				}
+
+				// Clear component cache
+				m_compCache.clear();
 			}
 
 			//----------------------------------------------------------------------
@@ -1065,14 +1075,13 @@ namespace gaia {
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			template <typename T>
 			void add(Entity entity) {
+				using U = typename component_type_t<T>::Type;
+
 				constexpr auto compKind = component_kind_v<T>;
 				verify_comp<T>(compKind);
 				GAIA_ASSERT(valid(entity));
 
-				using U = typename component_type_t<T>::Type;
-				const auto& desc = ComponentCache::get().goc_comp_desc<U>();
-				const auto& entityContainer = m_entities[entity.id()];
-
+				const auto& desc = m_compCache.goc_comp_desc<U>();
 				add_inter(entity, compKind, desc);
 			}
 
@@ -1088,10 +1097,10 @@ namespace gaia {
 				verify_comp<T>(compKind);
 				GAIA_ASSERT(valid(entity));
 
-				const auto& desc = ComponentCache::get().goc_comp_desc<U>();
-				const auto& entityContainer = m_entities[entity.id()];
-
+				const auto& desc = m_compCache.goc_comp_desc<U>();
 				add_inter(entity, compKind, desc);
+
+				const auto& entityContainer = m_entities[entity.id()];
 
 				if constexpr (component_kind_v<T> == ComponentKind::CK_Gen) {
 					entityContainer.pChunk->template set<T>(entityContainer.idx, GAIA_FWD(value));
@@ -1111,8 +1120,7 @@ namespace gaia {
 				GAIA_ASSERT(valid(entity));
 
 				using U = typename component_type_t<T>::Type;
-				const auto& desc = ComponentCache::get().goc_comp_desc<U>();
-				const auto& entityContainer = m_entities[entity.id()];
+				const auto& desc = m_compCache.goc_comp_desc<U>();
 
 				constexpr auto compKind = component_kind_v<T>;
 				del_inter(entity, compKind, desc);
@@ -1249,9 +1257,12 @@ namespace gaia {
 			template <bool UseCache = true>
 			auto query() {
 				if constexpr (UseCache)
-					return Query(m_queryCache, m_nextArchetypeId, m_worldVersion, m_archetypesById, m_componentToArchetypeMap);
+					return Query(
+							m_compCache, m_queryCache, m_nextArchetypeId, m_worldVersion, m_archetypesById,
+							m_componentToArchetypeMap);
 				else
-					return QueryUncached(m_nextArchetypeId, m_worldVersion, m_archetypesById, m_componentToArchetypeMap);
+					return QueryUncached(
+							m_compCache, m_nextArchetypeId, m_worldVersion, m_archetypesById, m_componentToArchetypeMap);
 			}
 
 			//----------------------------------------------------------------------
@@ -1277,13 +1288,13 @@ namespace gaia {
 			void diag_archetypes() const {
 				GAIA_LOG_N("Archetypes:%u", (uint32_t)m_archetypesById.size());
 				for (auto pair: m_archetypesById)
-					Archetype::diag(*pair.second);
+					Archetype::diag(comp_cache(), *pair.second);
 			}
 
 			//! Performs diagnostics on registered components.
 			//! Prints basic info about them and reports and detected issues.
-			static void diag_components() {
-				ComponentCache::get().diag();
+			void diag_components() const {
+				comp_cache().diag();
 			}
 
 			//! Performs diagnostics on entites of the world.
@@ -1317,5 +1328,12 @@ namespace gaia {
 				diag_entities();
 			}
 		};
+
+		inline const ComponentCache& comp_cache(World& world) {
+			return world.comp_cache();
+		}
+		inline ComponentCache& comp_cache_mut(World& world) {
+			return world.comp_cache_mut();
+		}
 	} // namespace ecs
 } // namespace gaia

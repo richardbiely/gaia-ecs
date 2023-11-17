@@ -1,8 +1,8 @@
 #pragma once
 #include "../config/config.h"
 
-#include <cstdint>
 #include <cinttypes>
+#include <cstdint>
 
 #include "../cnt/darray.h"
 #include "../cnt/dbitset.h"
@@ -208,9 +208,8 @@ namespace gaia {
 			Estimates how many entities can fit into the chunk described by \param comps components.
 			*/
 			static bool est_max_entities_per_archetype(
-					uint32_t& offs, uint32_t& maxItems, ComponentSpan comps, uint32_t size, uint32_t maxDataOffset) {
-				const auto& cc = ComponentCache::get();
-
+					const ComponentCache& cc, uint32_t& offs, uint32_t& maxItems, ComponentSpan comps, uint32_t size,
+					uint32_t maxDataOffset) {
 				for (const auto comp: comps) {
 					if (comp.alig() == 0)
 						continue;
@@ -297,8 +296,9 @@ namespace gaia {
 				return {core::hash_combine(hashGen.hash, hashUni.hash)};
 			}
 
-			GAIA_NODISCARD static Archetype*
-			create(ArchetypeId archetypeId, uint32_t& worldVersion, ComponentSpan compsGen, ComponentSpan compsUni) {
+			GAIA_NODISCARD static Archetype* create(
+					const ComponentCache& cc, ArchetypeId archetypeId, uint32_t& worldVersion, ComponentSpan compsGen,
+					ComponentSpan compsUni) {
 				auto* newArch = new Archetype(worldVersion);
 				newArch->m_archetypeId = archetypeId;
 				const uint32_t maxEntities = archetypeId == 0 ? ChunkHeader::MAX_CHUNK_ENTITIES : 512;
@@ -350,9 +350,9 @@ namespace gaia {
 				// Adjust the maximum number of entities. Recalculation happens at most once when the original guess
 				// for entity count is not right (most likely because of padding or usage of SoA components).
 				if (!est_max_entities_per_archetype(
-								currOff, maxGenItemsInArchetype, compsGen, maxGenItemsInArchetype, maxDataOffsetTarget))
+								cc, currOff, maxGenItemsInArchetype, compsGen, maxGenItemsInArchetype, maxDataOffsetTarget))
 					goto recalculate;
-				if (!est_max_entities_per_archetype(currOff, maxGenItemsInArchetype, compsUni, 1, maxDataOffsetTarget))
+				if (!est_max_entities_per_archetype(cc, currOff, maxGenItemsInArchetype, compsUni, 1, maxDataOffsetTarget))
 					goto recalculate;
 
 				// Limit the number of entities to a certain number so we can make use of smaller
@@ -386,8 +386,8 @@ namespace gaia {
 				newArch->m_properties.capacity = (uint16_t)maxGenItemsInArchetype;
 				newArch->m_properties.chunkDataBytes = (ChunkDataOffset)currOff;
 
-				newArch->m_matcherHash[ComponentKind::CK_Gen] = ecs::matcher_hash(compsGen);
-				newArch->m_matcherHash[ComponentKind::CK_Uni] = ecs::matcher_hash(compsUni);
+				newArch->m_matcherHash[ComponentKind::CK_Gen] = ecs::matcher_hash(cc, compsGen);
+				newArch->m_matcherHash[ComponentKind::CK_Uni] = ecs::matcher_hash(cc, compsUni);
 
 				return newArch;
 			}
@@ -570,7 +570,7 @@ namespace gaia {
 
 			//! Tries to locate a chunk that has some space left for a new entity.
 			//! If not found a new chunk is created.
-			GAIA_NODISCARD Chunk* foc_free_chunk() {
+			GAIA_NODISCARD Chunk* foc_free_chunk(const ComponentCache& cc) {
 				const auto chunkCnt = m_chunks.size();
 
 				if (chunkCnt > 0) {
@@ -594,7 +594,7 @@ namespace gaia {
 
 				// No free space found anywhere. Let's create a new chunk.
 				auto* pChunk = Chunk::create(
-						chunkCnt, props().capacity, m_properties.chunkDataBytes, m_worldVersion, m_dataOffsets, m_comps,
+						cc, chunkCnt, props().capacity, m_properties.chunkDataBytes, m_worldVersion, m_dataOffsets, m_comps,
 #if GAIA_COMP_ID_PROBING
 						m_compMap,
 #endif
@@ -728,8 +728,7 @@ namespace gaia {
 				return dying();
 			}
 
-			static void diag_basic_info(const Archetype& archetype) {
-				const auto& cc = ComponentCache::get();
+			static void diag_basic_info(const ComponentCache& cc, const Archetype& archetype) {
 				const auto& genComps = archetype.comps(ComponentKind::CK_Gen);
 				const auto& uniComps = archetype.comps(ComponentKind::CK_Uni);
 
@@ -778,8 +777,8 @@ namespace gaia {
 				}
 			}
 
-			static void diag_graph_info(const Archetype& archetype) {
-				archetype.m_graph.diag();
+			static void diag_graph_info(const ComponentCache& cc, const Archetype& archetype) {
+				archetype.m_graph.diag(cc);
 			}
 
 			static void diag_chunk_info(const Archetype& archetype) {
@@ -801,9 +800,9 @@ namespace gaia {
 			Performs diagnostics on a specific archetype. Prints basic info about it and the chunks it contains.
 			\param archetype Archetype to run diagnostics on
 			*/
-			static void diag(const Archetype& archetype) {
-				diag_basic_info(archetype);
-				diag_graph_info(archetype);
+			static void diag(const ComponentCache& cc, const Archetype& archetype) {
+				diag_basic_info(cc, archetype);
+				diag_graph_info(cc, archetype);
 				diag_chunk_info(archetype);
 			}
 		};
