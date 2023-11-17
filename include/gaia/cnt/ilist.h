@@ -1,7 +1,7 @@
 #pragma once
 #include "../config/config.h"
 
-#include <cinttypes>
+#include <cstdint>
 #include <type_traits>
 
 #include "darray.h"

@@ -3,7 +3,7 @@
 #if __has_include(<version.h>)
 	#include <version.h>
 #endif
-#include <cinttypes>
+#include <cstdint>
 
 //------------------------------------------------------------------------------
 // DO NOT MODIFY THIS FILE
@@ -3375,7 +3375,7 @@ namespace gaia {
 	} // namespace meta
 } // namespace gaia
 
-#include <cinttypes>
+#include <cstdint>
 #include <cstring>
 #include <stdlib.h>
 #include <type_traits>
@@ -4094,7 +4094,7 @@ namespace gaia {
 	} // namespace mem
 } // namespace gaia
 
-#include <cinttypes>
+#include <cstdint>
 #include <type_traits>
 #include <utility>
 
@@ -4600,10 +4600,10 @@ namespace gaia {
 	} // namespace ser
 } // namespace gaia
 
-#include <cinttypes>
+#include <cstdint>
 #include <type_traits>
 
-#include <cinttypes>
+#include <cstdint>
 #include <type_traits>
 
 namespace gaia {
@@ -6274,7 +6274,7 @@ namespace gaia {
 	} // namespace cnt
 } // namespace gaia
 
-#include <cinttypes>
+#include <cstdint>
 #include <type_traits>
 
 namespace gaia {
@@ -6660,7 +6660,7 @@ namespace gaia {
 	} // namespace cnt
 } // namespace gaia
 
-#include <cinttypes>
+#include <cstdint>
 #include <type_traits>
 
 namespace gaia {
@@ -12780,7 +12780,7 @@ namespace gaia {
 	} // namespace mt
 } // namespace gaia
 
-#include <cinttypes>
+#include <cstdint>
 #include <type_traits>
 
 namespace gaia {
@@ -13691,9 +13691,10 @@ namespace gaia {
 	} // namespace mt
 } // namespace gaia
 
+#include <cstdint>
 #include <cinttypes>
 
-#include <cinttypes>
+#include <cstdint>
 
 namespace gaia {
 	namespace ecs {
@@ -13706,12 +13707,12 @@ namespace gaia {
 	} // namespace ecs
 } // namespace gaia
 
-#include <cinttypes>
+#include <cstdint>
 
-#include <cinttypes>
+#include <cstdint>
 #include <type_traits>
 
-#include <cinttypes>
+#include <cstdint>
 
 namespace gaia {
 	namespace ecs {
@@ -14170,10 +14171,10 @@ namespace gaia {
 	} // namespace ecs
 } // namespace gaia
 
-#include <cinttypes>
+#include <cstdint>
 #include <type_traits>
 
-#include <cinttypes>
+#include <cstdint>
 #include <cstring>
 #include <tuple>
 #include <type_traits>
@@ -14429,7 +14430,9 @@ namespace gaia {
 		class ComponentCache {
 			static constexpr uint32_t FastComponentCacheSize = 1024;
 
+			//! Fast-lookup cache for the first FastComponentCacheSize components
 			cnt::darray<const ComponentDesc*> m_descByIndex;
+			//! Slower but more memory-friendly lookup cache for components with ids beyond FastComponentCacheSize
 			cnt::map<ComponentId, const ComponentDesc*> m_descByIndexMap;
 
 			ComponentCache() {
@@ -14451,6 +14454,18 @@ namespace gaia {
 			ComponentCache(const ComponentCache&) = delete;
 			ComponentCache& operator=(ComponentCache&&) = delete;
 			ComponentCache& operator=(const ComponentCache&) = delete;
+
+			//! Clears the contents of the component cache
+			//! \warning Should be used only after worlds are cleared because it invalidates all currently
+			//!          existing component ids. Any cached content would stop working.
+			void clear() {
+				for (const auto* pDesc: m_descByIndex)
+					delete pDesc;
+				for (auto [componentId, pDesc]: m_descByIndexMap)
+					delete pDesc;
+				m_descByIndex.clear();
+				m_descByIndexMap.clear();
+			}
 
 			//! Registers the component info for \tparam T. If it already exists it is returned.
 			//! \return Component info
@@ -14543,16 +14558,6 @@ namespace gaia {
 					logDesc(pDesc);
 				for (auto [componentId, pDesc]: m_descByIndexMap)
 					logDesc(pDesc);
-			}
-
-		private:
-			void clear() {
-				for (const auto* pDesc: m_descByIndex)
-					delete pDesc;
-				for (auto [componentId, pDesc]: m_descByIndexMap)
-					delete pDesc;
-				m_descByIndex.clear();
-				m_descByIndexMap.clear();
 			}
 		};
 	} // namespace ecs
@@ -14668,14 +14673,23 @@ namespace gaia {
 	} // namespace ecs
 } // namespace gaia
 
-#include <cinttypes>
 #include <cstdint>
 #include <tuple>
 #include <type_traits>
 #include <utility>
 
-#include <cinttypes>
 #include <cstdint>
+
+#if GAIA_ECS_CHUNK_ALLOCATOR
+	#include <cinttypes>
+
+	
+	
+	
+	
+	
+	
+	
 
 namespace gaia {
 	namespace core {
@@ -14717,8 +14731,12 @@ namespace gaia {
 		};
 	} // namespace core
 } // namespace gaia
+	
+	
+	
+	
 
-#include <cinttypes>
+#include <cstdint>
 
 namespace gaia {
 	namespace ecs {
@@ -14742,6 +14760,8 @@ namespace gaia {
 	} // namespace ecs
 } // namespace gaia
 
+#endif
+
 namespace gaia {
 	namespace ecs {
 		//! Size of one allocated block of memory
@@ -14749,6 +14769,15 @@ namespace gaia {
 		//! Unusable area at the beggining of the allocated block designated for special pruposes
 		static constexpr uint32_t MemoryBlockUsableOffset = sizeof(uintptr_t);
 
+		inline constexpr uint16_t mem_block_size(uint32_t sizeType) {
+			return sizeType != 0 ? MaxMemoryBlockSize : MaxMemoryBlockSize / 2;
+		}
+
+		inline constexpr uint8_t mem_block_size_type(uint32_t sizeBytes) {
+			return (uint8_t)(sizeBytes > MaxMemoryBlockSize / 2);
+		}
+
+#if GAIA_ECS_CHUNK_ALLOCATOR
 		struct ChunkAllocatorPageStats final {
 			//! Total allocated memory
 			uint64_t mem_total;
@@ -14911,23 +14940,32 @@ namespace gaia {
 				//! When true, destruction has been requested
 				bool m_isDone = false;
 
+			private:
 				ChunkAllocatorImpl() = default;
 
+				void on_delete() {
+					flush();
+
+					// Make sure there are no leaks
+					auto memStats = stats();
+					for (const auto& s: memStats.stats) {
+						if (s.mem_total != 0) {
+							GAIA_ASSERT(false && "ECS leaking memory");
+							GAIA_LOG_W("ECS leaking memory!");
+							diag();
+						}
+					}
+				}
+
 			public:
-				~ChunkAllocatorImpl() = default;
+				~ChunkAllocatorImpl() {
+					on_delete();
+				}
 
 				ChunkAllocatorImpl(ChunkAllocatorImpl&& world) = delete;
 				ChunkAllocatorImpl(const ChunkAllocatorImpl& world) = delete;
 				ChunkAllocatorImpl& operator=(ChunkAllocatorImpl&&) = delete;
 				ChunkAllocatorImpl& operator=(const ChunkAllocatorImpl&) = delete;
-
-				static constexpr uint16_t mem_block_size(uint32_t sizeType) {
-					return sizeType != 0 ? MaxMemoryBlockSize : MaxMemoryBlockSize / 2;
-				}
-
-				static constexpr uint8_t mem_block_size_type(uint32_t sizeBytes) {
-					return (uint8_t)(sizeBytes > MaxMemoryBlockSize / 2);
-				}
 
 				/*!
 				Allocates memory
@@ -14982,7 +15020,7 @@ namespace gaia {
 
 					auto& container = m_pages[pPage->m_sizeType];
 
-#if GAIA_ASSERT_ENABLED
+	#if GAIA_ASSERT_ENABLED
 					if (wasFull) {
 						const auto res = core::has_if(container.pagesFull, [&](auto* page) {
 							return page == pPage;
@@ -14994,7 +15032,7 @@ namespace gaia {
 						});
 						GAIA_ASSERT(res && "Memory page couldn't be found among free pages");
 					}
-#endif
+	#endif
 
 					// Free the chunk
 					pPage->free_block(pBlock);
@@ -15115,10 +15153,11 @@ namespace gaia {
 			};
 		} // namespace detail
 
+#endif
+
 	} // namespace ecs
 } // namespace gaia
 
-#include <cinttypes>
 #include <cstdint>
 
 namespace gaia {
@@ -15167,8 +15206,7 @@ namespace gaia {
 		struct ChunkHeader final {
 			//! Maxiumum number of entities per chunk.
 			//! Defined as sizeof(big_chunk) / sizeof(entity)
-			static constexpr uint16_t MAX_CHUNK_ENTITIES =
-					(detail::ChunkAllocatorImpl::mem_block_size(1) - 64) / sizeof(Entity);
+			static constexpr uint16_t MAX_CHUNK_ENTITIES = (mem_block_size(1) - 64) / sizeof(Entity);
 			static constexpr uint16_t MAX_CHUNK_ENTITIES_BITS = (uint16_t)core::count_bits(MAX_CHUNK_ENTITIES);
 
 			static constexpr uint16_t CHUNK_LIFESPAN_BITS = 4;
@@ -15280,7 +15318,7 @@ namespace gaia {
 	} // namespace ecs
 } // namespace gaia
 
-#include <cinttypes>
+#include <cstdint>
 #include <type_traits>
 
 namespace gaia {
@@ -15617,13 +15655,13 @@ namespace gaia {
 #endif
 					const cnt::sarray<ComponentOffsetArray, ComponentKind::CK_Count>& compOffs) {
 				const auto totalBytes = chunk_total_bytes(dataBytes);
-				const auto sizeType = detail::ChunkAllocatorImpl::mem_block_size_type(totalBytes);
+				const auto sizeType = mem_block_size_type(totalBytes);
 #if GAIA_ECS_CHUNK_ALLOCATOR
 				auto* pChunk = (Chunk*)ChunkAllocator::get().alloc(totalBytes);
 				new (pChunk) Chunk(chunkIndex, capacity, sizeType, worldVersion);
 #else
 				GAIA_ASSERT(totalBytes <= MaxMemoryBlockSize);
-				const auto allocSize = detail::ChunkAllocatorImpl::mem_block_size(sizeType);
+				const auto allocSize = mem_block_size(sizeType);
 				auto* pChunkMem = new uint8_t[allocSize];
 				auto* pChunk = new (pChunkMem) Chunk(chunkIndex, capacity, sizeType, worldVersion);
 #endif
@@ -16571,7 +16609,7 @@ namespace gaia {
 
 			//! Returns the number of bytes the chunk spans over
 			GAIA_NODISCARD uint32_t bytes() const {
-				return detail::ChunkAllocatorImpl::mem_block_size(m_header.sizeType);
+				return mem_block_size(m_header.sizeType);
 			}
 
 			//! Returns true if the provided version is newer than the one stored internally
@@ -16916,8 +16954,8 @@ namespace gaia {
 				for (auto comp: compsUni)
 					uniCompsSize += comp.size();
 
-				const uint32_t size0 = Chunk::chunk_data_bytes(detail::ChunkAllocatorImpl::mem_block_size(0));
-				const uint32_t size1 = Chunk::chunk_data_bytes(detail::ChunkAllocatorImpl::mem_block_size(1));
+				const uint32_t size0 = Chunk::chunk_data_bytes(mem_block_size(0));
+				const uint32_t size1 = Chunk::chunk_data_bytes(mem_block_size(1));
 				const auto sizeM = (size0 + size1) / 2;
 
 				uint32_t maxDataOffsetTarget = size1;
@@ -16965,8 +17003,7 @@ namespace gaia {
 				reg_components(*newArch, compsGen, ComponentKind::CK_Gen, currOff, maxGenItemsInArchetype);
 				reg_components(*newArch, compsUni, ComponentKind::CK_Uni, currOff, 1);
 
-				GAIA_ASSERT(
-						Chunk::chunk_total_bytes((ChunkDataOffset)currOff) < detail::ChunkAllocatorImpl::mem_block_size(currOff));
+				GAIA_ASSERT(Chunk::chunk_total_bytes((ChunkDataOffset)currOff) < mem_block_size(currOff));
 				newArch->m_properties.capacity = (uint16_t)maxGenItemsInArchetype;
 				newArch->m_properties.chunkDataBytes = (ChunkDataOffset)currOff;
 
@@ -17430,7 +17467,7 @@ namespace gaia {
 	} // namespace ecs
 } // namespace gaia
 
-#include <cinttypes>
+#include <cstdint>
 #include <type_traits>
 
 namespace gaia {
@@ -17546,7 +17583,7 @@ namespace gaia {
 	} // namespace ecs
 } // namespace gaia
 
-#include <cinttypes>
+#include <cstdint>
 #include <type_traits>
 
 #include <type_traits>
@@ -17686,7 +17723,7 @@ namespace gaia {
 	} // namespace ecs
 } // namespace gaia
 
-#include <cinttypes>
+#include <cstdint>
 #include <type_traits>
 
 #include <cstdint>
@@ -17778,7 +17815,7 @@ namespace gaia {
 	} // namespace ecs
 } // namespace gaia
 
-#include <cinttypes>
+#include <cstdint>
 
 namespace gaia {
 	namespace ecs {
@@ -20017,18 +20054,8 @@ namespace gaia {
 			void done() {
 				cleanup();
 
+#if GAIA_ECS_CHUNK_ALLOCATOR
 				ChunkAllocator::get().flush();
-
-#if GAIA_DEBUG && GAIA_ECS_CHUNK_ALLOCATOR
-				// Make sure there are no leaks
-				ChunkAllocatorStats memStats = ChunkAllocator::get().stats();
-				for (const auto& s: memStats.stats) {
-					if (s.mem_total != 0) {
-						GAIA_ASSERT(false && "ECS leaking memory");
-						GAIA_LOG_W("ECS leaking memory!");
-						ChunkAllocator::get().diag();
-					}
-				}
 #endif
 			}
 
@@ -21077,9 +21104,9 @@ namespace gaia {
 	} // namespace ecs
 } // namespace gaia
 
-#include <cinttypes>
+#include <cstdint>
 
-#include <cinttypes>
+#include <cstdint>
 #include <cstring>
 
 #if GAIA_DEBUG

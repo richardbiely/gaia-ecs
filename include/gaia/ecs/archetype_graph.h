@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cinttypes>
+#include <cstdint>
 
 #include "../cnt/map.h"
 #include "../config/logging.h"

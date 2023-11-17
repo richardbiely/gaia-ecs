@@ -1,7 +1,7 @@
 #pragma once
 #include "../config/config.h"
 
-#include <cinttypes>
+#include <cstdint>
 
 #include "../mem/data_layout_policy.h"
 

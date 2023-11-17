@@ -1,7 +1,7 @@
 #pragma once
 #include "../config/config.h"
 
-#include <cinttypes>
+#include <cstdint>
 
 #include "../core/hashing_policy.h"
 #include "../core/utility.h"

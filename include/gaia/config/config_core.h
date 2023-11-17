@@ -3,7 +3,7 @@
 #if __has_include(<version.h>)
 	#include <version.h>
 #endif
-#include <cinttypes>
+#include <cstdint>
 
 //------------------------------------------------------------------------------
 // DO NOT MODIFY THIS FILE

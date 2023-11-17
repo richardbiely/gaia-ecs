@@ -1,7 +1,7 @@
 #pragma once
 #include "../config/config.h"
 
-#include <cinttypes>
+#include <cstdint>
 #include <type_traits>
 
 #include "../cnt/darray.h"
@@ -805,18 +805,8 @@ namespace gaia {
 			void done() {
 				cleanup();
 
+#if GAIA_ECS_CHUNK_ALLOCATOR
 				ChunkAllocator::get().flush();
-
-#if GAIA_DEBUG && GAIA_ECS_CHUNK_ALLOCATOR
-				// Make sure there are no leaks
-				ChunkAllocatorStats memStats = ChunkAllocator::get().stats();
-				for (const auto& s: memStats.stats) {
-					if (s.mem_total != 0) {
-						GAIA_ASSERT(false && "ECS leaking memory");
-						GAIA_LOG_W("ECS leaking memory!");
-						ChunkAllocator::get().diag();
-					}
-				}
 #endif
 			}
 

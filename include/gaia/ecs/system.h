@@ -1,5 +1,5 @@
 #pragma once
-#include <cinttypes>
+#include <cstdint>
 
 #include "command_buffer.h"
 #include "system_base.h"
