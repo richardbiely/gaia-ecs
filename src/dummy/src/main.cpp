@@ -1,4 +1,3 @@
-#include "gaia/ecs/component.h"
 #include <gaia.h>
 #include <type_traits>
 

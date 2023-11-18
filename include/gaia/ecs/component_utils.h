@@ -3,7 +3,7 @@
 #include "../core/utility.h"
 #include "component.h"
 #include "component_cache.h"
-#include "gaia/ecs/id.h"
+#include "id.h"
 
 namespace gaia {
 	namespace ecs {

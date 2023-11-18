@@ -10,8 +10,8 @@
 #include "archetype.h"
 #include "archetype_common.h"
 #include "component.h"
+#include "component_cache.h"
 #include "component_utils.h"
-#include "gaia/ecs/component_cache.h"
 #include "query_common.h"
 
 namespace gaia {
