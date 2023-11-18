@@ -719,7 +719,8 @@ namespace gaia {
 				template <typename... T>
 				CompMoveHelper& add() {
 					(verify_comp<T>(component_kind_v<T>), ...);
-					(add(component_kind_v<T>, m_world.comp_cache_mut().goc_comp_desc<typename component_type_t<T>::Type>()), ...);
+					auto& cc = m_world.comp_cache_mut();
+					(add(component_kind_v<T>, cc.goc_comp_desc<typename component_type_t<T>::Type>()), ...);
 					return *this;
 				}
 
@@ -738,7 +739,8 @@ namespace gaia {
 				template <typename... T>
 				CompMoveHelper& del() {
 					(verify_comp<T>(), ...);
-					(del(component_kind_v<T>, m_world.comp_cache_mut().goc_comp_desc<typename component_type_t<T>::Type>()), ...);
+					auto& cc = m_world.comp_cache_mut();
+					(del(component_kind_v<T>, cc.goc_comp_desc<typename component_type_t<T>::Type>()), ...);
 
 					return *this;
 				}

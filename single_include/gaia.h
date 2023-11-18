@@ -14367,14 +14367,14 @@ namespace gaia {
 					return [](void* from, void* to) {
 						auto* src = (T*)from;
 						auto* dst = (T*)to;
-						new (dst) T();
+						core::call_ctor(dst);
 						*dst = *src;
 					};
 				} else if constexpr (std::is_copy_constructible_v<T>) {
 					return [](void* from, void* to) {
 						auto* src = (T*)from;
 						auto* dst = (T*)to;
-						(void)new (dst) T(GAIA_MOV(*src));
+						core::call_ctor(dst, T(GAIA_MOV(*src)));
 					};
 				} else {
 					return nullptr;
@@ -14408,14 +14408,14 @@ namespace gaia {
 					return [](void* from, void* to) {
 						auto* src = (T*)from;
 						auto* dst = (T*)to;
-						new (dst) T();
+						core::call_ctor(dst);
 						*dst = GAIA_MOV(*src);
 					};
 				} else if constexpr (!std::is_trivially_move_constructible_v<T> && std::is_move_constructible_v<T>) {
 					return [](void* from, void* to) {
 						auto* src = (T*)from;
 						auto* dst = (T*)to;
-						(void)new (dst) T(GAIA_MOV(*src));
+						core::call_ctor(dst, GAIA_MOV(*src));
 					};
 				} else {
 					return nullptr;
@@ -14614,6 +14614,8 @@ namespace gaia {
 				cci->hashLookup = ComponentDesc<T>::hash_lookup();
 				cci->matcherHash = ComponentDesc<T>::hash_matcher();
 
+				// Allocate enough memory for the name string + the null-terminating character (
+				// the compile time string return ed by ComponentDesc<T>::name is not null-terminated).
 				auto ct_name = ComponentDesc<T>::name();
 				char* name = (char*)mem::mem_alloc(ct_name.size() + 1);
 				memcpy((void*)name, (const void*)ct_name.data(), ct_name.size() + 1);
@@ -20141,7 +20143,8 @@ namespace gaia {
 				template <typename... T>
 				CompMoveHelper& add() {
 					(verify_comp<T>(component_kind_v<T>), ...);
-					(add(component_kind_v<T>, m_world.comp_cache_mut().goc_comp_desc<typename component_type_t<T>::Type>()), ...);
+					auto& cc = m_world.comp_cache_mut();
+					(add(component_kind_v<T>, cc.goc_comp_desc<typename component_type_t<T>::Type>()), ...);
 					return *this;
 				}
 
@@ -20160,7 +20163,8 @@ namespace gaia {
 				template <typename... T>
 				CompMoveHelper& del() {
 					(verify_comp<T>(), ...);
-					(del(component_kind_v<T>, m_world.comp_cache_mut().goc_comp_desc<typename component_type_t<T>::Type>()), ...);
+					auto& cc = m_world.comp_cache_mut();
+					(del(component_kind_v<T>, cc.goc_comp_desc<typename component_type_t<T>::Type>()), ...);
 
 					return *this;
 				}

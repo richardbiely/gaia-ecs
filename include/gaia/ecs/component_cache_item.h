@@ -138,6 +138,8 @@ namespace gaia {
 				cci->hashLookup = ComponentDesc<T>::hash_lookup();
 				cci->matcherHash = ComponentDesc<T>::hash_matcher();
 
+				// Allocate enough memory for the name string + the null-terminating character (
+				// the compile time string return ed by ComponentDesc<T>::name is not null-terminated).
 				auto ct_name = ComponentDesc<T>::name();
 				char* name = (char*)mem::mem_alloc(ct_name.size() + 1);
 				memcpy((void*)name, (const void*)ct_name.data(), ct_name.size() + 1);

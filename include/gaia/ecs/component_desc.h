@@ -104,14 +104,14 @@ namespace gaia {
 					return [](void* from, void* to) {
 						auto* src = (T*)from;
 						auto* dst = (T*)to;
-						new (dst) T();
+						core::call_ctor(dst);
 						*dst = *src;
 					};
 				} else if constexpr (std::is_copy_constructible_v<T>) {
 					return [](void* from, void* to) {
 						auto* src = (T*)from;
 						auto* dst = (T*)to;
-						(void)new (dst) T(GAIA_MOV(*src));
+						core::call_ctor(dst, T(GAIA_MOV(*src)));
 					};
 				} else {
 					return nullptr;
@@ -145,14 +145,14 @@ namespace gaia {
 					return [](void* from, void* to) {
 						auto* src = (T*)from;
 						auto* dst = (T*)to;
-						new (dst) T();
+						core::call_ctor(dst);
 						*dst = GAIA_MOV(*src);
 					};
 				} else if constexpr (!std::is_trivially_move_constructible_v<T> && std::is_move_constructible_v<T>) {
 					return [](void* from, void* to) {
 						auto* src = (T*)from;
 						auto* dst = (T*)to;
-						(void)new (dst) T(GAIA_MOV(*src));
+						core::call_ctor(dst, GAIA_MOV(*src));
 					};
 				} else {
 					return nullptr;
