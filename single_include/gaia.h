@@ -14177,6 +14177,99 @@ namespace gaia {
 #include <type_traits>
 
 #include <cstdint>
+
+namespace gaia {
+	namespace core {
+		template <uint32_t MaxLen>
+		struct StringLookupKey {
+			using LookupHash = core::direct_hash_key<uint32_t>;
+
+		private:
+			//! Pointer to the string
+			const char* m_pStr;
+			//! Length of the string
+			uint32_t m_len : 31;
+			//! 1 - owned (lifetime managed by the framework), 0 - non-owned (lifetime user-managed)
+			uint32_t m_owned : 1;
+			//! String hash
+			LookupHash m_hash;
+
+			static uint32_t len(const char* pStr) {
+				GAIA_FOR(MaxLen) {
+					if (pStr[i] == 0)
+						return i;
+				}
+				GAIA_ASSERT(false && "Only null-terminated strings up to MaxLen characters are supported");
+				return BadIndex;
+			}
+
+			static LookupHash calc(const char* pStr, uint32_t len) {
+				return {static_cast<unsigned int>(core::calculate_hash64(pStr, len))};
+			}
+
+		public:
+			static constexpr bool IsDirectHashKey = true;
+
+			StringLookupKey(): m_pStr(nullptr), m_len(0), m_owned(0), m_hash({0}) {}
+			//! Constructor calulating hash and length from the provided string \param pStr
+			//! \warning String has to be null-terminanted and up to MaxLen characters long.
+			//!          Undefined behavior otherwise.
+			explicit StringLookupKey(const char* pStr):
+					m_pStr(pStr), m_len(len(pStr)), m_owned(0), m_hash(calc(pStr, m_len)) {}
+			//! Constructor calulating hash from the provided string \param pStr and \param length
+			//! \warning String has to be null-terminanted and up to MaxLen characters long.
+			//!          Undefined behavior otherwise.
+			explicit StringLookupKey(const char* pStr, uint32_t len):
+					m_pStr(pStr), m_len(len), m_owned(0), m_hash(calc(pStr, len)) {}
+			//! Constructor just for setting values
+			explicit StringLookupKey(const char* pStr, uint32_t len, uint32_t owned, LookupHash hash):
+					m_pStr(pStr), m_len(len), m_owned(owned), m_hash(hash) {}
+
+			const char* str() const {
+				return m_pStr;
+			}
+
+			uint32_t len() const {
+				return m_len;
+			}
+
+			bool owned() const {
+				return m_owned == 1;
+			}
+
+			uint32_t hash() const {
+				return m_hash.hash;
+			}
+
+			bool operator==(const StringLookupKey& other) const {
+				// Hash doesn't match we don't have a match.
+				// Hash collisions are expected to be very unlikely so optimize for this case.
+				if GAIA_LIKELY (m_hash != other.m_hash)
+					return false;
+
+				// Lengths have to match
+				if (m_len != other.m_len)
+					return false;
+
+				// Contents have to match
+				const auto l = m_len;
+				GAIA_ASSUME(l < MaxLen);
+				GAIA_FOR(l) {
+					if (m_pStr[i] != other.m_pStr[i])
+						return false;
+				}
+
+				return true;
+			}
+
+			bool operator!=(const StringLookupKey& other) const {
+				return !operator==(other);
+			}
+		};
+	} // namespace core
+} // namespace gaia
+
+#include <cstdint>
 #include <type_traits>
 
 #include <cstdint>
@@ -14400,6 +14493,7 @@ namespace gaia {
 namespace gaia {
 	namespace ecs {
 		struct ComponentCacheItem final {
+			using SymbolLookupKey = core::StringLookupKey<512>;
 			using FuncCtor = void(void*, uint32_t);
 			using FuncDtor = void(void*, uint32_t);
 			using FuncCopy = void(void*, void*);
@@ -14417,7 +14511,7 @@ namespace gaia {
 			uint8_t soaSizes[meta::StructToTupleMaxTypes];
 
 			//! Component name
-			std::span<const char> name;
+			SymbolLookupKey name;
 			//! Function to call when the component needs to be constructed
 			FuncCtor* func_ctor = nullptr;
 			//! Function to call when the component needs to be move constructed
@@ -14434,6 +14528,16 @@ namespace gaia {
 			FuncSwap* func_swap = nullptr;
 			//! Function to call when comparing two components of the same type
 			FuncCmp* func_cmp = nullptr;
+
+		private:
+			ComponentCacheItem() = default;
+			~ComponentCacheItem() = default;
+
+		public:
+			ComponentCacheItem(const ComponentCacheItem&) = delete;
+			ComponentCacheItem(ComponentCacheItem&&) = delete;
+			ComponentCacheItem& operator=(const ComponentCacheItem&) = delete;
+			ComponentCacheItem& operator=(ComponentCacheItem&&) = delete;
 
 			void ctor_from(void* pSrc, void* pDst) const {
 				if (func_move_ctor != nullptr)
@@ -14494,7 +14598,7 @@ namespace gaia {
 			}
 
 			template <typename T>
-			GAIA_NODISCARD static constexpr ComponentCacheItem* create() {
+			GAIA_NODISCARD static ComponentCacheItem* create() {
 				static_assert(core::is_raw_v<T>);
 
 				auto* cci = new ComponentCacheItem();
@@ -14509,7 +14613,14 @@ namespace gaia {
 						ComponentDesc<T>::alig());
 				cci->hashLookup = ComponentDesc<T>::hash_lookup();
 				cci->matcherHash = ComponentDesc<T>::hash_matcher();
-				cci->name = ComponentDesc<T>::name();
+
+				auto ct_name = ComponentDesc<T>::name();
+				char* name = (char*)mem::mem_alloc(ct_name.size() + 1);
+				memcpy((void*)name, (const void*)ct_name.data(), ct_name.size() + 1);
+				name[ct_name.size()] = 0;
+				SymbolLookupKey tmp(name, (uint32_t)ct_name.size());
+				cci->name = SymbolLookupKey(tmp.str(), tmp.len(), 1, {tmp.hash()});
+
 				cci->func_ctor = ComponentDesc<T>::func_ctor();
 				cci->func_move_ctor = ComponentDesc<T>::func_move_ctor();
 				cci->func_copy_ctor = ComponentDesc<T>::func_copy_ctor();
@@ -14520,6 +14631,16 @@ namespace gaia {
 				cci->func_cmp = ComponentDesc<T>::func_cmp();
 				return cci;
 			}
+
+			static void destroy(ComponentCacheItem* item) {
+				if (item == nullptr)
+					return;
+
+				if (item->name.str() != nullptr && item->name.owned()) {
+					mem::mem_free((void*)item->name.str());
+					item->name = {};
+				}
+			}
 		};
 	} // namespace ecs
 } // namespace gaia
@@ -14528,11 +14649,14 @@ namespace gaia {
 	namespace ecs {
 		class ComponentCache {
 			static constexpr uint32_t FastComponentCacheSize = 1024;
+			using SymbolLookupKey = core::StringLookupKey<512>;
 
 			//! Fast-lookup cache for the first FastComponentCacheSize components
 			cnt::darray<const ComponentCacheItem*> m_descByIndex;
 			//! Slower but more memory-friendly lookup cache for components with ids beyond FastComponentCacheSize
 			cnt::map<ComponentId, const ComponentCacheItem*> m_descByIndexMap;
+			//! Lookup of component items by their symbol name. Strings are owned by m_descByIndex/m_descByIndexMap
+			cnt::map<SymbolLookupKey, const ComponentCacheItem*> m_descByString;
 
 		public:
 			ComponentCache() {
@@ -14554,11 +14678,13 @@ namespace gaia {
 			//!          existing component ids. Any cached content would stop working.
 			void clear() {
 				for (const auto* pDesc: m_descByIndex)
-					delete pDesc;
+					ComponentCacheItem::destroy(const_cast<ComponentCacheItem*>(pDesc));
 				for (auto [componentId, pDesc]: m_descByIndexMap)
-					delete pDesc;
+					ComponentCacheItem::destroy(const_cast<ComponentCacheItem*>(pDesc));
+
 				m_descByIndex.clear();
 				m_descByIndexMap.clear();
+				m_descByString.clear();
 			}
 
 			//! Registers the component info for \tparam T. If it already exists it is returned.
@@ -14573,6 +14699,7 @@ namespace gaia {
 					auto createDesc = [&]() -> const ComponentCacheItem& {
 						const auto* pDesc = ComponentCacheItem::create<U>();
 						m_descByIndex[compId] = pDesc;
+						m_descByString[pDesc->name] = pDesc;
 						return *pDesc;
 					};
 
@@ -14617,7 +14744,24 @@ namespace gaia {
 				}
 			}
 
-			//! Returns the component creation info given the \param compId.
+			//! Searches for the cached component info given the \param compId.
+			//! \warning It is expected the component info with a given component id exists! Undefined behavior otherwise.
+			//! \return Component info or nullptr it not found.
+			GAIA_NODISCARD const ComponentCacheItem* find_comp_desc(ComponentId compId) const noexcept {
+				// Fast path - array storage
+				if (compId < FastComponentCacheSize) {
+					if (compId >= m_descByIndex.size())
+						return nullptr;
+
+					return m_descByIndex[compId];
+				}
+
+				// Generic path - map storage
+				const auto it = m_descByIndexMap.find(compId);
+				return it != m_descByIndexMap.end() ? it->second : nullptr;
+			}
+
+			//! Returns the cached component info given the \param compId.
 			//! \warning It is expected the component info with a given component id exists! Undefined behavior otherwise.
 			//! \return Component info
 			GAIA_NODISCARD const ComponentCacheItem& comp_desc(ComponentId compId) const noexcept {
@@ -14630,6 +14774,38 @@ namespace gaia {
 				// Generic path - map storage
 				GAIA_ASSERT(m_descByIndexMap.contains(compId));
 				return *m_descByIndexMap.find(compId)->second;
+			}
+
+			//! Searches for the cached component info. The provided string is NOT copied internally.
+			//! \param name A null-terminated string.
+			//! \param len String length. If zero, the length is calculated.
+			//! \warning It is expected the component exists! Undefined behavior otherwise.
+			//! \return Component info if found, otherwise nullptr.
+			GAIA_NODISCARD const ComponentCacheItem* find_comp_desc(const char* name, uint32_t len = 0) const noexcept {
+				const auto it = m_descByString.find(len != 0 ? SymbolLookupKey(name, len) : SymbolLookupKey(name));
+				if (it != m_descByString.end())
+					return it->second;
+
+				return nullptr;
+			}
+
+			//! Returns the cached component info. The provided string is NOT copied internally.
+			//! \param name A null-terminated string
+			//! \param len String length. If zero, the length is calculated
+			//! \return Component info.
+			GAIA_NODISCARD const ComponentCacheItem& comp_desc(const char* name, uint32_t len = 0) const noexcept {
+				const auto* pItem = find_comp_desc(name, len);
+				GAIA_ASSERT(pItem != nullptr);
+				return *pItem;
+			}
+
+			//! Searches for the component info for \tparam T.
+			//! \warning It is expected the component already exists! Undefined behavior otherwise.
+			//! \return Component info or nullptr if not found.
+			template <typename T>
+			GAIA_NODISCARD const ComponentCacheItem* find_comp_desc() const noexcept {
+				const auto compId = comp_id<T>();
+				return find_comp_desc(compId);
 			}
 
 			//! Returns the component info for \tparam T.
@@ -14646,7 +14822,7 @@ namespace gaia {
 				GAIA_LOG_N("Registered comps: %u", registeredTypes);
 
 				auto logDesc = [](const ComponentCacheItem* pDesc) {
-					GAIA_LOG_N("  id:%010u, %.*s", pDesc->comp.id(), (uint32_t)pDesc->name.size(), pDesc->name.data());
+					GAIA_LOG_N("  id:%010u, %s", pDesc->comp.id(), pDesc->name.str());
 				};
 				for (const auto* pDesc: m_descByIndex)
 					logDesc(pDesc);
@@ -14716,9 +14892,7 @@ namespace gaia {
 							GAIA_LOG_N("    Generic - count:%u", (uint32_t)edgesG.size());
 							for (const auto& edge: edgesG) {
 								const auto& desc = cc.comp_desc(edge.first);
-								GAIA_LOG_N(
-										"      %.*s (--> Archetype ID:%u)", (uint32_t)desc.name.size(), desc.name.data(),
-										edge.second.archetypeId);
+								GAIA_LOG_N("      %s (--> Archetype ID:%u)", desc.name.str(), edge.second.archetypeId);
 							}
 						}
 
@@ -14726,9 +14900,7 @@ namespace gaia {
 							GAIA_LOG_N("    Unique - count:%u", (uint32_t)edgesC.size());
 							for (const auto& edge: edgesC) {
 								const auto& desc = cc.comp_desc(edge.first);
-								GAIA_LOG_N(
-										"      %.*s (--> Archetype ID:%u)", (uint32_t)desc.name.size(), desc.name.data(),
-										edge.second.archetypeId);
+								GAIA_LOG_N("      %s (--> Archetype ID:%u)", desc.name.str(), edge.second.archetypeId);
 							}
 						}
 					}
@@ -14746,9 +14918,7 @@ namespace gaia {
 							GAIA_LOG_N("    Generic - count:%u", (uint32_t)edgesG.size());
 							for (const auto& edge: edgesG) {
 								const auto& desc = cc.comp_desc(edge.first);
-								GAIA_LOG_N(
-										"      %.*s (--> Archetype ID:%u)", (uint32_t)desc.name.size(), desc.name.data(),
-										edge.second.archetypeId);
+								GAIA_LOG_N("      %s (--> Archetype ID:%u)", desc.name.str(), edge.second.archetypeId);
 							}
 						}
 
@@ -14756,9 +14926,7 @@ namespace gaia {
 							GAIA_LOG_N("    Chunk - count:%u", (uint32_t)edgesC.size());
 							for (const auto& edge: edgesC) {
 								const auto& desc = cc.comp_desc(edge.first);
-								GAIA_LOG_N(
-										"      %.*s (--> Archetype ID:%u)", (uint32_t)desc.name.size(), desc.name.data(),
-										edge.second.archetypeId);
+								GAIA_LOG_N("      %s (--> Archetype ID:%u)", desc.name.str(), edge.second.archetypeId);
 							}
 						}
 					}
@@ -17472,8 +17640,8 @@ namespace gaia {
 
 				auto logComponentInfo = [](const ComponentCacheItem& desc) {
 					GAIA_LOG_N(
-							"    hashLookup:%016" PRIx64 ", mask:%016" PRIx64 ", size:%3u B, align:%3u B, %.*s", desc.hashLookup.hash,
-							desc.matcherHash.hash, desc.comp.size(), desc.comp.alig(), (uint32_t)desc.name.size(), desc.name.data());
+							"    hashLookup:%016" PRIx64 ", mask:%016" PRIx64 ", size:%3u B, align:%3u B, %s", desc.hashLookup.hash,
+							desc.matcherHash.hash, desc.comp.size(), desc.comp.alig(), desc.name.str());
 				};
 
 				if (!genComps.empty()) {
@@ -17909,95 +18077,6 @@ namespace gaia {
 				else
 					m_pChunk->template sset<T>(GAIA_FWD(data));
 				return *this;
-			}
-		};
-	} // namespace ecs
-} // namespace gaia
-
-#include <cstdint>
-
-namespace gaia {
-	namespace ecs {
-		struct EntityNameLookupKey {
-			static constexpr uint32_t MaxLen = 256;
-			using LookupHash = core::direct_hash_key<uint32_t>;
-
-		private:
-			//! Pointer to the string
-			const char* m_pStr;
-			//! Length of the string
-			uint32_t m_len : 31;
-			//! 1 - owned (lifetime managed by the framework), 0 - non-owned (lifetime user-managed)
-			uint32_t m_owned : 1;
-			//! String hash
-			LookupHash m_hash;
-
-			static uint32_t len(const char* pStr) {
-				GAIA_FOR(MaxLen) {
-					if (pStr[i] == 0)
-						return i;
-				}
-				GAIA_ASSERT(false && "Only null-terminated strings up to MaxLen characters are supported");
-				return BadIndex;
-			}
-
-			static LookupHash calc(const char* pStr, uint32_t len) {
-				return {static_cast<unsigned int>(core::calculate_hash64(pStr, len))};
-			}
-
-		public:
-			static constexpr bool IsDirectHashKey = true;
-
-			EntityNameLookupKey() = default;
-			//! Constructor calulating hash and length from the provided string \param pStr
-			//! \warning String has to be null-terminanted and up to MaxLen characters long.
-			//!          Undefined behavior otherwise.
-			explicit EntityNameLookupKey(const char* pStr): m_pStr(pStr), m_len(len(pStr)) {
-				m_hash = calc(pStr, m_len);
-			}
-			//! Constructor calulating hash from the provided string \param pStr and \param length
-			//! \warning String has to be null-terminanted and up to MaxLen characters long.
-			//!          Undefined behavior otherwise.
-			explicit EntityNameLookupKey(const char* pStr, uint32_t len): m_pStr(pStr), m_len(len), m_hash(calc(pStr, len)) {}
-			//! Constructor just for setting values
-			explicit EntityNameLookupKey(const char* pStr, uint32_t len, uint32_t owned, LookupHash hash):
-					m_pStr(pStr), m_len(len), m_owned(owned), m_hash(hash) {}
-
-			const char* str() const {
-				return m_pStr;
-			}
-
-			uint32_t len() const {
-				return m_len;
-			}
-
-			bool owned() const {
-				return m_owned == 1;
-			}
-
-			uint32_t hash() const {
-				return m_hash.hash;
-			}
-
-			bool operator==(const EntityNameLookupKey& other) const {
-				// Hash doesn't match we don't have a match.
-				// Hash collisions are expected to be very unlikely so optimize for this case.
-				if GAIA_LIKELY (m_hash != other.m_hash)
-					return false;
-
-				// Lengths have to match
-				if (m_len != other.m_len)
-					return false;
-
-				// Contents have to match
-				const auto l = m_len;
-				GAIA_ASSUME(l < MaxLen);
-				GAIA_FOR(l) {
-					if (m_pStr[i] != other.m_pStr[i])
-						return false;
-				}
-
-				return true;
 			}
 		};
 	} // namespace ecs
@@ -18662,13 +18741,10 @@ namespace gaia {
 #if GAIA_DEBUG
 						// There's a limit to the amount of components which we can store
 						if (comps.size() >= MAX_COMPONENTS_IN_QUERY) {
-							GAIA_ASSERT(false && "Trying to create an ECS query with too many components!");
+							GAIA_ASSERT(false && "Trying to create an query with too many components!");
 
-							auto componentName = ctx.cc->comp_desc(comp.id()).name;
-							GAIA_LOG_E(
-									"Trying to add ECS component '%.*s' to an already full ECS query!", (uint32_t)componentName.size(),
-									componentName.data());
-
+							auto compName = ctx.cc->comp_desc(comp.id()).name.str();
+							GAIA_LOG_E("Trying to add component '%s' to an already full ECS query!", compName);
 							return;
 						}
 #endif
@@ -18701,12 +18777,10 @@ namespace gaia {
 #if GAIA_DEBUG
 						// There's a limit to the amount of components which we can store
 						if (withChanged.size() >= MAX_COMPONENTS_IN_QUERY) {
-							GAIA_ASSERT(false && "Trying to create an ECS filter query with too many components!");
+							GAIA_ASSERT(false && "Trying to create an filter query with too many components!");
 
-							auto componentName = ctx.cc->comp_desc(comp.id()).name;
-							GAIA_LOG_E(
-									"Trying to add ECS component %.*s to an already full filter query!", (uint32_t)componentName.size(),
-									componentName.data());
+							auto compName = ctx.cc->comp_desc(comp.id()).name.str();
+							GAIA_LOG_E("Trying to add component %s to an already full filter query!", compName);
 							return;
 						}
 #endif
@@ -18727,13 +18801,10 @@ namespace gaia {
 							return;
 						}
 
-						GAIA_ASSERT(false && "SetChangeFilter trying to filter ECS component which is not a part of the query");
+						GAIA_ASSERT(false && "SetChangeFilter trying to filter component which is not a part of the query");
 #if GAIA_DEBUG
-						auto componentName = ctx.cc->comp_desc(comp.id()).name;
-						GAIA_LOG_E(
-								"SetChangeFilter trying to filter ECS component %.*s but "
-								"it's not a part of the query!",
-								(uint32_t)componentName.size(), componentName.data());
+						auto compName = ctx.cc->comp_desc(comp.id()).name.str();
+						GAIA_LOG_E("SetChangeFilter trying to filter component %s but it's not a part of the query!", compName);
 #endif
 					}
 				};
@@ -19394,6 +19465,8 @@ namespace gaia {
 			friend void* AllocateChunkMemory(World& world);
 			friend void ReleaseChunkMemory(World& world, void* mem);
 
+			using EntityNameLookupKey = core::StringLookupKey<256>;
+
 			//! Cache of components
 			ComponentCache m_compCache;
 			//! Cache of queries
@@ -19675,12 +19748,12 @@ namespace gaia {
 					GAIA_LOG_W("Already present:");
 					GAIA_EACH(comps) {
 						const auto& desc = cc.comp_desc(comps[i].id());
-						GAIA_LOG_W("> [%u] %.*s", (uint32_t)i, (uint32_t)desc.name.size(), desc.name.data());
+						GAIA_LOG_W("> [%u] %s", (uint32_t)i, desc.name.str());
 					}
 					GAIA_LOG_W("Trying to add:");
 					{
 						const auto& desc = cc.comp_desc(descToAdd.comp.id());
-						GAIA_LOG_W("> %.*s", (uint32_t)desc.name.size(), desc.name.data());
+						GAIA_LOG_W("> %s", desc.name.str());
 					}
 				}
 
@@ -19693,7 +19766,7 @@ namespace gaia {
 						GAIA_LOG_W(
 								"Trying to add a duplicate of component %s to entity [%u.%u]", ComponentKindString[compKind],
 								entity.id(), entity.gen());
-						GAIA_LOG_W("> %.*s", (uint32_t)desc.name.size(), desc.name.data());
+						GAIA_LOG_W("> %s", desc.name.str());
 					}
 				}
 			}
@@ -19710,13 +19783,13 @@ namespace gaia {
 
 					GAIA_EACH(comps) {
 						const auto& desc = cc.comp_desc(comps[i].id());
-						GAIA_LOG_W("> [%u] %.*s", i, (uint32_t)desc.name.size(), desc.name.data());
+						GAIA_LOG_W("> [%u] %s", i, desc.name.str());
 					}
 
 					{
 						GAIA_LOG_W("Trying to remove:");
 						const auto& desc = cc.comp_desc(descToRemove.comp.id());
-						GAIA_LOG_W("> %.*s", (uint32_t)desc.name.size(), desc.name.data());
+						GAIA_LOG_W("> %s", desc.name.str());
 					}
 				}
 			}
@@ -20111,8 +20184,8 @@ namespace gaia {
 					return;
 				}
 
-				auto res = len == 0 ? m_nameToEntity.try_emplace(EntityNameLookupKey(name), entity)
-														: m_nameToEntity.try_emplace(EntityNameLookupKey(name, len), entity);
+				auto res =
+						m_nameToEntity.try_emplace(len == 0 ? EntityNameLookupKey(name) : EntityNameLookupKey(name, len), entity);
 				// Make sure the name is unique. Ignore setting the same name twice on the same entity
 				GAIA_ASSERT(res.second || res.first->second == entity);
 

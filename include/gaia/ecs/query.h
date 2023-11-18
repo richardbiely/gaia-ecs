@@ -72,13 +72,10 @@ namespace gaia {
 #if GAIA_DEBUG
 						// There's a limit to the amount of components which we can store
 						if (comps.size() >= MAX_COMPONENTS_IN_QUERY) {
-							GAIA_ASSERT(false && "Trying to create an ECS query with too many components!");
+							GAIA_ASSERT(false && "Trying to create an query with too many components!");
 
-							auto componentName = ctx.cc->comp_desc(comp.id()).name;
-							GAIA_LOG_E(
-									"Trying to add ECS component '%.*s' to an already full ECS query!", (uint32_t)componentName.size(),
-									componentName.data());
-
+							auto compName = ctx.cc->comp_desc(comp.id()).name.str();
+							GAIA_LOG_E("Trying to add component '%s' to an already full ECS query!", compName);
 							return;
 						}
 #endif
@@ -111,12 +108,10 @@ namespace gaia {
 #if GAIA_DEBUG
 						// There's a limit to the amount of components which we can store
 						if (withChanged.size() >= MAX_COMPONENTS_IN_QUERY) {
-							GAIA_ASSERT(false && "Trying to create an ECS filter query with too many components!");
+							GAIA_ASSERT(false && "Trying to create an filter query with too many components!");
 
-							auto componentName = ctx.cc->comp_desc(comp.id()).name;
-							GAIA_LOG_E(
-									"Trying to add ECS component %.*s to an already full filter query!", (uint32_t)componentName.size(),
-									componentName.data());
+							auto compName = ctx.cc->comp_desc(comp.id()).name.str();
+							GAIA_LOG_E("Trying to add component %s to an already full filter query!", compName);
 							return;
 						}
 #endif
@@ -137,13 +132,10 @@ namespace gaia {
 							return;
 						}
 
-						GAIA_ASSERT(false && "SetChangeFilter trying to filter ECS component which is not a part of the query");
+						GAIA_ASSERT(false && "SetChangeFilter trying to filter component which is not a part of the query");
 #if GAIA_DEBUG
-						auto componentName = ctx.cc->comp_desc(comp.id()).name;
-						GAIA_LOG_E(
-								"SetChangeFilter trying to filter ECS component %.*s but "
-								"it's not a part of the query!",
-								(uint32_t)componentName.size(), componentName.data());
+						auto compName = ctx.cc->comp_desc(comp.id()).name.str();
+						GAIA_LOG_E("SetChangeFilter trying to filter component %s but it's not a part of the query!", compName);
 #endif
 					}
 				};

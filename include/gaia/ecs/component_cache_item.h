@@ -7,6 +7,8 @@
 #include "../cnt/darray.h"
 #include "../cnt/map.h"
 #include "../config/logging.h"
+#include "../core/hashing_string.h"
+#include "../mem/mem_alloc.h"
 #include "../meta/type_info.h"
 #include "component.h"
 #include "component_desc.h"
@@ -15,6 +17,7 @@
 namespace gaia {
 	namespace ecs {
 		struct ComponentCacheItem final {
+			using SymbolLookupKey = core::StringLookupKey<512>;
 			using FuncCtor = void(void*, uint32_t);
 			using FuncDtor = void(void*, uint32_t);
 			using FuncCopy = void(void*, void*);
@@ -32,7 +35,7 @@ namespace gaia {
 			uint8_t soaSizes[meta::StructToTupleMaxTypes];
 
 			//! Component name
-			std::span<const char> name;
+			SymbolLookupKey name;
 			//! Function to call when the component needs to be constructed
 			FuncCtor* func_ctor = nullptr;
 			//! Function to call when the component needs to be move constructed
@@ -49,6 +52,16 @@ namespace gaia {
 			FuncSwap* func_swap = nullptr;
 			//! Function to call when comparing two components of the same type
 			FuncCmp* func_cmp = nullptr;
+
+		private:
+			ComponentCacheItem() = default;
+			~ComponentCacheItem() = default;
+
+		public:
+			ComponentCacheItem(const ComponentCacheItem&) = delete;
+			ComponentCacheItem(ComponentCacheItem&&) = delete;
+			ComponentCacheItem& operator=(const ComponentCacheItem&) = delete;
+			ComponentCacheItem& operator=(ComponentCacheItem&&) = delete;
 
 			void ctor_from(void* pSrc, void* pDst) const {
 				if (func_move_ctor != nullptr)
@@ -109,7 +122,7 @@ namespace gaia {
 			}
 
 			template <typename T>
-			GAIA_NODISCARD static constexpr ComponentCacheItem* create() {
+			GAIA_NODISCARD static ComponentCacheItem* create() {
 				static_assert(core::is_raw_v<T>);
 
 				auto* cci = new ComponentCacheItem();
@@ -124,7 +137,14 @@ namespace gaia {
 						ComponentDesc<T>::alig());
 				cci->hashLookup = ComponentDesc<T>::hash_lookup();
 				cci->matcherHash = ComponentDesc<T>::hash_matcher();
-				cci->name = ComponentDesc<T>::name();
+
+				auto ct_name = ComponentDesc<T>::name();
+				char* name = (char*)mem::mem_alloc(ct_name.size() + 1);
+				memcpy((void*)name, (const void*)ct_name.data(), ct_name.size() + 1);
+				name[ct_name.size()] = 0;
+				SymbolLookupKey tmp(name, (uint32_t)ct_name.size());
+				cci->name = SymbolLookupKey(tmp.str(), tmp.len(), 1, {tmp.hash()});
+
 				cci->func_ctor = ComponentDesc<T>::func_ctor();
 				cci->func_move_ctor = ComponentDesc<T>::func_move_ctor();
 				cci->func_copy_ctor = ComponentDesc<T>::func_copy_ctor();
@@ -134,6 +154,16 @@ namespace gaia {
 				cci->func_swap = ComponentDesc<T>::func_swap();
 				cci->func_cmp = ComponentDesc<T>::func_cmp();
 				return cci;
+			}
+
+			static void destroy(ComponentCacheItem* item) {
+				if (item == nullptr)
+					return;
+
+				if (item->name.str() != nullptr && item->name.owned()) {
+					mem::mem_free((void*)item->name.str());
+					item->name = {};
+				}
 			}
 		};
 	} // namespace ecs

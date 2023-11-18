@@ -3,13 +3,13 @@
 
 #include <cstdint>
 
-#include "../core/hashing_policy.h"
-#include "../core/utility.h"
+#include "hashing_policy.h"
+#include "utility.h"
 
 namespace gaia {
-	namespace ecs {
-		struct EntityNameLookupKey {
-			static constexpr uint32_t MaxLen = 256;
+	namespace core {
+		template <uint32_t MaxLen>
+		struct StringLookupKey {
 			using LookupHash = core::direct_hash_key<uint32_t>;
 
 		private:
@@ -38,19 +38,19 @@ namespace gaia {
 		public:
 			static constexpr bool IsDirectHashKey = true;
 
-			EntityNameLookupKey() = default;
+			StringLookupKey(): m_pStr(nullptr), m_len(0), m_owned(0), m_hash({0}) {}
 			//! Constructor calulating hash and length from the provided string \param pStr
 			//! \warning String has to be null-terminanted and up to MaxLen characters long.
 			//!          Undefined behavior otherwise.
-			explicit EntityNameLookupKey(const char* pStr): m_pStr(pStr), m_len(len(pStr)) {
-				m_hash = calc(pStr, m_len);
-			}
+			explicit StringLookupKey(const char* pStr):
+					m_pStr(pStr), m_len(len(pStr)), m_owned(0), m_hash(calc(pStr, m_len)) {}
 			//! Constructor calulating hash from the provided string \param pStr and \param length
 			//! \warning String has to be null-terminanted and up to MaxLen characters long.
 			//!          Undefined behavior otherwise.
-			explicit EntityNameLookupKey(const char* pStr, uint32_t len): m_pStr(pStr), m_len(len), m_hash(calc(pStr, len)) {}
+			explicit StringLookupKey(const char* pStr, uint32_t len):
+					m_pStr(pStr), m_len(len), m_owned(0), m_hash(calc(pStr, len)) {}
 			//! Constructor just for setting values
-			explicit EntityNameLookupKey(const char* pStr, uint32_t len, uint32_t owned, LookupHash hash):
+			explicit StringLookupKey(const char* pStr, uint32_t len, uint32_t owned, LookupHash hash):
 					m_pStr(pStr), m_len(len), m_owned(owned), m_hash(hash) {}
 
 			const char* str() const {
@@ -69,7 +69,7 @@ namespace gaia {
 				return m_hash.hash;
 			}
 
-			bool operator==(const EntityNameLookupKey& other) const {
+			bool operator==(const StringLookupKey& other) const {
 				// Hash doesn't match we don't have a match.
 				// Hash collisions are expected to be very unlikely so optimize for this case.
 				if GAIA_LIKELY (m_hash != other.m_hash)
@@ -89,6 +89,10 @@ namespace gaia {
 
 				return true;
 			}
+
+			bool operator!=(const StringLookupKey& other) const {
+				return !operator==(other);
+			}
 		};
-	} // namespace ecs
+	} // namespace core
 } // namespace gaia

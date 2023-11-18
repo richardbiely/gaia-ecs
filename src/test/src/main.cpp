@@ -1,4 +1,3 @@
-#include "gaia/ecs/world.h"
 #include <gaia.h>
 
 #if GAIA_COMPILER_MSVC
@@ -1774,6 +1773,50 @@ TEST_CASE("AddAndDel_entity - 1 component") {
 
 	GAIA_FOR(N) arr.push_back(create(i));
 	GAIA_FOR(N) remove(arr[i]);
+}
+
+template <typename T>
+void verify_name_has(const ecs::ComponentCache& cc, const char* str) {
+	auto name = cc.comp_desc<T>().name;
+	REQUIRE(name.str() != nullptr);
+	REQUIRE(name.len() > 1);
+	const auto* res = cc.find_comp_desc(str);
+	REQUIRE(res != nullptr);
+}
+template <typename T>
+void verify_name_has_not(const ecs::ComponentCache& cc, const char* str) {
+	const auto* item = cc.find_comp_desc<T>();
+	REQUIRE(item == nullptr);
+}
+
+TEST_CASE("Component names") {
+	ecs::World w;
+	const auto& cc = w.comp_cache();
+	auto e = w.add();
+
+	verify_name_has_not<Int3>(cc, "Int3");
+	verify_name_has_not<Position>(cc, "Position");
+	verify_name_has_not<dummy::Position>(cc, "dummy::Position");
+
+	w.add<Position>(e);
+	verify_name_has_not<Int3>(cc, "Int3");
+	verify_name_has<Position>(cc, "Position");
+	verify_name_has_not<dummy::Position>(cc, "dummy::Position");
+
+	w.add<Int3>(e);
+	verify_name_has<Int3>(cc, "Int3");
+	verify_name_has<Position>(cc, "Position");
+	verify_name_has_not<dummy::Position>(cc, "dummy::Position");
+
+	w.del<Position>(e);
+	verify_name_has<Int3>(cc, "Int3");
+	verify_name_has<Position>(cc, "Position");
+	verify_name_has_not<dummy::Position>(cc, "dummy::Position");
+
+	w.add<dummy::Position>(e);
+	verify_name_has<Int3>(cc, "Int3");
+	verify_name_has<Position>(cc, "Position");
+	verify_name_has<dummy::Position>(cc, "dummy::Position");
 }
 
 template <typename TQuery>

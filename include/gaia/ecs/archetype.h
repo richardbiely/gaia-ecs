@@ -761,8 +761,8 @@ namespace gaia {
 
 				auto logComponentInfo = [](const ComponentCacheItem& desc) {
 					GAIA_LOG_N(
-							"    hashLookup:%016" PRIx64 ", mask:%016" PRIx64 ", size:%3u B, align:%3u B, %.*s", desc.hashLookup.hash,
-							desc.matcherHash.hash, desc.comp.size(), desc.comp.alig(), (uint32_t)desc.name.size(), desc.name.data());
+							"    hashLookup:%016" PRIx64 ", mask:%016" PRIx64 ", size:%3u B, align:%3u B, %s", desc.hashLookup.hash,
+							desc.matcherHash.hash, desc.comp.size(), desc.comp.alig(), desc.name.str());
 				};
 
 				if (!genComps.empty()) {

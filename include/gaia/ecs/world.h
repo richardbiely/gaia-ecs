@@ -12,6 +12,7 @@
 #include "../cnt/set.h"
 #include "../config/profiler.h"
 #include "../core/hashing_policy.h"
+#include "../core/hashing_string.h"
 #include "../core/span.h"
 #include "../core/utility.h"
 #include "../mem/mem_alloc.h"
@@ -27,7 +28,6 @@
 #include "component_setter.h"
 #include "component_utils.h"
 #include "entity_container.h"
-#include "entity_name.h"
 #include "id.h"
 #include "query.h"
 #include "query_cache.h"
@@ -42,6 +42,8 @@ namespace gaia {
 			friend class CommandBuffer;
 			friend void* AllocateChunkMemory(World& world);
 			friend void ReleaseChunkMemory(World& world, void* mem);
+
+			using EntityNameLookupKey = core::StringLookupKey<256>;
 
 			//! Cache of components
 			ComponentCache m_compCache;
@@ -324,12 +326,12 @@ namespace gaia {
 					GAIA_LOG_W("Already present:");
 					GAIA_EACH(comps) {
 						const auto& desc = cc.comp_desc(comps[i].id());
-						GAIA_LOG_W("> [%u] %.*s", (uint32_t)i, (uint32_t)desc.name.size(), desc.name.data());
+						GAIA_LOG_W("> [%u] %s", (uint32_t)i, desc.name.str());
 					}
 					GAIA_LOG_W("Trying to add:");
 					{
 						const auto& desc = cc.comp_desc(descToAdd.comp.id());
-						GAIA_LOG_W("> %.*s", (uint32_t)desc.name.size(), desc.name.data());
+						GAIA_LOG_W("> %s", desc.name.str());
 					}
 				}
 
@@ -342,7 +344,7 @@ namespace gaia {
 						GAIA_LOG_W(
 								"Trying to add a duplicate of component %s to entity [%u.%u]", ComponentKindString[compKind],
 								entity.id(), entity.gen());
-						GAIA_LOG_W("> %.*s", (uint32_t)desc.name.size(), desc.name.data());
+						GAIA_LOG_W("> %s", desc.name.str());
 					}
 				}
 			}
@@ -359,13 +361,13 @@ namespace gaia {
 
 					GAIA_EACH(comps) {
 						const auto& desc = cc.comp_desc(comps[i].id());
-						GAIA_LOG_W("> [%u] %.*s", i, (uint32_t)desc.name.size(), desc.name.data());
+						GAIA_LOG_W("> [%u] %s", i, desc.name.str());
 					}
 
 					{
 						GAIA_LOG_W("Trying to remove:");
 						const auto& desc = cc.comp_desc(descToRemove.comp.id());
-						GAIA_LOG_W("> %.*s", (uint32_t)desc.name.size(), desc.name.data());
+						GAIA_LOG_W("> %s", desc.name.str());
 					}
 				}
 			}
@@ -760,8 +762,8 @@ namespace gaia {
 					return;
 				}
 
-				auto res = len == 0 ? m_nameToEntity.try_emplace(EntityNameLookupKey(name), entity)
-														: m_nameToEntity.try_emplace(EntityNameLookupKey(name, len), entity);
+				auto res =
+						m_nameToEntity.try_emplace(len == 0 ? EntityNameLookupKey(name) : EntityNameLookupKey(name, len), entity);
 				// Make sure the name is unique. Ignore setting the same name twice on the same entity
 				GAIA_ASSERT(res.second || res.first->second == entity);
 
