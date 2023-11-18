@@ -60,8 +60,8 @@ namespace gaia {
 			// Hidden default constructor. Only use to calculate the relative offset of m_data
 			Chunk() = default;
 
-			Chunk(uint32_t chunkIndex, uint16_t capacity, uint16_t st, uint32_t& worldVersion):
-					m_header(chunkIndex, capacity, st, worldVersion) {
+			Chunk(const ComponentCache& cc, uint32_t chunkIndex, uint16_t capacity, uint16_t st, uint32_t& worldVersion):
+					m_header(cc, chunkIndex, capacity, st, worldVersion) {
 				// Chunk data area consist of memory offsets, entities and component data. Normally. we would need
 				// to in-place construct all of it manually.
 				// However, the memory offsets and entities are all trivial types and components are initialized via
@@ -71,7 +71,7 @@ namespace gaia {
 			GAIA_MSVC_WARNING_POP()
 
 			void init(
-					const ComponentCache& cc, const cnt::sarray<ComponentArray, ComponentKind::CK_Count>& comps,
+					const cnt::sarray<ComponentArray, ComponentKind::CK_Count>& comps,
 #if GAIA_COMP_ID_PROBING
 					const cnt::sarray<ComponentIdInterMap, ComponentKind::CK_Count>& compMap,
 #endif
@@ -117,7 +117,7 @@ namespace gaia {
 						dst[j].comp = cids[j];
 						const auto off = offs[j];
 						dst[j].pData = &data(off);
-						dst[j].pDesc = &cc.comp_desc(cids[j].id());
+						dst[j].pDesc = &m_header.cc->comp_desc(cids[j].id());
 					}
 				}
 
@@ -197,7 +197,7 @@ namespace gaia {
 					static_assert(!std::is_empty_v<U>, "Attempting to get value of an empty component");
 
 					constexpr auto compKind = component_kind_v<T>;
-					const auto compId = comp_id<T>();
+					const auto compId = m_header.cc->comp_desc<T>().comp.id();
 					const auto compIdx = comp_idx(compKind, compId);
 
 					if constexpr (compKind == ComponentKind::CK_Gen) {
@@ -231,7 +231,7 @@ namespace gaia {
 					static_assert(!std::is_empty_v<U>, "Attempting to set value of an empty component");
 
 					constexpr auto compKind = component_kind_v<T>;
-					const auto compId = comp_id<T>();
+					const auto compId = m_header.cc->comp_desc<T>().comp.id();
 					const auto compIdx = comp_idx(compKind, compId);
 
 					// Update version number if necessary so we know RW access was used on the chunk
@@ -328,18 +328,18 @@ namespace gaia {
 				const auto sizeType = mem_block_size_type(totalBytes);
 #if GAIA_ECS_CHUNK_ALLOCATOR
 				auto* pChunk = (Chunk*)ChunkAllocator::get().alloc(totalBytes);
-				new (pChunk) Chunk(chunkIndex, capacity, sizeType, worldVersion);
+				new (pChunk) Chunk(cc, chunkIndex, capacity, sizeType, worldVersion);
 #else
 				GAIA_ASSERT(totalBytes <= MaxMemoryBlockSize);
 				const auto allocSize = mem_block_size(sizeType);
 				auto* pChunkMem = new uint8_t[allocSize];
-				auto* pChunk = new (pChunkMem) Chunk(chunkIndex, capacity, sizeType, worldVersion);
+				auto* pChunk = new (pChunkMem) Chunk(cc, chunkIndex, capacity, sizeType, worldVersion);
 #endif
 
 #if GAIA_COMP_ID_PROBING
-				pChunk->init(cc, comps, compMap, offsets, compOffs);
+				pChunk->init(comps, compMap, offsets, compOffs);
 #else
-				pChunk->init(cc, comps, offsets, compOffs);
+				pChunk->init(comps, offsets, compOffs);
 #endif
 
 				return pChunk;
@@ -995,9 +995,8 @@ namespace gaia {
 			*/
 			template <typename T>
 			GAIA_NODISCARD bool has() const {
-				const auto compId = comp_id<T>();
-
 				constexpr auto compKind = component_kind_v<T>;
+				const auto compId = m_header.cc->comp_desc<T>().comp.id();
 				return has(compKind, compId);
 			}
 

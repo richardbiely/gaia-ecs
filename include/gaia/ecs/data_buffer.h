@@ -93,8 +93,7 @@ namespace gaia {
 			//! Writes \param value to the buffer
 			template <typename T>
 			void save_comp(T&& value) {
-				const auto compId = comp_id<T>();
-				const auto& desc = m_cc->comp_desc(compId);
+				const auto& desc = m_cc->comp_desc<T>();
 				const bool isManualDestroyNeeded = desc.func_copy_ctor != nullptr || desc.func_move_ctor != nullptr;
 				constexpr bool isRValue = std::is_rvalue_reference_v<decltype(value)>;
 

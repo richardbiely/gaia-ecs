@@ -128,33 +128,33 @@ namespace gaia {
 				auto* cci = new ComponentCacheItem();
 				cci->comp = Component(
 						// component id
-						ComponentDesc<T>::id(),
+						detail::ComponentDesc<T>::id(),
 						// soa
-						ComponentDesc<T>::soa(cci->soaSizes),
+						detail::ComponentDesc<T>::soa(cci->soaSizes),
 						// size in bytes
-						ComponentDesc<T>::size(),
+						detail::ComponentDesc<T>::size(),
 						// alignment
-						ComponentDesc<T>::alig());
-				cci->hashLookup = ComponentDesc<T>::hash_lookup();
-				cci->matcherHash = ComponentDesc<T>::hash_matcher();
+						detail::ComponentDesc<T>::alig());
+				cci->hashLookup = detail::ComponentDesc<T>::hash_lookup();
+				cci->matcherHash = detail::ComponentDesc<T>::hash_matcher();
 
 				// Allocate enough memory for the name string + the null-terminating character (
 				// the compile time string return ed by ComponentDesc<T>::name is not null-terminated).
-				auto ct_name = ComponentDesc<T>::name();
+				auto ct_name = detail::ComponentDesc<T>::name();
 				char* name = (char*)mem::mem_alloc(ct_name.size() + 1);
 				memcpy((void*)name, (const void*)ct_name.data(), ct_name.size() + 1);
 				name[ct_name.size()] = 0;
 				SymbolLookupKey tmp(name, (uint32_t)ct_name.size());
 				cci->name = SymbolLookupKey(tmp.str(), tmp.len(), 1, {tmp.hash()});
 
-				cci->func_ctor = ComponentDesc<T>::func_ctor();
-				cci->func_move_ctor = ComponentDesc<T>::func_move_ctor();
-				cci->func_copy_ctor = ComponentDesc<T>::func_copy_ctor();
-				cci->func_dtor = ComponentDesc<T>::func_dtor();
-				cci->func_copy = ComponentDesc<T>::func_copy();
-				cci->func_move = ComponentDesc<T>::func_move();
-				cci->func_swap = ComponentDesc<T>::func_swap();
-				cci->func_cmp = ComponentDesc<T>::func_cmp();
+				cci->func_ctor = detail::ComponentDesc<T>::func_ctor();
+				cci->func_move_ctor = detail::ComponentDesc<T>::func_move_ctor();
+				cci->func_copy_ctor = detail::ComponentDesc<T>::func_copy_ctor();
+				cci->func_dtor = detail::ComponentDesc<T>::func_dtor();
+				cci->func_copy = detail::ComponentDesc<T>::func_copy();
+				cci->func_move = detail::ComponentDesc<T>::func_move();
+				cci->func_swap = detail::ComponentDesc<T>::func_swap();
+				cci->func_cmp = detail::ComponentDesc<T>::func_cmp();
 				return cci;
 			}
 

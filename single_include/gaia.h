@@ -13961,14 +13961,6 @@ namespace gaia {
 		template <typename T>
 		inline constexpr ComponentKind component_kind_v = component_type_t<T>::Kind;
 
-		//! Returns the component id for \tparam T
-		//! \return Component id
-		template <typename T>
-		GAIA_NODISCARD inline ComponentId comp_id() {
-			using U = typename component_type_t<T>::Type;
-			return meta::type_info::id<U>();
-		}
-
 		template <typename T>
 		struct uni {
 			//! Raw type with no additional sugar
@@ -14279,214 +14271,219 @@ namespace gaia {
 
 namespace gaia {
 	namespace ecs {
-		template <typename T>
-		struct ComponentDesc final {
-			static_assert(core::is_raw_v<T>);
+		namespace detail {
+			using ComponentDescId = uint32_t;
 
-			using FuncCtor = void(void*, uint32_t);
-			using FuncDtor = void(void*, uint32_t);
-			using FuncCopy = void(void*, void*);
-			using FuncMove = void(void*, void*);
-			using FuncSwap = void(void*, void*);
-			using FuncCmp = bool(const void*, const void*);
+			template <typename T>
+			struct ComponentDesc final {
+				using U = typename component_type_t<T>::Type;
 
-			static uint32_t id() {
-				return comp_id<T>();
-			}
+				using FuncCtor = void(void*, uint32_t);
+				using FuncDtor = void(void*, uint32_t);
+				using FuncCopy = void(void*, void*);
+				using FuncMove = void(void*, void*);
+				using FuncSwap = void(void*, void*);
+				using FuncCmp = bool(const void*, const void*);
 
-			static constexpr ComponentLookupHash hash_lookup() {
-				return {meta::type_info::hash<T>()};
-			}
-
-			static constexpr ComponentMatcherHash hash_matcher() {
-				return calc_matcher_hash<T>();
-			}
-
-			static constexpr auto name() {
-				return meta::type_info::name<T>();
-			}
-
-			static constexpr uint32_t size() {
-				return (uint32_t)sizeof(T);
-			}
-
-			static constexpr uint32_t alig() {
-				if constexpr (!std::is_empty_v<T>) {
-					constexpr auto alig = mem::auto_view_policy<T>::Alignment;
-					static_assert(alig < Component::MaxAlignment, "Maximum supported alignemnt for a component is MaxAlignment");
-					return alig;
-				} else {
-					return 0;
+				static ComponentDescId id() {
+					return meta::type_info::id<U>();
 				}
-			}
 
-			static uint32_t soa(std::span<uint8_t, meta::StructToTupleMaxTypes> soaSizes) {
-				if constexpr (mem::is_soa_layout_v<T>) {
-					uint32_t i = 0;
-					using TTuple = decltype(meta::struct_to_tuple(T{}));
-					// is_soa_layout_v is always false for empty types so we know there is at least one element in the tuple
-					constexpr auto TTupleSize = std::tuple_size_v<TTuple>;
-					static_assert(TTupleSize > 0);
-					static_assert(TTupleSize <= meta::StructToTupleMaxTypes);
-					core::each_tuple<TTuple>([&](auto&& item) {
-						static_assert(sizeof(item) <= 255, "Each member of a SoA component can be at most 255 B long!");
-						soaSizes[i] = (uint8_t)sizeof(item);
-						++i;
-					});
-					GAIA_ASSERT(i <= meta::StructToTupleMaxTypes);
-					return i;
-				} else {
-					return 0U;
+				static constexpr ComponentLookupHash hash_lookup() {
+					return {meta::type_info::hash<U>()};
 				}
-			}
 
-			static constexpr auto func_ctor() {
-				if constexpr (!mem::is_soa_layout_v<T> && !std::is_trivially_constructible_v<T>) {
-					return [](void* ptr, uint32_t cnt) {
-						core::call_ctor_n((T*)ptr, cnt);
-					};
-				} else {
-					return nullptr;
+				static constexpr ComponentMatcherHash hash_matcher() {
+					return {calc_matcher_hash<U>()};
 				}
-			}
 
-			static constexpr auto func_dtor() {
-				if constexpr (!mem::is_soa_layout_v<T> && !std::is_trivially_destructible_v<T>) {
-					return [](void* ptr, uint32_t cnt) {
-						core::call_dtor_n((T*)ptr, cnt);
-					};
-				} else {
-					return nullptr;
+				static constexpr auto name() {
+					return meta::type_info::name<U>();
 				}
-			}
 
-			static constexpr auto func_copy_ctor() {
-				if constexpr (mem::is_soa_layout_v<T>) {
-					return nullptr;
-				} else if constexpr (std::is_copy_assignable_v<T>) {
-					return [](void* from, void* to) {
-						auto* src = (T*)from;
-						auto* dst = (T*)to;
-						core::call_ctor(dst);
-						*dst = *src;
-					};
-				} else if constexpr (std::is_copy_constructible_v<T>) {
-					return [](void* from, void* to) {
-						auto* src = (T*)from;
-						auto* dst = (T*)to;
-						core::call_ctor(dst, T(GAIA_MOV(*src)));
-					};
-				} else {
-					return nullptr;
+				static constexpr uint32_t size() {
+					return (uint32_t)sizeof(U);
 				}
-			}
 
-			static constexpr auto func_copy() {
-				if constexpr (mem::is_soa_layout_v<T>) {
-					return nullptr;
-				} else if constexpr (std::is_copy_assignable_v<T>) {
-					return [](void* from, void* to) {
-						auto* src = (T*)from;
-						auto* dst = (T*)to;
-						*dst = *src;
-					};
-				} else if constexpr (std::is_copy_constructible_v<T>) {
-					return [](void* from, void* to) {
-						auto* src = (T*)from;
-						auto* dst = (T*)to;
-						*dst = T(*src);
-					};
-				} else {
-					return nullptr;
+				static constexpr uint32_t alig() {
+					if constexpr (!std::is_empty_v<U>) {
+						constexpr auto alig = mem::auto_view_policy<U>::Alignment;
+						static_assert(
+								alig < Component::MaxAlignment, "Maximum supported alignemnt for a component is MaxAlignment");
+						return alig;
+					} else {
+						return 0;
+					}
 				}
-			}
 
-			static constexpr auto func_move_ctor() {
-				if constexpr (mem::is_soa_layout_v<T>) {
-					return nullptr;
-				} else if constexpr (!std::is_trivially_move_assignable_v<T> && std::is_move_assignable_v<T>) {
-					return [](void* from, void* to) {
-						auto* src = (T*)from;
-						auto* dst = (T*)to;
-						core::call_ctor(dst);
-						*dst = GAIA_MOV(*src);
-					};
-				} else if constexpr (!std::is_trivially_move_constructible_v<T> && std::is_move_constructible_v<T>) {
-					return [](void* from, void* to) {
-						auto* src = (T*)from;
-						auto* dst = (T*)to;
-						core::call_ctor(dst, GAIA_MOV(*src));
-					};
-				} else {
-					return nullptr;
+				static uint32_t soa(std::span<uint8_t, meta::StructToTupleMaxTypes> soaSizes) {
+					if constexpr (mem::is_soa_layout_v<U>) {
+						uint32_t i = 0;
+						using TTuple = decltype(meta::struct_to_tuple(U{}));
+						// is_soa_layout_v is always false for empty types so we know there is at least one element in the tuple
+						constexpr auto TTupleSize = std::tuple_size_v<TTuple>;
+						static_assert(TTupleSize > 0);
+						static_assert(TTupleSize <= meta::StructToTupleMaxTypes);
+						core::each_tuple<TTuple>([&](auto&& item) {
+							static_assert(sizeof(item) <= 255, "Each member of a SoA component can be at most 255 B long!");
+							soaSizes[i] = (uint8_t)sizeof(item);
+							++i;
+						});
+						GAIA_ASSERT(i <= meta::StructToTupleMaxTypes);
+						return i;
+					} else {
+						return 0U;
+					}
 				}
-			}
 
-			static constexpr auto func_move() {
-				if constexpr (mem::is_soa_layout_v<T>) {
-					return nullptr;
-				} else if constexpr (!std::is_trivially_move_assignable_v<T> && std::is_move_assignable_v<T>) {
-					return [](void* from, void* to) {
-						auto* src = (T*)from;
-						auto* dst = (T*)to;
-						*dst = GAIA_MOV(*src);
-					};
-				} else if constexpr (!std::is_trivially_move_constructible_v<T> && std::is_move_constructible_v<T>) {
-					return [](void* from, void* to) {
-						auto* src = (T*)from;
-						auto* dst = (T*)to;
-						*dst = T(GAIA_MOV(*src));
-					};
-				} else {
-					return nullptr;
-				}
-			}
-
-			static constexpr auto func_swap() {
-				if constexpr (mem::is_soa_layout_v<T>) {
-					return nullptr;
-				} else if constexpr (std::is_move_constructible_v<T> && std::is_move_assignable_v<T>) {
-					return [](void* left, void* right) {
-						auto* l = (T*)left;
-						auto* r = (T*)right;
-						T tmp = GAIA_MOV(*l);
-						*r = GAIA_MOV(*l);
-						*r = GAIA_MOV(tmp);
-					};
-				} else {
-					return [](void* left, void* right) {
-						auto* l = (T*)left;
-						auto* r = (T*)right;
-						T tmp = *l;
-						*r = *l;
-						*r = tmp;
-					};
-				}
-			}
-
-			static constexpr auto func_cmp() {
-				if constexpr (mem::is_soa_layout_v<T>) {
-					return nullptr;
-				} else {
-					constexpr bool hasGlobalCmp = core::has_global_equals<T>::value;
-					constexpr bool hasMemberCmp = core::has_member_equals<T>::value;
-					if constexpr (hasGlobalCmp || hasMemberCmp) {
-						return [](const void* left, const void* right) {
-							const auto* l = (const T*)left;
-							const auto* r = (const T*)right;
-							return *l == *r;
+				static constexpr auto func_ctor() {
+					if constexpr (!mem::is_soa_layout_v<U> && !std::is_trivially_constructible_v<U>) {
+						return [](void* ptr, uint32_t cnt) {
+							core::call_ctor_n((U*)ptr, cnt);
 						};
 					} else {
-						// fallback comparison function
-						return [](const void* left, const void* right) {
-							const auto* l = (const T*)left;
-							const auto* r = (const T*)right;
-							return memcmp(l, r, 1) == 0;
+						return nullptr;
+					}
+				}
+
+				static constexpr auto func_dtor() {
+					if constexpr (!mem::is_soa_layout_v<U> && !std::is_trivially_destructible_v<U>) {
+						return [](void* ptr, uint32_t cnt) {
+							core::call_dtor_n((U*)ptr, cnt);
+						};
+					} else {
+						return nullptr;
+					}
+				}
+
+				static constexpr auto func_copy_ctor() {
+					if constexpr (mem::is_soa_layout_v<U>) {
+						return nullptr;
+					} else if constexpr (std::is_copy_assignable_v<U>) {
+						return [](void* from, void* to) {
+							auto* src = (U*)from;
+							auto* dst = (U*)to;
+							core::call_ctor(dst);
+							*dst = *src;
+						};
+					} else if constexpr (std::is_copy_constructible_v<U>) {
+						return [](void* from, void* to) {
+							auto* src = (U*)from;
+							auto* dst = (U*)to;
+							core::call_ctor(dst, U(GAIA_MOV(*src)));
+						};
+					} else {
+						return nullptr;
+					}
+				}
+
+				static constexpr auto func_copy() {
+					if constexpr (mem::is_soa_layout_v<U>) {
+						return nullptr;
+					} else if constexpr (std::is_copy_assignable_v<U>) {
+						return [](void* from, void* to) {
+							auto* src = (U*)from;
+							auto* dst = (U*)to;
+							*dst = *src;
+						};
+					} else if constexpr (std::is_copy_constructible_v<U>) {
+						return [](void* from, void* to) {
+							auto* src = (U*)from;
+							auto* dst = (U*)to;
+							*dst = U(*src);
+						};
+					} else {
+						return nullptr;
+					}
+				}
+
+				static constexpr auto func_move_ctor() {
+					if constexpr (mem::is_soa_layout_v<U>) {
+						return nullptr;
+					} else if constexpr (!std::is_trivially_move_assignable_v<U> && std::is_move_assignable_v<U>) {
+						return [](void* from, void* to) {
+							auto* src = (U*)from;
+							auto* dst = (U*)to;
+							core::call_ctor(dst);
+							*dst = GAIA_MOV(*src);
+						};
+					} else if constexpr (!std::is_trivially_move_constructible_v<U> && std::is_move_constructible_v<U>) {
+						return [](void* from, void* to) {
+							auto* src = (U*)from;
+							auto* dst = (U*)to;
+							core::call_ctor(dst, GAIA_MOV(*src));
+						};
+					} else {
+						return nullptr;
+					}
+				}
+
+				static constexpr auto func_move() {
+					if constexpr (mem::is_soa_layout_v<U>) {
+						return nullptr;
+					} else if constexpr (!std::is_trivially_move_assignable_v<U> && std::is_move_assignable_v<U>) {
+						return [](void* from, void* to) {
+							auto* src = (U*)from;
+							auto* dst = (U*)to;
+							*dst = GAIA_MOV(*src);
+						};
+					} else if constexpr (!std::is_trivially_move_constructible_v<U> && std::is_move_constructible_v<U>) {
+						return [](void* from, void* to) {
+							auto* src = (U*)from;
+							auto* dst = (U*)to;
+							*dst = U(GAIA_MOV(*src));
+						};
+					} else {
+						return nullptr;
+					}
+				}
+
+				static constexpr auto func_swap() {
+					if constexpr (mem::is_soa_layout_v<U>) {
+						return nullptr;
+					} else if constexpr (std::is_move_constructible_v<U> && std::is_move_assignable_v<U>) {
+						return [](void* left, void* right) {
+							auto* l = (U*)left;
+							auto* r = (U*)right;
+							U tmp = GAIA_MOV(*l);
+							*r = GAIA_MOV(*l);
+							*r = GAIA_MOV(tmp);
+						};
+					} else {
+						return [](void* left, void* right) {
+							auto* l = (U*)left;
+							auto* r = (U*)right;
+							U tmp = *l;
+							*r = *l;
+							*r = tmp;
 						};
 					}
 				}
-			}
-		};
+
+				static constexpr auto func_cmp() {
+					if constexpr (mem::is_soa_layout_v<U>) {
+						return nullptr;
+					} else {
+						constexpr bool hasGlobalCmp = core::has_global_equals<U>::value;
+						constexpr bool hasMemberCmp = core::has_member_equals<U>::value;
+						if constexpr (hasGlobalCmp || hasMemberCmp) {
+							return [](const void* left, const void* right) {
+								const auto* l = (const U*)left;
+								const auto* r = (const U*)right;
+								return *l == *r;
+							};
+						} else {
+							// fallback comparison function
+							return [](const void* left, const void* right) {
+								const auto* l = (const U*)left;
+								const auto* r = (const U*)right;
+								return memcmp(l, r, 1) == 0;
+							};
+						}
+					}
+				}
+			};
+		} // namespace detail
 	} // namespace ecs
 } // namespace gaia
 
@@ -14604,33 +14601,33 @@ namespace gaia {
 				auto* cci = new ComponentCacheItem();
 				cci->comp = Component(
 						// component id
-						ComponentDesc<T>::id(),
+						detail::ComponentDesc<T>::id(),
 						// soa
-						ComponentDesc<T>::soa(cci->soaSizes),
+						detail::ComponentDesc<T>::soa(cci->soaSizes),
 						// size in bytes
-						ComponentDesc<T>::size(),
+						detail::ComponentDesc<T>::size(),
 						// alignment
-						ComponentDesc<T>::alig());
-				cci->hashLookup = ComponentDesc<T>::hash_lookup();
-				cci->matcherHash = ComponentDesc<T>::hash_matcher();
+						detail::ComponentDesc<T>::alig());
+				cci->hashLookup = detail::ComponentDesc<T>::hash_lookup();
+				cci->matcherHash = detail::ComponentDesc<T>::hash_matcher();
 
 				// Allocate enough memory for the name string + the null-terminating character (
 				// the compile time string return ed by ComponentDesc<T>::name is not null-terminated).
-				auto ct_name = ComponentDesc<T>::name();
+				auto ct_name = detail::ComponentDesc<T>::name();
 				char* name = (char*)mem::mem_alloc(ct_name.size() + 1);
 				memcpy((void*)name, (const void*)ct_name.data(), ct_name.size() + 1);
 				name[ct_name.size()] = 0;
 				SymbolLookupKey tmp(name, (uint32_t)ct_name.size());
 				cci->name = SymbolLookupKey(tmp.str(), tmp.len(), 1, {tmp.hash()});
 
-				cci->func_ctor = ComponentDesc<T>::func_ctor();
-				cci->func_move_ctor = ComponentDesc<T>::func_move_ctor();
-				cci->func_copy_ctor = ComponentDesc<T>::func_copy_ctor();
-				cci->func_dtor = ComponentDesc<T>::func_dtor();
-				cci->func_copy = ComponentDesc<T>::func_copy();
-				cci->func_move = ComponentDesc<T>::func_move();
-				cci->func_swap = ComponentDesc<T>::func_swap();
-				cci->func_cmp = ComponentDesc<T>::func_cmp();
+				cci->func_ctor = detail::ComponentDesc<T>::func_ctor();
+				cci->func_move_ctor = detail::ComponentDesc<T>::func_move_ctor();
+				cci->func_copy_ctor = detail::ComponentDesc<T>::func_copy_ctor();
+				cci->func_dtor = detail::ComponentDesc<T>::func_dtor();
+				cci->func_copy = detail::ComponentDesc<T>::func_copy();
+				cci->func_move = detail::ComponentDesc<T>::func_move();
+				cci->func_swap = detail::ComponentDesc<T>::func_swap();
+				cci->func_cmp = detail::ComponentDesc<T>::func_cmp();
 				return cci;
 			}
 
@@ -14694,20 +14691,20 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD GAIA_FORCEINLINE const ComponentCacheItem& goc_comp_desc() {
 				using U = typename component_type_t<T>::Type;
-				const auto compId = comp_id<T>();
+				const auto compDescId = detail::ComponentDesc<T>::id();
 
 				// Fast path for small component ids - use the array storage
-				if (compId < FastComponentCacheSize) {
+				if (compDescId < FastComponentCacheSize) {
 					auto createDesc = [&]() -> const ComponentCacheItem& {
 						const auto* pDesc = ComponentCacheItem::create<U>();
-						m_descByIndex[compId] = pDesc;
+						m_descByIndex[compDescId] = pDesc;
 						m_descByString[pDesc->name] = pDesc;
 						return *pDesc;
 					};
 
-					if GAIA_UNLIKELY (compId >= m_descByIndex.size()) {
+					if GAIA_UNLIKELY (compDescId >= m_descByIndex.size()) {
 						const auto oldSize = m_descByIndex.size();
-						const auto newSize = compId + 1U;
+						const auto newSize = compDescId + 1U;
 
 						// Increase the capacity by multiples of CapacityIncreaseSize
 						constexpr uint32_t CapacityIncreaseSize = 128;
@@ -14723,22 +14720,22 @@ namespace gaia {
 						return createDesc();
 					}
 
-					if GAIA_UNLIKELY (m_descByIndex[compId] == nullptr) {
+					if GAIA_UNLIKELY (m_descByIndex[compDescId] == nullptr) {
 						return createDesc();
 					}
 
-					return *m_descByIndex[compId];
+					return *m_descByIndex[compDescId];
 				}
 
 				// Generic path for large component ids - use the map storage
 				{
 					auto createDesc = [&]() -> const ComponentCacheItem& {
 						const auto* pDesc = ComponentCacheItem::create<U>();
-						m_descByIndexMap.emplace(compId, pDesc);
+						m_descByIndexMap.emplace(compDescId, pDesc);
 						return *pDesc;
 					};
 
-					const auto it = m_descByIndexMap.find(compId);
+					const auto it = m_descByIndexMap.find(compDescId);
 					if (it == m_descByIndexMap.end())
 						return createDesc();
 
@@ -14746,36 +14743,36 @@ namespace gaia {
 				}
 			}
 
-			//! Searches for the cached component info given the \param compId.
+			//! Searches for the cached component info given the \param compDescId.
 			//! \warning It is expected the component info with a given component id exists! Undefined behavior otherwise.
 			//! \return Component info or nullptr it not found.
-			GAIA_NODISCARD const ComponentCacheItem* find_comp_desc(ComponentId compId) const noexcept {
+			GAIA_NODISCARD const ComponentCacheItem* find_comp_desc(detail::ComponentDescId compDescId) const noexcept {
 				// Fast path - array storage
-				if (compId < FastComponentCacheSize) {
-					if (compId >= m_descByIndex.size())
+				if (compDescId < FastComponentCacheSize) {
+					if (compDescId >= m_descByIndex.size())
 						return nullptr;
 
-					return m_descByIndex[compId];
+					return m_descByIndex[compDescId];
 				}
 
 				// Generic path - map storage
-				const auto it = m_descByIndexMap.find(compId);
+				const auto it = m_descByIndexMap.find(compDescId);
 				return it != m_descByIndexMap.end() ? it->second : nullptr;
 			}
 
-			//! Returns the cached component info given the \param compId.
+			//! Returns the cached component info given the \param compDescId.
 			//! \warning It is expected the component info with a given component id exists! Undefined behavior otherwise.
 			//! \return Component info
-			GAIA_NODISCARD const ComponentCacheItem& comp_desc(ComponentId compId) const noexcept {
+			GAIA_NODISCARD const ComponentCacheItem& comp_desc(detail::ComponentDescId compDescId) const noexcept {
 				// Fast path - array storage
-				if (compId < FastComponentCacheSize) {
-					GAIA_ASSERT(compId < m_descByIndex.size());
-					return *m_descByIndex[compId];
+				if (compDescId < FastComponentCacheSize) {
+					GAIA_ASSERT(compDescId < m_descByIndex.size());
+					return *m_descByIndex[compDescId];
 				}
 
 				// Generic path - map storage
-				GAIA_ASSERT(m_descByIndexMap.contains(compId));
-				return *m_descByIndexMap.find(compId)->second;
+				GAIA_ASSERT(m_descByIndexMap.contains(compDescId));
+				return *m_descByIndexMap.find(compDescId)->second;
 			}
 
 			//! Searches for the cached component info. The provided string is NOT copied internally.
@@ -14806,8 +14803,8 @@ namespace gaia {
 			//! \return Component info or nullptr if not found.
 			template <typename T>
 			GAIA_NODISCARD const ComponentCacheItem* find_comp_desc() const noexcept {
-				const auto compId = comp_id<T>();
-				return find_comp_desc(compId);
+				const auto compDescId = detail::ComponentDesc<T>::id();
+				return find_comp_desc(compDescId);
 			}
 
 			//! Returns the component info for \tparam T.
@@ -14815,8 +14812,8 @@ namespace gaia {
 			//! \return Component info
 			template <typename T>
 			GAIA_NODISCARD const ComponentCacheItem& comp_desc() const noexcept {
-				const auto compId = comp_id<T>();
-				return comp_desc(compId);
+				const auto compDescId = detail::ComponentDesc<T>::id();
+				return comp_desc(compDescId);
 			}
 
 			void diag() const {
@@ -15427,6 +15424,7 @@ namespace gaia {
 
 namespace gaia {
 	namespace ecs {
+		class ComponentCache;
 		struct ComponentCacheItem;
 
 		struct ChunkDataOffsets {
@@ -15482,6 +15480,8 @@ namespace gaia {
 			//! Number of locks the chunk can aquire
 			static constexpr uint16_t MAX_CHUNK_LOCKS = (1 << CHUNK_LOCKS_BITS) - 1;
 
+			//! Component cache reference
+			const ComponentCache* cc;
 			//! Chunk index in its archetype list
 			uint32_t index;
 			//! Total number of entities in the chunk.
@@ -15520,10 +15520,10 @@ namespace gaia {
 			static inline uint32_t s_worldVersionDummy = 0;
 			ChunkHeader(): worldVersion(s_worldVersionDummy) {}
 
-			ChunkHeader(uint32_t chunkIndex, uint16_t cap, uint16_t st, uint32_t& version):
-					index(chunkIndex), count(0), countEnabled(0), capacity(cap), firstEnabledEntityIndex(0), lifespanCountdown(0),
-					dead(0), structuralChangesLocked(0), hasAnyCustomGenCtor(0), hasAnyCustomUniCtor(0), hasAnyCustomGenDtor(0),
-					hasAnyCustomUniDtor(0), sizeType(st), unused(0), worldVersion(version) {
+			ChunkHeader(const ComponentCache& compCache, uint32_t chunkIndex, uint16_t cap, uint16_t st, uint32_t& version):
+					cc(&compCache), index(chunkIndex), count(0), countEnabled(0), capacity(cap), firstEnabledEntityIndex(0),
+					lifespanCountdown(0), dead(0), structuralChangesLocked(0), hasAnyCustomGenCtor(0), hasAnyCustomUniCtor(0),
+					hasAnyCustomGenDtor(0), hasAnyCustomUniDtor(0), sizeType(st), unused(0), worldVersion(version) {
 				// Make sure the alignment is right
 				GAIA_ASSERT(uintptr_t(this) % (sizeof(size_t)) == 0);
 			}
@@ -15650,8 +15650,8 @@ namespace gaia {
 			// Hidden default constructor. Only use to calculate the relative offset of m_data
 			Chunk() = default;
 
-			Chunk(uint32_t chunkIndex, uint16_t capacity, uint16_t st, uint32_t& worldVersion):
-					m_header(chunkIndex, capacity, st, worldVersion) {
+			Chunk(const ComponentCache& cc, uint32_t chunkIndex, uint16_t capacity, uint16_t st, uint32_t& worldVersion):
+					m_header(cc, chunkIndex, capacity, st, worldVersion) {
 				// Chunk data area consist of memory offsets, entities and component data. Normally. we would need
 				// to in-place construct all of it manually.
 				// However, the memory offsets and entities are all trivial types and components are initialized via
@@ -15661,7 +15661,7 @@ namespace gaia {
 			GAIA_MSVC_WARNING_POP()
 
 			void init(
-					const ComponentCache& cc, const cnt::sarray<ComponentArray, ComponentKind::CK_Count>& comps,
+					const cnt::sarray<ComponentArray, ComponentKind::CK_Count>& comps,
 #if GAIA_COMP_ID_PROBING
 					const cnt::sarray<ComponentIdInterMap, ComponentKind::CK_Count>& compMap,
 #endif
@@ -15707,7 +15707,7 @@ namespace gaia {
 						dst[j].comp = cids[j];
 						const auto off = offs[j];
 						dst[j].pData = &data(off);
-						dst[j].pDesc = &cc.comp_desc(cids[j].id());
+						dst[j].pDesc = &m_header.cc->comp_desc(cids[j].id());
 					}
 				}
 
@@ -15787,7 +15787,7 @@ namespace gaia {
 					static_assert(!std::is_empty_v<U>, "Attempting to get value of an empty component");
 
 					constexpr auto compKind = component_kind_v<T>;
-					const auto compId = comp_id<T>();
+					const auto compId = m_header.cc->comp_desc<T>().comp.id();
 					const auto compIdx = comp_idx(compKind, compId);
 
 					if constexpr (compKind == ComponentKind::CK_Gen) {
@@ -15821,7 +15821,7 @@ namespace gaia {
 					static_assert(!std::is_empty_v<U>, "Attempting to set value of an empty component");
 
 					constexpr auto compKind = component_kind_v<T>;
-					const auto compId = comp_id<T>();
+					const auto compId = m_header.cc->comp_desc<T>().comp.id();
 					const auto compIdx = comp_idx(compKind, compId);
 
 					// Update version number if necessary so we know RW access was used on the chunk
@@ -15918,18 +15918,18 @@ namespace gaia {
 				const auto sizeType = mem_block_size_type(totalBytes);
 #if GAIA_ECS_CHUNK_ALLOCATOR
 				auto* pChunk = (Chunk*)ChunkAllocator::get().alloc(totalBytes);
-				new (pChunk) Chunk(chunkIndex, capacity, sizeType, worldVersion);
+				new (pChunk) Chunk(cc, chunkIndex, capacity, sizeType, worldVersion);
 #else
 				GAIA_ASSERT(totalBytes <= MaxMemoryBlockSize);
 				const auto allocSize = mem_block_size(sizeType);
 				auto* pChunkMem = new uint8_t[allocSize];
-				auto* pChunk = new (pChunkMem) Chunk(chunkIndex, capacity, sizeType, worldVersion);
+				auto* pChunk = new (pChunkMem) Chunk(cc, chunkIndex, capacity, sizeType, worldVersion);
 #endif
 
 #if GAIA_COMP_ID_PROBING
-				pChunk->init(cc, comps, compMap, offsets, compOffs);
+				pChunk->init(comps, compMap, offsets, compOffs);
 #else
-				pChunk->init(cc, comps, offsets, compOffs);
+				pChunk->init(comps, offsets, compOffs);
 #endif
 
 				return pChunk;
@@ -16585,9 +16585,8 @@ namespace gaia {
 			*/
 			template <typename T>
 			GAIA_NODISCARD bool has() const {
-				const auto compId = comp_id<T>();
-
 				constexpr auto compKind = component_kind_v<T>;
+				const auto compId = m_header.cc->comp_desc<T>().comp.id();
 				return has(compKind, compId);
 			}
 
@@ -16968,6 +16967,8 @@ namespace gaia {
 
 		private:
 			Properties m_properties{};
+			//! Component cache reference
+			const ComponentCache& m_cc;
 			//! Stable reference to parent world's world version
 			uint32_t& m_worldVersion;
 
@@ -17009,7 +17010,7 @@ namespace gaia {
 			uint32_t m_dead : 1;
 
 			// Constructor is hidden. Create archetypes via Create
-			Archetype(uint32_t& worldVersion): m_worldVersion(worldVersion) {}
+			Archetype(const ComponentCache& cc, uint32_t& worldVersion): m_cc(cc), m_worldVersion(worldVersion) {}
 
 			//! Calulcates offsets in memory at which important chunk data is going to be stored.
 			//! These offsets are use to setup the chunk data area layout.
@@ -17180,7 +17181,7 @@ namespace gaia {
 			GAIA_NODISCARD static Archetype* create(
 					const ComponentCache& cc, ArchetypeId archetypeId, uint32_t& worldVersion, ComponentSpan compsGen,
 					ComponentSpan compsUni) {
-				auto* newArch = new Archetype(worldVersion);
+				auto* newArch = new Archetype(cc, worldVersion);
 				newArch->m_archetypeId = archetypeId;
 				const uint32_t maxEntities = archetypeId == 0 ? ChunkHeader::MAX_CHUNK_ENTITIES : 512;
 
@@ -17451,7 +17452,7 @@ namespace gaia {
 
 			//! Tries to locate a chunk that has some space left for a new entity.
 			//! If not found a new chunk is created.
-			GAIA_NODISCARD Chunk* foc_free_chunk(const ComponentCache& cc) {
+			GAIA_NODISCARD Chunk* foc_free_chunk() {
 				const auto chunkCnt = m_chunks.size();
 
 				if (chunkCnt > 0) {
@@ -17475,7 +17476,7 @@ namespace gaia {
 
 				// No free space found anywhere. Let's create a new chunk.
 				auto* pChunk = Chunk::create(
-						cc, chunkCnt, props().capacity, m_properties.chunkDataBytes, m_worldVersion, m_dataOffsets, m_comps,
+						m_cc, chunkCnt, props().capacity, m_properties.chunkDataBytes, m_worldVersion, m_dataOffsets, m_comps,
 #if GAIA_COMP_ID_PROBING
 						m_compMap,
 #endif
@@ -17536,9 +17537,8 @@ namespace gaia {
 			*/
 			template <typename T>
 			GAIA_NODISCARD bool has() const {
-				const auto compId = comp_id<T>();
-
 				constexpr auto compKind = component_kind_v<T>;
+				const auto compId = m_cc.comp_desc<T>().comp.id();
 				return has(compKind, compId);
 			}
 
@@ -17934,8 +17934,7 @@ namespace gaia {
 			//! Writes \param value to the buffer
 			template <typename T>
 			void save_comp(T&& value) {
-				const auto compId = comp_id<T>();
-				const auto& desc = m_cc->comp_desc(compId);
+				const auto& desc = m_cc->comp_desc<T>();
 				const bool isManualDestroyNeeded = desc.func_copy_ctor != nullptr || desc.func_move_ctor != nullptr;
 				constexpr bool isRValue = std::is_rvalue_reference_v<decltype(value)>;
 
@@ -18310,7 +18309,7 @@ namespace gaia {
 					const auto& data = m_lookupCtx.data[compKind];
 					const auto& comps = data.comps;
 
-					const auto compId = comp_id<T>();
+					const auto compId = m_lookupCtx.cc->comp_desc<T>().comp.id();
 					const auto compIdx = ecs::comp_idx<MAX_COMPONENTS_IN_QUERY>(comps.data(), compId);
 
 					if (listType != data.rules[compIdx])
@@ -20069,7 +20068,7 @@ namespace gaia {
 			\param newArchetype Target archetype
 			*/
 			void move_entity(Entity oldEntity, Archetype& newArchetype) {
-				auto* pNewChunk = newArchetype.foc_free_chunk(comp_cache());
+				auto* pNewChunk = newArchetype.foc_free_chunk();
 				move_entity(oldEntity, newArchetype, *pNewChunk);
 			}
 
@@ -20244,7 +20243,7 @@ namespace gaia {
 			GAIA_NODISCARD Entity add(Archetype& archetype) {
 				const auto entity = m_entities.alloc();
 
-				auto* pChunk = archetype.foc_free_chunk(comp_cache());
+				auto* pChunk = archetype.foc_free_chunk();
 				store_entity(entity, &archetype, pChunk);
 
 				// Call constructors for the generic components on the newly added entity if necessary
@@ -21151,7 +21150,7 @@ namespace gaia {
 				SET_COMPONENT_t cmd;
 				cmd.entity = entity;
 				cmd.compKind = component_kind_v<T>;
-				cmd.compId = comp_id<T>();
+				cmd.compId = comp_cache(m_ctx.world).comp_desc<U>().comp.id();
 				ser::save(m_ctx, cmd);
 				m_ctx.save_comp(GAIA_FWD(value));
 			}
@@ -21174,7 +21173,7 @@ namespace gaia {
 				SET_COMPONENT_FOR_TEMPENTITY_t cmd;
 				cmd.tempEntity = entity;
 				cmd.compKind = component_kind_v<T>;
-				cmd.compId = comp_id<T>();
+				cmd.compId = comp_cache(m_ctx.world).comp_desc<U>().comp.id();
 				ser::save(m_ctx, cmd);
 				m_ctx.save_comp(GAIA_FWD(value));
 			}
@@ -21196,7 +21195,7 @@ namespace gaia {
 				REMOVE_COMPONENT_t cmd;
 				cmd.entity = entity;
 				cmd.compKind = component_kind_v<T>;
-				cmd.compId = comp_id<T>();
+				cmd.compId = comp_cache(m_ctx.world).comp_desc<U>().comp.id();
 				ser::save(m_ctx, cmd);
 			}
 

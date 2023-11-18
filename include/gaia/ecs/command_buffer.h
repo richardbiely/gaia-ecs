@@ -400,7 +400,7 @@ namespace gaia {
 				SET_COMPONENT_t cmd;
 				cmd.entity = entity;
 				cmd.compKind = component_kind_v<T>;
-				cmd.compId = comp_id<T>();
+				cmd.compId = comp_cache(m_ctx.world).comp_desc<U>().comp.id();
 				ser::save(m_ctx, cmd);
 				m_ctx.save_comp(GAIA_FWD(value));
 			}
@@ -423,7 +423,7 @@ namespace gaia {
 				SET_COMPONENT_FOR_TEMPENTITY_t cmd;
 				cmd.tempEntity = entity;
 				cmd.compKind = component_kind_v<T>;
-				cmd.compId = comp_id<T>();
+				cmd.compId = comp_cache(m_ctx.world).comp_desc<U>().comp.id();
 				ser::save(m_ctx, cmd);
 				m_ctx.save_comp(GAIA_FWD(value));
 			}
@@ -445,7 +445,7 @@ namespace gaia {
 				REMOVE_COMPONENT_t cmd;
 				cmd.entity = entity;
 				cmd.compKind = component_kind_v<T>;
-				cmd.compId = comp_id<T>();
+				cmd.compId = comp_cache(m_ctx.world).comp_desc<U>().comp.id();
 				ser::save(m_ctx, cmd);
 			}
 

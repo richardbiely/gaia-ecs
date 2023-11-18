@@ -100,14 +100,6 @@ namespace gaia {
 		template <typename T>
 		inline constexpr ComponentKind component_kind_v = component_type_t<T>::Kind;
 
-		//! Returns the component id for \tparam T
-		//! \return Component id
-		template <typename T>
-		GAIA_NODISCARD inline ComponentId comp_id() {
-			using U = typename component_type_t<T>::Type;
-			return meta::type_info::id<U>();
-		}
-
 		template <typename T>
 		struct uni {
 			//! Raw type with no additional sugar

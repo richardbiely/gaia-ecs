@@ -645,7 +645,7 @@ namespace gaia {
 			\param newArchetype Target archetype
 			*/
 			void move_entity(Entity oldEntity, Archetype& newArchetype) {
-				auto* pNewChunk = newArchetype.foc_free_chunk(comp_cache());
+				auto* pNewChunk = newArchetype.foc_free_chunk();
 				move_entity(oldEntity, newArchetype, *pNewChunk);
 			}
 
@@ -820,7 +820,7 @@ namespace gaia {
 			GAIA_NODISCARD Entity add(Archetype& archetype) {
 				const auto entity = m_entities.alloc();
 
-				auto* pChunk = archetype.foc_free_chunk(comp_cache());
+				auto* pChunk = archetype.foc_free_chunk();
 				store_entity(entity, &archetype, pChunk);
 
 				// Call constructors for the generic components on the newly added entity if necessary

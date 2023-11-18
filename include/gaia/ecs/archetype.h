@@ -87,6 +87,8 @@ namespace gaia {
 
 		private:
 			Properties m_properties{};
+			//! Component cache reference
+			const ComponentCache& m_cc;
 			//! Stable reference to parent world's world version
 			uint32_t& m_worldVersion;
 
@@ -128,7 +130,7 @@ namespace gaia {
 			uint32_t m_dead : 1;
 
 			// Constructor is hidden. Create archetypes via Create
-			Archetype(uint32_t& worldVersion): m_worldVersion(worldVersion) {}
+			Archetype(const ComponentCache& cc, uint32_t& worldVersion): m_cc(cc), m_worldVersion(worldVersion) {}
 
 			//! Calulcates offsets in memory at which important chunk data is going to be stored.
 			//! These offsets are use to setup the chunk data area layout.
@@ -299,7 +301,7 @@ namespace gaia {
 			GAIA_NODISCARD static Archetype* create(
 					const ComponentCache& cc, ArchetypeId archetypeId, uint32_t& worldVersion, ComponentSpan compsGen,
 					ComponentSpan compsUni) {
-				auto* newArch = new Archetype(worldVersion);
+				auto* newArch = new Archetype(cc, worldVersion);
 				newArch->m_archetypeId = archetypeId;
 				const uint32_t maxEntities = archetypeId == 0 ? ChunkHeader::MAX_CHUNK_ENTITIES : 512;
 
@@ -570,7 +572,7 @@ namespace gaia {
 
 			//! Tries to locate a chunk that has some space left for a new entity.
 			//! If not found a new chunk is created.
-			GAIA_NODISCARD Chunk* foc_free_chunk(const ComponentCache& cc) {
+			GAIA_NODISCARD Chunk* foc_free_chunk() {
 				const auto chunkCnt = m_chunks.size();
 
 				if (chunkCnt > 0) {
@@ -594,7 +596,7 @@ namespace gaia {
 
 				// No free space found anywhere. Let's create a new chunk.
 				auto* pChunk = Chunk::create(
-						cc, chunkCnt, props().capacity, m_properties.chunkDataBytes, m_worldVersion, m_dataOffsets, m_comps,
+						m_cc, chunkCnt, props().capacity, m_properties.chunkDataBytes, m_worldVersion, m_dataOffsets, m_comps,
 #if GAIA_COMP_ID_PROBING
 						m_compMap,
 #endif
@@ -655,9 +657,8 @@ namespace gaia {
 			*/
 			template <typename T>
 			GAIA_NODISCARD bool has() const {
-				const auto compId = comp_id<T>();
-
 				constexpr auto compKind = component_kind_v<T>;
+				const auto compId = m_cc.comp_desc<T>().comp.id();
 				return has(compKind, compId);
 			}
 

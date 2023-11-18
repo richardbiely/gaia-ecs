@@ -11,6 +11,7 @@
 #include "../meta/type_info.h"
 #include "component.h"
 #include "component_cache_item.h"
+#include "component_desc.h"
 
 namespace gaia {
 	namespace ecs {
@@ -59,20 +60,20 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD GAIA_FORCEINLINE const ComponentCacheItem& goc_comp_desc() {
 				using U = typename component_type_t<T>::Type;
-				const auto compId = comp_id<T>();
+				const auto compDescId = detail::ComponentDesc<T>::id();
 
 				// Fast path for small component ids - use the array storage
-				if (compId < FastComponentCacheSize) {
+				if (compDescId < FastComponentCacheSize) {
 					auto createDesc = [&]() -> const ComponentCacheItem& {
 						const auto* pDesc = ComponentCacheItem::create<U>();
-						m_descByIndex[compId] = pDesc;
+						m_descByIndex[compDescId] = pDesc;
 						m_descByString[pDesc->name] = pDesc;
 						return *pDesc;
 					};
 
-					if GAIA_UNLIKELY (compId >= m_descByIndex.size()) {
+					if GAIA_UNLIKELY (compDescId >= m_descByIndex.size()) {
 						const auto oldSize = m_descByIndex.size();
-						const auto newSize = compId + 1U;
+						const auto newSize = compDescId + 1U;
 
 						// Increase the capacity by multiples of CapacityIncreaseSize
 						constexpr uint32_t CapacityIncreaseSize = 128;
@@ -88,22 +89,22 @@ namespace gaia {
 						return createDesc();
 					}
 
-					if GAIA_UNLIKELY (m_descByIndex[compId] == nullptr) {
+					if GAIA_UNLIKELY (m_descByIndex[compDescId] == nullptr) {
 						return createDesc();
 					}
 
-					return *m_descByIndex[compId];
+					return *m_descByIndex[compDescId];
 				}
 
 				// Generic path for large component ids - use the map storage
 				{
 					auto createDesc = [&]() -> const ComponentCacheItem& {
 						const auto* pDesc = ComponentCacheItem::create<U>();
-						m_descByIndexMap.emplace(compId, pDesc);
+						m_descByIndexMap.emplace(compDescId, pDesc);
 						return *pDesc;
 					};
 
-					const auto it = m_descByIndexMap.find(compId);
+					const auto it = m_descByIndexMap.find(compDescId);
 					if (it == m_descByIndexMap.end())
 						return createDesc();
 
@@ -111,36 +112,36 @@ namespace gaia {
 				}
 			}
 
-			//! Searches for the cached component info given the \param compId.
+			//! Searches for the cached component info given the \param compDescId.
 			//! \warning It is expected the component info with a given component id exists! Undefined behavior otherwise.
 			//! \return Component info or nullptr it not found.
-			GAIA_NODISCARD const ComponentCacheItem* find_comp_desc(ComponentId compId) const noexcept {
+			GAIA_NODISCARD const ComponentCacheItem* find_comp_desc(detail::ComponentDescId compDescId) const noexcept {
 				// Fast path - array storage
-				if (compId < FastComponentCacheSize) {
-					if (compId >= m_descByIndex.size())
+				if (compDescId < FastComponentCacheSize) {
+					if (compDescId >= m_descByIndex.size())
 						return nullptr;
 
-					return m_descByIndex[compId];
+					return m_descByIndex[compDescId];
 				}
 
 				// Generic path - map storage
-				const auto it = m_descByIndexMap.find(compId);
+				const auto it = m_descByIndexMap.find(compDescId);
 				return it != m_descByIndexMap.end() ? it->second : nullptr;
 			}
 
-			//! Returns the cached component info given the \param compId.
+			//! Returns the cached component info given the \param compDescId.
 			//! \warning It is expected the component info with a given component id exists! Undefined behavior otherwise.
 			//! \return Component info
-			GAIA_NODISCARD const ComponentCacheItem& comp_desc(ComponentId compId) const noexcept {
+			GAIA_NODISCARD const ComponentCacheItem& comp_desc(detail::ComponentDescId compDescId) const noexcept {
 				// Fast path - array storage
-				if (compId < FastComponentCacheSize) {
-					GAIA_ASSERT(compId < m_descByIndex.size());
-					return *m_descByIndex[compId];
+				if (compDescId < FastComponentCacheSize) {
+					GAIA_ASSERT(compDescId < m_descByIndex.size());
+					return *m_descByIndex[compDescId];
 				}
 
 				// Generic path - map storage
-				GAIA_ASSERT(m_descByIndexMap.contains(compId));
-				return *m_descByIndexMap.find(compId)->second;
+				GAIA_ASSERT(m_descByIndexMap.contains(compDescId));
+				return *m_descByIndexMap.find(compDescId)->second;
 			}
 
 			//! Searches for the cached component info. The provided string is NOT copied internally.
@@ -171,8 +172,8 @@ namespace gaia {
 			//! \return Component info or nullptr if not found.
 			template <typename T>
 			GAIA_NODISCARD const ComponentCacheItem* find_comp_desc() const noexcept {
-				const auto compId = comp_id<T>();
-				return find_comp_desc(compId);
+				const auto compDescId = detail::ComponentDesc<T>::id();
+				return find_comp_desc(compDescId);
 			}
 
 			//! Returns the component info for \tparam T.
@@ -180,8 +181,8 @@ namespace gaia {
 			//! \return Component info
 			template <typename T>
 			GAIA_NODISCARD const ComponentCacheItem& comp_desc() const noexcept {
-				const auto compId = comp_id<T>();
-				return comp_desc(compId);
+				const auto compDescId = detail::ComponentDesc<T>::id();
+				return comp_desc(compDescId);
 			}
 
 			void diag() const {

@@ -12,6 +12,7 @@
 
 namespace gaia {
 	namespace ecs {
+		class ComponentCache;
 		struct ComponentCacheItem;
 
 		struct ChunkDataOffsets {
@@ -67,6 +68,8 @@ namespace gaia {
 			//! Number of locks the chunk can aquire
 			static constexpr uint16_t MAX_CHUNK_LOCKS = (1 << CHUNK_LOCKS_BITS) - 1;
 
+			//! Component cache reference
+			const ComponentCache* cc;
 			//! Chunk index in its archetype list
 			uint32_t index;
 			//! Total number of entities in the chunk.
@@ -105,10 +108,10 @@ namespace gaia {
 			static inline uint32_t s_worldVersionDummy = 0;
 			ChunkHeader(): worldVersion(s_worldVersionDummy) {}
 
-			ChunkHeader(uint32_t chunkIndex, uint16_t cap, uint16_t st, uint32_t& version):
-					index(chunkIndex), count(0), countEnabled(0), capacity(cap), firstEnabledEntityIndex(0), lifespanCountdown(0),
-					dead(0), structuralChangesLocked(0), hasAnyCustomGenCtor(0), hasAnyCustomUniCtor(0), hasAnyCustomGenDtor(0),
-					hasAnyCustomUniDtor(0), sizeType(st), unused(0), worldVersion(version) {
+			ChunkHeader(const ComponentCache& compCache, uint32_t chunkIndex, uint16_t cap, uint16_t st, uint32_t& version):
+					cc(&compCache), index(chunkIndex), count(0), countEnabled(0), capacity(cap), firstEnabledEntityIndex(0),
+					lifespanCountdown(0), dead(0), structuralChangesLocked(0), hasAnyCustomGenCtor(0), hasAnyCustomUniCtor(0),
+					hasAnyCustomGenDtor(0), hasAnyCustomUniDtor(0), sizeType(st), unused(0), worldVersion(version) {
 				// Make sure the alignment is right
 				GAIA_ASSERT(uintptr_t(this) % (sizeof(size_t)) == 0);
 			}
