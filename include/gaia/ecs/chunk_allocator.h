@@ -207,7 +207,7 @@ namespace gaia {
 					auto memStats = stats();
 					for (const auto& s: memStats.stats) {
 						if (s.mem_total != 0) {
-							GAIA_ASSERT(false && "ECS leaking memory");
+							GAIA_ASSERT2(false, "ECS leaking memory");
 							GAIA_LOG_W("ECS leaking memory!");
 							diag();
 						}
@@ -266,6 +266,10 @@ namespace gaia {
 					return pBlock;
 				}
 
+				GAIA_CLANG_WARNING_PUSH()
+				// Memory is aligned so we can silence this warning
+				GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
+
 				/*!
 				Releases memory allocated for pointer
 				*/
@@ -317,6 +321,8 @@ namespace gaia {
 						try_delete_this();
 					}
 				}
+
+				GAIA_CLANG_WARNING_POP()
 
 				/*!
 				Returns allocator statistics
@@ -373,8 +379,8 @@ namespace gaia {
 
 			private:
 				static MemoryPage* alloc_page(uint8_t sizeType) {
-					const auto size = mem_block_size(sizeType) * MemoryPage::NBlocks;
-					auto* pPageData = mem::mem_alloc_alig(size, 16);
+					const uint32_t size = mem_block_size(sizeType) * MemoryPage::NBlocks;
+					auto* pPageData = mem::mem_alloc_alig(size, 16U);
 					return new MemoryPage(pPageData, sizeType);
 				}
 

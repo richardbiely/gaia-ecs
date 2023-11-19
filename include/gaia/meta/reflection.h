@@ -1,6 +1,5 @@
 #pragma once
-
-#include "../config/config_core.h"
+#include "../config/config.h"
 
 #include <tuple>
 #include <type_traits>
@@ -138,7 +137,7 @@ namespace gaia {
 				return std::make_tuple(p1);
 			}
 
-			static_assert("Unsupported number of members");
+			GAIA_ASSERT2(false, "Unsupported number of members");
 		}
 
 		//----------------------------------------------------------------------
@@ -216,7 +215,7 @@ namespace gaia {
 				return 1;
 			}
 
-			static_assert("Unsupported number of members");
+			GAIA_ASSERT2(false, "Unsupported number of members");
 		}
 
 		template <typename T, typename Func>
@@ -305,7 +304,7 @@ namespace gaia {
 				return visitor(p1);
 			}
 
-			static_assert("Unsupported number of members");
+			GAIA_ASSERT2(false, "Unsupported number of members");
 		}
 
 	} // namespace meta

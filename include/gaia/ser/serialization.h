@@ -1,6 +1,5 @@
 #pragma once
-
-#include "../config/config_core.h"
+#include "../config/config.h"
 
 #include <type_traits>
 #include <utility>
@@ -115,7 +114,7 @@ namespace gaia {
 					return serialization_type_id::b;
 				}
 
-				static_assert("Unsupported integral type");
+				GAIA_ASSERT2(false, "Unsupported integral type");
 			}
 
 			template <typename T>
@@ -133,7 +132,7 @@ namespace gaia {
 					return serialization_type_id::f128;
 				}
 
-				static_assert("Unsupported floating point type");
+				GAIA_ASSERT2(false, "Unsupported floating point type");
 				return serialization_type_id::Last;
 			}
 
@@ -150,7 +149,7 @@ namespace gaia {
 				else if constexpr (std::is_class_v<T>)
 					return serialization_type_id::trivial_wrapper;
 
-				static_assert("Unsupported serialization type");
+				GAIA_ASSERT2(false, "Unsupported serialization type");
 				return serialization_type_id::Last;
 			}
 

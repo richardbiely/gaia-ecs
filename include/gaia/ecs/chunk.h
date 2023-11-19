@@ -70,6 +70,10 @@ namespace gaia {
 
 			GAIA_MSVC_WARNING_POP()
 
+			GAIA_CLANG_WARNING_PUSH()
+			// Memory is aligned so we can silence this warning
+			GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
+
 			void init(
 					const cnt::sarray<ComponentArray, ComponentKind::CK_Count>& comps,
 #if GAIA_COMP_ID_PROBING
@@ -155,6 +159,8 @@ namespace gaia {
 						call_ctors(ComponentKind::CK_Uni, 0, 1);
 				}
 			}
+
+			GAIA_MSVC_WARNING_POP()
 
 			GAIA_NODISCARD std::span<const ComponentVersion> comp_version_view(ComponentKind compKind) const {
 				return {(const ComponentVersion*)m_records.pVersions[compKind], m_header.componentCount[compKind]};

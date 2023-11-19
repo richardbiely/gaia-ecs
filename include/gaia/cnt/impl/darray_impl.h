@@ -316,6 +316,10 @@ namespace gaia {
 				view_policy::free_mem(m_pData, size());
 			}
 
+			GAIA_CLANG_WARNING_PUSH()
+			// Memory is aligned so we can silence this warning
+			GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
+
 			GAIA_NODISCARD pointer data() noexcept {
 				return (pointer)m_pData;
 			}
@@ -333,6 +337,8 @@ namespace gaia {
 				GAIA_ASSERT(pos < size());
 				return view_policy::get({(typename view_policy::TargetCastType)m_pData, capacity()}, pos);
 			}
+
+			GAIA_CLANG_WARNING_POP()
 
 			void reserve(size_type count) {
 				if (count <= m_cap)
@@ -400,8 +406,8 @@ namespace gaia {
 				if constexpr (mem::is_soa_layout_v<T>) {
 					operator[](m_cnt++) = arg;
 				} else {
-					auto* ptr = m_pData + sizeof(T) * (m_cnt++);
-					core::call_ctor((T*)ptr, arg);
+					auto* ptr = &data()[m_cnt++];
+					core::call_ctor(ptr, arg);
 				}
 			}
 
@@ -411,8 +417,8 @@ namespace gaia {
 				if constexpr (mem::is_soa_layout_v<T>) {
 					operator[](m_cnt++) = GAIA_FWD(arg);
 				} else {
-					auto* ptr = m_pData + sizeof(T) * (m_cnt++);
-					core::call_ctor((T*)ptr, GAIA_FWD(arg));
+					auto* ptr = &data()[m_cnt++];
+					core::call_ctor(ptr, GAIA_FWD(arg));
 				}
 			}
 
@@ -424,8 +430,8 @@ namespace gaia {
 					operator[](m_cnt++) = T(GAIA_FWD(args)...);
 					return;
 				} else {
-					auto* ptr = m_pData + sizeof(T) * (m_cnt++);
-					core::call_ctor((T*)ptr, GAIA_FWD(args)...);
+					auto* ptr = &data()[m_cnt++];
+					core::call_ctor(ptr, GAIA_FWD(args)...);
 					return (reference)*ptr;
 				}
 			}
@@ -458,7 +464,7 @@ namespace gaia {
 
 				--m_cnt;
 
-				return iterator(data() + idxSrc);
+				return iterator(&data()[idxSrc]);
 			}
 
 			//! Removes the elements in the range [first, last)
@@ -484,7 +490,7 @@ namespace gaia {
 
 				m_cnt -= cnt;
 
-				return iterator(data() + idxSrc);
+				return iterator(&data()[idxSrc]);
 			}
 
 			void clear() {

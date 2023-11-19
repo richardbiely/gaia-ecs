@@ -728,13 +728,13 @@ namespace gaia {
 
 			template <typename Container, typename TSortFunc>
 			int quick_sort_partition(Container& arr, TSortFunc func, int low, int high) {
-				const auto& pivot = arr[high];
+				const auto& pivot = arr[(uint32_t)high];
 				int i = low - 1;
 				for (int j = low; j <= high - 1; ++j) {
-					if (func(arr[j], pivot))
-						core::swap(arr[++i], arr[j]);
+					if (func(arr[(uint32_t)j], pivot))
+						core::swap(arr[(uint32_t)++i], arr[(uint32_t)j]);
 				}
-				core::swap(arr[++i], arr[high]);
+				core::swap(arr[(uint32_t)++i], arr[(uint32_t)high]);
 				return i;
 			}
 
@@ -1127,7 +1127,7 @@ namespace gaia {
 					for (decltype(n) j = 0; j < n - i - 1; ++j)
 						try_swap_if(arr, j, j + 1, func, sortFunc);
 			} else {
-				GAIA_ASSERT(false && "sort currently supports at most 32 items in the array");
+				GAIA_ASSERT2(false, "sort currently supports at most 32 items in the array");
 				// const int n = (int)arr.size();
 				// detail::quick_sort(arr, 0, n - 1);
 			}

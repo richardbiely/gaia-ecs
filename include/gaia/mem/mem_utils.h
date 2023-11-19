@@ -100,6 +100,10 @@ namespace gaia {
 			}
 		} // namespace detail
 
+		GAIA_CLANG_WARNING_PUSH()
+		// Memory is aligned so we can silence this warning
+		GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
+
 		//! Copy \param size elements of type \tparam T from the address pointer to by \param src to \param dst
 		template <typename T>
 		void copy_elements(
@@ -156,5 +160,7 @@ namespace gaia {
 			else
 				detail::shift_elements_left_aos_n<T>((T*)dst, idxSrc, idxDst, n);
 		}
+
+		GAIA_CLANG_WARNING_POP()
 	} // namespace mem
 } // namespace gaia

@@ -286,7 +286,7 @@ namespace gaia {
 				GAIA_FOR2_(1U, m_systems.size(), j) {
 					if (!m_systems[j - 1]->DependsOn(m_systems[j]))
 						continue;
-					GAIA_ASSERT(false && "Wrong systems dependencies!");
+					GAIA_ASSERT2(false, "Wrong systems dependencies!");
 					GAIA_LOG_E("Wrong systems dependencies!");
 				}
 #endif

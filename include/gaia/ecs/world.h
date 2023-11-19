@@ -320,7 +320,7 @@ namespace gaia {
 
 				// Make sure not to add too many comps
 				if GAIA_UNLIKELY (comps.size() + 1 >= Chunk::MAX_COMPONENTS) {
-					GAIA_ASSERT(false && "Trying to add too many components to entity!");
+					GAIA_ASSERT2(false, "Trying to add too many components to entity!");
 					GAIA_LOG_W(
 							"Trying to add a component to entity [%u.%u] but there's no space left!", entity.id(), entity.gen());
 					GAIA_LOG_W("Already present:");
@@ -339,7 +339,7 @@ namespace gaia {
 				for (auto comp: comps) {
 					const auto& desc = cc.comp_desc(comp.id());
 					if (desc.comp == descToAdd.comp) {
-						GAIA_ASSERT(false && "Trying to add a duplicate component");
+						GAIA_ASSERT2(false, "Trying to add a duplicate component");
 
 						GAIA_LOG_W(
 								"Trying to add a duplicate of component %s to entity [%u.%u]", ComponentKindString[compKind],
@@ -354,7 +354,7 @@ namespace gaia {
 					const ComponentCacheItem& descToRemove) {
 				const auto& comps = archetype.comps(compKind);
 				if GAIA_UNLIKELY (!archetype.has(compKind, descToRemove.comp.id())) {
-					GAIA_ASSERT(false && "Trying to remove a component which wasn't added");
+					GAIA_ASSERT2(false, "Trying to remove a component which wasn't added");
 					GAIA_LOG_W(
 							"Trying to remove a component from entity [%u.%u] but it was never added", entity.id(), entity.gen());
 					GAIA_LOG_W("Currently present:");

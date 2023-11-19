@@ -27,7 +27,7 @@ namespace gaia {
 					if (pStr[i] == 0)
 						return i;
 				}
-				GAIA_ASSERT(false && "Only null-terminated strings up to MaxLen characters are supported");
+				GAIA_ASSERT2(false, "Only null-terminated strings up to MaxLen characters are supported");
 				return BadIndex;
 			}
 

@@ -328,30 +328,30 @@ namespace gaia {
 		}(x))
 #elif GAIA_COMPILER_CLANG || GAIA_COMPILER_GCC
 	//! Returns the number of set bits in \param x
-	#define GAIA_POPCNT(x) ((uint32_t)__builtin_popcount(x))
+	#define GAIA_POPCNT(x) ((uint32_t)__builtin_popcount(static_cast<uint32_t>(x)))
 	//! Returns the number of set bits in \param x
-	#define GAIA_POPCNT64(x) ((uint32_t)__builtin_popcountll(x))
+	#define GAIA_POPCNT64(x) ((uint32_t)__builtin_popcountll(static_cast<unsigned long long>(x)))
 
 //! Returns the number of leading zeros of \param x or 32 if \param x is 0.
 //! \warning Little-endian format.
-	#define GAIA_CLZ(x) ((x) ? (uint32_t)__builtin_ctz(x) : (uint32_t)32)
+	#define GAIA_CLZ(x) ((x) ? (uint32_t)__builtin_ctz(static_cast<uint32_t>(x)) : (uint32_t)32)
 	//! Returns the number of leading zeros of \param x or 64 if \param x is 0.
 //! \warning Little-endian format.
-	#define GAIA_CLZ64(x) ((x) ? (uint32_t)__builtin_ctzll(x) : (uint32_t)64)
+	#define GAIA_CLZ64(x) ((x) ? (uint32_t)__builtin_ctzll(static_cast<unsigned long long>(x)) : (uint32_t)64)
 
 //! Returns the number of trailing zeros of \param x or 32 if \param x is 0.
 //! \warning Little-endian format.
-	#define GAIA_CTZ(x) ((x) ? (uint32_t)__builtin_clz(x) : (uint32_t)32)
+	#define GAIA_CTZ(x) ((x) ? (uint32_t)__builtin_clz(static_cast<uint32_t>(x)) : (uint32_t)32)
 	//! Returns the number of trailing zeros of \param x or 64 if \param x is 0.
 //! \warning Little-endian format.
-	#define GAIA_CTZ64(x) ((x) ? (uint32_t)__builtin_clzll(x) : (uint32_t)64)
+	#define GAIA_CTZ64(x) ((x) ? (uint32_t)__builtin_clzll(static_cast<unsigned long long>(x)) : (uint32_t)64)
 
 //! Returns 1 plus the index of the least significant set bit of \param x, or 0 if \param x is 0.
 //! \warning Little-endian format.
-	#define GAIA_FFS(x) ((uint32_t)__builtin_ffs(x))
+	#define GAIA_FFS(x) ((uint32_t)__builtin_ffs(static_cast<int>(x)))
 	//! Returns 1 plus the index of the least significant set bit of \param x, or 0 if \param x is 0.
 //! \warning Little-endian format.
-	#define GAIA_FFS64(x) ((uint32_t)__builtin_ffsll(x))
+	#define GAIA_FFS64(x) ((uint32_t)__builtin_ffsll(static_cast<long long>(x)))
 #else
 	//! Returns the number of set bits in \param x
 	#define GAIA_POPCNT(x)                                                                                               \
@@ -700,8 +700,18 @@ namespace gaia {
 				GAIA_MSVC_WARNING_PUSH()                                                                                       \
 				GAIA_MSVC_WARNING_DISABLE(4127)                                                                                \
 				if GAIA_UNLIKELY (!(cond))                                                                                     \
-					[] {                                                                                                         \
-						assert(!#cond);                                                                                            \
+					[&] {                                                                                                         \
+						assert((cond));                                                                                              \
+					}();                                                                                                         \
+				GAIA_MSVC_WARNING_POP()                                                                                        \
+			}
+		#define GAIA_ASSERT2(cond, msg)                                                                                    \
+			{                                                                                                                \
+				GAIA_MSVC_WARNING_PUSH()                                                                                       \
+				GAIA_MSVC_WARNING_DISABLE(4127)                                                                                \
+				if GAIA_UNLIKELY (!(cond))                                                                                     \
+					[&] {                                                                                                         \
+						assert((cond) && (msg));                                                                                    \
 					}();                                                                                                         \
 				GAIA_MSVC_WARNING_POP()                                                                                        \
 			}
@@ -719,9 +729,20 @@ namespace gaia {
 						}();                                                                                                       \
 					GAIA_MSVC_WARNING_POP()                                                                                      \
 				}
+			#define GAIA_ASSERT2(cond, msg)                                                                                        \
+				{                                                                                                              \
+					GAIA_MSVC_WARNING_PUSH()                                                                                     \
+					GAIA_MSVC_WARNING_DISABLE(4127)                                                                              \
+					if GAIA_UNLIKELY (!(cond))                                                                                   \
+						[] {                                                                                                       \
+							GAIA_LOG_E("%s:%d: Assertion failed: '%s'.", __FILE__, __LINE__, (msg));                                 \
+						}();                                                                                                       \
+					GAIA_MSVC_WARNING_POP()                                                                                      \
+				}
 		#else
 			#define GAIA_ASSERT_ENABLED 0
 			#define GAIA_ASSERT(cond)
+			#define GAIA_ASSERT2(cond, msg)
 		#endif
 	#endif
 #endif
@@ -2404,13 +2425,13 @@ namespace gaia {
 
 			template <typename Container, typename TSortFunc>
 			int quick_sort_partition(Container& arr, TSortFunc func, int low, int high) {
-				const auto& pivot = arr[high];
+				const auto& pivot = arr[(uint32_t)high];
 				int i = low - 1;
 				for (int j = low; j <= high - 1; ++j) {
-					if (func(arr[j], pivot))
-						core::swap(arr[++i], arr[j]);
+					if (func(arr[(uint32_t)j], pivot))
+						core::swap(arr[(uint32_t)++i], arr[(uint32_t)j]);
 				}
-				core::swap(arr[++i], arr[high]);
+				core::swap(arr[(uint32_t)++i], arr[(uint32_t)high]);
 				return i;
 			}
 
@@ -2803,7 +2824,7 @@ namespace gaia {
 					for (decltype(n) j = 0; j < n - i - 1; ++j)
 						try_swap_if(arr, j, j + 1, func, sortFunc);
 			} else {
-				GAIA_ASSERT(false && "sort currently supports at most 32 items in the array");
+				GAIA_ASSERT2(false, "sort currently supports at most 32 items in the array");
 				// const int n = (int)arr.size();
 				// detail::quick_sort(arr, 0, n - 1);
 			}
@@ -2826,15 +2847,15 @@ namespace gaia {
 				const uint32_t idxByte = bitPosition / 8;
 				const uint32_t idxBit = bitPosition % 8;
 
-				const uint8_t mask = ~(MaxValue << idxBit);
-				m_data[idxByte] = (m_data[idxByte] & mask) | (value << idxBit);
+				const uint32_t mask = ~(MaxValue << idxBit);
+				m_data[idxByte] = (uint8_t)(((uint32_t)m_data[idxByte] & mask) | ((uint32_t)value << idxBit));
 
 				const bool overlaps = idxBit + BlockBits > 8;
 				if (overlaps) {
 					// Value spans over two bytes
-					const uint8_t shift2 = uint8_t(8U - idxBit);
-					const uint8_t mask2 = ~(MaxValue >> shift2);
-					m_data[idxByte + 1] = (m_data[idxByte + 1] & mask2) | (value >> shift2);
+					const uint32_t shift2 = 8U - idxBit;
+					const uint32_t mask2 = ~(MaxValue >> shift2);
+					m_data[idxByte + 1] = (uint8_t)(((uint32_t)m_data[idxByte + 1] & mask2) | ((uint32_t)value >> shift2));
 				}
 			}
 
@@ -2849,9 +2870,9 @@ namespace gaia {
 				const bool overlaps = idxBit + BlockBits > 8;
 				if (overlaps) {
 					// Value spans over two bytes
-					const uint8_t shift2 = uint8_t(8U - idxBit);
-					const uint8_t mask2 = MaxValue >> shift2;
-					const uint8_t byte2 = (m_data[idxByte + 1] & mask2) << shift2;
+					const uint32_t shift2 = uint8_t(8U - idxBit);
+					const uint32_t mask2 = MaxValue >> shift2;
+					const uint8_t byte2 = uint8_t(((uint32_t)m_data[idxByte + 1] & mask2) << shift2);
 					return byte1 | byte2;
 				}
 
@@ -3202,7 +3223,7 @@ namespace gaia {
 				return std::make_tuple(p1);
 			}
 
-			static_assert("Unsupported number of members");
+			GAIA_ASSERT2(false, "Unsupported number of members");
 		}
 
 		//----------------------------------------------------------------------
@@ -3280,7 +3301,7 @@ namespace gaia {
 				return 1;
 			}
 
-			static_assert("Unsupported number of members");
+			GAIA_ASSERT2(false, "Unsupported number of members");
 		}
 
 		template <typename T, typename Func>
@@ -3369,7 +3390,7 @@ namespace gaia {
 				return visitor(p1);
 			}
 
-			static_assert("Unsupported number of members");
+			GAIA_ASSERT2(false, "Unsupported number of members");
 		}
 
 	} // namespace meta
@@ -3695,12 +3716,12 @@ namespace gaia {
 
 			GAIA_NODISCARD static uint8_t* alloc_mem(size_t cnt) noexcept {
 				const auto bytes = get_min_byte_size(0, cnt);
-				auto* pData = (uint8_t*)mem::mem_alloc(bytes);
-				core::call_ctor_n((ValueType*)pData, cnt);
-				return pData;
+				auto* pData = (ValueType*)mem::mem_alloc(bytes);
+				core::call_ctor_n(pData, cnt);
+				return (uint8_t*)pData;
 			}
 
-			static void free_mem(uint8_t* pData, size_t cnt) noexcept {
+			static void free_mem(void* pData, size_t cnt) noexcept {
 				if (pData == nullptr)
 					return;
 				core::call_dtor_n((ValueType*)pData, cnt);
@@ -3833,7 +3854,7 @@ namespace gaia {
 				return (uint8_t*)mem::mem_alloc_alig(bytes, Alignment);
 			}
 
-			static void free_mem(uint8_t* pData, [[maybe_unused]] size_t cnt) noexcept {
+			static void free_mem(void* pData, [[maybe_unused]] size_t cnt) noexcept {
 				if (pData == nullptr)
 					return;
 				return mem::mem_free_alig(pData);
@@ -4075,7 +4096,8 @@ namespace gaia {
 			template <typename, typename = void>
 			struct is_soa_layout: std::false_type {};
 			template <typename T>
-			struct is_soa_layout<T, std::void_t<decltype(T::Layout)>>: std::bool_constant<!std::is_empty_v<T> && (T::Layout != DataLayout::AoS)> {};
+			struct is_soa_layout<T, std::void_t<decltype(T::Layout)>>:
+					std::bool_constant<!std::is_empty_v<T> && (T::Layout != DataLayout::AoS)> {};
 		} // namespace detail
 
 		template <typename T>
@@ -4190,6 +4212,10 @@ namespace gaia {
 			}
 		} // namespace detail
 
+		GAIA_CLANG_WARNING_PUSH()
+		// Memory is aligned so we can silence this warning
+		GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
+
 		//! Copy \param size elements of type \tparam T from the address pointer to by \param src to \param dst
 		template <typename T>
 		void copy_elements(
@@ -4246,6 +4272,8 @@ namespace gaia {
 			else
 				detail::shift_elements_left_aos_n<T>((T*)dst, idxSrc, idxDst, n);
 		}
+
+		GAIA_CLANG_WARNING_POP()
 	} // namespace mem
 } // namespace gaia
 
@@ -4283,7 +4311,7 @@ namespace gaia {
 				const auto minValue = startPos <= len - 1 ? startPos : len - 1;
 				for (int64_t i = (int64_t)minValue; i >= 0; --i) {
 					if (data[i] == c)
-						return i;
+						return (size_t)i;
 				}
 				return size_t(-1);
 			}
@@ -4456,7 +4484,7 @@ namespace gaia {
 					return serialization_type_id::b;
 				}
 
-				static_assert("Unsupported integral type");
+				GAIA_ASSERT2(false, "Unsupported integral type");
 			}
 
 			template <typename T>
@@ -4474,7 +4502,7 @@ namespace gaia {
 					return serialization_type_id::f128;
 				}
 
-				static_assert("Unsupported floating point type");
+				GAIA_ASSERT2(false, "Unsupported floating point type");
 				return serialization_type_id::Last;
 			}
 
@@ -4491,7 +4519,7 @@ namespace gaia {
 				else if constexpr (std::is_class_v<T>)
 					return serialization_type_id::trivial_wrapper;
 
-				static_assert("Unsupported serialization type");
+				GAIA_ASSERT2(false, "Unsupported serialization type");
 				return serialization_type_id::Last;
 			}
 
@@ -5310,6 +5338,10 @@ namespace gaia {
 				view_policy::free_mem(m_pData, size());
 			}
 
+			GAIA_CLANG_WARNING_PUSH()
+			// Memory is aligned so we can silence this warning
+			GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
+
 			GAIA_NODISCARD pointer data() noexcept {
 				return (pointer)m_pData;
 			}
@@ -5327,6 +5359,8 @@ namespace gaia {
 				GAIA_ASSERT(pos < size());
 				return view_policy::get({(typename view_policy::TargetCastType)m_pData, capacity()}, pos);
 			}
+
+			GAIA_CLANG_WARNING_POP()
 
 			void reserve(size_type count) {
 				if (count <= m_cap)
@@ -5394,8 +5428,8 @@ namespace gaia {
 				if constexpr (mem::is_soa_layout_v<T>) {
 					operator[](m_cnt++) = arg;
 				} else {
-					auto* ptr = m_pData + sizeof(T) * (m_cnt++);
-					core::call_ctor((T*)ptr, arg);
+					auto* ptr = &data()[m_cnt++];
+					core::call_ctor(ptr, arg);
 				}
 			}
 
@@ -5405,8 +5439,8 @@ namespace gaia {
 				if constexpr (mem::is_soa_layout_v<T>) {
 					operator[](m_cnt++) = GAIA_FWD(arg);
 				} else {
-					auto* ptr = m_pData + sizeof(T) * (m_cnt++);
-					core::call_ctor((T*)ptr, GAIA_FWD(arg));
+					auto* ptr = &data()[m_cnt++];
+					core::call_ctor(ptr, GAIA_FWD(arg));
 				}
 			}
 
@@ -5418,8 +5452,8 @@ namespace gaia {
 					operator[](m_cnt++) = T(GAIA_FWD(args)...);
 					return;
 				} else {
-					auto* ptr = m_pData + sizeof(T) * (m_cnt++);
-					core::call_ctor((T*)ptr, GAIA_FWD(args)...);
+					auto* ptr = &data()[m_cnt++];
+					core::call_ctor(ptr, GAIA_FWD(args)...);
 					return (reference)*ptr;
 				}
 			}
@@ -5452,7 +5486,7 @@ namespace gaia {
 
 				--m_cnt;
 
-				return iterator(data() + idxSrc);
+				return iterator(&data()[idxSrc]);
 			}
 
 			//! Removes the elements in the range [first, last)
@@ -5478,7 +5512,7 @@ namespace gaia {
 
 				m_cnt -= cnt;
 
-				return iterator(data() + idxSrc);
+				return iterator(&data()[idxSrc]);
 			}
 
 			void clear() {
@@ -5960,6 +5994,10 @@ namespace gaia {
 				view_policy::free_mem(m_pDataHeap, size());
 			}
 
+			GAIA_CLANG_WARNING_PUSH()
+			// Memory is aligned so we can silence this warning
+			GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
+
 			GAIA_NODISCARD pointer data() noexcept {
 				return (pointer)m_pData;
 			}
@@ -5977,6 +6015,8 @@ namespace gaia {
 				GAIA_ASSERT(pos < size());
 				return view_policy::get({(typename view_policy::TargetCastType)m_pData, size()}, pos);
 			}
+
+			GAIA_CLANG_WARNING_POP()
 
 			void reserve(size_type count) {
 				if (count <= m_cap)
@@ -6040,8 +6080,8 @@ namespace gaia {
 				if constexpr (mem::is_soa_layout_v<T>) {
 					operator[](m_cnt++) = arg;
 				} else {
-					auto* ptr = m_pData + sizeof(T) * (m_cnt++);
-					core::call_ctor((T*)ptr, arg);
+					auto* ptr = &data()[m_cnt++];
+					core::call_ctor(ptr, arg);
 				}
 			}
 
@@ -6051,8 +6091,8 @@ namespace gaia {
 				if constexpr (mem::is_soa_layout_v<T>) {
 					operator[](m_cnt++) = GAIA_FWD(arg);
 				} else {
-					auto* ptr = m_pData + sizeof(T) * (m_cnt++);
-					core::call_ctor((T*)ptr, GAIA_FWD(arg));
+					auto* ptr = &data()[m_cnt++];
+					core::call_ctor(ptr, GAIA_FWD(arg));
 				}
 			}
 
@@ -6064,8 +6104,8 @@ namespace gaia {
 					operator[](m_cnt++) = T(GAIA_FWD(args)...);
 					return;
 				} else {
-					auto* ptr = m_pData + sizeof(T) * (m_cnt++);
-					core::call_ctor((T*)ptr, GAIA_FWD(args)...);
+					auto* ptr = &data()[m_cnt++];
+					core::call_ctor(ptr, GAIA_FWD(args)...);
 					return (reference)*ptr;
 				}
 			}
@@ -6098,7 +6138,7 @@ namespace gaia {
 
 				--m_cnt;
 
-				return iterator(data() + idxSrc);
+				return iterator(&data()[idxSrc]);
 			}
 
 			//! Removes the elements in the range [first, last)
@@ -6124,7 +6164,7 @@ namespace gaia {
 
 				m_cnt -= cnt;
 
-				return iterator(data() + idxSrc);
+				return iterator(&data()[idxSrc]);
 			}
 
 			void clear() {
@@ -9472,6 +9512,10 @@ namespace gaia {
 				return *this;
 			}
 
+			GAIA_CLANG_WARNING_PUSH()
+			// Memory is aligned so we can silence this warning
+			GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
+
 			GAIA_NODISCARD constexpr pointer data() noexcept {
 				return (pointer)&m_data[0];
 			}
@@ -9489,6 +9533,8 @@ namespace gaia {
 				GAIA_ASSERT(pos < size());
 				return view_policy::get({(typename view_policy::TargetCastType) & m_data[0], extent}, pos);
 			}
+
+			GAIA_CLANG_WARNING_POP()
 
 			GAIA_NODISCARD constexpr size_type size() const noexcept {
 				return N;
@@ -9915,6 +9961,10 @@ namespace gaia {
 				return *this;
 			}
 
+			GAIA_CLANG_WARNING_PUSH()
+			// Memory is aligned so we can silence this warning
+			GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
+
 			GAIA_NODISCARD constexpr pointer data() noexcept {
 				return (pointer)&m_data[0];
 			}
@@ -9933,14 +9983,16 @@ namespace gaia {
 				return view_policy::get({(typename view_policy::TargetCastType) & m_data[0], extent}, pos);
 			}
 
+			GAIA_CLANG_WARNING_POP()
+
 			constexpr void push_back(const T& arg) noexcept {
 				GAIA_ASSERT(size() < N);
 
 				if constexpr (mem::is_soa_layout_v<T>) {
 					operator[](m_cnt++) = arg;
 				} else {
-					auto* ptr = m_data + sizeof(T) * (m_cnt++);
-					core::call_ctor((T*)ptr, arg);
+					auto* ptr = &data()[m_cnt++];
+					core::call_ctor(ptr, arg);
 				}
 			}
 
@@ -9950,8 +10002,8 @@ namespace gaia {
 				if constexpr (mem::is_soa_layout_v<T>) {
 					operator[](m_cnt++) = GAIA_FWD(arg);
 				} else {
-					auto* ptr = m_data + sizeof(T) * (m_cnt++);
-					core::call_ctor((T*)ptr, GAIA_FWD(arg));
+					auto* ptr = &data()[m_cnt++];
+					core::call_ctor(ptr, GAIA_FWD(arg));
 				}
 			}
 
@@ -9963,8 +10015,8 @@ namespace gaia {
 					operator[](m_cnt++) = T(GAIA_FWD(args)...);
 					return;
 				} else {
-					auto* ptr = m_data + sizeof(T) * (m_cnt++);
-					core::call_ctor((T*)ptr, GAIA_FWD(args)...);
+					auto* ptr = &data()[m_cnt++];
+					core::call_ctor(ptr, GAIA_FWD(args)...);
 					return (reference)*ptr;
 				}
 			}
@@ -9997,7 +10049,7 @@ namespace gaia {
 
 				--m_cnt;
 
-				return iterator(data() + idxSrc);
+				return iterator(&data()[idxSrc]);
 			}
 
 			//! Removes the elements in the range [first, last)
@@ -10023,7 +10075,7 @@ namespace gaia {
 
 				m_cnt -= cnt;
 
-				return iterator(data() + idxSrc);
+				return iterator(&data()[idxSrc]);
 			}
 
 			constexpr void clear() noexcept {
@@ -10097,7 +10149,7 @@ namespace gaia {
 				if constexpr (mem::is_soa_layout_v<T>)
 					return iterator_soa(m_data, size(), 0);
 				else
-					return iterator((pointer)&m_data[0]);
+					return iterator(data());
 			}
 
 			GAIA_NODISCARD constexpr auto rbegin() const noexcept {
@@ -10111,7 +10163,7 @@ namespace gaia {
 				if constexpr (mem::is_soa_layout_v<T>)
 					return iterator_soa(m_data, size(), size());
 				else
-					return iterator((pointer)&m_data[0] + size());
+					return iterator(data() + size());
 			}
 
 			GAIA_NODISCARD constexpr auto rend() const noexcept {
@@ -14191,7 +14243,7 @@ namespace gaia {
 					if (pStr[i] == 0)
 						return i;
 				}
-				GAIA_ASSERT(false && "Only null-terminated strings up to MaxLen characters are supported");
+				GAIA_ASSERT2(false, "Only null-terminated strings up to MaxLen characters are supported");
 				return BadIndex;
 			}
 
@@ -15212,7 +15264,7 @@ namespace gaia {
 					auto memStats = stats();
 					for (const auto& s: memStats.stats) {
 						if (s.mem_total != 0) {
-							GAIA_ASSERT(false && "ECS leaking memory");
+							GAIA_ASSERT2(false, "ECS leaking memory");
 							GAIA_LOG_W("ECS leaking memory!");
 							diag();
 						}
@@ -15271,6 +15323,10 @@ namespace gaia {
 					return pBlock;
 				}
 
+				GAIA_CLANG_WARNING_PUSH()
+				// Memory is aligned so we can silence this warning
+				GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
+
 				/*!
 				Releases memory allocated for pointer
 				*/
@@ -15322,6 +15378,8 @@ namespace gaia {
 						try_delete_this();
 					}
 				}
+
+				GAIA_CLANG_WARNING_POP()
 
 				/*!
 				Returns allocator statistics
@@ -15378,8 +15436,8 @@ namespace gaia {
 
 			private:
 				static MemoryPage* alloc_page(uint8_t sizeType) {
-					const auto size = mem_block_size(sizeType) * MemoryPage::NBlocks;
-					auto* pPageData = mem::mem_alloc_alig(size, 16);
+					const uint32_t size = mem_block_size(sizeType) * MemoryPage::NBlocks;
+					auto* pPageData = mem::mem_alloc_alig(size, 16U);
 					return new MemoryPage(pPageData, sizeType);
 				}
 
@@ -15660,6 +15718,10 @@ namespace gaia {
 
 			GAIA_MSVC_WARNING_POP()
 
+			GAIA_CLANG_WARNING_PUSH()
+			// Memory is aligned so we can silence this warning
+			GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
+
 			void init(
 					const cnt::sarray<ComponentArray, ComponentKind::CK_Count>& comps,
 #if GAIA_COMP_ID_PROBING
@@ -15745,6 +15807,8 @@ namespace gaia {
 						call_ctors(ComponentKind::CK_Uni, 0, 1);
 				}
 			}
+
+			GAIA_MSVC_WARNING_POP()
 
 			GAIA_NODISCARD std::span<const ComponentVersion> comp_version_view(ComponentKind compKind) const {
 				return {(const ComponentVersion*)m_records.pVersions[compKind], m_header.componentCount[compKind]};
@@ -18742,7 +18806,7 @@ namespace gaia {
 #if GAIA_DEBUG
 						// There's a limit to the amount of components which we can store
 						if (comps.size() >= MAX_COMPONENTS_IN_QUERY) {
-							GAIA_ASSERT(false && "Trying to create an query with too many components!");
+							GAIA_ASSERT2(false, "Trying to create an query with too many components!");
 
 							auto compName = ctx.cc->comp_desc(comp.id()).name.str();
 							GAIA_LOG_E("Trying to add component '%s' to an already full ECS query!", compName);
@@ -18778,7 +18842,7 @@ namespace gaia {
 #if GAIA_DEBUG
 						// There's a limit to the amount of components which we can store
 						if (withChanged.size() >= MAX_COMPONENTS_IN_QUERY) {
-							GAIA_ASSERT(false && "Trying to create an filter query with too many components!");
+							GAIA_ASSERT2(false, "Trying to create an filter query with too many components!");
 
 							auto compName = ctx.cc->comp_desc(comp.id()).name.str();
 							GAIA_LOG_E("Trying to add component %s to an already full filter query!", compName);
@@ -18802,7 +18866,7 @@ namespace gaia {
 							return;
 						}
 
-						GAIA_ASSERT(false && "SetChangeFilter trying to filter component which is not a part of the query");
+						GAIA_ASSERT2(false, "SetChangeFilter trying to filter component which is not a part of the query");
 #if GAIA_DEBUG
 						auto compName = ctx.cc->comp_desc(comp.id()).name.str();
 						GAIA_LOG_E("SetChangeFilter trying to filter component %s but it's not a part of the query!", compName);
@@ -19743,7 +19807,7 @@ namespace gaia {
 
 				// Make sure not to add too many comps
 				if GAIA_UNLIKELY (comps.size() + 1 >= Chunk::MAX_COMPONENTS) {
-					GAIA_ASSERT(false && "Trying to add too many components to entity!");
+					GAIA_ASSERT2(false, "Trying to add too many components to entity!");
 					GAIA_LOG_W(
 							"Trying to add a component to entity [%u.%u] but there's no space left!", entity.id(), entity.gen());
 					GAIA_LOG_W("Already present:");
@@ -19762,7 +19826,7 @@ namespace gaia {
 				for (auto comp: comps) {
 					const auto& desc = cc.comp_desc(comp.id());
 					if (desc.comp == descToAdd.comp) {
-						GAIA_ASSERT(false && "Trying to add a duplicate component");
+						GAIA_ASSERT2(false, "Trying to add a duplicate component");
 
 						GAIA_LOG_W(
 								"Trying to add a duplicate of component %s to entity [%u.%u]", ComponentKindString[compKind],
@@ -19777,7 +19841,7 @@ namespace gaia {
 					const ComponentCacheItem& descToRemove) {
 				const auto& comps = archetype.comps(compKind);
 				if GAIA_UNLIKELY (!archetype.has(compKind, descToRemove.comp.id())) {
-					GAIA_ASSERT(false && "Trying to remove a component which wasn't added");
+					GAIA_ASSERT2(false, "Trying to remove a component which wasn't added");
 					GAIA_LOG_W(
 							"Trying to remove a component from entity [%u.%u] but it was never added", entity.id(), entity.gen());
 					GAIA_LOG_W("Currently present:");
@@ -21572,7 +21636,7 @@ namespace gaia {
 				GAIA_FOR2_(1U, m_systems.size(), j) {
 					if (!m_systems[j - 1]->DependsOn(m_systems[j]))
 						continue;
-					GAIA_ASSERT(false && "Wrong systems dependencies!");
+					GAIA_ASSERT2(false, "Wrong systems dependencies!");
 					GAIA_LOG_E("Wrong systems dependencies!");
 				}
 #endif

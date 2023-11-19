@@ -72,7 +72,7 @@ namespace gaia {
 #if GAIA_DEBUG
 						// There's a limit to the amount of components which we can store
 						if (comps.size() >= MAX_COMPONENTS_IN_QUERY) {
-							GAIA_ASSERT(false && "Trying to create an query with too many components!");
+							GAIA_ASSERT2(false, "Trying to create an query with too many components!");
 
 							auto compName = ctx.cc->comp_desc(comp.id()).name.str();
 							GAIA_LOG_E("Trying to add component '%s' to an already full ECS query!", compName);
@@ -108,7 +108,7 @@ namespace gaia {
 #if GAIA_DEBUG
 						// There's a limit to the amount of components which we can store
 						if (withChanged.size() >= MAX_COMPONENTS_IN_QUERY) {
-							GAIA_ASSERT(false && "Trying to create an filter query with too many components!");
+							GAIA_ASSERT2(false, "Trying to create an filter query with too many components!");
 
 							auto compName = ctx.cc->comp_desc(comp.id()).name.str();
 							GAIA_LOG_E("Trying to add component %s to an already full filter query!", compName);
@@ -132,7 +132,7 @@ namespace gaia {
 							return;
 						}
 
-						GAIA_ASSERT(false && "SetChangeFilter trying to filter component which is not a part of the query");
+						GAIA_ASSERT2(false, "SetChangeFilter trying to filter component which is not a part of the query");
 #if GAIA_DEBUG
 						auto compName = ctx.cc->comp_desc(comp.id()).name.str();
 						GAIA_LOG_E("SetChangeFilter trying to filter component %s but it's not a part of the query!", compName);

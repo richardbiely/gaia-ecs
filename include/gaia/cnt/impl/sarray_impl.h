@@ -1,4 +1,6 @@
 #pragma once
+#include "../../config/config.h"
+
 #include <cstddef>
 #include <tuple>
 #include <type_traits>
@@ -288,6 +290,10 @@ namespace gaia {
 				return *this;
 			}
 
+			GAIA_CLANG_WARNING_PUSH()
+			// Memory is aligned so we can silence this warning
+			GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
+
 			GAIA_NODISCARD constexpr pointer data() noexcept {
 				return (pointer)&m_data[0];
 			}
@@ -305,6 +311,8 @@ namespace gaia {
 				GAIA_ASSERT(pos < size());
 				return view_policy::get({(typename view_policy::TargetCastType) & m_data[0], extent}, pos);
 			}
+
+			GAIA_CLANG_WARNING_POP()
 
 			GAIA_NODISCARD constexpr size_type size() const noexcept {
 				return N;

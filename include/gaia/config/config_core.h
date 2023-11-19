@@ -328,30 +328,30 @@ namespace gaia {
 		}(x))
 #elif GAIA_COMPILER_CLANG || GAIA_COMPILER_GCC
 	//! Returns the number of set bits in \param x
-	#define GAIA_POPCNT(x) ((uint32_t)__builtin_popcount(x))
+	#define GAIA_POPCNT(x) ((uint32_t)__builtin_popcount(static_cast<uint32_t>(x)))
 	//! Returns the number of set bits in \param x
-	#define GAIA_POPCNT64(x) ((uint32_t)__builtin_popcountll(x))
+	#define GAIA_POPCNT64(x) ((uint32_t)__builtin_popcountll(static_cast<unsigned long long>(x)))
 
 //! Returns the number of leading zeros of \param x or 32 if \param x is 0.
 //! \warning Little-endian format.
-	#define GAIA_CLZ(x) ((x) ? (uint32_t)__builtin_ctz(x) : (uint32_t)32)
+	#define GAIA_CLZ(x) ((x) ? (uint32_t)__builtin_ctz(static_cast<uint32_t>(x)) : (uint32_t)32)
 	//! Returns the number of leading zeros of \param x or 64 if \param x is 0.
 //! \warning Little-endian format.
-	#define GAIA_CLZ64(x) ((x) ? (uint32_t)__builtin_ctzll(x) : (uint32_t)64)
+	#define GAIA_CLZ64(x) ((x) ? (uint32_t)__builtin_ctzll(static_cast<unsigned long long>(x)) : (uint32_t)64)
 
 //! Returns the number of trailing zeros of \param x or 32 if \param x is 0.
 //! \warning Little-endian format.
-	#define GAIA_CTZ(x) ((x) ? (uint32_t)__builtin_clz(x) : (uint32_t)32)
+	#define GAIA_CTZ(x) ((x) ? (uint32_t)__builtin_clz(static_cast<uint32_t>(x)) : (uint32_t)32)
 	//! Returns the number of trailing zeros of \param x or 64 if \param x is 0.
 //! \warning Little-endian format.
-	#define GAIA_CTZ64(x) ((x) ? (uint32_t)__builtin_clzll(x) : (uint32_t)64)
+	#define GAIA_CTZ64(x) ((x) ? (uint32_t)__builtin_clzll(static_cast<unsigned long long>(x)) : (uint32_t)64)
 
 //! Returns 1 plus the index of the least significant set bit of \param x, or 0 if \param x is 0.
 //! \warning Little-endian format.
-	#define GAIA_FFS(x) ((uint32_t)__builtin_ffs(x))
+	#define GAIA_FFS(x) ((uint32_t)__builtin_ffs(static_cast<int>(x)))
 	//! Returns 1 plus the index of the least significant set bit of \param x, or 0 if \param x is 0.
 //! \warning Little-endian format.
-	#define GAIA_FFS64(x) ((uint32_t)__builtin_ffsll(x))
+	#define GAIA_FFS64(x) ((uint32_t)__builtin_ffsll(static_cast<long long>(x)))
 #else
 	//! Returns the number of set bits in \param x
 	#define GAIA_POPCNT(x)                                                                                               \

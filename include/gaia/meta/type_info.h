@@ -38,7 +38,7 @@ namespace gaia {
 				const auto minValue = startPos <= len - 1 ? startPos : len - 1;
 				for (int64_t i = (int64_t)minValue; i >= 0; --i) {
 					if (data[i] == c)
-						return i;
+						return (size_t)i;
 				}
 				return size_t(-1);
 			}

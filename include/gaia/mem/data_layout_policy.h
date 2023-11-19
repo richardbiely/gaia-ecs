@@ -141,12 +141,12 @@ namespace gaia {
 
 			GAIA_NODISCARD static uint8_t* alloc_mem(size_t cnt) noexcept {
 				const auto bytes = get_min_byte_size(0, cnt);
-				auto* pData = (uint8_t*)mem::mem_alloc(bytes);
-				core::call_ctor_n((ValueType*)pData, cnt);
-				return pData;
+				auto* pData = (ValueType*)mem::mem_alloc(bytes);
+				core::call_ctor_n(pData, cnt);
+				return (uint8_t*)pData;
 			}
 
-			static void free_mem(uint8_t* pData, size_t cnt) noexcept {
+			static void free_mem(void* pData, size_t cnt) noexcept {
 				if (pData == nullptr)
 					return;
 				core::call_dtor_n((ValueType*)pData, cnt);
@@ -279,7 +279,7 @@ namespace gaia {
 				return (uint8_t*)mem::mem_alloc_alig(bytes, Alignment);
 			}
 
-			static void free_mem(uint8_t* pData, [[maybe_unused]] size_t cnt) noexcept {
+			static void free_mem(void* pData, [[maybe_unused]] size_t cnt) noexcept {
 				if (pData == nullptr)
 					return;
 				return mem::mem_free_alig(pData);
@@ -521,7 +521,8 @@ namespace gaia {
 			template <typename, typename = void>
 			struct is_soa_layout: std::false_type {};
 			template <typename T>
-			struct is_soa_layout<T, std::void_t<decltype(T::Layout)>>: std::bool_constant<!std::is_empty_v<T> && (T::Layout != DataLayout::AoS)> {};
+			struct is_soa_layout<T, std::void_t<decltype(T::Layout)>>:
+					std::bool_constant<!std::is_empty_v<T> && (T::Layout != DataLayout::AoS)> {};
 		} // namespace detail
 
 		template <typename T>

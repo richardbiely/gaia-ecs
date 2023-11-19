@@ -1,5 +1,4 @@
 #pragma once
-
 #include "../config/config.h"
 
 #include "span.h"
@@ -20,15 +19,15 @@ namespace gaia {
 				const uint32_t idxByte = bitPosition / 8;
 				const uint32_t idxBit = bitPosition % 8;
 
-				const uint8_t mask = ~(MaxValue << idxBit);
-				m_data[idxByte] = (m_data[idxByte] & mask) | (value << idxBit);
+				const uint32_t mask = ~(MaxValue << idxBit);
+				m_data[idxByte] = (uint8_t)(((uint32_t)m_data[idxByte] & mask) | ((uint32_t)value << idxBit));
 
 				const bool overlaps = idxBit + BlockBits > 8;
 				if (overlaps) {
 					// Value spans over two bytes
-					const uint8_t shift2 = uint8_t(8U - idxBit);
-					const uint8_t mask2 = ~(MaxValue >> shift2);
-					m_data[idxByte + 1] = (m_data[idxByte + 1] & mask2) | (value >> shift2);
+					const uint32_t shift2 = 8U - idxBit;
+					const uint32_t mask2 = ~(MaxValue >> shift2);
+					m_data[idxByte + 1] = (uint8_t)(((uint32_t)m_data[idxByte + 1] & mask2) | ((uint32_t)value >> shift2));
 				}
 			}
 
@@ -43,9 +42,9 @@ namespace gaia {
 				const bool overlaps = idxBit + BlockBits > 8;
 				if (overlaps) {
 					// Value spans over two bytes
-					const uint8_t shift2 = uint8_t(8U - idxBit);
-					const uint8_t mask2 = MaxValue >> shift2;
-					const uint8_t byte2 = (m_data[idxByte + 1] & mask2) << shift2;
+					const uint32_t shift2 = uint8_t(8U - idxBit);
+					const uint32_t mask2 = MaxValue >> shift2;
+					const uint8_t byte2 = uint8_t(((uint32_t)m_data[idxByte + 1] & mask2) << shift2);
 					return byte1 | byte2;
 				}
 
