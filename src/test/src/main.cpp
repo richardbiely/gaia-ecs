@@ -1783,40 +1783,52 @@ void verify_name_has(const ecs::ComponentCache& cc, const char* str) {
 	const auto* res = cc.find_comp_desc(str);
 	REQUIRE(res != nullptr);
 }
-template <typename T>
+
 void verify_name_has_not(const ecs::ComponentCache& cc, const char* str) {
+	const auto* item = cc.find_comp_desc(str);
+	REQUIRE(item == nullptr);
+}
+template <typename T>
+void verify_name_has_not(const ecs::ComponentCache& cc) {
 	const auto* item = cc.find_comp_desc<T>();
 	REQUIRE(item == nullptr);
 }
+
+#define verify_name_has(name) verify_name_has<name>(cc, #name);
+#define verify_name_has_not(name)                                                                                      \
+	{                                                                                                                    \
+		verify_name_has_not<name>(cc);                                                                                     \
+		verify_name_has_not(cc, #name);                                                                                    \
+	}
 
 TEST_CASE("Component names") {
 	ecs::World w;
 	const auto& cc = w.comp_cache();
 	auto e = w.add();
 
-	verify_name_has_not<Int3>(cc, "Int3");
-	verify_name_has_not<Position>(cc, "Position");
-	verify_name_has_not<dummy::Position>(cc, "dummy::Position");
+	verify_name_has_not(Int3);
+	verify_name_has_not(Position);
+	verify_name_has_not(dummy::Position);
 
 	w.add<Position>(e);
-	verify_name_has_not<Int3>(cc, "Int3");
-	verify_name_has<Position>(cc, "Position");
-	verify_name_has_not<dummy::Position>(cc, "dummy::Position");
+	verify_name_has_not(Int3);
+	verify_name_has(Position);
+	verify_name_has_not(dummy::Position);
 
 	w.add<Int3>(e);
-	verify_name_has<Int3>(cc, "Int3");
-	verify_name_has<Position>(cc, "Position");
-	verify_name_has_not<dummy::Position>(cc, "dummy::Position");
+	verify_name_has(Int3);
+	verify_name_has(Position);
+	verify_name_has_not(dummy::Position);
 
 	w.del<Position>(e);
-	verify_name_has<Int3>(cc, "Int3");
-	verify_name_has<Position>(cc, "Position");
-	verify_name_has_not<dummy::Position>(cc, "dummy::Position");
+	verify_name_has(Int3);
+	verify_name_has(Position);
+	verify_name_has_not(dummy::Position);
 
 	w.add<dummy::Position>(e);
-	verify_name_has<Int3>(cc, "Int3");
-	verify_name_has<Position>(cc, "Position");
-	verify_name_has<dummy::Position>(cc, "dummy::Position");
+	verify_name_has(Int3);
+	verify_name_has(Position);
+	verify_name_has(dummy::Position);
 }
 
 template <typename TQuery>
