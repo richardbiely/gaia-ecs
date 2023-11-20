@@ -73,7 +73,7 @@ namespace gaia {
 
 			//! Registers the provided query lookup context \param ctx. If it already exists it is returned.
 			//! \return Query id
-			QueryInfo& goc(QueryCtx&& ctx) {
+			QueryInfo& add(QueryCtx&& ctx) {
 				GAIA_ASSERT(ctx.hashLookup.hash != 0);
 
 				// Check if the query info exists first

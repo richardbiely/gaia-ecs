@@ -166,6 +166,8 @@ w.name_raw(e, pUserManagedString);
 
 ### Add or remove component
 
+Adding a component to entity means the entity becomes a part of a new archetype. Like mentioned [previously](#implementation), becoming a part of a new archetype means all component data associated with the entity need to move from the old one. The more components in the archetype the slower the move (empty components/tags are an exception because they do not carry any data). For this reason it is not advised to perform large number of separate additons / removals per frame.
+
 ```cpp
 struct Position {
   float x, y, z;
@@ -185,15 +187,17 @@ w.add<Velocity>(e, {0, 0, 1});
 w.del<Velocity>(e);
 ```
 
-When adding or removing multiple components at once if is more efficient doing it via chaining:
+When adding or removing multiple components at once it is more efficient doing it via chaining. This way one one archetype movement is performed in total rather than one per added/removed component.
 
 ```cpp
 ecs::World w;
 
-// Create an entity with Position.
+// Create an entity with Position. This is one archetype movement.
 ecs::Entity e = w.add();
 w.add<Position>();
 
+// Add and remove multiple components. 
+// This is also one archetype movement rather than 6 compared to doing these operations separate.
 w.bulk(e)
  // add Velocity to entity e
  .add<Velocity>()
@@ -227,7 +231,7 @@ w.set(e)
   .set...;
 ```
 
-Components are returned by value for components with sizes up to 8 bytes (including). Bigger components are returned by const reference.
+Components up to 8 bytes (including) are returned by value. Bigger components are returned by const reference.
 
 ```cpp
 // Read Velocity's value. As shown above Velocity is 12 bytes in size.
@@ -381,7 +385,7 @@ for (uint32_t k=0; k<iter.size(); ++k)
 
 Query behavior can also be modified by setting constraints. By default, only enabled entities are taken into account. However, by changing constraints, we can filter disabled entities exclusively or make the query consider both enabled and disabled entities at the same time.
 
-Changing the enabled state of an entity is a special operation that marks the entity as invisible to queries by default. Archetype of the entity is not changed and therefore the operation is very fast (basically, just setting a flag).
+Disabling/enabling an entity is a special operation that marks it invisible to queries by default. Archetype of the entity is not changed afterwards so it can be considered fast.
 
 ```cpp
 ecs::Entity e1, e2;
@@ -471,7 +475,7 @@ q.each([&](Position& p, const Velocity& v) {
 });
 ```
 
->**NOTE:**<br/>If there are 100 Position components in the chunk and only one them changes, the other 99 are considered changed as well. This chunk-wide behavior might seem counter-intuitive but it is in fact a performance optimization. The reason why this works is because it is easier to reason about a group of entities than checking each of them separately.
+>**NOTE:**<br/>If there are 100 Position components in the chunk and only one of them changes, the other 99 are considered changed as well. This chunk-wide behavior might seem counter-intuitive but it is in fact a performance optimization. The reason why this works is because it is easier to reason about a group of entities than checking each of them separately.
 
 ## Unique components
 Unique component is a special kind of data that exists at most once per chunk. In other words, you attach data to one chunk specifically. It survives entity removals and unlike generic components, they do not transfer to a new chunk along with their entity.

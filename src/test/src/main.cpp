@@ -3844,57 +3844,57 @@ TEST_CASE("Component cache") {
 	auto& cc = w.comp_cache_mut();
 	{
 		cc.clear();
-		const auto comp = cc.goc<Position>().comp;
-		REQUIRE(comp == cc.goc<const Position>().comp);
-		REQUIRE(comp == cc.goc<Position&>().comp);
-		REQUIRE(comp == cc.goc<const Position&>().comp);
-		REQUIRE(comp == cc.goc<Position*>().comp);
-		REQUIRE(comp == cc.goc<const Position*>().comp);
+		const auto comp = cc.add<Position>().comp;
+		REQUIRE(comp == cc.add<const Position>().comp);
+		REQUIRE(comp == cc.add<Position&>().comp);
+		REQUIRE(comp == cc.add<const Position&>().comp);
+		REQUIRE(comp == cc.add<Position*>().comp);
+		REQUIRE(comp == cc.add<const Position*>().comp);
 	}
 	{
 		cc.clear();
-		const auto comp = cc.goc<const Position>().comp;
-		REQUIRE(comp == cc.goc<Position>().comp);
-		REQUIRE(comp == cc.goc<Position&>().comp);
-		REQUIRE(comp == cc.goc<const Position&>().comp);
-		REQUIRE(comp == cc.goc<Position*>().comp);
-		REQUIRE(comp == cc.goc<const Position*>().comp);
+		const auto comp = cc.add<const Position>().comp;
+		REQUIRE(comp == cc.add<Position>().comp);
+		REQUIRE(comp == cc.add<Position&>().comp);
+		REQUIRE(comp == cc.add<const Position&>().comp);
+		REQUIRE(comp == cc.add<Position*>().comp);
+		REQUIRE(comp == cc.add<const Position*>().comp);
 	}
 	{
 		cc.clear();
-		const auto comp = cc.goc<Position&>().comp;
-		REQUIRE(comp == cc.goc<Position>().comp);
-		REQUIRE(comp == cc.goc<const Position>().comp);
-		REQUIRE(comp == cc.goc<const Position&>().comp);
-		REQUIRE(comp == cc.goc<Position*>().comp);
-		REQUIRE(comp == cc.goc<const Position*>().comp);
+		const auto comp = cc.add<Position&>().comp;
+		REQUIRE(comp == cc.add<Position>().comp);
+		REQUIRE(comp == cc.add<const Position>().comp);
+		REQUIRE(comp == cc.add<const Position&>().comp);
+		REQUIRE(comp == cc.add<Position*>().comp);
+		REQUIRE(comp == cc.add<const Position*>().comp);
 	}
 	{
 		cc.clear();
-		const auto comp = cc.goc<const Position&>().comp;
-		REQUIRE(comp == cc.goc<Position>().comp);
-		REQUIRE(comp == cc.goc<const Position>().comp);
-		REQUIRE(comp == cc.goc<Position&>().comp);
-		REQUIRE(comp == cc.goc<Position*>().comp);
-		REQUIRE(comp == cc.goc<const Position*>().comp);
+		const auto comp = cc.add<const Position&>().comp;
+		REQUIRE(comp == cc.add<Position>().comp);
+		REQUIRE(comp == cc.add<const Position>().comp);
+		REQUIRE(comp == cc.add<Position&>().comp);
+		REQUIRE(comp == cc.add<Position*>().comp);
+		REQUIRE(comp == cc.add<const Position*>().comp);
 	}
 	{
 		cc.clear();
-		const auto comp = cc.goc<Position*>().comp;
-		REQUIRE(comp == cc.goc<Position>().comp);
-		REQUIRE(comp == cc.goc<const Position>().comp);
-		REQUIRE(comp == cc.goc<Position&>().comp);
-		REQUIRE(comp == cc.goc<const Position&>().comp);
-		REQUIRE(comp == cc.goc<const Position*>().comp);
+		const auto comp = cc.add<Position*>().comp;
+		REQUIRE(comp == cc.add<Position>().comp);
+		REQUIRE(comp == cc.add<const Position>().comp);
+		REQUIRE(comp == cc.add<Position&>().comp);
+		REQUIRE(comp == cc.add<const Position&>().comp);
+		REQUIRE(comp == cc.add<const Position*>().comp);
 	}
 	{
 		cc.clear();
-		const auto comp = cc.goc<const Position*>().comp;
-		REQUIRE(comp == cc.goc<Position>().comp);
-		REQUIRE(comp == cc.goc<const Position>().comp);
-		REQUIRE(comp == cc.goc<Position&>().comp);
-		REQUIRE(comp == cc.goc<const Position&>().comp);
-		REQUIRE(comp == cc.goc<Position*>().comp);
+		const auto comp = cc.add<const Position*>().comp;
+		REQUIRE(comp == cc.add<Position>().comp);
+		REQUIRE(comp == cc.add<const Position>().comp);
+		REQUIRE(comp == cc.add<Position&>().comp);
+		REQUIRE(comp == cc.add<const Position&>().comp);
+		REQUIRE(comp == cc.add<Position*>().comp);
 	}
 }
 

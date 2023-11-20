@@ -56,13 +56,10 @@ namespace gaia {
 				m_compByString.clear();
 			}
 
-			template <typename T>
-			void add(Component comp) {}
-
 			//! Registers the component info for \tparam T. If it already exists it is returned.
 			//! \return Component info
 			template <typename T>
-			GAIA_NODISCARD GAIA_FORCEINLINE const ComponentCacheItem& goc() {
+			GAIA_NODISCARD GAIA_FORCEINLINE const ComponentCacheItem& add() {
 				using U = typename component_type_t<T>::Type;
 				const auto compDescId = detail::ComponentDesc<T>::id();
 

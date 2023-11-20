@@ -720,7 +720,7 @@ namespace gaia {
 				CompMoveHelper& add() {
 					(verify_comp<T>(component_kind_v<T>), ...);
 					auto& cc = m_world.comp_cache_mut();
-					(add(component_kind_v<T>, cc.goc<typename component_type_t<T>::Type>()), ...);
+					(add(component_kind_v<T>, cc.add<typename component_type_t<T>::Type>()), ...);
 					return *this;
 				}
 
@@ -740,7 +740,7 @@ namespace gaia {
 				CompMoveHelper& del() {
 					(verify_comp<T>(), ...);
 					auto& cc = m_world.comp_cache_mut();
-					(del(component_kind_v<T>, cc.goc<typename component_type_t<T>::Type>()), ...);
+					(del(component_kind_v<T>, cc.add<typename component_type_t<T>::Type>()), ...);
 
 					return *this;
 				}
@@ -1126,7 +1126,7 @@ namespace gaia {
 				verify_comp<T>(compKind);
 				GAIA_ASSERT(valid(entity));
 
-				const auto& desc = m_compCache.goc<U>();
+				const auto& desc = m_compCache.add<U>();
 				add_inter(entity, compKind, desc);
 			}
 
@@ -1142,7 +1142,7 @@ namespace gaia {
 				verify_comp<T>(compKind);
 				GAIA_ASSERT(valid(entity));
 
-				const auto& desc = m_compCache.goc<U>();
+				const auto& desc = m_compCache.add<U>();
 				add_inter(entity, compKind, desc);
 
 				const auto& entityContainer = m_entities[entity.id()];
@@ -1165,7 +1165,7 @@ namespace gaia {
 				GAIA_ASSERT(valid(entity));
 
 				using U = typename component_type_t<T>::Type;
-				const auto& desc = m_compCache.goc<U>();
+				const auto& desc = m_compCache.add<U>();
 
 				constexpr auto compKind = component_kind_v<T>;
 				del_inter(entity, compKind, desc);

@@ -303,7 +303,7 @@ namespace gaia {
 			template <typename T>
 			void add(Entity entity) {
 				// Make sure the component is registered
-				const auto& desc = comp_cache_mut(m_ctx.world).goc<T>();
+				const auto& desc = comp_cache_mut(m_ctx.world).add<T>();
 
 				using U = typename component_type_t<T>::Type;
 				constexpr auto compKind = component_kind_v<T>;
@@ -324,7 +324,7 @@ namespace gaia {
 			template <typename T>
 			void add(TempEntity entity) {
 				// Make sure the component is registered
-				const auto& desc = comp_cache_mut(m_ctx.world).goc<T>();
+				const auto& desc = comp_cache_mut(m_ctx.world).add<T>();
 
 				using U = typename component_type_t<T>::Type;
 				constexpr auto compKind = component_kind_v<T>;
@@ -345,7 +345,7 @@ namespace gaia {
 			template <typename T>
 			void add(Entity entity, T&& value) {
 				// Make sure the component is registered
-				const auto& desc = comp_cache_mut(m_ctx.world).goc<T>();
+				const auto& desc = comp_cache_mut(m_ctx.world).add<T>();
 
 				using U = typename component_type_t<T>::Type;
 				constexpr auto compKind = component_kind_v<T>;
@@ -367,7 +367,7 @@ namespace gaia {
 			template <typename T>
 			void add(TempEntity entity, T&& value) {
 				// Make sure the component is registered
-				const auto& desc = comp_cache_mut(m_ctx.world).goc<T>();
+				const auto& desc = comp_cache_mut(m_ctx.world).add<T>();
 
 				using U = typename component_type_t<T>::Type;
 				constexpr auto compKind = component_kind_v<T>;
@@ -413,7 +413,7 @@ namespace gaia {
 			void set(TempEntity entity, T&& value) {
 				// No need to check if the component is registered.
 				// If we want to set the value of a component we must have created it already.
-				// (void)m_ctx.world.comp_cache_mut().goc<T>();
+				// (void)m_ctx.world.comp_cache_mut().add<T>();
 
 				using U = typename component_type_t<T>::Type;
 				verify_comp<U>();
@@ -435,7 +435,7 @@ namespace gaia {
 			void del(Entity entity) {
 				// No need to check if the component is registered.
 				// If we want to remove a component we must have created it already.
-				// (void)m_ctx.world.comp_cache_mut().goc<T>();
+				// (void)m_ctx.world.comp_cache_mut().add<T>();
 
 				using U = typename component_type_t<T>::Type;
 				verify_comp<U>();

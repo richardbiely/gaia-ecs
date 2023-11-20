@@ -191,7 +191,7 @@ namespace gaia {
 						QueryCtx ctx;
 						ctx.cc = m_cc;
 						commit(ctx);
-						auto& queryInfo = m_storage.m_entityQueryCache->goc(GAIA_MOV(ctx));
+						auto& queryInfo = m_storage.m_entityQueryCache->add(GAIA_MOV(ctx));
 						m_storage.m_queryId = queryInfo.id();
 						queryInfo.match(*m_componentToArchetypeMap, last_archetype_id());
 						return queryInfo;
@@ -219,7 +219,7 @@ namespace gaia {
 					constexpr auto isReadWrite = core::is_mut_v<T>;
 
 					// Make sure the component is always registered
-					const auto& desc = m_cc->goc<T>();
+					const auto& desc = m_cc->add<T>();
 
 					Command_AddComponent cmd{desc.comp, compKind, listType, isReadWrite};
 					ser::save(m_serBuffer, Command_AddComponent::Id);
@@ -233,7 +233,7 @@ namespace gaia {
 					constexpr auto compKind = component_kind_v<T>;
 
 					// Make sure the component is always registered
-					const auto& desc = m_cc->goc<T>();
+					const auto& desc = m_cc->add<T>();
 
 					Command_Filter cmd{desc.comp, compKind};
 					ser::save(m_serBuffer, Command_Filter::Id);
