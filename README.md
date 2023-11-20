@@ -1,7 +1,8 @@
 <!--
 @cond TURN_OFF_DOXYGEN
 -->
-# Gaia-ECS
+![gaia-ecs](docs/img/logo.png)
+
 [![Version][badge.version]][version]
 [![Build Status][badge.actions]][actions]
 [![language][badge.language]][language]
@@ -20,7 +21,7 @@
 [license]: https://en.wikipedia.org/wiki/MIT_License
 [codacy]: https://app.codacy.com/gh/richardbiely/gaia-ecs/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade
 
-Gaia-ECS is a fast and easy-to-use [ECS](#ecs) framework. Some of its current features and highlights are:
+**Gaia-ECS** is a fast and easy-to-use [ECS](#ecs) framework. Some of its current features and highlights are:
 * very simple and safe API
 * based on [C++17](https://en.cppreference.com/w/cpp/17)
 * no external dependencies (no STL strings or containers)
@@ -92,7 +93,7 @@ Following the example given above, a vehicle could be anything with Position and
 The actual movement is handled by systems. Those that match against the Flying component will implement the logic for flying. Systems matching against the Driving component handle the land movement.
 
 ## Implementation
-Gaia-ECS is an archetype-based entity component system. This means that unique combinations of components are grouped into archetypes. Each archetype consists of chunks - blocks of memory holding your entities and components. You can think of them as [database tables](https://en.wikipedia.org/wiki/Table_(database)) where components are columns and entities are rows. Each chunk is either 8 or 16 KiB big depending on how much data can be effectively used by it. This size is chosen so that the entire chunk at its fullest can fit into the L1 cache on most CPUs.
+**Gaia-ECS** is an archetype-based entity component system. This means that unique combinations of components are grouped into archetypes. Each archetype consists of chunks - blocks of memory holding your entities and components. You can think of them as [database tables](https://en.wikipedia.org/wiki/Table_(database)) where components are columns and entities are rows. Each chunk is either 8 or 16 KiB big depending on how much data can be effectively used by it. This size is chosen so that the entire chunk at its fullest can fit into the L1 cache on most CPUs.
 
 Chunk memory is preallocated in blocks organized into pages via the internal chunk allocator. Thanks to that all data is organized in a cache-friendly way which most computer architectures like and actual heap allocations which are slow are reduced to a minimum.
 
@@ -527,7 +528,7 @@ However, in specific cases, you might want to consider organizing your component
 static constexpr auto Layout = mem::DataLayout::SoA
 ```
 
-Using the example above will make Gaia-ECS treat Position components like this in memory: xxxx yyyy zzzz.
+Using the example above will make **Gaia-ECS** treat Position components like this in memory: xxxx yyyy zzzz.
 
 If used correctly this can have vast performance implications. Not only do you organize your data in the most cache-friendly way this usually also means you can simplify your loops which in turn allows the compiler to optimize your code better.
 
@@ -710,7 +711,7 @@ struct CustomStruct {
  It doesn't matter which kind of specialization you use. However, note that if both are used the external one has priority.
 
 ## Multithreading
-To fully utilize your system's potential Gaia-ECS allows you to spread your tasks into multiple threads. This can be achieved in multiple ways.
+To fully utilize your system's potential **Gaia-ECS** allows you to spread your tasks into multiple threads. This can be achieved in multiple ways.
 
 Tasks that can not be split into multiple parts or it does not make sense for them to be split can use ***sched***. It registers a job in the job system and immediately submits it so worker threads can pick it up:
 ```cpp
@@ -903,7 +904,7 @@ cmake -DCMAKE_BUILD_TYPE=Release -DUSE_SANITIZER=address -S . -B "build"
 ```
 
 ### Single-header
-Gaia-ECS is shipped also as a [single header file](https://github.com/richardbiely/gaia-ecs/blob/main/single_include/gaia.h) which you can simply drop into your project and start using. To generate the header we use a wonderful Python tool [Quom](https://github.com/Viatorus/quom).
+**Gaia-ECS** is shipped also as a [single header file](https://github.com/richardbiely/gaia-ecs/blob/main/single_include/gaia.h) which you can simply drop into your project and start using. To generate the header we use a wonderful Python tool [Quom](https://github.com/Viatorus/quom).
 
 To generate the header use the following command inside your root directory.
 ```bash
@@ -964,12 +965,16 @@ Requests for features, PRs, suggestions, and feedback are highly appreciated.
 If you find you can help and want to contribute to the project feel free to contact
 me directly (you can find the mail on my [profile page](https://github.com/richardbiely)).
 
+Thank you for using the project! :)
+
 # License
 
 Code and documentation Copyright (c) 2021-2023 Richard Biely.
 
 Code released under
 [the MIT license](https://github.com/richardbiely/gaia-ecs/blob/master/LICENSE).
+
+![gaia-ecs-small](docs/img/logo_small.png)
 <!--
 @endcond TURN_OFF_DOXYGEN
 -->
