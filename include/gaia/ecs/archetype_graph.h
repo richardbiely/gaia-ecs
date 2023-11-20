@@ -66,7 +66,7 @@ namespace gaia {
 						if (!edgesG.empty()) {
 							GAIA_LOG_N("    Generic - count:%u", (uint32_t)edgesG.size());
 							for (const auto& edge: edgesG) {
-								const auto& desc = cc.comp_desc(edge.first);
+								const auto& desc = cc.get(edge.first);
 								GAIA_LOG_N("      %s (--> Archetype ID:%u)", desc.name.str(), edge.second.archetypeId);
 							}
 						}
@@ -74,7 +74,7 @@ namespace gaia {
 						if (!edgesC.empty()) {
 							GAIA_LOG_N("    Unique - count:%u", (uint32_t)edgesC.size());
 							for (const auto& edge: edgesC) {
-								const auto& desc = cc.comp_desc(edge.first);
+								const auto& desc = cc.get(edge.first);
 								GAIA_LOG_N("      %s (--> Archetype ID:%u)", desc.name.str(), edge.second.archetypeId);
 							}
 						}
@@ -92,7 +92,7 @@ namespace gaia {
 						if (!edgesG.empty()) {
 							GAIA_LOG_N("    Generic - count:%u", (uint32_t)edgesG.size());
 							for (const auto& edge: edgesG) {
-								const auto& desc = cc.comp_desc(edge.first);
+								const auto& desc = cc.get(edge.first);
 								GAIA_LOG_N("      %s (--> Archetype ID:%u)", desc.name.str(), edge.second.archetypeId);
 							}
 						}
@@ -100,7 +100,7 @@ namespace gaia {
 						if (!edgesC.empty()) {
 							GAIA_LOG_N("    Chunk - count:%u", (uint32_t)edgesC.size());
 							for (const auto& edge: edgesC) {
-								const auto& desc = cc.comp_desc(edge.first);
+								const auto& desc = cc.get(edge.first);
 								GAIA_LOG_N("      %s (--> Archetype ID:%u)", desc.name.str(), edge.second.archetypeId);
 							}
 						}

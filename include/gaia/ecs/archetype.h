@@ -216,7 +216,7 @@ namespace gaia {
 					if (comp.alig() == 0)
 						continue;
 
-					const auto& desc = cc.comp_desc(comp.id());
+					const auto& desc = cc.get(comp.id());
 
 					// If we're beyond what the chunk could take, subtract one entity
 					const auto nextOffset = desc.calc_new_mem_offset(offs, size);
@@ -658,7 +658,7 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD bool has() const {
 				constexpr auto compKind = component_kind_v<T>;
-				const auto compId = m_cc.comp_desc<T>().comp.id();
+				const auto compId = m_cc.get<T>().comp.id();
 				return has(compKind, compId);
 			}
 
@@ -769,11 +769,11 @@ namespace gaia {
 				if (!genComps.empty()) {
 					GAIA_LOG_N("  Generic components - count:%u", (uint32_t)genComps.size());
 					for (const auto comp: genComps)
-						logComponentInfo(cc.comp_desc(comp.id()));
+						logComponentInfo(cc.get(comp.id()));
 					if (!uniComps.empty()) {
 						GAIA_LOG_N("  Unique components - count:%u", (uint32_t)uniComps.size());
 						for (const auto comp: uniComps)
-							logComponentInfo(cc.comp_desc(comp.id()));
+							logComponentInfo(cc.get(comp.id()));
 					}
 				}
 			}

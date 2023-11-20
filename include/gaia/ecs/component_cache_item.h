@@ -25,6 +25,8 @@ namespace gaia {
 			using FuncSwap = void(void*, void*);
 			using FuncCmp = bool(const void*, const void*);
 
+			//! Global component id
+			uint32_t gid{};
 			//! Unique component identifier
 			Component comp = {IdentifierBad};
 			//! Complex hash used for look-ups
@@ -37,21 +39,21 @@ namespace gaia {
 			//! Component name
 			SymbolLookupKey name;
 			//! Function to call when the component needs to be constructed
-			FuncCtor* func_ctor = nullptr;
+			FuncCtor* func_ctor{};
 			//! Function to call when the component needs to be move constructed
-			FuncMove* func_move_ctor = nullptr;
+			FuncMove* func_move_ctor{};
 			//! Function to call when the component needs to be copy constructed
-			FuncCopy* func_copy_ctor = nullptr;
+			FuncCopy* func_copy_ctor{};
 			//! Function to call when the component needs to be destroyed
-			FuncDtor* func_dtor = nullptr;
+			FuncDtor* func_dtor{};
 			//! Function to call when the component needs to be copied
-			FuncCopy* func_copy = nullptr;
+			FuncCopy* func_copy{};
 			//! Fucntion to call when the component needs to be moved
-			FuncMove* func_move = nullptr;
+			FuncMove* func_move{};
 			//! Function to call when the component needs to swap
-			FuncSwap* func_swap = nullptr;
+			FuncSwap* func_swap{};
 			//! Function to call when comparing two components of the same type
-			FuncCmp* func_cmp = nullptr;
+			FuncCmp* func_cmp{};
 
 		private:
 			ComponentCacheItem() = default;
@@ -126,9 +128,10 @@ namespace gaia {
 				static_assert(core::is_raw_v<T>);
 
 				auto* cci = new ComponentCacheItem();
+				cci->gid = detail::ComponentDesc<T>::id();
 				cci->comp = Component(
 						// component id
-						detail::ComponentDesc<T>::id(),
+						cci->gid,
 						// soa
 						detail::ComponentDesc<T>::soa(cci->soaSizes),
 						// size in bytes

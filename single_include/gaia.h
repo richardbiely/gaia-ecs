@@ -14550,6 +14550,8 @@ namespace gaia {
 			using FuncSwap = void(void*, void*);
 			using FuncCmp = bool(const void*, const void*);
 
+			//! Global component id
+			uint32_t gid{};
 			//! Unique component identifier
 			Component comp = {IdentifierBad};
 			//! Complex hash used for look-ups
@@ -14562,21 +14564,21 @@ namespace gaia {
 			//! Component name
 			SymbolLookupKey name;
 			//! Function to call when the component needs to be constructed
-			FuncCtor* func_ctor = nullptr;
+			FuncCtor* func_ctor{};
 			//! Function to call when the component needs to be move constructed
-			FuncMove* func_move_ctor = nullptr;
+			FuncMove* func_move_ctor{};
 			//! Function to call when the component needs to be copy constructed
-			FuncCopy* func_copy_ctor = nullptr;
+			FuncCopy* func_copy_ctor{};
 			//! Function to call when the component needs to be destroyed
-			FuncDtor* func_dtor = nullptr;
+			FuncDtor* func_dtor{};
 			//! Function to call when the component needs to be copied
-			FuncCopy* func_copy = nullptr;
+			FuncCopy* func_copy{};
 			//! Fucntion to call when the component needs to be moved
-			FuncMove* func_move = nullptr;
+			FuncMove* func_move{};
 			//! Function to call when the component needs to swap
-			FuncSwap* func_swap = nullptr;
+			FuncSwap* func_swap{};
 			//! Function to call when comparing two components of the same type
-			FuncCmp* func_cmp = nullptr;
+			FuncCmp* func_cmp{};
 
 		private:
 			ComponentCacheItem() = default;
@@ -14651,9 +14653,10 @@ namespace gaia {
 				static_assert(core::is_raw_v<T>);
 
 				auto* cci = new ComponentCacheItem();
+				cci->gid = detail::ComponentDesc<T>::id();
 				cci->comp = Component(
 						// component id
-						detail::ComponentDesc<T>::id(),
+						cci->gid,
 						// soa
 						detail::ComponentDesc<T>::soa(cci->soaSizes),
 						// size in bytes
@@ -14699,20 +14702,21 @@ namespace gaia {
 namespace gaia {
 	namespace ecs {
 		class ComponentCache {
-			static constexpr uint32_t FastComponentCacheSize = 1024;
+			static constexpr uint32_t FastComponentCacheSize = 512;
 			using SymbolLookupKey = core::StringLookupKey<512>;
 
 			//! Fast-lookup cache for the first FastComponentCacheSize components
-			cnt::darray<const ComponentCacheItem*> m_descByIndex;
+			cnt::darray<const ComponentCacheItem*> m_descIdArr;
 			//! Slower but more memory-friendly lookup cache for components with ids beyond FastComponentCacheSize
-			cnt::map<ComponentId, const ComponentCacheItem*> m_descByIndexMap;
-			//! Lookup of component items by their symbol name. Strings are owned by m_descByIndex/m_descByIndexMap
-			cnt::map<SymbolLookupKey, const ComponentCacheItem*> m_descByString;
+			cnt::map<detail::ComponentDescId, const ComponentCacheItem*> m_descByDescId;
+
+			//! Lookup of component items by their symbol name. Strings are owned by m_descIdArr/m_descByDescId
+			cnt::map<SymbolLookupKey, const ComponentCacheItem*> m_compByString;
 
 		public:
 			ComponentCache() {
 				// Reserve enough storage space for most use-cases
-				m_descByIndex.reserve(FastComponentCacheSize);
+				m_descIdArr.reserve(FastComponentCacheSize);
 			}
 
 			~ComponentCache() {
@@ -14728,20 +14732,23 @@ namespace gaia {
 			//! \warning Should be used only after worlds are cleared because it invalidates all currently
 			//!          existing component ids. Any cached content would stop working.
 			void clear() {
-				for (const auto* pDesc: m_descByIndex)
+				for (const auto* pDesc: m_descIdArr)
 					ComponentCacheItem::destroy(const_cast<ComponentCacheItem*>(pDesc));
-				for (auto [componentId, pDesc]: m_descByIndexMap)
+				for (auto [componentId, pDesc]: m_descByDescId)
 					ComponentCacheItem::destroy(const_cast<ComponentCacheItem*>(pDesc));
 
-				m_descByIndex.clear();
-				m_descByIndexMap.clear();
-				m_descByString.clear();
+				m_descIdArr.clear();
+				m_descByDescId.clear();
+				m_compByString.clear();
 			}
+
+			template <typename T>
+			void add(Component comp) {}
 
 			//! Registers the component info for \tparam T. If it already exists it is returned.
 			//! \return Component info
 			template <typename T>
-			GAIA_NODISCARD GAIA_FORCEINLINE const ComponentCacheItem& goc_comp_desc() {
+			GAIA_NODISCARD GAIA_FORCEINLINE const ComponentCacheItem& goc() {
 				using U = typename component_type_t<T>::Type;
 				const auto compDescId = detail::ComponentDesc<T>::id();
 
@@ -14749,46 +14756,46 @@ namespace gaia {
 				if (compDescId < FastComponentCacheSize) {
 					auto createDesc = [&]() -> const ComponentCacheItem& {
 						const auto* pDesc = ComponentCacheItem::create<U>();
-						m_descByIndex[compDescId] = pDesc;
-						m_descByString[pDesc->name] = pDesc;
+						m_descIdArr[compDescId] = pDesc;
+						m_compByString[pDesc->name] = pDesc;
 						return *pDesc;
 					};
 
-					if GAIA_UNLIKELY (compDescId >= m_descByIndex.size()) {
-						const auto oldSize = m_descByIndex.size();
+					if GAIA_UNLIKELY (compDescId >= m_descIdArr.size()) {
+						const auto oldSize = m_descIdArr.size();
 						const auto newSize = compDescId + 1U;
 
 						// Increase the capacity by multiples of CapacityIncreaseSize
 						constexpr uint32_t CapacityIncreaseSize = 128;
 						const auto newCapacity = (newSize / CapacityIncreaseSize) * CapacityIncreaseSize + CapacityIncreaseSize;
-						m_descByIndex.reserve(newCapacity);
+						m_descIdArr.reserve(newCapacity);
 
 						// Update the size
-						m_descByIndex.resize(newSize);
+						m_descIdArr.resize(newSize);
 
 						// Make sure unused memory is initialized to nullptr.
-						GAIA_FOR2(oldSize, newSize - 1) m_descByIndex[i] = nullptr;
+						GAIA_FOR2(oldSize, newSize - 1) m_descIdArr[i] = nullptr;
 
 						return createDesc();
 					}
 
-					if GAIA_UNLIKELY (m_descByIndex[compDescId] == nullptr) {
+					if GAIA_UNLIKELY (m_descIdArr[compDescId] == nullptr) {
 						return createDesc();
 					}
 
-					return *m_descByIndex[compDescId];
+					return *m_descIdArr[compDescId];
 				}
 
 				// Generic path for large component ids - use the map storage
 				{
 					auto createDesc = [&]() -> const ComponentCacheItem& {
 						const auto* pDesc = ComponentCacheItem::create<U>();
-						m_descByIndexMap.emplace(compDescId, pDesc);
+						m_descByDescId.emplace(compDescId, pDesc);
 						return *pDesc;
 					};
 
-					const auto it = m_descByIndexMap.find(compDescId);
-					if (it == m_descByIndexMap.end())
+					const auto it = m_descByDescId.find(compDescId);
+					if (it == m_descByDescId.end())
 						return createDesc();
 
 					return *it->second;
@@ -14798,33 +14805,33 @@ namespace gaia {
 			//! Searches for the cached component info given the \param compDescId.
 			//! \warning It is expected the component info with a given component id exists! Undefined behavior otherwise.
 			//! \return Component info or nullptr it not found.
-			GAIA_NODISCARD const ComponentCacheItem* find_comp_desc(detail::ComponentDescId compDescId) const noexcept {
+			GAIA_NODISCARD const ComponentCacheItem* find(detail::ComponentDescId compDescId) const noexcept {
 				// Fast path - array storage
 				if (compDescId < FastComponentCacheSize) {
-					if (compDescId >= m_descByIndex.size())
+					if (compDescId >= m_descIdArr.size())
 						return nullptr;
 
-					return m_descByIndex[compDescId];
+					return m_descIdArr[compDescId];
 				}
 
 				// Generic path - map storage
-				const auto it = m_descByIndexMap.find(compDescId);
-				return it != m_descByIndexMap.end() ? it->second : nullptr;
+				const auto it = m_descByDescId.find(compDescId);
+				return it != m_descByDescId.end() ? it->second : nullptr;
 			}
 
 			//! Returns the cached component info given the \param compDescId.
 			//! \warning It is expected the component info with a given component id exists! Undefined behavior otherwise.
 			//! \return Component info
-			GAIA_NODISCARD const ComponentCacheItem& comp_desc(detail::ComponentDescId compDescId) const noexcept {
+			GAIA_NODISCARD const ComponentCacheItem& get(detail::ComponentDescId compDescId) const noexcept {
 				// Fast path - array storage
 				if (compDescId < FastComponentCacheSize) {
-					GAIA_ASSERT(compDescId < m_descByIndex.size());
-					return *m_descByIndex[compDescId];
+					GAIA_ASSERT(compDescId < m_descIdArr.size());
+					return *m_descIdArr[compDescId];
 				}
 
 				// Generic path - map storage
-				GAIA_ASSERT(m_descByIndexMap.contains(compDescId));
-				return *m_descByIndexMap.find(compDescId)->second;
+				GAIA_ASSERT(m_descByDescId.contains(compDescId));
+				return *m_descByDescId.find(compDescId)->second;
 			}
 
 			//! Searches for the cached component info. The provided string is NOT copied internally.
@@ -14832,9 +14839,9 @@ namespace gaia {
 			//! \param len String length. If zero, the length is calculated.
 			//! \warning It is expected the component exists! Undefined behavior otherwise.
 			//! \return Component info if found, otherwise nullptr.
-			GAIA_NODISCARD const ComponentCacheItem* find_comp_desc(const char* name, uint32_t len = 0) const noexcept {
-				const auto it = m_descByString.find(len != 0 ? SymbolLookupKey(name, len) : SymbolLookupKey(name));
-				if (it != m_descByString.end())
+			GAIA_NODISCARD const ComponentCacheItem* find(const char* name, uint32_t len = 0) const noexcept {
+				const auto it = m_compByString.find(len != 0 ? SymbolLookupKey(name, len) : SymbolLookupKey(name));
+				if (it != m_compByString.end())
 					return it->second;
 
 				return nullptr;
@@ -14844,8 +14851,8 @@ namespace gaia {
 			//! \param name A null-terminated string
 			//! \param len String length. If zero, the length is calculated
 			//! \return Component info.
-			GAIA_NODISCARD const ComponentCacheItem& comp_desc(const char* name, uint32_t len = 0) const noexcept {
-				const auto* pItem = find_comp_desc(name, len);
+			GAIA_NODISCARD const ComponentCacheItem& get(const char* name, uint32_t len = 0) const noexcept {
+				const auto* pItem = find(name, len);
 				GAIA_ASSERT(pItem != nullptr);
 				return *pItem;
 			}
@@ -14854,30 +14861,30 @@ namespace gaia {
 			//! \warning It is expected the component already exists! Undefined behavior otherwise.
 			//! \return Component info or nullptr if not found.
 			template <typename T>
-			GAIA_NODISCARD const ComponentCacheItem* find_comp_desc() const noexcept {
+			GAIA_NODISCARD const ComponentCacheItem* find() const noexcept {
 				const auto compDescId = detail::ComponentDesc<T>::id();
-				return find_comp_desc(compDescId);
+				return find(compDescId);
 			}
 
 			//! Returns the component info for \tparam T.
 			//! \warning It is expected the component already exists! Undefined behavior otherwise.
 			//! \return Component info
 			template <typename T>
-			GAIA_NODISCARD const ComponentCacheItem& comp_desc() const noexcept {
+			GAIA_NODISCARD const ComponentCacheItem& get() const noexcept {
 				const auto compDescId = detail::ComponentDesc<T>::id();
-				return comp_desc(compDescId);
+				return get(compDescId);
 			}
 
 			void diag() const {
-				const auto registeredTypes = m_descByIndex.size();
+				const auto registeredTypes = m_descIdArr.size();
 				GAIA_LOG_N("Registered comps: %u", registeredTypes);
 
 				auto logDesc = [](const ComponentCacheItem* pDesc) {
-					GAIA_LOG_N("  id:%010u, %s", pDesc->comp.id(), pDesc->name.str());
+					GAIA_LOG_N("  gid:%010u, lid:%010u, %s", pDesc->gid, pDesc->comp.id(), pDesc->name.str());
 				};
-				for (const auto* pDesc: m_descByIndex)
+				for (const auto* pDesc: m_descIdArr)
 					logDesc(pDesc);
-				for (auto [componentId, pDesc]: m_descByIndexMap)
+				for (auto [componentId, pDesc]: m_descByDescId)
 					logDesc(pDesc);
 			}
 		};
@@ -14942,7 +14949,7 @@ namespace gaia {
 						if (!edgesG.empty()) {
 							GAIA_LOG_N("    Generic - count:%u", (uint32_t)edgesG.size());
 							for (const auto& edge: edgesG) {
-								const auto& desc = cc.comp_desc(edge.first);
+								const auto& desc = cc.get(edge.first);
 								GAIA_LOG_N("      %s (--> Archetype ID:%u)", desc.name.str(), edge.second.archetypeId);
 							}
 						}
@@ -14950,7 +14957,7 @@ namespace gaia {
 						if (!edgesC.empty()) {
 							GAIA_LOG_N("    Unique - count:%u", (uint32_t)edgesC.size());
 							for (const auto& edge: edgesC) {
-								const auto& desc = cc.comp_desc(edge.first);
+								const auto& desc = cc.get(edge.first);
 								GAIA_LOG_N("      %s (--> Archetype ID:%u)", desc.name.str(), edge.second.archetypeId);
 							}
 						}
@@ -14968,7 +14975,7 @@ namespace gaia {
 						if (!edgesG.empty()) {
 							GAIA_LOG_N("    Generic - count:%u", (uint32_t)edgesG.size());
 							for (const auto& edge: edgesG) {
-								const auto& desc = cc.comp_desc(edge.first);
+								const auto& desc = cc.get(edge.first);
 								GAIA_LOG_N("      %s (--> Archetype ID:%u)", desc.name.str(), edge.second.archetypeId);
 							}
 						}
@@ -14976,7 +14983,7 @@ namespace gaia {
 						if (!edgesC.empty()) {
 							GAIA_LOG_N("    Chunk - count:%u", (uint32_t)edgesC.size());
 							for (const auto& edge: edgesC) {
-								const auto& desc = cc.comp_desc(edge.first);
+								const auto& desc = cc.get(edge.first);
 								GAIA_LOG_N("      %s (--> Archetype ID:%u)", desc.name.str(), edge.second.archetypeId);
 							}
 						}
@@ -15603,7 +15610,7 @@ namespace gaia {
 		//! \param matcherHash Initial matcher hash
 		//! \param comp Component id
 		inline void matcher_hash(const ComponentCache& cc, ComponentMatcherHash& matcherHash, Component comp) noexcept {
-			const auto componentHash = cc.comp_desc(comp.id()).matcherHash.hash;
+			const auto componentHash = cc.get(comp.id()).matcherHash.hash;
 			matcherHash.hash = core::combine_or(matcherHash.hash, componentHash);
 		}
 
@@ -15615,8 +15622,8 @@ namespace gaia {
 			if (compsSize == 0)
 				return {0};
 
-			ComponentMatcherHash::Type hash = cc.comp_desc(comps[0].id()).matcherHash.hash;
-			GAIA_FOR2(1, compsSize) hash = core::combine_or(hash, cc.comp_desc(comps[i].id()).matcherHash.hash);
+			ComponentMatcherHash::Type hash = cc.get(comps[0].id()).matcherHash.hash;
+			GAIA_FOR2(1, compsSize) hash = core::combine_or(hash, cc.get(comps[i].id()).matcherHash.hash);
 			return {hash};
 		}
 
@@ -15628,8 +15635,8 @@ namespace gaia {
 			if (compsSize == 0)
 				return {0};
 
-			ComponentLookupHash::Type hash = cc.comp_desc(comps[0].id()).hashLookup.hash;
-			GAIA_FOR2(1, compsSize) hash = core::hash_combine(hash, cc.comp_desc(comps[i].id()).hashLookup.hash);
+			ComponentLookupHash::Type hash = cc.get(comps[0].id()).hashLookup.hash;
+			GAIA_FOR2(1, compsSize) hash = core::hash_combine(hash, cc.get(comps[i].id()).hashLookup.hash);
 			return {hash};
 		}
 
@@ -15769,7 +15776,7 @@ namespace gaia {
 						dst[j].comp = cids[j];
 						const auto off = offs[j];
 						dst[j].pData = &data(off);
-						dst[j].pDesc = &m_header.cc->comp_desc(cids[j].id());
+						dst[j].pDesc = &m_header.cc->get(cids[j].id());
 					}
 				}
 
@@ -15851,7 +15858,7 @@ namespace gaia {
 					static_assert(!std::is_empty_v<U>, "Attempting to get value of an empty component");
 
 					constexpr auto compKind = component_kind_v<T>;
-					const auto compId = m_header.cc->comp_desc<T>().comp.id();
+					const auto compId = m_header.cc->get<T>().comp.id();
 					const auto compIdx = comp_idx(compKind, compId);
 
 					if constexpr (compKind == ComponentKind::CK_Gen) {
@@ -15885,7 +15892,7 @@ namespace gaia {
 					static_assert(!std::is_empty_v<U>, "Attempting to set value of an empty component");
 
 					constexpr auto compKind = component_kind_v<T>;
-					const auto compId = m_header.cc->comp_desc<T>().comp.id();
+					const auto compId = m_header.cc->get<T>().comp.id();
 					const auto compIdx = comp_idx(compKind, compId);
 
 					// Update version number if necessary so we know RW access was used on the chunk
@@ -16650,7 +16657,7 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD bool has() const {
 				constexpr auto compKind = component_kind_v<T>;
-				const auto compId = m_header.cc->comp_desc<T>().comp.id();
+				const auto compId = m_header.cc->get<T>().comp.id();
 				return has(compKind, compId);
 			}
 
@@ -17160,7 +17167,7 @@ namespace gaia {
 					if (comp.alig() == 0)
 						continue;
 
-					const auto& desc = cc.comp_desc(comp.id());
+					const auto& desc = cc.get(comp.id());
 
 					// If we're beyond what the chunk could take, subtract one entity
 					const auto nextOffset = desc.calc_new_mem_offset(offs, size);
@@ -17602,7 +17609,7 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD bool has() const {
 				constexpr auto compKind = component_kind_v<T>;
-				const auto compId = m_cc.comp_desc<T>().comp.id();
+				const auto compId = m_cc.get<T>().comp.id();
 				return has(compKind, compId);
 			}
 
@@ -17713,11 +17720,11 @@ namespace gaia {
 				if (!genComps.empty()) {
 					GAIA_LOG_N("  Generic components - count:%u", (uint32_t)genComps.size());
 					for (const auto comp: genComps)
-						logComponentInfo(cc.comp_desc(comp.id()));
+						logComponentInfo(cc.get(comp.id()));
 					if (!uniComps.empty()) {
 						GAIA_LOG_N("  Unique components - count:%u", (uint32_t)uniComps.size());
 						for (const auto comp: uniComps)
-							logComponentInfo(cc.comp_desc(comp.id()));
+							logComponentInfo(cc.get(comp.id()));
 					}
 				}
 			}
@@ -17998,7 +18005,7 @@ namespace gaia {
 			//! Writes \param value to the buffer
 			template <typename T>
 			void save_comp(T&& value) {
-				const auto& desc = m_cc->comp_desc<T>();
+				const auto& desc = m_cc->get<T>();
 				const bool isManualDestroyNeeded = desc.func_copy_ctor != nullptr || desc.func_move_ctor != nullptr;
 				constexpr bool isRValue = std::is_rvalue_reference_v<decltype(value)>;
 
@@ -18042,7 +18049,7 @@ namespace gaia {
 				bool isManualDestroyNeeded = false;
 				load(isManualDestroyNeeded);
 
-				const auto& desc = m_cc->comp_desc(compId);
+				const auto& desc = m_cc->get(compId);
 				GAIA_ASSERT(m_dataPos + desc.comp.size() <= bytes());
 				auto* pSrc = (void*)&m_data[m_dataPos];
 				desc.move(pSrc, pDst);
@@ -18373,7 +18380,7 @@ namespace gaia {
 					const auto& data = m_lookupCtx.data[compKind];
 					const auto& comps = data.comps;
 
-					const auto compId = m_lookupCtx.cc->comp_desc<T>().comp.id();
+					const auto compId = m_lookupCtx.cc->get<T>().comp.id();
 					const auto compIdx = ecs::comp_idx<MAX_COMPONENTS_IN_QUERY>(comps.data(), compId);
 
 					if (listType != data.rules[compIdx])
@@ -18808,7 +18815,7 @@ namespace gaia {
 						if (comps.size() >= MAX_COMPONENTS_IN_QUERY) {
 							GAIA_ASSERT2(false, "Trying to create an query with too many components!");
 
-							auto compName = ctx.cc->comp_desc(comp.id()).name.str();
+							auto compName = ctx.cc->get(comp.id()).name.str();
 							GAIA_LOG_E("Trying to add component '%s' to an already full ECS query!", compName);
 							return;
 						}
@@ -18844,7 +18851,7 @@ namespace gaia {
 						if (withChanged.size() >= MAX_COMPONENTS_IN_QUERY) {
 							GAIA_ASSERT2(false, "Trying to create an filter query with too many components!");
 
-							auto compName = ctx.cc->comp_desc(comp.id()).name.str();
+							auto compName = ctx.cc->get(comp.id()).name.str();
 							GAIA_LOG_E("Trying to add component %s to an already full filter query!", compName);
 							return;
 						}
@@ -18868,7 +18875,7 @@ namespace gaia {
 
 						GAIA_ASSERT2(false, "SetChangeFilter trying to filter component which is not a part of the query");
 #if GAIA_DEBUG
-						auto compName = ctx.cc->comp_desc(comp.id()).name.str();
+						auto compName = ctx.cc->get(comp.id()).name.str();
 						GAIA_LOG_E("SetChangeFilter trying to filter component %s but it's not a part of the query!", compName);
 #endif
 					}
@@ -18953,7 +18960,7 @@ namespace gaia {
 					constexpr auto isReadWrite = core::is_mut_v<T>;
 
 					// Make sure the component is always registered
-					const auto& desc = m_cc->goc_comp_desc<T>();
+					const auto& desc = m_cc->goc<T>();
 
 					Command_AddComponent cmd{desc.comp, compKind, listType, isReadWrite};
 					ser::save(m_serBuffer, Command_AddComponent::Id);
@@ -18967,7 +18974,7 @@ namespace gaia {
 					constexpr auto compKind = component_kind_v<T>;
 
 					// Make sure the component is always registered
-					const auto& desc = m_cc->goc_comp_desc<T>();
+					const auto& desc = m_cc->goc<T>();
 
 					Command_Filter cmd{desc.comp, compKind};
 					ser::save(m_serBuffer, Command_Filter::Id);
@@ -19812,19 +19819,19 @@ namespace gaia {
 							"Trying to add a component to entity [%u.%u] but there's no space left!", entity.id(), entity.gen());
 					GAIA_LOG_W("Already present:");
 					GAIA_EACH(comps) {
-						const auto& desc = cc.comp_desc(comps[i].id());
+						const auto& desc = cc.get(comps[i].id());
 						GAIA_LOG_W("> [%u] %s", (uint32_t)i, desc.name.str());
 					}
 					GAIA_LOG_W("Trying to add:");
 					{
-						const auto& desc = cc.comp_desc(descToAdd.comp.id());
+						const auto& desc = cc.get(descToAdd.comp.id());
 						GAIA_LOG_W("> %s", desc.name.str());
 					}
 				}
 
 				// Don't add the same component twice
 				for (auto comp: comps) {
-					const auto& desc = cc.comp_desc(comp.id());
+					const auto& desc = cc.get(comp.id());
 					if (desc.comp == descToAdd.comp) {
 						GAIA_ASSERT2(false, "Trying to add a duplicate component");
 
@@ -19847,13 +19854,13 @@ namespace gaia {
 					GAIA_LOG_W("Currently present:");
 
 					GAIA_EACH(comps) {
-						const auto& desc = cc.comp_desc(comps[i].id());
+						const auto& desc = cc.get(comps[i].id());
 						GAIA_LOG_W("> [%u] %s", i, desc.name.str());
 					}
 
 					{
 						GAIA_LOG_W("Trying to remove:");
-						const auto& desc = cc.comp_desc(descToRemove.comp.id());
+						const auto& desc = cc.get(descToRemove.comp.id());
 						GAIA_LOG_W("> %s", desc.name.str());
 					}
 				}
@@ -20207,7 +20214,7 @@ namespace gaia {
 				CompMoveHelper& add() {
 					(verify_comp<T>(component_kind_v<T>), ...);
 					auto& cc = m_world.comp_cache_mut();
-					(add(component_kind_v<T>, cc.goc_comp_desc<typename component_type_t<T>::Type>()), ...);
+					(add(component_kind_v<T>, cc.goc<typename component_type_t<T>::Type>()), ...);
 					return *this;
 				}
 
@@ -20227,7 +20234,7 @@ namespace gaia {
 				CompMoveHelper& del() {
 					(verify_comp<T>(), ...);
 					auto& cc = m_world.comp_cache_mut();
-					(del(component_kind_v<T>, cc.goc_comp_desc<typename component_type_t<T>::Type>()), ...);
+					(del(component_kind_v<T>, cc.goc<typename component_type_t<T>::Type>()), ...);
 
 					return *this;
 				}
@@ -20299,6 +20306,24 @@ namespace gaia {
 #if GAIA_ECS_CHUNK_ALLOCATOR
 				ChunkAllocator::get().flush();
 #endif
+			}
+
+			//! Creates a new entity of the root archetype
+			//! \return New entity
+			GAIA_NODISCARD Entity add_root() {
+				const auto entity = m_entities.alloc();
+
+				auto* pChunk = m_pRootArchetype->foc_free_chunk();
+				store_entity(entity, m_pRootArchetype, pChunk);
+
+#if GAIA_ASSERT_ENABLED
+				const auto& ec = m_entities[entity.id()];
+				GAIA_ASSERT(ec.pChunk == pChunk);
+				auto entityExpected = pChunk->entity_view()[ec.idx];
+				GAIA_ASSERT(entityExpected == entity);
+#endif
+
+				return entity;
 			}
 
 			//! Creates a new entity of a given archetype
@@ -20436,7 +20461,7 @@ namespace gaia {
 			//! Creates a new empty entity
 			//! \return New entity
 			GAIA_NODISCARD Entity add() {
-				return add(*m_pRootArchetype);
+				return add_root();
 			}
 
 			//! Creates a new entity by cloning an already existing one.
@@ -20559,6 +20584,29 @@ namespace gaia {
 				return CompMoveHelper(*this, entity);
 			}
 
+			// 			//! Creates a new component
+			// 			//! \return New component
+			// 			template <typename T>
+			// 			GAIA_NODISCARD Entity add() {
+			// 				const auto* pItem = comp_cache().find<T>();
+			// 				if (pItem != nullptr)
+			// 					return pItem->comp;
+
+			// 				const auto entity = m_entities.alloc();
+
+			// 				auto* pChunk = m_pRootArchetype->foc_free_chunk();
+			// 				store_entity(entity, m_pRootArchetype, pChunk);
+
+			// #if GAIA_ASSERT_ENABLED
+			// 				const auto& ec = m_entities[entity.id()];
+			// 				GAIA_ASSERT(ec.pChunk == pChunk);
+			// 				auto entityExpected = pChunk->entity_view()[ec.idx];
+			// 				GAIA_ASSERT(entityExpected == entity);
+			// #endif
+
+			// 				return entity;
+			// 			}
+
 			//! Attaches a new component \tparam T to \param entity.
 			//! \tparam T Component
 			//! \param entity Entity
@@ -20572,7 +20620,7 @@ namespace gaia {
 				verify_comp<T>(compKind);
 				GAIA_ASSERT(valid(entity));
 
-				const auto& desc = m_compCache.goc_comp_desc<U>();
+				const auto& desc = m_compCache.goc<U>();
 				add_inter(entity, compKind, desc);
 			}
 
@@ -20588,7 +20636,7 @@ namespace gaia {
 				verify_comp<T>(compKind);
 				GAIA_ASSERT(valid(entity));
 
-				const auto& desc = m_compCache.goc_comp_desc<U>();
+				const auto& desc = m_compCache.goc<U>();
 				add_inter(entity, compKind, desc);
 
 				const auto& entityContainer = m_entities[entity.id()];
@@ -20611,7 +20659,7 @@ namespace gaia {
 				GAIA_ASSERT(valid(entity));
 
 				using U = typename component_type_t<T>::Type;
-				const auto& desc = m_compCache.goc_comp_desc<U>();
+				const auto& desc = m_compCache.goc<U>();
 
 				constexpr auto compKind = component_kind_v<T>;
 				del_inter(entity, compKind, desc);
@@ -20907,7 +20955,7 @@ namespace gaia {
 				ComponentKind compKind;
 
 				void commit(CommandBufferCtx& ctx) const {
-					const auto& desc = comp_cache(ctx.world).comp_desc(compId);
+					const auto& desc = comp_cache(ctx.world).get(compId);
 					ctx.world.add_inter(entity, compKind, desc);
 
 #if GAIA_ASSERT_ENABLED
@@ -20923,7 +20971,7 @@ namespace gaia {
 				ComponentKind compKind;
 
 				void commit(CommandBufferCtx& ctx) const {
-					const auto& desc = comp_cache(ctx.world).comp_desc(compId);
+					const auto& desc = comp_cache(ctx.world).get(compId);
 					ctx.world.add_inter(entity, compKind, desc);
 
 					uint32_t indexInChunk{};
@@ -20953,7 +21001,7 @@ namespace gaia {
 
 					Entity entity = it->second;
 
-					const auto& desc = comp_cache(ctx.world).comp_desc(compId);
+					const auto& desc = comp_cache(ctx.world).get(compId);
 					ctx.world.add_inter(entity, compKind, desc);
 
 #if GAIA_ASSERT_ENABLED
@@ -20978,7 +21026,7 @@ namespace gaia {
 					Entity entity = it->second;
 
 					// Components
-					const auto& desc = comp_cache(ctx.world).comp_desc(compId);
+					const auto& desc = comp_cache(ctx.world).get(compId);
 					ctx.world.add_inter(entity, compKind, desc);
 
 					uint32_t indexInChunk{};
@@ -21040,7 +21088,7 @@ namespace gaia {
 				ComponentKind compKind;
 
 				void commit(CommandBufferCtx& ctx) const {
-					const auto& desc = comp_cache(ctx.world).comp_desc(compId);
+					const auto& desc = comp_cache(ctx.world).get(compId);
 					ctx.world.del_inter(entity, compKind, desc);
 				}
 			};
@@ -21117,7 +21165,7 @@ namespace gaia {
 			template <typename T>
 			void add(Entity entity) {
 				// Make sure the component is registered
-				const auto& desc = comp_cache_mut(m_ctx.world).goc_comp_desc<T>();
+				const auto& desc = comp_cache_mut(m_ctx.world).goc<T>();
 
 				using U = typename component_type_t<T>::Type;
 				constexpr auto compKind = component_kind_v<T>;
@@ -21138,7 +21186,7 @@ namespace gaia {
 			template <typename T>
 			void add(TempEntity entity) {
 				// Make sure the component is registered
-				const auto& desc = comp_cache_mut(m_ctx.world).goc_comp_desc<T>();
+				const auto& desc = comp_cache_mut(m_ctx.world).goc<T>();
 
 				using U = typename component_type_t<T>::Type;
 				constexpr auto compKind = component_kind_v<T>;
@@ -21159,7 +21207,7 @@ namespace gaia {
 			template <typename T>
 			void add(Entity entity, T&& value) {
 				// Make sure the component is registered
-				const auto& desc = comp_cache_mut(m_ctx.world).goc_comp_desc<T>();
+				const auto& desc = comp_cache_mut(m_ctx.world).goc<T>();
 
 				using U = typename component_type_t<T>::Type;
 				constexpr auto compKind = component_kind_v<T>;
@@ -21181,7 +21229,7 @@ namespace gaia {
 			template <typename T>
 			void add(TempEntity entity, T&& value) {
 				// Make sure the component is registered
-				const auto& desc = comp_cache_mut(m_ctx.world).goc_comp_desc<T>();
+				const auto& desc = comp_cache_mut(m_ctx.world).goc<T>();
 
 				using U = typename component_type_t<T>::Type;
 				constexpr auto compKind = component_kind_v<T>;
@@ -21204,7 +21252,7 @@ namespace gaia {
 			void set(Entity entity, T&& value) {
 				// No need to check if the component is registered.
 				// If we want to set the value of a component we must have created it already.
-				// (void)comp_cache(ctx.world).comp_desc<T>();
+				// (void)comp_cache(ctx.world).get<T>();
 
 				using U = typename component_type_t<T>::Type;
 				verify_comp<U>();
@@ -21214,7 +21262,7 @@ namespace gaia {
 				SET_COMPONENT_t cmd;
 				cmd.entity = entity;
 				cmd.compKind = component_kind_v<T>;
-				cmd.compId = comp_cache(m_ctx.world).comp_desc<U>().comp.id();
+				cmd.compId = comp_cache(m_ctx.world).get<U>().comp.id();
 				ser::save(m_ctx, cmd);
 				m_ctx.save_comp(GAIA_FWD(value));
 			}
@@ -21227,7 +21275,7 @@ namespace gaia {
 			void set(TempEntity entity, T&& value) {
 				// No need to check if the component is registered.
 				// If we want to set the value of a component we must have created it already.
-				// (void)m_ctx.world.comp_cache_mut().goc_comp_desc<T>();
+				// (void)m_ctx.world.comp_cache_mut().goc<T>();
 
 				using U = typename component_type_t<T>::Type;
 				verify_comp<U>();
@@ -21237,7 +21285,7 @@ namespace gaia {
 				SET_COMPONENT_FOR_TEMPENTITY_t cmd;
 				cmd.tempEntity = entity;
 				cmd.compKind = component_kind_v<T>;
-				cmd.compId = comp_cache(m_ctx.world).comp_desc<U>().comp.id();
+				cmd.compId = comp_cache(m_ctx.world).get<U>().comp.id();
 				ser::save(m_ctx, cmd);
 				m_ctx.save_comp(GAIA_FWD(value));
 			}
@@ -21249,7 +21297,7 @@ namespace gaia {
 			void del(Entity entity) {
 				// No need to check if the component is registered.
 				// If we want to remove a component we must have created it already.
-				// (void)m_ctx.world.comp_cache_mut().goc_comp_desc<T>();
+				// (void)m_ctx.world.comp_cache_mut().goc<T>();
 
 				using U = typename component_type_t<T>::Type;
 				verify_comp<U>();
@@ -21259,7 +21307,7 @@ namespace gaia {
 				REMOVE_COMPONENT_t cmd;
 				cmd.entity = entity;
 				cmd.compKind = component_kind_v<T>;
-				cmd.compId = comp_cache(m_ctx.world).comp_desc<U>().comp.id();
+				cmd.compId = comp_cache(m_ctx.world).get<U>().comp.id();
 				ser::save(m_ctx, cmd);
 			}
 

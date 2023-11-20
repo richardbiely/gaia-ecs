@@ -74,7 +74,7 @@ namespace gaia {
 						if (comps.size() >= MAX_COMPONENTS_IN_QUERY) {
 							GAIA_ASSERT2(false, "Trying to create an query with too many components!");
 
-							auto compName = ctx.cc->comp_desc(comp.id()).name.str();
+							auto compName = ctx.cc->get(comp.id()).name.str();
 							GAIA_LOG_E("Trying to add component '%s' to an already full ECS query!", compName);
 							return;
 						}
@@ -110,7 +110,7 @@ namespace gaia {
 						if (withChanged.size() >= MAX_COMPONENTS_IN_QUERY) {
 							GAIA_ASSERT2(false, "Trying to create an filter query with too many components!");
 
-							auto compName = ctx.cc->comp_desc(comp.id()).name.str();
+							auto compName = ctx.cc->get(comp.id()).name.str();
 							GAIA_LOG_E("Trying to add component %s to an already full filter query!", compName);
 							return;
 						}
@@ -134,7 +134,7 @@ namespace gaia {
 
 						GAIA_ASSERT2(false, "SetChangeFilter trying to filter component which is not a part of the query");
 #if GAIA_DEBUG
-						auto compName = ctx.cc->comp_desc(comp.id()).name.str();
+						auto compName = ctx.cc->get(comp.id()).name.str();
 						GAIA_LOG_E("SetChangeFilter trying to filter component %s but it's not a part of the query!", compName);
 #endif
 					}
@@ -219,7 +219,7 @@ namespace gaia {
 					constexpr auto isReadWrite = core::is_mut_v<T>;
 
 					// Make sure the component is always registered
-					const auto& desc = m_cc->goc_comp_desc<T>();
+					const auto& desc = m_cc->goc<T>();
 
 					Command_AddComponent cmd{desc.comp, compKind, listType, isReadWrite};
 					ser::save(m_serBuffer, Command_AddComponent::Id);
@@ -233,7 +233,7 @@ namespace gaia {
 					constexpr auto compKind = component_kind_v<T>;
 
 					// Make sure the component is always registered
-					const auto& desc = m_cc->goc_comp_desc<T>();
+					const auto& desc = m_cc->goc<T>();
 
 					Command_Filter cmd{desc.comp, compKind};
 					ser::save(m_serBuffer, Command_Filter::Id);

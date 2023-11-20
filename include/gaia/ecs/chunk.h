@@ -121,7 +121,7 @@ namespace gaia {
 						dst[j].comp = cids[j];
 						const auto off = offs[j];
 						dst[j].pData = &data(off);
-						dst[j].pDesc = &m_header.cc->comp_desc(cids[j].id());
+						dst[j].pDesc = &m_header.cc->get(cids[j].id());
 					}
 				}
 
@@ -203,7 +203,7 @@ namespace gaia {
 					static_assert(!std::is_empty_v<U>, "Attempting to get value of an empty component");
 
 					constexpr auto compKind = component_kind_v<T>;
-					const auto compId = m_header.cc->comp_desc<T>().comp.id();
+					const auto compId = m_header.cc->get<T>().comp.id();
 					const auto compIdx = comp_idx(compKind, compId);
 
 					if constexpr (compKind == ComponentKind::CK_Gen) {
@@ -237,7 +237,7 @@ namespace gaia {
 					static_assert(!std::is_empty_v<U>, "Attempting to set value of an empty component");
 
 					constexpr auto compKind = component_kind_v<T>;
-					const auto compId = m_header.cc->comp_desc<T>().comp.id();
+					const auto compId = m_header.cc->get<T>().comp.id();
 					const auto compIdx = comp_idx(compKind, compId);
 
 					// Update version number if necessary so we know RW access was used on the chunk
@@ -1002,7 +1002,7 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD bool has() const {
 				constexpr auto compKind = component_kind_v<T>;
-				const auto compId = m_header.cc->comp_desc<T>().comp.id();
+				const auto compId = m_header.cc->get<T>().comp.id();
 				return has(compKind, compId);
 			}
 

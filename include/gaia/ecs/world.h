@@ -325,19 +325,19 @@ namespace gaia {
 							"Trying to add a component to entity [%u.%u] but there's no space left!", entity.id(), entity.gen());
 					GAIA_LOG_W("Already present:");
 					GAIA_EACH(comps) {
-						const auto& desc = cc.comp_desc(comps[i].id());
+						const auto& desc = cc.get(comps[i].id());
 						GAIA_LOG_W("> [%u] %s", (uint32_t)i, desc.name.str());
 					}
 					GAIA_LOG_W("Trying to add:");
 					{
-						const auto& desc = cc.comp_desc(descToAdd.comp.id());
+						const auto& desc = cc.get(descToAdd.comp.id());
 						GAIA_LOG_W("> %s", desc.name.str());
 					}
 				}
 
 				// Don't add the same component twice
 				for (auto comp: comps) {
-					const auto& desc = cc.comp_desc(comp.id());
+					const auto& desc = cc.get(comp.id());
 					if (desc.comp == descToAdd.comp) {
 						GAIA_ASSERT2(false, "Trying to add a duplicate component");
 
@@ -360,13 +360,13 @@ namespace gaia {
 					GAIA_LOG_W("Currently present:");
 
 					GAIA_EACH(comps) {
-						const auto& desc = cc.comp_desc(comps[i].id());
+						const auto& desc = cc.get(comps[i].id());
 						GAIA_LOG_W("> [%u] %s", i, desc.name.str());
 					}
 
 					{
 						GAIA_LOG_W("Trying to remove:");
-						const auto& desc = cc.comp_desc(descToRemove.comp.id());
+						const auto& desc = cc.get(descToRemove.comp.id());
 						GAIA_LOG_W("> %s", desc.name.str());
 					}
 				}
@@ -720,7 +720,7 @@ namespace gaia {
 				CompMoveHelper& add() {
 					(verify_comp<T>(component_kind_v<T>), ...);
 					auto& cc = m_world.comp_cache_mut();
-					(add(component_kind_v<T>, cc.goc_comp_desc<typename component_type_t<T>::Type>()), ...);
+					(add(component_kind_v<T>, cc.goc<typename component_type_t<T>::Type>()), ...);
 					return *this;
 				}
 
@@ -740,7 +740,7 @@ namespace gaia {
 				CompMoveHelper& del() {
 					(verify_comp<T>(), ...);
 					auto& cc = m_world.comp_cache_mut();
-					(del(component_kind_v<T>, cc.goc_comp_desc<typename component_type_t<T>::Type>()), ...);
+					(del(component_kind_v<T>, cc.goc<typename component_type_t<T>::Type>()), ...);
 
 					return *this;
 				}
@@ -812,6 +812,24 @@ namespace gaia {
 #if GAIA_ECS_CHUNK_ALLOCATOR
 				ChunkAllocator::get().flush();
 #endif
+			}
+
+			//! Creates a new entity of the root archetype
+			//! \return New entity
+			GAIA_NODISCARD Entity add_root() {
+				const auto entity = m_entities.alloc();
+
+				auto* pChunk = m_pRootArchetype->foc_free_chunk();
+				store_entity(entity, m_pRootArchetype, pChunk);
+
+#if GAIA_ASSERT_ENABLED
+				const auto& ec = m_entities[entity.id()];
+				GAIA_ASSERT(ec.pChunk == pChunk);
+				auto entityExpected = pChunk->entity_view()[ec.idx];
+				GAIA_ASSERT(entityExpected == entity);
+#endif
+
+				return entity;
 			}
 
 			//! Creates a new entity of a given archetype
@@ -949,7 +967,7 @@ namespace gaia {
 			//! Creates a new empty entity
 			//! \return New entity
 			GAIA_NODISCARD Entity add() {
-				return add(*m_pRootArchetype);
+				return add_root();
 			}
 
 			//! Creates a new entity by cloning an already existing one.
@@ -1072,6 +1090,29 @@ namespace gaia {
 				return CompMoveHelper(*this, entity);
 			}
 
+			// 			//! Creates a new component
+			// 			//! \return New component
+			// 			template <typename T>
+			// 			GAIA_NODISCARD Entity add() {
+			// 				const auto* pItem = comp_cache().find<T>();
+			// 				if (pItem != nullptr)
+			// 					return pItem->comp;
+
+			// 				const auto entity = m_entities.alloc();
+
+			// 				auto* pChunk = m_pRootArchetype->foc_free_chunk();
+			// 				store_entity(entity, m_pRootArchetype, pChunk);
+
+			// #if GAIA_ASSERT_ENABLED
+			// 				const auto& ec = m_entities[entity.id()];
+			// 				GAIA_ASSERT(ec.pChunk == pChunk);
+			// 				auto entityExpected = pChunk->entity_view()[ec.idx];
+			// 				GAIA_ASSERT(entityExpected == entity);
+			// #endif
+
+			// 				return entity;
+			// 			}
+
 			//! Attaches a new component \tparam T to \param entity.
 			//! \tparam T Component
 			//! \param entity Entity
@@ -1085,7 +1126,7 @@ namespace gaia {
 				verify_comp<T>(compKind);
 				GAIA_ASSERT(valid(entity));
 
-				const auto& desc = m_compCache.goc_comp_desc<U>();
+				const auto& desc = m_compCache.goc<U>();
 				add_inter(entity, compKind, desc);
 			}
 
@@ -1101,7 +1142,7 @@ namespace gaia {
 				verify_comp<T>(compKind);
 				GAIA_ASSERT(valid(entity));
 
-				const auto& desc = m_compCache.goc_comp_desc<U>();
+				const auto& desc = m_compCache.goc<U>();
 				add_inter(entity, compKind, desc);
 
 				const auto& entityContainer = m_entities[entity.id()];
@@ -1124,7 +1165,7 @@ namespace gaia {
 				GAIA_ASSERT(valid(entity));
 
 				using U = typename component_type_t<T>::Type;
-				const auto& desc = m_compCache.goc_comp_desc<U>();
+				const auto& desc = m_compCache.goc<U>();
 
 				constexpr auto compKind = component_kind_v<T>;
 				del_inter(entity, compKind, desc);

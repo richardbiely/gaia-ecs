@@ -47,7 +47,7 @@ namespace gaia {
 					const auto& data = m_lookupCtx.data[compKind];
 					const auto& comps = data.comps;
 
-					const auto compId = m_lookupCtx.cc->comp_desc<T>().comp.id();
+					const auto compId = m_lookupCtx.cc->get<T>().comp.id();
 					const auto compIdx = ecs::comp_idx<MAX_COMPONENTS_IN_QUERY>(comps.data(), compId);
 
 					if (listType != data.rules[compIdx])

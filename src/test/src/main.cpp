@@ -1568,7 +1568,7 @@ TEST_CASE("Add - 1 component") {
 	const uint32_t N = 10'000;
 	GAIA_FOR(N) create(i);
 
-	const auto& desc = w.comp_cache().comp_desc<Int3>();
+	const auto& desc = w.comp_cache().get<Int3>();
 	REQUIRE_FALSE(ecs::is_entity(desc.comp));
 }
 
@@ -1777,20 +1777,20 @@ TEST_CASE("AddAndDel_entity - 1 component") {
 
 template <typename T>
 void verify_name_has(const ecs::ComponentCache& cc, const char* str) {
-	auto name = cc.comp_desc<T>().name;
+	auto name = cc.get<T>().name;
 	REQUIRE(name.str() != nullptr);
 	REQUIRE(name.len() > 1);
-	const auto* res = cc.find_comp_desc(str);
+	const auto* res = cc.find(str);
 	REQUIRE(res != nullptr);
 }
 
 void verify_name_has_not(const ecs::ComponentCache& cc, const char* str) {
-	const auto* item = cc.find_comp_desc(str);
+	const auto* item = cc.find(str);
 	REQUIRE(item == nullptr);
 }
 template <typename T>
 void verify_name_has_not(const ecs::ComponentCache& cc) {
-	const auto* item = cc.find_comp_desc<T>();
+	const auto* item = cc.find<T>();
 	REQUIRE(item == nullptr);
 }
 
@@ -3844,57 +3844,57 @@ TEST_CASE("Component cache") {
 	auto& cc = w.comp_cache_mut();
 	{
 		cc.clear();
-		const auto comp = cc.goc_comp_desc<Position>().comp;
-		REQUIRE(comp == cc.goc_comp_desc<const Position>().comp);
-		REQUIRE(comp == cc.goc_comp_desc<Position&>().comp);
-		REQUIRE(comp == cc.goc_comp_desc<const Position&>().comp);
-		REQUIRE(comp == cc.goc_comp_desc<Position*>().comp);
-		REQUIRE(comp == cc.goc_comp_desc<const Position*>().comp);
+		const auto comp = cc.goc<Position>().comp;
+		REQUIRE(comp == cc.goc<const Position>().comp);
+		REQUIRE(comp == cc.goc<Position&>().comp);
+		REQUIRE(comp == cc.goc<const Position&>().comp);
+		REQUIRE(comp == cc.goc<Position*>().comp);
+		REQUIRE(comp == cc.goc<const Position*>().comp);
 	}
 	{
 		cc.clear();
-		const auto comp = cc.goc_comp_desc<const Position>().comp;
-		REQUIRE(comp == cc.goc_comp_desc<Position>().comp);
-		REQUIRE(comp == cc.goc_comp_desc<Position&>().comp);
-		REQUIRE(comp == cc.goc_comp_desc<const Position&>().comp);
-		REQUIRE(comp == cc.goc_comp_desc<Position*>().comp);
-		REQUIRE(comp == cc.goc_comp_desc<const Position*>().comp);
+		const auto comp = cc.goc<const Position>().comp;
+		REQUIRE(comp == cc.goc<Position>().comp);
+		REQUIRE(comp == cc.goc<Position&>().comp);
+		REQUIRE(comp == cc.goc<const Position&>().comp);
+		REQUIRE(comp == cc.goc<Position*>().comp);
+		REQUIRE(comp == cc.goc<const Position*>().comp);
 	}
 	{
 		cc.clear();
-		const auto comp = cc.goc_comp_desc<Position&>().comp;
-		REQUIRE(comp == cc.goc_comp_desc<Position>().comp);
-		REQUIRE(comp == cc.goc_comp_desc<const Position>().comp);
-		REQUIRE(comp == cc.goc_comp_desc<const Position&>().comp);
-		REQUIRE(comp == cc.goc_comp_desc<Position*>().comp);
-		REQUIRE(comp == cc.goc_comp_desc<const Position*>().comp);
+		const auto comp = cc.goc<Position&>().comp;
+		REQUIRE(comp == cc.goc<Position>().comp);
+		REQUIRE(comp == cc.goc<const Position>().comp);
+		REQUIRE(comp == cc.goc<const Position&>().comp);
+		REQUIRE(comp == cc.goc<Position*>().comp);
+		REQUIRE(comp == cc.goc<const Position*>().comp);
 	}
 	{
 		cc.clear();
-		const auto comp = cc.goc_comp_desc<const Position&>().comp;
-		REQUIRE(comp == cc.goc_comp_desc<Position>().comp);
-		REQUIRE(comp == cc.goc_comp_desc<const Position>().comp);
-		REQUIRE(comp == cc.goc_comp_desc<Position&>().comp);
-		REQUIRE(comp == cc.goc_comp_desc<Position*>().comp);
-		REQUIRE(comp == cc.goc_comp_desc<const Position*>().comp);
+		const auto comp = cc.goc<const Position&>().comp;
+		REQUIRE(comp == cc.goc<Position>().comp);
+		REQUIRE(comp == cc.goc<const Position>().comp);
+		REQUIRE(comp == cc.goc<Position&>().comp);
+		REQUIRE(comp == cc.goc<Position*>().comp);
+		REQUIRE(comp == cc.goc<const Position*>().comp);
 	}
 	{
 		cc.clear();
-		const auto comp = cc.goc_comp_desc<Position*>().comp;
-		REQUIRE(comp == cc.goc_comp_desc<Position>().comp);
-		REQUIRE(comp == cc.goc_comp_desc<const Position>().comp);
-		REQUIRE(comp == cc.goc_comp_desc<Position&>().comp);
-		REQUIRE(comp == cc.goc_comp_desc<const Position&>().comp);
-		REQUIRE(comp == cc.goc_comp_desc<const Position*>().comp);
+		const auto comp = cc.goc<Position*>().comp;
+		REQUIRE(comp == cc.goc<Position>().comp);
+		REQUIRE(comp == cc.goc<const Position>().comp);
+		REQUIRE(comp == cc.goc<Position&>().comp);
+		REQUIRE(comp == cc.goc<const Position&>().comp);
+		REQUIRE(comp == cc.goc<const Position*>().comp);
 	}
 	{
 		cc.clear();
-		const auto comp = cc.goc_comp_desc<const Position*>().comp;
-		REQUIRE(comp == cc.goc_comp_desc<Position>().comp);
-		REQUIRE(comp == cc.goc_comp_desc<const Position>().comp);
-		REQUIRE(comp == cc.goc_comp_desc<Position&>().comp);
-		REQUIRE(comp == cc.goc_comp_desc<const Position&>().comp);
-		REQUIRE(comp == cc.goc_comp_desc<Position*>().comp);
+		const auto comp = cc.goc<const Position*>().comp;
+		REQUIRE(comp == cc.goc<Position>().comp);
+		REQUIRE(comp == cc.goc<const Position>().comp);
+		REQUIRE(comp == cc.goc<Position&>().comp);
+		REQUIRE(comp == cc.goc<const Position&>().comp);
+		REQUIRE(comp == cc.goc<Position*>().comp);
 	}
 }
 

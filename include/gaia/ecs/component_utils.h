@@ -11,7 +11,7 @@ namespace gaia {
 		//! \param matcherHash Initial matcher hash
 		//! \param comp Component id
 		inline void matcher_hash(const ComponentCache& cc, ComponentMatcherHash& matcherHash, Component comp) noexcept {
-			const auto componentHash = cc.comp_desc(comp.id()).matcherHash.hash;
+			const auto componentHash = cc.get(comp.id()).matcherHash.hash;
 			matcherHash.hash = core::combine_or(matcherHash.hash, componentHash);
 		}
 
@@ -23,8 +23,8 @@ namespace gaia {
 			if (compsSize == 0)
 				return {0};
 
-			ComponentMatcherHash::Type hash = cc.comp_desc(comps[0].id()).matcherHash.hash;
-			GAIA_FOR2(1, compsSize) hash = core::combine_or(hash, cc.comp_desc(comps[i].id()).matcherHash.hash);
+			ComponentMatcherHash::Type hash = cc.get(comps[0].id()).matcherHash.hash;
+			GAIA_FOR2(1, compsSize) hash = core::combine_or(hash, cc.get(comps[i].id()).matcherHash.hash);
 			return {hash};
 		}
 
@@ -36,8 +36,8 @@ namespace gaia {
 			if (compsSize == 0)
 				return {0};
 
-			ComponentLookupHash::Type hash = cc.comp_desc(comps[0].id()).hashLookup.hash;
-			GAIA_FOR2(1, compsSize) hash = core::hash_combine(hash, cc.comp_desc(comps[i].id()).hashLookup.hash);
+			ComponentLookupHash::Type hash = cc.get(comps[0].id()).hashLookup.hash;
+			GAIA_FOR2(1, compsSize) hash = core::hash_combine(hash, cc.get(comps[i].id()).hashLookup.hash);
 			return {hash};
 		}
 

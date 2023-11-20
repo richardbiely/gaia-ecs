@@ -146,7 +146,7 @@ ecs::Entity e_by_name = w.get("my_unique_name");
 w.name(e, nullptr);
 ```
 
-If you already have a dedicated string storage it would be a waste to duplicate the memory. In this case you can use ***ecs::world::name_raw*** to name entities. In this case the string is NOT copied and NOT stored internally. You are responsible for its lifetime. The pointer also needs to be stable. Otherwise, any time your storage tries to move the string to a different place you have to unset the name before it happens and set it anew after the move is done.
+If you already have a dedicated string storage it would be a waste to duplicate the memory. In this case you can use ***ecs::world::name_raw*** to name entities. It does NOT copy and does NOT store the string internally which means you are responsible for its lifetime. The pointer should be stable. Otherwise, any time your storage tries to move the string to a different place you have to unset the name before it happens and set it anew after the move is done.
 
 ```cpp
 const char* pUserManagedString = ...;
