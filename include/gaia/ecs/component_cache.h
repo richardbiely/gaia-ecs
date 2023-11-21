@@ -12,6 +12,7 @@
 #include "component.h"
 #include "component_cache_item.h"
 #include "component_desc.h"
+#include "gaia/ecs/id.h"
 
 namespace gaia {
 	namespace ecs {
@@ -59,14 +60,14 @@ namespace gaia {
 			//! Registers the component info for \tparam T. If it already exists it is returned.
 			//! \return Component info
 			template <typename T>
-			GAIA_NODISCARD GAIA_FORCEINLINE const ComponentCacheItem& add() {
+			GAIA_NODISCARD GAIA_FORCEINLINE const ComponentCacheItem& add(Entity entity) {
 				using U = typename component_type_t<T>::Type;
 				const auto compDescId = detail::ComponentDesc<T>::id();
 
 				// Fast path for small component ids - use the array storage
 				if (compDescId < FastComponentCacheSize) {
 					auto createDesc = [&]() -> const ComponentCacheItem& {
-						const auto* pDesc = ComponentCacheItem::create<U>();
+						const auto* pDesc = ComponentCacheItem::create<U>(entity);
 						m_descIdArr[compDescId] = pDesc;
 						m_compByString[pDesc->name] = pDesc;
 						return *pDesc;
@@ -100,7 +101,7 @@ namespace gaia {
 				// Generic path for large component ids - use the map storage
 				{
 					auto createDesc = [&]() -> const ComponentCacheItem& {
-						const auto* pDesc = ComponentCacheItem::create<U>();
+						const auto* pDesc = ComponentCacheItem::create<U>(entity);
 						m_descByDescId.emplace(compDescId, pDesc);
 						return *pDesc;
 					};
@@ -188,10 +189,11 @@ namespace gaia {
 
 			void diag() const {
 				const auto registeredTypes = m_descIdArr.size();
-				GAIA_LOG_N("Registered comps: %u", registeredTypes);
+				GAIA_LOG_N("Registered components: %u", registeredTypes);
 
 				auto logDesc = [](const ComponentCacheItem* pDesc) {
-					GAIA_LOG_N("  gid:%010u, lid:%010u, %s", pDesc->gid, pDesc->comp.id(), pDesc->name.str());
+					GAIA_LOG_N(
+							"  [%u.%u], id:%010u, %s", pDesc->entity.id(), pDesc->entity.gen(), pDesc->comp.id(), pDesc->name.str());
 				};
 				for (const auto* pDesc: m_descIdArr)
 					logDesc(pDesc);

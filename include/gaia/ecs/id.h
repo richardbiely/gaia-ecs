@@ -84,7 +84,8 @@ namespace gaia {
 
 			struct InternalData {
 				//! Index in the entity array
-				ComponentId id;
+				//detail::ComponentDescId id;
+				uint32_t id;
 				//! Component is SoA
 				IdentifierData soa: meta::StructToTupleMaxTypes_Bits;
 				//! Component size

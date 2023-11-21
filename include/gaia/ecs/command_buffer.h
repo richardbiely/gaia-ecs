@@ -76,7 +76,7 @@ namespace gaia {
 				Entity entity;
 
 				void commit(CommandBufferCtx& ctx) const {
-					[[maybe_unused]] const auto res = ctx.entityMap.try_emplace(ctx.entities++, ctx.world.add(entity));
+					[[maybe_unused]] const auto res = ctx.entityMap.try_emplace(ctx.entities++, ctx.world.copy(entity));
 					GAIA_ASSERT(res.second);
 				}
 			};
@@ -186,9 +186,9 @@ namespace gaia {
 				ComponentKind compKind;
 
 				void commit(CommandBufferCtx& ctx) const {
-					const auto& entityContainer = ctx.world.m_entities[entity.id()];
-					auto* pChunk = entityContainer.pChunk;
-					const auto indexInChunk = compKind == ComponentKind::CK_Uni ? 0U : entityContainer.idx;
+					const auto& ec = ctx.world.m_entities[entity.id()];
+					auto* pChunk = ec.pChunk;
+					const auto indexInChunk = compKind == ComponentKind::CK_Uni ? 0U : ec.idx;
 
 					// Component data
 					const auto compIdx = pChunk->comp_idx(compKind, compId);
@@ -210,9 +210,9 @@ namespace gaia {
 
 					Entity entity = it->second;
 
-					const auto& entityContainer = ctx.world.m_entities[entity.id()];
-					auto* pChunk = entityContainer.pChunk;
-					const auto indexInChunk = compKind == ComponentKind::CK_Uni ? 0U : entityContainer.idx;
+					const auto& ec = ctx.world.m_entities[entity.id()];
+					auto* pChunk = ec.pChunk;
+					const auto indexInChunk = compKind == ComponentKind::CK_Uni ? 0U : ec.idx;
 
 					// Component data
 					const auto compIdx = pChunk->comp_idx(compKind, compId);
@@ -276,7 +276,7 @@ namespace gaia {
 			entity \return Entity that will be created. The id is not usable right
 			away. It will be filled with proper data after commit()
 			*/
-			GAIA_NODISCARD TempEntity add(Entity entityFrom) {
+			GAIA_NODISCARD TempEntity copy(Entity entityFrom) {
 				m_ctx.save(CREATE_ENTITY_FROM_ENTITY);
 
 				CREATE_ENTITY_FROM_ENTITY_t cmd;
@@ -303,7 +303,7 @@ namespace gaia {
 			template <typename T>
 			void add(Entity entity) {
 				// Make sure the component is registered
-				const auto& desc = comp_cache_mut(m_ctx.world).add<T>();
+				const auto& desc = comp_cache_add<T>(m_ctx.world);
 
 				using U = typename component_type_t<T>::Type;
 				constexpr auto compKind = component_kind_v<T>;
@@ -324,7 +324,7 @@ namespace gaia {
 			template <typename T>
 			void add(TempEntity entity) {
 				// Make sure the component is registered
-				const auto& desc = comp_cache_mut(m_ctx.world).add<T>();
+				const auto& desc = comp_cache_add<T>(m_ctx.world);
 
 				using U = typename component_type_t<T>::Type;
 				constexpr auto compKind = component_kind_v<T>;
@@ -345,7 +345,7 @@ namespace gaia {
 			template <typename T>
 			void add(Entity entity, T&& value) {
 				// Make sure the component is registered
-				const auto& desc = comp_cache_mut(m_ctx.world).add<T>();
+				const auto& desc = comp_cache_add<T>(m_ctx.world);
 
 				using U = typename component_type_t<T>::Type;
 				constexpr auto compKind = component_kind_v<T>;
@@ -367,7 +367,7 @@ namespace gaia {
 			template <typename T>
 			void add(TempEntity entity, T&& value) {
 				// Make sure the component is registered
-				const auto& desc = comp_cache_mut(m_ctx.world).add<T>();
+				const auto& desc = comp_cache_add<T>(m_ctx.world);
 
 				using U = typename component_type_t<T>::Type;
 				constexpr auto compKind = component_kind_v<T>;

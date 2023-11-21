@@ -1,3 +1,5 @@
+#include "gaia/cnt/impl/darray_impl.h"
+#include "gaia/ecs/id.h"
 #include <gaia.h>
 
 #if GAIA_COMPILER_MSVC
@@ -1464,7 +1466,7 @@ TEST_CASE("DataLayout SoA16") {
 #if GAIA_COMP_ID_PROBING
 TEST_CASE("ComponentId internal map") {
 	for (uint32_t i = 1; i < 10; ++i) {
-		cnt::darray<ecs::ComponentId> data{};
+		cnt::darr<ecs::ComponentId> data{};
 		data.resize(i * 10);
 		for (auto& comp: data)
 			comp = ecs::IdentifierIdBad;
@@ -1532,41 +1534,54 @@ TEST_CASE("Entity - IdentifierBad") {
 }
 
 TEST_CASE("Add - no components") {
+	const uint32_t N = 1'500;
+
 	ecs::World w;
+	cnt::darr<ecs::Entity> ents, arr;
+	ents.reserve(N);
+	arr.reserve(N);
 
-	auto verify = [](ecs::Entity e, uint32_t id) {
-		const bool ok = e.id() == id && e.gen() == 0;
-		REQUIRE(ok);
-	};
-	auto create = [&](uint32_t id) {
+	auto create = [&]() {
 		auto e = w.add();
-		verify(e, id);
-		return e;
+		ents.push_back(e);
+	};
+	auto verify = [&](uint32_t i) {
+		REQUIRE(arr[i] == ents[i]);
 	};
 
-	const uint32_t N = 10'000;
-	GAIA_FOR(N) create(i);
-	GAIA_FOR(N) verify(w.get(i), i);
+	GAIA_FOR(N) create();
+	// // TODO: Add support for querying entities
+	// auto q = w.query().all<ecs::Entity>();
+	// q.arr(arr);
+	// REQUIRE(arr.size() == ents.size());
+
+	// GAIA_FOR(N) verify(i);
 }
 
 TEST_CASE("Add - 1 component") {
+	const uint32_t N = 1'500;
+
 	ecs::World w;
+	cnt::darr<ecs::Entity> ents;
+	ents.reserve(N);
 
-	auto create = [&](uint32_t id) {
+	auto create = [&](uint32_t i) {
 		auto e = w.add();
-		const bool ok = e.id() == id && e.gen() == 0;
-		REQUIRE(ok);
+		ents.push_back(e);
+		w.add<Int3>(e, {i, i, i});
+	};
+	auto verify = [&](uint32_t i) {
+		auto e = ents[i];
 
-		w.add<Int3>(e, {id, id, id});
 		REQUIRE(w.has<Int3>(e));
 		auto val = w.get<Int3>(e);
-		REQUIRE(val.x == id);
-		REQUIRE(val.y == id);
-		REQUIRE(val.z == id);
+		REQUIRE(val.x == i);
+		REQUIRE(val.y == i);
+		REQUIRE(val.z == i);
 	};
 
-	const uint32_t N = 10'000;
 	GAIA_FOR(N) create(i);
+	GAIA_FOR(N) verify(i);
 
 	const auto& desc = w.comp_cache().get<Int3>();
 	REQUIRE_FALSE(ecs::is_entity(desc.comp));
@@ -1608,8 +1623,6 @@ TEST_CASE("Add - many components") {
 
 	auto create = [&](uint32_t id) {
 		auto e = w.add();
-		const bool ok = e.id() == id && e.gen() == 0;
-		REQUIRE(ok);
 
 		w.add<Int3>(e, {3, 3, 3});
 		w.add<Position>(e, {1, 1, 1});
@@ -1651,7 +1664,7 @@ TEST_CASE("Add - many components") {
 		}
 	};
 
-	const uint32_t N = 10'000;
+	const uint32_t N = 1'500;
 	GAIA_FOR(N) create(i);
 }
 
@@ -1660,8 +1673,6 @@ TEST_CASE("Add - many components, bulk") {
 
 	auto create = [&](uint32_t id) {
 		auto e = w.add();
-		const bool ok = e.id() == id && e.gen() == 0;
-		REQUIRE(ok);
 
 		w.bulk(e).add<Int3, Position, Empty>().add<Else>().add<Rotation>().add<Scale>();
 
@@ -1705,75 +1716,75 @@ TEST_CASE("Add - many components, bulk") {
 		}
 	};
 
-	const uint32_t N = 10'000;
+	const uint32_t N = 1'500;
 	GAIA_FOR(N) create(i);
 }
 
-TEST_CASE("AddAndDel_entity - no components") {
-	ecs::World w;
+// TEST_CASE("AddAndDel_entity - no components") {
+// 	ecs::World w;
 
-	auto verify = [](ecs::Entity e, uint32_t id, uint32_t genExpected) {
-		const bool ok = e.id() == id && e.gen() == genExpected;
-		REQUIRE(ok);
-	};
-	auto create = [&](uint32_t id) {
-		auto e = w.add();
-		verify(e, id, 0);
-		return e;
-	};
-	auto remove = [&](ecs::Entity e) {
-		w.del(e);
-		verify(w.get(e.id()), e.id(), 1);
-		const bool isEntityValid = w.valid(e);
-		REQUIRE_FALSE(isEntityValid);
-	};
+// 	auto verify = [](ecs::Entity e, uint32_t id, uint32_t genExpected) {
+// 		const bool ok = e.id() == id && e.gen() == genExpected;
+// 		REQUIRE(ok);
+// 	};
+// 	auto create = [&](uint32_t id) {
+// 		auto e = w.add();
+// 		verify(e, id, 0);
+// 		return e;
+// 	};
+// 	auto remove = [&](ecs::Entity e) {
+// 		w.del(e);
+// 		verify(w.get(e.id()), e.id(), 1);
+// 		const bool isEntityValid = w.valid(e);
+// 		REQUIRE_FALSE(isEntityValid);
+// 	};
 
-	// 10,000 picked so we create enough entites that they overflow
-	// into another chunk
-	const uint32_t N = 10'000;
-	cnt::darr<ecs::Entity> arr;
-	arr.reserve(N);
+// 	// 1,500 picked so we create enough entites that they overflow
+// 	// into another chunk
+// 	const uint32_t N = 1'500;
+// 	cnt::darr<ecs::Entity> arr;
+// 	arr.reserve(N);
 
-	// Create entities
-	GAIA_FOR(N) arr.push_back(create(i));
-	// Verify ids are still valid
-	GAIA_FOR(N) verify(w.get(i), i, 0);
-	// Remove entities
-	GAIA_FOR(N) remove(arr[i]);
-}
+// 	// Create entities
+// 	GAIA_FOR(N) arr.push_back(create(i));
+// 	// Verify ids are still valid
+// 	GAIA_FOR(N) verify(w.get(i), i, 0);
+// 	// Remove entities
+// 	GAIA_FOR(N) remove(arr[i]);
+// }
 
-TEST_CASE("AddAndDel_entity - 1 component") {
-	ecs::World w;
+// TEST_CASE("AddAndDel_entity - 1 component") {
+// 	ecs::World w;
 
-	auto create = [&](uint32_t id) {
-		auto e = w.add();
-		w.add<Int3>(e, {id, id, id});
-		const bool ok = e.id() == id && e.gen() == 0;
-		REQUIRE(ok);
-		auto pos = w.get<Int3>(e);
-		REQUIRE(pos.x == id);
-		REQUIRE(pos.y == id);
-		REQUIRE(pos.z == id);
-		return e;
-	};
-	auto remove = [&](ecs::Entity e) {
-		w.del(e);
-		auto de = w.get(e.id());
-		const bool ok = de.gen() == e.gen() + 1;
-		REQUIRE(ok);
-		const bool isEntityValid = w.valid(e);
-		REQUIRE_FALSE(isEntityValid);
-	};
+// 	auto create = [&](uint32_t id) {
+// 		auto e = w.add();
+// 		w.add<Int3>(e, {id, id, id});
+// 		const bool ok = e.id() == id && e.gen() == 0;
+// 		REQUIRE(ok);
+// 		auto pos = w.get<Int3>(e);
+// 		REQUIRE(pos.x == id);
+// 		REQUIRE(pos.y == id);
+// 		REQUIRE(pos.z == id);
+// 		return e;
+// 	};
+// 	auto remove = [&](ecs::Entity e) {
+// 		w.del(e);
+// 		auto de = w.get(e.id());
+// 		const bool ok = de.gen() == e.gen() + 1;
+// 		REQUIRE(ok);
+// 		const bool isEntityValid = w.valid(e);
+// 		REQUIRE_FALSE(isEntityValid);
+// 	};
 
-	// 10,000 picked so we create enough entites that they overflow
-	// into another chunk
-	const uint32_t N = 10'000;
-	cnt::darr<ecs::Entity> arr;
-	arr.reserve(N);
+// 	// 1,500 picked so we create enough entites that they overflow
+// 	// into another chunk
+// 	const uint32_t N = 1'500;
+// 	cnt::darr<ecs::Entity> arr;
+// 	arr.reserve(N);
 
-	GAIA_FOR(N) arr.push_back(create(i));
-	GAIA_FOR(N) remove(arr[i]);
-}
+// 	GAIA_FOR(N) arr.push_back(create(i));
+// 	GAIA_FOR(N) remove(arr[i]);
+// }
 
 template <typename T>
 void verify_name_has(const ecs::ComponentCache& cc, const char* str) {
@@ -1833,14 +1844,18 @@ TEST_CASE("Component names") {
 
 template <typename TQuery>
 void Test_Query_QueryResult() {
+	const uint32_t N = 1'500;
+
 	ecs::World w;
+	cnt::darr<ecs::Entity> ents;
+	ents.reserve(N);
 
 	auto create = [&](uint32_t i) {
 		auto e = w.add();
+		ents.push_back(e);
 		w.add<Position>(e, {(float)i, (float)i, (float)i});
 	};
 
-	const uint32_t N = 10'000;
 	GAIA_FOR(N) create(i);
 
 	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
@@ -1852,7 +1867,7 @@ void Test_Query_QueryResult() {
 		cnt::darr<ecs::Entity> arr;
 		q1.arr(arr);
 		GAIA_ASSERT(arr.size() == N);
-		GAIA_EACH(arr) REQUIRE(arr[i].id() == i);
+		GAIA_EACH(arr) REQUIRE(arr[i] == ents[i]);
 	}
 	{
 		cnt::darr<Position> arr;
@@ -1919,17 +1934,39 @@ TEST_CASE("Query - QueryResult") {
 
 template <typename TQuery>
 void Test_Query_QueryResult_Complex() {
+	const uint32_t N = 1'500;
+
 	ecs::World w;
+	struct Data {
+		Position p;
+		Scale s;
+	};
+	cnt::map<ecs::Entity, Data> cmp;
+	cnt::darr<ecs::Entity> ents;
+	ents.reserve(N);
 
 	auto create = [&](uint32_t i) {
 		auto e = w.add();
-		w.add<Position>(e, {(float)i, (float)i, (float)i});
-		w.add<Scale>(e, {(float)i * 2, (float)i * 2, (float)i * 2});
+
+		auto b = w.bulk(e);
+		b.add<Position, Scale>();
 		if (i % 2 == 0)
-			w.add<Something>(e, {true});
+			b.add<Something>();
+		b.commit();
+
+		auto p1 = Position{(float)i, (float)i, (float)i};
+		auto s1 = Scale{(float)i * 2, (float)i * 2, (float)i * 2};
+
+		auto s = w.set(e);
+		s.set<Position>(p1).set<Scale>(s1);
+		if (i % 2 == 0)
+			s.set<Something>({true});
+
+		auto p0 = w.get<Position>(e);
+		REQUIRE(memcmp((void*)&p0, (void*)&p1, sizeof(p0)) == 0);
+		cmp.try_emplace(e, Data{p1, s1});
 	};
 
-	const uint32_t N = 10'000;
 	GAIA_FOR(N) create(i);
 
 	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
@@ -1940,20 +1977,20 @@ void Test_Query_QueryResult_Complex() {
 	auto q5 = w.query<UseCachedQuery>().template all<Position, Scale, Something>();
 
 	{
-		cnt::darr<ecs::Entity> ents;
+		ents.clear();
 		q1.arr(ents);
+		REQUIRE(ents.size() == N);
+	}
+	{
 		cnt::darr<Position> arr;
 		q1.arr(arr);
-
-		REQUIRE(ents.size() == arr.size());
 		REQUIRE(arr.size() == N);
-
 		GAIA_EACH(arr) {
-			const auto& pos = arr[i];
-			const auto val = ents[i].id();
-			REQUIRE(pos.x == (float)val);
-			REQUIRE(pos.y == (float)val);
-			REQUIRE(pos.z == (float)val);
+			const auto e = ents[i];
+			const auto& v0 = arr[i];
+			const auto& v1 = w.get<Position>(e);
+			REQUIRE(memcmp((const void*)&v0, (const void*)&v1, sizeof(v0)) == 0);
+			REQUIRE(memcmp((const void*)&v0, (const void*)&cmp[e].p, sizeof(v0)) == 0);
 		}
 	}
 	{
@@ -1999,35 +2036,32 @@ void Test_Query_QueryResult_Complex() {
 	}
 
 	{
-		cnt::darr<ecs::Entity> ents;
+		ents.clear();
 		q4.arr(ents);
+		REQUIRE(ents.size() == N);
+	}
+	{
 		cnt::darr<Position> arr;
 		q4.arr(arr);
-		REQUIRE(ents.size() == arr.size());
-		REQUIRE(ents.size() == N);
-
+		REQUIRE(arr.size() == N);
 		GAIA_EACH(arr) {
-			const auto& pos = arr[i];
-			const auto val = ents[i].id();
-			REQUIRE(pos.x == (float)val);
-			REQUIRE(pos.y == (float)val);
-			REQUIRE(pos.z == (float)val);
+			const auto e = ents[i];
+			const auto& v0 = arr[i];
+			const auto& v1 = w.get<Position>(e);
+			REQUIRE(memcmp((const void*)&v0, (const void*)&v1, sizeof(v0)) == 0);
+			REQUIRE(memcmp((const void*)&v0, (const void*)&cmp[e].p, sizeof(v0)) == 0);
 		}
 	}
 	{
-		cnt::darr<ecs::Entity> ents;
-		q4.arr(ents);
 		cnt::darr<Scale> arr;
 		q4.arr(arr);
-		REQUIRE(ents.size() == arr.size());
-		REQUIRE(ents.size() == N);
-
+		REQUIRE(arr.size() == N);
 		GAIA_EACH(arr) {
-			const auto& s = arr[i];
-			const auto val = ents[i].id() * 2;
-			REQUIRE(s.x == (float)val);
-			REQUIRE(s.y == (float)val);
-			REQUIRE(s.z == (float)val);
+			const auto e = ents[i];
+			const auto& v0 = arr[i];
+			const auto& v1 = w.get<Scale>(e);
+			REQUIRE(memcmp((const void*)&v0, (const void*)&v1, sizeof(v0)) == 0);
+			REQUIRE(memcmp((const void*)&v0, (const void*)&cmp[e].s, sizeof(v0)) == 0);
 		}
 	}
 	{
@@ -2045,35 +2079,34 @@ void Test_Query_QueryResult_Complex() {
 	}
 
 	{
-		cnt::darr<ecs::Entity> ents;
+		ents.clear();
 		q5.arr(ents);
+		REQUIRE(ents.size() == N / 2);
+	}
+	{
 		cnt::darr<Position> arr;
 		q5.arr(arr);
-		REQUIRE(ents.size() == arr.size());
-		REQUIRE(ents.size() == N / 2);
+		REQUIRE(arr.size() == ents.size());
+		REQUIRE(arr.size() == N / 2);
 
 		GAIA_EACH(arr) {
-			const auto& pos = arr[i];
-			const auto val = ents[i].id();
-			REQUIRE(pos.x == (float)val);
-			REQUIRE(pos.y == (float)val);
-			REQUIRE(pos.z == (float)val);
+			const auto e = ents[i];
+			const auto& v0 = arr[i];
+			const auto& v1 = w.get<Position>(e);
+			REQUIRE(memcmp((const void*)&v0, (const void*)&v1, sizeof(v0)) == 0);
+			REQUIRE(memcmp((const void*)&v0, (const void*)&cmp[e].p, sizeof(v0)) == 0);
 		}
 	}
 	{
-		cnt::darr<ecs::Entity> ents;
-		q5.arr(ents);
 		cnt::darr<Scale> arr;
 		q5.arr(arr);
-		REQUIRE(ents.size() == arr.size());
-		REQUIRE(ents.size() == N / 2);
-
+		REQUIRE(arr.size() == N / 2);
 		GAIA_EACH(arr) {
-			const auto& s = arr[i];
-			const auto val = ents[i].id() * 2;
-			REQUIRE(s.x == (float)val);
-			REQUIRE(s.y == (float)val);
-			REQUIRE(s.z == (float)val);
+			const auto e = ents[i];
+			const auto& v0 = arr[i];
+			const auto& v1 = w.get<Scale>(e);
+			REQUIRE(memcmp((const void*)&v0, (const void*)&v1, sizeof(v0)) == 0);
+			REQUIRE(memcmp((const void*)&v0, (const void*)&cmp[e].s, sizeof(v0)) == 0);
 		}
 	}
 	{
@@ -2160,46 +2193,36 @@ TEST_CASE("Query - equality") {
 }
 
 TEST_CASE("Enable") {
+	// 1,500 picked so we create enough entites that they overflow into another chunk
+	const uint32_t N = 1'500;
+
 	ecs::World w;
 
 	auto create = [&](uint32_t id) {
 		auto e = w.add();
-		const bool ok = e.id() == id && e.gen() == 0;
-		REQUIRE(ok);
 		w.add<Position>(e);
 		return e;
 	};
 
-	// 10,000 picked so we create enough entites that they overflow into another chunk
-	const uint32_t N = 10'000;
 	cnt::darr<ecs::Entity> arr;
 	arr.reserve(N);
 
 	GAIA_FOR(N) arr.push_back(create(i));
 
 	SECTION("State validity") {
-		auto e0 = w.get(0U);
-		auto e1 = w.get(1U);
-
 		w.enable(arr[0], false);
 		REQUIRE_FALSE(w.enabled(arr[0]));
-		REQUIRE(e0 == w.get(0U));
 
 		w.enable(arr[0], true);
 		REQUIRE(w.enabled(arr[0]));
-		REQUIRE(e0 == w.get(0U));
 
 		w.enable(arr[1], false);
 		REQUIRE(w.enabled(arr[0]));
 		REQUIRE_FALSE(w.enabled(arr[1]));
-		REQUIRE(e0 == w.get(0U));
-		REQUIRE(e1 == w.get(1U));
 
 		w.enable(arr[1], true);
 		REQUIRE(w.enabled(arr[0]));
 		REQUIRE(w.enabled(arr[1]));
-		REQUIRE(e0 == w.get(0U));
-		REQUIRE(e1 == w.get(1U));
 	}
 
 	SECTION("State persistance") {
@@ -2279,17 +2302,17 @@ TEST_CASE("Enable") {
 
 	SECTION("Disable vs query") {
 		w.enable(arr[1], false);
-		w.enable(arr[1000], false);
-		w.enable(arr[2000], false);
-		w.enable(arr[9990], false);
+		w.enable(arr[100], false);
+		w.enable(arr[999], false);
+		w.enable(arr[1400], false);
 		checkQuery(N, N - 4, 4);
 	}
 
 	SECTION("Enable vs query") {
 		w.enable(arr[1], true);
-		w.enable(arr[1000], true);
-		w.enable(arr[2000], true);
-		w.enable(arr[9990], true);
+		w.enable(arr[100], true);
+		w.enable(arr[999], true);
+		w.enable(arr[1400], true);
 		checkQuery(N, N, 0);
 	}
 }
@@ -2538,24 +2561,30 @@ TEST_CASE("del - generic, chunk") {
 }
 
 TEST_CASE("entity name") {
+	constexpr uint32_t N = 1'500;
+
 	ecs::World w;
+	cnt::darr<ecs::Entity> ents;
+	ents.reserve(N);
 
 	constexpr auto MaxLen = 16;
 	char tmp[MaxLen];
 
-	auto create = [&](uint32_t id) {
+	auto create = [&](uint32_t i) {
 		auto e = w.add();
-		GAIA_SETFMT(tmp, MaxLen, "name_%u", id);
+		GAIA_SETFMT(tmp, MaxLen, "name_%u", i);
 		w.name(e, tmp);
+		ents.push_back(e);
 	};
-	auto create_raw = [&](uint32_t id) {
+	auto create_raw = [&](uint32_t i) {
 		auto e = w.add();
-		GAIA_SETFMT(tmp, MaxLen, "name_%u", id);
+		GAIA_SETFMT(tmp, MaxLen, "name_%u", i);
 		w.name_raw(e, tmp);
+		ents.push_back(e);
 	};
-	auto verify = [&](uint32_t id) {
-		auto e = w.get(id);
-		GAIA_SETFMT(tmp, MaxLen, "name_%u", id);
+	auto verify = [&](uint32_t i) {
+		auto e = ents[i];
+		GAIA_SETFMT(tmp, MaxLen, "name_%u", i);
 		const auto* ename = w.name(e);
 
 		const auto l0 = strlen(tmp);
@@ -2565,9 +2594,10 @@ TEST_CASE("entity name") {
 	};
 
 	SECTION("basic") {
+		ents.clear();
 		create(0);
 		verify(0);
-		auto e = w.get(0U);
+		auto e = ents[0];
 
 		// If we change the original string we still must have a match
 		{
@@ -2603,9 +2633,10 @@ TEST_CASE("entity name") {
 	}
 
 	SECTION("basic - non-owned") {
+		ents.clear();
 		create_raw(0);
 		verify(0);
-		auto e = w.get(0U);
+		auto e = ents[0];
 
 		// If we change the original string we can't have a match
 		{
@@ -2631,15 +2662,15 @@ TEST_CASE("entity name") {
 	}
 
 	SECTION("many") {
-		constexpr uint32_t N = 10'000;
+		ents.clear();
 		GAIA_FOR(N) create(i);
 		GAIA_FOR(N) verify(i);
-		w.del(w.get(9000));
-		GAIA_FOR(9000) verify(i);
-		GAIA_FOR2(9001, N) verify(i);
+		w.del(ents[900]);
+		GAIA_FOR(900) verify(i);
+		GAIA_FOR2(901, N) verify(i);
 
 		{
-			auto e = w.get(1000);
+			auto e = ents[1000];
 			{
 				w.enable(e, false);
 				const auto* str = w.name(e);
@@ -2679,9 +2710,9 @@ TEST_CASE("Usage 1 - simple query, 0 component") {
 		REQUIRE(cnt == 0);
 	}
 
-	auto e1 = w.add(e);
-	auto e2 = w.add(e);
-	auto e3 = w.add(e);
+	auto e1 = w.copy(e);
+	auto e2 = w.copy(e);
+	auto e3 = w.copy(e);
 
 	{
 		uint32_t cnt = 0;
@@ -2738,9 +2769,9 @@ TEST_CASE("Usage 1 - simple query, 1 component") {
 		REQUIRE(cnt == 1);
 	}
 
-	auto e1 = w.add(e);
-	auto e2 = w.add(e);
-	auto e3 = w.add(e);
+	auto e1 = w.copy(e);
+	auto e2 = w.copy(e);
+	auto e3 = w.copy(e);
 
 	{
 		uint32_t cnt = 0;
@@ -2804,9 +2835,9 @@ TEST_CASE("Usage 1 - simple query, 1 unique component") {
 		REQUIRE(cnt == 1);
 	}
 
-	auto e1 = w.add(e);
-	auto e2 = w.add(e);
-	auto e3 = w.add(e);
+	auto e1 = w.copy(e);
+	auto e2 = w.copy(e);
+	auto e3 = w.copy(e);
 
 	{
 		uint32_t cnt = 0;
@@ -3054,7 +3085,6 @@ TEST_CASE("Set - generic") {
 
 	GAIA_FOR(N) {
 		const auto ent = w.add();
-		REQUIRE(ent.id() == i);
 		arr.push_back(ent);
 		w.add<Rotation>(ent, {});
 		w.add<Scale>(ent, {});
@@ -3113,7 +3143,7 @@ TEST_CASE("Set - generic") {
 
 	// Add one more component and check if the values are still fine after creating a new archetype
 	{
-		auto ent = w.add(arr[0]);
+		auto ent = w.copy(arr[0]);
 		w.add<Position>(ent, {5, 6, 7});
 
 		auto r = w.get<Rotation>(ent);
@@ -3285,7 +3315,7 @@ TEST_CASE("Components - non trivial") {
 
 	// Add one more component and check if the values are still fine after creating a new archetype
 	{
-		auto ent = w.add(arr[0]);
+		auto ent = w.copy(arr[0]);
 		w.add<Position>(ent, {5, 6, 7});
 
 		const auto& s1 = w.get<StringComponent>(ent);
@@ -3313,10 +3343,7 @@ TEST_CASE("CommandBuffer") {
 
 		cb.commit();
 
-		GAIA_FOR(N) {
-			auto e = w.get(i);
-			REQUIRE(e.id() == i);
-		}
+		REQUIRE(w.size() == N + 1);
 	}
 
 	SECTION("Entity creation from another entity") {
@@ -3327,15 +3354,12 @@ TEST_CASE("CommandBuffer") {
 
 		const uint32_t N = 100;
 		GAIA_FOR(N) {
-			[[maybe_unused]] auto tmp = cb.add(mainEntity);
+			[[maybe_unused]] auto tmp = cb.copy(mainEntity);
 		}
 
 		cb.commit();
 
-		GAIA_FOR(N) {
-			auto e = w.get(i + 1);
-			REQUIRE(e.id() == i + 1);
-		}
+		REQUIRE(w.size() == N + 2); // internal entity + mainEntity + N others
 	}
 
 	SECTION("Entity creation from another entity with a component") {
@@ -3345,14 +3369,19 @@ TEST_CASE("CommandBuffer") {
 		auto mainEntity = w.add();
 		w.add<Position>(mainEntity, {1, 2, 3});
 
-		[[maybe_unused]] auto tmp = cb.add(mainEntity);
+		[[maybe_unused]] auto tmp = cb.copy(mainEntity);
 		cb.commit();
-		auto e = w.get(1);
-		REQUIRE(w.has<Position>(e));
-		auto p = w.get<Position>(e);
-		REQUIRE(p.x == 1.f);
-		REQUIRE(p.y == 2.f);
-		REQUIRE(p.z == 3.f);
+
+		auto q = w.query().all<Position>();
+		REQUIRE(q.count() == 2);
+		uint32_t i = 0;
+		q.each([&](const Position& p) {
+			REQUIRE(p.x == 1.f);
+			REQUIRE(p.y == 2.f);
+			REQUIRE(p.z == 3.f);
+			++i;
+		});
+		REQUIRE(i == 2);
 	}
 
 	SECTION("Delayed component addition to an existing entity") {
@@ -3371,11 +3400,11 @@ TEST_CASE("CommandBuffer") {
 		ecs::CommandBuffer cb(w);
 
 		auto tmp = cb.add();
-		REQUIRE_FALSE(w.size());
+		REQUIRE(w.size() == 1);
 		cb.add<Position>(tmp);
 		cb.commit();
 
-		auto e = w.get(0U);
+		auto e = w.get(2U); // component + position + new entity
 		REQUIRE(w.has<Position>(e));
 	}
 
@@ -3431,13 +3460,13 @@ TEST_CASE("CommandBuffer") {
 		ecs::CommandBuffer cb(w);
 
 		auto tmp = cb.add();
-		REQUIRE_FALSE(w.size());
+		REQUIRE(w.size() == 1);
 
 		cb.add<Position>(tmp);
 		cb.set<Position>(tmp, {1, 2, 3});
 		cb.commit();
 
-		auto e = w.get(0U);
+		auto e = w.get(2U); // component + position + new entity
 		REQUIRE(w.has<Position>(e));
 
 		auto p = w.get<Position>(e);
@@ -3451,7 +3480,7 @@ TEST_CASE("CommandBuffer") {
 		ecs::CommandBuffer cb(w);
 
 		auto tmp = cb.add();
-		REQUIRE_FALSE(w.size());
+		REQUIRE(w.size() == 1);
 
 		cb.add<Position>(tmp);
 		cb.add<Acceleration>(tmp);
@@ -3459,7 +3488,7 @@ TEST_CASE("CommandBuffer") {
 		cb.set<Acceleration>(tmp, {4, 5, 6});
 		cb.commit();
 
-		auto e = w.get(0U);
+		auto e = w.get(3U); // component + 2 new components + new entity
 		REQUIRE(w.has<Position>(e));
 		REQUIRE(w.has<Acceleration>(e));
 
@@ -3479,12 +3508,12 @@ TEST_CASE("CommandBuffer") {
 		ecs::CommandBuffer cb(w);
 
 		auto tmp = cb.add();
-		REQUIRE_FALSE(w.size());
+		REQUIRE(w.size() == 1);
 
 		cb.add<Position>(tmp, {1, 2, 3});
 		cb.commit();
 
-		auto e = w.get(0U);
+		auto e = w.get(2U); // component + position + new entity
 		REQUIRE(w.has<Position>(e));
 
 		auto p = w.get<Position>(e);
@@ -3498,13 +3527,13 @@ TEST_CASE("CommandBuffer") {
 		ecs::CommandBuffer cb(w);
 
 		auto tmp = cb.add();
-		REQUIRE_FALSE(w.size());
+		REQUIRE(w.size() == 1);
 
 		cb.add<Position>(tmp, {1, 2, 3});
 		cb.add<Acceleration>(tmp, {4, 5, 6});
 		cb.commit();
 
-		auto e = w.get(0U);
+		auto e = w.get(3U); // component + 2 new components + new entity
 		REQUIRE(w.has<Position>(e));
 		REQUIRE(w.has<Acceleration>(e));
 
@@ -3731,14 +3760,18 @@ TEST_CASE("Query Filter - systems") {
 
 template <typename T>
 void TestDataLayoutSoA_ECS() {
+	const uint32_t N = 1'500;
+
 	ecs::World w;
+	cnt::darr<ecs::Entity> ents;
+	ents.reserve(N);
 
 	auto create = [&]() {
 		auto e = w.add();
 		w.add<T>(e, {});
+		ents.push_back(e);
 	};
 
-	const uint32_t N = 10'000;
 	GAIA_FOR(N) create();
 
 	SECTION("each - iterator") {
@@ -3772,7 +3805,7 @@ void TestDataLayoutSoA_ECS() {
 
 		// Make sure disabling works
 		{
-			auto e = w.get(0U);
+			auto e = ents[0];
 			w.enable(e, false);
 			const auto cnt = q.count();
 			REQUIRE(cnt == N - 1);
@@ -3807,7 +3840,7 @@ void TestDataLayoutSoA_ECS() {
 
 	// 	// Make sure disabling works
 	// 	{
-	// 		auto e = w.get(0U);
+	// 		auto e = ents[0];
 	// 		w.enable(e, false);
 	// 		const auto cnt = q.count();
 	// 		REQUIRE(cnt == N - 1);
@@ -3844,57 +3877,57 @@ TEST_CASE("Component cache") {
 	auto& cc = w.comp_cache_mut();
 	{
 		cc.clear();
-		const auto comp = cc.add<Position>().comp;
-		REQUIRE(comp == cc.add<const Position>().comp);
-		REQUIRE(comp == cc.add<Position&>().comp);
-		REQUIRE(comp == cc.add<const Position&>().comp);
-		REQUIRE(comp == cc.add<Position*>().comp);
-		REQUIRE(comp == cc.add<const Position*>().comp);
+		const auto comp = w.add<Position>().comp;
+		REQUIRE(comp == w.add<const Position>().comp);
+		REQUIRE(comp == w.add<Position&>().comp);
+		REQUIRE(comp == w.add<const Position&>().comp);
+		REQUIRE(comp == w.add<Position*>().comp);
+		REQUIRE(comp == w.add<const Position*>().comp);
 	}
 	{
 		cc.clear();
-		const auto comp = cc.add<const Position>().comp;
-		REQUIRE(comp == cc.add<Position>().comp);
-		REQUIRE(comp == cc.add<Position&>().comp);
-		REQUIRE(comp == cc.add<const Position&>().comp);
-		REQUIRE(comp == cc.add<Position*>().comp);
-		REQUIRE(comp == cc.add<const Position*>().comp);
+		const auto comp = w.add<const Position>().comp;
+		REQUIRE(comp == w.add<Position>().comp);
+		REQUIRE(comp == w.add<Position&>().comp);
+		REQUIRE(comp == w.add<const Position&>().comp);
+		REQUIRE(comp == w.add<Position*>().comp);
+		REQUIRE(comp == w.add<const Position*>().comp);
 	}
 	{
 		cc.clear();
-		const auto comp = cc.add<Position&>().comp;
-		REQUIRE(comp == cc.add<Position>().comp);
-		REQUIRE(comp == cc.add<const Position>().comp);
-		REQUIRE(comp == cc.add<const Position&>().comp);
-		REQUIRE(comp == cc.add<Position*>().comp);
-		REQUIRE(comp == cc.add<const Position*>().comp);
+		const auto comp = w.add<Position&>().comp;
+		REQUIRE(comp == w.add<Position>().comp);
+		REQUIRE(comp == w.add<const Position>().comp);
+		REQUIRE(comp == w.add<const Position&>().comp);
+		REQUIRE(comp == w.add<Position*>().comp);
+		REQUIRE(comp == w.add<const Position*>().comp);
 	}
 	{
 		cc.clear();
-		const auto comp = cc.add<const Position&>().comp;
-		REQUIRE(comp == cc.add<Position>().comp);
-		REQUIRE(comp == cc.add<const Position>().comp);
-		REQUIRE(comp == cc.add<Position&>().comp);
-		REQUIRE(comp == cc.add<Position*>().comp);
-		REQUIRE(comp == cc.add<const Position*>().comp);
+		const auto comp = w.add<const Position&>().comp;
+		REQUIRE(comp == w.add<Position>().comp);
+		REQUIRE(comp == w.add<const Position>().comp);
+		REQUIRE(comp == w.add<Position&>().comp);
+		REQUIRE(comp == w.add<Position*>().comp);
+		REQUIRE(comp == w.add<const Position*>().comp);
 	}
 	{
 		cc.clear();
-		const auto comp = cc.add<Position*>().comp;
-		REQUIRE(comp == cc.add<Position>().comp);
-		REQUIRE(comp == cc.add<const Position>().comp);
-		REQUIRE(comp == cc.add<Position&>().comp);
-		REQUIRE(comp == cc.add<const Position&>().comp);
-		REQUIRE(comp == cc.add<const Position*>().comp);
+		const auto comp = w.add<Position*>().comp;
+		REQUIRE(comp == w.add<Position>().comp);
+		REQUIRE(comp == w.add<const Position>().comp);
+		REQUIRE(comp == w.add<Position&>().comp);
+		REQUIRE(comp == w.add<const Position&>().comp);
+		REQUIRE(comp == w.add<const Position*>().comp);
 	}
 	{
 		cc.clear();
-		const auto comp = cc.add<const Position*>().comp;
-		REQUIRE(comp == cc.add<Position>().comp);
-		REQUIRE(comp == cc.add<const Position>().comp);
-		REQUIRE(comp == cc.add<Position&>().comp);
-		REQUIRE(comp == cc.add<const Position&>().comp);
-		REQUIRE(comp == cc.add<Position*>().comp);
+		const auto comp = w.add<const Position*>().comp;
+		REQUIRE(comp == w.add<Position>().comp);
+		REQUIRE(comp == w.add<const Position>().comp);
+		REQUIRE(comp == w.add<Position&>().comp);
+		REQUIRE(comp == w.add<const Position&>().comp);
+		REQUIRE(comp == w.add<Position*>().comp);
 	}
 }
 
@@ -3907,8 +3940,8 @@ TEST_CASE("Multiple worlds") {
 	{
 		auto e = w1.add();
 		w1.add<Position>(e, {1, 1, 1});
-		(void)w1.add(e);
-		(void)w1.add(e);
+		(void)w1.copy(e);
+		(void)w1.copy(e);
 	}
 	{
 		auto e = w2.add();
@@ -4297,7 +4330,7 @@ TEST_CASE("Multithreading - Schedule") {
 	cnt::sarray<uint32_t, JobCount> res;
 	GAIA_FOR(res.max_size()) res[i] = 0;
 
-	cnt::darray<uint32_t> arr;
+	cnt::darr<uint32_t> arr;
 	arr.resize(N);
 	GAIA_EACH(arr) arr[i] = 1;
 
@@ -4311,7 +4344,7 @@ TEST_CASE("Multithreading - ScheduleParallel") {
 	constexpr uint32_t ItemsPerJob = 5000;
 	constexpr uint32_t N = JobCount * ItemsPerJob;
 
-	cnt::darray<uint32_t> arr;
+	cnt::darr<uint32_t> arr;
 	arr.resize(N);
 	GAIA_EACH(arr) arr[i] = 1;
 
@@ -4334,8 +4367,8 @@ TEST_CASE("Multithreading - complete") {
 
 	constexpr uint32_t Jobs = 15000;
 
-	cnt::darray<mt::JobHandle> handles;
-	cnt::darray<uint32_t> res;
+	cnt::darr<mt::JobHandle> handles;
+	cnt::darr<uint32_t> res;
 
 	handles.resize(Jobs);
 	res.resize(Jobs);

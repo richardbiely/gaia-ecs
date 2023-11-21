@@ -116,7 +116,7 @@ void CreateEntities(ecs::World& w) {
 
 	constexpr uint32_t N = 1000;
 	GAIA_FOR(N) {
-		[[maybe_unused]] auto newentity = w.add(e);
+		[[maybe_unused]] auto newentity = w.copy(e);
 	}
 }
 

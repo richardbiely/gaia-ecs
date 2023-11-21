@@ -187,7 +187,7 @@ w.add<Velocity>(e, {0, 0, 1});
 w.del<Velocity>(e);
 ```
 
-When adding or removing multiple components at once it is more efficient doing it via chaining. This way one one archetype movement is performed in total rather than one per added/removed component.
+When adding or removing multiple components at once it is more efficient doing it via chaining. This way only one archetype movement is performed in total rather than one per added/removed component.
 
 ```cpp
 ecs::World w;
@@ -207,8 +207,24 @@ w.bulk(e)
  .add<Rotation>()
  // add a bunch of other components to entity e
  .add<Something1, Something2, Something3>();
-
 ```
+
+It is also possible to manually commit all changes by calling ***commit()***. This is useful in scenarios where you have some branching and do not want to duplicate your code for both branches or simply need to add/remove componenets based on some complex logic.
+
+```cpp
+auto builder = w.bulk(e);
+builder
+  .add<Velocity>()
+  .del<Position>()
+  .add<Rotation>();
+if (some_conditon) {
+  bulider.add<Something1, Something2, Something3>();
+}
+builder.commit();
+```
+
+>**NOTE:**<br/>Once ***commit()*** is called (either manually or internally when the builder's destructor is invoked) the contents of builder are returned to its default state.
+
 
 ### Set or get component value
 
@@ -229,6 +245,16 @@ w.set(e)
   .set<Position>({0, 100, 0})
 // Change...
   .set...;
+```
+
+Similar to ***bulk()*** you can also use the setter object in scenarios with complex logic.
+
+```cpp
+auto setter = w.set(e);
+setter.set<Velocity>({0, 0, 2});
+if (some_condition)
+  setter.set<Position>({0, 100, 0});
+setter.set...;
 ```
 
 Components up to 8 bytes (including) are returned by value. Bigger components are returned by const reference.

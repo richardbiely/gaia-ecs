@@ -51,14 +51,9 @@ namespace gaia {
 				}
 
 				static constexpr uint32_t alig() {
-					if constexpr (!std::is_empty_v<U>) {
-						constexpr auto alig = mem::auto_view_policy<U>::Alignment;
-						static_assert(
-								alig < Component::MaxAlignment, "Maximum supported alignemnt for a component is MaxAlignment");
-						return alig;
-					} else {
-						return 0;
-					}
+					constexpr auto alig = mem::auto_view_policy<U>::Alignment;
+					static_assert(alig < Component::MaxAlignment, "Maximum supported alignment for a component is MaxAlignment");
+					return alig;
 				}
 
 				static uint32_t soa(std::span<uint8_t, meta::StructToTupleMaxTypes> soaSizes) {

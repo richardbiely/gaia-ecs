@@ -28,6 +28,8 @@
 #include "component_setter.h"
 #include "component_utils.h"
 #include "entity_container.h"
+#include "gaia/ecs/archetype_graph.h"
+#include "gaia/ecs/component_cache_item.h"
 #include "id.h"
 #include "query.h"
 #include "query_cache.h"
@@ -58,6 +60,9 @@ namespace gaia {
 			cnt::map<ArchetypeId, Archetype*> m_archetypesById;
 			//! Pointer to the root archetype
 			Archetype* m_pRootArchetype = nullptr;
+			//! Pointer to the component archetype
+			Archetype* m_pCompArchetype = nullptr;
+			uint32_t m_compId = 0;
 			//! Id assigned to the next created archetype
 			ArchetypeId m_nextArchetypeId = 0;
 
@@ -474,7 +479,7 @@ namespace gaia {
 			//! \param compKind Component comps.
 			//! \param descToRemove Component we want to remove.
 			//! \return Pointer to archetype.
-			GAIA_NODISCARD Archetype* foc_archetype_remove_comp(
+			GAIA_NODISCARD Archetype* foc_archetype_del_comp(
 					Archetype* pArchetypeRight, ComponentKind compKind, const ComponentCacheItem& descToRemove) {
 				// Check if the component is found when following the "del" edges
 				{
@@ -524,14 +529,14 @@ namespace gaia {
 
 			//! Returns an array of archetypes registered in the world
 			//! \return Array or archetypes.
-			const auto& get_archetypes() const {
+			const auto& archetypes() const {
 				return m_archetypesById;
 			}
 
 			//! Returns the archetype the entity belongs to.
 			//! \param entity Entity
 			//! \return Reference to the archetype.
-			GAIA_NODISCARD Archetype& get_archetype(Entity entity) const {
+			GAIA_NODISCARD Archetype& archetype(Entity entity) const {
 				GAIA_ASSERT(valid(entity));
 
 				return *m_entities[entity.id()].pArchetype;
@@ -540,9 +545,9 @@ namespace gaia {
 			//! Removes any name associated with the entity
 			//! \param entity Entity the name of which we want to delete
 			void del_name(Entity entity) {
-				auto& entityContainer = m_entities[entity.id()];
-				if (entityContainer.name != nullptr) {
-					const auto it = m_nameToEntity.find(EntityNameLookupKey(entityContainer.name));
+				auto& ec = m_entities[entity.id()];
+				if (ec.name != nullptr) {
+					const auto it = m_nameToEntity.find(EntityNameLookupKey(ec.name));
 					// If the assert is hit it means the pointer to the name string was invalidated or became dangling.
 					// That should not be possible for strings managed internally so the only other option is user-managed
 					// strings are broken.
@@ -550,11 +555,11 @@ namespace gaia {
 					if (it != m_nameToEntity.end()) {
 						// Release memory allocated for the string if we own it
 						if (it->first.owned())
-							mem::mem_free((void*)entityContainer.name);
+							mem::mem_free((void*)ec.name);
 
 						m_nameToEntity.erase(it);
 					}
-					entityContainer.name = nullptr;
+					ec.name = nullptr;
 				}
 			}
 
@@ -563,9 +568,9 @@ namespace gaia {
 			void del_entity(Entity entity) {
 				del_name(entity);
 
-				auto& entityContainer = m_entities.free(entity);
-				entityContainer.pArchetype = nullptr;
-				entityContainer.pChunk = nullptr;
+				auto& ec = m_entities.free(entity);
+				ec.pArchetype = nullptr;
+				ec.pChunk = nullptr;
 			}
 
 			//! Associates an entity with a chunk.
@@ -578,13 +583,13 @@ namespace gaia {
 						!pChunk->locked() && "Entities can't be added while their chunk is being iterated "
 																 "(structural changes are forbidden during this time!)");
 
-				auto& entityContainer = m_entities[entity.id()];
-				entityContainer.pArchetype = pArchetype;
-				entityContainer.pChunk = pChunk;
-				entityContainer.idx = pChunk->add_entity(entity);
-				entityContainer.gen = entity.gen();
-				entityContainer.dis = 0;
-				entityContainer.name = nullptr;
+				auto& ec = m_entities[entity.id()];
+				ec.pArchetype = pArchetype;
+				ec.pChunk = pChunk;
+				ec.idx = pChunk->add_entity(entity);
+				ec.gen = entity.gen();
+				ec.dis = 0;
+				ec.name = nullptr;
 			}
 
 			/*!
@@ -598,20 +603,20 @@ namespace gaia {
 
 				auto* pNewChunk = &targetChunk;
 
-				auto& entityContainer = m_entities[oldEntity.id()];
-				auto* pOldChunk = entityContainer.pChunk;
+				auto& ec = m_entities[oldEntity.id()];
+				auto* pOldChunk = ec.pChunk;
 
-				const auto oldIndex0 = entityContainer.idx;
+				const auto oldIndex0 = ec.idx;
 				const auto newIndex = pNewChunk->add_entity(oldEntity);
-				const bool wasEnabled = !entityContainer.dis;
+				const bool wasEnabled = !ec.dis;
 
-				auto& oldArchetype = *entityContainer.pArchetype;
+				auto& oldArchetype = *ec.pArchetype;
 				auto& newArchetype = targetArchetype;
 
 				// Make sure the old entity becomes enabled now
 				oldArchetype.enable_entity(pOldChunk, oldIndex0, true, {m_entities.data(), m_entities.size()});
 				// Enabling the entity might have changed the index so fetch it again
-				const auto oldIndex = entityContainer.idx;
+				const auto oldIndex = ec.idx;
 
 				// No data movement necessary when dealing with the root archetype
 				if GAIA_LIKELY (newArchetype.id() + oldArchetype.id() != 0) {
@@ -629,9 +634,9 @@ namespace gaia {
 				remove_entity<false>(pOldChunk, oldIndex);
 
 				// Make the entity point to the new chunk
-				entityContainer.pArchetype = &newArchetype;
-				entityContainer.pChunk = pNewChunk;
-				entityContainer.idx = newIndex;
+				ec.pArchetype = &newArchetype;
+				ec.pChunk = pNewChunk;
+				ec.idx = newIndex;
 
 				// End-state validation
 				validate_chunk(pOldChunk);
@@ -690,8 +695,8 @@ namespace gaia {
 
 				CompMoveHelper(World& world, Entity entity): m_world(world), m_entity(entity) {
 					GAIA_ASSERT(world.valid(entity));
-					auto& entityContainer = world.m_entities[entity.id()];
-					m_pArchetype = entityContainer.pArchetype;
+					auto& ec = world.m_entities[entity.id()];
+					m_pArchetype = ec.pArchetype;
 				}
 
 				CompMoveHelper(const CompMoveHelper&) = default;
@@ -700,10 +705,25 @@ namespace gaia {
 				CompMoveHelper& operator=(CompMoveHelper&&) = delete;
 
 				~CompMoveHelper() {
-					// Now that we have the final archetype move the entity it
-					m_world.move_entity(m_entity, *m_pArchetype);
+					commit();
 				}
 
+				//! Commits all gathered changes and performs an archetype movement
+				//! \warning Once called, the object is returned to its default state (as if no add/remove was ever called).
+				void commit() {
+					if (m_pArchetype == nullptr)
+						return;
+
+					// Now that we have the final archetype move the entity it
+					m_world.move_entity(m_entity, *m_pArchetype);
+
+					// Finalize the helper by reseting the archetype pointer
+					m_pArchetype = nullptr;
+				}
+
+				//! Prepares an archetype movement by following the "add" edge of the current archetype
+				//! \param compKind Component kind
+				//! \param decs Component cache item
 				CompMoveHelper& add(ComponentKind compKind, const ComponentCacheItem& desc) {
 					GAIA_PROF_SCOPE(world::add_comp);
 
@@ -719,11 +739,13 @@ namespace gaia {
 				template <typename... T>
 				CompMoveHelper& add() {
 					(verify_comp<T>(component_kind_v<T>), ...);
-					auto& cc = m_world.comp_cache_mut();
-					(add(component_kind_v<T>, cc.add<typename component_type_t<T>::Type>()), ...);
+					(add(component_kind_v<T>, m_world.add<T>()), ...);
 					return *this;
 				}
 
+				//! Prepares an archetype movement by following the "del" edge of the current archetype
+				//! \param compKind Component kind
+				//! \param decs Component cache item
 				CompMoveHelper& del(ComponentKind compKind, const ComponentCacheItem& desc) {
 					GAIA_PROF_SCOPE(world::del_comp);
 
@@ -731,7 +753,7 @@ namespace gaia {
 					verify_del(*m_pArchetype, m_entity, compKind, m_world.comp_cache(), desc);
 #endif
 
-					m_pArchetype = m_world.foc_archetype_remove_comp(m_pArchetype, compKind, desc);
+					m_pArchetype = m_world.foc_archetype_del_comp(m_pArchetype, compKind, desc);
 
 					return *this;
 				}
@@ -739,9 +761,7 @@ namespace gaia {
 				template <typename... T>
 				CompMoveHelper& del() {
 					(verify_comp<T>(), ...);
-					auto& cc = m_world.comp_cache_mut();
-					(del(component_kind_v<T>, cc.add<typename component_type_t<T>::Type>()), ...);
-
+					(del(component_kind_v<T>, m_world.add<T>()), ...);
 					return *this;
 				}
 			};
@@ -787,23 +807,36 @@ namespace gaia {
 					res.first->swap(p);
 
 					// Update the entity container string pointer
-					auto& entityContainer = m_entities[entity.id()];
-					entityContainer.name = entityStr;
+					auto& ec = m_entities[entity.id()];
+					ec.name = entityStr;
 				} else {
 					// We tell the map the string is non-owned.
 					auto p = robin_hood::pair(std::make_pair(EntityNameLookupKey(key.str(), key.len(), 0, {key.hash()}), entity));
 					res.first->swap(p);
 
 					// Update the entity container string pointer
-					auto& entityContainer = m_entities[entity.id()];
-					entityContainer.name = name;
+					auto& ec = m_entities[entity.id()];
+					ec.name = name;
 				}
 			}
 
 			void init() {
-				m_pRootArchetype = create_archetype({}, {});
-				m_pRootArchetype->set_hashes({0}, {0}, Archetype::calc_lookup_hash({0}, {0}));
-				reg_archetype(m_pRootArchetype);
+				// Register the root archetype
+				{
+					m_pRootArchetype = create_archetype({}, {});
+					m_pRootArchetype->set_hashes({0}, {0}, Archetype::calc_lookup_hash({0}, {0}));
+					reg_archetype(m_pRootArchetype);
+				}
+
+				// Register the component archetype and "component" component
+				{
+					auto comp = add();
+					const auto& desc = comp_cache_mut().add<Component>(comp);
+					m_compId = desc.comp.id();
+					add<Component>(comp);
+					sset<Component>(comp, desc.comp);
+					m_pCompArchetype = m_entities[comp.id()].pArchetype;
+				}
 			}
 
 			void done() {
@@ -892,15 +925,15 @@ namespace gaia {
 				if (entity.id() >= m_entities.size())
 					return false;
 
-				const auto& entityContainer = m_entities[entity.id()];
+				const auto& ec = m_entities[entity.id()];
 
 				// Generation ID has to match the one in the array
-				if (entityContainer.gen != entity.gen())
+				if (ec.gen != entity.gen())
 					return false;
 
 				// The entity in the chunk must match the index in the entity container
-				auto* pChunk = entityContainer.pChunk;
-				return pChunk != nullptr && pChunk->entity_view()[entityContainer.idx] == entity;
+				auto* pChunk = ec.pChunk;
+				return pChunk != nullptr && pChunk->entity_view()[ec.idx] == entity;
 			}
 
 			//! Checks if \param entity is currently used by the world.
@@ -911,9 +944,9 @@ namespace gaia {
 					return false;
 
 				// Index of the entity must fit inside the chunk
-				const auto& entityContainer = m_entities[entity.id()];
-				auto* pChunk = entityContainer.pChunk;
-				return pChunk != nullptr && entityContainer.idx < pChunk->size();
+				const auto& ec = m_entities[entity.id()];
+				auto* pChunk = ec.pChunk;
+				return pChunk != nullptr && ec.idx < pChunk->size();
 			}
 
 			//! Clears the world so that all its entities and components are released
@@ -973,13 +1006,13 @@ namespace gaia {
 			//! Creates a new entity by cloning an already existing one.
 			//! \param entity Entity to clone
 			//! \return New entity
-			GAIA_NODISCARD Entity add(Entity entity) {
-				auto& entityContainer = m_entities[entity.id()];
+			GAIA_NODISCARD Entity copy(Entity entity) {
+				auto& ec = m_entities[entity.id()];
 
-				GAIA_ASSERT(entityContainer.pChunk != nullptr);
-				GAIA_ASSERT(entityContainer.pArchetype != nullptr);
+				GAIA_ASSERT(ec.pChunk != nullptr);
+				GAIA_ASSERT(ec.pArchetype != nullptr);
 
-				auto& archetype = *entityContainer.pArchetype;
+				auto& archetype = *ec.pArchetype;
 				const auto newEntity = add(archetype);
 
 				Chunk::copy_entity_data(entity, newEntity, {m_entities.data(), m_entities.size()});
@@ -995,11 +1028,11 @@ namespace gaia {
 
 				GAIA_ASSERT(valid(entity));
 
-				const auto& entityContainer = m_entities[entity.id()];
+				const auto& ec = m_entities[entity.id()];
 
 				// Remove entity from chunk
-				if (auto* pChunk = entityContainer.pChunk) {
-					remove_entity<true>(pChunk, entityContainer.idx);
+				if (auto* pChunk = ec.pChunk) {
+					remove_entity<true>(pChunk, ec.idx);
 					validate_chunk(pChunk);
 					validate_entities();
 				} else {
@@ -1011,14 +1044,14 @@ namespace gaia {
 			//! \return Entity
 			GAIA_NODISCARD Entity get(EntityId id) const {
 				GAIA_ASSERT(id < m_entities.size());
-				const auto& entityContainer = m_entities[id];
+				const auto& ec = m_entities[id];
 #if GAIA_ASSERT_ENABLED
-				if (entityContainer.pChunk != nullptr) {
-					auto entityExpected = entityContainer.pChunk->entity_view()[entityContainer.idx];
-					GAIA_ASSERT(entityExpected == Entity(id, entityContainer.gen));
+				if (ec.pChunk != nullptr) {
+					auto entityExpected = ec.pChunk->entity_view()[ec.idx];
+					GAIA_ASSERT(entityExpected == Entity(id, ec.gen));
 				}
 #endif
-				return Entity(id, entityContainer.gen);
+				return Entity(id, ec.gen);
 			}
 
 			//! Enables or disables an entire entity.
@@ -1026,16 +1059,15 @@ namespace gaia {
 			//! \param enable Enable or disable the entity
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
 			void enable(Entity entity, bool enable) {
-				auto& entityContainer = m_entities[entity.id()];
+				auto& ec = m_entities[entity.id()];
 
 				GAIA_ASSERT(
-						(entityContainer.pChunk && !entityContainer.pChunk->locked()) &&
+						(ec.pChunk && !ec.pChunk->locked()) &&
 						"Entities can't be enabled/disabled while their chunk is being iterated "
 						"(structural changes are forbidden during this time!)");
 
-				auto& archetype = *entityContainer.pArchetype;
-				archetype.enable_entity(
-						entityContainer.pChunk, entityContainer.idx, enable, {m_entities.data(), m_entities.size()});
+				auto& archetype = *ec.pArchetype;
+				archetype.enable_entity(ec.pChunk, ec.idx, enable, {m_entities.data(), m_entities.size()});
 			}
 
 			//! Checks if an entity is enabled.
@@ -1045,10 +1077,10 @@ namespace gaia {
 			bool enabled(Entity entity) const {
 				GAIA_ASSERT(valid(entity));
 
-				const auto& entityContainer = m_entities[entity.id()];
-				const bool entityStateInContainer = !entityContainer.dis;
+				const auto& ec = m_entities[entity.id()];
+				const bool entityStateInContainer = !ec.dis;
 #if GAIA_ASSERT_ENABLED
-				const bool entityStateInChunk = entityContainer.pChunk->enabled(entityContainer.idx);
+				const bool entityStateInChunk = ec.pChunk->enabled(ec.idx);
 				GAIA_ASSERT(entityStateInChunk == entityStateInContainer);
 #endif
 				return entityStateInContainer;
@@ -1066,8 +1098,8 @@ namespace gaia {
 			//! \return Chunk or nullptr if not found.
 			GAIA_NODISCARD Chunk* get_chunk(Entity entity) const {
 				GAIA_ASSERT(entity.id() < m_entities.size());
-				const auto& entityContainer = m_entities[entity.id()];
-				return entityContainer.pChunk;
+				const auto& ec = m_entities[entity.id()];
+				return ec.pChunk;
 			}
 
 			//! Returns a chunk containing the \param entity.
@@ -1075,9 +1107,9 @@ namespace gaia {
 			//! \return Chunk or nullptr if not found
 			GAIA_NODISCARD Chunk* get_chunk(Entity entity, uint32_t& indexInChunk) const {
 				GAIA_ASSERT(entity.id() < m_entities.size());
-				const auto& entityContainer = m_entities[entity.id()];
-				indexInChunk = entityContainer.idx;
-				return entityContainer.pChunk;
+				const auto& ec = m_entities[entity.id()];
+				indexInChunk = ec.idx;
+				return ec.pChunk;
 			}
 
 			//----------------------------------------------------------------------
@@ -1090,28 +1122,32 @@ namespace gaia {
 				return CompMoveHelper(*this, entity);
 			}
 
-			// 			//! Creates a new component
-			// 			//! \return New component
-			// 			template <typename T>
-			// 			GAIA_NODISCARD Entity add() {
-			// 				const auto* pItem = comp_cache().find<T>();
-			// 				if (pItem != nullptr)
-			// 					return pItem->comp;
+			//! Creates a new component
+			//! \return New component
+			template <typename T>
+			GAIA_NODISCARD const ComponentCacheItem& add() {
+				using U = typename component_type_t<T>::Type;
 
-			// 				const auto entity = m_entities.alloc();
+				const auto* pItem = comp_cache().find<U>();
+				if (pItem != nullptr)
+					return *pItem;
 
-			// 				auto* pChunk = m_pRootArchetype->foc_free_chunk();
-			// 				store_entity(entity, m_pRootArchetype, pChunk);
+				const auto comp = add(*m_pCompArchetype);
+				const auto& desc = comp_cache_mut().add<U>(comp);
 
-			// #if GAIA_ASSERT_ENABLED
-			// 				const auto& ec = m_entities[entity.id()];
-			// 				GAIA_ASSERT(ec.pChunk == pChunk);
-			// 				auto entityExpected = pChunk->entity_view()[ec.idx];
-			// 				GAIA_ASSERT(entityExpected == entity);
-			// #endif
+				// Following lines do the following but a bit faster:
+				// sset<Component>(comp, desc.comp);
+				auto& ec = m_entities[comp.id()];
+				// const auto compIdx = ec.pChunk->comp_idx(ComponentKind::CK_Gen, m_compId);
+				// auto* pComps = (Component*)ec.pChunk->comp_ptr_mut(ComponentKind::CK_Gen, compIdx);
+				auto* pComps = (Component*)ec.pChunk->comp_ptr_mut(ComponentKind::CK_Gen, 0);
+				pComps[ec.idx] = desc.comp;
+				// TODO: Implement entity locking. A locked entity can't change archtypes.
+				//       This way we can prevent anybody messing with the internal state of the component
+				//       entities created at compile-time data.
 
-			// 				return entity;
-			// 			}
+				return desc;
+			}
 
 			//! Attaches a new component \tparam T to \param entity.
 			//! \tparam T Component
@@ -1126,7 +1162,7 @@ namespace gaia {
 				verify_comp<T>(compKind);
 				GAIA_ASSERT(valid(entity));
 
-				const auto& desc = m_compCache.add<U>();
+				const auto& desc = add<U>();
 				add_inter(entity, compKind, desc);
 			}
 
@@ -1142,15 +1178,15 @@ namespace gaia {
 				verify_comp<T>(compKind);
 				GAIA_ASSERT(valid(entity));
 
-				const auto& desc = m_compCache.add<U>();
+				const auto& desc = add<U>();
 				add_inter(entity, compKind, desc);
 
-				const auto& entityContainer = m_entities[entity.id()];
+				const auto& ec = m_entities[entity.id()];
 
 				if constexpr (component_kind_v<T> == ComponentKind::CK_Gen) {
-					entityContainer.pChunk->template set<T>(entityContainer.idx, GAIA_FWD(value));
+					ec.pChunk->template set<T>(ec.idx, GAIA_FWD(value));
 				} else {
-					entityContainer.pChunk->template set<T>(GAIA_FWD(value));
+					ec.pChunk->template set<T>(GAIA_FWD(value));
 				}
 			}
 
@@ -1165,7 +1201,7 @@ namespace gaia {
 				GAIA_ASSERT(valid(entity));
 
 				using U = typename component_type_t<T>::Type;
-				const auto& desc = m_compCache.add<U>();
+				const auto& desc = add<U>();
 
 				constexpr auto compKind = component_kind_v<T>;
 				del_inter(entity, compKind, desc);
@@ -1177,11 +1213,12 @@ namespace gaia {
 			//! \param entity Entity
 			//! \return ComponentSetter
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
 			ComponentSetter set(Entity entity) {
 				GAIA_ASSERT(valid(entity));
 
-				const auto& entityContainer = m_entities[entity.id()];
-				return ComponentSetter{entityContainer.pChunk, entityContainer.idx};
+				const auto& ec = m_entities[entity.id()];
+				return ComponentSetter{ec.pChunk, ec.idx};
 			}
 
 			//! Sets the value of the component \tparam T on \param entity.
@@ -1190,12 +1227,13 @@ namespace gaia {
 			//! \param value Value to set for the component
 			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
 			template <typename T, typename U = typename component_type_t<T>::Type>
 			void set(Entity entity, U&& value) {
 				GAIA_ASSERT(valid(entity));
 
-				const auto& entityContainer = m_entities[entity.id()];
-				ComponentSetter{entityContainer.pChunk, entityContainer.idx}.set<T>(GAIA_FWD(value));
+				const auto& ec = m_entities[entity.id()];
+				ComponentSetter{ec.pChunk, ec.idx}.set<T>(GAIA_FWD(value));
 			}
 
 			//! Sets the value of the component \tparam T on \param entity without triggering a world version update.
@@ -1204,12 +1242,13 @@ namespace gaia {
 			//! \param value Value to set for the component
 			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
 			template <typename T, typename U = typename component_type_t<T>::Type>
 			void sset(Entity entity, U&& value) {
 				GAIA_ASSERT(valid(entity));
 
-				const auto& entityContainer = m_entities[entity.id()];
-				ComponentSetter{entityContainer.pChunk, entityContainer.idx}.sset<T>(GAIA_FWD(value));
+				const auto& ec = m_entities[entity.id()];
+				ComponentSetter{ec.pChunk, ec.idx}.sset<T>(GAIA_FWD(value));
 			}
 
 			//----------------------------------------------------------------------
@@ -1220,12 +1259,13 @@ namespace gaia {
 			//! \return Value stored in the component.
 			//! \warning It is expected the component is present on \param entity. Undefined behavior otherwise.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
 			template <typename T>
 			GAIA_NODISCARD auto get(Entity entity) const {
 				GAIA_ASSERT(valid(entity));
 
-				const auto& entityContainer = m_entities[entity.id()];
-				return ComponentGetter{entityContainer.pChunk, entityContainer.idx}.get<T>();
+				const auto& ec = m_entities[entity.id()];
+				return ComponentGetter{ec.pChunk, ec.idx}.get<T>();
 			}
 
 			//! Tells if \param entity contains the component \tparam T.
@@ -1233,12 +1273,13 @@ namespace gaia {
 			//! \param entity Entity
 			//! \return True if the component is present on entity.
 			//! \warning It is expected \param entity is valid. Undefined behavior otherwise.
+			//! \warning Undefined behavior if \param entity changes archetype after ComponentSetter is created.
 			template <typename T>
 			GAIA_NODISCARD bool has(Entity entity) const {
 				GAIA_ASSERT(valid(entity));
 
-				const auto& entityContainer = m_entities[entity.id()];
-				return ComponentGetter{entityContainer.pChunk, entityContainer.idx}.has<T>();
+				const auto& ec = m_entities[entity.id()];
+				return ComponentGetter{ec.pChunk, ec.idx}.has<T>();
 			}
 
 			//----------------------------------------------------------------------
@@ -1275,8 +1316,8 @@ namespace gaia {
 			GAIA_NODISCARD const char* name(Entity entity) const {
 				GAIA_ASSERT(valid(entity));
 
-				const auto& entityContainer = m_entities[entity.id()];
-				return entityContainer.name;
+				const auto& ec = m_entities[entity.id()];
+				return ec.name;
 			}
 
 			//! Returns the entity that is assigned with the \param name.
@@ -1303,11 +1344,14 @@ namespace gaia {
 			auto query() {
 				if constexpr (UseCache)
 					return Query(
-							m_compCache, m_queryCache, m_nextArchetypeId, m_worldVersion, m_archetypesById,
-							m_componentToArchetypeMap);
+							*const_cast<World*>(this), m_queryCache,
+							//
+							m_nextArchetypeId, m_worldVersion, m_archetypesById, m_componentToArchetypeMap);
 				else
 					return QueryUncached(
-							m_compCache, m_nextArchetypeId, m_worldVersion, m_archetypesById, m_componentToArchetypeMap);
+							*const_cast<World*>(this),
+							//
+							m_nextArchetypeId, m_worldVersion, m_archetypesById, m_componentToArchetypeMap);
 			}
 
 			//----------------------------------------------------------------------
@@ -1379,6 +1423,10 @@ namespace gaia {
 		}
 		inline ComponentCache& comp_cache_mut(World& world) {
 			return world.comp_cache_mut();
+		}
+		template <typename T>
+		inline const ComponentCacheItem& comp_cache_add(World& world) {
+			return world.add<T>();
 		}
 	} // namespace ecs
 } // namespace gaia

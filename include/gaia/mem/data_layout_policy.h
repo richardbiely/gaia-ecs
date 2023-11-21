@@ -23,6 +23,19 @@ namespace gaia {
 
 		// Helper templates
 		namespace detail {
+			//! Returns the alignment for a given type \tparam T
+			template <typename T>
+			inline constexpr uint32_t get_alignment() {
+				if constexpr (std::is_empty_v<T>)
+					// Always consider 0 for empty types
+					return 0;
+				else {
+					// Use at least 4 (32-bit systems) or 8 (64-bit systems) bytes for alignment
+					constexpr auto s = (uint32_t)sizeof(uintptr_t);
+					return core::get_min(s, (uint32_t)alignof(T));
+				}
+			}
+
 			//----------------------------------------------------------------------
 			// Byte offset of a member of SoA-organized data
 			//----------------------------------------------------------------------
@@ -78,7 +91,7 @@ namespace gaia {
 		struct data_layout_properties<DataLayout::AoS, TItem> {
 			constexpr static DataLayout Layout = DataLayout::AoS;
 			constexpr static size_t PackSize = 1;
-			constexpr static size_t Alignment = alignof(TItem);
+			constexpr static size_t Alignment = detail::get_alignment<TItem>();
 			constexpr static size_t ArrayAlignment = 0;
 		};
 		template <typename TItem>

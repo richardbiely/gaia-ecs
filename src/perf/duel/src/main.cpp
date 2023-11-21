@@ -64,7 +64,7 @@ void CreateECSEntities_Static(ecs::World& w) {
 		w.add<Rotation>(e, {1, 2, 3, 4});
 		w.add<Scale>(e, {1, 1, 1});
 		GAIA_FOR(N) {
-			[[maybe_unused]] auto newentity = w.add(e);
+			[[maybe_unused]] auto newentity = w.copy(e);
 		}
 	}
 }
@@ -84,7 +84,7 @@ void CreateECSEntities_Dynamic(ecs::World& w) {
 		else
 			w.add<Velocity>(e, {0, 0, 1});
 		GAIA_FOR(N / 4) {
-			[[maybe_unused]] auto newentity = w.add(e);
+			[[maybe_unused]] auto newentity = w.copy(e);
 		}
 	}
 	{
@@ -101,7 +101,7 @@ void CreateECSEntities_Dynamic(ecs::World& w) {
 			w.add<Velocity>(e, {0, 0, 1});
 		w.add<Direction>(e, {0, 0, 1});
 		GAIA_FOR(N / 4) {
-			[[maybe_unused]] auto newentity = w.add(e);
+			[[maybe_unused]] auto newentity = w.copy(e);
 		}
 	}
 	{
@@ -119,7 +119,7 @@ void CreateECSEntities_Dynamic(ecs::World& w) {
 		w.add<Direction>(e, {0, 0, 1});
 		w.add<Health>(e, {100, 100});
 		GAIA_FOR(N / 4) {
-			[[maybe_unused]] auto newentity = w.add(e);
+			[[maybe_unused]] auto newentity = w.copy(e);
 		}
 	}
 	{
@@ -138,7 +138,7 @@ void CreateECSEntities_Dynamic(ecs::World& w) {
 		w.add<Health>(e, {100, 100});
 		w.add<IsEnemy>(e, {false});
 		GAIA_FOR(N / 4) {
-			[[maybe_unused]] auto newentity = w.add(e);
+			[[maybe_unused]] auto newentity = w.copy(e);
 		}
 	}
 }

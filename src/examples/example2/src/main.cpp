@@ -21,14 +21,14 @@ void MoveSystem(ecs::World& w, float dt) {
 int main() {
 	ecs::World w;
 
-	constexpr uint32_t N = 10'000;
+	constexpr uint32_t N = 1'500;
 
 	// Create entities with position and acceleration
 	auto e = w.add();
 	w.add<Position>(e, {});
 	w.add<Acceleration>(e, {0, 0, 1});
 	GAIA_FOR(N) {
-		[[maybe_unused]] auto newentity = w.add(e);
+		[[maybe_unused]] auto newentity = w.copy(e);
 	}
 
 	// Record the original position

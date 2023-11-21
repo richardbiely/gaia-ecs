@@ -537,16 +537,16 @@ namespace gaia {
 						const auto lastEntityIdx = entitiesInChunk - i - 1;
 						const auto entity = pSrcChunk->entity_view()[lastEntityIdx];
 
-						const auto& entityContainer = entities[entity.id()];
+						const auto& ec = entities[entity.id()];
 
-						const auto oldIndex = entityContainer.idx;
+						const auto oldIndex = ec.idx;
 						const auto newIndex = pDstChunk->add_entity(entity);
-						const bool wasEnabled = !entityContainer.dis;
+						const bool wasEnabled = !ec.dis;
 
 						// Make sure the old entity becomes enabled now
 						enable_entity(pSrcChunk, oldIndex, true, entities);
 						// We go back-to-front in the chunk so enabling the entity is not expected to change its index
-						GAIA_ASSERT(oldIndex == entityContainer.idx);
+						GAIA_ASSERT(oldIndex == ec.idx);
 
 						// Transfer the original enabled state to the new chunk
 						enable_entity(pDstChunk, newIndex, wasEnabled, entities);

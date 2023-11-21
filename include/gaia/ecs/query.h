@@ -26,6 +26,11 @@
 
 namespace gaia {
 	namespace ecs {
+		class World;
+		inline ComponentCache& comp_cache_mut(World& world);
+		template <typename T>
+		inline const ComponentCacheItem& comp_cache_add(World& world);
+
 		namespace detail {
 			template <bool Cached>
 			struct QueryImplStorage {
@@ -154,7 +159,7 @@ namespace gaia {
 							cmd.exec(ctx);
 						}};
 
-				ComponentCache* m_cc{};
+				World* m_world{};
 				//! Storage for data based on whether Caching is used or not
 				QueryImplStorage<UseCaching> m_storage;
 				//! Buffer with commands used to fetch the QueryInfo
@@ -189,7 +194,7 @@ namespace gaia {
 
 						// No queryId is set which means QueryInfo needs to be created
 						QueryCtx ctx;
-						ctx.cc = m_cc;
+						ctx.cc = &comp_cache_mut(*m_world);
 						commit(ctx);
 						auto& queryInfo = m_storage.m_entityQueryCache->add(GAIA_MOV(ctx));
 						m_storage.m_queryId = queryInfo.id();
@@ -198,7 +203,7 @@ namespace gaia {
 					} else {
 						if GAIA_UNLIKELY (m_storage.m_queryInfo.id() == QueryIdBad) {
 							QueryCtx ctx;
-							ctx.cc = m_cc;
+							ctx.cc = &comp_cache_mut(*m_world);
 							commit(ctx);
 							m_storage.m_queryInfo = QueryInfo::create(QueryId{}, GAIA_MOV(ctx));
 						}
@@ -219,7 +224,7 @@ namespace gaia {
 					constexpr auto isReadWrite = core::is_mut_v<T>;
 
 					// Make sure the component is always registered
-					const auto& desc = m_cc->add<T>();
+					const auto& desc = comp_cache_add<T>(*m_world);
 
 					Command_AddComponent cmd{desc.comp, compKind, listType, isReadWrite};
 					ser::save(m_serBuffer, Command_AddComponent::Id);
@@ -233,7 +238,7 @@ namespace gaia {
 					constexpr auto compKind = component_kind_v<T>;
 
 					// Make sure the component is always registered
-					const auto& desc = m_cc->add<T>();
+					const auto& desc = comp_cache_add<T>(*m_world);
 
 					Command_Filter cmd{desc.comp, compKind};
 					ser::save(m_serBuffer, Command_Filter::Id);
@@ -514,22 +519,22 @@ namespace gaia {
 
 				template <bool FuncEnabled = UseCaching>
 				QueryImpl(
-						ComponentCache& cc, QueryCache& queryCache, ArchetypeId& nextArchetypeId, uint32_t& worldVersion,
+						World& world, QueryCache& queryCache, ArchetypeId& nextArchetypeId, uint32_t& worldVersion,
 						const cnt::map<ArchetypeId, Archetype*>& archetypes,
 						const ComponentIdToArchetypeMap& componentToArchetypeMap):
-						m_cc(&cc),
-						m_serBuffer(&cc), m_nextArchetypeId(&nextArchetypeId), m_worldVersion(&worldVersion),
+						m_world(&world),
+						m_serBuffer(&comp_cache_mut(world)), m_nextArchetypeId(&nextArchetypeId), m_worldVersion(&worldVersion),
 						m_archetypes(&archetypes), m_componentToArchetypeMap(&componentToArchetypeMap) {
 					m_storage.m_entityQueryCache = &queryCache;
 				}
 
 				template <bool FuncEnabled = !UseCaching>
 				QueryImpl(
-						ComponentCache& cc, ArchetypeId& nextArchetypeId, uint32_t& worldVersion,
+						World& world, ArchetypeId& nextArchetypeId, uint32_t& worldVersion,
 						const cnt::map<ArchetypeId, Archetype*>& archetypes,
 						const ComponentIdToArchetypeMap& componentToArchetypeMap):
-						m_cc(&cc),
-						m_serBuffer(&cc), m_nextArchetypeId(&nextArchetypeId), m_worldVersion(&worldVersion),
+						m_world(&world),
+						m_serBuffer(&comp_cache_mut(world)), m_nextArchetypeId(&nextArchetypeId), m_worldVersion(&worldVersion),
 						m_archetypes(&archetypes), m_componentToArchetypeMap(&componentToArchetypeMap) {}
 
 				GAIA_NODISCARD uint32_t id() const {

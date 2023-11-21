@@ -25,8 +25,8 @@ namespace gaia {
 			using FuncSwap = void(void*, void*);
 			using FuncCmp = bool(const void*, const void*);
 
-			//! Global component id
-			uint32_t gid{};
+			//! Component entity
+			Entity entity;
 			//! Unique component identifier
 			Component comp = {IdentifierBad};
 			//! Complex hash used for look-ups
@@ -124,14 +124,14 @@ namespace gaia {
 			}
 
 			template <typename T>
-			GAIA_NODISCARD static ComponentCacheItem* create() {
+			GAIA_NODISCARD static ComponentCacheItem* create(Entity entity) {
 				static_assert(core::is_raw_v<T>);
 
 				auto* cci = new ComponentCacheItem();
-				cci->gid = detail::ComponentDesc<T>::id();
+				cci->entity = entity;
 				cci->comp = Component(
 						// component id
-						cci->gid,
+						detail::ComponentDesc<T>::id(),
 						// soa
 						detail::ComponentDesc<T>::soa(cci->soaSizes),
 						// size in bytes
