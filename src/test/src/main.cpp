@@ -1,5 +1,3 @@
-#include "gaia/cnt/impl/darray_impl.h"
-#include "gaia/ecs/id.h"
 #include <gaia.h>
 
 #if GAIA_COMPILER_MSVC
@@ -1786,6 +1784,11 @@ TEST_CASE("Add - many components, bulk") {
 // 	GAIA_FOR(N) remove(arr[i]);
 // }
 
+void verify_entity_has(const ecs::ComponentCache& cc, ecs::Entity entity) {
+	const auto* res = cc.find(entity);
+	REQUIRE(res != nullptr);
+}
+
 template <typename T>
 void verify_name_has(const ecs::ComponentCache& cc, const char* str) {
 	auto name = cc.get<T>().name;
@@ -1813,33 +1816,64 @@ void verify_name_has_not(const ecs::ComponentCache& cc) {
 	}
 
 TEST_CASE("Component names") {
-	ecs::World w;
-	const auto& cc = w.comp_cache();
-	auto e = w.add();
+	SECTION("direct registration") {
+		ecs::World w;
+		const auto& cc = w.comp_cache();
 
-	verify_name_has_not(Int3);
-	verify_name_has_not(Position);
-	verify_name_has_not(dummy::Position);
+		verify_name_has_not(Int3);
+		verify_name_has_not(Position);
+		verify_name_has_not(dummy::Position);
 
-	w.add<Position>(e);
-	verify_name_has_not(Int3);
-	verify_name_has(Position);
-	verify_name_has_not(dummy::Position);
+		auto e_pos = w.add<Position>().entity;
+		verify_entity_has(cc, e_pos);
+		verify_name_has_not(Int3);
+		verify_name_has(Position);
+		verify_name_has_not(dummy::Position);
 
-	w.add<Int3>(e);
-	verify_name_has(Int3);
-	verify_name_has(Position);
-	verify_name_has_not(dummy::Position);
+		auto e_int = w.add<Int3>().entity;
+		verify_entity_has(cc, e_pos);
+		verify_entity_has(cc, e_int);
+		verify_name_has(Int3);
+		verify_name_has(Position);
+		verify_name_has_not(dummy::Position);
 
-	w.del<Position>(e);
-	verify_name_has(Int3);
-	verify_name_has(Position);
-	verify_name_has_not(dummy::Position);
+		auto e_dpos = w.add<dummy::Position>().entity;
+		verify_entity_has(cc, e_pos);
+		verify_entity_has(cc, e_int);
+		verify_entity_has(cc, e_dpos);
+		verify_name_has(Int3);
+		verify_name_has(Position);
+		verify_name_has(dummy::Position);
+	}
+	SECTION("entity+component") {
+		ecs::World w;
+		const auto& cc = w.comp_cache();
+		auto e = w.add();
 
-	w.add<dummy::Position>(e);
-	verify_name_has(Int3);
-	verify_name_has(Position);
-	verify_name_has(dummy::Position);
+		verify_name_has_not(Int3);
+		verify_name_has_not(Position);
+		verify_name_has_not(dummy::Position);
+
+		w.add<Position>(e);
+		verify_name_has_not(Int3);
+		verify_name_has(Position);
+		verify_name_has_not(dummy::Position);
+
+		w.add<Int3>(e);
+		verify_name_has(Int3);
+		verify_name_has(Position);
+		verify_name_has_not(dummy::Position);
+
+		w.del<Position>(e);
+		verify_name_has(Int3);
+		verify_name_has(Position);
+		verify_name_has_not(dummy::Position);
+
+		w.add<dummy::Position>(e);
+		verify_name_has(Int3);
+		verify_name_has(Position);
+		verify_name_has(dummy::Position);
+	}
 }
 
 template <typename TQuery>

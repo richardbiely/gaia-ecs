@@ -32,7 +32,7 @@ namespace gaia {
 			}
 
 			static LookupHash calc(const char* pStr, uint32_t len) {
-				return {static_cast<unsigned int>(core::calculate_hash64(pStr, len))};
+				return {static_cast<uint32_t>(core::calculate_hash64(pStr, len))};
 			}
 
 		public:

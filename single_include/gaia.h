@@ -13849,6 +13849,45 @@ namespace gaia {
 			}
 		};
 
+		struct EntityLookupKey {
+			using LookupHash = core::direct_hash_key<uint32_t>;
+
+		private:
+			//! Entity
+			Entity m_entity;
+			//! Entity hash
+			LookupHash m_hash;
+
+			static LookupHash calc(Entity entity) {
+				return {static_cast<uint32_t>(core::calculate_hash64(entity.value()))};
+			}
+
+		public:
+			static constexpr bool IsDirectHashKey = true;
+
+			EntityLookupKey() = default;
+			EntityLookupKey(Entity entity): m_entity(entity), m_hash(calc(entity)) {}
+
+			Entity entity() const {
+				return m_entity;
+			}
+
+			auto hash() const {
+				return m_hash.hash;
+			}
+
+			bool operator==(const EntityLookupKey& other) const {
+				if GAIA_LIKELY (m_hash != other.m_hash)
+					return false;
+
+				return m_entity == other.m_entity;
+			}
+
+			bool operator!=(const EntityLookupKey& other) const {
+				return !operator==(other);
+			}
+		};
+
 		struct Component final {
 			static constexpr uint32_t IdMask = IdentifierIdBad;
 			static constexpr uint32_t MaxAlignment_Bits = 10;
@@ -13858,7 +13897,7 @@ namespace gaia {
 
 			struct InternalData {
 				//! Index in the entity array
-				//detail::ComponentDescId id;
+				// detail::ComponentDescId id;
 				uint32_t id;
 				//! Component is SoA
 				IdentifierData soa: meta::StructToTupleMaxTypes_Bits;
@@ -14262,7 +14301,7 @@ namespace gaia {
 			}
 
 			static LookupHash calc(const char* pStr, uint32_t len) {
-				return {static_cast<unsigned int>(core::calculate_hash64(pStr, len))};
+				return {static_cast<uint32_t>(core::calculate_hash64(pStr, len))};
 			}
 
 		public:
@@ -14710,9 +14749,9 @@ namespace gaia {
 
 namespace gaia {
 	namespace ecs {
+		//! Cache for compile-time defined components
 		class ComponentCache {
 			static constexpr uint32_t FastComponentCacheSize = 512;
-			using SymbolLookupKey = core::StringLookupKey<512>;
 
 			//! Fast-lookup cache for the first FastComponentCacheSize components
 			cnt::darray<const ComponentCacheItem*> m_descIdArr;
@@ -14720,7 +14759,9 @@ namespace gaia {
 			cnt::map<detail::ComponentDescId, const ComponentCacheItem*> m_descByDescId;
 
 			//! Lookup of component items by their symbol name. Strings are owned by m_descIdArr/m_descByDescId
-			cnt::map<SymbolLookupKey, const ComponentCacheItem*> m_compByString;
+			cnt::map<ComponentCacheItem::SymbolLookupKey, const ComponentCacheItem*> m_compByString;
+			//! Lookup of component items by their entity.
+			cnt::map<EntityLookupKey, const ComponentCacheItem*> m_compByEntity;
 
 		public:
 			ComponentCache() {
@@ -14749,9 +14790,10 @@ namespace gaia {
 				m_descIdArr.clear();
 				m_descByDescId.clear();
 				m_compByString.clear();
+				m_compByEntity.clear();
 			}
 
-			//! Registers the component info for \tparam T. If it already exists it is returned.
+			//! Registers the component item for \tparam T. If it already exists it is returned.
 			//! \return Component info
 			template <typename T>
 			GAIA_NODISCARD GAIA_FORCEINLINE const ComponentCacheItem& add(Entity entity) {
@@ -14763,7 +14805,8 @@ namespace gaia {
 					auto createDesc = [&]() -> const ComponentCacheItem& {
 						const auto* pDesc = ComponentCacheItem::create<U>(entity);
 						m_descIdArr[compDescId] = pDesc;
-						m_compByString[pDesc->name] = pDesc;
+						m_compByString.emplace(pDesc->name, pDesc);
+						m_compByEntity.emplace(pDesc->entity, pDesc);
 						return *pDesc;
 					};
 
@@ -14797,6 +14840,8 @@ namespace gaia {
 					auto createDesc = [&]() -> const ComponentCacheItem& {
 						const auto* pDesc = ComponentCacheItem::create<U>(entity);
 						m_descByDescId.emplace(compDescId, pDesc);
+						m_compByString.emplace(pDesc->name, pDesc);
+						m_compByEntity.emplace(pDesc->entity, pDesc);
 						return *pDesc;
 					};
 
@@ -14808,8 +14853,7 @@ namespace gaia {
 				}
 			}
 
-			//! Searches for the cached component info given the \param compDescId.
-			//! \warning It is expected the component info with a given component id exists! Undefined behavior otherwise.
+			//! Searches for the component cache item given the \param compDescId.
 			//! \return Component info or nullptr it not found.
 			GAIA_NODISCARD const ComponentCacheItem* find(detail::ComponentDescId compDescId) const noexcept {
 				// Fast path - array storage
@@ -14825,9 +14869,9 @@ namespace gaia {
 				return it != m_descByDescId.end() ? it->second : nullptr;
 			}
 
-			//! Returns the cached component info given the \param compDescId.
-			//! \warning It is expected the component info with a given component id exists! Undefined behavior otherwise.
+			//! Returns the component cache item given the \param compDescId.
 			//! \return Component info
+			//! \warning It is expected the component item with the given id exists! Undefined behavior otherwise.
 			GAIA_NODISCARD const ComponentCacheItem& get(detail::ComponentDescId compDescId) const noexcept {
 				// Fast path - array storage
 				if (compDescId < FastComponentCacheSize) {
@@ -14840,30 +14884,53 @@ namespace gaia {
 				return *m_descByDescId.find(compDescId)->second;
 			}
 
-			//! Searches for the cached component info. The provided string is NOT copied internally.
+			//! Searches for the component cache item.
+			//! \param entity Entity associated with the component item.
+			//! \param len String length. If zero, the length is calculated.
+			//! \return Component cache item if found, nullptr otherwise.
+			GAIA_NODISCARD const ComponentCacheItem* find(Entity entity) const noexcept {
+				const auto it = m_compByEntity.find(EntityLookupKey(entity));
+				if (it != m_compByEntity.end())
+					return it->second;
+
+				return nullptr;
+			}
+
+			//! Returns the component cache item.
+			//! \param entity Entity associated with the component item.
+			//! \return Component info.
+			//! \warning It is expected the component item with the given name/length exists! Undefined behavior otherwise.
+			GAIA_NODISCARD const ComponentCacheItem& get(Entity entity) const noexcept {
+				const auto* pItem = find(entity);
+				GAIA_ASSERT(pItem != nullptr);
+				return *pItem;
+			}
+
+			//! Searches for the component cache item. The provided string is NOT copied internally.
 			//! \param name A null-terminated string.
 			//! \param len String length. If zero, the length is calculated.
-			//! \warning It is expected the component exists! Undefined behavior otherwise.
-			//! \return Component info if found, otherwise nullptr.
+			//! \return Component cache item if found, nullptr otherwise.
 			GAIA_NODISCARD const ComponentCacheItem* find(const char* name, uint32_t len = 0) const noexcept {
-				const auto it = m_compByString.find(len != 0 ? SymbolLookupKey(name, len) : SymbolLookupKey(name));
+				const auto it = m_compByString.find(
+						len != 0 ? ComponentCacheItem::SymbolLookupKey(name, len) : ComponentCacheItem::SymbolLookupKey(name));
 				if (it != m_compByString.end())
 					return it->second;
 
 				return nullptr;
 			}
 
-			//! Returns the cached component info. The provided string is NOT copied internally.
+			//! Returns the component cache item. The provided string is NOT copied internally.
 			//! \param name A null-terminated string
 			//! \param len String length. If zero, the length is calculated
 			//! \return Component info.
+			//! \warning It is expected the component item with the given name/length exists! Undefined behavior otherwise.
 			GAIA_NODISCARD const ComponentCacheItem& get(const char* name, uint32_t len = 0) const noexcept {
 				const auto* pItem = find(name, len);
 				GAIA_ASSERT(pItem != nullptr);
 				return *pItem;
 			}
 
-			//! Searches for the component info for \tparam T.
+			//! Searches for the component item for \tparam T.
 			//! \warning It is expected the component already exists! Undefined behavior otherwise.
 			//! \return Component info or nullptr if not found.
 			template <typename T>
@@ -14872,7 +14939,7 @@ namespace gaia {
 				return find(compDescId);
 			}
 
-			//! Returns the component info for \tparam T.
+			//! Returns the component item for \tparam T.
 			//! \warning It is expected the component already exists! Undefined behavior otherwise.
 			//! \return Component info
 			template <typename T>

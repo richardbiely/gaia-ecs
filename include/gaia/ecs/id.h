@@ -3,6 +3,7 @@
 
 #include <cstdint>
 
+#include "../core/hashing_policy.h"
 #include "../mem/data_layout_policy.h"
 
 namespace gaia {
@@ -75,6 +76,45 @@ namespace gaia {
 			}
 		};
 
+		struct EntityLookupKey {
+			using LookupHash = core::direct_hash_key<uint32_t>;
+
+		private:
+			//! Entity
+			Entity m_entity;
+			//! Entity hash
+			LookupHash m_hash;
+
+			static LookupHash calc(Entity entity) {
+				return {static_cast<uint32_t>(core::calculate_hash64(entity.value()))};
+			}
+
+		public:
+			static constexpr bool IsDirectHashKey = true;
+
+			EntityLookupKey() = default;
+			EntityLookupKey(Entity entity): m_entity(entity), m_hash(calc(entity)) {}
+
+			Entity entity() const {
+				return m_entity;
+			}
+
+			auto hash() const {
+				return m_hash.hash;
+			}
+
+			bool operator==(const EntityLookupKey& other) const {
+				if GAIA_LIKELY (m_hash != other.m_hash)
+					return false;
+
+				return m_entity == other.m_entity;
+			}
+
+			bool operator!=(const EntityLookupKey& other) const {
+				return !operator==(other);
+			}
+		};
+
 		struct Component final {
 			static constexpr uint32_t IdMask = IdentifierIdBad;
 			static constexpr uint32_t MaxAlignment_Bits = 10;
@@ -84,7 +124,7 @@ namespace gaia {
 
 			struct InternalData {
 				//! Index in the entity array
-				//detail::ComponentDescId id;
+				// detail::ComponentDescId id;
 				uint32_t id;
 				//! Component is SoA
 				IdentifierData soa: meta::StructToTupleMaxTypes_Bits;
