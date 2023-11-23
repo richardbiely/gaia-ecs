@@ -185,17 +185,17 @@ namespace gaia {
 						return [](void* left, void* right) {
 							auto* l = (U*)left;
 							auto* r = (U*)right;
-							U tmp = GAIA_MOV(*l);
+							U tmp = GAIA_MOV(*r);
 							*r = GAIA_MOV(*l);
-							*r = GAIA_MOV(tmp);
+							*l = GAIA_MOV(tmp);
 						};
 					} else {
 						return [](void* left, void* right) {
 							auto* l = (U*)left;
 							auto* r = (U*)right;
-							U tmp = *l;
+							U tmp = *r;
 							*r = *l;
-							*r = tmp;
+							*l = tmp;
 						};
 					}
 				}
