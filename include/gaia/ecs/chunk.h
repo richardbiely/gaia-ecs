@@ -601,9 +601,9 @@ namespace gaia {
 			}
 
 			/*!
-			Moves all data associated with \param entity into the chunk so that it is stored at \param newEntityIdx.
+			Moves all data associated with \param entity into the chunk so that it is stored at the row \param row.
 			*/
-			void move_entity_data(Entity entity, uint32_t newEntityIdx, std::span<EntityContainer> entities) {
+			void move_entity_data(Entity entity, uint32_t row, std::span<EntityContainer> entities) {
 				GAIA_PROF_SCOPE(chunk::move_entity_data);
 
 				auto& ec = entities[entity.id()];
@@ -617,19 +617,19 @@ namespace gaia {
 						continue;
 
 					auto* pSrc = (void*)pOldChunk->comp_ptr_mut(ComponentKind::CK_Gen, i, ec.row);
-					auto* pDst = (void*)comp_ptr_mut(ComponentKind::CK_Gen, i, newEntityIdx);
+					auto* pDst = (void*)comp_ptr_mut(ComponentKind::CK_Gen, i, row);
 					rec.pDesc->ctor_from(pSrc, pDst);
 				}
 			}
 
 			static void move_foreign_entity_data(
-					Chunk* pOldChunk, uint32_t oldIdx, Chunk* pNewChunk, uint32_t newIdx, ComponentKind compKind) {
+					Chunk* pOldChunk, uint32_t oldRow, Chunk* pNewChunk, uint32_t newRow, ComponentKind compKind) {
 				GAIA_PROF_SCOPE(chunk::move_foreign_entity_data);
 
 				GAIA_ASSERT(pOldChunk != nullptr);
 				GAIA_ASSERT(pNewChunk != nullptr);
-				GAIA_ASSERT(oldIdx < pOldChunk->size());
-				GAIA_ASSERT(newIdx < pNewChunk->size());
+				GAIA_ASSERT(oldRow < pOldChunk->size());
+				GAIA_ASSERT(newRow < pNewChunk->size());
 
 				auto oldIds = pOldChunk->comp_id_view(compKind);
 				auto newIds = pNewChunk->comp_id_view(compKind);
@@ -649,8 +649,8 @@ namespace gaia {
 							const auto& rec = recsNew[j];
 							GAIA_ASSERT(rec.comp.id() == newId);
 							if (rec.comp.size() != 0U) {
-								auto* pSrc = (void*)pOldChunk->comp_ptr_mut(compKind, i, oldIdx);
-								auto* pDst = (void*)pNewChunk->comp_ptr_mut(compKind, j, newIdx);
+								auto* pSrc = (void*)pOldChunk->comp_ptr_mut(compKind, i, oldRow);
+								auto* pDst = (void*)pNewChunk->comp_ptr_mut(compKind, j, newRow);
 								rec.pDesc->ctor_from(pSrc, pDst);
 							}
 
@@ -663,7 +663,7 @@ namespace gaia {
 							const auto& rec = recsNew[j];
 							GAIA_ASSERT(rec.comp.id() == newId);
 							if (rec.pDesc->func_ctor != nullptr) {
-								auto* pDst = (void*)pNewChunk->comp_ptr_mut(compKind, j, newIdx);
+								auto* pDst = (void*)pNewChunk->comp_ptr_mut(compKind, j, newRow);
 								rec.pDesc->func_ctor(pDst, 1);
 							}
 
@@ -675,7 +675,7 @@ namespace gaia {
 					for (; j < newIds.size(); ++j) {
 						const auto& rec = recsNew[j];
 						if (rec.pDesc->func_ctor != nullptr) {
-							auto* pDst = (void*)pNewChunk->comp_ptr_mut(compKind, j, newIdx);
+							auto* pDst = (void*)pNewChunk->comp_ptr_mut(compKind, j, newRow);
 							rec.pDesc->func_ctor(pDst, 1);
 						}
 					}
@@ -683,14 +683,14 @@ namespace gaia {
 			}
 
 			/*!
-			Moves all data associated with \param entity into the chunk so that it is stored at index \param newEntityIdx.
+			Moves all data associated with \param entity into the chunk so that it is stored at the row \param row.
 			*/
-			void move_foreign_entity_data(Entity entity, uint32_t newEntityIdx, std::span<EntityContainer> entities) {
+			void move_foreign_entity_data(Entity entity, uint32_t row, std::span<EntityContainer> entities) {
 				GAIA_PROF_SCOPE(chunk::move_foreign_entity_data);
 
-				auto& oldEntityContainer = entities[entity.id()];
+				auto& ec = entities[entity.id()];
 				move_foreign_entity_data(
-						oldEntityContainer.pChunk, oldEntityContainer.row, this, newEntityIdx,
+						ec.pChunk, ec.row, this, row,
 						// We ignore unique components here because they are not influenced by entities moving around.
 						ComponentKind::CK_Gen);
 			}

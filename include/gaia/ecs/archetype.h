@@ -539,20 +539,20 @@ namespace gaia {
 
 						const auto& ec = entities[entity.id()];
 
-						const auto oldIndex = ec.row;
-						const auto newIndex = pDstChunk->add_entity(entity);
+						const auto oldRow = ec.row;
+						const auto newRow = pDstChunk->add_entity(entity);
 						const bool wasEnabled = !ec.dis;
 
 						// Make sure the old entity becomes enabled now
-						enable_entity(pSrcChunk, oldIndex, true, entities);
+						enable_entity(pSrcChunk, oldRow, true, entities);
 						// We go back-to-front in the chunk so enabling the entity is not expected to change its index
-						GAIA_ASSERT(oldIndex == ec.row);
+						GAIA_ASSERT(oldRow == ec.row);
 
 						// Transfer the original enabled state to the new chunk
-						enable_entity(pDstChunk, newIndex, wasEnabled, entities);
+						enable_entity(pDstChunk, newRow, wasEnabled, entities);
 
 						// Remove the entity record from the old chunk
-						pSrcChunk->remove_entity(oldIndex, entities, chunksToRemove);
+						pSrcChunk->remove_entity(oldRow, entities, chunksToRemove);
 
 						// The destination chunk is full, we need to move to the next one
 						if (pDstChunk->size() == m_properties.capacity) {

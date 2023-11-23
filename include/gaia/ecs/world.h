@@ -607,8 +607,8 @@ namespace gaia {
 				auto& ec = m_entities[entity.id()];
 				auto* pOldChunk = ec.pChunk;
 
-				const auto oldIndex0 = ec.row;
-				const auto newIndex = pNewChunk->add_entity(entity);
+				const auto oldRow0 = ec.row;
+				const auto newRow = pNewChunk->add_entity(entity);
 				const bool wasEnabled = !ec.dis;
 
 				auto& oldArchetype = *ec.pArchetype;
@@ -616,35 +616,35 @@ namespace gaia {
 
 				// Make sure the old entity becomes enabled now
 				oldArchetype.enable_entity(
-						pOldChunk, oldIndex0, true,
+						pOldChunk, oldRow0, true,
 						// entities
 						{m_entities.data(), m_entities.size()});
 				// Enabling the entity might have changed its chunk index so fetch it again
-				const auto oldIndex = ec.row;
+				const auto oldRow = ec.row;
 
 				// Move data from the old chunk to the new one
 				if (newArchetype.id() == oldArchetype.id())
 					pNewChunk->move_entity_data(
-							entity, newIndex,
+							entity, newRow,
 							// entities
 							{m_entities.data(), m_entities.size()});
 				else
 					pNewChunk->move_foreign_entity_data(
-							entity, newIndex,
+							entity, newRow,
 							// entities
 							{m_entities.data(), m_entities.size()});
 
 				// Remove the entity record from the old chunk
-				remove_entity(pOldChunk, oldIndex);
+				remove_entity(pOldChunk, oldRow);
 
 				// Bring the entity container record up-to-date
 				ec.pArchetype = &newArchetype;
 				ec.pChunk = pNewChunk;
-				ec.row = newIndex;
+				ec.row = newRow;
 
 				// Make the enabled state in the new chunk match the original state
 				newArchetype.enable_entity(
-						pNewChunk, newIndex, wasEnabled,
+						pNewChunk, newRow, wasEnabled,
 						// entities
 						{m_entities.data(), m_entities.size()});
 

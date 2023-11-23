@@ -16323,9 +16323,9 @@ namespace gaia {
 			}
 
 			/*!
-			Moves all data associated with \param entity into the chunk so that it is stored at \param newEntityIdx.
+			Moves all data associated with \param entity into the chunk so that it is stored at the row \param row.
 			*/
-			void move_entity_data(Entity entity, uint32_t newEntityIdx, std::span<EntityContainer> entities) {
+			void move_entity_data(Entity entity, uint32_t row, std::span<EntityContainer> entities) {
 				GAIA_PROF_SCOPE(chunk::move_entity_data);
 
 				auto& ec = entities[entity.id()];
@@ -16339,19 +16339,19 @@ namespace gaia {
 						continue;
 
 					auto* pSrc = (void*)pOldChunk->comp_ptr_mut(ComponentKind::CK_Gen, i, ec.row);
-					auto* pDst = (void*)comp_ptr_mut(ComponentKind::CK_Gen, i, newEntityIdx);
+					auto* pDst = (void*)comp_ptr_mut(ComponentKind::CK_Gen, i, row);
 					rec.pDesc->ctor_from(pSrc, pDst);
 				}
 			}
 
 			static void move_foreign_entity_data(
-					Chunk* pOldChunk, uint32_t oldIdx, Chunk* pNewChunk, uint32_t newIdx, ComponentKind compKind) {
+					Chunk* pOldChunk, uint32_t oldRow, Chunk* pNewChunk, uint32_t newRow, ComponentKind compKind) {
 				GAIA_PROF_SCOPE(chunk::move_foreign_entity_data);
 
 				GAIA_ASSERT(pOldChunk != nullptr);
 				GAIA_ASSERT(pNewChunk != nullptr);
-				GAIA_ASSERT(oldIdx < pOldChunk->size());
-				GAIA_ASSERT(newIdx < pNewChunk->size());
+				GAIA_ASSERT(oldRow < pOldChunk->size());
+				GAIA_ASSERT(newRow < pNewChunk->size());
 
 				auto oldIds = pOldChunk->comp_id_view(compKind);
 				auto newIds = pNewChunk->comp_id_view(compKind);
@@ -16371,8 +16371,8 @@ namespace gaia {
 							const auto& rec = recsNew[j];
 							GAIA_ASSERT(rec.comp.id() == newId);
 							if (rec.comp.size() != 0U) {
-								auto* pSrc = (void*)pOldChunk->comp_ptr_mut(compKind, i, oldIdx);
-								auto* pDst = (void*)pNewChunk->comp_ptr_mut(compKind, j, newIdx);
+								auto* pSrc = (void*)pOldChunk->comp_ptr_mut(compKind, i, oldRow);
+								auto* pDst = (void*)pNewChunk->comp_ptr_mut(compKind, j, newRow);
 								rec.pDesc->ctor_from(pSrc, pDst);
 							}
 
@@ -16385,7 +16385,7 @@ namespace gaia {
 							const auto& rec = recsNew[j];
 							GAIA_ASSERT(rec.comp.id() == newId);
 							if (rec.pDesc->func_ctor != nullptr) {
-								auto* pDst = (void*)pNewChunk->comp_ptr_mut(compKind, j, newIdx);
+								auto* pDst = (void*)pNewChunk->comp_ptr_mut(compKind, j, newRow);
 								rec.pDesc->func_ctor(pDst, 1);
 							}
 
@@ -16397,7 +16397,7 @@ namespace gaia {
 					for (; j < newIds.size(); ++j) {
 						const auto& rec = recsNew[j];
 						if (rec.pDesc->func_ctor != nullptr) {
-							auto* pDst = (void*)pNewChunk->comp_ptr_mut(compKind, j, newIdx);
+							auto* pDst = (void*)pNewChunk->comp_ptr_mut(compKind, j, newRow);
 							rec.pDesc->func_ctor(pDst, 1);
 						}
 					}
@@ -16405,14 +16405,14 @@ namespace gaia {
 			}
 
 			/*!
-			Moves all data associated with \param entity into the chunk so that it is stored at index \param newEntityIdx.
+			Moves all data associated with \param entity into the chunk so that it is stored at the row \param row.
 			*/
-			void move_foreign_entity_data(Entity entity, uint32_t newEntityIdx, std::span<EntityContainer> entities) {
+			void move_foreign_entity_data(Entity entity, uint32_t row, std::span<EntityContainer> entities) {
 				GAIA_PROF_SCOPE(chunk::move_foreign_entity_data);
 
-				auto& oldEntityContainer = entities[entity.id()];
+				auto& ec = entities[entity.id()];
 				move_foreign_entity_data(
-						oldEntityContainer.pChunk, oldEntityContainer.row, this, newEntityIdx,
+						ec.pChunk, ec.row, this, row,
 						// We ignore unique components here because they are not influenced by entities moving around.
 						ComponentKind::CK_Gen);
 			}
@@ -17566,20 +17566,20 @@ namespace gaia {
 
 						const auto& ec = entities[entity.id()];
 
-						const auto oldIndex = ec.row;
-						const auto newIndex = pDstChunk->add_entity(entity);
+						const auto oldRow = ec.row;
+						const auto newRow = pDstChunk->add_entity(entity);
 						const bool wasEnabled = !ec.dis;
 
 						// Make sure the old entity becomes enabled now
-						enable_entity(pSrcChunk, oldIndex, true, entities);
+						enable_entity(pSrcChunk, oldRow, true, entities);
 						// We go back-to-front in the chunk so enabling the entity is not expected to change its index
-						GAIA_ASSERT(oldIndex == ec.row);
+						GAIA_ASSERT(oldRow == ec.row);
 
 						// Transfer the original enabled state to the new chunk
-						enable_entity(pDstChunk, newIndex, wasEnabled, entities);
+						enable_entity(pDstChunk, newRow, wasEnabled, entities);
 
 						// Remove the entity record from the old chunk
-						pSrcChunk->remove_entity(oldIndex, entities, chunksToRemove);
+						pSrcChunk->remove_entity(oldRow, entities, chunksToRemove);
 
 						// The destination chunk is full, we need to move to the next one
 						if (pDstChunk->size() == m_properties.capacity) {
@@ -20180,8 +20180,8 @@ namespace gaia {
 				auto& ec = m_entities[entity.id()];
 				auto* pOldChunk = ec.pChunk;
 
-				const auto oldIndex0 = ec.row;
-				const auto newIndex = pNewChunk->add_entity(entity);
+				const auto oldRow0 = ec.row;
+				const auto newRow = pNewChunk->add_entity(entity);
 				const bool wasEnabled = !ec.dis;
 
 				auto& oldArchetype = *ec.pArchetype;
@@ -20189,35 +20189,35 @@ namespace gaia {
 
 				// Make sure the old entity becomes enabled now
 				oldArchetype.enable_entity(
-						pOldChunk, oldIndex0, true,
+						pOldChunk, oldRow0, true,
 						// entities
 						{m_entities.data(), m_entities.size()});
 				// Enabling the entity might have changed its chunk index so fetch it again
-				const auto oldIndex = ec.row;
+				const auto oldRow = ec.row;
 
 				// Move data from the old chunk to the new one
 				if (newArchetype.id() == oldArchetype.id())
 					pNewChunk->move_entity_data(
-							entity, newIndex,
+							entity, newRow,
 							// entities
 							{m_entities.data(), m_entities.size()});
 				else
 					pNewChunk->move_foreign_entity_data(
-							entity, newIndex,
+							entity, newRow,
 							// entities
 							{m_entities.data(), m_entities.size()});
 
 				// Remove the entity record from the old chunk
-				remove_entity(pOldChunk, oldIndex);
+				remove_entity(pOldChunk, oldRow);
 
 				// Bring the entity container record up-to-date
 				ec.pArchetype = &newArchetype;
 				ec.pChunk = pNewChunk;
-				ec.row = newIndex;
+				ec.row = newRow;
 
 				// Make the enabled state in the new chunk match the original state
 				newArchetype.enable_entity(
-						pNewChunk, newIndex, wasEnabled,
+						pNewChunk, newRow, wasEnabled,
 						// entities
 						{m_entities.data(), m_entities.size()});
 
