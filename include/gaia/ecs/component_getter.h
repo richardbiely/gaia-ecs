@@ -14,7 +14,7 @@ namespace gaia {
 			//! \tparam T Component
 			//! \return Value stored in the component.
 			template <typename T>
-			GAIA_NODISCARD auto get() const {
+			GAIA_NODISCARD decltype(auto) get() const {
 				verify_comp<T>();
 
 				if constexpr (component_kind_v<T> == ComponentKind::CK_Gen)

@@ -28,7 +28,7 @@ namespace gaia {
 			//! Component entity
 			Entity entity;
 			//! Unique component identifier
-			Component comp = {IdentifierBad};
+			Component comp;
 			//! Complex hash used for look-ups
 			ComponentLookupHash hashLookup;
 			//! Simple hash used for matching component

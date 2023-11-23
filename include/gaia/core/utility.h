@@ -13,14 +13,14 @@ namespace gaia {
 
 #if GAIA_COMPILER_MSVC || GAIA_PLATFORM_WINDOWS
 	#define GAIA_STRCPY(var, max_len, text) strncpy_s((var), (text), (size_t)-1)
-	#define GAIA_SETFMT(var, max_len, fmt, ...) sprintf_s((var), (max_len), fmt, __VA_ARGS__)
+	#define GAIA_STRFMT(var, max_len, fmt, ...) sprintf_s((var), (max_len), fmt, __VA_ARGS__)
 #else
 	#define GAIA_STRCPY(var, max_len, text)                                                                              \
 		{                                                                                                                  \
 			strncpy((var), (text), (max_len));                                                                               \
 			(var)[(max_len)-1] = 0;                                                                                          \
 		}
-	#define GAIA_SETFMT(var, max_len, fmt, ...) snprintf((var), (max_len), fmt, __VA_ARGS__)
+	#define GAIA_STRFMT(var, max_len, fmt, ...) snprintf((var), (max_len), fmt, __VA_ARGS__)
 #endif
 
 	namespace core {

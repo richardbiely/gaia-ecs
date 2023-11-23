@@ -8,6 +8,8 @@
 
 namespace gaia {
 	namespace ecs {
+#define GAIA_ID(type) GAIA_ID_##type
+
 		using Identifier = uint64_t;
 		inline constexpr Identifier IdentifierBad = (Identifier)-1;
 		inline constexpr Identifier EntityCompMask = IdentifierBad << 1;
@@ -27,9 +29,7 @@ namespace gaia {
 				//! Index in the entity array
 				EntityId id;
 				//! Generation index. Incremented every time an entity is deleted
-				IdentifierData gen : 31;
-				//! Special flag indicating that this is an entity (used by IsEntity). Always 1
-				IdentifierData isEntity : 1;
+				IdentifierData gen;
 			};
 			static_assert(sizeof(InternalData) == sizeof(Identifier));
 
@@ -38,29 +38,22 @@ namespace gaia {
 				Identifier val;
 			};
 
-			Entity() noexcept = default;
-			Entity(Identifier value) noexcept {
-				val = value;
-				GAIA_ASSERT(value == IdentifierBad || is_entity());
-				data.isEntity = 1;
-			}
+			constexpr Entity() noexcept: val(IdentifierBad){};
+			constexpr Entity(Identifier value) noexcept: val(value) {}
+
 			Entity(EntityId id, IdentifierData gen) noexcept {
 				data.id = id;
 				data.gen = gen;
-				data.isEntity = 1;
 			}
 
 			GAIA_NODISCARD constexpr auto id() const noexcept {
 				return (uint32_t)data.id;
 			}
+
 			GAIA_NODISCARD constexpr auto gen() const noexcept {
 				return (uint32_t)data.gen;
 			}
-			GAIA_NODISCARD constexpr bool is_entity() const noexcept {
-				const auto isEntity = (uint32_t)data.isEntity;
-				GAIA_ASSERT(isEntity == 1);
-				return isEntity == 1;
-			}
+
 			GAIA_NODISCARD constexpr auto value() const noexcept {
 				return val;
 			}
@@ -68,9 +61,11 @@ namespace gaia {
 			GAIA_NODISCARD constexpr bool operator==(Entity other) const noexcept {
 				return value() == other.value();
 			}
+
 			GAIA_NODISCARD constexpr bool operator!=(Entity other) const noexcept {
 				return value() != other.value();
 			}
+
 			GAIA_NODISCARD constexpr bool operator<(Entity other) const noexcept {
 				return id() < other.id();
 			}
@@ -115,6 +110,11 @@ namespace gaia {
 			}
 		};
 
+		struct EntityDesc {
+			const char* name{};
+			uint32_t len{};
+		};
+
 		struct Component final {
 			static constexpr uint32_t IdMask = IdentifierIdBad;
 			static constexpr uint32_t MaxAlignment_Bits = 10;
@@ -133,9 +133,7 @@ namespace gaia {
 				//! Component alignment
 				IdentifierData alig: MaxAlignment_Bits;
 				//! Unused part
-				IdentifierData unused : 9;
-				//! Special flag indicating that this is an entity (used by IsEntity). Always 0
-				IdentifierData isEntity : 1;
+				IdentifierData unused : 10;
 			};
 			static_assert(sizeof(InternalData) == sizeof(Identifier));
 
@@ -145,38 +143,31 @@ namespace gaia {
 			};
 
 			Component() noexcept = default;
-			Component(Identifier value) noexcept {
-				val = value;
-				GAIA_ASSERT(value == IdentifierBad || !is_entity());
-				data.unused = 0;
-				data.isEntity = 0;
-			}
+
 			Component(uint32_t id, uint32_t soa, uint32_t size, uint32_t alig) noexcept {
 				data.id = id;
 				data.soa = soa;
 				data.size = size;
 				data.alig = alig;
 				data.unused = 0;
-				data.isEntity = 0;
 			}
 
 			GAIA_NODISCARD constexpr auto id() const noexcept {
 				return (uint32_t)data.id;
 			}
+
 			GAIA_NODISCARD constexpr auto soa() const noexcept {
 				return (uint32_t)data.soa;
 			}
+
 			GAIA_NODISCARD constexpr auto size() const noexcept {
 				return (uint32_t)data.size;
 			}
+
 			GAIA_NODISCARD constexpr auto alig() const noexcept {
 				return (uint32_t)data.alig;
 			}
-			GAIA_NODISCARD constexpr bool is_entity() const noexcept {
-				const auto isEntity = (uint32_t)data.isEntity;
-				GAIA_ASSERT(isEntity == 0);
-				return isEntity == 1;
-			}
+
 			GAIA_NODISCARD constexpr auto value() const noexcept {
 				return val;
 			}
@@ -184,21 +175,23 @@ namespace gaia {
 			GAIA_NODISCARD constexpr bool operator==(Component other) const noexcept {
 				return value() == other.value();
 			}
+
 			GAIA_NODISCARD constexpr bool operator!=(Component other) const noexcept {
 				return value() != other.value();
 			}
+
 			GAIA_NODISCARD constexpr bool operator<(Component other) const noexcept {
 				return id() < other.id();
 			}
 		};
 
-		template <typename T>
-		inline bool is_entity(T id) {
-			return id.is_entity();
-		}
-		inline bool is_entity(Identifier id) {
-			return static_cast<Entity>(id).is_entity();
-		}
+		struct Core {};
 
+		inline constexpr Entity GAIA_ID(Core) = Entity(0);
+		inline constexpr Entity GAIA_ID(EntityDesc) = Entity(1);
+		inline constexpr Entity GAIA_ID(Component) = Entity(2);
+
+		inline constexpr uint32_t CoreComponents = 3;
+		inline constexpr uint32_t FirstUserArchetypeId = 3;
 	} // namespace ecs
 } // namespace gaia

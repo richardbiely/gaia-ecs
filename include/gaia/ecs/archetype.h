@@ -436,7 +436,7 @@ namespace gaia {
 				remove(m_chunks);
 
 				// No deleting for the root archetype
-				if (m_archetypeId == 0)
+				if (m_archetypeId < FirstUserArchetypeId)
 					return;
 
 				// TODO: This needs cleaning up.
@@ -539,14 +539,14 @@ namespace gaia {
 
 						const auto& ec = entities[entity.id()];
 
-						const auto oldIndex = ec.idx;
+						const auto oldIndex = ec.row;
 						const auto newIndex = pDstChunk->add_entity(entity);
 						const bool wasEnabled = !ec.dis;
 
 						// Make sure the old entity becomes enabled now
 						enable_entity(pSrcChunk, oldIndex, true, entities);
 						// We go back-to-front in the chunk so enabling the entity is not expected to change its index
-						GAIA_ASSERT(oldIndex == ec.idx);
+						GAIA_ASSERT(oldIndex == ec.row);
 
 						// Transfer the original enabled state to the new chunk
 						enable_entity(pDstChunk, newIndex, wasEnabled, entities);

@@ -267,7 +267,7 @@ const auto& velRef = w.get<Velocity>(e);
 auto velCopy = w.get<Velocity>(e);
 ```
 
-Both read and write operations are also accessible via views. Check [simple iteration](#simple-iteration) and [query iteration](#query-iteration) sections to see how.
+Both read and write operations are also accessible via views. Check the [iteration](#iteration) sections to see how.
 
 ### Component presence
 Whether or not a certain component is associated with an entity can be checked in two different ways. Either via an instance of a World object or by the means of ***Iterator*** which can be acquired when running [queries](#query).

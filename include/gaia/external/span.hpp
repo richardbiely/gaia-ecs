@@ -43,7 +43,7 @@ namespace gaia {
 // Various feature test macros
 
 #ifndef TCB_SPAN_NAMESPACE_NAME
-	#define TCB_SPAN_NAMESPACE_NAME gaia::utils
+	#define TCB_SPAN_NAMESPACE_NAME gaia::core
 #endif
 
 #if GAIA_CPP_VERSION(201703L)

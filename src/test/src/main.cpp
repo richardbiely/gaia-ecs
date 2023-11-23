@@ -1,3 +1,5 @@
+#include "gaia/core/hashing_string.h"
+#include "gaia/ecs/world.h"
 #include <gaia.h>
 
 #if GAIA_COMPILER_MSVC
@@ -113,6 +115,19 @@ struct Dummy1 {
 		return true;
 	}
 };
+
+TEST_CASE("StringLookupKey") {
+	constexpr uint32_t MaxLen = 32;
+	char tmp0[MaxLen];
+	char tmp1[MaxLen];
+	GAIA_STRFMT(tmp0, MaxLen, "%s", "some string");
+	GAIA_STRFMT(tmp1, MaxLen, "%s", "some string");
+	core::StringLookupKey<128> l0(tmp0);
+	core::StringLookupKey<128> l1(tmp1);
+	REQUIRE(l0.len() == l1.len());
+	// Two different addresses in memory have to return the same hash if the string is the same
+	REQUIRE(l0.hash() == l1.hash());
+}
 
 TEST_CASE("has_XYZ_equals_check") {
 	{
@@ -1519,7 +1534,7 @@ TEST_CASE("Entity - has") {
 }
 
 TEST_CASE("Entity - IdentifierBad") {
-	REQUIRE_FALSE(ecs::Entity{} == ecs::IdentifierBad);
+	REQUIRE(ecs::Entity{} == ecs::IdentifierBad);
 
 	ecs::World w;
 	REQUIRE_FALSE(w.valid(ecs::IdentifierBad));
@@ -1527,8 +1542,6 @@ TEST_CASE("Entity - IdentifierBad") {
 	auto e = w.add();
 	REQUIRE(e != ecs::IdentifierBad);
 	REQUIRE_FALSE(e == ecs::IdentifierBad);
-
-	REQUIRE(ecs::is_entity(e));
 }
 
 TEST_CASE("Add - no components") {
@@ -1580,9 +1593,6 @@ TEST_CASE("Add - 1 component") {
 
 	GAIA_FOR(N) create(i);
 	GAIA_FOR(N) verify(i);
-
-	const auto& desc = w.comp_cache().get<Int3>();
-	REQUIRE_FALSE(ecs::is_entity(desc.comp));
 }
 
 namespace dummy {
@@ -2231,17 +2241,16 @@ TEST_CASE("Enable") {
 	const uint32_t N = 1'500;
 
 	ecs::World w;
+	cnt::darr<ecs::Entity> arr;
+	arr.reserve(N);
 
 	auto create = [&](uint32_t id) {
 		auto e = w.add();
 		w.add<Position>(e);
-		return e;
+		arr.push_back(e);
 	};
 
-	cnt::darr<ecs::Entity> arr;
-	arr.reserve(N);
-
-	GAIA_FOR(N) arr.push_back(create(i));
+	GAIA_FOR(N) create(i);
 
 	SECTION("State validity") {
 		w.enable(arr[0], false);
@@ -2261,8 +2270,10 @@ TEST_CASE("Enable") {
 
 	SECTION("State persistance") {
 		w.enable(arr[0], false);
-		w.del<Position>(arr[0]);
 		REQUIRE_FALSE(w.enabled(arr[0]));
+		auto e = arr[0];
+		w.del<Position>(e);
+		REQUIRE_FALSE(w.enabled(e));
 
 		w.enable(arr[0], true);
 		w.add<Position>(arr[0]);
@@ -2601,24 +2612,24 @@ TEST_CASE("entity name") {
 	cnt::darr<ecs::Entity> ents;
 	ents.reserve(N);
 
-	constexpr auto MaxLen = 16;
+	constexpr auto MaxLen = 32;
 	char tmp[MaxLen];
 
-	auto create = [&](uint32_t i) {
+	auto create = [&]() {
 		auto e = w.add();
-		GAIA_SETFMT(tmp, MaxLen, "name_%u", i);
+		GAIA_STRFMT(tmp, MaxLen, "name_%u", e.id());
 		w.name(e, tmp);
 		ents.push_back(e);
 	};
-	auto create_raw = [&](uint32_t i) {
+	auto create_raw = [&]() {
 		auto e = w.add();
-		GAIA_SETFMT(tmp, MaxLen, "name_%u", i);
+		GAIA_STRFMT(tmp, MaxLen, "name_%u", e.id());
 		w.name_raw(e, tmp);
 		ents.push_back(e);
 	};
 	auto verify = [&](uint32_t i) {
 		auto e = ents[i];
-		GAIA_SETFMT(tmp, MaxLen, "name_%u", i);
+		GAIA_STRFMT(tmp, MaxLen, "name_%u", e.id());
 		const auto* ename = w.name(e);
 
 		const auto l0 = strlen(tmp);
@@ -2629,21 +2640,24 @@ TEST_CASE("entity name") {
 
 	SECTION("basic") {
 		ents.clear();
-		create(0);
+		create();
 		verify(0);
 		auto e = ents[0];
 
+		char original[MaxLen];
+		const auto* str = w.name(e);
+		GAIA_STRFMT(original, MaxLen, "%s", str);
+
 		// If we change the original string we still must have a match
 		{
-			GAIA_SETFMT(tmp, MaxLen, "name_%d", 1);
-			const auto* str = w.name(e);
-			REQUIRE(strcmp(str, "name_1") != 0);
-			REQUIRE(strcmp(str, "name_0") == 0);
-			REQUIRE(w.get("name_0") == e);
-			REQUIRE(w.get("name_1") == ecs::IdentifierBad);
+			GAIA_STRCPY(tmp, MaxLen, "some_random_string");
+			REQUIRE(strcmp(str, original) == 0);
+			REQUIRE(w.get(original) == e);
+			REQUIRE(w.get(tmp) == ecs::IdentifierBad);
 
 			// Change the name back
-			GAIA_SETFMT(tmp, MaxLen, "name_%d", 0);
+			GAIA_STRCPY(tmp, MaxLen, original);
+			verify(0);
 		}
 
 #if !GAIA_ASSERT_ENABLED
@@ -2651,53 +2665,68 @@ TEST_CASE("entity name") {
 		// because the situation is assert-protected.
 		{
 			auto e1 = w.add();
-			w.name(e1, "name_0");
+			w.name(e1, original);
 			REQUIRE(w.name(e1) == nullptr);
-			REQUIRE(w.get("name_0") == e);
+			REQUIRE(w.get(original) == e);
 		}
 #endif
 
 		w.name(e, nullptr);
-		REQUIRE(w.get("name_0") == ecs::IdentifierBad);
+		REQUIRE(w.get(original) == ecs::IdentifierBad);
 		REQUIRE(w.name(e) == nullptr);
 
-		w.name(e, "name_0");
+		w.name(e, original);
 		w.del(e);
-		REQUIRE(w.get("name_0") == ecs::IdentifierBad);
+		REQUIRE(w.get(original) == ecs::IdentifierBad);
 	}
 
 	SECTION("basic - non-owned") {
 		ents.clear();
-		create_raw(0);
+		create_raw();
 		verify(0);
 		auto e = ents[0];
 
+		char original[MaxLen];
+		const auto* str = w.name(e);
+		GAIA_STRFMT(original, MaxLen, "%s", str);
+
 		// If we change the original string we can't have a match
 		{
-			GAIA_SETFMT(tmp, MaxLen, "name_%d", 1);
+			GAIA_STRCPY(tmp, MaxLen, "some_random_string");
 			const auto* str = w.name(e);
-			REQUIRE(strcmp(str, "name_1") == 0);
-			REQUIRE(w.get("name_0") == ecs::IdentifierBad);
-			// Hash was calculated for name_0 but we changed the string to name_1.
+			REQUIRE(strcmp(str, "some_random_string") == 0);
+			REQUIRE(w.get(original) == ecs::IdentifierBad);
+			// Hash was calculated for [original] but we changed the string to "some_random_string".
 			// Hash won't match so we shouldn't be able to find the entity still.
-			REQUIRE(w.get("name_1") == ecs::IdentifierBad);
+			REQUIRE(w.get("some_random_string") == ecs::IdentifierBad);
+		}
 
+		{
 			// Change the name back
-			GAIA_SETFMT(tmp, MaxLen, "name_%d", 0);
+			GAIA_STRCPY(tmp, MaxLen, original);
+			verify(0);
 		}
 
 		w.name(e, nullptr);
-		REQUIRE(w.get("name_0") == ecs::IdentifierBad);
+		REQUIRE(w.get(original) == ecs::IdentifierBad);
 		REQUIRE(w.name(e) == nullptr);
 
-		w.name_raw(e, "name_0");
+		w.name_raw(e, original);
 		w.del(e);
-		REQUIRE(w.get("name_0") == ecs::IdentifierBad);
+		REQUIRE(w.get(original) == ecs::IdentifierBad);
+	}
+
+	SECTION("two") {
+		ents.clear();
+		GAIA_FOR(2) create();
+		GAIA_FOR(2) verify(i);
+		w.del(ents[0]);
+		verify(1);
 	}
 
 	SECTION("many") {
 		ents.clear();
-		GAIA_FOR(N) create(i);
+		GAIA_FOR(N) create();
 		GAIA_FOR(N) verify(i);
 		w.del(ents[900]);
 		GAIA_FOR(900) verify(i);
@@ -2705,17 +2734,22 @@ TEST_CASE("entity name") {
 
 		{
 			auto e = ents[1000];
+
+			char original[MaxLen];
+			const auto* str = w.name(e);
+			GAIA_STRFMT(original, MaxLen, "%s", str);
+
 			{
 				w.enable(e, false);
 				const auto* str = w.name(e);
-				REQUIRE(strcmp(str, "name_1000") == 0);
-				REQUIRE(e == w.get("name_1000"));
+				REQUIRE(strcmp(str, original) == 0);
+				REQUIRE(e == w.get(original));
 			}
 			{
 				w.enable(e, true);
 				const auto* str = w.name(e);
-				REQUIRE(strcmp(str, "name_1000") == 0);
-				REQUIRE(e == w.get("name_1000"));
+				REQUIRE(strcmp(str, original) == 0);
+				REQUIRE(e == w.get(original));
 			}
 		}
 	}
@@ -3377,7 +3411,7 @@ TEST_CASE("CommandBuffer") {
 
 		cb.commit();
 
-		REQUIRE(w.size() == N + 1);
+		REQUIRE(w.size() == N + ecs::CoreComponents);
 	}
 
 	SECTION("Entity creation from another entity") {
@@ -3393,7 +3427,7 @@ TEST_CASE("CommandBuffer") {
 
 		cb.commit();
 
-		REQUIRE(w.size() == N + 2); // internal entity + mainEntity + N others
+		REQUIRE(w.size() == ecs::CoreComponents + 1 + N); // core + mainEntity + N others
 	}
 
 	SECTION("Entity creation from another entity with a component") {
@@ -3433,12 +3467,12 @@ TEST_CASE("CommandBuffer") {
 		ecs::World w;
 		ecs::CommandBuffer cb(w);
 
-		auto tmp = cb.add();
-		REQUIRE(w.size() == 1);
+		auto tmp = cb.add(); // core + 0 (no new entity created yet)
+		REQUIRE(w.size() == ecs::CoreComponents);
 		cb.add<Position>(tmp);
 		cb.commit();
 
-		auto e = w.get(2U); // component + position + new entity
+		auto e = w.get(ecs::CoreComponents + 1); // core + position + new entity
 		REQUIRE(w.has<Position>(e));
 	}
 
@@ -3494,13 +3528,13 @@ TEST_CASE("CommandBuffer") {
 		ecs::CommandBuffer cb(w);
 
 		auto tmp = cb.add();
-		REQUIRE(w.size() == 1);
+		REQUIRE(w.size() == ecs::CoreComponents); // core + 0 (no new entity created yet)
 
 		cb.add<Position>(tmp);
 		cb.set<Position>(tmp, {1, 2, 3});
 		cb.commit();
 
-		auto e = w.get(2U); // component + position + new entity
+		auto e = w.get(ecs::CoreComponents + 1); // core + position + new entity
 		REQUIRE(w.has<Position>(e));
 
 		auto p = w.get<Position>(e);
@@ -3514,7 +3548,7 @@ TEST_CASE("CommandBuffer") {
 		ecs::CommandBuffer cb(w);
 
 		auto tmp = cb.add();
-		REQUIRE(w.size() == 1);
+		REQUIRE(w.size() == ecs::CoreComponents); // core + 0 (no new entity created yet)
 
 		cb.add<Position>(tmp);
 		cb.add<Acceleration>(tmp);
@@ -3522,7 +3556,7 @@ TEST_CASE("CommandBuffer") {
 		cb.set<Acceleration>(tmp, {4, 5, 6});
 		cb.commit();
 
-		auto e = w.get(3U); // component + 2 new components + new entity
+		auto e = w.get(ecs::CoreComponents + 2); // core + 2 new components + new entity
 		REQUIRE(w.has<Position>(e));
 		REQUIRE(w.has<Acceleration>(e));
 
@@ -3542,12 +3576,12 @@ TEST_CASE("CommandBuffer") {
 		ecs::CommandBuffer cb(w);
 
 		auto tmp = cb.add();
-		REQUIRE(w.size() == 1);
+		REQUIRE(w.size() == ecs::CoreComponents); // core + 0 (no new entity created yet)
 
 		cb.add<Position>(tmp, {1, 2, 3});
 		cb.commit();
 
-		auto e = w.get(2U); // component + position + new entity
+		auto e = w.get(ecs::CoreComponents + 1); // core + position + new entity
 		REQUIRE(w.has<Position>(e));
 
 		auto p = w.get<Position>(e);
@@ -3561,13 +3595,13 @@ TEST_CASE("CommandBuffer") {
 		ecs::CommandBuffer cb(w);
 
 		auto tmp = cb.add();
-		REQUIRE(w.size() == 1);
+		REQUIRE(w.size() == ecs::CoreComponents); // core + 0 (no new entity created yet)
 
 		cb.add<Position>(tmp, {1, 2, 3});
 		cb.add<Acceleration>(tmp, {4, 5, 6});
 		cb.commit();
 
-		auto e = w.get(3U); // component + 2 new components + new entity
+		auto e = w.get(ecs::CoreComponents + 2); // core + 2 new components + new entity
 		REQUIRE(w.has<Position>(e));
 		REQUIRE(w.has<Acceleration>(e));
 

@@ -594,8 +594,8 @@ namespace gaia {
 					if (rec.comp.size() == 0U)
 						continue;
 
-					auto* pSrc = (void*)pOldChunk->comp_ptr_mut(ComponentKind::CK_Gen, i, oldEntityContainer.idx);
-					auto* pDst = (void*)pNewChunk->comp_ptr_mut(ComponentKind::CK_Gen, i, newEntityContainer.idx);
+					auto* pSrc = (void*)pOldChunk->comp_ptr_mut(ComponentKind::CK_Gen, i, oldEntityContainer.row);
+					auto* pDst = (void*)pNewChunk->comp_ptr_mut(ComponentKind::CK_Gen, i, newEntityContainer.row);
 					rec.pDesc->copy(pSrc, pDst);
 				}
 			}
@@ -606,9 +606,8 @@ namespace gaia {
 			void move_entity_data(Entity entity, uint32_t newEntityIdx, std::span<EntityContainer> entities) {
 				GAIA_PROF_SCOPE(chunk::move_entity_data);
 
-				auto& oldEntityContainer = entities[entity.id()];
-				auto* pOldChunk = oldEntityContainer.pChunk;
-
+				auto& ec = entities[entity.id()];
+				auto* pOldChunk = ec.pChunk;
 				auto oldRecs = pOldChunk->comp_rec_view(ComponentKind::CK_Gen);
 
 				// Copy generic component data from reference entity to our new entity
@@ -617,7 +616,7 @@ namespace gaia {
 					if (rec.comp.size() == 0U)
 						continue;
 
-					auto* pSrc = (void*)pOldChunk->comp_ptr_mut(ComponentKind::CK_Gen, i, oldEntityContainer.idx);
+					auto* pSrc = (void*)pOldChunk->comp_ptr_mut(ComponentKind::CK_Gen, i, ec.row);
 					auto* pDst = (void*)comp_ptr_mut(ComponentKind::CK_Gen, i, newEntityIdx);
 					rec.pDesc->ctor_from(pSrc, pDst);
 				}
@@ -691,7 +690,7 @@ namespace gaia {
 
 				auto& oldEntityContainer = entities[entity.id()];
 				move_foreign_entity_data(
-						oldEntityContainer.pChunk, oldEntityContainer.idx, this, newEntityIdx,
+						oldEntityContainer.pChunk, oldEntityContainer.row, this, newEntityIdx,
 						// We ignore unique components here because they are not influenced by entities moving around.
 						ComponentKind::CK_Gen);
 			}
@@ -714,11 +713,18 @@ namespace gaia {
 				if GAIA_LIKELY (left < right) {
 					GAIA_ASSERT(m_header.count > 1);
 
-					// const auto leftEntity = entity_view()[left];
-					const auto rightEntity = entity_view()[right];
+					// Update entity data
+					auto ev = entity_view_mut();
+					const auto entityRight = ev[right];
+					auto& ecRight = entities[entityRight.id()];
+#if GAIA_ASSERT_ENABLED
+					const auto entityLeft = ev[left];
+					auto& ecLeft = entities[entityLeft.id()];
+					GAIA_ASSERT(ecLeft.pArchetype == ecRight.pArchetype);
+					GAIA_ASSERT(ecLeft.pChunk == ecRight.pChunk);
+#endif
 
-					// Update entity data inside chunk
-					entity_view_mut()[left] = rightEntity;
+					ev[left] = entityRight;
 
 					// Move component data from rightEntity to leftEntity
 					auto recs = comp_rec_view(ComponentKind::CK_Gen);
@@ -727,17 +733,16 @@ namespace gaia {
 						if (rec.comp.size() == 0U)
 							continue;
 
-						auto* pSrc = (void*)comp_ptr_mut(ComponentKind::CK_Gen, i, left);
-						auto* pDst = (void*)comp_ptr_mut(ComponentKind::CK_Gen, i, right);
+						auto* pSrc = (void*)comp_ptr_mut(ComponentKind::CK_Gen, i, right);
+						auto* pDst = (void*)comp_ptr_mut(ComponentKind::CK_Gen, i, left);
 						rec.pDesc->move(pSrc, pDst);
 						rec.pDesc->dtor(pSrc);
 					}
 
 					// Entity has been replaced with the last one in our chunk. Update its container record.
-					auto& ecRight = entities[rightEntity.id()];
-					ecRight.idx = left;
+					ecRight.row = left;
 				} else {
-					// This is the last entity in chunk so simply destroy the data
+					// This is the last entity in chunk so simply destroy its data
 					auto recs = comp_rec_view(ComponentKind::CK_Gen);
 					GAIA_EACH(recs) {
 						const auto& rec = recs[i];
@@ -808,6 +813,12 @@ namespace gaia {
 				auto ev = entity_view_mut();
 				const auto entityLeft = ev[left];
 				const auto entityRight = ev[right];
+
+				auto& ecLeft = entities[entityLeft.id()];
+				auto& ecRight = entities[entityRight.id()];
+				GAIA_ASSERT(ecLeft.pArchetype == ecRight.pArchetype);
+				GAIA_ASSERT(ecLeft.pChunk == ecRight.pChunk);
+
 				ev[left] = entityRight;
 				ev[right] = entityLeft;
 
@@ -824,10 +835,8 @@ namespace gaia {
 				}
 
 				// Update indices in entity container.
-				auto& ecLeft = entities[entityLeft.id()];
-				auto& ecRight = entities[entityRight.id()];
-				ecLeft.idx = right;
-				ecRight.idx = left;
+				ecLeft.row = right;
+				ecRight.row = left;
 			}
 
 			/*!

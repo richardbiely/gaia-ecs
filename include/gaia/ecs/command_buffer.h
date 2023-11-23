@@ -188,7 +188,7 @@ namespace gaia {
 				void commit(CommandBufferCtx& ctx) const {
 					const auto& ec = ctx.world.m_entities[entity.id()];
 					auto* pChunk = ec.pChunk;
-					const auto indexInChunk = compKind == ComponentKind::CK_Uni ? 0U : ec.idx;
+					const auto indexInChunk = compKind == ComponentKind::CK_Uni ? 0U : ec.row;
 
 					// Component data
 					const auto compIdx = pChunk->comp_idx(compKind, compId);
@@ -212,7 +212,7 @@ namespace gaia {
 
 					const auto& ec = ctx.world.m_entities[entity.id()];
 					auto* pChunk = ec.pChunk;
-					const auto indexInChunk = compKind == ComponentKind::CK_Uni ? 0U : ec.idx;
+					const auto indexInChunk = compKind == ComponentKind::CK_Uni ? 0U : ec.row;
 
 					// Component data
 					const auto compIdx = pChunk->comp_idx(compKind, compId);
