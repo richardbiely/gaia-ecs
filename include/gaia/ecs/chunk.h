@@ -30,9 +30,6 @@ namespace gaia {
 
 			using EntityArray = cnt::sarray_ext<Entity, MAX_COMPONENTS>;
 			using ComponentArray = cnt::sarray_ext<Component, MAX_COMPONENTS>;
-#if GAIA_COMP_ID_PROBING
-			using ComponentIdInterMap = cnt::sarray_ext<ComponentId, MAX_COMPONENTS>;
-#endif
 			using ComponentOffsetArray = cnt::sarray_ext<ChunkDataOffset, MAX_COMPONENTS>;
 
 			// TODO: Make this private
@@ -79,11 +76,7 @@ namespace gaia {
 
 			void init(
 					const cnt::sarray<EntityArray, EntityKind::EK_Count>& ents,
-					const cnt::sarray<ComponentArray, EntityKind::EK_Count>& comps,
-#if GAIA_COMP_ID_PROBING
-					const cnt::sarray<ComponentIdInterMap, EntityKind::EK_Count>& compMap,
-#endif
-					const ChunkDataOffsets& headerOffsets,
+					const cnt::sarray<ComponentArray, EntityKind::EK_Count>& comps, const ChunkDataOffsets& headerOffsets,
 					const cnt::sarray<ComponentOffsetArray, EntityKind::EK_Count>& compOffs) {
 				m_header.componentCount[EntityKind::EK_Gen] = (uint8_t)comps[EntityKind::EK_Gen].size();
 				m_header.componentCount[EntityKind::EK_Uni] = (uint8_t)comps[EntityKind::EK_Uni].size();
@@ -131,18 +124,6 @@ namespace gaia {
 					}
 				}
 
-#if GAIA_COMP_ID_PROBING
-				// Copy provided component id hash map
-				GAIA_FOR(EntityKind::EK_Count) {
-					if (comps[i].empty())
-						continue;
-
-					const auto& map = compMap[i];
-					auto* dst = comp_id_mapping_ptr_mut((EntityKind)i);
-					GAIA_EACH_(map, j) dst[j] = map[j];
-				}
-#endif
-
 				m_records.pEntities = (Entity*)&data(headerOffsets.firstByte_EntityData);
 
 				// Now that records are set, we use the cached component descriptors to set ctor/dtor masks.
@@ -175,16 +156,6 @@ namespace gaia {
 			GAIA_NODISCARD std::span<ComponentVersion> comp_version_view_mut(EntityKind kind) {
 				return {m_records.pVersions[kind], m_header.componentCount[kind]};
 			}
-
-#if GAIA_COMP_ID_PROBING
-			GAIA_NODISCARD const ComponentId* comp_id_mapping_ptr(EntityKind kind) const {
-				return (const ComponentId*)m_records.compMap[kind];
-			}
-
-			GAIA_NODISCARD ComponentId* comp_id_mapping_ptr_mut(EntityKind kind) {
-				return m_records.compMap[kind];
-			}
-#endif
 
 			GAIA_NODISCARD std::span<Entity> entity_view_mut() {
 				return {m_records.pEntities, size()};
@@ -338,9 +309,7 @@ namespace gaia {
 					const cnt::sarray<EntityArray, EntityKind::EK_Count>& ents,
 					// component
 					const cnt::sarray<ComponentArray, EntityKind::EK_Count>& comps,
-#if GAIA_COMP_ID_PROBING
-					const cnt::sarray<ComponentIdInterMap, EntityKind::EK_Count>& compMap,
-#endif
+					// component offsets
 					const cnt::sarray<ComponentOffsetArray, EntityKind::EK_Count>& compOffs) {
 				const auto totalBytes = chunk_total_bytes(dataBytes);
 				const auto sizeType = mem_block_size_type(totalBytes);
@@ -354,12 +323,7 @@ namespace gaia {
 				auto* pChunk = new (pChunkMem) Chunk(cc, chunkIndex, capacity, sizeType, worldVersion);
 #endif
 
-#if GAIA_COMP_ID_PROBING
-				pChunk->init(ents, comps, compMap, offsets, compOffs);
-#else
 				pChunk->init(ents, comps, offsets, compOffs);
-#endif
-
 				return pChunk;
 			}
 
@@ -1007,13 +971,8 @@ namespace gaia {
 			\return True if found. False otherwise.
 			*/
 			GAIA_NODISCARD bool has(Entity entity) const {
-#if GAIA_COMP_ID_PROBING
-				const ComponentId* pSrc = comp_id_mapping_ptr(kind);
-				return ecs::has_comp_idx({pSrc, m_header.componentCount[kind]}, compId);
-#else
 				auto compIds = ents_id_view(entity.kind());
 				return core::has(compIds, entity);
-#endif
 			}
 
 			/*!

@@ -22,10 +22,6 @@ namespace gaia {
 			ChunkDataOffset firstByte_CompEntities[EntityKind::EK_Count]{};
 			//! Byte at which the first component id is located
 			ChunkDataOffset firstByte_Records[EntityKind::EK_Count]{};
-#if GAIA_COMP_ID_PROBING
-			//! Byte at which the componentID map is located
-			ChunkDataOffset firstByte_CompIdMap[EntityKind::EK_Count]{};
-#endif
 			//! Byte at which the first entity is located
 			ChunkDataOffset firstByte_EntityData{};
 		};
@@ -48,10 +44,6 @@ namespace gaia {
 			Entity* pCompEntities[EntityKind::EK_Count]{};
 			//! Pointer to the array of component records
 			ComponentRecord* pRecords[EntityKind::EK_Count]{};
-#if GAIA_COMP_ID_PROBING
-			//! Pointer to the component id map
-			ComponentId* compMap[EntityKind::EK_Count]{};
-#endif
 			//! Pointer to the array of entities
 			Entity* pEntities{};
 		};

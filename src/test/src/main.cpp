@@ -1476,43 +1476,6 @@ TEST_CASE("DataLayout SoA16") {
 	TestDataLayoutSoA<RotationSoA16>();
 }
 
-#if GAIA_COMP_ID_PROBING
-TEST_CASE("ComponentId internal map") {
-	for (uint32_t i = 1; i < 10; ++i) {
-		cnt::darr<ecs::ComponentId> data{};
-		data.resize(i * 10);
-		for (auto& comp: data)
-			comp = ecs::IdentifierIdBad;
-
-		const ecs::ComponentId comp0 = 1000000;
-
-		// Fill the data array
-		GAIA_EACH_(data, j) {
-			ecs::set_comp_idx({data.data(), data.size()}, comp0 + j);
-		}
-
-		// Get indices
-		cnt::set<ecs::ChunkDataOffset> indices;
-		GAIA_EACH_(data, j) {
-			const auto idx = ecs::get_comp_idx({data.data(), data.size()}, comp0 + j);
-			REQUIRE_FALSE(indices.contains(idx));
-		}
-
-		// All component ids must be found
-		GAIA_EACH_(data, j) {
-			const bool has = ecs::has_comp_idx({data.data(), data.size()}, comp0 + j);
-			REQUIRE(has);
-		}
-
-		// Following component ids must be not found because we didn't add them
-		GAIA_EACH_(data, j) {
-			const bool has = ecs::has_comp_idx({data.data(), data.size()}, comp0 - 1 - j);
-			REQUIRE_FALSE(has);
-		}
-	}
-}
-#endif
-
 TEST_CASE("Entity - valid") {
 	ecs::World w;
 	GAIA_FOR(2) {

@@ -644,13 +644,6 @@ namespace gaia {
 	#define GAIA_USE_PREFETCH 1
 #endif
 
-//! If enabled, a very small hash table is stored in chunks internally which
-//! is used to do ComponentId -> component index lookups.
-//! \warning Experimental, don't use.
-#ifndef GAIA_COMP_ID_PROBING
-	#define GAIA_COMP_ID_PROBING 0
-#endif
-
 //------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
@@ -14251,61 +14244,6 @@ namespace gaia {
 			GAIA_ASSERT(false);
 			return BadIndex;
 		}
-
-#if GAIA_COMP_ID_PROBING
-		//----------------------------------------------------------------------
-		// Inline component id hash map
-		//----------------------------------------------------------------------
-
-		inline uint32_t comp_idx_hash(ComponentId compId) {
-			return compId * 2654435761;
-		}
-
-		inline void set_comp_idx(std::span<ComponentId> data, ComponentId compId) {
-			GAIA_ASSERT(!data.empty());
-
-			// Calculate the index / hash key
-			auto idx = (CompOffsetMappingIndex)(comp_idx_hash(compId) % data.size());
-
-			// Linear probing for collision handling
-			while (data[idx] != IdentifierIdBad && data[idx] != compId)
-				idx = (idx + 1) % data.size();
-
-			// If slot is empty, insert the index
-			GAIA_ASSERT(data[idx] == IdentifierIdBad);
-			data[idx] = compId;
-		}
-
-		inline CompOffsetMappingIndex get_comp_idx(std::span<const ComponentId> data, ComponentId compId) {
-			GAIA_ASSERT(!data.empty());
-
-			// Calculate the index / hash key
-			auto idx = (CompOffsetMappingIndex)(comp_idx_hash(compId) % data.size());
-
-			// Linear probing for collision handling
-			while (data[idx] != IdentifierIdBad && data[idx] != compId)
-				idx = (idx + 1) % data.size();
-
-			return idx;
-		}
-
-		inline bool has_comp_idx(std::span<const ComponentId> data, ComponentId compId) {
-			if (data.empty())
-				return false;
-
-			auto idx = (CompOffsetMappingIndex)(comp_idx_hash(compId) % data.size());
-			const auto idxOrig = idx;
-
-			// Linear probing for collision handling
-			while (data[idx] != IdentifierIdBad && data[idx] != compId) {
-				idx = (idx + 1) % data.size();
-				if (idx == idxOrig)
-					return false;
-			}
-
-			return data[idx] == compId;
-		}
-#endif
 	} // namespace ecs
 } // namespace gaia
 
@@ -14917,10 +14855,6 @@ namespace gaia {
 			ChunkDataOffset firstByte_CompEntities[EntityKind::EK_Count]{};
 			//! Byte at which the first component id is located
 			ChunkDataOffset firstByte_Records[EntityKind::EK_Count]{};
-#if GAIA_COMP_ID_PROBING
-			//! Byte at which the componentID map is located
-			ChunkDataOffset firstByte_CompIdMap[EntityKind::EK_Count]{};
-#endif
 			//! Byte at which the first entity is located
 			ChunkDataOffset firstByte_EntityData{};
 		};
@@ -14943,10 +14877,6 @@ namespace gaia {
 			Entity* pCompEntities[EntityKind::EK_Count]{};
 			//! Pointer to the array of component records
 			ComponentRecord* pRecords[EntityKind::EK_Count]{};
-#if GAIA_COMP_ID_PROBING
-			//! Pointer to the component id map
-			ComponentId* compMap[EntityKind::EK_Count]{};
-#endif
 			//! Pointer to the array of entities
 			Entity* pEntities{};
 		};
@@ -15825,9 +15755,6 @@ namespace gaia {
 
 			using EntityArray = cnt::sarray_ext<Entity, MAX_COMPONENTS>;
 			using ComponentArray = cnt::sarray_ext<Component, MAX_COMPONENTS>;
-#if GAIA_COMP_ID_PROBING
-			using ComponentIdInterMap = cnt::sarray_ext<ComponentId, MAX_COMPONENTS>;
-#endif
 			using ComponentOffsetArray = cnt::sarray_ext<ChunkDataOffset, MAX_COMPONENTS>;
 
 			// TODO: Make this private
@@ -15874,11 +15801,7 @@ namespace gaia {
 
 			void init(
 					const cnt::sarray<EntityArray, EntityKind::EK_Count>& ents,
-					const cnt::sarray<ComponentArray, EntityKind::EK_Count>& comps,
-#if GAIA_COMP_ID_PROBING
-					const cnt::sarray<ComponentIdInterMap, EntityKind::EK_Count>& compMap,
-#endif
-					const ChunkDataOffsets& headerOffsets,
+					const cnt::sarray<ComponentArray, EntityKind::EK_Count>& comps, const ChunkDataOffsets& headerOffsets,
 					const cnt::sarray<ComponentOffsetArray, EntityKind::EK_Count>& compOffs) {
 				m_header.componentCount[EntityKind::EK_Gen] = (uint8_t)comps[EntityKind::EK_Gen].size();
 				m_header.componentCount[EntityKind::EK_Uni] = (uint8_t)comps[EntityKind::EK_Uni].size();
@@ -15926,18 +15849,6 @@ namespace gaia {
 					}
 				}
 
-#if GAIA_COMP_ID_PROBING
-				// Copy provided component id hash map
-				GAIA_FOR(EntityKind::EK_Count) {
-					if (comps[i].empty())
-						continue;
-
-					const auto& map = compMap[i];
-					auto* dst = comp_id_mapping_ptr_mut((EntityKind)i);
-					GAIA_EACH_(map, j) dst[j] = map[j];
-				}
-#endif
-
 				m_records.pEntities = (Entity*)&data(headerOffsets.firstByte_EntityData);
 
 				// Now that records are set, we use the cached component descriptors to set ctor/dtor masks.
@@ -15970,16 +15881,6 @@ namespace gaia {
 			GAIA_NODISCARD std::span<ComponentVersion> comp_version_view_mut(EntityKind kind) {
 				return {m_records.pVersions[kind], m_header.componentCount[kind]};
 			}
-
-#if GAIA_COMP_ID_PROBING
-			GAIA_NODISCARD const ComponentId* comp_id_mapping_ptr(EntityKind kind) const {
-				return (const ComponentId*)m_records.compMap[kind];
-			}
-
-			GAIA_NODISCARD ComponentId* comp_id_mapping_ptr_mut(EntityKind kind) {
-				return m_records.compMap[kind];
-			}
-#endif
 
 			GAIA_NODISCARD std::span<Entity> entity_view_mut() {
 				return {m_records.pEntities, size()};
@@ -16133,9 +16034,7 @@ namespace gaia {
 					const cnt::sarray<EntityArray, EntityKind::EK_Count>& ents,
 					// component
 					const cnt::sarray<ComponentArray, EntityKind::EK_Count>& comps,
-#if GAIA_COMP_ID_PROBING
-					const cnt::sarray<ComponentIdInterMap, EntityKind::EK_Count>& compMap,
-#endif
+					// component offsets
 					const cnt::sarray<ComponentOffsetArray, EntityKind::EK_Count>& compOffs) {
 				const auto totalBytes = chunk_total_bytes(dataBytes);
 				const auto sizeType = mem_block_size_type(totalBytes);
@@ -16149,12 +16048,7 @@ namespace gaia {
 				auto* pChunk = new (pChunkMem) Chunk(cc, chunkIndex, capacity, sizeType, worldVersion);
 #endif
 
-#if GAIA_COMP_ID_PROBING
-				pChunk->init(ents, comps, compMap, offsets, compOffs);
-#else
 				pChunk->init(ents, comps, offsets, compOffs);
-#endif
-
 				return pChunk;
 			}
 
@@ -16802,13 +16696,8 @@ namespace gaia {
 			\return True if found. False otherwise.
 			*/
 			GAIA_NODISCARD bool has(Entity entity) const {
-#if GAIA_COMP_ID_PROBING
-				const ComponentId* pSrc = comp_id_mapping_ptr(kind);
-				return ecs::has_comp_idx({pSrc, m_header.componentCount[kind]}, compId);
-#else
 				auto compIds = ents_id_view(entity.kind());
 				return core::has(compIds, entity);
-#endif
 			}
 
 			/*!
@@ -17211,10 +17100,6 @@ namespace gaia {
 			cnt::sarray<Chunk::EntityArray, EntityKind::EK_Count> m_ents;
 			//! List of component ids
 			cnt::sarray<Chunk::ComponentArray, EntityKind::EK_Count> m_comps;
-#if GAIA_COMP_ID_PROBING
-			//! List of component ids -> offset index mappings
-			cnt::sarray<Chunk::ComponentIdInterMap, EntityKind::EK_Count> m_compMap;
-#endif
 			//! List of components offset indices
 			cnt::sarray<Chunk::ComponentOffsetArray, EntityKind::EK_Count> m_compOffs;
 
@@ -17292,21 +17177,6 @@ namespace gaia {
 					}
 				}
 
-#if GAIA_COMP_ID_PROBING
-				// Component ids internal map
-				{
-					offset += mem::padding<alignof(Component)>(offset);
-					GAIA_FOR(EntityKind::EK_Count) {
-						const auto cnt = comps((EntityKind)i).size();
-						if (cnt == 0)
-							continue;
-
-						m_dataOffsets.firstByte_CompIdMap[i] = (ChunkDataOffset)offset;
-						offset += sizeof(Component) * cnt;
-					}
-				}
-#endif
-
 				// First entity offset
 				{
 					offset += mem::padding<alignof(Entity)>(offset);
@@ -17345,30 +17215,16 @@ namespace gaia {
 			static void reg_components(
 					Archetype& arch, EntitySpan ents, ComponentSpan comps, EntityKind kind, uint32_t& currOff, uint32_t count) {
 				auto& ids = arch.m_ents[kind];
-#if GAIA_COMP_ID_PROBING
-				auto& map = arch.m_compMap[kind];
-#endif
 				auto& ofs = arch.m_compOffs[kind];
 
 				// Set component ids
 				GAIA_EACH(ents) ids[i] = ents[i];
 
-#if GAIA_COMP_ID_PROBING
-				// Generate component id map. Initialize it with ComponentBad values.
-				for (auto& compId: map)
-					compId = IdentifierIdBad;
-				for (auto comp: comps)
-					ecs::set_comp_idx({map.data(), map.size()}, comp.id());
-#endif
-
 				// Calulate offsets and assign them indices according to our mappings
 				GAIA_EACH(comps) {
 					const auto comp = comps[i];
-#if GAIA_COMP_ID_PROBING
-					const auto compIdx = ecs::get_comp_idx({map.data(), map.size()}, comp.id());
-#else
 					const auto compIdx = i;
-#endif
+
 					const auto alig = comp.alig();
 					if (alig == 0) {
 						ofs[compIdx] = {};
@@ -17417,10 +17273,6 @@ namespace gaia {
 				newArch->m_ents[EntityKind::EK_Uni].resize((uint32_t)entsUni.size());
 				newArch->m_comps[EntityKind::EK_Gen].resize((uint32_t)entsGen.size());
 				newArch->m_comps[EntityKind::EK_Uni].resize((uint32_t)entsUni.size());
-#if GAIA_COMP_ID_PROBING
-				newArch->m_compMap[EntityKind::EK_Gen].resize((uint32_t)entsGen.size());
-				newArch->m_compMap[EntityKind::EK_Uni].resize((uint32_t)entsUni.size());
-#endif
 				newArch->m_compOffs[EntityKind::EK_Gen].resize((uint32_t)entsGen.size());
 				newArch->m_compOffs[EntityKind::EK_Uni].resize((uint32_t)entsUni.size());
 
@@ -17732,11 +17584,7 @@ namespace gaia {
 				// No free space found anywhere. Let's create a new chunk.
 				auto* pChunk = Chunk::create(
 						m_cc, chunkCnt, props().capacity, m_properties.chunkDataBytes, m_worldVersion, m_dataOffsets, m_ents,
-						m_comps,
-#if GAIA_COMP_ID_PROBING
-						m_compMap,
-#endif
-						m_compOffs);
+						m_comps, m_compOffs);
 
 				m_chunks.push_back(pChunk);
 				return pChunk;
@@ -19157,7 +19005,6 @@ namespace gaia {
 
 				template <typename T>
 				void add_inter(QueryListType listType) {
-					constexpr auto kind = entity_kind_v<T>;
 					constexpr auto isReadWrite = core::is_mut_v<T>;
 
 					// Make sure the component is always registered

@@ -38,13 +38,6 @@
 	#define GAIA_USE_PREFETCH 1
 #endif
 
-//! If enabled, a very small hash table is stored in chunks internally which
-//! is used to do ComponentId -> component index lookups.
-//! \warning Experimental, don't use.
-#ifndef GAIA_COMP_ID_PROBING
-	#define GAIA_COMP_ID_PROBING 0
-#endif
-
 //------------------------------------------------------------------------------
 
 #include "config_core_end.h"

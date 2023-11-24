@@ -108,10 +108,6 @@ namespace gaia {
 			cnt::sarray<Chunk::EntityArray, EntityKind::EK_Count> m_ents;
 			//! List of component ids
 			cnt::sarray<Chunk::ComponentArray, EntityKind::EK_Count> m_comps;
-#if GAIA_COMP_ID_PROBING
-			//! List of component ids -> offset index mappings
-			cnt::sarray<Chunk::ComponentIdInterMap, EntityKind::EK_Count> m_compMap;
-#endif
 			//! List of components offset indices
 			cnt::sarray<Chunk::ComponentOffsetArray, EntityKind::EK_Count> m_compOffs;
 
@@ -189,21 +185,6 @@ namespace gaia {
 					}
 				}
 
-#if GAIA_COMP_ID_PROBING
-				// Component ids internal map
-				{
-					offset += mem::padding<alignof(Component)>(offset);
-					GAIA_FOR(EntityKind::EK_Count) {
-						const auto cnt = comps((EntityKind)i).size();
-						if (cnt == 0)
-							continue;
-
-						m_dataOffsets.firstByte_CompIdMap[i] = (ChunkDataOffset)offset;
-						offset += sizeof(Component) * cnt;
-					}
-				}
-#endif
-
 				// First entity offset
 				{
 					offset += mem::padding<alignof(Entity)>(offset);
@@ -242,30 +223,16 @@ namespace gaia {
 			static void reg_components(
 					Archetype& arch, EntitySpan ents, ComponentSpan comps, EntityKind kind, uint32_t& currOff, uint32_t count) {
 				auto& ids = arch.m_ents[kind];
-#if GAIA_COMP_ID_PROBING
-				auto& map = arch.m_compMap[kind];
-#endif
 				auto& ofs = arch.m_compOffs[kind];
 
 				// Set component ids
 				GAIA_EACH(ents) ids[i] = ents[i];
 
-#if GAIA_COMP_ID_PROBING
-				// Generate component id map. Initialize it with ComponentBad values.
-				for (auto& compId: map)
-					compId = IdentifierIdBad;
-				for (auto comp: comps)
-					ecs::set_comp_idx({map.data(), map.size()}, comp.id());
-#endif
-
 				// Calulate offsets and assign them indices according to our mappings
 				GAIA_EACH(comps) {
 					const auto comp = comps[i];
-#if GAIA_COMP_ID_PROBING
-					const auto compIdx = ecs::get_comp_idx({map.data(), map.size()}, comp.id());
-#else
 					const auto compIdx = i;
-#endif
+
 					const auto alig = comp.alig();
 					if (alig == 0) {
 						ofs[compIdx] = {};
@@ -314,10 +281,6 @@ namespace gaia {
 				newArch->m_ents[EntityKind::EK_Uni].resize((uint32_t)entsUni.size());
 				newArch->m_comps[EntityKind::EK_Gen].resize((uint32_t)entsGen.size());
 				newArch->m_comps[EntityKind::EK_Uni].resize((uint32_t)entsUni.size());
-#if GAIA_COMP_ID_PROBING
-				newArch->m_compMap[EntityKind::EK_Gen].resize((uint32_t)entsGen.size());
-				newArch->m_compMap[EntityKind::EK_Uni].resize((uint32_t)entsUni.size());
-#endif
 				newArch->m_compOffs[EntityKind::EK_Gen].resize((uint32_t)entsGen.size());
 				newArch->m_compOffs[EntityKind::EK_Uni].resize((uint32_t)entsUni.size());
 
@@ -629,11 +592,7 @@ namespace gaia {
 				// No free space found anywhere. Let's create a new chunk.
 				auto* pChunk = Chunk::create(
 						m_cc, chunkCnt, props().capacity, m_properties.chunkDataBytes, m_worldVersion, m_dataOffsets, m_ents,
-						m_comps,
-#if GAIA_COMP_ID_PROBING
-						m_compMap,
-#endif
-						m_compOffs);
+						m_comps, m_compOffs);
 
 				m_chunks.push_back(pChunk);
 				return pChunk;
