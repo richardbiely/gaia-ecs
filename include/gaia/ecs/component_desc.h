@@ -13,6 +13,7 @@
 #include "../meta/reflection.h"
 #include "../meta/type_info.h"
 #include "component.h"
+#include "gaia/ecs/id.h"
 
 namespace gaia {
 	namespace ecs {
@@ -21,7 +22,9 @@ namespace gaia {
 
 			template <typename T>
 			struct ComponentDesc final {
+				using CT = component_type_t<T>;
 				using U = typename component_type_t<T>::Type;
+				using DescU = typename CT::TypeFull;
 
 				using FuncCtor = void(void*, uint32_t);
 				using FuncDtor = void(void*, uint32_t);
@@ -31,19 +34,19 @@ namespace gaia {
 				using FuncCmp = bool(const void*, const void*);
 
 				static ComponentDescId id() {
-					return meta::type_info::id<U>();
+					return meta::type_info::id<DescU>();
 				}
 
 				static constexpr ComponentLookupHash hash_lookup() {
-					return {meta::type_info::hash<U>()};
+					return {meta::type_info::hash<DescU>()};
 				}
 
 				static constexpr ComponentMatcherHash hash_matcher() {
-					return {calc_matcher_hash<U>()};
+					return {calc_matcher_hash<DescU>()};
 				}
 
 				static constexpr auto name() {
-					return meta::type_info::name<U>();
+					return meta::type_info::name<DescU>();
 				}
 
 				static constexpr uint32_t size() {

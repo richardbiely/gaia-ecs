@@ -17,7 +17,7 @@ namespace gaia {
 			GAIA_NODISCARD decltype(auto) get() const {
 				verify_comp<T>();
 
-				if constexpr (component_kind_v<T> == ComponentKind::CK_Gen)
+				if constexpr (entity_kind_v<T> == EntityKind::EK_Gen)
 					return m_pChunk->template get<T>(m_idx);
 				else
 					return m_pChunk->template get<T>();

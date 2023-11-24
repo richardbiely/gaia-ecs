@@ -12,17 +12,6 @@
 
 namespace gaia {
 	namespace ecs {
-		enum ComponentKind : uint8_t {
-			// Generic component, one per entity
-			CK_Gen = 0,
-			// Unique component, one per chunk
-			CK_Uni,
-			// Number of component kinds
-			CK_Count
-		};
-
-		inline const char* const ComponentKindString[ComponentKind::CK_Count] = {"Gen", "Uni"};
-
 		//----------------------------------------------------------------------
 		// Component-related types
 		//----------------------------------------------------------------------
@@ -33,6 +22,7 @@ namespace gaia {
 		using ChunkDataOffset = uint16_t;
 		using ComponentLookupHash = core::direct_hash_key<uint64_t>;
 		using ComponentMatcherHash = core::direct_hash_key<uint64_t>;
+		using EntitySpan = std::span<const Entity>;
 		using ComponentSpan = std::span<const Component>;
 
 		//----------------------------------------------------------------------
@@ -54,61 +44,71 @@ namespace gaia {
 		// Component type deduction
 		//----------------------------------------------------------------------
 
+		template <typename T>
+		struct uni {
+			static_assert(core::is_raw_v<T>);
+
+			//! Component kind
+			static constexpr EntityKind Kind = EntityKind::EK_Uni;
+
+			//! Raw type with no additional sugar
+			using TType = T;
+			//! uni<TType>
+			using TTypeFull = uni<TType>;
+			//! Original template type
+			using TTypeOriginal = T;
+		};
+
 		namespace detail {
 			template <typename, typename = void>
-			struct has_component_kind: std::false_type {};
+			struct has_entity_kind: std::false_type {};
 			template <typename T>
-			struct has_component_kind<T, std::void_t<decltype(T::Kind)>>: std::true_type {};
+			struct has_entity_kind<T, std::void_t<decltype(T::Kind)>>: std::true_type {};
 
 			template <typename T>
-			struct ExtractComponentType_NoComponentKind {
+			struct ExtractComponentType_NoEntityKind {
+				//! Component kind
+				static constexpr EntityKind Kind = EntityKind::EK_Gen;
+
 				//! Raw type with no additional sugar
 				using Type = typename std::decay_t<typename std::remove_pointer_t<T>>;
+				//!
+				using TypeFull = Type;
 				//! Original template type
 				using TypeOriginal = T;
-				//! Component kind
-				static constexpr ComponentKind Kind = ComponentKind::CK_Gen;
 			};
 			template <typename T>
-			struct ExtractComponentType_WithComponentKind {
+			struct ExtractComponentType_WithEntityKind {
+				//! Component kind
+				static constexpr EntityKind Kind = T::Kind;
+
 				//! Raw type with no additional sugar
 				using Type = typename T::TType;
+				//!
+				using TypeFull = std::conditional_t<Kind == EntityKind::EK_Gen, Type, uni<Type>>;
 				//! Original template type
 				using TypeOriginal = typename T::TTypeOriginal;
-				//! Component kind
-				static constexpr ComponentKind Kind = T::Kind;
 			};
 
 			template <typename, typename = void>
 			struct is_gen_component: std::true_type {};
 			template <typename T>
-			struct is_gen_component<T, std::void_t<decltype(T::Kind)>>:
-					std::bool_constant<T::Kind == ComponentKind::CK_Gen> {};
+			struct is_gen_component<T, std::void_t<decltype(T::Kind)>>: std::bool_constant<T::Kind == EntityKind::EK_Gen> {};
 
 			template <typename T, typename = void>
 			struct component_type {
-				using type = typename detail::ExtractComponentType_NoComponentKind<T>;
+				using type = typename detail::ExtractComponentType_NoEntityKind<T>;
 			};
 			template <typename T>
 			struct component_type<T, std::void_t<decltype(T::Kind)>> {
-				using type = typename detail::ExtractComponentType_WithComponentKind<T>;
+				using type = typename detail::ExtractComponentType_WithEntityKind<T>;
 			};
 		} // namespace detail
 
 		template <typename T>
 		using component_type_t = typename detail::component_type<T>::type;
 		template <typename T>
-		inline constexpr ComponentKind component_kind_v = component_type_t<T>::Kind;
-
-		template <typename T>
-		struct uni {
-			//! Raw type with no additional sugar
-			using TType = typename std::decay_t<typename std::remove_pointer_t<T>>;
-			//! Original template type
-			using TTypeOriginal = T;
-			//! Component kind
-			static constexpr ComponentKind Kind = ComponentKind::CK_Uni;
-		};
+		inline constexpr EntityKind entity_kind_v = component_type_t<T>::Kind;
 
 		//----------------------------------------------------------------------
 		// Component verification
@@ -125,13 +125,13 @@ namespace gaia {
 		}
 
 		template <typename T>
-		constexpr void verify_comp([[maybe_unused]] ComponentKind compKind) {
+		constexpr void verify_comp([[maybe_unused]] EntityKind kind) {
 			verify_comp<T>();
 
 #if GAIA_ASSERT_ENABLED
 			using U = typename component_type_t<T>::Type;
 			if (!std::is_trivial_v<U>) {
-				if (compKind != ComponentKind::CK_Uni)
+				if (kind != EntityKind::EK_Uni)
 					return;
 
 				constexpr bool hasGlobalCmp = core::has_global_equals<U>::value;
@@ -146,11 +146,20 @@ namespace gaia {
 		//----------------------------------------------------------------------
 
 		namespace detail {
+			inline constexpr uint64_t calc_matcher_hash(uint64_t type_hash) noexcept {
+				return (uint64_t(1) << (type_hash % uint64_t(63)));
+			}
+
 			template <typename T>
 			constexpr uint64_t calc_matcher_hash() noexcept {
-				return (uint64_t(1) << (meta::type_info::hash<T>() % uint64_t(63)));
+				constexpr uint64_t type_hash = meta::type_info::hash<T>();
+				return (uint64_t(1) << (type_hash % uint64_t(63)));
 			}
 		} // namespace detail
+
+		inline constexpr ComponentMatcherHash calc_matcher_hash(uint64_t type_hash) noexcept {
+			return {detail::calc_matcher_hash(type_hash)};
+		}
 
 		template <typename = void, typename...>
 		constexpr ComponentMatcherHash calc_matcher_hash() noexcept;
@@ -204,47 +213,20 @@ namespace gaia {
 
 		//! Located the index at which the provided component id is located in the component array
 		//! \param pComps Pointer to the start of the component array
-		//! \param compID Component id we search for
+		//! \param entity Entity we search for
 		//! \return Index of the component id in the array
 		//! \warning The component id must be present in the array
 		template <uint32_t MAX_COMPONENTS>
-		GAIA_NODISCARD inline uint32_t comp_idx(const Component* pComps, ComponentId compId) {
+		GAIA_NODISCARD inline uint32_t comp_idx(const Entity* pComps, Entity entity) {
 			// We let the compiler know the upper iteration bound at compile-time.
 			// This way it can optimize better (e.g. loop unrolling, vectorization).
 			GAIA_FOR(MAX_COMPONENTS) {
-				if (pComps[i].id() == compId)
+				if (pComps[i] == entity)
 					return i;
 			}
 
 			GAIA_ASSERT(false);
 			return BadIndex;
-		}
-
-		//! Located the index at which the provided component id is located in the component array
-		//! \param pCompIds Pointer to the start of the component id array
-		//! \param compId Component id we search for
-		//! \return Index of the component id in the array
-		//! \warning The component id must be present in the array
-		template <uint32_t MAX_COMPONENTS>
-		GAIA_NODISCARD inline uint32_t comp_idx(const ComponentId* pCompIds, ComponentId compId) {
-			// We let the compiler know the upper iteration bound at compile-time.
-			// This way it can optimize better (e.g. loop unrolling, vectorization).
-			GAIA_FOR(MAX_COMPONENTS) {
-				if (pCompIds[i] == compId)
-					return i;
-			}
-
-			GAIA_ASSERT(false);
-			return BadIndex;
-
-			// NOTE: This code does technically the same as the above.
-			//       However, compilers can't quite optimize it as well because it does some more
-			//       calculations.
-			//			 Component ID to component index conversion might be used often so it deserves
-			//       optimizing as much as possible.
-			// const auto i = core::get_index_unsafe({pCompIds, MAX_COMPONENTS}, compId);
-			// GAIA_ASSERT(i != BadIndex);
-			// return i;
 		}
 
 #if GAIA_COMP_ID_PROBING

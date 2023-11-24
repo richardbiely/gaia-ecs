@@ -17,20 +17,22 @@ namespace gaia {
 
 		struct ChunkDataOffsets {
 			//! Byte at which the first version number is located
-			ChunkDataVersionOffset firstByte_Versions[ComponentKind::CK_Count]{};
+			ChunkDataVersionOffset firstByte_Versions[EntityKind::EK_Count]{};
+			//! Byte at which the first etity id is located
+			ChunkDataOffset firstByte_CompEntities[EntityKind::EK_Count]{};
 			//! Byte at which the first component id is located
-			ChunkDataOffset firstByte_ComponentIds[ComponentKind::CK_Count]{};
-			//! Byte at which the first component id is located
-			ChunkDataOffset firstByte_Records[ComponentKind::CK_Count]{};
+			ChunkDataOffset firstByte_Records[EntityKind::EK_Count]{};
 #if GAIA_COMP_ID_PROBING
 			//! Byte at which the componentID map is located
-			ChunkDataOffset firstByte_CompIdMap[ComponentKind::CK_Count]{};
+			ChunkDataOffset firstByte_CompIdMap[EntityKind::EK_Count]{};
 #endif
 			//! Byte at which the first entity is located
 			ChunkDataOffset firstByte_EntityData{};
 		};
 
 		struct ComponentRecord {
+			//! Entity id
+			Entity entity;
 			//! Component id
 			Component comp;
 			//! Pointer to where the first instance of the component is stored
@@ -41,14 +43,14 @@ namespace gaia {
 
 		struct ChunkRecords {
 			//! Pointer to where component versions are stored
-			ComponentVersion* pVersions[ComponentKind::CK_Count]{};
-			//! Pointer to where component ids are stored
-			ComponentId* pComponentIds[ComponentKind::CK_Count]{};
+			ComponentVersion* pVersions[EntityKind::EK_Count]{};
+			//! Pointer to where (component) entities are stored
+			Entity* pCompEntities[EntityKind::EK_Count]{};
 			//! Pointer to the array of component records
-			ComponentRecord* pRecords[ComponentKind::CK_Count]{};
+			ComponentRecord* pRecords[EntityKind::EK_Count]{};
 #if GAIA_COMP_ID_PROBING
 			//! Pointer to the component id map
-			ComponentId* compMap[ComponentKind::CK_Count]{};
+			ComponentId* compMap[EntityKind::EK_Count]{};
 #endif
 			//! Pointer to the array of entities
 			Entity* pEntities{};
@@ -101,7 +103,7 @@ namespace gaia {
 			uint32_t unused : 7;
 
 			//! Number of components on the archetype
-			uint8_t componentCount[ComponentKind::CK_Count]{};
+			uint8_t componentCount[EntityKind::EK_Count]{};
 			//! Version of the world (stable pointer to parent world's world version)
 			uint32_t& worldVersion;
 

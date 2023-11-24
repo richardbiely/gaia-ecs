@@ -22,98 +22,20 @@ namespace gaia {
 
 		inline constexpr IdentifierId IdentifierIdBad = (IdentifierId)-1;
 
-		struct Entity final {
-			static constexpr uint32_t IdMask = IdentifierIdBad;
+		// ------------------------------------------------------------------------------------
+		// Component
+		// ------------------------------------------------------------------------------------
 
-			struct InternalData {
-				//! Index in the entity array
-				EntityId id;
-				//! Generation index. Incremented every time an entity is deleted
-				IdentifierData gen;
-			};
-			static_assert(sizeof(InternalData) == sizeof(Identifier));
-
-			union {
-				InternalData data;
-				Identifier val;
-			};
-
-			constexpr Entity() noexcept: val(IdentifierBad){};
-			constexpr Entity(Identifier value) noexcept: val(value) {}
-
-			Entity(EntityId id, IdentifierData gen) noexcept {
-				data.id = id;
-				data.gen = gen;
-			}
-
-			GAIA_NODISCARD constexpr auto id() const noexcept {
-				return (uint32_t)data.id;
-			}
-
-			GAIA_NODISCARD constexpr auto gen() const noexcept {
-				return (uint32_t)data.gen;
-			}
-
-			GAIA_NODISCARD constexpr auto value() const noexcept {
-				return val;
-			}
-
-			GAIA_NODISCARD constexpr bool operator==(Entity other) const noexcept {
-				return value() == other.value();
-			}
-
-			GAIA_NODISCARD constexpr bool operator!=(Entity other) const noexcept {
-				return value() != other.value();
-			}
-
-			GAIA_NODISCARD constexpr bool operator<(Entity other) const noexcept {
-				return id() < other.id();
-			}
+		enum EntityKind : uint8_t {
+			// Generic entity, one per entity
+			EK_Gen = 0,
+			// Unique entity, one per chunk
+			EK_Uni,
+			// Number of entity kinds
+			EK_Count
 		};
 
-		struct EntityLookupKey {
-			using LookupHash = core::direct_hash_key<uint32_t>;
-
-		private:
-			//! Entity
-			Entity m_entity;
-			//! Entity hash
-			LookupHash m_hash;
-
-			static LookupHash calc(Entity entity) {
-				return {static_cast<uint32_t>(core::calculate_hash64(entity.value()))};
-			}
-
-		public:
-			static constexpr bool IsDirectHashKey = true;
-
-			EntityLookupKey() = default;
-			EntityLookupKey(Entity entity): m_entity(entity), m_hash(calc(entity)) {}
-
-			Entity entity() const {
-				return m_entity;
-			}
-
-			auto hash() const {
-				return m_hash.hash;
-			}
-
-			bool operator==(const EntityLookupKey& other) const {
-				if GAIA_LIKELY (m_hash != other.m_hash)
-					return false;
-
-				return m_entity == other.m_entity;
-			}
-
-			bool operator!=(const EntityLookupKey& other) const {
-				return !operator==(other);
-			}
-		};
-
-		struct EntityDesc {
-			const char* name{};
-			uint32_t len{};
-		};
+		inline constexpr const char* EntityKindString[EntityKind::EK_Count] = {"Gen", "Uni"};
 
 		struct Component final {
 			static constexpr uint32_t IdMask = IdentifierIdBad;
@@ -185,11 +107,125 @@ namespace gaia {
 			}
 		};
 
+		// ------------------------------------------------------------------------------------
+		// Entity
+		// ------------------------------------------------------------------------------------
+
+		struct Entity final {
+			static constexpr uint32_t IdMask = IdentifierIdBad;
+
+			struct InternalData {
+				//! Index in the entity array
+				EntityId id;
+				//! Generation index. Incremented every time an entity is deleted
+				IdentifierData gen : 30;
+				//! 0=EntityKind::CT_Gen, 1=EntityKind::CT_Uni
+				IdentifierData kind : 1;
+				//! Unused
+				IdentifierData unused : 1;
+			};
+			static_assert(sizeof(InternalData) == sizeof(Identifier));
+
+			union {
+				InternalData data;
+				Identifier val;
+			};
+
+			constexpr Entity() noexcept: val(IdentifierBad){};
+			constexpr Entity(Identifier value) noexcept: val(value) {}
+
+			// Special constructor for list
+			Entity(EntityId id, IdentifierData gen) noexcept {
+				data.id = id;
+				data.gen = gen;
+				data.kind = 0;
+				data.unused = 0;
+			}
+			Entity(EntityId id, IdentifierData gen, EntityKind kind) noexcept {
+				data.id = id;
+				data.gen = gen;
+				data.kind = kind;
+				data.unused = 0;
+			}
+
+			GAIA_NODISCARD constexpr auto id() const noexcept {
+				return (uint32_t)data.id;
+			}
+
+			GAIA_NODISCARD constexpr auto gen() const noexcept {
+				return (uint32_t)data.gen;
+			}
+
+			GAIA_NODISCARD constexpr auto kind() const noexcept {
+				return (EntityKind)data.kind;
+			}
+
+			GAIA_NODISCARD constexpr auto value() const noexcept {
+				return val;
+			}
+
+			GAIA_NODISCARD constexpr bool operator==(Entity other) const noexcept {
+				return value() == other.value();
+			}
+
+			GAIA_NODISCARD constexpr bool operator!=(Entity other) const noexcept {
+				return value() != other.value();
+			}
+
+			GAIA_NODISCARD constexpr bool operator<(Entity other) const noexcept {
+				return id() < other.id();
+			}
+		};
+
+		struct EntityLookupKey {
+			using LookupHash = core::direct_hash_key<uint32_t>;
+
+		private:
+			//! Entity
+			Entity m_entity;
+			//! Entity hash
+			LookupHash m_hash;
+
+			static LookupHash calc(Entity entity) {
+				return {static_cast<uint32_t>(core::calculate_hash64(entity.value()))};
+			}
+
+		public:
+			static constexpr bool IsDirectHashKey = true;
+
+			EntityLookupKey() = default;
+			EntityLookupKey(Entity entity): m_entity(entity), m_hash(calc(entity)) {}
+
+			Entity entity() const {
+				return m_entity;
+			}
+
+			auto hash() const {
+				return m_hash.hash;
+			}
+
+			bool operator==(const EntityLookupKey& other) const {
+				if GAIA_LIKELY (m_hash != other.m_hash)
+					return false;
+
+				return m_entity == other.m_entity;
+			}
+
+			bool operator!=(const EntityLookupKey& other) const {
+				return !operator==(other);
+			}
+		};
+
+		struct EntityDesc {
+			const char* name{};
+			uint32_t len{};
+		};
+
 		struct Core {};
 
-		inline constexpr Entity GAIA_ID(Core) = Entity(0);
-		inline constexpr Entity GAIA_ID(EntityDesc) = Entity(1);
-		inline constexpr Entity GAIA_ID(Component) = Entity(2);
+		inline Entity GAIA_ID(Core) = Entity(0, 0, EntityKind::EK_Gen);
+		inline Entity GAIA_ID(EntityDesc) = Entity(1, 0, EntityKind::EK_Gen);
+		inline Entity GAIA_ID(Component) = Entity(2, 0, EntityKind::EK_Gen);
 
 		inline constexpr uint32_t CoreComponents = 3;
 		inline constexpr uint32_t FirstUserArchetypeId = 3;

@@ -211,10 +211,10 @@ TEST_CASE("Intrinsics") {
 	}
 }
 
-TEST_CASE("ComponentKinds") {
-	REQUIRE(ecs::component_kind_v<uint32_t> == ecs::ComponentKind::CK_Gen);
-	REQUIRE(ecs::component_kind_v<Position> == ecs::ComponentKind::CK_Gen);
-	REQUIRE(ecs::component_kind_v<ecs::uni<Position>> == ecs::ComponentKind::CK_Uni);
+TEST_CASE("EntityKinds") {
+	REQUIRE(ecs::entity_kind_v<uint32_t> == ecs::EntityKind::EK_Gen);
+	REQUIRE(ecs::entity_kind_v<Position> == ecs::EntityKind::EK_Gen);
+	REQUIRE(ecs::entity_kind_v<ecs::uni<Position>> == ecs::EntityKind::EK_Uni);
 }
 
 TEST_CASE("Memory allocation") {
@@ -1908,6 +1908,10 @@ void Test_Query_QueryResult() {
 	auto q3 = w.query<UseCachedQuery>().template all<Position, Rotation>();
 
 	{
+		const auto cnt = q1.count();
+		GAIA_ASSERT(cnt == N);
+	}
+	{
 		cnt::darr<ecs::Entity> arr;
 		q1.arr(arr);
 		GAIA_ASSERT(arr.size() == N);
@@ -2400,42 +2404,42 @@ TEST_CASE("Add - generic") {
 
 // TEST_CASE("Add - from query") {
 // 	ecs::World w;
-
+//
 // 	cnt::sarray<ecs::Entity, 5> ents;
 // 	for (auto& e: ents)
 // 		e = w.add();
-
+//
 // 	for (uint32_t i = 0; i < ents.size() - 1; ++i)
 // 		w.add<Position>(ents[i], {(float)i, (float)i, (float)i});
-
+//
 // 	ecs::Query q;
 // 	q.all<Position>();
 // 	w.add<Acceleration>(q, {1.f, 2.f, 3.f});
-
+//
 // 	for (uint32_t i = 0; i < ents.size() - 1; ++i) {
 // 		REQUIRE(w.has<Position>(ents[i]));
 // 		REQUIRE(w.has<Acceleration>(ents[i]));
-
+//
 // 		Position p;
 // 		w.get<Position>(ents[i], p);
 // 		REQUIRE(p.x == (float)i);
 // 		REQUIRE(p.y == (float)i);
 // 		REQUIRE(p.z == (float)i);
-
+//
 // 		Acceleration a;
 // 		w.get<Acceleration>(ents[i], a);
 // 		REQUIRE(a.x == 1.f);
 // 		REQUIRE(a.y == 2.f);
 // 		REQUIRE(a.z == 3.f);
 // 	}
-
+//
 // 	{
 // 		REQUIRE_FALSE(w.has<Position>(ents[4]));
 // 		REQUIRE_FALSE(w.has<Acceleration>(ents[4]));
 // 	}
 // }
 
-TEST_CASE("Add - chunk") {
+TEST_CASE("Add - unique") {
 	{
 		ecs::World w;
 		auto e = w.add();
@@ -2537,7 +2541,7 @@ TEST_CASE("del - generic") {
 	}
 }
 
-TEST_CASE("del - chunk") {
+TEST_CASE("del - unique") {
 	ecs::World w;
 	auto e1 = w.add();
 
@@ -2572,7 +2576,7 @@ TEST_CASE("del - chunk") {
 	}
 }
 
-TEST_CASE("del - generic, chunk") {
+TEST_CASE("del - generic, unique") {
 	ecs::World w;
 	auto e1 = w.add();
 
@@ -3230,7 +3234,7 @@ TEST_CASE("Set - generic") {
 	}
 }
 
-TEST_CASE("Set - generic & chunk") {
+TEST_CASE("Set - generic & unique") {
 	ecs::World w;
 
 	constexpr uint32_t N = 100;

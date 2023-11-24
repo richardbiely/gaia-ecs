@@ -60,13 +60,12 @@ namespace gaia {
 				struct Command_AddComponent {
 					static constexpr CommandBufferCmd Id = CommandBufferCmd::ADD_COMPONENT;
 
-					Component comp;
-					ComponentKind compKind;
+					Entity comp;
 					QueryListType listType;
 					bool isReadWrite;
 
 					void exec(QueryCtx& ctx) const {
-						auto& data = ctx.data[compKind];
+						auto& data = ctx.data[comp.kind()];
 						auto& comps = data.comps;
 						auto& lastMatchedArchetypeIdx = data.lastMatchedArchetypeIdx;
 						auto& rules = data.rules;
@@ -79,7 +78,7 @@ namespace gaia {
 						if (comps.size() >= MAX_COMPONENTS_IN_QUERY) {
 							GAIA_ASSERT2(false, "Trying to create an query with too many components!");
 
-							auto compName = ctx.cc->get(comp.id()).name.str();
+							auto compName = ctx.cc->get(comp).name.str();
 							GAIA_LOG_E("Trying to add component '%s' to an already full ECS query!", compName);
 							return;
 						}
@@ -98,11 +97,10 @@ namespace gaia {
 				struct Command_Filter {
 					static constexpr CommandBufferCmd Id = CommandBufferCmd::ADD_FILTER;
 
-					Component comp;
-					ComponentKind compKind;
+					Entity comp;
 
 					void exec(QueryCtx& ctx) const {
-						auto& data = ctx.data[compKind];
+						auto& data = ctx.data[comp.kind()];
 						auto& comps = data.comps;
 						auto& withChanged = data.withChanged;
 						const auto& rules = data.rules;
@@ -115,7 +113,7 @@ namespace gaia {
 						if (withChanged.size() >= MAX_COMPONENTS_IN_QUERY) {
 							GAIA_ASSERT2(false, "Trying to create an filter query with too many components!");
 
-							auto compName = ctx.cc->get(comp.id()).name.str();
+							auto compName = ctx.cc->get(comp).name.str();
 							GAIA_LOG_E("Trying to add component %s to an already full filter query!", compName);
 							return;
 						}
@@ -139,7 +137,7 @@ namespace gaia {
 
 						GAIA_ASSERT2(false, "SetChangeFilter trying to filter component which is not a part of the query");
 #if GAIA_DEBUG
-						auto compName = ctx.cc->get(comp.id()).name.str();
+						auto compName = ctx.cc->get(comp).name.str();
 						GAIA_LOG_E("SetChangeFilter trying to filter component %s but it's not a part of the query!", compName);
 #endif
 					}
@@ -220,13 +218,12 @@ namespace gaia {
 
 				template <typename T>
 				void add_inter(QueryListType listType) {
-					constexpr auto compKind = component_kind_v<T>;
 					constexpr auto isReadWrite = core::is_mut_v<T>;
 
 					// Make sure the component is always registered
 					const auto& desc = comp_cache_add<T>(*m_world);
 
-					Command_AddComponent cmd{desc.comp, compKind, listType, isReadWrite};
+					Command_AddComponent cmd{desc.entity, listType, isReadWrite};
 					ser::save(m_serBuffer, Command_AddComponent::Id);
 					ser::save(m_serBuffer, cmd);
 				}
@@ -235,12 +232,12 @@ namespace gaia {
 				void changed_inter() {
 					static_assert(core::is_raw_v<T>, "Use changed() with raw types only");
 
-					constexpr auto compKind = component_kind_v<T>;
+					constexpr auto kind = entity_kind_v<T>;
 
 					// Make sure the component is always registered
 					const auto& desc = comp_cache_add<T>(*m_world);
 
-					Command_Filter cmd{desc.comp, compKind};
+					Command_Filter cmd{desc.entity};
 					ser::save(m_serBuffer, Command_Filter::Id);
 					ser::save(m_serBuffer, cmd);
 				}
@@ -265,7 +262,8 @@ namespace gaia {
 					}
 
 					// Calculate the lookup hash from the provided context
-					calc_lookup_hash(ctx);
+					if constexpr (UseCaching)
+						calc_lookup_hash(ctx);
 
 					// We can free all temporary data now
 					m_serBuffer.reset();
@@ -299,20 +297,20 @@ namespace gaia {
 
 					// See if any generic component has changed
 					{
-						const auto& filtered = queryInfo.filters(ComponentKind::CK_Gen);
+						const auto& filtered = queryInfo.filters(EntityKind::EK_Gen);
 						for (const auto comp: filtered) {
-							const auto compIdx = chunk.comp_idx(ComponentKind::CK_Gen, comp.id());
-							if (chunk.changed(ComponentKind::CK_Gen, queryVersion, compIdx))
+							const auto compIdx = chunk.comp_idx(comp);
+							if (chunk.changed(EntityKind::EK_Gen, queryVersion, compIdx))
 								return true;
 						}
 					}
 
 					// See if any unique component has changed
 					{
-						const auto& filtered = queryInfo.filters(ComponentKind::CK_Uni);
+						const auto& filtered = queryInfo.filters(EntityKind::EK_Uni);
 						for (const auto comp: filtered) {
-							const uint32_t compIdx = chunk.comp_idx(ComponentKind::CK_Uni, comp.id());
-							if (chunk.changed(ComponentKind::CK_Uni, queryVersion, compIdx))
+							const uint32_t compIdx = chunk.comp_idx(comp);
+							if (chunk.changed(EntityKind::EK_Uni, queryVersion, compIdx))
 								return true;
 						}
 					}

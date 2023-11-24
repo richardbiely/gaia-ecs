@@ -64,13 +64,13 @@ namespace gaia {
 			//! \return Component info
 			template <typename T>
 			GAIA_NODISCARD GAIA_FORCEINLINE const ComponentCacheItem& add(Entity entity) {
-				using U = typename component_type_t<T>::Type;
 				const auto compDescId = detail::ComponentDesc<T>::id();
 
 				// Fast path for small component ids - use the array storage
 				if (compDescId < FastComponentCacheSize) {
 					auto createDesc = [&]() -> const ComponentCacheItem& {
-						const auto* pDesc = ComponentCacheItem::create<U>(entity);
+						const auto* pDesc = ComponentCacheItem::create<T>(entity);
+						GAIA_ASSERT(compDescId == pDesc->comp.id());
 						m_descIdArr[compDescId] = pDesc;
 						m_compByString.emplace(pDesc->name, pDesc);
 						m_compByEntity.emplace(pDesc->entity, pDesc);
@@ -105,7 +105,8 @@ namespace gaia {
 				// Generic path for large component ids - use the map storage
 				{
 					auto createDesc = [&]() -> const ComponentCacheItem& {
-						const auto* pDesc = ComponentCacheItem::create<U>(entity);
+						const auto* pDesc = ComponentCacheItem::create<T>(entity);
+						GAIA_ASSERT(compDescId == pDesc->comp.id());
 						m_descByDescId.emplace(compDescId, pDesc);
 						m_compByString.emplace(pDesc->name, pDesc);
 						m_compByEntity.emplace(pDesc->entity, pDesc);

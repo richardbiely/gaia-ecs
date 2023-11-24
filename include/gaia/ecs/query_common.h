@@ -18,9 +18,9 @@ namespace gaia {
 
 		using QueryId = uint32_t;
 		using QueryLookupHash = core::direct_hash_key<uint64_t>;
-		using QueryComponentArray = cnt::sarray_ext<Component, MAX_COMPONENTS_IN_QUERY>;
+		using QueryComponentArray = cnt::sarray_ext<Entity, MAX_COMPONENTS_IN_QUERY>;
 		using QueryListTypeArray = cnt::sarray_ext<QueryListType, MAX_COMPONENTS_IN_QUERY>;
-		using QueryChangeArray = cnt::sarray_ext<Component, MAX_COMPONENTS_IN_QUERY>;
+		using QueryChangeArray = cnt::sarray_ext<Entity, MAX_COMPONENTS_IN_QUERY>;
 
 		static constexpr QueryId QueryIdBad = (QueryId)-1;
 
@@ -47,7 +47,7 @@ namespace gaia {
 				uint8_t readWriteMask;
 				//! The number of components which are required for the query to match
 				uint8_t rulesAllCount;
-			} data[ComponentKind::CK_Count]{};
+			} data[EntityKind::EK_Count]{};
 			static_assert(MAX_COMPONENTS_IN_QUERY == 8); // Make sure that MAX_COMPONENTS_IN_QUERY can fit into m_rw
 
 			GAIA_NODISCARD bool operator==(const QueryCtx& other) const {
@@ -61,7 +61,7 @@ namespace gaia {
 				if (hashLookup != other.hashLookup)
 					return false;
 
-				GAIA_FOR(ComponentKind::CK_Count) {
+				GAIA_FOR(EntityKind::EK_Count) {
 					const auto& left = data[i];
 					const auto& right = other.data[i];
 
@@ -110,7 +110,7 @@ namespace gaia {
 
 		//! Sorts internal component arrays
 		inline void sort(QueryCtx& ctx) {
-			GAIA_FOR(ComponentKind::CK_Count) {
+			GAIA_FOR(EntityKind::EK_Count) {
 				auto& data = ctx.data[i];
 				// Make sure the read-write mask remains correct after sorting
 				core::sort(data.comps, SortComponentCond{}, [&](uint32_t left, uint32_t right) {
@@ -140,7 +140,7 @@ namespace gaia {
 
 			// Calculate the matcher hash
 			for (auto& data: ctx.data) {
-				GAIA_EACH(data.rules) matcher_hash(*ctx.cc, data.hash[data.rules[i]], data.comps[i]);
+				GAIA_EACH(data.rules) update_matcher_hash(data.hash[data.rules[i]], data.comps[i]);
 			}
 		}
 
@@ -151,7 +151,7 @@ namespace gaia {
 
 			QueryLookupHash::Type hashLookup = 0;
 
-			GAIA_FOR(ComponentKind::CK_Count) {
+			GAIA_FOR(EntityKind::EK_Count) {
 				auto& data = ctx.data[i];
 
 				// Components
@@ -160,7 +160,7 @@ namespace gaia {
 
 					const auto& comps = data.comps;
 					for (const auto comp: comps)
-						hash = core::hash_combine(hash, (QueryLookupHash::Type)comp.id());
+						hash = core::hash_combine(hash, (QueryLookupHash::Type)comp.value());
 					hash = core::hash_combine(hash, (QueryLookupHash::Type)comps.size());
 
 					hash = core::hash_combine(hash, (QueryLookupHash::Type)data.readWriteMask);
@@ -185,7 +185,7 @@ namespace gaia {
 
 					const auto& withChanged = data.withChanged;
 					for (auto comp: withChanged)
-						hash = core::hash_combine(hash, (QueryLookupHash::Type)comp.id());
+						hash = core::hash_combine(hash, (QueryLookupHash::Type)comp.value());
 					hash = core::hash_combine(hash, (QueryLookupHash::Type)withChanged.size());
 
 					hashLookup = core::hash_combine(hashLookup, hash);

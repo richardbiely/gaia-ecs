@@ -133,11 +133,11 @@ namespace gaia {
 			}
 
 			//! Loads \param value from the buffer
-			void load_comp(void* pDst, ComponentId compId) {
+			void load_comp(void* pDst, Entity entity) {
 				bool isManualDestroyNeeded = false;
 				load(isManualDestroyNeeded);
 
-				const auto& desc = m_cc->get(compId);
+				const auto& desc = m_cc->get(entity);
 				GAIA_ASSERT(m_dataPos + desc.comp.size() <= bytes());
 				auto* pSrc = (void*)&m_data[m_dataPos];
 				desc.move(pSrc, pDst);

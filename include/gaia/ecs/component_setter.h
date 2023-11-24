@@ -16,12 +16,16 @@ namespace gaia {
 			//! \return ComponentSetter
 			template <typename T, typename U = typename component_type_t<T>::Type>
 			U& set() {
+				using CT = component_type_t<T>;
+				using FT = typename CT::TypeFull;
+				constexpr auto kind = CT::Kind;
+
 				verify_comp<T>();
 
-				if constexpr (component_kind_v<T> == ComponentKind::CK_Gen)
-					return m_pChunk->template set<T>(m_idx);
+				if constexpr (kind == EntityKind::EK_Gen)
+					return m_pChunk->template set<FT>(m_idx);
 				else
-					return m_pChunk->template set<T>();
+					return m_pChunk->template set<FT>();
 			}
 
 			//! Sets the value of the component \tparam T on \param entity.
@@ -30,12 +34,16 @@ namespace gaia {
 			//! \return ComponentSetter
 			template <typename T, typename U = typename component_type_t<T>::Type>
 			ComponentSetter& set(U&& data) {
+				using CT = component_type_t<T>;
+				using FT = typename CT::TypeFull;
+				constexpr auto kind = CT::Kind;
+
 				verify_comp<T>();
 
-				if constexpr (component_kind_v<T> == ComponentKind::CK_Gen)
-					m_pChunk->template set<T>(m_idx, GAIA_FWD(data));
+				if constexpr (kind == EntityKind::EK_Gen)
+					m_pChunk->template set<FT>(m_idx, GAIA_FWD(data));
 				else
-					m_pChunk->template set<T>(GAIA_FWD(data));
+					m_pChunk->template set<FT>(GAIA_FWD(data));
 				return *this;
 			}
 
@@ -45,12 +53,16 @@ namespace gaia {
 			//! \return ComponentSetter
 			template <typename T, typename U = typename component_type_t<T>::Type>
 			ComponentSetter& sset(U&& data) {
+				using CT = component_type_t<T>;
+				using FT = typename CT::TypeFull;
+				constexpr auto kind = CT::Kind;
+
 				verify_comp<T>();
 
-				if constexpr (component_kind_v<T> == ComponentKind::CK_Gen)
-					m_pChunk->template sset<T>(m_idx, GAIA_FWD(data));
+				if constexpr (kind == EntityKind::EK_Gen)
+					m_pChunk->template sset<FT>(m_idx, GAIA_FWD(data));
 				else
-					m_pChunk->template sset<T>(GAIA_FWD(data));
+					m_pChunk->template sset<FT>(GAIA_FWD(data));
 				return *this;
 			}
 		};

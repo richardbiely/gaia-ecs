@@ -104,6 +104,34 @@ namespace gaia {
 
 			//! Allocates a new item in the list
 			//! \return Handle to the new item
+			GAIA_NODISCARD TItemHandle alloc(void* ctx) {
+				if GAIA_UNLIKELY (m_freeItems == 0U) {
+					// We don't want to go out of range for new item
+					const auto itemCnt = (size_type)m_items.size();
+					GAIA_ASSERT(itemCnt < TItemHandle::IdMask && "Trying to allocate too many items!");
+
+					GAIA_GCC_WARNING_PUSH()
+					GAIA_CLANG_WARNING_PUSH()
+					GAIA_GCC_WARNING_DISABLE("-Wmissing-field-initializers");
+					GAIA_CLANG_WARNING_DISABLE("-Wmissing-field-initializers");
+					m_items.push_back(TListItem(itemCnt, 0U));
+					return TListItem::create(itemCnt, 0U, ctx);
+					GAIA_GCC_WARNING_POP()
+					GAIA_CLANG_WARNING_POP()
+				}
+
+				// Make sure the list is not broken
+				GAIA_ASSERT(m_nextFreeIdx < (size_type)m_items.size() && "Item recycle list broken!");
+
+				--m_freeItems;
+				const auto index = m_nextFreeIdx;
+				auto& j = m_items[m_nextFreeIdx];
+				m_nextFreeIdx = j.idx;
+				return TListItem::create(index, m_items[index].gen, ctx);
+			}
+
+			//! Allocates a new item in the list
+			//! \return Handle to the new item
 			GAIA_NODISCARD TItemHandle alloc() {
 				if GAIA_UNLIKELY (m_freeItems == 0U) {
 					// We don't want to go out of range for new item

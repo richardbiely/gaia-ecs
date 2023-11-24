@@ -68,7 +68,8 @@ namespace gaia {
 
 				void commit(CommandBufferCtx& ctx) const {
 					auto* pArchetype = (Archetype*)archetypePtr;
-					[[maybe_unused]] const auto res = ctx.entityMap.try_emplace(ctx.entities++, ctx.world.add(*pArchetype));
+					[[maybe_unused]] const auto res =
+							ctx.entityMap.try_emplace(ctx.entities++, ctx.world.add(*pArchetype, EntityKind::EK_Gen));
 					GAIA_ASSERT(res.second);
 				}
 			};
@@ -89,12 +90,10 @@ namespace gaia {
 			};
 			struct ADD_COMPONENT_t: CommandBufferCmd_t {
 				Entity entity;
-				ComponentId compId;
-				ComponentKind compKind;
+				Entity object;
 
 				void commit(CommandBufferCtx& ctx) const {
-					const auto& desc = comp_cache(ctx.world).get(compId);
-					ctx.world.add_inter(entity, compKind, desc);
+					ctx.world.add_inter(entity, object);
 
 #if GAIA_ASSERT_ENABLED
 					[[maybe_unused]] uint32_t indexInChunk{};
@@ -105,30 +104,27 @@ namespace gaia {
 			};
 			struct ADD_COMPONENT_DATA_t: CommandBufferCmd_t {
 				Entity entity;
-				ComponentId compId;
-				ComponentKind compKind;
+				Entity object;
 
 				void commit(CommandBufferCtx& ctx) const {
-					const auto& desc = comp_cache(ctx.world).get(compId);
-					ctx.world.add_inter(entity, compKind, desc);
+					ctx.world.add_inter(entity, object);
 
 					uint32_t indexInChunk{};
 					auto* pChunk = ctx.world.get_chunk(entity, indexInChunk);
 					GAIA_ASSERT(pChunk != nullptr);
 
-					if (compKind == ComponentKind::CK_Uni)
+					if (object.kind() == EntityKind::EK_Uni)
 						indexInChunk = 0;
 
 					// Component data
-					const auto compIdx = pChunk->comp_idx(compKind, compId);
-					auto* pComponentData = (void*)pChunk->comp_ptr_mut(compKind, compIdx, indexInChunk);
-					ctx.load_comp(pComponentData, compId);
+					const auto compIdx = pChunk->comp_idx(object);
+					auto* pComponentData = (void*)pChunk->comp_ptr_mut(object.kind(), compIdx, indexInChunk);
+					ctx.load_comp(pComponentData, object);
 				}
 			};
 			struct ADD_COMPONENT_TO_TEMPENTITY_t: CommandBufferCmd_t {
 				TempEntity tempEntity;
-				ComponentId compId;
-				ComponentKind compKind;
+				Entity object;
 
 				void commit(CommandBufferCtx& ctx) const {
 					// For delayed entities we have to do a look in our map
@@ -138,9 +134,7 @@ namespace gaia {
 					GAIA_ASSERT(it != ctx.entityMap.end());
 
 					Entity entity = it->second;
-
-					const auto& desc = comp_cache(ctx.world).get(compId);
-					ctx.world.add_inter(entity, compKind, desc);
+					ctx.world.add_inter(entity, object);
 
 #if GAIA_ASSERT_ENABLED
 					[[maybe_unused]] uint32_t indexInChunk{};
@@ -151,8 +145,7 @@ namespace gaia {
 			};
 			struct ADD_COMPONENT_TO_TEMPENTITY_DATA_t: CommandBufferCmd_t {
 				TempEntity tempEntity;
-				ComponentId compId;
-				ComponentKind compKind;
+				Entity object;
 
 				void commit(CommandBufferCtx& ctx) const {
 					// For delayed entities we have to do a look in our map
@@ -162,44 +155,39 @@ namespace gaia {
 					GAIA_ASSERT(it != ctx.entityMap.end());
 
 					Entity entity = it->second;
-
-					// Components
-					const auto& desc = comp_cache(ctx.world).get(compId);
-					ctx.world.add_inter(entity, compKind, desc);
+					ctx.world.add_inter(entity, object);
 
 					uint32_t indexInChunk{};
 					auto* pChunk = ctx.world.get_chunk(entity, indexInChunk);
 					GAIA_ASSERT(pChunk != nullptr);
 
-					if (compKind == ComponentKind::CK_Uni)
+					if (object.kind() == EntityKind::EK_Uni)
 						indexInChunk = 0;
 
 					// Component data
-					const auto compIdx = pChunk->comp_idx(compKind, compId);
-					auto* pComponentData = (void*)pChunk->comp_ptr_mut(compKind, compIdx, indexInChunk);
-					ctx.load_comp(pComponentData, compId);
+					const auto compIdx = pChunk->comp_idx(object);
+					auto* pComponentData = (void*)pChunk->comp_ptr_mut(object.kind(), compIdx, indexInChunk);
+					ctx.load_comp(pComponentData, object);
 				}
 			};
 			struct SET_COMPONENT_t: CommandBufferCmd_t {
 				Entity entity;
-				ComponentId compId;
-				ComponentKind compKind;
+				Entity object;
 
 				void commit(CommandBufferCtx& ctx) const {
 					const auto& ec = ctx.world.m_entities[entity.id()];
 					auto* pChunk = ec.pChunk;
-					const auto indexInChunk = compKind == ComponentKind::CK_Uni ? 0U : ec.row;
+					const auto indexInChunk = object.kind() == EntityKind::EK_Uni ? 0U : ec.row;
 
 					// Component data
-					const auto compIdx = pChunk->comp_idx(compKind, compId);
-					auto* pComponentData = (void*)pChunk->comp_ptr_mut(compKind, compIdx, indexInChunk);
-					ctx.load_comp(pComponentData, compId);
+					const auto compIdx = pChunk->comp_idx(object);
+					auto* pComponentData = (void*)pChunk->comp_ptr_mut(object.kind(), compIdx, indexInChunk);
+					ctx.load_comp(pComponentData, object);
 				}
 			};
 			struct SET_COMPONENT_FOR_TEMPENTITY_t: CommandBufferCmd_t {
 				TempEntity tempEntity;
-				ComponentId compId;
-				ComponentKind compKind;
+				Entity object;
 
 				void commit(CommandBufferCtx& ctx) const {
 					// For delayed entities we have to do a look in our map
@@ -212,22 +200,20 @@ namespace gaia {
 
 					const auto& ec = ctx.world.m_entities[entity.id()];
 					auto* pChunk = ec.pChunk;
-					const auto indexInChunk = compKind == ComponentKind::CK_Uni ? 0U : ec.row;
+					const auto indexInChunk = object.kind() == EntityKind::EK_Uni ? 0U : ec.row;
 
 					// Component data
-					const auto compIdx = pChunk->comp_idx(compKind, compId);
-					auto* pComponentData = (void*)pChunk->comp_ptr_mut(compKind, compIdx, indexInChunk);
-					ctx.load_comp(pComponentData, compId);
+					const auto compIdx = pChunk->comp_idx(object);
+					auto* pComponentData = (void*)pChunk->comp_ptr_mut(object.kind(), compIdx, indexInChunk);
+					ctx.load_comp(pComponentData, object);
 				}
 			};
 			struct REMOVE_COMPONENT_t: CommandBufferCmd_t {
 				Entity entity;
-				ComponentId compId;
-				ComponentKind compKind;
+				Entity object;
 
 				void commit(CommandBufferCtx& ctx) const {
-					const auto& desc = comp_cache(ctx.world).get(compId);
-					ctx.world.del_inter(entity, compKind, desc);
+					ctx.world.del_inter(entity, object);
 				}
 			};
 
@@ -306,15 +292,14 @@ namespace gaia {
 				const auto& desc = comp_cache_add<T>(m_ctx.world);
 
 				using U = typename component_type_t<T>::Type;
-				constexpr auto compKind = component_kind_v<T>;
+				constexpr auto compKind = entity_kind_v<T>;
 				verify_comp<U>(compKind);
 
 				m_ctx.save(ADD_COMPONENT);
 
 				ADD_COMPONENT_t cmd;
 				cmd.entity = entity;
-				cmd.compKind = compKind;
-				cmd.compId = desc.comp.id();
+				cmd.object = desc.entity;
 				ser::save(m_ctx, cmd);
 			}
 
@@ -327,15 +312,14 @@ namespace gaia {
 				const auto& desc = comp_cache_add<T>(m_ctx.world);
 
 				using U = typename component_type_t<T>::Type;
-				constexpr auto compKind = component_kind_v<T>;
+				constexpr auto compKind = entity_kind_v<T>;
 				verify_comp<U>(compKind);
 
 				m_ctx.save(ADD_COMPONENT_TO_TEMPENTITY);
 
 				ADD_COMPONENT_TO_TEMPENTITY_t cmd;
 				cmd.tempEntity = entity;
-				cmd.compKind = compKind;
-				cmd.compId = desc.comp.id();
+				cmd.object = desc.entity;
 				ser::save(m_ctx, cmd);
 			}
 
@@ -348,15 +332,14 @@ namespace gaia {
 				const auto& desc = comp_cache_add<T>(m_ctx.world);
 
 				using U = typename component_type_t<T>::Type;
-				constexpr auto compKind = component_kind_v<T>;
+				constexpr auto compKind = entity_kind_v<T>;
 				verify_comp<U>(compKind);
 
 				m_ctx.save(ADD_COMPONENT_DATA);
 
 				ADD_COMPONENT_DATA_t cmd;
 				cmd.entity = entity;
-				cmd.compKind = compKind;
-				cmd.compId = desc.comp.id();
+				cmd.object = desc.entity;
 				ser::save(m_ctx, cmd);
 				m_ctx.save_comp(GAIA_FWD(value));
 			}
@@ -370,15 +353,14 @@ namespace gaia {
 				const auto& desc = comp_cache_add<T>(m_ctx.world);
 
 				using U = typename component_type_t<T>::Type;
-				constexpr auto compKind = component_kind_v<T>;
+				constexpr auto compKind = entity_kind_v<T>;
 				verify_comp<U>(compKind);
 
 				m_ctx.save(ADD_COMPONENT_TO_TEMPENTITY_DATA);
 
 				ADD_COMPONENT_TO_TEMPENTITY_t cmd;
 				cmd.tempEntity = entity;
-				cmd.compKind = compKind;
-				cmd.compId = desc.comp.id();
+				cmd.object = desc.entity;
 				ser::save(m_ctx, cmd);
 				m_ctx.save_comp(GAIA_FWD(value));
 			}
@@ -388,9 +370,8 @@ namespace gaia {
 			*/
 			template <typename T>
 			void set(Entity entity, T&& value) {
-				// No need to check if the component is registered.
-				// If we want to set the value of a component we must have created it already.
-				// (void)comp_cache(ctx.world).get<T>();
+				// Make sure the component is registered
+				const auto& desc = comp_cache_add<T>(m_ctx.world);
 
 				using U = typename component_type_t<T>::Type;
 				verify_comp<U>();
@@ -399,8 +380,7 @@ namespace gaia {
 
 				SET_COMPONENT_t cmd;
 				cmd.entity = entity;
-				cmd.compKind = component_kind_v<T>;
-				cmd.compId = comp_cache(m_ctx.world).get<U>().comp.id();
+				cmd.object = desc.entity;
 				ser::save(m_ctx, cmd);
 				m_ctx.save_comp(GAIA_FWD(value));
 			}
@@ -411,9 +391,8 @@ namespace gaia {
 			*/
 			template <typename T>
 			void set(TempEntity entity, T&& value) {
-				// No need to check if the component is registered.
-				// If we want to set the value of a component we must have created it already.
-				// (void)m_ctx.world.comp_cache_mut().add<T>();
+				// Make sure the component is registered
+				const auto& desc = comp_cache_add<T>(m_ctx.world);
 
 				using U = typename component_type_t<T>::Type;
 				verify_comp<U>();
@@ -422,8 +401,7 @@ namespace gaia {
 
 				SET_COMPONENT_FOR_TEMPENTITY_t cmd;
 				cmd.tempEntity = entity;
-				cmd.compKind = component_kind_v<T>;
-				cmd.compId = comp_cache(m_ctx.world).get<U>().comp.id();
+				cmd.object = desc.entity;
 				ser::save(m_ctx, cmd);
 				m_ctx.save_comp(GAIA_FWD(value));
 			}
@@ -433,9 +411,8 @@ namespace gaia {
 			*/
 			template <typename T>
 			void del(Entity entity) {
-				// No need to check if the component is registered.
-				// If we want to remove a component we must have created it already.
-				// (void)m_ctx.world.comp_cache_mut().add<T>();
+				// Make sure the component is registered
+				const auto& desc = comp_cache_add<T>(m_ctx.world);
 
 				using U = typename component_type_t<T>::Type;
 				verify_comp<U>();
@@ -444,8 +421,7 @@ namespace gaia {
 
 				REMOVE_COMPONENT_t cmd;
 				cmd.entity = entity;
-				cmd.compKind = component_kind_v<T>;
-				cmd.compId = comp_cache(m_ctx.world).get<U>().comp.id();
+				cmd.object = desc.entity;
 				ser::save(m_ctx, cmd);
 			}
 
