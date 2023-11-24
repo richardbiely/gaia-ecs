@@ -593,6 +593,10 @@ namespace gaia {
 				return true;
 			}
 
+			GAIA_NODISCARD constexpr bool operator!=(const darr& other) const {
+				return !operator==(other);
+			}
+
 			template <size_t Item>
 			auto soa_view_mut() noexcept {
 				return mem::data_view_policy<T::Layout, T>::template get<Item>(
